@@ -1,0 +1,36 @@
+#this is a sample configuration file for generate_module
+#you would use it by calling generate_module with the -ygenerate_config.yml option
+#files like this are useful for customizing generate_module to your environment
+:generate_module:
+  :defaults:
+    #these defaults are used in place of any missing options at the command line
+    :path_src: ../src/
+    :path_inc: ../src/
+    :path_tst: ../test/
+    :update_svn: true
+  :includes:
+    #use [] for no additional includes, otherwise list the includes on separate lines
+    :src:
+      - Defs.h
+      - Board.h
+    :inc: []
+    :tst:
+      - Defs.h
+      - Board.h
+      - Exception.h
+  :boilerplates: 
+    #these are inserted at the top of generated files.
+    #just comment out or remove if not desired.
+    #use %1$s where you would like the file name to appear (path/extension not included)
+    :src: |
+      //-------------------------------------------
+      // %1$s.c
+      //-------------------------------------------
+    :inc: |
+      //-------------------------------------------
+      // %1$s.h
+      //-------------------------------------------
+    :tst: |
+      //-------------------------------------------
+      // Test%1$s.c : Units tests for %1$s.c
+      //-------------------------------------------

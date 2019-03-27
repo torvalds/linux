@@ -1,0 +1,92 @@
+.\"
+.\" Copyright (c) 2006 Ceri Davies <ceri@FreeBSD.org>
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 19, 2006
+.Dt CR_CANSEE 9
+.Os
+.Sh NAME
+.Nm cr_cansee
+.Nd "determine visibility of objects given their user credentials"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/systm.h
+.In sys/ucred.h
+.Ft int
+.Fn cr_cansee "struct ucred *u1" "struct ucred *u2"
+.Sh DESCRIPTION
+This function determines the visibility of objects in the
+kernel based on the real user IDs and group IDs in the credentials
+.Fa u1
+and
+.Fa u2
+associated with them.
+.Pp
+The visibility of objects is influenced by the
+.Xr sysctl 8
+variables
+.Va security.bsd.see_other_gids
+and
+.Va security.bsd.see_other_uids ,
+as per the description in
+.Xr cr_seeothergids 9
+and
+.Xr cr_seeotheruids 9
+respectively.
+.Sh RETURN VALUES
+This function returns zero if the object with credential
+.Fa u1
+can
+.Dq see
+the object with credential
+.Fa u2 ,
+or
+.Er ESRCH
+otherwise.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ESRCH
+The object with credential
+.Fa u1
+cannot
+.Dq see
+the object with credential
+.Fa u2 .
+.It Bq Er ESRCH
+The object with credential
+.Fa u1
+has been jailed and the object with credential
+.Fa u2
+does not belong to the same jail as
+.Fa u1 .
+.It Bq Er ESRCH
+The MAC subsystem denied visibility.
+.El
+.Sh SEE ALSO
+.Xr cr_seeothergids 9 ,
+.Xr cr_seeotheruids 9 ,
+.Xr mac 9 ,
+.Xr p_cansee 9

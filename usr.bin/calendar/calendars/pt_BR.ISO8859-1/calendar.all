@@ -1,0 +1,15 @@
+/*
+ * $FreeBSD$
+ *
+ * Brazilian calendar originally submitted by
+ * Renato Tambellini <rtsanch@gmail.com>
+ */
+
+#ifndef _pt_BR_ISO8859_1_all_
+#define _pt_BR_ISO8859_1_all_
+
+#include <pt_BR.ISO8859-1/calendar.holidays>
+#include <pt_BR.ISO8859-1/calendar.commemorative>
+#include <pt_BR.ISO8859-1/calendar.mcommemorative>
+
+#endif /* !_pt_BR.ISO8859_1_all_ */

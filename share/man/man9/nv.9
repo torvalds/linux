@@ -1,0 +1,968 @@
+.\"
+.\" Copyright (c) 2013 The FreeBSD Foundation
+.\" Copyright (c) 2013-2015 Mariusz Zaborski <oshogbo@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Pawel Jakub Dawidek under sponsorship
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 19, 2018
+.Dt NV 9
+.Os
+.Sh NAME
+.Nm nvlist_create ,
+.Nm nvlist_destroy ,
+.Nm nvlist_error ,
+.Nm nvlist_set_error ,
+.Nm nvlist_empty ,
+.Nm nvlist_flags ,
+.Nm nvlist_exists ,
+.Nm nvlist_free ,
+.Nm nvlist_clone ,
+.Nm nvlist_dump ,
+.Nm nvlist_fdump ,
+.Nm nvlist_size ,
+.Nm nvlist_pack ,
+.Nm nvlist_unpack ,
+.Nm nvlist_send ,
+.Nm nvlist_recv ,
+.Nm nvlist_xfer ,
+.Nm nvlist_in_array ,
+.Nm nvlist_next ,
+.Nm nvlist_add ,
+.Nm nvlist_move ,
+.Nm nvlist_get ,
+.Nm nvlist_take ,
+.Nm nvlist_append
+.Nd "library for name/value pairs"
+.Sh LIBRARY
+.Lb libnv
+.Sh SYNOPSIS
+.In sys/nv.h
+.Ft "nvlist_t *"
+.Fn nvlist_create "int flags"
+.Ft void
+.Fn nvlist_destroy "nvlist_t *nvl"
+.Ft int
+.Fn nvlist_error "const nvlist_t *nvl"
+.Ft void
+.Fn nvlist_set_error "nvlist_t *nvl" "int error"
+.Ft bool
+.Fn nvlist_empty "const nvlist_t *nvl"
+.Ft int
+.Fn nvlist_flags "const nvlist_t *nvl"
+.Ft bool
+.Fn nvlist_in_array "const nvlist_t *nvl"
+.\"
+.Ft "nvlist_t *"
+.Fn nvlist_clone "const nvlist_t *nvl"
+.\"
+.Ft void
+.Fn nvlist_dump "const nvlist_t *nvl" "int fd"
+.Ft void
+.Fn nvlist_fdump "const nvlist_t *nvl" "FILE *fp"
+.\"
+.Ft size_t
+.Fn nvlist_size "const nvlist_t *nvl"
+.Ft "void *"
+.Fn nvlist_pack "const nvlist_t *nvl" "size_t *sizep"
+.Ft "nvlist_t *"
+.Fn nvlist_unpack "const void *buf" "size_t size" "int flags"
+.\"
+.Ft int
+.Fn nvlist_send "int sock" "const nvlist_t *nvl"
+.Ft "nvlist_t *"
+.Fn nvlist_recv "int sock" "int flags"
+.Ft "nvlist_t *"
+.Fn nvlist_xfer "int sock" "nvlist_t *nvl" "int flags"
+.\"
+.Ft "const char *"
+.Fn nvlist_next "const nvlist_t *nvl" "int *typep" "void **cookiep"
+.\"
+.Ft bool
+.Fn nvlist_exists "const nvlist_t *nvl" "const char *name"
+.Ft bool
+.Fn nvlist_exists_type "const nvlist_t *nvl" "const char *name" "int type"
+.Ft bool
+.Fn nvlist_exists_null "const nvlist_t *nvl" "const char *name"
+.Ft bool
+.Fn nvlist_exists_bool "const nvlist_t *nvl" "const char *name"
+.Ft bool
+.Fn nvlist_exists_number "const nvlist_t *nvl" "const char *name"
+.Ft bool
+.Fn nvlist_exists_string "const nvlist_t *nvl" "const char *name"
+.Ft bool
+.Fn nvlist_exists_nvlist "const nvlist_t *nvl" "const char *name"
+.Ft bool
+.Fn nvlist_exists_descriptor "const nvlist_t *nvl" "const char *name"
+.Ft bool
+.Fn nvlist_exists_binary "const nvlist_t *nvl" "const char *name"
+.Ft bool
+.Fn nvlist_exists_bool_array "const nvlist_t *nvl" "const char *name"
+.Ft bool
+.Fn nvlist_exists_number_array "const nvlist_t *nvl" "const char *name"
+.Ft bool
+.Fn nvlist_exists_string_array "const nvlist_t *nvl" "const char *name"
+.Ft bool
+.Fn nvlist_exists_nvlist_array "const nvlist_t *nvl" "const char *name"
+.Ft bool
+.Fn nvlist_exists_descriptor_array "const nvlist_t *nvl" "const char *name"
+.\"
+.Ft void
+.Fn nvlist_add_null "nvlist_t *nvl" "const char *name"
+.Ft void
+.Fn nvlist_add_bool "nvlist_t *nvl" "const char *name" "bool value"
+.Ft void
+.Fn nvlist_add_number "nvlist_t *nvl" "const char *name" "uint64_t value"
+.Ft void
+.Fn nvlist_add_string "nvlist_t *nvl" "const char *name" "const char *value"
+.Ft void
+.Fn nvlist_add_stringf "nvlist_t *nvl" "const char *name" "const char *valuefmt" "..."
+.Ft void
+.Fn nvlist_add_stringv "nvlist_t *nvl" "const char *name" "const char *valuefmt" "va_list valueap"
+.Ft void
+.Fn nvlist_add_nvlist "nvlist_t *nvl" "const char *name" "const nvlist_t *value"
+.Ft void
+.Fn nvlist_add_descriptor "nvlist_t *nvl" "const char *name" "int value"
+.Ft void
+.Fn nvlist_add_binary "nvlist_t *nvl" "const char *name" "const void *value" "size_t size"
+.Ft void
+.Fn nvlist_add_bool_array "nvlist_t *nvl" "const char *name" "const bool *value" "size_t nitems"
+.
+.Ft void
+.Fn nvlist_add_number_array "nvlist_t *nvl" "const char *name" "const uint64_t *value" "size_t nitems"
+.
+.Ft void
+.Fn nvlist_add_string_array "nvlist_t *nvl" "const char *name" "const char * const * value" "size_t nitems"
+.
+.Ft void
+.Fn nvlist_add_nvlist_array "nvlist_t *nvl" "const char *name" "const nvlist_t * const * value" "size_t nitems"
+.
+.Ft void
+.Fn nvlist_add_descriptor_array "nvlist_t *nvl" "const char *name" "const int *value" "size_t nitems"
+.\"
+.Ft void
+.Fn nvlist_move_string "nvlist_t *nvl" "const char *name" "char *value"
+.Ft void
+.Fn nvlist_move_nvlist "nvlist_t *nvl" "const char *name" "nvlist_t *value"
+.Ft void
+.Fn nvlist_move_descriptor "nvlist_t *nvl" "const char *name" "int value"
+.Ft void
+.Fn nvlist_move_binary "nvlist_t *nvl" "const char *name" "void *value" "size_t size"
+.Ft void
+.Fn nvlist_move_bool_array "nvlist_t *nvl" "const char *name" "bool *value" "size_t nitems"
+.
+.Ft void
+.Fn nvlist_move_number_array "nvlist_t *nvl" "const char *name" "uint64_t *value" "size_t nitems"
+.
+.Ft void
+.Fn nvlist_move_string_array "nvlist_t *nvl" "const char *name" "char **value" "size_t nitems"
+.
+.Ft void
+.Fn nvlist_move_nvlist_array "nvlist_t *nvl" "const char *name" "nvlist_t **value" "size_t nitems"
+.
+.Ft void
+.Fn nvlist_move_descriptor_array "nvlist_t *nvl" "const char *name" "int *value" "size_t nitems"
+.\"
+.Ft bool
+.Fn nvlist_get_bool "const nvlist_t *nvl" "const char *name"
+.Ft uint64_t
+.Fn nvlist_get_number "const nvlist_t *nvl" "const char *name"
+.Ft "const char *"
+.Fn nvlist_get_string "const nvlist_t *nvl" "const char *name"
+.Ft "const nvlist_t *"
+.Fn nvlist_get_nvlist "const nvlist_t *nvl" "const char *name"
+.Ft int
+.Fn nvlist_get_descriptor "const nvlist_t *nvl" "const char *name"
+.Ft "const void *"
+.Fn nvlist_get_binary "const nvlist_t *nvl" "const char *name" "size_t *sizep"
+.Ft "const bool *"
+.Fn nvlist_get_bool_array "const nvlist_t *nvl" "const char *name" "size_t *nitems"
+.Ft "const uint64_t *"
+.Fn nvlist_get_number_array "const nvlist_t *nvl" "const char *name" "size_t *nitems"
+.Ft "const char * const *"
+.Fn nvlist_get_string_array "const nvlist_t *nvl" "const char *name" "size_t *nitems"
+.Ft "const nvlist_t * const *"
+.Fn nvlist_get_nvlist_array "const nvlist_t *nvl" "const char *name" "size_t *nitems"
+.Ft "const int *"
+.Fn nvlist_get_descriptor_array "const nvlist_t *nvl" "const char *name" "size_t *nitems"
+.Ft "const nvlist_t *"
+.Fn nvlist_get_parent "const nvlist_t *nvl" "void **cookiep"
+.Ft "const nvlist_t *"
+.Fn nvlist_get_array_next "const nvlist_t *nvl"
+.Ft "const nvlist_t *"
+.Fn nvlist_get_pararr "const nvlist_t *nvl" "void **cookiep"
+.\"
+.Ft bool
+.Fn nvlist_take_bool "nvlist_t *nvl" "const char *name"
+.Ft uint64_t
+.Fn nvlist_take_number "nvlist_t *nvl" "const char *name"
+.Ft "char *"
+.Fn nvlist_take_string "nvlist_t *nvl" "const char *name"
+.Ft "nvlist_t *"
+.Fn nvlist_take_nvlist "nvlist_t *nvl" "const char *name"
+.Ft int
+.Fn nvlist_take_descriptor "nvlist_t *nvl" "const char *name"
+.Ft "void *"
+.Fn nvlist_take_binary "nvlist_t *nvl" "const char *name" "size_t *sizep"
+.Ft "bool *"
+.Fn nvlist_take_bool_array "nvlist_t *nvl" "const char *name" "size_t *nitems"
+.Ft "uint64_t **"
+.Fn nvlist_take_number_array "nvlist_t *nvl" "const char *name" "size_t *nitems"
+.Ft "char **"
+.Fn nvlist_take_string_array "nvlist_t *nvl" "const char *name" "size_t *nitems"
+.Ft "nvlist_t **"
+.Fn nvlist_take_nvlist_array "nvlist_t *nvl" "const char *name" "size_t *nitems"
+.Ft "int *"
+.Fn nvlist_take_descriptor_array "nvlist_t *nvl" "const char *name" "size_t *nitems"
+.\"
+.Ft void
+.Fn nvlist_append_bool_array "nvlist_t *nvl" "const char *name" "const bool value"
+.Ft void
+.Fn nvlist_append_number_array "nvlist_t *nvl" "const char *name" "const uint64_t value"
+.Ft void
+.Fn nvlist_append_string_array "nvlist_t *nvl" "const char *name" "const char * const value"
+.Ft void
+.Fn nvlist_append_nvlist_array "nvlist_t *nvl" "const char *name" "const nvlist_t * const value"
+.Ft void
+.Fn nvlist_append_descriptor_array "nvlist_t *nvl" "const char *name" "int value"
+.\"
+.Ft void
+.Fn nvlist_free "nvlist_t *nvl" "const char *name"
+.Ft void
+.Fn nvlist_free_type "nvlist_t *nvl" "const char *name" "int type"
+.\"
+.Ft void
+.Fn nvlist_free_null "nvlist_t *nvl" "const char *name"
+.Ft void
+.Fn nvlist_free_bool "nvlist_t *nvl" "const char *name"
+.Ft void
+.Fn nvlist_free_number "nvlist_t *nvl" "const char *name"
+.Ft void
+.Fn nvlist_free_string "nvlist_t *nvl" "const char *name"
+.Ft void
+.Fn nvlist_free_nvlist "nvlist_t *nvl" "const char *name"
+.Ft void
+.Fn nvlist_free_descriptor "nvlist_t *nvl" "const char *name"
+.Ft void
+.Fn nvlist_free_binary "nvlist_t *nvl" "const char *name"
+.Ft void
+.Fn nvlist_free_bool_array "nvlist_t *nvl" "const char *name"
+.Ft void
+.Fn nvlist_free_number_array "nvlist_t *nvl" "const char *name"
+.Ft void
+.Fn nvlist_free_string_array "nvlist_t *nvl" "const char *name"
+.Ft void
+.Fn nvlist_free_nvlist_array "nvlist_t *nvl" "const char *name"
+.Ft void
+.Fn nvlist_free_descriptor_array "nvlist_t *nvl" "const char *name"
+.Sh DESCRIPTION
+The
+.Nm libnv
+library allows to easily manage name value pairs as well as send and receive
+them over sockets.
+A group (list) of name value pairs is called an
+.Nm nvlist .
+The API supports the following data types:
+.Bl -ohang -offset indent
+.It Sy null ( NV_TYPE_NULL )
+There is no data associated with the name.
+.It Sy bool ( NV_TYPE_BOOL )
+The value can be either
+.Dv true
+or
+.Dv false .
+.It Sy number ( NV_TYPE_NUMBER )
+The value is a number stored as
+.Vt uint64_t .
+.It Sy string ( NV_TYPE_STRING )
+The value is a C string.
+.It Sy nvlist ( NV_TYPE_NVLIST )
+The value is a nested nvlist.
+.It Sy descriptor ( NV_TYPE_DESCRIPTOR )
+The value is a file descriptor.
+Note that file descriptors can be sent only over
+.Xr unix 4
+domain sockets.
+.It Sy binary ( NV_TYPE_BINARY )
+The value is a binary buffer.
+.It Sy bool array ( NV_TYPE_BOOL_ARRAY )
+The value is an array of boolean values.
+.It Sy number array ( NV_TYPE_NUMBER_ARRAY )
+The value is an array of numbers, each stored as
+.Vt uint64_t .
+.It Sy string array ( NV_TYPE_STRING_ARRAY )
+The value is an array of C strings.
+.It Sy nvlist array  ( NV_TYPE_NVLIST_ARRAY )
+The value is an array of nvlists.
+When an nvlist is added to an array, it becomes part of the primary nvlist.
+Traversing these arrays can be done using the
+.Fn nvlist_get_array_next
+and
+.Fn nvlist_get_pararr
+functions.
+.It Sy descriptor array ( NV_TYPE_DESCRIPTOR_ARRAY )
+The value is an array of files descriptors.
+.El
+.Pp
+The
+.Fn nvlist_create
+function allocates memory and initializes an nvlist.
+.Pp
+The following flag can be provided:
+.Pp
+.Bl -tag -width "NV_FLAG_IGNORE_CASE" -compact -offset indent
+.It Dv NV_FLAG_IGNORE_CASE
+Perform case-insensitive lookups of provided names.
+.It Dv NV_FLAG_NO_UNIQUE
+Names in the nvlist do not have to be unique.
+.El
+.Pp
+The
+.Fn nvlist_destroy
+function destroys the given nvlist.
+Function does nothing if
+.Dv NULL
+nvlist is provided.
+Function never modifies the
+.Va errno
+global variable.
+.Pp
+The
+.Fn nvlist_error
+function returns any error value that the nvlist accumulated.
+If the given nvlist is
+.Dv NULL
+the
+.Er ENOMEM
+error will be returned.
+.Pp
+The
+.Fn nvlist_set_error
+function sets an nvlist to be in the error state.
+Subsequent calls to
+.Fn nvlist_error
+will return the given error value.
+This function cannot be used to clear the error state from an nvlist.
+This function does nothing if the nvlist is already in the error state.
+.Pp
+The
+.Fn nvlist_empty
+function returns
+.Dv true
+if the given nvlist is empty and
+.Dv false
+otherwise.
+The nvlist must not be in error state.
+.Pp
+The
+.Fn nvlist_flags
+function returns flags used to create the nvlist with the
+.Fn nvlist_create
+function.
+.Pp
+The
+.Fn nvlist_in_array
+function returns
+.Dv true
+if
+.Fa nvl
+is part of an array that is a member of another nvlist.
+.Pp
+The
+.Fn nvlist_clone
+functions clones the given nvlist.
+The clone shares no resources with its origin.
+This also means that all file descriptors that are part of the nvlist will be
+duplicated with the
+.Xr dup 2
+system call before placing them in the clone.
+.Pp
+The
+.Fn nvlist_dump
+dumps nvlist content for debugging purposes to the given file descriptor
+.Fa fd .
+.Pp
+The
+.Fn nvlist_fdump
+dumps nvlist content for debugging purposes to the given file stream
+.Fa fp .
+.Pp
+The
+.Fn nvlist_size
+function returns the size of the given nvlist after converting it to binary
+buffer with the
+.Fn nvlist_pack
+function.
+.Pp
+The
+.Fn nvlist_pack
+function converts the given nvlist to a binary buffer.
+The function allocates memory for the buffer, which should be freed with the
+.Xr free 3
+function.
+If the
+.Fa sizep
+argument is not
+.Dv NULL ,
+the size of the buffer will be stored there.
+The function returns
+.Dv NULL
+in case of an error (allocation failure).
+If the nvlist contains any file descriptors
+.Dv NULL
+will be returned.
+The nvlist must not be in error state.
+.Pp
+The
+.Fn nvlist_unpack
+function converts the given buffer to the nvlist.
+The
+.Fa flags
+argument defines what type of the top level nvlist is expected to be.
+Flags are set up using the
+.Fn nvlist_create
+function.
+If the nvlist flags do not match the flags passed to
+.Fn nvlist_unpack ,
+the nvlist will not be returned.
+Every nested nvlist list should be checked using
+.Fn nvlist_flags
+function.
+The function returns
+.Dv NULL
+in case of an error.
+.Pp
+The
+.Fn nvlist_send
+function sends the given nvlist over the socket given by the
+.Fa sock
+argument.
+Note that nvlist that contains file descriptors can only be send over
+.Xr unix 4
+domain sockets.
+.Pp
+The
+.Fn nvlist_recv
+function receives nvlist over the socket given by the
+.Fa sock
+argument.
+The
+.Fa flags
+argument defines what type of the top level nvlist is expected to be.
+Flags are set up using the
+.Fn nvlist_create
+function.
+If the nvlist flags do not match the flags passed to
+.Fn nvlist_recv ,
+the nvlist will not be returned.
+Every nested nvlist list should be checked using
+.Fn nvlist_flags
+function.
+.Pp
+The
+.Fn nvlist_xfer
+function sends the given nvlist over the socket given by the
+.Fa sock
+argument and receives nvlist over the same socket.
+The
+.Fa flags
+argument defines what type of the top level nvlist is expected to be.
+Flags are set up using the
+.Fn nvlist_create
+function.
+If the nvlist flags do not match the flags passed to
+.Fn nvlist_xfer ,
+the nvlist will not be returned.
+Every nested nvlist list should be checked using
+.Fn nvlist_flags
+function.
+The given nvlist is always destroyed.
+.Pp
+The
+.Fn nvlist_next
+function iterates over the given nvlist returning names and types of subsequent
+elements.
+The
+.Fa cookiep
+argument allows the function to figure out which element should be returned
+next.
+The
+.Va *cookiep
+should be set to
+.Dv NULL
+for the first call and should not be changed later.
+Returning
+.Dv NULL
+means there are no more elements on the nvlist.
+The
+.Fa typep
+argument can be NULL.
+Elements may not be removed from the nvlist while traversing it.
+The nvlist must not be in error state.
+Note that
+.Fn nvlist_next
+will handle
+.Va cookiep
+being set to
+.Dv NULL .
+In this case first element is returned or
+.Dv NULL
+if nvlist is empty.
+This behavior simplifies removing the first element from the list.
+.Pp
+The
+.Fn nvlist_exists
+function returns
+.Dv true
+if element of the given name exists (besides of its type) or
+.Dv false
+otherwise.
+The nvlist must not be in error state.
+.Pp
+The
+.Fn nvlist_exists_type
+function returns
+.Dv true
+if element of the given name and the given type exists or
+.Dv false
+otherwise.
+The nvlist must not be in error state.
+.Pp
+The
+.Fn nvlist_exists_null ,
+.Fn nvlist_exists_bool ,
+.Fn nvlist_exists_number ,
+.Fn nvlist_exists_string ,
+.Fn nvlist_exists_nvlist ,
+.Fn nvlist_exists_descriptor ,
+.Fn nvlist_exists_binary ,
+.Fn nvlist_exists_bool_array ,
+.Fn nvlist_exists_number_array ,
+.Fn nvlist_exists_string_array ,
+.Fn nvlist_exists_nvlist_array ,
+.Fn nvlist_exists_descriptor_array
+functions return
+.Dv true
+if element of the given name and the given type determined by the function name
+exists or
+.Dv false
+otherwise.
+The nvlist must not be in error state.
+.Pp
+The
+.Fn nvlist_add_null ,
+.Fn nvlist_add_bool ,
+.Fn nvlist_add_number ,
+.Fn nvlist_add_string ,
+.Fn nvlist_add_stringf ,
+.Fn nvlist_add_stringv ,
+.Fn nvlist_add_nvlist ,
+.Fn nvlist_add_descriptor ,
+.Fn nvlist_add_binary ,
+.Fn nvlist_add_bool_array ,
+.Fn nvlist_add_number_array ,
+.Fn nvlist_add_string_array ,
+.Fn nvlist_add_nvlist_array ,
+.Fn nvlist_add_descriptor_array
+functions add element to the given nvlist.
+When adding string or binary buffer the functions will allocate memory
+and copy the data over.
+When adding nvlist, the nvlist will be cloned and clone will be added.
+When adding descriptor, the descriptor will be duplicated using the
+.Xr dup 2
+system call and the new descriptor will be added.
+The array functions will fail if there are any
+.Dv NULL
+elements in the array, or if the array pointer is
+.Dv NULL .
+If an error occurs while adding new element, internal error is set which can be
+examined using the
+.Fn nvlist_error
+function.
+.Pp
+The
+.Fn nvlist_move_string ,
+.Fn nvlist_move_nvlist ,
+.Fn nvlist_move_descriptor ,
+.Fn nvlist_move_binary ,
+.Fn nvlist_move_bool_array ,
+.Fn nvlist_move_number_array ,
+.Fn nvlist_move_string_array ,
+.Fn nvlist_move_nvlist_array ,
+.Fn nvlist_move_descriptor_array
+functions add new element to the given nvlist, but unlike
+.Fn nvlist_add_<type>
+functions they will consume the given resource.
+In the case of strings, descriptors, or nvlists every elements must be
+unique, or it could cause a double free.
+The array functions will fail if there are any
+.Dv NULL
+elements, or if the array pointer is
+.Dv NULL .
+If an error occurs while adding new element, the resource is destroyed and
+internal error is set which can be examined using the
+.Fn nvlist_error
+function.
+.Pp
+The
+.Fn nvlist_get_bool ,
+.Fn nvlist_get_number ,
+.Fn nvlist_get_string ,
+.Fn nvlist_get_nvlist ,
+.Fn nvlist_get_descriptor ,
+.Fn nvlist_get_binary ,
+.Fn nvlist_get_bool_array ,
+.Fn nvlist_get_number_array ,
+.Fn nvlist_get_string_array ,
+.Fn nvlist_get_nvlist_array ,
+.Fn nvlist_get_descriptor_array
+functions return the value that corresponds to the given key name.
+In the case of strings, nvlists, descriptors, binary, or arrays, the returned
+resource should not be modified - they still belong to the nvlist.
+If an element of the given name does not exist, the program will be aborted.
+To avoid this, the caller should check for the existence of the name before
+trying to obtain the value, or use the
+.Xr dnvlist 3
+extension, which can provide a default value in the case of a missing element.
+The nvlist must not be in error state.
+.Pp
+The
+.Fn nvlist_get_parent
+function returns the parent nvlist of the nested nvlist.
+.Pp
+The
+.Fn nvlist_get_array_next
+function returns the next element from the array or
+.Dv NULL
+if the nvlist is not in array or it is the last element.
+Note that
+.Fn nvlist_get_array_next
+only works if you added the nvlist array using the
+.Fn nvlist_move_nvlist_array
+or
+.Fn nvlist_add_nvlist_array
+functions.
+.Pp
+The
+.Fn nvlist_get_pararr
+function returns the next element in the array, or if not available
+the parent of the nested nvlist.
+.Pp
+The
+.Fn nvlist_take_bool ,
+.Fn nvlist_take_number ,
+.Fn nvlist_take_string ,
+.Fn nvlist_take_nvlist ,
+.Fn nvlist_take_descriptor ,
+.Fn nvlist_take_binary ,
+.Fn nvlist_take_bool_array ,
+.Fn nvlist_take_number_array ,
+.Fn nvlist_take_string_array ,
+.Fn nvlist_take_nvlist_array ,
+.Fn nvlist_take_descriptor_array
+functions return value associated with the given name and remove the element
+from the nvlist.
+In case of string and binary values, the caller is responsible for free returned
+memory using the
+.Xr free 3
+function.
+In case of nvlist, the caller is responsible for destroying returned nvlist
+using the
+.Fn nvlist_destroy
+function.
+In case of descriptor, the caller is responsible for closing returned descriptor
+using the
+.Fn close 2
+system call.
+If an element of the given name does not exist, the program will be aborted.
+To avoid that the caller should check for the existence of the given name
+before trying to obtain the value, or use the
+.Xr dnvlist 3
+extension, which can provide a default value in the case of a missing element.
+In the case of an array of strings or binary values, the caller is responsible
+for freeing every element of the array using the
+.Xr free 3
+function.
+In the case of an array of nvlists, the caller is responsible for destroying
+every element of array using the
+.Fn nvlist_destroy
+function.
+In the case of descriptors, the caller is responsible for closing every
+element of array using the
+.Fn close 2
+system call.
+In every case involving an array, the caller must also free the pointer to
+the array using the
+.Xr free 3
+function.
+The nvlist must not be in error state.
+.Pp
+The
+.Fn nvlist_append_bool_array ,
+.Fn nvlist_append_number_array ,
+.Fn nvlist_append_string_array ,
+.Fn nvlist_append_nvlist_array ,
+.Fn nvlist_append_descriptor_array
+functions append an element to the existing array using the same semantics
+as the add functions (i.e. the element will be copied when applicable).
+If the array for a given key does not exist, then it will be created
+as if using the
+.Fn nvlist_add_<type>_array
+function.
+The internal error is set on append failure.
+.Pp
+The
+.Fn nvlist_free
+function removes element of the given name from the nvlist (besides of its type)
+and frees all resources associated with it.
+If element of the given name does not exist, the program will be aborted.
+The nvlist must not be in error state.
+.Pp
+The
+.Fn nvlist_free_type
+function removes element of the given name and the given type from the nvlist
+and frees all resources associated with it.
+If element of the given name and the given type does not exist, the program
+will be aborted.
+The nvlist must not be in error state.
+.Pp
+The
+.Fn nvlist_free_null ,
+.Fn nvlist_free_bool ,
+.Fn nvlist_free_number ,
+.Fn nvlist_free_string ,
+.Fn nvlist_free_nvlist ,
+.Fn nvlist_free_descriptor ,
+.Fn nvlist_free_binary ,
+.Fn nvlist_free_bool_array ,
+.Fn nvlist_free_number_array ,
+.Fn nvlist_free_string_array ,
+.Fn nvlist_free_nvlist_array ,
+.Fn nvlist_free_descriptor_array
+functions remove element of the given name and the given type determined by the
+function name from the nvlist and free all resources associated with it.
+If element of the given name and the given type does not exist, the program
+will be aborted.
+The nvlist must not be in error state.
+.Sh NOTES
+The
+.Fn nvlist_pack
+and
+.Fn nvlist_unpack
+functions handle the byte-order conversions, so the binary buffer can be
+packed/unpacked by the hosts with the different endianness.
+.Sh EXAMPLES
+The following example demonstrates how to prepare an nvlist and send it over
+.Xr unix 4
+domain socket.
+.Bd -literal
+nvlist_t *nvl;
+int fd;
+
+fd = open("/tmp/foo", O_RDONLY);
+if (fd < 0)
+        err(1, "open(\\"/tmp/foo\\") failed");
+
+nvl = nvlist_create(0);
+/*
+ * There is no need to check if nvlist_create() succeeded,
+ * as the nvlist_add_<type>() functions can cope.
+ * If it failed, nvlist_send() will fail.
+ */
+nvlist_add_string(nvl, "filename", "/tmp/foo");
+nvlist_add_number(nvl, "flags", O_RDONLY);
+/*
+ * We just want to send the descriptor, so we can give it
+ * for the nvlist to consume (that's why we use nvlist_move
+ * not nvlist_add).
+ */
+nvlist_move_descriptor(nvl, "fd", fd);
+if (nvlist_send(sock, nvl) < 0) {
+	nvlist_destroy(nvl);
+	err(1, "nvlist_send() failed");
+}
+nvlist_destroy(nvl);
+.Ed
+.Pp
+Receiving nvlist and getting data:
+.Bd -literal
+nvlist_t *nvl;
+const char *command;
+char *filename;
+int fd;
+
+nvl = nvlist_recv(sock, 0);
+if (nvl == NULL)
+	err(1, "nvlist_recv() failed");
+
+/* For command we take pointer to nvlist's buffer. */
+command = nvlist_get_string(nvl, "command");
+/*
+ * For filename we remove it from the nvlist and take
+ * ownership of the buffer.
+ */
+filename = nvlist_take_string(nvl, "filename");
+/* The same for the descriptor. */
+fd = nvlist_take_descriptor(nvl, "fd");
+
+printf("command=%s filename=%s fd=%d\n", command, filename, fd);
+
+nvlist_destroy(nvl);
+free(filename);
+close(fd);
+/* command was freed by nvlist_destroy() */
+.Ed
+.Pp
+Iterating over nvlist:
+.Bd -literal
+nvlist_t *nvl;
+const char *name;
+void *cookie;
+int type;
+
+nvl = nvlist_recv(sock, 0);
+if (nvl == NULL)
+	err(1, "nvlist_recv() failed");
+
+cookie = NULL;
+while ((name = nvlist_next(nvl, &type, &cookie)) != NULL) {
+	printf("%s=", name);
+	switch (type) {
+	case NV_TYPE_NUMBER:
+		printf("%ju", (uintmax_t)nvlist_get_number(nvl, name));
+		break;
+	case NV_TYPE_STRING:
+		printf("%s", nvlist_get_string(nvl, name));
+		break;
+	default:
+		printf("N/A");
+		break;
+	}
+	printf("\\n");
+}
+.Ed
+.Pp
+Iterating over every nested nvlist:
+.Bd -literal
+nvlist_t *nvl;
+const char *name;
+void *cookie;
+int type;
+
+nvl = nvlist_recv(sock, 0);
+if (nvl == NULL)
+	err(1, "nvlist_recv() failed");
+
+cookie = NULL;
+do {
+	while ((name = nvlist_next(nvl, &type, &cookie)) != NULL) {
+		if (type == NV_TYPE_NVLIST) {
+			nvl = nvlist_get_nvlist(nvl, name);
+			cookie = NULL;
+		}
+	}
+} while ((nvl = nvlist_get_parent(nvl, &cookie)) != NULL);
+.Ed
+.Pp
+Iterating over every nested nvlist and every nvlist element:
+.Bd -literal
+nvlist_t *nvl;
+const nvlist_t * const *array;
+const char *name;
+void *cookie;
+int type;
+
+nvl = nvlist_recv(sock, 0);
+if (nvl == null)
+	err(1, "nvlist_recv() failed");
+
+cookie = null;
+do {
+	while ((name = nvlist_next(nvl, &type, &cookie)) != NULL) {
+		if (type == NV_TYPE_NVLIST) {
+			nvl = nvlist_get_nvlist(nvl, name);
+			cookie = NULL;
+		} else if (type == NV_TYPE_NVLIST_ARRAY) {
+			nvl = nvlist_get_nvlist_array(nvl, name, NULL)[0];
+			cookie = NULL;
+		}
+	}
+} while ((nvl = nvlist_get_pararr(nvl, &cookie)) != NULL);
+.Ed
+.Pp
+Or alternatively:
+.Bd -literal
+nvlist_t *nvl, *tmp;
+const nvlist_t * const *array;
+const char *name;
+void *cookie;
+int type;
+
+nvl = nvlist_recv(sock, 0);
+if (nvl == null)
+	err(1, "nvlist_recv() failed");
+
+cooke = NULL;
+tmp = nvl;
+do {
+	do {
+		nvl = tmp;
+		while ((name = nvlist_next(nvl, &type, &cookie)) != NULL) {
+			if (type == NV_TYPE_NVLIST) {
+				nvl = nvlist_get_nvlist(nvl,
+				    name);
+				cookie = NULL;
+			} else if (type == NV_TYPE_NVLIST_ARRAY) {
+				nvl = nvlist_get_nvlist_array(nvl, name,
+				    NULL)[0];
+				cookie = NULL;
+			}
+		}
+		cookie = NULL;
+	} while ((tmp = nvlist_get_array_next(nvl)) != NULL);
+} while ((tmp = nvlist_get_parent(nvl, &cookie)) != NULL);
+.Ed
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr dup 2 ,
+.Xr open 2 ,
+.Xr err 3 ,
+.Xr free 3 ,
+.Xr printf 3 ,
+.Xr unix 4
+.Sh HISTORY
+The
+.Nm libnv
+library appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm libnv
+library was implemented by
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
+under sponsorship from the FreeBSD Foundation.

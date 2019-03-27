@@ -1,0 +1,115 @@
+.\"
+.\" Copyright (c) 2000 M. Warner Losh
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 24, 2018
+.Dt SN 4
+.Os
+.Sh NAME
+.Nm sn
+.Nd "Ethernet driver for SMC91Cxx based cards"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device sn"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_sn_load="YES"
+.Ed
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 13.0
+and later.
+See https://github.com/freebsd/fcp/blob/master/fcp-0101.md for more
+information.
+.Sh DESCRIPTION
+The
+.Nm
+device driver supports SMC91Cxx based ISA and PCMCIA cards.
+.Sh HARDWARE
+The
+.Nm
+driver supports SMC91Cxx based ISA and PCMCIA cards including:
+.Pp
+.Bl -bullet -compact
+.It
+3Com Megahertz X-Jack Ethernet PC Card XJ10BT, XJ10BC
+.It
+3Com Megahertz XJEM and CCEM series: CCEM3288C, CCEM3288T, CCEM3336,
+CEM3336C, CCEM3336T, XJEM1144C, XJEM1144T, XJEM3288C, XJEM3288T, XJEM3336
+.It
+Farallon EtherMac PC Card 595a
+.It
+Motorola Mariner Ethernet/Modem PC Card
+.It
+Ositech Seven of Diamonds Ethernet PC Card
+.It
+Ositech Jack of Hearts Ethernet/Modem PC Card
+.It
+Psion Gold Card Netglobal Ethernet PC Card
+.It
+Psion Gold Card Netglobal 10/100 Fast Ethernet PC Card
+.It
+Psion Gold Card Netglobal 56k+10Mb Ethernet PC Card
+.It
+SMC EZEther PC Card (8020BT)
+.It
+SMC EZEther PC Card (8020T)
+.El
+.Pp
+The
+.Nm
+driver supports the SMC 91C90, SMC 91C92, SMC 91C94, SMC 91C95, SMC 91C96,
+SMC91C100 and SMC 91C100FD chips from SMC.
+.Pp
+The Farallon EtherWave and EtherMac card came in two varieties.
+The
+.Xr ep 4
+driver supports the 595 and 895 cards.
+These cards have the blue arrow on the front along with a 3Com logo.
+The Farallon 595a cards, which have a red arrow on the front,
+are also called EtherWave and EtherMac.
+They are supported by the
+.Nm
+driver.
+.Sh SEE ALSO
+.Xr ed 4 ,
+.Xr ep 4 ,
+.Xr intro 4 ,
+.Xr ng_ether 4 ,
+.Xr vx 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver appeared in
+.Fx 4.0 .

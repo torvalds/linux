@@ -1,0 +1,80 @@
+.\" Copyright (c) 1983, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)rwho.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd August 8, 2017
+.Dt RWHO 1
+.Os
+.Sh NAME
+.Nm rwho
+.Nd who is logged in on local machines
+.Sh SYNOPSIS
+.Nm
+.Op Fl a
+.Sh DESCRIPTION
+The
+.Nm
+command produces output similar to
+.Xr who 1 ,
+but for all machines on the local network.
+If no report has been
+received from a machine for 11 minutes then
+.Nm
+assumes the machine is down, and does not report users last known
+to be logged into that machine.
+.Pp
+If a user has not typed to the system for a minute or more, then
+.Nm
+reports this idle time.
+.Pp
+The following option is available:
+.Bl -tag -width indent
+.It Fl a
+Include all users.
+By default, if a user has not typed to the system for
+an hour or more, then the user will be omitted from the output.
+.El
+.Sh FILES
+.Bl -tag -width /var/rwho/whod.* -compact
+.It Pa /var/rwho/whod.*
+information about other machines
+.El
+.Sh SEE ALSO
+.Xr ruptime 1 ,
+.Xr who 1 ,
+.Xr rwhod 8
+.Sh HISTORY
+The
+.Nm
+command
+appeared in
+.Bx 4.3 .
+.Sh BUGS
+This is unwieldy when the number of machines
+on the local net is large.

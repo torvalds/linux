@@ -1,0 +1,119 @@
+.\"-
+.\" Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 23, 1999
+.Dt VOP_SETEXTATTR 9
+.Os
+.Sh NAME
+.Nm VOP_SETEXTATTR
+.Nd set named extended attribute for a vnode
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.In sys/extattr.h
+.Ft int
+.Fn VOP_SETEXTATTR "struct vnode *vp" "int attrnamespace" "const char *name" "struct uio *uio" "struct ucred *cred" "struct thread *td"
+.Sh DESCRIPTION
+This vnode call may be used to set specific named extended attribute for a
+file or directory.
+.Pp
+Its arguments are:
+.Bl -tag -width type
+.It Fa vp
+The vnode of the file or directory.
+.It Fa attrnamespace
+Integer constant indicating which extended attribute namespace the attribute
+name is present in.
+.It Fa name
+Pointer to a null-terminated character string containing the attribute name.
+.It Fa uio
+The location of the data to be read or written.
+.It Fa cred
+The user credentials to use in authorizing the request.
+.It Fa td
+The thread setting the extended attribute.
+.El
+.Pp
+The uio structure is used in a manner similar to the argument of the same
+name in
+.Xr VOP_WRITE 9 .
+However, as extended attributes provide a strict "name=value" semantic,
+non-zero offsets will be rejected.
+.Pp
+The
+.Fa uio
+pointer may be
+.Dv NULL
+to indicate that the specified extended attribute should be deleted.
+.Pp
+The
+.Fa cred
+pointer may be
+.Dv NULL
+to indicate that access control checks are not to be performed, if possible.
+This
+.Fa cred
+setting might be used to allow the kernel to authorize extended attribute
+changes that the active process might not be permitted to make.
+.Pp
+Extended attribute semantics may vary by file system implementing the call.
+More information on extended attributes may be found in
+.Xr extattr 9 .
+.Sh LOCKS
+The vnode will be locked on entry and should remain locked on return.
+.Sh RETURN VALUES
+If the extended attribute is successfully set, then zero is returned.
+Otherwise, an appropriate error code is returned.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EACCES
+The caller does not have the appropriate privilege.
+.It Bq Er ENXIO
+The request was not valid in this file system for the specified vnode and
+attribute name.
+.It Bq Er ENOMEM
+Insufficient memory available to fulfill the request.
+.It Bq Er EFAULT
+The uio structure refers to an invalid userspace address.
+.It Bq Er EINVAL
+The name, namespace, or uio argument is invalid.
+.It Bq Er EOPNOTSUPP
+The file system does not support
+.Fn VOP_SETEXTATTR .
+.It Bq Er ENOSPC
+The file system is out of space.
+.It Bq Er EROFS
+The file system is read-only.
+.El
+.Sh SEE ALSO
+.Xr extattr 9 ,
+.Xr vnode 9 ,
+.Xr VOP_GETEXTATTR 9 ,
+.Xr VOP_LISTEXTATTR 9
+.Sh AUTHORS
+This manual page was written by
+.An Robert Watson .

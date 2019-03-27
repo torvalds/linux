@@ -1,0 +1,99 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_inchstr.3x,v 1.15 2010/12/04 18:36:44 tom Exp $
+.TH curs_inchstr 3X ""
+.na
+.hy 0
+.SH NAME
+\fBinchstr\fR,
+\fBinchnstr\fR,
+\fBwinchstr\fR,
+\fBwinchnstr\fR,
+\fBmvinchstr\fR,
+\fBmvinchnstr\fR,
+\fBmvwinchstr\fR,
+\fBmvwinchnstr\fR \- get a string of characters (and attributes) from a \fBcurses\fR window
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBint inchstr(chtype *chstr);\fR
+.br
+\fBint inchnstr(chtype *chstr, int n);\fR
+.br
+\fBint winchstr(WINDOW *win, chtype *chstr);\fR
+.br
+\fBint winchnstr(WINDOW *win, chtype *chstr, int n);\fR
+.br
+\fBint mvinchstr(int y, int x, chtype *chstr);\fR
+.br
+\fBint mvinchnstr(int y, int x, chtype *chstr, int n);\fR
+.br
+\fBint mvwinchstr(WINDOW *win, int y, int x, chtype *chstr);\fR
+.br
+\fBint mvwinchnstr(WINDOW *win, int y, int x, chtype *chstr, int n);\fR
+.br
+.SH DESCRIPTION
+These routines return a NULL-terminated array of \fBchtype\fR quantities,
+starting at the current cursor position in the named window and ending at the
+right margin of the window.  The four functions with \fIn\fR as
+the last argument, return a leading substring at most \fIn\fR characters long
+(exclusive of the trailing (chtype)0).
+Constants defined in \fB<curses.h>\fR can be used with the \fB&\fR (logical
+AND) operator to extract the character or the attribute alone from any position
+in the \fIchstr\fR [see \fBcurs_inch\fR(3X)].
+.SH RETURN VALUE
+All routines return the integer \fBERR\fR upon failure and an integer value
+other than \fBERR\fR upon successful completion (the number of characters
+retrieved, exclusive of the trailing 0).
+.PP
+No error conditions are defined.
+If the \fIchstr\fP parameter is null,
+no data is returned,
+and the return value is zero.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH NOTES
+Note that all routines except \fBwinchnstr\fR may be macros.  SVr4 does not
+document whether the result string is zero-terminated; it does not document
+whether a length limit argument includes any trailing 0; and it does not
+document the meaning of the return value.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.  It is no
+more specific than the SVr4 documentation on the trailing 0.  It does specify
+that the successful return of the functions is \fBOK\fR.
+.SH SEE ALSO
+\fBcurses\fR(3X), \fBcurs_inch\fR(3X).
+.PP
+Comparable functions in the wide-character (ncursesw) library are
+described in
+\fBcurs_in_wchstr\fR(3X).

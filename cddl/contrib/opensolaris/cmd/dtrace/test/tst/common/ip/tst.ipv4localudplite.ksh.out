@@ -1,0 +1,7 @@
+Minimum UDP-Lite events seen
+
+ip:::send - yes
+ip:::receive - yes
+udplite:::send - yes
+udplite:::receive - yes
+

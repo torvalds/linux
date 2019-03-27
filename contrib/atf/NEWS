@@ -1,0 +1,726 @@
+Major changes between releases                  Automated Testing Framework
+===========================================================================
+
+Changes in version 0.21
+***********************
+
+Released on October 23rd, 2014.
+
+* Restored the atf(7) manual page to serve as a reference to all the other
+  manual pages shipped by ATF.
+
+* Added the -s flag to atf-sh to support specifying the shell interpreter
+  to be used.
+
+* Removed ATF_WORKDIR.  The only remaining consumers have been converted to
+  use the standard TMPDIR environment variable.  As a benefit, and because
+  Kyua forces the TMPDIR to live within the test case's work directory,
+  any stale files left behind by ATF will be automatically cleaned up.
+
+* Documented the environment variables recognized by each component in the
+  relevant manual pages.  This information was lost with the atf-config(1)
+  removal.
+
+* Added a new "require.diskspace" metadata property to test cases so that
+  they can specify the minimum amount of disk space required for the test
+  to run.
+
+* Renamed the atf-{c,c++,sh}-api(3) manual pages to atf-{c,c++,sh}(3) for
+  discoverability purposes.  Symbolic links are provided for the time
+  being to still make the old names visible.
+
+* Issue #5: Recommend the (expected, actual) idiom for calls to the test
+  macros in the manual pages.
+
+* Issue #7: Stopped catching unhandled exceptions in atf-c++ tests.  This
+  propagates the crash to the caller, which in turn allows it to obtain
+  proper debugging information.  In particular, Kyua should now be able to
+  extract a stacktrace pinpointing the problem.
+
+* Issue #8: Fixed atf-c/macros_test:use test failures spotted by the clang
+  that ships with FreeBSD 11.0-CURRENT.
+
+* Issue #12: Improved documentation of atf-sh(3) and atf-check(1) by better
+  explaining how they relate to each other.
+
+* Issue #14: Stopped setting 'set -e' in atf-sh.  This setting was
+  initially added as a way to enable a "strict" mode in the library and to
+  make test cases fail fast when they run unprotected commands.  However,
+  doing so in the library is surprising as the responsibility of enabling
+  'set -e' should be on the user's code.  Also, 'set -e' introduces
+  inconsistent behavior on subshells and users do not expect that.
+
+* Issue #15: Fixed atf_utils_{fork,wait} to support nested calls.
+
+* Issue #16: Fixed test failures (by removing a long-standing hack) on
+  systems that lack \e support in printf(1).
+
+* Issue #19: Removed stale references to atf-config and atf-run.
+
+
+Changes in version 0.20
+***********************
+
+Experimental version released on February 7th, 2014.
+
+This is the first release without the code for the deprecated tools.  If
+you require such code, please fetch a copy of the 0.19 release and extract
+the 'tools' directory for your own consumption.
+
+* Removed the deprecated tools.  This includes atf-config, atf-report,
+  atf-run and atf-version.
+
+* Issue #8: Fixed atf-c/macros_test:use test failures spotted by the clang
+  that ships with FreeBSD 11.0-CURRENT.
+
+
+Changes in version 0.19
+***********************
+
+Experimental version released on February 7th, 2014.
+
+This is the last release to bundle the code for the deprecated tools.
+The next release will drop their code and will stop worrying about
+backwards compatibility between the ATF libraries and what the old tools
+may or may not support.
+
+If you still require the old tools for some reason, grab a copy of the
+'tools' directory now.  The code in this directory is standalone and
+does not depend on any internal details of atf-c++ any longer.
+
+* Various fixes and improvements to support running as part of the FreeBSD
+  test suite.
+
+* Project hosting moved from Google Code (as a subproject of Kyua) to
+  GitHub (as a first-class project).  The main reason for the change is
+  the suppression of binary downloads in Google Code on Jan 15th, 2014.
+  See https://github.com/jmmv/atf/
+
+* Removed builtin help from atf-sh(1) and atf-check(1) for simplicity
+  reasons.  In other words, their -h option is gone.
+
+* Moved the code of the deprecated tools into a 'tools' directory and
+  completely decoupled their code from the internals of atf-c++.  The
+  reason for this is to painlessly allow a third-party to maintain a
+  copy of these tools after we delete them because upcoming changes to
+  atf-c++ would break the stale tools.
+
+
+Changes in version 0.18
+***********************
+
+Experimental version released on November 16th, 2013.
+
+* Issue 45: Added require.memory support in atf-run for FreeBSD.
+
+* Fixed an issue with the handling of cin with libc++.
+
+* Issue 64: Fixed various mandoc formatting warnings.
+
+* NetBSD PR bin/48284: Made atf-check flush its progress message to
+  stdout so that an interrupted test case always shows the last message
+  being executed.
+
+* NetBSD PR bin/48285: Fixed atf_check examples in atf-sh-api(3).
+
+
+Changes in version 0.17
+***********************
+
+Experimental version released on February 14th, 2013.
+
+* Added the atf_utils_cat_file, atf_utils_compare_file,
+  atf_utils_copy_file, atf_utils_create_file, atf_utils_file_exists,
+  atf_utils_fork, atf_utils_grep_file, atf_utils_grep_string,
+  atf_utils_readline, atf_utils_redirect and atf_utils_wait utility
+  functions to atf-c-api.  Documented the already-public
+  atf_utils_free_charpp function.
+
+* Added the cat_file, compare_file, copy_file, create_file, file_exists,
+  fork, grep_collection, grep_file, grep_string, redirect and wait
+  functions to the atf::utils namespace of atf-c++-api.  These are
+  wrappers around the same functions added to the atf-c-api library.
+
+* Added the ATF_CHECK_MATCH, ATF_CHECK_MATCH_MSG, ATF_REQUIRE_MATCH and
+  ATF_REQUIRE_MATCH_MSG macros to atf-c to simplify the validation of a
+  string against a regular expression.
+
+* Miscellaneous fixes for manpage typos and compilation problems with
+  clang.
+
+* Added caching of the results of those configure tests that rely on
+  executing a test program.  This should help crossbuild systems by
+  providing a mechanism to pre-specify what the results should be.
+
+* PR bin/45690: Make atf-report convert any non-printable characters to
+  a plain-text representation (matching their corresponding hexadecimal
+  entities) in XML output files.  This is to prevent the output of test
+  cases from breaking xsltproc later.
+
+
+Changes in version 0.16
+***********************
+
+Experimental version released on July 10th, 2012.
+
+* Added a --enable-tools flag to configure to request the build of the
+  deprecated ATF tools, whose build is now disabled by default.  In order
+  to continue running tests, you should migrate to Kyua instead of enabling
+  the build of the deprecated tools.  The kyua-atf-compat package provides
+  transitional compatibility versions of atf-run and atf-report built on
+  top of Kyua.
+
+* Tweaked the ATF_TEST_CASE macro of atf-c++ so that the compiler can
+  detect defined but unused test cases.
+
+* PR bin/45859: Fixed some XSLT bugs that resulted in the tc-time and
+  tp-time XML tags leaking into the generated HTML file.  Also improved
+  the CSS file slightly to correct alignment and color issues with the
+  timestamps column.
+
+* Optimized atf-c++/macros.hpp so that GNU G++ consumes less memory during
+  compilation with GNU G++.
+
+* Flipped the default to building shared libraries for atf-c and atf-c++,
+  and started versioning them.  As a side-effect, this removes the
+  --enable-unstable-shared flag from configure that appears to not work any
+  more (under NetBSD).  Additionally, some distributions require the use of
+  shared libraries for proper dependency tracking (e.g. Fedora), so it is
+  better if we do the right versioning upstream.
+
+* Project hosting moved from an adhoc solution (custom web site and
+  Monotone repository) to Google Code (standard wiki and Git).  ATF now
+  lives in a subcomponent of the Kyua project.
+
+
+Changes in version 0.15
+***********************
+
+Experimental version released on January 16th, 2012.
+
+* Respect stdin in atf-check.  The previous release silenced stdin for any
+  processes spawned by atf, not only test programs, which caused breakage
+  in tests that pipe data through atf-check.
+
+* Performance improvements to atf-sh.
+
+* Enabled detection of unused parameters and variables in the code and
+  fixed all warnings.
+
+* Changed the behavior of "developer mode".  Compiler warnings are now
+  enabled unconditionally regardless of whether we are in developer mode or
+  not; developer mode is now only used to perform strict warning checks and
+  to enable assertions.  Additionally, developer mode is now only
+  automatically enabled when building from the repository, not for formal
+  releases.
+
+* Added new Autoconf M4 macros (ATF_ARG_WITH, ATF_CHECK_C and
+  ATF_CHECK_CXX) to provide a consistent way of defining a --with-arg flag
+  in configure scripts and detecting the presence of any of the ATF
+  bindings.  Note that ATF_CHECK_SH was already introduced in 0.14, but it
+  has now been modified to also honor --with-atf if instantiated.
+
+* Added timing support to atf-run / atf-report.
+
+* Added support for a 'require.memory' property, to specify the minimum
+  amount of physical memory needed by the test case to yield valid results.
+
+* PR bin/45690: Force an ISO-8859-1 encoding in the XML files generated by
+  atf-report so that invalid data in the output of test cases does not
+  mangle our report.
+
+
+Changes in version 0.14
+***********************
+
+Experimental version released on June 14th, 2011.
+
+* Added a pkg-config file for atf-sh and an aclocal file to ease the
+  detection of atf-sh from autoconf scripts.
+
+* Made the default test case body defined by atf_sh fail.  This is to
+  ensure that test cases are properly defined in test programs and helps
+  in catching typos in the names of the body functions.
+
+* PR bin/44882: Made atf-run connect the stdin of test cases to /dev/zero.
+  This provides more consistent results with "normal" execution (in
+  particular, when tests are executed detached from a terminal).
+
+* Made atf-run hardcode TZ=UTC for test cases.  It used to undefine TZ, but
+  that does not take into account that libc determines the current timezone
+  from a configuration file.
+
+* All test programs will now print a warning when they are not run through
+  atf-run(1) stating that this is unsupported and may deliver incorrect
+  results.
+
+* Added support for the 'require.files' test-case property.  This allows
+  test cases to specify installed files that must be present for the test
+  case to run.
+
+
+Changes in version 0.13
+***********************
+
+Experimental version released on March 31st, 2011.
+
+This is the first release after the creation of the Kyua project, a more
+modular and reliable replacement for ATF.  From now on, ATF will change to
+accomodate the transition to this new codebase, but ATF will still continue
+to see development in the short/medium term.  Check out the project page at
+http://code.google.com/p/kyua/ for more details.
+
+The changes in this release are:
+
+* Added support to run the tests with the Kyua runtime engine (kyua-cli), a
+  new package that aims to replace atf-run and atf-report.  The ATF tests
+  can be run with the new system by issuing a 'make installcheck-kyua' from
+  the top-level directory of the project (assuming the 'kyua' binary is
+  available during the configuration stage of ATF).
+
+* atf-run and atf-report are now in maintenance mode (but *not* deprecated
+  yet!).  Kyua already implements a new, much more reliable runtime engine
+  that provides similar features to these tools.  That said, it is not
+  complete yet so all development efforts should go towards it.
+
+* If GDB is installed, atf-run dumps the stack trace of crashing test
+  programs in an attempt to aid debugging.  Contributed by Antti Kantee.
+
+* Reverted default timeout change in previous release and reset its value
+  to 5 minutes.  This was causing several issues, specially when running
+  the existing NetBSD test suite in qemu.
+
+* Fixed the 'match' output checker in atf-check to properly validate the
+  last line of a file even if it does not have a newline.
+
+* Added the ATF_REQUIRE_IN and ATF_REQUIRE_NOT_IN macros to atf-c++ to
+  check for the presence (or lack thereof) of an element in a collection.
+
+* PR bin/44176: Fixed a race condition in atf-run that would crash atf-run
+  when the cleanup of a test case triggered asynchronous modifications to
+  its work directory (e.g. killing a daemon process that cleans up a pid
+  file in the work directory).
+
+* PR bin/44301: Fixed the sample XSLT file to report bogus test programs
+  instead of just listing them as having 0 test cases.
+
+
+Changes in version 0.12
+***********************
+
+Experimental version released on November 7th, 2010.
+
+* Added the ATF_REQUIRE_THROW_RE to atf-c++, which is the same as
+  ATF_REQUIRE_THROW but allows checking for the validity of the exception's
+  error message by means of a regular expression.
+
+* Added the ATF_REQUIRE_MATCH to atf-c++, which allows checking for a
+  regular expression match in a string.
+
+* Changed the default timeout for test cases from 5 minutes to 30 seconds.
+  30 seconds is long enough for virtually all tests to complete, and 5
+  minutes is a way too long pause in a test suite where a single test case
+  stalls.
+
+* Deprecated the use.fs property.  While this seemed like a good idea in
+  the first place to impose more control on what test cases can do, it
+  turns out to be bad.  First, use.fs=false prevents bogus test cases
+  from dumping core so after-the-fact debugging is harder.  Second,
+  supporting use.fs adds a lot of unnecessary complexity.  atf-run will
+  now ignore any value provided to use.fs and will allow test cases to
+  freely access the file system if they wish to.
+
+* Added the atf_tc_get_config_var_as_{bool,long}{,_wd} functions to the atf-c
+  library.  The 'text' module became private in 0.11 but was being used
+  externally to simplify the parsing of configuration variables.
+
+* Made atf-run recognize the 'unprivileged-user' configuration variable
+  and automatically drop root privileges when a test case sets
+  require.user=unprivileged.  Note that this is, by no means, done for
+  security purposes; this is just for user convenience; tests should, in
+  general, not be blindly run as root in the first place.
+
+
+Changes in version 0.11
+***********************
+
+Experimental version released on October 20th, 2010.
+
+* The ATF_CHECK* macros in atf-c++ were renamed to ATF_REQUIRE* to match
+  their counterparts in atf-c.
+
+* Clearly separated the modules in atf-c that are supposed to be public
+  from those that are implementation details.  The header files for the
+  internal modules are not installed any more.
+
+* Made the atf-check tool private.  It is only required by atf-sh and being
+  public has the danger of causing confusion.  Also, making it private
+  simplifies the public API of atf.
+
+* Changed atf-sh to enable per-command error checking (set -e) by default.
+  This catches many cases in which a test case is broken but it is not
+  reported as such because execution continues.
+
+* Fixed the XSTL and CSS stylesheets to support expected failures.
+
+
+Changes in version 0.10
+***********************
+
+Experimental version released on July 2nd, 2010.
+
+Miscellaneous features
+
+* Added expected failures support to test cases and atf-run.  These
+  include, for example, expected clean exits, expected reception of fatal
+  signals, expected timeouts and expected errors in condition checks.
+  These statuses can be used to denote test cases that are known to fail
+  due to a bug in the code they are testing.  atf-report reports these
+  tests separately but they do not count towards the failed test cases
+  amount.
+
+* Added the ATF_CHECK_ERRNO and ATF_REQUIRE_ERRNO to the C library to
+  allow easy checking of call failures that update errno.
+
+* Added the has.cleanup meta-data property to test caes that specifies
+  whether the test case has a cleanup routine or not; its value is
+  automatically set.  This property is read by atf-run to know if it has to
+  run the cleanup routine; skipping this run for every test case
+  significantly speeds up the run time of test suites.
+
+* Reversed the order of the ATF_CHECK_THROW macro in the C++ binding to
+  take the expected exception as the first argument and the statement to
+  execute as the second argument.
+
+Changes in atf-check
+
+* Changed atf-check to support negating the status and output checks by
+  prefixing them with not- and added support to specify multiple checkers
+  for stdout and stderr, not only one.
+
+* Added the match output checker to atf-check to look for regular
+  expressions in the stdout and stderr of commands.
+
+* Modified the exit checks in atf-check to support checking for the
+  reception of signals.
+
+Code simplifications and cleanups
+
+* Removed usage messages from test programs to simplify the
+  implementation of every binding by a significant amount.  They just now
+  refer the user to the appropriate manual page and do not attempt to wrap
+  lines on terminal boundaries.  Test programs are not supposed to be run
+  by users directly so this minor interface regression is not important.
+
+* Removed the atf-format internal utility, which is unused after the
+  change documented above.
+
+* Removed the atf-cleanup internal utility.  It has been unused since the
+  test case isolation was moved to atf-run in 0.8
+
+* Splitted the Makefile.am into smaller files for easier maintenance and
+  dropped the use of M4.  Only affects users building from the repository
+  sources.
+
+* Intermixed tests with the source files in the source tree to provide
+  them more visibility and easier access.  The tests directory is gone from
+  the source tree and tests are now suffixed by _test, not prefixed by t_.
+
+* Simplifications to the atf-c library: removed the io, tcr and ui
+  modules as they had become unnecessary after all simplifications
+  introduced since the 0.8 release.
+
+* Removed the application/X-atf-tcr format introduced in 0.8 release.
+  Tests now print a much simplified format that is easy to parse and nicer
+  to read by end users.  As a side effect, the default for test cases is
+  now to print their results to stdout unless otherwise stated by providing
+  the -r flag.
+
+* Removed XML distribution documents and replaced them with plain-text
+  documents.  They provided little value and introduced a lot of complexity
+  to the build system.
+
+* Simplified the output of atf-version by not attempting to print a
+  revision number when building form a distfile.  Makes the build system
+  easier to maintain.
+
+
+Changes in version 0.9
+**********************
+
+Experimental version released on June 3rd, 2010.
+
+* Added atf-sh, an interpreter to process test programs written using
+  the shell API.  This is not really a shell interpreter by itself though:
+  it is just a wrapper around the system shell that eases the loading of
+  the necessary ATF libraries.
+
+* Removed atf-compile in favour of atf-sh.
+
+* Added the use.fs metadata property to test case, which is used to
+  specify which test cases require file system access.  This is to
+  highlight dependencies on external resources more clearly and to speed up
+  the execution of test suites by skipping the creation of many unnecessary
+  work directories.
+
+* Fixed test programs to get a sane default value for their source
+  directory.  This means that it should not be necessary any more to pass
+  -s when running test programs that do not live in the current directory.
+
+* Defining test case headers became optional.  This is trivial to achieve
+  in shell-based tests but a bit ugly in C and C++.  In C, use the new
+  ATF_TC_WITHOUT_HEAD macro to define the test case, and in C++ use
+  ATF_TEST_CASE_WITHOUT_HEAD.
+
+
+Changes in version 0.8
+**********************
+
+Experimental version released on May 7th, 2010.
+
+* Test programs no longer run several test cases in a row.  The execution
+  of a test program now requires a test case name, and that single test
+  case is executed.  To execute several test cases, use the atf-run utility
+  as usual.
+
+* Test programs no longer fork a subprocess to isolate the execution of
+  test cases.  They run the test case code in-process, and a crash of the
+  test case will result in a crash of the test program.  This is to ease
+  debugging of faulty test cases.
+
+* Test programs no longer isolate their test cases.  This means that they
+  will not create temporary directories nor sanitize the environment any
+  more.  Yes: running a test case that depends on system state by hand will
+  most likely yield different results depending on where (machine,
+  directory, user environment, etc.) it is run.  Isolation has been moved
+  to atf-run.
+
+* Test programs no longer print a cryptic format (application/X-atf-tcs)
+  on a special file channel.  They can now print whatever they want on the
+  screen.  Because test programs can now only run one test case every time,
+  providing controlled output is not necessary any more.
+
+* Test programs no longer write their status into a special file
+  descriptor.  Instead, they create a file with the results, which is later
+  parsed by atf-run.  This changes the semantics of the -r flag.
+
+* atf-run has been adjusted to perform the test case isolation.  As a
+  result, there is now a single canonical place that implements the
+  isolation of test caes.  In previous releases, the three language
+  bindings (C, C++ and shell) had to be kept in sync with each other (read:
+  not a nice thing to do at all).  As a side effect of this change, writing
+  bindings for other languages will be much, much easier from now on.
+
+* atf-run forks test programs on a test case basis, instead of on a test
+  program basis as it did before.  This is to provide the test case
+  isolation that was before implemented by the test programs themselves.
+
+* Removed the atf-exec tool.  This was used to implement test case
+  isolation in atf-sh, but it is now unnecessary.
+
+* It is now optional to define the descr meta-data property.  It has been
+  proven to be mostly useless, because test cases often carry a descriptive
+  name of their own.
+
+
+Changes in version 0.7
+**********************
+
+Experimental version released on December 22nd, 2009.
+
+* Added build-time checks to atf-c and atf-c++.  A binding for atf-sh
+  will come later.
+
+* Migrated all build-time checks for header files to proper ATF tests.
+  This demonstrates the use of the new feature described above.
+
+* Added an internal API for child process management.
+
+* Converted all plain-text distribution documents to a Docbook canonical
+  version, and include pre-generated plain text and HTML copies in the
+  distribution file.
+
+* Simplified the contents of the Makefile.am by regenerating it from a
+  canonical Makefile.am.m4 source.  As a side-effect, some dependency
+  specifications were fixed.
+
+* Migrated all checks from the check target to installcheck, as these
+  require ATF to be installed.
+
+* Fixed sign comparison mismatches triggered by the now-enabled
+  -Wsign-compare.
+
+* Fixed many memory and object leaks.
+
+
+Changes in version 0.6
+**********************
+
+Experimental version released on January 18th, 2009.
+
+* Make atf-exec be able to kill its child process after a certain period
+  of time; this is controlled through the new -t option.
+
+* Change atf-sh to use atf-exec's -t option to control the test case's
+  timeouts, instead of doing it internally.  Same behavior as before, but
+  noticeably faster.
+
+* atf-exec's -g option and atf-killpg are gone due to the previous
+  change.
+
+* Added the atf-check(1) tool, a program that executes a given command
+  and checks its exit code against a known value and allows the management
+  of stdout and stderr in multiple ways.  This replaces the previous
+  atf_check function in the atf-sh library and exposes this functionality
+  to both atf-c and atf-c++.
+
+* Added the ATF_REQUIRE family of macros to the C interface.  These help
+  in checking for fatal test conditions.  The old ATF_CHECK macros now
+  perform non-fatal checks only.  I.e. by using ATF_CHECK, the test case
+  can now continue its execution and the failures will not be reported
+  until the end of the whole run.
+
+* Extended the amount of ATF_CHECK_* C macros with new ones to provide
+  more features to the developer.  These also have their corresponding
+  counterparts in the ATF_REQUIRE_* family.  The new macros (listing the
+  suffixes only) are: _EQ (replaces _EQUAL), _EQ_MSG, _STREQ and
+  _STREQ_MSG.
+
+
+Changes in version 0.5
+**********************
+
+Experimental version released on May 1st, 2008.
+
+* Clauses 3 and 4 of the BSD license used by the project were dropped.
+  All the code is now under a 2-clause BSD license compatible with the GNU
+  General Public License (GPL).
+
+* Added a C-only binding so that binary test programs do not need to be
+  tied to C++ at all.  This binding is now known as the atf-c library.
+
+* Renamed the C++ binding to atf-c++ for consistency with the new atf-c.
+
+* Renamed the POSIX shell binding to atf-sh for consistency with the new
+  atf-c and atf-c++.
+
+* Added a -w flag to test programs through which it is possible to
+  specify the work directory to be used.  This was possible in prior
+  releases by defining the workdir configuration variable (-v workdir=...),
+  but was a conceptually incorrect mechanism.
+
+* Test programs now preserve the execution order of test cases when they
+  are given in the command line.  Even those mentioned more than once are
+  executed multiple times to comply with the user's requests.
+
+
+Changes in version 0.4
+**********************
+
+Experimental version released on February 4th, 2008.
+
+* Added two new manual pages, atf-c++-api and atf-sh-api, describing the
+  C++ and POSIX shell interfaces used to write test programs.
+
+* Added a pkg-config file, useful to get the flags to build against the
+  C++ library or to easily detect the presence of ATF.
+
+* Added a way for test cases to require a specific architecture and/or
+  machine type through the new 'require.arch' and 'require.machine'
+  meta-data properties, respectively.
+
+* Added the 'timeout' property to test cases, useful to set an
+  upper-bound limit for the test's run time and thus prevent global test
+  program stalls due to the test case's misbehavior.
+
+* Added the atf-exec(1) internal utility, used to execute a command
+  after changing the process group it belongs to.
+
+* Added the atf-killpg(1) internal utility, used to kill process groups.
+
+* Multiple portability fixes.  Of special interest, full support for
+  SunOS (Solaris Express Developer Edition 2007/09) using the Sun Studio 12
+  C++ compiler.
+
+* Fixed a serious bug that prevented atf-run(1) from working at all
+  under Fedora 8 x86_64.  Due to the nature of the bug, other platforms
+  were likely affected too.
+
+
+Changes in version 0.3
+**********************
+
+Experimental version released on November 11th, 2007.
+
+* Added XML output support to atf-report.  This is accompanied by a DTD
+  for the format's structure and sample XSLT/CSS files to post-process this
+  output and convert it to a plain HTML report.
+
+* Changed atf-run to add system information to the report it generates.
+  This is currently used by atf-report's XML output only, and is later
+  printed in the HTML reports in a nice and useful summary table.  The user
+  and system administrator are allowed to tune this feature by means of
+  hooks.
+
+* Removed the test cases' 'isolated' property.  This was intended to
+  avoid touching the file system at all when running the related test case,
+  but this has not been true for a long while: some control files are
+  unconditionally required for several purposes, and we cannot easily get
+  rid of them.  This way we remove several critical and delicate pieces of
+  code.
+
+* Improved atf-report's CSV output format to include information about
+  test programs too.
+
+* Fixed the tests that used atf-compile to not require this tool as a
+  helper.  Avoids systems without build-time utilities to skip many tests
+  that could otherwise be run.  (E.g. NetBSD without the comp.tgz set
+  installed.)
+
+* Many general cleanups: Fixed many pieces of code marked as ugly and/or
+  incomplete.
+
+
+Changes in version 0.2
+**********************
+
+Experimental version released on September 20th, 2007.
+
+* Test cases now get a known umask on entry.
+
+* atf-run now detects many unexpected failures caused by test programs and
+  reports them as bogus tests.  atf-report is able to handle these new
+  errors and nicely reports them to the user.
+
+* All the data formats read and written by the tools have been
+  documented and cleaned up.  These include those grammars that define how
+  the different components communicate with each other as well as the
+  format of files written by the developers and users: the Atffiles and the
+  configuration files.
+
+* Added the atf-version tool, a utility that displays information about
+  the currently installed version of ATF.
+
+* Test cases can now define an optional cleanup routine to undo their
+  actions regardless of their exit status.
+
+* atf-report now summarizes the list of failed (bogus) test programs
+  when using the ticker output format.
+
+* Test programs now capture some termination signals and clean up any
+  temporary files before exiting the program.
+
+* Multiple bug fixes and improvements all around.
+
+
+Changes in version 0.1
+**********************
+
+Experimental version released on August 20th, 2007.
+
+* First public version.  This was released coinciding with the end of the
+  Google Summer of Code 2007 program.
+
+
+===========================================================================
+vim: filetype=text:textwidth=75:expandtab:shiftwidth=2:softtabstop=2

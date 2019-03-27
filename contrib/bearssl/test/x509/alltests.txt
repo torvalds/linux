@@ -1,0 +1,722 @@
+; Most/all of these test chains use the same structure:
+;    root -> ica1 -> ica2 -> ee
+; "ica1" is "Intermediate CA 1"
+; "ee" is "end-entity", i.e. the client or server certificate itself
+;
+; In SSL/TLS order, the EE comes first. The root may or may not be included
+; as a self-signed certificate.
+
+[key]
+name = root-rsa2048
+type = RSA
+n = B6D934D450FDB3AF7A73F1CE38BF5D6F45E1FD4EB198C6608326D217D1C5B79AA3C1DE6339979CF05E5CC81C17B988196DF0B62E3050A1546E93C0DBCF30CB9F1E2779F1C3995235AA3DB6DFB0AD7CCB49CDC0EDE766102AE9CE281F2150FA774C2DDAEF3C58EB4EBFCEE9FB1ADAA383A3CDA3CA9380DCDAF317CC7AAB33809CB2D47F463FC53CDC6194B727296E2ABC5B0936D4C63B0DEBBECEDB1D1CBC106A7171B3F2CA289A77F28AEC42EFB14A8EE2F21A322ACDC0A6462C9AC28537917F46A19381A17466DFBAB339209193FA1DA1A885E7E4F907F610F6A82701B67F12C340C3C9E2B0AB49183A64B659B795B59636DF2269AA726A544E2729A30E9715
+e = 010001
+
+[key]
+name = root-p256
+type = EC
+curve = P-256
+q = 047174BAABB9302E81D5E557F9F320680C9CF964DBB4200D6DEA40D04A6E42FDB69A682544F6DF7BC4FCDEDD7BBBC5DB7C763F4166406EDBA787C2E5D8C5F37F8D
+
+[key]
+name = root-p384
+type = EC
+curve = P-384
+q = 040ED28B3F7F0A38A6DB72CB4DAC8198C3D595BFABEE2E4A3CC6797F1A272C57AD715F96B5FDA29C4DD87B75B1438B6A92C4FD0282A3080A857F28AB31FF8B49F805470A01EE551F7F27C914E7E780AE474558D6F5539BAE806626514FE560478B
+
+[key]
+name = root-p521
+type = EC
+curve = P-521
+q = 040168E669615D1B20F2E753D2C86312F51094D3E5C6CF49E8D73418278CD769FE40A84AD4F34865D59D94D5685B389E0CFD0450754CAE81ED1D4A91D0773F7A002ED701DEF2DBDEFC7554E74CD600693DBDE1A7E09CD9044774C744C7CE575BF8B645FF79FCCE06116F61D44FDAE62D3046F4EB41DECB8219B279A5B8CE2A47F3DF0D463B
+
+[key]
+name = root-new
+type = EC
+curve = P-256
+q = 0465D02336D3ACEB9A000B33A6EECA9745EFD72A0F7C0B138FAAA564E705A3269A479BB5A041DC1D244EA1D2BB9639C79187D3D63CEF79EDD1DC65E80027E75997
+
+[key]
+name = ica1-rsa2048
+type = RSA
+n = B3E86BAF9C1652E3810C50AB25CECC0DC7F21F7F50DF2C5C35D6622E632741A7E453A84B27FA1391A3FA094A2F3B5ECF77B38AC1CD49959C750D6474EFE4D74BB9A19B68D2307148EAF74B14DF3F47A9D8BBEC8F28CCFADFB41F947C96FC080528F9E8F42F2FEE629C8A3AE0855860B60F2D30B4C04154914C1F5FADF119F0C022A67DD83F793459427B5BB541C4647F52CF3C3722A12F7925942441C23FFAC775FB48B50D18A7F454F32E6ED84358C4AB50E805AD91B61E0175B3549CDEA09915FBACF15C974951CCEF58126F736BB33414010F5A9DFAAAD693D3E2EAC3ABBC4EEDCC51A1B8F894B6B42CA8862B1FF6514329525E1389B36A78604E4EC01BA5
+e = 010001
+
+[key]
+name = ica2-rsa2048
+type = RSA
+n = AE15F7CBEEE3961BCA63D22681B2D8163423735684FCFDB2E98E9DD0D9D0D706A191EF8D4F604E16BDE6529EE557867B7A7FFCBC34AD86EC9150ADD5C7D18D83E95ABA2FDB0DB92131FAA2FD91EC37836261809C6A82253309DF8F7893EACFDB93B0A2687CEA873E369C4B379A71E52084C3789A2BA42C7E76D561A9131272F14B411BC6A555BA9D8965C06699C0F17C9B61B24E6601B0A9C4FDC8C1D0C789BE2746DE6271BA27F52A850F436026BC2A9D07AAD608DC26D86956A1D308DED858936B0EC2AF783E2574D49F001820BFD7158DB9D13D8900A01264E186C0D580F124B2D2FB4C677CAE3DC9BF47026DE47C0D4490518CCD026237F86FB96701C695
+e = 010001
+
+[key]
+name = ee-rsa2048
+type = RSA
+n = D47A1D27BA2B3A67B2916AFBE78344CAED1C75ADDD4D8362D6AA6895B224217B15AE2A996815ED66F0B858E7D3F52EC6D92A5EE70E2EE7FC6759C0C8617D4BA46FDD9FD9C8858764C7BA1A0F29D496A8789A6B6220A932D0EEA98C286147A2502A63F621DEDAD8D5F07FC5008270E6A3BF5C89274F51927703C3B0CC2E3BEC23F22F5341AF8993FFD280B14397DED619A092127A3D6679E1C1BCE17770A28B3D4684533FE44E424137921E1FFD38B3F7EF873980D356CFF4E013DE64B072A40384C441ED6FFA3EE2CA0420D2D7DC2C822B7AE26DA11C48DBCF894F34973D28A853DAE7C1E17315A330767F8F2342143D5134D25AAD3C9BCBC8FE7F6E8E40F3BD
+e = 010001
+
+[key]
+name = ee-p256
+type = EC
+curve = P-256
+q = 045F389DA7FF4D8AAFF63439461AFC3ADFF423AAA9EAFBC508DE008EBE79A537584C6DDD01CAAB47DF89B6C7171F38FC1D2014DD45C0E08F934E380BFCE999A149
+
+[key]
+name = ee-p384
+type = EC
+curve = P-384
+q = 0415A488877F3D14830E29A1C2F2C0745CE8CF5E684304D1668972389BA615B34E9648D5A7861E49DFFFBFFFEAD7FC6AF11BC4516C3557332DD86DDFDE2A236CCEA844EBD594CCD3ED5B7AE0061BD6595737B59FE754BCDAB6FE38D34D93DBBF30
+
+[key]
+name = ee-p521
+type = EC
+curve = P-521
+q = 040060547ACA9D520FB3272833236CBF8E71AC286A3001FBB1E2C3FD8BAB0817DDE4E4FA53550F120D678F4D55AE4FF36C7C8EAE9E32A08A44FC66F45331E08946077A0139B87FE54B986012A94838C8006034941CD0512E596436D2E8E61CA93585D5C06EAD5094585B5B2A3E013803B3E6AAA1D4156EF09E8352029BB70AC6BF338F918B
+
+; Trust anchor: the root.
+[anchor]
+name = root
+DN_file = dn-root.der
+key = root-rsa2048
+type = CA
+
+; Trust anchor: root with an ECDSA key (in P-256 curve)
+[anchor]
+name = root-p256
+DN_file = dn-root.der
+key = root-p256
+type = CA
+
+; Trust anchor: root with an ECDSA key (in P-384 curve)
+[anchor]
+name = root-p384
+DN_file = dn-root.der
+key = root-p384
+type = CA
+
+; Trust anchor: root with an ECDSA key (in P-521 curve)
+[anchor]
+name = root-p521
+DN_file = dn-root.der
+key = root-p521
+type = CA
+
+; Trust anchor: another root with an ECDSA key (in P-256 curve)
+[anchor]
+name = root-new
+DN_file = dn-root-new.der
+key = root-new
+type = CA
+
+; Intermediate CA 1 as trust anchor.
+[anchor]
+name = ica1
+DN_file = dn-ica1.der
+key = ica1-rsa2048
+type = CA
+
+; Intermediate CA 2 as trust anchor.
+[anchor]
+name = ica2
+DN_file = dn-ica2.der
+key = ica2-rsa2048
+type = CA
+
+; EE certificate as trust anchor (direct trust only).
+[anchor]
+name = ee
+DN_file = dn-ee.der
+key = ee-rsa2048
+type = EE
+
+; Base valid chain.
+[chain]
+name = base
+anchors = root
+chain = ee.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Valid chain except that no trust anchor is provided; this should fail
+; with BR_ERR_X509_NOT_TRUSTED.
+[chain]
+name = noTA
+anchors = 
+chain = ee.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+status = 62
+
+; Use of intermediate CA 1 as anchor (extra certificates are ignored).
+[chain]
+name = anchorICA1
+anchors = ica1
+chain = ee.crt ica2.crt junk.crt junk.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Use of intermediate CA 2 as anchor (extra certificates are ignored).
+[chain]
+name = anchorICA2
+anchors = ica2
+chain = ee.crt junk.crt junk.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Direct trust of EE.
+[chain]
+name = directTrust
+anchors = ee
+chain = ee.crt junk.crt junk.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Server name check: name does not match the SAN nor the CN.
+[chain]
+name = wrongName1
+anchors = root
+chain = ee.crt ica2.crt ica1.crt
+servername = foo.example.com
+keytype = RSA
+keyusage = KEYX
+status = 56
+
+; Server name check: name matches the CN but not the SAN, and there is
+; a SAN so the CN is ignored.
+[chain]
+name = wrongName2
+anchors = root
+chain = ee-names.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+status = 56
+
+; Server name check: name does not match CN, but matches the first SAN
+; name.
+[chain]
+name = goodName1
+anchors = root
+chain = ee-names.crt ica2.crt ica1.crt
+servername = foo.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Server name check: name does not match CN, but matches the second SAN
+; name.
+[chain]
+name = goodName2
+anchors = root
+chain = ee-names.crt ica2.crt ica1.crt
+servername = barqux.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Server name check: no SAN, but the CN matches the server name.
+[chain]
+name = goodName3
+anchors = root
+chain = ee-names2.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Server name check: no SAN, and the CN does not match the server name.
+[chain]
+name = wrongName3
+anchors = root
+chain = ee-names2.crt ica2.crt ica1.crt
+servername = foo.example.com
+keytype = RSA
+keyusage = KEYX
+status = 56
+
+; Server name check: no SAN, and the CN does not match the server name,
+; although its byte contents seem to match (but with BMPString encoding).
+[chain]
+name = wrongName4
+anchors = root
+chain = ee-names3.crt ica2.crt ica1.crt
+servername = www1.example.com
+keytype = RSA
+keyusage = KEYX
+status = 56
+
+; Server name check: no SAN, and the CN uses BMPString encoding, but we
+; do not actually request a server name check, so this should pass.
+[chain]
+name = ignoreName1
+anchors = root
+chain = ee-names3.crt ica2.crt ica1.crt
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Wildcard processing: the name 'localhost' should not match because
+; the engine recognises the wildcard only in a '*.' starting sequence,
+; so the lone '*' in a SAN will not be accepted.
+[chain]
+name = wildcard1
+anchors = root
+chain = ee-names4.crt ica2.crt ica1.crt
+servername = localhost
+keytype = RSA
+keyusage = KEYX
+status = 56
+
+; Wildcard processing: the name 'example.com' will be matched by '*.com'.
+[chain]
+name = wildcard2
+anchors = root
+chain = ee-names4.crt ica2.crt ica1.crt
+servername = example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Wildcard processing: the name 'www.example.com' will be matched by
+; '*.example.com'.
+[chain]
+name = wildcard3
+anchors = root
+chain = ee-names4.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Wildcard processing: the name 'foo.foo.example.com' will not be matched by
+; 'foo.*.example.com' because we accept the wildcard only in the first name
+; component.
+[chain]
+name = wildcard4
+anchors = root
+chain = ee-names4.crt ica2.crt ica1.crt
+servername = foo.foo.example.com
+keytype = RSA
+keyusage = KEYX
+status = 56
+
+; Wildcard processing: the name 'foo.bar.example.com' will not be matched by
+; 'foo.*.example.com', but '*.bar.example.com' will fit.
+[chain]
+name = wildcard5
+anchors = root
+chain = ee-names4.crt ica2.crt ica1.crt
+servername = foo.bar.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Wildcard processing: the name 'foo.bar.example.foobar' will not be matched by
+; '*.*.example.foobar' because we support only a single level of wildcard.
+[chain]
+name = wildcard6
+anchors = root
+chain = ee-names4.crt ica2.crt ica1.crt
+servername = foo.bar.example.foobar
+keytype = RSA
+keyusage = KEYX
+status = 56
+
+; Wildcard processing: the name 'foo.*.example.foobar' will be matched
+; by '*.*.example.foobar' because the '*' in the provided server name matches
+; the second '*' in '*.*.example.foobar'. This is a corner case with no
+; practical impact because expected server names are usually extracted from
+; URL and cannot have embedded '*' in them.
+[chain]
+name = wildcard7
+anchors = root
+chain = ee-names4.crt ica2.crt ica1.crt
+servername = foo.*.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Hash function support: the chain uses only SHA-256.
+[chain]
+name = hashSHA256Only
+anchors = root
+chain = ee.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+hashes = sha256
+eekey = ee-rsa2048
+status = 0
+
+; Hash function support: the chain uses only SHA-256.
+[chain]
+name = hashSHA256Unsupported
+anchors = root
+chain = ee.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+hashes = md5 sha1 sha224 sha384 sha512
+status = 49
+
+; Hash function support: signature on EE uses SHA-1.
+[chain]
+name = hashSHA1
+anchors = root
+chain = ee-sha1.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Hash function support: signature on EE uses SHA-224.
+[chain]
+name = hashSHA224
+anchors = root
+chain = ee-sha224.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Hash function support: signature on EE uses SHA-384.
+[chain]
+name = hashSHA384
+anchors = root
+chain = ee-sha384.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Hash function support: signature on EE uses SHA-512.
+[chain]
+name = hashSHA512
+anchors = root
+chain = ee-sha512.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Hash function support: signature on EE uses MD5. This is rejected by
+; the engine (even though MD5 is supported as a hash function).
+[chain]
+name = hashMD5
+anchors = root
+chain = ee-md5.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+status = 49
+
+; EE certificate has trailing garbage (an extra byte), which should be
+; rejected.
+[chain]
+name = trailingGarbage
+anchors = root
+chain = ee-trailing.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+status = 40
+
+; Signature on EE certificate is incorrect (one byte modified in signature).
+[chain]
+name = badSignature1
+anchors = root
+chain = ee-badsig1.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+status = 52
+
+; Signature on EE certificate is incorrect (one byte modified in serial
+; number).
+[chain]
+name = badSignature2
+anchors = root
+chain = ee-badsig2.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+status = 52
+
+; Signature on EE certificate is incorrect but this is ignored because we
+; use a direct trust model here.
+[chain]
+name = ignoredSignature1
+anchors = ee
+chain = ee-badsig1.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Signature on EE certificate is incorrect but this is ignored because we
+; use a direct trust model here.
+[chain]
+name = ignoredSignature2
+anchors = ee
+chain = ee-badsig2.crt ica2.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Intermediate CA 1 has a 1016-bit RSA key, which should be rejected
+; with BR_ERR_X509_WEAK_PUBLIC_KEY.
+[chain]
+name = rsa1016
+anchors = root
+chain = ee.crt ica2-1016.crt ica1-1016.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+status = 60
+
+; Intermediate CA 1 has a 1017-bit RSA key, which should be accepted
+; (because that's 128 bytes, which is the lower limit).
+[chain]
+name = rsa1017
+anchors = root
+chain = ee.crt ica2-1017.crt ica1-1017.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; Intermediate CA 1 has a 4096-bit RSA key, which should be supported.
+[chain]
+name = rsa4096
+anchors = root
+chain = ee.crt ica2-4096.crt ica1-4096.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; EE is valid from 2010/02/17 11:40:35 to 2098/07/20 15:11:08. The
+; start date is in UTCTime, the end date is in GeneralizedTime.
+[chain]
+name = date1
+anchors = ica2
+chain = ee-dates.crt ica2.crt ica1.crt
+time = 2010-02-17 11:40:34Z
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+status = 54
+
+; EE is valid from 2010/02/17 11:40:35 to 2098/07/20 15:11:08. The
+; start date is in UTCTime, the end date is in GeneralizedTime.
+[chain]
+name = date2
+anchors = ica2
+chain = ee-dates.crt ica2.crt ica1.crt
+time = 2010-02-17 11:40:36Z
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; EE is valid from 2010/02/17 11:40:35 to 2098/07/20 15:11:08. The
+; start date is in UTCTime, the end date is in GeneralizedTime.
+[chain]
+name = date3
+anchors = ica2
+chain = ee-dates.crt ica2.crt ica1.crt
+time = 2098-07-20 15:11:07Z
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; EE is valid from 2010/02/17 11:40:35 to 2098/07/20 15:11:08. The
+; start date is in UTCTime, the end date is in GeneralizedTime.
+[chain]
+name = date4
+anchors = ica2
+chain = ee-dates.crt ica2.crt ica1.crt
+time = 2098-07-20 15:11:09Z
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+status = 54
+
+; Intermediate CA 2 certificate is not a CA.
+[chain]
+name = notCA
+anchors = root
+chain = ee-dates.crt ica2-notCA.crt ica1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+status = 58
+
+; A chain using ECDSA with P-256.
+[chain]
+name = secp256r1
+anchors = root-p256
+chain = ee-p256.crt ica2-p256.crt ica1-p256.crt
+servername = www.example.com
+keytype = EC
+keyusage = SIGN
+eekey = ee-p256
+status = 0
+
+; A chain using ECDSA with P-384.
+[chain]
+name = secp384r1
+anchors = root-p384
+chain = ee-p384.crt ica2-p384.crt ica1-p384.crt
+servername = www.example.com
+keytype = EC
+keyusage = SIGN
+eekey = ee-p384
+status = 0
+
+; A chain using ECDSA with P-521.
+[chain]
+name = secp521r1
+anchors = root-p521
+chain = ee-p521.crt ica2-p521.crt ica1-p521.crt
+servername = www.example.com
+keytype = EC
+keyusage = SIGN
+eekey = ee-p521
+status = 0
+
+; A chain using ECDSA with P-256, signature on EE uses SHA-1.
+[chain]
+name = secp256r1-sha1
+anchors = root-p256
+chain = ee-p256-sha1.crt ica2-p256.crt ica1-p256.crt
+servername = www.example.com
+keytype = EC
+keyusage = SIGN
+eekey = ee-p256
+status = 0
+
+; A chain using ECDSA with P-256, signature on EE uses SHA-224.
+[chain]
+name = secp256r1-sha224
+anchors = root-p256
+chain = ee-p256-sha224.crt ica2-p256.crt ica1-p256.crt
+servername = www.example.com
+keytype = EC
+keyusage = SIGN
+eekey = ee-p256
+status = 0
+
+; A chain using ECDSA with P-256, signature on EE uses SHA-256.
+[chain]
+name = secp256r1-sha256
+anchors = root-p256
+chain = ee-p256-sha256.crt ica2-p256.crt ica1-p256.crt
+servername = www.example.com
+keytype = EC
+keyusage = SIGN
+eekey = ee-p256
+status = 0
+
+; A chain using ECDSA with P-256, signature on EE uses SHA-384.
+[chain]
+name = secp256r1-sha384
+anchors = root-p256
+chain = ee-p256-sha384.crt ica2-p256.crt ica1-p256.crt
+servername = www.example.com
+keytype = EC
+keyusage = SIGN
+eekey = ee-p256
+status = 0
+
+; A chain using ECDSA with P-256, signature on EE uses SHA-512.
+[chain]
+name = secp256r1-sha512
+anchors = root-p256
+chain = ee-p256-sha512.crt ica2-p256.crt ica1-p256.crt
+servername = www.example.com
+keytype = EC
+keyusage = SIGN
+eekey = ee-p256
+status = 0
+
+; EE certificate has a Certificate Policies extension, but it is not
+; critical.
+[chain]
+name = certpol-noncrit
+anchors = root-new
+chain = ee-cp1.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; EE certificate has a critical Certificate Policies extension, but it
+; contains no policy qualifier.
+[chain]
+name = certpol-noqual
+anchors = root-new
+chain = ee-cp2.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; EE certificate has a critical Certificate Policies extension, and it
+; contains some qualifiers, but they are all id-qt-cps.
+[chain]
+name = certpol-qualcps
+anchors = root-new
+chain = ee-cp3.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 0
+
+; EE certificate has a critical Certificate Policies extension, and it
+; contains a qualifier distinct from id-qt-cps. This implies rejection
+; of the path.
+[chain]
+name = certpol-qualother
+anchors = root-new
+chain = ee-cp4.crt
+servername = www.example.com
+keytype = RSA
+keyusage = KEYX
+eekey = ee-rsa2048
+status = 57

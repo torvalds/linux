@@ -1,0 +1,34 @@
+# gmon build rule:
+$(T)gmon.o:	$(srcdir)/config/i386/gmon-sol2.c $(GCC_PASSES) $(CONFIG_H)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(INCLUDES) $(MULTILIB_CFLAGS) \
+		-c $(srcdir)/config/i386/gmon-sol2.c -o $(T)gmon.o
+
+# Assemble startup files.
+# Apparently Sun believes that assembler files don't need comments, because no
+# single ASCII character is valid (tried them all).  So we manually strip out
+# the comments with sed.  This bug may only be in the Early Access releases.
+$(T)gcrt1.o: $(srcdir)/config/i386/sol2-gc1.asm $(GCC_PASSES)
+	sed -e '/^!/d' <$(srcdir)/config/i386/sol2-gc1.asm >gcrt1.s
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)gcrt1.o gcrt1.s
+$(T)crt1.o: $(srcdir)/config/i386/sol2-c1.asm $(GCC_PASSES)
+	sed -e '/^!/d' <$(srcdir)/config/i386/sol2-c1.asm >crt1.s
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crt1.o crt1.s
+$(T)crti.o: $(srcdir)/config/i386/sol2-ci.asm $(GCC_PASSES)
+	sed -e '/^!/d' <$(srcdir)/config/i386/sol2-ci.asm >crti.s
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crti.o crti.s
+$(T)crtn.o: $(srcdir)/config/i386/sol2-cn.asm $(GCC_PASSES)
+	sed -e '/^!/d' <$(srcdir)/config/i386/sol2-cn.asm >crtn.s
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crtn.o crtn.s
+
+# We need to use -fPIC when we are using gcc to compile the routines in
+# crtstuff.c.  This is only really needed when we are going to use gcc/g++
+# to produce a shared library, but since we don't know ahead of time when
+# we will be doing that, we just always use -fPIC when compiling the
+# routines in crtstuff.c.
+#
+# We must also enable optimization to avoid having any code appear after
+# the call & alignment statement, but before we switch back to the
+# .text section.
+
+CRTSTUFF_T_CFLAGS = -fPIC -O2
+TARGET_LIBGCC2_CFLAGS = -fPIC

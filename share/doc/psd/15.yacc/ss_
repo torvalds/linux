@@ -1,0 +1,94 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ss..	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.EH 'PSD:15-%''Yacc: Yet Another Compiler-Compiler'
+.OH 'Yacc: Yet Another Compiler-Compiler''PSD:15-%'
+.\".RP
+.ND "July 31, 1978"
+.TL
+Yacc:
+Yet Another Compiler-Compiler
+.AU "MH 2C-559" 3968
+Stephen C. Johnson
+AT&T Bell Laboratories
+Murray Hill, New Jersey 07974
+.AI
+.AB
+.PP
+Computer program input generally has some structure;
+in fact, every computer program that does input can be thought of as defining
+an ``input language'' which it accepts.
+An input language may be as complex as a programming language, or as simple as
+a sequence of numbers.
+Unfortunately, usual input facilities
+are limited, difficult to use,
+and often are lax about checking their inputs for validity.
+.PP
+Yacc provides a general tool for describing
+the input to a computer program.
+The Yacc user specifies the structures
+of his input, together with code to be invoked as
+each such structure is recognized.
+Yacc turns such a specification into a subroutine that
+handles the input process;
+frequently, it is convenient and appropriate to have most
+of the flow of control in the user's application
+handled by this subroutine.
+.PP
+The input subroutine produced by Yacc calls a user-supplied routine to
+return the next basic input item.
+Thus, the user can specify his input in terms of individual input characters, or
+in terms of higher level constructs such as names and numbers.
+The user-supplied routine may also handle idiomatic features such as
+comment and continuation conventions, which typically defy easy grammatical specification.
+.PP
+Yacc is written in portable C.
+The class of specifications accepted is a very general one: LALR(1)
+grammars with disambiguating rules.
+.PP
+In addition to compilers for C, APL, Pascal, RATFOR, etc., Yacc
+has also been used for less conventional languages,
+including a phototypesetter language, several desk calculator languages, a document retrieval system,
+and a Fortran debugging system.
+.AE
+.\" .OK
+.\"Computer Languages
+.\"Compilers
+.\"Formal Language Theory
+.\" .CS 23 11 34 0 0 8

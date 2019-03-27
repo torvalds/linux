@@ -1,0 +1,91 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)cli_common.kshlib	1.2	07/01/09 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+#
+# Get the checksum and size of the file.
+#
+function get_cksum # <file path>
+{
+	return $($CKSUM $1 | $AWK '{print $1 $2}')
+}
+
+#
+# Compare the check sum of target files with the original file
+#
+
+function compare_cksum #<orig_data> <target_data1>...<target_datan>
+{
+	typeset orig_data=$1
+	typeset orig_sum=$(get_cksum $orig_data)
+	typeset target_sum=""
+	typeset bad_data_list=""
+	typeset -i bad_count=0
+
+	shift
+	for data in $@; do
+		if [[ ! -e $data ]]; then 
+			bad_data_list="$bad_data_list $data"
+			(( bad_count +=1 ))
+			continue
+		fi
+
+		target_sum=$(get_cksum $data)
+		if [[ $target_sum != $orig_sum ]]; then
+			bad_data_list="$bad_data_list $data"
+			(( bad_count +=1 ))
+		fi
+	done
+
+	[[ $bad_data_list != "" ]] && \
+		log_fail "Data corruptions appear during send->receive." \
+			"There are total $bad_count corruptions. They are:\n"\
+			"$bad_data_list"
+}
+
+#
+# Check the received dataset exists or not
+#
+function receive_check #<dataset1>...<datasetn>
+{
+	typeset bad_rst_tgts=""
+
+	for dataset in $@; do
+		! datasetexists $dataset && \
+			bad_rst_tgts="$bad_rst_tgts $dataset"
+	done
+
+	if [[ $bad_rst_tgts != "" ]]; then
+		log_fail "Restoring fails. The specified datasets"\
+			"$bad_rst_tgts are not being received."
+	fi
+}

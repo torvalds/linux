@@ -1,0 +1,550 @@
+.TH "Heimdal Kerberos 5 cryptography functions" 3 "11 Jan 2012" "Version 1.5.2" "HeimdalKerberos5library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+Heimdal Kerberos 5 cryptography functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_enctype_valid\fP (krb5_context context, krb5_enctype etype)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_cksumtype_to_enctype\fP (krb5_context context, krb5_cksumtype ctype, krb5_enctype *etype)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_encrypt_iov_ivec\fP (krb5_context context, krb5_crypto crypto, unsigned usage, \fBkrb5_crypto_iov\fP *data, int num_data, void *ivec)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_decrypt_iov_ivec\fP (krb5_context context, krb5_crypto crypto, unsigned usage, \fBkrb5_crypto_iov\fP *data, unsigned int num_data, void *ivec)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_create_checksum_iov\fP (krb5_context context, krb5_crypto crypto, unsigned usage, \fBkrb5_crypto_iov\fP *data, unsigned int num_data, krb5_cksumtype *type)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_verify_checksum_iov\fP (krb5_context context, krb5_crypto crypto, unsigned usage, \fBkrb5_crypto_iov\fP *data, unsigned int num_data, krb5_cksumtype *type)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_crypto_init\fP (krb5_context context, const krb5_keyblock *key, krb5_enctype etype, krb5_crypto *crypto)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_crypto_destroy\fP (krb5_context context, krb5_crypto crypto)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_crypto_getblocksize\fP (krb5_context context, krb5_crypto crypto, size_t *blocksize)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_crypto_getenctype\fP (krb5_context context, krb5_crypto crypto, krb5_enctype *enctype)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_crypto_getpadsize\fP (krb5_context context, krb5_crypto crypto, size_t *padsize)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_crypto_getconfoundersize\fP (krb5_context context, krb5_crypto crypto, size_t *confoundersize)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_enctype_disable\fP (krb5_context context, krb5_enctype enctype)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_enctype_enable\fP (krb5_context context, krb5_enctype enctype)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_allow_weak_crypto\fP (krb5_context context, krb5_boolean enable)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_random_to_key\fP (krb5_context context, krb5_enctype type, const void *data, size_t size, krb5_keyblock *key)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_crypto_fx_cf2\fP (krb5_context context, const krb5_crypto crypto1, const krb5_crypto crypto2, krb5_data *pepper1, krb5_data *pepper2, krb5_enctype enctype, krb5_keyblock *res)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_generate_subkey_extended\fP (krb5_context context, const krb5_keyblock *key, krb5_enctype etype, krb5_keyblock **subkey)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_keyblock_zero\fP (krb5_keyblock *keyblock)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_free_keyblock_contents\fP (krb5_context context, krb5_keyblock *keyblock)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_free_keyblock\fP (krb5_context context, krb5_keyblock *keyblock)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_copy_keyblock_contents\fP (krb5_context context, const krb5_keyblock *inblock, krb5_keyblock *to)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_copy_keyblock\fP (krb5_context context, const krb5_keyblock *inblock, krb5_keyblock **to)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_enctype KRB5_LIB_CALL \fBkrb5_keyblock_get_enctype\fP (const krb5_keyblock *block)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_keyblock_init\fP (krb5_context context, krb5_enctype type, const void *data, size_t size, krb5_keyblock *key)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_allow_weak_crypto (krb5_context context, krb5_boolean enable)"
+.PP
+Enable or disable all weak encryption types
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context 
+.br
+\fIenable\fP true to enable, false to disable
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_cksumtype_to_enctype (krb5_context context, krb5_cksumtype ctype, krb5_enctype * etype)"
+.PP
+Return the coresponding encryption type for a checksum type.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos context 
+.br
+\fIctype\fP The checksum type to get the result enctype for 
+.br
+\fIetype\fP The returned encryption, when the matching etype is not found, etype is set to ETYPE_NULL.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code for an failure or 0 on success. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_copy_keyblock (krb5_context context, const krb5_keyblock * inblock, krb5_keyblock ** to)"
+.PP
+Copy a keyblock, free the output keyblock with \fBkrb5_free_keyblock()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Kerberos 5 context 
+.br
+\fIinblock\fP the key to copy 
+.br
+\fIto\fP the output key.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success or a Kerberos 5 error code 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_copy_keyblock_contents (krb5_context context, const krb5_keyblock * inblock, krb5_keyblock * to)"
+.PP
+Copy a keyblock, free the output keyblock with \fBkrb5_free_keyblock_contents()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Kerberos 5 context 
+.br
+\fIinblock\fP the key to copy 
+.br
+\fIto\fP the output key.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success or a Kerberos 5 error code 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_create_checksum_iov (krb5_context context, krb5_crypto crypto, unsigned usage, \fBkrb5_crypto_iov\fP * data, unsigned int num_data, krb5_cksumtype * type)"
+.PP
+Create a Kerberos message checksum.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos context 
+.br
+\fIcrypto\fP Kerberos crypto context 
+.br
+\fIusage\fP Key usage for this buffer 
+.br
+\fIdata\fP array of buffers to process 
+.br
+\fInum_data\fP length of array 
+.br
+\fItype\fP output data
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_crypto_destroy (krb5_context context, krb5_crypto crypto)"
+.PP
+Free a crypto context created by \fBkrb5_crypto_init()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos context 
+.br
+\fIcrypto\fP crypto context to free
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_crypto_fx_cf2 (krb5_context context, const krb5_crypto crypto1, const krb5_crypto crypto2, krb5_data * pepper1, krb5_data * pepper2, krb5_enctype enctype, krb5_keyblock * res)"
+.PP
+The FX-CF2 key derivation function, used in FAST and preauth framework.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context 
+.br
+\fIcrypto1\fP first key to combine 
+.br
+\fIcrypto2\fP second key to combine 
+.br
+\fIpepper1\fP factor to combine with first key to garante uniqueness 
+.br
+\fIpepper2\fP factor to combine with second key to garante uniqueness 
+.br
+\fIenctype\fP the encryption type of the resulting key 
+.br
+\fIres\fP allocated key, free with \fBkrb5_free_keyblock_contents()\fP
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_crypto_getblocksize (krb5_context context, krb5_crypto crypto, size_t * blocksize)"
+.PP
+Return the blocksize used algorithm referenced by the crypto context
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos context 
+.br
+\fIcrypto\fP crypto context to query 
+.br
+\fIblocksize\fP the resulting blocksize
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_crypto_getconfoundersize (krb5_context context, krb5_crypto crypto, size_t * confoundersize)"
+.PP
+Return the confounder size used by the crypto context
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos context 
+.br
+\fIcrypto\fP crypto context to query 
+.br
+\fIconfoundersize\fP the returned confounder size
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_crypto_getenctype (krb5_context context, krb5_crypto crypto, krb5_enctype * enctype)"
+.PP
+Return the encryption type used by the crypto context
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos context 
+.br
+\fIcrypto\fP crypto context to query 
+.br
+\fIenctype\fP the resulting encryption type
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_crypto_getpadsize (krb5_context context, krb5_crypto crypto, size_t * padsize)"
+.PP
+Return the padding size used by the crypto context
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos context 
+.br
+\fIcrypto\fP crypto context to query 
+.br
+\fIpadsize\fP the return padding size
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_crypto_init (krb5_context context, const krb5_keyblock * key, krb5_enctype etype, krb5_crypto * crypto)"
+.PP
+Create a crypto context used for all encryption and signature operation. The encryption type to use is taken from the key, but can be overridden with the enctype parameter. This can be useful for encryptions types which is compatiable (DES for example).
+.PP
+To free the crypto context, use \fBkrb5_crypto_destroy()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos context 
+.br
+\fIkey\fP the key block information with all key data 
+.br
+\fIetype\fP the encryption type 
+.br
+\fIcrypto\fP the resulting crypto context
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_decrypt_iov_ivec (krb5_context context, krb5_crypto crypto, unsigned usage, \fBkrb5_crypto_iov\fP * data, unsigned int num_data, void * ivec)"
+.PP
+Inline decrypt a Kerberos message.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos context 
+.br
+\fIcrypto\fP Kerberos crypto context 
+.br
+\fIusage\fP Key usage for this buffer 
+.br
+\fIdata\fP array of buffers to process 
+.br
+\fInum_data\fP length of array 
+.br
+\fIivec\fP initial cbc/cts vector
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0.
+.RE
+.PP
+1. KRB5_CRYPTO_TYPE_HEADER 2. one KRB5_CRYPTO_TYPE_DATA and array [0,...] of KRB5_CRYPTO_TYPE_SIGN_ONLY in any order, however the receiver have to aware of the order. KRB5_CRYPTO_TYPE_SIGN_ONLY is commonly used unencrypoted protocol headers and trailers. The output data will be of same size as the input data or shorter. 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_encrypt_iov_ivec (krb5_context context, krb5_crypto crypto, unsigned usage, \fBkrb5_crypto_iov\fP * data, int num_data, void * ivec)"
+.PP
+Inline encrypt a kerberos message
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos context 
+.br
+\fIcrypto\fP Kerberos crypto context 
+.br
+\fIusage\fP Key usage for this buffer 
+.br
+\fIdata\fP array of buffers to process 
+.br
+\fInum_data\fP length of array 
+.br
+\fIivec\fP initial cbc/cts vector
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0.
+.RE
+.PP
+Kerberos encrypted data look like this:
+.PP
+1. KRB5_CRYPTO_TYPE_HEADER 2. array [1,...] KRB5_CRYPTO_TYPE_DATA and array [0,...] KRB5_CRYPTO_TYPE_SIGN_ONLY in any order, however the receiver have to aware of the order. KRB5_CRYPTO_TYPE_SIGN_ONLY is commonly used headers and trailers. 3. KRB5_CRYPTO_TYPE_PADDING, at least on padsize long if padsize > 1 4. KRB5_CRYPTO_TYPE_TRAILER 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_enctype_disable (krb5_context context, krb5_enctype enctype)"
+.PP
+Disable encryption type
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context 
+.br
+\fIenctype\fP encryption type to disable
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_enctype_enable (krb5_context context, krb5_enctype enctype)"
+.PP
+Enable encryption type
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context 
+.br
+\fIenctype\fP encryption type to enable
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_enctype_valid (krb5_context context, krb5_enctype etype)"
+.PP
+Check if a enctype is valid, return 0 if it is.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos context 
+.br
+\fIetype\fP enctype to check if its valid or not
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code for an failure or 0 on success (enctype valid). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_free_keyblock (krb5_context context, krb5_keyblock * keyblock)"
+.PP
+Free a keyblock, also zero out the content of the keyblock, uses \fBkrb5_free_keyblock_contents()\fP to free the content.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Kerberos 5 context 
+.br
+\fIkeyblock\fP keyblock to free, NULL is valid argument 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_free_keyblock_contents (krb5_context context, krb5_keyblock * keyblock)"
+.PP
+Free a keyblock's content, also zero out the content of the keyblock.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Kerberos 5 context 
+.br
+\fIkeyblock\fP keyblock content to free, NULL is valid argument 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_generate_subkey_extended (krb5_context context, const krb5_keyblock * key, krb5_enctype etype, krb5_keyblock ** subkey)"
+.PP
+Generate subkey, from keyblock
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP kerberos context 
+.br
+\fIkey\fP session key 
+.br
+\fIetype\fP encryption type of subkey, if ETYPE_NULL, use key's enctype 
+.br
+\fIsubkey\fP returned new, free with \fBkrb5_free_keyblock()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success or a Kerberos 5 error code 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_enctype KRB5_LIB_CALL krb5_keyblock_get_enctype (const krb5_keyblock * block)"
+.PP
+Get encryption type of a keyblock. 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_keyblock_init (krb5_context context, krb5_enctype type, const void * data, size_t size, krb5_keyblock * key)"
+.PP
+Fill in `key' with key data of type `enctype' from `data' of length `size'. Key should be freed using \fBkrb5_free_keyblock_contents()\fP.
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success or a Kerberos 5 error code 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_keyblock_zero (krb5_keyblock * keyblock)"
+.PP
+Zero out a keyblock
+.PP
+\fBParameters:\fP
+.RS 4
+\fIkeyblock\fP keyblock to zero out 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_random_to_key (krb5_context context, krb5_enctype type, const void * data, size_t size, krb5_keyblock * key)"
+.PP
+Converts the random bytestring to a protocol key according to Kerberos crypto frame work. It may be assumed that all the bits of the input string are equally random, even though the entropy present in the random source may be limited.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context 
+.br
+\fItype\fP the enctype resulting key will be of 
+.br
+\fIdata\fP input random data to convert to a key 
+.br
+\fIsize\fP size of input random data, at least krb5_enctype_keysize() long 
+.br
+\fIkey\fP key, output key, free with \fBkrb5_free_keyblock_contents()\fP
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_verify_checksum_iov (krb5_context context, krb5_crypto crypto, unsigned usage, \fBkrb5_crypto_iov\fP * data, unsigned int num_data, krb5_cksumtype * type)"
+.PP
+Verify a Kerberos message checksum.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos context 
+.br
+\fIcrypto\fP Kerberos crypto context 
+.br
+\fIusage\fP Key usage for this buffer 
+.br
+\fIdata\fP array of buffers to process 
+.br
+\fInum_data\fP length of array 
+.br
+\fItype\fP return checksum type if not NULL
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0. 
+.RE
+.PP
+

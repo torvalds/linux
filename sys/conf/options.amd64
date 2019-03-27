@@ -1,0 +1,70 @@
+# $FreeBSD$
+# Options specific to AMD64 platform kernels
+
+AUTO_EOI_1		opt_auto_eoi.h
+AUTO_EOI_2		opt_auto_eoi.h
+COUNT_XINVLTLB_HITS	opt_smp.h
+COUNT_IPIS		opt_smp.h
+MAXMEM
+MPTABLE_FORCE_HTT
+MP_WATCHDOG
+NKPT			opt_pmap.h
+PV_STATS		opt_pmap.h
+
+# Options for emulators.  These should only be used at config time, so
+# they are handled like options for static filesystems
+# (see src/sys/conf/options), except for broken debugging options.
+COMPAT_AOUT		opt_dontuse.h
+COMPAT_FREEBSD32	opt_global.h
+#COMPAT_LINUX		opt_dontuse.h
+COMPAT_LINUX32		opt_compat.h
+LINPROCFS		opt_dontuse.h
+LINSYSFS		opt_dontuse.h
+NDISAPI			opt_dontuse.h
+
+TIMER_FREQ			opt_clock.h
+
+# options for serial support
+COM_ESP			opt_sio.h
+COM_MULTIPORT		opt_sio.h
+CONSPEED		opt_sio.h
+GDBSPEED		opt_sio.h
+COM_NO_ACPI		opt_sio.h
+
+VGA_ALT_SEQACCESS	opt_vga.h
+VGA_DEBUG		opt_vga.h
+VGA_NO_FONT_LOADING	opt_vga.h
+VGA_NO_MODE_CHANGE	opt_vga.h
+VGA_SLOW_IOACCESS	opt_vga.h
+VGA_WIDTH90		opt_vga.h
+
+VESA
+VESA_DEBUG		opt_vesa.h
+
+# AGP debugging support
+AGP_DEBUG		opt_agp.h
+
+ATKBD_DFLT_KEYMAP	opt_atkbd.h
+
+# iWARP client interface support in ixl
+IXL_IW			opt_ixl.h
+
+# -------------------------------
+# EOF
+# -------------------------------
+HAMMER			opt_cpu.h
+PSM_HOOKRESUME		opt_psm.h
+PSM_RESETAFTERSUSPEND	opt_psm.h
+PSM_DEBUG		opt_psm.h
+DEV_ATPIC		opt_atpic.h
+
+# BPF just-in-time compiler
+BPF_JITTER		opt_bpf.h
+
+XENHVM			opt_global.h
+
+# options for the Intel C600 SAS driver (isci)
+ISCI_LOGGING	opt_isci.h
+
+# EFI Runtime services support
+EFIRT			opt_efirt.h

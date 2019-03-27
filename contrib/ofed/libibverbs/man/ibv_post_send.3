@@ -1,0 +1,175 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_POST_SEND 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_post_send \- post a list of work requests (WRs) to a send queue
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "int ibv_post_send(struct ibv_qp " "*qp" ", struct ibv_send_wr " "*wr" ,
+.BI "                  struct ibv_send_wr " "**bad_wr" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_post_send()
+posts the linked list of work requests (WRs) starting with
+.I wr
+to the send queue of the queue pair
+.I qp\fR.
+It stops processing WRs from this list at the first failure (that can
+be detected immediately while requests are being posted), and returns
+this failing WR through
+.I bad_wr\fR.
+.PP
+The argument
+.I wr
+is an ibv_send_wr struct, as defined in <infiniband/verbs.h>.
+.PP
+.nf
+struct ibv_send_wr {
+.in +8
+uint64_t                wr_id;                  /* User defined WR ID */
+struct ibv_send_wr     *next;                   /* Pointer to next WR in list, NULL if last WR */
+struct ibv_sge         *sg_list;                /* Pointer to the s/g array */
+int                     num_sge;                /* Size of the s/g array */
+enum ibv_wr_opcode      opcode;                 /* Operation type */
+int                     send_flags;             /* Flags of the WR properties */
+uint32_t                imm_data;               /* Immediate data (in network byte order) */
+union {
+.in +8
+struct {
+.in +8
+uint64_t        remote_addr;    /* Start address of remote memory buffer */
+uint32_t        rkey;           /* Key of the remote Memory Region */
+.in -8
+} rdma;
+struct {
+.in +8
+uint64_t        remote_addr;    /* Start address of remote memory buffer */ 
+uint64_t        compare_add;    /* Compare operand */
+uint64_t        swap;           /* Swap operand */
+uint32_t        rkey;           /* Key of the remote Memory Region */
+.in -8
+} atomic;
+struct {
+.in +8
+struct ibv_ah  *ah;             /* Address handle (AH) for the remote node address */
+uint32_t        remote_qpn;     /* QP number of the destination QP */
+uint32_t        remote_qkey;    /* Q_Key number of the destination QP */
+.in -8
+} ud;
+.in -8
+} wr;
+union {
+.in +8
+struct {
+.in +8
+uint32_t remote_srqn;            /* Number of the remote SRQ */
+.in -8
+} xrc;
+.in -8
+} qp_type;
+union {
+.in +8
+struct {
+.in +8
+struct ibv_mw            *mw;             /* Memory window (MW) of type 2 to bind */
+uint32_t                 rkey;            /* The desired new rkey of the MW */
+struct ibv_mw_bind_info  bind_info;       /* MW additional bind information */
+.in -8
+} bind_mw;
+struct {
+.in +8
+void			*hdr;	/* Pointer address of inline header */
+uint16_t		hdr_sz;	/* Inline header size */
+uint16_t		mss;	/* Maximum segment size for each TSO fragment */
+.in -8
+} tso;
+.in -8
+};
+.in -8
+};
+.fi
+.sp
+.nf
+struct ibv_mw_bind_info {
+.in +8
+struct ibv_mr            *mr;             /* The Memory region (MR) to bind the MW to */
+uint64_t                 addr;           /* The address the MW should start at */
+uint64_t                 length;          /* The length (in bytes) the MW should span */
+int                      mw_access_flags; /* Access flags to the MW. Use ibv_access_flags */
+.in -8
+};
+.fi
+.sp
+.nf
+struct ibv_sge {
+.in +8
+uint64_t                addr;                   /* Start address of the local memory buffer */
+uint32_t                length;                 /* Length of the buffer */
+uint32_t                lkey;                   /* Key of the local Memory Region */
+.in -8
+};
+.fi
+.PP
+Each QP Transport Service Type supports a specific set of opcodes, as shown in the following table:
+.PP
+.nf
+OPCODE                      | IBV_QPT_UD | IBV_QPT_UC | IBV_QPT_RC | IBV_QPT_XRC_SEND | IBV_QPT_RAW_PACKET
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+IBV_WR_SEND                 |     X      |     X      |     X      |         X        |         X
+IBV_WR_SEND_WITH_IMM        |     X      |     X      |     X      |         X        |
+IBV_WR_RDMA_WRITE           |            |     X      |     X      |         X        |
+IBV_WR_RDMA_WRITE_WITH_IMM  |            |     X      |     X      |         X        |
+IBV_WR_RDMA_READ            |            |            |     X      |         X        |
+IBV_WR_ATOMIC_CMP_AND_SWP   |            |            |     X      |         X        |
+IBV_WR_ATOMIC_FETCH_AND_ADD |            |            |     X      |         X        |
+IBV_WR_LOCAL_INV            |            |     X      |     X      |         X        |
+IBV_WR_BIND_MW              |            |     X      |     X      |         X        |
+IBV_WR_SEND_WITH_INV        |            |     X      |     X      |         X        |
+IBV_WR_TSO                  |     X      |            |            |                  |         X
+.fi
+.PP
+The attribute send_flags describes the properties of the \s-1WR\s0. It is either 0 or the bitwise \s-1OR\s0 of one or more of the following flags:
+.PP
+.TP
+.B IBV_SEND_FENCE \fR Set the fence indicator.  Valid only for QPs with Transport Service Type \fBIBV_QPT_RC
+.TP
+.B IBV_SEND_SIGNALED \fR Set the completion notification indicator.  Relevant only if QP was created with sq_sig_all=0
+.TP
+.B IBV_SEND_SOLICITED \fR Set the solicited event indicator.  Valid only for Send and RDMA Write with immediate
+.TP
+.B IBV_SEND_INLINE \fR Send data in given gather list as inline data
+in a send WQE.  Valid only for Send and RDMA Write.  The L_Key will not be checked.
+.TP
+.B IBV_SEND_IP_CSUM \fR Offload the IPv4 and TCP/UDP checksum calculation.
+Valid only when \fBdevice_cap_flags\fR in device_attr indicates current QP is
+supported by checksum offload.
+.SH "RETURN VALUE"
+.B ibv_post_send()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+The user should not alter or destroy AHs associated with WRs until
+request is fully executed and a work completion has been retrieved
+from the corresponding completion queue (CQ) to avoid unexpected
+behavior.
+.PP
+The buffers used by a WR can only be safely reused after WR the
+request is fully executed and a work completion has been retrieved
+from the corresponding completion queue (CQ). However, if the
+IBV_SEND_INLINE flag was set, the buffer can be reused immediately
+after the call returns.
+.SH "SEE ALSO"
+.BR ibv_create_qp (3),
+.BR ibv_create_ah (3),
+.BR ibv_post_recv (3),
+.BR ibv_post_srq_recv (3),
+.BR ibv_poll_cq (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>
+.TP
+Majd Dibbiny <majd@mellanox.com>
+.TP
+Yishai Hadas <yishaih@mellanox.com>

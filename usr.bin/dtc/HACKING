@@ -1,0 +1,63 @@
+$FreeBSD$
+
+Notes for people hacking on dtc
+===============================
+
+This file contains some notes for people wishing to hack on dtc.
+
+Upstreaming
+-----------
+
+This code is developed in the git repository:
+
+https://github.com/davidchisnall/dtc
+
+If you got the source from anywhere else and wish to make changes, please
+ensure that you are working against the latest version, or you may end up
+fixing bugs that are already fixed upstream.  Although the license makes no
+requirement that you share any improvements that you make, patches are very
+welcome.
+
+C++11
+-----
+
+This project uses C++11, as the goal for FreeBSD 11 is to require C/C++11 as a
+minimum, either from clang or an external toolchain.  In particular, it uses
+`std::unique_ptr` extensively for memory management within the tree.  Unique
+pointers are also used in several other places to track ownership.
+
+Most iterator loops use the new loop syntax and the `auto` type for type
+deduction.  Range-based `for` loops generally improve the readability of the
+code, though `auto` should only be used in places where the type can be deduced
+as easily by the reader as by the compiler.
+
+The code also makes use of `static_assert()` to track compile-time invariants.
+
+Adding New Checks
+-----------------
+
+Currently, the biggest weakness of this version of the tool is that it lacks
+most of the semantic checkers that can be implemented by simply reading the
+ePAPR spec.  The `checker` class provides a simple superclass for implementing
+these quite easily.  There are also helper methods on `device_tree` for finding
+specific nodes, for checks that require some understanding of the structure of
+the tree.
+
+We should probably add a parent pointer to the `node` class for easily walking
+up the tree.
+
+Adding Direct C Output
+----------------------
+
+The FreeBSD build system currently uses dtc to generate a blob and then
+converts this to C source code.  A new `output_writer` subclass could easily
+generate the C directly.
+
+Parser Improvements
+-------------------
+
+There are a few FIXME lines in the parser for some corner cases that are not
+currently used by FreeBSD.  These are mainly related to labels in the middle of
+values.  These can be fixed by creating a new `property_value` with the
+specified label, starting at the location of the label.  Don't forget to remove
+the associated comments from the BUGS section of the man page if you fix this.

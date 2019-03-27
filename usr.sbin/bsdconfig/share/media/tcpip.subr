@@ -1,0 +1,1713 @@
+if [ ! "$_MEDIA_TCPIP_SUBR" ]; then _MEDIA_TCPIP_SUBR=1
+#
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." media/tcpip.subr
+f_include $BSDCFG_SHARE/device.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/struct.subr
+f_include $BSDCFG_SHARE/variable.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+TCP_HELPFILE=$BSDCFG_LIBE/include/tcp.hlp
+NETWORK_DEVICE_HELPFILE=$BSDCFG_LIBE/include/network_device.hlp
+
+############################################################ GLOBALS
+
+#
+# Path to resolv.conf(5).
+#
+: ${RESOLV_CONF:="/etc/resolv.conf"}
+
+#
+# Path to nsswitch.conf(5).
+#
+: ${NSSWITCH_CONF:="/etc/nsswitch.conf"}
+
+#
+# Path to hosts(5)
+#
+: ${ETC_HOSTS:="/etc/hosts"}
+
+#
+# Structure of dhclient.leases(5) lease { ... } entry
+#
+f_struct_define DHCP_LEASE \
+	interface		\
+	fixed_address		\
+	filename		\
+	server_name		\
+	script			\
+	medium			\
+	host_name		\
+	subnet_mask		\
+	routers			\
+	domain_name_servers	\
+	domain_name		\
+	broadcast_address	\
+	dhcp_lease_time		\
+	dhcp_message_type	\
+	dhcp_server_identifier	\
+	dhcp_renewal_time	\
+	dhcp_rebinding_time	\
+	renew			\
+	rebind			\
+	expire
+
+############################################################ FUNCTIONS
+
+# f_validate_hostname $hostname
+#
+# Returns zero if the given argument (a fully-qualified hostname) is compliant
+# with standards set-forth in RFC's 952 and 1123 of the Network Working Group:
+#
+# RFC 952 - DoD Internet host table specification
+# http://tools.ietf.org/html/rfc952
+#
+# RFC 1123 - Requirements for Internet Hosts - Application and Support
+# http://tools.ietf.org/html/rfc1123
+#
+# See http://en.wikipedia.org/wiki/Hostname for a brief overview.
+#
+# The return status for invalid hostnames is one of:
+# 	255	Entire hostname exceeds the maximum length of 255 characters.
+# 	 63	One or more individual labels within the hostname (separated by
+# 	   	dots) exceeds the maximum of 63 characters.
+# 	  1	One or more individual labels within the hostname contains one
+# 	   	or more invalid characters.
+# 	  2	One or more individual labels within the hostname starts or
+# 	   	ends with a hyphen (hyphens are allowed, but a label cannot
+# 	   	begin or end with a hyphen).
+# 	  3	One or more individual labels within the hostname are null.
+#
+# To call this function and display an appropriate error message to the user
+# based on the above error codes, use the following function defined in
+# dialog.subr:
+#
+# 	f_dialog_validate_hostname $hostname
+#
+f_validate_hostname()
+{
+	local fqhn="$1"
+
+	# Return error if the hostname exceeds 255 characters
+	[ ${#fqhn} -gt 255 ] && return 255
+
+	local IFS="." # Split on `dot'
+	for label in $fqhn; do
+		# Return error if the label exceeds 63 characters
+		[ ${#label} -gt 63 ] && return 63
+
+		# Return error if the label is null
+		[ "$label" ] || return 3
+
+		# Return error if label begins/ends with dash
+		case "$label" in -*|*-) return 2; esac
+
+		# Return error if the label contains any invalid chars
+		case "$label" in *[!0-9a-zA-Z-]*) return 1; esac
+	done
+
+	return $SUCCESS
+}
+
+# f_inet_atoi $ipv4_address [$var_to_set]
+#
+# Convert an IPv4 address or mask from dotted-quad notation (e.g., `127.0.0.1'
+# or `255.255.255.0') to a 32-bit unsigned integer for the purpose of network
+# and broadcast calculations. For example, one can validate that two addresses
+# are on the same network:
+#
+# 	f_inet_atoi 1.2.3.4 ip1num
+# 	f_inet_atoi 1.2.4.5 ip2num
+# 	f_inet_atoi 255.255.0.0 masknum
+# 	if [ $(( $ip1num & $masknum )) -eq \
+# 	     $(( $ip2num & $masknum )) ]
+# 	then
+# 		: IP addresses are on same network
+# 	fi
+#
+# See f_validate_ipaddr() below for an additional example usage, on calculating
+# network and broadcast addresses.
+#
+# If $var_to_set is missing or NULL, the converted IP address is printed to
+# standard output for capturing in a sub-shell (which is less-recommended
+# because of performance degredation; for example, when called in a loop).
+#
+f_inet_atoi()
+{
+	local __addr="$1" __var_to_set="$2" __num=0
+	if f_validate_ipaddr "$__addr"; then
+		local IFS=.
+		set -- $__addr
+		__num=$(( ($1 << 24) + ($2 << 16) + ($3 << 8) + $4 ))
+	fi
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" $__num
+	else
+		echo $__num
+	fi
+}
+
+# f_validate_ipaddr $ipaddr [$netmask]
+#
+# Returns zero if the given argument (an IP address) is of the proper format.
+#
+# The return status for invalid IP address is one of:
+# 	1	One or more individual octets within the IP address (separated
+# 	 	by dots) contains one or more invalid characters.
+# 	2	One or more individual octets within the IP address are null
+# 	 	and/or missing.
+# 	3	One or more individual octets within the IP address exceeds the
+# 	 	maximum of 255 (or 2^8, being an octet comprised of 8 bits).
+# 	4	The IP address has either too few or too many octets.
+#
+# If a netmask is provided, the IP address is checked further:
+#
+# 	5	The IP address must not be the network or broadcast address.
+#
+f_validate_ipaddr()
+{
+	local ip="$1" mask="$2"
+
+	# Track number of octets for error checking
+	local noctets=0
+
+	local oldIFS="$IFS" IFS="." # Split on `dot'
+	for octet in $ip; do
+		# Return error if the octet is null
+		[ "$octet" ] || return 2
+
+		# Return error if not a whole integer
+		f_isinteger "$octet" || return 1
+
+		# Return error if not a positive integer
+		[ $octet -ge 0 ] || return 1
+
+		# Return error if the octet exceeds 255
+		[ $octet -gt 255 ] && return 3
+
+		noctets=$(( $noctets + 1 ))
+	done
+	IFS="$oldIFS"
+
+	[ $noctets -eq 4 ] || return 4
+
+	#
+	# The IP address must not be network or broadcast address.
+	#
+	if [ "$mask" ]; then
+		local ipnum masknum netnum bcastnum
+		local max_addr=4294967295 # 255.255.255.255
+
+		f_inet_atoi $ip ipnum
+		f_inet_atoi $mask masknum
+
+		netnum=$(( $ipnum & $masknum ))
+		bcastnum=$(( ($ipnum & $masknum)+$max_addr-$masknum ))
+
+		if [ "$masknum" ] &&
+		   [ $ipnum -eq $netnum -o $ipnum -eq $bcastnum ]
+		then
+			return 5
+		fi
+	fi
+
+	return $SUCCESS
+}
+
+# f_validate_ipaddr6 $ipv6_addr
+#
+# Returns zero if the given argument (an IPv6 address) is of the proper format.
+#
+# The return status for invalid IP address is one of:
+# 	1	One or more individual segments within the IP address
+# 	 	(separated by colons) contains one or more invalid characters.
+# 	 	Segments must contain only combinations of the characters 0-9,
+# 	 	A-F, or a-f.
+# 	2	Too many/incorrect null segments. A single null segment is
+# 	 	allowed within the IP address (separated by colons) but not
+# 	 	allowed at the beginning or end (unless a double-null segment;
+# 	 	i.e., "::*" or "*::").
+# 	3	One or more individual segments within the IP address
+# 	 	(separated by colons) exceeds the length of 4 hex-digits.
+# 	4	The IP address entered has either too few (less than 3), too
+# 	 	many (more than 8), or not enough segments, separated by
+# 	 	colons.
+# 	5*	The IPv4 address at the end of the IPv6 address is invalid.
+# 	*	When there is an error with the dotted-quad IPv4 address at the
+# 	 	end of the IPv6 address, the return value of 5 is OR'd with a
+# 	 	bit-shifted (<< 4) return of f_validate_ipaddr.
+#
+f_validate_ipaddr6()
+{
+	local ip="${1%\%*}" # removing the interface specification if-present
+
+	local IFS=":" # Split on `colon'
+	set -- $ip:
+
+	# Return error if too many or too few segments
+	# Using 9 as max in case of leading or trailing null spanner
+	[ $# -gt 9 -o $# -lt 3 ] && return 4
+
+	local h="[0-9A-Fa-f]"
+	local nulls=0 nsegments=$# contains_ipv4_segment=
+
+	while [ $# -gt 0 ]; do
+
+		segment="${1%:}"
+		shift
+
+		#
+		# Return error if this segment makes one null too-many. A
+		# single null segment is allowed anywhere in the middle as well
+		# as double null segments are allowed at the beginning or end
+		# (but not both).
+		#
+		if [ ! "$segment" ]; then
+			nulls=$(( $nulls + 1 ))
+			if [ $nulls -eq 3 ]; then
+				# Only valid syntax for 3 nulls is `::'
+				[ "$ip" = "::" ] || return 2
+			elif [ $nulls -eq 2 ]; then
+				# Only valid if begins/ends with `::'
+				case "$ip" in
+				::*|*::) : fall thru ;;
+				*) return 2
+				esac
+			fi
+			continue
+		fi
+
+		#
+		# Return error if not a valid hexadecimal short
+		#
+		case "$segment" in
+		$h|$h$h|$h$h$h|$h$h$h$h)
+			: valid segment of 1-4 hexadecimal digits
+			;;
+		*[!0-9A-Fa-f]*)
+			# Segment contains at least one invalid char
+
+			# Return error immediately if not last segment
+			[ $# -eq 0 ] || return 1
+
+			# Otherwise, check for legacy IPv4 notation
+			case "$segment" in
+			*[!0-9.]*)
+				# Segment contains at least one invalid
+				# character even for an IPv4 address
+				return 1
+			esac
+
+			# Return error if not enough segments
+			if [ $nulls -eq 0 ]; then
+				[ $nsegments -eq 7 ] || return 4
+			fi
+
+			contains_ipv4_segment=1
+
+			# Validate the IPv4 address
+			f_validate_ipaddr "$segment" ||
+				return $(( 5 | $? << 4 ))
+			;;
+		*)
+			# Segment characters are all valid but too many
+			return 3
+		esac
+
+	done
+
+	if [ $nulls -eq 1 ]; then
+		# Single null segment cannot be at beginning/end
+		case "$ip" in
+		:*|*:) return 2
+		esac
+	fi
+
+	#
+	# A legacy IPv4 address can span the last two 16-bit segments,
+	# reducing the amount of maximum allowable segments by-one.
+	#
+	maxsegments=8
+	if [ "$contains_ipv4_segment" ]; then
+		maxsegments=7
+	fi
+
+	case $nulls in
+	# Return error if missing segments with no null spanner
+	0) [ $nsegments -eq $maxsegments ] || return 4 ;;
+	# Return error if null spanner with too many segments
+	1) [ $nsegments -le $maxsegments ] || return 4 ;;
+	# Return error if leading/trailing `::' with too many segments
+	2) [ $nsegments -le $(( $maxsegments + 1 )) ] || return 4 ;;
+	esac
+
+	return $SUCCESS
+}
+
+# f_validate_netmask $netmask
+#
+# Returns zero if the given argument (a subnet mask) is of the proper format.
+#
+# The return status for invalid netmask is one of:
+# 	1	One or more individual fields within the subnet mask (separated
+# 	 	by dots) contains one or more invalid characters.
+# 	2	One or more individual fields within the subnet mask are null
+# 	 	and/or missing.
+# 	3	One or more individual fields within the subnet mask exceeds
+# 	 	the maximum of 255 (a full 8-bit register).
+# 	4	The subnet mask has either too few or too many fields.
+# 	5	One or more individual fields within the subnet mask is an
+# 	 	invalid integer (only 0,128,192,224,240,248,252,254,255 are
+# 	 	valid integers).
+#
+f_validate_netmask()
+{
+	local mask="$1"
+
+	# Track number of fields for error checking
+	local nfields=0
+
+	local IFS="." # Split on `dot'
+	for field in $mask; do
+		# Return error if the field is null
+		[ "$field" ] || return 2
+
+		# Return error if not a whole positive integer
+		f_isinteger "$field" || return 1
+
+		# Return error if the field exceeds 255
+		[ $field -gt 255 ] && return 3
+
+		# Return error if the field is an invalid integer
+		case "$field" in
+		0|128|192|224|240|248|252|254|255) : ;;
+		*) return 5 ;;
+		esac
+
+		nfields=$(( $nfields + 1 ))
+	done
+
+	[ $nfields -eq 4 ] || return 4
+}
+
+# f_validate_gateway $gateway $ipaddr $netmask
+#
+# Validate an IPv4 default gateway (aka router) address for a given IP address
+# making sure the two are in the same network (able to ``talk'' to each other).
+# Returns success if $ipaddr and $gateway are in the same network given subnet
+# mask $netmask.
+#
+f_validate_gateway()
+{
+	local gateway="$1" ipaddr="$2" netmask="$3"
+	local gwnum ipnum masknum
+
+	f_validate_ipaddr "$gateway" "$netmask" || return $FAILURE
+
+	f_inet_atoi "$netmask" masknum
+	f_inet_atoi "$ipaddr"  ipnum
+	f_inet_atoi "$gateway" gwnum
+
+	# Gateway must be within set of IPs reachable through interface
+	[ $(( $ipnum & $masknum )) -eq \
+	  $(( $gwnum & $masknum )) ] # Return status
+}
+
+# f_dialog_validate_tcpip $hostname $gateway $nameserver $ipaddr $netmask
+#
+# Returns success if the arguments provided are valid for accessing a TCP/IP
+# network, otherwise returns failure.
+#
+f_dialog_validate_tcpip()
+{
+	local hostname="$1" gateway="$2" nameserver="$3"
+	local ipaddr="$4" netmask="$5"
+	local ipnum masknum
+
+	if [ ! "$hostname" ]; then
+		f_show_msg "$msg_must_specify_a_host_name_of_some_sort"
+	elif ! f_validate_hostname "$hostname"; then
+		f_show_msg "$msg_invalid_hostname_value"
+	elif [ "$netmask" ] && ! f_validate_netmask "$netmask"; then
+		f_show_msg "$msg_invalid_netmask_value"
+	elif [ "$nameserver" ] &&
+	     ! f_validate_ipaddr "$nameserver" &&
+	     ! f_validate_ipaddr6 "$nameserver"; then
+		f_show_msg "$msg_invalid_name_server_ip_address_specified"
+	elif [ "$ipaddr" ] && ! f_validate_ipaddr "$ipaddr" "$netmask"; then
+		f_show_msg "$msg_invalid_ipv4_address"
+	elif [ "$gateway" -a "$gateway" != "NO" ] &&
+	     ! f_validate_gateway "$gateway" "$ipaddr" "$netmask"; then
+		f_show_msg "$msg_invalid_gateway_ipv4_address_specified"
+	else
+		return $DIALOG_OK
+	fi
+
+	return $DIALOG_CANCEL
+}
+
+# f_ifconfig_inet $interface [$var_to_set]
+#
+# Returns the IPv4 address associated with $interface. If $var_to_set is
+# missing or NULL, the IP address is printed to standard output for capturing
+# in a sub-shell (which is less-recommended because of performance degredation;
+# for example, when called in a loop).
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_ifconfig_inet_awk='
+BEGIN { found = 0 }
+( $1 == "inet" ) \
+{
+	print $2
+	found = 1
+	exit
+}
+END { exit ! found }
+'
+f_ifconfig_inet()
+{
+	local __interface="$1" __var_to_set="$2"
+	if [ "$__var_to_set" ]; then
+		local __ip
+		__ip=$( ifconfig "$__interface" 2> /dev/null |
+			awk "$f_ifconfig_inet_awk" )
+		setvar "$__var_to_set" "$__ip"
+	else
+		ifconfig "$__interface" 2> /dev/null |
+			awk "$f_ifconfig_inet_awk"
+	fi
+}
+
+# f_ifconfig_inet6 $interface [$var_to_set]
+#
+# Returns the IPv6 address associated with $interface. If $var_to_set is
+# missing or NULL, the IP address is printed to standard output for capturing
+# in a sub-shell (which is less-recommended because of performance degredation;
+# for example, when called in a loop).
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_ifconfig_inet6_awk='
+BEGIN { found = 0 }
+( $1 == "inet6" ) \
+{
+	print $2
+	found = 1
+	exit
+}
+END { exit ! found }
+'
+f_ifconfig_inet6()
+{
+	local __interface="$1" __var_to_set="$2"
+	if [ "$__var_to_set" ]; then
+		local __ip6
+		__ip6=$( ifconfig "$__interface" 2> /dev/null |
+			awk "$f_ifconfig_inet6_awk" )
+		setvar "$__var_to_set" "$__ip6"
+	else
+		ifconfig "$__interface" 2> /dev/null |
+			awk "$f_ifconfig_inet6_awk"
+	fi
+}
+
+# f_ifconfig_netmask $interface [$var_to_set]
+#
+# Returns the IPv4 subnet mask associated with $interface. If $var_to_set is
+# missing or NULL, the netmask is printed to standard output for capturing in a
+# sub-shell (which is less-recommended because of performance degredation; for
+# example, when called in a loop).
+#
+f_ifconfig_netmask()
+{
+	local __interface="$1" __var_to_set="$2" __octets
+	__octets=$( ifconfig "$__interface" 2> /dev/null | awk \
+	'
+		BEGIN { found = 0 }
+		( $1 == "inet" ) \
+		{
+			printf "%s %s %s %s\n",
+				substr($4,3,2),
+				substr($4,5,2),
+				substr($4,7,2),
+				substr($4,9,2)
+			found = 1
+			exit
+		}
+		END { exit ! found }
+	' ) || return $FAILURE
+
+	local __octet __netmask=
+	for __octet in $__octets; do
+		f_sprintf __netmask "%s.%u" "$__netmask" "0x$__octet"
+	done
+	__netmask="${__netmask#.}"
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__netmask"
+	else
+		echo $__netmask
+	fi
+}
+
+# f_route_get_default [$var_to_set]
+#
+# Returns the IP address of the currently active default router. If $var_to_set
+# is missing or NULL, the IP address is printed to standard output for
+# capturing in a sub-shell (which is less-recommended because of performance
+# degredation; for example, when called in a loop).
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_route_get_default_awk='
+BEGIN { found = 0 }
+( $1 == "gateway:" ) \
+{
+	print $2
+	found = 1
+	exit
+}
+END { exit ! found }
+'
+f_route_get_default()
+{
+	local __var_to_set="$1"
+	if [ "$__var_to_set" ]; then
+		local __ip
+		__ip=$( route -n get default 2> /dev/null |
+			awk "$f_route_get_default_awk" )
+		setvar "$__var_to_set" "$__ip"
+	else
+		route -n get default 2> /dev/null |
+			awk "$f_route_get_default_awk"
+	fi
+}
+
+# f_resolv_conf_nameservers [$var_to_set]
+#
+# Returns nameserver(s) configured in resolv.conf(5). If $var_to_set is missing
+# or NULL, the list of nameservers is printed to standard output for capturing
+# in a sub-shell (which is less-recommended because of performance degredation;
+# for example, when called in a loop).
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_resolv_conf_nameservers_awk='
+BEGIN { found = 0 }
+( $1 == "nameserver" ) \
+{
+	print $2
+	found = 1
+}
+END { exit ! found }
+'
+f_resolv_conf_nameservers()
+{
+	local __var_to_set="$1"
+	if [ "$__var_to_set" ]; then
+		local __ns
+		__ns=$( awk "$f_resolv_conf_nameservers_awk" "$RESOLV_CONF" \
+			2> /dev/null )
+		setvar "$__var_to_set" "$__ns"
+	else
+		awk "$f_resolv_conf_nameservers_awk" "$RESOLV_CONF" \
+			2> /dev/null
+	fi
+}
+
+# f_config_resolv
+#
+# Attempts to configure resolv.conf(5) and ilk. Returns success if able to
+# write the file(s), otherwise returns error status.
+#
+# Variables from variable.subr that are used in configuring resolv.conf(5) are
+# as follows (all of which can be configured automatically through functions
+# like f_dhcp_get_info() or manually):
+#
+# 	VAR_NAMESERVER
+#		The nameserver to add in resolv.conf(5).
+# 	VAR_DOMAINNAME
+# 		The domain to configure in resolv.conf(5). Also used in the
+# 		configuration of hosts(5).
+# 	VAR_IPADDR
+# 		The IPv4 address to configure in hosts(5).
+# 	VAR_IPV6ADDR
+# 		The IPv6 address to configure in hosts(5).
+# 	VAR_HOSTNAME
+# 		The hostname to associate with the IPv4 and/or IPv6 address in
+# 		hosts(5).
+#
+f_config_resolv()
+{
+	local cp c6p dp hp
+
+	f_getvar $VAR_NAMESERVER cp
+	if [ "$cp" ]; then
+		case "$RESOLV_CONF" in
+		*/*) f_quietly mkdir -p "${RESOLV_CONF%/*}" ;;
+		esac
+
+		# Attempt to create/truncate the file
+		( :> "$RESOLV_CONF" ) 2> /dev/null || return $FAILURE
+
+		f_getvar $VAR_DOMAINNAME dp &&
+			printf "domain\t%s\n" "$dp" >> "$RESOLV_CONF"
+		printf "nameserver\t%s\n" "$cp" >> "$RESOLV_CONF"
+
+		f_dprintf "Wrote out %s" "$RESOLV_CONF"
+	fi
+
+	f_getvar $VAR_DOMAINNAME dp
+	f_getvar $VAR_IPADDR cp
+	f_getvar $VAR_IPV6ADDR c6p
+	f_getvar $VAR_HOSTNAME hp
+
+	# Attempt to create the file if it doesn't already exist
+	if [ ! -e "$ETC_HOSTS" ]; then
+		case "$ETC_HOSTS" in
+		*/*) f_quietly mkdir -p "${ETC_HOSTS%/*}" ;;
+		esac
+
+		( :> "$ETC_HOSTS" ) 2> /dev/null || return $FAILURE
+	fi
+
+	# Scan the file and add ourselves if not already configured
+	awk -v dn="$dp" -v ip4="$cp" -v ip6="$c6p" -v hn="$hp" '
+		BEGIN {
+			local4found = local6found = 0
+			hn4found = hn6found = h4found = h6found = 0
+			h = ( match(hn, /\./) ? substr(hn, 0, RSTART-1) : "" )
+		}
+		($1 == "127.0.0.1") { local4found = 1 }
+		($1 == "::1") { local6found = 1 }
+		{
+			for (n = 2; n <= NF; n++)
+			{
+				if ( $1 == ip4 ) {
+					if ( $n == h ) h4found = 1
+					if ( $n == hn ) hn4found = 1
+					if ( $n == hn "." ) hn4found = 1
+				}
+				if ( $1 == ip6 ) {
+					if ( $n == h ) h6found = 1
+					if ( $n == hn ) hn6found = 1
+					if ( $n == hn "." ) hn6found = 1
+				}
+			}
+		}
+		END {
+			hosts = FILENAME
+
+			if ( ! local6found )
+				printf "::1\t\t\tlocalhost%s\n",
+				       ( dn ? " localhost." dn : "" ) >> hosts
+			if ( ! local4found )
+				printf "127.0.0.1\t\tlocalhost%s\n",
+				       ( dn ? " localhost." dn : "" ) >> hosts
+
+			if ( ip6 && ! (h6found && hn6found))
+			{
+				printf "%s\t%s %s\n", ip6, hn, h >> hosts
+				printf "%s\t%s.\n", ip6, hn >> hosts
+			}
+			else if ( ip6 )
+			{
+				if ( ! h6found )
+					printf "%s\t%s.\n", ip6, h >> hosts
+				if ( ! hn6found )
+					printf "%s\t%s\n", ip6, hn >> hosts
+			}
+
+			if ( ip4 && ! (h4found && hn4found))
+			{
+				printf "%s\t\t%s %s\n", ip4, hn, h >> hosts
+				printf "%s\t\t%s.\n", ip4, hn >> hosts
+			}
+			else if ( ip4 )
+			{
+				if ( ! h4found )
+					printf "%s\t\t%s.\n", ip4, h >> hosts
+				if ( ! hn4found )
+					printf "%s\t\t%s\n", ip4, hn >> hosts
+			}
+		}
+	' "$ETC_HOSTS" 2> /dev/null || return $FAILURE
+
+	f_dprintf "Wrote out %s" "$ETC_HOSTS"
+	return $SUCCESS
+}
+
+# f_dhcp_parse_leases $leasefile struct_name
+#
+# Parse $leasefile and store the information for the most recent lease in a
+# struct (see struct.subr for additional details) named `struct_name'. See
+# DHCP_LEASE struct definition in the GLOBALS section above.
+#
+f_dhcp_parse_leases()
+{
+	local leasefile="$1" struct_name="$2"
+
+	[ "$struct_name" ] || return $FAILURE
+
+	if [ ! -e "$leasefile" ]; then
+		f_dprintf "%s: No such file or directory" "$leasefile"
+		return $FAILURE
+	fi
+
+	f_struct "$struct_name" && f_struct_free "$struct_name"
+	f_struct_new DHCP_LEASE "$struct_name"
+
+	eval "$( awk -v struct="$struct_name" '
+		BEGIN {
+			lease_found = 0
+			keyword_list = " \
+				interface	\
+				fixed-address	\
+				filename	\
+				server-name	\
+				script		\
+				medium		\
+			"
+			split(keyword_list, keywords, FS)
+
+			time_list = "renew rebind expire"
+			split(time_list, times, FS)
+
+			option_list = " \
+				host-name		\
+				subnet-mask		\
+				routers			\
+				domain-name-servers	\
+				domain-name		\
+				broadcast-address	\
+				dhcp-lease-time		\
+				dhcp-message-type	\
+				dhcp-server-identifier	\
+				dhcp-renewal-time	\
+				dhcp-rebinding-time	\
+			"
+			split(option_list, options, FS)
+		}
+		function set_value(prop,value)
+		{
+			lease_found = 1
+			gsub(/[^[:alnum:]_]/, "_", prop)
+			sub(/;$/, "", value)
+			sub(/^"/, "", value)
+			sub(/"$/, "", value)
+			sub(/,.*/, "", value)
+			printf "%s set %s \"%s\"\n", struct, prop, value
+		}
+		/^lease {$/, /^}$/ \
+		{
+			if ( $0 ~ /^lease {$/ ) next
+			if ( $0 ~ /^}$/ ) exit
+
+			for (k in keywords)
+			{
+				keyword = keywords[k]
+				if ( $1 == keyword )
+				{
+					set_value(keyword, $2)
+					next
+				}
+			}
+
+			for (t in times)
+			{
+				time = times[t]
+				if ( $1 == time )
+				{
+					set_value(time, $2 " " $3 " " $4)
+					next
+				}
+			}
+
+			if ( $1 != "option" ) next
+			for (o in options)
+			{
+				option = options[o]
+				if ( $2 == option )
+				{
+					set_value(option, $3)
+					next
+				}
+			}
+		}
+		EXIT {
+			if ( ! lease_found )
+			{
+				printf "f_struct_free \"%s\"\n", struct
+				print "return $FAILURE"
+			}
+		}
+	' "$leasefile" )"
+}
+
+# f_dhcp_get_info $interface
+#
+# Parse the dhclient(8) lease database for $interface to obtain all the
+# necessary IPv4 details necessary to communicate on the network. The retrieved
+# information is stored in VAR_IPADDR, VAR_NETMASK, VAR_GATEWAY, and
+# VAR_NAMESERVER.
+#
+# If reading the lease database fails, values are obtained from ifconfig(8) and
+# route(8). If the DHCP lease did not provide a nameserver (or likewise, we
+# were unable to parse the lease database), fall-back to resolv.conf(5) for
+# obtaining the nameserver. Always returns success.
+#
+f_dhcp_get_info()
+{
+	local interface="$1" cp
+	local leasefile="/var/db/dhclient.leases.$interface"
+
+	# If it fails, do it the old-fashioned way
+	if f_dhcp_parse_leases "$leasefile" lease; then
+		lease get fixed_address $VAR_IPADDR
+		lease get subnet_mask $VAR_NETMASK
+		lease get routers cp
+		setvar $VAR_GATEWAY "${cp%%,*}"
+		lease get domain_name_servers cp
+		setvar $VAR_NAMESERVER "${cp%%,*}"
+		lease get host_name cp &&
+			setvar $VAR_HOSTNAME "$cp"
+		f_struct_free lease
+	else
+		# Bah, now we have to get the information from ifconfig
+		if f_debugging; then
+			f_dprintf "DHCP configured interface returns %s" \
+			          "$( ifconfig "$interface" )"
+		fi
+		f_ifconfig_inet "$interface" $VAR_IPADDR
+		f_ifconfig_netmask "$interface" $VAR_NETMASK
+		f_route_get_default $VAR_GATEWAY
+	fi
+
+	# If we didn't get a name server value, hunt for it in resolv.conf
+	local ns
+	if [ -r "$RESOLV_CONF" ] && ! {
+		f_getvar $VAR_NAMESERVER ns || [ "$ns" ]
+	}; then
+		f_resolv_conf_nameservers cp &&
+			setvar $VAR_NAMESERVER ${cp%%[$IFS]*}
+	fi
+
+	return $SUCCESS
+}
+
+# f_rtsol_get_info $interface
+#
+# Returns the rtsol-provided IPv6 address associated with $interface. The
+# retrieved IP address is stored in VAR_IPV6ADDR. Always returns success.
+#
+f_rtsol_get_info()
+{
+	local interface="$1" cp
+	cp=$( ifconfig "$interface" 2> /dev/null | awk \
+	'
+		BEGIN { found = 0 }
+		( $1 == "inet6" ) && ( $2 ~ /^fe80:/ ) \
+		{
+			print $2
+			found = 1
+			exit
+		}
+		END { exit ! found }
+	' ) && setvar $VAR_IPV6ADDR "$cp"
+}
+
+# f_host_lookup $host [$var_to_set]
+#
+# Use host(1) to lookup (or reverse) an Internet number from (or to) a name.
+# Multiple answers are returned separated by a single space. If host(1) does
+# not exit cleanly, its full output is provided and the return status is 1.
+#
+# If nsswitch.conf(5) has been configured to query local access first for the
+# `hosts' database, we'll manually check hosts(5) first (preventing host(1)
+# from hanging in the event that DNS goes awry).
+#
+# If $var_to_set is missing or NULL, the list of IP addresses is printed to
+# standard output for capturing in a sub-shell (which is less-recommended
+# because of performance degredation; for example, when called in a loop).
+#
+# The variables from variable.subr used in looking up the host are as follows
+# (which are set manually):
+#
+# 	VAR_IPV6_ENABLE [Optional]
+# 		If set to "YES", enables the lookup of IPv6 addresses and IPv4
+# 		address. IPv6 addresses, if any, will come before IPv4. Note
+# 		that if nsswitch.conf(5) shows an affinity for "files" for the
+# 		"host" database and there is a valid entry in hosts(5) for
+# 		$host, this setting currently has no effect (an IPv4 address
+# 		can supersede an IPv6 address). By design, hosts(5) overrides
+# 		any preferential treatment. Otherwise, if this variable is not
+# 		set, IPv6 addresses will not be used (IPv4 addresses will
+# 		specifically be requested from DNS).
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_host_lookup_awk='
+BEGIN{ addrs = "" }
+!/^[[:space:]]*(#|$)/ \
+{
+	for (n=1; n++ < NF;) if ($n == name)
+		addrs = addrs (addrs ? " " : "") $1
+}
+END {
+	if (addrs) print addrs
+	exit !addrs
+}
+'
+f_host_lookup()
+{
+	local __host="$1" __var_to_set="$2"
+	f_dprintf "f_host_lookup: host=[%s]" "$__host"
+
+	# If we're configured to look at local files first, do that
+	if awk '/^hosts:/{exit !($2=="files")}' "$NSSWITCH_CONF"; then
+		if [ "$__var_to_set" ]; then
+			local __cp
+			if __cp=$( awk -v name="$__host" \
+				"$f_host_lookup_awk" "$ETC_HOSTS" )
+			then
+				setvar "$__var_to_set" "$__cp"
+				return $SUCCESS
+			fi
+		else
+			awk -v name="$__host" \
+				"$f_host_lookup_awk" "$ETC_HOSTS" &&
+				return $SUCCESS
+		fi
+	fi
+
+	#
+	# Fall back to host(1) -- which is further governed by nsswitch.conf(5)
+	#
+
+	local __output __ip6 __addrs=
+	f_getvar $VAR_IPV6_ENABLE __ip6
+
+	# If we have a TCP media type configured, check for an SRV record
+	local __srvtypes=
+	{ f_quietly f_getvar $VAR_HTTP_PATH ||
+	  f_quietly f_getvar $VAR_HTTP_PROXY_PATH
+	} && __srvtypes="$__srvtypes _http._tcp"
+	f_quietly f_getvar $VAR_FTP_PATH && __srvtypes="$__srvtypes _ftp._tcp"
+	f_quietly f_getvar $VAR_NFS_PATH &&
+		__srvtypes="$__srvtypes _nfs._tcp _nfs._udp"
+
+	# Calculate wait time as dividend of total time and host(1) invocations
+	local __host_runs __wait
+	f_count __host_runs $__srvtypes
+	if [ "$__ip6" = "YES" ]; then
+		__host_runs=$(( $__host_runs + 2 ))
+	else
+		__host_runs=$(( $__host_runs + 1 ))
+	fi
+	f_getvar $VAR_MEDIA_TIMEOUT __wait
+	[ "$__wait" ] && __wait="-W $(( $__wait / $__host_runs ))"
+
+	# Query SRV types first (1st host response taken as new host to query)
+	for __type in $__srvtypes; do
+		if __output=$(
+			host -t SRV $__wait -- "$__type.$__host" \
+			2> /dev/null
+		); then
+			__host=$( echo "$__output" |
+					awk '/ SRV /{print $NF;exit}' )
+			break
+		fi
+	done
+
+	# Try IPv6 first (if enabled)
+	if [ "$__ip6" = "YES" ]; then
+		if ! __output=$( host -t AAAA $__wait -- "$__host" 2>&1 ); then
+			# An error occurred, display in-full and return error
+			[ "$__var_to_set" ] &&
+				setvar "$__var_to_set" "$__output"
+			return $FAILURE
+		fi
+		# Add the IPv6 addresses and fall-through to collect IPv4 too
+		__addrs=$( echo "$__output" | awk '/ address /{print $NF}' )
+	fi
+
+	# Good ol' IPv4
+	if ! __output=$( host -t A $__wait -- "$__host" 2>&1 ); then
+		# An error occurred, display it in-full and return error
+		[ "$__var_to_set" ] && setvar "$__var_to_set" "$__output"
+		return $FAILURE
+	fi
+
+	__addrs="$__addrs${__addrs:+ }$(
+		echo "$__output" | awk '/ address /{print $NF}' )"
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__addrs"
+	else
+		echo $__addrs
+	fi
+}
+
+# f_device_dialog_tcp $device
+#
+# This is it - how to get TCP setup values. Prompt the user to edit/confirm the
+# interface, gateway, nameserver, and hostname settings -- all required for
+# general TCP/IP access.
+#
+# Variables from variable.subr that can be used to sript user input:
+#
+# 	VAR_NO_INET6
+# 		If set, prevents asking the user if they would like to use
+# 		rtsol(8) to check for an IPv6 router.
+# 	VAR_TRY_RTSOL
+# 		If set to "YES" (and VAR_NONINTERACTIVE is unset), asks the
+# 		user if they would like to try the IPv6 RouTer SOLicitation
+# 		utility (rtsol(8)) to get IPv6 information. Ignored if
+# 		VAR_NO_INET6 is set.
+# 	VAR_TRY_DHCP
+# 		If set to "YES" (and VAR_NONINTERACTIVE is unset), asks the
+# 		user if they would like to try to acquire IPv4 connection
+# 		settings from a DHCP server using dhclient(8).
+#
+# 	VAR_GATEWAY	Default gateway to use.
+# 	VAR_IPADDR	Interface address to assign.
+# 	VAR_NETMASK	Interface subnet mask.
+# 	VAR_EXTRAS	Extra interface options to ifconfig(8).
+# 	VAR_HOSTNAME	Hostname to set.
+# 	VAR_DOMAINNAME	Domain name to use.
+# 	VAR_NAMESERVER	DNS nameserver to use when making lookups.
+# 	VAR_IPV6ADDR	IPv6 interface address.
+#
+# In addition, the following variables are used in acquiring network settings
+# from the user:
+#
+# 	VAR_NONINTERACTIVE
+# 		If set (such as when running in a script), prevents asking the
+# 		user questions or displaying the usual prompts, etc.
+# 	VAR_NETINTERACTIVE
+# 		The one exception to VAR_NONINTERACTIVE is VAR_NETINTERACTIVE,
+# 		which if set will prompt the user to try RTSOL (unless
+# 		VAR_TRY_RTSOL has been set), try DHCP (unless VAR_TRY_DHCP has
+# 		been set), and display the network verification dialog. This
+# 		allows you to have a mostly non-interactive script that still
+# 		prompts for network setup/confirmation.
+#
+# After successful execution, the following variables are set:
+#
+# 	VAR_IFCONFIG + $device (e.g., `ifconfig_em0')
+#               Defines the ifconfig(8) properties specific to $device.
+#
+f_device_dialog_tcp()
+{
+	local dev="$1" devname cp n
+	local use_dhcp="" use_rtsol=""
+	local _ipaddr _netmask _extras
+
+	[ "$dev" ] || return $DIALOG_CANCEL
+	f_struct "$dev" get name devname || return $DIALOG_CANCEL
+
+	# Initialize vars from previous device values
+	local private
+	$dev get private private
+	if [ "$private" ] && f_struct "$private"; then
+		$private get ipaddr    _ipaddr
+		$private get netmask   _netmask
+		$private get extras    _extras
+		$private get use_dhcp  use_dhcp
+		$private get use_rtsol use_rtsol
+	else # See if there are any defaults
+
+		#
+		# This is a hack so that the dialogs below are interactive in a
+		# script if we have requested interactive behavior.
+		#
+		local old_interactive=
+		if ! f_interactive && f_netinteractive; then
+			f_getvar $VAR_NONINTERACTIVE old_interactive
+			unset $VAR_NONINTERACTIVE
+		fi
+
+		#
+		# Try a RTSOL scan if such behavior is desired.
+		# If the variable was configured and is YES, do it.
+		# If it was configured to anything else, treat it as NO.
+		# Otherwise, ask the question interactively.
+		#
+		local try6
+		if ! f_isset $VAR_NO_INET6 && {
+		   { f_getvar $VAR_TRY_RTSOL try6 && [ "$try6" = "YES" ]; } ||
+		   {
+			# Only prompt the user when VAR_TRY_RTSOL is unset
+			! f_isset $VAR_TRY_RTSOL &&
+				f_dialog_noyes "$msg_try_ipv6_configuration"
+		   }
+		}; then
+			local i
+
+			f_quietly sysctl net.inet6.ip6.forwarding=0
+			f_quietly sysctl net.inet6.ip6.accept_rtadv=1
+			f_quietly ifconfig $devname up
+
+			i=$( sysctl -n net.inet6.ip6.dad_count )
+			sleep $(( $i + 1 ))
+
+			f_quietly mkdir -p /var/run
+			f_dialog_info "$msg_scanning_for_ra_servers"
+			if f_quietly rtsol $devname; then
+				i=$( sysctl -n net.inet6.ip6.dad_count )
+				sleep $(( $i + 1 ))
+				f_rtsol_get_info $devname
+				use_rtsol=1
+			else
+				use_rtsol=
+			fi
+		fi
+
+		#
+		# Try a DHCP scan if such behavior is desired.
+		# If the variable was configured and is YES, do it.
+		# If it was configured to anything else, treat it as NO.
+		# Otherwise, ask the question interactively.
+		#
+		local try4
+		if { f_getvar $VAR_TRY_DHCP try4 && [ "$try4" = "YES" ]; } || {
+			# Only prompt the user when VAR_TRY_DHCP is unset
+			! f_isset $VAR_TRY_DHCP &&
+				f_dialog_noyes "$msg_try_dhcp_configuration"
+		}; then
+			f_quietly ifconfig $devname delete
+			f_quietly mkdir -p /var/db
+			f_quietly mkdir -p /var/run
+			f_quietly mkdir -p /tmp
+
+			local msg="$msg_scanning_for_dhcp_servers"
+			trap - SIGINT
+			( # Execute in sub-shell to allow/catch Ctrl-C
+			  trap 'exit $FAILURE' SIGINT
+			  if [ "$USE_XDIALOG" ]; then
+			  	f_quietly dhclient $devname |
+			  			f_xdialog_info "$msg"
+			  else
+			  	f_dialog_info "$msg"
+			  	f_quietly dhclient $devname
+			  fi
+			)
+			local retval=$?
+			trap 'f_interrupt' SIGINT
+			if [ $retval -eq $SUCCESS ]; then
+				f_dhcp_get_info $devname
+				use_dhcp=1
+			else
+				use_dhcp=
+			fi
+		fi
+
+		# Restore old VAR_NONINTERACTIVE if needed.
+		[ "$old_interactive" ] &&
+			setvar $VAR_NONINTERACTIVE "$old_interactive"
+
+		# Special hack so it doesn't show up oddly in the menu
+		local gw
+		if f_getvar $VAR_GATEWAY gw && [ "$gw" = "NO" ]; then
+			setvar $VAR_GATEWAY ""
+		fi
+
+		# Get old IP address from variable space, if available
+		if [ ! "$_ipaddr" ]; then
+			if f_getvar $VAR_IPADDR cp; then
+				_ipaddr="$cp"
+			elif f_getvar ${devname}_$VAR_IPADDR cp; then
+				_ipaddr="$cp"
+			fi
+		fi
+
+		# Get old netmask from variable space, if available
+		if [ ! "$_netmask" ]; then
+			if f_getvar $VAR_NETMASK cp; then
+				_netmask="$cp"
+			elif f_getvar ${devname}_$VAR_NETMASK cp; then
+				_netmask="$cp"
+			fi
+		fi
+
+		# Get old extras string from variable space, if available
+		if [ ! "$_extras" ]; then
+			if f_getvar $VAR_EXTRAS cp; then
+				_extras="$cp"
+			elif f_getvar ${devname}_$VAR_EXTRAS cp; then
+				_extras="$cp"
+			fi
+		fi
+	fi
+
+	# Look up values already recorded with the system, or blank the string
+	# variables ready to accept some new data
+	local _hostname _gateway _nameserver
+	f_getvar $VAR_HOSTNAME _hostname
+	case "$_hostname" in
+	*.*) : do nothing ;; # Already fully-qualified
+	*)
+		f_getvar $VAR_DOMAINNAME cp
+		[ "$cp" ] && _hostname="$_hostname.$cp"
+	esac
+	f_getvar $VAR_GATEWAY _gateway
+	f_getvar $VAR_NAMESERVER _nameserver
+
+	# Re-check variables for initial inheritance before heading into dialog
+	[ "$_hostname" ] || _hostname="${HOSTNAME:-$( hostname )}"
+	[ "$_gateway" ] || f_route_get_default _gateway
+	[ ! "$_nameserver" ] &&
+		f_resolv_conf_nameservers cp && _nameserver=${cp%%[$IFS]*}
+	[ "$_ipaddr" ] || f_ifconfig_inet $devname _ipaddr
+	[ "$_netmask" ] || f_ifconfig_netmask $devname _netmask
+
+	# If non-interactive, jump over dialog section and into config section
+	if f_netinteractive || f_interactive || [ ! "$_hostname" ]
+	then
+		[ ! "$_hostname" ] && f_interactive &&
+			f_show_msg "$msg_hostname_variable_not_set"
+
+		local title=" $msg_network_configuration "
+		local hline="$hline_alnum_arrows_punc_tab_enter"
+		local extras_help="$tcplayout_extras_help"
+
+		# Modify the help line for PLIP config
+		[ "${devname#plip}" != "$devname" ] &&
+			extras_help="$tcplayout_extras_help_for_plip"
+
+		f_getvar $VAR_IPV6ADDR cp && [ "$cp" ] &&
+			title="$title($msg_ipv6_ready) "
+
+		if [ ! "$USE_XDIALOG" ]; then
+			local prompt="$msg_dialog_mixedform_navigation_help"
+			# Calculate center position for displaying device label
+			local devlabel="$msg_configuration_for_interface"
+			devlabel="$devlabel $devname"
+			local width=54
+			local n=$(( $width/2 - (${#devlabel} + 4)/2 - 2 ))
+
+			while :; do
+				cp=$( $DIALOG \
+					--title "$title"                     \
+					--backtitle "$DIALOG_BACKTITLE"      \
+					--hline "$hline"                     \
+					--item-help                          \
+					--ok-label "$msg_ok"                 \
+					--cancel-label "$msg_cancel"         \
+					--help-button                        \
+					--help-label "$msg_help"             \
+					--mixedform "$prompt" 16 $width 9    \
+					"$msg_host_name_including_domain:" 1 2 \
+						"$_hostname" 2 3 45 255 0    \
+						"$tcplayout_hostname_help"   \
+					"$msg_ipv4_gateway:" 3 2             \
+						"$_gateway" 4 3 16 15 0      \
+						"$tcplayout_gateway_help"    \
+					"$msg_name_server:" 3 31             \
+						"$_nameserver" 4 32 16 15 0  \
+						"$tcplayout_nameserver_help" \
+					"- $devlabel -" 5 $n "" 0 0 0 0 3 "" \
+					"$msg_ipv4_address:" 6 6             \
+						"$_ipaddr" 7 7 16 15 0       \
+						"$tcplayout_ipaddr_help"     \
+					"$msg_netmask:" 6 31                 \
+						"$_netmask" 7 32 16 15 0     \
+						"$tcplayout_netmask_help"    \
+					"$msg_extra_options_to_ifconfig" 8 6 \
+						"$_extras" 9 7 41 2048 0     \
+						"$extras_help"               \
+					2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD )
+
+				# --mixed-form always returns 0, we have to
+				# use the returned data to determine button
+				if [ ! "$cp" ]; then
+					# User either chose "Cancel", pressed
+					# ESC, or blanked every form field
+					return $DIALOG_CANCEL
+				else
+					n=$( echo "$cp" | f_number_of_lines )
+					[ $n -eq 1 ] && case "$cp" in HELP*)
+						# User chose "Help"
+						f_show_help "$TCP_HELPFILE"
+						continue
+					esac
+				fi
+
+				# Turn mixed-form results into env variables
+				eval "$( echo "$cp" | awk '
+				BEGIN {
+					n = 0
+					field[++n] = "_hostname"
+					field[++n] = "_gateway"
+					field[++n] = "_nameserver"
+					field[++n] = "_ipaddr"
+					field[++n] = "_netmask"
+					field[++n] = "_extras"
+					nfields = n
+					n = 0
+				}
+				{
+					gsub(/'\''/, "'\'\\\\\'\''")
+					sub(/[[:space:]]*$/, "")
+					value[field[++n]] = $0
+				}
+				END {
+					for ( n = 1; n <= nfields; n++ )
+					{
+						printf "%s='\''%s'\'';\n",
+						       field[n],
+						       value[field[n]]
+					}
+				}' )"
+
+				f_dialog_validate_tcpip \
+					"$_hostname" \
+					"$_gateway" \
+					"$_nameserver" \
+					"$_ipaddr" \
+					"$_netmask" \
+					&& break
+			done
+		else
+			# Xdialog(1) does not support --mixed-form
+			# Create a persistent menu instead
+
+			f_dialog_title "$msg_network_configuration"
+			local prompt=
+
+			while :; do
+				cp=$( $DIALOG \
+					--title "$DIALOG_TITLE"               \
+					--backtitle "$DIALOG_BACKTITLE"       \
+					--hline "$hline"                      \
+					--item-help                           \
+					--ok-label "$msg_ok"                  \
+					--cancel-label "$msg_cancel"          \
+					--help ""                             \
+					--menu "$prompt" 21 60 8              \
+					"$msg_accept_continue" ""             \
+						"$tcplayout_accept_cont_help" \
+					"$msg_host_name_including_domain:"    \
+						"$_hostname"                  \
+						"$tcplayout_hostname_help"    \
+					"$msg_ipv4_gateway:" "$_gateway"      \
+						"$tcplayout_gateway_help"     \
+					"$msg_name_server:" "$_nameserver"    \
+						"$tcplayout_nameserver_help"  \
+					"$msg_ipv4_address:" "$_ipaddr"       \
+						"$tcplayout_ipaddr_help"      \
+					"$msg_netmask:" "$_netmask"           \
+						"$tcplayout_netmask_help"     \
+					"$msg_extra_options_to_ifconfig"      \
+						"$_extras" "$extras_help"     \
+					2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+				)
+				local retval=$?
+				f_dialog_data_sanitize cp
+				f_dprintf "retval=%u mtag=[%s]" $retval "$cp"
+
+				if [ $retval -eq $DIALOG_HELP ]; then
+					f_show_help "$TCP_HELPFILE"
+					continue
+				elif [ $retval -ne $DIALOG_OK ]; then
+					f_dialog_title_restore
+					return $DIALOG_CANCEL
+				fi
+
+				case "$cp" in
+				"$msg_accept_continue")
+					f_dialog_validate_tcpip \
+						"$_hostname" \
+						"$_gateway" \
+						"$_nameserver" \
+						"$_ipaddr" \
+						"$_netmask" \
+						&& break ;;
+				"$msg_host_name_including_domain:")
+					f_dialog_input cp "$cp" "$_hostname" \
+						&& _hostname="$cp" ;;
+				"$msg_ipv4_gateway:")
+					f_dialog_input cp "$cp" "$_gateway" \
+						&& _gateway="$cp" ;;
+				"$msg_name_server:")
+					f_dialog_input cp "$cp" "$_nameserver" \
+						&& _nameserver="$cp" ;;
+				"$msg_ipv4_address:")
+					f_dialog_input cp "$cp" "$_ipaddr" \
+						&& _ipaddr="$cp" ;;
+				"$msg_netmask:")
+					f_dialog_input cp "$cp" "$_netmask" \
+						&& _netmask="$cp" ;;
+				"$msg_extra_options_to_ifconfig")
+					f_dialog_input cp "$cp" "$_extras" \
+						&& _extras="$cp" ;;
+				esac
+			done
+
+			f_dialog_title_restore
+
+		fi # XDIALOG
+
+	fi # interactive
+
+	# We actually need to inform the rest of bsdconfig about this
+	# data now if the user hasn't selected cancel.
+
+	if [ "$_hostname" ]; then
+		setvar $VAR_HOSTNAME "$_hostname"
+		f_quietly hostname "$_hostname"
+		case "$_hostname" in
+		*.*) setvar $VAR_DOMAINNAME "${_hostname#*.}" ;;
+		esac
+	fi
+	[ "$_gateway"    ] && setvar $VAR_GATEWAY    "$_gateway"
+	[ "$_nameserver" ] && setvar $VAR_NAMESERVER "$_nameserver"
+	[ "$_ipaddr"     ] && setvar $VAR_IPADDR     "$_ipaddr"
+	[ "$_netmask"    ] && setvar $VAR_NETMASK    "$_netmask"
+	[ "$_extras"     ] && setvar $VAR_EXTRAS     "$_extras"
+
+	f_dprintf "Creating struct DEVICE_INFO devinfo_%s" "$dev"
+	f_struct_new DEVICE_INFO devinfo_$dev
+	$dev set private devinfo_$dev
+
+	devinfo_$dev set ipaddr    $_ipaddr
+	devinfo_$dev set netmask   $_netmask
+	devinfo_$dev set extras    $_extras
+	devinfo_$dev set use_rtsol $use_rtsol
+	devinfo_$dev set use_dhcp  $use_dhcp
+
+	if [ "$use_dhcp" -o "$_ipaddr" ]; then
+		if [ "$use_dhcp" ]; then
+			cp="DHCP${extras:+ $extras}"
+		else
+			cp="inet $_ipaddr netmask $_netmask${extras:+ $extras}"
+		fi
+		setvar $VAR_IFCONFIG$devname "$cp"
+	fi
+	[ "$use_rtsol" ] &&
+		setvar $VAR_IPV6_ENABLE "YES"
+
+	[ "$use_dhcp" ] ||
+		f_config_resolv # XXX this will do it on the MFS copy
+
+	return $DIALOG_OK
+}
+
+# f_device_scan_tcp [$var_to_set]
+#
+# Scan for the first active/configured TCP/IP device. The name of the interface
+# is printed to stderr like other dialog(1)-based functions (stdout is reserved
+# for dialog(1) interaction) if $var_to_set is missing or NULL. Returns failure
+# if no active/configured interface
+#
+f_device_scan_tcp()
+{	
+	local __var_to_set="$1" __iface
+	for __iface in $( ifconfig -l ); do
+		if ifconfig $__iface | awk '
+		BEGIN {
+			has_inet = has_inet6 = is_ethernet = 0
+			is_usable = 1
+		}
+		( $1 == "status:" && $2 != "active" ) { is_usable = 0; exit }
+		( $1 == "inet" ) {
+			if ($2 == "0.0.0.0") { is_usable = 0; exit }
+			has_inet++
+		}
+		( $1 == "inet6") { has_inet6++ }
+		( $1 == "media:" ) {
+			if ($2 != "Ethernet") { is_usable = 0; exit }
+			is_ethernet = 1
+		}
+		END {
+			if (!(is_ethernet && (has_inet || has_inet6)))
+				is_usable = 0
+			exit ! is_usable
+		}'; then
+			f_interactive &&
+				f_show_msg "$msg_using_interface" "$__iface"
+			f_dprintf "f_device_scan_tcp found %s" "$__iface"
+			if [ "$__var_to_set" ]; then
+				setvar "$__var_to_set" "$__iface"
+			else
+				echo "$__iface" >&2
+			fi
+			return $SUCCESS
+		fi
+	done
+
+	return $FAILURE
+}
+
+# f_device_select_tcp
+#
+# Prompt the user to select network interface to use for TCP/IP access.
+# Variables from variable.subr that can be used to script user input:
+#
+# 	VAR_NETWORK_DEVICE [Optional]
+# 		Either a comma-separated list of network interfaces to try when
+# 		setting up network access (e.g., "fxp0,em0") or "ANY" (case-
+# 		sensitive) to indicate that the first active and configured
+# 		interface is acceptable. If unset, the user is presented with a
+# 		menu of all available network interfaces.
+#
+# Returns success if a valid network interface has been selected.
+#
+f_device_select_tcp()
+{
+	local devs dev cnt if network_dev
+	f_getvar $VAR_NETWORK_DEVICE network_dev
+
+	f_dprintf "f_device_select_tcp: %s=[%s]" \
+	          VAR_NETWORK_DEVICE "$network_dev"
+
+	if [ "$network_dev" ]; then
+		#
+		# This can be set to several types of values. If set to ANY,
+		# scan all network devices looking for a valid link, and go
+		# with the first device found. Can also be specified as a
+		# comma delimited list, with each network device tried in
+		# order. Can also be set to a single network device.
+		#
+		[ "$network_dev" = "ANY" ] && f_device_scan_tcp network_dev
+
+		while [ "$network_dev" ]; do
+			case "$network_dev" in
+			*,*) if="${network_dev%%,*}"
+			     network_dev="${network_dev#*,}"
+			     ;;
+			  *) if="$network_dev"
+			     network_dev=
+			esac
+
+			f_device_find -1 "$if" $DEVICE_TYPE_NETWORK dev
+			f_device_dialog_tcp $dev
+			if [ $? -eq $DIALOG_OK ]; then
+				setvar $VAR_NETWORK_DEVICE $if
+				return $DIALOG_OK
+			fi
+		done
+
+		f_interactive && f_show_msg "$msg_no_network_devices"
+		return $DIALOG_CANCEL
+
+	fi # $network_dev
+
+	f_device_find "" $DEVICE_TYPE_NETWORK devs
+	f_count cnt $devs
+	dev="${devs%%[$IFS]*}"
+	$dev get name if
+
+	f_quietly f_getvar NETWORK_CONFIGURED # for debugging info
+	if ! f_running_as_init &&
+	   ! [ "${NETWORK_CONFIGURED+set}" -a "$NETWORK_CONFIGURED" = "NO" ]
+	then
+		trap 'f_interrupt' SIGINT
+		if f_dialog_yesno "$msg_assume_network_is_already_configured"
+		then
+			setvar $VAR_NETWORK_DEVICE $if
+			return $DIALOG_OK
+		fi
+	fi
+
+	local retval=$SUCCESS
+	if [ ${cnt:=0} -eq 0 ]; then
+		f_show_msg "$msg_no_network_devices"
+		retval=$DIALOG_CANCEL
+	elif [ $cnt -eq 1 ]; then
+		f_device_dialog_tcp $dev
+		retval=$?
+		[ $retval -eq $DIALOG_OK ] && setvar $VAR_NETWORK_DEVICE $if
+	else
+		local title="$msg_network_interface_information_required"
+		local prompt="$msg_please_select_ethernet_device_to_configure"
+		local hline="$hline_arrows_tab_enter"
+
+		dev=$( f_device_menu \
+			"$title" "$prompt" "$hline" $DEVICE_TYPE_NETWORK \
+			"$NETWORK_DEVICE_HELPFILE" \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD ) ||
+			return $DIALOG_CANCEL
+
+		f_device_dialog_tcp $dev
+		retval=$?
+		if [ $retval -eq $DIALOG_OK ]; then
+			f_struct_copy "$dev" device_network
+			setvar $VAR_NETWORK_DEVICE device_network
+		else
+			f_struct_free device_network
+		fi
+	fi
+
+	return $retval
+}
+
+# f_dialog_menu_select_tcp
+#
+# Like f_dialog_select_tcp() above, but do it from a menu that doesn't care
+# about status. In other words, where f_dialog_select_tcp() will not display a
+# menu if scripted, this function will always display the menu of available
+# network interfaces.
+#
+f_dialog_menu_select_tcp()
+{
+	local private use_dhcp name
+	NETWORK_CONFIGURED=NO f_device_select_tcp
+	if f_struct device_network &&
+	   device_network get private private &&
+	   f_struct_copy "$private" di &&
+	   di get use_dhcp use_dhcp &&
+	   [ ! "$use_dhcp" ] &&
+	   device_network get name name &&
+	   f_yesno "$msg_would_you_like_to_bring_interface_up" "$name"
+	then
+		if ! f_device_init device_network; then
+			f_show_msg "$msg_initialization_of_device_failed" \
+			           "$name"
+		fi
+	fi
+	return $DIALOG_OK
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." media/tcpip.subr
+
+fi # ! $_MEDIA_TCPIP_SUBR

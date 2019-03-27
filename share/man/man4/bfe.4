@@ -1,0 +1,109 @@
+.\"
+.\" Copyright (c) 2003 Stuart Walsh
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 16, 2005
+.Dt BFE 4
+.Os
+.Sh NAME
+.Nm bfe
+.Nd "Broadcom BCM4401 Ethernet Device Driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device bfe"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_bfe_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Broadcom BCM4401 based Fast Ethernet adapters.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
+Set full duplex operation.
+.El
+.Pp
+For further information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "bfe%d: couldn't map memory"
+A fatal initialization error has occurred.
+.It "bfe%d: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "bfe%d: failed to allocate DMA resources"
+There are not enough mbufs available for allocation.
+.It "bfe%d: watchdog timeout -- resetting"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 5.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was written by
+.An Stuart Walsh
+and
+.An Duncan Barclay .
+This manual page was written by
+.An Stuart Walsh .

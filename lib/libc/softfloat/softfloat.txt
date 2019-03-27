@@ -1,0 +1,373 @@
+$NetBSD: softfloat.txt,v 1.2 2006/11/24 19:46:58 christos Exp $
+$FreeBSD$
+
+SoftFloat Release 2a General Documentation
+
+John R. Hauser
+1998 December 13
+
+
+-------------------------------------------------------------------------------
+Introduction
+
+SoftFloat is a software implementation of floating-point that conforms to
+the IEC/IEEE Standard for Binary Floating-Point Arithmetic.  As many as four
+formats are supported:  single precision, double precision, extended double
+precision, and quadruple precision.  All operations required by the standard
+are implemented, except for conversions to and from decimal.
+
+This document gives information about the types defined and the routines
+implemented by SoftFloat.  It does not attempt to define or explain the
+IEC/IEEE Floating-Point Standard.  Details about the standard are available
+elsewhere.
+
+
+-------------------------------------------------------------------------------
+Limitations
+
+SoftFloat is written in C and is designed to work with other C code.  The
+SoftFloat header files assume an ISO/ANSI-style C compiler.  No attempt
+has been made to accommodate compilers that are not ISO-conformant.  In
+particular, the distributed header files will not be acceptable to any
+compiler that does not recognize function prototypes.
+
+Support for the extended double-precision and quadruple-precision formats
+depends on a C compiler that implements 64-bit integer arithmetic.  If the
+largest integer format supported by the C compiler is 32 bits, SoftFloat is
+limited to only single and double precisions.  When that is the case, all
+references in this document to the extended double precision, quadruple
+precision, and 64-bit integers should be ignored.
+
+
+-------------------------------------------------------------------------------
+Contents
+
+    Introduction
+    Limitations
+    Contents
+    Legal Notice
+    Types and Functions
+    Rounding Modes
+    Extended Double-Precision Rounding Precision
+    Exceptions and Exception Flags
+    Function Details
+        Conversion Functions
+        Standard Arithmetic Functions
+        Remainder Functions
+        Round-to-Integer Functions
+        Comparison Functions
+        Signaling NaN Test Functions
+        Raise-Exception Function
+    Contact Information
+
+
+
+-------------------------------------------------------------------------------
+Legal Notice
+
+SoftFloat was written by John R. Hauser.  This work was made possible in
+part by the International Computer Science Institute, located at Suite 600,
+1947 Center Street, Berkeley, California 94704.  Funding was partially
+provided by the National Science Foundation under grant MIP-9311980.  The
+original version of this code was written as part of a project to build
+a fixed-point vector processor in collaboration with the University of
+California at Berkeley, overseen by Profs. Nelson Morgan and John Wawrzynek.
+
+THIS SOFTWARE IS DISTRIBUTED AS IS, FOR FREE.  Although reasonable effort
+has been made to avoid it, THIS SOFTWARE MAY CONTAIN FAULTS THAT WILL AT
+TIMES RESULT IN INCORRECT BEHAVIOR.  USE OF THIS SOFTWARE IS RESTRICTED TO
+PERSONS AND ORGANIZATIONS WHO CAN AND WILL TAKE FULL RESPONSIBILITY FOR ANY
+AND ALL LOSSES, COSTS, OR OTHER PROBLEMS ARISING FROM ITS USE.
+
+
+-------------------------------------------------------------------------------
+Types and Functions
+
+When 64-bit integers are supported by the compiler, the `softfloat.h' header
+file defines four types:  `float32' (single precision), `float64' (double
+precision), `floatx80' (extended double precision), and `float128'
+(quadruple precision).  The `float32' and `float64' types are defined in
+terms of 32-bit and 64-bit integer types, respectively, while the `float128'
+type is defined as a structure of two 64-bit integers, taking into account
+the byte order of the particular machine being used.  The `floatx80' type
+is defined as a structure containing one 16-bit and one 64-bit integer, with
+the machine's byte order again determining the order of the `high' and `low'
+fields.
+
+When 64-bit integers are _not_ supported by the compiler, the `softfloat.h'
+header file defines only two types:  `float32' and `float64'.  Because
+ISO/ANSI C guarantees at least one built-in integer type of 32 bits,
+the `float32' type is identified with an appropriate integer type.  The
+`float64' type is defined as a structure of two 32-bit integers, with the
+machine's byte order determining the order of the fields.
+
+In either case, the types in `softfloat.h' are defined such that if a system
+implements the usual C `float' and `double' types according to the IEC/IEEE
+Standard, then the `float32' and `float64' types should be indistinguishable
+in memory from the native `float' and `double' types.  (On the other hand,
+when `float32' or `float64' values are placed in processor registers by
+the compiler, the type of registers used may differ from those used for the
+native `float' and `double' types.)
+
+SoftFloat implements the following arithmetic operations:
+
+-- Conversions among all the floating-point formats, and also between
+   integers (32-bit and 64-bit) and any of the floating-point formats.
+
+-- The usual add, subtract, multiply, divide, and square root operations
+   for all floating-point formats.
+
+-- For each format, the floating-point remainder operation defined by the
+   IEC/IEEE Standard.
+
+-- For each floating-point format, a ``round to integer'' operation that
+   rounds to the nearest integer value in the same format.  (The floating-
+   point formats can hold integer values, of course.)
+
+-- Comparisons between two values in the same floating-point format.
+
+The only functions required by the IEC/IEEE Standard that are not provided
+are conversions to and from decimal.
+
+
+-------------------------------------------------------------------------------
+Rounding Modes
+
+All four rounding modes prescribed by the IEC/IEEE Standard are implemented
+for all operations that require rounding.  The rounding mode is selected
+by the global variable `float_rounding_mode'.  This variable may be set
+to one of the values `float_round_nearest_even', `float_round_to_zero',
+`float_round_down', or `float_round_up'.  The rounding mode is initialized
+to nearest/even.
+
+
+-------------------------------------------------------------------------------
+Extended Double-Precision Rounding Precision
+
+For extended double precision (`floatx80') only, the rounding precision
+of the standard arithmetic operations is controlled by the global variable
+`floatx80_rounding_precision'.  The operations affected are:
+
+   floatx80_add   floatx80_sub   floatx80_mul   floatx80_div   floatx80_sqrt
+
+When `floatx80_rounding_precision' is set to its default value of 80, these
+operations are rounded (as usual) to the full precision of the extended
+double-precision format.  Setting `floatx80_rounding_precision' to 32
+or to 64 causes the operations listed to be rounded to reduced precision
+equivalent to single precision (`float32') or to double precision
+(`float64'), respectively.  When rounding to reduced precision, additional
+bits in the result significand beyond the rounding point are set to zero.
+The consequences of setting `floatx80_rounding_precision' to a value other
+than 32, 64, or 80 is not specified.  Operations other than the ones listed
+above are not affected by `floatx80_rounding_precision'.
+
+
+-------------------------------------------------------------------------------
+Exceptions and Exception Flags
+
+All five exception flags required by the IEC/IEEE Standard are
+implemented.  Each flag is stored as a unique bit in the global variable
+`float_exception_flags'.  The positions of the exception flag bits within
+this variable are determined by the bit masks `float_flag_inexact',
+`float_flag_underflow', `float_flag_overflow', `float_flag_divbyzero', and
+`float_flag_invalid'.  The exception flags variable is initialized to all 0,
+meaning no exceptions.
+
+An individual exception flag can be cleared with the statement
+
+    float_exception_flags &= ~ float_flag_<exception>;
+
+where `<exception>' is the appropriate name.  To raise a floating-point
+exception, the SoftFloat function `float_raise' should be used (see below).
+
+In the terminology of the IEC/IEEE Standard, SoftFloat can detect tininess
+for underflow either before or after rounding.  The choice is made by
+the global variable `float_detect_tininess', which can be set to either
+`float_tininess_before_rounding' or `float_tininess_after_rounding'.
+Detecting tininess after rounding is better because it results in fewer
+spurious underflow signals.  The other option is provided for compatibility
+with some systems.  Like most systems, SoftFloat always detects loss of
+accuracy for underflow as an inexact result.
+
+
+-------------------------------------------------------------------------------
+Function Details
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Conversion Functions
+
+All conversions among the floating-point formats are supported, as are all
+conversions between a floating-point format and 32-bit and 64-bit signed
+integers.  The complete set of conversion functions is:
+
+   int32_to_float32      int64_to_float32
+   int32_to_float64      int64_to_float32
+   int32_to_floatx80     int64_to_floatx80
+   int32_to_float128     int64_to_float128
+
+   float32_to_int32      float32_to_int64
+   float32_to_int32      float64_to_int64
+   floatx80_to_int32     floatx80_to_int64
+   float128_to_int32     float128_to_int64
+
+   float32_to_float64    float32_to_floatx80   float32_to_float128
+   float64_to_float32    float64_to_floatx80   float64_to_float128
+   floatx80_to_float32   floatx80_to_float64   floatx80_to_float128
+   float128_to_float32   float128_to_float64   float128_to_floatx80
+
+Each conversion function takes one operand of the appropriate type and
+returns one result.  Conversions from a smaller to a larger floating-point
+format are always exact and so require no rounding.  Conversions from 32-bit
+integers to double precision and larger formats are also exact, and likewise
+for conversions from 64-bit integers to extended double and quadruple
+precisions.
+
+Conversions from floating-point to integer raise the invalid exception if
+the source value cannot be rounded to a representable integer of the desired
+size (32 or 64 bits).  If the floating-point operand is a NaN, the largest
+positive integer is returned.  Otherwise, if the conversion overflows, the
+largest integer with the same sign as the operand is returned.
+
+On conversions to integer, if the floating-point operand is not already an
+integer value, the operand is rounded according to the current rounding
+mode as specified by `float_rounding_mode'.  Because C (and perhaps other
+languages) require that conversions to integers be rounded toward zero, the
+following functions are provided for improved speed and convenience:
+
+   float32_to_int32_round_to_zero    float32_to_int64_round_to_zero
+   float64_to_int32_round_to_zero    float64_to_int64_round_to_zero
+   floatx80_to_int32_round_to_zero   floatx80_to_int64_round_to_zero
+   float128_to_int32_round_to_zero   float128_to_int64_round_to_zero
+
+These variant functions ignore `float_rounding_mode' and always round toward
+zero.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Standard Arithmetic Functions
+
+The following standard arithmetic functions are provided:
+
+   float32_add    float32_sub    float32_mul    float32_div    float32_sqrt
+   float64_add    float64_sub    float64_mul    float64_div    float64_sqrt
+   floatx80_add   floatx80_sub   floatx80_mul   floatx80_div   floatx80_sqrt
+   float128_add   float128_sub   float128_mul   float128_div   float128_sqrt
+
+Each function takes two operands, except for `sqrt' which takes only one.
+The operands and result are all of the same type.
+
+Rounding of the extended double-precision (`floatx80') functions is affected
+by the `floatx80_rounding_precision' variable, as explained above in the
+section _Extended_Double-Precision_Rounding_Precision_.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Remainder Functions
+
+For each format, SoftFloat implements the remainder function according to
+the IEC/IEEE Standard.  The remainder functions are:
+
+   float32_rem
+   float64_rem
+   floatx80_rem
+   float128_rem
+
+Each remainder function takes two operands.  The operands and result are all
+of the same type.  Given operands x and y, the remainder functions return
+the value x - n*y, where n is the integer closest to x/y.  If x/y is exactly
+halfway between two integers, n is the even integer closest to x/y.  The
+remainder functions are always exact and so require no rounding.
+
+Depending on the relative magnitudes of the operands, the remainder
+functions can take considerably longer to execute than the other SoftFloat
+functions.  This is inherent in the remainder operation itself and is not a
+flaw in the SoftFloat implementation.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Round-to-Integer Functions
+
+For each format, SoftFloat implements the round-to-integer function
+specified by the IEC/IEEE Standard.  The functions are:
+
+   float32_round_to_int
+   float64_round_to_int
+   floatx80_round_to_int
+   float128_round_to_int
+
+Each function takes a single floating-point operand and returns a result of
+the same type.  (Note that the result is not an integer type.)  The operand
+is rounded to an exact integer according to the current rounding mode, and
+the resulting integer value is returned in the same floating-point format.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Comparison Functions
+
+The following floating-point comparison functions are provided:
+
+   float32_eq    float32_le    float32_lt
+   float64_eq    float64_le    float64_lt
+   floatx80_eq   floatx80_le   floatx80_lt
+   float128_eq   float128_le   float128_lt
+
+Each function takes two operands of the same type and returns a 1 or 0
+representing either _true_ or _false_.  The abbreviation `eq' stands for
+``equal'' (=); `le' stands for ``less than or equal'' (<=); and `lt' stands
+for ``less than'' (<).
+
+The standard greater-than (>), greater-than-or-equal (>=), and not-equal
+(!=) functions are easily obtained using the functions provided.  The
+not-equal function is just the logical complement of the equal function.
+The greater-than-or-equal function is identical to the less-than-or-equal
+function with the operands reversed; and the greater-than function can be
+obtained from the less-than function in the same way.
+
+The IEC/IEEE Standard specifies that the less-than-or-equal and less-than
+functions raise the invalid exception if either input is any kind of NaN.
+The equal functions, on the other hand, are defined not to raise the invalid
+exception on quiet NaNs.  For completeness, SoftFloat provides the following
+additional functions:
+
+   float32_eq_signaling    float32_le_quiet    float32_lt_quiet
+   float64_eq_signaling    float64_le_quiet    float64_lt_quiet
+   floatx80_eq_signaling   floatx80_le_quiet   floatx80_lt_quiet
+   float128_eq_signaling   float128_le_quiet   float128_lt_quiet
+
+The `signaling' equal functions are identical to the standard functions
+except that the invalid exception is raised for any NaN input.  Likewise,
+the `quiet' comparison functions are identical to their counterparts except
+that the invalid exception is not raised for quiet NaNs.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Signaling NaN Test Functions
+
+The following functions test whether a floating-point value is a signaling
+NaN:
+
+   float32_is_signaling_nan
+   float64_is_signaling_nan
+   floatx80_is_signaling_nan
+   float128_is_signaling_nan
+
+The functions take one operand and return 1 if the operand is a signaling
+NaN and 0 otherwise.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Raise-Exception Function
+
+SoftFloat provides a function for raising floating-point exceptions:
+
+    float_raise
+
+The function takes a mask indicating the set of exceptions to raise.  No
+result is returned.  In addition to setting the specified exception flags,
+this function may cause a trap or abort appropriate for the current system.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+
+-------------------------------------------------------------------------------
+Contact Information
+
+At the time of this writing, the most up-to-date information about
+SoftFloat and the latest release can be found at the Web page `http://
+HTTP.CS.Berkeley.EDU/~jhauser/arithmetic/SoftFloat.html'.
+
+

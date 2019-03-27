@@ -1,0 +1,59 @@
+.\" @(#)newkey.8 1.3 91/03/11 TIRPC 1.0; from 1.12 90/02/03 SMI;
+.\" $FreeBSD$
+.Dd October 12, 1987
+.Dt NEWKEY 8
+.Os
+.Sh NAME
+.Nm newkey
+.Nd create a new key in the publickey database
+.Sh SYNOPSIS
+.Nm
+.Fl h Ar hostname
+.Nm
+.Fl u Ar username
+.Sh DESCRIPTION
+The
+.Nm
+utility is normally run by the network administrator on the
+Network Interface Service
+.Pq NIS
+master machine in order to establish public keys for
+users and super-users on the network.
+These keys are needed for using secure
+RPC
+or secure
+NFS .
+.Pp
+The
+.Nm
+utility will prompt for the login password of the given username and then
+create a new public/secret key pair in
+.Pa /etc/publickey
+encrypted with the login password of the given user.
+.Pp
+Use of this program is
+not required: users may create their own keys using
+.Xr chkey 1 .
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl h Ar hostname
+Create a new public key for the super-user at the given hostname.
+Prompts for the root password of the given hostname.
+.It Fl u Ar username
+Create a new public key for the given username.
+Prompts for the
+NIS
+password of the given username.
+.El
+.Sh SEE ALSO
+.Xr chkey 1 ,
+.Xr keylogin 1 ,
+.Xr publickey 5 ,
+.Xr keyserv 8
+.Sh NOTES
+The Network Information Service
+.Pq NIS
+was formerly known as Sun Yellow Pages
+.Pq YP .
+The functionality of the two remains the same;
+only the name has changed.

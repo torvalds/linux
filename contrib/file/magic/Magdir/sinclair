@@ -1,0 +1,38 @@
+
+#------------------------------------------------------------------------------
+# $File: sinclair,v 1.6 2015/11/14 13:38:35 christos Exp $
+# sinclair:  file(1) sinclair QL
+
+# additions to /etc/magic by Thomas M. Ott (ThMO)
+
+# Sinclair QL floppy disk formats (ThMO)
+0	string	=QL5		QL disk dump data,
+>3	string	=A		720 KB,
+>3	string	=B		1.44 MB,
+>3	string	=C		3.2 MB,
+>4	string	>\0		label:%.10s
+
+# Sinclair QL OS dump (ThMO)
+0		belong	=0x30000
+>49124		belong	<47104
+>>49128		belong	<47104
+>>>49132	belong	<47104
+>>>>49136	belong	<47104	QL OS dump data,
+>>>>>49148	string	>\0	type %.3s,
+>>>>>49142	string	>\0	version %.4s
+
+# Sinclair QL firmware executables (ThMO)
+0	string	NqNqNq`\004	QL firmware executable (BCPL)
+
+# Sinclair QL libraries (was ThMO)
+0	beshort	0xFB01		QDOS object
+>2	pstring	x		'%s'
+
+# Sinclair QL executables (was ThMO)
+4	belong	0x4AFB		QDOS executable
+>9	pstring	x		'%s'
+
+# Sinclair QL ROM (ThMO)
+0	belong	=0x4AFB0001	QL plugin-ROM data,
+>9	pstring	=\0		un-named
+>9	pstring	>\0		named: %s

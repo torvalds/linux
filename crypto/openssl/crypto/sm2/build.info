@@ -1,0 +1,5 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=\
+        sm2_sign.c sm2_crypt.c sm2_err.c sm2_pmeth.c
+
+

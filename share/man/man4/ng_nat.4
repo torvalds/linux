@@ -1,0 +1,403 @@
+.\" Copyright (c) 2005 Gleb Smirnoff <glebius@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 12, 2018
+.Dt NG_NAT 4
+.Os
+.Sh NAME
+.Nm ng_nat
+.Nd "NAT netgraph node type"
+.Sh SYNOPSIS
+.In netgraph/ng_nat.h
+.Sh DESCRIPTION
+An
+.Nm
+node performs network address translation (NAT) of packets
+passing through it.
+A
+.Nm nat
+node uses
+.Xr libalias 3
+engine for packet aliasing.
+.Sh HOOKS
+This node type has two hooks:
+.Bl -tag -width ".Va out"
+.It Va out
+Packets received on this hook are considered outgoing and will be
+masqueraded to a configured address.
+.It Va in
+Packets coming on this hook are considered incoming and will be
+dealiased.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_NAT_SET_IPADDR Pq Ic setaliasaddr
+Configure aliasing address for a node.
+After both hooks have been connected and aliasing address was configured,
+a node is ready for aliasing operation.
+.It Dv NGM_NAT_SET_MODE Pq Ic setmode
+Set node's operation mode using supplied
+.Vt "struct ng_nat_mode" .
+.Bd -literal
+struct ng_nat_mode {
+	uint32_t	flags;
+	uint32_t	mask;
+};
+/* Supported flags: */
+#define NG_NAT_LOG			0x01
+#define NG_NAT_DENY_INCOMING		0x02
+#define NG_NAT_SAME_PORTS		0x04
+#define NG_NAT_UNREGISTERED_ONLY	0x10
+#define NG_NAT_RESET_ON_ADDR_CHANGE	0x20
+#define NG_NAT_PROXY_ONLY		0x40
+#define NG_NAT_REVERSE			0x80
+.Ed
+.It Dv NGM_NAT_SET_TARGET Pq Ic settarget
+Configure target address for a node.
+When an incoming packet not associated with any pre-existing aliasing
+link arrives at the host machine, it will be sent to the specified address.
+.It Dv NGM_NAT_REDIRECT_PORT Pq Ic redirectport
+Redirect incoming connections arriving to given port(s) to
+another host and port(s).
+The following
+.Vt "struct ng_nat_redirect_port"
+must be supplied as argument.
+.Bd -literal
+#define NG_NAT_DESC_LENGTH	64
+struct ng_nat_redirect_port {
+	struct in_addr	local_addr;
+	struct in_addr	alias_addr;
+	struct in_addr	remote_addr;
+	uint16_t	local_port;
+	uint16_t	alias_port;
+	uint16_t	remote_port;
+	uint8_t		proto;
+	char		description[NG_NAT_DESC_LENGTH];
+};
+.Ed
+.Pp
+Redirection is assigned an unique ID which is returned as
+response to this message, and
+information about redirection added to
+list of static redirects which later can be retrieved by
+.Dv NGM_NAT_LIST_REDIRECTS
+message.
+.It Dv NGM_NAT_REDIRECT_ADDR Pq Ic redirectaddr
+Redirect traffic for public IP address to a machine on the
+local network.
+This function is known as
+.Em static NAT .
+The following
+.Vt "struct ng_nat_redirect_addr"
+must be supplied as argument.
+.Bd -literal
+struct ng_nat_redirect_addr {
+	struct in_addr	local_addr;
+	struct in_addr	alias_addr;
+	char		description[NG_NAT_DESC_LENGTH];
+};
+.Ed
+.Pp
+Unique ID for this redirection is returned as response to this message.
+.It Dv NGM_NAT_REDIRECT_PROTO Pq Ic redirectproto
+Redirect incoming IP packets of protocol
+.Va proto
+(see
+.Xr protocols 5 )
+to a machine on the local network.
+The following
+.Vt "struct ng_nat_redirect_proto"
+must be supplied as argument.
+.Bd -literal
+struct ng_nat_redirect_proto {
+	struct in_addr	local_addr;
+	struct in_addr	alias_addr;
+	struct in_addr	remote_addr;
+	uint8_t		proto;
+	char		description[NG_NAT_DESC_LENGTH];
+};
+.Ed
+.Pp
+Unique ID for this redirection is returned as response to this message.
+.It Dv NGM_NAT_REDIRECT_DYNAMIC Pq Ic redirectdynamic
+Mark redirection with specified ID as dynamic, i.e., it will serve
+for exactly one next connection and then will be automatically
+deleted from internal links table.
+Only fully specified links can be made dynamic.
+The redirection with this ID is also immediately deleted from
+user-visible list of static redirects (available through
+.Dv NGM_NAT_LIST_REDIRECTS
+message).
+.It Dv NGM_NAT_REDIRECT_DELETE Pq Ic redirectdelete
+Delete redirection with specified ID (currently active
+connections are not affected).
+.It Dv NGM_NAT_ADD_SERVER Pq Ic addserver
+Add another server to a pool.
+This is used to transparently offload network load on a single server
+and distribute the load across a pool of servers, also known as
+.Em LSNAT
+(RFC 2391).
+The following
+.Vt "struct ng_nat_add_server"
+must be supplied as argument.
+.Bd -literal
+struct ng_nat_add_server {
+	uint32_t	id;
+	struct in_addr	addr;
+	uint16_t	port;
+};
+.Ed
+.Pp
+First, the redirection is set up by
+.Dv NGM_NAT_REDIRECT_PORT
+or
+.Dv NGM_NAT_REDIRECT_ADDR .
+Then, ID of that redirection is used in multiple
+.Dv NGM_NAT_ADD_SERVER
+messages to add necessary number of servers.
+For redirections created by
+.Dv NGM_NAT_REDIRECT_ADDR ,
+the
+.Va port
+is ignored and could have any value.
+Original redirection's parameters
+.Va local_addr
+and
+.Va local_port
+are also ignored after
+.Dv NGM_NAT_ADD_SERVER
+was used (they are effectively replaced by server pool).
+.It Dv NGM_NAT_LIST_REDIRECTS Pq Ic listredirects
+Return list of configured static redirects as
+.Vt "struct ng_nat_list_redirects" .
+.Bd -literal
+struct ng_nat_listrdrs_entry {
+	uint32_t	id;		/* Anything except zero */
+	struct in_addr	local_addr;
+	struct in_addr	alias_addr;
+	struct in_addr	remote_addr;
+	uint16_t	local_port;
+	uint16_t	alias_port;
+	uint16_t	remote_port;
+	uint16_t	proto;		/* Valid proto or NG_NAT_REDIRPROTO_ADDR */
+	uint16_t	lsnat;		/* LSNAT servers count */
+	char		description[NG_NAT_DESC_LENGTH];
+};
+struct ng_nat_list_redirects {
+	uint32_t		total_count;
+	struct ng_nat_listrdrs_entry redirects[];
+};
+#define NG_NAT_REDIRPROTO_ADDR	(IPPROTO_MAX + 3)
+.Ed
+.Pp
+Entries of the
+.Va redirects
+array returned in the unified format for all redirect types.
+Ports are meaningful only if protocol is either TCP or UDP
+and
+.Em static NAT
+redirection (created by
+.Dv NGM_NAT_REDIRECT_ADDR )
+is indicated by
+.Va proto
+set to
+.Dv NG_NAT_REDIRPROTO_ADDR .
+If
+.Va lsnat
+servers counter is greater than zero, then
+.Va local_addr
+and
+.Va local_port
+are also meaningless.
+.It Dv NGM_NAT_PROXY_RULE Pq Ic proxyrule
+Specify a transparent proxying rule (string must be
+supplied as argument).
+See
+.Xr libalias 3
+for details.
+.It Dv NGM_NAT_LIBALIAS_INFO Pq Ic libaliasinfo
+Return internal statistics of
+.Xr libalias 3
+instance as
+.Vt "struct ng_nat_libalias_info" .
+.Bd -literal
+struct ng_nat_libalias_info {
+	uint32_t	icmpLinkCount;
+	uint32_t	udpLinkCount;
+	uint32_t	tcpLinkCount;
+	uint32_t	sctpLinkCount;
+	uint32_t	pptpLinkCount;
+	uint32_t	protoLinkCount;
+	uint32_t	fragmentIdLinkCount;
+	uint32_t	fragmentPtrLinkCount;
+	uint32_t	sockCount;
+};
+.Ed
+In case of
+.Nm
+failed to retrieve a certain counter
+from its
+.Xr libalias
+instance, the corresponding field is returned as
+.Va UINT32_MAX .
+.It Dv NGM_NAT_SET_DLT Pq Ic setdlt
+Sets the data link type on the
+.Va in
+and
+.Va out
+hooks.
+Currently, supported types are
+.Cm DLT_RAW
+(raw IP datagrams , no offset applied, the default) and
+.Cm DLT_EN10MB
+(Ethernet). DLT_ definitions can be found in
+.In net/bpf.h .
+If you want to work on the
+.Xr ipfw 8
+level you must use no additional offset by specifying
+.Cm DLT_RAW .
+If, however, you attach
+.Nm
+to a network interface directly and
+.Cm EN10MB
+is specified, then the extra offset will be applied to take into account
+link-level header.
+In this mode the
+.Nm
+would also inspect appropriate type field in the Ethernet header and
+pass-through any datagrams that are not IP packets.
+.It Dv NGM_NAT_GET_DLT Pq Ic getdlt
+This control message returns the current data link type of the
+.Va in
+and
+.Va out
+hooks.
+.El
+.Pp
+In all redirection messages
+.Va local_addr
+and
+.Va local_port
+mean address and port of target machine in the internal network,
+respectively.
+If
+.Va alias_addr
+is zero, then default aliasing address (set by
+.Dv NGM_NAT_SET_IPADDR )
+is used.
+Connections can also be restricted to be accepted only
+from specific external machines by using non-zero
+.Va remote_addr
+and/or
+.Va remote_port .
+Each redirection assigned an ID which can be later used for
+redirection manipulation on individual basis (e.g., removal).
+This ID guaranteed to be unique until the node shuts down
+(it will not be reused after deletion), and is returned to
+user after making each new redirection or can be found in
+the stored list of all redirections.
+The
+.Va description
+passed to and from node unchanged, together with ID providing
+a way for several entities to concurrently manipulate
+redirections in automated way.
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when both hooks are disconnected.
+.Sh EXAMPLES
+In the following example, the packets are injected into a
+.Nm nat
+node using the
+.Xr ng_ipfw 4
+node.
+.Bd -literal -offset indent
+# Create NAT node
+ngctl mkpeer ipfw: nat 60 out
+ngctl name ipfw:60 nat
+ngctl connect ipfw: nat: 61 in
+ngctl msg nat: setaliasaddr x.y.35.8
+
+# Divert traffic into NAT node
+ipfw add 300 netgraph 61 all from any to any in via fxp0
+ipfw add 400 netgraph 60 all from any to any out via fxp0
+
+# Let packets continue with after being (de)aliased
+sysctl net.inet.ip.fw.one_pass=0
+.Ed
+.Pp
+The
+.Nm
+node can be inserted right after the
+.Xr ng_iface 4
+node in the graph.
+In the following example, we perform masquerading on a
+serial line with HDLC encapsulation.
+.Bd -literal -offset indent
+/usr/sbin/ngctl -f- <<-SEQ
+	mkpeer cp0: cisco rawdata downstream
+	name cp0:rawdata hdlc
+	mkpeer hdlc: nat inet in
+	name hdlc:inet nat
+	mkpeer nat: iface out inet
+	msg nat: setaliasaddr x.y.8.35
+SEQ
+ifconfig ng0 x.y.8.35 x.y.8.1
+.Ed
+.Pp
+The
+.Nm
+node can also be attached directly to the physical interface
+via
+.Xr ng_ether 4
+node in the graph.
+In the following example, we perform masquerading on a
+Ethernet interface connected to a public network.
+.Bd -literal -offset indent
+ifconfig igb0 inet x.y.8.35 netmask 0xfffff000
+route add default x.y.0.1
+/usr/sbin/ngctl -f- <<-SEQ
+        mkpeer igb0: nat lower in
+        name igb0:lower igb0_NAT
+        connect igb0: igb0_NAT: upper out
+        msg igb0_NAT: setdlt 1
+        msg igb0_NAT: setaliasaddr x.y.8.35
+SEQ
+.Ed
+.Sh SEE ALSO
+.Xr libalias 3 ,
+.Xr ng_ipfw 4 ,
+.Xr natd 8 ,
+.Xr ngctl 8 ,
+.Xr ng_ether 8
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 6.0 .
+.Sh AUTHORS
+.An Gleb Smirnoff Aq Mt glebius@FreeBSD.org

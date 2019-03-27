@@ -1,0 +1,236 @@
+.\" Copyright (c) 2002-2004 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris Costello
+.\" at Safeport Network Services and Network Associates Laboratories, the
+.\" Security Research Division of Network Associates, Inc. under
+.\" DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 18, 2002
+.Dt MAC_BIBA 4
+.Os
+.Sh NAME
+.Nm mac_biba
+.Nd "Biba data integrity policy"
+.Sh SYNOPSIS
+To compile Biba into your kernel, place the following lines in your kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Cd "options MAC_BIBA"
+.Ed
+.Pp
+Alternately, to load the Biba module at boot time, place the following line
+in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Ed
+.Pp
+and in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mac_biba_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+policy module implements the Biba integrity model,
+which protects the integrity of system objects and subjects by means of
+a strict information flow policy.
+In Biba, all system subjects and objects are assigned integrity labels, made
+up of hierarchal grades, and non-hierarchal components.
+Together, these label elements permit all labels to be placed in a partial
+order, with information flow protections based on a dominance operator
+describing the order.
+The hierarchal grade field is expressed as a value between 0 and 65535,
+with higher values reflecting higher integrity.
+The non-hierarchal compartment field is expressed as a set of up to 256
+components, numbered from 0 to 255.
+A complete label consists of both hierarchal and non-hierarchal elements.
+.Pp
+Three special label values exist:
+.Bl -column -offset indent ".Li biba/equal" "lower than all other labels"
+.It Sy Label Ta Sy Comparison
+.It Li biba/low Ta "lower than all other labels"
+.It Li biba/equal Ta "equal to all other labels"
+.It Li biba/high Ta "higher than all other labels"
+.El
+.Pp
+The
+.Dq Li biba/high
+label is assigned to system objects which affect the integrity of the system
+as a whole.
+The
+.Dq Li biba/equal
+label
+may be used to indicate that a particular subject or object is exempt from
+the Biba protections.
+These special label values are not specified as containing any compartments,
+although in a label comparison,
+.Dq Li biba/high
+appears to contain all compartments,
+.Dq Li biba/equal
+the same compartments as the other label to which it is being compared,
+and
+.Dq Li biba/low
+none.
+.Pp
+In general, Biba access control takes the following model:
+.Bl -bullet
+.It
+A subject at the same integrity level as an object may both read from
+and write to the object as though Biba protections were not in place.
+.It
+A subject at a higher integrity level than an object may write to the object,
+but not read the object.
+.It
+A subject at a lower integrity level than an object may read the object,
+but not write to the object.
+.It
+If the subject and object labels may not be compared in the partial order,
+all access is restricted.
+.El
+.Pp
+These rules prevent subjects of lower integrity from influencing the
+behavior of higher integrity subjects by preventing the flow of information,
+and hence control, from allowing low integrity subjects to modify either
+a high integrity object or high integrity subjects acting on those objects.
+Biba integrity policies may be appropriate in a number of environments,
+both from the perspective of preventing corruption of the operating system,
+and corruption of user data if marked as higher integrity than the attacker.
+In traditional trusted operating systems, the Biba integrity model is used
+to protect the Trusted Code Base (TCB).
+.Pp
+The Biba integrity model is similar to
+.Xr mac_lomac 4 ,
+with the exception that LOMAC permits access by a higher integrity subject
+to a lower integrity object, but downgrades the integrity level of the subject
+to prevent integrity rules from being violated.
+Biba is a fixed label policy in that all subject and object label changes are
+explicit, whereas LOMAC is a floating label policy.
+.Pp
+The Biba integrity model is also similar to
+.Xr mac_mls 4 ,
+with the exception that the dominance operator and access rules are reversed,
+preventing the downward flow of information rather than the upward flow of
+information.
+Multi-Level Security (MLS) protects the confidentiality, rather than the
+integrity, of subjects and objects.
+.Ss Label Format
+Almost all system objects are tagged with an effective, active label element,
+reflecting the integrity of the object, or integrity of the data contained
+in the object.
+In general, objects labels are represented in the following form:
+.Pp
+.Sm off
+.D1 Li biba / Ar grade : compartments
+.Sm on
+.Pp
+For example:
+.Bd -literal -offset indent
+biba/10:2+3+6
+biba/low
+.Ed
+.Pp
+Subject labels consist of three label elements: an effective (active) label,
+as well as a range of available labels.
+This range is represented using two ordered Biba label elements, and when set
+on a process, permits the process to change its active label to any label of
+greater or equal integrity to the low end of the range, and lesser or equal
+integrity to the high end of the range.
+In general, subject labels are represented in the following form:
+.Pp
+.Sm off
+.D1 Li biba / Ar effectivegrade : effectivecompartments ( lograde : locompartments -
+.D1 Ar higrade : hicompartments )
+.Sm on
+.Pp
+For example:
+.Bd -literal -offset indent
+biba/10:2+3+6(5:2+3-20:2+3+4+5+6)
+biba/high(low-high)
+.Ed
+.Pp
+Valid ranged labels must meet the following requirement regarding their
+elements:
+.Pp
+.D1 Ar rangehigh No \[>=] Ar effective No \[>=] Ar rangelow
+.Pp
+One class of objects with ranges currently exists, the network interface.
+In the case of the network interface, the effective label element references the
+default label for packets received over the interface, and the range
+represents the range of acceptable labels of packets to be transmitted over
+the interface.
+.Ss Runtime Configuration
+The following
+.Xr sysctl 8
+MIBs are available for fine-tuning the enforcement of this MAC policy.
+.Bl -tag -width ".Va security.mac.biba.ptys_equal"
+.It Va security.mac.biba.enabled
+Enables enforcement of the Biba integrity policy.
+(Default: 1).
+.It Va security.mac.biba.ptys_equal
+Label
+.Xr pty 4 Ns s
+as
+.Dq Li biba/equal
+upon creation.
+(Default: 0).
+.It Va security.mac.biba.revocation_enabled
+Revoke access to objects if the label is changed to dominate the subject.
+(Default: 0).
+.El
+.Sh SEE ALSO
+.Xr mac 4 ,
+.Xr mac_bsdextended 4 ,
+.Xr mac_ifoff 4 ,
+.Xr mac_lomac 4 ,
+.Xr mac_mls 4 ,
+.Xr mac_none 4 ,
+.Xr mac_partition 4 ,
+.Xr mac_portacl 4 ,
+.Xr mac_seeotheruids 4 ,
+.Xr mac_test 4 ,
+.Xr maclabel 7 ,
+.Xr mac 9
+.Sh HISTORY
+The
+.Nm
+policy module first appeared in
+.Fx 5.0
+and was developed by the
+.Tn TrustedBSD
+Project.
+.Sh AUTHORS
+This software was contributed to the
+.Fx
+Project by Network Associates Labs,
+the Security Research Division of Network Associates
+Inc.
+under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.

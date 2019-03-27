@@ -1,0 +1,675 @@
+@c Copyright (C) 2001,2002,2003,2004 Free Software Foundation, Inc.
+@c This is part of the GCC manual.
+@c For copying conditions, see the file gcc.texi.
+
+@node C Implementation
+@chapter C Implementation-defined behavior
+@cindex implementation-defined behavior, C language
+
+A conforming implementation of ISO C is required to document its
+choice of behavior in each of the areas that are designated
+``implementation defined''.  The following lists all such areas,
+along with the section numbers from the ISO/IEC 9899:1990 and ISO/IEC
+9899:1999 standards.  Some areas are only implementation-defined in
+one version of the standard.
+
+Some choices depend on the externally determined ABI for the platform
+(including standard character encodings) which GCC follows; these are
+listed as ``determined by ABI'' below.  @xref{Compatibility, , Binary
+Compatibility}, and @uref{http://gcc.gnu.org/readings.html}.  Some
+choices are documented in the preprocessor manual.
+@xref{Implementation-defined behavior, , Implementation-defined
+behavior, cpp, The C Preprocessor}.  Some choices are made by the
+library and operating system (or other environment when compiling for
+a freestanding environment); refer to their documentation for details.
+
+@menu
+* Translation implementation::
+* Environment implementation::
+* Identifiers implementation::
+* Characters implementation::
+* Integers implementation::
+* Floating point implementation::
+* Arrays and pointers implementation::
+* Hints implementation::
+* Structures unions enumerations and bit-fields implementation::
+* Qualifiers implementation::
+* Declarators implementation::
+* Statements implementation::
+* Preprocessing directives implementation::
+* Library functions implementation::
+* Architecture implementation::
+* Locale-specific behavior implementation::
+@end menu
+
+@node Translation implementation
+@section Translation
+
+@itemize @bullet
+@item
+@cite{How a diagnostic is identified (C90 3.7, C99 3.10, C90 and C99 5.1.1.3).}
+
+Diagnostics consist of all the output sent to stderr by GCC@.
+
+@item
+@cite{Whether each nonempty sequence of white-space characters other than
+new-line is retained or replaced by one space character in translation
+phase 3 (C90 and C99 5.1.1.2).}
+
+@xref{Implementation-defined behavior, , Implementation-defined
+behavior, cpp, The C Preprocessor}.
+
+@end itemize
+
+@node Environment implementation
+@section Environment
+
+The behavior of most of these points are dependent on the implementation
+of the C library, and are not defined by GCC itself.
+
+@itemize @bullet
+@item
+@cite{The mapping between physical source file multibyte characters
+and the source character set in translation phase 1 (C90 and C99 5.1.1.2).}
+
+@xref{Implementation-defined behavior, , Implementation-defined
+behavior, cpp, The C Preprocessor}.
+
+@end itemize
+
+@node Identifiers implementation
+@section Identifiers
+
+@itemize @bullet
+@item
+@cite{Which additional multibyte characters may appear in identifiers
+and their correspondence to universal character names (C99 6.4.2).}
+
+@xref{Implementation-defined behavior, , Implementation-defined
+behavior, cpp, The C Preprocessor}.
+
+@item
+@cite{The number of significant initial characters in an identifier
+(C90 6.1.2, C90 and C99 5.2.4.1, C99 6.4.2).}
+
+For internal names, all characters are significant.  For external names,
+the number of significant characters are defined by the linker; for
+almost all targets, all characters are significant.
+
+@item
+@cite{Whether case distinctions are significant in an identifier with
+external linkage (C90 6.1.2).}
+
+This is a property of the linker.  C99 requires that case distinctions
+are always significant in identifiers with external linkage and
+systems without this property are not supported by GCC@.
+
+@end itemize
+
+@node Characters implementation
+@section Characters
+
+@itemize @bullet
+@item
+@cite{The number of bits in a byte (C90 3.4, C99 3.6).}
+
+Determined by ABI@.
+
+@item
+@cite{The values of the members of the execution character set (C90
+and C99 5.2.1).}
+
+Determined by ABI@.
+
+@item
+@cite{The unique value of the member of the execution character set produced
+for each of the standard alphabetic escape sequences (C90 and C99 5.2.2).}
+
+Determined by ABI@.
+
+@item
+@cite{The value of a @code{char} object into which has been stored any
+character other than a member of the basic execution character set
+(C90 6.1.2.5, C99 6.2.5).}
+
+Determined by ABI@.
+
+@item
+@cite{Which of @code{signed char} or @code{unsigned char} has the same
+range, representation, and behavior as ``plain'' @code{char} (C90
+6.1.2.5, C90 6.2.1.1, C99 6.2.5, C99 6.3.1.1).}
+
+@opindex fsigned-char
+@opindex funsigned-char
+Determined by ABI@.  The options @option{-funsigned-char} and
+@option{-fsigned-char} change the default.  @xref{C Dialect Options, ,
+Options Controlling C Dialect}.
+
+@item
+@cite{The mapping of members of the source character set (in character
+constants and string literals) to members of the execution character
+set (C90 6.1.3.4, C99 6.4.4.4, C90 and C99 5.1.1.2).}
+
+Determined by ABI@.
+
+@item
+@cite{The value of an integer character constant containing more than one
+character or containing a character or escape sequence that does not map
+to a single-byte execution character (C90 6.1.3.4, C99 6.4.4.4).}
+
+@xref{Implementation-defined behavior, , Implementation-defined
+behavior, cpp, The C Preprocessor}.
+
+@item
+@cite{The value of a wide character constant containing more than one
+multibyte character, or containing a multibyte character or escape
+sequence not represented in the extended execution character set (C90
+6.1.3.4, C99 6.4.4.4).}
+
+@xref{Implementation-defined behavior, , Implementation-defined
+behavior, cpp, The C Preprocessor}.
+
+@item
+@cite{The current locale used to convert a wide character constant consisting
+of a single multibyte character that maps to a member of the extended
+execution character set into a corresponding wide character code (C90
+6.1.3.4, C99 6.4.4.4).}
+
+@xref{Implementation-defined behavior, , Implementation-defined
+behavior, cpp, The C Preprocessor}.
+
+@item
+@cite{The current locale used to convert a wide string literal into
+corresponding wide character codes (C90 6.1.4, C99 6.4.5).}
+
+@xref{Implementation-defined behavior, , Implementation-defined
+behavior, cpp, The C Preprocessor}.
+
+@item
+@cite{The value of a string literal containing a multibyte character or escape
+sequence not represented in the execution character set (C90 6.1.4, C99 6.4.5).}
+
+@xref{Implementation-defined behavior, , Implementation-defined
+behavior, cpp, The C Preprocessor}.
+@end itemize
+
+@node Integers implementation
+@section Integers
+
+@itemize @bullet
+@item
+@cite{Any extended integer types that exist in the implementation (C99 6.2.5).}
+
+GCC does not support any extended integer types.
+@c The __mode__ attribute might create types of precisions not
+@c otherwise supported, but the syntax isn't right for use everywhere
+@c the standard type names might be used.  Predefined typedefs should
+@c be used if any extended integer types are to be defined.  The
+@c __int128_t and __uint128_t typedefs are not extended integer types
+@c as they are generally longer than the ABI-specified intmax_t.
+
+@item
+@cite{Whether signed integer types are represented using sign and magnitude,
+two's complement, or one's complement, and whether the extraordinary value
+is a trap representation or an ordinary value (C99 6.2.6.2).}
+
+GCC supports only two's complement integer types, and all bit patterns
+are ordinary values.
+
+@item
+@cite{The rank of any extended integer type relative to another extended
+integer type with the same precision (C99 6.3.1.1).}
+
+GCC does not support any extended integer types.
+@c If it did, there would only be one of each precision and signedness.
+
+@item
+@cite{The result of, or the signal raised by, converting an integer to a
+signed integer type when the value cannot be represented in an object of
+that type (C90 6.2.1.2, C99 6.3.1.3).}
+
+For conversion to a type of width @math{N}, the value is reduced
+modulo @math{2^N} to be within range of the type; no signal is raised.
+
+@item
+@cite{The results of some bitwise operations on signed integers (C90
+6.3, C99 6.5).}
+
+Bitwise operators act on the representation of the value including
+both the sign and value bits, where the sign bit is considered
+immediately above the highest-value value bit.  Signed @samp{>>} acts
+on negative numbers by sign extension.
+
+GCC does not use the latitude given in C99 only to treat certain
+aspects of signed @samp{<<} as undefined, but this is subject to
+change.
+
+@item
+@cite{The sign of the remainder on integer division (C90 6.3.5).}
+
+GCC always follows the C99 requirement that the result of division is
+truncated towards zero.
+
+@end itemize
+
+@node Floating point implementation
+@section Floating point
+
+@itemize @bullet
+@item
+@cite{The accuracy of the floating-point operations and of the library
+functions in @code{<math.h>} and @code{<complex.h>} that return floating-point
+results (C90 and C99 5.2.4.2.2).}
+
+The accuracy is unknown.
+
+@item
+@cite{The rounding behaviors characterized by non-standard values
+of @code{FLT_ROUNDS} @gol
+(C90 and C99 5.2.4.2.2).}
+
+GCC does not use such values.
+
+@item
+@cite{The evaluation methods characterized by non-standard negative
+values of @code{FLT_EVAL_METHOD} (C99 5.2.4.2.2).}
+
+GCC does not use such values.
+
+@item
+@cite{The direction of rounding when an integer is converted to a
+floating-point number that cannot exactly represent the original
+value (C90 6.2.1.3, C99 6.3.1.4).}
+
+C99 Annex F is followed.
+
+@item
+@cite{The direction of rounding when a floating-point number is
+converted to a narrower floating-point number (C90 6.2.1.4, C99
+6.3.1.5).}
+
+C99 Annex F is followed.
+
+@item
+@cite{How the nearest representable value or the larger or smaller
+representable value immediately adjacent to the nearest representable
+value is chosen for certain floating constants (C90 6.1.3.1, C99
+6.4.4.2).}
+
+C99 Annex F is followed.
+
+@item
+@cite{Whether and how floating expressions are contracted when not
+disallowed by the @code{FP_CONTRACT} pragma (C99 6.5).}
+
+Expressions are currently only contracted if
+@option{-funsafe-math-optimizations} or @option{-ffast-math} are used.
+This is subject to change.
+
+@item
+@cite{The default state for the @code{FENV_ACCESS} pragma (C99 7.6.1).}
+
+This pragma is not implemented, but the default is to ``off'' unless
+@option{-frounding-math} is used in which case it is ``on''.
+
+@item
+@cite{Additional floating-point exceptions, rounding modes, environments,
+and classifications, and their macro names (C99 7.6, C99 7.12).}
+
+This is dependent on the implementation of the C library, and is not
+defined by GCC itself.
+
+@item
+@cite{The default state for the @code{FP_CONTRACT} pragma (C99 7.12.2).}
+
+This pragma is not implemented.  Expressions are currently only
+contracted if @option{-funsafe-math-optimizations} or
+@option{-ffast-math} are used.  This is subject to change.
+
+@item
+@cite{Whether the ``inexact'' floating-point exception can be raised
+when the rounded result actually does equal the mathematical result
+in an IEC 60559 conformant implementation (C99 F.9).}
+
+This is dependent on the implementation of the C library, and is not
+defined by GCC itself.
+
+@item
+@cite{Whether the ``underflow'' (and ``inexact'') floating-point
+exception can be raised when a result is tiny but not inexact in an
+IEC 60559 conformant implementation (C99 F.9).}
+
+This is dependent on the implementation of the C library, and is not
+defined by GCC itself.
+
+@end itemize
+
+@node Arrays and pointers implementation
+@section Arrays and pointers
+
+@itemize @bullet
+@item
+@cite{The result of converting a pointer to an integer or
+vice versa (C90 6.3.4, C99 6.3.2.3).}
+
+A cast from pointer to integer discards most-significant bits if the
+pointer representation is larger than the integer type,
+sign-extends@footnote{Future versions of GCC may zero-extend, or use
+a target-defined @code{ptr_extend} pattern.  Do not rely on sign extension.}
+if the pointer representation is smaller than the integer type, otherwise
+the bits are unchanged.
+@c ??? We've always claimed that pointers were unsigned entities.
+@c Shouldn't we therefore be doing zero-extension?  If so, the bug
+@c is in convert_to_integer, where we call type_for_size and request
+@c a signed integral type.  On the other hand, it might be most useful
+@c for the target if we extend according to POINTERS_EXTEND_UNSIGNED.
+
+A cast from integer to pointer discards most-significant bits if the
+pointer representation is smaller than the integer type, extends according
+to the signedness of the integer type if the pointer representation
+is larger than the integer type, otherwise the bits are unchanged.
+
+When casting from pointer to integer and back again, the resulting
+pointer must reference the same object as the original pointer, otherwise
+the behavior is undefined.  That is, one may not use integer arithmetic to
+avoid the undefined behavior of pointer arithmetic as proscribed in
+C99 6.5.6/8.
+
+@item
+@cite{The size of the result of subtracting two pointers to elements
+of the same array (C90 6.3.6, C99 6.5.6).}
+
+The value is as specified in the standard and the type is determined
+by the ABI@.
+
+@end itemize
+
+@node Hints implementation
+@section Hints
+
+@itemize @bullet
+@item
+@cite{The extent to which suggestions made by using the @code{register}
+storage-class specifier are effective (C90 6.5.1, C99 6.7.1).}
+
+The @code{register} specifier affects code generation only in these ways:
+
+@itemize @bullet
+@item
+When used as part of the register variable extension, see
+@ref{Explicit Reg Vars}.
+
+@item
+When @option{-O0} is in use, the compiler allocates distinct stack
+memory for all variables that do not have the @code{register}
+storage-class specifier; if @code{register} is specified, the variable
+may have a shorter lifespan than the code would indicate and may never
+be placed in memory.
+
+@item
+On some rare x86 targets, @code{setjmp} doesn't save the registers in
+all circumstances.  In those cases, GCC doesn't allocate any variables
+in registers unless they are marked @code{register}.
+
+@end itemize
+
+@item
+@cite{The extent to which suggestions made by using the inline function
+specifier are effective (C99 6.7.4).}
+
+GCC will not inline any functions if the @option{-fno-inline} option is
+used or if @option{-O0} is used.  Otherwise, GCC may still be unable to
+inline a function for many reasons; the @option{-Winline} option may be
+used to determine if a function has not been inlined and why not.
+
+@end itemize
+
+@node Structures unions enumerations and bit-fields implementation
+@section Structures, unions, enumerations, and bit-fields
+
+@itemize @bullet
+@item
+@cite{A member of a union object is accessed using a member of a
+different type (C90 6.3.2.3).}
+
+The relevant bytes of the representation of the object are treated as
+an object of the type used for the access.  This may be a trap
+representation.
+
+@item
+@cite{Whether a ``plain'' @code{int} bit-field is treated as a
+@code{signed int} bit-field or as an @code{unsigned int} bit-field
+(C90 6.5.2, C90 6.5.2.1, C99 6.7.2, C99 6.7.2.1).}
+
+@opindex funsigned-bitfields
+By default it is treated as @code{signed int} but this may be changed
+by the @option{-funsigned-bitfields} option.
+
+@item
+@cite{Allowable bit-field types other than @code{_Bool}, @code{signed int},
+and @code{unsigned int} (C99 6.7.2.1).}
+
+No other types are permitted in strictly conforming mode.
+@c Would it be better to restrict the pedwarn for other types to C90
+@c mode and document the other types for C99 mode?
+
+@item
+@cite{Whether a bit-field can straddle a storage-unit boundary (C90
+6.5.2.1, C99 6.7.2.1).}
+
+Determined by ABI@.
+
+@item
+@cite{The order of allocation of bit-fields within a unit (C90
+6.5.2.1, C99 6.7.2.1).}
+
+Determined by ABI@.
+
+@item
+@cite{The alignment of non-bit-field members of structures (C90
+6.5.2.1, C99 6.7.2.1).}
+
+Determined by ABI@.
+
+@item
+@cite{The integer type compatible with each enumerated type (C90
+6.5.2.2, C99 6.7.2.2).}
+
+@opindex fshort-enums
+Normally, the type is @code{unsigned int} if there are no negative
+values in the enumeration, otherwise @code{int}.  If
+@option{-fshort-enums} is specified, then if there are negative values
+it is the first of @code{signed char}, @code{short} and @code{int}
+that can represent all the values, otherwise it is the first of
+@code{unsigned char}, @code{unsigned short} and @code{unsigned int}
+that can represent all the values.
+@c On a few unusual targets with 64-bit int, this doesn't agree with
+@c the code and one of the types accessed via mode attributes (which
+@c are not currently considered extended integer types) may be used.
+@c If these types are made extended integer types, it would still be
+@c the case that -fshort-enums stops the implementation from
+@c conforming to C90 on those targets.
+
+On some targets, @option{-fshort-enums} is the default; this is
+determined by the ABI@.
+
+@end itemize
+
+@node Qualifiers implementation
+@section Qualifiers
+
+@itemize @bullet
+@item
+@cite{What constitutes an access to an object that has volatile-qualified
+type (C90 6.5.3, C99 6.7.3).}
+
+Such an object is normally accessed by pointers and used for accessing
+hardware.  In most expressions, it is intuitively obvious what is a read
+and what is a write.  For example
+
+@smallexample
+volatile int *dst = @var{somevalue};
+volatile int *src = @var{someothervalue};
+*dst = *src;
+@end smallexample
+
+@noindent
+will cause a read of the volatile object pointed to by @var{src} and store the
+value into the volatile object pointed to by @var{dst}.  There is no
+guarantee that these reads and writes are atomic, especially for objects
+larger than @code{int}.
+
+However, if the volatile storage is not being modified, and the value of
+the volatile storage is not used, then the situation is less obvious.
+For example
+
+@smallexample
+volatile int *src = @var{somevalue};
+*src;
+@end smallexample
+
+According to the C standard, such an expression is an rvalue whose type
+is the unqualified version of its original type, i.e. @code{int}.  Whether
+GCC interprets this as a read of the volatile object being pointed to or
+only as a request to evaluate the expression for its side-effects depends
+on this type.
+
+If it is a scalar type, or on most targets an aggregate type whose only
+member object is of a scalar type, or a union type whose member objects
+are of scalar types, the expression is interpreted by GCC as a read of
+the volatile object; in the other cases, the expression is only evaluated
+for its side-effects.
+
+@end itemize
+
+@node Declarators implementation
+@section Declarators
+
+@itemize @bullet
+@item
+@cite{The maximum number of declarators that may modify an arithmetic,
+structure or union type (C90 6.5.4).}
+
+GCC is only limited by available memory.
+
+@end itemize
+
+@node Statements implementation
+@section Statements
+
+@itemize @bullet
+@item
+@cite{The maximum number of @code{case} values in a @code{switch}
+statement (C90 6.6.4.2).}
+
+GCC is only limited by available memory.
+
+@end itemize
+
+@node Preprocessing directives implementation
+@section Preprocessing directives
+
+@xref{Implementation-defined behavior, , Implementation-defined
+behavior, cpp, The C Preprocessor}, for details of these aspects of
+implementation-defined behavior.
+
+@itemize @bullet
+@item
+@cite{How sequences in both forms of header names are mapped to headers
+or external source file names (C90 6.1.7, C99 6.4.7).}
+
+@item
+@cite{Whether the value of a character constant in a constant expression
+that controls conditional inclusion matches the value of the same character
+constant in the execution character set (C90 6.8.1, C99 6.10.1).}
+
+@item
+@cite{Whether the value of a single-character character constant in a
+constant expression that controls conditional inclusion may have a
+negative value (C90 6.8.1, C99 6.10.1).}
+
+@item
+@cite{The places that are searched for an included @samp{<>} delimited
+header, and how the places are specified or the header is
+identified (C90 6.8.2, C99 6.10.2).}
+
+@item
+@cite{How the named source file is searched for in an included @samp{""}
+delimited header (C90 6.8.2, C99 6.10.2).}
+
+@item
+@cite{The method by which preprocessing tokens (possibly resulting from
+macro expansion) in a @code{#include} directive are combined into a header
+name (C90 6.8.2, C99 6.10.2).}
+
+@item
+@cite{The nesting limit for @code{#include} processing (C90 6.8.2, C99
+6.10.2).}
+
+@item
+@cite{Whether the @samp{#} operator inserts a @samp{\} character before
+the @samp{\} character that begins a universal character name in a
+character constant or string literal (C99 6.10.3.2).}
+
+@item
+@cite{The behavior on each recognized non-@code{STDC #pragma}
+directive (C90 6.8.6, C99 6.10.6).}
+
+@xref{Pragmas, , Pragmas, cpp, The C Preprocessor}, for details of
+pragmas accepted by GCC on all targets.  @xref{Pragmas, , Pragmas
+Accepted by GCC}, for details of target-specific pragmas.
+
+@item
+@cite{The definitions for @code{__DATE__} and @code{__TIME__} when
+respectively, the date and time of translation are not available (C90
+6.8.8, C99 6.10.8).}
+
+@end itemize
+
+@node Library functions implementation
+@section Library functions
+
+The behavior of most of these points are dependent on the implementation
+of the C library, and are not defined by GCC itself.
+
+@itemize @bullet
+@item
+@cite{The null pointer constant to which the macro @code{NULL} expands
+(C90 7.1.6, C99 7.17).}
+
+In @code{<stddef.h>}, @code{NULL} expands to @code{((void *)0)}.  GCC
+does not provide the other headers which define @code{NULL} and some
+library implementations may use other definitions in those headers.
+
+@end itemize
+
+@node Architecture implementation
+@section Architecture
+
+@itemize @bullet
+@item
+@cite{The values or expressions assigned to the macros specified in the
+headers @code{<float.h>}, @code{<limits.h>}, and @code{<stdint.h>}
+(C90 and C99 5.2.4.2, C99 7.18.2, C99 7.18.3).}
+
+Determined by ABI@.
+
+@item
+@cite{The number, order, and encoding of bytes in any object
+(when not explicitly specified in this International Standard) (C99 6.2.6.1).}
+
+Determined by ABI@.
+
+@item
+@cite{The value of the result of the @code{sizeof} operator (C90
+6.3.3.4, C99 6.5.3.4).}
+
+Determined by ABI@.
+
+@end itemize
+
+@node Locale-specific behavior implementation
+@section Locale-specific behavior
+
+The behavior of these points are dependent on the implementation
+of the C library, and are not defined by GCC itself.

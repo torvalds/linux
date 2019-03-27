@@ -1,0 +1,149 @@
+/dts-v1/;
+
+#include "rt3883.dtsi"
+
+/ {
+	compatible = "RT-N56U", "ralink,rt3883-soc";
+	model = "Asus RT-N56U";
+
+	nor-flash@1c000000 {
+		compatible = "cfi-flash";
+		reg = <0x1c000000 0x800000>;
+		bank-width = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			reg = <0x0 0x0030000>;
+			label = "u-boot";
+			read-only;
+		};
+
+		partition@30000 {
+			reg = <0x00030000 0x00010000>;
+			label = "u-boot-env";
+			read-only;
+		};
+
+		factory: partition@40000 {
+			reg = <0x00040000 0x00010000>;
+			label = "factory";
+			read-only;
+		};
+
+		partition@50000 {
+			reg = <0x00050000 0x007b0000>;
+			label = "firmware";
+		};
+	};
+
+	rtl8367 {
+		compatible = "realtek,rtl8367";
+		gpio-sda = <&gpio0 1 0>;
+		gpio-sck = <&gpio0 2 0>;
+		realtek,extif1 = <1 0 1 1 1 1 1 1 2>;
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <100>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 13 1>;
+			linux,code = <0x198>;
+		};
+
+		wps {
+			label = "wps";
+			gpios = <&gpio1 2 1>;
+			linux,code = <0x211>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		power {
+			label = "rt-n56u:blue:power";
+			gpios = <&gpio0 0 1>;
+		};
+
+		lan {
+			label = "rt-n56u:blue:lan";
+			gpios = <&gpio0 19 1>;
+		};
+
+		wan {
+			label = "rt-n56u:blue:wan";
+			gpios = <&gpio1 3 1>;
+		};
+
+		usb {
+			label = "rt-n56u:blue:usb";
+			gpios = <&gpio1 0 1>;
+		};
+	};
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "spi", "i2c", "jtag", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x4>;
+
+	port@0 {
+		mediatek,fixed-link = <1000 1 1 1>;
+	};
+};
+
+&pci {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pci_pins>;
+
+	pci_pins: pci {
+		pci {
+			ralink,group = "pci";
+			ralink,function = "pci-fnc";
+		};
+	};
+
+	host-bridge {
+		pci-bridge@1 {
+			status = "okay";
+
+			wmac@0,0 {
+				compatible = "ralink,rt2880-pci", "pciclass060400", "pciclass0604";
+				reg = < 0x10000 0 0 0 0 >;
+				ralink,eeprom = "rt2x00pci_1_0.eeprom";
+			};
+		};
+	};
+};
+
+&wmac {
+	status = "okay";
+	ralink,2ghz = <0>;
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};

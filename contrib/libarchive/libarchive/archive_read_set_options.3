@@ -1,0 +1,231 @@
+.\" Copyright (c) 2011 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 2, 2012
+.Dt ARCHIVE_READ_OPTIONS 3
+.Os
+.Sh NAME
+.Nm archive_read_set_filter_option ,
+.Nm archive_read_set_format_option ,
+.Nm archive_read_set_option ,
+.Nm archive_read_set_options
+.Nd functions controlling options for reading archives
+.\"
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.Ft int
+.Fo archive_read_set_filter_option
+.Fa "struct archive *"
+.Fa "const char *module"
+.Fa "const char *option"
+.Fa "const char *value"
+.Fc
+.Ft int
+.Fo archive_read_set_format_option
+.Fa "struct archive *"
+.Fa "const char *module"
+.Fa "const char *option"
+.Fa "const char *value"
+.Fc
+.Ft int
+.Fo archive_read_set_option
+.Fa "struct archive *"
+.Fa "const char *module"
+.Fa "const char *option"
+.Fa "const char *value"
+.Fc
+.Ft int
+.Fo archive_read_set_options
+.Fa "struct archive *"
+.Fa "const char *options"
+.Fc
+.Sh DESCRIPTION
+These functions provide a way for libarchive clients to configure
+specific read modules.
+.Bl -tag -width indent
+.It Xo
+.Fn archive_read_set_filter_option ,
+.Fn archive_read_set_format_option
+.Xc
+Specifies an option that will be passed to currently-registered
+filters (including decompression filters) or format readers.
+.Pp
+If
+.Ar option
+and
+.Ar value
+are both
+.Dv NULL ,
+these functions will do nothing and
+.Cm ARCHIVE_OK
+will be returned.
+If
+.Ar option
+is
+.Dv NULL
+but
+.Ar value
+is not, these functions will do nothing and
+.Cm ARCHIVE_FAILED
+will be returned.
+.Pp
+If
+.Ar module
+is not
+.Dv NULL ,
+.Ar option
+and
+.Ar value
+will be provided to the filter or reader named
+.Ar module .
+The return value will be that of the module.
+If there is no such module,
+.Cm ARCHIVE_FAILED
+will be returned.
+.Pp
+If
+.Ar module
+is
+.Dv NULL ,
+.Ar option
+and
+.Ar value
+will be provided to every registered module.
+If any module returns
+.Cm ARCHIVE_FATAL ,
+this value will be returned immediately.
+Otherwise,
+.Cm ARCHIVE_OK
+will be returned if any module accepts the option, and
+.Cm ARCHIVE_FAILED
+in all other cases.
+.\"
+.It Xo
+.Fn archive_read_set_option
+.Xc
+Calls
+.Fn archive_read_set_format_option ,
+then
+.Fn archive_read_set_filter_option .
+If either function returns
+.Cm ARCHIVE_FATAL ,
+.Cm ARCHIVE_FATAL
+will be returned
+immediately.
+Otherwise, greater of the two values will be returned.
+.\"
+.It Xo
+.Fn archive_read_set_options
+.Xc
+.Ar options
+is a comma-separated list of options.
+If
+.Ar options
+is
+.Dv NULL
+or empty,
+.Cm ARCHIVE_OK
+will be returned immediately.
+.Pp
+Calls
+.Fn archive_read_set_option
+with each option in turn.
+If any
+.Fn archive_read_set_option
+call returns
+.Cm ARCHIVE_FATAL ,
+.Cm ARCHIVE_FATAL
+will be returned immediately.
+.Pp
+Individual options have one of the following forms:
+.Bl -tag -compact -width indent
+.It Ar option=value
+The option/value pair will be provided to every module.
+Modules that do not accept an option with this name will ignore it.
+.It Ar option
+The option will be provided to every module with a value of
+.Dq 1 .
+.It Ar !option
+The option will be provided to every module with a NULL value.
+.It Ar module:option=value , Ar module:option , Ar module:!option
+As above, but the corresponding option and value will be provided
+only to modules whose name matches
+.Ar module .
+.El
+.El
+.\"
+.Sh OPTIONS
+.Bl -tag -compact -width indent
+.It Format iso9660
+.Bl -tag -compact -width indent
+.It Cm joliet
+Support Joliet extensions.
+Defaults to enabled, use
+.Cm !joliet
+to disable.
+.It Cm rockridge
+Support RockRidge extensions.
+Defaults to enabled, use
+.Cm !rockridge
+to disable.
+.El
+.It Format tar
+.Bl -tag -compact -width indent
+.It Cm compat-2x
+Libarchive 2.x incorrectly encoded Unicode filenames on
+some platforms.
+This option mimics the libarchive 2.x filename handling
+so that such archives can be read correctly.
+.It Cm hdrcharset
+The value is used as a character set name that will be
+used when translating filenames.
+.It Cm mac-ext
+Support Mac OS metadata extension that records data in special
+files beginning with a period and underscore.
+Defaults to enabled on Mac OS, disabled on other platforms.
+Use
+.Cm !mac-ext
+to disable.
+.It Cm read_concatenated_archives
+Ignore zeroed blocks in the archive, which occurs when multiple tar archives
+have been concatenated together.  Without this option, only the contents of
+the first concatenated archive would be read.
+.El
+.El
+.\"
+.Sh ERRORS
+Detailed error codes and textual descriptions are available from the
+.Fn archive_errno
+and
+.Fn archive_error_string
+functions.
+.\"
+.Sh SEE ALSO
+.Xr tar 1 ,
+.Xr libarchive 3 ,
+.Xr archive_write_set_options 3 ,
+.Xr archive_read 3

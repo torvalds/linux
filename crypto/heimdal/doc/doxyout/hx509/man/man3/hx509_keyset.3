@@ -1,0 +1,373 @@
+.TH "hx509 certificate store functions" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+hx509 certificate store functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "int \fBhx509_certs_init\fP (hx509_context context, const char *name, int flags, hx509_lock lock, hx509_certs *certs)"
+.br
+.ti -1c
+.RI "int \fBhx509_certs_store\fP (hx509_context context, hx509_certs certs, int flags, hx509_lock lock)"
+.br
+.ti -1c
+.RI "void \fBhx509_certs_free\fP (hx509_certs *certs)"
+.br
+.ti -1c
+.RI "int \fBhx509_certs_start_seq\fP (hx509_context context, hx509_certs certs, hx509_cursor *cursor)"
+.br
+.ti -1c
+.RI "int \fBhx509_certs_next_cert\fP (hx509_context context, hx509_certs certs, hx509_cursor cursor, hx509_cert *cert)"
+.br
+.ti -1c
+.RI "int \fBhx509_certs_end_seq\fP (hx509_context context, hx509_certs certs, hx509_cursor cursor)"
+.br
+.ti -1c
+.RI "int \fBhx509_certs_iter_f\fP (hx509_context context, hx509_certs certs, int(*func)(hx509_context, void *, hx509_cert), void *ctx)"
+.br
+.ti -1c
+.RI "int \fBhx509_ci_print_names\fP (hx509_context context, void *ctx, hx509_cert c)"
+.br
+.ti -1c
+.RI "int \fBhx509_certs_add\fP (hx509_context context, hx509_certs certs, hx509_cert cert)"
+.br
+.ti -1c
+.RI "int \fBhx509_certs_find\fP (hx509_context context, hx509_certs certs, const hx509_query *q, hx509_cert *r)"
+.br
+.ti -1c
+.RI "int \fBhx509_certs_filter\fP (hx509_context context, hx509_certs certs, const hx509_query *q, hx509_certs *result)"
+.br
+.ti -1c
+.RI "int \fBhx509_certs_merge\fP (hx509_context context, hx509_certs to, hx509_certs from)"
+.br
+.ti -1c
+.RI "int \fBhx509_certs_append\fP (hx509_context context, hx509_certs to, hx509_lock lock, const char *name)"
+.br
+.ti -1c
+.RI "int \fBhx509_get_one_cert\fP (hx509_context context, hx509_certs certs, hx509_cert *c)"
+.br
+.ti -1c
+.RI "int \fBhx509_certs_info\fP (hx509_context context, hx509_certs certs, int(*func)(void *, const char *), void *ctx)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+See the \fBCertificate store operations\fP for description and examples. 
+.SH "Function Documentation"
+.PP 
+.SS "int hx509_certs_add (hx509_context context, hx509_certs certs, hx509_cert cert)"
+.PP
+Add a certificate to the certificiate store.
+.PP
+The receiving keyset certs will either increase reference counter of the cert or make a deep copy, either way, the caller needs to free the cert itself.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a hx509 context. 
+.br
+\fIcerts\fP certificate store to add the certificate to. 
+.br
+\fIcert\fP certificate to add.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. 
+.RE
+.PP
+
+.SS "int hx509_certs_append (hx509_context context, hx509_certs to, hx509_lock lock, const char * name)"
+.PP
+Same a \fBhx509_certs_merge()\fP but use a lock and name to describe the from source.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a hx509 context. 
+.br
+\fIto\fP the store to merge into. 
+.br
+\fIlock\fP a lock that unlocks the certificates store, use NULL to select no password/certifictes/prompt lock (see \fBLocking and unlocking certificates and encrypted data.\fP). 
+.br
+\fIname\fP name of the source store
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. 
+.RE
+.PP
+
+.SS "int hx509_certs_end_seq (hx509_context context, hx509_certs certs, hx509_cursor cursor)"
+.PP
+End the iteration over certificates.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a hx509 context. 
+.br
+\fIcerts\fP certificate store to iterate over. 
+.br
+\fIcursor\fP cursor that will keep track of progress, freed.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. 
+.RE
+.PP
+
+.SS "int hx509_certs_filter (hx509_context context, hx509_certs certs, const hx509_query * q, hx509_certs * result)"
+.PP
+Filter certificate matching the query.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a hx509 context. 
+.br
+\fIcerts\fP certificate store to search. 
+.br
+\fIq\fP query allocated with \fBhx509 query functions\fP functions. 
+.br
+\fIresult\fP the filtered certificate store, caller must free with \fBhx509_certs_free()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. 
+.RE
+.PP
+
+.PP
+Return HX509_CERT_NOT_FOUND if no certificate in certs matched the query. 
+.SS "int hx509_certs_find (hx509_context context, hx509_certs certs, const hx509_query * q, hx509_cert * r)"
+.PP
+Find a certificate matching the query.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a hx509 context. 
+.br
+\fIcerts\fP certificate store to search. 
+.br
+\fIq\fP query allocated with \fBhx509 query functions\fP functions. 
+.br
+\fIr\fP return certificate (or NULL on error), should be freed with \fBhx509_cert_free()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. 
+.RE
+.PP
+
+.PP
+Return HX509_CERT_NOT_FOUND if no certificate in certs matched the query. 
+.SS "void hx509_certs_free (hx509_certs * certs)"
+.PP
+Free a certificate store.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcerts\fP certificate store to free. 
+.RE
+.PP
+
+.SS "int hx509_certs_info (hx509_context context, hx509_certs certs, int(*)(void *, const char *) func, void * ctx)"
+.PP
+Print some info about the certificate store.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a hx509 context. 
+.br
+\fIcerts\fP certificate store to print information about. 
+.br
+\fIfunc\fP function that will get each line of the information, if NULL is used the data is printed on a FILE descriptor that should be passed in ctx, if ctx also is NULL, stdout is used. 
+.br
+\fIctx\fP parameter to func.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. 
+.RE
+.PP
+
+.SS "int hx509_certs_init (hx509_context context, const char * name, int flags, hx509_lock lock, hx509_certs * certs)"
+.PP
+Open or creates a new hx509 certificate store.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context 
+.br
+\fIname\fP name of the store, format is TYPE:type-specific-string, if NULL is used the MEMORY store is used. 
+.br
+\fIflags\fP list of flags:
+.IP "\(bu" 2
+HX509_CERTS_CREATE create a new keystore of the specific TYPE.
+.IP "\(bu" 2
+HX509_CERTS_UNPROTECT_ALL fails if any private key failed to be extracted. 
+.PP
+.br
+\fIlock\fP a lock that unlocks the certificates store, use NULL to select no password/certifictes/prompt lock (see \fBLocking and unlocking certificates and encrypted data.\fP). 
+.br
+\fIcerts\fP return pointer, free with \fBhx509_certs_free()\fP. 
+.RE
+.PP
+
+.SS "int hx509_certs_iter_f (hx509_context context, hx509_certs certs, int(*)(hx509_context, void *, hx509_cert) func, void * ctx)"
+.PP
+Iterate over all certificates in a keystore and call an function for each fo them.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a hx509 context. 
+.br
+\fIcerts\fP certificate store to iterate over. 
+.br
+\fIfunc\fP function to call for each certificate. The function should return non-zero to abort the iteration, that value is passed back to the caller of \fBhx509_certs_iter_f()\fP. 
+.br
+\fIctx\fP context variable that will passed to the function.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. 
+.RE
+.PP
+
+.SS "int hx509_certs_merge (hx509_context context, hx509_certs to, hx509_certs from)"
+.PP
+Merge a certificate store into another. The from store is keep intact.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a hx509 context. 
+.br
+\fIto\fP the store to merge into. 
+.br
+\fIfrom\fP the store to copy the object from.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. 
+.RE
+.PP
+
+.SS "int hx509_certs_next_cert (hx509_context context, hx509_certs certs, hx509_cursor cursor, hx509_cert * cert)"
+.PP
+Get next ceritificate from the certificate keystore pointed out by cursor.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a hx509 context. 
+.br
+\fIcerts\fP certificate store to iterate over. 
+.br
+\fIcursor\fP cursor that keeps track of progress. 
+.br
+\fIcert\fP return certificate next in store, NULL if the store contains no more certificates. Free with \fBhx509_cert_free()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. 
+.RE
+.PP
+
+.SS "int hx509_certs_start_seq (hx509_context context, hx509_certs certs, hx509_cursor * cursor)"
+.PP
+Start the integration
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a hx509 context. 
+.br
+\fIcerts\fP certificate store to iterate over 
+.br
+\fIcursor\fP cursor that will keep track of progress, free with \fBhx509_certs_end_seq()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. HX509_UNSUPPORTED_OPERATION is returned if the certificate store doesn't support the iteration operation. 
+.RE
+.PP
+
+.SS "int hx509_certs_store (hx509_context context, hx509_certs certs, int flags, hx509_lock lock)"
+.PP
+Write the certificate store to stable storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIcerts\fP a certificate store to store. 
+.br
+\fIflags\fP currently unused, use 0. 
+.br
+\fIlock\fP a lock that unlocks the certificates store, use NULL to select no password/certifictes/prompt lock (see \fBLocking and unlocking certificates and encrypted data.\fP).
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. HX509_UNSUPPORTED_OPERATION if the certificate store doesn't support the store operation. 
+.RE
+.PP
+
+.SS "int hx509_ci_print_names (hx509_context context, void * ctx, hx509_cert c)"
+.PP
+Iterate over all certificates in a keystore and call an function for each fo them.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a hx509 context. 
+.br
+\fIcerts\fP certificate store to iterate over. 
+.br
+\fIfunc\fP function to call for each certificate. The function should return non-zero to abort the iteration, that value is passed back to the caller of hx509_certs_iter().
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. Function to use to \fBhx509_certs_iter_f()\fP as a function argument, the ctx variable to \fBhx509_certs_iter_f()\fP should be a FILE file descriptor.
+.RE
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a hx509 context. 
+.br
+\fIctx\fP used by \fBhx509_certs_iter_f()\fP. 
+.br
+\fIc\fP a certificate
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. 
+.RE
+.PP
+
+.SS "int hx509_get_one_cert (hx509_context context, hx509_certs certs, hx509_cert * c)"
+.PP
+Get one random certificate from the certificate store.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a hx509 context. 
+.br
+\fIcerts\fP a certificate store to get the certificate from. 
+.br
+\fIc\fP return certificate, should be freed with \fBhx509_cert_free()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns an hx509 error code. 
+.RE
+.PP
+

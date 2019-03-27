@@ -1,0 +1,399 @@
+.\" Copyright (c) 1994
+.\" The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software donated to Berkeley by
+.\" Jan-Simon Pendry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mount_union.8	8.6 (Berkeley) 3/27/94
+.\" $FreeBSD$
+.\"
+.Dd October 3, 2016
+.Dt MOUNT_UNIONFS 8
+.Os
+.Sh NAME
+.Nm mount_unionfs
+.Nd mount union file systems
+.Sh SYNOPSIS
+.Nm
+.Op Fl b
+.Op Fl o Ar options
+.Ar directory
+.Ar uniondir
+.Sh DESCRIPTION
+The
+.Nm
+utility attaches
+.Ar directory
+above
+.Ar uniondir
+in such a way that the contents of both directory trees remain visible.
+By default,
+.Ar directory
+becomes the
+.Em upper
+layer and
+.Ar uniondir
+becomes the
+.Em lower
+layer.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl b
+Deprecated.
+Use
+.Fl o Cm below
+instead.
+.It Fl o
+Options are specified with the
+.Fl o
+flag followed by an option.
+The following options are available:
+.Bl -tag -width indent
+.It Cm below
+Inverts the default position, so that
+.Ar directory
+becomes the lower layer and
+.Ar uniondir
+becomes the upper layer.
+However,
+.Ar uniondir
+remains the mount point.
+.It Cm copymode No = Cm traditional | transparent | masquerade
+Specifies the way to create a file or a directory in the upper layer
+automatically when needed.
+The
+.Cm traditional
+mode
+uses the same way as the old unionfs for backward compatibility, and
+.Cm transparent
+duplicates the file and directory mode bits and the ownership in the
+lower layer to the created file in the upper layer.
+For behavior of the
+.Cm masquerade
+mode, see
+.Sx MASQUERADE MODE
+below.
+.It Cm whiteout No = Cm always | whenneeded
+Specifies whether whiteouts should always be made in the upper layer
+when removing a file or directory or only when it already exists in the
+lower layer.
+.It Cm udir Ns = Ns Ar mode
+Specifies directory mode bits in octal for
+.Cm masquerade
+mode.
+.It Cm ufile Ns = Ns Ar mode
+Specifies file mode bits in octal for
+.Cm masquerade
+mode.
+.It Cm gid Ns = Ns Ar gid
+Specifies group for
+.Cm masquerade
+mode.
+.It Cm uid Ns = Ns Ar uid
+Specifies user for
+.Cm masquerade
+mode.
+.El
+.El
+.Pp
+To enforce file system security, the user mounting a file system
+must be superuser or else have write permission on the mounted-on
+directory.
+In addition, the
+.Va vfs.usermount
+.Xr sysctl 8
+variable must be set to 1 to permit file system mounting by ordinary users.
+However, note that
+.Cm transparent
+and
+.Cm masquerade
+modes require
+.Va vfs.usermount
+to be set to 0 because this functionality can only be used by superusers.
+.Pp
+Filenames are looked up in the upper layer and then in the
+lower layer.
+If a directory is found in the lower layer, and there is no entry
+in the upper layer, then a
+.Em shadow
+directory will be created in the upper layer.
+The ownership and the mode bits are set depending on the
+.Cm copymode
+option.
+In
+.Cm traditional
+mode, it will be owned by the user who originally did the
+union mount, with mode 0777
+.Pq Dq Li rwxrwxrwx
+modified by the umask in effect at that time.
+.Pp
+If a file exists in the upper layer then there is no way to access
+a file with the same name in the lower layer.
+If necessary, a combination of loopback and union mounts can be made
+which will still allow the lower files to be accessed by a different
+pathname.
+.Pp
+Except in the case of a directory,
+access to an object is granted via the normal file system access checks.
+For directories, the current user must have access to both the upper
+and lower directories (should they both exist).
+.Pp
+Requests to create or modify objects in
+.Ar uniondir
+are passed to the upper layer with the exception of a few special cases.
+An attempt to open for writing a file which exists in the lower layer
+causes a copy of the
+.Em entire
+file to be made to the upper layer, and then for the upper layer copy
+to be opened.
+Similarly, an attempt to truncate a lower layer file to zero length
+causes an empty file to be created in the upper layer.
+Any other operation which would ultimately require modification to
+the lower layer fails with
+.Er EROFS .
+.Pp
+The union file system manipulates the namespace, rather than
+individual file systems.
+The union operation applies recursively down the directory tree
+now rooted at
+.Ar uniondir .
+Thus any file systems which are mounted under
+.Ar uniondir
+will take part in the union operation.
+This differs from the
+.Cm union
+option to
+.Xr mount 8
+which only applies the union operation to the mount point itself,
+and then only for lookups.
+.Sh MASQUERADE MODE
+When a file
+(or a directory)
+is created in the upper layer, the
+.Cm masquerade
+mode sets it the fixed access mode bits given in
+.Cm ufile
+(for files)
+or
+.Cm udir
+(for directories)
+option and the owner given in
+.Cm udir
+and
+.Cm gid
+options, instead of ones in the lower layer.
+Note that in the
+.Cm masquerade
+mode and when owner of the file or directory matches
+one specified in
+.Cm uid
+option, only mode bits for the owner will be modified.
+More specifically, the file mode bits in the upper layer will
+be
+(mode in the lower layer)
+OR
+(mode given in
+.Cm ufile
+AND 0700), and the ownership will be the same as one in the lower layer.
+.Pp
+The default values for
+.Cm ufile , udir , uid ,
+and
+.Cm gid
+are as follow:
+.Pp
+.Bl -bullet -compact
+.It
+If none of
+.Cm ufile
+and
+.Cm udir
+were specified, access mode bits in the mount point will be used.
+.It
+If none of
+.Cm uid
+and
+.Cm gid
+were specified, ownership in the mount point will be used.
+.It
+If one of
+.Cm udir
+or
+.Cm ufile
+is not specified, the value of the other option will be used.
+.It
+If one of
+.Cm uid
+or
+.Cm gid
+is not specified, the value of the other option will be used.
+.El
+.Sh EXAMPLES
+The commands
+.Bd -literal -offset indent
+mount -t cd9660 -o ro /dev/cd0 /usr/src
+mount -t unionfs -o noatime /var/obj /usr/src
+.Ed
+.Pp
+mount the CD-ROM drive
+.Pa /dev/cd0
+on
+.Pa /usr/src
+and then attaches
+.Pa /var/obj
+on top.
+For most purposes the effect of this is to make the
+source tree appear writable
+even though it is stored on a CD-ROM.
+The
+.Fl o Cm noatime
+option is useful to avoid unnecessary copying from the lower to the
+upper layer.
+.Pp
+The commands
+.Bd -literal -offset indent
+mount -t cd9660 -o ro /dev/cd0 /usr/src
+chown 2020 /usr/src
+mount -t unionfs -o noatime -o copymode=masquerade -o uid=builder \\
+    -o udir=755 -o ufile=644 /var/obj /usr/src
+.Ed
+.Pp
+also mount the CD-ROM drive
+.Pa /dev/cd0
+on
+.Pa /usr/src
+and then attaches
+.Pa /var/obj
+on top.
+Furthermore, the owner of all files and directories in
+.Pa /usr/src
+is a regular user with UID 2020
+when seen from the upper layer.
+Note that for the access mode bits,
+ones in the lower layer
+(on the CD-ROM, in this example)
+are still used without change.
+Thus, write privilege to the upper layer can be controlled
+independently from access mode bits and ownership in the lower layer.
+If a user does not have read privilege from the lower layer,
+one cannot still read even when the upper layer is mounted by using
+.Cm masquerade
+mode.
+.Pp
+The command
+.Bd -literal -offset indent
+mount -t unionfs -o noatime -o below /sys $HOME/sys
+.Ed
+.Pp
+attaches the system source tree below the
+.Pa sys
+directory in the user's home directory.
+This allows individual users to make private changes
+to the source, and build new kernels, without those
+changes becoming visible to other users.
+Note that the files in the lower layer remain
+accessible via
+.Pa /sys .
+.Sh SEE ALSO
+.Xr intro 2 ,
+.Xr mount 2 ,
+.Xr unmount 2 ,
+.Xr fstab 5 ,
+.Xr mount 8 ,
+.Xr mount_nullfs 8
+.Sh HISTORY
+The
+.Nm mount_null
+utility first appeared in
+.Bx 4.4 .
+It was renamed to
+.Nm
+in
+.Fx 5.0 .
+.Pp
+The
+.Fl r
+option for hiding the lower layer completely was removed in
+.Fx 7.0
+because this is identical to using
+.Xr mount_nullfs 8 .
+.Sh AUTHORS
+.An -nosplit
+In
+.Fx 7.0 ,
+.An Masanori OZAWA Aq Mt ozawa@ongs.co.jp
+reimplemented handling of locking, whiteout, and file mode bits, and
+.An Hiroki Sato Aq Mt hrs@FreeBSD.org
+wrote about the changes in this manual page.
+.Sh BUGS
+THIS FILE SYSTEM TYPE IS NOT YET FULLY SUPPORTED (READ: IT DOESN'T WORK)
+AND USING IT MAY, IN FACT, DESTROY DATA ON YOUR SYSTEM.
+USE AT YOUR
+OWN RISK.
+BEWARE OF DOG.
+SLIPPERY WHEN WET.
+BATTERIES NOT INCLUDED.
+.Pp
+This code also needs an owner in order to be less dangerous - serious
+hackers can apply by sending mail to
+.Aq Mt freebsd-fs@FreeBSD.org
+and announcing
+their intent to take it over.
+.Pp
+Without whiteout support from the file system backing the upper layer,
+there is no way that delete and rename operations on lower layer
+objects can be done.
+.Er EOPNOTSUPP
+is returned for this kind of operations as generated by VOP_WHITEOUT()
+along with any others which would make modifications to the lower
+layer, such as
+.Xr chmod 1 .
+.Pp
+Running
+.Xr find 1
+over a union tree has the side-effect of creating
+a tree of shadow directories in the upper layer.
+.Pp
+The current implementation does not support copying extended attributes
+for
+.Xr acl 9 ,
+.Xr mac 9 ,
+or so on to the upper layer.
+Note that this may be a security issue.
+.Pp
+A shadow directory, which is one automatically created in the upper
+layer when it exists in the lower layer and does not exist in the
+upper layer, is always created with the superuser privilege.
+However, a file copied from the lower layer in the same way
+is created by the user who accessed it.
+Because of this,
+if the user is not the superuser, even in
+.Cm transparent
+mode the access mode bits in the copied file in the upper layer
+will not always be the same as ones in the lower layer.
+This behavior should be fixed.

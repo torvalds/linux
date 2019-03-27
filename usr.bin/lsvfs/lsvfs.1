@@ -1,0 +1,55 @@
+.\" $FreeBSD$
+.\" Garrett A. Wollman, September 1994
+.\" This file is in the public domain.
+.\"
+.Dd June 9, 2013
+.Dt LSVFS 1
+.Os
+.Sh NAME
+.Nm lsvfs
+.Nd list installed virtual file systems
+.Sh SYNOPSIS
+.Nm
+.Op Ar vfsname Ar ...
+.Sh DESCRIPTION
+The
+.Nm
+command lists information about the currently loaded virtual file system
+modules.
+When
+.Ar vfsname
+arguments are given,
+.Nm
+lists information about the specified VFS modules.
+Otherwise,
+.Nm
+lists all currently loaded modules.
+The information is as follows:
+.Pp
+.Bl -tag -compact -width Filesystem
+.It Filesystem
+the name of the file system, as would be used in the
+.Ar type
+parameter to
+.Xr mount 2
+and the
+.Fl t
+option to
+.Xr mount 8
+.It Num
+the filesystem type number.
+.It Refs
+the number of references to this VFS; i.e., the number of currently
+mounted file systems of this type
+.It Flags
+flag bits.
+.El
+.Sh SEE ALSO
+.Xr mount 2 ,
+.Xr getvfsbyname 3 ,
+.Xr mount 8
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.Fx 2.0 .

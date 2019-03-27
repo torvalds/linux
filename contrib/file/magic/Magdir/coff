@@ -1,0 +1,77 @@
+
+#------------------------------------------------------------------------------
+# $File: coff,v 1.2 2017/03/17 21:35:28 christos Exp $
+# coff: file(1) magic for Common Object Files not specific to known cpu types or manufactures
+#
+# COFF
+#
+# by Joerg Jenderek at Oct 2015
+# https://en.wikipedia.org/wiki/COFF
+# https://de.wikipedia.org/wiki/Common_Object_File_Format
+# http://www.delorie.com/djgpp/doc/coff/filhdr.html
+
+# display name+variables+flags of Common Object Files Format (32bit)
+# Maybe used also in adi,att3b,clipper,hitachi-sh,hp,ibm6000,intel,
+# mips,motorola,msdos,osf1,sharc,varied.out,vax
+0	name				display-coff
+# test for unused flag bits (0x8000,0x0800,0x0400,0x0200,x0080) in f_flags
+>18	uleshort&0x8E80	0
+>>0	clear		x
+# f_magic - magic number
+# DJGPP, 80386 COFF executable, MS Windows COFF Intel 80386 object file (./intel)
+>>0	uleshort	0x014C		Intel 80386
+# Hitachi SH big-endian COFF (./hitachi-sh)
+>>0	uleshort	0x0500		Hitachi SH big-endian
+# Hitachi SH little-endian COFF (./hitachi-sh)
+>>0	uleshort	0x0550		Hitachi SH little-endian
+# executable (RISC System/6000 V3.1) or obj module (./ibm6000)
+#>>0	uleshort	0x01DF
+# TODO for other COFFs
+#>>0	uleshort	0xABCD		COFF_TEMPLATE
+>>0	default		x
+>>>0	uleshort	x		type 0x%04x
+>>0	uleshort	x		COFF
+# F_EXEC flag bit
+>>18	leshort		^0x0002		object file
+#!:mime	application/x-coff
+#!:ext cof/o/obj/lib
+>>18	leshort		&0x0002		executable
+#!:mime	application/x-coffexec
+# F_RELFLG flag bit,static object
+>>18	leshort		&0x0001		\b, no relocation info
+# F_LNNO flag bit
+>>18	leshort		&0x0004		\b, no line number info
+# F_LSYMS flag bit
+>>18	leshort		&0x0008		\b, stripped
+>>18	leshort		^0x0008		\b, not stripped
+# flags in other COFF versions
+#0x0010    F_FDPR_PROF
+#0x0020    F_FDPR_OPTI
+#0x0040    F_DSA
+# F_AR32WR flag bit
+#>>>18	leshort		&0x0100		\b, 32 bit little endian
+#0x1000    F_DYNLOAD
+#0x2000    F_SHROBJ
+#0x4000    F_LOADONLY
+# f_nscns - number of sections
+>>2	uleshort	<2		\b, %d section
+>>2	uleshort	>1		\b, %d sections
+# f_timdat - file time & date stamp only for little endian
+#>>4	date		x		\b, %s
+# f_symptr - symbol table pointer, only for not stripped
+>>8	ulelong		>0		\b, symbol offset=0x%x
+# f_nsyms - number of symbols, only for not stripped
+>>12	ulelong		>0		\b, %d symbols
+# f_opthdr - optional header size
+>>16	uleshort	>0		\b, optional header size %d
+# at offset 20 can be optional header, extra bytes FILHSZ-20 because
+# do not rely on sizeof(FILHDR) to give the correct size for header.
+# or first section header
+# additional variables for other COFF files
+# >20	beshort		0407		(impure)
+# >20	beshort		0410		(pure)
+# >20	beshort		0413		(demand paged)
+# >20	beshort		0421		(standalone)
+# >22	leshort		>0		- version %d
+# >168	string		.lowmem		Apple toolbox
+

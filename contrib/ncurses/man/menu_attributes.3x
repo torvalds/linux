@@ -1,0 +1,94 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: menu_attributes.3x,v 1.12 2010/12/04 18:40:45 tom Exp $
+.TH menu_attributes 3X ""
+.SH NAME
+\fBmenu_attributes\fR \- color and attribute control for menus
+.SH SYNOPSIS
+\fB#include <menu.h>\fR
+.br
+int set_menu_fore(MENU *menu, chtype attr);
+.br
+chtype menu_fore(const MENU *menu);
+.br
+int set_menu_back(MENU *menu, chtype attr);
+.br
+chtype menu_back(const MENU *menu);
+.br
+int set_menu_grey(MENU *menu, chtype attr);
+.br
+chtype menu_grey(const MENU *menu);
+.br
+int set_menu_pad(MENU *menu, int pad);
+.br
+int menu_pad(const MENU *menu);
+.br
+.SH DESCRIPTION
+The function \fBset_menu_fore\fR sets the foreground attribute of
+\fImenu\fR. This is the highlight used for selected menu items.
+\fBmenu_fore\fR returns the foreground attribute.  The default
+is \fBA_REVERSE\fR.
+.PP
+The function \fBset_menu_back\fR sets the background attribute of
+\fImenu\fR. This is the highlight used for selectable (but not currently
+selected) menu items.  The function \fBmenu_back\fR returns the background
+attribute.  The default is \fBA_NORMAL\fR.
+.PP
+The function \fBset_menu_grey\fR sets the grey attribute of \fImenu\fR. This is
+the highlight used for un-selectable menu items in menus that permit more than
+one selection.  The function \fBmenu_grey\fR returns the grey attribute.
+The default is \fBA_UNDERLINE\fR.
+.PP
+The function \fBset_menu_pad\fR sets the character used to fill the space
+between the name and description parts of a menu item.  \fBmenu_pad\fR returns
+the given menu's pad character.  The default is a blank.
+.SH RETURN VALUE
+These routines return one of the following:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.SH SEE ALSO
+\fBcurses\fR(3X) and related pages whose names begin "menu_" for detailed
+descriptions of the entry points.
+.SH NOTES
+The header file \fB<menu.h>\fR automatically includes the header file
+\fB<curses.h>\fR.
+.SH PORTABILITY
+These routines emulate the System V menu library.  They were not supported on
+Version 7 or BSD versions.
+.SH AUTHORS
+Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
+S. Raymond.

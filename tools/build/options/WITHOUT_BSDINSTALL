@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to not build
+.Xr bsdinstall 8 ,
+.Xr sade 8 ,
+and related programs.

@@ -1,0 +1,126 @@
+.\" Copyright 2000 The Aerospace Corporation.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1.  Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions, and the following disclaimer.
+.\" 2.  Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions, and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\" 3.  The name of The Aerospace Corporation may not be used to endorse or
+.\"     promote products derived from this software.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AEROSPACE CORPORATION "AS IS" AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AEROSPACE CORPORATION BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE  POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Author: Brooks Davis <brooks@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 18, 2001
+.Dt NG_GIF 4
+.Os
+.Sh NAME
+.Nm ng_gif
+.Nd generic tunnel interface netgraph node type
+.Sh SYNOPSIS
+.In netgraph/ng_gif.h
+.Sh DESCRIPTION
+The
+.Nm
+netgraph node type allows
+.Xr gif 4
+interfaces to interact with
+the
+.Xr netgraph 4
+networking subsystem.
+Once the
+.Nm
+module is loaded in the kernel, a node is automatically created
+for each
+.Xr gif 4
+interface in the system.
+Each node will attempt to name itself with the same name
+as the associated interface.
+All
+.Nm
+nodes are persistent for as long as the interface itself exists.
+.Pp
+Two hooks are supported:
+.Dv lower
+and
+.Dv orphans .
+The hook name
+.Dv divert
+may be used as an alias for
+.Dv lower ,
+and is provided for compatibility with
+.Xr ng_ether 4 .
+In reality the two names represent the same hook.
+.Pp
+The
+.Dv lower
+hook is a connection to the raw
+.Xr gif 4
+device.
+When connected, all incoming packets are diverted out this hook.
+Writing to this hook results in a raw encapsulated packet being transmitted
+by the device.
+Normal outgoing packets are not affected by
+.Dv lower
+being connected.
+.Pp
+The
+.Dv orphans
+hook is equivalent to
+.Dv lower ,
+except that only unrecognized packets (that would otherwise be discarded)
+are written to the hook, and normal incoming traffic is unaffected.
+At most one of
+.Dv orphans
+and
+.Dv lower
+may be connected at any time.
+.Pp
+In all cases, frames are raw packets with the address family of the
+packet attached to the front.
+.Pp
+When no hooks are connected, packets flow normally upwards and downwards.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va orphans"
+.It Va lower
+Connection to the lower device link layer.
+.It Va orphans
+Like
+.Dv lower ,
+but only receives unrecognized packets.
+.El
+.Sh CONTROL MESSAGES
+This node type supports only the generic control messages.
+.Sh EXAMPLES
+This command dumps all unrecognized packets received by the
+.Li gif0
+interface to standard output decoded in hex and ASCII:
+.Pp
+.Dl "nghook -a gif0: orphans"
+.Sh SEE ALSO
+.Xr gif 4 ,
+.Xr netgraph 4 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8 ,
+.Xr ngctl 8 ,
+.Xr nghook 8
+.Sh AUTHORS
+.An Brooks Davis Aq Mt brooks@FreeBSD.org

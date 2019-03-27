@@ -1,0 +1,391 @@
+# $FreeBSD$
+# Define the same version as the libsupc++ from gcc 4.2.1 so that we can use
+# libcxxrt as a drop-in replacement.
+
+CXXABI_1.3 {
+
+  global:
+
+    # ABI functions with C linkage
+    __cxa_allocate_exception;
+    __cxa_bad_cast;
+    __cxa_bad_typeid;
+    __cxa_begin_catch;
+    __cxa_begin_cleanup;
+    __cxa_call_unexpected;
+    __cxa_current_exception_type;
+    __cxa_demangle;
+    __cxa_end_catch;
+    __cxa_end_cleanup;
+    __cxa_free_exception;
+    __cxa_get_globals;
+    __cxa_get_globals_fast;
+    __cxa_guard_abort;
+    __cxa_guard_acquire;
+    __cxa_guard_release;
+    __cxa_pure_virtual;
+    __cxa_rethrow;
+    __cxa_throw;
+    __cxa_throw_bad_array_new_length;
+    __cxa_type_match;
+    __cxa_vec_cctor;
+    __cxa_vec_cleanup;
+    __cxa_vec_ctor;
+    __cxa_vec_delete2;
+    __cxa_vec_delete3;
+    __cxa_vec_delete;
+    __cxa_vec_dtor;
+    __cxa_vec_new2;
+    __cxa_vec_new3;
+    __cxa_vec_new;
+    __dynamic_cast;
+    __gxx_personality_sj0;
+    __gxx_personality_v0;
+
+    extern "C++" {
+        # Type info classes and their destructors
+        "__cxxabiv1::__array_type_info";
+        "__cxxabiv1::__array_type_info::~__array_type_info()";
+        "__cxxabiv1::__class_type_info";
+        "__cxxabiv1::__class_type_info::~__class_type_info()";
+        "__cxxabiv1::__enum_type_info";
+        "__cxxabiv1::__enum_type_info::~__enum_type_info()";
+        "__cxxabiv1::__function_type_info::";
+        "__cxxabiv1::__function_type_info::~__function_type_info()";
+        "__cxxabiv1::__fundamental_type_info";
+        "__cxxabiv1::__fundamental_type_info::~__fundamental_type_info()";
+        "__cxxabiv1::__pbase_type_info";
+        "__cxxabiv1::__pbase_type_info::~__pbase_type_info()";
+        "__cxxabiv1::__pointer_to_member_type_info";
+        "__cxxabiv1::__pointer_to_member_type_info::~__pointer_to_member_type_info()";
+        "__cxxabiv1::__pointer_type_info";
+        "__cxxabiv1::__pointer_type_info::~__pointer_type_info()";
+        "__cxxabiv1::__si_class_type_info";
+        "__cxxabiv1::__si_class_type_info::~__si_class_type_info()";
+        "__cxxabiv1::__vmi_class_type_info";
+        "__cxxabiv1::__vmi_class_type_info::~__vmi_class_type_info()";
+
+        # vtables typeinfo classes.
+        "vtable for __cxxabiv1::__array_type_info";
+        "vtable for __cxxabiv1::__class_type_info";
+        "vtable for __cxxabiv1::__enum_type_info";
+        "vtable for __cxxabiv1::__function_type_info";
+        "vtable for __cxxabiv1::__fundamental_type_info";
+        "vtable for __cxxabiv1::__pbase_type_info";
+        "vtable for __cxxabiv1::__pointer_to_member_type_info";
+        "vtable for __cxxabiv1::__pointer_type_info";
+        "vtable for __cxxabiv1::__si_class_type_info";
+        "vtable for __cxxabiv1::__vmi_class_type_info";
+
+        # Type info for built-in types
+        "typeinfo for bool const*";
+        "typeinfo for bool";
+        "typeinfo for char const*";
+        "typeinfo for char";
+        "typeinfo for double const*";
+        "typeinfo for double";
+        "typeinfo for float const*";
+        "typeinfo for float";
+        "typeinfo for int const*";
+        "typeinfo for int";
+        "typeinfo for long const*";
+        "typeinfo for long double const*";
+        "typeinfo for long double";
+        "typeinfo for long long const*";
+        "typeinfo for long long";
+        "typeinfo for long";
+        "typeinfo for short const*";
+        "typeinfo for short";
+        "typeinfo for signed char const*";
+        "typeinfo for signed char";
+        "typeinfo for unsigned char const*";
+        "typeinfo for unsigned char";
+        "typeinfo for unsigned int const*";
+        "typeinfo for unsigned int";
+        "typeinfo for unsigned long const*";
+        "typeinfo for unsigned long long const*";
+        "typeinfo for unsigned long long";
+        "typeinfo for unsigned long";
+        "typeinfo for unsigned short const*";
+        "typeinfo for unsigned short";
+        "typeinfo for void const*";
+        "typeinfo for void";
+        "typeinfo for wchar_t const*";
+        "typeinfo for wchar_t";
+
+        "typeinfo for bool*";
+        "typeinfo for wchar_t*";
+        "typeinfo for short*";
+        "typeinfo for char*";
+        "typeinfo for unsigned char*";
+        "typeinfo for long long*";
+        "typeinfo for unsigned short*";
+        "typeinfo for long*";
+        "typeinfo for double*";
+        "typeinfo for unsigned long*";
+        "typeinfo for unsigned long long*";
+        "typeinfo for int*";
+        "typeinfo for long double*";
+        "typeinfo for signed char*";
+        "typeinfo for void*";
+        "typeinfo for unsigned int*";
+        "typeinfo for float*";
+
+        "typeinfo for __cxxabiv1::__array_type_info";
+        "typeinfo for __cxxabiv1::__class_type_info";
+        "typeinfo for __cxxabiv1::__enum_type_info";
+        "typeinfo for __cxxabiv1::__function_type_info";
+        "typeinfo for __cxxabiv1::__fundamental_type_info";
+        "typeinfo for __cxxabiv1::__pbase_type_info";
+        "typeinfo for __cxxabiv1::__pointer_to_member_type_info";
+        "typeinfo for __cxxabiv1::__pointer_type_info";
+        "typeinfo for __cxxabiv1::__si_class_type_info";
+        "typeinfo for __cxxabiv1::__vmi_class_type_info";
+
+        # Typeinfo names.
+
+        "typeinfo name for unsigned char const*";
+        "typeinfo name for long const*";
+        "typeinfo name for double const*";
+        "typeinfo name for unsigned long long const*";
+        "typeinfo name for unsigned short const*";
+        "typeinfo name for char const*";
+        "typeinfo name for long long const*";
+        "typeinfo name for short const*";
+        "typeinfo name for unsigned int const*";
+        "typeinfo name for float const*";
+        "typeinfo name for bool const*";
+        "typeinfo name for wchar_t const*";
+        "typeinfo name for int const*";
+        "typeinfo name for unsigned long const*";
+        "typeinfo name for void const*";
+        "typeinfo name for long double const*";
+        "typeinfo name for signed char const*";
+        "typeinfo name for wchar_t";
+        "typeinfo name for short";
+        "typeinfo name for char";
+        "typeinfo name for float";
+        "typeinfo name for void";
+        "typeinfo name for unsigned int";
+        "typeinfo name for bool";
+        "typeinfo name for signed char";
+        "typeinfo name for long double";
+        "typeinfo name for int";
+        "typeinfo name for unsigned long long";
+        "typeinfo name for unsigned long";
+        "typeinfo name for unsigned char";
+        "typeinfo name for long";
+        "typeinfo name for long long";
+        "typeinfo name for unsigned short";
+        "typeinfo name for double";
+
+        "typeinfo name for bool*";
+        "typeinfo name for wchar_t*";
+        "typeinfo name for short*";
+        "typeinfo name for char*";
+        "typeinfo name for unsigned char*";
+        "typeinfo name for long long*";
+        "typeinfo name for unsigned short*";
+        "typeinfo name for long*";
+        "typeinfo name for double*";
+        "typeinfo name for unsigned long*";
+        "typeinfo name for unsigned long long*";
+        "typeinfo name for int*";
+        "typeinfo name for long double*";
+        "typeinfo name for signed char*";
+        "typeinfo name for void*";
+        "typeinfo name for unsigned int*";
+        "typeinfo name for float*";
+
+        "typeinfo name for __cxxabiv1::__array_type_info";
+        "typeinfo name for __cxxabiv1::__class_type_info";
+        "typeinfo name for __cxxabiv1::__enum_type_info";
+        "typeinfo name for __cxxabiv1::__function_type_info";
+        "typeinfo name for __cxxabiv1::__fundamental_type_info";
+        "typeinfo name for __cxxabiv1::__pbase_type_info";
+        "typeinfo name for __cxxabiv1::__pointer_to_member_type_info";
+        "typeinfo name for __cxxabiv1::__pointer_type_info";
+        "typeinfo name for __cxxabiv1::__si_class_type_info";
+        "typeinfo name for __cxxabiv1::__vmi_class_type_info";
+
+        "std::type_info::type_info(std::type_info const&)";
+        "std::type_info::operator=(std::type_info const&)";
+
+
+        # Extensions
+        "pathscale::set_terminate(void (*)())";
+        "pathscale::set_unexpected(void (*)())";
+        "pathscale::set_use_thread_local_handlers(bool)";
+    };
+
+    # C++11 typeinfo not understood by ld.bfd 2.17.50
+    # std::nullptr_t
+    _ZTIDn;_ZTIPDn;_ZTIPKDn;
+    # char16_t
+    _ZTIDi;_ZTIPDi;_ZTIPKDi;
+    # char32_t
+    _ZTIDs;_ZTIPDs;_ZTIPKDs;
+    # IEEE 754r decimal floating point
+    _ZTIDd;_ZTIPDd;_ZTIPKDd;
+    _ZTIDe;_ZTIPDe;_ZTIPKDe;
+    _ZTIDf;_ZTIPDf;_ZTIPKDf;
+    # IEEE 754r half-precision floating point
+    _ZTIDh;_ZTIPDh;_ZTIPKDh;
+
+    # C++11 typeinfo name not understood by ld.bfd 2.17.50
+    # std::nullptr_t
+    _ZTSDn;_ZTSPDn;_ZTSPKDn;
+    # char16_t
+    _ZTSDi;_ZTSPDi;_ZTSPKDi;
+    # char32_t
+    _ZTSDs;_ZTSPDs;_ZTSPKDs;
+    # IEEE 754r decimal floating point
+    _ZTSDd;_ZTSPDd;_ZTSPKDd;
+    _ZTSDe;_ZTSPDe;_ZTSPKDe;
+    _ZTSDf;_ZTSPDf;_ZTSPKDf;
+    # IEEE 754r half-precision floating point
+    _ZTSDh;_ZTSPDh;_ZTSPKDh;
+
+  local:
+    *;
+};
+
+CXXABI_1.3.1 {
+    __cxa_get_exception_ptr;
+} CXXABI_1.3;
+
+CXXABI_1.3.5 {
+    extern "C++" {
+        "typeinfo for __int128 const*";
+        "typeinfo for __int128";
+        "typeinfo for __int128*";
+        "typeinfo for unsigned __int128 const*";
+        "typeinfo for unsigned __int128";
+        "typeinfo for unsigned __int128*";
+    };
+} CXXABI_1.3.1;
+
+CXXABI_1.3.6 {
+    __cxa_deleted_virtual;
+} CXXABI_1.3.5;
+
+CXXABI_1.3.9 {
+    extern "C++" {
+        "typeinfo name for __int128 const*";
+        "typeinfo name for __int128";
+        "typeinfo name for __int128*";
+        "typeinfo name for unsigned __int128 const*";
+        "typeinfo name for unsigned __int128";
+        "typeinfo name for unsigned __int128*";
+    };
+} CXXABI_1.3.6;
+
+CXXRT_1.0 {
+
+    extern "C++" {
+        "std::type_info::name() const";
+        "std::type_info::before(std::type_info const&) const";
+        "std::type_info::operator==(std::type_info const&) const";
+        "std::type_info::operator!=(std::type_info const&) const";
+        "std::bad_cast::bad_cast(std::bad_cast const&)";
+        "std::bad_cast::bad_cast()";
+        "std::bad_cast::operator=(std::bad_cast const&)";
+        "std::bad_typeid::bad_typeid(std::bad_typeid const&)";
+        "std::bad_typeid::bad_typeid()";
+        "std::bad_typeid::operator=(std::bad_typeid const&)";
+        "std::exception::exception(std::exception const&)";
+        "std::exception::exception()";
+        "std::exception::operator=(std::exception const&)";
+        "std::bad_alloc::bad_alloc(std::bad_alloc const&)";
+        "std::bad_alloc::bad_alloc()";
+        "std::bad_alloc::operator=(std::bad_alloc const&)";
+        "std::bad_array_new_length::bad_array_new_length(std::bad_array_new_length const&)";
+        "std::bad_array_new_length::bad_array_new_length()";
+        "std::bad_array_new_length::operator=(std::bad_array_new_length const&)";
+
+    };
+    __cxa_allocate_dependent_exception;
+    __cxa_current_primary_exception;
+    __cxa_decrement_exception_refcount;
+    __cxa_free_dependent_exception;
+    __cxa_increment_exception_refcount;
+    __cxa_rethrow_primary_exception;
+
+} CXXABI_1.3.6;
+
+
+GLIBCXX_3.4 {
+    extern "C++" {
+        "operator delete[](void*)";
+        "operator delete(void*)";
+        "operator new[](unsigned int)";
+        "operator new(unsigned int)";
+        "operator new(unsigned int, std::nothrow_t const&)";
+        "operator new[](unsigned long)";
+        "operator new(unsigned long)";
+        "operator new(unsigned long, std::nothrow_t const&)";
+
+        "std::unexpected()";
+        "std::get_terminate()";
+        "std::get_unexpected()";
+        "std::uncaught_exception()";
+        "std::terminate()";
+
+        "std::type_info::~type_info()";
+        "std::bad_cast::~bad_cast()";
+        "std::bad_typeid::~bad_typeid()";
+        "std::exception::~exception()";
+        "std::bad_alloc::~bad_alloc()";
+        "std::bad_array_new_length::~bad_array_new_length()";
+
+        "std::exception::what() const";
+
+        std::set_new_handler*;
+        std::set_terminate*;
+        std::set_unexpected*;
+        std::type_info::__*;
+
+        "vtable for std::bad_alloc";
+        "vtable for std::bad_cast";
+        "vtable for std::bad_typeid";
+        "vtable for std::exception";
+        "vtable for std::type_info";
+        "vtable for std::bad_array_new_length";
+
+        "typeinfo for std::bad_alloc";
+        "typeinfo for std::bad_typeid";
+        "typeinfo for std::bad_cast";
+        "typeinfo for std::exception";
+        "typeinfo for std::type_info";
+        "typeinfo for std::bad_array_new_length";
+        "typeinfo name for std::bad_alloc";
+        "typeinfo name for std::bad_typeid";
+        "typeinfo name for std::bad_cast";
+        "typeinfo name for std::exception";
+        "typeinfo name for std::type_info";
+        "typeinfo name for std::bad_array_new_length";
+
+    };
+};
+
+GLIBCXX_3.4.9 {
+    extern "C++" {
+        "std::bad_typeid::what() const";
+        "std::bad_cast::what() const";
+        "std::bad_alloc::what() const";
+        "std::bad_array_new_length::what() const";
+    };
+} GLIBCXX_3.4;
+
+GLIBCXX_3.4.20 {
+    extern "C++" {
+        "std::get_new_handler()";
+    };
+} GLIBCXX_3.4.9;
+
+GLIBCXX_3.4.22 {
+    extern "C++" {
+        "std::uncaught_exceptions()";
+    };
+} GLIBCXX_3.4.20;
+

@@ -1,0 +1,162 @@
+.\" Copyright (c) 2004-2006
+.\"	Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice unmodified, this list of conditions, and the following
+.\"    disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 29, 2017
+.Dt IWM 4
+.Os
+.Sh NAME
+.Nm iwm
+.Nd Intel IEEE 802.11ac wireless network driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+include the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iwm"
+.Cd "device pci"
+.Cd "device wlan"
+.Cd "device firmware"
+.Ed
+.Pp
+You also need to select a firmware for your device.
+Choose one from:
+.Bd -ragged -offset indent
+.Cd "device iwm3160fw"
+.Cd "device iwm3168fw"
+.Cd "device iwm7260fw"
+.Cd "device iwm7265fw"
+.Cd "device iwm8000Cfw"
+.Cd "device iwm8265fw"
+.Ed
+.Pp
+Or you can use
+.Bd -ragged -offset indent
+.Cd "device iwmfw"
+.Ed
+.Pp
+to include them all.
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_iwm_load="YES"
+iwm3160fw_load="YES"
+iwm3168fw_load="YES"
+iwm7260fw_load="YES"
+iwm7265fw_load="YES"
+iwm8000Cfw_load="YES"
+iwm8265fw_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Intel Dual Band Wireless AC 3160
+.It Intel Dual Band Wireless AC 3165
+.It Intel Dual Band Wireless AC 3168
+.It Intel Dual Band Wireless AC 7260
+.It Intel Dual Band Wireless AC 7265
+.It Intel Dual Band Wireless AC 8260
+.El
+.Pp
+.Nm
+supports
+.Cm station
+mode operation.
+Only one virtual interface may be configured at any time.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Pp
+This driver requires the firmware built with the
+.Nm iwmfw
+module to work.
+.Sh EXAMPLES
+Join an existing BSS network (i.e., connect to an access point):
+.Bd -literal -offset indent
+ifconfig wlan create wlandev iwm0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig wlan create wlandev iwm0 ssid my_net up"
+.Pp
+Join a specific BSS network with 64-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev iwm0 ssid my_net \e
+	wepmode on wepkey 0x1234567890 weptxkey 1 up
+.Ed
+.Pp
+Join a specific BSS network with 128-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev iwm0 wlanmode adhoc ssid my_net \e
+    wepmode on wepkey 0x01020304050607080910111213 weptxkey 1
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "iwm%d: device timeout"
+The driver will reset the hardware.
+This should not happen.
+.It "iwm%d: firmware error"
+The onboard microcontroller crashed for some reason.
+The driver will reset the hardware.
+This should not happen.
+.It "iwm%d: timeout waiting for firmware initialization to complete"
+The onboard microcontroller failed to initialize in time.
+This should not happen.
+.It "iwm%d: could not load firmware image '%s'"
+The driver failed to load the firmware image using the
+.Xr firmware 9
+subsystem.
+Verify the
+.Xr iwmfw 4
+firmware module is present.
+.It "iwm%d: could not load boot firmware"
+An attempt to upload the boot firmware image to the onboard microcontroller
+failed.
+This should not happen.
+.It "iwm%d: could not load microcode"
+An attempt to upload the microcode image to the onboard microcontroller failed.
+This should not happen.
+.It "iwm%d: could not load main firmware"
+An attempt to upload the main firmware image to the onboard microcontroller
+failed.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr iwmfw 4 ,
+.Xr pci 4 ,
+.Xr wlan 4 ,
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8

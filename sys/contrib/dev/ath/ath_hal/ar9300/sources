@@ -1,0 +1,81 @@
+#
+#  SOURCES file for ar9300 module
+#
+
+HAL_TOP=..
+
+!IFDEF TOP_HAL_DIR
+TOP=$(HAL_TOP)\$(TOP_HAL_DIR)
+!ELSE
+# The default is to assume the relative position of HAL in the Fusion tree.
+TOP=$(HAL_TOP)\..\..\..
+!ENDIF
+
+INC=$(TOP)\include
+ASF=$(TOP)\asf
+ADF=$(TOP)\adf
+
+!IFDEF BUILD_UMAC
+INC_MP=$(TOP)\os\win_nwf\include
+!ELSE
+INC_MP=$(INC)\winvista
+!ENDIF
+
+!include $(INC_MP)\sources.inc
+
+TARGETNAME=ath_hal_ar9300
+TARGETPATH=$(TOP)\lib
+TARGETTYPE=LIBRARY
+
+INCLUDES= $(INCLUDES)            \
+    $(HAL_TOP);                  \
+    $(INC);                      \
+    $(INC_MP);                   \
+    $(ASF)\include;              \
+    $(ADF)\include\os;           \
+    $(ADF)\include\net;          \
+    $(ADF)\include\nbuf;         \
+    $(ADF)\os\win_nwf;           \
+    $(ADF)\net\win_nwf;          \
+    $(ADF)\nbuf\win_nwf;         \
+    $(SDXROOT)\net\inc;          \
+    $(DDK_INC_PATH)
+
+HAL_OSDEP_INCLUDES=$(HAL_TOP)\winvista;
+
+INCLUDES=$(HAL_OSDEP_INCLUDES) $(INCLUDES) 
+
+!IF "$(DDKBUILDENV)"=="chk"
+C_DEFINES=$(C_DEFINES) -DAH_DEBUG=1
+!ENDIF
+
+C_DEFINES=$(C_DEFINES) -DAH_SUPPORT_WRITE_EEPROM -DATH_SLOW_ANT_DIV=1 -DATH_BT_COEX
+
+SOURCES=$(SOURCES)     	\
+	ar9300_radio.c      \
+	ar9300_gpio.c       \
+	ar9300_radar.c      \
+	ar9300_xmit.c       \
+	ar9300_xmit_ds.c    \
+	ar9300_interrupts.c \
+	ar9300_recv.c       \
+	ar9300_recv_ds.c    \
+	ar9300_ani.c        \
+	ar9300_keycache.c   \
+	ar9300_attach.c     \
+	ar9300_misc.c       \
+	ar9300_beacon.c     \
+	ar9300_phy.c        \
+	ar9300_eeprom.c     \
+	ar9300_power.c      \
+	ar9300_reset.c      \
+	ar9300_timer.c      \
+	ar9300_spectral.c   \
+	ar9300_txbf.c		\
+	ar9300_raw_adc_capture.c \
+	ar9300_txbf_cal.c	\
+	ar9300_paprd.c      \
+	ar9300_sim.c        \
+	ar9300_mci.c        \
+	ar9300_rtt.c        \
+	ar9300_aic.c

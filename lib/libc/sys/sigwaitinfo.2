@@ -1,0 +1,206 @@
+.\" Copyright (c) 2005 David Xu <davidxu@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 27, 2012
+.Dt SIGTIMEDWAIT 2
+.Os
+.Sh NAME
+.Nm sigtimedwait , sigwaitinfo
+.Nd "wait for queued signals (REALTIME)"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In signal.h
+.Ft int
+.Fo sigtimedwait
+.Fa "const sigset_t *restrict set" "siginfo_t *restrict info"
+.Fa "const struct timespec *restrict timeout"
+.Fc
+.Ft int
+.Fn sigwaitinfo "const sigset_t * restrict set" "siginfo_t * restrict info"
+.Sh DESCRIPTION
+The
+.Fn sigtimedwait
+system call is equivalent to
+.Fn sigwaitinfo
+except that if none of the signals specified by
+.Fa set
+are pending,
+.Fn sigtimedwait
+waits for the time interval specified in the
+.Vt timespec
+structure referenced by
+.Fa timeout .
+If the
+.Vt timespec
+structure pointed to by
+.Fa timeout
+is zero-valued and if none of the signals specified by
+.Fa set
+are pending, then
+.Fn sigtimedwait
+returns immediately with an error.
+If
+.Fa timeout
+is the
+.Dv NULL
+pointer, the behavior is unspecified.
+.Dv CLOCK_MONOTONIC
+clock is used to measure the time interval specified by the
+.Fa timeout
+argument.
+.Pp
+The
+.Fn sigwaitinfo
+system call selects the pending signal from the set specified by
+.Fa set .
+Should any of multiple pending signals in the range
+.Dv SIGRTMIN
+to
+.Dv SIGRTMAX
+be selected, it shall be the lowest numbered one.
+The
+selection order between realtime and non-realtime signals, or
+between multiple pending non-realtime signals, is unspecified.
+If no signal in
+.Fa set
+is pending at the time of the call, the calling thread
+is suspended until one or more signals in
+.Fa set
+become pending or until it is interrupted by an unblocked, caught signal.
+.Pp
+The
+.Fn sigwaitinfo
+system call is equivalent to the
+.Fn sigwait
+system call if the
+.Fa info
+argument is
+.Dv NULL .
+If the
+.Fa info
+argument is
+.Pf non- Dv NULL ,
+the
+.Fn sigwaitinfo
+function is equivalent to
+.Fn sigwait ,
+except that the selected signal number shall be stored in the
+.Va si_signo
+member, and the cause of the signal shall be stored in the
+.Va si_code
+member.
+Besides this, the
+.Fn sigwaitinfo
+and
+.Fn sigtimedwait
+system calls may return
+.Er EINTR
+if interrupted by signal, which is not allowed for the
+.Fn sigwait
+function.
+.Pp
+If any value is queued to the selected signal, the first such queued
+value is dequeued and, if the info argument is
+.Pf non- Dv NULL ,
+the value is stored in the
+.Va si_value
+member of
+.Fa info .
+The system resource used to queue the signal
+is released and returned to the system for other use.
+If no value is queued,
+the content of the
+.Va si_value
+member is zero-valued.
+If no further signals are
+queued for the selected signal, the pending indication for that signal
+is reset.
+.Sh RETURN VALUES
+Upon successful completion (that is, one of the signals specified by
+.Fa set
+is pending or is generated)
+.Fn sigwaitinfo
+and
+.Fn sigtimedwait
+return the selected signal number.
+Otherwise, the functions return a value of \-1
+and set the global variable
+.Va errno
+to indicate the error.
+.Sh ERRORS
+The
+.Fn sigtimedwait
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+No signal specified by set was generated within the specified timeout period.
+.El
+.Pp
+The
+.Fn sigtimedwait
+and
+.Fn sigwaitinfo
+system calls fail if:
+.Bl -tag -width Er
+.It Bq Er EINTR
+The wait was interrupted by an unblocked, caught signal.
+.El
+.Pp
+The
+.Fn sigtimedwait
+system call may also fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa timeout
+argument specified a
+.Va tv_nsec
+value less than zero or greater than or equal
+to 1000 million.
+Kernel only checks for this error if no signal is pending in set and it
+is necessary to wait.
+.El
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr sigpending 2 ,
+.Xr sigqueue 2 ,
+.Xr sigsuspend 2 ,
+.Xr sigwait 2 ,
+.Xr pause 3 ,
+.Xr pthread_sigmask 3 ,
+.Xr siginfo 3
+.Sh STANDARDS
+The
+.Fn sigtimedwait
+and
+.Fn sigwaitinfo
+system calls conform to
+.St -p1003.1-96 .

@@ -1,0 +1,163 @@
+#!/usr/bin/env ksh
+
+if [ `basename "/foo/bar/baz"` != "baz" ]; then
+	echo "basename(\"/foo/bar/baz\") is \"baz\"; expected \"`basename "/foo/bar/baz"`"\"
+fi
+
+if [ `dirname "/foo/bar/baz"` != "/foo/bar" ]; then
+	echo "dirname(\"/foo/bar/baz\") is \"/foo/bar\"; expected \"`dirname "/foo/bar/baz"`"\"
+fi
+
+if [ `basename "/foo/bar///baz/"` != "baz" ]; then
+	echo "basename(\"/foo/bar///baz/\") is \"baz\"; expected \"`basename "/foo/bar///baz/"`"\"
+fi
+
+if [ `dirname "/foo/bar///baz/"` != "/foo/bar" ]; then
+	echo "dirname(\"/foo/bar///baz/\") is \"/foo/bar\"; expected \"`dirname "/foo/bar///baz/"`"\"
+fi
+
+if [ `basename "/foo/bar/baz/"` != "baz" ]; then
+	echo "basename(\"/foo/bar/baz/\") is \"baz\"; expected \"`basename "/foo/bar/baz/"`"\"
+fi
+
+if [ `dirname "/foo/bar/baz/"` != "/foo/bar" ]; then
+	echo "dirname(\"/foo/bar/baz/\") is \"/foo/bar\"; expected \"`dirname "/foo/bar/baz/"`"\"
+fi
+
+if [ `basename "/foo/bar/baz//"` != "baz" ]; then
+	echo "basename(\"/foo/bar/baz//\") is \"baz\"; expected \"`basename "/foo/bar/baz//"`"\"
+fi
+
+if [ `dirname "/foo/bar/baz//"` != "/foo/bar" ]; then
+	echo "dirname(\"/foo/bar/baz//\") is \"/foo/bar\"; expected \"`dirname "/foo/bar/baz//"`"\"
+fi
+
+if [ `basename "/foo/bar/baz/."` != "." ]; then
+	echo "basename(\"/foo/bar/baz/.\") is \".\"; expected \"`basename "/foo/bar/baz/."`"\"
+fi
+
+if [ `dirname "/foo/bar/baz/."` != "/foo/bar/baz" ]; then
+	echo "dirname(\"/foo/bar/baz/.\") is \"/foo/bar/baz\"; expected \"`dirname "/foo/bar/baz/."`"\"
+fi
+
+if [ `basename "/foo/bar/baz/./"` != "." ]; then
+	echo "basename(\"/foo/bar/baz/./\") is \".\"; expected \"`basename "/foo/bar/baz/./"`"\"
+fi
+
+if [ `dirname "/foo/bar/baz/./"` != "/foo/bar/baz" ]; then
+	echo "dirname(\"/foo/bar/baz/./\") is \"/foo/bar/baz\"; expected \"`dirname "/foo/bar/baz/./"`"\"
+fi
+
+if [ `basename "/foo/bar/baz/.//"` != "." ]; then
+	echo "basename(\"/foo/bar/baz/.//\") is \".\"; expected \"`basename "/foo/bar/baz/.//"`"\"
+fi
+
+if [ `dirname "/foo/bar/baz/.//"` != "/foo/bar/baz" ]; then
+	echo "dirname(\"/foo/bar/baz/.//\") is \"/foo/bar/baz\"; expected \"`dirname "/foo/bar/baz/.//"`"\"
+fi
+
+if [ `basename "foo/bar/baz/"` != "baz" ]; then
+	echo "basename(\"foo/bar/baz/\") is \"baz\"; expected \"`basename "foo/bar/baz/"`"\"
+fi
+
+if [ `dirname "foo/bar/baz/"` != "foo/bar" ]; then
+	echo "dirname(\"foo/bar/baz/\") is \"foo/bar\"; expected \"`dirname "foo/bar/baz/"`"\"
+fi
+
+if [ `basename "/"` != "/" ]; then
+	echo "basename(\"/\") is \"/\"; expected \"`basename "/"`"\"
+fi
+
+if [ `dirname "/"` != "/" ]; then
+	echo "dirname(\"/\") is \"/\"; expected \"`dirname "/"`"\"
+fi
+
+if [ `basename "./"` != "." ]; then
+	echo "basename(\"./\") is \".\"; expected \"`basename "./"`"\"
+fi
+
+if [ `dirname "./"` != "." ]; then
+	echo "dirname(\"./\") is \".\"; expected \"`dirname "./"`"\"
+fi
+
+if [ `basename "//"` != "/" ]; then
+	echo "basename(\"//\") is \"/\"; expected \"`basename "//"`"\"
+fi
+
+if [ `dirname "//"` != "/" ]; then
+	echo "dirname(\"//\") is \"/\"; expected \"`dirname "//"`"\"
+fi
+
+if [ `basename "/."` != "." ]; then
+	echo "basename(\"/.\") is \".\"; expected \"`basename "/."`"\"
+fi
+
+if [ `dirname "/."` != "/" ]; then
+	echo "dirname(\"/.\") is \"/\"; expected \"`dirname "/."`"\"
+fi
+
+if [ `basename "/./"` != "." ]; then
+	echo "basename(\"/./\") is \".\"; expected \"`basename "/./"`"\"
+fi
+
+if [ `dirname "/./"` != "/" ]; then
+	echo "dirname(\"/./\") is \"/\"; expected \"`dirname "/./"`"\"
+fi
+
+if [ `basename "/./."` != "." ]; then
+	echo "basename(\"/./.\") is \".\"; expected \"`basename "/./."`"\"
+fi
+
+if [ `dirname "/./."` != "/." ]; then
+	echo "dirname(\"/./.\") is \"/.\"; expected \"`dirname "/./."`"\"
+fi
+
+if [ `basename "/.//"` != "." ]; then
+	echo "basename(\"/.//\") is \".\"; expected \"`basename "/.//"`"\"
+fi
+
+if [ `dirname "/.//"` != "/" ]; then
+	echo "dirname(\"/.//\") is \"/\"; expected \"`dirname "/.//"`"\"
+fi
+
+if [ `basename "."` != "." ]; then
+	echo "basename(\".\") is \".\"; expected \"`basename "."`"\"
+fi
+
+if [ `dirname "."` != "." ]; then
+	echo "dirname(\".\") is \".\"; expected \"`dirname "."`"\"
+fi
+
+if [ `basename "f"` != "f" ]; then
+	echo "basename(\"f\") is \"f\"; expected \"`basename "f"`"\"
+fi
+
+if [ `dirname "f"` != "." ]; then
+	echo "dirname(\"f\") is \".\"; expected \"`dirname "f"`"\"
+fi
+
+if [ `basename "f/"` != "f" ]; then
+	echo "basename(\"f/\") is \"f\"; expected \"`basename "f/"`"\"
+fi
+
+if [ `dirname "f/"` != "." ]; then
+	echo "dirname(\"f/\") is \".\"; expected \"`dirname "f/"`"\"
+fi
+
+if [ `basename "/////"` != "/" ]; then
+	echo "basename(\"/////\") is \"/\"; expected \"`basename "/////"`"\"
+fi
+
+if [ `dirname "/////"` != "/" ]; then
+	echo "dirname(\"/////\") is \"/\"; expected \"`dirname "/////"`"\"
+fi
+
+if [ "`basename ""`" != "." -a "." != "." ]; then
+	echo "basename(\"\") is \".\"; expected \"`basename ""`\" or \".\""
+fi
+
+if [ `dirname ""` != "." ]; then
+	echo "dirname(\"\") is \".\"; expected \"`dirname ""`"\"
+fi
+
+

@@ -1,0 +1,591 @@
+.\" Copyright (c) 1992/3 Theo de Raadt <deraadt@fsa.ca>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)yp.8	1.0 (deraadt) 4/26/93
+.\" $FreeBSD$
+.\"
+.Dd December 14, 2011
+.Dt YP 8
+.Os
+.Sh NAME
+.Nm yp
+.Nd description of the YP/NIS system
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+The
+.Nm YP
+subsystem allows network management of passwd, group, netgroup, hosts,
+services, rpc, bootparams and ethers file
+entries through the functions
+.Xr getpwent 3 ,
+.Xr getgrent 3 ,
+.Xr getnetgrent 3 ,
+.Xr gethostent 3 ,
+.Xr getnetent 3 ,
+.Xr getrpcent 3 ,
+and
+.Xr ethers 3 .
+The
+.Xr bootparamd 8
+daemon makes direct
+.Tn NIS
+library calls since there are no
+functions in the standard C library for reading bootparams.
+.Tn NIS
+support is enabled in
+.Xr nsswitch.conf 5 .
+.Pp
+The
+.Nm YP
+subsystem is started automatically in
+.Pa /etc/rc
+if it has been initialized in
+.Pa /etc/rc.conf
+and if the directory
+.Pa /var/yp
+exists (which it does in the default distribution).
+The default
+.Tn NIS
+domain must also be set with the
+.Xr domainname 1
+command, which will happen automatically at system startup if it is
+specified in
+.Pa /etc/rc.conf .
+.Pp
+.Tn NIS
+is an
+.Tn RPC Ns -based
+client/server system that allows a group of
+machines within an
+.Tn NIS
+domain to share a common set of configuration files.
+This permits a system
+administrator to set up
+.Tn NIS
+client systems with only minimal configuration
+data and add, remove or modify configuration data from a single location.
+.Pp
+The canonical copies of all
+.Tn NIS
+information are stored on a single machine
+called the
+.Tn NIS
+.Em "master server" .
+The databases used to store the information are called
+.Tn NIS
+.Em maps .
+In
+.Fx ,
+these maps are stored in
+.Pa /var/yp/ Ns Aq Ar domainname
+where
+.Aq Ar domainname
+is the name of the
+.Tn NIS
+domain being served.
+A single
+.Tn NIS
+server can
+support several domains at once, therefore it is possible to have several
+such directories, one for each supported domain.
+Each domain will have
+its own independent set of maps.
+.Pp
+In
+.Fx ,
+the
+.Tn NIS
+maps are Berkeley DB hashed database files (the
+same format used for the
+.Xr passwd 5
+database files).
+Other operating systems that support
+.Tn NIS
+use old-style
+.Nm ndbm
+databases instead (largely because Sun Microsystems originally based
+their
+.Tn NIS
+implementation on
+.Nm ndbm ,
+and other vendors have simply licensed
+Sun's code rather than design their own implementation with a different
+database format).
+On these systems, the databases are generally split
+into
+.Pa .dir
+and
+.Pa .pag
+files which the
+.Nm ndbm
+code uses to hold separate parts of the hash
+database.
+The Berkeley DB hash method instead uses a single file for
+both pieces of information.
+This means that while you may have
+.Pa passwd.byname.dir
+and
+.Pa passwd.byname.pag
+files on other operating systems (both of which are really parts of the
+same map),
+.Fx
+will have only one file called
+.Pa passwd.byname .
+The difference in format is not significant: only the
+.Tn NIS
+server,
+.Xr ypserv 8 ,
+and related tools need to know the database format of the
+.Tn NIS
+maps.
+Client
+.Tn NIS
+systems receive all
+.Tn NIS
+data in
+.Tn ASCII
+form.
+.Pp
+There are three main types of
+.Tn NIS
+systems:
+.Bl -enum
+.It
+.Tn NIS
+clients,
+which query
+.Tn NIS
+servers for information.
+.It
+.Tn NIS
+master servers,
+which maintain the canonical copies of all
+.Tn NIS
+maps.
+.It
+.Tn NIS
+slave servers,
+which maintain backup copies of
+.Tn NIS
+maps that are periodically
+updated by the master.
+.El
+.Pp
+A
+.Tn NIS
+client establishes what is called a
+.Em binding
+to a particular
+.Tn NIS
+server using the
+.Xr ypbind 8
+daemon.
+The
+.Xr ypbind 8
+utility checks the system's default domain (as set by the
+.Xr domainname 1
+command) and begins broadcasting
+.Tn RPC
+requests on the local network.
+These requests specify the name of the domain for which
+.Xr ypbind 8
+is attempting to establish a binding.
+If a server that has been
+configured to serve the requested domain receives one of the broadcasts,
+it will respond to
+.Xr ypbind 8 ,
+which will record the server's address.
+If there are several servers
+available (a master and several slaves, for example),
+.Xr ypbind 8
+will use the address of the first one to respond.
+From that point
+on, the client system will direct all of its
+.Tn NIS
+requests to that server.
+The
+.Xr ypbind 8
+utility will occasionally
+.Dq ping
+the server to make sure it is still up
+and running.
+If it fails to receive a reply to one of its pings
+within a reasonable amount of time,
+.Xr ypbind 8
+will mark the domain as unbound and begin broadcasting again in the
+hopes of locating another server.
+.Pp
+.Tn NIS
+master and slave servers handle all
+.Tn NIS
+requests with the
+.Xr ypserv 8
+daemon.
+The
+.Xr ypserv 8
+utility is responsible for receiving incoming requests from
+.Tn NIS
+clients,
+translating the requested domain and map name to a path to the
+corresponding database file and transmitting data from the database
+back to the client.
+There is a specific set of requests that
+.Xr ypserv 8
+is designed to handle, most of which are implemented as functions
+within the standard C library:
+.Bl -tag -width ".Fn yp_master"
+.It Fn yp_order
+check the creation date of a particular map
+.It Fn yp_master
+obtain the name of the
+.Tn NIS
+master server for a given
+map/domain
+.It Fn yp_match
+lookup the data corresponding to a given in key in a particular
+map/domain
+.It Fn yp_first
+obtain the first key/data pair in a particular map/domain
+.It Fn yp_next
+pass
+.Xr ypserv 8
+a key in a particular map/domain and have it return the
+key/data pair immediately following it (the functions
+.Fn yp_first
+and
+.Fn yp_next
+can be used to do a sequential search of an
+.Tn NIS
+map)
+.It Fn yp_all
+retrieve the entire contents of a map
+.El
+.Pp
+There are a few other requests which
+.Xr ypserv 8
+is capable of handling (i.e., acknowledge whether or not you can handle
+a particular domain
+.Pq Dv YPPROC_DOMAIN ,
+or acknowledge only if you can handle the domain and be silent otherwise
+.Pq Dv YPPROC_DOMAIN_NONACK )
+but
+these requests are usually generated only by
+.Xr ypbind 8
+and are not meant to be used by standard utilities.
+.Pp
+On networks with a large number of hosts, it is often a good idea to
+use a master server and several slaves rather than just a single master
+server.
+A slave server provides the exact same information as a master
+server: whenever the maps on the master server are updated, the new
+data should be propagated to the slave systems using the
+.Xr yppush 8
+command.
+The
+.Tn NIS
+.Pa Makefile
+.Pq Pa /var/yp/Makefile
+will do this automatically if the administrator creates
+.Pa /var/yp/Makefile.local
+and empties the
+.Va NOPUSH
+variable:
+.Bd -literal -offset four
+.Li NOPUSH=
+.Ed
+.Pp
+.Va ( NOPUSH
+is set to true by default because the default configuration is
+for a small network with only one
+.Tn NIS
+server).
+The
+.Xr yppush 8
+command will initiate a transaction between the master and slave
+during which the slave will transfer the specified maps from the
+master server using
+.Xr ypxfr 8 .
+(The slave server calls
+.Xr ypxfr 8
+automatically from within
+.Xr ypserv 8 ;
+therefore it is not usually necessary for the administrator
+to use it directly.
+It can be run manually if
+desired, however.)
+Maintaining
+slave servers helps improve
+.Tn NIS
+performance on large
+networks by:
+.Bl -bullet
+.It
+Providing backup services in the event that the
+.Tn NIS
+master crashes
+or becomes unreachable
+.It
+Spreading the client load out over several machines instead of
+causing the master to become overloaded
+.It
+Allowing a single
+.Tn NIS
+domain to extend beyond
+a local network (the
+.Xr ypbind 8
+daemon might not be able to locate a server automatically if it resides on
+a network outside the reach of its broadcasts.
+It is possible to force
+.Xr ypbind 8
+to bind to a particular server with
+.Xr ypset 8
+but this is sometimes inconvenient.
+This problem can be avoided simply by
+placing a slave server on the local network.)
+.El
+.Pp
+The
+.Fx
+.Xr ypserv 8
+is specially designed to provide enhanced security (compared to
+other
+.Tn NIS
+implementations) when used exclusively with
+.Fx
+client
+systems.
+The
+.Fx
+password database system (which is derived directly
+from
+.Bx 4.4 )
+includes support for
+.Em "shadow passwords" .
+The standard password database does not contain users' encrypted
+passwords: these are instead stored (along with other information)
+in a separate database which is accessible only by the super-user.
+If the encrypted password database were made available as an
+.Tn NIS
+map, this security feature would be totally disabled, since any user
+is allowed to retrieve
+.Tn NIS
+data.
+.Pp
+To help prevent this,
+.Fx Ns 's
+.Tn NIS
+server handles the shadow password maps
+.Pa ( master.passwd.byname ,
+.Pa master.passwd.byuid ,
+.Pa shadow.byname
+and
+.Pa shadow.byuid )
+in a special way: the server will only provide access to these
+maps in response to requests that originate on privileged ports.
+Since only the super-user is allowed to bind to a privileged port,
+the server assumes that all such requests come from privileged
+users.
+All other requests are denied: requests from non-privileged
+ports will receive only an error code from the server.
+Additionally,
+.Fx Ns 's
+.Xr ypserv 8
+includes support for
+.An Wietse Venema Ns 's
+tcp wrapper package; with tcp
+wrapper support enabled, the administrator can configure
+.Xr ypserv 8
+to respond only to selected client machines.
+.Pp
+While these enhancements provide better security than stock
+.Tn NIS ,
+they are by no means 100% effective.
+It is still possible for
+someone with access to your network to spoof the server into disclosing
+the shadow password maps.
+.Pp
+On the client side,
+.Fx Ns 's
+.Xr getpwent 3
+functions will automatically search for the
+.Pa master.passwd
+maps and use them if they exist.
+If they do, they will be used, and
+all fields in these special maps (class, password age and account
+expiration) will be decoded.
+If they are not found, the standard
+.Pa passwd
+maps will be used instead.
+.Sh COMPATIBILITY
+When using a
+.No non- Ns Fx
+.Tn NIS
+server for
+.Xr passwd 5
+files, it is unlikely that the default MD5-based format that
+.Fx
+uses for passwords will be accepted by it.
+If this is the case, the value of the
+.Va passwd_format
+setting in
+.Xr login.conf 5
+should be changed to
+.Qq Li des
+for compatibility.
+.Pp
+Some systems, such as
+.Tn SunOS
+4.x, need
+.Tn NIS
+to be running in order
+for their hostname resolution functions
+.Po Fn gethostbyname ,
+.Fn gethostbyaddr ,
+etc.
+.Pc
+to work properly.
+On these systems,
+.Xr ypserv 8
+performs
+.Tn DNS
+lookups when asked to return information about
+a host that does not exist in its
+.Pa hosts.byname
+or
+.Pa hosts.byaddr
+maps.
+.Fx Ns 's
+resolver uses
+.Tn DNS
+by default (it can be made to use
+.Tn NIS ,
+if desired), therefore its
+.Tn NIS
+server does not do
+.Tn DNS
+lookups
+by default.
+However,
+.Xr ypserv 8
+can be made to perform
+.Tn DNS
+lookups if it is started with a special
+flag.
+It can also be made to register itself as an
+.Tn NIS
+v1 server
+in order to placate certain systems that insist on the presence of
+a v1 server
+.Po Fx
+uses only
+.Tn NIS
+v2, but many other systems,
+including
+.Tn SunOS
+4.x, search for both a v1 and v2 server when binding
+.Pc .
+.Fx Ns 's
+.Xr ypserv 8
+does not actually handle
+.Tn NIS
+v1 requests, but this
+.Dq "kludge mode"
+is useful for silencing stubborn systems that search for both
+a v1 and v2 server.
+.Pp
+(Please see the
+.Xr ypserv 8
+manual page for a detailed description of these special features
+and flags.)
+.Sh SEE ALSO
+.Xr domainname 1 ,
+.Xr ypcat 1 ,
+.Xr ypmatch 1 ,
+.Xr ypwhich 1 ,
+.Xr nsswitch.conf 5 ,
+.Xr yp_mkdb 8 ,
+.Xr ypbind 8 ,
+.Xr ypinit 8 ,
+.Xr yppoll 8 ,
+.Xr yppush 8 ,
+.Xr ypserv 8 ,
+.Xr ypset 8 ,
+.Xr ypxfr 8
+.Sh HISTORY
+The
+.Nm YP
+subsystem was written from the ground up by
+.An Theo de Raadt
+to be compatible to Sun's implementation.
+Bug fixes, improvements
+and
+.Tn NIS
+server support were later added by
+.An Bill Paul .
+The server-side code was originally written by
+.An Peter Eriksson
+and
+.An Tobias Reber
+and is subject to the GNU Public License.
+No Sun code was
+referenced.
+.Sh BUGS
+While
+.Fx
+now has both
+.Tn NIS
+client and server capabilities, it does not yet have support for
+.Xr ypupdated 8
+or the
+.Fn yp_update
+function.
+Both of these require secure
+.Tn RPC ,
+which
+.Fx
+does not
+support yet either.
+.Pp
+The
+.Xr getservent 3
+and
+.Xr getprotoent 3
+functions do not yet have
+.Tn NIS
+support.
+Fortunately, these files
+do not need to be updated that often.
+.Pp
+Many more manual pages should be written, especially
+.Xr ypclnt 3 .
+For the time being, seek out a local Sun machine and read the
+manuals for there.
+.Pp
+Neither Sun nor this author have found a clean way to handle
+the problems that occur when ypbind cannot find its server
+upon bootup.

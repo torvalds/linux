@@ -1,0 +1,104 @@
+# $FreeBSD$
+
+# arge0 MDIO bus
+hint.argemdio.0.at="nexus0"
+hint.argemdio.0.maddr=0x19000000
+hint.argemdio.0.msize=0x1000
+hint.argemdio.0.order=0
+
+# arge1 MDIO bus doesn't exist on the AR7240
+
+# arge0: MII; dedicated PHY 4 on switch, connected via internal switch
+# MDIO bus.
+
+hint.arge.0.at="nexus0"
+hint.arge.0.maddr=0x19000000
+hint.arge.0.msize=0x1000
+hint.arge.0.irq=2
+# hint.arge.0.eeprommac=0x83fe9ff0
+hint.arge.0.phymask=0x10	# PHY 4
+# hint.arge.0.miimode=2		# MII
+hint.arge.0.mdio=mdioproxy1	# Hanging off the arswitch MDIO bus
+
+# arge1: connected to the LAN switch MAC, at 1000BaseTX / GMII.
+
+hint.arge.1.phymask=0x0
+# hint.arge.1.miimode=1		# GMII
+hint.arge.1.media=1000		# Force to 1000BaseTX/full
+hint.arge.1.fduplex=1
+
+#
+# AR7240 switch config
+#
+hint.arswitch.0.at="mdio0"
+hint.arswitch.0.is_7240=1	# We need to be explicitly told this
+hint.arswitch.0.numphys=4	# 4 active switch PHYs (PHY 0 -> 3)
+hint.arswitch.0.phy4cpu=1	# Yes, PHY 4 == dedicated PHY
+hint.arswitch.0.is_rgmii=0	# No, not RGMII
+hint.arswitch.0.is_gmii=0	# No, not GMII
+
+# ath0 hint - pcie slot 0
+hint.pcib.0.bus.0.0.0.ath_fixup_addr=0x1fff1000
+hint.pcib.0.bus.0.0.0.ath_fixup_size=4096
+
+# ath
+hint.ath.0.eeprom_firmware="pcib.0.bus.0.0.0.eeprom_firmware"
+
+# Signal leds
+hint.gpioled.0.at="gpiobus0"
+hint.gpioled.0.name="sig1"
+hint.gpioled.0.pins=0x0001	# pin 0
+hint.gpioled.1.at="gpiobus0"
+hint.gpioled.1.name="sig2"
+hint.gpioled.1.pins=0x0002	# pin 1
+hint.gpioled.2.at="gpiobus0"
+hint.gpioled.2.name="sig3"
+hint.gpioled.2.pins=0x0800	# pin 11
+hint.gpioled.3.at="gpiobus0"
+hint.gpioled.3.name="sig4"
+hint.gpioled.3.pins=0x0080	# pin 7
+
+# nvram mapping - XXX ?
+hint.nvram.0.base=0x1f030000
+hint.nvram.0.maxsize=0x2000
+hint.nvram.0.flags=3 # 1 = No check, 2 = Format Generic
+hint.nvram.1.base=0x1f032000
+hint.nvram.1.maxsize=0x4000
+hint.nvram.1.flags=3 # 1 = No check, 2 = Format Generic
+
+# GEOM_MAP
+#
+# From my AP91 environment:
+#
+# mtdparts=ar7240-nor0:256k(u-boot),64k(u-boot-env),2752k(rootfs),
+#    960k(uImage),64k(ART)
+
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x00040000	# 256k u-boot
+hint.map.0.name="u-boot"
+hint.map.0.readonly=1
+
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00040000
+hint.map.1.end=0x00050000	# 64k u-boot-env
+hint.map.1.name="u-boot-env"
+hint.map.1.readonly=0
+
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x00050000
+hint.map.2.end=0x00300000	# 2752k rootfs
+hint.map.2.name="rootfs"
+hint.map.2.readonly=1
+
+hint.map.3.at="flash/spi0"
+hint.map.3.start=0x00300000
+hint.map.3.end=0x003f0000	# 896k uImage
+hint.map.3.name="uImage"
+hint.map.3.readonly=1
+
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x003f0000
+hint.map.4.end=0x00400000	# 64k ART
+hint.map.4.name="ART"
+hint.map.4.readonly=1

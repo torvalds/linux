@@ -1,0 +1,21 @@
+
+#------------------------------------------------------------------------------
+# $File: cbor,v 1.1 2015/01/28 01:05:21 christos Exp $
+# cbor:  file(1) magic for CBOR files as defined in RFC 7049
+
+0	string	\xd9\xd9\xf7 Concise Binary Object Representation (CBOR) container
+!:mime	application/cbor
+>3	ubyte	<0x20	(positive integer)
+>3	ubyte	<0x40
+>>3	ubyte	>0x1f	(negative integer)
+>3	ubyte	<0x60
+>>3	ubyte	>0x3f	(byte string)
+>3	ubyte	<0x80
+>>3	ubyte	>0x5f	(text string)
+>3	ubyte	<0xa0
+>3	ubyte	>0x7f	(array)
+>3	ubyte	<0xc0
+>>3	ubyte	>0x9f	(map)
+>3	ubyte	<0xe0
+>>3	ubyte	>0xbf	(tagged)
+>3	ubyte	>0xdf	(other)

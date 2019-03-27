@@ -1,0 +1,32 @@
+       The kernel subsystem API documentation generation framework.
+      --------------------------------------------------------------
+
+For every Doxyfile-(.*) the Makefile adds the public targets $1, pdf-$1 and
+clean-$1. For e.g. Doxyfile-dev_pci this translates to the targets dev_pci,
+pdf-dev_pci and clean-dev_pci.
+
+Additionally, the targets 'all', 'pdf-all' and 'clean' to generate or remove
+the documentation for all targets are available.
+
+The file 'Dependencies' contains dependencies for the .tag files.
+
+To add another part to the documentation just copy a Doxyfile and add
+the necessary dependencies to the file 'Dependencies'.
+
+The following environment variables can be used in the Doxyfile:
+ - DOXYGEN_SRC_PATH		(/usr/src/sys)
+ - DOXYGEN_DEST_PATH		(where the docs are generated)
+ - DOXYGEN_TARGET_ARCH		(${TARGET_ARCH} if set, else ${MACHINE_ARCH})
+
+For the PDF generation you may have to change some limits in the latex
+configuration (the build may fail and an error about e.g. "pool size" is
+shown), for print/teTeX this is done in
+	/usr/local/share/texmf/web2c/texmf.cnf
+
+Programs needed to generate the API docs:
+ - devel/doxygen
+ - print/teTeX
+ - graphics/graphviz
+
+-- 
+$FreeBSD$

@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+$SH -nc 'echo bad'

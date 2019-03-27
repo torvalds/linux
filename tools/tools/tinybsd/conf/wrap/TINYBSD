@@ -1,0 +1,139 @@
+# $FreeBSD$
+machine		i386
+cpu		I586_CPU
+ident		TINYBSD
+maxusers        8
+options         CPU_GEODE
+
+# To statically compile in device wiring instead of /boot/device.hints
+#hints		"GENERIC.hints"		# Default places to look for devices.
+options 	SCHED_4BSD		# 4BSD scheduler
+options 	INET			# InterNETworking
+options 	FFS			# Berkeley Fast Filesystem
+options 	SOFTUPDATES		# Enable FFS soft updates support
+options 	UFS_ACL			# Support for access control lists
+options 	UFS_DIRHASH		# Improve performance on big directories
+options 	MD_ROOT			# MD is a potential root device
+options 	NFSCLIENT		# Network Filesystem Client
+options 	NFSSERVER		# Network Filesystem Server
+options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
+options 	PROCFS			# Process filesystem (requires PSEUDOFS)
+options 	PSEUDOFS		# Pseudo-filesystem framework
+options 	GEOM_PART_GPT		# GUID Partition Tables.
+options 	COMPAT_43		# Compatible with BSD 4.3 [KEEP THIS!]
+options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
+options 	SYSVSHM			# SYSV-style shared memory
+options 	SYSVMSG			# SYSV-style message queues
+options 	SYSVSEM			# SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
+options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
+					# output.  Adds ~128k to driver.
+options 	AHD_REG_PRETTY_PRINT	# Print register bitfields in debug
+					# output.  Adds ~215k to driver.
+options 	ADAPTIVE_GIANT		# Giant mutex is adaptive.
+
+#device		apic			# I/O APIC
+
+device		pci
+
+# ATA and ATAPI devices
+device		ata
+device		atadisk		# ATA disk drives
+options 	ATA_STATIC_ID	# Static device numbering
+
+# Serial (COM) ports
+device		sio		# 8250, 16[45]50 based serial ports
+
+# PCI Ethernet NICs.
+device		de		# DEC/Intel DC21x4x (``Tulip'')
+device		em		# Intel PRO/1000 adapter Gigabit Ethernet Card
+device		txp		# 3Com 3cR990 (``Typhoon'')
+device		vx		# 3Com 3c590, 3c595 (``Vortex'')
+
+# PCI Ethernet NICs that use the common MII bus controller code.
+# NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
+device		miibus		# MII bus support
+device		bfe		# Broadcom BCM440x 10/100 Ethernet
+device		bge		# Broadcom BCM570xx Gigabit Ethernet
+device		dc		# DEC/Intel 21143 and various workalikes
+device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+device		lge		# Level 1 LXT1001 gigabit ethernet
+device		nge		# NatSemi DP83820 gigabit ethernet
+device		pcn		# AMD Am79C97x PCI 10/100 (precedence over 'lnc')
+device		re		# RealTek 8139C+/8169/8169S/8110S
+device		rl		# RealTek 8129/8139
+device		sf		# Adaptec AIC-6915 (``Starfire'')
+device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
+device		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
+device		ste		# Sundance ST201 (D-Link DFE-550TX)
+device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
+device		tl		# Texas Instruments ThunderLAN
+device		tx		# SMC EtherPower II (83c170 ``EPIC'')
+device		vge		# VIA VT612x gigabit ethernet
+device		vr		# VIA Rhine, Rhine II
+device		wb		# Winbond W89C840F
+device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
+
+# ISA Ethernet NICs.  pccard NICs included.
+device		cs		# Crystal Semiconductor CS89x0 NIC
+# 'device ed' requires 'device miibus'
+device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
+device		ex		# Intel EtherExpress Pro/10 and Pro/10+
+device		ep		# Etherlink III based cards
+device		fe		# Fujitsu MB8696x based cards
+device		ie		# EtherExpress 8/16, 3C507, StarLAN 10 etc.
+device		sn		# SMC's 9000 series of Ethernet chips
+device		xe		# Xircom pccard Ethernet
+
+# Wireless NIC cards
+device		wlan		# 802.11 support
+device          wlan_wep                #802.11 WEP support
+device          wlan_ccmp               #802.11 CCMP support
+device          wlan_tkip               #802.11 TKIP support
+device          wlan_xauth              #802.11 external authenticator support
+device          wlan_acl                #802.11 MAC ACL support
+device		an		# Aironet 4500/4800 802.11 wireless NICs.
+device		awi		# BayStack 660 and others
+device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
+device          ath
+device          ath_hal
+device 		ath_rate_sample
+
+# Pseudo devices.
+device		loop		# Network loopback
+device		random		# Entropy device
+device		ether		# Ethernet support
+device		ppp		# Kernel PPP
+device		tun		# Packet tunnel.
+device		pty		# Pseudo-ttys (telnet etc)
+device		md		# Memory "disks"
+device		gif		# IPv6 and IPv4 tunneling
+
+# The `bpf' device enables the Berkeley Packet Filter.
+# Be aware of the administrative consequences of enabling this!
+# Note that 'bpf' is required for DHCP.
+device		bpf		# Berkeley packet filter
+
+options         INCLUDE_CONFIG_FILE
+
+options         IPFIREWALL
+options         IPFIREWALL_DEFAULT_TO_ACCEPT
+options         IPDIVERT
+options         DUMMYNET
+
+options         ALTQ
+options         ALTQ_CBQ
+options         ALTQ_RED
+options         ALTQ_RIO
+options         ALTQ_HFSC
+options         ALTQ_CDNR
+options         ALTQ_PRIQ
+
+device          pf
+device          pflog
+device          pfsync
+device          carp
+device		if_bridge
+
+options         DEVICE_POLLING

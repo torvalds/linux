@@ -1,0 +1,142 @@
+
+	--- GEOM BASED DISK SCHEDULERS FOR FREEBSD ---
+
+This code contains a framework for GEOM-based disk schedulers and a
+couple of sample scheduling algorithms that use the framework and
+implement two forms of "anticipatory scheduling" (see below for more
+details).
+
+As a quick example of what this code can give you, try to run "dd",
+"tar", or some other program with highly SEQUENTIAL access patterns,
+together with "cvs", "cvsup", "svn" or other highly RANDOM access patterns
+(this is not a made-up example: it is pretty common for developers
+to have one or more apps doing random accesses, and others that do
+sequential accesses e.g., loading large binaries from disk, checking
+the integrity of tarballs, watching media streams and so on).
+
+These are the results we get on a local machine (AMD BE2400 dual
+core CPU, SATA 250GB disk):
+
+    /mnt is a partition mounted on /dev/ad0s1f
+
+    cvs: 	cvs -d /mnt/home/ncvs-local update -Pd /mnt/ports
+    dd-read:	dd bs=128k of=/dev/null if=/dev/ad0 (or ad0-sched-)
+    dd-writew	dd bs=128k if=/dev/zero of=/mnt/largefile
+
+			NO SCHEDULER		RR SCHEDULER
+                	dd	cvs		dd	cvs
+
+    dd-read only        72 MB/s	----		72 MB/s	---
+    dd-write only	55 MB/s	---		55 MB/s	---
+    dd-read+cvs		 6 MB/s	ok    		30 MB/s	ok
+    dd-write+cvs	55 MB/s slooow		14 MB/s	ok
+
+As you can see, when a cvs is running concurrently with dd, the
+performance drops dramatically, and depending on read or write mode,
+one of the two is severely penalized.  The use of the RR scheduler
+in this example makes the dd-reader go much faster when competing
+with cvs, and lets cvs progress when competing with a writer.
+
+To try it out:
+
+1. PLEASE MAKE SURE THAT THE DISK THAT YOU WILL BE USING FOR TESTS
+   DOES NOT CONTAIN PRECIOUS DATA.
+    This is experimental code, so we make no guarantees, though
+    I am routinely using it on my desktop and laptop.
+
+2. EXTRACT AND BUILD THE PROGRAMS
+    A 'make install' in the directory should work (with root privs),
+    or you can even try the binary modules.
+    If you want to build the modules yourself, look at the Makefile.
+
+3. LOAD THE MODULE, CREATE A GEOM NODE, RUN TESTS
+
+    The scheduler's module must be loaded first:
+
+      # kldload gsched_rr
+
+    substitute with gsched_as to test AS.  Then, supposing that you are
+    using /dev/ad0 for testing, a scheduler can be attached to it with:
+
+      # geom sched insert ad0
+
+    The scheduler is inserted transparently in the geom chain, so
+    mounted partitions and filesystems will keep working, but
+    now requests will go through the scheduler.
+
+    To change scheduler on-the-fly, you can reconfigure the geom:
+
+      # geom sched configure -a as ad0.sched.
+
+    assuming that gsched_as was loaded previously.
+
+5. SCHEDULER REMOVAL
+
+    In principle it is possible to remove the scheduler module
+    even on an active chain by doing
+
+	# geom sched destroy ad0.sched.
+
+    However, there is some race in the geom subsystem which makes
+    the removal unsafe if there are active requests on a chain.
+    So, in order to reduce the risk of data losses, make sure
+    you don't remove a scheduler from a chain with ongoing transactions.
+
+--- NOTES ON THE SCHEDULERS ---
+
+The important contribution of this code is the framework to experiment
+with different scheduling algorithms.  'Anticipatory scheduling'
+is a very powerful technique based on the following reasoning:
+
+    The disk throughput is much better if it serves sequential requests.
+    If we have a mix of sequential and random requests, and we see a
+    non-sequential request, do not serve it immediately but instead wait
+    a little bit (2..5ms) to see if there is another one coming that
+    the disk can serve more efficiently.
+
+There are many details that should be added to make sure that the
+mechanism is effective with different workloads and systems, to
+gain a few extra percent in performance, to improve fairness,
+insulation among processes etc.  A discussion of the vast literature
+on the subject is beyond the purpose of this short note.
+
+--------------------------------------------------------------------------
+
+TRANSPARENT INSERT/DELETE
+
+geom_sched is an ordinary geom module, however it is convenient
+to plug it transparently into the geom graph, so that one can
+enable or disable scheduling on a mounted filesystem, and the
+names in /etc/fstab do not depend on the presence of the scheduler.
+
+To understand how this works in practice, remember that in GEOM
+we have "providers" and "geom" objects.
+Say that we want to hook a scheduler on provider "ad0",
+accessible through pointer 'pp'. Originally, pp is attached to
+geom "ad0" (same name, different object) accessible through pointer old_gp
+
+  BEFORE	---> [ pp    --> old_gp ...]
+
+A normal "geom sched create ad0" call would create a new geom node
+on top of provider ad0/pp, and export a newly created provider
+("ad0.sched." accessible through pointer newpp).
+
+  AFTER create  ---> [ newpp --> gp --> cp ] ---> [ pp    --> old_gp ... ]
+
+On top of newpp, a whole tree will be created automatically, and we
+can e.g. mount partitions on /dev/ad0.sched.s1d, and those requests
+will go through the scheduler, whereas any partition mounted on
+the pre-existing device entries will not go through the scheduler.
+
+With the transparent insert mechanism, the original provider "ad0"/pp
+is hooked to the newly created geom, as follows:
+
+  AFTER insert  ---> [ pp    --> gp --> cp ] ---> [ newpp --> old_gp ... ]
+
+so anything that was previously using provider pp will now have
+the requests routed through the scheduler node.
+
+A removal ("geom sched destroy ad0.sched.") will restore the original
+configuration.
+
+# $FreeBSD$

@@ -1,0 +1,48 @@
+.TH "ntlm_buf" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalntlmlibrary" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+ntlm_buf \- 
+.SH SYNOPSIS
+.br
+.PP
+\fC#include <heimntlm.h>\fP
+.PP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "size_t \fBlength\fP"
+.br
+.ti -1c
+.RI "void * \fBdata\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+Buffer for storing data in the NTLM library. When filled in by the library it should be freed with \fBheim_ntlm_free_buf()\fP. 
+.PP
+\fBExamples: \fP
+.in +1c
+.PP
+\fBtest_ntlm.c\fP.
+.SH "Field Documentation"
+.PP 
+.SS "size_t \fBntlm_buf::length\fP"
+.PP
+length buffer data 
+.PP
+\fBExamples: \fP
+.in +1c
+\fBtest_ntlm.c\fP.
+.SS "void* \fBntlm_buf::data\fP"
+.PP
+pointer to the data itself 
+.PP
+\fBExamples: \fP
+.in +1c
+\fBtest_ntlm.c\fP.
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Heimdalntlmlibrary from the source code.

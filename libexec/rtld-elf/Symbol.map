@@ -1,0 +1,35 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+    _rtld_error;
+    dlclose;
+    dlerror;
+    dlopen;
+    dlsym;
+    dlfunc;
+    dlvsym;
+    dladdr;
+    dllockinit;
+    dlinfo;
+    dl_iterate_phdr;
+    r_debug_state;
+    __tls_get_addr;
+};
+
+FBSD_1.3 {
+    fdlopen;
+};
+
+FBSDprivate_1.0 {
+    _rtld_thread_init;
+    _rtld_allocate_tls;
+    _rtld_free_tls;
+    _rtld_atfork_pre;
+    _rtld_atfork_post;
+    _rtld_addr_phdr;
+    _rtld_get_stack_prot;
+    _rtld_is_dlopened;
+    _r_debug_postinit;
+};

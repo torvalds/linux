@@ -1,0 +1,129 @@
+# $FreeBSD$
+# Utility functions (mainly from pf tests, should be merged one day)
+##
+
+: ${TMPDIR=/tmp}
+
+. $(atf_get_srcdir)/../../common/vnet.subr
+
+ist_init()
+{
+	vnet_init
+}
+
+ist_labsetup ()
+{
+	epair_LAN_A=$(vnet_mkepair)
+	ifconfig ${epair_LAN_A}a up
+	epair_PUB_A=$(vnet_mkepair)
+	ifconfig ${epair_PUB_A}a up
+	epair_LAN_B=$(vnet_mkepair)
+	ifconfig ${epair_LAN_B}a up
+	epair_PUB_B=$(vnet_mkepair)
+	ifconfig ${epair_PUB_B}a up
+
+	vnet_mkjail hostA ${epair_LAN_A}a
+	vnet_mkjail ipsecA ${epair_LAN_A}b ${epair_PUB_A}a
+	vnet_mkjail router ${epair_PUB_A}b ${epair_PUB_B}b
+	vnet_mkjail ipsecB ${epair_LAN_B}b ${epair_PUB_B}a
+	vnet_mkjail hostB ${epair_LAN_B}a
+}
+
+ist_v4_setup ()
+{
+	jexec hostA ifconfig ${epair_LAN_A}a 192.0.2.1/30 up
+	jexec ipsecA ifconfig ${epair_LAN_A}b 192.0.2.2/30 up
+	jexec ipsecA ifconfig ${epair_PUB_A}a 198.51.100.2/30 up
+	jexec router ifconfig ${epair_PUB_A}b 198.51.100.1/30 up
+	jexec router ifconfig ${epair_PUB_B}b 198.51.100.5/30 up
+	jexec ipsecB ifconfig ${epair_PUB_B}a 198.51.100.6/30 up
+	jexec ipsecB ifconfig ${epair_LAN_B}b 203.0.113.2/30 up
+	jexec hostB ifconfig ${epair_LAN_B}a 203.0.113.1/30 up
+	jexec ipsecA sysctl net.inet.ip.forwarding=1
+	jexec router sysctl net.inet.ip.forwarding=1
+	jexec ipsecB sysctl net.inet.ip.forwarding=1
+	jexec hostA route add default 192.0.2.2
+	jexec ipsecA route add default 198.51.100.1
+	jexec ipsecB route add default 198.51.100.5
+	jexec hostB route add default 203.0.113.2
+}
+
+ist_v6_setup ()
+{
+	jexec hostA ifconfig ${epair_LAN_A}a inet6 2001:db8:1::1/64 up no_dad
+	jexec ipsecA ifconfig ${epair_LAN_A}b inet6 2001:db8:1::2/64 up no_dad
+	jexec ipsecA ifconfig ${epair_PUB_A}a inet6 2001:db8:23::2/64 up no_dad
+	jexec router ifconfig ${epair_PUB_A}b inet6 2001:db8:23::3/64 up no_dad
+	jexec router ifconfig ${epair_PUB_B}b inet6 2001:db8:34::3/64 up no_dad
+	jexec ipsecB ifconfig ${epair_PUB_B}a inet6 2001:db8:34::2/64 up no_dad
+	jexec ipsecB ifconfig ${epair_LAN_B}b inet6 2001:db8:45::2/64 up no_dad
+	jexec hostB ifconfig ${epair_LAN_B}a inet6 2001:db8:45::1/64 up no_dad
+	jexec ipsecA sysctl net.inet6.ip6.forwarding=1
+	jexec router sysctl net.inet6.ip6.forwarding=1
+	jexec ipsecB sysctl net.inet6.ip6.forwarding=1
+	jexec hostA route -6 add default 2001:db8:1::2
+	jexec ipsecA route -6 add default 2001:db8:23::3
+	jexec ipsecB route -6 add default 2001:db8:34::3
+	jexec hostB route -6 add default 2001:db8:45::2
+}
+
+ist_setkey()
+{
+	jname=$1
+	dir=$2
+	afnet=$3
+	enc_algo=$4
+	enc_key=$5
+	auth_algo=$6
+	auth_key=$7
+
+	# Load
+	(
+		printf "#arguments debug: ${jname} ${afnet} ${dir} ${enc_algo} "
+		printf "${enc_key} ${auth_algo} ${auth_key}\n"
+		printf "flush;\n"
+		printf "spdflush;\n"
+		if [ ${afnet} -eq 4 ]; then
+			SRC_LAN="192.0.2.0/24"
+			DST_LAN="203.0.113.0/24"
+			SRC_GW="198.51.100.2"
+			DST_GW="198.51.100.6"
+		else
+			SRC_LAN="2001:db8:1::/64"
+			DST_LAN="2001:db8:45::/64"
+			SRC_GW="2001:db8:23::2"
+			DST_GW="2001:db8:34::2"
+		fi
+		printf "spdadd ${SRC_LAN} ${DST_LAN} any -P "
+		[ ${dir} = "out" ] && printf "out" || printf "in"
+		printf " ipsec esp/tunnel/${SRC_GW}-${DST_GW}/require;\n"
+		printf "spdadd ${DST_LAN} ${SRC_LAN} any -P "
+		[ ${dir} = "out" ] && printf "in" || printf "out"
+		printf " ipsec esp/tunnel/${DST_GW}-${SRC_GW}/require;\n"
+		printf "add ${SRC_GW} ${DST_GW} esp 0x1000 -E ${enc_algo} \"${enc_key}\""
+		[ -n "${auth_algo}" ] && printf " -A ${auth_algo} \"${auth_key}\";\n" || printf ";\n"
+		printf "add ${DST_GW} ${SRC_GW} esp 0x1001 -E ${enc_algo} \"${enc_key}\""
+		[ -n "$auth_algo" ] && printf " -A ${auth_algo} \"${auth_key}\";\n" || printf ";\n"
+	) > ${TMPDIR}/ipsec.${jname}.conf
+}
+
+ist_test()
+{
+	ist_init
+	ist_labsetup
+	[ $1 -eq 4 ] && ist_v4_setup || ist_v6_setup
+	ist_setkey ipsecA out $@
+	atf_check -s exit:0 -o ignore jexec ipsecA setkey -f ${TMPDIR}/ipsec.ipsecA.conf
+	ist_setkey ipsecB in $@
+	atf_check -s exit:0 -o ignore jexec ipsecB setkey -f ${TMPDIR}/ipsec.ipsecB.conf
+	# Check ipsec tunnel
+	if [ $1 -eq 4 ]; then
+		atf_check -s exit:0 -o ignore jexec hostA ping -c 1 203.0.113.1
+	else
+		atf_check -s exit:0 -o ignore jexec hostA ping6 -c 1 2001:db8:45::1
+	fi
+}
+ist_cleanup()
+{
+	vnet_cleanup
+}

@@ -1,0 +1,87 @@
+.\" Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 26, 2014
+.Dt ATTIMER 4
+.Os
+.Sh NAME
+.Nm attimer
+.Nd i8254 Programmable Interval Timer (AT Timer) driver
+.Sh SYNOPSIS
+This driver is a mandatory part of x86 kernels.
+.Pp
+The following tunables are settable from the
+.Xr loader 8 :
+.Bl -ohang
+.It Va hint.attimer. Ns Ar X Ns Va .clock
+controls support for the event timer functionality.
+Setting this value to
+.Dv 0
+disables it.
+The default value is
+.Dv 1 .
+.It Va hint.attimer. Ns Ar X Ns Va .timecounter
+controls support for the time counter functionality.
+Setting this value to
+.Dv 0
+disables it.
+The default value is
+.Dv 1 .
+.It Va hw.i8254.freq
+allows overriding the default counter frequency.
+The same value is also available at run-time via the
+.Va machdep.i8254_freq
+sysctl.
+.El
+.Sh DESCRIPTION
+This driver uses i8254 Programmable Interval Timer (AT Timer) hardware
+to supply the kernel with one timecounter and one event timer, and to generate
+sound tones for the system speaker.
+This hardware includes three channels.
+Each channel includes a 16 bit counter which decreases with a known,
+platform-dependent frequency.
+Counters can operate in several different modes, including periodic and
+one-shot.
+The output of each channel has platform-defined wiring: one channel is wired
+to the interrupt controller and may be used as event timer, one channel is
+wired to the speaker and used to generate sound tones, and one timer is reserved
+for platform purposes.
+.Pp
+The
+.Nm
+driver uses a single hardware channel to provide both time counter and event
+timer functionality.
+To make this possible, the respective counter must be running in periodic mode.
+As a result, the one-shot event timer mode is supported only when time counter
+functionality is disabled.
+.Pp
+The event timer provided by the driver is irrelevant to CPU power states.
+.Sh SEE ALSO
+.Xr apic 4 ,
+.Xr atrtc 4 ,
+.Xr eventtimers 4 ,
+.Xr hpet 4 ,
+.Xr timecounters 4

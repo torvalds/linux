@@ -1,0 +1,100 @@
+.\" Copyright (c) 2018 Rick Macklem
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 2, 2018
+.Dt PNFSDSCOPYMR 8
+.Os
+.Sh NAME
+.Nm pnfsdscopymr
+.Nd
+copy or move a data storage file for a MDS file to a different DS
+.Sh SYNOPSIS
+.Nm
+.Op Fl r Ar mounted-on-DS-dir
+.Op Fl m Ar source-mounted-on-DS-dir destination-mounted-on-DS-dir
+.Ar mdsfile
+.Sh DESCRIPTION
+The
+.Nm
+command copies a data storage file for an MDS file from one DS to another DS.
+It is normally used to recover data files onto a repaired DS, but can also
+be used to manually migrate a data storage file from one DS to a different one.
+By default, the command will copy the data storage file for
+.Dq mdsfile
+to one of the other DSs to create a mirror of it.
+This might be done if the file was created before mirroring was enabled on
+the pNFS service and now needs to be mirrored.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl r Ar mounted-on-DS-dir
+This option indicates that the data storage file should be created on the DS
+that is mounted on the directory
+.Dq mounted-on-DS-dir .
+It will only do the copy if there is an entry in the pnfsd.dsfile extended
+attribute that has an IP address of 0.0.0.0.
+See
+.Xr pnfsdsfile 1
+for how to do this.
+This is normally done for all regular files via
+.Xr find 1
+in order to recover the data
+storage files onto a repaired DS.
+.It Fl m Ar source-mounted-on-DS-dir destination-mounted-on-DS-dir
+This option indicates that the data storage file is to be migrated from
+the source DS mounted on the diectory
+.Dq source-mounted-on-DS-dir
+to the DS mounted on the directory
+.Dq destination-mounted-on-DS-dir .
+In this case, the data storage file will be removed from the source DS
+when the copy is completed.
+.El
+If the copy/migration is already done, the command will simply exit(0),
+so that it can safely be used on all regular files in the exported directory
+tree on the MDS.
+.Pp
+This command must be run on the MDS and a typical usage would be as an
+argument for
+.Xr find 1
+for all regular files.
+.sp
+For example, if the repaired DS is mounted on /data3 and files previously
+stored on the repaired DS have had the DS's IP address set to 0.0.0.0:
+.br
+# cd <top-level-exported-directory-on-the-MDS>
+.br
+# find . -type f -exec pnfsdscopymr -r /data3 {} \\;
+.Sh SEE ALSO
+.Xr find 1 ,
+.Xr nfsv4 4 ,
+.Xr pnfs 4 ,
+.Xr nfsd 8 ,
+.Xr pnfsdsfile 8 ,
+.Xr pnfsdskill 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 12.0 .

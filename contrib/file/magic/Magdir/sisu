@@ -1,0 +1,18 @@
+# Type: SiSU Markup Language
+# URL:  http://www.sisudoc.org/
+# From: Ralph Amissah <ralph.amissah@gmail.com>
+
+0	regex	\^%?[\ \t]*SiSU[\ \t]+insert	SiSU text insert
+>5	regex	[0-9.]+				%s
+
+0	regex	\^%[\ \t]+SiSU[\ \t]+master	SiSU text master
+>5	regex	[0-9.]+				%s
+
+0	regex	\^%?[\ \t]*SiSU[\ \t]+text	SiSU text
+>5	regex	[0-9.]+				%s
+
+0	regex	\^%?[\ \t]*SiSU[\ \t][0-9.]+	SiSU text
+>5	regex	[0-9.]+				%s
+
+0	regex	\^%*[\ \t]*sisu-[0-9.]+		SiSU text
+>5	regex	[0-9.]+				%s

@@ -1,0 +1,14 @@
+
+#------------------------------------------------------------------------------
+# $File: psdbms,v 1.8 2017/03/17 21:35:28 christos Exp $
+# psdbms:  file(1) magic for psdatabase
+#
+# Update: Joerg Jenderek
+# GRR: line below too general as it catches also some Panorama database *.pan ,
+# AppleWorks word processor
+0	belong&0xff00ffff	0x56000000
+# assume version starts with digit
+>1	regex/s			=^[0-9]		ps database
+>>1	string	>\0	version %s
+# kernel name
+>>4	string	>\0	from kernel %s

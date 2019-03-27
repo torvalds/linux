@@ -1,0 +1,154 @@
+.\"
+.\" Copyright (c) 2009 Sam Leffler, Errno Consulting
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 4, 2009
+.Dt IEEE8021_VAP 9
+.Os
+.Sh NAME
+.Nm net80211_vap
+.Nd 802.11 network layer virtual radio support
+.Sh SYNOPSIS
+.In net80211/ieee80211_var.h
+.Ft int
+.Fo ieee80211_vap_setup
+.Fa "struct ieee80211com *"
+.Fa "struct ieee80211vap *"
+.Fa "const char name[IFNAMSIZ]"
+.Fa "int unit"
+.Fa "int opmode"
+.Fa "int flags"
+.Fa "const uint8_t bssid[IEEE80211_ADDR_LEN]"
+.Fa "const uint8_t macaddr[IEEE80211_ADDR_LEN]"
+.Fc
+.\"
+.Ft int
+.Fo ieee80211_vap_attach
+.Fa "struct ieee80211vap *"
+.Fa "ifm_change_cb_t media_change"
+.Fa "ifm_stat_cb_t media_stat"
+.Fc
+.\"
+.Ft void
+.Fn ieee80211_vap_detach "struct ieee80211vap *"
+.Sh DESCRIPTION
+The
+.Nm net80211
+software layer provides a support framework for drivers that includes
+a virtual radio API that is exported to
+users through network interfaces (aka vaps) that are cloned from the
+underlying device.
+These interfaces have an operating mode
+(station, adhoc, hostap, wds, monitor, etc.\&)
+that is fixed for the lifetime of the interface.
+Devices that can support multiple concurrent interfaces allow
+multiple vaps to be cloned.
+.Pp
+The virtual radio interface defined by the
+.Nm net80211
+layer means that drivers must be structured to follow specific rules.
+Drivers that support only a single interface at any time must still
+follow these rules.
+.Pp
+The virtual radio architecture splits state between a single per-device
+.Vt ieee80211com
+structure and one or more
+.Vt ieee80211vap
+structures.
+Vaps are created with the
+.Dv SIOCIFCREATE2
+request.
+This results in a call into the driver's
+.Vt ic_vap_create
+method where the driver can decide if the request should be accepted.
+.Pp
+The vap creation process is done in three steps.
+First the driver allocates the data structure with
+.Xr malloc 9 .
+This data structure must have an
+.Vt ieee80211vap
+structure at the front but is usually extended with driver-private state.
+Next the vap is setup with a call to
+.Fn ieee80211_vap_setup .
+This request initializes
+.Nm net80211
+state but does not activate the interface.
+The driver can then override methods setup by
+.Nm net80211
+and setup driver resources before finally calling
+.Fn ieee80211_vap_attach
+to complete the process.
+Both these calls must be done without holding any driver locks as
+work may require the process block/sleep.
+.Pp
+A vap is deleted when an
+.Dv SIOCIFDESTROY
+ioctl request is made or when the device detaches (causing all
+associated vaps to automatically be deleted).
+Delete requests cause the
+.Vt ic_vap_delete
+method to be called.
+Drivers must quiesce the device before calling
+.Fn ieee80211_vap_detach
+to deactivate the vap and isolate it from activities such as requests
+from user applications.
+The driver can then reclaim resources held by the vap and re-enable
+device operation.
+The exact procedure for quiescing a device is unspecified but typically
+it involves blocking interrupts and stopping transmit and receive
+processing.
+.Sh MULTI-VAP OPERATION
+Drivers are responsible for deciding if multiple vaps can be created
+and how to manage them.
+Whether or not multiple concurrent vaps can be supported depends on a
+device's capabilities.
+For example, multiple hostap vaps can usually be supported but many
+devices do not support assigning each vap a unique BSSID.
+If a device supports hostap operation it can usually support concurrent
+station mode vaps but possibly with limitations such as losing support
+for hardware beacon miss support.
+Devices that are capable of hostap operation and can send and receive
+4-address frames should be able to support WDS vaps together with an
+ap vap.
+But in contrast some devices cannot support WDS vaps without at least one
+ap vap (this however can be finessed by forcing the ap vap to not transmit
+beacon frames).
+All devices should support the creation of any number of monitor mode vaps
+concurrent with other vaps but it is the responsibility of the driver to
+allow this.
+.Pp
+An important consequence of supporting multiple concurrent vaps is that
+a driver's
+.Vt iv_newstate
+method must be written to handle being called for each vap.
+Where necessary, drivers must track private state for all vaps
+and not just the one whose state is being changed (e.g. for
+handling beacon timers the driver may need to know if all vaps
+that beacon are stopped before stopping the hardware timers).
+.Sh SEE ALSO
+.Xr ieee80211 9 ,
+.Xr ifnet 9 ,
+.Xr malloc 9

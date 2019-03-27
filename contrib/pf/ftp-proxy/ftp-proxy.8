@@ -1,0 +1,202 @@
+.\"	$OpenBSD: ftp-proxy.8,v 1.11 2008/02/26 18:52:53 henning Exp $
+.\"
+.\" Copyright (c) 2004, 2005 Camiel Dobbelaar, <cd@sentia.nl>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 26, 2008
+.Dt FTP-PROXY 8
+.Os
+.Sh NAME
+.Nm ftp-proxy
+.Nd Internet File Transfer Protocol proxy daemon
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Op Fl 6Adrv
+.Op Fl a Ar address
+.Op Fl b Ar address
+.Op Fl D Ar level
+.Op Fl m Ar maxsessions
+.Op Fl P Ar port
+.Op Fl p Ar port
+.Op Fl q Ar queue
+.Op Fl R Ar address
+.Op Fl T Ar tag
+.Op Fl t Ar timeout
+.Ek
+.Sh DESCRIPTION
+.Nm
+is a proxy for the Internet File Transfer Protocol.
+FTP control connections should be redirected into the proxy using the
+.Xr pf 4
+.Ar rdr
+command, after which the proxy connects to the server on behalf of
+the client.
+.Pp
+The proxy allows data connections to pass, rewriting and redirecting
+them so that the right addresses are used.
+All connections from the client to the server have their source
+address rewritten so they appear to come from the proxy.
+Consequently, all connections from the server to the proxy have
+their destination address rewritten, so they are redirected to the
+client.
+The proxy uses the
+.Xr pf 4
+.Ar anchor
+facility for this.
+.Pp
+Assuming the FTP control connection is from $client to $server, the
+proxy connected to the server using the $proxy source address, and
+$port is negotiated, then
+.Nm
+adds the following rules to the various anchors.
+(These example rules use inet, but the proxy also supports inet6.)
+.Pp
+In case of active mode (PORT or EPRT):
+.Bd -literal -offset 2n
+rdr from $server to $proxy port $port -> $client
+pass quick inet proto tcp \e
+    from $server to $client port $port
+.Ed
+.Pp
+In case of passive mode (PASV or EPSV):
+.Bd -literal -offset 2n
+nat from $client to $server port $port -> $proxy
+pass in quick inet proto tcp \e
+    from $client to $server port $port
+pass out quick inet proto tcp \e
+    from $proxy to $server port $port
+.Ed
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 6
+IPv6 mode.
+The proxy will expect and use IPv6 addresses for all communication.
+Only the extended FTP modes EPSV and EPRT are allowed with IPv6.
+The proxy is in IPv4 mode by default.
+.It Fl A
+Only permit anonymous FTP connections.
+Either user "ftp" or user "anonymous" is allowed.
+.It Fl a Ar address
+The proxy will use this as the source address for the control
+connection to a server.
+.It Fl b Ar address
+Address where the proxy will listen for redirected control connections.
+The default is 127.0.0.1, or ::1 in IPv6 mode.
+.It Fl D Ar level
+Debug level, ranging from 0 to 7.
+Higher is more verbose.
+The default is 5.
+(These levels correspond to the
+.Xr syslog 3
+levels.)
+.It Fl d
+Do not daemonize.
+The process will stay in the foreground, logging to standard error.
+.It Fl m Ar maxsessions
+Maximum number of concurrent FTP sessions.
+When the proxy reaches this limit, new connections are denied.
+The default is 100 sessions.
+The limit can be lowered to a minimum of 1, or raised to a maximum of 500.
+.It Fl P Ar port
+Fixed server port.
+Only used in combination with
+.Fl R .
+The default is port 21.
+.It Fl p Ar port
+Port where the proxy will listen for redirected connections.
+The default is port 8021.
+.It Fl q Ar queue
+Create rules with queue
+.Ar queue
+appended, so that data connections can be queued.
+.It Fl R Ar address
+Fixed server address, also known as reverse mode.
+The proxy will always connect to the same server, regardless of
+where the client wanted to connect to (before it was redirected).
+Use this option to proxy for a server behind NAT, or to forward all
+connections to another proxy.
+.It Fl r
+Rewrite sourceport to 20 in active mode to suit ancient clients that insist
+on this RFC property.
+.It Fl T Ar tag
+The filter rules will add tag
+.Ar tag
+to data connections, and not match quick.
+This way alternative rules that use the
+.Ar tagged
+keyword can be implemented following the
+.Nm
+anchor.
+These rules can use special
+.Xr pf 4
+features like route-to, reply-to, label, rtable, overload, etc. that
+.Nm
+does not implement itself.
+.It Fl t Ar timeout
+Number of seconds that the control connection can be idle, before the
+proxy will disconnect.
+The maximum is 86400 seconds, which is also the default.
+Do not set this too low, because the control connection is usually
+idle when large data transfers are taking place.
+.It Fl v
+Set the 'log' flag on pf rules committed by
+.Nm .
+Use twice to set the 'log-all' flag.
+The pf rules do not log by default.
+.El
+.Sh CONFIGURATION
+To make use of the proxy,
+.Xr pf.conf 5
+needs the following rules.
+All anchors are mandatory.
+Adjust the rules as needed.
+.Pp
+In the NAT section:
+.Bd -literal -offset 2n
+nat-anchor "ftp-proxy/*"
+rdr-anchor "ftp-proxy/*"
+rdr pass on $int_if proto tcp from $lan to any port 21 -> \e
+    127.0.0.1 port 8021
+.Ed
+.Pp
+In the rule section:
+.Bd -literal -offset 2n
+anchor "ftp-proxy/*"
+pass out proto tcp from $proxy to any port 21
+.Ed
+.Sh SEE ALSO
+.Xr ftp 1 ,
+.Xr pf 4 ,
+.Xr pf.conf 5
+.Sh CAVEATS
+.Xr pf 4
+does not allow the ruleset to be modified if the system is running at a
+.Xr securelevel 7
+higher than 1.
+At that level
+.Nm
+cannot add rules to the anchors and FTP data connections may get blocked.
+.Pp
+Negotiated data connection ports below 1024 are not allowed.
+.Pp
+The negotiated IP address for active modes is ignored for security
+reasons.
+This makes third party file transfers impossible.
+.Pp
+.Nm
+chroots to "/var/empty" and changes to user "proxy" to drop privileges.

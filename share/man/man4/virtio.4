@@ -1,0 +1,98 @@
+.\" Copyright (c) 2011 Bryan Venteicher
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 22, 2012
+.Dt VIRTIO 4
+.Os
+.Sh NAME
+.Nm virtio
+.Nd VirtIO Device Support
+.Sh SYNOPSIS
+To compile VirtIO device support into the kernel, place the following lines
+in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device virtio"
+.Cd "device virtio_pci"
+.Ed
+.Pp
+Alternatively, to load VirtIO support as modules at boot time, place the
+following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+virtio_load="YES"
+virtio_pci_load="YES"
+.Ed
+.Sh DESCRIPTION
+VirtIO is a specification for para-virtualized I/O in a virtual machine (VM).
+Traditionally, the hypervisor emulated real devices such as an Ethernet
+interface or disk controller to provide the VM with I/O.
+This emulation is often inefficient.
+.Pp
+VirtIO defines an interface for efficient I/O between the hypervisor and VM.
+The
+.Nm
+module provides a shared memory transport called a virtqueue.
+The
+.Xr virtio_pci
+device driver represents an emulated PCI device that the hypervisor makes
+available to the VM.
+This device provides the probing, configuration, and
+interrupt notifications needed to interact with the hypervisor.
+.Fx
+supports the following VirtIO devices:
+.Bl -hang -offset indent -width xxxxxxxx
+.It Nm Ethernet
+An emulated Ethernet device is provided by the
+.Xr vtnet 4
+device driver.
+.It Nm Block
+An emulated disk controller is provided by the
+.Xr virtio_blk 4
+device driver.
+.It Nm SCSI
+An emulated SCSI HBA is provided by the
+.Xr virtio_scsi 4
+device driver.
+.It Nm Balloon
+A pseudo-device to allow the VM to release memory back to the hypervisor is
+provided by the
+.Xr virtio_balloon 4
+device driver.
+.El
+.Sh SEE ALSO
+.Xr virtio_balloon 4 ,
+.Xr virtio_blk 4 ,
+.Xr virtio_console 4 ,
+.Xr virtio_scsi 4 ,
+.Xr vtnet 4
+.Sh HISTORY
+Support for VirtIO first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An -nosplit
+.Fx
+support for VirtIO was first added by
+.An Bryan Venteicher Aq Mt bryanv@FreeBSD.org .

@@ -1,0 +1,13 @@
+/*
+ * $FreeBSD$
+ *
+ * Brazilian calendar file(s), originally submitted by
+ * Renato Tambellini <rtsanch@gmail.com>
+ */
+
+#ifndef _calendar_brazilian_
+#define _calendar_brazilian_
+
+#include <pt_BR.ISO8859-1/calendar.all>
+
+#endif

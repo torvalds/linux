@@ -1,0 +1,69 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_FORK_INIT 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_fork_init \- initialize libibverbs to support fork()
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "int ibv_fork_init(void);
+.fi
+.SH "DESCRIPTION"
+.B ibv_fork_init()
+initializes libibverbs's data structures to handle
+.B fork()
+function calls correctly and avoid data corruption, whether
+.B fork()
+is called explicitly or implicitly (such as in
+.B system()\fR).
+.PP
+It is not necessary to use this function if all parent process threads
+are always blocked until all child processes end or change address
+spaces via an
+.B exec()
+operation.
+.SH "RETURN VALUE"
+.B ibv_fork_init()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+.B ibv_fork_init()
+works on Linux kernels supporting the
+.BR MADV_DONTFORK
+flag for
+.B madvise()
+(2.6.17 and higher).
+.PP
+Setting the environment variable
+.BR RDMAV_FORK_SAFE
+or
+.BR IBV_FORK_SAFE
+has the same effect as calling
+.B ibv_fork_init()\fR.
+.PP
+Setting the environment variable
+.BR RDMAV_HUGEPAGES_SAFE
+tells the library to check the underlying page size used by the kernel
+for memory regions.  This is required if an application uses huge
+pages either directly or indirectly via a library such as libhugetlbfs.
+.PP
+Calling
+.B ibv_fork_init()
+will reduce performance due to an extra system call for every memory
+registration, and the additional memory allocated to track memory
+regions.  The precise performance impact depends on the workload and
+usually will not be significant.
+.PP
+Setting
+.BR RDMAV_HUGEPAGES_SAFE
+adds further overhead to all memory registrations.
+.SH "SEE ALSO"
+.BR fork (2),
+.BR wait (2),
+.BR system (3),
+.BR exec (3),
+.BR ibv_get_device_list (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

@@ -1,0 +1,49 @@
+=pod
+
+=head1 NAME
+
+ERR_remove_thread_state, ERR_remove_state - DEPRECATED
+
+=head1 SYNOPSIS
+
+Deprecated:
+
+ #if OPENSSL_API_COMPAT < 0x10000000L
+ void ERR_remove_state(unsigned long tid);
+ #endif
+
+ #if OPENSSL_API_COMPAT < 0x10100000L
+ void ERR_remove_thread_state(void *tid);
+ #endif
+
+=head1 DESCRIPTION
+
+ERR_remove_state() frees the error queue associated with the specified
+thread, identified by B<tid>.
+ERR_remove_thread_state() does the same thing, except the identifier is
+an opaque pointer.
+
+=head1 RETURN VALUES
+
+ERR_remove_state() and ERR_remove_thread_state() return no value.
+
+=head1 SEE ALSO
+
+LL<OPENSSL_init_crypto(3)>
+
+=head1 HISTORY
+
+ERR_remove_state() was deprecated in OpenSSL 1.0.0 and
+ERR_remove_thread_state() was deprecated in OpenSSL 1.1.0; these functions
+and should not be used.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

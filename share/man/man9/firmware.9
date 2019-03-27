@@ -1,0 +1,274 @@
+.\" Copyright (c) 2006 Max Laier <mlaier@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 14, 2019
+.Dt FIRMWARE 9
+.Os
+.Sh NAME
+.Nm firmware_register ,
+.Nm firmware_unregister ,
+.Nm firmware_get ,
+.Nm firmware_put
+.Nd firmware image loading and management
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/systm.h
+.In sys/linker.h
+.In sys/firmware.h
+.Bd -literal
+struct firmware {
+	const char	*name;		/* system-wide name */
+	const void	*data;		/* location of image */
+	size_t		datasize;	/* size of image in bytes */
+	unsigned int	version;	/* version of the image */
+};
+.Ed
+.Ft "const struct firmware *"
+.Fo firmware_register
+.Fa "const char *imagename"
+.Fa "const void *data"
+.Fa "size_t datasize"
+.Fa "unsigned int version"
+.Fa "const struct firmware *parent"
+.Fc
+.Ft int
+.Fn firmware_unregister "const char *imagename"
+.Ft "const struct firmware *"
+.Fn firmware_get "const char *imagename"
+.Ft void
+.Fn firmware_put "const struct firmware *fp" "int flags"
+.Sh DESCRIPTION
+The
+.Nm firmware
+abstraction provides a convenient interface for loading
+.Nm firmware images
+into the kernel, and for accessing such images from kernel components.
+.Pp
+A
+.Nm firmware image
+(or
+.Nm image
+for brevity)
+is an opaque block of data residing in kernel memory.
+It is associated to a unique
+.Nm imagename
+which constitutes a search key, and to an integer
+.Nm version
+number, which is also an opaque piece of information for the
+firmware subsystem.
+.Pp
+An image is registered with the
+.Nm firmware
+subsystem by calling the function
+.Fn firmware_register ,
+and unregistered by calling
+.Fn firmware_unregister .
+These functions are usually (but not exclusively) called by
+specially crafted kernel modules that contain the firmware image.
+The modules can be statically compiled in the kernel, or loaded by
+.Nm /boot/loader ,
+manually at runtime, or on demand by the firmware subsystem.
+.Pp
+.Nm Clients
+of the firmware subsystem can request access to a given image
+by calling the function
+.Fn firmware_get
+with the
+.Nm imagename
+they want as an argument.
+If a matching image is not already registered,
+the firmware subsystem will try to load it using the
+mechanisms specified below (typically, a kernel module
+with
+.Nm
+the same name
+as the image).
+.Sh API DESCRIPTION
+The kernel
+.Nm
+firmware API
+is made of the following functions:
+.Pp
+.Fn firmware_register
+registers with the kernel an image of size
+.Nm datasize
+located at address
+.Nm data ,
+under the name
+.Nm imagename .
+.Pp
+The function returns NULL on error (e.g. because an
+image with the same name already exists, or the image
+table is full), or a
+.Ft const struct firmware *
+pointer to the image requested.
+.Pp
+.Fn firmware_unregister
+tries to unregister the firmware image
+.Nm imagename
+from the system.
+The function is successful and returns 0
+if there are no pending references to the image, otherwise
+it does not unregister the image and returns EBUSY.
+.Pp
+.Fn firmware_get
+returns the requested firmware image.
+If the image is not yet registered with the system,
+the function tries to load it.
+This involves the linker subsystem and disk access, so
+.Fn firmware_get
+must not be called with any locks (except for
+.Va Giant ) .
+Note also that if the firmware image is loaded from a filesystem
+it must already be mounted.
+In particular this means that it may be necessary to defer requests
+from a driver attach method unless it is known the root filesystem is
+already mounted.
+.Pp
+On success,
+.Fn firmware_get
+returns a pointer to the image description and increases the reference count
+for this image.
+On failure, the function returns NULL.
+.Pp
+.Fn firmware_put
+drops a reference to a firmware image.
+The
+.Fa flags
+argument may be set to
+.Dv FIRMWARE_UNLOAD
+to indicate that
+firmware_put is free to reclaim resources associated with
+the firmware image if this is the last reference.
+By default a firmware image will be deferred to a
+.Xr taskqueue 9
+thread so the call may be done while holding a lock.
+In certain cases, such as on driver detach, this cannot be allowed.
+.Sh FIRMWARE LOADING MECHANISMS
+As mentioned before, any component of the system can register
+firmware images at any time by simply calling
+.Fn firmware_register .
+.Pp
+This is typically done when a module containing
+a firmware image is given control,
+whether compiled in, or preloaded by
+.Nm /boot/loader ,
+or manually loaded with
+.Xr kldload 8 .
+However, a system can implement additional mechanisms to bring
+these images in memory before calling
+.Fn firmware_register .
+.Pp
+When
+.Fn firmware_get
+does not find the requested image, it tries to load it using
+one of the available loading mechanisms.
+At the moment, there is only one, namely
+.Nm Loadable kernel modules :
+.Pp
+A firmware image named
+.Nm foo
+is looked up by trying to load the module named
+.Nm foo.ko ,
+using the facilities described in
+.Xr kld 4 .
+In particular, images are looked up in the directories specified
+by the sysctl variable
+.Nm kern.module_path
+which on most systems defaults to
+.Nm /boot/kernel;/boot/modules .
+.Pp
+Note that in case a module contains multiple images,
+the caller should first request a
+.Fn firmware_get
+for the first image contained in the module, followed by requests
+for the other images.
+.Sh BUILDING FIRMWARE LOADABLE MODULES
+A firmware module is built by embedding the
+.Nm firmware image
+into a suitable loadable kernel module that calls
+.Fn firmware_register
+on loading, and
+.Fn firmware_unregister
+on unloading.
+.Pp
+Various system scripts and makefiles let you build a module
+by simply writing a Makefile with the following entries:
+.Bd -literal
+
+        KMOD=   imagename
+        FIRMWS= image_file:imagename[:version]
+        .include <bsd.kmod.mk>
+
+.Ed
+where KMOD is the basename of the module; FIRMWS is a list of
+colon-separated tuples indicating the image_file's to be embedded
+in the module, the imagename and version of each firmware image.
+.Pp
+If you need to embed firmware images into a system, you should write
+appropriate entries in the <files.arch> file, e.g. this example is
+from
+.Nm sys/arm/xscale/ixp425/files.ixp425 :
+.Bd -literal
+ixp425_npe_fw.c                         optional npe_fw                 \\
+        compile-with    "${AWK} -f $S/tools/fw_stub.awk			\\
+			IxNpeMicrocode.dat:npe_fw -mnpe -c${.TARGET}"	\\
+        no-implicit-rule before-depend local                            \\
+        clean           "ixp425_npe_fw.c"
+#
+# NB: ld encodes the path in the binary symbols generated for the
+#     firmware image so link the file to the object directory to
+#     get known values for reference in the _fw.c file.
+#
+IxNpeMicrocode.fwo  optional npe_fw					\\
+        dependency      "IxNpeMicrocode.dat"				\\
+        compile-with    "${LD} -b binary -d -warn-common		\\
+			    -r -d -o ${.TARGET} IxNpeMicrocode.dat"	\\
+        no-implicit-rule                                                \\
+        clean           "IxNpeMicrocode.fwo"
+.Ed
+.Pp
+Firmware was previously committed to the source tree as uuencoded files,
+but this is no longer required; the binary firmware file should be committed
+to the tree as provided by the vendor.
+.Pp
+Note that generating the firmware modules in this way requires
+the availability of the following tools:
+.Xr awk 1 ,
+.Xr make 1 ,
+the compiler and the linker.
+.Sh SEE ALSO
+.Xr kld 4 ,
+.Xr module 9
+.Pp
+.Pa /usr/share/examples/kld/firmware
+.Sh HISTORY
+The
+.Nm firmware
+system was introduced in
+.Fx 6.1 .
+.Sh AUTHORS
+This manual page was written by
+.An Max Laier Aq Mt mlaier@FreeBSD.org .

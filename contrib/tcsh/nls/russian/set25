@@ -1,0 +1,6 @@
+$ $tcsh: set25,v 1.3 2011/02/04 18:19:42 christos Exp $
+$ tc.sig.c
+$set 25 
+1 our wait %d\n
+2 ошибка: bsd_signal(%d) сигнал вышел за пределы интервала\n
+3 ошибка: bsd_signal(%d) - sigaction завершился неудачно, errno %d\n

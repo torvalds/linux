@@ -1,0 +1,142 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ipfw
+# REQUIRE: ppp
+# KEYWORD: nojailvnet
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="ipfw"
+desc="Firewall, traffic shaper, packet scheduler, in-kernel NAT"
+rcvar="firewall_enable"
+start_cmd="ipfw_start"
+start_precmd="ipfw_prestart"
+start_postcmd="ipfw_poststart"
+stop_cmd="ipfw_stop"
+status_cmd="ipfw_status"
+required_modules="ipfw"
+extra_commands="status"
+
+set_rcvar_obsolete ipv6_firewall_enable
+
+ipfw_prestart()
+{
+	if checkyesno dummynet_enable; then
+		required_modules="$required_modules dummynet"
+	fi
+	if checkyesno natd_enable; then
+		required_modules="$required_modules ipdivert"
+	fi
+	if checkyesno firewall_nat_enable; then
+		required_modules="$required_modules ipfw_nat"
+	fi
+	if checkyesno firewall_nat64_enable; then
+		required_modules="$required_modules ipfw_nat64"
+	fi
+	if checkyesno firewall_nptv6_enable; then
+		required_modules="$required_modules ipfw_nptv6"
+	fi
+	if checkyesno firewall_pmod_enable; then
+		required_modules="$required_modules ipfw_pmod"
+	fi
+}
+
+ipfw_start()
+{
+	local   _firewall_type
+
+	if [ -n "${1}" ]; then
+		_firewall_type=$1
+	else
+		_firewall_type=${firewall_type}
+	fi
+
+	# set the firewall rules script if none was specified
+	[ -z "${firewall_script}" ] && firewall_script=/etc/rc.firewall
+
+	if [ -r "${firewall_script}" ]; then
+		/bin/sh "${firewall_script}" "${_firewall_type}"
+		echo 'Firewall rules loaded.'
+	elif [ "`ipfw list 65535`" = "65535 deny ip from any to any" ]; then
+		echo 'Warning: kernel has firewall functionality, but' \
+		    ' firewall rules are not enabled.'
+		echo '           All ip services are disabled.'
+	fi
+
+	# Firewall logging
+	#
+	if checkyesno firewall_logging; then
+		echo 'Firewall logging enabled.'
+		${SYSCTL} net.inet.ip.fw.verbose=1 >/dev/null
+	fi
+	if checkyesno firewall_logif; then
+		ifconfig ipfw0 create
+		echo 'Firewall logging pseudo-interface (ipfw0) created.'
+	fi
+}
+
+ipfw_poststart()
+{
+	local	_coscript
+
+	# Start firewall coscripts
+	#
+	for _coscript in ${firewall_coscripts} ; do
+		if [ -f "${_coscript}" ]; then
+			${_coscript} quietstart
+		fi
+	done
+
+	# Enable the firewall
+	#
+	if ! ${SYSCTL} net.inet.ip.fw.enable=1 >/dev/null 2>&1; then
+		warn "failed to enable IPv4 firewall"
+	fi
+	if afexists inet6; then
+		if ! ${SYSCTL} net.inet6.ip6.fw.enable=1 >/dev/null 2>&1
+		then
+			warn "failed to enable IPv6 firewall"
+		fi
+	fi
+}
+
+ipfw_stop()
+{
+	local	_coscript
+
+	# Disable the firewall
+	#
+	${SYSCTL} net.inet.ip.fw.enable=0 >/dev/null
+	if afexists inet6; then
+		${SYSCTL} net.inet6.ip6.fw.enable=0 >/dev/null
+	fi
+
+	# Stop firewall coscripts
+	#
+	for _coscript in `reverse_list ${firewall_coscripts}` ; do
+		if [ -f "${_coscript}" ]; then
+			${_coscript} quietstop
+		fi
+	done
+}
+
+ipfw_status()
+{
+	status=$(sysctl -i -n net.inet.ip.fw.enable)
+	if [ ${status:-0} -eq 0 ]; then
+		echo "ipfw is not enabled"
+		exit 1
+	else
+		echo "ipfw is enabled"
+		exit 0
+	fi
+}
+
+load_rc_config $name
+firewall_coscripts="/etc/rc.d/natd ${firewall_coscripts}"
+
+run_rc_command $*

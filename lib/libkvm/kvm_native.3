@@ -1,0 +1,61 @@
+.\"
+.\" Copyright (c) 2015 John Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 15, 2017
+.Dt KVM_NATIVE 3
+.Os
+.Sh NAME
+.Nm kvm_native
+.Nd is a kvm descriptor opened on a native kernel image
+.Sh LIBRARY
+.Lb libkvm
+.Sh SYNOPSIS
+.In kvm.h
+.Ft int
+.Fn kvm_native "kvm_t *kd"
+.Sh DESCRIPTION
+The
+.Nm kvm
+library provides an interface for accessing kernel virtual memory images
+for both native kernel images
+.Pq where the ABI of the kernel executable matches the host system
+and non-native kernel images.
+The
+.Fn kvm_native
+function returns a non-zero value if the kvm descriptor
+.Fa kd
+is attached to a native kernel image;
+otherwise it returns zero.
+.Sh RETURN VALUES
+The
+.Fn kvm_native
+function returns a non-zero value if the kvm descriptor
+.Fa kd
+is attached to a native kernel image;
+otherwise it returns zero.
+.Sh SEE ALSO
+.Xr kvm 3 ,
+.Xr kvm_open2 3

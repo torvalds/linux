@@ -1,0 +1,31 @@
+#! /bin/sh
+
+REMOTE_GIT=/pub/scm/utils/dtc/dtc.git
+REMOTE_PATH=/pub/software/utils/dtc
+
+set -e
+
+kup_one () {
+    VERSION="$1"
+
+    TAG="v$VERSION"
+
+    PREFIX="dtc-$VERSION/"
+    TAR="dtc-$VERSION.tar"
+    SIG="$TAR.sign"
+
+    git archive --format=tar --prefix="$PREFIX" -o "$TAR" "$TAG"
+    gpg --detach-sign --armor -o "$SIG" "$TAR"
+
+    ls -l "$TAR"*
+
+    # Verify the signature as a sanity check
+    gpg --verify "$SIG" "$TAR"
+
+    kup put --tar --prefix="$PREFIX" "$REMOTE_GIT" "$TAG" "$SIG" "$REMOTE_PATH/$TAR.gz" 
+}
+
+for version; do
+    kup_one $version
+done
+

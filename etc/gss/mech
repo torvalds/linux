@@ -1,0 +1,6 @@
+# $FreeBSD$
+#
+# Name		OID			Library name			Kernel module
+kerberosv5	1.2.840.113554.1.2.2	/usr/lib/libgssapi_krb5.so.10	kgssapi_krb5
+spnego		1.3.6.1.5.5.2		/usr/lib/libgssapi_spnego.so.10	-
+#ntlm		1.3.6.1.4.1.311.2.2.10	/usr/lib/libgssapi_ntlm.so.10	-

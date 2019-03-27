@@ -1,0 +1,284 @@
+.\" Copyright (c) 2013 The FreeBSD Foundation
+.\" Copyright (c) 2018 Mariusz Zaborski <oshogbo@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Pawel Jakub Dawidek under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 5, 2018
+.Dt LIBCASPER 3
+.Os
+.Sh NAME
+.Nm cap_init ,
+.Nm cap_wrap ,
+.Nm cap_unwrap ,
+.Nm cap_sock ,
+.Nm cap_clone ,
+.Nm cap_close ,
+.Nm cap_limit_get ,
+.Nm cap_limit_set ,
+.Nm cap_send_nvlist ,
+.Nm cap_recv_nvlist ,
+.Nm cap_xfer_nvlist ,
+.Nm cap_service_open
+.Nd "library for handling application capabilities"
+.Sh LIBRARY
+.Lb libcasper
+.Sh SYNOPSIS
+.Fd #define WITH_CASPER
+.In sys/nv.h
+.In libcasper.h
+.Ft "cap_channel_t *"
+.Fn cap_init "void"
+.Ft "cap_channel_t *"
+.Fn cap_wrap "int sock" "int flags"
+.Ft "int"
+.Fn cap_unwrap "cap_channel_t *chan" "int *flags"
+.Ft "int"
+.Fn cap_sock "const cap_channel_t *chan"
+.Ft "cap_channel_t *"
+.Fn cap_clone "const cap_channel_t *chan"
+.Ft "void"
+.Fn cap_close "cap_channel_t *chan"
+.Ft "int"
+.Fn cap_limit_get "const cap_channel_t *chan" "nvlist_t **limitsp"
+.Ft "int"
+.Fn cap_limit_set "const cap_channel_t *chan" "nvlist_t *limits"
+.Ft "int"
+.Fn cap_send_nvlist "const cap_channel_t *chan" "const nvlist_t *nvl"
+.Ft "nvlist_t *"
+.Fn cap_recv_nvlist "const cap_channel_t *chan"
+.Ft "nvlist_t *"
+.Fn cap_xfer_nvlist "const cap_channel_t *chan" "nvlist_t *nvl"
+.Ft "cap_channel_t *"
+.Fn cap_service_open "const cap_channel_t *chan" "const char *name"
+.Sh DESCRIPTION
+The
+.Nm libcasper
+library allows to manage application capabilities through the casper process.
+.Pp
+The application capability (represented by the
+.Vt cap_channel_t
+type) is a communication channel between the caller and the casper process
+daemon or an instance of one of its services.
+A capability to the casper process obtained with the
+.Fn cap_init
+function allows to create capabilities to casper's services via the
+.Fn cap_service_open
+function.
+.Pp
+The
+.Fn cap_init
+function opens capability to the casper process.
+.Pp
+The
+.Fn cap_wrap
+function creates
+.Vt cap_channel_t
+based on the given socket.
+The function is used when capability is inherited through
+.Xr execve 2
+or send over
+.Xr unix 4
+domain socket as a regular file descriptor and has to be represented as
+.Vt cap_channel_t
+again.
+The
+.Fa flags
+argument defines the channel behavior.
+The supported flags are:
+.Bl -ohang -offset indent
+.It CASPER_NO_UNIQ
+The communication between process and casper uses no unique version of nvlist.
+.El
+.Pp
+The
+.Fn cap_unwrap
+function is the opposite of the
+.Fn cap_wrap
+function.
+It frees the
+.Vt cap_channel_t
+structure and returns
+.Xr unix 4
+domain socket associated with it.
+.Pp
+The
+.Fn cap_clone
+function clones the given capability.
+.Pp
+The
+.Fn cap_close
+function closes the given capability.
+.Pp
+The
+.Fn cap_sock
+function returns
+.Xr unix 4
+domain socket descriptor associated with the given capability for use with
+system calls like
+.Xr kevent 2 ,
+.Xr poll 2
+and
+.Xr select 2 .
+.Pp
+The
+.Fn cap_limit_get
+function stores current limits of the given capability in the
+.Fa limitsp
+argument.
+If the function return
+.Va 0
+and
+.Dv NULL
+is stored in
+.Fa limitsp
+it means there are no limits set.
+.Pp
+The
+.Fn cap_limit_set
+function sets limits for the given capability.
+The limits are provided as a
+.Xr nvlist 9 .
+The exact format depends on the service the capability represents.
+.Fn cap_limit_set
+frees the limits regardless of whether the operation succeeds or fails.
+.Pp
+The
+.Fn cap_send_nvlist
+function sends the given
+.Xr nvlist 9
+over the given capability.
+This is low level interface to communicate with casper services.
+Most services should provide higher level API.
+.Pp
+The
+.Fn cap_recv_nvlist
+function receives the given
+.Xr nvlist 9
+over the given capability.
+.Pp
+The
+.Fn cap_xfer_nvlist
+function sends the given
+.Xr nvlist 9 ,
+destroys it and receives new
+.Xr nvlist 9
+in response over the given capability.
+It does not matter if the function succeeds or fails, the
+.Xr nvlist 9
+given for sending will always be destroyed once the function returns.
+.Pp
+The
+.Fn cap_service_open
+function opens casper service of the given name through casper capability
+obtained via the
+.Fn cap_init
+function.
+The function returns capability that provides access to opened service.
+Casper supports the following services in the base system:
+.Bl -tag -width "system.random" -compact -offset indent
+.Pp
+.It system.dns
+provides DNS libc compatible API
+.It system.grp
+provides
+.Xr getgrent 3
+compatible API
+.It system.pwd
+provides
+.Xr getpwent 3
+compatible API
+.It system.random
+allows to obtain entropy from
+.Pa /dev/random
+.It system.sysctl
+provides
+.Xr sysctlbyname 3
+compatible API
+.It system.syslog
+provides
+.Xr syslog 3
+compatible API
+.Sh RETURN VALUES
+The
+.Fn cap_clone ,
+.Fn cap_init ,
+.Fn cap_recv_nvlist ,
+.Fn cap_service_open ,
+.Fn cap_wrap
+and
+.Fn cap_xfer_nvlist
+functions return
+.Dv NULL
+and set the
+.Va errno
+variable on failure.
+.Pp
+The
+.Fn cap_limit_get ,
+.Fn cap_limit_set
+and
+.Fn cap_send_nvlist
+functions return
+.Dv -1
+and set the
+.Va errno
+variable on failure.
+.Pp
+The
+.Fn cap_close ,
+.Fn cap_sock
+and
+.Fn cap_unwrap
+functions always succeed.
+.Sh SEE ALSO
+.Xr errno 2 ,
+.Xr execve 2 ,
+.Xr kevent 2 ,
+.Xr poll 2 ,
+.Xr select 2 ,
+.Xr cap_dns 3 ,
+.Xr cap_grp 3 ,
+.Xr cap_pwd 3 ,
+.Xr cap_random 3 ,
+.Xr cap_sysctl 3 ,
+.Xr cap_syslog 3 ,
+.Xr libcasper_service 3 ,
+.Xr capsicum 4 ,
+.Xr unix 4 ,
+.Xr nv 9
+.Sh AUTHORS
+The
+.Nm libcasper
+library was implemented by
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
+under sponsorship from the FreeBSD Foundation.
+The
+.Nm libcasper
+new architecture was implemented by
+.An Mariusz Zaborski Aq Mt oshogbo@FreeBSD.org
+.

@@ -1,0 +1,11 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: LibUCL
+Description: Universal configuration library
+Version: @UCL_VERSION@
+Libs: -L${libdir} -lucl
+Libs.private: @LIBS_EXTRA@ @LUA_LIB@
+Cflags: -I${includedir}/

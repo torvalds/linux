@@ -1,0 +1,99 @@
+.\" Copyright (c) 2009 Ed Schouten <ed@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 11, 2010
+.Dt ULOG_LOGIN 3
+.Os
+.Sh NAME
+.Nm ulog_login ,
+.Nm ulog_login_pseudo ,
+.Nm ulog_logout ,
+.Nm ulog_logout_pseudo
+.Nd manage user login records
+.Sh LIBRARY
+.Lb libulog
+.Sh SYNOPSIS
+.In ulog.h
+.Ft void
+.Fn ulog_login "const char *line" "const char *user" "const char *host"
+.Ft void
+.Fn ulog_login_pseudo "int fd" "const char *host"
+.Ft void
+.Fn ulog_logout "const char *line"
+.Ft void
+.Fn ulog_logout_pseudo "int fd"
+.Sh DESCRIPTION
+The
+.Fn ulog_login
+and
+.Fn ulog_login_pseudo
+functions register a login session on a TTY.
+The
+.Fn ulog_login
+function adds an entry for TTY
+.Fa line
+and username
+.Fa user .
+The
+.Fn ulog_login_pseudo
+function uses file descriptor to a pseudo-terminal master device
+.Fa fd
+to determine the TTY name, while using the username belonging to the
+real user ID of the calling process.
+The optional
+.Fa host
+argument denotes a remote hostname, in case the login session is
+provided by a network service.
+.Pp
+The
+.Fn ulog_logout
+and
+.Fn ulog_logout_pseudo
+functions mark the previously registered login session as being
+terminated.
+.Pp
+Because the
+.Fa line
+and
+.Fa user
+arguments of
+.Fn ulog_login
+and
+.Fn ulog_logout
+cannot be trusted, these functions require administrative privileges.
+The
+.Fn ulog_login_pseudo
+and
+.Fn ulog_logout_pseudo
+functions spawn a privileged process to perform the actual logging.
+.Sh SEE ALSO
+.Xr getuid 2 ,
+.Xr posix_openpt 2 ,
+.Xr ptsname 3 ,
+.Xr pututxline 3
+.Sh HISTORY
+These functions appeared in
+.Fx 9.0 .

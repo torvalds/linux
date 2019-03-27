@@ -1,0 +1,80 @@
+#! @PATH_PERL@ -w
+# John Hay -- John.Hay@icomtek.csir.co.za / jhay@FreeBSD.org
+
+package ntptrace;
+use 5.006_000;
+use strict;
+use lib "@PERLLIBDIR@";
+use NTP::Util qw(ntp_read_vars do_dns);
+
+exit run(@ARGV) unless caller;
+
+sub run {
+    my $opts;
+    if (!processOptions(\@_, $opts)) {
+        usage(1);
+    };
+
+    my $dodns     = $opts->{numeric} ? 0 : 1;
+    my $max_hosts = $opts->{'max-hosts'};
+    my $host      = shift || $opts->{host};
+    my $nb_host   = 0;
+
+    for (;;) {
+        $nb_host++;
+
+        my %info = get_info($host);
+        last if not %info;
+
+        my $dhost = $host;
+        if ($dodns) {
+            my $name = do_dns($host);
+            $dhost = $name if defined $name;
+        }
+
+        printf "%s: stratum %d, offset %f, synch distance %f",
+            $dhost, $info{stratum}, $info{offset}, $info{syncdistance};
+        printf ", refid '%s'", $info{refid} if $info{stratum} == 1;
+        print "\n";
+
+        last if $info{stratum} == 0 || $info{stratum} == 1 || 
+                $info{stratum} == 16;
+        last if $info{refid} =~ /^127\.127\.\d{1,3}\.\d{1,3}$/;
+        last if $nb_host == $max_hosts;
+
+        my $next_host = get_next_host($info{peer}, $host);
+        last if $next_host eq '';
+        last if $next_host  =~ /^127\.127\.\d{1,3}\.\d{1,3}$/;
+
+        $host = $next_host;
+    }
+    return 0;
+}
+
+sub get_info {
+    my ($host) = @_;
+    my ($rootdelay, $rootdisp, $info) = (0, 0);
+
+    $info = ntp_read_vars(0, [], $host);
+    return if not defined $info;
+    return if not exists $info->{stratum};
+
+    $info->{offset} /= 1000;
+    $info->{syncdistance} = ($info->{rootdisp} + ($info->{rootdelay} / 2)) / 1000;
+
+    return %$info;
+}
+
+
+sub get_next_host {
+    my ($peer, $host) = @_;
+
+    my $info = ntp_read_vars($peer, [qw(srcadr)], $host);
+    return if not defined $info;
+    return $info->{srcadr};
+}
+
+@ntptrace_opts@
+
+1;
+__END__

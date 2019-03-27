@@ -1,0 +1,62 @@
+// -*- C++ -*-
+//===--------------------------- string ----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXPERIMENTAL_STRING
+#define _LIBCPP_EXPERIMENTAL_STRING
+/*
+    experimental/string synopsis
+
+// C++1z
+namespace std {
+namespace experimental {
+inline namespace fundamentals_v1 {
+namespace pmr {
+
+  // basic_string using polymorphic allocator in namespace pmr
+  template <class charT, class traits = char_traits<charT>>
+   using basic_string =
+     std::basic_string<charT, traits, polymorphic_allocator<charT>>;
+
+  // basic_string typedef names using polymorphic allocator in namespace
+  // std::experimental::pmr
+  typedef basic_string<char> string;
+  typedef basic_string<char16_t> u16string;
+  typedef basic_string<char32_t> u32string;
+  typedef basic_string<wchar_t> wstring;
+
+} // namespace pmr
+} // namespace fundamentals_v1
+} // namespace experimental
+} // namespace std
+
+ */
+
+#include <experimental/__config>
+#include <string>
+#include <experimental/memory_resource>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_LFTS_PMR
+
+template <class _CharT, class _Traits = char_traits<_CharT>>
+using basic_string =
+    _VSTD::basic_string<_CharT, _Traits, polymorphic_allocator<_CharT>>;
+
+typedef basic_string<char> string;
+typedef basic_string<char16_t> u16string;
+typedef basic_string<char32_t> u32string;
+typedef basic_string<wchar_t> wstring;
+
+_LIBCPP_END_NAMESPACE_LFTS_PMR
+
+#endif /* _LIBCPP_EXPERIMENTAL_STRING */

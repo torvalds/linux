@@ -1,0 +1,150 @@
+$FreeBSD$
+
+For the lack of a better place to put them, this file will contain
+notes on some of the more intricate details of geom.
+
+-----------------------------------------------------------------------
+Locking of bio_children and bio_inbed
+
+bio_children is used by g_std_done() and g_clone_bio() to keep track
+of children cloned off a request.  g_clone_bio will increment the
+bio_children counter for each time it is called and g_std_done will
+increment bio_inbed for every call, and if the two counters are
+equal, call g_io_deliver() on the parent bio.
+
+The general assumption is that g_clone_bio() is called only in
+the g_down thread, and g_std_done() only in the g_up thread and
+therefore the two fields do not generally need locking.  These
+restrictions are not enforced by the code, but only with great
+care should they be violated.
+
+It is the responsibility of the class implementation to avoid the
+following race condition:  A class intend to split a bio in two
+children.  It clones the bio, and requests I/O on the child. 
+This I/O operation completes before the second child is cloned
+and g_std_done() sees the counters both equal 1 and finishes off
+the bio.
+
+There is no race present in the common case where the bio is split
+in multiple parts in the class start method and the I/O is requested
+on another GEOM class below:  There is only one g_down thread and
+the class below will not get its start method run until we return
+from our start method, and consequently the I/O cannot complete
+prematurely.
+
+In all other cases, this race needs to be mitigated, for instance
+by cloning all children before I/O is request on any of them.
+
+Notice that cloning an "extra" child and calling g_std_done() on
+it directly opens another race since the assumption is that
+g_std_done() only is called in the g_up thread.
+
+-----------------------------------------------------------------------
+Statistics collection
+
+Statistics collection can run at three levels controlled by the
+"kern.geom.collectstats" sysctl.
+
+At level zero, only the number of transactions started and completed
+are counted, and this is only because GEOM internally uses the difference
+between these two as sanity checks.
+
+At level one we collect the full statistics.  Higher levels are
+reserved for future use.  Statistics are collected independently
+on both the provider and the consumer, because multiple consumers
+can be active against the same provider at the same time.
+
+The statistics collection falls in two parts:
+
+The first and simpler part consists of g_io_request() timestamping
+the struct bio when the request is first started and g_io_deliver()
+updating the consumer and providers statistics based on fields in
+the bio when it is completed.  There are no concurrency or locking
+concerns in this part.  The statistics collected consists of number
+of requests, number of bytes, number of ENOMEM errors, number of
+other errors and duration of the request for each of the three
+major request types: BIO_READ, BIO_WRITE and BIO_DELETE.
+
+The second part is trying to keep track of the "busy%".
+
+If in g_io_request() we find that there are no outstanding requests,
+(based on the counters for scheduled and completed requests being
+equal), we set a timestamp in the "wentbusy" field.  Since there
+are no outstanding requests, and as long as there is only one thread
+pushing the g_down queue, we cannot possibly conflict with
+g_io_deliver() until we ship the current request down.
+
+In g_io_deliver() we calculate the delta-T from wentbusy and add this
+to the "bt" field, and set wentbusy to the current timestamp.  We
+take care to do this before we increment the "requests completed"
+counter, since that prevents g_io_request() from touching the
+"wentbusy" timestamp concurrently.
+
+The statistics data is made available to userland through the use
+of a special allocator (in geom_stats.c) which through a device
+allows userland to mmap(2) the pages containing the statistics data.
+In order to indicate to userland when the data in a statstics
+structure might be inconsistent, g_io_deliver() atomically sets a
+flag "updating" and resets it when the structure is again consistent.
+-----------------------------------------------------------------------
+maxsize, stripesize and stripeoffset
+
+maxsize is the biggest request we are willing to handle.  If not
+set there is no upper bound on the size of a request and the code
+is responsible for chopping it up.  Only hardware methods should
+set an upper bound in this field.  Geom_disk will inherit the upper
+bound set by the device driver.
+
+stripesize is the width of any natural request boundaries for the
+device.  This would be the width of a stripe on a raid-5 unit or
+one zone in GBDE.  The idea with this field is to hint to clustering
+type code to not trivially overrun these boundaries.
+
+stripeoffset is the amount of the first stripe which lies before the
+devices beginning.
+
+If we have a device with 64k stripes:
+	[0...64k[
+	[64k...128k[
+	[128k..192k[
+Then it will have stripesize = 64k and stripeoffset = 0.
+
+If we put a MBR on this device, where slice#1 starts on sector#63,
+then this slice will have: stripesize = 64k, stripeoffset = 63 * sectorsize.
+
+If the clustering code wants to widen a request which writes to
+sector#53 of the slice, it can calculate how many bytes till the end of
+the stripe as:
+	stripewith - (53 * sectorsize + stripeoffset) % stripewidth.
+-----------------------------------------------------------------------
+
+#include file usage:
+
+                 geom.h|geom_int.h|geom_ext.h|geom_ctl.h|libgeom.h
+----------------+------+----------+----------+----------+--------+
+geom class      |      |          |          |          |        |
+implementation  |   X  |          |          |          |        |
+----------------+------+----------+----------+----------+--------+
+geom kernel     |      |          |          |          |        |
+infrastructure  |   X  |      X   |  X       |    X     |        |
+----------------+------+----------+----------+----------+--------+
+libgeom         |      |          |          |          |        |
+implementation  |      |          |  X       |    X     |  X     |
+----------------+------+----------+----------+----------+--------+
+geom aware      |      |          |          |          |        |
+application     |      |          |          |    X     |  X     |
+----------------+------+----------+----------+----------+--------+
+
+geom_slice.h is special in that it documents a "library" for implementing
+a specific kind of class, and consequently does not appear in the above
+matrix.
+-----------------------------------------------------------------------
+Removable media.
+
+In general, the theory is that a drive creates the provider when it has
+a media and destroys it when the media disappears.
+
+In a more realistic world, we will allow a provider to be opened medialess
+(set any sectorsize and a mediasize==0) in order to allow operations like
+open/close tray etc.
+

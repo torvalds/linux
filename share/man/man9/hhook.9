@@ -1,0 +1,382 @@
+.\"
+.\" Copyright (c) 2010-2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written at the Centre for Advanced Internet
+.\" Architectures, Swinburne University of Technology, Melbourne, Australia by
+.\" David Hayes and Lawrence Stewart under sponsorship from the FreeBSD
+.\" Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 21, 2013
+.Dt HHOOK 9
+.Os
+.Sh NAME
+.Nm hhook ,
+.Nm hhook_head_register ,
+.Nm hhook_head_deregister ,
+.Nm hhook_head_deregister_lookup ,
+.Nm hhook_run_hooks ,
+.Nm HHOOKS_RUN_IF ,
+.Nm HHOOKS_RUN_LOOKUP_IF
+.Nd Helper Hook Framework
+.Sh SYNOPSIS
+.In sys/hhook.h
+.Ft typedef int
+.Fn "\*(lp*hhook_func_t\*(rp" "int32_t hhook_type" "int32_t hhook_id" \
+"void *udata" "void *ctx_data" "void *hdata" "struct osd *hosd"
+.Fn "int hhook_head_register" "int32_t hhook_type" "int32_t hhook_id" \
+"struct hhook_head **hhh" "uint32_t flags"
+.Fn "int hhook_head_deregister" "struct hhook_head *hhh"
+.Fn "int hhook_head_deregister_lookup" "int32_t hhook_type" "int32_t hhook_id"
+.Fn "void hhook_run_hooks" "struct hhook_head *hhh" "void *ctx_data" \
+"struct osd *hosd"
+.Fn HHOOKS_RUN_IF "hhh" "ctx_data" "hosd"
+.Fn HHOOKS_RUN_LOOKUP_IF "hhook_type" "hhook_id" "ctx_data" "hosd"
+.Sh DESCRIPTION
+.Nm
+provides a framework for managing and running arbitrary hook functions at
+defined hook points within the kernel.
+The KPI was inspired by
+.Xr pfil 9 ,
+and in many respects can be thought of as a more generic superset of pfil.
+.Pp
+The
+.Xr khelp 9
+and
+.Nm
+frameworks are tightly integrated.
+Khelp is responsible for registering and deregistering Khelp module hook
+functions with
+.Nm
+points.
+The KPI functions used by
+.Xr khelp 9
+to do this are not documented here as they are not relevant to consumers wishing
+to instantiate hook points.
+.Ss Information for Khelp Module Implementors
+Khelp modules indirectly interact with
+.Nm
+by defining appropriate hook functions for insertion into hook points.
+Hook functions must conform to the
+.Ft hhook_func_t
+function pointer declaration
+outlined in the
+.Sx SYNOPSIS .
+.Pp
+The
+.Fa hhook_type
+and
+.Fa hhook_id
+arguments identify the hook point which has called into the hook function.
+These are useful when a single hook function is registered for multiple hook
+points and wants to know which hook point has called into it.
+.In sys/hhook.h
+lists available
+.Fa hhook_type
+defines and subsystems which export hook points are responsible for defining
+the
+.Fa hhook_id
+value in appropriate header files.
+.Pp
+The
+.Fa udata
+argument will be passed to the hook function if it was specified in the
+.Vt struct hookinfo
+at hook registration time.
+.Pp
+The
+.Fa ctx_data
+argument contains context specific data from the hook point call site.
+The data type passed is subsystem dependent.
+.Pp
+The
+.Fa hdata
+argument is a pointer to the persistent per-object storage allocated for use by
+the module if required.
+The pointer will only ever be NULL if the module did not request per-object
+storage.
+.Pp
+The
+.Fa hosd
+argument can be used with the
+.Xr khelp 9
+framework's
+.Fn khelp_get_osd
+function to access data belonging to a different Khelp module.
+.Pp
+Khelp modules instruct the Khelp framework to register their hook functions with
+.Nm
+points by creating a
+.Vt "struct hookinfo"
+per hook point, which contains the following members:
+.Bd -literal -offset indent
+struct hookinfo {
+	hhook_func_t	hook_func;
+	struct helper	*hook_helper;
+	void		*hook_udata;
+	int32_t		hook_id;
+	int32_t		hook_type;
+};
+.Ed
+.Pp
+Khelp modules are responsible for setting all members of the struct except
+.Va hook_helper
+which is handled by the Khelp framework.
+.Ss Creating and Managing Hook Points
+Kernel subsystems that wish to provide
+.Nm
+points typically need to make four and possibly five key changes to their
+implementation:
+.Bl -bullet
+.It
+Define a list of
+.Va hhook_id
+mappings in an appropriate subsystem header.
+.It
+Register each hook point with the
+.Fn hhook_head_register
+function during initialisation of the subsystem.
+.It
+Select or create a standardised data type to pass to hook functions as
+contextual data.
+.It
+Add a call to
+.Fn HHOOKS_RUN_IF
+or
+.Fn HHOOKS_RUN_IF_LOOKUP
+at the point in the subsystem's code where the hook point should be executed.
+.It
+If the subsystem can be dynamically added/removed at runtime, each hook
+point registered with the
+.Fn hhook_head_register
+function when the subsystem was initialised needs to be deregistered with the
+.Fn hhook_head_deregister
+or
+.Fn hhook_head_deregister_lookup
+functions when the subsystem is being deinitialised prior to removal.
+.El
+.Pp
+The
+.Fn hhook_head_register
+function registers a hook point with the
+.Nm
+framework.
+The
+.Fa hook_type
+argument defines the high level type for the hook point.
+Valid types are defined in
+.In sys/hhook.h
+and new types should be added as required.
+The
+.Fa hook_id
+argument specifies a unique, subsystem specific identifier for the hook point.
+The
+.Fa hhh
+argument will, if not NULL, be used to store a reference to the
+.Vt struct hhook_head
+created as part of the registration process.
+Subsystems will generally want to store a local copy of the
+.Vt struct hhook_head
+so that they can use the
+.Fn HHOOKS_RUN_IF
+macro to instantiate hook points.
+The HHOOK_WAITOK flag may be passed in via the
+.Fa flags
+argument if
+.Xr malloc 9
+is allowed to sleep waiting for memory to become available.
+If the hook point is within a virtualised subsystem (e.g. the network stack),
+the HHOOK_HEADISINVNET flag should be passed in via the
+.Fa flags
+argument so that the
+.Vt struct hhook_head
+created during the registration process will be added to a virtualised list.
+.Pp
+The
+.Fn hhook_head_deregister
+function deregisters a previously registered hook point from the
+.Nm
+framework.
+The
+.Fa hhh
+argument is the pointer to the
+.Vt struct hhook_head
+returned by
+.Fn hhoook_head_register
+when the hook point was registered.
+.Pp
+The
+.Fn hhook_head_deregister_lookup
+function can be used instead of
+.Fn hhook_head_deregister
+in situations where the caller does not have a cached copy of the
+.Vt struct hhook_head
+and wants to deregister a hook point using the appropriate
+.Fa hook_type
+and
+.Fa hook_id
+identifiers instead.
+.Pp
+The
+.Fn hhook_run_hooks
+function should normally not be called directly and should instead be called
+indirectly via the
+.Fn HHOOKS_RUN_IF
+macro.
+However, there may be circumstances where it is preferable to call the function
+directly, and so it is documented here for completeness.
+The
+.Fa hhh
+argument references the
+.Nm
+point to call all registered hook functions for.
+The
+.Fa ctx_data
+argument specifies a pointer to the contextual hook point data to pass into the
+hook functions.
+The
+.Fa hosd
+argument should be the pointer to the appropriate object's
+.Vt struct osd
+if the subsystem provides the ability for Khelp modules to associate per-object
+data.
+Subsystems which do not should pass NULL.
+.Pp
+The
+.Fn HHOOKS_RUN_IF
+macro is the preferred way to implement hook points.
+It only calls the
+.Fn hhook_run_hooks
+function if at least one hook function is registered for the hook point.
+By checking for registered hook functions, the macro minimises the cost
+associated with adding hook points to frequently used code paths by reducing to
+a simple if test in the common case where no hook functions are registered.
+The arguments are as described for the
+.Fn hhook_run_hooks
+function.
+.Pp
+The
+.Fn HHOOKS_RUN_IF_LOOKUP
+macro performs the same function as the
+.Fn HHOOKS_RUN_IF
+macro, but performs an additional step to look up the
+.Vt struct hhook_head
+for the specified
+.Fa hook_type
+and
+.Fa hook_id
+identifiers.
+It should not be used except in code paths which are infrequently executed
+because of the reference counting overhead associated with the look up.
+.Sh IMPLEMENTATION NOTES
+Each
+.Vt struct hhook_head
+protects its internal list of hook functions with a
+.Xr rmlock 9 .
+Therefore, anytime
+.Fn hhook_run_hooks
+is called directly or indirectly via the
+.Fn HHOOKS_RUN_IF
+or
+.Fn HHOOKS_RUN_IF_LOOKUP
+macros, a non-sleepable read lock will be acquired and held across the calls to
+all registered hook functions.
+.Sh RETURN VALUES
+.Fn hhook_head_register
+returns 0 if no errors occurred.
+It returns EEXIST if a hook point with the same
+.Fa hook_type
+and
+.Fa hook_id
+is already registered.
+It returns EINVAL if the HHOOK_HEADISINVNET flag is not set in
+.Fa flags
+because the implementation does not yet support hook points in non-virtualised
+subsystems (see the
+.Sx BUGS
+section for details).
+It returns ENOMEM if
+.Xr malloc 9
+failed to allocate memory for the new
+.Vt struct hhook_head .
+.Pp
+.Fn hhook_head_deregister
+and
+.Fn hhook_head_deregister_lookup
+return 0 if no errors occurred.
+They return ENOENT if
+.Fa hhh
+is NULL.
+They return EBUSY if the reference count of
+.Fa hhh
+is greater than one.
+.Sh EXAMPLES
+A well commented example Khelp module can be found at:
+.Pa /usr/share/examples/kld/khelp/h_example.c
+.Pp
+The
+.Xr tcp 4
+implementation provides two
+.Nm
+points which are called for packets sent/received when a connection is in the
+established phase.
+Search for HHOOK in the following files:
+.Pa sys/netinet/tcp_var.h ,
+.Pa sys/netinet/tcp_input.c ,
+.Pa sys/netinet/tcp_output.c
+and
+.Pa sys/netinet/tcp_subr.c .
+.Sh SEE ALSO
+.Xr khelp 9
+.Sh ACKNOWLEDGEMENTS
+Development and testing of this software were made possible in part by grants
+from the FreeBSD Foundation and Cisco University Research Program Fund at
+Community Foundation Silicon Valley.
+.Sh HISTORY
+The
+.Nm
+framework first appeared in
+.Fx 9.0 .
+.Pp
+The
+.Nm
+framework was first released in 2010 by Lawrence Stewart whilst studying at
+Swinburne University of Technology's Centre for Advanced Internet Architectures,
+Melbourne, Australia.
+More details are available at:
+.Pp
+http://caia.swin.edu.au/urp/newtcp/
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+framework was written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org .
+.Pp
+This manual page was written by
+.An David Hayes Aq Mt david.hayes@ieee.org
+and
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org .

@@ -1,0 +1,12 @@
+# Solaris-specific format checking and pragmas
+sol2-c.o: $(srcdir)/config/sol2-c.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
+  tree.h c-format.h intl.h $(CPPLIB_H) c-pragma.h $(TM_H) $(TM_P_H) \
+  toplev.h $(C_COMMON_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+	  $(srcdir)/config/sol2-c.c
+
+# Solaris-specific attributes
+sol2.o: $(srcdir)/config/sol2.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
+  tree.h $(TM_H) $(TM_P_H) toplev.h $(GGC_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+	  $(srcdir)/config/sol2.c

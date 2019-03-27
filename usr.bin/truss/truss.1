@@ -1,0 +1,117 @@
+.\" $FreeBSD$
+.\"
+.Dd July 24, 2017
+.Dt TRUSS 1
+.Os
+.Sh NAME
+.Nm truss
+.Nd trace system calls
+.Sh SYNOPSIS
+.Nm
+.Op Fl facedDHS
+.Op Fl o Ar file
+.Op Fl s Ar strsize
+.Fl p Ar pid
+.Nm
+.Op Fl facedDHS
+.Op Fl o Ar file
+.Op Fl s Ar strsize
+.Ar command Op Ar args
+.Sh DESCRIPTION
+The
+.Nm
+utility traces the system calls called by the specified process or program.
+Output is to the specified output file, or standard error by default.
+It does this by stopping and restarting the process being monitored via
+.Xr ptrace 2 .
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl f
+Trace descendants of the original traced process created by
+.Xr fork 2 ,
+.Xr vfork 2 ,
+etc.
+To distinguish events between processes,
+the process ID
+.Pq PID
+of the process is included in the output of each event.
+.It Fl a
+Show the argument strings that are passed in each
+.Xr execve 2
+system call.
+.It Fl c
+Do not display individual system calls or signals.
+Instead, before exiting, print a summary containing for each system call:
+the total system time used,
+the number of times the call was invoked,
+and the number of times the call returned with an error.
+.It Fl e
+Show the environment strings that are passed in each
+.Xr execve 2
+system call.
+.It Fl d
+Include timestamps in the output showing the time elapsed
+since the trace was started.
+.It Fl D
+Include timestamps in the output showing the time elapsed
+since the last recorded event.
+.It Fl H
+Include the thread ID of in the output of each event.
+.It Fl S
+Do not display information about signals received by the process.
+(Normally,
+.Nm
+displays signal as well as system call events.)
+.It Fl o Ar file
+Print the output to the specified
+.Ar file
+instead of standard error.
+.It Fl s Ar strsize
+Display strings using at most
+.Ar strsize
+characters.
+If the buffer is larger,
+.Dq Li ...
+will be displayed at the end of the string.
+The default
+.Ar strsize
+is 32.
+.It Fl p Ar pid
+Follow the process specified by
+.Ar pid
+instead of a new command.
+.It Ar command Op Ar args
+Execute
+.Ar command
+and trace the system calls of it.
+(The
+.Fl p
+and
+.Ar command
+options are mutually exclusive.)
+.El
+.Sh EXAMPLES
+Follow the system calls used in echoing "hello":
+.Dl $ truss /bin/echo hello
+.Pp
+Do the same, but put the output into a file:
+.Dl $ truss -o /tmp/truss.out /bin/echo hello
+.Pp
+Follow an already-running process:
+.Dl $ truss -p 34
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr kdump 1 ,
+.Xr ktrace 1 ,
+.Xr ptrace 2 ,
+.Xr utrace 2
+.Sh HISTORY
+The
+.Nm
+command was written by
+.An Sean Eric Fagan
+for
+.Fx .
+It was modeled after
+similar commands available for System V Release 4 and SunOS.

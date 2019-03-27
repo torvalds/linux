@@ -1,0 +1,6 @@
+# Host: Mips running SVR4
+XM_FILE= xm-mipsv4.h
+NAT_FILE= ../nm-sysv4.h
+NATDEPFILES= fork-child.o mipsv4-nat.o corelow.o core-regset.o \
+	solib.o solib-svr4.o solib-legacy.o \
+	procfs.o proc-api.o proc-events.o proc-flags.o proc-why.o

@@ -1,0 +1,288 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)m.mac	8.1 (Berkeley) 8/14/93
+.\"
+.\" $FreeBSD$
+.if \n(mo=1 .ds mo January
+.if \n(mo=2 .ds mo February
+.if \n(mo=3 .ds mo March
+.if \n(mo=4 .ds mo April
+.if \n(mo=5 .ds mo May
+.if \n(mo=6 .ds mo June
+.if \n(mo=7 .ds mo July
+.if \n(mo=8 .ds mo August
+.if \n(mo=9 .ds mo September
+.if \n(mo=10 .ds mo October
+.if \n(mo=11 .ds mo November
+.if \n(mo=12 .ds mo December
+.if \n(dw=1 .ds dw Sunday
+.if \n(dw=2 .ds dw Monday
+.if \n(dw=3 .ds dw Tuesday
+.if \n(dw=4 .ds dw Wednesday
+.if \n(dw=5 .ds dw Thursday
+.if \n(dw=6 .ds dw Friday
+.if \n(dw=7 .ds dw Saturday
+.\"
+.bd S B 3
+.ds NR "\s-1NROFF\s+1
+.ds TR "\s-1TROFF\s+1
+.ds Nr "N\s-2ROFF\s+2
+.ds Tr "T\s-2ROFF\s+2
+.nr PS 10
+.hy 14
+.ds u \v'-0.3m'\s-2
+.ds d \s0\v'0.3m'
+.nr 2C 0
+.ds H
+.nr a .8i
+.nr b 1.6i
+.nr c 2.4i
+.nr d 2.9i
+.nr e 0.25i
+.nr p 0 1
+.nr s 0 1
+.af p 1
+.af s 1
+.nr m -1i
+.nr x 0 1
+.nr y 0+\nmu
+.ev 1
+.ps \n(PS-2
+.vs \n(PS
+.ll 6.5i
+'in 0
+.ev
+.tr &.
+.de xx
+.sp 0.4
+..
+.de ht
+.tl `\*(Nr/\*(Tr User's Manual``USD:21-%`
+.\" .tl 'updated to May 15, 1977'''\".tl 'Version \n(mo/\n(dy/\n(yr'''
+..
+.de he
+.tl `USD:21-%``\*(Nr/\*(Tr User's Manual`
+.\" .tl 'updated to May 15, 1977'''\".tl 'Version \n(mo/\n(dy/\n(yr'''
+..
+.de hd
+.\".tl '\(rn'''
+.if \\n%>1 \{'sp |.30i
+.if e .he
+.if o .ht
+.ps \\n(S2
+.ps \\n(S1
+.ft
+'sp |.9i\}
+.nr x 0 1
+.nr y 0+\\nmu
+.ch fo \\nmu
+.if \\n(dn .fz
+.ns
+.if dmx .mx
+.nr cl 0 1
+.mk
+..
+.de fz
+.fn
+.nf
+.fy
+.fi
+.ef
+..
+.de fx
+.if \\nx .di fy
+..
+.de fo
+.if dcx .cx
+.nr dn 0
+.if \\nx .xf
+.nr x 0 \"disable fx
+.ie \\n(2C&(\\n+(cl<2) \{\
+.po +3.4i
+.rt
+.nr y 0+\\nmu
+.ch fo \\nmu
+.if \\n(dn .fz
+.ns \}
+.el \{\
+.po 26i/27u
+.nr S1 \\n(.s
+.ps
+.nr S2 \\n(.s
+.ps 10
+'bp
+.\}
+..
+.de 2C
+.br
+.mk
+.nr 2C 1
+.ll 3.1i
+.ev 1
+.ll 3.1i
+.ev
+..
+.de 1C
+.br
+.nr 2C 0
+.ll 6.5i
+.ev 1
+.ll 6.5i
+.ev
+..
+.de co
+.de cx
+.br
+\fI(Continued next page.)\fP
+.br
+.rm cx
+\\..
+..
+.de pp
+'ps \\n(PS
+.ft R
+.\"'tl ''- % -''
+'bp
+..
+.wh 0 hd
+.wh 12i fo
+.wh \nmu fx
+.ch fo \nmu
+.de fn
+.da FN
+.ev 1
+.if \\n+x=1 .fs
+.fi
+.ti 0
+..
+.de xf
+.ev 1
+.nf
+.FN
+.rm FN
+.di
+.ev
+..
+.de fs
+.ti 0
+\l'1i'
+.br
+..
+.de ef
+.br
+.ev
+.di
+.nr y -\\n(dn
+.if \\nx=1 .nr y -2p
+.ch fo \\nyu
+.if \\n(nl+\\n(.v-\\n(.p-\\ny .ch fo \\n(nlu+\\n(.vu
+..
+.wh -.6i pp
+.de h1
+.xx
+.ne 5
+.nf
+.ta \\nau \\nbu \\ncu \\ndu +\\neu
+.ft I
+.bd I 3
+Request	Initial	If No
+Form	Value\\$2	Argument	Notes\\$1	Explanation
+.bd I
+.ft R
+.ft
+.fi
+.in \\ndu
+..
+.de bt
+.ft R
+.xx
+.ne 1.1
+.ti 0
+..
+.de b1
+.br
+.ti 0
+..
+.de pg
+.ft R
+.fi
+.in 0
+.xx
+.ne 1.1
+..
+.de sc
+.pg
+\fI\\*H\\np.\\n+s.\|\\c
+.ft R
+.ul
+..
+.de mh
+.nr s 0
+.in 0
+.xx
+.ne 2.5
+.ft B
+\\*H\\n+p.
+..
+.de x1
+.xx
+.in .5i
+.nf
+..
+.de x2
+.xx
+.in 0
+.fi
+..
+.de EM
+.br
+\&\c
+.pl 2i
+..
+.em EM
+.de TS
+.sp
+..
+.de TE
+.sp
+.ce 0
+.ft R
+.ps \n(PS
+.ta \\nau \\nbu \\ncu \\ndu +\\neu
+..
+.de T&
+..

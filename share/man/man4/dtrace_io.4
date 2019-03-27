@@ -1,0 +1,123 @@
+.\" Copyright (c) 2015 Mark Johnston <markj@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 18, 2015
+.Dt DTRACE_IO 4
+.Os
+.Sh NAME
+.Nm dtrace_io
+.Nd a DTrace provider for tracing events related to disk I/O
+.Sh SYNOPSIS
+.Fn io:::start "struct bio *" "struct devstat *"
+.Fn io:::done "struct bio *" "struct devstat *"
+.Sh DESCRIPTION
+The
+.Nm io
+provider allows the tracing of disk I/O events.
+The
+.Fn io:::start
+probe fires when a I/O request is about to be sent to the backing driver of a
+.Xr disk 9
+object.
+This occurs after all
+.Xr GEOM 4
+transformations have been performed on the request.
+The
+.Fn io:::done
+probe fires when a I/O request is completed.
+Both probes take a
+.Vt "struct bio *"
+representing the I/O request as their first argument.
+The second argument is a
+.Vt "struct devstat *"
+for the underlying
+.Xr disk 9
+object.
+.Sh ARGUMENTS
+The fields of
+.Vt "struct bio"
+are described in the
+.Xr g_bio 9
+manual page, and the fields of
+.Vt "struct devstat"
+are described in the
+.Xr devstat 9
+manual page.
+Translators for the
+.Vt bufinfo_t
+and
+.Vt devinfo_t
+D types are defined in
+.Pa /usr/lib/dtrace/io.d .
+.Sh FILES
+.Bl -tag -width "/usr/lib/dtrace/io.d" -compact
+.It Pa /usr/lib/dtrace/io.d
+DTrace type and translator definitions for the
+.Nm io
+provider.
+.El
+.Sh EXAMPLES
+The following script shows a per-process breakdown of total I/O by disk device:
+.Bd -literal -offset indent
+#pragma D option quiet
+
+io:::start
+{
+        @[args[1]->device_name, execname, pid] = sum(args[0]->bio_bcount);
+}
+
+END
+{
+        printf("%10s %20s %10s %15s\\n", "DEVICE", "APP", "PID", "BYTES");
+        printa("%10s %20s %10d %15@d\\n", @);
+}
+.Ed
+.Sh COMPATIBILITY
+This provider is not compatible with the
+.Nm io
+provider found in Solaris, as its probes use native
+.Fx
+argument types.
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr devstat 9 ,
+.Xr SDT 9
+.Sh HISTORY
+The
+.Nm io
+provider first appeared in
+.Fx
+9.2 and 10.0.
+.Sh AUTHORS
+This manual page was written by
+.An Mark Johnston Aq Mt markj@FreeBSD.org .
+.Sh BUGS
+The
+.Fn io:::wait-start
+and
+.Fn io:::wait-done
+probes are not currently implemented on
+.Fx .

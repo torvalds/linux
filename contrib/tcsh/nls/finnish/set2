@@ -1,0 +1,94 @@
+$ $tcsh: set2,v 1.3 2011/02/04 18:19:34 christos Exp $
+$ Signal names
+$set 2 
+1 Null-signaali
+2 Yhteyden katkaisu
+3 Keskeytys
+4 Lopetus
+5 Virheellinen konekäsky
+6 Seuranta-ansa (BPT)
+7 Hätäkeskeytys
+8 Syöttö-/tulostusansa
+9 Järjestelmän alasajo odotettavissa
+10 Virheellinen päättyminen
+11 Jäljittelyansa (EMT)
+12 Liukulukupoikkeus
+13 Tapettu
+14 Käyttäjän signaal1 1
+15 Käyttäjän signaali 2
+16 Väärä muistilohko
+17 Väylävirhe
+18 Viittaus ohjelma-alueen ulkopuolelle
+19 Data sallittujen arvojen ulkopuolella
+20 Tuntematon järjestelmäkutsu
+21 Murtunut putki
+22 Herätyskello
+23 Päätetty
+24 Poikasen tila muuttunut
+25 Poikanen kuollut
+26 Apollon laitekohtainen virhe
+27 Poikanen pysähtynyt tai poistunut
+28 Poikanen poistunut
+29 Tehonsyöttö pettänyt
+30 Resurssi menetetty
+31 Break (Ctrl-Break)
+32 Syöte/tulostus mahdollista
+33 Epäsynkroninen syöte/tulostus (select)
+34 Kiireellinen syöte-/tulostustapahtuma
+35 Herätys moniajossa
+36 Tappaminen moniajossa
+37 Fortranin epäsynkroninen syöte/tulostus valmis
+38 Toipuminen
+39 Korjauskelvoton muistivirhe
+40 Keskusyksikköajan raja ylitetty
+41 Järjestelmän sulkeminen odotettavissa
+42 Pienoistehtäväryhmän ei-herätystä lippu asetettu
+43 Säievirhe - (yksityiskohtaisempia tietoja käskyllä cord -T)
+44 rekisterin pariteettivirhe (CRAY Y-MP)
+45 Tiedotepyyntö
+46 Keskeytetty (signaali)
+47 Pysäytetty (signaali)
+48 Keskeytetty
+49 Pysäytetty
+50 Suoritus jatkuu
+51 Keskeytetty (päätesyöte)
+52 Pysäytetty (päätetulostus)
+53 Keskeytetty (päätetulostus)
+54 Pysäytetty (päätetulostus)
+55 Ikkunan tila muuttunut
+56 Ikkunan koko muuttunut
+57 Puhelinlinjan tila muuttunut
+58 Keskusyksikköajan raja ylitetty
+59 Tiedostokoon raja ylitetty
+60 Käyttökelpoisen ajan ajastin laukesi
+61 Ohjelman ajankäytönseurannan ajastin laukesi
+62 DIL-signaali
+63 Tutkittava tapahtuma (poll)
+64 Prosessin kevytprosessit  Process's lwps are blocked
+65 Erityinen kevytprossisignaali (LWP)
+66 Erityinen CPR-signaali
+67 Erityinen CPR-signaali
+68 Ensimmäinen tosiaikasignaali
+69 Toinen tosiaikasignaali
+70 Kolmas tosiaikasignaali
+71 Neljäs tosiaikasignaali
+72 Neljänneksi viimeinen tosiaikasignaali
+73 Kolmanneksi viimeinen tosiaikasignaali
+74 Toiseksi viimeinen tosiaikasignaali
+75 Viimeinen tosiaikasignaali
+76 Paikallisverkko (epäsynkroninen syöte/tulostus)
+77 Näennäispääte (syöte/tulostus valmiina)
+78 Syöte-/tulostustoimenpidettä edellytetään
+79 HFT seurantatila luovutettu
+80 HFT seurantatila vapautettava
+81 HFT äänenhallinta valmis
+82 Uutta dataa HFT-rengaspuskurissa
+83 Muuta prosessi
+84 Turvallinen huomionäppäin
+85 Vuorottelutarve
+86 SS$_DEBUG -signaali
+87 Etusija muuttunut (priority)
+88 Todellinen lukkiintumistila
+89 Uusi merkki syötteessä
+90 Pinon raja ylitetty
+91 Käyttämätön signaali

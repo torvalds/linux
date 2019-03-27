@@ -1,0 +1,338 @@
+.\" $FreeBSD$
+.\" Based on PR#2411
+.\"
+.Dd November 29, 2017
+.Dt TAP 4
+.Os
+.Sh NAME
+.Nm tap
+.Nd Ethernet tunnel software network interface
+.Sh SYNOPSIS
+.Cd device tap
+.Sh DESCRIPTION
+The
+.Nm
+interface is a software loopback mechanism that can be loosely
+described as the network interface analog of the
+.Xr pty 4 ,
+that is,
+.Nm
+does for network interfaces what the
+.Xr pty 4
+driver does for terminals.
+.Pp
+The
+.Nm
+driver, like the
+.Xr pty 4
+driver, provides two interfaces: an interface like the usual facility
+it is simulating
+(an Ethernet network interface in the case of
+.Nm ,
+or a terminal for
+.Xr pty 4 ) ,
+and a character-special device
+.Dq control
+interface.
+A client program transfers Ethernet frames to or from the
+.Nm
+.Dq control
+interface.
+The
+.Xr tun 4
+interface provides similar functionality at the network layer:
+a client will transfer IP (by default) packets to or from a
+.Xr tun 4
+.Dq control
+interface.
+.Pp
+The network interfaces are named
+.Dq Li tap0 ,
+.Dq Li tap1 ,
+etc., one for each control device that has been opened.
+These Ethernet network interfaces persist until
+.Pa if_tap.ko
+module is unloaded, or until removed with "ifconfig destroy" (see below).
+.Pp
+.Nm
+devices are created using interface cloning.
+This is done using the
+.Dq ifconfig tap Ns Sy N No create
+command.
+This is the preferred method of creating
+.Nm
+devices.
+The same method allows removal of interfaces.
+For this, use the
+.Dq ifconfig tap Ns Sy N No destroy
+command.
+.Pp
+If the
+.Xr sysctl 8
+variable
+.Va net.link.tap.devfs_cloning
+is non-zero, the
+.Nm
+interface
+permits opens on the special control device
+.Pa /dev/tap .
+When this device is opened,
+.Nm
+will return a handle for the lowest unused
+.Nm
+device (use
+.Xr devname 3
+to determine which).
+.Pp
+.Bf Em
+Disabling the legacy devfs cloning functionality may break existing
+applications which use
+.Nm ,
+such as
+.Tn VMware
+and
+.Xr ssh 1 .
+It therefore defaults to being enabled until further notice.
+.Ef
+.Pp
+Control devices (once successfully opened) persist until
+.Pa if_tap.ko
+is unloaded or the interface is destroyed.
+.Pp
+Each interface supports the usual Ethernet network interface
+.Xr ioctl 2 Ns s
+and thus can be used with
+.Xr ifconfig 8
+like any other Ethernet interface.
+When the system chooses to transmit
+an Ethernet frame on the network interface, the frame can be read from
+the control device
+(it appears as
+.Dq input
+there);
+writing an Ethernet frame to the control device generates an input frame on
+the network interface, as if the
+(non-existent)
+hardware had just received it.
+.Pp
+The Ethernet tunnel device, normally
+.Pa /dev/tap Ns Sy N ,
+is exclusive-open
+(it cannot be opened if it is already open)
+and is restricted to the super-user, unless the
+.Xr sysctl 8
+variable
+.Va net.link.tap.user_open
+is non-zero.
+If the
+.Xr sysctl 8
+variable
+.Va net.link.tap.up_on_open
+is non-zero, the tunnel device will be marked
+.Dq up
+when the control device is opened.
+A
+.Fn read
+call will return an error
+.Pq Er EHOSTDOWN
+if the interface is not
+.Dq ready .
+Once the interface is ready,
+.Fn read
+will return an Ethernet frame if one is available; if not, it will
+either block until one is or return
+.Er EWOULDBLOCK ,
+depending on whether non-blocking I/O has been enabled.
+If the frame
+is longer than is allowed for in the buffer passed to
+.Fn read ,
+the extra data will be silently dropped.
+.Pp
+A
+.Xr write 2
+call passes an Ethernet frame in to be
+.Dq received
+on the pseudo-interface.
+Each
+.Fn write
+call supplies exactly one frame; the frame length is taken from the
+amount of data provided to
+.Fn write .
+Writes will not block; if the frame cannot be accepted
+for a transient reason
+(e.g., no buffer space available),
+it is silently dropped; if the reason is not transient
+(e.g., frame too large),
+an error is returned.
+The following
+.Xr ioctl 2
+calls are supported
+(defined in
+.In net/if_tap.h ) :
+.Bl -tag -width VMIO_SIOCSETMACADDR
+.It Dv TAPSIFINFO
+Set network interface information (line speed and MTU).
+The type must be the same as returned by
+.Dv TAPGIFINFO
+or set to
+.Dv IFT_ETHER
+else the
+.Xr ioctl 2
+call will fail.
+The argument should be a pointer to a
+.Va struct tapinfo .
+.It Dv TAPGIFINFO
+Retrieve network interface information (line speed, MTU and type).
+The argument should be a pointer to a
+.Va struct tapinfo .
+.It Dv TAPSDEBUG
+The argument should be a pointer to an
+.Va int ;
+this sets the internal debugging variable to that value.
+What, if
+anything, this variable controls is not documented here; see the source
+code.
+.It Dv TAPGDEBUG
+The argument should be a pointer to an
+.Va int ;
+this stores the internal debugging variable's value into it.
+.It Dv TAPGIFNAME
+Retrieve network interface name.
+The argument should be a pointer to a
+.Va struct ifreq .
+The interface name will be returned in the
+.Va ifr_name
+field.
+.It Dv FIONBIO
+Turn non-blocking I/O for reads off or on, according as the argument
+.Va int Ns 's
+value is or is not zero
+(Writes are always nonblocking).
+.It Dv FIOASYNC
+Turn asynchronous I/O for reads
+(i.e., generation of
+.Dv SIGIO
+when data is available to be read)
+off or on, according as the argument
+.Va int Ns 's
+value is or is not zero.
+.It Dv FIONREAD
+If any frames are queued to be read, store the size of the first one into the argument
+.Va int ;
+otherwise, store zero.
+.It Dv TIOCSPGRP
+Set the process group to receive
+.Dv SIGIO
+signals, when asynchronous I/O is enabled, to the argument
+.Va int
+value.
+.It Dv TIOCGPGRP
+Retrieve the process group value for
+.Dv SIGIO
+signals into the argument
+.Va int
+value.
+.It Dv SIOCGIFADDR
+Retrieve the Media Access Control
+.Pq Dv MAC
+address of the
+.Dq remote
+side.
+This command is used by the VMware port and expected to be executed on
+descriptor, associated with control device
+(usually
+.Pa /dev/vmnet Ns Sy N
+or
+.Pa /dev/tap Ns Sy N ) .
+The
+.Va buffer ,
+which is passed as the argument, is expected to have enough space to store
+the
+.Dv MAC
+address.
+At the open time both
+.Dq local
+and
+.Dq remote
+.Dv MAC
+addresses are the same, so this command could be used to retrieve the
+.Dq local
+.Dv MAC
+address.
+.It Dv SIOCSIFADDR
+Set the Media Access Control
+.Pq Dv MAC
+address of the
+.Dq remote
+side.
+This command is used by VMware port and expected to be executed on
+a descriptor, associated with control device
+(usually
+.Pa /dev/vmnet Ns Sy N ) .
+.El
+.Pp
+The control device also supports
+.Xr select 2
+for read; selecting for write is pointless, and always succeeds, since
+writes are always non-blocking.
+.Pp
+On the last close of the data device, the interface is
+brought down
+(as if with
+.Dq ifconfig tap Ns Sy N No down )
+unless the device is a
+.Em VMnet
+device, or has
+.Dv IFF_LINK0
+flag set.
+All queued frames are thrown away.
+If the interface is up when the data
+device is not open, output frames are thrown away rather than
+letting them pile up.
+.Pp
+The
+.Nm
+device can also be used with the VMware port as a replacement
+for the old
+.Em VMnet
+device driver.
+The driver uses the minor number
+to select between
+.Nm
+and
+.Nm vmnet
+devices.
+.Em VMnet
+minor numbers begin at
+.Va 0x800000
++
+.Va N ;
+where
+.Va N
+is a
+.Em VMnet
+unit number.
+In this case the control device is expected to be
+.Pa /dev/vmnet Ns Sy N ,
+and the network interface will be
+.Sy vmnet Ns Ar N .
+Additionally,
+.Em VMnet
+devices do not
+.Xr ifconfig 8
+themselves down when the
+control device is closed.
+Everything else is the same.
+.Pp
+In addition to the above mentioned
+.Xr ioctl 2
+calls, there is an additional one for the VMware port.
+.Bl -tag -width VMIO_SIOCSETMACADDR
+.It Dv VMIO_SIOCSIFFLAGS
+VMware
+.Dv SIOCSIFFLAGS .
+.El
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr intro 4 ,
+.Xr tun 4

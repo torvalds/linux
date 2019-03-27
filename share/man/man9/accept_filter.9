@@ -1,0 +1,152 @@
+.\"
+.\" Copyright (c) 2000 Alfred Perlstein
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" "
+.Dd June 25, 2000
+.Dt ACCEPT_FILTER 9
+.Os
+.Sh NAME
+.Nm accept_filter ,
+.Nm accept_filt_add ,
+.Nm accept_filt_del ,
+.Nm accept_filt_generic_mod_event ,
+.Nm accept_filt_get
+.Nd filter incoming connections
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/module.h
+.In sys/socket.h
+.Fd #define ACCEPT_FILTER_MOD
+.In sys/socketvar.h
+.Ft int
+.Fn accept_filt_add "struct accept_filter *filt"
+.Ft int
+.Fn accept_filt_del "char *name"
+.Ft int
+.Fn accept_filt_generic_mod_event "module_t mod" "int event" "void *data"
+.Ft struct accept_filter *
+.Fn accept_filt_get "char *name"
+.Sh DESCRIPTION
+Accept filters allow an application to request
+that the kernel pre-process incoming connections.
+An accept filter is requested via the
+.Xr setsockopt 2
+system call, passing in an
+.Fa optname
+of
+.Dv SO_ACCEPTFILTER .
+.Sh IMPLEMENTATION NOTES
+A module that wants to be an accept filter
+must provide a
+.Vt "struct accept_filter"
+to the system:
+.Bd -literal
+struct accept_filter {
+	char	accf_name[16];
+	void	(*accf_callback)(struct socket *so, void *arg, int waitflag);
+	void *	(*accf_create)(struct socket *so, char *arg);
+	void	(*accf_destroy)(struct socket *so);
+	SLIST_ENTRY(accept_filter) accf_next;	/* next on the list */
+};
+.Ed
+.Pp
+The module should register it with the function
+.Fn accept_filt_add ,
+passing a pointer to a
+.Vt "struct accept_filter" ,
+allocated with
+.Xr malloc 9 .
+.Pp
+The fields of
+.Vt "struct accept_filter"
+are as follows:
+.Bl -tag -width ".Va accf_callback"
+.It Va accf_name
+Name of the filter;
+this is how it will be accessed from userland.
+.It Va accf_callback
+The callback that the kernel will do
+once the connection is established.
+It is the same as a socket upcall
+and will be called when the connection is established
+and whenever new data arrives on the socket,
+unless the callback modifies the socket's flags.
+.It Va accf_create
+Called whenever a
+.Xr setsockopt 2
+installs the filter onto
+a listening socket.
+.It Va accf_destroy
+Called whenever the user removes the accept filter on the socket.
+.El
+.Pp
+The
+.Fn accept_filt_del
+function
+passed the same string used in
+.Va accept_filter.accf_name
+during registration with
+.Fn accept_filt_add ,
+the kernel will then disallow and further userland use of the filter.
+.Pp
+The
+.Fn accept_filt_get
+function is used internally to locate which accept filter to use via the
+.Xr setsockopt 2
+system call.
+.Pp
+The
+.Fn accept_filt_generic_mod_event
+function provides a simple way to avoid duplication of code
+for accept filters which do not use the argument field to load
+and unload themselves.
+This function can be used in the
+.Vt moduledata_t
+struct for the
+.Xr DECLARE_MODULE 9
+macro.
+.Sh SEE ALSO
+.Xr setsockopt 2 ,
+.Xr accf_data 9 ,
+.Xr accf_dns 9 ,
+.Xr accf_http 9 ,
+.Xr malloc 9
+.Sh HISTORY
+The accept filter mechanism was introduced in
+.Fx 4.0 .
+.Sh AUTHORS
+This manual page was written by
+.An -nosplit
+.An Alfred Perlstein ,
+.An Sheldon Hearn
+and
+.An Jeroen Ruigrok van der Werven.
+.Pp
+The accept filter concept was pioneered by
+.An David Filo
+at Yahoo!\&
+and refined to be a loadable module system by
+.An Alfred Perlstein .

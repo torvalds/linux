@@ -1,0 +1,23 @@
+
+#------------------------------------------------------------------------
+# $File: sharc,v 1.8 2017/03/17 21:35:28 christos Exp $
+# file(1) magic for sharc files
+#
+# SHARC DSP, MIDI SysEx and RiscOS filetype definitions added by
+# FutureGroove Music (dsp@futuregroove.de)
+
+#------------------------------------------------------------------------
+#0	string			Draw		RiscOS Drawfile
+#0	string			PACK		RiscOS PackdDir archive
+
+#------------------------------------------------------------------------
+# SHARC DSP stuff (based on the FGM SHARC DSP SDK)
+
+#0	string			=!		Assembler source
+#0	string			Analog		ADi asm listing file
+0	string			.SYSTEM		SHARC architecture file
+0	string			.system		SHARC architecture file
+
+0	leshort			0x521C		SHARC COFF binary
+>2	leshort			>1		, %d sections
+>>12	lelong			>0		, not stripped

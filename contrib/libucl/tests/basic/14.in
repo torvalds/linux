@@ -1,0 +1,8 @@
+# Bad comments case
+
+section {
+# key = value;
+}
+.include(try=true) "./1.in"
+
+key = value;

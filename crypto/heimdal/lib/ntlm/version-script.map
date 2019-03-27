@@ -1,0 +1,30 @@
+# $Id$
+
+HEIMDAL_NTLM_1.0 {
+	global:
+		heim_ntlm_build_ntlm1_master;
+		heim_ntlm_calculate_lm2;
+		heim_ntlm_calculate_ntlm1;
+		heim_ntlm_calculate_ntlm2;
+		heim_ntlm_calculate_ntlm2_sess;
+		heim_ntlm_decode_targetinfo;
+		heim_ntlm_decode_type1;
+		heim_ntlm_decode_type2;
+		heim_ntlm_decode_type3;
+		heim_ntlm_encode_targetinfo;
+		heim_ntlm_encode_type1;
+		heim_ntlm_encode_type2;
+		heim_ntlm_encode_type3;
+		heim_ntlm_free_buf;
+		heim_ntlm_free_targetinfo;
+		heim_ntlm_free_type1;
+		heim_ntlm_free_type2;
+		heim_ntlm_free_type3;
+		heim_ntlm_nt_key;
+		heim_ntlm_ntlmv2_key;
+		heim_ntlm_verify_ntlm2;
+		heim_ntlm_unparse_flags;
+		initialize_ntlm_error_table_r;
+	local:
+		*;
+};

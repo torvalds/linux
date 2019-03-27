@@ -1,0 +1,209 @@
+.\" Copyright (c) 2003-2007 Tim Kientzle
+.\" Copyright (c) 2010 Joerg Sonnenberger
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd February 2, 2012
+.Dt ARCHIVE_ENTRY_PERMS 3
+.Os
+.Sh NAME
+.Nm archive_entry_gid ,
+.Nm archive_entry_set_gid ,
+.Nm archive_entry_uid ,
+.Nm archive_entry_set_uid ,
+.Nm archive_entry_perm ,
+.Nm archive_entry_set_perm ,
+.Nm archive_entry_strmode ,
+.Nm archive_entry_uname ,
+.Nm archive_entry_uname_w ,
+.Nm archive_entry_set_uname ,
+.Nm archive_entry_copy_uname ,
+.Nm archive_entry_copy_uname_w ,
+.Nm archive_entry_update_uname_utf8 ,
+.Nm archive_entry_gname ,
+.Nm archive_entry_gname_w ,
+.Nm archive_entry_set_gname ,
+.Nm archive_entry_copy_gname ,
+.Nm archive_entry_copy_gname_w ,
+.Nm archive_entry_update_gname_utf8 ,
+.Nm archive_entry_fflags ,
+.Nm archive_entry_fflags_text ,
+.Nm archive_entry_set_fflags ,
+.Nm archive_entry_copy_fflags_text ,
+.Nm archive_entry_copy_fflags_text_w
+.Nd functions for manipulating ownership and permissions in archive entry descriptions
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.In archive_entry.h
+.Ft gid_t
+.Fn archive_entry_gid "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_set_gid "struct archive_entry *a" "gid_t gid"
+.Ft uid_t
+.Fn archive_entry_uid "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_set_uid "struct archive_entry *a" "uid_t uid"
+.Ft mode_t
+.Fn archive_entry_perm "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_set_perm "struct archive_entry *a" "mode_t mode"
+.Ft const char *
+.Fn archive_entry_strmode "struct archive_entry *a"
+.Ft const char *
+.Fn archive_entry_gname "struct archive_entry *a"
+.Ft const wchar_t *
+.Fn archive_entry_gname_w "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_set_gname "struct archive_entry *a" "const char *a"
+.Ft void
+.Fn archive_entry_copy_gname "struct archive_entry *a" "const char *name"
+.Ft void
+.Fn archive_entry_copy_gname_w "struct archive_entry *a" "const wchar_t *name"
+.Ft int
+.Fn archive_entry_update_gname_utf8 "struct archive_entry *a" "const char *name"
+.Ft const char *
+.Fn archive_entry_uname "struct archive_entry *a"
+.Ft const wchar_t *
+.Fn archive_entry_uname_w "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_set_uname "struct archive_entry *a" "const char *name"
+.Ft void
+.Fn archive_entry_copy_uname "struct archive_entry *a" "const char *name"
+.Ft void
+.Fn archive_entry_copy_uname_w "struct archive_entry *a" "const wchar_t *name"
+.Ft int
+.Fn archive_entry_update_uname_utf8 "struct archive_entry *a" "const char *name"
+.Ft void
+.Fo archive_entry_fflags
+.Fa "struct archive_entry *a"
+.Fa "unsigned long *set_bits"
+.Fa "unsigned long *clear_bits"
+.Fc
+.Ft const char *
+.Fn archive_entry_fflags_text "struct archive_entry *a"
+.Ft void
+.Fo archive_entry_set_fflags
+.Fa "struct archive_entry *a"
+.Fa "unsigned long set_bits"
+.Fa "unsigned long clear_bits"
+.Fc
+.Ft const char *
+.Fn archive_entry_copy_fflags_text "struct archive_entry *a" "const char *text"
+.Ft const wchar_t *
+.Fn archive_entry_copy_fflags_text_w "struct archive_entry *a" "const wchar_t *text"
+.Sh DESCRIPTION
+.Ss User id, group id and mode
+The functions
+.Fn archive_entry_uid ,
+.Fn archive_entry_gid ,
+and
+.Fn archive_entry_perm
+can be used to extract the user id, group id and permission from the given entry.
+The corresponding functions
+.Fn archive_entry_set_uid ,
+.Fn archive_entry_set_gid ,
+and
+.Fn archive_entry_set_perm
+store the given user id, group id and permission in the entry.
+The permission is also set as side effect of calling
+.Fn archive_entry_set_mode .
+.Pp
+.Fn archive_entry_strmode
+returns a string representation of the permission as used by the long mode of
+.Xr ls 1 .
+.Ss User and group name
+User and group names can be provided in one of three different ways:
+.Bl -tag -width "wchar_t *"
+.It char *
+Multibyte strings in the current locale.
+.It wchar_t *
+Wide character strings in the current locale.
+The accessor functions are named
+.Fn XXX_w .
+.It UTF-8
+Unicode strings encoded as UTF-8.
+This are convience functions to update both the multibyte and wide
+character strings at the same time.
+.El
+.Pp
+.Fn archive_entry_set_XXX
+is an alias for 
+.Fn archive_entry_copy_XXX .
+.Ss File Flags
+File flags are transparently converted between a bitmap
+representation and a textual format.
+For example, if you set the bitmap and ask for text, the library
+will build a canonical text format.
+However, if you set a text format and request a text format,
+you will get back the same text, even if it is ill-formed.
+If you need to canonicalize a textual flags string, you should first set the
+text form, then request the bitmap form, then use that to set the bitmap form.
+Setting the bitmap format will clear the internal text representation
+and force it to be reconstructed when you next request the text form.
+.Pp
+The bitmap format consists of two integers, one containing bits
+that should be set, the other specifying bits that should be
+cleared.
+Bits not mentioned in either bitmap will be ignored.
+Usually, the bitmap of bits to be cleared will be set to zero.
+In unusual circumstances, you can force a fully-specified set
+of file flags by setting the bitmap of flags to clear to the complement
+of the bitmap of flags to set.
+(This differs from
+.Xr fflagstostr 3 ,
+which only includes names for set bits.)
+Converting a bitmap to a textual string is a platform-specific
+operation; bits that are not meaningful on the current platform
+will be ignored.
+.Pp
+The canonical text format is a comma-separated list of flag names.
+The
+.Fn archive_entry_copy_fflags_text
+and
+.Fn archive_entry_copy_fflags_text_w
+functions parse the provided text and sets the internal bitmap values.
+This is a platform-specific operation; names that are not meaningful
+on the current platform will be ignored.
+The function returns a pointer to the start of the first name that was not
+recognized, or NULL if every name was recognized.
+Note that every name \(em including names that follow an unrecognized
+name \(em will be evaluated, and the bitmaps will be set to reflect
+every name that is recognized.
+(In particular, this differs from
+.Xr strtofflags 3 ,
+which stops parsing at the first unrecognized name.)
+.Sh SEE ALSO
+.Xr archive_entry 3 ,
+.Xr archive_entry_acl 3 ,
+.Xr archive_read_disk 3 ,
+.Xr archive_write_disk 3
+.Xr libarchive 3 ,
+.Sh BUGS
+The platform types
+.Vt uid_t
+and
+.Vt gid_t
+are often 16 or 32 bit wide.
+In this case it is possible that the ids can not be correctly restored
+from archives and get truncated.

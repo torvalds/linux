@@ -1,0 +1,55 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+# Remove garbage files more than $daily_clean_disks_days days old
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_clean_disks_enable" in
+    [Yy][Ee][Ss])
+	if [ -z "$daily_clean_disks_days" ]
+	then
+	    echo '$daily_clean_disks_enable is set but' \
+		'$daily_clean_disks_days is not'
+	    rc=2
+	elif [ -z "$daily_clean_disks_files" ]
+	then
+	    echo '$daily_clean_disks_enable is set but' \
+		'$daily_clean_disks_files is not'
+	    rc=2
+	else
+	    echo ""
+	    echo "Cleaning disks:"
+	    set -f noglob
+	    args="-name "`echo "$daily_clean_disks_files" |
+		sed -e 's/^[ 	]*//' \
+		    -e 's/[ 	]*$//' \
+		    -e 's/[ 	][ 	]*/ -o -name /g'`
+
+	    case "$daily_clean_disks_verbose" in
+		[Yy][Ee][Ss])
+		    print=-print;;
+		*)
+		    print=;;
+	    esac
+
+	    rc=$(find / \( ! -fstype local -o -fstype rdonly \) -prune -o \
+		\( $args \) -atime +$daily_clean_disks_days \
+		-execdir rm -df {} \; $print | tee /dev/stderr | wc -l)
+	    [ -z "$print" ] && rc=0
+	    [ $rc -gt 1 ] && rc=1
+	    set -f glob
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

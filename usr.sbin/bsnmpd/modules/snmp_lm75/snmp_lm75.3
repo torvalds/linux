@@ -1,0 +1,60 @@
+.\"-
+.\" Copyright (c) 2014 Luiz Otavio O Souza <loos@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 2, 2014
+.Dt SNMP_LM75 3
+.Os
+.Sh NAME
+.Nm snmp_lm75
+.Nd "LM75 Sensor module for"
+.Xr bsnmpd 1
+.Sh LIBRARY
+.Pq begemotSnmpdModulePath."lm75" = "/usr/lib/snmp_lm75.so"
+.Sh DESCRIPTION
+The
+.Nm snmp_lm75
+module implements a private BEGEMOT-LM75-MIB, which allows
+reading the temperature of the LM75 sensors on the system.
+.Pp
+The module reads the sensor(s) temperature using the
+.Xr sysctl 8
+API.
+.Sh FILES
+.Bl -tag -width "XXXXXXXXX"
+.It Pa /usr/share/snmp/defs/lm75_tree.def
+The description of the MIB tree implemented by
+.Nm .
+.It Pa /usr/share/snmp/mibs/BEGEMOT-LM75-MIB.txt
+The private BEGEMOT-LM75-MIB that is implemented by this module.
+.El
+.Sh SEE ALSO
+.Xr bsnmpd 1 ,
+.Xr gensnmptree 1 ,
+.Xr snmpmod 3 ,
+.Xr lm75 4
+.Sh AUTHORS
+.An Luiz Otavio O Souza Aq Mt loos@FreeBSD.org

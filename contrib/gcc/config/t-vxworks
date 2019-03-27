@@ -1,0 +1,27 @@
+# Don't run fixproto.
+STMP_FIXPROTO =
+
+# Build libgcc using the multilib mechanism
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib
+
+# No special flags needed for libgcc.a
+TARGET_LIBGCC2_CFLAGS =
+
+# Don't build libgcc.a with debug info
+LIBGCC2_DEBUG_CFLAGS =
+
+# Extra libgcc2 module used by gthr-vxworks.h functions
+LIB2FUNCS_EXTRA = $(srcdir)/config/vxlib.c
+
+# Some runtime modules need these.  Can't set extra_headers in config.gcc
+# because the paths are always made absolute to the cpu config dir.
+EXTRA_HEADERS += $(srcdir)/gthr-vxworks.h gthr-default.h
+
+# This ensures that the correct target headers are used; some
+# VxWorks system headers have names that collide with GCC's
+# internal (host) headers, e.g. regs.h.
+# FIXME: May not be necessary anymore.
+LIBGCC2_INCLUDES="-I$(SYSTEM_HEADER_DIR)"
+
+EXTRA_MULTILIB_PARTS = 

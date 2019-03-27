@@ -1,0 +1,40 @@
+# $FreeBSD$
+
+mips/ingenic/jz4780_dwc_fdt.c	optional dwcotg
+mips/ingenic/jz4780_ehci.c	optional ehci
+mips/ingenic/jz4780_mmc.c	optional mmc
+mips/ingenic/jz4780_ohci.c	optional ohci
+mips/ingenic/jz4780_smb.c	optional iicbus
+mips/ingenic/jz4780_uart.c	optional uart
+mips/ingenic/jz4780_lcd.c	optional vt
+dev/hdmi/dwc_hdmi.c		optional hdmi iicbus
+dev/hdmi/dwc_hdmi_fdt.c		optional hdmi iicbus
+
+mips/ingenic/jz4780_clock.c	standard
+mips/ingenic/jz4780_clk_gen.c	standard
+mips/ingenic/jz4780_clk_otg.c	standard
+mips/ingenic/jz4780_clk_pll.c	standard
+mips/ingenic/jz4780_efuse.c	standard
+mips/ingenic/jz4780_intr.c	standard
+mips/ingenic/jz4780_gpio.c	standard
+mips/ingenic/jz4780_machdep.c	standard
+mips/ingenic/jz4780_nemc.c	standard
+mips/ingenic/jz4780_pdma.c	standard
+mips/ingenic/jz4780_pinctrl.c	standard
+mips/ingenic/jz4780_rtc.c	standard
+mips/ingenic/jz4780_timer.c	standard
+
+# Sound
+mips/ingenic/jz4780_aic.c	optional sound xdma
+mips/ingenic/jz4780_codec.c	optional sound
+
+# SMP
+mips/ingenic/jz4780_mp.c	optional smp \
+	warning "* * * * * 32-bit mips SMP unsupported * * * * *"
+mips/ingenic/jz4780_mpboot.S	optional smp
+
+# Custom interface between pinctrl and gpio
+mips/ingenic/jz4780_gpio_if.m	standard
+
+# HDMI interface
+dev/hdmi/hdmi_if.m		standard

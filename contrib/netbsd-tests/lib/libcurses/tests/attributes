@@ -1,0 +1,23 @@
+include start
+# no attributes, no color
+call3 OK 0 0 attr_get
+# set reverse and bold
+call OK attr_set ($BOLD | $REVERSE) 2
+# returned attributes includes color information
+call3 OK ($ACS_IS_WACS | $BOLD | $REVERSE) 2 attr_get
+# turn off reverse
+call OK attr_off $REVERSE
+call3 OK ($ACS_IS_WACS | $BOLD) 2 attr_get
+# turn on standout
+call OK attr_on $STANDOUT
+call3 OK ($ACS_IS_WACS | $BOLD | $STANDOUT) 2 attr_get
+# turn on blink
+call OK attron $BLINK
+call3 OK ($ACS_IS_WACS | $BOLD | $STANDOUT | $BLINK) 2 attr_get
+# turn off bold
+call OK attroff $BOLD
+call3 OK ($ACS_IS_WACS | $STANDOUT | $BLINK) 2 attr_get
+# print out something to check our attributes are there, standout and blink
+call OK printw "%s" "hello"
+call OK refresh
+compare attributes.chk

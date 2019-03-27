@@ -1,0 +1,290 @@
+.\" Hey, Emacs, edit this file in -*- nroff-fill -*- mode!
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)m0	8.1 (Berkeley) 8/14/93
+.\"
+.\" $FreeBSD$
+.br
+.rs
+.sp |1.0i
+.ce 1000
+.ps 12
+.ft B
+\*(Nr\(sl\*(Tr User's Manual
+.sp .2i
+.ft I
+.ps 10
+Joseph F. Ossanna
+(updated for 4.3BSD by Mark Seiden)
+.ft R
+.sp
+Bell Laboratories
+Murray Hill, New Jersey 07974
+.ce 0
+.sp 2
+.ps \n(PS
+.fi
+.ft B
+.ps +1
+NOTE: This document in its current form describes the \fItroff\fP\| program
+supplied with 4.4BSD.  The \fIgroff\fP\| program supplied with FreeBSD has a
+number of additional features and a couple of small incompatibilities.  See
+\fIgroff(1)\fP\| for more details.
+.ps
+.sp 1
+Introduction
+.pg
+\*(NR and \*(TR are text processors under
+the \s-1UNIX\s+1 Time-Sharing System
+that format text for typewriter-like terminals and
+for a \%Graphic Systems phototypesetter, respectively.
+(Device-independent \*(TR, part of the Documenter's Workbench,
+supports additional output devices.)
+They accept lines of text interspersed with lines of
+format control information and
+format the text into a printable, paginated document
+having a user-designed style.
+\*(NR and \*(TR offer
+unusual freedom in document styling,
+including:
+arbitrary style headers and footers;
+arbitrary style footnotes;
+multiple automatic sequence numbering for paragraphs, sections, etc;
+multiple column output;
+dynamic font and point-size control;
+arbitrary horizontal and vertical local motions at any point;
+and
+a family of automatic overstriking, bracket construction, and
+line drawing functions.
+.pg
+\*(NR and \*(TR are highly compatible with each other and it is almost always
+possible to prepare input acceptable to both.
+Conditional input is provided that enables
+the user to embed input expressly destined for either program.
+\*(NR can prepare output directly for a variety of terminal types and
+is capable of utilizing the full resolution of each terminal.
+.pg
+.ft B
+Usage
+.pg
+The general form of invoking \*(NR (or \*(TR) at \s-1UNIX\s+1 command level is
+.x1
+\fBnroff  \fIoptions  files\fR\
+\h'|2i'(or  \fBtroff  \fIoptions  files\fR)
+.x2
+where \fIoptions\fR represents any of a number of option arguments
+and \fIfiles\fR represents the list of files containing the document
+to be formatted.
+An argument consisting of a single minus (\fB\-\fR) is taken to be
+a file name corresponding to the standard input.
+If no file names are given input is taken from the standard input.
+The options, which may appear in any order so long as they appear
+before the files, are:
+.sp
+.ta .2i 1.0i
+.ft I
+.bd I 3
+	Option	Effect
+.br
+.bd I
+.ft R
+.ta .3i 1.0i
+.in 1.0i
+.ll -.3i
+.bt
+	\fB\-i\fP	Read standard input after the input files are exhausted.
+.bt
+	\fB\-m\fIname\fR	Prepends the macro file
+\fB\(slusr\(sllib\(sltmac.\fIname\fR
+to the input \fIfiles\fR.
+.bt
+	\fB\-n\fIN\fR	Number first generated page \fIN\fR.
+.bt
+	\fB\-o\fIlist\fR	\
+Print only pages whose page numbers appear in \fIlist\fR,
+which consists of comma-separated numbers and number ranges.
+A number range has the form \fIN\-M\fR
+and means pages \fIN\fR through \fIM;\fR
+a initial \fI\-N\fR means
+from the beginning to page \fIN;\fR and a final \fIN\-\fR means
+from \fIN\fR to the end.
+.bt
+	\fB\-q\fR	\
+Invoke the simultaneous input-output mode of the \fBrd\fR request.
+.bt
+	\fB\-r\fIaN\fR	Number register \fIa\fR (one-character) is set to \fIN\fR.
+.bt
+	\fB\-s\fIN\fR	Stop every \fIN\fR pages.
+\*(NR will halt prior to every \fIN\fR pages (default \fIN\fR=1)
+to allow paper loading or
+changing, and will resume upon receipt of a newline.
+\*(TR will stop the phototypesetter every \fIN\fR pages,
+produce a trailer to allow changing cassettes,
+and will resume after the phototypesetter \s-1START\s+1 button is pressed.
+.bt
+	\fB\-z\fR	Efficiently suppress formatted output.
+Only produce output to standard error (from \fBtm\fP requests or
+diagnostics).
+.sp
+.ne 5
+.ft I
+.bd I 3
+		\*(NR Only
+.br
+.bd I
+.ft
+.bt
+	\fB\-T\fIname\fR	Specifies
+the name of the output terminal type.
+Currently defined names are \fB37\fR for the (default) Model 37 Teletype\(rg,
+\fBtn300\fR for the GE TermiNet\ 300 (or any terminal without half-line
+capabilities),
+\fB300S\fR for the \s-1DASI\s+1-300S,
+\fB300\fR for the \s-1DASI\s+1-300,
+and
+\fB450\fR for the \s-1DASI\s+1-450 (Diablo Hyterm).
+.bt
+	\fB\-e\fR	\
+Produce equally-spaced words in adjusted
+lines, using full terminal resolution.
+.bt
+	\fB\-h\fR	\
+On output, use tabs during horizontal spacing to increase speed.
+Device tabs setting are assumed to be (and input tabs are initially 
+set to) every 8 character widths.
+.sp
+.ne 3
+.ft I
+.bd I 3
+		\*(TR Only
+.br
+.bd I
+.ft
+.bt
+	\fB\-a\fP	Send a printable \s-1(ASCII)\s+1 approximation
+of the results to the standard output.
+.bt
+	\fB\-b\fR	\*(TR will report whether the phototypesetter
+is busy or available.
+No text processing is done.
+.bt
+	\fB\-f\fP	Refrain from feeding out paper and stopping
+phototypesetter at the end of the run.
+.bt
+	\fB\-t\fP	Direct output to the standard output instead
+of the phototypesetter.
+.bt
+	\fB\-w\fP	Wait until phototypesetter is available, if
+currently busy.
+.ll
+.in 0
+.xx
+.pg
+Each option is invoked as a separate argument;
+for example,
+.x1
+\fBnroff  \-o\fI4,8\-10  \fB\-T\fI300S  \fB\-m\fIabc  file1  file2\fR
+.x2
+requests formatting of pages 4, 8, 9, and 10 of a document contained in the files
+named \fIfile1\fR and \fIfile2\fR,
+specifies the output terminal as a \s-1DASI\s+1-300S,
+and invokes the macro package \fIabc\fR.
+.pg
+Various pre- and post-processors are available for use with \*(NR and \*(TR.
+These include the equation preprocessors \s-1NEQN\s+1 and \s-1EQN\s+1\*u1\*d
+(for \*(NR and \*(TR respectively),
+and the table-construction preprocessor \s-1TBL\s+1\*u2\*d.
+A reverse-line postprocessor \s-1COL\s+1\*u3\*d
+is available for multiple-column \*(NR output on terminals without reverse-line ability;
+\s-1COL\s+1 expects the Model 37 Teletype
+escape sequences that \*(NR produces by default.
+\s-1TK\s+1\*u3\*d
+is a 37 Teletype simulator postprocessor for printing \*(NR output on a Tektronix 4014.
+\s-1TC\s+1\*u5\*d
+is a phototypesetter-simulator postprocessor
+for \*(TR that produces an approximation of phototypesetter output
+on a Tektronix 4014.
+For example, in
+.x1
+\fBtbl  \fIfiles  \fB|  eqn  |  troff  \-t \fIoptions  \fB|  tc\fR
+.x2
+the first \|\fB|\fR\| indicates the piping of \s-1TBL\s+1's output to \s-1EQN\s+1's input;
+the second the piping of \s-1EQN\s+1's output to \*(TR's input;
+and the third indicates the piping of \*(TR's output to \s-1TC\s+1.
+.br
+.pg
+The remainder of this manual consists of:
+a Summary and outline;
+a Reference Manual keyed to the outline;
+and
+a set of Tutorial Examples.
+Another tutorial is [5].
+.sp .4
+.ps -1
+.vs -1p
+.pg
+.ft B
+References
+.pg
+.ta .3i
+.in .3i
+.ti 0
+[1]	B. W. Kernighan, L. L. Cherry,
+.ul
+Typesetting Mathematics \(em User's Guide (Second Edition),
+Bell Laboratories.
+.sp .4
+.ti 0
+[2]	M. E. Lesk,
+.ul
+Tbl \(em A Program to Format Tables,
+Bell Laboratories internal memorandum.
+.sp .4
+.ti 0
+[3]	Internal on-line documentation (\fIman\fP pages) on \s-1UNIX\s+1.
+.sp .4
+.ti 0
+[4]	B. W. Kernighan, \fIA TROFF Tutorial\fR,
+Bell Laboratories.
+.sp .4
+.ti 0
+[5]	Your site may have similar programs for more modern displays.
+.in 0
+.ps 10
+.vs 12
+.ft R
+.bp

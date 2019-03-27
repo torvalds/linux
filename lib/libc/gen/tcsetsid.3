@@ -1,0 +1,92 @@
+.\" Copyright (c) 2009 Ed Schouten <ed@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 4, 2009
+.Dt TCSETSID 3
+.Os
+.Sh NAME
+.Nm tcsetsid
+.Nd set session ID associated with a controlling terminal
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In termios.h
+.Ft int
+.Fn tcsetsid "int fd" "pid_t pid"
+.Sh DESCRIPTION
+The
+.Fn tcsetsid
+function sets associates a session identified by
+.Fa pid
+with a controlling terminal specified by
+.Fa fd .
+.Pp
+This implementation only allows the controlling terminal to be changed
+by the session leader itself.
+This implies that
+.Fa pid
+always has to be equal to the process ID.
+.Pp
+It is unsupported to associate with a terminal that already has an
+associated session.
+Conversely, it is also unsupported to associate to a terminal when
+the session is already associated with a different terminal.
+.Sh ERRORS
+If an error occurs,
+.Fn tcsetsid
+returns -1 and the global variable
+.Va errno
+is set to indicate the error, as follows:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument is not a valid file descriptor.
+.It Bq Er ENOTTY
+The file descriptor represented by
+.Fa fd
+is not a terminal.
+.It Bq Er EINVAL
+The
+.Fa pid
+argument is not equal to the session ID of the calling process.
+.It Bq Er EPERM
+The calling process is not a session leader.
+.It Bq Er EPERM
+The session already has an associated terminal or the terminal already
+has an associated session.
+.El
+.Sh SEE ALSO
+.Xr getsid 2 ,
+.Xr setsid 2 ,
+.Xr tcgetpgrp 3 ,
+.Xr tcgetsid 3
+.Sh HISTORY
+A
+.Fn tcsetsid
+function first appeared in QNX.
+It does not comply to any standard.

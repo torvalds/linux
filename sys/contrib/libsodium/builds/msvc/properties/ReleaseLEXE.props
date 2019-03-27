@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <_PropertySheetDisplayName>Console Release Link Time Code Generation</_PropertySheetDisplayName>
+  </PropertyGroup>
+
+  <ImportGroup Label="PropertySheets">
+    <Import Project="Release.props" />
+    <Import Project="Link.props" />
+    <Import Project="EXE.props" />
+  </ImportGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+</Project>

@@ -1,0 +1,29 @@
+# $FreeBSD$
+
+#	Front-end-only bits
+
+.include "Makefile.ver"
+
+#
+# These were previously defined in gcc.c.  Just copy previous values from
+# there. We ifdef most of them out for FREEBSD_NATIVE builds anyway.
+# gcc.c won't compile without them though.
+DRIVER_DEFINES = -DGCC_DRIVER \
+	-DDEFAULT_TARGET_VERSION=\"$(BASEVER)\" \
+	-DDEFAULT_TARGET_MACHINE=\"$(GCC_TARGET)\"  \
+	-DENABLE_SHARED_LIBGCC
+
+CFLAGS+= ${DRIVER_DEFINES}
+
+.PATH: ../cc_tools ${GCCDIR} ${GCCDIR}/doc ${GCCDIR}/config/${GCC_CPU}
+
+SRCS=	gcc.c opts-common.c options.c intl.c prefix.c version.c
+
+# Include -march=native support for native-ish compilers only
+.if (${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64") && \
+    ${GCC_CPU} == "i386"
+SRCS+=  driver-${GCC_CPU}.c
+.endif
+
+DPADD=	${LIBCPP} ${LIBIBERTY}
+LDADD=	${LIBCPP} ${LIBIBERTY}

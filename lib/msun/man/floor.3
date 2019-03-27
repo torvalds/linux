@@ -1,0 +1,78 @@
+.\" Copyright (c) 1985, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)floor.3	6.5 (Berkeley) 4/19/91
+.\" $FreeBSD$
+.\"
+.Dd January 13, 2005
+.Dt FLOOR 3
+.Os
+.Sh NAME
+.Nm floor ,
+.Nm floorf ,
+.Nm floorl
+.Nd largest integral value less than or equal to x
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn floor "double x"
+.Ft float
+.Fn floorf "float x"
+.Ft "long double"
+.Fn floorl "long double x"
+.Sh DESCRIPTION
+The
+.Fn floor ,
+.Fn floorf
+and
+.Fn floorl
+functions return the largest integral value
+less than or equal to
+.Fa x ,
+expressed as a floating-point number.
+.Sh SEE ALSO
+.Xr abs 3 ,
+.Xr ceil 3 ,
+.Xr fabs 3 ,
+.Xr ieee 3 ,
+.Xr math 3 ,
+.Xr rint 3 ,
+.Xr round 3 ,
+.Xr trunc 3
+.Sh STANDARDS
+The
+.Fn floor
+function conforms to
+.St -isoC .
+The
+.Fn floorf
+and
+.Fn floorl
+functions conform to
+.St -isoC-99 .

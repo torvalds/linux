@@ -1,0 +1,237 @@
+.\"
+.\" Copyright (c) 1997 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 11, 2017
+.Dt UIO 9
+.Os
+.Sh NAME
+.Nm uio ,
+.Nm uiomove ,
+.Nm uiomove_frombuf ,
+.Nm uiomove_nofault
+.Nd device driver I/O routines
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/uio.h
+.Bd -literal
+struct uio {
+	struct	iovec *uio_iov;		/* scatter/gather list */
+	int	uio_iovcnt;		/* length of scatter/gather list */
+	off_t	uio_offset;		/* offset in target object */
+	ssize_t	uio_resid;		/* remaining bytes to copy */
+	enum	uio_seg uio_segflg;	/* address space */
+	enum	uio_rw uio_rw;		/* operation */
+	struct	thread *uio_td;		/* owner */
+};
+.Ed
+.Ft int
+.Fn uiomove "void *buf" "int howmuch" "struct uio *uiop"
+.Ft int
+.Fn uiomove_frombuf "void *buf" "int howmuch" "struct uio *uiop"
+.Ft int
+.Fn uiomove_nofault "void *buf" "int howmuch" "struct uio *uiop"
+.Sh DESCRIPTION
+The functions
+.Fn uiomove ,
+.Fn uiomove_frombuf ,
+and
+.Fn uiomove_nofault
+are used to transfer data between buffers and I/O vectors that might
+possibly cross the user/kernel space boundary.
+.Pp
+As a result of any
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr readv 2 ,
+or
+.Xr writev 2
+system call that is being passed to a character-device driver, the
+appropriate driver
+.Va d_read
+or
+.Va d_write
+entry will be called with a pointer to a
+.Vt "struct uio"
+being passed.
+The transfer request is encoded in this structure.
+The driver itself should use
+.Fn uiomove
+or
+.Fn uiomove_nofault
+to get at the data in this structure.
+.Pp
+The fields in the
+.Vt uio
+structure are:
+.Bl -tag -width ".Va uio_iovcnt"
+.It Va uio_iov
+The array of I/O vectors to be processed.
+In the case of scatter/gather
+I/O, this will be more than one vector.
+.It Va uio_iovcnt
+The number of I/O vectors present.
+.It Va uio_offset
+The offset into the device.
+.It Va uio_resid
+The remaining number of bytes to process, updated after transfer.
+.It Va uio_segflg
+One of the following flags:
+.Bl -tag -width ".Dv UIO_USERSPACE"
+.It Dv UIO_USERSPACE
+The I/O vector points into a process's address space.
+.It Dv UIO_SYSSPACE
+The I/O vector points into the kernel address space.
+.It Dv UIO_NOCOPY
+Do not copy, already in object.
+.El
+.It Va uio_rw
+The direction of the desired transfer, either
+.Dv UIO_READ
+or
+.Dv UIO_WRITE .
+.It Va uio_td
+The pointer to a
+.Vt "struct thread"
+for the associated thread; used if
+.Va uio_segflg
+indicates that the transfer is to be made from/to a process's address
+space.
+.El
+.Pp
+The function
+.Fn uiomove_nofault
+requires that the buffer and I/O vectors be accessible without
+incurring a page fault.
+The source and destination addresses must be physically mapped for
+read and write access, respectively, and neither the source nor
+destination addresses may be pageable.
+Thus, the function
+.Fn uiomove_nofault
+can be called from contexts where acquiring virtual memory system
+locks or sleeping are prohibited.
+.Pp
+The
+.Fn uiomove_frombuf
+function is a convenience wrapper around
+.Fn uiomove
+for drivers that serve data which is wholly contained within an
+existing buffer in memory.
+It validates the
+.Va uio_offset
+and
+.Va uio_resid
+values against the size of the existing buffer, handling short
+transfers when the request partially overlaps the buffer.
+When
+.Va uio_offset
+is greater than or equal to the buffer size, the result is success
+with no bytes transferred, effectively signaling EOF.
+.Sh RETURN VALUES
+On success
+.Fn uiomove ,
+.Fn uiomove_frombuf ,
+and
+.Fn uiomove_nofault
+will return 0; on error they will return an appropriate error code.
+.Sh EXAMPLES
+The idea is that the driver maintains a private buffer for its data,
+and processes the request in chunks of maximal the size of this
+buffer.
+Note that the buffer handling below is very simplified and
+will not work (the buffer pointer is not being advanced in case of a
+partial read), it is just here to demonstrate the
+.Nm
+handling.
+.Bd -literal
+/* MIN() can be found there: */
+#include <sys/param.h>
+
+#define BUFSIZE 512
+static char buffer[BUFSIZE];
+
+static int data_available;	/* amount of data that can be read */
+
+static int
+fooread(struct cdev *dev, struct uio *uio, int flag)
+{
+	int rv, amnt;
+
+	rv = 0;
+	while (uio->uio_resid > 0) {
+		if (data_available > 0) {
+			amnt = MIN(uio->uio_resid, data_available);
+			rv = uiomove(buffer, amnt, uio);
+			if (rv != 0)
+				break;
+			data_available -= amnt;
+		} else
+			tsleep(...);	/* wait for a better time */
+	}
+	if (rv != 0) {
+		/* do error cleanup here */
+	}
+	return (rv);
+}
+.Ed
+.Sh ERRORS
+.Fn uiomove
+and
+.Fn uiomove_nofault
+will fail and return the following error code if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The invoked
+.Xr copyin 9
+or
+.Xr copyout 9
+returned
+.Er EFAULT
+.El
+.Pp
+In addition,
+.Fn uiomove_nofault
+will fail and return the following error code if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+A page fault occurs.
+.El
+.Sh SEE ALSO
+.Xr read 2 ,
+.Xr readv 2 ,
+.Xr write 2 ,
+.Xr writev 2 ,
+.Xr copyin 9 ,
+.Xr copyout 9 ,
+.Xr sleep 9
+.Sh HISTORY
+The
+.Nm
+mechanism appeared in some early version of
+.Ux .
+.Sh AUTHORS
+This manual page was written by
+.An J\(:org Wunsch .

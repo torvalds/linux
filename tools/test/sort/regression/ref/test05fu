@@ -1,0 +1,3 @@
+alfa
+beta
+gamma

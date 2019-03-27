@@ -1,0 +1,5 @@
+$ $tcsh: set21,v 1.3 2006/03/02 18:46:46 christos Exp $
+$ tc.disc.c
+$set 21
+1 Kann lokale Sonderzeichen nicht auslesen.\n
+2 Kann lokale Sonderzeichen nicht setzen.\n

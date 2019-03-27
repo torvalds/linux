@@ -1,0 +1,358 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)fopen.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd January 30, 2013
+.Dt FOPEN 3
+.Os
+.Sh NAME
+.Nm fopen ,
+.Nm fdopen ,
+.Nm freopen ,
+.Nm fmemopen
+.Nd stream open functions
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.Ft FILE *
+.Fn fopen "const char * restrict path" "const char * restrict mode"
+.Ft FILE *
+.Fn fdopen "int fildes" "const char *mode"
+.Ft FILE *
+.Fn freopen "const char *path" "const char *mode" "FILE *stream"
+.Ft FILE *
+.Fn fmemopen "void *restrict *buf" "size_t size" "const char * restrict mode"
+.Sh DESCRIPTION
+The
+.Fn fopen
+function
+opens the file whose name is the string pointed to by
+.Fa path
+and associates a stream with it.
+.Pp
+The argument
+.Fa mode
+points to a string beginning with one of the following letters:
+.Bl -tag -width indent
+.It Dq Li r
+Open for reading.
+The stream is positioned at the beginning of the file.
+Fail if the file does not exist.
+.It Dq Li w
+Open for writing.
+The stream is positioned at the beginning of the file.
+Truncate the file to zero length if it exists or create the file if it does not exist.
+.It Dq Li a
+Open for writing.
+The stream is positioned at the end of the file.
+Subsequent writes to the file will always end up at the then current
+end of file, irrespective of any intervening
+.Xr fseek 3
+or similar.
+Create the file if it does not exist.
+.El
+.Pp
+An optional
+.Dq Li +
+following
+.Dq Li r ,
+.Dq Li w ,
+or
+.Dq Li a
+opens the file for both reading and writing.
+An optional
+.Dq Li x
+following
+.Dq Li w
+or
+.Dq Li w+
+causes the
+.Fn fopen
+call to fail if the file already exists.
+An optional
+.Dq Li e
+following the above
+causes the
+.Fn fopen
+call to set the
+.Dv FD_CLOEXEC
+flag on the underlying file descriptor.
+.Pp
+The
+.Fa mode
+string can also include the letter
+.Dq Li b
+after either the
+.Dq Li +
+or the first letter.
+This is strictly for compatibility with
+.St -isoC
+and has effect only for
+.Fn fmemopen ;
+otherwise
+.Dq Li b
+is ignored.
+.Pp
+Any created files will have mode
+.Do Dv S_IRUSR
+\&|
+.Dv S_IWUSR
+\&|
+.Dv S_IRGRP
+\&|
+.Dv S_IWGRP
+\&|
+.Dv S_IROTH
+\&|
+.Dv S_IWOTH Dc
+.Pq Li 0666 ,
+as modified by the process'
+umask value (see
+.Xr umask 2 ) .
+.Pp
+Reads and writes may be intermixed on read/write streams in any order,
+and do not require an intermediate seek as in previous versions of
+.Em stdio .
+This is not portable to other systems, however;
+.Tn ANSI C
+requires that
+a file positioning function intervene between output and input, unless
+an input operation encounters end-of-file.
+.Pp
+The
+.Fn fdopen
+function associates a stream with the existing file descriptor,
+.Fa fildes .
+The mode
+of the stream must be compatible with the mode of the file descriptor.
+The
+.Dq Li x
+mode option is ignored.
+If the
+.Dq Li e
+mode option is present, the
+.Dv FD_CLOEXEC
+flag is set, otherwise it remains unchanged.
+When the stream is closed via
+.Xr fclose 3 ,
+.Fa fildes
+is closed also.
+.Pp
+The
+.Fn freopen
+function
+opens the file whose name is the string pointed to by
+.Fa path
+and associates the stream pointed to by
+.Fa stream
+with it.
+The original stream (if it exists) is closed.
+The
+.Fa mode
+argument is used just as in the
+.Fn fopen
+function.
+.Pp
+If the
+.Fa path
+argument is
+.Dv NULL ,
+.Fn freopen
+attempts to re-open the file associated with
+.Fa stream
+with a new mode.
+The new mode must be compatible with the mode that the stream was originally
+opened with:
+Streams open for reading can only be re-opened for reading,
+streams open for writing can only be re-opened for writing,
+and streams open for reading and writing can be re-opened in any mode.
+The
+.Dq Li x
+mode option is not meaningful in this context.
+.Pp
+The primary use of the
+.Fn freopen
+function
+is to change the file associated with a
+standard text stream
+.Dv ( stderr , stdin ,
+or
+.Dv stdout ) .
+.Pp
+The
+.Fn fmemopen
+function
+associates the buffer given by the
+.Fa buf
+and
+.Fa size
+arguments with a stream.
+The
+.Fa buf
+argument is either a null pointer or point to a buffer that
+is at least
+.Fa size
+bytes long.
+If a null pointer is specified as the
+.Fa buf
+argument,
+.Fn fmemopen
+allocates
+.Fa size
+bytes of memory.
+This buffer is automatically freed when the stream is closed.
+Buffers can be opened in text-mode (default) or binary-mode
+(if
+.Dq Li b
+is present in the second or third position of the
+.Fa mode
+argument).
+Buffers opened in text-mode make sure that writes are terminated with a
+.Dv NULL
+byte, if the last write hasn't filled up the whole buffer.
+Buffers opened in binary-mode never append a
+.Dv NULL
+byte.
+.Sh RETURN VALUES
+Upon successful completion
+.Fn fopen ,
+.Fn fdopen
+and
+.Fn freopen
+return a
+.Tn FILE
+pointer.
+Otherwise,
+.Dv NULL
+is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa mode
+argument
+to
+.Fn fopen ,
+.Fn fdopen ,
+.Fn freopen ,
+or
+.Fn fmemopen
+was invalid.
+.El
+.Pp
+The
+.Fn fopen ,
+.Fn fdopen ,
+.Fn freopen
+and
+.Fn fmemopen
+functions
+may also fail and set
+.Va errno
+for any of the errors specified for the routine
+.Xr malloc 3 .
+.Pp
+The
+.Fn fopen
+function
+may also fail and set
+.Va errno
+for any of the errors specified for the routine
+.Xr open 2 .
+.Pp
+The
+.Fn fdopen
+function
+may also fail and set
+.Va errno
+for any of the errors specified for the routine
+.Xr fcntl 2 .
+.Pp
+The
+.Fn freopen
+function
+may also fail and set
+.Va errno
+for any of the errors specified for the routines
+.Xr open 2 ,
+.Xr fclose 3
+and
+.Xr fflush 3 .
+.Pp
+The
+.Fn fmemopen
+function
+may also fail and set
+.Va errno
+if the
+.Fa size
+argument is 0.
+.Sh SEE ALSO
+.Xr open 2 ,
+.Xr fclose 3 ,
+.Xr fileno 3 ,
+.Xr fseek 3 ,
+.Xr funopen 3
+.Sh STANDARDS
+The
+.Fn fopen
+and
+.Fn freopen
+functions
+conform to
+.St -isoC ,
+with the exception of the
+.Dq Li x
+mode option which conforms to
+.St -isoC-2011 .
+The
+.Fn fdopen
+function
+conforms to
+.St -p1003.1-88 .
+The
+.Dq Li e
+mode option does not conform to any standard
+but is also supported by glibc.
+The
+.Fn fmemopen
+function
+conforms to
+.St -p1003.1-2008 .
+The
+.Dq Li b
+mode does not conform to any standard
+but is also supported by glibc.

@@ -1,0 +1,692 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Event Messages and Status Words</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>Event Messages and Status Words</h3>
+<img src="pic/alice47.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/%7emills/pictures.html">from <i>Alice's Adventures in Wonderland</i>, Lewis Carroll</a>
+<p>Caterpillar knows all the error codes, which is more than most of us do.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->26-Jul-2015  06:26<!-- #EndDate -->
+    UTC</p>
+</p>
+<br clear="left">
+<h4>Related Links</h4>
+<p>
+  <script type="text/javascript" language="javascript" src="scripts/install.txt"></script>
+</p>
+<h4>Table of Contents</h4>
+<ul>
+  <li class="inline"><a href="#intro">Introduction</a></li>
+  <li class="inline"><a href="#sys">System Status Word</a></li>
+  <li class="inline"><a href="#peer">Peer Status Word</a></li>
+  <li class="inline"><a href="#clock">Clock Status Word</a></li>
+  <li class="inline"><a href="#flash">Flash Status Word</a></li>
+  <li class="inline"><a href="#kiss">Kiss Codes</a></li>
+  <li class="inline"><a href="#crypto">Crypto Messages</a></li>
+</ul>
+<hr>
+<h4 id="intro">Introduction</h4>
+<p>This page lists the status words, event messages and error codes used for <tt>ntpd</tt> reporting and monitoring. Status words are used to display the current status of the running program. There is one system status word and a peer status word for each association. There is a clock status word for each association that supports a reference clock. There is a flash code for each association which shows errors found in the last packet received (pkt) and during protocol processing (peer). These are commonly viewed using the <tt>ntpq</tt> program.</p>
+<p>Significant changes in program state are reported as events. There is one
+  set of system events and a set of peer events for each association. In addition,
+  there is a set of clock events for each association that supports a reference
+  clock. Events are normally reported to the <tt>protostats</tt> monitoring file
+  and optionally to the system log. In addition, if the trap facility is configured,
+  events can be reported to a remote program that can page an administrator.</p>
+<p>This page also includes a description of the error messages produced by the Autokey protocol. These messages are normally sent to the <tt>cryptostats</tt> monitoring file.</p>
+<p>In the following tables the Event Field is the status or event code assigned and the Message Field a short string used for display and event reporting. The Description field contains a longer explanation of the status or event. Some messages include additional information useful for error diagnosis and performance assessment.</p>
+<h4 id="sys">System Status Word</h4>
+<p>The system status word consists of four fields LI (0-1), Source (2-7), Count (8-11) and Event (12-15). It is reported in the first line of the <tt>rv</tt> display produced by the <tt>ntpq</tt> program.</p>
+<table width="50%" border="1" cellspacing="2" cellpadding="2">
+  <tr>
+    <td><div align="center">Leap</div></td>
+    <td><div align="center">Source</div></td>
+    <td><div align="center">Count</div></td>
+    <td><div align="center">Event</div></td>
+  </tr>
+</table>
+<p>The Leap Field displays the system leap indicator bits coded as follows:</p>
+<table width="100%" border="1" cellspacing="2" cellpadding="2">
+  <tr>
+    <td>Code</td>
+    <td>Message</td>
+    <td>Description</td>
+  </tr>
+  <tr>
+    <td><tt>0</tt></td>
+    <td><tt>leap_none</tt></td>
+    <td>normal synchronized state</td>
+  </tr>
+  <tr>
+    <td><tt>1</tt></td>
+    <td><tt>leap_add_sec</tt></td>
+    <td>insert second after 23:59:59 of the current day</td>
+  </tr>
+  <tr>
+    <td><tt>2</tt></td>
+    <td><tt>leap_del_sec</tt></td>
+    <td>delete second 23:59:59 of the current day</td>
+  </tr>
+  <tr>
+    <td><tt>3</tt></td>
+    <td><tt>leap_alarm</tt></td>
+    <td>never synchronized</td>
+  </tr>
+</table>
+<p>The Source Field displays the current synchronization source coded as follows:</p>
+<table width="100%" border="1" cellspacing="2" cellpadding="2">
+  <tr>
+    <td>Code</td>
+    <td>Message</td>
+    <td>Description</td>
+  </tr>
+  <tr>
+    <td><tt>0</tt></td>
+    <td><tt>sync_unspec</tt></td>
+    <td>not yet synchronized</td>
+  </tr>
+  <tr>
+    <td><tt>1</tt></td>
+    <td><tt>sync_pps</tt></td>
+    <td>pulse-per-second signal (Cs, Ru, GPS, etc.)</td>
+  </tr>
+  <tr>
+    <td><tt>2</tt></td>
+    <td><tt>sync_lf_radio</tt></td>
+    <td>VLF/LF radio (WWVB, DCF77, etc.)</td>
+  </tr>
+  <tr>
+    <td><tt>3</tt></td>
+    <td><tt>sync_hf_radio</tt></td>
+    <td>MF/HF radio (WWV, etc.)</td>
+  </tr>
+  <tr>
+    <td><tt>4</tt></td>
+    <td><tt>sync_uhf_radio</tt></td>
+    <td>VHF/UHF radio/satellite (GPS, Galileo, etc.)</td>
+  </tr>
+  <tr>
+    <td><tt>5</tt></td>
+    <td><tt>sync_local</tt></td>
+    <td>local timecode (IRIG, LOCAL driver, etc.)</td>
+  </tr>
+  <tr>
+    <td><tt>6</tt></td>
+    <td><tt>sync_ntp</tt></td>
+    <td>NTP</td>
+  </tr>
+  <tr>
+    <td><tt>7</tt></td>
+    <td><tt>sync_other</tt></td>
+    <td>other (IEEE 1588, openntp, crony, etc.)</td>
+  </tr>
+  <tr>
+    <td><tt>8</tt></td>
+    <td><tt>sync_wristwatch</tt></td>
+    <td>eyeball and wristwatch</td>
+  </tr>
+  <tr>
+    <td><tt>9</tt></td>
+    <td><tt>sync_telephone</tt></td>
+    <td>telephone modem (ACTS, PTB, etc.)</td>
+  </tr>
+</table>
+<p>The Count Field displays the number of events since the last time the code changed. Upon reaching 15, subsequent events with the same code are ignored.</p>
+<p>The Event Field displays the most recent event message coded as follows:</p>
+<table width="100%" border="1" cellspacing="2" cellpadding="2">
+  <tr>
+    <td>Code</td>
+    <td>Message</td>
+    <td>Description</td>
+  </tr>
+  <tr>
+    <td><tt>00</tt></td>
+    <td><tt>unspecified</tt></td>
+    <td>unspecified</td>
+  </tr>
+  <tr>
+    <td><tt>01</tt></td>
+    <td><tt>freq_not_set</tt></td>
+    <td>frequency file not available</td>
+  </tr>
+  <tr>
+    <td><tt>02</tt></td>
+    <td><tt>freq_set</tt></td>
+    <td>frequency set from frequency file</td>
+  </tr>
+  <tr>
+    <td><tt>03</tt></td>
+    <td><tt>spike_detect</tt></td>
+    <td>spike detected</td>
+  </tr>
+  <tr>
+    <td><tt>04</tt></td>
+    <td><tt>freq_mode</tt></td>
+    <td>initial frequency training mode</td>
+  </tr>
+  <tr>
+    <td><tt>05</tt></td>
+    <td><tt>clock_sync</tt></td>
+    <td>clock synchronized</td>
+  </tr>
+  <tr>
+    <td><tt>06</tt></td>
+    <td><tt>restart</tt></td>
+    <td>program restart</td>
+  </tr>
+  <tr>
+    <td><tt>07</tt></td>
+    <td><tt>panic_stop</tt></td>
+    <td>clock error more than 600 s</td>
+  </tr>
+  <tr>
+    <td><tt>08</tt></td>
+    <td><tt>no_system_peer</tt></td>
+    <td>no system peer</td>
+  </tr>
+  <tr>
+    <td><tt>09</tt></td>
+    <td><tt>leap_armed</tt></td>
+    <td>leap second armed from file or Autokey</td>
+  </tr>
+  <tr>
+    <td><tt>0a</tt></td>
+    <td><tt>leap_disarmed</tt></td>
+    <td>leap second disarmed</td>
+  </tr>
+  <tr>
+    <td><tt>0b</tt></td>
+    <td><tt>leap_event</tt></td>
+    <td>leap event</td>
+  </tr>
+  <tr>
+    <td><tt>0c</tt></td>
+    <td><tt>clock_step</tt></td>
+    <td>clock stepped</td>
+  </tr>
+  <tr>
+    <td><tt>0d</tt></td>
+    <td><tt>kern</tt></td>
+    <td>kernel information message</td>
+  </tr>
+  <tr>
+    <td><tt>0e</tt></td>
+    <td><tt>TAI...</tt></td>
+    <td>leapsecond values update from file</td>
+  </tr>
+  <tr>
+    <td><tt>0f</tt></td>
+    <td><tt>stale leapsecond values</tt></td>
+    <td>new NIST leapseconds file needed</td>
+  </tr>
+</table>
+<h4 id="peer">Peer Status Word</h4>
+<p>The peer status word consists of four fields: Status (0-4), Select (5-7), Count (8-11) and Code (12-15). It is reported in the first line of the <tt>rv <i>associd</i></tt> display produced by the <tt>ntpq</tt> program.</p>
+<table width="50%" border="1" cellspacing="2" cellpadding="2">
+  <tr>
+    <td><div align="center">Status</div></td>
+    <td><div align="center">Select</div></td>
+    <td><div align="center">Count</div></td>
+    <td><div align="center">Code</div></td>
+  </tr>
+</table>
+<p>The Status Field displays the peer status code bits in hexadecimal; each bit is an independent flag.  (Note this field is 5 bits wide, and combines with the the 3-bit-wide Select Field to create the first full byte of the peer status word.)  The meaning of each bit in the Status Field is listed in the following table:</p>
+<table width="100%" border="1" cellspacing="2" cellpadding="2">
+  <tr>
+    <td>Code</td>
+    <td>Message</td>
+    <td>Description</td>
+  </tr>
+  <tr>
+    <td><tt>08</tt></td>
+    <td><tt>bcst</tt></td>
+    <td>broadcast association</td>
+  </tr>
+  <tr>
+    <td><tt>10</tt></td>
+    <td><tt>reach</tt></td>
+    <td>host reachable</td>
+  </tr>
+  <tr>
+    <td><tt>20</tt></td>
+    <td><tt>auth</tt></td>
+    <td>authentication ok</td>
+  </tr>
+  <tr>
+    <td><tt>40</tt></td>
+    <td><tt>authenb</tt></td>
+    <td>authentication enabled</td>
+  </tr>
+  <tr>
+    <td><tt>80</tt></td>
+    <td><tt>config</tt></td>
+    <td>persistent association</td>
+  </tr>
+</table>
+<p>The Select Field displays the current selection status. (The T Field in the following table gives the corresponding tally codes used in the <tt>ntpq peers</tt> display.) The values are coded as follows:</p>
+<table width="100%" border="1" cellspacing="2" cellpadding="2">
+  <tr>
+    <td>Code</td>
+    <td>Message</td>
+    <td>T</td>
+    <td>Description</td>
+  </tr>
+  <tr>
+    <td><tt>0</tt></td>
+    <td><tt>sel_reject</tt></td>
+    <td>&nbsp;</td>
+    <td>discarded as not valid (TEST10-TEST13)</td>
+  </tr>
+  <tr>
+    <td><tt>1</tt></td>
+    <td><tt>sel_falsetick</tt></td>
+    <td><tt>x</tt></td>
+    <td>discarded by intersection algorithm</td>
+  </tr>
+  <tr>
+    <td><tt>2</tt></td>
+    <td><tt>sel_excess</tt></td>
+    <td><tt>.</tt></td>
+    <td>discarded by table overflow (not used)</td>
+  </tr>
+  <tr>
+    <td><tt>3</tt></td>
+    <td><tt>sel_outlier</tt></td>
+    <td><tt>-</tt></td>
+    <td>discarded by the cluster algorithm</td>
+  </tr>
+  <tr>
+    <td><tt>4</tt></td>
+    <td><tt>sel_candidate</tt></td>
+    <td><tt>+</tt></td>
+    <td>included by the combine algorithm</td>
+  </tr>
+  <tr>
+    <td><tt>5</tt></td>
+    <td><tt>sel_backup</tt></td>
+    <td><tt>#</tt></td>
+    <td>backup (more than <tt>tos maxclock</tt> sources)</td>
+  </tr>
+  <tr>
+    <td><tt>6</tt></td>
+    <td><tt>sel_sys.peer</tt></td>
+    <td><tt>*</tt></td>
+    <td>system peer</td>
+  </tr>
+  <tr>
+    <td><tt>7</tt></td>
+    <td><tt>sel_pps.peer</tt></td>
+    <td><tt>o</tt></td>
+    <td>PPS peer (when the prefer peer is valid)</td>
+  </tr>
+</table>
+<p>The Count Field displays the number of events since the last time the code changed. Upon reaching 15, subsequent events with the same code are ignored. </p>
+<p>The Event Field displays the most recent event message coded as follows:</p>
+<table width="100%" border="1" cellspacing="2" cellpadding="2">
+  <tr>
+    <td>Code</td>
+    <td>Message</td>
+    <td>Description</td>
+  </tr>
+  <tr>
+    <td><tt>01</tt></td>
+    <td><tt>mobilize</tt></td>
+    <td>association mobilized</td>
+  </tr>
+  <tr>
+    <td><tt>02</tt></td>
+    <td><tt>demobilize</tt></td>
+    <td>association demobilized</td>
+  </tr>
+  <tr>
+    <td><tt>03</tt></td>
+    <td><tt>unreachable</tt></td>
+    <td>server unreachable</td>
+  </tr>
+  <tr>
+    <td><tt>04</tt></td>
+    <td><tt>reachable</tt></td>
+    <td>server reachable</td>
+  </tr>
+  <tr>
+    <td><tt>05</tt></td>
+    <td><tt>restart</tt></td>
+    <td>association restart</td>
+  </tr>
+  <tr>
+    <td><tt>06</tt></td>
+    <td><tt>no_reply</tt></td>
+    <td>no server found (<tt>ntpdate</tt> mode)</td>
+  </tr>
+  <tr>
+    <td><tt>07</tt></td>
+    <td><tt>rate_exceeded</tt></td>
+    <td>rate exceeded (kiss code <tt>RATE</tt>)</td>
+  </tr>
+  <tr>
+    <td><tt>08</tt></td>
+    <td><tt>access_denied</tt></td>
+    <td>access denied (kiss code <tt>DENY</tt>)</td>
+  </tr>
+  <tr>
+    <td><tt>09</tt></td>
+    <td><tt>leap_armed</tt></td>
+    <td>leap armed from server LI code</td>
+  </tr>
+  <tr>
+    <td><tt>0a</tt></td>
+    <td><tt>sys_peer</tt></td>
+    <td>become system peer</td>
+  </tr>
+  <tr>
+    <td><tt>0b</tt></td>
+    <td><tt>clock_event</tt></td>
+    <td>see clock status word</td>
+  </tr>
+  <tr>
+    <td><tt>0c</tt></td>
+    <td><tt>bad_auth</tt></td>
+    <td>authentication failure</td>
+  </tr>
+  <tr>
+    <td><tt>0d</tt></td>
+    <td><tt>popcorn</tt></td>
+    <td>popcorn spike suppressor</td>
+  </tr>
+  <tr>
+    <td><tt>0e</tt></td>
+    <td><tt>interleave_mode</tt></td>
+    <td>entering interleave mode</td>
+  </tr>
+  <tr>
+    <td><tt>0f</tt></td>
+    <td><tt>interleave_error</tt></td>
+    <td>interleave error (recovered)</td>
+  </tr>
+</table>
+<h4 id="clock">Clock Status Word</h4>
+<p>The clock status word consists of four fields: Unused (0-7), Count (8-11) and Code (12-15). It is reported in the first line of the <tt>clockvar <i>associd</i></tt> display produced by the <tt>ntpq</tt> program.</p>
+<table width="50%" border="1" cellspacing="2" cellpadding="2">
+  <tr>
+    <td><div align="center">Unused</div></td>
+    <td><div align="center">Count</div></td>
+    <td><div align="center">Code</div></td>
+  </tr>
+</table>
+<p>The Count Field displays the number of events since the last <tt>lockvar</tt> command, while the Event Field displays the most recent event message coded as follows:</p>
+<table width="100%" border="1" cellspacing="2" cellpadding="2">
+  <tr>
+    <td>Code</td>
+    <td>Message</td>
+    <td>Description</td>
+  </tr>
+  <tr>
+    <td><tt>00</tt></td>
+    <td><tt>clk_unspe</tt></td>
+    <td>nominal</td>
+  </tr>
+  <tr>
+    <td><tt>01</tt></td>
+    <td><tt>clk_noreply</tt></td>
+    <td>no reply to poll</td>
+  </tr>
+  <tr>
+    <td><tt>02</tt></td>
+    <td><tt>clk_badformat</tt></td>
+    <td>bad timecode format</td>
+  </tr>
+  <tr>
+    <td><tt>03</tt></td>
+    <td><tt>clk_fault</tt></td>
+    <td>hardware or software fault</td>
+  </tr>
+  <tr>
+    <td><tt>04</tt></td>
+    <td><tt>clk_bad_signal</tt></td>
+    <td>signal loss</td>
+  </tr>
+  <tr>
+    <td><tt>05</tt></td>
+    <td><tt>clk_bad_date</tt></td>
+    <td>bad date format</td>
+  </tr>
+  <tr>
+    <td><tt>06</tt></td>
+    <td><tt>clk_bad_time</tt></td>
+    <td>bad time format</td>
+  </tr>
+</table>
+<p>When the clock driver sets the code to a new value, a <tt>clock_alarm</tt> (11) peer event is reported.</p>
+<h4 id="flash">Flash Status Word</h4>
+<p>The flash status word is displayed by the <tt>ntpq</tt> program <tt>rv</tt> command. It consists of a number of bits coded in hexadecimal as follows:</p>
+<table width="100%" border="1" cellspacing="2" cellpadding="2">
+  <tr>
+    <td width="10%">Code</td>
+    <td width="15%">Tag</td>
+    <td width="20%">Message</td>
+    <td width="55%">Description</td>
+  </tr>
+  <tr>
+    <td><tt>0001</tt></td>
+    <td>TEST1</td>
+    <td><tt>pkt_dup</tt></td>
+    <td>duplicate packet</td>
+  </tr>
+  <tr>
+    <td><tt>0002</tt></td>
+    <td>TEST2</td>
+    <td><tt>pkt_bogus</tt></td>
+    <td>bogus packet</td>
+  </tr>
+  <tr>
+    <td><tt>0004</tt></td>
+    <td>TEST3</td>
+    <td><tt>pkt_unsync</tt></td>
+    <td>server not synchronized</td>
+  </tr>
+  <tr>
+    <td><tt>0008</tt></td>
+    <td>TEST4</td>
+    <td><tt>pkt_denied</tt></td>
+    <td>access denied</td>
+  </tr>
+  <tr>
+    <td><tt>0010</tt></td>
+    <td>TEST5</td>
+    <td><tt>pkt_auth</tt></td>
+    <td> authentication failure</td>
+  </tr>
+  <tr>
+    <td><tt>0020</tt></td>
+    <td>TEST6</td>
+    <td><tt>pkt_stratum</tt></td>
+    <td>invalid  leap or stratum</td>
+  </tr>
+  <tr>
+    <td><tt>0040</tt></td>
+    <td>TEST7</td>
+    <td><tt>pkt_header</tt></td>
+    <td> header distance exceeded</td>
+  </tr>
+  <tr>
+    <td><tt>0080</tt></td>
+    <td>TEST8</td>
+    <td><tt>pkt_autokey</tt></td>
+    <td>Autokey sequence error</td>
+  </tr>
+  <tr>
+    <td><tt>0100</tt></td>
+    <td>TEST9</td>
+    <td><tt>pkt_crypto</tt></td>
+    <td>Autokey protocol error</td>
+  </tr>
+  <tr>
+    <td><tt>0200</tt></td>
+    <td>TEST10</td>
+    <td><tt>peer_stratum</tt></td>
+    <td> invalid header or stratum</td>
+  </tr>
+  <tr>
+    <td><tt>0400</tt></td>
+    <td>TEST11</td>
+    <td><tt>peer_dist</tt></td>
+    <td> distance threshold exceeded</td>
+  </tr>
+  <tr>
+    <td><tt>0800</tt></td>
+    <td>TEST12</td>
+    <td><tt>peer_loop</tt></td>
+    <td> synchronization loop</td>
+  </tr>
+  <tr>
+    <td><tt>1000</tt></td>
+    <td>TEST13</td>
+    <td><tt>peer_unreach</tt></td>
+    <td> unreachable or nonselect</td>
+  </tr>
+</table>
+<h4 id="kiss">Kiss Codes</h4>
+<p>Kiss codes are used in kiss-o'-death (KoD) packets, billboard displays and log messages. They consist of a string of four zero-padded ASCII charactes. In practice they are informal and tend to change with time and implementation. Some of these codes can appear in the reference identifier field in <tt>ntpq</tt> billboards. Following is the current list:</p>
+<table width="100%" border="1" cellspacing="2" cellpadding="2">
+  <tr>
+    <td>Code</td>
+    <td>Description</td>
+  </tr>
+  <tr>
+    <td><tt>ACST</tt></td>
+    <td>manycast server</td>
+  </tr>
+  <tr>
+    <td><tt>AUTH</tt></td>
+    <td>authentication error</td>
+  </tr>
+  <tr>
+    <td><tt>AUTO</tt></td>
+    <td>Autokey sequence error</td>
+  </tr>
+  <tr>
+    <td><tt>BCST</tt></td>
+    <td>broadcast server</td>
+  </tr>
+  <tr>
+    <td><tt>CRYPT</tt></td>
+    <td>Autokey protocol error</td>
+  </tr>
+  <tr>
+    <td><tt>DENY</tt></td>
+    <td>access denied by server</td>
+  </tr>
+  <tr>
+    <td><tt>INIT</tt></td>
+    <td>association initialized</td>
+  </tr>
+  <tr>
+    <td><tt>MCST</tt></td>
+    <td>multicast server</td>
+  </tr>
+  <tr>
+    <td><tt>RATE</tt></td>
+    <td>rate exceeded</td>
+  </tr>
+  <tr>
+    <td><tt>TIME</tt></td>
+    <td>association timeout</td>
+  </tr>
+  <tr>
+    <td><tt>STEP</tt></td>
+    <td>step time change</td>
+  </tr>
+</table>
+<h4 id="crypto">Crypto Messages</h4>
+<p>These messages are sent to the <tt>cryptostats</tt> file when an error is detected in the Autokey protocol.</p>
+<table width="100%" border="1" cellspacing="2" cellpadding="2">
+  <tr>
+    <td>Code</td>
+    <td>Message</td>
+    <td>Description</td>
+  </tr>
+  <tr>
+    <td><tt>01</tt></td>
+    <td><tt>bad_format</tt></td>
+    <td>bad extension field format or length</td>
+  </tr>
+  <tr>
+    <td><tt>02</tt></td>
+    <td><tt>bad_timestamp</tt></td>
+    <td>bad timestamp</td>
+  </tr>
+  <tr>
+    <td><tt>03</tt></td>
+    <td><tt>bad_filestamp</tt></td>
+    <td>bad filestamp</td>
+  </tr>
+  <tr>
+    <td><tt>04</tt></td>
+    <td><tt>bad_public_key</tt></td>
+    <td>bad or missing public key</td>
+  </tr>
+  <tr>
+    <td><tt>05</tt></td>
+    <td><tt>bad_digest</tt></td>
+    <td>unsupported digest type</td>
+  </tr>
+  <tr>
+    <td><tt>06</tt></td>
+    <td><tt>bad_identity</tt></td>
+    <td>unsupported identity type</td>
+  </tr>
+  <tr>
+    <td><tt>07</tt></td>
+    <td><tt>bad_siglength</tt></td>
+    <td>bad signature length</td>
+  </tr>
+  <tr>
+    <td><tt>08</tt></td>
+    <td><tt>bad signature</tt></td>
+    <td>extension field signature not verified</td>
+  </tr>
+  <tr>
+    <td><tt>09</tt></td>
+    <td><tt>cert_not_verified</tt></td>
+    <td>certificate signature not verified</td>
+  </tr>
+  <tr>
+    <td><tt>0a</tt></td>
+    <td><tt>cert_expired</tt></td>
+    <td>host certificate expired</td>
+  </tr>
+  <tr>
+    <td><tt>0b</tt></td>
+    <td><tt>bad_cookie</tt></td>
+    <td>bad or missing cookie</td>
+  </tr>
+  <tr>
+    <td><tt>0c</tt></td>
+    <td><tt>bad_leapseconds</tt></td>
+    <td>bad or missing leapseconds values</td>
+  </tr>
+  <tr>
+    <td><tt>0d</tt></td>
+    <td><tt>cert_missing</tt></td>
+    <td>bad or missing certificate</td>
+  </tr>
+  <tr>
+    <td><tt>0e</tt></td>
+    <td><tt>bad_group_key</tt></td>
+    <td>bad or missing group key</td>
+  </tr>
+  <tr>
+    <td><tt>0f</tt></td>
+    <td><tt>proto_error</tt></td>
+    <td>protocol error</td>
+  </tr>
+</table>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

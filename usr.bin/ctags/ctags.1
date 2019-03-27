@@ -1,0 +1,251 @@
+.\" Copyright (c) 1987, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ctags.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd June 6, 1993
+.Dt CTAGS 1
+.Os
+.Sh NAME
+.Nm ctags
+.Nd create a
+.Pa tags
+file
+.Sh SYNOPSIS
+.Nm
+.Op Fl BFTaduwvx
+.Op Fl f Ar tagsfile
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility makes a
+.Pa tags
+file for
+.Xr ex 1
+from the specified C,
+Pascal, Fortran,
+.Xr yacc 1 ,
+.Xr lex 1 ,
+and Lisp sources.
+A tags file gives the locations of specified objects in a group of files.
+Each line of the tags file contains the object name, the file in which it
+is defined, and a search pattern for the object definition, separated by
+white-space.
+Using the
+.Pa tags
+file,
+.Xr ex 1
+can quickly locate these object definitions.
+Depending upon the options provided to
+.Nm ,
+objects will consist of subroutines, typedefs, defines, structs,
+enums and unions.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl B
+Use backward searching patterns
+.Pq Li ?...? .
+.It Fl F
+Use forward searching patterns
+.Pq Li /.../
+(the default).
+.It Fl T
+Do not create tags for typedefs, structs, unions, and enums.
+.It Fl a
+Append to
+.Pa tags
+file.
+.It Fl d
+Create tags for
+.Li #defines
+that do not take arguments;
+.Li #defines
+that take arguments are tagged automatically.
+.It Fl f
+Place the tag descriptions in a file called
+.Ar tagsfile .
+The default behaviour is to place them in a file called
+.Pa tags .
+.It Fl u
+Update the specified files in the
+.Pa tags
+file, that is, all
+references to them are deleted, and the new values are appended to the
+file.
+(Beware: this option is implemented in a way which is rather
+slow; it is usually faster to simply rebuild the
+.Pa tags
+file.)
+.It Fl v
+An index of the form expected by
+.Xr vgrind 1
+is produced on the standard output.
+This listing
+contains the object name, file name, and page number (assuming 64
+line pages).
+Since the output will be sorted into lexicographic order,
+it may be desired to run the output through
+.Xr sort 1 .
+Sample use:
+.Bd -literal -offset indent
+ctags -v files | sort -f > index
+vgrind -x index
+.Ed
+.It Fl w
+Suppress warning diagnostics.
+.It Fl x
+.Nm
+produces a list of object
+names, the line number and file name on which each is defined, as well
+as the text of that line and prints this on the standard output.
+This
+is a simple index which can be printed out as an off-line readable
+function index.
+.El
+.Pp
+Files whose names end in
+.Pa .c
+or
+.Pa .h
+are assumed to be C
+source files and are searched for C style routine and macro definitions.
+Files whose names end in
+.Pa .y
+are assumed to be
+.Xr yacc 1
+source files.
+Files whose names end in
+.Pa .l
+are assumed to be Lisp files if their
+first non-blank character is
+.Ql \&; ,
+.Ql \&( ,
+or
+.Ql \&[ ,
+otherwise, they are
+treated as
+.Xr lex 1
+files.
+Other files are first examined to see if they
+contain any Pascal or Fortran routine definitions, and, if not, are
+searched for C style definitions.
+.Pp
+The tag
+.Dq Li main
+is treated specially in C programs.
+The tag formed
+is created by prepending
+.Ql M
+to the name of the file, with the
+trailing
+.Pa .c
+and any leading pathname components removed.
+This makes use of
+.Nm
+practical in directories with more than one
+program.
+.Pp
+The
+.Xr yacc 1
+and
+.Xr lex 1
+files each have a special tag.
+.Dq Li yyparse
+is the start
+of the second section of the
+.Xr yacc 1
+file, and
+.Dq Li yylex
+is the start of
+the second section of the
+.Xr lex 1
+file.
+.Sh FILES
+.Bl -tag -width ".Pa tags" -compact
+.It Pa tags
+default output tags file
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with a value of 1 if an error occurred, 0 otherwise.
+Duplicate objects are not considered errors.
+.Sh COMPATIBILITY
+The
+.Fl t
+option is a no-op for compatibility with previous versions of
+.Nm
+that did not create tags for typedefs, enums, structs and unions
+by default.
+.Sh SEE ALSO
+.Xr ex 1 ,
+.Xr vi 1
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 3.0 .
+.Sh BUGS
+Recognition of functions, subroutines and procedures
+for Fortran and Pascal is done in a very simpleminded way.
+No attempt
+is made to deal with block structure; if you have two Pascal procedures
+in different blocks with the same name you lose.
+The
+.Nm
+utility does not
+understand about Pascal types.
+.Pp
+The method of deciding whether to look for C, Pascal or
+Fortran
+functions is a hack.
+.Pp
+The
+.Nm
+utility relies on the input being well formed, and any syntactical
+errors will completely confuse it.
+It also finds some legal syntax
+confusing; for example, since it does not understand
+.Li #ifdef Ns 's
+(incidentally, that is a feature, not a bug), any code with unbalanced
+braces inside
+.Li #ifdef Ns 's
+will cause it to become somewhat disoriented.
+In a similar fashion, multiple line changes within a definition will
+cause it to enter the last line of the object, rather than the first, as
+the searching pattern.
+The last line of multiple line
+.Li typedef Ns 's
+will similarly be noted.

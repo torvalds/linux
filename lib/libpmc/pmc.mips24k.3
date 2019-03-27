@@ -1,0 +1,412 @@
+.\" Copyright (c) 2010 George Neville-Neil.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 24, 2012
+.Dt PMC.MIPS24K 3
+.Os
+.Sh NAME
+.Nm pmc.mips24k
+.Nd measurement events for
+.Tn MIPS24K
+family CPUs
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+MIPS PMCs are present in MIPS
+.Tn "24k"
+and other processors in the MIPS family.
+.Pp
+There are two counters supported by the hardware and each is 32 bits
+wide.
+.Pp
+MIPS PMCs are documented in
+.Rs
+.%B "MIPS32 24K Processor Core Family Software User's Manual"
+.%D December 2008
+.%Q "MIPS Technologies Inc."
+.Re
+.Ss Event Specifiers (Programmable PMCs)
+MIPS programmable PMCs support the following events:
+.Bl -tag -width indent
+.It Li CYCLE
+.Pq Event 0, Counter 0/1
+Total number of cycles.
+The performance counters are clocked by the
+top-level gated clock.
+If the core is built with that clock gater
+present, none of the counters will increment while the clock is
+stopped - due to a WAIT instruction.
+.It Li INSTR_EXECUTED
+.Pq Event 1, Counter 0/1
+Total number of instructions completed.
+.It Li BRANCH_COMPLETED
+.Pq Event 2, Counter 0
+Total number of branch instructions completed.
+.It Li BRANCH_MISPRED
+.Pq Event 2, Counter 1
+Counts all branch instructions which completed, but were mispredicted.
+.It Li RETURN
+.Pq Event 3, Counter 0
+Counts all JR R31 instructions completed.
+.It Li RETURN_MISPRED
+.Pq Event 3, Counter 1
+Counts all JR $31 instructions which completed, used the RPS for a prediction, but were mispredicted.
+.It Li RETURN_NOT_31
+.Pq Event 4, Counter 0
+Counts all JR $xx (not $31) and JALR instructions (indirect jumps).
+.It Li RETURN_NOTPRED
+.Pq Event 4, Counter 1
+If RPS use is disabled, JR $31 will not be predicted.
+.It Li ITLB_ACCESS
+.Pq Event 5, Counter 0
+Counts ITLB accesses that are due to fetches showing up in the
+instruction fetch stage of the pipeline and which do not use a fixed
+mapping or are not in unmapped space.
+If an address is fetched twice from the pipe (as in the case of a
+cache miss), that instruction willcount as 2 ITLB accesses.
+Since each fetch gets us 2 instructions,there is one access marked per double
+word.
+.It Li ITLB_MISS
+.Pq Event 5, Counter 1
+Counts all misses in the ITLB except ones that are on the back of another
+miss.
+We cannot process back to back misses and thus those are
+ignored.
+They are also ignored if there is some form of address error.
+.It Li DTLB_ACCESS
+.Pq Event 6, Counter 0
+Counts DTLB access including those in unmapped address spaces.
+.It Li DTLB_MISS
+.Pq Event 6, Counter 1
+Counts DTLB misses.
+Back to back misses that result in only one DTLB
+entry getting refilled are counted as a single miss.
+.It Li JTLB_IACCESS
+.Pq Event 7, Counter 0
+Instruction JTLB accesses are counted exactly the same as ITLB misses.
+.It Li JTLB_IMISS
+.Pq Event 7, Counter 1
+Counts instruction JTLB accesses that result in no match or a match on
+an invalid translation.
+.It Li JTLB_DACCESS
+.Pq Event 8, Counter 0
+Data JTLB accesses.
+.It Li JTLB_DMISS
+.Pq Event 8, Counter 1
+Counts data JTLB accesses that result in no match or a match on an invalid translation.
+.It Li IC_FETCH
+.Pq Event 9, Counter 0
+Counts every time the instruction cache is accessed.
+All replays,
+wasted fetches etc. are counted.
+For example, following a branch, even though the prediction is taken,
+the fall through access is counted.
+.It Li IC_MISS
+.Pq Event 9, Counter 1
+Counts all instruction cache misses that result in a bus request.
+.It Li DC_LOADSTORE
+.Pq Event 10, Counter 0
+Counts cached loads and stores.
+.It Li DC_WRITEBACK
+.Pq Event 10, Counter 1
+Counts cache lines written back to memory due to replacement or cacheops.
+.It Li DC_MISS
+.Pq Event 11,   Counter 0/1
+Counts loads and stores that miss in the cache
+.It Li LOAD_MISS
+.Pq Event 13, Counter 0
+Counts number of cacheable loads that miss in the cache.
+.It Li STORE_MISS
+.Pq Event 13, Counter 1
+Counts number of cacheable stores that miss in the cache.
+.It Li INTEGER_COMPLETED
+.Pq Event 14, Counter 0
+Non-floating point, non-Coprocessor 2 instructions.
+.It Li FP_COMPLETED
+.Pq Event 14, Counter 1
+Floating point instructions completed.
+.It Li LOAD_COMPLETED
+.Pq Event 15, Counter 0
+Integer and co-processor loads completed.
+.It Li STORE_COMPLETED
+.Pq Event 15, Counter 1
+Integer and co-processor stores completed.
+.It Li BARRIER_COMPLETED
+.Pq Event 16, Counter 0
+Direct jump (and link) instructions completed.
+.It Li MIPS16_COMPLETED
+.Pq Event 16, Counter 1
+MIPS16c instructions completed.
+.It Li NOP_COMPLETED
+.Pq Event 17, Counter 0
+NOPs completed.
+This includes all instructions that normally write to a general
+purpose register, but where the destination register was set to r0.
+.It Li INTEGER_MULDIV_COMPLETED
+.Pq Event 17, Counter 1
+Integer multiply and divide instructions completed.  (MULxx, DIVx, MADDx, MSUBx).
+.It Li RF_STALL
+.Pq Event 18, Counter 0
+Counts the total number of cycles where no instructions are issued
+from the IFU to ALU (the RF stage does not advance) which includes
+both of the previous two events.
+The RT_STALL is different than the sum of them though because cycles
+when both stalls are active will only be counted once.
+.It Li INSTR_REFETCH
+.Pq Event 18, Counter 1
+replay traps (other than uTLB)
+.It Li STORE_COND_COMPLETED
+.Pq Event 19, Counter 0
+Conditional stores completed.
+Counts all events, including failed stores.
+.It Li STORE_COND_FAILED
+.Pq Event 19, Counter 1
+Conditional store instruction that did not update memory.
+Note: While this event and the SC instruction count event can be configured to
+count in specific operating modes, the timing of the events is much
+different and the observed operating mode could change between them,
+causing some inaccuracy in the measured ratio.
+.It Li ICACHE_REQUESTS
+.Pq Event 20, Counter 0
+Note that this only counts PREFs that are actually attempted.
+PREFs to uncached addresses or ones with translation errors are not counted
+.It Li ICACHE_HIT
+.Pq Event 20, Counter 1
+Counts PREF instructions that hit in the cache
+.It Li L2_WRITEBACK
+.Pq Event 21, Counter 0
+Counts cache lines written back to memory due to replacement or cacheops.
+.It Li L2_ACCESS
+.Pq Event 21, Counter 1
+Number of accesses to L2 Cache.
+.It Li L2_MISS
+.Pq Event 22, Counter 0
+Number of accesses that missed in the L2 cache.
+.It Li L2_ERR_CORRECTED
+.Pq Event 22, Counter 1
+Single bit errors in L2 Cache that were detected and corrected.
+.It Li EXCEPTIONS
+.Pq Event 23, Counter 0
+Any type of exception taken.
+.It Li RF_CYCLES_STALLED
+.Pq Event 24, Counter 0
+Counts cycles where the LSU is in fixup and cannot accept a new
+instruction from the ALU.
+Fixups are replays within the LSU that occur when an instruction needs
+to re-access the cache or the DTLB.
+.It Li IFU_CYCLES_STALLED
+.Pq Event 25, Counter 0
+Counts the number of cycles where the fetch unit is not providing a
+valid instruction to the ALU.
+.It Li ALU_CYCLES_STALLED
+.Pq Event 25, Counter 1
+Counts the number of cycles where the ALU pipeline cannot advance.
+.It Li UNCACHED_LOAD
+.Pq Event 33, Counter 0
+Counts uncached and uncached accelerated loads.
+.It Li UNCACHED_STORE
+.Pq Event 33, Counter 1
+Counts uncached and uncached accelerated stores.
+.It Li CP2_REG_TO_REG_COMPLETED
+.Pq Event 35, Counter 0
+Co-processor 2 register to register instructions completed.
+.It Li MFTC_COMPLETED
+.Pq Event 35, Counter 1
+Co-processor 2 move to and from instructions as well as loads and stores.
+.It Li IC_BLOCKED_CYCLES
+.Pq Event 37, Counter 0
+Cycles when IFU stalls because an instruction miss caused the IFU not
+to have any runnable instructions.
+Ignores the stalls due to ITLB misses as well as the 4 cycles
+following a redirect.
+.It Li DC_BLOCKED_CYCLES
+.Pq Event 37, Counter 1
+Counts all cycles where integer pipeline waits on Load return data due
+to a D-cache miss.
+The LSU can signal a "long stall" on a D-cache misses, in which case
+the waiting TC might be rescheduled so other TCs can execute
+instructions till the data returns.
+.It Li L2_IMISS_STALL_CYCLES
+.Pq Event 38, Counter 0
+Cycles where the main pipeline is stalled waiting for a SYNC to complete.
+.It Li L2_DMISS_STALL_CYCLES
+.Pq Event 38, Counter 1
+Cycles where the main pipeline is stalled because of an index conflict
+in the Fill Store Buffer.
+.It Li DMISS_CYCLES
+.Pq Event 39, Counter 0
+Data miss is outstanding, but not necessarily stalling the pipeline.
+The difference between this and D$ miss stall cycles can show the gain
+from non-blocking cache misses.
+.It Li L2_MISS_CYCLES
+.Pq Event 39, Counter 1
+L2 miss is outstanding, but not necessarily stalling the pipeline.
+.It Li UNCACHED_BLOCK_CYCLES
+.Pq Event 40, Counter 0
+Cycles where the processor is stalled on an uncached fetch, load, or store.
+.It Li MDU_STALL_CYCLES
+.Pq Event 41, Counter 0
+Cycles where the processor is stalled on an uncached fetch, load, or store.
+.It Li FPU_STALL_CYCLES
+.Pq Event 41, Counter 1
+Counts all cycles where integer pipeline waits on FPU return data.
+.It Li CP2_STALL_CYCLES
+.Pq Event 42, Counter 0
+Counts all cycles where integer pipeline waits on CP2 return data.
+.It Li COREXTEND_STALL_CYCLES
+.Pq Event 42, Counter 1
+Counts all cycles where integer pipeline waits on CorExtend return data.
+.It Li ISPRAM_STALL_CYCLES
+.Pq Event 43, Counter 0
+Count all pipeline bubbles that are a result of multicycle ISPRAM
+access.
+Pipeline bubbles are defined as all cycles that IFU doesn't present an
+instruction to ALU.
+The four cycles after a redirect are not counted.
+.It Li DSPRAM_STALL_CYCLES
+.Pq Event 43, Counter 1
+Counts stall cycles created by an instruction waiting for access to DSPRAM.
+.It Li CACHE_STALL_CYCLES
+.Pq Event 44, Counter 0
+Counts all cycles the where pipeline is stalled due to CACHE
+instructions.
+Includes cycles where CACHE instructions themselves are
+stalled in the ALU, and cycles where CACHE instructions cause
+subsequent instructions to be stalled.
+.It Li LOAD_TO_USE_STALLS
+.Pq Event 45, Counter 0
+Counts all cycles where integer pipeline waits on Load return data.
+.It Li BASE_MISPRED_STALLS
+.Pq Event 45, Counter 1
+Counts stall cycles due to skewed ALU where the bypass to the address
+generation takes an extra cycle.
+.It Li CPO_READ_STALLS
+.Pq Event 46, Counter 0
+Counts all cycles where integer pipeline waits on return data from
+MFC0, RDHWR instructions.
+.It Li BRANCH_MISPRED_CYCLES
+.Pq Event 46, Counter 1
+This counts the number of cycles from a mispredicted branch until the
+next non-delay slot instruction executes.
+.It Li IFETCH_BUFFER_FULL
+.Pq Event 48, Counter 0
+Counts the number of times an instruction cache miss was detected, but
+both fill buffers were already allocated.
+.It Li FETCH_BUFFER_ALLOCATED
+.Pq Event 48, Counter 1
+Number of cycles where at least one of the IFU fill buffers is
+allocated (miss pending).
+.It Li EJTAG_ITRIGGER
+.Pq Event 49, Counter 0
+Number of times an EJTAG Instruction Trigger Point condition matched.
+.It Li EJTAG_DTRIGGER
+.Pq Event 49, Counter 1
+Number of times an EJTAG Data Trigger Point condition matched.
+.It Li FSB_LT_QUARTER
+.Pq Event 50, Counter 0
+Fill store buffer less than one quarter full.
+.It Li FSB_QUARTER_TO_HALF
+.Pq Event 50, Counter 1
+Fill store buffer between one quarter and one half full.
+.It Li FSB_GT_HALF
+.Pq Event 51, Counter 0
+Fill store buffer more than half full.
+.It Li FSB_FULL_PIPELINE_STALLS
+.Pq Event 51, Counter 1
+Cycles where the pipeline is stalled because the Fill-Store Buffer in LSU is full.
+.It Li LDQ_LT_QUARTER
+.Pq Event 52, Counter 0
+Load data queue less than one quarter full.
+.It Li LDQ_QUARTER_TO_HALF
+.Pq Event 52, Counter 1
+Load data queue between one quarter and one half full.
+.It Li LDQ_GT_HALF
+.Pq Event 53, Counter 0
+Load data queue more than one half full.
+.It Li LDQ_FULL_PIPELINE_STALLS
+.Pq Event 53, Counter 1
+Cycles where the pipeline is stalled because the Load Data Queue in the LSU is full.
+.It Li WBB_LT_QUARTER
+.Pq Event 54, Counter 0
+Write back buffer less than one quarter full.
+.It Li WBB_QUARTER_TO_HALF
+.Pq Event 54, Counter 1
+Write back buffer between one quarter and one half full.
+.It Li WBB_GT_HALF
+.Pq Event 55, Counter 0
+Write back buffer more than one half full.
+.It Li WBB_FULL_PIPELINE_STALLS
+.Pq Event 55 Counter 1
+Cycles where the pipeline is stalled because the Load Data Queue in the LSU is full.
+.It Li REQUEST_LATENCY
+.Pq Event 61, Counter 0
+Measures latency from miss detection until critical dword of response
+is returned, Only counts for cacheable reads.
+.It Li REQUEST_COUNT
+.Pq Event 61, Counter 1
+Counts number of cacheable read requests used for previous latency counter.
+.El
+.Ss Event Name Aliases
+The following table shows the mapping between the PMC-independent
+aliases supported by
+.Lb libpmc
+and the underlying hardware events used.
+.Bl -column "branch-mispredicts" "cpu_clk_unhalted.core_p"
+.It Em Alias Ta Em Event
+.It Li instructions Ta Li INSTR_EXECUTED
+.It Li branches Ta Li BRANCH_COMPLETED
+.It Li branch-mispredicts Ta Li BRANCH_MISPRED
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.atom 3 ,
+.Xr pmc.core 3 ,
+.Xr pmc.iaf 3 ,
+.Xr pmc.k7 3 ,
+.Xr pmc.k8 3 ,
+.Xr pmc.octeon 3 ,
+.Xr pmc.p4 3 ,
+.Xr pmc.p5 3 ,
+.Xr pmc.p6 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmc_cpuinfo 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4
+.Sh HISTORY
+The
+.Nm pmc
+library first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Lb libpmc
+library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .
+MIPS support was added by
+.An George Neville-Neil Aq Mt gnn@FreeBSD.org .

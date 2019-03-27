@@ -1,0 +1,61 @@
+.\" Copyright (c) 2003 Hidetoshi Shimokawa
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 16, 2003
+.Dt DCONS_CROM 4
+.Os
+.Sh NAME
+.Nm dcons_crom
+.Nd Configuration ROM stub for
+.Xr dcons 4
+.Sh SYNOPSIS
+.Cd device dcons_crom
+.Cd device dcons
+.Cd device firewire
+.Sh DESCRIPTION
+The
+.Nm
+exposes the buffer address of
+.Xr dcons 4
+through the Configuration ROM of
+.Xr firewire 4 .
+This address is supposed to be used by
+.Xr dconschat 8 .
+.Sh SEE ALSO
+.Xr dcons 4 ,
+.Xr firewire 4 ,
+.Xr fwohci 4 ,
+.Xr dconschat 8 ,
+.Xr fwcontrol 8
+.Sh AUTHORS
+.An Hidetoshi Shimokawa Aq Mt simokawa@FreeBSD.org
+.Sh BUGS
+If you load
+.Pa dcons_crom.ko
+manually after the system is booted, you may
+have to initiate a bus reset using
+.Dq Nm fwcontrol Fl r
+to update the Configuration ROM.

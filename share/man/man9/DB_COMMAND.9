@@ -1,0 +1,112 @@
+.\"-
+.\" Copyright (c) 2008 Guillaume Ballet
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 27, 2008
+.Dt DB_COMMAND 9
+.Os
+.Sh NAME
+.Nm DB_COMMAND ,
+.Nm DB_SHOW_COMMAND ,
+.Nm DB_SHOW_ALL_COMMAND
+.Nd Extends the ddb command set
+.Sh SYNOPSIS
+.In ddb/ddb.h
+.Fo DB_COMMAND
+.Fa command_name
+.Fa command_function
+.Fc
+.Fn DB_SHOW_COMMAND "command_name" "command_function"
+.Fn DB_SHOW_ALL_COMMAND "command_name" "command_function"
+.Sh DESCRIPTION
+The
+.Fn DB_COMMAND
+macro adds
+.Fa command_name
+to the list of top-level commands.
+Invoking
+.Fa command_name
+from ddb will call
+.Fa command_function .
+.Pp
+The
+.Fn DB_SHOW_COMMAND
+and
+.Fn DB_SHOW_ALL_COMMAND
+are roughly equivalent to
+.Fn DB_COMMAND
+but in these cases,
+.Fa command_name
+is a sub-command of the ddb
+.Sy show
+command and
+.Sy show all
+command, respectively.
+.Pp
+The general command syntax:
+.Cm command Ns Op Li \&/ Ns Ar modifier
+.Ar address Ns Op , Ns Ar count ,
+translates into the following parameters for
+.Fa command_function :
+.Bl -tag -width Fa -offset indent
+.It Fa addr
+The address passed to the command as an argument.
+.It Fa have_addr
+A boolean value that is true if the addr field is valid.
+.It Fa count
+The number of quad words starting at offset
+.Fa addr
+that the command must process.
+.It Fa modif
+A pointer to the string of modifiers.
+That is, a series of symbols used to pass some options to the command.
+For example, the
+.Sy examine
+command will display words in decimal form if it is passed the modifier "d".
+.El
+.Sh EXAMPLE
+In your module, the command is declared as:
+.Bd -literal
+DB_COMMAND(mycmd, my_cmd_func)
+{
+	if (have_addr)
+		db_printf("Calling my command with address %p\\n", addr);
+}
+.Ed
+.Pp
+Then, when in ddb:
+.Bd -literal
+.Bf Sy
+db> mycmd 0x1000
+Calling my command with address 0x1000
+db>
+.Ef
+.Ed
+.Sh SEE ALSO
+.Xr ddb 4
+.Sh AUTHORS
+This manual page was written by
+.An Guillaume Ballet Aq Mt gballet@gmail.com .

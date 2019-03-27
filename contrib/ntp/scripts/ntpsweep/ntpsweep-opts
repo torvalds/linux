@@ -1,0 +1,67 @@
+# EDIT THIS FILE WITH CAUTION  (ntpsweep-opts)
+#
+# It has been AutoGen-ed  February 20, 2019 at 09:57:31 AM by AutoGen 5.18.5
+# From the definitions    ntpsweep-opts.def
+# and the template file   perlopt
+
+use Getopt::Long qw(GetOptionsFromArray);
+Getopt::Long::Configure(qw(no_auto_abbrev no_ignore_case_always));
+
+my $usage;
+
+sub usage {
+    my ($ret) = @_;
+    print STDERR $usage;
+    exit $ret;
+}
+
+sub paged_usage {
+    my ($ret) = @_;
+    my $pager = $ENV{PAGER} || '(less || more)';
+
+    open STDOUT, "| $pager" or die "Can't fork a pager: $!";
+    print $usage;
+
+    exit $ret;
+}
+
+sub processOptions {
+    my $args = shift;
+
+    my $opts = {
+        'host-list' => [],
+        'peers' => '',
+        'maxlevel' => '',
+        'strip' => '',
+        'host' => '',
+        'help' => '', 'more-help' => ''
+    };
+    my $argument = '[hostfile]';
+    my $ret = GetOptionsFromArray($args, $opts, (
+        'host-list|l=s', 'peers|p', 'maxlevel|m=i',
+        'strip|s=s', 'host|h=s',
+        'help|?', 'more-help'));
+
+    $usage = <<'USAGE';
+ntpsweep - Print various informations about given ntp servers - Ver. 4.2.8p13
+USAGE: ntpsweep [ -<flag> [<val>] | --<name>[{=| }<val>] ]... [hostfile]
+
+    -l, --host-list=str          Host to execute actions on
+                                   - may appear multiple times
+    -p, --peers                  Recursively list all peers a host synchronizes to
+    -m, --maxlevel=num           Traverse peers up to this level (4 is a reasonable number)
+    -s, --strip=str              Strip this string from hostnames
+    -?, --help                   Display usage information and exit
+        --more-help              Pass the extended usage text through a pager
+
+Options are specified by doubled hyphens and their name or by a single
+hyphen and the flag character.
+USAGE
+
+    usage(0)       if $opts->{'help'};
+    paged_usage(0) if $opts->{'more-help'};
+    $_[0] = $opts;
+    return $ret;
+}
+
+END { close STDOUT };

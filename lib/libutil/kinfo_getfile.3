@@ -1,0 +1,80 @@
+.\"
+.\" Copyright (c) 2008 Peter Wemm
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 27, 2015
+.Dt KINFO_GETFILE 3
+.Os
+.Sh NAME
+.Nm kinfo_getfile
+.Nd function for getting per-process file descriptor information
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/user.h
+.In libutil.h
+.Ft struct kinfo_file *
+.Fn kinfo_getfile "pid_t pid" "int *cntp"
+.Sh DESCRIPTION
+This function is used for obtaining the file descriptor information
+of a particular process.
+.Pp
+The
+.Ar pid
+field contains the process identifier.
+This should be the a process that you have privilege to access.
+The
+.Ar cntp
+field allows the caller to know how many records are returned.
+.Pp
+This function is a wrapper around
+.Xr sysctl 3
+with the
+.Dv KERN_PROC_FILEDESC
+mib.
+While the kernel returns a packed structure, this function expands the
+data into a fixed record format.
+.Sh RETURN VALUES
+On success the
+.Fn kinfo_getfile
+function returns a pointer to an array of
+.Vt struct kinfo_file
+structures as defined by
+.In sys/user.h .
+The array was obtained by an internal call to
+.Xr malloc 3
+and must be freed by the caller with a call to
+.Xr free 3 .
+On failure the
+.Fn kinfo_getfile
+function returns
+.Dv NULL .
+.Sh SEE ALSO
+.Xr free 3 ,
+.Xr kinfo_getvmmap 3 ,
+.Xr malloc 3 ,
+.Xr sysctl 3

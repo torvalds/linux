@@ -1,0 +1,83 @@
+#
+# Short month names
+Ean
+Fea
+Már
+Abr
+Bea
+Mei
+Iul
+Lún
+Mnf
+Drf
+Sam
+Nol
+#
+# Long month names (as in a date)
+Mí Eanair
+Mí na Feabhra
+Mí an Mhárta
+Mí Aibreáin
+Mí na Bealtaine
+Mí an Mheithimh
+Mí Iúil
+Mí na Lúnasa
+Mí Meán Fhómhair
+Mí Deireadh Fómhair
+Mí na Samhna
+Mí na Nollag
+#
+# Short weekday names
+Dom
+Lua
+Már
+Céa
+Déa
+Aoi
+Sat
+#
+# Long weekday names
+Dé Domhnaigh
+Dé Luain
+Dé Máirt
+Dé Céadaoin
+Déardaoin
+Dé hAoine
+Dé Sathairn
+#
+# X_fmt
+%H:%M:%S
+#
+# x_fmt
+%d/%m/%Y
+#
+# c_fmt
+%a %e %b %X %Y
+#
+# AM/PM
+r.n.
+i.n.
+#
+# date_fmt
+%a %e %b %Y %X %Z
+#
+# Long month names (without case ending)
+Mí Eanair
+Mí na Feabhra
+Mí an Mhárta
+Mí Aibreáin
+Mí na Bealtaine
+Mí an Mheithimh
+Mí Iúil
+Mí na Lúnasa
+Mí Meán Fhómhair
+Mí Deireadh Fómhair
+Mí na Samhna
+Mí na Nollag
+#
+# md_order
+dm
+#
+# ampm_fmt
+%I:%M:%S %p
+# EOF

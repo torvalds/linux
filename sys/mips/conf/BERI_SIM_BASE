@@ -1,0 +1,21 @@
+#
+# BERI_SIM_BASE -- Base kernel for the SRI/Cambridge "BERI" (Bluespec
+# Extensible RISC Implementation) FPGA soft core, as configured for
+# simulation.
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+include "std.BERI"
+
+options 	FDT
+options 	FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=beri-sim.dts
+
+options 	ALTERA_SDCARD_FAST_SIM
+
+device		altera_avgen
+device		altera_jtag_uart
+device		altera_sdcard

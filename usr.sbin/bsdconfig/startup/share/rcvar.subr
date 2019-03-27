@@ -1,0 +1,236 @@
+if [ ! "$_STARTUP_RCVAR_SUBR" ]; then _STARTUP_RCVAR_SUBR=1
+#
+# Copyright (c) 2006-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." startup/rcvar.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+############################################################ CONFIGURATION
+
+#
+# Default path to the `/etc/rc.d' directory where service(8) scripts are stored
+#
+: ${ETC_RC_D:=/etc/rc.d}
+
+#
+# Default path to `/etc/rc.subr' (for find_local_scripts_new())
+#
+: ${ETC_RC_SUBR:=/etc/rc.subr}
+
+############################################################ GLOBALS
+
+#
+# Initialize in-memory cache variables
+#
+STARTUP_RCVAR_MAP=
+_STARTUP_RCVAR_MAP=
+
+#
+# Define what an rcvar looks like
+#
+STARTUP_RCVAR_REGEX='[[:alpha:]_][[:alnum:]_]*="([Yy][Ee][Ss]|[Nn][Oo])"'
+
+#
+# Default path to on-disk cache file(s)
+#
+STARTUP_RCVAR_MAP_CACHEFILE="/var/run/bsdconfig/startup_rcvar_map.cache"
+
+############################################################ FUNCTIONS
+
+# f_startup_rcvar_map [$var_to_set]
+#
+# Produce a map (beit from in-memory cache or on-disk cache) of rc.d scripts
+# and their associated rcvar's. The map returned has the following format:
+#
+# 	rcvar default script description
+#
+# With each as follows:
+#
+# 	rcvar         the variable used to enable this rc.d script
+# 	default       default value for this variable
+# 	script        the rc.d script in-question
+# 	description   description of the variable from rc.conf(5) defaults
+#
+# If $var_to_set is missing or NULL, the map is printed to standard output for
+# capturing in a sub-shell (which is less-recommended because of performance
+# degredation; for example, when called in a loop).
+#
+f_startup_rcvar_map()
+{
+	local __funcname=f_startup_rcvar_map
+	local __var_to_set="$1"
+
+	# If the in-memory cached value is available, return it immediately
+	if [ "$_STARTUP_RCVAR_MAP" ]; then
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" "$STARTUP_RCVAR_MAP"
+		else
+			echo "$STARTUP_RCVAR_MAP"
+		fi
+		return $SUCCESS
+	fi
+
+	#
+	# create the in-memory cache (potentially from validated on-disk cache)
+	#
+
+	# Get a list of /etc/rc.d scripts ...
+	local __file __rc_script_list=
+	for __file in "$ETC_RC_D"/*; do
+		[ -f "$__file" ] || continue
+		[ -x "$__file" ] || continue
+		__rc_script_list="$__rc_script_list $__file"
+	done
+	# ... and /usr/local/etc/rc.d scripts
+	__rc_script_list="$__rc_script_list $(
+		local_startup=$( f_sysrc_get local_startup )
+		f_include "$ETC_RC_SUBR"
+		find_local_scripts_new
+		echo $local_rc
+	)"
+	__rc_script_list="${__rc_script_list# }" # Trim leading space
+
+	#
+	# Calculate a digest given the checksums of all dependencies (scripts
+	# and the defaults file). This digest will be used to determine if an
+	# on-disk global persistent cache file (containg this digest on the
+	# first line) is valid and can be used to quickly populate the cache
+	# value for immediate return.
+	#
+	local __rc_script_list_digest
+	__rc_script_list_digest=$( cd "$ETC_RC_D" 2> /dev/null &&
+		cksum "$RC_DEFAULTS" $__rc_script_list 2> /dev/null | md5 )
+
+	#
+	# Check to see if the global persistent cache file exists
+	#
+	if [ -f "$STARTUP_RCVAR_MAP_CACHEFILE" ]; then
+		#
+		# Attempt to populate the in-memory cache with the (soon to be)
+		# validated on-disk cache. If validation fails, fall-back to
+		# the current value and return error.
+		#
+		STARTUP_RCVAR_MAP=$(
+			(	# Get digest as first word on first line
+				read digest rest_ignored
+
+				#
+				# If the stored digest matches the calculated-
+				# one populate the in-memory cache from the on-
+				# disk cache and return success.
+				#
+				if [ "$digest" = "$__rc_script_list_digest" ]
+				then
+					cat
+					exit $SUCCESS
+				else
+					# Otherwise, return the current value
+					echo "$STARTUP_RCVAR_MAP"
+					exit $FAILURE
+				fi
+			) < "$STARTUP_RCVAR_MAP_CACHEFILE"
+		)
+		local __retval=$?
+		export STARTUP_RCVAR_MAP # Make children faster (export cache)
+		if [ $__retval -eq $SUCCESS ]; then
+			export _STARTUP_RCVAR_MAP=1
+			if [ "$__var_to_set" ]; then
+				setvar "$__var_to_set" "$STARTUP_RCVAR_MAP"
+			else
+				echo "$STARTUP_RCVAR_MAP"
+			fi
+			return $SUCCESS
+		fi
+		# Otherwise, fall-thru to create in-memory cache from scratch
+	fi
+
+	#
+	# If we reach this point, we need to generate the data from scratch
+	# (and after we do, we'll attempt to create the global persistent
+	# cache file to speed up future executions).
+	#
+
+	STARTUP_RCVAR_MAP=$(
+		for script in $__rc_script_list; do
+			rcvar_list=$( $script rcvar 2> /dev/null | awk -F= \
+				-v script="$script" '
+		              	/^'"$STARTUP_RCVAR_REGEX"'/ {
+		              		if ( $2 ~ /^"[Yy][Ee][Ss]"$/ )
+		              			print $1 ",YES"
+		              		else
+		              			print $1 ",NO"
+		              	}' )
+			for entry in $rcvar_list; do
+				rcvar="${entry%%,*}"
+				rcvar_default=$( f_sysrc_get_default "$rcvar" )
+				[ "$rcvar_default" ] ||
+					rcvar_default="${entry#*,}"
+				rcvar_desc=$( f_sysrc_desc "$rcvar" )
+				echo $rcvar ${rcvar_default:-NO} \
+				     $script "$rcvar_desc"
+			done
+		done | sort -u
+	)
+	export STARTUP_RCVAR_MAP
+	export _STARTUP_RCVAR_MAP=1
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$STARTUP_RCVAR_MAP"
+	else
+		echo "$STARTUP_RCVAR_MAP"
+	fi
+
+	#
+	# Attempt to create/update the persistent global cache
+	#
+
+	# Create a new temporary file to write to
+	local __tmpfile
+	f_eval_catch -dk __tmpfile $__funcname mktemp \
+		'mktemp -t "%s"' "$__tmpfile" || return $FAILURE
+
+	# Write the temporary file contents
+	echo "$__rc_script_list_digest" > "$__tmpfile"
+	echo "$STARTUP_RCVAR_MAP" >> "$__tmpfile"
+
+	# Finally, move the temporary file into place
+	case "$STARTUP_RCVAR_MAP_CACHEFILE" in
+	*/*) f_eval_catch -d $__funcname mkdir \
+		'mkdir -p "%s"' "${STARTUP_RCVAR_MAP_CACHEFILE%/*}"
+	esac
+	f_eval_catch -d $__funcname mv \
+		'mv "%s" "%s"' "$__tmpfile" "$STARTUP_RCVAR_MAP_CACHEFILE"
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." startup/rcvar.subr
+
+fi # ! $_STARTUP_RCVAR_SUBR

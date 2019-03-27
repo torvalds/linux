@@ -1,0 +1,327 @@
+if [ ! "$_MEDIA_OPTIONS_SUBR" ]; then _MEDIA_OPTIONS_SUBR=1
+#
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." media/options.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/media/any.subr
+f_include $BSDCFG_SHARE/media/ftp.subr
+f_include $BSDCFG_SHARE/struct.subr
+f_include $BSDCFG_SHARE/variable.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+OPTIONS_HELPFILE=$BSDCFG_LIBE/include/options.hlp
+
+############################################################ FUNCTIONS
+
+# f_media_options_menu
+#
+# Prompt the user to confirm/edit various media settings. Returns success.
+#
+f_media_options_menu()
+{
+	f_dialog_title "$msg_options_editor"
+	local title="$DIALOG_TITLE" btitle="$DIALOG_BACKTITLE"
+	f_dialog_title_restore
+	local prompt=
+	local menu_list # Calculated below
+	local defaultitem=
+	local hline="$hline_arrows_tab_enter"
+
+	#
+	# A hack so that the dialogs below are always interactive in a script
+	#
+	local old_interactive=
+	if ! f_interactive; then
+		f_getvar $VAR_NONINTERACTIVE old_interactive
+		unset $VAR_NONINTERACTIVE
+	fi
+
+	local cp
+	while :; do
+		menu_list=
+
+		f_getvar $VAR_NFS_SECURE cp
+		if [ "$cp" = "YES" ]; then menu_list="$menu_list
+			' $msg_nfs_secure' 'YES'
+			    '$msg_nfs_server_talks_only_on_a_secure_port'"
+		else menu_list="$menu_list
+			' $msg_nfs_secure' 'NO'
+			    '$msg_nfs_server_talks_only_on_a_secure_port'"
+		fi
+
+		f_getvar $VAR_SLOW_ETHER cp
+		if [ "$cp" = "YES" ]; then menu_list="$menu_list
+			' $msg_nfs_slow' 'YES'
+			    '$msg_user_is_using_a_slow_pc_or_ethernet_card'"
+		else menu_list="$menu_list
+			' $msg_nfs_slow' 'NO'
+			    '$msg_user_is_using_a_slow_pc_or_ethernet_card'"
+		fi
+
+		f_getvar $VAR_NFS_TCP cp
+		if [ "$cp" = "YES" ]; then menu_list="$menu_list
+			' $msg_nfs_tcp' 'YES' '$msg_use_tcp_protocol_for_nfs'"
+		else menu_list="$menu_list
+			' $msg_nfs_tcp' 'NO' '$msg_use_tcp_protocol_for_nfs'"
+		fi
+
+		f_getvar $VAR_NFS_V3 cp
+		if [ "$cp" = "YES" ]; then menu_list="$menu_list
+			' $msg_nfs_version_3' 'YES' '$msg_use_nfs_version_3'"
+		else menu_list="$menu_list
+			' $msg_nfs_version_3' 'NO' '$msg_use_nfs_version_3'"
+		fi
+
+		f_getvar $VAR_DEBUG cp
+		if [ "$cp" ]; then menu_list="$menu_list
+			' $msg_debugging' 'YES'
+			    '$msg_emit_extra_debugging_output'"
+		else menu_list="$menu_list
+			' $msg_debugging' 'NO'
+			    '$msg_emit_extra_debugging_output'"
+		fi
+
+		f_getvar $VAR_NO_CONFIRM cp
+		if [ "$cp" ]; then menu_list="$menu_list
+			' $msg_yes_to_all' 'YES'
+			    '$msg_assume_yes_to_all_non_critical_dialogs'"
+		else menu_list="$menu_list
+			' $msg_yes_to_all' 'NO'
+			    '$msg_assume_yes_to_all_non_critical_dialogs'"
+		fi
+
+		f_getvar $VAR_TRY_DHCP cp
+		if [ "$cp" = "YES" ]; then menu_list="$menu_list
+			' $msg_dhcp' 'YES'
+			    '$msg_attempt_automatic_dhcp_configuration'"
+		else menu_list="$menu_list
+			' $msg_dhcp' 'NO'
+			    '$msg_attempt_automatic_dhcp_configuration'"
+		fi
+
+		f_getvar $VAR_TRY_RTSOL cp
+		if [ "$cp" = "YES" ]; then menu_list="$menu_list
+			' $msg_ipv6' 'YES'
+			    '$msg_attempt_ipv6_configuration_of_interfaces'"
+		else menu_list="$menu_list
+			' $msg_ipv6' 'NO'
+			    '$msg_attempt_ipv6_configuration_of_interfaces'"
+		fi
+
+		f_getvar $VAR_FTP_USER cp
+		menu_list="$menu_list
+			' $msg_ftp_username' '$cp'
+			    '$msg_username_and_password_to_use'"
+
+		f_getvar $VAR_EDITOR cp
+		menu_list="$menu_list
+			' $msg_editor' '$cp' '$msg_which_text_editor_to_use'"
+
+		f_getvar $VAR_RELNAME cp
+		menu_list="$menu_list
+			' $msg_release_name' '$cp'
+			    '$msg_which_release_to_attempt_to_load'"
+
+		if f_struct device_media; then
+			device_media get type cp
+			case "$cp" in
+			$DEVICE_TYPE_UFS|$DEVICE_TYPE_DISK)
+				cp="$msg_file_system" ;;
+			$DEVICE_TYPE_DIRECTORY)  cp="$msg_directory"   ;;
+			$DEVICE_TYPE_FLOPPY)     cp="$msg_floppy"      ;;
+			$DEVICE_TYPE_FTP)        cp="$msg_ftp"         ;;
+			$DEVICE_TYPE_HTTP_PROXY) cp="$msg_http_proxy"  ;;
+			$DEVICE_TYPE_HTTP)       cp="$msg_http_direct" ;;
+			$DEVICE_TYPE_CDROM)      cp="$msg_cdrom"       ;;
+			$DEVICE_TYPE_USB)        cp="$msg_usb"         ;;
+			$DEVICE_TYPE_DOS)        cp="$msg_dos"         ;;
+			$DEVICE_TYPE_NFS)        cp="$msg_nfs"         ;;
+			*)
+				cp="<$msg_unknown>"
+			esac
+		else
+			cp="<$msg_not_yet_set>"
+		fi
+		menu_list="$menu_list
+			' $msg_media_type' '$cp'
+			    '$msg_the_current_installation_media_type'"
+
+		f_getvar $VAR_MEDIA_TIMEOUT cp
+		menu_list="$menu_list
+			' $msg_media_timeout' '$cp'
+			    '$msg_timeout_value_in_seconds_for_slow_media'"
+
+		f_getvar $VAR_PKG_TMPDIR cp
+		menu_list="$menu_list
+			' $msg_package_temp' '$cp'
+			    '$msg_directory_where_package_temporary_files_go'"
+
+		menu_list="$menu_list
+			' $msg_rescan_devices' '<*>'
+			    '$msg_rerun_bsdconfig_initial_device_probe'
+			' $msg_use_defaults'   '[${msg_reset}]'
+			    '$msg_reset_all_values_to_startup_defaults'
+		" # END-QUOTE
+
+		local height width rows
+		eval f_dialog_menu_with_help_size height width rows \
+		                                  \"\$title\"  \
+		                                  \"\$btitle\" \
+		                                  \"\$prompt\" \
+		                                  \"\$hline\"  \
+		                                  $menu_list
+
+		local mtag
+		mtag=$( eval $DIALOG \
+			--title \"\$title\"              \
+			--backtitle \"\$btitle\"         \
+			--hline \"\$hline\"              \
+			--item-help                      \
+			--ok-label \"\$msg_ok\"          \
+			--cancel-label \"\$msg_done\"    \
+			--help-button                    \
+			--help-label \"\$msg_help\"      \
+			--default-item \"\$defaultitem\" \
+			${USE_XDIALOG:+--help \"\"}      \
+			--menu \"\$prompt\"              \
+			$height $width $rows             \
+			$menu_list                       \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
+		local retval=$?
+		f_dialog_data_sanitize mtag
+		defaultitem="$mtag"
+		f_dprintf "retval=%s mtag=[%s]" $retval "$mtag"
+
+		if [ $retval -eq $DIALOG_HELP ]; then
+			f_show_help "$OPTIONS_HELPFILE"
+			continue
+		elif [ $retval -ne $DIALOG_OK ]; then
+			break # to success
+		fi
+
+		case "$mtag" in
+		" $msg_nfs_secure")
+			f_getvar $VAR_NFS_SECURE cp
+			if [ "$cp" = "YES" ]; then
+				export $VAR_NFS_SECURE="NO"
+			else
+				export $VAR_NFS_SECURE="YES"
+			fi ;;
+		" $msg_nfs_slow")
+			f_getvar $VAR_SLOW_ETHER cp
+			if [ "$cp" = "YES" ]; then
+				export $VAR_SLOW_ETHER="NO"
+			else
+				export $VAR_SLOW_ETHER="YES"
+			fi ;;
+		" $msg_nfs_tcp")
+			f_getvar $VAR_NFS_TCP cp
+			if [ "$cp" = "YES" ]; then
+				export $VAR_NFS_TCP="NO"
+			else
+				export $VAR_NFS_TCP="YES"
+			fi ;;
+		" $msg_nfs_version_3")
+			f_getvar $VAR_NFS_V3 cp
+			if [ "$cp" = "YES" ]; then
+				export $VAR_NFS_V3="NO"
+			else
+				export $VAR_NFS_V3="YES"
+			fi ;;
+		" $msg_debugging")
+			if f_getvar $VAR_DEBUG cp && [ "$cp" ]; then
+				unset $VAR_DEBUG
+			else
+				export $VAR_DEBUG=1
+			fi ;;
+		" $msg_yes_to_all")
+			if f_getvar $VAR_NO_CONFIRM cp && [ "$cp" ]; then
+				unset $VAR_NO_CONFIRM
+			else
+				export $VAR_NO_CONFIRM=1
+			fi ;;
+		" $msg_dhcp")
+			f_getvar $VAR_TRY_DHCP cp
+			if [ "$cp" = "YES" ]; then
+				export $VAR_TRY_DHCP="NO"
+			else
+				export $VAR_TRY_DHCP="YES"
+			fi ;;
+		" $msg_ipv6")
+			f_getvar $VAR_TRY_RTSOL cp
+			if [ "$cp" = "YES" ]; then
+				export $VAR_TRY_RTSOL="NO"
+			else
+				export $VAR_TRY_RTSOL="YES"
+			fi ;;
+		" $msg_ftp_username")
+			f_media_set_ftp_userpass ;;
+		" $msg_editor")
+			f_variable_get_value $VAR_EDITOR \
+			    "$msg_please_specify_the_name_of_the_text_editor"
+			;;
+		" $msg_release_name")
+			f_variable_get_value $VAR_RELNAME \
+			    "$msg_please_specify_the_release_you_wish_to_load"
+			;;
+		" $msg_media_type")
+			f_media_get_type ;;
+		" $msg_media_timeout")
+			f_variable_get_value $VAR_MEDIA_TIMEOUT \
+			    "$msg_please_specify_the_number_of_seconds_to_wait"
+			;;
+		" $msg_package_temp")
+			f_variable_get_value $VAR_PKG_TMPDIR \
+			    "$msg_please_specify_a_temporary_directory"
+			;;
+		" $msg_rescan_devices")
+			f_device_rescan ;;
+		" $msg_use_defaults")
+			f_variable_set_defaults ;;
+		esac
+	done
+
+	# Restore old VAR_NONINTERACTIVE if needed.
+	[ "$old_interactive" ] &&
+		setvar $VAR_NONINTERACTIVE "$old_interactive"
+
+	return $SUCCESS
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." media/options.subr
+
+fi # ! $_MEDIA_OPTIONS_SUBR

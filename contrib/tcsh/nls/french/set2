@@ -1,0 +1,94 @@
+$ $tcsh: set2,v 1.4 2011/02/04 18:19:35 christos Exp $
+$ Messages Signaux
+$set 2
+1 Signal nul
+2 Interrompu
+3 Arrêté
+4 Sortie
+5 Instruction interdite
+6 Piège Trace/BPT
+7 Abandon
+8 Piège IOT
+9 Plantage système imminent
+10 Sortie erreur
+11 Piège EMT
+12 Exception de calcul en virgule flottante
+13 Supprimé
+14 Signal utilisateur 1
+15 Signal utilisateur 2
+16 Incident de segmentation
+17 Erreur de bus
+18 Program range error
+19 Operand range error
+20 Appel système incorrect
+21 Tube détruit
+22 Alarme
+23 Terminé
+24 L'état du fils a changé
+25 Mort du fils
+26 Faute spécifique Apollo
+27 Fils arrêté ou sorti
+28 Fils sorti
+29 Coupure d'alimentation
+30 Ressource perdue
+31 Break (Ctrl-Break)
+32 Signal d'E-S possible
+33 Entrée-Sortie asynchrone (select)
+34 Condition urgente sur canal d'E-S
+35 Reprise multi-tâche
+36 Terminaison multi-tâche
+37 Achèvement d'E-S asynchrone Fortran
+38 Reprise
+39 Erreur mémoire irrécupérable
+40 Limite temps CPU dépassée
+41 Arrêt du système imminent
+42 Groupe micro-tasking-pas d'option de réveil définie
+43 Erreur de thread - (utilisez cord -T pour plus d'infos)
+44 Erreur de parité de registre du CRAY Y-MP
+45 Demande d'information
+46 Interrompu (Signal)
+47 Stoppé (Signal)
+48 Interrompu
+49 Stoppé
+50 Continue
+51 Entrée tty suspendue
+52 Entrée tty arrêtée
+53 Sortie tty suspendue
+54 Sortie tty arrêtée
+55 Etat de la fenêtre modifié
+56 Taille de la fenêtre modifiée
+57 Etat du téléphone modifié
+58 Limite temps CPU dépassée
+59 Taille limite de fichier dépassée
+60 Signal de l'horloge virtuelle
+61 Signal de profil
+62 Signal DIL
+63 Un évènement à scruter est arrivé
+64 Process's lwps are blocked
+65 Signal Special LWP
+66 Signal Special CPR
+67 Signal Special CPR
+68 Premier signal temps réel
+69 Deuxième signal temps réel
+70 Troisième signal temps réel
+71 Quatrième signal temps réel
+72 Quatrième signal temps réel avant la fin
+73 Antépénultième signal temps réel
+74 Avant-dernier signal temps réel
+75 Dernier signal temps réel
+76 E-S asynchrone LAN
+77 Lecture/Ecriture PTY disponible
+78 Intervention E-S nécessaire
+79 Mode moniteur HFT accordé
+80 Le mode moniteur HFT doit être abandonné
+81 Le contrôle du son HFT est terminé
+82 Données en buffer circulaire HFT
+83 Processus de transfert
+84 Touche d'attention sécurisée
+85 Re-séquencement
+86 Signal SS$_DEBUG
+87 Priorité modifiée
+88 detecté
+89 Nouveau caractère d'entrée
+90 Stack limit exceeded
+91 Unused signal

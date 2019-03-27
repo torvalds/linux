@@ -1,0 +1,227 @@
+.\" Copyright (c) 2001 Wind River Systems
+.\" Copyright (c) 1997, 1998, 1999, 2000, 2001
+.\"	Bill Paul <wpaul@bsdi.com>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 23, 2010
+.Dt NGE 4
+.Os
+.Sh NAME
+.Nm nge
+.Nd "National Semiconductor PCI Gigabit Ethernet adapter driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device nge"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_nge_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various NICs based on the National Semiconductor
+DP83820 and DP83821 Gigabit Ethernet controller chips.
+.Pp
+The DP83820 supports TBI (ten bit interface) and GMII
+transceivers, which means it can be used with either copper or 1000baseX
+fiber applications.
+The DP83820 supports TCP/IP checksum offload and
+VLAN tagging/insertion as well as a 2048-bit multicast hash filter
+and up to 4 pattern match buffers.
+.Pp
+Most cards also use the DP83861 10/100/1000 copper gigabit transceiver
+chip, which supports autonegotiation of 10, 100 and 1000Mbps modes in
+full or half duplex.
+.Pp
+The DP83820 and DP83821 also support jumbo frames, which can be
+configured via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit jumbo frames.
+Using jumbo frames can greatly improve performance for certain tasks,
+such as file transfers and data streaming.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width 10baseTXUTP
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to
+.Xr rc.conf 5 .
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+The
+.Xr ifconfig 8
+.Ic mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Xr ifconfig 8
+.Ic mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 1000baseTX
+Set 1000baseTX operation over twisted pair.
+.Cm full-duplex
+and
+.Cm half-duplex
+modes are supported.
+.It Cm 1000baseSX
+Set 1000Mbps (Gigabit Ethernet) operation.
+Both
+.Cm full-duplex
+and
+.Cm half-duplex
+modes are supported.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width full-duplex
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports National Semiconductor DP83820 and DP83821 based
+Gigabit Ethernet adapters including:
+.Pp
+.Bl -bullet -compact
+.It
+Addtron AEG320T
+.It
+Ark PC SOHO-GA2500T (32-bit PCI) and SOHO-GA2000T (64-bit PCI)
+.It
+Asante FriendlyNet GigaNIX 1000TA and 1000TPC
+.It
+D-Link DGE-500T
+.It
+Linksys EG1032, revision 1
+.It
+Netgear GA621
+.It
+Netgear GA622T
+.It
+SMC EZ Card 1000 (SMC9462TX)
+.It
+Surecom Technology EP-320G-TX
+.It
+Trendware TEG-PCITX (32-bit PCI) and TEG-PCITX2 (64-bit PCI)
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width "xxxxxx"
+.It Va dev.nge.%d.int_holdoff
+Maximum amount of time to delay interrupt processing in units of
+100us.
+The accepted range is 0 to 255, the default is 1(100us).
+Value 0 completely disables the interrupt moderation.
+The interface has to be brought down and up again before a change
+takes effect.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "nge%d: couldn't map memory"
+A fatal initialization error has occurred.
+.It "nge%d: couldn't map ports"
+A fatal initialization error has occurred.
+.It "nge%d: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "nge%d: no memory for softc struct!"
+The driver failed to allocate memory for per-device instance information
+during initialization.
+.It "nge%d: failed to enable memory mapping!"
+The driver failed to initialize PCI shared memory mapping.
+This might
+happen if the card is not in a bus-master slot.
+.It "nge%d: no memory for jumbo buffers!"
+The driver failed to allocate memory for jumbo frames during
+initialization.
+.It "nge%d: watchdog timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr polling 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Rs
+.%T National Semiconductor DP83820 datasheet
+.%U http://www.national.com
+.Re
+.Rs
+.%T National Semiconductor DP83861 datasheet
+.%U http://www.national.com
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.4 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@bsdi.com .

@@ -1,0 +1,212 @@
+/****************************************************************************
+ * Copyright (c) 2013 Free Software Foundation, Inc.                        *
+ *                                                                          *
+ * Permission is hereby granted, free of charge, to any person obtaining a  *
+ * copy of this software and associated documentation files (the            *
+ * "Software"), to deal in the Software without restriction, including      *
+ * without limitation the rights to use, copy, modify, merge, publish,      *
+ * distribute, distribute with modifications, sublicense, and/or sell       *
+ * copies of the Software, and to permit persons to whom the Software is    *
+ * furnished to do so, subject to the following conditions:                 *
+ *                                                                          *
+ * The above copyright notice and this permission notice shall be included  *
+ * in all copies or substantial portions of the Software.                   *
+ *                                                                          *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+ * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+ * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+ *                                                                          *
+ * Except as contained in this notice, the name(s) of the above copyright   *
+ * holders shall not be used in advertising or otherwise to promote the     *
+ * sale, use or other dealings in this Software without prior written       *
+ * authorization.                                                           *
+ ****************************************************************************/
+
+/****************************************************************************
+ *  Author: Thomas E. Dickey 2013                                           *
+ ****************************************************************************/
+/* LINTLIBRARY */
+
+/* ./tinfo/alloc_entry.c */
+
+#include <curses.priv.h>
+#include <tic.h>
+
+#undef _nc_init_entry
+void	_nc_init_entry(
+		TERMTYPE *const tp)
+		{ /* void */ }
+
+#undef _nc_copy_entry
+ENTRY	*_nc_copy_entry(
+		ENTRY	*oldp)
+		{ return(*(ENTRY **)0); }
+
+#undef _nc_save_str
+char	*_nc_save_str(
+		const char *const string)
+		{ return(*(char **)0); }
+
+#undef _nc_wrap_entry
+void	_nc_wrap_entry(
+		ENTRY	*const ep, 
+		NCURSES_BOOL copy_strings)
+		{ /* void */ }
+
+#undef _nc_merge_entry
+void	_nc_merge_entry(
+		TERMTYPE *const to, 
+		TERMTYPE *const from)
+		{ /* void */ }
+
+/* ./tinfo/captoinfo.c */
+
+#include <ctype.h>
+
+#undef _nc_captoinfo
+char	*_nc_captoinfo(
+		const char *cap, 
+		const char *s, 
+		int const parameterized)
+		{ return(*(char **)0); }
+
+#undef _nc_infotocap
+char	*_nc_infotocap(
+		const char *cap, 
+		const char *str, 
+		int const parameterized)
+		{ return(*(char **)0); }
+
+/* ./tinfo/comp_expand.c */
+
+#undef _nc_tic_expand
+char	*_nc_tic_expand(
+		const char *srcp, 
+		NCURSES_BOOL tic_format, 
+		int	numbers)
+		{ return(*(char **)0); }
+
+/* ./tinfo/comp_parse.c */
+
+#undef _nc_check_termtype2
+void	(*_nc_check_termtype2)(
+		TERMTYPE *p1, 
+		NCURSES_BOOL p2);
+#undef _nc_check_termtype
+void	(*_nc_check_termtype)(
+		TERMTYPE *p1);
+
+#undef _nc_entry_match
+NCURSES_BOOL _nc_entry_match(
+		char	*n1, 
+		char	*n2)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef _nc_read_entry_source
+void	_nc_read_entry_source(
+		FILE	*fp, 
+		char	*buf, 
+		int	literal, 
+		NCURSES_BOOL silent, 
+		NCURSES_BOOL (*hook)(
+		ENTRY	*p1))
+		{ /* void */ }
+
+#undef _nc_resolve_uses2
+int	_nc_resolve_uses2(
+		NCURSES_BOOL fullresolve, 
+		NCURSES_BOOL literal)
+		{ return(*(int *)0); }
+
+#undef _nc_resolve_uses
+int	_nc_resolve_uses(
+		NCURSES_BOOL fullresolve)
+		{ return(*(int *)0); }
+
+/* ./tinfo/comp_scan.c */
+
+#undef _nc_syntax
+int	_nc_syntax;
+#undef _nc_strict_bsd
+int	_nc_strict_bsd;
+#undef _nc_curr_file_pos
+long	_nc_curr_file_pos;
+#undef _nc_comment_start
+long	_nc_comment_start;
+#undef _nc_comment_end
+long	_nc_comment_end;
+#undef _nc_start_line
+long	_nc_start_line;
+#undef _nc_curr_token
+struct token _nc_curr_token;
+#undef _nc_disable_period
+NCURSES_BOOL _nc_disable_period;
+
+#undef _nc_reset_input
+void	_nc_reset_input(
+		FILE	*fp, 
+		char	*buf)
+		{ /* void */ }
+
+#undef _nc_get_token
+int	_nc_get_token(
+		NCURSES_BOOL silent)
+		{ return(*(int *)0); }
+
+#undef _nc_trans_string
+int	_nc_trans_string(
+		char	*ptr, 
+		char	*last)
+		{ return(*(int *)0); }
+
+#undef _nc_push_token
+void	_nc_push_token(
+		int	tokclass)
+		{ /* void */ }
+
+#undef _nc_panic_mode
+void	_nc_panic_mode(
+		char	ch)
+		{ /* void */ }
+
+/* ./tinfo/parse_entry.c */
+
+#undef _nc_parse_entry
+int	_nc_parse_entry(
+		struct entry *entryp, 
+		int	literal, 
+		NCURSES_BOOL silent)
+		{ return(*(int *)0); }
+
+#undef _nc_capcmp
+int	_nc_capcmp(
+		const char *s, 
+		const char *t)
+		{ return(*(int *)0); }
+
+typedef struct {
+    const char *from;
+    const char *to;
+} assoc;
+
+/* ./tinfo/write_entry.c */
+
+#include <hashed_db.h>
+
+#undef _nc_set_writedir
+void	_nc_set_writedir(
+		char	*dir)
+		{ /* void */ }
+
+#undef _nc_write_entry
+void	_nc_write_entry(
+		TERMTYPE *const tp)
+		{ /* void */ }
+
+#undef _nc_tic_written
+int	_nc_tic_written(void)
+		{ return(*(int *)0); }

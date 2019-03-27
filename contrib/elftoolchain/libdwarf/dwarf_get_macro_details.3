@@ -1,0 +1,192 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_get_macro_details.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd March 20, 2011
+.Dt DWARF_GET_MACRO_DETAILS 3
+.Os
+.Sh NAME
+.Nm dwarf_get_macro_details
+.Nd retrieve macro information
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_get_macro_details
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Off offset"
+.Fa "Dwarf_Unsigned max_count"
+.Fa "Dwarf_Signed *entry_cnt"
+.Fa "Dwarf_Macro_Details **details"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_get_macro_details
+retrieves information about macros associated with a DWARF debug
+context.
+Information about macro entries are returned as an array of
+descriptors of type
+.Vt Dwarf_Macro_Details ,
+with each
+.Vt Dwarf_Macro_Details
+descriptor describing one macro information entry.
+.Pp
+Argument
+.Ar dbg
+should reference a DWARF debug context allocated using
+.Xr dwarf_init 3 .
+Argument
+.Ar offset
+is an offset, relative to the
+.Dq ".debug_macinfo"
+section, to the start of the desired macro information.
+Argument
+.Ar max_count
+specifies the maximum number of macro information entries
+to be returned, or 0 if all entries are to be returned.
+Argument
+.Ar entry_cnt
+should point to a location that will be set to the number
+of entries actually returned.
+Argument
+.Ar details
+should point to a location that will be set to a pointer to
+an array of
+.Vt Dwarf_Macro_Details
+descriptors.
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case
+of an error.
+.Pp
+.Vt Dwarf_Macro_Details
+descriptors are defined in the header file
+.In libdwarf.h ,
+and consist of the following fields:
+.Bl -tag -width ".Va dmd_fileindex" -compact
+.It Va dmd_offset
+The section-relative offset within the
+.Dq ".debug_macinfo"
+section of the macro information entry being described.
+.It Va dmd_type
+The type code of this macro information entry; one of the
+.Dv DW_MACINFO_*
+constants defined by the DWARF specification.
+.It Va dmd_lineno
+The line number associated with the macro information
+entry, or 0 if there is no applicable line number.
+.It Va dmd_fileindex
+The source file index for the macro information entry.
+This field is only meaningful when
+.Va dmd_type
+field is set to
+.Dv DW_MACINFO_start_file .
+.It Va dmd_macro
+The contents of this field is a pointer to a NUL-terminated string
+whose meaning depends on the value of the
+.Va dmd_type
+field:
+.Bl -tag -width ".Dv DW_MACINFO_vendor_ext" -compact
+.It Dv DW_MACINFO_define
+The returned string contains the macro name and value.
+.It Dv DW_MACINFO_undef
+The string holds the macro name.
+.It Dv DW_MACINFO_vendor_ext
+The
+.Va dmd_macro
+field points to a vendor defined string.
+.El
+The field is NULL for other values of
+.Va dmd_type .
+.El
+.Ss Memory Management
+The memory area used for the array of
+.Vt Dwarf_Macro_Details
+descriptors returned in argument
+.Ar details
+is owned by the
+.Lb libdwarf .
+The application should not attempt to directly free this pointer.
+Portable code should instead use
+.Fn dwarf_dealloc
+with the allocation type
+.Dv DW_DLA_STRING
+to indicate that the memory may be freed.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_get_macro_details
+returns
+.Dv DW_DLV_OK
+when it succeeds.
+It returns
+.Dv DW_DLV_NO_ENTRY
+if there is no more macro information at the specified offset
+.Ar offset .
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets the argument
+.Ar err .
+.Sh EXAMPLES
+To loop through all the macro information entries associated with
+a DWARF debug context:
+.Bd -literal -offset indent
+Dwarf_Debug dbg;
+Dwarf_Unsigned offset;
+Dwarf_Signed cnt;
+Dwarf_Macro_Details *md;
+Dwarf_Error de;
+
+offset = 0;
+while (dwarf_get_macro_details(dbg, offset, 0,
+    &cnt, &md, &de) == DW_DLV_OK) {
+	for (i = 0; i < cnt; i++) {
+		/* Access fields of md[i] ... */
+	}
+	offset = md[cnt - 1].dmd_offset + 1;
+}
+.Ed
+.Sh ERRORS
+Function
+.Fn dwarf_get_macro_details
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_NO_ENTRY"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar dbg ,
+.Ar entry_cnt
+or
+.Ar details
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+There is no more macro information at the specified offset
+.Ar offset .
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_dealloc 3 ,
+.Xr dwarf_find_macro_value_start 3 ,
+.Xr dwarf_init 3

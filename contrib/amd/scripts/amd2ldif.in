@@ -1,0 +1,60 @@
+#!@PERL@
+
+$usage=<<EOU;
+Usage $0 mapname base < mapfile >mapfile.ldif
+
+mapname: name of the amd map beeing converted to ldif
+base   : The LDAP search base. Do not forget the quotes!
+
+This script should/could be used in a Makefile together
+with ldif2ldbm(8C) to automagically update the ldap
+databases and restart slapd whenever a master copy of
+the maps have changed. Remember "cd /var/yp; make" ?
+EOU
+
+my $fmt = "%-12s: %s\n";
+my $tfmt = "%-15s: %s\n";
+my $mapname = $ARGV[0] or die $usage;
+my $base = $ARGV[1] or die $usage;
+$time = time();
+
+print "dn: cn=amdmap $mapname timestamp, $base\n";
+printf "$tfmt", "cn", "amdmap $mapname timestamp";
+printf "$tfmt", "objectClass", "amdmapTimestamp";
+printf "$tfmt", "amdmapName", "$mapname";
+printf "$tfmt", "amdmapTimestamp", $time;
+printf "$tfmt", "amdmapName", $mapname;
+print "\n";
+
+my $line = "";
+my $done = 0;
+
+while (<STDIN>) {
+  chomp;
+  if (/\s*(.+)\\\s*/) {
+    if ($line) {
+      $line .= " ".$1;
+    } else {
+      $line = $1;
+    }
+    $done = 0;
+  } else {
+    s/^\s+//g;
+    $line .= $_;
+    $done = 1;
+  }
+  if ($done) {
+    my @vals = split(/\s+/,$line);
+    my $key = shift @vals;
+    my $entry;
+
+    print "dn: cn=amdmap $mapname\[$key\], $base\n";
+    printf "$fmt","cn","amdmap $mapname\[$key\]";
+    printf "$fmt","objectClass", "amdmap";
+    printf "$fmt","amdmapName", $mapname;
+    printf "$fmt","amdmapKey", $key;
+    printf "$fmt","amdmapValue", join(' ',@vals);
+    print "\n";
+    $line = ""; $done = 0;
+  }
+}

@@ -1,0 +1,21 @@
+#
+# PAE -- Generic kernel configuration file for FreeBSD/i386 PAE
+#
+# $FreeBSD$
+
+include GENERIC
+
+ident		PAE-GENERIC
+
+# To make a PAE kernel, the next option is needed
+options 	PAE			# Physical Address Extensions Kernel
+
+# The following drivers don't build with PAE enabled.
+makeoptions	WITHOUT_MODULES="ctl dpt hptmv ida"
+nodevice	dpt
+nodevice	hptmv
+nodevice	ida
+
+# The following drivers don't work with PAE enabled.
+makeoptions	WITHOUT_MODULES+="pst"
+nodevice	pst

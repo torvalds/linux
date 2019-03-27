@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to not build the
+.Nm libthr
+(1:1 threading)
+library.

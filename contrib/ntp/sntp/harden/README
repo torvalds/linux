@@ -1,0 +1,11 @@
+If you look at the files here you should be able to figure out what is
+being done.
+
+../scripts/genHardFlags handles the parsing of these files.
+
+If no "more specific" file has been found and cvo.sh says the OS is
+redhat* or fedora*, we will look for loc/redhat .
+
+If no "mode specific" file has been found and the "uname" command returns
+"Linux", we will look for loc/linux .
+

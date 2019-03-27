@@ -1,0 +1,219 @@
+if [ ! "$_SCRIPT_SUBR" ]; then _SCRIPT_SUBR=1
+#
+# Copyright (c) 2012-2014 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." script.subr
+f_include $BSDCFG_SHARE/device.subr
+f_include $BSDCFG_SHARE/media/any.subr
+f_include $BSDCFG_SHARE/media/tcpip.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/networking/services.subr
+f_include $BSDCFG_SHARE/packages/packages.subr
+f_include $BSDCFG_SHARE/usermgmt/group.subr
+f_include $BSDCFG_SHARE/usermgmt/user.subr
+f_include $BSDCFG_SHARE/variable.subr
+
+############################################################ GLOBALS
+
+RESWORDS=
+
+############################################################ FUNCTIONS
+
+# f_resword_new $resword $function
+#
+# Create a new `reserved' word for scripting purposes. Reswords call pre-
+# defined functions but differ from those functions in the following ways:
+#
+# 	+ Unless noError is set (must be non-NULL), if calling the resword
+# 	  results in failure, the application will terminate prematurely.
+# 	+ noError is unset after each/every resword is called.
+#
+# Reswords should not be used in bsdconfig itself (hence the name `reserved
+# word') but instead only in scripts loaded through f_script_load().
+#
+f_resword_new()
+{
+	local resword="$1" func="$2"
+	[ "$resword" ] || return $FAILURE
+	f_dprintf "script.subr: New resWord %s -> %s" "$resword" "$func"
+	eval $resword\(\){ f_dispatch $func $resword \"\$@\"\; }
+	RESWORDS="$RESWORDS${RESWORDS:+ }$resword"
+}
+
+# f_dispatch $func $resword
+#
+# Wrapper function used by `reserved words' (reswords) to call other functions.
+# If $noError is set and non-NULL, a failure result from $func is ignored,
+# otherwise the application is prematurely terminated using f_die().
+#
+# NOTE: $noError is unset after every call.
+#
+f_dispatch()
+{
+	local func="$1" resword="$2"
+	shift 2 # func resword
+	f_dprintf "f_dispatch: calling resword \`%s'" "$resword"
+	eval $func "$@"
+	local retval=$?
+	if [ $retval -ne $SUCCESS ]; then
+		local _ignore_this_error
+		f_getvar $VAR_NO_ERROR _ignore_this_error
+		[ "$_ignore_this_error" ] || f_die $retval \
+			"$msg_command_failed_rest_of_script_aborted" "$resword"
+	fi
+	unset $VAR_NO_ERROR
+}
+
+# f_script_load [$file]
+#
+# Load a script (usually filled with reswords). If $file is missing or NULL,
+# use one of the following instead (in order):
+#
+# 	$configFile (global)
+# 	install.cfg
+# 	/stand/install.fg
+# 	/tmp/install.cfg
+#
+# Unknown/unregistered reswords will generate sh(1) syntax errors but not cause
+# premature termination.
+#
+# Returns success if a script was loaded and itself returned success.
+#
+f_script_load()
+{
+	local funcname=f_script_load
+	local script="$1" config_file retval=$SUCCESS
+
+	f_dprintf "$funcname: script=[%s]" "$script"
+	if [ ! "$script" ]; then
+		f_getvar $VAR_CONFIG_FILE config_file
+		for script in \
+			$config_file \
+			install.cfg \
+			/stand/install.cfg \
+			/tmp/install.cfg \
+		; do
+			[ -e "$script" ] && break
+		done
+	fi
+
+	local old_interactive=
+	f_getvar $VAR_NONINTERACTIVE old_interactive # save a copy
+
+	# Hint to others that we're running from a script, should they care
+	setvar $VAR_NONINTERACTIVE yes
+
+	if [ "$script" = "-" ]; then
+		f_dprintf "$funcname: Loading script from stdin"
+		eval "$( cat )"
+		retval=$?
+	else
+		f_dprintf "$funcname: Loading script \`%s'" "$script"
+		if [ ! -e "$script" ]; then
+			f_show_msg "$msg_unable_to_open" "$script"
+			return $FAILURE
+		fi
+		. "$script"
+		retval=$?
+	fi
+
+	[ "$old_interactive" ] &&
+		setvar $VAR_NONINTERACTIVE "$old_interactive"
+
+	return $retval
+}
+
+############################################################ MAIN
+
+#
+# Reserved words meant for scripting
+#
+
+# this file
+f_resword_new loadConfig	f_script_load
+
+# device.subr
+f_resword_new deviceRescan	f_device_rescan
+
+# media/common.subr
+f_resword_new mediaOpen		f_media_open
+f_resword_new mediaClose	f_media_close
+
+# media includes
+f_resword_new mediaGetType	f_media_get_type         # media/any.subr
+f_resword_new mediaSetCDROM	f_media_set_cdrom        # media/cdrom.subr
+f_resword_new mediaSetDOS	f_media_set_dos          # media/dos.subr
+f_resword_new mediaSetDirectory	f_media_set_directory    # media/directory.subr
+f_resword_new mediaSetFloppy	f_media_set_floppy       # media/floppy.subr
+f_resword_new mediaSetNFS	f_media_set_nfs          # media/nfs.subr
+f_resword_new mediaSetUFS	f_media_set_ufs          # media/ufs.subr
+f_resword_new mediaSetUSB	f_media_set_usb          # media/usb.subr
+f_resword_new optionsEditor	f_media_options_menu     # media/options.subr
+f_resword_new tcpMenuSelect	f_dialog_menu_select_tcp # media/tcp.subr
+
+# media/ftp.subr
+f_resword_new mediaSetFTP		f_media_set_ftp
+f_resword_new mediaSetFTPActive		f_media_set_ftp_active
+f_resword_new mediaSetFTPPassive	f_media_set_ftp_passive
+f_resword_new mediaSetFTPUserPass	f_media_set_ftp_userpass
+
+# media/http.subr
+f_resword_new mediaSetHTTP	f_media_set_http
+
+# media/httpproxy.subr
+f_resword_new mediaSetHTTPProxy	f_media_set_http_proxy
+
+# networking/services.subr
+f_resword_new configPCNFSD	f_config_pcnfsd
+
+# packages/packages.subr
+f_resword_new configPackages	f_package_config
+f_resword_new packageAdd	f_package_add
+f_resword_new packageDelete	f_package_delete
+f_resword_new packageReinstall	f_package_reinstall
+
+# usermgmt/group.subr
+f_resword_new addGroup		f_group_add
+f_resword_new deleteGroup	f_group_delete
+f_resword_new editGroup		f_group_edit
+
+# usermgmt/user.subr
+f_resword_new addUser		f_user_add
+f_resword_new deleteUser	f_user_delete
+f_resword_new editUser		f_user_edit
+
+# variable.subr
+f_resword_new installVarDefaults	f_variable_set_defaults
+f_resword_new dumpVariables		f_dump_variables
+
+f_dprintf "%s: Successfully loaded." script.subr
+
+fi # ! $_SCRIPT_SUBR

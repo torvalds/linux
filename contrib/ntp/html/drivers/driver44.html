@@ -1,0 +1,91 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+
+	<head>
+		<title>NeoClock4X</title>
+		<link href="scripts/style.css" type="text/css" rel="stylesheet">
+		<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+	</head>
+
+	<body>
+		<h1>NeoClock4X - DCF77 / TDF serial line receiver<br>
+		</h1>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->21-Oct-2010  23:44<!-- #EndDate -->
+  UTC</p>
+		<hr size="2" width="100%">
+		<h2>Synopsis</h2>
+		<table width="100%">
+			<tbody>
+				<tr>
+					<td valign="top">
+						<table width="100%">
+							<tbody>
+								<tr>
+									<td valign="top">Adress<br>
+									</td>
+									<td valign="top">127.127.44.u<br>
+									</td>
+								</tr>
+								<tr>
+									<td valign="top">Reference ID<br>
+									</td>
+									<td valign="top">neol<br>
+									</td>
+								</tr>
+								<tr>
+									<td valign="top">Driver ID<br>
+									</td>
+									<td valign="top">NEOCLK4X<br>
+									</td>
+								</tr>
+								<tr>
+									<td valign="top">Serial Port<br>
+									</td>
+									<td valign="top">/dev/neoclock4x-u<br>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+						<br>
+					</td>
+					<td align="right" valign="top"><a href="http://www.linum.com"><img src="../pic/neoclock4x.gif" alt="NeoClock4X - DCF77 receiver" height="195" width="150"> </a><br>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+		<hr size="2" width="100%">
+		<h2>Description</h2>
+		The refclock_neoclock4x driver supports the NeoClock4X receiver available from <a href="http://www.linum.com">Linum Software GmbH</a>. The receiver is available as a <a href="http://www.dcf77.de">DCF77</a> or TDF receiver. Both receivers have the same output string. For more information about the NeoClock4X receiver please visit <a href="http://www.linux-funkuhr.de">http://www.linux-funkuhr.de</a>. &nbsp;
+		<hr size="2" width="100%">
+		<h2>Fudge Factors</h2>
+		<dl>
+			<dt><b><a href="../clockopt.html">time1 time</a></b>
+			<dd>Specifies the time offset calibration factor with the default value off 0.16958333 seconds. This offset is used&nbsp; to correct serial line and operating system delays incurred in capturing time stamps. If you want to fudge the time1 offset <b>ALWAYS</b> add a value off 0.16958333. This is neccessary to compensate to delay that is caused by transmit the timestamp at 2400 Baud. If you want to compensate the delay that the DCF77 or TDF radio signal takes to travel to your site simply add the needed millisecond delay to the given value. Note that the time here is given in seconds.
+			<dd>Default setting is 0.16958333 seconds.<br>
+		</dl>
+		<dl>
+			<dt><b><a href="../clockopt.html">time2 time</a></b>
+			<dd>Not used by this driver.
+		</dl>
+		<dl>
+			<dt><a href="../clockopt.html"><b>flag1 0 | 1</b></a>
+			<dd>When set to 1 the driver will feed ntp with timestampe even if the radio signal is lost. In this case an internal backup clock generates the timestamps. This is ok as long as the receiver is synced once since the receiver is able to keep time for a long period.
+			<dd>Default setting is 0 = don't synchronize to CMOS clock.
+			<dt><a href="../clockopt.html"><b>flag2 0 | 1</b></a>
+			<dd>You can allow the NeoClock4X driver to use the quartz clock even if it is never synchronized to a radio clock. This is usally not a good idea if you want preceise timestamps since the CMOS clock is maybe not adjusted to a dst status change. So <b>PLEASE</b> switch this only on if you now what you're doing.
+			<dd>Default setting is 0 = don't synchronize to unsynchronized CMOS clock.
+			<dt><a href="../clockopt.html"><b>flag3 0 | 1</b></a>
+			<dd>Not used by this driver.
+			<dt><a href="../clockopt.html"><b>flag4 0 | 1</b></a>
+			<dd>It is recommended to allow extensive logging while you setup the NeoClock4X receiver. If you activate flag4 every received data is logged. You should turn off flag4 as soon as the clock works as expected to reduce logfile cluttering.
+			<dd>Default setting is 0 = don't log received data and converted utc time.
+		</dl>
+		<hr size="2" width="100%">
+		Please send any comments or question to <a href="mailto:neoclock4@linum.com">neoclock4x@linum.com</a>.
+		<hr>
+		<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+	</body>
+
+</html>

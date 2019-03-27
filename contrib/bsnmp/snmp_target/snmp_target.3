@@ -1,0 +1,204 @@
+.\"-
+.\" Copyright (C) 2010 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Shteryana Sotirova Shopova under
+.\" sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 16, 2010
+.Dt SNMP_TARGET 3
+.Os
+.Sh NAME
+.Nm snmp_target
+.Nd "Target addresses and notifications module for"
+.Xr bsnmpd 1
+.Sh LIBRARY
+.Pq begemotSnmpdModulePath."target" = "/usr/lib/snmp_target.so"
+.Sh DESCRIPTION
+The
+.Nm snmp_target
+module implements SNMPv3 Management Target MIB and basic functionality from
+Notification MIB as defined in RFC 3413. The module is used to manage the
+internal list of SNMPv3 notification target addresses in
+.Nm bsnmpd
+and their associated transport and encapsulation parameters.
+The module must be loaded for
+.Nm bsnmpd
+to send SNMPv3 Trap-PDUs to the configured notification target addresses.
+.Sh IMPLEMENTATION NOTES
+A short description of the objects implemented in the module follows.
+.Bl -tag -width "XXXXXXXXX"
+.It Va snmpTargetSpinLock
+An advisory lock used to coordinate several Command Generator Applications when
+altering the SNMP Target addresses and their associated parameters.
+.It Va snmpTargetAddrTable
+The table contains the transport addresses to be used in generation of SNMP
+messages.
+The table contains the following objects
+.Bl -tag -width ".It Va snmpTargetAddrName"
+.It Va snmpTargetAddrName
+A unique local identifier used as entry key. Not accessible for GET or SET
+operations.
+.It Va snmpTargetAddrTDomain
+The transport domain of the target address. Currently only UDP over IPv4 is
+supported and any attempt to SET the value of this object will return an
+"inconsistentValue" error. Additional transport domains will be supported
+in future via the object definitions in TRANSPORT-ADDRESS-MIB (RFC 3419).
+.It Va snmpTargetAddrTAddress
+The transport address of this entry interpreted within the context of the value
+of
+.Va snmpTargetAddrTDomain .
+For UDP over IPv4, this is a 6-byte long octetstring, with the first 4 bytes
+representing the IPv4 address and the last 2 bytes the UDP port number in
+network-byte order.
+.It Va snmpTargetAddrTimeout
+The value of this object is only relevant when the receiver of the SNMP
+message is to send an acknowledgment that the message was received, i.e
+for SNMP notifications it is relevant if the notification is SNMP Inform
+rather than SNMP Trap. Currently
+.Nm bsnmpd
+supports only SNMP Trap notifications, so the value of this object is
+meaningless.
+.It Va snmpTargetAddrRetryCount
+As with
+.Va snmpTargetAddrTimeout
+the value of this object currently is meaningless.
+.It Va snmpTargetAddrTagList
+A list of human-readable tag values used to select target addresses for a
+particular operation. Recognized ASCII delimiting characters between tags are
+space (0x20), tab (0x20), carriage return (0xOD) and line feed (0x0A).
+.It Va snmpTargetAddrParams
+The value of this object contains the value of a key in snmpTargetParamsTable
+containing SNMP parameters used when generating messages to this transport
+address.
+.It Va snmpTargetAddrStorageType
+This column always has either of two values. Entries created via
+.Nm bsnmpd's
+configuration file always have this column set to readOnly (5) and
+it is not possible to modify those entries. Entries created by Command Generator
+Applications always have this column set to volatile(2) and such entries are
+lost when the module is restarted. A SET operation on this column is not
+allowed.
+.It Va snmpTargetAddrRowStatus
+This column is used to create new target address entries or delete existing ones
+from the table.
+.El
+.It Va snmpTargetParamsTable
+The table contains the target information to be used in generation of SNMP
+messages.
+The table contains the following objects
+.Bl -tag -width ".It Va snmpTargetParamsName"
+.It Va snmpTargetParamsName
+A unique local identifier used as entry key. Not accessible for GET or SET
+operations.
+.It Va snmpTargetParamsMPModel
+The Message Processing Model to be used when generating SNMP PDUs using this
+entry. Supported values are 0 for SNMPv1, 1 for SNMPv2c and 3 for SNMPv3.
+.It Va snmpTargetParamsSecurityModel
+The Security Model to be used when generating SNMP PDUs using this entry.
+Supported values are 1  for SNMPv1, 2 for SNMPv2c and 3 for SNMPv3 User-Based
+Security Model.
+.It Va snmpTargetParamsSecurityName
+The securityName which identifies the Principal on whose behalf SNMP PDUs
+will be generated using this entry. For SNMPv1 and SNMPv2c this is the
+name of a community configured in
+.Nm bsnmpd ,
+and for SNMPv3 USM, this is the name of an existing user configured via the
+.Nm snmp_usm
+module.
+.It Va snmpTargetParamsSecurityLevel
+The Security Level to be used when generating SNMP PDUs using this entry.
+Supported values are noAuthNoPriv(1) for plain-text PDUs with no authentication,
+authNoPriv(2) for authenticated plain-text PDUs and authPriv(3) for encrypted
+PDUs.
+.It Va snmpTargetParamsStorageType
+As with
+.Va snmpTargetAddrStorageType
+this column always has either of two values. Entries created via
+.Nm bsnmpd's
+configuration file always have this column set to readOnly (5), while entries
+created by Command Generator Applications always have this column set to
+volatile(2). A SET operation on this column is not allowed.
+.It Va snmpTargetParamsRowStatus
+This column is used to create new target address parameters entries or delete
+existing ones from the table.
+.El
+.It Va snmpNotifyTable
+The table is used to select the management targets which should receive SNMP
+notifications.
+The table contains the following objects
+.Bl -tag -width ".It Va snmpNotifyName"
+.It Va snmpNotifyName
+A unique local identifier used as entry key. Not accessible for GET or SET
+operations.
+.It Va snmpNotifyTag
+This object contains a single tag value used to select target addresses from
+the
+.Va snmpTargetAddrTable
+to which the notifications will be send.
+.It Va snmpNotifyType
+The type of SNMP notifications that will be send to the target addresses
+matching the corresponding
+.Va snmpNotifyTag .
+Possible values are Trap (1) or Inform (2). Currently only SNMP Traps are
+supported and any attempt to SET the value of this object will return an
+"inconsistentValue" error.
+.It Va snmpNotifyStorageType
+Again this column always has either of two values. Entries created via
+.Nm bsnmpd's
+configuration file always have this column set to readOnly (5), while entries
+created by Command Generator Applications always have this column set to
+volatile(2). A SET operation on this column is not allowed.
+.It Va snmpNotifyRowStatus
+This column is used to create new notification target entries or delete existing
+ones from the table.
+.El
+.El
+.Pp
+The
+.Va snmpNotifyFilterProfileTable
+and
+.Va snmpNotifyFilterTable
+tables from the SNMP-NOTIFICATION-MIB are not supported by the module.
+Notification filtering is supported via the
+.Xr snmp_vacm 3
+module instead.
+.Sh FILES
+.Bl -tag -width "XXXXXXXXX"
+.It Pa /usr/share/snmp/defs/target_tree.def
+The description of the MIB tree implemented by
+.Nm .
+.El
+.Sh SEE ALSO
+.Xr bsnmpd 1 ,
+.Xr gensnmptree 1 ,
+.Xr snmpmod 3 ,
+.Xr snmp_usm 3 ,
+.Xr snmp_vacm 3
+.Sh STANDARDS
+IETF RFC 3413
+.Sh AUTHORS
+.An Shteryana Shopova Aq syrinx@FreeBSD.org

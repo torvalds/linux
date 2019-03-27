@@ -1,0 +1,400 @@
+#!/bin/sh
+#
+# Copyright (c) 1999  Matt Dillon
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+# On entry to this script the entire system consists of a read-only root
+# mounted via NFS. The kernel has run BOOTP and configured an interface
+# (otherwise it would not have been able to mount the NFS root!)
+#
+# We use the contents of /conf to create and populate memory filesystems
+# that are mounted on top of this root to implement the writable
+# (and host-specific) parts of the root filesystem, and other volatile
+# filesystems.
+#
+# The hierarchy in /conf has the form /conf/T/M/ where M are directories
+# for which memory filesystems will be created and filled,
+# and T is one of the "template" directories below:
+#
+#  base		universal base, typically a replica of the original root;
+#  default	secondary universal base, typically overriding some
+#		of the files in the original root;
+#  ${ipba}	where ${ipba} is the assigned broadcast IP address
+#  bcast/${ipba} same as above
+#  ${class}	where ${class} is a list of directories supplied by
+#		bootp/dhcp through the T134 option.
+#		${ipba} and ${class} are typically used to configure features
+#		for group of diskless clients, or even individual features;
+#  ${ip}	where ${ip} is the machine's assigned IP address, typically
+#		used to set host-specific features;
+#  ip/${ip}	same as above
+#
+# Template directories are scanned in the order they are listed above,
+# with each successive directory overriding (merged into) the previous one;
+# non-existing directories are ignored.  The subdirectory forms exist to
+# help keep the top level /conf manageable in large installations.
+#
+# The existence of a directory /conf/T/M causes this script to create a
+# memory filesystem mounted as /M on the client.
+#
+# Some files in /conf have special meaning, namely:
+#
+# Filename	Action
+# ----------------------------------------------------------------
+# /conf/T/M/remount
+#		The contents of the file is a mount command. E.g. if
+# 		/conf/1.2.3.4/foo/remount contains "mount -o ro /dev/ad0s3",
+#		then /dev/ad0s3 will be mounted on /conf/1.2.3.4/foo/
+#
+# /conf/T/M/remount_optional
+#		If this file exists, then failure to execute the mount
+#		command contained in /conf/T/M/remount is non-fatal.
+#
+# /conf/T/M/remount_subdir
+#		If this file exists, then the behaviour of /conf/T/M/remount
+#		changes as follows:
+#		 1. /conf/T/M/remount is invoked to mount the root of the
+#		    filesystem where the configuration data exists on a
+#		    temporary mountpoint.
+#		 2. /conf/T/M/remount_subdir is then invoked to mount a
+#		    *subdirectory* of the filesystem mounted by
+#		    /conf/T/M/remount on /conf/T/M/.
+#
+# /conf/T/M/diskless_remount
+#		The contents of the file points to an NFS filesystem,
+#		possibly followed by mount_nfs options. If the server name
+#		is omitted, the script will prepend the root path used when
+#		booting. E.g. if you booted from foo.com:/path/to/root,
+#		an entry for /conf/base/etc/diskless_remount could be any of
+#			foo.com:/path/to/root/etc
+#			/etc -o ro
+#		Because mount_nfs understands ".." in paths, it is
+#		possible to mount from locations above the NFS root with
+#		paths such as "/../../etc".
+#
+# /conf/T/M/md_size
+#		The contents of the file specifies the size of the memory
+#		filesystem to be created, in 512 byte blocks.
+#		The default size is 10240 blocks (5MB). E.g. if
+#		/conf/base/etc/md_size contains "30000" then a 15MB MFS
+#		will be created. In case of multiple entries for the same
+#		directory M, the last one in the scanning order is used.
+#		NOTE: If you only need to create a memory filesystem but not
+#		initialize it from a template, it is preferable to specify
+#		it in fstab e.g. as  "md /tmp mfs -s=30m,rw 0 0"
+#
+# /conf/T/SUBDIR.cpio.gz
+#		The file is cpio'd into /SUBDIR (and a memory filesystem is
+#		created for /SUBDIR if necessary). The presence of this file
+#		prevents the copy from /conf/T/SUBDIR/
+#
+# /conf/T/M/extract
+#		This is alternative to SUBDIR.cpio.gz and remount.
+#		Similar to remount case, a memory filesystem is created
+#		for /M and initialized from a template but no mounting
+#		performed. Instead, this file is run passing /M as single
+#		argument. It is expected to extract template override to /M
+#		using auxiliary storage found in some embedded systems
+#		having NVRAM too small to hold mountable file system.
+#
+# /conf/T/SUBDIR.remove
+#		The list of paths contained in the file are rm -rf'd
+#		relative to /SUBDIR.
+#
+# /conf/diskless_remount
+#		Similar to /conf/T/M/diskless_remount above, but allows
+#		all of /conf to be remounted.  This can be used to allow
+#		multiple roots to share the same /conf.
+#
+#
+# You will almost universally want to create the following files under /conf
+#
+# File					Content
+# ----------------------------		----------------------------------
+# /conf/base/etc/md_size		size of /etc filesystem
+# /conf/base/etc/diskless_remount	"/etc"
+# /conf/default/etc/rc.conf		generic diskless config parameters
+# /conf/default/etc/fstab		generic diskless fstab e.g. like this
+#
+#	foo:/root_part			/	nfs	ro		0 0
+#	foo:/usr_part			/usr	nfs     ro		0 0
+#	foo:/home_part			/home   nfs     rw      	0 0
+#	md				/tmp	mfs     -s=30m,rw	0 0
+#	md				/var	mfs	-s=30m,rw	0 0
+#	proc				/proc	procfs	rw		0 0
+#
+# plus, possibly, overrides for password files etc.
+#
+# NOTE!  /var, /tmp, and /dev will be typically created elsewhere, e.g.
+# as entries in the fstab as above.
+# Those filesystems should not be specified in /conf.
+#
+# (end of documentation, now get to the real code)
+
+dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
+
+# DEBUGGING
+# log something on stdout if verbose.
+o_verbose=0     # set to 1 or 2 if you want more debugging
+log() {
+    [ ${o_verbose} -gt 0 ] && echo "*** $* ***"
+    [ ${o_verbose} -gt 1 ] && read -p "=== Press enter to continue" foo
+}
+
+# chkerr:
+#
+# Routine to check for error
+#
+#	checks error code and drops into shell on failure.
+#	if shell exits, terminates script as well as /etc/rc.
+#	if remount_optional exists under the mountpoint, skip this check.
+#
+chkerr() {
+    lastitem () ( n=$(($# - 1)) ; shift $n ; echo $1 )
+    mountpoint="$(lastitem $2)"
+    [ -r $mountpoint/remount_optional ] && ( echo "$2 failed: ignoring due to remount_optional" ; return )
+    case $1 in
+    0)
+	;;
+    *)
+	echo "$2 failed: dropping into /bin/sh"
+	/bin/sh
+	# RESUME
+	;;
+    esac
+}
+
+# The list of filesystems to umount after the copy
+to_umount=""
+
+handle_remount() { # $1 = mount point
+    local nfspt mountopts b
+    b=$1
+    log handle_remount $1
+    [ -d $b -a -f $b/diskless_remount ] || return
+    read nfspt mountopts < $b/diskless_remount
+    log "nfspt ${nfspt} mountopts ${mountopts}"
+    # prepend the nfs root if not present
+    [ `expr "$nfspt" : '\(.\)'` = "/" ] && nfspt="${nfsroot}${nfspt}"
+    mount_nfs $mountopts $nfspt $b
+    chkerr $? "mount_nfs $nfspt $b"
+    to_umount="$b ${to_umount}"
+}
+
+# Create a generic memory disk.
+# The 'auto' parameter will attempt to use tmpfs(5), falls back to md(4).
+# $1 is size in 512-byte sectors, $2 is the mount point.
+mount_md() {
+    /sbin/mdmfs -s $1 auto $2
+}
+
+# Create the memory filesystem if it has not already been created
+#
+create_md() {
+	[ "x`eval echo \\$md_created_$1`" = "x" ] || return # only once
+	if [ "x`eval echo \\$md_size_$1`" = "x" ]; then
+	    md_size=10240
+	else
+	    md_size=`eval echo \\$md_size_$1`
+	fi
+	log create_md $1 with size $md_size
+	mount_md $md_size /$1
+	/bin/chmod 755 /$1
+	eval md_created_$1=created
+}
+
+# DEBUGGING
+#
+# set -v
+
+# Figure out our interface and IP.
+#
+bootp_ifc=""
+bootp_ipa=""
+bootp_ipbca=""
+class=""
+if [ ${dlv:=0} -ne 0 ] ; then
+	iflist=`ifconfig -l`
+	for i in ${iflist} ; do
+	    set -- `ifconfig ${i}`
+	    while [ $# -ge 1 ] ; do
+		if [ "${bootp_ifc}" = "" -a "$1" = "inet" ] ; then
+		    bootp_ifc=${i} ; bootp_ipa=${2} ; shift
+		fi
+		if [ "${bootp_ipbca}" = "" -a "$1" = "broadcast" ] ; then
+		    bootp_ipbca=$2; shift
+		fi
+		shift
+	    done
+	    if [ "${bootp_ifc}" != "" ] ; then
+		break
+	    fi
+	done
+	# Get the values passed with the T134 bootp cookie.
+	class="`/sbin/sysctl -qn kern.bootp_cookie`"
+
+	echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca} ${class}"
+fi
+
+log Figure out our NFS root path
+#
+set -- `mount -t nfs`
+while [ $# -ge 1 ] ; do
+    if [ "$2" = "on" -a "$3" = "/" ]; then
+	nfsroot="$1"
+	break
+    fi
+    shift
+done
+
+# The list of directories with template files
+templates="base default"
+if [ -n "${bootp_ipbca}" ]; then
+	templates="${templates} ${bootp_ipbca} bcast/${bootp_ipbca}"
+fi
+if [ -n "${class}" ]; then
+	templates="${templates} ${class}"
+fi
+if [ -n "${bootp_ipa}" ]; then
+	templates="${templates} ${bootp_ipa} ip/${bootp_ipa}"
+fi
+
+# If /conf/diskless_remount exists, remount all of /conf.
+handle_remount /conf
+
+# Resolve templates in /conf/base, /conf/default, /conf/${bootp_ipbca},
+# and /conf/${bootp_ipa}.  For each subdirectory found within these
+# directories:
+#
+# - calculate memory filesystem sizes.  If the subdirectory (prior to
+#   NFS remounting) contains the file 'md_size', the contents specified
+#   in 512 byte sectors will be used to size the memory filesystem.  Otherwise
+#   8192 sectors (4MB) is used.
+#
+# - handle NFS remounts.  If the subdirectory contains the file
+#   diskless_remount, the contents of the file is NFS mounted over
+#   the directory.  For example /conf/base/etc/diskless_remount
+#   might contain 'myserver:/etc'.  NFS remounts allow you to avoid
+#   having to dup your system directories in /conf.  Your server must
+#   be sure to export those filesystems -alldirs, however.
+#   If the diskless_remount file contains a string beginning with a
+#   '/' it is assumed that the local nfsroot should be prepended to
+#   it before attemping to the remount.  This allows the root to be
+#   relocated without needing to change the remount files.
+#
+log "templates are ${templates}"
+for i in ${templates} ; do
+    for j in /conf/$i/* ; do
+	[ -d $j ] || continue
+
+	# memory filesystem size specification
+	subdir=${j##*/}
+	[ -f $j/md_size ] && eval md_size_$subdir=`cat $j/md_size`
+
+	# remount. Beware, the command is in the file itself!
+	if [ -f $j/remount ]; then
+	    if [ -f $j/remount_subdir ]; then
+		k="/conf.tmp/$i/$subdir"
+		[ -d $k ] || continue
+
+		# Mount the filesystem root where the config data is
+		# on the temporary mount point.
+		nfspt=`/bin/cat $j/remount`
+		$nfspt $k
+		chkerr $? "$nfspt $k"
+
+		# Now use a nullfs mount to get the data where we
+		# really want to see it.
+		remount_subdir=`/bin/cat $j/remount_subdir`
+		remount_subdir_cmd="mount -t nullfs $k/$remount_subdir"
+
+		$remount_subdir_cmd $j
+		chkerr $? "$remount_subdir_cmd $j"
+
+		# XXX check order -- we must force $k to be unmounted
+		# after j, as j depends on k.
+		to_umount="$j $k ${to_umount}"
+	    else
+		nfspt=`/bin/cat $j/remount`
+		$nfspt $j
+		chkerr $? "$nfspt $j"
+		to_umount="$j ${to_umount}" # XXX hope it is really a mount!
+	    fi
+	fi
+
+	# NFS remount
+	handle_remount $j
+    done
+done
+
+# - Create all required MFS filesystems and populate them from
+#   our templates.  Support both a direct template and a dir.cpio.gz
+#   archive. Support for auxiliary NVRAM. Support dir.remove files containing
+#   a list of relative paths to remove.
+#
+# The dir.cpio.gz form is there to make the copy process more efficient,
+# so if the cpio archive is present, it prevents the files from dir/
+# from being copied.
+
+for i in ${templates} ; do
+    for j in /conf/$i/* ; do
+	subdir=${j##*/}
+	if [ -d $j -a ! -f $j.cpio.gz  ]; then
+	    create_md $subdir
+	    cp -Rp $j/ /$subdir
+	fi
+    done
+    for j in /conf/$i/*.cpio.gz ; do
+	subdir=${j%*.cpio.gz}
+	subdir=${subdir##*/}
+	if [ -f $j ]; then
+	    create_md $subdir
+	    echo "Loading /$subdir from cpio archive $j"
+	    (cd / ; /rescue/tar -xpf $j)
+	fi
+    done
+    for j in /conf/$i/*/extract ; do
+	if [ -x $j ]; then
+	    subdir=${j%*/extract}
+	    subdir=${subdir##*/}
+	    create_md $subdir
+	    echo "Loading /$subdir using auxiliary command $j"
+	    $j /$subdir
+	fi
+    done
+    for j in /conf/$i/*.remove ; do
+	subdir=${j%*.remove}
+	subdir=${subdir##*/}
+	if [ -f $j ]; then
+	    # doubly sure it is a memory disk before rm -rf'ing
+	    create_md $subdir
+	    (cd /$subdir; rm -rf `/bin/cat $j`)
+	fi
+    done
+done
+
+# umount partitions used to fill the memory filesystems
+[ -n "${to_umount}" ] && umount $to_umount

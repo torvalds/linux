@@ -1,0 +1,1667 @@
+#!/usr/bin/perl -w
+;# --*-perl-*--
+;#
+;# /src/NTP/ntp4-dev/scripts/monitoring/ntploopwatch,v 4.7 2004/11/14 16:11:05 kardel RELEASE_20050508_A
+;#
+;# process loop filter statistics file and either
+;#     - show statistics periodically using gnuplot
+;#     - or print a single plot
+;#
+;#  Copyright (c) 1992-1998 
+;#  Rainer Pruy, Friedrich-Alexander Universität Erlangen-Nürnberg
+;#
+;#
+;#############################################################
+$0 =~ s!^.*/([^/]+)$!$1!;
+$F = ' ' x length($0);
+$|=1;
+
+$ENV{'SHELL'} = '/bin/sh'; # use bourne shell
+
+undef($config);
+undef($workdir);
+undef($PrintIt);
+undef($samples);
+undef($StartTime);
+undef($EndTime);
+($a,$b) if 0;			# keep -w happy
+$usage = <<"E-O-P";
+usage:
+  to watch statistics permanently:
+     $0 [-v[<level>]] [-c <config-file>] [-d <working-dir>]
+     $F [-h <hostname>]
+
+  to get a single print out specify also
+     $F -P[<printer>] [-s<samples>]
+     $F               [-S <start-time>] [-E <end-time>]
+     $F               [-Y <MaxOffs>] [-y <MinOffs>]
+
+If You like long option names, You can use:
+    -help
+    -c    +config
+    -d    +directory
+    -h    +host
+    -v    +verbose[=<level>]
+    -P    +printer[=<printer>]
+    -s    +samples[=<samples>]
+    -S    +starttime
+    -E    +endtime
+    -Y    +maxy
+    -y    +miny
+
+If <printer> contains a '/' (slash character) output is directed to 
+a file of this name instead of delivered to a printer.
+E-O-P
+
+;# add directory to look for lr.pl and timelocal.pl (in front of current list)
+unshift(@INC,".");
+
+require "lr.pl";	# linear regresion routines
+
+$MJD_1970 = 40587;		# from ntp.h (V3)
+$RecordSize = 48;		# usually a line fits into 42 bytes
+$MinClip = 1;		# clip Y scales with greater range than this
+
+;# largest extension of Y scale from mean value, factor for standart deviation
+$FuzzLow = 2.2;			# for side closer to zero
+$FuzzBig = 1.8;			# for side farther from zero
+
+require "ctime.pl";
+require "timelocal.pl";
+;# early distributions of ctime.pl had a bug
+$ENV{'TZ'} = 'MET' unless defined $ENV{'TZ'} || $[ > 4.010;
+if (defined(@ctime'MoY))
+{
+  *Month=*ctime'MoY;
+  *Day=*ctime'DoW;
+} 					# ' re-sync emacs fontification
+else
+{
+  @Month = ('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec');
+  @Day   = ('Sun','Mon','Tue','Wed','Thu','Fri','Sat');
+}
+print @ctime'DoW if 0; # ' re-sync emacs fontification
+
+;# max number of days per month
+@MaxNumDaysPerMonth = (31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31);
+
+;# config settable parameters
+$delay = 60;
+$srcprefix = "./var\@\$STATHOST/loopstats.";
+$showoffs = 1;
+$showfreq = 1;
+$showcmpl = 0;
+$showoreg = 0;
+$showfreg = 0;
+undef($timebase);
+undef($freqbase);
+undef($cmplscale);
+undef($MaxY);
+undef($MinY);
+$deltaT  = 512; # indicate sample data gaps greater than $deltaT seconds
+$verbose = 1;
+
+while($_ = shift(@ARGV))
+{
+    (/^[+-]help$/) && die($usage);
+    
+    (/^-c$/ || /^\+config$/) &&
+	(@ARGV || die($usage), $config = shift(@ARGV), next);
+
+    (/^-d$/ || /^\+directory$/) &&
+	(@ARGV || die($usage), $workdir = shift(@ARGV), next);
+
+    (/^-h$/ || /^\+host$/) &&
+	(@ARGV || die($usage), $STATHOST = shift, next);
+    
+    (/^-v(\d*)$/ || /^\+verbose=?(\d*)$/) &&
+	($verbose=($1 eq "") ? 1 : $1, next);
+
+    (/^-P(\S*)$/ || /^\+[Pp]rinter=?(\S*)$/) &&
+	($PrintIt = $1, $verbose==1 && ($verbose = 0), next);
+
+    (/^-s(\d*)$/ || /^\+samples=?(\d*)$/) &&
+	(($samples = ($1 eq "") ? (shift || die($usage)): $1), next);
+    
+    (/^-S$/ || /^\+[Ss]tart[Tt]ime$/) &&
+	(@ARGV || die($usage), $StartTime=&date_time_spec2seconds(shift),next);
+
+    (/^-E$/ || /^\+[Ee]nd[Tt]ime$/) &&
+	(@ARGV || die($usage), $EndTime = &date_time_spec2seconds(shift),next);
+    
+    (/^-Y$/ || /^\+[Mm]ax[Yy]$/) &&
+	(@ARGV || die($usage), $MaxY = shift, next);
+    
+    (/^-y$/ || /^\+[Mm]in[Yy]$/) &&
+	(@ARGV || die($usage), $MinY = shift, next);
+    
+    die("$0: unexpected argument \"$_\"\n$usage");
+}
+
+if (defined($workdir))
+{
+  chdir($workdir) ||
+      die("$0: failed to change working dir to \"$workdir\": $!\n");
+}
+
+$PrintIt = "ps" if defined($PrintIt) && $PrintIt eq "";
+
+if (!defined($PrintIt))
+{
+    defined($samples) &&
+	print "WARNING: your samples value may be shadowed by config file settings\n";
+    defined($StartTime) &&
+	print "WARNING: your StartTime value may be shadowed by config file settings\n";
+    defined($EndTime) &&
+	print "WARNING: your EndTime value may be shadowed by config file settings\n";
+    defined($MaxY) &&
+	print "WARNING: your MaxY value may be shadowed by config file settings\n";
+    defined($MinY) &&
+	print "WARNING: your MinY value may be shadowed by config file settings\n";
+	
+    ;# check operating environment
+    ;# 
+    ;# gnuplot usually has X support
+    ;# I vaguely remember there was one with sunview support
+    ;#
+    ;# If Your plotcmd can display graphics using some other method
+    ;# (Tek window,..) fix the following test
+    ;# (or may be, just disable it)
+    ;#
+    !(defined($ENV{'DISPLAY'}) || defined($ENV{'WINDOW_PARENT'})) &&
+	die("Need window system to monitor statistics\n");
+}
+
+;# configuration file
+$config = "loopwatch.config" unless defined($config);
+($STATHOST = $config) =~ s!.*loopwatch\.config.([^/\.]*)$!$1!
+    unless defined($STATHOST);
+($STATTAG = $STATHOST) =~ s/^([^\.\*\s]+)\..*$/$1/;
+
+$srcprefix =~ s/\$STATHOST/$STATHOST/g;
+
+;# plot command 
+@plotcmd=("gnuplot",
+	  '-title', "Ntp loop filter statistics $STATHOST",
+	  '-name', "NtpLoopWatch_$STATTAG");
+$tmpfile = "/tmp/ntpstat.$$";
+
+;# other variables
+$doplot = "";	# assembled command for @plotcmd to display plot
+undef($laststat);
+
+;# plot value ranges
+undef($mintime);
+undef($maxtime);
+undef($minoffs);
+undef($maxoffs);
+undef($minfreq);
+undef($maxfreq);
+undef($mincmpl);
+undef($maxcmpl);
+undef($miny);
+undef($maxy);
+
+;# stop operation if plot command dies
+sub sigchld
+{
+  local($pid) = wait;
+  unlink($tmpfile);
+  warn(sprintf("%s: %s died: exit status: %d signal %d\n",
+	      $0,
+	       (defined($Plotpid) && $Plotpid == $pid)
+	       ? "plotcmd" : "unknown child $pid",
+	       $?>>8,$? & 0xff)) if $?;
+  exit(1) if $? && defined($Plotpid) && $pid == $Plotpid;
+}
+&sigchld if 0;
+$SIG{'CHLD'} = "sigchld";
+$SIG{'CLD'} = "sigchld";
+
+sub abort
+{
+  unlink($tmpfile);
+  defined($Plotpid) && kill('TERM',$Plotpid);
+  die("$0: received signal SIG$_[$[] - exiting\n");
+}
+&abort if 0;	# make -w happy - &abort IS used
+$SIG{'INT'} = $SIG{'HUP'} = $SIG{'QUIT'} = $SIG{'TERM'} = $SIG{'PIPE'} = "abort";
+
+;#
+sub abs
+{
+  ($_[$[] < 0) ? -($_[$[]) : $_[$[];
+}
+
+sub boolval
+{
+  local($v) = ($_[$[]);
+
+  return 1 if ($v eq 'yes') || ($v eq 'y');
+  return 1 if ($v =~ /^[0-9]*$/) && ($v != 0);
+  return 0;
+}
+
+;#####################
+;# start of real work 
+
+print "starting plot command (" . join(" ",@plotcmd) . ")\n" if $verbose > 1;
+
+$Plotpid = open(PLOT,"|-");
+select((select(PLOT),$|=1)[$[]);	# make PLOT line bufferd
+
+defined($Plotpid) ||
+    die("$0: failed to start plot command: $!\n");
+
+unless ($Plotpid)
+{
+   ;# child == plot command
+   close(STDOUT);
+   open(STDOUT,">&STDERR") ||
+       die("$0: failed to redirect STDOUT of plot command: $!\n");
+   
+   print STDOUT "plot command running as $$\n";
+
+   exec @plotcmd;
+   die("$0: failed to exec (@plotcmd): $!\n");
+   exit(1); # in case ...
+}
+
+sub read_config
+{
+  local($at) = (stat($config))[$[+9];
+  local($_,$c,$v);
+
+  (undef($laststat),(print("stat $config failed: $!\n")),return) if ! defined($at);
+  return if (defined($laststat) && ($laststat == $at));
+  $laststat = $at;
+
+  print "reading configuration from \"$config\"\n" if $verbose;
+
+  open(CF,"<$config") ||
+      (warn("$0: failed to read \"$config\" - using old settings ($!)\n"),
+       return);
+  while(<CF>)
+  {
+    chop;
+    s/^([^\#]*[^\#\s]?)\s*\#.*$//;
+    next if /^\s*$/;
+
+    s/^\s*([^=\s]*)\s*=\s*(.*\S)\s*$/$1=$2/;
+
+    ($c,$v) = split(/=/,$_,2);
+    print "processing \"$c=$v\"\n" if $verbose > 3;
+    ($c eq "delay") && ($delay = $v,1) && next;
+    ($c eq 'samples') && (!defined($PrintIt) || !defined($samples)) &&
+	($samples = $v,1) && next;
+    ($c eq 'srcprefix') && (($srcprefix=$v)=~s/\$STATHOST/$STATHOST/g,1)
+	&& next;
+    ($c eq 'showoffs') &&
+	($showoffs = boolval($v),1) && next;
+    ($c eq 'showfreq') &&
+	($showfreq = boolval($v),1) && next;
+    ($c eq 'showcmpl') &&
+	($showcmpl = boolval($v),1) && next;
+    ($c eq 'showoreg') &&
+	($showoreg = boolval($v),1) && next;
+    ($c eq 'showfreg') &&
+	($showfreg = boolval($v),1) && next;
+
+    ($c eq 'exit') && (unlink($tmpfile),die("$0: exit by config request\n"));
+
+    ($c eq 'freqbase' ||
+     $c eq 'cmplscale') &&
+	do {
+	    if (! defined($v) || $v eq "" || $v eq 'dynamic')
+	    {
+	      eval "undef(\$$c);";
+	    }
+	    else
+	    {
+	      eval "\$$c = \$v;";
+	    }
+	    next;
+	};
+    ($c eq 'timebase') &&
+	do {
+	    if (! defined($v) || $v eq "" || $v eq "dynamic")
+	    {
+	      undef($timebase);
+	    }
+	    else
+	    {
+	      $timebase=&date_time_spec2seconds($v);
+	    }
+	};
+    ($c eq 'EndTime') &&
+	do {
+	    next if defined($EndTime) && defined($PrintIt);
+	    if (! defined($v) || $v eq "" || $v eq "none")
+	    {
+	      undef($EndTime);
+	    }
+	    else
+	    {
+	      $EndTime=&date_time_spec2seconds($v);
+	    }
+	};
+    ($c eq 'StartTime') &&
+	do {
+	    next if defined($StartTime) && defined($PrintIt);
+	    if (! defined($v) || $v eq "" || $v eq "none")
+	    {
+	      undef($StartTime);
+	    }
+	    else
+	    {
+	      $StartTime=&date_time_spec2seconds($v);
+	    }
+	};
+
+    ($c eq 'MaxY') &&
+	do {
+	    next if defined($MaxY) && defined($PrintIt);
+	    if (! defined($v) || $v eq "" || $v eq "none")
+	    {
+	      undef($MaxY);
+	    }
+	    else
+	    {
+	      $MaxY=$v;
+	    }
+	};
+
+    ($c eq 'MinY') &&
+	do {
+	    next if defined($MinY) && defined($PrintIt);
+	    if (! defined($v) || $v eq "" || $v eq "none")
+	    {
+	      undef($MinY);
+	    }
+	    else
+	    {
+	      $MinY=$v;
+	    }
+	};
+
+    ($c eq 'deltaT') &&
+	do {
+	    if (!defined($v) || $v eq "")
+	    {
+	      undef($deltaT);
+	    }
+	    else
+	    {
+	      $deltaT = $v;
+	    }
+	    next;
+	};
+    ($c eq 'verbose') && ! defined($PrintIt) &&
+	do {
+	     if (!defined($v) || $v == 0)
+	     {
+	       $verbose = 0;
+	     }
+	     else
+	     {
+	       $verbose = $v;
+	     }
+	     next;
+	};
+    ;# otherwise: silently ignore unrecognized config line
+  }
+  close(CF);
+  ;# set show defaults when nothing selected
+  $showoffs = $showfreq = $showcmpl = 1
+      unless $showoffs || $showfreq || $showcmpl;
+  if ($verbose > 3)
+  {
+    print  "new configuration:\n";
+    print  "   delay\t= $delay\n";
+    print  "   samples\t= $samples\n";
+    print  "   srcprefix\t= $srcprefix\n";
+    print  "   showoffs\t= $showoffs\n";
+    print  "   showfreq\t= $showfreq\n";
+    print  "   showcmpl\t= $showcmpl\n";
+    print  "   showoreg\t= $showoreg\n";
+    print  "   showfreg\t= $showfreg\n";
+    printf "   timebase\t= %s",defined($timebase)?&ctime($timebase):"dynamic\n";
+    printf "   freqbase\t= %s\n",defined($freqbase)  ?"$freqbase":"dynamic";
+    printf "   cmplscale\t= %s\n",defined($cmplscale)?"$cmplscale":"dynamic";
+    printf "   StartTime\t= %s",defined($StartTime)?&ctime($StartTime):"none\n";
+    printf "   EndTime\t= %s",  defined($EndTime) ?  &ctime($EndTime):"none\n";
+    printf "   MaxY\t= %s",defined($MaxY)? $MaxY      :"none\n";
+    printf "   MinY\t= %s",defined($MinY)? $MinY      :"none\n";
+    print  "   verbose\t= $verbose\n";
+  }
+print "configuration file read\n" if $verbose > 2;
+}
+
+sub make_doplot($$)
+{
+    my($lo, $lf) = @_;
+    local($c) = ("");
+    local($fmt)
+	= ("%s \"%s\" using 1:%d title '%s <%lf %lf> %6s' with lines");
+    local($regfmt)
+	= ("%s ((%lf * x) + %lf) title 'lin. approx. %s (%f t[h]) %s %f <%f> %6s' with lines");
+    
+    $doplot = "    set title 'NTP loopfilter statistics for $STATHOST  " .
+	"(last $LastCnt samples from $srcprefix*)'\n";
+    
+    local($xts,$xte,$i,$t);
+    
+    local($s,$c) = ("");
+
+    ;# number of integral seconds to get at least 12 tic marks on x axis
+    $t = int(($maxtime - $mintime) / 12 + 0.5);
+    $t = 1 unless $t;		# prevent $t to be zero
+    foreach $i (30,
+		60,5*60,15*60,30*60,
+		60*60,2*60*60,6*60*60,12*60*60,
+		24*60*60,48*60*60)
+    {
+	last if $t < $i;
+	$t = $t - ($t % $i);
+    }
+    print "time label resolution: $t seconds\n" if $verbose > 1;
+    
+    ;# make gnuplot use wall clock time labels instead of NTP seconds
+    for ($c="", $i = $mintime - ($mintime % $t);
+	 $i <= $maxtime + $t;
+	 $i += $t, $c=",")
+    {
+	$s .= $c;
+	((int($i / $t) % 2) &&
+	 ($s .= sprintf("'' %lf",($i - $LastTimeBase)/3600))) ||
+	     (($t <= 60) &&
+	      ($s .= sprintf("'%d:%02d:%02d' %lf",
+			     (localtime($i))[$[+2,$[+1,$[+0],
+			     ($i - $LastTimeBase)/3600))) 
+		 || (($t <= 2*60*60) &&
+		     ($s .= sprintf("'%d:%02d' %lf",
+				    (localtime($i))[$[+2,$[+1],
+				    ($i - $LastTimeBase)/3600)))
+		     || (($t <= 12*60*60) &&
+			 ($s .= sprintf("'%s %d:00' %lf",
+					$Day[(localtime($i))[$[+6]],
+					(localtime($i))[$[+2],
+					($i - $LastTimeBase)/3600)))
+			 || ($s .= sprintf("'%d.%d-%d:00' %lf",
+					   (localtime($i))[$[+3,$[+4,$[+2],
+					   ($i - $LastTimeBase)/3600));
+    }
+    $doplot .= "set xtics ($s)\n";
+    
+    chop($xts = &ctime($mintime));
+    chop($xte = &ctime($maxtime));
+    $doplot .= "set xlabel 'Start:  $xts    --   Time Scale   --    End:  $xte'\n";
+    $doplot .= "set yrange [" ;
+    $doplot .= defined($MinY) ? sprintf("%lf", $MinY) : $miny;
+    $doplot .= ':';
+    $doplot .= defined($MaxY) ? sprintf("%lf", $MaxY) : $maxy;
+    $doplot .= "]\n";
+    
+    $doplot .= "   plot";
+    $c = "";
+    $showoffs &&
+	($doplot .= sprintf($fmt,$c,$tmpfile,2,
+			    "offset",
+			    $minoffs,$maxoffs,
+			    "[ms]"),
+	 $c = ",");
+    $LastCmplScale = 1 if ! defined($LastCmplScale);
+    $showcmpl &&
+	($doplot .= sprintf($fmt,$c,$tmpfile,4,
+			    "compliance" .
+			    (&abs($LastCmplScale) > 1
+			     ? " / $LastCmplScale"
+			     : (&abs($LastCmplScale) == 1 ? "" : " * ".(1/$LastCmplScale))),
+			    $mincmpl/$LastCmplScale,$maxcmpl/$LastCmplScale,
+			    ""),
+	 $c = ",");
+    $LastFreqBase = 0 if ! defined($LastFreqBase);
+    $LastFreqBaseString = "?" if ! defined($LastFreqBaseString);
+    $FreqScale = 1 if ! defined($FreqScale);
+    $FreqScaleInv = 1 if ! defined($FreqScaleInv);
+    $showfreq &&
+	($doplot .= sprintf($fmt,$c,$tmpfile,3,
+			    "frequency" .
+			    ($LastFreqBase > 0
+			     ? " - $LastFreqBaseString" 
+			     : ($LastFreqBase == 0 ? "" : " + $LastFreqBaseString")),
+			    $minfreq * $FreqScale - $LastFreqBase,
+			    $maxfreq * $FreqScale - $LastFreqBase,
+			    "[${FreqScaleInv}ppm]"),
+	 $c = ",");
+    $showoreg && $showoffs &&
+	($doplot .= sprintf($regfmt, $c,
+			    $lo->B(),$lo->A(),
+			    "offset   ",
+			    $lo->B(),
+			    (($lo->A()) < 0 ? '-' : '+'),
+			    &abs($lo->A()), $lo->r(),
+			    "[ms]"),
+	 $c = ",");
+    $showfreg && $showfreq &&
+	($doplot .= sprintf($regfmt, $c,
+			    $lf->B() * $FreqScale,
+			    ($lf->A() + $minfreq) * $FreqScale - $LastFreqBase,
+			    "frequency",
+			    $lf->B() * $FreqScale,
+			    (($lf->A() + $minfreq) * $FreqScale - $LastFreqBase) < 0 ? '-' : '+',
+			    &abs(($lf->A() + $minfreq) * $FreqScale - $LastFreqBase),
+			    $lf->r(),
+			    "[${FreqScaleInv}ppm]"),
+	 $c = ",");
+    $doplot .= "\n";
+}
+
+%F_key   = ();
+%F_name  = ();
+%F_size  = ();
+%F_mtime = ();
+%F_first = ();
+%F_last  = ();
+
+sub genfile
+{
+    local($cnt,$in,$out,$lo,$lf,@fpos) = @_;
+    
+    local(@F,@t,$t,$lastT) = ();
+    local(@break,@time,@offs,@freq,@cmpl,@loffset,@filekey) = ();
+    local($lm,$l,@f);
+    
+    local($sdir,$sname);
+    
+    ;# allocate some storage for the tables
+    ;# otherwise realloc may get into troubles
+    if (defined($StartTime) && defined($EndTime))
+    {
+	$l = ($EndTime-$StartTime) -$[+1 +1; # worst case: 1 sample per second
+    }
+    else
+    {
+	$l = $cnt + 10;
+    }
+    print "preextending arrays to $l entries\n" if $verbose > 2;
+    $#break =   $l; for ($i=$[; $i<=$l;$i++) { $break[$i] = 0; }
+    $#time =    $l; for ($i=$[; $i<=$l;$i++) { $time[$i] = 0; }
+    $#offs =    $l; for ($i=$[; $i<=$l;$i++) { $offs[$i] = 0; }
+    $#freq =    $l; for ($i=$[; $i<=$l;$i++) { $freq[$i] = 0; }
+    $#cmpl =    $l; for ($i=$[; $i<=$l;$i++) { $cmpl[$i] = 0; }
+    $#loffset = $l; for ($i=$[; $i<=$l;$i++) { $loffset[$i] = 0; }
+    $#filekey = $l; for ($i=$[; $i<=$l;$i++) { $filekey[$i] = 0; }
+    ;# now reduce size again
+    $#break =   $[ - 1;
+    $#time =    $[ - 1;
+    $#offs =    $[ - 1;
+    $#freq =    $[ - 1;
+    $#cmpl =    $[ - 1;
+    $#loffset = $[ - 1;
+    $#filekey = $[ - 1;
+    print "memory allocation ready\n" if $verbose > 2;
+    sleep(3) if $verbose > 1;
+
+    $fpos[$[] = '' if !defined($fpos[$[]);
+
+    if (index($in,"/") < $[)
+    {
+	$sdir = ".";
+	$sname = $in;
+    }
+    else
+    {
+	($sdir,$sname) = ($in =~ m!^(.*)/([^/]*)!);
+	$sname = "" unless defined($sname);
+    }
+    
+    $Ltime = -1 if ! defined($Ltime);
+    if (!defined($Lsdir) || $Lsdir ne $sdir || $Ltime != (stat($sdir))[$[+9] ||
+	grep($F_mtime{$_} != (stat($F_name{$_}))[$[+9], @F_files))
+	
+    {
+	print "rescanning directory \"$sdir\" for files \"$sname*\"\n"
+	    if $verbose > 1;
+
+	;# rescan directory on changes
+	$Lsdir = $sdir;
+	$Ltime = (stat($sdir))[$[+9];
+	</X{> if 0;		# dummy line - calm down my formatter
+	local(@newfiles) = < ${in}*[0-9] >;
+	local($st_dev,$st_ino,$st_mtime,$st_size,$name,$key,$modified);
+
+	foreach $name (@newfiles)
+	{
+	    ($st_dev,$st_ino,$st_size,$st_mtime) =
+		(stat($name))[$[,$[+1,$[+7,$[+9];
+	    $modified = 0;
+	    $key = sprintf("%lx|%lu", $st_dev, $st_ino);
+	    
+	    print "candidate file \"$name\"",
+                  (defined($st_dev) ? "" : " failed: $!"),"\n"
+		      if $verbose > 2;
+	    
+	    if (! defined($F_key{$name}) || $F_key{$name} ne $key)
+	    {
+		$F_key{$name} = $key;
+		$modified++;
+	    }
+	    if (!defined($F_name{$key}) || $F_name{$key} ne $name)
+	    {
+		$F_name{$key} = $name;
+		$modified++;
+	    }
+	    if (!defined($F_size{$key}) || $F_size{$key} != $st_size)
+	    {
+		$F_size{$key} = $st_size;
+		$modified++;
+	    }
+	    if (!defined($F_mtime{$key}) || $F_mtime{$key} != $st_mtime)
+	    {
+		$F_mtime{$key} = $st_mtime;
+		$modified++;
+	    }
+	    if ($modified)
+	    {
+		print "new data \"$name\" key: $key;\n" if $verbose > 1;
+	        print "             size: $st_size; mtime: $st_mtime;\n"
+		    if $verbose > 1;
+		$F_last{$key} = $F_first{$key} = $st_mtime;
+		$F_first{$key}--; # prevent zero divide later on
+		;# now compute derivated attributes
+		open(IN, "<$name") ||
+		    do {
+			warn "$0: failed to open \"$name\": $!";
+			next;
+		    };
+
+		while(<IN>)
+		{
+		    @F = split;
+		    next if @F < 5;
+		    next if $F[$[] eq "";
+		    $t = ($F[$[] - $MJD_1970) * 24 * 60 * 60;
+		    $t += $F[$[+1];
+		    $F_first{$key} = $t;
+		    print "\tfound first entry: $t ",&ctime($t)
+			if $verbose > 4;
+		    last;
+		}
+		seek(IN,
+		     ($st_size > 4*$RecordSize) ? $st_size - 4*$RecordSize : 0,
+		     0);
+		while(<IN>)
+		{
+		    @F = split;
+		    next if @F < 5;
+		    next if $F[$[] eq "";
+		    $t = ($F[$[] - $MJD_1970) * 24 * 60 * 60;
+		    $t += $F[$[+1];
+		    $F_last{$key} = $t;
+		    $_ = <IN>;
+		    print "\tfound last entry: $t ", &ctime($t)
+			if $verbose > 4 && ! defined($_);
+		    last unless defined($_);
+		    redo;
+		    ;# Ok, calm down...
+		    ;# using $_ = <IN> in conjunction with redo
+		    ;# is semantically equivalent to the while loop, but
+		    ;# I needed a one line look ahead and this solution
+		    ;# was what I thought of first
+		    ;# and.. If you do not like it dont look
+		}
+		close(IN);
+		print("             first: ",$F_first{$key},
+		      " last: ",$F_last{$key},"\n") if $verbose > 1;
+	    }
+	}
+	;# now reclaim memory used for files no longer referenced ...
+	local(%Names);
+	grep($Names{$_} = 1,@newfiles);
+	foreach (keys %F_key)
+	{
+	    next if defined($Names{$_});
+	    delete $F_key{$_};
+	    $verbose > 2 && print "no longer referenced: \"$_\"\n";
+	}
+	%Names = ();
+	
+	grep($Names{$_} = 1,values(%F_key));
+	foreach (keys %F_name)
+	{
+	    next if defined($Names{$_});
+	    delete $F_name{$_};
+	    $verbose > 2 && print "unref name($_)= $F_name{$_}\n";
+	}
+	foreach (keys %F_size)
+	{
+	    next if defined($Names{$_});
+	    delete $F_size{$_};
+	    $verbose > 2 && print "unref size($_)\n";
+	}
+	foreach (keys %F_mtime)
+	{
+	    next if defined($Names{$_});
+	    delete $F_mtime{$_};
+	    $verbose > 2 && print "unref mtime($_)\n";
+	}
+	foreach (keys %F_first)
+	{
+	    next if defined($Names{$_});
+	    delete $F_first{$_};
+	    $verbose > 2 && print "unref first($_)\n";
+	}
+	foreach (keys %F_last)
+	{
+	    next if defined($Names{$_});
+	    delete $F_last{$_};
+	    $verbose > 2 && print "unref last($_)\n";
+	}
+	;# create list sorted by time
+	@F_files = sort {$F_first{$a} <=> $F_first{$b}; } keys(%F_name);
+	if ($verbose > 1)
+	{
+	    print "Resulting file list:\n";
+	    foreach (@F_files)
+	    {
+		print "\t$_\t$F_name{$_}\n";
+	    }
+	}
+    }
+    
+    printf("processing %s; output \"$out\" (%d input files)\n",
+	   ((defined($StartTime) && defined($EndTime))
+	    ? "time range"
+	    : (defined($StartTime) ? "$cnt samples from StartTime" :
+	      (defined($EndTime) ? "$cnt samples to EndTime" :
+		 "last $cnt samples"))),
+	    scalar(@F_files))
+	if $verbose > 1;
+    
+    ;# open output file - will be input for plotcmd
+    open(OUT,">$out") || 
+	do {
+	    warn("$0: cannot create \"$out\": $!\n");
+	};
+    
+    @f = @F_files;
+    if (defined($StartTime))
+    {
+	while (@f && ($F_last{$f[$[]} < $StartTime))
+	{
+	    print("shifting ", $F_name{$f[$[]},
+		  " last: ", $F_last{$f[$[]},
+		  " < StartTime: $StartTime\n")
+		if $verbose > 3;
+	    shift(@f);
+	}
+
+
+    }
+    if (defined($EndTime))
+    {
+	while (@f && ($F_first{$f[$#f]} > $EndTime))
+	{
+	    print("popping  ", $F_name{$f[$#f]},
+		  " first: ", $F_first{$f[$#f]},
+		  " > EndTime: $EndTime\n")
+		if $verbose > 3;
+	    pop(@f);
+	}
+    }
+    
+    if (@f)
+    {
+	if (defined($StartTime))
+	{
+	    print "guess start according to StartTime ($StartTime)\n"
+		if $verbose > 3;
+
+	    if ($fpos[$[] eq 'start')
+	    {
+		if (grep($_ eq $fpos[$[+1],@f))
+		{
+		    shift(@f) while @f && $f[$[] ne $fpos[$[+1];
+		}
+		else
+		{
+		    @fpos = ('start', $f[$[], undef);
+		}
+	    }
+	    else
+	    {
+		@fpos = ('start' , $f[$[], undef);
+	    }
+	    
+	    if (!defined($fpos[$[+2]))
+	    {
+		if ($StartTime <= $F_first{$f[$[]})
+		{
+		    $fpos[$[+2] = 0;
+		}
+		else
+		{
+		    $fpos[$[+2] =
+			int($F_size{$f[$[]} *
+			    (($StartTime - $F_first{$f[$[]})/
+			     ($F_last{$f[$[]} - $F_first{$f[$[]})));
+		    $fpos[$[+2] = ($fpos[$[+2] <= 2 * $RecordSize)
+			? 0 : $fpos[$[+2] - 2 * $RecordSize;
+		    ;# anyway  as the data may contain "time holes" 
+		    ;# our heuristics may baldly fail
+		    ;# so just start at 0
+		    $fpos[$[+2] = 0;
+		}
+	    }
+	}
+	elsif (defined($EndTime))
+	{
+	    print "guess starting point according to EndTime ($EndTime)\n"
+		if $verbose > 3;
+	    
+	    if ($fpos[$[] eq 'end')
+	    {
+		if (grep($_ eq $fpos[$[+1],@f))
+		{
+		    shift(@f) while @f && $f[$[] ne $fpos[$[+1];
+		}
+		else
+		{
+		    @fpos = ('end', $f[$[], undef);
+		}
+	    }
+	    else
+	    {
+		@fpos = ('end', $f[$[], undef);
+	    }
+	    
+	    if (!defined($fpos[$[+2]))
+	    {
+		local(@x) = reverse(@f);
+		local($s,$c) = (0,$cnt);
+		if ($EndTime < $F_last{$x[$[]})
+		{
+		    ;# last file will only be used partially
+		    $s = int($F_size{$x[$[]} *
+			     (($EndTime - $F_first{$x[$[]}) /
+			      ($F_last{$x[$[]} - $F_first{$x[$[]})));
+		    $s = int($s/$RecordSize);
+		    $c -= $s - 1;
+		    if ($c <= 0)
+		    {
+			;# start is in the same file
+			$fpos[$[+1] = $x[$[];
+			$fpos[$[+2] = ($c >=-2) ? 0 : (-$c - 2) * $RecordSize;
+			shift(@f) while @f && ($f[$[] ne $x[$[]);
+		    }
+		    else
+		    {
+			shift(@x);
+		    }
+		}
+		
+		if (!defined($fpos[$[+2]))
+		{
+		    local($_);
+		    while($_ = shift(@x))
+		    {
+			$s = int($F_size{$_}/$RecordSize);
+			$c -= $s - 1;
+			if ($c <= 0)
+			{
+			    $fpos[$[+1] = $_;
+			    $fpos[$[+2] = ($c>-2) ? 0 : (-$c - 2) * $RecordSize;
+			    shift(@f) while @f && ($f[$[] ne $_);
+			    last;
+			}
+		    }
+		}
+	    }
+	}
+	else
+	{
+	    print "guessing starting point according to count ($cnt)\n"
+		if $verbose > 3;
+	    ;# guess offset to get last available $cnt samples
+	    if ($fpos[$[] eq 'cnt')
+	    {
+		if (grep($_ eq $fpos[$[+1],@f))
+		{
+		    print "old positioning applies\n" if $verbose > 3;
+		    shift(@f) while @f && $f[$[] ne $fpos[$[+1];
+		}
+		else
+		{
+		    @fpos = ('cnt', $f[$[], undef);
+		}
+	    }
+	    else
+	    {
+		@fpos = ('cnt', $f[$[], undef);
+	    }
+	    
+	    if (!defined($fpos[$[+2]))
+	    {
+		local(@x) = reverse(@f);
+		local($s,$c) = (0,$cnt);
+		
+		local($_);
+		while($_ = shift(@x))
+		{
+		    print "examing \"$_\" $c samples still needed\n"
+			if $verbose > 4;
+		    $s = int($F_size{$_}/$RecordSize);
+		    $c -= $s - 1;
+		    if ($c <= 0)
+		    {
+			$fpos[$[+1] = $_;
+			$fpos[$[+2] = ($c>-2) ? 0 : (-$c - 2) * $RecordSize;
+			shift(@f) while @f && ($f[$[] ne $_);
+			last;
+		    }
+		}
+		if (!defined($fpos[$[+2]))
+		{
+		    print "no starting point yet - using start of data\n"
+			if $verbose > 2;
+		    $fpos[$[+2] = 0;
+		}
+	    }
+	}
+    }
+    print "Ooops, no suitable input file ??\n"
+	if $verbose > 1 && @f <= 0;
+
+    printf("Starting at (%s) \"%s\" offset %ld using %d files\n",
+	   $fpos[$[+1],
+	   $F_name{$fpos[$[+1]},
+	   $fpos[$[+2],
+	   scalar(@f))
+	if $verbose > 2;
+
+    $lm = 1;
+    $l = 0;    
+    foreach $key (@f)
+    {
+	$file = $F_name{$key};
+	print "processing file \"$file\"\n" if $verbose > 2;
+	
+	open(IN,"<$file") ||
+	    (warn("$0: cannot read \"$file\": $!\n"), next);
+	
+	;# try to seek to a position nearer to the start of the interesting lines
+	;# should always affect only first item in @f
+	($key eq $fpos[$[+1]) &&
+	    (($verbose > 1) &&
+	     print("Seeking to offset $fpos[$[+2]\n"),
+		seek(IN,$fpos[$[+2],0) ||
+		    warn("$0: seek(\"$F_name{$key}\" failed: $|\n"));
+	
+	while(<IN>)
+	{
+	    $l++;
+	    ($verbose > 3) &&
+		(($l % $lm) == 0 && print("\t$l lines read\n") &&
+		 (($l ==     2) && ($lm =    10) ||
+		  ($l ==   100) && ($lm =   100) ||
+		  ($l ==   500) && ($lm =   500) ||
+		  ($l ==  1000) && ($lm =  1000) ||
+		  ($l ==  5000) && ($lm =  5000) ||
+		  ($l == 10000) && ($lm = 10000)));
+	    
+	    @F = split;
+	    
+	    next if @F < 6;	# no valid input line is this short
+	    next if $F[$[] eq "";
+	    next if ($F[$[] !~ /^\d+$/);
+	    ($F[$[] !~ /^\d+$/) && # A 'never should have happend' error
+		die("$0: unexpected input line: >$_<\n");
+	    
+	    ;# modified Julian to UNIX epoch
+	    $t = ($F[$[] - $MJD_1970) * 24 * 60 * 60;
+	    $t += $F[$[+1];	# add seconds + fraction
+	    
+	    ;# multiply offset by 1000 to get ms - try to avoid float op
+	    (($F[$[+2] =~ s/(\d*)\.(\d{3})(\d*)/$1$2.$3/) &&
+	     $F[$[+2] =~ s/0+([\d\.])/($1 eq '.') ? '0.' : $1/e) # strip leading zeros
+		|| ($F[$[+2] *= 1000);
+
+	    
+	    ;# skip samples out of specified time range
+	    next if (defined($StartTime) && $StartTime > $t);
+	    next if (defined($EndTime) && $EndTime < $t);
+	    
+	    next if defined($lastT) && $t < $lastT; # backward in time ??
+	    
+	    push(@offs,$F[$[+2]);
+	    push(@freq,$F[$[+3] * (2**20/10**6));
+	    push(@cmpl,$F[$[+5]);
+	    
+	    push(@break, (defined($lastT) && ($t - $lastT > $deltaT))); 
+	    $lastT = $t;
+	    push(@time,$t);
+	    push(@loffset, tell(IN) - length($_));
+	    push(@filekey, $key);
+	    
+	    shift(@break),shift(@time),shift(@offs),
+	    shift(@freq), shift(@cmpl),shift(@loffset),
+	    shift(@filekey)
+		if @time > $cnt &&
+		    ! (defined($StartTime) && defined($EndTime));
+
+	    last if @time >= $cnt && defined($StartTime) && !defined($EndTime);
+	}
+	close(IN);
+	last if @time >= $cnt && defined($StartTime) && !defined($EndTime);
+    }
+    print "input scanned ($l lines/",scalar(@time)," samples)\n"
+	if $verbose > 1;
+    
+    if (@time)
+    {
+	local($_,@F);
+	
+	local($timebase) unless defined($timebase);
+	local($freqbase) unless defined($freqbase);
+	local($cmplscale) unless defined($cmplscale);
+	
+	undef $mintime;
+	undef $maxtime;
+	undef $minoffs;
+	undef $maxoffs;
+	undef $minfreq;
+	undef $maxfreq;
+	undef $mincmpl;
+	undef $maxcmpl;
+	undef $miny;
+	undef $maxy ;
+	
+	print "computing ranges\n" if $verbose > 2;
+	
+	$LastCnt = @time;
+
+	;# @time is in ascending order (;-)
+	$mintime = $time[$[];
+	$maxtime = $time[$#time];
+	unless (defined($timebase))
+	{
+	    local($time,@X) = (time);
+	    @X = localtime($time);
+	    
+	    ;# compute today 00:00:00
+	    $timebase = $time - ((($X[$[+2]*60)+$X[$[+1])*60+$X[$[]);
+
+	}
+	$LastTimeBase = $timebase;
+
+	if ($showoffs)
+	{
+	    local($i,$m,$f);
+	    
+	    $minoffs = &min(@offs);
+	    $maxoffs = &max(@offs);
+	    
+	    ;# I know, it is not perl style using indices to access arrays,
+	    ;# but I have to proccess two arrays in sync, non-destructively
+	    ;# (otherwise a (shift(@a1),shift(a2)) would do),
+	    ;# I dont like to make copies of these arrays as they may be huge
+	    $i = $[;
+	    $lo->sample(($time[$i]-$timebase)/3600,$offs[$i]),$i++
+		while $i <= $#time;
+
+	    ($minoffs == $maxoffs) && ($minoffs -= 0.1,$maxoffs += 0.1);
+
+	    $i = $lo->sigma();
+	    $m = $lo->mean();
+
+	    print "mean offset: $m sigma: $i\n" if $verbose > 2;
+
+	    if (($maxoffs - $minoffs) > $MinClip)
+	    {
+		$f = (&abs($minoffs) < &abs($maxoffs)) ? $FuzzLow : $FuzzBig;
+		$miny = (($m - $minoffs) <= ($f * $i))
+		    ? $minoffs : ($m - $f * $i);
+		$f = ($f == $FuzzLow) ? $FuzzBig : $FuzzLow;
+		$maxy = (($maxoffs - $m) <= ($f * $i))
+		    ? $maxoffs : ($m + $f * $i);
+	    }
+	    else
+	    {
+		$miny = $minoffs;
+		$maxy = $maxoffs;
+	    }
+	    ($maxy-$miny) == 0 &&
+		(($maxy,$miny)
+		 = (($maxoffs - $minoffs) > 0)
+		 ? ($maxoffs,$minoffs) : ($MinClip,-$MinClip));
+
+	    $maxy = $MaxY if defined($MaxY) && $MaxY < $maxy;
+	    $miny = $MinY if defined($MinY) && $MinY > $miny;
+
+	    print  "offset min clipped from $minoffs to $miny\n"
+		if $verbose > 2 && $minoffs != $miny;
+	    print  "offset max clipped from $maxoffs to $maxy\n"
+		if $verbose > 2 && $maxoffs != $maxy;
+	}
+	
+	if ($showfreq)
+	{
+	    local($i,$m);
+	    
+	    $minfreq = &min(@freq);
+	    $maxfreq = &max(@freq);
+	    
+	    $i = $[;
+	    $lf->sample(($time[$i]-$timebase)/3600,$freq[$i]-$minfreq),
+	    $i++
+		while $i <= $#time;
+	    
+	    $i = $lf->sigma();
+	    $m = $lf->mean() + $minfreq;
+
+	    print "mean frequency: $m sigma: $i\n" if $verbose > 2;
+
+	    if (defined($maxy))
+	    {
+		local($s) =
+		    ($maxfreq - $minfreq)
+			? ($maxy - $miny) / ($maxfreq - $minfreq) : 1;
+
+		if (defined($freqbase))
+		{
+		    $FreqScale = 1;
+		    $FreqScaleInv = "";
+		}
+		else
+		{
+		    $FreqScale = 1;
+		    $FreqScale = 10 ** int(log($s)/log(10) - 0.9999);
+		    $FreqScaleInv =
+			("$FreqScale" =~ /^10(0*)$/) ? "0.${1}1" : 
+			 ($FreqScale == 1 ? "" : (1/$FreqScale));
+		    
+		    $freqbase = ($maxfreq + $minfreq)/ 2 * $FreqScale; #$m * $FreqScale;
+		    $freqbase -= ($maxy + $miny) / 2; #$lf->mean();
+
+		    ;# round resulting freqbase
+		    ;# to precision of min max difference
+		    $s = -12;
+		    $s = int(log(($maxfreq-$minfreq)*$FreqScale)/log(10))-1
+			unless ($maxfreq-$minfreq) < 1e-12;
+		    $s = 10 ** $s;
+		    $freqbase = int($freqbase / $s) * $s;
+		}
+	    }
+	    else
+	    {
+		$FreqScale = 1;
+		$FreqScaleInv = "";
+		$freqbase = $m unless defined($freqbase);
+		if (($maxfreq - $minfreq) > $MinClip)
+		{
+		    $f = (&abs($minfreq) < &abs($maxfreq))
+			? $FuzzLow : $FuzzBig;
+		    $miny = (($freqbase - $minfreq) <= ($f * $i))
+			? ($minfreq-$freqbase) : (- $f * $i);
+		    $f = ($f == $FuzzLow) ? $FuzzBig : $FuzzLow;
+		    $maxy = (($maxfreq - $freqbase) <= ($f * $i))
+			? ($maxfreq-$freqbase) : ($f * $i);
+		}
+		else
+		{
+		    $miny = $minfreq - $freqbase;
+		    $maxy = $maxfreq - $freqbase;
+		}
+		($maxy - $miny) == 0 &&
+		    (($maxy,$miny) =
+		     (($maxfreq - $minfreq) > 0)
+		     ? ($maxfreq-$freqbase,$minfreq-$freqbase) : (0.5,-0.5));
+		
+		$maxy = $MaxY if defined($MaxY) && $MaxY < $maxy;
+		$miny = $MinY if defined($MinY) && $MinY > $miny;
+
+		print("frequency min clipped from ",$minfreq-$freqbase,
+		      " to $miny\n")
+		    if $verbose > 2 && $miny != ($minfreq - $freqbase);
+		print("frequency max clipped from ",$maxfreq-$freqbase,
+		      " to $maxy\n")
+		    if $verbose > 2 && $maxy != ($maxfreq - $freqbase);
+	    }
+	    $LastFreqBaseString =
+		sprintf("%g",$freqbase >= 0 ? $freqbase : -$freqbase);
+	    $LastFreqBase = $freqbase;
+	    print "LastFreqBaseString now \"$LastFreqBaseString\"\n"
+		if $verbose > 5;
+	}
+	else
+	{
+	    $FreqScale = 1;
+	    $FreqScaleInv = "";
+	    $LastFreqBase = 0;
+	    $LastFreqBaseString = "";
+	}
+		
+	if ($showcmpl)
+	{
+	    $mincmpl = &min(@cmpl);
+	    $maxcmpl = &max(@cmpl);
+
+	    if (!defined($cmplscale))
+	    {
+		if (defined($maxy))
+		{
+		    local($cmp)
+			= (&abs($miny) > &abs($maxy)) ? &abs($miny) : $maxy;
+		    $cmplscale = $cmp == $maxy ? 1 : -1;
+
+		    foreach (0.01, 0.02, 0.05,
+			     0.1, 0.2, 0.25, 0.4, 0.5,
+			     1, 2, 4, 5,
+			     10, 20, 25, 50,
+			     100, 200, 250, 500, 1000)
+		    {
+			$cmplscale *= $_, last if $maxcmpl/$_ <= $cmp;
+		    }
+		}
+		else
+		{
+		    $cmplscale = 1;
+		    $miny = $mincmpl ? 0 : -$MinClip;
+		    $maxy = $maxcmpl+$MinClip;
+		}
+	    }
+	    $LastCmplScale = $cmplscale;
+	}
+	else
+	{
+	    $LastCmplScale = 1;
+	}
+	
+	print "creating plot command input file\n" if $verbose > 2;
+	
+	
+	print OUT ("# preprocessed NTP statistics file for $STATHOST\n");
+	print OUT ("#    timebase is: ",&ctime($LastTimeBase))
+	    if defined($LastTimeBase);
+	print OUT ("#    frequency is offset by  ",
+		   ($LastFreqBase >= 0 ? "+" : "-"),
+		   "$LastFreqBaseString [${FreqScaleInv}ppm]\n");
+	print OUT ("#    compliance is scaled by $LastCmplScale\n");
+	print OUT ("# time [h]\toffset [ms]\tfrequency [${FreqScaleInv}ppm]\tcompliance\n");
+	
+	printf OUT ("%s%lf\t%lf\t%lf\t%lf\n",
+		    (shift(@break) ? "\n" : ""),
+		    (shift(@time) - $LastTimeBase)/3600,
+		    shift(@offs),
+		    shift(@freq) * $FreqScale - $LastFreqBase,
+		    shift(@cmpl) / $LastCmplScale)
+	    while(@time);
+    }
+    else
+    {
+	;# prevent plotcmd from processing empty file
+	print "Creating plot command dummy...\n" if $verbose > 2;
+	print OUT "# dummy samples\n0 1 2 3\n1 1 2 3\n";
+	$lo->sample(0,1);
+	$lo->sample(1,1);
+	$lf->sample(0,2);
+	$lf->sample(1,2);
+	@time = (0, 1); $maxtime = 1; $mintime = 0;
+	@offs = (1, 1); $maxoffs = 1; $minoffs = 1;
+	@freq = (2, 2); $maxfreq = 2; $minfreq = 2;
+	@cmpl = (3, 3); $maxcmpl = 3; $mincmpl = 3;
+	$LastCnt = 2;
+	$LastFreqBase = 0;
+	$LastCmplScale = 1;
+	$LastTimeBase = 0;
+	$miny = -$MinClip;
+	$maxy = 3 + $MinClip;
+    }
+    close(OUT);
+    
+    print "plot command input file created\n"
+	if $verbose > 2;
+	
+	
+    if (($fpos[$[] eq 'cnt' && scalar(@loffset) >= $cnt) ||
+	($fpos[$[] eq 'start' && $mintime <= $StartTime) ||
+	($fpos[$[] eq 'end'))
+    {
+	return ($fpos[$[],$filekey[$[],$loffset[$[]);
+    }
+    else			# found to few lines - next time start search earlier in file
+    {
+	if ($fpos[$[] eq 'start')
+	{
+	    ;# the timestamps we got for F_first and F_last guaranteed
+	    ;# that no file is left out
+	    ;# the only thing that could happen is:
+	    ;# we guessed the starting point wrong
+	    ;# compute a new guess from the first record found
+	    ;# if this equals our last guess use data of first record
+	    ;# otherwise try new guess
+	    
+	    if ($fpos[$[+1] eq $filekey[$[] && $loffset[$[] > $fpos[$[+2])
+	    {
+		local($noff);
+		$noff = $loffset[$[] - ($cnt - @loffset + 1) * $RecordSize;
+		$noff = 0 if $noff < 0;
+		
+		return (@fpos[$[,$[+1], ($noff == $fpos[$[+2]) ? $loffset[$[] : $noff);
+	    }
+	    return ($fpos[$[],$filekey[$[],$loffset[$[]);
+	}
+	elsif ($fpos[$[] eq 'end' || $fpos[$[] eq 'cnt')
+	{
+	    ;# try to start earlier in file
+	    ;# if we already started at the beginning
+	    ;# try to use previous file
+	    ;# this assumes distance to better starting point is at most one file
+	    ;# the primary guess at top of genfile() should usually allow this
+	    ;# assumption
+	    ;# if the offset of the first sample used is within 
+	    ;# a different file than we guessed it must have occurred later
+	    ;# in the sequence of files
+	    ;# this only can happen if our starting file did not contain
+	    ;# a valid sample from the starting point we guessed
+	    ;# however this does not invalidate our assumption, no check needed
+	    local($noff,$key);
+	    if ($fpos[$[+2] > 0)
+	    {
+		$noff = $fpos[$[+2] - $RecordSize * ($cnt - @loffset + 1);
+		$noff = 0 if $noff < 0;
+		return (@fpos[$[,$[+1],$noff);
+	    }
+	    else
+	    {
+		if ($fpos[$[+1] eq $F_files[$[])
+		{
+		    ;# first file - and not enough samples
+		    ;# use data of first sample
+		    return ($fpos[$[], $filekey[$[], $loffset[$[]);
+		}
+		else
+		{
+		    ;# search key of previous file
+		    $key = $F_files[$[];
+		    @F = reverse(@F_files);
+		    while ($_ = shift(@F))
+		    {
+			if ($_ eq $fpos[$[+1])
+			{
+			    $key = shift(@F) if @F;
+			    last;
+			}
+		    }
+		    $noff = int($F_size{$key} / $RecordSize);
+		    $noff -= $cnt - @loffset;
+		    $noff = 0 if $noff < 0;
+		    $noff *= $RecordSize;
+		    return ($fpos[$[], $key, $noff);
+		}
+	    }
+	}
+	else
+	{
+	    return ();
+	}
+	
+	return 0 if @loffset <= 1 || ($loffset[$#loffset] - $loffset[$[]) <= 1;
+	
+	;# EOF - 1.1 * avg(line) * $cnt
+	local($val) =  $loffset[$#loffset]
+	    - $cnt * 11 * (($loffset[$#loffset] - $loffset[$[]) / @loffset) / 10;
+	return ($val < 0) ? 0 : $val;
+    }
+}
+
+$Ltime = -1 if ! defined($Ltime);
+$LastFreqBase = 0;
+$LastFreqBaseString = "??";
+
+;# initial setup of plot
+print "initialize plotting\n" if $verbose;
+if (defined($PrintIt))
+{
+  if ($PrintIt =~ m,/,)
+  {
+    print "Saving plot to file $PrintIt\n";
+    print PLOT "set output '$PrintIt'\n";
+  }
+  else
+  {
+    print "Printing plot on printer $PrintIt\n";
+    print PLOT "set output '| lpr -P$PrintIt -h'\n";
+  }
+  print PLOT "set terminal postscript landscape color solid 'Helvetica' 10\n";
+}
+print PLOT "set grid\n";
+print PLOT "set tics out\n";
+print PLOT "set format y '%g '\n";
+printf PLOT "set time 47\n" unless defined($PrintIt);
+
+@filepos =();
+while(1)
+{
+  print &ctime(time) if $verbose;
+
+  ;# update diplay characteristics
+  &read_config;# unless defined($PrintIt);
+
+  unlink($tmpfile);
+  my $lo = lr->new();
+  my $lf = lr->new();
+    
+  @filepos = &genfile($samples,$srcprefix,$tmpfile,$lo,$lf,@filepos);
+
+  ;# make plotcmd display samples
+  make_doplot($lo, $lf);
+  print "Displaying plot...\n" if $verbose > 1;
+  print "command for plot sub process:\n$doplot----\n" if $verbose > 3;
+  print PLOT $doplot;
+}
+continue
+{
+  if (defined($PrintIt))
+  {
+    delete $SIG{'CHLD'};
+    print PLOT "quit\n";
+    close(PLOT);
+    if ($PrintIt =~ m,/,)
+    {
+      print "Plot saved to file $PrintIt\n";
+    }
+    else
+    {
+      print "Plot spooled to printer $PrintIt\n";
+    }
+    unlink($tmpfile);
+    exit(0);
+  }
+  ;# wait $delay seconds
+  print "waiting $delay seconds ..." if $verbose > 2;
+  sleep($delay);
+  print " continuing\n" if $verbose > 2;
+  undef($LastFreqBaseString);
+}
+
+
+sub date_time_spec2seconds
+{
+    local($_) = @_;
+    ;# a date_time_spec consistes of:
+    ;#  YYYY-MM-DD_HH:MM:SS.ms
+    ;# values can be omitted from the beginning and default than to
+    ;# values of current date
+    ;# values omitted from the end default to lowest possible values
+
+    local($time) = time;
+    local($sec,$min,$hour,$mday,$mon,$year)
+	= localtime($time);
+
+    local($last) = ();
+
+    s/^\D*(.*\d)\D*/$1/;	# strip off garbage
+
+  PARSE:
+    {
+	if (s/^(\d{4})(-|$)//)
+	{
+	    if ($1 < 1970)
+	    {
+		warn("$0: can not handle years before 1970 - year $1 ignored\n");
+		return undef;
+	    }
+	    elsif ( $1 >= 2070)
+	    {
+		warn("$0: can not handle years past 2070 - year $1 ignored\n");
+		return undef;
+	    }
+	    else
+	    {
+		$year = $1 % 100; # 0<= $year < 100
+				 ;# - interpreted 70 .. 99,00 .. 69
+	    }
+	    $last = $[ + 5;
+	    last PARSE if $_ eq '';
+	    warn("$0: bad date_time_spec: \"$_\" found after YEAR\n"),
+	    return(undef)
+		if $2 eq '';
+	}
+
+	if (s/^(\d{1,2})(-|$)//)
+	{
+	    warn("$0: implausible month $1\n"),return(undef)
+		if $1 < 1 || $1 > 12;
+	    $mon = $1 - 1;
+	    $last = $[ + 4;
+	    last PARSE if $_ eq '';
+	    warn("$0: bad date_time_spec: \"$_\" found after MONTH\n"),
+	    return(undef)
+		if $2 eq '';
+	}
+	else
+	{
+	    warn("$0: bad date_time_spec \"$_\"\n"),return(undef)
+		if defined($last);
+	    
+	}
+
+	if (s/^(\d{1,2})([_ ]|$)//)
+	{
+	    warn("$0: implausible month day $1 for month ".($mon+1)." (".
+		 $MaxNumDaysPerMonth[$mon].")$mon\n"),
+	    return(undef)
+		if $1 < 1 || $1 > $MaxNumDaysPerMonth[$mon];
+	    $mday = $1;
+	    $last = $[ + 3;
+	    last PARSE if $_ eq '';
+	    warn("$0: bad date_time_spec \"$_\" found after MDAY\n"),
+	    return(undef)
+		if $2 eq '';
+	}
+	else
+	{
+	    warn("$0: bad date_time_spec \"$_\"\n"), return undef
+		if defined($last);
+	}
+
+	;# now we face a problem:
+ 	;# if ! defined($last) a prefix of "07:"
+	;# can be either 07:MM or 07:ss
+	;# to get the second interpretation make the user add
+ 	;# a msec fraction part and check for this special case
+	if (! defined($last) && s/^(\d{1,2}):(\d{1,2}\.\d+)//)
+	{
+	    warn("$0: implausible minute $1\n"), return undef
+		if $1 < 0 || $1 >= 60;
+	    warn("$0: implausible second $1\n"), return undef
+		if $2 < 0 || $2 >= 60;
+	    $min = $1;
+	    $sec = $2;
+	    $last = $[ + 1;
+	    last PARSE if $_ eq '';
+	    warn("$0: bad date_time_spec \"$_\" after SECONDS\n");
+	    return undef;
+	}
+	
+	if (s/^(\d{1,2})(:|$)//)
+	{
+	    warn("$0: implausible hour $1\n"), return undef
+		if $1 < 0 || $1 > 24;
+	    $hour = $1;
+	    $last = $[ + 2;
+	    last PARSE if $_ eq '';
+	    warn("$0: bad date_time_spec found \"$_\" after HOUR\n"),
+	    return undef
+		if $2 eq '';
+	}
+	else
+	{
+	    warn("$0: bad date_time_spec \"$_\"\n"), return undef
+		if defined($last);
+	}
+
+	if (s/^(\d{1,2})(:|$)//)
+	{
+	    warn("$0: implausible minute $1\n"), return undef
+		if $1 < 0 || $1 >=60;
+	    $min = $1;
+	    $last = $[ + 1;
+	    last PARSE if $_ eq '';
+	    warn("$0: bad date_time_spec found \"$_\" after MINUTE\n"),
+	    return undef
+		if $2 eq '';
+	}
+	else
+	{
+	    warn("$0: bad date_time_spec \"$_\"\n"), return undef
+		if defined($last);
+	}
+
+	if (s/^(\d{1,2}(\.\d+)?)//)
+	{
+	    warn("$0: implausible second $1\n"), return undef
+		if $1 < 0 || $1 >=60;
+	    $sec = $1;
+	    $last = $[;
+	    last PARSE if $_ eq '';
+	    warn("$0: bad date_time_spec found \"$_\" after SECOND\n");
+	    return undef;
+	}
+    }
+
+    return $time unless defined($last);
+
+    $sec  = 0 if $last > $[;
+    $min  = 0 if $last > $[ + 1;
+    $hour = 0 if $last > $[ + 2;
+    $mday = 1 if $last > $[ + 3;
+    $mon  = 0 if $last > $[ + 4;
+    local($rtime) = &timelocal($sec,$min,$hour,$mday,$mon,$year, 0,0, 0);
+
+    ;# $rtime may be off if daylight savings time is in effect at given date
+    return $rtime + ($sec - int($sec))
+	if $hour == (localtime($rtime))[$[+2];
+    return
+	&timelocal($sec,$min,$hour,$mday,$mon,$year, 0,0, 1)
+	    + ($sec - int($sec));
+}
+
+
+sub min
+{
+  local($m) = shift;
+
+  grep((($m > $_) && ($m = $_),0),@_);
+  $m;
+}
+
+sub max
+{
+  local($m) = shift;
+
+  grep((($m < $_) && ($m = $_),0),@_);
+  $m;
+}

@@ -1,0 +1,24 @@
+Fingerprints for Signing Releases
+
+OpenSSL releases are signed with PGP/GnuPG keys.  This file contains
+the fingerprints of team members who are "authorized" to sign the
+next release.
+
+The signature is a detached cleartxt signature, with the same name
+as the release but with ".asc" appended.  For example, release
+1.0.1h can be found in openssl-1.0.1h.tar.gz with the signature
+in the file named openssl-1.0.1h.tar.gz.asc.
+
+The following is the list of fingerprints for the keys that are
+currently in use to sign OpenSSL distributions:
+
+pub   4096R/7DF9EE8C 2014-10-04
+      Key fingerprint = 7953 AC1F BC3D C8B3 B292  393E D5E9 E43F 7DF9 EE8C
+uid                  Richard Levitte <richard@opensslfoundation.com>
+uid                  Richard Levitte <levitte@openssl.org>
+uid                  Richard Levitte <richard@openssl.com>
+
+pub   2048R/0E604491 2013-04-30
+      Key fingerprint = 8657 ABB2 60F0 56B1 E519 0839 D9C4 D26D 0E60 4491
+uid                  Matt Caswell <matt@openssl.org>
+uid                  Matt Caswell <frodo@baggins.org>

@@ -1,0 +1,74 @@
+=pod
+
+=head1 NAME
+
+d2i_PKCS8PrivateKey_bio, d2i_PKCS8PrivateKey_fp,
+i2d_PKCS8PrivateKey_bio, i2d_PKCS8PrivateKey_fp,
+i2d_PKCS8PrivateKey_nid_bio, i2d_PKCS8PrivateKey_nid_fp - PKCS#8 format private key functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ EVP_PKEY *d2i_PKCS8PrivateKey_bio(BIO *bp, EVP_PKEY **x, pem_password_cb *cb, void *u);
+ EVP_PKEY *d2i_PKCS8PrivateKey_fp(FILE *fp, EVP_PKEY **x, pem_password_cb *cb, void *u);
+
+ int i2d_PKCS8PrivateKey_bio(BIO *bp, EVP_PKEY *x, const EVP_CIPHER *enc,
+                             char *kstr, int klen,
+                             pem_password_cb *cb, void *u);
+
+ int i2d_PKCS8PrivateKey_fp(FILE *fp, EVP_PKEY *x, const EVP_CIPHER *enc,
+                            char *kstr, int klen,
+                            pem_password_cb *cb, void *u);
+
+ int i2d_PKCS8PrivateKey_nid_bio(BIO *bp, EVP_PKEY *x, int nid,
+                                 char *kstr, int klen,
+                                 pem_password_cb *cb, void *u);
+
+ int i2d_PKCS8PrivateKey_nid_fp(FILE *fp, EVP_PKEY *x, int nid,
+                                char *kstr, int klen,
+                                pem_password_cb *cb, void *u);
+
+=head1 DESCRIPTION
+
+The PKCS#8 functions encode and decode private keys in PKCS#8 format using both
+PKCS#5 v1.5 and PKCS#5 v2.0 password based encryption algorithms.
+
+Other than the use of DER as opposed to PEM these functions are identical to the
+corresponding B<PEM> function as described in L<PEM_read_PrivateKey(3)>.
+
+=head1 NOTES
+
+These functions are currently the only way to store encrypted private keys using DER format.
+
+Currently all the functions use BIOs or FILE pointers, there are no functions which
+work directly on memory: this can be readily worked around by converting the buffers
+to memory BIOs, see L<BIO_s_mem(3)> for details.
+
+These functions make no assumption regarding the pass phrase received from the
+password callback.
+It will simply be treated as a byte sequence.
+
+=head1 RETURN VALUES
+
+d2i_PKCS8PrivateKey_bio() and d2i_PKCS8PrivateKey_fp() return a valid B<EVP_PKEY>
+structure or NULL if an error occurred.
+
+i2d_PKCS8PrivateKey_bio(), i2d_PKCS8PrivateKey_fp(), i2d_PKCS8PrivateKey_nid_bio()
+and i2d_PKCS8PrivateKey_nid_fp() return 1 on success or 0 on error.
+
+=head1 SEE ALSO
+
+L<PEM_read_PrivateKey(3)>,
+L<passphrase-encoding(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

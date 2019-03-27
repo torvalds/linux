@@ -1,0 +1,87 @@
+.\"
+.\" Copyright (c) 2000 Peter Wemm <peter@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 6, 2011
+.Dt RFORK_THREAD 3
+.Os
+.Sh NAME
+.Nm rfork_thread
+.Nd create a rfork-based process thread
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft pid_t
+.Fn rfork_thread "int flags" "void *stack" "int (*func)(void *arg)" "void *arg"
+.Sh DESCRIPTION
+.Bf -symbolic
+The
+.Fn rfork_thread
+function has been deprecated in favor of
+.Xr pthread_create 3 .
+.Ef
+.Pp
+The
+.Fn rfork_thread
+function
+is a helper function for
+.Xr rfork 2 .
+It arranges for a new process to be created and the child process will
+call the specified function with the specified argument, while running on
+the supplied stack.
+.Pp
+Using this function should avoid the need to implement complex stack
+swap code.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn rfork_thread
+returns the process ID of the child process to the parent process.
+Otherwise, a value of -1 is returned
+to the parent process, no child process is created, and the global
+variable
+.Va errno
+is set to indicate the error.
+.Pp
+The child process context is not aware of a return from the
+.Fn rfork_thread
+function as it begins executing directly with the supplied function.
+.Sh ERRORS
+See
+.Xr rfork 2
+for error return codes.
+.Sh SEE ALSO
+.Xr fork 2 ,
+.Xr intro 2 ,
+.Xr minherit 2 ,
+.Xr rfork 2 ,
+.Xr vfork 2 ,
+.Xr pthread_create 3
+.Sh HISTORY
+The
+.Fn rfork_thread
+function first appeared in
+.Fx 4.3 .

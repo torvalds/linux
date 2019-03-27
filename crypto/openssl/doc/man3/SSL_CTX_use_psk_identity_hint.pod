@@ -1,0 +1,155 @@
+=pod
+
+=head1 NAME
+
+SSL_psk_server_cb_func,
+SSL_psk_find_session_cb_func,
+SSL_CTX_use_psk_identity_hint,
+SSL_use_psk_identity_hint,
+SSL_CTX_set_psk_server_callback,
+SSL_set_psk_server_callback,
+SSL_CTX_set_psk_find_session_callback,
+SSL_set_psk_find_session_callback
+- set PSK identity hint to use
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ typedef int (*SSL_psk_find_session_cb_func)(SSL *ssl,
+                                             const unsigned char *identity,
+                                             size_t identity_len,
+                                             SSL_SESSION **sess);
+
+
+ void SSL_CTX_set_psk_find_session_callback(SSL_CTX *ctx,
+                                            SSL_psk_find_session_cb_func cb);
+ void SSL_set_psk_find_session_callback(SSL *s, SSL_psk_find_session_cb_func cb);
+
+ typedef unsigned int (*SSL_psk_server_cb_func)(SSL *ssl,
+                                                const char *identity,
+                                                unsigned char *psk,
+                                                unsigned int max_psk_len);
+
+ int SSL_CTX_use_psk_identity_hint(SSL_CTX *ctx, const char *hint);
+ int SSL_use_psk_identity_hint(SSL *ssl, const char *hint);
+
+ void SSL_CTX_set_psk_server_callback(SSL_CTX *ctx, SSL_psk_server_cb_func cb);
+ void SSL_set_psk_server_callback(SSL *ssl, SSL_psk_server_cb_func cb);
+
+=head1 DESCRIPTION
+
+A client application wishing to use TLSv1.3 PSKs should set a callback
+using either SSL_CTX_set_psk_use_session_callback() or
+SSL_set_psk_use_session_callback() as appropriate.
+
+The callback function is given a pointer to the SSL connection in B<ssl> and
+an identity in B<identity> of length B<identity_len>. The callback function
+should identify an SSL_SESSION object that provides the PSK details and store it
+in B<*sess>. The SSL_SESSION object should, as a minimum, set the master key,
+the ciphersuite and the protocol version. See
+L<SSL_CTX_set_psk_use_session_callback(3)> for details.
+
+It is also possible for the callback to succeed but not supply a PSK. In this
+case no PSK will be used but the handshake will continue. To do this the
+callback should return successfully and ensure that B<*sess> is
+NULL.
+
+Identity hints are not relevant for TLSv1.3. A server application wishing to use
+PSK ciphersuites for TLSv1.2 and below may call SSL_CTX_use_psk_identity_hint()
+to set the given B<NUL>-terminated PSK identity hint B<hint> for SSL context
+object B<ctx>. SSL_use_psk_identity_hint() sets the given B<NUL>-terminated PSK
+identity hint B<hint> for the SSL connection object B<ssl>. If B<hint> is
+B<NULL> the current hint from B<ctx> or B<ssl> is deleted.
+
+In the case where PSK identity hint is B<NULL>, the server does not send the
+ServerKeyExchange message to the client.
+
+A server application wishing to use PSKs for TLSv1.2 and below must provide a
+callback function which is called when the server receives the
+ClientKeyExchange message from the client. The purpose of the callback function
+is to validate the received PSK identity and to fetch the pre-shared key used
+during the connection setup phase. The callback is set using the functions
+SSL_CTX_set_psk_server_callback() or SSL_set_psk_server_callback(). The callback
+function is given the connection in parameter B<ssl>, B<NUL>-terminated PSK
+identity sent by the client in parameter B<identity>, and a buffer B<psk> of
+length B<max_psk_len> bytes where the pre-shared key is to be stored.
+
+The callback for use in TLSv1.2 will also work in TLSv1.3 although it is
+recommended to use SSL_CTX_set_psk_find_session_callback()
+or SSL_set_psk_find_session_callback() for this purpose instead. If TLSv1.3 has
+been negotiated then OpenSSL will first check to see if a callback has been set
+via SSL_CTX_set_psk_find_session_callback() or SSL_set_psk_find_session_callback()
+and it will use that in preference. If no such callback is present then it will
+check to see if a callback has been set via SSL_CTX_set_psk_server_callback() or
+SSL_set_psk_server_callback() and use that. In this case the handshake digest
+will default to SHA-256 for any returned PSK.
+
+=head1 NOTES
+
+A connection established via a TLSv1.3 PSK will appear as if session resumption
+has occurred so that L<SSL_session_reused(3)> will return true.
+
+=head1 RETURN VALUES
+
+B<SSL_CTX_use_psk_identity_hint()> and B<SSL_use_psk_identity_hint()> return
+1 on success, 0 otherwise.
+
+Return values from the TLSv1.2 and below server callback are interpreted as
+follows:
+
+=over 4
+
+=item Z<>0
+
+PSK identity was not found. An "unknown_psk_identity" alert message
+will be sent and the connection setup fails.
+
+=item E<gt>0
+
+PSK identity was found and the server callback has provided the PSK
+successfully in parameter B<psk>. Return value is the length of
+B<psk> in bytes. It is an error to return a value greater than
+B<max_psk_len>.
+
+If the PSK identity was not found but the callback instructs the
+protocol to continue anyway, the callback must provide some random
+data to B<psk> and return the length of the random data, so the
+connection will fail with decryption_error before it will be finished
+completely.
+
+=back
+
+The B<SSL_psk_find_session_cb_func> callback should return 1 on success or 0 on
+failure. In the event of failure the connection setup fails.
+
+=head1 NOTES
+
+There are no known security issues with sharing the same PSK between TLSv1.2 (or
+below) and TLSv1.3. However the RFC has this note of caution:
+
+"While there is no known way in which the same PSK might produce related output
+in both versions, only limited analysis has been done.  Implementations can
+ensure safety from cross-protocol related output by not reusing PSKs between
+TLS 1.3 and TLS 1.2."
+
+=head1 SEE ALSO
+
+L<SSL_CTX_set_psk_use_session_callback(3)>,
+L<SSL_set_psk_use_session_callback(3)>
+
+=head1 HISTORY
+
+SSL_CTX_set_psk_find_session_callback() and SSL_set_psk_find_session_callback()
+were added in OpenSSL 1.1.1.
+
+=head1 COPYRIGHT
+
+Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

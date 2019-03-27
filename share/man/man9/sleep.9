@@ -1,0 +1,407 @@
+.\"
+.\" Copyright (c) 1996 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 4, 2018
+.Dt SLEEP 9
+.Os
+.Sh NAME
+.Nm msleep ,
+.Nm msleep_sbt ,
+.Nm msleep_spin ,
+.Nm msleep_spin_sbt ,
+.Nm pause ,
+.Nm pause_sig ,
+.Nm pause_sbt ,
+.Nm tsleep ,
+.Nm tsleep_sbt ,
+.Nm wakeup
+.Nd wait for events
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/systm.h
+.In sys/proc.h
+.Ft int
+.Fn msleep "void *chan" "struct mtx *mtx" "int priority" "const char *wmesg" "int timo"
+.Ft int
+.Fn msleep_sbt "void *chan" "struct mtx *mtx" "int priority" \
+"const char *wmesg" "sbintime_t sbt" "sbintime_t pr" "int flags"
+.Ft int
+.Fn msleep_spin "void *chan" "struct mtx *mtx" "const char *wmesg" "int timo"
+.Ft int
+.Fn msleep_spin_sbt "void *chan" "struct mtx *mtx" "const char *wmesg" \
+"sbintime_t sbt" "sbintime_t pr" "int flags"
+.Ft int
+.Fn pause "const char *wmesg" "int timo"
+.Ft int
+.Fn pause_sig "const char *wmesg" "int timo"
+.Ft int
+.Fn pause_sbt "const char *wmesg" "sbintime_t sbt" "sbintime_t pr" \
+ "int flags"
+.Ft int
+.Fn tsleep "void *chan" "int priority" "const char *wmesg" "int timo"
+.Ft int
+.Fn tsleep_sbt "void *chan" "int priority" "const char *wmesg" \
+"sbintime_t sbt" "sbintime_t pr" "int flags"
+.Ft void
+.Fn wakeup "void *chan"
+.Ft void
+.Fn wakeup_one "void *chan"
+.Sh DESCRIPTION
+The functions
+.Fn tsleep ,
+.Fn msleep ,
+.Fn msleep_spin ,
+.Fn pause ,
+.Fn pause_sig ,
+.Fn pause_sbt ,
+.Fn wakeup ,
+and
+.Fn wakeup_one
+handle event-based thread blocking.
+If a thread must wait for an
+external event, it is put to sleep by
+.Fn tsleep ,
+.Fn msleep ,
+.Fn msleep_spin ,
+.Fn pause ,
+.Fn pause_sig ,
+or
+.Fn pause_sbt .
+Threads may also wait using one of the locking primitive sleep routines
+.Xr mtx_sleep 9 ,
+.Xr rw_sleep 9 ,
+or
+.Xr sx_sleep 9 .
+.Pp
+The parameter
+.Fa chan
+is an arbitrary address that uniquely identifies the event on which
+the thread is being put to sleep.
+All threads sleeping on a single
+.Fa chan
+are woken up later by
+.Fn wakeup ,
+often called from inside an interrupt routine, to indicate that the
+resource the thread was blocking on is available now.
+.Pp
+The parameter
+.Fa priority
+specifies a new priority for the thread as well as some optional flags.
+If the new priority is not 0,
+then the thread will be made
+runnable with the specified
+.Fa priority
+when it resumes.
+.Dv PZERO
+should never be used, as it is for compatibility only.
+A new priority of 0 means to use the thread's current priority when
+it is made runnable again.
+.Pp
+If
+.Fa priority
+includes the
+.Dv PCATCH
+flag, pending signals are allowed to interrupt the sleep, otherwise
+pending signals are ignored during the sleep.
+If
+.Dv PCATCH
+is set and a signal becomes pending,
+.Er ERESTART
+is returned if the current system call should be restarted if
+possible, and
+.Er EINTR
+is returned if the system call should be interrupted by the signal
+(return
+.Er EINTR ) .
+.Pp
+The parameter
+.Fa wmesg
+is a string describing the sleep condition for tools like
+.Xr ps 1 .
+Due to the limited space of those programs to display arbitrary strings,
+this message should not be longer than 6 characters.
+.Pp
+The parameter
+.Fa timo
+specifies a timeout for the sleep.
+If
+.Fa timo
+is not 0,
+then the thread will sleep for at most
+.Fa timo No / Va hz
+seconds.
+If the timeout expires,
+then the sleep function will return
+.Er EWOULDBLOCK .
+.Pp
+.Fn msleep_sbt ,
+.Fn msleep_spin_sbt ,
+.Fn pause_sbt
+and
+.Fn tsleep_sbt
+functions take
+.Fa sbt
+parameter instead of
+.Fa timo .
+It allows the caller to specify relative or absolute wakeup time with higher resolution
+in form of
+.Vt sbintime_t .
+The parameter
+.Fa pr
+allows the caller to specify wanted absolute event precision.
+The parameter
+.Fa flags
+allows the caller to pass additional
+.Fn callout_reset_sbt
+flags.
+.Pp
+Several of the sleep functions including
+.Fn msleep ,
+.Fn msleep_spin ,
+and the locking primitive sleep routines specify an additional lock
+parameter.
+The lock will be released before sleeping and reacquired
+before the sleep routine returns.
+If
+.Fa priority
+includes the
+.Dv PDROP
+flag, then
+the lock will not be reacquired before returning.
+The lock is used to ensure that a condition can be checked atomically,
+and that the current thread can be suspended without missing a
+change to the condition, or an associated wakeup.
+In addition, all of the sleep routines will fully drop the
+.Va Giant
+mutex
+(even if recursed)
+while the thread is suspended and will reacquire the
+.Va Giant
+mutex before the function returns.
+Note that the
+.Va Giant
+mutex may be specified as the lock to drop.
+In that case, however, the
+.Dv PDROP
+flag is not allowed.
+.Pp
+To avoid lost wakeups,
+either a lock should be used to protect against races,
+or a timeout should be specified to place an upper bound on the delay due
+to a lost wakeup.
+As a result,
+the
+.Fn tsleep
+function should only be invoked with a timeout of 0 when the
+.Va Giant
+mutex is held.
+.Pp
+The
+.Fn msleep
+function requires that
+.Fa mtx
+reference a default, i.e. non-spin, mutex.
+Its use is deprecated in favor of
+.Xr mtx_sleep 9
+which provides identical behavior.
+.Pp
+The
+.Fn msleep_spin
+function requires that
+.Fa mtx
+reference a spin mutex.
+The
+.Fn msleep_spin
+function does not accept a
+.Fa priority
+parameter and thus does not support changing the current thread's priority,
+the
+.Dv PDROP
+flag,
+or catching signals via the
+.Dv PCATCH
+flag.
+.Pp
+The
+.Fn pause
+function is a wrapper around
+.Fn tsleep
+that suspends execution of the current thread for the indicated timeout.
+The thread can not be awakened early by signals or calls to
+.Fn wakeup
+or
+.Fn wakeup_one .
+The
+.Fn pause_sig
+function is a variant of
+.Fn pause
+which can be awakened early by signals.
+.Pp
+The
+.Fn wakeup_one
+function makes the first thread in the queue that is sleeping on the
+parameter
+.Fa chan
+runnable.
+This reduces the load when a large number of threads are sleeping on
+the same address, but only one of them can actually do any useful work
+when made runnable.
+.Pp
+Due to the way it works, the
+.Fn wakeup_one
+function requires that only related threads sleep on a specific
+.Fa chan
+address.
+It is the programmer's responsibility to choose a unique
+.Fa chan
+value.
+The older
+.Fn wakeup
+function did not require this, though it was never good practice
+for threads to share a
+.Fa chan
+value.
+When converting from
+.Fn wakeup
+to
+.Fn wakeup_one ,
+pay particular attention to ensure that no other threads wait on the
+same
+.Fa chan .
+.Pp
+If the timeout given by
+.Fa timo
+or
+.Fa sbt
+is based on an absolute real-time clock value,
+then the thread should copy the global
+.Va rtc_generation
+into its
+.Va td_rtcgen
+member before reading the RTC.
+If the real-time clock is adjusted, these functions will set
+.Va td_rtcgen
+to zero and return zero.
+The caller should reconsider its orientation with the new RTC value.
+.Sh RETURN VALUES
+When awakened by a call to
+.Fn wakeup
+or
+.Fn wakeup_one ,
+if a signal is pending and
+.Dv PCATCH
+is specified,
+a non-zero error code is returned.
+If the thread is awakened by a call to
+.Fn wakeup
+or
+.Fn wakeup_one ,
+the
+.Fn msleep ,
+.Fn msleep_spin ,
+.Fn tsleep ,
+and locking primitive sleep functions return 0.
+Zero can also be returned when the real-time clock is adjusted;
+see above regarding
+.Va td_rtcgen .
+Otherwise, a non-zero error code is returned.
+.Sh ERRORS
+.Fn msleep ,
+.Fn msleep_spin ,
+.Fn tsleep ,
+and the locking primitive sleep functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EINTR
+The
+.Dv PCATCH
+flag was specified, a signal was caught, and the system call should be
+interrupted.
+.It Bq Er ERESTART
+The
+.Dv PCATCH
+flag was specified, a signal was caught, and the system call should be
+restarted.
+.It Bq Er EWOULDBLOCK
+A non-zero timeout was specified and the timeout expired.
+.El
+.Sh SEE ALSO
+.Xr ps 1 ,
+.Xr locking 9 ,
+.Xr malloc 9 ,
+.Xr mi_switch 9 ,
+.Xr mtx_sleep 9 ,
+.Xr rw_sleep 9 ,
+.Xr sx_sleep 9 ,
+.Xr timeout 9
+.Sh HISTORY
+The functions
+.Fn sleep
+and
+.Fn wakeup
+were present in
+.At v1 .
+They were probably also present in the preceding
+PDP-7 version of
+.Ux .
+They were the basic process synchronization model.
+.Pp
+The
+.Fn tsleep
+function appeared in
+.Bx 4.4
+and added the parameters
+.Fa wmesg
+and
+.Fa timo .
+The
+.Fn sleep
+function was removed in
+.Fx 2.2 .
+The
+.Fn wakeup_one
+function appeared in
+.Fx 2.2 .
+The
+.Fn msleep
+function appeared in
+.Fx 5.0 ,
+and the
+.Fn msleep_spin
+function appeared in
+.Fx 6.2 .
+The
+.Fn pause
+function appeared in
+.Fx 7.0 .
+The
+.Fn pause_sig
+function appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An J\(:org Wunsch Aq Mt joerg@FreeBSD.org .

@@ -1,0 +1,161 @@
+/*
+ * Copyright (c) 2010 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * Technologic Systems TS-7800 Device Tree Source.
+ *
+ * $FreeBSD$
+ */
+
+/dts-v1/;
+
+/ {
+	model = "mrvl,TS-7800";
+	compatible = "DB-88F5182-BP", "DB-88F5182-BP-A";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		ethernet0 = &mge0;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		mpp = &MPP;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "ARM,88FR531";
+			reg = <0x0>;
+			d-cache-line-size = <32>;	// 32 bytes
+			i-cache-line-size = <32>;	// 32 bytes
+			d-cache-size = <0x8000>;	// L1, 32K
+			i-cache-size = <0x8000>;	// L1, 32K
+			timebase-frequency = <0>;
+			bus-frequency = <0>;
+			clock-frequency = <0>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x08000000>;		// 128M at 0x0
+	};
+
+	localbus@f1000000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "mrvl,lbc";
+
+		/* This reflects CPU decode windows setup. */
+		ranges = <0x0 0x0f 0xf9300000 0x00100000
+			  0x1 0x1e 0xfa000000 0x00100000
+			  0x2 0x1d 0xfa100000 0x02000000>;
+	};
+
+	soc88f5182@f1000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x0 0xf1000000 0x00100000>;
+		bus-frequency = <0>;
+
+		PIC: pic@20200 {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			reg = <0x20200 0x3c>;
+			compatible = "mrvl,pic";
+		};
+
+		timer@20300 {
+			compatible = "mrvl,timer";
+			reg = <0x20300 0x30>;
+			interrupts = <0>;
+			interrupt-parent = <&PIC>;
+			mrvl,has-wdt;
+		};
+
+		MPP: mpp@10000 {
+			#pin-cells = <2>;
+			compatible = "mrvl,mpp";
+			reg = <0x10000 0x54>;
+			pin-count = <20>;
+			pin-map = <
+				16 0		/* MPP[16]: UA1_RXD */
+				17 0		/* MPP[17]: UA1_TXD */
+				19 0 >;		/* MPP[19]: UA1_RTS */
+		};
+
+		mge0: ethernet@72000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			model = "V1";
+			compatible = "mrvl,ge";
+			reg = <0x72000 0x2000>;
+			ranges = <0x0 0x72000 0x2000>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <18 19 20 21 22>;
+			interrupt-parent = <&PIC>;
+
+			phy-handle = <&phy0>;
+
+			mdio@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "mrvl,mdio";
+
+				phy0: ethernet-phy@0 {
+					reg = <0x0>;
+				};
+			};
+		};
+
+		serial0: serial@12000 {
+			compatible = "ns16550";
+			reg = <0x12000 0x20>;
+			reg-shift = <2>;
+			clock-frequency = <0>;
+			interrupts = <3>;
+			interrupt-parent = <&PIC>;
+		};
+
+		serial1: serial@12100 {
+			compatible = "ns16550";
+			reg = <0x12100 0x20>;
+			reg-shift = <2>;
+			clock-frequency = <0>;
+			interrupts = <4>;
+			interrupt-parent = <&PIC>;
+		};
+	};
+
+	chosen {
+		stdin = "serial0";
+		stdout = "serial0";
+	};
+};

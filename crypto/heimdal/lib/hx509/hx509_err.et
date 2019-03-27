@@ -1,0 +1,103 @@
+#
+# Error messages for the hx509 library
+#
+# This might look like a com_err file, but is not
+#
+id "$Id$"
+
+error_table hx
+prefix HX509
+
+# path validateion and construction related errors
+error_code BAD_TIMEFORMAT,	"ASN.1 failed call to system time library"
+error_code EXTENSION_NOT_FOUND,	"Extension not found"
+error_code NO_PATH,		"Certification path not found"
+error_code PARENT_NOT_CA,	"Parent certificate is not a CA"
+error_code CA_PATH_TOO_DEEP,	"CA path too deep"
+error_code SIG_ALG_NO_SUPPORTED, "Signature algorithm not supported"
+error_code SIG_ALG_DONT_MATCH_KEY_ALG, "Signature algorithm doesn't match certificate key"
+error_code CERT_USED_BEFORE_TIME, "Certificate used before it became valid"
+error_code CERT_USED_AFTER_TIME, "Certificate used after it became invalid"
+error_code PRIVATE_KEY_MISSING,	"Private key required for the operation is missing"
+error_code ALG_NOT_SUPP, 	"Algorithm not supported"
+error_code ISSUER_NOT_FOUND, 	"Issuer couldn't be found"
+error_code VERIFY_CONSTRAINTS,	"Error verifing constraints"
+error_code RANGE,		"Number too large"
+error_code NAME_CONSTRAINT_ERROR, "Error while verifing name constraints"
+error_code PATH_TOO_LONG, "Path is too long, failed to find valid anchor"
+error_code KU_CERT_MISSING, "Required keyusage for this certificate is missing"
+error_code CERT_NOT_FOUND, "Certificate not found"
+error_code UNKNOWN_LOCK_COMMAND, "Unknown lock command"
+error_code PARENT_IS_CA, "Parent certificate is a CA"
+error_code EXTRA_DATA_AFTER_STRUCTURE, "Extra data was found after the structure"
+error_code PROXY_CERT_INVALID, "Proxy certificate is invalid"
+error_code PROXY_CERT_NAME_WRONG, "Proxy certificate name is wrong"
+error_code NAME_MALFORMED, "Name is malformated"
+error_code CERTIFICATE_MALFORMED, "Certificate is malformated"
+error_code CERTIFICATE_MISSING_EKU, "Certificate is missing a required EKU"
+error_code PROXY_CERTIFICATE_NOT_CANONICALIZED, "Proxy certificate not canonicalize" 
+
+# cms related errors
+index 32
+prefix HX509_CMS
+error_code FAILED_CREATE_SIGATURE, "Failed to create signature"
+error_code MISSING_SIGNER_DATA, "Missing signer data"
+error_code SIGNER_NOT_FOUND, "Couldn't find signers certificate"
+error_code NO_DATA_AVAILABLE, "No data to perform the operation on"
+error_code INVALID_DATA, "Data in the message is invalid"
+error_code PADDING_ERROR, "Padding in the message invalid"
+error_code NO_RECIPIENT_CERTIFICATE, "Couldn't find recipient certificate"
+error_code DATA_OID_MISMATCH, "Mismatch bewteen signed type and unsigned type"
+
+# crypto related errors
+index 64
+prefix HX509_CRYPTO
+error_code INTERNAL_ERROR, "Internal error in the crypto engine"
+error_code EXTERNAL_ERROR, "External error in the crypto engine"
+error_code SIGNATURE_MISSING, "Signature missing for data"
+error_code BAD_SIGNATURE, "Signature is not valid"
+error_code SIG_NO_CONF, "Sigature doesn't provide confidentiality"
+error_code SIG_INVALID_FORMAT, "Invalid format on signature"
+error_code OID_MISMATCH, "Mismatch bewteen oids"
+error_code NO_PROMPTER, "No prompter function defined"
+error_code SIGNATURE_WITHOUT_SIGNER, "Signature require signer, but non available"
+error_code RSA_PUBLIC_ENCRYPT, "RSA public encyption failed"
+error_code RSA_PRIVATE_ENCRYPT, "RSA private encyption failed"
+error_code RSA_PUBLIC_DECRYPT, "RSA public decryption failed"
+error_code RSA_PRIVATE_DECRYPT, "RSA private decryption failed"
+error_code ALGORITHM_BEST_BEFORE, "Algorithm has passed its best before date"
+error_code KEY_FORMAT_UNSUPPORTED, "Key format is unsupported"
+
+# revoke related errors
+index 96
+prefix HX509
+error_code CRL_USED_BEFORE_TIME, "CRL used before it became valid"
+error_code CRL_USED_AFTER_TIME, "CRL used after it became invalid"
+error_code CRL_INVALID_FORMAT, "CRL have invalid format"
+error_code CERT_REVOKED, "Certificate is revoked"
+error_code REVOKE_STATUS_MISSING, "No revoke status found for certificates"
+error_code CRL_UNKNOWN_EXTENSION, "Unknown extension"
+error_code REVOKE_WRONG_DATA, "Got wrong CRL/OCSP data from server"
+error_code REVOKE_NOT_SAME_PARENT, "Doesn't have same parent as other certificates"
+error_code CERT_NOT_IN_OCSP, "Certificates not in OCSP reply"
+
+# misc error
+index 108
+error_code LOCAL_ATTRIBUTE_MISSING, "No local key attribute"
+error_code PARSING_KEY_FAILED, "Failed to parse key"
+error_code UNSUPPORTED_OPERATION, "Unsupported operation"
+error_code UNIMPLEMENTED_OPERATION, "Unimplemented operation"
+error_code PARSING_NAME_FAILED, "Failed to parse name"
+
+# keystore related error
+index 128
+prefix HX509_PKCS11
+error_code NO_SLOT,  "No smartcard reader/device found"
+error_code NO_TOKEN,  "No smartcard in reader"
+error_code NO_MECH,  "No supported mech(s)"
+error_code TOKEN_CONFUSED,  "Token or slot failed in inconsistent way"
+error_code OPEN_SESSION,  "Failed to open session to slot"
+error_code LOGIN,  "Failed to login to slot"
+error_code LOAD,  "Failed to load PKCS module"
+
+end

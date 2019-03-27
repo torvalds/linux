@@ -1,0 +1,370 @@
+# $FreeBSD$
+# General kernel macros
+
+# Print the command name of the current process
+define pname
+p (char *)curproc->p_comm
+end 
+document pname
+Print the command name of the current process.
+end
+
+# Show contents of bp supplied as first parameter:
+#
+# (gdb) bpp bp
+define bpp
+set $bp = (struct buf *) $arg0
+    if $bp->b_io.bio_dev
+      printf "  Buffer at 0x%x: dev 0x%x  data 0x%x  bcount 0x%x  blkno 0x%x resid 0x%x\n", \
+        $bp, \
+        $bp->b_io.bio_dev->si_udev, \
+        $bp->b_io.bio_data, \
+        $bp->b_io.bio_bcount, \
+        $bp->b_io.bio_blkno, \
+        $bp->b_io.bio_resid
+    else
+      printf "  Buffer at 0x%x: dev (none) data 0x%x  bcount 0x%x  blkno 0x%x resid 0x%x\n", \
+        $bp, \
+        $bp->b_io.bio_data, \
+        $bp->b_io.bio_bcount, \
+        $bp->b_io.bio_blkno, \
+        $bp->b_io.bio_resid
+    end
+    printf "   flags 0x%x: ", $bp->b_flags
+      if $bp->b_flags & 0x10
+        printf "busy "
+      end
+      if $bp->b_flags & 0x40
+        printf "call "
+      end
+      if $bp->b_flags & 0x200
+        printf "done "
+      end
+      if $bp->b_flags & 0x800
+        printf "error "
+      end
+      if $bp->b_flags & 0x40000
+        printf "phys "
+      end
+      if $bp->b_flags & 0x100000
+        printf "read "
+      end
+    printf "\n"
+end
+document bpp
+Show summary information about the buffer header (struct bp) pointed at by the parameter.
+end
+
+# Show more detailed contents of bp supplied as first parameter:
+#
+# (gdb) bpl bp
+define bpl
+set $bp = (struct buf *) $arg0
+printf "b_proc: "
+output $bp->b_proc
+printf "\nb_flags:      "
+output $bp->b_flags
+printf "\nb_qindex:     "
+output $bp->b_qindex
+printf "\nb_usecount:   "
+output $bp->b_usecount
+printf "\nb_error:      "
+output $bp->b_error
+printf "\nb_bufsize:    "
+output $bp->b_bufsize
+printf "\nb_io.bio_bcount:     "
+output $bp->b_io.bio_bcount
+printf "\nb_io.bio_resid:      "
+output $bp->b_io.bio_resid
+printf "\nb_io.bio_dev:        "
+output $bp->b_io.bio_dev
+printf "\nb_io.bio_data:       "
+output $bp->b_io.bio_data
+printf "\nb_kvasize:    "
+output $bp->b_kvasize
+printf "\nb_lblkno:     "
+output $bp->b_lblkno
+printf "\nb_io.bio_blkno:      "
+output $bp->b_io.bio_blkno
+printf "\nb_iodone:     "
+output $bp->b_iodone
+printf "\nb_vp: "
+output $bp->b_vp
+printf "\nb_dirtyoff:   "
+output $bp->b_dirtyoff
+printf "\nb_dirtyend:   "
+output $bp->b_dirtyend
+printf "\nb_generation: "
+output $bp->b_generation
+printf "\nb_rcred:      "
+output $bp->b_rcred
+printf "\nb_wcred:      "
+output $bp->b_wcred
+printf "\nb_validoff:   "
+output $bp->b_validoff
+printf "\nb_validend:   "
+output $bp->b_validend
+printf "\nb_pblkno:     "
+output $bp->b_pblkno
+printf "\nb_saveaddr:   "
+output $bp->b_saveaddr
+printf "\nb_savekva:    "
+output $bp->b_savekva
+printf "\nb_driver1:    "
+output $bp->b_driver1
+printf "\nb_driver2:    "
+output $bp->b_driver2
+printf "\nb_spc:        "
+output $bp->b_spc
+printf "\nb_npages:     "
+output $bp->b_npages
+printf "\n"
+end
+document bpl
+Show detailed information about the buffer header (struct bp) pointed at by the parameter.
+end
+
+# Show contents of buffer header in local variable bp. 
+define bp
+bpp bp
+end
+document bp
+Show information about the buffer header pointed to by the variable bp in the current frame.
+end
+
+# Show data of buffer header in local variable bp as string.
+define bpd
+    printf "Buffer data:\n%s", (char *) bp->b_io.bio_data
+end
+document bpd
+Show the contents (char*) of bp->data in the current frame.
+end
+document bpl
+Show detailed information about the buffer header (struct bp) pointed at by the local variable bp.
+end
+define bx
+printf "\n b_vnbufs " 
+output/x bp->b_vnbufs
+printf "\n b_freelist " 
+output/x bp->b_freelist
+printf "\n b_act " 
+output/x bp->b_act
+printf "\n b_flags " 
+output/x bp->b_flags
+printf "\n b_qindex " 
+output/x bp->b_qindex
+printf "\n b_usecount " 
+output/x bp->b_usecount
+printf "\n b_error " 
+output/x bp->b_error
+printf "\n b_bufsize " 
+output/x bp->b_bufsize
+printf "\n b_io.bio_bcount " 
+output/x bp->b_io.bio_bcount
+printf "\n b_io.bio_resid " 
+output/x bp->b_io.bio_resid
+printf "\n b_io.bio_dev " 
+output/x bp->b_io.bio_dev
+printf "\n b_io.bio_data " 
+output/x bp->b_io.bio_data
+printf "\n b_kvasize " 
+output/x bp->b_kvasize
+printf "\n b_io.bio_blkno " 
+output/x bp->b_io.bio_blkno
+printf "\n b_iodone_chain " 
+output/x bp->b_iodone_chain
+printf "\n b_vp " 
+output/x bp->b_vp
+printf "\n b_dirtyoff " 
+output/x bp->b_dirtyoff
+printf "\n b_validoff " 
+output/x bp->b_validoff
+echo \n
+end
+document bx
+Print a number of fields from the buffer header pointed at in by the pointer bp in the current environment.
+end
+
+# Switch back to ddb
+define ddb
+set boothowto=0x80000000
+s
+end
+document ddb
+Switch back to ddb.
+end
+
+# ps: equivalent of the userland command
+define ps
+    set $nproc = nprocs
+    set $aproc = allproc.lh_first
+    set $proc = allproc.lh_first
+    printf "  pid    proc   uid  ppid  pgrp   flag stat comm         wchan\n"
+    while (--$nproc >= 0)
+        set $pptr = $proc.p_pptr
+        if ($pptr == 0)
+           set $pptr = $proc
+        end
+        if ($proc.p_state)
+            set $thread = $proc->p_threads.tqh_first
+            while ($thread)
+                printf "%5d %08x %4d %5d %5d  %06x  %d  %-10s   ", \
+                       $proc.p_pid, $aproc, \
+                       $proc.p_ucred->cr_ruid, $pptr->p_pid, \
+                       $proc.p_pgrp->pg_id, $proc.p_flag, $proc.p_state, \
+                       &$proc.p_comm[0]
+                if ($thread.td_wchan)
+                    if ($thread.td_wmesg)
+                        printf "%s ", $thread.td_wmesg
+                    end
+                    printf "%x", $thread.td_wchan
+                end
+                printf "\n"     
+                set $thread = $thread->td_plist.tqe_next
+            end
+        end
+        set $aproc = $proc.p_list.le_next
+        if ($aproc == 0 && $nproc > 0)
+            set $aproc = zombproc
+        end
+        set $proc = $aproc
+    end
+end
+document ps
+Show process status without options. 
+end
+
+# Specify a process for other commands to refer to.
+# Most are machine-dependent.
+define defproc
+    set $nproc = nprocs
+    set $aproc = allproc.lh_first
+    set $proc = allproc.lh_first
+    while (--$nproc >= 0)
+        if ($proc->p_pid == $arg0)
+	   set $pptr = $proc.p_pptr
+           if ($pptr == 0)
+              set $pptr = $proc
+           end
+	   set $myvectorproc = $proc
+           if ($proc.p_state)
+               set $thread = $proc->p_threads.tqh_first
+               while ($thread)
+                   printf "%5d %08x %08x %4d %5d %5d  %06x  %d  %-10s   ", \
+                          $proc.p_pid, $aproc, \
+                          $proc.p_uarea, $proc.p_ucred->cr_ruid, $pptr->p_pid, \
+                          $proc.p_pgrp->pg_id, $proc.p_flag, $proc.p_state, \
+                          &$proc.p_comm[0]
+                   if ($thread.td_wchan)
+                       if ($thread.td_wmesg)
+                           printf "%s ", $thread.td_wmesg
+                       end
+                       printf "%x", $thread.td_wchan
+                   end
+                   printf "\n"     
+                   set $thread = $thread->td_plist.tqe_next
+               end
+           end
+           btpp
+	   set $nproc = 0
+	else
+           set $proc = $proc.p_list.le_next
+        end
+   end
+end
+document defproc
+Specify a process for btpp and fr commands.
+end
+
+define vdev
+if (vp->v_type == VBLK)
+  p *vp->v_un.vu_spec.vu_specinfo
+  printf "numoutput: %d\n", vp->v_numoutput
+else
+  echo "Not a block device"
+end
+end
+document vdev
+Show some information of the vnode pointed to by the local variable vp.
+end
+
+# Kludge.  When changing macros, it's convenient to copy and paste
+# definitions from the editor into the debugger window.
+# Unfortunately, gdb insists on asking for confirmation after the
+# "define" line.  y enables you to insert the confirmation in the
+# definition without affecting the way the macro runs (much).
+define y
+echo Check your .gdbinit: it contains a y command\n
+end
+
+document y
+Kludge for writing macros   This is a no-op except for printing a message   See gdb(4) for more details.
+end
+
+# dmesg: print msgbuf.  Can take forever.
+define dmesg
+printf "%s", msgbufp->msg_ptr
+end
+document dmesg
+Print the system message buffer (dmesg) This can take a long time due to the time it takes to transmit the data across a serial line and even on a firewire connection the processing time slows it down
+end
+
+# checkmem: check unallocated memory for modifications
+# this assumes that DIAGNOSTIC is set, which causes
+# free memory to be set to 0xdeadc0de
+#
+# Use: checkmem offset length
+define checkmem
+set $offset = $arg0
+# XXX sizeof int.   Needs changing for 64 bit machines.
+# subtract 1 because the last word is always different.
+set $length = $arg1 / 4 - 1
+set $word = 0
+while ($word < $length)
+   if ((int *) $offset) [$word] != 0xdeadc0de
+      printf "invalid word 0x%x at 0x%x\n", ((int *) $offset) [$word], &((int *) $offset) [$word]
+   end
+   set $word = $word + 1
+end
+end
+
+document checkmem
+Check unallocated memory for modifications  This assumes that DIAGNOSTIC is set which causes free memory to be set to 0xdeadc0de.
+end
+
+define kernel
+  exec-file kernel.$arg0   
+  symbol-file symbols.$arg0
+  core-file vmcore.$arg0
+end
+
+define kldstat
+  set $kld = linker_files.tqh_first
+  printf "Id Refs Address    Size     Name\n"
+  while ($kld != 0)
+    printf "%2d %4d 0x%08x %-8x %s\n", \
+      $kld->id, $kld->refs, $kld->address, $kld->size, $kld->filename
+    set $kld = $kld->link.tqe_next
+  end
+end
+ 
+document kldstat
+  Lists the modules that were loaded when the kernel crashed.
+end
+ 
+define kldstat-v
+  set $kld = linker_files.tqh_first
+  printf "Id Refs Address    Size     Name\n"
+  while ($kld != 0)
+    printf "%2d %4d 0x%08x %-8x %s\n", \
+      $kld->id, $kld->refs, $kld->address, $kld->size, $kld->filename
+    printf "        Contains modules:\n"
+    printf "                Id Name\n"
+    set $module = $kld->modules.tqh_first
+    while ($module != 0)
+      printf "                %2d %s\n", $module->id, $module->name
+      set $module = $module->link.tqe_next
+    end
+    set $kld = $kld->link.tqe_next
+  end
+end

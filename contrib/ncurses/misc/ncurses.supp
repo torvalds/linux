@@ -1,0 +1,205 @@
+# $Id: ncurses.supp,v 1.7 2008/09/20 18:43:42 tom Exp $
+##############################################################################
+# Copyright (c) 2008 Free Software Foundation, Inc.                          #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+# This is a warning-suppression file for valgrind and ncurses.
+#
+# ncurses can also be configured using the --disable-leaks option, which
+# allows an application to call _nc_freeall() or _nc_free_and_exit(), to
+# free all of ncurses' "permanent" memory.
+#
+# Some of these leaks can be freed if the application does its own cleanup,
+# for example:
+#	delscreen(SP);
+#	del_curterm(cur_term);
+# However, few applications do this.
+
+{
+   ncurses_leak__nc_add_to_try
+   Memcheck:Leak
+   fun:*alloc
+   fun:_nc_add_to_try
+}
+
+{
+   ncurses_leak__nc_home_terminfo
+   Memcheck:Leak
+   fun:malloc
+   fun:_nc_home_terminfo
+}
+
+{
+   ncurses_leak__nc_init_wacs
+   Memcheck:Leak
+   fun:calloc
+   fun:_nc_init_wacs
+}
+
+{
+   ncurses_leak__nc_keyname
+   Memcheck:Leak
+   fun:calloc
+   fun:_nc_keyname
+}
+
+{
+   ncurses_leak__nc_keyname_2
+   Memcheck:Leak
+   fun:malloc
+   fun:strdup
+   fun:_nc_keyname
+}
+
+{
+   ncurses_leak__nc_printf_string
+   Memcheck:Leak
+   fun:malloc
+   fun:_nc_doalloc
+   fun:_nc_printf_string
+}
+
+{
+   ncurses_leak__nc_read_termtype
+   Memcheck:Leak
+   fun:*alloc
+   fun:_nc_read_termtype
+   fun:_nc_read_file_entry
+}
+
+{
+   ncurses_leak__nc_read_termtype_2
+   Memcheck:Leak
+   fun:*alloc
+   fun:_nc_doalloc
+   fun:_nc_read_termtype
+   fun:_nc_read_file_entry
+}
+
+{
+   ncurses_leak__nc_scroll_optimize
+   Memcheck:Leak
+   fun:*alloc
+   fun:_nc_hash_map
+   fun:_nc_scroll_optimize
+}
+
+{
+   ncurses_leak__nc_scroll_optimize_2
+   Memcheck:Leak
+   fun:*alloc
+   fun:_nc_doalloc
+   fun:_nc_scroll_optimize
+}
+
+{
+   ncurses_leak__nc_setupscreen
+   Memcheck:Leak
+   fun:calloc
+   fun:_nc_setupscreen
+   fun:newterm
+}
+
+{
+   ncurses_leak__nc_setupscreen_2
+   Memcheck:Leak
+   fun:calloc
+   fun:newwin
+   fun:_nc_setupscreen
+}
+
+{
+   ncurses_leak__nc_setupterm_1
+   Memcheck:Leak
+   fun:malloc
+   fun:strdup
+   fun:_nc_setupterm
+}
+
+{
+   ncurses_leak__nc_setupterm
+   Memcheck:Leak
+   fun:calloc
+   fun:_nc_setupterm
+}
+
+{
+   ncurses_leak__nc_setupscreen_3
+   Memcheck:Leak
+   fun:calloc
+   fun:_nc_makenew
+   fun:newwin
+   fun:_nc_setupscreen
+}
+
+{
+   ncurses_leak__nc_set_buffer
+   Memcheck:Leak
+   fun:malloc
+   fun:_nc_set_buffer
+}
+
+{
+   ncurses_leak__nc_tparm_analyze
+   Memcheck:Leak
+   fun:*alloc
+   fun:_nc_doalloc
+   fun:_nc_tparm_analyze
+}
+
+{
+   ncurses_leak__nc_trace_alloc
+   Memcheck:Leak
+   fun:*alloc
+   fun:_nc_doalloc
+   fun:_nc_trace_alloc
+}
+
+{
+   ncurses_leak_start_color
+   Memcheck:Leak
+   fun:calloc
+   fun:start_color
+}
+
+{
+   ncurses_leak_tparm
+   Memcheck:Leak
+   fun:realloc
+   fun:_nc_doalloc
+   fun:tparm
+}
+
+{
+   ncurses_leak_tparam_internal
+   Memcheck:Leak
+   fun:realloc
+   fun:_nc_doalloc
+   fun:get_space
+   fun:save_number
+   fun:tparam_internal
+}

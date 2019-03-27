@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+f() { return 42; }
+f
+: | : &

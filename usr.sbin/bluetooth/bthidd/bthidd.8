@@ -1,0 +1,133 @@
+.\" Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: bthidd.8,v 1.1 2006/09/07 21:36:55 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd April 30, 2018
+.Dt BTHIDD 8
+.Os
+.Sh NAME
+.Nm bthidd
+.Nd Bluetooth HID daemon
+.Sh SYNOPSIS
+.Nm
+.Fl h
+.Nm
+.Op Fl a Ar BD_ADDR
+.Op Fl c Ar file
+.Op Fl H Ar file
+.Op Fl p Ar file
+.Op Fl t Ar val
+.Op Fl u
+.Sh DESCRIPTION
+The
+.Nm
+daemon handles remote Bluetooth HID devices.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a Ar BD_ADDR
+Specify the local address to listen on.
+By default, the server will listen on
+.Dv ANY
+address.
+The address can be specified as BD_ADDR or name.
+If a name was specified, the
+.Nm
+daemon will attempt to resolve the name via
+.Xr bt_gethostbyname 3 .
+.It Fl c Ar file
+Specify path to the configuration file.
+The default path is
+.Pa /etc/bluetooth/bthidd.conf .
+.It Fl d
+Do not detach from the controlling terminal, i.e., run in foreground.
+.It Fl H Ar file
+Specify path to the known HIDs file.
+The default path is
+.Pa /var/db/bthidd.hids .
+.It Fl h
+Display usage message and exit.
+.It Fl p Ar file
+Specify path to the PID file.
+The default path is
+.Pa /var/run/bthidd.pid .
+.It Fl t Ar val
+Specify client rescan interval in seconds.
+The
+.Nm
+daemon will periodically scan for newly configured Bluetooth HID devices or
+disconnected
+.Dq passive
+Bluetooth HID devices and will attempt to establish an outgoing connection.
+The default rescan interval is 10 seconds.
+.It Fl u
+Enable support for input event device protocol.
+Requires evdev and uinput drivers to be loaded with
+.Xr kldload 8
+or compiled into the kernel.
+.El
+.Sh KNOWN LIMITATIONS
+The
+.Nm
+daemon currently does not handle key auto repeat and double click mouse events.
+Those events work under
+.Xr X 7
+just fine,
+but not in text console.
+.Pp
+This manual page needs more work.
+A manual page documenting the format of the
+.Pa /etc/bluetooth/bthidd.conf
+configuration file is needed as well.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/bluetooth/bthidd.conf" -compact
+.It Pa /etc/bluetooth/bthidd.conf
+.It Pa /var/db/bthidd.hids
+.It Pa /var/run/bthidd.pid
+.El
+.Sh SEE ALSO
+.Xr kbdmux 4 ,
+.Xr vkbd 4 ,
+.Xr bthidcontrol 8
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
+.Sh CAVEATS
+Any Bluetooth HID device that has
+.Dv HUP_KEYBOARD
+or
+.Dv HUP_CONSUMER
+entries in its descriptor is considered as
+.Dq keyboard .
+For each
+.Dq keyboard
+Bluetooth HID device,
+the
+.Nm
+daemon will use a separate instance of the virtual keyboard interface
+.Xr vkbd 4 .
+Therefore the
+.Xr kbdmux 4
+driver must be used to properly multiplex input from multiple keyboards.

@@ -1,0 +1,113 @@
+/*
+ * Copyright 2012 Sascha Hauer, Pengutronix
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+#include "imx25.dtsi"
+
+/ {
+	model = "Ka-Ro TX25";
+	compatible = "karo,imx25-tx25", "fsl,imx25";
+
+	chosen {
+		stdout-path = &uart1;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_fec_phy: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "fec-phy";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio4 9 0>;
+			enable-active-high;
+		};
+	};
+
+	memory@80000000 {
+		reg = <0x80000000 0x02000000 0x90000000 0x02000000>;
+	};
+};
+
+&iomuxc {
+	pinctrl_uart1: uart1grp {
+		fsl,pins = <
+			MX25_PAD_UART1_TXD__UART1_TXD 0x80000000
+			MX25_PAD_UART1_RXD__UART1_RXD 0x80000000
+			MX25_PAD_UART1_CTS__UART1_CTS 0x80000000
+			MX25_PAD_UART1_RTS__UART1_RTS 0x80000000
+		>;
+	};
+
+	pinctrl_fec: fecgrp {
+		fsl,pins = <
+			MX25_PAD_D11__GPIO_4_9		0x80000000 /* FEC PHY power on pin */
+			MX25_PAD_D13__GPIO_4_7		0x80000000 /* FEC reset */
+			MX25_PAD_FEC_MDC__FEC_MDC	0x80000000
+			MX25_PAD_FEC_MDIO__FEC_MDIO	0x80000000
+			MX25_PAD_FEC_TDATA0__FEC_TDATA0	0x80000000
+			MX25_PAD_FEC_TDATA1__FEC_TDATA1	0x80000000
+			MX25_PAD_FEC_TX_EN__FEC_TX_EN	0x80000000
+			MX25_PAD_FEC_RDATA0__FEC_RDATA0	0x80000000
+			MX25_PAD_FEC_RDATA1__FEC_RDATA1	0x80000000
+			MX25_PAD_FEC_RX_DV__FEC_RX_DV	0x80000000
+			MX25_PAD_FEC_TX_CLK__FEC_TX_CLK	0x80000000
+		>;
+	};
+
+	pinctrl_nfc: nfcgrp {
+		fsl,pins = <
+			MX25_PAD_NF_CE0__NF_CE0		0x80000000
+			MX25_PAD_NFWE_B__NFWE_B		0x80000000
+			MX25_PAD_NFRE_B__NFRE_B		0x80000000
+			MX25_PAD_NFALE__NFALE		0x80000000
+			MX25_PAD_NFCLE__NFCLE		0x80000000
+			MX25_PAD_NFWP_B__NFWP_B		0x80000000
+			MX25_PAD_NFRB__NFRB		0x80000000
+			MX25_PAD_D7__D7			0x80000000
+			MX25_PAD_D6__D6			0x80000000
+			MX25_PAD_D5__D5			0x80000000
+			MX25_PAD_D4__D4			0x80000000
+			MX25_PAD_D3__D3			0x80000000
+			MX25_PAD_D2__D2			0x80000000
+			MX25_PAD_D1__D1			0x80000000
+			MX25_PAD_D0__D0			0x80000000
+		>;
+	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec>;
+	phy-reset-gpios = <&gpio3 7 GPIO_ACTIVE_LOW>;
+	phy-mode = "rmii";
+	phy-supply = <&reg_fec_phy>;
+	status = "okay";
+};
+
+&nfc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_nfc>;
+	nand-on-flash-bbt;
+	nand-ecc-mode = "hw";
+	nand-bus-width = <8>;
+	status = "okay";
+};

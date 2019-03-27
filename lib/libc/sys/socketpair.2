@@ -1,0 +1,107 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)socketpair.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd February 10, 2018
+.Dt SOCKETPAIR 2
+.Os
+.Sh NAME
+.Nm socketpair
+.Nd create a pair of connected sockets
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.Ft int
+.Fn socketpair "int domain" "int type" "int protocol" "int *sv"
+.Sh DESCRIPTION
+The
+.Fn socketpair
+system call creates an unnamed pair of connected sockets in
+the specified communications
+.Fa domain ,
+of the specified
+.Fa type ,
+and using the optionally specified
+.Fa protocol .
+The descriptors used in referencing the new sockets
+are returned in
+.Fa sv Ns [0]
+and
+.Fa sv Ns [1] .
+The two sockets are indistinguishable.
+.Pp
+The
+.Dv SOCK_CLOEXEC
+and
+.Dv SOCK_NONBLOCK
+flags in the
+.Fa type
+argument apply to both descriptors.
+.Sh RETURN VALUES
+.Rv -std socketpair
+.Sh ERRORS
+The call succeeds unless:
+.Bl -tag -width Er
+.It Bq Er EMFILE
+Too many descriptors are in use by this process.
+.It Bq Er EAFNOSUPPORT
+The specified address family is not supported on this machine.
+.It Bq Er EPROTONOSUPPORT
+The specified protocol is not supported on this machine.
+.It Bq Er EOPNOTSUPP
+The specified protocol does not support creation of socket pairs.
+.It Bq Er EFAULT
+The address
+.Fa sv
+does not specify a valid part of the
+process address space.
+.El
+.Sh SEE ALSO
+.Xr pipe 2 ,
+.Xr read 2 ,
+.Xr socket 2 ,
+.Xr write 2
+.Sh STANDARDS
+The
+.Fn socketpair
+system call conforms to
+.St -p1003.1-2001
+and
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn socketpair
+system call appeared in
+.Bx 4.2 .
+.Sh BUGS
+This call is currently implemented only for the
+.Ux
+domain.

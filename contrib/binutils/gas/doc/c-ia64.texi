@@ -1,0 +1,187 @@
+@c Copyright 2002, 2003, 2005
+@c Free Software Foundation, Inc.
+@c   Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+
+@ifset GENERIC
+@page
+@node IA-64-Dependent
+@chapter IA-64 Dependent Features
+@end ifset
+
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter IA-64 Dependent Features
+@end ifclear
+
+@cindex IA-64 support
+@menu
+* IA-64 Options::              Options
+* IA-64 Syntax::               Syntax
+@c * IA-64 Floating Point::       Floating Point		// to be written
+@c * IA-64 Directives::           IA-64 Machine Directives	// to be written
+* IA-64 Opcodes::              Opcodes
+@end menu
+
+@node IA-64 Options
+@section Options
+@cindex IA-64 options
+@cindex options for IA-64
+
+@table @option
+@cindex @code{-mconstant-gp} command line option, IA-64
+
+@item -mconstant-gp
+This option instructs the assembler to mark the resulting object file
+as using the ``constant GP'' model.  With this model, it is assumed
+that the entire program uses a single global pointer (GP) value.  Note
+that this option does not in any fashion affect the machine code
+emitted by the assembler.  All it does is turn on the EF_IA_64_CONS_GP
+flag in the ELF file header.
+
+@item -mauto-pic
+This option instructs the assembler to mark the resulting object file
+as using the ``constant GP without function descriptor'' data model.
+This model is like the ``constant GP'' model, except that it
+additionally does away with function descriptors.  What this means is
+that the address of a function refers directly to the function's code
+entry-point.  Normally, such an address would refer to a function
+descriptor, which contains both the code entry-point and the GP-value
+needed by the function.  Note that this option does not in any fashion
+affect the machine code emitted by the assembler.  All it does is
+turn on the EF_IA_64_NOFUNCDESC_CONS_GP flag in the ELF file header.
+
+@item -milp32
+@item -milp64
+@item -mlp64
+@item -mp64
+These options select the data model.  The assembler defaults to @code{-mlp64}
+(LP64 data model).
+
+@item -mle
+@item -mbe
+These options select the byte order.  The @code{-mle} option selects little-endian
+byte order (default) and @code{-mbe} selects big-endian byte order.  Note that
+IA-64 machine code always uses little-endian byte order.
+
+@item -mtune=itanium1
+@item -mtune=itanium2
+Tune for a particular IA-64 CPU, @var{itanium1} or @var{itanium2}. The
+default is @var{itanium2}.
+
+@item -munwind-check=warning
+@item -munwind-check=error
+These options control what the assembler will do when performing
+consistency checks on unwind directives.  @code{-munwind-check=warning}
+will make the assembler issue a warning when an unwind directive check
+fails.  This is the default.  @code{-munwind-check=error} will make the
+assembler issue an error when an unwind directive check fails.
+
+@item -mhint.b=ok
+@item -mhint.b=warning
+@item -mhint.b=error
+These options control what the assembler will do when the @samp{hint.b}
+instruction is used.  @code{-mhint.b=ok} will make the assembler accept
+@samp{hint.b}.  @code{-mint.b=warning} will make the assembler issue a
+warning when @samp{hint.b} is used.  @code{-mhint.b=error} will make
+the assembler treat @samp{hint.b} as an error, which is the default.
+
+@item -x
+@item -xexplicit
+These options turn on dependency violation checking.
+
+@item -xauto
+This option instructs the assembler to automatically insert stop bits where necessary
+to remove dependency violations.  This is the default mode.
+
+@item -xnone
+This option turns off dependency violation checking.
+
+@item -xdebug
+This turns on debug output intended to help tracking down bugs in the dependency
+violation checker.
+
+@item -xdebugn
+This is a shortcut for -xnone -xdebug.
+
+@item -xdebugx
+This is a shortcut for -xexplicit -xdebug.
+
+@end table
+
+@cindex IA-64 Syntax
+@node IA-64 Syntax
+@section Syntax
+The assembler syntax closely follows the IA-64 Assembly Language
+Reference Guide.
+
+@menu
+* IA-64-Chars::                Special Characters
+* IA-64-Regs::                 Register Names
+* IA-64-Bits::                 Bit Names
+@c * IA-64-Relocs::               Relocations		// to be written
+@end menu
+
+@node IA-64-Chars
+@subsection Special Characters
+
+@cindex line comment character, IA-64
+@cindex IA-64 line comment character
+@samp{//} is the line comment token.
+
+@cindex line separator, IA-64
+@cindex statement separator, IA-64
+@cindex IA-64 line separator
+@samp{;} can be used instead of a newline to separate statements.
+
+@node IA-64-Regs
+@subsection Register Names
+@cindex IA-64 registers
+@cindex register names, IA-64
+
+The 128 integer registers are referred to as @samp{r@var{n}}.
+The 128 floating-point registers are referred to as @samp{f@var{n}}.
+The 128 application registers are referred to as @samp{ar@var{n}}.
+The 128 control registers are referred to as @samp{cr@var{n}}.
+The 64 one-bit predicate registers are referred to as @samp{p@var{n}}.
+The 8 branch registers are referred to as @samp{b@var{n}}.
+In addition, the assembler defines a number of aliases:
+@samp{gp} (@samp{r1}), @samp{sp} (@samp{r12}), @samp{rp} (@samp{b0}),
+@samp{ret0} (@samp{r8}), @samp{ret1} (@samp{r9}), @samp{ret2} (@samp{r10}),
+@samp{ret3} (@samp{r9}), @samp{farg@var{n}} (@samp{f8+@var{n}}), and
+@samp{fret@var{n}} (@samp{f8+@var{n}}).
+
+For convenience, the assembler also defines aliases for all named application
+and control registers.  For example, @samp{ar.bsp} refers to the register
+backing store pointer (@samp{ar17}).  Similarly, @samp{cr.eoi} refers to
+the end-of-interrupt register (@samp{cr67}).
+
+@node IA-64-Bits
+@subsection IA-64 Processor-Status-Register (PSR) Bit Names
+@cindex IA-64 Processor-status-Register bit names
+@cindex PSR bits
+@cindex bit names, IA-64
+
+The assembler defines bit masks for each of the bits in the IA-64
+processor status register.  For example, @samp{psr.ic} corresponds to
+a value of 0x2000.  These masks are primarily intended for use with
+the @samp{ssm}/@samp{sum} and @samp{rsm}/@samp{rum}
+instructions, but they can be used anywhere else where an integer
+constant is expected.
+
+@node IA-64 Opcodes
+@section Opcodes
+For detailed information on the IA-64 machine instruction set, see the
+@c Attempt to work around a very overfull hbox.
+@iftex
+IA-64 Assembly Language Reference Guide available at
+@smallfonts
+@example
+http://developer.intel.com/design/itanium/arch_spec.htm
+@end example
+@textfonts
+@end iftex
+@ifnottex
+@uref{http://developer.intel.com/design/itanium/arch_spec.htm,IA-64 Architecture Handbook}.
+@end ifnottex

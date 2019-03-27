@@ -1,0 +1,140 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_set_frame_cfa_value.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd June 18, 2011
+.Dt DWARF_SET_FRAME_CFA_VALUE 3
+.Os
+.Sh NAME
+.Nm dwarf_set_frame_cfa_value ,
+.Nm dwarf_set_frame_rule_initial_value ,
+.Nm dwarf_set_frame_rule_table_size ,
+.Nm dwarf_set_frame_same_value ,
+.Nm dwarf_set_frame_undefined_value
+.Nd set internal register rule table parameters
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft Dwarf_Half
+.Fo dwarf_set_frame_cfa_value
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Half value"
+.Fc
+.Ft Dwarf_Half
+.Fo dwarf_set_frame_rule_initial_value
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Half value"
+.Fc
+.Ft Dwarf_Half
+.Fo dwarf_set_frame_rule_table_size
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Half value"
+.Fc
+.Ft Dwarf_Half
+.Fo dwarf_set_frame_same_value
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Half value"
+.Fc
+.Ft Dwarf_Half
+.Fo dwarf_set_frame_undefined_value
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Half value"
+.Fc
+.Sh DESCRIPTION
+These functions set the parameters of the internal register
+rule table.
+.Pp
+Argument
+.Ar dbg
+should reference a DWARF debug context allocated using
+.Xr dwarf_init 3 .
+.Pp
+Argument
+.Ar value
+should hold the parameter value to set.
+.Pp
+Function
+.Fn dwarf_set_frame_cfa_value
+sets the column number for the CFA register rule in the internal
+register rule table.
+The constant
+.Dv DW_FRAME_CFA_COL
+is the default CFA register column number for DWARF2-only
+interfaces, and the constant
+.Dv DW_FRAME_CFA_COL3
+is the default CFA column number for DWARF3-compatible interfaces.
+.Pp
+Function
+.Fn dwarf_set_frame_rule_initial_value
+sets the initial value of the register rules in the internal register
+rule table.
+The default initial value is the constant
+.Dv DW_FRAME_REG_INITIAL_VALUE ,
+defined in the header file
+.In libdwarf.h .
+.Pp
+Function
+.Fn dwarf_set_frame_rule_table_size
+sets the maxmium number of columns of the internal register rule table.
+Argument
+.Ar value
+should be at least as large as the number of real registers in the ABI.
+.Pp
+Function
+.Fn dwarf_set_frame_same_value
+sets the register number representing the
+.Dq "same value"
+register rule.
+The default register number for the
+.Dq "same value"
+rule is the constant
+.Dv DW_FRAME_SAME_VAL ,
+defined in the header file
+.In libdwarf.h .
+.Pp
+Function
+.Fn dwarf_set_frame_undefined_value
+sets the register number representing the
+.Dq undefined
+register rule.
+The default register number for the
+.Dq undefined
+rule is the constant
+.Dv DW_FRAME_UNDEFINED_VAL ,
+defined in the header file
+.In libdwarf.h .
+.Sh RETURN VALUES
+These functions return the previous value of the parameter being
+set.
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_get_fde_at_pc 3 ,
+.Xr dwarf_get_fde_info_for_all_regs 3 ,
+.Xr dwarf_get_fde_info_for_all_regs3 3 ,
+.Xr dwarf_get_fde_info_for_cfa_reg3 3 ,
+.Xr dwarf_get_fde_info_for_reg 3 ,
+.Xr dwarf_get_fde_info_for_reg3 3 ,
+.Xr dwarf_get_fde_n 3

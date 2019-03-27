@@ -1,0 +1,73 @@
+.\" Copyright (c) 2001,2002 John H. Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 5, 2005
+.Dt CRITICAL_ENTER 9
+.Os
+.Sh NAME
+.Nm critical_enter ,
+.Nm critical_exit
+.Nd enter and exit a critical region
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/systm.h
+.Ft void
+.Fn critical_enter "void"
+.Ft void
+.Fn critical_exit "void"
+.Sh DESCRIPTION
+These functions are used to prevent preemption in a critical region of code.
+All that is guaranteed is that the thread currently executing on a CPU will
+not be preempted.
+Specifically, a thread in a critical region will not migrate to another
+CPU while it is in a critical region.
+The current CPU may still trigger faults and exceptions during a critical
+section; however, these faults are usually fatal.
+.Pp
+The
+.Fn critical_enter
+and
+.Fn critical_exit
+functions manage a per-thread counter to handle nested critical sections.
+If a thread is made runnable that would normally preempt the current thread
+while the current thread is in a critical section,
+then the preemption will be deferred until the current thread exits the
+outermost critical section.
+.Pp
+Note that these functions are not required to provide any inter-CPU
+synchronization, data protection, or memory ordering guarantees and thus
+should
+.Em not
+be used to protect shared data structures.
+.Pp
+These functions should be used with care as an infinite loop within a
+critical region will deadlock the CPU.
+Also, they should not be interlocked with operations on mutexes, sx locks,
+semaphores, or other synchronization primitives.
+One exception to this is that spin mutexes include a critical section,
+so in certain cases critical sections may be interlocked with spin mutexes.
+.Sh HISTORY
+These functions were introduced in
+.Fx 5.0 .

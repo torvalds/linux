@@ -1,0 +1,187 @@
+.\" Copyright (c) 2000-2002
+.\"         Diomidis D. Spinellis, Athens, Greece
+.\"     All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Diomidis D. Spinellis ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL Diomidis D. Spinellis BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 14, 2005
+.Dt PBIO 4 i386
+.Os
+.Sh NAME
+.Nm pbio
+.Nd 8255 parallel peripheral interface basic
+.Tn I/O
+driver
+.Sh SYNOPSIS
+.Cd "device pbio"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.pbio.0.at="isa"
+.Cd hint.pbio.0.port="0x360"
+.Pp
+.In dev/pbio/pbioio.h
+.Sh DESCRIPTION
+The
+.Nm
+driver supports direct access to the Intel 8255A programmable
+peripheral interface (PPI) chip running in mode 0 (simple
+.Tn I/O ) .
+Such an interface provides 24 digital
+.Tn I/O
+lines.
+The driver is designed for performing
+.Tn I/O
+under program control using
+peripherals such as the
+.Tn Advantech
+.Tn PCL-724
+card, which emulates the Intel 8255A PPI in mode 0.
+Other 8255A-based peripherals such as the
+.Tn BMC
+Messsysteme
+.Tn PIO24II
+card have also been reported to work.
+.Pp
+The PPI provides two 8-bit ports (port A and port B) and
+two 4-bit ports (port C upper, port C lower).
+Each port can be individually programmed for input and
+(latched) output,
+and appears at a different offset of the device's base
+.Tn I/O
+address.
+.Pp
+A separate register allows the configuration of ports for input
+or output.
+The device is so simple, that reliably probing for it when
+input data arrives at its terminals is impossible;
+therefore the kernel configuration has to specify the
+device's base address.
+The device driver provides four character devices that
+correspond to the peripheral's
+.Tn I/O
+ports.
+Opening a device for read or write automatically configures
+the corresponding hardware port for input or output.
+At boot time all ports are set configured for input to avoid damaging
+external circuitry.
+.Pp
+A set of
+.Xr ioctl 2
+requests allow polled input and paced output to be
+efficiently performed at the driver level without expensive
+user/kernel context switching.
+The driver can perform
+.Tn I/O
+in three different ways:
+.Bl -tag -width ".No Differential"
+.It Basic
+The read or write operation returns immediately after reading
+or writing the data to the port at bus speed.
+.It Paced
+Data is transferred from or to the port at intervals specified
+by a separate
+.Xr ioctl 2
+call.
+.It Differential
+(Input only.)
+Only port values that differ from the previous port value are returned.
+.El
+.Pp
+The pacing interval is specified in
+.Em Hz
+unit increments.
+Setting a pace of
+.Ar n
+seconds
+will result in no more than one value being read or written every
+.Ar n
+seconds.
+Single byte read/write operations will take at least
+.Ar n
+seconds to complete.
+.Pp
+The following
+.Xr ioctl 2
+calls are supported:
+.Bl -tag -width ".Dv PBIO_SETIPACE"
+.It Dv PBIO_SETDIFF
+accepts a pointer to an integer as the third argument,
+and sets the driver for differential input if the integer is non-zero.
+The input pace speed determines the periodic interval the driver will use to
+examine the port for a changed value.
+.It Dv PBIO_GETDIFF
+accepts a pointer to an integer as the third argument,
+and sets the integer to the last set value for differential input.
+.It Dv PBIO_SETIPACE
+accepts a pointer to an integer as the third argument,
+and sets the driver's input pacing speed to the value of that integer.
+.It Dv PBIO_GETIPACE
+accepts a pointer to an integer as the third argument,
+and sets the integer to the last set value for the input pace.
+.It Dv PBIO_SETOPACE
+accepts a pointer to an integer as the third argument,
+and sets the driver's output pacing speed to the value of that integer.
+.It Dv PBIO_GETOPACE
+accepts a pointer to an integer as the third argument,
+and sets the integer to the last set value for the output pace.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/pbio0ch" -compact
+.It Pa /dev/pbio0a
+Port A (8 bit
+.Tn I/O ) .
+.It Pa /dev/pbio0b
+Port B (8 bit
+.Tn I/O ) .
+.It Pa /dev/pbio0ch
+Port C upper (4 bit
+.Tn I/O ) .
+.It Pa /dev/pbio0cl
+Port C lower (4 bit
+.Tn I/O ) .
+.El
+.Sh SEE ALSO
+.Rs
+.%A "Diomidis Spinellis"
+.%T "The information furnace: Consolidated home control"
+.%D "2003"
+.%J "Personal and Ubiquitous Computing"
+.%N 1
+.%V 7
+.%P "53-69"
+.Re
+.Sh HISTORY
+The
+.Nm
+device was first used under
+.Fx 4.1 .
+.Sh AUTHORS
+.An Diomidis D. Spinellis Aq Mt dds@aueb.gr
+.Sh BUGS
+One of the
+.Tn PCL-724
+card's inputs can optionally be wired to generate an interrupt.
+This feature is not supported.

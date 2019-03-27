@@ -1,0 +1,20 @@
+.TH "internalvsmechname" 3 "11 Jan 2012" "Version 1.5.2" "HeimdalGSS-APIlibrary" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+internalvsmechname \- Internal names and mechanism names 
+.SH "Name forms"
+.PP
+There are two forms of name in GSS-API, Internal form and Contiguous string ('flat') form. gss_export_name() and \fBgss_import_name()\fP can be used to convert between the two forms.
+.PP
+.IP "\(bu" 2
+The contiguous string form is described by an oid specificing the type and an octet string. A special form of the contiguous string form is the exported name object. The exported name defined for each mechanism, is something that can be stored and complared later. The exported name is what should be used for ACLs comparisons.
+.PP
+.PP
+.IP "\(bu" 2
+The Internal form
+.PP
+.PP
+There is also special form of the Internal Name (IN), and that is the Mechanism Name (MN). In the mechanism name all the generic information is stripped of and only contain the information for one mechanism. In GSS-API some function return MN and some require MN as input. Each of these function is marked up as such.
+.PP
+Describe relationship between import_name, canonicalize_name, export_name and friends. 

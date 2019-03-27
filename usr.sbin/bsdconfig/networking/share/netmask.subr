@@ -1,0 +1,137 @@
+if [ ! "$_NETWORKING_NETMASK_SUBR" ]; then _NETWORKING_NETMASK_SUBR=1
+#
+# Copyright (c) 2006-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." networking/netmask.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/networking/common.subr
+f_include $BSDCFG_SHARE/strings.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+############################################################ FUNCTIONS
+
+# f_dialog_maskerror $error $netmask
+#
+# Display a msgbox with the appropriate error message for an error returned by
+# the f_validate_netmask function.
+#
+f_dialog_maskerror()
+{
+	local error="$1" netmask="$2"
+
+	[ ${error:-0} -ne 0 ] || return $SUCCESS
+
+	case "$error" in
+	1) f_show_msg "$msg_ipv4_mask_field_contains_invalid_chars" "$mask" ;;
+	2) f_show_msg "$msg_ipv4_mask_field_is_null" "$mask" ;;
+	3) f_show_msg "$msg_ipv4_mask_field_exceeds_max_value" "$mask" ;;
+	4) f_show_msg "$msg_ipv4_mask_field_missing_or_extra" "$mask" ;;
+	5) f_show_msg "$msg_ipv4_mask_field_invalid_value" "$mask" ;;
+	esac
+}
+
+# f_dialog_validate_netmask $netmask
+#
+# Returns zero if the given argument (a subnet mask) is of the proper format.
+#
+# If the subnet mask is determined to be invalid, the appropriate error will be
+# displayed using the f_dialog_maskerror function above.
+#
+f_dialog_validate_netmask()
+{
+	local netmask="$1"
+
+	f_validate_netmask "$netmask"
+	local retval=$?
+
+	# Produce an appropriate error message if necessary.
+	[ $retval -eq $SUCCESS ] || f_dialog_maskerror $retval "$netmask"
+
+	return $retval
+}
+
+# f_dialog_input_netmask $interface $netmask
+#
+# Edits the IP netmask of the given interface.
+#
+f_dialog_input_netmask()
+{
+	local interface="$1" _netmask="$2" _input
+
+	#
+	# Return with-error when there are NFS-mounts currently active. If the
+	# subnet mask is changed while NFS-exported directories are mounted,
+	# the system may hang (if any NFS mounts are using that interface).
+	#
+	if f_nfs_mounted && ! f_jailed; then
+		local setting
+		f_sprintf setting "$msg_current_subnet" \
+		                  "$interface" "$_netmask"
+		f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
+			return $DIALOG_CANCEL
+	fi
+
+	#
+	# Loop until the user provides taint-free input.
+	#
+	local msg
+	f_sprintf msg "$msg_please_enter_subnet_mask" "$interface"
+	while :; do
+		#
+		# Return error status if:
+		# - User has either pressed ESC or chosen Cancel/No
+		# - User has not made any changes to the given value
+		#
+		f_dialog_input _input "$msg" "$_netmask" \
+		               "$hline_num_punc_tab_enter" || return $?
+		[ "$_netmask" = "$_input" ] && return $DIALOG_CANCEL
+
+		# Return success if NULL value was entered
+		[ "$_input" ] || return $DIALOG_OK
+
+		# Take only the first "word" of the user's input
+		_netmask="$_input"
+		_netmask="${_netmask%%[$IFS]*}"
+
+		# Taint-check the user's input
+		f_dialog_validate_netmask "$_netmask" && break
+	done
+
+	netmask="$_netmask"
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." networking/netmask.subr
+
+fi # ! $_NETWORKING_NETMASK_SUBR

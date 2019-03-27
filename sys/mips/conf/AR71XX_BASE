@@ -1,0 +1,67 @@
+#
+# AR71XX -- Kernel configuration file for FreeBSD/MIPS for Atheros 71xx systems
+#
+# This includes all the common drivers for the AR71XX boards along with
+# the usb, net80211 and atheros driver code.
+#
+# $FreeBSD$
+#
+
+machine		mips mips
+ident		AR71XX_BASE
+cpu		CPU_MIPS24K
+makeoptions	KERNLOADADDR=0x80050000
+options 	HZ=1000
+options 	HWPMC_HOOKS
+
+files		"../atheros/files.ar71xx"
+
+# For now, hints are per-board.
+
+hints		"AR71XX_BASE.hints"
+
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+
+options 	DDB
+options 	KDB
+
+options 	SCHED_4BSD		#4BSD scheduler
+options 	INET			#InterNETworking
+options 	INET6			# IPv6
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+
+# options 	NFSCL		#Network Filesystem Client
+
+options 	PSEUDOFS		#Pseudo-filesystem framework
+options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+
+# options 	NFS_LEGACYRPC
+# Debugging for use in -current
+options 	INVARIANTS
+options 	INVARIANT_SUPPORT
+options 	WITNESS
+options 	WITNESS_SKIPSPIN
+options 	DEBUG_REDZONE
+options 	DEBUG_MEMGUARD
+
+options         FFS                     #Berkeley Fast Filesystem
+# options         SOFTUPDATES             #Enable FFS soft updates support
+# options         UFS_ACL                 #Support for access control lists
+# options         UFS_DIRHASH             #Improve performance on big directories
+# options 	MSDOSFS			# Read MSDOS filesystems; useful for USB/CF
+
+include 	"std.AR_MIPS_BASE"
+makeoptions 	MODULES_OVERRIDE+="hwpmc_mips24k"
+
+device		pci
+device		ar71xx_pci
+
+device		usb
+device		ehci
+
+device		scbus
+device		umass
+device		da
+
+device		uart_ar71xx
+device		ar71xx_apb

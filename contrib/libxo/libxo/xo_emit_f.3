@@ -1,0 +1,121 @@
+.\" #
+.\" # Copyright (c) 2016, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, April 2016
+.\" 
+.Dd April 15, 2016
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_emit_f , xo_emit_hf , xo_emit_hvf
+.Nd emit formatted output based on format string and arguments
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft int
+.Fn xo_emit_f "xo_emit_flags_t flags" "const char *fmt"  "..."
+.Ft int
+.Fn xo_emit_hf "xo_handle_t *xop" "xo_emit_flags_t flags" "const char *fmt" "..."
+.Ft int
+.Fn xo_emit_hvf "xo_handle_t *xop" "xo_emit_flags_t flags" "const char *fmt" "va_list vap"
+.Ft void
+.Fn xo_retain_clear_all "void"
+.Ft void
+.Fn xo_retain_clear "const char *fmt"
+.Sh DESCRIPTION
+These functions allow callers to pass a set of flags to
+.Nm
+emitting functions.  These processing of arguments, except for
+.Fa flags ,
+is identical to the base functions.
+See
+.Xr xo_emit 3
+for additional information.
+.Pp
+The only currently defined flag is
+.Dv XOEF_RETAIN .
+.Nm
+can retain the parsed internal information related to the given
+format string, allowing subsequent
+.Xr xo_emit 3
+calls, the retained
+information is used, avoiding repetitive parsing of the format string.
+To retain parsed format information, use the
+.Dv XOEF_RETAIN
+flag to the
+.Fn xo_emit_f
+function.
+.Pp
+The format string must be immutable across multiple calls to
+.Xn xo_emit_f ,
+since the library retains the string.
+Typically this is done by using
+static constant strings, such as string literals. If the string is not
+immutable, the
+.Dv XOEF_RETAIN
+flag must not be used.
+.Pp
+The functions
+.Fn xo_retain_clear
+and
+.Fn xo_retain_clear_all
+release internal information on either a single format string or all
+format strings, respectively.
+Neither is required, but the library will
+retain this information until it is cleared or the process exits.
+.Pp
+The retained information is kept as thread-specific data.
+.Pp
+Use
+.Fn xo_retain_clear
+and
+.Fn xo_retain_clear_all
+to clear the retained information, clearing the retained information
+for either a specific format string or all format strings, respectively.
+These functions are only needed when the calling application wants to
+clear this information; they are not generally needed.
+.Sh EXAMPLES
+.Pp
+.Bd  -literal -offset indent
+    for (i = 0; i < 1000; i++) {
+        xo_open_instance("item");
+        xo_emit_f(XOEF_RETAIN, "{:name}  {:count/%d}\n",
+                  name[i], count[i]);
+    }
+.Ed
+.Pp
+In this example, the caller desires to clear the retained information.
+.Bd  -literal -offset indent
+    const char *fmt = "{:name}  {:count/%d}\n";
+    for (i = 0; i < 1000; i++) {
+        xo_open_instance("item");
+        xo_emit_f(XOEF_RETAIN, fmt, name[i], count[i]);
+    }
+    xo_retain_clear(fmt);
+.Ed
+.Sh RETURN CODE
+The return values for these functions is identical to those of their
+traditional counterparts.  See
+.Xr xo_emit 3
+for details.
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr xo_open_container 3 ,
+.Xr xo_open_list 3 ,
+.Xr xo_format 5 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

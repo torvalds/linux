@@ -1,0 +1,12 @@
+% LIBUCL(3) Libucl manual
+% Vsevolod Stakhov <vsevolod@highsecure.ru>
+% %%date%%
+
+# Name
+
+**ucl_parser_new**, **ucl_parser_register_macro**, **ucl_parser_register_variable**, **ucl_parser_add_chunk**, **ucl_parser_add_string**, **ucl_parser_add_file**, **ucl_parser_get_object**, **ucl_parser_get_error**, **ucl_parser_free**, **ucl_pubkey_add**, **ucl_parser_set_filevars** - universal configuration library parser and utility functions
+
+# Library
+
+UCL library (libucl, -lucl)
+

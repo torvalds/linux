@@ -1,0 +1,47 @@
+
+#------------------------------------------------------------------------------
+# $File: dataone,v 1.1 2018/06/06 01:16:40 christos Exp $
+#
+# DataONE- files from Dave Vieglais <dave.vieglais@gmail.com> &
+#                     Pratik Shrivastava <pratikshrivastava23@gmail.com>
+#
+# file formats:   https://cn.dataone.org/cn/v2/formats
+#------------------------------------------------------------------------------
+
+# EML (Ecological Metadata Language Format)
+0	string	<?xml
+>&0	regex	(eml)-[0-9].[0-9].[0-9]+	eml://ecoinformatics.org/%s
+
+# onedcx (DataONE Dublin Core Extended v1.0)
+>&0	regex	(onedcx/v)[0-9].[0-9]+		http://ns.dataone.org/metadata/schema/onedcx/v1.0
+
+# FGDC-STD-001-1998 (Content Standard for Digital Geospatial Metadata,
+# version 001-1998)
+>&0	regex	fgdc				FGDC-STD-001-1998
+
+# Mercury (Oak Ridge National Lab Mercury Metadata version 1.0)
+>&0	regex	(mercury/terms/v)[0-9].[0-9]	http://purl.org/ornl/schema/mercury/terms/v1.0
+
+# ISOTC211 (Geographic MetaData (GMD) Extensible Markup Language)
+>&0	regex	isotc211
+>>&0	regex	eng;USA				http://www.isotc211.org/2005/gmd
+
+# ISOTC211 (NOAA Variant Geographic MetaData (GMD) Extensible Markup Language)
+>>&0	regex	gov.noaa.nodc:[0-9]+		http://www.isotc211.org/2005/gmd-noaa
+
+# ISOTC211 PANGAEA Variant Geographic MetaData (GMD) Extensible Markup Language
+>>&0	regex	pangaea.dataset[0-9][0-9][0-9][0-9][0-9][0-9]+	http://www.isotc211.org/2005/gmd-pangaea
+!:mime	text/xml
+
+
+# Object Reuse and Exchange Vocabulary
+0	string	<?xml
+>&0	regex	rdf
+>>&0	regex	openarchives	http://www.openarchives.org/ore/terms
+!:mime application/rdf+xml
+
+
+# Dryad Metadata Application Profile Version 3.1
+0	string	<DryadData
+>&0	regex	(dryad-bibo/v)[0-9].[0-9]	http://datadryad.org/profile/v3.1
+!:mime	text/xml

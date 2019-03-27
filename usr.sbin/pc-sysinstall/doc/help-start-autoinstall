@@ -1,0 +1,39 @@
+start-autoinstall - HELP
+-----------------------------------------------
+
+About:
+	start-autoinstall is used when performing automated installationsr. It is able
+	to configure networking with provided settings, and fetch an installation script from
+	http / ftp server. This allows media to be created which fetches dynamic configuration
+	options from a server-side supplier. 
+
+Usage:
+	pc-sysinstall start-autoinstall <config>
+
+Config Syntax:
+
+	The configuration file for start-autoinstall can contain the following options:
+
+	pc_config: <value>
+		- Location of the pc-sysinstall installation configuration file, can be local
+		  or start with http:// or ftp:// to fetch from a remote system. 
+
+     shutdown_cmd: <value>
+		- Command to execute post-installation, such as "shutdown -p now" or other.
+
+  confirm_install: (YES/NO)
+		- Prompt on the console to begin installation. Defaults to YES.
+		  Warning: Setting this to NO will start an installation as soon as start-autoinstall
+		  is run. (I.E. after booting some install media) It may be dangerous if a disk is left
+		  in a drive and the system is turned on!
+
+       nic_config: (DHCP-ALL / <cfg>)
+		- When set to DHCP-ALL, the software will attempt to get a network address from DHCP on
+		  any / all detected NICS. If set to some other command, it will be used as an argument
+		  to "ifconfig" to enable networking. 
+
+	  nic_dns: <value>
+		- Use the following DNS server for networking
+		
+      nic_gateway: <gateway>
+		- Use the following default route / gateway for networking

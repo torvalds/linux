@@ -1,0 +1,184 @@
+.\"
+.\" Copyright (c) 1997 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 17, 1997
+.Dt C89 1
+.Os
+.Sh NAME
+.Nm c89
+.Nd POSIX.2 C language compiler
+.Sh SYNOPSIS
+.Nm
+.Op Fl cEgOs
+.Oo Fl D Ar name Ns Oo = Ns Ar value Oc Oc ...
+.Oo Fl I Ar directory Oc ...
+.Oo Fl L Ar directory Oc ...
+.Op Fl o Ar outfile
+.Oo Fl U Ar name Oc ...
+.Ar operand ...
+.Sh DESCRIPTION
+This is the name of the C language compiler as required by the
+.St -p1003.2
+standard.
+.Pp
+The
+.Nm
+compiler accepts the following options:
+.Bl -tag -width indent
+.It Fl c
+Suppress the link-edit phase of the compilation, and do not remove any
+object files that are produced.
+.It Fl D Ar name Ns Op = Ns Ar value
+Define name as if by a C-language
+.Ic #define
+directive.
+If no
+.Dq = Ns Ar value
+is given, a value of 1 will be used.
+Note that in order to request a
+translation as specified by
+.St -p1003.2
+you need to define
+.Dv _POSIX_SOURCE
+either in the source or using this option.
+The
+.Fl D
+option has lower precedence than the
+.Fl U
+option.
+That is, if
+.Ar name
+is used in both a
+.Fl U
+and a
+.Fl D
+option,
+.Ar name
+will be undefined regardless of the order of the options.
+The
+.Fl D
+option may be specified more than once.
+.It Fl E
+Copy C-language source files to the standard output, expanding all
+preprocessor directives; no compilation will be performed.
+.It Fl g
+Produce symbolic information in the object or executable files.
+.It Fl I Ar directory
+Change the algorithm for searching for headers whose names are not
+absolute pathnames to look in the directory named by the
+.Ar directory
+pathname before looking in the usual places.
+Thus, headers whose
+names are enclosed in double-quotes
+.Pq Qq
+will be searched for first
+in the directory of the file with the
+.Ic #include
+line, then in
+directories named in
+.Fl I
+options, and last in the usual places.
+For headers whose names are enclosed in angle brackets
+.Pq Aq ,
+the header
+will be searched for only in directories named in
+.Fl I
+options and then in the usual places.
+Directories named in
+.Fl I
+options shall be searched in the order specified.
+The
+.Fl I
+option may be specified more than once.
+.It Fl L Ar directory
+Change the algorithm of searching for the libraries named in the
+.Fl l
+objects to look in the directory named by the
+.Ar directory
+pathname before looking in the usual places.
+Directories named in
+.Fl L
+options will be searched in the order specified.
+The
+.Fl L
+option may be specified more than once.
+.It Fl o Ar outfile
+Use the pathname
+.Ar outfile ,
+instead of the default
+.Pa a.out ,
+for the executable file produced.
+.It Fl O
+Optimize the compilation.
+.It Fl s
+Produce object and/or executable files from which symbolic and other
+information not required for proper execution has been removed
+(stripped).
+.It Fl U Ar name
+Remove any initial definition of
+.Ar name .
+The
+.Fl U
+option may be specified more than once.
+.El
+.Pp
+An operand is either in the form of a pathname or the form
+.Fl l
+library.
+At least one operand of the pathname form needs to be specified.
+Supported operands are of the form:
+.Bl -tag -offset indent -width ".Fl l Ar library"
+.It Ar file Ns Pa .c
+A C-language source file to be compiled and optionally linked.
+The operand must be of this form if the
+.Fl c
+option is used.
+.It Ar file Ns Pa .a
+A library of object files, as produced by
+.Xr ar 1 ,
+passed directly to the link editor.
+.It Ar file Ns Pa .o
+An object file produced by
+.Nm Fl c ,
+and passed directly to the link editor.
+.It Fl l Ar library
+Search the library named
+.Pa lib Ns Ar library Ns Pa .a .
+A library will be searched when its name is encountered, so the
+placement of a
+.Fl l
+operand is significant.
+.El
+.Sh SEE ALSO
+.Xr ar 1 ,
+.Xr c99 1 ,
+.Xr cc 1
+.Sh STANDARDS
+The
+.Nm
+utility is believed to comply with
+.St -p1003.2 .

@@ -1,0 +1,129 @@
+.\"-
+.\" Copyright (c) 2003	Sam Leffler, Errno Consulting
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"/
+.Dd April 1, 2006
+.Dt SAFE 4
+.Os
+.Sh NAME
+.Nm safe
+.Nd SafeNet crypto accelerator
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device crypto"
+.Cd "device cryptodev"
+.Cd "device safe"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+safe_load="YES"
+.Ed
+.Pp
+.Nm sysctl Va hw.safe.debug
+.Nm sysctl Va hw.safe.dump
+.Nm sysctl Va hw.safe.rnginterval
+.Nm sysctl Va hw.safe.rngbufsize
+.Nm sysctl Va hw.safe.rngmaxalarm
+.Sh DESCRIPTION
+The
+.Nm
+driver supports cards containing SafeNet crypto accelerator chips.
+.Pp
+The
+.Nm
+driver registers itself to accelerate DES, Triple-DES, AES, MD5-HMAC,
+SHA1-HMAC, and NULL operations for
+.Xr ipsec 4
+and
+.Xr crypto 4 .
+.Pp
+On all models, the driver registers itself to provide random data to the
+.Xr random 4
+subsystem.
+Periodically the driver will poll the hardware RNG and retrieve
+data for use by the system.
+If the driver detects that the hardware RNG is resonating with any local
+signal, it will reset the oscillators that generate random data.
+Three
+.Xr sysctl 8
+settings control this procedure:
+.Va hw.safe.rnginterval
+specifies the time, in seconds, between polling operations,
+.Va hw.safe.rngbufsize
+specifies the number of 32-bit words to retrieve on each poll,
+and
+.Va hw.safe.rngmaxalarm
+specifies the threshold for resetting the oscillators.
+.Pp
+When the driver is compiled with
+.Dv SAFE_DEBUG
+defined, two
+.Xr sysctl 8
+variables are provided for debugging purposes:
+.Va hw.safe.debug
+can be set to a non-zero value to enable debugging messages to be sent
+to the console for each cryptographic operation,
+.Va hw.safe.dump
+is a write-only variable that can be used to force driver state to be sent
+to the console.
+Set this variable to
+.Dq Li ring
+to dump the current state of the descriptor ring,
+to
+.Dq Li dma
+to dump the hardware DMA registers,
+or
+to
+.Dq Li int
+to dump the hardware interrupt registers.
+.Sh HARDWARE
+The
+.Nm
+driver supports cards containing any of the following chips:
+.Bl -tag -width "SafeNet 1141" -offset indent
+.It SafeNet 1141
+The original chipset.
+Supports DES, Triple-DES, AES, MD5, and SHA-1
+symmetric crypto operations, RNG, public key operations, and full IPsec
+packet processing.
+.It SafeNet 1741
+A faster version of the 1141.
+.El
+.Sh SEE ALSO
+.Xr crypt 3 ,
+.Xr crypto 4 ,
+.Xr intro 4 ,
+.Xr ipsec 4 ,
+.Xr random 4 ,
+.Xr crypto 9
+.Sh BUGS
+Public key support is not implemented.

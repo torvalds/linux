@@ -1,0 +1,234 @@
+# $FreeBSD$
+
+TYPE		ROWCOL
+NAME		UCS/KEYBOARD
+SRC_ZONE	0x0000-0xF8FF
+OOB_MODE	INVALID
+DST_INVALID	0x100
+DST_UNIT_BITS	16
+#=======================================================================
+#   File name:  KEYBOARD.TXT
+#
+#   Contents:   Map (external version) from Mac OS Keyboard
+#               character set to Unicode 4.0 and later.
+#
+#   Copyright:  (c) 2001-2002, 2005 by Apple Computer, Inc., all rights
+#               reserved.
+#
+#   Contact:    charsets@apple.com
+#
+#   Changes:
+#
+#       c02  2005-Apr-05    Change mappings for 0x09, 0x0F, 0x8C; add
+#                           Mac OS X-only mappings for 0x8D-9x8F.
+#                           Update header comments, including
+#                           clarification of Mac OS X usage. Matches
+#                           internal xml <c1.2> and Text Encoding
+#                           Converter 2.0.
+#      b1,c1 2002-Dec-19    First version. Matches internal utom<b6>.
+#
+# Standard header:
+# ----------------
+#
+#   Apple, the Apple logo, and Macintosh are trademarks of Apple
+#   Computer, Inc., registered in the United States and other countries.
+#   Unicode is a trademark of Unicode Inc. For the sake of brevity,
+#   throughout this document, "Macintosh" can be used to refer to
+#   Macintosh computers and "Unicode" can be used to refer to the
+#   Unicode standard.
+#
+#   Apple Computer, Inc. ("Apple") makes no warranty or representation,
+#   either express or implied, with respect to this document and the
+#   included data, its quality, accuracy, or fitness for a particular
+#   purpose. In no event will Apple be liable for direct, indirect,
+#   special, incidental, or consequential damages resulting from any
+#   defect or inaccuracy in this document or the included data.
+#
+#   These mapping tables and character lists are subject to change.
+#   The latest tables should be available from the following:
+#
+#   <http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/>
+#
+#   For general information about Mac OS encodings and these mapping
+#   tables, see the file "README.TXT".
+#
+# Format:
+# -------
+#
+#   Three tab-separated columns;
+#   '#' begins a comment which continues to the end of the line.
+#     Column #1 is the Mac OS Keyboard code (in hex as 0xNN)
+#     Column #2 is the corresponding Unicode or Unicode sequence
+#       (in hex as 0xNNNN or 0xNNNN+0xNNNN, etc.).
+#     Column #3 is a comment containing the Unicode name.
+#       In some cases an additional comment follows the Unicode name.
+#
+#   The entries are in Mac OS Keyboard code order.
+#
+#   Some of these mappings require the use of corporate characters.
+#   See the file "CORPCHAR.TXT" and notes below.
+#
+#   The Mac OS Keyboard character set uses the ranges normally set aside
+#   for controls, so those ranges are present in this table.
+#
+# Notes on Mac OS Keyboard:
+# -------------------------
+#
+#   This is the encoding for the legacy font named ".Keyboard". Before
+#   Mac OS X, this font was used by the user-interface system to display
+#   glyphs for special keys on the keyboard. In Mac OS X, that font is
+#   not present and this mapping is not associated with a font; it is
+#   only used as a way to map from a set of Menu Manager constants to
+#   associated Unicode sequences. As such, new mappings added for Mac OS
+#   X only may be one-way mappings: From the Keyboard glyph "encoding"
+#   to Unicode, but not back.
+#
+#   The Mac OS Keyboard encoding shares the script code smRoman
+#   (0) with the Mac OS Roman encoding. To determine if the Keyboard
+#   encoding is being used in Mac OS 8 or Mac OS 9, you must check if
+#   the font name is ".Keyboard".
+#
+# Unicode mapping issues and notes:
+# ---------------------------------
+#
+#   The goals in the mappings provided here are:
+#   - For mappings used in Mac OS 8 and Mac OS 9, ensure roundtrip
+#     mapping from every character in the Mac OS  Keyboard character set
+#     to Unicode and back. This consideration does not apply to mappings
+#     added for Mac OS X only (noted below).
+#   - Use standard Unicode characters as much as possible, to
+#     maximize interchangeability of the resulting Unicode text.
+#     Whenever possible, avoid having content carried by private-use
+#     characters.
+#
+#   Some of the characters in the Mac OS Keyboard character set do not
+#   correspond to distinct, single Unicode characters. To map these
+#   and satisfy both goals above, we employ various strategies.
+#
+#   a) If possible, use private use characters in combination with
+#   standard Unicode characters to mark variants of the standard
+#   Unicode character.
+#
+#   Apple has defined a block of 32 corporate characters as "transcoding
+#   hints." These are used in combination with standard Unicode
+#   characters to force them to be treated in a special way for mapping
+#   to other encodings; they have no other effect. Sixteen of these
+#   transcoding hints are "grouping hints" - they indicate that the next
+#   2-4 Unicode characters should be treated as a single entity for
+#   transcoding. The other sixteen transcoding hints are "variant tags"
+#   - they are like combining characters, and can follow a standard
+#   Unicode (or a sequence consisting of a base character and other
+#   combining characters) to cause it to be treated in a special way for
+#   transcoding. These always terminate a combining-character sequence.
+#
+#   The transcoding coding hints used in this mapping table are two
+#   grouping tags, 0xF860-61, and one variant tag, 0xF87F. Since these
+#   are combined with standard Unicode characters, some characters in
+#   the Mac OS Keyboard character set map to a sequence of two to four
+#   Unicodes instead of a single Unicode character.
+#
+#   For example, the Mac OS Keyboard character at 0x6F, representing the
+#   F1 key, is mapped to Unicode using the grouping tag F860 (group next
+#   two) followed by U+0046 (LATIN CAPITAL LETTER F) and U+0031 (DIGIT
+#   ONE).
+#
+#   b) Otherwise, use private use characters by themselves to map Mac OS
+#   Keyboard characters which have no relationship to any standard
+#   Unicode character.
+#
+#   The following additional corporate zone Unicode characters are
+#   used for this purpose here:
+#
+#     0xF802  Lower left pencil
+#     0xF803  Contextual menu key symbol
+#     0xF8FF  Apple logo
+#
+#   NOTE: The graphic image associated with the Apple logo character
+#   is not authorized for use without permission of Apple, and
+#   unauthorized use might constitute trademark infringement.
+#
+# Details of mapping changes in each version:
+# -------------------------------------------
+#
+#   Changes from version c01 to version c02:
+#
+#   - Mapping for 0x09 changed from 0x0009 (wrong) to 0x2423
+#   - Mapping for 0x0F changed from 0x270E (wrong) to 0xF802
+#   - Mapping for 0x8C changed from 0xF804 to 0x23CF (Unicode 4.0)
+#   - Add Mac OS X-only mappings for 0x8D-0x8F
+#
+##################
+BEGIN_MAP
+0x0000 = 0x00
+0x0008 = 0x08
+0x000D = 0x0D
+0x0020 = 0x20
+0x0030 = 0x30
+0x0031 = 0x31
+0x0032 = 0x32
+0x0033 = 0x33
+0x0034 = 0x34
+0x0035 = 0x35
+0x0036 = 0x36
+0x0037 = 0x37
+0x0038 = 0x38
+0x0039 = 0x39
+#0x003F+0x20DD = 0x67
+0x0046 = 0x46
+0x2190 = 0x64
+0x2191 = 0x68
+0x2192 = 0x65
+0x2193 = 0x6A
+0x2196 = 0x66
+0x2198 = 0x69
+0x21A9 = 0x0B
+0x21AA = 0x0C
+0x21DE = 0x62
+0x21DF = 0x6B
+0x21E0 = 0x18
+0x21E1 = 0x19
+0x21E2 = 0x1A
+0x21E3 = 0x10
+0x21E4 = 0x03
+0x21E5 = 0x02
+0x21E7 = 0x05
+0x21EA = 0x63
+0x2303 = 0x06
+0x2318 = 0x11
+0x2324 = 0x04
+0x2325 = 0x07
+0x2326 = 0x0A
+0x2327 = 0x1C
+0x232B = 0x17
+0x2387 = 0x8B
+0x2388 = 0x8A
+0x238B = 0x1B
+0x23CF = 0x8C
+0x2423 = 0x09
+0x2423 = 0x61
+0x25C6 = 0x13
+0x2713 = 0x12
+#0x2758+0x20DD = 0x6E
+#0x304B+0x306A = 0x8E
+#0x82F1+0x6570 = 0x8D
+0xF802 = 0x0F
+0xF803 = 0x6D
+#0xF860+0x0046+0x0031 = 0x6F
+#0xF860+0x0046+0x0032 = 0x70
+#0xF860+0x0046+0x0033 = 0x71
+#0xF860+0x0046+0x0034 = 0x72
+#0xF860+0x0046+0x0035 = 0x73
+#0xF860+0x0046+0x0036 = 0x74
+#0xF860+0x0046+0x0037 = 0x75
+#0xF860+0x0046+0x0038 = 0x76
+#0xF860+0x0046+0x0039 = 0x77
+#0xF861+0x0046+0x0031+0x0030 = 0x78
+#0xF861+0x0046+0x0031+0x0031 = 0x79
+#0xF861+0x0046+0x0031+0x0032 = 0x7A
+#0xF861+0x0046+0x0031+0x0033 = 0x87
+#0xF861+0x0046+0x0031+0x0034 = 0x88
+#0xF861+0x0046+0x0031+0x0035 = 0x89
+#0xF861+0x0046+0x0031+0x0036 = 0x8F
+0xF8FF = 0x14
+#0xF8FF+0xF87F = 0x6C
+END_MAP

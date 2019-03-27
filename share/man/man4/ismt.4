@@ -1,0 +1,60 @@
+.\"
+.\" Copyright (c) 2014 Intel Corporation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of Intel Corporation nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\" ismt driver man page.
+.\"
+.\" Author: Jim Harris <jimharris@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 11, 2016
+.Dt ISMT 4
+.Os
+.Sh NAME
+.Nm ismt
+.Nd Intel SMBus Message Transport (SMBus 2.0) driver
+.Sh SYNOPSIS
+.Cd device pci
+.Cd device smbus
+.Cd device smb
+.Cd device ismt
+.Sh DESCRIPTION
+This driver provides access to the SMBus 2.0 controller device contained
+in the Intel Atom S1200 and C2000 CPUs.
+.Sh SEE ALSO
+.Xr ichsmb 4 ,
+.Xr smb 4 ,
+.Xr smbus 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 10.3 .
+.Sh AUTHORS
+.An Jim Harris Aq Mt jimharris@FreeBSD.org

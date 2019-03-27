@@ -1,0 +1,61 @@
+.\" Generated from pam_verror.c by gendoc.pl
+.\" $OpenPAM: pam_verror.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt PAM_VERROR 3
+.Os
+.Sh NAME
+.Nm pam_verror
+.Nd display an error message
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.Ft "int"
+.Fn pam_verror "const pam_handle_t *pamh" "const char *fmt" "va_list ap"
+.Sh DESCRIPTION
+The
+.Fn pam_verror
+function passes its arguments to
+.Xr pam_vprompt 3
+with a
+style argument of
+.Dv PAM_ERROR_MSG ,
+and discards the response.
+.Pp
+.Sh RETURN VALUES
+The
+.Fn pam_verror
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.El
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam_error 3 ,
+.Xr pam_strerror 3 ,
+.Xr pam_vinfo 3 ,
+.Xr pam_vprompt 3
+.Sh STANDARDS
+The
+.Fn pam_verror
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn pam_verror
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

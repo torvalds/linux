@@ -1,0 +1,163 @@
+.\" Copyright (c) 2005 David Xu <davidxu@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 5, 2017
+.Dt SIGQUEUE 2
+.Os
+.Sh NAME
+.Nm sigqueue
+.Nd "queue a signal to a process (REALTIME)"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In signal.h
+.Ft int
+.Fn sigqueue "pid_t pid" "int signo" "const union sigval value"
+.Sh DESCRIPTION
+The
+.Fn sigqueue
+system call causes the signal specified by
+.Fa signo
+to be sent with the value specified by
+.Fa value
+to the process specified by
+.Fa pid .
+If
+.Fa signo
+is zero (the null signal), error checking is performed but
+no signal is actually sent.
+The null signal can be used to check the
+validity of PID.
+.Pp
+The conditions required for a process to have permission to queue a
+signal to another process are the same as for the
+.Xr kill 2
+system call.
+The
+.Fn sigqueue
+system call queues a signal to a single process specified by the
+.Fa pid
+argument.
+.Pp
+The
+.Fn sigqueue
+system call returns immediately.
+If the resources were
+available to queue the signal, the signal will be queued and sent to
+the receiving process.
+.Pp
+If the value of
+.Fa pid
+causes
+.Fa signo
+to be generated for the sending process, and if
+.Fa signo
+is not blocked for the calling thread and if no other thread has
+.Fa signo
+unblocked or is waiting in a
+.Fn sigwait
+system call for
+.Fa signo ,
+either
+.Fa signo
+or at least the pending, unblocked signal will be delivered to the
+calling thread before
+.Fn sigqueue
+returns.
+Should any multiple pending signals in the range
+.Dv SIGRTMIN
+to
+.Dv SIGRTMAX
+be selected for delivery, it is the lowest numbered
+one.
+The selection order between realtime and non-realtime signals, or
+between multiple pending non-realtime signals, is unspecified.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn sigqueue
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+No resources are available to queue the signal.
+The process has already
+queued
+.Brq Dv SIGQUEUE_MAX
+signals that are still pending at the receiver(s),
+or a system-wide resource limit has been exceeded.
+.It Bq Er EINVAL
+The value of the
+.Fa signo
+argument is an invalid or unsupported signal number.
+.It Bq Er EPERM
+The process does not have the appropriate privilege to send the signal
+to the receiving process.
+.It Bq Er ESRCH
+The process
+.Fa pid
+does not exist.
+.El
+.Sh SEE ALSO
+.Xr kill 2 ,
+.Xr sigaction 2 ,
+.Xr sigpending 2 ,
+.Xr sigsuspend 2 ,
+.Xr sigtimedwait 2 ,
+.Xr sigwait 2 ,
+.Xr sigwaitinfo 2 ,
+.Xr pause 3 ,
+.Xr pthread_sigmask 3 ,
+.Xr siginfo 3
+.Sh STANDARDS
+The
+.Fn sigqueue
+system call conforms to
+.St -p1003.1-2004 .
+.Sh HISTORY
+Support for
+.Tn POSIX
+realtime signal queue first appeared in
+.Fx 7.0 .
+.Sh CAVEATS
+When using
+.Nm
+to send signals to a process which might have a different ABI
+(for instance, one is 32-bit and the other 64-bit),
+the
+.Va sival_int
+member of
+.Fa value
+can be delivered reliably, but the
+.Va sival_ptr
+may be truncated in endian dependent ways and must not be relied on.
+Further, many pointer integrity schemes disallow sending pointers to other
+processes, and this technique should not be used in programs intended to
+be portable.

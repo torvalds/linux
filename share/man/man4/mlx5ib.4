@@ -1,0 +1,124 @@
+.\" Copyright (c) 2017 Mellanox Technologies
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS `AS IS' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 23, 2017
+.Dt MLX5IB 4
+.Os
+.Sh NAME
+.Nm mlx5ib
+.Nd "Mellanox ConnectX-4 and ConnectX-4 LX based 100Gb, 50Gb, 40Gb, 25Gb and 10Gb network adapter driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place these lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options COMPAT_LINUXKPI"
+.Cd "device mlx5"
+.Cd "device mlx5ib"
+.Ed
+.Pp
+To load the driver as a module at run-time,
+run this command as root:
+.Bd -literal -offset indent
+kldload mlx5ib
+.Ed
+.Pp
+To load the driver as a
+module at boot time, place this line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mlx5ib_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for infiniband and Remote DMA over Converged Ethernet,
+RoCE, for PCI Express network adapters based on ConnectX-4 and ConnectX-4 LX.
+.br
+For further hardware information and questions related to hardware
+requirements, see
+.Pa http://www.mellanox.com/ .
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports 100Gb, 50Gb, 40Gb, 25Gb and 10Gb network adapters.
+ConnectX-4 supports: 10/20/25/40/50/56/100Gb/s speeds.
+ConnectX-4 LX supports: 10/25/40/50Gb/s speeds (and reduced power consumption):
+.Pp
+.Bl -bullet -compact
+.It
+Mellanox MCX455A-ECAT
+.It
+Mellanox MCX456A-ECAT
+.It
+Mellanox MCX415A-CCAT
+.It
+Mellanox MCX416A-CCAT
+.It
+Mellanox MCX455A-FCAT
+.It
+Mellanox MCX456A-FCAT
+.It
+Mellanox MCX415A-BCAT
+.It
+Mellanox MCX416A-BCAT
+.It
+Mellanox MCX4131A-GCAT
+.It
+Mellanox MCX4131A-BCAT
+.It
+Mellanox MCX4121A-ACAT
+.It
+Mellanox MCX4111A-ACAT
+.It
+Mellanox MCX4121A-XCAT
+.It
+Mellanox MCX4111A-XCAT
+.El
+.Sh SUPPORT
+For general information and support,
+go to the Mellanox support website at:
+.Pa http://www.mellanox.com/ .
+.Pp
+If an issue is identified with this driver with a supported adapter,
+email all the specific information related to the issue to
+.Aq Mt freebsd-drivers@mellanox.com .
+.Sh SEE ALSO
+.Xr mlx5en 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 12.x .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mellanox Technologies <freebsd-drivers@mellanox.com> .

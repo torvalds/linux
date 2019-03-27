@@ -1,0 +1,89 @@
+.\"-
+.\" Copyright (c) 2009 Andriy Gapon
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 8, 2016
+.Dt AMDSBWD 4
+.Os
+.Sh NAME
+.Nm amdsbwd
+.Nd device driver for the AMD southbridge watchdog timers
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device amdsbwd"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+amdsbwd_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides
+.Xr watchdog 4
+support for the watchdog timers present on
+the supported chipsets.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following chipsets:
+.Pp
+.Bl -bullet -compact
+.It
+AMD SB600/7x0/8x0/9x0 southbridges
+.It
+AMD Axx/Hudson/Bolton FCHs
+.It
+AMD FCHs integrated into Family 15h Models 60h-6Fh, 70h-7Fh Processors
+.It
+AMD FCHs integrated into Family 16h Models 00h-0Fh, 30h-3Fh Processors
+.El
+.Sh SEE ALSO
+.Xr watchdog 4 ,
+.Xr watchdog 8 ,
+.Xr watchdogd 8 ,
+.Xr watchdog 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 7.3
+and
+.Fx 8.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Andriy Gapon Aq Mt avg@FreeBSD.org .
+This manual page was written by
+.An Andriy Gapon Aq Mt avg@FreeBSD.org .

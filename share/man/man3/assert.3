@@ -1,0 +1,110 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)assert.3	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd May 31, 2018
+.Dt ASSERT 3
+.Os
+.Sh NAME
+.Nm assert
+.Nd expression verification macro
+.Sh SYNOPSIS
+.In assert.h
+.Fn assert expression
+.Sh DESCRIPTION
+The
+.Fn assert
+macro tests the given
+.Ar expression
+and if it is false,
+the calling process is terminated.
+A diagnostic message is written to
+.Dv stderr
+and the function
+.Xr abort 3
+is called, effectively terminating the program.
+.Pp
+If
+.Ar expression
+is true,
+the
+.Fn assert
+macro does nothing.
+.Pp
+The
+.Fn assert
+macro
+may be removed at compile time by defining
+.Dv NDEBUG
+as a macro
+(e.g., by using the
+.Xr cc 1
+option
+.Fl D Ns Dv NDEBUG ) .
+Unlike most other include files,
+.In assert.h
+may be included multiple times.
+Each time whether or not
+.Dv NDEBUG
+is defined determines the behavior of assert from that point forward
+until the end of the unit or another include of
+.In assert.h .
+.Pp
+The
+.Fn assert
+macro should only be used for ensuring the developer's expectations
+hold true.
+It is not appropriate for regular run-time error detection.
+.Sh EXAMPLES
+The assertion:
+.Dl "assert(1 == 0);"
+generates a diagnostic message similar to the following:
+.Dl "Assertion failed: (1 == 0), function main, file main.c, line 100."
+.Pp
+The following assert tries to assert there was no partial read:
+.Dl "assert(read(fd, buf, nbytes) == nbytes);"
+However, there are two problems.
+First, it checks for normal conditions, rather than conditions that
+indicate a bug.
+Second, the code will disappear if
+.Dv NDEBUG
+is defined, changing the semantics of the program.
+.Sh SEE ALSO
+.Xr abort2 2 ,
+.Xr abort 3
+.Sh STANDARDS
+The
+.Fn assert
+macro conforms to
+.St -isoC-99 .
+.Sh HISTORY
+An
+.Nm
+macro appeared in
+.At v7 .

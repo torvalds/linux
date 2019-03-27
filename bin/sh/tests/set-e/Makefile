@@ -1,0 +1,46 @@
+# $FreeBSD$
+
+PACKAGE=	tests
+
+TESTSDIR=	${TESTSBASE}/bin/sh/${.CURDIR:T}
+
+.PATH: ${.CURDIR:H}
+ATF_TESTS_SH=	functional_test
+
+${PACKAGE}FILES+=	and1.0
+${PACKAGE}FILES+=	and2.1
+${PACKAGE}FILES+=	and3.0
+${PACKAGE}FILES+=	and4.0
+${PACKAGE}FILES+=	background1.0
+${PACKAGE}FILES+=	cmd1.0
+${PACKAGE}FILES+=	cmd2.1
+${PACKAGE}FILES+=	elif1.0
+${PACKAGE}FILES+=	elif2.0
+${PACKAGE}FILES+=	eval1.0
+${PACKAGE}FILES+=	eval2.1
+${PACKAGE}FILES+=	for1.0
+${PACKAGE}FILES+=	func1.0
+${PACKAGE}FILES+=	func2.1
+${PACKAGE}FILES+=	if1.0
+${PACKAGE}FILES+=	if2.0
+${PACKAGE}FILES+=	if3.0
+${PACKAGE}FILES+=	not1.0
+${PACKAGE}FILES+=	not2.0
+${PACKAGE}FILES+=	or1.0
+${PACKAGE}FILES+=	or2.0
+${PACKAGE}FILES+=	or3.1
+${PACKAGE}FILES+=	pipe1.1
+${PACKAGE}FILES+=	pipe2.0
+${PACKAGE}FILES+=	return1.0
+${PACKAGE}FILES+=	semi1.1
+${PACKAGE}FILES+=	semi2.1
+${PACKAGE}FILES+=	subshell1.0
+${PACKAGE}FILES+=	subshell2.1
+${PACKAGE}FILES+=	until1.0
+${PACKAGE}FILES+=	until2.0
+${PACKAGE}FILES+=	until3.0
+${PACKAGE}FILES+=	while1.0
+${PACKAGE}FILES+=	while2.0
+${PACKAGE}FILES+=	while3.0
+
+.include <bsd.test.mk>

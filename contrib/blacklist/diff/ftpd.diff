@@ -1,0 +1,91 @@
+--- /dev/null	2015-01-23 17:30:40.000000000 -0500
++++ pfilter.c	2015-01-23 17:12:02.000000000 -0500
+@@ -0,0 +1,24 @@
++#include <stdio.h>
++#include <blacklist.h>
++
++#include "pfilter.h"
++
++static struct blacklist *blstate;
++
++void
++pfilter_open(void)
++{
++	if (blstate == NULL)
++		blstate = blacklist_open();
++}
++
++void
++pfilter_notify(int what, const char *msg)
++{
++	pfilter_open();
++
++	if (blstate == NULL)
++		return;
++
++	blacklist_r(blstate, what, 0, msg);
++}
+--- /dev/null	2015-01-23 17:30:40.000000000 -0500
++++ pfilter.h	2015-01-23 17:07:25.000000000 -0500
+@@ -0,0 +1,2 @@
++void pfilter_open(void);
++void pfilter_notify(int, const char *);
+Index: Makefile
+===================================================================
+RCS file: /cvsroot/src/libexec/ftpd/Makefile,v
+retrieving revision 1.63
+diff -u -p -u -r1.63 Makefile
+--- Makefile	14 Aug 2011 11:46:28 -0000	1.63
++++ Makefile	23 Jan 2015 22:32:20 -0000
+@@ -11,6 +11,10 @@ LDADD+=	-lcrypt -lutil
+ MAN=	ftpd.conf.5 ftpusers.5 ftpd.8
+ MLINKS=	ftpusers.5 ftpchroot.5
+ 
++SRCS+=	pfilter.c
++LDADD+=	-lblacklist
++DPADD+=	${LIBBLACKLIST}
++
+ .if defined(NO_INTERNAL_LS)
+ CPPFLAGS+=-DNO_INTERNAL_LS
+ .else
+Index: ftpd.c
+===================================================================
+RCS file: /cvsroot/src/libexec/ftpd/ftpd.c,v
+retrieving revision 1.200
+diff -u -p -u -r1.200 ftpd.c
+--- ftpd.c	31 Jul 2013 19:50:47 -0000	1.200
++++ ftpd.c	23 Jan 2015 22:32:20 -0000
+@@ -165,6 +165,8 @@ __RCSID("$NetBSD: ftpd.c,v 1.200 2013/07
+ #include <security/pam_appl.h>
+ #endif
+ 
++#include "pfilter.h"
++
+ #define	GLOBAL
+ #include "extern.h"
+ #include "pathnames.h"
+@@ -471,6 +473,8 @@ main(int argc, char *argv[])
+ 	if (EMPTYSTR(confdir))
+ 		confdir = _DEFAULT_CONFDIR;
+ 
++	pfilter_open();
++
+ 	if (dowtmp) {
+ #ifdef SUPPORT_UTMPX
+ 		ftpd_initwtmpx();
+@@ -1401,6 +1405,7 @@ do_pass(int pass_checked, int pass_rval,
+ 		if (rval) {
+ 			reply(530, "%s", rval == 2 ? "Password expired." :
+ 			    "Login incorrect.");
++			pfilter_notify(1, rval == 2 ? "exppass" : "badpass");
+ 			if (logging) {
+ 				syslog(LOG_NOTICE,
+ 				    "FTP LOGIN FAILED FROM %s", remoteloghost);
+@@ -1444,6 +1449,7 @@ do_pass(int pass_checked, int pass_rval,
+ 				*remote_ip = 0;
+ 		remote_ip[sizeof(remote_ip) - 1] = 0;
+ 		if (!auth_hostok(lc, remotehost, remote_ip)) {
++			pfilter_notify(1, "bannedhost");
+ 			syslog(LOG_INFO|LOG_AUTH,
+ 			    "FTP LOGIN FAILED (HOST) as %s: permission denied.",
+ 			    pw->pw_name);

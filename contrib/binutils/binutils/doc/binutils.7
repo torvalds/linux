@@ -1,0 +1,4917 @@
+.Dd 2015-03-02
+.Dt BINUTILS 7
+.Os
+.Sh NAME
+.Nm binutils
+.Nd GNU Binary Utilities
+.Sh  Introduction
+This brief manual contains documentation for the GNU binary utilities version "2.17.50
+[FreeBSD] 2007-07-03":
+.Pp
+This document is distributed under the terms of the GNU Free Documentation
+License. A copy of the license is included in the section entitled "GNU Free
+Documentation License".
+.Pp
+.Sh  ar
+.Bd -literal -offset indent
+ar [-]p[mod [relpos] [count]] archive [member...]
+ar -M [ <mri-script ]
+.Ed
+.Pp
+The GNU
+.Xr ar
+program creates, modifies, and extracts from archives. An
+.Em archive
+is a single file holding a collection of other files in a structure that makes
+it possible to retrieve the original individual files (called
+.Em members
+of the archive).
+.Pp
+The original files' contents, mode (permissions), timestamp, owner, and group
+are preserved in the archive, and can be restored on extraction.
+.Pp
+GNU
+.Xr ar
+can maintain archives whose members have names of any length; however, depending
+on how
+.Xr ar
+is configured on your system, a limit on member-name length may be imposed
+for compatibility with archive formats maintained with other tools. If it
+exists, the limit is often 15 characters (typical of formats related to a.out)
+or 16 characters (typical of formats related to coff).
+.Pp
+.Xr ar
+is considered a binary utility because archives of this sort are most often
+used as
+.Em libraries
+holding commonly needed subroutines.
+.Pp
+.Xr ar
+creates an index to the symbols defined in relocatable object modules in the
+archive when you specify the modifier
+.Li s .
+Once created, this index is updated in the archive whenever
+.Xr ar
+makes a change to its contents (save for the
+.Li q
+update operation). An archive with such an index speeds up linking to the
+library, and allows routines in the library to call each other without regard
+to their placement in the archive.
+.Pp
+You may use
+.Li nm -s
+or
+.Li nm --print-armap
+to list this index table. If an archive lacks the table, another form of
+.Xr ar
+called
+.Xr ranlib
+can be used to add just the table.
+.Pp
+GNU
+.Xr ar
+is designed to be compatible with two different facilities. You can control
+its activity using command-line options, like the different varieties of
+.Xr ar
+on Unix systems; or, if you specify the single command-line option
+.Op -M ,
+you can control it with a script supplied via standard input, like the MRI
+\(lqlibrarian\(rq program.
+.Pp
+.Ss  Controlling Xr ar on the Command Line
+.Bd -literal -offset indent
+ar [-X32_64] [-]p[mod [relpos] [count]] archive [member...]
+.Ed
+.Pp
+When you use
+.Xr ar
+in the Unix style,
+.Xr ar
+insists on at least two arguments to execute: one keyletter specifying the
+.Em operation
+(optionally accompanied by other keyletters specifying
+.Em modifiers ) ,
+and the archive name to act on.
+.Pp
+Most operations can also accept further
+.Va member
+arguments, specifying particular files to operate on.
+.Pp
+GNU
+.Xr ar
+allows you to mix the operation code
+.Va p
+and modifier flags
+.Va mod
+in any order, within the first command-line argument.
+.Pp
+If you wish, you may begin the first command-line argument with a dash.
+.Pp
+The
+.Va p
+keyletter specifies what operation to execute; it may be any of the following,
+but you must specify only one of them:
+.Pp
+.Bl -tag -width Ds
+.It  d
+.Em Delete
+modules from the archive. Specify the names of modules to be deleted as
+.Va member
+\&...; the archive is untouched if you specify no files to delete.
+.Pp
+If you specify the
+.Li v
+modifier,
+.Xr ar
+lists each module as it is deleted.
+.Pp
+.It  m
+Use this operation to
+.Em move
+members in an archive.
+.Pp
+The ordering of members in an archive can make a difference in how programs
+are linked using the library, if a symbol is defined in more than one member.
+.Pp
+If no modifiers are used with
+.Li m ,
+any members you name in the
+.Va member
+arguments are moved to the
+.Em end
+of the archive; you can use the
+.Li a ,
+.Li b ,
+or
+.Li i
+modifiers to move them to a specified place instead.
+.Pp
+.It  p
+.Em Print
+the specified members of the archive, to the standard output file. If the
+.Li v
+modifier is specified, show the member name before copying its contents to
+standard output.
+.Pp
+If you specify no
+.Va member
+arguments, all the files in the archive are printed.
+.Pp
+.It  q
+.Em Quick append ;
+Historically, add the files
+.Va member
+\&...to the end of
+.Va archive ,
+without checking for replacement.
+.Pp
+The modifiers
+.Li a ,
+.Li b ,
+and
+.Li i
+do
+.Em not
+affect this operation; new members are always placed at the end of the archive.
+.Pp
+The modifier
+.Li v
+makes
+.Xr ar
+list each file as it is appended.
+.Pp
+Since the point of this operation is speed, the archive's symbol table index
+is not updated, even if it already existed; you can use
+.Li ar s
+or
+.Xr ranlib
+explicitly to update the symbol table index.
+.Pp
+However, too many different systems assume quick append rebuilds the index,
+so GNU
+.Xr ar
+implements
+.Li q
+as a synonym for
+.Li r .
+.Pp
+.It  r
+Insert the files
+.Va member
+\&...into
+.Va archive
+(with
+.Em replacement ) .
+This operation differs from
+.Li q
+in that any previously existing members are deleted if their names match those
+being added.
+.Pp
+If one of the files named in
+.Va member
+\&...does not exist,
+.Xr ar
+displays an error message, and leaves undisturbed any existing members of
+the archive matching that name.
+.Pp
+By default, new members are added at the end of the file; but you may use
+one of the modifiers
+.Li a ,
+.Li b ,
+or
+.Li i
+to request placement relative to some existing member.
+.Pp
+The modifier
+.Li v
+used with this operation elicits a line of output for each file inserted,
+along with one of the letters
+.Li a
+or
+.Li r
+to indicate whether the file was appended (no old member deleted) or replaced.
+.Pp
+.It  t
+Display a
+.Em table
+listing the contents of
+.Va archive ,
+or those of the files listed in
+.Va member
+\&...that are present in the archive. Normally only the member name is shown; if
+you also want to see the modes (permissions), timestamp, owner, group, and
+size, you can request that by also specifying the
+.Li v
+modifier.
+.Pp
+If you do not specify a
+.Va member ,
+all files in the archive are listed.
+.Pp
+If there is more than one file with the same name (say,
+.Li fie )
+in an archive (say
+.Li b.a ) ,
+.Li ar t b.a fie
+lists only the first instance; to see them all, you must ask for a complete
+listing---in our example,
+.Li ar t b.a .
+.Pp
+.It  x
+.Em Extract
+members (named
+.Va member )
+from the archive. You can use the
+.Li v
+modifier with this operation, to request that
+.Xr ar
+list each name as it extracts it.
+.Pp
+If you do not specify a
+.Va member ,
+all files in the archive are extracted.
+.Pp
+.El
+A number of modifiers (
+.Va mod )
+may immediately follow the
+.Va p
+keyletter, to specify variations on an operation's behavior:
+.Pp
+.Bl -tag -width Ds
+.It  a
+Add new files
+.Em after
+an existing member of the archive. If you use the modifier
+.Li a ,
+the name of an existing archive member must be present as the
+.Va relpos
+argument, before the
+.Va archive
+specification.
+.Pp
+.It  b
+Add new files
+.Em before
+an existing member of the archive. If you use the modifier
+.Li b ,
+the name of an existing archive member must be present as the
+.Va relpos
+argument, before the
+.Va archive
+specification. (same as
+.Li i ) .
+.Pp
+.It  c
+.Em Create
+the archive. The specified
+.Va archive
+is always created if it did not exist, when you request an update. But a warning
+is issued unless you specify in advance that you expect to create it, by using
+this modifier.
+.Pp
+.It  f
+Truncate names in the archive. GNU
+.Xr ar
+will normally permit file names of any length. This will cause it to create
+archives which are not compatible with the native
+.Xr ar
+program on some systems. If this is a concern, the
+.Li f
+modifier may be used to truncate file names when putting them in the archive.
+.Pp
+.It  i
+Insert new files
+.Em before
+an existing member of the archive. If you use the modifier
+.Li i ,
+the name of an existing archive member must be present as the
+.Va relpos
+argument, before the
+.Va archive
+specification. (same as
+.Li b ) .
+.Pp
+.It  l
+This modifier is accepted but not used.
+.Pp
+.It  N
+Uses the
+.Va count
+parameter. This is used if there are multiple entries in the archive with
+the same name. Extract or delete instance
+.Va count
+of the given name from the archive.
+.Pp
+.It  o
+Preserve the
+.Em original
+dates of members when extracting them. If you do not specify this modifier,
+files extracted from the archive are stamped with the time of extraction.
+.Pp
+.It  P
+Use the full path name when matching names in the archive. GNU
+.Xr ar
+can not create an archive with a full path name (such archives are not POSIX
+complaint), but other archive creators can. This option will cause GNU
+.Xr ar
+to match file names using a complete path name, which can be convenient when
+extracting a single file from an archive created by another tool.
+.Pp
+.It  s
+Write an object-file index into the archive, or update an existing one, even
+if no other change is made to the archive. You may use this modifier flag
+either with any operation, or alone. Running
+.Li ar s
+on an archive is equivalent to running
+.Li ranlib
+on it.
+.Pp
+.It  S
+Do not generate an archive symbol table. This can speed up building a large
+library in several steps. The resulting archive can not be used with the linker.
+In order to build a symbol table, you must omit the
+.Li S
+modifier on the last execution of
+.Li ar ,
+or you must run
+.Li ranlib
+on the archive.
+.Pp
+.It  u
+Normally,
+.Li ar r
+\&...inserts all files listed into the archive. If you would like to insert
+.Em only
+those of the files you list that are newer than existing members of the same
+names, use this modifier. The
+.Li u
+modifier is allowed only for the operation
+.Li r
+(replace). In particular, the combination
+.Li qu
+is not allowed, since checking the timestamps would lose any speed advantage
+from the operation
+.Li q .
+.Pp
+.It  v
+This modifier requests the
+.Em verbose
+version of an operation. Many operations display additional information, such
+as filenames processed, when the modifier
+.Li v
+is appended.
+.Pp
+.It  V
+This modifier shows the version number of
+.Xr ar .
+.El
+.Pp
+.Xr ar
+ignores an initial option spelt
+.Li -X32_64 ,
+for compatibility with AIX. The behaviour produced by this option is the default
+for GNU
+.Xr ar .
+.Xr ar
+does not support any of the other
+.Li -X
+options; in particular, it does not support
+.Op -X32
+which is the default for AIX
+.Xr ar .
+.Pp
+.Ss  Controlling Xr ar with a Script
+.Bd -literal -offset indent
+ar -M [ <script ]
+.Ed
+.Pp
+If you use the single command-line option
+.Li -M
+with
+.Xr ar ,
+you can control its operation with a rudimentary command language. This form
+of
+.Xr ar
+operates interactively if standard input is coming directly from a terminal.
+During interactive use,
+.Xr ar
+prompts for input (the prompt is
+.Li AR > ) ,
+and continues executing even after errors. If you redirect standard input
+to a script file, no prompts are issued, and
+.Xr ar
+abandons execution (with a nonzero exit code) on any error.
+.Pp
+The
+.Xr ar
+command language is
+.Em not
+designed to be equivalent to the command-line options; in fact, it provides
+somewhat less control over archives. The only purpose of the command language
+is to ease the transition to GNU
+.Xr ar
+for developers who already have scripts written for the MRI \(lqlibrarian\(rq program.
+.Pp
+The syntax for the
+.Xr ar
+command language is straightforward:
+.Bl -bullet
+.It
+commands are recognized in upper or lower case; for example,
+.Li LIST
+is the same as
+.Li list .
+In the following descriptions, commands are shown in upper case for clarity.
+.Pp
+.It
+a single command may appear on each line; it is the first word on the line.
+.Pp
+.It
+empty lines are allowed, and have no effect.
+.Pp
+.It
+comments are allowed; text after either of the characters
+.Li *
+or
+.Li ;
+is ignored.
+.Pp
+.It
+Whenever you use a list of names as part of the argument to an
+.Xr ar
+command, you can separate the individual names with either commas or blanks.
+Commas are shown in the explanations below, for clarity.
+.Pp
+.It
+.Li +
+is used as a line continuation character; if
+.Li +
+appears at the end of a line, the text on the following line is considered
+part of the current command.
+.El
+.Pp
+Here are the commands you can use in
+.Xr ar
+scripts, or when using
+.Xr ar
+interactively. Three of them have special significance:
+.Pp
+.Li OPEN
+or
+.Li CREATE
+specify a
+.Em current archive ,
+which is a temporary file required for most of the other commands.
+.Pp
+.Li SAVE
+commits the changes so far specified by the script. Prior to
+.Li SAVE ,
+commands affect only the temporary copy of the current archive.
+.Pp
+.Bl -tag -width Ds
+.It  ADDLIB Va archive
+.It  ADDLIB Va archive ( Va module, Va module, ... Va module)
+Add all the contents of
+.Va archive
+(or, if specified, each named
+.Va module
+from
+.Va archive )
+to the current archive.
+.Pp
+Requires prior use of
+.Li OPEN
+or
+.Li CREATE .
+.Pp
+.It  ADDMOD Va member, Va member, ... Va member
+Add each named
+.Va member
+as a module in the current archive.
+.Pp
+Requires prior use of
+.Li OPEN
+or
+.Li CREATE .
+.Pp
+.It  CLEAR
+Discard the contents of the current archive, canceling the effect of any operations
+since the last
+.Li SAVE .
+May be executed (with no effect) even if no current archive is specified.
+.Pp
+.It  CREATE Va archive
+Creates an archive, and makes it the current archive (required for many other
+commands). The new archive is created with a temporary name; it is not actually
+saved as
+.Va archive
+until you use
+.Li SAVE .
+You can overwrite existing archives; similarly, the contents of any existing
+file named
+.Va archive
+will not be destroyed until
+.Li SAVE .
+.Pp
+.It  DELETE Va module, Va module, ... Va module
+Delete each listed
+.Va module
+from the current archive; equivalent to
+.Li ar -d Va archive Va module ... Va module .
+.Pp
+Requires prior use of
+.Li OPEN
+or
+.Li CREATE .
+.Pp
+.It  DIRECTORY Va archive ( Va module, ... Va module)
+.It  DIRECTORY Va archive ( Va module, ... Va module) Va outputfile
+List each named
+.Va module
+present in
+.Va archive .
+The separate command
+.Li VERBOSE
+specifies the form of the output: when verbose output is off, output is like
+that of
+.Li ar -t Va archive Va module... .
+When verbose output is on, the listing is like
+.Li ar -tv Va archive Va module... .
+.Pp
+Output normally goes to the standard output stream; however, if you specify
+.Va outputfile
+as a final argument,
+.Xr ar
+directs the output to that file.
+.Pp
+.It  END
+Exit from
+.Xr ar ,
+with a
+.Li 0
+exit code to indicate successful completion. This command does not save the
+output file; if you have changed the current archive since the last
+.Li SAVE
+command, those changes are lost.
+.Pp
+.It  EXTRACT Va module, Va module, ... Va module
+Extract each named
+.Va module
+from the current archive, writing them into the current directory as separate
+files. Equivalent to
+.Li ar -x Va archive Va module... .
+.Pp
+Requires prior use of
+.Li OPEN
+or
+.Li CREATE .
+.Pp
+.It  LIST
+Display full contents of the current archive, in \(lqverbose\(rq style regardless
+of the state of
+.Li VERBOSE .
+The effect is like
+.Li ar tv Va archive .
+(This single command is a GNU
+.Xr ar
+enhancement, rather than present for MRI compatibility.)
+.Pp
+Requires prior use of
+.Li OPEN
+or
+.Li CREATE .
+.Pp
+.It  OPEN Va archive
+Opens an existing archive for use as the current archive (required for many
+other commands). Any changes as the result of subsequent commands will not
+actually affect
+.Va archive
+until you next use
+.Li SAVE .
+.Pp
+.It  REPLACE Va module, Va module, ... Va module
+In the current archive, replace each existing
+.Va module
+(named in the
+.Li REPLACE
+arguments) from files in the current working directory. To execute this command
+without errors, both the file, and the module in the current archive, must
+exist.
+.Pp
+Requires prior use of
+.Li OPEN
+or
+.Li CREATE .
+.Pp
+.It  VERBOSE
+Toggle an internal flag governing the output from
+.Li DIRECTORY .
+When the flag is on,
+.Li DIRECTORY
+output matches output from
+.Li ar -tv
+\&...\&.
+.Pp
+.It  SAVE
+Commit your changes to the current archive, and actually save it as a file
+with the name specified in the last
+.Li CREATE
+or
+.Li OPEN
+command.
+.Pp
+Requires prior use of
+.Li OPEN
+or
+.Li CREATE .
+.Pp
+.El
+.Sh  nm
+.Bd -literal -offset indent
+nm [-a|--debug-syms] [-g|--extern-only]
+   [-B] [-C|--demangle[=style]] [-D|--dynamic]
+   [-S|--print-size] [-s|--print-armap]
+   [-A|-o|--print-file-name][--special-syms]
+   [-n|-v|--numeric-sort] [-p|--no-sort]
+   [-r|--reverse-sort] [--size-sort] [-u|--undefined-only]
+   [-t radix|--radix=radix] [-P|--portability]
+   [--target=bfdname] [-fformat|--format=format]
+   [--defined-only] [-l|--line-numbers] [--no-demangle]
+   [-V|--version] [-X 32_64] [--help]  [objfile...]
+.Ed
+.Pp
+GNU
+.Xr nm
+lists the symbols from object files
+.Va objfile
+\&...\&. If no object files are listed as arguments,
+.Xr nm
+assumes the file
+.Pa a.out .
+.Pp
+For each symbol,
+.Xr nm
+shows:
+.Pp
+.Bl -bullet
+.It
+The symbol value, in the radix selected by options (see below), or hexadecimal
+by default.
+.Pp
+.It
+The symbol type. At least the following types are used; others are, as well,
+depending on the object file format. If lowercase, the symbol is local; if
+uppercase, the symbol is global (external).
+.Pp
+.Bl -tag -width Ds
+.It  A
+The symbol's value is absolute, and will not be changed by further linking.
+.Pp
+.It  B
+The symbol is in the uninitialized data section (known as BSS).
+.Pp
+.It  C
+The symbol is common. Common symbols are uninitialized data. When linking,
+multiple common symbols may appear with the same name. If the symbol is defined
+anywhere, the common symbols are treated as undefined references. For more
+details on common symbols, see the discussion of --warn-common in Options,,Linker
+options,ld.info,The GNU linker.
+.Pp
+.It  D
+The symbol is in the initialized data section.
+.Pp
+.It  G
+The symbol is in an initialized data section for small objects. Some object
+file formats permit more efficient access to small data objects, such as a
+global int variable as opposed to a large global array.
+.Pp
+.It  I
+The symbol is an indirect reference to another symbol. This is a GNU extension
+to the a.out object file format which is rarely used.
+.Pp
+.It  N
+The symbol is a debugging symbol.
+.Pp
+.It  R
+The symbol is in a read only data section.
+.Pp
+.It  S
+The symbol is in an uninitialized data section for small objects.
+.Pp
+.It  T
+The symbol is in the text (code) section.
+.Pp
+.It  U
+The symbol is undefined.
+.Pp
+.It  V
+The symbol is a weak object. When a weak defined symbol is linked with a normal
+defined symbol, the normal defined symbol is used with no error. When a weak
+undefined symbol is linked and the symbol is not defined, the value of the
+weak symbol becomes zero with no error.
+.Pp
+.It  W
+The symbol is a weak symbol that has not been specifically tagged as a weak
+object symbol. When a weak defined symbol is linked with a normal defined
+symbol, the normal defined symbol is used with no error. When a weak undefined
+symbol is linked and the symbol is not defined, the value of the symbol is
+determined in a system-specific manner without error. On some systems, uppercase
+indicates that a default value has been specified.
+.Pp
+.It  -
+The symbol is a stabs symbol in an a.out object file. In this case, the next
+values printed are the stabs other field, the stabs desc field, and the stab
+type. Stabs symbols are used to hold debugging information. For more information,
+see Top,Stabs,Stabs Overview,stabs.info, The \(lqstabs\(rq debug format.
+.Pp
+.It  ?
+The symbol type is unknown, or object file format specific.
+.El
+.Pp
+.It
+The symbol name.
+.El
+.Pp
+The long and short forms of options, shown here as alternatives, are equivalent.
+.Pp
+.Bl -tag -width Ds
+.It  -A
+.It  -o
+.It  --print-file-name
+Precede each symbol by the name of the input file (or archive member) in which
+it was found, rather than identifying the input file once only, before all
+of its symbols.
+.Pp
+.It  -a
+.It  --debug-syms
+Display all symbols, even debugger-only symbols; normally these are not listed.
+.Pp
+.It  -B
+The same as
+.Op --format=bsd
+(for compatibility with the MIPS
+.Xr nm ) .
+.Pp
+.It  -C
+.It  --demangle[= Va style]
+Decode (
+.Em demangle )
+low-level symbol names into user-level names. Besides removing any initial
+underscore prepended by the system, this makes C++ function names readable.
+Different compilers have different mangling styles. The optional demangling
+style argument can be used to choose an appropriate demangling style for your
+compiler.See Section
+.Dq c++filt ,
+for more information on demangling.
+.Pp
+.It  --no-demangle
+Do not demangle low-level symbol names. This is the default.
+.Pp
+.It  -D
+.It  --dynamic
+Display the dynamic symbols rather than the normal symbols. This is only meaningful
+for dynamic objects, such as certain types of shared libraries.
+.Pp
+.It  -f Va format
+.It  --format= Va format
+Use the output format
+.Va format ,
+which can be
+.Li bsd ,
+.Li sysv ,
+or
+.Li posix .
+The default is
+.Li bsd .
+Only the first character of
+.Va format
+is significant; it can be either upper or lower case.
+.Pp
+.It  -g
+.It  --extern-only
+Display only external symbols.
+.Pp
+.It  -l
+.It  --line-numbers
+For each symbol, use debugging information to try to find a filename and line
+number. For a defined symbol, look for the line number of the address of the
+symbol. For an undefined symbol, look for the line number of a relocation
+entry which refers to the symbol. If line number information can be found,
+print it after the other symbol information.
+.Pp
+.It  -n
+.It  -v
+.It  --numeric-sort
+Sort symbols numerically by their addresses, rather than alphabetically by
+their names.
+.Pp
+.It  -p
+.It  --no-sort
+Do not bother to sort the symbols in any order; print them in the order encountered.
+.Pp
+.It  -P
+.It  --portability
+Use the POSIX.2 standard output format instead of the default format. Equivalent
+to
+.Li -f posix .
+.Pp
+.It  -S
+.It  --print-size
+Print size, not the value, of defined symbols for the
+.Li bsd
+output format.
+.Pp
+.It  -s
+.It  --print-armap
+When listing symbols from archive members, include the index: a mapping (stored
+in the archive by
+.Xr ar
+or
+.Xr ranlib )
+of which modules contain definitions for which names.
+.Pp
+.It  -r
+.It  --reverse-sort
+Reverse the order of the sort (whether numeric or alphabetic); let the last
+come first.
+.Pp
+.It  --size-sort
+Sort symbols by size. The size is computed as the difference between the value
+of the symbol and the value of the symbol with the next higher value. If the
+.Li bsd
+output format is used the size of the symbol is printed, rather than the value,
+and
+.Li -S
+must be used in order both size and value to be printed.
+.Pp
+.It  --special-syms
+Display symbols which have a target-specific special meaning. These symbols
+are usually used by the target for some special processing and are not normally
+helpful when included included in the normal symbol lists. For example for
+ARM targets this option would skip the mapping symbols used to mark transitions
+between ARM code, THUMB code and data.
+.Pp
+.It  -t Va radix
+.It  --radix= Va radix
+Use
+.Va radix
+as the radix for printing the symbol values. It must be
+.Li d
+for decimal,
+.Li o
+for octal, or
+.Li x
+for hexadecimal.
+.Pp
+.It  --target= Va bfdname
+Specify an object code format other than your system's default format.See Section
+.Dq Target Selection ,
+for more information.
+.Pp
+.It  -u
+.It  --undefined-only
+Display only undefined symbols (those external to each object file).
+.Pp
+.It  --defined-only
+Display only defined symbols for each object file.
+.Pp
+.It  -V
+.It  --version
+Show the version number of
+.Xr nm
+and exit.
+.Pp
+.It  -X
+This option is ignored for compatibility with the AIX version of
+.Xr nm .
+It takes one parameter which must be the string
+.Op 32_64 .
+The default mode of AIX
+.Xr nm
+corresponds to
+.Op -X 32 ,
+which is not supported by GNU
+.Xr nm .
+.Pp
+.It  --help
+Show a summary of the options to
+.Xr nm
+and exit.
+.El
+.Pp
+.Sh  objcopy
+.Bd -literal -offset indent
+objcopy [-F bfdname|--target=bfdname]
+        [-I bfdname|--input-target=bfdname]
+        [-O bfdname|--output-target=bfdname]
+        [-B bfdarch|--binary-architecture=bfdarch]
+        [-S|--strip-all]
+        [-g|--strip-debug]
+        [-K symbolname|--keep-symbol=symbolname]
+        [-N symbolname|--strip-symbol=symbolname]
+        [--strip-unneeded-symbol=symbolname]
+        [-G symbolname|--keep-global-symbol=symbolname]
+        [--localize-hidden]
+        [-L symbolname|--localize-symbol=symbolname]
+        [--globalize-symbol=symbolname]
+        [-W symbolname|--weaken-symbol=symbolname]
+        [-w|--wildcard]
+        [-x|--discard-all]
+        [-X|--discard-locals]
+        [-b byte|--byte=byte]
+        [-i interleave|--interleave=interleave]
+        [-j sectionname|--only-section=sectionname]
+        [-R sectionname|--remove-section=sectionname]
+        [-p|--preserve-dates]
+        [--debugging]
+        [--gap-fill=val]
+        [--pad-to=address]
+        [--set-start=val]
+        [--adjust-start=incr]
+        [--change-addresses=incr]
+        [--change-section-address section{=,+,-}val]
+        [--change-section-lma section{=,+,-}val]
+        [--change-section-vma section{=,+,-}val]
+        [--change-warnings] [--no-change-warnings]
+        [--set-section-flags section=flags]
+        [--add-section sectionname=filename]
+        [--rename-section oldname=newname[,flags]]
+        [--change-leading-char] [--remove-leading-char]
+        [--reverse-bytes=num]
+        [--srec-len=ival] [--srec-forceS3]
+        [--redefine-sym old=new]
+        [--redefine-syms=filename]
+        [--weaken]
+        [--keep-symbols=filename]
+        [--strip-symbols=filename]
+        [--strip-unneeded-symbols=filename]
+        [--keep-global-symbols=filename]
+        [--localize-symbols=filename]
+        [--globalize-symbols=filename]
+        [--weaken-symbols=filename]
+        [--alt-machine-code=index]
+        [--prefix-symbols=string]
+        [--prefix-sections=string]
+        [--prefix-alloc-sections=string]
+        [--add-GNU-debuglink=path-to-file]
+        [--keep-file-symbols]
+        [--only-keep-debug]
+        [--extract-symbol]
+        [--writable-text]
+        [--readonly-text]
+        [--pure]
+        [--impure]
+        [-v|--verbose]
+        [-V|--version]
+        [--help] [--info]
+        infile [outfile]
+.Ed
+.Pp
+The GNU
+.Xr objcopy
+utility copies the contents of an object file to another.
+.Xr objcopy
+uses the GNU bfd Library to read and write the object files. It can write
+the destination object file in a format different from that of the source
+object file. The exact behavior of
+.Xr objcopy
+is controlled by command-line options. Note that
+.Xr objcopy
+should be able to copy a fully linked file between any two formats. However,
+copying a relocatable object file between any two formats may not work as
+expected.
+.Pp
+.Xr objcopy
+creates temporary files to do its translations and deletes them afterward.
+.Xr objcopy
+uses bfd to do all its translation work; it has access to all the formats
+described in bfd and thus is able to recognize most formats without being
+told explicitly.See Section
+.Dq BFD .
+.Pp
+.Xr objcopy
+can be used to generate S-records by using an output target of
+.Li srec
+(e.g., use
+.Li -O srec ) .
+.Pp
+.Xr objcopy
+can be used to generate a raw binary file by using an output target of
+.Li binary
+(e.g., use
+.Op -O binary ) .
+When
+.Xr objcopy
+generates a raw binary file, it will essentially produce a memory dump of
+the contents of the input object file. All symbols and relocation information
+will be discarded. The memory dump will start at the load address of the lowest
+section copied into the output file.
+.Pp
+When generating an S-record or a raw binary file, it may be helpful to use
+.Op -S
+to remove sections containing debugging information. In some cases
+.Op -R
+will be useful to remove sections which contain information that is not needed
+by the binary file.
+.Pp
+Note---
+.Xr objcopy
+is not able to change the endianness of its input files. If the input format
+has an endianness (some formats do not),
+.Xr objcopy
+can only copy the inputs into file formats that have the same endianness or
+which have no endianness (e.g.,
+.Li srec ) .
+(However, see the
+.Op --reverse-bytes
+option.)
+.Pp
+.Bl -tag -width Ds
+.It  Va infile
+.It  Va outfile
+The input and output files, respectively. If you do not specify
+.Va outfile ,
+.Xr objcopy
+creates a temporary file and destructively renames the result with the name
+of
+.Va infile .
+.Pp
+.It  -I Va bfdname
+.It  --input-target= Va bfdname
+Consider the source file's object format to be
+.Va bfdname ,
+rather than attempting to deduce it.See Section
+.Dq Target Selection ,
+for more information.
+.Pp
+.It  -O Va bfdname
+.It  --output-target= Va bfdname
+Write the output file using the object format
+.Va bfdname .
+See Section.Dq Target Selection ,
+for more information.
+.Pp
+.It  -F Va bfdname
+.It  --target= Va bfdname
+Use
+.Va bfdname
+as the object format for both the input and the output file; i.e., simply
+transfer data from source to destination with no translation.See Section
+.Dq Target Selection ,
+for more information.
+.Pp
+.It  -B Va bfdarch
+.It  --binary-architecture= Va bfdarch
+Useful when transforming a raw binary input file into an object file. In this
+case the output architecture can be set to
+.Va bfdarch .
+This option will be ignored if the input file has a known
+.Va bfdarch .
+You can access this binary data inside a program by referencing the special
+symbols that are created by the conversion process. These symbols are called
+_binary_
+.Va objfile
+_start, _binary_
+.Va objfile
+_end and _binary_
+.Va objfile
+_size. e.g. you can transform a picture file into an object file and then
+access it in your code using these symbols.
+.Pp
+.It  -j Va sectionname
+.It  --only-section= Va sectionname
+Copy only the named section from the input file to the output file. This option
+may be given more than once. Note that using this option inappropriately may
+make the output file unusable.
+.Pp
+.It  -R Va sectionname
+.It  --remove-section= Va sectionname
+Remove any section named
+.Va sectionname
+from the output file. This option may be given more than once. Note that using
+this option inappropriately may make the output file unusable.
+.Pp
+.It  -S
+.It  --strip-all
+Do not copy relocation and symbol information from the source file.
+.Pp
+.It  -g
+.It  --strip-debug
+Do not copy debugging symbols or sections from the source file.
+.Pp
+.It  --strip-unneeded
+Strip all symbols that are not needed for relocation processing.
+.Pp
+.It  -K Va symbolname
+.It  --keep-symbol= Va symbolname
+When stripping symbols, keep symbol
+.Va symbolname
+even if it would normally be stripped. This option may be given more than
+once.
+.Pp
+.It  -N Va symbolname
+.It  --strip-symbol= Va symbolname
+Do not copy symbol
+.Va symbolname
+from the source file. This option may be given more than once.
+.Pp
+.It  --strip-unneeded-symbol= Va symbolname
+Do not copy symbol
+.Va symbolname
+from the source file unless it is needed by a relocation. This option may
+be given more than once.
+.Pp
+.It  -G Va symbolname
+.It  --keep-global-symbol= Va symbolname
+Keep only symbol
+.Va symbolname
+global. Make all other symbols local to the file, so that they are not visible
+externally. This option may be given more than once.
+.Pp
+.It  --localize-hidden
+In an ELF object, mark all symbols that have hidden or internal visibility
+as local. This option applies on top of symbol-specific localization options
+such as
+.Op -L .
+.Pp
+.It  -L Va symbolname
+.It  --localize-symbol= Va symbolname
+Make symbol
+.Va symbolname
+local to the file, so that it is not visible externally. This option may be
+given more than once.
+.Pp
+.It  -W Va symbolname
+.It  --weaken-symbol= Va symbolname
+Make symbol
+.Va symbolname
+weak. This option may be given more than once.
+.Pp
+.It  --globalize-symbol= Va symbolname
+Give symbol
+.Va symbolname
+global scoping so that it is visible outside of the file in which it is defined.
+This option may be given more than once.
+.Pp
+.It  -w
+.It  --wildcard
+Permit regular expressions in
+.Va symbolname
+s used in other command line options. The question mark (?), asterisk (*),
+backslash (\e) and square brackets ([]) operators can be used anywhere in the
+symbol name. If the first character of the symbol name is the exclamation
+point (!) then the sense of the switch is reversed for that symbol. For example:
+.Pp
+.Bd -literal -offset indent
+  -w -W !foo -W fo*
+.Ed
+.Pp
+would cause objcopy to weaken all symbols that start with \(lqfo\(rq except for the
+symbol \(lqfoo\(rq.
+.Pp
+.It  -x
+.It  --discard-all
+Do not copy non-global symbols from the source file.
+.Pp
+.It  -X
+.It  --discard-locals
+Do not copy compiler-generated local symbols. (These usually start with
+.Li L
+or
+.Li . . )
+.Pp
+.It  -b Va byte
+.It  --byte= Va byte
+Keep only every
+.Va byte
+th byte of the input file (header data is not affected).
+.Va byte
+can be in the range from 0 to
+.Va interleave
+-1, where
+.Va interleave
+is given by the
+.Op -i
+or
+.Op --interleave
+option, or the default of 4. This option is useful for creating files to program
+rom. It is typically used with an
+.Li srec
+output target.
+.Pp
+.It  -i Va interleave
+.It  --interleave= Va interleave
+Only copy one out of every
+.Va interleave
+bytes. Select which byte to copy with the
+.Op -b
+or
+.Op --byte
+option. The default is 4.
+.Xr objcopy
+ignores this option if you do not specify either
+.Op -b
+or
+.Op --byte .
+.Pp
+.It  -p
+.It  --preserve-dates
+Set the access and modification dates of the output file to be the same as
+those of the input file.
+.Pp
+.It  --debugging
+Convert debugging information, if possible. This is not the default because
+only certain debugging formats are supported, and the conversion process can
+be time consuming.
+.Pp
+.It  --gap-fill Va val
+Fill gaps between sections with
+.Va val .
+This operation applies to the
+.Em load address
+(LMA) of the sections. It is done by increasing the size of the section with
+the lower address, and filling in the extra space created with
+.Va val .
+.Pp
+.It  --pad-to Va address
+Pad the output file up to the load address
+.Va address .
+This is done by increasing the size of the last section. The extra space is
+filled in with the value specified by
+.Op --gap-fill
+(default zero).
+.Pp
+.It  --set-start Va val
+Set the start address of the new file to
+.Va val .
+Not all object file formats support setting the start address.
+.Pp
+.It  --change-start Va incr
+.It  --adjust-start Va incr
+Change the start address by adding
+.Va incr .
+Not all object file formats support setting the start address.
+.Pp
+.It  --change-addresses Va incr
+.It  --adjust-vma Va incr
+Change the VMA and LMA addresses of all sections, as well as the start address,
+by adding
+.Va incr .
+Some object file formats do not permit section addresses to be changed arbitrarily.
+Note that this does not relocate the sections; if the program expects sections
+to be loaded at a certain address, and this option is used to change the sections
+such that they are loaded at a different address, the program may fail.
+.Pp
+.It  --change-section-address Va section{=,+,-} Va val
+.It  --adjust-section-vma Va section{=,+,-} Va val
+Set or change both the VMA address and the LMA address of the named
+.Va section .
+If
+.Li =
+is used, the section address is set to
+.Va val .
+Otherwise,
+.Va val
+is added to or subtracted from the section address. See the comments under
+.Op --change-addresses ,
+above. If
+.Va section
+does not exist in the input file, a warning will be issued, unless
+.Op --no-change-warnings
+is used.
+.Pp
+.It  --change-section-lma Va section{=,+,-} Va val
+Set or change the LMA address of the named
+.Va section .
+The LMA address is the address where the section will be loaded into memory
+at program load time. Normally this is the same as the VMA address, which
+is the address of the section at program run time, but on some systems, especially
+those where a program is held in ROM, the two can be different. If
+.Li =
+is used, the section address is set to
+.Va val .
+Otherwise,
+.Va val
+is added to or subtracted from the section address. See the comments under
+.Op --change-addresses ,
+above. If
+.Va section
+does not exist in the input file, a warning will be issued, unless
+.Op --no-change-warnings
+is used.
+.Pp
+.It  --change-section-vma Va section{=,+,-} Va val
+Set or change the VMA address of the named
+.Va section .
+The VMA address is the address where the section will be located once the
+program has started executing. Normally this is the same as the LMA address,
+which is the address where the section will be loaded into memory, but on
+some systems, especially those where a program is held in ROM, the two can
+be different. If
+.Li =
+is used, the section address is set to
+.Va val .
+Otherwise,
+.Va val
+is added to or subtracted from the section address. See the comments under
+.Op --change-addresses ,
+above. If
+.Va section
+does not exist in the input file, a warning will be issued, unless
+.Op --no-change-warnings
+is used.
+.Pp
+.It  --change-warnings
+.It  --adjust-warnings
+If
+.Op --change-section-address
+or
+.Op --change-section-lma
+or
+.Op --change-section-vma
+is used, and the named section does not exist, issue a warning. This is the
+default.
+.Pp
+.It  --no-change-warnings
+.It  --no-adjust-warnings
+Do not issue a warning if
+.Op --change-section-address
+or
+.Op --adjust-section-lma
+or
+.Op --adjust-section-vma
+is used, even if the named section does not exist.
+.Pp
+.It  --set-section-flags Va section= Va flags
+Set the flags for the named section. The
+.Va flags
+argument is a comma separated string of flag names. The recognized names are
+.Li alloc ,
+.Li contents ,
+.Li load ,
+.Li noload ,
+.Li readonly ,
+.Li code ,
+.Li data ,
+.Li rom ,
+.Li share ,
+and
+.Li debug .
+You can set the
+.Li contents
+flag for a section which does not have contents, but it is not meaningful
+to clear the
+.Li contents
+flag of a section which does have contents--just remove the section instead.
+Not all flags are meaningful for all object file formats.
+.Pp
+.It  --add-section Va sectionname= Va filename
+Add a new section named
+.Va sectionname
+while copying the file. The contents of the new section are taken from the
+file
+.Va filename .
+The size of the section will be the size of the file. This option only works
+on file formats which can support sections with arbitrary names.
+.Pp
+.It  --rename-section Va oldname= Va newname[, Va flags]
+Rename a section from
+.Va oldname
+to
+.Va newname ,
+optionally changing the section's flags to
+.Va flags
+in the process. This has the advantage over usng a linker script to perform
+the rename in that the output stays as an object file and does not become
+a linked executable.
+.Pp
+This option is particularly helpful when the input format is binary, since
+this will always create a section called .data. If for example, you wanted
+instead to create a section called .rodata containing binary data you could
+use the following command line to achieve it:
+.Pp
+.Bd -literal -offset indent
+  objcopy -I binary -O <output_format> -B <architecture> \e
+   --rename-section .data=.rodata,alloc,load,readonly,data,contents \e
+   <input_binary_file> <output_object_file>
+.Ed
+.Pp
+.It  --change-leading-char
+Some object file formats use special characters at the start of symbols. The
+most common such character is underscore, which compilers often add before
+every symbol. This option tells
+.Xr objcopy
+to change the leading character of every symbol when it converts between object
+file formats. If the object file formats use the same leading character, this
+option has no effect. Otherwise, it will add a character, or remove a character,
+or change a character, as appropriate.
+.Pp
+.It  --remove-leading-char
+If the first character of a global symbol is a special symbol leading character
+used by the object file format, remove the character. The most common symbol
+leading character is underscore. This option will remove a leading underscore
+from all global symbols. This can be useful if you want to link together objects
+of different file formats with different conventions for symbol names. This
+is different from
+.Op --change-leading-char
+because it always changes the symbol name when appropriate, regardless of
+the object file format of the output file.
+.Pp
+.It  --reverse-bytes= Va num
+Reverse the bytes in a section with output contents. A section length must
+be evenly divisible by the value given in order for the swap to be able to
+take place. Reversing takes place before the interleaving is performed.
+.Pp
+This option is used typically in generating ROM images for problematic target
+systems. For example, on some target boards, the 32-bit words fetched from
+8-bit ROMs are re-assembled in little-endian byte order regardless of the
+CPU byte order. Depending on the programming model, the endianness of the
+ROM may need to be modified.
+.Pp
+Consider a simple file with a section containing the following eight bytes:
+.Li 12345678 .
+.Pp
+Using
+.Li --reverse-bytes=2
+for the above example, the bytes in the output file would be ordered
+.Li 21436587 .
+.Pp
+Using
+.Li --reverse-bytes=4
+for the above example, the bytes in the output file would be ordered
+.Li 43218765 .
+.Pp
+By using
+.Li --reverse-bytes=2
+for the above example, followed by
+.Li --reverse-bytes=4
+on the output file, the bytes in the second output file would be ordered
+.Li 34127856 .
+.Pp
+.It  --srec-len= Va ival
+Meaningful only for srec output. Set the maximum length of the Srecords being
+produced to
+.Va ival .
+This length covers both address, data and crc fields.
+.Pp
+.It  --srec-forceS3
+Meaningful only for srec output. Avoid generation of S1/S2 records, creating
+S3-only record format.
+.Pp
+.It  --redefine-sym Va old= Va new
+Change the name of a symbol
+.Va old ,
+to
+.Va new .
+This can be useful when one is trying link two things together for which you
+have no source, and there are name collisions.
+.Pp
+.It  --redefine-syms= Va filename
+Apply
+.Op --redefine-sym
+to each symbol pair "
+.Va old
+.Va new "
+listed in the file
+.Va filename .
+.Va filename
+is simply a flat file, with one symbol pair per line. Line comments may be
+introduced by the hash character. This option may be given more than once.
+.Pp
+.It  --weaken
+Change all global symbols in the file to be weak. This can be useful when
+building an object which will be linked against other objects using the
+.Op -R
+option to the linker. This option is only effective when using an object file
+format which supports weak symbols.
+.Pp
+.It  --keep-symbols= Va filename
+Apply
+.Op --keep-symbol
+option to each symbol listed in the file
+.Va filename .
+.Va filename
+is simply a flat file, with one symbol name per line. Line comments may be
+introduced by the hash character. This option may be given more than once.
+.Pp
+.It  --strip-symbols= Va filename
+Apply
+.Op --strip-symbol
+option to each symbol listed in the file
+.Va filename .
+.Va filename
+is simply a flat file, with one symbol name per line. Line comments may be
+introduced by the hash character. This option may be given more than once.
+.Pp
+.It  --strip-unneeded-symbols= Va filename
+Apply
+.Op --strip-unneeded-symbol
+option to each symbol listed in the file
+.Va filename .
+.Va filename
+is simply a flat file, with one symbol name per line. Line comments may be
+introduced by the hash character. This option may be given more than once.
+.Pp
+.It  --keep-global-symbols= Va filename
+Apply
+.Op --keep-global-symbol
+option to each symbol listed in the file
+.Va filename .
+.Va filename
+is simply a flat file, with one symbol name per line. Line comments may be
+introduced by the hash character. This option may be given more than once.
+.Pp
+.It  --localize-symbols= Va filename
+Apply
+.Op --localize-symbol
+option to each symbol listed in the file
+.Va filename .
+.Va filename
+is simply a flat file, with one symbol name per line. Line comments may be
+introduced by the hash character. This option may be given more than once.
+.Pp
+.It  --globalize-symbols= Va filename
+Apply
+.Op --globalize-symbol
+option to each symbol listed in the file
+.Va filename .
+.Va filename
+is simply a flat file, with one symbol name per line. Line comments may be
+introduced by the hash character. This option may be given more than once.
+.Pp
+.It  --weaken-symbols= Va filename
+Apply
+.Op --weaken-symbol
+option to each symbol listed in the file
+.Va filename .
+.Va filename
+is simply a flat file, with one symbol name per line. Line comments may be
+introduced by the hash character. This option may be given more than once.
+.Pp
+.It  --alt-machine-code= Va index
+If the output architecture has alternate machine codes, use the
+.Va index
+th code instead of the default one. This is useful in case a machine is assigned
+an official code and the tool-chain adopts the new code, but other applications
+still depend on the original code being used. For ELF based architectures
+if the
+.Va index
+alternative does not exist then the value is treated as an absolute number
+to be stored in the e_machine field of the ELF header.
+.Pp
+.It  --writable-text
+Mark the output text as writable. This option isn't meaningful for all object
+file formats.
+.Pp
+.It  --readonly-text
+Make the output text write protected. This option isn't meaningful for all
+object file formats.
+.Pp
+.It  --pure
+Mark the output file as demand paged. This option isn't meaningful for all
+object file formats.
+.Pp
+.It  --impure
+Mark the output file as impure. This option isn't meaningful for all object
+file formats.
+.Pp
+.It  --prefix-symbols= Va string
+Prefix all symbols in the output file with
+.Va string .
+.Pp
+.It  --prefix-sections= Va string
+Prefix all section names in the output file with
+.Va string .
+.Pp
+.It  --prefix-alloc-sections= Va string
+Prefix all the names of all allocated sections in the output file with
+.Va string .
+.Pp
+.It  --add-GNU-debuglink= Va path-to-file
+Creates a .GNU_debuglink section which contains a reference to
+.Va path-to-file
+and adds it to the output file.
+.Pp
+.It  --keep-file-symbols
+When stripping a file, perhaps with
+.Op --strip-debug
+or
+.Op --strip-unneeded ,
+retain any symbols specifying source file names, which would otherwise get
+stripped.
+.Pp
+.It  --only-keep-debug
+Strip a file, removing contents of any sections that would not be stripped
+by
+.Op --strip-debug
+and leaving the debugging sections intact. In ELF files, this preserves all
+note sections in the output.
+.Pp
+The intention is that this option will be used in conjunction with
+.Op --add-GNU-debuglink
+to create a two part executable. One a stripped binary which will occupy less
+space in RAM and in a distribution and the second a debugging information
+file which is only needed if debugging abilities are required. The suggested
+procedure to create these files is as follows:
+.Pp
+.Bl -enum
+.It
+Link the executable as normal. Assuming that is is called
+.Li foo
+then...
+.It
+Run
+.Li objcopy --only-keep-debug foo foo.dbg
+to
+create a file containing the debugging info.
+.It
+Run
+.Li objcopy --strip-debug foo
+to create a
+stripped executable.
+.It
+Run
+.Li objcopy --add-GNU-debuglink=foo.dbg foo
+to add a link to the debugging info into the stripped executable.
+.El
+.Pp
+Note - the choice of
+.Li .dbg
+as an extension for the debug info file is arbitrary. Also the
+.Li --only-keep-debug
+step is optional. You could instead do this:
+.Pp
+.Bl -enum
+.It
+Link the executable as normal.
+.It
+Copy
+.Li foo
+to
+.Li foo.full
+.It
+Run
+.Li objcopy --strip-debug foo
+.It
+Run
+.Li objcopy --add-GNU-debuglink=foo.full foo
+.El
+.Pp
+i.e., the file pointed to by the
+.Op --add-GNU-debuglink
+can be the full executable. It does not have to be a file created by the
+.Op --only-keep-debug
+switch.
+.Pp
+Note - this switch is only intended for use on fully linked files. It does
+not make sense to use it on object files where the debugging information may
+be incomplete. Besides the GNU_debuglink feature currently only supports the
+presence of one filename containing debugging information, not multiple filenames
+on a one-per-object-file basis.
+.Pp
+.It  --extract-symbol
+Keep the file's section flags and symbols but remove all section data. Specifically,
+the option:
+.Pp
+.Bl -bullet
+.It
+sets the virtual and load addresses of every section to zero;
+.It
+removes the contents of all sections;
+.It
+sets the size of every section to zero; and
+.It
+sets the file's start address to zero.
+.El
+.Pp
+This option is used to build a
+.Pa .sym
+file for a VxWorks kernel. It can also be a useful way of reducing the size
+of a
+.Op --just-symbols
+linker input file.
+.Pp
+.It  -V
+.It  --version
+Show the version number of
+.Xr objcopy .
+.Pp
+.It  -v
+.It  --verbose
+Verbose output: list all object files modified. In the case of archives,
+.Li objcopy -V
+lists all members of the archive.
+.Pp
+.It  --help
+Show a summary of the options to
+.Xr objcopy .
+.Pp
+.It  --info
+Display a list showing all architectures and object formats available.
+.El
+.Pp
+.Sh  objdump
+.Bd -literal -offset indent
+objdump [-a|--archive-headers]
+        [-b bfdname|--target=bfdname]
+        [-C|--demangle[=style] ]
+        [-d|--disassemble]
+        [-D|--disassemble-all]
+        [-z|--disassemble-zeroes]
+        [-EB|-EL|--endian={big | little }]
+        [-f|--file-headers]
+        [--file-start-context]
+        [-g|--debugging]
+        [-e|--debugging-tags]
+        [-h|--section-headers|--headers]
+        [-i|--info]
+        [-j section|--section=section]
+        [-l|--line-numbers]
+        [-S|--source]
+        [-m machine|--architecture=machine]
+        [-M options|--disassembler-options=options]
+        [-p|--private-headers]
+        [-r|--reloc]
+        [-R|--dynamic-reloc]
+        [-s|--full-contents]
+        [-W|--dwarf]
+        [-G|--stabs]
+        [-t|--syms]
+        [-T|--dynamic-syms]
+        [-x|--all-headers]
+        [-w|--wide]
+        [--start-address=address]
+        [--stop-address=address]
+        [--prefix-addresses]
+        [--[no-]show-raw-insn]
+        [--adjust-vma=offset]
+        [--special-syms]
+        [-V|--version]
+        [-H|--help]
+        objfile...
+.Ed
+.Pp
+.Xr objdump
+displays information about one or more object files. The options control what
+particular information to display. This information is mostly useful to programmers
+who are working on the compilation tools, as opposed to programmers who just
+want their program to compile and work.
+.Pp
+.Va objfile
+\&...are the object files to be examined. When you specify archives,
+.Xr objdump
+shows information on each of the member object files.
+.Pp
+The long and short forms of options, shown here as alternatives, are equivalent.
+At least one option from the list
+.Op -a,-d,-D,-e,-f,-g,-G,-h,-H,-p,-r,-R,-s,-S,-t,-T,-V,-x
+must be given.
+.Pp
+.Bl -tag -width Ds
+.It  -a
+.It  --archive-header
+If any of the
+.Va objfile
+files are archives, display the archive header information (in a format similar
+to
+.Li ls -l ) .
+Besides the information you could list with
+.Li ar tv ,
+.Li objdump -a
+shows the object file format of each archive member.
+.Pp
+.It  --adjust-vma= Va offset
+When dumping information, first add
+.Va offset
+to all the section addresses. This is useful if the section addresses do not
+correspond to the symbol table, which can happen when putting sections at
+particular addresses when using a format which can not represent section addresses,
+such as a.out.
+.Pp
+.It  -b Va bfdname
+.It  --target= Va bfdname
+Specify that the object-code format for the object files is
+.Va bfdname .
+This option may not be necessary;
+.Va objdump
+can automatically recognize many formats.
+.Pp
+For example,
+.Bd -literal -offset indent
+objdump -b oasys -m vax -h fu.o
+.Ed
+displays summary information from the section headers (
+.Op -h )
+of
+.Pa fu.o ,
+which is explicitly identified (
+.Op -m )
+as a VAX object file in the format produced by Oasys compilers. You can list
+the formats available with the
+.Op -i
+option.See Section
+.Dq Target Selection ,
+for more information.
+.Pp
+.It  -C
+.It  --demangle[= Va style]
+Decode (
+.Em demangle )
+low-level symbol names into user-level names. Besides removing any initial
+underscore prepended by the system, this makes C++ function names readable.
+Different compilers have different mangling styles. The optional demangling
+style argument can be used to choose an appropriate demangling style for your
+compiler.See Section
+.Dq c++filt ,
+for more information on demangling.
+.Pp
+.It  -g
+.It  --debugging
+Display debugging information. This attempts to parse debugging information
+stored in the file and print it out using a C like syntax. Only certain types
+of debugging information have been implemented. Some other types are supported
+by
+.Xr readelf -w .
+See Section.Dq readelf .
+.Pp
+.It  -e
+.It  --debugging-tags
+Like
+.Op -g ,
+but the information is generated in a format compatible with ctags tool.
+.Pp
+.It  -d
+.It  --disassemble
+Display the assembler mnemonics for the machine instructions from
+.Va objfile .
+This option only disassembles those sections which are expected to contain
+instructions.
+.Pp
+.It  -D
+.It  --disassemble-all
+Like
+.Op -d ,
+but disassemble the contents of all sections, not just those expected to contain
+instructions.
+.Pp
+.It  --prefix-addresses
+When disassembling, print the complete address on each line. This is the older
+disassembly format.
+.Pp
+.It  -EB
+.It  -EL
+.It  --endian={big|little}
+Specify the endianness of the object files. This only affects disassembly.
+This can be useful when disassembling a file format which does not describe
+endianness information, such as S-records.
+.Pp
+.It  -f
+.It  --file-headers
+Display summary information from the overall header of each of the
+.Va objfile
+files.
+.Pp
+.It  --file-start-context
+Specify that when displaying interlisted source code/disassembly (assumes
+.Op -S )
+from a file that has not yet been displayed, extend the context to the start
+of the file.
+.Pp
+.It  -h
+.It  --section-headers
+.It  --headers
+Display summary information from the section headers of the object file.
+.Pp
+File segments may be relocated to nonstandard addresses, for example by using
+the
+.Op -Ttext ,
+.Op -Tdata ,
+or
+.Op -Tbss
+options to
+.Xr ld .
+However, some object file formats, such as a.out, do not store the starting
+address of the file segments. In those situations, although
+.Xr ld
+relocates the sections correctly, using
+.Li objdump -h
+to list the file section headers cannot show the correct addresses. Instead,
+it shows the usual addresses, which are implicit for the target.
+.Pp
+.It  -H
+.It  --help
+Print a summary of the options to
+.Xr objdump
+and exit.
+.Pp
+.It  -i
+.It  --info
+Display a list showing all architectures and object formats available for
+specification with
+.Op -b
+or
+.Op -m .
+.Pp
+.It  -j Va name
+.It  --section= Va name
+Display information only for section
+.Va name .
+.Pp
+.It  -l
+.It  --line-numbers
+Label the display (using debugging information) with the filename and source
+line numbers corresponding to the object code or relocs shown. Only useful
+with
+.Op -d ,
+.Op -D ,
+or
+.Op -r .
+.Pp
+.It  -m Va machine
+.It  --architecture= Va machine
+Specify the architecture to use when disassembling object files. This can
+be useful when disassembling object files which do not describe architecture
+information, such as S-records. You can list the available architectures with
+the
+.Op -i
+option.
+.Pp
+.It  -M Va options
+.It  --disassembler-options= Va options
+Pass target specific information to the disassembler. Only supported on some
+targets. If it is necessary to specify more than one disassembler option then
+multiple
+.Op -M
+options can be used or can be placed together into a comma separated list.
+.Pp
+If the target is an ARM architecture then this switch can be used to select
+which register name set is used during disassembler. Specifying
+.Op -M reg-names-std
+(the default) will select the register names as used in ARM's instruction
+set documentation, but with register 13 called 'sp', register 14 called 'lr'
+and register 15 called 'pc'. Specifying
+.Op -M reg-names-apcs
+will select the name set used by the ARM Procedure Call Standard, whilst specifying
+.Op -M reg-names-raw
+will just use
+.Li r
+followed by the register number.
+.Pp
+There are also two variants on the APCS register naming scheme enabled by
+.Op -M reg-names-atpcs
+and
+.Op -M reg-names-special-atpcs
+which use the ARM/Thumb Procedure Call Standard naming conventions. (Either
+with the normal register names or the special register names).
+.Pp
+This option can also be used for ARM architectures to force the disassembler
+to interpret all instructions as Thumb instructions by using the switch
+.Op --disassembler-options=force-thumb .
+This can be useful when attempting to disassemble thumb code produced by other
+compilers.
+.Pp
+For the x86, some of the options duplicate functions of the
+.Op -m
+switch, but allow finer grained control. Multiple selections from the following
+may be specified as a comma separated string.
+.Op x86-64 ,
+.Op i386
+and
+.Op i8086
+select disassembly for the given architecture.
+.Op intel
+and
+.Op att
+select between intel syntax mode and AT&T syntax mode.
+.Op addr64 ,
+.Op addr32 ,
+.Op addr16 ,
+.Op data32
+and
+.Op data16
+specify the default address size and operand size. These four options will
+be overridden if
+.Op x86-64 ,
+.Op i386
+or
+.Op i8086
+appear later in the option string. Lastly,
+.Op suffix ,
+when in AT&T mode, instructs the disassembler to print a mnemonic suffix even
+when the suffix could be inferred by the operands.
+.Pp
+For PPC,
+.Op booke ,
+.Op booke32
+and
+.Op booke64
+select disassembly of BookE instructions.
+.Op 32
+and
+.Op 64
+select PowerPC and PowerPC64 disassembly, respectively.
+.Op e300
+selects disassembly for the e300 family.
+.Op 440
+selects disassembly for the PowerPC 440.
+.Pp
+For MIPS, this option controls the printing of instruction mnemonic names
+and register names in disassembled instructions. Multiple selections from
+the following may be specified as a comma separated string, and invalid options
+are ignored:
+.Pp
+.Bl -tag -width Ds
+.It  no-aliases
+Print the 'raw' instruction mnemonic instead of some pseudo instruction mnemonic.
+I.e., print 'daddu' or 'or' instead of 'move', 'sll' instead of 'nop', etc.
+.Pp
+.It  gpr-names= Va ABI
+Print GPR (general-purpose register) names as appropriate for the specified
+ABI. By default, GPR names are selected according to the ABI of the binary
+being disassembled.
+.Pp
+.It  fpr-names= Va ABI
+Print FPR (floating-point register) names as appropriate for the specified
+ABI. By default, FPR numbers are printed rather than names.
+.Pp
+.It  cp0-names= Va ARCH
+Print CP0 (system control coprocessor; coprocessor 0) register names as appropriate
+for the CPU or architecture specified by
+.Va ARCH .
+By default, CP0 register names are selected according to the architecture
+and CPU of the binary being disassembled.
+.Pp
+.It  hwr-names= Va ARCH
+Print HWR (hardware register, used by the
+.Li rdhwr
+instruction) names as appropriate for the CPU or architecture specified by
+.Va ARCH .
+By default, HWR names are selected according to the architecture and CPU of
+the binary being disassembled.
+.Pp
+.It  reg-names= Va ABI
+Print GPR and FPR names as appropriate for the selected ABI.
+.Pp
+.It  reg-names= Va ARCH
+Print CPU-specific register names (CP0 register and HWR names) as appropriate
+for the selected CPU or architecture.
+.El
+.Pp
+For any of the options listed above,
+.Va ABI
+or
+.Va ARCH
+may be specified as
+.Li numeric
+to have numbers printed rather than names, for the selected types of registers.
+You can list the available values of
+.Va ABI
+and
+.Va ARCH
+using the
+.Op --help
+option.
+.Pp
+For VAX, you can specify function entry addresses with
+.Op -M entry:0xf00ba .
+You can use this multiple times to properly disassemble VAX binary files that
+don't contain symbol tables (like ROM dumps). In these cases, the function
+entry mask would otherwise be decoded as VAX instructions, which would probably
+lead the rest of the function being wrongly disassembled.
+.Pp
+.It  -p
+.It  --private-headers
+Print information that is specific to the object file format. The exact information
+printed depends upon the object file format. For some object file formats,
+no additional information is printed.
+.Pp
+.It  -r
+.It  --reloc
+Print the relocation entries of the file. If used with
+.Op -d
+or
+.Op -D ,
+the relocations are printed interspersed with the disassembly.
+.Pp
+.It  -R
+.It  --dynamic-reloc
+Print the dynamic relocation entries of the file. This is only meaningful
+for dynamic objects, such as certain types of shared libraries.
+.Pp
+.It  -s
+.It  --full-contents
+Display the full contents of any sections requested. By default all non-empty
+sections are displayed.
+.Pp
+.It  -S
+.It  --source
+Display source code intermixed with disassembly, if possible. Implies
+.Op -d .
+.Pp
+.It  --show-raw-insn
+When disassembling instructions, print the instruction in hex as well as in
+symbolic form. This is the default except when
+.Op --prefix-addresses
+is used.
+.Pp
+.It  --no-show-raw-insn
+When disassembling instructions, do not print the instruction bytes. This
+is the default when
+.Op --prefix-addresses
+is used.
+.Pp
+.It  -W
+.It  --dwarf
+Displays the contents of the DWARF debug sections in the file, if any are
+present.
+.Pp
+.It  -G
+.It  --stabs
+Display the full contents of any sections requested. Display the contents
+of the .stab and .stab.index and .stab.excl sections from an ELF file. This
+is only useful on systems (such as Solaris 2.0) in which
+.Li .stab
+debugging symbol-table entries are carried in an ELF section. In most other
+file formats, debugging symbol-table entries are interleaved with linkage
+symbols, and are visible in the
+.Op --syms
+output. For more information on stabs symbols, see Top,Stabs,Stabs Overview,stabs.info,
+The \(lqstabs\(rq debug format.
+.Pp
+.It  --start-address= Va address
+Start displaying data at the specified address. This affects the output of
+the
+.Op -d ,
+.Op -r
+and
+.Op -s
+options.
+.Pp
+.It  --stop-address= Va address
+Stop displaying data at the specified address. This affects the output of
+the
+.Op -d ,
+.Op -r
+and
+.Op -s
+options.
+.Pp
+.It  -t
+.It  --syms
+Print the symbol table entries of the file. This is similar to the information
+provided by the
+.Li nm
+program.
+.Pp
+.It  -T
+.It  --dynamic-syms
+Print the dynamic symbol table entries of the file. This is only meaningful
+for dynamic objects, such as certain types of shared libraries. This is similar
+to the information provided by the
+.Li nm
+program when given the
+.Op -D
+(
+.Op --dynamic )
+option.
+.Pp
+.It  --special-syms
+When displaying symbols include those which the target considers to be special
+in some way and which would not normally be of interest to the user.
+.Pp
+.It  -V
+.It  --version
+Print the version number of
+.Xr objdump
+and exit.
+.Pp
+.It  -x
+.It  --all-headers
+Display all available header information, including the symbol table and relocation
+entries. Using
+.Op -x
+is equivalent to specifying all of
+.Op -a -f -h -p -r -t .
+.Pp
+.It  -w
+.It  --wide
+Format some lines for output devices that have more than 80 columns. Also
+do not truncate symbol names when they are displayed.
+.Pp
+.It  -z
+.It  --disassemble-zeroes
+Normally the disassembly output will skip blocks of zeroes. This option directs
+the disassembler to disassemble those blocks, just like any other data.
+.El
+.Pp
+.Sh  ranlib
+.Bd -literal -offset indent
+ranlib [-vV] archive
+.Ed
+.Pp
+.Xr ranlib
+generates an index to the contents of an archive and stores it in the archive.
+The index lists each symbol defined by a member of an archive that is a relocatable
+object file.
+.Pp
+You may use
+.Li nm -s
+or
+.Li nm --print-armap
+to list this index.
+.Pp
+An archive with such an index speeds up linking to the library and allows
+routines in the library to call each other without regard to their placement
+in the archive.
+.Pp
+The GNU
+.Xr ranlib
+program is another form of GNU
+.Xr ar ;
+running
+.Xr ranlib
+is completely equivalent to executing
+.Li ar -s .
+See Section.Dq ar .
+.Pp
+.Bl -tag -width Ds
+.It  -v
+.It  -V
+.It  --version
+Show the version number of
+.Xr ranlib .
+.El
+.Pp
+.Sh  size
+.Bd -literal -offset indent
+size [-A|-B|--format=compatibility]
+     [--help]
+     [-d|-o|-x|--radix=number]
+     [-t|--totals]
+     [--target=bfdname] [-V|--version]
+     [objfile...]
+.Ed
+.Pp
+The GNU
+.Xr size
+utility lists the section sizes---and the total size---for each of the object
+or archive files
+.Va objfile
+in its argument list. By default, one line of output is generated for each
+object file or each module in an archive.
+.Pp
+.Va objfile
+\&...are the object files to be examined. If none are specified, the file
+.Li a.out
+will be used.
+.Pp
+The command line options have the following meanings:
+.Pp
+.Bl -tag -width Ds
+.It  -A
+.It  -B
+.It  --format= Va compatibility
+Using one of these options, you can choose whether the output from GNU
+.Xr size
+resembles output from System V
+.Xr size
+(using
+.Op -A ,
+or
+.Op --format=sysv ) ,
+or Berkeley
+.Xr size
+(using
+.Op -B ,
+or
+.Op --format=berkeley ) .
+The default is the one-line format similar to Berkeley's.
+.Pp
+Here is an example of the Berkeley (default) format of output from
+.Xr size :
+.Bd -literal -offset indent
+$ size --format=Berkeley ranlib size
+text    data    bss     dec     hex     filename
+294880  81920   11592   388392  5ed28   ranlib
+294880  81920   11888   388688  5ee50   size
+.Ed
+.Pp
+This is the same data, but displayed closer to System V conventions:
+.Pp
+.Bd -literal -offset indent
+$ size --format=SysV ranlib size
+ranlib  :
+section         size         addr
+\&.text         294880         8192
+\&.data          81920       303104
+\&.bss           11592       385024
+Total         388392
+
+
+size  :
+section         size         addr
+\&.text         294880         8192
+\&.data          81920       303104
+\&.bss           11888       385024
+Total         388688
+.Ed
+.Pp
+.It  --help
+Show a summary of acceptable arguments and options.
+.Pp
+.It  -d
+.It  -o
+.It  -x
+.It  --radix= Va number
+Using one of these options, you can control whether the size of each section
+is given in decimal (
+.Op -d ,
+or
+.Op --radix=10 ) ;
+octal (
+.Op -o ,
+or
+.Op --radix=8 ) ;
+or hexadecimal (
+.Op -x ,
+or
+.Op --radix=16 ) .
+In
+.Op --radix= Va number ,
+only the three values (8, 10, 16) are supported. The total size is always
+given in two radices; decimal and hexadecimal for
+.Op -d
+or
+.Op -x
+output, or octal and hexadecimal if you're using
+.Op -o .
+.Pp
+.It  -t
+.It  --totals
+Show totals of all objects listed (Berkeley format listing mode only).
+.Pp
+.It  --target= Va bfdname
+Specify that the object-code format for
+.Va objfile
+is
+.Va bfdname .
+This option may not be necessary;
+.Xr size
+can automatically recognize many formats.See Section
+.Dq Target Selection ,
+for more information.
+.Pp
+.It  -V
+.It  --version
+Display the version number of
+.Xr size .
+.El
+.Pp
+.Sh  strings
+.Bd -literal -offset indent
+strings [-afov] [-min-len]
+        [-n min-len] [--bytes=min-len]
+        [-t radix] [--radix=radix]
+        [-e encoding] [--encoding=encoding]
+        [-] [--all] [--print-file-name]
+        [-T bfdname] [--target=bfdname]
+        [--help] [--version] file...
+.Ed
+.Pp
+For each
+.Va file
+given, GNU
+.Xr strings
+prints the printable character sequences that are at least 4 characters long
+(or the number given with the options below) and are followed by an unprintable
+character. By default, it only prints the strings from the initialized and
+loaded sections of object files; for other types of files, it prints the strings
+from the whole file.
+.Pp
+.Xr strings
+is mainly useful for determining the contents of non-text files.
+.Pp
+.Bl -tag -width Ds
+.It  -a
+.It  --all
+.It  -
+Do not scan only the initialized and loaded sections of object files; scan
+the whole files.
+.Pp
+.It  -f
+.It  --print-file-name
+Print the name of the file before each string.
+.Pp
+.It  --help
+Print a summary of the program usage on the standard output and exit.
+.Pp
+.It  - Va min-len
+.It  -n Va min-len
+.It  --bytes= Va min-len
+Print sequences of characters that are at least
+.Va min-len
+characters long, instead of the default 4.
+.Pp
+.It  -o
+Like
+.Li -t o .
+Some other versions of
+.Xr strings
+have
+.Op -o
+act like
+.Li -t d
+instead. Since we can not be compatible with both ways, we simply chose one.
+.Pp
+.It  -t Va radix
+.It  --radix= Va radix
+Print the offset within the file before each string. The single character
+argument specifies the radix of the offset---
+.Li o
+for octal,
+.Li x
+for hexadecimal, or
+.Li d
+for decimal.
+.Pp
+.It  -e Va encoding
+.It  --encoding= Va encoding
+Select the character encoding of the strings that are to be found. Possible
+values for
+.Va encoding
+are:
+.Li s
+= single-7-bit-byte characters (ASCII, ISO 8859, etc., default),
+.Li S
+= single-8-bit-byte characters,
+.Li b
+= 16-bit bigendian,
+.Li l
+= 16-bit littleendian,
+.Li B
+= 32-bit bigendian,
+.Li L
+= 32-bit littleendian. Useful for finding wide character strings.
+.Pp
+.It  -T Va bfdname
+.It  --target= Va bfdname
+Specify an object code format other than your system's default format.See Section
+.Dq Target Selection ,
+for more information.
+.Pp
+.It  -v
+.It  --version
+Print the program version number on the standard output and exit.
+.El
+.Pp
+.Sh  strip
+.Bd -literal -offset indent
+strip [-F bfdname |--target=bfdname]
+      [-I bfdname |--input-target=bfdname]
+      [-O bfdname |--output-target=bfdname]
+      [-s|--strip-all]
+      [-S|-g|-d|--strip-debug]
+      [-K symbolname |--keep-symbol=symbolname]
+      [-N symbolname |--strip-symbol=symbolname]
+      [-w|--wildcard]
+      [-x|--discard-all] [-X |--discard-locals]
+      [-R sectionname |--remove-section=sectionname]
+      [-o file] [-p|--preserve-dates]
+      [--keep-file-symbols]
+      [--only-keep-debug]
+      [-v |--verbose] [-V|--version]
+      [--help] [--info]
+      objfile...
+.Ed
+.Pp
+GNU
+.Xr strip
+discards all symbols from object files
+.Va objfile .
+The list of object files may include archives. At least one object file must
+be given.
+.Pp
+.Xr strip
+modifies the files named in its argument, rather than writing modified copies
+under different names.
+.Pp
+.Bl -tag -width Ds
+.It  -F Va bfdname
+.It  --target= Va bfdname
+Treat the original
+.Va objfile
+as a file with the object code format
+.Va bfdname ,
+and rewrite it in the same format.See Section
+.Dq Target Selection ,
+for more information.
+.Pp
+.It  --help
+Show a summary of the options to
+.Xr strip
+and exit.
+.Pp
+.It  --info
+Display a list showing all architectures and object formats available.
+.Pp
+.It  -I Va bfdname
+.It  --input-target= Va bfdname
+Treat the original
+.Va objfile
+as a file with the object code format
+.Va bfdname .
+See Section.Dq Target Selection ,
+for more information.
+.Pp
+.It  -O Va bfdname
+.It  --output-target= Va bfdname
+Replace
+.Va objfile
+with a file in the output format
+.Va bfdname .
+See Section.Dq Target Selection ,
+for more information.
+.Pp
+.It  -R Va sectionname
+.It  --remove-section= Va sectionname
+Remove any section named
+.Va sectionname
+from the output file. This option may be given more than once. Note that using
+this option inappropriately may make the output file unusable.
+.Pp
+.It  -s
+.It  --strip-all
+Remove all symbols.
+.Pp
+.It  -g
+.It  -S
+.It  -d
+.It  --strip-debug
+Remove debugging symbols only.
+.Pp
+.It  --strip-unneeded
+Remove all symbols that are not needed for relocation processing.
+.Pp
+.It  -K Va symbolname
+.It  --keep-symbol= Va symbolname
+When stripping symbols, keep symbol
+.Va symbolname
+even if it would normally be stripped. This option may be given more than
+once.
+.Pp
+.It  -N Va symbolname
+.It  --strip-symbol= Va symbolname
+Remove symbol
+.Va symbolname
+from the source file. This option may be given more than once, and may be
+combined with strip options other than
+.Op -K .
+.Pp
+.It  -o Va file
+Put the stripped output in
+.Va file ,
+rather than replacing the existing file. When this argument is used, only
+one
+.Va objfile
+argument may be specified.
+.Pp
+.It  -p
+.It  --preserve-dates
+Preserve the access and modification dates of the file.
+.Pp
+.It  -w
+.It  --wildcard
+Permit regular expressions in
+.Va symbolname
+s used in other command line options. The question mark (?), asterisk (*),
+backslash (\e) and square brackets ([]) operators can be used anywhere in the
+symbol name. If the first character of the symbol name is the exclamation
+point (!) then the sense of the switch is reversed for that symbol. For example:
+.Pp
+.Bd -literal -offset indent
+  -w -K !foo -K fo*
+.Ed
+.Pp
+would cause strip to only keep symbols that start with the letters \(lqfo\(rq, but
+to discard the symbol \(lqfoo\(rq.
+.Pp
+.It  -x
+.It  --discard-all
+Remove non-global symbols.
+.Pp
+.It  -X
+.It  --discard-locals
+Remove compiler-generated local symbols. (These usually start with
+.Li L
+or
+.Li . . )
+.Pp
+.It  --keep-file-symbols
+When stripping a file, perhaps with
+.Op --strip-debug
+or
+.Op --strip-unneeded ,
+retain any symbols specifying source file names, which would otherwise get
+stripped.
+.Pp
+.It  --only-keep-debug
+Strip a file, removing contents of any sections that would not be stripped
+by
+.Op --strip-debug
+and leaving the debugging sections intact. In ELF files, this preserves all
+note sections in the output.
+.Pp
+The intention is that this option will be used in conjunction with
+.Op --add-GNU-debuglink
+to create a two part executable. One a stripped binary which will occupy less
+space in RAM and in a distribution and the second a debugging information
+file which is only needed if debugging abilities are required. The suggested
+procedure to create these files is as follows:
+.Pp
+.Bl -enum
+.It
+Link the executable as normal. Assuming that is is called
+.Li foo
+then...
+.It
+Run
+.Li objcopy --only-keep-debug foo foo.dbg
+to
+create a file containing the debugging info.
+.It
+Run
+.Li objcopy --strip-debug foo
+to create a
+stripped executable.
+.It
+Run
+.Li objcopy --add-GNU-debuglink=foo.dbg foo
+to add a link to the debugging info into the stripped executable.
+.El
+.Pp
+Note - the choice of
+.Li .dbg
+as an extension for the debug info file is arbitrary. Also the
+.Li --only-keep-debug
+step is optional. You could instead do this:
+.Pp
+.Bl -enum
+.It
+Link the executable as normal.
+.It
+Copy
+.Li foo
+to
+.Li foo.full
+.It
+Run
+.Li strip --strip-debug foo
+.It
+Run
+.Li objcopy --add-GNU-debuglink=foo.full foo
+.El
+.Pp
+ie the file pointed to by the
+.Op --add-GNU-debuglink
+can be the full executable. It does not have to be a file created by the
+.Op --only-keep-debug
+switch.
+.Pp
+Note - this switch is only intended for use on fully linked files. It does
+not make sense to use it on object files where the debugging information may
+be incomplete. Besides the GNU_debuglink feature currently only supports the
+presence of one filename containing debugging information, not multiple filenames
+on a one-per-object-file basis.
+.Pp
+.It  -V
+.It  --version
+Show the version number for
+.Xr strip .
+.Pp
+.It  -v
+.It  --verbose
+Verbose output: list all object files modified. In the case of archives,
+.Li strip -v
+lists all members of the archive.
+.El
+.Pp
+.Sh  c++filt
+.Bd -literal -offset indent
+c++filt [-_|--strip-underscores]
+        [-n|--no-strip-underscores]
+        [-p|--no-params]
+        [-t|--types]
+        [-i|--no-verbose]
+        [-s format|--format=format]
+        [--help]  [--version]  [symbol...]
+.Ed
+.Pp
+The C++ and Java languages provide function overloading, which means that
+you can write many functions with the same name, providing that each function
+takes parameters of different types. In order to be able to distinguish these
+similarly named functions C++ and Java encode them into a low-level assembler
+name which uniquely identifies each different version. This process is known
+as
+.Em mangling .
+The
+.Xr c++filt
+program does the inverse mapping: it decodes (
+.Em demangles )
+low-level names into user-level names so that they can be read.
+.Pp
+Every alphanumeric word (consisting of letters, digits, underscores, dollars,
+or periods) seen in the input is a potential mangled name. If the name decodes
+into a C++ name, the C++ name replaces the low-level name in the output, otherwise
+the original word is output. In this way you can pass an entire assembler
+source file, containing mangled names, through
+.Xr c++filt
+and see the same source file containing demangled names.
+.Pp
+You can also use
+.Xr c++filt
+to decipher individual symbols by passing them on the command line:
+.Pp
+.Bd -literal -offset indent
+c++filt symbol
+.Ed
+.Pp
+If no
+.Va symbol
+arguments are given,
+.Xr c++filt
+reads symbol names from the standard input instead. All the results are printed
+on the standard output. The difference between reading names from the command
+line versus reading names from the standard input is that command line arguments
+are expected to be just mangled names and no checking is performed to separate
+them from surrounding text. Thus for example:
+.Pp
+.Bd -literal -offset indent
+c++filt -n _Z1fv
+.Ed
+.Pp
+will work and demangle the name to \(lqf()\(rq whereas:
+.Pp
+.Bd -literal -offset indent
+c++filt -n _Z1fv,
+.Ed
+.Pp
+will not work. (Note the extra comma at the end of the mangled name which
+makes it invalid). This command however will work:
+.Pp
+.Bd -literal -offset indent
+echo _Z1fv, | c++filt -n
+.Ed
+.Pp
+and will display \(lqf(),\(rq ie the demangled name followed by a trailing comma.
+This behaviour is because when the names are read from the standard input
+it is expected that they might be part of an assembler source file where there
+might be extra, extraneous characters trailing after a mangled name. eg:
+.Pp
+.Bd -literal -offset indent
+    .type   _Z1fv, @function
+.Ed
+.Pp
+.Bl -tag -width Ds
+.It  -_
+.It  --strip-underscores
+On some systems, both the C and C++ compilers put an underscore in front of
+every name. For example, the C name
+.Li foo
+gets the low-level name
+.Li _foo .
+This option removes the initial underscore. Whether
+.Xr c++filt
+removes the underscore by default is target dependent.
+.Pp
+.It  -j
+.It  --java
+Prints demangled names using Java syntax. The default is to use C++ syntax.
+.Pp
+.It  -n
+.It  --no-strip-underscores
+Do not remove the initial underscore.
+.Pp
+.It  -p
+.It  --no-params
+When demangling the name of a function, do not display the types of the function's
+parameters.
+.Pp
+.It  -t
+.It  --types
+Attempt to demangle types as well as function names. This is disabled by default
+since mangled types are normally only used internally in the compiler, and
+they can be confused with non-mangled names. eg a function called \(lqa\(rq treated
+as a mangled type name would be demangled to \(lqsigned char\(rq.
+.Pp
+.It  -i
+.It  --no-verbose
+Do not include implementation details (if any) in the demangled output.
+.Pp
+.It  -s Va format
+.It  --format= Va format
+.Xr c++filt
+can decode various methods of mangling, used by different compilers. The argument
+to this option selects which method it uses:
+.Pp
+.Bl -tag -width Ds
+.It  auto
+Automatic selection based on executable (the default method)
+.It  GNU
+the one used by the GNU C++ compiler (g++)
+.It  lucid
+the one used by the Lucid compiler (lcc)
+.It  arm
+the one specified by the C++ Annotated Reference Manual
+.It  hp
+the one used by the HP compiler (aCC)
+.It  edg
+the one used by the EDG compiler
+.It  GNU-v3
+the one used by the GNU C++ compiler (g++) with the V3 ABI.
+.It  java
+the one used by the GNU Java compiler (gcj)
+.It  gnat
+the one used by the GNU Ada compiler (GNAT).
+.El
+.Pp
+.It  --help
+Print a summary of the options to
+.Xr c++filt
+and exit.
+.Pp
+.It  --version
+Print the version number of
+.Xr c++filt
+and exit.
+.El
+.Pp
+.Qo
+.Em Warning:
+.Xr c++filt
+is a new utility, and the details of its user interface are subject to change
+in future releases. In particular, a command-line option may be required in
+the future to decode a name passed as an argument on the command line; in
+other words,
+.Pp
+.Bd -literal -offset indent
+c++filt symbol
+.Ed
+.Pp
+may in a future release become
+.Pp
+.Bd -literal -offset indent
+c++filt option symbol
+.Ed
+.Qc
+.Pp
+.Sh  addr2line
+.Bd -literal -offset indent
+addr2line [-b bfdname|--target=bfdname]
+          [-C|--demangle[=style]]
+          [-e filename|--exe=filename]
+          [-f|--functions] [-s|--basename]
+          [-i|--inlines]
+          [-j|--section=name]
+          [-H|--help] [-V|--version]
+          [addr addr ...]
+.Ed
+.Pp
+.Xr addr2line
+translates addresses into file names and line numbers. Given an address in
+an executable or an offset in a section of a relocatable object, it uses the
+debugging information to figure out which file name and line number are associated
+with it.
+.Pp
+The executable or relocatable object to use is specified with the
+.Op -e
+option. The default is the file
+.Pa a.out .
+The section in the relocatable object to use is specified with the
+.Op -j
+option.
+.Pp
+.Xr addr2line
+has two modes of operation.
+.Pp
+In the first, hexadecimal addresses are specified on the command line, and
+.Xr addr2line
+displays the file name and line number for each address.
+.Pp
+In the second,
+.Xr addr2line
+reads hexadecimal addresses from standard input, and prints the file name
+and line number for each address on standard output. In this mode,
+.Xr addr2line
+may be used in a pipe to convert dynamically chosen addresses.
+.Pp
+The format of the output is
+.Li FILENAME:LINENO .
+The file name and line number for each address is printed on a separate line.
+If the
+.Xr -f
+option is used, then each
+.Li FILENAME:LINENO
+line is preceded by a
+.Li FUNCTIONNAME
+line which is the name of the function containing the address.
+.Pp
+If the file name or function name can not be determined,
+.Xr addr2line
+will print two question marks in their place. If the line number can not be
+determined,
+.Xr addr2line
+will print 0.
+.Pp
+The long and short forms of options, shown here as alternatives, are equivalent.
+.Pp
+.Bl -tag -width Ds
+.It  -b Va bfdname
+.It  --target= Va bfdname
+Specify that the object-code format for the object files is
+.Va bfdname .
+.Pp
+.It  -C
+.It  --demangle[= Va style]
+Decode (
+.Em demangle )
+low-level symbol names into user-level names. Besides removing any initial
+underscore prepended by the system, this makes C++ function names readable.
+Different compilers have different mangling styles. The optional demangling
+style argument can be used to choose an appropriate demangling style for your
+compiler.See Section
+.Dq c++filt ,
+for more information on demangling.
+.Pp
+.It  -e Va filename
+.It  --exe= Va filename
+Specify the name of the executable for which addresses should be translated.
+The default file is
+.Pa a.out .
+.Pp
+.It  -f
+.It  --functions
+Display function names as well as file and line number information.
+.Pp
+.It  -s
+.It  --basenames
+Display only the base of each file name.
+.Pp
+.It  -i
+.It  --inlines
+If the address belongs to a function that was inlined, the source information
+for all enclosing scopes back to the first non-inlined function will also
+be printed. For example, if
+.Li main
+inlines
+.Li callee1
+which inlines
+.Li callee2 ,
+and address is from
+.Li callee2 ,
+the source information for
+.Li callee1
+and
+.Li main
+will also be printed.
+.Pp
+.It  -j
+.It  --section
+Read offsets relative to the specified section instead of absolute addresses.
+.El
+.Pp
+.Sh  nlmconv
+.Xr nlmconv
+converts a relocatable object file into a NetWare Loadable Module.
+.Pp
+.Qo
+.Em Warning:
+.Xr nlmconv
+is not always built as part of the binary utilities, since it is only useful
+for NLM targets.
+.Qc
+.Pp
+.Bd -literal -offset indent
+nlmconv [-I bfdname|--input-target=bfdname]
+        [-O bfdname|--output-target=bfdname]
+        [-T headerfile|--header-file=headerfile]
+        [-d|--debug] [-l linker|--linker=linker]
+        [-h|--help] [-V|--version]
+        infile outfile
+.Ed
+.Pp
+.Xr nlmconv
+converts the relocatable
+.Li i386
+object file
+.Va infile
+into the NetWare Loadable Module
+.Va outfile ,
+optionally reading
+.Va headerfile
+for NLM header information. For instructions on writing the NLM command file
+language used in header files, see the
+.Li linkers
+section,
+.Li NLMLINK
+in particular, of the
+.Em NLM Development and Tools Overview ,
+which is part of the NLM Software Developer's Kit (\(lqNLM SDK\(rq), available from
+Novell, Inc.
+.Xr nlmconv
+uses the GNU Binary File Descriptor library to read
+.Va infile ;
+see BFD,,BFD,ld.info,Using LD, for more information.
+.Pp
+.Xr nlmconv
+can perform a link step. In other words, you can list more than one object
+file for input if you list them in the definitions file (rather than simply
+specifying one input file on the command line). In this case,
+.Xr nlmconv
+calls the linker for you.
+.Pp
+.Bl -tag -width Ds
+.It  -I Va bfdname
+.It  --input-target= Va bfdname
+Object format of the input file.
+.Xr nlmconv
+can usually determine the format of a given file (so no default is necessary).See Section
+.Dq Target Selection ,
+for more information.
+.Pp
+.It  -O Va bfdname
+.It  --output-target= Va bfdname
+Object format of the output file.
+.Xr nlmconv
+infers the output format based on the input format, e.g. for a
+.Li i386
+input file the output format is
+.Li nlm32-i386 .
+See Section.Dq Target Selection ,
+for more information.
+.Pp
+.It  -T Va headerfile
+.It  --header-file= Va headerfile
+Reads
+.Va headerfile
+for NLM header information. For instructions on writing the NLM command file
+language used in header files, see see the
+.Li linkers
+section, of the
+.Em NLM Development and Tools Overview ,
+which is part of the NLM Software Developer's Kit, available from Novell,
+Inc.
+.Pp
+.It  -d
+.It  --debug
+Displays (on standard error) the linker command line used by
+.Xr nlmconv .
+.Pp
+.It  -l Va linker
+.It  --linker= Va linker
+Use
+.Va linker
+for any linking.
+.Va linker
+can be an absolute or a relative pathname.
+.Pp
+.It  -h
+.It  --help
+Prints a usage summary.
+.Pp
+.It  -V
+.It  --version
+Prints the version number for
+.Xr nlmconv .
+.El
+.Pp
+.Sh  windmc
+.Xr windmc
+may be used to generator Windows message resources.
+.Pp
+.Qo
+.Em Warning:
+.Xr windmc
+is not always built as part of the binary utilities, since it is only useful
+for Windows targets.
+.Qc
+.Pp
+.Bd -literal -offset indent
+windmc [options] input-file
+.Ed
+.Pp
+.Xr windmc
+reads message definitions from an input file (.mc) and translate them into
+a set of output files. The output files may be of four kinds:
+.Pp
+.Bl -tag -width Ds
+.It  h
+A C header file containing the message definitions.
+.Pp
+.It  rc
+A resource file compilable by the
+.Xr windres
+tool.
+.Pp
+.It  bin
+One or more binary files containing the resource data for a specific message
+language.
+.Pp
+.It  dbg
+A C include file that maps message id's to their symbolic name.
+.El
+.Pp
+The exact description of these different formats is available in documentation
+from Microsoft.
+.Pp
+When
+.Xr windmc
+converts from the
+.Li mc
+format to the
+.Li bin
+format,
+.Li rc ,
+.Li h ,
+and optional
+.Li dbg
+it is acting like the Windows Message Compiler.
+.Pp
+.Bl -tag -width Ds
+.It  -a
+.It  --ascii_in
+Specifies that the input file specified is ANSI. This is the default behaviour.
+.Pp
+.It  -A
+.It  --ascii_out
+Specifies that messages in the output
+.Li bin
+files should be in ANSI format.
+.Pp
+.It  -b
+.It  --binprefix
+Specifies that
+.Li bin
+filenames should have to be prefixed by the basename of the source file.
+.Pp
+.It  -c
+.It  --customflag
+Sets the customer bit in all message id's.
+.Pp
+.It  -C Va codepage
+.It  --codepage_in Va codepage
+Sets the default codepage to be used to convert input file to UTF16. The default
+is ocdepage 1252.
+.Pp
+.It  -d
+.It  --decimal_values
+Outputs the constants in the header file in decimal. Default is using hexadecimal
+output.
+.Pp
+.It  -e Va ext
+.It  --extension Va ext
+The extension for the header file. The default is .h extension.
+.Pp
+.It  -F Va target
+.It  --target Va target
+Specify the BFD format to use for a bin file as output. This is a BFD target
+name; you can use the
+.Op --help
+option to see a list of supported targets. Normally
+.Xr windmc
+will use the default format, which is the first one listed by the
+.Op --help
+option. Target Selection.
+.Pp
+.It  -h Va path
+.It  --headerdir Va path
+The target directory of the generated header file. The default is the current
+directory.
+.Pp
+.It  -H
+.It  --help
+Displays a list of command line options and then exits.
+.Pp
+.It  -m Va characters
+.It  --maxlength Va characters
+Instructs
+.Xr windmc
+to generate a warning if the length of any message exceeds the number specified.
+.Pp
+.It  -n
+.It  --nullterminate
+Terminate message text in
+.Li bin
+files by zero. By default they are terminated by CR/LF.
+.Pp
+.It  -o
+.It  --hresult_use
+Not yet implemented. Instructs
+.Li windmc
+to generate an OLE2 header file, using HRESULT definitions. Status codes are
+used if the flag is not specified.
+.Pp
+.It  -O Va codepage
+.It  --codepage_out Va codepage
+Sets the default codepage to be used to output text files. The default is
+ocdepage 1252.
+.Pp
+.It  -r Va path
+.It  --rcdir Va path
+The target directory for the generated
+.Li rc
+script and the generated
+.Li bin
+files that the resource compiler script includes. The default is the current
+directory.
+.Pp
+.It  -u
+.It  --unicode_in
+Specifies that the input file is UTF16.
+.Pp
+.It  -U
+.It  --unicode_out
+Specifies that messages in the output
+.Li bin
+file should be in UTF16 format. This is the default behaviour.
+.Pp
+.It  -v
+.It  --verbose
+Enable verbose mode. This tells you what the preprocessor is if you didn't
+specify one.
+.Pp
+.It  -V
+.It  --version
+Prints the version number for
+.Xr windres .
+.Pp
+.It  -x Va path
+.It  --xdgb Va path
+The path of the
+.Li dbg
+C include file that maps message id's to the symbolic name. No such file is
+generated without specifying the switch.
+.El
+.Pp
+.Sh  windres
+.Xr windres
+may be used to manipulate Windows resources.
+.Pp
+.Qo
+.Em Warning:
+.Xr windres
+is not always built as part of the binary utilities, since it is only useful
+for Windows targets.
+.Qc
+.Pp
+.Bd -literal -offset indent
+windres [options] [input-file] [output-file]
+.Ed
+.Pp
+.Xr windres
+reads resources from an input file and copies them into an output file. Either
+file may be in one of three formats:
+.Pp
+.Bl -tag -width Ds
+.It  rc
+A text format read by the Resource Compiler.
+.Pp
+.It  res
+A binary format generated by the Resource Compiler.
+.Pp
+.It  coff
+A COFF object or executable.
+.El
+.Pp
+The exact description of these different formats is available in documentation
+from Microsoft.
+.Pp
+When
+.Xr windres
+converts from the
+.Li rc
+format to the
+.Li res
+format, it is acting like the Windows Resource Compiler. When
+.Xr windres
+converts from the
+.Li res
+format to the
+.Li coff
+format, it is acting like the Windows
+.Li CVTRES
+program.
+.Pp
+When
+.Xr windres
+generates an
+.Li rc
+file, the output is similar but not identical to the format expected for the
+input. When an input
+.Li rc
+file refers to an external filename, an output
+.Li rc
+file will instead include the file contents.
+.Pp
+If the input or output format is not specified,
+.Xr windres
+will guess based on the file name, or, for the input file, the file contents.
+A file with an extension of
+.Pa .rc
+will be treated as an
+.Li rc
+file, a file with an extension of
+.Pa .res
+will be treated as a
+.Li res
+file, and a file with an extension of
+.Pa .o
+or
+.Pa .exe
+will be treated as a
+.Li coff
+file.
+.Pp
+If no output file is specified,
+.Xr windres
+will print the resources in
+.Li rc
+format to standard output.
+.Pp
+The normal use is for you to write an
+.Li rc
+file, use
+.Xr windres
+to convert it to a COFF object file, and then link the COFF file into your
+application. This will make the resources described in the
+.Li rc
+file available to Windows.
+.Pp
+.Bl -tag -width Ds
+.It  -i Va filename
+.It  --input Va filename
+The name of the input file. If this option is not used, then
+.Xr windres
+will use the first non-option argument as the input file name. If there are
+no non-option arguments, then
+.Xr windres
+will read from standard input.
+.Xr windres
+can not read a COFF file from standard input.
+.Pp
+.It  -o Va filename
+.It  --output Va filename
+The name of the output file. If this option is not used, then
+.Xr windres
+will use the first non-option argument, after any used for the input file
+name, as the output file name. If there is no non-option argument, then
+.Xr windres
+will write to standard output.
+.Xr windres
+can not write a COFF file to standard output. Note, for compatibility with
+.Xr rc
+the option
+.Op -fo
+is also accepted, but its use is not recommended.
+.Pp
+.It  -J Va format
+.It  --input-format Va format
+The input format to read.
+.Va format
+may be
+.Li res ,
+.Li rc ,
+or
+.Li coff .
+If no input format is specified,
+.Xr windres
+will guess, as described above.
+.Pp
+.It  -O Va format
+.It  --output-format Va format
+The output format to generate.
+.Va format
+may be
+.Li res ,
+.Li rc ,
+or
+.Li coff .
+If no output format is specified,
+.Xr windres
+will guess, as described above.
+.Pp
+.It  -F Va target
+.It  --target Va target
+Specify the BFD format to use for a COFF file as input or output. This is
+a BFD target name; you can use the
+.Op --help
+option to see a list of supported targets. Normally
+.Xr windres
+will use the default format, which is the first one listed by the
+.Op --help
+option. Target Selection.
+.Pp
+.It  --preprocessor Va program
+When
+.Xr windres
+reads an
+.Li rc
+file, it runs it through the C preprocessor first. This option may be used
+to specify the preprocessor to use, including any leading arguments. The default
+preprocessor argument is
+.Li gcc -E -xc-header -DRC_INVOKED .
+.Pp
+.It  -I Va directory
+.It  --include-dir Va directory
+Specify an include directory to use when reading an
+.Li rc
+file.
+.Xr windres
+will pass this to the preprocessor as an
+.Op -I
+option.
+.Xr windres
+will also search this directory when looking for files named in the
+.Li rc
+file. If the argument passed to this command matches any of the supported
+.Va formats
+(as described in the
+.Op -J
+option), it will issue a deprecation warning, and behave just like the
+.Op -J
+option. New programs should not use this behaviour. If a directory happens
+to match a
+.Va format ,
+simple prefix it with
+.Li ./
+to disable the backward compatibility.
+.Pp
+.It  -D Va target
+.It  --define Va sym[= Va val]
+Specify a
+.Op -D
+option to pass to the preprocessor when reading an
+.Li rc
+file.
+.Pp
+.It  -U Va target
+.It  --undefine Va sym
+Specify a
+.Op -U
+option to pass to the preprocessor when reading an
+.Li rc
+file.
+.Pp
+.It  -r
+Ignored for compatibility with rc.
+.Pp
+.It  -v
+Enable verbose mode. This tells you what the preprocessor is if you didn't
+specify one.
+.Pp
+.It  -c Va val
+.It  --codepage Va val
+Specify the default codepage to use when reading an
+.Li rc
+file.
+.Va val
+should be a hexadecimal prefixed by
+.Li 0x
+or decimal codepage code. The valid range is from zero up to 0xffff, but the
+validity of the codepage is host and configuration dependent.
+.Pp
+.It  -l Va val
+.It  --language Va val
+Specify the default language to use when reading an
+.Li rc
+file.
+.Va val
+should be a hexadecimal language code. The low eight bits are the language,
+and the high eight bits are the sublanguage.
+.Pp
+.It  --use-temp-file
+Use a temporary file to instead of using popen to read the output of the preprocessor.
+Use this option if the popen implementation is buggy on the host (eg., certain
+non-English language versions of Windows 95 and Windows 98 are known to have
+buggy popen where the output will instead go the console).
+.Pp
+.It  --no-use-temp-file
+Use popen, not a temporary file, to read the output of the preprocessor. This
+is the default behaviour.
+.Pp
+.It  -h
+.It  --help
+Prints a usage summary.
+.Pp
+.It  -V
+.It  --version
+Prints the version number for
+.Xr windres .
+.Pp
+.It  --yydebug
+If
+.Xr windres
+is compiled with
+.Li YYDEBUG
+defined as
+.Li 1 ,
+this will turn on parser debugging.
+.El
+.Pp
+.Sh  dlltool
+.Xr dlltool
+is used to create the files needed to create dynamic link libraries (DLLs)
+on systems which understand PE format image files such as Windows. A DLL contains
+an export table which contains information that the runtime loader needs to
+resolve references from a referencing program.
+.Pp
+The export table is generated by this program by reading in a
+.Pa .def
+file or scanning the
+.Pa .a
+and
+.Pa .o
+files which will be in the DLL. A
+.Pa .o
+file can contain information in special
+.Li .drectve
+sections with export information.
+.Pp
+.Qo
+.Em Note:
+.Xr dlltool
+is not always built as part of the binary utilities, since it is only useful
+for those targets which support DLLs.
+.Qc
+.Pp
+.Bd -literal -offset indent
+dlltool [-d|--input-def def-file-name]
+        [-b|--base-file base-file-name]
+        [-e|--output-exp exports-file-name]
+        [-z|--output-def def-file-name]
+        [-l|--output-lib library-file-name]
+        [--export-all-symbols] [--no-export-all-symbols]
+        [--exclude-symbols list]
+        [--no-default-excludes]
+        [-S|--as path-to-assembler] [-f|--as-flags options]
+        [-D|--dllname name] [-m|--machine machine]
+        [-a|--add-indirect]
+        [-U|--add-underscore] [--add-stdcall-underscore]
+        [-k|--kill-at] [-A|--add-stdcall-alias]
+        [-p|--ext-prefix-alias prefix]
+        [-x|--no-idata4] [-c|--no-idata5] [-i|--interwork]
+        [-n|--nodelete] [-t|--temp-prefix prefix]
+        [-v|--verbose]
+        [-h|--help] [-V|--version]
+        [object-file ...]
+.Ed
+.Pp
+.Xr dlltool
+reads its inputs, which can come from the
+.Op -d
+and
+.Op -b
+options as well as object files specified on the command line. It then processes
+these inputs and if the
+.Op -e
+option has been specified it creates a exports file. If the
+.Op -l
+option has been specified it creates a library file and if the
+.Op -z
+option has been specified it creates a def file. Any or all of the
+.Op -e ,
+.Op -l
+and
+.Op -z
+options can be present in one invocation of dlltool.
+.Pp
+When creating a DLL, along with the source for the DLL, it is necessary to
+have three other files.
+.Xr dlltool
+can help with the creation of these files.
+.Pp
+The first file is a
+.Pa .def
+file which specifies which functions are exported from the DLL, which functions
+the DLL imports, and so on. This is a text file and can be created by hand,
+or
+.Xr dlltool
+can be used to create it using the
+.Op -z
+option. In this case
+.Xr dlltool
+will scan the object files specified on its command line looking for those
+functions which have been specially marked as being exported and put entries
+for them in the
+.Pa .def
+file it creates.
+.Pp
+In order to mark a function as being exported from a DLL, it needs to have
+an
+.Op -export:<name_of_function>
+entry in the
+.Li .drectve
+section of the object file. This can be done in C by using the asm() operator:
+.Pp
+.Bd -literal -offset indent
+  asm (".section .drectve");
+  asm (".ascii \e"-export:my_func\e"");
+
+  int my_func (void) { ... }
+.Ed
+.Pp
+The second file needed for DLL creation is an exports file. This file is linked
+with the object files that make up the body of the DLL and it handles the
+interface between the DLL and the outside world. This is a binary file and
+it can be created by giving the
+.Op -e
+option to
+.Xr dlltool
+when it is creating or reading in a
+.Pa .def
+file.
+.Pp
+The third file needed for DLL creation is the library file that programs will
+link with in order to access the functions in the DLL. This file can be created
+by giving the
+.Op -l
+option to dlltool when it is creating or reading in a
+.Pa .def
+file.
+.Pp
+.Xr dlltool
+builds the library file by hand, but it builds the exports file by creating
+temporary files containing assembler statements and then assembling these.
+The
+.Op -S
+command line option can be used to specify the path to the assembler that
+dlltool will use, and the
+.Op -f
+option can be used to pass specific flags to that assembler. The
+.Op -n
+can be used to prevent dlltool from deleting these temporary assembler files
+when it is done, and if
+.Op -n
+is specified twice then this will prevent dlltool from deleting the temporary
+object files it used to build the library.
+.Pp
+Here is an example of creating a DLL from a source file
+.Li dll.c
+and also creating a program (from an object file called
+.Li program.o )
+that uses that DLL:
+.Pp
+.Bd -literal -offset indent
+  gcc -c dll.c
+  dlltool -e exports.o -l dll.lib dll.o
+  gcc dll.o exports.o -o dll.dll
+  gcc program.o dll.lib -o program
+.Ed
+.Pp
+The command line options have the following meanings:
+.Pp
+.Bl -tag -width Ds
+.It  -d Va filename
+.It  --input-def Va filename
+Specifies the name of a
+.Pa .def
+file to be read in and processed.
+.Pp
+.It  -b Va filename
+.It  --base-file Va filename
+Specifies the name of a base file to be read in and processed. The contents
+of this file will be added to the relocation section in the exports file generated
+by dlltool.
+.Pp
+.It  -e Va filename
+.It  --output-exp Va filename
+Specifies the name of the export file to be created by dlltool.
+.Pp
+.It  -z Va filename
+.It  --output-def Va filename
+Specifies the name of the
+.Pa .def
+file to be created by dlltool.
+.Pp
+.It  -l Va filename
+.It  --output-lib Va filename
+Specifies the name of the library file to be created by dlltool.
+.Pp
+.It  --export-all-symbols
+Treat all global and weak defined symbols found in the input object files
+as symbols to be exported. There is a small list of symbols which are not
+exported by default; see the
+.Op --no-default-excludes
+option. You may add to the list of symbols to not export by using the
+.Op --exclude-symbols
+option.
+.Pp
+.It  --no-export-all-symbols
+Only export symbols explicitly listed in an input
+.Pa .def
+file or in
+.Li .drectve
+sections in the input object files. This is the default behaviour. The
+.Li .drectve
+sections are created by
+.Li dllexport
+attributes in the source code.
+.Pp
+.It  --exclude-symbols Va list
+Do not export the symbols in
+.Va list .
+This is a list of symbol names separated by comma or colon characters. The
+symbol names should not contain a leading underscore. This is only meaningful
+when
+.Op --export-all-symbols
+is used.
+.Pp
+.It  --no-default-excludes
+When
+.Op --export-all-symbols
+is used, it will by default avoid exporting certain special symbols. The current
+list of symbols to avoid exporting is
+.Li DllMain@12 ,
+.Li DllEntryPoint@0 ,
+.Li impure_ptr .
+You may use the
+.Op --no-default-excludes
+option to go ahead and export these special symbols. This is only meaningful
+when
+.Op --export-all-symbols
+is used.
+.Pp
+.It  -S Va path
+.It  --as Va path
+Specifies the path, including the filename, of the assembler to be used to
+create the exports file.
+.Pp
+.It  -f Va options
+.It  --as-flags Va options
+Specifies any specific command line options to be passed to the assembler
+when building the exports file. This option will work even if the
+.Op -S
+option is not used. This option only takes one argument, and if it occurs
+more than once on the command line, then later occurrences will override earlier
+occurrences. So if it is necessary to pass multiple options to the assembler
+they should be enclosed in double quotes.
+.Pp
+.It  -D Va name
+.It  --dll-name Va name
+Specifies the name to be stored in the
+.Pa .def
+file as the name of the DLL when the
+.Op -e
+option is used. If this option is not present, then the filename given to
+the
+.Op -e
+option will be used as the name of the DLL.
+.Pp
+.It  -m Va machine
+.It  -machine Va machine
+Specifies the type of machine for which the library file should be built.
+.Xr dlltool
+has a built in default type, depending upon how it was created, but this option
+can be used to override that. This is normally only useful when creating DLLs
+for an ARM processor, when the contents of the DLL are actually encode using
+Thumb instructions.
+.Pp
+.It  -a
+.It  --add-indirect
+Specifies that when
+.Xr dlltool
+is creating the exports file it should add a section which allows the exported
+functions to be referenced without using the import library. Whatever the
+hell that means!
+.Pp
+.It  -U
+.It  --add-underscore
+Specifies that when
+.Xr dlltool
+is creating the exports file it should prepend an underscore to the names
+of
+.Em all
+exported symbols.
+.Pp
+.It  --add-stdcall-underscore
+Specifies that when
+.Xr dlltool
+is creating the exports file it should prepend an underscore to the names
+of exported
+.Em stdcall
+functions. Variable names and non-stdcall function names are not modified.
+This option is useful when creating GNU-compatible import libs for third party
+DLLs that were built with MS-Windows tools.
+.Pp
+.It  -k
+.It  --kill-at
+Specifies that when
+.Xr dlltool
+is creating the exports file it should not append the string
+.Li @ <number> .
+These numbers are called ordinal numbers and they represent another way of
+accessing the function in a DLL, other than by name.
+.Pp
+.It  -A
+.It  --add-stdcall-alias
+Specifies that when
+.Xr dlltool
+is creating the exports file it should add aliases for stdcall symbols without
+.Li @ <number>
+in addition to the symbols with
+.Li @ <number> .
+.Pp
+.It  -p
+.It  --ext-prefix-alias Va prefix
+Causes
+.Xr dlltool
+to create external aliases for all DLL imports with the specified prefix.
+The aliases are created for both external and import symbols with no leading
+underscore.
+.Pp
+.It  -x
+.It  --no-idata4
+Specifies that when
+.Xr dlltool
+is creating the exports and library files it should omit the
+.Li .idata4
+section. This is for compatibility with certain operating systems.
+.Pp
+.It  -c
+.It  --no-idata5
+Specifies that when
+.Xr dlltool
+is creating the exports and library files it should omit the
+.Li .idata5
+section. This is for compatibility with certain operating systems.
+.Pp
+.It  -i
+.It  --interwork
+Specifies that
+.Xr dlltool
+should mark the objects in the library file and exports file that it produces
+as supporting interworking between ARM and Thumb code.
+.Pp
+.It  -n
+.It  --nodelete
+Makes
+.Xr dlltool
+preserve the temporary assembler files it used to create the exports file.
+If this option is repeated then dlltool will also preserve the temporary object
+files it uses to create the library file.
+.Pp
+.It  -t Va prefix
+.It  --temp-prefix Va prefix
+Makes
+.Xr dlltool
+use
+.Va prefix
+when constructing the names of temporary assembler and object files. By default,
+the temp file prefix is generated from the pid.
+.Pp
+.It  -v
+.It  --verbose
+Make dlltool describe what it is doing.
+.Pp
+.It  -h
+.It  --help
+Displays a list of command line options and then exits.
+.Pp
+.It  -V
+.It  --version
+Displays dlltool's version number and then exits.
+.Pp
+.El
+.Ss  The format of the Xr dlltool Pa .def file
+A
+.Pa .def
+file contains any number of the following commands:
+.Pp
+.Bl -tag -width Ds
+.It  Li NAME Va name Li [ , Va base Li ]
+The result is going to be named
+.Va name
+.Li .exe .
+.Pp
+.It  Li LIBRARY Va name Li [ , Va base Li ]
+The result is going to be named
+.Va name
+.Li .dll .
+.Pp
+.It  Li EXPORTS ( ( ( Va name1 Li [ = Va name2 Li ] ) | ( Va name1 Li = Va module-name Li . Va external-name Li ) )
+.It  Li [ Va integer Li ] [ NONAME ] [ CONSTANT ] [ DATA ] [ PRIVATE ] ) *
+Declares
+.Va name1
+as an exported symbol from the DLL, with optional ordinal number
+.Va integer ,
+or declares
+.Va name1
+as an alias (forward) of the function
+.Va external-name
+in the DLL
+.Va module-name .
+.Pp
+.It  Li IMPORTS ( ( Va internal-name Li = Va module-name Li . Va integer Li ) | [ Va internal-name Li = ] Va module-name Li . Va external-name Li ) ) *
+Declares that
+.Va external-name
+or the exported function whose ordinal number is
+.Va integer
+is to be imported from the file
+.Va module-name .
+If
+.Va internal-name
+is specified then this is the name that the imported function will be referred
+to in the body of the DLL.
+.Pp
+.It  Li DESCRIPTION Va string
+Puts
+.Va string
+into the output
+.Pa .exp
+file in the
+.Li .rdata
+section.
+.Pp
+.It  Li STACKSIZE Va number-reserve Li [, Va number-commit Li ]
+.It  Li HEAPSIZE Va number-reserve Li [, Va number-commit Li ]
+Generates
+.Li --stack
+or
+.Li --heap
+.Va number-reserve
+,
+.Va number-commit
+in the output
+.Li .drectve
+section. The linker will see this and act upon it.
+.Pp
+.It  Li CODE Va attr Li +
+.It  Li DATA Va attr Li +
+.It  Li SECTIONS ( Va section-name Va attr Li  + ) *
+Generates
+.Li --attr
+.Va section-name
+.Va attr
+in the output
+.Li .drectve
+section, where
+.Va attr
+is one of
+.Li READ ,
+.Li WRITE ,
+.Li EXECUTE
+or
+.Li SHARED .
+The linker will see this and act upon it.
+.Pp
+.El
+.Sh  readelf
+.Bd -literal -offset indent
+readelf [-a|--all]
+        [-h|--file-header]
+        [-l|--program-headers|--segments]
+        [-S|--section-headers|--sections]
+        [-g|--section-groups]
+        [-t|--section-details]
+        [-e|--headers]
+        [-s|--syms|--symbols]
+        [-n|--notes]
+        [-r|--relocs]
+        [-u|--unwind]
+        [-d|--dynamic]
+        [-V|--version-info]
+        [-A|--arch-specific]
+        [-D|--use-dynamic]
+        [-x <number or name>|--hex-dump=<number or name>]
+        [-w[liaprmfFsoR]|
+         --debug-dump[=line,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=loc,=Ranges]]
+        [-I|-histogram]
+        [-v|--version]
+        [-W|--wide]
+        [-H|--help]
+        elffile...
+.Ed
+.Pp
+.Xr readelf
+displays information about one or more ELF format object files. The options
+control what particular information to display.
+.Pp
+.Va elffile
+\&...are the object files to be examined. 32-bit and 64-bit ELF files are supported,
+as are archives containing ELF files.
+.Pp
+This program performs a similar function to
+.Xr objdump
+but it goes into more detail and it exists independently of the bfd library,
+so if there is a bug in bfd then readelf will not be affected.
+.Pp
+The long and short forms of options, shown here as alternatives, are equivalent.
+At least one option besides
+.Li -v
+or
+.Li -H
+must be given.
+.Pp
+.Bl -tag -width Ds
+.It  -a
+.It  --all
+Equivalent to specifying
+.Op --file-header ,
+.Op --program-headers ,
+.Op --sections ,
+.Op --symbols ,
+.Op --relocs ,
+.Op --dynamic ,
+.Op --notes
+and
+.Op --version-info .
+.Pp
+.It  -h
+.It  --file-header
+Displays the information contained in the ELF header at the start of the file.
+.Pp
+.It  -l
+.It  --program-headers
+.It  --segments
+Displays the information contained in the file's segment headers, if it has
+any.
+.Pp
+.It  -S
+.It  --sections
+.It  --section-headers
+Displays the information contained in the file's section headers, if it has
+any.
+.Pp
+.It  -g
+.It  --section-groups
+Displays the information contained in the file's section groups, if it has
+any.
+.Pp
+.It  -t
+.It  --section-details
+Displays the detailed section information. Implies
+.Op -S .
+.Pp
+.It  -s
+.It  --symbols
+.It  --syms
+Displays the entries in symbol table section of the file, if it has one.
+.Pp
+.It  -e
+.It  --headers
+Display all the headers in the file. Equivalent to
+.Op -h -l -S .
+.Pp
+.It  -n
+.It  --notes
+Displays the contents of the NOTE segments and/or sections, if any.
+.Pp
+.It  -r
+.It  --relocs
+Displays the contents of the file's relocation section, if it has one.
+.Pp
+.It  -u
+.It  --unwind
+Displays the contents of the file's unwind section, if it has one. Only the
+unwind sections for IA64 ELF files are currently supported.
+.Pp
+.It  -d
+.It  --dynamic
+Displays the contents of the file's dynamic section, if it has one.
+.Pp
+.It  -V
+.It  --version-info
+Displays the contents of the version sections in the file, it they exist.
+.Pp
+.It  -A
+.It  --arch-specific
+Displays architecture-specific information in the file, if there is any.
+.Pp
+.It  -D
+.It  --use-dynamic
+When displaying symbols, this option makes
+.Xr readelf
+use the symbol table in the file's dynamic section, rather than the one in
+the symbols section.
+.Pp
+.It  -x <number or name>
+.It  --hex-dump=<number or name>
+Displays the contents of the indicated section as a hexadecimal dump. A number
+identifies a particular section by index in the section table; any other string
+identifies all sections with that name in the object file.
+.Pp
+.It  -w[liaprmfFsoR]
+.It  --debug-dump[=line,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=loc,=Ranges]
+Displays the contents of the debug sections in the file, if any are present.
+If one of the optional letters or words follows the switch then only data
+found in those specific sections will be dumped.
+.Pp
+.It  -I
+.It  --histogram
+Display a histogram of bucket list lengths when displaying the contents of
+the symbol tables.
+.Pp
+.It  -v
+.It  --version
+Display the version number of readelf.
+.Pp
+.It  -W
+.It  --wide
+Don't break output lines to fit into 80 columns. By default
+.Xr readelf
+breaks section header and segment listing lines for 64-bit ELF files, so that
+they fit into 80 columns. This option causes
+.Xr readelf
+to print each section header resp. each segment one a single line, which is
+far more readable on terminals wider than 80 columns.
+.Pp
+.It  -H
+.It  --help
+Display the command line options understood by
+.Xr readelf .
+.Pp
+.El
+.Sh  Common Options
+The following command-line options are supported by all of the programs described
+in this manual.
+.Pp
+.Bl -tag -width Ds
+.It  @ Va file
+Read command-line options from
+.Va file .
+The options read are inserted in place of the original @
+.Va file
+option. If
+.Va file
+does not exist, or cannot be read, then the option will be treated literally,
+and not removed.
+.Pp
+Options in
+.Va file
+are separated by whitespace. A whitespace character may be included in an
+option by surrounding the entire option in either single or double quotes.
+Any character (including a backslash) may be included by prefixing the character
+to be included with a backslash. The
+.Va file
+may itself contain additional @
+.Va file
+options; any such options will be processed recursively.
+.Pp
+.It  --help
+Display the command-line options supported by the program.
+.Pp
+.It  --version
+Display the version number of the program.
+.Pp
+.El
+.Sh  Selecting the Target System
+You can specify two aspects of the target system to the GNU binary file utilities,
+each in several ways:
+.Pp
+.Bl -bullet
+.It
+the target
+.Pp
+.It
+the architecture
+.El
+.Pp
+In the following summaries, the lists of ways to specify values are in order
+of decreasing precedence. The ways listed first override those listed later.
+.Pp
+The commands to list valid values only list the values for which the programs
+you are running were configured. If they were configured with
+.Op --enable-targets=all ,
+the commands list most of the available values, but a few are left out; not
+all targets can be configured in at once because some of them can only be
+configured
+.Em native
+(on hosts with the same type as the target system).
+.Pp
+.Ss  Target Selection
+A
+.Em target
+is an object file format. A given target may be supported for multiple architectures
+(see Section
+.Dq Architecture Selection ) .
+A target selection may also have variations for different operating systems
+or architectures.
+.Pp
+The command to list valid target values is
+.Li objdump -i
+(the first column of output contains the relevant information).
+.Pp
+Some sample values are:
+.Li a.out-hp300bsd ,
+.Li ecoff-littlemips ,
+.Li a.out-sunos-big .
+.Pp
+You can also specify a target using a configuration triplet. This is the same
+sort of name that is passed to
+.Pa configure
+to specify a target. When you use a configuration triplet as an argument,
+it must be fully canonicalized. You can see the canonical version of a triplet
+by running the shell script
+.Pa config.sub
+which is included with the sources.
+.Pp
+Some sample configuration triplets are:
+.Li m68k-hp-bsd ,
+.Li mips-dec-ultrix ,
+.Li sparc-sun-sunos .
+.Pp
+.Em  Xr objdump Target
+.Pp
+Ways to specify:
+.Pp
+.Bl -enum
+.It
+command line option:
+.Op -b
+or
+.Op --target
+.Pp
+.It
+environment variable
+.Li GNUTARGET
+.Pp
+.It
+deduced from the input file
+.El
+.Pp
+.Em  Xr objcopy and Xr strip Input Target
+.Pp
+Ways to specify:
+.Pp
+.Bl -enum
+.It
+command line options:
+.Op -I
+or
+.Op --input-target ,
+or
+.Op -F
+or
+.Op --target
+.Pp
+.It
+environment variable
+.Li GNUTARGET
+.Pp
+.It
+deduced from the input file
+.El
+.Pp
+.Em  Xr objcopy and Xr strip Output Target
+.Pp
+Ways to specify:
+.Pp
+.Bl -enum
+.It
+command line options:
+.Op -O
+or
+.Op --output-target ,
+or
+.Op -F
+or
+.Op --target
+.Pp
+.It
+the input target (see \(lq
+.Xr objcopy
+and
+.Xr strip
+Input Target\(rq above)
+.Pp
+.It
+environment variable
+.Li GNUTARGET
+.Pp
+.It
+deduced from the input file
+.El
+.Pp
+.Em  Xr nm, Xr size, and Xr strings Target
+.Pp
+Ways to specify:
+.Pp
+.Bl -enum
+.It
+command line option:
+.Op --target
+.Pp
+.It
+environment variable
+.Li GNUTARGET
+.Pp
+.It
+deduced from the input file
+.El
+.Pp
+.Ss  Architecture Selection
+An
+.Em architecture
+is a type of cpu on which an object file is to run. Its name may contain a
+colon, separating the name of the processor family from the name of the particular
+cpu.
+.Pp
+The command to list valid architecture values is
+.Li objdump -i
+(the second column contains the relevant information).
+.Pp
+Sample values:
+.Li m68k:68020 ,
+.Li mips:3000 ,
+.Li sparc .
+.Pp
+.Em  Xr objdump Architecture
+.Pp
+Ways to specify:
+.Pp
+.Bl -enum
+.It
+command line option:
+.Op -m
+or
+.Op --architecture
+.Pp
+.It
+deduced from the input file
+.El
+.Pp
+.Em  Xr objcopy, Xr nm, Xr size, Xr strings Architecture
+.Pp
+Ways to specify:
+.Pp
+.Bl -enum
+.It
+deduced from the input file
+.El
+.Pp
+.Sh  Reporting Bugs
+Your bug reports play an essential role in making the binary utilities reliable.
+.Pp
+Reporting a bug may help you by bringing a solution to your problem, or it
+may not. But in any case the principal function of a bug report is to help
+the entire community by making the next version of the binary utilities work
+better. Bug reports are your contribution to their maintenance.
+.Pp
+In order for a bug report to serve its purpose, you must include the information
+that enables us to fix the bug.
+.Pp
+.Ss  Have You Found a Bug?
+If you are not sure whether you have found a bug, here are some guidelines:
+.Pp
+.Bl -bullet
+.It
+If a binary utility gets a fatal signal, for any input whatever, that is a
+bug. Reliable utilities never crash.
+.Pp
+.It
+If a binary utility produces an error message for valid input, that is a bug.
+.Pp
+.It
+If you are an experienced user of binary utilities, your suggestions for improvement
+are welcome in any case.
+.El
+.Pp
+.Ss  How to Report Bugs
+A number of companies and individuals offer support for GNU products. If you
+obtained the binary utilities from a support organization, we recommend you
+contact that organization first.
+.Pp
+You can find contact information for many support companies and individuals
+in the file
+.Pa etc/SERVICE
+in the GNU Emacs distribution.
+.Pp
+The fundamental principle of reporting bugs usefully is this:
+.Sy report all the facts .
+If you are not sure whether to state a fact or leave it out, state it!
+.Pp
+Often people omit facts because they think they know what causes the problem
+and assume that some details do not matter. Thus, you might assume that the
+name of a file you use in an example does not matter. Well, probably it does
+not, but one cannot be sure. Perhaps the bug is a stray memory reference which
+happens to fetch from the location where that pathname is stored in memory;
+perhaps, if the pathname were different, the contents of that location would
+fool the utility into doing the right thing despite the bug. Play it safe
+and give a specific, complete example. That is the easiest thing for you to
+do, and the most helpful.
+.Pp
+Keep in mind that the purpose of a bug report is to enable us to fix the bug
+if it is new to us. Therefore, always write your bug reports on the assumption
+that the bug has not been reported previously.
+.Pp
+Sometimes people give a few sketchy facts and ask, \(lqDoes this ring a bell?\(rq
+This cannot help us fix a bug, so it is basically useless. We respond by asking
+for enough details to enable us to investigate. You might as well expedite
+matters by sending them to begin with.
+.Pp
+To enable us to fix the bug, you should include all these things:
+.Pp
+.Bl -bullet
+.It
+The version of the utility. Each utility announces it if you start it with
+the
+.Op --version
+argument.
+.Pp
+Without this, we will not know whether there is any point in looking for the
+bug in the current version of the binary utilities.
+.Pp
+.It
+Any patches you may have applied to the source, including any patches made
+to the
+.Li BFD
+library.
+.Pp
+.It
+The type of machine you are using, and the operating system name and version
+number.
+.Pp
+.It
+What compiler (and its version) was used to compile the utilities---e.g. \(lq
+.Li gcc-2.7
+\(rq\&.
+.Pp
+.It
+The command arguments you gave the utility to observe the bug. To guarantee
+you will not omit something important, list them all. A copy of the Makefile
+(or the output from make) is sufficient.
+.Pp
+If we were to try to guess the arguments, we would probably guess wrong and
+then we might not encounter the bug.
+.Pp
+.It
+A complete input file, or set of input files, that will reproduce the bug.
+If the utility is reading an object file or files, then it is generally most
+helpful to send the actual object files.
+.Pp
+If the source files were produced exclusively using GNU programs (e.g.,
+.Xr gcc ,
+.Xr gas ,
+and/or the GNU
+.Xr ld ) ,
+then it may be OK to send the source files rather than the object files. In
+this case, be sure to say exactly what version of
+.Xr gcc ,
+or whatever, was used to produce the object files. Also say how
+.Xr gcc ,
+or whatever, was configured.
+.Pp
+.It
+A description of what behavior you observe that you believe is incorrect.
+For example, \(lqIt gets a fatal signal.\(rq
+.Pp
+Of course, if the bug is that the utility gets a fatal signal, then we will
+certainly notice it. But if the bug is incorrect output, we might not notice
+unless it is glaringly wrong. You might as well not give us a chance to make
+a mistake.
+.Pp
+Even if the problem you experience is a fatal signal, you should still say
+so explicitly. Suppose something strange is going on, such as your copy of
+the utility is out of sync, or you have encountered a bug in the C library
+on your system. (This has happened!) Your copy might crash and ours would
+not. If you told us to expect a crash, then when ours fails to crash, we would
+know that the bug was not happening for us. If you had not told us to expect
+a crash, then we would not be able to draw any conclusion from our observations.
+.Pp
+.It
+If you wish to suggest changes to the source, send us context diffs, as generated
+by
+.Xr diff
+with the
+.Op -u ,
+.Op -c ,
+or
+.Op -p
+option. Always send diffs from the old file to the new file. If you wish to
+discuss something in the
+.Xr ld
+source, refer to it by context, not by line number.
+.Pp
+The line numbers in our development sources will not match those in your sources.
+Your line numbers would convey no useful information to us.
+.El
+.Pp
+Here are some things that are not necessary:
+.Pp
+.Bl -bullet
+.It
+A description of the envelope of the bug.
+.Pp
+Often people who encounter a bug spend a lot of time investigating which changes
+to the input file will make the bug go away and which changes will not affect
+it.
+.Pp
+This is often time consuming and not very useful, because the way we will
+find the bug is by running a single example under the debugger with breakpoints,
+not by pure deduction from a series of examples. We recommend that you save
+your time for something else.
+.Pp
+Of course, if you can find a simpler example to report
+.Em instead
+of the original one, that is a convenience for us. Errors in the output will
+be easier to spot, running under the debugger will take less time, and so
+on.
+.Pp
+However, simplification is not vital; if you do not want to do this, report
+the bug anyway and send us the entire test case you used.
+.Pp
+.It
+A patch for the bug.
+.Pp
+A patch for the bug does help us if it is a good one. But do not omit the
+necessary information, such as the test case, on the assumption that a patch
+is all we need. We might see problems with your patch and decide to fix the
+problem another way, or we might not understand it at all.
+.Pp
+Sometimes with programs as complicated as the binary utilities it is very
+hard to construct an example that will make the program follow a certain path
+through the code. If you do not send us the example, we will not be able to
+construct one, so we will not be able to verify that the bug is fixed.
+.Pp
+And if we cannot understand what bug you are trying to fix, or why your patch
+should be an improvement, we will not install it. A test case will help us
+to understand.
+.Pp
+.It
+A guess about what the bug is or what it depends on.
+.Pp
+Such guesses are usually wrong. Even we cannot guess right about such things
+without first using the debugger to find the facts.
+.El
+.Pp
+.Sh  GNU Free Documentation License
+.Bd -filled -offset indent
+Copyright (C) 2000, 2003 Free Software Foundation, Inc. 51 Franklin Street,
+Fifth Floor, Boston, MA 02110-1301 USA
+.Pp
+Everyone is permitted to copy and distribute verbatim copies of this license
+document, but changing it is not allowed.
+.Ed
+.Pp
+.Bl -enum
+.It
+PREAMBLE
+.Pp
+The purpose of this License is to make a manual, textbook, or other written
+document \(lqfree\(rq in the sense of freedom: to assure everyone the effective freedom
+to copy and redistribute it, with or without modifying it, either commercially
+or noncommercially. Secondarily, this License preserves for the author and
+publisher a way to get credit for their work, while not being considered responsible
+for modifications made by others.
+.Pp
+This License is a kind of \(lqcopyleft\(rq, which means that derivative works of the
+document must themselves be free in the same sense. It complements the GNU
+General Public License, which is a copyleft license designed for free software.
+.Pp
+We have designed this License in order to use it for manuals for free software,
+because free software needs free documentation: a free program should come
+with manuals providing the same freedoms that the software does. But this
+License is not limited to software manuals; it can be used for any textual
+work, regardless of subject matter or whether it is published as a printed
+book. We recommend this License principally for works whose purpose is instruction
+or reference.
+.Pp
+.It
+APPLICABILITY AND DEFINITIONS
+.Pp
+This License applies to any manual or other work that contains a notice placed
+by the copyright holder saying it can be distributed under the terms of this
+License. The \(lqDocument\(rq, below, refers to any such manual or work. Any member
+of the public is a licensee, and is addressed as \(lqyou.\(rq
+.Pp
+A \(lqModified Version\(rq of the Document means any work containing the Document
+or a portion of it, either copied verbatim, or with modifications and/or translated
+into another language.
+.Pp
+A \(lqSecondary Section\(rq is a named appendix or a front-matter section of the Document
+that deals exclusively with the relationship of the publishers or authors
+of the Document to the Document's overall subject (or to related matters)
+and contains nothing that could fall directly within that overall subject.
+(For example, if the Document is in part a textbook of mathematics, a Secondary
+Section may not explain any mathematics.) The relationship could be a matter
+of historical connection with the subject or with related matters, or of legal,
+commercial, philosophical, ethical or political position regarding them.
+.Pp
+The \(lqInvariant Sections\(rq are certain Secondary Sections whose titles are designated,
+as being those of Invariant Sections, in the notice that says that the Document
+is released under this License.
+.Pp
+The \(lqCover Texts\(rq are certain short passages of text that are listed, as Front-Cover
+Texts or Back-Cover Texts, in the notice that says that the Document is released
+under this License.
+.Pp
+A \(lqTransparent\(rq copy of the Document means a machine-readable copy, represented
+in a format whose specification is available to the general public, whose
+contents can be viewed and edited directly and straightforwardly with generic
+text editors or (for images composed of pixels) generic paint programs or
+(for drawings) some widely available drawing editor, and that is suitable
+for input to text formatters or for automatic translation to a variety of
+formats suitable for input to text formatters. A copy made in an otherwise
+Transparent file format whose markup has been designed to thwart or discourage
+subsequent modification by readers is not Transparent. A copy that is not
+\(lqTransparent\(rq is called \(lqOpaque.\(rq
+.Pp
+Examples of suitable formats for Transparent copies include plain ASCII without
+markup, Texinfo input format, LaTeX input format, SGML or XML using a publicly
+available DTD, and standard-conforming simple HTML designed for human modification.
+Opaque formats include PostScript, PDF, proprietary formats that can be read
+and edited only by proprietary word processors, SGML or XML for which the
+DTD and/or processing tools are not generally available, and the machine-generated
+HTML produced by some word processors for output purposes only.
+.Pp
+The \(lqTitle Page\(rq means, for a printed book, the title page itself, plus such
+following pages as are needed to hold, legibly, the material this License
+requires to appear in the title page. For works in formats which do not have
+any title page as such, \(lqTitle Page\(rq means the text near the most prominent
+appearance of the work's title, preceding the beginning of the body of the
+text.
+.Pp
+.It
+VERBATIM COPYING
+.Pp
+You may copy and distribute the Document in any medium, either commercially
+or noncommercially, provided that this License, the copyright notices, and
+the license notice saying this License applies to the Document are reproduced
+in all copies, and that you add no other conditions whatsoever to those of
+this License. You may not use technical measures to obstruct or control the
+reading or further copying of the copies you make or distribute. However,
+you may accept compensation in exchange for copies. If you distribute a large
+enough number of copies you must also follow the conditions in section 3.
+.Pp
+You may also lend copies, under the same conditions stated above, and you
+may publicly display copies.
+.Pp
+.It
+COPYING IN QUANTITY
+.Pp
+If you publish printed copies of the Document numbering more than 100, and
+the Document's license notice requires Cover Texts, you must enclose the copies
+in covers that carry, clearly and legibly, all these Cover Texts: Front-Cover
+Texts on the front cover, and Back-Cover Texts on the back cover. Both covers
+must also clearly and legibly identify you as the publisher of these copies.
+The front cover must present the full title with all words of the title equally
+prominent and visible. You may add other material on the covers in addition.
+Copying with changes limited to the covers, as long as they preserve the title
+of the Document and satisfy these conditions, can be treated as verbatim copying
+in other respects.
+.Pp
+If the required texts for either cover are too voluminous to fit legibly,
+you should put the first ones listed (as many as fit reasonably) on the actual
+cover, and continue the rest onto adjacent pages.
+.Pp
+If you publish or distribute Opaque copies of the Document numbering more
+than 100, you must either include a machine-readable Transparent copy along
+with each Opaque copy, or state in or with each Opaque copy a publicly-accessible
+computer-network location containing a complete Transparent copy of the Document,
+free of added material, which the general network-using public has access
+to download anonymously at no charge using public-standard network protocols.
+If you use the latter option, you must take reasonably prudent steps, when
+you begin distribution of Opaque copies in quantity, to ensure that this Transparent
+copy will remain thus accessible at the stated location until at least one
+year after the last time you distribute an Opaque copy (directly or through
+your agents or retailers) of that edition to the public.
+.Pp
+It is requested, but not required, that you contact the authors of the Document
+well before redistributing any large number of copies, to give them a chance
+to provide you with an updated version of the Document.
+.Pp
+.It
+MODIFICATIONS
+.Pp
+You may copy and distribute a Modified Version of the Document under the conditions
+of sections 2 and 3 above, provided that you release the Modified Version
+under precisely this License, with the Modified Version filling the role of
+the Document, thus licensing distribution and modification of the Modified
+Version to whoever possesses a copy of it. In addition, you must do these
+things in the Modified Version:
+.Pp
+A. Use in the Title Page (and on the covers, if any) a title distinct from
+that of the Document, and from those of previous versions (which should, if
+there were any, be listed in the History section of the Document). You may
+use the same title as a previous version if the original publisher of that
+version gives permission.  B. List on the Title Page, as authors, one or more
+persons or entities responsible for authorship of the modifications in the
+Modified Version, together with at least five of the principal authors of
+the Document (all of its principal authors, if it has less than five).  C.
+State on the Title page the name of the publisher of the Modified Version,
+as the publisher.  D. Preserve all the copyright notices of the Document. 
+E. Add an appropriate copyright notice for your modifications adjacent to
+the other copyright notices.  F. Include, immediately after the copyright
+notices, a license notice giving the public permission to use the Modified
+Version under the terms of this License, in the form shown in the Addendum
+below.  G. Preserve in that license notice the full lists of Invariant Sections
+and required Cover Texts given in the Document's license notice.  H. Include
+an unaltered copy of this License.  I. Preserve the section entitled \(lqHistory\(rq,
+and its title, and add to it an item stating at least the title, year, new
+authors, and publisher of the Modified Version as given on the Title Page.
+If there is no section entitled \(lqHistory\(rq in the Document, create one stating
+the title, year, authors, and publisher of the Document as given on its Title
+Page, then add an item describing the Modified Version as stated in the previous
+sentence.  J. Preserve the network location, if any, given in the Document
+for public access to a Transparent copy of the Document, and likewise the
+network locations given in the Document for previous versions it was based
+on. These may be placed in the \(lqHistory\(rq section. You may omit a network location
+for a work that was published at least four years before the Document itself,
+or if the original publisher of the version it refers to gives permission. 
+K. In any section entitled \(lqAcknowledgements\(rq or \(lqDedications\(rq, preserve the section's
+title, and preserve in the section all the substance and tone of each of the
+contributor acknowledgements and/or dedications given therein.  L. Preserve
+all the Invariant Sections of the Document, unaltered in their text and in
+their titles. Section numbers or the equivalent are not considered part of
+the section titles.  M. Delete any section entitled \(lqEndorsements.\(rq Such a section
+may not be included in the Modified Version.  N. Do not retitle any existing
+section as \(lqEndorsements\(rq or to conflict in title with any Invariant Section. 
+.Pp
+If the Modified Version includes new front-matter sections or appendices that
+qualify as Secondary Sections and contain no material copied from the Document,
+you may at your option designate some or all of these sections as invariant.
+To do this, add their titles to the list of Invariant Sections in the Modified
+Version's license notice. These titles must be distinct from any other section
+titles.
+.Pp
+You may add a section entitled \(lqEndorsements\(rq, provided it contains nothing
+but endorsements of your Modified Version by various parties--for example,
+statements of peer review or that the text has been approved by an organization
+as the authoritative definition of a standard.
+.Pp
+You may add a passage of up to five words as a Front-Cover Text, and a passage
+of up to 25 words as a Back-Cover Text, to the end of the list of Cover Texts
+in the Modified Version. Only one passage of Front-Cover Text and one of Back-Cover
+Text may be added by (or through arrangements made by) any one entity. If
+the Document already includes a cover text for the same cover, previously
+added by you or by arrangement made by the same entity you are acting on behalf
+of, you may not add another; but you may replace the old one, on explicit
+permission from the previous publisher that added the old one.
+.Pp
+The author(s) and publisher(s) of the Document do not by this License give
+permission to use their names for publicity for or to assert or imply endorsement
+of any Modified Version.
+.Pp
+.It
+COMBINING DOCUMENTS
+.Pp
+You may combine the Document with other documents released under this License,
+under the terms defined in section 4 above for modified versions, provided
+that you include in the combination all of the Invariant Sections of all of
+the original documents, unmodified, and list them all as Invariant Sections
+of your combined work in its license notice.
+.Pp
+The combined work need only contain one copy of this License, and multiple
+identical Invariant Sections may be replaced with a single copy. If there
+are multiple Invariant Sections with the same name but different contents,
+make the title of each such section unique by adding at the end of it, in
+parentheses, the name of the original author or publisher of that section
+if known, or else a unique number. Make the same adjustment to the section
+titles in the list of Invariant Sections in the license notice of the combined
+work.
+.Pp
+In the combination, you must combine any sections entitled \(lqHistory\(rq in the
+various original documents, forming one section entitled \(lqHistory\(rq; likewise
+combine any sections entitled \(lqAcknowledgements\(rq, and any sections entitled
+\(lqDedications.\(rq You must delete all sections entitled \(lqEndorsements.\(rq
+.Pp
+.It
+COLLECTIONS OF DOCUMENTS
+.Pp
+You may make a collection consisting of the Document and other documents released
+under this License, and replace the individual copies of this License in the
+various documents with a single copy that is included in the collection, provided
+that you follow the rules of this License for verbatim copying of each of
+the documents in all other respects.
+.Pp
+You may extract a single document from such a collection, and distribute it
+individually under this License, provided you insert a copy of this License
+into the extracted document, and follow this License in all other respects
+regarding verbatim copying of that document.
+.Pp
+.It
+AGGREGATION WITH INDEPENDENT WORKS
+.Pp
+A compilation of the Document or its derivatives with other separate and independent
+documents or works, in or on a volume of a storage or distribution medium,
+does not as a whole count as a Modified Version of the Document, provided
+no compilation copyright is claimed for the compilation. Such a compilation
+is called an \(lqaggregate\(rq, and this License does not apply to the other self-contained
+works thus compiled with the Document, on account of their being thus compiled,
+if they are not themselves derivative works of the Document.
+.Pp
+If the Cover Text requirement of section 3 is applicable to these copies of
+the Document, then if the Document is less than one quarter of the entire
+aggregate, the Document's Cover Texts may be placed on covers that surround
+only the Document within the aggregate. Otherwise they must appear on covers
+around the whole aggregate.
+.Pp
+.It
+TRANSLATION
+.Pp
+Translation is considered a kind of modification, so you may distribute translations
+of the Document under the terms of section 4. Replacing Invariant Sections
+with translations requires special permission from their copyright holders,
+but you may include translations of some or all Invariant Sections in addition
+to the original versions of these Invariant Sections. You may include a translation
+of this License provided that you also include the original English version
+of this License. In case of a disagreement between the translation and the
+original English version of this License, the original English version will
+prevail.
+.Pp
+.It
+TERMINATION
+.Pp
+You may not copy, modify, sublicense, or distribute the Document except as
+expressly provided for under this License. Any other attempt to copy, modify,
+sublicense or distribute the Document is void, and will automatically terminate
+your rights under this License. However, parties who have received copies,
+or rights, from you under this License will not have their licenses terminated
+so long as such parties remain in full compliance.
+.Pp
+.It
+FUTURE REVISIONS OF THIS LICENSE
+.Pp
+The Free Software Foundation may publish new, revised versions of the GNU
+Free Documentation License from time to time. Such new versions will be similar
+in spirit to the present version, but may differ in detail to address new
+problems or concerns. See http://www.gnu.org/copyleft/.
+.Pp
+Each version of the License is given a distinguishing version number. If the
+Document specifies that a particular numbered version of this License \(lqor any
+later version\(rq applies to it, you have the option of following the terms and
+conditions either of that specified version or of any later version that has
+been published (not as a draft) by the Free Software Foundation. If the Document
+does not specify a version number of this License, you may choose any version
+ever published (not as a draft) by the Free Software Foundation.
+.Pp
+.El
+.Ss  ADDENDUM: How to use this License for your documents
+To use this License in a document you have written, include a copy of the
+License in the document and put the following copyright and license notices
+just after the title page:
+.Pp
+.Bd -literal -offset indent
+
+Copyright (C)  year  your name.
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1
+or any later version published by the Free Software Foundation;
+with the Invariant Sections being list their titles, with the
+Front-Cover Texts being list, and with the Back-Cover Texts being list.
+A copy of the license is included in the section entitled "GNU
+Free Documentation License."
+
+.Ed
+.Pp
+If you have no Invariant Sections, write \(lqwith no Invariant Sections\(rq instead
+of saying which ones are invariant. If you have no Front-Cover Texts, write
+\(lqno Front-Cover Texts\(rq instead of \(lqFront-Cover Texts being
+.Va list
+\(rq; likewise for Back-Cover Texts.
+.Pp
+If your document contains nontrivial examples of program code, we recommend
+releasing these examples in parallel under your choice of free software license,
+such as the GNU General Public License, to permit their use in free software.
+.Pp
+.Sh  Binutils Index

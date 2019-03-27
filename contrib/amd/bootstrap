@@ -1,0 +1,64 @@
+#!/bin/sh
+#set -x
+# helps bootstrapping am-utils, when checked out from CVS
+# requires GNU autoconf and GNU automake
+# this is not meant to go into the distributions
+# Erez Zadok <ezk@cs.columbia.edu>
+
+validateversion() {
+    local v="$(autoreconf --version 2>&1 | head -1)"
+    case "$v" in
+    *2.69)	;;
+    *)		echo "am-utils requires autoconf 2.69, you have:"
+		echo "	$v"
+		exit 1;;
+    esac
+}
+
+# test cwd
+test -f ../amd/amd.c && cd ..
+if [ ! -f amd/amd.c ]; then
+    echo "Must run $0 from the top level source directory."
+    exit 1
+fi
+
+# validate macros directory and some macro files
+if [ ! -d m4/macros ]; then
+    echo No m4/macros directory found!
+    exit 1
+fi
+if [ ! -f m4/macros/HEADER ]; then
+    echo No m4/macros/HEADER file found!
+    exit 1
+fi
+
+# remove any remaining autom4te.cache directory
+rm -fr autom4te.cache autom4te-*.cache
+
+# generate acinclude.m4 file
+echo "AMU: prepare acinclude.m4..."
+test -f acinclude.m4 && mv -f acinclude.m4 acinclude.m4.old
+(cd m4/macros
+ for i in HEADER *.m4; do
+     cat $i
+     echo
+     echo
+ done
+ cat TRAILER
+) > acinclude.m4
+
+# generate the rest of the scripts
+echo "AMU: autoreconf..."
+validateversion
+if autoreconf -f -i; then
+    :
+else
+    echo "autoreconf command failed.  fix errors and rerun $0."
+    exit 2
+fi
+
+# save timestamp
+echo "AMU: save timestamp..."
+echo timestamp > stamp-h.in
+
+exit 0

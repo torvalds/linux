@@ -1,0 +1,17 @@
+This is a more complete test
+<<<<<<< 1
+which multiple lines
+and a few typ0s to fix
+||||||| 2
+which multiple lines
+and a few typos to fix
+=======
+and a few typ0s to fix
+>>>>>>> 3
+also I plan to add few lines
+<<<<<<< 2
+New line
+=======
+>>>>>>> 3
+    and to remove
+other lines

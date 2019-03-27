@@ -1,0 +1,223 @@
+.\" Hey, Emacs, edit this file in -*- nroff-fill -*- mode!
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)tt01	8.1 (Berkeley) 6/8/93
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.NH
+Introduction
+.tr ^.
+.PP
+.UL troff
+[1]
+is a text-formatting program,
+written originally by J. F. Ossanna,
+for producing
+high-quality printed output from the phototypesetter
+on the
+.UC UNIX
+operating system.
+This document is an example of
+.UL troff
+output.
+.PP
+The single most important rule
+of using
+.UL troff
+is
+not to use it directly, but through some intermediary.
+In many ways,
+.UL troff
+resembles an assembly language _
+a remarkably powerful and flexible one _
+but nonetheless such that many operations must be specified
+at a level of detail and in a form that is too hard 
+for most people to use effectively.
+.PP
+For two special applications, there are programs that provide
+an interface to
+.UL troff
+for the majority of users.
+.UL eqn 
+[2]
+provides an easy to learn language for typesetting mathematics;
+the 
+.UL eqn
+user
+need know no 
+.UL troff
+whatsoever
+to typeset mathematics.
+.UL tbl
+[3]
+provides the same convenience for producing tables of arbitrary
+complexity.
+.PP
+For producing straight text (which may well contain mathematics or tables), there are a number of `macro packages'
+that define formatting rules and operations for specific styles
+of documents,
+and reduce the amount of
+direct contact with 
+.UL troff .
+In particular, the `\-ms'
+[4], 
+PWB/MM [5], and `\-me' [6]
+packages
+for internal memoranda and external papers
+provide most of the facilities needed
+for a wide range of document preparation.\(dg
+.FS
+\(dg Most Berkeley Unix sites only have \-ms and \-me.
+.FE
+(This memo was prepared with `\-ms'.)
+There are also packages for viewgraphs,
+for simulating the older
+.UL roff
+formatters,
+and for other special applications.
+Typically you will find these packages easier to use
+than
+.UL troff
+once you get beyond the most trivial operations;
+you should always consider them first.
+.PP
+In the few cases where existing packages don't do the whole job,
+the solution is
+.ul
+not
+to write an entirely new set of
+.UL troff
+instructions from scratch, but to make small changes
+to adapt packages that already exist.
+.WS
+.PP
+In accordance with this philosophy of letting someone else
+do the work,
+the part of
+.UL troff
+described here is only a small part of the whole,
+although it tries to concentrate on the more useful parts.
+In any case, there is no attempt to be complete.
+Rather, the emphasis is on showing how to do simple things,
+and how to make incremental changes to what already exists.
+The contents of the remaining sections are:
+.sp
+.nf
+.in .1i
+.ta .3i
+\02.	Point sizes and line spacing
+\03.	Fonts and special characters
+\04.	Indents and line length
+\05.	Tabs
+\06.	Local motions: Drawing lines and characters
+\07.	Strings
+\08.	Introduction to macros
+\09.	Titles, pages and numbering
+10.	Number registers and arithmetic
+11.	Macros with arguments
+12.	Conditionals
+13.	Environments
+14.	Diversions
+	Appendix: Typesetter character set
+.sp
+.in 0
+.fi
+The
+.UL troff
+described here is the C-language version supplied with 
+.UC UNIX
+Version 7 and 32V as documented in [1].
+.WS
+.PP
+To use
+.UL troff
+you have to prepare not only the actual text you want printed,
+but some information that tells
+.ul
+how
+you want it printed.
+(Readers who use
+.UL roff
+will find the approach familiar.)
+For
+.UL troff
+the text
+and
+the formatting information are often intertwined quite intimately.
+Most commands to
+.UL troff
+are placed on a line separate from the text itself,
+beginning with a period (one command per line).
+For example,
+.P1
+Some text.
+^ps 14
+Some more text.
+.P2
+will change the `point size',
+that is,
+the size of the letters being printed,
+to `14 point' (one point is 1/72 inch) like this:
+.P1
+.fi
+Some text.
+.ps 14
+Some more text.
+.ps 10
+.P2
+.PP
+Occasionally, though,
+something special occurs in the middle of a line _
+to produce
+.P1
+Area = \(*p\fIr\fR\|\s8\u2\d\s0
+.P2
+you have to type
+.P1
+Area = \e(*p\efIr\efR\e\^|\^\es8\eu2\ed\es0
+.P2
+(which we will explain shortly).
+The backslash character
+.BD  \e 
+is used 
+to introduce
+.UL troff
+commands and special characters within a line of text.

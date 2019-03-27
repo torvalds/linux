@@ -1,0 +1,37 @@
+#! /bin/sh
+
+# $FreeBSD$
+
+for F in \
+	choose-temp.c	\
+	cp-demangle.c	\
+	cplus-dem.c	\
+	dyn-string.c	\
+	getopt.c	\
+	getopt1.c	\
+	getpwd.c	\
+	hashtab.c	\
+	lbasename.c	\
+	md5.c		\
+	obstack.c	\
+	partition.c	\
+	pexecute.c	\
+	splay-tree.c
+do
+	cp -ip ../libiberty/$F .
+done
+
+for F in \
+	ansidecl.h	\
+	demangle.h	\
+	dyn-string.h	\
+	getopt.h	\
+	hashtab.h	\
+	libiberty.h	\
+	obstack.h	\
+	partition.h	\
+	splay-tree.h	\
+	symcat.h
+do
+	cp -ip ../include/$F .
+done

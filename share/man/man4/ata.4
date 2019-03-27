@@ -1,0 +1,254 @@
+.\" Copyright (c) 2011 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 23, 2015
+.Dt ATA 4
+.Os
+.Sh NAME
+.Nm ata
+.Nd generic ATA/SATA controller driver
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device ata"
+.Ed
+.Pp
+Alternatively, to load the driver as set of modules at boot time,
+place some of the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ata_load="YES"
+
+atacard_load="YES"
+ataisa_load="YES"
+atapci_load="YES"
+
+ataacard_load="YES"
+ataacerlabs_load="YES"
+ataamd_load="YES"
+ataati_load="YES"
+atacenatek_load="YES"
+atacypress_load="YES"
+atacyrix_load="YES"
+atahighpoint_load="YES"
+ataintel_load="YES"
+ataite_load="YES"
+atajmicron_load="YES"
+atamarvell_load="YES"
+atamicron_load="YES"
+atanational_load="YES"
+atanetcell_load="YES"
+atanvidia_load="YES"
+atapromise_load="YES"
+ataserverworks_load="YES"
+atasiliconimage_load="YES"
+atasis_load="YES"
+atavia_load="YES"
+.Ed
+.Pp
+The first line is for the common hardware independent code, and is a
+prerequisite for the other modules.
+The next three lines are generic bus-specific drivers.
+The rest are vendor-specific PCI drivers.
+.Pp
+The following tunables are settable from the
+.Xr loader 8 :
+.Bl -ohang
+.It Va hw.ata.ata_dma_check_80pin
+set to 0 to disable the 80pin cable check (the default is 1, check the cable).
+.It Va hint.atapci.X.msi
+set to 1 to allow Message Signalled Interrupts (MSI) to be used by the
+specified PCI ATA controller, if supported.
+.It Va hint.ata.X.devX.mode
+limits the initial ATA mode for the specified device on the specified channel.
+.It Va hint.ata.X.mode
+limits the initial ATA mode for every device on the specified channel.
+.It Va hint.ata.X.pm_level
+controls SATA interface Power Management for the specified channel,
+allowing some power savings at the cost of additional command latency.
+Possible values:
+.Pp
+.Bl -tag -width 4n -offset indent -compact
+.It 0
+Interface Power Management is disabled.
+This is the default value.
+.It 1
+The device is allowed to initiate a PM state change; the host is passive.
+.El
+.It Va hint.ata. Ns Ar X Ns Va .dev Ns Ar X Ns Va .sata_rev
+limits the initial SATA revision (speed) for the specified device
+on the specified channel.
+Values 1, 2 and 3 are respectively 1.5, 3 and 6Gbps.
+.It Va hint.ata. Ns Ar X Ns Va .sata_rev
+Same, but for every device on the specified channel.
+.El
+.Sh DESCRIPTION
+The
+.Nm
+driver gives the
+.Xr CAM 4
+subsystem access to the ATA (IDE) and SATA ports
+of many generic controllers.
+Depending on the controller, each PATA (IDE)
+port or each one or two SATA ports are
+represented to CAM as a separate bus with one or two targets.
+Most of the bus-management details are handled by the ATA/SATA-specific
+transport of CAM.
+Connected ATA disks are handled by the ATA protocol disk peripheral driver
+.Xr ada 4 .
+ATAPI devices are handled by the SCSI protocol peripheral drivers
+.Xr cd 4 ,
+.Xr da 4 ,
+.Xr sa 4 ,
+etc.
+.Pp
+This driver supports ATA, and for the most of controllers, ATAPI devices.
+Command queuing and SATA port multipliers are not supported.
+Device hot-plug and SATA interface power management is supported only on
+some controllers.
+.Pp
+The
+.Nm
+driver can change the transfer mode when the system is up and running.
+See the
+.Cm negotiate
+subcommand of
+.Xr camcontrol 8 .
+.Pp
+The
+.Nm
+driver sets the maximum transfer mode supported by the hardware as default.
+However, the
+.Nm
+driver sometimes warns:
+.Dq Sy "DMA limited to UDMA33, non-ATA66 cable or device".
+This means that
+the
+.Nm
+driver has detected that the required 80 conductor cable is not present
+or could not be detected properly,
+or that one of the devices on the channel only accepts up
+to UDMA2/ATA33.
+The
+.Va hw.ata.ata_dma_check_80pin
+tunable can be set to 0 to disable this check.
+.Sh HARDWARE
+The currently supported ATA/SATA controller chips are:
+.Pp
+.Bl -tag -width "Silicon Image:" -compact
+.It Acard:
+ATP850P, ATP860A, ATP860R, ATP865A, ATP865R.
+.It ALI:
+M5228, M5229, M5281, M5283, M5287, M5288, M5289.
+.It AMD:
+AMD756, AMD766, AMD768, AMD8111, CS5536.
+.It ATI:
+IXP200, IXP300, IXP400, IXP600, IXP700, IXP800.
+.It CMD:
+CMD646, CMD646U2, CMD648, CMD649.
+.It Cypress:
+Cypress 82C693.
+.It Cyrix:
+Cyrix 5530.
+.It HighPoint:
+HPT302, HPT366, HPT368, HPT370, HPT371, HPT372, HPT372N, HPT374.
+.It Intel:
+6300ESB, 31244, PIIX, PIIX3, PIIX4, ESB2, ICH, ICH0, ICH2, ICH3, ICH4, ICH5,
+ICH6, ICH7, ICH8, ICH9, ICH10, SCH, PCH.
+.It ITE:
+IT8211F, IT8212F, IT8213F.
+.It JMicron:
+JMB360, JMB361, JMB363, JMB365, JMB366, JMB368.
+.It Marvell
+88SE6101, 88SE6102, 88SE6111, 88SE6121, 88SE6141, 88SE6145.
+.It National:
+SC1100.
+.It NetCell:
+NC3000, NC5000.
+.It nVidia:
+nForce, nForce2, nForce2 MCP, nForce3, nForce3 MCP, nForce3 Pro, nForce4,
+MCP51, MCP55, MCP61, MCP65, MCP67, MCP73, MCP77, MCP79, MCP89.
+.It Promise:
+PDC20246, PDC20262, PDC20263, PDC20265, PDC20267, PDC20268, PDC20269, PDC20270,
+PDC20271, PDC20275, PDC20276, PDC20277, PDC20318, PDC20319, PDC20371, PDC20375,
+PDC20376, PDC20377, PDC20378, PDC20379, PDC20571, PDC20575, PDC20579, PDC20580,
+PDC20617, PDC20618, PDC20619, PDC20620, PDC20621, PDC20622, PDC40518, PDC40519,
+PDC40718, PDC40719.
+.It ServerWorks:
+HT1000, ROSB4, CSB5, CSB6, K2, Frodo4, Frodo8.
+.It Silicon Image:
+SiI0680, SiI3112, SiI3114, SiI3512.
+.It SiS:
+SIS180, SIS181, SIS182, SIS5513, SIS530, SIS540, SIS550, SIS620, SIS630,
+SIS630S, SIS633, SIS635, SIS730, SIS733, SIS735, SIS745, SIS961, SIS962,
+SIS963, SIS964, SIS965.
+.It VIA:
+VT6410, VT6420, VT6421, VT82C586, VT82C586B, VT82C596, VT82C596B, VT82C686,
+VT82C686A, VT82C686B, VT8231, VT8233, VT8233A, VT8233C, VT8235, VT8237,
+VT8237A, VT8237S, VT8251, CX700, VX800, VX855, VX900.
+.El
+.Pp
+Some of above chips can be configured for AHCI mode.
+In such case they are supported by
+.Xr ahci 4
+driver instead.
+.Pp
+Unknown ATA chipsets are supported in PIO modes, and if the standard
+busmaster DMA registers are present and contain valid setup, DMA is
+also enabled, although the max mode is limited to UDMA33, as it is
+not known what the chipset can do and how to program it.
+.Sh NOTES
+Please remember that in order to use UDMA4/ATA66 and above modes you
+.Em must
+use 80 conductor cables.
+Please assure that ribbon cables are no longer than 45cm.
+In case of rounded ATA cables, the length depends on the
+quality of the cables.
+SATA cables can be up to 1m long according to the specification.
+External SATA cables can be 2m long and more, but not all controllers
+work well on long cables, especially at high speeds.
+.Sh SEE ALSO
+.Xr ada 4 ,
+.Xr ahci 4 ,
+.Xr cam 4 ,
+.Xr cd 4 ,
+.Xr mvs 4 ,
+.Xr siis 4 ,
+.Xr camcontrol 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.0 .
+It was turned into a
+.Xr CAM 4
+interface module in
+.Fx 9.0 .
+.Sh AUTHORS
+.An Alexander Motin Aq Mt mav@FreeBSD.org
+.An S\(/oren Schmidt Aq Mt sos@FreeBSD.org

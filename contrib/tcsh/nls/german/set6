@@ -1,0 +1,11 @@
+$ $tcsh: set6,v 1.4 2011/02/10 00:13:36 christos Exp $
+$ ed.inputl.c
+$set 6
+1 FEHLER: Illegaler Befehl von Taste 0%o\r\n
+2 ja\n
+3 editieren\n
+4 abbrechen\n
+5 nein\n
+6 Kein entsprechender Befehl\n
+7 Mehrdeutiger Befehl\n
+8 *** Editor fataler FEHLER ***\r\n\n

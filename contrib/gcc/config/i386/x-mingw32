@@ -1,0 +1,13 @@
+#
+# Make local_includedir relative to EXEC_PREFIX 
+#
+local_includedir=$(libsubdir)/$(unlibsubdir)/..`echo $(exec_prefix) | sed -e 's|^$(prefix)||' -e 's|/[^/]*|/..|g'`/include
+
+# On MinGW, we use "%IA64d" to print 64-bit integers, and the format-checking
+# code does not handle that, so we have to disable checking here.
+WERROR_FLAGS += -Wno-format
+
+host-mingw32.o : $(srcdir)/config/i386/host-mingw32.c $(CONFIG_H) $(SYSTEM_H) \
+  coretypes.h hosthooks.h hosthooks-def.h toplev.h diagnostic.h $(HOOKS_H)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+		$(srcdir)/config/i386/host-mingw32.c

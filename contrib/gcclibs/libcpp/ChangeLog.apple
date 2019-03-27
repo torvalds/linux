@@ -1,0 +1,14 @@
+2008-08-04  Bill Wendling  <wendling@apple.com>
+
+        Radar 6121572
+        * charset.c (_cpp_convert_input): Don't read to.text[-1].
+
+2008-05-01  Mike Stump  <mrs@apple.com>
+
+	Radar 5774975
+	* charset.c (_cpp_convert_input): Eat UTF-8 BOM.
+
+2005-02-17  Devang Patel  <dpatel@apple.com>
+
+	Radar 3958387
+	* libcpp/lex.c (_cpp_get_fresh_line): Check warn_newline_at_eof.

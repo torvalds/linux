@@ -1,0 +1,134 @@
+# $FreeBSD$
+# Note: this test depends on strerror() using locale.
+
+failures=0
+
+check() {
+	if ! eval "[ $1 ]"; then
+		echo "Failed: $1 at $2"
+		: $((failures += 1))
+	fi
+}
+
+unset LANG LC_ALL LC_COLLATE LC_CTYPE LC_MONETARY LC_NUMERIC LC_TIME LC_MESSAGES
+unset LANGUAGE
+
+msgeng="No such file or directory"
+msgdut="Bestand of map niet gevonden"
+
+# Verify C locale error message.
+case $(command . /var/empty/foo 2>&1) in
+	*"$msgeng"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+# Various locale variables that should not affect the message.
+case $(LC_ALL=C command . /var/empty/foo 2>&1) in
+	*"$msgeng"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+case $(LC_ALL=C LANG=nl_NL.ISO8859-1 command . /var/empty/foo 2>&1) in
+	*"$msgeng"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+case $(LC_ALL=C LC_MESSAGES=nl_NL.ISO8859-1 command . /var/empty/foo 2>&1) in
+	*"$msgeng"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+case $(LC_CTYPE=nl_NL.ISO8859-1 command . /var/empty/foo 2>&1) in
+	*"$msgeng"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+# Verify Dutch message.
+case $(export LANG=nl_NL.ISO8859-1; command . /var/empty/foo 2>&1) in
+	*"$msgdut"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+case $(export LC_MESSAGES=nl_NL.ISO8859-1; command . /var/empty/foo 2>&1) in
+	*"$msgdut"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+case $(export LC_ALL=nl_NL.ISO8859-1; command . /var/empty/foo 2>&1) in
+	*"$msgdut"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+case $(LANG=nl_NL.ISO8859-1 command . /var/empty/foo 2>&1) in
+	*"$msgdut"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+case $(LC_MESSAGES=nl_NL.ISO8859-1 command . /var/empty/foo 2>&1) in
+	*"$msgdut"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+case $(LC_ALL=nl_NL.ISO8859-1 command . /var/empty/foo 2>&1) in
+	*"$msgdut"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+# Verify that command assignments do not set the locale persistently.
+case $(command . /var/empty/foo 2>&1) in
+	*"$msgeng"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+case $(LANG=nl_NL.ISO8859-1 command . /var/empty/foo 2>&1; command . /var/empty/foo 2>&1) in
+	*"$msgdut"*"$msgeng"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+case $(LC_MESSAGES=nl_NL.ISO8859-1 command . /var/empty/foo 2>&1; command . /var/empty/foo 2>&1) in
+	*"$msgdut"*"$msgeng"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+case $(LC_ALL=nl_NL.ISO8859-1 command . /var/empty/foo 2>&1; command . /var/empty/foo 2>&1) in
+	*"$msgdut"*"$msgeng"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+# Check special builtin; add colon invocation to avoid depending on certain fix.
+case $(LC_ALL=nl_NL.ISO8859-1 . /var/empty/foo 2>&1; :) in
+	*"$msgdut"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+# Assignments on special builtins are exported to that builtin; the export
+# is not persistent.
+case $(LC_ALL=nl_NL.ISO8859-1 . /dev/null; . /var/empty/foo 2>&1) in
+	*"$msgeng"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+case $(export LC_ALL; LC_ALL=nl_NL.ISO8859-1 . /dev/null; . /var/empty/foo 2>&1) in
+	*"$msgdut"*) ok=1 ;;
+	*) ok=0 ;;
+esac
+check '$ok -eq 1' $LINENO
+
+exit $((failures > 0))

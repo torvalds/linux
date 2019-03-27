@@ -1,0 +1,200 @@
+.\" Copyright (c) 1997
+.\" 	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 18, 2015
+.Dt YPINIT 8
+.Os
+.Sh NAME
+.Nm ypinit
+.Nd build and install NIS databases
+.Sh SYNOPSIS
+.Nm
+.Fl m
+.Op Ar domainname
+.Nm
+.Fl s
+.Ar master_server
+.Op Ar domainname
+.Nm
+.Fl u
+.Op Ar domainname
+.Sh DESCRIPTION
+The
+.Nm
+utility is a script which sets up databases on a Network Information Service
+(NIS)
+master or slave server.
+.Pp
+On a master server,
+.Nm
+creates the
+.Pa /var/yp/$DOMAINNAME
+directory, the
+.Pa /var/yp/ypservers
+file, and calls
+.Pa /var/yp/Makefile
+to create and populate an initial set of NIS maps.
+The maps are
+created from local source files using the
+.Xr yp_mkdb 8
+utility.
+The utility will prompt the user for a list of servers
+that support the specified domain; this list is used to populate
+the ypservers map.
+.Pp
+On a slave server,
+.Nm
+creates the
+.Pa /var/yp/$DOMAINNAME ,
+populates it with copies of the NIS maps from the master.
+The maps
+are obtained from the master using the
+.Xr ypxfr 8
+utility.
+The
+.Nm
+utility obtains the list of maps to transfer in one of two ways: if
+the system is configured as an NIS client and is bound to the master
+server,
+.Nm
+is able to use the
+.Xr ypwhich 1
+utility to obtain a list of maps exported by the master server.
+If the system is not configured as a client of the NIS master,
+.Nm
+uses a hardcoded list of maps, some of which may or may not actually
+exist on the master.
+The system administrator can edit the
+.Nm
+script and
+modify the map list if necessary.
+Otherwise, individual maps can
+be transferred manually from the master using
+.Xr ypxfr 8 .
+.Sh OPTIONS
+The
+.Nm
+utility supports the following options:
+.Bl -tag -width indent
+.It Fl m Op Ar domainname
+Set up a master server.
+By default,
+.Nm
+sets up a server for
+the system default domain.
+The user can override this default by specifying
+.Ar domainname
+explicitly.
+Maps are constructed from scratch using local files as templates using
+the
+.Xr yp_mkdb 8
+utility.
+.It Fl s Ar master_server Op Ar domainname
+Set up a slave server using
+.Ar master_name
+as the master.
+Maps are copied from
+.Ar master_server
+to the slave using
+.Xr ypxfr 8 .
+By default,
+.Nm
+sets up a server for
+the system default domain.
+The user can override this default by specifying
+.Ar domainname
+explicitly.
+.It Fl u Op Ar domainname
+Update the ypservers map on the master server.
+When a new slave
+server is added to a domain, its hostname must be added to the
+ypservers map so that
+.Xr yppush 8
+can propagate updates on the master to all of the slaves.
+.El
+.Sh FILES
+.Bl -tag -width /var/yp/master.passwd -compact
+.It Pa /etc/bootparams
+Bootparams source file
+.It Pa /etc/ethers
+Ethers data source file
+.It Pa /etc/eui64
+EUI64 data source file
+.It Pa /etc/group
+Group source file
+.It Pa /etc/hosts
+Hostname/IP address source file
+.It Pa /etc/netid
+RPC netid source file
+.It Pa /etc/networks
+Networks source file
+.It Pa /etc/protocols
+Protocols source file
+.It Pa /etc/publickey
+RPC public key/secret key source file
+.It Pa /etc/services
+Services data source file
+.It Pa /etc/shells
+Shells source file
+.It Pa /var/yp/master.passwd
+Passwd database source file
+.It Pa /var/yp/netgroup
+Netgroup data source file
+.It Pa /var/yp/ypservers
+Ypservers source file (generated by
+.Nm )
+.El
+.Sh SEE ALSO
+.Xr mknetid 8 ,
+.Xr revnetgroup 8 ,
+.Xr yp 8 ,
+.Xr yp_mkdb 8 ,
+.Xr yppush 8 ,
+.Xr ypserv 8 ,
+.Xr ypxfr 8
+.Sh HISTORY
+This version of
+.Nm
+is based on the
+.Nm
+script in
+.Ox .
+It first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An -nosplit
+The original script was written by
+.An Mats O Jansson Aq Mt moj@stacken.kth.se .
+It was modified for
+.Fx
+by
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu .

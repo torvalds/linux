@@ -1,0 +1,121 @@
+.\" Copyright (c) 2004 Stefan Farfeleder
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 7, 2008
+.Dt CIMAG 3
+.Os
+.Sh NAME
+.Nm cimag , cimagf , cimagl ,
+.Nm conj , conjf , conjl ,
+.Nm cproj , cprojf , cprojl ,
+.Nm creal , crealf , creall
+.Nd "functions to manipulate complex numbers"
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In complex.h
+.Ft double
+.Fn cimag "double complex z"
+.Ft float
+.Fn cimagf "float complex z"
+.Ft "long double"
+.Fn cimagl "long double complex z"
+.Ft "double complex"
+.Fn conj "double complex z"
+.Ft "float complex"
+.Fn conjf "float complex z"
+.Ft "long double complex"
+.Fn conjl "long double complex z"
+.Ft "double complex"
+.Fn cproj "double complex z"
+.Ft "float complex"
+.Fn cprojf "float complex z"
+.Ft "long double complex"
+.Fn cprojl "long double complex z"
+.Ft double
+.Fn creal "double complex z"
+.Ft float
+.Fn crealf "float complex z"
+.Ft "long double"
+.Fn creall "long double complex z"
+.Sh DESCRIPTION
+Let
+.Sm off
+.Fa a + b * Em i
+.Sm on
+denote the complex number
+.Fa z .
+.Pp
+The
+.Fn creal
+functions return the real part
+.Fa a ,
+and the
+.Fn cimag
+functions return the imaginary part
+.Fa b .
+.Pp
+The
+.Fn conj
+functions return the complex conjugate
+.Sm off
+.Fa a - b * Em i .
+.Sm on
+.Pp
+The
+.Fn cproj
+functions return the projection onto the Riemann sphere.
+If
+.Fa z
+contains an infinite component, then the result is
+.Fa \*(If \*(Pm 0 Ns * Ns Em i ,
+where the (zero) imaginary part of the result has the same sign as
+.Fa b .
+Otherwise, the result is
+.Fa z .
+.Pp
+These functions do not signal any floating point exceptions.
+.Sh STANDARDS
+The
+.Fn cimag ,
+.Fn conj ,
+.Fn cproj ,
+and
+.Fn creal
+functions conform to
+.St -isoC-99 .
+.Sh HISTORY
+The
+.Fn cimag ,
+.Fn conj
+and
+.Fn creal
+functions first appeared in
+.Fx 5.3 .
+The
+.Fn cproj
+functions appeared in
+.Fx 8.0 .

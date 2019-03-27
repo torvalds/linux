@@ -1,0 +1,13 @@
+table < regress > { 1.2.3.4 !5.6.7.8 10/8 lo0 }
+table <regress.1> const { ::1 fe80::/64 }
+table <regress.a> { 1.2.3.4 !5.6.7.8 } { ::1 ::2 ::3 } file "/dev/null" const { 4.3.2.1 }
+#match out on lo0 inet from < regress.1> to <regress.2> nat-to lo0:0
+#match out on !lo0 inet from !<regress.1 > to <regress.2> nat-to lo0:0
+#match in on lo0 inet6 from <regress.1> to <regress.2> rdr-to lo0:0
+#match in on !lo0 inet6 from !< regress.1 > to <regress.2> rdr-to lo0:0
+#match in from { <regress.1> !<regress.2> } to any
+#match out from any to { !<regress.1>, <regress.2> }
+pass in from <regress> to any
+pass out from any to <regress >
+pass in from { <regress.1> <regress.2> } to any
+pass out from any to { !<regress.1>, !<regress.2> }

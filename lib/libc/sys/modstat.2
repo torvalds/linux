@@ -1,0 +1,127 @@
+.\"
+.\" Copyright (c) 1999 Chris Costello
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 15, 2008
+.Dt MODSTAT 2
+.Os
+.Sh NAME
+.Nm modstat
+.Nd get status of kernel module
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/module.h
+.Ft int
+.Fn modstat "int modid" "struct module_stat *stat"
+.Sh DESCRIPTION
+The
+.Fn modstat
+system call writes the info for the kernel module referred to by
+.Fa modid
+into
+.Fa stat .
+.Bd -literal
+struct module_stat {
+	int         version;        /* set to sizeof(module_stat) */
+	char        name[MAXMODNAME];
+	int         refs;
+	int         id;
+	modspecific_t data;
+};
+typedef union modspecific {
+	int         intval;
+	u_int       uintval;
+	long        longval;
+	u_long      ulongval;
+} modspecific_t;
+.Ed
+.Bl -tag -width XXXaddress
+.It version
+This field is set to the size of the structure mentioned above by the code
+calling
+.Fn modstat ,
+and not
+.Fn modstat
+itself.
+.It name
+The name of the module referred to by
+.Fa modid .
+.It refs
+The number of modules referenced by
+.Fa modid .
+.It id
+The id of the module specified in
+.Fa modid .
+.It data
+Module specific data.
+.El
+.Sh RETURN VALUES
+.Rv -std modstat
+.Sh ERRORS
+The information for the module referred to by
+.Fa modid
+is filled into the structure pointed to by
+.Fa stat
+unless:
+.Bl -tag -width Er
+.It Bq Er ENOENT
+The module was not found (probably not loaded).
+.It Bq Er EINVAL
+The version specified in the
+.Fa version
+field of stat is not the proper version.
+You would need to rebuild world, the
+kernel, or your application, if this error occurs, given that you did properly
+fill in the
+.Fa version
+field.
+.It Bq Er EFAULT
+There was a problem copying one, some, or all of the fields into
+.Fa stat
+in the
+.Xr copyout 9
+function.
+.El
+.Sh SEE ALSO
+.Xr kldfind 2 ,
+.Xr kldfirstmod 2 ,
+.Xr kldload 2 ,
+.Xr kldnext 2 ,
+.Xr kldstat 2 ,
+.Xr kldsym 2 ,
+.Xr kldunload 2 ,
+.Xr modfind 2 ,
+.Xr modfnext 2 ,
+.Xr modnext 2 ,
+.Xr kld 4 ,
+.Xr kldstat 8
+.Sh HISTORY
+The
+.Nm kld
+interface first appeared in
+.Fx 3.0 .

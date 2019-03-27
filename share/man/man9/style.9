@@ -1,0 +1,893 @@
+.\"-
+.\" Copyright (c) 1995-2005 The FreeBSD Project
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL [your name] OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	From: @(#)style	1.14 (Berkeley) 4/28/95
+.\" $FreeBSD$
+.\"
+.Dd November 1, 2018
+.Dt STYLE 9
+.Os
+.Sh NAME
+.Nm style
+.Nd "kernel source file style guide"
+.Sh DESCRIPTION
+This file specifies the preferred style for kernel source files in the
+.Fx
+source tree.
+It is also a guide for the preferred userland code style.
+Many of the style rules are implicit in the examples.
+Be careful to check the examples before assuming that
+.Nm
+is silent on an issue.
+.Bd -literal
+/*
+ * Style guide for FreeBSD.  Based on the CSRG's KNF (Kernel Normal Form).
+ *
+ *	@(#)style	1.14 (Berkeley) 4/28/95
+ * $FreeBSD$
+ */
+
+/*
+ * VERY important single-line comments look like this.
+ */
+
+/* Most single-line comments look like this. */
+
+/*
+ * Multi-line comments look like this.  Make them real sentences.  Fill
+ * them so they look like real paragraphs.
+ */
+.Ed
+.Pp
+The copyright header should be a multi-line comment, with the first
+line of the comment having a dash after the star like so:
+.Bd -literal
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 1984-2025 John Q. Public
+ *
+ * Long, boring license goes here, but trimmed for brevity
+ */
+.Ed
+.Pp
+An automatic script collects license information from the tree for
+all comments that start in the first column with
+.Dq Li "/*-" .
+If you desire to flag
+.Xr indent 1
+to not reformat a comment that starts in the first column which is not a
+license or copyright notice, change the dash to a star for those
+comments.
+Comments starting in columns other than the first are never
+considered license statements.
+Use the appropriate SPDX-License-Identifier line before the copyright.
+.Pp
+After any copyright header, there is a blank line, and the
+.Li $\&FreeBSD$
+for non C/C++ language source files.
+Version control system ID tags should only exist once in a file
+(unlike in this one).
+Non-C/C++ source files follow the example above, while C/C++ source files
+follow the one below.
+All VCS (version control system) revision identification in files obtained
+from elsewhere should be maintained, including, where applicable, multiple IDs
+showing a file's history.
+In general, do not edit foreign IDs or their infrastructure.
+Unless otherwise wrapped (such as
+.Dq Li "#if defined(LIBC_SCCS)" ) ,
+enclose both in
+.Dq Li "#if 0 ... #endif"
+to hide any uncompilable bits
+and to keep the IDs out of object files.
+Only add
+.Dq Li "From: "
+in front of foreign VCS IDs if the file is renamed.
+.Bd -literal
+/* From: @(#)style	1.14 (Berkeley) 4/28/95 */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+.Ed
+.Pp
+Leave one blank line before the header files.
+.Pp
+Kernel include files
+.Pa ( sys/*.h )
+come first.
+If
+.In sys/cdefs.h
+is needed for
+.Fn __FBSDID ,
+include it first.
+If either
+.In sys/types.h
+or
+.In sys/param.h
+is needed, include it before other include files.
+.Po
+.In sys/param.h
+includes
+.In sys/types.h ;
+do not include both.
+.Pc
+The remaining kernel headers should be sorted alphabetically.
+.Bd -literal
+#include <sys/types.h>	/* Non-local includes in angle brackets. */
+#include <sys/endian.h>
+#include <sys/lock.h>
+#include <sys/queue.h>
+.Ed
+.Pp
+For a network program, put the network include files next.
+.Bd -literal
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <net/route.h>
+#include <netinet/in.h>
+#include <protocols/rwhod.h>
+.Ed
+.Pp
+Do not include files from
+.Pa /usr/include
+in the kernel.
+.Pp
+Leave a blank line before the next group, the
+.Pa /usr/include
+files,
+which should be sorted alphabetically by name.
+.Bd -literal
+#include <stdio.h>
+.Ed
+.Pp
+Global pathnames are defined in
+.In paths.h .
+Pathnames local
+to the program go in
+.Qq Pa pathnames.h
+in the local directory.
+.Bd -literal
+#include <paths.h>
+.Ed
+.Pp
+Leave another blank line before the local include files.
+.Bd -literal
+#include "pathnames.h"		/* Local includes in double quotes. */
+.Ed
+.Pp
+Do not
+.Ic #define
+or declare names in the implementation namespace except
+for implementing application interfaces.
+.Pp
+The names of
+.Dq unsafe
+macros (ones that have side effects), and the names of macros for
+manifest constants, are all in uppercase.
+The expansions of expression-like macros are either a single token
+or have outer parentheses.
+Put a single tab character between the
+.Ic #define
+and the macro name.
+If a macro is an inline expansion of a function, the function name is
+all in lowercase and the macro has the same name all in uppercase.
+.\" XXX the above conflicts with ANSI style where the names are the
+.\" same and you #undef the macro (if any) to get the function.
+.\" It is not followed for MALLOC(), and not very common if inline
+.\" functions are used.
+Right-justify the
+backslashes; it makes it easier to read.
+If the macro encapsulates a compound statement, enclose it in a
+.Ic do
+loop,
+so that it can safely be used in
+.Ic if
+statements.
+Any final statement-terminating semicolon should be
+supplied by the macro invocation rather than the macro, to make parsing easier
+for pretty-printers and editors.
+.Bd -literal
+#define	MACRO(x, y) do {						\e
+	variable = (x) + (y);						\e
+	(y) += 2;							\e
+} while (0)
+.Ed
+.Pp
+When code is conditionally compiled using
+.Ic #ifdef
+or
+.Ic #if ,
+a comment may be added following the matching
+.Ic #endif
+or
+.Ic #else
+to permit the reader to easily discern where conditionally compiled code
+regions end.
+This comment should be used only for (subjectively) long regions, regions
+greater than 20 lines, or where a series of nested
+.Ic #ifdef 's
+may be confusing to the reader.
+The comment should be separated from the
+.Ic #endif
+or
+.Ic #else
+by a single space.
+For short conditionally compiled regions, a closing comment should not be
+used.
+.Pp
+The comment for
+.Ic #endif
+should match the expression used in the corresponding
+.Ic #if
+or
+.Ic #ifdef .
+The comment for
+.Ic #else
+and
+.Ic #elif
+should match the inverse of the expression(s) used in the preceding
+.Ic #if
+and/or
+.Ic #elif
+statements.
+In the comments, the subexpression
+.Dq Li defined(FOO)
+is abbreviated as
+.Dq Li FOO .
+For the purposes of comments,
+.Dq Ic #ifndef Li FOO
+is treated as
+.Dq Ic #if Li !defined(FOO) .
+.Bd -literal
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
+
+#ifdef COMPAT_43
+/* A large region here, or other conditional code. */
+#else /* !COMPAT_43 */
+/* Or here. */
+#endif /* COMPAT_43 */
+
+#ifndef COMPAT_43
+/* Yet another large region here, or other conditional code. */
+#else /* COMPAT_43 */
+/* Or here. */
+#endif /* !COMPAT_43 */
+.Ed
+.Pp
+The project is slowly moving to use the
+.St -isoC-99
+unsigned integer identifiers of the form
+.Vt uintXX_t
+in preference to the older
+.Bx Ns -style
+integer identifiers of the form
+.Vt u_intXX_t .
+New code should use the former, and old code should be converted to
+the new form if other major work is being done in that area and
+there is no overriding reason to prefer the older
+.Bx Ns -style .
+Like white-space commits, care should be taken in making
+.Vt uintXX_t
+only commits.
+.Pp
+Similarly, the project is slowly moving to use the
+.St -isoC-99
+.Vt bool
+in preference to the older
+.Vt int
+or
+.Vt boolean_t .
+New code should use
+.Vt bool ,
+and old code may be converted if it is
+reasonable to do so.
+Literal values are named
+.Dv true
+and
+.Dv false .
+These are preferred to the old spellings
+.Dv TRUE
+and
+.Dv FALSE .
+Userspace code should include
+.In stdbool.h ,
+while kernel code should include
+.In sys/types.h .
+.Pp
+Likewise, the project is moving to using the
+.St -isoC-99
+designated initializers when it makes sense to do so.
+.Pp
+Enumeration values are all uppercase.
+.Bd -literal
+enum enumtype { ONE, TWO } et;
+.Ed
+.Pp
+The use of internal_underscores in identifiers is preferred over
+camelCase or TitleCase.
+.Pp
+In declarations, do not put any whitespace between asterisks and
+adjacent tokens, except for tokens that are identifiers related to
+types.
+(These identifiers are the names of basic types, type
+qualifiers, and
+.Ic typedef Ns -names
+other than the one being declared.)
+Separate these identifiers from asterisks using a single space.
+.Pp
+When declaring variables in structures, declare them sorted by use, then
+by size (largest to smallest), and then in alphabetical order.
+The first category normally does not apply, but there are exceptions.
+Each one gets its own line.
+Try to make the structure
+readable by aligning the member names using either one or two tabs
+depending upon your judgment.
+You should use one tab only if it suffices to align at least 90% of
+the member names.
+Names following extremely long types
+should be separated by a single space.
+.Pp
+Major structures should be declared at the top of the file in which they
+are used, or in separate header files if they are used in multiple
+source files.
+Use of the structures should be by separate declarations
+and should be
+.Ic extern
+if they are declared in a header file.
+.Bd -literal
+struct foo {
+	struct foo	*next;		/* List of active foo. */
+	struct mumble	amumble;	/* Comment for mumble. */
+	int		bar;		/* Try to align the comments. */
+	struct verylongtypename *baz;	/* Does not fit in 2 tabs. */
+};
+struct foo *foohead;			/* Head of global foo list. */
+.Ed
+.Pp
+Use
+.Xr queue 3
+macros rather than rolling your own lists, whenever possible.
+Thus,
+the previous example would be better written:
+.Bd -literal
+#include <sys/queue.h>
+
+struct foo {
+	LIST_ENTRY(foo)	link;		/* Use queue macros for foo lists. */
+	struct mumble	amumble;	/* Comment for mumble. */
+	int		bar;		/* Try to align the comments. */
+	struct verylongtypename *baz;	/* Does not fit in 2 tabs. */
+};
+LIST_HEAD(, foo) foohead;		/* Head of global foo list. */
+.Ed
+.Pp
+Avoid using typedefs for structure types.
+Typedefs are problematic because they do not properly hide their
+underlying type; for example you need to know if the typedef is
+the structure itself or a pointer to the structure.
+In addition they must be declared exactly once, whereas an
+incomplete structure type can be mentioned as many times as
+necessary.
+Typedefs are difficult to use in stand-alone header files:
+the header that defines the typedef must be included
+before the header that uses it, or by the header that uses
+it (which causes namespace pollution), or there must be a
+back-door mechanism for obtaining the typedef.
+.Pp
+When convention requires a
+.Ic typedef ,
+make its name match the struct tag.
+Avoid typedefs ending in
+.Dq Li _t ,
+except as specified in Standard C or by POSIX.
+.Bd -literal
+/* Make the structure name match the typedef. */
+typedef	struct bar {
+	int	level;
+} BAR;
+typedef	int		foo;		/* This is foo. */
+typedef	const long	baz;		/* This is baz. */
+.Ed
+.Pp
+All functions are prototyped somewhere.
+.Pp
+Function prototypes for private functions (i.e., functions not used
+elsewhere) go at the top of the first source module.
+Functions
+local to one source module should be declared
+.Ic static .
+.Pp
+Functions used from other parts of the kernel are prototyped in the
+relevant include file.
+Function prototypes should be listed in a logical order, preferably
+alphabetical unless there is a compelling reason to use a different
+ordering.
+.Pp
+Functions that are used locally in more than one module go into a
+separate header file, e.g.,
+.Qq Pa extern.h .
+.Pp
+Do not use the
+.Dv __P
+macro.
+.Pp
+In general code can be considered
+.Dq "new code"
+when it makes up about 50% or more of the file(s) involved.
+This is enough
+to break precedents in the existing code and use the current
+.Nm
+guidelines.
+.Pp
+The kernel has a name associated with parameter types, e.g., in the kernel
+use:
+.Bd -literal
+void	function(int fd);
+.Ed
+.Pp
+In header files visible to userland applications, prototypes that are
+visible must use either
+.Dq protected
+names (ones beginning with an underscore)
+or no names with the types.
+It is preferable to use protected names.
+E.g., use:
+.Bd -literal
+void	function(int);
+.Ed
+.Pp
+or:
+.Bd -literal
+void	function(int _fd);
+.Ed
+.Pp
+Prototypes may have an extra space after a tab to enable function names
+to line up:
+.Bd -literal
+static char	*function(int _arg, const char *_arg2, struct foo *_arg3,
+		    struct bar *_arg4);
+static void	 usage(void);
+
+/*
+ * All major routines should have a comment briefly describing what
+ * they do.  The comment before the "main" routine should describe
+ * what the program does.
+ */
+int
+main(int argc, char *argv[])
+{
+	char *ep;
+	long num;
+	int ch;
+.Ed
+.Pp
+For consistency,
+.Xr getopt 3
+should be used to parse options.
+Options
+should be sorted in the
+.Xr getopt 3
+call and the
+.Ic switch
+statement, unless
+parts of the
+.Ic switch
+cascade.
+Elements in a
+.Ic switch
+statement that cascade should have a
+.Li FALLTHROUGH
+comment.
+Numerical arguments should be checked for accuracy.
+Code which is unreachable for non-obvious reasons may be marked /*
+.Li NOTREACHED
+*/.
+.Bd -literal
+	while ((ch = getopt(argc, argv, "abNn:")) != -1)
+		switch (ch) {		/* Indent the switch. */
+		case 'a':		/* Do not indent the case. */
+			aflag = 1;	/* Indent case body one tab. */
+			/* FALLTHROUGH */
+		case 'b':
+			bflag = 1;
+			break;
+		case 'N':
+			Nflag = 1;
+			break;
+		case 'n':
+			num = strtol(optarg, &ep, 10);
+			if (num <= 0 || *ep != '\e0') {
+				warnx("illegal number, -n argument -- %s",
+				    optarg);
+				usage();
+			}
+			break;
+		case '?':
+		default:
+			usage();
+		}
+	argc -= optind;
+	argv += optind;
+.Ed
+.Pp
+Space after keywords
+.Pq Ic if , while , for , return , switch .
+Two styles of braces
+.Ql ( \&{
+and
+.Ql \&} )
+are allowed for single line statements.
+Either they are used for all single statements, or
+they are used only where needed for clarity.
+Usage within a function should be consistent.
+Forever loops are done with
+.Ic for Ns 's ,
+not
+.Ic while Ns 's .
+.Bd -literal
+	for (p = buf; *p != '\e0'; ++p)
+		;	/* nothing */
+	for (;;)
+		stmt;
+	for (;;) {
+		z = a + really + long + statement + that + needs +
+		    two + lines + gets + indented + four + spaces +
+		    on + the + second + and + subsequent + lines;
+	}
+	for (;;) {
+		if (cond)
+			stmt;
+	}
+	if (val != NULL)
+		val = realloc(val, newsize);
+.Ed
+.Pp
+Parts of a
+.Ic for
+loop may be left empty.
+Do not put declarations
+inside blocks unless the routine is unusually complicated.
+.Bd -literal
+	for (; cnt < 15; cnt++) {
+		stmt1;
+		stmt2;
+	}
+.Ed
+.Pp
+Indentation is an 8 character tab.
+Second level indents are four spaces.
+If you have to wrap a long statement, put the operator at the end of the
+line.
+.Bd -literal
+	while (cnt < 20 && this_variable_name_is_too_long &&
+	    ep != NULL)
+		z = a + really + long + statement + that + needs +
+		    two + lines + gets + indented + four + spaces +
+		    on + the + second + and + subsequent + lines;
+.Ed
+.Pp
+Do not add whitespace at the end of a line, and only use tabs
+followed by spaces
+to form the indentation.
+Do not use more spaces than a tab will produce
+and do not use spaces in front of tabs.
+.Pp
+Closing and opening braces go on the same line as the
+.Ic else .
+Braces that are not necessary may be left out.
+.Bd -literal
+	if (test)
+		stmt;
+	else if (bar) {
+		stmt;
+		stmt;
+	} else
+		stmt;
+.Ed
+.Pp
+No spaces after function names.
+Commas have a space after them.
+No spaces
+after
+.Ql \&(
+or
+.Ql \&[
+or preceding
+.Ql \&]
+or
+.Ql \&)
+characters.
+.Bd -literal
+	error = function(a1, a2);
+	if (error != 0)
+		exit(error);
+.Ed
+.Pp
+Unary operators do not require spaces, binary operators do.
+Do not use parentheses unless they are required for precedence or unless the
+statement is confusing without them.
+Remember that other people may
+confuse easier than you.
+Do YOU understand the following?
+.Bd -literal
+	a = b->c[0] + ~d == (e || f) || g && h ? i : j >> 1;
+	k = !(l & FLAGS);
+.Ed
+.Pp
+Exits should be 0 on success, or 1 on failure.
+.Bd -literal
+	exit(0);	/*
+			 * Avoid obvious comments such as
+			 * "Exit 0 on success."
+			 */
+}
+.Ed
+.Pp
+The function type should be on a line by itself
+preceding the function.
+The opening brace of the function body should be
+on a line by itself.
+.Bd -literal
+static char *
+function(int a1, int a2, float fl, int a4)
+{
+.Ed
+.Pp
+When declaring variables in functions declare them sorted by size,
+then in alphabetical order; multiple ones per line are okay.
+If a line overflows reuse the type keyword.
+.Pp
+Be careful to not obfuscate the code by initializing variables in
+the declarations.
+Use this feature only thoughtfully.
+DO NOT use function calls in initializers.
+.Bd -literal
+	struct foo one, *two;
+	double three;
+	int *four, five;
+	char *six, seven, eight, nine, ten, eleven, twelve;
+
+	four = myfunction();
+.Ed
+.Pp
+Do not declare functions inside other functions; ANSI C says that
+such declarations have file scope regardless of the nesting of the
+declaration.
+Hiding file declarations in what appears to be a local
+scope is undesirable and will elicit complaints from a good compiler.
+.Pp
+Casts and
+.Ic sizeof Ns 's
+are not followed by a space.
+Note that
+.Xr indent 1
+does not understand this rule.
+.Ic sizeof Ns 's
+are written with parenthesis always.
+The redundant parenthesis rules do not apply to
+.Fn sizeof var
+instances.
+.Pp
+.Dv NULL
+is the preferred null pointer constant.
+Use
+.Dv NULL
+instead of
+.Vt ( "type *" ) Ns 0
+or
+.Vt ( "type *" ) Ns Dv NULL
+in contexts where the compiler knows the
+type, e.g., in assignments.
+Use
+.Vt ( "type *" ) Ns Dv NULL
+in other contexts,
+in particular for all function args.
+(Casting is essential for
+variadic args and is necessary for other args if the function prototype
+might not be in scope.)
+Test pointers against
+.Dv NULL ,
+e.g., use:
+.Bd -literal
+(p = f()) == NULL
+.Ed
+.Pp
+not:
+.Bd -literal
+!(p = f())
+.Ed
+.Pp
+Do not use
+.Ic \&!
+for tests unless it is a boolean, e.g., use:
+.Bd -literal
+if (*p == '\e0')
+.Ed
+.Pp
+not:
+.Bd -literal
+if (!*p)
+.Ed
+.Pp
+Routines returning
+.Vt "void *"
+should not have their return values cast
+to any pointer type.
+.Pp
+Values in
+.Ic return
+statements should be enclosed in parentheses.
+.Pp
+Use
+.Xr err 3
+or
+.Xr warn 3 ,
+do not roll your own.
+.Bd -literal
+	if ((four = malloc(sizeof(struct foo))) == NULL)
+		err(1, (char *)NULL);
+	if ((six = (int *)overflow()) == NULL)
+		errx(1, "number overflowed");
+	return (eight);
+}
+.Ed
+.Pp
+When converting K&R style declarations to ANSI style, preserve
+any comments about parameters.
+.Pp
+Long parameter lists are wrapped with a normal four space indent.
+.Pp
+Variable numbers of arguments should look like this:
+.Bd -literal
+#include <stdarg.h>
+
+void
+vaf(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	STUFF;
+	va_end(ap);
+	/* No return needed for void functions. */
+}
+
+static void
+usage()
+{
+	/* Insert an empty line if the function has no local variables. */
+.Ed
+.Pp
+Use
+.Xr printf 3 ,
+not
+.Xr fputs 3 ,
+.Xr puts 3 ,
+.Xr putchar 3 ,
+whatever; it is faster and usually cleaner, not
+to mention avoiding stupid bugs.
+.Pp
+Usage statements should look like the manual pages
+.Sx SYNOPSIS .
+The usage statement should be structured in the following order:
+.Bl -enum
+.It
+Options without operands come first,
+in alphabetical order,
+inside a single set of brackets
+.Ql ( \&[
+and
+.Ql \&] ) .
+.It
+Options with operands come next,
+also in alphabetical order,
+with each option and its argument inside its own pair of brackets.
+.It
+Required arguments
+(if any)
+are next,
+listed in the order they should be specified on the command line.
+.It
+Finally,
+any optional arguments should be listed,
+listed in the order they should be specified,
+and all inside brackets.
+.El
+.Pp
+A bar
+.Pq Ql \&|
+separates
+.Dq either-or
+options/arguments,
+and multiple options/arguments which are specified together are
+placed in a single set of brackets.
+.Bd -literal -offset 4n
+"usage: f [-aDde] [-b b_arg] [-m m_arg] req1 req2 [opt1 [opt2]]\en"
+"usage: f [-a | -b] [-c [-dEe] [-n number]]\en"
+.Ed
+.Bd -literal
+	(void)fprintf(stderr, "usage: f [-ab]\en");
+	exit(1);
+}
+.Ed
+.Pp
+Note that the manual page options description should list the options in
+pure alphabetical order.
+That is, without regard to whether an option takes arguments or not.
+The alphabetical ordering should take into account the case ordering
+shown above.
+.Pp
+New core kernel code should be reasonably compliant with the
+.Nm
+guides.
+The guidelines for third-party maintained modules and device drivers are more
+relaxed but at a minimum should be internally consistent with their style.
+.Pp
+Stylistic changes (including whitespace changes) are hard on the source
+repository and are to be avoided without good reason.
+Code that is approximately
+.Fx
+KNF
+.Nm
+compliant in the repository must not diverge from compliance.
+.Pp
+Whenever possible, code should be run through a code checker
+(e.g., various static analyzers or
+.Nm cc Fl Wall )
+and produce minimal warnings.
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /usr/src/tools/tools/editing/freebsd.el
+An Emacs plugin to follow the
+.Fx
+.Nm
+indentation rules.
+.It Pa /usr/src/tools/tools/editing/freebsd.vim
+A Vim plugin to follow the
+.Fx
+.Nm
+indentation rules.
+.El
+.Sh SEE ALSO
+.Xr indent 1 ,
+.Xr err 3 ,
+.Xr warn 3 ,
+.Xr style.Makefile 5 ,
+.Xr style.lua 9
+.Sh HISTORY
+This manual page is largely based on the
+.Pa src/admin/style/style
+file from the
+.Bx 4.4 Lite2
+release, with occasional updates to reflect the current practice and
+desire of the
+.Fx
+project.
+.Pa src/admin/style/style
+is a codification by the CSRG of the programming style of Ken Thompson and
+Dennis Ritchie in
+.At v6 .

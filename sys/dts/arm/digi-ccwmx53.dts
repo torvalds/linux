@@ -1,0 +1,153 @@
+/*
+ * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2013 Rui Paulo
+ * All rights reserved.
+ *
+ * This software was developed by Semihalf under sponsorship from
+ * the FreeBSD Foundation.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * Digi ConnectCore Wi-i.MX53
+ *
+ * $FreeBSD$
+ */
+
+/dts-v1/;
+/include/ "imx53x.dtsi"
+
+/ {
+	model = "Digi ConnectCore Wi-i.MX53";
+	compatible = "digi,imx53-ccwm53", "fsl,imx53";
+
+	memory {
+		/* RAM 512M */
+		reg = <0x70000000 0x10000000
+		       0xB0000000 0x10000000>;
+	};
+
+	localbus@10000000 {
+		sata@10000000 {
+			status = "okay";
+		};
+		ipu3@1E000000 {
+			status = "okay";
+		};
+	};
+
+	soc@50000000 {
+		aips@50000000 {
+			spba@50000000 {
+				esdhc@50004000 {
+					clock-frequency = <216000000>;
+					status = "okay";
+				};
+				esdhc@50008000 {
+					clock-frequency = <216000000>;
+					status = "okay";
+				};
+				SSI2: ssi@50014000 {
+					status = "okay";
+				};
+			};
+			timer@53fa0000 {
+				status = "okay";
+			};
+			/* UART1, console */
+			console: serial@53fbc000 {
+				status = "okay";
+				clock-frequency = <0>; /* won't load w/o this */
+			};
+			serial@53fc0000 {
+				status = "okay";
+				clock-frequency = <0>; /* won't load w/o this */
+			};
+			serial@53ff0000 {
+				status = "okay";
+				clock-frequency = <0>; /* won't load w/o this */
+			};
+			clock@53fd4000 {
+				status = "okay";
+			};
+			gpio@53f84000 {
+				status = "okay";
+			};
+			gpio@53f88000 {
+				status = "okay";
+			};
+			gpio@53f8c000 {
+				status = "okay";
+			};
+			gpio@53f90000 {
+				status = "okay";
+			};
+			usb@53f80000 /* OTG */ {
+				status = "okay";
+			};
+			usb@53f80200 /* Host 1 */ {
+				status = "okay";
+			};
+			wdog@53f98000 {
+				status = "okay";
+			};
+			i2c@53fec000 {
+				status = "okay";
+				rtc@68 {
+					compatible = "dialog,ds9052";
+					reg = <0x48>;
+					interrupts = <0x1 0x1 0 0>;
+				};
+			};
+		};
+		aips@60000000 {
+			ethernet@63fec000 {
+				status = "okay";
+				phy-mode = "rmii";
+			};
+			i2c@63fc4000 {
+				status = "okay";
+			};
+			i2c@63fc8000 {
+				status = "okay";
+			};
+			audmux@63fd4000 {
+				status = "okay";
+			};
+			ide@63fe0000 {
+				status = "okay";
+			};
+			serial@63f90000 {
+				status = "okay";
+			};
+		};
+	};
+
+	aliases {
+		SSI2 = &SSI2;
+	};
+
+	chosen {
+		bootargs = "-v";
+		stdin  = &console;
+		stdout = &console;
+	};
+};

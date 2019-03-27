@@ -1,0 +1,23 @@
+# $FreeBSD$
+
+v0\
+=abc
+
+v=$(cat <\
+<\
+E\
+O\
+F
+${v0}d
+EOF
+)
+
+w=$(cat <\
+<\
+-\
+EOF
+	efgh
+EOF
+)
+
+[ "$v.$w" = "abcd.efgh" ]

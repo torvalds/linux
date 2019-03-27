@@ -1,0 +1,315 @@
+# $Id: Makefile.in,v 1.139 2013/08/04 20:20:45 tom Exp $
+##############################################################################
+# Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.                #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+# Author: Thomas E. Dickey 1996-on
+#
+# Makefile for ncurses source code.
+#
+# This makes the following:
+#	programs
+#	includes
+#	libraries (normal/debug/profile/shared)
+#
+# The variable 'srcdir' refers to the source-distribution, and can be set with
+# the configure script by "--srcdir=DIR".
+#
+# The rules are organized to produce the libraries for the configured models,
+# and the programs with the configured default model.
+
+# turn off _all_ suffix rules; we'll generate our own
+.SUFFIXES:
+
+SHELL		= /bin/sh
+VPATH		= @srcdir@
+THIS		= Makefile
+
+CF_MFLAGS 	= @cf_cv_makeflags@
+@SET_MAKE@
+
+x		= @EXEEXT@
+o		= .@OBJEXT@
+
+MODEL		= @DFT_LWR_MODEL@
+DESTDIR		= @DESTDIR@
+top_srcdir	= @top_srcdir@
+srcdir		= @srcdir@
+prefix		= @prefix@
+exec_prefix	= @exec_prefix@
+bindir		= @bindir@
+libdir		= @libdir@
+includedir	= @includedir@
+datarootdir	= @datarootdir@
+datadir		= @datadir@
+includesubdir	= @includesubdir@
+
+INCLUDEDIR	= $(DESTDIR)$(includedir)$(includesubdir)
+
+LIBTOOL		= @LIBTOOL@
+LIBTOOL_CLEAN	= @LIB_CLEAN@
+LIBTOOL_COMPILE	= @LIB_COMPILE@
+LIBTOOL_LINK	= @LIB_LINK@
+LIBTOOL_INSTALL	= @LIB_INSTALL@
+LIBTOOL_UNINSTALL = @LIB_UNINSTALL@
+LT_UNDEF	= @LT_UNDEF@
+
+INSTALL		= @INSTALL@
+INSTALL_LIB	= @INSTALL@ @INSTALL_LIB@
+INSTALL_PROG	= @INSTALL_PROGRAM@
+INSTALL_DATA	= @INSTALL_DATA@
+
+AR		= @AR@
+ARFLAGS		= @ARFLAGS@
+AWK		= @AWK@
+LD		= @LD@
+LN_S		= @LN_S@
+NM		= @NM@
+
+CTAGS		= @CTAGS@
+ETAGS		= @ETAGS@
+
+CC		= @CC@
+CPP		= @CPP@
+CFLAGS		= @CFLAGS@
+
+INCDIR		= $(srcdir)/../include
+CPPFLAGS	= -DHAVE_CONFIG_H -I../ncurses -I$(srcdir) @CPPFLAGS@
+
+CCFLAGS		= $(CPPFLAGS) $(CFLAGS)
+
+BUILD_CPPFLAGS	= -I../include -DUSE_BUILD_CC @BUILD_CPPFLAGS@
+BUILD_CC	= @BUILD_CC@
+BUILD_CCFLAGS	= -DHAVE_CONFIG_H -I../ncurses -I$(srcdir) -I$(INCDIR) $(BUILD_CPPFLAGS) @BUILD_CFLAGS@
+BUILD_LDFLAGS	= @BUILD_LDFLAGS@
+BUILD_LIBS	= @BUILD_LIBS@
+
+# The executables built in this directory are used for generating source that
+# is compiled into the build, or are test-programs that are not installed.
+
+BUILD_EXEEXT	= @BUILD_EXEEXT@
+x		= @EXEEXT@
+
+CFLAGS_LIBTOOL	= $(CCFLAGS)
+CFLAGS_NORMAL	= $(CCFLAGS)
+CFLAGS_DEBUG	= $(CCFLAGS) @CC_G_OPT@ -DTRACE
+CFLAGS_PROFILE	= $(CCFLAGS) -pg
+CFLAGS_SHARED	= $(CCFLAGS) @CC_SHARED_OPTS@
+
+CFLAGS_DEFAULT	= $(CFLAGS_@DFT_UPR_MODEL@)
+
+LINK		= $(LIBTOOL)
+LDFLAGS		= @LDFLAGS@ @LD_MODEL@ @LIBS@
+
+SHLIB_DIRS	= -L../lib
+SHLIB_LIST	= $(SHLIB_DIRS) @SHLIB_LIST@
+TINFO_LIST	= $(SHLIB_DIRS) @TINFO_LIST@
+TICS_LIST	= $(SHLIB_DIRS) @TICS_LIST@
+
+RPATH_LIST	= @RPATH_LIST@
+MK_SHARED_LIB	= @MK_SHARED_LIB@
+
+NCURSES_MAJOR	= @NCURSES_MAJOR@
+NCURSES_MINOR	= @NCURSES_MINOR@
+REL_VERSION	= @cf_cv_rel_version@
+ABI_VERSION	= @cf_cv_abi_version@
+
+RANLIB		= @LIB_PREP@
+
+LIBRARIES	= @Libs_To_Make@
+
+LINT		= @LINT@
+LINT_OPTS	= @LINT_OPTS@
+LINT_LIBS	= -lncurses @LIBS@
+
+FALLBACK_LIST	= @FALLBACK_LIST@
+
+USE_BIG_STRINGS	= @USE_BIG_STRINGS@
+TERMINFO_CAPS	= $(top_srcdir)/include/@TERMINFO_CAPS@
+
+TERMINFO	= @TERMINFO@
+TERMINFO_SRC	= @TERMINFO_SRC@
+TIC_PATH	= @TIC_PATH@
+
+AUTO_SRC = \
+	./codes.c \
+	./comp_captab.c \
+	./expanded.c \
+	./fallback.c \
+	./lib_gen.c \
+	./lib_keyname.c \
+	./link_test.c \
+	./names.c \
+	./unctrl.c \
+	init_keytry.h \
+	keys.list
+
+HEADER_DEPS	= \
+	$(srcdir)/curses.priv.h \
+	../include/ncurses_dll.h \
+	../include/ncurses_cfg.h \
+	../include/curses.h \
+	$(INCDIR)/nc_panel.h \
+	../include/term.h \
+	$(INCDIR)/term_entry.h \
+	$(INCDIR)/nc_tparm.h \
+	$(INCDIR)/nc_alloc.h \
+	$(INCDIR)/nc_mingw.h
+
+TEST_DEPS	= ../lib/@LIB_PREFIX@ncurses@DFT_DEP_SUFFIX@
+TEST_ARGS	= @LDFLAGS_STATIC@ @TEST_ARGS@ @LDFLAGS_SHARED@ 
+TEST_LDFLAGS	= @LD_MODEL@ $(TEST_ARGS) @LIBS@ @LOCAL_LDFLAGS@ @LDFLAGS@
+
+TEST_PROGS = \
+	captoinfo$x \
+	hardscroll$x \
+	link_test$x \
+	hashmap$x \
+	lib_mvcur$x
+
+base	 = $(srcdir)/base
+serial	 = $(srcdir)/tty
+tinfo	 = $(srcdir)/tinfo
+trace	 = $(srcdir)/trace
+wide	 = $(srcdir)/widechar
+win32con = $(srcdir)/win32con
+
+################################################################################
+all \
+libs ::		$(AUTO_SRC) ../lib $(LIBRARIES)
+
+sources:	$(AUTO_SRC)
+
+$(DESTDIR)$(bindir) \
+$(DESTDIR)$(libdir) :
+	mkdir -p $@
+
+../lib : ; mkdir $@
+
+./fallback.c : $(tinfo)/MKfallback.sh
+	sh -e $(tinfo)/MKfallback.sh $(TERMINFO) $(TERMINFO_SRC) $(TIC_PATH) $(FALLBACK_LIST) >$@
+
+./lib_gen.c : $(base)/MKlib_gen.sh ../include/curses.h
+	sh -e $(base)/MKlib_gen.sh "$(CPP) $(CPPFLAGS)" "$(AWK)" generated <../include/curses.h >$@
+
+init_keytry.h: make_keys$(BUILD_EXEEXT) keys.list
+	./make_keys$(BUILD_EXEEXT) keys.list > $@
+
+keys.list :	$(tinfo)/MKkeys_list.sh
+	AWK=$(AWK) sh $(tinfo)/MKkeys_list.sh $(TERMINFO_CAPS) | sort >$@
+
+make_keys$(BUILD_EXEEXT) : \
+		$(tinfo)/make_keys.c \
+		names.c
+	$(BUILD_CC) -o $@ $(BUILD_CCFLAGS) $(tinfo)/make_keys.c $(BUILD_LDFLAGS) $(BUILD_LIBS)
+
+make_hash$(BUILD_EXEEXT) : \
+		$(tinfo)/make_hash.c \
+		../include/hashsize.h
+	$(BUILD_CC) -o $@ $(BUILD_CCFLAGS) $(tinfo)/make_hash.c $(BUILD_LDFLAGS) $(BUILD_LIBS)
+
+./expanded.c : $(srcdir)/curses.priv.h $(serial)/MKexpanded.sh
+	sh -e $(serial)/MKexpanded.sh "$(CPP)" $(CPPFLAGS) > $@
+
+./comp_captab.c: \
+		make_hash$(BUILD_EXEEXT) \
+		../include/hashsize.h \
+		$(tinfo)/MKcaptab.sh \
+		$(tinfo)/MKcaptab.awk
+	sh -e $(tinfo)/MKcaptab.sh $(AWK) $(USE_BIG_STRINGS) $(tinfo)/MKcaptab.awk $(srcdir)/../include/@TERMINFO_CAPS@ > $@
+
+./lib_keyname.c: keys.list $(base)/MKkeyname.awk
+	$(AWK) -f $(base)/MKkeyname.awk bigstrings=$(USE_BIG_STRINGS) keys.list > $@
+
+./codes.c: $(tinfo)/MKcodes.awk
+	$(AWK) -f $(tinfo)/MKcodes.awk bigstrings=$(USE_BIG_STRINGS) $(srcdir)/../include/@TERMINFO_CAPS@ >$@
+
+./names.c: $(tinfo)/MKnames.awk
+	$(AWK) -f $(tinfo)/MKnames.awk bigstrings=$(USE_BIG_STRINGS) $(srcdir)/../include/@TERMINFO_CAPS@ >$@
+
+./unctrl.c: $(base)/MKunctrl.awk
+	echo | $(AWK) -f $(base)/MKunctrl.awk bigstrings=$(USE_BIG_STRINGS) >$@
+
+tags:
+	$(CTAGS) *.[ch] */*.[ch]
+
+@MAKE_UPPER_TAGS@TAGS:
+@MAKE_UPPER_TAGS@	$(ETAGS) *.[ch] */*.[ch]
+
+ncurses.map : $(LIBRARIES)
+	$(NM) -p $(LIBRARIES) >$@
+
+mostlyclean ::
+	-rm -f core tags TAGS *~ *.bak *.i *.ln *.atac trace
+	-rm -f $(TEST_PROGS)
+
+clean :: mostlyclean
+	-rm -f $(AUTO_SRC)
+	-rm -f make_keys$(BUILD_EXEEXT)
+	-rm -f make_hash$(BUILD_EXEEXT)
+	-rm -rf .libs *.dSYM *.map
+
+distclean :: clean
+	-rm -f Makefile
+
+realclean :: distclean
+
+# These rules are used to allow "make -n" to work on a clean directory-tree
+../include/hashsize.h \
+../include/parametrized.h \
+../include/term.h :
+	cd ../include; $(MAKE) $(CF_MFLAGS)
+
+# These rules build test-programs for the modules that have test-drivers
+test_progs : $(TEST_PROGS)
+
+./link_test.c : $(base)/MKlib_gen.sh ../include/curses.h
+	sh -e $(base)/MKlib_gen.sh "$(CPP) $(CPPFLAGS)" "$(AWK)" implemented <../include/curses.h >$@
+
+captoinfo$x : $(tinfo)/captoinfo.c $(TEST_DEPS)
+	@ECHO_LD@ $(LIBTOOL_LINK) -o $@ $(CFLAGS_DEFAULT) -DMAIN $(tinfo)/captoinfo.c $(TEST_LDFLAGS)
+
+hardscroll$x : $(serial)/hardscroll.c $(TEST_DEPS)
+	@ECHO_LD@ $(LIBTOOL_LINK) -o $@ $(CFLAGS_DEFAULT) -DSCROLLDEBUG $(serial)/hardscroll.c $(TEST_LDFLAGS)
+
+hashmap$x : $(serial)/hashmap.c $(serial)/hardscroll.c $(TEST_DEPS)
+	@ECHO_LD@ $(LIBTOOL_LINK) -o $@ $(CFLAGS_DEFAULT) -DHASHDEBUG $(serial)/hashmap.c $(serial)/hardscroll.c $(TEST_LDFLAGS)
+
+lib_mvcur$x : $(serial)/lib_mvcur.c $(TEST_DEPS) \
+		../@DFT_OBJ_SUBDIR@/dump_entry$o
+	@ECHO_LD@ $(LIBTOOL_LINK) -o $@ $(CFLAGS_DEFAULT) -DNCURSES_TEST -I$(serial)/../../progs $(serial)/lib_mvcur.c ../@DFT_OBJ_SUBDIR@/dump_entry$o $(TEST_LDFLAGS)
+
+link_test$x : ./link_test.c $(TEST_DEPS) \
+		../@DFT_OBJ_SUBDIR@/link_test$o
+	@ECHO_LD@ $(CC) -o $@ $(CFLAGS_DEFAULT) ../@DFT_OBJ_SUBDIR@/link_test$o $(TEST_LDFLAGS)
+
+../@DFT_OBJ_SUBDIR@/dump_entry$o:
+	cd ../progs && $(MAKE) ../@DFT_OBJ_SUBDIR@/dump_entry$o
+
+###############################################################################
+# The remainder of this file is automatically generated during configuration
+###############################################################################

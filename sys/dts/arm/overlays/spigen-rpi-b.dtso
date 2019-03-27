@@ -1,0 +1,31 @@
+/* $FreeBSD$ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835";
+};
+
+&{/soc/spi@7e204000} {
+	status = "okay";
+
+	spigen0: spigen0 {
+		compatible = "freebsd,spigen";
+		reg = <0>;
+		spi-max-frequency = <500000>; /* Req'd property, override with spi(8) */
+		status = "okay";
+	};
+	spigen1: spigen1 {
+		compatible = "freebsd,spigen";
+		reg = <1>;
+		spi-max-frequency = <500000>; /* Req'd property, override with spi(8) */
+		status = "okay";
+	};
+};
+
+&{/soc/gpio@7e200000/spi0_cs_pins} {
+	brcm,pins = <8 7>;
+	brcm,function = <4>; /* ALT0 */
+};
+

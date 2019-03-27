@@ -1,0 +1,425 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)tr.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd October 13, 2006
+.Dt TR 1
+.Os
+.Sh NAME
+.Nm tr
+.Nd translate characters
+.Sh SYNOPSIS
+.Nm
+.Op Fl Ccsu
+.Ar string1 string2
+.Nm
+.Op Fl Ccu
+.Fl d
+.Ar string1
+.Nm
+.Op Fl Ccu
+.Fl s
+.Ar string1
+.Nm
+.Op Fl Ccu
+.Fl ds
+.Ar string1 string2
+.Sh DESCRIPTION
+The
+.Nm
+utility copies the standard input to the standard output with substitution
+or deletion of selected characters.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl C
+Complement the set of characters in
+.Ar string1 ,
+that is
+.Dq Fl C Li ab
+includes every character except for
+.Ql a
+and
+.Ql b .
+.It Fl c
+Same as
+.Fl C
+but complement the set of values in
+.Ar string1 .
+.It Fl d
+Delete characters in
+.Ar string1
+from the input.
+.It Fl s
+Squeeze multiple occurrences of the characters listed in the last
+operand (either
+.Ar string1
+or
+.Ar string2 )
+in the input into a single instance of the character.
+This occurs after all deletion and translation is completed.
+.It Fl u
+Guarantee that any output is unbuffered.
+.El
+.Pp
+In the first synopsis form, the characters in
+.Ar string1
+are translated into the characters in
+.Ar string2
+where the first character in
+.Ar string1
+is translated into the first character in
+.Ar string2
+and so on.
+If
+.Ar string1
+is longer than
+.Ar string2 ,
+the last character found in
+.Ar string2
+is duplicated until
+.Ar string1
+is exhausted.
+.Pp
+In the second synopsis form, the characters in
+.Ar string1
+are deleted from the input.
+.Pp
+In the third synopsis form, the characters in
+.Ar string1
+are compressed as described for the
+.Fl s
+option.
+.Pp
+In the fourth synopsis form, the characters in
+.Ar string1
+are deleted from the input, and the characters in
+.Ar string2
+are compressed as described for the
+.Fl s
+option.
+.Pp
+The following conventions can be used in
+.Ar string1
+and
+.Ar string2
+to specify sets of characters:
+.Bl -tag -width [:equiv:]
+.It character
+Any character not described by one of the following conventions
+represents itself.
+.It \eoctal
+A backslash followed by 1, 2 or 3 octal digits represents a character
+with that encoded value.
+To follow an octal sequence with a digit as a character, left zero-pad
+the octal sequence to the full 3 octal digits.
+.It \echaracter
+A backslash followed by certain special characters maps to special
+values.
+.Bl -column "\ea"
+.It "\ea	<alert character>"
+.It "\eb	<backspace>"
+.It "\ef	<form-feed>"
+.It "\en	<newline>"
+.It "\er	<carriage return>"
+.It "\et	<tab>"
+.It "\ev	<vertical tab>"
+.El
+.Pp
+A backslash followed by any other character maps to that character.
+.It c-c
+For non-octal range endpoints
+represents the range of characters between the range endpoints, inclusive,
+in ascending order,
+as defined by the collation sequence.
+If either or both of the range endpoints are octal sequences, it
+represents the range of specific coded values between the
+range endpoints, inclusive.
+.Pp
+.Bf Em
+See the
+.Sx COMPATIBILITY
+section below for an important note regarding
+differences in the way the current
+implementation interprets range expressions differently from
+previous implementations.
+.Ef
+.It [:class:]
+Represents all characters belonging to the defined character class.
+Class names are:
+.Bl -column "phonogram"
+.It "alnum	<alphanumeric characters>"
+.It "alpha	<alphabetic characters>"
+.It "blank	<whitespace characters>"
+.It "cntrl	<control characters>"
+.It "digit	<numeric characters>"
+.It "graph	<graphic characters>"
+.It "ideogram	<ideographic characters>"
+.It "lower	<lower-case alphabetic characters>"
+.It "phonogram	<phonographic characters>"
+.It "print	<printable characters>"
+.It "punct	<punctuation characters>"
+.It "rune	<valid characters>"
+.It "space	<space characters>"
+.It "special	<special characters>"
+.It "upper	<upper-case characters>"
+.It "xdigit	<hexadecimal characters>"
+.El
+.Pp
+.\" All classes may be used in
+.\" .Ar string1 ,
+.\" and in
+.\" .Ar string2
+.\" when both the
+.\" .Fl d
+.\" and
+.\" .Fl s
+.\" options are specified.
+.\" Otherwise, only the classes ``upper'' and ``lower'' may be used in
+.\" .Ar string2
+.\" and then only when the corresponding class (``upper'' for ``lower''
+.\" and vice-versa) is specified in the same relative position in
+.\" .Ar string1 .
+.\" .Pp
+When
+.Dq Li [:lower:]
+appears in
+.Ar string1
+and
+.Dq Li [:upper:]
+appears in the same relative position in
+.Ar string2 ,
+it represents the characters pairs from the
+.Dv toupper
+mapping in the
+.Ev LC_CTYPE
+category of the current locale.
+When
+.Dq Li [:upper:]
+appears in
+.Ar string1
+and
+.Dq Li [:lower:]
+appears in the same relative position in
+.Ar string2 ,
+it represents the characters pairs from the
+.Dv tolower
+mapping in the
+.Ev LC_CTYPE
+category of the current locale.
+.Pp
+With the exception of case conversion,
+characters in the classes are in unspecified order.
+.Pp
+For specific information as to which
+.Tn ASCII
+characters are included
+in these classes, see
+.Xr ctype 3
+and related manual pages.
+.It [=equiv=]
+Represents all characters belonging to the same equivalence class as
+.Ar equiv ,
+ordered by their encoded values.
+.It [#*n]
+Represents
+.Ar n
+repeated occurrences of the character represented by
+.Ar # .
+This
+expression is only valid when it occurs in
+.Ar string2 .
+If
+.Ar n
+is omitted or is zero, it is be interpreted as large enough to extend
+.Ar string2
+sequence to the length of
+.Ar string1 .
+If
+.Ar n
+has a leading zero, it is interpreted as an octal value, otherwise,
+it is interpreted as a decimal value.
+.El
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL , LC_CTYPE
+and
+.Ev LC_COLLATE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+The following examples are shown as given to the shell:
+.Pp
+Create a list of the words in file1, one per line, where a word is taken to
+be a maximal string of letters.
+.Pp
+.D1 Li "tr -cs \*q[:alpha:]\*q \*q\en\*q < file1"
+.Pp
+Translate the contents of file1 to upper-case.
+.Pp
+.D1 Li "tr \*q[:lower:]\*q \*q[:upper:]\*q < file1"
+.Pp
+(This should be preferred over the traditional
+.Ux
+idiom of
+.Dq Li "tr a-z A-Z" ,
+since it works correctly in all locales.)
+.Pp
+Strip out non-printable characters from file1.
+.Pp
+.D1 Li "tr -cd \*q[:print:]\*q < file1"
+.Pp
+Remove diacritical marks from all accented variants of the letter
+.Ql e :
+.Pp
+.Dl "tr \*q[=e=]\*q \*qe\*q"
+.Sh COMPATIBILITY
+Previous
+.Fx
+implementations of
+.Nm
+did not order characters in range expressions according to the current
+locale's collation order, making it possible to convert unaccented Latin
+characters (esp.\& as found in English text) from upper to lower case using
+the traditional
+.Ux
+idiom of
+.Dq Li "tr A-Z a-z" .
+Since
+.Nm
+now obeys the locale's collation order, this idiom may not produce
+correct results when there is not a 1:1 mapping between lower and
+upper case, or when the order of characters within the two cases differs.
+As noted in the
+.Sx EXAMPLES
+section above, the character class expressions
+.Dq Li [:lower:]
+and
+.Dq Li [:upper:]
+should be used instead of explicit character ranges like
+.Dq Li a-z
+and
+.Dq Li A-Z .
+.Pp
+.Dq Li [=equiv=]
+expression and collation for ranges
+are implemented for single byte locales only.
+.Pp
+System V has historically implemented character ranges using the syntax
+.Dq Li [c-c]
+instead of the
+.Dq Li c-c
+used by historic
+.Bx
+implementations and
+standardized by POSIX.
+System V shell scripts should work under this implementation as long as
+the range is intended to map in another range, i.e., the command
+.Dq Li "tr [a-z] [A-Z]"
+will work as it will map the
+.Ql \&[
+character in
+.Ar string1
+to the
+.Ql \&[
+character in
+.Ar string2 .
+However, if the shell script is deleting or squeezing characters as in
+the command
+.Dq Li "tr -d [a-z]" ,
+the characters
+.Ql \&[
+and
+.Ql \&]
+will be
+included in the deletion or compression list which would not have happened
+under a historic System V implementation.
+Additionally, any scripts that depended on the sequence
+.Dq Li a-z
+to
+represent the three characters
+.Ql a ,
+.Ql \-
+and
+.Ql z
+will have to be
+rewritten as
+.Dq Li a\e-z .
+.Pp
+The
+.Nm
+utility has historically not permitted the manipulation of NUL bytes in
+its input and, additionally, stripped NUL's from its input stream.
+This implementation has removed this behavior as a bug.
+.Pp
+The
+.Nm
+utility has historically been extremely forgiving of syntax errors,
+for example, the
+.Fl c
+and
+.Fl s
+options were ignored unless two strings were specified.
+This implementation will not permit illegal syntax.
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
+The
+.Dq ideogram ,
+.Dq phonogram ,
+.Dq rune ,
+and
+.Dq special
+character classes are extensions.
+.Pp
+It should be noted that the feature wherein the last character of
+.Ar string2
+is duplicated if
+.Ar string2
+has less characters than
+.Ar string1
+is permitted by POSIX but is not required.
+Shell scripts attempting to be portable to other POSIX systems should use
+the
+.Dq Li [#*]
+convention instead of relying on this behavior.
+The
+.Fl u
+option is an extension to the
+.St -p1003.1-2001
+standard.

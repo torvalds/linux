@@ -1,0 +1,35 @@
+$FreeBSD$
+
+This is an implementation of the frag attack described in:
+http://tapir.cs.ucl.ac.uk/bittau-wep.pdf
+It will only work with Atheros.  It could be made to work with other cards, but
+it is more difficult.
+
+wesside's features:
+===================
+* Channel hops, finds a WEP wifi, finds a MAC to spoof if necessary and
+  associates.
+* Waits for a packet.  Uses fragmentation to recover some keystream.
+* Discovers the network's IP using the linear keystream expansion technique in
+  order to decrypt an ARP packet.
+* Generates traffic on the network for weak IV attack:
+  - Either by flooding with ARP requests.
+  - Or, by contacting someone on the Internet [udps] and telling it to flood.
+* Uses aircrack periodically to attempt to crack the WEP key.  The supplied
+  aircrack is modified to work with wesside.
+* Binds to a tap interface to allow TX.  RX works if a dictionary is being built
+  [dics] and a packet with a known IV traverses the network.
+
+Examples:
+=========
+For the skiddies:
+./wesside
+
+To cause the Internet to flood:
+[Internet box]~$ ./udps 500
+./wesside -s ip_of_internet_box
+
+To build a dictionary:
+[Internet box]~# ./dics source_ip_of_box 100
+./wesside -s ip_of_internet_box
+Use tap3 as if it were the wifi.

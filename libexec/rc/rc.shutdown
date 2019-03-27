@@ -1,0 +1,113 @@
+#!/bin/sh
+#
+# Copyright (c) 1997  Ollivier Robert
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# Site-specific closing actions for daemons run by init on shutdown,
+# or before going single-user from multi-user.
+# Output and errors are directed to console by init, and the
+# console is the controlling terminal.
+
+stty status '^T' 2> /dev/null
+
+# Set shell to ignore SIGINT (2), but not children;
+# shell catches SIGQUIT (3) and returns to single user after fsck.
+trap : 2
+trap : 3	# shouldn't be needed
+
+HOME=/
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
+export HOME PATH
+
+. /etc/rc.subr
+
+load_rc_config
+
+# reverse_list list
+#	print the list in reverse order
+#
+reverse_list()
+{
+	_revlist=
+	for _revfile in $*; do
+		_revlist="$_revfile${script_name_sep}$_revlist"
+	done
+	echo $_revlist
+}
+
+# If requested, start a watchdog timer in the background which
+# will terminate rc.shutdown if rc.shutdown doesn't complete
+# within the specified time.
+#
+_rcshutdown_watchdog=
+if [ -n "$rcshutdown_timeout" ]; then
+	debug "Initiating watchdog timer."
+	sleep $rcshutdown_timeout && (
+		_msg="$rcshutdown_timeout second watchdog"
+		_msg="$_msg timeout expired. Shutdown terminated."
+		logger -t rc.shutdown "$_msg"
+		echo "$_msg"
+		date
+		kill -KILL $$ >/dev/null 2>&1
+	) &
+	_rcshutdown_watchdog=$!
+fi
+
+# Determine the shutdown order of the /etc/rc.d scripts,
+# and perform the operation
+#
+rcorder_opts="-k shutdown"
+if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
+	rcorder_opts="$rcorder_opts -s nojail"
+	if [ `/sbin/sysctl -n security.jail.vnet` -ne 1 ]; then
+		rcorder_opts="$rcorder_opts -s nojailvnet"
+	fi
+fi
+
+case ${local_startup} in
+[Nn][Oo] | '') ;;
+*)     find_local_scripts_new ;;
+esac
+
+files=`rcorder ${rcorder_opts} /etc/rc.d/* ${local_rc} 2>/dev/null`
+
+for _rc_elem in `reverse_list $files`; do
+	debug "run_rc_script $_rc_elem faststop"
+	run_rc_script $_rc_elem faststop
+done
+
+# Terminate the background watchdog timer (if it is running)
+#
+if [ -n "$_rcshutdown_watchdog" ]; then
+	pkill -TERM -P $_rcshutdown_watchdog >/dev/null 2>&1
+fi
+
+# Insert other shutdown procedures here
+
+
+echo '.'
+exit 0

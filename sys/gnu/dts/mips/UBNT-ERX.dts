@@ -1,0 +1,112 @@
+#include <dt-bindings/input/input.h>
+
+/dts-v1/;
+
+#include "mt7621.dtsi"
+
+/ {
+	compatible = "mediatek,mt7621-eval-board", "mediatek,mt7621-soc";
+	model = "UBNT-ERX";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x10000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,57600";
+	};
+
+	nand@1e003000 {
+		status = "okay";
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x80000>;
+			read-only;
+		};
+
+		partition@80000 {
+			label = "u-boot-env";
+			reg = <0x80000 0x60000>;
+			read-only;
+		};
+
+		factory: partition@e0000 {
+			label = "factory";
+			reg = <0xe0000 0x60000>;
+		};
+
+		partition@140000 {
+			label = "kernel1";
+			reg = <0x140000 0x300000>;
+		};
+
+		partition@440000 {
+			label = "kernel2";
+			reg = <0x440000 0x300000>;
+		};
+
+		partition@740000 {
+			label = "ubi";
+			reg = <0x740000 0xf7c0000>;
+		};
+
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 12 1>;
+			linux,code = <KEY_RESTART>;
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x22>;
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "uart2", "uart3", "i2c", "pcie", "rgmii2", "jtag";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&sdhci {
+	status = "disabled";
+};
+
+&pcie {
+	status = "disabled";
+};
+
+&spi0 {
+	/* This board has 2Mb spi flash soldered in and visible
+	   from manufacturer's firmware.
+	   But this SoC shares spi and nand pins,
+	   and current driver does't handle this sharing well */
+	status = "disabled";
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <1>;
+		linux,modalias = "m25p80";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "spi";
+			reg = <0x0 0x200000>;
+			read-only;
+		};
+	};
+};

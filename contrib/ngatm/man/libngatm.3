@@ -1,0 +1,75 @@
+.\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt
+.\" 	All rights reserved.
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\" 	All rights reserved.
+.\"
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Begemot: libunimsg/man/libngatm.3,v 1.6 2005/06/15 11:37:07 brandt_h Exp $
+.\"
+.Dd May 23, 2005
+.Dt LIBNGATM 3
+.Os
+.Sh NAME
+.Nm libngatm
+.Nd "ATM signalling library"
+.Sh LIBRARY
+Begemot ATM signalling library
+.Pq libngatm, -lngatm
+.Sh DESCRIPTION
+The Begemot UNI signalling library handles message decoding and encoding as
+well as the Q.2110 and Q.2120 transport protocols and adaptation layers, and
+ATM-Forum UNI 4.0 compliant signalling.
+Because of this complexity the description is broken down in several man pages:
+.Bl -tag -width XXXX
+.It Xr unimsg 3
+Describes a data structure and functions for handling of variable sized
+messages.
+.It Xr unistruct 3
+describes data structures for the decoding, encoding and printing functions
+in the library.
+.It Xr unifunc 3
+describes the decoding, encoding and printing functions.
+.\" .It Xr sscop 3
+.\" describes the SSCOP transport protocol functions.
+.\" .It Xr sscfu 3
+.\" describes the SSCF at the UNI functions.
+.\" .It Xr uni 3
+.\" describes the UNI 4.0 signalling functions.
+.It Xr uniaddr 3
+describes address structures and handling functions.
+.It Xr unisap 3
+.\" describes ATM-Forum ATM-API service access point structures and
+.\" handling functions.
+.El
+.Sh SEE ALSO
+.Xr sscop 1
+.Sh STANDARDS
+This implementation conforms to the applicable ITU-T
+recommendations and ATM Forum standards.
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@FreeBSD.org

@@ -1,0 +1,79 @@
+/* Definitions of target machine for GCC for IA-32.
+   Copyright (C) 2002, 2004, 2005 Free Software Foundation, Inc.
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+GCC is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
+
+/* The x86_64 ABI specifies both XF and TF modes.
+   XFmode is __float80 is IEEE extended; TFmode is __float128
+   is IEEE quad.  */
+
+FRACTIONAL_FLOAT_MODE (XF, 80, 12, ieee_extended_intel_96_format);
+FLOAT_MODE (TF, 16, ieee_quad_format);
+
+/* In ILP32 mode, XFmode has size 12 and alignment 4.
+   In LP64 mode, XFmode has size and alignment 16.  */
+ADJUST_FLOAT_FORMAT (XF, (TARGET_128BIT_LONG_DOUBLE
+			  ? &ieee_extended_intel_128_format
+			  : TARGET_96_ROUND_53_LONG_DOUBLE
+			  ? &ieee_extended_intel_96_round_53_format
+			  : &ieee_extended_intel_96_format));
+ADJUST_BYTESIZE  (XF, TARGET_128BIT_LONG_DOUBLE ? 16 : 12);
+ADJUST_ALIGNMENT (XF, TARGET_128BIT_LONG_DOUBLE ? 16 : 4);
+
+/* Add any extra modes needed to represent the condition code.
+
+   For the i386, we need separate modes when floating-point
+   equality comparisons are being done.
+
+   Add CCNO to indicate comparisons against zero that requires
+   Overflow flag to be unset.  Sign bit test is used instead and
+   thus can be used to form "a&b>0" type of tests.
+
+   Add CCGC to indicate comparisons against zero that allows
+   unspecified garbage in the Carry flag.  This mode is used
+   by inc/dec instructions.
+
+   Add CCGOC to indicate comparisons against zero that allows
+   unspecified garbage in the Carry and Overflow flag. This
+   mode is used to simulate comparisons of (a-b) and (a+b)
+   against zero using sub/cmp/add operations.
+
+   Add CCZ to indicate that only the Zero flag is valid.  */
+
+CC_MODE (CCGC);
+CC_MODE (CCGOC);
+CC_MODE (CCNO);
+CC_MODE (CCZ);
+CC_MODE (CCFP);
+CC_MODE (CCFPU);
+
+/* Vector modes.  */
+VECTOR_MODES (INT, 4);        /*            V4QI V2HI */
+VECTOR_MODES (INT, 8);        /*       V8QI V4HI V2SI */
+VECTOR_MODES (INT, 16);       /* V16QI V8HI V4SI V2DI */
+VECTOR_MODES (FLOAT, 8);      /*            V4HF V2SF */
+VECTOR_MODES (FLOAT, 16);     /*       V8HF V4SF V2DF */
+VECTOR_MODE (INT, DI, 4);     /*                 V4DI */
+VECTOR_MODE (INT, SI, 8);     /*                 V8SI */
+VECTOR_MODE (INT, HI, 16);    /*                V16HI */
+VECTOR_MODE (INT, QI, 32);    /*                V32QI */
+VECTOR_MODE (FLOAT, DF, 4);   /*                 V4DF */
+VECTOR_MODE (FLOAT, SF, 8);   /*                 V8SF */
+
+/* The symbol Pmode stands for one of the above machine modes (usually SImode).
+   The tm.h file specifies which one.  It is not a distinct mode.  */

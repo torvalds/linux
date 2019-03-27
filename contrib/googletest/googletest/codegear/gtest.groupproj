@@ -1,0 +1,54 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{c1d923e0-6cba-4332-9b6f-3420acbf5091}</ProjectGuid>
+  </PropertyGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <Projects Include="gtest.cbproj" />
+    <Projects Include="gtest_main.cbproj" />
+    <Projects Include="gtest_unittest.cbproj" />
+  </ItemGroup>
+  <ProjectExtensions>
+    <Borland.Personality>Default.Personality</Borland.Personality>
+    <Borland.ProjectType />
+    <BorlandProject>
+<BorlandProject xmlns=""><Default.Personality></Default.Personality></BorlandProject></BorlandProject>
+  </ProjectExtensions>
+  <Target Name="gtest">
+    <MSBuild Projects="gtest.cbproj" Targets="" />
+  </Target>
+  <Target Name="gtest:Clean">
+    <MSBuild Projects="gtest.cbproj" Targets="Clean" />
+  </Target>
+  <Target Name="gtest:Make">
+    <MSBuild Projects="gtest.cbproj" Targets="Make" />
+  </Target>
+  <Target Name="gtest_main">
+    <MSBuild Projects="gtest_main.cbproj" Targets="" />
+  </Target>
+  <Target Name="gtest_main:Clean">
+    <MSBuild Projects="gtest_main.cbproj" Targets="Clean" />
+  </Target>
+  <Target Name="gtest_main:Make">
+    <MSBuild Projects="gtest_main.cbproj" Targets="Make" />
+  </Target>
+  <Target Name="gtest_unittest">
+    <MSBuild Projects="gtest_unittest.cbproj" Targets="" />
+  </Target>
+  <Target Name="gtest_unittest:Clean">
+    <MSBuild Projects="gtest_unittest.cbproj" Targets="Clean" />
+  </Target>
+  <Target Name="gtest_unittest:Make">
+    <MSBuild Projects="gtest_unittest.cbproj" Targets="Make" />
+  </Target>
+  <Target Name="Build">
+    <CallTarget Targets="gtest;gtest_main;gtest_unittest" />
+  </Target>
+  <Target Name="Clean">
+    <CallTarget Targets="gtest:Clean;gtest_main:Clean;gtest_unittest:Clean" />
+  </Target>
+  <Target Name="Make">
+    <CallTarget Targets="gtest:Make;gtest_main:Make;gtest_unittest:Make" />
+  </Target>
+  <Import Condition="Exists('$(MSBuildBinPath)\Borland.Group.Targets')" Project="$(MSBuildBinPath)\Borland.Group.Targets" />
+</Project>

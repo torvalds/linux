@@ -1,0 +1,142 @@
+# $FreeBSD$
+
+# Setup system for firewall service, with some sample configurations.
+# Select one using ${firewall_type} which you can set in /etc/rc.conf.local.
+#
+# If you override this file with your own copy, you can use ${hostname}
+# as the key for the case statement. On entry, the firewall will be flushed
+# and $fwcmd will point to the appropriate command (usually /sbin/ipfw)
+#
+# Sample configurations are:
+#   open     - will allow anyone in
+#   client   - will try to protect just this machine (should be customized).
+#   simple   - will try to protect a whole network (should be customized).
+#   closed   - totally disables IP services except via lo0 interface
+#   UNKNOWN  - disables the loading of firewall rules.
+#   filename - will load the rules in the given filename (full path required)
+#
+
+############
+# Only in rare cases do you want to change these rules
+$fwcmd add 1000 pass all from any to any via lo0
+$fwcmd add 1010 deny all from 127.0.0.0/8 to 127.0.0.0/8
+
+
+# Prototype setups.
+case "${firewall_type}" in
+open|OPEN)
+    $fwcmd add 65000 pass all from any to any
+    ;;
+
+client)
+
+    ############
+    # This is a prototype setup that will protect your system somewhat against
+    # people from outside your own network.
+    ############
+
+    # set these to your network and netmask and ip
+    net="192.168.4.0"
+    mask="255.255.255.0"
+    ip="192.168.4.17"
+
+    # Allow any traffic to or from my own net.
+    $fwcmd add pass all from ${ip} to ${net}:${mask}
+    $fwcmd add pass all from ${net}:${mask} to ${ip}
+
+    # Allow TCP through if setup succeeded
+    $fwcmd add pass tcp from any to any established
+
+    # Allow setup of incoming email 
+    $fwcmd add pass tcp from any to ${ip} 25 setup
+
+    # Allow setup of outgoing TCP connections only
+    $fwcmd add pass tcp from ${ip} to any setup
+
+    # Disallow setup of all other TCP connections
+    $fwcmd add deny tcp from any to any setup
+
+    # Allow DNS queries out in the world
+    $fwcmd add pass udp from any 53 to ${ip}
+    $fwcmd add pass udp from ${ip} to any 53
+
+    # Allow NTP queries out in the world
+    $fwcmd add pass udp from any 123 to ${ip}
+    $fwcmd add pass udp from ${ip} to any 123
+
+    # Everything else is denied as default.
+    $fwcmd add 65000 deny all from any to any
+    ;;
+
+simple)
+
+    ############
+    # This is a prototype setup for a simple firewall.  Configure this machine 
+    # as a named server and ntp server, and point all the machines on the inside
+    # at this machine for those services.
+    ############
+
+    # set these to your outside interface network and netmask and ip
+    oif="ed0"
+    onet="192.168.4.0"
+    omask="255.255.255.0"
+    oip="192.168.4.17"
+
+    # set these to your inside interface network and netmask and ip
+    iif="ed1"
+    inet="192.168.3.0"
+    imask="255.255.255.0"
+    iip="192.168.3.17"
+
+    # Stop spoofing
+    $fwcmd add deny all from ${inet}:${imask} to any in via ${oif}
+    $fwcmd add deny all from ${onet}:${omask} to any in via ${iif}
+
+    # Stop RFC1918 nets on the outside interface
+    $fwcmd add deny all from 192.168.0.0:255.255.0.0 to any via ${oif}
+    $fwcmd add deny all from 172.16.0.0:255.240.0.0 to any via ${oif}
+    $fwcmd add deny all from 10.0.0.0:255.0.0.0 to any via ${oif}
+
+    # Allow TCP through if setup succeeded
+    $fwcmd add pass tcp from any to any established
+
+    # Allow setup of incoming email 
+    $fwcmd add pass tcp from any to ${oip} 25 setup
+
+    # Allow access to our DNS
+    $fwcmd add pass tcp from any to ${oip} 53 setup
+
+    # Allow access to our WWW
+    $fwcmd add pass tcp from any to ${oip} 80 setup
+
+    # Reject&Log all setup of incoming connections from the outside
+    $fwcmd add deny log tcp from any to any in via ${oif} setup
+
+    # Allow setup of any other TCP connection
+    $fwcmd add pass tcp from any to any setup
+
+    # Allow DNS queries out in the world
+    $fwcmd add pass udp from any 53 to ${oip}
+    $fwcmd add pass udp from ${oip} to any 53
+
+    # Allow NTP queries out in the world
+    $fwcmd add pass udp from any 123 to ${oip}
+    $fwcmd add pass udp from ${oip} to any 123
+
+    # Everything else is denied as default.
+    $fwcmd add 65000 deny all from any to any
+    ;;
+
+UNKNOWN|"")
+    echo "WARNING: firewall rules not loaded."
+    ;;
+
+*)  # an absolute pathname ?
+    if [ -f "${firewall_type}" ] ; then
+	$fwcmd ${firewall_type}
+    else
+	echo "WARNING: firewall config script (${firewall_type}) not found,"
+	echo "         firewall rules not loaded."
+    fi
+    ;;
+esac

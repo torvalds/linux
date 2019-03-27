@@ -1,0 +1,137 @@
+.\" Copyright (c) 2008-2010 David Schultz <das@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 3, 2013
+.Dt LOG 3
+.Os
+.Sh NAME
+.Nm log ,
+.Nm logf ,
+.Nm logl ,
+.Nm log10 ,
+.Nm log10f ,
+.Nm log10l ,
+.Nm log2 ,
+.Nm log2f ,
+.Nm log2l ,
+.Nm log1p ,
+.Nm log1pf ,
+.Nm log1pl
+.Nd logarithm functions
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn log "double x"
+.Ft float
+.Fn logf "float x"
+.Ft long double
+.Fn logl "long double x"
+.Ft double
+.Fn log10 "double x"
+.Ft float
+.Fn log10f "float x"
+.Ft long double
+.Fn log10l "long double x"
+.Ft double
+.Fn log2 "double x"
+.Ft float
+.Fn log2f "float x"
+.Ft long double
+.Fn log2l "long double x"
+.Ft double
+.Fn log1p "double x"
+.Ft float
+.Fn log1pf "float x"
+.Ft long double
+.Fn log1pl "long double x"
+.Sh DESCRIPTION
+The
+.Fn log ,
+.Fn logf ,
+and
+.Fn logl
+functions compute the natural logarithm of
+.Fa x .
+.Pp
+The
+.Fn log10 ,
+.Fn log10f ,
+and
+.Fn log10l
+functions compute the logarithm base 10 of
+.Fa x ,
+while
+.Fn log2 ,
+.Fn log2f ,
+and
+.Fn log2l
+compute the logarithm base 2 of
+.Fa x .
+.Pp
+The
+.Fn log1p ,
+.Fn log1pf ,
+and
+.Fn log1pl
+functions compute the natural logarithm of
+.No "1 + x" .
+Computing the natural logarithm as
+.Li log1p(x)
+is more accurate than computing it as
+.Li log(1 + x)
+when
+.Fa x
+is close to zero.
+.Sh RETURN VALUES
+These functions return the requested logarithm; the logarithm of 1 is +0.
+An attempt to take the logarithm of \*(Pm0 results in a divide-by-zero
+exception, and -\*(If is returned.
+Otherwise, attempting to take the logarithm of a negative number
+results in an invalid exception and a return value of \*(Na.
+.Sh SEE ALSO
+.Xr exp 3 ,
+.Xr ilogb 3 ,
+.Xr math 3 ,
+.Xr pow 3
+.Sh STANDARDS
+The
+.Fn log ,
+.Fn logf ,
+.Fn logl ,
+.Fn log10 ,
+.Fn log10f ,
+.Fn log10l ,
+.Fn log2 ,
+.Fn log2f ,
+.Fn log2l ,
+.Fn log1p ,
+.Fn log1pf ,
+and
+.Fn log1pl
+functions conform to
+.St -isoC-99 .

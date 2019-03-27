@@ -1,0 +1,276 @@
+/*
+ * Copyright 2013 Rostislav Lisovy <lisovy@gmail.com>, PiKRON s.r.o.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include "imx53.dtsi"
+
+/ {
+	model = "Voipac i.MX53 X53-DMM-668";
+	compatible = "voipac,imx53-dmm-668", "fsl,imx53";
+
+	memory@70000000 {
+		device_type = "memory";
+		reg = <0x70000000 0x20000000>;
+	};
+
+	memory@b0000000 {
+		device_type = "memory";
+		reg = <0xb0000000 0x20000000>;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_3p3v: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "3P3V";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		reg_usb_vbus: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "usb_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio3 31 0>; /* PEN */
+			enable-active-high;
+		};
+	};
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	imx53-voipac {
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				/* Make DA9053 regulator functional */
+				MX53_PAD_GPIO_16__GPIO7_11	0x80000000
+				/* FEC Power enable */
+				MX53_PAD_GPIO_11__GPIO4_1	0x80000000
+				/* FEC RST */
+				MX53_PAD_GPIO_12__GPIO4_2	0x80000000
+			>;
+		};
+
+		pinctrl_ecspi1: ecspi1grp {
+			fsl,pins = <
+				MX53_PAD_EIM_D16__ECSPI1_SCLK		0x80000000
+				MX53_PAD_EIM_D17__ECSPI1_MISO		0x80000000
+				MX53_PAD_EIM_D18__ECSPI1_MOSI		0x80000000
+			>;
+		};
+
+		pinctrl_fec: fecgrp {
+			fsl,pins = <
+				MX53_PAD_FEC_MDC__FEC_MDC		0x80000000
+				MX53_PAD_FEC_MDIO__FEC_MDIO		0x80000000
+				MX53_PAD_FEC_REF_CLK__FEC_TX_CLK	0x80000000
+				MX53_PAD_FEC_RX_ER__FEC_RX_ER		0x80000000
+				MX53_PAD_FEC_CRS_DV__FEC_RX_DV		0x80000000
+				MX53_PAD_FEC_RXD1__FEC_RDATA_1		0x80000000
+				MX53_PAD_FEC_RXD0__FEC_RDATA_0		0x80000000
+				MX53_PAD_FEC_TX_EN__FEC_TX_EN		0x80000000
+				MX53_PAD_FEC_TXD1__FEC_TDATA_1		0x80000000
+				MX53_PAD_FEC_TXD0__FEC_TDATA_0		0x80000000
+			>;
+		};
+
+		pinctrl_i2c1: i2c1grp {
+			fsl,pins = <
+				MX53_PAD_EIM_D21__I2C1_SCL		0xc0000000
+				MX53_PAD_EIM_D28__I2C1_SDA		0xc0000000
+			>;
+		};
+
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX53_PAD_PATA_DIOW__UART1_TXD_MUX	0x1e4
+				MX53_PAD_PATA_DMACK__UART1_RXD_MUX	0x1e4
+			>;
+		};
+
+		pinctrl_nand: nandgrp {
+			fsl,pins = <
+				MX53_PAD_NANDF_WE_B__EMI_NANDF_WE_B	0x4
+				MX53_PAD_NANDF_RE_B__EMI_NANDF_RE_B	0x4
+				MX53_PAD_NANDF_CLE__EMI_NANDF_CLE	0x4
+				MX53_PAD_NANDF_ALE__EMI_NANDF_ALE	0x4
+				MX53_PAD_NANDF_WP_B__EMI_NANDF_WP_B	0xe0
+				MX53_PAD_NANDF_RB0__EMI_NANDF_RB_0	0xe0
+				MX53_PAD_NANDF_CS0__EMI_NANDF_CS_0	0x4
+				MX53_PAD_PATA_DATA0__EMI_NANDF_D_0	0xa4
+				MX53_PAD_PATA_DATA1__EMI_NANDF_D_1	0xa4
+				MX53_PAD_PATA_DATA2__EMI_NANDF_D_2	0xa4
+				MX53_PAD_PATA_DATA3__EMI_NANDF_D_3	0xa4
+				MX53_PAD_PATA_DATA4__EMI_NANDF_D_4	0xa4
+				MX53_PAD_PATA_DATA5__EMI_NANDF_D_5	0xa4
+				MX53_PAD_PATA_DATA6__EMI_NANDF_D_6	0xa4
+				MX53_PAD_PATA_DATA7__EMI_NANDF_D_7	0xa4
+			>;
+		};
+	};
+};
+
+&ecspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1>;
+	cs-gpios = <&gpio2 30 0>, <&gpio3 19 0>, <&gpio2 16 0>, <&gpio2 17 0>;
+	status = "okay";
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec>;
+	phy-mode = "rmii";
+	phy-reset-gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+
+	pmic: dialog@48 {
+		compatible = "dlg,da9053-aa", "dlg,da9052";
+		reg = <0x48>;
+		interrupt-parent = <&gpio7>;
+		interrupts = <11 IRQ_TYPE_LEVEL_LOW>; /* low-level active IRQ at GPIO7_11 */
+
+		regulators {
+			buck1_reg: buck1 {
+				regulator-name = "BUCKCORE";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1400000>;
+				regulator-always-on;
+			};
+
+			buck2_reg: buck2 {
+				regulator-name = "BUCKPRO";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-always-on;
+			};
+
+			buck3_reg: buck3 {
+				regulator-name = "BUCKMEM";
+				regulator-min-microvolt = <1420000>;
+				regulator-max-microvolt = <1580000>;
+				regulator-always-on;
+			};
+
+			buck4_reg: buck4 {
+				regulator-name = "BUCKPERI";
+				regulator-min-microvolt = <2370000>;
+				regulator-max-microvolt = <2630000>;
+				regulator-always-on;
+			};
+
+			ldo1_reg: ldo1 {
+				regulator-name = "ldo1_1v3";
+				regulator-min-microvolt = <1250000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			ldo2_reg: ldo2 {
+				regulator-name = "ldo2_1v3";
+				regulator-min-microvolt = <1250000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-always-on;
+			};
+
+			ldo3_reg: ldo3 {
+				regulator-name = "ldo3_3v3";
+				regulator-min-microvolt = <3250000>;
+				regulator-max-microvolt = <3350000>;
+				regulator-always-on;
+			};
+
+			ldo4_reg: ldo4 {
+				regulator-name = "ldo4_2v775";
+				regulator-min-microvolt = <2770000>;
+				regulator-max-microvolt = <2780000>;
+				regulator-always-on;
+			};
+
+			ldo5_reg: ldo5 {
+				regulator-name = "ldo5_3v3";
+				regulator-min-microvolt = <3250000>;
+				regulator-max-microvolt = <3350000>;
+				regulator-always-on;
+			};
+
+			ldo6_reg: ldo6 {
+				regulator-name = "ldo6_1v3";
+				regulator-min-microvolt = <1250000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-always-on;
+			};
+
+			ldo7_reg: ldo7 {
+				regulator-name = "ldo7_2v75";
+				regulator-min-microvolt = <2700000>;
+				regulator-max-microvolt = <2800000>;
+				regulator-always-on;
+			};
+
+			ldo8_reg: ldo8 {
+				regulator-name = "ldo8_1v8";
+				regulator-min-microvolt = <1750000>;
+				regulator-max-microvolt = <1850000>;
+				regulator-always-on;
+			};
+
+			ldo9_reg: ldo9 {
+				regulator-name = "ldo9_1v5";
+				regulator-min-microvolt = <1450000>;
+				regulator-max-microvolt = <1550000>;
+				regulator-always-on;
+			};
+
+			ldo10_reg: ldo10 {
+				regulator-name = "ldo10_1v3";
+				regulator-min-microvolt = <1250000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-always-on;
+			};
+		};
+	};
+};
+
+&nfc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_nand>;
+	nand-bus-width = <8>;
+	nand-ecc-mode = "hw";
+	status = "okay";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+&usbh1 {
+	vbus-supply = <&reg_usb_vbus>;
+	phy_type = "utmi";
+	status = "okay";
+};

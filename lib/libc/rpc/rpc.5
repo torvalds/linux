@@ -1,0 +1,59 @@
+.\" $NetBSD: rpc.5,v 1.3 2000/06/15 20:05:54 fvdl Exp $
+.\" $FreeBSD$
+.\" @(#)rpc.4 1.17 93/08/30 SMI; from SVr4
+.\" Copyright 1989 AT&T
+.Dd December 10, 1991
+.Dt RPC 5
+.Os
+.Sh NAME
+.Nm rpc
+.Nd rpc program number data base
+.Sh SYNOPSIS
+.Pa /etc/rpc
+.Sh DESCRIPTION
+The
+.Nm
+file contains user readable names that
+can be used in place of RPC program numbers.
+For each RPC program a single line should be present
+with the following information:
+.Pp
+.Bl -enum -compact
+.It
+name of the RPC program
+.It
+RPC program number
+.It
+aliases
+.El
+.Pp
+Items are separated by any number of blanks and/or
+tab characters.
+A hash
+.Pq Dq Li #
+indicates the beginning of a comment; characters up to the end of
+the line are not interpreted by routines which search the file.
+.Sh FILES
+.Bl -tag -width /etc/nsswitch.conf -compact
+.It Pa /etc/nsswitch.conf
+.El
+.Sh EXAMPLES
+Below is an example of an RPC database:
+.Bd -literal
+#
+#	rpc
+#
+rpcbind		100000	portmap	sunrpc portmapper
+rusersd		100002	rusers
+nfs		100003	nfsprog
+mountd		100005	mount	showmount
+walld		100008	rwall	shutdown
+sprayd		100012	spray
+llockmgr	100020
+nlockmgr	100021
+status		100024
+bootparam	100026
+keyserv		100029	keyserver
+.Ed
+.Sh SEE ALSO
+.Xr getrpcent 3

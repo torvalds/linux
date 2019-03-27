@@ -1,0 +1,15 @@
+
+#------------------------------------------------------------------------------
+# $File: rpi,v 1.1 2018/01/01 05:25:17 christos Exp $
+# rpi:  file(1) magic for Raspberry Pi images
+-44		lelong	0
+>4		lelong	0
+>>8		lelong	1
+>>12		lelong	4
+>>>16		string	283x
+>>>>20		lelong	1
+>>>>>24		lelong	4
+>>>>>>28	string	DTOK
+>>>>>>>32	lelong	44
+>>>>>>>>36	lelong	4
+>>>>>>>>>40	string	RPTL		Raspberry PI kernel image

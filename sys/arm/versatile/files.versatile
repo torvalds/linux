@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+arm/versatile/pl050.c				optional sc
+arm/versatile/sp804.c				standard
+arm/versatile/versatile_machdep.c		standard
+arm/versatile/versatile_clcd.c			optional sc
+arm/versatile/versatile_common.c		standard
+arm/versatile/versatile_pci.c			optional pci
+arm/versatile/versatile_scm.c			standard
+arm/versatile/versatile_sic.c			standard
+
+kern/kern_clocksource.c                         standard

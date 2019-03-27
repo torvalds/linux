@@ -1,0 +1,238 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getrlimit.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd September 30, 2016
+.Dt GETRLIMIT 2
+.Os
+.Sh NAME
+.Nm getrlimit ,
+.Nm setrlimit
+.Nd control maximum system resource consumption
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/time.h
+.In sys/resource.h
+.Ft int
+.Fn getrlimit "int resource" "struct rlimit *rlp"
+.Ft int
+.Fn setrlimit "int resource" "const struct rlimit *rlp"
+.Sh DESCRIPTION
+Limits on the consumption of system resources by the current process
+and each process it creates may be obtained with the
+.Fn getrlimit
+system call, and set with the
+.Fn setrlimit
+system call.
+.Pp
+The
+.Fa resource
+argument is one of the following:
+.Bl -tag -width RLIMIT_FSIZEAA
+.It Dv RLIMIT_AS
+The maximum amount (in bytes) of virtual memory the process is
+allowed to map.
+.It Dv RLIMIT_CORE
+The largest size (in bytes)
+.Xr core 5
+file that may be created.
+.It Dv RLIMIT_CPU
+The maximum amount of cpu time (in seconds) to be used by
+each process.
+.It Dv RLIMIT_DATA
+The maximum size (in bytes) of the data segment for a process;
+this defines how far a program may extend its break with the
+.Xr sbrk 2
+function.
+.It Dv RLIMIT_FSIZE
+The largest size (in bytes) file that may be created.
+.It Dv RLIMIT_KQUEUES
+The maximum number of kqueues this user id is allowed to create.
+.It Dv RLIMIT_MEMLOCK
+The maximum size (in bytes) which a process may lock into memory
+using the
+.Xr mlock 2
+system call.
+.It Dv RLIMIT_NOFILE
+The maximum number of open files for this process.
+.It Dv RLIMIT_NPROC
+The maximum number of simultaneous processes for this user id.
+.It Dv RLIMIT_NPTS
+The maximum number of pseudo-terminals this user id is allowed to create.
+.It Dv RLIMIT_RSS
+When there is memory pressure and swap is available, prioritize eviction of
+a process' resident pages beyond this amount (in bytes).
+When memory is not under pressure, this rlimit is effectively ignored.
+Even when there is memory pressure, the amount of available swap space and some
+sysctl settings like
+.Xr vm.swap_enabled
+and
+.Xr vm.swap_idle_enabled
+can affect what happens to processes that have exceeded this size.
+.Pp
+Processes that exceed their set
+.Dv RLIMIT_RSS
+are not signalled or halted.
+The limit is merely a hint to the VM daemon to prefer to deactivate pages from
+processes that have exceeded their set
+.Dv RLIMIT_RSS .
+.It Dv RLIMIT_SBSIZE
+The maximum size (in bytes) of socket buffer usage for this user.
+This limits the amount of network memory, and hence the amount of
+mbufs, that this user may hold at any time.
+.It Dv RLIMIT_STACK
+The maximum size (in bytes) of the stack segment for a process;
+this defines how far a program's stack segment may be extended.
+Stack extension is performed automatically by the system.
+.It Dv RLIMIT_SWAP
+The maximum size (in bytes) of the swap space that may be reserved or
+used by all of this user id's processes.
+This limit is enforced only if bit 1 of the
+.Va vm.overcommit
+sysctl is set.
+Please see
+.Xr tuning 7
+for a complete description of this sysctl.
+.It Dv RLIMIT_VMEM
+An alias for
+.Dv RLIMIT_AS .
+.El
+.Pp
+A resource limit is specified as a soft limit and a hard limit.
+When a soft limit is exceeded, a process might or might not receive a signal.
+For example, signals are generated when the cpu time or file size is exceeded,
+but not if the address space or RSS limit is exceeded.
+A program that exceeds the soft limit is allowed to continue execution until it
+reaches the hard limit, or modifies its own resource limit.
+Even reaching the hard limit does not necessarily halt a process.
+For example, if the RSS hard limit is exceeded, nothing happens.
+.Pp
+The
+.Vt rlimit
+structure is used to specify the hard and soft limits on a resource.
+.Bd -literal -offset indent
+struct rlimit {
+	rlim_t	rlim_cur;	/* current (soft) limit */
+	rlim_t	rlim_max;	/* maximum value for rlim_cur */
+};
+.Ed
+.Pp
+Only the super-user may raise the maximum limits.
+Other users
+may only alter
+.Fa rlim_cur
+within the range from 0 to
+.Fa rlim_max
+or (irreversibly) lower
+.Fa rlim_max .
+.Pp
+An
+.Dq infinite
+value for a limit is defined as
+.Dv RLIM_INFINITY .
+.Pp
+Because this information is stored in the per-process information,
+this system call must be executed directly by the shell if it
+is to affect all future processes created by the shell;
+.Ic limit
+is thus a built-in command to
+.Xr csh 1 .
+.Pp
+The system refuses to extend the data or stack space when the limits
+would be exceeded in the normal way: a
+.Xr brk 2
+function fails if the data space limit is reached.
+When the stack limit is reached, the process receives
+a segmentation fault
+.Pq Dv SIGSEGV ;
+if this signal is not
+caught by a handler using the signal stack, this signal
+will kill the process.
+.Pp
+A file I/O operation that would create a file larger that the process'
+soft limit will cause the write to fail and a signal
+.Dv SIGXFSZ
+to be
+generated; this normally terminates the process, but may be caught.
+When
+the soft cpu time limit is exceeded, a
+.Dv SIGXCPU
+signal is sent to the
+offending process.
+.Pp
+When most operations would allocate more virtual memory than allowed by the
+soft limit of
+.Dv RLIMIT_AS ,
+the operation fails with
+.Dv ENOMEM
+and no signal is raised.
+A notable exception is stack extension, described above.
+If stack extension would allocate more virtual memory than allowed by the soft
+limit of
+.Dv RLIMIT_AS ,
+a
+.Dv SIGSEGV
+signal will be delivered.
+The caller is free to raise the soft address space limit up to the hard limit
+and retry the allocation.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn getrlimit
+and
+.Fn setrlimit
+system calls
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The address specified for
+.Fa rlp
+is invalid.
+.It Bq Er EPERM
+The limit specified to
+.Fn setrlimit
+would have
+raised the maximum limit value, and the caller is not the super-user.
+.El
+.Sh SEE ALSO
+.Xr csh 1 ,
+.Xr quota 1 ,
+.Xr quotactl 2 ,
+.Xr sigaction 2 ,
+.Xr sigaltstack 2 ,
+.Xr sysctl 3 ,
+.Xr ulimit 3
+.Sh HISTORY
+The
+.Fn getrlimit
+system call appeared in
+.Bx 4.2 .

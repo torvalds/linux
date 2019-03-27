@@ -1,0 +1,114 @@
+.\"
+.\" Copyright (c) 2009 Lawrence Stewart <lstewart@FreeBSD.org>
+.\" Copyright (c) 2010-2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Portions of this documentation were written at the Centre for Advanced
+.\" Internet Architectures, Swinburne University of Technology, Melbourne,
+.\" Australia by David Hayes under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 15, 2011
+.Dt CC_CUBIC 4
+.Os
+.Sh NAME
+.Nm cc_cubic
+.Nd CUBIC Congestion Control Algorithm
+.Sh DESCRIPTION
+The CUBIC congestion control algorithm was designed to provide increased
+throughput in fast and long-distance networks.
+It attempts to maintain fairness when competing with legacy NewReno TCP in lower
+speed scenarios where NewReno is able to operate adequately.
+.Pp
+The congestion window is increased as a function of the time elapsed since the
+last congestion event.
+During regular operation, the window increase function follows a cubic function,
+with the inflection point set to be the congestion window value reached at the
+last congestion event.
+CUBIC also calculates an estimate of the congestion window that NewReno would
+have achieved at a given time after a congestion event.
+When updating the congestion window, the algorithm will choose the larger of the
+calculated CUBIC and estimated NewReno windows.
+.Pp
+CUBIC also backs off less on congestion by changing the multiplicative decrease
+factor from 1/2 (used by standard NewReno TCP) to 4/5.
+.Pp
+The implementation was done in a clean-room fashion, and is based on the
+Internet Draft and paper referenced in the
+.Sx SEE ALSO
+section below.
+.Sh MIB Variables
+There are currently no tunable MIB variables.
+.Sh SEE ALSO
+.Xr cc_chd 4 ,
+.Xr cc_hd 4 ,
+.Xr cc_htcp 4 ,
+.Xr cc_newreno 4 ,
+.Xr cc_vegas 4 ,
+.Xr mod_cc 4 ,
+.Xr tcp 4 ,
+.Xr mod_cc 9
+.Rs
+.%A "Sangtae Ha"
+.%A "Injong Rhee"
+.%A "Lisong Xu"
+.%T "CUBIC for Fast Long-Distance Networks"
+.%U "http://tools.ietf.org/id/draft-rhee-tcpm-cubic-02.txt"
+.Re
+.Rs
+.%A "Sangtae Ha"
+.%A "Injong Rhee"
+.%A "Lisong Xu"
+.%T "CUBIC: a new TCP-friendly high-speed TCP variant"
+.%J "SIGOPS Oper. Syst. Rev."
+.%V "42"
+.%N "5"
+.%D "July 2008"
+.%P "64-74"
+.Re
+.Sh ACKNOWLEDGEMENTS
+Development and testing of this software were made possible in part by grants
+from the FreeBSD Foundation and Cisco University Research Program Fund at
+Community Foundation Silicon Valley.
+.Sh HISTORY
+The
+.Nm
+congestion control module first appeared in
+.Fx 9.0 .
+.Pp
+The module was first released in 2009 by Lawrence Stewart whilst studying at
+Swinburne University of Technology's Centre for Advanced Internet Architectures,
+Melbourne, Australia.
+More details are available at:
+.Pp
+http://caia.swin.edu.au/urp/newtcp/
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+congestion control module and this manual page were written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org
+and
+.An David Hayes Aq Mt david.hayes@ieee.org .

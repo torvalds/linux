@@ -1,0 +1,79 @@
+=pod
+
+=head1 NAME
+
+EVP_sha3_224,
+EVP_sha3_256,
+EVP_sha3_384,
+EVP_sha3_512,
+EVP_shake128,
+EVP_shake256
+- SHA-3 For EVP
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ const EVP_MD *EVP_sha3_224(void);
+ const EVP_MD *EVP_sha3_256(void);
+ const EVP_MD *EVP_sha3_384(void);
+ const EVP_MD *EVP_sha3_512(void);
+
+ const EVP_MD *EVP_shake128(void);
+ const EVP_MD *EVP_shake256(void);
+
+=head1 DESCRIPTION
+
+SHA-3 (Secure Hash Algorithm 3) is a family of cryptographic hash functions
+standardized in NIST FIPS 202, first published in 2015. It is based on the
+Keccak algorithm.
+
+=over 4
+
+=item EVP_sha3_224(),
+EVP_sha3_256(),
+EVP_sha3_384(),
+EVP_sha3_512()
+
+The SHA-3 SHA-3-224, SHA-3-256, SHA-3-384, and SHA-3-512 algorithms
+respectively. They produce 224, 256, 384 and 512 bits of output from a given
+input.
+
+=item EVP_shake128(),
+EVP_shake256()
+
+The SHAKE-128 and SHAKE-256 Extendable Output Functions (XOF) that can generate
+a variable hash length.
+
+Specifically, B<EVP_shake128> provides an overall security of 128 bits, while
+B<EVP_shake256> provides that of 256 bits.
+
+=back
+
+
+=head1 RETURN VALUES
+
+These functions return a B<EVP_MD> structure that contains the
+implementation of the symmetric cipher. See L<EVP_MD_meth_new(3)> for
+details of the B<EVP_MD> structure.
+
+=head1 CONFORMING TO
+
+NIST FIPS 202.
+
+=head1 SEE ALSO
+
+L<evp(7)>,
+L<EVP_DigestInit(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut
+

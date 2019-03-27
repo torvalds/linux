@@ -1,0 +1,7 @@
+$ $tcsh: set15,v 1.2 2006/03/02 18:46:46 christos Exp $
+$ sh.func.c
+$set 15 
+1 %s: %s: rajoitusta ei voida %s %s\n
+2 poistaa
+3 asettaa
+4 ehdottomaksi

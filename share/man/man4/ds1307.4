@@ -1,0 +1,131 @@
+.\"
+.\" Copyright (c) 2015 Luiz Otavio O Souza <loos@freebsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 7, 2015
+.Dt DS1307 4
+.Os
+.Sh NAME
+.Nm ds1307
+.Nd 64 x 8, serial, i2c real-time clock
+.Sh SYNOPSIS
+.Cd "device iic"
+.Cd "device iicbus"
+.Cd "device ds1307"
+.Sh DESCRIPTION
+The
+.Nm
+serial real-time clock (RTC) is a low-power, full binary-coded decimal (BCD)
+clock/calendar plus 56 bytes of NV SRAM.
+.Pp
+The
+.Nm
+has a built-in power-sense circuit that detects power failures and
+automatically switches to the backup supply.
+Timekeeping operation continues while the part operates from the backup supply.
+.Pp
+Access to
+.Nm
+settings is made with the
+.Xr sysctl 8
+interface:
+.Bd -literal
+dev.ds1307.0.%desc: Maxim DS1307 RTC
+dev.ds1307.0.%driver: ds1307
+dev.ds1307.0.%location: addr=0xd0
+dev.ds1307.0.%pnpinfo: name=rtc compat=maxim,ds1307
+dev.ds1307.0.%parent: iicbus1
+dev.ds1307.0.sqwe: 1
+dev.ds1307.0.sqw_freq: 32768
+dev.ds1307.0.sqw_out: 0
+.Ed
+.Bl -tag -width ".Va dev.ds1307.%d.sqw_freq"
+.It Va dev.ds1307.%d.sqwe
+If set to 1, the SQW pin drives a square-wave of
+.Va dev.ds1307.%d.sqw_freq
+frequency.
+If set to 0, the output level of SQW pin is controlled by
+.Va dev.ds1307.%d.sqw_out .
+.It Va dev.ds1307.%d.sqw_freq
+Select the frequency of the SQW pin when the square-wave output is enabled on
+.Va dev.ds1307.%d.sqwe .
+It can be set to 1, 4096, 8192 and 32768.
+.It Va dev.ds1307.%d.sqw_out
+Set the output level of the SQW pin when
+.Va dev.ds1307.%d.sqwe
+is set to 0.
+.El
+.Pp
+Please check the
+.Nm
+datasheet for more details.
+.Pp
+On a
+.Xr device.hints 5
+based system, such as
+.Li MIPS ,
+these values are configurable for
+.Nm :
+.Bl -tag -width ".Va hint.ds1307.%d.addr"
+.It Va hint.ds1307.%d.at
+The
+.Xr iicbus 4
+that the
+.Nm
+is connected to.
+.It Va hint.ds1307.%d.addr
+The i2c address of
+.Nm .
+.El
+.Pp
+On a
+.Xr FDT 4
+based system the following properties must be set:
+.Bl -tag -width ".Va compatible"
+.It Va compatible
+Must always be set to "dallas,ds1307" or "maxim,ds1307".
+.It Va reg
+The i2c address of
+.Nm .
+The default address for
+.Nm
+is 0xd0.
+.El
+.Sh SEE ALSO
+.Xr fdt 4 ,
+.Xr iic 4 ,
+.Xr iicbus 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver and this manual page were written by
+.An Luiz Otavio O Souza Aq Mt loos@FreeBSD.org .

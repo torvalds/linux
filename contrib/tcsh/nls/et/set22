@@ -1,0 +1,17 @@
+$ $tcsh: set22,v 1.3 2011/02/04 18:19:33 christos Exp $
+$ tc.func.c
+$set 22 
+1 %S: \t on tegelikult 
+2 \nKasutaja %s: vale parool\n
+3 Vigane alias 'precmd' eemaldatud.\n
+4 Vigane alias 'cwdcmd' eemaldatud.\n
+5 Vigane alias 'beepcmd' eemaldatud.\n
+6 Vigane alias 'periodic' eemaldatud.\n
+7 töötlen käsurida\n
+8 Kas te tÕepoolest tahate kustutada kõik failid? [e/j] 
+9 katkestan failide kustutamise!\n
+10 käsurida on nüüd:\n
+11 töötlen käsurida\n
+12 ühes loenditest\n
+13 käsurida on nüüd:\n
+14 jJ

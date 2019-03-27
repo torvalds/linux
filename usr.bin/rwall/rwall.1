@@ -1,0 +1,79 @@
+.\" Copyright (c) 1983, 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)rwall.1	6.7 (Berkeley) 4/23/91
+.\" $FreeBSD$
+.\"
+.Dd April 23, 1991
+.Dt RWALL 1
+.Os
+.Sh NAME
+.Nm rwall
+.Nd send a message to users logged on a host
+.Sh SYNOPSIS
+.Nm
+.Ar host
+.Op Ar file
+.Sh DESCRIPTION
+The
+.Nm
+command sends a message to the users logged into the specified
+.Ar host .
+The
+message to be sent can be typed in and terminated with EOF or it can
+be in a
+.Ar file .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It rwall: RPC: Program not registered
+The
+.Xr rpc.rwalld 8
+daemon has not been started on the remote host.
+.It rwall: RPC: Timed out
+A communication error occurred.
+Either the network is
+excessively congested, or the
+.Xr rpc.rwalld 8
+daemon has terminated on the remote host.
+.It rwall: RPC: Port mapper failure - RPC: Timed out
+The remote host is not running the portmapper (see
+.Xr rpcbind 8 ) ,
+and cannot accommodate any RPC-based services.
+The host may be down.
+.El
+.Sh SEE ALSO
+.Xr who 1 ,
+.Xr rpc.rwalld 8 ,
+.Xr rpcbind 8
+.Sh HISTORY
+The
+.Nm
+command
+appeared in
+.Em Sun-OS .
+.Sh BUGS
+The sorting options are not implemented.

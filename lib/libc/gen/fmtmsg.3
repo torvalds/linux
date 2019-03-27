@@ -1,0 +1,260 @@
+.\"
+.\" Copyright (c) 2002 Mike Barcroft <mike@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 5, 2002
+.Dt FMTMSG 3
+.Os
+.Sh NAME
+.Nm fmtmsg
+.Nd display a detailed diagnostic message
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In fmtmsg.h
+.Ft int
+.Fo fmtmsg
+.Fa "long classification" "const char *label" "int severity"
+.Fa "const char *text" "const char *action" "const char *tag"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn fmtmsg
+function displays a detailed diagnostic message, based on
+the supplied arguments, to
+.Dv stderr
+and/or the system console.
+.Pp
+The
+.Fa classification
+argument is the bitwise inclusive
+.Tn OR
+of zero or one of the manifest constants from
+each of the classification groups below.
+The Output classification group is an exception since both
+.Dv MM_PRINT
+and
+.Dv MM_CONSOLE
+may be specified.
+.Bl -tag -width indent
+.It Output
+.Bl -tag -width ".Dv MM_CONSOLE"
+.It Dv MM_PRINT
+Output should take place on
+.Dv stderr .
+.It Dv MM_CONSOLE
+Output should take place on the system console.
+.El
+.It "Source of Condition (Major)"
+.Bl -tag -width ".Dv MM_CONSOLE"
+.It Dv MM_HARD
+The source of the condition is hardware related.
+.It Dv MM_SOFT
+The source of the condition is software related.
+.It Dv MM_FIRM
+The source of the condition is firmware related.
+.El
+.It "Source of Condition (Minor)"
+.Bl -tag -width ".Dv MM_CONSOLE"
+.It Dv MM_APPL
+The condition was detected at the application level.
+.It Dv MM_UTIL
+The condition was detected at the utility level.
+.It Dv MM_OPSYS
+The condition was detected at the operating system level.
+.El
+.It Status
+.Bl -tag -width ".Dv MM_CONSOLE"
+.It Dv MM_RECOVER
+The application can recover from the condition.
+.It Dv MM_NRECOV
+The application is unable to recover from the condition.
+.El
+.El
+.Pp
+Alternatively, the
+.Dv MM_NULLMC
+manifest constant may be used to specify no classification.
+.Pp
+The
+.Fa label
+argument indicates the source of the message.
+It is made up of two fields separated by a colon
+.Pq Ql \&: .
+The first field can be up to 10 bytes,
+and the second field can be up to 14 bytes.
+The
+.Dv MM_NULLLBL
+manifest constant may be used to specify no label.
+.Pp
+The
+.Fa severity
+argument identifies the importance of the condition.
+One of the following manifest constants should be used for this argument.
+.Bl -tag -offset indent -width ".Dv MM_WARNING"
+.It Dv MM_HALT
+The application has confronted a serious fault and is halting.
+.It Dv MM_ERROR
+The application has detected a fault.
+.It Dv MM_WARNING
+The application has detected an unusual condition,
+that could be indicative of a problem.
+.It Dv MM_INFO
+The application is providing information about a non-error condition.
+.It Dv MM_NOSEV
+No severity level supplied.
+.El
+.Pp
+The
+.Fa text
+argument details the error condition that caused the message.
+There is no limit on the size of this character string.
+The
+.Dv MM_NULLTXT
+manifest constant may be used to specify no text.
+.Pp
+The
+.Fa action
+argument details how the error-recovery process should begin.
+Upon output,
+.Fn fmtmsg
+will prefix
+.Qq Li "TO FIX:"
+to the beginning of the
+.Fa action
+argument.
+The
+.Dv MM_NULLACT
+manifest constant may be used to specify no action.
+.Pp
+The
+.Fa tag
+argument should reference online documentation for the message.
+This usually includes the
+.Fa label
+and a unique identifying number.
+An example tag is
+.Qq Li BSD:ls:168 .
+The
+.Dv MM_NULLTAG
+manifest constant may be used to specify no tag.
+.Sh RETURN VALUES
+The
+.Fn fmtmsg
+function returns
+.Dv MM_OK
+upon success,
+.Dv MM_NOMSG
+to indicate output to
+.Dv stderr
+failed,
+.Dv MM_NOCON
+to indicate output to the system console failed, or
+.Dv MM_NOTOK
+to indicate output to
+.Dv stderr
+and the system console failed.
+.Sh ENVIRONMENT
+The
+.Ev MSGVERB
+(message verbosity)
+environment variable specifies which arguments to
+.Fn fmtmsg
+will be output to
+.Dv stderr ,
+and in which order.
+.Ev MSGVERB
+should be a colon
+.Pq Ql \&:
+separated list of identifiers.
+Valid identifiers include:
+.Li label , severity , text , action ,
+and
+.Li tag .
+If invalid identifiers are specified or incorrectly separated,
+the default message verbosity and ordering will be used.
+The default ordering is equivalent to a
+.Ev MSGVERB
+with a value of
+.Qq Li label:severity:text:action:tag .
+.Sh EXAMPLES
+The code:
+.Bd -literal -offset indent
+fmtmsg(MM_UTIL | MM_PRINT, "BSD:ls", MM_ERROR,
+    "illegal option -- z", "refer to manual", "BSD:ls:001");
+.Ed
+.Pp
+will output:
+.Bd -literal -offset indent
+BSD:ls: ERROR: illegal option -- z
+TO FIX: refer to manual BSD:ls:001
+.Ed
+.Pp
+to
+.Dv stderr .
+.Pp
+The same code, with
+.Ev MSGVERB
+set to
+.Qq Li "text:severity:action:tag" ,
+produces:
+.Bd -literal -offset indent
+illegal option -- z: ERROR
+TO FIX: refer to manual BSD:ls:001
+.Ed
+.Sh SEE ALSO
+.Xr err 3 ,
+.Xr exit 3 ,
+.Xr strerror 3
+.Sh STANDARDS
+The
+.Fn fmtmsg
+function conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn fmtmsg
+function first appeared in
+.Fx 5.0 .
+.Sh BUGS
+Specifying
+.Dv MM_NULLMC
+for the
+.Fa classification
+argument makes little sense, since without an output specified,
+.Fn fmtmsg
+is unable to do anything useful.
+.Pp
+In order for
+.Fn fmtmsg
+to output to the system console, the effective
+user must have appropriate permission to write to
+.Pa /dev/console .
+This means that on most systems
+.Fn fmtmsg
+will return
+.Dv MM_NOCON
+unless the effective user is root.

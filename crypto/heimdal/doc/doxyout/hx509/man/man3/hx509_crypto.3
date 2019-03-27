@@ -1,0 +1,40 @@
+.TH "hx509 crypto functions" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+hx509 crypto functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "int \fBhx509_verify_signature\fP (hx509_context context, const hx509_cert signer, const AlgorithmIdentifier *alg, const heim_octet_string *data, const heim_octet_string *sig)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "int hx509_verify_signature (hx509_context context, const hx509_cert signer, const AlgorithmIdentifier * alg, const heim_octet_string * data, const heim_octet_string * sig)"
+.PP
+Verify a signature made using the private key of an certificate.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIsigner\fP the certificate that made the signature. 
+.br
+\fIalg\fP algorthm that was used to sign the data. 
+.br
+\fIdata\fP the data that was signed. 
+.br
+\fIsig\fP the sigature to verify.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+

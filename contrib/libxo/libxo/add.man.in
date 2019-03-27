@@ -1,0 +1,29 @@
+.Sh ADDITIONAL DOCUMENTATION
+.Fx
+uses
+.Nm libxo
+version @LIBXO_VERSION@.
+Complete documentation can be found on github:
+.Bd -literal -offset indent
+http://juniper.github.io/libxo/@LIBXO_VERSION@/libxo\-manual.html
+.Ed
+.Pp
+.Nm libxo
+lives on github as:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo
+.Ed
+.Pp
+The latest release of
+.Nm libxo
+is available at:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo/releases
+.Ed
+.Sh HISTORY
+The
+.Nm libxo
+library was added in
+.Fx 11.0 .
+.Sh AUTHOR
+Phil Shafer

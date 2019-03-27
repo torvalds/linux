@@ -1,0 +1,128 @@
+#
+# Kernel configuration for Freescale i.MX6 systems.
+#
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
+#
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+# $FreeBSD$
+
+ident		IMX6
+include 	"std.armv7"
+include 	"../freescale/imx/std.imx6"
+
+options 	SOC_IMX6
+
+options 	SCHED_ULE		# ULE scheduler
+#options 	NFSD			# Network Filesystem Server
+options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
+options 	PLATFORM
+options 	SMP			# Enable multiple cores
+
+# NFS root from boopt/dhcp
+#options 	BOOTP
+#options 	BOOTP_NFSROOT
+#options 	BOOTP_COMPAT
+#options 	BOOTP_NFSV3
+#options 	BOOTP_WIRED_TO=ffec0
+
+# U-Boot stuff lives on slice 1, FreeBSD on slice 2.
+options 	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
+
+# Interrupt controller
+device		gic
+# Cache controller
+device		pl310			# PL310 L2 cache controller
+# ARM MPCore timer
+device		mpcore_timer
+
+# Pseudo devices.
+device		loop			# Network loopback
+device		random			# Entropy device
+device		vlan			# 802.1Q VLAN support
+device		tun			# Packet tunnel.
+device		md			# Memory "disks"
+#device		gif			# IPv6 and IPv4 tunneling
+#device		firmware		# firmware assist module
+device		ether			# Ethernet support
+device		miibus			# Required for ethernet
+device	 	bpf			# Berkeley packet filter (required for DHCP)
+
+# General-purpose input/output
+device		gpio
+
+# Serial (COM) ports
+device		uart			# Multi-uart driver
+
+# SDCard
+device		sdhci			# SD controller
+device		mmc			# SD/MMC protocol
+device		mmcsd			# SDCard disk device
+
+# SCSI peripherals
+device		scbus			# SCSI bus (required for ATA/SCSI)
+device		da			# Direct Access (disks)
+device		cd			# CD
+device		pass			# Passthrough device (direct ATA/SCSI access)
+
+# ATA controllers
+device 		ahci			# AHCI-compatible SATA controllers
+
+# USB support
+device		ehci			# OHCI USB interface
+device		usb			# USB Bus (required)
+device		umass			# Disks/Mass storage - Requires scbus and da
+device		uhid			# "Human Interface Devices"
+device		u3g			# USB modems
+#device		ukbd			# Allow keyboard like HIDs to control console
+#device		ums			# USB mouse
+
+# USB Ethernet, requires miibus
+#device		aue			# ADMtek USB Ethernet
+#device		axe			# ASIX Electronics USB Ethernet
+#device		cdce			# Generic USB over Ethernet
+#device		cue			# CATC USB Ethernet
+#device		kue			# Kawasaki LSI USB Ethernet
+#device		rue			# RealTek RTL8150 USB Ethernet
+#device		udav			# Davicom DM9601E USB
+
+# USB Wireless
+#device		rum			# Ralink Technology RT2501USB wireless NICs
+
+# Wireless NIC cards
+#device		wlan			# 802.11 support
+#device		wlan_wep		# 802.11 WEP support
+#device		wlan_ccmp		# 802.11 CCMP support
+#device		wlan_tkip		# 802.11 TKIP support
+#device		wlan_amrr		# AMRR transmit rate control algorithm
+
+device		vt
+device		kbdmux
+device		ukbd
+device		videomode
+device		hdmi
+
+# Flattened Device Tree
+options 	FDT			# Configure using FDT/DTB data
+makeoptions	MODULES_EXTRA="dtb/imx6 imx"
+device  	fdt_pinctrl		# FDT pinmux driver
+
+# SoC-specific devices
+device		ffec			# Freescale Fast Ethernet Controller
+device		fsliic			# Freescale i2c/iic
+device		iic			# iic protocol
+device		iicbus			# iic bus
+device		imx6_snvs		# On-chip RTC
+device		imxwdt			# Watchdog. WARNING: can't be disabled!!!
+

@@ -1,0 +1,80 @@
+.\" Copyright (c) 2004 Bernd Walter <ticso@FreeBSD.org>
+.\"
+.\" $URL: https://devel.bwct.de/svn/projects/ubser/ubser.4 $
+.\" $Date: 2004-02-29 21:54:17 +0100 (Sun, 29 Feb 2004) $
+.\" $Author: ticso $
+.\" $Rev: 1130 $
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 26, 2017
+.Dt UBSER 4
+.Os
+.Sh NAME
+.Nm ubser
+.Nd USB support for BWCT console serial adapters
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device usb"
+.Cd "device ucom"
+.Cd "device ubser"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ubser_load="YES"
+.Ed
+.Sh HARDWARE
+The
+.Nm
+driver provides support for the BWCT console management serial adapters.
+.Sh FILES
+.Bl -tag -width "/dev/ttyU*.*.init" -compact
+.It Pa /dev/ttyU*.*
+for callin ports
+.It Pa /dev/ttyU*.*.init
+.It Pa /dev/ttyU*.*.lock
+corresponding callin initial-state and lock-state devices
+.Pp
+.It Pa /dev/cuaU*.*
+for callout ports
+.It Pa /dev/cuaU*.*.init
+.It Pa /dev/cuaU*.*.lock
+corresponding callout initial-state and lock-state devices
+.El
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr ucom 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Fx 5.2 .

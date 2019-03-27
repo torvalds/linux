@@ -1,0 +1,144 @@
+.\" Copyright (c) 2017 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Edward Tomasz Napierala under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd April 21, 2018
+.Dt CFUMASS 4
+.Os
+.Sh NAME
+.Nm cfumass
+.Nd USB device side support for Mass Storage Class Transport
+.Sh SYNOPSIS
+This driver can be compiled into the kernel by placing these lines in
+the kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device usb"
+.Cd "device usb_template"
+.Cd "device ctl"
+.Cd "device cfumass"
+.Ed
+.Pp
+The driver module can also be loaded at boot by adding this line to
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+cfumass_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides device side support for emulating an USB mass storage
+device compliant with the USB Mass Storage Class Bulk-Only (BBB) Transport
+specification, implemented as a
+.Xr ctl 4
+frontend driver.
+.Pp
+To use
+.Nm :
+.Bl -bullet
+.It
+.Xr cfumass 4
+must be loaded as a module or compiled into the kernel.
+.It
+The USB Mass Storage template must be chosen by setting the
+.Va hw.usb.template
+sysctl to 0.
+.It
+The USB OTG port must be working in USB device-side mode.
+This happens automatically upon connection to a USB host.
+.It
+There must be a
+.Xr ctl 4
+LUN configured for the
+.Pa cfumass
+port.
+.El
+.Pp
+Upon loading, the driver creates a
+.Xr ctl 4
+port named
+.Pa cfumass ,
+presenting the first LUN mapped for that port - usually LUN 0 - to
+the USB host.
+See
+.Xr ctl.conf 5
+and
+.Xr ctld 8
+for details on configuring the LUN.
+See the
+.Cm cfumass_enable
+and
+.Cm cfumass_dir
+.Xr rc 8
+variables in
+.Xr rc.conf 5
+for an automated way to configure it at boot.
+.Sh SYSCTL VARIABLES
+These variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.cfumass.debug
+Verbosity level for log messages from the
+.Nm
+driver.
+Set to 0 to disable logging or 1 to warn about potential problems.
+Larger values enable debugging output.
+Defaults to 1.
+.It Va hw.usb.cfumass.ignore_stop
+Ignore START STOP UNIT SCSI commands with START and LOEJ bits cleared.
+Some initiators send that command to stop the target when the user
+attempts to gracefully eject the drive, but fail to start it when the
+drive is reconnected.
+Set to 0 to handle the command in a standards-compliant way,
+1 to ignore it and log a warning, or 2 to ignore it silently.
+Defaults to 1.
+.It Va hw.usb.cfumass.max_lun
+Max LUN number to report to the initiator (USB host).
+Must be between 0 and 15.
+Some initiators incorrectly handle values larger than 0.
+Defaults to 0.
+.El
+.Sh SEE ALSO
+.Xr ctl 4 ,
+.Xr umass 4 ,
+.Xr usb 4 ,
+.Xr usb_template 4 ,
+.Xr ctl.conf 5 ,
+.Xr ctld 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 11.1 .
+.Sh AUTHORS
+The
+.Nm
+driver was developed by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.

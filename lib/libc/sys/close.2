@@ -1,0 +1,144 @@
+.\" Copyright (c) 1980, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)close.2	8.2 (Berkeley) 4/19/94
+.\" $FreeBSD$
+.\"
+.Dd December 1, 2017
+.Dt CLOSE 2
+.Os
+.Sh NAME
+.Nm close
+.Nd delete a descriptor
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn close "int fd"
+.Sh DESCRIPTION
+The
+.Fn close
+system call deletes a descriptor from the per-process object
+reference table.
+If this is the last reference to the underlying object, the
+object will be deactivated.
+For example, on the last close of a file
+the current
+.Em seek
+pointer associated with the file is lost;
+on the last close of a
+.Xr socket 2
+associated naming information and queued data are discarded;
+on the last close of a file holding an advisory lock
+the lock is released (see further
+.Xr flock 2 ) .
+However, the semantics of System V and
+.St -p1003.1-88
+dictate that all
+.Xr fcntl 2
+advisory record locks associated with a file for a given process
+are removed when
+.Em any
+file descriptor for that file is closed by that process.
+.Pp
+When a process exits,
+all associated file descriptors are freed, but since there is
+a limit on active descriptors per processes, the
+.Fn close
+system call
+is useful when a large quantity of file descriptors are being handled.
+.Pp
+When a process forks (see
+.Xr fork 2 ) ,
+all descriptors for the new child process reference the same
+objects as they did in the parent before the fork.
+If a new process is then to be run using
+.Xr execve 2 ,
+the process would normally inherit these descriptors.
+Most
+of the descriptors can be rearranged with
+.Xr dup2 2
+or deleted with
+.Fn close
+before the
+.Xr execve 2
+is attempted, but if some of these descriptors will still
+be needed if the execve fails, it is necessary to arrange for them
+to be closed if the execve succeeds.
+For this reason, the call
+.Dq Li fcntl(d, F_SETFD, FD_CLOEXEC)
+is provided,
+which arranges that a descriptor will be closed after a successful
+execve; the call
+.Dq Li fcntl(d, F_SETFD, 0)
+restores the default,
+which is to not close the descriptor.
+.Sh RETURN VALUES
+.Rv -std close
+.Sh ERRORS
+The
+.Fn close
+system call will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument
+is not an active descriptor.
+.It Bq Er EINTR
+An interrupt was received.
+.It Bq Er ENOSPC
+The underlying object did not fit, cached data was lost.
+.It Bq Er ECONNRESET
+The underlying object was a stream socket that was shut down by the peer
+before all pending data was delivered.
+.El
+.Pp
+In case of any error except
+.Er EBADF ,
+the supplied file descriptor is deallocated and therefore is no longer valid.
+.Sh SEE ALSO
+.Xr accept 2 ,
+.Xr closefrom 2 ,
+.Xr execve 2 ,
+.Xr fcntl 2 ,
+.Xr flock 2 ,
+.Xr open 2 ,
+.Xr pipe 2 ,
+.Xr socket 2 ,
+.Xr socketpair 2
+.Sh STANDARDS
+The
+.Fn close
+system call is expected to conform to
+.St -p1003.1-90 .
+.Sh HISTORY
+The
+.Fn close
+function appeared in
+.At v1 .

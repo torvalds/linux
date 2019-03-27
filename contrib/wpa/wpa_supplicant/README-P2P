@@ -1,0 +1,856 @@
+wpa_supplicant and Wi-Fi P2P
+============================
+
+This document describes how the Wi-Fi P2P implementation in
+wpa_supplicant can be configured and how an external component on the
+client (e.g., management GUI) is used to enable WPS enrollment and
+registrar registration.
+
+
+Introduction to Wi-Fi P2P
+-------------------------
+
+TODO
+
+More information about Wi-Fi P2P is available from Wi-Fi Alliance:
+http://www.wi-fi.org/Wi-Fi_Direct.php
+
+
+wpa_supplicant implementation
+-----------------------------
+
+TODO
+
+
+wpa_supplicant configuration
+----------------------------
+
+Wi-Fi P2P is an optional component that needs to be enabled in the
+wpa_supplicant build configuration (.config). Here is an example
+configuration that includes Wi-Fi P2P support and Linux nl80211
+-based driver interface:
+
+CONFIG_DRIVER_NL80211=y
+CONFIG_CTRL_IFACE=y
+CONFIG_P2P=y
+CONFIG_AP=y
+CONFIG_WPS=y
+
+
+In run-time configuration file (wpa_supplicant.conf), some parameters
+for P2P may be set. In order to make the devices easier to recognize,
+device_name and device_type should be specified. For example,
+something like this should be included:
+
+ctrl_interface=/var/run/wpa_supplicant
+device_name=My P2P Device
+device_type=1-0050F204-1
+
+
+wpa_cli
+-------
+
+Actual Wi-Fi P2P operations are requested during runtime. These can be
+done for example using wpa_cli (which is described below) or a GUI
+like wpa_gui-qt4.
+
+
+wpa_cli starts in interactive mode if no command string is included on
+the command line. By default, it will select the first network interface
+that it can find (and that wpa_supplicant controls). If more than one
+interface is in use, it may be necessary to select one of the explicitly
+by adding -i argument on the command line (e.g., 'wpa_cli -i wlan1').
+
+Most of the P2P operations are done on the main interface (e.g., the
+interface that is automatically added when the driver is loaded, e.g.,
+wlan0). When using a separate virtual interface for group operations
+(e.g., wlan1), the control interface for that group interface may need
+to be used for some operations (mainly WPS activation in GO). This may
+change in the future so that all the needed operations could be done
+over the main control interface.
+
+Device Discovery
+
+p2p_find [timeout in seconds] [type=<social|progressive>] \
+	[dev_id=<addr>] [dev_type=<device type>] \
+	[delay=<search delay in ms>] [seek=<service name>] [freq=<MHz>]
+
+The default behavior is to run a single full scan in the beginning and
+then scan only social channels. type=social will scan only social
+channels, i.e., it skips the initial full scan. type=progressive is
+like the default behavior, but it will scan through all the channels
+progressively one channel at the time in the Search state rounds. This
+will help in finding new groups or groups missed during the initial
+full scan. When the type parameter is not included (i.e., full scan), the
+optional freq parameter can be used to override the first scan to use only
+the specified channel after which only social channels are scanned.
+
+The optional dev_id option can be used to specify a single P2P peer to
+search for. The optional delay parameter can be used to request an extra
+delay to be used between search iterations (e.g., to free up radio
+resources for concurrent operations).
+
+The optional dev_type option can be used to specify a single device type
+(primary or secondary) to search for, e.g.,
+"p2p_find dev_type=1-0050F204-1".
+
+
+With one or more seek arguments, the command sends Probe Request frames
+for a P2PS service. For example,
+p2p_find 5 dev_id=11:22:33:44:55:66 seek=alt.example.chat seek=alt.example.video
+
+Parameters description:
+    Timeout - Optional ASCII base-10-encoded u16. If missing, request will not
+	time out and must be canceled manually
+    dev_id - Optional to request responses from a single known remote device
+    Service Name - Mandatory UTF-8 string for ASP seeks
+	Service name must match the remote service being advertised exactly
+	(no prefix matching).
+	Service name may be empty, in which case all ASP services will be
+	returned, and may be filtered with p2p_serv_disc_req settings, and
+	p2p_serv_asp_resp results.
+	Multiple service names may be requested, but if it exceeds internal
+	limit, it will automatically revert to requesting all ASP services.
+
+p2p_listen [timeout in seconds]
+
+Start Listen-only state (become discoverable without searching for
+other devices). Optional parameter can be used to specify the duration
+for the Listen operation in seconds. This command may not be of that
+much use during normal operations and is mainly designed for
+testing. It can also be used to keep the device discoverable without
+having to maintain a group.
+
+p2p_stop_find
+
+Stop ongoing P2P device discovery or other operation (connect, listen
+mode).
+
+p2p_flush
+
+Flush P2P peer table and state.
+
+Group Formation
+
+p2p_prov_disc <peer device address> <display|keypad|pbc> [join|auto]
+
+Send P2P provision discovery request to the specified peer. The
+parameters for this command are the P2P device address of the peer and
+the desired configuration method. For example, "p2p_prov_disc
+02:01:02:03:04:05 display" would request the peer to display a PIN for
+us and "p2p_prov_disc 02:01:02:03:04:05 keypad" would request the peer
+to enter a PIN that we display.
+
+The optional "join" parameter can be used to indicate that this command
+is requesting an already running GO to prepare for a new client. This is
+mainly used with "display" to request it to display a PIN. The "auto"
+parameter can be used to request wpa_supplicant to automatically figure
+out whether the peer device is operating as a GO and if so, use
+join-a-group style PD instead of GO Negotiation style PD.
+
+p2p_connect <peer device address> <pbc|pin|PIN#|p2ps> [display|keypad|p2ps]
+	[persistent|persistent=<network id>] [join|auth]
+	[go_intent=<0..15>] [freq=<in MHz>] [ht40] [vht] [provdisc] [auto]
+	[ssid=<hexdump>]
+
+Start P2P group formation with a discovered P2P peer. This includes
+optional group owner negotiation, group interface setup, provisioning,
+and establishing data connection.
+
+The <pbc|pin|PIN#> parameter specifies the WPS provisioning
+method. "pbc" string starts pushbutton method, "pin" string start PIN
+method using an automatically generated PIN (which will be returned as
+the command return code), PIN# means that a pre-selected PIN can be
+used (e.g., 12345670). [display|keypad] is used with PIN method
+to specify which PIN is used (display=dynamically generated random PIN
+from local display, keypad=PIN entered from peer display). "persistent"
+parameter can be used to request a persistent group to be formed. The
+"persistent=<network id>" alternative can be used to pre-populate
+SSID/passphrase configuration based on a previously used persistent
+group where this device was the GO. The previously used parameters will
+then be used if the local end becomes the GO in GO Negotiation (which
+can be forced with go_intent=15).
+
+"join" indicates that this is a command to join an existing group as a
+client. It skips the GO Negotiation part. This will send a Provision
+Discovery Request message to the target GO before associating for WPS
+provisioning.
+
+"auth" indicates that the WPS parameters are authorized for the peer
+device without actually starting GO Negotiation (i.e., the peer is
+expected to initiate GO Negotiation). This is mainly for testing
+purposes.
+
+"go_intent" can be used to override the default GO Intent for this GO
+Negotiation.
+
+"freq" can be used to set a forced operating channel (e.g., freq=2412
+to select 2.4 GHz channel 1).
+
+"provdisc" can be used to request a Provision Discovery exchange to be
+used prior to starting GO Negotiation as a workaround with some deployed
+P2P implementations that require this to allow the user to accept the
+connection.
+
+"auto" can be used to request wpa_supplicant to automatically figure
+out whether the peer device is operating as a GO and if so, use
+join-a-group operation rather than GO Negotiation.
+
+"ssid=<hexdump>" can be used to specify the Group SSID for join
+operations. This allows the P2P Client interface to filter scan results
+based on SSID to avoid selecting an incorrect BSS entry in case the same
+P2P Device or Interface address have been used in multiple groups
+recently.
+
+P2PS attribute changes to p2p_connect command:
+
+P2PS supports two WPS provisioning methods namely PIN method and P2PS default.
+The remaining parameters hold same role as in legacy P2P. In case of P2PS
+default config method "p2ps" keyword is added in p2p_connect command.
+
+For example:
+p2p_connect 02:0a:f5:85:11:00 12345670 p2ps persistent join
+	(WPS Method = P2PS default)
+
+p2p_connect 02:0a:f5:85:11:00 45629034 keypad persistent
+	(WPS Method = PIN)
+
+p2p_asp_provision <peer MAC address> <adv_id=peer adv id>
+	<adv_mac=peer MAC address> [role=2|4|1] <session=session id>
+	<session_mac=initiator mac address>
+	[info='service info'] <method=Default|keypad|Display>
+
+This command starts provision discovery with the P2PS enabled peer device.
+
+For example,
+p2p_asp_provision 00:11:22:33:44:55 adv_id=4d6fc7 adv_mac=00:55:44:33:22:11 role=1 session=12ab34 session_mac=00:11:22:33:44:55 info='name=john' method=1000
+
+Parameter description:
+    MAC address - Mandatory
+    adv_id - Mandatory remote Advertising ID of service connection is being
+	established for
+    adv_mac - Mandatory MAC address that owns/registered the service
+    role - Optional
+	2 (group client only) or 4 (group owner only)
+	if not present (or 1) role is negotiated by the two peers.
+    session - Mandatory Session ID of the first session to be established
+    session_mac - Mandatory MAC address that owns/initiated the session
+    method - Optional method to request for provisioning (1000 - P2PS Default,
+	100 - Keypad(PIN), 8 - Display(PIN))
+    info - Optional UTF-8 string. Hint for service to indicate possible usage
+	parameters - Escape single quote & backslash:
+	with a backslash 0x27 == ' == \', and 0x5c == \ == \\
+
+p2p_asp_provision_resp <peer mac address> <adv_id= local adv id>
+	<adv_mac=local MAC address> <role=1|2|4> <status=0>
+	<session=session id> <session_mac=peer MAC address>
+
+This command sends a provision discovery response from responder side.
+
+For example,
+p2p_asp_provision_resp 00:55:44:33:22:11 adv_id=4d6fc7 adv_mac=00:55:44:33:22:11 role=1 status=0 session=12ab34 session_mac=00:11:22:33:44:55
+
+Parameters definition:
+    MAC address - Mandatory
+    adv_id - Mandatory local Advertising ID of service connection is being
+	established for
+    adv_mac - Mandatory MAC address that owns/registered the service
+    role -  Optional 2 (group client only) or 4 (group owner only)
+	if not present (or 1) role is negotiated by the two peers.
+    status - Mandatory Acceptance/Rejection code of Provisioning
+    session - Mandatory Session ID of the first session to be established
+    session_mac - Mandatory MAC address that owns/initiated the session
+
+p2p_group_add [persistent|persistent=<network id>] [freq=<freq in MHz>]
+	[ht40] [vht]
+
+Set up a P2P group owner manually (i.e., without group owner
+negotiation with a specific peer). This is also known as autonomous
+GO. Optional persistent=<network id> can be used to specify restart of
+a persistent group. Optional freq=<freq in MHz> can be used to force
+the GO to be started on a specific frequency. Special freq=2 or freq=5
+options can be used to request the best 2.4 GHz or 5 GHz band channel
+to be selected automatically.
+
+p2p_reject <peer device address>
+
+Reject connection attempt from a peer (specified with a device
+address). This is a mechanism to reject a pending GO Negotiation with
+a peer and request to automatically block any further connection or
+discovery of the peer.
+
+p2p_group_remove <group interface>
+
+Terminate a P2P group. If a new virtual network interface was used for
+the group, it will also be removed. The network interface name of the
+group interface is used as a parameter for this command.
+
+p2p_cancel
+
+Cancel an ongoing P2P group formation and joining-a-group related
+operation. This operation unauthorizes the specific peer device (if any
+had been authorized to start group formation), stops P2P find (if in
+progress), stops pending operations for join-a-group, and removes the
+P2P group interface (if one was used) that is in the WPS provisioning
+step. If the WPS provisioning step has been completed, the group is not
+terminated.
+
+p2p_remove_client <peer's P2P Device Address|iface=<interface address>>
+
+This command can be used to remove the specified client from all groups
+(operating and persistent) from the local GO. Note that the peer device
+can rejoin the group if it is in possession of a valid key. See p2p_set
+per_sta_psk command below for more details on how the peer can be
+removed securely.
+
+Service Discovery
+
+p2p_service_add asp <auto accept> <adv id> <status 0/1> <Config Methods>
+	<Service name> [Service Information] [Response Info]
+
+This command can be used to search for a P2PS service which includes
+Play, Send, Display, and Print service. The parameters for this command
+are "asp" to identify the command as P2PS one, auto accept value,
+advertisement id which uniquely identifies the service requests, state
+of the service whether the service is available or not, config methods
+which can be either P2PS method or PIN method, service name followed by
+two optional parameters service information, and response info.
+
+For example,
+p2p_service_add asp 1 4d6fc7 0 1108 alt.example.chat svc_info='name=john' rsp_info='enter PIN 1234'
+
+Parameters definition:
+    asp - Mandatory for ASP service registration
+    auto accept - Mandatory ASCII hex-encoded boolean (0 == no auto-accept,
+	1 == auto-accept ANY role, 2 == auto-accept CLIENT role,
+	4 == auto-accept GO role)
+    Advertisement ID - Mandatory non-zero ASCII hex-encoded u32
+	(Must be unique/not yet exist in svc db)
+    State - Mandatory ASCII hex-encoded u8 (0 -- Svc not available,
+	1 -- Svc available, 2-0xff  Application defined)
+    Config Methods - Mandatory ASCII hex-encoded u16 (bitmask of WSC config
+	methods)
+    Service Name - Mandatory UTF-8 string
+    Service Information - Optional UTF-8 string
+	Escape single quote & backslash with a backslash:
+	0x27 == ' == \', and 0x5c == \ == \\
+    Session response information -  Optional (used only if auto accept is TRUE)
+	UTF-8 string
+	Escape single quote & backslash with a backslash:
+	0x27 == ' == \', and 0x5c == \ == \\
+
+p2p_service_rep asp <auto accept> <adv id> <status 0/1> <Config Methods>
+	<Service name> [Service Information] [Response Info]
+
+This command can be used to replace the existing service request
+attributes from the initiator side. The replacement is only allowed if
+the advertisement id issued in the command matches with any one entry in
+the list of existing SD queries. If advertisement id doesn't match the
+command returns a failure.
+
+For example,
+p2p_service_rep asp 1 4d6fc7 1 1108 alt.example.chat svc_info='name=john' rsp_info='enter PIN 1234'
+
+Parameters definition:
+    asp - Mandatory for ASP service registration
+    auto accept - Mandatory ASCII hex-encoded boolean (1 == true, 0 == false)
+    Advertisement ID - Mandatory non-zero ASCII hex-encoded u32
+	(Must already exist in svc db)
+    State - Mandatory ASCII hex-encoded u8 (can be used to indicate svc
+	available or not available for instance)
+    Config Methods - Mandatory ASCII hex-encoded u16 (bitmask of WSC config
+	methods)
+    Service Name - Mandatory UTF-8 string (Must match existing string in svc db)
+    Service Information - Optional UTF-8 string
+	Escape single quote & backslash with a backslash:
+	0x27 == ' == \', and 0x5c == \ == \\
+    Session response information -  Optional (used only if auto accept is TRUE)
+	UTF-8 string
+	Escape single quote & backslash with a backslash:
+	0x27 == ' == \', and 0x5c == \ == \\
+
+p2p_serv_disc_req
+
+Schedule a P2P service discovery request. The parameters for this
+command are the device address of the peer device (or 00:00:00:00:00:00
+for wildcard query that is sent to every discovered P2P peer that
+supports service discovery) and P2P Service Query TLV(s) as hexdump. For
+example,
+
+p2p_serv_disc_req 00:00:00:00:00:00 02000001
+
+schedules a request for listing all available services of all service
+discovery protocols and requests this to be sent to all discovered
+peers (note: this can result in long response frames). The pending
+requests are sent during device discovery (see p2p_find).
+
+There can be multiple pending peer device specific queries (each will be
+sent in sequence whenever the peer is found).
+
+This command returns an identifier for the pending query (e.g.,
+"1f77628") that can be used to cancel the request. Directed requests
+will be automatically removed when the specified peer has replied to
+it.
+
+Service Query TLV has following format:
+Length (2 octets, little endian) - length of following data
+Service Protocol Type (1 octet) - see the table below
+Service Transaction ID (1 octet) - nonzero identifier for the TLV
+Query Data (Length - 2 octets of data) - service protocol specific data
+
+Service Protocol Types:
+0 = All service protocols
+1 = Bonjour
+2 = UPnP
+3 = WS-Discovery
+4 = Wi-Fi Display
+
+For UPnP, an alternative command format can be used to specify a
+single query TLV (i.e., a service discovery for a specific UPnP
+service):
+
+p2p_serv_disc_req 00:00:00:00:00:00 upnp <version hex> <ST: from M-SEARCH>
+
+For example:
+
+p2p_serv_disc_req 00:00:00:00:00:00 upnp 10 urn:schemas-upnp-org:device:InternetGatewayDevice:1
+
+Additional examples for queries:
+
+# list of all Bonjour services
+p2p_serv_disc_req 00:00:00:00:00:00 02000101
+
+# list of all UPnP services
+p2p_serv_disc_req 00:00:00:00:00:00 02000201
+
+# list of all WS-Discovery services
+p2p_serv_disc_req 00:00:00:00:00:00 02000301
+
+# list of all Bonjour and UPnP services
+p2p_serv_disc_req 00:00:00:00:00:00 0200010102000202
+
+# Apple File Sharing over TCP
+p2p_serv_disc_req 00:00:00:00:00:00 130001010b5f6166706f766572746370c00c000c01
+
+# Bonjour SSTH (supported service type hash)
+p2p_serv_disc_req 00:00:00:00:00:00 05000101000000
+
+# UPnP examples
+p2p_serv_disc_req 00:00:00:00:00:00 upnp 10 ssdp:all
+p2p_serv_disc_req 00:00:00:00:00:00 upnp 10 upnp:rootdevice
+p2p_serv_disc_req 00:00:00:00:00:00 upnp 10 urn:schemas-upnp-org:service:ContentDirectory:2
+p2p_serv_disc_req 00:00:00:00:00:00 upnp 10 uuid:6859dede-8574-59ab-9332-123456789012
+p2p_serv_disc_req 00:00:00:00:00:00 upnp 10 urn:schemas-upnp-org:device:InternetGatewayDevice:1
+
+# Wi-Fi Display examples
+# format: wifi-display <list of roles> <list of subelements>
+p2p_serv_disc_req 00:00:00:00:00:00 wifi-display [source] 2,3,4,5
+p2p_serv_disc_req 02:01:02:03:04:05 wifi-display [pri-sink] 3
+p2p_serv_disc_req 00:00:00:00:00:00 wifi-display [sec-source] 2
+p2p_serv_disc_req 00:00:00:00:00:00 wifi-display [source+sink] 2,3,4,5
+p2p_serv_disc_req 00:00:00:00:00:00 wifi-display [source][pri-sink] 2,3,4,5
+
+p2p_serv_disc_req <Unicast|Broadcast mac address> asp <Transaction ID>
+	<Service Name> [Service Information]
+
+The command can be used for service discovery for P2PS enabled devices.
+
+For example: p2p_serv_disc_req 00:00:00:00:00:00 asp a1 alt.example 'john'
+
+Parameters definition:
+    MAC address - Mandatory Existing
+    asp - Mandatory for ASP queries
+    Transaction ID - Mandatory non-zero ASCII hex-encoded u8 for GAS
+    Service Name Prefix - Mandatory UTF-8 string.
+	Will match from beginning of remote Service Name
+    Service Information Substring - Optional UTF-8 string
+	If Service Information Substring is not included, all services matching
+	Service Name Prefix will be returned.
+	If Service Information Substring is included, both the Substring and the
+	Service Name Prefix must match for service to be returned.
+	If remote service has no Service Information, all Substring searches
+	will fail.
+
+p2p_serv_disc_cancel_req <query identifier>
+
+Cancel a pending P2P service discovery request. This command takes a
+single parameter: identifier for the pending query (the value returned
+by p2p_serv_disc_req, e.g., "p2p_serv_disc_cancel_req 1f77628".
+
+p2p_serv_disc_resp
+
+Reply to a service discovery query. This command takes following
+parameters: frequency in MHz, destination address, dialog token,
+response TLV(s). The first three parameters are copied from the
+request event. For example, "p2p_serv_disc_resp 2437 02:40:61:c2:f3:b7
+1 0300000101". This command is used only if external program is used
+to process the request (see p2p_serv_disc_external).
+
+p2p_service_update
+
+Indicate that local services have changed. This is used to increment
+the P2P service indicator value so that peers know when previously
+cached information may have changed. This is only needed when external
+service discovery processing is enabled since the commands to
+pre-configure services for internal processing will increment the
+indicator automatically.
+
+p2p_serv_disc_external <0|1>
+
+Configure external processing of P2P service requests: 0 (default) =
+no external processing of requests (i.e., internal code will process
+each request based on pre-configured services), 1 = external
+processing of requests (external program is responsible for replying
+to service discovery requests with p2p_serv_disc_resp). Please note
+that there is quite strict limit on how quickly the response needs to
+be transmitted, so use of the internal processing is strongly
+recommended.
+
+p2p_service_add bonjour <query hexdump> <RDATA hexdump>
+
+Add a local Bonjour service for internal SD query processing.
+
+Examples:
+
+# AFP Over TCP (PTR)
+p2p_service_add bonjour 0b5f6166706f766572746370c00c000c01 074578616d706c65c027
+# AFP Over TCP (TXT) (RDATA=null)
+p2p_service_add bonjour 076578616d706c650b5f6166706f766572746370c00c001001 00
+
+# IP Printing over TCP (PTR) (RDATA=MyPrinter._ipp._tcp.local.)
+p2p_service_add bonjour 045f697070c00c000c01 094d795072696e746572c027
+# IP Printing over TCP (TXT) (RDATA=txtvers=1,pdl=application/postscript)
+p2p_service_add bonjour 096d797072696e746572045f697070c00c001001 09747874766572733d311a70646c3d6170706c69636174696f6e2f706f7374736372797074
+
+# Supported Service Type Hash (SSTH)
+p2p_service_add bonjour 000000 <32-byte bitfield as hexdump>
+(note: see P2P spec Annex E.4 for information on how to construct the bitfield)
+
+p2p_service_del bonjour <query hexdump>
+
+Remove a local Bonjour service from internal SD query processing.
+
+p2p_service_add upnp <version hex> <service>
+
+Add a local UPnP service for internal SD query processing.
+
+Examples:
+
+p2p_service_add upnp 10 uuid:6859dede-8574-59ab-9332-123456789012::upnp:rootdevice
+p2p_service_add upnp 10 uuid:5566d33e-9774-09ab-4822-333456785632::upnp:rootdevice
+p2p_service_add upnp 10 uuid:1122de4e-8574-59ab-9322-333456789044::urn:schemas-upnp-org:service:ContentDirectory:2
+p2p_service_add upnp 10 uuid:5566d33e-9774-09ab-4822-333456785632::urn:schemas-upnp-org:service:ContentDirectory:2
+p2p_service_add upnp 10 uuid:6859dede-8574-59ab-9332-123456789012::urn:schemas-upnp-org:device:InternetGatewayDevice:1
+
+p2p_service_del upnp <version hex> <service>
+
+Remove a local UPnP service from internal SD query processing.
+
+p2p_service_del asp <adv id>
+
+Removes the local asp service from internal SD query list.
+For example: p2p_service_del asp 4d6fc7
+
+p2p_service_flush
+
+Remove all local services from internal SD query processing.
+
+Invitation
+
+p2p_invite [persistent=<network id>|group=<group ifname>] [peer=address]
+	[go_dev_addr=address] [freq=<freq in MHz>] [ht40] [vht]
+	[pref=<MHz>]
+
+Invite a peer to join a group (e.g., group=wlan1) or to reinvoke a
+persistent group (e.g., persistent=4). If the peer device is the GO of
+the persistent group, the peer parameter is not needed. Otherwise it is
+used to specify which device to invite. go_dev_addr parameter can be
+used to override the GO device address for Invitation Request should
+it be not known for some reason (this should not be needed in most
+cases). When reinvoking a persistent group, the GO device can specify
+the frequency for the group with the freq parameter. When reinvoking a
+persistent group, the P2P client device can use freq parameter to force
+a specific operating channel (or invitation failure if GO rejects that)
+or pref parameter to request a specific channel (while allowing GO to
+select to use another channel, if needed).
+
+Group Operations
+
+(These are used on the group interface.)
+
+wps_pin <any|address> <PIN>
+
+Start WPS PIN method. This allows a single WPS Enrollee to connect to
+the AP/GO. This is used on the GO when a P2P client joins an existing
+group. The second parameter is the address of the Enrollee or a string
+"any" to allow any station to use the entered PIN (which will restrict
+the PIN for one-time-use). PIN is the Enrollee PIN read either from a
+label or display on the P2P Client/WPS Enrollee.
+
+wps_pbc
+
+Start WPS PBC method (i.e., push the button). This allows a single WPS
+Enrollee to connect to the AP/GO. This is used on the GO when a P2P
+client joins an existing group.
+
+p2p_get_passphrase
+
+Get the passphrase for a group (only available when acting as a GO).
+
+p2p_presence_req [<duration> <interval>] [<duration> <interval>]
+
+Send a P2P Presence Request to the GO (this is only available when
+acting as a P2P client). If no duration/interval pairs are given, the
+request indicates that this client has no special needs for GO
+presence. The first parameter pair gives the preferred duration and
+interval values in microseconds. If the second pair is included, that
+indicates which value would be acceptable. This command returns OK
+immediately and the response from the GO is indicated in a
+P2P-PRESENCE-RESPONSE event message.
+
+Parameters
+
+p2p_ext_listen [<period> <interval>]
+
+Configure Extended Listen Timing. If the parameters are omitted, this
+feature is disabled. If the parameters are included, Listen State will
+be entered every interval msec for at least period msec. Both values
+have acceptable range of 1-65535 (with interval obviously having to be
+larger than or equal to duration). If the P2P module is not idle at
+the time the Extended Listen Timing timeout occurs, the Listen State
+operation will be skipped.
+
+The configured values will also be advertised to other P2P Devices. The
+received values are available in the p2p_peer command output:
+
+ext_listen_period=100 ext_listen_interval=5000
+
+p2p_set <field> <value>
+
+Change dynamic P2P parameters
+
+p2p_set discoverability <0/1>
+
+Disable/enable advertisement of client discoverability. This is
+enabled by default and this parameter is mainly used to allow testing
+of device discoverability.
+
+p2p_set managed <0/1>
+
+Disable/enable managed P2P Device operations. This is disabled by
+default.
+
+p2p_set listen_channel <channel> [<op_class>]
+
+Set P2P Listen channel. This is mainly meant for testing purposes and
+changing the Listen channel during normal operations can result in
+protocol failures.
+
+When specifying a social channel on the 2.4 GHz band (1/6/11) there is
+no need to specify the operating class since it defaults to 81.  When
+specifying a social channel on the 60 GHz band (2), specify the 60 GHz
+operating class (180).
+
+p2p_set ssid_postfix <postfix>
+
+Set postfix string to be added to the automatically generated P2P SSID
+(DIRECT-<two random characters>). For example, postfix of "-testing"
+could result in the SSID becoming DIRECT-ab-testing.
+
+p2p_set per_sta_psk <0/1>
+
+Disabled(default)/enables use of per-client PSK in the P2P groups. This
+can be used to request GO to assign a unique PSK for each client during
+WPS provisioning. When enabled, this allow clients to be removed from
+the group securely with p2p_remove_client command since that client's
+PSK is removed at the same time to prevent it from connecting back using
+the old PSK. When per-client PSK is not used, the client can still be
+disconnected, but it will be able to re-join the group since the PSK it
+learned previously is still valid. It should be noted that the default
+passphrase on the GO that is normally used to allow legacy stations to
+connect through manual configuration does not change here, so if that is
+shared, devices with knowledge of that passphrase can still connect.
+
+set <field> <value>
+
+Set global configuration parameters which may also affect P2P
+operations. The format on these parameters is same as is used in
+wpa_supplicant.conf. Only the parameters listen here should be
+changed. Modifying other parameters may result in incorrect behavior
+since not all existing users of the parameters are updated.
+
+set uuid <UUID>
+
+Set WPS UUID (by default, this is generated based on the MAC address).
+
+set device_name <device name>
+
+Set WPS Device Name (also included in some P2P messages).
+
+set manufacturer <manufacturer>
+
+Set WPS Manufacturer.
+
+set model_name <model name>
+
+Set WPS Model Name.
+
+set model_number <model number>
+
+Set WPS Model Number.
+
+set serial_number <serial number>
+
+Set WPS Serial Number.
+
+set device_type <device type>
+
+Set WPS Device Type.
+
+set os_version <OS version>
+
+Set WPS OS Version.
+
+set config_methods <config methods>
+
+Set WPS Configuration Methods.
+
+set sec_device_type <device type>
+
+Add a new Secondary Device Type.
+
+set p2p_go_intent <GO intent>
+
+Set the default P2P GO Intent. Note: This value can be overridden in
+p2p_connect command and as such, there should be no need to change the
+default value here during normal operations.
+
+set p2p_ssid_postfix <P2P SSID postfix>
+
+Set P2P SSID postfix.
+
+set persistent_reconnect <0/1>
+
+Disable/enabled persistent reconnect for reinvocation of persistent
+groups. If enabled, invitations to reinvoke a persistent group will be
+accepted without separate authorization (e.g., user interaction).
+
+set country <two character country code>
+
+Set country code (this is included in some P2P messages).
+
+set p2p_search_delay <delay>
+
+Set p2p_search_delay which adds extra delay in milliseconds between
+concurrent search iterations to make p2p_find friendlier to concurrent
+operations by avoiding it from taking 100% of radio resources. The
+default value is 500 ms.
+
+Status
+
+p2p_peers [discovered]
+
+List P2P Device Addresses of all the P2P peers we know. The optional
+"discovered" parameter filters out the peers that we have not fully
+discovered, i.e., which we have only seen in a received Probe Request
+frame.
+
+p2p_peer <P2P Device Address>
+
+Fetch information about a known P2P peer.
+
+Group Status
+
+(These are used on the group interface.)
+
+status
+
+Show status information (connection state, role, use encryption
+parameters, IP address, etc.).
+
+sta
+
+Show information about an associated station (when acting in AP/GO role).
+
+all_sta
+
+Lists the currently associated stations.
+
+Configuration data
+
+list_networks
+
+Lists the configured networks, including stored information for
+persistent groups. The identifier in this list is used with
+p2p_group_add and p2p_invite to indicate which persistent group is to
+be reinvoked.
+
+remove_network <network id>
+
+Remove a network entry from configuration. 
+
+
+P2PS Events/Responses:
+
+P2PS-PROV-START: This events gets triggered when provisioning is issued for
+either seeker or advertiser.
+
+For example,
+P2PS-PROV-START 00:55:44:33:22:11 adv_id=111 adv_mac=00:55:44:33:22:11 conncap=1 session=1234567 session_mac=00:11:22:33:44:55 info='xxxx'
+
+Parameters definition:
+    MAC address - always
+    adv_id - always ASCII hex-encoded u32
+    adv_mac - always MAC address that owns/registered the service
+    conncap - always mask of 0x01 (new), 0x02 (group client), 0x04 (group owner)
+	bits
+    session - always Session ID of the first session to be established
+    session_mac - always MAC address that owns/initiated the session
+    info - if available, UTF-8 string
+	Escaped single quote & backslash with a backslash:
+	\' == 0x27 == ', and \\ == 0x5c == \
+
+P2PS-PROV-DONE: When provisioning is completed then this event gets triggered.
+
+For example,
+P2PS-PROV-DONE 00:11:22:33:44:55 status=0 adv_id=111 adv_mac=00:55:44:33:22:11 conncap=1 session=1234567 session_mac=00:11:22:33:44:55 [dev_passwd_id=8 | go=p2p-wlan0-0 | join=11:22:33:44:55:66 | persist=0]
+
+Parameters definition:
+    MAC address - always main device address of peer. May be different from MAC
+	ultimately connected to.
+    status - always ascii hex-encoded u8 (0 == success, 12 == deferred success)
+    adv_id - always ascii hex-encoded u32
+    adv_mac - always MAC address that owns/registered the service
+    conncap - always One of: 1 (new), 2 (group client), 4 (group owner) bits
+    session - always Session ID of the first session to be established
+    session_mac - always MAC address that owns/initiated the session
+    dev_passwd_id - only if conncap value == 1 (New GO negotiation)
+	8 - "p2ps" password must be passed in p2p_connect command
+	1 - "display" password must be passed in p2p_connect command
+	5 - "keypad" password must be passed in p2p_connect command
+    join only - if conncap value == 2 (Client Only). Display password and "join"
+	must be passed in p2p_connect and address must be the MAC specified
+    go only - if conncap value == 4 (GO Only). Interface name must be set with a
+	password
+    persist - only if previous persistent group existed between peers and shall
+	be re-used. Group is restarted by sending "p2p_group_add persistent=0"
+	where value is taken from P2P-PROV-DONE
+
+Extended Events/Response
+
+P2P-DEVICE-FOUND 00:11:22:33:44:55 p2p_dev_addr=00:11:22:33:44:55 pri_dev_type=0-00000000-0 name='' config_methods=0x108 dev_capab=0x21 group_capab=0x0 adv_id=111 asp_svc=alt.example.chat
+
+Parameters definition:
+    adv_id - if ASP ASCII hex-encoded u32. If it is reporting the
+	"wildcard service", this value will be 0
+    asp_svc - if ASP this is the service string. If it is reporting the
+	"wildcard service", this value will be org.wi-fi.wfds
+
+
+wpa_cli action script
+---------------------
+
+See examples/p2p-action.sh
+
+TODO: describe DHCP/DNS setup
+TODO: cross-connection

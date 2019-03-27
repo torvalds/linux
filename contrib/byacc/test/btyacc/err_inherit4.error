@@ -1,0 +1,13 @@
+YACC: w - line 32 of "./err_inherit4.y", destructor redeclared
+%destructor	{
+           	^
+YACC: w - line 77 of "./err_inherit4.y", wrong number of default arguments for namelist
+	{ $$ = $1; @$ = @2; }
+	^
+YACC: w - line 77 of "./err_inherit4.y", wrong type for default argument 2 to namelist
+	{ $$ = $1; @$ = @2; }
+	^
+YACC: w - line 77 of "./err_inherit4.y", wrong type for default argument 1 to namelist
+	{ $$ = $1; @$ = @2; }
+	^
+YACC: w - line 77 of "./err_inherit4.y", @2 references beyond the end of the current rule

@@ -1,0 +1,174 @@
+.\" Copyright (c) 2006 Ulrich Spoerlein <uspoerlein@gmail.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 1, 2013
+.Dt RECOVERDISK 1
+.Os
+.Sh NAME
+.Nm recoverdisk
+.Nd recover data from hard disk or optical media
+.Sh SYNOPSIS
+.Nm
+.Op Fl b Ar bigsize
+.Op Fl r Ar readlist
+.Op Fl s Ar interval
+.Op Fl w Ar writelist
+.Ar source
+.Op Ar destination
+.Sh DESCRIPTION
+The
+.Nm
+utility reads data from the
+.Ar source
+file until all blocks could be successfully read.
+If
+.Ar destination
+was specified all data is being written to that file.
+It starts reading in multiples of the sector size.
+Whenever a block fails, it is put to the end of the working queue and will be
+read again, possibly with a smaller read size.
+.Pp
+By default it uses block sizes of roughly 1 MB, 32kB, and the native
+sector size (usually 512 bytes).
+These figures are adjusted slightly, for devices whose sectorsize is not a
+power of 2, e.g., audio CDs with a sector size of 2352 bytes.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl b Ar bigsize
+The size of reads attempted first.
+The middle pass is roughly the logarithmic average of the bigsize and
+the sectorsize.
+.It Fl r Ar readlist
+Read the list of blocks and block sizes to read from the specified file.
+.It Fl s Ar interval
+How often we should update the writelist file while things go OK.
+The default is 60 and the unit is "progress messages" so if things
+go well, this is the same as once per minute.
+.It Fl w Ar writelist
+Write the list of remaining blocks to read to the specified file if
+.Nm
+is aborted via
+.Dv SIGINT .
+.El
+.Pp
+The
+.Fl r
+and
+.Fl w
+options can be specified together.
+Especially, they can point to the same file, which will be updated on abort.
+.Sh OUTPUT
+The
+.Nm
+utility
+prints several columns, detailing the progress
+.Bl -tag -width remaining
+.It Va start
+Starting offset of the current block.
+.It Va size
+Read size of the current block.
+.It Va len
+Length of the current block.
+.It Va state
+Is increased for every failed read.
+.It Va done
+Number of bytes already read.
+.It Va remaining
+Number of bytes remaining.
+.It Va "% done"
+Percent complete.
+.El
+.Sh EXAMPLES
+.Bd -literal
+# recover data from failing hard drive ada3
+recoverdisk /dev/ada3 /data/disk.img
+
+# clone a hard disk
+recoverdisk /dev/ada3 /dev/ada4
+
+# read an ISO image from a CD-ROM
+recoverdisk /dev/cd0 /data/cd.iso
+
+# continue reading from a broken CD and update the existing worklist
+recoverdisk -r worklist -w worklist /dev/cd0 /data/cd.iso
+
+# recover a single file from the unreadable media
+recoverdisk /cdrom/file.avi file.avi
+
+# If the disk hangs the system on read-errors try:
+recoverdisk -b 0 /dev/ada3 /somewhere
+
+.Ed
+.Sh SEE ALSO
+.Xr dd 1 ,
+.Xr ada 4 ,
+.Xr cam 4 ,
+.Xr cd 4 ,
+.Xr da 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An -nosplit
+The original implementation was done by
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org
+with minor improvements from
+.An Ulrich Sp\(:orlein Aq Mt uqs@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Ulrich Sp\(:orlein .
+.Sh BUGS
+Reading from media where the sectorsize is not a power of 2 will make all
+1 MB reads fail.
+This is due to the DMA reads being split up into blocks of at most 128kB.
+These reads then fail if the sectorsize is not a divisor of 128kB.
+When reading a full raw audio CD, this leads to roughly 700 error messages
+flying by.
+This is harmless and can be avoided by setting
+.Fl b
+to no more than 128kB.
+.Pp
+.Nm
+needs to know about read errors as fast as possible, i.e. retries by lower
+layers will usually slow down the operation.
+When using
+.Xr cam 4
+attached drives, you may want to set kern.cam.XX.retry_count to zero, e.g.:
+.Bd -literal
+# sysctl kern.cam.ada.retry_count=0
+# sysctl kern.cam.cd.retry_count=0
+# sysctl kern.cam.da.retry_count=0
+.Ed
+.\".Pp
+.\"When reading from optical media, a bug in the GEOM framework will
+.\"prevent it from seeing that the media has been removed.
+.\"The device can still be opened, but all reads will fail.
+.\"This is usually harmless, but will send
+.\".Nm
+.\"into an infinite loop.

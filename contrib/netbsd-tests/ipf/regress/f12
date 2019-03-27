@@ -1,0 +1,6 @@
+pass in proto tcp from any port > 1024 to any port = 25 with not short
+pass in proto tcp from any port > 1024 to any port = 25
+block in proto tcp from any to any with short
+block in proto tcp from any to any with frag
+pass in proto udp from any port = 53 to any port = 53
+block in proto udp from any port = 53 to any port = 53 with not short

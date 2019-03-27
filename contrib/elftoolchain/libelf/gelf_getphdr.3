@@ -1,0 +1,141 @@
+.\" Copyright (c) 2006-2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: gelf_getphdr.3 3643 2018-10-14 21:09:24Z jkoshy $
+.\"
+.Dd October 21, 2007
+.Dt GELF_GETPHDR 3
+.Os
+.Sh NAME
+.Nm elf32_getphdr ,
+.Nm elf64_getphdr ,
+.Nm gelf_getphdr
+.Nd retrieve an ELF program header table
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft "Elf32_Phdr *"
+.Fn elf32_getphdr "Elf *elf"
+.Ft "Elf64_Phdr *"
+.Fn elf64_getphdr "Elf *elf"
+.In gelf.h
+.Ft "GElf_Phdr *"
+.Fn gelf_getphdr "Elf *elf" "int index" "GElf_Phdr *dst"
+.Sh DESCRIPTION
+These functions retrieve and translate ELF program header information
+from an ELF descriptor, if this information exists.
+.Pp
+Functions
+.Fn elf32_getphdr
+and
+.Fn elf64_getphdr
+return a pointer to an array of translated
+.Vt Elf32_Phdr
+and
+.Vt Elf64_Phdr
+descriptors respectively.
+These descriptors are described in
+.Xr elf 5 .
+The number of entries in this array may be determined using the
+.Xr elf_getphnum 3
+function.
+.Pp
+Function
+.Fn gelf_getphdr
+will retrieve the program header table entry at index
+.Ar index
+from ELF descriptor
+.Ar elf .
+The translated program header table entry will be written to the
+address pointed to be argument
+.Ar dst .
+.Pp
+Applications may inform the library of modifications to a program header table entry
+by using the
+.Xr elf_flagphdr 3
+API.
+Applications using the
+.Xr gelf 3
+interface need to use the
+.Xr gelf_update_phdr 3
+API to copy modifications to a program header entry back to the underlying
+ELF descriptor.
+.Sh RETURN VALUES
+The functions a valid pointer if successful, or NULL in case an error
+was encountered.
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+was NULL.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+was not a descriptor for an ELF object.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar dst
+was NULL.
+.It Bq Er ELF_E_ARGUMENT
+Index
+.Ar index
+was out of range.
+.It Bq Er ELF_E_CLASS
+The class of ELF descriptor
+.Ar elf
+did not match the expected class of the function being called.
+.It Bq Er ELF_E_HEADER
+ELF descriptor
+.Ar elf
+did not possess an executable header.
+.It Bq Er ELF_E_HEADER
+ELF descriptor
+.Ar elf
+had a corrupt executable header.
+.It Bq Er ELF_E_RESOURCE
+An out of memory condition was detected.
+.It Bq Er ELF_E_SECTION
+The ELF descriptor in argument
+.Ar elf
+did not adhere to the conventions used for extended numbering.
+.It Bq Er ELF_VERSION
+ELF descriptor
+.Ar elf
+was of an unsupported version.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf32_getehdr 3 ,
+.Xr elf32_newphdr 3 ,
+.Xr elf64_getehdr 3 ,
+.Xr elf64_newphdr 3 ,
+.Xr elf_flagphdr 3 ,
+.Xr elf_getphnum 3 ,
+.Xr gelf 3 ,
+.Xr gelf_getehdr 3 ,
+.Xr gelf_newphdr 3 ,
+.Xr gelf_update_phdr 3 ,
+.Xr elf 5

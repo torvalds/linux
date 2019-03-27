@@ -1,0 +1,9 @@
+document.write("<p>Miscellaneous Pages</p><ul>\
+<li class='inline'><a href='copyright.html'>Copyright Notice</a></li>\
+<li class='inline'><a href='decode.html'>Event Messages and Status Words</a></li>\
+<li class='inline'><a href='kern.html'>Kernel Model for Precision Timekeeping</a></li>\
+<li class='inline'><a href='msyslog.html'><tt>ntpd</tt> System Log Messages</a></li>\
+<li class='inline'><a href='kernpps.html'>PPSAPI Interface for Precision Time Signals</a></li>\
+<li class='inline'><a href='pps.html'>Pulse-per-second (PPS) Signal Interfacing</a></li>\
+<li class='inline'><a href='sitemap.html'>Site Map</a></li>\
+</ul>")

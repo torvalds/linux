@@ -1,0 +1,130 @@
+.\" Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 1, 2013
+.Dt GSHSEC 8
+.Os
+.Sh NAME
+.Nm gshsec
+.Nd "control utility for shared secret devices"
+.Sh SYNOPSIS
+.Nm
+.Cm label
+.Op Fl hv
+.Ar name
+.Ar prov prov ...
+.Nm
+.Cm stop
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm clear
+.Op Fl v
+.Ar prov ...
+.Nm
+.Cm dump
+.Ar prov ...
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Nm
+.Cm load
+.Nm
+.Cm unload
+.Sh DESCRIPTION
+The
+.Nm
+utility is used for setting up a device which contains a shared secret.
+The secret is shared between the given providers.
+To collect the secret, all providers are needed.
+If one of the components is missing, there is no way to get any useful data from
+the rest of them.
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm destroy"
+.It Cm label
+Set up a shared secret device from the given components with the specified
+.Ar name .
+Metadata are stored in the last sector of every component.
+.It Cm stop
+Turn off an existing shared secret device by its
+.Ar name .
+This command does not touch on-disk metadata!
+.It Cm clear
+Clear metadata on the given providers.
+.It Cm dump
+Dump metadata stored on the given providers.
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Pp
+Additional options:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Force the removal of the specified shared secret device.
+.It Fl h
+Hardcode providers' names in metadata.
+.It Fl v
+Be more verbose.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
+.Sh EXAMPLES
+The following example shows how to create a shared secret device.
+The secret will be split between a slice on a local disk and a USB Pen drive.
+.Bd -literal -offset indent
+gshsec label -v secret /dev/ada0s1 /dev/da0
+newfs /dev/shsec/secret
+.Ed
+.Pp
+From now on, when the USB Pen drive is inserted, it will be automatically
+detected and connected, making the secret available via the
+.Pa /dev/shsec/secret
+device.
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr gbde 8 ,
+.Xr geom 8 ,
+.Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.4 .
+.Sh AUTHORS
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org

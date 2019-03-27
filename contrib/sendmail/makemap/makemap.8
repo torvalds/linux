@@ -1,0 +1,173 @@
+.\" Copyright (c) 1998-2002 Proofpoint, Inc. and its suppliers.
+.\"	 All rights reserved.
+.\" Copyright (c) 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" By using this file, you agree to the terms and conditions set
+.\" forth in the LICENSE file which can be found at the top level of
+.\" the sendmail distribution.
+.\"
+.\"
+.\"     $Id: makemap.8,v 8.32 2013-11-22 20:51:52 ca Exp $
+.\"
+.TH MAKEMAP 8 "$Date: 2013-11-22 20:51:52 $"
+.SH NAME
+makemap
+\- create database maps for sendmail
+.SH SYNOPSIS
+.B makemap
+.RB [ \-C
+.IR file ]
+.RB [ \-N ]
+.RB [ \-c
+.IR cachesize ]
+.RB [ \-d ]
+.RB [ \-D
+.IR commentchar ]
+.RB [ \-e ]
+.RB [ \-f ]
+.RB [ \-l ]
+.RB [ \-o ]
+.RB [ \-r ]
+.RB [ \-s ]
+.RB [ \-t
+.IR delim ]
+.RB [ \-u ]
+.RB [ \-v ]
+.I 
+maptype mapnam
+.SH DESCRIPTION
+.B Makemap
+creates the database maps used by the keyed map lookups in
+sendmail(8).  
+It reads input from the standard input
+and outputs them to the indicated
+.I mapname.
+.PP
+Depending on how it is compiled,
+.B makemap
+handles up to three different database formats, 
+selected using the
+.I maptype
+parameter.  
+They may be
+.TP
+dbm
+DBM format maps.  
+This requires the 
+ndbm(3) 
+library.
+.TP
+btree
+B-Tree format maps.  
+This requires the new Berkeley DB 
+library.
+.TP
+hash
+Hash format maps.  
+This also requires the Berkeley DB 
+library.
+.PP
+In all cases,
+.B makemap
+reads lines from the standard input consisting of two 
+words separated by white space.  
+The first is the database key, 
+the second is the value.  
+The value may contain 
+``%\fIn\fP'' 
+strings to indicate parameter substitution.  
+Literal percents should be doubled 
+(``%%'').
+Blank lines and lines beginning with ``#'' are ignored.
+.PP
+Notice: do
+.B not
+use
+.B makemap
+to create the aliases data base, but
+.B newaliases
+which puts a special token into the data base that is required by
+.B sendmail.
+.PP
+If the
+.I TrustedUser
+option is set in the sendmail configuration file and
+.B makemap
+is invoked as root, the generated files will be owned by 
+the specified
+.IR TrustedUser.
+.SS Flags
+.TP  
+.B \-C
+Use the specified
+.B sendmail
+configuration file for looking up the TrustedUser option.
+.TP 
+.B \-N
+Include the null byte that terminates strings 
+in the map.  
+This must match the \-N flag in the sendmail.cf 
+``K'' line.
+.TP
+.B \-c
+Use the specified hash and B-Tree cache size.
+.TP
+.B \-D
+Use to specify the character to use to indicate a comment (which is ignored)
+instead of the default of '#'.
+.TP
+.B \-d
+Allow duplicate keys in the map.  
+This is only allowed on B-Tree format maps.  
+If two identical keys are read, 
+they will both be inserted into the map.
+.TP
+.B \-e
+Allow empty value (right hand side).
+.TP
+.B \-f
+Normally all upper case letters in the key 
+are folded to lower case.  
+This flag disables that behaviour.  
+This is intended to mesh with the 
+\-f flag in the 
+.B K 
+line in sendmail.cf.  
+The value is never case folded.
+.TP
+.B \-l
+List supported map types.
+.TP
+.B \-o
+Append to an old file.  
+This allows you to augment an existing file.
+.TP
+.B \-r
+Allow replacement of existing keys.  
+Normally
+.B makemap
+complains if you repeat a key, 
+and does not do the insert.
+.TP
+.B \-s
+Ignore safety checks on maps being created.  
+This includes checking for hard or symbolic 
+links in world writable directories.
+.TP
+.B \-t
+Use the specified delimiter instead of white space
+(also for dumping a map).
+.TP
+.B \-u
+dump (unmap) the content of the database to standard output.
+.TP
+.B \-v
+Verbosely print what it is doing.
+.SH SEE ALSO
+sendmail(8), newaliases(1)
+.SH HISTORY
+The
+.B makemap
+command appeared in 
+4.4BSD.

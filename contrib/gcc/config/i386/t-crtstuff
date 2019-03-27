@@ -1,0 +1,2 @@
+# The pushl in CTOR initialization interferes with frame pointer elimination.
+CRTSTUFF_T_CFLAGS = -fno-omit-frame-pointer

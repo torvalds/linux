@@ -1,0 +1,43 @@
+%{
+/*
+ * Copyright is disclaimed as to the contents of this file.
+ *
+ * $FreeBSD$
+ */
+
+#include <sys/types.h>
+
+#include <string.h>
+#include <limits.h>
+
+#include "getconf.h"
+
+/*
+ * Override gperf's built-in external scope.
+ */
+static const struct map *in_word_set(const char *str);
+
+%}
+struct map { const char *name; uintmax_t value; int valid; };
+%%
+UCHAR_MAX, UCHAR_MAX
+UINT_MAX, UINT_MAX
+ULLONG_MAX, ULLONG_MAX
+ULONG_MAX, ULONG_MAX
+USHRT_MAX, USHRT_MAX
+%%
+int
+find_unsigned_limit(const char *name, uintmax_t *value)
+{
+	const struct map *rv;
+
+	rv = in_word_set(name);
+	if (rv != NULL) {
+		if (rv->valid) {
+			*value = rv->value;
+			return 1;
+		}
+		return -1;
+	}
+	return 0;
+}

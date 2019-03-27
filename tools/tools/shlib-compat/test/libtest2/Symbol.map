@@ -1,0 +1,15 @@
+/*
+ * $FreeBSD$
+ */
+
+TEST_1.0 {
+	func2;
+	func3;
+	func4;
+	func5;
+	func6;
+};
+
+TEST_1.1 {
+	func1;
+};

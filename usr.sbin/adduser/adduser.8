@@ -1,0 +1,478 @@
+.\" Copyright (c) 1995-1996 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
+.\" All rights reserved.
+.\" Copyright (c) 2002-2004 Michael Telahun Makonnen <mtm@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 15, 2012
+.Dt ADDUSER 8
+.Os
+.Sh NAME
+.Nm adduser
+.Nd command for adding new users
+.Sh SYNOPSIS
+.Nm
+.Op Fl CDENShq
+.Op Fl G Ar groups
+.Op Fl L Ar login_class
+.Op Fl M Ar mode
+.Op Fl d Ar partition
+.Op Fl f Ar file
+.Op Fl g Ar login_group
+.Op Fl k Ar dotdir
+.Op Fl m Ar message_file
+.Op Fl s Ar shell
+.Op Fl u Ar uid_start
+.Op Fl w Ar type
+.Sh DESCRIPTION
+The
+.Nm
+utility is a shell script, implemented around the
+.Xr pw 8
+command, for adding new users.
+It creates passwd/group entries, a home directory,
+copies dotfiles and sends the new user a welcome message.
+It supports two modes of operation.
+It may be used interactively
+at the command line to add one user at a time, or it may be directed
+to get the list of new users from a file and operate in batch mode
+without requiring any user interaction.
+.Sh RESTRICTIONS
+.Bl -tag -width indent
+.It username
+Login name.
+The user name is restricted to whatever
+.Xr pw 8
+will accept.
+Generally this means it
+may contain only lowercase characters or digits but cannot begin with the
+.Ql -
+character.
+Maximum length
+is 16 characters.
+The reasons for this limit are historical.
+Given that people have traditionally wanted to break this
+limit for aesthetic reasons, it has never been of great importance to break
+such a basic fundamental parameter in
+.Ux .
+You can change
+.Dv UT_NAMESIZE
+in
+.In utmp.h
+and recompile the
+world; people have done this and it works, but you will have problems
+with any precompiled programs, or source that assumes the 8-character
+name limit, such as NIS.
+The NIS protocol mandates an 8-character username.
+If you need a longer login name for e-mail addresses,
+you can define an alias in
+.Pa /etc/mail/aliases .
+.It "full name"
+This is typically known as the gecos field and usually contains
+the user's full name.
+Additionally, it may contain a comma separated
+list of values such as office number and work and home phones.
+If the
+name contains an ampersand it will be replaced by the capitalized
+login name when displayed by other programs.
+The
+.Ql \&:
+character is not allowed.
+.It shell
+Unless the
+.Fl S
+argument is supplied only valid shells from the shell database
+.Pq Pa /etc/shells
+are allowed.
+In addition,
+either the base name or the full path of the shell may be supplied.
+.It UID
+Automatically generated or your choice.
+It must be less than 32000.
+.It "GID/login group"
+Automatically generated or your choice.
+It must be less than 32000.
+.It password
+You may choose an empty password, disable the password, use a
+randomly generated password or specify your own plaintext password,
+which will be encrypted before being stored in the user database.
+.El
+.Sh UNIQUE GROUPS
+Perhaps you are missing what
+.Em can
+be done with this scheme that falls apart
+with most other schemes.
+With each user in their own group,
+they can safely run with a umask of 002 instead of the usual 022
+and create files in their home directory
+without worrying about others being able to change them.
+.Pp
+For a shared area you create a separate UID/GID, you place each person
+that should be able to access this area into that new group.
+.Pp
+This model of UID/GID administration allows far greater flexibility than lumping
+users into groups and having to muck with the umask when working in a shared
+area.
+.Pp
+I have been using this model for almost 10 years and found that it works
+for most situations, and has never gotten in the way.
+(Rod Grimes)
+.Sh CONFIGURATION
+The
+.Nm
+utility reads its configuration information from
+.Pa /etc/adduser.conf .
+If this file does not exist, it will use predefined defaults.
+While this file may be edited by hand,
+the safer option is to use the
+.Fl C
+command line argument.
+With this argument,
+.Nm
+will start interactive input, save the answers to its prompts in
+.Pa /etc/adduser.conf ,
+and promptly exit without modifying the user
+database.
+Options specified on the command line will take precedence over
+any values saved in this file.
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl C
+Create new configuration file and exit.
+This option is mutually exclusive with the
+.Fl f
+option.
+.It Fl d Ar partition
+Home partition.
+Default partition, under which all user directories
+will be located.
+The
+.Pa /nonexistent
+partition is considered special.
+The
+.Nm
+script will not create and populate a home directory by that name.
+Otherwise,
+by default it attempts to create a home directory.
+.It Fl D
+Do not attempt to create the home directory.
+.It Fl E
+Disable the account.
+This option will lock the account by prepending the string
+.Dq Li *LOCKED*
+to the password field.
+The account may be unlocked
+by the super-user with the
+.Xr pw 8
+command:
+.Pp
+.D1 Nm pw Cm unlock Op Ar name | uid
+.It Fl f Ar file
+Get the list of accounts to create from
+.Ar file .
+If
+.Ar file
+is
+.Dq Fl ,
+then get the list from standard input.
+If this option is specified,
+.Nm
+will operate in batch mode and will not seek any user input.
+If an error is encountered while processing an account, it will write a
+message to standard error and move to the next account.
+The format
+of the input file is described below.
+.It Fl g Ar login_group
+Normally,
+if no login group is specified,
+it is assumed to be the same as the username.
+This option makes
+.Ar login_group
+the default.
+.It Fl G Ar groups
+Space-separated list of additional groups.
+This option allows the user to specify additional groups to add users to.
+The user is a member of these groups in addition to their login group.
+.It Fl h
+Print a summary of options and exit.
+.It Fl k Ar directory
+Copy files from
+.Ar directory
+into the home
+directory of new users;
+.Pa dot.foo
+will be renamed to
+.Pa .foo .
+.It Fl L Ar login_class
+Set default login class.
+.It Fl m Ar file
+Send new users a welcome message from
+.Ar file .
+Specifying a value of
+.Cm no
+for
+.Ar file
+causes no message to be sent to new users.
+Please note that the message
+file can reference the internal variables of the
+.Nm
+script.
+.It Fl M Ar mode
+Create the home directory with permissions set to
+.Ar mode .
+.It Fl N
+Do not read the default configuration file.
+.It Fl q
+Minimal user feedback.
+In particular, the random password will not be echoed to
+standard output.
+.It Fl s Ar shell
+Default shell for new users.
+The
+.Ar shell
+argument may be the base name of the shell or the full path.
+Unless the
+.Fl S
+argument is supplied the shell must exist in
+.Pa /etc/shells
+or be the special shell
+.Em nologin
+to be considered a valid shell.
+.It Fl S
+The existence or validity of the specified shell will not be checked.
+.It Fl u Ar uid
+Use UIDs from
+.Ar uid
+on up.
+.It Fl w Ar type
+Password type.
+The
+.Nm
+utility allows the user to specify what type of password to create.
+The
+.Ar type
+argument may have one of the following values:
+.Bl -tag -width ".Cm random"
+.It Cm no
+Disable the password.
+Instead of an encrypted string, the password field will contain a single
+.Ql *
+character.
+The user may not log in until the super-user
+manually enables the password.
+.It Cm none
+Use an empty string as the password.
+.It Cm yes
+Use a user-supplied string as the password.
+In interactive mode,
+the user will be prompted for the password.
+In batch mode, the
+last (10th) field in the line is assumed to be the password.
+.It Cm random
+Generate a random string and use it as a password.
+The password will be echoed to standard output.
+In addition, it will be available for inclusion in the message file in the
+.Va randompass
+variable.
+.El
+.El
+.Sh FORMAT
+When the
+.Fl f
+option is used, the account information must be stored in a specific
+format.
+All empty lines or lines beginning with a
+.Ql #
+will be ignored.
+All other lines must contain ten colon
+.Pq Ql \&:
+separated fields as described below.
+Command line options do not take precedence
+over values in the fields.
+Only the password field may contain a
+.Ql \&:
+character as part of the string.
+.Pp
+.Sm off
+.D1 Ar name : uid : gid : class : change : expire : gecos : home_dir : shell : password
+.Sm on
+.Bl -tag -width ".Ar password"
+.It Ar name
+Login name.
+This field may not be empty.
+.It Ar uid
+Numeric login user ID.
+If this field is left empty, it will be automatically generated.
+.It Ar gid
+Numeric primary group ID.
+If this field is left empty, a group with the
+same name as the user name will be created and its GID will be used
+instead.
+.It Ar class
+Login class.
+This field may be left empty.
+.It Ar change
+Password ageing.
+This field denotes the password change date for the account.
+The format of this field is the same as the format of the
+.Fl p
+argument to
+.Xr pw 8 .
+It may be
+.Ar dd Ns - Ns Ar mmm Ns - Ns Ar yy Ns Op Ar yy ,
+where
+.Ar dd
+is for the day,
+.Ar mmm
+is for the month in numeric or alphabetical format:
+.Dq Li 10
+or
+.Dq Li Oct ,
+and
+.Ar yy Ns Op Ar yy
+is the four or two digit year.
+To denote a time relative to the current date the format is:
+.No + Ns Ar n Ns Op Ar mhdwoy ,
+where
+.Ar n
+denotes a number, followed by the minutes, hours, days, weeks,
+months or years after which the password must be changed.
+This field may be left empty to turn it off.
+.It Ar expire
+Account expiration.
+This field denotes the expiry date of the account.
+The account may not be used after the specified date.
+The format of this field is the same as that for password ageing.
+This field may be left empty to turn it off.
+.It Ar gecos
+Full name and other extra information about the user.
+.It Ar home_dir
+Home directory.
+If this field is left empty, it will be automatically
+created by appending the username to the home partition.
+The
+.Pa /nonexistent
+home directory is considered special and
+is understood to mean that no home directory is to be
+created for the user.
+.It Ar shell
+Login shell.
+This field should contain either the base name or
+the full path to a valid login shell.
+.It Ar password
+User password.
+This field should contain a plaintext string, which will
+be encrypted before being placed in the user database.
+If the password type is
+.Cm yes
+and this field is empty, it is assumed the account will have an empty password.
+If the password type is
+.Cm random
+and this field is
+.Em not
+empty, its contents will be used
+as a password.
+This field will be ignored if the
+.Fl w
+option is used with a
+.Cm no
+or
+.Cm none
+argument.
+Be careful not to terminate this field with a closing
+.Ql \&:
+because it will be treated as part of the password.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/adduser.message" -compact
+.It Pa /etc/master.passwd
+user database
+.It Pa /etc/group
+group database
+.It Pa /etc/shells
+shell database
+.It Pa /etc/login.conf
+login classes database
+.It Pa /etc/adduser.conf
+configuration file for
+.Nm
+.It Pa /etc/adduser.message
+message file for
+.Nm
+.It Pa /usr/share/skel
+skeletal login directory
+.It Pa /var/log/adduser
+logfile for
+.Nm
+.El
+.Sh SEE ALSO
+.Xr chpass 1 ,
+.Xr passwd 1 ,
+.Xr adduser.conf 5 ,
+.Xr aliases 5 ,
+.Xr group 5 ,
+.Xr login.conf 5 ,
+.Xr passwd 5 ,
+.Xr shells 5 ,
+.Xr pw 8 ,
+.Xr pwd_mkdb 8 ,
+.Xr rmuser 8 ,
+.Xr vipw 8 ,
+.Xr yp 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 2.1 .
+.Sh AUTHORS
+.An -nosplit
+This manual page and the original script, in Perl, was written by
+.An Wolfram Schneider Aq Mt wosch@FreeBSD.org .
+The replacement script, written as a Bourne
+shell script with some enhancements, and the man page modification that
+came with it were done by
+.An Mike Makonnen Aq Mt mtm@identd.net .
+.Sh BUGS
+In order for
+.Nm
+to correctly expand variables such as
+.Va $username
+and
+.Va $randompass
+in the message sent to new users, it must let the shell evaluate
+each line of the message file.
+This means that shell commands can also be embedded in the message file.
+The
+.Nm
+utility attempts to mitigate the possibility of an attacker using this
+feature by refusing to evaluate the file if it is not owned and writable
+only by the root user.
+In addition, shell special characters and operators will have to be
+escaped when used in the message file.
+.Pp
+Also, password ageing and account expiry times are currently settable
+only in batch mode or when specified in
+.Pa /etc/adduser.conf .
+The user should be able to set them in interactive mode as well.

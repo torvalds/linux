@@ -1,0 +1,8 @@
+
+#------------------------------------------------------------------------------
+# $File: cubemap,v 1.1 2012/06/06 13:03:20 christos Exp $
+# file(1) magic(5) data for cubemaps  Martin Erik Werner <martinerikwerner@gmail.com>
+#
+0	string	ACMP	Map file for the AssaultCube FPS game
+0	string	CUBE	Map file for cube and cube2 engine games
+0	string	MAPZ)	Map file for the Blood Frontier/Red Eclipse FPS games

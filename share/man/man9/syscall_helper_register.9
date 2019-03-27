@@ -1,0 +1,139 @@
+.\" Copyright (c) 2018 Conrad Meyer <cem@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 10, 2018
+.Dt SYSCALL_HELPER_REGISTER 9
+.Os
+.Sh NAME
+.Nm syscall_helper_register ,
+.Nm syscall_helper_unregister
+.Nd kernel syscall registration routines
+.\"
+.Sh SYNOPSIS
+.In sys/sysent.h
+.Ft int
+.Fn syscall_helper_register "struct syscall_helper_data *sd" "int flags"
+.Ft int
+.Fn syscall_helper_unregister "struct syscall_helper_data *sd"
+.\"
+.Ss INITIALIZER MACROS
+.Ft struct syscall_helper_data
+.Fn SYSCALL_INIT_HELPER "syscallname"
+.Ft struct syscall_helper_data
+.Fn SYSCALL_INIT_HELPER_F "syscallname" "int flags"
+.\"
+.Ss COMPATIBILITY INITIALIZER MACROS
+.Ft struct syscall_helper_data
+.Fn SYSCALL_INIT_HELPER_COMPAT "syscallname"
+.Ft struct syscall_helper_data
+.Fn SYSCALL_INIT_HELPER_COMPAT_F "syscallname" "int flags"
+.\"
+.Sh DESCRIPTION
+The
+.Fn syscall_helper_register
+registers a system call.
+This function takes the structure
+.Va struct syscall_helper_data sd ,
+which specifies the parameters for syscall registration:
+.Pp
+.Bd -literal -offset indent -compact
+struct syscall_helper_data {
+	struct sysent	new_sysent;
+	struct sysent	old_sysent;
+	int		syscall_no;
+	int		registered;
+};
+.Ed
+.Pp
+The only valid flag for the
+.Fa flags
+argument to
+.Fn syscall_helper_register
+is
+.Dv SY_THR_STATIC .
+This flag prevents the syscall from being unregistered.
+.\"
+.Pp
+Before use, the structure must be initialized with one of the
+.Fn SYSCALL_INIT_HELPER*
+macros.
+In new code, syscall implementation functions shall be named
+.Fn sys_syscallname
+and the regular macros shall be used.
+.Pp
+For legacy syscall functions named without "sys_" prefixes, the "COMPAT"
+versions of the macros may be used.
+.Pp
+The only valid flag for the
+.Fa flags
+argument to the "F" variants of the initializer macros is
+.Dv SYF_CAPENABLED .
+This flag indicates that the syscall is allowed in capability mode.
+.Pp
+The
+.Fn syscall_helper_unregister
+unregisters a system call.
+This function takes the same structure
+.Va struct syscall_helper_data sd
+that was previously initialized in the manner described above and used in a
+successful invocation of
+.Fn syscall_helper_register .
+.\"
+.Sh RETURN VALUES
+If successful,
+.Fn syscall_helper_register
+and
+.Fn syscall_helper_unregister
+will return 0.
+Otherwise, they will return an error.
+.\"
+.Sh ERRORS
+The
+.Fn syscall_helper_register
+call will fail and the syscall will not be registered if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa flags
+argument contained a value other than
+.Dv SY_THR_STATIC .
+.It Bq Er EINVAL
+The specified syscall number,
+.Dv sd.syscall_no
+.Dv ( SYS_syscallname ) ,
+was outside of the valid range of system call numbers (zero through
+.Dv SYS_MAXSYSCALL ) .
+.It Bq Er ENFILE
+The system call table does not have any available slots.
+.It Bq Er EEXIST
+The specified syscall number,
+.Dv sd.syscall_no
+.Dv ( SYS_syscallname ) ,
+was already in use.
+.El
+.\"
+.Sh SEE ALSO
+.Xr SYSCALL_MODULE 9

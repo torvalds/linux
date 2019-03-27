@@ -1,0 +1,167 @@
+.\"
+.\" Copyright (c) 2019 Eugene Grosbein <eugen@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 18, 2019
+.Dt TRIM 8
+.Os
+.Sh NAME
+.Nm trim
+.Nd erase device blocks that have no needed contents
+.Sh SYNOPSIS
+.Nm
+.Op Fl Nfqv
+.Fl [ [lo] Xo
+.Bk -words
+.Sm off
+.Ar offset
+.Op Cm K | k | M | m | G | g | T | t ]
+.Sm on
+.Xc
+.Ek
+.Bk -words
+.Op Fl r Ar rfile
+.Ek
+.Ar device ...
+.Sh DESCRIPTION
+The
+.Nm
+utility erases specified region of the device.
+It is mostly relevant for storage that implement trim (like flash based,
+or thinly provisioned storage).
+.Sy All erased data is lost.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl N
+Do not actually erase anything but show what it would do (dry run).
+Implies
+.Fl v .
+This is the default. Overrides
+.Fl f .
+.It Fl f
+Perform the operation. Overrides
+.Fl N .
+.It Fl l Xo
+.Sm off
+.Ar offset
+.Op Cm K | k | M | m | G | g | T | t
+.Sm on
+.Xc
+.It Fl o Xo
+.Sm off
+.Ar offset
+.Op Cm K | k | M | m | G | g | T | t
+.Sm on
+.Xc
+Specify the length
+.Fl l
+of the region to trim or its offset
+.Fl o
+from the beginning of the device.
+.Sy The whole device is erased by default
+unless one or both of these options are presented.
+.Pp
+The argument may be suffixed with one of
+.Cm K ,
+.Cm M ,
+.Cm G
+or
+.Cm T
+(either upper or lower case) to indicate a multiple of
+Kilobytes, Megabytes, Gigabytes or Terabytes
+respectively.
+.It Fl q
+Do not output anything except of possible error messages (quiet mode).
+Overrides
+.Fl v .
+.It Fl r Ar rfile
+Uses the length of given
+.Ar rfile
+as length of the region to erase.
+.Sy The whole device is erased by default.
+.It Fl v
+Show offset and length of actual region being erased, in bytes.
+.El
+.Pp
+Later options override previous ones.
+.Pp
+Note that actual success of the operation depends of underlying
+device driver such as
+.Xr ada 4 ,
+.Xr da 4
+and others.
+Refer to corresponding manual pages for detail on possible caveats
+in low level support for ATA TRIM or SCSI UNMAP commands.
+.Sh EXIT STATUS
+.Ex -std
+If the final erase operation fails for an argument, the
+.Nm
+utility returns exit code 1.
+It can also return one of the exit codes defined in
+.Xr sysexits 3 ,
+as follows:
+.Bl -tag -width ".Dv EX_UNAVAILABLE"
+.It Dv EX_USAGE
+The specified offset or length of the region is incorrect.
+.It Dv EX_OSERR
+There is no enough memory to proceed.
+.It Dv EX_NOINPUT
+The specified
+.Ar rfile
+cannot be opened (perhaps, it does not exist).
+.It Dv EX_IOERR
+The specified
+.Ar rfile
+cannot be examined for its size due to some system input/output error.
+.It Dv EX_DATAERR
+The specified
+.Ar rfile
+is not regular file, directory nor special device, so its size
+cannot be examined.
+.It Dv EX_UNAVAILABLE
+The specified
+.Ar rfile
+is special device file not supporting DIOCGMEDIASIZE
+.Xr ioctl 2
+(probably not a disk), so its size cannot be examined.
+.El
+.Sh SEE ALSO
+.Xr ada 4 ,
+.Xr da 4 ,
+.Xr ioctl 2 ,
+.Xr nda 4 ,
+.Xr sysexits 3
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 12.1 .
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Eugene Grosbein Aq Mt eugen@FreeBSD.org .

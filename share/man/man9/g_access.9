@@ -1,0 +1,165 @@
+.\"
+.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 16, 2004
+.Dt G_ACCESS 9
+.Os
+.Sh NAME
+.Nm g_access
+.Nd "control access to GEOM consumers and their providers"
+.Sh SYNOPSIS
+.In geom/geom.h
+.Ft int
+.Fn g_access "struct g_consumer *cp" "int dcr" "int dcw" "int dce"
+.Sh DESCRIPTION
+The
+.Fn g_access
+function allows to open, close, and generally change access to the provider
+which is attached to the given consumer
+.Fa cp .
+The arguments
+.Fa dcr ,
+.Fa dcw ,
+and
+.Fa dce
+represent relative read, write, and exclusive access count changes.
+Read and write access counts are self explanatory, and
+exclusive access counts deny write access to other interested parties.
+A provider's access count is the sum of the access counts of all
+attached consumers.
+.Pp
+After attaching a consumer to a provider with
+.Xr g_attach 9 ,
+the
+.Fn g_access
+function has to be called on the consumer before starting I/O requests.
+.Sh RESTRICTIONS/CONDITIONS
+The consumer has to be attached to a provider.
+.Pp
+The intended change must not result in a negative access count.
+.Pp
+No-operation is not permitted
+.Fa ( dcr
+=
+.Fa dcw
+=
+.Fa dce
+=
+.Li 0 ) .
+.Pp
+The provider's geom must have an access method defined (e.g.,
+.Va gp->access ) .
+.Pp
+The topology lock has to be held.
+.Sh RETURN VALUES
+The
+.Fn g_access
+function returns 0 if successful; otherwise an error code is returned.
+Note that
+.Fn g_access
+cannot fail when the arguments
+.Fa dcr ,
+.Fa dcw ,
+and
+.Fa dce
+are less than or equal to 0.
+.Sh EXAMPLES
+Create a consumer, attach it to a given provider, gain read access and
+read first sector.
+.Bd -literal -offset indent
+void
+some_function(struct g_geom *mygeom, struct g_provider *pp)
+{
+	struct g_consumer *cp;
+	void *ptr;
+	int error;
+
+	g_topology_assert();
+
+	/* Create new consumer on 'mygeom' geom. */
+	cp = g_new_consumer(mygeom);
+	/* Attach newly created consumer to given provider. */
+	if (g_attach(cp, pp) != 0) {
+		g_destroy_consumer(cp);
+		return;
+	}
+	/* Open provider for reading through our consumer. */
+	error = g_access(cp, 1, 0, 0);
+	if (error != 0) {
+		printf("Cannot access provider: %s\\n", error);
+		g_detach(cp);
+		g_destroy_consumer(cp);
+		return;
+	}
+
+	/*
+	 * Don't hold topology lock while reading.
+	 */
+	g_topology_unlock();
+	ptr = g_read_data(cp, 0, pp->sectorsize, &error);
+	if (ptr == NULL)
+		printf("Error while reading: %d\\n", error);
+	/*
+	 * Do something useful with data.
+	 */
+	g_topology_lock();
+
+	/* Disconnect from provider (release access count). */
+	g_access(cp, -1, 0, 0);
+	/* Detach from provider. */
+	g_detach(cp);
+	/* Destroy consumer. */
+	g_destroy_consumer(cp);
+}
+.Ed
+.Sh ERRORS
+Possible errors:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The function is trying to open a provider with an exclusive access count, but
+it is already open for writing.
+.It Bq Er EPERM
+The function is trying to open a provider for writing, but it is already
+exclusively open.
+.El
+.Pp
+Any other error that can be returned by the provider's access method.
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr DECLARE_GEOM_CLASS 9 ,
+.Xr g_attach 9 ,
+.Xr g_bio 9 ,
+.Xr g_consumer 9 ,
+.Xr g_data 9 ,
+.Xr g_event 9 ,
+.Xr g_geom 9 ,
+.Xr g_provider 9 ,
+.Xr g_provider_by_name 9 ,
+.Xr g_wither_geom 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .

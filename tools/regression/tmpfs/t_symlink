@@ -1,0 +1,81 @@
+#!/bin/sh
+#
+# $NetBSD: t_symlink,v 1.6 2006/11/09 16:20:06 jmmv Exp $
+#
+# Copyright (c) 2005, 2006 The NetBSD Foundation, Inc.
+# All rights reserved.
+#
+# This code is derived from software contributed to The NetBSD Foundation
+# by Julio M. Merino Vidal, developed as part of Google's Summer of Code
+# 2005 program.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+#
+# Verifies that the symlink and readlink operations work.
+#
+
+test_run() {
+	test_mount
+
+	test_name "Creation of an empty file"
+	touch a || die
+	test_name "Creation of a symlink pointing to it"
+	ln -s a b || die
+	test_name "Symlink points to correct file"
+	[ $(md5 b | cut -d ' ' -f 4) = d41d8cd98f00b204e9800998ecf8427e ] || die
+
+	test_name "Changing original file"
+	echo foo >a || die
+	test_name "Symlink reflects the changes"
+	[ $(md5 b | cut -d ' ' -f 4) = d3b07384d113edec49eaa6238ad5ff00 ] || die
+
+	test_name "Creation of symlink to a known system file"
+	ln -s /bin/cp cp || die
+	test_name "Trying to see if it works"
+	./cp b c || die
+	[ -f c ] || die
+
+	test_name "Symlinking directories works"
+	mkdir d || die
+	[ -f d/foo ] && die
+	[ -f e/foo ] && die
+	ln -s d e || die
+	touch d/foo || die
+	[ -f d/foo ] || die
+	[ -f e/foo ] || die
+
+	mkdir dir || die
+	echo 'ln -s non-existent dir/a' | kqueue_monitor 1 dir || die
+	test_name "Creating a symlink raises NOTE_WRITE on the parent" \
+	    "directory"
+	kqueue_check dir NOTE_WRITE || die
+	rm dir/a || die
+	rmdir dir || die
+
+	test_unmount
+}
+
+. ${SUBRDIR}/h_funcs.subr

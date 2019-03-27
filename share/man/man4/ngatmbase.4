@@ -1,0 +1,134 @@
+.\"
+.\" Copyright (c) 2004
+.\"	Hartmut Brandt.
+.\" 	All rights reserved.
+.\"
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\" ngatmbase(4) man page
+.\"
+.Dd August 24, 2004
+.Dt NGATMBASE 4
+.Os
+.Sh NAME
+.Nm ngatmbase
+.Nd netgraph ATM utility module
+.Sh SYNOPSIS
+.In netnatm/unimsg.h
+.In netgraph/atm/ngatmbase.h
+.Ft "struct mbuf *"
+.Fn uni_msg_pack_mbuf "struct uni_msg *msg" "void *hdr" "size_t len"
+.Ft "struct uni_msg *"
+.Fn uni_msg_alloc "size_t len"
+.Ft "struct uni_msg *"
+.Fn uni_msg_build "void *buf" ...
+.Ft void
+.Fn uni_msg_destroy "struct uni_msg *msg"
+.Ft int
+.Fn uni_msg_unpack_mbuf "struct mbuf *m" "struct uni_msg *msgp"
+.Sh DESCRIPTION
+This module provides utility functions for the handling of signalling
+messages to the NgATM modules.
+.Pp
+The
+.Fn uni_msg_pack_mbuf
+function
+packs a message into one or several
+.Vt mbuf Ns s
+optionally prepending a header.
+The header is given by its address
+.Fa hdr
+and length
+.Fa len .
+If
+.Fa hdr
+is
+.Dv NULL
+or
+.Fa len
+equals 0, no header is prepended.
+Either
+.Fa msg
+or
+.Fa hdr
+may be
+.Dv NULL
+but not both.
+The
+.Fn uni_msg_pack_mbuf
+function
+returns a pointer to the allocated
+.Vt mbuf
+chain or
+.Dv NULL
+in the case of an error.
+.Pp
+The
+.Fn uni_msg_alloc
+function
+allocates a new message with space for at least
+.Fa len
+bytes.
+In the case of an error
+.Dv NULL
+is returned.
+.Pp
+The
+.Fn uni_msg_build
+function constructs a message from pieces.
+Each piece is given by a pair of
+arguments, the first of type
+.Vt "void *"
+and the second a
+.Vt size_t .
+The list of pieces must be terminated by
+.Po Vt "void *" Pc Ns Dv NULL .
+.Pp
+The
+.Fn uni_msg_destroy
+function
+destroys the messages and frees all the messages's memory.
+.Pp
+The
+.Fn uni_msg_unpack_mbuf
+function
+unpacks an
+.Vt mbuf
+chain info a
+.Vt uni_msg .
+A pointer to the newly allocated message is stored in
+.Fa msgp
+and 0 is returned.
+In the case of an error (either when no packet header is found
+in the first mbuf or memory cannot be allocated) the function
+returns an appropriate error code.
+.Sh SEE ALSO
+.Xr ng_ccatm 4 ,
+.Xr ng_sscfu 4 ,
+.Xr ng_sscop 4 ,
+.Xr ng_uni 4
+.Sh AUTHORS
+.An Harti Brandt Aq Mt harti@FreeBSD.org

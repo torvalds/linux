@@ -1,0 +1,114 @@
+#
+# $FreeBSD$
+#
+
+cpu		I586_CPU
+ident		ALIX_DSK
+makeoptions	DEBUG=-g		
+options		CPU_GEODE
+options 	SCHED_ULE		
+options 	PREEMPTION		
+options 	INET			
+options 	INET6			
+options 	FFS			
+options 	SOFTUPDATES		
+options 	UFS_ACL			
+options 	UFS_DIRHASH		
+options 	NFSCL			# Network Filesystem Client
+options 	NFSLOCKD		
+options 	MSDOSFS			
+options 	CD9660			
+options 	PROCFS			
+options 	PSEUDOFS		
+options 	GEOM_PART_GPT		
+options 	GEOM_LABEL		
+options 	COMPAT_43TTY		
+options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
+options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
+options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
+options 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
+options 	COMPAT_FREEBSD9		# Compatible with FreeBSD9
+options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
+options 	SCSI_DELAY=5000		
+options 	SYSVSHM			
+options 	SYSVMSG			
+options 	SYSVSEM			
+options 	P1003_1B_SEMAPHORES	
+options 	_KPOSIX_PRIORITY_SCHEDULING 
+options 	PRINTF_BUFR_SIZE=128	
+device		apic			
+device		cpufreq
+device		acpi
+device		pci
+device		fdc
+device		ata
+options 	ATA_STATIC_ID	
+device		scbus		
+device		da		
+device		sa		
+device		cd		
+device		pass		
+device		uart		
+device		em		
+device		miibus		
+device		vr		
+device		wlan		
+options 	IEEE80211_DEBUG	
+options 	IEEE80211_SUPPORT_MESH	
+device		wlan_wep	
+device		wlan_ccmp	
+device		wlan_tkip	
+device		wlan_amrr	
+device		an		
+device		ath		
+device		ath_hal		
+device		ath_rate_sample	
+device		wi		
+device		loop		
+device		random		
+device		ether		
+device		tun		
+device		pty		
+device		md		
+device		gif		
+device		firmware	
+device		bpf		
+device		uhci		
+device		ohci		
+device		ehci		
+device		usb		
+device		ulpt		
+device		umass		
+device		u3g		
+device		ubsa		
+device		uftdi		
+
+options         INCLUDE_CONFIG_FILE
+
+options         ALTQ
+options         ALTQ_CBQ
+options         ALTQ_RED
+options         ALTQ_RIO
+options         ALTQ_HFSC
+options         ALTQ_CDNR
+options         ALTQ_PRIQ
+
+device          pf
+device          pflog
+device          pfsync                                                          
+device          carp                                                            
+device          if_bridge
+
+options         DEVICE_POLLING
+
+options         NETGRAPH                                                        
+options         NETGRAPH_BPF                                                    
+options         NETGRAPH_ETHER                                                  
+options         NETGRAPH_IFACE                                                  
+options         NETGRAPH_PPP                                                    
+options         NETGRAPH_PPPOE                                                  
+options         NETGRAPH_PPTPGRE                                                
+options         NETGRAPH_MPPC_ENCRYPTION                                        
+options         NETGRAPH_SOCKET                                                 
+options         NETGRAPH_KSOCKET                                                
+options         NETGRAPH_VJC

@@ -1,0 +1,247 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)rs.1	8.2 (Berkeley) 12/30/93
+.\" $FreeBSD$
+.\"
+.Dd April 7, 2015
+.Dt RS 1
+.Os
+.Sh NAME
+.Nm rs
+.Nd reshape a data array
+.Sh SYNOPSIS
+.Nm
+.Oo
+.Fl Oo Cm csCS Oc Ns Op Ar x
+.Oo Cm kKgGw Oc Ns Op Ar N
+.Cm tTeEnyjhHmz
+.Oc
+.Op Ar rows Op Ar cols
+.Sh DESCRIPTION
+The
+.Nm
+utility reads the standard input, interpreting each line as a row
+of blank-separated entries in an array,
+transforms the array according to the options,
+and writes it on the standard output.
+With no arguments it transforms stream input into a columnar
+format convenient for terminal viewing.
+.Pp
+The shape of the input array is deduced from the number of lines
+and the number of columns on the first line.
+If that shape is inconvenient, a more useful one might be
+obtained by skipping some of the input with the
+.Fl k
+option.
+Other options control interpretation of the input columns.
+.Pp
+The shape of the output array is influenced by the
+.Ar rows
+and
+.Ar cols
+specifications, which should be positive integers.
+If only one of them is a positive integer,
+.Nm
+computes a value for the other which will accommodate
+all of the data.
+When necessary, missing data are supplied in a manner
+specified by the options and surplus data are deleted.
+There are options to control presentation of the output columns,
+including transposition of the rows and columns.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl c Ns Ar x
+Input columns are delimited by the single character
+.Ar x .
+A missing
+.Ar x
+is taken to be `^I'.
+.It Fl s Ns Ar x
+Like
+.Fl c ,
+but maximal strings of
+.Ar x
+are delimiters.
+.It Fl C Ns Ar x
+Output columns are delimited by the single character
+.Ar x .
+A missing
+.Ar x
+is taken to be `^I'.
+.It Fl S Ns Ar x
+Like
+.Fl C ,
+but padded strings of
+.Ar x
+are delimiters.
+.It Fl t
+Fill in the rows of the output array using the columns of the
+input array, that is, transpose the input while honoring any
+.Ar rows
+and
+.Ar cols
+specifications.
+.It Fl T
+Print the pure transpose of the input, ignoring any
+.Ar rows
+or
+.Ar cols
+specification.
+.It Fl k Ns Ar N
+Ignore the first
+.Ar N
+lines of input.
+.It Fl K Ns Ar N
+Like
+.Fl k ,
+but print the ignored lines.
+.It Fl g Ns Ar N
+The gutter width (inter-column space), normally 2, is taken to be
+.Ar N .
+.It Fl G Ns Ar N
+The gutter width has
+.Ar N
+percent of the maximum column width added to it.
+.It Fl e
+Consider each line of input as an array entry.
+.It Fl n
+On lines having fewer entries than the first line,
+use null entries to pad out the line.
+Normally, missing entries are taken from the next line of input.
+.It Fl y
+If there are too few entries to make up the output dimensions,
+pad the output by recycling the input from the beginning.
+Normally, the output is padded with blanks.
+.It Fl h
+Print the shape of the input array and do nothing else.
+The shape is just the number of lines and the number of
+entries on the first line.
+.It Fl H
+Like
+.Fl h ,
+but also print the length of each line.
+.It Fl j
+Right adjust entries within columns.
+.It Fl w Ns Ar N
+The width of the display, normally 80, is taken to be the positive
+integer
+.Ar N .
+.It Fl m
+Do not trim excess delimiters from the ends of the output array.
+.It Fl z
+Adapt column widths to fit the largest entries appearing in them.
+.El
+.Pp
+With no arguments,
+.Nm
+transposes its input, and assumes one array entry per input line
+unless the first non-ignored line is longer than the display width.
+Option letters which take numerical arguments interpret a missing
+number as zero unless otherwise indicated.
+.Sh EXAMPLES
+The
+.Nm
+utility can be used as a filter to convert the stream output
+of certain programs (e.g.,
+.Xr spell 1 ,
+.Xr du 1 ,
+.Xr file 1 ,
+.Xr look 1 ,
+.Xr nm 1 ,
+.Xr who 1 ,
+and
+.Xr wc 1 )
+into a convenient ``window'' format, as in
+.Bd -literal -offset indent
+% who | rs
+.Ed
+.Pp
+This function has been incorporated into the
+.Xr ls 1
+program, though for most programs with similar output
+.Nm
+suffices.
+.Pp
+To convert stream input into vector output and back again, use
+.Bd -literal -offset indent
+% rs 1 0 | rs 0 1
+.Ed
+.Pp
+A 10 by 10 array of random numbers from 1 to 100 and
+its transpose can be generated with
+.Bd -literal -offset indent
+% jot \-r 100 | rs 10 10 | tee array | rs \-T > tarray
+.Ed
+.Pp
+In the editor
+.Xr vi 1 ,
+a file consisting of a multi-line vector with 9 elements per line
+can undergo insertions and deletions,
+and then be neatly reshaped into 9 columns with
+.Bd -literal -offset indent
+:1,$!rs 0 9
+.Ed
+.Pp
+Finally, to sort a database by the first line of each 4-line field, try
+.Bd -literal -offset indent
+% rs \-eC 0 4 | sort | rs \-c 0 1
+.Ed
+.Sh SEE ALSO
+.Xr jot 1 ,
+.Xr pr 1 ,
+.Xr sort 1 ,
+.Xr vi 1
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.2 .
+.Sh AUTHORS
+.An John A. Kunze
+.Sh BUGS
+.Bl -item
+.It
+Handles only two dimensional arrays.
+.It
+The algorithm currently reads the whole file into memory,
+so files that do not fit in memory will not be reshaped.
+.It
+Fields cannot be defined yet on character positions.
+.It
+Re-ordering of columns is not yet possible.
+.It
+There are too many options.
+.It
+Multibyte characters are not recognized.
+.It
+Lines longer than
+.Dv LINE_MAX
+(2048) bytes are not processed and result in immediate termination of
+.Nm .
+.El

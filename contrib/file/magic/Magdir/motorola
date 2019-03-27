@@ -1,0 +1,71 @@
+
+#------------------------------------------------------------------------------
+# $File: motorola,v 1.11 2014/04/30 21:41:02 christos Exp $
+# motorola:  file(1) magic for Motorola 68K and 88K binaries
+#
+# 68K
+#
+0	beshort		0520		mc68k COFF
+>18	beshort		^00000020	object
+>18	beshort		&00000020	executable
+>12	belong		>0		not stripped
+>168	string		.lowmem		Apple toolbox
+>20	beshort		0407		(impure)
+>20	beshort		0410		(pure)
+>20	beshort		0413		(demand paged)
+>20	beshort		0421		(standalone)
+0	beshort		0521		mc68k executable (shared)
+>12	belong		>0		not stripped
+0	beshort		0522		mc68k executable (shared demand paged)
+>12	belong		>0		not stripped
+#
+# Motorola/UniSoft 68K Binary Compatibility Standard (BCS)
+#
+0	beshort		0554		68K BCS executable
+#
+# 88K
+#
+# Motorola/88Open BCS
+#
+0	beshort		0555		88K BCS executable
+#
+# Motorola S-Records, from Gerd Truschinski <gt@freebsd.first.gmd.de>
+0   string      S0          Motorola S-Record; binary data in text format
+
+# ATARI ST relocatable PRG
+#
+# from Oskar Schirmer <schirmer@scara.com> Feb 3, 2001
+# (according to Roland Waldi, Oct 21, 1987)
+# besides the magic 0x601a, the text segment size is checked to be
+# not larger than 1 MB (which is a lot on ST).
+# The additional 0x601b distinction I took from Doug Lee's magic.
+0	belong&0xFFFFFFF0	0x601A0000	Atari ST M68K contiguous executable
+>2	belong			x		(txt=%d,
+>6	belong			x		dat=%d,
+>10	belong			x		bss=%d,
+>14	belong			x		sym=%d)
+0	belong&0xFFFFFFF0	0x601B0000	Atari ST M68K non-contig executable
+>2	belong			x		(txt=%d,
+>6	belong			x		dat=%d,
+>10	belong			x		bss=%d,
+>14	belong			x		sym=%d)
+
+# Atari ST/TT... program format (sent by Wolfram Kleff <kleff@cs.uni-bonn.de>)
+0       beshort         0x601A          Atari 68xxx executable,
+>2      belong          x               text len %u,
+>6      belong          x               data len %u,
+>10     belong          x               BSS len %u,
+>14     belong          x               symboltab len %u,
+>18     belong          0
+>22     belong          &0x01           fastload flag,
+>22     belong          &0x02           may be loaded to alternate RAM,
+>22     belong          &0x04           malloc may be from alternate RAM,
+>22     belong          x               flags: 0x%X,
+>26     beshort         0               no relocation tab
+>26     beshort         !0              + relocation tab
+>30     string          SFX             [Self-Extracting LZH SFX archive]
+>38     string          SFX             [Self-Extracting LZH SFX archive]
+>44     string          ZIP!            [Self-Extracting ZIP SFX archive]
+
+0       beshort         0x0064          Atari 68xxx CPX file
+>8      beshort         x               (version %04x)

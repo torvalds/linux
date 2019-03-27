@@ -1,0 +1,118 @@
+/dts-v1/;
+
+#include "rt3050.dtsi"
+
+/ {
+	compatible = "F5D8235_V2", "ralink,rt3052-soc";
+	model = "Belkin F5D8235 v2";
+
+	cfi@1f000000 {
+		compatible = "cfi-flash";
+		reg = <0x1f000000 0x800000>;
+		bank-width = <2>;
+		device-width = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		uboot: partition@0 {
+			label = "uboot";
+			reg = <0x0 0x50000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x790000>;
+		};
+
+		partition@7e0000 {
+			label = "nvram";
+			reg = <0x7e0000 0x10000>;
+		};
+
+		factory: partition@7f0000 {
+			label = "factory";
+			reg = <0x7f0000 0x10000>;
+		};
+	};
+
+	rtl8366rb {
+		compatible = "rtl8366rb";
+		gpio-sda = <&gpio0 1 0>;
+		gpio-sck = <&gpio0 2 0>;
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		internet {
+			label = "f5d8235-v2:blue:internet";
+			gpios = <&gpio0 5 1>;
+		};
+
+		internet2 {
+			label = "f5d8235-v2:amber:internet";
+			gpios = <&gpio0 6 1>;
+		};
+
+		modem {
+			label = "f5d8235-v2:blue:modem";
+			gpios = <&gpio0 11 1>;
+		};
+
+		modem2 {
+			label = "f5d8235-v2:amber:modem";
+			gpios = <&gpio0 8 1>;
+		};
+
+		router {
+			label = "f5d8235-v2:blue:router";
+			gpios = <&gpio0 9 1>;
+		};
+
+		storage {
+			label = "f5d8235-v2:blue:storage";
+			gpios = <&gpio0 23 1>;
+		};
+
+		storage2 {
+			label = "f5d8235-v2:amber:storage";
+			gpios = <&gpio0 22 1>;
+		};
+
+		security {
+			label = "f5d8235-v2:blue:security";
+			gpios = <&gpio0 13 1>;
+		};
+
+		security2 {
+			label = "f5d8235-v2:amber:security";
+			gpios = <&gpio0 12 1>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "spi", "i2c", "jtag", "rgmii", "mdio", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&uboot 0x40004>;
+};
+
+&esw {
+	mediatek,portmap = <0x3f>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&uboot 0x40000>;
+};
+
+&otg {
+	status = "okay";
+};

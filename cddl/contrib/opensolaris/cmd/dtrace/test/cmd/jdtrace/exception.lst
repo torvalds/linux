@@ -1,0 +1,79 @@
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+#
+# Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+
+# Exception list: names tests that are bypassed when running in Java
+# mode (relative to /opt/SUNWdtrt/tst)
+
+# double precision (64-bit floating point) not same in java
+common/aggs/tst.neglquant.d
+common/aggs/tst.negquant.d
+
+# freopen() (to suppress output) not supported by Java DTrace API
+common/printa/tst.walltimestamp.ksh
+
+# -G option not supported by jdtrace
+common/dtraceUtil/tst.ELFGenerationOut.d.ksh
+common/dtraceUtil/tst.ELFGenerationWithO.d.ksh
+
+# -H option not supported by jdtrace
+common/dtraceUtil/tst.PreprocessorStatement.d.ksh
+
+# -G and -h options not supported by jdtrace
+common/usdt/tst.badguess.ksh
+common/usdt/tst.dlclose1.ksh
+common/usdt/tst.dlclose2.ksh
+common/usdt/tst.dlclose3.ksh
+common/usdt/tst.eliminate.ksh
+common/usdt/tst.enabled.ksh
+common/usdt/tst.enabled2.ksh
+common/usdt/tst.entryreturn.ksh
+common/usdt/tst.fork.ksh
+common/usdt/tst.guess32.ksh
+common/usdt/tst.guess64.ksh
+common/usdt/tst.header.ksh
+common/usdt/tst.linkpriv.ksh
+common/usdt/tst.linkunpriv.ksh
+common/usdt/tst.multiple.ksh
+common/usdt/tst.nodtrace.ksh
+common/usdt/tst.noreap.ksh
+common/usdt/tst.noreapring.ksh
+common/usdt/tst.onlyenabled.ksh
+common/usdt/tst.reap.ksh
+common/usdt/tst.reeval.ksh
+common/usdt/tst.static.ksh
+common/usdt/tst.static2.ksh
+common/usdt/tst.user.ksh
+sparc/usdt/tst.tailcall.ksh
+common/pid/tst.provregex3.ksh
+common/pid/tst.provregex4.ksh
+
+# freopen() and ftruncate() not supported by Java DTrace API
+common/funcs/tst.badfreopen.ksh
+common/funcs/tst.freopen.ksh
+common/funcs/tst.ftruncate.ksh
+
+# jdtrace doesn't pull in library files?
+common/pragma/tst.libdepfullyconnected.ksh

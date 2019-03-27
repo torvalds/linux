@@ -1,0 +1,3 @@
+YACC: w - line 7 of "./err_syntax10.y", the type of '(' has been redeclared
+YACC: w - line 7 of "./err_syntax10.y", the type of '*' has been redeclared
+YACC: w - line 7 of "./err_syntax10.y", the type of '&' has been redeclared

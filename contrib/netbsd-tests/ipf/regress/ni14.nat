@@ -1,0 +1,1 @@
+rdr pcn1 192.168.113.3/32 port 1723 -> 127.0.0.1 port 1723 tcp proxy pptp

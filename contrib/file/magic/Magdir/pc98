@@ -1,0 +1,77 @@
+#------------------------------------------------------------------------------
+# pc98:  file(1) magic for the MSX Home Computer
+# v1.0
+# Fabio R. Schmidlin <sd-snatcher@users.sourceforge.net>
+
+# Maki-chan v1 Graphic format
+# The image resolution should be X=(44.L - 40.L) and Y=(46.L - 42.L), but I couldn't find a way to do so
+# http://www.jisyo.com/viewer/faq/maki_tech.htm
+0	string/b		MAKI01 	Maki-chan v1.
+>6	ubyte|0x20	x		\b%c image
+>8	ubelong		>0x40404040	\b, system ID:
+>>8	byte		x		%c
+>>9	byte		x		\b%c
+>>10	byte		x		\b%c
+>>11	byte		x		\b%c
+>44	ubeshort	x		\b, %dx
+>46	ubeshort	x		\b%d
+>38	ubeshort&2	0		\b, 16 paletted RGB colors
+>38	ubeshort&2	2		\b, 8 fixed RGB colors
+>38	ubeshort&1	1		\b, 2:1 dot aspect ratio
+
+# Maki-chan v2 Graphic format
+# http://www.jisyo.com/viewer/faq/mag_tech.htm
+# http://mooncore.eu/bunny/txt/makichan.htm
+# http://metanest.jp/mag/mag.xhtml
+0	string/b		MAKI02\ \ 	Maki-chan v2 image,
+>8	byte		x		system ID: %c
+>9	byte		x		\b%c
+>10	byte		x		\b%c
+>11	byte		x		\b%c,
+>13	search/0x200	\x1A
+#Maki-chan video modes are a bit messy and seems to have been expanded over the years without too much planing:
+#1) When offset1(ubeshort) !=0x0344:
+# 1.1) And  offset3(ubyte).b7=0:
+# - b0=pixel aspect ratio: 1=2:1   (note: this ignores that the machine's 1:1 pixel aspect ratio isn't really 1:1)
+# - b1=number of colors: 0=16 colors, 1=8 colors
+# - b2=Palette or fixed colors flag (called "analog" and "digital" in the doc): 0=Paletted, 1=Fixed colors encoded directly in the pixel data
+# 1.2) And  offset3(ubyte).B7=1:
+# - b0=256 paletted colors
+# - b1=256 fixed colors using the MSX SCR8 palette
+#2) When offset1(ubeshort) =0x0344:
+# - 256x212 image with 19268 YJK colors. The usual resolution and color information fields from the file must be ignored
+>>&1	ubeshort	0x0344		256x212, 19268 fixed YJK colors
+>>&1	ubeshort	!0x0344
+>>>&5	uleshort+1	x		%dx
+>>>&7	uleshort+1	x		\b%d,
+>>>&0	ubyte&0x86	0x00		16 paletted RGB colors
+>>>&0	ubyte&0x86	0x02		8 paletted RGB colors
+>>>&0	ubyte&0x86	0x04		16 fixed RGB colors
+>>>&0	ubyte&0x86	0x06		8 fixed RGB colors
+>>>&0	ubyte&0x81	0x80		256 paletted RGB colors
+>>>&0	ubyte&0x81	0x81		256 fixed MSX-SCR8 colors
+>>>&0	ubyte&0x01	1		\b, 2:1 dot aspect ratio
+
+# XLD4 (Q4) picture
+11	string/b	MAJYO		XLD4(Q4) picture
+
+# Yanagisawa Pi picture
+#0	string		Pi\x1A\0	Yanagisawa Pi picture
+#>3	search/0x200	\x04
+0	string		Pi
+>2	search/0x200	\x1A
+>>&0	ubyte		0
+>>>&3	ubyte		4		Yanagisawa Pi 16 color picture,
+>>>&4	byte		x		system ID: %c
+>>>&5	byte		x		\b%c
+>>>&6	byte		x		\b%c
+>>>&7	byte		x		\b%c,
+>>>&10	ubeshort	x		%dx
+>>>&12	ubeshort	x		\b%d
+>>>&3	ubyte		8		Yanagisawa Pi 256 color picture
+>>>&4	byte		x		system ID: %c
+>>>&5	byte		x		\b%c
+>>>&6	byte		x		\b%c
+>>>&7	byte		x		\b%c,
+>>>&10	ubeshort	x		%dx
+>>>&12	ubeshort	x		\b%d

@@ -1,0 +1,55 @@
+//===-- Symbols.def - Metadata about SymExpr kinds --------------*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// The list of symbols (SymExpr sub-classes) used in the Static Analyzer.
+// In order to use this information, users of this file must define
+// one or more of the three macros:
+//
+// SYMBOL(Id, Parent) - for specific SymExpr sub-classes, reserving the
+// IdKind identifier for its kind enumeration value.
+//
+// ABSTRACT_SYMBOL(Id, Parent) - for abstract symbol classes,
+//
+// SYMBOL_RANGE(Id, First, Last) - for ranges of kind-enums,
+// allowing to determine abstract class of a symbol
+// based on the kind enumeration value.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef SYMBOL
+#define SYMBOL(Id, Parent)
+#endif
+
+#ifndef ABSTRACT_SYMBOL
+#define ABSTRACT_SYMBOL(Id, Parent)
+#endif
+
+#ifndef SYMBOL_RANGE
+#define SYMBOL_RANGE(Id, First, Last)
+#endif
+
+ABSTRACT_SYMBOL(BinarySymExpr, SymExpr)
+  SYMBOL(IntSymExpr, BinarySymExpr)
+  SYMBOL(SymIntExpr, BinarySymExpr)
+  SYMBOL(SymSymExpr, BinarySymExpr)
+SYMBOL_RANGE(BINARYSYMEXPRS, IntSymExprKind, SymSymExprKind)
+
+SYMBOL(SymbolCast, SymExpr)
+
+ABSTRACT_SYMBOL(SymbolData, SymExpr)
+  SYMBOL(SymbolConjured, SymbolData)
+  SYMBOL(SymbolDerived, SymbolData)
+  SYMBOL(SymbolExtent, SymbolData)
+  SYMBOL(SymbolMetadata, SymbolData)
+  SYMBOL(SymbolRegionValue, SymbolData)
+SYMBOL_RANGE(SYMBOLS, SymbolConjuredKind, SymbolRegionValueKind)
+
+#undef SYMBOL
+#undef ABSTRACT_SYMBOL
+#undef SYMBOL_RANGE

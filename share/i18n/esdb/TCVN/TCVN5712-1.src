@@ -1,0 +1,8 @@
+# $FreeBSD$ 
+# $NetBSD: TCVN5712-1.src,v 1.1 2006/11/13 15:16:30 tnozaki Exp $
+
+NAME		"TCVN"
+ENCODING	"NONE"
+VARIABLE	"none"
+DEFCSID		"TCVN5712-1"	0
+INVALID		0x3F # '?'

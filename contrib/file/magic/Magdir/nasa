@@ -1,0 +1,7 @@
+
+#------------------------------------------------------------------------------
+# nasa:	file(1) magic
+
+# From: Barry Carter <carter.barry@gmail.com>
+0	string	DAF/SPK				NASA SPICE file (binary format)
+0	string	DAFETF\ NAIF\ DAF\ ENCODED	NASA SPICE file (transfer format)

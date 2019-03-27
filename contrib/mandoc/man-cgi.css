@@ -1,0 +1,13 @@
+body				{ font-family: Helvetica, Arial, sans-serif; }
+body > div			{ padding-left: 2em;
+				  padding-top: 1em; }
+body > div#mancgi		{ padding-left: 0em;
+				  padding-top: 0em; }
+body > div.results		{ font-size: smaller; }
+#mancgi fieldset		{ text-align: center;
+				  border: thin solid silver;
+				  border-radius: 1em;
+			  	  font-size: small; }
+#mancgi input[name=expr] 	{ width: 25%; }
+.results td.title		{ vertical-align: top;
+				  padding-right: 1em; }

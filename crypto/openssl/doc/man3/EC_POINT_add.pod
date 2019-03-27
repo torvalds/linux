@@ -1,0 +1,86 @@
+=pod
+
+=head1 NAME
+
+EC_POINT_add, EC_POINT_dbl, EC_POINT_invert, EC_POINT_is_at_infinity, EC_POINT_is_on_curve, EC_POINT_cmp, EC_POINT_make_affine, EC_POINTs_make_affine, EC_POINTs_mul, EC_POINT_mul, EC_GROUP_precompute_mult, EC_GROUP_have_precompute_mult - Functions for performing mathematical operations and tests on EC_POINT objects
+
+=head1 SYNOPSIS
+
+ #include <openssl/ec.h>
+
+ int EC_POINT_add(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
+                  const EC_POINT *b, BN_CTX *ctx);
+ int EC_POINT_dbl(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a, BN_CTX *ctx);
+ int EC_POINT_invert(const EC_GROUP *group, EC_POINT *a, BN_CTX *ctx);
+ int EC_POINT_is_at_infinity(const EC_GROUP *group, const EC_POINT *p);
+ int EC_POINT_is_on_curve(const EC_GROUP *group, const EC_POINT *point, BN_CTX *ctx);
+ int EC_POINT_cmp(const EC_GROUP *group, const EC_POINT *a, const EC_POINT *b, BN_CTX *ctx);
+ int EC_POINT_make_affine(const EC_GROUP *group, EC_POINT *point, BN_CTX *ctx);
+ int EC_POINTs_make_affine(const EC_GROUP *group, size_t num,
+                           EC_POINT *points[], BN_CTX *ctx);
+ int EC_POINTs_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *n, size_t num,
+                   const EC_POINT *p[], const BIGNUM *m[], BN_CTX *ctx);
+ int EC_POINT_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *n,
+                  const EC_POINT *q, const BIGNUM *m, BN_CTX *ctx);
+ int EC_GROUP_precompute_mult(EC_GROUP *group, BN_CTX *ctx);
+ int EC_GROUP_have_precompute_mult(const EC_GROUP *group);
+
+
+=head1 DESCRIPTION
+
+EC_POINT_add adds the two points B<a> and B<b> and places the result in B<r>. Similarly EC_POINT_dbl doubles the point B<a> and places the
+result in B<r>. In both cases it is valid for B<r> to be one of B<a> or B<b>.
+
+EC_POINT_invert calculates the inverse of the supplied point B<a>. The result is placed back in B<a>.
+
+The function EC_POINT_is_at_infinity tests whether the supplied point is at infinity or not.
+
+EC_POINT_is_on_curve tests whether the supplied point is on the curve or not.
+
+EC_POINT_cmp compares the two supplied points and tests whether or not they are equal.
+
+The functions EC_POINT_make_affine and EC_POINTs_make_affine force the internal representation of the EC_POINT(s) into the affine
+co-ordinate system. In the case of EC_POINTs_make_affine the value B<num> provides the number of points in the array B<points> to be
+forced.
+
+EC_POINT_mul is a convenient interface to EC_POINTs_mul: it calculates the value generator * B<n> + B<q> * B<m> and stores the result in B<r>.
+The value B<n> may be NULL in which case the result is just B<q> * B<m> (variable point multiplication). Alternatively, both B<q> and B<m> may be NULL, and B<n> non-NULL, in which case the result is just generator * B<n> (fixed point multiplication).
+When performing a single fixed or variable point multiplication, the underlying implementation uses a constant time algorithm, when the input scalar (either B<n> or B<m>) is in the range [0, ec_group_order).
+
+EC_POINTs_mul calculates the value generator * B<n> + B<q[0]> * B<m[0]> + ... + B<q[num-1]> * B<m[num-1]>. As for EC_POINT_mul the value B<n> may be NULL or B<num> may be zero.
+When performing a fixed point multiplication (B<n> is non-NULL and B<num> is 0) or a variable point multiplication (B<n> is NULL and B<num> is 1), the underlying implementation uses a constant time algorithm, when the input scalar (either B<n> or B<m[0]>) is in the range [0, ec_group_order).
+
+The function EC_GROUP_precompute_mult stores multiples of the generator for faster point multiplication, whilst
+EC_GROUP_have_precompute_mult tests whether precomputation has already been done. See L<EC_GROUP_copy(3)> for information
+about the generator.
+
+
+=head1 RETURN VALUES
+
+The following functions return 1 on success or 0 on error: EC_POINT_add, EC_POINT_dbl, EC_POINT_invert, EC_POINT_make_affine,
+EC_POINTs_make_affine, EC_POINTs_make_affine, EC_POINT_mul, EC_POINTs_mul and EC_GROUP_precompute_mult.
+
+EC_POINT_is_at_infinity returns 1 if the point is at infinity, or 0 otherwise.
+
+EC_POINT_is_on_curve returns 1 if the point is on the curve, 0 if not, or -1 on error.
+
+EC_POINT_cmp returns 1 if the points are not equal, 0 if they are, or -1 on error.
+
+EC_GROUP_have_precompute_mult return 1 if a precomputation has been done, or 0 if not.
+
+=head1 SEE ALSO
+
+L<crypto(7)>, L<EC_GROUP_new(3)>, L<EC_GROUP_copy(3)>,
+L<EC_POINT_new(3)>, L<EC_KEY_new(3)>,
+L<EC_GFp_simple_method(3)>, L<d2i_ECPKParameters(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2013-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

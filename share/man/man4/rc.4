@@ -1,0 +1,125 @@
+.\"
+.\" Copyright (c) 2004 Tom Rhodes
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 18, 2005
+.Dt RC 4
+.Os
+.Sh NAME
+.Nm rc
+.Nd RISCom/8 multiport card
+.Sh SYNOPSIS
+.Cd device isa
+.Cd device rc
+.Sh DESCRIPTION
+The
+.Tn RISCom/8
+is an eight port
+.Tn ISA
+.Tn RS-232C
+communications multiplexer with a built in
+.Tn RISC
+processor.
+It uses a block of sixteen
+.Tn I/O
+ports in the range 0x200 to 0x3f0 selectable by on-board
+switches or jumpers.
+The block must be aligned on a sixteen port boundary.
+The jumper-selectable hardware interrupt level may be set to
+be detected during system
+initialization using settings found in the
+.Pa /boot/device.hints
+file.
+.Pp
+This driver is mostly based on the Cirrus Logic CL-CD180 driver.
+.Sh HARDWARE
+The
+.Nm
+driver provides support for the
+.Tn SDL
+Communications
+.Tn RISCom/8
+boards.
+.Sh DIAGNOSTICS
+The following driver specific error messages
+may be reported:
+.Bl -diag
+.It "rc%d channel%d: interrupt-level buffer overflow"
+An internal buffer overflow error has occurred on
+the listed channel.
+The
+.Nm
+driver will need to be reloaded to correct this.
+.It "rc%d: Bad char chan %d"
+The channel has obtained a bad set of characters.
+.It "rc%d: Got extra chars chan %d"
+The
+.Nm
+driver got more characters than expected on the channel shown.
+.It "rc%d: data mismatch chan %d ptr %d (%d != %d)"
+Data sent from channel
+.Ar %d
+to the rx buffer was different then expected.
+.It "rc%d: channel %d command timeout, rc.c line: %d"
+A command timeout has occurred on the channel, the
+.Pa src/sys/dev/rc/rc.c
+file can be consulted for more information.
+.El
+.Sh SEE ALSO
+.Xr tty 1 ,
+.Xr ttyname 3 ,
+.Xr sio 4 ,
+.Xr tty 4 ,
+.Xr device.hints 5 ,
+.Xr comcontrol 8 ,
+.Xr getty 8 ,
+.Xr mutex 9 ,
+.Xr splx 9
+.Pp
+.Pa http://www.sdlcomm.com
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 2.0.5 .
+This manual page first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+This manual page was written by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org .
+.Sh BUGS
+The
+.Nm
+driver code still uses the
+.Xr spl 9
+functions.
+These should be replaced by
+.Xr mutex 9
+functions.
+.Pp
+The various
+.Fn ttyld_*
+functions should be documented.

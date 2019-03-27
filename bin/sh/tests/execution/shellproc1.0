@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+T=`mktemp -d "${TMPDIR:-/tmp}/sh-test.XXXXXXXX"` || exit
+trap 'rm -rf "${T}"' 0
+cat <<EOF >"$T/testshellproc"
+printf 'this '
+echo is a test
+EOF
+chmod 755 "$T/testshellproc"
+PATH=$T:$PATH
+[ "`testshellproc`" = "this is a test" ]

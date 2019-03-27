@@ -1,0 +1,226 @@
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ee.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 2, 2010
+.Dt SIS 4
+.Os
+.Sh NAME
+.Nm sis
+.Nd "SiS 900, SiS 7016 and NS DP83815/DP83816 Fast Ethernet device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device sis"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_sis_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI Ethernet adapters and embedded
+controllers based on the Silicon Integrated Systems SiS 900
+and SiS 7016 Fast Ethernet controller chips.
+.Pp
+This driver also supports
+adapters based on the National Semiconductor DP83815 (MacPhyter) and DP83816
+PCI Ethernet controller chip.
+.Pp
+The SiS 900 is a 100Mbps Ethernet MAC and MII-compliant transceiver
+in a single package.
+It uses a bus master DMA and a scatter/gather
+descriptor scheme.
+The SiS 7016 is similar to the SiS 900 except
+that it has no internal PHY, requiring instead an external transceiver
+to be attached to its MII interface.
+The SiS 900 and SiS 7016 both have a 128-bit multicast hash filter
+and a single perfect filter entry for the station address.
+.Pp
+The NS DP83815 is also a 100Mbps Ethernet MAC with integrated PHY.
+The NatSemi chip and the SiS 900 share many of the same features and
+a fairly similar programming interface, hence both chips are supported
+by the same driver.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width 10baseTXUTP
+.It autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to
+.Xr rc.conf 5 .
+.It 10baseT/UTP
+Set 10Mbps operation.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Sq full-duplex
+or
+.Sq half-duplex
+modes.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Sq full-duplex
+or
+.Sq half-duplex
+modes.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width full-duplex
+.It full-duplex
+Force full duplex operation.
+.It half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Silicon Integrated Systems SiS 900 and SiS 7016 based
+Fast Ethernet adapters and embedded controllers, as well as Fast Ethernet
+adapters based on the National Semiconductor DP83815 (MacPhyter) and DP83816
+chips.
+Supported adapters include:
+.Pp
+.Bl -bullet -compact
+.It
+@Nifty FNECHARD IFC USUP-TX
+.It
+MELCO LGY-PCI-TXC
+.It
+Netgear FA311-TX (DP83815)
+.It
+Netgear FA312-TX (DP83815)
+.It
+SiS 630, 635, and 735 motherboard chipsets
+.It
+Soekris Engineering net45xx, net48xx, lan1621, and lan1641
+.El
+.Sh SYSCTL VARIABLES
+The following variable is available as both
+.Xr sysctl 8
+variable and
+.Xr loader 8
+tunable:
+.Bl -tag -width indent
+.It Va dev.sis.%unit.manual_pad
+This variable controls how to pad short frames for DP83815/DP83816
+controllers on the specified device.
+DP83815/DP83816 controllers are known to pad 0xFF for short frames
+which is violation of RFC 1042.
+Set this variable to a non-zero value to let driver manually pad
+each short frame with zeros at the cost of extra CPU cycles.
+The default value is 0 to let hardware perform automatic padding.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "sis%d: couldn't map ports/memory"
+A fatal initialization error has occurred.
+.It "sis%d: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "sis%d: watchdog timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (e.g.\& a cable fault).
+.It "sis%d: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.It "sis%d: no memory for tx list"
+The driver failed to allocate an mbuf for the transmitter ring when
+allocating a pad buffer or collapsing an mbuf chain into a cluster.
+.It "sis%d: chip is in D3 power state -- setting to D0"
+This message applies only to adapters which support power
+management.
+Some operating systems place the controller in low power
+mode when shutting down, and some PCI BIOSes fail to bring the chip
+out of this state before configuring it.
+The controller loses all of
+its PCI configuration in the D3 state, so if the BIOS does not set
+it back to full power mode in time, it will not be able to configure it
+correctly.
+The driver tries to detect this condition and bring
+the adapter back to the D0 (full power) state, but this may not be
+enough to return the driver to a fully operational condition.
+If
+you see this message at boot time and the driver fails to attach
+the device as a network interface, you will have to perform a
+warm boot to have the device properly configured.
+.Pp
+Note that this condition only occurs when warm booting from another
+operating system.
+If you power down your system prior to booting
+.Fx ,
+the card should be configured correctly.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr polling 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Rs
+.%T SiS 900 and SiS 7016 datasheets
+.%U http://www.sis.com.tw
+.Re
+.Rs
+.%T NatSemi DP83815 datasheet
+.%U http://www.national.com
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ee.columbia.edu .

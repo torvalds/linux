@@ -1,0 +1,193 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+: ${DIALOG_OK=0}
+: ${DIALOG_CANCEL=1}
+: ${DIALOG_HELP=2}
+: ${DIALOG_EXTRA=3}
+: ${DIALOG_ITEM_HELP=4}
+: ${DIALOG_ESC=255}
+
+exec 3>&1
+MIRROR=`dialog --backtitle "FreeBSD Installer" \
+    --title "Mirror Selection" --extra-button --extra-label "Other" \
+    --menu "Please select the site closest to you or \"other\" if you'd like to specify a different choice.  Also note that not every site listed here carries more than the base distribution kits. Only Primary sites are guaranteed to carry the full range of possible distributions. Select a site that's close!" \
+    0 0 0 \
+	ftp://ftp.freebsd.org	"Main Site"\
+	ftp://ftp.freebsd.org 	"IPv6 Main Site"\
+	ftp://ftp3.ie.freebsd.org 	"IPv6 Ireland"\
+	ftp://ftp2.jp.freebsd.org 	"IPv6 Japan"\
+	ftp://ftp4.se.freebsd.org	"IPv6 Sweden"\
+	ftp://ftp4.us.freebsd.org 	"IPv6 USA"\
+	ftp://ftp2.tr.freebsd.org 	"IPv6 Turkey"\
+	ftp://ftp1.freebsd.org 	"Primary"\
+	ftp://ftp2.freebsd.org 	"Primary #2"\
+	ftp://ftp3.freebsd.org 	"Primary #3"\
+	ftp://ftp4.freebsd.org 	"Primary #4"\
+	ftp://ftp5.freebsd.org 	"Primary #5"\
+	ftp://ftp6.freebsd.org 	"Primary #6"\
+	ftp://ftp7.freebsd.org 	"Primary #7"\
+	ftp://ftp10.freebsd.org 	"Primary #10"\
+	ftp://ftp11.freebsd.org 	"Primary #11"\
+	ftp://ftp12.freebsd.org 	"Primary #12"\
+	ftp://ftp13.freebsd.org 	"Primary #13"\
+	ftp://ftp14.freebsd.org 	"Primary #14"\
+	ftp://ftp1.am.freebsd.org 	"Armenia"\
+	ftp://ftp.au.freebsd.org 	"Australia"\
+	ftp://ftp2.au.freebsd.org 	"Australia #2"\
+	ftp://ftp3.au.freebsd.org 	"Australia #3"\
+	ftp://ftp.at.freebsd.org 	"Austria"\
+	ftp://ftp2.br.freebsd.org 	"Brazil #2"\
+	ftp://ftp3.br.freebsd.org 	"Brazil #3"\
+	ftp://ftp4.br.freebsd.org 	"Brazil #4"\
+	ftp://ftp.ca.freebsd.org 	"Canada"\
+	ftp://ftp.cn.freebsd.org 	"China"\
+	ftp://ftp.cz.freebsd.org 	"Czech Republic"\
+	ftp://ftp.dk.freebsd.org 	"Denmark"\
+	ftp://ftp.ee.freebsd.org 	"Estonia"\
+	ftp://ftp.fi.freebsd.org 	"Finland"\
+	ftp://ftp.fr.freebsd.org 	"France"\
+	ftp://ftp3.fr.freebsd.org 	"France #3"\
+	ftp://ftp4.fr.freebsd.org 	"IPv6 France #4"\
+	ftp://ftp5.fr.freebsd.org 	"France #5"\
+	ftp://ftp6.fr.freebsd.org 	"France #6"\
+	ftp://ftp7.fr.freebsd.org 	"France #7"\
+	ftp://ftp8.fr.freebsd.org 	"IPv6 France #8"\
+	ftp://ftp.de.freebsd.org 	"Germany"\
+	ftp://ftp2.de.freebsd.org 	"Germany #2"\
+	ftp://ftp4.de.freebsd.org 	"Germany #4"\
+	ftp://ftp5.de.freebsd.org 	"Germany #5"\
+	ftp://ftp6.de.freebsd.org 	"Germany #6"\
+	ftp://ftp7.de.freebsd.org 	"Germany #7"\
+	ftp://ftp8.de.freebsd.org 	"Germany #8"\
+	ftp://ftp.gr.freebsd.org 	"Greece"\
+	ftp://ftp2.gr.freebsd.org 	"Greece #2"\
+	ftp://ftp3.ie.freebsd.org 	"Ireland #3"\
+	ftp://ftp.il.freebsd.org 	"Israel"\
+	ftp://ftp.it.freebsd.org 	"Italy"\
+	ftp://ftp.jp.freebsd.org 	"Japan"\
+	ftp://ftp2.jp.freebsd.org 	"Japan #2"\
+	ftp://ftp3.jp.freebsd.org 	"Japan #3"\
+	ftp://ftp4.jp.freebsd.org 	"Japan #4"\
+	ftp://ftp5.jp.freebsd.org 	"Japan #5"\
+	ftp://ftp6.jp.freebsd.org 	"Japan #6"\
+	ftp://ftp7.jp.freebsd.org 	"Japan #7"\
+	ftp://ftp8.jp.freebsd.org 	"Japan #8"\
+	ftp://ftp9.jp.freebsd.org 	"Japan #9"\
+	ftp://ftp.kr.freebsd.org 	"Korea"\
+	ftp://ftp2.kr.freebsd.org 	"Korea #2"\
+	ftp://ftp.lv.freebsd.org 	"Latvia"\
+	ftp://ftp.lt.freebsd.org 	"Lithuania"\
+	ftp://ftp.nl.freebsd.org 	"Netherlands"\
+	ftp://ftp2.nl.freebsd.org 	"Netherlands #2"\
+	ftp://ftp.nz.freebsd.org 	"New Zealand"\
+	ftp://ftp.no.freebsd.org 	"Norway"\
+	ftp://ftp.pl.freebsd.org 	"Poland"\
+	ftp://ftp2.pl.freebsd.org 	"Poland #2"\
+	ftp://ftp.ru.freebsd.org 	"Russia"\
+	ftp://ftp2.ru.freebsd.org 	"Russia #2"\
+	ftp://ftp4.ru.freebsd.org 	"Russia #4"\
+	ftp://ftp5.ru.freebsd.org 	"Russia #5"\
+	ftp://ftp6.ru.freebsd.org 	"Russia #6"\
+	ftp://ftp.sk.freebsd.org 	"Slovak Republic"\
+	ftp://ftp2.sk.freebsd.org 	"Slovak Republic #2"\
+	ftp://ftp.si.freebsd.org 	"Slovenia"\
+	ftp://ftp.za.freebsd.org 	"South Africa"\
+	ftp://ftp2.za.freebsd.org 	"South Africa #2"\
+	ftp://ftp4.za.freebsd.org 	"South Africa #4"\
+	ftp://ftp.es.freebsd.org 	"Spain"\
+	ftp://ftp3.es.freebsd.org 	"Spain #3"\
+	ftp://ftp.se.freebsd.org 	"Sweden"\
+	ftp://ftp2.se.freebsd.org 	"Sweden #2"\
+	ftp://ftp3.se.freebsd.org 	"Sweden #3"\
+	ftp://ftp4.se.freebsd.org 	"Sweden #4"\
+	ftp://ftp6.se.freebsd.org 	"Sweden #6"\
+	ftp://ftp.ch.freebsd.org 	"Switzerland"\
+	ftp://ftp.tw.freebsd.org 	"Taiwan"\
+	ftp://ftp2.tw.freebsd.org 	"Taiwan #2"\
+	ftp://ftp3.tw.freebsd.org 	"Taiwan #3"\
+	ftp://ftp4.tw.freebsd.org 	"Taiwan #4"\
+	ftp://ftp6.tw.freebsd.org 	"Taiwan #6"\
+	ftp://ftp11.tw.freebsd.org 	"Taiwan #11"\
+	ftp://ftp.uk.freebsd.org 	"UK"\
+	ftp://ftp2.uk.freebsd.org 	"UK #2"\
+	ftp://ftp3.uk.freebsd.org 	"UK #3"\
+	ftp://ftp4.uk.freebsd.org 	"UK #4"\
+	ftp://ftp5.uk.freebsd.org 	"UK #5"\
+	ftp://ftp.ua.freebsd.org 	"Ukraine"\
+	ftp://ftp7.ua.freebsd.org 	"Ukraine #7"\
+	ftp://ftp1.us.freebsd.org 	"USA #1"\
+	ftp://ftp2.us.freebsd.org 	"USA #2"\
+	ftp://ftp3.us.freebsd.org 	"USA #3"\
+	ftp://ftp4.us.freebsd.org 	"USA #4"\
+	ftp://ftp5.us.freebsd.org 	"USA #5"\
+	ftp://ftp6.us.freebsd.org 	"USA #6"\
+	ftp://ftp8.us.freebsd.org 	"USA #8"\
+	ftp://ftp10.us.freebsd.org 	"USA #10"\
+	ftp://ftp11.us.freebsd.org 	"USA #11"\
+	ftp://ftp13.us.freebsd.org 	"USA #13"\
+	ftp://ftp14.us.freebsd.org 	"USA #14"\
+	ftp://ftp15.us.freebsd.org 	"USA #15"\
+    2>&1 1>&3`
+MIRROR_BUTTON=$?
+exec 3>&-
+
+_UNAME_R=`uname -r`
+_UNAME_R=${_UNAME_R%-p*}
+
+case ${_UNAME_R} in
+	*-ALPHA*|*-CURRENT|*-STABLE|*-PRERELEASE)
+		RELDIR="snapshots"
+		;;
+	*)
+		RELDIR="releases"
+		;;
+esac
+
+BSDINSTALL_DISTSITE="$MIRROR/pub/FreeBSD/${RELDIR}/`uname -m`/`uname -p`/${_UNAME_R}"
+
+case $MIRROR_BUTTON in
+$DIALOG_CANCEL)
+	exit 1
+	;;
+$DIALOG_OK)
+	;;
+$DIALOG_EXTRA)
+	exec 3>&1
+	BSDINSTALL_DISTSITE=`dialog --backtitle "FreeBSD Installer" \
+	    --title "Mirror Selection" \
+	    --inputbox "Please enter the URL to an alternate FreeBSD mirror:" \
+	    0 0 "$BSDINSTALL_DISTSITE" 2>&1 1>&3`
+	MIRROR_BUTTON=$?
+	exec 3>&-
+	test $MIRROR_BUTTON -eq 0 || exec $0 $@
+	;;
+esac
+
+export BSDINSTALL_DISTSITE
+echo $BSDINSTALL_DISTSITE >&2

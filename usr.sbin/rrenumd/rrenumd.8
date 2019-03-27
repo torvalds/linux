@@ -1,0 +1,103 @@
+.\"	$KAME: rrenumd.8,v 1.6 2001/01/22 02:06:24 itojun Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 7, 1998
+.Dt RRENUMD 8
+.Os
+.Sh NAME
+.Nm rrenumd
+.Nd router renumbering daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl df
+.Oo
+.Fl c Ar conf_file | Fl s
+.Oc
+.Sh DESCRIPTION
+The
+.Nm
+utility transmits router renumbering request packets,
+to renumber the routers in the site network.
+.Pp
+On KAME-based systems,
+router renumbering requests are received and processed by
+.Xr rtadvd 8 .
+For other systems, refer to relevant documents.
+.Pp
+The program will daemonize itself on invocation.
+It reads configuration information from standard input if
+.Fl s
+is specified, or from
+.Ar conf_file
+if
+.Fl c Ar conf_file
+is specified.
+.Pp
+The contents of configuration information are described in
+.Xr rrenumd.conf 5 .
+.Pp
+After successful configuration,
+.Nm
+sends router renumbering
+messages periodically to configured destinations.
+Messages contain prefixes configured to be renumbered.
+.Bl -tag -width indent
+.\"
+.It Fl d
+Debug mode.
+.It Fl f
+Foreground mode.
+Do not become daemon.
+.It Fl s
+Script mode.
+Configuration information is obtained from standard input.
+.It Fl c Ar conf_file
+Specify a configuration file where configuration information is kept.
+.El
+.Sh EXIT STATUS
+The program exits with 0 on success, and non-zero on failures.
+.Sh SEE ALSO
+.Xr rrenumd.conf 5 ,
+.Xr rtadvd 8
+.Sh STANDARDS
+.Rs
+.%A Matt Crawford
+.%R RFC
+.%N 2894
+.%D August 2000
+.%T "Router Renumbering for IPv6"
+.Re
+.Sh HISTORY
+The
+.Nm
+utility first appeared in KAME IPv6 protocol stack kit.
+.\" .Sh BUGS
+.\" (to be written)

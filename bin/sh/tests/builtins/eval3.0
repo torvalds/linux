@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+eval 'false;' && exit 1
+eval 'true;' || exit 1
+eval 'false;
+' && exit 1
+eval 'true;
+' || exit 1
+exit 0

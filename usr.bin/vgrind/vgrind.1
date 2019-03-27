@@ -1,0 +1,242 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)vgrind.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd August 29, 2006
+.Dt VGRIND 1
+.Os
+.Sh NAME
+.Nm vgrind
+.Nd grind nice listings of programs
+.Sh SYNOPSIS
+.Nm
+.Op Fl
+.Op Fl W
+.Op Fl d Ar file
+.Op Fl f
+.Op Fl h Ar header
+.Op Fl l Ns Ar language
+.Op Fl n
+.Op Fl p Ar postproc
+.Op Fl s Ar pointsize
+.Op Fl t
+.Op Fl x
+.Ar name Ar ...
+.Sh DESCRIPTION
+The
+.Nm
+utility formats the program sources specified as arguments
+on the command line in a nice style using
+.Xr troff 1 .
+Comments are placed in italics, keywords in bold face,
+and the name of the current function is listed down the margin of each
+page as it is encountered.
+.Pp
+The
+.Nm
+utility runs in two basic modes, filter mode (see the
+.Fl f
+option) or regular mode.
+In filter mode
+.Nm
+acts as a filter in a manner similar to
+.Xr tbl 1 .
+The standard input is passed directly to the standard output except
+for lines bracketed by the
+.Em troff-like
+macros:
+.Bl -tag -width Ds
+.It \&.vS
+starts processing
+.It \&.vE
+ends processing
+.El
+.Pp
+These lines are formatted as described above.
+The output from this
+filter can be passed to
+.Xr troff 1
+for output.
+There need be no particular ordering with
+.Xr eqn 1
+or
+.Xr tbl 1 .
+.Pp
+In regular mode
+.Nm
+accepts input files, processes them, and passes them to the postprocessor
+for output,
+.Xr psroff 1
+by default.
+.Pp
+In both modes
+.Nm
+passes any lines beginning with a decimal point without conversion.
+.Pp
+The options are:
+.Bl -tag -width Ar
+.It Fl
+forces input to be taken from standard input (default if
+.Fl f
+is specified)
+.It Fl W
+forces output to the (wide) Versatec printer rather than the (narrow)
+Varian
+.It Fl d Ar file
+specifies an alternate language definitions
+file (default is
+.Pa /usr/share/misc/vgrindefs )
+.It Fl f
+forces filter mode
+.It Fl h Ar header
+specifies a particular header to put on every output page (default is
+the file name)
+.It Fl l
+specifies the language to use.
+Currently known are
+.Tn PASCAL
+.Pq Fl l Ns Ar p ,
+.Tn MODEL
+.Pq Fl l Ns Ar m ,
+C
+.Pf ( Fl l Ns Ar c
+or the default),
+.Tn C++
+.Pq Fl l Ns Ar c++ ,
+.Tn CSH
+.Pq Fl l Ns Ar csh ,
+.Tn SHELL
+.Pq Fl l Ns Ar sh ,
+.Tn RATFOR
+.Pq Fl l Ns Ar r ,
+.Tn MODULA2
+.Pq Fl l Ns Ar mod2 ,
+.Tn YACC
+.Pq Fl l Ns Ar yacc ,
+.Tn LISP
+.Pq Fl l Ns Ar isp ,
+.Tn ICON
+.Pq Fl l Ns Ar I ,
+and
+.Tn PERL
+.Pq Fl l Ns Ar perl .
+.It Fl n
+forces no keyword bolding
+.It Fl p Ar postproc
+use
+.Ar postproc
+to post-process the output,
+.Xr psroff 1
+by default.
+.It Fl s Ar pointsize
+specifies a point size to use on output (exactly the same as the argument
+of a .ps)
+.It Fl t
+similar to the same option in
+.Xr troff 1
+causing formatted text to go to the standard output
+.It Fl x
+outputs the index file in a ``pretty'' format.
+The index file itself is produced whenever
+.Nm
+is run with a file called
+.Pa index
+in the current directory.
+The index of function
+definitions can then be run off by giving
+.Nm
+the
+.Fl x
+option and the file
+.Pa index
+as argument.
+.El
+.Sh FILES
+.Bl -tag -width /usr/share/misc/vgrindefsxx -compact
+.It Pa index
+file where source for index is created
+.It Pa /usr/share/tmac/tmac.vgrind
+macro package
+.It Pa /usr/libexec/vfontedpr
+preprocessor
+.It Pa /usr/share/misc/vgrindefs
+language descriptions
+.El
+.Sh SEE ALSO
+.Xr getcap 3 ,
+.Xr vgrindefs 5
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 3.0 .
+.Sh BUGS
+The vfontedpr preprocessor assumes that a certain programming style is
+followed:
+.Pp
+For
+.Tn C
+\- function names can be preceded on a line only by spaces, tabs, or an
+asterisk.
+The parenthesized arguments must also be on the same line.
+.Pp
+For
+.Tn PASCAL
+\- function names need to appear on the same line as the keywords
+.Em function
+or
+.Em procedure .
+.Pp
+For
+.Tn MODEL
+\- function names need to appear on the same line as the keywords
+.Em is beginproc .
+.Pp
+If these conventions are not followed, the indexing and marginal function
+name comment mechanisms will fail.
+.Pp
+More generally, arbitrary formatting styles for programs mostly look bad.
+The use of spaces to align source code fails miserably; if you plan to
+.Nm
+your program you should use tabs.
+This is somewhat inevitable since the
+font used by
+.Nm
+is variable width.
+.Pp
+The mechanism of
+.Xr ctags 1
+in recognizing functions should be used here.
+.Pp
+Filter mode does not work in documents using the
+.Fl me
+or
+.Fl ms
+macros.
+(So what use is it anyway?)

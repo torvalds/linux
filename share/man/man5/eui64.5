@@ -1,0 +1,110 @@
+.\" Copyright (c) 1995
+.\"	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 11, 2004
+.Dt EUI64 5
+.Os
+.Sh NAME
+.Nm eui64
+.Nd IEEE EUI-64 address database
+.Sh DESCRIPTION
+The
+.Nm
+database contains information regarding known IEEE EUI-64s of hosts.
+The data is stored in a file called
+.Pa /etc/eui64
+in the following format:
+.Bd -ragged -offset indent
+.Em EUI-64 host-name
+.Ed
+.Pp
+Items are separated by any number of blanks and/or
+tab characters.
+A
+.Ql #
+at the start of a line indicates the
+beginning of a comment that extends to the end of the line.
+Valid lines may also contain comments.
+A
+.Ql +
+at the start of a line will cause the
+.Xr eui64 3
+library functions to use data stored in the
+NIS
+.Pa eui64.byname
+and
+.Pa eui64.byid
+maps in addition to the data in the
+.Pa /etc/eui64
+file.
+.Pp
+An EUI-64 is expressed in
+.Tn ASCII
+form as
+.Qq x-x-x-x-x-x-x-x
+where
+.Ar x
+is a hexadecimal value between 0x00 and 0xFF.
+The address values
+should be in network order.
+Hostnames specified in the
+.Pa /etc/eui64
+database should correspond to entries in the
+.Xr hosts 5
+file.
+.\" .Pp
+.\" The
+.\" .Fn eui64_line
+.\" function in the standard C library can be used to break individual
+.\" lines in the
+.\" .Pa /etc/eui64
+.\" database into their individual components: a binary EUI-64 is
+.\" stored as an
+.\" .Pa eui64_addr
+.\" structure, and a hostname stored as a character string.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/eui64" -compact
+.It Pa /etc/eui64
+The
+.Nm
+file resides in
+.Pa /etc .
+.El
+.Sh SEE ALSO
+.Xr eui64 3 ,
+.Xr yp 8
+.Sh HISTORY
+The
+.Nm
+format is based on the
+.Xr ethers 5
+format.

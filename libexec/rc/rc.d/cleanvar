@@ -1,0 +1,47 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: cleanvar
+# REQUIRE: var
+
+. /etc/rc.subr
+
+name="cleanvar"
+desc="Purge /var directory"
+rcvar="cleanvar_enable"
+
+start_precmd="${name}_prestart"
+start_cmd="${name}_start"
+stop_cmd=":"
+
+extra_commands="reload"
+reload_cmd="${name}_start"
+
+cleanvar_prestart()
+{
+	# These files must be removed only the first time this script is run
+	# on boot.
+	#
+	rm -f /var/run/clean_var /var/spool/lock/clean_var
+}
+
+cleanvar_start()
+{
+	if [ -d /var/run -a ! -f /var/run/clean_var ]; then
+		# Skip over logging sockets
+		find /var/run \( -type f -or -type s ! -name log -and ! -name logpriv \) -delete
+		>/var/run/clean_var
+	fi
+	if [ -d /var/spool/lock -a ! -f /var/spool/lock/clean_var ]; then
+		find /var/spool/lock -type f -delete
+		>/var/spool/lock/clean_var
+	fi
+	if [ -d /var/spool/uucp/.Temp ]; then
+		find /var/spool/uucp/.Temp -delete
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

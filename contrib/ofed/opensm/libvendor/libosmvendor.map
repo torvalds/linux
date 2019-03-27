@@ -1,0 +1,20 @@
+OSMVENDOR_2.0 {
+	global:
+		umad_receiver;
+		osm_vendor_init;
+		osm_vendor_new;
+		osm_vendor_delete;
+		osm_vendor_get_all_port_attr;
+		osm_vendor_bind;
+		osm_vendor_unbind;
+		osm_vendor_get;
+		osm_vendor_put;
+		osm_vendor_send;
+		osm_vendor_local_lid_change;
+		osm_vendor_set_sm;
+		osm_vendor_set_debug;
+		osmv_bind_sa;
+		osmv_query_sa;
+		osm_vendor_get_guid_ca_and_port;
+	local: *;
+};

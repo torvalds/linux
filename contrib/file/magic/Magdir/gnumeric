@@ -1,0 +1,8 @@
+
+#------------------------------------------------------------------------------
+# $File: gnumeric,v 1.4 2009/09/19 16:28:09 christos Exp $
+# gnumeric:  file(1) magic for Gnumeric spreadsheet
+# This entry is only semi-helpful, as Gnumeric compresses its files, so
+# they will ordinarily reported as "compressed", but at least -z helps
+39	string	=<gmr:Workbook	Gnumeric spreadsheet
+!:mime	application/x-gnumeric

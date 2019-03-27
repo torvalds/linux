@@ -1,0 +1,213 @@
+-------------------------------------------------------------------------------
+-- Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.               --
+--                                                                           --
+-- Permission is hereby granted, free of charge, to any person obtaining a   --
+-- copy of this software and associated documentation files (the             --
+-- "Software"), to deal in the Software without restriction, including       --
+-- without limitation the rights to use, copy, modify, merge, publish,       --
+-- distribute, distribute with modifications, sublicense, and/or sell copies --
+-- of the Software, and to permit persons to whom the Software is furnished  --
+-- to do so, subject to the following conditions:                            --
+--                                                                           --
+-- The above copyright notice and this permission notice shall be included   --
+-- in all copies or substantial portions of the Software.                    --
+--                                                                           --
+-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS   --
+-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF                --
+-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN --
+-- NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,       --
+-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR     --
+-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE --
+-- USE OR OTHER DEALINGS IN THE SOFTWARE.                                    --
+--                                                                           --
+-- Except as contained in this notice, the name(s) of the above copyright    --
+-- holders shall not be used in advertising or otherwise to promote the      --
+-- sale, use or other dealings in this Software without prior written        --
+-- authorization.                                                            --
+-------------------------------------------------------------------------------
+-- $Id: TO-DO,v 1.57 2011/03/28 00:23:02 tom Exp $
+-------------------------------------------------------------------------------
+
+SHORT-TERM TO-DO ITEMS:
+
+Known Problems:
+
++ libtool does not work with GNAT.
+
++ The screen optimization has been tested only in an ad hoc manner.  We should
+  develop a good set of regression tests to cover lib_doupdate.c and
+  lib_mvcur.c.
+
++ Magic cookie support (for nonzero xmc values) does not work, since the logic
+  does not take into account refresh.  Also, the initial optimize does not
+  adjust the current location when a cookie is emitted.
+
++ Scrolling optimization has holes:  for example, it forces repaints of the
+  screen between calls to refresh().
+
++ SVr4 uses slightly different rules for determining when softkeys are shown.
+  For example, they are initially displayed (before the ncurses 'e' test
+  activates them), and a touchwin can apparently also force them to be
+  displayed.
+
++ The code departs from perfect 8-bit cleanness in one respect; you cannot
+  specify a character \200 as part of a capability string, because the
+  terminfo library interprets \200 as a request to embed NUL (\000) at that
+  point.  This is a legacy terminfo property we can't mess with.
+
++ The window classes defined in the c++ subdirectory need documentation.  Some
+  C++ programmer could earn a lot of good karma by doing this...
+
++ vid_attr() should support the set_a_attributes (sgr1) string, but does not.
+  There appear to be no terminals that require that functionality.
+
++ the configure --disable-ext-funcs option does not work for Ada95 tree.
+
++ the --with-pthread configuration builds for Cygwin, but does not work
+  properly (test/worm.c shows all of the worms in the same location).
+
++ the --enable-rpath configure option builds for the corresponding platforms;
+  however combining it with --with-ticlib and --with-termlib does not always
+  produce libraries that can be run without setting environment variables.
+  Building those with libtool does not work either.  (This is a problem with
+  the BSD platforms).
+
++ more work is needed to make the MinGW port support ordinary terminals.
+
+Portability (or lack thereof):
+
++ Users of older System V UNIXes (but not Solaris, and probably not SVr4) may
+  trip over a known problem with the signal-handling code which causes abrupt
+  termination of ncurses applications following resume from a ^Z suspend (this
+  problem was first seen running lynx).  You will not see this problem if you
+  are using one of the 4.4BSD derivatives like such as, NetBSD, or BSDI, or
+  systems using that convention.  For details, see the analysis in the header
+  comment of ncurses/tty/lib_tstp.c .
+
++ In theory, vwprintw and vwscanf are supposed to use the older varargs.h
+  interface for handling variadic argument lists (and are deprecated by X/Open
+  for that reason).  Many newer systems do no have varargs.h, instead they have
+  only the newer X/Open-standard stdargs.h equivalent.  So these functions use
+  stdargs instead.  This is unlikely to be a problem unless you're building
+  ncurses on a System V old enough to only have varargs.h.  (Solaris 2.5.1 used
+  the stdarg.h binding as well).
+
++ If you're using a system old enough not to have a native vsscanf(3) in its
+  library, vwscanw() will not work.  If you want to fix this, add an
+  implementation to ncurses/vsscanf.c.
+
++ The C++ binding fails to build with a few C++ compilers.
+
++ terminfo.5 does not format with the SunOS (and most other platform's) tbl
+  utility because it relies on a diversion for each table entry.  Get the
+  groff package.
+
+Untested features:
+
++ The code for the HP color model using set_color_pair is untested.
+
++ The code for handling soft labels on a terminal type with built-in support
+  for them (num_labels > 0, label_height, label_width, label_format, label_off,
+  label_on, plab_norm, lab_f*) has not been tested.  The label_format and
+  lab_f* capabilities aren't presently used.
+
+LONGER-TERM TO-DO ITEMS:
+
+1. Extended COSE conformance
+
+There is an XPG4 standard released in 1996 which describes a superset
+of the SVr4 API.  The library is BASE conformant with this standard.
+We would like to make ncurses fully conformant at the EXTENDED level
+supporting internationalization.
+
+2. DOS port
+
+Only a few of the files in the library depend on the terminfo format.
+It should be possible to further kernelize the package, then rewrite
+a small number of core files to produce a functionally-compatible
+port that would do updates to a memory-mapped screen area.  The first
+result of this would be a DOS port.
+
+3. X port
+
+It would be nice if ncurses could recognize when it was running under X and
+maintain its own window.  With this feature, all ncurses programs would
+automatically become X programs.  The challenge is to handle resize events
+properly.
+
+4. Unused capabilities
+
+The currently unused capabilities fall naturally into several groups:
+
+A. Status-line capabilities:
+
+	Booleans: has_status_line, status_line_esc_ok.
+	Numerics: width_status_line.
+	Strings: dis_status_line, from_status_line, to_status_line.
+
+System V Release 1 curses made no use of these at all.  SVr4's use, if
+any, is unknown.  From the AT&T termcap file it looks like curses, in general,
+shouldn't use them; terminal variants with status lines have their line count
+decremented by 1, suggesting that curses is supposed to leave the status line
+alone.
+
+B. Printer capabilities:
+
+	Boolean: col_addr_glitch, cr_cancels_micro_mode, has_print_wheel,
+		row_addr_glitch, semi_auto_right_margin, cpi_changes_res,
+		lpi_changes_res.
+	Numeric: buffer_capacity, dot_horz_spacing, dot_vert_spacing,
+		max_micro_address, max_micro_jump, micro_col_size,
+		micro_line_size, number_of_pins, output_res_char,
+		output_res_line, output_res_horz_inch, print_rate,
+		wide_char_size, bit_image_entwining, bit_image_type.
+	String: down_half_line, form_feed, up_half_line, set_left_margin,
+		set_right_margin, clear_margins, change_char_pitch
+		... set_page_length (all the SVr4 printer caps),
+
+Curses doesn't use these.
+
+C. Printer-control capabilities:
+
+	Boolean: prtr_silent.
+	Strings: print_screen, prtr_on, prtr_off, prtr_non.
+
+Curses doesn't use these.
+
+D. Dialer strings:
+
+	Strings: hangup, dial_phone, quick_dial, tone, pulse, flash_hook,
+		fixed_pause, wait_tone.
+
+Curses doesn't use these.
+
+E. Window and virtual-terminal capabilities:
+
+	Numerics: maximum_windows, virtual_terminal.
+	Strings: req_for_input, create_window, goto_window, set_window.
+
+These seem to be fossils from some AT&T experiments on character-based
+window systems that never escaped the lab.  The virtual_terminal cap had
+something to do with building terminal emulations into tty line disciplines.
+
+F. Unused VDT capabilities:
+
+	Booleans: erase_overstrike, has_meta_key, insert_null_glitch,
+		move_insert, dest_tabs_magic_smso, transparent_underline,
+		needs_xon_xoff, hard_cursor.
+	Numerics: lines_of_memory, buttons.
+	Strings: pkey_key, pkey_local, pkey_xmit, underline_char,
+		enter_xon_mode,	exit_xon_mode, xon_character, xoff_character,
+		display_clock, remove_clock, user[0-5], display_pc_char,
+		enter_scancode_mode, exit_scancode_mode, pc_term_options,
+		scancode_escape, alt_scancode_esc.
+
+These are the potentially important ones for ncurses.  Notes:
+
+	i) ncurses doesn't need move_insert; it never uses cup/hpa/vpa while
+		insert_mode is on.
+
+	ii) We probably don't care about dest_tabs_magic_smso; only
+		Telerays used it and they're all long obsolete.
+
+-- vile:txtmode

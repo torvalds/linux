@@ -1,0 +1,59 @@
+/* $FreeBSD$ */
+
+ENTRY(_start)
+
+PHDRS {
+	text PT_LOAD FLAGS(0x7);
+}
+
+SECTIONS {
+	. = KERNLOADADDR + SIZEOF_HEADERS;
+
+	.text : {
+	    	*(.text)
+		*(.dynamic)
+		etext = .;
+		_etext = .;
+		. = ALIGN(0x2000);
+	} : text
+
+	. = ALIGN(0x2000);
+	.rodata : {
+		_fdata = .;
+	    	*(.rodata)
+		. = ALIGN(32);
+	}
+	
+	.data : {
+                _rwdata = .;
+	    	*(.data)
+		. = ALIGN(32);
+	}
+
+	_gp = (. + 0x8000);
+
+	.sdata : {
+                _small_start = .;
+		*(.sdata)
+		. = ALIGN(32);
+		edata = .;
+		_edata = .;
+	} : text
+
+	.sbss : {
+		__bss_start = .;
+		_fbss = .;
+		*(.sbss) *(.scommon)
+                _small_end = .;
+		. = ALIGN(32);
+	}
+
+	.bss : {
+		*(.bss)
+		*(COMMON)
+		. = ALIGN(32);
+		_end = .;
+		end = .;
+	}
+
+}

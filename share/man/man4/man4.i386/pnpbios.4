@@ -1,0 +1,85 @@
+.\"
+.\" Copyright (c) 2001
+.\" Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd September 20, 2001
+.Dt PNPBIOS 4 i386
+.Os
+.Sh NAME
+.Nm pnpbios
+.Nd support for embedded devices on the motherboard
+.Sh DESCRIPTION
+The
+.Nm
+driver enumerates embedded ISA devices on the motherboard whose BIOS
+supports
+.Dq "Plug and Play BIOS Specification" .
+It assigns ISA bus resources (interrupt line, DMA channel, I/O ports,
+and memory region) to each device and activates it.
+.Pp
+If it cannot assign necessary resources to a device without
+causing conflict with other devices in the system,
+the device will not be activated and will be unavailable
+to programs.
+.Sh SEE ALSO
+.Xr pnp 4
+.Sh STANDARDS
+.Rs
+.%A Compaq
+.%A Phenix
+.%A Intel
+.%T "Plug and Play BIOS Specification Version 1.0A"
+.%D May 5, 1994
+.Re
+.Pp
+.Rs
+.%A Compaq
+.%A Phenix
+.%A Intel
+.%T "Plug and Play BIOS CLARIFICATION Paper for Plug and Play BIOS Specification Version 1.0A"
+.%D October 6, 1994
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Mike Smith .
+.Sh CAVEATS
+There is no explicit way to disable individual embedded devices.
+The
+.Nm
+driver will find all devices reported by the
+.Dq "Plug and Play (PnP)"
+BIOS and try to activate them all.
+.Pp
+There is no way to explicitly assign particular resource to a device.
+The resource assignment is fully automatic and there is
+no provision for manual override.

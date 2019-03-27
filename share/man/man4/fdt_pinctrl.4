@@ -1,0 +1,127 @@
+.\" Copyright (c) 2018 Oleksandr Tymoshenko
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 3, 2018
+.Dt "FDT_PINCTRL" 4
+.Os
+.Sh NAME
+.Nm fdt_pinctrl
+.Nd FDT I/O pin multiplexing support
+.Sh SYNOPSIS
+.Cd "device fdt_pinctrl"
+.Sh DESCRIPTION
+.Pp
+Pin multiplexing is a technology used to re-purpose a single
+physical connection (depending on chip packaging it may be
+pin, ball, or pad) by routing its signal to any one of several 
+different SoC internal devices.
+For example, based on the actual device design, a single SoC chip
+pin might perform any of these roles: SPI clock, I2C
+data, GPIO pin, or PWM signal.
+Function selection is performed by the pinmux controller, a SoC
+hardware block which is usually controlled by a set of registers.
+Pinmux controller capabilities and register format depend
+on the actual hardware implementation.
+.Pp
+On
+.Xr fdt 4
+based systems, the pinmux controller is represented by a node in
+the device tree.
+It may have any number of child nodes representing pin
+configuration groups.
+Properties of such nodes are hardware-specific and handled
+by individual pinctrl drivers.
+.Ss Example 1
+Pinmux controller device tree node
+.Bd -literal
+pinctrl@7e220000 {
+    compatible = "vndr,soc1715-pinctrl";
+    reg = <0x7e220000 0x100>
+
+    spi0_pins: spi0 {
+        vndr,pins = <11 12>
+        vndr,functions = <ALT0 ALT5>
+    }
+
+    i2c0_pins: i2c0 {
+        ...
+    }
+}
+.Ed
+.Pp
+Client devices are hardware devices that require certain pin
+configurations to function properly.
+Depending on the state the device is in (active, idle) it might
+require different pin configurations.
+Each configuration is described by setting the pinctrl-N
+property to the list of phandles pointing to specific child
+nodes of the pinmux controller node.
+N is an integer value starting with 0 and incremented by 1
+for every new set of pin configurations.
+pinctrl-0 is a default configuration that is applied in the
+.Xr fdt_pinctrl_configure_tree 9
+call.
+In addition to referring to pin configurations by index, they
+can be referred to by name if the pinctrl-names property is set.
+The value of pinctrl-names is a list of strings with names for
+each pinctrl-N property.
+Client devices can request specific configuration using
+.Xr fdt_pinctrl_configure 9
+and
+.Xr fdt_pinctrl_configure_by_name 9 .
+.Ss Example 2
+.Bd -literal
+backlight@7f000000 {
+    compatible = "vndr,vndr-bl"
+    reg = <0x7f000000 0x20>
+    ...
+    pinctrl-name = "active", "idle"
+    pinctrl-0 = <&backlight_active_pins>
+    pinctrl-1 = <&backlight_idle_pins>
+}
+.Ed
+.Pp
+The pinctrl driver should implement the FDT_PINCTRL_CONFIGURE
+method, register itself as a pin configuration handler by
+calling fdt_pinctrl_register function, and call
+.Xr fdt_pinctrl_configure_tree 9
+to configure pins for all enabled devices (devices where
+the "status" property is not set to "disabled").
+.Sh SEE ALSO
+.Xr fdt_pinctrl 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 10.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was developed by
+.An \&Ian Lepore Aq Mt ian@FreeBSD.org .
+This manual page was written by
+.An Oleksandr Tymoshenko Aq Mt gonzo@FreeBSD.org .

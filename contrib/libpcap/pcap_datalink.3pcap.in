@@ -1,0 +1,68 @@
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP_DATALINK 3PCAP "7 April 2014"
+.SH NAME
+pcap_datalink \- get the link-layer header type
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap/pcap.h>
+.ft
+.LP
+.ft B
+int pcap_datalink(pcap_t *p);
+.ft
+.fi
+.SH DESCRIPTION
+.B pcap_datalink()
+returns the link-layer header type for the live capture or ``savefile''
+specified by
+.IR p .
+.PP
+It must not be called on a pcap descriptor created by
+.B pcap_create()
+that has not yet been activated by
+.BR pcap_activate() .
+.PP
+.I http://www.tcpdump.org/linktypes.html
+lists the values
+.B pcap_datalink()
+can return and describes the packet formats that
+correspond to those values.
+.PP
+Do
+.B NOT
+assume that the packets for a given capture or ``savefile`` will have
+any given link-layer header type, such as
+.B DLT_EN10MB
+for Ethernet.  For example, the "any" device on Linux will have a
+link-layer header type of
+.B DLT_LINUX_SLL
+even if all devices on the system at the time the "any" device is opened
+have some other data link type, such as
+.B DLT_EN10MB
+for Ethernet.
+.SH RETURN VALUE
+.B pcap_datalink()
+returns the link-layer header type on success and
+.B PCAP_ERROR_NOT_ACTIVATED
+if called on a capture handle that has been created but not activated.
+.SH SEE ALSO
+pcap(3PCAP), pcap-linktype(@MAN_MISC_INFO@)

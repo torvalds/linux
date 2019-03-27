@@ -1,0 +1,79 @@
+=pod
+
+=head1 NAME
+
+OSSL_STORE_expect,
+OSSL_STORE_supports_search,
+OSSL_STORE_find
+- Specify what object type is expected
+
+=head1 SYNOPSIS
+
+ #include <openssl/store.h>
+
+ int OSSL_STORE_expect(OSSL_STORE_CTX *ctx, int expected_type);
+
+ int OSSL_STORE_supports_search(OSSL_STORE_CTX *ctx, int criterion_type);
+
+ int OSSL_STORE_find(OSSL_STORE_CTX *ctx, OSSL_STORE_SEARCH *search);
+
+=head1 DESCRIPTION
+
+OSSL_STORE_expect() helps applications filter what OSSL_STORE_load() returns
+by specifying a B<OSSL_STORE_INFO> type.
+For example, if C<file:/foo/bar/store.pem> contains several different objects
+and only the certificates are interesting, the application can simply say
+that it expects the type B<OSSL_STORE_INFO_CERT>.
+All known object types (see L<OSSL_STORE_INFO(3)/SUPPORTED OBJECTS>)
+except for B<OSSL_STORE_INFO_NAME> are supported.
+
+OSSL_STORE_find() helps applications specify a criterion for a more fine
+grained search of objects.
+
+OSSL_STORE_supports_search() checks if the loader of the given OSSL_STORE
+context supports the given search type.
+See L<OSSL_STORE_SEARCH/SUPPORED CRITERION TYPES> for information on the
+supported search criterion types.
+
+OSSL_STORE_expect() and OSSL_STORE_find I<must> be called before the first
+OSSL_STORE_load() of a given session, or they will fail.
+
+=head1 NOTES
+
+If a more elaborate filter is required by the application, a better choice
+would be to use a post-processing function.
+See L<OSSL_STORE_open(3)> for more information.
+
+However, some loaders may take advantage of the knowledge of an expected type
+to make object retrieval more efficient, so if a single type is expected, this
+method is usually preferable.
+
+=head1 RETURN VALUES
+
+OSSL_STORE_expect() returns 1 on success, or 0 on failure.
+
+OSSL_STORE_supports_search() returns 1 if the criterion is supported, or 0
+otherwise.
+
+OSSL_STORE_find() returns 1 on success, or 0 on failure.
+
+=head1 SEE ALSO
+
+L<ossl_store(7)>, L<OSSL_STORE_INFO(3)>, L<OSSL_STORE_SEARCH(3)>,
+L<OSSL_STORE_load(3)>
+
+=head1 HISTORY
+
+OSSL_STORE_expect(), OSSL_STORE_supports_search() and OSSL_STORE_find()
+were added in OpenSSL 1.1.1.
+
+=head1 COPYRIGHT
+
+Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

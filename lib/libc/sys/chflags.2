@@ -1,0 +1,352 @@
+.\" Copyright (c) 1989, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)chflags.2	8.3 (Berkeley) 5/2/95
+.\" $FreeBSD$
+.\"
+.Dd November 11, 2018
+.Dt CHFLAGS 2
+.Os
+.Sh NAME
+.Nm chflags ,
+.Nm lchflags ,
+.Nm fchflags ,
+.Nm chflagsat
+.Nd set file flags
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/stat.h
+.In unistd.h
+.Ft int
+.Fn chflags "const char *path" "unsigned long flags"
+.Ft int
+.Fn lchflags "const char *path" "unsigned long flags"
+.Ft int
+.Fn fchflags "int fd" "unsigned long flags"
+.Ft int
+.Fn chflagsat "int fd" "const char *path" "unsigned long flags" "int atflag"
+.Sh DESCRIPTION
+The file whose name
+is given by
+.Fa path
+or referenced by the descriptor
+.Fa fd
+has its flags changed to
+.Fa flags .
+.Pp
+The
+.Fn lchflags
+system call is like
+.Fn chflags
+except in the case where the named file is a symbolic link,
+in which case
+.Fn lchflags
+will change the flags of the link itself,
+rather than the file it points to.
+.Pp
+The
+.Fn chflagsat
+is equivalent to either
+.Fn chflags
+or
+.Fn lchflags
+depending on the
+.Fa atflag
+except in the case where
+.Fa path
+specifies a relative path.
+In this case the file to be changed is determined relative to the directory
+associated with the file descriptor
+.Fa fd
+instead of the current working directory.
+The values for the
+.Fa atflag
+are constructed by a bitwise-inclusive OR of flags from the following list,
+defined in
+.In fcntl.h :
+.Bl -tag -width indent
+.It Dv AT_SYMLINK_NOFOLLOW
+If
+.Fa path
+names a symbolic link, then the flags of the symbolic link are changed.
+.It Dv AT_BENEATH
+Only allow to change flags for a file which is beneath of
+the topping directory.
+See the description of the
+.Dv O_BENEATH
+flag in the
+.Xr open 2
+manual page.
+.El
+.Pp
+If
+.Fn chflagsat
+is passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter, the current working directory is used.
+If also
+.Fa atflag
+is zero, the behavior is identical to a call to
+.Fn chflags .
+.Pp
+The flags specified are formed by
+.Em or Ns 'ing
+the following values
+.Pp
+.Bl -tag -width ".Dv SF_IMMUTABLE" -compact -offset indent
+.It Dv SF_APPEND
+The file may only be appended to.
+.It Dv SF_ARCHIVED
+The file has been archived.
+This flag means the opposite of the DOS, Windows and CIFS
+FILE_ATTRIBUTE_ARCHIVE attribute.
+This flag has been deprecated, and may be removed in a future release.
+.It Dv SF_IMMUTABLE
+The file may not be changed.
+.It Dv SF_NOUNLINK
+The file may not be renamed or deleted.
+.It Dv SF_SNAPSHOT
+The file is a snapshot file.
+.It Dv UF_APPEND
+The file may only be appended to.
+.It Dv UF_ARCHIVE
+The file needs to be archived.
+This flag has the same meaning as the DOS, Windows and CIFS
+FILE_ATTRIBUTE_ARCHIVE attribute.
+Filesystems in FreeBSD may or may not have special handling for this flag.
+For instance, ZFS tracks changes to files and will set this bit when a
+file is updated.
+UFS only stores the flag, and relies on the application to change it when
+needed.
+.It Dv UF_HIDDEN
+The file may be hidden from directory listings at the application's
+discretion.
+The file has the DOS, Windows and CIFS FILE_ATTRIBUTE_HIDDEN attribute.
+.It Dv UF_IMMUTABLE
+The file may not be changed.
+.It Dv UF_NODUMP
+Do not dump the file.
+.It Dv UF_NOUNLINK
+The file may not be renamed or deleted.
+.It Dv UF_OFFLINE
+The file is offline, or has the Windows and CIFS FILE_ATTRIBUTE_OFFLINE
+attribute.
+Filesystems in FreeBSD store and display this flag, but do not provide any
+special handling when it is set.
+.It Dv UF_OPAQUE
+The directory is opaque when viewed through a union stack.
+.It Dv UF_READONLY
+The file is read only, and may not be written or appended.
+Filesystems may use this flag to maintain compatibility with the DOS, Windows
+and CIFS FILE_ATTRIBUTE_READONLY attribute.
+.It Dv UF_REPARSE
+The file contains a Windows reparse point and has the Windows and CIFS
+FILE_ATTRIBUTE_REPARSE_POINT attribute.
+.It Dv UF_SPARSE
+The file has the Windows FILE_ATTRIBUTE_SPARSE_FILE attribute.
+This may also be used by a filesystem to indicate a sparse file.
+.It Dv UF_SYSTEM
+The file has the DOS, Windows and CIFS FILE_ATTRIBUTE_SYSTEM attribute.
+Filesystems in FreeBSD may store and display this flag, but do not provide
+any special handling when it is set.
+.El
+.Pp
+If one of
+.Dv SF_IMMUTABLE , SF_APPEND ,
+or
+.Dv SF_NOUNLINK
+is set a non-super-user cannot change any flags and even the super-user
+can change flags only if securelevel is 0.
+(See
+.Xr init 8
+for details.)
+.Pp
+The
+.Dv UF_IMMUTABLE , UF_APPEND , UF_NOUNLINK , UF_NODUMP ,
+and
+.Dv UF_OPAQUE
+flags may be set or unset by either the owner of a file or the super-user.
+.Pp
+The
+.Dv SF_IMMUTABLE , SF_APPEND , SF_NOUNLINK ,
+and
+.Dv SF_ARCHIVED
+flags may only be set or unset by the super-user.
+Attempts to toggle these flags by non-super-users are rejected.
+These flags may be set at any time, but normally may only be unset when
+the system is in single-user mode.
+(See
+.Xr init 8
+for details.)
+.Pp
+The implementation of all flags is filesystem-dependent.
+See the description of the
+.Dv UF_ARCHIVE
+flag above for one example of the differences in behavior.
+Care should be exercised when writing applications to account for
+support or lack of support of these flags in various filesystems.
+.Pp
+The
+.Dv SF_SNAPSHOT
+flag is maintained by the system and cannot be toggled.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn chflags
+system call will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded 255 characters,
+or an entire path name exceeded 1023 characters.
+.It Bq Er ENOENT
+The named file does not exist.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EPERM
+The effective user ID does not match the owner of the file and
+the effective user ID is not the super-user.
+.It Bq Er EPERM
+One of
+.Dv SF_IMMUTABLE , SF_APPEND ,
+or
+.Dv SF_NOUNLINK
+is set and the user is either not the super-user or
+securelevel is greater than 0.
+.It Bq Er EPERM
+A non-super-user attempted to toggle one of
+.Dv SF_ARCHIVED , SF_IMMUTABLE , SF_APPEND ,
+or
+.Dv SF_NOUNLINK .
+.It Bq Er EPERM
+An attempt was made to toggle the
+.Dv SF_SNAPSHOT
+flag.
+.It Bq Er EROFS
+The named file resides on a read-only file system.
+.It Bq Er EFAULT
+The
+.Fa path
+argument
+points outside the process's allocated address space.
+.It Bq Er EIO
+An
+.Tn I/O
+error occurred while reading from or writing to the file system.
+.It Bq Er EOPNOTSUPP
+The underlying file system does not support file flags, or
+does not support all of the flags set in
+.Fa flags .
+.El
+.Pp
+The
+.Fn fchflags
+system call will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The descriptor is not valid.
+.It Bq Er EINVAL
+The
+.Fa fd
+argument
+refers to a socket, not to a file.
+.It Bq Er EPERM
+The effective user ID does not match the owner of the file and
+the effective user ID is not the super-user.
+.It Bq Er EPERM
+One of
+.Dv SF_IMMUTABLE , SF_APPEND ,
+or
+.Dv SF_NOUNLINK
+is set and the user is either not the super-user or
+securelevel is greater than 0.
+.It Bq Er EPERM
+A non-super-user attempted to toggle one of
+.Dv SF_ARCHIVED , SF_IMMUTABLE , SF_APPEND ,
+or
+.Dv SF_NOUNLINK .
+.It Bq Er EPERM
+An attempt was made to toggle the
+.Dv SF_SNAPSHOT
+flag.
+.It Bq Er EROFS
+The file resides on a read-only file system.
+.It Bq Er EIO
+An
+.Tn I/O
+error occurred while reading from or writing to the file system.
+.It Bq Er EOPNOTSUPP
+The underlying file system does not support file flags, or
+does not support all of the flags set in
+.Fa flags .
+.It Bq Er ENOTCAPABLE
+.Fa path
+is an absolute path,
+or contained a ".." component leading to a
+directory outside of the directory hierarchy specified by
+.Fa fd ,
+and the process is in capability mode.
+.It Bq Er ENOTCAPABLE
+The
+.Dv AT_BENEATH
+flag was provided to
+.Fn chflagsat ,
+and the absolute
+.Fa path
+does not have its tail fully contained under the topping directory,
+or the relative
+.Fa path
+escapes it.
+.El
+.Sh SEE ALSO
+.Xr chflags 1 ,
+.Xr fflagstostr 3 ,
+.Xr strtofflags 3 ,
+.Xr init 8 ,
+.Xr mount_unionfs 8
+.Sh HISTORY
+The
+.Fn chflags
+and
+.Fn fchflags
+system calls first appeared in
+.Bx 4.4 .
+The
+.Fn lchflags
+system call first appeared in
+.Fx 5.0 .
+The
+.Fn chflagsat
+system call first appeared in
+.Fx 10.0 .

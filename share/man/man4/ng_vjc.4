@@ -1,0 +1,238 @@
+.\" Copyright (c) 1996-1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\" $Whistle: ng_vjc.8,v 1.4 1999/01/25 23:46:28 archie Exp $
+.\"
+.Dd January 19, 1999
+.Dt NG_VJC 4
+.Os
+.Sh NAME
+.Nm ng_vjc
+.Nd Van Jacobson compression netgraph node type
+.Sh SYNOPSIS
+.In sys/types.h
+.In netinet/in.h
+.In netinet/in_systm.h
+.In netinet/ip.h
+.In net/slcompress.h
+.In netgraph/ng_vjc.h
+.Sh DESCRIPTION
+The
+.Nm vjc
+node type performs Van Jacobson compression, which is used
+over PPP, SLIP, and other point-to-point IP connections to
+compress TCP packet headers.
+The
+.Dv ip
+hook represents the uncompressed side of the node, while the
+.Dv vjcomp ,
+.Dv vjuncomp ,
+and
+.Dv vjip
+hooks represent the compressed side of the node.
+Packets received on the
+.Dv ip
+will be compressed or passed through as appropriate.
+Packets received on the other three hooks will be uncompressed as appropriate.
+This node also supports
+.Dq always pass through
+mode in either direction.
+.Pp
+Van Jacobson compression only applies to TCP packets.
+Only
+.Dq normal
+(i.e., common case) TCP packets are actually compressed.
+These are output on the
+.Dv vjcomp
+hook.
+Other TCP packets are run through the state machine but not
+compressed; these appear on the
+.Dv vjuncomp
+hook.
+Other non-TCP IP packets are forwarded unchanged to
+.Dv vjip .
+.Pp
+When connecting to a
+.Xr ng_ppp 4
+node, the
+.Dv ip ,
+.Dv vjuncomp ,
+.Dv vjcomp ,
+and
+.Dv vjip
+hooks should be connected to the
+.Xr ng_ppp 4
+node's
+.Dv vjc_ip ,
+.Dv vjc_vjcomp ,
+.Dv vjc_vjuncomp ,
+and
+.Dv vjc_ip
+hooks, respectively.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va vjuncomp"
+.It Va ip
+Upstream (uncompressed) IP packets.
+.It Va vjcomp
+Downstream compressed TCP packets.
+.It Va vjuncomp
+Downstream uncompressed TCP packets.
+.It Va vjip
+Downstream uncompressed IP packets.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_VJC_SET_CONFIG Pq Ic setconfig
+This command resets the compression state and configures it according
+to the supplied
+.Dv "struct ngm_vjc_config"
+argument.
+This structure contains the following fields:
+.Bd -literal -offset 4n
+struct ngm_vjc_config {
+  u_char   enableComp;    /* Enable compression */
+  u_char   enableDecomp;  /* Enable decompression */
+  u_char   maxChannel;    /* Number of outgoing channels - 1 */
+  u_char   compressCID;   /* OK to compress outgoing CID's */
+};
+.Ed
+.Pp
+When
+.Dv enableComp
+is set to zero, all packets received on the
+.Dv ip
+hook are forwarded unchanged out the
+.Dv vjip
+hook.
+Similarly, when
+.Dv enableDecomp
+is set to zero, all packets received on the
+.Dv vjip
+hook are forwarded unchanged out the
+.Dv ip
+hook, and packets are not accepted on the
+.Dv vjcomp
+and
+.Dv vjuncomp
+hooks.
+When a node is first created,
+both compression and decompression are disabled and the node is
+therefore operating in bi-directional
+.Dq pass through
+mode.
+.Pp
+When enabling compression,
+.Dv maxChannel
+should be set to the number of outgoing compression channels minus one,
+and is a value between 3 and 15, inclusive.
+The
+.Dv compressCID
+field indicates whether it is OK to compress the CID header field for
+outgoing compressed TCP packets.
+This value should be zero unless
+either (a) it is not possible for an outgoing frame to be lost, or
+(b) lost frames can be reliably detected and immediately
+reported to the peer's decompression engine (see
+.Dv NGM_VJC_RECV_ERROR
+below).
+.It Dv NGM_VJC_GET_STATE Pq Ic getstate
+This command returns the node's current state described by the
+.Dv "struct slcompress"
+structure, which is defined in
+.In net/slcompress.h .
+.It Dv NGM_VJC_CLR_STATS Pq Ic clrstats
+Clears the node statistics counters.
+Statistics are also cleared whenever the
+.Dv enableComp
+or
+.Dv enableDecomp
+fields are changed from zero to one by a
+.Dv NGM_VJC_SET_CONFIG
+control message.
+.It Dv NGM_VJC_RECV_ERROR Pq Ic recverror
+When the peer has CID header field compression enabled,
+this message must be sent to the local
+.Nm vjc
+node immediately
+after detecting that a received frame has been lost, due to a bad
+checksum or for any other reason.
+Failing to do this can result in corrupted TCP stream data.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_iface 4 ,
+.Xr ng_ppp 4 ,
+.Xr ngctl 8
+.Rs
+.%A V. Jacobson
+.%T "Compressing TCP/IP Headers"
+.%O RFC 1144
+.Re
+.Rs
+.%A G. McGregor
+.%T "The PPP Internet Control Protocol (IPCP)"
+.%O RFC 1332
+.Re
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Archie Cobbs Aq Mt archie@FreeBSD.org
+.Sh BUGS
+As the initialization routine in the kernel implementation of
+Van Jacobson compression initializes both compression and decompression
+at once, this node does not allow compression and decompression to
+be enabled in separate operations.
+In order to enable one when
+the other is already enabled, first both must be disabled, then
+both enabled.
+This of course resets the node state.
+This restriction may be lifted in a later version.
+.Pp
+When built as a loadable kernel module, this module includes the file
+.Pa net/slcompress.c .
+Although loading the module should fail if
+.Pa net/slcompress.c
+already exists in the kernel, currently it does not, and the duplicate
+copies of the file do not interfere.
+However, this may change in the future.

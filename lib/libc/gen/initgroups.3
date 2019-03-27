@@ -1,0 +1,82 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)initgroups.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd October 26, 2014
+.Dt INITGROUPS 3
+.Os
+.Sh NAME
+.Nm initgroups
+.Nd initialize group access list
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn initgroups "const char *name" "gid_t basegid"
+.Sh DESCRIPTION
+The
+.Fn initgroups
+function
+uses the
+.Xr getgrouplist 3
+function to calculate the group access list for the user
+specified in
+.Fa name .
+This group list is then setup for the current process using
+.Xr setgroups 2 .
+The
+.Fa basegid
+is automatically included in the groups list.
+Typically this value is given as
+the group number from the password file.
+.Sh RETURN VALUES
+.Rv -std initgroups
+.Sh ERRORS
+The
+.Fn initgroups
+function may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr setgroups 2 .
+It may also return:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+The
+.Fn initgroups
+function was unable to allocate temporary storage.
+.El
+.Sh SEE ALSO
+.Xr setgroups 2 ,
+.Xr getgrouplist 3
+.Sh HISTORY
+The
+.Fn initgroups
+function appeared in
+.Bx 4.2 .

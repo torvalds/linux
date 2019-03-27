@@ -1,0 +1,34 @@
+# $FreeBSD$
+set -e
+trap 'echo Broken pipe -- test failed' PIPE
+
+P=${TMPDIR:-/tmp}
+cd $P
+T=$(mktemp -d sh-test.XXXXXX)
+cd $T
+
+mkfifo input output error
+HISTFILE=/dev/null ${SH} +m -i <input >output 2>error &
+exec 3>input
+{
+	# Command not found, containing slash
+	echo '/var/empty/nonexistent' >&3
+	# Read error message, shell will read new input now
+	read dummy <&5
+	# Execute bad command again
+	echo 'fc -e true; echo continued' >&3
+	read dummy <&5
+	read line <&4 && [ "$line" = continued ] && : ${rc:=0}
+	exec 3>&-
+	# Old sh duplicates itself after the fc, producing another line
+	# of output.
+	if read line <&4; then
+		echo "Extraneous output: $line"
+		rc=1
+	fi
+} 4<output 5<error
+exec 3>&-
+
+rm input output error
+rmdir ${P}/${T}
+exit ${rc:-3}

@@ -1,0 +1,287 @@
+.\" Copyright (c) 2010,2014 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_next_cu_header.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd December 21, 2014
+.Dt DWARF_NEXT_CU_HEADER 3
+.Os
+.Sh NAME
+.Nm dwarf_next_cu_header ,
+.Nm dwarf_next_cu_header_b ,
+.Nm dwarf_next_cu_header_c
+.Nd step through compilation units in a DWARF debug context
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_next_cu_header
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Unsigned *cu_length"
+.Fa "Dwarf_Half *cu_version"
+.Fa "Dwarf_Off *cu_abbrev_offset"
+.Fa "Dwarf_Half *cu_pointer_size"
+.Fa "Dwarf_Unsigned *cu_next_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_next_cu_header_b
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Unsigned *cu_length"
+.Fa "Dwarf_Half *cu_version"
+.Fa "Dwarf_Off *cu_abbrev_offset"
+.Fa "Dwarf_Half *cu_pointer_size"
+.Fa "Dwarf_Half *cu_offset_size"
+.Fa "Dwarf_Half *cu_extension_size"
+.Fa "Dwarf_Unsigned *cu_next_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_next_cu_header_c
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Bool is_info"
+.Fa "Dwarf_Unsigned *cu_length"
+.Fa "Dwarf_Half *cu_version"
+.Fa "Dwarf_Off *cu_abbrev_offset"
+.Fa "Dwarf_Half *cu_pointer_size"
+.Fa "Dwarf_Half *cu_offset_size"
+.Fa "Dwarf_Half *cu_extension_size"
+.Fa "Dwarf_Sig8 *type_signature"
+.Fa "Dwarf_Unsigned *type_offset"
+.Fa "Dwarf_Unsigned *cu_next_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+These functions are used to step through compilation or type units
+associated with a DWARF debug context, optionally returning information
+about the unit.
+.Pp
+Function
+.Fn dwarf_next_cu_header_c
+is the API recommended for new application code.
+Function
+.Fn dwarf_next_cu_header
+and
+.Fn dwarf_next_cu_header_b
+can only operate on compilation units associated with the
+.Dq \&.debug_info
+section.
+They are less general than function
+.Fn dwarf_next_cu_header_c ,
+and are deprecated for use by new application code.
+.Pp
+Argument
+.Ar dbg
+should reference a DWARF debug context allocated using
+.Xr dwarf_init 3 .
+If argument
+.Ar is_info
+is set to 1,
+the function returns information for compilation units found in the
+.Dq \&.debug_info
+section.
+If argument
+.Ar is_info
+is set to 0,
+the function returns information for type units found in the
+.Dq \&.debug_types
+sections.
+Argument
+.Ar cu_length
+should point to a location that will be set to the
+length of the compilation or type unit.
+Argument
+.Ar cu_version
+should point to a location that will be set to the
+version number for the compilation or type unit.
+Argument
+.Ar cu_abbrev_offset
+should point to a location that will be set to the
+starting offset (in the
+.Dq .debug_abbrev
+section) of the set of debugging information entry abbreviations
+associated with this compilation or type unit.
+Argument
+.Ar cu_pointer_size
+should point to a location that will be set to the
+size in bytes of an address for the machine architecture of the
+underlying object being debugged.
+Argument
+.Ar cu_offset_size
+should point to a location that will be set to the
+size in bytes for a DWARF offset in the compilation or type unit.
+Argument
+.Ar cu_extension_size
+is only needed for processing MIPS/IRIX objects that use
+a non-standard DWARF format.
+It should point to a location that will be set to 4 for normal
+objects and to 0 for non-standard ones.
+Argument
+.Ar type_signature
+and
+.Ar type_offset
+is only needed for processing type units.
+Argument
+.Ar type_signature
+should point to a location that will be set to the 64-bit unique signature
+of the type described in the type unit.
+Argument
+.Ar type_offset
+should point to a location that will be set to the offset of the debugging
+information entry that describes the type.
+Argument
+.Ar cu_next_offset
+should point to a location that will be set to the
+offset of the next compilation unit header in the
+.Dq \&.debug_info
+section,
+or the offset of the next type unit header in the
+.Dq \&.debug_types
+section.
+Argument
+.Ar err
+should point to a location that will hold an error descriptor in case
+of an error.
+.Pp
+Function
+.Fn dwarf_next_cu_header_b
+is identical to function
+.Fn dwarf_next_cu_header_c
+except that it does not provide arguments
+.Ar is_info ,
+.Ar type_signature
+and
+.Ar type_offset .
+.Pp
+Function
+.Fn dwarf_next_cu_header
+is identical to function
+.Fn dwarf_next_cu_header_b
+except that it does not provide arguments
+.Ar cu_offset_size
+and
+.Ar cu_extension_size .
+.Pp
+A value of NULL may be used for any of the arguments
+.Ar cu_length ,
+.Ar cu_version ,
+.Ar cu_abbrev_offset ,
+.Ar cu_pointer_size ,
+.Ar cu_offset_size ,
+.Ar cu_extension_size ,
+.Ar type_signature ,
+.Ar type_offset ,
+.Ar cu_next_offset
+and
+.Ar err
+if the caller is not interested in the respective value.
+.Ss Iterating Through Compilation Units in a Debug Context
+The first call to function
+.Fn dwarf_next_cu_header_c
+for a given debug context with argument
+.Ar is_info
+set to 1 will return information about the first
+compilation unit in the
+.Dq \&.debug_info
+section.
+Subsequent calls to the function will iterate through the remaining
+compilation units in the section.
+On stepping past the last compilation unit in the section,
+function
+.Fn dwarf_next_cu_header_c
+returns
+.Dv DW_DLV_NO_ENTRY
+and resets its internal state.
+The next call to the function will restart from the first compilation
+unit in the section.
+.Ss Iterating Through Type Units in a Debug Context
+When a DWARF debug context is allocated using
+.Xr dwarf_init 3 ,
+an internal pointer associated with the context will point to the first
+.Dq \&.debug_types
+section found in the debug object.
+The first call to function
+.Fn dwarf_next_cu_header_c
+for the debug context with argument
+.Ar is_info
+set to 0 will return information about the first
+type unit in that
+.Dq \&.debug_types
+section.
+Subsequent calls to the function will iterate through the remaining
+type units in the section.
+On stepping past the last type unit in the debug context,
+function
+.Fn dwarf_next_cu_header_c
+returns
+.Dv DW_DLV_NO_ENTRY
+and resets its internal state.
+The next call to the function will restart from the first type
+unit in the
+.Dq \&.debug_types
+section.
+.Pp
+If the debug object contains multiple
+.Dq \&.debug_types
+sections, the function
+.Fn dwarf_next_types_section
+can be called to move the internal pointer to the next
+.Dq \&.debug_types
+section.
+As a result, subsequent calls of the function
+.Fn dwarf_next_cu_header_c
+will operate on the new
+.Dq \&.debug_types
+section.
+Function
+.Fn dwarf_next_types_section
+returns
+.Dv DW_DLV_NO_ENTRY
+when there are no more
+.Dq \&.debug_types
+sections left in the debug object.
+.Sh RETURN VALUES
+On success, these functions return
+.Dv DW_DLV_OK .
+In case of an error, they return
+.Dv DW_DLV_ERROR
+and set argument
+.Ar err .
+When there are no more compilation units left to traverse, they return
+.Dv DW_DLV_NO_ENTRY .
+.Sh ERRORS
+These functions can fail with the following error:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Va dbg
+was NULL.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_get_cu_die_offset_given_cu_header_offset 3 ,
+.Xr dwarf_init 3 ,
+.Xr dwarf_next_types_section 3 ,
+.Xr dwarf_siblingof 3

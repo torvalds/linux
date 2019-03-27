@@ -1,0 +1,114 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)expand.1	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd June 6, 2015
+.Dt EXPAND 1
+.Os
+.Sh NAME
+.Nm expand ,
+.Nm unexpand
+.Nd expand tabs to spaces, and vice versa
+.Sh SYNOPSIS
+.Nm
+.Oo
+.Fl t
+.Sm off
+.Ar tab1 , tab2 , ... , tabn
+.Sm on
+.Oc
+.Op Ar
+.Nm unexpand
+.Oo
+.Fl a | t
+.Sm off
+.Ar tab1 , tab2 , ... , tabn
+.Sm on
+.Oc
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility processes the named files or the standard input writing
+the standard output with tabs changed into blanks.
+Backspace characters are preserved into the output and decrement
+the column count for tab calculations.
+The
+.Nm
+utility is useful for pre-processing character files
+(before sorting, looking at specific columns, etc.) that
+contain tabs.
+.Pp
+The
+.Nm unexpand
+utility puts tabs back into the data from the standard input or the named
+files and writes the result on the standard output.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl a
+.Nm ( unexpand
+only.)
+By default, only leading blanks and tabs
+are reconverted to maximal strings of tabs.
+If the
+.Fl a
+option is given, then tabs are inserted whenever they would compress the
+resultant file by replacing two or more characters.
+.It Fl t \&Sm Ar tab1 , tab2 , ... , tabn \&Sm
+Set tab stops at column positions
+.Ar tab1 , tab2 , ... , tabn .
+If only a single number is given, tab stops are set that number of
+column positions apart instead of the default number of 8.
+.El
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+and
+.Nm unexpand
+as described in
+.Xr environ 7 .
+.Sh EXIT STATUS
+.Ex -std expand unexpand
+.Sh STANDARDS
+The
+.Nm
+and
+.Nm unexpand
+utilities conform to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 1 .

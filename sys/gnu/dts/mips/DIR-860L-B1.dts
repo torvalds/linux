@@ -1,0 +1,127 @@
+/dts-v1/;
+
+#include "mt7621.dtsi"
+
+/ {
+	compatible = "ralink,mt7621-eval-board", "ralink,mt7621-soc";
+	model = "D-Link DIR-860L B1";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,57600";
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		power {
+			label = "dir-860l-b1:orange:power";
+			gpios = <&gpio0 13 1>;
+		};
+
+		power2 {
+			label = "dir-860l-b1:green:power";
+			gpios = <&gpio0 15 1>;
+		};
+
+		net {
+			label = "dir-860l-b1:orange:net";
+			gpios = <&gpio0 14 1>;
+		};
+
+		net2 {
+			label = "dir-860l-b1:green:net";
+			gpios = <&gpio0 16 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x4000>;
+			read-only;
+		};
+
+		radio: partition@34000 {
+			label = "radio";
+			reg = <0x34000 0x4000>;
+			read-only;
+		};
+
+		factory: partition@38000 {
+			label = "factory";
+			reg = <0x38000 0x8000>;
+			read-only;
+		};
+
+		partition@40000 {
+			label = "defaults";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0xfb0000>;
+		};
+	};
+};
+
+&pcie {
+	status = "okay";
+
+	pcie0 {
+		mt76@0,0 {
+			reg = <0x0000 0 0 0 0>;
+			device_type = "pci";
+			mediatek,mtd-eeprom = <&radio 0x2000>;
+			mediatek,2ghz = <0>;
+		};
+	};
+
+	pcie1 {
+		mt76@1,0 {
+			reg = <0x0000 0 0 0 0>;
+			device_type = "pci";
+			mediatek,mtd-eeprom = <&radio 0>;
+			mediatek,5ghz = <0>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "uart2", "uart3", "rgmii2", "sdhci";
+			ralink,function = "gpio";
+		};
+	};
+};

@@ -1,0 +1,56 @@
+.\"
+.\" Copyright (c) 2004 Tim J. Robbins
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 30, 2004
+.Dt ISSPECIAL 3
+.Os
+.Sh NAME
+.Nm isspecial
+.Nd special character test
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In ctype.h
+.Ft int
+.Fn isspecial "int c"
+.Sh DESCRIPTION
+The
+.Fn isspecial
+function tests for a special character.
+.Sh RETURN VALUES
+The
+.Fn isspecial
+function returns zero if the character tests false and
+returns non-zero if the character tests true.
+.Sh SEE ALSO
+.Xr ctype 3 ,
+.Xr iswspecial 3
+.Sh HISTORY
+The
+.Fn isspecial
+function appeared in
+.Bx 4.4 .

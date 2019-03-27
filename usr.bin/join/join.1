@@ -1,0 +1,223 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)join.1	8.3 (Berkeley) 4/28/95
+.\" $FreeBSD$
+.\"
+.Dd July 5, 2004
+.Dt JOIN 1
+.Os
+.Sh NAME
+.Nm join
+.Nd relational database operator
+.Sh SYNOPSIS
+.Nm
+.Oo
+.Fl a Ar file_number | Fl v Ar file_number
+.Oc
+.Op Fl e Ar string
+.Op Fl o Ar list
+.Op Fl t Ar char
+.Op Fl 1 Ar field
+.Op Fl 2 Ar field
+.Ar file1
+.Ar file2
+.Sh DESCRIPTION
+The
+.Nm
+utility performs an
+.Dq equality join
+on the specified files
+and writes the result to the standard output.
+The
+.Dq join field
+is the field in each file by which the files are compared.
+The first field in each line is used by default.
+There is one line in the output for each pair of lines in
+.Ar file1
+and
+.Ar file2
+which have identical join fields.
+Each output line consists of the join field, the remaining fields from
+.Ar file1
+and then the remaining fields from
+.Ar file2 .
+.Pp
+The default field separators are tab and space characters.
+In this case, multiple tabs and spaces count as a single field separator,
+and leading tabs and spaces are ignored.
+The default output field separator is a single space character.
+.Pp
+Many of the options use file and field numbers.
+Both file numbers and field numbers are 1 based, i.e., the first file on
+the command line is file number 1 and the first field is field number 1.
+The following options are available:
+.Bl -tag -width indent
+.It Fl a Ar file_number
+In addition to the default output, produce a line for each unpairable
+line in file
+.Ar file_number .
+.It Fl e Ar string
+Replace empty output fields with
+.Ar string .
+.It Fl o Ar list
+The
+.Fl o
+option specifies the fields that will be output from each file for
+each line with matching join fields.
+Each element of
+.Ar list
+has either the form
+.Ar file_number . Ns Ar field ,
+where
+.Ar file_number
+is a file number and
+.Ar field
+is a field number, or the form
+.Ql 0
+.Pq zero ,
+representing the join field.
+The elements of list must be either comma
+.Pq Ql \&,
+or whitespace separated.
+(The latter requires quoting to protect it from the shell, or, a simpler
+approach is to use multiple
+.Fl o
+options.)
+.It Fl t Ar char
+Use character
+.Ar char
+as a field delimiter for both input and output.
+Every occurrence of
+.Ar char
+in a line is significant.
+.It Fl v Ar file_number
+Do not display the default output, but display a line for each unpairable
+line in file
+.Ar file_number .
+The options
+.Fl v Cm 1
+and
+.Fl v Cm 2
+may be specified at the same time.
+.It Fl 1 Ar field
+Join on the
+.Ar field Ns 'th
+field of
+.Ar file1 .
+.It Fl 2 Ar field
+Join on the
+.Ar field Ns 'th
+field of
+.Ar file2 .
+.El
+.Pp
+When the default field delimiter characters are used, the files to be joined
+should be ordered in the collating sequence of
+.Xr sort 1 ,
+using the
+.Fl b
+option, on the fields on which they are to be joined, otherwise
+.Nm
+may not report all field matches.
+When the field delimiter characters are specified by the
+.Fl t
+option, the collating sequence should be the same as
+.Xr sort 1
+without the
+.Fl b
+option.
+.Pp
+If one of the arguments
+.Ar file1
+or
+.Ar file2
+is
+.Sq Fl ,
+the standard input is used.
+.Sh EXIT STATUS
+.Ex -std
+.Sh COMPATIBILITY
+For compatibility with historic versions of
+.Nm ,
+the following options are available:
+.Bl -tag -width indent
+.It Fl a
+In addition to the default output, produce a line for each unpairable line
+in both
+.Ar file1
+and
+.Ar file2 .
+.It Fl j1 Ar field
+Join on the
+.Ar field Ns 'th
+field of
+.Ar file1 .
+.It Fl j2 Ar field
+Join on the
+.Ar field Ns 'th
+field of
+.Ar file2 .
+.It Fl j Ar field
+Join on the
+.Ar field Ns 'th
+field of both
+.Ar file1
+and
+.Ar file2 .
+.It Fl o Ar list ...
+Historical implementations of
+.Nm
+permitted multiple arguments to the
+.Fl o
+option.
+These arguments were of the form
+.Ar file_number . Ns Ar field_number
+as described
+for the current
+.Fl o
+option.
+This has obvious difficulties in the presence of files named
+.Pa 1.2 .
+.El
+.Pp
+These options are available only so historic shell scripts do not require
+modification and should not be used.
+.Sh SEE ALSO
+.Xr awk 1 ,
+.Xr comm 1 ,
+.Xr paste 1 ,
+.Xr sort 1 ,
+.Xr uniq 1
+.Sh STANDARDS
+The
+.Nm
+command conforms to
+.St -p1003.1-2001 .

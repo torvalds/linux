@@ -1,0 +1,79 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_REG_MR 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_reg_mr, ibv_dereg_mr \- register or deregister a memory region (MR)
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "struct ibv_mr *ibv_reg_mr(struct ibv_pd " "*pd" ", void " "*addr" ,
+.BI "                          size_t " "length" ", int " "access" );
+.sp
+.BI "int ibv_dereg_mr(struct ibv_mr " "*mr" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_reg_mr()
+registers a memory region (MR) associated with the protection domain
+.I pd\fR.
+The MR's starting address is
+.I addr
+and its size is
+.I length\fR.
+The argument
+.I access
+describes the desired memory protection attributes; it is either 0 or the bitwise OR of one or more of the following flags:
+.PP
+.TP
+.B IBV_ACCESS_LOCAL_WRITE \fR  Enable Local Write Access
+.TP
+.B IBV_ACCESS_REMOTE_WRITE \fR Enable Remote Write Access
+.TP
+.B IBV_ACCESS_REMOTE_READ\fR   Enable Remote Read Access
+.TP
+.B IBV_ACCESS_REMOTE_ATOMIC\fR Enable Remote Atomic Operation Access (if supported)
+.TP
+.B IBV_ACCESS_MW_BIND\fR       Enable Memory Window Binding
+.TP
+.B IBV_ACCESS_ON_DEMAND\fR    Create an on-demand paging MR
+.PP
+If
+.B IBV_ACCESS_REMOTE_WRITE
+or
+.B IBV_ACCESS_REMOTE_ATOMIC
+is set, then
+.B IBV_ACCESS_LOCAL_WRITE
+must be set too.
+.PP
+Local read access is always enabled for the MR.
+.PP
+.B ibv_dereg_mr()
+deregisters the MR
+.I mr\fR.
+.SH "RETURN VALUE"
+.B ibv_reg_mr()
+returns a pointer to the registered MR, or NULL if the request fails.
+The local key (\fBL_Key\fR) field
+.B lkey
+is used as the lkey field of struct ibv_sge when posting buffers with
+ibv_post_* verbs, and the the remote key (\fBR_Key\fR)
+field
+.B rkey
+is used by remote processes to perform Atomic and RDMA operations.  The remote process places this
+.B rkey
+as the rkey field of struct ibv_send_wr passed to the ibv_post_send function.
+.PP
+.B ibv_dereg_mr()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+.B ibv_dereg_mr()
+fails if any memory window is still bound to this MR.
+.SH "SEE ALSO"
+.BR ibv_alloc_pd (3),
+.BR ibv_post_send (3),
+.BR ibv_post_recv (3),
+.BR ibv_post_srq_recv (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

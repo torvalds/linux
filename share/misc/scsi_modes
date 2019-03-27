@@ -1,0 +1,494 @@
+# SCSI mode page data base.
+
+# Copyright (c) 1995 HD Associates
+# Copyright (c) 2001 The FreeBSD Project
+# (contact: dufault@hda.com)
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. The name of HD Associates
+#    may not be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY HD ASSOCIATES ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL HD ASSOCIATES BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+# The ordering is alphabetical by page name, as it appears in the SCSI spec.
+
+# 'i' is a byte-sized integral types, followed by a field width of 
+#  1 through 4 (1 to 4 bytes).
+#
+# 'b' is a bit-sized integral type
+# 't' is a bitfield type- followed by a bit field width
+#
+# 'c' values are character arrays
+# 'z' values are null-padded strings
+#
+#
+# '*' suppresses assignment (for 'seeking').
+# Bitfields are MSB to LSB.
+
+
+# ALL DEVICE TYPES
+
+0x0a,0x03 "Command Duration Limit A";
+
+0x0a,0x04 "Command Duration Limit B";
+
+0x0a "Control" {
+	{TST} t3
+	{TMF_ONLY} t1
+	{DPICZ} t1
+	{D_SENSE} t1
+	{GLTSD} t1
+	{RLEC} t1
+	{Queue Algorithm Modifier} t4
+	{NUAR} t1
+	{QErr} t2
+	{DQue} t1
+	{EECA} t1
+	{RAC} t1
+	{UA_INTLCK_CTRL} t2
+	{SWP} t1
+	{RAENP} t1
+	{UAAENP} t1
+	{EAENP} t1
+	{ATO} t1
+	{TAS} t1
+	{ATMPE} t1
+	{RWWP} t1
+	{SBLP (Supported Block Lengths and Protection)} t1
+	{Autoload Mode} t3
+	{Ready AEN Holdoff Period} i2
+	{Busy Timeout Period} i2
+	{Extended Self-Test Completion Time} i2
+}
+
+0x0a,0x01 "Control Extension" {
+	{Reserved} *t4
+	{DLC} t1
+	{TCMOS} t1
+	{SCSIP} t1
+	{IALUAE} t1
+	{Reserved} *t4
+	{Initial Command Priority} t4
+	{Maximum Sense Data Length} i1
+}
+
+0x02 "Disconnect-Reconnect" {
+	{Buffer Full Ratio} i1
+	{Buffer Empty Ratio} i1
+	{Bus Inactivity Limit} i2
+	{Disconnect Time Limit} i2
+	{Connect Time Limit} i2
+	{Maximum Burst Size} i2
+	{Reserved} *t6
+	{DTDC} t2
+	{Reserved} *i1
+	{Reserved} *i1
+	{Reserved} *i1
+}
+
+0x15 "Extended";
+
+0x16 "Extended Device-Type Specific";
+
+0x09 "Peripheral Device" {
+	{Interface Identifier} i2
+	{Reserved} *i1
+	{Reserved} *i1
+	{Reserved} *i1
+	{Reserved} *i1
+}
+
+0x1a "Power Condition" {
+	{PM_BG_PRECEDENCE} t1
+	{Reserved} *t6
+	{STANDBY_Y} t1
+	{Reserved} *t4
+	{IDLE_C} t1
+	{IDLE_B} t1
+	{IDLE_A} t1
+	{STANDBY_Z} t1
+	{IDLE_A Condition Timer} i4
+	{STANDBY_Z Condition Timer} i4
+	{IDLE_B Condition Timer} i4
+	{IDLE_C Condition Timer} i4
+	{STANDBY_Y Condition Timer} i4
+	{Reserved} *i4
+	{Reserved} *i4
+	{Reserved} *i4
+	{Reserved} *i3
+	{CCF Idle} t2
+	{CCF Standby} t2
+	{CCF Stopped} t2
+	{Reserved} *t2
+}
+
+0x1a,0x01 "Power Consumption" {
+	{Reserved} *i2
+	{Reserved} *t6
+	{Active Level} t2
+	{Power Consumption Identifier} i1
+	{Reserved} *i4
+	{Reserved} *i4
+}
+
+0x18 "Protocol-Specific Logical Unit";
+
+0x19 "Protocol-Specific Port";
+
+# DIRECT ACCESS DEVICES
+
+0x0a,0x02 "Application Tag";
+
+0x1a,0xf1 "ATA Power Condition";
+
+0x1c,0x01 "Background Control" {
+	{Reserved} *t5
+	{S_L_FULL} *t1
+	{LOWIR} *t1
+	{EN_BMS} *t1
+	{Reserved} *t7
+	{EN_PS} *t1
+	{Background Medium Scan Interval Time} i2
+	{Background Pre-Scan Time Limit} i2
+	{Minimum Idle Time Before Background Scan} i2
+	{Maximum Time To Suspend Background Scan} i2
+	{Reserved} *i2
+}
+
+0x0a,0x06 "Background Operation Control" {
+	{BO_MODE} t2
+	{Reserved} *t6
+}
+
+0x08 "Caching" {
+	{IC} t1
+	{ABPF} t1
+	{CAP} t1
+	{DISC} t1
+	{SIZE} t1
+	{WCE} t1
+	{MF} t1
+	{RCD} t1
+	{Demand Retention Priority} t4
+	{Write Retention Priority} t4
+	{Disable Pre-fetch Transfer Length} i2
+	{Minimum Pre-fetch} i2
+	{Maximum Pre-fetch} i2
+	{Maximum Pre-fetch Ceiling} i2
+	{FSW (Force Sequential Write)} t1
+	{LBCSS (Logical Block Cache Segment Size)} t1
+	{DRA (Disable Read-Ahead)} t1
+	{Vendor Specific} t2
+	{SYNC_PROG} t1
+	{NV_DIS} t1
+	{Number of Cache Segments} i1
+	{Cache Segment Size} i2
+	{Reserved} *t4
+}
+
+0x05 "Flexible Disk" {
+	{Transfer rate} i2
+	{Number of heads} i1
+	{Sectors per track} i1
+	{Data bytes per sector} i2
+	{Number of cylinders} i2
+	{Starting cylinder-write precompensation} i2
+	{Starting cylinder-reduced write current} i2
+	{Drive step rate} i2
+	{Drive step pulse width} i1
+	{Head settle delay} i2
+	{Motor on delay} i1
+	{Motor off delay} i1
+	{TRDY} t1
+	{SSN} t1
+	{MO} t1
+	{Reserved} *t5
+	{Reserved} *t4
+	{SPC} t4
+	{Write Compensation} i1
+	{Head load delay} i1
+	{Head unload delay} i1
+	{Pin 34} t4
+	{Pin 2} t4
+	{Pin 4} t4
+	{Pin 1} t4
+	{Medium rotation rate} i2
+	{Reserved} *i1
+	{Reserved} *i1
+}
+
+0x03 "Format Device" {
+	{Tracks per Zone} i2
+	{Alternate Sectors per Zone} i2
+	{Alternate Tracks per Zone} i2
+	{Alternate Tracks per Logical Unit} i2
+	{Sectors per Track} i2
+	{Data Bytes per Physical Sector} i2
+	{Interleave} i2
+	{Track Skew Factor} i2
+	{Cylinder Skew Factor} i2
+	{SSEC} t1
+	{HSEC} t1
+	{RMB} t1
+	{SURF} t1
+	{Reserved} *t4
+}
+
+0x0a,0x05 "I/O Advice Hints Grouping";
+
+0x1c "Informational Exceptions Control" {
+	{PERF} t1
+	{Reserved} *t1
+	{EBF} t1
+	{EWasc} t1
+	{DExcpt} t1
+	{TEST} t1
+	{EBACKERR} t1
+	{LogErr} t1
+	{Reserved} *t4
+	{MRIE} t4
+	{Interval Timer} i4
+	{Report Count} i4
+}
+
+0x1c,0x02 "Logical Block Provisioning" {
+	{Reserved} *t7
+	{SITUA} t1
+	{Reserved} *i1
+	{Reserved} *i1
+	{Reserved} *i1
+	{Reserved} *i4
+	{Reserved} *i4
+}
+
+0x0b "Medium Types Supported" {
+	{Reserved} *i1
+	{Reserved} *i1
+	{Medium type one supported} i1
+	{Medium type two supported} i1
+	{Medium type three supported} i1
+	{Medium type four supported} i1
+}
+
+0x0c "Notch and Partition";
+
+0x0a,0xf1 "PATA Control";
+
+0x01 "Read-Write Error Recovery" {
+	{AWRE (Auto Write Reallocation Enbld)} t1
+	{ARRE (Auto Read Reallocation Enbld)} t1
+	{TB (Transfer Block)} t1
+	{RC (Read Continuous)} t1
+	{EER (Enable Early Recovery)} t1
+	{PER (Post Error)} t1
+	{DTE (Disable Transfer on Error)} t1
+	{DCR (Disable Correction)} t1
+	{Read Retry Count} i1
+	{Correction Span} i1
+	{Head Offset Count} i1
+	{Data Strobe Offset Count} i1
+	{LBPERE (LBP Error Reporting Enabled)} t1
+	{MWR (Misaligned Write Reporting)} t2
+	{Reserved} *t5
+	{Write Retry Count} i1
+	{Reserved} *i1
+	{Recovery Time Limit} i2
+}
+
+0x04 "Rigid Disk Drive Geometry" {
+	{Number of Cylinders} i3
+	{Number of Heads} i1
+	{Starting Cylinder-Write Precompensation} i3
+	{Starting Cylinder-Reduced Write Current} i3
+	{Drive Step Rate} i2
+	{Landing Zone Cylinder} i3
+	{Reserved} *t6
+	{RPL} t2
+	{Rotational Offset} i1
+	{Reserved} *i1
+	{Medium Rotation Rate} i2
+	{Reserved} *i1
+	{Reserved} *i1
+}
+
+0x07 "Verify Error Recovery" {
+	{Reserved} *t4
+	{EER} t1
+	{PER} t1
+	{DTE} t1
+	{DCR} t1
+	{Verify Retry Count} i1
+	{Verify Correction Span} i1
+	{Reserved} *i1
+	{Reserved} *i1
+	{Reserved} *i1
+	{Reserved} *i1
+	{Reserved} *i1
+	{Verify Recovery Time Limit} i2
+}
+
+0x0E "CD-ROM Audio Control Parameters" {
+	{Reserved} *t5
+	{Immed} t1
+	{SOTC} t1
+	{Reserved} *t1
+	{Reserved} *i2
+	{APRVal} t1
+	{Reserved} *t3
+	{Format of LBAs / sec.} t4
+	{Logical Blocks per Second of Audio Playback} i2
+	{Reserved} *t4
+	{Output Port 0 Channel Selection} t4
+	{Output Port 0 Volume} i1
+	{Reserved} *t4
+	{Output Port 1 Channel Selection} t4
+	{Output Port 1 Volume} i1
+	{Reserved} *t4
+	{Output Port 2 Channel Selection} t4
+	{Output Port 2 Volume} i1
+	{Reserved} *t4
+	{Output Port 3 Channel Selection} t4
+	{Output Port 3 Volume} i1
+}
+
+# SEQUENTIAL ACCESS DEVICES
+0x10 "Device Configuration" {
+	{Reserved} *t1
+	{Change Active Partition} t1
+	{Change Active Format} t1
+	{Active Format} t5
+	{Active Partition} i1
+	{Write Buffer Full Ratio} i1
+	{Write Buffer Empty Ratio} i1
+	{Write Delay Time} i2
+	{Data Buffer Recovery} t1
+	{Block Identifiers Support} t1
+	{Report Setmarks} t1
+	{Automatic Velocity Control} t1
+	{Stop on Consecutive Filemarks} t2
+	{Recover Buffer Order} t1
+	{Report Early-Warning} t1
+	{Gap Size} i1
+	{EOD Defined} t3
+	{Enable EOD Generation} t1
+	{Synchronize at Early-Warning} t1
+	{Reserved} *t3
+	{Buffer Size at Early-Warning} i3
+	{Select Data Compression Algorithm} i1
+	{Reserved} *t5
+	{SCSI-3 Associated Write Protect} t1
+	{SCSI-3 Persistent Write Protect} t1
+	{SCSI-3 Permanent Write Protect} t1
+}
+
+0x0f "Data Compression" {
+	{Data Compression Enabled} t1
+	{Date Compression Capable} t1
+	{Reserved} *t6
+	{Data Decompression Capable} t1
+	{Data Decompression Report on Exception} t2
+	{Reserved} *t5
+	{Compression Algorithm} i4
+	{Decompression Algorithm} i4
+	{Reserved} *i4
+}
+
+# Removable devices
+0x1b "Removable Block Access Capacities" {
+	{System Floppy Type Device} t1
+	{Supports Reporting Format Progress} t1
+	{Reserved} *t6
+	{Non CD Optical Device} t1
+	{Single or Multiple LUN Supported} t1
+	{Reserved} *t3
+	{Total Logical Units Supported} t3
+	{Reserved} *i8
+}
+
+# CD-ROM (and CD-R[W]) devices
+0x2a "CD capabilities and mechanical status" {
+	{Reserved} *t4
+	{Method 2} t1
+	{CD-RW Read} t1
+	{CD-R Read} t1
+	{Reserved} *t4
+	{Test Write} t1
+	{CD-RW Write} t1
+	{CD-R Write} t1
+	{Reserved} *t1
+	{Multi Session} t1
+	{Mode 2 Form 2} t1
+	{Mode 2 Form 1} t1
+	{Digital Port (2)} t1
+	{Digital Port (1)} t1
+	{Composite} t1
+	{Audio Play} t1
+	{Read Bar Code} t1
+	{UPC} t1
+	{ISRC} t1
+	{C2 Pointers are supported} t1
+	{R-W De-interleaved & corrected} t1
+	{R-W Supported} t1
+	{CD-DA Stream is Accurate} t1
+	{CD-DA Commands Supported} t1
+	{Loading Mechanism Type} t3
+	{Reserved} *t1
+	{Eject} t1
+	{Prevent Jumper} t1
+	{Lock State} t1
+	{Lock} t1
+	{Reserved} *t4
+	{S/W Slot Selection} t1
+	{Changer Supports Disc Present reporting} t1
+	{Separate Channel Mute Supported} t1
+	{Separate volume levels per channel} t1
+	{Maximum Read Speed Supported (kBps)} i2
+	{Number of Volume Leves Supported} i2
+	{Buffer Size supported by Drive (KB)} i2
+	{Current Read Speed Selected (kBps)} i2
+	{Reserved} *i1
+	{Reserved} *t2
+	{Length} t2
+	{LSBF} t1
+	{RCK} t1
+	{BCK} t1
+	{Reserved} *t1
+	{Maximum Write Speed Supported (kBps)} i2
+	{Current Write Speed Supported (kBps)} i2
+};
+
+0x1d "Timeout and Protect" {
+	{Reserved} *i2
+	{Reserved} *t4
+	{G3Enable} t1
+	{TMOE} t1
+	{DISP} t1
+	{SWPP} t1
+	{Reserved} *i1
+	{Group 1 Minimum Timeout} i2
+	{Group 2 Minimum Timeout} i2
+	{Group 3 Timeout} i2
+};
+
+0x00 "Vendor-Specific";

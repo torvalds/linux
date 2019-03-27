@@ -1,0 +1,197 @@
+What's LRS?
+===========
+
+LRS, or Live Range Splitting is an optimization technique which allows
+a user variable to reside in different locations during different parts
+of a function.
+
+For example, a variable might reside in the stack for part of a function
+and in a register during a loop and in a different register during
+another loop.
+
+Clearly, if a variable may reside in different locations, then the
+compiler must describe to the debugger where the variable resides for
+any given part of the function.
+
+This document describes the debug format for encoding these extensions
+in stabs.
+
+Since these extensions are gcc specific, these additional symbols and
+stabs can be disabled by the gcc command option -gstabs.
+
+
+GNU extensions for LRS under stabs:
+===================================
+
+
+range symbols:
+-------------
+
+    A range symbol will be used to mark the beginning or end of a
+    live range (the range which describes where a symbol is active,
+    or live).  These symbols will later be referenced in the stabs for
+    debug purposes.  For simplicity, we'll use the terms "range_start"
+    and "range_end" to identify the range symbols which mark the beginning
+    and end of a live range respectively.
+
+    Any text symbol which would normally appear in the symbol table
+    (eg. a function name) can be used as range symbol.  If an address
+    is needed to delimit a live range and does not match any of the
+    values of symbols which would normally appear in the symbol table,
+    a new symbol will be added to the table whose value is that address.
+
+    The three new symbol types described below have been added for this 
+    purpose.
+
+    For efficiency, the compiler should use existing symbols as range
+    symbols whenever possible; this reduces the number of additional
+    symbols which need to be added to the symbol table.
+
+    
+New debug symbol type for defining ranges:
+------------------------------------------
+
+    range_off - contains PC function offset for start/end of a live range.
+		Its location is relative to the function start and therefore 
+		eliminates the need for additional relocation.
+
+    This symbol has a values in the text section, and does not have a name.
+
+	    NOTE: the following may not be needed but are included here just 
+		in case.
+	    range - contains PC value of beginning or end of a live range
+		(relocs required).
+
+	    NOTE: the following will be required if we desire LRS debugging
+		to work with old style a.out stabs.
+	    range_abs - contains absolute PC value of start/end of a live 
+		range.  The range_abs debug symbol is provided for 
+		completeness, in case there is a need to describe addresses 
+		in ROM, etc.
+
+
+Live range:
+-----------
+
+    The compiler and debugger view a variable with multiple homes as
+    a primary symbol and aliases for that symbol.  The primary symbol
+    describes the default home of the variable while aliases describe
+    alternate homes for the variable.
+
+    A live range defines the interval of instructions beginning with
+    range_start and ending at range_end-1, and is used to specify a
+    range of instructions where an alias is active or "live".  So,
+    the actual end of the range will be one less than the value of the
+    range_end symbol.
+
+    Ranges do not have to be nested. Eg. Two ranges may intersect while 
+        each range contains subranges which are not in the other range.
+
+    There does not have to be a 1-1 mapping from range_start to
+        range_end symbols.  Eg. Two range_starts can share the same 
+        range_end, while one symbol's range_start can be another symbol's
+        range_end.
+
+    When a variable's storage class changes (eg. from stack to register,
+	or from one register to another), a new symbol entry will be
+	added to the symbol table with stabs describing the new type,
+	and appropriate live ranges refering to the variable's initial
+	symbol index.
+
+    For variables which are defined in the source but optimized away,
+        a symbol should be emitted with the live range l(0,0).
+
+    Live ranges for aliases of a particular variable should always
+	be disjoint.  Overlapping ranges for aliases of the same variable
+	will be treated as an error by the debugger, and the overlapping
+	range will be ignored.
+
+    If no live range information is given, the live range will be assumed to 
+	span the symbol's entire lexical scope.
+
+
+New stabs string identifiers:
+-----------------------------
+
+  "id" in "#id" in the following section refers to a numeric value.
+
+  New stab syntax for live range:  l(<ref_from>,<ref_to>) 
+
+    <ref_from> - "#id" where #id identifies the text symbol (range symbol) to
+		use as the start of live range (range_start).  The value for 
+		the referenced text symbol is the starting address of the 
+		live range.
+
+    <ref_to> - "#id" where #id identifies the text symbol (range symbol) to
+		use as the end of live range (range_end).  The value for 
+		the referenced text symbol is ONE BYTE PAST the ending 
+		address of the live range.
+
+
+  New stab syntax for identifying symbols.
+
+    <def> - "#id="
+
+	    Uses:
+	      <def><name>:<typedef1>...
+		  When used in front of a symbol name, "#id=" defines a
+		  unique reference number for this symbol.  The reference
+		  number can be used later when defining aliases for this
+		  symbol.
+	      <def>
+		  When used as the entire stab string, "#id=" identifies this 
+		  nameless symbol as being the symbol for which "#id" refers to.
+
+
+    <ref> - "#id" where "#id" refers to the symbol for which the string 
+		"#id=" identifies.
+	    Uses:
+	      <ref>:<typedef2>;<liverange>;<liverange>...
+		  Defines an alias for the symbol identified by the reference
+		  number ID.
+	      l(<ref1>,<ref2>)
+		  When used within a live range, "#id" refers to the text 
+		  symbol identified by "#id=" to use as the range symbol.
+
+    <liverange> - "l(<ref_from>,<ref_to>)" - specifies a live range for a 
+		symbol.  Multiple "l" specifiers can be combined to represent 
+		mutiple live ranges, separated by semicolons.
+
+
+
+
+Example:
+========
+
+Consider a program of the form:
+
+    void foo(){
+      int a = ...;
+      ...
+      while (b--)
+       c += a;
+      ..
+      d = a;
+      ..
+    }
+
+Assume that "a" lives in the stack at offset -8, except for inside the
+loop where "a" resides in register "r5".
+
+The way to describe this is to create a stab for the variable "a" which
+describes "a" as living in the stack and an alias for the variable "a"
+which describes it as living in register "r5" in the loop.
+
+Let's assume that "#1" and "#2" are symbols which bound the area where
+"a" lives in a register.
+
+The stabs to describe "a" and its alias would look like this:
+
+        .stabs "#3=a:1",128,0,8,-8
+        .stabs "#3:r1;l(#1,#2)",64,0,0,5
+
+
+This design implies that the debugger will keep a chain of aliases for
+any given variable with aliases and that chain will be searched first
+to find out if an alias is active.  If no alias is active, then the
+debugger will assume that the main variable is active.

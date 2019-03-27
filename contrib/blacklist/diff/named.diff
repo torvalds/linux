@@ -1,0 +1,216 @@
+--- /dev/null	2015-01-22 01:48:00.000000000 -0500
++++ dist/bin/named/pfilter.c	2015-01-22 01:35:16.000000000 -0500
+@@ -0,0 +1,42 @@
++#include <config.h>
++
++#include <isc/platform.h>
++#include <isc/util.h>
++#include <named/types.h>
++#include <named/client.h>
++
++#include <blacklist.h>
++
++#include "pfilter.h"
++
++static struct blacklist *blstate;
++
++void
++pfilter_open(void)
++{
++	if (blstate == NULL)
++		blstate = blacklist_open();
++}
++
++#define TCP_CLIENT(c)  (((c)->attributes & NS_CLIENTATTR_TCP) != 0)
++
++void
++pfilter_notify(isc_result_t res, ns_client_t *client, const char *msg)
++{
++	isc_socket_t *socket;
++
++	pfilter_open();
++
++	if (TCP_CLIENT(client))
++		socket = client->tcpsocket;
++	else {
++		socket = client->udpsocket;
++		if (!client->peeraddr_valid)
++			return;
++	}
++	if (socket == NULL)
++		return;
++	blacklist_sa_r(blstate, 
++	    res != ISC_R_SUCCESS, isc_socket_getfd(socket),
++	    &client->peeraddr.type.sa, client->peeraddr.length, msg);
++}
+--- /dev/null	2015-01-22 01:48:00.000000000 -0500
++++ dist/bin/named/pfilter.h	2015-01-22 01:16:56.000000000 -0500
+@@ -0,0 +1,2 @@
++void pfilter_open(void);
++void pfilter_notify(isc_result_t, ns_client_t *, const char *);
+Index: bin/named/Makefile
+===================================================================
+RCS file: /cvsroot/src/external/bsd/bind/bin/named/Makefile,v
+retrieving revision 1.8
+diff -u -u -r1.8 Makefile
+--- bin/named/Makefile	31 Dec 2013 20:23:12 -0000	1.8
++++ bin/named/Makefile	23 Jan 2015 21:37:09 -0000
+@@ -33,7 +33,9 @@
+ 	lwaddr.c lwdclient.c lwderror.c \
+ 	lwdgabn.c lwdgnba.c lwdgrbn.c lwdnoop.c lwresd.c lwsearch.c \
+ 	main.c notify.c query.c server.c sortlist.c statschannel.c \
+-	tkeyconf.c tsigconf.c \
++	pfilter.c tkeyconf.c tsigconf.c \
+ 	update.c xfrout.c zoneconf.c ${SRCS_UNIX}
+ 
++LDADD+=-lblacklist
++DPADD+=${LIBBLACKLIST}
+ .include <bsd.prog.mk>
+Index: dist/bin/named/client.c
+===================================================================
+RCS file: /cvsroot/src/external/bsd/bind/dist/bin/named/client.c,v
+retrieving revision 1.11
+diff -u -u -r1.11 client.c
+--- dist/bin/named/client.c	10 Dec 2014 04:37:51 -0000	1.11
++++ dist/bin/named/client.c	23 Jan 2015 21:37:09 -0000
+@@ -65,6 +65,8 @@
+ #include <named/server.h>
+ #include <named/update.h>
+ 
++#include "pfilter.h"
++
+ /***
+  *** Client
+  ***/
+@@ -3101,6 +3103,7 @@
+ 	result = ns_client_checkaclsilent(client, sockaddr ? &netaddr : NULL,
+ 					  acl, default_allow);
+ 
++	pfilter_notify(result, client, opname);
+ 	if (result == ISC_R_SUCCESS)
+ 		ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
+ 			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(3),
+Index: dist/bin/named/main.c
+===================================================================
+RCS file: /cvsroot/src/external/bsd/bind/dist/bin/named/main.c,v
+retrieving revision 1.15
+diff -u -u -r1.15 main.c
+--- dist/bin/named/main.c	10 Dec 2014 04:37:51 -0000	1.15
++++ dist/bin/named/main.c	23 Jan 2015 21:37:09 -0000
+@@ -83,6 +83,9 @@
+ #ifdef HAVE_LIBXML2
+ #include <libxml/xmlversion.h>
+ #endif
++
++#include "pfilter.h"
++
+ /*
+  * Include header files for database drivers here.
+  */
+@@ -1206,6 +1209,8 @@
+ 
+ 	parse_command_line(argc, argv);
+ 
++	pfilter_open();
++
+ 	/*
+ 	 * Warn about common configuration error.
+ 	 */
+Index: dist/bin/named/query.c
+===================================================================
+RCS file: /cvsroot/src/external/bsd/bind/dist/bin/named/query.c,v
+retrieving revision 1.17
+diff -u -u -r1.17 query.c
+--- dist/bin/named/query.c	10 Dec 2014 04:37:52 -0000	1.17
++++ dist/bin/named/query.c	23 Jan 2015 21:37:09 -0000
+@@ -65,6 +65,8 @@
+ #include <named/sortlist.h>
+ #include <named/xfrout.h>
+ 
++#include "pfilter.h"
++
+ #if 0
+ /*
+  * It has been recommended that DNS64 be changed to return excluded
+@@ -762,6 +764,8 @@
+ 	}
+ 
+ 	result = ns_client_checkaclsilent(client, NULL, queryacl, ISC_TRUE);
++	if (result != ISC_R_SUCCESS)
++		pfilter_notify(result, client, "validatezonedb");
+ 	if ((options & DNS_GETDB_NOLOG) == 0) {
+ 		char msg[NS_CLIENT_ACLMSGSIZE("query")];
+ 		if (result == ISC_R_SUCCESS) {
+@@ -1026,6 +1030,8 @@
+ 		result = ns_client_checkaclsilent(client, NULL,
+ 						  client->view->cacheacl,
+ 						  ISC_TRUE);
++		if (result == ISC_R_SUCCESS)
++			pfilter_notify(result, client, "cachedb");
+ 		if (result == ISC_R_SUCCESS) {
+ 			/*
+ 			 * We were allowed by the "allow-query-cache" ACL.
+Index: dist/bin/named/update.c
+===================================================================
+RCS file: /cvsroot/src/external/bsd/bind/dist/bin/named/update.c,v
+retrieving revision 1.9
+diff -u -u -r1.9 update.c
+--- dist/bin/named/update.c	10 Dec 2014 04:37:52 -0000	1.9
++++ dist/bin/named/update.c	23 Jan 2015 21:37:09 -0000
+@@ -59,6 +59,8 @@
+ #include <named/server.h>
+ #include <named/update.h>
+ 
++#include "pfilter.h"
++
+ /*! \file
+  * \brief
+  * This module implements dynamic update as in RFC2136.
+@@ -307,6 +309,7 @@
+ 
+ 	result = ns_client_checkaclsilent(client, NULL, queryacl, ISC_TRUE);
+ 	if (result != ISC_R_SUCCESS) {
++		pfilter_notify(result, client, "queryacl");
+ 		dns_name_format(zonename, namebuf, sizeof(namebuf));
+ 		dns_rdataclass_format(client->view->rdclass, classbuf,
+ 				      sizeof(classbuf));
+@@ -324,6 +327,7 @@
+ 				      sizeof(classbuf));
+ 
+ 		result = DNS_R_REFUSED;
++		pfilter_notify(result, client, "updateacl");
+ 		ns_client_log(client, NS_LOGCATEGORY_UPDATE_SECURITY,
+ 			      NS_LOGMODULE_UPDATE, ISC_LOG_INFO,
+ 			      "update '%s/%s' denied", namebuf, classbuf);
+@@ -362,6 +366,7 @@
+ 		msg = "disabled";
+ 	} else {
+ 		result = ns_client_checkaclsilent(client, NULL, acl, ISC_FALSE);
++		pfilter_notify(result, client, "updateacl");
+ 		if (result == ISC_R_SUCCESS) {
+ 			level = ISC_LOG_DEBUG(3);
+ 			msg = "approved";
+Index: dist/bin/named/xfrout.c
+===================================================================
+RCS file: /cvsroot/src/external/bsd/bind/dist/bin/named/xfrout.c,v
+retrieving revision 1.7
+diff -u -u -r1.7 xfrout.c
+--- dist/bin/named/xfrout.c	10 Dec 2014 04:37:52 -0000	1.7
++++ dist/bin/named/xfrout.c	23 Jan 2015 21:37:09 -0000
+@@ -54,6 +54,8 @@
+ #include <named/server.h>
+ #include <named/xfrout.h>
+ 
++#include "pfilter.h"
++
+ /*! \file
+  * \brief
+  * Outgoing AXFR and IXFR.
+@@ -822,6 +824,7 @@
+ 						     &client->peeraddr,
+ 						     &db);
+ 
++			pfilter_notify(result, client, "zonexfr");
+ 			if (result == ISC_R_NOPERM) {
+ 				char _buf1[DNS_NAME_FORMATSIZE];
+ 				char _buf2[DNS_RDATACLASS_FORMATSIZE];

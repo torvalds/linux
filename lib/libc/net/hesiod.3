@@ -1,0 +1,176 @@
+.\"	$NetBSD: hesiod.3,v 1.1 1999/01/25 03:43:04 lukem Exp $
+.\"
+.\" from: #Id: hesiod.3,v 1.9.2.1 1997/01/03 21:02:23 ghudson Exp #
+.\"
+.\" Copyright 1988, 1996 by the Massachusetts Institute of Technology.
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 30, 1996
+.Dt HESIOD 3
+.Os
+.Sh NAME
+.Nm hesiod ,
+.Nm hesiod_init ,
+.Nm hesiod_resolve ,
+.Nm hesiod_free_list ,
+.Nm hesiod_to_bind ,
+.Nm hesiod_end
+.Nd Hesiod name server interface library
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In hesiod.h
+.Ft int
+.Fn hesiod_init "void **context"
+.Ft char **
+.Fn hesiod_resolve "void *context" "const char *name" "const char *type"
+.Ft void
+.Fn hesiod_free_list "void *context" "char **list"
+.Ft char *
+.Fn hesiod_to_bind "void *context" "const char *name" "const char *type"
+.Ft void
+.Fn hesiod_end "void *context"
+.Sh DESCRIPTION
+This family of functions allows you to perform lookups of Hesiod
+information, which is stored as text records in the Domain Name
+Service.
+To perform lookups, you must first initialize a
+.Fa context ,
+an opaque object which stores information used internally by the
+library between calls.
+The
+.Fn hesiod_init
+function
+initializes a context, storing a pointer to the context in the
+location pointed to by the
+.Fa context
+argument.
+The
+.Fn hesiod_end
+function
+frees the resources used by a context.
+.Pp
+The
+.Fn hesiod_resolve
+function
+is the primary interface to the library.
+If successful, it returns a
+list of one or more strings giving the records matching
+.Fa name
+and
+.Fa type .
+The last element of the list is followed by a
+.Dv NULL
+pointer.
+It is the
+caller's responsibility to call
+.Fn hesiod_free_list
+to free the resources used by the returned list.
+.Pp
+The
+.Fn hesiod_to_bind
+function
+converts
+.Fa name
+and
+.Fa type
+into the DNS name used by
+.Fn hesiod_resolve .
+It is the caller's responsibility to free the returned string using
+.Fn free .
+.Sh RETURN VALUES
+.Rv -std hesiod_init
+On failure,
+.Fn hesiod_resolve
+and
+.Fn hesiod_to_bind
+return
+.Dv NULL
+and set the global variable
+.Va errno
+to indicate the error.
+.Sh ENVIRONMENT
+.Bl -tag -width HESIOD_CONFIG
+.It Ev HES_DOMAIN
+If the environment variable
+.Ev HES_DOMAIN
+is set, it will override the domain in the Hesiod configuration file.
+.It Ev HESIOD_CONFIG
+If the environment variable
+.Ev HESIOD_CONFIG
+is set, it specifies the location of the Hesiod configuration file.
+.El
+.Sh ERRORS
+Hesiod calls may fail because of:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient memory was available to carry out the requested
+operation.
+.It Bq Er ENOEXEC
+The
+.Fn hesiod_init
+function
+failed because the Hesiod configuration file was invalid.
+.It Bq Er ECONNREFUSED
+The
+.Fn hesiod_resolve
+function
+failed because no name server could be contacted to answer the query.
+.It Bq Er EMSGSIZE
+The
+.Fn hesiod_resolve
+or
+.Fn hesiod_to_bind
+function
+failed because the query or response was too big to fit into the
+packet buffers.
+.It Bq Er ENOENT
+The
+.Fn hesiod_resolve
+function
+failed because the name server had no text records matching
+.Fa name
+and
+.Fa type ,
+or
+.Fn hesiod_to_bind
+failed because the
+.Fa name
+argument had a domain extension which could not be resolved with type
+.Dq rhs\-extension
+in the local Hesiod domain.
+.El
+.Sh SEE ALSO
+.Xr hesiod.conf 5 ,
+.Xr named 8
+.Rs
+.%T "Hesiod - Project Athena Technical Plan -- Name Service"
+.Re
+.Sh AUTHORS
+.An Steve Dyer ,
+IBM/Project Athena
+.An Greg Hudson ,
+MIT Team Athena
+.Pp
+Copyright 1987, 1988, 1995, 1996 by the Massachusetts Institute of Technology.
+.Sh BUGS
+The strings corresponding to the
+.Va errno
+values set by the Hesiod functions are not particularly indicative of
+what went wrong, especially for
+.Er ENOEXEC
+and
+.Er ENOENT .

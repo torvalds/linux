@@ -1,0 +1,86 @@
+/*
+ * $FreeBSD$
+ */
+
+/*
+ * This only needs to contain symbols that are not listed in
+ * symbol maps from other parts of libc (i.e., not found in
+ * stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...).
+ */
+FBSD_1.0 {
+	/* PSEUDO syscalls */
+	_exit;
+
+	_mcount;
+	_setjmp;
+	_longjmp;
+	fabs;
+	__flt_rounds;
+	fpgetmask;
+	fpgetround;
+	fpgetsticky;
+	fpsetmask;
+	fpsetround;
+	__infinity;
+	__nan;
+	makecontext;
+	setjmp;
+	longjmp;
+	sigsetjmp;
+	siglongjmp;
+	htonl;
+	htons;
+	ntohl;
+	ntohs;
+	brk;
+	sbrk;
+	vfork;
+
+	/* SCD libc 64 psABI */
+	_Qp_sqrt;
+	_Qp_add;
+	_Qp_div;
+	_Qp_mul;
+	_Qp_sub;
+	_Qp_dtoq;
+	_Qp_itoq;
+	_Qp_stoq;
+	_Qp_xtoq;
+	_Qp_uitoq;
+	_Qp_uxtoq;
+	_Qp_qtod;
+	_Qp_qtoi;
+	_Qp_qtos;
+	_Qp_qtox;
+	_Qp_qtoui;
+	_Qp_qtoux;
+	_Qp_feq;
+	_Qp_fge;
+	_Qp_fgt;
+	_Qp_fle;
+	_Qp_flt;
+	_Qp_fne;
+	_Qp_cmp;
+	_Qp_cmpe;
+	__dtoul;
+	__sparc_utrap_install;
+};
+
+FBSDprivate_1.0 {
+	/* PSEUDO syscalls */
+	_getlogin;
+
+	_set_tp;
+	___longjmp;
+	__makecontext;
+	__longjmp;
+	signalcontext;
+	__signalcontext;
+	__siglongjmp;
+	_brk;
+	_sbrk;
+	_vfork;
+
+	/* used in src/lib/csu/sparc64/crt1.c */
+	__sparc_utrap_setup;
+};

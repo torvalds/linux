@@ -1,0 +1,11 @@
+/* $FreeBSD$ */
+/* Merge text, data and bss together almost no padding */
+OUTPUT_FORMAT("elf32-i386-freebsd")
+OUTPUT_ARCH(i386)
+ENTRY(_start)
+SECTIONS {
+  . = 0x08048000 + SIZEOF_HEADERS;
+  .text : { *(.text) } =0x90909090	/* Pad with nops, if needed */
+  .data : { *(.data) } _edata = .;
+  .bss  : { *(.bss) }  _end = .;
+}

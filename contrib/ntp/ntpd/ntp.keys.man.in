@@ -1,0 +1,189 @@
+.TH ntp.keys 5 "20 Feb 2019" "4.2.8p13" "File Formats"
+.\"
+.\"  EDIT THIS FILE WITH CAUTION  (ntp.man)
+.\"
+.\"  It has been AutoGen-ed  February 20, 2019 at 09:56:44 AM by AutoGen 5.18.5
+.\"  From the definitions    ntp.keys.def
+.\"  and the template file   agman-file.tpl
+.Sh NAME
+.Nm ntp.keys
+.Nd NTP symmetric key file format
+
+.\"
+.SH NAME
+ntp.keys \- NTP symmetric key file format configuration file
+.de1 NOP
+.  it 1 an-trap
+.  if \\n[.$] \,\\$*\/
+..
+.ie t \
+.ds B-Font [CB]
+.ds I-Font [CI]
+.ds R-Font [CR]
+.el \
+.ds B-Font B
+.ds I-Font I
+.ds R-Font R
+.SH SYNOPSIS
+\f\*[B-Font]\fP
+[\f\*[B-Font]\-\-option-name\f[]]
+[\f\*[B-Font]\-\-option-name\f[] \f\*[I-Font]value\f[]]
+.sp \n(Ppu
+.ne 2
+
+All arguments must be options.
+.sp \n(Ppu
+.ne 2
+
+.SH DESCRIPTION
+This document describes the format of an NTP symmetric key file.
+For a description of the use of this type of file, see the
+"Authentication Support"
+section of the
+\fCntp.conf\f[]\fR(5)\f[]
+page.
+.sp \n(Ppu
+.ne 2
+
+\fCntpd\f[]\fR(8)\f[]
+reads its keys from a file specified using the
+\f\*[B-Font]\-k\f[]
+command line option or the
+\f\*[B-Font]keys\f[]
+statement in the configuration file.
+While key number 0 is fixed by the NTP standard
+(as 56 zero bits)
+and may not be changed,
+one or more keys numbered between 1 and 65535
+may be arbitrarily set in the keys file.
+.sp \n(Ppu
+.ne 2
+
+The key file uses the same comment conventions
+as the configuration file.
+Key entries use a fixed format of the form
+.sp \n(Ppu
+.ne 2
+
+.in +4
+\f\*[I-Font]keyno\f[] \f\*[I-Font]type\f[] \f\*[I-Font]key\f[] \f\*[I-Font]opt_IP_list\f[]
+.in -4
+.sp \n(Ppu
+.ne 2
+
+where
+\f\*[I-Font]keyno\f[]
+is a positive integer (between 1 and 65535),
+\f\*[I-Font]type\f[]
+is the message digest algorithm,
+\f\*[I-Font]key\f[]
+is the key itself, and
+\f\*[I-Font]opt_IP_list\f[]
+is an optional comma-separated list of IPs
+where the
+\f\*[I-Font]keyno\f[]
+should be trusted.
+that are allowed to serve time.
+Each IP in
+\f\*[I-Font]opt_IP_list\f[]
+may contain an optional
+\f\*[B-Font]/subnetbits\f[]
+specification which identifies the number of bits for
+the desired subnet of trust.
+If
+\f\*[I-Font]opt_IP_list\f[]
+is empty,
+any properly-authenticated message will be
+accepted.
+.sp \n(Ppu
+.ne 2
+
+The
+\f\*[I-Font]key\f[]
+may be given in a format
+controlled by the
+\f\*[I-Font]type\f[]
+field.
+The
+\f\*[I-Font]type\f[]
+\f[C]MD5\f[]
+is always supported.
+If
+\f[C]ntpd\f[]
+was built with the OpenSSL library
+then any digest library supported by that library may be specified.
+However, if compliance with FIPS 140-2 is required the
+\f\*[I-Font]type\f[]
+must be either
+\f[C]SHA\f[]
+or
+\f[C]SHA1\f[].
+.sp \n(Ppu
+.ne 2
+
+What follows are some key types, and corresponding formats:
+.sp \n(Ppu
+.ne 2
+
+.TP 7
+.NOP \f[C]MD5\f[]
+The key is 1 to 16 printable characters terminated by
+an EOL,
+whitespace,
+or
+a
+\f[C]#\f[]
+(which is the "start of comment" character).
+.sp \n(Ppu
+.ne 2
+
+.br
+.ns
+.TP 7
+.NOP \f[C]SHA\f[]
+.br
+.ns
+.TP 7
+.NOP \f[C]SHA1\f[]
+.br
+.ns
+.TP 7
+.NOP \f[C]RMD160\f[]
+The key is a hex-encoded ASCII string of 40 characters,
+which is truncated as necessary.
+.PP
+.sp \n(Ppu
+.ne 2
+
+Note that the keys used by the
+\fCntpq\f[]\fR(8)\f[]
+and
+\fCntpdc\f[]\fR(8)\f[]
+programs are checked against passwords
+requested by the programs and entered by hand,
+so it is generally appropriate to specify these keys in ASCII format.
+.SH FILES
+.TP 14
+.NOP \fI/etc/ntp.keys\f[]
+the default name of the configuration file
+.PP
+.SH "SEE ALSO"
+\fCntp.conf\f[]\fR(5)\f[],
+\fCntpd\f[]\fR(@NTPD_MS@)\f[],
+\fCntpdate\f[]\fR(@NTPDATE_MS@)\f[],
+\fCntpdc\f[]\fR(@NTPDC_MS@)\f[],
+\fCsntp\f[]\fR(@SNTP_MS@)\f[]
+.SH "AUTHORS"
+The University of Delaware and Network Time Foundation
+.SH "COPYRIGHT"
+Copyright (C) 1992-2017 The University of Delaware and Network Time Foundation all rights reserved.
+This program is released under the terms of the NTP license, <http://ntp.org/license>.
+.SH "BUGS"
+Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org
+.SH NOTES
+This document was derived from FreeBSD.
+.sp \n(Ppu
+.ne 2
+
+This manual page was \fIAutoGen\fP-erated from the \fBntp.keys\fP
+option definitions.

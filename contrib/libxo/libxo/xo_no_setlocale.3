@@ -1,0 +1,53 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_no_setlocale
+.Nd prevent implicit call to setlocale
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft void
+.Fn xo_no_setlocale "void"
+.Sh DESCRIPTION
+.Nm libxo
+automatically initializes the locale based on the setting of the
+environment variables
+.Ev LC_CTYPE ,
+.Ev LANG ,
+and
+.Ev LC_ALL .
+The first of this
+list of variables is used and if none of the variables are set, the locale
+defaults to
+.Em UTF-8 .
+The caller may wish to avoid this behavior, and
+can do so by calling the
+.Fn xo_no_setlocale
+function.
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr xo_open_container 3 ,
+.Xr xo_open_list 3 ,
+.Xr xo_format 5 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

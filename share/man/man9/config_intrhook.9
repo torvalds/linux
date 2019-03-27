@@ -1,0 +1,120 @@
+.\"
+.\" Copyright (C) 2006 M. Warner Losh <imp@FreeBSD.org>.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 10, 2017
+.Dt CONFIG_INTRHOOK 9
+.Os
+.Sh NAME
+.Nm config_intrhook
+.Nd schedule a function to be run after interrupts have been enabled,
+but before root is mounted
+.Sh SYNOPSIS
+.In sys/kernel.h
+.Vt typedef void (*ich_func_t)(void *arg);
+.Ft int
+.Fn config_intrhook_establish "struct intr_config_hook *hook"
+.Ft void
+.Fn config_intrhook_disestablish "struct intr_config_hook *hook"
+.Ft void
+.Fn config_intrhook_oneshot "ich_func_t func" "void *arg"
+.Sh DESCRIPTION
+The
+.Fn config_intrhook_establish
+function schedules a function to be run after interrupts have been
+enabled, but before root is mounted.
+If the system has already passed this point in its initialization,
+the function is called immediately.
+.Pp
+The
+.Fn config_intrhook_disestablish
+function removes the entry from the hook queue.
+.Pp
+The
+.Fn config_intrhook_oneshot
+function schedules a function to be run as described for
+.Fn config_intrhook_establish ;
+the entry is automatically removed from the hook queue
+after that function runs.
+This is appropriate when additional device configuration must be done
+after interrupts are enabled, but there is no need to stall the
+boot process after that.
+This function allocates memory using M_WAITOK; do not call this while
+holding any non-sleepable locks.
+.Pp
+Before root is mounted, all the previously established hooks are
+run.
+The boot process is then stalled until all handlers remove their hook
+from the hook queue with
+.Fn config_intrhook_disestablish .
+The boot process then proceeds to attempt to mount the root file
+system.
+Any driver that can potentially provide devices they wish to be
+mounted as root must use either this hook, or probe all these devices
+in the initial probe.
+Since interrupts are disabled during the probe process, many drivers
+need a method to probe for devices with interrupts enabled.
+.Pp
+The requests are made with the
+.Vt intr_config_hook
+structure.
+This structure is defined as follows:
+.Bd -literal
+struct intr_config_hook {
+	TAILQ_ENTRY(intr_config_hook) ich_links;/* Private */
+	ich_func_t	ich_func;		/* function to call */
+	void		*ich_arg;		/* Argument to call */
+};
+.Ed
+.Pp
+Storage for the
+.Vt intr_config_hook
+structure must be provided by the driver.
+It must be stable from just before the hook is established until
+after the hook is disestablished.
+.Pp
+Specifically, hooks are run at
+.Fn SI_SUB_INT_CONFIG_HOOKS ,
+which is immediately after the scheduler is started,
+and just before the root file system device is discovered.
+.Sh RETURN VALUES
+A zero return value means the hook was successfully added to the queue
+(with either deferred or immediate execution).
+A non-zero return value means the hook could not be added to the queue
+because it was already on the queue.
+.Sh SEE ALSO
+.Xr DEVICE_ATTACH 9
+.Sh HISTORY
+These functions were introduced in
+.Fx 3.0
+with the CAM subsystem, but are available for any driver to use.
+.Sh AUTHORS
+.An -nosplit
+The functions were written by
+.An Justin Gibbs Aq Mt gibbs@FreeBSD.org .
+This manual page was written by
+.An M. Warner Losh Aq Mt imp@FreeBSD.org .

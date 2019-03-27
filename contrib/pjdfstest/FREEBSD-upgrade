@@ -1,0 +1,25 @@
+$FreeBSD$
+
+This document contains a collection of notes specific to the import
+of pjdfstest into head.  These notes are built on the instructions in
+the FreeBSD Subversion Primer that detail how to deal with vendor
+branches and you are supposed to follow those:
+
+	http://www.freebsd.org/doc/en/articles/committers-guide/subversion-primer.html
+
+The pjdfstest source code is hosted on GitHub:
+
+	https://github.com/pjd/pjdfstest
+
+and is imported into the pjdfstest vendor branch (see base/vendor/pjdfstest/).
+
+To merge the vendor branch into head do something like this:
+
+	cd .../base/head/contrib/pjdfstest
+	svn merge --accept=postpone \
+	    svn+ssh://svn.freebsd.org/base/vendor/pjdfstest/dist .
+
+and resolve any conflicts that may arise at this point.
+
+Lastly, with the list of old and new files in this import, make sure
+to update the reachover Makefiles accordingly.

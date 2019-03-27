@@ -1,0 +1,210 @@
+.\"	$NetBSD: msgctl.2,v 1.1 1995/10/16 23:49:15 jtc Exp $
+.\"
+.\" Copyright (c) 1995 Frank van der Linden
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed for the NetBSD Project
+.\"      by Frank van der Linden
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"/
+.Dd July 9, 2009
+.Dt MSGCTL 2
+.Os
+.Sh NAME
+.Nm msgctl
+.Nd message control operations
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/ipc.h
+.In sys/msg.h
+.Ft int
+.Fn msgctl "int msqid" "int cmd" "struct msqid_ds *buf"
+.Sh DESCRIPTION
+The
+.Fn msgctl
+system call performs some control operations on the message queue specified
+by
+.Fa msqid .
+.Pp
+Each message queue has a data structure associated with it, parts of which
+may be altered by
+.Fn msgctl
+and parts of which determine the actions of
+.Fn msgctl .
+The data structure is defined in
+.In sys/msg.h
+and contains (amongst others) the following members:
+.Bd -literal
+struct msqid_ds {
+	struct	ipc_perm msg_perm;	/* msg queue permission bits */
+	struct	msg *__msg_first;	/* kernel data, don't use */
+	struct	msg *__msg_last;	/* kernel data, don't use */
+	msglen_t msg_cbytes;	/* number of bytes in use on the queue */
+	msgqnum_t msg_qnum;	/* number of msgs in the queue */
+	msglen_t msg_qbytes;	/* max # of bytes on the queue */
+	pid_t	msg_lspid;	/* pid of last msgsnd() */
+	pid_t	msg_lrpid;	/* pid of last msgrcv() */
+	time_t	msg_stime;	/* time of last msgsnd() */
+	time_t	msg_rtime;	/* time of last msgrcv() */
+	time_t	msg_ctime;	/* time of last msgctl() */
+};
+.Ed
+.Pp
+The
+.Vt ipc_perm
+structure used inside the
+.Vt msqid_ds
+structure is defined in
+.In sys/ipc.h
+and looks like this:
+.Bd -literal
+struct ipc_perm {
+	uid_t		cuid;	/* creator user id */
+	gid_t		cgid;	/* creator group id */
+	uid_t		uid;	/* user id */
+	gid_t		gid;	/* group id */
+	mode_t		mode;	/* r/w permission */
+	unsigned short	seq;	/* sequence # (to generate unique ipcid) */
+	key_t		key;	/* user specified msg/sem/shm key */
+};
+.Ed
+.Pp
+The operation to be performed by
+.Fn msgctl
+is specified in
+.Fa cmd
+and is one of:
+.Bl -tag -width IPC_RMIDX
+.It Dv IPC_STAT
+Gather information about the message queue and place it in the
+structure pointed to by
+.Fa buf .
+.It Dv IPC_SET
+Set the value of the
+.Va msg_perm.uid ,
+.Va msg_perm.gid ,
+.Va msg_perm.mode
+and
+.Va msg_qbytes
+fields in the structure associated with
+.Fa msqid .
+The values are taken from the corresponding fields in the structure
+pointed to by
+.Fa buf .
+This operation can only be executed by the super-user, or a process that
+has an effective user id equal to either
+.Va msg_perm.cuid
+or
+.Va msg_perm.uid
+in the data structure associated with the message queue.
+The value of
+.Va msg_qbytes
+can only be increased by the super-user.
+Values for
+.Va msg_qbytes
+that exceed the system limit (MSGMNB from
+.In sys/msg.h )
+are silently truncated to that limit.
+.It Dv IPC_RMID
+Remove the message queue specified by
+.Fa msqid
+and destroy the data associated with it.
+Only the super-user or a process
+with an effective uid equal to the
+.Va msg_perm.cuid
+or
+.Va msg_perm.uid
+values in the data structure associated with the queue can do this.
+.El
+.Pp
+The permission to read from or write to a message queue (see
+.Xr msgsnd 2
+and
+.Xr msgrcv 2 )
+is determined by the
+.Va msg_perm.mode
+field in the same way as is
+done with files (see
+.Xr chmod 2 ) ,
+but the effective uid can match either the
+.Va msg_perm.cuid
+field or the
+.Va msg_perm.uid
+field, and the
+effective gid can match either
+.Va msg_perm.cgid
+or
+.Va msg_perm.gid .
+.Sh RETURN VALUES
+.Rv -std msgctl
+.Sh ERRORS
+The
+.Fn msgctl
+function
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The
+.Fa cmd
+argument
+is equal to IPC_SET or IPC_RMID and the caller is not the super-user, nor does
+the effective uid match either the
+.Va msg_perm.uid
+or
+.Va msg_perm.cuid
+fields of the data structure associated with the message queue.
+.Pp
+An attempt is made to increase the value of
+.Va msg_qbytes
+through IPC_SET
+but the caller is not the super-user.
+.It Bq Er EACCES
+The command is IPC_STAT
+and the caller has no read permission for this message queue.
+.It Bq Er EINVAL
+The
+.Fa msqid
+argument
+is not a valid message queue identifier.
+.Pp
+.Va cmd
+is not a valid command.
+.It Bq Er EFAULT
+The
+.Fa buf
+argument
+specifies an invalid address.
+.El
+.Sh SEE ALSO
+.Xr msgget 2 ,
+.Xr msgrcv 2 ,
+.Xr msgsnd 2
+.Sh HISTORY
+Message queues appeared in the first release of
+.At V .

@@ -1,0 +1,82 @@
+// -*- C++ -*-
+//===---------------------------- ctime -----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CTIME
+#define _LIBCPP_CTIME
+
+/*
+    ctime synopsis
+
+Macros:
+
+    NULL
+    CLOCKS_PER_SEC
+    TIME_UTC // C++17
+    
+namespace std
+{
+
+Types:
+
+    clock_t
+    size_t
+    time_t
+    tm
+    timespec // C++17
+    
+clock_t clock();
+double difftime(time_t time1, time_t time0);
+time_t mktime(tm* timeptr);
+time_t time(time_t* timer);
+char* asctime(const tm* timeptr);
+char* ctime(const time_t* timer);
+tm*    gmtime(const time_t* timer);
+tm* localtime(const time_t* timer);
+size_t strftime(char* restrict s, size_t maxsize, const char* restrict format,
+                const tm* restrict timeptr);
+int timespec_get( struct timespec *ts, int base); // C++17
+}  // std
+
+*/
+
+#include <__config>
+#include <time.h>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+using ::clock_t;
+using ::size_t;
+using ::time_t;
+using ::tm;
+#if _LIBCPP_STD_VER > 14 && defined(_LIBCPP_HAS_C11_FEATURES)
+using ::timespec;
+#endif
+using ::clock;
+using ::difftime;
+using ::mktime;
+using ::time;
+#ifndef _LIBCPP_HAS_NO_THREAD_UNSAFE_C_FUNCTIONS
+using ::asctime;
+using ::ctime;
+using ::gmtime;
+using ::localtime;
+#endif
+using ::strftime;
+#if _LIBCPP_STD_VER > 14 && defined(_LIBCPP_HAS_TIMESPEC_GET)
+using ::timespec_get;
+#endif
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif  // _LIBCPP_CTIME

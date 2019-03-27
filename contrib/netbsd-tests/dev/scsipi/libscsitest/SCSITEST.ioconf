@@ -1,0 +1,12 @@
+#	$NetBSD: SCSITEST.ioconf,v 1.1 2014/04/24 21:46:44 pooka Exp $
+#
+
+ioconf scsitest
+
+include "conf/files"
+include "dev/scsipi/files.scsipi"
+include "rump/dev/files.rump"
+
+pseudo-root mainbus*
+
+scsitest0 at mainbus?

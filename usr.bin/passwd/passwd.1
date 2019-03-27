@@ -1,0 +1,234 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)passwd.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd February 14, 2014
+.Dt PASSWD 1
+.Os
+.Sh NAME
+.Nm passwd , yppasswd
+.Nd modify a user's password
+.Sh SYNOPSIS
+.Nm
+.Op Fl l
+.Op Ar user
+.Nm yppasswd
+.Op Fl l
+.Op Fl y
+.Op Fl d Ar domain
+.Op Fl h Ar host
+.Op Fl o
+.Sh DESCRIPTION
+The
+.Nm
+utility changes the user's local, Kerberos, or NIS password.
+If the user is not the super-user,
+.Nm
+first prompts for the current password and will not continue unless the correct
+password is entered.
+.Pp
+When entering the new password, the characters entered do not echo, in order to
+avoid the password being seen by a passer-by.
+The
+.Nm
+utility prompts for the new password twice in order to detect typing errors.
+.Pp
+The total length of the password must be less than
+.Dv _PASSWORD_LEN
+(currently 128 characters).
+.Pp
+Once the password has been verified,
+.Nm
+communicates the new password information to
+the Kerberos authenticating host.
+.Pp
+The following option is available:
+.Bl -tag -width indent
+.It Fl l
+Cause the password to be updated only in the local
+password file, and not with the Kerberos database.
+When changing only the local password,
+.Xr pwd_mkdb 8
+is used to update the password databases.
+.El
+.Pp
+When changing local or NIS password, the next password change date
+is set according to
+.Dq passwordtime
+capability in the user's login class.
+.Pp
+To change another user's Kerberos password, one must first
+run
+.Xr kinit 1
+followed by
+.Nm .
+The super-user is not required to provide a user's current password
+if only the local password is modified.
+.Sh NIS INTERACTION
+The
+.Nm
+utility has built-in support for NIS.
+If a user exists in the NIS password
+database but does not exist locally,
+.Nm
+automatically switches into
+.Nm yppasswd
+mode.
+If the specified
+user does not exist in either the local password database or the
+NIS password maps,
+.Nm
+returns an error.
+.Pp
+When changing an NIS password, unprivileged users are required to provide
+their old password for authentication (the
+.Xr rpc.yppasswdd 8
+daemon requires the original password before
+it will allow any changes to the NIS password maps).
+This restriction applies even to the
+super-user, with one important exception: the password authentication is
+bypassed for the super-user on the NIS master server.
+This means that
+the super-user on the NIS master server can make unrestricted changes to
+anyone's NIS password.
+The super-user on NIS client systems and NIS slave
+servers still needs to provide a password before the update will be processed.
+.Pp
+The following additional options are supported for use with NIS:
+.Bl -tag -width indent
+.It Fl y
+Override
+.Nm Ns 's
+checking heuristics and forces
+it into NIS mode.
+.It Fl l
+When NIS is enabled, the
+.Fl l
+flag can be used to force
+.Nm
+into
+.Dq local only
+mode.
+This flag can be used to change the entry
+for a local user when an NIS user exists with the same login name.
+For example, you will sometimes find entries for system
+.Dq placeholder
+users such as
+.Pa bin
+or
+.Pa daemon
+in both the NIS password maps and the local user database.
+By
+default,
+.Nm
+will try to change the NIS password.
+The
+.Fl l
+flag can be used to change the local password instead.
+.It Fl d Ar domain
+Specify what domain to use when changing an NIS password.
+By default,
+.Nm
+assumes that the system default domain should be used.
+This flag is
+primarily for use by the superuser on the NIS master server: a single
+NIS server can support multiple domains.
+It is also possible that the
+domainname on the NIS master may not be set (it is not necessary for
+an NIS server to also be a client) in which case the
+.Nm
+command needs to be told what domain to operate on.
+.It Fl h Ar host
+Specify the name of an NIS server.
+This option, in conjunction
+with the
+.Fl d
+option, can be used to change an NIS password on a non-local NIS
+server.
+When a domain is specified with the
+.Fl d
+option and
+.Nm
+is unable to determine the name of the NIS master server (possibly because
+the local domainname is not set), the name of the NIS master is assumed to
+be
+.Dq localhost .
+This can be overridden with the
+.Fl h
+flag.
+The specified hostname need not be the name of an NIS master: the
+name of the NIS master for a given map can be determined by querying any
+NIS server (master or slave) in a domain, so specifying the name of a
+slave server will work equally well.
+.It Fl o
+Do not automatically override the password authentication checks for the
+super-user on the NIS master server; assume
+.Dq old
+mode instead.
+This
+flag is of limited practical use but is useful for testing.
+.El
+.Sh FILES
+.Bl -tag -width /etc/master.passwd -compact
+.It Pa /etc/master.passwd
+the user database
+.It Pa /etc/passwd
+a Version 7 format password file
+.It Pa /etc/passwd.XXXXXX
+temporary copy of the password file
+.It Pa /etc/login.conf
+login class capabilities database
+.El
+.Sh SEE ALSO
+.Xr chpass 1 ,
+.Xr kinit 1 ,
+.Xr login 1 ,
+.Xr login.conf 5 ,
+.Xr passwd 5 ,
+.Xr kerberos 8 ,
+.Xr kpasswdd 8 ,
+.Xr pam_passwdqc 8 ,
+.Xr pw 8 ,
+.Xr pwd_mkdb 8 ,
+.Xr vipw 8
+.Rs
+.%A Robert Morris
+.%A Ken Thompson
+.%T "UNIX password security"
+.Re
+.Sh NOTES
+The
+.Nm yppasswd
+command is really only a link to
+.Nm .
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v6 .

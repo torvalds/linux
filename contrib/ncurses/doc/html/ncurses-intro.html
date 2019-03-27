@@ -1,0 +1,2723 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!--
+  $Id: ncurses-intro.html,v 1.46 2013/05/17 23:29:27 tom Exp $
+  ****************************************************************************
+  * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+-->
+<HTML>
+<HEAD>
+<TITLE>Writing Programs with NCURSES</TITLE>
+<link rev="made" href="mailto:bugs-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+
+<H1>Writing Programs with NCURSES</H1>
+
+<BLOCKQUOTE>
+by Eric S. Raymond and Zeyd M. Ben-Halim<BR>
+updates since release 1.9.9e by Thomas Dickey
+</BLOCKQUOTE>
+
+<H1>Contents</H1>
+<UL>
+<LI><A HREF="#introduction">Introduction</A>
+<UL>
+<LI><A HREF="#history">A Brief History of Curses</A>
+<LI><A HREF="#scope">Scope of This Document</A>
+<LI><A HREF="#terminology">Terminology</A>
+</UL>
+<LI><A HREF="#curses">The Curses Library</A>
+<UL>
+<LI><A HREF="#overview">An Overview of Curses</A>
+<UL>
+<LI><A HREF="#compiling">Compiling Programs using Curses</A>
+<LI><A HREF="#updating">Updating the Screen</A>
+<LI><A HREF="#stdscr">Standard Windows and Function Naming Conventions</A>
+<LI><A HREF="#variables">Variables</A>
+</UL>
+<LI><A HREF="#using">Using the Library</A>
+<UL>
+<LI><A HREF="#starting">Starting up</A>
+<LI><A HREF="#output">Output</A>
+<LI><A HREF="#input">Input</A>
+<LI><A HREF="#formschars">Using Forms Characters</A>
+<LI><A HREF="#attributes">Character Attributes and Color</A>
+<LI><A HREF="#mouse">Mouse Interfacing</A>
+<LI><A HREF="#finishing">Finishing Up</A>
+</UL>
+<LI><A HREF="#functions">Function Descriptions</A>
+<UL>
+<LI><A HREF="#init">Initialization and Wrapup</A>
+<LI><A HREF="#flush">Causing Output to the Terminal</A>
+<LI><A HREF="#lowlevel">Low-Level Capability Access</A>
+<LI><A HREF="#debugging">Debugging</A>
+</UL>
+<LI><A HREF="#hints">Hints, Tips, and Tricks</A>
+<UL>
+<LI><A HREF="#caution">Some Notes of Caution</A>
+<LI><A HREF="#leaving">Temporarily Leaving ncurses Mode</A>
+<LI><A HREF="#xterm">Using <CODE>ncurses</CODE> under <CODE>xterm</CODE></A>
+<LI><A HREF="#screens">Handling Multiple Terminal Screens</A>
+<LI><A HREF="#testing">Testing for Terminal Capabilities</A>
+<LI><A HREF="#tuning">Tuning for Speed</A>
+<LI><A HREF="#special">Special Features of <CODE>ncurses</CODE></A>
+</UL>
+<LI><A HREF="#compat">Compatibility with Older Versions</A>
+<UL>
+<LI><A HREF="#refbug">Refresh of Overlapping Windows</A>
+<LI><A HREF="#backbug">Background Erase</A>
+</UL>
+<LI><A HREF="#xsifuncs">XSI Curses Conformance</A>
+</UL>
+<LI><A HREF="#panels">The Panels Library</A>
+<UL>
+<LI><A HREF="#pcompile">Compiling With the Panels Library</A>
+<LI><A HREF="#poverview">Overview of Panels</A>
+<LI><A HREF="#pstdscr">Panels, Input, and the Standard Screen</A>
+<LI><A HREF="#hiding">Hiding Panels</A>
+<LI><A HREF="#pmisc">Miscellaneous Other Facilities</A>
+</UL>
+<LI><A HREF="#menu">The Menu Library</A>
+<UL>
+<LI><A HREF="#mcompile">Compiling with the menu Library</A>
+<LI><A HREF="#moverview">Overview of Menus</A>
+<LI><A HREF="#mselect">Selecting items</A>
+<LI><A HREF="#mdisplay">Menu Display</A>
+<LI><A HREF="#mwindows">Menu Windows</A>
+<LI><A HREF="#minput">Processing Menu Input</A>
+<LI><A HREF="#mmisc">Miscellaneous Other Features</A>
+</UL>
+<LI><A HREF="#form">The Forms Library</A>
+<UL>
+<LI><A HREF="#fcompile">Compiling with the forms Library</A>
+<LI><A HREF="#foverview">Overview of Forms</A>
+<LI><A HREF="#fcreate">Creating and Freeing Fields and Forms</A>
+<LI><A HREF="#fattributes">Fetching and Changing Field Attributes</A>
+<UL>
+<LI><A HREF="#fsizes">Fetching Size and Location Data</A>
+<LI><A HREF="#flocation">Changing the Field Location</A>
+<LI><A HREF="#fjust">The Justification Attribute</A>
+<LI><A HREF="#fdispatts">Field Display Attributes</A>
+<LI><A HREF="#foptions">Field Option Bits</A>
+<LI><A HREF="#fstatus">Field Status</A>
+<LI><A HREF="#fuser">Field User Pointer</A>
+</UL>
+<LI><A HREF="#fdynamic">Variable-Sized Fields</A>
+<LI><A HREF="#fvalidation">Field Validation</A>
+<UL>
+<LI><A HREF="#ftype_alpha">TYPE_ALPHA</A>
+<LI><A HREF="#ftype_alnum">TYPE_ALNUM</A>
+<LI><A HREF="#ftype_enum">TYPE_ENUM</A>
+<LI><A HREF="#ftype_integer">TYPE_INTEGER</A>
+<LI><A HREF="#ftype_numeric">TYPE_NUMERIC</A>
+<LI><A HREF="#ftype_regexp">TYPE_REGEXP</A>
+</UL>
+<LI><A HREF="#fbuffer">Direct Field Buffer Manipulation</A>
+<LI><A HREF="#formattrs">Attributes of Forms</A>
+<LI><A HREF="#fdisplay">Control of Form Display</A>
+<LI><A HREF="#fdriver">Input Processing in the Forms Driver</A>
+<UL>
+<LI><A HREF="#fpage">Page Navigation Requests</A>
+<LI><A HREF="#ffield">Inter-Field Navigation Requests</A>
+<LI><A HREF="#fifield">Intra-Field Navigation Requests</A>
+<LI><A HREF="#fscroll">Scrolling Requests</A>
+<LI><A HREF="#fedit">Field Editing Requests</A>
+<LI><A HREF="#forder">Order Requests</A>
+<LI><A HREF="#fappcmds">Application Commands</A>
+</UL>
+<LI><A HREF="#fhooks">Field Change Hooks</A>
+<LI><A HREF="#ffocus">Field Change Commands</A>
+<LI><A HREF="#frmoptions">Form Options</A>
+<LI><A HREF="#fcustom">Custom Validation Types</A>
+<UL>
+<LI><A HREF="#flinktypes">Union Types</A>
+<LI><A HREF="#fnewtypes">New Field Types</A>
+<LI><A HREF="#fcheckargs">Validation Function Arguments</A>
+<LI><A HREF="#fcustorder">Order Functions For Custom Types</A>
+<LI><A HREF="#fcustprobs">Avoiding Problems</A>
+</UL>
+</UL>
+</UL>
+
+<HR>
+<H1><A NAME="introduction">Introduction</A></H1>
+
+This document is an introduction to programming with <CODE>curses</CODE>. It is
+not an exhaustive reference for the curses Application Programming Interface
+(API); that role is filled by the <CODE>curses</CODE> manual pages.  Rather, it
+is intended to help C programmers ease into using the package. <P>
+
+This document is aimed at C applications programmers not yet specifically
+familiar with ncurses.  If you are already an experienced <CODE>curses</CODE>
+programmer, you should nevertheless read the sections on
+<A HREF="#mouse">Mouse Interfacing</A>, <A HREF="#debugging">Debugging</A>,
+<A HREF="#compat">Compatibility with Older Versions</A>,
+and <A HREF="#hints">Hints, Tips, and Tricks</A>.  These will bring you up
+to speed on the special features and quirks of the <CODE>ncurses</CODE>
+implementation.  If you are not so experienced, keep reading. <P>
+
+The <CODE>curses</CODE> package is a subroutine library for
+terminal-independent screen-painting and input-event handling which
+presents a high level screen model to the programmer, hiding differences
+between terminal types and doing automatic optimization of output to change
+one screen full of text into another.  <CODE>Curses</CODE> uses terminfo, which
+is a database format that can describe the capabilities of thousands of
+different terminals. <P>
+
+The <CODE>curses</CODE> API may seem something of an archaism on UNIX desktops
+increasingly dominated by X, Motif, and Tcl/Tk.  Nevertheless, UNIX still
+supports tty lines and X supports <EM>xterm(1)</EM>; the <CODE>curses</CODE>
+API has the advantage of (a) back-portability to character-cell terminals,
+and (b) simplicity.  For an application that does not require bit-mapped
+graphics and multiple fonts, an interface implementation using <CODE>curses</CODE>
+will typically be a great deal simpler and less expensive than one using an
+X toolkit.
+
+<H2><A NAME="history">A Brief History of Curses</A></H2>
+
+Historically, the first ancestor of <CODE>curses</CODE> was the routines written to
+provide screen-handling for the game <CODE>rogue</CODE>; these used the
+already-existing <CODE>termcap</CODE> database facility for describing terminal
+capabilities.  These routines were abstracted into a documented library and
+first released with the early BSD UNIX versions. <P>
+
+System III UNIX from Bell Labs featured a rewritten and much-improved
+<CODE>curses</CODE> library.  It introduced the terminfo format.  Terminfo is based
+on Berkeley's termcap database, but contains a number of improvements and
+extensions. Parameterized capabilities strings were introduced, making it
+possible to describe multiple video attributes, and colors and to handle far
+more unusual terminals than possible with termcap.  In the later AT&amp;T
+System V releases, <CODE>curses</CODE> evolved to use more facilities and offer
+more capabilities, going far beyond BSD curses in power and flexibility.
+
+<H2><A NAME="scope">Scope of This Document</A></H2>
+
+This document describes <CODE>ncurses</CODE>, a free implementation of
+the System V <CODE>curses</CODE> API with some clearly marked extensions.
+It includes the following System V curses features:
+<UL>
+<LI>Support for multiple screen highlights (BSD curses could only
+handle one `standout' highlight, usually reverse-video).
+<LI>Support for line- and box-drawing using forms characters.
+<LI>Recognition of function keys on input.
+<LI>Color support.
+<LI>Support for pads (windows of larger than screen size on which the
+screen or a subwindow defines a viewport).
+</UL>
+
+Also, this package makes use of the insert and delete line and character
+features of terminals so equipped, and determines how to optimally use these
+features with no help from the programmer.  It allows arbitrary combinations of
+video attributes to be displayed, even on terminals that leave ``magic
+cookies'' on the screen to mark changes in attributes. <P>
+
+The <CODE>ncurses</CODE> package can also capture and use event reports from a
+mouse in some environments (notably, xterm under the X window system).  This
+document includes tips for using the mouse. <P>
+
+The <CODE>ncurses</CODE> package was originated by Pavel Curtis.  The original
+maintainer of this package is
+<A HREF="mailto:zmbenhal@netcom.com">Zeyd Ben-Halim</A>
+&lt;zmbenhal@netcom.com&gt;.
+<A HREF="mailto:esr@snark.thyrsus.com">Eric S. Raymond</A>
+&lt;esr@snark.thyrsus.com&gt;
+wrote many of the new features in versions after 1.8.1
+and wrote most of this introduction.
+J&uuml;rgen Pfeifer
+wrote all of the menu and forms code as well as the
+<A HREF="http://www.adahome.com">Ada95</A> binding.
+Ongoing work is being done by
+<A HREF="mailto:dickey@invisible-island.net">Thomas Dickey</A> (maintainer).
+Contact the current maintainers at
+<A HREF="mailto:bug-ncurses@gnu.org">bug-ncurses@gnu.org</A>.
+<P>
+
+This document also describes the <A HREF="#panels">panels</A> extension library,
+similarly modeled on the SVr4 panels facility.  This library allows you to
+associate backing store with each of a stack or deck of overlapping windows,
+and provides operations for moving windows around in the stack that change
+their visibility in the natural way (handling window overlaps). <P>
+
+Finally, this document describes in detail the <A HREF="#menu">menus</A> and <A
+HREF="#form">forms</A> extension libraries, also cloned from System V,
+which support easy construction and sequences of menus and fill-in
+forms.
+
+
+<H2><A NAME="terminology">Terminology</A></H2>
+
+In this document, the following terminology is used with reasonable
+consistency:
+
+<DL>
+<DT> window
+<DD>
+A data structure describing a sub-rectangle of the screen (possibly the
+entire screen).  You can write to a window as though it were a miniature
+screen, scrolling independently of other windows on the physical screen.
+<DT> screens
+<DD>
+A subset of windows which are as large as the terminal screen, i.e., they start
+at the upper left hand corner and encompass the lower right hand corner.  One
+of these, <CODE>stdscr</CODE>, is automatically provided for the programmer.
+<DT> terminal screen
+<DD>
+The package's idea of what the terminal display currently looks like, i.e.,
+what the user sees now.  This is a special screen.
+</DL>
+
+<H1><A NAME="curses">The Curses Library</A></H1>
+
+<H2><A NAME="overview">An Overview of Curses</A></H2>
+
+<H3><A NAME="compiling">Compiling Programs using Curses</A></H3>
+
+In order to use the library, it is necessary to have certain types and
+variables defined.  Therefore, the programmer must have a line:
+
+<PRE>
+	  #include &lt;curses.h&gt;
+</PRE>
+
+at the top of the program source.  The screen package uses the Standard I/O
+library, so <CODE>&lt;curses.h&gt;</CODE> includes
+<CODE>&lt;stdio.h&gt;</CODE>. <CODE>&lt;curses.h&gt;</CODE> also includes
+<CODE>&lt;termios.h&gt;</CODE>, <CODE>&lt;termio.h&gt;</CODE>, or
+<CODE>&lt;sgtty.h&gt;</CODE> depending on your system.  It is redundant (but
+harmless) for the programmer to do these includes, too. In linking with
+<CODE>curses</CODE> you need to have <CODE>-lncurses</CODE> in your LDFLAGS or on the
+command line.  There is no need for any other libraries.
+
+<H3><A NAME="updating">Updating the Screen</A></H3>
+
+In order to update the screen optimally, it is necessary for the routines to
+know what the screen currently looks like and what the programmer wants it to
+look like next. For this purpose, a data type (structure) named WINDOW is
+defined which describes a window image to the routines, including its starting
+position on the screen (the (y, x) coordinates of the upper left hand corner)
+and its size.  One of these (called <CODE>curscr</CODE>, for current screen) is a
+screen image of what the terminal currently looks like.  Another screen (called
+<CODE>stdscr</CODE>, for standard screen) is provided by default to make changes
+on. <P>
+
+A window is a purely internal representation. It is used to build and store a
+potential image of a portion of the terminal.  It doesn't bear any necessary
+relation to what is really on the terminal screen; it's more like a
+scratchpad or write buffer. <P>
+
+To make the section of physical screen corresponding to a window reflect the
+contents of the window structure, the routine <CODE>refresh()</CODE> (or
+<CODE>wrefresh()</CODE> if the window is not <CODE>stdscr</CODE>) is called. <P>
+
+A given physical screen section may be within the scope of any number of
+overlapping windows.  Also, changes can be made to windows in any order,
+without regard to motion efficiency.  Then, at will, the programmer can
+effectively say ``make it look like this,'' and let the package implementation
+determine the most efficient way to repaint the screen.
+
+<H3><A NAME="stdscr">Standard Windows and Function Naming Conventions</A></H3>
+
+As hinted above, the routines can use several windows, but two are
+automatically given: <CODE>curscr</CODE>, which knows what the terminal looks like,
+and <CODE>stdscr</CODE>, which is what the programmer wants the terminal to look
+like next.  The user should never actually access <CODE>curscr</CODE> directly.
+Changes should be made to through the API, and then the routine
+<CODE>refresh()</CODE> (or <CODE>wrefresh()</CODE>) called. <P>
+
+Many functions are defined to use <CODE>stdscr</CODE> as a default screen.  For
+example, to add a character to <CODE>stdscr</CODE>, one calls <CODE>addch()</CODE> with
+the desired character as argument.  To write to a different window. use the
+routine <CODE>waddch()</CODE> (for `w'indow-specific addch()) is provided.  This
+convention of prepending function names with a `w' when they are to be
+applied to specific windows is consistent.  The only routines which do not
+follow it are those for which a window must always be specified. <P>
+
+In order to move the current (y, x) coordinates from one point to another, the
+routines <CODE>move()</CODE> and <CODE>wmove()</CODE> are provided.  However, it is
+often desirable to first move and then perform some I/O operation.  In order to
+avoid clumsiness, most I/O routines can be preceded by the prefix 'mv' and
+the desired (y, x) coordinates prepended to the arguments to the function.  For
+example, the calls
+
+<PRE>
+	  move(y, x);
+	  addch(ch);
+</PRE>
+
+can be replaced by
+
+<PRE>
+	  mvaddch(y, x, ch);
+</PRE>
+
+and
+
+<PRE>
+	  wmove(win, y, x);
+	  waddch(win, ch);
+</PRE>
+
+can be replaced by
+
+<PRE>
+	  mvwaddch(win, y, x, ch);
+</PRE>
+
+Note that the window description pointer (win) comes before the added (y, x)
+coordinates.  If a function requires a window pointer, it is always the first
+parameter passed.
+
+<H3><A NAME="variables">Variables</A></H3>
+
+The <CODE>curses</CODE> library sets some variables describing the terminal
+capabilities.
+
+<PRE>
+      type   name      description
+      ------------------------------------------------------------------
+      int    LINES     number of lines on the terminal
+      int    COLS      number of columns on the terminal
+</PRE>
+
+The <CODE>curses.h</CODE> also introduces some <CODE>#define</CODE> constants and types
+of general usefulness:
+
+<DL>
+<DT> <CODE>bool</CODE>
+<DD> boolean type, actually a `char' (e.g., <CODE>bool doneit;</CODE>)
+<DT> <CODE>TRUE</CODE>
+<DD> boolean `true' flag (1).
+<DT> <CODE>FALSE</CODE>
+<DD> boolean `false' flag (0).
+<DT> <CODE>ERR</CODE>
+<DD> error flag returned by routines on a failure (-1).
+<DT> <CODE>OK</CODE>
+<DD> error flag returned by routines when things go right.
+</DL>
+
+<H2><A NAME="using">Using the Library</A></H2>
+
+Now we describe how to actually use the screen package.  In it, we assume all
+updating, reading, etc. is applied to <CODE>stdscr</CODE>.  These instructions will
+work on any window, providing you change the function names and parameters as
+mentioned above. <P>
+
+Here is a sample program to motivate the discussion:
+
+<PRE>
+#include &lt;stdlib.h&gt;
+#include &lt;curses.h&gt;
+#include &lt;signal.h&gt;
+
+static void finish(int sig);
+
+int
+main(int argc, char *argv[])
+{
+    int num = 0;
+
+    /* initialize your non-curses data structures here */
+
+    (void) signal(SIGINT, finish);      /* arrange interrupts to terminate */
+
+    (void) initscr();      /* initialize the curses library */
+    keypad(stdscr, TRUE);  /* enable keyboard mapping */
+    (void) nonl();         /* tell curses not to do NL-&gt;CR/NL on output */
+    (void) cbreak();       /* take input chars one at a time, no wait for \n */
+    (void) echo();         /* echo input - in color */
+
+    if (has_colors())
+    {
+        start_color();
+
+        /*
+         * Simple color assignment, often all we need.  Color pair 0 cannot
+	 * be redefined.  This example uses the same value for the color
+	 * pair as for the foreground color, though of course that is not
+	 * necessary:
+         */
+        init_pair(1, COLOR_RED,     COLOR_BLACK);
+        init_pair(2, COLOR_GREEN,   COLOR_BLACK);
+        init_pair(3, COLOR_YELLOW,  COLOR_BLACK);
+        init_pair(4, COLOR_BLUE,    COLOR_BLACK);
+        init_pair(5, COLOR_CYAN,    COLOR_BLACK);
+        init_pair(6, COLOR_MAGENTA, COLOR_BLACK);
+        init_pair(7, COLOR_WHITE,   COLOR_BLACK);
+    }
+
+    for (;;)
+    {
+        int c = getch();     /* refresh, accept single keystroke of input */
+	attrset(COLOR_PAIR(num % 8));
+	num++;
+
+        /* process the command keystroke */
+    }
+
+    finish(0);               /* we're done */
+}
+
+static void finish(int sig)
+{
+    endwin();
+
+    /* do your non-curses wrapup here */
+
+    exit(0);
+}
+</PRE>
+
+<H3><A NAME="starting">Starting up</A></H3>
+
+In order to use the screen package, the routines must know about terminal
+characteristics, and the space for <CODE>curscr</CODE> and <CODE>stdscr</CODE> must be
+allocated.  These function <CODE>initscr()</CODE> does both these things. Since it
+must allocate space for the windows, it can overflow memory when attempting to
+do so. On the rare occasions this happens, <CODE>initscr()</CODE> will terminate
+the program with an error message.  <CODE>initscr()</CODE> must always be called
+before any of the routines which affect windows are used.  If it is not, the
+program will core dump as soon as either <CODE>curscr</CODE> or <CODE>stdscr</CODE> are
+referenced.  However, it is usually best to wait to call it until after you are
+sure you will need it, like after checking for startup errors.  Terminal status
+changing routines like <CODE>nl()</CODE> and <CODE>cbreak()</CODE> should be called
+after <CODE>initscr()</CODE>. <P>
+
+Once the screen windows have been allocated, you can set them up for
+your program.  If you want to, say, allow a screen to scroll, use
+<CODE>scrollok()</CODE>.  If you want the cursor to be left in place after
+the last change, use <CODE>leaveok()</CODE>.  If this isn't done,
+<CODE>refresh()</CODE> will move the cursor to the window's current (y, x)
+coordinates after updating it. <P>
+
+You can create new windows of your own using the functions <CODE>newwin()</CODE>,
+<CODE>derwin()</CODE>, and <CODE>subwin()</CODE>.  The routine <CODE>delwin()</CODE> will
+allow you to get rid of old windows.  All the options described above can be
+applied to any window.
+
+<H3><A NAME="output">Output</A></H3>
+
+Now that we have set things up, we will want to actually update the terminal.
+The basic functions used to change what will go on a window are
+<CODE>addch()</CODE> and <CODE>move()</CODE>.  <CODE>addch()</CODE> adds a character at the
+current (y, x) coordinates.  <CODE>move()</CODE> changes the current (y, x)
+coordinates to whatever you want them to be.  It returns <CODE>ERR</CODE> if you
+try to move off the window.  As mentioned above, you can combine the two into
+<CODE>mvaddch()</CODE> to do both things at once. <P>
+
+The other output functions, such as <CODE>addstr()</CODE> and <CODE>printw()</CODE>,
+all call <CODE>addch()</CODE> to add characters to the window. <P>
+
+After you have put on the window what you want there, when you want the portion
+of the terminal covered by the window to be made to look like it, you must call
+<CODE>refresh()</CODE>.  In order to optimize finding changes, <CODE>refresh()</CODE>
+assumes that any part of the window not changed since the last
+<CODE>refresh()</CODE> of that window has not been changed on the terminal, i.e.,
+that you have not refreshed a portion of the terminal with an overlapping
+window.  If this is not the case, the routine <CODE>touchwin()</CODE> is provided
+to make it look like the entire window has been changed, thus making
+<CODE>refresh()</CODE> check the whole subsection of the terminal for changes. <P>
+
+If you call <CODE>wrefresh()</CODE> with <CODE>curscr</CODE> as its argument, it will
+make the screen look like <CODE>curscr</CODE> thinks it looks like.  This is useful
+for implementing a command which would redraw the screen in case it get messed
+up.
+
+<H3><A NAME="input">Input</A></H3>
+
+The complementary function to <CODE>addch()</CODE> is <CODE>getch()</CODE> which, if
+echo is set, will call <CODE>addch()</CODE> to echo the character.  Since the
+screen package needs to know what is on the terminal at all times, if
+characters are to be echoed, the tty must be in raw or cbreak mode.  Since
+initially the terminal has echoing enabled and is in ordinary ``cooked'' mode,
+one or the other has to changed before calling <CODE>getch()</CODE>; otherwise,
+the program's output will be unpredictable. <P>
+
+When you need to accept line-oriented input in a window, the functions
+<CODE>wgetstr()</CODE> and friends are available.  There is even a <CODE>wscanw()</CODE>
+function that can do <CODE>scanf()</CODE>(3)-style multi-field parsing on window
+input.  These pseudo-line-oriented functions turn on echoing while they
+execute. <P>
+
+The example code above uses the call <CODE>keypad(stdscr, TRUE)</CODE> to enable
+support for function-key mapping.  With this feature, the <CODE>getch()</CODE> code
+watches the input stream for character sequences that correspond to arrow and
+function keys.  These sequences are returned as pseudo-character values.  The
+<CODE>#define</CODE> values returned are listed in the <CODE>curses.h</CODE> The
+mapping from sequences to <CODE>#define</CODE> values is determined by
+<CODE>key_</CODE> capabilities in the terminal's terminfo entry.
+
+<H3><A NAME="formschars">Using Forms Characters</A></H3>
+
+The <CODE>addch()</CODE> function (and some others, including <CODE>box()</CODE> and
+<CODE>border()</CODE>) can accept some pseudo-character arguments which are specially
+defined by <CODE>ncurses</CODE>.  These are <CODE>#define</CODE> values set up in
+the <CODE>curses.h</CODE> header; see there for a complete list (look for
+the prefix <CODE>ACS_</CODE>). <P>
+
+The most useful of the ACS defines are the forms-drawing characters.  You can
+use these to draw boxes and simple graphs on the screen.  If the terminal
+does not have such characters, <CODE>curses.h</CODE> will map them to a
+recognizable (though ugly) set of ASCII defaults.
+
+<H3><A NAME="attributes">Character Attributes and Color</A></H3>
+
+The <CODE>ncurses</CODE> package supports screen highlights including standout,
+reverse-video, underline, and blink.  It also supports color, which is treated
+as another kind of highlight. <P>
+
+Highlights are encoded, internally, as high bits of the pseudo-character type
+(<CODE>chtype</CODE>) that <CODE>curses.h</CODE> uses to represent the contents of a
+screen cell.  See the <CODE>curses.h</CODE> header file for a complete list of
+highlight mask values (look for the prefix <CODE>A_</CODE>).<P>
+
+There are two ways to make highlights.  One is to logical-or the value of the
+highlights you want into the character argument of an <CODE>addch()</CODE> call,
+or any other output call that takes a <CODE>chtype</CODE> argument. <P>
+
+The other is to set the current-highlight value.  This is logical-or'ed with
+any highlight you specify the first way.  You do this with the functions
+<CODE>attron()</CODE>, <CODE>attroff()</CODE>, and <CODE>attrset()</CODE>; see the manual
+pages for details.
+
+Color is a special kind of highlight.  The package actually thinks in terms
+of color pairs, combinations of foreground and background colors.  The sample
+code above sets up eight color pairs, all of the guaranteed-available colors
+on black.  Note that each color pair is, in effect, given the name of its
+foreground color.  Any other range of eight non-conflicting values could
+have been used as the first arguments of the <CODE>init_pair()</CODE> values. <P>
+
+Once you've done an <CODE>init_pair()</CODE> that creates color-pair N, you can
+use <CODE>COLOR_PAIR(N)</CODE> as a highlight that invokes that particular
+color combination.  Note that <CODE>COLOR_PAIR(N)</CODE>, for constant N,
+is itself a compile-time constant and can be used in initializers.
+
+<H3><A NAME="mouse">Mouse Interfacing</A></H3>
+
+The <CODE>ncurses</CODE> library also provides a mouse interface.
+<!-- The 'note' tag is not portable enough -->
+<blockquote>
+<strong>NOTE:</strong> this facility is specific to <CODE>ncurses</CODE>, it is not part of either
+the XSI Curses standard, nor of System V Release 4, nor BSD curses.
+System V Release 4 curses contains code with similar interface definitions,
+however it is not documented.  Other than by disassembling the library, we
+have no way to determine exactly how that mouse code works.
+Thus, we recommend that you wrap mouse-related code in an #ifdef using the
+feature macro NCURSES_MOUSE_VERSION so it will not be compiled and linked
+on non-ncurses systems.
+</blockquote>
+
+Presently, mouse event reporting works in the following environments:
+<ul>
+<li>xterm and similar programs such as rxvt.
+<li>Linux console, when configured with <CODE>gpm</CODE>(1), Alessandro
+Rubini's mouse server.
+<li>FreeBSD sysmouse (console)
+<li>OS/2 EMX
+</ul>
+<P>
+The mouse interface is very simple.  To activate it, you use the function
+<CODE>mousemask()</CODE>, passing it as first argument a bit-mask that specifies
+what kinds of events you want your program to be able to see.  It will
+return the bit-mask of events that actually become visible, which may differ
+from the argument if the mouse device is not capable of reporting some of
+the event types you specify. <P>
+
+Once the mouse is active, your application's command loop should watch
+for a return value of <CODE>KEY_MOUSE</CODE> from <CODE>wgetch()</CODE>.  When
+you see this, a mouse event report has been queued.  To pick it off
+the queue, use the function <CODE>getmouse()</CODE> (you must do this before
+the next <CODE>wgetch()</CODE>, otherwise another mouse event might come
+in and make the first one inaccessible). <P>
+
+Each call to <CODE>getmouse()</CODE> fills a structure (the address of which you'll
+pass it) with mouse event data.  The event data includes zero-origin,
+screen-relative character-cell coordinates of the mouse pointer.  It also
+includes an event mask.  Bits in this mask will be set, corresponding
+to the event type being reported. <P>
+
+The mouse structure contains two additional fields which may be
+significant in the future as ncurses interfaces to new kinds of
+pointing device.  In addition to x and y coordinates, there is a slot
+for a z coordinate; this might be useful with touch-screens that can
+return a pressure or duration parameter.  There is also a device ID
+field, which could be used to distinguish between multiple pointing
+devices. <P>
+
+The class of visible events may be changed at any time via <CODE>mousemask()</CODE>.
+Events that can be reported include presses, releases, single-, double- and
+triple-clicks (you can set the maximum button-down time for clicks).  If
+you don't make clicks visible, they will be reported as press-release
+pairs.  In some environments, the event mask may include bits reporting
+the state of shift, alt, and ctrl keys on the keyboard during the event. <P>
+
+A function to check whether a mouse event fell within a given window is
+also supplied.  You can use this to see whether a given window should
+consider a mouse event relevant to it. <P>
+
+Because mouse event reporting will not be available in all
+environments, it would be unwise to build <CODE>ncurses</CODE>
+applications that <EM>require</EM> the use of a mouse.  Rather, you should
+use the mouse as a shortcut for point-and-shoot commands your application
+would normally accept from the keyboard.  Two of the test games in the
+<CODE>ncurses</CODE> distribution (<CODE>bs</CODE> and <CODE>knight</CODE>) contain
+code that illustrates how this can be done. <P>
+
+See the manual page <CODE>curs_mouse(3X)</CODE> for full details of the
+mouse-interface functions.
+
+<H3><A NAME="finishing">Finishing Up</A></H3>
+
+In order to clean up after the <CODE>ncurses</CODE> routines, the routine
+<CODE>endwin()</CODE> is provided.  It restores tty modes to what they were when
+<CODE>initscr()</CODE> was first called, and moves the cursor down to the
+lower-left corner.  Thus, anytime after the call to initscr, <CODE>endwin()</CODE>
+should be called before exiting.
+
+<H2><A NAME="functions">Function Descriptions</A></H2>
+
+We describe the detailed behavior of some important curses functions here, as a
+supplement to the manual page descriptions.
+
+<H3><A NAME="init">Initialization and Wrapup</A></H3>
+
+<DL>
+<DT> <CODE>initscr()</CODE>
+<DD> The first function called should almost always be <CODE>initscr()</CODE>.
+This will determine the terminal type and
+initialize curses data structures. <CODE>initscr()</CODE> also arranges that
+the first call to <CODE>refresh()</CODE> will clear the screen.  If an error
+occurs a message is written to standard error and the program
+exits. Otherwise it returns a pointer to stdscr.  A few functions may be
+called before initscr (<CODE>slk_init()</CODE>, <CODE>filter()</CODE>,
+<CODE>ripoffline()</CODE>, <CODE>use_env()</CODE>, and, if you are using multiple
+terminals, <CODE>newterm()</CODE>.)
+<DT> <CODE>endwin()</CODE>
+<DD> Your program should always call <CODE>endwin()</CODE> before exiting or
+shelling out of the program. This function will restore tty modes,
+move the cursor to the lower left corner of the screen, reset the
+terminal into the proper non-visual mode.  Calling <CODE>refresh()</CODE>
+or <CODE>doupdate()</CODE> after a temporary escape from the program will
+restore the ncurses screen from before the escape.
+<DT> <CODE>newterm(type, ofp, ifp)</CODE>
+<DD> A program which outputs to more than one terminal should use
+<CODE>newterm()</CODE> instead of <CODE>initscr()</CODE>.  <CODE>newterm()</CODE> should
+be called once for each terminal.  It returns a variable of type
+<CODE>SCREEN *</CODE> which should be saved as a reference to that
+terminal.
+(NOTE: a SCREEN variable is not a <em>screen</em> in the sense we
+are describing in this introduction, but a collection of 
+parameters used to assist in optimizing the display.)
+The arguments are the type of the terminal (a string) and
+<CODE>FILE</CODE> pointers for the output and input of the terminal.  If
+type is NULL then the environment variable <CODE>$TERM</CODE> is used.
+<CODE>endwin()</CODE> should called once at wrapup time for each terminal
+opened using this function.
+<DT> <CODE>set_term(new)</CODE>
+<DD> This function is used to switch to a different terminal previously
+opened by <CODE>newterm()</CODE>.  The screen reference for the new terminal
+is passed as the parameter.  The previous terminal is returned by the
+function.  All other calls affect only the current terminal.
+<DT> <CODE>delscreen(sp)</CODE>
+<DD> The inverse of <CODE>newterm()</CODE>; deallocates the data structures
+associated with a given <CODE>SCREEN</CODE> reference.
+</DL>
+
+<H3><A NAME="flush">Causing Output to the Terminal</A></H3>
+
+<DL>
+<DT> <CODE>refresh()</CODE> and <CODE>wrefresh(win)</CODE>
+<DD> These functions must be called to actually get any output on
+the  terminal,  as  other  routines  merely  manipulate data
+structures.  <CODE>wrefresh()</CODE> copies the named window  to the physical
+terminal screen,  taking  into account  what is already
+there in  order to  do optimizations.  <CODE>refresh()</CODE> does a
+refresh of <CODE>stdscr</CODE>.   Unless <CODE>leaveok()</CODE> has been
+enabled, the physical cursor of the terminal is left at  the
+location of the window's cursor.
+<DT> <CODE>doupdate()</CODE> and <CODE>wnoutrefresh(win)</CODE>
+<DD> These two functions allow multiple updates with more efficiency
+than wrefresh.  To use them, it is important to understand how curses
+works.  In addition to all the window structures, curses keeps two
+data structures representing the terminal screen: a physical screen,
+describing what is actually on the screen, and a virtual screen,
+describing what the programmer wants to have on the screen.  wrefresh
+works by first copying the named window to the virtual screen
+(<CODE>wnoutrefresh()</CODE>), and then calling the routine to update the
+screen (<CODE>doupdate()</CODE>).  If the programmer wishes to output
+several windows at once, a series of calls to <CODE>wrefresh</CODE> will result
+in alternating calls to <CODE>wnoutrefresh()</CODE> and <CODE>doupdate()</CODE>,
+causing several bursts of output to the screen.  By calling
+<CODE>wnoutrefresh()</CODE> for each window, it is then possible to call
+<CODE>doupdate()</CODE> once, resulting in only one burst of output, with
+fewer total characters transmitted (this also avoids a visually annoying
+flicker at each update).
+</DL>
+
+<H3><A NAME="lowlevel">Low-Level Capability Access</A></H3>
+
+<DL>
+<DT> <CODE>setupterm(term, filenum, errret)</CODE>
+<DD> This routine is called to initialize a terminal's description, without setting
+up the curses screen structures or changing the tty-driver mode bits.
+<CODE>term</CODE> is the character string representing the name of the terminal
+being used.  <CODE>filenum</CODE> is the UNIX file descriptor of the terminal to
+be used for output.  <CODE>errret</CODE> is a pointer to an integer, in which a
+success or failure indication is returned.  The values returned can be 1 (all
+is well), 0 (no such terminal), or -1 (some problem locating the terminfo
+database). <P>
+
+The value of <CODE>term</CODE> can be given as NULL, which will cause the value of
+<CODE>TERM</CODE> in the environment to be used.  The <CODE>errret</CODE> pointer can
+also be given as NULL, meaning no error code is wanted.  If <CODE>errret</CODE> is
+defaulted, and something goes wrong, <CODE>setupterm()</CODE> will print an
+appropriate error message and exit, rather than returning.  Thus, a simple
+program can call setupterm(0, 1, 0) and not worry about initialization
+errors. <P>
+
+After the call to <CODE>setupterm()</CODE>, the global variable <CODE>cur_term</CODE> is
+set to point to the current structure of terminal capabilities. By calling
+<CODE>setupterm()</CODE> for each terminal, and saving and restoring
+<CODE>cur_term</CODE>, it is possible for a program to use two or more terminals at
+once.  <CODE>Setupterm()</CODE> also stores the names section of the terminal
+description in the global character array <CODE>ttytype[]</CODE>.  Subsequent calls
+to <CODE>setupterm()</CODE> will overwrite this array, so you'll have to save it
+yourself if need be.
+</DL>
+
+<H3><A NAME="debugging">Debugging</A></H3>
+
+<!-- The 'note' tag is not portable enough -->
+<blockquote>
+<strong>NOTE:</strong> These functions are not part of the standard curses API!
+</blockquote>
+
+<DL>
+<DT> <CODE>trace()</CODE>
+<DD>
+This function can be used to explicitly set a trace level.  If the
+trace level is nonzero, execution of your program will generate a file
+called `trace' in the current working directory containing a report on
+the library's actions.  Higher trace levels enable more detailed (and
+verbose) reporting -- see comments attached to <CODE>TRACE_</CODE> defines
+in the <CODE>curses.h</CODE> file for details.  (It is also possible to set
+a trace level by assigning a trace level value to the environment variable
+<CODE>NCURSES_TRACE</CODE>).
+<DT> <CODE>_tracef()</CODE>
+<DD>
+This function can be used to output your own debugging information.  It is only
+available only if you link with -lncurses_g.  It can be used the same way as
+<CODE>printf()</CODE>, only it outputs a newline after the end of arguments.
+The output goes to a file called <CODE>trace</CODE> in the current directory.
+</DL>
+
+Trace logs can be difficult to interpret due to the sheer volume of
+data dumped in them.  There is a script called <STRONG>tracemunch</STRONG>
+included with the <CODE>ncurses</CODE> distribution that can alleviate
+this problem somewhat; it compacts long sequences of similar operations into
+more succinct single-line pseudo-operations. These pseudo-ops can be
+distinguished by the fact that they are named in capital letters.
+
+<H2><A NAME="hints">Hints, Tips, and Tricks</A></H2>
+
+The <CODE>ncurses</CODE> manual pages are a complete reference for this library.
+In the remainder of this document, we discuss various useful methods that
+may not be obvious from the manual page descriptions.
+
+<H3><A NAME="caution">Some Notes of Caution</A></H3>
+
+If you find yourself thinking you need to use <CODE>noraw()</CODE> or
+<CODE>nocbreak()</CODE>, think again and move carefully.  It's probably
+better design to use <CODE>getstr()</CODE> or one of its relatives to
+simulate cooked mode.  The <CODE>noraw()</CODE> and <CODE>nocbreak()</CODE>
+functions try to restore cooked mode, but they may end up clobbering
+some control bits set before you started your application.  Also, they
+have always been poorly documented, and are likely to hurt your
+application's usability with other curses libraries. <P>
+
+Bear in mind that <CODE>refresh()</CODE> is a synonym for <CODE>wrefresh(stdscr)</CODE>.
+Don't try to mix use of <CODE>stdscr</CODE> with use of windows declared
+by <CODE>newwin()</CODE>; a <CODE>refresh()</CODE> call will blow them off the
+screen.  The right way to handle this is to use <CODE>subwin()</CODE>, or
+not touch <CODE>stdscr</CODE> at all and tile your screen with declared
+windows which you then <CODE>wnoutrefresh()</CODE> somewhere in your program
+event loop, with a single <CODE>doupdate()</CODE> call to trigger actual
+repainting. <P>
+
+You are much less likely to run into problems if you design your screen
+layouts to use tiled rather than overlapping windows.  Historically,
+curses support for overlapping windows has been weak, fragile, and poorly
+documented.  The <CODE>ncurses</CODE> library is not yet an exception to this
+rule. <P>
+
+There is a panels library included in the <CODE>ncurses</CODE>
+distribution that does a pretty good job of strengthening the
+overlapping-windows facilities. <P>
+
+Try to avoid using the global variables LINES and COLS.  Use
+<CODE>getmaxyx()</CODE> on the <CODE>stdscr</CODE> context instead.  Reason:
+your code may be ported to run in an environment with window resizes,
+in which case several screens could be open with different sizes.
+
+<H3><A NAME="leaving">Temporarily Leaving NCURSES Mode</A></H3>
+
+Sometimes you will want to write a program that spends most of its time in
+screen mode, but occasionally returns to ordinary `cooked' mode.  A common
+reason for this is to support shell-out.  This behavior is simple to arrange
+in <CODE>ncurses</CODE>. <P>
+
+To leave <CODE>ncurses</CODE> mode, call <CODE>endwin()</CODE> as you would if you
+were intending to terminate the program.  This will take the screen back to
+cooked mode; you can do your shell-out.  When you want to return to
+<CODE>ncurses</CODE> mode, simply call <CODE>refresh()</CODE> or <CODE>doupdate()</CODE>.
+This will repaint the screen. <P>
+
+There is a boolean function, <CODE>isendwin()</CODE>, which code can use to
+test whether <CODE>ncurses</CODE> screen mode is active.  It returns <CODE>TRUE</CODE>
+in the interval between an <CODE>endwin()</CODE> call and the following
+<CODE>refresh()</CODE>, <CODE>FALSE</CODE> otherwise.  <P>
+
+Here is some sample code for shellout:
+
+<PRE>
+    addstr("Shelling out...");
+    def_prog_mode();           /* save current tty modes */
+    endwin();                  /* restore original tty modes */
+    system("sh");              /* run shell */
+    addstr("returned.\n");     /* prepare return message */
+    refresh();                 /* restore save modes, repaint screen */
+</PRE>
+
+<H3><A NAME="xterm">Using NCURSES under XTERM</A></H3>
+
+A resize operation in X sends <CODE>SIGWINCH</CODE> to the application running
+under xterm.
+
+The easiest way to handle <CODE>SIGWINCH</CODE>
+is to do an <CODE>endwin</CODE>,
+followed by an <CODE>refresh</CODE> and a screen repaint you code
+yourself.
+The <CODE>refresh</CODE> will pick up the new screen size from the
+xterm's environment. <P>
+
+That is the standard way, of course (it even works with some vendor's curses
+implementations).
+Its drawback is that it clears the screen to reinitialize the display, and does
+not resize subwindows which must be shrunk.
+<CODE>Ncurses</CODE> provides an extension which works better, the
+<CODE>resizeterm</CODE> function.  That function ensures that all windows
+are limited to the new screen dimensions, and pads <CODE>stdscr</CODE>
+with blanks if the screen is larger. <P>
+
+The <CODE>ncurses</CODE> library provides a SIGWINCH signal handler,
+which pushes a <CODE>KEY_RESIZE</CODE> via the wgetch() calls.
+When <CODE>ncurses</CODE> returns that code,
+it calls <code>resizeterm</CODE>
+to update the size of the standard screen's window, repainting that
+(filling with blanks or truncating as needed).
+It also resizes other windows,
+but its effect may be less satisfactory because it cannot
+know how you want the screen re-painted.
+You will usually have to write special-purpose code to handle
+<CODE>KEY_RESIZE</CODE> yourself.
+
+<H3><A NAME="screens">Handling Multiple Terminal Screens</A></H3>
+
+The <CODE>initscr()</CODE> function actually calls a function named
+<CODE>newterm()</CODE> to do most of its work.  If you are writing a program that
+opens multiple terminals, use <CODE>newterm()</CODE> directly. <P>
+
+For each call, you will have to specify a terminal type and a pair of file
+pointers; each call will return a screen reference, and <CODE>stdscr</CODE> will be
+set to the last one allocated.  You will switch between screens with the
+<CODE>set_term</CODE> call.  Note that you will also have to call
+<CODE>def_shell_mode</CODE> and <CODE>def_prog_mode</CODE> on each tty yourself.
+
+<H3><A NAME="testing">Testing for Terminal Capabilities</A></H3>
+
+Sometimes you may want to write programs that test for the presence of various
+capabilities before deciding whether to go into <CODE>ncurses</CODE> mode.  An easy
+way to do this is to call <CODE>setupterm()</CODE>, then use the functions
+<CODE>tigetflag()</CODE>, <CODE>tigetnum()</CODE>, and <CODE>tigetstr()</CODE> to do your
+testing. <P>
+
+A particularly useful case of this often comes up when you want to
+test whether a given terminal type should be treated as `smart'
+(cursor-addressable) or `stupid'.  The right way to test this is to see
+if the return value of <CODE>tigetstr("cup")</CODE> is non-NULL.  Alternatively,
+you can include the <CODE>term.h</CODE> file and test the value of the
+macro <CODE>cursor_address</CODE>.
+
+<H3><A NAME="tuning">Tuning for Speed</A></H3>
+
+Use the <CODE>addchstr()</CODE> family of functions for fast
+screen-painting of text when you know the text doesn't contain any
+control characters.  Try to make attribute changes infrequent on your
+screens.  Don't use the <CODE>immedok()</CODE> option!
+
+<H3><A NAME="special">Special Features of NCURSES</A></H3>
+
+The <CODE>wresize()</CODE> function allows you to resize a window in place.
+The associated <CODE>resizeterm()</CODE> function simplifies the construction
+of <a HREF="#xterm">SIGWINCH</a> handlers, for resizing all windows.  <P>
+
+The <CODE>define_key()</CODE> function allows you
+to define at runtime function-key control sequences which are not in the
+terminal description.
+The <CODE>keyok()</CODE> function allows you to temporarily
+enable or disable interpretation of any function-key control sequence. <P>
+
+The <CODE>use_default_colors()</CODE> function allows you to construct
+applications which can use the terminal's default foreground and
+background colors as an additional "default" color.
+Several terminal emulators support this feature, which is based on ISO 6429. <P>
+
+Ncurses supports up 16 colors, unlike SVr4 curses which defines only 8.
+While most terminals which provide color allow only 8 colors, about
+a quarter (including XFree86 xterm) support 16 colors.
+
+<H2><A NAME="compat">Compatibility with Older Versions</A></H2>
+
+Despite our best efforts, there are some differences between <CODE>ncurses</CODE>
+and the (undocumented!) behavior of older curses implementations.  These arise
+from ambiguities or omissions in the documentation of the API.
+
+<H3><A NAME="refbug">Refresh of Overlapping Windows</A></H3>
+
+If you define two windows A and B that overlap, and then alternately scribble
+on and refresh them, the changes made to the overlapping region under historic
+<CODE>curses</CODE> versions were often not documented precisely. <P>
+
+To understand why this is a problem, remember that screen updates are
+calculated between two representations of the <EM>entire</EM> display. The
+documentation says that when you refresh a window, it is first copied to the
+virtual screen, and then changes are calculated to update the physical screen
+(and applied to the terminal).  But "copied to" is not very specific, and
+subtle differences in how copying works can produce different behaviors in the
+case where two overlapping windows are each being refreshed at unpredictable
+intervals. <P>
+
+What happens to the overlapping region depends on what <CODE>wnoutrefresh()</CODE>
+does with its argument -- what portions of the argument window it copies to the
+virtual screen.  Some implementations do "change copy", copying down only
+locations in the window that have changed (or been marked changed with
+<CODE>wtouchln()</CODE> and friends).  Some implementations do  "entire copy",
+copying <EM>all</EM> window locations to the virtual screen whether or not
+they have changed. <P>
+
+The <CODE>ncurses</CODE> library itself has not always been consistent on this
+score.  Due to a bug, versions 1.8.7 to 1.9.8a did entire copy.  Versions
+1.8.6 and older, and versions 1.9.9 and newer, do change copy. <P>
+
+For most commercial curses implementations, it is not documented and not known
+for sure (at least not to the <CODE>ncurses</CODE> maintainers) whether they do
+change copy or entire copy.  We know that System V release 3 curses has logic
+in it that looks like an attempt to do change copy, but the surrounding logic
+and data representations are sufficiently complex, and our knowledge
+sufficiently indirect, that it's hard to know whether this is reliable.
+
+It is not clear what the SVr4 documentation and XSI standard intend.  The XSI
+Curses standard barely mentions wnoutrefresh(); the SVr4 documents seem to be
+describing entire-copy, but it is possible with some effort and straining to
+read them the other way. <P>
+
+It might therefore be unwise to rely on either behavior in programs that might
+have to be linked with other curses implementations.  Instead, you can do an
+explicit <CODE>touchwin()</CODE> before the <CODE>wnoutrefresh()</CODE> call to
+guarantee an entire-contents copy anywhere. <P>
+
+The really clean way to handle this is to use the panels library.  If,
+when you want a screen update, you do <CODE>update_panels()</CODE>, it will
+do all the necessary <CODE>wnoutrefresh()</CODE> calls for whatever panel
+stacking order you have defined.  Then you can do one <CODE>doupdate()</CODE>
+and there will be a <EM>single</EM> burst of physical I/O that will do
+all your updates.
+
+<H3><A NAME="backbug">Background Erase</A></H3>
+
+If you have been using a very old versions of <CODE>ncurses</CODE> (1.8.7 or
+older) you may be surprised by the behavior of the erase functions.  In older
+versions, erased areas of a window were filled with a blank modified by the
+window's current attribute (as set by <STRONG>wattrset()</STRONG>, <STRONG>wattron()</STRONG>,
+<STRONG>wattroff()</STRONG> and friends). <P>
+
+In newer versions, this is not so.  Instead, the attribute of erased blanks
+is normal unless and until it is modified by the functions <CODE>bkgdset()</CODE>
+or <CODE>wbkgdset()</CODE>. <P>
+
+This change in behavior conforms <CODE>ncurses</CODE> to System V Release 4 and
+the XSI Curses standard.
+
+<H2><A NAME="xsifuncs">XSI Curses Conformance</A></H2>
+
+The <CODE>ncurses</CODE> library is intended to be base-level conformant with the
+XSI Curses standard from X/Open.  Many extended-level features (in fact, almost
+all features not directly concerned with wide characters and
+internationalization) are also supported. <P>
+
+One effect of XSI conformance is the change in behavior described under
+<A HREF="#backbug">"Background Erase -- Compatibility with Old Versions"</A>. <P>
+
+Also, <CODE>ncurses</CODE> meets the XSI requirement that every macro
+entry point have a corresponding function which may be linked (and
+will be prototype-checked) if the macro definition is disabled with
+<CODE>#undef</CODE>.
+
+<H1><A NAME="panels">The Panels Library</A></H1>
+
+The <CODE>ncurses</CODE> library by itself provides good support for screen
+displays in which the windows are tiled (non-overlapping).  In the more
+general case that windows may overlap, you have to use a series of
+<CODE>wnoutrefresh()</CODE> calls followed by a <CODE>doupdate()</CODE>, and be
+careful about the order you do the window refreshes in.  It has to be
+bottom-upwards, otherwise parts of windows that should be obscured will
+show through. <P>
+
+When your interface design is such that windows may dive deeper into the
+visibility stack or pop to the top at runtime, the resulting book-keeping
+can be tedious and difficult to get right.  Hence the panels library. <P>
+
+The <CODE>panel</CODE> library first appeared in AT&amp;T System V.  The
+version documented here is the <CODE>panel</CODE> code distributed
+with <CODE>ncurses</CODE>.
+
+<H2><A NAME="pcompile">Compiling With the Panels Library</A></H2>
+
+Your panels-using modules must import the panels library declarations with
+
+<PRE>
+	  #include &lt;panel.h&gt;
+</PRE>
+
+and must be linked explicitly with the panels library using an
+<CODE>-lpanel</CODE> argument.  Note that they must also link the
+<CODE>ncurses</CODE> library with <CODE>-lncurses</CODE>.  Many linkers
+are two-pass and will accept either order, but it is still good practice
+to put <CODE>-lpanel</CODE> first and <CODE>-lncurses</CODE> second.
+
+<H2><A NAME="poverview">Overview of Panels</A></H2>
+
+A panel object is a window that is implicitly treated as part of a
+<DFN>deck</DFN> including all other panel objects.  The deck has an implicit
+bottom-to-top visibility order.  The panels library includes an update
+function (analogous to <CODE>refresh()</CODE>) that displays all panels in the
+deck in the proper order to resolve overlaps.  The standard window,
+<CODE>stdscr</CODE>, is considered below all panels. <P>
+
+Details on the panels functions are available in the man pages.  We'll just
+hit the highlights here. <P>
+
+You create a panel from a window by calling <CODE>new_panel()</CODE> on a
+window pointer.  It then becomes the top of the deck.  The panel's window
+is available as the value of <CODE>panel_window()</CODE> called with the
+panel pointer as argument.<P>
+
+You can delete a panel (removing it from the deck) with <CODE>del_panel</CODE>.
+This will not deallocate the associated window; you have to do that yourself.
+
+You can replace a panel's window with a different window by calling
+<CODE>replace_window</CODE>.  The new window may be of different size;
+the panel code will re-compute all overlaps.  This operation doesn't
+change the panel's position in the deck. <P>
+
+To move a panel's window, use <CODE>move_panel()</CODE>.  The
+<CODE>mvwin()</CODE> function on the panel's window isn't sufficient because it
+doesn't update the panels library's representation of where the windows are.
+This operation leaves the panel's depth, contents, and size unchanged. <P>
+
+Two functions (<CODE>top_panel()</CODE>, <CODE>bottom_panel()</CODE>) are
+provided for rearranging the deck.  The first pops its argument window to the
+top of the deck; the second sends it to the bottom.  Either operation leaves
+the panel's screen location, contents, and size unchanged. <P>
+
+The function <CODE>update_panels()</CODE> does all the
+<CODE>wnoutrefresh()</CODE> calls needed to prepare for
+<CODE>doupdate()</CODE> (which you must call yourself, afterwards). <P>
+
+Typically, you will want to call <CODE>update_panels()</CODE> and
+<CODE>doupdate()</CODE> just before accepting command input, once in each cycle
+of interaction with the user.  If you call <CODE>update_panels()</CODE> after
+each and every panel write, you'll generate a lot of unnecessary refresh
+activity and screen flicker.
+
+<H2><A NAME="pstdscr">Panels, Input, and the Standard Screen</A></H2>
+
+You shouldn't mix <CODE>wnoutrefresh()</CODE> or <CODE>wrefresh()</CODE>
+operations with panels code; this will work only if the argument window
+is either in the top panel or unobscured by any other panels. <P>
+
+The <CODE>stsdcr</CODE> window is a special case.  It is considered below all
+panels.  Because changes to panels may obscure parts of <CODE>stdscr</CODE>,
+though, you should call <CODE>update_panels()</CODE> before
+<CODE>doupdate()</CODE> even when you only change <CODE>stdscr</CODE>. <P>
+
+Note that <CODE>wgetch</CODE> automatically calls <CODE>wrefresh</CODE>.
+Therefore, before requesting input from a panel window, you need to be sure
+that the panel is totally unobscured. <P>
+
+There is presently no way to display changes to one obscured panel without
+repainting all panels.
+
+<H2><A NAME="hiding">Hiding Panels</A></H2>
+
+It's possible to remove a panel from the deck temporarily; use
+<CODE>hide_panel</CODE> for this.  Use <CODE>show_panel()</CODE> to render it
+visible again.  The predicate function <CODE>panel_hidden</CODE>
+tests whether or not a panel is hidden. <P>
+
+The <CODE>panel_update</CODE> code ignores hidden panels.  You cannot do
+<CODE>top_panel()</CODE> or <CODE>bottom_panel</CODE> on a hidden panel().
+Other panels operations are applicable.
+
+<H2><A NAME="pmisc">Miscellaneous Other Facilities</A></H2>
+
+It's possible to navigate the deck using the functions
+<CODE>panel_above()</CODE> and <CODE>panel_below</CODE>.  Handed a panel
+pointer, they return the panel above or below that panel.  Handed
+<CODE>NULL</CODE>, they return the bottom-most or top-most panel. <P>
+
+Every panel has an associated user pointer, not used by the panel code, to
+which you can attach application data.  See the man page documentation
+of <CODE>set_panel_userptr()</CODE> and <CODE>panel_userptr</CODE> for
+details.
+
+<H1><A NAME="menu">The Menu Library</A></H1>
+
+A menu is a screen display that assists the user to choose some subset
+of a given set of items.  The <CODE>menu</CODE> library is a curses
+extension that supports easy programming of menu hierarchies with a
+uniform but flexible interface. <P>
+
+The <CODE>menu</CODE> library first appeared in AT&amp;T System V.  The
+version documented here is the <CODE>menu</CODE> code distributed
+with <CODE>ncurses</CODE>.
+
+<H2><A NAME="mcompile">Compiling With the menu Library</A></H2>
+
+Your menu-using modules must import the menu library declarations with
+
+<PRE>
+	  #include &lt;menu.h&gt;
+</PRE>
+
+and must be linked explicitly with the menus library using an
+<CODE>-lmenu</CODE> argument.  Note that they must also link the
+<CODE>ncurses</CODE> library with <CODE>-lncurses</CODE>.  Many linkers
+are two-pass and will accept either order, but it is still good practice
+to put <CODE>-lmenu</CODE> first and <CODE>-lncurses</CODE> second.
+
+<H2><A NAME="moverview">Overview of Menus</A></H2>
+
+The menus created by this library consist of collections of
+<DFN>items</DFN> including a name string part and a description string
+part.  To make menus, you create groups of these items and connect
+them with menu frame objects. <P>
+
+The menu can then by <DFN>posted</DFN>, that is written to an
+associated window.  Actually, each menu has two associated windows; a
+containing window in which the programmer can scribble titles or
+borders, and a subwindow in which the menu items proper are displayed.
+If this subwindow is too small to display all the items, it will be a
+scrollable viewport on the collection of items. <P>
+
+A menu may also be <DFN>unposted</DFN> (that is, undisplayed), and finally
+freed to make the storage associated with it and its items available for
+re-use. <P>
+
+The general flow of control of a menu program looks like this:
+
+<OL>
+<LI>Initialize <CODE>curses</CODE>.
+<LI>Create the menu items, using <CODE>new_item()</CODE>.
+<LI>Create the menu using <CODE>new_menu()</CODE>.
+<LI>Post the menu using <CODE>post_menu()</CODE>.
+<LI>Refresh the screen.
+<LI>Process user requests via an input loop.
+<LI>Unpost the menu using <CODE>unpost_menu()</CODE>.
+<LI>Free the menu, using <CODE>free_menu()</CODE>.
+<LI>Free the items using <CODE>free_item()</CODE>.
+<LI>Terminate <CODE>curses</CODE>.
+</OL>
+
+<H2><A NAME="mselect">Selecting items</A></H2>
+
+Menus may be multi-valued or (the default) single-valued (see the manual
+page <CODE>menu_opts(3x)</CODE> to see how to change the default).
+Both types always have a <DFN>current item</DFN>. <P>
+
+From a single-valued menu you can read the selected value simply by looking
+at the current item.  From a multi-valued menu, you get the selected set
+by looping through the items applying the <CODE>item_value()</CODE>
+predicate function.  Your menu-processing code can use the function
+<CODE>set_item_value()</CODE> to flag the items in the select set. <P>
+
+Menu items can be made unselectable using <CODE>set_item_opts()</CODE>
+or <CODE>item_opts_off()</CODE> with the <CODE>O_SELECTABLE</CODE>
+argument.  This is the only option so far defined for menus, but it
+is good practice to code as though other option bits might be on.
+
+<H2><A NAME="mdisplay">Menu Display</A></H2>
+
+The menu library calculates a minimum display size for your window, based
+on the following variables:
+
+<UL>
+<LI>The number and maximum length of the menu items
+<LI>Whether the O_ROWMAJOR option is enabled
+<LI>Whether display of descriptions is enabled
+<LI>Whatever menu format may have been set by the programmer
+<LI>The length of the menu mark string used for highlighting selected items
+</UL>
+
+The function <CODE>set_menu_format()</CODE> allows you to set the
+maximum size of the viewport or <DFN>menu page</DFN> that will be used
+to display menu items.  You can retrieve any format associated with a
+menu with <CODE>menu_format()</CODE>. The default format is rows=16,
+columns=1. <P>
+
+The actual menu page may be smaller than the format size.  This depends
+on the item number and size and whether O_ROWMAJOR is on.  This option
+(on by default) causes menu items to be displayed in a `raster-scan'
+pattern, so that if more than one item will fit horizontally the first
+couple of items are side-by-side in the top row.  The alternative is
+column-major display, which tries to put the first several items in
+the first column. <P>
+
+As mentioned above, a menu format not large enough to allow all items to fit
+on-screen will result in a menu display that is vertically scrollable. <P>
+You can scroll it with requests to the menu driver, which will be described
+in the section on <A HREF="#minput">menu input handling</A>. <P>
+
+Each menu has a <DFN>mark string</DFN> used to visually tag selected items;
+see the <CODE>menu_mark(3x)</CODE> manual page for details.  The mark
+string length also influences the menu page size. <P>
+
+The function <CODE>scale_menu()</CODE> returns the minimum display size
+that the menu code computes from all these factors.
+
+There are other menu display attributes including a select attribute,
+an attribute for selectable items, an attribute for unselectable items,
+and a pad character used to separate item name text from description
+text.  These have reasonable defaults which the library allows you to
+change (see the <CODE>menu_attribs(3x)</CODE> manual page.
+
+<H2><A NAME="mwindows">Menu Windows</A></H2>
+
+Each menu has, as mentioned previously, a pair of associated windows.
+Both these windows are painted when the menu is posted and erased when
+the menu is unposted. <P>
+
+The outer or frame window is not otherwise touched by the menu
+routines.  It exists so the programmer can associate a title, a
+border, or perhaps help text with the menu and have it properly
+refreshed or erased at post/unpost time.  The inner window or
+<DFN>subwindow</DFN> is where the current menu page is displayed. <P>
+
+By default, both windows are <CODE>stdscr</CODE>.  You can set them with the
+functions in <CODE>menu_win(3x)</CODE>. <P>
+
+When you call <CODE>post_menu()</CODE>, you write the menu to its
+subwindow.  When you call <CODE>unpost_menu()</CODE>, you erase the
+subwindow, However, neither of these actually modifies the screen.  To
+do that, call <CODE>wrefresh()</CODE> or some equivalent.
+
+<H2><A NAME="minput">Processing Menu Input</A></H2>
+
+The main loop of your menu-processing code should call
+<CODE>menu_driver()</CODE> repeatedly. The first argument of this routine
+is a menu pointer; the second is a menu command code.  You should write an
+input-fetching routine that maps input characters to menu command codes, and
+pass its output to <CODE>menu_driver()</CODE>.  The menu command codes are
+fully documented in <CODE>menu_driver(3x)</CODE>. <P>
+
+The simplest group of command codes is <CODE>REQ_NEXT_ITEM</CODE>,
+<CODE>REQ_PREV_ITEM</CODE>, <CODE>REQ_FIRST_ITEM</CODE>,
+<CODE>REQ_LAST_ITEM</CODE>, <CODE>REQ_UP_ITEM</CODE>,
+<CODE>REQ_DOWN_ITEM</CODE>, <CODE>REQ_LEFT_ITEM</CODE>,
+<CODE>REQ_RIGHT_ITEM</CODE>.  These change the currently selected
+item.  These requests may cause scrolling of the menu page if it only
+partially displayed. <P>
+
+There are explicit requests for scrolling which also change the
+current item (because the select location does not change, but the
+item there does).  These are <CODE>REQ_SCR_DLINE</CODE>,
+<CODE>REQ_SCR_ULINE</CODE>, <CODE>REQ_SCR_DPAGE</CODE>, and
+<CODE>REQ_SCR_UPAGE</CODE>. <P>
+
+The <CODE>REQ_TOGGLE_ITEM</CODE> selects or deselects the current item.
+It is for use in multi-valued menus; if you use it with <CODE>O_ONEVALUE</CODE>
+on, you'll get an error return (<CODE>E_REQUEST_DENIED</CODE>). <P>
+
+Each menu has an associated pattern buffer.  The
+<CODE>menu_driver()</CODE> logic tries to accumulate printable ASCII
+characters passed in in that buffer; when it matches a prefix of an
+item name, that item (or the next matching item) is selected.  If
+appending a character yields no new match, that character is deleted
+from the pattern buffer, and <CODE>menu_driver()</CODE> returns
+<CODE>E_NO_MATCH</CODE>. <P>
+
+Some requests change the pattern buffer directly:
+<CODE>REQ_CLEAR_PATTERN</CODE>, <CODE>REQ_BACK_PATTERN</CODE>,
+<CODE>REQ_NEXT_MATCH</CODE>, <CODE>REQ_PREV_MATCH</CODE>.  The latter
+two are useful when pattern buffer input matches more than one item
+in a multi-valued menu. <P>
+
+Each successful scroll or item navigation request clears the pattern
+buffer.  It is also possible to set the pattern buffer explicitly
+with <CODE>set_menu_pattern()</CODE>. <P>
+
+Finally, menu driver requests above the constant <CODE>MAX_COMMAND</CODE>
+are considered application-specific commands.  The <CODE>menu_driver()</CODE>
+code ignores them and returns <CODE>E_UNKNOWN_COMMAND</CODE>.
+
+<H2><A NAME="mmisc">Miscellaneous Other Features</A></H2>
+
+Various menu options can affect the processing and visual appearance
+and input processing of menus.  See <CODE>menu_opts(3x) for
+details.</CODE> <P>
+
+It is possible to change the current item from application code; this
+is useful if you want to write your own navigation requests.  It is
+also possible to explicitly set the top row of the menu display.  See
+<CODE>mitem_current(3x)</CODE>.
+
+If your application needs to change the menu subwindow cursor for
+any reason, <CODE>pos_menu_cursor()</CODE> will restore it to the
+correct location for continuing menu driver processing. <P>
+
+It is possible to set hooks to be called at menu initialization and
+wrapup time, and whenever the selected item changes.  See
+<CODE>menu_hook(3x)</CODE>. <P>
+
+Each item, and each menu, has an associated user pointer on which you
+can hang application data.  See <CODE>mitem_userptr(3x)</CODE> and
+<CODE>menu_userptr(3x)</CODE>.
+
+<H1><A NAME="form">The Forms Library</A></H1>
+
+The <CODE>form</CODE> library is a curses extension that supports easy
+programming of on-screen forms for data entry and program control. <P>
+
+The <CODE>form</CODE> library first appeared in AT&amp;T System V.  The
+version documented here is the <CODE>form</CODE> code distributed
+with <CODE>ncurses</CODE>.
+
+<H2><A NAME="fcompile">Compiling With the form Library</A></H2>
+
+Your form-using modules must import the form library declarations with
+
+<PRE>
+	  #include &lt;form.h&gt;
+</PRE>
+
+and must be linked explicitly with the forms library using an
+<CODE>-lform</CODE> argument.  Note that they must also link the
+<CODE>ncurses</CODE> library with <CODE>-lncurses</CODE>.  Many linkers
+are two-pass and will accept either order, but it is still good practice
+to put <CODE>-lform</CODE> first and <CODE>-lncurses</CODE> second.
+
+<H2><A NAME="foverview">Overview of Forms</A></H2>
+
+A form is a collection of fields; each field may be either a label
+(explanatory text) or a data-entry location.  Long forms may be
+segmented into pages; each entry to a new page clears the screen. <P>
+To make forms, you create groups of fields and connect them with form
+frame objects; the form library makes this relatively simple. <P>
+
+Once defined, a form can be <DFN>posted</DFN>, that is written to an
+associated window.  Actually, each form has two associated windows; a
+containing window in which the programmer can scribble titles or
+borders, and a subwindow in which the form fields proper are displayed. <P>
+
+As the form user fills out the posted form, navigation and editing
+keys support movement between fields, editing keys support modifying
+field, and plain text adds to or changes data in a current field.  The
+form library allows you (the forms designer) to bind each navigation
+and editing key to any keystroke accepted by <CODE>curses</CODE>
+
+Fields may have validation conditions on them, so that they check input
+data for type and value.  The form library supplies a rich set of
+pre-defined field types, and makes it relatively easy to define new ones. <P>
+
+Once its transaction is completed (or aborted), a form may be
+<DFN>unposted</DFN> (that is, undisplayed), and finally freed to make
+the storage associated with it and its items available for re-use. <P>
+
+The general flow of control of a form program looks like this:
+
+<OL>
+<LI>Initialize <CODE>curses</CODE>.
+<LI>Create the form fields, using <CODE>new_field()</CODE>.
+<LI>Create the form using <CODE>new_form()</CODE>.
+<LI>Post the form using <CODE>post_form()</CODE>.
+<LI>Refresh the screen.
+<LI>Process user requests via an input loop.
+<LI>Unpost the form using <CODE>unpost_form()</CODE>.
+<LI>Free the form, using <CODE>free_form()</CODE>.
+<LI>Free the fields using <CODE>free_field()</CODE>.
+<LI>Terminate <CODE>curses</CODE>.
+</OL>
+
+Note that this looks much like a menu program; the form library handles
+tasks which are in many ways similar, and its interface was obviously
+designed to resemble that of the <A HREF="#menu">menu library</A>
+wherever possible. <P>
+
+In forms programs, however, the `process user requests' is somewhat more
+complicated than for menus.  Besides menu-like navigation operations,
+the menu driver loop has to support field editing and data validation.
+
+<H2><A NAME="fcreate">Creating and Freeing Fields and Forms</A></H2>
+
+The basic function for creating fields is <CODE>new_field()</CODE>:
+
+<PRE>
+FIELD *new_field(int height, int width,   /* new field size */
+                 int top, int left,       /* upper left corner */
+                 int offscreen,           /* number of offscreen rows */
+                 int nbuf);               /* number of working buffers */
+</PRE>
+
+Menu items always occupy a single row, but forms fields may have
+multiple rows.  So <CODE>new_field()</CODE> requires you to specify a
+width and height (the first two arguments, which mist both be greater
+than zero). <P>
+
+You must also specify the location of the field's upper left corner on
+the screen (the third and fourth arguments, which must be zero or
+greater). Note that these coordinates are relative to the form
+subwindow, which will coincide with <CODE>stdscr</CODE> by default but
+need not be <CODE>stdscr</CODE> if you've done an explicit
+<CODE>set_form_win()</CODE> call. <P>
+
+The fifth argument allows you to specify a number of off-screen rows.  If
+this is zero, the entire field will always be displayed.  If it is
+nonzero, the form will be scrollable, with only one screen-full (initially
+the top part) displayed at any given time.  If you make a field dynamic
+and grow it so it will no longer fit on the screen, the form will become
+scrollable even if the <CODE>offscreen</CODE> argument was initially zero. <P>
+
+The forms library allocates one working buffer per field; the size of
+each buffer is <CODE>((height + offscreen)*width + 1</CODE>, one character
+for each position in the field plus a NUL terminator.  The sixth
+argument is the number of additional data buffers to allocate for the
+field; your application can use them for its own purposes.
+
+<PRE>
+FIELD *dup_field(FIELD *field,            /* field to copy */
+                 int top, int left);      /* location of new copy */
+</PRE>
+
+The function <CODE>dup_field()</CODE> duplicates an existing field at a
+new location.  Size and buffering information are copied; some
+attribute flags and status bits are not (see the
+<CODE>form_field_new(3X)</CODE> for details).
+
+<PRE>
+FIELD *link_field(FIELD *field,           /* field to copy */
+                  int top, int left);     /* location of new copy */
+</PRE>
+
+The function <CODE>link_field()</CODE> also duplicates an existing field
+at a new location.  The difference from <CODE>dup_field()</CODE> is that
+it arranges for the new field's buffer to be shared with the old one. <P>
+
+Besides the obvious use in making a field editable from two different
+form pages, linked fields give you a way to hack in dynamic labels.  If
+you declare several fields linked to an original, and then make them
+inactive, changes from the original will still be propagated to the
+linked fields. <P>
+
+As with duplicated fields, linked fields have attribute bits separate
+from the original. <P>
+
+As you might guess, all these field-allocations return <CODE>NULL</CODE> if
+the field allocation is not possible due to an out-of-memory error or
+out-of-bounds arguments. <P>
+
+To connect fields to a form, use
+
+<PRE>
+FORM *new_form(FIELD **fields);
+</PRE>
+
+This function expects to see a NULL-terminated array of field pointers.
+Said fields are connected to a newly-allocated form object; its address
+is returned (or else NULL if the allocation fails).   <P>
+
+Note that <CODE>new_field()</CODE> does <EM>not</EM> copy the pointer array
+into private storage; if you modify the contents of the pointer array
+during forms processing, all manner of bizarre things might happen.  Also
+note that any given field may only be connected to one form. <P>
+
+The functions <CODE>free_field()</CODE> and <CODE>free_form</CODE> are available
+to free field and form objects.  It is an error to attempt to free a field
+connected to a form, but not vice-versa; thus, you will generally free
+your form objects first.
+
+<H2><A NAME="fattributes">Fetching and Changing Field Attributes</A></H2>
+
+Each form field has a number of location and size attributes
+associated with it. There are other field attributes used to control
+display and editing of the field.  Some (for example, the <CODE>O_STATIC</CODE> bit)
+involve sufficient complications to be covered in sections of their own
+later on.  We cover the functions used to get and set several basic
+attributes here. <P>
+
+When a field is created, the attributes not specified by the
+<CODE>new_field</CODE> function are copied from an invisible system
+default field.  In attribute-setting and -fetching functions, the
+argument NULL is taken to mean this field.  Changes to it persist
+as defaults until your forms application terminates.
+
+<H3><A NAME="fsizes">Fetching Size and Location Data</A></H3>
+
+You can retrieve field sizes and locations through:
+
+<PRE>
+int field_info(FIELD *field,              /* field from which to fetch */
+               int *height, *int width,   /* field size */
+               int *top, int *left,       /* upper left corner */
+               int *offscreen,            /* number of offscreen rows */
+               int *nbuf);                /* number of working buffers */
+</PRE>
+
+This function is a sort of inverse of <CODE>new_field()</CODE>; instead of
+setting size and location attributes of a new field, it fetches them
+from an existing one.
+
+<H3><A NAME="flocation">Changing the Field Location</A></H3>
+
+It is possible to move a field's location on the screen:
+
+<PRE>
+int move_field(FIELD *field,              /* field to alter */
+               int top, int left);        /* new upper-left corner */
+</PRE>
+
+You can, of course. query the current location through <CODE>field_info()</CODE>.
+
+<H3><A NAME="fjust">The Justification Attribute</A></H3>
+
+One-line fields may be unjustified, justified right, justified left,
+or centered.  Here is how you manipulate this attribute:
+
+<PRE>
+int set_field_just(FIELD *field,          /* field to alter */
+                   int justmode);         /* mode to set */
+
+int field_just(FIELD *field);             /* fetch mode of field */
+</PRE>
+
+The mode values accepted and returned by this functions are
+preprocessor macros <CODE>NO_JUSTIFICATION</CODE>, <CODE>JUSTIFY_RIGHT</CODE>,
+<CODE>JUSTIFY_LEFT</CODE>, or <CODE>JUSTIFY_CENTER</CODE>.
+
+<H3><A NAME="fdispatts">Field Display Attributes</A></H3>
+
+For each field, you can set a foreground attribute for entered
+characters, a background attribute for the entire field, and a pad
+character for the unfilled portion of the field.  You can also
+control pagination of the form. <P>
+
+This group of four field attributes controls the visual appearance
+of the field on the screen, without affecting in any way the data
+in the field buffer.
+
+<PRE>
+int set_field_fore(FIELD *field,          /* field to alter */
+                   chtype attr);          /* attribute to set */
+
+chtype field_fore(FIELD *field);          /* field to query */
+
+int set_field_back(FIELD *field,          /* field to alter */
+                   chtype attr);          /* attribute to set */
+
+chtype field_back(FIELD *field);          /* field to query */
+
+int set_field_pad(FIELD *field,           /* field to alter */
+                 int pad);                /* pad character to set */
+
+chtype field_pad(FIELD *field);
+
+int set_new_page(FIELD *field,            /* field to alter */
+                 int flag);               /* TRUE to force new page */
+
+chtype new_page(FIELD *field);            /* field to query */
+</PRE>
+
+The attributes set and returned by the first four functions are normal
+<CODE>curses(3x)</CODE> display attribute values (<CODE>A_STANDOUT</CODE>,
+<CODE>A_BOLD</CODE>, <CODE>A_REVERSE</CODE> etc).
+
+The page bit of a field controls whether it is displayed at the start of
+a new form screen.
+
+<H3><A NAME="foptions">Field Option Bits</A></H3>
+
+There is also a large collection of field option bits you can set to control
+various aspects of forms processing.  You can manipulate them with these
+functions:
+
+<PRE>
+int set_field_opts(FIELD *field,          /* field to alter */
+                   int attr);             /* attribute to set */
+
+int field_opts_on(FIELD *field,           /* field to alter */
+                  int attr);              /* attributes to turn on */
+
+int field_opts_off(FIELD *field,          /* field to alter */
+                   int attr);             /* attributes to turn off */
+
+int field_opts(FIELD *field);             /* field to query */
+</PRE>
+
+By default, all options are on.  Here are the available option bits:
+<DL>
+<DT> O_VISIBLE
+<DD> Controls whether the field is visible on the screen.  Can be used
+during form processing to hide or pop up fields depending on the value
+of parent fields.
+<DT> O_ACTIVE
+<DD> Controls whether the field is active during forms processing (i.e.
+visited by form navigation keys).  Can be used to make labels or derived
+fields with buffer values alterable by the forms application, not the user.
+<DT> O_PUBLIC
+<DD> Controls whether data is displayed during field entry.  If this option is
+turned off on a field, the library will accept and edit data in that field,
+but it will not be displayed and the visible field cursor will not move.
+You can turn off the O_PUBLIC bit to define password fields.
+<DT> O_EDIT
+<DD> Controls whether the field's data can be modified.  When this option is
+off, all editing requests except <CODE>REQ_PREV_CHOICE</CODE> and
+<CODE>REQ_NEXT_CHOICE</CODE> will fail.  Such read-only fields may be useful for
+help messages.
+<DT> O_WRAP
+<DD> Controls word-wrapping in multi-line fields.  Normally, when any
+character of a (blank-separated) word reaches the end of the current line, the
+entire word is wrapped to the next line (assuming there is one).  When this
+option is off, the word will be split across the line break.
+<DT> O_BLANK
+<DD> Controls field blanking.  When this option is on, entering a character at
+the first field position erases the entire field (except for the just-entered
+character).
+<DT> O_AUTOSKIP
+<DD> Controls automatic skip to next field when this one fills.  Normally,
+when the forms user tries to type more data into a field than will fit,
+the editing location jumps to next field.  When this option is off, the
+user's cursor will hang at the end of the field.  This option is ignored
+in dynamic fields that have not reached their size limit.
+<DT> O_NULLOK
+<DD> Controls whether <A HREF="#fvalidation">validation</A> is applied to
+blank fields.  Normally, it is not; the user can leave a field blank
+without invoking the usual validation check on exit.  If this option is
+off on a field, exit from it will invoke a validation check.
+<DT> O_PASSOK
+<DD> Controls whether validation occurs on every exit, or only after
+the field is modified.  Normally the latter is true.  Setting O_PASSOK
+may be useful if your field's validation function may change during
+forms processing.
+<DT> O_STATIC
+<DD> Controls whether the field is fixed to its initial dimensions.  If you
+turn this off, the field becomes <A HREF="#fdynamic">dynamic</A> and will
+stretch to fit entered data.
+</DL>
+
+A field's options cannot be changed while the field is currently selected.
+However, options may be changed on posted fields that are not current. <P>
+
+The option values are bit-masks and can be composed with logical-or in
+the obvious way.
+
+<H2><A NAME="fstatus">Field Status</A></H2>
+
+Every field has a status flag, which is set to FALSE when the field is
+created and TRUE when the value in field buffer 0 changes.  This flag can
+be queried and set directly:
+
+<PRE>
+int set_field_status(FIELD *field,      /* field to alter */
+                   int status);         /* mode to set */
+
+int field_status(FIELD *field);         /* fetch mode of field */
+</PRE>
+
+Setting this flag under program control can be useful if you use the same
+form repeatedly, looking for modified fields each time. <P>
+
+Calling <CODE>field_status()</CODE> on a field not currently selected
+for input will return a correct value.  Calling <CODE>field_status()</CODE> on a
+field that is currently selected for input may not necessarily give a
+correct field status value, because entered data isn't necessarily copied to
+buffer zero before the exit validation check.
+
+To guarantee that the returned status value reflects reality, call
+<CODE>field_status()</CODE> either (1) in the field's exit validation check
+routine, (2) from the field's or form's initialization or termination
+hooks, or (3) just after a <CODE>REQ_VALIDATION</CODE> request has been
+processed by the forms driver.
+
+<H2><A NAME="fuser">Field User Pointer</A></H2>
+
+Each field structure contains one character pointer slot that is not used
+by the forms library.  It is intended to be used by applications to store
+private per-field data.  You can manipulate it with:
+
+<PRE>
+int set_field_userptr(FIELD *field,       /* field to alter */
+                   char *userptr);        /* mode to set */
+
+char *field_userptr(FIELD *field);        /* fetch mode of field */
+</PRE>
+
+(Properly, this user pointer field ought to have <CODE>(void *)</CODE> type.
+The <CODE>(char *)</CODE> type is retained for System V compatibility.) <P>
+
+It is valid to set the user pointer of the default field (with a
+<CODE>set_field_userptr()</CODE> call passed a NULL field pointer.)
+When a new field is created, the default-field user pointer is copied
+to initialize the new field's user pointer.
+
+<H2><A NAME="fdynamic">Variable-Sized Fields</A></H2>
+
+Normally, a field is fixed at the size specified for it at creation
+time.  If, however, you turn off its O_STATIC bit, it becomes
+<DFN>dynamic</DFN> and will automatically resize itself to accommodate
+data as it is entered.  If the field has extra buffers associated with it,
+they will grow right along with the main input buffer.  <P>
+
+A one-line dynamic field will have a fixed height (1) but variable
+width, scrolling horizontally to display data within the field area as
+originally dimensioned and located.  A multi-line dynamic field will
+have a fixed width, but variable height (number of rows), scrolling
+vertically to display data within the field area as originally
+dimensioned and located. <P>
+
+Normally, a dynamic field is allowed to grow without limit.  But it is
+possible to set an upper limit on the size of a dynamic field.  You do
+it with this function:
+
+<PRE>
+int set_max_field(FIELD *field,     /* field to alter (may not be NULL) */
+                   int max_size);   /* upper limit on field size */
+</PRE>
+
+If the field is one-line, <CODE>max_size</CODE> is taken to be a column size
+limit; if it is multi-line, it is taken to be a line size limit.  To disable
+any limit, use an argument of zero.  The growth limit can be changed whether
+or not the O_STATIC bit is on, but has no effect until it is. <P>
+
+The following properties of a field change when it becomes dynamic:
+
+<UL>
+<LI>If there is no growth limit, there is no final position of the field;
+therefore <CODE>O_AUTOSKIP</CODE> and <CODE>O_NL_OVERLOAD</CODE> are ignored.
+<LI>Field justification will be ignored (though whatever justification is
+set up will be retained internally and can be queried).
+<LI>The <CODE>dup_field()</CODE> and <CODE>link_field()</CODE> calls copy
+dynamic-buffer sizes.  If the <CODE>O_STATIC</CODE> option is set on one of a
+collection of links, buffer resizing will occur only when the field is
+edited through that link.
+<LI>The call <CODE>field_info()</CODE> will retrieve the original static size of
+the field; use <CODE>dynamic_field_info()</CODE> to get the actual dynamic size.
+</UL>
+
+<H2><A NAME="fvalidation">Field Validation</A></H2>
+
+By default, a field will accept any data that will fit in its input buffer.
+However, it is possible to attach a validation type to a field.  If you do
+this, any attempt to leave the field while it contains data that doesn't
+match the validation type will fail.  Some validation types also have a
+character-validity check for each time a character is entered in the field. <P>
+
+A field's validation check (if any) is not called when
+<CODE>set_field_buffer()</CODE> modifies the input buffer, nor when that buffer
+is changed through a linked field. <P>
+
+The <CODE>form</CODE> library provides a rich set of pre-defined validation
+types, and gives you the capability to define custom ones of your own.  You
+can examine and change field validation attributes with the following
+functions:
+
+<PRE>
+int set_field_type(FIELD *field,          /* field to alter */
+                   FIELDTYPE *ftype,      /* type to associate */
+                   ...);                  /* additional arguments*/
+
+FIELDTYPE *field_type(FIELD *field);      /* field to query */
+</PRE>
+
+The validation type of a field is considered an attribute of the field.  As
+with other field attributes, Also, doing <CODE>set_field_type()</CODE> with a
+<CODE>NULL</CODE> field default will change the system default for validation of
+newly-created fields. <P>
+
+Here are the pre-defined validation types:
+
+<H3><A NAME="ftype_alpha">TYPE_ALPHA</A></H3>
+
+This field type accepts alphabetic data; no blanks, no digits, no special
+characters (this is checked at character-entry time).  It is set up with:
+
+<PRE>
+int set_field_type(FIELD *field,          /* field to alter */
+                   TYPE_ALPHA,            /* type to associate */
+                   int width);            /* maximum width of field */
+</PRE>
+
+The <CODE>width</CODE> argument sets a minimum width of data.  Typically
+you'll want to set this to the field width; if it's greater than the
+field width, the validation check will always fail.  A minimum width
+of zero makes field completion optional.
+
+<H3><A NAME="ftype_alnum">TYPE_ALNUM</A></H3>
+
+This field type accepts alphabetic data and digits; no blanks, no special
+characters (this is checked at character-entry time).  It is set up with:
+
+<PRE>
+int set_field_type(FIELD *field,          /* field to alter */
+                   TYPE_ALNUM,            /* type to associate */
+                   int width);            /* maximum width of field */
+</PRE>
+
+The <CODE>width</CODE> argument sets a minimum width of data.  As with
+TYPE_ALPHA, typically you'll want to set this to the field width; if it's
+greater than the field width, the validation check will always fail.  A
+minimum width of zero makes field completion optional.
+
+<H3><A NAME="ftype_enum">TYPE_ENUM</A></H3>
+
+This type allows you to restrict a field's values to be among a specified
+set of string values (for example, the two-letter postal codes for U.S.
+states).  It is set up with:
+
+<PRE>
+int set_field_type(FIELD *field,          /* field to alter */
+                   TYPE_ENUM,             /* type to associate */
+                   char **valuelist;      /* list of possible values */
+                   int checkcase;         /* case-sensitive? */
+                   int checkunique);      /* must specify uniquely? */
+</PRE>
+
+The <CODE>valuelist</CODE> parameter must point at a NULL-terminated list of
+valid strings.  The <CODE>checkcase</CODE> argument, if true, makes comparison
+with the string case-sensitive. <P>
+
+When the user exits a TYPE_ENUM field, the validation procedure tries to
+complete the data in the buffer to a valid entry.  If a complete choice string
+has been entered, it is of course valid.  But it is also possible to enter a
+prefix of a valid string and have it completed for you. <P>
+
+By default, if you enter such a prefix and it matches more than one value
+in the string list, the prefix will be completed to the first matching
+value.  But the <CODE>checkunique</CODE> argument, if true, requires prefix
+matches to be unique in order to be valid. <P>
+
+The <CODE>REQ_NEXT_CHOICE</CODE> and <CODE>REQ_PREV_CHOICE</CODE> input requests
+can be particularly useful with these fields.
+
+<H3><A NAME="ftype_integer">TYPE_INTEGER</A></H3>
+
+This field type accepts an integer.  It is set up as follows:
+
+<PRE>
+int set_field_type(FIELD *field,          /* field to alter */
+                   TYPE_INTEGER,          /* type to associate */
+                   int padding,           /* # places to zero-pad to */
+                   int vmin, int vmax);   /* valid range */
+</PRE>
+
+Valid characters consist of an optional leading minus and digits.
+The range check is performed on exit.  If the range maximum is less
+than or equal to the minimum, the range is ignored. <P>
+
+If the value passes its range check, it is padded with as many leading
+zero digits as necessary to meet the padding argument. <P>
+
+A <CODE>TYPE_INTEGER</CODE> value buffer can conveniently be interpreted
+with the C library function <CODE>atoi(3)</CODE>.
+
+<H3><A NAME="ftype_numeric">TYPE_NUMERIC</A></H3>
+
+This field type accepts a decimal number.  It is set up as follows:
+
+<PRE>
+int set_field_type(FIELD *field,              /* field to alter */
+                   TYPE_NUMERIC,              /* type to associate */
+                   int padding,               /* # places of precision */
+                   double vmin, double vmax); /* valid range */
+</PRE>
+
+Valid characters consist of an optional leading minus and digits. possibly
+including a decimal point. If your system supports locale's, the decimal point
+character used must be the one defined by your locale. The range check is
+performed on exit. If the range maximum is less than or equal to the minimum,
+the range is ignored. <P>
+
+If the value passes its range check, it is padded with as many trailing
+zero digits as necessary to meet the padding argument. <P>
+
+A <CODE>TYPE_NUMERIC</CODE> value buffer can conveniently be interpreted
+with the C library function <CODE>atof(3)</CODE>.
+
+<H3><A NAME="ftype_regexp">TYPE_REGEXP</A></H3>
+
+This field type accepts data matching a regular expression.  It is set up
+as follows:
+
+<PRE>
+int set_field_type(FIELD *field,          /* field to alter */
+                   TYPE_REGEXP,           /* type to associate */
+                   char *regexp);         /* expression to match */
+</PRE>
+
+The syntax for regular expressions is that of <CODE>regcomp(3)</CODE>.
+The check for regular-expression match is performed on exit.
+
+<H2><A NAME="fbuffer">Direct Field Buffer Manipulation</A></H2>
+
+The chief attribute of a field is its buffer contents.  When a form has
+been completed, your application usually needs to know the state of each
+field buffer.  You can find this out with:
+
+<PRE>
+char *field_buffer(FIELD *field,          /* field to query */
+                   int bufindex);         /* number of buffer to query */
+</PRE>
+
+Normally, the state of the zero-numbered buffer for each field is set by
+the user's editing actions on that field.  It's sometimes useful to be able
+to set the value of the zero-numbered (or some other) buffer from your
+application:
+
+<PRE>
+int set_field_buffer(FIELD *field,        /* field to alter */
+                   int bufindex,          /* number of buffer to alter */
+                   char *value);          /* string value to set */
+</PRE>
+
+If the field is not large enough and cannot be resized to a sufficiently
+large size to contain the specified value, the value will be truncated
+to fit. <P>
+
+Calling <CODE>field_buffer()</CODE> with a null field pointer will raise an
+error.  Calling <CODE>field_buffer()</CODE> on a field not currently selected
+for input will return a correct value.  Calling <CODE>field_buffer()</CODE> on a
+field that is currently selected for input may not necessarily give a
+correct field buffer value, because entered data isn't necessarily copied to
+buffer zero before the exit validation check.
+
+To guarantee that the returned buffer value reflects on-screen reality,
+call <CODE>field_buffer()</CODE> either (1) in the field's exit validation
+check routine, (2) from the field's or form's initialization or termination
+hooks, or (3) just after a <CODE>REQ_VALIDATION</CODE> request has been processed
+by the forms driver.
+
+<H2><A NAME="formattrs">Attributes of Forms</A></H2>
+
+As with field attributes, form attributes inherit a default from a
+system default form structure.  These defaults can be queried or set by
+of these functions using a form-pointer argument of <CODE>NULL</CODE>. <P>
+
+The principal attribute of a form is its field list.  You can query
+and change this list with:
+
+<PRE>
+int set_form_fields(FORM *form,           /* form to alter */
+                    FIELD **fields);      /* fields to connect */
+
+char *form_fields(FORM *form);            /* fetch fields of form */
+
+int field_count(FORM *form);              /* count connect fields */
+</PRE>
+
+The second argument of <CODE>set_form_fields()</CODE> may be a
+NULL-terminated field pointer array like the one required by
+<CODE>new_form()</CODE>. In that case, the old fields of the form are
+disconnected but not freed (and eligible to be connected to other
+forms), then the new fields are connected. <P>
+
+It may also be null, in which case the old fields are disconnected
+(and not freed) but no new ones are connected. <P>
+
+The <CODE>field_count()</CODE> function simply counts the number of fields
+connected to a given from.  It returns -1 if the form-pointer argument
+is NULL.
+
+<H2><A NAME="fdisplay">Control of Form Display</A></H2>
+
+In the overview section, you saw that to display a form you normally
+start by defining its size (and fields), posting it, and refreshing
+the screen.  There is an hidden step before posting, which is the
+association of the form with a frame window (actually, a pair of
+windows) within which it will be displayed.  By default, the forms
+library associates every form with the full-screen window
+<CODE>stdscr</CODE>. <P>
+
+By making this step explicit, you can associate a form with a declared
+frame window on your screen display.  This can be useful if you want to
+adapt the form display to different screen sizes, dynamically tile
+forms on the screen, or use a form as part of an interface layout
+managed by <A HREF="#panels">panels</A>. <P>
+
+The two windows associated with each form have the same functions as
+their analogues in the <A HREF="#menu">menu library</A>.  Both these
+windows are painted when the form is posted and erased when the form
+is unposted. <P>
+
+The outer or frame window is not otherwise touched by the form
+routines.  It exists so the programmer can associate a title, a
+border, or perhaps help text with the form and have it properly
+refreshed or erased at post/unpost time. The inner window or subwindow
+is where the current form page is actually displayed. <P>
+
+In order to declare your own frame window for a form, you'll need to
+know the size of the form's bounding rectangle.  You can get this
+information with:
+
+<PRE>
+int scale_form(FORM *form,                /* form to query */
+               int *rows,                 /* form rows */
+               int *cols);                /* form cols */
+</PRE>
+
+The form dimensions are passed back in the locations pointed to by
+the arguments.  Once you have this information, you can use it to
+declare of windows, then use one of these functions:
+
+<PRE>
+int set_form_win(FORM *form,              /* form to alter */
+                 WINDOW *win);            /* frame window to connect */
+
+WINDOW *form_win(FORM *form);             /* fetch frame window of form */
+
+int set_form_sub(FORM *form,              /* form to alter */
+                 WINDOW *win);            /* form subwindow to connect */
+
+WINDOW *form_sub(FORM *form);             /* fetch form subwindow of form */
+</PRE>
+
+Note that curses operations, including <CODE>refresh()</CODE>, on the form,
+should be done on the frame window, not the form subwindow. <P>
+
+It is possible to check from your application whether all of a
+scrollable field is actually displayed within the menu subwindow.  Use
+these functions:
+
+<PRE>
+int data_ahead(FORM *form);               /* form to be queried */
+
+int data_behind(FORM *form);              /* form to be queried */
+</PRE>
+
+The function <CODE>data_ahead()</CODE> returns TRUE if (a) the current
+field is one-line and has undisplayed data off to the right, (b) the current
+field is multi-line and there is data off-screen below it. <P>
+
+The function <CODE>data_behind()</CODE> returns TRUE if the first (upper
+left hand) character position is off-screen (not being displayed). <P>
+
+Finally, there is a function to restore the form window's cursor to the
+value expected by the forms driver:
+
+<PRE>
+int pos_form_cursor(FORM *)               /* form to be queried */
+</PRE>
+
+If your application changes the form window cursor, call this function before
+handing control back to the forms driver in order to re-synchronize it.
+
+<H2><A NAME="fdriver">Input Processing in the Forms Driver</A></H2>
+
+The function <CODE>form_driver()</CODE> handles virtualized input requests
+for form navigation, editing, and validation requests, just as
+<CODE>menu_driver</CODE> does for menus (see the section on <A
+HREF="#minput">menu input handling</A>).
+
+<PRE>
+int form_driver(FORM *form,               /* form to pass input to */
+                int request);             /* form request code */
+</PRE>
+
+Your input virtualization function needs to take input and then convert it
+to either an alphanumeric character (which is treated as data to be
+entered in the currently-selected field), or a forms processing request. <P>
+
+The forms driver provides hooks (through input-validation and
+field-termination functions) with which your application code can check
+that the input taken by the driver matched what was expected.
+
+<H3><A NAME="fpage">Page Navigation Requests</A></H3>
+
+These requests cause page-level moves through the form,
+triggering display of a new form screen.
+
+<DL>
+<DT> <CODE>REQ_NEXT_PAGE</CODE>
+<DD> Move to the next form page.
+<DT> <CODE>REQ_PREV_PAGE</CODE>
+<DD> Move to the previous form page.
+<DT> <CODE>REQ_FIRST_PAGE</CODE>
+<DD> Move to the first form page.
+<DT> <CODE>REQ_LAST_PAGE</CODE>
+<DD> Move to the last form page.
+</DL>
+
+These requests treat the list as cyclic; that is, <CODE>REQ_NEXT_PAGE</CODE>
+from the last page goes to the first, and <CODE>REQ_PREV_PAGE</CODE> from
+the first page goes to the last.
+
+<H3><A NAME="ffield">Inter-Field Navigation Requests</A></H3>
+
+These requests handle navigation between fields on the same page.
+
+<DL>
+<DT> <CODE>REQ_NEXT_FIELD</CODE>
+<DD> Move to next field.
+<DT> <CODE>REQ_PREV_FIELD</CODE>
+<DD> Move to previous field.
+<DT> <CODE>REQ_FIRST_FIELD</CODE>
+<DD> Move to the first field.
+<DT> <CODE>REQ_LAST_FIELD</CODE>
+<DD> Move to the last field.
+<DT> <CODE>REQ_SNEXT_FIELD</CODE>
+<DD> Move to sorted next field.
+<DT> <CODE>REQ_SPREV_FIELD</CODE>
+<DD> Move to sorted previous field.
+<DT> <CODE>REQ_SFIRST_FIELD</CODE>
+<DD> Move to the sorted first field.
+<DT> <CODE>REQ_SLAST_FIELD</CODE>
+<DD> Move to the sorted last field.
+<DT> <CODE>REQ_LEFT_FIELD</CODE>
+<DD> Move left to field.
+<DT> <CODE>REQ_RIGHT_FIELD</CODE>
+<DD> Move right to field.
+<DT> <CODE>REQ_UP_FIELD</CODE>
+<DD> Move up to field.
+<DT> <CODE>REQ_DOWN_FIELD</CODE>
+<DD> Move down to field.
+</DL>
+
+These requests treat the list of fields on a page as cyclic; that is,
+<CODE>REQ_NEXT_FIELD</CODE> from the last field goes to the first, and
+<CODE>REQ_PREV_FIELD</CODE> from the first field goes to the last. The
+order of the fields for these (and the <CODE>REQ_FIRST_FIELD</CODE> and
+<CODE>REQ_LAST_FIELD</CODE> requests) is simply the order of the field
+pointers in the form array (as set up by <CODE>new_form()</CODE> or
+<CODE>set_form_fields()</CODE> <P>
+
+It is also possible to traverse the fields as if they had been sorted in
+screen-position order, so the sequence goes left-to-right and top-to-bottom.
+To do this, use the second group of four sorted-movement requests.  <P>
+
+Finally, it is possible to move between fields using visual directions up,
+down, right, and left.  To accomplish this, use the third group of four
+requests.  Note, however, that the position of a form for purposes of these
+requests is its upper-left corner. <P>
+
+For example, suppose you have a multi-line field B, and two
+single-line fields A and C on the same line with B, with A to the left
+of B and C to the right of B.  A <CODE>REQ_MOVE_RIGHT</CODE> from A will
+go to B only if A, B, and C <EM>all</EM> share the same first line;
+otherwise it will skip over B to C.
+
+<H3><A NAME="fifield">Intra-Field Navigation Requests</A></H3>
+
+These requests drive movement of the edit cursor within the currently
+selected field.
+
+<DL>
+<DT> <CODE>REQ_NEXT_CHAR</CODE>
+<DD> Move to next character.
+<DT> <CODE>REQ_PREV_CHAR</CODE>
+<DD> Move to previous character.
+<DT> <CODE>REQ_NEXT_LINE</CODE>
+<DD> Move to next line.
+<DT> <CODE>REQ_PREV_LINE</CODE>
+<DD> Move to previous line.
+<DT> <CODE>REQ_NEXT_WORD</CODE>
+<DD> Move to next word.
+<DT> <CODE>REQ_PREV_WORD</CODE>
+<DD> Move to previous word.
+<DT> <CODE>REQ_BEG_FIELD</CODE>
+<DD> Move to beginning of field.
+<DT> <CODE>REQ_END_FIELD</CODE>
+<DD> Move to end of field.
+<DT> <CODE>REQ_BEG_LINE</CODE>
+<DD> Move to beginning of line.
+<DT> <CODE>REQ_END_LINE</CODE>
+<DD> Move to end of line.
+<DT> <CODE>REQ_LEFT_CHAR</CODE>
+<DD> Move left in field.
+<DT> <CODE>REQ_RIGHT_CHAR</CODE>
+<DD> Move right in field.
+<DT> <CODE>REQ_UP_CHAR</CODE>
+<DD> Move up in field.
+<DT> <CODE>REQ_DOWN_CHAR</CODE>
+<DD> Move down in field.
+</DL>
+
+Each <EM>word</EM> is separated from the previous and next characters
+by whitespace.  The commands to move to beginning and end of line or field
+look for the first or last non-pad character in their ranges.
+
+<H3><A NAME="fscroll">Scrolling Requests</A></H3>
+
+Fields that are dynamic and have grown and fields explicitly created
+with offscreen rows are scrollable.  One-line fields scroll horizontally;
+multi-line fields scroll vertically.  Most scrolling is triggered by
+editing and intra-field movement (the library scrolls the field to keep the
+cursor visible).  It is possible to explicitly request scrolling with the
+following requests:
+
+<DL>
+<DT> <CODE>REQ_SCR_FLINE</CODE>
+<DD> Scroll vertically forward a line.
+<DT> <CODE>REQ_SCR_BLINE</CODE>
+<DD> Scroll vertically backward a line.
+<DT> <CODE>REQ_SCR_FPAGE</CODE>
+<DD> Scroll vertically forward a page.
+<DT> <CODE>REQ_SCR_BPAGE</CODE>
+<DD> Scroll vertically backward a page.
+<DT> <CODE>REQ_SCR_FHPAGE</CODE>
+<DD> Scroll vertically forward half a page.
+<DT> <CODE>REQ_SCR_BHPAGE</CODE>
+<DD> Scroll vertically backward half a page.
+<DT> <CODE>REQ_SCR_FCHAR</CODE>
+<DD> Scroll horizontally forward a character.
+<DT> <CODE>REQ_SCR_BCHAR</CODE>
+<DD> Scroll horizontally backward a character.
+<DT> <CODE>REQ_SCR_HFLINE</CODE>
+<DD> Scroll horizontally one field width forward.
+<DT> <CODE>REQ_SCR_HBLINE</CODE>
+<DD> Scroll horizontally one field width backward.
+<DT> <CODE>REQ_SCR_HFHALF</CODE>
+<DD> Scroll horizontally one half field width forward.
+<DT> <CODE>REQ_SCR_HBHALF</CODE>
+<DD> Scroll horizontally one half field width backward.
+</DL>
+
+For scrolling purposes, a <EM>page</EM> of a field is the height
+of its visible part.
+
+<H3><A NAME="fedit">Editing Requests</A></H3>
+
+When you pass the forms driver an ASCII character, it is treated as a
+request to add the character to the field's data buffer.  Whether this
+is an insertion or a replacement depends on the field's edit mode
+(insertion is the default. <P>
+
+The following requests support editing the field and changing the edit
+mode:
+
+<DL>
+<DT> <CODE>REQ_INS_MODE</CODE>
+<DD> Set insertion mode.
+<DT> <CODE>REQ_OVL_MODE</CODE>
+<DD> Set overlay mode.
+<DT> <CODE>REQ_NEW_LINE</CODE>
+<DD> New line request (see below for explanation).
+<DT> <CODE>REQ_INS_CHAR</CODE>
+<DD> Insert space at character location.
+<DT> <CODE>REQ_INS_LINE</CODE>
+<DD> Insert blank line at character location.
+<DT> <CODE>REQ_DEL_CHAR</CODE>
+<DD> Delete character at cursor.
+<DT> <CODE>REQ_DEL_PREV</CODE>
+<DD> Delete previous word at cursor.
+<DT> <CODE>REQ_DEL_LINE</CODE>
+<DD> Delete line at cursor.
+<DT> <CODE>REQ_DEL_WORD</CODE>
+<DD> Delete word at cursor.
+<DT> <CODE>REQ_CLR_EOL</CODE>
+<DD> Clear to end of line.
+<DT> <CODE>REQ_CLR_EOF</CODE>
+<DD> Clear to end of field.
+<DT> <CODE>REQ_CLEAR_FIELD</CODE>
+<DD> Clear entire field.
+</DL>
+
+The behavior of the <CODE>REQ_NEW_LINE</CODE> and <CODE>REQ_DEL_PREV</CODE> requests
+is complicated and partly controlled by a pair of forms options.
+The special cases are triggered when the cursor is at the beginning of
+a field, or on the last line of the field. <P>
+
+First, we consider <CODE>REQ_NEW_LINE</CODE>: <P>
+
+The normal behavior of <CODE>REQ_NEW_LINE</CODE> in insert mode is to break the
+current line at the position of the edit cursor, inserting the portion of
+the current line after the cursor as a new line following the current
+and moving the cursor to the beginning of that new line (you may think
+of this as inserting a newline in the field buffer). <P>
+
+The normal behavior of <CODE>REQ_NEW_LINE</CODE> in overlay mode is to clear the
+current line from the position of the edit cursor to end of line.
+The cursor is then moved to the beginning of the next line. <P>
+
+However, <CODE>REQ_NEW_LINE</CODE> at the beginning of a field, or on the
+last line of a field, instead does a <CODE>REQ_NEXT_FIELD</CODE>.
+<CODE>O_NL_OVERLOAD</CODE> option is off, this special action is
+disabled. <P>
+
+Now, let us consider <CODE>REQ_DEL_PREV</CODE>: <P>
+
+The normal behavior of <CODE>REQ_DEL_PREV</CODE> is to delete the previous
+character.  If insert mode is on, and the cursor is at the start of a
+line, and the text on that line will fit on the previous one, it
+instead appends the contents of the current line to the previous one
+and deletes the current line (you may think of this as deleting a
+newline from the field buffer). <P>
+
+However, <CODE>REQ_DEL_PREV</CODE> at the beginning of a field is instead
+treated as a <CODE>REQ_PREV_FIELD</CODE>. <P> If the
+<CODE>O_BS_OVERLOAD</CODE> option is off, this special action is
+disabled and the forms driver just returns <CODE>E_REQUEST_DENIED</CODE>. <P>
+
+See <A HREF="#frmoptions">Form Options</A> for discussion of how to set
+and clear the overload options.
+
+<H3><A NAME="forder">Order Requests</A></H3>
+
+If the type of your field is ordered, and has associated functions
+for getting the next and previous values of the type from a given value,
+there are requests that can fetch that value into the field buffer:
+
+<DL>
+<DT> <CODE>REQ_NEXT_CHOICE</CODE>
+<DD> Place the successor value of the current value in the buffer.
+<DT> <CODE>REQ_PREV_CHOICE</CODE>
+<DD> Place the predecessor value of the current value in the buffer.
+</DL>
+
+Of the built-in field types, only <CODE>TYPE_ENUM</CODE> has built-in successor
+and predecessor functions.  When you define a field type of your own
+(see <A HREF="#fcustom">Custom Validation Types</A>), you can associate
+our own ordering functions.
+
+<H3><A NAME="fappcmds">Application Commands</A></H3>
+
+Form requests are represented as integers above the <CODE>curses</CODE> value
+greater than <CODE>KEY_MAX</CODE> and less than or equal to the constant
+<CODE>MAX_COMMAND</CODE>.  If your input-virtualization routine returns a
+value above <CODE>MAX_COMMAND</CODE>, the forms driver will ignore it.
+
+<H2><A NAME="fhooks">Field Change Hooks</A></H2>
+
+It is possible to set function hooks to be executed whenever the
+current field or form changes.  Here are the functions that support this:
+
+<PRE>
+typedef void	(*HOOK)();       /* pointer to function returning void */
+
+int set_form_init(FORM *form,    /* form to alter */
+                  HOOK hook);    /* initialization hook */
+
+HOOK form_init(FORM *form);      /* form to query */
+
+int set_form_term(FORM *form,    /* form to alter */
+                  HOOK hook);    /* termination hook */
+
+HOOK form_term(FORM *form);      /* form to query */
+
+int set_field_init(FORM *form,   /* form to alter */
+                  HOOK hook);    /* initialization hook */
+
+HOOK field_init(FORM *form);     /* form to query */
+
+int set_field_term(FORM *form,   /* form to alter */
+                  HOOK hook);    /* termination hook */
+
+HOOK field_term(FORM *form);     /* form to query */
+</PRE>
+
+These functions allow you to either set or query four different hooks.
+In each of the set functions, the second argument should be the
+address of a hook function.  These functions differ only in the timing
+of the hook call.
+
+<DL>
+<DT> form_init
+<DD> This hook is called when the form is posted; also, just after
+each page change operation.
+<DT> field_init
+<DD> This hook is called when the form is posted; also, just after
+each field change
+<DT> field_term
+<DD> This hook is called just after field validation; that is, just before
+the field is altered.  It is also called when the form is unposted.
+<DT> form_term
+<DD> This hook is called when the form is unposted; also, just before
+each page change operation.
+</DL>
+
+Calls to these hooks may be triggered
+<OL>
+<LI>When user editing requests are processed by the forms driver
+<LI>When the current page is changed by <CODE>set_current_field()</CODE> call
+<LI>When the current field is changed by a <CODE>set_form_page()</CODE> call
+</OL>
+
+See <A NAME="ffocus">Field Change Commands</A> for discussion of the latter
+two cases. <P>
+
+You can set a default hook for all fields by passing one of the set functions
+a NULL first argument. <P>
+
+You can disable any of these hooks by (re)setting them to NULL, the default
+value.
+
+<H2><A HREF="#ffocus">Field Change Commands</A></H2>
+
+Normally, navigation through the form will be driven by the user's
+input requests.  But sometimes it is useful to be able to move the
+focus for editing and viewing under control of your application, or
+ask which field it currently is in.  The following functions help you
+accomplish this:
+
+<PRE>
+int set_current_field(FORM *form,         /* form to alter */
+                      FIELD *field);      /* field to shift to */
+
+FIELD *current_field(FORM *form);         /* form to query */
+
+int field_index(FORM *form,               /* form to query */
+                FIELD *field);            /* field to get index of */
+</PRE>
+
+The function <CODE>field_index()</CODE> returns the index of the given field
+in the given form's field array (the array passed to <CODE>new_form()</CODE> or
+<CODE>set_form_fields()</CODE>). <P>
+
+The initial current field of a form is the first active field on the
+first page. The function <CODE>set_form_fields()</CODE> resets this.<P>
+
+It is also possible to move around by pages.
+
+<PRE>
+int set_form_page(FORM *form,             /* form to alter */
+                  int page);              /* page to go to (0-origin) */
+
+int form_page(FORM *form);                /* return form's current page */
+</PRE>
+
+The initial page of a newly-created form is 0.  The function
+<CODE>set_form_fields()</CODE> resets this.
+
+<H2><A NAME="frmoptions">Form Options</A></H2>
+
+Like fields, forms may have control option bits.  They can be changed
+or queried with these functions:
+
+<PRE>
+int set_form_opts(FORM *form,             /* form to alter */
+                  int attr);              /* attribute to set */
+
+int form_opts_on(FORM *form,              /* form to alter */
+                 int attr);               /* attributes to turn on */
+
+int form_opts_off(FORM *form,             /* form to alter */
+                  int attr);              /* attributes to turn off */
+
+int form_opts(FORM *form);                /* form to query */
+</PRE>
+
+By default, all options are on.  Here are the available option bits:
+
+<DL>
+<DT> O_NL_OVERLOAD
+<DD> Enable overloading of <CODE>REQ_NEW_LINE</CODE> as described in <A
+href="#fedit">Editing Requests</A>.  The value of this option is
+ignored on dynamic fields that have not reached their size limit;
+these have no last line, so the circumstances for triggering a
+<CODE>REQ_NEXT_FIELD</CODE> never arise.
+<DT> O_BS_OVERLOAD
+<DD> Enable overloading of <CODE>REQ_DEL_PREV</CODE> as described in
+<A href="#fedit">Editing Requests</A>.
+</DL>
+
+The option values are bit-masks and can be composed with logical-or in
+the obvious way.
+
+<H2><A NAME="fcustom">Custom Validation Types</A></H2>
+
+The <CODE>form</CODE> library gives you the capability to define custom
+validation types of your own.  Further, the optional additional arguments
+of <CODE>set_field_type</CODE> effectively allow you to parameterize validation
+types.  Most of the complications in the validation-type interface have to
+do with the handling of the additional arguments within custom validation
+functions.
+
+<H3><A NAME="flinktypes">Union Types</A></H3>
+
+The simplest way to create a custom data type is to compose it from two
+preexisting ones:
+
+<PRE>
+FIELD *link_fieldtype(FIELDTYPE *type1,
+                      FIELDTYPE *type2);
+</PRE>
+
+This function creates a field type that will accept any of the values
+legal for either of its argument field types (which may be either
+predefined or programmer-defined).
+
+If a <CODE>set_field_type()</CODE> call later requires arguments, the new
+composite type expects all arguments for the first type, than all arguments
+for the second.  Order functions (see <A HREF="#forder">Order Requests</A>)
+associated with the component types will work on the composite; what it does
+is check the validation function for the first type, then for the second, to
+figure what type the buffer contents should be treated as.
+
+<H3><A NAME="fnewtypes">New Field Types</A></H3>
+
+To create a field type from scratch, you need to specify one or both of the
+following things:
+
+<UL>
+<LI>A character-validation function, to check each character as it is entered.
+<LI>A field-validation function to be applied on exit from the field.
+</UL>
+
+Here's how you do that:
+<PRE>
+typedef int	(*HOOK)();       /* pointer to function returning int */
+
+FIELDTYPE *new_fieldtype(HOOK f_validate, /* field validator */
+                         HOOK c_validate) /* character validator */
+
+
+int free_fieldtype(FIELDTYPE *ftype);     /* type to free */
+</PRE>
+
+At least one of the arguments of <CODE>new_fieldtype()</CODE> must be
+non-NULL.  The forms driver will automatically call the new type's
+validation functions at appropriate points in processing a field of
+the new type. <P>
+
+The function <CODE>free_fieldtype()</CODE> deallocates the argument
+fieldtype, freeing all storage associated with it. <P>
+
+Normally, a field validator is called when the user attempts to
+leave the field.  Its first argument is a field pointer, from which it
+can get to field buffer 0 and test it.  If the function returns TRUE,
+the operation succeeds; if it returns FALSE, the edit cursor stays in
+the field. <P>
+
+A character validator gets the character passed in as a first argument.
+It too should return TRUE if the character is valid, FALSE otherwise.
+
+<H3><A NAME="fcheckargs">Validation Function Arguments</A></H3>
+
+Your field- and character- validation functions will be passed a
+second argument as well.  This second argument is the address of a
+structure (which we'll call a <EM>pile</EM>) built from any of the
+field-type-specific arguments passed to <CODE>set_field_type()</CODE>.  If
+no such arguments are defined for the field type, this pile pointer
+argument will be NULL. <P>
+
+In order to arrange for such arguments to be passed to your validation
+functions, you must associate a small set of storage-management functions
+with the type.  The forms driver will use these to synthesize a pile
+from the trailing arguments of each <CODE>set_field_type()</CODE> argument, and
+a pointer to the pile will be passed to the validation functions. <P>
+
+Here is how you make the association:
+
+<PRE>
+typedef char	*(*PTRHOOK)();    /* pointer to function returning (char *) */
+typedef void	(*VOIDHOOK)();    /* pointer to function returning void */
+
+int set_fieldtype_arg(FIELDTYPE *type,    /* type to alter */
+                      PTRHOOK make_str,   /* make structure from args */
+                      PTRHOOK copy_str,   /* make copy of structure */
+                      VOIDHOOK free_str); /* free structure storage */
+</PRE>
+
+Here is how the storage-management hooks are used:
+
+<DL>
+<DT> <CODE>make_str</CODE>
+<DD> This function is called by <CODE>set_field_type()</CODE>.  It gets one
+argument, a <CODE>va_list</CODE> of the type-specific arguments passed to
+<CODE>set_field_type()</CODE>.  It is expected to return a pile pointer to a data
+structure that encapsulates those arguments.
+<DT> <CODE>copy_str</CODE>
+<DD> This function is called by form library functions that allocate new
+field instances.  It is expected to take a pile pointer, copy the pile
+to allocated storage, and return the address of the pile copy.
+<DT> <CODE>free_str</CODE>
+<DD> This function is called by field- and type-deallocation routines in the
+library.  It takes a pile pointer argument, and is expected to free the
+storage of that pile.
+</DL>
+
+The <CODE>make_str</CODE> and <CODE>copy_str</CODE> functions may return NULL to
+signal allocation failure.  The library routines will that call them will
+return error indication when this happens.  Thus, your validation functions
+should never see a NULL file pointer and need not check specially for it.
+
+<H3><A NAME="fcustorder">Order Functions For Custom Types</A></H3>
+
+Some custom field types are simply ordered in the same well-defined way
+that <CODE>TYPE_ENUM</CODE> is.  For such types, it is possible to define
+successor and predecessor functions to support the <CODE>REQ_NEXT_CHOICE</CODE>
+and <CODE>REQ_PREV_CHOICE</CODE> requests. Here's how:
+
+<PRE>
+typedef int	(*INTHOOK)();     /* pointer to function returning int */
+
+int set_fieldtype_arg(FIELDTYPE *type,    /* type to alter */
+                      INTHOOK succ,       /* get successor value */
+                      INTHOOK pred);      /* get predecessor value */
+</PRE>
+
+The successor and predecessor arguments will each be passed two arguments;
+a field pointer, and a pile pointer (as for the validation functions).  They
+are expected to use the function <CODE>field_buffer()</CODE> to read the
+current value, and <CODE>set_field_buffer()</CODE> on buffer 0 to set the next
+or previous value.  Either hook may return TRUE to indicate success (a
+legal next or previous value was set) or FALSE to indicate failure.
+
+<H3><A NAME="fcustprobs">Avoiding Problems</A></H3>
+
+The interface for defining custom types is complicated and tricky.
+Rather than attempting to create a custom type entirely from scratch,
+you should start by studying the library source code for whichever of
+the pre-defined types seems to be closest to what you want. <P>
+
+Use that code as a model, and evolve it towards what you really want.
+You will avoid many problems and annoyances that way.  The code
+in the <CODE>ncurses</CODE> library has been specifically exempted from
+the package copyright to support this. <P>
+
+If your custom type defines order functions, have do something intuitive
+with a blank field.  A useful convention is to make the successor of a
+blank field the types minimum value, and its predecessor the maximum.
+</BODY>
+</HTML>

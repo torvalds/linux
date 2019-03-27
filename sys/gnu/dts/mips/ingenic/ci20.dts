@@ -1,0 +1,395 @@
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/net/rfkill-regulator.h>
+#include "jz4780.dtsi"
+
+/ {
+	compatible = "imgtec,ci20", "ingenic,jz4780";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial3 = &uart3;
+		serial4 = &uart4;
+	};
+
+	chosen {
+		stdout-path = &uart4;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x10000000
+		       0x30000000 0x30000000>;
+	};
+
+	audio: audio-ci20 {
+		compatible = "ingenic,ci20-audio";
+		ingenic,i2s-controller = <&i2s>;
+		ingenic,codec = <&codec>;
+	};
+
+	eth0_power: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "eth0_power";
+		gpio = <&gpb 25 GPIO_ACTIVE_LOW>;
+		enable-active-high;
+	};
+
+	hdmi_power: fixedregulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "hdmi_power";
+		gpio = <&gpa 25 GPIO_ACTIVE_LOW>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
+	wifi_power: fixedregulator@2 {
+		compatible = "regulator-fixed";
+		regulator-name = "wifi_power_gpio";
+		gpio = <&gpb 19 0>;
+		enable-active-high;
+
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+	};
+
+	/* HACK: Keeping wifi reset high. No simple driver fix */
+	wifi_reset: fixedregulator@3 {
+		compatible = "regulator-fixed";
+		regulator-name = "wifi_reset_gpio";
+		gpio = <&gpf 7 0>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
+	/* HACK: Keeping BT reset high. No simple driver fix */
+	bt_reset: fixedregulator@4 {
+		compatible = "regulator-fixed";
+		regulator-name = "bt_reset_gpio";
+		gpio = <&gpf 8 0>;
+		enable-active-high;
+	};
+
+	/* HACK: Keeping BT_reg_on high. No simple driver fix */
+	bt_reg_on: fixedregulator@5 {
+		compatible = "regulator-fixed";
+		regulator-name = "bt_reg_on_gpio";
+		gpio = <&gpf 4 0>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
+	/* HACK: Keeping BT wake high. No simple driver fix */
+	bt_wake: fixedregulator@6 {
+		compatible = "regulator-fixed";
+		regulator-name = "bt_wake_gpio";
+		gpio = <&gpf 5 0>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
+	ir: ir-receiver {
+		compatible = "gpio-ir-receiver";
+		gpios = <&gpe 3 GPIO_ACTIVE_LOW>;
+	};
+
+	bt-rfkill {
+		compatible = "rfkill-regulator";
+		label = "bt-reset";
+		type = <RFKILL_TYPE_BLUETOOTH>;
+		vrfkill-supply = <&bt_reset>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led3 {
+			gpios = <&gpc 0 0>;
+			linux,default-trigger = "cpu0";
+		};
+		led2 {
+			gpios = <&gpc 1 0>;
+			linux,default-trigger = "cpu1";
+		};
+		led1 {
+			gpios = <&gpc 2 0>;
+			linux,default-trigger = "nand-disk";
+		};
+		led0 {
+			gpios = <&gpc 3 0>;
+			linux,default-trigger = "none";
+		};
+	};
+};
+
+&ext {
+	clock-frequency = <48000000>;
+};
+
+&msc0 {
+	bus-width = <4>;
+	max-frequency = <50000000>;
+	cd-gpios = <&gpf 20 GPIO_ACTIVE_LOW>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_msc0_pe>;
+};
+
+&msc1 {
+	bus-width = <4>;
+	max-frequency = <24000000>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_msc1_pd>;
+	vmmc-supply = <&wifi_power>;
+};
+
+&ehci {
+	ingenic,vbus-gpio = <&gpf 15 0>;
+};
+
+&ohci {
+	ingenic,vbus-gpio = <&gpf 15 0>;
+};
+
+&nemc {
+	/*
+	 * Only CLE/ALE are needed for the devices that are connected, rather
+	 * than the full address line set.
+	 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_nemc_data
+		     &pins_nemc_cle_ale
+		     &pins_nemc_rd_we
+		     &pins_nemc_frd_fwe>;
+
+	nand: nand@1 {
+		compatible = "ingenic,jz4780-nand";
+		reg = <1 0 0x1000000>;
+
+		ingenic,nemc-tAS = <10>;
+		ingenic,nemc-tAH = <5>;
+		ingenic,nemc-tBP = <10>;
+		ingenic,nemc-tAW = <15>;
+		ingenic,nemc-tSTRV = <100>;
+
+		ingenic,bch-device = <&bch>;
+		ingenic,ecc-size = <1024>;
+		ingenic,ecc-strength = <24>;
+
+		ingenic,busy-gpio = <&gpa 20 GPIO_ACTIVE_LOW>;
+		ingenic,wp-gpio = <&gpf 22 GPIO_ACTIVE_LOW>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_nemc_cs1>;
+
+		#address-cells = <2>;
+		#size-cells = <2>;
+
+		partition@0 {
+			label = "u-boot-spl";
+			reg = <0x0 0x0 0x0 0x800000>;
+		};
+
+		partition@0x800000 {
+			label = "u-boot";
+			reg = <0x0 0x800000 0x0 0x200000>;
+		};
+
+		partition@0xa00000 {
+			label = "u-boot-env";
+			reg = <0x0 0xa00000 0x0 0x200000>;
+		};
+
+		partition@0xc00000 {
+			label = "boot";
+			reg = <0x0 0xc00000 0x0 0x4000000>;
+		};
+
+		partition@0x8c00000 {
+			label = "system";
+			reg = <0x0 0x4c00000 0x1 0xfb400000>;
+		};
+	};
+
+	dm9000@6 {
+		compatible = "davicom,dm9000";
+		davicom,no-eeprom;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_nemc_cs6>;
+
+		reg = <6 0x0 1   /* addr */
+		       6 0x2 1>; /* data */
+
+		ingenic,nemc-tAS = <15>;
+		ingenic,nemc-tAH = <10>;
+		ingenic,nemc-tBP = <20>;
+		ingenic,nemc-tAW = <50>;
+		ingenic,nemc-tSTRV = <100>;
+
+		reset-gpios = <&gpf 12 GPIO_ACTIVE_HIGH>;
+		vcc-supply = <&eth0_power>;
+
+		interrupt-parent = <&gpe>;
+		interrupts = <19 0x4>;
+	};
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart0_data>;
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart1_data>;
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart2_dataplusflow>;
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart3_data>;
+};
+
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart4_data>;
+};
+
+&i2c0 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_i2c0_data>;
+
+	pmic: act8600@5a {
+		compatible = "active-semi,act8600";
+		reg = <0x5a>;
+
+		regulators {
+			vcore1v_reg: DCDC_REG1 {
+				regulator-name = "vcore1v2";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1400000>;
+				regulator-always-on;
+			};
+
+			vddmem1v5_reg: DCDC_REG2 {
+				regulator-name = "vddmem1v5";
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-always-on;
+			};
+
+			vccio3v3_reg: DCDC_REG3 {
+				regulator-name = "vccio3v3";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			vcc2v5_reg: LDO_REG5 {
+				regulator-name = "vcc2.5";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <2500000>;
+				regulator-always-on;
+			};
+
+			vwifi_reg: LDO_REG6 {
+				regulator-name = "vwifi3v3";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			vcim2v8_reg: LDO_REG7 {
+				regulator-name = "vcim2v8";
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+			};
+
+			vcim1v5_reg: LDO_REG8 {
+				regulator-name = "vcim1v5";
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <1500000>;
+			};
+
+			/* Do not disable RTC as they connect to reset line */
+			vrtc1v8_reg: LDO_REG9 {
+				regulator-name = "vrtc1v8";
+				regulator-always-on;
+			};
+
+			vrtc1v1_reg: LDO_REG10 {
+				regulator-name = "vrtc1v2";
+				regulator-always-on;
+			};
+		};
+	};
+};
+
+&i2c1 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_i2c1_data>;
+};
+
+&i2c2 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_i2c2_data>;
+
+	ov5640@0x3C {
+		compatible = "omnivision,ov5640";
+		reg = <0x3C>;
+
+		core-supply = <&vcim1v5_reg>;
+		analog-supply = <&vcim2v8_reg>;
+
+		gpio-enable = <&gpb 18 0>;
+		gpio-reset = <&gpb 26 0>;
+
+		remote = <&cim>;
+		port {
+			ov5640_1: endpoint {
+				bus-width = <8>;
+				remote-endpoint = <&cim>;
+			};
+		};
+	};
+};
+
+&i2c3 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_i2c3_data>;
+};
+
+&i2c4 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_i2c4_data_pf>;
+};
+
+&cim {
+	clock-frequency = <24000000>;
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Parallel bus endpoint */
+		camera: endpoint@0 {
+			reg = <0>;		/* Local endpoint # */
+			remote-endpoint = <&ov5640_1>;
+			hsync-active = <1>;	/* Active high */
+			vsync-active = <1>;	/* Active high */
+			pclk-sample = <0>;	/* Falling */
+		};
+	};
+};

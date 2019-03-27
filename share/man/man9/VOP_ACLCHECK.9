@@ -1,0 +1,102 @@
+.\"-
+.\" Copyright (c) 1999 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 23, 1999
+.Dt VOP_ACLCHECK 9
+.Os
+.Sh NAME
+.Nm VOP_ACLCHECK
+.Nd check an access control list for a vnode
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.In sys/acl.h
+.Ft int
+.Fn VOP_ACLCHECK "struct vnode *vp" "acl_type_t type" "struct acl *aclp" "struct ucred *cred" "struct thread *td"
+.Sh DESCRIPTION
+This vnode call may be used to determine the validity of a particular access
+control list (ACL) for a particular file or directory.
+.Pp
+Its arguments are:
+.Bl -tag -width type
+.It Fa vp
+The vnode of the file or directory.
+.It Fa type
+The type of ACL to check.
+.It Fa aclp
+A pointer to an ACL structure from which to retrieve the ACL data.
+.It Fa cred
+The user credentials to use in authorizing the request.
+.It Fa td
+The thread checking the ACL.
+.El
+.Pp
+The
+.Fa cred
+pointer may be NULL to indicate that access control checks are not to be
+performed, if possible.
+This cred setting might be used to allow the
+kernel to authorize ACL verification that the active process might not be
+permitted to do.
+.Pp
+The vnode ACL interface defines the syntax, and not semantics, of file and
+directory ACL interfaces.
+More information about ACL management in kernel
+may be found in
+.Xr acl 9 .
+.Sh LOCKS
+No locks are required to call this vnode method, and any locks held on
+entry will be held on exit.
+.Sh RETURN VALUES
+If the
+.Fa aclp
+pointer points to a valid ACL of type
+.Fa type
+for the object
+.Fa vp ,
+then zero is returned.
+Otherwise, an appropriate error code is returned.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The ACL type passed is invalid for this vnode, or the ACL data is invalid.
+.It Bq Er EACCES
+The file or directory ACL does not permit access.
+.It Bq Er ENOMEM
+Sufficient memory is not available to fulfill the request.
+.It Bq Er EOPNOTSUPP
+The file system does not support
+.Fn VOP_ACLCHECK .
+.El
+.Sh SEE ALSO
+.Xr acl 9 ,
+.Xr vnode 9 ,
+.Xr VOP_GETACL 9 ,
+.Xr VOP_SETACL 9
+.Sh AUTHORS
+This manual page was written by
+.An Robert Watson .

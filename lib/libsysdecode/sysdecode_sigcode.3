@@ -1,0 +1,82 @@
+.\"
+.\" Copyright (c) 2016 John Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 17, 2016
+.Dt sysdecode_sigcode 3
+.Os
+.Sh NAME
+.Nm sysdecode_sigcode
+.Nd lookup name of signal code
+.Sh LIBRARY
+.Lb libsysdecode
+.Sh SYNOPSIS
+.In sys/types.h
+.In stdbool.h
+.In sysdecode.h
+.Ft const char *
+.Fn sysdecode_sigcode "int signal" "int si_code"
+.Sh DESCRIPTION
+The
+.Fn sysdecode_sigcode
+function returns a text description of the
+.Fa si_code
+field of the
+.Vt siginfo_t
+object associated with an instance of signal
+.Fa sig .
+The text description contains the name of the C macro whose value matches
+.Fa si_code .
+General purpose signal codes such as
+.Dv SI_USER
+are handled as well as signal-specific codes for
+.Dv SIGBUS ,
+.Dv SIGCHLD ,
+.Dv SIGFPE ,
+.Dv SIGILL ,
+.Dv SIGSEGV
+and
+.Dv SIGTRAP .
+If
+.Fa si_code
+does not represent a known signal code,
+.Fn sysdecode_sigcode
+returns
+.Dv NULL .
+.Sh RETURN VALUES
+The
+.Fn sysdecode_sigcode
+function returns a pointer to a signal code description or
+.Dv NULL
+if
+.Fa si_code
+is not a known signal code.
+.Sh SEE ALSO
+.Xr sysdecode_sigbus_code 3 ,
+.Xr sysdecode_sigchld_code 3 ,
+.Xr sysdecode_sigfpe_code 3 ,
+.Xr sysdecode_sigill_code 3 ,
+.Xr sysdecode_sigsegv_code 3 ,
+.Xr sysdecode_sigtrap_code 3

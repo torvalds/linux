@@ -1,0 +1,34 @@
+# $FreeBSD$
+hint.apb.0.at="nexus0"
+hint.apb.0.irq=0
+
+# uart0
+hint.uart.0.at="apb0"
+hint.uart.0.maddr=0x11100003
+hint.uart.0.msize=0x20
+#hint.uart.0.irq=0
+#hint.uart.0.flags="0x30"
+
+# Watchdog
+hint.ar5315_wdog.0.at="apb0"
+hint.ar5315_wdog.0.irq=7
+
+# SPI
+hint.spi.0.at="nexus0"
+hint.spi.0.maddr=0x11300000
+hint.spi.0.msize=0x0000000c
+#hint.spi.0.irq=2
+
+# Ethernet
+hint.are.0.at="nexus0"
+hint.are.0.maddr=0x10500000
+hint.are.0.msize=0x500000
+hint.are.0.irq=2
+
+# Flash
+hint.mx25l.0.at="spibus0"       
+hint.mx25l.0.cs=0
+
+# GEOM redboot FIS directory offset
+#hint.redboot.0.fisoffset="0x007e0000"
+

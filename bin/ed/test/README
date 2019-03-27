@@ -1,0 +1,32 @@
+# $FreeBSD$
+
+The files in this directory with suffixes `.t', `.d', `.r' and `.err' are
+used for testing ed.  To run the tests, set the ED variable in the Makefile
+for the path name of the program to be tested (e.g., /bin/ed), and type
+`make'.  The tests do not exhaustively verify POSIX compliance nor do
+they verify correct 8-bit or long line support.
+
+The test file suffixes have the following meanings:
+.t    Template - a list of ed commands from which an ed script is
+      constructed
+.d    Data - read by an ed script
+.r    Result - the expected output after processing data via an ed
+      script.
+.err  Error - invalid ed commands that should generate an error
+
+The output of the tests is written to the two files err.o and scripts.o.
+At the end of the tests, these files are grep'ed for error messages,
+which look like:
+	*** The script u.ed exited abnormally ***
+or:
+	*** Output u.o of script u.ed is incorrect ***
+
+The POSIX requirement that an address range not be used where at most
+a single address is expected has been relaxed in this version of ed.
+Therefore, the  following scripts  which test for compliance with this
+POSIX rule exit abnormally:
+=-err.ed
+a1-err.ed
+i1-err.ed
+k1-err.ed
+r1-err.ed

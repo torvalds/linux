@@ -1,0 +1,74 @@
+.\" Generated from pam_sm_acct_mgmt.c by gendoc.pl
+.\" $OpenPAM: pam_sm_acct_mgmt.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt PAM_SM_ACCT_MGMT 3
+.Os
+.Sh NAME
+.Nm pam_sm_acct_mgmt
+.Nd service module implementation for pam_acct_mgmt
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.In security/pam_modules.h
+.Ft "int"
+.Fn pam_sm_acct_mgmt "pam_handle_t *pamh" "int flags" "int argc" "const char **argv"
+.Sh DESCRIPTION
+The
+.Fn pam_sm_acct_mgmt
+function is the service module's implementation
+of the
+.Xr pam_acct_mgmt 3
+API function.
+.Sh RETURN VALUES
+The
+.Fn pam_sm_acct_mgmt
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_ABORT
+General failure.
+.It Bq Er PAM_ACCT_EXPIRED
+User account has expired.
+.It Bq Er PAM_AUTH_ERR
+Authentication error.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_IGNORE
+Ignore this module.
+.It Bq Er PAM_NEW_AUTHTOK_REQD
+New authentication token required.
+.It Bq Er PAM_PERM_DENIED
+Permission denied.
+.It Bq Er PAM_SERVICE_ERR
+Error in service module.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.It Bq Er PAM_USER_UNKNOWN
+Unknown user.
+.El
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam_acct_mgmt 3 ,
+.Xr pam_strerror 3
+.Sh STANDARDS
+.Rs
+.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
+.%D "June 1997"
+.Re
+.Sh AUTHORS
+The
+.Fn pam_sm_acct_mgmt
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

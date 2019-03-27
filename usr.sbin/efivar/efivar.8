@@ -1,0 +1,199 @@
+.\"
+.\" Copyright (c) 2017-2019 Netflix, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 6, 2019
+.Dt EFIVAR 8
+.Os
+.Sh NAME
+.Nm efivar
+.Nd UEFI environment variable interaction
+.Sh SYNOPSIS
+.Nm
+.Op Fl abdDHlLNpRtuw
+.Op Fl n Ar name
+.Op Fl f Ar file
+.Op Fl -append
+.Op Fl -ascii
+.Op Fl -attributes
+.Op Fl -binary
+.Op Fl -delete
+.Op Fl -device-path
+.Op Fl -fromfile Ar file
+.Op Fl -guid
+.Op Fl -hex
+.Op Fl -list-guids
+.Op Fl -list
+.Op Fl -load-option
+.Op Fl -name Ar name
+.Op Fl -no-name
+.Op Fl -print
+.Op Fl -print-decimal
+.Op Fl -raw-guid
+.Op Fl -utf8
+.Op Fl -write
+.Sh DESCRIPTION
+This program manages
+.Dq Unified Extensible Firmware Interface
+.Pq UEFI
+environment variables.
+UEFI variables have three part: A namespace, a name and a value.
+The namespace is a GUID that is self assigned by the group defining the
+variables.
+The name is a Unicode name for the variable.
+The value is binary data.
+All Unicode data is presented to the user as UTF-8.
+.Pp
+The following options are available:
+.Bl -tag -width 20m
+.It Fl n Ar name Fl -name Ar name
+Specify the name of the variable to operate on.
+The
+.Ar name
+argument is the GUID of the variable, followed by a dash, followed by the
+UEFI variable name.
+The GUID may be in numeric format, or may be one of the well known
+symbolic name (see
+.Fl -list-guids
+for a complete list).
+.It Fl f Ar file Fl -fromfile Ar file
+When writing or appending to a variable, take the data for the
+variable's value from
+.Ar file
+instead of from the command line.
+This flag implies
+.Fl -write
+unless the
+.Fl -append
+or
+.Fl -print
+flags are given.
+This behavior is not well understood and is currently unimplemented
+for writes.
+When
+.Fl -print
+is specified, the contents of the file are used as the value to
+print using any other specified flags.
+This is used primarily for testing purposes for more complicated
+variable decoding.
+.It Fl a Fl -append
+Append the specified value to the UEFI variable rather than replacing
+it.
+.It Fl t Ar attr Fl -attributes Ar attr
+Specify, in hexadecimal, the attributes for this
+variable.
+See section 7.2 (GetVariable subsection, Related Definitions) of the
+UEFI Specification for hex values to use.
+.It Fl A Fl -ascii
+Display the variable data as modified ascii: All printable characters
+are printed, while unprintable characters are rendered as a two-digit
+hexadecimal number preceded by a % character.
+.It Fl b Fl -binary
+Display the variable data as binary data.
+Usually will be used with the
+.Fl N
+or
+.Fl -no-name
+flag.
+Useful in scripts.
+.It Fl D Fl -delete
+Delete the specified variable.
+May not be used with either the
+.Fl -write
+or the
+.Fl -append
+flags.
+No
+.Ar value
+may be specified.
+.It Fl d Fl -device Fl -device-path
+Interpret the variables printed as UEFI device paths and print the
+UEFI standard string representation.
+.It Fl g Fl -guid
+flag is specified, guids are converted to names if they are known (and
+show up in
+.Fl -list-guids ).
+.It Fl H Fl -hex
+List variable data as a hex dump.
+.It Fl L Fl -list-guids
+Lists the well known GUIDs.
+The names listed here may be used in place of the numeric GUID values.
+These names will replace the numeric GUID values unless
+.Fl -raw-guid
+flag is specified.
+.It Fl l Fl -list
+List all the variables.
+If the
+.Fl -print
+flag is also listed, their values will be displayed.
+.It Fl -load-option
+Decode the variable as if it were a UEFI Boot Option, including information about what device and/or paths the UEFI DevicePaths decode to.
+.It Fl N Fl -no-name
+Do not display the variable name.
+.It Fl p Fl -print
+Print the value of the variable.
+.It Fl R Fl -raw-guid
+Do not substitute well known names for GUID numeric values in output.
+.It Fl u Fl -utf8
+Treat the value of the variable as UCS2 and convert it to UTF8 and
+print the result.
+.It Fl w Fl -write
+Write (replace) the variable specified with the value specified from
+standard input.
+No command line option to do this is available since UEFI variables
+are binary structures rather than strings.
+.Xr echo 1
+.Fl n
+can be used to specify simple strings.
+.It Ar name
+Display the
+.Ar name
+environment variable.
+.El
+.Sh COMPATIBILITY
+The
+.Nm
+program is intended to be compatible (strict superset) with a program
+of the same name included in the Red Hat libefivar package,
+but the
+.Fl d
+and
+.Fl -print-decimal
+flags are not implemented and never will be.
+.Pp
+The
+.Fl d
+flag is short for
+.Fl -device-path .
+.Sh SEE ALSO
+Appendix A of the UEFI specification has the format for GUIDs.
+All GUIDs
+.Dq Globally Unique Identifiers
+have the format described in RFC 4122.
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 11.1 .

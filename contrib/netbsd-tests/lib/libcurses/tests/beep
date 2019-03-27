@@ -1,0 +1,5 @@
+include start
+# SUSv2 says this should return OK but we return 1
+call 1 beep
+call OK refresh
+compare bell.chk

@@ -1,0 +1,161 @@
+[Note: This file has not been updated for OpenSSH versions after
+OpenSSH-1.2 and should be considered OBSOLETE.  It has been left in
+the distribution because some of its information may still be useful
+to developers.]
+
+This document is intended for those who wish to read the ssh source
+code.  This tries to give an overview of the structure of the code.
+
+Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>
+Updated 17 Nov 1995.
+Updated 19 Oct 1999 for OpenSSH-1.2
+Updated 20 May 2001 note obsolete for > OpenSSH-1.2
+
+The software consists of ssh (client), sshd (server), scp, sdist, and
+the auxiliary programs ssh-keygen, ssh-agent, ssh-add, and
+make-ssh-known-hosts.  The main program for each of these is in a .c
+file with the same name.
+
+There are some subsystems/abstractions that are used by a number of
+these programs.
+
+  Buffer manipulation routines
+
+    - These provide an arbitrary size buffer, where data can be appended.
+      Data can be consumed from either end.  The code is used heavily
+      throughout ssh.  The buffer manipulation functions are in
+      sshbuf*.c (header sshbuf.h).
+
+  Compression Library
+
+    - Ssh uses the GNU GZIP compression library (ZLIB).
+
+  Encryption/Decryption
+
+    - Ssh contains several encryption algorithms.  These are all
+      accessed through the cipher.h interface.  The interface code is
+      in cipher.c, and the implementations are in libc.
+
+  Multiple Precision Integer Library
+
+    - Uses the SSLeay BIGNUM sublibrary.
+
+  Random Numbers
+
+    - Uses arc4random() and such.
+
+  RSA key generation, encryption, decryption
+
+    - Ssh uses the RSA routines in libssl.
+
+  RSA key files
+
+    - RSA keys are stored in files with a special format.  The code to
+      read/write these files is in authfile.c.  The files are normally
+      encrypted with a passphrase.  The functions to read passphrases
+      are in readpass.c (the same code is used to read passwords).
+
+  Binary packet protocol
+
+    - The ssh binary packet protocol is implemented in packet.c.  The
+      code in packet.c does not concern itself with packet types or their
+      execution; it contains code to build packets, to receive them and
+      extract data from them, and the code to compress and/or encrypt
+      packets.
+
+    - The code in packet.c calls the buffer manipulation routines
+      (buffer.c, bufaux.c), compression routines (zlib), and the
+      encryption routines.
+
+  X11, TCP/IP, and Agent forwarding
+
+    - Code for various types of channel forwarding is in channels.c.
+      The file defines a generic framework for arbitrary communication
+      channels inside the secure channel, and uses this framework to
+      implement X11 forwarding, TCP/IP forwarding, and authentication
+      agent forwarding.
+      The new, Protocol 1.5, channel close implementation is in nchan.c
+
+  Authentication agent
+
+    - Code to communicate with the authentication agent is in authfd.c.
+
+  Authentication methods
+
+    - Code for various authentication methods resides in auth-*.c
+      (auth-passwd.c, auth-rh-rsa.c, auth-rhosts.c, auth-rsa.c).  This
+      code is linked into the server.  The routines also manipulate
+      known hosts files using code in hostfile.c.  Code in canohost.c
+      is used to retrieve the canonical host name of the remote host.
+      Code in match.c is used to match host names.
+
+    - In the client end, authentication code is in sshconnect.c.  It
+      reads Passwords/passphrases using code in readpass.c.  It reads
+      RSA key files with authfile.c.  It communicates the
+      authentication agent using authfd.c.
+
+  The ssh client
+
+    - The client main program is in ssh.c.  It first parses arguments
+      and reads configuration (readconf.c), then calls ssh_connect (in
+      sshconnect.c) to open a connection to the server (possibly via a
+      proxy), and performs authentication (ssh_login in sshconnect.c).
+      It then makes any pty, forwarding, etc. requests.  It may call
+      code in ttymodes.c to encode current tty modes.  Finally it
+      calls client_loop in clientloop.c.  This does the real work for
+      the session.
+
+  Pseudo-tty manipulation and tty modes
+
+    - Code to allocate and use a pseudo tty is in pty.c.  Code to
+      encode and set terminal modes is in ttymodes.c.
+
+  Logging in (updating utmp, lastlog, etc.)
+
+    - The code to do things that are done when a user logs in are in
+      login.c.  This includes things such as updating the utmp, wtmp,
+      and lastlog files.  Some of the code is in sshd.c.
+
+  Writing to the system log and terminal
+
+    - The programs use the functions fatal(), log(), debug(), error()
+      in many places to write messages to system log or user's
+      terminal.  The implementation that logs to system log is in
+      log-server.c; it is used in the server program.  The other
+      programs use an implementation that sends output to stderr; it
+      is in log-client.c.  The definitions are in ssh.h.
+
+  The sshd server (daemon)
+
+    - The sshd daemon starts by processing arguments and reading the
+      configuration file (servconf.c).  It then reads the host key,
+      starts listening for connections, and generates the server key.
+      The server key will be regenerated every hour by an alarm.
+
+    - When the server receives a connection, it forks, disables the
+      regeneration alarm, and starts communicating with the client.
+      They first perform identification string exchange, then
+      negotiate encryption, then perform authentication, preparatory
+      operations, and finally the server enters the normal session
+      mode by calling server_loop in serverloop.c.  This does the real
+      work, calling functions in other modules.
+
+    - The code for the server is in sshd.c.  It contains a lot of
+      stuff, including:
+	- server main program
+	- waiting for connections
+	- processing new connection
+	- authentication
+	- preparatory operations
+	- building up the execution environment for the user program
+	- starting the user program.
+
+  Auxiliary files
+
+    - There are several other files in the distribution that contain
+      various auxiliary routines:
+	ssh.h	     the main header file for ssh (various definitions)
+	uidswap.c    uid-swapping
+	xmalloc.c    "safe" malloc routines
+
+$OpenBSD: OVERVIEW,v 1.14 2018/07/27 03:55:22 dtucker Exp $

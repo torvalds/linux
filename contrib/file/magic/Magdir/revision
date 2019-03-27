@@ -1,0 +1,66 @@
+
+#------------------------------------------------------------------------------
+# $File: revision,v 1.10 2017/10/19 16:40:37 christos Exp $
+# file(1) magic for revision control files
+# From Hendrik Scholz <hendrik@scholz.net>
+0	string/t	/1\ :pserver:	cvs password text file
+
+# Conary changesets
+# From: Jonathan Smith <smithj@rpath.com>
+0	belong	0xea3f81bb	Conary changeset data
+
+# Type: Git bundles (git-bundle)
+# From: Josh Triplett <josh@freedesktop.org>
+0	string	#\ v2\ git\ bundle\n	Git bundle
+
+# Type: Git pack
+# From: Adam Buchbinder <adam.buchbinder@gmail.com>
+# Update: Joerg Jenderek
+# URL: http://fileformats.archiveteam.org/wiki/Git
+# reference: https://github.com/git/git/blob/master/Documentation/technical/pack-format.txt
+# The actual magic is 'PACK', but that clashes with Doom/Quake packs. However,
+# those have a little-endian offset immediately following the magic 'PACK',
+# the first byte of which is never 0, while the first byte of the Git pack
+# version, since it's a tiny number stored in big-endian format, is always 0.
+0	string	PACK
+# GRR: line above is too general as it matches also PackDir archive ./acorn
+# test for major version. Git 2017 accepts version number 2 or 3
+>4	ubelong	<9
+# Acorn PackDir with method 0 compression has root like ADFS::HardDisc4.$.AsylumSrc
+# or SystemDevice::foobar
+>>9	search/13 ::
+# but in git binary
+>>9	default	x	Git pack
+!:mime	application/x-git
+!:ext	pack
+# 4 GB limit implies unsigned integer
+>>>4	ubelong	x		\b, version %u
+>>>8	ubelong	x		\b, %u objects
+
+# Type: Git pack index
+# From: Adam Buchbinder <adam.buchbinder@gmail.com>
+0	string	\377tOc		Git pack index
+>4	belong	=2		\b, version 2
+
+# Type: Git index file
+# From: Frederic Briare <fbriere@fbriere.net>
+0	string	DIRC		Git index
+>4	belong	>0		\b, version %d
+>>8	belong	>0		\b, %d entries
+
+# Type:	Mercurial bundles
+# From:	Seo Sanghyeon <tinuviel@sparcs.kaist.ac.kr>
+0	string	HG10		Mercurial bundle,
+>4	string	UN		uncompressed
+>4	string	BZ		bzip2 compressed
+
+# Type:	Subversion (SVN) dumps
+# From:	Uwe Zeisberger <zeisberg@informatik.uni-freiburg.de>
+0	string	SVN-fs-dump-format-version:	Subversion dumpfile
+>28	string	>\0				(version: %s)
+
+# Type:	Bazaar revision bundles and merge requests
+# URL:	http://www.bazaar-vcs.org/
+# From:	Jelmer Vernooij <jelmer@samba.org>
+0	string	#\ Bazaar\ revision\ bundle\ v Bazaar Bundle
+0	string	#\ Bazaar\ merge\ directive\ format Bazaar merge directive

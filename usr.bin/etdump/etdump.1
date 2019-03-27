@@ -1,0 +1,104 @@
+.\" Copyright (c) 2018 iXsystems, Inc
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 25, 2018
+.Dt ETDUMP 8
+.Os
+.Sh NAME
+.Nm etdump
+.Nd Dump El Torito boot catalog information from ISO images
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar format
+.Op Fl o Ar file
+.Ar
+.Sh DESCRIPTION
+This program reads El Torito boot catalog information from an ISO image and
+outputs it in various formats.
+It can be used to check the catalog in an image or to output catalog data in
+a format that can be used by other tools such as shell scripts.
+.Pp
+Supported options are:
+.Bl -tag -width flag
+.It Fl f Ar format Fl -format Ar format
+Select the output format.
+Supported output formats are:
+.Bl -tag -width shell -offset indent
+.It Sy text
+Human-readable text (default)
+.It Sy shell
+Each boot entry is emitted as a string suitable for passing to a sh-compatible
+eval command.
+The variables emitted are:
+.Bl -tag -width et_platform -offset indent
+.It et_platform
+The platform ID from the section header.
+Set to 'default' for the initial (default) entry.
+.It et_system
+The system ID from the boot entry.
+.It et_lba
+The starting LBA (2048-byte blocks) of the boot image.
+.It et_sectors
+The number of sectors (512-byte sectors) that comprise the boot image.
+.El
+.El
+.It Fl o Ar file Fl -output Ar file
+Write output to
+.Ar file .
+If '-' is specified then standard out is used.
+.El
+.Sh EXAMPLES
+To see what entries are in a given boot catalog run
+.Nm
+passing the filename of the image as an argument like so:
+.Bd -literal -offset indent
+% etdump bootonly.iso
+Image in bootonly.iso
+Default entry
+	System i386
+	Start LBA 420 (0x1a4), sector count 4 (0x4)
+	Media type: no emulation
+
+Section header: efi, final
+	Section entry
+		System i386
+		Start LBA 20 (0x14), sector count 1600 (0x640)
+		Media type: no emulation
+.Ed
+.Pp
+To use the output in a shell script a for loop can be used to iterate over the
+entries returned using eval:
+.Bd -literal -offset indent
+for entry in `etdump --format shell bootonly.iso`; do
+	eval $entry
+	echo $et_platform $et_system $et_lba $et_sectors
+done
+.Ed
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 11.2

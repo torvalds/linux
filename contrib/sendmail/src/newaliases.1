@@ -1,0 +1,50 @@
+.\" Copyright (c) 1998-2001 Proofpoint, Inc. and its suppliers.
+.\"	 All rights reserved.
+.\" Copyright (c) 1983, 1997 Eric P. Allman.  All rights reserved.
+.\" Copyright (c) 1985, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" By using this file, you agree to the terms and conditions set
+.\" forth in the LICENSE file which can be found at the top level of
+.\" the sendmail distribution.
+.\"
+.\"
+.\"     $Id: newaliases.1,v 8.20 2013-11-22 20:51:56 ca Exp $
+.\"
+.TH NEWALIASES 1 "$Date: 2013-11-22 20:51:56 $"
+.SH NAME
+newaliases
+\- rebuild the data base for the mail aliases file
+.SH SYNOPSIS
+.B newaliases
+.SH DESCRIPTION
+.B Newaliases
+rebuilds the random access data base for the mail aliases file
+/etc/mail/aliases.  It must be run each time this file is changed
+in order for the change to take effect.
+.PP
+.B Newaliases
+is identical to ``sendmail -bi''.
+.PP
+The
+.B newaliases
+utility exits 0 on success, and >0 if an error occurs.
+.PP
+Notice: do
+.B not
+use
+.B makemap
+to create the aliases data base, because
+.B newaliases
+puts a special token into the data base that is required by
+.B sendmail.
+.SH FILES
+.TP 2i
+/etc/mail/aliases
+The mail aliases file
+.SH SEE ALSO
+aliases(5), sendmail(8)
+.SH HISTORY
+The
+.B newaliases
+command appeared in 4.0BSD.

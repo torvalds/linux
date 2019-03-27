@@ -1,0 +1,94 @@
+.\" Copyright (c) 2015 Kevin Lo
+.\" Copyright (c) 2016 Andriy Voskoboinyk
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 3, 2019
+.Dt RTWNFW 4
+.Os
+.Sh NAME
+.Nm rtwnfw
+.Nd "Firmware Module for Realtek Wireless driver"
+.Sh SYNOPSIS
+To compile this module into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device rtwnfw"
+.Ed
+.Pp
+This will include all firmware images inside the kernel.
+If you want to pick only the firmware image for your network adapter choose one
+of the following:
+.Bd -ragged -offset indent
+.Cd "device rtwn-rtl8188eefw"
+.Cd "device rtwn-rtl8188eufw"
+.Cd "device rtwn-rtl8192cfwE_B"
+.Cd "device rtwn-rtl8192cfwE"
+.Cd "device rtwn-rtl8192cfwT"
+.Cd "device rtwn-rtl8192cfwU"
+.Cd "device rtwn-rtl8192eufw"
+.Cd "device rtwn-rtl8812aufw"
+.Cd "device rtwn-rtl8821aufw"
+.Ed
+.Pp
+Alternatively, to load all firmware images as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+rtwn-rtl8188eefw_load="YES"
+rtwn-rtl8188eufw_load="YES"
+rtwn-rtl8192cfwE_B_load="YES"
+rtwn-rtl8192cfwE_load="YES"
+rtwn-rtl8192cfwT_load="YES"
+rtwn-rtl8192cfwU_load="YES"
+rtwn-rtl8192eufw_load="YES"
+rtwn-rtl8812aufw_load="YES"
+rtwn-rtl8821aufw_load="YES"
+.Ed
+.Sh DESCRIPTION
+rtwn-rtl8192cfwE and rtl8192cfwE_B modules provide access
+to firmware sets for the Realtek RTL8188CE chip based PCIe adapters.
+rtwn-rtl8188ee module provides access to firmware sets for the
+Realtek RTL8188EE chip based PCIe adapters.
+Other modules provide access to firmware sets for the Realtek RTL8188CUS,
+RTL8188CE-VAU, RTL8188EUS, RTL8188RU, RTL8192CU, RTL8192EU, RTL8812AU and
+RTL8821AU chip based USB WiFi adapters.
+They may be
+statically linked into the kernel, or loaded as a modules.
+.Pp
+For the loaded firmware to be enabled for use the license at
+.Pa /usr/share/doc/legal/realtek.LICENSE
+must be agreed to by adding the following line to
+.Xr loader.conf 5 :
+.Pp
+.Dl "legal.realtek.license_ack=1"
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/doc/legal/realtek.LICENSE" -compact
+.It Pa /usr/share/doc/legal/realtek.LICENSE
+.Nm
+firmware license
+.El
+.Sh SEE ALSO
+.Xr rtwn 4 ,
+.Xr firmware 9

@@ -1,0 +1,17 @@
+# Let's have some fun -- try to match a C comment.
+# first the obvious, which looks okay at first glance...
+/\*.*\*/	-	/*x*/	/*x*/
+# but...
+/\*.*\*/	-	/*x*/y/*z*/	/*x*/y/*z*/
+# okay, we must not match */ inside; try to do that...
+/\*([^*]|\*[^/])*\*/	-	/*x*/	/*x*/
+/\*([^*]|\*[^/])*\*/	-	/*x*/y/*z*/	/*x*/
+# but...
+/\*([^*]|\*[^/])*\*/	-	/*x**/y/*z*/	/*x**/y/*z*/
+# and a still fancier version, which does it right (I think)...
+/\*([^*]|\*+[^*/])*\*+/	-	/*x*/	/*x*/
+/\*([^*]|\*+[^*/])*\*+/	-	/*x*/y/*z*/	/*x*/
+/\*([^*]|\*+[^*/])*\*+/	-	/*x**/y/*z*/	/*x**/
+/\*([^*]|\*+[^*/])*\*+/	-	/*x****/y/*z*/	/*x****/
+/\*([^*]|\*+[^*/])*\*+/	-	/*x**x*/y/*z*/	/*x**x*/
+/\*([^*]|\*+[^*/])*\*+/	-	/*x***x/y/*z*/	/*x***x/y/*z*/

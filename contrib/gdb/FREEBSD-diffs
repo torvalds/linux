@@ -1,0 +1,965 @@
+Index: gdb/ia64-fbsd-nat.c
+===================================================================
+RCS file: gdb/ia64-fbsd-nat.c
+diff -N gdb/ia64-fbsd-nat.c
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ gdb/ia64-fbsd-nat.c	17 Apr 2004 19:39:20 -0000	1.3
+@@ -0,0 +1,145 @@
++/*
++ * Copyright (c) 2004 Marcel Moolenaar
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
++ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
++ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
++ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
++ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
++ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
++ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++#include "defs.h"
++#include "inferior.h"
++#include "regcache.h"
++
++#include <sys/types.h>
++#include <sys/ptrace.h>
++#include <machine/reg.h>
++
++#ifdef HAVE_SYS_PROCFS_H
++#include <sys/procfs.h>
++#endif
++
++#ifndef HAVE_GREGSET_T
++typedef struct reg gregset_t;
++#endif
++
++#ifndef HAVE_FPREGSET_T
++typedef struct fpreg fpregset_t;
++#endif
++
++#include "gregset.h"
++
++#define	FPREG_SUPPLIES(r)  ((r) >= IA64_FR0_REGNUM && (r) <= IA64_FR127_REGNUM)
++#define	GREG_SUPPLIES(r)   (!FPREG_SUPPLIES(r))
++
++/* XXX need to go away. */
++void ia64_fbsd_supply_fpregs (void *, int);
++void ia64_fbsd_supply_gregs (void *, int);
++
++void
++fetch_inferior_registers (int regno)
++{
++  union {
++    fpregset_t fpr;
++    gregset_t r;
++  } regs;
++
++  if (regno == -1 || GREG_SUPPLIES(regno))
++    {
++      if (ptrace (PT_GETREGS, PIDGET(inferior_ptid),
++		  (PTRACE_ARG3_TYPE)&regs.r, 0) == -1)
++	perror_with_name ("Couldn't get registers");
++      ia64_fbsd_supply_gregs (&regs.r, regno);
++      if (regno != -1)
++	return;
++    }
++
++  if (regno == -1 || FPREG_SUPPLIES(regno))
++    {
++      if (ptrace (PT_GETFPREGS, PIDGET(inferior_ptid),
++		  (PTRACE_ARG3_TYPE)&regs.fpr, 0) == -1)
++	perror_with_name ("Couldn't get FP registers");
++      ia64_fbsd_supply_fpregs (&regs.fpr, regno);
++      if (regno != -1)
++	return;
++    }
++}
++
++void
++store_inferior_registers (int regno)
++{
++  union {
++    fpregset_t fpr;
++    gregset_t r;
++  } regs;
++
++  if (regno == -1 || GREG_SUPPLIES(regno))
++    {
++      if (ptrace (PT_GETREGS, PIDGET(inferior_ptid),
++		  (PTRACE_ARG3_TYPE)&regs.r, 0) == -1)
++	perror_with_name ("Couldn't get registers");
++      fill_gregset (&regs.r, regno);
++      if (ptrace (PT_SETREGS, PIDGET(inferior_ptid),
++		  (PTRACE_ARG3_TYPE)&regs.r, 0) == -1)
++	perror_with_name ("Couldn't get registers");
++      if (regno != -1)
++	return;
++    }
++
++  if (regno == -1 || FPREG_SUPPLIES(regno))
++    {
++      if (ptrace (PT_GETFPREGS, PIDGET(inferior_ptid),
++		  (PTRACE_ARG3_TYPE)&regs.fpr, 0) == -1)
++	perror_with_name ("Couldn't get FP registers");
++      fill_fpregset (&regs.fpr, regno);
++      if (ptrace (PT_SETFPREGS, PIDGET(inferior_ptid),
++		  (PTRACE_ARG3_TYPE)&regs.fpr, 0) == -1)
++	perror_with_name ("Couldn't get FP registers");
++      if (regno != -1)
++	return;
++    }
++}
++
++LONGEST ia64_fbsd_xfer_dirty (struct target_ops *ops, enum target_object obj,
++			      const char *annex, void *rbuf, const void *wbuf,
++			      ULONGEST ofs, LONGEST len)
++{
++  if (len != 8)
++    return (-1);
++  if (rbuf != NULL) {
++    if (ptrace (PT_GETKSTACK, PIDGET(inferior_ptid), (PTRACE_ARG3_TYPE)rbuf,
++		ofs >> 3) == -1) {
++      perror_with_name ("Couldn't read dirty register");
++      return (-1);
++    }
++  } else {
++    if (ptrace (PT_SETKSTACK, PIDGET(inferior_ptid), (PTRACE_ARG3_TYPE)wbuf,
++		ofs >> 3) == -1) {
++      perror_with_name ("Couldn't write dirty register");
++      return (-1);
++    }
++  }
++  return (len);
++}
++
++void
++_initialize_ia64_fbsd_nat (void)
++{
++}
+Index: gdb/ia64-fbsd-tdep.c
+===================================================================
+RCS file: gdb/ia64-fbsd-tdep.c
+diff -N gdb/ia64-fbsd-tdep.c
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ gdb/ia64-fbsd-tdep.c	17 Apr 2004 19:39:20 -0000	1.6
+@@ -0,0 +1,291 @@
++/*
++ * Copyright (c) 2004 Marcel Moolenaar
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
++ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
++ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
++ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
++ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
++ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
++ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++#include "defs.h"
++#include "gdb_string.h"
++#include "regcache.h"
++#include "regset.h"
++#include "solib-svr4.h"
++#include "value.h"
++
++#include "ia64-tdep.h"
++
++#define FPREG_SUPPLIES(r) ((r) >= IA64_FR0_REGNUM && (r) <= IA64_FR127_REGNUM)
++#define GREG_SUPPLIES(r)  (!FPREG_SUPPLIES(r))
++
++static int reg_offset[462] = {
++    -1,   96,  248,  256,  152,  160,  168,  176,       /* Regs 0-7. */
++   264,  272,  280,  288,    0,   64,  296,  304,       /* Regs 8-15. */
++   312,  320,  328,  336,  344,  352,  360,  368,       /* Regs 16-23. */
++   376,  384,  392,  400,  408,  416,  424,  432,       /* Regs 24-31. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 32-39. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 40-47. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 48-55. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 56-63. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 64-71. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 72-79. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 80-87. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 88-95. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 96-103. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 104-111. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 112-119. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 120-127. */
++    -1,   -1,    0,   16,   32,   48,  320,  336,       /* Regs 128-135. */
++   352,  368,  384,  400,  416,  432,  448,  464,       /* Regs 136-143. */
++    64,   80,   96,  112,  128,  144,  160,  176,       /* Regs 144-151. */
++   192,  208,  224,  240,  256,  272,  288,  304,       /* Regs 152-159. */
++   480,  496,  512,  528,  544,  560,  576,  592,       /* Regs 160-167. */
++   608,  624,  640,  656,  672,  688,  704,  720,       /* Regs 168-175. */
++   736,  752,  768,  784,  800,  816,  832,  848,       /* Regs 176-183. */
++   864,  880,  896,  912,  928,  944,  960,  976,       /* Regs 184-191. */
++   992, 1008, 1024, 1040, 1056, 1072, 1088, 1104,       /* Regs 192-199. */
++  1120, 1136, 1152, 1168, 1184, 1200, 1216, 1232,       /* Regs 200-207. */
++  1248, 1264, 1280, 1296, 1312, 1328, 1344, 1360,       /* Regs 208-215. */
++  1376, 1392, 1408, 1424, 1440, 1456, 1472, 1488,       /* Regs 216-223. */
++  1504, 1520, 1536, 1552, 1568, 1584, 1600, 1616,       /* Regs 224-231. */
++  1632, 1648, 1664, 1680, 1696, 1712, 1728, 1744,       /* Regs 232-239. */
++  1760, 1776, 1792, 1808, 1824, 1840, 1856, 1872,       /* Regs 240-247. */
++  1888, 1904, 1920, 1936, 1952, 1968, 1984, 2000,       /* Regs 248-255. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 256-263. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 264-271. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 272-279. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 280-287. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 288-295. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 296-303. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 304-311. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 312-319. */
++    16,  184,  192,  200,  208,  216,  440,  448,       /* Regs 320-327. */
++    -1,   -1,   24,  120,   88,  112,   -1,   -1,       /* Regs 328-335. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 336-343. */
++    -1,   -1,   -1,   -1,   -1,   -1,   72,  104,       /* Regs 344-351. */
++    40,   48,   -1,   -1,   -1,   -1,   -1,  464,       /* Regs 352-359. */
++   472,   -1,   -1,   -1,   -1,   -1,  456,   -1,       /* Regs 360-367. */
++    -1,   -1,    8,   -1,   -1,   -1,   80,   -1,       /* Regs 368-375. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 376-383. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 384-391. */
++    -1,   -1,   -1,   -1,   -1,   -1,   32,  224,       /* Regs 392-399. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 400-407. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 408-415. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 416-423. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 424-431. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 432-439. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 440-447. */
++    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,       /* Regs 448-455. */
++    -1,   -1,   -1,   -1,   -1,   -1
++};
++
++static void
++ia64_fbsd_regcache_collect (struct regcache *regcache, int regno,
++			    void *regs)
++{
++  int ofs;
++
++  if (regno < 0 || regno >= NUM_REGS)
++    return;
++
++  ofs = reg_offset[regno];
++  if (ofs >= 0)
++    regcache_raw_collect (regcache, regno, (char*)regs + ofs);
++}
++
++static void
++ia64_fbsd_regcache_supply (struct regcache *regcache, int regno,
++			   const void *regs)
++{
++  int ofs;
++
++  if (regno < 0 || regno >= NUM_REGS)
++    return;
++
++  ofs = reg_offset[regno];
++  if (regno == IA64_BSP_REGNUM)
++    {
++      /* BSP is synthesized. It's not actually present in struct reg,
++	 but can be derived from bspstore and ndirty. The offset of
++	 IA64_BSP_REGNUM in the reg_offset array above is that of the
++	 ndirty field in struct reg. */
++      uint64_t bsp;
++      bsp = *((uint64_t*)((char *)regs + ofs));		/* ndirty */
++      bsp += *((uint64_t*)((char *)regs + reg_offset[IA64_BSPSTORE_REGNUM]));
++      regcache_raw_supply (regcache, regno, &bsp);
++    }
++  else
++    {
++      if (ofs < 0)
++	regcache_raw_supply (regcache, regno, NULL);
++      else
++	regcache_raw_supply (regcache, regno, (char *)regs + ofs);
++    }
++}
++
++void
++fill_fpregset (void *fpregs, int regno)
++{
++  if (regno == -1)
++    {
++      for (regno = 0; regno < NUM_REGS; regno++)
++	{
++	  if (FPREG_SUPPLIES(regno))
++	    ia64_fbsd_regcache_collect (current_regcache, regno, fpregs);
++	}
++    }
++  else
++    {
++      if (FPREG_SUPPLIES(regno))
++	ia64_fbsd_regcache_collect (current_regcache, regno, fpregs);
++    }
++}
++
++void
++fill_gregset (void *gregs, int regno)
++{
++  if (regno == -1)
++    {
++      for (regno = 0; regno < NUM_REGS; regno++)
++	{
++	  if (GREG_SUPPLIES(regno))
++	    ia64_fbsd_regcache_collect (current_regcache, regno, gregs);
++	}
++    }
++  else
++    {
++      if (GREG_SUPPLIES(regno))
++	ia64_fbsd_regcache_collect (current_regcache, regno, gregs);
++    }
++}
++
++void
++ia64_fbsd_supply_fpregs (const void *fpregs, int regno)
++{
++  if (regno == -1)
++    {
++      for (regno = 0; regno < NUM_REGS; regno++)
++	{
++	  if (FPREG_SUPPLIES(regno))
++	    ia64_fbsd_regcache_supply (current_regcache, regno, fpregs);
++	}
++    }
++  else
++    {
++      if (FPREG_SUPPLIES(regno))
++	ia64_fbsd_regcache_supply (current_regcache, regno, fpregs);
++    }
++}
++
++void
++ia64_fbsd_supply_gregs (const void *gregs, int regno)
++{
++  if (regno == -1)
++    {
++      for (regno = 0; regno < NUM_REGS; regno++)
++	{
++	  if (GREG_SUPPLIES(regno))
++	    ia64_fbsd_regcache_supply (current_regcache, regno, gregs);
++	}
++    }
++  else
++    {
++      if (GREG_SUPPLIES(regno))
++	ia64_fbsd_regcache_supply (current_regcache, regno, gregs);
++    }
++}
++
++static void
++ia64_fbsd_supply_gregset (const struct regset *regset,
++			  struct regcache *regcache, int regno,
++			  const void *gregs, size_t len)
++{
++  if (regno == -1)
++    {
++      for (regno = 0; regno < NUM_REGS; regno++)
++	{
++	  if (GREG_SUPPLIES(regno))
++	    ia64_fbsd_regcache_supply (regcache, regno, gregs);
++	}
++    }
++  else
++    if (GREG_SUPPLIES(regno))
++      ia64_fbsd_regcache_supply (regcache, regno, gregs);
++}
++
++static void
++ia64_fbsd_supply_fpregset (const struct regset *regset,
++			   struct regcache *regcache, int regno,
++			   const void *fpregs, size_t len)
++{
++  if (regno == -1)
++    {
++      for (regno = 0; regno < NUM_REGS; regno++)
++	{
++	  if (FPREG_SUPPLIES(regno))
++	    ia64_fbsd_regcache_supply (regcache, regno, fpregs);
++	}
++    }
++  else
++    if (FPREG_SUPPLIES(regno))
++      ia64_fbsd_regcache_supply (regcache, regno, fpregs);
++}
++
++static struct regset gregset = { NULL, ia64_fbsd_supply_gregset };
++static struct regset fpregset = { NULL, ia64_fbsd_supply_fpregset };
++
++static const struct regset *
++ia64_fbsd_regset_from_core_section (struct gdbarch *gdbarch,
++				    const char *sect_name, size_t sect_size)
++{
++  if (strcmp (sect_name, ".reg") == 0)
++    return (&gregset);
++  if (strcmp (sect_name, ".reg2") == 0)
++    return (&fpregset);
++  return (NULL);
++}
++
++static int
++ia64_fbsd_pc_in_sigtramp (CORE_ADDR pc, char *func_name)
++{
++  uint64_t gwpage = 5ULL << 61;
++  return (pc >= gwpage && pc < (gwpage + 8192)) ? 1 : 0;
++}
++
++static void
++ia64_fbsd_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
++{
++  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
++
++  set_gdbarch_pc_in_sigtramp (gdbarch, ia64_fbsd_pc_in_sigtramp);
++  set_gdbarch_regset_from_core_section (gdbarch,
++                                        ia64_fbsd_regset_from_core_section);
++  set_solib_svr4_fetch_link_map_offsets (gdbarch,
++					 svr4_lp64_fetch_link_map_offsets);
++  tdep->find_global_pointer = ia64_generic_find_global_pointer;
++}
++
++void
++_initialize_ia64_fbsd_tdep (void)
++{
++  gdbarch_register_osabi (bfd_arch_ia64, 0ul, GDB_OSABI_FREEBSD_ELF,
++                          ia64_fbsd_init_abi);
++}
+Index: gdb/ia64-tdep.c
+===================================================================
+RCS file: /home/marcel/CVS/gdb6/gdb/ia64-tdep.c,v
+retrieving revision 1.1.1.3
+retrieving revision 1.5
+diff -u -r1.1.1.3 -r1.5
+--- gdb/ia64-tdep.c	16 Apr 2004 00:51:25 -0000	1.1.1.3
++++ gdb/ia64-tdep.c	16 Apr 2004 01:28:33 -0000	1.5
+@@ -45,17 +45,6 @@
+ #include "libunwind-ia64.h"
+ #endif
+ 
+-/* Hook for determining the global pointer when calling functions in
+-   the inferior under AIX.  The initialization code in ia64-aix-nat.c
+-   sets this hook to the address of a function which will find the
+-   global pointer for a given address.  
+-   
+-   The generic code which uses the dynamic section in the inferior for
+-   finding the global pointer is not of much use on AIX since the
+-   values obtained from the inferior have not been relocated.  */
+-
+-CORE_ADDR (*native_find_global_pointer) (CORE_ADDR) = 0;
+-
+ /* An enumeration of the different IA-64 instruction types.  */
+ 
+ typedef enum instruction_type
+@@ -256,20 +245,6 @@
+ 
+ };
+ 
+-struct gdbarch_tdep
+-  {
+-    CORE_ADDR (*sigcontext_register_address) (CORE_ADDR, int);
+-    			/* OS specific function which, given a frame address
+-			   and register number, returns the offset to the
+-			   given register from the start of the frame. */
+-    CORE_ADDR (*find_global_pointer) (CORE_ADDR);
+-  };
+-
+-#define SIGCONTEXT_REGISTER_ADDRESS \
+-  (gdbarch_tdep (current_gdbarch)->sigcontext_register_address)
+-#define FIND_GLOBAL_POINTER \
+-  (gdbarch_tdep (current_gdbarch)->find_global_pointer)
+-
+ int
+ ia64_register_reggroup_p (struct gdbarch *gdbarch, int regnum,
+ 			  struct reggroup *group)
+@@ -682,9 +657,18 @@
+  
+       if ((cfm & 0x7f) > regnum - V32_REGNUM) 
+ 	{
++	  ULONGEST bspstore;
+ 	  ULONGEST reg_addr = rse_address_add (bsp, (regnum - V32_REGNUM));
+-	  reg = read_memory_integer ((CORE_ADDR)reg_addr, 8);
+-	  store_unsigned_integer (buf, register_size (current_gdbarch, regnum), reg);
++	  regcache_cooked_read_unsigned (regcache, IA64_BSPSTORE_REGNUM,
++					 &bspstore);
++	  if (reg_addr < bspstore) {
++	    reg = read_memory_integer ((CORE_ADDR)reg_addr, 8);
++	    store_unsigned_integer (buf, register_size (current_gdbarch,
++							regnum), reg);
++	  } else
++	    target_read_partial (&current_target, TARGET_OBJECT_DIRTY,
++				 (void*)bspstore, buf, reg_addr - bspstore,
++				 register_size (current_gdbarch, regnum));
+ 	}
+       else
+ 	store_unsigned_integer (buf, register_size (current_gdbarch, regnum), 0);
+@@ -725,7 +709,21 @@
+ 	  if (nat_addr >= bsp)
+ 	    regcache_cooked_read_unsigned (regcache, IA64_RNAT_REGNUM, &nat_collection);
+ 	  else
+-	    nat_collection = read_memory_integer (nat_addr, 8);
++	    {
++	      ULONGEST bspstore;
++	      regcache_cooked_read_unsigned (regcache, IA64_BSPSTORE_REGNUM,
++					     &bspstore);
++	      if (nat_addr < bspstore)
++		nat_collection = read_memory_integer (nat_addr, 8);
++	      else {
++		char natbuf[8];
++		target_read_partial (&current_target, TARGET_OBJECT_DIRTY,
++				     (void*)bspstore, natbuf,
++				     nat_addr - bspstore,
++				     register_size (current_gdbarch, regnum));
++		nat_collection = *((uint64_t*)natbuf);
++	      }
++	    }
+ 	  nat_bit = (gr_addr >> 3) & 0x3f;
+ 	  natN_val = (nat_collection >> nat_bit) & 1;
+ 	}
+@@ -789,8 +787,16 @@
+  
+       if ((cfm & 0x7f) > regnum - V32_REGNUM) 
+ 	{
++	  ULONGEST bspstore;
+ 	  ULONGEST reg_addr = rse_address_add (bsp, (regnum - V32_REGNUM));
+-	  write_memory (reg_addr, (void *)buf, 8);
++	  regcache_cooked_read_unsigned (regcache, IA64_BSPSTORE_REGNUM,
++					 &bspstore);
++	  if (reg_addr < bspstore)
++	    write_memory (reg_addr, (void *)buf, 8);
++	  else
++	    target_write_partial (&current_target, TARGET_OBJECT_DIRTY,
++				  (void*)bspstore, buf, reg_addr - bspstore,
++				  register_size (current_gdbarch, regnum));
+ 	}
+     }
+   else if (IA64_NAT0_REGNUM <= regnum && regnum <= IA64_NAT31_REGNUM)
+@@ -845,13 +851,33 @@
+ 	  else
+ 	    {
+ 	      char nat_buf[8];
+-	      nat_collection = read_memory_integer (nat_addr, 8);
++	      ULONGEST bspstore;
++	      regcache_cooked_read_unsigned (regcache, IA64_BSPSTORE_REGNUM,
++					     &bspstore);
++	      if (nat_addr < bspstore)
++		nat_collection = read_memory_integer (nat_addr, 8);
++	      else {
++		char natbuf[8];
++		target_read_partial (&current_target, TARGET_OBJECT_DIRTY,
++				     (void*)bspstore, natbuf,
++				     nat_addr - bspstore,
++				     register_size (current_gdbarch, regnum));
++		nat_collection = *((uint64_t*)natbuf);
++	      }
+ 	      if (natN_val)
+ 		nat_collection |= natN_mask;
+ 	      else
+ 		nat_collection &= ~natN_mask;
+-	      store_unsigned_integer (nat_buf, register_size (current_gdbarch, regnum), nat_collection);
+-	      write_memory (nat_addr, nat_buf, 8);
++	      store_unsigned_integer (nat_buf, register_size (current_gdbarch,
++							      regnum),
++				      nat_collection);
++	      if (nat_addr < bspstore)
++		write_memory (nat_addr, nat_buf, 8);
++	      else
++		target_write_partial (&current_target, TARGET_OBJECT_DIRTY,
++				      (void*)bspstore, nat_buf,
++				      nat_addr - bspstore,
++				      register_size (current_gdbarch, regnum));
+ 	    }
+ 	}
+     }
+@@ -1813,6 +1839,7 @@
+ 	  prev_bof = rse_address_add (prev_bsp, -(prev_cfm & 0x7f));
+ 
+ 	  addr = rse_address_add (prev_bof, (regnum - IA64_GR32_REGNUM));
++	  /* XXX marcel */
+ 	  *lvalp = lval_memory;
+ 	  *addrp = addr;
+ 	  read_memory (addr, valuep, register_size (current_gdbarch, regnum));
+@@ -2858,8 +2885,8 @@
+    DT_PLTGOT tag.  If it finds one of these, the corresponding
+    d_un.d_ptr value is the global pointer.  */
+ 
+-static CORE_ADDR
+-generic_elf_find_global_pointer (CORE_ADDR faddr)
++CORE_ADDR
++ia64_generic_find_global_pointer (CORE_ADDR faddr)
+ {
+   struct obj_section *faddr_sect;
+      
+@@ -3255,32 +3282,9 @@
+ 
+   tdep = xmalloc (sizeof (struct gdbarch_tdep));
+   gdbarch = gdbarch_alloc (&info, tdep);
+-
+-  /* Set the method of obtaining the sigcontext addresses at which
+-     registers are saved.  The method of checking to see if
+-     native_find_global_pointer is nonzero to indicate that we're
+-     on AIX is kind of hokey, but I can't think of a better way
+-     to do it.  */
+-  if (info.osabi == GDB_OSABI_LINUX)
+-    tdep->sigcontext_register_address = ia64_linux_sigcontext_register_address;
+-  else if (native_find_global_pointer != 0)
+-    tdep->sigcontext_register_address = ia64_aix_sigcontext_register_address;
+-  else
+-    tdep->sigcontext_register_address = 0;
+-
+-  /* We know that GNU/Linux won't have to resort to the
+-     native_find_global_pointer hackery.  But that's the only one we
+-     know about so far, so if native_find_global_pointer is set to
+-     something non-zero, then use it.  Otherwise fall back to using
+-     generic_elf_find_global_pointer.  This arrangement should (in
+-     theory) allow us to cross debug GNU/Linux binaries from an AIX
+-     machine.  */
+-  if (info.osabi == GDB_OSABI_LINUX)
+-    tdep->find_global_pointer = generic_elf_find_global_pointer;
+-  else if (native_find_global_pointer != 0)
+-    tdep->find_global_pointer = native_find_global_pointer;
+-  else
+-    tdep->find_global_pointer = generic_elf_find_global_pointer;
++  tdep->osabi = info.osabi;
++  tdep->sigcontext_register_address = NULL;
++  tdep->find_global_pointer = ia64_generic_find_global_pointer;
+ 
+   /* Define the ia64 floating-point format to gdb.  */
+   builtin_type_ia64_ext =
+@@ -3338,10 +3342,7 @@
+   set_gdbarch_memory_remove_breakpoint (gdbarch, ia64_memory_remove_breakpoint);
+   set_gdbarch_breakpoint_from_pc (gdbarch, ia64_breakpoint_from_pc);
+   set_gdbarch_read_pc (gdbarch, ia64_read_pc);
+-  if (info.osabi == GDB_OSABI_LINUX)
+-    set_gdbarch_write_pc (gdbarch, ia64_linux_write_pc);
+-  else
+-    set_gdbarch_write_pc (gdbarch, ia64_write_pc);
++  set_gdbarch_write_pc (gdbarch, ia64_write_pc);
+ 
+   /* Settings for calling functions in the inferior.  */
+   set_gdbarch_push_dummy_call (gdbarch, ia64_push_dummy_call);
+@@ -3365,6 +3366,8 @@
+ 
+   set_gdbarch_print_insn (gdbarch, ia64_print_insn);
+   set_gdbarch_convert_from_func_ptr_addr (gdbarch, ia64_convert_from_func_ptr_addr);
++
++  gdbarch_init_osabi (info, gdbarch);
+ 
+   return gdbarch;
+ }
+Index: gdb/ia64-tdep.h
+===================================================================
+RCS file: /home/marcel/CVS/gdb6/gdb/ia64-tdep.h,v
+retrieving revision 1.1.1.1
+retrieving revision 1.2
+diff -u -r1.1.1.1 -r1.2
+--- gdb/ia64-tdep.h	26 Mar 2004 02:54:41 -0000	1.1.1.1
++++ gdb/ia64-tdep.h	28 Mar 2004 03:47:34 -0000	1.2
+@@ -22,10 +22,25 @@
+ #ifndef IA64_TDEP_H
+ #define IA64_TDEP_H
+ 
+-extern CORE_ADDR ia64_linux_sigcontext_register_address (CORE_ADDR, int);
+-extern CORE_ADDR ia64_aix_sigcontext_register_address (CORE_ADDR, int);
+-extern unsigned long ia64_linux_getunwind_table (void *, size_t);
+-extern void ia64_write_pc (CORE_ADDR, ptid_t);
+-extern void ia64_linux_write_pc (CORE_ADDR, ptid_t);
++#include "osabi.h"
++
++/* Target-dependent structure in gdbarch.  */
++struct gdbarch_tdep
++{
++  enum gdb_osabi osabi;		/* OS/ABI of inferior.  */
++
++  CORE_ADDR (*sigcontext_register_address) (CORE_ADDR, int);
++    			/* OS specific function which, given a frame address
++			   and register number, returns the offset to the
++			   given register from the start of the frame. */
++  CORE_ADDR (*find_global_pointer) (CORE_ADDR);
++};
++
++#define SIGCONTEXT_REGISTER_ADDRESS \
++  (gdbarch_tdep (current_gdbarch)->sigcontext_register_address)
++#define FIND_GLOBAL_POINTER \
++  (gdbarch_tdep (current_gdbarch)->find_global_pointer)
++
++extern CORE_ADDR ia64_generic_find_global_pointer (CORE_ADDR);
+ 
+ #endif /* IA64_TDEP_H */
+Index: gdb/inftarg.c
+===================================================================
+RCS file: /home/marcel/CVS/gdb6/gdb/inftarg.c,v
+retrieving revision 1.1.1.1
+retrieving revision 1.2
+diff -u -r1.1.1.1 -r1.2
+--- gdb/inftarg.c	26 Mar 2004 02:54:41 -0000	1.1.1.1
++++ gdb/inftarg.c	28 Mar 2004 03:47:34 -0000	1.2
+@@ -592,6 +592,13 @@
+       return NATIVE_XFER_WCOOKIE (ops, object, annex, readbuf, writebuf,
+ 				  offset, len);
+ 
++    case TARGET_OBJECT_DIRTY:
++#ifndef TARGET_XFER_DIRTY
++#define TARGET_XFER_DIRTY(OPS,OBJECT,ANNEX,WRITEBUF,READBUF,OFFSET,LEN) (-1)
++#endif
++      return TARGET_XFER_DIRTY (ops, object, annex, readbuf, writebuf,
++				offset, len);
++
+     default:
+       return -1;
+     }
+Index: gdb/remote.c
+===================================================================
+RCS file: /home/marcel/CVS/gdb6/gdb/remote.c,v
+retrieving revision 1.1.1.3
+retrieving revision 1.5
+diff -u -r1.1.1.3 -r1.5
+--- gdb/remote.c	16 Apr 2004 00:51:28 -0000	1.1.1.3
++++ gdb/remote.c	16 Apr 2004 01:28:33 -0000	1.5
+@@ -998,6 +998,23 @@
+   show_packet_config_cmd (&remote_protocol_qPart_auxv);
+ }
+ 
++/* Should we try the 'qPart:dirty' (target dirty register read) request? */
++static struct packet_config remote_protocol_qPart_dirty;
++
++static void
++set_remote_protocol_qPart_dirty_packet_cmd (char *args, int from_tty,
++					    struct cmd_list_element *c)
++{
++  update_packet_config (&remote_protocol_qPart_dirty);
++}
++
++static void
++show_remote_protocol_qPart_dirty_packet_cmd (char *args, int from_tty,
++					     struct cmd_list_element *c)
++{
++  show_packet_config_cmd (&remote_protocol_qPart_dirty);
++}
++
+ 
+ /* Tokens for use by the asynchronous signal handlers for SIGINT */
+ static void *sigint_remote_twice_token;
+@@ -2088,6 +2105,7 @@
+      downloading. */
+   update_packet_config (&remote_protocol_binary_download);
+   update_packet_config (&remote_protocol_qPart_auxv);
++  update_packet_config (&remote_protocol_qPart_dirty);
+ }
+ 
+ /* Symbol look-up. */
+@@ -4925,6 +4943,23 @@
+ 	}
+       return -1;
+ 
++    case TARGET_OBJECT_DIRTY:
++      if (remote_protocol_qPart_dirty.support != PACKET_DISABLE)
++	{
++	  snprintf (buf2, rs->remote_packet_size, "qPart:dirty:read::%lx",
++		    (long)(offset >> 3));
++	  i = putpkt (buf2);
++	  if (i < 0)
++	    return i;
++	  buf2[0] = '\0';
++	  getpkt (buf2, rs->remote_packet_size, 0);
++	  if (packet_ok (buf2, &remote_protocol_qPart_dirty) != PACKET_OK)
++	    return -1;
++	  i = hex2bin (buf2, readbuf, len);
++	  return i;
++	}
++      return -1;
++
+     default:
+       return -1;
+     }
+@@ -5423,6 +5458,7 @@
+   show_remote_protocol_vcont_packet_cmd (args, from_tty, NULL);
+   show_remote_protocol_binary_download_cmd (args, from_tty, NULL);
+   show_remote_protocol_qPart_auxv_packet_cmd (args, from_tty, NULL);
++  show_remote_protocol_qPart_dirty_packet_cmd (args, from_tty, NULL);
+ }
+ 
+ static void
+@@ -5670,6 +5706,13 @@
+ 			 "qPart_auxv", "read-aux-vector",
+ 			 set_remote_protocol_qPart_auxv_packet_cmd,
+ 			 show_remote_protocol_qPart_auxv_packet_cmd,
++			 &remote_set_cmdlist, &remote_show_cmdlist,
++			 0);
++
++  add_packet_config_cmd (&remote_protocol_qPart_dirty,
++			 "qPart_dirty", "read-dirty-registers",
++			 set_remote_protocol_qPart_dirty_packet_cmd,
++			 show_remote_protocol_qPart_dirty_packet_cmd,
+ 			 &remote_set_cmdlist, &remote_show_cmdlist,
+ 			 0);
+ 
+Index: gdb/target.h
+===================================================================
+RCS file: /home/marcel/CVS/gdb6/gdb/target.h,v
+retrieving revision 1.1.1.1
+retrieving revision 1.2
+diff -u -r1.1.1.1 -r1.2
+--- gdb/target.h	26 Mar 2004 02:54:42 -0000	1.1.1.1
++++ gdb/target.h	28 Mar 2004 03:47:34 -0000	1.2
+@@ -229,7 +229,9 @@
+   /* Transfer auxilliary vector.  */
+   TARGET_OBJECT_AUXV,
+   /* StackGhost cookie.  See "sparc-tdep.c".  */
+-  TARGET_OBJECT_WCOOKIE
++  TARGET_OBJECT_WCOOKIE,
++  /* Dirty registers. See "ia64-tdep.c".  */
++  TARGET_OBJECT_DIRTY
+ 
+   /* Possible future objects: TARGET_OBJECT_FILE, TARGET_OBJECT_PROC, ... */
+ };
+Index: gdb/config/ia64/fbsd.mh
+===================================================================
+RCS file: gdb/config/ia64/fbsd.mh
+diff -N gdb/config/ia64/fbsd.mh
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ gdb/config/ia64/fbsd.mh	25 Jun 2004 03:55:31 -0000
+@@ -0,0 +1,3 @@
++NATDEPFILES=	fbsd-proc.o fbsd-thread.o fork-child.o gcore.o \
++		ia64-fbsd-nat.o infptrace.o inftarg.o
++NAT_FILE=	nm-fbsd.h
+Index: gdb/config/ia64/fbsd.mt
+===================================================================
+RCS file: gdb/config/ia64/fbsd.mt
+diff -N gdb/config/ia64/fbsd.mt
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ gdb/config/ia64/fbsd.mt	28 Mar 2004 03:47:38 -0000	1.1
+@@ -0,0 +1,2 @@
++TDEPFILES=	corelow.o ia64-fbsd-tdep.o ia64-tdep.o solib.o solib-svr4.o
++TM_FILE=	tm-fbsd.h
+Index: gdb/config/ia64/nm-fbsd.h
+===================================================================
+RCS file: gdb/config/ia64/nm-fbsd.h
+diff -N gdb/config/ia64/nm-fbsd.h
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ gdb/config/ia64/nm-fbsd.h	16 Apr 2004 02:49:16 -0000	1.2
+@@ -0,0 +1,24 @@
++/* GNU GPL */
++
++#ifndef NM_FBSD_H
++#define	NM_FBSD_H
++
++/* Type of the third argument to the `ptrace' system call.  */
++#define PTRACE_ARG3_TYPE caddr_t
++
++/* Override copies of {fetch,store}_inferior_registers in `infptrace.c'.  */
++#define FETCH_INFERIOR_REGISTERS
++
++/* We can attach and detach.  */
++#define ATTACH_DETACH
++
++/* Override child_pid_to_exec_file in 'inftarg.c'.  */
++#define	CHILD_PID_TO_EXEC_FILE
++
++#include "target.h"
++
++#define	TARGET_XFER_DIRTY	ia64_fbsd_xfer_dirty
++extern LONGEST ia64_fbsd_xfer_dirty(struct target_ops *, enum target_object,
++    const char *, void *, const void *, ULONGEST, LONGEST);
++
++#endif /* NM_FBSD_H */
+Index: gdb/config/ia64/tm-fbsd.h
+===================================================================
+RCS file: gdb/config/ia64/tm-fbsd.h
+diff -N gdb/config/ia64/tm-fbsd.h
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ gdb/config/ia64/tm-fbsd.h	17 Apr 2004 01:43:21 -0000	1.2
+@@ -0,0 +1,34 @@
++/*
++ * Copyright (c) 2004 Marcel Moolenaar
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
++ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
++ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
++ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
++ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
++ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
++ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++#ifndef TM_FBSD_H
++#define	TM_FBSD_H
++
++#include "solib.h"
++
++#include "ia64/tm-ia64.h"
++
++#endif /* TM_FBSD_H */
+Index: gdb/sparc64fbsd-tdep.c
+===================================================================
+--- gdb/sparc64fbsd-tdep.c	(revision 223862)
++++ gdb/sparc64fbsd-tdep.c	(working copy)
+@@ -64,6 +64,31 @@ sparc64fbsd_supply_fpregset (const struct regset *
+ {
+   sparc64_supply_fpregset (regcache, regnum, fpregs);
+ }
++
++void
++supply_gregset (const void *gregs)
++{
++  sparc64_supply_gregset (&sparc64fbsd_gregset, current_regcache, -1, gregs);
++}
++
++void
++supply_fpregset (const void *fpregs)
++{
++  sparc64_supply_fpregset (current_regcache, -1, fpregs);
++}
++
++void
++fill_gregset (void *gregs, int regnum)
++{
++  sparc64_collect_gregset (&sparc64fbsd_gregset, current_regcache, regnum,
++			   gregs);
++}
++
++void
++fill_fpregset (void *fpregs, int regnum)
++{
++  sparc64_collect_fpregset (current_regcache, regnum, fpregs);
++}
+ 
+ 
+ /* Signal trampolines.  */

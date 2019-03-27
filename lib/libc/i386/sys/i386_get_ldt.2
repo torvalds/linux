@@ -1,0 +1,139 @@
+.\" Copyright (c) 1980, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)fork.2	6.5 (Berkeley) 3/10/91
+.\" $FreeBSD$
+.\"
+.Dd October 14, 2006
+.Dt I386_GET_LDT 2
+.Os
+.Sh NAME
+.Nm i386_get_ldt ,
+.Nm i386_set_ldt
+.Nd manage i386 per-process Local Descriptor Table entries
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In machine/segments.h
+.In machine/sysarch.h
+.Ft int
+.Fn i386_get_ldt "int start_sel" "union descriptor *descs" "int num_sels"
+.Ft int
+.Fn i386_set_ldt "int start_sel" "union descriptor *descs" "int num_sels"
+.Sh DESCRIPTION
+The
+.Fn i386_get_ldt
+system call
+returns a list of the i386 descriptors in the current process'
+LDT.
+The
+.Fn i386_set_ldt
+system call
+sets a list of i386 descriptors in the current process'
+LDT.
+For both routines,
+.Fa start_sel
+specifies the index of the selector in the LDT at which to begin and
+.Fa descs
+points to an array of
+.Fa num_sels
+descriptors to be set or returned.
+.Pp
+Each entry in the
+.Fa descs
+array can be either a segment_descriptor or gate_descriptor and are defined in
+.In i386/segments.h .
+These structures are defined by the architecture
+as disjoint bit-fields, so care must be taken in constructing them.
+.Pp
+If
+.Fa start_sel
+is
+.Em LDT_AUTO_ALLOC ,
+.Fa num_sels
+is 1 and the descriptor pointed to by
+.Fa descs
+is legal, then
+.Fn i386_set_ldt
+will allocate a descriptor and return its
+selector number.
+.Pp
+If
+.Fa num_descs
+is 1,
+.Fa start_sels
+is valid, and
+.Fa descs
+is NULL, then
+.Fn i386_set_ldt
+will free that descriptor
+(making it available to be reallocated again later).
+.Pp
+If
+.Fa num_descs
+is 0,
+.Fa start_sels
+is 0 and
+.Fa descs
+is NULL then, as a special case,
+.Fn i386_set_ldt
+will free all descriptors.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn i386_get_ldt
+returns the number of descriptors currently in the LDT.
+The
+.Fn i386_set_ldt
+system call
+returns the first selector set on success.
+If the kernel allocated a descriptor in the LDT,
+the allocated index is returned.
+Otherwise, a value of -1 is returned and the global
+variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn i386_get_ldt
+and
+.Fn i386_set_ldt
+system calls
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+An inappropriate value was used for
+.Fa start_sel
+or
+.Fa num_sels .
+.It Bq Er EACCES
+The caller attempted to use a descriptor that would
+circumvent protection or cause a failure.
+.El
+.Sh SEE ALSO
+i386 Microprocessor Programmer's Reference Manual, Intel
+.Sh WARNING
+You can really hose your process using this.

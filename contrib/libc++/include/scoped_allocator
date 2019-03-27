@@ -1,0 +1,684 @@
+// -*- C++ -*-
+//===-------------------------- scoped_allocator --------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_SCOPED_ALLOCATOR
+#define _LIBCPP_SCOPED_ALLOCATOR
+
+/*
+    scoped_allocator synopsis
+
+namespace std
+{
+
+template <class OuterAlloc, class... InnerAllocs>
+class scoped_allocator_adaptor : public OuterAlloc
+{
+    typedef allocator_traits<OuterAlloc> OuterTraits; // exposition only
+    scoped_allocator_adaptor<InnerAllocs...> inner;   // exposition only
+public:
+
+    typedef OuterAlloc outer_allocator_type;
+    typedef see below inner_allocator_type;
+
+    typedef typename OuterTraits::value_type value_type;
+    typedef typename OuterTraits::size_type size_type;
+    typedef typename OuterTraits::difference_type difference_type;
+    typedef typename OuterTraits::pointer pointer;
+    typedef typename OuterTraits::const_pointer const_pointer;
+    typedef typename OuterTraits::void_pointer void_pointer;
+    typedef typename OuterTraits::const_void_pointer const_void_pointer;
+
+    typedef see below propagate_on_container_copy_assignment;
+    typedef see below propagate_on_container_move_assignment;
+    typedef see below propagate_on_container_swap;
+    typedef see below is_always_equal;
+
+    template <class Tp>
+        struct rebind
+        {
+            typedef scoped_allocator_adaptor<
+                OuterTraits::template rebind_alloc<Tp>, InnerAllocs...> other;
+        };
+
+    scoped_allocator_adaptor();
+    template <class OuterA2>
+        scoped_allocator_adaptor(OuterA2&& outerAlloc,
+                                 const InnerAllocs&... innerAllocs) noexcept;
+    scoped_allocator_adaptor(const scoped_allocator_adaptor& other) noexcept;
+    scoped_allocator_adaptor(scoped_allocator_adaptor&& other) noexcept;
+    template <class OuterA2>
+        scoped_allocator_adaptor(const scoped_allocator_adaptor<OuterA2, InnerAllocs...>& other) noexcept;
+    template <class OuterA2>
+        scoped_allocator_adaptor(const scoped_allocator_adaptor<OuterA2, InnerAllocs...>&& other) noexcept;
+
+    scoped_allocator_adaptor& operator=(const scoped_allocator_adaptor&) = default;
+    scoped_allocator_adaptor& operator=(scoped_allocator_adaptor&&) = default;
+    ~scoped_allocator_adaptor();
+
+    inner_allocator_type& inner_allocator() noexcept;
+    const inner_allocator_type& inner_allocator() const noexcept;
+
+    outer_allocator_type& outer_allocator() noexcept;
+    const outer_allocator_type& outer_allocator() const noexcept;
+
+    pointer allocate(size_type n);                           // [[nodiscard]] in C++20
+    pointer allocate(size_type n, const_void_pointer hint);  // [[nodiscard]] in C++20
+    void deallocate(pointer p, size_type n) noexcept;
+
+    size_type max_size() const;
+    template <class T, class... Args> void construct(T* p, Args&& args);
+    template <class T1, class T2, class... Args1, class... Args2>
+        void construct(pair<T1, T2>* p, piecewise_construct t, tuple<Args1...> x,
+                       tuple<Args2...> y);
+    template <class T1, class T2>
+        void construct(pair<T1, T2>* p);
+    template <class T1, class T2, class U, class V>
+        void construct(pair<T1, T2>* p, U&& x, V&& y);
+    template <class T1, class T2, class U, class V>
+        void construct(pair<T1, T2>* p, const pair<U, V>& x);
+    template <class T1, class T2, class U, class V>
+        void construct(pair<T1, T2>* p, pair<U, V>&& x);
+    template <class T> void destroy(T* p);
+
+    template <class T> void destroy(T* p) noexcept;
+
+    scoped_allocator_adaptor select_on_container_copy_construction() const noexcept;
+};
+
+template <class OuterA1, class OuterA2, class... InnerAllocs>
+    bool
+    operator==(const scoped_allocator_adaptor<OuterA1, InnerAllocs...>& a,
+               const scoped_allocator_adaptor<OuterA2, InnerAllocs...>& b) noexcept;
+
+template <class OuterA1, class OuterA2, class... InnerAllocs>
+    bool
+    operator!=(const scoped_allocator_adaptor<OuterA1, InnerAllocs...>& a,
+               const scoped_allocator_adaptor<OuterA2, InnerAllocs...>& b) noexcept;
+
+}  // std
+
+*/
+
+#include <__config>
+#include <memory>
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#if !defined(_LIBCPP_CXX03_LANG)
+
+// scoped_allocator_adaptor
+
+template <class ..._Allocs>
+class scoped_allocator_adaptor;
+
+template <class ..._Allocs> struct __get_poc_copy_assignment;
+
+template <class _A0>
+struct __get_poc_copy_assignment<_A0>
+{
+    static const bool value = allocator_traits<_A0>::
+                              propagate_on_container_copy_assignment::value;
+};
+
+template <class _A0, class ..._Allocs>
+struct __get_poc_copy_assignment<_A0, _Allocs...>
+{
+    static const bool value =
+        allocator_traits<_A0>::propagate_on_container_copy_assignment::value ||
+        __get_poc_copy_assignment<_Allocs...>::value;
+};
+
+template <class ..._Allocs> struct __get_poc_move_assignment;
+
+template <class _A0>
+struct __get_poc_move_assignment<_A0>
+{
+    static const bool value = allocator_traits<_A0>::
+                              propagate_on_container_move_assignment::value;
+};
+
+template <class _A0, class ..._Allocs>
+struct __get_poc_move_assignment<_A0, _Allocs...>
+{
+    static const bool value =
+        allocator_traits<_A0>::propagate_on_container_move_assignment::value ||
+        __get_poc_move_assignment<_Allocs...>::value;
+};
+
+template <class ..._Allocs> struct __get_poc_swap;
+
+template <class _A0>
+struct __get_poc_swap<_A0>
+{
+    static const bool value = allocator_traits<_A0>::
+                              propagate_on_container_swap::value;
+};
+
+template <class _A0, class ..._Allocs>
+struct __get_poc_swap<_A0, _Allocs...>
+{
+    static const bool value =
+        allocator_traits<_A0>::propagate_on_container_swap::value ||
+        __get_poc_swap<_Allocs...>::value;
+};
+
+template <class ..._Allocs> struct __get_is_always_equal;
+
+template <class _A0>
+struct __get_is_always_equal<_A0>
+{
+    static const bool value = allocator_traits<_A0>::is_always_equal::value;
+};
+
+template <class _A0, class ..._Allocs>
+struct __get_is_always_equal<_A0, _Allocs...>
+{
+    static const bool value =
+        allocator_traits<_A0>::is_always_equal::value &&
+        __get_is_always_equal<_Allocs...>::value;
+};
+
+template <class ..._Allocs>
+class __scoped_allocator_storage;
+
+template <class _OuterAlloc, class... _InnerAllocs>
+class __scoped_allocator_storage<_OuterAlloc, _InnerAllocs...>
+    : public _OuterAlloc
+{
+    typedef _OuterAlloc outer_allocator_type;
+protected:
+    typedef scoped_allocator_adaptor<_InnerAllocs...> inner_allocator_type;
+
+private:
+    inner_allocator_type __inner_;
+
+protected:
+
+    _LIBCPP_INLINE_VISIBILITY
+    __scoped_allocator_storage() _NOEXCEPT {}
+
+    template <class _OuterA2,
+              class = typename enable_if<
+                        is_constructible<outer_allocator_type, _OuterA2>::value
+                      >::type>
+        _LIBCPP_INLINE_VISIBILITY
+        __scoped_allocator_storage(_OuterA2&& __outerAlloc,
+                                   const _InnerAllocs& ...__innerAllocs) _NOEXCEPT
+            : outer_allocator_type(_VSTD::forward<_OuterA2>(__outerAlloc)),
+              __inner_(__innerAllocs...) {}
+
+    template <class _OuterA2,
+              class = typename enable_if<
+                        is_constructible<outer_allocator_type, const _OuterA2&>::value
+                      >::type>
+        _LIBCPP_INLINE_VISIBILITY
+        __scoped_allocator_storage(
+            const __scoped_allocator_storage<_OuterA2, _InnerAllocs...>& __other) _NOEXCEPT
+            : outer_allocator_type(__other.outer_allocator()),
+              __inner_(__other.inner_allocator()) {}
+
+    template <class _OuterA2,
+              class = typename enable_if<
+                        is_constructible<outer_allocator_type, _OuterA2>::value
+                      >::type>
+        _LIBCPP_INLINE_VISIBILITY
+        __scoped_allocator_storage(
+            __scoped_allocator_storage<_OuterA2, _InnerAllocs...>&& __other) _NOEXCEPT
+            : outer_allocator_type(_VSTD::move(__other.outer_allocator())),
+              __inner_(_VSTD::move(__other.inner_allocator())) {}
+
+    template <class _OuterA2,
+              class = typename enable_if<
+                        is_constructible<outer_allocator_type, _OuterA2>::value
+                      >::type>
+        _LIBCPP_INLINE_VISIBILITY
+        __scoped_allocator_storage(_OuterA2&& __o,
+                                   const inner_allocator_type& __i) _NOEXCEPT
+            : outer_allocator_type(_VSTD::forward<_OuterA2>(__o)),
+              __inner_(__i)
+        {
+        }
+
+    _LIBCPP_INLINE_VISIBILITY
+    inner_allocator_type& inner_allocator() _NOEXCEPT             {return __inner_;}
+    _LIBCPP_INLINE_VISIBILITY
+    const inner_allocator_type& inner_allocator() const _NOEXCEPT {return __inner_;}
+
+    _LIBCPP_INLINE_VISIBILITY
+    outer_allocator_type& outer_allocator() _NOEXCEPT
+        {return static_cast<outer_allocator_type&>(*this);}
+    _LIBCPP_INLINE_VISIBILITY
+    const outer_allocator_type& outer_allocator() const _NOEXCEPT
+        {return static_cast<const outer_allocator_type&>(*this);}
+
+    scoped_allocator_adaptor<outer_allocator_type, _InnerAllocs...>
+    _LIBCPP_INLINE_VISIBILITY
+    select_on_container_copy_construction() const _NOEXCEPT
+        {
+            return scoped_allocator_adaptor<outer_allocator_type, _InnerAllocs...>
+            (
+                allocator_traits<outer_allocator_type>::
+                    select_on_container_copy_construction(outer_allocator()),
+                allocator_traits<inner_allocator_type>::
+                    select_on_container_copy_construction(inner_allocator())
+            );
+        }
+
+    template <class...> friend class __scoped_allocator_storage;
+};
+
+template <class _OuterAlloc>
+class __scoped_allocator_storage<_OuterAlloc>
+    : public _OuterAlloc
+{
+    typedef _OuterAlloc outer_allocator_type;
+protected:
+    typedef scoped_allocator_adaptor<_OuterAlloc> inner_allocator_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    __scoped_allocator_storage() _NOEXCEPT {}
+
+    template <class _OuterA2,
+              class = typename enable_if<
+                        is_constructible<outer_allocator_type, _OuterA2>::value
+                      >::type>
+        _LIBCPP_INLINE_VISIBILITY
+        __scoped_allocator_storage(_OuterA2&& __outerAlloc) _NOEXCEPT
+            : outer_allocator_type(_VSTD::forward<_OuterA2>(__outerAlloc)) {}
+
+    template <class _OuterA2,
+              class = typename enable_if<
+                        is_constructible<outer_allocator_type, const _OuterA2&>::value
+                      >::type>
+        _LIBCPP_INLINE_VISIBILITY
+        __scoped_allocator_storage(
+            const __scoped_allocator_storage<_OuterA2>& __other) _NOEXCEPT
+            : outer_allocator_type(__other.outer_allocator()) {}
+
+    template <class _OuterA2,
+              class = typename enable_if<
+                        is_constructible<outer_allocator_type, _OuterA2>::value
+                      >::type>
+        _LIBCPP_INLINE_VISIBILITY
+        __scoped_allocator_storage(
+            __scoped_allocator_storage<_OuterA2>&& __other) _NOEXCEPT
+            : outer_allocator_type(_VSTD::move(__other.outer_allocator())) {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    inner_allocator_type& inner_allocator() _NOEXCEPT
+        {return static_cast<inner_allocator_type&>(*this);}
+    _LIBCPP_INLINE_VISIBILITY
+    const inner_allocator_type& inner_allocator() const _NOEXCEPT
+        {return static_cast<const inner_allocator_type&>(*this);}
+
+    _LIBCPP_INLINE_VISIBILITY
+    outer_allocator_type& outer_allocator() _NOEXCEPT
+        {return static_cast<outer_allocator_type&>(*this);}
+    _LIBCPP_INLINE_VISIBILITY
+    const outer_allocator_type& outer_allocator() const _NOEXCEPT
+        {return static_cast<const outer_allocator_type&>(*this);}
+
+    _LIBCPP_INLINE_VISIBILITY
+    scoped_allocator_adaptor<outer_allocator_type>
+    select_on_container_copy_construction() const _NOEXCEPT
+        {return scoped_allocator_adaptor<outer_allocator_type>(
+            allocator_traits<outer_allocator_type>::
+                select_on_container_copy_construction(outer_allocator())
+        );}
+
+    __scoped_allocator_storage(const outer_allocator_type& __o,
+                               const inner_allocator_type& __i) _NOEXCEPT;
+
+    template <class...> friend class __scoped_allocator_storage;
+};
+
+// __outermost
+
+template <class _Alloc>
+decltype(declval<_Alloc>().outer_allocator(), true_type())
+__has_outer_allocator_test(_Alloc&& __a);
+
+template <class _Alloc>
+false_type
+__has_outer_allocator_test(const volatile _Alloc& __a);
+
+template <class _Alloc>
+struct __has_outer_allocator
+    : public common_type
+             <
+                 decltype(__has_outer_allocator_test(declval<_Alloc&>()))
+             >::type
+{
+};
+
+template <class _Alloc, bool = __has_outer_allocator<_Alloc>::value>
+struct __outermost
+{
+    typedef _Alloc type;
+    _LIBCPP_INLINE_VISIBILITY
+    type& operator()(type& __a) const _NOEXCEPT {return __a;}
+};
+
+template <class _Alloc>
+struct __outermost<_Alloc, true>
+{
+    typedef typename remove_reference
+                     <
+                        decltype(_VSTD::declval<_Alloc>().outer_allocator())
+                     >::type                                    _OuterAlloc;
+    typedef typename __outermost<_OuterAlloc>::type             type;
+    _LIBCPP_INLINE_VISIBILITY
+    type& operator()(_Alloc& __a) const _NOEXCEPT
+        {return __outermost<_OuterAlloc>()(__a.outer_allocator());}
+};
+
+template <class _OuterAlloc, class... _InnerAllocs>
+class _LIBCPP_TEMPLATE_VIS scoped_allocator_adaptor<_OuterAlloc, _InnerAllocs...>
+    : public __scoped_allocator_storage<_OuterAlloc, _InnerAllocs...>
+{
+    typedef __scoped_allocator_storage<_OuterAlloc, _InnerAllocs...> base;
+    typedef allocator_traits<_OuterAlloc>             _OuterTraits;
+public:
+    typedef _OuterAlloc                               outer_allocator_type;
+    typedef typename base::inner_allocator_type       inner_allocator_type;
+    typedef typename _OuterTraits::size_type          size_type;
+    typedef typename _OuterTraits::difference_type    difference_type;
+    typedef typename _OuterTraits::pointer            pointer;
+    typedef typename _OuterTraits::const_pointer      const_pointer;
+    typedef typename _OuterTraits::void_pointer       void_pointer;
+    typedef typename _OuterTraits::const_void_pointer const_void_pointer;
+
+    typedef integral_constant
+            <
+                bool,
+                __get_poc_copy_assignment<outer_allocator_type,
+                                          _InnerAllocs...>::value
+            > propagate_on_container_copy_assignment;
+    typedef integral_constant
+            <
+                bool,
+                __get_poc_move_assignment<outer_allocator_type,
+                                          _InnerAllocs...>::value
+            > propagate_on_container_move_assignment;
+    typedef integral_constant
+            <
+                bool,
+                __get_poc_swap<outer_allocator_type, _InnerAllocs...>::value
+            > propagate_on_container_swap;
+    typedef integral_constant
+            <
+                bool,
+                __get_is_always_equal<outer_allocator_type, _InnerAllocs...>::value
+            > is_always_equal;
+
+    template <class _Tp>
+    struct rebind
+    {
+        typedef scoped_allocator_adaptor
+        <
+            typename _OuterTraits::template rebind_alloc<_Tp>, _InnerAllocs...
+        > other;
+    };
+
+    _LIBCPP_INLINE_VISIBILITY
+    scoped_allocator_adaptor() _NOEXCEPT {}
+    template <class _OuterA2,
+              class = typename enable_if<
+                        is_constructible<outer_allocator_type, _OuterA2>::value
+                      >::type>
+        _LIBCPP_INLINE_VISIBILITY
+        scoped_allocator_adaptor(_OuterA2&& __outerAlloc,
+                                 const _InnerAllocs& ...__innerAllocs) _NOEXCEPT
+            : base(_VSTD::forward<_OuterA2>(__outerAlloc), __innerAllocs...) {}
+    // scoped_allocator_adaptor(const scoped_allocator_adaptor& __other) = default;
+    template <class _OuterA2,
+              class = typename enable_if<
+                        is_constructible<outer_allocator_type, const _OuterA2&>::value
+                      >::type>
+        _LIBCPP_INLINE_VISIBILITY
+        scoped_allocator_adaptor(
+            const scoped_allocator_adaptor<_OuterA2, _InnerAllocs...>& __other) _NOEXCEPT
+                : base(__other) {}
+    template <class _OuterA2,
+              class = typename enable_if<
+                        is_constructible<outer_allocator_type, _OuterA2>::value
+                      >::type>
+        _LIBCPP_INLINE_VISIBILITY
+        scoped_allocator_adaptor(
+            scoped_allocator_adaptor<_OuterA2, _InnerAllocs...>&& __other) _NOEXCEPT
+                : base(_VSTD::move(__other)) {}
+
+    // scoped_allocator_adaptor& operator=(const scoped_allocator_adaptor&) = default;
+    // scoped_allocator_adaptor& operator=(scoped_allocator_adaptor&&) = default;
+    // ~scoped_allocator_adaptor() = default;
+
+    _LIBCPP_INLINE_VISIBILITY
+    inner_allocator_type& inner_allocator() _NOEXCEPT
+        {return base::inner_allocator();}
+    _LIBCPP_INLINE_VISIBILITY
+    const inner_allocator_type& inner_allocator() const _NOEXCEPT
+        {return base::inner_allocator();}
+
+    _LIBCPP_INLINE_VISIBILITY
+    outer_allocator_type& outer_allocator() _NOEXCEPT
+        {return base::outer_allocator();}
+    _LIBCPP_INLINE_VISIBILITY
+    const outer_allocator_type& outer_allocator() const _NOEXCEPT
+        {return base::outer_allocator();}
+
+    _LIBCPP_NODISCARD_AFTER_CXX17 _LIBCPP_INLINE_VISIBILITY
+    pointer allocate(size_type __n)
+        {return allocator_traits<outer_allocator_type>::
+            allocate(outer_allocator(), __n);}
+    _LIBCPP_NODISCARD_AFTER_CXX17 _LIBCPP_INLINE_VISIBILITY
+    pointer allocate(size_type __n, const_void_pointer __hint)
+        {return allocator_traits<outer_allocator_type>::
+            allocate(outer_allocator(), __n, __hint);}
+
+    _LIBCPP_INLINE_VISIBILITY
+    void deallocate(pointer __p, size_type __n) _NOEXCEPT
+        {allocator_traits<outer_allocator_type>::
+            deallocate(outer_allocator(), __p, __n);}
+
+    _LIBCPP_INLINE_VISIBILITY
+    size_type max_size() const
+        {return allocator_traits<outer_allocator_type>::max_size(outer_allocator());}
+
+    template <class _Tp, class... _Args>
+        _LIBCPP_INLINE_VISIBILITY
+        void construct(_Tp* __p, _Args&& ...__args)
+            {__construct(__uses_alloc_ctor<_Tp, inner_allocator_type&, _Args...>(),
+                         __p, _VSTD::forward<_Args>(__args)...);}
+
+    template <class _T1, class _T2, class... _Args1, class... _Args2>
+    void construct(pair<_T1, _T2>* __p, piecewise_construct_t,
+                       tuple<_Args1...> __x, tuple<_Args2...> __y)
+    {
+        typedef __outermost<outer_allocator_type> _OM;
+        allocator_traits<typename _OM::type>::construct(
+            _OM()(outer_allocator()), __p, piecewise_construct
+          , __transform_tuple(
+              typename __uses_alloc_ctor<
+                  _T1, inner_allocator_type&, _Args1...
+              >::type()
+            , _VSTD::move(__x)
+            , typename __make_tuple_indices<sizeof...(_Args1)>::type{}
+          )
+          , __transform_tuple(
+              typename __uses_alloc_ctor<
+                  _T2, inner_allocator_type&, _Args2...
+              >::type()
+            , _VSTD::move(__y)
+            , typename __make_tuple_indices<sizeof...(_Args2)>::type{}
+          )
+        );
+    }
+
+    template <class _T1, class _T2>
+    void construct(pair<_T1, _T2>* __p)
+    { construct(__p, piecewise_construct, tuple<>{}, tuple<>{}); }
+
+    template <class _T1, class _T2, class _Up, class _Vp>
+    void construct(pair<_T1, _T2>* __p, _Up&& __x, _Vp&& __y) {
+        construct(__p, piecewise_construct,
+                  _VSTD::forward_as_tuple(_VSTD::forward<_Up>(__x)),
+                  _VSTD::forward_as_tuple(_VSTD::forward<_Vp>(__y)));
+    }
+
+    template <class _T1, class _T2, class _Up, class _Vp>
+    void construct(pair<_T1, _T2>* __p, const pair<_Up, _Vp>& __x) {
+        construct(__p, piecewise_construct,
+                  _VSTD::forward_as_tuple(__x.first),
+                  _VSTD::forward_as_tuple(__x.second));
+    }
+
+    template <class _T1, class _T2, class _Up, class _Vp>
+    void construct(pair<_T1, _T2>* __p, pair<_Up, _Vp>&& __x) {
+        construct(__p, piecewise_construct,
+                  _VSTD::forward_as_tuple(_VSTD::forward<_Up>(__x.first)),
+                  _VSTD::forward_as_tuple(_VSTD::forward<_Vp>(__x.second)));
+    }
+
+    template <class _Tp>
+        _LIBCPP_INLINE_VISIBILITY
+        void destroy(_Tp* __p)
+            {
+                typedef __outermost<outer_allocator_type> _OM;
+                allocator_traits<typename _OM::type>::
+                                         destroy(_OM()(outer_allocator()), __p);
+            }
+
+    _LIBCPP_INLINE_VISIBILITY
+    scoped_allocator_adaptor select_on_container_copy_construction() const _NOEXCEPT
+        {return base::select_on_container_copy_construction();}
+
+private:
+
+
+    template <class _OuterA2,
+              class = typename enable_if<
+                        is_constructible<outer_allocator_type, _OuterA2>::value
+                      >::type>
+    _LIBCPP_INLINE_VISIBILITY
+    scoped_allocator_adaptor(_OuterA2&& __o,
+                             const inner_allocator_type& __i) _NOEXCEPT
+        : base(_VSTD::forward<_OuterA2>(__o), __i) {}
+
+    template <class _Tp, class... _Args>
+        _LIBCPP_INLINE_VISIBILITY
+        void __construct(integral_constant<int, 0>, _Tp* __p, _Args&& ...__args)
+            {
+                typedef __outermost<outer_allocator_type> _OM;
+                allocator_traits<typename _OM::type>::construct
+                (
+                    _OM()(outer_allocator()),
+                    __p,
+                    _VSTD::forward<_Args>(__args)...
+                );
+            }
+
+    template <class _Tp, class... _Args>
+        _LIBCPP_INLINE_VISIBILITY
+        void __construct(integral_constant<int, 1>, _Tp* __p, _Args&& ...__args)
+            {
+                typedef __outermost<outer_allocator_type> _OM;
+                allocator_traits<typename _OM::type>::construct
+                (
+                    _OM()(outer_allocator()),
+                    __p, allocator_arg, inner_allocator(),
+                    _VSTD::forward<_Args>(__args)...
+                );
+            }
+
+    template <class _Tp, class... _Args>
+        _LIBCPP_INLINE_VISIBILITY
+        void __construct(integral_constant<int, 2>, _Tp* __p, _Args&& ...__args)
+            {
+                typedef __outermost<outer_allocator_type> _OM;
+                allocator_traits<typename _OM::type>::construct
+                (
+                    _OM()(outer_allocator()),
+                    __p,
+                    _VSTD::forward<_Args>(__args)...,
+                    inner_allocator()
+                );
+            }
+
+    template <class ..._Args, size_t ..._Idx>
+    _LIBCPP_INLINE_VISIBILITY
+    tuple<_Args&&...>
+    __transform_tuple(integral_constant<int, 0>, tuple<_Args...>&& __t,
+                      __tuple_indices<_Idx...>)
+    {
+        return _VSTD::forward_as_tuple(_VSTD::get<_Idx>(_VSTD::move(__t))...);
+    }
+
+    template <class ..._Args, size_t ..._Idx>
+    _LIBCPP_INLINE_VISIBILITY
+    tuple<allocator_arg_t, inner_allocator_type&, _Args&&...>
+    __transform_tuple(integral_constant<int, 1>, tuple<_Args...> && __t,
+                      __tuple_indices<_Idx...>)
+    {
+        using _Tup = tuple<allocator_arg_t, inner_allocator_type&, _Args&&...>;
+        return _Tup(allocator_arg, inner_allocator(),
+                    _VSTD::get<_Idx>(_VSTD::move(__t))...);
+    }
+
+    template <class ..._Args, size_t ..._Idx>
+    _LIBCPP_INLINE_VISIBILITY
+    tuple<_Args&&..., inner_allocator_type&>
+    __transform_tuple(integral_constant<int, 2>, tuple<_Args...> && __t,
+                      __tuple_indices<_Idx...>)
+    {
+        using _Tup = tuple<_Args&&..., inner_allocator_type&>;
+        return _Tup(_VSTD::get<_Idx>(_VSTD::move(__t))..., inner_allocator());
+    }
+
+    template <class...> friend class __scoped_allocator_storage;
+};
+
+template <class _OuterA1, class _OuterA2>
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+operator==(const scoped_allocator_adaptor<_OuterA1>& __a,
+           const scoped_allocator_adaptor<_OuterA2>& __b) _NOEXCEPT
+{
+    return __a.outer_allocator() == __b.outer_allocator();
+}
+
+template <class _OuterA1, class _OuterA2, class _InnerA0, class... _InnerAllocs>
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+operator==(const scoped_allocator_adaptor<_OuterA1, _InnerA0, _InnerAllocs...>& __a,
+           const scoped_allocator_adaptor<_OuterA2, _InnerA0, _InnerAllocs...>& __b) _NOEXCEPT
+{
+    return __a.outer_allocator() == __b.outer_allocator() &&
+           __a.inner_allocator() == __b.inner_allocator();
+}
+
+template <class _OuterA1, class _OuterA2, class... _InnerAllocs>
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+operator!=(const scoped_allocator_adaptor<_OuterA1, _InnerAllocs...>& __a,
+           const scoped_allocator_adaptor<_OuterA2, _InnerAllocs...>& __b) _NOEXCEPT
+{
+    return !(__a == __b);
+}
+
+#endif  // !defined(_LIBCPP_CXX03_LANG)
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif  // _LIBCPP_SCOPED_ALLOCATOR

@@ -1,0 +1,16 @@
+final_fantasy_info_t {
+    int ff_gameid = 0x1
+    int ff_partysize = 0x4
+    int ff_hassummons = 0
+}
+final_fantasy_info_t {
+    int ff_gameid = 0xa
+    int ff_partysize = 0x3
+    int ff_hassummons = 0x1
+}
+final_fantasy_info_t {
+    int ff_gameid = 0x6
+    int ff_partysize = 0x4
+    int ff_hassummons = 0x1
+}
+

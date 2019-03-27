@@ -1,0 +1,15 @@
+Notes to hackers.
+
+See README.patches for information about submitting patches.
+
+---
+
+Dave likes this code indented formatted in a consistent way.
+The file "dot.emacs" has the emacs C-mode indentation style that Dave likes.
+
+---
+
+We'd like to see *all* system function declarations live in include/l_stdlib.h
+and NEVER appear in the .c files.
+
+---

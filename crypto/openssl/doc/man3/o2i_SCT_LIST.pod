@@ -1,0 +1,49 @@
+=pod
+
+=head1 NAME
+
+o2i_SCT_LIST, i2o_SCT_LIST, o2i_SCT, i2o_SCT -
+decode and encode Signed Certificate Timestamp lists in TLS wire format
+
+=head1 SYNOPSIS
+
+ #include <openssl/ct.h>
+
+ STACK_OF(SCT) *o2i_SCT_LIST(STACK_OF(SCT) **a, const unsigned char **pp,
+                             size_t len);
+ int i2o_SCT_LIST(const STACK_OF(SCT) *a, unsigned char **pp);
+ SCT *o2i_SCT(SCT **psct, const unsigned char **in, size_t len);
+ int i2o_SCT(const SCT *sct, unsigned char **out);
+
+=head1 DESCRIPTION
+
+The SCT_LIST and SCT functions are very similar to the i2d and d2i family of
+functions, except that they convert to and from TLS wire format, as described in
+RFC 6962. See L<d2i_SCT_LIST> for more information about how the parameters are
+treated and the return values.
+
+=head1 RETURN VALUES
+
+All of the functions have return values consistent with those stated for
+L<d2i_SCT_LIST> and L<i2d_SCT_LIST>.
+
+=head1 SEE ALSO
+
+L<ct(7)>,
+L<d2i_SCT_LIST(3)>,
+L<i2d_SCT_LIST(3)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

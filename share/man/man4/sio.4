@@ -1,0 +1,410 @@
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Systems Programming Group of the University of Utah Computer
+.\" Science Department.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
+.\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
+.\" $FreeBSD$
+.\"
+.Dd August 30, 2006
+.Dt SIO 4
+.Os
+.Sh NAME
+.Nm sio
+.Nd "fast interrupt driven asynchronous serial communications interface"
+.Sh SYNOPSIS
+For standard ISA ports:
+.Bd -ragged -offset indent -compact
+.Cd "device sio"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.sio.0.at="isa"
+.Cd hint.sio.0.port="0x3f8"
+.Cd hint.sio.0.flags="0x10"
+.Cd hint.sio.0.irq="4"
+.Cd hint.sio.1.at="isa"
+.Cd hint.sio.1.port="0x2f8"
+.Cd hint.sio.1.flags="0x0"
+.Cd hint.sio.1.irq="3"
+.Ed
+.Pp
+For AST compatible multiport cards with 4 ports:
+.Bd -ragged -offset indent -compact
+.Cd "options COM_MULTIPORT"
+.Cd "device sio"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.sio.4.at="isa"
+.Cd hint.sio.4.port="0x2a0"
+.Cd hint.sio.4.flags="0x701"
+.Cd hint.sio.5.at="isa"
+.Cd hint.sio.5.port="0x2a8"
+.Cd hint.sio.5.flags="0x701"
+.Cd hint.sio.6.at="isa"
+.Cd hint.sio.6.port="0x2b0"
+.Cd hint.sio.6.flags="0x701"
+.Cd hint.sio.7.at="isa"
+.Cd hint.sio.7.port="0x2b8"
+.Cd hint.sio.7.flags="0x701"
+.Cd hint.sio.7.irq="12"
+.Ed
+.Pp
+For Boca Board compatible multiport cards with 8 ports:
+.Bd -ragged -offset indent -compact
+.Cd "options COM_MULTIPORT"
+.Cd "device sio"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.sio.4.at="isa"
+.Cd hint.sio.4.port="0x100"
+.Cd hint.sio.4.flags="0xb05"
+.Cd "..."
+.Cd hint.sio.11.at="isa"
+.Cd hint.sio.11.port="0x138"
+.Cd hint.sio.11.flags="0xb05"
+.Cd hint.sio.11.irq="12"
+.Ed
+.Pp
+For Netmos Nm9845 multiport cards with 6 ports:
+.Bd -ragged -offset indent -compact
+.Cd "options COM_MULTIPORT"
+.Cd "device sio"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.sio.4.at="isa"
+.Cd hint.sio.4.port="0xb000"
+.Cd hint.sio.4.flags="0x901"
+.Cd hint.sio.5.at="isa"
+.Cd hint.sio.5.port="0xb400"
+.Cd hint.sio.5.flags="0x901"
+.Cd hint.sio.6.at="isa"
+.Cd hint.sio.6.port="0xb800"
+.Cd hint.sio.6.flags="0x901"
+.Cd hint.sio.7.at="isa"
+.Cd hint.sio.7.port="0xbc00"
+.Cd hint.sio.7.flags="0x901"
+.Cd hint.sio.8.at="isa"
+.Cd hint.sio.8.port="0xc000"
+.Cd hint.sio.8.flags="0x901"
+.Cd hint.sio.9.at="isa"
+.Cd hint.sio.9.port="0xac00"
+.Cd hint.sio.9.flags="0x901"
+.Cd hint.sio.9.irq="12"
+.Ed
+.Pp
+For Hayes ESP cards:
+.Bd -ragged -offset indent -compact
+.Cd "options COM_ESP"
+.Cd "device sio"
+.Cd "..."
+.Ed
+.Pp
+For single port PCI and PCCARD cards:
+.Bd -ragged -offset indent -compact
+.Cd "device sio"
+.Pp
+No lines are required in
+.Pa /boot/device.hints
+for these cards.
+.Ed
+.Pp
+For dual port PCI cards that share an interrupt:
+.Bd -ragged -offset indent -compact
+.Cd "device sio"
+.Cd "options COM_MULTIPORT"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.sio.2.flags="0x201"
+.Cd hint.sio.3.flags="0x201"
+.Ed
+.Pp
+Meaning of
+.Ar flags :
+.Bl -tag -offset indent -compact -width 0x000000
+.It 0x00001
+shared IRQs
+.It 0x00002
+disable FIFO
+.It 0x00004
+no AST/4 compatible IRQ control register
+.It 0x00008
+recover sooner from lost output interrupts
+.It 0x00010
+device is potential system console
+.It 0x00020
+device is forced to become system console
+.It 0x00040
+device is reserved for low-level IO (e.g.\& for remote kernel debugging)
+.It 0x00080
+use this port for remote kernel debugging
+.It 0x0 Ns Em ?? Ns 00
+minor number of master port
+.It 0x10000
+PPS timestamping on CTS instead of DCD
+.It 0x20000
+device is assumed to use a 16650A-type (extended FIFO) chip
+.El
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for NS8250-, NS16450-, NS16550 and NS16550A-based
+.Tn EIA
+.Tn RS-232C
+.Pf ( Tn CCITT
+.Tn V.24 )
+communications interfaces.
+The NS8250 and NS16450 have single character
+buffers, the NS16550A has 16 character FIFO input and output buffers.
+.Pp
+Input and output for each line may set to one of following baud rates;
+50, 75, 110, 134.5, 150, 300, 600, 1200, 1800, 2400, 4800, 9600,
+19200, 28800, 38400, 57600, or 115200.
+Your hardware may limit your baud rate choices.
+.Pp
+The driver supports `multiport' cards.
+Multiport cards are those that have one or more groups of ports
+that share an Interrupt Request (IRQ) line per group.
+Shared IRQs on different cards are not supported.
+Frequently 4 ports share 1 IRQ; some 8 port cards have 2 groups of 4 ports,
+thus using 2 IRQs.
+Some cards allow the first 2 serial ports to have separate IRQs per port
+(as per DOS PC standard).
+.Pp
+Some cards have an IRQ control register for each group.
+Some cards require special initialization related to such registers.
+Only AST/4 compatible IRQ control registers are supported.
+Some cards have an IRQ status register for each group.
+The driver does not require or use such registers yet.
+To work, the control and status registers for a group, if any,
+must be mapped to the scratch register (register 7)
+of a port in the group.
+Such a port is called a
+.Em master
+port.
+.Pp
+The driver supports controller based PCI modems.
+The 3Com FaxModem PCI and the Advantec 56k Voice Messaging PCI
+FaxModem are the only cards supported.
+WinModems, softmodems, hfc modems and any other modems that are not
+controller based are not supported.
+.Pp
+The
+.Em flags
+keyword may be used on each
+.Em device sio
+line in the kernel configuration file
+to disable the FIFO on 16550A UARTs
+(see the synopsis).
+Disabling the FIFO should rarely be necessary.
+.Pp
+The
+.Em flags
+keyword
+.Em must
+be used for all ports that are part of an IRQ sharing group.
+One bit specifies IRQ sharing; another bit specifies whether the port does
+.Em not
+require AST/4 compatible initialization.
+The minor number of the device corresponding a master port
+for the group is encoded as a bitfield in the high byte.
+The same master port must be specified for all ports in a group.
+.Pp
+The
+.Em irq
+specification must be given for master ports
+and for ports that are not part of an IRQ sharing group,
+and not for other ports.
+.Pp
+In the synopsis,
+.Em flags 0x701
+means that the 8th port (sio7) is the master
+port, and that the port is on a multiport card with shared IRQs
+and an AST/4 compatible IRQ control register.
+.Pp
+.Em flags 0xb05
+means that the 12th port (sio11) is the master
+port, and that the port is on a multiport card with shared IRQs
+and no special IRQ control register.
+.Pp
+Which port is the master port depends on the card type.
+Consult the hardware documentation of your card.
+Since IRQ status registers are never used,
+and IRQ control registers are only used for AST/4 compatible cards,
+and some cards map the control/status registers to all ports in a group,
+any port in a group will sometimes do for the master port.
+Choose a port containing an IRQ status register for forwards compatibility,
+and the highest possible port for consistency.
+.Pp
+Serial ports controlled by the
+.Nm
+driver can be used for both `callin' and `callout'.
+For each port there is a callin device and a callout device.
+The minor number of the callout device is 128 higher
+than that of the corresponding callin port.
+The callin device is general purpose.
+Processes opening it normally wait for carrier
+and for the callout device to become inactive.
+The callout device is used to steal the port from
+processes waiting for carrier on the callin device.
+Processes opening it do not wait for carrier
+and put any processes waiting for carrier on the callin device into
+a deeper sleep so that they do not conflict with the callout session.
+The callout device is abused for handling programs that are supposed
+to work on general ports and need to open the port without waiting
+but are too stupid to do so.
+.Pp
+The
+.Nm
+driver also supports an initial-state and a lock-state control
+device for each of the callin and the callout "data" devices.
+The termios settings of a data device are copied
+from those of the corresponding initial-state device
+on first opens and are not inherited from previous opens.
+Use
+.Xr stty 1
+in the normal way on the initial-state devices to program
+initial termios states suitable for your setup.
+.Pp
+The lock termios state acts as flags to disable changing
+the termios state.
+E.g., to lock a flag variable such as CRTSCTS, use
+.Em stty crtscts
+on the lock-state device.
+Speeds and special characters
+may be locked by setting the corresponding value in the lock-state
+device to any nonzero value.
+E.g., to lock a speed to 115200, use
+.Dq Li stty 115200
+on the initial-state device and
+.Dq Li stty 1
+on the lock-state device.
+.Pp
+Correct programs talking to correctly wired external devices
+work with almost arbitrary initial states and almost no locking,
+but other setups may benefit from changing some of the default
+initial state and locking the state.
+In particular, the initial states for non (POSIX) standard flags
+should be set to suit the devices attached and may need to be
+locked to prevent buggy programs from changing them.
+E.g., CRTSCTS should be locked on for devices that support
+RTS/CTS handshaking at all times and off for devices that do not
+support it at all.
+CLOCAL should be locked on for devices that do not support carrier.
+HUPCL may be locked off if you do not
+want to hang up for some reason.
+In general, very bad things happen
+if something is locked to the wrong state, and things should not
+be locked for devices that support more than one setting.
+The CLOCAL flag on callin ports should be locked off for logins
+to avoid certain security holes, but this needs to be done by
+getty if the callin port is used for anything else.
+.Sh FILES
+.Bl -tag -width /dev/ttyd?.init -compact
+.It Pa /dev/ttyd?
+for callin ports
+.It Pa /dev/ttyd?.init
+.It Pa /dev/ttyd?.lock
+corresponding callin initial-state and lock-state devices
+.Pp
+.It Pa /dev/cuad?
+for callout ports
+.It Pa /dev/cuad?.init
+.It Pa /dev/cuad?.lock
+corresponding callout initial-state and lock-state devices
+.El
+.Pp
+.Bl -tag -width /etc/rc.d/serial -compact
+.It Pa /etc/rc.d/serial
+examples of setting the initial-state and lock-state devices
+.El
+.Pp
+The device numbers are made from the set [0-9a-v] so that more than
+10 ports can be supported.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It sio%d: silo overflow.
+Problem in the interrupt handler.
+.El
+.Bl -diag
+.It sio%d: interrupt-level buffer overflow.
+Problem in the bottom half of the driver.
+.El
+.Bl -diag
+.It sio%d: tty-level buffer overflow.
+Problem in the application.
+Input has arrived faster than the given module could process it
+and some has been lost.
+.El
+.\" .Bl -diag
+.\" .It sio%d: reduced fifo trigger level to %d.
+.\" Attempting to avoid further silo overflows.
+.\" .El
+.Sh SEE ALSO
+.Xr stty 1 ,
+.Xr termios 4 ,
+.Xr tty 4 ,
+.Xr comcontrol 8
+.Sh HISTORY
+The
+.Nm
+driver is derived from the
+.Tn HP9000/300
+.Xr dca 4
+driver and is
+.Ud
+.Sh BUGS
+Data loss may occur at very high baud rates on slow systems,
+or with too many ports on any system,
+or on heavily loaded systems when crtscts cannot be used.
+The use of NS16550A's reduces system load and helps to avoid data loss.
+.Pp
+Stay away from plain NS16550's.
+These are early implementations of the chip with non-functional FIFO hardware.
+.Pp
+The constants which define the locations
+of the various serial ports are holdovers from
+.Tn DOS .
+As shown, hex addresses can be and for clarity probably should be used instead.
+.Pp
+Note that on the AST/4 the card's dipswitches should
+.Em not
+be set to use interrupt sharing.
+AST/4-like interrupt sharing is only used when
+.Em multiple
+AST/4 cards are installed in the same system.
+The
+.Nm
+driver does not support more than 1 AST/4 on one IRQ.
+.Pp
+The examples in the synopsis are too vendor-specific.

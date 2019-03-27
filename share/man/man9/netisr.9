@@ -1,0 +1,231 @@
+.\"
+.\" Copyright (c) 2009 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 25, 2017
+.Dt NETISR 9
+.Os
+.Sh NAME
+.Nm netisr
+.Nd Kernel network dispatch service
+.Sh SYNOPSIS
+.In net/netisr.h
+.Ft void
+.Fn netisr_register "const struct netisr_handler *nhp"
+.Ft void
+.Fn netisr_unregister "const struct netisr_handler *nhp"
+.Ft int
+.Fn netisr_dispatch "u_int proto" "struct mbuf *m"
+.Ft int
+.Fn netisr_dispatch_src "u_int proto" "uintptr_t source" "struct mbuf *m"
+.Ft int
+.Fn netisr_queue "u_int proto" "struct mbuf *m"
+.Ft int
+.Fn netisr_queue_src "u_int proto" "uintptr_t source" "struct mbuf *m"
+.Ft void
+.Fn netisr_clearqdrops "const struct netisr_handler *nhp"
+.Ft void
+.Fn netisr_getqdrops "const struct netisr_handler *nhp" "uint64_t *qdropsp"
+.Ft void
+.Fn netisr_getqlimit "const struct netisr_handler *nhp" "u_int *qlimitp"
+.Ft int
+.Fn netisr_setqlimit "const struct netisr_handler *nhp" "u_int qlimit"
+.Ft u_int
+.Fn netisr_default_flow2cpu "u_int flowid"
+.Ft u_int
+.Fn netisr_get_cpucount "void"
+.Ft u_int
+.Fn netisr_get_cpuid "u_int cpunumber"
+.Pp
+With optional virtual network stack support enabled via the following kernel
+compile option:
+.Bd -ragged -offset indent
+.Cd "options VIMAGE"
+.Ed
+.Ft void
+.Fn netisr_register_vnet "const struct netisr_handler *nhp"
+.Ft void
+.Fn netisr_unregister_vnet "const struct netisr_handler *nhp"
+.Sh DESCRIPTION
+The
+.Nm
+kernel interface suite allows device drivers (and other packet sources) to
+direct packets to protocols for directly dispatched or deferred processing.
+Protocol registration and work stream statistics may be monitored using
+.Xr netstat 1 .
+.Ss Protocol registration
+Protocols register and unregister handlers using
+.Fn netisr_register
+and
+.Fn netisr_unregister ,
+and may also manage queue limits and statistics using the
+.Fn netisr_clearqdrops ,
+.Fn netisr_getqdrops ,
+.Fn netisr_getqlimit ,
+and
+.Fn netisr_setqlimit .
+.Pp
+In case of VIMAGE kernels each virtual network stack (vnet), that is not the
+default base system network stack, calls
+.Fn netisr_register_vnet
+and
+.Fn netisr_unregister_vnet
+to enable or disable packet processing by the
+.Nm
+for each protocol.
+Disabling will also purge any outstanding packet from the protocol queue.
+.Pp
+.Nm
+supports multi-processor execution of handlers, and relies on a combination
+of source ordering and protocol-specific ordering and work-placement
+policies to decide how to distribute work across one or more worker
+threads.
+Registering protocols will declare one of three policies:
+.Bl -tag -width NETISR_POLICY_SOURCE
+.It Dv NETISR_POLICY_SOURCE
+.Nm
+should maintain source ordering without advice from the protocol.
+.Nm
+will ignore any flow IDs present on
+.Vt mbuf
+headers for the purposes of work placement.
+.It Dv NETISR_POLICY_FLOW
+.Nm
+should maintain flow ordering as defined by the
+.Vt mbuf
+header flow ID field.
+If the protocol implements
+.Va nh_m2flow ,
+then
+.Nm
+will query the protocol in the event that the
+.Vt mbuf
+doesn't have a flow ID, falling back on source ordering.
+.It NETISR_POLICY_CPU
+.Nm
+will entirely delegate all work placement decisions to the protocol,
+querying
+.Va nh_m2cpuid
+for each packet.
+.El
+.Pp
+Registration is declared using
+.Vt "struct netisr_handler" ,
+whose fields are defined as follows:
+.Bl -tag -width "netisr_handler_t nh_handler"
+.It Vt "const char *" Va nh_name
+Unique character string name of the protocol, which may be included in
+.Xr sysctl 3
+MIB names, so should not contain whitespace.
+.It Vt netisr_handler_t Va nh_handler
+Protocol handler function that will be invoked on each packet received for
+the protocol.
+.It Vt netisr_m2flow_t Va nh_m2flow
+Optional protocol function to generate a flow ID and set a valid
+hashtype for packets that enter the
+.Nm
+with
+.Dv M_HASHTYPE_GET(m)
+equal to
+.Dv M_HASHTYPE_NONE .
+Will be used only with
+.Dv NETISR_POLICY_FLOW .
+.It Vt netisr_m2cpuid_t Va nh_m2cpuid
+Protocol function to determine what CPU a packet should be processed on.
+Will be used only with
+.Dv NETISR_POLICY_CPU .
+.It Vt netisr_drainedcpu_t Va nh_drainedcpu
+Optional callback function that will be invoked when a per-CPU queue
+was drained.
+It will never fire for directly dispatched packets.
+Unless fully understood, this special-purpose function should not be used.
+.\" In case you intend to use this please send 50 chocolate bars to each
+.\" of rwatson and bz and wait for an answer.
+.It Vt u_int Va nh_proto
+Protocol number used by both protocols to identify themselves to
+.Nm ,
+and by packet sources to select what handler will be used to process
+packets.
+A table of supported protocol numbers appears below.
+For implementation reasons, protocol numbers great than 15 are currently
+unsupported.
+.It Vt u_int Va nh_qlimit
+The maximum per-CPU queue depth for the protocol; due to internal
+implementation details, the effective queue depth may be as much as twice
+this number.
+.It Vt u_int Va nh_policy
+The ordering and work placement policy for the protocol, as described
+earlier.
+.El
+.Ss Packet source interface
+Packet sources, such as network interfaces, may request protocol processing
+using the
+.Fn netisr_dispatch
+and
+.Fn netisr_queue
+interfaces.
+Both accept a protocol number and
+.Vt mbuf
+argument, but while
+.Fn netisr_queue
+will always execute the protocol handler asynchronously in a deferred
+context,
+.Fn netisr_dispatch
+will optionally direct dispatch if permitted by global and per-protocol
+policy.
+.Pp
+In order to provide additional load balancing and flow information,
+packet sources may also specify an opaque source identifier, which in
+practice might be a network interface number or socket pointer, using
+the
+.Fn netisr_dispatch_src
+and
+.Fn netisr_queue_src
+variants.
+.Ss Protocol number constants
+The follow protocol numbers are currently defined:
+.Bl -tag -width NETISR_ROUTE
+.It Dv NETISR_IP
+IPv4
+.It Dv NETISR_IGMP
+IGMPv3 loopback
+.It Dv NETISR_ROUTE
+Routing socket loopback
+.It Dv NETISR_ARP
+ARP
+.It Dv NETISR_IPV6
+IPv6
+.It Dv NETISR_EPAIR
+.Xr netstat 1 ,
+.Xr epair 4
+.El
+.Sh AUTHORS
+This manual page and the
+.Nm
+implementation were written by
+.An Robert N. M. Watson .

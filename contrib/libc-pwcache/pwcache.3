@@ -1,0 +1,223 @@
+.\"	$NetBSD: pwcache.3,v 1.17 2008/05/02 18:11:04 martin Exp $
+.\"	$FreeBSD$
+.\"
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.\" Copyright (c) 2002 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.\"     @(#)pwcache.3	8.1 (Berkeley) 6/9/93
+.\"
+.Dd October 19, 2012
+.Dt PWCACHE 3
+.Os
+.Sh NAME
+.Nm pwcache ,
+.Nm user_from_uid ,
+.Nm group_from_gid
+.Nd cache password and group entries
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In pwd.h
+.Ft const char *
+.Fn user_from_uid "uid_t uid" "int nouser"
+.Ft int
+.Fn uid_from_user "const char *name" "uid_t *uid"
+.Ft int
+.Fn pwcache_userdb "int (*setpassent)(int)" "void (*endpwent)(void)" "struct passwd * (*getpwnam)(const char *)" "struct passwd * (*getpwuid)(uid_t)"
+.In grp.h
+.Ft const char *
+.Fn group_from_gid "gid_t gid" "int nogroup"
+.Ft int
+.Fn gid_from_group "const char *name" "gid_t *gid"
+.Ft int
+.Fn pwcache_groupdb "int (*setgroupent)(int)" "void (*endgrent)(void)" "struct group * (*getgrnam)(const char *)" "struct group * (*getgrgid)(gid_t)"
+.Sh DESCRIPTION
+The
+.Fn user_from_uid
+function returns the user name associated with the argument
+.Fa uid .
+The user name is cached so that multiple calls with the same
+.Fa uid
+do not require additional calls to
+.Xr getpwuid 3 .
+If there is no user associated with the
+.Fa uid ,
+a pointer is returned
+to a string representation of the
+.Fa uid ,
+unless the argument
+.Fa nouser
+is non-zero, in which case a
+.Dv NULL
+pointer is returned.
+.Pp
+The
+.Fn group_from_gid
+function returns the group name associated with the argument
+.Fa gid .
+The group name is cached so that multiple calls with the same
+.Fa gid
+do not require additional calls to
+.Xr getgrgid 3 .
+If there is no group associated with the
+.Fa gid ,
+a pointer is returned
+to a string representation of the
+.Fa gid ,
+unless the argument
+.Fa nogroup
+is non-zero, in which case a
+.Dv NULL
+pointer is returned.
+.Pp
+The
+.Fn uid_from_user
+function returns the uid associated with the argument
+.Fa name .
+The uid is cached so that multiple calls with the same
+.Fa name
+do not require additional calls to
+.Xr getpwnam 3 .
+If there is no uid associated with the
+.Fa name ,
+the
+.Fn uid_from_user
+function returns \-1; otherwise it stores the uid at the location pointed to by
+.Fa uid
+and returns 0.
+.Pp
+The
+.Fn gid_from_group
+function returns the gid associated with the argument
+.Fa name .
+The gid is cached so that multiple calls with the same
+.Fa name
+do not require additional calls to
+.Xr getgrnam 3 .
+If there is no gid associated with the
+.Fa name ,
+the
+.Fn gid_from_group
+function returns \-1; otherwise it stores the gid at the location pointed to by
+.Fa gid
+and returns 0.
+.Pp
+The
+.Fn pwcache_userdb
+function changes the user database access routines which
+.Fn user_from_uid
+and
+.Fn uid_from_user
+call to search for users.
+The caches are flushed and the existing
+.Fn endpwent
+method is called before switching to the new routines.
+.Fa getpwnam
+and
+.Fa getpwuid
+must be provided, and
+.Fa setpassent
+and
+.Fa endpwent
+may be
+.Dv NULL
+pointers.
+.Pp
+The
+.Fn pwcache_groupdb
+function changes the group database access routines which
+.Fn group_from_gid
+and
+.Fn gid_from_group
+call to search for groups.
+The caches are flushed and the existing
+.Fn endgrent
+method is called before switching to the new routines.
+.Fa getgrnam
+and
+.Fa getgrgid
+must be provided, and
+.Fa setgroupent
+and
+.Fa endgrent
+may be
+.Dv NULL
+pointers.
+.Sh SEE ALSO
+.Xr getgrgid 3 ,
+.Xr getgrnam 3 ,
+.Xr getpwnam 3 ,
+.Xr getpwuid 3
+.Sh HISTORY
+The
+.Fn user_from_uid
+and
+.Fn group_from_gid
+functions first appeared in
+.Bx 4.4 .
+.Pp
+The
+.Fn uid_from_user
+and
+.Fn gid_from_group
+functions first appeared in
+.Nx 1.4 .
+.Pp
+The
+.Fn pwcache_userdb
+and
+.Fn pwcache_groupdb
+functions first appeared in
+.Nx 1.6
+and
+.Fx 10.0 .

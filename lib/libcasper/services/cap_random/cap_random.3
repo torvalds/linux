@@ -1,0 +1,98 @@
+.\" Copyright (c) 2018 Mariusz Zaborski <oshogbo@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 26, 2018
+.Dt CAP_RANDOM 3
+.Os
+.Sh NAME
+.Nm cap_random_buf
+.Nd "library for getting entropy in capability mode"
+.Sh LIBRARY
+.Lb libcap_random
+.Sh SYNOPSIS
+.In sys/nv.h
+.In libcasper.h
+.In casper/cap_random.h
+.Ft "int"
+.Fn cap_random_buf "cap_channel_t *chan" "void *buf" "size_t nbytes"
+.Sh DESCRIPTION
+The function
+.Fn cap_random_buf
+is equivalent to
+.Xr arc4random_buf 3
+except that the connection to the
+.Nm system.random
+service needs to be provided.
+.Sh EXAMPLES
+The following example first opens a capability to casper and then uses this
+capability to create the
+.Nm system.random
+casper service to obtain entropy.
+.Bd -literal
+cap_channel_t *capcas, *caprandom;
+unsigned char buf[16];
+int i;
+
+/* Open capability to Casper. */
+capcas = cap_init();
+if (capcas == NULL)
+	err(1, "Unable to contact Casper");
+
+/* Enter capability mode sandbox. */
+if (cap_enter() < 0 && errno != ENOSYS)
+	err(1, "Unable to enter capability mode");
+
+/* Use Casper capability to create capability to the system.random service. */
+caprandom = cap_service_open(capcas, "system.random");
+if (caprandom == NULL)
+	err(1, "Unable to open system.random service");
+
+/* Close Casper capability, we don't need it anymore. */
+cap_close(capcas);
+
+/* Obtain entropy. */
+if (cap_random_buf(caprandom, buf, sizeof(buf)) < 0)
+	err(1, "Unable to obtain entropy");
+
+for (i = 0; i < sizeof(buf); i++)
+	printf("%.2x ", buf[i]);
+printf("\\n");
+.Ed
+.Sh SEE ALSO
+.Xr cap_enter 2 ,
+.Xr arc4random_buf 3 ,
+.Xr err 3 ,
+.Xr capsicum 4 ,
+.Xr nv 9
+.Sh AUTHORS
+The
+.Nm cap_random
+service was implemented by
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
+under sponsorship from the FreeBSD Foundation.
+.Pp
+This manual page was written by
+.An Mariusz Zaborski Aq Mt oshogbo@FreeBSD.org .

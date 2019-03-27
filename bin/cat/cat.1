@@ -1,0 +1,214 @@
+.\"-
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)cat.1	8.3 (Berkeley) 5/2/95
+.\" $FreeBSD$
+.\"
+.Dd January 29, 2013
+.Dt CAT 1
+.Os
+.Sh NAME
+.Nm cat
+.Nd concatenate and print files
+.Sh SYNOPSIS
+.Nm
+.Op Fl belnstuv
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility reads files sequentially, writing them to the standard output.
+The
+.Ar file
+operands are processed in command-line order.
+If
+.Ar file
+is a single dash
+.Pq Sq Fl
+or absent,
+.Nm
+reads from the standard input.
+If
+.Ar file
+is a
+.Ux
+domain socket,
+.Nm
+connects to it and then reads it until
+.Dv EOF .
+This complements the
+.Ux
+domain binding capability available in
+.Xr inetd 8 .
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl b
+Number the non-blank output lines, starting at 1.
+.It Fl e
+Display non-printing characters (see the
+.Fl v
+option), and display a dollar sign
+.Pq Ql \&$
+at the end of each line.
+.It Fl l
+Set an exclusive advisory lock on the standard output file descriptor.
+This lock is set using
+.Xr fcntl 2
+with the
+.Dv F_SETLKW
+command.
+If the output file is already locked,
+.Nm
+will block until the lock is acquired.
+.It Fl n
+Number the output lines, starting at 1.
+.It Fl s
+Squeeze multiple adjacent empty lines, causing the output to be
+single spaced.
+.It Fl t
+Display non-printing characters (see the
+.Fl v
+option), and display tab characters as
+.Ql ^I .
+.It Fl u
+Disable output buffering.
+.It Fl v
+Display non-printing characters so they are visible.
+Control characters print as
+.Ql ^X
+for control-X; the delete
+character (octal 0177) prints as
+.Ql ^? .
+.Pf Non- Tn ASCII
+characters (with the high bit set) are printed as
+.Ql M-
+(for meta) followed by the character for the low 7 bits.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+The command:
+.Pp
+.Dl "cat file1"
+.Pp
+will print the contents of
+.Pa file1
+to the standard output.
+.Pp
+The command:
+.Pp
+.Dl "cat file1 file2 > file3"
+.Pp
+will sequentially print the contents of
+.Pa file1
+and
+.Pa file2
+to the file
+.Pa file3 ,
+truncating
+.Pa file3
+if it already exists.
+See the manual page for your shell (e.g.,
+.Xr sh 1 )
+for more information on redirection.
+.Pp
+The command:
+.Pp
+.Dl "cat file1 - file2 - file3"
+.Pp
+will print the contents of
+.Pa file1 ,
+print data it receives from the standard input until it receives an
+.Dv EOF
+.Pq Sq ^D
+character, print the contents of
+.Pa file2 ,
+read and output contents of the standard input again, then finally output
+the contents of
+.Pa file3 .
+Note that if the standard input referred to a file, the second dash
+on the command-line would have no effect, since the entire contents of the file
+would have already been read and printed by
+.Nm
+when it encountered the first
+.Sq Fl
+operand.
+.Sh SEE ALSO
+.Xr head 1 ,
+.Xr more 1 ,
+.Xr pr 1 ,
+.Xr sh 1 ,
+.Xr tail 1 ,
+.Xr vis 1 ,
+.Xr zcat 1 ,
+.Xr fcntl 2 ,
+.Xr setbuf 3
+.Rs
+.%A Rob Pike
+.%T "UNIX Style, or cat -v Considered Harmful"
+.%J "USENIX Summer Conference Proceedings"
+.%D 1983
+.Re
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.2-92
+specification.
+.Pp
+The flags
+.Op Fl belnstv
+are extensions to the specification.
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.At v1 .
+.An Dennis Ritchie
+designed and wrote the first man page.
+It appears to have been for
+.Nm .
+.Sh BUGS
+Because of the shell language mechanism used to perform output
+redirection, the command
+.Dq Li cat file1 file2 > file1
+will cause the original data in
+.Pa file1
+to be destroyed!
+.Pp
+The
+.Nm
+utility does not recognize multibyte characters when the
+.Fl t
+or
+.Fl v
+option is in effect.

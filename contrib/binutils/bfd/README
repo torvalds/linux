@@ -1,0 +1,49 @@
+BFD is an object file library.  It permits applications to use the
+same routines to process object files regardless of their format.
+
+BFD is used by the GNU debugger, assembler, linker, and the binary
+utilities.
+
+The documentation on using BFD is scanty and may be occasionally
+incorrect.  Pointers to documentation problems, or an entirely
+rewritten manual, would be appreciated.
+
+There is some BFD internals documentation in doc/bfdint.texi which may
+help programmers who want to modify BFD.
+
+BFD is normally built as part of another package.  See the build
+instructions for that package, probably in a README file in the
+appropriate directory.
+
+BFD supports the following configure options:
+
+  --target=TARGET
+	The default target for which to build the library.  TARGET is
+	a configuration target triplet, such as sparc-sun-solaris.
+  --enable-targets=TARGET,TARGET,TARGET...
+	Additional targets the library should support.  To include
+	support for all known targets, use --enable-targets=all.
+  --enable-64-bit-bfd
+	Include support for 64 bit targets.  This is automatically
+	turned on if you explicitly request a 64 bit target, but not
+	for --enable-targets=all.  This requires a compiler with a 64
+	bit integer type, such as gcc.
+  --enable-shared
+	Build BFD as a shared library.
+  --with-mmap
+	Use mmap when accessing files.  This is faster on some hosts,
+	but slower on others.  It may not work on all hosts.
+
+Report bugs with BFD to bug-binutils@gnu.org.
+
+Patches are encouraged.  When sending patches, always send the output
+of diff -u or diff -c from the original file to the new file.  Do not
+send default diff output.  Do not make the diff from the new file to
+the original file.  Remember that any patch must not break other
+systems.  Remember that BFD must support cross compilation from any
+host to any target, so patches which use ``#ifdef HOST'' are not
+acceptable.  Please also read the ``Reporting Bugs'' section of the
+gcc manual.
+
+Bug reports without patches will be remembered, but they may never get
+fixed until somebody volunteers to fix them.

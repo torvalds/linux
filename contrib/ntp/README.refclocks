@@ -1,0 +1,50 @@
+This is a list of the #define REFCLK_* stuff.
+
+If you want to add a new refclock let us know and we'll assign you a number.
+
+Should this list also include the name of the party responsible for the
+refclock?
+
+LOCALCLOCK	1	/* external (e.g., lockclock) */
+GPS_TRAK	2	/* TRAK 8810 GPS Receiver */
+WWV_PST		3	/* PST/Traconex 1020 WWV/H */
+SPECTRACOM	4	/* Spectracom (generic) Receivers */
+TRUETIME	5	/* TrueTime (generic) Receivers */
+IRIG_AUDIO	6	/* IRIG-B/W audio decoder */
+CHU_AUDIO	7	/* CHU audio demodulator/decoder */
+PARSE		8	/* generic driver (usually DCF77,GPS,MSF) */
+GPS_MX4200	9	/* Magnavox MX4200 GPS */
+GPS_AS2201	10	/* Austron 2201A GPS */
+GPS_ARBITER	11	/* Arbiter 1088A/B/ GPS */
+IRIG_TPRO	12	/* KSI/Odetics TPRO-S IRIG */
+ATOM_LEITCH	13	/* Leitch CSD 5300 Master Clock */
+MSF_EES		14	/* EES M201 MSF Receiver */
+GPSTM_TRUE	15	/* OLD TrueTime GPS/TM-TMD Receiver */
+IRIG_BANCOMM	16	/* Bancomm GPS/IRIG Interface */
+GPS_DATUM	17	/* Datum Programmable Time System */
+NIST_ACTS	18	/* NIST Auto Computer Time Service */
+WWV_HEATH	19	/* Heath GC1000 WWV/WWVH Receiver */
+GPS_NMEA	20	/* NMEA based GPS clock */
+GPS_VME		21	/* TrueTime GPS-VME Interface */
+ATOM_PPS	22	/* 1-PPS Clock Discipline */
+PTB_ACTS	NIST_ACTS
+USNO		NIST_ACTS
+GPS_HP		26	/* HP 58503A Time/Frequency Receiver */
+ARCRON_MSF	27	/* ARCRON MSF radio clock. */
+SHM		28	/* clock attached thru shared memory */
+PALISADE	29	/* Trimble Navigation Palisade GPS */
+ONCORE		30	/* Motorola UT Oncore GPS */
+GPS_JUPITER	31	/* Rockwell Jupiter GPS receiver */
+CHRONOLOG	32	/* Chrono-log K WWVB receiver */
+DUMBCLOCK	33	/* Dumb localtime clock */
+ULINK		34	/* Ultralink M320 WWVB receiver */
+PCF		35	/* Conrad parallel port radio clock */
+WWV_AUDIO	36	/* WWV/H audio demodulator/decoder */
+FG		37	/* Forum Graphic GPS */
+HOPF_SERIAL	38	/* hopf DCF77/GPS serial line receiver */
+HOPF_PCI	39	/* hopf DCF77/GPS PCI receiver */
+JJY		40	/* JJY receiver */
+TT560		41	/* TrueTime 560 IRIG-B decoder */
+ZYFER		42	/* Zyfer GPStarplus receiver */
+RIPENCC		43	/* RIPE NCC Trimble driver */
+???????		44	Claas Hilbrecht (20020711)

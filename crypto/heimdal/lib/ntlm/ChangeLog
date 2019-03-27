@@ -1,0 +1,120 @@
+2008-05-14  Love Hornquist Astrand  <lha@kth.se>
+
+	* ntlm.c: replace hashes with keys.
+
+2008-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm.c: Use DES_set_key_unchecked().
+
+2007-12-28  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* heimntlm.h: Add NTLM_TARGET_*
+
+	* ntlm.c: Make heim_ntlm_decode_type3 more useful and provide a
+	username. From Ming Yang.
+
+2007-11-11  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* move doxygen into the main file
+
+	* write doxygen documentation
+
+	* export heim_ntlm_free_buf, start doxygen documentation
+	
+2007-07-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm.c: Use unsigned char * as argument to HMAC_Update to please
+	OpenSSL and gcc.
+
+	* test_ntlm.c: more verbose what we are testing.
+
+2007-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: New library version.
+
+2007-06-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_ntlm.c: heim_ntlm_calculate_ntlm2_sess_resp
+
+	* ntlm.c: Change prototype to match other heim_ntlm_calculate
+	functions.
+
+	* test_ntlm.c: Its ok if infotarget2 length is longer.
+
+	* ntlm.c: Merge in changes from Puneet Mehra and make work again.
+
+	* ntlm.c (heim_ntlm_ntlmv2_key): target should be uppercase.
+	From Puneet Mehra.
+
+	* version-script.map: Add heim_ntlm_calculate_ntlm2_sess_resp from
+	Puneet Mehra.
+
+	* ntlm.c: Add heim_ntlm_calculate_ntlm2_sess_resp from Puneet
+	Mehra.
+	
+	* test_ntlm.c: Test heim_ntlm_calculate_ntlm2_sess_resp from
+	Puneet Mehra.
+	
+2007-06-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: EXTRA_DIST += version-script.map.
+	
+2007-06-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_ntlm.c: Free memory diffrently.
+
+	* ntlm.c: Make free functions free memory.
+	
+2007-04-22  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: symbol versioning.
+	
+	* version-script.map: symbol versioning.
+	
+2007-01-31  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_ntlm.c: No need to include <gssapi.h>.
+	
+2007-01-04  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: add LIB_roken for test_ntlm
+	
+2006-12-26  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* test_ntlm.c: Verify infotarget.
+
+	* ntlm.c: Extract the infotarget from the answer.
+
+	* ntlm.c (heim_ntlm_verify_ntlm2): verify the ntlmv2 reply
+	
+2006-12-22  Dave Love  <fx@gnu.org>
+
+	* ntlm.c: Include <limits.h>.
+	
+2006-12-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_ntlm.c: add some new tests.
+
+	* ntlm.c: Add ntlmv2 answer calculating functions.
+
+	* ntlm.c: sent lm hashes, needed for NTLM2 session
+
+	* heimntlm.h: Add NTLM_NEG_NTLM2_SESSION, NTLMv2 session security.
+	
+2006-12-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* ntlm.c (heim_ntlm_build_ntlm1_master): return session master
+	key.
+	
+2006-12-18  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* ntlm.c (heim_ntlm_build_ntlm1_master): calculate the ntlm
+	version 1 "master" key.
+	
+2006-12-13  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* test_ntlm.c: Add simple parser test app.
+
+	* inital version of a NTLM library, only handles ntml version 1 and
+	ascii strings for now
+

@@ -1,0 +1,124 @@
+$ $tcsh: set3,v 1.4 2011/02/04 18:19:39 christos Exp $
+$ Editor function descriptions
+$set 3 
+1 Retrocede di un carattere
+2 Cancella il carattere dietro il cursore
+3 Taglia dall'inizio della parola corrente fino al cursore salvando nel buffer
+4 Taglia dall'inizio della linea sino al cursore salvando nel buffer
+5 Si sposta all'inizio della parola corrente
+6 Si sposta all'inizio della linea
+7 Converte in maiuscole le lettere dal cursore fino alla fine della parola corrente
+8 Vi: cambia in maiuscolo/minuscolo la lettera sotto il cursore e avanza di un carattere
+9 Vi: cambia fino alla fine della linea
+10 Cancella lo schermo lasciando la linea corrente in alto
+11 Completa la parola corrente
+12 Avanza con il tabulatore tra i file
+13 Retrocede con il tabulatore tra i file
+14 Completa la parola corrente ignorando le modalità di completamento programmabili
+15 Copia la parola corrente nella posizione del cursore
+16 Copia la zona tra il cursore e il segno nel buffer
+17 Espande nella precedente parola di cui questa è la parte iniziale
+18 Cancella il carattere sotto il cursore
+19 Cancella il carattere sotto il cursore o segnala la fine del file in una linea vuota
+20 Cancella il carattere sotto il cursore o elenca i completamenti se alla fine di una linea
+21 Cancella il carattere sotto il cursore, elenca  completamenti o segnala la fine del file
+22 Taglia dal cursore fino alla fine della parola corrente salvando nel buffer
+23 Aggiunge all'argomento qualora iniziato, altrimenti inserisce la cifra
+24 Cifra che inizia l'argomento
+25 Si sposta alla linea seguente nello storico
+26 Converte in minuscole le lettere dal cursore fino alla fine della parola corrente
+27 Indica la fine di file
+28 Sposta il cursore alla fine della linea
+29 Scambia cursore e segno
+30 Espande i caratteri jolly nel nome del file
+31 Espande le sequenze di escape nello storico
+32 Espande le sequenze di escape nello storico in una linea
+33 Espande le variabili
+34 Avanza di un carattere
+35 Avanza alla fine della parola corrente
+36 Scambia i due caratteri prima del cursore
+37 Cerca all'indietro nello storico per una linea che inizia come la corrente
+38 Cerca in avanti nello storico per una linea che inizia come la corrente
+39 Inserisce l'ultimo elemento del precedente comando
+40 Ricerca incrementale in avanti
+41 Ricerca incrementale all'indietro
+42 Cancella la linea
+43 Taglia fino alla fine della linea salvando nel buffer
+44 Taglia la zona tra il cursore e il segno e la salva nel buffer
+45 Taglia l'intera linea salvandola nel buffer
+46 Elenca le possibili scelte per il completamento
+47 Elenca le possibili scelte per il completamento ignorando le modalità di completamento programmabili
+48 Elenca i file che corrispondono ai caratteri jolly
+49 Elenca le possibili scelte per il completamento o segnala la fine del file nel caso di linea vuota
+50 Mostra la media di carico macchina e lo stato del processo corrente
+51 Espande le sequenze di escape nello storico e inserisce uno spazio
+52 Esegue un comando
+53 Espande i percorsi eliminando i '.' e '..' iniziali
+54 Espande i comandi con il relativo percorso o alias
+55 Commuta tra le modalità di inserimento e di sovrascrittura
+56 Aggiunge l'ottavo bit al successivo carattere inserito
+57 Aggiunge nella linea il successivo carattere così com'è
+58 Ridisegna tutto
+59 Fa ripartire l'editor sospeso
+60 Cerca le spiegazioni del comando corrente
+61 Questo carattere è aggiunto alla linea
+62 Questo carattere è il primo in una sequenza di caratteri
+63 Fissa il segno nella posizione del cursore
+64 Corregge la sintassi della parola corrente
+65 Corregge la sintassi dell'intera linea
+66 Invia il carattere sul terminale in modalità `cooked'
+67 Commuta tra la corrente linea letterale e lessicale dello storico
+68 Scambia il carattere alla sinistra del cursore con quello sotto
+69 Scambia i due caratteri prima del cursore
+70 Carattere di sospensione del terminale ritardata
+71 Carattere di svuotamento dell'output del terminale
+72 Carattere di interruzione del terminale
+73 Carattere di uscita del terminale
+74 Carattere di sospensione del terminale
+75 Carattere di permesso di output del terminale
+76 Carattere di negazione dell'output del terminale
+77 Indica un carattere non assegnato
+78 Argomento Emacs universale
+79 Si sposta sulla precedente linea dello storico
+80 Converte in maiuscole le lettere dal cursore fino alla fine della parola corrente
+81 Vi: vai all'inizio della prossima parola
+82 Vi: commuta in modalità di inserimento dopo il cursore
+83 Vi: commuta in modalità di inserimento alla fine della linea
+84 Vi: cambia in da o in maiuscolo la lettera sotto il cursore e avanza di una posizione
+85 Vi: cambia il comando di prefisso
+86 Vi: modifica alla fine della linea
+87 Entra in modalità di comando vi (utilizza le definizioni di tasti alternative)
+88 Vi: modalità di comando a completamento di parola
+89 Vi: si sposta sul precedente carattere (backspace)
+90 Vi: cancella il comando di prefisso
+91 Vi: avanza sul primo carattere che precede uno spazio
+92 Vi: si sposta alla fine della parola corrente
+93 Vi: retrocede al carattere indicato
+94 Vi: avanza al carattere indicato
+95 Vi: si sposta sopra il carattere indicato all'indietro
+96 Vi: si sposta sopra il carattere indicato in avanti
+97 Commuta in modalità di inserimento vi
+98 Commuta in modalità di inserimento vi all'inizio della linea
+99 Vi: ripete la ricerca del carattere nella stessa direzione
+100 Vi: ripete la ricerca del carattere nella direzione opposta
+101 Vi: ripete la ricerca nella stessa direzione
+102 Vi: ripete la ricerca nella direzione opposta
+103 Vi: rimpiazza il carattere sotto il cursore con quello successivamente introdotto
+104 Vi: modalità di rimpiazzo
+105 Vi: ricerca nello storico all'indietro
+106 Vi: ricerca nello storico in avanti
+107 Vi: rimpiazza il carattere sotto il cursore e commuta in modalità di inserimento
+108 Vi: rimpiazza l'intera linea
+109 Vi: si sposta alla parola precedente
+110 Vi: si sposta alla parola successiva
+111 Vi: annulla la precedente modifica
+112 Vi: si sposta all'inizio della linea
+113 Esegue un `which' del comando corrente
+114 Inserisce il contenuto del buffer alla posizione del cursore
+115 Replace just-yanked text with yank from earlier kill
+116 (WIN32 only) Copy cut buffer to system clipboard
+117 (WIN32 only) Paste clipboard buffer at cursor position
+118 (WIN32 only) Convert each '/' in next word to '\\\\'
+119 (WIN32 only) Convert each '/' in previous word to '\\\\'
+120 (WIN32 only) Page visible console window up
+121 (WIN32 only) Page visible console window down

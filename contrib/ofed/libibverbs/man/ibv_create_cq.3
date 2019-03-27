@@ -1,0 +1,59 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_CREATE_CQ 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_create_cq, ibv_destroy_cq \- create or destroy a completion queue (CQ)
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "struct ibv_cq *ibv_create_cq(struct ibv_context " "*context" ", int " "cqe" ,
+.BI "                             void " "*cq_context" ,
+.BI "                             struct ibv_comp_channel " "*channel" ,
+.BI "                             int " "comp_vector" );
+.sp
+.BI "int ibv_destroy_cq(struct ibv_cq " "*cq" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_create_cq()
+creates a completion queue (CQ) with at least
+.I cqe
+entries for the RDMA device context
+.I context\fR.
+The pointer
+.I cq_context
+will be used to set user context pointer of the CQ structure. The argument
+.I channel
+is optional; if not NULL, the completion channel
+.I channel
+will be used to return completion events.  The CQ will use the
+completion vector
+.I comp_vector
+for signaling completion events; it must be at least zero and less than
+.I context\fR->num_comp_vectors.
+.PP
+.B ibv_destroy_cq()
+destroys the CQ
+.I cq\fR.
+.SH "RETURN VALUE"
+.B ibv_create_cq()
+returns a pointer to the CQ, or NULL if the request fails.
+.PP
+.B ibv_destroy_cq()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+.B ibv_create_cq()
+may create a CQ with size greater than or equal to the requested
+size. Check the cqe attribute in the returned CQ for the actual size.
+.PP
+.B ibv_destroy_cq()
+fails if any queue pair is still associated with this CQ.
+.SH "SEE ALSO"
+.BR ibv_resize_cq (3),
+.BR ibv_req_notify_cq (3),
+.BR ibv_ack_cq_events (3),
+.BR ibv_create_qp (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

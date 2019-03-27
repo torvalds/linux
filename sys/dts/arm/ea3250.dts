@@ -1,0 +1,270 @@
+/*
+ * Copyright (c) 2011 Jakub Klama <jceel@FreeBSD.org>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * Embedded Artists LPC3250-Kit Device Tree Source.
+ *
+ * $FreeBSD$
+ */
+
+/dts-v1/;
+
+/ {
+	model = "ea,LPC3250-KIT";
+	compatible = "LPC3250-KIT";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		soc = &soc;
+		serial4 = &serial4;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "ARM,926EJ-S";
+			reg = <0x0>;
+			d-cache-line-size = <32>;	// 32 bytes
+			i-cache-line-size = <32>;	// 32 bytes
+			d-cache-size = <0x4000>;	// L1, 16K
+			i-cache-size = <0x4000>;	// L1, 16K
+			timebase-frequency = <0>;
+			bus-frequency = <0>;
+			clock-frequency = <0>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x4000000>;		// 64M at 0x80000000
+	};
+
+	soc: ahb7@40000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x0 0x40000000 0x10000000>;
+		bus-frequency = <13000000>;
+
+		pwr@4000 {
+			compatible = "lpc,pwr";
+			reg = <0x4000 0x4000>;
+		};
+
+		PIC: pic@8000 {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			reg = <0x8000 0xc000>;
+			compatible = "lpc,pic";
+		};
+
+		timer@44000 {
+			compatible = "lpc,timer";
+			reg = <0x44000 0x4000
+			       0x4c000 0x4000>;
+			interrupts = <16 17>;
+			interrupt-parent = <&PIC>;
+		};
+
+		rtc@24000 {
+			compatible = "lpc,rtc";
+			reg = <0x24000 0x4000>;
+			interrupts = <52>;
+			interrupt-parent = <&PIC>;
+		};
+
+		serial0: serial@14000 {
+			compatible = "lpc,hsuart";
+			status = "disabled";
+			reg = <0x14000 0x20>;
+			reg-shift = <2>;
+			clock-frequency = <0>;
+			interrupts = <26>;
+			interrupt-parent = <&PIC>;
+		};
+
+		serial1: serial@18000 {
+			compatible = "lpc,hsuart";
+			status = "disabled";
+			reg = <0x18000 0x20>;
+			reg-shift = <2>;
+			clock-frequency = <0>;
+			interrupts = <25>;
+			interrupt-parent = <&PIC>;
+		};
+
+		serial2: serial@80000 {
+			compatible = "lpc,uart";
+			status = "disabled";
+			reg = <0x80000 0x20>;
+			reg-shift = <2>;
+			clock-frequency = <13000000>;
+			interrupts = <7>;
+			interrupt-parent = <&PIC>;
+		};
+
+		serial3: serial@88000 {
+			compatible = "lpc,uart";
+			status = "disabled";
+			reg = <0x88000 0x20>;
+			reg-shift = <2>;
+			clock-frequency = <13000000>;
+			interrupts = <8>;
+			interrupt-parent = <&PIC>;
+		};
+
+		serial4: serial@90000 {
+			compatible = "lpc,uart";
+			reg = <0x90000 0x20>;
+			reg-shift = <2>;
+			clock-frequency = <13000000>;
+			current-speed = <115200>;
+			interrupts = <9>;
+			interrupt-parent = <&PIC>;
+		};
+
+		serial5: serial@98000 {
+			compatible = "lpc,uart";
+			status = "disabled";
+			reg = <0x98000 0x20>;
+			reg-shift = <2>;
+			clock-frequency = <13000000>;
+			interrupts = <10>;
+			interrupt-parent = <&PIC>;
+		};
+
+		serial6: serial@1c000 {
+			compatible = "lpc,uart";
+			status = "disabled";
+			reg = <0x1c000 0x20>;
+			reg-shift = <2>;
+			clock-frequency = <0>;
+			interrupts = <24>;
+			interrupt-parent = <&PIC>;
+		};
+
+		gpio@28000 {
+			compatible = "lpc,gpio";
+			reg = <0x28000 0x4000>;
+		};
+	};
+
+	ahb6@30000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x0 0x30000000 0x10000000>;
+
+		dmac@1000000 {
+			compatible = "lpc,dmac";
+			reg = <0x1000000 0x20000>;
+			interrupts = <28>;
+			interrupt-parent = <&PIC>;
+		};
+
+		usb@1020000 {
+			compatible = "lpc,usb-ohci", "usb-ohci";
+			reg = <0x1020000 0x20000>;
+			interrupts = <59>;
+			interrupt-parent = <&PIC>;
+		};
+
+		lpcfb@1040000 {
+			compatible = "lpc,fb";
+			reg = <0x1040000 0x20000>;
+			interrupts = <14>;
+			interrupt-parent = <&PIC>;
+			
+			/* Screen parameters: */
+			is-tft = <1>;
+			horizontal-resolution = <240>;
+			vertical-resolution = <320>;
+			bits-per-pixel = <16>;
+			pixel-clock = <121654>;
+			left-margin = <28>;
+			right-margin = <10>;
+			upper-margin = <2>;
+			lower-margin = <2>;
+			hsync-len = <3>;
+			vsync-len = <2>;
+		};
+	
+		lpe@1060000 {
+			compatible = "lpc,ethernet";
+			reg = <0x1060000 0x20000>;
+			interrupts = <29>;
+			interrupt-parent = <&PIC>;	
+			local-mac-address = [ 00 1a f1 01 1f 23 ];
+
+			mdio@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "lpc,mdio";
+
+				phy0: ethernet-phy@0 {
+					reg = <0x0>;
+                        	};
+			};
+
+		};
+	};
+
+	ahb5@20000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x0 0x20000000 0x10000000>;
+
+		spi0@84000 {
+			compatible = "lpc,spi";
+			reg = <0x84000 0x4000>;
+			interrupts = <20>;
+			interrupt-parent = <&PIC>;
+		};
+
+		spi1@8c000 {
+			compatible = "lpc,spi";
+			status = "disabled";
+			reg = <0x8c000 0x4000>;
+			interrupts = <21>;
+			interrupt-parent = <&PIC>;
+		};
+
+		lpcmmc@98000 {
+			compatible = "lpc,mmc";
+			reg = <0x98000 0x4000>;
+			interrupts = <15 13>;
+			interrupt-parent = <&PIC>;
+		};
+	};
+
+	chosen {
+		stdin = "serial4";
+		stdout = "serial4";
+	};
+};

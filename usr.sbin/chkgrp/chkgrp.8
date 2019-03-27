@@ -1,0 +1,93 @@
+.\" Copyright (c) 1998 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer
+.\"    in this position and unchanged.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 26, 2005
+.Dt CHKGRP 8
+.Os
+.Sh NAME
+.Nm chkgrp
+.Nd check the syntax of the group file
+.Sh SYNOPSIS
+.Nm
+.Op Fl q
+.Op Ar groupfile
+.Sh DESCRIPTION
+The
+.Nm
+utility
+scans the given file or, failing that, the system-wide group file for
+errors.
+Specifically, it checks that every non-blank, non-comment
+entry is composed of four colon-separated fields, that none of them
+contains whitespace, and that the third field (the group ID) is
+numeric.
+It will also check for invalid characters in the group names
+and group members.
+The following options are available:
+.Bl -tag -width indent
+.It Fl q
+This option disables printing of text when the group format
+is correct.
+.El
+.Sh FILES
+.Bl -tag -width /etc/group -compact
+.It Pa /etc/group
+group database file
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility returns
+.Dv EX_DATAERR
+if errors were found in the group file,
+and
+.Dv EX_OK
+otherwise.
+.Sh DIAGNOSTICS
+For each error found,
+.Nm
+will print an error message containing the name of the file being
+scanned and the line number on which the error was found.
+.Sh SEE ALSO
+.Xr getgrent 3 ,
+.Xr group 5
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility and this manual page were written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .
+Further functionality was added by
+.An Liam J. Foy Aq Mt liamfoy@dragonflybsd.org .
+.Sh BUGS
+Should check the range of the group ID.

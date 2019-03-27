@@ -1,0 +1,38 @@
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host (empty) serv http
+ai1: flags 0x2 family 2 socktype 2 protocol 17 addrlen 16 host 127.0.0.1 serv http
+ai2: flags 0x2 family 2 socktype 1 protocol 6 addrlen 16 host 127.0.0.1 serv http
+
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host (empty) serv echo
+ai1: flags 0x2 family 2 socktype 2 protocol 17 addrlen 16 host 127.0.0.1 serv echo
+ai2: flags 0x2 family 2 socktype 1 protocol 6 addrlen 16 host 127.0.0.1 serv echo
+
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host (empty) serv tftp
+ai1: flags 0x2 family 2 socktype 2 protocol 17 addrlen 16 host 127.0.0.1 serv tftp
+ai2: flags 0x2 family 2 socktype 1 protocol 6 addrlen 16 host 127.0.0.1 serv tftp
+
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host (empty) serv 80
+ai1: flags 0x2 family 2 socktype 2 protocol 17 addrlen 16 host 127.0.0.1 serv http
+ai2: flags 0x2 family 2 socktype 1 protocol 6 addrlen 16 host 127.0.0.1 serv http
+
+arg: flags 0x3 family 0 socktype 0 protocol 0 addrlen 0 host (empty) serv http
+ai1: flags 0x3 family 2 socktype 2 protocol 17 addrlen 16 host 0.0.0.0 serv http
+ai2: flags 0x3 family 2 socktype 1 protocol 6 addrlen 16 host 0.0.0.0 serv http
+
+arg: flags 0x3 family 0 socktype 0 protocol 0 addrlen 0 host (empty) serv echo
+ai1: flags 0x3 family 2 socktype 2 protocol 17 addrlen 16 host 0.0.0.0 serv echo
+ai2: flags 0x3 family 2 socktype 1 protocol 6 addrlen 16 host 0.0.0.0 serv echo
+
+arg: flags 0x3 family 0 socktype 0 protocol 0 addrlen 0 host (empty) serv tftp
+ai1: flags 0x3 family 2 socktype 2 protocol 17 addrlen 16 host 0.0.0.0 serv tftp
+ai2: flags 0x3 family 2 socktype 1 protocol 6 addrlen 16 host 0.0.0.0 serv tftp
+
+arg: flags 0x3 family 0 socktype 0 protocol 0 addrlen 0 host (empty) serv 80
+ai1: flags 0x3 family 2 socktype 2 protocol 17 addrlen 16 host 0.0.0.0 serv http
+ai2: flags 0x3 family 2 socktype 1 protocol 6 addrlen 16 host 0.0.0.0 serv http
+
+arg: flags 0x2 family 0 socktype 1 protocol 0 addrlen 0 host (empty) serv 80
+ai1: flags 0x2 family 2 socktype 1 protocol 6 addrlen 16 host 127.0.0.1 serv http
+
+arg: flags 0x2 family 0 socktype 2 protocol 0 addrlen 0 host (empty) serv 80
+ai1: flags 0x2 family 2 socktype 2 protocol 17 addrlen 16 host 127.0.0.1 serv http
+

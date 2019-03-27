@@ -1,0 +1,745 @@
+.\" $FreeBSD$
+.\" Man page generated from reStructuredText.
+.
+.TH "LLVM-PDBUTIL" "1" "2018-08-02" "7" "LLVM"
+.SH NAME
+llvm-pdbutil \- PDB File forensics and diagnostics
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.INDENT 0.0
+.IP \(bu 2
+\fI\%Synopsis\fP
+.IP \(bu 2
+\fI\%Description\fP
+.IP \(bu 2
+\fI\%Subcommands\fP
+.INDENT 2.0
+.IP \(bu 2
+\fI\%pretty\fP
+.INDENT 2.0
+.IP \(bu 2
+\fI\%Summary\fP
+.IP \(bu 2
+\fI\%Options\fP
+.INDENT 2.0
+.IP \(bu 2
+\fI\%Filtering and Sorting Options\fP
+.IP \(bu 2
+\fI\%Symbol Type Options\fP
+.IP \(bu 2
+\fI\%Other Options\fP
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fI\%dump\fP
+.INDENT 2.0
+.IP \(bu 2
+\fI\%Summary\fP
+.IP \(bu 2
+\fI\%Options\fP
+.INDENT 2.0
+.IP \(bu 2
+\fI\%MSF Container Options\fP
+.IP \(bu 2
+\fI\%Module & File Options\fP
+.IP \(bu 2
+\fI\%Symbol Options\fP
+.IP \(bu 2
+\fI\%Type Record Options\fP
+.IP \(bu 2
+\fI\%Miscellaneous Options\fP
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fI\%bytes\fP
+.INDENT 2.0
+.IP \(bu 2
+\fI\%Summary\fP
+.IP \(bu 2
+\fI\%Options\fP
+.INDENT 2.0
+.IP \(bu 2
+\fI\%MSF File Options\fP
+.IP \(bu 2
+\fI\%PDB Stream Options\fP
+.IP \(bu 2
+\fI\%DBI Stream Options\fP
+.IP \(bu 2
+\fI\%Module Options\fP
+.IP \(bu 2
+\fI\%Type Record Options\fP
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fI\%pdb2yaml\fP
+.INDENT 2.0
+.IP \(bu 2
+\fI\%Summary\fP
+.IP \(bu 2
+\fI\%Options\fP
+.UNINDENT
+.IP \(bu 2
+\fI\%yaml2pdb\fP
+.INDENT 2.0
+.IP \(bu 2
+\fI\%Summary\fP
+.IP \(bu 2
+\fI\%Options\fP
+.UNINDENT
+.IP \(bu 2
+\fI\%merge\fP
+.INDENT 2.0
+.IP \(bu 2
+\fI\%Summary\fP
+.IP \(bu 2
+\fI\%Options\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH SYNOPSIS
+.sp
+\fBllvm\-pdbutil\fP [\fIsubcommand\fP] [\fIoptions\fP]
+.SH DESCRIPTION
+.sp
+Display types, symbols, CodeView records, and other information from a
+PDB file, as well as manipulate and create PDB files.  \fBllvm\-pdbutil\fP
+is normally used by FileCheck\-based tests to test LLVM\(aqs PDB reading and
+writing functionality, but can also be used for general PDB file investigation
+and forensics, or as a replacement for cvdump.
+.SH SUBCOMMANDS
+.sp
+\fBllvm\-pdbutil\fP is separated into several subcommands each tailored to
+a different purpose.  A brief summary of each command follows, with more detail
+in the sections that follow.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fI\%pretty\fP \- Dump symbol and type information in a format that
+tries to look as much like the original source code as possible.
+.IP \(bu 2
+\fI\%dump\fP \- Dump low level types and structures from the PDB
+file, including CodeView records, hash tables, PDB streams, etc.
+.IP \(bu 2
+\fI\%bytes\fP \- Dump data from the PDB file\(aqs streams, records,
+types, symbols, etc as raw bytes.
+.IP \(bu 2
+\fI\%yaml2pdb\fP \- Given a yaml description of a PDB file, produce
+a valid PDB file that matches that description.
+.IP \(bu 2
+\fI\%pdb2yaml\fP \- For a given PDB file, produce a YAML
+description of some or all of the file in a way that the PDB can be
+reconstructed.
+.IP \(bu 2
+\fI\%merge\fP \- Given two PDBs, produce a third PDB that is the
+result of merging the two input PDBs.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS pretty
+.sp
+\fBIMPORTANT:\fP
+.INDENT 0.0
+.INDENT 3.5
+The \fBpretty\fP subcommand is built on the Windows DIA SDK, and as such is not
+supported on non\-Windows platforms.
+.UNINDENT
+.UNINDENT
+.sp
+USAGE: \fBllvm\-pdbutil\fP pretty [\fIoptions\fP] <input PDB file>
+.SS Summary
+.sp
+The \fIpretty\fP subcommand displays a very high level representation of your
+program\(aqs debug info.  Since it is built on the Windows DIA SDK which is the
+standard API that Windows tools and debuggers query debug information, it
+presents a more authoritative view of how a debugger is going to interpret your
+debug information than a mode which displays low\-level CodeView records.
+.SS Options
+.SS Filtering and Sorting Options
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+\fIexclude\fP filters take priority over \fIinclude\fP filters.  So if a filter
+matches both an include and an exclude rule, then it is excluded.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-exclude\-compilands=<string>
+When dumping compilands, compiland source\-file contributions, or per\-compiland
+symbols, this option instructs \fBllvm\-pdbutil\fP to omit any compilands that
+match the specified regular expression.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-exclude\-symbols=<string>
+When dumping global, public, or per\-compiland symbols, this option instructs
+\fBllvm\-pdbutil\fP to omit any symbols that match the specified regular
+expression.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-exclude\-types=<string>
+When dumping types, this option instructs \fBllvm\-pdbutil\fP to omit any types
+that match the specified regular expression.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-include\-compilands=<string>
+When dumping compilands, compiland source\-file contributions, or per\-compiland
+symbols, limit the initial search to only those compilands that match the
+specified regular expression.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-include\-symbols=<string>
+When dumping global, public, or per\-compiland symbols, limit the initial
+search to only those symbols that match the specified regular expression.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-include\-types=<string>
+When dumping types, limit the initial search to only those types that match
+the specified regular expression.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-min\-class\-padding=<uint>
+Only display types that have at least the specified amount of alignment
+padding, accounting for padding in base classes and aggregate field members.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-min\-class\-padding\-imm=<uint>
+Only display types that have at least the specified amount of alignment
+padding, ignoring padding in base classes and aggregate field members.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-min\-type\-size=<uint>
+Only display types T where sizeof(T) is greater than or equal to the specified
+amount.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-no\-compiler\-generated
+Don\(aqt show compiler generated types and symbols
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-no\-enum\-definitions
+When dumping an enum, don\(aqt show the full enum (e.g. the individual enumerator
+values).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-no\-system\-libs
+Don\(aqt show symbols from system libraries
+.UNINDENT
+.SS Symbol Type Options
+.INDENT 0.0
+.TP
+.B \-all
+Implies all other options in this category.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-class\-definitions=<format>
+Displays class definitions in the specified format.
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+=all      \- Display all class members including data, constants, typedefs, functions, etc (default)
+=layout   \- Only display members that contribute to class size.
+=none     \- Don\(aqt display class definitions (e.g. only display the name and base list)
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-class\-order
+Displays classes in the specified order.
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+=none            \- Undefined / no particular sort order (default)
+=name            \- Sort classes by name
+=size            \- Sort classes by size
+=padding         \- Sort classes by amount of padding
+=padding\-pct     \- Sort classes by percentage of space consumed by padding
+=padding\-imm     \- Sort classes by amount of immediate padding
+=padding\-pct\-imm \- Sort classes by percentage of space consumed by immediate padding
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-class\-recurse\-depth=<uint>
+When dumping class definitions, stop after recursing the specified number of times.  The
+default is 0, which is no limit.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-classes
+Display classes
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-compilands
+Display compilands (e.g. object files)
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-enums
+Display enums
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-externals
+Dump external (e.g. exported) symbols
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-globals
+Dump global symbols
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-lines
+Dump the mappings between source lines and code addresses.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-module\-syms
+Display symbols (variables, functions, etc) for each compiland
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-sym\-types=<types>
+Type of symbols to dump when \-globals, \-externals, or \-module\-syms is
+specified. (default all)
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+=thunks \- Display thunk symbols
+=data   \- Display data symbols
+=funcs  \- Display function symbols
+=all    \- Display all symbols (default)
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-symbol\-order=<order>
+For symbols dumped via the \-module\-syms, \-globals, or \-externals options, sort
+the results in specified order.
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+=none \- Undefined / no particular sort order
+=name \- Sort symbols by name
+=size \- Sort symbols by size
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-typedefs
+Display typedef types
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-types
+Display all types (implies \-classes, \-enums, \-typedefs)
+.UNINDENT
+.SS Other Options
+.INDENT 0.0
+.TP
+.B \-color\-output
+Force color output on or off.  By default, color if used if outputting to a
+terminal.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-load\-address=<uint>
+When displaying relative virtual addresses, assume the process is loaded at the
+given address and display what would be the absolute address.
+.UNINDENT
+.SS dump
+.sp
+USAGE: \fBllvm\-pdbutil\fP dump [\fIoptions\fP] <input PDB file>
+.SS Summary
+.sp
+The \fBdump\fP subcommand displays low level information about the structure of a
+PDB file.  It is used heavily by LLVM\(aqs testing infrastructure, but can also be
+used for PDB forensics.  It serves a role similar to that of Microsoft\(aqs
+\fIcvdump\fP tool.
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+The \fBdump\fP subcommand exposes internal details of the file format.  As
+such, the reader should be familiar with /PDB/index before using this
+command.
+.UNINDENT
+.UNINDENT
+.SS Options
+.SS MSF Container Options
+.INDENT 0.0
+.TP
+.B \-streams
+dump a summary of all of the streams in the PDB file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-stream\-blocks
+In conjunction with \fI\%\-streams\fP, add information to the output about
+what blocks the specified stream occupies.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-summary
+Dump MSF and PDB header information.
+.UNINDENT
+.SS Module & File Options
+.INDENT 0.0
+.TP
+.B \-modi=<uint>
+For all options that dump information from each module/compiland, limit to
+the specified module.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-files
+Dump the source files that contribute to each displayed module.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-il
+Dump inlinee line information (DEBUG_S_INLINEELINES CodeView subsection)
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-l
+Dump line information (DEBUG_S_LINES CodeView subsection)
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-modules
+Dump compiland information
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-xme
+Dump cross module exports (DEBUG_S_CROSSSCOPEEXPORTS CodeView subsection)
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-xmi
+Dump cross module imports (DEBUG_S_CROSSSCOPEIMPORTS CodeView subsection)
+.UNINDENT
+.SS Symbol Options
+.INDENT 0.0
+.TP
+.B \-globals
+dump global symbol records
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-global\-extras
+dump additional information about the globals, such as hash buckets and hash
+values.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-publics
+dump public symbol records
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-public\-extras
+dump additional information about the publics, such as hash buckets and hash
+values.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-symbols
+dump symbols (functions, variables, etc) for each module dumped.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-sym\-data
+For each symbol record dumped as a result of the \fI\%\-symbols\fP option,
+display the full bytes of the record in binary as well.
+.UNINDENT
+.SS Type Record Options
+.INDENT 0.0
+.TP
+.B \-types
+Dump CodeView type records from TPI stream
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-type\-extras
+Dump additional information from the TPI stream, such as hashes and the type
+index offsets array.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-type\-data
+For each type record dumped, display the full bytes of the record in binary as
+well.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-type\-index=<uint>
+Only dump types with the specified type index.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-ids
+Dump CodeView type records from IPI stream.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-id\-extras
+Dump additional information from the IPI stream, such as hashes and the type
+index offsets array.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-id\-data
+For each ID record dumped, display the full bytes of the record in binary as
+well.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-id\-index=<uint>
+only dump ID records with the specified hexadecimal type index.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-dependents
+When used in conjunction with \fI\%\-type\-index\fP or \fI\%\-id\-index\fP,
+dumps the entire dependency graph for the specified index instead of just the
+single record with the specified index.  For example, if type index 0x4000 is
+a function whose return type has index 0x3000, and you specify
+\fI\-dependents=0x4000\fP, then this would dump both records (as well as any other
+dependents in the tree).
+.UNINDENT
+.SS Miscellaneous Options
+.INDENT 0.0
+.TP
+.B \-all
+Implies most other options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-section\-contribs
+Dump section contributions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-section\-headers
+Dump image section headers.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-section\-map
+Dump section map.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-string\-table
+Dump PDB string table.
+.UNINDENT
+.SS bytes
+.sp
+USAGE: \fBllvm\-pdbutil\fP bytes [\fIoptions\fP] <input PDB file>
+.SS Summary
+.sp
+Like the \fBdump\fP subcommand, the \fBbytes\fP subcommand displays low level
+information about the structure of a PDB file, but it is used for even deeper
+forensics.  The \fBbytes\fP subcommand finds various structures in a PDB file
+based on the command line options specified, and dumps them in hex.  Someone
+working on support for emitting PDBs would use this heavily, for example, to
+compare one PDB against another PDB to ensure byte\-for\-byte compatibility.  It
+is not enough to simply compare the bytes of an entire file, or an entire stream
+because it\(aqs perfectly fine for the same structure to exist at different
+locations in two different PDBs, and "finding" the structure is half the battle.
+.SS Options
+.SS MSF File Options
+.INDENT 0.0
+.TP
+.B \-block\-range=<start[\-end]>
+Dump binary data from specified range of MSF file blocks.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-byte\-range=<start[\-end]>
+Dump binary data from specified range of bytes in the file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fpm
+Dump the MSF free page map.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-stream\-data=<string>
+Dump binary data from the specified streams.  Format is SN[:Start][@Size].
+For example, \fI\-stream\-data=7:3@12\fP dumps 12 bytes from stream 7, starting
+at offset 3 in the stream.
+.UNINDENT
+.SS PDB Stream Options
+.INDENT 0.0
+.TP
+.B \-name\-map
+Dump bytes of PDB Name Map
+.UNINDENT
+.SS DBI Stream Options
+.INDENT 0.0
+.TP
+.B \-ec
+Dump the edit and continue map substream of the DBI stream.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-files
+Dump the file info substream of the DBI stream.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-modi
+Dump the modi substream of the DBI stream.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-sc
+Dump section contributions substream of the DBI stream.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-sm
+Dump the section map from the DBI stream.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-type\-server
+Dump the type server map from the DBI stream.
+.UNINDENT
+.SS Module Options
+.INDENT 0.0
+.TP
+.B \-mod=<uint>
+Limit all options in this category to the specified module index.  By default,
+options in this category will dump bytes from all modules.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-chunks
+Dump the bytes of each module\(aqs C13 debug subsection.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-split\-chunks
+When specified with \fI\%\-chunks\fP, split the C13 debug subsection into a
+separate chunk for each subsection type, and dump them separately.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-syms
+Dump the symbol record substream from each module.
+.UNINDENT
+.SS Type Record Options
+.INDENT 0.0
+.TP
+.B \-id=<uint>
+Dump the record from the IPI stream with the given type index.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-type=<uint>
+Dump the record from the TPI stream with the given type index.
+.UNINDENT
+.SS pdb2yaml
+.sp
+USAGE: \fBllvm\-pdbutil\fP pdb2yaml [\fIoptions\fP] <input PDB file>
+.SS Summary
+.SS Options
+.SS yaml2pdb
+.sp
+USAGE: \fBllvm\-pdbutil\fP yaml2pdb [\fIoptions\fP] <input YAML file>
+.SS Summary
+.sp
+Generate a PDB file from a YAML description.  The YAML syntax is not described
+here.  Instead, use \fI\%llvm\-pdbutil pdb2yaml\fP and
+examine the output for an example starting point.
+.SS Options
+.INDENT 0.0
+.TP
+.B \-pdb=<file\-name>
+.UNINDENT
+.sp
+Write the resulting PDB to the specified file.
+.SS merge
+.sp
+USAGE: \fBllvm\-pdbutil\fP merge [\fIoptions\fP] <input PDB file 1> <input PDB file 2>
+.SS Summary
+.sp
+Merge two PDB files into a single file.
+.SS Options
+.INDENT 0.0
+.TP
+.B \-pdb=<file\-name>
+.UNINDENT
+.sp
+Write the resulting PDB to the specified file.
+.SH AUTHOR
+Maintained by The LLVM Team (http://llvm.org/).
+.SH COPYRIGHT
+2003-2018, LLVM Project
+.\" Generated by docutils manpage writer.
+.

@@ -1,0 +1,250 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)touch.1	8.3 (Berkeley) 4/28/95
+.\" $FreeBSD$
+.\"
+.Dd June 1, 2018
+.Dt TOUCH 1
+.Os
+.Sh NAME
+.Nm touch
+.Nd change file access and modification times
+.Sh SYNOPSIS
+.Nm
+.Op Fl A Ar [-][[hh]mm]SS
+.Op Fl achm
+.Op Fl r Ar file
+.Op Fl t Ar [[CC]YY]MMDDhhmm[.SS]
+.Op Fl d Ar YYYY-MM-DDThh:mm:SS[.frac][tz]
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility sets the modification and access times of files.
+If any file does not exist, it is created with default permissions.
+.Pp
+By default,
+.Nm
+changes both modification and access times.
+The
+.Fl a
+and
+.Fl m
+flags may be used to select the access time or the modification time
+individually.
+Selecting both is equivalent to the default.
+By default, the timestamps are set to the current time.
+The
+.Fl d
+and
+.Fl t
+flags explicitly specify a different time, and the
+.Fl r
+flag specifies to set the times those of the specified file.
+The
+.Fl A
+flag adjusts the values by a specified amount.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl A
+Adjust the access and modification time stamps for the file by the
+specified value.
+This flag is intended for use in modifying files with incorrectly set
+time stamps.
+.Pp
+The argument is of the form
+.Dq [-][[hh]mm]SS
+where each pair of letters represents the following:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It Ar -
+Make the adjustment negative: the new time stamp is set to be before
+the old one.
+.It Ar hh
+The number of hours, from 00 to 99.
+.It Ar mm
+The number of minutes, from 00 to 59.
+.It Ar SS
+The number of seconds, from 00 to 59.
+.El
+.Pp
+The
+.Fl A
+flag implies the
+.Fl c
+flag: if any file specified does not exist, it will be silently ignored.
+.It Fl a
+Change the access time of the file.
+The modification time of the file is not changed unless the
+.Fl m
+flag is also specified.
+.It Fl c
+Do not create the file if it does not exist.
+The
+.Nm
+utility does not treat this as an error.
+No error messages are displayed and the exit value is not affected.
+.It Fl d
+Change the access and modification times to the specified date time instead
+of the current time of day.
+The argument is of the form
+.Dq YYYY-MM-DDThh:mm:SS[.frac][tz]
+where the letters represent the following:
+.Bl -tag -width Ds -compact -offset indent
+.It Ar YYYY
+At least four decimal digits representing the year.
+.It Ar MM , Ar DD , Ar hh , Ar mm , Ar SS
+As with
+.Fl t
+time.
+.It Ar T
+The letter
+.Li T
+or a space is the time designator.
+.It Ar .frac
+An optional fraction, consisting of a period or a comma followed by one or
+more digits.
+The number of significant digits depends on the kernel configuration and the
+filesystem, and may be zero.
+.It Ar tz
+An optional letter
+.Li Z
+indicating the time is in
+.Tn UTC .
+Otherwise, the time is assumed to be in local time.
+Local time is affected by the value of the
+.Ev TZ
+environment variable.
+.El
+.It Fl h
+If the file is a symbolic link, change the times of the link
+itself rather than the file that the link points to.
+Note that
+.Fl h
+implies
+.Fl c
+and thus will not create any new files.
+.It Fl m
+Change the modification time of the file.
+The access time of the file is not changed unless the
+.Fl a
+flag is also specified.
+.It Fl r
+Use the access and modifications times from the specified file
+instead of the current time of day.
+.It Fl t
+Change the access and modification times to the specified time instead
+of the current time of day.
+The argument is of the form
+.Dq [[CC]YY]MMDDhhmm[.SS]
+where each pair of letters represents the following:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It Ar CC
+The first two digits of the year (the century).
+.It Ar YY
+The second two digits of the year.
+If
+.Dq YY
+is specified, but
+.Dq CC
+is not, a value for
+.Dq YY
+between 69 and 99 results in a
+.Dq CC
+value of 19.
+Otherwise, a
+.Dq CC
+value of 20 is used.
+.It Ar MM
+The month of the year, from 01 to 12.
+.It Ar DD
+the day of the month, from 01 to 31.
+.It Ar hh
+The hour of the day, from 00 to 23.
+.It Ar mm
+The minute of the hour, from 00 to 59.
+.It Ar SS
+The second of the minute, from 00 to 60.
+.El
+.Pp
+If the
+.Dq CC
+and
+.Dq YY
+letter pairs are not specified, the values default to the current
+year.
+If the
+.Dq SS
+letter pair is not specified, the value defaults to 0.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh COMPATIBILITY
+The obsolescent form of
+.Nm ,
+where a time format is specified as the first argument, is supported.
+When no
+.Fl r
+or
+.Fl t
+option is specified, there are at least two arguments, and the first
+argument is a string of digits either eight or ten characters in length,
+the first argument is interpreted as a time specification of the form
+.Dq MMDDhhmm[YY] .
+.Pp
+The
+.Dq MM ,
+.Dq DD ,
+.Dq hh
+and
+.Dq mm
+letter pairs are treated as their counterparts specified to the
+.Fl t
+option.
+If the
+.Dq YY
+letter pair is in the range 39 to 99, the year is set to 1939 to 1999,
+otherwise, the year is set in the 21st century.
+.Sh SEE ALSO
+.Xr utimensat 2
+.Sh STANDARDS
+The
+.Nm
+utility is expected to be a superset of the
+.St -p1003.2
+specification.
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.At v7 .

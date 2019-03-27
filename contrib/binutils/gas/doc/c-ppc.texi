@@ -1,0 +1,144 @@
+@c Copyright 2001, 2002, 2003, 2005, 2006
+@c Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@ifset GENERIC
+@page
+@node PPC-Dependent
+@chapter PowerPC Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter PowerPC Dependent Features
+@end ifclear
+
+@cindex PowerPC support
+@menu
+* PowerPC-Opts::                Options
+* PowerPC-Pseudo::              PowerPC Assembler Directives
+@end menu
+
+@node PowerPC-Opts
+@section Options
+
+@cindex options for PowerPC
+@cindex PowerPC options
+@cindex architectures, PowerPC
+@cindex PowerPC architectures
+The PowerPC chip family includes several successive levels, using the same
+core instruction set, but including a few additional instructions at
+each level.  There are exceptions to this however.  For details on what
+instructions each variant supports, please see the chip's architecture
+reference manual.
+
+The following table lists all available PowerPC options.
+
+@table @code
+@item -mpwrx | -mpwr2
+Generate code for POWER/2 (RIOS2).
+
+@item -mpwr
+Generate code for POWER (RIOS1)
+
+@item -m601
+Generate code for PowerPC 601.
+
+@item -mppc, -mppc32, -m603, -m604
+Generate code for PowerPC 603/604.
+
+@item -m403, -m405
+Generate code for PowerPC 403/405.
+
+@item -m440
+Generate code for PowerPC 440.  BookE and some 405 instructions.
+
+@item -m7400, -m7410, -m7450, -m7455
+Generate code for PowerPC 7400/7410/7450/7455.
+
+@item -mppc64, -m620
+Generate code for PowerPC 620/625/630.
+
+@item -me500, -me500x2
+Generate code for Motorola e500 core complex.
+
+@item -mspe
+Generate code for Motorola SPE instructions.
+
+@item -mppc64bridge
+Generate code for PowerPC 64, including bridge insns.
+
+@item -mbooke64
+Generate code for 64-bit BookE.
+
+@item -mbooke, mbooke32
+Generate code for 32-bit BookE.
+
+@item -me300
+Generate code for PowerPC e300 family.
+
+@item -maltivec
+Generate code for processors with AltiVec instructions.
+
+@item -mpower4
+Generate code for Power4 architecture.
+
+@item -mpower5
+Generate code for Power5 architecture.
+
+@item -mpower6
+Generate code for Power6 architecture.
+
+@item -mcell
+Generate code for Cell Broadband Engine architecture.
+
+@item -mcom
+Generate code Power/PowerPC common instructions.
+
+@item -many
+Generate code for any architecture (PWR/PWRX/PPC).
+
+@item -mregnames
+Allow symbolic names for registers.
+
+@item -mno-regnames
+Do not allow symbolic names for registers.
+
+@item -mrelocatable
+Support for GCC's -mrelocatable option.
+
+@item -mrelocatable-lib
+Support for GCC's -mrelocatable-lib option.
+
+@item -memb
+Set PPC_EMB bit in ELF flags.
+
+@item -mlittle, -mlittle-endian
+Generate code for a little endian machine.
+
+@item -mbig, -mbig-endian
+Generate code for a big endian machine.
+
+@item -msolaris
+Generate code for Solaris.
+
+@item -mno-solaris
+Do not generate code for Solaris.
+@end table
+
+
+@node PowerPC-Pseudo
+@section PowerPC Assembler Directives
+
+@cindex directives for PowerPC
+@cindex PowerPC directives
+A number of assembler directives are available for PowerPC.  The
+following table is far from complete.
+
+@table @code
+@item .machine "string"
+This directive allows you to change the machine for which code is
+generated.  @code{"string"} may be any of the -m cpu selection options
+(without the -m) enclosed in double quotes, @code{"push"}, or
+@code{"pop"}.  @code{.machine "push"} saves the currently selected
+cpu, which may be restored with @code{.machine "pop"}.
+@end table

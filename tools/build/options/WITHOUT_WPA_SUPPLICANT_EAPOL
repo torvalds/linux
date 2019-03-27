@@ -1,0 +1,6 @@
+.\" $FreeBSD$
+Build
+.Xr wpa_supplicant 8
+without support for the IEEE 802.1X protocol and without
+support for EAP-PEAP, EAP-TLS, EAP-LEAP, and EAP-TTLS
+protocols (usable only via 802.1X).

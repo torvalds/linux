@@ -1,0 +1,188 @@
+/dts-v1/;
+
+#include "mt7621.dtsi"
+
+/ {
+	compatible = "mediatek,mt7621-eval-board", "mediatek,mt7621-soc";
+	model = "PBR-M1";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x10000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	palmbus: palmbus@1E000000 {
+		i2c: i2c@900 {
+			compatible = "ralink,i2c-mt7621";
+			reg = <0x900 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c_pins>;
+			status = "okay";
+
+			pcf8563: rtc@51 {
+				status = "okay";
+				compatible = "nxp,pcf8563";
+				reg = <0x51>;
+			};
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		power {
+			label = "pbr-m1:blue:power";
+			gpios = <&gpio0 31 1>;
+		};
+
+		sys {
+			label = "pbr-m1:blue:sys";
+			gpios = <&gpio1 0 1>;
+		};
+
+		internet {
+			label = "pbr-m1:blue:internet";
+			gpios = <&gpio0 29 1>;
+		};
+
+		wlan2g {
+			label = "pbr-m1:blue:wlan2g";
+			gpios = <&gpio1 1 1>;
+		};
+
+		wlan5g {
+			label = "pbr-m1:blue:wlan5g";
+			gpios = <&gpio0 28 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 18 1>;
+			linux,code = <0x198>;
+		};
+	};
+
+	gpio_export {
+		compatible = "gpio-export";
+		#size-cells = <0>;
+
+		power_usb2 {
+			gpio-export,name = "power_usb2";
+			gpio-export,output = <1>;
+			gpios = <&gpio0 22 0>;
+		};
+
+		power_usb3 {
+			gpio-export,name = "power_usb3";
+			gpio-export,output = <1>;
+			gpios = <&gpio0 25 0>;
+		};
+
+		power_sata {
+			gpio-export,name = "power_sata";
+			gpio-export,output = <1>;
+			gpios = <&gpio0 27 0>;
+		};
+	};
+
+	beeper: beeper {
+		compatible = "gpio-beeper";
+		gpios = <&gpio0 26 1>;
+	};
+};
+
+&sdhci {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhci_pins>;
+};
+
+&xhci {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0xfb0000>;
+		};
+	};
+};
+
+&pcie {
+	status = "okay";
+
+	pcie0 {
+		mt76@0,0 {
+			reg = <0x0000 0 0 0 0>;
+			device_type = "pci";
+			mediatek,mtd-eeprom = <&factory 0x8000>;
+			mediatek,2ghz = <0>;
+		};
+	};
+
+	pcie1 {
+		mt76@1,0 {
+			reg = <0x0000 0 0 0 0>;
+			device_type = "pci";
+			mediatek,mtd-eeprom = <&factory 0x0000>;
+			mediatek,5ghz = <0>;
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0xe000>;
+};
+
+
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "wdt", "rgmii2", "jtag", "mdio";
+			ralink,function = "gpio";
+		};
+	};
+};

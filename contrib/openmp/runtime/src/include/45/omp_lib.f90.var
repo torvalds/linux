@@ -1,0 +1,524 @@
+! include/45/omp_lib.f90.var
+
+!
+!//===----------------------------------------------------------------------===//
+!//
+!//                     The LLVM Compiler Infrastructure
+!//
+!// This file is dual licensed under the MIT and the University of Illinois Open
+!// Source Licenses. See LICENSE.txt for details.
+!//
+!//===----------------------------------------------------------------------===//
+!
+
+      module omp_lib_kinds
+
+        use, intrinsic :: iso_c_binding
+
+        integer, parameter :: omp_integer_kind       = c_int
+        integer, parameter :: omp_logical_kind       = 4
+        integer, parameter :: omp_real_kind          = c_float
+        integer, parameter :: kmp_double_kind        = c_double
+        integer, parameter :: omp_lock_kind          = c_intptr_t
+        integer, parameter :: omp_nest_lock_kind     = c_intptr_t
+        integer, parameter :: omp_sched_kind         = omp_integer_kind
+        integer, parameter :: omp_proc_bind_kind     = omp_integer_kind
+        integer, parameter :: kmp_pointer_kind       = c_intptr_t
+        integer, parameter :: kmp_size_t_kind        = c_size_t
+        integer, parameter :: kmp_affinity_mask_kind = c_intptr_t
+        integer, parameter :: kmp_cancel_kind        = omp_integer_kind
+        integer, parameter :: omp_lock_hint_kind     = omp_integer_kind
+
+      end module omp_lib_kinds
+
+      module omp_lib
+
+        use omp_lib_kinds
+
+        integer (kind=omp_integer_kind), parameter :: openmp_version    = @LIBOMP_OMP_YEAR_MONTH@
+        integer (kind=omp_integer_kind), parameter :: kmp_version_major = @LIBOMP_VERSION_MAJOR@
+        integer (kind=omp_integer_kind), parameter :: kmp_version_minor = @LIBOMP_VERSION_MINOR@
+        integer (kind=omp_integer_kind), parameter :: kmp_version_build = @LIBOMP_VERSION_BUILD@
+        character(*)               kmp_build_date
+        parameter( kmp_build_date = '@LIBOMP_BUILD_DATE@' )
+
+        integer(kind=omp_sched_kind), parameter :: omp_sched_static  = 1
+        integer(kind=omp_sched_kind), parameter :: omp_sched_dynamic = 2
+        integer(kind=omp_sched_kind), parameter :: omp_sched_guided  = 3
+        integer(kind=omp_sched_kind), parameter :: omp_sched_auto    = 4
+
+
+        integer (kind=omp_proc_bind_kind), parameter :: omp_proc_bind_false = 0
+        integer (kind=omp_proc_bind_kind), parameter :: omp_proc_bind_true = 1
+        integer (kind=omp_proc_bind_kind), parameter :: omp_proc_bind_master = 2
+        integer (kind=omp_proc_bind_kind), parameter :: omp_proc_bind_close = 3
+        integer (kind=omp_proc_bind_kind), parameter :: omp_proc_bind_spread = 4
+
+        integer (kind=kmp_cancel_kind), parameter :: kmp_cancel_parallel = 1
+        integer (kind=kmp_cancel_kind), parameter :: kmp_cancel_loop = 2
+        integer (kind=kmp_cancel_kind), parameter :: kmp_cancel_sections = 3
+        integer (kind=kmp_cancel_kind), parameter :: kmp_cancel_taskgroup = 4
+
+        integer (kind=omp_lock_hint_kind), parameter :: omp_lock_hint_none           = 0
+        integer (kind=omp_lock_hint_kind), parameter :: omp_lock_hint_uncontended    = 1
+        integer (kind=omp_lock_hint_kind), parameter :: omp_lock_hint_contended      = 2
+        integer (kind=omp_lock_hint_kind), parameter :: omp_lock_hint_nonspeculative = 4
+        integer (kind=omp_lock_hint_kind), parameter :: omp_lock_hint_speculative    = 8
+        integer (kind=omp_lock_hint_kind), parameter :: kmp_lock_hint_hle            = 65536
+        integer (kind=omp_lock_hint_kind), parameter :: kmp_lock_hint_rtm            = 131072
+        integer (kind=omp_lock_hint_kind), parameter :: kmp_lock_hint_adaptive       = 262144
+
+        interface
+
+!         ***
+!         *** omp_* entry points
+!         ***
+
+          subroutine omp_set_num_threads(num_threads) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind), value :: num_threads
+          end subroutine omp_set_num_threads
+
+          subroutine omp_set_dynamic(dynamic_threads) bind(c)
+            use omp_lib_kinds
+            logical (kind=omp_logical_kind), value :: dynamic_threads
+          end subroutine omp_set_dynamic
+
+          subroutine omp_set_nested(nested) bind(c)
+            use omp_lib_kinds
+            logical (kind=omp_logical_kind), value :: nested
+          end subroutine omp_set_nested
+
+          function omp_get_num_threads() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_num_threads
+          end function omp_get_num_threads
+
+          function omp_get_max_threads() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_max_threads
+          end function omp_get_max_threads
+
+          function omp_get_thread_num() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_thread_num
+          end function omp_get_thread_num
+
+          function omp_get_num_procs() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_num_procs
+          end function omp_get_num_procs
+
+          function omp_in_parallel() bind(c)
+            use omp_lib_kinds
+            logical (kind=omp_logical_kind) omp_in_parallel
+          end function omp_in_parallel
+
+          function omp_in_final() bind(c)
+            use omp_lib_kinds
+            logical (kind=omp_logical_kind) omp_in_final
+          end function omp_in_final
+
+          function omp_get_dynamic() bind(c)
+            use omp_lib_kinds
+            logical (kind=omp_logical_kind) omp_get_dynamic
+          end function omp_get_dynamic
+
+          function omp_get_nested() bind(c)
+            use omp_lib_kinds
+            logical (kind=omp_logical_kind) omp_get_nested
+          end function omp_get_nested
+
+          function omp_get_thread_limit() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_thread_limit
+          end function omp_get_thread_limit
+
+          subroutine omp_set_max_active_levels(max_levels) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind), value :: max_levels
+          end subroutine omp_set_max_active_levels
+
+          function omp_get_max_active_levels() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_max_active_levels
+          end function omp_get_max_active_levels
+
+          function omp_get_level() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_level
+          end function omp_get_level
+
+          function omp_get_active_level() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_active_level
+          end function omp_get_active_level
+
+          function omp_get_ancestor_thread_num(level) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_ancestor_thread_num
+            integer (kind=omp_integer_kind), value :: level
+          end function omp_get_ancestor_thread_num
+
+          function omp_get_team_size(level) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_team_size
+            integer (kind=omp_integer_kind), value :: level
+          end function omp_get_team_size
+
+          subroutine omp_set_schedule(kind, chunk_size) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_sched_kind), value :: kind
+            integer (kind=omp_integer_kind), value :: chunk_size
+          end subroutine omp_set_schedule
+
+          subroutine omp_get_schedule(kind, chunk_size) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_sched_kind) kind
+            integer (kind=omp_integer_kind) chunk_size
+          end subroutine omp_get_schedule
+
+          function omp_get_proc_bind() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_proc_bind_kind) omp_get_proc_bind
+          end function omp_get_proc_bind
+
+          function omp_get_num_places() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_num_places
+          end function omp_get_num_places
+
+          function omp_get_place_num_procs(place_num) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind), value :: place_num
+            integer (kind=omp_integer_kind) omp_get_place_num_procs
+          end function omp_get_place_num_procs
+
+          subroutine omp_get_place_proc_ids(place_num, ids) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind), value :: place_num
+            integer (kind=omp_integer_kind) ids(*)
+          end subroutine omp_get_place_proc_ids
+
+          function omp_get_place_num() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_place_num
+          end function omp_get_place_num
+
+          function omp_get_partition_num_places() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_partition_num_places
+          end function omp_get_partition_num_places
+
+          subroutine omp_get_partition_place_nums(place_nums) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) place_nums(*)
+          end subroutine omp_get_partition_place_nums
+
+          function omp_get_wtime() bind(c)
+            use omp_lib_kinds
+            real (kind=kmp_double_kind) omp_get_wtime
+          end function omp_get_wtime
+
+          function omp_get_wtick() bind(c)
+            use omp_lib_kinds
+            real (kind=kmp_double_kind) omp_get_wtick
+          end function omp_get_wtick
+
+          function omp_get_default_device() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_default_device
+          end function omp_get_default_device
+
+          subroutine omp_set_default_device(device_num) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind), value :: device_num
+          end subroutine omp_set_default_device
+
+          function omp_get_num_devices() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_num_devices
+          end function omp_get_num_devices
+
+          function omp_get_num_teams() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_num_teams
+          end function omp_get_num_teams
+
+          function omp_get_team_num() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_team_num
+          end function omp_get_team_num
+
+          function omp_get_cancellation() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_cancellation
+          end function omp_get_cancellation
+
+          function omp_is_initial_device() bind(c)
+            use omp_lib_kinds
+            logical (kind=omp_logical_kind) omp_is_initial_device
+          end function omp_is_initial_device
+
+          function omp_get_initial_device() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_initial_device
+          end function omp_get_initial_device
+
+          subroutine omp_init_lock(svar) bind(c)
+!DIR$ IF(__INTEL_COMPILER.GE.1400)
+!DIR$ attributes known_intrinsic :: omp_init_lock
+!DIR$ ENDIF
+            use omp_lib_kinds
+            integer (kind=omp_lock_kind) svar
+          end subroutine omp_init_lock
+
+          subroutine omp_destroy_lock(svar) bind(c)
+!DIR$ IF(__INTEL_COMPILER.GE.1400)
+!DIR$ attributes known_intrinsic :: omp_destroy_lock
+!DIR$ ENDIF
+            use omp_lib_kinds
+            integer (kind=omp_lock_kind) svar
+          end subroutine omp_destroy_lock
+
+          subroutine omp_set_lock(svar) bind(c)
+!DIR$ IF(__INTEL_COMPILER.GE.1400)
+!DIR$ attributes known_intrinsic :: omp_set_lock
+!DIR$ ENDIF
+            use omp_lib_kinds
+            integer (kind=omp_lock_kind) svar
+          end subroutine omp_set_lock
+
+          subroutine omp_unset_lock(svar) bind(c)
+!DIR$ IF(__INTEL_COMPILER.GE.1400)
+!DIR$ attributes known_intrinsic :: omp_unset_lock
+!DIR$ ENDIF
+            use omp_lib_kinds
+            integer (kind=omp_lock_kind) svar
+          end subroutine omp_unset_lock
+
+          function omp_test_lock(svar) bind(c)
+!DIR$ IF(__INTEL_COMPILER.GE.1400)
+!DIR$ attributes known_intrinsic :: omp_test_lock
+!DIR$ ENDIF
+            use omp_lib_kinds
+            logical (kind=omp_logical_kind) omp_test_lock
+            integer (kind=omp_lock_kind) svar
+          end function omp_test_lock
+
+          subroutine omp_init_nest_lock(nvar) bind(c)
+!DIR$ IF(__INTEL_COMPILER.GE.1400)
+!DIR$ attributes known_intrinsic :: omp_init_nest_lock
+!DIR$ ENDIF
+            use omp_lib_kinds
+            integer (kind=omp_nest_lock_kind) nvar
+          end subroutine omp_init_nest_lock
+
+          subroutine omp_destroy_nest_lock(nvar) bind(c)
+!DIR$ IF(__INTEL_COMPILER.GE.1400)
+!DIR$ attributes known_intrinsic :: omp_destroy_nest_lock
+!DIR$ ENDIF
+            use omp_lib_kinds
+            integer (kind=omp_nest_lock_kind) nvar
+          end subroutine omp_destroy_nest_lock
+
+          subroutine omp_set_nest_lock(nvar) bind(c)
+!DIR$ IF(__INTEL_COMPILER.GE.1400)
+!DIR$ attributes known_intrinsic :: omp_set_nest_lock
+!DIR$ ENDIF
+            use omp_lib_kinds
+            integer (kind=omp_nest_lock_kind) nvar
+          end subroutine omp_set_nest_lock
+
+          subroutine omp_unset_nest_lock(nvar) bind(c)
+!DIR$ IF(__INTEL_COMPILER.GE.1400)
+!DIR$ attributes known_intrinsic :: omp_unset_nest_lock
+!DIR$ ENDIF
+            use omp_lib_kinds
+            integer (kind=omp_nest_lock_kind) nvar
+          end subroutine omp_unset_nest_lock
+
+          function omp_test_nest_lock(nvar) bind(c)
+!DIR$ IF(__INTEL_COMPILER.GE.1400)
+!DIR$ attributes known_intrinsic :: omp_test_nest_lock
+!DIR$ ENDIF
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_test_nest_lock
+            integer (kind=omp_nest_lock_kind) nvar
+          end function omp_test_nest_lock
+
+          function omp_get_max_task_priority() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) omp_get_max_task_priority
+          end function omp_get_max_task_priority
+
+!         ***
+!         *** kmp_* entry points
+!         ***
+
+          subroutine kmp_set_stacksize(size) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind), value :: size
+          end subroutine kmp_set_stacksize
+
+          subroutine kmp_set_stacksize_s(size) bind(c)
+            use omp_lib_kinds
+            integer (kind=kmp_size_t_kind), value :: size
+          end subroutine kmp_set_stacksize_s
+
+          subroutine kmp_set_blocktime(msec) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind), value :: msec
+          end subroutine kmp_set_blocktime
+
+          subroutine kmp_set_library_serial() bind(c)
+          end subroutine kmp_set_library_serial
+
+          subroutine kmp_set_library_turnaround() bind(c)
+          end subroutine kmp_set_library_turnaround
+
+          subroutine kmp_set_library_throughput() bind(c)
+          end subroutine kmp_set_library_throughput
+
+          subroutine kmp_set_library(libnum) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind), value :: libnum
+          end subroutine kmp_set_library
+
+          subroutine kmp_set_defaults(string) bind(c)
+            use, intrinsic :: iso_c_binding
+            character (kind=c_char) :: string(*)
+          end subroutine kmp_set_defaults
+
+          function kmp_get_stacksize() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) kmp_get_stacksize
+          end function kmp_get_stacksize
+
+          function kmp_get_stacksize_s() bind(c)
+            use omp_lib_kinds
+            integer (kind=kmp_size_t_kind) kmp_get_stacksize_s
+          end function kmp_get_stacksize_s
+
+          function kmp_get_blocktime() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) kmp_get_blocktime
+          end function kmp_get_blocktime
+
+          function kmp_get_library() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) kmp_get_library
+          end function kmp_get_library
+
+          subroutine kmp_set_disp_num_buffers(num) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind), value :: num
+          end subroutine kmp_set_disp_num_buffers
+
+          function kmp_set_affinity(mask) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) kmp_set_affinity
+            integer (kind=kmp_affinity_mask_kind) mask
+          end function kmp_set_affinity
+
+          function kmp_get_affinity(mask) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) kmp_get_affinity
+            integer (kind=kmp_affinity_mask_kind) mask
+          end function kmp_get_affinity
+
+          function kmp_get_affinity_max_proc() bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) kmp_get_affinity_max_proc
+          end function kmp_get_affinity_max_proc
+
+          subroutine kmp_create_affinity_mask(mask) bind(c)
+            use omp_lib_kinds
+            integer (kind=kmp_affinity_mask_kind) mask
+          end subroutine kmp_create_affinity_mask
+
+          subroutine kmp_destroy_affinity_mask(mask) bind(c)
+            use omp_lib_kinds
+            integer (kind=kmp_affinity_mask_kind) mask
+          end subroutine kmp_destroy_affinity_mask
+
+          function kmp_set_affinity_mask_proc(proc, mask) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) kmp_set_affinity_mask_proc
+            integer (kind=omp_integer_kind), value :: proc
+            integer (kind=kmp_affinity_mask_kind) mask
+          end function kmp_set_affinity_mask_proc
+
+          function kmp_unset_affinity_mask_proc(proc, mask) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) kmp_unset_affinity_mask_proc
+            integer (kind=omp_integer_kind), value :: proc
+            integer (kind=kmp_affinity_mask_kind) mask
+          end function kmp_unset_affinity_mask_proc
+
+          function kmp_get_affinity_mask_proc(proc, mask) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_integer_kind) kmp_get_affinity_mask_proc
+            integer (kind=omp_integer_kind), value :: proc
+            integer (kind=kmp_affinity_mask_kind) mask
+          end function kmp_get_affinity_mask_proc
+
+          function kmp_malloc(size) bind(c)
+            use omp_lib_kinds
+            integer (kind=kmp_pointer_kind) kmp_malloc
+            integer (kind=kmp_size_t_kind), value :: size
+          end function kmp_malloc
+
+          function kmp_aligned_malloc(size, alignment) bind(c)
+            use omp_lib_kinds
+            integer (kind=kmp_pointer_kind) kmp_aligned_malloc
+            integer (kind=kmp_size_t_kind), value :: size
+            integer (kind=kmp_size_t_kind), value :: alignment
+          end function kmp_aligned_malloc
+
+          function kmp_calloc(nelem, elsize) bind(c)
+            use omp_lib_kinds
+            integer (kind=kmp_pointer_kind) kmp_calloc
+            integer (kind=kmp_size_t_kind), value :: nelem
+            integer (kind=kmp_size_t_kind), value :: elsize
+          end function kmp_calloc
+
+          function kmp_realloc(ptr, size) bind(c)
+            use omp_lib_kinds
+            integer (kind=kmp_pointer_kind) kmp_realloc
+            integer (kind=kmp_pointer_kind), value :: ptr
+            integer (kind=kmp_size_t_kind), value :: size
+          end function kmp_realloc
+
+          subroutine kmp_free(ptr) bind(c)
+            use omp_lib_kinds
+            integer (kind=kmp_pointer_kind), value :: ptr
+          end subroutine kmp_free
+
+          subroutine kmp_set_warnings_on() bind(c)
+          end subroutine kmp_set_warnings_on
+
+          subroutine kmp_set_warnings_off() bind(c)
+          end subroutine kmp_set_warnings_off
+
+          function kmp_get_cancellation_status(cancelkind) bind(c)
+            use omp_lib_kinds
+            integer (kind=kmp_cancel_kind), value :: cancelkind
+            logical (kind=omp_logical_kind) kmp_get_cancellation_status
+          end function kmp_get_cancellation_status
+
+          subroutine omp_init_lock_with_hint(svar, hint) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_lock_kind) svar
+            integer (kind=omp_lock_hint_kind), value :: hint
+          end subroutine omp_init_lock_with_hint
+
+          subroutine omp_init_nest_lock_with_hint(nvar, hint) bind(c)
+            use omp_lib_kinds
+            integer (kind=omp_nest_lock_kind) nvar
+            integer (kind=omp_lock_hint_kind), value :: hint
+          end subroutine omp_init_nest_lock_with_hint
+
+        end interface
+
+      end module omp_lib

@@ -1,0 +1,198 @@
++------------+
+| t_setreuid |
++------------+
+
+The following are results of running t_setreuid on various architectures.
+
+OPSYS	VERSION	STATUS	DATE	  TESTER/NOTES
+=====	=======	======	====	  ============
+
+SunOS	4.1	OK	93.07.19  eric
+SunOS	4.1.2	OK	93.07.19  eric
+SunOS	4.1.3	OK	93.09.25  Robert Elz
+
+BSD	4.4	OK	93.07.19  eric	(wierd results, but functional)
+BSD	4.3Utah	OK	93.07.19  eric
+
+FreeBSD	2.1-sta	OK	96.04.14  Jaye Mathisen <mrcpu@cdsnet.net>
+
+Ultrix	4.2A	OK	93.07.19  eric
+Ultrix	4.3A	OK	93.07.19  Allan Johannesen
+Ultrix	4.5	OK	96.09.18  Gregory Neil Shapiro <gshapiro@wpi.edu>
+
+HP-UX	8.07	OK	93.07.19  eric (on 7xx series)
+HP-UX	8.02	OK	93.07.19  Michael Corrigan (on 8xx series)
+HP-UX	8.00	OK	93.07.21  Michael Corrigan (on 3xx/4xx series)
+HP-UX	9.01	OK	93.11.19  Cassidy (on 7xx series)
+
+Solaris	2.1
+Solaris	2.2	FAIL	93.07.19  Bill Wisner
+Solaris	2.3	FAIL	95.11.22  Scott J. Kramer <sjk@lux.com>
+Solaris	2.5	OK	96.02.29  Carson Gaspar <carson@lehman.com>
+Solaris	2.5.1	OK	96.11.29  Gregory Neil Shapiro <gshapiro@wpi.edu>
+
+OSF/1	T1.3-4	OK	93.07.19  eric (on DEC Alpha)
+OSF/1	1.3	OK	94.12.10  Jeff A. Earickson (on Intel Paragon)
+OSF/1	3.2D	OK	96.09.18  Gregory Neil Shapiro <gshapiro@wpi.edu>
+OSF/1	4.0	OK	96.09.18  Gregory Neil Shapiro <gshapiro@wpi.edu>
+
+CxOS	11.5	OK	96.07.08  Eric Schnoebelen <eric@cirr.com>
+CxOS	11.0	OK	93.01.21  Eric Schnoebelen (CxOS 11.0 beta 1)
+CxOS	10.x	OK	93.01.21  Eric Schnoebelen
+
+AIX	3.1.5	FAIL	93.08.07  David J. N. Begley
+AIX	3.2.3e	FAIL	93.07.26  Steve Bauer <sbauer@silver.sdsmt.edu>
+AIX	3.2.4	FAIL	93.10.07  David J. N. Begley
+AIX	3.2.5	FAIL	94.05.17  Steve Bauer <sbauer@hpcmmib.hpc.sdsmt.edu>
+AIX	4.1	FAIL	96.10.21  Hakan Lindholm <hakan@af.lu.se>
+AIX	4.2	OK	96.10.16  Steve Bauer <sbauer@krypton.hpc.sdsmt.edu>
+
+IRIX	4.0.4	OK	93.09.25  Robert Elz
+IRIX	5.2	OK	94.12.06  Mark Andrews <mandrews@alias.com>
+IRIX	5.3	OK	94.12.06  Mark Andrews <mandrews@alias.com>
+IRIX	6.2	OK	96.09.16  Kari E. Hurtta <Kari.Hurtta@ozone.FMI.FI>
+IRIX	6.3	OK	97.02.10  Mark Andrews <mandrews@aw.sgi.com>
+
+SCO	3.2v4.0	OK	93.10.02  Peter Wemm (with -lsocket from 3.2v4 devsys)
+
+NeXT	2.1	OK	93.07.28  eric
+NeXT	3.0	OK	34.05.05  Kevin John Wang <kwang@lore.acs.calpoly.edu>
+
+Linux	0.99p10	OK	93.08.08  Karl London
+Linux	0.99p13	OK	93.09.27  Christian Kuhtz
+Linux	0.99p14	OK	93.11.30  Christian Kuhtz <chk@data-hh.Hanse.DE>
+Linux	1.0	OK	94.03.19  Shayne Smith <snsmith@rastus.brisnet.org.au>
+Linux	1.2.13	OK	95.11.02  Sven Neuhaus <sven@ping.de>
+Linux	2.0.17	OK	96.09.03  Horst von Brand <vonbrand@sleipnir.valparaiso.cl>
+Linux	2.1.109	OK	98.07.21  John Kennedy <jk@csuchico.edu>
+
+BSD/386	1.0	OK	93.11.13  Tony Sanders
+
+DELL	2.2	OK	93.11.15  Peter Wemm (using -DSETEUID)
+
+Pyramid	5.0d	OK	95.01.14  David Miller <davem@nadzieja.rutgers.edu>
+
+
++-----------+
+| t_seteuid |
++-----------+
+
+The following are results of running t_seteuid on various architectures.
+
+OPSYS	VERSION	STATUS	DATE	  TESTER/NOTES
+=====	=======	======	====	  ============
+
+Solaris	2.3	OK	95.11.22  Scott J. Kramer <sjk@lux.com>
+Solaris	2.4	OK	95.09.22  Thomas 'Mike' Michlmayr <mike@cosy.sbg.ac.at>
+Solaris	2.5	OK	96.02.29  Carson Gaspar <carson@lehman.com>
+Solaris	2.5.1	OK	96.11.29  Gregory Neil Shapiro <gshapiro@wpi.edu>
+
+Linux	1.2.13	FAIL	95.11.02  Sven Neuhaus <sven@ping.de>
+Linux	2.0.17	FAIL	96.09.03  Horst von Brand <vonbrand@sleipnir.valparaiso.cl>
+Linux	2.1.109	FAIL	98.07.21  John Kennedy <jk@csuchico.edu>
+
+AIX	4.1	OK	96.10.21  Hakan Lindholm <hakan@af.lu.se>
+
+IRIX	5.2	OK	95.12.01  Mark Andrews <mandrews@aw.sgi.com>
+IRIX	5.3	OK	95.12.01  Mark Andrews <mandrews@aw.sgi.com>
+IRIX	6.2	OK	96.09.16  Kari E. Hurtta <Kari.Hurtta@ozone.FMI.FI>
+IRIX	6.3	OK	97.02.10  Mark Andrews <mandrews@aw.sgi.com>
+
+FreeBSD	2.1-sta	OK	96.04.14  Jaye Mathisen <mrcpu@cdsnet.net>
+
+Ultrix	4.5	FAIL	96.09.18  Gregory Neil Shapiro <gshapiro@wpi.edu>
+
+OSF/1	3.2D	OK	96.09.18  Gregory Neil Shapiro <gshapiro@wpi.edu>
+OSF/1	4.0	OK	96.09.18  Gregory Neil Shapiro <gshapiro@wpi.edu>
+
+CxOS	11.5	FAIL	96.07.08  Eric Schnoebelen <eric@cirr.com>
+
+
++------------+
+| t_pathconf |
++------------+
+
+The following are the results of running t_pathconf.c.  Safe means that
+the underlying filesystem (in NFS, the filesystem on the server) does not
+permit regular (non-root) users to chown their files to another user.
+Unsafe means that they can.  Typically, BSD-based systems do not permit
+giveaway and System V-based systems do.  However, some systems (e.g.,
+Solaris) can set this on a per-system or per-filesystem basis.  Entries
+are the return value of pathconf, the errno value, and a * if chown
+disagreed with the result of the pathconf call, and a ? if the test has
+not been run.  A mark of [R] means that the local filesystem has
+chown set to be restricted, [U] means that it is set to be unrestricted.
+
+			     Safe Filesystem	     Unsafe Filesystem
+SYSTEM		LOCAL	    NFS-V2	NFS-V3	    NFS-V2	 NFS-V3
+
+SunOS 4.1.3_U1	1/0	    -1/EINVAL*	n/a	    -1/EINVAL?	 n/a
+SunOS 4.1.4	1/0	    -1/EINVAL*	n/a	    -1/EINVAL	 n/a
+
+AIX 3.2		0/0	    0/0
+
+Solaris 2.4	1/0	    -1/EINVAL*
+Solaris 2.5	1/0	    -1/EINVAL*	1/0			 0/0?
+Solaris 2.5.1	1/0	    -1/EINVAL*	0/0
+
+DEC OSF1 3.0	0/0	    0/0
+DEC OSF1 3.2D-2	0/0	    0/0		0/0
+DEC OSF1 4.0A	0/0	    0/0		0/0
+DEC OSF 4.0B	0/0	    0/0		0/0
+
+Ultrix 4.3	0/0	    0/0		n/a			 n/a
+Ultrix 4.5	1/0	    1/0
+
+HP-UX 9.05	-1/0	    -1/EOPNOTSUPP*	    -1/EOPNOTSUPP
+HP-UX 9.05[R]	1/0	    -1/EOPNOTSUPP*	    -1/EOPNOTSUPP*
+HP-UX 10.10	-1/0	    -1/EOPNOTSUPP*	    -1/EOPNOTSUPP
+HP-UX 10.20		    -1/EOPNOTSUPP?			 -1/EOPNOTSUPP?
+HP-UX 10.30	-1/0	    -1/EOPNOTSUPP	    -1/EOPNOTSUPP
+
+BSD/OS 2.1	1/0
+
+FreeBSD 2.1.7	1/0	    -1/EINVAL*		    -1/EINVAL
+
+Irix 5.3		    -1/0*		    -1/0
+Irix 6.2		    1/0			    -1/0	 0/0*
+Irix 6.2	-1/0	    -1/0
+Irix 6.3 R10000	-1/0				    -1/0	 0/0*
+
+A/UX 3.1.1	1/0
+
+DomainOS [R]	-1/0*
+DomainOS [U]	-1/0
+
+NCR MP-RAS 2	-1/0
+NCR MP-RAS 3	-1/0
+
+Linux 2.0.27	1/0	    1/0
+
+
++-----------+
+| t_dropgid |
++-----------+
+
+The following are results of running t_dropgid on various architectures.
+
+OPSYS	VERSION	STATUS		DATE		TESTER/NOTES
+=====	=======	======		====		============
+AIX	4.3.3	FAILS		2001-09-22	Valdis Kletnieks
+BSD/OS	4.2	OK		2001-09-22	Vernon Schryver
+FreeBSD	3.2	OK		2001-09-22	ca
+FreeBSD	4.4	OK		2001-09-29	ca
+HP-UX	11.00	HASSETRESGID	2001-09-22	ca
+IRIX	6.5	FAILS		2001-09-22	Mark D. Roth
+Linux	2.0.35	HASSETREGID	2001-09-22	Neil W Rickert
+Linux	2.2.12	HASSETREGID	2001-09-22	ca
+Linux	2.2.16	HASSETREGID	2001-09-22	Neil W Rickert
+Linux	2.4.9	HASSETREGID	2001-09-22	Derek Balling
+NetBSD	1.5	OK		2001-09-22	Kimmo Suominen
+OpenBSD	2.8	HASSETEGID	2001-09-22	ca
+SCO	5.0.5	FAILS		2001-09-22	Phillip Porch
+SunOS	5.7	HASSETREGID	2001-09-22	Neil W Rickert
+SunOS	5.8	HASSETREGID	2001-09-22	ca
+SunOS	5.9	HASSETREGID	2001-09-22	Neil W Rickert
+
+
+$Revision: 8.3 $, Last updated $Date: 2001-09-30 01:32:33 $

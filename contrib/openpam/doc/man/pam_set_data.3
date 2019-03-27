@@ -1,0 +1,70 @@
+.\" Generated from pam_set_data.c by gendoc.pl
+.\" $OpenPAM: pam_set_data.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt PAM_SET_DATA 3
+.Os
+.Sh NAME
+.Nm pam_set_data
+.Nd set module information
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.Ft "int"
+.Fn pam_set_data "pam_handle_t *pamh" "const char *module_data_name" "void *data" "void (*cleanup)(pam_handle_t *pamh, void *data, int pam_end_status)"
+.Sh DESCRIPTION
+The
+.Fn pam_set_data
+function associates a pointer to an opaque object
+with an arbitrary string specified by the
+.Fa module_data_name
+argument,
+in the PAM context specified by the
+.Fa pamh
+argument.
+.Pp
+If not
+.Dv NULL ,
+the
+.Fa cleanup
+argument should point to a function
+responsible for releasing the resources associated with the object.
+.Pp
+This function and its counterpart
+.Xr pam_get_data 3
+are useful for managing
+data that are meaningful only to a particular service module.
+.Sh RETURN VALUES
+The
+.Fn pam_set_data
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.El
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam_get_data 3 ,
+.Xr pam_strerror 3
+.Sh STANDARDS
+.Rs
+.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
+.%D "June 1997"
+.Re
+.Sh AUTHORS
+The
+.Fn pam_set_data
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

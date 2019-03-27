@@ -1,0 +1,26 @@
+# $FreeBSD$
+dev/altera/atse/if_atse.c		optional altera_atse
+dev/altera/atse/if_atse_fdt.c		optional altera_atse fdt
+dev/altera/atse/if_atse_nexus.c		optional altera_atse
+dev/altera/jtag_uart/altera_jtag_uart_cons.c	optional altera_jtag_uart
+dev/altera/jtag_uart/altera_jtag_uart_tty.c	optional altera_jtag_uart
+dev/altera/jtag_uart/altera_jtag_uart_fdt.c	optional altera_jtag_uart fdt
+dev/altera/jtag_uart/altera_jtag_uart_nexus.c	optional altera_jtag_uart
+dev/beri/virtio/virtio_mmio_platform.c	optional virtio_mmio
+dev/netfpga10g/nf10bmac/if_nf10bmac_fdt.c	optional netfpga10g_nf10bmac fdt
+dev/netfpga10g/nf10bmac/if_nf10bmac.c	optional netfpga10g_nf10bmac
+dev/terasic/de4led/terasic_de4led.c	optional terasic_de4led
+dev/terasic/de4led/terasic_de4led_fdt.c	optional terasic_de4led fdt
+dev/terasic/de4led/terasic_de4led_nexus.c	optional terasic_de4led
+dev/terasic/mtl/terasic_mtl.c		optional terasic_mtl
+dev/terasic/mtl/terasic_mtl_fdt.c	optional terasic_mtl fdt
+dev/terasic/mtl/terasic_mtl_nexus.c	optional terasic_mtl
+dev/terasic/mtl/terasic_mtl_pixel.c	optional terasic_mtl
+dev/terasic/mtl/terasic_mtl_reg.c	optional terasic_mtl
+dev/terasic/mtl/terasic_mtl_syscons.c	optional terasic_mtl sc
+dev/terasic/mtl/terasic_mtl_text.c	optional terasic_mtl
+dev/terasic/mtl/terasic_mtl_vt.c	optional terasic_mtl vt
+mips/beri/beri_machdep.c		standard
+mips/beri/beri_mp.c			optional smp
+mips/beri/beri_pic.c			optional fdt
+mips/mips/tick.c			standard

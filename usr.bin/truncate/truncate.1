@@ -1,0 +1,163 @@
+.\"
+.\" Copyright (c) 2000 Sheldon Hearn <sheldonh@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 19, 2006
+.Dt TRUNCATE 1
+.Os
+.Sh NAME
+.Nm truncate
+.Nd truncate or extend the length of files
+.Sh SYNOPSIS
+.Nm
+.Op Fl c
+.Bk -words
+.Fl s Xo
+.Sm off
+.Op Cm + | - | % | /
+.Ar size
+.Op Cm K | k | M | m | G | g | T | t
+.Sm on
+.Xc
+.Ek
+.Ar
+.Nm
+.Op Fl c
+.Bk -words
+.Fl r Ar rfile
+.Ek
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility adjusts the length of each regular file given on the command-line.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl c
+Do not create files if they do not exist.
+The
+.Nm
+utility does not treat this as an error.
+No error messages are displayed
+and the exit value is not affected.
+.It Fl r Ar rfile
+Truncate or extend files to the length of the file
+.Ar rfile .
+.It Fl s Xo
+.Sm off
+.Op Cm + | - | % | /
+.Ar size
+.Op Cm K | k | M | m | G | g | T | t
+.Sm on
+.Xc
+If the
+.Ar size
+argument is preceded by a plus sign
+.Pq Cm + ,
+files will be extended by this number of bytes.
+If the
+.Ar size
+argument is preceded by a dash
+.Pq Cm - ,
+file lengths will be reduced by no more than this number of bytes,
+to a minimum length of zero bytes.
+If the
+.Ar size
+argument is preceded by a percent sign
+.Pq Cm % ,
+files will be round up to a multiple of this number of bytes.
+If the
+.Ar size
+argument is preceded by a slash sign
+.Pq Cm / ,
+files will be round down to a multiple of this number of bytes,
+to a minimum length of zero bytes.
+Otherwise, the
+.Ar size
+argument specifies an absolute length to which all files
+should be extended or reduced as appropriate.
+.Pp
+The
+.Ar size
+argument may be suffixed with one of
+.Cm K ,
+.Cm M ,
+.Cm G
+or
+.Cm T
+(either upper or lower case) to indicate a multiple of
+Kilobytes, Megabytes, Gigabytes or Terabytes
+respectively.
+.El
+.Pp
+Exactly one of the
+.Fl r
+and
+.Fl s
+options must be specified.
+.Pp
+If a file is made smaller, its extra data is lost.
+If a file is made larger,
+it will be extended as if by writing bytes with the value zero.
+If the file does not exist,
+it is created unless the
+.Fl c
+option is specified.
+.Pp
+Note that,
+while truncating a file causes space on disk to be freed,
+extending a file does not cause space to be allocated.
+To extend a file and actually allocate the space,
+it is necessary to explicitly write data to it,
+using (for example) the shell's
+.Ql >>
+redirection syntax, or
+.Xr dd 1 .
+.Sh EXIT STATUS
+.Ex -std
+If the operation fails for an argument,
+.Nm
+will issue a diagnostic
+and continue processing the remaining arguments.
+.Sh SEE ALSO
+.Xr dd 1 ,
+.Xr touch 1 ,
+.Xr truncate 2
+.Sh STANDARDS
+The
+.Nm
+utility conforms to no known standards.
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 4.2 .
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Sheldon Hearn Aq Mt sheldonh@starjuice.net .

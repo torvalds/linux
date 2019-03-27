@@ -1,0 +1,6 @@
+$ $tcsh: set25,v 1.2 2006/03/02 18:46:47 christos Exp $
+$ tc.sig.c
+$set 25 
+1 ourwait %d\n
+2 errore: bsd_signal(%d) segnale fuori intervallo\n
+3 errore: bsd_signal(%d) - sigaction fallita, errno %d\n

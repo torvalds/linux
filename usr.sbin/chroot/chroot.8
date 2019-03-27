@@ -1,0 +1,116 @@
+.\" Copyright (c) 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)chroot.8	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd March 14, 2019
+.Dt CHROOT 8
+.Os
+.Sh NAME
+.Nm chroot
+.Nd change root directory
+.Sh SYNOPSIS
+.Nm
+.Op Fl G Ar group Ns Op Cm \&, Ns Ar group  ...
+.Op Fl g Ar group
+.Op Fl u Ar user
+.Ar newroot
+.Op Ar command Op Ar arg ...
+.Sh DESCRIPTION
+The
+.Nm
+utility changes its current and root directories to the supplied directory
+.Ar newroot
+and then exec's
+.Ar command
+with provided arguments, if supplied,
+or an interactive copy of the user's login shell.
+.Pp
+The options are as follows:
+.Bl -tag -width "-G group[,group ...]"
+.It Fl G Ar group Ns Op Cm \&, Ns Ar group  ...
+Run the command with the permissions of the specified groups.
+.It Fl g Ar group
+Run the command with the permissions of the specified
+.Ar group .
+.It Fl u Ar user
+Run the command as the
+.Ar user .
+.El
+.Sh ENVIRONMENT
+The following environment variable is referenced by
+.Nm :
+.Bl -tag -width "SHELL"
+.It Ev SHELL
+If set,
+the string specified by
+.Ev SHELL
+is interpreted as the name of
+the shell to exec.
+If the variable
+.Ev SHELL
+is not set,
+.Pa /bin/sh
+is used.
+.El
+.Sh EXAMPLES
+.Bl -tag -width 0n
+.It Sy Example 1\&: No Chrooting into a New Root Directory
+.Pp
+The following command opens the
+.Xr csh 1
+shell after chrooting to the standard root directory.
+.Bd -literal -offset 2n
+.Li # Ic chroot / /bin/csh
+.Ed
+.It Sy Example 2\&: No Execution of a Command with a Changed Root Directory
+.Pp
+The following command changes a root directory with
+.Nm
+and then runs
+.Xr ls 1
+to list the contents of
+.Pa /sbin .
+.Bd -literal -offset 2n
+.Li # Ic chroot /tmp/testroot ls /sbin
+.Ed
+.El
+.Sh SEE ALSO
+.Xr chdir 2 ,
+.Xr chroot 2 ,
+.Xr setgid 2 ,
+.Xr setgroups 2 ,
+.Xr setuid 2 ,
+.Xr getgrnam 3 ,
+.Xr environ 7 ,
+.Xr jail 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.4 .

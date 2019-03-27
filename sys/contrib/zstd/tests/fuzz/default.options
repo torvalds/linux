@@ -1,0 +1,2 @@
+[libfuzzer]
+max_len = 8192

@@ -1,0 +1,28 @@
+ipmap :: = mapblock | redir | map .
+
+map ::= mapit ifname ipmask "->" ipmask [ mapport | mapicmpid ] .
+map ::= mapit ifname fromto "->" ipmask [ mapport | mapicmpid ] .
+mapblock ::= "map-block" ifname ipmask "->" ipmask [ ports ] .
+redir ::= "rdr" ifname ipmask dport "->" ip [ "," ip ] [ ports ] options .
+
+dport ::= "port" portnum [ "-" portnum ] .
+ports ::= "ports" numports | "auto" .
+mapit ::= "map" | "bimap" .
+fromto ::= "from" object "to" object .
+ipmask ::= ip "/" bits | ip "/" mask | ip "netmask" mask .
+mapport ::= "portmap" tcpudp portnumber ":" portnumber .
+mapicmpid ::= "icmpidmap" icmp idnumber ":" idnumber .
+options ::= [ tcpudp ] [ rr ] .
+
+object  = addr [ port-comp | port-range ] .
+addr    = "any" | nummask | host-name [ "mask" ipaddr | "mask" hexnumber ] .
+port-comp = "port" compare port-num .
+port-range = "port" port-num range port-num .
+
+rr ::= "round-robin" .
+tcpudp ::= "tcp" | "udp" | "tcp/udp" .
+portnumber ::= number { numbers } | "auto" .
+idnumber ::= number { numbers } .
+ifname ::= 'A' - 'Z' { 'A' - 'Z' } numbers .
+
+numbers ::= '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' .

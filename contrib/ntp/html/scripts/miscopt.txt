@@ -1,0 +1,21 @@
+document.write("<p>Miscellaneous Commands and Options</p><ul>\
+<li class='inline'><a href='miscopt.html#broadcastdelay'>broadcastdelay - specify broadcast delay</a></li>\
+<li class='inline'><a href='miscopt.html#driftfile'>driftfile - specify frequency file</a></li>\
+<li class='inline'><a href='miscopt.html#enable'>enable - enable options</a></li>\
+<li class='inline'><a href='miscopt.html#enable'>disable - disable options</a></li>\
+<li class='inline'><a href='miscopt.html#includefile'>includefile - specify include file</a></li>\
+<li class='inline'><a href='miscopt.html#interface'>interface - specify which local network addresses to use</a></li>\
+<li class='inline'><a href='miscopt.html#leapfile'>leapfile - specify leapseconds file</a></li>\
+<li class='inline'><a href='miscopt.html#logconfig'>logconfig - configure log file</a></li>\
+<li class='inline'><a href='miscopt.html#mru'>mru - control monitor MRU list limits</a></li>\
+<li class='inline'><a href='miscopt.html#phone'>phone - specify modem phone numbers</a></li>\
+<li class='inline'><a href='miscopt.html#reset'>reset - reset groups of counters</a></li>\
+<li class='inline'><a href='miscopt.html#saveconfigdir'>saveconfigdir - specify saveconfig directory</a></li>\
+<li class='inline'><a href='miscopt.html#setvar'>setvar - set system variables</a></li>\
+<li class='inline'><a href='miscopt.html#tinker'>tinker - modify sacred system parameters (dangerous)</a></li>\
+<li class='inline'><a href='miscopt.html#rlimit'>rlimit - alters certain process storage allocation limits</a></li>\
+<li class='inline'><a href='miscopt.html#tos'>tos - modify service parameters</a></li>\
+<li class='inline'><a href='miscopt.html#trap'>trap - set trap address</a></li>\
+<li class='inline'><a href='miscopt.html#ttl'>ttl - set time to live</a></li>\
+<li class='inline'><a href='comdex.html'>Command Index</a></li>\
+</ul>")

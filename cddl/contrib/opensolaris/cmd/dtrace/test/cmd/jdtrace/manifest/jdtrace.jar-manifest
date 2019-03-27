@@ -1,0 +1,3 @@
+Manifest-Version: 1.0
+Main-Class: JDTrace
+Class-Path: /usr/share/lib/java/dtrace.jar

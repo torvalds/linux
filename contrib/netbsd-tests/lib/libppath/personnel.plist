@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>John Doe</key>
+	<dict>
+		<key>children</key>
+		<array>
+			<string>Jane Doe</string>
+			<string>John Doe, Jr.</string>
+		</array>
+
+		<key>pets</key>
+		<array>
+			<string>Fido</string>
+			<string>Spot</string>
+		</array>
+
+		<key>job title</key>
+		<string>computer programmer</string>
+
+		<key>u.s. citizen</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

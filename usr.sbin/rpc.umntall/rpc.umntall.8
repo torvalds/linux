@@ -1,0 +1,126 @@
+.\"
+.\" Copyright (c) 1999 Martin Blapp
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 17, 1999
+.Dt RPC.UMNTALL 8
+.Os
+.Sh NAME
+.Nm rpc.umntall
+.Nd notify NFS servers about unmounted NFS file systems
+.Sh SYNOPSIS
+.Nm
+.Op Fl e Ar expire
+.Op Fl h Ar host
+.Op Fl k
+.Op Fl p Ar remotepath
+.Op Fl v
+.Sh DESCRIPTION
+The
+.Nm
+utility is proposed in the
+.Tn NFS
+RPC specification; see
+.Rs
+.%T "NFS Version 3 Protocol Specification"
+.%O "RFC 1813, Appendix I"
+.Re
+It uses remote procedure calls to remove mount entries from
+.Pa /var/db/mountdtab
+on the remote NFS server.
+It is called automatically
+without any parameters during startup and shutdown of
+the system.
+This ensures that
+.Xr showmount 8
+does not display old and expired entries.
+The
+.Nm
+utility
+is only needed on client side, where
+.Xr mount_nfs 8
+adds a mount entry with the current date to
+.Pa /var/db/mounttab ,
+and
+.Xr umount 8
+removes the entry again.
+The
+.Nm
+utility
+cares about all remaining entries in this table which result from crashes
+or unproper shutdowns.
+.Pp
+The options are as follows:
+.Bl -tag -width indentxxx
+.It Fl e Ar expire
+All entries which are not actually mounted or older than
+.Ar expire
+(seconds) are removed from
+.Pa /var/db/mounttab .
+This may be the case
+for DNS changes or long out of service periods.
+Default expire time
+is 86400 seconds (one day).
+.It Fl h Ar host
+Only remove the specific hostname.
+Send a UMNTALL RPC to the NFS server.
+.It Fl k
+Keep entries for existing NFS file systems.
+Compare the NFS file systems from
+the mounttab against the kernel mountlist and do not send the RPC to
+existing mount entries.
+Useful during startup of the system.
+It may be
+possible that there are already mounted NFS file systems, so calling
+RPC UMOUNT is not a good idea.
+This is the case if the user has rebooted
+to 'single user mode' and starts up the system again.
+.It Fl p Ar path
+Only remove the specific mount-path.
+Send a UMOUNT RPC to the NFS server.
+This option implies the
+.Fl host
+option.
+.It Fl v
+Verbose, additional information is printed for each processed mounttab
+entry.
+.El
+.Sh FILES
+.Bl -tag -width /var/db/mounttab -compact
+.It Pa /var/db/mounttab
+mounted nfs-file systems
+.El
+.Sh SEE ALSO
+.Xr mount_nfs 8 ,
+.Xr mountd 8 ,
+.Xr umount 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Martin Blapp Aq Mt mb@imp.ch

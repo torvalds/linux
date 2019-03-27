@@ -1,0 +1,986 @@
+This file contains information about GCC releases up to GCC 2.8.1, and
+a tiny bit of information on EGCS.
+
+For details of changes in EGCS releases and GCC 2.95 and later releases,
+see the release notes on the GCC web site or the file NEWS which contains
+the most relevant parts of those release notes in text form.
+
+Changes in GCC for EGCS (that are not listed in the web release notes)
+---------------------------------------------------------------------
+
+The compiler now supports the "ADDRESSOF" optimization which can significantly
+reduce the overhead for certain inline calls (and inline calls in general).
+
+Compile time for certain programs using large constant initializers has been
+improved (affects glibc significantly).
+
+Various improvements have been made to better support cross compilations.  They
+are still not easy, but they are improving.
+
+Target-specific changes:
+
+    M32r: Major improvements to this port.
+
+    Arm: Includes Thumb and super interworking support.
+
+Noteworthy changes in GCC version 2.8.1
+---------------------------------------
+
+Numerous bugs have been fixed and some minor performance
+improvements (compilation speed) have been made.
+
+Noteworthy changes in GCC version 2.8.0
+---------------------------------------
+
+A major change in this release is the addition of a framework for
+exception handling, currently used by C++.  Many internal changes and
+optimization improvements have been made.  These increase the
+maintainability and portability of GCC.  GCC now uses autoconf to
+compute many host parameters.
+
+The following lists changes that add new features or targets.
+
+See cp/NEWS for new features of C++ in this release.
+
+New tools and features:
+
+    The Dwarf 2 debugging information format is supported on ELF systems, and
+    is the default for -ggdb where available.  It can also be used for C++.
+    The Dwarf version 1 debugging format is also permitted for C++, but
+    does not work well.
+
+    gcov.c is provided for test coverage analysis and branch profiling
+    analysis is also supported; see -fprofile-arcs, -ftest-coverage,
+    and -fbranch-probabilities.
+
+    Support for the Checker memory checking tool.
+
+    New switch, -fstack-check, to check for stack overflow on systems that
+    don't have such built into their ABI.
+
+    New switches, -Wundef and -Wno-undef to warn if an undefined identifier
+    is evaluated in an #if directive.
+
+    Options -Wall and -Wimplicit now cause GCC to warn about implicit int
+    in declarations (e.g. `register i;'), since the C Standard committee
+    has decided to disallow this in the next revision of the standard;
+    -Wimplicit-function-declarations and -Wimplicit-int are subsets of
+    this.
+
+    Option -Wsign-compare causes GCC to warn about comparison of signed and
+    unsigned values.
+
+    Add -dI option of cccp for cxref.
+
+New features in configuration, installation and specs file handling:
+
+    New option --enable-c-cpplib to configure script.
+
+    You can use --with-cpu on the configure command to specify the default
+    CPU that GCC should generate code for.
+
+    The -specs=file switch allows you to override default specs used in
+    invoking programs like cc1, as, etc.
+
+    Allow including one specs file from another and renaming a specs
+    variable.
+
+    You can now relocate all GCC files with a single environment variable
+    or a registry entry under Windows 95 and Windows NT.
+
+Changes in Objective-C:
+
+    The Objective-C Runtime Library has been made thread-safe.
+
+    The Objective-C Runtime Library contains an interface for creating
+    mutexes, condition mutexes, and threads; it requires a back-end
+    implementation for the specific platform and/or thread package.
+    Currently supported are DEC/OSF1, IRIX, Mach, OS/2, POSIX, PCThreads,
+    Solaris, and Windows32.  The --enable-threads parameter can be used
+    when configuring GCC to enable and select a thread back-end.
+
+    Objective-C is now configured as separate front-end language to GCC,
+    making it more convenient to conditionally build it.
+
+    The internal structures of the Objective-C Runtime Library have
+    changed sufficiently to warrant a new version number; now version 8.
+    Programs compiled with an older version must be recompiled.
+
+    The Objective-C Runtime Library can be built as a DLL on Windows 95
+    and Windows NT systems.
+    
+    The Objective-C Runtime Library implements +load.
+
+The following new targets are supported (see also list under each
+individual CPU below):
+
+    Embedded target m32r-elf.
+    Embedded Hitachi Super-H using ELF.
+    RTEMS real-time system on various CPU targets.
+    ARC processor.
+    NEC V850 processor.
+    Matsushita MN10200 processor.
+    Matsushita MN10300 processor.
+    Sparc and PowerPC running on VxWorks.
+    Support both glibc versions 1 and 2 on Linux-based GNU systems.
+
+New features for DEC Alpha systems:
+
+    Allow detailed specification of IEEE fp support:
+      -mieee, -mieee-with-inexact, and -mieee-conformant
+      -mfp-trap-mode=xxx, -mfp-round-mode=xxx, -mtrap-precision=xxx
+    -mcpu=xxx for CPU selection
+    Support scheduling parameters for EV5.
+    Add support for BWX, CIX, and MAX instruction set extensions.
+    Support Linux-based GNU systems.
+    Support VMS.
+
+Additional supported processors and systems for MIPS targets:
+
+    MIPS4 instruction set.
+    R4100, R4300 and R5000 processors.
+    N32 and N64 ABI.
+    IRIX 6.2.
+    SNI SINIX.
+    
+New features for Intel x86 family:
+
+    Add scheduling parameters for Pentium and Pentium Pro.
+    Support stabs on Solaris-x86.
+    Intel x86 processors running the SCO OpenServer 5 family.
+    Intel x86 processors running DG/UX.
+    Intel x86 using Cygwin32 or Mingw32 on Windows 95 and Windows NT.
+
+New features for Motorola 68k family:
+
+    Support for 68060 processor.
+    More consistent switches to specify processor.
+    Motorola 68k family running AUX.
+    68040 running pSOS, ELF object files, DBX debugging.
+    Coldfire variant of Motorola m68k family.
+
+New features for the HP PA RISC:
+
+    -mspace and -mno-space
+    -mlong-load-store and -mno-long-load-store
+    -mbig-switch -mno-big-switch
+
+    GCC on the PA requires either gas-2.7 or the HP assembler; for best
+    results using GAS is highly recommended.  GAS is required for -g and
+    exception handling support.
+
+New features for SPARC-based systems:
+
+    The ultrasparc cpu.
+    The sparclet cpu, supporting only a.out file format.
+    Sparc running SunOS 4 with the GNU assembler.
+    Sparc running the Linux-based GNU system.
+    Embedded Sparc processors running the ELF object file format.
+    -mcpu=xxx
+    -mtune=xxx
+    -malign-loops=xxx
+    -malign-jumps=xxx
+    -malign-functions=xxx
+    -mimpure-text and -mno-impure-text
+
+    Options -mno-v8 and -mno-sparclite are no longer supported on SPARC
+    targets.  Options -mcypress, -mv8, -msupersparc, -msparclite, -mf930,
+    and -mf934 are deprecated and will be deleted in GCC 2.9.  Use
+    -mcpu=xxx instead.
+
+New features for rs6000 and PowerPC systems:
+
+    Solaris 2.51 running on PowerPC's.
+    The Linux-based GNU system running on PowerPC's.
+    -mcpu=604e,602,603e,620,801,823,mpc505,821,860,power2
+    -mtune=xxx
+    -mrelocatable-lib, -mno-relocatable-lib
+    -msim, -mmve, -memb
+    -mupdate, -mno-update
+    -mfused-madd, -mno-fused-madd
+
+    -mregnames
+    -meabi
+    -mcall-linux, -mcall-solaris, -mcall-sysv-eabi, -mcall-sysv-noeabi
+    -msdata, -msdata=none, -msdata=default, -msdata=sysv, -msdata=eabi
+    -memb, -msim, -mmvme
+    -myellowknife, -mads
+    wchar_t is now of type long as per the ABI, not unsigned short.
+    -p/-pg support
+    -mcpu=403 now implies -mstrict-align.
+    Implement System V profiling.
+
+    Aix 4.1 GCC targets now default to -mcpu=common so that programs
+    compiled can be moved between rs6000 and powerpc based systems.  A
+    consequence of this is that -static won't work, and that some programs
+    may be slightly slower.
+
+    You can select the default value to use for -mcpu=xxx on rs6000 and
+    powerpc targets by using the --with-cpu=xxx option when configuring the
+    compiler.  In addition, a new options, -mtune=xxx was added that
+    selects the machine to schedule for but does not select the
+    architecture level.
+
+    Directory names used for storing the multilib libraries on System V
+    and embedded PowerPC systems have been shortened to work with commands
+    like tar that have fixed limits on pathname size.
+
+New features for the Hitachi H8/300(H):
+
+    -malign-300
+    -ms (for the Hitachi H8/S processor)
+    -mint32
+
+New features for the ARM:
+
+    -march=xxx, -mtune=xxx, -mcpu=xxx
+    Support interworking with Thumb code.
+    ARM processor with a.out object format, COFF, or AOF assembler.
+    ARM on "semi-hosted" platform.
+    ARM running NetBSD.
+    ARM running the Linux-based GNU system.
+
+New feature for Solaris systems:
+
+    GCC installation no longer makes a copy of system include files,
+    thus insulating GCC better from updates to the operating system.
+
+
+Noteworthy changes in GCC version 2.7.2
+---------------------------------------
+
+A few bugs have been fixed (most notably the generation of an
+invalid assembler opcode on some RS/6000 systems).
+
+Noteworthy changes in GCC version 2.7.1
+---------------------------------------
+
+This release fixes numerous bugs (mostly minor) in GCC 2.7.0, but
+also contains a few new features, mostly related to specific targets.
+
+Major changes have been made in code to support Windows NT.
+
+The following new targets are supported:
+
+	2.9 BSD on PDP-11
+	Linux on m68k
+	HP/UX version 10 on HP PA RISC (treated like version 9)
+	DEC Alpha running Windows NT
+
+When parsing C, GCC now recognizes C++ style `//' comments unless you
+specify `-ansi' or `-traditional'.
+
+The PowerPC System V targets (powerpc-*-sysv, powerpc-*-eabi) now use the
+calling sequence specified in the System V Application Binary Interface
+Processor Supplement (PowerPC Processor ABI Supplement) rather than the calling
+sequence used in GCC version 2.7.0.  That calling sequence was based on the AIX
+calling sequence without function descriptors.  To compile code for that older
+calling sequence, either configure the compiler for powerpc-*-eabiaix or use
+the -mcall-aix switch when compiling and linking.
+
+Noteworthy changes in GCC version 2.7.0
+---------------------------------------
+
+GCC now works better on systems that use ".obj" and ".exe" instead of
+".o" and no extension.  This involved changes to the driver program,
+gcc.c, to convert ".o" names to ".obj" and to GCC's Makefile to use
+".obj" and ".exe" in filenames that are not targets.  In order to
+build GCC on such systems, you may need versions of GNU make and/or
+compatible shells.  At this point, this support is preliminary.
+
+Object file extensions of ".obj" and executable file extensions of
+".exe" are allowed when using appropriate version of GNU Make.
+
+Numerous enhancements were made to the __attribute__ facility including
+more attributes and more places that support it.  We now support the
+"packed", "nocommon", "noreturn", "volatile", "const", "unused",
+"transparent_union", "constructor", "destructor", "mode", "section",
+"align", "format", "weak", and "alias" attributes.  Each of these
+names may also be specified with added underscores, e.g., "__packed__".
+__attribute__ may now be applied to parameter definitions, function
+definitions, and structure, enum, and union definitions.
+
+GCC now supports returning more structures in registers, as specified by
+many calling sequences (ABIs), such as on the HP PA RISC.
+
+A new option '-fpack-struct' was added to automatically pack all structure
+members together without holes.
+
+There is a new library (cpplib) and program (cppmain) that at some
+point will replace cpp (aka cccp).  To use cppmain as cpp now, pass
+the option CCCP=cppmain to make.  The library is already used by the
+fix-header program, which should speed up the fixproto script.
+
+New options for supported targets:
+
+    GNU on many targets.
+    NetBSD on MIPS, m68k, VAX, and x86.
+    LynxOS on x86, m68k, Sparc, and RS/6000.
+    VxWorks on many targets.
+
+    Windows/NT on x86 architecture.  Initial support for Windows/NT on Alpha
+    (not fully working).
+
+    Many embedded targets, specifically UDI on a29k, aout, coff, elf,
+    and vsta "operating systems" on m68k, m88k, mips, sparc, and x86.
+
+Additional support for x86 (i386, i486, and Pentium):
+
+    Work with old and new linkers for Linux-based GNU systems,
+	supporting both a.out and ELF.
+    FreeBSD on x86.
+    Stdcall convention.
+    -malign-double, -mregparm=, -malign-loops= and -malign-jumps=  switches.
+    On ISC systems, support -Xp like -posix.
+
+Additions for RS/6000:
+
+    Instruction scheduling information for PowerPC 403.
+    AIX 4.1 on PowerPC.
+    -mstring and -mno-string.
+    -msoft-float and floating-point emulation included.
+    Preliminary support for PowerPC System V.4 with or without the GNU as.
+    Preliminary support for EABI.
+    Preliminary support for 64-bit systems.
+    Both big and little endian systems.
+
+New features for MIPS-based systems:
+
+    r4650.
+    mips4 and R8000.
+    Irix 6.0.
+    64-bit ABI.
+    Allow dollar signs in labels on SGI/Irix 5.x.
+
+New support for HP PA RISC:
+
+    Generation of PIC (requires binutils-2.5.2.u6 or later).
+    HP-UX version 9 on HP PA RISC (dynamically links even with -g).
+    Processor variants for HP PA RISC: 700, 7100, and 7100LC.
+    Automatic generation of long calls when needed.
+    -mfast-indirect-calls for kernels and static binaries.
+
+    The called routine now copies arguments passed by invisible reference,
+    as required by the calling standard.
+
+Other new miscellaneous target-specific support:
+
+    -mno-multm on a29k.
+    -mold-align for i960.
+    Configuration for "semi-hosted" ARM.
+    -momit-leaf-frame-pointer for M88k.
+    SH3 variant of Hitachi Super-H and support both big and little endian.
+
+Changes to Objective-C:
+
+    Bare-bones implementation of NXConstantString has been added,
+    which is invoked by the @"string" directive.
+
+    Class * has been changed to Class to conform to the NextSTEP and
+    OpenStep runtime.
+
+    Enhancements to make dynamic loading easier.
+
+    The module version number has been updated to Version 7, thus existing
+    code will need to be recompiled to use the current run-time library.
+
+GCC now supports the ISO Normative Addendum 1 to the C Standard.
+As a result:
+
+    The header <iso646.h> defines macros for C programs written
+    in national variants of ISO 646.
+
+    The following digraph tokens are supported:
+	<:	:>	<%	%>	%:	%:%:
+    These behave like the following, respectively:
+	[	]	{	}	#	##
+
+    Digraph tokens are supported unless you specify the `-traditional'
+    option; you do not need to specify `-ansi' or `-trigraphs'.  Except
+    for contrived and unlikely examples involving preprocessor
+    stringizing, digraph interpretation doesn't change the meaning of
+    programs; this is unlike trigraph interpretation, which changes the
+    meanings of relatively common strings.
+
+    The macro __STDC_VERSION__ has the value 199409L.
+
+  As usual, for full conformance to the standard, you also need a
+  C library that conforms.
+
+The following lists changes that have been made to g++.  If some
+features mentioned below sound unfamiliar, you will probably want to
+look at the recently-released public review copy of the C++ Working
+Paper.  For PostScript and PDF (Adobe Acrobat) versions, see the
+archive at ftp://research.att.com/dist/stdc++/WP.  For HTML and ASCII
+versions, see ftp://ftp.cygnus.com/pub/g++.  On the web, see
+http://www.cygnus.com/~mrs/wp-draft.
+
+The scope of variables declared in the for-init-statement has been changed
+to conform to http://www.cygnus.com/~mrs/wp-draft/stmt.html#stmt.for; as a
+result, packages such as groff 1.09 will not compile unless you specify the
+-fno-for-scope flag.  PLEASE DO NOT REPORT THIS AS A BUG; this is a change
+mandated by the C++ standardization committee.
+
+Binary incompatibilities:
+
+    The builtin 'bool' type is now the size of a machine word on RISC targets,
+    for code efficiency; it remains one byte long on CISC targets.
+
+    Code that does not use #pragma interface/implementation will most
+    likely shrink dramatically, as g++ now only emits the vtable for a
+    class in the translation unit where its first non-inline, non-abstract
+    virtual function is defined.
+
+    Classes that do not define the copy constructor will sometimes be
+    passed and returned in registers.  This may illuminate latent bugs in
+    your code.
+
+Support for automatic template instantiation has *NOT* been added, due
+to a disagreement over design philosophies.
+
+Support for exception handling has been improved; more targets are now
+supported, and throws will use the RTTI mechanism to match against the
+catch parameter type.  Optimization is NOT SUPPORTED with
+-fhandle-exceptions; no need to report this as a bug.
+
+Support for Run-Time Type Identification has been added with -frtti.
+This support is still in alpha; one major restriction is that any file
+compiled with -frtti must include <typeinfo.h>.
+
+Preliminary support for namespaces has been added.  This support is far
+from complete, and probably not useful.
+
+Synthesis of compiler-generated constructors, destructors and
+assignment operators is now deferred until the functions are used.
+
+The parsing of expressions such as `a ? b : c = 1' has changed from
+`(a ? b : c) = 1' to `a : b ? (c = 1)'.
+
+The code generated for testing conditions, especially those using ||
+and &&, is now more efficient.
+
+The operator keywords and, and_eq, bitand, bitor, compl, not, not_eq,
+or, or_eq, xor and xor_eq are now supported.  Use -ansi or
+-foperator-names to enable them.
+
+The 'explicit' keyword is now supported.  'explicit' is used to mark
+constructors and type conversion operators that should not be used
+implicitly.
+
+g++ now accepts the typename keyword, though it currently has no
+semantics; it can be a no-op in the current template implementation.
+You may want to start using it in your code, however, since the
+pending rewrite of the template implementation to compile STL properly
+(perhaps for 2.8.0, perhaps not) will require you to use it as
+indicated by the current draft.
+
+Handling of user-defined type conversion has been overhauled so that
+type conversion operators are now found and used properly in
+expressions and function calls.
+
+-fno-strict-prototype now only applies to function declarations with
+"C" linkage.
+
+g++ now warns about 'if (x=0)' with -Wparentheses or -Wall.
+
+#pragma weak and #pragma pack are supported on System V R4 targets, as
+are various other target-specific #pragmas supported by gcc.
+
+new and delete of const types is now allowed (with no additional
+semantics).
+
+Explicit instantiation of template methods is now supported.  Also,
+'inline template class foo<int>;' can be used to emit only the vtable
+for a template class.
+
+With -fcheck-new, g++ will check the return value of all calls to
+operator new, and not attempt to modify a returned null pointer.
+
+The template instantiation code now handles more conversions when
+passing to a parameter that does not depend on template arguments.
+This means that code like 'string s; cout << s;' now works.
+
+Invalid jumps in a switch statement past declarations that require
+initializations are now caught.
+
+Functions declared 'extern inline' now have the same linkage semantics
+as inline member functions.  On supported targets, where previously
+these functions (and vtables, and template instantiations) would have
+been defined statically, they will now be defined as weak symbols so
+that only one out-of-line definition is used.
+
+collect2 now demangles linker output, and c++filt has become part of
+the gcc distribution.
+
+Noteworthy changes in GCC version 2.6.3:
+
+A few more bugs have been fixed.
+
+Noteworthy changes in GCC version 2.6.2:
+
+A few bugs have been fixed.
+
+Names of attributes can now be preceded and followed by double underscores.
+
+Noteworthy changes in GCC version 2.6.1:
+
+Numerous (mostly minor) bugs have been fixed.
+
+The following new configurations are supported:
+
+	GNU on x86 (instead of treating it like MACH)
+	NetBSD on Sparc and Motorola 68k
+	AIX 4.1 on RS/6000 and PowerPC systems
+	Sequent DYNIX/ptx 1.x and 2.x.
+	Both COFF and ELF configurations on AViiON without using /bin/gcc
+	Windows/NT on x86 architecture; preliminary
+	AT&T DSP1610 digital signal processor chips
+	i960 systems on bare boards using COFF
+	PDP11; target only and not extensively tested
+
+The -pg option is now supported for Alpha under OSF/1 V3.0 or later.
+
+Files with an extension of ".c++" are treated as C++ code.
+
+The -Xlinker and -Wl arguments are now passed to the linker in the
+position they were specified on the command line.  This makes it
+possible, for example, to pass flags to the linker about specific
+object files.
+
+The use of positional arguments to the configure script is no longer
+recommended.  Use --target= to specify the target; see the GCC manual.
+
+The 386 now supports two new switches: -mreg-alloc=<string> changes
+the default register allocation order used by the compiler, and
+-mno-wide-multiply disables the use of the mul/imul instructions that
+produce 64 bit results in EAX:EDX from 32 bit operands to do long long
+multiplies and 32-bit division by constants.
+
+Noteworthy changes in GCC version 2.6.0:
+
+Numerous bugs have been fixed, in the C and C++ front-ends, as
+well as in the common compiler code.
+
+This release includes the C, Objective-C, and C++ compilers.  However,
+we have moved the files for the C++ compiler (G++) files to a
+subdirectory, cp.  Subsequent releases of GCC will split these files
+to a separate TAR file.
+
+The G++ team has been tracking the development of the ANSI standard for C++.
+Here are some new features added from the latest working paper:
+
+	* built-in boolean type 'bool', with constants 'true' and 'false'.
+	* array new and delete (operator new [] and delete []).
+	* WP-conforming lifetime of temporaries.
+	* explicit instantiation of templates (template class A<int>;),
+          along with an option (-fno-implicit-templates) to disable emission
+          of implicitly instantiated templates, obsoletes -fexternal-templates.
+	* static member constants (static const int foo = 4; within the
+          class declaration).
+
+Many error messages have been improved to tell the user more about the
+problem.  Conformance checking with -pedantic-errors has been
+improved.  G++ now compiles Fresco.
+
+There is now an experimental implementation of virtual functions using
+thunks instead of Cfront-style vtables, enabled with -fvtable-thunks.
+This option also enables a heuristic which causes the compiler to only
+emit the vtable in the translation unit where its first non-inline
+virtual function is defined; using this option and
+-fno-implicit-templates, users should be able to avoid #pragma
+interface/implementation altogether.
+
+Signatures have been added as a GNU C++ extension.  Using the option
+-fhandle-signatures, users are able to turn on recognition of
+signatures.  A short introduction on signatures is in the section
+`Extension to the C++ Language' in the manual.
+
+The `g++' program is now a C program, rather than a shell script.
+
+Lots and lots and lots of bugs fixes, in nested types, access control,
+pointers to member functions, the parser, templates, overload
+resolution, etc, etc.
+
+There have been two major enhancements to the Objective-C compiler:
+
+1) Added portability.  It now runs on Alpha, and some problems with
+   message forwarding have been addressed on other platforms.
+
+2) Selectors have been redefined to be pointers to structs like:
+   { void *sel_id, char *sel_types }, where the sel_id is the unique
+   identifier, the selector itself is no longer unique.  
+
+   Programmers should use the new function sel_eq to test selector
+   equivalence.
+
+The following major changes have been made to the base compiler and
+machine-specific files.
+
+- The MIL-STD-1750A is a new port, but still preliminary.
+
+- The h8/300h is now supported; both the h8/300 and h8/300h ports come
+  with 32 bit IEEE 754 software floating point support.
+
+- The 64-bit Sparc (v9) and 64-bit MIPS chips are supported.
+
+- NetBSD is supported on m68k, Intel x86, and pc523 systems and FreeBSD
+  on x86.
+
+- COFF is supported on x86, m68k, and Sparc systems running LynxOS.
+
+- 68K systems from Bull and Concurrent are supported and System V
+  Release 4 is supported on the Atari.
+
+- GCC supports GAS on the Motorola 3300 (sysV68) and debugging
+  (assuming GAS) on the Plexus 68K system.  (However, GAS does not yet
+  work on those systems).
+
+- System V Release 4 is supported on MIPS (Tandem).
+
+- For DG/UX, an ELF configuration is now supported, and both the ELF
+  and BCS configurations support ELF and COFF object file formats.
+
+- OSF/1 V2.0 is supported on Alpha.
+
+- Function profiling is also supported on Alpha.
+
+- GAS and GDB is supported for Irix 5 (MIPS).
+
+- "common mode" (code that will run on both POWER and PowerPC
+  architectures) is now supported for the RS/6000 family; the
+  compiler knows about more PPC chips.
+
+- Both NeXTStep 2.1 and 3 are supported on 68k-based architectures.
+
+- On the AMD 29k, the -msoft-float is now supported, as well as
+  -mno-sum-in-toc for RS/6000, -mapp-regs and -mflat for Sparc, and
+  -membedded-pic for MIPS.
+
+- GCC can now convert division by integer constants into the equivalent
+  multiplication and shift operations when that is faster than the
+  division.
+	
+- Two new warning options, -Wbad-function-cast and
+  -Wmissing-declarations have been added.
+
+- Configurations may now add machine-specific __attribute__ options on
+  type; many machines support the `section' attribute.
+
+- The -ffast-math flag permits some optimization that violate strict
+  IEEE rules, such as converting X * 0.0 to 0.0.
+
+Noteworthy changes in GCC version 2.5.8:
+
+This release only fixes a few serious bugs.  These include fixes for a
+bug that prevented most programs from working on the RS/6000, a bug
+that caused invalid assembler code for programs with a `switch'
+statement on the NS32K, a G++ problem that caused undefined names in
+some configurations, and several less serious problems, some of which
+can affect most configuration.
+
+Noteworthy change in GCC version 2.5.7:
+
+This release only fixes a few bugs, one of which was causing bootstrap
+compare errors on some systems.
+
+Noteworthy change in GCC version 2.5.6:
+
+A few backend bugs have been fixed, some of which only occur on one
+machine.
+
+The C++ compiler in 2.5.6 includes:
+
+ * fixes for some common crashes
+ * correct handling of nested types that are referenced as `foo::bar'
+ * spurious warnings about friends being declared static and never
+   defined should no longer appear
+ * enums that are local to a method in a class, or a class that's
+   local to a function, are now handled correctly.  For example:
+       class foo { void bar () { enum { x, y } E; x; } };
+       void bar () { class foo { enum { x, y } E; E baz; }; }
+
+Noteworthy change in GCC version 2.5.5:
+
+A large number of C++ bugs have been fixed.
+
+The fixproto script adds prototypes conditionally on __cplusplus.
+
+Noteworthy change in GCC version 2.5.4:
+
+A bug fix in passing of structure arguments for the HP-PA architecture
+makes code compiled with GCC 2.5.4 incompatible with code compiled
+with earlier versions (if it passes struct arguments of 33 to 64 bits,
+interspersed with other types of arguments).
+
+Noteworthy change in gcc version 2.5.3:
+
+The method of "mangling" C++ function names has been changed.  So you
+must recompile all C++ programs completely when you start using GCC
+2.5.  Also, GCC 2.5 requires libg++ version 2.5.  Earlier libg++
+versions won't work with GCC 2.5.  (This is generally true--GCC
+version M.N requires libg++ version M.N.)
+
+Noteworthy GCC changes in version 2.5:
+
+* There is now support for the IBM 370 architecture as a target.
+Currently the only operating system supported is MVS; GCC does not run
+on MVS, so you must produce .s files using GCC as a cross compiler,
+then transfer them to MVS to assemble them.  This port is not reliable
+yet.
+
+* The Power PC is now supported.
+
+* The i860-based Paragon machine is now supported.
+
+* The Hitachi 3050 (an HP-PA machine) is now supported.
+
+* The variable __GNUC_MINOR__ holds the minor version number of GCC, as
+an integer.  For version 2.5.X, the value is 5.
+
+* In C, initializers for static and global variables are now processed
+an element at a time, so that they don't need a lot of storage.
+
+* The C syntax for specifying which structure field comes next in an
+initializer is now `.FIELDNAME='.  The corresponding syntax for
+array initializers is now `[INDEX]='.  For example,
+
+  char whitespace[256]
+    = { [' '] = 1, ['\t'] = 1, ['\n'] = 1 };
+
+This was changed to accord with the syntax proposed by the Numerical
+C Extensions Group (NCEG).
+
+* Complex numbers are now supported in C.  Use the keyword __complex__
+to declare complex data types.  See the manual for details.
+
+* GCC now supports `long double' meaningfully on the Sparc (128-bit
+floating point) and on the 386 (96-bit floating point).  The Sparc
+support is enabled on Solaris 2.x because earlier system versions
+(SunOS 4) have bugs in the emulation.
+
+* All targets now have assertions for cpu, machine and system.  So you
+can now use assertions to distinguish among all supported targets.
+
+* Nested functions in C may now be inline.  Just declare them inline
+in the usual way.
+
+* Packed structure members are now supported fully; it should be possible 
+to access them on any supported target, no matter how little alignment
+they have.
+
+* To declare that a function does not return, you must now write
+something like this (works only in 2.5):
+
+    void fatal () __attribute__ ((noreturn));
+
+or like this (works in older versions too):
+
+    typedef void voidfn ();
+
+    volatile voidfn fatal;
+
+It used to be possible to do so by writing this:
+
+    volatile void fatal ();
+
+but it turns out that ANSI C requires that to mean something
+else (which is useless).
+
+Likewise, to declare that a function is side-effect-free
+so that calls may be deleted or combined, write
+something like this (works only in 2.5):
+
+    int computation () __attribute__ ((const));
+
+or like this (works in older versions too):
+
+    typedef int intfn ();
+
+    const intfn computation;
+
+* The new option -iwithprefixbefore specifies a directory to add to 
+the search path for include files in the same position where -I would
+put it, but uses the specified prefix just like -iwithprefix.
+
+* Basic block profiling has been enhanced to record the function the
+basic block comes from, and if the module was compiled for debugging,
+the line number and filename.  A default version of the basic block
+support module has been added to libgcc2 that appends the basic block
+information to a text file 'bb.out'.  Machine descriptions can now
+override the basic block support module in the target macro file.
+
+New features in g++:
+
+* The new flag `-fansi-overloading' for C++.  Use a newly implemented
+scheme of argument matching for C++.  It makes g++ more accurately
+obey the rules set down in Chapter 13 of the Annotated C++ Reference
+Manual (the ARM).  This option will be turned on by default in a
+future release.
+
+* The -finline-debug flag is now gone (it was never really used by the
+  compiler).
+
+* Recognizing the syntax for pointers to members, e.g., "foo::*bar", has been
+  dramatically improved.  You should not get any syntax errors or incorrect
+  runtime results while using pointers to members correctly; if you do, it's
+  a definite bug.
+
+* Forward declaration of an enum is now flagged as an error.
+
+* Class-local typedefs are now working properly.
+
+* Nested class support has been significantly improved.  The compiler
+  will now (in theory) support up to 240 nested classes before hitting
+  other system limits (like memory size).
+
+* There is a new C version of the `g++' driver, to replace the old
+  shell script.  This should significantly improve the performance of
+  executing g++ on a system where a user's PATH environment variable
+  references many NFS-mounted filesystems.  This driver also works
+  under MS-DOS and OS/2.
+
+* The ANSI committee working on the C++ standard has adopted a new
+  keyword `mutable'.  This will allow you to make a specific member be
+  modifiable in an otherwise const class.
+
+Noteworthy GCC changes in version 2.4.4:
+
+  A crash building g++ on various hosts (including m68k) has been
+  fixed.  Also the g++ compiler no longer reports incorrect
+  ambiguities in some situations where they do not exist, and
+  const template member functions are now being found properly.
+
+Noteworthy GCC changes in version 2.4:
+
+* On each target, the default is now to return short structures
+compatibly with the "usual" compiler on that target.
+
+For most targets, this means the default is to return all structures
+in memory, like long structures, in whatever way is used on that
+target.  Use -freg-struct-return to enable returning short structures
+(and unions) in registers.
+
+This change means that newly compiled binaries are incompatible with
+binaries compiled with previous versions of GCC.
+
+On some targets, GCC is itself the usual compiler.  On these targets,
+the default way to return short structures is still in registers.
+Use -fpcc-struct-return to tell GCC to return them in memory.
+
+* There is now a floating point emulator which can imitate the way all
+supported target machines do floating point arithmetic.
+
+This makes it possible to have cross compilation to and from the VAX,
+and between machines of different endianness.  However, this works
+only when the target machine description is updated to use the new
+facilities, and not all have been updated.
+
+This also makes possible support for longer floating point types.
+GCC 2.4 supports extended format on the 68K if you use `long double',
+for targets that have a 68881.  (When we have run time library
+routines for extended floating point, then `long double' will use
+extended format on all 68K targets.)
+
+We expect to support extended floating point on the i386 and Sparc in
+future versions.
+
+* Building GCC now automatically fixes the system's header files.
+This should require no attention.
+
+* GCC now installs an unsigned data type as size_t when it fixes the
+header files (on all but a handful of old target machines).
+Therefore, the bug that size_t failed to be unsigned is fixed.
+
+* Building and installation are now completely separate.
+All new files are constructed during the build process; 
+installation just copies them.
+
+* New targets supported: Clipper, Hitachi SH, Hitachi 8300, and Sparc
+Lite.
+
+* A totally new and much better Objective C run time system is included.
+
+* Objective C supports many new features.  Alas, I can't describe them
+since I don't use that language; however, they are the same ones 
+supported in recent versions of the NeXT operating system.
+
+* The builtin functions __builtin_apply_args, __builtin_apply and
+__builtin_return let you record the arguments and returned
+value of a function without knowing their number or type.
+
+* The builtin string variables __FUNCTION__ and __PRETTY_FUNCTION__
+give the name of the function in the source, and a pretty-printed
+version of the name.  The two are the same in C, but differ in C++.
+
+* Casts to union types do not yield lvalues.
+
+* ## before an empty rest argument discards the preceding sequence
+of non-whitespace characters from the macro definition.
+(This feature is subject to change.)
+
+
+New features specific to C++:
+
+* The manual contains a new section ``Common Misunderstandings with
+GNU C++'' that C++ users should read.
+
+* #pragma interface and #pragma implementation let you use the same
+C++ source file for both interface and implementation.
+However, this mechanism is still in transition.
+
+* Named returned values let you avoid an extra constructor call
+when a function result has a class type.
+
+* The C++ operators <? and >? yield min and max, respectively.
+
+* C++ gotos can exit a block safely even if the block has
+aggregates that require destructors.
+
+* gcc defines the macro __GNUG__ when compiling C++ programs.
+
+* GNU C++ now correctly distinguishes between the prefix and postfix
+forms of overloaded operator ++ and --.  To avoid breaking old
+code, if a class defines only the prefix form, the compiler
+accepts either ++obj or obj++, unless -pedantic is used.
+
+* If you are using version 2.3 of libg++, you need to rebuild it with
+`make CC=gcc' to avoid mismatches in the definition of `size_t'.
+
+Newly documented compiler options:
+
+-fnostartfiles
+	Omit the standard system startup files when linking.
+
+-fvolatile-global
+	Consider memory references to extern and global data items to
+	be volatile.
+
+-idirafter DIR
+	Add DIR to the second include path.
+
+-iprefix PREFIX
+	Specify PREFIX for later -iwithprefix options.
+
+-iwithprefix DIR
+	Add PREFIX/DIR to the second include path.
+
+-mv8
+	Emit Sparc v8 code (with integer multiply and divide).
+-msparclite
+	Emit Sparclite code (roughly v7.5).
+
+-print-libgcc-file-name
+	Search for the libgcc.a file, print its absolute file name, and exit.
+
+-Woverloaded-virtual
+	Warn when a derived class function declaration may be an error
+	in defining a C++ virtual function. 
+
+-Wtemplate-debugging
+	When using templates in a C++ program, warn if debugging is
+	not yet fully available.
+
++eN
+	Control how C++ virtual function definitions are used
+	(like cfront 1.x).
+

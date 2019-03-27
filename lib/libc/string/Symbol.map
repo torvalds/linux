@@ -1,0 +1,115 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	bcmp;
+	bcopy;
+	memcpy;
+	memmove;
+	ffs;
+	ffsl;
+	fls;
+	flsl;
+	index;
+	strchr;
+	memccpy;
+	memchr;
+	memcmp;
+	memmem;
+	bzero;
+	memset;
+	strrchr;
+	rindex;
+	stpcpy;
+	strcasecmp;
+	strncasecmp;
+	strcasestr;
+	strcat;
+	strcmp;
+	strcoll;
+	strcpy;
+	strcspn;
+	strdup;
+	strerror_r;
+	strerror;
+	strlcat;
+	strlcpy;
+	strlen;
+	strmode;
+	strncat;
+	strncmp;
+	strncpy;
+	strnstr;
+	strpbrk;
+	strsep;
+	strsignal;
+	strspn;
+	strstr;
+	strtok_r;
+	strtok;
+	strxfrm;
+	swab;
+	wcscat;
+	wcschr;
+	wcscmp;
+	wcscoll;
+	wcscpy;
+	wcscspn;
+	wcsdup;
+	wcslcat;
+	wcslcpy;
+	wcslen;
+	wcsncat;
+	wcsncmp;
+	wcsncpy;
+	wcspbrk;
+	wcsrchr;
+	wcsspn;
+	wcsstr;
+	wcstok;
+	wcswidth;
+	wcsxfrm;
+	wmemchr;
+	wmemcmp;
+	wmemcpy;
+	wmemmove;
+	wmemset;
+};
+
+FBSD_1.1 {
+	ffsll;
+	flsll;
+	memrchr;
+	stpncpy;
+	strndup;
+	strnlen;
+	wcpcpy;
+	wcpncpy;
+	wcscasecmp;
+	wcsncasecmp;
+	wcsnlen;
+};
+
+FBSD_1.3 {
+	strcasecmp_l;
+	strcasestr_l;
+	strchrnul;
+	strncasecmp_l;
+	wcswidth_l;
+	wcwidth_l;
+};
+
+FBSD_1.4 {
+	explicit_bzero;
+};
+
+FBSD_1.5 {
+	memset_s;
+	timingsafe_bcmp;
+	timingsafe_memcmp;
+};
+
+FBSDprivate_1.0 {
+	__strtok_r;
+};

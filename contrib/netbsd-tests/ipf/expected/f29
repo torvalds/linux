@@ -1,0 +1,64 @@
+block
+block
+block
+> nic0 ip #0 28(20) 17 4.4.3.1,1000 > 4.2.3.2,2000
+pass
+> nic0 ip #0 28(20) 17 4.4.3.1,1000 > 4.2.3.2,2000
+pass
+> nic1 ip #0 28(20) 17 4.4.1.1,1001 > 4.2.1.2,2001
+pass
+> nic1 ip #0 28(20) 17 4.4.1.1,1001 > 4.2.1.2,2001
+pass
+> nic2 ip #0 28(20) 17 4.4.2.1,1002 > 4.2.2.2,2002
+pass
+> nic2 ip #0 28(20) 17 4.4.2.1,1002 > 4.2.2.2,2002
+pass
+> nic3 ip #0 28(20) 17 4.4.3.1,1003 > 4.2.3.2,2003
+pass
+> nic3 ip #0 28(20) 17 4.4.3.1,1003 > 4.2.3.2,2003
+pass
+List of active MAP/Redirect filters:
+
+List of active sessions:
+
+Hostmap table:
+List of active state sessions:
+4:udp src:4.4.3.1,1003 dst:4.2.3.2,2003 240
+	FWD: IN pkts 2 bytes 56 OUT pkts 2 bytes 56
+	REV: IN pkts 0 bytes 0 OUT pkts 0 bytes 0
+	tag 0 pass 0x2008402 = pass in keep state
+	interfaces: in X[nic0],X[] out X[nic3],X[]
+	Sync status: not synchronized
+4:udp src:4.4.2.1,1002 dst:4.2.2.2,2002 240
+	FWD: IN pkts 2 bytes 56 OUT pkts 2 bytes 56
+	REV: IN pkts 0 bytes 0 OUT pkts 0 bytes 0
+	tag 0 pass 0x2008402 = pass in keep state
+	interfaces: in X[nic0],X[] out X[nic2],X[]
+	Sync status: not synchronized
+4:udp src:4.4.1.1,1001 dst:4.2.1.2,2001 240
+	FWD: IN pkts 2 bytes 56 OUT pkts 2 bytes 56
+	REV: IN pkts 0 bytes 0 OUT pkts 0 bytes 0
+	tag 0 pass 0x2008402 = pass in keep state
+	interfaces: in X[nic0],X[] out X[nic1],X[]
+	Sync status: not synchronized
+4:udp src:4.4.3.1,1000 dst:4.2.3.2,2000 240
+	FWD: IN pkts 2 bytes 56 OUT pkts 2 bytes 56
+	REV: IN pkts 0 bytes 0 OUT pkts 0 bytes 0
+	tag 0 pass 0x2008402 = pass in keep state
+	interfaces: in X[nic0],X[] out X[nic0],X[]
+	Sync status: not synchronized
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+7 block in all
+4 pass in on nic0 to dstlist/spread inet from 4.4.0.0/16 to any keep state
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------

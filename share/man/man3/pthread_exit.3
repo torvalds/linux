@@ -1,0 +1,107 @@
+.\" Copyright (c) 1996 John Birrell <jb@cimlogic.com.au>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by John Birrell.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 15, 2014
+.Dt PTHREAD_EXIT 3
+.Os
+.Sh NAME
+.Nm pthread_exit
+.Nd terminate the calling thread
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft void
+.Fn pthread_exit "void *value_ptr"
+.Sh DESCRIPTION
+The
+.Fn pthread_exit
+function terminates the calling thread and makes the value
+.Fa value_ptr
+available to any successful join with the terminating thread.
+Any
+cancellation cleanup handlers that have been pushed and are not yet popped
+are popped in the reverse order that they were pushed and then executed.
+After all cancellation handlers have been executed, if the thread has any
+thread-specific data, appropriate destructor functions are called in an
+unspecified order.
+Thread termination does not release any application
+visible process resources, including, but not limited to, mutexes and
+file descriptors, nor does it perform any process level cleanup
+actions, including, but not limited to, calling
+.Fn atexit
+routines that may exist.
+.Pp
+An implicit call to
+.Fn pthread_exit
+is made when a thread other than the thread in which
+.Fn main
+was first invoked returns from the start routine that was used to create
+it.
+The function's return value serves as the thread's exit status.
+.Pp
+The behavior of
+.Fn pthread_exit
+is undefined if called from a cancellation handler or destructor function
+that was invoked as the result of an implicit or explicit call to
+.Fn pthread_exit .
+.Pp
+After a thread has terminated, the result of access to local (auto)
+variables of the thread is undefined.
+Thus, references to local variables
+of the exiting thread should not be used for the
+.Fn pthread_exit
+.Fa value_ptr
+parameter value.
+.Pp
+The process will exit with an exit status of 0 after the last thread has
+been terminated.
+The behavior is as if the implementation called
+.Fn exit
+with a zero argument at thread termination time.
+.Sh RETURN VALUES
+The
+.Fn pthread_exit
+function cannot return to its caller.
+.Sh ERRORS
+None.
+.Sh SEE ALSO
+.Xr _exit 2 ,
+.Xr exit 3 ,
+.Xr pthread_cancel 3 ,
+.Xr pthread_create 3 ,
+.Xr pthread_join 3
+.Sh STANDARDS
+The
+.Fn pthread_exit
+function conforms to
+.St -p1003.1-96 .

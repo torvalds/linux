@@ -1,0 +1,141 @@
+#!/bin/sh
+#-
+# Copyright (c) 2013 Dag-Erling Smørgrav
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+set -e
+
+USERLAND_VERSION="@@REVISION@@-@@BRANCH@@"
+
+: ${ROOT:=}
+: ${LOADER_DIR:=$ROOT/boot}
+: ${LOADER_CONF_FILES:=$LOADER_DIR/defaults/loader.conf $LOADER_DIR/loader.conf $LOADER_DIR/loader.conf.local}
+LOADER_RE1='^\([A-Z_a-z][0-9A-Z_a-z]*=[-./0-9A-Z_a-z]\{1,\}\).*$'
+LOADER_RE2='^\([A-Z_a-z][0-9A-Z_a-z]*="[-./0-9A-Z_a-z]\{1,\}"\).*$'
+KERNEL_RE='^@@TYPE@@ \([-.0-9A-Za-z]\{1,\}\) .*$'
+
+progname=${0##*/}
+
+#
+# Print an error message and exit.
+#
+error() {
+	echo "$progname: $*" >&2
+	exit 1
+}
+
+#
+# Try to get the name of the installed kernel from loader.conf and
+# return the full path.  If loader.conf does not exist or we could not
+# read it, return the path to the default kernel.
+#
+kernel_file() {
+	eval $(sed -n "s/$LOADER_RE1/\\1;/p; s/$LOADER_RE2/\\1;/p" \
+	    $LOADER_CONF_FILES 2>/dev/null)
+	echo "$LOADER_DIR/${kernel:-kernel}/${bootfile:-kernel}"
+}
+
+#
+# Extract the kernel version from the installed kernel.
+#
+kernel_version() {
+	kernfile=$(kernel_file)
+	if [ ! -f "$kernfile" -o ! -r "$kernfile" ] ; then
+		error "unable to locate kernel"
+	fi
+	what -qs "$kernfile" | sed -n "s/$KERNEL_RE/\\1/p"
+}
+
+#
+# Print the version of the currently running kernel.
+#
+running_version() {
+	sysctl -n kern.osrelease
+}
+
+#
+# Print the hardcoded userland version.
+#
+userland_version() {
+	echo $USERLAND_VERSION
+}
+
+#
+# Print a usage string and exit.
+#
+usage() {
+	echo "usage: $progname [-kru]" >&2
+	exit 1
+}
+
+#
+# Main program.
+#
+main() {
+	# parse command-line arguments
+	while getopts "kru" option ; do
+		case $option in
+		k)
+			opt_k=1
+			;;
+		r)
+			opt_r=1
+			;;
+		u)
+			opt_u=1
+			;;
+		*)
+			usage
+			;;
+		esac
+	done
+	if [ $OPTIND -le $# ] ; then
+		usage
+	fi
+
+	# default is -u
+	if [ $((opt_k + opt_r + opt_u)) -eq 0 ] ; then
+		opt_u=1
+	fi
+
+	# print installed kernel version
+	if [ $opt_k ] ; then
+		kernel_version
+	fi
+
+	# print running kernel version
+	if [ $opt_r ] ; then
+		running_version
+	fi
+
+	# print userland version
+	if [ $opt_u ] ; then
+		userland_version
+	fi
+}
+
+main "$@"

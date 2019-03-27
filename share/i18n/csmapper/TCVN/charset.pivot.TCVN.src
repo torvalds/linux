@@ -1,0 +1,7 @@
+# $FreeBSD$ 
+# $NetBSD: charset.pivot.TCVN.src,v 1.1 2006/11/13 15:16:30 tnozaki Exp $
+
+TCVN5712-1		UCS			1
+VISCII			UCS			1
+UCS			TCVN5712-1		1
+UCS			VISCII			1

@@ -1,0 +1,108 @@
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)README.state	1.2	07/01/09 SMI"
+#
+#
+# For every configX.cfg file there must be a corresponding stateX.cfg
+# file. The state file both drives the operations to be performed on the
+# dataset hierarchy which has been specified by the corresponding
+# configX.cfg file, and also specifies the expected state of the 
+# properties after the operation has been completed.
+#
+# The format of the file is:
+#       <target dataset>:<command>
+#       <property source before command>        <property src after command>
+#       <property source before command>        <property src after command>
+#       ....                                    ....
+#       ....                                    ....
+#
+# <target dataset> - dataset upon which the <command> is to be executed. Can
+#                    be any of the datasets specified in the corresponding 
+#                    configX.cfg file. If no command is to be executed
+#                    then must be set to '-'
+#                  
+#
+# <command>        - command to be executed upon the specified dataset.
+#                    Currently the only supported commands are 'inherit' 
+#                    or 'inherit -r'. If no command is to be executed, 
+#                    then must be set to '-'.
+#
+# <property src before command>
+#                  - the 'source' (as reported in 'zfs get') for the
+#                    the properties before <command> is executed. This
+#                    can be 'default', 'local' or the name of a dataset
+#                    from which the property is inherited. (The code
+#                    automatically adds in the 'inherited from..' part
+#                    of the string when doing the check.
+#
+#                    This field is for informational purposes only, to 
+#                    aid the user in seeing how the changes trickle down 
+#                    the data hierarchy. 
+#
+# <property src after command>
+#                  - the expected value of the 'source' field after the
+#                    <command> has been executed on the <target dataset>.
+#                    As above can be 'default', 'local', or the dataset
+#                    from which the property is inherited.
+#                       
+# Two important things to note:
+# 1) there must be a <property src..> line corresponding to each dataset
+#    line specified in the configX.cfg file.
+#
+#
+# 2) There can be as many <command>/<property src> blocks as desired, but
+#    there must be at least one, and the effect of each block is cumulative
+#    (i.e. the properties are not reset back to their default values between
+#    each block. If that is desired then each block must be placed in its
+#    own state file with its own corresponding configX.cfg file).
+#
+# 
+# Below are two sample <command>/<property src> blocks. 
+#
+# The first simply verifies that the properties on the top level dataset 
+# were set locally, and that the middle and bottom datasets properties
+# were inherited from the top level pool (called TESTPOOL). Note the '-:-'
+# which means that no command is to be executed, but simply that the
+# properties settings are to be verified.
+#
+-:-
+#
+local                           local
+TESTPOOL                        TESTPOOL
+TESTPOOL                        TESTPOOL
+#
+#
+# The block below describes the expected state of the properties after 
+# an 'inherit -r' command has been run on the top level pool (called 
+# TESTPOOL). 
+#
+TESTPOOL:inherit -r
+#
+local				default
+TESTPOOL			default
+TESTPOOL			default

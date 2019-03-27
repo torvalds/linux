@@ -1,0 +1,46 @@
+.\" $FreeBSD$
+.\" Copyright (c) 2013 Idwer Vollering <vidwer@gmail.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd April 4, 2018
+.Dt RSUFW 4
+.Os
+.Sh NAME
+.Nm rsufw
+.Nd "Firmware Module for Realtek driver"
+.Sh SYNOPSIS
+To compile this module into the kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device rsufw"
+.Ed
+.Pp
+This will include the firmware image, RTL8712, inside the kernel.
+.Xr rsu 4
+will load the image into the chip.
+.Pp
+Alternatively, to load the firmware images as a module at boot time, place
+the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+rsu-rtl8712fw_load="YES"
+.Ed
+.Sh DESCRIPTION
+This module provides the firmware for the Realtek RTL8188SU and
+RTL8192SU chip based USB WiFi adapters.
+Please read Realtek's license,
+.Pa /usr/share/doc/legal/realtek.LICENSE .
+.Sh SEE ALSO
+.Xr rsu 4 ,
+.Xr firmware 9

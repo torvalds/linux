@@ -1,0 +1,15 @@
+$ $tcsh: set26,v 1.3 2011/02/04 18:19:35 christos Exp $
+$ tc.who.c
+$set 26 
+1 ne peut effectuer stat %s.  S.V.P effectuez "unset watch".\n
+2 %s ne peut être ouvert.  S.V.P effectuez "unset watch".\n
+3 BUG! le dernier élément n'est pas whotail!\n
+4 arrière: 
+5 BUG! le premier élément n'est pas whohead!\n
+6 nouveau: %s/%s\n
+7 %n a %a %l from %m.
+8 %n a %a %l.
+9 connecté
+10 déconnecté
+11 remplacé %s
+12 local

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC -//Apple Computer//DTD PLIST 1.0//EN http://www.apple.com/DTDs/PropertyList-1.0.dtd >
+<plist version="1.0">
+<!-- 
+Unbound plist file for use by MacOSX launchd(8) using launchctl(1).
+Copy this file to /Library/LaunchDaemons.  Launchd keeps unbound running.
+
+Setup your unbound.conf with the following additional settings.
+server:
+	do-daemonize: no
+	username: ""
+	chroot: ""
+	directory: ""
+These actions are performed by launchd (for the option values, see below).
+
+-->
+<dict>
+	<key>Label</key>
+	<string>unbound</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>unbound</string>
+	</array>
+
+	<key>UserName</key>
+	<string>unbound</string>
+
+	<key>RootDirectory</key>
+	<string>/usr/local/etc/unbound</string>
+
+	<key>WorkingDirectory</key>
+	<string>/usr/local/etc/unbound</string>
+
+	<key>KeepAlive</key>
+	<true/>
+
+	<key>RunAtLoad</key>
+	<true/>
+
+</dict>
+</plist>

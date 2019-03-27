@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libsvn_ra
+Description: Subversion General Repository Access Library
+Version: @PACKAGE_VERSION@
+Requires:  apr-@SVN_APR_MAJOR_VERSION@
+Requires.private:  libsvn_delta libsvn_subr
+Libs: -L${libdir}  -lsvn_ra
+Cflags: -I${includedir}

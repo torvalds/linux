@@ -1,0 +1,130 @@
+.\" Copyright (c) 2000 Dirk-Willem van Gulik <dirkx@webweaving.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 22, 2006
+.Dt URIO 4
+.Os
+.Sh NAME
+.Nm urio
+.Nd "USB driver for the Rio MP3 players"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device urio"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+urio_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Rio MP3 players from Diamond MultiMedia
+which attaches to the USB port.
+The
+.Nm
+device must be configured in the kernel, along with
+.Em usb
+and one of the
+.Em uhci
+or
+.Em ohci
+controllers.
+.Pp
+Subsequently, the
+.Pa /dev/urio0
+device can be used by the Rio userland applications.
+.Sh HARDWARE
+The following devices are supported by the
+.Nm
+driver:
+.Pp
+.Bl -bullet -compact
+.It
+Diamond MultiMedia Rio 500
+.It
+Diamond MultiMedia Rio 600
+.It
+Diamond MultiMedia Rio 800
+.El
+.Sh FILES
+.Bl -tag -width /dev/ums0 -compact
+.It Pa /dev/urio0
+blocking device node
+.El
+.Sh EXAMPLES
+The following line in the kernel configuration file adds the
+.Nm
+driver to the kernel:
+.Dl device urio
+.Pp
+To download a song over the
+.Tn USB
+connection into the Rio using the
+.Xr rio_add_song 1
+utility (see the
+.Sx SEE ALSO
+section):
+.Dl rio_add_song /usr/local/MP3/TracyChapman/02-Fast-Car.mp3
+.Sh SEE ALSO
+.Xr ohci 4 ,
+.Xr uhci 4 ,
+.Xr usb 4
+.Rs
+.%T The Rio 500 SourceForge Project Web Page
+.%U http://rio500.sourceforge.net/
+.Re
+.Pp
+The Rio500 tools from SourceForge
+are the actual userland tools used to download,
+format or rename songs on players.
+When compiling these tools,
+the following pre-build configuration command will ensure that
+.Pa rio_usb.h
+is available in the include path
+and that the device used is
+.Pa /dev/urio0 :
+.Bd -literal -offset indent
+CFLAGS="-I/usr/include/dev/usb" ./configure \\
+    --with-devicepath='/dev' --with-deviceentry='urio0'
+.Ed
+.\".Sh HISTORY
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Iwasa Kazmi Aq Mt kzmi@ca2.so-net.ne.jp
+for
+.Fx .
+.Pp
+This manual page was written by
+.An Dirk-Willem van Gulik Aq Mt dirkx@webweaving.org .

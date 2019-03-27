@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+nl='
+'
+v=$nl`printf '\n'`
+[ "$v" = "$nl" ]

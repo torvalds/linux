@@ -1,0 +1,567 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)p1	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.OH 'The UNIX Time-Sharing System''PSD:1-%'
+.EH 'PSD:1-%''The UNIX Time-Sharing System'
+.ds n \s+2
+.hw above-mentioned
+.ds s \s-2
+.ds m \v'-.3'.\v'.3'
+.TL
+The UNIX
+Time-Sharing System\f1\s10\v'-.2n'*\v'.2n'\s0\fP
+.AU
+D. M. Ritchie and K. Thompson
+.AB
+.FS
+* Copyright 1974,
+Association for Computing Machinery, Inc.,
+reprinted by permission.
+This is a revised version of an article
+that appeared in Communications of the \*sACM\*n,
+.IT 17 ,
+No. 7 (July 1974), pp. 365-375.
+That article was a
+revised version of a paper presented
+at the Fourth \*sACM\*n Symposium on Operating
+Systems Principles,
+\*sIBM\*n Thomas J. Watson Research Center,
+Yorktown Heights,
+New York,
+October 15-17, 1973.
+.FE
+.UX
+is a general-purpose, multi-user, interactive
+operating system for the larger Digital Equipment Corporation
+\*sPDP\*n-11 and
+the Interdata 8/32 computers.
+It offers a number of features
+seldom found even in larger operating
+systems, including
+.IP i
+A hierarchical file system incorporating
+demountable volumes,
+.IP ii
+Compatible file, device, and inter-process I/O,
+.IP iii
+The ability to initiate asynchronous processes,
+.IP iv
+System command language selectable on a per-user basis,
+.IP v
+Over 100 subsystems including a dozen languages,
+.IP vi
+High degree of portability.
+.LP
+This paper discusses the nature
+and implementation of the file system
+and of the user command interface.
+.AE
+.NH
+INTRODUCTION
+.PP
+There have been four versions of
+the
+.UX
+time-sharing system.
+.hy 12
+The earliest (circa 1969-70) ran on
+the Digital Equipment Corporation \*sPDP\*n-7 and -9 computers.
+The second version ran on the unprotected
+\*sPDP\*n-11/20 computer.
+The third incorporated multiprogramming and ran
+on the \*sPDP\*n-11/34, /40, /45, /60, and /70 computers;
+it is the one described in the previously published version
+of this paper, and is also the most widely used today.
+.hy 14
+This paper describes only the
+fourth, current
+system that runs on the \*sPDP\*n-11/70 and the
+Interdata 8/32 computers.
+In fact, the differences among the various systems is
+rather small;
+most of the revisions made to the originally published version of this
+paper,
+aside from those concerned with style,
+had to do with details of the implementation of the file system.
+.PP
+Since
+\*sPDP\*n-11
+.UX
+became operational
+in February, 1971,
+over 600 installations have been put into service.
+Most of them are engaged in applications such as
+computer science education,
+the preparation and formatting of documents
+and other textual material,
+the collection and processing of trouble data
+from various switching machines within the Bell System,
+and recording and checking telephone service
+orders.
+Our own installation is used mainly for research
+in operating systems, languages,
+computer networks,
+and other topics in computer science, and also for
+document preparation.
+.PP
+Perhaps the most important achievement of
+.UX
+is to demonstrate
+that
+a powerful operating system for interactive use
+need not be expensive either in equipment or in human
+effort:
+it
+can run on hardware costing as little as $40,000, and
+less than two man-years were spent on the main system
+software.
+We hope, however, that users find
+that the
+most important characteristics of the system
+are its simplicity, elegance, and ease of use.
+.PP
+Besides the operating system proper, some major programs
+available under
+.UX
+are
+.DS
+.nf
+C compiler
+Text editor based on \*sQED\*n
+.[
+qed lampson
+.]
+Assembler, linking loader, symbolic debugger
+Phototypesetting and equation setting programs
+.[
+cherry kernighan typesetting mathematics cacm
+.]
+.[
+kernighan lesk ossanna document preparation bstj
+%Q This issue
+.]
+.fi
+.in +3n
+.ll -5n
+.ti -3n
+Dozens of languages including
+Fortran 77, Basic, Snobol, \*sAPL\*n, Algol 68, M6, \*sTMG\*n, Pascal
+.in
+.ll
+.DE
+There is a host of maintenance, utility, recreation and novelty programs,
+all written locally.
+The
+.UX
+user community, which numbers in the thousands,
+has contributed many more programs and languages.
+It is worth noting that the system is totally self-supporting.
+All
+.UX
+software is maintained on
+the
+system;
+likewise, this paper and all other
+documents
+in this issue
+were generated and formatted by the
+.UX
+editor and text formatting
+programs.
+.SH
+II. HARDWARE AND SOFTWARE ENVIRONMENT
+.PP
+The \*sPDP\*n-11/70 on which the Research
+.UX
+system is installed is a 16-bit
+word (8-bit byte) computer with 768K bytes of core memory;
+the system kernel
+occupies 90K bytes
+about equally divided between code
+and data tables.
+This system, however, includes a very large number of
+device drivers
+and enjoys a generous allotment
+of space for I/O buffers and system tables;
+a minimal system capable of running the software
+mentioned above can
+require as little as 96K bytes
+of core altogether.
+There are even larger installations;
+see the description of the
+\*sPWB/UNIX\*n systems,
+.[
+dolotta mashey workbench software engineering
+.]
+.[
+dolotta haight mashey workbench bstj
+%Q This issue
+.]
+for example.
+There are also much smaller, though somewhat restricted,
+versions of the system.
+.[
+lycklama microprocessor bstj
+%Q This issue
+.]
+.PP
+Our own \*sPDP\*n-11 has two
+200-Mb moving-head disks
+for file system storage and swapping.
+There are 20 variable-speed
+communications interfaces
+attached to 300- and 1200-baud data sets,
+and an additional 12 communication lines
+hard-wired to 9600-baud terminals and
+satellite computers.
+There are also several 2400- and 4800-baud
+synchronous communication interfaces
+used for machine-to-machine file transfer.
+Finally, there is a variety
+of miscellaneous
+devices including
+nine-track magnetic tape,
+a line printer,
+a voice synthesizer,
+a phototypesetter,
+a digital switching network,
+and a chess machine.
+.PP
+The preponderance of
+.UX
+software is written in the
+abovementioned C language.
+.[
+c programming language kernighan ritchie prentice-hall
+.]
+Early versions of the operating system were written in assembly language,
+but during the summer of 1973, it was rewritten in C.
+The size of the new system was about one-third greater
+than that of the old.
+Since the new system not only became much easier to
+understand and to modify but also
+included
+many functional improvements,
+including multiprogramming and the ability to
+share reentrant code among several user programs,
+we consider this increase in size quite acceptable.
+.SH
+III. THE FILE SYSTEM
+.PP
+The most important role of
+the system
+is to provide
+a file system.
+From the point of view of the user, there
+are three kinds of files: ordinary disk files,
+directories, and special files.
+.SH
+3.1 Ordinary files
+.PP
+A file
+contains whatever information the user places on it,
+for example, symbolic or binary
+(object) programs.
+No particular structuring is expected by the system.
+A file of text consists simply of a string
+of characters, with lines demarcated by the newline character.
+Binary programs are sequences of words as
+they will appear in core memory when the program
+starts executing.
+A few user programs manipulate files with more
+structure;
+for example, the assembler generates, and the loader
+expects, an object file in a particular format.
+However,
+the structure of files is controlled by
+the programs that use them, not by the system.
+.SH
+3.2 Directories
+.PP
+Directories provide
+the mapping between the names of files
+and the files themselves, and thus
+induce a structure on the file system as a whole.
+Each user has a directory of his own files;
+he may also create subdirectories to contain
+groups of files conveniently treated together.
+A directory behaves exactly like an ordinary file except that it
+cannot be written on by unprivileged programs, so that the system
+controls the contents of directories.
+However, anyone with
+appropriate permission may read a directory just like any other file.
+.PP
+The system maintains several directories
+for its own use.
+One of these is the
+.UL root
+directory.
+All files in the system can be found by tracing
+a path through a chain of directories
+until the desired file is reached.
+The starting point for such searches is often the
+.UL root .
+Other system directories contain all the programs provided
+for general use; that is, all the
+.IT commands .
+As will be seen, however, it is by no means necessary
+that a program reside in one of these directories for it
+to be executed.
+.PP
+Files are named by sequences of 14 or
+fewer characters.
+When the name of a file is specified to the
+system, it may be in the form of a
+.IT path
+.IT name ,
+which
+is a sequence of directory names separated by slashes, ``/\^'',
+and ending in a file name.
+If the sequence begins with a slash, the search begins in the
+root directory.
+The name
+.UL /alpha/beta/gamma
+causes the system to search
+the root for directory
+.UL alpha ,
+then to search
+.UL alpha
+for
+.UL beta ,
+finally to find
+.UL gamma
+in
+.UL beta .
+.UL \&gamma
+may be an ordinary file, a directory, or a special
+file.
+As a limiting case, the name ``/\^'' refers to the root itself.
+.PP
+A path name not starting with ``/\^'' causes the system to begin the
+search in the user's current directory.
+Thus, the name
+.UL alpha/beta
+specifies the file named
+.UL beta
+in
+subdirectory
+.UL alpha
+of the current
+directory.
+The simplest kind of name, for example,
+.UL alpha ,
+refers to a file that itself is found in the current
+directory.
+As another limiting case, the null file name refers
+to the current directory.
+.PP
+The same non-directory file may appear in several directories under
+possibly different names.
+This feature is called
+.IT linking ;
+a directory entry for a file is sometimes called a link.
+The
+.UX
+system
+differs from other systems in which linking is permitted
+in that all links to a file have equal status.
+That is, a file does not exist within a particular directory;
+the directory entry for a file consists merely
+of its name and a pointer to the information actually
+describing the file.
+Thus a file exists independently of any
+directory entry, although in practice a file is made to
+disappear along with the last link to it.
+.PP
+Each directory always has at least two entries.
+The name
+``\|\fB.\|\fP'' in each directory refers to the directory itself.
+Thus a program
+may read the current directory under the name ``\fB\|.\|\fP'' without knowing
+its complete path name.
+The name ``\fB\|.\|.\|\fP'' by convention refers to the parent of the
+directory in which it appears, that is, to the directory in which
+it was created.
+.PP
+The directory structure is constrained to have the form
+of a rooted tree.
+Except for the special entries ``\|\fB\|.\|\fP'' and ``\fB\|.\|.\|\fP'', each directory
+must appear as an entry in exactly one other directory, which is its
+parent.
+The reason for this is to simplify the writing of programs
+that visit subtrees of the directory structure, and more
+important, to avoid the separation of portions of the hierarchy.
+If arbitrary links to directories were permitted, it would
+be quite difficult to detect when the last connection from
+the root to a directory was severed.
+.SH
+3.3 Special files
+.PP
+Special files constitute the most unusual feature of the
+.UX
+file system.
+Each supported I/O device
+is associated with at least one such file.
+Special files are read and written just like ordinary
+disk files, but requests to read or write result in activation of the associated
+device.
+An entry for each special file resides in directory
+.UL /dev ,
+although a link may be made to one of these files
+just as it may to an ordinary file.
+Thus, for example,
+to write on a magnetic tape
+one may write on the file
+.UL /dev/mt .
+Special files exist for each communication line, each disk,
+each tape drive,
+and for physical main memory.
+Of course,
+the active disks
+and the memory special file are protected from
+indiscriminate access.
+.PP
+There is a threefold advantage in treating
+I/O devices this way:
+file and device I/O
+are as similar as possible;
+file and device names have the same
+syntax and meaning, so that
+a program expecting a file name
+as a parameter can be passed a device
+name; finally,
+special files are subject to the same
+protection mechanism as regular files.
+.SH
+3.4 Removable file systems
+.PP
+Although the root of the file system is always stored on the same
+device,
+it is not necessary that the entire file system hierarchy
+reside on this device.
+There is a
+.UL mount
+system request with two arguments:
+the name of an existing ordinary file, and the name of a special
+file whose associated
+storage volume (e.g., a disk pack) should have the structure
+of an independent file system
+containing its own directory hierarchy.
+The effect of
+.UL mount
+is to cause
+references to the heretofore ordinary file
+to refer instead to the root directory
+of the file system on the removable volume.
+In effect,
+.UL mount
+replaces a leaf of the hierarchy tree (the ordinary file)
+by a whole new subtree (the hierarchy stored on the
+removable volume).
+After the
+.UL mount ,
+there is virtually no distinction
+between files on the removable volume and those in the
+permanent file system.
+In our installation, for example,
+the root directory resides
+on a small partition of one of
+our disk drives,
+while the other drive,
+which contains the user's files,
+is mounted by the system initialization
+sequence.
+A mountable file system is generated by
+writing on its corresponding special file.
+A utility program is available to create
+an empty file system,
+or one may simply copy an existing file system.
+.PP
+There is only one exception to the rule of identical
+treatment of files on different devices:
+no link may exist between one file system hierarchy and
+another.
+This restriction is enforced so as to avoid
+the elaborate bookkeeping
+that would otherwise be required to assure removal of the links
+whenever the removable volume is dismounted.
+.SH
+3.5 Protection
+.PP
+Although the access control scheme
+is quite simple, it has some unusual features.
+Each user of the system is assigned a unique
+user identification number.
+When a file is created, it is marked with
+the user \*sID\*n of its owner.
+Also given for new files
+is a set of ten protection bits.
+Nine of these specify
+independently read, write, and execute permission
+for the
+owner of the file,
+for other members of his group,
+and for all remaining users.
+.PP
+If the tenth bit is on, the system
+will temporarily change the user identification
+(hereafter, user \*sID\*n)
+of the current user to that of the creator of the file whenever
+the file is executed as a program.
+This change in user \*sID\*n is effective only
+during the execution of the program that calls for it.
+The set-user-\*sID\*n feature provides
+for privileged programs that may use files
+inaccessible to other users.
+For example, a program may keep an accounting file
+that should neither be read nor changed
+except by the program itself.
+If the set-user-\*sID\*n bit is on for the
+program, it may access the file although
+this access might be forbidden to other programs
+invoked by the given program's user.
+Since the actual user \*sID\*n
+of the invoker of any program
+is always available,
+set-user-\*sID\*n programs
+may take any measures desired to satisfy themselves
+as to their invoker's credentials.
+This mechanism is used to allow users to execute
+the carefully written
+commands
+that call privileged system entries.
+For example, there is a system entry
+invokable only by the ``super-user'' (below)
+that creates
+an empty directory.
+As indicated above, directories are expected to
+have entries for ``\fB\|.\|\fP'' and ``\fB\|.\|.\|\fP''.
+The command which creates a directory
+is owned by the super-user
+and has the set-user-\*sID\*n bit set.
+After it checks its invoker's authorization to
+create the specified directory,
+it creates it and makes the entries
+for ``\fB\|.\|\fP'' and ``\fB\|.\|.\|\fP''.
+.PP
+Because anyone may set the set-user-\*sID\*n
+bit on one of his own files,
+this mechanism is generally
+available without administrative intervention.
+For example,
+this protection scheme easily solves the \*sMOO\*n
+accounting problem posed by ``Aleph-null.''
+.[
+aleph null software practice
+.]
+.PP
+The system recognizes one particular user \*sID\*n (that of the ``super-user'') as
+exempt from the usual constraints on file access; thus (for example),
+programs may be written to dump and reload the file
+system without
+unwanted interference from the protection
+system.

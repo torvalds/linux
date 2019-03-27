@@ -1,0 +1,41 @@
+$ $tcsh: set20,v 1.5 2015/08/13 08:54:04 christos Exp $
+$ tc.bind.c
+$set 20 
+1 Invalid key name `%S'\n
+2 Bad key name: %S\n
+3 Bad command name: %S\n
+4 Bad key spec %S\n
+5 Null string specification\n
+6 Standard key bindings\n
+7 Alternative key bindings\n
+8 Multi-character bindings\n
+9 Arrow key bindings\n
+10 %-15s->  не визначено\n
+11 BUG!!! %s isn't bound to anything.\n
+12 Використання: bindkey [параметри] [--] [КЛЮЧ [КОМАНДА]]\n
+13     -a   list or bind KEY in alternative key map\n
+14     -b   interpret KEY as a C-, M-, F- or X- key name\n
+15     -s   interpret COMMAND as a literal string to be output\n
+16     -c   interpret COMMAND as a builtin or external command\n
+17     -v   bind all keys to vi bindings\n
+18     -e   bind all keys to emacs bindings\n
+19     -d   bind all keys to default editor's bindings (%s)\n
+20     -l   list editor commands with descriptions\n
+21     -r   remove KEY's binding\n
+22     -k   interpret KEY as a symbolic arrow-key name\n
+23     --   force a break from option processing\n
+24     -u   (or any invalid option) this message\n
+25 Without KEY or COMMAND, prints all bindings\n
+26 Without COMMAND, prints the binding for KEY.\n
+27 bad key specification -- null string\n
+28 bad key specification -- empty string\n
+29 Bad function-key specification.  Null key not allowed\n
+30 bad key specification -- malformed hex number\n
+31 bad key specification -- malformed octal number\n
+32 bad key specification -- malformed decimal number\n
+33 Bad function-key specification.\n
+34 Null key not allowed\n
+35 bad key specification -- unknown name "%S"\n
+36 Використання: bind [KEY | COMMAND KEY | "emacs" | "vi" | "-a"]\n
+37 Невірна функція
+38  %s\t\tне визначено\n

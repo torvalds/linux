@@ -1,0 +1,202 @@
+.\" Copyright (c) 2011-2012 Stefan Bethke.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 2, 2016
+.Dt ETHERSWITCHCFG 8
+.Os
+.Sh NAME
+.Nm etherswitchcfg
+.Nd configure a built-in Ethernet switch
+.Sh SYNOPSIS
+.Nm
+.Op Fl "f control file"
+.Cm info
+.Nm
+.Op Fl "f control file"
+.Cm config
+.Ar command parameter
+.Nm
+.Op Fl "f control file"
+.Cm phy
+.Ar phy.register[=value]
+.Nm
+.Op Fl "f control file"
+.Cm port%d
+.Ar [flags] command parameter
+.Nm
+.Op Fl "f control file"
+.Cm reg
+.Ar register[=value]
+.Nm
+.Op Fl "f control file"
+.Cm vlangroup%d
+.Ar command parameter
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to configure an Ethernet switch built into the system.
+.Nm
+accepts a number of options:
+.Pp
+.Bl -tag -width ".Fl f" -compact
+.It Fl "f control file"
+Specifies the
+.Xr etherswitch 4
+control file that represents the switch to be configured.
+It defaults to
+.Pa /dev/etherswitch0 .
+.It Fl m
+When reporting port information, also list available media options for
+that port.
+.It Fl v
+Produce more verbose output.
+Without this flag, lines that represent inactive or empty configuration
+options are omitted.
+.El
+.Ss config
+The config command provides access to global switch configuration
+parameters.
+It support the following commands:
+.Pp
+.Bl -tag -width ".Cm vlan_mode mode" -compact
+.It Cm vlan_mode Ar mode
+Sets the switch VLAN mode (depends on the hardware).
+.El
+.Ss phy
+The phy command provides access to the registers of the PHYs attached
+to or integrated into the switch controller.
+PHY registers are specified as phy.register,
+where
+.Ar phy
+is usually the port number, and
+.Ar register
+is the register number.
+Both can be provided as decimal, octal or hexadecimal numbers in any of the formats
+understood by
+.Xr strtol 3 .
+To set the register value, use the form instance.register=value.
+.Ss port
+The port command selects one of the ports of the switch.
+It supports the following commands:
+.Pp
+.Bl -tag -width ".Ar pvid number" -compact
+.It Cm pvid Ar number
+Sets the default port VID that is used to process incoming frames that are not tagged.
+.It Cm media Ar mediaspec
+Specifies the physical media configuration to be configured for a port.
+.It Cm mediaopt Ar mediaoption
+Specifies a list of media options for a port.
+See
+.Xr ifconfig 8
+for details on
+.Cm media
+and
+.Cm mediaopt .
+.It Cm led Ar number style
+Sets the display style for a given LED.
+Available styles are:
+.Cm default
+(usually flash on activity),
+.Cm on ,
+.Cm off ,
+and
+.Cm blink .
+Not all switches will support all styles.
+.El
+.Pp
+And the following flags (please note that not all flags
+are supported by all switch drivers):
+.Pp
+.Bl -tag -width ".Fl addtag" -compact
+.It Cm addtag
+Add VLAN tag to each packet sent by the port.
+.It Fl addtag
+Disable the add VLAN tag option.
+.It Cm striptag
+Strip the VLAN tags from the packets sent by the port.
+.It Fl striptag
+Disable the strip VLAN tag option.
+.It Cm firstlock
+This options makes the switch port lock on the first MAC address it sees.
+After that, usually you need to reset the switch to learn different
+MAC addresses.
+.It Fl firstlock
+Disable the first lock option.
+Note that sometimes you need to reset the
+switch to really disable this option.
+.It Cm dropuntagged
+Drop packets without a VLAN tag.
+.It Fl dropuntagged
+Disable the drop untagged packets option.
+.It Cm doubletag
+Enable QinQ for the port.
+.It Fl doubletag
+Disable QinQ for the port.
+.It Cm ingress
+Enable the ingress filter on the port.
+.It Fl ingress
+Disable the ingress filter.
+.El
+.Ss reg
+The reg command provides access to the registers of the switch controller.
+.Ss vlangroup
+The vlangroup command selects one of the VLAN groups for configuration.
+It supports the following commands:
+.Pp
+.Bl -tag -width ".Cm members" -compact
+.It Cm vlan Ar VID
+Sets the VLAN ID (802.1q VID) for this VLAN group.
+Frames transmitted on tagged member ports of this group will be tagged
+with this VID.
+Incoming frames carrying this tag will be forwarded according to the
+configuration of this VLAN group.
+.It Cm members Ar port,...
+Configures which ports are to be a member of this VLAN group.
+The port numbers are given as a comma-separated list.
+Each port can optionally be followed by
+.Dq t
+to indicate that frames on this port are tagged.
+.El
+.Sh FILES
+.Bl -tag -width /dev/etherswitch? -compact
+.It Pa /dev/etherswitch?
+Control file for the Ethernet switch driver.
+.El
+.Sh EXAMPLES
+Configure VLAN group 1 with a VID of 2 and make ports 0 and 5 its members
+while excluding all other ports.
+Port 5 will send and receive tagged frames while port 0 will be untagged.
+Incoming untagged frames on port 0 are assigned to vlangroup1.
+.Pp
+.Dl # etherswitchcfg vlangroup1 vlan 2 members 0,5t port0 pvid 2
+.Sh SEE ALSO
+.Xr etherswitch 4
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An Stefan Bethke

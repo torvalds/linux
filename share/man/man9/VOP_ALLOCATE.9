@@ -1,0 +1,84 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2013 Hudson River Trading LLC
+.\" Written by: John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 3, 2013
+.Dt VOP_ALLOCATE 9
+.Os
+.Sh NAME
+.Nm VOP_ALLOCATE
+.Nd allocate storage for a file
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn VOP_ALLOCATE "struct vnode *vp" "off_t *offset" "off_t *len"
+.Sh DESCRIPTION
+This call allocates storage for a range of offsets in a file.
+It is used to implement the
+.Xr posix_fallocate
+system call.
+.Pp
+Its arguments are:
+.Bl -tag -width offset
+.It Fa vp
+The vnode of the file.
+.It Fa offset
+The start of the range to allocate storage for in the file.
+.It Fa len
+The length of the range to allocate storage for in the file.
+.El
+.Pp
+The
+.Fa offset
+and
+.Fa len
+arguments are updated to reflect the portion of the range that
+still needs to be allocated on return.
+A partial allocation is considered a successful operation.
+The file's contents are not changed.
+.Sh LOCKS
+The file should be exclusively locked on entry and will still be locked on exit.
+.Sh RETURN VALUES
+Zero is returned if the call is successful, otherwise an appropriate
+error code is returned.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EFBIG
+An attempt was made to write a file that exceeds the process's file size
+limit or the maximum file size.
+.It Bq Er ENOSPC
+The file system is full.
+.It Bq Er EPERM
+An append-only flag is set on the file, but the caller is attempting to
+write before the current end of file.
+.El
+.Sh SEE ALSO
+.Xr vnode 9 ,
+.Xr VOP_READ 9 ,
+.Xr VOP_WRITE 9

@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+v=abcd
+v=$v$v$v$v
+v=$v$v$v$v
+v=$v$v$v$v
+v=$v$v$v$v
+v=$v$v$v$v
+r=$( (
+	trap 'exit 0' 0
+	. "$v"
+) 2>&1 >/dev/null) && [ -n "$r" ]

@@ -1,0 +1,106 @@
+.\"***************************************************************************
+.\" Copyright (c) 2002-2010,2012 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_ins_wstr.3x,v 1.7 2012/11/03 23:03:59 tom Exp $
+.TH curs_ins_wstr 3X ""
+.na
+.hy 0
+.SH NAME
+\fBins_wstr\fR,
+\fBins_nwstr\fR,
+\fBwins_wstr\fR,
+\fBwins_nwstr\fR,
+\fBmvins_wstr\fR,
+\fBmvins_nwstr\fR,
+\fBmvwins_wstr\fR,
+\fBmvwins_nwstr\fR \- insert a wide-character string into a curses window
+.ad
+.hy
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>\fR
+.sp
+\fBint ins_wstr(const wchar_t *\fR\fIwstr);\fR
+.br
+\fBint ins_nwstr(const wchar_t *\fR\fIwstr\fR\fB, int \fR\fIn\fR\fB);\fR
+.br
+\fBint wins_wstr(WINDOW *\fR\fIwin\fR\fB, const wchar_t *\fR\fIwstr\fR\fB);\fR
+.br
+\fBint wins_nwstr(WINDOW *\fR\fIwin\fR\fB, const wchar_t *\fR\fIwstr\fR\fB, int \fR\fIn\fR\fB);\fR
+.br
+\fBint mvins_wstr(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const wchar_t *\fR\fIwstr\fR\fB);\fR
+.br
+\fBint mvins_nwstr(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const wchar_t *\fR\fIwstr\fR\fB, int \fR\fIn\fR\fB);\fR
+.br
+\fBint mvwins_wstr(WINDOW *\fR\fIwin\fR\fB, int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const wchar_t *\fR\fIwstr\fR\fB);\fR
+.br
+\fBint mvwins_nwstr(WINDOW *\fR\fIwin\fR\fB, int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const wchar_t *\fR\fIwstr\fR\fB, int \fR\fIn\fR\fB);\fR
+.fi
+.SH DESCRIPTION
+These routines insert a \fBwchar_t\fR character string
+(as many characters as will fit on the line)
+before the character under the cursor.
+All characters to the right of the cursor are shifted right,
+with the possibility of the rightmost characters on the line being lost.
+No wrapping is performed.
+The cursor position does not change
+(after moving to \fIy\fR, \fIx\fR, if specified).
+The four routines with \fIn\fR as the last argument
+insert a leading substring of at most \fIn\fR \fBwchar_t\fR characters.
+If \fIn\fR is less than 1, the entire string is inserted.
+.PP
+If a character in \fIwstr\fR is a tab, newline, carriage return or
+backspace, the cursor is moved appropriately within the window.
+A newline also does a \fBclrtoeol\fR before moving.
+Tabs are considered to be at every eighth column.
+If a character in \fIwstr\fR is another control character,
+it is drawn in the \fB^\fR\fIX\fR notation.
+Calling \fBwin_wch\fR after adding a control character
+(and moving to it, if necessary)
+does not return the control character,
+but instead returns a character in the ^-representation
+of the control character.
+.SH NOTES
+Note that all but wins_nwstr may be macros.
+.PP
+If the first character in the string is a nonspacing character, these
+functions will fail.
+XSI does not define what will happen if a nonspacing character follows
+a control character.
+.SH RETURN VALUE
+Upon successful completion, these functions return OK.
+Otherwise, they return ERR.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_insstr\fR(3X),
+\fBcurs_in_wch\fR(3X),
+\fBcurs_ins_wch\fR(3X).

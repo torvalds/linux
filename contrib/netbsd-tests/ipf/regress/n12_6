@@ -1,0 +1,1 @@
+map le0 c0a8:7e00::/112 -> 0/128 portmap tcp/udp 10000:20000

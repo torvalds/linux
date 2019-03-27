@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+${SH} <<\EOF
+echo one >&2
+set -v
+echo two >&2
+echo three >&2
+EOF

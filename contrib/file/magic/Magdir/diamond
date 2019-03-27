@@ -1,0 +1,12 @@
+
+#------------------------------------------------------------------------------
+# $File: diamond,v 1.7 2009/09/19 16:28:08 christos Exp $
+# diamond:  file(1) magic for Diamond system
+#
+# ... diamond is a multi-media mail and electronic conferencing system....
+#
+# XXX - I think it was either renamed Slate, or replaced by Slate....
+#
+#	The full deal is too long...
+#0	string	<list>\n<protocol\ bbn-multimedia-format>	Diamond Multimedia Document
+0	string	=<list>\n<protocol\ bbn-m	Diamond Multimedia Document

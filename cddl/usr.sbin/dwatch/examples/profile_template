@@ -1,0 +1,74 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) profile for XXX entry $
+# $Copyright: 2014-2018 Devin Teske. All rights reserved. $
+# $FreeBSD$
+#
+############################################################ DESCRIPTION
+#
+# XXX
+#
+############################################################ PRAGMAS
+
+# Optional: You can override the default pragmas (shown below)
+
+#DTRACE_PRAGMA="
+#	option quiet
+#	option dynvarsize=16m
+#	switchrate=10hz
+#" # END-QUOTE
+
+############################################################ PROBE
+
+# Optional: dwatch(8) initializes this to the expanded probe arguments
+
+#: ${PROBE:="XXX"}
+
+############################################################ ACTIONS
+
+# Optional actions to be performed before hitting the final print action
+
+#exec 9<<EOF
+#EOF
+#ACTIONS=$( cat <&9 )
+#ID=
+
+############################################################ EVENT ACTION
+
+# The default EVENT value is simply `entry'. This is paired with $PROBE.
+
+#EVENT=
+
+# Optional predicate which must be true before the event action will run
+
+#EVENT_TEST=
+
+############################################################ EVENT TAG
+
+# The EVENT_TAG is run inside the print action after the timestamp has been
+# printed. By default, `UID.GID CMD[PID]: ' of the process is printed.
+
+#exec 9<<EOF
+#EOF
+#EVENT_TAG=$( cat <&9 )
+
+############################################################ EVENT DETAILS
+
+# The DETAILS are run after the EVENT_TAG and by default, the program name and
+# arguments of the process hitting the EVENT action are shown. This can be
+# customized to call-specific information because the `-v' flag of dwatch(8)
+# can provide detailed process information for the EVENT action on lines below
+# the DETAILS.
+#
+# NB: Should produce a single-line and not print a trailing newline.
+
+#exec 9<<EOF
+#	printf("XXX");
+#EOF
+#DETAILS=$( cat <&9 )
+
+################################################################################
+# END
+################################################################################

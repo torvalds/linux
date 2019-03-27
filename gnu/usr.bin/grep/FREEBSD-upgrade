@@ -1,0 +1,37 @@
+$FreeBSD$
+
+GNU grep
+
+Original source distribution can be found at:
+	http://ftp.gnu.org/pub/gnu/grep/
+
+Due to an unfortunate number of bugs and performance problems in
+GNU grep 2.5.1, various patches from The Fedora Project have been applied.
+These patches can be extracted from the SRPM package available at:
+
+	http://download.fedora.redhat.com/pub/fedora/linux/core/test/
+		3.92/SRPMS/grep-2.5.1-48.src.rpm
+
+The following patches have been applied:
+
+	grep-2.5-i18n.patch
+	grep-2.5.1-bracket.patch
+	grep-2.5.1-color.patch
+	grep-2.5.1-dfa-optional.patch
+	grep-2.5.1-egf-speedup.patch
+	grep-2.5.1-fgrep.patch
+	grep-2.5.1-icolor.patch
+	grep-2.5.1-oi.patch
+	grep-2.5.1-w.patch
+
+In addition to these, some FreeBSD-specific changes have been made
+to add bzip2 support, etc.
+
+Due to the large number of patches applied, conflicts are likely with
+future releases. However, most of the patches are either (a) small bug
+fixes that have been fed upstream, or (b) performance improvements that
+could be reverted without loss of functionality.
+
+It is suggested that those planning to import a newer release of GNU grep
+should revert all local changes since the 2.5.1 import before proceeding
+with the newer import.

@@ -1,0 +1,135 @@
+.\" Copyright (C) 2013 Emulex
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Emulex Corporation nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Contact Information:
+.\" freebsd-drivers@emulex.com
+.\"
+.\" Emulex
+.\" 3333 Susan Street
+.\" Costa Mesa, CA 92626
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 19, 2012
+.Dt OCE 4
+.Os
+.Sh NAME
+.Nm oce
+.Nd "Device driver for Emulex OneConnect 10Gb network adapters"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device oce"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_oce_load="YES"
+.Ed
+.Sh DESCRIPTION
+Emulex OneConnect adapters come in various skews and with
+different combinations of NIC, FCoE and iSCSI functions.
+The
+.Nm
+driver claims the NIC functions in all these adapters.
+.Pp
+The
+.Nm
+driver supports VLAN Hardware offload, TCP checksum offload,
+TCP segmentation offload (TSO), Large receive offload (LRO),
+Bonding, Jumbo frames (from 1500 - 9000), Multiple TX queues,
+Receive-Side Scaling (RSS) and MSI-X interrupts.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following network adapters:
+.Pp
+.Bl -bullet -compact
+.It
+Emulex BladeEngine 2
+.It
+Emulex BladeEngine 3
+.It
+Emulex Lancer
+.El
+.Sh UPDATING FIRMWARE
+Adapter firmware updates are persistent.
+.Pp
+Firmware can be updated by following the steps below:
+.Bl -enum
+.It
+Copy the below code to a Makefile:
+.Bd -literal -offset indent
+KMOD=elxflash
+FIRMWS=imagename.ufi:elxflash
+\&.include <bsd.kmod.mk>
+.Ed
+.It
+Replace imagename in above with UFI file name
+.It
+Copy Makefile and UFI file to a directory
+.It
+Execute make & copy generated elxflash.ko to
+.Pa /lib/modules
+.It
+sysctl dev.oce.<if_id>.fw_upgrade=elxflash
+.It
+Reboot the machine
+.El
+.Pp
+In case of issues with supplied UFI, flashing fails with one
+of the following errors.
+.Pp
+.Bl -enum -compact
+.It
+.Qq Invalid BE3 firmware image
+.It
+.Qq "Invalid Cookie. Firmware image corrupted ?"
+.It
+.Qq cmd to write to flash rom failed.
+.El
+.Sh SUPPORT
+For general information and support,
+go to the Emulex website at:
+.Pa http://www.Emulex.com/
+or E-Mail at
+.Pa freebsd-drivers@emulex.com .
+.Sh SEE ALSO
+.Xr ifconfig 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An freebsd-drivers@emulex.com .

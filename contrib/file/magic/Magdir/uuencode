@@ -1,0 +1,31 @@
+
+#------------------------------------------------------------------------------
+# $File: uuencode,v 1.7 2009/09/19 16:28:13 christos Exp $
+# uuencode:  file(1) magic for ASCII-encoded files
+#
+
+# GRR:  the first line of xxencoded files is identical to that in uuencoded
+# files, but the first character in most subsequent lines is 'h' instead of
+# 'M'.  (xxencoding uses lowercase letters in place of most of uuencode's
+# punctuation and survives BITNET gateways better.)  If regular expressions
+# were supported, this entry could possibly be split into two with
+# "begin\040\.\*\012M" or "begin\040\.\*\012h" (where \. and \* are REs).
+0	search/1	begin\ 		uuencoded or xxencoded text
+
+# btoa(1) is an alternative to uuencode that requires less space.
+0	search/1	xbtoa\ Begin	btoa'd text
+
+# ship(1) is another, much cooler alternative to uuencode.
+# Greg Roelofs, newt@uchicago.edu
+0	search/1	$\012ship	ship'd binary text
+
+# bencode(8) is used to encode compressed news batches (Bnews/Cnews only?)
+# Greg Roelofs, newt@uchicago.edu
+0	search/1	Decode\ the\ following\ with\ bdeco	bencoded News text
+
+# BinHex is the Macintosh ASCII-encoded file format (see also "apple")
+# Daniel Quinlan, quinlan@yggdrasil.com
+11	search/1	must\ be\ converted\ with\ BinHex	BinHex binary text
+>41	search/1	x					\b, version %.3s
+
+# GRR: handle BASE64

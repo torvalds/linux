@@ -1,0 +1,238 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ss0	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+0: Introduction
+.PP
+Yacc provides a general tool for imposing structure on the input to a computer program.
+The Yacc user prepares a
+specification of the input process; this includes rules
+describing the input structure, code to be invoked when these
+rules are recognized, and a low-level routine to do the
+basic input.
+Yacc then generates a function to control the input process.
+This function, called a
+.I parser ,
+calls the user-supplied low-level input routine
+(the
+.I "lexical analyzer" )
+to pick up the basic items
+(called
+.I tokens )
+from the input stream.
+These tokens are organized according to the input structure rules,
+called
+.I "grammar rules" \|;
+when one of these rules has been recognized,
+then user code supplied for this rule, an
+.I action ,
+is invoked; actions have the ability to return values and
+make use of the values of other actions.
+.PP
+Yacc is written in a portable dialect of C
+.[
+Ritchie Kernighan Language Prentice
+.]
+and the actions, and output subroutine, are in C as well.
+Moreover, many of the syntactic conventions of Yacc follow C.
+.PP
+The heart of the input specification is a collection of grammar rules.
+Each rule describes an allowable structure and gives it a name.
+For example, one grammar rule might be
+.DS
+date  :  month\_name  day  \',\'  year   ;
+.DE
+Here,
+.I date ,
+.I month\_name ,
+.I day ,
+and
+.I year
+represent structures of interest in the input process;
+presumably,
+.I month\_name ,
+.I day ,
+and
+.I year
+are defined elsewhere.
+The comma ``,'' is enclosed in single quotes; this implies that the
+comma is to appear literally in the input.
+The colon and semicolon merely serve as punctuation in the rule, and have
+no significance in controlling the input.
+Thus, with proper definitions, the input
+.DS
+July  4, 1776
+.DE
+might be matched by the above rule.
+.PP
+An important part of the input process is carried out by the
+lexical analyzer.
+This user routine reads the input stream, recognizing the lower level structures,
+and communicates these tokens
+to the parser.
+For historical reasons, a structure recognized by the lexical analyzer is called a
+.I "terminal symbol" ,
+while the structure recognized by the parser is called a
+.I "nonterminal symbol" .
+To avoid confusion, terminal symbols will usually be referred to as
+.I tokens .
+.PP
+There is considerable leeway in deciding whether to recognize structures using the lexical
+analyzer or grammar rules.
+For example, the rules
+.DS
+month\_name  :  \'J\' \'a\' \'n\'   ;
+month\_name  :  \'F\' \'e\' \'b\'   ;
+
+         . . .
+
+month\_name  :  \'D\' \'e\' \'c\'   ;
+.DE
+might be used in the above example.
+The lexical analyzer would only need to recognize individual letters, and
+.I month\_name
+would be a nonterminal symbol.
+Such low-level rules tend to waste time and space, and may
+complicate the specification beyond Yacc's ability to deal with it.
+Usually, the lexical analyzer would
+recognize the month names,
+and return an indication that a
+.I month\_name
+was seen; in this case,
+.I month\_name
+would be a token.
+.PP
+Literal characters such as ``,'' must also be passed through the lexical
+analyzer, and are also considered tokens.
+.PP
+Specification files are very flexible.
+It is realively easy to add to the above example the rule
+.DS
+date  :  month \'/\' day \'/\' year   ;
+.DE
+allowing
+.DS
+7 / 4 / 1776
+.DE
+as a synonym for
+.DS
+July 4, 1776
+.DE
+In most cases, this new rule could be ``slipped in'' to a working system with minimal effort,
+and little danger of disrupting existing input.
+.PP
+The input being read may not conform to the
+specifications.
+These input errors are detected as early as is theoretically possible with a
+left-to-right scan;
+thus, not only is the chance of reading and computing with bad
+input data substantially reduced, but the bad data can usually be quickly found.
+Error handling,
+provided as part of the input specifications,
+permits the reentry of bad data,
+or the continuation of the input process after skipping over the bad data.
+.PP
+In some cases, Yacc fails to produce a parser when given a set of
+specifications.
+For example, the specifications may be self contradictory, or they may
+require a more powerful recognition mechanism than that available to Yacc.
+The former cases represent design errors;
+the latter cases
+can often be corrected
+by making
+the lexical analyzer
+more powerful, or by rewriting some of the grammar rules.
+While Yacc cannot handle all possible specifications, its power
+compares favorably with similar systems;
+moreover, the
+constructions which are difficult for Yacc to handle are
+also frequently difficult for human beings to handle.
+Some users have reported that the discipline of formulating valid
+Yacc specifications for their input revealed errors of
+conception or design early in the program development.
+.PP
+The theory underlying Yacc has been described elsewhere.
+.[
+Aho Johnson Surveys LR Parsing
+.]
+.[
+Aho Johnson Ullman Ambiguous Grammars
+.]
+.[
+Aho Ullman Principles Compiler Design
+.]
+Yacc has been extensively used in numerous practical applications,
+including
+.I lint ,
+.[
+Johnson Lint
+.]
+the Portable C Compiler,
+.[
+Johnson Portable Compiler Theory
+.]
+and a system for typesetting mathematics.
+.[
+Kernighan Cherry typesetting system CACM
+.]
+.PP
+The next several sections describe the
+basic process of preparing a Yacc specification;
+Section 1 describes the preparation of grammar rules,
+Section 2 the preparation of the user supplied actions associated with these rules,
+and Section 3 the preparation of lexical analyzers.
+Section 4 describes the operation of the parser.
+Section 5 discusses various reasons why Yacc may be unable to produce a
+parser from a specification, and what to do about it.
+Section 6 describes a simple mechanism for
+handling operator precedences in arithmetic expressions.
+Section 7 discusses error detection and recovery.
+Section 8 discusses the operating environment and special features
+of the parsers Yacc produces.
+Section 9 gives some suggestions which should improve the
+style and efficiency of the specifications.
+Section 10 discusses some advanced topics, and Section 11 gives
+acknowledgements.
+Appendix A has a brief example, and Appendix B gives a
+summary of the Yacc input syntax.
+Appendix C gives an example using some of the more advanced
+features of Yacc, and, finally,
+Appendix D describes mechanisms and syntax
+no longer actively supported, but
+provided for historical continuity with older versions of Yacc.

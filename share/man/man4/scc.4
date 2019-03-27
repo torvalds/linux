@@ -1,0 +1,75 @@
+.\"
+.\" Copyright (c) 2006 Marcel Moolenaar
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 29, 2006
+.Dt SCC 4
+.Os
+.\"
+.Sh NAME
+.Nm scc
+.Nd driver for Serial Communications Controllers (SCC) devices
+.\"
+.Sh SYNOPSIS
+.Cd "device scc"
+.Cd "device uart"
+.\"
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides support for various classes of SCCs.
+It is an umbrella driver that delegates control of each independent
+communication channel to subordinate drivers.
+These subordinate drivers, like
+.Xr uart 4 ,
+take care of the details of the communication itself.
+.\"
+.Sh HARDWARE
+The
+.Nm
+driver supports the following classes of SCCs:
+.Pp
+.Bl -bullet -compact
+.It
+SAB82532: Siemens SAB 82532 based serial communications controllers.
+.It
+Z8530: Zilog 8530 based serial communications controllers.
+.El
+.\"
+.Sh SEE ALSO
+.Xr puc 4 ,
+.Xr uart 4
+.\"
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+The
+.Nm
+driver and this manual page were written by
+.An Marcel Moolenaar Aq Mt marcel@xcllnt.net .

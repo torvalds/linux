@@ -1,0 +1,103 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)iscntrl.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd July 17, 2005
+.Dt ISCNTRL 3
+.Os
+.Sh NAME
+.Nm iscntrl
+.Nd control character test
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In ctype.h
+.Ft int
+.Fn iscntrl "int c"
+.Ft int
+.Fn iscntrl_l "int c" "locale_t loc"
+.Sh DESCRIPTION
+The
+.Fn iscntrl
+function tests for any control character.
+The value of the argument must be representable as an
+.Vt "unsigned char"
+or the value of
+.Dv EOF .
+.Pp
+In the ASCII character set, this includes the following characters
+(with their numeric values shown in octal):
+.Bl -column \&000_``0''__ \&000_``0''__ \&000_``0''__ \&000_``0''__ \&000_``0''__
+.It "\&000\ NUL" Ta "001\ SOH" Ta "002\ STX" Ta "003\ ETX" Ta "004\ EOT"
+.It "\&005\ ENQ" Ta "006\ ACK" Ta "007\ BEL" Ta "010\ BS" Ta "011\ HT"
+.It "\&012\ NL" Ta "013\ VT" Ta "014\ NP" Ta "015\ CR" Ta "016\ SO"
+.It "\&017\ SI" Ta "020\ DLE" Ta "021\ DC1" Ta "022\ DC2" Ta "023\ DC3"
+.It "\&024\ DC4" Ta "025\ NAK" Ta "026\ SYN" Ta "027\ ETB" Ta "030\ CAN"
+.It "\&031\ EM" Ta "032\ SUB" Ta "033\ ESC" Ta "034\ FS" Ta "035\ GS"
+.It "\&036\ RS" Ta "037\ US" Ta "177\ DEL" Ta \& Ta \&
+.El
+.Pp
+The
+.Fn iscntrl_l
+function takes an explicit locale argument, whereas the
+.Fn iscntrl
+function uses the current global or per-thread locale.
+.Sh RETURN VALUES
+The
+.Fn iscntrl
+function returns zero if the character tests false and
+returns non-zero if the character tests true.
+.Sh COMPATIBILITY
+The
+.Bx 4.4
+extension of accepting arguments outside of the range of the
+.Vt "unsigned char"
+type in locales with large character sets is considered obsolete
+and may not be supported in future releases.
+The
+.Fn iswcntrl
+function should be used instead.
+.Sh SEE ALSO
+.Xr ctype 3 ,
+.Xr iswcntrl 3 ,
+.Xr xlocale 3 ,
+.Xr ascii 7
+.Sh STANDARDS
+The
+.Fn iscntrl
+function conforms to
+.St -isoC .
+The
+.Fn iscntrl_l
+function conforms to
+.St -p1003.1-2008 .

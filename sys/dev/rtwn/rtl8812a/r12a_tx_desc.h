@@ -1,0 +1,149 @@
+/*-
+ * Copyright (c) 2016 Andriy Voskoboinyk <avos@FreeBSD.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+#ifndef R12A_TX_DESC_H
+#define R12A_TX_DESC_H
+
+/* Tx MAC descriptor (common part). */
+struct r12a_tx_desc {
+	uint16_t	pktlen;
+	uint8_t		offset;
+	uint8_t		flags0;
+#define R12A_FLAGS0_BMCAST	0x01
+#define R12A_FLAGS0_LSG		0x04
+#define R12A_FLAGS0_FSG		0x08
+#define R12A_FLAGS0_OWN		0x80
+
+	uint32_t	txdw1;
+#define R12A_TXDW1_MACID_M	0x0000003f
+#define R12A_TXDW1_MACID_S	0
+#define R12A_TXDW1_QSEL_M	0x00001f00
+#define R12A_TXDW1_QSEL_S	8
+
+#define R12A_TXDW1_QSEL_BE	0x00	/* or 0x03 */
+#define R12A_TXDW1_QSEL_BK	0x01	/* or 0x02 */
+#define R12A_TXDW1_QSEL_VI	0x04	/* or 0x05 */
+#define R12A_TXDW1_QSEL_VO	0x06	/* or 0x07 */
+#define RTWN_MAX_TID		8
+
+#define R12A_TXDW1_QSEL_BEACON	0x10
+#define R12A_TXDW1_QSEL_MGNT	0x12
+
+#define R12A_TXDW1_RAID_M	0x001f0000
+#define R12A_TXDW1_RAID_S	16
+#define R12A_TXDW1_CIPHER_M	0x00c00000
+#define R12A_TXDW1_CIPHER_S	22
+#define R12A_TXDW1_CIPHER_NONE	0
+#define R12A_TXDW1_CIPHER_RC4	1
+#define R12A_TXDW1_CIPHER_SM4	2
+#define R12A_TXDW1_CIPHER_AES	3
+#define R12A_TXDW1_PKTOFF_M	0x1f000000
+#define R12A_TXDW1_PKTOFF_S	24
+
+	uint32_t	txdw2;
+#define R12A_TXDW2_AGGEN	0x00001000
+#define R12A_TXDW2_AGGBK	0x00010000
+#define R12A_TXDW2_MOREFRAG	0x00020000
+#define R12A_TXDW2_SPE_RPT	0x00080000
+#define R12A_TXDW2_AMPDU_DEN_M	0x00700000
+#define R12A_TXDW2_AMPDU_DEN_S	20
+
+	uint32_t	txdw3;
+#define R12A_TXDW3_SEQ_SEL_M	0x000000c0
+#define R12A_TXDW3_SEQ_SEL_S	6
+#define R12A_TXDW3_DRVRATE	0x00000100
+#define R12A_TXDW3_DISRTSFB	0x00000200
+#define R12A_TXDW3_DISDATAFB	0x00000400
+#define R12A_TXDW3_CTS2SELF	0x00000800
+#define R12A_TXDW3_RTSEN	0x00001000
+#define R12A_TXDW3_HWRTSEN	0x00002000
+#define R12A_TXDW3_MAX_AGG_M	0x003e0000
+#define R12A_TXDW3_MAX_AGG_S	17
+
+	uint32_t	txdw4;
+#define R12A_TXDW4_DATARATE_M		0x0000007f
+#define R12A_TXDW4_DATARATE_S		0
+#define R12A_TXDW4_DATARATE_FB_LMT_M	0x00001f00
+#define R12A_TXDW4_DATARATE_FB_LMT_S	8
+#define R12A_TXDW4_RTSRATE_FB_LMT_M	0x0001e000
+#define R12A_TXDW4_RTSRATE_FB_LMT_S	13
+#define R12A_TXDW4_RETRY_LMT_ENA	0x00020000
+#define R12A_TXDW4_RETRY_LMT_M		0x00fc0000
+#define R12A_TXDW4_RETRY_LMT_S		18
+#define R12A_TXDW4_RTSRATE_M		0x1f000000
+#define R12A_TXDW4_RTSRATE_S		24
+
+	uint32_t	txdw5;
+#define R12A_TXDW5_DATA_PRIM_CHAN_M	0x0000000f
+#define R12A_TXDW5_DATA_PRIM_CHAN_S	0
+#define R12A_TXDW5_PRIM_CHAN_20_80_3	1
+#define R12A_TXDW5_PRIM_CHAN_20_80_2	2
+#define R12A_TXDW5_PRIM_CHAN_20_80_4	3
+#define R12A_TXDW5_PRIM_CHAN_20_80_1	4
+#define R12A_TXDW5_PRIM_CHAN_40_80_1	9
+#define R12A_TXDW5_PRIM_CHAN_40_80_2	10
+#define R12A_TXDW5_DATA_SHORT		0x00000010
+#define R12A_TXDW5_DATA_BW_M		0x00000060
+#define R12A_TXDW5_DATA_BW_S		5
+#define R12A_TXDW5_DATA_BW40		1
+#define R12A_TXDW5_DATA_BW80		2
+#define R12A_TXDW5_DATA_LDPC		0x00000080
+#define R12A_TXDW5_RTS_SHORT		0x00001000
+#define R12A_TXDW5_RTS_PRIM_CHAN_M	0x0001e000
+#define R12A_TXDW5_RTS_PRIM_CHAN_S	13
+
+	uint32_t	txdw6;
+#define R21A_TXDW6_MBSSID_M	0x0000f000
+#define R21A_TXDW6_MBSSID_S	12
+
+	uint32_t	reserved;
+	uint32_t	txdw8;
+#define R12A_TXDW8_HWSEQ_EN	0x00008000
+
+	uint32_t	txdw9;
+#define R12A_TXDW9_SEQ_M	0x00fff000
+#define R12A_TXDW9_SEQ_S	12
+} __packed __attribute__((aligned(4)));
+
+
+/* Rate adaptation modes. */
+#define R12A_RAID_11BGN_2_40	0
+#define R12A_RAID_11BGN_1_40	1
+#define R12A_RAID_11BGN_2	2
+#define R12A_RAID_11BGN_1	3
+#define R12A_RAID_11GN_2	4
+#define R12A_RAID_11GN_1	5
+#define R12A_RAID_11BG		6
+#define R12A_RAID_11G		7	/* "pure" 11g */
+#define R12A_RAID_11B		8
+#define R12A_RAID_11AC_2_80	9
+#define R12A_RAID_11AC_1_80	10
+#define R12A_RAID_11AC_1	11
+#define R12A_RAID_11AC_2	12
+
+#endif	/* R12A_TX_DESC_H */

@@ -1,0 +1,259 @@
+# $FreeBSD$
+
+- TinyBSD
+
+You must read this to know how to build embedded systems with TinyBSD.
+
+- TinyBSD files
+
+TinyBSD's creation conf files are available under /usr/src/tools/tools/tinybsd/conf 
+and the script are available under /usr/src/tools/tools/tinybsd/tinybsd.
+
+The system has been entirely based on the ease of image customization from
+PicoBSD, and the compilation script based on NanoBSD's.
+
+# ls /usr/src/tools/tools/tinybsd/conf
+bridge/   default/  firewall/ minimal/  vpn/      wireless/  wrap/
+
+We have these six pre configured images to build. On each directory we have 3 
+main files in there. Let's see what each of them are:
+
+# ls /usr/src/tools/tools/tinybsd/conf/default
+TINYBSD            etc/               tinybsd.basefiles
+
+TINYBSD: Just like PicoBSD had its kernel previously compiled, we call ours
+TINYBSD.
+
+# more TINYBSD
+
+machine         i386
+cpu             I486_CPU
+cpu             I586_CPU
+cpu             I686_CPU
+ident           TINYBSD
+
+#To statically compile in device wiring instead of /boot/device.hints
+#hints          "GENERIC.hints"         #Default places to look for devices.
+...
+
+As you can see, it's a kernel file identical to your system's, leaving only
+the task of enabling or disabling options, according to your needs.
+
+tinybsd.basefiles: Just like PicoBSD had its crunch.conf file to define which
+files we'd want the new system to have, in this one we'll have all files to be
+put into our embedded system, already having all available files for running
+the system well. Put in or take out the files you need according to your
+needs. Let's see it:
+
+# more tinybsd.basefiles
+# contents of ${WORKDIR}/boot
+boot/boot0
+boot/boot1
+boot/boot2
+boot/defaults/loader.conf
+boot/device.hints
+...
+# contents of ${WORKDIR}/bin
+bin/[:bin/test
+bin/cat
+bin/chflags
+bin/chio
+bin/chmod
+...
+
+And so on. In case you'd want to add the binary "setkey", sitting on
+/usr/sbin, you'd only need to add the following line inside the /usr/sbin part
+of the file, like this:
+
+usr/sbin/pw
+usr/sbin/pwd_mkdb
+usr/sbin/setkey
+
+tinybsd.ports: Here you can add the applications from the FreeBSD Ports Collection 
+which you want TinyBSD ports system to install in your embedded system. You whould 
+list one application per line, mentioning its category and name, like the examples:
+www/mini_httpd
+net-mgmt/rate 
+
+etc/: This is the directory where you can put your custom /etc configuration.
+
+# ls /usr/src/tools/tools/tinybsd/tinybsd
+tinybsd
+
+tinybsd: This is the script that builds the entire system. You'll hardly
+need to modify it at all. The idea is for it to create a temporary work
+directory for it to create the entire system tree. Once done, it'll copy all
+files listed in tinybsd.basefiles to this tree, then it'll compile a new
+kernel using the definitions in the TINYBSD file, and finally copy the library
+dependencies the binaries will have. We'll then populate /etc on that
+temporary tree and put in a few important default configurations inside on
+/usr/src/tools/tools/tinybsd/conf/YOURCHOICE/etc/ like rc.conf, fstab and others.
+
+Finally, we create an empty image, according to your media's specifications,
+passed on to the script on the command line, and copy the entire temporary
+work tree into the image mounted on /mnt.
+
+- Running TinyBSD
+
+Now that we know how it works, it's time for us to build our own image. Let's
+do that step-by-step.
+
+1) Choose what pre-configured image you want.
+
+2) Edit the TINYBSD kernel file and add/remove all options you'll need.
+
+3) Edit the tinybsd.basefiles file and add/remove all binaries you'll need on
+your system.
+
+4) Copy all your /etc configuration which you want to conf/YOURIMAGE/etc/.
+
+5) Gather the right information on your destination media. To do that, plug in
+the device on the system and fetch the information using diskinfo(8):
+
+# diskinfo -v /dev/ad2
+ad2
+        512             # sectorsize
+        20060135424     # mediasize in bytes (19G)
+        39179952        # mediasize in sectors
+        38869           # Cylinders according to firmware.
+        16              # Heads according to firmware.
+        63              # Sectors according to firmware.
+
+To create my image, I'll need to know the media size in sectors, Heads
+according to firmware and Sectors according to firmware. Optionally, you may
+define the name of the generated image's file, but if you don't, it'll be
+named tinybsd.bin. Now that we have gathered these informations through
+diskinfo, all we need to do is run tinybsd. Remember that it has 3
+parameters plus 1 optional, and if you don't pass on the required ones, the
+script will warn you about it:
+
+# /usr/src/tools/tools/tinybsd/tinybsd
+Woops!
+   Usage: tinybsd <mediasize in sectors> <heads according to firmware> 
+   <sectors according to firmware> <conf> [<tinybsd image name>]
+
+   Example: tinybsd 62592 4 32
+
+	or
+
+   /usr/src/tools/tools/tinybsd/tinybsd 62592 4 32 wireless
+
+   Run diskinfo(8) -v against your CF device to get correct information
+   about your disk.
+
+Passing on the parameters correctly:
+
+# /usr/src/tools/tools/tinybsd/tinybsd 39179952 16 63 wireless
+Creating directory hierarchy...
+./bin missing (created)
+./boot missing (created)
+./boot/defaults missing (created)
+./boot/kernel missing (created)
+./boot/modules missing (created)
+./dev missing (created)
+./etc missing (created)
+...
+
+In the end, we have the generated tinybsd.bin image. Now we have to copy it to
+its final destination:
+
+# dd if=/usr/src/tools/tools/tinybsd/tinybsd.bin of=/dev/ad2
+
+Boot up your new embedded system and log on it. If you're ever going to modify
+it, you must first remount the root slice as read-write, as it operates by
+default on read-only mode, saving disk writes and preventing data-loss in case
+of power failures. To mount it for read-write, use mount:
+
+# mount -u -o rw /
+
+Once you're done, return it to read-only mode:
+
+# mount -u -o ro /
+
+The first thing you need to do after logging for the first time, is to set a
+root password. By default, it's created with no root password.
+
+If you run df(1), you'll see the following partitions:
+
+# df
+Filesystem 1K-blocks  Used Avail Capacity  Mounted on
+/dev/ad0a      29359 19446  7565    72%    /
+devfs              1     1     0   100%    /dev
+procfs             4     4     0   100%    /proc
+/dev/md0        3694   114  3286     3%    /var
+/dev/md1        19566    6 17996     0%    /tmp 
+
+As you can see, /var and /tmp are mounted on /dev/md0 and /dev/md1
+respectively, using memory disk devices. That's because both /var and /tmp are
+write-intensive, and as our system works mostly on read-only mode, we'd suffer
+with writing problems there, so the memory disk approach works fine. On the
+other hand, whenever you reboot the system, those directories' contents
+(including logs on /var/log) will be lost. If you need to keep the contents of
+those directories, I suggest you to always upload them to another box.
+
+The configuration line that fires up the system script to create /var as a
+memory disk partition is "varmfs="YES"", inside
+/etc/rc.conf. Besides mounting /var as a memory disk device, it also populates
+its tree with the necessary subdirectories. Initially, /var is created on
+memory using only 32MB of space, and that's usually enough. Although, if you
+find it necessary to tweak that configuration, you may edit this line of
+/etc/rc.conf:
+
+varsize="32m"
+
+Change 32m to whatever value you see fit (in MBytes). Take care of not using
+your entire memory for /var.
+
+- Ports and TinyBSD
+
+You can also install ports on the new system via ports. For that, you'll need
+to set the PREFIX environment variable to the image's destination path. Let's
+assume you want to install apache on the newly-created image. For that, I'd do
+this:
+
+# mdconfig -a -t vnode -f /usr/src/tools/tools/tinybsd/tinybsd.bin -u 0
+
+That uses mdconfig to enable the memory disk 0.
+
+# mount /dev/md0a /mnt
+
+Now we've mounted the image on the temporary directory /mnt. Let's then
+install apache via ports:
+
+# cd /usr/ports/www/apache13
+# make install PREFIX=/mnt/usr/local
+===>  Vulnerability check disabled
+>> apache_1.3.31.tar.gz doesn't seem to exist in /usr/ports/distfiles/.
+>> Attempting to fetch from http://www.apache.org/dist/httpd/.
+...
+      This port has installed the following startup scripts which may cause
+      these network services to be started at boot time.
+/mnt/usr/local/etc/rc.d/apache.sh
+....
+
+Once the install is finished, let's verify that apache has indeed been
+properly installed under our /mnt directory:
+
+# cd /mnt/usr/local/sbin
+# ls -lga httpd
+-rwxr-xr-x  1 root  wheel  252439 Jul 14 15:31 httpd
+
+Our software has been successfully installed. You must notice that at the end
+of the install, it shows the full path for the PREFIX variable we passed it.
+The problem with that is that at boot-time, your system is going to look for
+it under /mnt instead of /usr. So we need to edit apache's initialization
+script under /usr/local/etc/rc.d (apache.sh) and remove all instances of
+"/mnt" in it.
+
+WARNING: A very important thing to care about are dependencies. Before
+installing anything, check to see if it has any dependencies, and that you'll
+have enough disk space on the destination system for both the application
+you're installing and its dependencies.
+
+- Script download
+
+TinyBSD is still a project under heavy development, both the script itself and
+its documentation. 
+
+In case you'd like to try or use the BETA version of the script, feel free to
+download it from the project's official site at http://code.google.com/p/tinybsd/.

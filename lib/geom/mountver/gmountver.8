@@ -1,0 +1,133 @@
+.\"-
+.\" Copyright (c) 2010 Edward Tomasz Napierala
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 18, 2015
+.Dt GMOUNTVER 8
+.Os
+.Sh NAME
+.Nm gmountver
+.Nd "control utility for disk mount verification GEOM class"
+.Sh SYNOPSIS
+.Nm
+.Cm create
+.Op Fl v
+.Ar prov ...
+.Nm
+.Cm destroy
+.Op Fl fv
+.Ar name
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Op Fl s Ar name
+.Nm
+.Cm load
+.Op Fl v
+.Nm
+.Cm unload
+.Op Fl v
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to control the mount verification GEOM class.
+When configured, it passes all the I/O requests to the underlying provider.
+When the underlying provider disappears - for example because the disk device
+got disconnected - it queues all the I/O requests and waits for the provider
+to reappear.
+When that happens, it attaches to it and sends the queued requests.
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm destroy"
+.It Cm create
+Enable mount verification for the given provider.
+If the operation succeeds, a new GEOM provider will be created using the
+given provider's name with a
+.Ql .mountver
+suffix.
+The kernel module
+.Pa geom_mountver.ko
+will be loaded if it is not loaded already.
+.It Cm destroy
+Destroy
+.Ar name .
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Pp
+Additional options:
+.Bl -tag -width indent
+.It Fl f
+Force the removal of the specified mountver device.
+.It Fl v
+Be more verbose.
+.El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to control the behavior of the
+.Nm MOUNTVER
+GEOM class.
+The default value is shown next to each variable.
+.Bl -tag -width indent
+.It Va kern.geom.mountver.debug : No 0
+Debug level of the
+.Nm MOUNTVER
+GEOM class.
+This can be set to a number between 0 and 3 inclusive.
+If set to 0 minimal debug information is printed, and if set to 3 the
+maximum amount of debug information is printed.
+.It Va kern.geom.mountver.check_ident : No 1
+This can be set to 0 or 1.
+If set to 0,
+.Nm
+will reattach to the device even if the device reports a different disk ID.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr geom 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org

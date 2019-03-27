@@ -1,0 +1,7 @@
+
+#------------------------------------------------------------------------------
+# $File: tgif,v 1.7 2010/09/20 19:03:46 rrt Exp $
+# file(1) magic for tgif(1) files
+# From Hendrik Scholz <hendrik@scholz.net>
+0	string	%TGIF\ 			Tgif file version
+>6	string	x			%s

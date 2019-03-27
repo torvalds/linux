@@ -1,0 +1,262 @@
+#
+# Copyright (c) 2001-2003
+#	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+#	All rights reserved.
+#
+# Author: Harti Brandt <harti@freebsd.org>
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $Begemot: bsnmp/snmp_mibII/mibII_tree.def,v 1.13 2006/02/14 09:04:19 brandt_h Exp $
+#
+# Definition of the standard interfaces and ip trees.
+#
+(1 internet
+  (2 mgmt
+    (1 mib2
+      (2 interfaces
+        (1 ifNumber INTEGER op_interfaces GET)
+        (2 ifTable
+          (1 ifEntry : INTEGER op_ifentry
+            (1 ifIndex INTEGER GET)
+            (2 ifDescr OCTETSTRING GET)
+            (3 ifType INTEGER GET)
+            (4 ifMtu INTEGER32 GET)
+            (5 ifSpeed GAUGE GET)
+            (6 ifPhysAddress OCTETSTRING GET)
+            (7 ifAdminStatus INTEGER GET SET)
+            (8 ifOperStatus INTEGER GET)
+            (9 ifLastChange TIMETICKS GET)
+            (10 ifInOctets COUNTER GET)
+            (11 ifInUcastPkts COUNTER GET)
+            (12 ifInNUcastPkts COUNTER GET)
+            (13 ifInDiscards COUNTER GET)
+            (14 ifInErrors COUNTER GET)
+            (15 ifInUnknownProtos COUNTER GET)
+            (16 ifOutOctets COUNTER GET)
+            (17 ifOutUcastPkts COUNTER GET)
+            (18 ifOutNUcastPkts COUNTER GET)
+            (19 ifOutDiscards COUNTER GET)
+            (20 ifOutErrors COUNTER GET)
+            (21 ifOutQLen GAUGE GET)
+            (22 ifSpecific OID GET)
+        ))
+      )
+      (4 ip
+        (1 ipForwarding INTEGER op_ip GET SET)
+        (2 ipDefaultTTL INTEGER op_ip GET SET)
+        (3 ipInReceives COUNTER op_ipstat GET)
+        (4 ipInHdrErrors COUNTER op_ipstat GET)
+        (5 ipInAddrErrors COUNTER op_ipstat GET)
+        (6 ipForwDatagrams COUNTER op_ipstat GET)
+        (7 ipInUnknownProtos COUNTER op_ipstat GET)
+        (8 ipInDiscards COUNTER op_ipstat GET)
+        (9 ipInDelivers COUNTER op_ipstat GET)
+        (10 ipOutRequests COUNTER op_ipstat GET)
+        (11 ipOutDiscards COUNTER op_ipstat GET)
+        (12 ipOutNoRoutes COUNTER op_ipstat GET)
+        (13 ipReasmTimeout INTEGER32 op_ipstat GET)
+        (14 ipReasmReqds COUNTER op_ipstat GET)
+        (15 ipReasmOKs COUNTER op_ipstat GET)
+        (16 ipReasmFails COUNTER op_ipstat GET)
+        (17 ipFragOKs COUNTER op_ipstat GET)
+        (18 ipFragFails COUNTER op_ipstat GET)
+        (19 ipFragCreates COUNTER op_ipstat GET)
+        (20 ipAddrTable
+          (1 ipAddrEntry : IPADDRESS op_ipaddr
+            (1 ipAdEntAddr IPADDRESS GET)
+            (2 ipAdEntIfIndex INTEGER GET SET)
+            (3 ipAdEntNetMask IPADDRESS GET SET)
+            (4 ipAdEntBcastAddr INTEGER GET SET)
+            (5 ipAdEntReasmMaxSize INTEGER GET)
+        ))
+        (22 ipNetToMediaTable
+          (1 ipNetToMediaEntry : INTEGER IPADDRESS op_nettomedia
+            (1 ipNetToMediaIfIndex INTEGER GET)
+            (2 ipNetToMediaPhysAddress OCTETSTRING GET)
+            (3 ipNetToMediaNetAddress IPADDRESS GET)
+            (4 ipNetToMediaType INTEGER GET)
+        ))
+        (23 ipRoutingDiscards INTEGER op_ipstat)	# not available
+        (24 ipForward
+          (3 ipCidrRouteNumber GAUGE op_route GET)
+          (4 ipCidrRouteTable
+            (1 ipCidrRouteEntry : IPADDRESS IPADDRESS INTEGER IPADDRESS op_route_table
+              (1 ipCidrRouteDest IPADDRESS GET)
+              (2 ipCidrRouteMask IPADDRESS GET)
+              (3 ipCidrRouteTos INTEGER GET)
+              (4 ipCidrRouteNextHop IPADDRESS GET)
+              (5 ipCidrRouteIfIndex INTEGER GET)	# SET
+              (6 ipCidrRouteType INTEGER GET)		# SET
+              (7 ipCidrRouteProto INTEGER GET)
+              (8 ipCidrRouteAge INTEGER GET)
+              (9 ipCidrRouteInfo OID GET)		# SET
+              (10 ipCidrRouteNextHopAS INTEGER GET)	# SET
+              (11 ipCidrRouteMetric1 INTEGER GET)	# SET
+              (12 ipCidrRouteMetric2 INTEGER GET)	# SET
+              (13 ipCidrRouteMetric3 INTEGER GET)	# SET
+              (14 ipCidrRouteMetric4 INTEGER GET)	# SET
+              (15 ipCidrRouteMetric5 INTEGER GET)	# SET
+              (16 ipCidrRouteStatus INTEGER GET)	# SET
+          ))
+        )
+      )
+      (5 icmp
+        (1 icmpInMsgs COUNTER op_icmpstat GET)
+        (2 icmpInErrors COUNTER op_icmpstat GET)
+        (3 icmpInDestUnreachs COUNTER op_icmpstat GET)
+        (4 icmpInTimeExcds COUNTER op_icmpstat GET)
+        (5 icmpInParmProbs COUNTER op_icmpstat GET)
+        (6 icmpInSrcQuenchs COUNTER op_icmpstat GET)
+        (7 icmpInRedirects COUNTER op_icmpstat GET)
+        (8 icmpInEchos COUNTER op_icmpstat GET)
+        (9 icmpInEchoReps COUNTER op_icmpstat GET)
+        (10 icmpInTimestamps COUNTER op_icmpstat GET)
+        (11 icmpInTimestampReps COUNTER op_icmpstat GET)
+        (12 icmpInAddrMasks COUNTER op_icmpstat GET)
+        (13 icmpInAddrMaskReps COUNTER op_icmpstat GET)
+        (14 icmpOutMsgs COUNTER op_icmpstat GET)
+        (15 icmpOutErrors COUNTER op_icmpstat GET)
+        (16 icmpOutDestUnreachs COUNTER op_icmpstat GET)
+        (17 icmpOutTimeExcds COUNTER op_icmpstat GET)
+        (18 icmpOutParmProbs COUNTER op_icmpstat GET)
+        (19 icmpOutSrcQuenchs COUNTER op_icmpstat GET)
+        (20 icmpOutRedirects COUNTER op_icmpstat GET)
+        (21 icmpOutEchos COUNTER op_icmpstat GET)
+        (22 icmpOutEchoReps COUNTER op_icmpstat GET)
+        (23 icmpOutTimestamps COUNTER op_icmpstat GET)
+        (24 icmpOutTimestampReps COUNTER op_icmpstat GET)
+        (25 icmpOutAddrMasks COUNTER op_icmpstat GET)
+        (26 icmpOutAddrMaskReps COUNTER op_icmpstat GET)
+      )
+      (6 tcp
+        (1 tcpRtoAlgorithm INTEGER op_tcp GET)
+        (2 tcpRtoMin INTEGER32 op_tcp GET)
+        (3 tcpRtoMax INTEGER32 op_tcp GET)
+        (4 tcpMaxConn INTEGER32 op_tcp GET)
+        (5 tcpActiveOpens COUNTER op_tcp GET)
+        (6 tcpPassiveOpens COUNTER op_tcp GET)
+        (7 tcpAttemptFails COUNTER op_tcp GET)
+        (8 tcpEstabResets COUNTER op_tcp GET)
+        (9 tcpCurrEstab GAUGE op_tcp GET)
+        (10 tcpInSegs COUNTER op_tcp GET)
+        (11 tcpOutSegs COUNTER op_tcp GET)
+        (12 tcpRetransSegs COUNTER op_tcp GET)
+        (13 tcpConnTable
+          (1 tcpConnEntry : IPADDRESS INTEGER IPADDRESS INTEGER op_tcpconn
+            (1 tcpConnState INTEGER GET)
+            (2 tcpConnLocalAddress IPADDRESS GET)
+            (3 tcpConnLocalPort INTEGER GET)
+            (4 tcpConnRemAddress IPADDRESS GET)
+            (5 tcpConnRemPort INTEGER GET)
+        ))
+        (14 tcpInErrs COUNTER op_tcp GET)
+        (15 tcpOutRsts COUNTER op_tcp)		# don't know
+      )
+      (7 udp
+        (1 udpInDatagrams COUNTER op_udp GET)
+        (2 udpNoPorts COUNTER op_udp GET)
+        (3 udpInErrors COUNTER op_udp GET)
+        (4 udpOutDatagrams COUNTER op_udp GET)
+        (5 udpTable
+          (1 udpEntry : IPADDRESS INTEGER op_udptable
+            (1 udpLocalAddress IPADDRESS GET)
+            (2 udpLocalPort INTEGER GET)
+        ))
+      )
+      (31 ifMIB
+        (1 ifMIBObjects
+          (1 ifXTable
+            (1 ifXEntry : INTEGER op_ifxtable
+              (1 ifName OCTETSTRING GET)
+              (2 ifInMulticastPkts COUNTER GET)
+              (3 ifInBroadcastPkts COUNTER GET)
+              (4 ifOutMulticastPkts COUNTER GET)
+              (5 ifOutBroadcastPkts COUNTER GET)
+              (6 ifHCInOctets COUNTER64 GET)
+              (7 ifHCInUcastPkts COUNTER64 GET)
+              (8 ifHCInMulticastPkts COUNTER64 GET)
+              (9 ifHCInBroadcastPkts COUNTER64 GET)
+              (10 ifHCOutOctets COUNTER64 GET)
+              (11 ifHCOutUcastPkts COUNTER64 GET)
+              (12 ifHCOutMulticastPkts COUNTER64 GET)
+              (13 ifHCOutBroadcastPkts COUNTER64 GET)
+              (14 ifLinkUpDownTrapEnable INTEGER GET SET)
+              (15 ifHighSpeed GAUGE GET)
+              (16 ifPromiscuousMode INTEGER GET SET)
+              (17 ifConnectorPresent INTEGER GET)
+              (18 ifAlias OCTETSTRING GET)
+              (19 ifCounterDiscontinuityTime TIMETICKS GET)
+          ))
+          (2 ifStackTable
+            (1 ifStackEntry : INTEGER INTEGER op_ifstack
+              (1 ifStackHigherLayer INTEGER)
+              (2 ifStackLowerLayer INTEGER)
+              (3 ifStackStatus INTEGER GET)
+          ))
+          (4 ifRcvAddressTable
+            (1 ifRcvAddressEntry : INTEGER OCTETSTRING op_rcvaddr
+              (1 ifRcvAddressAddress OCTETSTRING)
+              (2 ifRcvAddressStatus INTEGER GET)
+              (3 ifRcvAddressType INTEGER GET)
+          ))
+          (5 ifTableLastChange TIMETICKS op_ifmib GET)
+          (6 ifStackLastChange TIMETICKS op_ifmib GET)
+        )
+      )
+      (48 ipMIB
+      )
+      (49 tcpMIB
+      )
+      (50 udpMIB
+      )
+  ))
+  (4 private
+    (1 enterprises
+      (12325 fokus
+        (1 begemot
+	  (3 begemotIp
+	    (1 begemotIpObjects
+	      (1 begemotMib2
+		(1 begemotIfMaxspeed COUNTER64 op_begemot_mibII GET)
+		(2 begemotIfPoll TIMETICKS op_begemot_mibII GET)
+		(3 begemotIfForcePoll TIMETICKS op_begemot_mibII GET SET)
+		(4 begemotIfDataPoll TIMETICKS op_begemot_mibII GET SET)
+	      )
+	    )
+	  )
+        )
+      )
+    )
+  )
+  (6 snmpV2
+    (3 snmpModules
+      (1 snmpMIB
+        (1 snmpMIBObjects
+          (5 snmpTraps
+            (3 linkDown OID op_snmp_trap)
+            (4 linkUp OID op_snmp_trap)
+          )
+        )
+      )
+  ))
+)

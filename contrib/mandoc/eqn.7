@@ -1,0 +1,500 @@
+.\"	$Id: eqn.7,v 1.37 2017/09/04 10:35:27 schwarze Exp $
+.\"
+.\" Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+.\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 4 2017 $
+.Dt EQN 7
+.Os
+.Sh NAME
+.Nm eqn
+.Nd eqn language reference for mandoc
+.Sh DESCRIPTION
+The
+.Nm eqn
+language is an equation-formatting language.
+It is used within
+.Xr mdoc 7
+and
+.Xr man 7
+.Ux
+manual pages.
+It describes the
+.Em structure
+of an equation, not its mathematical meaning.
+This manual describes the
+.Nm
+language accepted by the
+.Xr mandoc 1
+utility, which corresponds to the Second Edition
+.Nm
+specification (see
+.Sx SEE ALSO
+for references).
+.Pp
+Equations within
+.Xr mdoc 7
+or
+.Xr man 7
+documents are enclosed by the standalone
+.Sq \&.EQ
+and
+.Sq \&.EN
+tags.
+Equations are multi-line blocks consisting of formulas and control
+statements.
+.Sh EQUATION STRUCTURE
+Each equation is bracketed by
+.Sq \&.EQ
+and
+.Sq \&.EN
+strings.
+.Em Note :
+these are not the same as
+.Xr roff 7
+macros, and may only be invoked as
+.Sq \&.EQ .
+.Pp
+The equation grammar is as follows, where quoted strings are
+case-sensitive literals in the input:
+.Bd -literal -offset indent
+eqn     : box | eqn box
+box     : text
+        | \(dq{\(dq eqn \(dq}\(dq
+        | \(dqdefine\(dq text text
+        | \(dqndefine\(dq text text
+        | \(dqtdefine\(dq text text
+        | \(dqgfont\(dq text
+        | \(dqgsize\(dq text
+        | \(dqset\(dq text text
+        | \(dqundef\(dq text
+        | \(dqsqrt\(dq box
+        | box pos box
+        | box mark
+        | \(dqmatrix\(dq \(dq{\(dq [col \(dq{\(dq list \(dq}\(dq]* \(dq}\(dq
+        | pile \(dq{\(dq list \(dq}\(dq
+        | font box
+        | \(dqsize\(dq text box
+        | \(dqleft\(dq text eqn [\(dqright\(dq text]
+col     : \(dqlcol\(dq | \(dqrcol\(dq | \(dqccol\(dq | \(dqcol\(dq
+text    : [^space\e\(dq]+ | \e\(dq.*\e\(dq
+pile    : \(dqlpile\(dq | \(dqcpile\(dq | \(dqrpile\(dq | \(dqpile\(dq
+pos     : \(dqover\(dq | \(dqsup\(dq | \(dqsub\(dq | \(dqto\(dq | \(dqfrom\(dq
+mark	: \(dqdot\(dq | \(dqdotdot\(dq | \(dqhat\(dq | \(dqtilde\(dq | \(dqvec\(dq
+        | \(dqdyad\(dq | \(dqbar\(dq | \(dqunder\(dq
+font    : \(dqroman\(dq | \(dqitalic\(dq | \(dqbold\(dq | \(dqfat\(dq
+list    : eqn
+        | list \(dqabove\(dq eqn
+space   : [\e^~ \et]
+.Ed
+.Pp
+White-space consists of the space, tab, circumflex, and tilde
+characters.
+It is required to delimit tokens consisting of alphabetic characters
+and it is ignored at other places.
+Braces and quotes also delimit tokens.
+If within a quoted string, these space characters are retained.
+Quoted strings are also not scanned for keywords, glyph names,
+and expansion of definitions.
+To print a literal quote character, it can be prepended with a
+backslash or expressed with the \e(dq escape sequence.
+.Pp
+Subequations can be enclosed in braces to pass them as arguments
+to operation keywords, overriding standard operation precedence.
+Braces can be nested.
+To set a brace verbatim, it needs to be enclosed in quotes.
+.Pp
+The following text terms are translated into a rendered glyph, if
+available: alpha, beta, chi, delta, epsilon, eta, gamma, iota, kappa,
+lambda, mu, nu, omega, omicron, phi, pi, psi, rho, sigma, tau, theta,
+upsilon, xi, zeta, DELTA, GAMMA, LAMBDA, OMEGA, PHI, PI, PSI, SIGMA,
+THETA, UPSILON, XI, inter (intersection), union (union), prod (product),
+int (integral), sum (summation), grad (gradient), del (vector
+differential), times (multiply), cdot (center-dot), nothing (zero-width
+space), approx (approximately equals), prime (prime), half (one-half),
+partial (partial differential), inf (infinity), >> (much greater), <<
+(much less), <\- (left arrow), \-> (right arrow), +\- (plus-minus), !=
+(not equal), == (equivalence), <= (less-than-equal), and >=
+(more-than-equal).
+The character escape sequences documented in
+.Xr mandoc_char 7
+can be used, too.
+.Pp
+The following control statements are available:
+.Bl -tag -width Ds
+.It Cm define
+Replace all occurrences of a key with a value.
+Its syntax is as follows:
+.Pp
+.D1 Cm define Ar key cvalc
+.Pp
+The first character of the value string,
+.Ar c ,
+is used as the delimiter for the value
+.Ar val .
+This allows for arbitrary enclosure of terms (not just quotes), such as
+.Pp
+.D1 Cm define Ar foo \(aqbar baz\(aq
+.D1 Cm define Ar foo cbar bazc
+.Pp
+It is an error to have an empty
+.Ar key
+or
+.Ar val .
+Note that a quoted
+.Ar key
+causes errors in some
+.Nm
+implementations and should not be considered portable.
+It is not expanded for replacements.
+Definitions may refer to other definitions; these are evaluated
+recursively when text replacement occurs and not when the definition is
+created.
+.Pp
+Definitions can create arbitrary strings, for example, the following is
+a legal construction.
+.Bd -literal -offset indent
+define foo \(aqdefine\(aq
+foo bar \(aqbaz\(aq
+.Ed
+.Pp
+Self-referencing definitions will raise an error.
+The
+.Cm ndefine
+statement is a synonym for
+.Cm define ,
+while
+.Cm tdefine
+is discarded.
+.It Cm gfont
+Set the default font of subsequent output.
+Its syntax is as follows:
+.Pp
+.D1 Cm gfont Ar font
+.Pp
+In mandoc, this value is discarded.
+.It Cm gsize
+Set the default size of subsequent output.
+Its syntax is as follows:
+.Pp
+.D1 Cm gsize Oo +|\- Oc Ns Ar size
+.Pp
+The
+.Ar size
+value should be an integer.
+If prepended by a sign,
+the font size is changed relative to the current size.
+.It Cm set
+Set an equation mode.
+In mandoc, both arguments are thrown away.
+Its syntax is as follows:
+.Pp
+.D1 Cm set Ar key val
+.Pp
+The
+.Ar key
+and
+.Ar val
+are not expanded for replacements.
+This statement is a GNU extension.
+.It Cm undef
+Unset a previously-defined key.
+Its syntax is as follows:
+.Pp
+.D1 Cm define Ar key
+.Pp
+Once invoked, the definition for
+.Ar key
+is discarded.
+The
+.Ar key
+is not expanded for replacements.
+This statement is a GNU extension.
+.El
+.Pp
+Operation keywords have the following semantics:
+.Bl -tag -width Ds
+.It Cm above
+See
+.Cm pile .
+.It Cm bar
+Draw a line over the preceding box.
+.It Cm bold
+Set the following box using bold font.
+.It Cm ccol
+Like
+.Cm cpile ,
+but for use in
+.Cm matrix .
+.It Cm cpile
+Like
+.Cm pile ,
+but with slightly increased vertical spacing.
+.It Cm dot
+Set a single dot over the preceding box.
+.It Cm dotdot
+Set two dots (dieresis) over the preceding box.
+.It Cm dyad
+Set a dyad symbol (left-right arrow) over the preceding box.
+.It Cm fat
+A synonym for
+.Cm bold .
+.It Cm font
+Set the second argument using the font specified by the first argument;
+currently not recognized by the
+.Xr mandoc 1
+.Nm
+parser.
+.It Cm from
+Set the following box below the preceding box,
+using a slightly smaller font.
+Used for sums, integrals, limits, and the like.
+.It Cm hat
+Set a hat (circumflex) over the preceding box.
+.It Cm italic
+Set the following box using italic font.
+.It Cm lcol
+Like
+.Cm lpile ,
+but for use in
+.Cm matrix .
+.It Cm left
+Set the first argument as a big left delimiter before the second argument.
+As an optional third argument,
+.Cm right
+can follow.
+In that case, the fourth argument is set as a big right delimiter after
+the second argument.
+.It Cm lpile
+Like
+.Cm cpile ,
+but subequations are left-justified.
+.It Cm matrix
+Followed by a list of columns enclosed in braces.
+All columns need to have the same number of subequations.
+The columns are set as a matrix.
+The difference compared to multiple subsequent
+.Cm pile
+operators is that in a
+.Cm matrix ,
+corresponding subequations in all columns line up horizontally,
+while each
+.Cm pile
+does vertical spacing independently.
+.It Cm over
+Set a fraction.
+The preceding box is the numerator, the following box is the denominator.
+.It Cm pile
+Followed by a list of subequations enclosed in braces,
+the subequations being separated by
+.Cm above
+keywords.
+Sets the subequations one above the other, each of them centered.
+Typically used to represent vectors in coordinate representation.
+.It Cm rcol
+Like
+.Cm rpile ,
+but for use in
+.Cm matrix .
+.It Cm right
+See
+.Cm left ;
+.Cm right
+cannot be used without
+.Cm left .
+To set a big right delimiter without a big left delimiter, the following
+construction can be used:
+.Pp
+.D1 Cm left No \(dq\(dq Ar box Cm right Ar delimiter
+.It Cm roman
+Set the following box using the default font.
+.It Cm rpile
+Like
+.Cm cpile ,
+but subequations are right-justified.
+.It Cm size
+Set the second argument with the font size specified by the first
+argument; currently ignored by
+.Xr mandoc 1 .
+By prepending a plus or minus sign to the first argument,
+the font size can be selected relative to the current size.
+.It Cm sqrt
+Set the square root of the following box.
+.It Cm sub
+Set the following box as a subscript to the preceding box.
+.It Cm sup
+Set the following box as a superscript to the preceding box.
+As a special case, if a
+.Cm sup
+clause immediately follows a
+.Cm sub
+clause as in
+.Pp
+.D1 Ar mainbox Cm sub Ar subbox Cm sup Ar supbox
+.Pp
+both are set with respect to the same
+.Ar mainbox ,
+that is,
+.Ar supbox
+is set above
+.Ar subbox .
+.It Cm tilde
+Set a tilde over the preceding box.
+.It Cm to
+Set the following box above the preceding box,
+using a slightly smaller font.
+Used for sums and integrals and the like.
+As a special case, if a
+.Cm to
+clause immediately follows a
+.Cm from
+clause as in
+.Pp
+.D1 Ar mainbox Cm from Ar frombox Cm to Ar tobox
+.Pp
+both are set below and above the same
+.Ar mainbox .
+.It Cm under
+Underline the preceding box.
+.It Cm vec
+Set a vector symbol (right arrow) over the preceding box.
+.El
+.Pp
+The binary operations
+.Cm from ,
+.Cm to ,
+.Cm sub ,
+and
+.Cm sup
+group to the right, that is,
+.Pp
+.D1 Ar mainbox Cm sup Ar supbox Cm sub Ar subbox
+.Pp
+is the same as
+.Pp
+.D1 Ar mainbox Cm sup Brq Ar supbox Cm sub Ar subbox
+.Pp
+and different from
+.Pp
+.D1 Bro Ar mainbox Cm sup Ar supbox Brc Cm sub Ar subbox .
+.Pp
+By contrast,
+.Cm over
+groups to the left.
+.Pp
+In the following list, earlier operations bind more tightly than
+later operations:
+.Pp
+.Bl -enum -compact
+.It
+.Cm dyad ,
+.Cm vec ,
+.Cm under ,
+.Cm bar ,
+.Cm tilde ,
+.Cm hat ,
+.Cm dot ,
+.Cm dotdot
+.It
+.Cm fat ,
+.Cm roman ,
+.Cm italic ,
+.Cm bold ,
+.Cm size
+.It
+.Cm sub ,
+.Cm sup
+.It
+.Cm sqrt
+.It
+.Cm over
+.It
+.Cm from ,
+.Cm to
+.El
+.Sh COMPATIBILITY
+This section documents the compatibility of mandoc
+.Nm
+and the troff
+.Nm
+implementation (including GNU troff).
+.Pp
+.Bl -dash -compact
+.It
+The text string
+.Sq \e\(dq
+is interpreted as a literal quote in troff.
+In mandoc, this is interpreted as a comment.
+.It
+In troff, The circumflex and tilde white-space symbols map to
+fixed-width spaces.
+In mandoc, these characters are synonyms for the space character.
+.It
+The troff implementation of
+.Nm
+allows for equation alignment with the
+.Cm mark
+and
+.Cm lineup
+tokens.
+mandoc discards these tokens.
+The
+.Cm back Ar n ,
+.Cm fwd Ar n ,
+.Cm up Ar n ,
+and
+.Cm down Ar n
+commands are also ignored.
+.El
+.Sh SEE ALSO
+.Xr mandoc 1 ,
+.Xr man 7 ,
+.Xr mandoc_char 7 ,
+.Xr mdoc 7 ,
+.Xr roff 7
+.Rs
+.%A Brian W. Kernighan
+.%A Lorinda L. Cherry
+.%T System for Typesetting Mathematics
+.%J Communications of the ACM
+.%V 18
+.%P 151\(en157
+.%D March, 1975
+.Re
+.Rs
+.%A Brian W. Kernighan
+.%A Lorinda L. Cherry
+.%T Typesetting Mathematics, User's Guide
+.%D 1976
+.Re
+.Rs
+.%A Brian W. Kernighan
+.%A Lorinda L. Cherry
+.%T Typesetting Mathematics, User's Guide (Second Edition)
+.%D 1978
+.Re
+.Sh HISTORY
+The eqn utility, a preprocessor for troff, was originally written by
+Brian W. Kernighan and Lorinda L. Cherry in 1975.
+The GNU reimplementation of eqn, part of the GNU troff package, was
+released in 1989 by James Clark.
+The eqn component of
+.Xr mandoc 1
+was added in 2011.
+.Sh AUTHORS
+This
+.Nm
+reference was written by
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv .

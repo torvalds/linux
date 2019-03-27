@@ -1,0 +1,93 @@
+.\"
+.\" Copyright (c) 2003 Bruce M Simpson <bms@spc.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 11, 2013
+.Dt VM_MAP_INSERT 9
+.Os
+.Sh NAME
+.Nm vm_map_insert
+.Nd insert an object into a map
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_map.h
+.Ft int
+.Fo vm_map_insert
+.Fa "vm_map_t map" "vm_object_t object" "vm_ooffset_t offset"
+.Fa "vm_offset_t start" "vm_offset_t end" "vm_prot_t prot"
+.Fa "vm_prot_t max" "int cow"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn vm_map_insert
+function inserts a mapping for the entire vm_object
+.Fa object
+into the target map
+.Fa map .
+.Pp
+The
+.Fa offset
+argument specifies the offset into the
+.Fa object
+at which to begin mapping.
+The object's size should match that of the specified address range.
+.Pp
+The
+.Fa start
+and
+.Fa end
+arguments specify the bounds of the mapped object's window in the
+address space of
+.Fa map .
+.Pp
+The
+.Fa cow
+argument specifies the flags which should be propagated to the new entry,
+for example, to indicate that this is a copy-on-write mapping.
+.Sh IMPLEMENTATION NOTES
+This function implicitly creates a new
+.Vt vm_map_entry
+by calling the internal function
+.Fn vm_map_entry_create .
+.Sh RETURN VALUES
+The
+.Fn vm_map_insert
+function returns
+.Dv KERN_SUCCESS
+if the mapping could be made successfully.
+.Pp
+Otherwise,
+.Dv KERN_INVALID_ADDRESS
+will be returned if the start of the range could not be found, or
+.Dv KERN_NO_SPACE
+if the range was found to be part of an existing entry or if it
+overlaps the end of the map.
+.Sh SEE ALSO
+.Xr vm_map 9
+.Sh AUTHORS
+This manual page was written by
+.An Bruce M Simpson Aq Mt bms@spc.org .

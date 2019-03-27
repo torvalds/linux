@@ -1,0 +1,61 @@
+# $FreeBSD$
+
+# USB ECHI 
+
+#
+# TI OMAP Power Management and System Companion Device sitting on the I2C bus
+# hint.tps65950.0.at="iicbus0"
+# hint.tps65950.0.addr=0xd0
+
+
+#
+# Defines the GPIO pin used to detect the Write Protect stat of the MMC/SD card.
+#hint.omap_mmc.0.wp_gpio="23"
+
+
+#
+# If 'phy_reset" is set, then the accompaning PHY is reset using one of the
+# GPIO pins. If the reset GPIO pin is not -1 then the pin will be toggled when
+# the USB driver is loaded.
+hint.ehci.0.phy_reset="0"
+
+#
+# Sets the PHY mode for the individual ports, the following values are allowed
+#   - EHCI_HCD_OMAP3_MODE_UNKNOWN   0
+#   - EHCI_HCD_OMAP3_MODE_PHY       1
+#   - EHCI_HCD_OMAP3_MODE_TLL       2
+hint.ehci.0.phy_mode_0="1"
+hint.ehci.0.phy_mode_1="0"
+hint.ehci.0.phy_mode_2="0"
+
+#
+# If specified the value indicates a pin that is toggled as a heart-beat. The
+# heart beat pusle is triggered every 500ms using the system tick timer.
+hint.omap_clk.0.heartbeat_gpio="150"
+
+
+#
+# Padconf (pinmux) settings - typically this would be set by the boot-loader
+# but can be overridden here.  These hints are applied to the H/W when the
+# SCM module is initialised.
+#
+# The format is:
+#     hint.omap_scm.0.padconf.<padname>=<muxmode:options>
+#
+# Where the options can be one of the following:
+#     output, input, input_pullup, input_pulldown
+#
+
+# Setup the pin settings for the HS USB Host (PHY mode)
+hint.omap4.0.padconf.ag19="usbb1_ulpiphy_stp:output"
+hint.omap4.0.padconf.ae18="usbb1_ulpiphy_clk:input_pulldown"
+hint.omap4.0.padconf.af19="usbb1_ulpiphy_dir:input_pulldown"
+hint.omap4.0.padconf.ae19="usbb1_ulpiphy_nxt:input_pulldown"
+hint.omap4.0.padconf.af18="usbb1_ulpiphy_dat0:input_pulldown"
+hint.omap4.0.padconf.ag18="usbb1_ulpiphy_dat1:input_pulldown"
+hint.omap4.0.padconf.ae17="usbb1_ulpiphy_dat2:input_pulldown"
+hint.omap4.0.padconf.af17="usbb1_ulpiphy_dat3:input_pulldown"
+hint.omap4.0.padconf.ah17="usbb1_ulpiphy_dat4:input_pulldown"
+hint.omap4.0.padconf.ae16="usbb1_ulpiphy_dat5:input_pulldown"
+hint.omap4.0.padconf.af16="usbb1_ulpiphy_dat6:input_pulldown"
+hint.omap4.0.padconf.ag16="usbb1_ulpiphy_dat7:input_pulldown"

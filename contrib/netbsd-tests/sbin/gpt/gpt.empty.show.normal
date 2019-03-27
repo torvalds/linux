@@ -1,0 +1,7 @@
+  start   size  index  contents
+      0      1         PMBR
+      1      1         Pri GPT header
+      2     32         Pri GPT table
+     34  10174         Unused
+  10208     32         Sec GPT table
+  10240      1         Sec GPT header

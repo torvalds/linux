@@ -1,0 +1,301 @@
+.\"-
+.\" Copyright (c) 2009 Edward Tomasz Napierala
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR THE VOICES IN HIS HEAD BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 26, 2018
+.Dt RCTL 8
+.Os
+.Sh NAME
+.Nm rctl
+.Nd display and update resource limits database
+.Sh SYNOPSIS
+.Nm
+.Op Fl h
+.Op Fl n
+.Op Ar filter Ar ...
+.Nm
+.Fl a
+.Ar rule Ar ...
+.Nm
+.Fl l
+.Op Fl h
+.Op Fl n
+.Ar filter Ar ...
+.Nm
+.Fl r
+.Ar filter Ar ...
+.Nm
+.Fl u
+.Op Fl h
+.Ar filter Ar ...
+.Sh DESCRIPTION
+When called without options, the
+.Nm
+command writes currently defined RCTL rules to standard output.
+.Pp
+If a
+.Ar filter
+argument is specified, only rules matching the filter are displayed.
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a Ar rule
+Add
+.Ar rule
+to the RCTL database.
+.It Fl l Ar filter
+Display rules applicable to the process defined by
+.Ar filter .
+Note that this is different from showing the rules when called without
+any options, as it shows not just the rules with subject equal to that
+of process, but also rules for the user, jail, and login class applicable
+to the process.
+.It Fl r Ar filter
+Remove rules matching
+.Ar filter
+from the RCTL database.
+.It Fl u Ar filter
+Display resource utilization for a subject
+.Po
+.Sy process ,
+.Sy user ,
+.Sy loginclass
+or
+.Sy jail
+.Pc
+matching the
+.Ar filter .
+.It Fl h
+"Human-readable" output.
+Use unit suffixes: Byte, Kilobyte, Megabyte,
+Gigabyte, Terabyte and Petabyte.
+.It Fl n
+Display user IDs numerically rather than converting them to a user name.
+.El
+.Pp
+Modifying rules affects all currently running and future processes matching
+the rule.
+.Sh RULE SYNTAX
+Syntax for a rule is subject:subject-id:resource:action=amount/per.
+.Pp
+.Bl -tag -width "subject-id" -compact -offset indent
+.It subject
+defines the kind of entity the rule applies to.
+It can be either
+.Sy process ,
+.Sy user ,
+.Sy loginclass ,
+or
+.Sy jail .
+.It subject-id
+identifies the
+.Em subject .
+It can be a process ID, user name, numerical user ID, login class name from
+.Xr login.conf 5 ,
+or jail name.
+.It resource
+identifies the resource the rule controls.
+See the
+.Sx RESOURCES
+section below for details.
+.It action
+defines what will happen when a process exceeds the allowed
+.Em amount .
+See the
+.Sx ACTIONS
+section below for details.
+.It amount
+defines how much of the resource a process can use before
+the defined
+.Em action
+triggers.
+Resources which limit bytes may use prefixes from
+.Xr expand_number 3 .
+.It per
+defines what entity the
+.Em amount
+gets accounted for.
+For example, rule "loginclass:users:vmemoryuse:deny=100M/process" means
+that each process of any user belonging to login class "users" may allocate
+up to 100MB of virtual memory.
+Rule "loginclass:users:vmemoryuse:deny=100M/user" would mean that for each
+user belonging to the login class "users", the sum of virtual memory allocated
+by all the processes of that user will not exceed 100MB.
+Rule "loginclass:users:vmemoryuse:deny=100M/loginclass" would mean that the sum of
+virtual memory allocated by all processes of all users belonging to that login
+class will not exceed 100MB.
+.El
+.Pp
+A valid rule has all those fields specified, except for
+.Em per ,
+which defaults
+to the value of
+.Em subject .
+.Pp
+A filter is a rule for which one of more fields other than
+.Em per
+is left empty.
+For example, a filter that matches every rule could be written as ":::=/",
+or, in short, ":".
+A filter that matches all the login classes would be "loginclass:".
+A filter that matches all defined rules for
+.Sy maxproc
+resource would be
+"::maxproc".
+.Sh SUBJECTS
+.Bl -column -offset 3n "pseudoterminals" ".Sy username or numerical User ID"
+.It Sy process Ta numerical Process ID
+.It Sy user Ta user name or numerical User ID
+.It Sy loginclass Ta login class from
+.Xr login.conf 5
+.It Sy jail Ta jail name
+.El
+.Sh RESOURCES
+.Bl -column -offset 3n "pseudoterminals"
+.It Sy cputime Ta "CPU time, in seconds"
+.It Sy datasize Ta "data size, in bytes"
+.It Sy stacksize Ta "stack size, in bytes"
+.It Sy coredumpsize Ta "core dump size, in bytes"
+.It Sy memoryuse Ta "resident set size, in bytes"
+.It Sy memorylocked Ta "locked memory, in bytes"
+.It Sy maxproc Ta "number of processes"
+.It Sy openfiles Ta "file descriptor table size"
+.It Sy vmemoryuse Ta "address space limit, in bytes"
+.It Sy pseudoterminals Ta "number of PTYs"
+.It Sy swapuse Ta "swap space that may be reserved or used, in bytes"
+.It Sy nthr Ta "number of threads"
+.It Sy msgqqueued Ta "number of queued SysV messages"
+.It Sy msgqsize Ta "SysV message queue size, in bytes"
+.It Sy nmsgq Ta "number of SysV message queues"
+.It Sy nsem Ta "number of SysV semaphores"
+.It Sy nsemop Ta "number of SysV semaphores modified in a single semop(2) call"
+.It Sy nshm Ta "number of SysV shared memory segments"
+.It Sy shmsize Ta "SysV shared memory size, in bytes"
+.It Sy wallclock Ta "wallclock time, in seconds"
+.It Sy pcpu Ta "%CPU, in percents of a single CPU core"
+.It Sy readbps Ta "filesystem reads, in bytes per second"
+.It Sy writebps Ta "filesystem writes, in bytes per second"
+.It Sy readiops Ta "filesystem reads, in operations per second"
+.It Sy writeiops Ta "filesystem writes, in operations per second"
+.El
+.Sh ACTIONS
+.Bl -column -offset 3n "pseudoterminals"
+.It Sy deny Ta deny the allocation; not supported for
+.Sy cputime ,
+.Sy wallclock ,
+.Sy readbps ,
+.Sy writebps ,
+.Sy readiops ,
+and
+.Sy writeiops
+.It Sy log Ta "log a warning to the console"
+.It Sy devctl Ta "send notification to"
+.Xr devd 8
+using
+.Sy system
+= "RCTL",
+.Sy subsystem
+= "rule",
+.Sy type
+= "matched"
+.It sig*	e.g.
+.Sy sigterm ;
+send a signal to the offending process.
+See
+.Xr signal 3
+for a list of supported signals
+.It Sy throttle Ta "slow down process execution"; only supported for
+.Sy readbps ,
+.Sy writebps ,
+.Sy readiops ,
+and
+.Sy writeiops .
+.El
+.Pp
+Not all actions are supported for all resources.
+Attempting to add a rule with an action not supported by a given resource will
+result in error.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Prevent user "joe" from allocating more than 1GB of virtual memory:
+.Dl Nm Fl a Ar user:joe:vmemoryuse:deny=1g
+.Pp
+Remove all RCTL rules:
+.Dl Nm Fl r Ar \&:
+.Pp
+Display resource utilization information for jail named "www":
+.Dl Nm Fl hu Ar jail:www
+.Pp
+Display all the rules applicable to process with PID 512:
+.Dl Nm Fl l Ar process:512
+.Pp
+Display all rules:
+.Dl Nm
+.Pp
+Display all rules matching user "joe":
+.Dl Nm Ar user:joe
+.Pp
+Display all rules matching login classes:
+.Dl Nm Ar loginclass:
+.Sh SEE ALSO
+.Xr cpuset 1 ,
+.Xr rctl 4 ,
+.Xr rctl.conf 5
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+was developed by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.
+.Sh BUGS
+Limiting
+.Sy memoryuse
+may kill the machine due to thrashing.
+.Pp
+The
+.Sy readiops
+and
+.Sy writeiops
+counters are only approximations.
+Like
+.Sy readbps
+and
+.Sy writebps ,
+they are calculated in the filesystem layer, where it is difficult
+or even impossible to observe actual disk device operations.
+.Pp
+The
+.Sy writebps
+and
+.Sy writeiops
+resources generally account for writes to the filesystem cache,
+not to actual devices.

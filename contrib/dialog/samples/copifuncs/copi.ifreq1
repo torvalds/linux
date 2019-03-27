@@ -1,0 +1,20 @@
+#!/usr/bin/perl
+$ver = "0.4";
+#
+# this perl script is designed for the ifmail package by eugene grosser.
+#
+# request a file (first argument) from a fido-node (second argument),
+# don't forget to quote if you use wildcards, e.g.:
+
+#      ifreq 'files*' 2:2410/305
+# or
+#      ifreq 'files newfile' 2:2410/305
+#
+# this perl script does only add an entry to the corresponding flo-file,
+# the mailer ifcico is not started!
+#
+# rasca, berlin 1994 (rasca@marie.physik.tu-berlin.de, 2:2410/305.4)
+#
+# multi-zone support added by
+# Roland Rosenfeld 15.05.1994 (roland@p13.flokiste.fido.de, 2:2450/300.13)
+

@@ -1,0 +1,28 @@
+                      Documentation for Subversion
+                      ============================
+
+A rough guide:
+
+  http://svnbook.red-bean.com/
+                             "Version Control with Subversion"
+                             (a.k.a. "The Subversion Book", "The Svnbook",
+                             and formerly entitled
+                             "Subversion: The Definitive Guide".)
+                             This is the book that has been published by
+                             O'Reilly & Associates. For both newbies and
+                             experts alike.  Written in DocBook Lite,
+                             and now maintained in a separate repository
+                             of its own.
+                             
+  programmer/                Documents for Subversion programmers.
+
+  programmer/WritingChangeLogs.txt
+                             A longer version of the info in
+                             www/hacking.html.
+
+  user/                      Documents for Subversion users.
+
+  user/lj_article.txt        An introductory article from Linux Journal.
+
+  user/*.html                Some documentation that should probably be
+                             migrated to DocBook Lite and misc-docs/.

@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+alias command='command '
+alias alias0=exit
+eval 'command alias0 0'
+exit 3

@@ -1,0 +1,136 @@
+.\"
+.\" Copyright (c) 2010-2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written at the Centre for Advanced Internet
+.\" Architectures, Swinburne University of Technology, Melbourne, Australia by
+.\" David Hayes under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 15, 2011
+.Dt CC_VEGAS 4
+.Os
+.Sh NAME
+.Nm cc_vegas
+.Nd Vegas Congestion Control Algorithm
+.Sh DESCRIPTION
+The Vegas congestion control algorithm uses what the authors term the actual and
+expected transmission rates to determine whether there is congestion along the
+network path i.e.
+.Bl -item -offset indent
+.It
+actual rate = (total data sent in a RTT) / RTT
+.It
+expected rate = cwnd / RTTmin
+.It
+diff = expected - actual
+.El
+.Pp
+where RTT is the measured instantaneous round trip time and RTTmin is the
+smallest round trip time observed during the connection.
+.Pp
+The algorithm aims to keep diff between two parameters alpha and beta, such
+that:
+.Bl -item -offset indent
+.It
+alpha < diff < beta
+.El
+.Pp
+If diff > beta, congestion is inferred and cwnd is decremented by one packet (or
+the maximum TCP segment size).
+If diff < alpha, then cwnd is incremented by one packet.
+Alpha and beta govern the amount of buffering along the path.
+.Pp
+The implementation was done in a clean-room fashion, and is based on the
+paper referenced in the
+.Sx SEE ALSO
+section below.
+.Sh IMPLEMENTATION NOTES
+The time from the transmission of a marked packet until the receipt of an
+acknowledgement for that packet is measured once per RTT.
+This implementation does not implement Brakmo's and Peterson's original
+duplicate ACK policy since clock ticks in today's machines are not as coarse as
+they were (i.e. 500ms) when Vegas was originally designed.
+Note that modern TCP recovery processes such as fast retransmit and SACK are
+enabled by default in the TCP stack.
+.Sh MIB Variables
+The algorithm exposes the following tunable variables in the
+.Va net.inet.tcp.cc.vegas
+branch of the
+.Xr sysctl 3
+MIB:
+.Bl -tag -width ".Va alpha"
+.It Va alpha
+Query or set the Vegas alpha parameter as a number of buffers on the path.
+When setting alpha, the value must satisfy: 0 < alpha < beta.
+Default is 1.
+.It Va beta
+Query or set the Vegas beta parameter as a number of buffers on the path.
+When setting beta, the value must satisfy: 0 < alpha < beta.
+Default is 3.
+.El
+.Sh SEE ALSO
+.Xr cc_chd 4 ,
+.Xr cc_cubic 4 ,
+.Xr cc_hd 4 ,
+.Xr cc_htcp 4 ,
+.Xr cc_newreno 4 ,
+.Xr h_ertt 4 ,
+.Xr mod_cc 4 ,
+.Xr tcp 4 ,
+.Xr khelp 9 ,
+.Xr mod_cc 9
+.Rs
+.%A "L. S. Brakmo"
+.%A "L. L. Peterson"
+.%T "TCP Vegas: end to end congestion avoidance on a global internet"
+.%J "IEEE J. Sel. Areas Commun."
+.%D "October 1995"
+.%V "13"
+.%N "8"
+.%P "1465-1480"
+.Re
+.Sh ACKNOWLEDGEMENTS
+Development and testing of this software were made possible in part by grants
+from the FreeBSD Foundation and Cisco University Research Program Fund at
+Community Foundation Silicon Valley.
+.Sh HISTORY
+The
+.Nm
+congestion control module first appeared in
+.Fx 9.0 .
+.Pp
+The module was first released in 2010 by David Hayes whilst working on the
+NewTCP research project at Swinburne University of Technology's Centre for
+Advanced Internet Architectures, Melbourne, Australia.
+More details are available at:
+.Pp
+http://caia.swin.edu.au/urp/newtcp/
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+congestion control module and this manual page were written by
+.An David Hayes Aq Mt david.hayes@ieee.org .

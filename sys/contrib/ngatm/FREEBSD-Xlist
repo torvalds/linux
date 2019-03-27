@@ -1,0 +1,15 @@
+#$FreeBSD$
+*/README
+*/VERSION
+*/Makefile.in
+*/Makefile.pre
+*/Makefile.post
+*/aclocal.m4
+*/config
+*/configure
+*/configure.ac
+*/libngatm
+*/man
+*/snmp_atm
+*/snmp_ilmid
+*/sscop

@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+set -e
+cd /usr/bin
+[ "$PWD" = /usr/bin ]
+CDPATH=/:
+cd .
+[ "$PWD" = /usr/bin ]
+cd ./
+[ "$PWD" = /usr/bin ]
+cd ..
+[ "$PWD" = /usr ]
+cd /usr/bin
+cd ../
+[ "$PWD" = /usr ]

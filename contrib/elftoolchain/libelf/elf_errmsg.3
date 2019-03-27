@@ -1,0 +1,107 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elf_errmsg.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd June 11, 2006
+.Dt ELF_ERRMSG 3
+.Os
+.Sh NAME
+.Nm elf_errmsg ,
+.Nm elf_errno
+.Nd ELF library error message handling
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft int
+.Fn elf_errno "void"
+.Ft "const char *"
+.Fn elf_errmsg "int error"
+.Sh DESCRIPTION
+When an error occurs during an ELF library API call, the library
+encodes the error using an error number and stores the error number
+internally for retrieval by the application at a later point of time.
+Error numbers may contain an OS supplied error code in addition to
+an ELF API specific error code.
+An error number value of zero indicates no error.
+.Pp
+Function
+.Fn elf_errno
+is used to retrieve the last error recorded by the ELF library.
+Invoking this function has the side-effect of resetting the
+ELF library's recorded error number to zero.
+.Pp
+The function
+.Fn elf_errmsg
+returns a null-terminated string with a human readable
+description of the error specified in argument
+.Ar error .
+A zero value for argument
+.Ar error
+retrieves the most recent error encountered by the ELF
+library.
+An argument value of -1 behaves identically, except that
+it guarantees a non-NULL return from
+.Fn elf_errmsg .
+.Sh RETURN VALUES
+Function
+.Fn elf_errno
+returns a non-zero value encoding the last error encountered
+by the ELF library, or zero if no error was encountered.
+.Pp
+Function
+.Fn elf_errmsg
+returns a pointer to library local storage for non-zero values
+of argument
+.Ar error .
+With a zero argument, the function will return a NULL pointer if no
+error had been encountered by the library, or will return a pointer to
+library local storage containing an appropriate message otherwise.
+.Sh EXAMPLES
+Clearing the ELF library's recorded error number can be accomplished
+by invoking
+.Fn elf_errno
+and discarding its return value.
+.Bd -literal -offset indent
+/* clear error */
+(void) elf_errno();
+.Ed
+.Pp
+Retrieving a human-readable description of the current error number
+can be done with the following snippet:
+.Bd -literal -offset indent
+int err;
+const char *errmsg;
+\&...
+err = elf_errno();
+if (err != 0)
+	errmsg = elf_errmsg(err);
+.Ed
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr gelf 3
+.Sh BUGS
+Function
+.Fn elf_errmsg
+is not localized.

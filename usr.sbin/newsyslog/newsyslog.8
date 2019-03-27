@@ -1,0 +1,310 @@
+.\" This file contains changes from the Open Software Foundation.
+.\"
+.\"	from: @(#)newsyslog.8
+.\" $FreeBSD$
+.\"
+.\" Copyright 1988, 1989 by the Massachusetts Institute of Technology
+.\"
+.\" Permission to use, copy, modify, and distribute this software
+.\" and its documentation for any purpose and without fee is
+.\" hereby granted, provided that the above copyright notice
+.\" appear in all copies and that both that copyright notice and
+.\" this permission notice appear in supporting documentation,
+.\" and that the names of M.I.T. and the M.I.T. S.I.P.B. not be
+.\" used in advertising or publicity pertaining to distribution
+.\" of the software without specific, written prior permission.
+.\" M.I.T. and the M.I.T. S.I.P.B. make no representations about
+.\" the suitability of this software for any purpose.  It is
+.\" provided "as is" without express or implied warranty.
+.\"
+.Dd November 10, 2018
+.Dt NEWSYSLOG 8
+.Os
+.Sh NAME
+.Nm newsyslog
+.Nd maintain system log files to manageable sizes
+.Sh SYNOPSIS
+.Nm
+.Op Fl CFNPnrsv
+.Op Fl a Ar directory
+.Op Fl d Ar directory
+.Op Fl f Ar config_file
+.Op Fl S Ar pidfile
+.Op Fl t Ar timefmt
+.Op Oo Fl R Ar tagname Oc Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility should be scheduled to run periodically by
+.Xr cron 8 .
+When it is executed it archives log files if necessary.
+If a log file
+is determined to require archiving,
+.Nm
+rearranges the files so that
+.Dq Va logfile
+is empty,
+.Dq Va logfile Ns Li \&.0
+has
+the last period's logs in it,
+.Dq Va logfile Ns Li \&.1
+has the next to last
+period's logs in it, and so on, up to a user-specified number of
+archived logs.
+It is also possible to let archived log filenames be created using the
+time the log file was archived instead of the sequential number using
+the
+.Fl t
+option.
+Optionally the archived logs can be compressed to save
+space.
+.Pp
+A log can be archived for three reasons:
+.Bl -enum -offset indent
+.It
+It is larger than the configured size (in kilobytes).
+.It
+A configured number of hours have elapsed since the log was last
+archived.
+.It
+This is the specific configured hour for rotation of the log.
+.El
+.Pp
+The granularity of
+.Nm
+is dependent on how often it is scheduled to run by
+.Xr cron 8 .
+Since the program is quite fast, it may be scheduled to run every hour
+without any ill effects,
+and mode three (above) assumes that this is so.
+.Sh OPTIONS
+The following options can be used with
+.Nm :
+.Bl -tag -width indent
+.It Fl f Ar config_file
+Instruct
+.Nm
+to use
+.Ar config_file
+instead of
+.Pa /etc/newsyslog.conf
+for its configuration file.
+.It Fl a Ar directory
+Specify a
+.Ar directory
+into which archived log files will be written.
+If a relative path is given,
+it is appended to the path of each log file
+and the resulting path is used as the directory
+into which the archived log for that log file will be written.
+If an absolute path is given,
+all archived logs are written into the given
+.Ar directory .
+If any component of the path
+.Ar directory
+does not exist,
+it will be created when
+.Nm
+is run.
+.It Fl d Ar directory
+Specify a
+.Ar directory
+which all log files will be relative to.
+To allow archiving of logs outside the root, the
+.Ar directory
+passed to the
+.Fl a
+option is unaffected.
+.It Fl v
+Place
+.Nm
+in verbose mode.
+In this mode it will print out each log and its
+reasons for either trimming that log or skipping it.
+.It Fl n
+Cause
+.Nm
+not to trim the logs, but to print out what it would do if this option
+were not specified.
+This option implies the
+.Fl r
+option.
+.It Fl r
+Remove the restriction that
+.Nm
+must be running as root.
+Of course,
+.Nm
+will not be able to send a HUP signal to
+.Xr syslogd 8
+so this option should only be used in debugging.
+.It Fl s
+Specify that
+.Nm
+should not send any signals to any daemon processes that it would
+normally signal when rotating a log file.
+For any log file which is rotated, this option will usually also
+mean the rotated log file will not be compressed if there is a
+daemon which would have been signalled without this option.
+However, this option is most likely to be useful when specified
+with the
+.Fl R
+option, and in that case the compression will be done.
+.It Fl t Ar timefmt
+If specified
+.Nm
+will create the
+.Dq rotated
+logfiles using the specified time format instead of the default
+sequential filenames.
+The filename used will be kept until it is deleted.
+The time format is described in the
+.Xr strftime 3
+manual page.
+If the
+.Ar timefmt
+argument is set to an empty string or the string
+.Dq DEFAULT ,
+the default built in time format
+is used.
+If the
+.Ar timefmt
+string is changed the old files created using the previous time format
+will not be automatically removed (unless the new format is very
+similar to the old format).
+This is also the case when changing from sequential filenames to time
+based file names, and the other way around.
+The time format should contain at least year, month, day, and hour to
+make sure rotating of old logfiles can select the correct logfiles.
+.It Fl C
+If specified once, then
+.Nm
+will create any log files which do not exist, and which have the
+.Sy C
+flag specified in their config file entry.
+If specified multiple times, then
+.Nm
+will create all log files which do not already exist.
+If log files are given on the command-line, then the
+.Fl C
+or
+.Fl CC
+will only apply to those specific log files.
+.It Fl F
+Force
+.Nm
+to trim the logs, even if the trim conditions have not been met.
+This
+option is useful for diagnosing system problems by providing you with
+fresh logs that contain only the problems.
+.It Fl N
+Do not perform any rotations.
+This option is intended to be used with the
+.Fl C
+or
+.Fl CC
+options when creating log files is the only objective.
+.It Fl P
+Prevent further action if we should send signal but the
+.Dq pidfile
+is empty or does not exist.
+.It Fl R Ar tagname
+Specify that
+.Nm
+should rotate a given list of files, even if trim conditions are not
+met for those files.
+The
+.Ar tagname
+is only used in the messages written to the log files which are
+rotated.
+This differs from the
+.Fl F
+option in that one or more log files must also be specified, so that
+.Nm
+will only operate on those specific files.
+This option is mainly intended for the daemons or programs which write
+some log files, and want to trigger a rotate based on their own criteria.
+With this option they can execute
+.Nm
+to trigger the rotate when they want it to happen, and still give the
+system administrator a way to specify the rules of rotation (such as how
+many backup copies are kept, and what kind of compression is done).
+When a daemon does execute
+.Nm
+with the
+.Fl R
+option, it should make sure all of the log files are closed before
+calling
+.Nm ,
+and then it should re-open the files after
+.Nm
+returns.
+Usually the calling process will also want to specify the
+.Fl s
+option, so
+.Nm
+will not send a signal to the very process which called it to force
+the rotate.
+Skipping the signal step will also mean that
+.Nm
+will return faster, since
+.Nm
+normally waits a few seconds after any signal that is sent.
+.It Fl S Ar pidfile
+Use
+.Ar pidfile
+as
+.Xr syslogd 8 Ns 's
+pidfile.
+.El
+.Pp
+If additional command line arguments are given,
+.Nm
+will only examine log files that match those arguments; otherwise, it
+will examine all files listed in the configuration file.
+.Sh FILES
+.Bl -tag -width /usr/local/etc/newsyslog.conf.d -compact
+.It Pa /etc/newsyslog.conf
+.Nm
+configuration file
+.It Pa /etc/newsyslog.conf.d
+By default each file in this directory ending in '.conf' and not beginning with
+a '.' will be included by the default
+.Pa newsyslog.conf .
+.It Pa /usr/local/etc/newsyslog.conf.d
+By default each file in this directory ending in '.conf' and not beginning with
+a '.' will be included by the default
+.Pa newsyslog.conf .
+.El
+.Sh COMPATIBILITY
+Previous versions of the
+.Nm
+utility used the dot (``.'') character to
+distinguish the group name.
+Beginning with
+.Fx 3.3 ,
+this has been changed to a colon (``:'') character so that user and group
+names may contain the dot character.
+The dot (``.'') character is still
+accepted for backwards compatibility.
+.Sh SEE ALSO
+.Xr bzip2 1 ,
+.Xr gzip 1 ,
+.Xr xz 1 ,
+.Xr zstd 1 ,
+.Xr syslog 3 ,
+.Xr newsyslog.conf 5 ,
+.Xr chown 8 ,
+.Xr syslogd 8
+.Sh HISTORY
+The
+.Nm
+utility originated from
+.Nx
+and first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+.An Theodore Ts'o ,
+MIT Project Athena
+.Pp
+Copyright 1987, Massachusetts Institute of Technology

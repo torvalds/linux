@@ -1,0 +1,16 @@
+# Doxyfile 1.5.3
+
+PROJECT_NAME           = Heimdal Kerberos 5 library
+PROJECT_NUMBER         = @PACKAGE_VERSION@
+OUTPUT_DIRECTORY       = @srcdir@/doxyout/krb5
+INPUT                  = @srcdir@/../lib/krb5
+
+WARN_IF_UNDOCUMENTED   = NO
+
+PERL_PATH              = /usr/bin/perl
+
+HTML_HEADER = "@srcdir@/header.html"
+HTML_FOOTER = "@srcdir@/footer.html"
+
+@INCLUDE = "@srcdir@/doxytmpl.dxy"
+

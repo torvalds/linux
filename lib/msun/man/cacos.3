@@ -1,0 +1,154 @@
+.\" Copyright (c) 2013 David Schultz <das@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 15, 2017
+.Dt CACOS 3
+.Os
+.Sh NAME
+.Nm cacos ,
+.Nm cacosf ,
+.Nm cacosl ,
+.Nm cacosh ,
+.Nm cacoshf ,
+.Nm cacoshl ,
+.Nm casin ,
+.Nm casinf ,
+.Nm casinl ,
+.Nm casinh ,
+.Nm casinhf ,
+.Nm casinhl ,
+.Nm catan  ,
+.Nm catanf ,
+.Nm catanl ,
+.Nm catanh ,
+.Nm catanhf ,
+.Nm catanhl
+.Nd complex inverse trigonometric and hyperbolic functions
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In complex.h
+.Ft double complex
+.Fn cacos "double complex z"
+.Ft float complex
+.Fn cacosf "float complex z"
+.Ft long double complex
+.Fn cacosl "long double complex z"
+.Ft double complex
+.Fn cacosh "double complex z"
+.Ft float complex
+.Fn cacoshf "float complex z"
+.Ft long double complex
+.Fn cacoshl "long double complex z"
+.Ft double complex
+.Fn casin "double complex z"
+.Ft float complex
+.Fn casinf "float complex z"
+.Ft long double complex
+.Fn casinl "long double complex z"
+.Ft double complex
+.Fn casinh "double complex z"
+.Ft float complex
+.Fn casinhf "float complex z"
+.Ft long double complex
+.Fn casinhl "long double complex z"
+.Ft double complex
+.Fn catan "double complex z"
+.Ft float complex
+.Fn catanf "float complex z"
+.Ft long double complex
+.Fn catanl "long double complex z"
+.Ft double complex
+.Fn catanh "double complex z"
+.Ft float complex
+.Fn catanhf "float complex z"
+.Ft long double complex
+.Fn catanhl "long double complex z"
+.Sh DESCRIPTION
+The
+.Fn cacos ,
+.Fn casin ,
+and
+.Fn catan
+functions compute the principal value of the inverse cosine, sine,
+and tangent of the complex number
+.Fa z ,
+respectively.
+The
+.Fn cacosh ,
+.Fn casinh ,
+and
+.Fn catanh
+functions compute the principal value of the inverse hyperbolic
+cosine, sine, and tangent.
+The
+.Fn cacosf ,
+.Fn casinf ,
+.Fn catanf
+.Fn cacoshf ,
+.Fn casinhf ,
+and
+.Fn catanhf
+functions perform the same operations in
+.Fa float
+precision.
+The
+.Fn cacosl ,
+.Fn casinl ,
+.Fn catanl
+.Fn cacoshl ,
+.Fn casinhl ,
+and
+.Fn catanhl
+functions perform the same operations in
+.Fa long double
+precision.
+.Pp
+.ds Un \[cu]
+There is no universal convention for defining the principal values of
+these functions.
+The following table gives the branch cuts, and the
+corresponding ranges for the return values, adopted by the C language.
+.Bl -column ".Sy Function" ".Sy (-\*(If*I, -I) \*(Un (I, \*(If*I)" ".Sy [-\*(Pi/2*I, \*(Pi/2*I]"
+.It Sy Function Ta Sy Branch Cut(s) Ta Sy Range
+.It cacos Ta (-\*(If, -1) \*(Un (1, \*(If) Ta [0, \*(Pi]
+.It casin Ta (-\*(If, -1) \*(Un (1, \*(If) Ta [-\*(Pi/2, \*(Pi/2]
+.It catan Ta (-\*(If*I, -I) \*(Un (I, \*(If*I) Ta [-\*(Pi/2, \*(Pi/2]
+.It cacosh Ta (-\*(If, 1) Ta [-\*(Pi*I, \*(Pi*I]
+.It casinh Ta (-\*(If*I, -I) \*(Un (I, \*(If*I) Ta [-\*(Pi/2*I, \*(Pi/2*I]
+.It catanh Ta (-\*(If, -1) \*(Un (1, \*(If) Ta [-\*(Pi/2*I, \*(Pi/2*I]
+.El
+.Sh SEE ALSO
+.Xr ccos 3 ,
+.Xr ccosh 3 ,
+.Xr complex 3 ,
+.Xr cos 3 ,
+.Xr math 3 ,
+.Xr sin 3 ,
+.Xr tan 3
+.Sh STANDARDS
+These functions conform to
+.St -isoC-99 .

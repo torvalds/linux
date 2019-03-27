@@ -1,0 +1,215 @@
+.\"-
+.\" Copyright (c) 2005-2017 Dag-Erling Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $OpenPAM: pam.conf.5 947 2019-02-24 20:18:17Z des $
+.\"
+.Dd February 24, 2019
+.Dt PAM.CONF 5
+.Os
+.Sh NAME
+.Nm pam.conf
+.Nd PAM policy file format
+.Sh DESCRIPTION
+The PAM library searches for policies in the following files, in
+decreasing order of preference:
+.Bl -enum
+.It
+.Pa /etc/pam.d/ Ns Ar service-name
+.It
+.Pa /etc/pam.conf
+.It
+.Pa /usr/local/etc/pam.d/ Ns Ar service-name
+.It
+.Pa /usr/local/etc/pam.conf
+.El
+.Pp
+If none of these locations contains a policy for the given service,
+the
+.Dq Dv other
+policy is used instead, if it exists.
+.Pp
+Entries in per-service policy files must be of one of the two forms
+below:
+.Bd -unfilled -offset indent
+.Ar facility control-flag module-path Op Ar arguments ...
+.Ar facility Cm include Ar other-service-name
+.Ed
+.Pp
+Entries in
+.Pa pam.conf Ns -style
+policy files are of the same form, but are prefixed by an additional
+field specifying the name of the service they apply to.
+.Pp
+In both cases, blank lines and comments introduced by a
+.Ql #
+sign are ignored, and the normal shell quoting rules apply.
+The precise details of how the file is tokenized are described in
+.Xr openpam_readword 3 .
+.Pp
+The
+.Ar facility
+field specifies the facility the entry applies to, and is one of:
+.Bl -tag -width 12n
+.It Cm auth
+Authentication functions
+.Po
+.Xr pam_authenticate 3 ,
+.Xr pam_setcred 3
+.Pc
+.It Cm account
+Account management functions
+.Pq Xr pam_acct_mgmt 3
+.It Cm session
+Session handling functions
+.Po
+.Xr pam_open_session 3 ,
+.Xr pam_close_session 3
+.Pc
+.It Cm password
+Password management functions
+.Pq Xr pam_chauthtok 3
+.El
+.Pp
+The
+.Ar control-flag
+field determines how the result returned by the module affects the
+flow of control through (and the final result of) the rest of the
+chain, and is one of:
+.Bl -tag -width 12n
+.It Cm required
+If this module succeeds, the result of the chain will be success
+unless a later module fails.
+If it fails, the rest of the chain still runs, but the final result
+will be failure regardless of the success of later modules.
+.It Cm requisite
+If this module succeeds, the result of the chain will be success
+unless a later module fails.
+If the module fails, the chain is broken and the result is failure.
+.It Cm sufficient
+If this module succeeds, the chain is broken and the result is
+success.
+If it fails, the rest of the chain still runs, but the final result
+will be failure unless a later module succeeds.
+.It Cm binding
+If this module succeeds, the chain is broken and the result is
+success.
+If it fails, the rest of the chain still runs, but the final result
+will be failure regardless of the success of later modules.
+.It Cm optional
+If this module succeeds, the result of the chain will be success
+unless a later module fails.
+If this module fails, the result of the chain will be failure unless a
+later module succeeds.
+.El
+.Pp
+There are two exceptions to the above:
+.Cm sufficient
+and
+.Cm binding
+modules are treated as
+.Cm optional
+by
+.Xr pam_setcred 3 ,
+and in the
+.Dv PAM_PRELIM_CHECK
+phase of
+.Xr pam_chauthtok 3 .
+.Pp
+The
+.Ar module-path
+field specifies the name or full path of the module to call.
+If only the name is specified, the PAM library will search for it in
+the following locations:
+.Bl -enum
+.It
+.Pa /usr/lib
+.It
+.Pa /usr/local/lib
+.El
+.Pp
+The remaining fields, if any, are passed unmodified to the module if
+and when it is invoked.
+.Pp
+The
+.Cm include
+form of entry causes entries from a different chain (specified by
+.Ar other-system-name )
+to be included in the current one.
+This allows one to define system-wide policies which are then included
+into service-specific policies.
+The system-wide policy can then be modified without having to also
+modify each and every service-specific policy.
+.Pp
+.Bf -symbolic
+Take care not to introduce loops when using
+.Cm include
+rules, as there is currently no loop detection in place.
+.Ef
+.Sh MODULE OPTIONS
+Some PAM library functions may alter their behavior when called by a
+service module if certain module options were specified, regardless of
+whether the module itself accords them any importance.
+One such option is
+.Cm debug ,
+which causes the dispatcher to enable debugging messages before
+calling each service function, and disable them afterwards (unless
+they were already enabled).
+Other special options include:
+.Bl -tag -width 12n
+.It Cm authtok_prompt Ns = Ns Ar prompt , Cm oldauthtok_prompt Ns = Ns Ar prompt , Cm user_prompt Ns = Ns Ar prompt
+These options can be used to override the prompts used by
+.Xr pam_get_authtok 3
+and
+.Xr pam_get_user 3 .
+.It Cm echo_pass
+This option controls whether
+.Xr pam_get_authtok 3
+will allow the user to see what they are typing.
+.It Cm try_first_pass , Cm use_first_pass
+These options control
+.Xr pam_get_authtok 3 Ns 's
+use of cached authentication tokens.
+.El
+.Sh SEE ALSO
+.Xr pam 3
+.Sh STANDARDS
+.Rs
+.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
+.%D "June 1997"
+.Re
+.Sh AUTHORS
+The OpenPAM library was developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

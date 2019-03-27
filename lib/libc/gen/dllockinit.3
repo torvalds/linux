@@ -1,0 +1,127 @@
+.\"
+.\" Copyright (c) 1999, 2000 John D. Polstra
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 5, 2000
+.Dt DLLOCKINIT 3
+.Os
+.Sh NAME
+.Nm dllockinit
+.Nd register thread locking methods with the dynamic linker
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In dlfcn.h
+.Ft void
+.Fn dllockinit "void *context" "void *(*lock_create)(void *context)" "void (*rlock_acquire)(void *lock)" "void (*wlock_acquire)(void *lock)" "void (*lock_release)(void *lock)" "void (*lock_destroy)(void *lock)" "void (*context_destroy)(void *context)"
+.Sh DESCRIPTION
+.Bf Sy
+Due to enhancements in the dynamic linker, this interface is no longer
+needed.
+It is deprecated and will be removed from future releases.
+In current releases it still exists, but only as a stub which does nothing.
+.Ef
+.Pp
+Threads packages can call
+.Fn dllockinit
+at initialization time to register locking functions for the dynamic
+linker to use.
+This enables the dynamic linker to prevent multiple
+threads from entering its critical sections simultaneously.
+.Pp
+The
+.Fa context
+argument specifies an opaque context for creating locks.
+The
+dynamic linker will pass it to the
+.Fa lock_create
+function when creating the locks it needs.
+When the dynamic linker
+is permanently finished using the locking functions (e.g., if the
+program makes a subsequent call to
+.Fn dllockinit
+to register new locking functions) it will call
+.Fa context_destroy
+to destroy the context.
+.Pp
+The
+.Fa lock_create
+argument specifies a function for creating a read/write lock.
+It
+must return a pointer to the new lock.
+.Pp
+The
+.Fa rlock_acquire
+and
+.Fa wlock_acquire
+arguments specify functions which lock a lock for reading or
+writing, respectively.
+The
+.Fa lock_release
+argument specifies a function which unlocks a lock.
+Each of these
+functions is passed a pointer to the lock.
+.Pp
+The
+.Fa lock_destroy
+argument specifies a function to destroy a lock.
+It may be
+.Dv NULL
+if locks do not need to be destroyed.
+The
+.Fa context_destroy
+argument specifies a function to destroy the context.
+It may be
+.Dv NULL
+if the context does not need to be destroyed.
+.Pp
+Until
+.Fn dllockinit
+is called, the dynamic linker protects its critical sections using
+a default locking mechanism which works by blocking the
+.Dv SIGVTALRM ,
+.Dv SIGPROF ,
+and
+.Dv SIGALRM
+signals.
+This is sufficient for many application level threads
+packages, which typically use one of these signals to implement
+preemption.
+An application which has registered its own locking
+methods with
+.Fn dllockinit
+can restore the default locking by calling
+.Fn dllockinit
+with all arguments
+.Dv NULL .
+.Sh SEE ALSO
+.Xr rtld 1 ,
+.Xr signal 3
+.Sh HISTORY
+The
+.Fn dllockinit
+function first appeared in
+.Fx 4.0 .

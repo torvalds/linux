@@ -1,0 +1,10 @@
+
+#------------------------------------------------------------------------------
+# $File: bhl,v 1.1 2017/06/11 22:20:02 christos Exp $
+# BlockHashLoc
+# ext: bhl
+# Marco Pontello marcopon@gmail.com
+# reference: https://github.com/MarcoPon/BlockHashLoc
+0	string	BlockHashLoc\x1a	BlockHashLoc recovery info,
+>13	byte	x			version %d
+!:ext   bhl

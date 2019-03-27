@@ -1,0 +1,395 @@
+.\" Copyright (c) 2000-2001
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 19, 2007
+.Dt KPROC 9
+.Os
+.Sh NAME
+.Nm kproc_start ,
+.Nm kproc_shutdown ,
+.Nm kproc_create ,
+.Nm kproc_exit ,
+.Nm kproc_resume ,
+.Nm kproc_suspend ,
+.Nm kproc_suspend_check
+.Nd "kernel processes"
+.Sh SYNOPSIS
+.In sys/kthread.h
+.Ft void
+.Fn kproc_start "const void *udata"
+.Ft void
+.Fn kproc_shutdown "void *arg" "int howto"
+.Ft int
+.Fo kproc_create
+.Fa "void (*func)(void *)" "void *arg" "struct proc **newpp"
+.Fa "int flags" "int pages"
+.Fa "const char *fmt" ...
+.Fc
+.Ft void
+.Fn kproc_exit "int ecode"
+.Ft int
+.Fn kproc_resume "struct proc *p"
+.Ft int
+.Fn kproc_suspend "struct proc *p" "int timo"
+.Ft void
+.Fn kproc_suspend_check "struct proc *p"
+.Ft int
+.Fo kproc_kthread_add
+.Fa "void (*func)(void *)" "void *arg"
+.Fa "struct proc **procptr" "struct thread **tdptr"
+.Fa "int flags" "int pages" "char * procname" "const char *fmt" "..."
+.Fc
+.Sh DESCRIPTION
+In
+.Fx 8.0 ,
+the
+.Fn kthread* 9
+family of functions was renamed to be the
+.Fn kproc* 9
+family of functions, as they were misnamed
+and actually produced kernel processes.
+A new family of
+.Em different
+.Fn kthread_* 9
+functions was added to produce
+.Em real
+kernel
+.Em threads .
+See the
+.Xr kthread 9
+man page for more information on those calls.
+Also note that the
+.Fn kproc_kthread_add 9
+function appears in both pages as its functionality is split.
+.Pp
+The function
+.Fn kproc_start
+is used to start
+.Dq internal
+daemons such as
+.Nm bufdaemon , pagedaemon , vmdaemon ,
+and the
+.Nm syncer
+and is intended
+to be called from
+.Xr SYSINIT 9 .
+The
+.Fa udata
+argument is actually a pointer to a
+.Vt "struct kproc_desc"
+which describes the kernel process that should be created:
+.Bd -literal -offset indent
+struct kproc_desc {
+	char		*arg0;
+	void		(*func)(void);
+	struct proc	**global_procpp;
+};
+.Ed
+.Pp
+The structure members are used by
+.Fn kproc_start
+as follows:
+.Bl -tag -width ".Va global_procpp" -offset indent
+.It Va arg0
+String to be used for the name of the process.
+This string will be copied into the
+.Va p_comm
+member of the new process'
+.Vt "struct proc" .
+.It Va func
+The main function for this kernel process to run.
+.It Va global_procpp
+A pointer to a
+.Vt "struct proc"
+pointer that should be updated to point to the newly created process' process
+structure.
+If this variable is
+.Dv NULL ,
+then it is ignored.
+.El
+.Pp
+The
+.Fn kproc_create
+function is used to create a kernel process.
+The new process shares its address space with process 0, the
+.Nm swapper
+process,
+and runs in kernel mode only.
+The
+.Fa func
+argument specifies the function that the process should execute.
+The
+.Fa arg
+argument is an arbitrary pointer that is passed in as the only argument to
+.Fa func
+when it is called by the new process.
+The
+.Fa newpp
+pointer points to a
+.Vt "struct proc"
+pointer that is to be updated to point to the newly created process.
+If this argument is
+.Dv NULL ,
+then it is ignored.
+The
+.Fa flags
+argument specifies a set of flags as described in
+.Xr rfork 2 .
+The
+.Fa pages
+argument specifies the size of the new kernel process's stack in pages.
+If 0 is used, the default kernel stack size is allocated.
+The rest of the arguments form a
+.Xr printf 9
+argument list that is used to build the name of the new process and is stored
+in the
+.Va p_comm
+member of the new process's
+.Vt "struct proc" .
+.Pp
+The
+.Fn kproc_exit
+function is used to terminate kernel processes.
+It should be called by the main function of the kernel process rather than
+letting the main function return to its caller.
+The
+.Fa ecode
+argument specifies the exit status of the process.
+While exiting, the function
+.Xr exit1 9
+will initiate a call to
+.Xr wakeup 9
+on the process handle.
+.Pp
+The
+.Fn kproc_resume ,
+.Fn kproc_suspend ,
+and
+.Fn kproc_suspend_check
+functions are used to suspend and resume a kernel process.
+During the main loop of its execution, a kernel process that wishes to allow
+itself to be suspended should call
+.Fn kproc_suspend_check
+passing in
+.Va curproc
+as the only argument.
+This function checks to see if the kernel process has been asked to suspend.
+If it has, it will
+.Xr tsleep 9
+until it is told to resume.
+Once it has been told to resume it will return allowing execution of the
+kernel process to continue.
+The other two functions are used to notify a kernel process of a suspend or
+resume request.
+The
+.Fa p
+argument points to the
+.Vt "struct proc"
+of the kernel process to suspend or resume.
+For
+.Fn kproc_suspend ,
+the
+.Fa timo
+argument specifies a timeout to wait for the kernel process to acknowledge the
+suspend request and suspend itself.
+.Pp
+The
+.Fn kproc_shutdown
+function is meant to be registered as a shutdown event for kernel processes that
+need to be suspended voluntarily during system shutdown so as not to interfere
+with system shutdown activities.
+The actual suspension of the kernel process is done with
+.Fn kproc_suspend .
+.Pp
+The
+.Fn kproc_kthread_add
+function is much like the
+.Fn kproc_create
+function above except that if the kproc already exists,
+then only a new thread (see
+.Xr kthread 9 )
+is created on the existing process.
+The
+.Fa func
+argument specifies the function that the process should execute.
+The
+.Fa arg
+argument is an arbitrary pointer that is passed in as the only argument to
+.Fa func
+when it is called by the new process.
+The
+.Fa procptr
+pointer points to a
+.Vt "struct proc"
+pointer that is the location to be updated with the new proc pointer
+if a new process is created, or if not
+.Dv NULL ,
+must contain the process pointer for the already existing process.
+If this argument points to
+.Dv NULL ,
+then a new process is created and the field updated.
+If not NULL, the
+.Fa tdptr
+pointer points to a
+.Vt "struct thread"
+pointer that is the location to be updated with the new thread pointer.
+The
+.Fa flags
+argument specifies a set of flags as described in
+.Xr rfork 2 .
+The
+.Fa pages
+argument specifies the size of the new kernel thread's stack in pages.
+If 0 is used, the default kernel stack size is allocated.
+The procname argument is the name the new process should be given if it needs to be created.
+It is
+.Em NOT
+a printf style format specifier but a simple string.
+The rest of the arguments form a
+.Xr printf 9
+argument list that is used to build the name of the new thread and is stored
+in the
+.Va td_name
+member of the new thread's
+.Vt "struct thread" .
+.Sh RETURN VALUES
+The
+.Fn kproc_create ,
+.Fn kproc_resume ,
+and
+.Fn kproc_suspend
+functions return zero on success and non-zero on failure.
+.Sh EXAMPLES
+This example demonstrates the use of a
+.Vt "struct kproc_desc"
+and the functions
+.Fn kproc_start ,
+.Fn kproc_shutdown ,
+and
+.Fn kproc_suspend_check
+to run the
+.Nm bufdaemon
+process.
+.Bd -literal -offset indent
+static struct proc *bufdaemonproc;
+
+static struct kproc_desc buf_kp = {
+	"bufdaemon",
+	buf_daemon,
+	&bufdaemonproc
+};
+SYSINIT(bufdaemon, SI_SUB_KTHREAD_BUF, SI_ORDER_FIRST, kproc_start,
+    &buf_kp)
+
+static void
+buf_daemon()
+{
+	...
+	/*
+	 * This process needs to be suspended prior to shutdown sync.
+	 */
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown,
+	    bufdaemonproc, SHUTDOWN_PRI_LAST);
+	...
+	for (;;) {
+		kproc_suspend_check(bufdaemonproc);
+		...
+	}
+}
+.Ed
+.Sh ERRORS
+The
+.Fn kproc_resume
+and
+.Fn kproc_suspend
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa p
+argument does not reference a kernel process.
+.El
+.Pp
+The
+.Fn kproc_create
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The system-imposed limit on the total
+number of processes under execution would be exceeded.
+The limit is given by the
+.Xr sysctl 3
+MIB variable
+.Dv KERN_MAXPROC .
+.It Bq Er EINVAL
+The
+.Dv RFCFDG
+flag was specified in the
+.Fa flags
+parameter.
+.El
+.Sh SEE ALSO
+.Xr rfork 2 ,
+.Xr exit1 9 ,
+.Xr kthread 9 ,
+.Xr SYSINIT 9 ,
+.Xr wakeup 9
+.Sh HISTORY
+The
+.Fn kproc_start
+function first appeared in
+.Fx 2.2 .
+The
+.Fn kproc_shutdown ,
+.Fn kproc_create ,
+.Fn kproc_exit ,
+.Fn kproc_resume ,
+.Fn kproc_suspend ,
+and
+.Fn kproc_suspend_check
+functions were introduced in
+.Fx 4.0 .
+Prior to
+.Fx 5.0 ,
+the
+.Fn kproc_shutdown ,
+.Fn kproc_resume ,
+.Fn kproc_suspend ,
+and
+.Fn kproc_suspend_check
+functions were named
+.Fn shutdown_kproc ,
+.Fn resume_kproc ,
+.Fn shutdown_kproc ,
+and
+.Fn kproc_suspend_loop ,
+respectively.
+Originally they had the names
+.Fn kthread_*
+but were changed to
+.Fn kproc_*
+when real kthreads became available.

@@ -1,0 +1,128 @@
+# $FreeBSD$
+# $NetBSD: JISX0201-KANA%UCS.src,v 1.3 2006/10/26 16:19:02 tnozaki Exp $
+
+TYPE		ROWCOL
+NAME		JISX0201-KANA/UCS
+SRC_ZONE	0x21-0x5F
+OOB_MODE	ILSEQ
+DST_ILSEQ	0xFFFE
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+#
+# This mapping data is made from the mapping data provided by Unicode, Inc.
+# Original notice:
+#
+#	Name:             JIS X 0201 (1976) to Unicode 1.1 Table
+#	Unicode version:  1.1
+#	Table version:    0.9
+#	Table format:     Format A
+#	Date:             8 March 1994
+#
+#	Copyright (c) 1991-1994 Unicode, Inc.  All Rights reserved.
+#
+#	This file is provided as-is by Unicode, Inc. (The Unicode Consortium).
+#	No claims are made as to fitness for any particular purpose.  No
+#	warranties of any kind are expressed or implied.  The recipient
+#	agrees to determine applicability of information provided.  If this
+#	file has been provided on magnetic media by Unicode, Inc., the sole
+#	remedy for any claim will be exchange of defective media within 90
+#	days of receipt.
+#
+#	Recipient is granted the right to make copies in any form for
+#	internal distribution and to freely use the information supplied
+#	in the creation of products supporting Unicode.  Unicode, Inc.
+#	specifically excludes the right to re-distribute this file directly
+#	to third parties or other organizations whether for profit or not.
+#
+#	General notes:
+#
+#
+# This table contains one set of mappings from JIS X 0201 into Unicode.
+# Note that these data are *possible* mappings only and may not be the
+# same as those used by actual products, nor may they be the best suited
+# for all uses.  For more information on the mappings between various code
+# pages incorporating the repertoire of JIS X 0201 and Unicode, consult the
+# VENDORS mapping data.  Normative information on the mapping between
+# JIS X 0201 and Unicode may be found in the Unihan.txt file in the
+# latest Unicode Character Database.
+#
+# If you have carefully considered the fact that the mappings in
+# this table are only one possible set of mappings between JIS X 0201 and
+# Unicode and have no normative status, but still feel that you
+# have located an error in the table that requires fixing, you may
+# report any such error to errata@unicode.org.
+#
+#
+#	Format:  Three tab-separated columns
+#		Column #1 is the shift JIS code (in hex as 0xXX)
+#		Column #2 is the Unicode (in hex as 0xXXXX)
+#		Column #3 the Unicode (ISO 10646) name (follows a comment sign)
+#
+#	The entries are in JIS order
+#
+#
+0x21 = 0xFF61
+0x22 = 0xFF62
+0x23 = 0xFF63
+0x24 = 0xFF64
+0x25 = 0xFF65
+0x26 = 0xFF66
+0x27 = 0xFF67
+0x28 = 0xFF68
+0x29 = 0xFF69
+0x2A = 0xFF6A
+0x2B = 0xFF6B
+0x2C = 0xFF6C
+0x2D = 0xFF6D
+0x2E = 0xFF6E
+0x2F = 0xFF6F
+0x30 = 0xFF70
+0x31 = 0xFF71
+0x32 = 0xFF72
+0x33 = 0xFF73
+0x34 = 0xFF74
+0x35 = 0xFF75
+0x36 = 0xFF76
+0x37 = 0xFF77
+0x38 = 0xFF78
+0x39 = 0xFF79
+0x3A = 0xFF7A
+0x3B = 0xFF7B
+0x3C = 0xFF7C
+0x3D = 0xFF7D
+0x3E = 0xFF7E
+0x3F = 0xFF7F
+0x40 = 0xFF80
+0x41 = 0xFF81
+0x42 = 0xFF82
+0x43 = 0xFF83
+0x44 = 0xFF84
+0x45 = 0xFF85
+0x46 = 0xFF86
+0x47 = 0xFF87
+0x48 = 0xFF88
+0x49 = 0xFF89
+0x4A = 0xFF8A
+0x4B = 0xFF8B
+0x4C = 0xFF8C
+0x4D = 0xFF8D
+0x4E = 0xFF8E
+0x4F = 0xFF8F
+0x50 = 0xFF90
+0x51 = 0xFF91
+0x52 = 0xFF92
+0x53 = 0xFF93
+0x54 = 0xFF94
+0x55 = 0xFF95
+0x56 = 0xFF96
+0x57 = 0xFF97
+0x58 = 0xFF98
+0x59 = 0xFF99
+0x5A = 0xFF9A
+0x5B = 0xFF9B
+0x5C = 0xFF9C
+0x5D = 0xFF9D
+0x5E = 0xFF9E
+0x5F = 0xFF9F
+END_MAP

@@ -1,0 +1,152 @@
+.\" $FreeBSD$
+.Dd July 9, 2018
+.Dt MD5 1
+.Os
+.Sh NAME
+.Nm md5 , sha1 , sha224 , sha256 , sha384 , sha512 , sha512t256 , rmd160 ,
+.Nm skein256 , skein512 , skein1024
+.Nd calculate a message-digest fingerprint (checksum) for a file
+.Sh SYNOPSIS
+.Nm
+.Op Fl pqrtx
+.Op Fl c Ar string
+.Op Fl s Ar string
+.Op Ar
+.Pp
+(All other hashes have the same options and usage.)
+.Sh DESCRIPTION
+The
+.Nm md5 , sha1 , sha224 , sha256 , sha384 , sha512, sha512t256, rmd160,
+.Nm skein256, skein512,
+and
+.Nm skein1024
+utilities take as input a message of arbitrary length and produce as
+output a
+.Dq fingerprint
+or
+.Dq message digest
+of the input.
+It is conjectured that it is computationally infeasible to
+produce two messages having the same message digest, or to produce any
+message having a given prespecified target message digest.
+The
+.Tn SHA-224 , SHA-256 , SHA-384 , SHA-512, RIPEMD-160,
+and
+.Tn SKEIN
+algorithms are intended for digital signature applications, where a
+large file must be
+.Dq compressed
+in a secure manner before being encrypted with a private
+(secret)
+key under a public-key cryptosystem such as
+.Tn RSA .
+.Pp
+The
+.Tn MD5
+and
+.Tn SHA-1
+algorithms have been proven to be vulnerable to practical collision
+attacks and should not be relied upon to produce unique outputs,
+.Em nor should they be used as part of a cryptographic signature scheme.
+As of 2017-03-02, there is no publicly known method to
+.Em reverse
+either algorithm, i.e. to find an input that produces a specific
+output.
+.Pp
+.Tn SHA-512t256
+is a version of
+.Tn SHA-512
+truncated to only 256 bits.
+On 64-bit hardware, this algorithm is approximately 50% faster than
+.Tn SHA-256
+but with the same level of security.
+The hashes are not interchangeable.
+.Pp
+It is recommended that all new applications use
+.Tn SHA-512
+or
+.Tn SKEIN-512
+instead of one of the other hash functions.
+.Pp
+The following options may be used in any combination and must
+precede any files named on the command line.
+The hexadecimal checksum of each file listed on the command line is printed
+after the options are processed.
+.Bl -tag -width indent
+.It Fl c Ar string
+Compare the digest of the file against this string.
+.Pq Note that this option is not yet useful if multiple files are specified.
+.It Fl s Ar string
+Print a checksum of the given
+.Ar string .
+.It Fl p
+Echo stdin to stdout and append the checksum to stdout.
+.It Fl q
+Quiet mode \(em only the checksum is printed out.
+Overrides the
+.Fl r
+option.
+.It Fl r
+Reverses the format of the output.
+This helps with visual diffs.
+Does nothing
+when combined with the
+.Fl ptx
+options.
+.It Fl t
+Run a built-in time trial.
+.It Fl x
+Run a built-in test script.
+.El
+.Sh EXIT STATUS
+The
+.Nm md5 , sha1 , sha224 , sha256 , sha512 , sha512t256 , rmd160 ,
+.Nm skein256 , skein512,
+and
+.Nm skein1024
+utilities exit 0 on success,
+1 if at least one of the input files could not be read,
+and 2 if at least one file does not have the same hash as the
+.Fl c
+option.
+.Sh SEE ALSO
+.Xr cksum 1 ,
+.Xr md5 3 ,
+.Xr ripemd 3 ,
+.Xr sha 3 ,
+.Xr sha224 3 ,
+.Xr sha256 3 ,
+.Xr sha384 3 ,
+.Xr sha512 3 ,
+.Xr skein 3
+.Rs
+.%A R. Rivest
+.%T The MD5 Message-Digest Algorithm
+.%O RFC1321
+.Re
+.Rs
+.%A J. Burrows
+.%T The Secure Hash Standard
+.%O FIPS PUB 180-2
+.Re
+.Rs
+.%A D. Eastlake and P. Jones
+.%T US Secure Hash Algorithm 1
+.%O RFC 3174
+.Re
+.Pp
+RIPEMD-160 is part of the ISO draft standard
+.Qq ISO/IEC DIS 10118-3
+on dedicated hash functions.
+.Pp
+Secure Hash Standard (SHS):
+.Pa http://csrc.nist.gov/cryptval/shs.html .
+.Pp
+The RIPEMD-160 page:
+.Pa http://www.esat.kuleuven.ac.be/~bosselae/ripemd160.html .
+.Sh ACKNOWLEDGMENTS
+This program is placed in the public domain for free general use by
+RSA Data Security.
+.Pp
+Support for SHA-1 and RIPEMD-160 has been added by
+.An Oliver Eikemeier Aq Mt eik@FreeBSD.org .

@@ -1,0 +1,668 @@
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)sed.1	8.2 (Berkeley) 12/30/93
+.\" $FreeBSD$
+.\"
+.Dd March 27, 2017
+.Dt SED 1
+.Os
+.Sh NAME
+.Nm sed
+.Nd stream editor
+.Sh SYNOPSIS
+.Nm
+.Op Fl Ealnru
+.Ar command
+.Op Ar
+.Nm
+.Op Fl Ealnr
+.Op Fl e Ar command
+.Op Fl f Ar command_file
+.Op Fl I Ar extension
+.Op Fl i Ar extension
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility reads the specified files, or the standard input if no files
+are specified, modifying the input as specified by a list of commands.
+The input is then written to the standard output.
+.Pp
+A single command may be specified as the first argument to
+.Nm .
+Multiple commands may be specified by using the
+.Fl e
+or
+.Fl f
+options.
+All commands are applied to the input in the order they are specified
+regardless of their origin.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl E
+Interpret regular expressions as extended (modern) regular expressions
+rather than basic regular expressions (BRE's).
+The
+.Xr re_format 7
+manual page fully describes both formats.
+.It Fl a
+The files listed as parameters for the
+.Dq w
+functions are created (or truncated) before any processing begins,
+by default.
+The
+.Fl a
+option causes
+.Nm
+to delay opening each file until a command containing the related
+.Dq w
+function is applied to a line of input.
+.It Fl e Ar command
+Append the editing commands specified by the
+.Ar command
+argument
+to the list of commands.
+.It Fl f Ar command_file
+Append the editing commands found in the file
+.Ar command_file
+to the list of commands.
+The editing commands should each be listed on a separate line.
+.It Fl I Ar extension
+Edit files in-place, saving backups with the specified
+.Ar extension .
+If a zero-length
+.Ar extension
+is given, no backup will be saved.
+It is not recommended to give a zero-length
+.Ar extension
+when in-place editing files, as you risk corruption or partial content
+in situations where disk space is exhausted, etc.
+.Pp
+Note that in-place editing with
+.Fl I
+still takes place in a single continuous line address space covering
+all files, although each file preserves its individuality instead of
+forming one output stream.
+The line counter is never reset between files, address ranges can span
+file boundaries, and the
+.Dq $
+address matches only the last line of the last file.
+(See
+.Sx "Sed Addresses" . )
+That can lead to unexpected results in many cases of in-place editing,
+where using
+.Fl i
+is desired.
+.It Fl i Ar extension
+Edit files in-place similarly to
+.Fl I ,
+but treat each file independently from other files.
+In particular, line numbers in each file start at 1,
+the
+.Dq $
+address matches the last line of the current file,
+and address ranges are limited to the current file.
+(See
+.Sx "Sed Addresses" . )
+The net result is as though each file were edited by a separate
+.Nm
+instance.
+.It Fl l
+Make output line buffered.
+.It Fl n
+By default, each line of input is echoed to the standard output after
+all of the commands have been applied to it.
+The
+.Fl n
+option suppresses this behavior.
+.It Fl r
+Same as
+.Fl E
+for compatibility with GNU sed.
+.It Fl u
+Make output unbuffered.
+.El
+.Pp
+The form of a
+.Nm
+command is as follows:
+.Pp
+.Dl [address[,address]]function[arguments]
+.Pp
+Whitespace may be inserted before the first address and the function
+portions of the command.
+.Pp
+Normally,
+.Nm
+cyclically copies a line of input, not including its terminating newline
+character, into a
+.Em "pattern space" ,
+(unless there is something left after a
+.Dq D
+function),
+applies all of the commands with addresses that select that pattern space,
+copies the pattern space to the standard output, appending a newline, and
+deletes the pattern space.
+.Pp
+Some of the functions use a
+.Em "hold space"
+to save all or part of the pattern space for subsequent retrieval.
+.Sh "Sed Addresses"
+An address is not required, but if specified must have one of the
+following formats:
+.Bl -bullet -offset indent
+.It
+a number that counts
+input lines
+cumulatively across input files (or in each file independently
+if a
+.Fl i
+option is in effect);
+.It
+a dollar
+.Pq Dq $
+character that addresses the last line of input (or the last line
+of the current file if a
+.Fl i
+option was specified);
+.It
+a context address
+that consists of a regular expression preceded and followed by a
+delimiter. The closing delimiter can also optionally be followed by the
+.Dq I
+character, to indicate that the regular expression is to be matched
+in a case-insensitive way.
+.El
+.Pp
+A command line with no addresses selects every pattern space.
+.Pp
+A command line with one address selects all of the pattern spaces
+that match the address.
+.Pp
+A command line with two addresses selects an inclusive range.
+This
+range starts with the first pattern space that matches the first
+address.
+The end of the range is the next following pattern space
+that matches the second address.
+If the second address is a number
+less than or equal to the line number first selected, only that
+line is selected.
+The number in the second address may be prefixed with a
+.Pq Dq \&+
+to specify the number of lines to match after the first pattern.
+In the case when the second address is a context
+address,
+.Nm
+does not re-match the second address against the
+pattern space that matched the first address.
+Starting at the
+first line following the selected range,
+.Nm
+starts looking again for the first address.
+.Pp
+Editing commands can be applied to non-selected pattern spaces by use
+of the exclamation character
+.Pq Dq \&!
+function.
+.Sh "Sed Regular Expressions"
+The regular expressions used in
+.Nm ,
+by default, are basic regular expressions (BREs, see
+.Xr re_format 7
+for more information), but extended (modern) regular expressions can be used
+instead if the
+.Fl E
+flag is given.
+In addition,
+.Nm
+has the following two additions to regular expressions:
+.Pp
+.Bl -enum -compact
+.It
+In a context address, any character other than a backslash
+.Pq Dq \e
+or newline character may be used to delimit the regular expression.
+The opening delimiter needs to be preceded by a backslash
+unless it is a slash.
+For example, the context address
+.Li \exabcx
+is equivalent to
+.Li /abc/ .
+Also, putting a backslash character before the delimiting character
+within the regular expression causes the character to be treated literally.
+For example, in the context address
+.Li \exabc\exdefx ,
+the RE delimiter is an
+.Dq x
+and the second
+.Dq x
+stands for itself, so that the regular expression is
+.Dq abcxdef .
+.Pp
+.It
+The escape sequence \en matches a newline character embedded in the
+pattern space.
+You cannot, however, use a literal newline character in an address or
+in the substitute command.
+.El
+.Pp
+One special feature of
+.Nm
+regular expressions is that they can default to the last regular
+expression used.
+If a regular expression is empty, i.e., just the delimiter characters
+are specified, the last regular expression encountered is used instead.
+The last regular expression is defined as the last regular expression
+used as part of an address or substitute command, and at run-time, not
+compile-time.
+For example, the command
+.Dq /abc/s//XXX/
+will substitute
+.Dq XXX
+for the pattern
+.Dq abc .
+.Sh "Sed Functions"
+In the following list of commands, the maximum number of permissible
+addresses for each command is indicated by [0addr], [1addr], or [2addr],
+representing zero, one, or two addresses.
+.Pp
+The argument
+.Em text
+consists of one or more lines.
+To embed a newline in the text, precede it with a backslash.
+Other backslashes in text are deleted and the following character
+taken literally.
+.Pp
+The
+.Dq r
+and
+.Dq w
+functions take an optional file parameter, which should be separated
+from the function letter by white space.
+Each file given as an argument to
+.Nm
+is created (or its contents truncated) before any input processing begins.
+.Pp
+The
+.Dq b ,
+.Dq r ,
+.Dq s ,
+.Dq t ,
+.Dq w ,
+.Dq y ,
+.Dq \&! ,
+and
+.Dq \&:
+functions all accept additional arguments.
+The following synopses indicate which arguments have to be separated from
+the function letters by white space characters.
+.Pp
+Two of the functions take a function-list.
+This is a list of
+.Nm
+functions separated by newlines, as follows:
+.Bd -literal -offset indent
+{ function
+  function
+  ...
+  function
+}
+.Ed
+.Pp
+The
+.Dq {
+can be preceded by white space and can be followed by white space.
+The function can be preceded by white space.
+The terminating
+.Dq }
+must be preceded by a newline, and may also be preceded by white space.
+.Pp
+.Bl -tag -width "XXXXXX" -compact
+.It [2addr] function-list
+Execute function-list only when the pattern space is selected.
+.Pp
+.It [1addr]a\e
+.It text
+Write
+.Em text
+to standard output immediately before each attempt to read a line of input,
+whether by executing the
+.Dq N
+function or by beginning a new cycle.
+.Pp
+.It [2addr]b[label]
+Branch to the
+.Dq \&:
+function with the specified label.
+If the label is not specified, branch to the end of the script.
+.Pp
+.It [2addr]c\e
+.It text
+Delete the pattern space.
+With 0 or 1 address or at the end of a 2-address range,
+.Em text
+is written to the standard output.
+.Pp
+.It [2addr]d
+Delete the pattern space and start the next cycle.
+.Pp
+.It [2addr]D
+Delete the initial segment of the pattern space through the first
+newline character and start the next cycle.
+.Pp
+.It [2addr]g
+Replace the contents of the pattern space with the contents of the
+hold space.
+.Pp
+.It [2addr]G
+Append a newline character followed by the contents of the hold space
+to the pattern space.
+.Pp
+.It [2addr]h
+Replace the contents of the hold space with the contents of the
+pattern space.
+.Pp
+.It [2addr]H
+Append a newline character followed by the contents of the pattern space
+to the hold space.
+.Pp
+.It [1addr]i\e
+.It text
+Write
+.Em text
+to the standard output.
+.Pp
+.It [2addr]l
+(The letter ell.)
+Write the pattern space to the standard output in a visually unambiguous
+form.
+This form is as follows:
+.Pp
+.Bl -tag -width "carriage-returnXX" -offset indent -compact
+.It backslash
+\e\e
+.It alert
+\ea
+.It form-feed
+\ef
+.It carriage-return
+\er
+.It tab
+\et
+.It vertical tab
+\ev
+.El
+.Pp
+Nonprintable characters are written as three-digit octal numbers (with a
+preceding backslash) for each byte in the character (most significant byte
+first).
+Long lines are folded, with the point of folding indicated by displaying
+a backslash followed by a newline.
+The end of each line is marked with a
+.Dq $ .
+.Pp
+.It [2addr]n
+Write the pattern space to the standard output if the default output has
+not been suppressed, and replace the pattern space with the next line of
+input.
+.Pp
+.It [2addr]N
+Append the next line of input to the pattern space, using an embedded
+newline character to separate the appended material from the original
+contents.
+Note that the current line number changes.
+.Pp
+.It [2addr]p
+Write the pattern space to standard output.
+.Pp
+.It [2addr]P
+Write the pattern space, up to the first newline character to the
+standard output.
+.Pp
+.It [1addr]q
+Branch to the end of the script and quit without starting a new cycle.
+.Pp
+.It [1addr]r file
+Copy the contents of
+.Em file
+to the standard output immediately before the next attempt to read a
+line of input.
+If
+.Em file
+cannot be read for any reason, it is silently ignored and no error
+condition is set.
+.Pp
+.It [2addr]s/regular expression/replacement/flags
+Substitute the replacement string for the first instance of the regular
+expression in the pattern space.
+Any character other than backslash or newline can be used instead of
+a slash to delimit the RE and the replacement.
+Within the RE and the replacement, the RE delimiter itself can be used as
+a literal character if it is preceded by a backslash.
+.Pp
+An ampersand
+.Pq Dq &
+appearing in the replacement is replaced by the string matching the RE.
+The special meaning of
+.Dq &
+in this context can be suppressed by preceding it by a backslash.
+The string
+.Dq \e# ,
+where
+.Dq #
+is a digit, is replaced by the text matched
+by the corresponding backreference expression (see
+.Xr re_format 7 ) .
+.Pp
+A line can be split by substituting a newline character into it.
+To specify a newline character in the replacement string, precede it with
+a backslash.
+.Pp
+The value of
+.Em flags
+in the substitute function is zero or more of the following:
+.Bl -tag -width "XXXXXX" -offset indent
+.It Ar N
+Make the substitution only for the
+.Ar N Ns 'th
+occurrence of the regular expression in the pattern space.
+.It g
+Make the substitution for all non-overlapping matches of the
+regular expression, not just the first one.
+.It p
+Write the pattern space to standard output if a replacement was made.
+If the replacement string is identical to that which it replaces, it
+is still considered to have been a replacement.
+.It w Em file
+Append the pattern space to
+.Em file
+if a replacement was made.
+If the replacement string is identical to that which it replaces, it
+is still considered to have been a replacement.
+.It i or I
+Match the regular expression in a case-insensitive way.
+.El
+.Pp
+.It [2addr]t [label]
+Branch to the
+.Dq \&:
+function bearing the label if any substitutions have been made since the
+most recent reading of an input line or execution of a
+.Dq t
+function.
+If no label is specified, branch to the end of the script.
+.Pp
+.It [2addr]w Em file
+Append the pattern space to the
+.Em file .
+.Pp
+.It [2addr]x
+Swap the contents of the pattern and hold spaces.
+.Pp
+.It [2addr]y/string1/string2/
+Replace all occurrences of characters in
+.Em string1
+in the pattern space with the corresponding characters from
+.Em string2 .
+Any character other than a backslash or newline can be used instead of
+a slash to delimit the strings.
+Within
+.Em string1
+and
+.Em string2 ,
+a backslash followed by any character other than a newline is that literal
+character, and a backslash followed by an ``n'' is replaced by a newline
+character.
+.Pp
+.It [2addr]!function
+.It [2addr]!function-list
+Apply the function or function-list only to the lines that are
+.Em not
+selected by the address(es).
+.Pp
+.It [0addr]:label
+This function does nothing; it bears a label to which the
+.Dq b
+and
+.Dq t
+commands may branch.
+.Pp
+.It [1addr]=
+Write the line number to the standard output followed by a newline
+character.
+.Pp
+.It [0addr]
+Empty lines are ignored.
+.Pp
+.It [0addr]#
+The
+.Dq #
+and the remainder of the line are ignored (treated as a comment), with
+the single exception that if the first two characters in the file are
+.Dq #n ,
+the default output is suppressed.
+This is the same as specifying the
+.Fl n
+option on the command line.
+.El
+.Sh ENVIRONMENT
+The
+.Ev COLUMNS , LANG , LC_ALL , LC_CTYPE
+and
+.Ev LC_COLLATE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Replace
+.Ql bar
+with
+.Ql baz
+when piped from another command:
+.Bd -literal -offset indent
+echo "An alternate word, like bar, is sometimes used in examples." | sed 's/bar/baz/'
+.Ed
+.Pp
+Using backlashes can sometimes be hard to read and follow:
+.Bd -literal -offset indent
+echo "/home/example" | sed  's/\\/home\\/example/\\/usr\\/local\\/example/'
+.Ed
+.Pp
+Using a different separator can be handy when working with paths:
+.Bd -literal -offset indent
+echo "/home/example" | sed 's#/home/example#/usr/local/example#'
+.Ed
+.Pp
+Replace all occurances of
+.Ql foo
+with
+.Ql bar
+in the file
+.Pa test.txt ,
+without creating a backup of the file:
+.Bd -literal -offset indent
+sed -i '' -e 's/foo/bar/g' test.txt
+.Ed
+.Sh SEE ALSO
+.Xr awk 1 ,
+.Xr ed 1 ,
+.Xr grep 1 ,
+.Xr regex 3 ,
+.Xr re_format 7
+.Sh STANDARDS
+The
+.Nm
+utility is expected to be a superset of the
+.St -p1003.2
+specification.
+.Pp
+The
+.Fl E , I , a
+and
+.Fl i
+options, the prefixing
+.Dq \&+
+in the second member of an address range,
+as well as the
+.Dq I
+flag to the address regular expression and substitution command are
+non-standard
+.Fx
+extensions and may not be available on other operating systems.
+.Sh HISTORY
+A
+.Nm
+command, written by
+.An L. E. McMahon ,
+appeared in
+.At v7 .
+.Sh AUTHORS
+.An Diomidis D. Spinellis Aq Mt dds@FreeBSD.org
+.Sh BUGS
+Multibyte characters containing a byte with value 0x5C
+.Tn ( ASCII
+.Ql \e )
+may be incorrectly treated as line continuation characters in arguments to the
+.Dq a ,
+.Dq c
+and
+.Dq i
+commands.
+Multibyte characters cannot be used as delimiters with the
+.Dq s
+and
+.Dq y
+commands.

@@ -1,0 +1,25 @@
+# $FreeBSD$
+
+printf -- '-1-\n'
+set -- -abc
+getopts "ab:" OPTION
+printf '%s\n' "${OPTION}"
+
+# In this case 'getopts' should realize that we have not provided the
+# required argument for "-b".
+# Note that Solaris 10's (UNIX 03) /usr/xpg4/bin/sh, /bin/sh, and /bin/ksh;
+# ksh93 20090505; pdksh 5.2.14p2; mksh R39c; bash 4.1 PL7; and zsh 4.3.10.
+# all recognize that "b" is missing its argument on the *first* iteration
+# of 'getopts' and do not produce the "a" in $OPTION.
+printf -- '-2-\n'
+set -- -ab
+getopts "ab:" OPTION
+printf '%s\n' "${OPTION}"
+getopts "ab:" OPTION 3>&2 2>&1 >&3 3>&-
+printf '%s\n' "${OPTION}"
+
+# The 'shift' is aimed at causing an error.
+printf -- '-3-\n'
+shift 1
+getopts "ab:" OPTION
+printf '%s\n' "${OPTION}"

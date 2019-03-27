@@ -1,0 +1,263 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 11, 2018
+.Dt EFIRT 9
+.Os
+.Sh NAME
+.Nm efirt ,
+.Nm efi_rt_ok ,
+.Nm efi_get_table ,
+.Nm efi_get_time ,
+.Nm efi_get_time_capabilities ,
+.Nm efi_reset_system ,
+.Nm efi_set_time ,
+.Nm efi_var_get ,
+.Nm efi_var_nextname ,
+.Nm efi_var_set
+.Nd kernel access to UEFI runtime services
+.Sh SYNOPSIS
+.Cd "options EFIRT"
+.Pp
+.In sys/efi.h
+.Ft int
+.Fn efi_rt_ok "void"
+.Ft int
+.Fn efi_get_table "struct uuid *uuid" "void **ptr"
+.Ft int
+.Fn efi_get_time "struct efi_tm *tm"
+.Ft int
+.Fn efi_get_time_capabilities "struct efi_tmcap *tmcap"
+.Ft int
+.Fn efi_reset_system "enum efi_reset type"
+.Ft int
+.Fn efi_set_time "struct efi_tm *tm"
+.Ft int
+.Fn efi_var_get "uint16_t *name" "struct uuid *vendor" "uint32_t *attrib" \
+    "size_t *datasize" "void *data"
+.Ft int
+.Fn efi_var_nextname "size_t *namesize" "uint16_t *name" "struct uuid *vendor"
+.Ft int
+.Fn efi_var_set "uint16_t *name" "struct uuid *vendor" "uint32_t *attrib" \
+    "size_t *datasize" "void *data"
+.Sh DESCRIPTION
+All of the following calls will return
+.Dv ENXIO
+if UEFI runtime services are not available.
+.Nm
+is currently only available on amd64 and arm64.
+.Pp
+The
+.Fn efi_rt_ok
+Returns 0 if UEFI runtime services are present and functional, or
+.Dv ENXIO
+if not.
+.Pp
+The
+.Fn efi_get_table
+function gets a table by uuid from the UEFI system table.
+Returns 0 if the table was found and populates *ptr with the address.
+Returns
+.Dv ENXIO
+if the configuration table or system table are unset.
+Returns
+.Dv ENOENT
+if the requested table cannot be found.
+.Pp
+The
+.Fn efi_get_time
+function gets the current time from the RTC, if available.
+Returns 0 and populates the
+.Vt struct efi_tm
+on success.
+Returns
+.Dv EINVAL
+if the
+.Vt struct efi_tm
+is
+.Dv NULL ,
+or
+.Dv EIO
+if the time could not be retrieved due to a hardware error.
+.Pp
+The
+.Fn efi_get_time_capabilities
+function gets the capabilities from the RTC.
+Returns 0 and populates the
+.Vt struct efi_tmcap
+on success.
+Returns
+.Dv EINVAL
+if the
+.Vt struct efi_tm
+is
+.Dv NULL ,
+or
+.Dv EIO
+if the time could not be retrieved due to a hardware error.
+.Pp
+The
+.Fn efi_reset_system
+function requests a reset of the system.
+The
+.Fa type
+argument may be one of the
+.Vt enum efi_reset
+values:
+.Bl -tag -width ".Dv EFI_RESET_SHUTDOWN"
+.It Dv EFI_RESET_COLD
+Perform a cold reset of the system, and reboot.
+.It Dv EFI_RESET_WARM
+Perform a warm reset of the system, and reboot.
+.It Dv EFI_RESET_SHUTDOWN
+Power off the system.
+.El
+.Pp
+The
+.Fn efi_set_time
+function sets the time on the RTC to the time described by the
+.Vt struct efi_tm
+passed in.
+Returns 0 on success,
+.Dv EINVAL
+if a time field is out of range, or
+.Dv EIO
+if the time could not be set due to a hardware error.
+.Pp
+The
+.Fn efi_var_get
+function fetches the variable identified by
+.Fa vendor
+and
+.Fa name .
+Returns 0 and populates
+.Fa attrib ,
+.Fa datasize ,
+and
+.Fa data
+on success.
+Otherwise, one of the following errors are returned:
+.Bl -tag -width ".Dv EOVERFLOW"
+.It Dv ENOENT
+The variable was not found.
+.It Dv EOVERFLOW
+.Fa datasize
+is not sufficient to hold the variable data.
+.Fa namesize
+is updated to reflect the size needed to complete the request.
+.It Dv EINVAL
+One of
+.Fa name ,
+.Fa vendor ,
+or
+.Fa datasize
+are NULL.
+Alternatively,
+.Fa datasize
+is large enough to hold the response but
+.Fa data
+is NULL.
+.It Dv EIO
+The variable could not be retrieved due to a hardware error.
+.It Dv EDOOFUS
+The variable could not be retireved due to an authentication failure.
+.El
+.Pp
+The
+.Fn efi_var_nextname
+function is used for enumeration of variables.
+On the initial call to
+.Fn efi_var_nextname ,
+.Fa name
+should be an empty string.
+Subsequent calls should pass in the last
+.Fa name
+and
+.Fa vendor
+returned until
+.Dv ENOENT
+is returned.
+Returns 0 and populates
+.Fa namesize ,
+.Fa name ,
+and
+.Fa vendor
+with the next variable's data.
+Otherwise, returns one of the following errors:
+.Bl -tag -width ".Dv EOVERFLOW"
+.It Dv ENOENT
+The next variable was not found.
+.It Dv EOVERFLOW
+.Fa datasize
+is not sufficient to hold the variable data.
+.Fa namesize
+is updated to reflect the size needed to complete the request.
+.It Dv EINVAL
+One of
+.Fa name ,
+.Fa vendor ,
+or
+.Fa datasize
+are NULL.
+.It Dv EIO
+The variable could not be retrieved due to a hardware error.
+.El
+.Pp
+The
+.Fn efi_var_set
+function sets the variable described by
+.Fa name
+and
+.Fa vendor .
+Returns 0 if the variable has been successfully.
+Otherwise, returns one of the following errors:
+.Bl -tag -width ".Dv EOVERFLOW"
+.It Dv EINVAL
+Either
+.Fa attrib
+was an invalid combination of attributes,
+.Fa datasize
+exceeds the maximum allowed size, or
+.Fa name
+is an empty Unicode stirng.
+.It Dv EAGAIN
+Not enough storage is available to hold the variable and its data.
+.It Dv EIO
+The variable could not be saved due to a hardware error.
+.It Dv EROFS
+The variable in question is read-only or may not be deleted.
+.It Dv EDOOFUS
+The variable could not be set due to an authentication failure.
+.It Dv ENOENT
+The variable trying to be updated or deleted was not found.
+.El
+.Sh SEE ALSO
+.Xr efidev 4
+.Sh AUTHORS
+This manual page was written by
+.An Kyle Evans Aq Mt kevans@FreeBSD.org .

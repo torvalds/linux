@@ -1,0 +1,159 @@
+#!/bin/sh
+# Try and be like autotools configure, but without autotools
+
+# Ensure that we do not inherit these from env
+OS=
+BUILD=
+HOST=
+TARGET=
+RESTARTCMD=
+RCDIR=
+STATUSARG=
+
+for x do
+	opt=${x%%=*}
+	var=${x#*=}
+	case "$opt" in
+	--os|OS) OS=$var;;
+	--with-cc|CC) CC=$var;;
+	--debug) DEBUG=$var;;
+	--disable-debug) DEBUG=no;;
+	--enable-debug) DEBUG=yes;;
+	--prefix) PREFIX=$var;;
+	--sysconfdir) SYSCONFDIR=$var;;
+	--bindir|--sbindir) SBINDIR=$var;;
+	--libexecdir) LIBEXECDIR=$var;;
+	--statedir|--localstatedir) STATEDIR=$var;;
+	--dbdir) DBDIR=$var;;
+	--rundir) RUNDIR=$var;;
+	--mandir) MANDIR=$var;;
+	--with-ccopts|CFLAGS) CFLAGS=$var;;
+	CPPFLAGS) CPPFLAGS=$var;;
+	--build) BUILD=$var;;
+	--host) HOST=$var;;
+	--target) TARGET=$var;;
+	--libdir) LIBDIR=$var;;
+	--restartcmd) RESTARTCMD=$var;;
+	--rcdir) RCDIR=$var;;
+	--statusarg) STATUSARG=$var;;
+	--includedir) eval INCLUDEDIR="$INCLUDEDIR${INCLUDEDIR:+ }$var";;
+	--datadir|--infodir) ;; # ignore autotools
+	--disable-maintainer-mode|--disable-dependency-tracking) ;;
+	--help) echo "See the README file for available options"; exit 0;;
+	*) echo "$0: WARNING: unknown option $opt" >&2;;
+	esac
+done
+
+if [ -z "$LIBEXECDIR" ]; then
+	printf "Checking for directory /libexec ... "
+	if [ -d /libexec ]; then
+		echo "yes"
+		LIBEXECDIR=$PREFIX/libexec/resolvconf
+	else
+		echo "no"
+		LIBEXECDIR=$PREFIX/lib/resolvconf
+	fi
+fi
+if [ -z "$RUNDIR" ]; then
+	printf "Checking for directory /run ... "
+	if [ -d /run ]; then
+		echo "yes"
+		RUNDIR=/run
+	else
+		echo "no"
+		RUNDIR=/var/run
+	fi
+fi	
+
+: ${SED:=sed}
+
+: ${SYSCONFDIR:=$PREFIX/etc}
+: ${SBINDIR:=$PREFIX/sbin}
+: ${LIBEXECDIR:=$PREFIX/libexec/resolvconf}
+: ${STATEDIR:=/var}
+: ${RUNDIR:=$STATEDIR/run}
+: ${MANDIR:=${PREFIX:-/usr}/share/man}
+
+eval SYSCONFDIR="$SYSCONFDIR"
+eval SBINDIR="$SBINDIR"
+eval LIBEXECDIR="$LIBEXECDIR"
+eval VARDIR="$RUNDIR/resolvconf"
+eval MANDIR="$MANDIR"
+
+CONFIG_MK=config.mk
+
+if [ -z "$BUILD" ]; then
+	# autoconf target triplet: cpu-vendor-os
+	BUILD=$(uname -m)-unknown-$(uname -s | tr '[:upper:]' '[:lower:]')
+fi
+: ${HOST:=$BUILD}
+
+if [ -z "$OS" ]; then
+	echo "Deriving operating system from ... $HOST"
+	# Derive OS from cpu-vendor-[kernel-]os
+	CPU=${HOST%%-*}
+	REST=${HOST#*-}
+	if [ "$CPU" != "$REST" ]; then
+		VENDOR=${REST%%-*}
+		REST=${REST#*-}
+		if [ "$VENDOR" != "$REST" ]; then
+			# Use kernel if given, otherwise os
+			OS=${REST%%-*}
+		else
+			# 2 tupple
+			OS=$VENDOR
+			VENDOR=
+		fi
+	fi
+
+        # Work with cpu-kernel-os, ie Debian
+	case "$VENDOR" in
+	linux*|kfreebsd*) OS=$VENDOR; VENDOR= ;;
+	esac
+	# Special case
+	case "$OS" in
+	gnu*) OS=hurd;; # No HURD support as yet
+	esac
+fi
+
+echo "Configuring openresolv for ... $OS"
+rm -rf $CONFIG_MK
+echo "# $OS" >$CONFIG_MK
+
+case "$OS" in
+freebsd*)
+	# On FreeBSD, /etc/init.d/foo status returns 0 if foo is not enabled
+	# regardless of if it's not running.
+	# So we force onestatus to work around this silly bug.
+	if [ -z "$STATUSARG" ]; then
+		STATUSARG="onestatus"
+	fi
+	;;
+linux*)
+	# cksum does't support -a and netpgp is rare
+	echo "CKSUM=		sha256sum --tag" >>$CONFIG_MK
+	echo "PGP=		gpg2" >>$CONFIG_MK
+	;;
+esac
+
+for x in SYSCONFDIR SBINDIR LIBEXECDIR VARDIR MANDIR RESTARTCMD RCDIR STATUSARG
+do
+	eval v=\$$x
+	# Make files look nice for import
+	l=$((10 - ${#x}))
+	unset t
+	[ $l -gt 3 ] && t="	"
+	echo "$x=$t	$v" >>$CONFIG_MK
+done
+
+echo
+echo "   SYSCONFDIR =		$SYSCONFDIR"
+echo "   SBINDIR =		$SBINDIR"
+echo "   LIBEXECDIR =		$LIBEXECDIR"
+echo "   VARDIR =		$RUNDIR"
+echo "   MANDIR =		$MANDIR"
+echo
+echo "   RESTARTCMD =		$RESTARTCMD"
+echo "   RCDIR =		$RCDIR"
+echo "   STATUSARG =		$STATUSARG"
+echo

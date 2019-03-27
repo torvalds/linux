@@ -1,0 +1,251 @@
+
+#------------------------------------------------------------
+# $File: mach,v 1.23 2015/10/15 21:51:22 christos Exp $
+# Mach has two magic numbers, 0xcafebabe and 0xfeedface.
+# Unfortunately the first, cafebabe, is shared with
+# Java ByteCode, so they are both handled in the file "cafebabe".
+# The "feedface" ones are handled herein.
+#------------------------------------------------------------
+# if set, it's for the 64-bit version of the architecture
+# yes, this is separate from the low-order magic number bit
+# it's also separate from the "64-bit libraries" bit in the
+# upper 8 bits of the CPU subtype
+
+0	name	mach-o-cpu
+>0	belong&0x01000000	0
+#
+# 32-bit ABIs.
+#
+#				1	vax
+>>0	belong&0x00ffffff	1
+>>>4		belong&0x00ffffff	0	vax
+>>>4		belong&0x00ffffff	1	vax11/780
+>>>4		belong&0x00ffffff	2	vax11/785
+>>>4		belong&0x00ffffff	3	vax11/750
+>>>4		belong&0x00ffffff	4	vax11/730
+>>>4		belong&0x00ffffff	5	uvaxI
+>>>4		belong&0x00ffffff	6	uvaxII
+>>>4		belong&0x00ffffff	7	vax8200
+>>>4		belong&0x00ffffff	8	vax8500
+>>>4		belong&0x00ffffff	9	vax8600
+>>>4		belong&0x00ffffff	10	vax8650
+>>>4		belong&0x00ffffff	11	vax8800
+>>>4		belong&0x00ffffff	12	uvaxIII
+>>>4		belong&0x00ffffff	>12	vax subarchitecture=%d
+>>0	belong&0x00ffffff	2	romp
+>>0	belong&0x00ffffff	3	architecture=3
+>>0	belong&0x00ffffff	4	ns32032
+>>0	belong&0x00ffffff	5	ns32332
+>>0	belong&0x00ffffff	6	m68k
+#				7	x86
+>>0	belong&0x00ffffff	7
+>>>4	belong&0x0000000f	3		i386
+>>>4	belong&0x0000000f	4		i486
+>>>>4	belong&0x00fffff0	0
+>>>>4	belong&0x00fffff0	0x80		\bsx
+>>>4	belong&0x0000000f	5		i586
+>>>4	belong&0x0000000f	6
+>>>>4	belong&0x00fffff0	0		p6
+>>>>4	belong&0x00fffff0	0x10		pentium_pro
+>>>>4	belong&0x00fffff0	0x20		pentium_2_m0x20
+>>>>4	belong&0x00fffff0	0x30		pentium_2_m3
+>>>>4	belong&0x00fffff0	0x40		pentium_2_m0x40
+>>>>4	belong&0x00fffff0	0x50		pentium_2_m5
+>>>>4	belong&0x00fffff0	>0x50		pentium_2_m0x%x
+>>>4	belong&0x0000000f	7		celeron
+>>>>4	belong&0x00fffff0	0x00		\b_m0x%x
+>>>>4	belong&0x00fffff0	0x10		\b_m0x%x
+>>>>4	belong&0x00fffff0	0x20		\b_m0x%x
+>>>>4	belong&0x00fffff0	0x30		\b_m0x%x
+>>>>4	belong&0x00fffff0	0x40		\b_m0x%x
+>>>>4	belong&0x00fffff0	0x50		\b_m0x%x
+>>>>4	belong&0x00fffff0	0x60
+>>>>4	belong&0x00fffff0	0x70		\b_mobile
+>>>>4	belong&0x00fffff0	>0x70		\b_m0x%x
+>>>4	belong&0x0000000f	8		pentium_3
+>>>>4	belong&0x00fffff0	0x00
+>>>>4	belong&0x00fffff0	0x10		\b_m
+>>>>4	belong&0x00fffff0	0x20		\b_xeon
+>>>>4	belong&0x00fffff0	>0x20		\b_m0x%x
+>>>4	belong&0x0000000f	9		pentiumM
+>>>>4	belong&0x00fffff0	0x00
+>>>>4	belong&0x00fffff0	>0x00		\b_m0x%x
+>>>4	belong&0x0000000f	10		pentium_4
+>>>>4	belong&0x00fffff0	0x00
+>>>>4	belong&0x00fffff0	0x10		\b_m
+>>>>4	belong&0x00fffff0	>0x10		\b_m0x%x
+>>>4	belong&0x0000000f	11		itanium
+>>>>4	belong&0x00fffff0	0x00
+>>>>4	belong&0x00fffff0	0x10		\b_2
+>>>>4	belong&0x00fffff0	>0x10		\b_m0x%x
+>>>4	belong&0x0000000f	12		xeon
+>>>>4	belong&0x00fffff0	0x00
+>>>>4	belong&0x00fffff0	0x10		\b_mp
+>>>>4	belong&0x00fffff0	>0x10		\b_m0x%x
+>>>4	belong&0x0000000f	>12		ia32 family=%d
+>>>>4	belong&0x00fffff0	0x00
+>>>>4	belong&0x00fffff0	>0x00		model=%x
+>>0	belong&0x00ffffff	8	mips
+>>>4		belong&0x00ffffff	1	R2300
+>>>4		belong&0x00ffffff	2	R2600
+>>>4		belong&0x00ffffff	3	R2800
+>>>4		belong&0x00ffffff	4	R2000a
+>>>4		belong&0x00ffffff	5	R2000
+>>>4		belong&0x00ffffff	6	R3000a
+>>>4		belong&0x00ffffff	7	R3000
+>>>4		belong&0x00ffffff	>7	subarchitecture=%d
+>>0	belong&0x00ffffff	9	ns32532
+>>0	belong&0x00ffffff	10	mc98000
+>>0	belong&0x00ffffff	11	hppa
+>>>4		belong&0x00ffffff	0	7100
+>>>4		belong&0x00ffffff	1	7100LC
+>>>4		belong&0x00ffffff	>1	subarchitecture=%d
+>>0	belong&0x00ffffff	12	arm
+>>>4		belong&0x00ffffff	0
+>>>4		belong&0x00ffffff	1	subarchitecture=%d
+>>>4		belong&0x00ffffff	2	subarchitecture=%d
+>>>4		belong&0x00ffffff	3	subarchitecture=%d
+>>>4		belong&0x00ffffff	4	subarchitecture=%d
+>>>4		belong&0x00ffffff	5	\bv4t
+>>>4		belong&0x00ffffff	6	\bv6
+>>>4		belong&0x00ffffff	7	\bv5tej
+>>>4		belong&0x00ffffff	8	\bxscale
+>>>4		belong&0x00ffffff	9	\bv7
+>>>4		belong&0x00ffffff	10	\bv7f
+>>>4		belong&0x00ffffff	11	\bv7s
+>>>4		belong&0x00ffffff	12	\bv7k
+>>>4		belong&0x00ffffff	13	\bv8
+>>>4		belong&0x00ffffff	14	\bv6m
+>>>4		belong&0x00ffffff	15	\bv7m
+>>>4		belong&0x00ffffff	16	\bv7em
+>>>4		belong&0x00ffffff	>16	subarchitecture=%d
+#				13	m88k
+>>0	belong&0x00ffffff	13
+>>>4		belong&0x00ffffff	0	mc88000
+>>>4		belong&0x00ffffff	1	mc88100
+>>>4		belong&0x00ffffff	2	mc88110
+>>>4		belong&0x00ffffff	>2	mc88000 subarchitecture=%d
+>>0	belong&0x00ffffff	14	SPARC
+>>0	belong&0x00ffffff	15	i860g
+>>0	belong&0x00ffffff	16	alpha
+>>0	belong&0x00ffffff	17	rs6000
+>>0	belong&0x00ffffff	18	ppc
+>>>4		belong&0x00ffffff	0
+>>>4		belong&0x00ffffff	1	\b_601
+>>>4		belong&0x00ffffff	2	\b_602
+>>>4		belong&0x00ffffff	3	\b_603
+>>>4		belong&0x00ffffff	4	\b_603e
+>>>4		belong&0x00ffffff	5	\b_603ev
+>>>4		belong&0x00ffffff	6	\b_604
+>>>4		belong&0x00ffffff	7	\b_604e
+>>>4		belong&0x00ffffff	8	\b_620
+>>>4		belong&0x00ffffff	9	\b_650
+>>>4		belong&0x00ffffff	10	\b_7400
+>>>4		belong&0x00ffffff	11	\b_7450
+>>>4		belong&0x00ffffff	100	\b_970
+>>>4		belong&0x00ffffff	>100	subarchitecture=%d
+>>0	belong&0x00ffffff	>18	architecture=%d
+>0	belong&0x01000000	0x01000000
+#
+# 64-bit ABIs.
+#
+>>0	belong&0x00ffffff	0	64-bit architecture=%d
+>>0	belong&0x00ffffff	1	64-bit architecture=%d
+>>0	belong&0x00ffffff	2	64-bit architecture=%d
+>>0	belong&0x00ffffff	3	64-bit architecture=%d
+>>0	belong&0x00ffffff	4	64-bit architecture=%d
+>>0	belong&0x00ffffff	5	64-bit architecture=%d
+>>0	belong&0x00ffffff	6	64-bit architecture=%d
+>>0	belong&0x00ffffff	7	x86_64
+>>>4		belong&0x00ffffff	0	subarchitecture=%d
+>>>4		belong&0x00ffffff	1	subarchitecture=%d
+>>>4		belong&0x00ffffff	2	subarchitecture=%d
+>>>4		belong&0x00ffffff	3
+>>>4		belong&0x00ffffff	4	\b_arch1
+>>>4		belong&0x00ffffff	8	\b_haswell
+>>>4		belong&0x00ffffff	>4	subarchitecture=%d
+>>0	belong&0x00ffffff	8	64-bit architecture=%d
+>>0	belong&0x00ffffff	9	64-bit architecture=%d
+>>0	belong&0x00ffffff	10	64-bit architecture=%d
+>>0	belong&0x00ffffff	11	64-bit architecture=%d
+>>0	belong&0x00ffffff	12	arm64
+>>>4		belong&0x00ffffff	0
+>>>4		belong&0x00ffffff	1	\bv8
+>>0	belong&0x00ffffff	13	64-bit architecture=%d
+>>0	belong&0x00ffffff	14	64-bit architecture=%d
+>>0	belong&0x00ffffff	15	64-bit architecture=%d
+>>0	belong&0x00ffffff	16	64-bit architecture=%d
+>>0	belong&0x00ffffff	17	64-bit architecture=%d
+>>0	belong&0x00ffffff	18	ppc64
+>>>4		belong&0x00ffffff	0
+>>>4		belong&0x00ffffff	1		\b_601
+>>>4		belong&0x00ffffff	2		\b_602
+>>>4		belong&0x00ffffff	3		\b_603
+>>>4		belong&0x00ffffff	4		\b_603e
+>>>4		belong&0x00ffffff	5		\b_603ev
+>>>4		belong&0x00ffffff	6		\b_604
+>>>4		belong&0x00ffffff	7		\b_604e
+>>>4		belong&0x00ffffff	8		\b_620
+>>>4		belong&0x00ffffff	9		\b_650
+>>>4		belong&0x00ffffff	10		\b_7400
+>>>4		belong&0x00ffffff	11		\b_7450
+>>>4		belong&0x00ffffff	100		\b_970
+>>>4		belong&0x00ffffff	>100		subarchitecture=%d
+>>0	belong&0x00ffffff	>18	64-bit architecture=%d
+
+
+0	name		mach-o-be
+>0	byte		0xcf		64-bit
+>4	use		mach-o-cpu
+>12	belong		1		object
+>12	belong		2		executable
+>12	belong		3		fixed virtual memory shared library
+>12	belong		4		core
+>12	belong		5		preload executable
+>12	belong		6		dynamically linked shared library
+>12	belong		7		dynamic linker
+>12	belong		8		bundle
+>12	belong		9		dynamically linked shared library stub
+>12	belong		10		dSYM companion file
+>12	belong		11		kext bundle
+>12	belong		>11
+>>12	belong		x		filetype=%d
+>24	belong		>0		\b, flags:<
+>>24	belong		&0x0000001	\bNOUNDEFS
+>>24	belong		&0x0000002	\b|INCRLINK
+>>24	belong		&0x0000004	\b|DYLDLINK
+>>24	belong		&0x0000008	\b|BINDATLOAD
+>>24	belong		&0x0000010	\b|PREBOUND
+>>24	belong		&0x0000020	\b|SPLIT_SEGS
+>>24	belong		&0x0000040	\b|LAZY_INIT
+>>24	belong		&0x0000080	\b|TWOLEVEL
+>>24	belong		&0x0000100	\b|FORCE_FLAT
+>>24	belong		&0x0000200	\b|NOMULTIDEFS
+>>24	belong		&0x0000400	\b|NOFIXPREBINDING
+>>24	belong		&0x0000800	\b|PREBINDABLE
+>>24	belong		&0x0001000	\b|ALLMODSBOUND
+>>24	belong		&0x0002000	\b|SUBSECTIONS_VIA_SYMBOLS
+>>24	belong		&0x0004000	\b|CANONICAL
+>>24	belong		&0x0008000	\b|WEAK_DEFINES
+>>24	belong		&0x0010000	\b|BINDS_TO_WEAK
+>>24	belong		&0x0020000	\b|ALLOW_STACK_EXECUTION
+>>24	belong		&0x0040000	\b|ROOT_SAFE
+>>24	belong		&0x0080000	\b|SETUID_SAFE
+>>24	belong		&0x0100000	\b|NO_REEXPORTED_DYLIBS
+>>24	belong		&0x0200000	\b|PIE
+>>24	belong		&0x0400000	\b|DEAD_STRIPPABLE_DYLIB
+>>24	belong		&0x0800000	\b|HAS_TLV_DESCRIPTORS
+>>24	belong		&0x1000000	\b|NO_HEAP_EXECUTION
+>>24	belong		&0x2000000	\b|APP_EXTENSION_SAFE
+>>24	belong		x		\b>
+
+#
+0	lelong&0xfffffffe	0xfeedface	Mach-O
+!:strength +1
+!:mime application/x-mach-binary
+>0	use	\^mach-o-be
+
+0	belong&0xfffffffe	0xfeedface	Mach-O
+!:strength +1
+!:mime application/x-mach-binary
+>0	use	mach-o-be

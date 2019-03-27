@@ -1,0 +1,42 @@
+The Network Time Protocol (NTP) Version 4 Distribution
+
+This is a distribution of the Network Time Protocol (NTP) Version 4
+sources and documentation. NTP can be used by Unix, DEC VMS and
+Microsoft Windows NT platforms to synchronize the computer clock to
+external sources of time, such as other NTP time servers or a local
+radio clock. The daemon included in this distribution can operate as a
+server, a client, or a relay from a set of servers to a dependent client
+population on a local net. This distribution includes the daemon itself,
+plus utility programs and supporting documentation.
+
+You are welcome to the lot, with due consideration of the copyright
+information in the COPYRIGHT file. You are also invited to contribute
+bugfixes and drivers for new and exotic radios, telephones and sundials.
+This distribution is normally available by anonymous ftp as the
+compressed tar archive ntp-<version>.tar.gz in the pub/ntp directory on
+huey.udel.edu and <version> is the version number. The current stable
+and development version numbers can be found at <http://www.ntp.org>.
+
+A considerable amount of documentation, including build instructions,
+configuration advice, program usage and miscellaneous information is
+included in the ./html directory of this distribution. The intended
+access method is using a web browser such as netscape; however, the
+pages have been formatted so that viewing with an ordinary text editor
+is practical. Start the browser on the ./html/index.html page, which
+contains additional instructions and hotlinks to the remaining pages.
+Some hotlinks for the larger documents, such as related technical
+memoranda, reports and papers, lead to other web sites where this
+information is stashed. We apologize for the inconvenience this may
+cause for users without Internet and World Wide Web access.
+
+If you are an old hand and just want to build the distribution, you
+might find the INSTALL file a useful shortcut. A descriptive list of all
+files in the base directory of this distribution is in the README file.
+A list of "significant" changes for the release is in the NEWS file.
+
+If you're interested in helping us test pre-release versions of ntpd,
+please visit http://support.ntp.org/downloads and look for RC and/or
+Development tarballs.
+
+David L. Mills (mills@udel.edu)
+21 June 1998

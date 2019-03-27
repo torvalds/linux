@@ -1,0 +1,13 @@
+# $FreeBSD$ 
+# $NetBSD: KOI.alias,v 1.1 2006/04/08 14:15:48 tnozaki Exp $
+
+7		iso-5427
+7		iso_5427
+7		iso-ir-37
+7		koi-7
+
+8		cp878
+8		koi-8
+
+8-E		ecma-cyrillic
+8-E		iso-ir-111

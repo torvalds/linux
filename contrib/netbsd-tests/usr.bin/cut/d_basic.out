@@ -1,0 +1,88 @@
+----- test: cut -f 1  d_cut.in -----
+1
+
+12
+
+qwe
+1
+
+12:34:56
+qwe:rty:uio:p[]:asd:fgh:jkl:zxc:vbn:nm
+:qwe:::rty:uio::p[]:asd:fgh:jkl:zxc:vbn:nm
+----- test: cut -f 2  d_cut.in -----
+1
+
+34
+12
+
+1
+
+12:34:56
+qwe:rty:uio:p[]:asd:fgh:jkl:zxc:vbn:nm
+:qwe:::rty:uio::p[]:asd:fgh:jkl:zxc:vbn:nm
+----- test: cut -f 3  d_cut.in -----
+1
+
+56
+
+rty
+1
+
+12:34:56
+qwe:rty:uio:p[]:asd:fgh:jkl:zxc:vbn:nm
+:qwe:::rty:uio::p[]:asd:fgh:jkl:zxc:vbn:nm
+----- test: cut -f 1-2  d_cut.in -----
+1
+
+12	34
+	12
+qwe	
+1
+
+12:34:56
+qwe:rty:uio:p[]:asd:fgh:jkl:zxc:vbn:nm
+:qwe:::rty:uio::p[]:asd:fgh:jkl:zxc:vbn:nm
+----- test: cut -f 2,3  d_cut.in -----
+1
+
+34	56
+12	
+	rty
+1
+
+12:34:56
+qwe:rty:uio:p[]:asd:fgh:jkl:zxc:vbn:nm
+:qwe:::rty:uio::p[]:asd:fgh:jkl:zxc:vbn:nm
+----- test: cut -f 4  d_cut.in -----
+1
+
+
+34
+uio
+1
+
+12:34:56
+qwe:rty:uio:p[]:asd:fgh:jkl:zxc:vbn:nm
+:qwe:::rty:uio::p[]:asd:fgh:jkl:zxc:vbn:nm
+----- test: cut -f 1-3,4-7  d_cut.in -----
+1
+
+12	34	56
+	12		34	56
+qwe		rty	uio	p[]	asd	
+1
+
+12:34:56
+qwe:rty:uio:p[]:asd:fgh:jkl:zxc:vbn:nm
+:qwe:::rty:uio::p[]:asd:fgh:jkl:zxc:vbn:nm
+----- test: cut -f 1,2-7  d_cut.in -----
+1
+
+12	34	56
+	12		34	56
+qwe		rty	uio	p[]	asd	
+1
+
+12:34:56
+qwe:rty:uio:p[]:asd:fgh:jkl:zxc:vbn:nm
+:qwe:::rty:uio::p[]:asd:fgh:jkl:zxc:vbn:nm

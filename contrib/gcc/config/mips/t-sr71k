@@ -1,0 +1,51 @@
+# Suppress building libgcc1.a, since the MIPS compiler port is complete
+# and does not need anything from libgcc1.a.
+LIBGCC1 =
+CROSS_LIBGCC1 =
+
+EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o crti.o crtn.o
+# Don't let CTOR_LIST end up in sdata section.
+CRTSTUFF_T_CFLAGS = -G 0
+
+# Assemble startup files.
+$(T)crti.o: $(srcdir)/config/mips/crti.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crti.o -x assembler-with-cpp $(srcdir)/config/mips/crti.asm
+
+$(T)crtn.o: $(srcdir)/config/mips/crtn.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(MULTILIB_CFLAGS) $(INCLUDES) \
+	-c -o $(T)crtn.o -x assembler-with-cpp $(srcdir)/config/mips/crtn.asm
+
+# We must build libgcc2.a with -G 0, in case the user wants to link
+# without the $gp register.
+TARGET_LIBGCC2_CFLAGS = -G 0
+
+# fp-bit and dp-bit are really part of libgcc1, but this will cause
+# them to be built correctly, so... [taken from t-sparclite]
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#ifdef __MIPSEL__' > dp-bit.c
+	echo '#define FLOAT_BIT_ORDER_MISMATCH' >> dp-bit.c
+	echo '#endif' >> dp-bit.c
+	echo '#define US_SOFTWARE_GOFAST' >> dp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	echo '#ifdef __MIPSEL__' >> fp-bit.c
+	echo '#define FLOAT_BIT_ORDER_MISMATCH' >> fp-bit.c
+	echo '#endif' >> fp-bit.c
+	echo '#define US_SOFTWARE_GOFAST' >> fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+# Build the libraries for both hard and soft floating point
+
+MULTILIB_OPTIONS = EL/EB msoft-float mips2
+MULTILIB_DIRNAMES = el eb soft-float mips2
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib

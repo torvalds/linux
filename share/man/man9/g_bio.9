@@ -1,0 +1,306 @@
+.\"
+.\" Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Mar 7, 2018
+.Dt G_BIO 9
+.Os
+.Sh NAME
+.Nm g_new_bio ,
+.Nm g_clone_bio ,
+.Nm g_destroy_bio ,
+.Nm g_print_bio ,
+.Nm g_reset_bio
+.Nd "GEOM bio controlling functions"
+.Sh SYNOPSIS
+.In sys/bio.h
+.In geom/geom.h
+.Ft "struct bio *"
+.Fn g_new_bio void
+.Ft "struct bio *"
+.Fn g_alloc_bio void
+.Ft "struct bio *"
+.Fn g_clone_bio "struct bio *bp"
+.Ft "struct bio *"
+.Fn g_duplicate_bio "struct bio *bp"
+.Ft void
+.Fn g_destroy_bio "struct bio *bp"
+.Ft void
+.Fn g_print_bio "struct bio *bp"
+.Ft void
+.Fn g_reset_bio "struct bio *bp"
+.Sh DESCRIPTION
+A
+.Vt "struct bio"
+is used by GEOM to describe I/O requests, its
+most important fields are described below:
+.Bl -tag -width ".Va bio_attribute"
+.It Va bio_cmd
+I/O request command.
+There are five I/O requests available in GEOM:
+.Bl -tag -width ".Dv BIO_GETATTR"
+.It Dv BIO_READ
+A read request.
+.It Dv BIO_WRITE
+A write request.
+.It Dv BIO_DELETE
+Indicates that a certain range of data is no longer used and that
+it can be erased or freed as the underlying technology supports.
+Technologies like flash adaptation layers can arrange to erase the relevant
+blocks before they will become reassigned and cryptographic devices may
+want to fill random bits into the range to reduce the amount of data
+available for attack.
+.It Dv BIO_GETATTR
+Inspect and manipulate out-of-band
+attributes on a particular provider or path.
+Attributes are named by ascii strings and are stored in the
+.Va bio_attribute
+field.
+.It Dv BIO_FLUSH
+Tells underlying providers to flush their write caches.
+.El
+.It Va bio_flags
+Available flags:
+.Bl -tag -width ".Dv BIO_ERROR"
+.It Dv BIO_ERROR
+Request failed (error value is stored in
+.Va bio_error
+field).
+.It Dv BIO_DONE
+Request finished.
+.El
+.It Va bio_cflags
+Private use by the consumer.
+.It Va bio_pflags
+Private use by the provider.
+.It Va bio_offset
+Offset into provider.
+.It Va bio_data
+Pointer to data buffer.
+.It Va bio_error
+Error value when
+.Dv BIO_ERROR
+is set.
+.It Va bio_done
+Pointer to function which will be called when the request is finished.
+.It Va bio_driver1
+Private use by the provider.
+.It Va bio_driver2
+Private use by the provider.
+.It Va bio_caller1
+Private use by the consumer.
+.It Va bio_caller2
+Private use by the consumer.
+.It Va bio_attribute
+Attribute string for
+.Dv BIO_GETATTR
+request.
+.It Va bio_from
+Consumer to use for request (attached to provider stored in
+.Va bio_to
+field) (typically read-only for a class).
+.It Va bio_to
+Destination provider (typically read-only for a class).
+.It Va bio_length
+Request length in bytes.
+.It Va bio_completed
+Number of bytes completed, but they may not be completed from
+the front of the request.
+.It Va bio_children
+Number of
+.Vt bio
+clones (typically read-only for a class).
+.It Va bio_inbed
+Number of finished
+.Vt bio
+clones.
+.It Va bio_parent
+Pointer to parent
+.Vt bio .
+.El
+.Pp
+The
+.Fn g_new_bio
+function allocates a new, empty
+.Vt bio
+structure.
+.Pp
+.Fn g_alloc_bio
+- same as
+.Fn g_new_bio ,
+but always succeeds (allocates bio with the
+.Dv M_WAITOK
+malloc flag).
+.Pp
+The
+.Fn g_clone_bio
+function allocates a new
+.Vt bio
+structure and copies the following fields from the
+.Vt bio
+given as an argument to clone:
+.Va bio_cmd ,
+.Va bio_length ,
+.Va bio_offset ,
+.Va bio_data ,
+.Va bio_attribute .
+The field
+.Va bio_parent
+in the clone points to the passed
+.Vt bio
+and the field
+.Va bio_children
+in the passed
+.Vt bio
+is incremented.
+.Pp
+This function should be used for every request which enters through
+the provider of a particular geom and needs to be scheduled down.
+Proper order is:
+.Pp
+.Bl -enum -compact
+.It
+Clone the received
+.Vt "struct bio" .
+.It
+Modify the clone.
+.It
+Schedule the clone on its own consumer.
+.El
+.Pp
+.Fn g_duplicate_bio
+- same as
+.Fn g_clone_bio ,
+but always succeeds (allocates bio with the
+.Dv M_WAITOK
+malloc flag).
+.Pp
+The
+.Fn g_destroy_bio
+function deallocates and destroys the given
+.Vt bio
+structure.
+.Pp
+The
+.Fn g_print_bio
+function prints information about the given
+.Vt bio
+structure (for debugging purposes).
+.Pp
+The
+.Fn g_reset_bio
+function resets the given
+.Vt bio
+structure back to its initial state.
+.Fn g_reset_bio
+preserves internal data structures, while setting all
+user visible fields to their initial values.
+When reusing a
+.Vt bio
+obtained from
+.Fn g_new_bio ,
+.Fn g_alloc_bio ,
+.Fn g_clone_bio ,
+or
+.Fn g_duplicate_bio
+for multiple transactions,
+.Fn g_reset_bio
+must be called between the transactions in lieu of
+.Fn bzero .
+While not strictly required for a
+.Vt bio
+structure created by other means,
+.Fn g_reset_bio
+should be used to initialize it and between transactions.
+.Sh RETURN VALUES
+The
+.Fn g_new_bio
+and
+.Fn g_clone_bio
+functions return a pointer to the allocated
+.Vt bio ,
+or
+.Dv NULL
+if an error occurred.
+.Sh EXAMPLES
+Implementation of
+.Dq Dv NULL Ns -transformation ,
+meaning that an I/O request is cloned and scheduled down without any
+modifications.
+Let us assume that field
+.Va ex_consumer
+in structure
+.Vt example_softc
+contains a consumer attached to the provider we want to operate on.
+.Bd -literal -offset indent
+void
+example_start(struct bio *bp)
+{
+	struct example_softc *sc;
+	struct bio *cbp;
+
+	printf("Request received: ");
+	g_print_bio(bp);
+	printf("\\n");
+
+	sc = bp->bio_to->geom->softc;
+	if (sc == NULL) {
+		g_io_deliver(bp, ENXIO);
+		return;
+	}
+
+	/* Let's clone our bio request. */
+	cbp = g_clone_bio(bp);
+	if (cbp == NULL) {
+		g_io_deliver(bp, ENOMEM);
+		return;
+	}
+	cbp->bio_done = g_std_done;	/* Standard 'done' function. */
+
+	/* Ok, schedule it down. */
+	/*
+	 * The consumer can be obtained from
+	 * LIST_FIRST(&bp->bio_to->geom->consumer) as well,
+	 * if there is only one in our geom.
+	 */
+	g_io_request(cbp, sc->ex_consumer);
+}
+.Ed
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr DECLARE_GEOM_CLASS 9 ,
+.Xr g_access 9 ,
+.Xr g_attach 9 ,
+.Xr g_consumer 9 ,
+.Xr g_data 9 ,
+.Xr g_event 9 ,
+.Xr g_geom 9 ,
+.Xr g_provider 9 ,
+.Xr g_provider_by_name 9 ,
+.Xr g_wither_geom 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .

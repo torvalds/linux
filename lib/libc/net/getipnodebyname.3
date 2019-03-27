@@ -1,0 +1,474 @@
+.\"	$KAME: getipnodebyname.3,v 1.6 2000/08/09 21:16:17 itojun Exp $
+.\"
+.\" Copyright (c) 1983, 1987, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)gethostbyname.3	8.4 (Berkeley) 5/25/95
+.\" $FreeBSD$
+.\"
+.Dd August 6, 2004
+.Dt GETIPNODEBYNAME 3
+.Os
+.\"
+.Sh NAME
+.Nm getipnodebyname ,
+.Nm getipnodebyaddr ,
+.Nm freehostent
+.Nd nodename-to-address and address-to-nodename translation
+.\"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netdb.h
+.Ft "struct hostent *"
+.Fn getipnodebyname "const char *name" "int af" "int flags" "int *error_num"
+.Ft "struct hostent *"
+.Fn getipnodebyaddr "const void *src" "size_t len" "int af" "int *error_num"
+.Ft void
+.Fn freehostent "struct hostent *ptr"
+.\"
+.Sh DESCRIPTION
+The
+.Fn getipnodebyname
+and
+.Fn getipnodebyaddr
+functions are very similar to
+.Xr gethostbyname 3 ,
+.Xr gethostbyname2 3
+and
+.Xr gethostbyaddr 3 .
+The functions cover all the functionalities provided by the older ones,
+and provide better interface to programmers.
+The functions require additional arguments,
+.Fa af ,
+and
+.Fa flags ,
+for specifying address family and operation mode.
+The additional arguments allow programmer to get address for a nodename,
+for specific address family
+(such as
+.Dv AF_INET
+or
+.Dv AF_INET6 ) .
+The functions also require an additional pointer argument,
+.Fa error_num
+to return the appropriate error code,
+to support thread safe error code returns.
+.Pp
+The type and usage of the return value,
+.Li "struct hostent"
+is described in
+.Xr gethostbyname 3 .
+.Pp
+For
+.Fn getipnodebyname ,
+the
+.Fa name
+argument can be either a node name or a numeric address
+string
+(i.e., a dotted-decimal IPv4 address or an IPv6 hex address).
+The
+.Fa af
+argument specifies the address family, either
+.Dv AF_INET
+or
+.Dv AF_INET6 .
+The
+.Fa flags
+argument specifies the types of addresses that are searched for,
+and the types of addresses that are returned.
+We note that a special flags value of
+.Dv AI_DEFAULT
+(defined below)
+should handle most applications.
+That is, porting simple applications to use IPv6 replaces the call
+.Bd -literal -offset indent
+hptr = gethostbyname(name);
+.Ed
+.Pp
+with
+.Bd -literal -offset indent
+hptr = getipnodebyname(name, AF_INET6, AI_DEFAULT, &error_num);
+.Ed
+.Pp
+Applications desiring finer control over the types of addresses
+searched for and returned, can specify other combinations of the
+.Fa flags
+argument.
+.Pp
+A
+.Fa flags
+of
+.Li 0
+implies a strict interpretation of the
+.Fa af
+argument:
+.Bl -bullet
+.It
+If
+.Fa flags
+is 0 and
+.Fa af
+is
+.Dv AF_INET ,
+then the caller wants only IPv4 addresses.
+A query is made for
+.Li A
+records.
+If successful, the IPv4 addresses are returned and the
+.Li h_length
+member of the
+.Li hostent
+structure will be 4, else the function returns a
+.Dv NULL
+pointer.
+.It
+If
+.Fa flags
+is 0 and if
+.Fa af
+is
+.Li AF_INET6 ,
+then the caller wants only IPv6 addresses.
+A query is made for
+.Li AAAA
+records.
+If successful, the IPv6 addresses are returned and the
+.Li h_length
+member of the
+.Li hostent
+structure will be 16, else the function returns a
+.Dv NULL
+pointer.
+.El
+.Pp
+Other constants can be logically-ORed into the
+.Fa flags
+argument, to modify the behavior of the function.
+.Bl -bullet
+.It
+If the
+.Dv AI_V4MAPPED
+flag is specified along with an
+.Fa af
+of
+.Dv AF_INET6 ,
+then the caller will accept IPv4-mapped IPv6 addresses.
+That is, if no
+.Li AAAA
+records are found then a query is made for
+.Li A
+records and any found are returned as IPv4-mapped IPv6 addresses
+.Li ( h_length
+will be 16).
+The
+.Dv AI_V4MAPPED
+flag is ignored unless
+.Fa af
+equals
+.Dv AF_INET6 .
+.It
+The
+.Dv AI_V4MAPPED_CFG
+flag is exact same as the
+.Dv AI_V4MAPPED
+flag only if the kernel supports IPv4-mapped IPv6 address.
+.It
+If the
+.Dv AI_ALL
+flag is used in conjunction with the
+.Dv AI_V4MAPPED
+flag, and only used with the IPv6 address family.
+When
+.Dv AI_ALL
+is logically or'd with
+.Dv AI_V4MAPPED
+flag then the caller wants all addresses: IPv6 and IPv4-mapped IPv6.
+A query is first made for
+.Li AAAA
+records and if successful, the
+IPv6 addresses are returned.
+Another query is then made for
+.Li A
+records and any found are returned as IPv4-mapped IPv6 addresses.
+.Li h_length
+will be 16.
+Only if both queries fail does the function
+return a
+.Dv NULL
+pointer.
+This flag is ignored unless af equals
+AF_INET6.
+If both
+.Dv AI_ALL
+and
+.Dv AI_V4MAPPED
+are specified,
+.Dv AI_ALL
+takes precedence.
+.It
+The
+.Dv AI_ADDRCONFIG
+flag specifies that a query for
+.Li AAAA
+records
+should occur only if the node has at least one IPv6 source
+address configured and a query for
+.Li A
+records should occur only if the node has at least one IPv4 source address
+configured.
+.Pp
+For example, if the node has no IPv6 source addresses configured,
+and
+.Fa af
+equals AF_INET6, and the node name being looked up has both
+.Li AAAA
+and
+.Li A
+records, then:
+(a) if only
+.Dv AI_ADDRCONFIG
+is
+specified, the function returns a
+.Dv NULL
+pointer;
+(b) if
+.Dv AI_ADDRCONFIG
+|
+.Dv AI_V4MAPPED
+is specified, the
+.Li A
+records are returned as IPv4-mapped IPv6 addresses;
+.El
+.Pp
+The special flags value of
+.Dv AI_DEFAULT
+is defined as
+.Bd -literal -offset indent
+#define  AI_DEFAULT  (AI_V4MAPPED_CFG | AI_ADDRCONFIG)
+.Ed
+.Pp
+We noted that the
+.Fn getipnodebyname
+function must allow the
+.Fa name
+argument to be either a node name or a literal address string
+(i.e., a dotted-decimal IPv4 address or an IPv6 hex address).
+This saves applications from having to call
+.Xr inet_pton 3
+to handle literal address strings.
+When the
+.Fa name
+argument is a literal address string,
+the
+.Fa flags
+argument is always ignored.
+.Pp
+There are four scenarios based on the type of literal address string
+and the value of the
+.Fa af
+argument.
+The two simple cases are when
+.Fa name
+is a dotted-decimal IPv4 address and
+.Fa af
+equals
+.Dv AF_INET ,
+or when
+.Fa name
+is an IPv6 hex address and
+.Fa af
+equals
+.Dv AF_INET6 .
+The members of the
+returned hostent structure are:
+.Li h_name
+points to a copy of the
+.Fa name
+argument,
+.Li h_aliases
+is a
+.Dv NULL
+pointer,
+.Li h_addrtype
+is a copy of the
+.Fa af
+argument,
+.Li h_length
+is either 4
+(for
+.Dv AF_INET )
+or 16
+(for
+.Dv AF_INET6 ) ,
+.Li h_addr_list[0]
+is a pointer to the 4-byte or 16-byte binary address,
+and
+.Li h_addr_list[1]
+is a
+.Dv NULL
+pointer.
+.Pp
+When
+.Fa name
+is a dotted-decimal IPv4 address and
+.Fa af
+equals
+.Dv AF_INET6 ,
+and
+.Dv AI_V4MAPPED
+is specified,
+an IPv4-mapped IPv6 address is returned:
+.Li h_name
+points to an IPv6 hex address containing the IPv4-mapped IPv6 address,
+.Li h_aliases
+is a
+.Dv NULL
+pointer,
+.Li h_addrtype
+is
+.Dv AF_INET6 ,
+.Li h_length
+is 16,
+.Li h_addr_list[0]
+is a pointer to the 16-byte binary address, and
+.Li h_addr_list[1]
+is a
+.Dv NULL
+pointer.
+.Pp
+It is an error when
+.Fa name
+is an IPv6 hex address and
+.Fa af
+equals
+.Dv AF_INET .
+The function's return value is a
+.Dv NULL
+pointer and the value pointed to by
+.Fa error_num
+equals
+.Dv HOST_NOT_FOUND .
+.Pp
+The
+.Fn getipnodebyaddr
+function
+takes almost the same argument as
+.Xr gethostbyaddr 3 ,
+but adds a pointer to return an error number.
+Additionally it takes care of IPv4-mapped IPv6 addresses,
+and IPv4-compatible IPv6 addresses.
+.Pp
+The
+.Fn getipnodebyname
+and
+.Fn getipnodebyaddr
+functions
+dynamically allocate the structure to be returned to the caller.
+The
+.Fn freehostent
+function
+reclaims memory region allocated and returned by
+.Fn getipnodebyname
+or
+.Fn getipnodebyaddr .
+.\"
+.Sh FILES
+.Bl -tag -width /etc/nsswitch.conf -compact
+.It Pa /etc/hosts
+.It Pa /etc/nsswitch.conf
+.It Pa /etc/resolv.conf
+.El
+.\"
+.Sh DIAGNOSTICS
+The
+.Fn getipnodebyname
+and
+.Fn getipnodebyaddr
+functions
+returns
+.Dv NULL
+on errors.
+The integer values pointed to by
+.Fa error_num
+may then be checked to see whether this is a temporary failure
+or an invalid or unknown host.
+The meanings of each error code are described in
+.Xr gethostbyname 3 .
+.\"
+.Sh SEE ALSO
+.Xr getaddrinfo 3 ,
+.Xr gethostbyaddr 3 ,
+.Xr gethostbyname 3 ,
+.Xr getnameinfo 3 ,
+.Xr hosts 5 ,
+.Xr nsswitch.conf 5 ,
+.Xr services 5 ,
+.Xr hostname 7 ,
+.Xr named 8
+.Pp
+.Rs
+.%A R. Gilligan
+.%A S. Thomson
+.%A J. Bound
+.%A W. Stevens
+.%T Basic Socket Interface Extensions for IPv6
+.%R RFC2553
+.%D March 1999
+.Re
+.\"
+.Sh STANDARDS
+The
+.Fn getipnodebyname
+and
+.Fn getipnodebyaddr
+functions
+are documented in
+.Dq Basic Socket Interface Extensions for IPv6
+(RFC2553).
+.\"
+.Sh HISTORY
+The implementation first appeared in KAME advanced networking kit.
+.\"
+.Sh BUGS
+The
+.Fn getipnodebyname
+and
+.Fn getipnodebyaddr
+functions
+do not handle scoped IPv6 address properly.
+If you use these functions,
+your program will not be able to handle scoped IPv6 addresses.
+For IPv6 address manipulation,
+.Fn getaddrinfo 3
+and
+.Fn getnameinfo 3
+are recommended.
+.Pp
+The text was shamelessly copied from RFC2553.

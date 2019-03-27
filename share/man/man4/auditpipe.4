@@ -1,0 +1,256 @@
+.\" Copyright (c) 2006 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 30, 2018
+.Dt AUDITPIPE 4
+.Os
+.Sh NAME
+.Nm auditpipe
+.Nd "pseudo-device for live audit event tracking"
+.Sh SYNOPSIS
+.Cd "options AUDIT"
+.Sh DESCRIPTION
+While audit trail files
+generated with
+.Xr audit 4
+and maintained by
+.Xr auditd 8
+provide a reliable long-term store for audit log information, current log
+files are owned by the audit daemon until terminated making them somewhat
+unwieldy for live monitoring applications such as host-based intrusion
+detection.
+For example, the log may be cycled and new records written to a new file
+without notice to applications that may be accessing the file.
+.Pp
+The audit facility provides an audit pipe facility for applications requiring
+direct access to live BSM audit data for the purposes of real-time
+monitoring.
+Audit pipes are available via a clonable special device,
+.Pa /dev/auditpipe ,
+subject to the permissions on the device node, and provide a
+.Qq tee
+of the audit event stream.
+As the device is clonable, more than one instance of the device may be opened
+at a time; each device instance will provide independent access to all
+records.
+.Pp
+The audit pipe device provides discrete BSM audit records; if the read buffer
+passed by the application is too small to hold the next record in the
+sequence, it will be dropped.
+Unlike audit data written to the audit trail, the reliability of record
+delivery is not guaranteed.
+In particular, when an audit pipe queue fills, records will be dropped.
+Audit pipe devices are blocking by default, but support non-blocking I/O,
+asynchronous I/O using
+.Dv SIGIO ,
+and polled operation via
+.Xr select 2
+and
+.Xr poll 2 .
+.Pp
+Applications may choose to track the global audit trail, or configure local
+preselection parameters independent of the global audit trail parameters.
+.Ss Audit Pipe Queue Ioctls
+The following ioctls retrieve and set various audit pipe record queue
+properties:
+.Bl -tag -width ".Dv AUDITPIPE_GET_MAXAUDITDATA"
+.It Dv AUDITPIPE_GET_QLEN
+Query the current number of records available for reading on the pipe.
+.It Dv AUDITPIPE_GET_QLIMIT
+Retrieve the current maximum number of records that may be queued for reading
+on the pipe.
+.It Dv AUDITPIPE_SET_QLIMIT
+Set the current maximum number of records that may be queued for reading on
+the pipe.
+The new limit must fall between the queue limit minimum and queue limit
+maximum queryable using the following two ioctls.
+.It Dv AUDITPIPE_GET_QLIMIT_MIN
+Query the lowest possible maximum number of records that may be queued for
+reading on the pipe.
+.It Dv AUDITPIPE_GET_QLIMIT_MAX
+Query the highest possible maximum number of records that may be queued for
+reading on the pipe.
+.It Dv AUDITPIPE_FLUSH
+Flush all outstanding records on the audit pipe; useful after setting initial
+preselection properties to delete records queued during the configuration
+process which may not match the interests of the user process.
+.It Dv AUDITPIPE_GET_MAXAUDITDATA
+Query the maximum size of an audit record, which is a useful minimum size for
+a user space buffer intended to hold audit records read from the audit pipe.
+.El
+.Ss Audit Pipe Preselection Mode Ioctls
+By default, the audit pipe facility configures pipes to present records
+matched by the system-wide audit trail, configured by
+.Xr auditd 8 .
+However, the preselection mechanism for audit pipes can be configured using
+alternative criteria, including pipe-local flags and naflags settings, as
+well as auid-specific selection masks.
+This allows applications to track events not captured in the global audit
+trail, as well as limit records presented to those of specific interest to
+the application.
+.Pp
+The following ioctls configure the preselection mode on an audit pipe:
+.Bl -tag -width ".Dv AUDITPIPE_GET_PRESELECT_MODE"
+.It Dv AUDITPIPE_GET_PRESELECT_MODE
+Return the current preselect mode on the audit pipe.
+The ioctl argument should be of type
+.Vt int .
+.It Dv AUDITPIPE_SET_PRESELECT_MODE
+Set the current preselection mode on the audit pipe.
+The ioctl argument should be of type
+.Vt int .
+.El
+.Pp
+Possible preselection mode values are:
+.Bl -tag -width ".Dv AUDITPIPE_PRESELECT_MODE_TRAIL"
+.It Dv AUDITPIPE_PRESELECT_MODE_TRAIL
+Use the global audit trail preselection parameters to select records for the
+audit pipe.
+.It Dv AUDITPIPE_PRESELECT_MODE_LOCAL
+Use local audit pipe preselection; this model is similar to the global audit
+trail configuration model, consisting of global flags and naflags parameters,
+as well as a set of per-auid masks.
+These parameters are configured using further ioctls.
+.El
+.Pp
+After changing the audit pipe preselection mode, records selected under
+earlier preselection configuration may still be in the audit pipe queue.
+The application may flush the current record queue after changing the
+configuration to remove possibly undesired records.
+.Ss Audit Pipe Local Preselection Mode Ioctls
+The following ioctls configure the preselection parameters used when an audit
+pipe is configured for the
+.Dv AUDITPIPE_PRESELECT_MODE_LOCAL
+preselection mode.
+.Bl -tag -width ".Dv AUDITPIPE_GET_PRESELECT_NAFLAGS"
+.It Dv AUDITPIPE_GET_PRESELECT_FLAGS
+Retrieve the current default preselection flags for attributable events on
+the pipe.
+These flags correspond to the
+.Va flags
+field in
+.Xr audit_control 5 .
+The ioctl argument should be of type
+.Vt au_mask_t .
+.It Dv AUDITPIPE_SET_PRESELECT_FLAGS
+Set the current default preselection flags for attributable events on the
+pipe.
+These flags correspond to the
+.Va flags
+field in
+.Xr audit_control 5 .
+The ioctl argument should be of type
+.Vt au_mask_t .
+.It Dv AUDITPIPE_GET_PRESELECT_NAFLAGS
+Retrieve the current default preselection flags for non-attributable events
+on the pipe.
+These flags correspond to the
+.Va naflags
+field in
+.Xr audit_control 5 .
+The ioctl argument should be of type
+.Vt au_mask_t .
+.It Dv AUDITPIPE_SET_PRESELECT_NAFLAGS
+Set the current default preselection flags for non-attributable events on the
+pipe.
+These flags correspond to the
+.Va naflags
+field in
+.Xr audit_control 5 .
+The ioctl argument should be of type
+.Vt au_mask_t .
+.It Dv AUDITPIPE_GET_PRESELECT_AUID
+Query the current preselection masks for a specific auid on the pipe.
+The ioctl argument should be of type
+.Vt "struct auditpipe_ioctl_preselect" .
+The auid to query is specified via the
+.Va ap_auid
+field of type
+.Vt au_id_t ;
+the mask will be returned via
+.Va ap_mask
+of type
+.Vt au_mask_t .
+.It Dv AUDITPIPE_SET_PRESELECT_AUID
+Set the current preselection masks for a specific auid on the pipe.
+Arguments are identical to
+.Dv AUDITPIPE_GET_PRESELECT_AUID ,
+except that the caller should properly initialize the
+.Va ap_mask
+field to hold the desired preselection mask.
+.It Dv AUDITPIPE_DELETE_PRESELECT_AUID
+Delete the current preselection mask for a specific auid on the pipe.
+Once called, events associated with the specified auid will use the default
+flags mask.
+The ioctl argument should be of type
+.Vt au_id_t .
+.It Dv AUDITPIPE_FLUSH_PRESELECT_AUID
+Delete all auid specific preselection specifications.
+.El
+.Sh EXAMPLES
+The
+.Xr praudit 1
+utility
+may be directly executed on
+.Pa /dev/auditpipe
+to review the default audit trail.
+.Sh SEE ALSO
+.Xr poll 2 ,
+.Xr select 2 ,
+.Xr audit 4 ,
+.Xr audit_control 5 ,
+.Xr audit 8 ,
+.Xr auditd 8
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
+.Pp
+Support for kernel audit first appeared in
+.Fx 6.2 .
+.Sh AUTHORS
+The audit pipe facility was designed and implemented by
+.An Robert Watson Aq Mt rwatson@FreeBSD.org .
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.
+.Sh BUGS
+See the
+.Xr audit 4
+manual page for information on audit-related bugs and limitations.
+.Pp
+The configurable preselection mechanism mirrors the selection model present
+for the global audit trail.
+It might be desirable to provide a more flexible selection model.
+.Pp
+The per-pipe audit event queue is fifo, with drops occurring if either the
+user thread provides in sufficient for the record on the queue head, or on
+enqueue if there is insufficient room.
+It might be desirable to support partial reads of records, which would be
+more compatible with buffered I/O as implemented in system libraries, and to
+allow applications to select which records are dropped, possibly in the style
+of preselection.

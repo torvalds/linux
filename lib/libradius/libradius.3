@@ -1,0 +1,614 @@
+.\" Copyright 1998 Juniper Networks, Inc.
+.\" Copyright 2009 Alexander Motin <mav@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 5, 2009
+.Dt LIBRADIUS 3
+.Os
+.Sh NAME
+.Nm libradius
+.Nd RADIUS client/server library
+.Sh SYNOPSIS
+.In radlib.h
+.Ft "struct rad_handle *"
+.Fn rad_acct_open "void"
+.Ft int
+.Fn rad_add_server "struct rad_handle *h" "const char *host" "int port" "const char *secret" "int timeout" "int max_tries"
+.Ft int
+.Fn rad_add_server_ex "struct rad_handle *h" "const char *host" "int port" "const char *secret" "int timeout" "int max_tries" "int dead_time" "struct in_addr *bindto"
+.Ft "struct rad_handle *"
+.Fn rad_auth_open "void"
+.Ft void
+.Fn rad_close "struct rad_handle *h"
+.Ft int
+.Fn rad_config "struct rad_handle *h" "const char *file"
+.Ft int
+.Fn rad_continue_send_request "struct rad_handle *h" "int selected" "int *fd" "struct timeval *tv"
+.Ft int
+.Fn rad_create_request "struct rad_handle *h" "int code"
+.Ft int
+.Fn rad_create_response "struct rad_handle *h" "int code"
+.Ft "struct in_addr"
+.Fn rad_cvt_addr "const void *data"
+.Ft uint32_t
+.Fn rad_cvt_int "const void *data"
+.Ft char *
+.Fn rad_cvt_string "const void *data" "size_t len"
+.Ft int
+.Fn rad_get_attr "struct rad_handle *h" "const void **data" "size_t *len"
+.Ft int
+.Fn rad_get_vendor_attr "uint32_t *vendor" "const void **data" "size_t *len"
+.Ft int
+.Fn rad_init_send_request "struct rad_handle *h" "int *fd" "struct timeval *tv"
+.Ft int
+.Fn rad_put_addr "struct rad_handle *h" "int type" "struct in_addr addr"
+.Ft int
+.Fn rad_put_attr "struct rad_handle *h" "int type" "const void *data" "size_t len"
+.Ft int
+.Fn rad_put_int "struct rad_handle *h" "int type" "uint32_t value"
+.Ft int
+.Fn rad_put_string "struct rad_handle *h" "int type" "const char *str"
+.Ft int
+.Fn rad_put_message_authentic "struct rad_handle *h"
+.Ft int
+.Fn rad_put_vendor_addr "struct rad_handle *h" "int vendor" "int type" "struct in_addr addr"
+.Ft int
+.Fn rad_put_vendor_attr "struct rad_handle *h" "int vendor" "int type" "const void *data" "size_t len"
+.Ft int
+.Fn rad_put_vendor_int "struct rad_handle *h" "int vendor" "int type" "uint32_t value"
+.Ft int
+.Fn rad_put_vendor_string "struct rad_handle *h" "int vendor" "int type" "const char *str"
+.Ft ssize_t
+.Fn rad_request_authenticator "struct rad_handle *h" "char *buf" "size_t len"
+.Ft int
+.Fn rad_receive_request "struct rad_handle *h"
+.Ft int
+.Fn rad_send_request "struct rad_handle *h"
+.Ft int
+.Fn rad_send_response "struct rad_handle *h"
+.Ft "struct rad_handle *"
+.Fn rad_server_open "int fd"
+.Ft "const char *"
+.Fn rad_server_secret "struct rad_handle *h"
+.Ft "void"
+.Fn rad_bind_to "struct rad_handle *h" "in_addr_t addr"
+.Ft u_char *
+.Fn rad_demangle "struct rad_handle *h" "const void *mangled" "size_t mlen"
+.Ft u_char *
+.Fn rad_demangle_mppe_key "struct rad_handle *h" "const void *mangled" "size_t mlen" "size_t *len"
+.Ft "const char *"
+.Fn rad_strerror "struct rad_handle *h"
+.Sh DESCRIPTION
+The
+.Nm
+library implements the Remote Authentication Dial In User Service (RADIUS).
+RADIUS, defined in RFCs 2865 and 2866,
+allows clients to perform authentication and accounting by means of
+network requests to remote servers.
+.Ss Initialization
+To use the library, an application must first call
+.Fn rad_auth_open ,
+.Fn rad_acct_open
+or
+.Fn rad_server_open
+to obtain a
+.Vt "struct rad_handle *" ,
+which provides the context for subsequent operations.
+The former function is used for RADIUS authentication and the
+latter is used for RADIUS accounting.
+Calls to
+.Fn rad_auth_open ,
+.Fn rad_acct_open
+and
+.Fn rad_server_open
+always succeed unless insufficient virtual memory is available.
+If
+the necessary memory cannot be allocated, the functions return
+.Dv NULL .
+For compatibility with earlier versions of this library,
+.Fn rad_open
+is provided as a synonym for
+.Fn rad_auth_open .
+.Pp
+Before issuing any RADIUS requests, the library must be made aware
+of the servers it can contact.
+The easiest way to configure the
+library is to call
+.Fn rad_config .
+.Fn rad_config
+causes the library to read a configuration file whose format is
+described in
+.Xr radius.conf 5 .
+The pathname of the configuration file is passed as the
+.Fa file
+argument to
+.Fn rad_config .
+This argument may also be given as
+.Dv NULL ,
+in which case the standard configuration file
+.Pa /etc/radius.conf
+is used.
+.Fn rad_config
+returns 0 on success, or \-1 if an error occurs.
+.Pp
+The library can also be configured programmatically by calls to
+.Fn rad_add_server
+or
+.Fn rad_add_server_ex .
+.Fn rad_add_server
+is a backward compatible function, implemented via
+.Fn rad_add_server_ex .
+The
+.Fa host
+parameter specifies the server host, either as a fully qualified
+domain name or as a dotted-quad IP address in text form.
+The
+.Fa port
+parameter specifies the UDP port to contact on the server.
+If
+.Fa port
+is given as 0, the library looks up the
+.Ql radius/udp
+or
+.Ql radacct/udp
+service in the network
+.Xr services 5
+database, and uses the port found
+there.
+If no entry is found, the library uses the standard RADIUS
+ports, 1812 for authentication and 1813 for accounting.
+The shared secret for the server host is passed to the
+.Fa secret
+parameter.
+It may be any
+.Dv NUL Ns -terminated
+string of bytes.
+The RADIUS protocol
+ignores all but the leading 128 bytes of the shared secret.
+The timeout for receiving replies from the server is passed to the
+.Fa timeout
+parameter, in units of seconds.
+The maximum number of repeated
+requests to make before giving up is passed into the
+.Fa max_tries
+parameter.
+Time interval in seconds when the server will not be requested
+if it is marked as dead (did not answer on the last try) set with
+.Fa dead_time
+parameter.
+.Fa bindto
+parameter is an IP address on the multihomed host that is used as
+a source address for all requests.
+.Fn rad_add_server
+returns 0 on success, or \-1 if an error occurs.
+.Pp
+.Fn rad_add_server
+or
+.Fn rad_add_server_ex
+may be called multiple times, and they may be used together with
+.Fn rad_config .
+At most 10 servers may be specified.
+When multiple servers are given, they are tried in round-robin
+fashion until a valid response is received, or until each server's
+.Fa max_tries
+limit has been reached.
+.Ss Creating a RADIUS Request
+A RADIUS request consists of a code specifying the kind of request,
+and zero or more attributes which provide additional information.
+To
+begin constructing a new request, call
+.Fn rad_create_request .
+In addition to the usual
+.Vt "struct rad_handle *" ,
+this function takes a
+.Fa code
+parameter which specifies the type of the request.
+Most often this
+will be
+.Dv RAD_ACCESS_REQUEST .
+.Fn rad_create_request
+returns 0 on success, or \-1 on if an error occurs.
+.Pp
+After the request has been created with
+.Fn rad_create_request ,
+attributes can be attached to it.
+This is done through calls to
+.Fn rad_put_addr ,
+.Fn rad_put_int ,
+and
+.Fn rad_put_string .
+Each accepts a
+.Fa type
+parameter identifying the attribute, and a value which may be
+an Internet address, an integer, or a
+.Dv NUL Ns -terminated
+string,
+respectively.
+Alternatively,
+.Fn rad_put_vendor_addr ,
+.Fn rad_put_vendor_int
+or
+.Fn rad_put_vendor_string
+may be used to specify vendor specific attributes.
+Vendor specific
+definitions may be found in
+.In radlib_vs.h
+.Pp
+The library also provides a function
+.Fn rad_put_attr
+which can be used to supply a raw, uninterpreted attribute.
+The
+.Fa data
+argument points to an array of bytes, and the
+.Fa len
+argument specifies its length.
+.Pp
+It is possible adding the Message-Authenticator to the request.
+This is an HMAC-MD5 hash of the entire Access-Request packet (see RFC 3579).
+This attribute must be present in any packet that includes an EAP-Message
+attribute.
+It can be added by using the
+.Fn rad_put_message_authentic
+function.
+The
+.Nm
+library
+calculates the HMAC-MD5 hash implicitly before sending the request.
+If the Message-Authenticator was found inside the response packet,
+then the packet is silently dropped, if the validation failed.
+In order to get this feature, the library should be compiled with
+OpenSSL support.
+.Pp
+The
+.Fn rad_put_X
+functions return 0 on success, or \-1 if an error occurs.
+.Ss Sending the Request and Receiving the Response
+After the RADIUS request has been constructed, it is sent either by means of
+.Fn rad_send_request
+or by a combination of calls to
+.Fn rad_init_send_request
+and
+.Fn rad_continue_send_request .
+.Pp
+The
+.Fn rad_send_request
+function sends the request and waits for a valid reply,
+retrying the defined servers in round-robin fashion as necessary.
+If a valid response is received,
+.Fn rad_send_request
+returns the RADIUS code which specifies the type of the response.
+This will typically be
+.Dv RAD_ACCESS_ACCEPT ,
+.Dv RAD_ACCESS_REJECT ,
+or
+.Dv RAD_ACCESS_CHALLENGE .
+If no valid response is received,
+.Fn rad_send_request
+returns \-1.
+.Pp
+As an alternative, if you do not wish to block waiting for a response,
+.Fn rad_init_send_request
+and
+.Fn rad_continue_send_request
+may be used instead.
+If a reply is received from the RADIUS server or a
+timeout occurs, these functions return a value as described for
+.Fn rad_send_request .
+Otherwise, a value of zero is returned and the values pointed to by
+.Fa fd
+and
+.Fa tv
+are set to the descriptor and timeout that should be passed to
+.Xr select 2 .
+.Pp
+.Fn rad_init_send_request
+must be called first, followed by repeated calls to
+.Fn rad_continue_send_request
+as long as a return value of zero is given.
+Between each call, the application should call
+.Xr select 2 ,
+passing
+.Fa *fd
+as a read descriptor and timing out after the interval specified by
+.Fa tv .
+When
+.Xr select 2
+returns,
+.Fn rad_continue_send_request
+should be called with
+.Fa selected
+set to a non-zero value if
+.Xr select 2
+indicated that the descriptor is readable.
+.Pp
+Like RADIUS requests, each response may contain zero or more
+attributes.
+After a response has been received successfully by
+.Fn rad_send_request
+or
+.Fn rad_continue_send_request ,
+its attributes can be extracted one by one using
+.Fn rad_get_attr .
+Each time
+.Fn rad_get_attr
+is called, it gets the next attribute from the current response, and
+stores a pointer to the data and the length of the data via the
+reference parameters
+.Fa data
+and
+.Fa len ,
+respectively.
+Note that the data resides in the response itself,
+and must not be modified.
+A successful call to
+.Fn rad_get_attr
+returns the RADIUS attribute type.
+If no more attributes remain in the current response,
+.Fn rad_get_attr
+returns 0.
+If an error such as a malformed attribute is detected, \-1 is
+returned.
+.Pp
+If
+.Fn rad_get_attr
+returns
+.Dv RAD_VENDOR_SPECIFIC ,
+.Fn rad_get_vendor_attr
+may be called to determine the vendor.
+The vendor specific RADIUS attribute type is returned.
+The reference parameters
+.Fa data
+and
+.Fa len
+(as returned from
+.Fn rad_get_attr )
+are passed to
+.Fn rad_get_vendor_attr ,
+and are adjusted to point to the vendor specific attribute data.
+.Pp
+The common types of attributes can be decoded using
+.Fn rad_cvt_addr ,
+.Fn rad_cvt_int ,
+and
+.Fn rad_cvt_string .
+These functions accept a pointer to the attribute data, which should
+have been obtained using
+.Fn rad_get_attr
+and optionally
+.Fn rad_get_vendor_attr .
+In the case of
+.Fn rad_cvt_string ,
+the length
+.Fa len
+must also be given.
+These functions interpret the attribute as an
+Internet address, an integer, or a string, respectively, and return
+its value.
+.Fn rad_cvt_string
+returns its value as a
+.Dv NUL Ns -terminated
+string in dynamically
+allocated memory.
+The application should free the string using
+.Xr free 3
+when it is no longer needed.
+.Pp
+If insufficient virtual memory is available,
+.Fn rad_cvt_string
+returns
+.Dv NULL .
+.Fn rad_cvt_addr
+and
+.Fn rad_cvt_int
+cannot fail.
+.Pp
+The
+.Fn rad_request_authenticator
+function may be used to obtain the Request-Authenticator attribute value
+associated with the current RADIUS server according to the supplied
+rad_handle.
+The target buffer
+.Fa buf
+of length
+.Fa len
+must be supplied and should be at least 16 bytes.
+The return value is the number of bytes written to
+.Fa buf
+or \-1 to indicate that
+.Fa len
+was not large enough.
+.Pp
+The
+.Fn rad_server_secret
+returns the secret shared with the current RADIUS server according to the
+supplied rad_handle.
+.Pp
+The
+.Fn rad_bind_to
+assigns a source address for all requests to the current RADIUS server.
+.Pp
+The
+.Fn rad_demangle
+function demangles attributes containing passwords and MS-CHAPv1 MPPE-Keys.
+The return value is
+.Dv NULL
+on failure, or the plaintext attribute.
+This value should be freed using
+.Xr free 3
+when it is no longer needed.
+.Pp
+The
+.Fn rad_demangle_mppe_key
+function demangles the send- and recv-keys when using MPPE (see RFC 2548).
+The return value is
+.Dv NULL
+on failure, or the plaintext attribute.
+This value should be freed using
+.Xr free 3
+when it is no longer needed.
+.Ss Obtaining Error Messages
+Those functions which accept a
+.Vt "struct rad_handle *"
+argument record an error message if they fail.
+The error message
+can be retrieved by calling
+.Fn rad_strerror .
+The message text is overwritten on each new error for the given
+.Vt "struct rad_handle *" .
+Thus the message must be copied if it is to be preserved through
+subsequent library calls using the same handle.
+.Ss Cleanup
+To free the resources used by the RADIUS library, call
+.Fn rad_close .
+.Ss Server operation
+Server mode operates much alike to client mode, except packet send and receive
+steps are swapped. To operate as server you should obtain server context with
+.Fn rad_server_open
+function, passing opened and bound UDP socket file descriptor as argument.
+You should define allowed clients and their secrets using
+.Fn rad_add_server
+function. port, timeout and max_tries arguments are ignored in server mode.
+You should call
+.Fn rad_receive_request
+function to receive request from client. If you do not want to block on socket
+read, you are free to use any poll(), select() or non-blocking sockets for
+the socket.
+Received request can be parsed with same parsing functions as for client.
+To respond to the request you should call
+.Fn rad_create_response
+and fill response content with same packet writing functions as for client.
+When packet is ready, it should be sent with
+.Fn rad_send_response .
+.Sh RETURN VALUES
+The following functions return a non-negative value on success.
+If
+they detect an error, they return \-1 and record an error message
+which can be retrieved using
+.Fn rad_strerror .
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Fn rad_add_server
+.It
+.Fn rad_config
+.It
+.Fn rad_create_request
+.It
+.Fn rad_create_response
+.It
+.Fn rad_get_attr
+.It
+.Fn rad_put_addr
+.It
+.Fn rad_put_attr
+.It
+.Fn rad_put_int
+.It
+.Fn rad_put_string
+.It
+.Fn rad_put_message_authentic
+.It
+.Fn rad_init_send_request
+.It
+.Fn rad_continue_send_request
+.It
+.Fn rad_send_request
+.It
+.Fn rad_send_response
+.El
+.Pp
+The following functions return a
+.No non- Ns Dv NULL
+pointer on success.
+If they are unable to allocate sufficient
+virtual memory, they return
+.Dv NULL ,
+without recording an error message.
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Fn rad_acct_open
+.It
+.Fn rad_auth_open
+.It
+.Fn rad_server_open
+.It
+.Fn rad_cvt_string
+.El
+.Pp
+The following functions return a
+.No non- Ns Dv NULL
+pointer on success.
+If they fail, they return
+.Dv NULL ,
+with recording an error message.
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Fn rad_demangle
+.It
+.Fn rad_demangle_mppe_key
+.El
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /etc/radius.conf
+.El
+.Sh SEE ALSO
+.Xr radius.conf 5
+.Rs
+.%A "C. Rigney, et al"
+.%T "Remote Authentication Dial In User Service (RADIUS)"
+.%O "RFC 2865"
+.Re
+.Rs
+.%A "C. Rigney"
+.%T "RADIUS Accounting"
+.%O "RFC 2866"
+.Re
+.Rs
+.%A G. Zorn
+.%T "Microsoft Vendor-specific RADIUS attributes"
+.%O RFC 2548
+.Re
+.Rs
+.%A C. Rigney, et al
+.%T "RADIUS extensions"
+.%O RFC 2869
+.Re
+.Sh AUTHORS
+.An -nosplit
+This software was originally written by
+.An John Polstra ,
+and donated to the
+.Fx
+project by Juniper Networks, Inc.
+.An Oleg Semyonov
+subsequently added the ability to perform RADIUS
+accounting.
+Later additions and changes by
+.An Michael Bretterklieber .
+Server mode support was added by
+.An Alexander Motin .

@@ -1,0 +1,122 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)vipw.8	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd February 14, 2012
+.Dt VIPW 8
+.Os
+.Sh NAME
+.Nm vipw
+.Nd edit the password file
+.Sh SYNOPSIS
+.Nm
+.Op Fl d Ar directory
+.Sh DESCRIPTION
+The
+.Nm
+utility edits the password file after setting the appropriate locks,
+and does any necessary processing after the password file is unlocked.
+If the password file is already locked for editing by another user,
+.Nm
+will ask you
+to try again later.
+The default editor for
+.Nm
+is
+.Xr vi 1 .
+.Pp
+When run without options,
+.Nm
+will work with the password files in
+.Pa /etc .
+The
+.Fl d
+option may be used to specify an alternative
+.Ar directory
+to work with.
+.Pp
+The
+.Nm
+utility performs a number of consistency checks on the password entries,
+and will not allow a password file with a
+.Dq mangled
+entry to be
+installed.
+If
+.Nm
+rejects the new password file, the user is prompted to re-enter
+the edit session.
+.Pp
+Once the information has been verified,
+.Nm
+uses
+.Xr pwd_mkdb 8
+to update the user database.
+This is run in the background, and,
+at very large sites could take several minutes.
+Until this update
+is completed, the password file is unavailable for other updates
+and the new information is not available to programs.
+.Sh ENVIRONMENT
+If the following environment variable exists it will be utilized by
+.Nm :
+.Bl -tag -width PW_SCAN_BIG_IDS
+.It Ev EDITOR
+The editor specified by the string
+.Ev EDITOR
+will be invoked instead of the default editor
+.Xr vi 1 .
+This can be used to allow a script to non-interactively modify the
+password file.
+.It Ev PW_SCAN_BIG_IDS
+See
+.Xr pwd_mkdb 8 .
+.El
+.Sh SEE ALSO
+.Xr chpass 1 ,
+.Xr passwd 1 ,
+.Xr passwd 5 ,
+.Xr adduser 8 ,
+.Xr pw 8 ,
+.Xr pwd_mkdb 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.0 .
+.Sh BUGS
+The mechanism for checking for password file modifications requires that
+the modification time of the password file changes.
+This means that in a default configuration where file system timestamps
+are not calculated with sub-second precision,
+.Ev EDITOR
+has to run for at least one second.
+Non-interactive editor scripts should invoke
+.Xr sleep 1
+or equivalent to ensure this happens.

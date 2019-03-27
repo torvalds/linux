@@ -1,0 +1,163 @@
+.\" Copyright (c) 2016 Michio Honda.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 24, 2018
+.Dt VALE-CTL 4
+.Os
+.Sh NAME
+.Nm vale-ctl
+.Nd manage VALE switches provided by netmap
+.Sh SYNOPSIS
+.Bk -words
+.Bl -tag -width "vale-ctl"
+.It Nm
+.Op Fl g Ar valeSSS:PPP
+.Op Fl a Ar valeSSS:interface
+.Op Fl h Ar valeSSS:interface
+.Op Fl d Ar valeSSS:interface
+.Op Fl n Ar interface
+.Op Fl r Ar interface
+.Op Fl l Ar valeSSS:PPP
+.Op Fl l
+.Op Fl p Ar valeSSS:PPP
+.Op Fl P Ar valeSSS:PPP
+.Op Fl C Ar spec
+.Op Fl m Ar memid
+.El
+.Ek
+.Sh DESCRIPTION
+.Nm
+manages and inspects
+.Xr vale 4
+switches, for instance attaching and detaching interfaces, creating
+and deleting persistent VALE ports, or listing the existing switches
+and their ports.
+In the following,
+.Ar valeSSS
+is the name of a VALE switch, while
+.Ar valeSSS:PPP
+is the name of a VALE port of
+.Ar valeSSS .
+.Pp
+When issued without options it lists all the existing switch ports together
+with their internal bridge number and port number.
+.Bl -tag -width Ds
+.It Fl g Ar valeSSS:PPP
+Print the number of receive rings of
+.Ar valeSSS:PPP .
+.It Fl a Ar valeSSS:interface
+Attach
+.Ar interface
+(which must be an existing network interface) to
+.Ar valeSSS
+and detach it from the host stack.
+.It Fl h Ar valeSSS:interface
+Attach
+.Ar interface
+(which must be an existing network interface) to
+.Ar valeSSS
+while keeping it attached to the host stack.
+More precisely, packets coming from
+the host stack and directed to the interface will go through the switch, where
+they can still reach the interface if the switch rules allow it.
+Conversely, packets coming from the interface will go through the switch and,
+if appropriate, will reach the host stack.
+.It Fl d Ar valeSSS:interface
+Detach
+.Ar interface
+from
+.Ar valeSSS .
+.It Fl n Ar interface
+Create a new persistent VALE port with name
+.Ar interface .
+The name must be different from any other network interface
+already present in the system.
+.It Fl d Ar interface
+Destroy the persistent VALE port with name
+.Ar inteface .
+.It Fl l Ar valeSSS:PPP
+Show the internal bridge number and port number of the given switch port.
+.It Fl p Ar valeSSS:PPP
+Enable polling mode for
+.Ar valeSSS:PPP .
+In polling mode, a dedicated kernel thread is spawned to handle packets
+received from
+.Ar valeSSS:PPP
+and push them into the switch.
+The kernel thread busy waits on the switch port rather than relying on
+interrupts or notifications.
+Polling mode can only be used on physical NICs attached to a VALE switch.
+.It Fl P Ar valeSSS:PPP
+Disable polling mode for
+.Ar valeSSS:PPP .
+.It Fl C Ar x | Ar x,y | Ar x,y,z | Ar x,y,z,w
+When used in conjunction with
+.Fl n
+it supplies the number of tx and rx rings and slots.
+The full format with four numbers gives, in order, number of tx slots, number
+of rx slots, number of tx rings and number of rx rings.
+The form with three numbers uses
+.Ar z
+for both the number of tx and the number of rx rings.
+The forms with less than two numbers use the default values for the number
+of rings.
+The form with two numbers supplies the numbers of tx and rx slots.
+The form with only one number uses
+.Ar x
+for both the number of tx and the number of rx slots.
+.Pp
+When used in conjunction with
+.Fl p
+only the first three forms are used.
+The first number may be either 0 or 1.
+If 0, then all interface rings will be polled by a single thread, running
+on the core id given by the second number (the third number, if present,
+must be 1).
+If the first number is 1, then the ring identified by the second number will
+be polled by the core with the same id.
+If a third number is given, then this is repeated for as many consecutive
+rings and cores.
+.It Fl m Ar memid
+Used in conjunction with
+.Fl n
+supplies the netmap memory region identifier to use together with the newly
+created persistent VALE port.
+These ports use a private memory region by default.
+Using this option you can let them share memory with other ports.
+Pass 1 as
+.Ar memid
+to use the global memory region already shared by all
+harware netmap ports.
+.El
+.Sh SEE ALSO
+.Xr netmap 4 ,
+.Xr vale 4
+.Sh AUTHORS
+.An -nosplit
+.Nm
+has been written by
+.An Michio Honda
+at NetApp.

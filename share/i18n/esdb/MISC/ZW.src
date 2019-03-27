@@ -1,0 +1,9 @@
+# $FreeBSD$ 
+# $NetBSD: ZW.src,v 1.1 2006/11/22 23:38:27 tnozaki Exp $
+
+NAME		"ZW"
+ENCODING	"ZW"
+VARIABLE	""
+DEFCSID		"ISO646-US"		0
+DEFCSID		"GB2312"		1
+INVALID		0x3F # '?'

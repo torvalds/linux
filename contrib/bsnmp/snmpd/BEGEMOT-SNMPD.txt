@@ -1,0 +1,579 @@
+--
+-- Copyright (c) 2001-2003
+--	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+--	All rights reserved.
+--
+-- Author: Harti Brandt <harti@freebsd.org>
+--
+-- Redistribution and use in source and binary forms, with or without
+-- modification, are permitted provided that the following conditions
+-- are met:
+-- 1. Redistributions of source code must retain the above copyright
+--    notice, this list of conditions and the following disclaimer.
+-- 2. Redistributions in binary form must reproduce the above copyright
+--    notice, this list of conditions and the following disclaimer in the
+--    documentation and/or other materials provided with the distribution.
+--
+-- THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+-- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+-- ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+-- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+-- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+-- OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+-- HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+-- LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+-- OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+-- SUCH DAMAGE.
+--
+-- $Begemot: bsnmp/snmpd/BEGEMOT-SNMPD.txt,v 1.23 2004/08/06 08:47:08 brandt Exp $
+--
+-- Begemot Private SNMPd MIB.
+--
+BEGEMOT-SNMPD-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, OBJECT-IDENTITY, Counter32,
+    Unsigned32, IpAddress
+	FROM SNMPv2-SMI
+    TEXTUAL-CONVENTION, TruthValue, RowStatus
+	FROM SNMPv2-TC
+    MODULE-COMPLIANCE, OBJECT-GROUP
+	FROM SNMPv2-CONF
+    begemot
+	FROM BEGEMOT-MIB;
+
+begemotSnmpd MODULE-IDENTITY
+    LAST-UPDATED "201801190000Z"
+    ORGANIZATION "Fraunhofer FOKUS, CATS"
+    CONTACT-INFO
+	    "		Hartmut Brandt
+
+	     Postal:	Fraunhofer Institute for Open Communication Systems
+			Kaiserin-Augusta-Allee 31
+			10589 Berlin
+			Germany
+
+	     Fax:	+49 30 3463 7352
+
+	     E-mail:	harti@freebsd.org"
+    DESCRIPTION
+	    "The MIB module for the Begemot SNMP daemon."
+    ::= { begemot 1 }
+
+begemotSnmpdObjects	OBJECT IDENTIFIER ::= { begemotSnmpd 1 }
+begemotSnmpdDefs	OBJECT IDENTIFIER ::= { begemotSnmpd 2 }
+
+-- --------------------------------------------------------------------------
+
+SectionName ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "14a"
+    STATUS	current
+    DESCRIPTION
+	"Name of a loadable module. Should consist of alphanumeric characers
+	only, the first character must be a letter."
+    SYNTAX	OCTET STRING (SIZE(1..14))
+
+-- --------------------------------------------------------------------------
+--
+-- Agent types
+--
+begemotSnmpdAgent	OBJECT IDENTIFIER ::= { begemotSnmpdDefs 1 }
+
+begemotSnmpdAgentFreeBSD OBJECT-IDENTITY
+    STATUS	current
+    DESCRIPTION
+	    "Identifies the agent as running on FreeBSD."
+    ::= { begemotSnmpdAgent 1 }
+
+-- --------------------------------------------------------------------------
+--
+-- The Config Group
+--
+begemotSnmpdConfig	OBJECT IDENTIFIER ::= { begemotSnmpdObjects 1 }
+
+begemotSnmpdTransmitBuffer OBJECT-TYPE
+    SYNTAX	INTEGER (484..65535)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The size of the receive buffer in bytes. Larger messages
+	    are dropped by SNMPd."
+    DEFVAL	{ 2048 }
+    ::= { begemotSnmpdConfig 1 }
+
+begemotSnmpdReceiveBuffer OBJECT-TYPE
+    SYNTAX	INTEGER (484..65535)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The size of the transmit buffer in bytes. Larger messages
+	    cannot be sent by the SNMPd."
+    DEFVAL	{ 2048 }
+    ::= { begemotSnmpdConfig 2 }
+
+begemotSnmpdCommunityDisable OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "Disables all access to the CommunityTable from SNMP. Once
+	    set it cannot be cleared."
+    DEFVAL	{ false }
+    ::= { begemotSnmpdConfig 3 }
+
+begemotSnmpdTrap1Addr OBJECT-TYPE
+    SYNTAX	IpAddress
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The trap sink for v1 traps."
+    ::= { begemotSnmpdConfig 4 }
+
+begemotSnmpdVersionEnable OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The SNMP versions that the agent processes. The following
+	    bits are defined:
+
+	    0x00000001	- SNMPv1
+	    0x00000002	- SNMPv2c
+	    0x00000004	- SNMPv3"
+    DEFVAL	{ 3 }
+    ::= { begemotSnmpdConfig 5 }
+
+--
+-- Trap destinations
+--
+begemotTrapSinkTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotTrapSinkEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "A table with destinations for standard traps."
+    INDEX	{ begemotTrapSinkAddr, begemotTrapSinkPort }
+    ::= { begemotSnmpdObjects 2 }
+
+begemotTrapSinkEntry OBJECT-TYPE
+    SYNTAX	BegemotTrapSinkEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "Entry describes one trap destination."
+    INDEX	{ begemotTrapSinkAddr, begemotTrapSinkPort }
+    ::= { begemotTrapSinkTable 1 }
+
+BegemotTrapSinkEntry ::= SEQUENCE {
+    begemotTrapSinkAddr		IpAddress,
+    begemotTrapSinkPort		INTEGER,
+    begemotTrapSinkStatus	RowStatus
+}
+
+begemotTrapSinkAddr OBJECT-TYPE
+    SYNTAX	IpAddress
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "Destination IP address of the manager station where to send
+	    traps."
+    ::= { begemotTrapSinkEntry 1 }
+
+begemotTrapSinkPort OBJECT-TYPE
+    SYNTAX	INTEGER (1..65535)
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "Destination UDP port of the manager station where to send
+	    traps."
+    ::= { begemotTrapSinkEntry 2 }
+
+begemotTrapSinkStatus OBJECT-TYPE
+    SYNTAX	RowStatus
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	    "Used to create/activate/destroy the entry."
+    ::= { begemotTrapSinkEntry 3 }
+
+--
+-- SNMP port table
+--
+begemotSnmpdPortTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotSnmpdPortEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "A table with descriptions of UDP ports to listen on
+	    for SNMP messages."
+    ::= { begemotSnmpdObjects 4 }
+
+begemotSnmpdPortEntry OBJECT-TYPE
+    SYNTAX	BegemotSnmpdPortEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "An entry in the table with descriptions of UDP ports to
+	    listen on for SNMP messages."
+    INDEX	{ begemotSnmpdPortAddress, begemotSnmpdPortPort }
+    ::= { begemotSnmpdPortTable 1 }
+
+BegemotSnmpdPortEntry ::= SEQUENCE {
+    begemotSnmpdPortAddress	IpAddress,
+    begemotSnmpdPortPort	INTEGER,
+    begemotSnmpdPortStatus	INTEGER
+}
+
+begemotSnmpdPortAddress OBJECT-TYPE
+    SYNTAX	IpAddress
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "The IP address to bind to."
+    ::= { begemotSnmpdPortEntry 1 }
+
+begemotSnmpdPortPort OBJECT-TYPE
+    SYNTAX	INTEGER (1..65535)
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "The UDP port to listen on for SNMP messages."
+    ::= { begemotSnmpdPortEntry 2 }
+
+begemotSnmpdPortStatus OBJECT-TYPE
+    SYNTAX	INTEGER { valid(1), invalid(2) }
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	    "Set status to 1 to create entry, set it to 2 to delete it."
+    ::= { begemotSnmpdPortEntry 3 }
+
+---
+--- Community table
+---
+begemotSnmpdCommunityTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotSnmpdCommunityEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "A table with the community strings for access control."
+    ::= { begemotSnmpdObjects 5 }
+
+begemotSnmpdCommunityEntry OBJECT-TYPE
+    SYNTAX	BegemotSnmpdCommunityEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "A table with the community strings for access control.
+	    When begemotSnmpdCommDisable is true, this table disappears."
+    INDEX	{ begemotSnmpdCommunityModule, begemotSnmpdCommunityIndex }
+    ::= { begemotSnmpdCommunityTable 1 }
+
+BegemotSnmpdCommunityEntry ::= SEQUENCE {
+    begemotSnmpdCommunityModule	SectionName,
+    begemotSnmpdCommunityIndex	Unsigned32,
+    begemotSnmpdCommunityString	OCTET STRING,
+    begemotSnmpdCommunityDescr	OCTET STRING,
+    begemotSnmpdCommunityPermission INTEGER
+}
+
+begemotSnmpdCommunityModule OBJECT-TYPE
+    SYNTAX	SectionName
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "Index of the module that has registered this community.
+	    For global communities this is the empty string."
+    ::= { begemotSnmpdCommunityEntry 1 }
+
+begemotSnmpdCommunityIndex OBJECT-TYPE
+    SYNTAX	Unsigned32 (1..4294967295)
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "The numerical index of the community (private to the module)."
+    ::= { begemotSnmpdCommunityEntry 2 }
+
+begemotSnmpdCommunityString OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The string for access to SNMPd."
+    ::= { begemotSnmpdCommunityEntry 3 }
+
+begemotSnmpdCommunityDescr OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "A description what this community is good for."
+    ::= { begemotSnmpdCommunityEntry 4 }
+
+begemotSnmpdCommunityPermission OBJECT-TYPE
+    SYNTAX	INTEGER (1..4294967295)
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "The numerical value of access rights granted to the community."
+    ::= { begemotSnmpdCommunityEntry 5 }
+
+--
+-- Module table
+--
+begemotSnmpdModuleTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotSnmpdModuleEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "A table describing all the currently loaded dynamic modules.
+	    Writing to this table loads and unloads modules."
+    ::= { begemotSnmpdObjects 6 }
+
+begemotSnmpdModuleEntry OBJECT-TYPE
+    SYNTAX	BegemotSnmpdModuleEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "A table entry describing a loadable module."
+    INDEX	{ begemotSnmpdModuleSection }
+    ::= { begemotSnmpdModuleTable 1 }
+
+BegemotSnmpdModuleEntry ::= SEQUENCE {
+    begemotSnmpdModuleSection	SectionName,
+    begemotSnmpdModulePath	OCTET STRING,
+    begemotSnmpdModuleComment	OCTET STRING
+}
+
+begemotSnmpdModuleSection OBJECT-TYPE
+    SYNTAX	SectionName
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "The string used for matching configuration file sections
+	    and indexes the module table."
+    ::= { begemotSnmpdModuleEntry 1 }
+
+
+begemotSnmpdModulePath OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	    "The path name of the module. Set to empty string
+	    to unload a module. The path of an existing module
+	    may not be changed."
+    ::= { begemotSnmpdModuleEntry 2 }
+
+begemotSnmpdModuleComment OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "A comment describing this module."
+    ::= { begemotSnmpdModuleEntry 3 }
+
+
+-- --------------------------------------------------------------------------
+--
+-- The STATISTICS Group
+--
+begemotSnmpdStats	OBJECT IDENTIFIER ::= { begemotSnmpdObjects 7 }
+
+begemotSnmpdStatsNoRxBufs OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Number of times a receive buffer could not be allocated
+	    for a packet."
+    ::= { begemotSnmpdStats 1 }
+
+begemotSnmpdStatsNoTxBufs OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Number of times a transmit buffer could not be allocated
+	    for a packet."
+    ::= { begemotSnmpdStats 2 }
+
+begemotSnmpdStatsInTooLongPkts OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Number of packets received that were longer than the
+	    receive buffer. These packets are dropped."
+    ::= { begemotSnmpdStats 3 }
+
+begemotSnmpdStatsInBadPduTypes OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Number of packets received with a bad type field."
+    ::= { begemotSnmpdStats 4 }
+
+--
+-- The Debug Group
+--
+begemotSnmpdDebug	OBJECT IDENTIFIER ::= { begemotSnmpdObjects 8 }
+
+begemotSnmpdDebugDumpPdus OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "Dump PDUs to log file if true."
+    DEFVAL	{ false }
+    ::= { begemotSnmpdDebug 1 }
+
+begemotSnmpdDebugSnmpTrace OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "Tracing flags for the SNMP library. These flags have the
+	    following meaning:
+		0x00000001	trace GET operator
+		0x00000002	trace GETNEXT operator
+		0x00000004	trace SET operator
+		0x00000008	trace dependency processing
+		0x00000010	trace node finding
+		0x10000000	log ASN1 errors
+		0x20000000	log SNMP errors
+	    Individual values can be or-ed together."
+    DEFVAL	{ 0 }
+    ::= { begemotSnmpdDebug 2 }
+
+begemotSnmpdDebugSyslogPri OBJECT-TYPE
+    SYNTAX	INTEGER (0..8)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "Events with this or higher priority should not be logged."
+    DEFVAL	{ 7 }	-- don't log debug messages
+    ::= { begemotSnmpdDebug 3 }
+
+--
+-- Local port table
+--
+begemotSnmpdLocalPortTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotSnmpdLocalPortEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "A table with descriptions of local (unix domain) ports to listen
+	    on for SNMP messages."
+    ::= { begemotSnmpdObjects 9 }
+
+begemotSnmpdLocalPortEntry OBJECT-TYPE
+    SYNTAX	BegemotSnmpdLocalPortEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "An entry in the table with descriptions of local ports to
+	    listen on for SNMP messages."
+    INDEX	{ begemotSnmpdLocalPortPath }
+    ::= { begemotSnmpdLocalPortTable 1 }
+
+BegemotSnmpdLocalPortEntry ::= SEQUENCE {
+    begemotSnmpdLocalPortPath	OCTET STRING,
+    begemotSnmpdLocalPortStatus	INTEGER,
+    begemotSnmpdLocalPortType	INTEGER
+}
+
+begemotSnmpdLocalPortPath OBJECT-TYPE
+    SYNTAX	OCTET STRING (SIZE(1..104))
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "The path name to create and listen on."
+    ::= { begemotSnmpdLocalPortEntry 1 }
+
+begemotSnmpdLocalPortStatus OBJECT-TYPE
+    SYNTAX	INTEGER { valid(1), invalid(2) }
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	    "Set status to 1 to create entry, set it to 2 to delete it."
+    ::= { begemotSnmpdLocalPortEntry 2 }
+
+begemotSnmpdLocalPortType OBJECT-TYPE
+    SYNTAX	INTEGER {
+			dgram-unpriv(1),
+			dgram-priv(2),
+			stream-unpriv(3),
+			stream-priv(4)
+		}
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	    "Type of the port. If the type is unpriv SET operations
+	    are allowed from all clients if the community matches. For
+	    priv SET operations are allowed only from peers with uid
+	    zero. If the daemon cannot determine the peer uid it disallows
+	    the SET operation for -priv ports."
+    ::= { begemotSnmpdLocalPortEntry 3 }
+
+--
+-- Transport mapping table
+--
+begemotSnmpdTransportMappings	OBJECT IDENTIFIER ::= { begemotSnmpdObjects 10 }
+
+begemotSnmpdTransportTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotSnmpdTransportEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "A table containing all the currently loaded transport mappings."
+    ::= { begemotSnmpdTransportMappings 1 }
+
+begemotSnmpdTransportEntry OBJECT-TYPE
+    SYNTAX	BegemotSnmpdTransportEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "An entry in the table with the transport mappings."
+    INDEX	{ begemotSnmpdTransportName }
+    ::= { begemotSnmpdTransportTable 1 }
+
+BegemotSnmpdTransportEntry ::= SEQUENCE {
+    begemotSnmpdTransportName	OCTET STRING,
+    begemotSnmpdTransportStatus	INTEGER,
+    begemotSnmpdTransportOid	OBJECT IDENTIFIER
+}
+
+begemotSnmpdTransportName OBJECT-TYPE
+    SYNTAX	OCTET STRING (SIZE(1..256))
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "The name of the mapping."
+    ::= { begemotSnmpdTransportEntry 1 }
+
+begemotSnmpdTransportStatus OBJECT-TYPE
+    SYNTAX	RowStatus
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Used to create/activate/destroy the entry."
+    ::= { begemotSnmpdTransportEntry 2 }
+
+begemotSnmpdTransportOid OBJECT-TYPE
+    SYNTAX	OBJECT IDENTIFIER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "A pointer to the group with the transport-dependend stuff."
+    ::= { begemotSnmpdTransportEntry 3 }
+
+--
+-- XXX These should go into their own MIB
+--
+begemotSnmpdTransUdp	OBJECT IDENTIFIER ::= { begemotSnmpdTransportMappings 2 }
+begemotSnmpdTransLsock	OBJECT IDENTIFIER ::= { begemotSnmpdTransportMappings 3 }
+
+END

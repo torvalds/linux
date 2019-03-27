@@ -1,0 +1,67 @@
+# $FreeBSD$
+
+The below 4 samples require a VIMAGE enabled kernel:
+
+	# (as root)
+	$ cp VIMAGE /usr/src/sys/amd64/conf/
+	$ cd /usr/src
+	$ make KERNCONF=VIMAGE kernel
+	$ reboot
+
+FreeBSD 12 has VIMAGE enabled in GENERIC on amd64.
+In that case, for jng simply load the ng_ether module first
+(ng_bridge and ng_eiface will load on demand):
+
+	# (as root)
+	# Load the ng_ether module at boot:
+	$ sysrc kld_list+=ng_ether
+	# Load ng_ether at once without rebooting:
+	$ kldload ng_ether
+
+Sample 1: jail.conf(5)
+
+	$ cp jib jng /usr/sbin/
+	$ cat jail.xxx.conf >> /etc/jail.conf
+	$ vi /etc/jail.conf
+	# NB: Customize root directory and bridge interface
+	$ sysrc jail_enable=YES
+	# NB: Assumes jail_list="" (meaning ``all jails in jail.conf'')
+	# NB: Assumes rc_conf_files="" (``below rc.conf(5) samples not used'')
+	$ service jail start
+
+Sample 2: rc.conf(5)
+
+	$ cp jib jng /usr/sbin/
+	$ cp rc.conf.jails /etc/
+	$ vi /etc/rc.conf.jails
+	# NB: Customize root directory and bridge interface
+	$ sysrc rc_conf_files+=/etc/rc.conf.jails
+	# NB: Assumes /etc/jail.conf does not exist and jail_list=""
+	$ service jail start
+
+Sample 3: Per-jail jail.conf(5)
+
+	$ cp jib jng /usr/sbin/
+	$ cp jail.xxx.conf /etc/
+	$ vi /etc/jail.xxx.conf
+	# NB: Customize root directory and bridge interface
+	$ sysrc jail_enable=YES
+	$ sysrc jail_list+=xxx
+	# NB: Assumes rc_conf_files=""
+	$ service jail start
+
+Sample 4: Per-jail rc.conf(5)
+
+	$ cp jib jng /usr/sbin/
+	$ cp rcjail.xxx.conf /etc/
+	$ vi /etc/rcjail.xxx.conf
+	# NB: Customize root directory and bridge interface
+	$ sysrc jail_enable=YES
+	$ sysrc jail_list+=xxx
+	$ sysrc rc_conf_files+=/etc/rcjail.xxx.conf
+	# NB: Assumes neither /etc/jail.conf nor /etc/jail.xxx.conf exist
+	$ service jail start
+
+For additional recipes, see share/examples/netgraph for
+making and hooking together jails using netgraph as the
+virtual networking fabric.

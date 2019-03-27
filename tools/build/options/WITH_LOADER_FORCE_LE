@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set to force the powerpc boot loader to launch the kernel in little
+endian mode.

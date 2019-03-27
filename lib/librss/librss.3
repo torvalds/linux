@@ -1,0 +1,157 @@
+.\" $FreeBSD$
+.\"
+.Dd October 23, 2016
+.Dt LIBRSS 3
+.Os
+.Sh NAME
+.Nm librss
+.Nd Provide Receive-side scaling awareness to userland applications
+.Sh LIBRARY
+.Lb librss
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/cpuset.h
+.In librss.h
+.Ft struct rss_config *
+.Fn rss_config_get "void"
+.Ft void
+.Fn rss_config_free "struct rss_config *cfg"
+.Ft int
+.Fn rss_config_get_bucket_count "struct rss_config *cfg"
+.Ft int
+.Fn rss_get_bucket_cpuset "struct rss_config *rc" "rss_bucket_type_t btype" "int bucket" "cpuset_t *cs"
+.Ft int
+.Fn rss_set_bucket_rebalance_cb "rss_bucket_rebalance_cb_t *cb" "void *cbdata"
+.Ft int
+.Fn rss_sock_set_bindmulti "int fd" "int af" "int val"
+.Ft int
+.Fn rss_sock_set_rss_bucket "int fd" "int af" "int rss_bucket"
+.Ft int
+.Fn rss_sock_set_recvrss "int fd" "int af" "int val"
+.Sh DESCRIPTION
+The
+.Nm
+library and the functions it provides are used for both fetching
+the system RSS configuration and interacting with RSS aware
+sockets.
+.Pp
+Applications will typically call
+.Fn rss_config_get
+to fetch the current RSS configuration from the system and perform
+initial setup.
+This typically involves spawning worker threads, one per RSS bucket,
+and optionally binding them to the per-bucket CPU set.
+.Pp
+The
+.Vt rss_config
+struct is defined as:
+.Bd -literal
+struct rss_config {
+	int rss_ncpus;
+	int rss_nbuckets;
+	int rss_basecpu;
+	int *rss_bucket_map;
+};
+.Ed
+.Pp
+Applications will typically use the
+.Fn rss_config_get_bucket_count
+function to fetch the number of RSS buckets, create one thread
+per RSS bucket for RSS aware work, then one RSS aware socket to receive
+UDP datagrams or TCP connections
+in each particular RSS bucket / thread.
+.Pp
+The
+.Fn rss_get_bucket_cpuset
+function sets the given cpuset up for the given
+RSS bucket and behaviour.
+Typically applications will wish to just query for
+.Vt RSS_BUCKET_TYPE_KERNEL_ALL
+unless they wish to potentially setup different
+worker threads for transmit and receive.
+.Pp
+The
+.Vt rss_bucket_type_t
+enum is defined as:
+.Bd -literal
+typedef enum {
+        RSS_BUCKET_TYPE_NONE = 0,
+        RSS_BUCKET_TYPE_KERNEL_ALL = 1,
+        RSS_BUCKET_TYPE_KERNEL_TX = 2,
+        RSS_BUCKET_TYPE_KERNEL_RX = 3,
+        RSS_BUCKET_TYPE_MAX = 3,
+} rss_bucket_type_t;
+.Ed
+.Pp
+The rebalance callback
+.Vt rss_bucket_rebalance_cb_t
+is defined as:
+.Bd -literal
+typedef void rss_bucket_rebalance_cb_t(void *arg);
+.Ed
+.Pp
+The
+.Fn rss_set_bucket_rebalance_cb
+function sets an optional callback that will be called if the kernel
+rebalances RSS buckets.
+This is intended as a future expansion to rebalance buckets rather than
+reprogram the RSS key, so typically the only work to be performed
+is to rebind worker threads to an updated cpuset.
+.Pp
+Once RSS setup is completed,
+.Fn rss_config_free
+is called to free the RSS configuration structure.
+.Pp
+To make a
+.Vt bind
+socket RSS aware, the
+.Fn rss_sock_set_bindmulti
+function is used to enable or disable per-RSS bucket
+behaviour.
+The socket filedescriptor, address family and enable flag
+.Vt val
+are passed in.
+.Pp
+If
+.Vt val
+is set to 1, the socket can be placed in an RSS bucket and will only accept
+datagrams (for UDP) or connections (for TCP) that are received for that
+RSS bucket.
+If set to 0, the socket is placed in the default PCB and will see
+datagrams/connections that are not initially consumed by a PCB aware
+socket.
+.Pp
+The
+.Fn rss_sock_set_rss_bucket
+function configures the RSS bucket which a socket belongs in.
+Note that TCP sockets created by
+.Xr accept 2
+will automatically be assigned to the RSS bucket.
+.Pp
+The
+.Fn rss_sock_set_recvrss
+function enables or disables receiving RSS related information
+as socket options in.
+.2 recvmsg
+calls.
+.Pp
+When enabled, UDP datagrams will have a message with the
+.Vt IP_RECVFLOWID
+option indicating the 32-bit receive flowid as a uint32_t,
+and the
+.Vt IP_RECVRSSBUCKETID
+option indicating the 32 bit RSS bucket id as a uint32_t.
+.Sh ERRORS
+The functions return either <0 or NULL as appropriate upon error.
+.Sh SEE ALSO
+.Xr PCBGROUP 9
+.Sh HISTORY
+The
+.Xr librss.3
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An Adrian Chadd Aq Mt adrian@FreeBSD.org
+.Sh BUGS
+There is currently no kernel mechanism to rebalance the RSS bucket to CPU
+mapping, and so the callback mechanism is a no-op.

@@ -1,0 +1,1 @@
+rewrite in on bge0 proto tcp from any to any port = 80 -> src 0/0 dst dstlist/servers;

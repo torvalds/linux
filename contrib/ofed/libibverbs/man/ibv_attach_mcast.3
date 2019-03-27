@@ -1,0 +1,54 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_ATTACH_MCAST 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_attach_mcast, ibv_detach_mcast \- attach and detach a queue pair
+(QPs) to/from a multicast group
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "int ibv_attach_mcast(struct ibv_qp " "*qp" ", const union ibv_gid " "*gid" ",
+.BI "                     uint16_t " "lid" ");
+.sp
+.BI "int ibv_detach_mcast(struct ibv_qp " "*qp" ", const union ibv_gid " "*gid" ",
+.BI "                     uint16_t " "lid" ");
+.fi
+.SH "DESCRIPTION"
+.B ibv_attach_mcast()
+attaches the QP 
+.I qp
+to the multicast group having MGID
+.I gid
+and MLID 
+.I lid\fR.
+.PP
+.B ibv_detach_mcast()
+detaches the QP
+.I qp
+to the multicast group having MGID
+.I gid
+and MLID
+.I lid\fR.
+.SH "RETURN VALUE"
+.B ibv_attach_mcast()
+and
+.B ibv_detach_mcast()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+Only QPs of Transport Service Type
+.BR IBV_QPT_UD
+may be attached to multicast groups.
+.PP
+If a QP is attached to the same multicast group multiple times, the QP will still receive a single copy of a multicast message.
+.PP
+In order to receive multicast messages, a join request for the
+multicast group must be sent to the subnet administrator (SA), so that
+the fabric's multicast routing is configured to deliver messages to
+the local port.
+.SH "SEE ALSO"
+.BR ibv_create_qp (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

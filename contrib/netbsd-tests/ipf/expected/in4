@@ -1,0 +1,5 @@
+map-block le0 10.0.0.0/24 -> 203.1.1.0/24 ports 0
+map-block le0 10.0.0.0/24 -> 203.1.1.0/24 ports 0
+map-block le0 10.0.0.0/24 -> 203.1.1.0/24 ports 256
+map-block le0 10.0.0.0/24 -> 203.1.1.0/24 ports auto
+map-block le0 10.0.0.0/16 -> 203.1.1.0/24 ports auto

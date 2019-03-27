@@ -1,0 +1,241 @@
+.\" Copyright (c) 2012
+.\"	David E. O'Brien <obrien@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\"	This product includes software developed by David E. O'Brien and
+.\"	contributors.
+.\" 4. Neither the name of the author nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANT ABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 22, 2016
+.Dt FILEMON 4
+.Os
+.Sh NAME
+.Nm filemon
+.Nd the filemon device
+.Sh SYNOPSIS
+.In dev/filemon/filemon.h
+.Sh DESCRIPTION
+The
+.Nm
+device allows a process to collect file operations data of its children.
+The device
+.Pa /dev/filemon
+responds to two
+.Xr ioctl 2
+calls.
+.Pp
+.Nm
+is not intended to be a security auditing tool.
+Many system calls are not tracked and binaries of foreign ABI will not be fully
+audited.
+It is intended for auditing of processes for the purpose of determining its
+dependencies in an efficient and easily parsable format.
+An example of this is
+.Xr make 1
+which uses this module with
+.Sy .MAKE.MODE=meta
+to handle incremental builds more smartly.
+.Pp
+System calls are denoted using the following single letters:
+.Pp
+.Bl -tag -width indent -compact
+.It Ql A
+.Xr openat 2 .
+The next log entry may be lacking an absolute path or be inaccurate.
+.It Ql C
+.Xr chdir 2
+.It Ql D
+.Xr unlink 2
+.It Ql E
+.Xr exec 2
+.It Ql F
+.Xr fork 2 ,
+.Xr vfork 2
+.It Ql L
+.Xr link 2 ,
+.Xr linkat 2 ,
+.Xr symlink 2 ,
+.Xr symlinkat 2
+.It Ql M
+.Xr rename 2
+.It Ql R
+.Xr open 2
+or
+.Xr openat 2
+for read
+.It Ql W
+.Xr open 2
+or
+.Xr openat 2
+for write
+.It Ql X
+.Xr _exit 2
+.El
+.Pp
+Note that
+.Ql R
+following
+.Ql W
+records can represent a single
+.Xr open 2
+for R/W,
+or two separate
+.Xr open 2
+calls, one for
+.Ql R
+and one for
+.Ql W .
+Note that only successful system calls are captured.
+.Sh IOCTLS
+User mode programs communicate with the
+.Nm
+driver through a number of ioctls which are described below.
+Each takes a single argument.
+.Bl -tag -width ".Dv FILEMON_SET_PID"
+.It Dv FILEMON_SET_FD
+Write the internal tracing buffer to the supplied open file descriptor.
+.It Dv FILEMON_SET_PID
+Child process ID to trace.
+This should normally be done under the control of a parent in the child after
+.Xr fork 2
+but before anything else.
+See the example below.
+.El
+.Sh RETURN VALUES
+.\" .Rv -std ioctl
+The
+.Fn ioctl
+function returns the value 0 if successful;
+otherwise the value \-1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn ioctl
+system call
+with
+.Dv FILEMON_SET_FD
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EEXIST
+The
+.Nm
+handle is already associated with a file descriptor.
+.El
+.Pp
+The
+.Fn ioctl
+system call
+with
+.Dv FILEMON_SET_PID
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ESRCH
+No process having the specified process ID exists.
+.It Bq Er EBUSY
+The process ID specified is already being traced and was not the current
+process.
+.El
+.Pp
+The
+.Fn close
+system call on the filemon file descriptor may fail with the errors from
+.Xr write 2
+if any error is encountered while writing the log.
+It may also fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+An invalid address was used for a traced system call argument, resulting in
+no log entry for the system call.
+.It Bq Er ENAMETOOLONG
+An argument for a traced system call was too long, resulting in
+no log entry for the system call.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/filemon"
+.It Pa /dev/filemon
+.El
+.Sh EXAMPLES
+.Bd -literal
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <sys/ioctl.h>
+#include <dev/filemon/filemon.h>
+#include <fcntl.h>
+#include <err.h>
+#include <unistd.h>
+
+static void
+open_filemon(void)
+{
+	pid_t child;
+	int fm_fd, fm_log;
+
+	if ((fm_fd = open("/dev/filemon", O_RDWR | O_CLOEXEC)) == -1)
+		err(1, "open(\e"/dev/filemon\e", O_RDWR)");
+	if ((fm_log = open("filemon.out",
+	    O_CREAT | O_WRONLY | O_TRUNC | O_CLOEXEC, DEFFILEMODE)) == -1)
+		err(1, "open(filemon.out)");
+
+	if (ioctl(fm_fd, FILEMON_SET_FD, &fm_log) == -1)
+		err(1, "Cannot set filemon log file descriptor");
+
+	if ((child = fork()) == 0) {
+		child = getpid();
+		if (ioctl(fm_fd, FILEMON_SET_PID, &child) == -1)
+			err(1, "Cannot set filemon PID");
+		/* Do something here. */
+	} else {
+		wait(&child);
+		close(fm_fd);
+	}
+}
+.Ed
+.Pp
+Creates a file named
+.Pa filemon.out
+and configures the
+.Nm
+device to write the
+.Nm
+buffer contents to it.
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr ktrace 1 ,
+.Xr script 1 ,
+.Xr truss 1 ,
+.Xr ioctl 2
+.Sh HISTORY
+A
+.Nm
+device appeared in
+.Fx 9.1 .
+.Sh BUGS
+Unloading the module may panic the system, thus requires using
+.Ic kldunload -f .

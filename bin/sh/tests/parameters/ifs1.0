@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+env IFS=_ ${SH} -c '
+rc=2
+nosuchtool_function() {
+	rc=0
+}
+v=nosuchtool_function
+$v && exit "$rc"
+'

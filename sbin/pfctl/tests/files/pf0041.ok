@@ -1,0 +1,12 @@
+anchor "foo" all
+anchor "bar" all
+anchor "bar" all
+anchor "foo" inet all
+anchor "foo" inet6 all
+anchor "foo" inet all
+anchor "foo" proto tcp all
+anchor "foo" inet proto tcp from 10.1.2.3 port = smtp to 10.2.3.4 port = ssh
+anchor "foobar" inet6 proto udp from ::1 port = tcpmux to ::1 port = compressnet
+anchor "filteropt" out proto tcp from any to any port = ssh user = 0
+anchor "filteropt" in proto tcp from any to (self) port = ssh group = 22
+anchor "filteropt" out inet proto icmp all icmp-type echoreq

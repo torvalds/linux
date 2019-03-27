@@ -1,0 +1,4 @@
+pass out on fxp0 all set-tag(log=100)
+pass out on fxp0 all set-tag(nat=foo)
+pass out on fxp0 all set-tag(log=100, nat=200)
+pass out on fxp0 all set-tag(log=2147483648, nat=overtherainbowisapotof)

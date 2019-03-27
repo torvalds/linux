@@ -1,0 +1,45 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_flush , xo_flush_h
+.Nd flush formatted output from libxo handle
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft void
+.Fn xo_flush "void"
+.Ft void
+.Fn xo_flush_h "xo_handle_t *handle"
+.Sh DESCRIPTION
+.Nm libxo
+buffers data, both for performance and consistency, but also to
+allow some advanced features to work properly.
+At various times, the
+caller may wish to flush any data buffered within the library.
+The
+.Fn xo_flush
+function is used for this.
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

@@ -1,0 +1,123 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: gelf_getehdr.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd December 16, 2006
+.Dt GELF_GETEHDR 3
+.Os
+.Sh NAME
+.Nm elf32_getehdr ,
+.Nm elf64_getehdr ,
+.Nm gelf_getehdr
+.Nd retrieve the object file header
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft "Elf32_Ehdr *"
+.Fn elf32_getehdr "Elf *elf"
+.Ft "Elf64_Ehdr *"
+.Fn elf64_getehdr "Elf *elf"
+.In gelf.h
+.Ft "GElf_Ehdr *"
+.Fn gelf_getehdr "Elf *elf" "GElf_Ehdr *dst"
+.Sh DESCRIPTION
+These functions retrieve the ELF object file
+header from the ELF descriptor
+.Ar elf
+and return a translated header descriptor to their callers.
+.Pp
+Functions
+.Fn elf32_getehdr
+and
+.Fn elf64_getehdr
+return a pointer to the appropriate class-specific header descriptor
+if it exists in the file referenced by descriptor
+.Ar elf .
+These functions return
+.Dv NULL
+if an ELF header was not found in file
+.Ar elf .
+.Pp
+Function
+.Fn gelf_getehdr
+stores a translated copy of the header for ELF file
+.Ar elf
+into the descriptor pointed to by argument
+.Ar dst .
+It returns argument
+.Ar dst
+if successful or
+.Dv NULL
+in case of failure.
+.Sh RETURN VALUES
+These functions return a pointer to a translated header descriptor
+if successful, or NULL on failure.
+.Sh ERRORS
+These functions can fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+The argument
+.Ar elf
+was null.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+was not a descriptor for an ELF file.
+.It Bq Er ELF_E_ARGUMENT
+The elf class of descriptor
+.Ar elf
+was not recognized.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar dst
+was null.
+.It Bq Er ELF_E_CLASS
+The ELF class of descriptor
+.Ar elf
+did not match that of the API function being called.
+.It Bq Er ELF_E_HEADER
+ELF descriptor
+.Ar elf
+does not have an associated header.
+.It Bq Er ELF_E_RESOURCE
+An out of memory condition was detected during execution.
+.It Bq Er ELF_E_SECTION
+The ELF descriptor in argument
+.Ar elf
+did not adhere to the conventions used for extended numbering.
+.It Bq Er ELF_E_VERSION
+The ELF descriptor
+.Ar elf
+had an unsupported ELF version number.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf32_newehdr 3 ,
+.Xr elf64_newehdr 3 ,
+.Xr elf_flagehdr 3 ,
+.Xr elf_getident 3 ,
+.Xr gelf 3 ,
+.Xr gelf_newehdr 3 ,
+.Xr elf 5

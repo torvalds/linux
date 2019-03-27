@@ -1,0 +1,137 @@
+.\"
+.\" Copyright (c) 2001 Dima Dorfman.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 3, 2017
+.Dt GETPEEREID 3
+.Os
+.Sh NAME
+.Nm getpeereid
+.Nd get the effective credentials of a UNIX-domain peer
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In unistd.h
+.Ft int
+.Fn getpeereid "int s" "uid_t *euid" "gid_t *egid"
+.Sh DESCRIPTION
+The
+.Fn getpeereid
+function returns the effective user and group IDs of the
+peer connected to a
+.Ux Ns -domain
+socket.
+The argument
+.Fa s
+must be a
+.Ux Ns -domain
+socket
+.Pq Xr unix 4
+of type
+.Dv SOCK_STREAM
+on which either
+.Xr connect 2
+or
+.Xr listen 2
+has been called.
+The effective user ID is placed in
+.Fa euid ,
+and the effective group ID in
+.Fa egid .
+.Pp
+The credentials returned to the
+.Xr listen 2
+caller are those of its peer at the time it called
+.Xr connect 2 ;
+the credentials returned to the
+.Xr connect 2
+caller are those of its peer at the time it called
+.Xr listen 2 .
+This mechanism is reliable; there is no way for either side to influence
+the credentials returned to its peer except by calling the appropriate
+system call (i.e., either
+.Xr connect 2
+or
+.Xr listen 2 )
+under different effective credentials.
+.Pp
+One common use of this routine is for a
+.Ux Ns -domain
+server
+to verify the credentials of its client.
+Likewise, the client can verify the credentials of the server.
+.Sh IMPLEMENTATION NOTES
+On
+.Fx ,
+.Fn getpeereid
+is implemented in terms of the
+.Dv LOCAL_PEERCRED
+.Xr unix 4
+socket option.
+.Sh RETURN VALUES
+.Rv -std getpeereid
+.Sh ERRORS
+The
+.Fn getpeereid
+function
+fails if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The argument
+.Fa s
+is not a valid descriptor.
+.It Bq Er ENOTSOCK
+The argument
+.Fa s
+is a file, not a socket.
+.It Bq Er ENOTCONN
+The argument
+.Fa s
+does not refer to a socket on which
+.Xr connect 2
+or
+.Xr listen 2
+have been called.
+.It Bq Er EINVAL
+The argument
+.Fa s
+does not refer to a socket of type
+.Dv SOCK_STREAM ,
+or the kernel returned invalid data.
+.El
+.Sh SEE ALSO
+.Xr connect 2 ,
+.Xr getpeername 2 ,
+.Xr getsockname 2 ,
+.Xr getsockopt 2 ,
+.Xr listen 2 ,
+.Xr unix 4
+.Sh HISTORY
+The
+.Fn getpeereid
+function appeared in
+.Fx 4.6 .

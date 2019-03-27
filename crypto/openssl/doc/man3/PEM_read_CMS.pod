@@ -1,0 +1,104 @@
+=pod
+
+=head1 NAME
+
+DECLARE_PEM_rw,
+PEM_read_CMS,
+PEM_read_bio_CMS,
+PEM_write_CMS,
+PEM_write_bio_CMS,
+PEM_write_DHxparams,
+PEM_write_bio_DHxparams,
+PEM_read_ECPKParameters,
+PEM_read_bio_ECPKParameters,
+PEM_write_ECPKParameters,
+PEM_write_bio_ECPKParameters,
+PEM_read_ECPrivateKey,
+PEM_write_ECPrivateKey,
+PEM_write_bio_ECPrivateKey,
+PEM_read_EC_PUBKEY,
+PEM_read_bio_EC_PUBKEY,
+PEM_write_EC_PUBKEY,
+PEM_write_bio_EC_PUBKEY,
+PEM_read_NETSCAPE_CERT_SEQUENCE,
+PEM_read_bio_NETSCAPE_CERT_SEQUENCE,
+PEM_write_NETSCAPE_CERT_SEQUENCE,
+PEM_write_bio_NETSCAPE_CERT_SEQUENCE,
+PEM_read_PKCS8,
+PEM_read_bio_PKCS8,
+PEM_write_PKCS8,
+PEM_write_bio_PKCS8,
+PEM_write_PKCS8_PRIV_KEY_INFO,
+PEM_read_bio_PKCS8_PRIV_KEY_INFO,
+PEM_read_PKCS8_PRIV_KEY_INFO,
+PEM_write_bio_PKCS8_PRIV_KEY_INFO,
+PEM_read_SSL_SESSION,
+PEM_read_bio_SSL_SESSION,
+PEM_write_SSL_SESSION,
+PEM_write_bio_SSL_SESSION
+- PEM object encoding routines
+
+=head1 SYNOPSIS
+
+=for comment generic
+
+ #include <openssl/pem.h>
+
+ DECLARE_PEM_rw(name, TYPE)
+
+ TYPE *PEM_read_TYPE(FILE *fp, TYPE **a, pem_password_cb *cb, void *u);
+ TYPE *PEM_read_bio_TYPE(BIO *bp, TYPE **a, pem_password_cb *cb, void *u);
+ int PEM_write_TYPE(FILE *fp, const TYPE *a);
+ int PEM_write_bio_TYPE(BIO *bp, const TYPE *a);
+
+=head1 DESCRIPTION
+
+In the description below, I<TYPE> is used
+as a placeholder for any of the OpenSSL datatypes, such as I<X509>.
+The macro B<DECLARE_PEM_rw> expands to the set of declarations shown in
+the next four lines of the synopsis.
+
+These routines convert between local instances of ASN1 datatypes and
+the PEM encoding.  For more information on the templates, see
+L<ASN1_ITEM(3)>.  For more information on the lower-level routines used
+by the functions here, see L<PEM_read(3)>.
+
+PEM_read_TYPE() reads a PEM-encoded object of I<TYPE> from the file B<fp>
+and returns it.  The B<cb> and B<u> parameters are as described in
+L<pem_password_cb(3)>.
+
+PEM_read_bio_TYPE() is similar to PEM_read_TYPE() but reads from the BIO B<bp>.
+
+PEM_write_TYPE() writes the PEM encoding of the object B<a> to the file B<fp>.
+
+PEM_write_bio_TYPE() similarly writes to the BIO B<bp>.
+
+=head1 NOTES
+
+These functions make no assumption regarding the pass phrase received from the
+password callback.
+It will simply be treated as a byte sequence.
+
+=head1 RETURN VALUES
+
+PEM_read_TYPE() and PEM_read_bio_TYPE() return a pointer to an allocated
+object, which should be released by calling TYPE_free(), or NULL on error.
+
+PEM_write_TYPE() and PEM_write_bio_TYPE() return the number of bytes written
+or zero on error.
+
+=head1 SEE ALSO
+
+L<PEM_read(3)>,
+L<passphrase-encoding(7)>
+
+=head1 COPYRIGHT
+
+Copyright 1998-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

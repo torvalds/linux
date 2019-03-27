@@ -1,0 +1,30 @@
+simple.1
+simple.1
+simple.2
+simple.2
+recursive.1.1.*
+recursive.1.1.*
+recursive.1.1.*
+recursive.1.1.*
+recursive.1.99
+recursive.1.99
+recursive.2.1.*
+recursive.2.1.*
+recursive.2.1.*
+recursive.2.1.*
+recursive.2.99
+recursive.2.99
+shared.0
+shared.0
+shared.1.99
+shared.1.99
+shared.2.1
+shared.2.1
+shared.2.99
+shared.2.99
+cycle.1.99
+cycle.1.99
+make: Graph cycles through `cycle.2.99'
+make: Graph cycles through `cycle.2.98'
+make: Graph cycles through `cycle.2.97'
+exit status 0

@@ -1,0 +1,680 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.\"	@(#)p9	8.1 (Berkeley) 6/8/93
+.\"
+.sp 100
+.TL
+.ft R
+Appendix \(em The Standard I/O Library
+.AU
+D. M. Ritchie
+.AI
+AT&T Bell Laboratories
+Murray Hill, NJ 07974
+.PP
+The standard I/O library
+was designed with the following goals in mind.
+.IP 1.
+It must be as efficient as possible, both in time and in space,
+so that there will be no hesitation in using it
+no matter how critical the application.
+.IP 2.
+It must be simple to use, and also free of the magic
+numbers and mysterious calls
+whose use mars the understandability and portability
+of many programs using older packages.
+.IP 3.
+The interface provided should be applicable on all machines,
+whether or not the programs which implement it are directly portable
+to other systems,
+or to machines other than the PDP-11 running a version of
+.UC UNIX .
+.SH
+1.  General Usage
+.PP
+Each program using the library must have the line
+.P1
+		#include <stdio.h>
+.P2
+which defines certain macros and variables.
+The routines are in the normal C library,
+so no special library argument is needed for loading.
+All names in the include file intended only for internal use begin
+with an underscore
+.UL _
+to reduce the possibility
+of collision with a user name.
+The names intended to be visible outside the package are
+.IP \f3stdin\f1 10
+The name of the standard input file
+.IP \f3stdout\f1 10
+The name of the standard output file
+.IP \f3stderr\f1 10
+The name of the standard error file
+.IP \f3EOF\f1 10
+is actually \-1, and is the value returned by
+the read routines on end-of-file or error.
+.IP \f3NULL\f1 10
+is a notation for the null pointer, returned by
+pointer-valued functions
+to indicate an error
+.IP \f3FILE\f1 10
+expands to
+.UL struct
+.UL _iob
+and is a useful
+shorthand when declaring pointers
+to streams.
+.IP \f3BUFSIZ\f1 10
+is a number (viz. 512)
+of the size suitable for an I/O buffer supplied by the user.
+See
+.UL setbuf ,
+below.
+.IP \f3getc,\ getchar,\ putc,\ putchar,\ feof,\ ferror,\ f\&ileno\f1 10
+.br
+are defined as macros.
+Their actions are described below;
+they are mentioned here
+to point out that it is not possible to
+redeclare them
+and that they are not actually functions;
+thus, for example, they may not have breakpoints set on them.
+.PP
+The routines in this package
+offer the convenience of automatic buffer allocation
+and output flushing where appropriate.
+The names
+.UL stdin ,
+.UL stdout ,
+and
+.UL stderr
+are in effect constants and may not be assigned to.
+.SH
+2.  Calls
+.nr PD .4v
+.LP
+.UL FILE\ *fopen(filename,\ type)\ char\ *filename,\ *type;
+.nr PD 0
+.IP
+.br
+opens the file and, if needed, allocates a buffer for it.
+.UL filename
+is a character string specifying the name.
+.UL type
+is a character string (not a single character).
+It may be
+.UL \&"r" ,
+.UL \&"w" ,
+or
+.UL \&"a"
+to indicate
+intent to read, write, or append.
+The value returned is a file pointer.
+If it is
+.UL  NULL
+the attempt to open failed.
+.ne 3
+.nr PD .4v
+.LP
+.UL FILE\ *freopen(filename,\ type,\ ioptr)\ char\ *filename,\ *type;\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+The stream named by
+.UL ioptr
+is closed, if necessary, and then reopened
+as if by
+.UL fopen .
+If the attempt to open fails,
+.UL  NULL
+is returned,
+otherwise
+.UL ioptr ,
+which will now refer to the new file.
+Often the reopened stream is
+.UL stdin
+or
+.UL stdout .
+.nr PD .4v
+.LP
+.UL int\ getc(ioptr)\ FILE\ *ioptr;
+.nr PD 0
+.IP
+returns the next character from the stream named by
+.UL ioptr ,
+which is a pointer to a file such as returned by
+.UL fopen ,
+or the name
+.UL stdin .
+The integer
+.UL  EOF
+is returned on end-of-file or when
+an error occurs.
+The null character
+.UL \e0
+is a legal character.
+.nr PD .4v
+.LP
+.UL int\ fgetc(ioptr)\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+acts like
+.UL getc
+but is a genuine function,
+not a macro,
+so it can be pointed to, passed as an argument, etc.
+.nr PD .4v
+.LP
+.UL putc(c,\ ioptr)\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+.UL putc
+writes the character
+.UL c
+on the output stream named by
+.UL ioptr ,
+which is a value returned from
+.UL fopen
+or perhaps
+.UL stdout
+or
+.UL stderr .
+The character is returned as value,
+but
+.UL  EOF
+is returned on error.
+.nr PD .4v
+.LP
+.UL fputc(c,\ ioptr)\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+acts like
+.UL putc
+but is a genuine
+function, not a macro.
+.nr PD .4v
+.LP
+.UL fclose(ioptr)\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+The file corresponding to
+.UL ioptr
+is closed after any buffers are emptied.
+A buffer allocated by the I/O system is freed.
+.UL fclose
+is automatic on normal termination of the program.
+.nr PD .4v
+.LP
+.UL fflush(ioptr)\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+Any buffered information on the (output) stream named by
+.UL ioptr
+is written out.
+Output files are normally buffered
+if and only if they are not directed to the terminal;
+however,
+.UL stderr
+always starts off unbuffered and remains so unless
+.UL setbuf
+is used, or unless it is reopened.
+.nr PD .4v
+.LP
+.UL exit(errcode);
+.nr PD 0
+.IP
+.br
+terminates the process and returns its argument as status
+to the parent.
+This is a special version of the routine
+which calls
+.UL fflush
+for each output file.
+To terminate without flushing,
+use
+.UL _exit .
+.nr PD .4v
+.LP
+.UL feof(ioptr)\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+returns non-zero when end-of-file
+has occurred on the specified input stream.
+.nr PD .4v
+.LP
+.UL ferror(ioptr)\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+returns non-zero when an error has occurred while reading
+or writing the named stream.
+The error indication lasts until the file has been closed.
+.nr PD .4v
+.LP
+.UL getchar();
+.nr PD 0
+.IP
+.br
+is identical to
+.UL getc(stdin) .
+.nr PD .4v
+.LP
+.UL putchar(c);
+.nr PD 0
+.IP
+.br
+is identical to
+.UL putc(c,\ stdout) .
+.nr PD .4v
+.nr PD .4v
+.ne 2
+.LP
+.UL char\ *fgets(s,\ n,\ ioptr)\ char\ *s;\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+reads up to
+.UL n-1
+characters from the stream
+.UL ioptr
+into the character pointer
+.UL s .
+The read terminates with a newline character.
+The newline character is placed in the buffer
+followed by a null character.
+.UL fgets
+returns the first argument,
+or
+.UL  NULL
+if error or end-of-file occurred.
+.nr PD .4v
+.nr PD .4v
+.LP
+.UL fputs(s,\ ioptr)\ char\ *s;\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+writes the null-terminated string (character array)
+.UL s
+on the stream
+.UL ioptr .
+No newline is appended.
+No value is returned.
+.nr PD .4v
+.LP
+.UL ungetc(c,\ ioptr)\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+The argument character
+.UL c
+is pushed back on the input stream named by
+.UL ioptr .
+Only one character may be pushed back.
+.ne 5
+.nr PD .4v
+.LP
+.UL printf(format,\ a1,\ ...)\ char\ *format;
+.br
+.UL fprintf(ioptr,\ format,\ a1,\ ...)\ FILE\ *ioptr;\ char\ *format;
+.br
+.UL sprintf(s,\ format,\ a1,\ ...)char\ *s,\ *format;
+.br
+.nr PD 0
+.IP
+.UL printf
+writes on the standard output.
+.UL fprintf
+writes on the named output stream.
+.UL sprintf
+puts characters in the character array (string)
+named by
+.UL s .
+The specifications are as described in section
+.UL printf (3)
+of the
+.ul
+.UC UNIX
+.ul
+Programmer's Manual.
+.nr PD .4v
+.LP
+.UL scanf(format,\ a1,\ ...)\ char\ *format;
+.br
+.UL fscanf(ioptr,\ format,\ a1,\ ...)\ FILE\ *ioptr;\ char\ *format;
+.br
+.UL sscanf(s,\ format,\ a1,\ ...)\ char\ *s,\ *format;
+.nr PD 0
+.IP
+.br
+.UL scanf
+reads from the standard input.
+.UL fscanf
+reads from the named input stream.
+.UL sscanf
+reads from the character string
+supplied as
+.UL s .
+.UL scanf
+reads characters, interprets
+them according to a format, and stores the results in its arguments.
+Each routine expects as arguments
+a control string
+.UL format ,
+and a set of arguments,
+.I
+each of which must be a pointer,
+.R
+indicating where the converted input should be stored.
+.if t .sp .4v
+.UL scanf
+returns as its value the number of successfully matched and assigned input
+items.
+This can be used to decide how many input items were found.
+On end of file,
+.UL EOF
+is returned; note that this is different
+from 0, which means that the next input character does not
+match what was called for in the control string.
+.nr PD .4v
+.LP
+.UL fread(ptr,\ sizeof(*ptr),\ nitems,\ ioptr)\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+reads
+.UL nitems
+of data beginning at
+.UL ptr
+from file
+.UL ioptr .
+No advance notification
+that binary I/O is being done is required;
+when, for portability reasons,
+it becomes required, it will be done
+by adding an additional character to the mode-string on the
+.UL fopen
+call.
+.nr PD .4v
+.LP
+.UL fwrite(ptr,\ sizeof(*ptr),\ nitems,\ ioptr)\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+Like
+.UL fread ,
+but in the other direction.
+.nr PD .4v
+.LP
+.UL rewind(ioptr)\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+rewinds the stream
+named by
+.UL ioptr .
+It is not very useful except on input,
+since a rewound output file is still open only for output.
+.nr PD .4v
+.LP
+.UL system(string)\ char\ *string;
+.nr PD 0
+.IP
+.br
+The
+.UL string
+is executed by the shell as if typed at the terminal.
+.nr PD .4v
+.LP
+.UL getw(ioptr)\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+returns the next word from the input stream named by
+.UL ioptr .
+.UL EOF
+is returned on end-of-file or error,
+but since this a perfectly good
+integer
+.UL feof
+and
+.UL ferror
+should be used.
+A ``word'' is 16 bits on the
+.UC PDP-11.
+.nr PD .4v
+.LP
+.UL putw(w,\ ioptr)\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+writes the integer
+.UL w
+on the named output stream.
+.nr PD .4v
+.LP
+.UL setbuf(ioptr,\ buf)\ FILE\ *ioptr;\ char\ *buf;
+.nr PD 0
+.IP
+.br
+.UL setbuf
+may be used after a stream has been opened
+but before I/O has started.
+If
+.UL buf
+is
+.UL NULL ,
+the stream will be unbuffered.
+Otherwise the buffer supplied will be used.
+It must be a character array of sufficient size:
+.P1
+char	buf[BUFSIZ];
+.P2
+.nr PD .4v
+.LP
+.UL fileno(ioptr)\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+returns the integer file descriptor associated with the file.
+.nr PD .4v
+.LP
+.UL fseek(ioptr,\ offset,\ ptrname)\ FILE\ *ioptr;\ long\ offset;
+.nr PD 0
+.IP
+.br
+The location of the next byte in the stream
+named by
+.UL ioptr
+is adjusted.
+.UL offset
+is a long integer.
+If
+.UL ptrname
+is 0, the offset is measured from the beginning of the file;
+if
+.UL ptrname
+is 1, the offset is measured from the current read or
+write pointer;
+if
+.UL ptrname
+is 2, the offset is measured from the end of the file.
+The routine accounts properly for any buffering.
+(When this routine is used on
+.UC UNIX \& non-
+systems,
+the offset must be a value returned from
+.UL ftell
+and the ptrname must be 0).
+.ne 3
+.nr PD .4v
+.LP
+.UL long\ ftell(ioptr)\ FILE\ *ioptr;
+.nr PD 0
+.IP
+.br
+The byte offset, measured from the beginning of the file,
+associated with the named stream is returned.
+Any buffering is properly accounted for.
+(On
+.UC UNIX \& non-
+systems the value of this call is useful only
+for handing to
+.UL fseek ,
+so as to position the file to the same place it was when
+.UL ftell
+was called.)
+.nr PD .4v
+.LP
+.UL getpw(uid,\ buf)\ char\ *buf;
+.nr PD 0
+.IP
+.br
+The password file is searched for the given integer user ID.
+If an appropriate line is found, it is copied into
+the character array
+.UL buf ,
+and 0 is returned.
+If no line is found corresponding to the user ID
+then 1 is returned.
+.nr PD .4v
+.LP
+.UL char\ *malloc(num);
+.nr PD 0
+.IP
+.br
+allocates
+.UL num
+bytes.
+The pointer returned is sufficiently well aligned to be usable for any purpose.
+.UL NULL
+is returned if no space is available.
+.nr PD .4v
+.LP
+.UL char\ *calloc(num,\ size);
+.nr PD 0
+.IP
+.br
+allocates space for
+.UL num
+items each of size
+.UL size .
+The space is guaranteed to be set to 0 and the pointer is
+sufficiently well aligned to be usable for any purpose.
+.UL NULL
+is returned if no space is available .
+.nr PD .4v
+.LP
+.UL cfree(ptr)\ char\ *ptr;
+.nr PD 0
+.IP
+.br
+Space is returned to the pool used by
+.UL calloc .
+Disorder can be expected if the pointer was not obtained
+from
+.UL calloc .
+.nr PD .4v
+.LP
+The following are macros whose definitions may be obtained by including
+.UL <ctype.h> .
+.nr PD .4v
+.LP
+.UL isalpha(c)
+returns non-zero if the argument is alphabetic.
+.nr PD .4v
+.LP
+.UL isupper(c)
+returns non-zero if the argument is upper-case alphabetic.
+.nr PD .4v
+.LP
+.UL islower(c)
+returns non-zero if the argument is lower-case alphabetic.
+.nr PD .4v
+.LP
+.UL isdigit(c)
+returns non-zero if the argument is a digit.
+.nr PD .4v
+.LP
+.UL isspace(c)
+returns non-zero if the argument is a spacing character:
+tab, newline, carriage return, vertical tab,
+form feed, space.
+.nr PD .4v
+.LP
+.UL ispunct(c)
+returns non-zero if the argument is
+any punctuation character, i.e., not a space, letter,
+digit or control character.
+.nr PD .4v
+.LP
+.UL isalnum(c)
+returns non-zero if the argument is a letter or a digit.
+.nr PD .4v
+.LP
+.UL isprint(c)
+returns non-zero if the argument is printable \(em
+a letter, digit, or punctuation character.
+.nr PD .4v
+.LP
+.UL iscntrl(c)
+returns non-zero if the argument is a control character.
+.nr PD .4v
+.LP
+.UL isascii(c)
+returns non-zero if the argument is an ascii character, i.e., less than octal 0200.
+.nr PD .4v
+.LP
+.UL toupper(c)
+returns the upper-case character corresponding to the lower-case
+letter
+.UL c.
+.nr PD .4v
+.LP
+.UL tolower(c)
+returns the lower-case character corresponding to the upper-case
+letter
+.UL c .

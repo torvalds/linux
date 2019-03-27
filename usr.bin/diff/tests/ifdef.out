@@ -1,0 +1,26 @@
+/*
+ * A comment 
+ *
+#ifndef PLOP
+ * And another  bla
+#else /* PLOP */
+ * And another bla
+#endif /* PLOP */
+ *
+#ifndef PLOP
+ * And yet another
+#else /* PLOP */
+ * and yet another
+#endif /* PLOP */
+ */
+
+int
+main(void)
+{
+#ifdef PLOP
+
+#endif /* PLOP */
+	printf("something");
+
+	return (0);
+}

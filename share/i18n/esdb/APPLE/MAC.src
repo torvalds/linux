@@ -1,0 +1,7 @@
+# $FreeBSD$ 
+# $NetBSD: MAC.src,v 1.1 2006/03/13 19:45:36 tnozaki Exp $
+
+NAME		"MACchangeme"
+ENCODING	"NONE"
+DEFCSID		"changeme"	0
+INVALID		0x3F	# '?'

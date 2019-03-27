@@ -1,0 +1,267 @@
+.\" @(#)rpc_svc_calls.3n 1.28 93/05/10 SMI; from SVr4
+.\" Copyright 1989 AT&T
+.\" @(#)rpc_svc_calls 1.5 89/07/25 SMI;
+.\" Copyright (c) 1988 Sun Microsystems, Inc. - All Rights Reserved.
+.\"	$NetBSD: rpc_svc_calls.3,v 1.1 2000/06/02 23:11:13 fvdl Exp $
+.\" $FreeBSD$
+.Dd May 3, 1993
+.Dt RPC_SVC_CALLS 3
+.Os
+.Sh NAME
+.Nm svc_dg_enablecache ,
+.Nm svc_exit ,
+.Nm svc_fdset ,
+.Nm svc_freeargs ,
+.Nm svc_getargs ,
+.Nm svc_getreq_common ,
+.Nm svc_getreq_poll ,
+.Nm svc_getreqset ,
+.Nm svc_getrpccaller ,
+.Nm svc_pollset ,
+.Nm svc_run ,
+.Nm svc_sendreply
+.Nd library routines for RPC servers
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In rpc/rpc.h
+.Ft int
+.Fn svc_dg_enablecache "SVCXPRT *xprt" "const unsigned cache_size"
+.Ft void
+.Fn svc_exit "void"
+.Ft bool_t
+.Fn svc_freeargs "const SVCXPRT *xprt" "const xdrproc_t inproc" "caddr_t in"
+.Ft bool_t
+.Fn svc_getargs "const SVCXPRT *xprt" "const xdrproc_t inproc" "caddr_t in"
+.Ft void
+.Fn svc_getreq_common "const int fd"
+.Ft void
+.Fn svc_getreq_poll "struct pollfd *pfdp" "const int pollretval"
+.Ft void
+.Fn svc_getreqset "fd_set * rdfds"
+.Ft "struct netbuf *"
+.Fn svc_getrpccaller "const SVCXPRT *xprt"
+.Ft "struct cmsgcred *"
+.Fn __svc_getcallercreds "const SVCXPRT *xprt"
+.Vt struct pollfd svc_pollset[FD_SETSIZE];
+.Ft void
+.Fn svc_run "void"
+.Ft bool_t
+.Fn svc_sendreply "SVCXPRT *xprt" "xdrproc_t outproc" "void *out"
+.Sh DESCRIPTION
+These routines are part of the
+RPC
+library which allows C language programs to make procedure
+calls on other machines across the network.
+.Pp
+These routines are associated with the server side of the
+RPC mechanism.
+Some of them are called by the server side dispatch function,
+while others
+(such as
+.Fn svc_run )
+are called when the server is initiated.
+.\" .Pp
+.\" In the current implementation, the service transport handle,
+.\" .Dv SVCXPRT ,
+.\" contains a single data area for decoding arguments and encoding results.
+.\" Therefore, this structure cannot be freely shared between threads that call
+.\" functions that do this.
+.\" Routines on this page that are affected by this
+.\" restriction are marked as unsafe for MT applications.
+.Sh Routines
+See
+.Xr rpc 3
+for the definition of the
+.Vt SVCXPRT
+data structure.
+.Bl -tag -width __svc_getcallercreds()
+.It Fn svc_dg_enablecache
+This function allocates a duplicate request cache for the
+service endpoint
+.Fa xprt ,
+large enough to hold
+.Fa cache_size
+entries.
+Once enabled, there is no way to disable caching.
+This routine returns 0 if space necessary for a cache of the given size
+was successfully allocated, and 1 otherwise.
+.It Fn svc_exit
+This function, when called by any of the RPC server procedure or
+otherwise, causes
+.Fn svc_run
+to return.
+.Pp
+As currently implemented,
+.Fn svc_exit
+zeroes the
+.Va svc_fdset
+global variable.
+If RPC server activity is to be resumed,
+services must be reregistered with the RPC library
+either through one of the
+.Xr rpc_svc_create 3
+functions, or using
+.Fn xprt_register .
+The
+.Fn svc_exit
+function
+has global scope and ends all RPC server activity.
+.It Xo
+.Vt fd_set Va svc_fdset
+.Xc
+A global variable reflecting the
+RPC server's read file descriptor bit mask; it is suitable as an argument
+to the
+.Xr select 2
+system call.
+This is only of interest
+if service implementors do not call
+.Fn svc_run ,
+but rather do their own asynchronous event processing.
+This variable is read-only (do not pass its address to
+.Xr select 2 ! ) ,
+yet it may change after calls to
+.Fn svc_getreqset
+or any creation routines.
+.It Fn svc_freeargs
+A function macro that frees any data allocated by the
+RPC/XDR system when it decoded the arguments to a service procedure
+using
+.Fn svc_getargs .
+This routine returns
+.Dv TRUE
+if the results were successfully
+freed, and
+.Dv FALSE
+otherwise.
+.It Fn svc_getargs
+A function macro that decodes the arguments of an
+RPC request associated with the RPC
+service transport handle
+.Fa xprt .
+The
+.Fa in
+argument
+is the address where the arguments will be placed;
+.Fa inproc
+is the XDR
+routine used to decode the arguments.
+This routine returns
+.Dv TRUE
+if decoding succeeds, and
+.Dv FALSE
+otherwise.
+.It Fn svc_getreq_common
+This routine is called to handle a request on the given
+file descriptor.
+.It Fn svc_getreq_poll
+This routine is only of interest if a service implementor
+does not call
+.Fn svc_run ,
+but instead implements custom asynchronous event processing.
+It is called when
+.Xr poll 2
+has determined that an RPC request has arrived on some RPC
+file descriptors;
+.Fa pollretval
+is the return value from
+.Xr poll 2
+and
+.Fa pfdp
+is the array of
+.Vt pollfd
+structures on which the
+.Xr poll 2
+was done.
+It is assumed to be an array large enough to
+contain the maximal number of descriptors allowed.
+.It Fn svc_getreqset
+This routine is only of interest if a service implementor
+does not call
+.Fn svc_run ,
+but instead implements custom asynchronous event processing.
+It is called when
+.Xr poll 2
+has determined that an RPC
+request has arrived on some RPC file descriptors;
+.Fa rdfds
+is the resultant read file descriptor bit mask.
+The routine returns when all file descriptors
+associated with the value of
+.Fa rdfds
+have been serviced.
+.It Fn svc_getrpccaller
+The approved way of getting the network address of the caller
+of a procedure associated with the
+RPC service transport handle
+.Fa xprt .
+.It Fn __svc_getcallercreds
+.Em Warning :
+this macro is specific to
+.Fx
+and thus not portable.
+This macro returns a pointer to a
+.Vt cmsgcred
+structure, defined in
+.In sys/socket.h ,
+identifying the calling client.
+This only works if the client is
+calling the server over an
+.Dv AF_LOCAL
+socket.
+.It Xo
+.Vt struct pollfd Va svc_pollset[FD_SETSIZE] ;
+.Xc
+.Va svc_pollset
+is an array of
+.Vt pollfd
+structures derived from
+.Va svc_fdset[] .
+It is suitable as an argument to the
+.Xr poll 2
+system call.
+The derivation of
+.Va svc_pollset
+from
+.Va svc_fdset
+is made in the current implementation in
+.Fn svc_run .
+Service implementors who do not call
+.Fn svc_run
+and who wish to use this array must perform this derivation themselves.
+.It Fn svc_run
+This routine never returns.
+It waits for RPC
+requests to arrive, and calls the appropriate service
+procedure using
+.Fn svc_getreq_poll
+when one arrives.
+This procedure is usually waiting for the
+.Xr poll 2
+system call to return.
+.It Fn svc_sendreply
+Called by an RPC service's dispatch routine to send the results of a
+remote procedure call.
+The
+.Fa xprt
+argument
+is the request's associated transport handle;
+.Fa outproc
+is the XDR
+routine which is used to encode the results; and
+.Fa out
+is the address of the results.
+This routine returns
+.Dv TRUE
+if it succeeds,
+.Dv FALSE
+otherwise.
+.El
+.Sh SEE ALSO
+.Xr poll 2 ,
+.Xr select 2 ,
+.Xr rpc 3 ,
+.Xr rpc_svc_create 3 ,
+.Xr rpc_svc_err 3 ,
+.Xr rpc_svc_reg 3

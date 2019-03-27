@@ -1,0 +1,46 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_RATE_TO_MBPS 3 2012-03-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+.nf
+ibv_rate_to_mbps \- convert IB rate enumeration to Mbit/sec
+.sp
+mbps_to_ibv_rate \- convert Mbit/sec to an IB rate enumeration
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "int ibv_rate_to_mbps(enum ibv_rate " "rate" ");
+.sp
+.BI "enum ibv_rate mbps_to_ibv_rate(int " "mbps" ");
+.fi
+.SH "DESCRIPTION"
+.B ibv_rate_to_mbps()
+converts the IB transmission rate enumeration
+.I rate
+to a number of Mbit/sec. For example, if
+.I rate
+is
+.BR IBV_RATE_5_GBPS\fR,
+the value 5000 will be returned (5 Gbit/sec = 5000 Mbit/sec).
+.PP
+.B mbps_to_ibv_rate()
+converts the number of Mbit/sec
+.I mult
+to an IB transmission rate enumeration. For example, if
+.I mult
+is 5000, the rate enumeration
+.BR IBV_RATE_5_GBPS
+will be returned.
+.SH "RETURN VALUE"
+.B ibv_rate_to_mbps()
+returns the number of Mbit/sec.
+.PP
+.B mbps_to_ibv_rate()
+returns the enumeration representing the IB transmission rate.
+.SH "SEE ALSO"
+.BR ibv_query_port (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanb@dev.mellanox.co.il>

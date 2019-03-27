@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: utx
+# REQUIRE: DAEMON FILESYSTEMS
+# BEFORE: LOGIN
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="utx"
+desc="Manage the user accounting database"
+start_cmd="utx boot"
+stop_cmd="utx shutdown"
+
+load_rc_config $name
+run_rc_command "$1"

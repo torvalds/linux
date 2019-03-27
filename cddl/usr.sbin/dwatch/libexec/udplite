@@ -1,0 +1,89 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for dtrace_udplite(4) $
+# $Copyright: 2014-2018 Devin Teske. All rights reserved. $
+# $FreeBSD$
+#
+############################################################ DESCRIPTION
+#
+# Display local/remote UDP addresses/ports and bytes sent/received for UDP I/O
+#
+############################################################ PROBE
+
+case "$PROFILE" in
+udplite) : ${PROBE:=udplite:::send, udplite:::receive} ;;
+  *) : ${PROBE:=udplite:::${PROFILE#udplite-}}
+esac
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+this string	flow;
+this string	local;
+this string	remote;
+this u_char	local6;
+this u_char	recv;
+this u_char	remote6;
+this uint16_t	coverage;
+this uint16_t	lport;
+this uint16_t	rport;
+
+$PROBE /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");
+}
+	/*
+	 * dtrace_udplite(4)
+	 */
+	this->recv = probename == "receive" ? 1 : 0;
+	this->flow = this->recv ? "<-" : "->";
+
+	/*
+	 * ipinfo_t *
+	 */
+	this->local  = this->recv ? args[2]->ip_daddr : args[2]->ip_saddr;
+	this->remote = this->recv ? args[2]->ip_saddr : args[2]->ip_daddr;
+
+	/*
+	 * udpliteinfo_t *
+	 */
+	this->coverage = (uint16_t)args[4]->udplite_coverage;
+	this->lport  = this->recv ? args[4]->udplite_dport : args[4]->udplite_sport;
+	this->rport  = this->recv ? args[4]->udplite_sport : args[4]->udplite_dport;
+
+	/*
+	 * IPv6 support
+	 */
+	this->local6 = strstr(this->local, ":") != NULL ? 1 : 0;
+	this->remote6 = strstr(this->remote, ":") != NULL ? 1 : 0;
+	this->local = strjoin(strjoin(this->local6 ? "[" : "",
+		this->local), this->local6 ? "]" : "");
+	this->remote = strjoin(strjoin(this->remote6 ? "[" : "",
+		this->remote), this->remote6 ? "]" : "");
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 1 ))
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print network I/O details
+	 */
+	printf("%s:%u %s %s:%u %d byte%s",
+		this->local, this->lport,
+		this->flow,
+		this->remote, this->rport,
+		this->coverage,
+		this->coverage == 1 ? "" : "s");
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

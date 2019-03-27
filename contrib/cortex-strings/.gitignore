@@ -1,0 +1,11 @@
+*.a
+*.o
+*.la
+*.lo
+*.png
+*.pyc
+.deps
+.dirstamp
+.libs
+try-*
+cache.txt

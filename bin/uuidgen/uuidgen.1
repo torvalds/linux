@@ -1,0 +1,83 @@
+.\" Copyright (c) 2002 Marcel Moolenaar
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 23, 2012
+.Dt UUIDGEN 1
+.Os
+.Sh NAME
+.Nm uuidgen
+.Nd generate universally unique identifiers
+.Sh SYNOPSIS
+.Nm
+.Op Fl 1
+.Op Fl n Ar count
+.Op Fl o Ar filename
+.Sh DESCRIPTION
+The
+.Nm
+utility by default generates a single DCE version 1
+universally unique identifier (UUID),
+also known as a globally unique identifier (GUID).
+The UUID is written to stdout by default.
+The following options can be used to change the behaviour of
+.Nm :
+.Bl -tag -width indent
+.It Fl 1
+This option only has effect if multiple identifiers are to be generated and
+instructs
+.Nm
+to not generate them in batch, but one at a time.
+.It Fl n
+This option controls the number of identifiers generated.
+By default, multiple identifiers are generated in batch.
+The upper hard limit is 2048
+.Po see
+.Xr uuidgen 2
+.Pc .
+.It Fl o
+Redirect output to
+.Ar filename
+instead of stdout.
+.El
+.Pp
+Batched generation yields a dense set of identifiers in such a way that there
+is no identifier that is larger than the smallest identifier in the set and
+smaller than the largest identifier in the set and that is not already in the
+set.
+.Pp
+When generating the identifiers one at a time, the identifiers will be close
+to each other, but operating system latency and processing time will be
+reflected in the distance between two successive identifiers.
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr uuidgen 2 ,
+.Xr uuid 3
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 5.0 .

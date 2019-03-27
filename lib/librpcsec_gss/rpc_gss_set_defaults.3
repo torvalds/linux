@@ -1,0 +1,70 @@
+.\" Copyright (c) 2008 Isilon Inc http://www.isilon.com/
+.\" Authors: Doug Rabson <dfr@rabson.org>
+.\" Developed with Red Inc: Alfred Perlstein <alfred@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd January 26, 2010
+.Dt RPC_GSS_SET_DEFAULTS 3
+.Os
+.Sh NAME
+.Nm rpc_gss_set_defaults
+.Nd "set service and quality of protection"
+.Sh LIBRARY
+.Lb librpcsec_gss
+.Sh SYNOPSIS
+.In rpc/rpcsec_gss.h
+.Ft bool_t
+.Fo rpc_gss_set_defaults
+.Fa "AUTH *auth"
+.Fa "rpc_gss_service_t service"
+.Fa "const char *qop"
+.Fc
+.Sh DESCRIPTION
+Set the service and quality of protection to be used for RPC requests.
+The new values apply for the rest of the lifetime of the context
+(unless changed again with this function).
+.Sh PARAMETERS
+.Bl -tag -width ".It service"
+.It service
+The service type to use for subsequent RPC requests
+.It qop
+The quality of protection to use or NULL for the default
+.El
+.Sh RETURN VALUES
+Returns
+.Dv TRUE
+if the values were set
+.Sh SEE ALSO
+.Xr gssapi 3 ,
+.Xr rpc 3 ,
+.Xr rpcset_gss 3
+.Sh HISTORY
+The
+.Nm
+function first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Doug Rabson Aq Mt dfr@FreeBSD.org .

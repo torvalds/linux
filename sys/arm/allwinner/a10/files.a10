@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+arm/allwinner/a10/a10_intc.c		standard
+arm/allwinner/a10/a10_padconf.c		standard
+arm/allwinner/clkng/ccu_a10.c		standard

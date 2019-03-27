@@ -1,0 +1,54 @@
+#! /bin/sh
+#
+# Setup an ap that accepts wds traffic from associated stations.
+# This can be used as the "back end" for setup.extender and/or
+# setup.repeater.  Note that the wds vap's are created by the
+# wlanwds program that listens for wds discovery events (to create
+# wds vaps) and for sta leave events (to destroy wds vaps it
+# created).  The WDSUP script is invoked for each wds vap that
+# gets created--to add the vap to a bridge.
+#
+# Notes!
+#
+# * If the main AP VAP is running with encryption, the plumbed up
+#   WDS VAP needs to have privacy enabled (wepmode mixed, for example)
+#   otherwise frames transmitted from the WDS AP to the WDS STA
+#   will not be encrypted.
+#
+# * Because wlanwds is running on the physical interface (for now),
+#   and NOT the parent VAP, it will create cloned interfaces using
+#   the MAC address of the physical interface.  So, until that
+#   whole setup is fixed, please only associate DWDS to the first
+#   VAP on a physical interface, which shares the MAC address of
+#   the physical NIC.
+#
+# $FreeBSD$
+#
+PATH=.:$PATH
+. config
+
+SSID='freebsd+wdsmain'
+WDSUP=$TMPDIR/wdsup$$
+
+#mwldebug state+node+reset+xmit+recv+beacon+hal+hal2
+WLAN_AP=`ifconfig wlan create wlanmode hostap wlandev $WIRELESS`
+ifconfig $WLAN_AP ssid "$SSID" channel $CHANNEL mtu 1500
+ifconfig $WLAN_AP dwds -apbridge
+wlandebug -i $WLAN_AP state+scan+assoc+auth+wds+11n
+
+BRIDGE=`ifconfig bridge create`
+
+# NB: start wlanwds first to avoid races.
+rm -f $WDSUP
+cat >$WDSUP <<EOF
+#! /bin/sh
+DEV=\$1
+ifconfig $BRIDGE addm \$DEV
+ifconfig \$DEV up
+EOF
+chmod +x $WDSUP
+$WLANWDS -v -s $WDSUP &
+
+ifconfig $BRIDGE addm $WLAN_AP addm $WIRED up
+ifconfig $WIRED up
+ifconfig $WLAN_AP up

@@ -1,0 +1,6 @@
+#!/unix
+
+* This mumbo jumbo creates entry points to syscalls in _AIX
+
+lpioctl	syscall
+lsetpag	syscall

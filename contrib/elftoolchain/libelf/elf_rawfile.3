@@ -1,0 +1,76 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elf_rawfile.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd July 3, 2006
+.Dt ELF_RAWFILE 3
+.Os
+.Sh NAME
+.Nm elf_rawfile
+.Nd return uninterpreted contents of an ELF file
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft char *
+.Fn elf_rawfile "Elf *elf" "size_t *sz"
+.Sh DESCRIPTION
+Function
+.Fn elf_rawfile
+returns the uninterpreted contents of the file referenced by ELF descriptor
+.Ar elf .
+.Pp
+If argument
+.Ar sz
+is non-null, the function stores the file's size in bytes
+in the location to which it points.
+A value of zero is written to this location if an error is
+encountered.
+.Sh RETURN VALUES
+Function
+.Fn elf_rawfile
+returns a valid pointer if successful or NULL if an error occurs.
+.Sh ERRORS
+Function
+.Fn elf_rawfile
+may fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+was NULL.
+.It Bq Er ELF_E_SEQUENCE
+Argument
+.Ar elf
+was opened for writing and function
+.Fn elf_rawfile
+was invoked before
+.Xr elf_update 3 .
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_getdata 3 ,
+.Xr elf_getident 3 ,
+.Xr elf_kind 3 ,
+.Xr elf_update 3

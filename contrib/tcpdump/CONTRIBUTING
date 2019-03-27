@@ -1,0 +1,151 @@
+Some Information for Contributors
+---------------------------------
+You want to contribute to Tcpdump, Thanks!
+Please, read these lines.
+
+
+How to report bugs and other problems
+-------------------------------------
+To report a security issue (segfault, buffer overflow, infinite loop, arbitrary
+code execution etc) please send an e-mail to security@tcpdump.org, do not use
+the bug tracker!
+
+To report a non-security problem (failure to compile, incorrect output in the
+protocol printout, missing support for a particular protocol etc) please check
+first that it reproduces with the latest stable release of tcpdump and the latest
+stable release of libpcap. If it does, please check that the problem reproduces
+with the current git master branch of tcpdump and the current git master branch of
+libpcap. If it does (and it is not a security-related problem, otherwise see
+above), please navigate to https://github.com/the-tcpdump-group/tcpdump/issues
+and check if the problem has already been reported. If it has not, please open
+a new issue and provide the following details:
+
+* tcpdump and libpcap version (tcpdump --version)
+* operating system name and version and any other details that may be relevant
+  (uname -a, compiler name and version, CPU type etc.)
+* configure flags if any were used
+* statement of the problem
+* steps to reproduce
+
+Please note that if you know exactly how to solve the problem and the solution
+would not be too intrusive, it would be best to contribute some development time
+and open a pull request instead as discussed below.
+
+Still not sure how to do? Feel free to [subscribe](http://www.tcpdump.org/#mailing-lists)
+to the mailing list tcpdump-workers@lists.tcpdump.org and ask!
+
+
+How to add new code and to update existing code
+-----------------------------------------------
+
+0) Check that there isn't a pull request already opened for the changes you
+   intend to make.
+
+1) Fork the Tcpdump repository on GitHub from
+   https://github.com/the-tcpdump-group/tcpdump
+   (See https://help.github.com/articles/fork-a-repo/)
+
+2) Setup an optional Travis-CI build
+   You can setup a travis build for your fork. So, you can test your changes
+   on Linux and OSX before sending pull requests.
+   (See http://docs.travis-ci.com/user/getting-started/)
+
+3) Setup your git working copy
+   git clone https://github.com/<username>/tcpdump.git
+   cd tcpdump
+   git remote add upstream https://github.com/the-tcpdump-group/tcpdump
+   git fetch upstream
+
+4) Do a 'touch .devel' in your working directory.
+   Currently, the effect is
+   a) add (via configure, in Makefile) some warnings options ( -Wall
+   -Wmissing-prototypes -Wstrict-prototypes, ...) to the compiler if it
+   supports these options,
+   b) have the Makefile support "make depend" and the configure script run it.
+
+5) Configure and build
+   ./configure && make -s && make check
+
+6) Add/update sample.pcap files
+   We use tests directory to do regression tests on the dissection of captured
+   packets, by running tcpdump against a savefile sample.pcap, created with -w
+   option and comparing the results with a text file sample.out giving the
+   expected results.
+
+   Any new/updated fields in a dissector must be present in a sample.pcap file
+   and the corresponding output file.
+
+   Configuration is set in tests/TESTLIST.
+   Each line in this file has the following format:
+   test-name   sample.pcap   sample.out   tcpdump-options
+
+   the sample.out file can be build by:
+   (cd tests && ../tcpdump -n -r sample.pcap tcpdump-options > sample.out)
+
+   It is often useful to have test outputs with different verbosity levels
+   (none, -v, -vv, -vvv, etc.) depending on the code.
+
+7) Test with 'make check'
+   Don't send a pull request if 'make check' gives failed tests.
+
+8) Try to rebase your commits to keep the history simple.
+   git rebase upstream/master
+   (If the rebase fails and you cannot resolve, issue "git rebase --abort"
+   and ask for help in the pull request comment.)
+
+9) Once 100% happy, put your work into your forked repository.
+   git push
+
+10) Initiate and send a pull request
+   (See https://help.github.com/articles/using-pull-requests/)
+
+
+Code style and generic remarks
+------------------------------
+a) A thorough reading of some other printers code is useful.
+
+b) Put the normative reference if any as comments (RFC, etc.).
+
+c) Put the format of packets/headers/options as comments if there is no
+   published normative reference.
+
+d) The printer may receive incomplete packet in the buffer, truncated at any
+   random position, for example by capturing with '-s size' option.
+   Thus use ND_TTEST, ND_TTEST2, ND_TCHECK or ND_TCHECK2 for bound checking.
+   For ND_TCHECK2:
+     Define : static const char tstr[] = " [|protocol]";
+     Define a label: trunc
+     Print with: ND_PRINT((ndo, "%s", tstr));
+   You can test the code via:
+     sudo ./tcpdump -s snaplen [-v][v][...] -i lo # in a terminal
+     sudo tcpreplay -i lo sample.pcap             # in another terminal
+   You should try several values for snaplen to do various truncation.
+
+e) Do invalid packet checks in code: Think that your code can receive in input
+   not only a valid packet but any arbitrary random sequence of octets (packet
+   - built malformed originally by the sender or by a fuzz tester,
+   - became corrupted in transit).
+   Print with: ND_PRINT((ndo, "%s", istr));	/* to print " (invalid)" */
+
+f) Use 'struct tok' for indexed strings and print them with
+   tok2str() or bittok2str() (for flags).
+
+g) Avoid empty lines in output of printers.
+
+h) A commit message must have:
+   First line: Capitalized short summary in the imperative (70 chars or less)
+
+   Body: Detailed explanatory text, if necessary. Fold it to approximately
+   72 characters. There must be an empty line separating the summary from
+   the body.
+
+i) Avoid non-ASCII characters in code and commit messages.
+
+j) Use the style of the modified sources.
+
+k) Don't mix declarations and code
+
+l) Don't use // for comments
+   Not all C compilers accept C++/C99 comments by default.
+
+m) Avoid trailing tabs/spaces

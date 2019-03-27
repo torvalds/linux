@@ -1,0 +1,788 @@
+.\" Copyright (c) 2015, 2018 Chelsio Inc
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Chelsio Inc nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Sep 21, 2018
+.Dt CXGBETOOL 8
+.Os
+.Sh NAME
+.Nm cxgbetool
+.Nd Userspace companion to
+.Xr cxgbe 4
+.Sh SYNOPSIS
+.Bl -item -compact
+.It
+.Nm Ar nexus command Op Ar parameter ...
+.Pp
+.It
+.Nm Ar nexus Cm clearstats Ar port_id
+.It
+.Nm Ar nexus Cm context Bro Cm ingress | egress | fl | cong Brc Ar cntxt_id
+.It
+.Nm Ar nexus Cm hashfilter mode
+.It
+.Nm Ar nexus Cm hashfilter Ar filter-specification
+.It
+.Nm Ar nexus Cm hashfilter Ar idx Cm delete
+.It
+.Nm Ar nexus Cm hashfilter list
+.It
+.Nm Ar nexus Cm filter mode
+.It
+.Nm Ar nexus Cm filter Ar idx Ar filter-specification
+.It
+.Nm Ar nexus Cm filter Ar idx Cm delete Op Cm prio Bro Cm 0 | 1 Brc
+.It
+.Nm Ar nexus Cm filter list
+.It
+.Nm Ar nexus Cm i2c Ar port_id devaddr addr Op Ar len
+.It
+.Nm Ar nexus Cm loadcfg Ar fw-config.txt
+.It
+.Nm Ar nexus Cm loadcfg clear
+.It
+.Nm Ar nexus Cm loadfw Ar fw-image.bin
+.It
+.Nm Ar nexus Cm memdump Ar addr len
+.It
+.Nm Ar nexus Cm policy Ar cop.txt
+.It
+.Nm Ar nexus Cm policy clear
+.It
+.Nm Ar nexus Bro Cm reg | reg64 Brc Ar addr Ns Op Ar =val
+.It
+.Nm Ar nexus Cm regdump Op Ar register-block ...
+.It
+.Nm Ar nexus Cm sched-class Ar sub-command Op Ar param Ar value
+.It
+.Nm Ar nexus Cm sched-queue Ar port Ar queue Ar class
+.It
+.Nm Ar nexus Cm stdio
+.It
+.Nm Ar nexus Cm tcb Ar tid
+.El
+.Sh DESCRIPTION
+.Nm
+provides command-line access to features and debug facilities exported by
+.Xr cxgbe 4
+via private ioctls.
+The target nexus device,
+.Va t4nex%d
+, is always the first argument.
+(The parent nexus for an Ethernet port
+.Va cxgbe%d
+is listed in
+.Va dev.cxgbe.%d.%parent
+in the
+.Xr sysctl 8
+MIB).
+The rest consists of a command and any parameters required by that command.
+.Ss Commands
+.Bl -ohang
+.It Cm clearstats Ar port_id
+Clear all transmit, receive, and error statistics of all queues associated
+with a port.
+The total number of ports attached to a nexus is listed in
+.Va dev.t4nex.%d.nports
+and the 0 based
+.Ar port_id
+identifies a port within this range.
+.Pp
+.Bl -item -compact
+.It
+.Cm context ingress Ar ingress_cntxt_id
+.It
+.Cm context cong Ar ingress_cntxt_id
+.It
+.Cm context egress Ar egress_cntxt_id
+.It
+.Cm context fl Ar flm_cntxt_id
+.El
+Display hardware context for an ingress queue, congestion manager, egress
+queue, or freelist manager.
+.Bl -tag -width ingress_cntxt_id -compact
+.It Ar ingress_cntxt_id
+context id of an ingress queue -- the value listed in one of
+.Va dev.t4nex.%d.fwq.cntxt_id Ns ,
+.Va dev.cxgbe.%d.rxq.%d.cntxt_id Ns ,
+or
+.Va dev.cxgbe.%d.ofld_rxq.%d.cntxt_id Ns .
+.It Ar egress_cntxt_id
+context id of an egress queue -- the value listed in one of
+.Va dev.t4nex.%d.mgmtq.cntxt_id Ns ,
+.Va dev.cxgbe.%d.txq.%d.cntxt_id Ns ,
+.Va dev.cxgbe.%d.ctrlq.%d.cntxt_id Ns ,
+.Va dev.cxgbe.%d.ofld_txq.%d.cntxt_id Ns ,
+.Va dev.cxgbe.%d.rxq.%d.fl.cntxt_id Ns ,
+or
+.Va dev.cxgbe.%d.ofld_rxq.%d.fl.cntxt_id Ns .
+Note that freelists are egress queues too.
+.It Ar flm_cntxt_id
+context id of a freelist manager.
+The FLM context id is displayed in the
+egress context dump of a freelist as FLMcontextID.
+.El
+.Pp
+.Bl -item -compact
+.It
+.Cm hashfilter mode
+.It
+.Cm filter mode
+.El
+Display a list of match-criteria available for use in filter rules.
+A full list of match-criteria known to the chip is in the table below but not
+all can be used together and the firmware sets up the available parameters based
+on "filterMode" in the configuration file.
+Every filter must conform to the filter mode -- multiple match criteria per
+filter are allowed but only from among those in the current setting of the
+filter mode.
+The filter mode for hash filters is a subset of that for normal TCAM filters and
+depends on the "filterMask" setting in the firmware configuration file.
+Hash filters do not support masked matches and an exact value for every
+parameter in the output of "hashfilter mode" (except ipv4/ipv6) must be provided
+when creating a hash filter.
+.Pp
+(Note that
+.Ar mask
+defaults to all 1s when not provided explicitly.
+Hash filters do not support masked matches.
+Also note that many of the items being matched are discrete numeric
+values rather than bit fields and should be masked with caution.)
+.TS
+center expand;
+cb cb cbw(40m)
+cb l l.
+Criteria	Usage	Matches if ...
+_
+ipv4	T{
+.Cm type ipv4
+T}	T{
+incoming packet is an IPv4 datagram.
+T}
+_
+ipv6	T{
+.Cm type ipv6
+T}	T{
+incoming packet is an IPv6 datagram.
+T}
+_
+sip	T{
+.Cm sip Ar addr Ns Op / Ns Ar mask
+T}	T{
+bitwise and of the source address in an incoming IP datagram with
+.Ar mask
+equals
+.Ar addr Ns .
+.Ar addr
+can be an IPv4 or IPv6 address.
+T}
+_
+dip	T{
+.Cm dip Ar addr Ns Op / Ns Ar mask
+T}	T{
+bitwise and of the destination address in an incoming IP datagram with
+.Ar mask
+equals
+.Ar addr Ns .
+.Ar addr
+can be an IPv4 or IPv6 address.
+T}
+_
+sport	T{
+.Cm sport Ar port Ns Op : Ns Ar mask
+T}	T{
+bitwise and of the source port in an incoming TCP or UDP datagram with
+.Ar mask
+equals
+.Ar port Ns .
+T}
+_
+dport	T{
+.Cm dport Ar port Ns Op : Ns Ar mask
+T}	T{
+bitwise and of the destination port in an incoming TCP or UDP datagram with
+.Ar mask
+equals
+.Ar port Ns .
+T}
+_
+fcoe	T{
+.Cm fcoe Brq 0 | 1
+T}	T{
+incoming frame is Fibre Channel over Ethernet(1) or not(0).
+T}
+_
+iport	T{
+.Cm iport Ar val Ns Op : Ns Ar mask
+T}	T{
+bitwise and of the ingress port with
+.Ar mask
+equals
+.Ar val Ns .
+The ingress port is a 3 bit number that identifies the port on which a
+frame arrived.
+Physical ports are numbered 0-3 and 4-7 are internal loopback paths
+within the chip.
+Note that ingress port is not a bit field so it is not always possible
+to match an arbitrary subset of ingress ports with a single filter rule.
+T}
+_
+ovlan	T{
+.Cm ovlan Ar tag Ns Op : Ns Ar mask
+T}	T{
+bitwise and of the 16-bit outer VLAN tag of an incoming frame with
+.Ar mask
+equals
+.Ar tag Ns .
+T}
+_
+vlan	T{
+.Cm vlan Ar tag Ns Op : Ns Ar mask
+T}	T{
+bitwise and of the 16-bit VLAN tag of an incoming QinQ frame with
+.Ar mask
+equals
+.Ar tag Ns .
+The inner VLAN tag is used if the incoming frame is QinQ.
+T}
+_
+tos	T{
+.Cm tos Ar val Ns Op : Ns Ar mask
+T}	T{
+bitwise and of the 8-bit IP Type of Service/IPv6 Traffic Class in an
+incoming packet with
+.Ar mask
+equals
+.Ar val Ns .
+T}
+_
+proto	T{
+.Cm proto Ar ipproto Ns Op : Ns Ar mask
+T}	T{
+bitwise and of the 8-bit IP protocol in an incoming packet with
+.Ar mask
+equals
+.Ar ipproto Ns .
+T}
+_
+ethtype	T{
+.Cm ethtype Ar type Ns Op : Ns Ar mask
+T}	T{
+bitwise and of the 16-bit Ethernet type field of an incoming frame with
+.Ar mask
+equals
+.Ar type Ns .
+T}
+_
+macidx	T{
+.Cm macidx Ar idx Ns Op : Ns Ar mask
+T}	T{
+bitwise and of the MAC Address Match Index of an incoming frame with
+.Ar mask
+equals
+.Ar idx Ns .
+The MAC Address Match Index refers to an entry in the MPS TCAM or in the
+MPS hash.  See
+.Cm matchtype
+for more information.
+T}
+_
+matchtype	T{
+.Cm matchtype Ar type Ns Op : Ns Ar mask
+T}	T{
+bitwise and of the Match Type of an incoming frame with
+.Ar mask
+equals
+.Ar idx Ns .
+Match Type is one of the following:
+.Bl -tag -width "n" -compact
+.It 0
+destination MAC in incoming frame is a unicast L2 address that is
+programmed in the MPS TCAM.
+.Cm macidx
+can be used to match the index (and thus the MAC address) of the match
+in the TCAM.
+.It 1
+destination MAC in incoming frame is a unicast L2 address that "hit" a
+hash entry in the MPS hash table.
+.Cm macidx
+can be used to match the index of the entry in the MPS hash table.
+.It 2
+destination MAC in incoming frame is a multicast L2 address that is
+programmed in the MPS TCAM.
+.Cm macidx
+can be used to match the index (and thus the MAC address) of the match
+in the TCAM.
+.It 3
+destination MAC in incoming frame is a multicast L2 address that "hit"
+an entry in the MPS hash table.
+.It 4
+interface on which incoming frame was received is in promiscuous mode
+and the destination MAC in the frame is not a broadcast address, and
+does not match in the MPS TCAM or the MPS hash either.  (The frame would
+have been discarded if the interface wasn't in promiscuous mode.)
+.It 5
+interface on which incoming frame was received is in promiscuous mode
+and the destination MAC in the frame is not a broadcast address; it
+wasn't looked up in the MPS TCAM or the MPS hash because the chip is
+configured to give precedence to promiscuous mode classification.
+.It 6
+destination MAC in incoming frame is a broadcast address.
+.It 7
+Not documented.  Do not use.
+.El
+T}
+_
+frag	T{
+.Cm frag Brq 0 | 1
+T}	T{
+incoming frame is part of a fragmented IP datagram(1) or not(0).
+T}
+.TE
+.Pp
+.Bl -item -compact
+.It
+.Cm hashfilter Ar filter-specification
+.It
+.Cm filter Ar idx Ar filter-specification
+.El
+Program a filter.
+.Pp
+TCAM filters: The number of available filters is in
+dev.<nexus>.<instance>.nfilters.
+.Ar idx
+must be an unused index between 0 and nfilters - 1.
+IPv6 filters consume 4 consecutive entries on T4/T5 and 2 on T6 and
+.Ar idx
+must be aligned to 4 or 2 in this case.
+.Pp
+Hash filters:  These reside in the card's memory instead of its TCAM and are
+enabled with a special configuration file that is selected with
+.Cm hw.cxgbe.config_file="hashfilter"
+in loader.conf.
+There are at least half a million filters available with the sample config
+shipped with the driver.
+Note that the hardware selects the index for a hashfilter and this index is
+displayed when the filter is created.
+Hash and TCAM filters can be used together.
+.Pp
+.Ar filter-specification
+consists of one or more matches (see Usage in the table above) to try against an
+incoming frame, an action to perform when all matches succeed, and some
+additional operational parameters.
+Hashfilters require an exact value for the 5-tuple (sip, dip, sport, dport,
+proto) and for any other match-criteria listed in "hashfilter mode".
+Possible filter actions are
+.Cm drop Ns ,
+.Cm pass Ns , or
+.Cm switch Ns .
+.Pp
+.Bl -tag -width nat_dport -offset indent -compact
+Operational parameters that can be used with all filters:
+.It Cm hitcnts
+Count filter hits: 0 or 1 (default).
+.It Cm prio
+Filter has priority over active and server regions of TCAM: 0 (default) or 1.
+.El
+.Pp
+.Bl -tag -width nat_dport -offset indent -compact
+Operational parameters that can be used with filters with
+.Cm action pass Ns :
+.It Cm queue
+Context id of an ingress queue to which to deliver the packet.
+The context id is available in
+.Va dev.cxgbe.%d.rxq.%d.cntxt_id .
+By default, packets that hit a filter with action pass are delivered based on
+their RSS hash as usual.
+Use this to steer them to a particular queue.
+.It Cm rpttid
+Report the filter tid instead of the RSS hash in the rx descriptor.
+0 (default) or 1.
+.It Cm tcbhash
+Select TCB hash information in rx descriptor.
+0 (default) or 1
+.El
+.Pp
+.Bl -tag -width nat_dport -offset indent -compact
+Operational parameters that can be used with filters with
+.Cm action switch Ns :
+.It Cm eport
+Egress port number on which to send the packet matching the filter.
+0 to dev.<nexus>.<instance>.nports - 1.
+.It Cm dmac
+Replace packet destination MAC address with the one provided before switching
+it out of eport.
+.It Cm smac
+Replace packet source MAC address with the one provided before switching it
+out of eport.
+.It Cm swapmac
+Swap packet source and destination MAC addresses before switching it out of
+eport.
+.It Cm vlan
+Insert, remove, or rewrite the VLAN tag before switching the packet out of
+eport.
+.Cm none
+removes the tag,
+.Cm = Ns Ar tag
+replaces the existing tag with the one provided, and
+.Cm + Ns Ar tag
+inserts the given tag into the frame.
+.It Cm nat
+Specify the desired NAT mode. Valid NAT modes values are:
+.Bl -tag -width dip-dp-sip -compact
+.It Cm dip
+Perform NAT on destination IP.
+.It Cm dip-dp
+Perform NAT on destination IP, destination port.
+.It Cm dip-dp-sip
+Perform NAT on destination IP, destination port, source IP.
+.It Cm dip-dp-sp
+Perform NAT on destination IP, destination port, source port.
+.It Cm sip-sp
+Perform NAT on source IP, source port.
+.It Cm dip-sip-sp
+Perform NAT on destination IP, source IP, source port.
+.It Cm all
+Perform NAT on all 4-tuple fields.
+.El
+.It Cm natflag
+Perform NAT only on segments which do not have TCP FIN or RST set.
+.It Cm natseq
+Perform NAT only if incoming segment's sequence number + payload length is less
+than this supplied value.
+.It Cm nat_dip
+Perform NAT using this destination IP.
+.It Cm nat_sip
+Perform NAT using this source IP.
+.It Cm nat_dport
+Perform NAT using this destination port.
+.It Cm nat_sport
+Perform NAT using this source port.
+Perform NAT only if incoming segment's sequence number + payload length is less
+than this supplied value.
+.El
+.Pp
+.Bl -item -compact
+.It
+.Cm hashfilter Ar idx Cm delete
+.It
+.Cm filter Ar idx Cm delete
+.El
+Delete filter that is at the given index.
+.It Cm filter Cm list
+List all filters programmed into the hardware.
+.It Cm i2c Ar port_id devaddr addr Op Ar len
+.It Cm loadcfg Ar fw-config.txt
+Install the firmware configuration file contained in
+.Ar fw-config.txt
+to the card.
+Set hw.cxgbe.config_file="flash" in loader.conf to get
+.Xr cxgbe 4
+to use the on-flash configuration.
+.It Cm loadcfg Cm clear
+Erase configuration file from the card.
+.It Cm loadfw Ar fw-image.bin
+Install the firmware contained in
+.Ar fw-image.bin
+to the card.
+.It Cm memdump Ar addr len
+Display
+.Ar len
+bytes of data of the card's memory starting at
+.Ar addr Ns .
+The card's memory map is available in
+.Va dev.t4nex.%d.misc.meminfo Ns .
+.It Cm policy Ar cop.txt
+Install the Connection Offload Policy (COP) in
+.Ar cop.txt Ns .
+A COP offers fine-grained control over which connections get offloaded and with
+what parameters.
+Set
+.Cm hw.cxgbe.cop_managed_offloading="1"
+in loader.conf to ensure that t4_tom will not offload any connection before a
+COP is installed.
+Note that t4_tom must be loaded and operational (IFCAP_TOE enabled) as always
+for any kind of offload based on the hardware TOE.
+.Bl -column -offset indent "COP installed" "cop_managed_offloading" "Behavior"
+.It Sy COP installed Ta Sy cop_managed_offloading Ta Sy Behavior
+.It NO Ta 0 Ta offload all [Default]
+.It NO Ta 1 Ta no offload
+.It YES Ta Don't Care Ta Rule based offload
+.El
+.Pp
+The policy file consists of empty lines, comments (lines begining with #) and
+any number of rules.
+Rules are applied in the order they appear in the file and processing stops at
+the first match.
+There is an implicit rule that disables offload for connections that do not
+match anything in the policy.
+.Pp
+Each rule consists of a filter part, which determines what connections the
+rule applies to, and a settings part, which determines whether whether matching
+connections will be offloaded and, if so, with what settings.
+The general form of a rule is
+.Bl -ohang -offset indent
+.It Cm \&[ Ar socket-type Cm \&] Ar pcap-filter Cm => Ar settings
+.Pp
+.Ar socket-type
+is one of the following.
+.Bl -tag -width "X" -compact
+.It Sy A
+Active open.
+Connection is being opened by this host.
+.It Sy P
+Passive open.
+Connection was requested by a peer.
+.It Sy L
+Listen called on a socket.
+Disabling offload in such a rule will prevent a hardware listener from being started.
+.It Sy D
+Don't care.
+Matches all of the above.
+.El
+.Pp
+.Ar pcap-filter
+is an expression that follows the
+.Xr pcap-filter 7
+syntax, or it is the keyword
+.Cm all
+that matches everything.
+.Pp
+.Ar settings
+determine whether connections matching
+.Ar socket-type
+and
+.Ar pcap-filter
+are offloaded and optionally sets some per-connection properties if they are.
+A combination of the following is allowed.
+.Bl -tag -width "timestamp" -compact
+.It Cm offload
+Connection should be offloaded.
+Use
+.Cm !offload
+or
+.Cm not offload
+to disable offload instead.
+.It Cm coalesce
+Enable rx payload coalescing.
+Negate to disable.
+.It Cm timestamp
+Enable TCP timestamp option.
+Negate to disable.
+.It Cm sack
+Enable TCP Selective Acknowledgements (SACK).
+Negate to disable.
+.It Cm nagle
+Enable Nagle's algorithm.
+Negate to disable.
+.It Cm ecn
+Enable Explicit Congestion Notification (ECN).
+Negate to disable.
+.It Cm ddp
+Use Direct Data Placement (zero copy receive) and zero copy transmit on the
+connection to service AIO requests on the socket.
+Negate to disable.
+.It Cm tls
+Set ULP mode to ULP_MODE_TLS.
+.It Cm cong Ar algo
+Use the specified congestion control algorithm.
+.Ar algo
+must be one of
+.Cm reno Ns , Cm tahoe Ns , Cm newreno Ns , or Cm highspeed Ns .
+.It Cm class Ar sc
+Bind the connection to the specified tx scheduling class.
+Valid range is 0 to 14 (for T4) and 0 to 15 (T5 onwards).
+.It Cm rxq Ar qid
+Use the specified offload rx queue.
+.Ar qid
+should be between 0 and nofldrxq for the ifnet.
+.It Cm txq Ar qnum
+Use the specified offload tx queue.
+.Ar qid
+should be between 0 and nofldtxq for the ifnet.
+.It Cm bind Ar qnum
+Shorthand for
+.Cm rxq Ar qnum Cm txq Ar qnum Ns .
+Use only when nofldrxq is the same as nofldtxq.
+.It Cm mss Ar val
+Set the advertised TCP MSS in the SYN for this connection to
+.Ar val
+(in bytes).
+The hardware MTU table must already have an entry that is suitable for the MSS.
+.El
+.Pp
+.It Example of a COP.
+Note that hardware listener for port 22 will be IPv4 only because the rule
+before it will prevent any IPv6 servers other than the first two.  Also note
+that outgoing connections to 192.168/16 are the only outgoing connections that
+will get offloaded.
+.Bd -literal
+[L] port 80 => offload
+[L] port 443 => offload
+[L] ip6 => !offload
+[L] port 22 => offload
+[P] dst port 80 => offload cong highspeed !sack !ecn
+[P] dst port 443 => offload tls
+[A] dst net 192.168/16 => offload
+[A] all => !offload
+[D] port 22 => offload !nagle
+.Ed
+.El
+.It Cm policy clear
+Remove the Connection Offload Policy (COP) if one is in use.
+.It Bro Cm reg | reg64 Brc Ar addr Ns Op Ar =val
+.It Cm regdump Op Ar register-block ...
+Display contents of device registers.
+One or more
+.Ar register-block
+can be specified to limit the registers displayed.
+The default is to display registers for all blocks.
+Registers with read side effects are not read during a
+.Cm regdump
+operation.
+.Ar register-block
+can be
+.Cm sge pci dbg mc ma edc0 edc1 cim tp ulp_rx ulp_tx pmrx pmtx mps cplsw
+.Cm smb i2c mi uart pmu sf pl le ncsi xgmac Ns .
+.It Cm sched-class config Op Ar param Ar value
+Configure optional feature capabilities for the TX scheduler.
+.Bl -ohang -offset indent
+.It Sy type Ar scheduler-type
+Use packet for the packet scheduler.
+.It Sy minmax Ar value
+A non-zero value will enable "minmax" mode; a zero value will disable "minmax" mode.
+.Pp
+NOTE:  Many (most) of the parameters and constraints are adapter-specific
+- for instance the number of channels and classes which are available
+whether various modes are implemented, etc.
+Consult the adapter documentation for specific information on any limitations.
+.El
+.It Cm sched-class params Op Ar param Ar value
+Configure parameters for a scheduling class.
+.Bl -ohang -offset indent
+.It Sy type Ar scheduler-type
+Use packet for packet scheduler.
+.It Sy level Ar scheduler-hierarchy-level
+The "level" within the scheduling hierarchy which is being programed:
+.Pp
+.Bl -tag -width "cl-wrr" -compact -offset indent
+.It Sy cl-rl
+Class Rate Limiting.
+.Pp
+.It Sy cl-wrr
+Class Weighted Round Robin.
+.Pp
+.It Sy ch-rl
+Channel Rate Limiting.
+.El
+.It Sy mode Ar scheduler-mode
+The mode in which the scheduling class is going to operate:
+.Pp
+.Bl -tag -width "class" -compact -offset indent
+.It Sy class
+All of the "flows" bound to the scheduling class will be held to aggregate scheduling constraints.
+.Pp
+.It Sy flow
+Each of the "flows" bound to the scheduling class will be held to the scheduling constraints.
+.El
+.Pp
+E.g. if the scheduling class has a TX bandwidth of 10Mb/s, in
+.Cm class
+mode, all of the "flows" bound to the class would be  limited  to  an
+aggregate bandwidth of 10Mb/s; but in
+.Cm flow
+mode, each of the "flows" bound to the scheduling class would be limited to 10Mb/s.
+.It Sy rate-unit Ar scheduler-rate-unit
+The units of the scheduler rate constraints:
+.Pp
+.Bl -tag -width "bits" -compact -offset indent
+.It Sy bits
+bit rate in Kb/s.
+.Pp
+.It Sy pkts
+packets/s.
+.El
+.It Sy rate-mode Ar scheduler-rate-mode
+The mode of the scheduler rate constraints:
+.Pp
+.Bl -tag -width "relative" -compact -offset indent
+.It Sy relative
+percent of port rate.
+.Pp
+.It Sy absolute
+Kb/s.
+.El
+.It Sy channel Ar scheduler-channel-index
+The scheduling channel to which the scheduling class will be bound.
+.It Sy class Ar scheduler-class-index
+The scheduling class being programmed.
+.It Sy min-rate Ar minimum-rate
+The minimum guaranteed rate to which a rate-limiting scheduling class hierarchy will have access.
+.It Sy max-rate Ar maximum-rate
+The maximum rate for a rate-limiting scheduling class hierarchy.
+.It Sy weight Ar round-robin-weight
+The weight to be used for a weighted-round-robin scheduling hierarchy.
+.It Sy pkt-size Ar average-packet-size
+The average packet size will be used to compute scheduler constraints for a rate-limited scheduler class hierarchy.
+.Pp
+NOTE:  Many (most) of the parameters and constraints are adapter-specific - for instance the number of channels and classes which are available,
+whether various modes are implemented, etc.
+Consult the adapter documentation for specific information on any limitations.
+.El
+.It Cm sched-queue Ar port queue class
+Bind the indicated port's NIC TX
+.Ar queue
+to the specified TX Scheduler
+.Ar class.
+If the TX
+.Ar queue
+is
+.Cm all, *
+or any negative value, the binding will apply to
+all  of  the TX queues associated with the
+.Ar interface.
+If the class is
+.Cm unbind, clear
+or any negative value, the TX queue(s) will be unbound from
+any current TX Scheduler Class binding.
+.It Cm stdio
+Switch to interactive mode.
+.It Cm tcb Ar tid
+Display contents of the hardware TCB (TCP Control Block) for the
+connection identfied by
+.Ar tid Ns .
+.El
+.Sh FILES
+/sys/dev/cxgbe/t4_ioctl.h
+.Sh AUTHORS
+This manual page was written by
+.An Navdeep Parhar Aq np@FreeBSD.org .

@@ -1,0 +1,10 @@
+$FreeBSD$
+
+To verify that redzone(9) works properly:
+
+	# make
+	# make install
+	# kldload redzone
+	# sh test.sh
+
+And look at the logs/console output.

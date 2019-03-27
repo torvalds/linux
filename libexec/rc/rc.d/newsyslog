@@ -1,0 +1,27 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: newsyslog
+# REQUIRE: FILESYSTEMS mountcritremote
+
+. /etc/rc.subr
+
+name="newsyslog"
+desc="Logfile rotation"
+rcvar="newsyslog_enable"
+required_files="/etc/newsyslog.conf"
+command="/usr/sbin/${name}"
+start_cmd="newsyslog_start"
+stop_cmd=":"
+
+newsyslog_start()
+{
+	check_startmsgs && echo -n 'Creating and/or trimming log files'
+	${command} ${rc_flags}
+	check_startmsgs && echo '.'
+}
+
+load_rc_config $name
+run_rc_command "$1"

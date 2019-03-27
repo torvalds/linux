@@ -1,0 +1,69 @@
+# Allowance for leap seconds added to each time zone file.
+
+# This file is in the public domain.
+
+# This file is generated automatically from the data in the public-domain
+# leap-seconds.list file, which can be copied from
+# <ftp://ftp.nist.gov/pub/time/leap-seconds.list>
+# or <ftp://ftp.boulder.nist.gov/pub/time/leap-seconds.list>
+# or <ftp://tycho.usno.navy.mil/pub/ntp/leap-seconds.list>.
+# For more about leap-seconds.list, please see
+# The NTP Timescale and Leap Seconds
+# <https://www.eecis.udel.edu/~mills/leap.html>.
+
+# The International Earth Rotation and Reference Systems Service
+# periodically uses leap seconds to keep UTC to within 0.9 s of UT1
+# (which measures the true angular orientation of the earth in space)
+# and publishes leap second data in a copyrighted file
+# <https://hpiers.obspm.fr/iers/bul/bulc/Leap_Second.dat>.
+# See: Levine J. Coordinated Universal Time and the leap second.
+# URSI Radio Sci Bull. 2016;89(4):30-6. doi:10.23919/URSIRSB.2016.7909995
+# <https://ieeexplore.ieee.org/document/7909995>.
+
+# There were no leap seconds before 1972, because the official mechanism
+# accounting for the discrepancy between atomic time and the earth's rotation
+# did not exist.  The first ("1 Jan 1972") data line in leap-seconds.list
+# does not denote a leap second; it denotes the start of the current definition
+# of UTC.
+
+# The correction (+ or -) is made at the given time, so lines
+# will typically look like:
+#	Leap	YEAR	MON	DAY	23:59:60	+	R/S
+# or
+#	Leap	YEAR	MON	DAY	23:59:59	-	R/S
+
+# If the leap second is Rolling (R) the given time is local time (unused here).
+Leap	1972	Jun	30	23:59:60	+	S
+Leap	1972	Dec	31	23:59:60	+	S
+Leap	1973	Dec	31	23:59:60	+	S
+Leap	1974	Dec	31	23:59:60	+	S
+Leap	1975	Dec	31	23:59:60	+	S
+Leap	1976	Dec	31	23:59:60	+	S
+Leap	1977	Dec	31	23:59:60	+	S
+Leap	1978	Dec	31	23:59:60	+	S
+Leap	1979	Dec	31	23:59:60	+	S
+Leap	1981	Jun	30	23:59:60	+	S
+Leap	1982	Jun	30	23:59:60	+	S
+Leap	1983	Jun	30	23:59:60	+	S
+Leap	1985	Jun	30	23:59:60	+	S
+Leap	1987	Dec	31	23:59:60	+	S
+Leap	1989	Dec	31	23:59:60	+	S
+Leap	1990	Dec	31	23:59:60	+	S
+Leap	1992	Jun	30	23:59:60	+	S
+Leap	1993	Jun	30	23:59:60	+	S
+Leap	1994	Jun	30	23:59:60	+	S
+Leap	1995	Dec	31	23:59:60	+	S
+Leap	1997	Jun	30	23:59:60	+	S
+Leap	1998	Dec	31	23:59:60	+	S
+Leap	2005	Dec	31	23:59:60	+	S
+Leap	2008	Dec	31	23:59:60	+	S
+Leap	2012	Jun	30	23:59:60	+	S
+Leap	2015	Jun	30	23:59:60	+	S
+Leap	2016	Dec	31	23:59:60	+	S
+
+# POSIX timestamps for the data in this file:
+#updated 1467936000
+#expires 1577491200
+
+#	Updated through IERS Bulletin C57
+#	File expires on:  28 December 2019

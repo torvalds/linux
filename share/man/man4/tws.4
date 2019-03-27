@@ -1,0 +1,118 @@
+.\"
+.\"Copyright (c) 2010, 2011 iXsystems, Inc.
+.\"All rights reserved.
+.\" written by: Xin LI <delphij@FreeBSD.org>
+.\"
+.\"Redistribution and use in source and binary forms, with or without
+.\"modification, are permitted provided that the following conditions
+.\"are met:
+.\"1. Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\"2. Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\"
+.\"THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\"ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\"IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\"ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\"FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\"OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\"HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\"LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\"OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\"SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 4, 2011
+.Dt TWS 4
+.Os
+.Sh NAME
+.Nm tws
+.Nd 3ware 9750 SATA+SAS 6Gb/s RAID controller card driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device tws"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+tws_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for LSI's 3ware 9750 SATA+SAS 6Gb/s RAID controller cards.
+.Pp
+These controllers feature the LSISAS2108 6Gb/s SAS RAID-on-Chip (ROC)
+and are available in 4- and 8-port configurations, supports RAID levels
+0, 1, 5, 6, 10, 50 and single disk, with 96 SATA and/or SAS hard drives and SSDs.
+.Pp
+For further hardware information, see
+.Pa http://www.lsi.com/.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following SATA/SAS RAID controller:
+.Pp
+.Bl -bullet -compact
+.It
+LSI's 3ware SAS 9750 series
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width "hw.tws.use_32bit_sgls"
+.It Va hw.tws.cam_depth
+The maximum queued CAM SIM requests for one controller.
+The default value is 256.
+.It Va hw.tws.enable_msi
+This tunable enables MSI support on the controller if set to a non-zero value.
+The default value is 0.
+.It Va hw.tws.queue_depth
+The maximum queued requests for one controller.
+.It Va hw.tws.use_32bit_sgls
+Limit the driver to use only 32-bit SG elements regardless whether the operating
+system is running in 64-bit mode.
+The default value is 0.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/tws?" -compact
+.It Pa /dev/da?
+array/logical disk interface
+.It Pa /dev/tws?
+management interface
+.El
+.Sh DIAGNOSTICS
+Whenever the driver encounters a command failure, it prints out an error code in
+the format:
+.Qq Li "ERROR: (<error source>: <error code>):" ,
+followed by a text description of the error.
+There are other error messages and warnings that the
+driver prints out, depending on the kinds of errors that it encounters.
+If the driver is compiled with
+.Dv TWS_DEBUG
+defined, it prints out a whole bunch of debug
+messages.
+.Sh SEE ALSO
+.Xr da 4 ,
+.Xr scsi 4
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Manjunath Ranganathaiah
+for LSI and this manual page was written by
+.An Xin LI Aq Mt delphij@FreeBSD.org
+for iXsystems, Inc.

@@ -1,0 +1,343 @@
+.\"
+.\" Copyright (C) 2001 Jason Evans <jasone@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 11, 2017
+.Dt SX 9
+.Os
+.Sh NAME
+.Nm sx ,
+.Nm sx_init ,
+.Nm sx_init_flags ,
+.Nm sx_destroy ,
+.Nm sx_slock ,
+.Nm sx_xlock ,
+.Nm sx_slock_sig ,
+.Nm sx_xlock_sig ,
+.Nm sx_try_slock ,
+.Nm sx_try_xlock ,
+.Nm sx_sunlock ,
+.Nm sx_xunlock ,
+.Nm sx_unlock ,
+.Nm sx_try_upgrade ,
+.Nm sx_downgrade ,
+.Nm sx_sleep ,
+.Nm sx_xholder ,
+.Nm sx_xlocked ,
+.Nm sx_assert ,
+.Nm SX_SYSINIT ,
+.Nm SX_SYSINIT_FLAGS
+.Nd kernel shared/exclusive lock
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/lock.h
+.In sys/sx.h
+.Ft void
+.Fn sx_init "struct sx *sx" "const char *description"
+.Ft void
+.Fn sx_init_flags "struct sx *sx" "const char *description" "int opts"
+.Ft void
+.Fn sx_destroy "struct sx *sx"
+.Ft void
+.Fn sx_slock "struct sx *sx"
+.Ft void
+.Fn sx_xlock "struct sx *sx"
+.Ft int
+.Fn sx_slock_sig "struct sx *sx"
+.Ft int
+.Fn sx_xlock_sig "struct sx *sx"
+.Ft int
+.Fn sx_try_slock "struct sx *sx"
+.Ft int
+.Fn sx_try_xlock "struct sx *sx"
+.Ft void
+.Fn sx_sunlock "struct sx *sx"
+.Ft void
+.Fn sx_xunlock "struct sx *sx"
+.Ft void
+.Fn sx_unlock "struct sx *sx"
+.Ft int
+.Fn sx_try_upgrade "struct sx *sx"
+.Ft void
+.Fn sx_downgrade "struct sx *sx"
+.Ft int
+.Fn sx_sleep "void *chan" "struct sx *sx" "int priority" "const char *wmesg" "int timo"
+.Ft "struct thread *"
+.Fn sx_xholder "struct sx *sx"
+.Ft int
+.Fn sx_xlocked "const struct sx *sx"
+.Pp
+.Cd "options INVARIANTS"
+.Cd "options INVARIANT_SUPPORT"
+.Ft void
+.Fn sx_assert "const struct sx *sx" "int what"
+.In sys/kernel.h
+.Fn SX_SYSINIT "name" "struct sx *sx" "const char *desc"
+.Fn SX_SYSINIT_FLAGS "name" "struct sx *sx" "const char *desc" "int flags"
+.Sh DESCRIPTION
+Shared/exclusive locks are used to protect data that are read far more often
+than they are written.
+Shared/exclusive locks do not implement priority propagation like mutexes and
+reader/writer locks to prevent priority inversions, so
+shared/exclusive locks should be used prudently.
+.Pp
+Shared/exclusive locks are created with either
+.Fn sx_init
+or
+.Fn sx_init_flags
+where
+.Fa sx
+is a pointer to space for a
+.Vt struct sx ,
+and
+.Fa description
+is a pointer to a null-terminated character string that describes the
+shared/exclusive lock.
+The
+.Fa opts
+argument to
+.Fn sx_init_flags
+specifies a set of optional flags to alter the behavior of
+.Fa sx .
+It contains one or more of the following flags:
+.Bl -tag -width SX_NOADAPTIVE
+.It Dv SX_NOADAPTIVE
+Disable adaptive spinning, rather than sleeping, for lock operations
+while an exclusive lock holder is executing on another CPU.
+Adaptive spinning is the default unless the kernel is compiled with
+.Cd "options NO_ADAPTIVE_SX" .
+.It Dv SX_DUPOK
+Witness should not log messages about duplicate locks being acquired.
+.It Dv SX_NOWITNESS
+Instruct
+.Xr witness 4
+to ignore this lock.
+.It Dv SX_NOPROFILE
+Do not profile this lock.
+.It Dv SX_RECURSE
+Allow threads to recursively acquire exclusive locks for
+.Fa sx .
+.It Dv SX_QUIET
+Do not log any operations for this lock via
+.Xr ktr 4 .
+.It Dv SX_NEW
+If the kernel has been compiled with
+.Cd "options INVARIANTS" ,
+.Fn sx_init
+will assert that the
+.Fa sx
+has not been initialized multiple times without intervening calls to
+.Fn sx_destroy
+unless this option is specified.
+.El
+.Pp
+Shared/exclusive locks are destroyed with
+.Fn sx_destroy .
+The lock
+.Fa sx
+must not be locked by any thread when it is destroyed.
+.Pp
+Threads acquire and release a shared lock by calling
+.Fn sx_slock ,
+.Fn sx_slock_sig
+or
+.Fn sx_try_slock
+and
+.Fn sx_sunlock
+or
+.Fn sx_unlock .
+Threads acquire and release an exclusive lock by calling
+.Fn sx_xlock ,
+.Fn sx_xlock_sig
+or
+.Fn sx_try_xlock
+and
+.Fn sx_xunlock
+or
+.Fn sx_unlock .
+A thread can attempt to upgrade a currently held shared lock to an exclusive
+lock by calling
+.Fn sx_try_upgrade .
+A thread that has an exclusive lock can downgrade it to a shared lock by
+calling
+.Fn sx_downgrade .
+.Pp
+.Fn sx_try_slock
+and
+.Fn sx_try_xlock
+will return 0 if the shared/exclusive lock cannot be acquired immediately;
+otherwise the shared/exclusive lock will be acquired and a non-zero value will
+be returned.
+.Pp
+.Fn sx_try_upgrade
+will return 0 if the shared lock cannot be upgraded to an exclusive lock
+immediately; otherwise the exclusive lock will be acquired and a non-zero value
+will be returned.
+.Pp
+.Fn sx_slock_sig
+and
+.Fn sx_xlock_sig
+do the same as their normal versions but performing an interruptible sleep.
+They return a non-zero value if the sleep has been interrupted by a signal
+or an interrupt, otherwise 0.
+.Pp
+A thread can atomically release a shared/exclusive lock while waiting for an
+event by calling
+.Fn sx_sleep .
+For more details on the parameters to this function,
+see
+.Xr sleep 9 .
+.Pp
+When compiled with
+.Cd "options INVARIANTS"
+and
+.Cd "options INVARIANT_SUPPORT" ,
+the
+.Fn sx_assert
+function tests
+.Fa sx
+for the assertions specified in
+.Fa what ,
+and panics if they are not met.
+One of the following assertions must be specified:
+.Bl -tag -width ".Dv SA_UNLOCKED"
+.It Dv SA_LOCKED
+Assert that the current thread has either a shared or an exclusive lock on the
+.Vt sx
+lock pointed to by the first argument.
+.It Dv SA_SLOCKED
+Assert that the current thread has a shared lock on the
+.Vt sx
+lock pointed to by
+the first argument.
+.It Dv SA_XLOCKED
+Assert that the current thread has an exclusive lock on the
+.Vt sx
+lock pointed to
+by the first argument.
+.It Dv SA_UNLOCKED
+Assert that the current thread has no lock on the
+.Vt sx
+lock pointed to
+by the first argument.
+.El
+.Pp
+In addition, one of the following optional assertions may be included with
+either an
+.Dv SA_LOCKED ,
+.Dv SA_SLOCKED ,
+or
+.Dv SA_XLOCKED
+assertion:
+.Bl -tag -width ".Dv SA_NOTRECURSED"
+.It Dv SA_RECURSED
+Assert that the current thread has a recursed lock on
+.Fa sx .
+.It Dv SA_NOTRECURSED
+Assert that the current thread does not have a recursed lock on
+.Fa sx .
+.El
+.Pp
+.Fn sx_xholder
+will return a pointer to the thread which currently holds an exclusive lock on
+.Fa sx .
+If no thread holds an exclusive lock on
+.Fa sx ,
+then
+.Dv NULL
+is returned instead.
+.Pp
+.Fn sx_xlocked
+will return non-zero if the current thread holds the exclusive lock;
+otherwise, it will return zero.
+.Pp
+For ease of programming,
+.Fn sx_unlock
+is provided as a macro frontend to the respective functions,
+.Fn sx_sunlock
+and
+.Fn sx_xunlock .
+Algorithms that are aware of what state the lock is in should use either
+of the two specific functions for a minor performance benefit.
+.Pp
+The
+.Fn SX_SYSINIT
+macro is used to generate a call to the
+.Fn sx_sysinit
+routine at system startup in order to initialize a given
+.Fa sx
+lock.
+The parameters are the same as
+.Fn sx_init
+but with an additional argument,
+.Fa name ,
+that is used in generating unique variable names for the related
+structures associated with the lock and the sysinit routine.
+The
+.Fn SX_SYSINIT_FLAGS
+macro can similarly be used to initialize a given
+.Fa sx
+lock using
+.Fn sx_init_flags .
+.Pp
+A thread may not hold both a shared lock and an exclusive lock on the same
+lock simultaneously;
+attempting to do so will result in deadlock.
+.Sh CONTEXT
+A thread may hold a shared or exclusive lock on an
+.Nm
+lock while sleeping.
+As a result, an
+.Nm
+lock may not be acquired while holding a mutex.
+Otherwise, if one thread slept while holding an
+.Nm
+lock while another thread blocked on the same
+.Nm
+lock after acquiring a mutex, then the second thread would effectively
+end up sleeping while holding a mutex, which is not allowed.
+.Sh SEE ALSO
+.Xr lock 9 ,
+.Xr locking 9 ,
+.Xr mutex 9 ,
+.Xr panic 9 ,
+.Xr rwlock 9 ,
+.Xr sema 9
+.Sh BUGS
+A kernel without
+.Dv WITNESS
+cannot assert whether the current thread does or does not hold a shared lock.
+.Dv SA_LOCKED
+and
+.Dv SA_SLOCKED
+can only assert that
+.Em any
+thread holds a shared lock.
+They cannot ensure that the current thread holds a shared lock.
+Further,
+.Dv SA_UNLOCKED
+can only assert that the current thread does not hold an exclusive lock.

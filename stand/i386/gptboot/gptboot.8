@@ -1,0 +1,245 @@
+.\" Copyright (c) 2013 Warren Block
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 5, 2014
+.Dt GPTBOOT 8
+.Os
+.Sh NAME
+.Nm gptboot
+.Nd GPT bootcode for UFS on BIOS-based computers
+.Sh DESCRIPTION
+.Nm
+is used on BIOS-based computers to boot from a UFS partition on a
+GPT-partitioned disk.
+.Nm
+is installed in a
+.Cm freebsd-boot
+partition with
+.Xr gpart 8 .
+.Sh IMPLEMENTATION NOTES
+The GPT standard allows a variable number of partitions, but
+.Nm
+only boots from tables with 128 partitions or less.
+.Sh PARTITION ATTRIBUTES
+.Nm
+checks and manages several attributes of GPT UFS partitions.
+.Bl -tag -width ".Cm bootfailed"
+.It Cm bootme
+Attempt to boot from this partition.
+If more than one partition has the
+.Cm bootme
+attribute set,
+.Nm
+will attempt to boot each one until successful.
+.It Cm bootonce
+Attempt to boot from this partition only one time.
+Setting this attribute with
+.Xr gpart 8
+automatically also sets the
+.Cm bootme
+attribute.
+Multiple partitions may have the
+.Cm bootonce
+and
+.Cm bootme
+attributes set.
+.It Cm bootfailed
+The
+.Cm bootfailed
+attribute marks partitions that had the
+.Cm bootonce
+attribute set, but failed to boot.
+This attribute is managed by the system.
+See
+.Sx "BOOTING"
+and
+.Sx "POST-BOOT ACTIONS"
+below for details.
+.El
+.Sh USAGE
+For normal usage, the user does not have to set or manage any of the
+partition attributes.
+.Nm
+will boot from the first UFS partition found.
+.Pp
+The
+.Cm bootonce
+attribute can be used for testing an upgraded operating system on
+an already-working computer.
+The existing system partition is left untouched, and the new version
+of the operating system to be tested is installed on another partition.
+The
+.Cm bootonce
+attribute is set on that new test partition.
+The next boot is attempted from the test partition.
+Success or failure will be shown in the system log files.
+After a successful boot of the test partition, a user script can check
+the logs and change the
+.Cm bootme
+attributes so the test partition becomes the new system partition.
+Because the
+.Cm bootonce
+attribute is cleared after an attempted boot, a failed boot will not
+leave the system attempting to boot from a partition that will never
+succeed.
+Instead, the system will boot from the older, known-working operating
+system that has not been modified.
+If the
+.Cm bootme
+attribute is set on any partitions, booting will be attempted from them
+first.
+If no partitions with
+.Cm bootme
+attributes are found, booting will be attempted from the first UFS
+partition found.
+.Sh BOOTING
+.Nm
+first reads the partition table.
+All
+.Cm freebsd-ufs
+partitions with only the
+.Cm bootonce
+attribute set, indicating a failed boot, are set to
+.Cm bootfailed .
+.Nm
+then scans through all of the
+.Cm freebsd-ufs
+partitions.
+Boot behavior depends on the combination of
+.Cm bootme
+and
+.Cm bootonce
+attributes set on those partitions.
+.Bl -tag -width ".Cm bootonce + .Cm bootme"
+.It Cm bootonce + Cm bootme
+Highest priority: booting is attempted from each of the
+.Cm freebsd-ufs
+partitions with both of these attributes.
+On each partition, the
+.Cm bootme
+attribute is removed and the boot attempted.
+.It Cm bootme
+Middle priority: booting is attempted from each of the
+.Cm freebsd-ufs
+partitions with the
+.Cm bootme
+attribute.
+.El
+.Pp
+If neither
+.Cm bootonce
+nor
+.Cm bootme
+attributes are found on any partitions, booting is attempted from the
+first
+.Cm freebsd-ufs
+partition on the disk.
+.Sh POST-BOOT ACTIONS
+The startup script
+.Pa /etc/rc.d/gptboot
+checks the attributes of
+.Cm freebsd-ufs
+partitions on all GPT disks.
+Partitions with the
+.Cm bootfailed
+attribute generate a
+.Dq boot from X failed
+system log message.
+Partitions with only the
+.Cm bootonce
+attribute, indicating a partition that successfully booted, generate a
+.Dq boot from X succeeded
+system log message.
+The
+.Cm bootfailed
+attributes are cleared from all the partitions.
+The
+.Cm bootonce
+attribute is cleared from the partition that successfully booted.
+There is normally only one of these.
+.Sh FILES
+.Bl -tag -width /boot/gptboot -compact
+.It Pa /boot/gptboot
+bootcode binary
+.It Pa /boot.config
+parameters for the boot blocks
+.Pq optional
+.El
+.Sh EXAMPLES
+.Nm
+is installed in a
+.Cm freebsd-boot
+partition, usually the first partition on the disk.
+A
+.Dq protective MBR
+.Po
+see
+.Xr gpart 8
+.Pc
+is typically installed in combination with
+.Nm .
+.Pp
+Install
+.Nm
+on the
+.Pa ada0
+drive:
+.Bd -literal -offset indent
+gpart bootcode -b /boot/pmbr -p /boot/gptboot -i 1 ada0
+.Ed
+.Pp
+.Nm
+can also be installed without the PMBR:
+.Bd -literal -offset indent
+gpart bootcode -p /boot/gptboot -i 1 ada0
+.Ed
+.Pp
+Set the
+.Cm bootme
+attribute for partition 2:
+.Bd -literal -offset indent
+gpart set -a bootme -i 2 ada0
+.Ed
+.Pp
+Set the
+.Cm bootonce
+attribute for partition 2, automatically also setting the
+.Cm bootme
+attribute:
+.Bd -literal -offset indent
+gpart set -a bootonce -i 2 ada0
+.Ed
+.Sh SEE ALSO
+.Xr boot.config 5 ,
+.Xr rc.conf 5 ,
+.Xr boot 8 ,
+.Xr gpart 8
+.Sh HISTORY
+.Nm
+appeared in FreeBSD 7.1.
+.Sh AUTHORS
+This manual page written by
+.An Warren Block Aq wblock@FreeBSD.org .

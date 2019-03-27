@@ -1,0 +1,33 @@
+{
+        /* FIXME: It is probably not a great idea to not tag these with the
+	   proper symbol version from glibc, at least if glibc ever changes
+	   the signature this will go sideways.. */
+	global:
+		accept;
+		bind;
+		close;
+		connect;
+		dup2;
+		fcntl;
+		getpeername;
+		getsockname;
+		getsockopt;
+		listen;
+		poll;
+		read;
+		readv;
+		recv;
+		recvfrom;
+		recvmsg;
+		select;
+		send;
+		sendfile;
+		sendmsg;
+		sendto;
+		setsockopt;
+		shutdown;
+		socket;
+		write;
+		writev;
+	local: *;
+};

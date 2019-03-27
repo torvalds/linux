@@ -1,0 +1,9 @@
+
+#------------------------------------------------------------------------------
+# $File: interleaf,v 1.10 2009/09/19 16:28:10 christos Exp $
+# interleaf:  file(1) magic for InterLeaf TPS:
+#
+0	string		=\210OPS	Interleaf saved data
+0	string		=<!OPS		Interleaf document text
+>5	string		,\ Version\ =	\b, version
+>>17	string		>\0		%.3s

@@ -1,0 +1,75 @@
+=pod
+
+=head1 NAME
+
+ERR_put_error, ERR_add_error_data, ERR_add_error_vdata - record an error
+
+=head1 SYNOPSIS
+
+ #include <openssl/err.h>
+
+ void ERR_put_error(int lib, int func, int reason, const char *file, int line);
+
+ void ERR_add_error_data(int num, ...);
+ void ERR_add_error_vdata(int num, va_list arg);
+
+=head1 DESCRIPTION
+
+ERR_put_error() adds an error code to the thread's error queue. It
+signals that the error of reason code B<reason> occurred in function
+B<func> of library B<lib>, in line number B<line> of B<file>.
+This function is usually called by a macro.
+
+ERR_add_error_data() associates the concatenation of its B<num> string
+arguments with the error code added last.
+ERR_add_error_vdata() is similar except the argument is a B<va_list>.
+
+L<ERR_load_strings(3)> can be used to register
+error strings so that the application can a generate human-readable
+error messages for the error code.
+
+=head2 Reporting errors
+
+Each sub-library has a specific macro XXXerr() that is used to report
+errors. Its first argument is a function code B<XXX_F_...>, the second
+argument is a reason code B<XXX_R_...>. Function codes are derived
+from the function names; reason codes consist of textual error
+descriptions. For example, the function ssl3_read_bytes() reports a
+"handshake failure" as follows:
+
+ SSLerr(SSL_F_SSL3_READ_BYTES, SSL_R_SSL_HANDSHAKE_FAILURE);
+
+Function and reason codes should consist of upper case characters,
+numbers and underscores only. The error file generation script translates
+function codes into function names by looking in the header files
+for an appropriate function name, if none is found it just uses
+the capitalized form such as "SSL3_READ_BYTES" in the above example.
+
+The trailing section of a reason code (after the "_R_") is translated
+into lower case and underscores changed to spaces.
+
+Although a library will normally report errors using its own specific
+XXXerr macro, another library's macro can be used. This is normally
+only done when a library wants to include ASN1 code which must use
+the ASN1err() macro.
+
+
+=head1 RETURN VALUES
+
+ERR_put_error() and ERR_add_error_data() return
+no values.
+
+=head1 SEE ALSO
+
+L<ERR_load_strings(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

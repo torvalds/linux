@@ -1,0 +1,43 @@
+# $FreeBSD$
+
+failures=0
+
+check() {
+	if ! eval "[ $* ]"; then
+		echo "Failed: $*"
+		: $((failures += 1))
+	fi
+}
+
+check '`echo /et[c]/` = "/etc/"'
+check '`printf /var/empty%s /et[c]/` = "/var/empty/etc/"'
+check '"`echo /et[c]/`" = "/etc/"'
+check '`echo "/et[c]/"` = "/etc/"'
+check '`printf /var/empty%s "/et[c]/"` = "/var/empty/et[c]/"'
+check '`printf /var/empty/%s \"/et[c]/\"` = "/var/empty/\"/et[c]/\""'
+check '"`echo \"/et[c]/\"`" = "/et[c]/"'
+check '"`echo "/et[c]/"`" = "/et[c]/"'
+check '`echo $$` = $$'
+check '"`echo $$`" = $$'
+check '`echo \$\$` = $$'
+check '"`echo \$\$`" = $$'
+
+# Command substitutions consisting of a single builtin may be treated
+# differently.
+check '`:; echo /et[c]/` = "/etc/"'
+check '`:; printf /var/empty%s /et[c]/` = "/var/empty/etc/"'
+check '"`:; echo /et[c]/`" = "/etc/"'
+check '`:; echo "/et[c]/"` = "/etc/"'
+check '`:; printf /var/empty%s "/et[c]/"` = "/var/empty/et[c]/"'
+check '`:; printf /var/empty/%s \"/et[c]/\"` = "/var/empty/\"/et[c]/\""'
+check '"`:; echo \"/et[c]/\"`" = "/et[c]/"'
+check '"`:; echo "/et[c]/"`" = "/et[c]/"'
+check '`:; echo $$` = $$'
+check '"`:; echo $$`" = $$'
+check '`:; echo \$\$` = $$'
+check '"`:; echo \$\$`" = $$'
+
+check '`set -f; echo /et[c]/` = "/etc/"'
+check '"`set -f; echo /et[c]/`" = "/et[c]/"'
+
+exit $((failures > 0))

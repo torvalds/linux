@@ -1,0 +1,71 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: form_new_page.3x,v 1.10 2010/12/04 18:40:45 tom Exp $
+.TH form_new_page 3X ""
+.SH NAME
+\fBform_new_page\fR \- form pagination functions
+.SH SYNOPSIS
+\fB#include <form.h>\fR
+.br
+int set_new_page(FIELD *field, bool new_page_flag);
+.br
+bool new_page(const FIELD *field);
+.br
+.SH DESCRIPTION
+The function \fBset_new_page\fR sets or resets a flag marking the given field
+as the beginning of a new page on its form.
+.PP
+The function \fBnew_page\fR is a predicate which tests if a given field marks
+a page beginning on its form.
+.SH RETURN VALUE
+The function \fBnew_page\fR returns \fBTRUE\fR or \fBFALSE\fR.
+.PP
+The function \fBset_new_page\fR return one of the following:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
+.TP 5
+.B E_CONNECTED
+The given field is already connected to a form.
+.SH SEE ALSO
+\fBcurses\fR(3X) and related pages whose names begin "form_" for detailed
+descriptions of the entry points.
+.SH NOTES
+The header file \fB<form.h>\fR automatically includes the header file
+\fB<curses.h>\fR.
+.SH PORTABILITY
+These routines emulate the System V forms library.  They were not supported on
+Version 7 or BSD versions.
+.SH AUTHORS
+Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
+S. Raymond.

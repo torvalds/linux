@@ -1,0 +1,51 @@
+2007-07-19  Release Manager
+
+	* GCC 4.2.1 released.
+
+2007-05-13  Release Manager
+
+	* GCC 4.2.0 released.
+
+2006-10-14  Geoffrey Keating  <geoffk@apple.com>
+
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+
+2006-09-29  Joseph S. Myers  <joseph@codesourcery.com>
+
+	PR other/25035
+	* configure.ac (AC_EXEEXT): Remove.
+	(GCC_NO_EXECUTABLES): Call.
+	(ssp_use_symver): Default to no if unable to link.
+	(AC_CHECK_FUNCS): Hardwire results if unable to link.
+	* aclocal.m4, configure, Makefile.in: Regenerate.
+
+2006-05-23  Carlos O'Donell  <carlos@codesourcery.com>
+
+	* Makefile.am: Add install-html target. Add install-html to .PHONY
+	* Makefile.in: Regenerate.
+
+2006-02-27  Mark Mitchell  <mark@codesourcery.com>
+	
+	PR 26473
+	* configure.ac (ACX_NONCANONICAL_TARGET): Use it.
+	* Makefile.am (target_noncanonical): Define.
+	(libsubincludedir): New variable.
+	(nobase_libsubinclude_HEADERS): Likewise.
+	(nobase_include_HEADERS): Remove.
+	* configure: Regenerated.
+	* Makefile.in: Likewise.
+	* aclocal.m4: Regenerated.
+
+2006-01-20  Richard Guenther  <rguenther@suse.de>
+
+	* configure.ac: Use -fPIC for symbol versioning test.
+	* configure: Regenerate.
+
+2005-08-17  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* ALL: Update FSF address.
+
+2005-07-02  Jakub Jelinek  <jakub@redhat.com>
+
+	* ALL: First release as more than just a single file.

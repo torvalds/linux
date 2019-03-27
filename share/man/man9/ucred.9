@@ -1,0 +1,215 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 23, 2019
+.Dt UCRED 9
+.Os
+.Sh NAME
+.Nm ucred ,
+.Nm crget ,
+.Nm crhold ,
+.Nm crfree ,
+.Nm crcopy ,
+.Nm crdup ,
+.Nm cru2x
+.Nd "functions related to user credentials"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/ucred.h
+.Ft "struct ucred *"
+.Fn crget void
+.Ft "struct ucred *"
+.Fn crhold "struct ucred *cr"
+.Ft void
+.Fn crfree "struct ucred *cr"
+.Ft void
+.Fn crcopy "struct ucred *dest" "struct ucred *src"
+.Ft "struct ucred *"
+.Fn crcopysafe "struct proc *p" "struct ucred *cr"
+.Ft "struct ucred *"
+.Fn crdup "struct ucred *cr"
+.Ft void
+.Fn crsetgroups "struct ucred *cr" "int ngrp" "gid_t *groups"
+.Ft void
+.Fn cru2x "struct ucred *cr" "struct xucred *xcr"
+.Sh DESCRIPTION
+The
+.Nm
+family of functions is used to manage user credential structures
+.Pq Vt "struct ucred"
+within the kernel.
+.Pp
+The
+.Fn crget
+function allocates memory
+for a new structure, sets its reference count to 1, and
+initializes its lock.
+.Pp
+The
+.Fn crhold
+function increases the reference count on the credential.
+.Pp
+The
+.Fn crfree
+function decreases the reference count on the credential.
+If the count drops to 0, the storage for the structure is freed.
+.Pp
+The
+.Fn crcopy
+function copies the contents of the source (template)
+credential into the destination template.
+The
+.Vt uidinfo
+structure within the destination is referenced
+by calling
+.Xr uihold 9 .
+.Pp
+The
+.Fn crcopysafe
+function copies the current credential associated with the process
+.Fa p
+into the newly allocated credential
+.Fa cr .
+The process lock on
+.Fa p
+must be held and will be dropped and reacquired as needed to allocate
+group storage space in
+.Fa cr .
+.Pp
+The
+.Fn crdup
+function allocates memory for a new structure and copies the
+contents of
+.Fa cr
+into it.
+The actual copying is performed by
+.Fn crcopy .
+.Pp
+The
+.Fn crsetgroups
+function sets the
+.Va cr_groups
+and
+.Va cr_ngroups
+variables and allocates space as needed.
+It also truncates the group list to the current maximum number of
+groups.
+No other mechanism should be used to modify the
+.Va cr_groups
+array except for updating the primary group via assignment to
+.Va cr_groups[0] .
+.Pp
+The
+.Fn cru2x
+function converts a
+.Vt ucred
+structure to an
+.Vt xucred
+structure.
+That is,
+it copies data from
+.Fa cr
+to
+.Fa xcr ;
+it ignores fields in the former that are not present in the latter
+(e.g.,
+.Va cr_uidinfo ) ,
+and appropriately sets fields in the latter that are not present in
+the former
+(e.g.,
+.Va cr_version ) .
+.Pp
+.Sh RETURN VALUES
+.Fn crget ,
+.Fn crhold ,
+.Fn crdup ,
+and
+.Fn crcopysafe
+all return a pointer to a
+.Vt ucred
+structure.
+.Sh USAGE NOTES
+As of
+.Fx 5.0 ,
+the
+.Vt ucred
+structure contains extensible fields.
+This means that the correct protocol must always be followed to create
+a fresh and writable credential structure: new credentials must always
+be derived from existing credentials using
+.Fn crget ,
+.Fn crcopy ,
+and
+.Fn crcopysafe .
+.Pp
+In the common case, credentials required for access control decisions are
+used in a read-only manner.
+In these circumstances, the thread credential
+.Va td_ucred
+should be used, as it requires no locking to access safely, and remains stable
+for the duration of the call even in the face of a multi-threaded
+application changing the process credentials from another thread.
+.Pp
+During a process credential update, the process lock must be held across
+check and update, to prevent race conditions.
+The process credential,
+.Va td->td_proc->p_ucred ,
+must be used both for check and update.
+If a process credential is updated during a system call and checks against
+the thread credential are to be made later during the same system call,
+the thread credential must also be refreshed from the process credential
+so as to prevent use of a stale value.
+To avoid this scenario, it is recommended that system calls updating the
+process credential be designed to avoid other authorization functions.
+.Pp
+If temporarily elevated privileges are required for a thread, the thread
+credential can by replaced for the duration of an activity, or for
+the remainder of the system call.
+However, as a thread credential is often shared, appropriate care should be
+taken to make sure modifications are made to a writable credential
+through the use of
+.Fn crget
+and
+.Fn crcopy .
+.Pp
+Caution should be exercised when checking authorization for a thread or
+process perform an operation on another thread or process.
+As a result of temporary elevation, the target thread credential should
+.Em never
+be used as the target credential in an access control decision: the process
+credential associated with the thread,
+.Va td->td_proc->p_ucred ,
+should be used instead.
+For example,
+.Xr p_candebug 9
+accepts a target process, not a target thread, for access control purposes.
+.Sh SEE ALSO
+.Xr uihold 9
+.Sh AUTHORS
+This manual page was written by
+.An Chad David Aq Mt davidc@acns.ab.ca .

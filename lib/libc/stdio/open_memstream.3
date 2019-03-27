@@ -1,0 +1,155 @@
+.\" Copyright (c) 2013 Hudson River Trading LLC
+.\" Written by: John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 1, 2015
+.Dt OPEN_MEMSTREAM 3
+.Os
+.Sh NAME
+.Nm open_memstream ,
+.Nm open_wmemstream
+.Nd dynamic memory buffer stream open functions
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.Ft FILE *
+.Fn open_memstream "char **bufp" "size_t *sizep"
+.In wchar.h
+.Ft FILE *
+.Fn open_wmemstream "wchar_t **bufp" "size_t *sizep"
+.Sh DESCRIPTION
+The
+.Fn open_memstream
+and
+.Fn open_wmemstream
+functions create a write-only, seekable stream backed by a dynamically
+allocated memory buffer.
+The
+.Fn open_memstream
+function creates a byte-oriented stream,
+while the
+.Fn open_wmemstream
+function creates a wide-oriented stream.
+.Pp
+Each stream maintains a current position and size.
+Initially,
+the position and size are set to zero.
+Each write begins at the current position and advances it the number of
+successfully written bytes for
+.Fn open_memstream
+or wide characters for
+.Fn open_wmemstream .
+If a write moves the current position beyond the length of the buffer,
+the length of the buffer is extended and a null character is appended to the
+buffer.
+.Pp
+A stream's buffer always contains a null character at the end of the buffer
+that is not included in the current length.
+.Pp
+If a stream's current position is moved beyond the current length via a
+seek operation and a write is performed,
+the characters between the current length and the current position are filled
+with null characters before the write is performed.
+.Pp
+After a successful call to
+.Xr fclose 3
+or
+.Xr fflush 3 ,
+the pointer referenced by
+.Fa bufp
+will contain the start of the memory buffer and the variable referenced by
+.Fa sizep
+will contain the smaller of the current position and the current buffer length.
+.Pp
+After a successful call to
+.Xr fflush 3 ,
+the pointer referenced by
+.Fa bufp
+and the variable referenced by
+.Fa sizep
+are only valid until the next write operation or a call to
+.Xr fclose 3 .
+.Pp
+Once a stream is closed,
+the allocated buffer referenced by
+.Fa bufp
+should be released via a call to
+.Xr free 3
+when it is no longer needed.
+.Sh IMPLEMENTATION NOTES
+Internally all I/O streams are effectively byte-oriented,
+so using wide-oriented operations to write to a stream opened via
+.Fn open_wmemstream
+results in wide characters being expanded to a stream of multibyte characters
+in stdio's internal buffers.
+These multibyte characters are then converted back to wide characters when
+written into the stream.
+As a result,
+the wide-oriented streams maintain an internal multibyte character conversion
+state that is cleared on any seek opertion that changes the current position.
+This should have no effect as long as wide-oriented output operations are used
+on a wide-oriented stream.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn open_memstream
+and
+.Fn open_wmemstream
+return a
+.Tn FILE
+pointer.
+Otherwise,
+.Dv NULL
+is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa bufp
+or
+.Fa sizep
+argument was
+.Dv NULL .
+.It Bq Er ENOMEM
+Memory for the stream or buffer could not be allocated.
+.El
+.Sh SEE ALSO
+.Xr fclose 3 ,
+.Xr fflush 3 ,
+.Xr fopen 3 ,
+.Xr free 3 ,
+.Xr fseek 3 ,
+.Xr stdio 3 ,
+.Xr sbuf 9
+.Sh STANDARDS
+The
+.Fn open_memstream
+and
+.Fn open_wmemstream
+functions conform to
+.St -p1003.1-2008 .

@@ -1,0 +1,78 @@
+# Copyright (c) 2012 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+continent_africa_title="Africa"
+continent_america_title="America -- North and South"
+continent_antarctica_title="Antarctica"
+continent_arctic_title="Arctic Ocean"
+continent_asia_title="Asia"
+continent_atlantic_title="Atlantic Ocean"
+continent_australia_title="Australia"
+continent_europe_title="Europe"
+continent_indian_title="Indian Ocean"
+continent_pacific_title="Pacific Ocean"
+continent_utc_title="UTC"
+msg_cancel="Cancel"
+msg_cannot_open_for_reading="Cannot open %s for reading. Does it exist?"
+msg_confirmation="Confirmation"
+msg_conflicting_zone_definition="%s:%d: conflicting zone definition"
+msg_copied_timezone_file="Copied timezone file from %s to %s"
+msg_copying_file="Copying %s to %s"
+msg_country_code_invalid="%s:%d: country code \`%s' invalid"
+msg_country_code_multiply_defined="%s:%d: country code \`%s' multiply defined: %s"
+msg_country_code_unknown="%s:%d: country code \`%s' unknown"
+msg_country_time_zones="%s Time Zones"
+msg_country_title="Countries in %s"
+msg_created_symlink="Created symbolic link from %s to %s"
+msg_creating_symlink="Creating symbolic link %s to %s"
+msg_default_zone_provided="Default timezone provided"
+msg_done="Done"
+msg_error="Error"
+msg_error_reading="Error reading %s."
+msg_info="Info"
+msg_invalid_code="%s:%d: invalid code \`%s'"
+msg_invalid_country_code="%s:%d: invalid country code \`%s'"
+msg_invalid_format="%s:%d: invalid format"
+msg_invalid_region="%s:%d: invalid region \`%s'"
+msg_invalid_zone_name="%s:%d: invalid zone name \`%s'"
+msg_is_machine_clock_utc="Is the machine's CMOS clock set to UTC? If it is set to local time,\nor you don't know, please choose NO here!"
+msg_island_and_group_title="Islands and groups in the %s"
+msg_look_reasonable="Does the abbreviation \`%s' look reasonable?"
+msg_no="No"
+msg_ok="OK"
+msg_removed_file="Removed %s"
+msg_removing_file="Removing %s"
+msg_select_country="Select a country"
+msg_select_island_or_group="Select an island or group"
+msg_select_local_or_utc="Select local or UTC (Greenwhich Mean Time) clock"
+msg_select_region="Select a region"
+msg_select_zone="Select a zone which observes the same time as your locality."
+msg_time_zone="Time Zone"
+msg_unable_to_determine_name_from_db="Unable to determine earlier installed zoneinfo name. Check %s"
+msg_use_default_zone="Use the default \`%s' zone?"
+msg_yes="Yes"
+msg_zone_multiply_defined="%s:%d: zone multiply defined"
+msg_zone_must_have_description="%s:%d: zone must have description"

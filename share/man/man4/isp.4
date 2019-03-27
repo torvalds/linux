@@ -1,0 +1,265 @@
+.\" Copyright (c) 2009-2018 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2006 Marcus Alves Grando
+.\" Copyright (c) 1998-2001 Matthew Jacob, for NASA/Ames Research Center
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 28, 2019
+.Dt ISP 4
+.Os
+.Sh NAME
+.Nm isp
+.Nd Qlogic based SPI and FibreChannel SCSI Host Adapters
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device isp"
+.Cd "device ispfw"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+isp_load="YES"
+ispfw_load="YES"
+.Ed
+.Sh DESCRIPTION
+This driver provides access to
+.Tn SPI
+or
+.Tn FibreChannel
+SCSI devices.
+.Pp
+SPI supports initiator mode for Ultra SCSI and wide mode transactions for
+.Tn SCSI ,
+Ultra2 LVD (1080, 1280), and Ultra3 LVD (10160, 12160).
+.Pp
+Fibre Channel supports initiator and target modes of FCP SCSI profile,
+utilizing Class 3 and Class 2 (2200 and later) connections.
+Support is available for Public and Private loops, Point-to-Point
+and Fabric connections.
+.Pp
+FC-Tape is supported on 4Gb (2400) and newer controllers.
+FC-Tape is highly recommended for connections to tape drives that support
+it.
+It encompasses four elements from the T-10 FCP-4 specification:
+.Bl -bullet -offset indent
+.It
+Precise Delivery of Commands
+.It
+Confirmed Completion of FCP I/O Operations
+.It
+Retransmission of Unsuccessfully Transmitted IUs
+.It
+Task Retry Identification
+.El
+.Pp
+Together these features allow for link level error recovery with tape
+devices.
+Without it, an initiator cannot, for instance, tell whether a tape write
+command that has timed out resulted in all, part or none of the data going to
+the tape drive.
+FC-Tape is automatically enabled when connecting controller that supports
+it to a target that supports it.
+It may be disabled using configuration and hint options described below.
+.Sh FIRMWARE
+Firmware loading is supported if the
+.Xr ispfw 4
+module is loaded.
+It is strongly recommended that you use the firmware available from
+.Xr ispfw 4
+as it is the most likely to have been tested with this driver.
+.Sh HARDWARE
+Cards supported by the
+.Nm
+driver include:
+.Bl -tag -width xxxxxx -offset indent
+.It Qlogic 1000
+Fast Wide, Ultra Fast Wide cards, Single Ended or Differential SBus cards.
+.It Qlogic 1020
+Fast Wide and Differential Fast Wide SCSI PCI cards.
+.It Qlogic 1040
+Ultra Wide and Differential Ultra Wide SCSI PCI cards.
+Also known as the DEC KZPBA-CA (single ended) and KZPBA-CB (HVD differential).
+.It Qlogic 1080
+LVD Ultra2 Wide SCSI PCI cards.
+.It Qlogic 10160
+LVD Ultra3 Wide SCSI PCI cards.
+.It Qlogic 1240
+Dual Bus Ultra Wide and Differential Ultra Wide SCSI PCI cards.
+.It Qlogic 1280
+Dual Bus LVD Ultra2 Wide SCSI PCI cards.
+.It Qlogic 12160
+Dual Bus LVD Ultra3 Wide SCSI PCI cards.
+.It Qlogic 210X
+Copper and Optical Fibre Channel Arbitrated Loop PCI cards (single, dual).
+.It Qlogic 220X
+Copper and Optical Fibre Channel Arbitrated Loop PCI cards (single, dual, quad).
+.It Qlogic 2300
+Optical 2Gb Fibre Channel PCI cards.
+.It Qlogic 2312
+Optical 2Gb Fibre Channel PCI cards.
+.It Qlogic 234X
+Optical 2Gb Fibre Channel PCI cards (2312 chipset, single and dual attach).
+.It Qlogic 2322
+Optical 2Gb Fibre Channel PCIe cards.
+.It Qlogic 200
+Dell branded version of the QLogic 2312.
+.It Qlogic 2422
+Optical 4Gb Fibre Channel PCI cards.
+.It Qlogic 246x (aka 2432)
+Optical 4Gb Fibre Channel PCIe cards.
+.It Qlogic 256x (aka 2532)
+Optical 8Gb Fibre Channel PCIe cards.
+.It Qlogic 267x/836x (aka 2031/8031)
+Optical 16Gb FC/FCoE PCIe cards.
+.It Qlogic 2690/2692/2694 (aka 2684/2692)
+Optical 16Gb Fibre Channel PCIe cards.
+.It Qlogic 2740/2742/2764 (aka 2722/2714)
+Optical 32Gb Fibre Channel PCIe cards.
+.El
+.Sh CONFIGURATION OPTIONS
+Target mode support for Fibre Channel adapters may be enabled with the
+.Pp
+.Cd options ISP_TARGET_MODE
+.Pp
+option.
+.Pp
+To disable FC-Tape, use the following configuration option:
+.Pp
+.Cd options ISP_FCTAPE_OFF
+.Pp
+Note that even if the ISP_FCTAPE_OFF option is used, it may be overridden
+by the fctape hint described below.
+.Sh BOOT OPTIONS
+The following options are switchable by setting values in
+.Pa /boot/device.hints .
+.Pp
+They are:
+.Bl -tag -width indent
+.It Va hint.isp. Ns Ar N Ns Va .msi
+Limit on number of Message Signaled Interrupts (MSI) to be used.
+.It Va hint.isp. Ns Ar N Ns Va .msix
+Limit on number of Extended Message Signaled Interrupts (MSI-X) to be used.
+.It Va hint.isp. Ns Ar N Ns Va .fwload_disable
+A hint value to disable loading of firmware
+.Xr ispfw 4 .
+.It Va hint.isp. Ns Ar N Ns Va .ignore_nvram
+A hint value to ignore board NVRAM settings for.
+Otherwise use NVRAM settings.
+.It Va hint.isp. Ns Ar N Ns Va .fullduplex
+A hint value to set full duplex mode.
+.It Va hint.isp. Ns Ar N Ns Va .topology
+A hint value to select topology of connection.
+Supported values are:
+.Pp
+.Bl -tag -width ".Li lport-only" -compact
+.It Li lport
+Prefer loopback and fallback to point to point.
+.It Li nport
+Prefer point to point and fallback to loopback.
+.It Li lport-only
+Loopback only.
+.It Li nport-only
+Point to point only.
+.El
+.It Va hint.isp. Ns Ar N Ns Va .portwwn
+This should be the full 64 bit World Wide Port Name you would like
+to use, overriding the value in NVRAM for the card.
+.It Va hint.isp. Ns Ar N Ns Va .nodewwn
+This should be the full 64 bit World Wide Node Name you would like
+to use, overriding the value in NVRAM for the card.
+.It Va hint.isp. Ns Ar N Ns Va .iid
+A hint to override or set the Initiator ID or Loop ID.
+For Fibre Channel
+cards in Local Loop topologies it is
+.Ar strongly
+recommended that you set this value to non-zero.
+.It Va hint.isp. Ns Ar N Ns Va .role
+A hint to define default role for isp instance (0 -- none, 1 -- target,
+2 -- initiator, 3 -- both).
+.It Va hint.isp. Ns Ar N Ns Va .debug
+A hint value for a driver debug level (see the file
+.Pa /usr/src/sys/dev/isp/ispvar.h
+for the values.
+.It Va hint.isp. Ns Ar N Ns Va .vports
+A hint to create specified number of additional virtual ports.
+.It Va hint.isp. Ns Ar N Ns Va .nofctape
+Set this to 1 to disable FC-Tape operation on the given isp instance.
+.It Va hint.isp. Ns Ar N Ns Va .fctape
+Set this to 1 to enable FC-Tape operation on the given isp instance for
+targets that support it.
+.El
+.Sh SYSCTL OPTIONS
+.Bl -tag -width indent
+.It Va dev.isp. Ns Ar N Ns Va .loop_down_limit
+This value says how long to wait in seconds after loop has gone down before
+giving up and expiring all of the devices that were visible.
+The default is 300 seconds (5 minutes).
+A separate (nonadjustable) timeout is used when
+booting to not stop booting on lack of FC connectivity.
+.It Va dev.isp. Ns Ar N Ns Va .gone_device_time
+This value says how long to wait for devices to reappear if they (temporarily)
+disappear due to loop or fabric events.
+While this timeout is running, I/O
+to those devices will simply be held.
+.It Va dev.isp. Ns Ar N Ns Va .use_gff_id
+.It Va dev.isp. Ns Ar N Ns Va .use_gft_id
+Setting those options to 0 allows to disable use of GFF_ID and GFT_ID SNS
+requests during FC fabric scan.
+It may be useful if switch does not implement them correctly,
+preventing some devices from being found.
+Disabling them may cause unneeded logins to ports not supporting target role
+or even FCP at all.
+The default is 1 (enabled).
+.It Va dev.isp. Ns Ar N Ns Va .wwnn
+This is the readonly World Wide Node Name value for this port.
+.It Va dev.isp. Ns Ar N Ns Va .wwpn
+This is the readonly World Wide Port Name value for this port.
+.El
+.Sh SEE ALSO
+.Xr da 4 ,
+.Xr intro 4 ,
+.Xr ispfw 4 ,
+.Xr sa 4 ,
+.Xr scsi 4 ,
+.Xr gmultipath 8
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Matthew Jacob
+originally for NetBSD at NASA/Ames Research Center.
+Later improvement was done by
+.An Alexander Motin Aq Mt mav@FreeBSD.org .
+.Sh BUGS
+The driver currently ignores some NVRAM settings.
+.Pp
+Fabric support for 2100 cards has been so problematic, and these cards are so
+old now that it is just not worth your time to try it.

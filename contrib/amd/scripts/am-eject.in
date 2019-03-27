@@ -1,0 +1,53 @@
+#!/bin/sh
+# auto-unmount floppy/cd directory before ejecting device
+# script taken from Debian Linux's amd
+#
+# Package:		am-utils-6.x
+# (Additional) author:	Erez Zadok <ezk@cs.columbia.edu>
+
+# set path
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+PATH=@sbindir@:@bindir@:/usr/ucb:/usr/bin:/bin:${PATH}
+export PATH
+
+if [ $# -ne 1 ]; then
+	echo "Usage: $0 cd|cdrom|fd|floppy"
+	exit 2
+fi
+
+# determine toplevel mount point of amd
+fs=`amq | grep ' toplvl ' | cut -d' ' -f1`
+if [ "$fs" = "" ]; then
+	echo "Cannot determine amd toplevel directory"
+	exit 2
+fi
+
+# append name of medium
+case "$1" in
+  cd|fd) fs=$fs/$1;;
+  *)	 echo "Usage: $0 cd|cdrom|fd|floppy"; exit 2;;
+esac
+
+# is the medium mounted?
+if amq | grep -q "^$fs" >/dev/null 2>&1; then
+	# if yes, try to unmount it
+	sync
+	amq -u $fs
+	sleep 2
+	if amq | grep -q "^$fs" >/dev/null 2>&1; then
+		# failed, bail out
+		echo -n "Cannot unmount $fs; in use by:"
+		fuser -uv -m $fs
+		echo ""
+		exit 1
+	fi
+else
+	echo "$fs not mounted"
+fi
+
+case $1 in
+  cd|cdrom)	eject cdrom || eject ;; # eject CD-ROM
+  fd|floppy)	eject floppy || eject
+		echo "Ok to remove disk" ;;
+esac

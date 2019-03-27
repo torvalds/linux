@@ -1,0 +1,331 @@
+.\" Copyright (c) 2009-2016 Roy Marples
+.\" All rights reserved
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd December 29, 2016
+.Dt RESOLVCONF.CONF 5
+.Os
+.Sh NAME
+.Nm resolvconf.conf
+.Nd resolvconf configuration file
+.Sh DESCRIPTION
+.Nm
+is the configuration file for
+.Xr resolvconf 8 .
+The
+.Nm
+file is a shell script that is sourced by
+.Xr resolvconf 8 ,
+meaning that
+.Nm
+must contain valid shell commands.
+Listed below are the standard
+.Nm
+variables that may be set.
+If the values contain whitespace, wildcards or other special shell characters,
+ensure they are quoted and escaped correctly.
+See the
+.Sy replace
+variable for an example on quoting.
+.Pp
+After updating this file, you may wish to run
+.Nm resolvconf -u
+to apply the new configuration.
+.Pp
+When a dynamically generated list is appended or prepended to, the whole
+is made unique where left-most wins.
+.Sh RESOLVCONF OPTIONS
+.Bl -tag -width indent
+.It Sy resolvconf
+Set to NO to disable
+.Nm resolvconf
+from running any subscribers.
+Defaults to YES.
+.It Sy interface_order
+These interfaces will always be processed first.
+If unset, defaults to the following:-
+.D1 lo lo[0-9]*
+.It Sy dynamic_order
+These interfaces will be processed next, unless they have a metric.
+If unset, defaults to the following:-
+.D1 tap[0-9]* tun[0-9]* vpn vpn[0-9]* ppp[0-9]* ippp[0-9]*
+.It Sy inclusive_interfaces
+Ignore any exlcusive marking for these interfaces.
+This is handy when 3rd party integrations force the
+.Nm resolvconf -x
+option and you want to disable it easily.
+.It Sy local_nameservers
+If unset, defaults to the following:-
+.D1 127.* 0.0.0.0 255.255.255.255 ::1
+.It Sy search_domains
+Prepend search domains to the dynamically generated list.
+.It Sy search_domains_append
+Append search domains to the dynamically generated list.
+.It Sy domain_blacklist
+A list of domains to be removed from consideration.
+To remove a domain, you can use foo.*
+To remove a sub domain, you can use *.bar
+.It Sy name_servers
+Prepend name servers to the dynamically generated list.
+You should set this to 127.0.0.1 if you use a local name server other than
+libc.
+.It Sy name_servers_append
+Append name servers to the dynamically generated list.
+.It Sy name_server_blacklist
+A list of name servers to be removed from consideration.
+The default is 0.0.0.0 as some faulty routers send it via DHCP.
+To remove a block, you can use 192.168.*
+.It Sy private_interfaces
+These interfaces name servers will only be queried for the domains listed
+in their resolv.conf.
+Useful for VPN domains.
+Setting
+.Sy private_interfaces Ns ="*"
+will stop the forwarding of the root zone and allows the local resolver to
+recursively query the root servers directly.
+Requires a local nameserver other than libc.
+This is equivalent to the
+.Nm resolvconf -p
+option.
+.It Sy public_interfaces
+Force these interface to be public, overriding the private marking.
+This is handy when 3rd party integrations force the
+.Nm resolvconf -p
+option and you want to disable it easily.
+.It Sy replace
+Is a space separated list of replacement keywords.
+The syntax is this:
+.Va $keyword Ns / Ns Va $match Ns / Ns Va $replacement
+.Pp
+Example, given this resolv.conf:
+.D1 domain foo.org
+.D1 search foo.org dead.beef
+.D1 nameserver 1.2.3.4
+.D1 nameserver 2.3.4.5
+and this configuaration:
+.D1 replace="search/foo*/bar.com nameserver/1.2.3.4/5.6.7.8 nameserver/2.3.4.5/"
+you would get this resolv.conf instead:
+.D1 domain foo.org
+.D1 search bar.com
+.D1 nameserver 5.6.7.8
+.It Sy replace_sub
+Works the same way as
+.Sy replace
+except it works on each space separated value rather than the whole line,
+so it's useful for the replacing a single domain within the search directive.
+Using the same example resolv.conf and changing
+.Sy replace
+to
+.Sy replace_sub ,
+you would get this resolv.conf instead:
+.D1 domain foo.org
+.D1 search bar.com dead.beef
+.D1 nameserver 5.6.7.8
+.It Sy state_dir
+Override the default state directory of
+.Pa @VARDIR@ .
+This should not be changed once
+.Nm resolvconf
+is in use unless the old directory is copied to the new one.
+.El
+.Sh LIBC OPTIONS
+The following variables affect
+.Xr resolv.conf 5
+directly:-
+.Bl -tag -width indent
+.It Sy resolv_conf
+Defaults to
+.Pa /etc/resolv.conf
+if not set.
+.It Sy resolv_conf_options
+A list of libc resolver options, as specified in
+.Xr resolv.conf 5 .
+.It Sy resolv_conf_passthrough
+When set to YES the latest resolv.conf is written to
+.Sy resolv_conf
+without any alteration.
+When set to /dev/null or NULL,
+.Sy resolv_conf_local_only
+is defaulted to NO,
+.Sy local_nameservers
+is unset unless overridden and only the information set in
+.Nm
+is written to
+.Sy resolv_conf .
+.It Sy resolv_conf_sortlist
+A libc resolver sortlist, as specified in
+.Xr resolv.conf 5 .
+.It Sy resolv_conf_local_only
+If a local name server is configured then the default is just to specify that
+and ignore all other entries as they will be configured for the local
+name server.
+Set this to NO to also list non-local nameservers.
+This will give you working DNS even if the local nameserver stops functioning
+at the expense of duplicated server queries.
+.It Sy append_nameservers
+Append name servers to the dynamically generated list.
+.It Sy prepend_nameservers
+Prepend name servers to the dynamically generated list.
+.It Sy append_search
+Append search domains to the dynamically generated list.
+.It Sy prepend_search
+Prepend search domains to the dynamically generated list.
+.El
+.Sh SUBSCRIBER OPTIONS
+openresolv ships with subscribers for the name servers
+.Xr dnsmasq 8 ,
+.Xr named 8 ,
+.Xr pdnsd 8
+and
+.Xr unbound 8 .
+Each subscriber can create configuration files which should be included in
+in the subscribers main configuration file.
+.Pp
+To disable a subscriber, simply set it's name to NO.
+For example, to disable the libc subscriber you would set:
+.D1 libc=NO
+.Bl -tag -width indent
+.It Sy dnsmasq_conf
+This file tells dnsmasq which name servers to use for specific domains.
+.It Sy dnsmasq_resolv
+This file tells dnsmasq which name servers to use for global lookups.
+.Pp
+Example resolvconf.conf for dnsmasq:
+.D1 name_servers=127.0.0.1
+.D1 dnsmasq_conf=/etc/dnsmasq-conf.conf
+.D1 dnsmasq_resolv=/etc/dnsmasq-resolv.conf
+.Pp
+Example dnsmasq.conf:
+.D1 listen-address=127.0.0.1
+.D1 # If dnsmasq is compiled for DBus then we can take
+.D1 # advantage of not having to restart dnsmasq.
+.D1 enable-dbus
+.D1 conf-file=/etc/dnsmasq-conf.conf
+.D1 resolv-file=/etc/dnsmasq-resolv.conf
+.It Sy named_options
+Include this file in the named options block.
+This file tells named which name servers to use for global lookups.
+.It Sy named_zones
+Include this file in the named global scope, after the options block.
+This file tells named which name servers to use for specific domains.
+.Pp
+Example resolvconf.conf for named:
+.D1 name_servers=127.0.0.1
+.D1 named_options=/etc/named-options.conf
+.D1 named_zones=/etc/named-zones.conf
+.Pp
+Example named.conf:
+.D1 options {
+.D1 	listen-on { 127.0.0.1; };
+.D1 	include "/etc/named-options.conf";
+.D1 };
+.D1 include "/etc/named-zones.conf";
+.It Sy pdnsd_conf
+This is the main pdnsd configuration file which we modify to add our
+forward domains to.
+If this variable is not set then we rely on the pdnsd configuration file
+setup to read
+.Pa pdnsd_resolv
+as documented below.
+.It Sy pdnsd_resolv
+This file tells pdnsd about global name servers.
+If this variable is not set then it's written to
+.Pa pdnsd_conf .
+.Pp
+Example resolvconf.conf for pdnsd:
+.D1 name_servers=127.0.0.1
+.D1 pdnsd_conf=/etc/pdnsd.conf
+.D1 # pdnsd_resolv=/etc/pdnsd-resolv.conf
+.Pp
+Example pdnsd.conf:
+.D1 global {
+.D1 	server_ip = 127.0.0.1;
+.D1 	status_ctl = on;
+.D1 }
+.D1 server {
+.D1 	# A server definition is required, even if emtpy.
+.D1 	label="empty";
+.D1 	proxy_only=on;
+.D1 	# file="/etc/pdnsd-resolv.conf";
+.D1 }
+.It Sy unbound_conf
+This file tells unbound about specific and global name servers.
+.It Sy unbound_insecure
+When set to YES, unbound marks the domains as insecure, thus ignoring DNSSEC.
+.Pp
+Example resolvconf.conf for unbound:
+.D1 name_servers=127.0.0.1
+.D1 unbound_conf=/etc/unbound-resolvconf.conf
+.Pp
+Example unbound.conf:
+.D1 include: /etc/unbound-resolvconf.conf
+.El
+.Sh SUBSCRIBER INTEGRATION
+Not all distributions store the files the subscribers need in the same
+locations.
+For example, named service scripts have been called named, bind and rc.bind
+and they could be located in a directory called /etc/rc.d, /etc/init.d or
+similar.
+Each subscriber attempts to automatically configure itself, but not every
+distribution has been catered for.
+Also, users could equally want to use a different version from the one
+installed by default, such as bind8 and bind9.
+To accommodate this, the subscribers have these files in configurable
+variables, documented below.
+.Pp
+.Bl -tag -width indent
+.It Sy dnsmasq_service
+Name of the dnsmasq service.
+.It Sy dnsmasq_restart
+Command to restart the dnsmasq service.
+.It Sy dnsmasq_pid
+Location of the dnsmasq pidfile.
+.It Sy libc_service
+Name of the libc service.
+.It Sy libc_restart
+Command to restart the libc service.
+.It Sy named_service
+Name of the named service.
+.It Sy named_restart
+Command to restart the named service.
+.It Sy pdnsd_restart
+Command to restart the pdnsd service.
+.It Sy unbound_service
+Name of the unbound service.
+.It Sy unbound_restart
+Command to restart the unbound service.
+.It Sy unbound_pid
+Location of the unbound pidfile.
+.El
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr resolv.conf 5 ,
+.Xr resolvconf 8
+.Sh AUTHORS
+.An Roy Marples Aq Mt roy@marples.name
+.Sh BUGS
+Each distribution is a special snowflake and likes to name the same thing
+differently, namely the named service script.
+.Pp
+Please report them to
+.Lk http://roy.marples.name/projects/openresolv

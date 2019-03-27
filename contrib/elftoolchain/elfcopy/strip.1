@@ -1,0 +1,132 @@
+.\" Copyright (c) 2011 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JOSEPH KOSHY ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL JOSEPH KOSHY BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: strip.1 3642 2018-10-14 14:24:28Z jkoshy $
+.\"
+.Dd September 17, 2011
+.Dt STRIP 1
+.Os
+.Sh NAME
+.Nm strip
+.Nd discard information from ELF objects
+.Sh SYNOPSIS
+.Nm
+.Op Fl d | Fl g | Fl S | Fl -strip-debug
+.Op Fl h | Fl -help
+.Op Fl -only-keep-debug
+.Op Fl o Ar outputfile | Fl -output-file= Ns Ar outputfile
+.Op Fl p | Fl -preserve-dates
+.Op Fl s | Fl -strip-all
+.Op Fl -strip-unneeded
+.Op Fl w | Fl -wildcard
+.Op Fl x | Fl -discard-all
+.Op Fl I Ar format | Fl -input-target= Ns Ar format
+.Op Fl K Ar symbol | Fl -keep-symbol= Ns Ar symbol
+.Op Fl N Ar symbol | Fl -strip-symbol= Ns Ar symbol
+.Op Fl O Ar format | Fl -output-target= Ns Ar format
+.Op Fl R Ar sectionname | Fl -remove-section= Ns Ar sectionname
+.Op Fl V | Fl -version
+.Op Fl X | Fl -discard-locals
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to discard information from ELF objects.
+.Pp
+The
+.Nm
+utility supports the following options:
+.Bl -tag -width indent
+.It Fl d | Fl g | Fl S | Fl -strip-debug
+Remove debugging symbols only.
+.It Fl h | Fl -help
+Print a help message and exit.
+.It Fl -only-keep-debug
+Remove all content except that which would be used for debugging.
+.It Fl o Ar outputfile | Fl -output-file= Ns Ar outputfile
+Write the stripped object to file
+.Ar outputfile .
+The default behaviour is to modify objects in place.
+.It Fl p | Fl -preserve-dates
+Preserve the object's access and modification times.
+.It Fl s | Fl -strip-all
+Remove all symbols.
+.It Fl -strip-unneeded
+Remove all symbols not needed for further relocation processing.
+.It Fl w | Fl -wildcard
+Use shell-style patterns to name symbols.
+The following meta-characters are recognized in patterns:
+.Bl -tag -width "...." -compact
+.It Li !
+If this is the first character of the pattern, invert the sense of the
+pattern match.
+.It Li *
+Matches any string of characters in a symbol name.
+.It Li ?
+Matches zero or one character in a symbol name.
+.It Li [
+Mark the start of a character class.
+.It Li \e
+Remove the special meaning of the next character in the pattern.
+.It Li ]
+Mark the end of a character class.
+.El
+.It Fl x | Fl -discard-all
+Discard all non-global symbols.
+.It Fl I Ar format | Fl -input-target= Ns Ar format
+These options are accepted, but are ignored.
+.It Fl K Ar symbol | Fl -keep-symbol= Ns Ar symbol
+Keep the symbol
+.Ar symbol
+even if it would otherwise be stripped.
+This option may be specified multiple times.
+.It Fl N Ar symbol | Fl -strip-symbol= Ns Ar symbol
+Remove the symbol
+.Ar symbol
+even if it would otherwise have been kept.
+This option may be specified multiple times.
+.It Fl O Ar format | Fl -output-target= Ns Ar format
+Set the output file format to
+.Ar format .
+For the full list of supported formats, please see the documentation
+for function
+.Xr elftc_bfd_find_target 3 .
+.It Fl R Ar sectionname | Fl -remove-section= Ns Ar sectionname
+Remove the section named by the argument
+.Ar sectionname .
+This option may be specified multiple times.
+.It Fl V | Fl -version
+Print a version identifier and exit.
+.It Fl X | Fl -discard-locals
+Remove compiler-generated local symbols.
+.El
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr ar 1 ,
+.Xr elfcopy 1 ,
+.Xr ld 1 ,
+.Xr mcs 1 ,
+.Xr elf 3 ,
+.Xr elftc_bfd_find_target 3 ,
+.Xr fnmatch 3

@@ -1,0 +1,3501 @@
+Description: based on the included patch contrib/fastrpz.patch
+Author: fastrpz@farsightsecurity.com
+---
+Index: unboundfastrpz/Makefile.in
+===================================================================
+--- unboundfastrpz/Makefile.in	(revision 4923)
++++ unboundfastrpz/Makefile.in	(working copy)
+@@ -23,6 +23,8 @@
+ CHECKLOCK_OBJ=@CHECKLOCK_OBJ@
+ DNSTAP_SRC=@DNSTAP_SRC@
+ DNSTAP_OBJ=@DNSTAP_OBJ@
++FASTRPZ_SRC=@FASTRPZ_SRC@
++FASTRPZ_OBJ=@FASTRPZ_OBJ@
+ DNSCRYPT_SRC=@DNSCRYPT_SRC@
+ DNSCRYPT_OBJ=@DNSCRYPT_OBJ@
+ WITH_PYTHONMODULE=@WITH_PYTHONMODULE@
+@@ -126,7 +128,7 @@
+ edns-subnet/edns-subnet.c edns-subnet/subnetmod.c \
+ edns-subnet/addrtree.c edns-subnet/subnet-whitelist.c \
+ cachedb/cachedb.c cachedb/redis.c respip/respip.c $(CHECKLOCK_SRC) \
+-$(DNSTAP_SRC) $(DNSCRYPT_SRC) $(IPSECMOD_SRC)
++$(DNSTAP_SRC) $(FASTRPZ_SRC) $(DNSCRYPT_SRC) $(IPSECMOD_SRC)
+ COMMON_OBJ_WITHOUT_NETCALL=dns.lo infra.lo rrset.lo dname.lo msgencode.lo \
+ as112.lo msgparse.lo msgreply.lo packed_rrset.lo iterator.lo iter_delegpt.lo \
+ iter_donotq.lo iter_fwd.lo iter_hints.lo iter_priv.lo iter_resptype.lo \
+@@ -139,7 +141,7 @@
+ validator.lo val_kcache.lo val_kentry.lo val_neg.lo val_nsec3.lo val_nsec.lo \
+ val_secalgo.lo val_sigcrypt.lo val_utils.lo dns64.lo cachedb.lo redis.lo authzone.lo \
+ $(SUBNET_OBJ) $(PYTHONMOD_OBJ) $(CHECKLOCK_OBJ) $(DNSTAP_OBJ) $(DNSCRYPT_OBJ) \
+-$(IPSECMOD_OBJ) respip.lo
++$(FASTRPZ_OBJ) $(IPSECMOD_OBJ) respip.lo
+ COMMON_OBJ_WITHOUT_UB_EVENT=$(COMMON_OBJ_WITHOUT_NETCALL) netevent.lo listen_dnsport.lo \
+ outside_network.lo
+ COMMON_OBJ=$(COMMON_OBJ_WITHOUT_UB_EVENT) ub_event.lo
+@@ -405,6 +407,11 @@
+ 	$(srcdir)/util/config_file.h $(srcdir)/util/log.h \
+ 	$(srcdir)/util/netevent.h
+ 
++# fastrpz
++rpz.lo rpz.o: $(srcdir)/fastrpz/rpz.c config.h fastrpz/rpz.h fastrpz/librpz.h \
++	$(srcdir)/util/config_file.h $(srcdir)/daemon/daemon.h \
++	$(srcdir)/util/log.h
++
+ # Python Module
+ pythonmod.lo pythonmod.o: $(srcdir)/pythonmod/pythonmod.c config.h \
+ 	pythonmod/interface.h \
+Index: unboundfastrpz/config.h.in
+===================================================================
+--- unboundfastrpz/config.h.in	(revision 4923)
++++ unboundfastrpz/config.h.in	(working copy)
+@@ -1272,4 +1272,11 @@
+ /** the version of unbound-control that this software implements */
+ #define UNBOUND_CONTROL_VERSION 1
+ 
+-
++/* have __attribute__s used in librpz.h */
++#undef LIBRPZ_HAVE_ATTR
++/** fastrpz librpz.so */
++#undef FASTRPZ_LIBRPZ_PATH
++/** 0=no fastrpz  1=static link  2=dlopen() */
++#undef FASTRPZ_LIB_OPEN
++/** turn on fastrpz response policy zones */
++#undef ENABLE_FASTRPZ
+Index: unboundfastrpz/configure.ac
+===================================================================
+--- unboundfastrpz/configure.ac	(revision 4923)
++++ unboundfastrpz/configure.ac	(working copy)
+@@ -6,6 +6,7 @@
+ sinclude(acx_python.m4)
+ sinclude(ac_pkg_swig.m4)
+ sinclude(dnstap/dnstap.m4)
++sinclude(fastrpz/rpz.m4)
+ sinclude(dnscrypt/dnscrypt.m4)
+ 
+ # must be numbers. ac_defun because of later processing
+@@ -1565,6 +1566,9 @@
+ 		;;
+ esac
+ 
++# check for Fastrpz with fastrpz/rpz.m4
++ck_FASTRPZ
++
+ AC_MSG_CHECKING([if ${MAKE:-make} supports $< with implicit rule in scope])
+ # on openBSD, the implicit rule make $< work.
+ # on Solaris, it does not work ($? is changed sources, $^ lists dependencies).
+Index: unboundfastrpz/daemon/daemon.c
+===================================================================
+--- unboundfastrpz/daemon/daemon.c	(revision 4923)
++++ unboundfastrpz/daemon/daemon.c	(working copy)
+@@ -91,6 +91,9 @@
+ #include "sldns/keyraw.h"
+ #include "respip/respip.h"
+ #include <signal.h>
++#ifdef ENABLE_FASTRPZ
++#include "fastrpz/rpz.h"
++#endif
+ 
+ #ifdef HAVE_SYSTEMD
+ #include <systemd/sd-daemon.h>
+@@ -462,6 +465,14 @@
+ 		fatal_exit("dnstap enabled in config but not built with dnstap support");
+ #endif
+ 	}
++	if(daemon->cfg->rpz_enable) {
++#ifdef ENABLE_FASTRPZ
++		rpz_init(&daemon->rpz_clist, &daemon->rpz_client, daemon->cfg);
++#else
++		fatal_exit("fastrpz enabled in config"
++			   " but not built with fastrpz");
++#endif
++	}
+ 	for(i=0; i<daemon->num; i++) {
+ 		if(!(daemon->workers[i] = worker_create(daemon, i,
+ 			shufport+numport*i/daemon->num, 
+@@ -719,6 +730,9 @@
+ 	dnsc_delete(daemon->dnscenv);
+ 	daemon->dnscenv = NULL;
+ #endif
++#ifdef ENABLE_FASTRPZ
++	rpz_delete(&daemon->rpz_clist, &daemon->rpz_client);
++#endif
+ 	daemon->cfg = NULL;
+ }
+ 
+Index: unboundfastrpz/daemon/daemon.h
+===================================================================
+--- unboundfastrpz/daemon/daemon.h	(revision 4923)
++++ unboundfastrpz/daemon/daemon.h	(working copy)
+@@ -136,6 +136,11 @@
+ 	/** the dnscrypt environment */
+ 	struct dnsc_env* dnscenv;
+ #endif
++#ifdef ENABLE_FASTRPZ
++	/** global opaque rpz handles */
++	struct librpz_clist *rpz_clist;
++	struct librpz_client *rpz_client;
++#endif
+ };
+ 
+ /**
+Index: unboundfastrpz/daemon/worker.c
+===================================================================
+--- unboundfastrpz/daemon/worker.c	(revision 4923)
++++ unboundfastrpz/daemon/worker.c	(working copy)
+@@ -75,6 +75,9 @@
+ #include "libunbound/context.h"
+ #include "libunbound/libworker.h"
+ #include "sldns/sbuffer.h"
++#ifdef ENABLE_FASTRPZ
++#include "fastrpz/rpz.h"
++#endif
+ #include "sldns/wire2str.h"
+ #include "util/shm_side/shm_main.h"
+ #include "dnscrypt/dnscrypt.h"
+@@ -533,8 +536,27 @@
+ 			/* not secure */
+ 			secure = 0;
+ 			break;
++#ifdef ENABLE_FASTRPZ
++		case sec_status_rpz_rewritten:
++		case sec_status_rpz_drop:
++			fatal_exit("impossible cached RPZ sec_status");
++			break;
++#endif
+ 		}
+ 	}
++#ifdef ENABLE_FASTRPZ
++	if(repinfo->rpz) {
++		/* Scan the cached answer for RPZ hits.
++		 * ret=1 use cache entry
++		 * ret=-1 rewritten response already sent or dropped
++		 * ret=0 deny a cached entry exists
++		 */
++		int ret = rpz_worker_cache(worker, msg->rep, qinfo,
++					   id, flags, edns, repinfo);
++		if(ret != 1)
++			return ret;
++	}
++#endif
+ 	/* return this delegation from the cache */
+ 	edns_bak = *edns;
+ 	edns->edns_version = EDNS_ADVERTISED_VERSION;
+@@ -702,6 +724,23 @@
+ 			secure = 0;
+ 		}
+ 	} else	secure = 0;
++#ifdef ENABLE_FASTRPZ
++	if(repinfo->rpz) {
++		/* Scan the cached answer for RPZ hits.
++		 * ret=1 use cache entry
++		 * ret=-1 rewritten response already sent or dropped
++		 * ret=0 deny a cached entry exists
++		 */
++		int ret = rpz_worker_cache(worker, rep, qinfo, id, flags, edns,
++					   repinfo);
++		if(ret != 1) {
++			rrset_array_unlock_touch(worker->env.rrset_cache,
++						 worker->scratchpad, rep->ref,
++						 rep->rrset_count);
++			return ret;
++		}
++        }
++#endif
+ 
+ 	edns_bak = *edns;
+ 	edns->edns_version = EDNS_ADVERTISED_VERSION;
+@@ -1407,6 +1446,15 @@
+ 		log_addr(VERB_ALGO, "refused nonrec (cache snoop) query from",
+ 			&repinfo->addr, repinfo->addrlen);
+ 		goto send_reply;
++#ifdef ENABLE_FASTRPZ
++	} else {
++		/* Start to rewrite for response policy zones.
++		 * This can hit a qname trigger and be done. */
++		if(rpz_start(worker, &qinfo, repinfo, &edns)) {
++			regional_free_all(worker->scratchpad);
++			return 0;
++		}
++#endif
+ 	}
+ 
+ 	/* If we've found a local alias, replace the qname with the alias
+@@ -1455,12 +1503,21 @@
+ 		h = query_info_hash(lookup_qinfo, sldns_buffer_read_u16_at(c->buffer, 2));
+ 		if((e=slabhash_lookup(worker->env.msg_cache, h, lookup_qinfo, 0))) {
+ 			/* answer from cache - we have acquired a readlock on it */
+-			if(answer_from_cache(worker, &qinfo,
++			ret = answer_from_cache(worker, &qinfo,
+ 				cinfo, &need_drop, &alias_rrset, &partial_rep,
+ 				(struct reply_info*)e->data,
+ 				*(uint16_t*)(void *)sldns_buffer_begin(c->buffer),
+ 				sldns_buffer_read_u16_at(c->buffer, 2), repinfo,
+-				&edns)) {
++				&edns);
++#ifdef ENABLE_FASTRPZ
++			if(ret < 0) {
++				/* RPZ already dropped or sent a response. */
++				lock_rw_unlock(&e->lock);
++				regional_free_all(worker->scratchpad);
++				return 0;
++			}
++#endif
++			if(ret) {
+ 				/* prefetch it if the prefetch TTL expired.
+ 				 * Note that if there is more than one pass
+ 				 * its qname must be that used for cache
+@@ -1514,11 +1571,19 @@
+ 			lock_rw_unlock(&e->lock);
+ 		}
+ 		if(!LDNS_RD_WIRE(sldns_buffer_begin(c->buffer))) {
+-			if(answer_norec_from_cache(worker, &qinfo,
++			ret = answer_norec_from_cache(worker, &qinfo,
+ 				*(uint16_t*)(void *)sldns_buffer_begin(c->buffer), 
+ 				sldns_buffer_read_u16_at(c->buffer, 2), repinfo, 
+-				&edns)) {
++				&edns);
++			if(ret) {
+ 				regional_free_all(worker->scratchpad);
++#ifdef ENABLE_FASTRPZ
++				if(ret < 0) {
++					/* RPZ already dropped
++					 * or sent a response. */
++					return 0;
++				}
++#endif
+ 				goto send_reply;
+ 			}
+ 			verbose(VERB_ALGO, "answer norec from cache -- "
+Index: unboundfastrpz/doc/unbound.conf.5.in
+===================================================================
+--- unboundfastrpz/doc/unbound.conf.5.in	(revision 4923)
++++ unboundfastrpz/doc/unbound.conf.5.in	(working copy)
+@@ -1728,6 +1728,81 @@
+ used by dns64 processing instead.  Can be entered multiple times, list a
+ new domain for which it applies, one per line.  Applies also to names
+ underneath the name given.
++.SS "Response Policy Zone Rewriting"
++.LP
++Response policy zone rewriting is controlled with the
++.B rpz
++clause.
++It must contain a
++.B rpz\-enable:
++option, and one or more
++.B rpz\-zone:
++options.
++It will usually also contain
++.B rpz\-option:
++clauses with general rewriting options or specifying dnsrpzd parameters.
++Beneath the surface, the text in
++.B rpz\-zone: \fI<"domain">\fR
++is converted to \fI"zone domain\\n"\fR and added to the configuration string
++given to
++\fIlibrpz\fR(3).
++The text in
++.B rpz-option \fI<"text">\fR
++is also added to that configuration string.
++.LP
++If using chroot, then the chroot directory must contain the \fIdnsrpzd\fR(3)
++command and the shared libraries that it uses.
++Those can be found with the \fIldd\fR(1) command.
++.LP
++Resolver zone and rewriting options and response policy zone triggers and
++actions are described in \fIlibrpz\fR(3).
++The separate control file that specifies the policy zones maintained by
++the dnsrpzd daemon is described in \fIdnsrpzd\fR(8).
++.LP
++Many installations need a local whitelist that exempts local
++domains from rewriting.
++Whitelist records can be in zones transferred by dnsrpzd from
++authorities or in a local zone file.
++.TP
++.B rpz-enable: \fI<yes or no>
++enables Fastrpz.
++If not enabled, the other options in the
++.B rpz:
++clause are ignored.
++.TP
++.B rpz-zone: \fI<"zone and options">
++specifies a policy zone and optional per-zone rewriting parameters.
++.TP
++.B rpz-option: \fI<"option">
++specifies general Fastrpz options.
++.LP
++Fastrpz is available only on POSIX compliant UNIX-like systems with the
++\fImmap\fR(2) system call.
++.LP
++Fastrpz in Unbound differs from rpz and fastrpz in BIND by
++.RS 3
++.HP 4
++RPZ-CLIENT-IP triggers can only be used in the first policy zone
++specified with
++.B rpz-zone:
++.HP
++Policy zone rewriting is disabled by the DO bit in DNS requests
++even when no DNSSEC signatures are supplied by authorities.
++.HP
++Unbound local zones are not subject to rpz rewriting.
++.HP
++Like Fastrpz with BIND but unlike classic BIND rpz,
++the ADDITIONAL sections of rewritten responses contain the SOA record from
++the policy zone used to rewrite the response.
++.RE
++.P
++.nf
++# example Fastrpz settings for use with chroot on Freebsd
++rpz:
++    rpz-zone: "rpz.example.org"
++    rpz-zone: "other.rpz.example.org ip-as-ns yes"
++    rpz-option: "dnsrpzd ./dnsrpzd"
++.fi
+ .SS "DNSCrypt Options"
+ .LP
+ The
+Index: unboundfastrpz/fastrpz/librpz.h
+===================================================================
+--- unboundfastrpz/fastrpz/librpz.h	(nonexistent)
++++ unboundfastrpz/fastrpz/librpz.h	(working copy)
+@@ -0,0 +1,957 @@
++/*
++ * Define the interface from a DNS resolver to the Response Policy Zone
++ * library, librpz.
++ *
++ * This file should be included only the interface functions between the
++ * resolver and librpz to avoid name space pollution.
++ *
++ * Copyright (c) 2016-2017 Farsight Security, Inc.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *	http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ *
++ * Fastrpz version 1.2.10
++ */
++
++#ifndef LIBRPZ_H
++#define LIBRPZ_H
++
++#include <arpa/nameser.h>
++#include <netinet/in.h>
++#include <stdarg.h>
++#include <stdbool.h>
++#include <stdio.h>
++#include <sys/types.h>
++
++
++/*
++ * Allow either ordinary or dlopen() linking.
++ */
++#ifdef LIBRPZ_INTERNAL
++#define LIBDEF(t,s) extern t s;
++#define LIBDEF_F(f) LIBDEF(librpz_##f##_t, librpz_##f)
++#else
++#define LIBDEF(t,s)
++#define LIBDEF_F(f)
++#endif
++
++/*
++ * Response Policy Zone triggers.
++ *	Comparisons of trigger precedences require
++ *	LIBRPZ_TRIG_CLIENT_IP < LIBRPZ_TRIG_QNAME < LIBRPZ_TRIG_IP
++ *	    < LIBRPZ_TRIG_NSDNAME < LIBRPZ_TRIG_NSIP}
++ */
++typedef enum {
++	LIBRPZ_TRIG_BAD		=0,
++	LIBRPZ_TRIG_CLIENT_IP	=1,
++	LIBRPZ_TRIG_QNAME	=2,
++	LIBRPZ_TRIG_IP		=3,
++	LIBRPZ_TRIG_NSDNAME	=4,
++	LIBRPZ_TRIG_NSIP	=5
++} librpz_trig_t;
++#define LIBRPZ_TRIG_SIZE	3	/* sizeof librpz_trig_t in bits */
++typedef uint8_t		librpz_tbit_t;  /* one bit for each of the TRIGS_NUM
++					 * trigger types */
++
++
++/*
++ * Response Policy Zone Actions or policies
++ */
++typedef enum {
++	LIBRPZ_POLICY_UNDEFINED	=0,	/* an empty entry or no decision yet */
++	LIBRPZ_POLICY_DELETED	=1,	/* placeholder for a deleted policy */
++
++	LIBRPZ_POLICY_PASSTHRU	=2,	/* 'passthru': do not rewrite */
++	LIBRPZ_POLICY_DROP	=3,	/* 'drop': do not respond */
++	LIBRPZ_POLICY_TCP_ONLY	=4,	/* 'tcp-only': answer UDP with TC=1 */
++	LIBRPZ_POLICY_NXDOMAIN	=5,	/* 'nxdomain': answer with NXDOMAIN */
++	LIBRPZ_POLICY_NODATA	=6,	/* 'nodata': answer with ANCOUNT=0 */
++	LIBRPZ_POLICY_RECORD	=7,	/* rewrite with the policy's RR */
++
++	/* only in client configurations to override the zone */
++	LIBRPZ_POLICY_GIVEN,		/* 'given': what policy record says */
++	LIBRPZ_POLICY_DISABLED,		/* at most log */
++	LIBRPZ_POLICY_CNAME,		/* answer with 'cname x' */
++} librpz_policy_t;
++#define LIBRPZ_POLICY_BITS	4
++
++/*
++ * Special policies that appear as targets of CNAMEs
++ * NXDOMAIN is signaled by a CNAME with a "." target.
++ * NODATA is signaled by a CNAME with a "*." target.
++ */
++#define LIBRPZ_RPZ_PREFIX	"rpz-"
++#define LIBRPZ_RPZ_PASSTHRU	LIBRPZ_RPZ_PREFIX"passthru"
++#define LIBRPZ_RPZ_DROP		LIBRPZ_RPZ_PREFIX"drop"
++#define LIBRPZ_RPZ_TCP_ONLY	LIBRPZ_RPZ_PREFIX"tcp-only"
++
++
++typedef	uint16_t    librpz_dznum_t;	/* dnsrpzd zone # in [0,DZNUM_MAX] */
++typedef	uint8_t	    librpz_cznum_t;	/* client zone # in [0,CZNUM_MAX] */
++
++
++/*
++ * CIDR block
++ */
++typedef struct librpz_prefix {
++	union {
++		struct in_addr	in;
++		struct in6_addr	in6;
++	} addr;
++	uint8_t		    family;
++	uint8_t		    len;
++} librpz_prefix_t;
++
++/*
++ * A domain
++ */
++typedef uint8_t	librpz_dsize_t;
++typedef struct librpz_domain {
++	librpz_dsize_t	    size;	/* of only .d */
++	uint8_t		    d[0];	/* variable length wire format */
++} librpz_domain_t;
++
++/*
++ * A maximal domain buffer
++ */
++typedef struct librpz_domain_buf {
++	librpz_dsize_t	    size;
++	uint8_t		    d[NS_MAXCDNAME];
++} librpz_domain_buf_t;
++
++/*
++ * A resource record without the owner name.
++ * C compilers say that sizeof(librpz_rr_t)=12 instead of 10.
++ */
++typedef struct {
++	uint16_t	    type;	/* network byte order */
++	uint16_t	    class;	/* network byte order */
++	uint32_t	    ttl;	/* network byte order */
++	uint16_t	    rdlength;	/* network byte order */
++	uint8_t		    rdata[0];	/* variable length */
++} librpz_rr_t;
++
++/*
++ * The database file might be mapped with different starting addresses
++ * by concurrent clients (resolvers), and so all pointers are offsets.
++ */
++typedef uint32_t	librpz_idx_t;
++#define LIBRPZ_IDX_NULL	0
++#define LIBRPZ_IDX_MIN	1
++#define LIBRPZ_IDX_BAD  ((librpz_idx_t)-1)
++/**
++ * Partial decoded results of a set of RPZ queries for a single DNS response
++ * or interation through the mapped file.
++ */
++typedef int16_t librpz_result_id_t;
++typedef struct librpz_result {
++	librpz_idx_t	    next_rr;
++	librpz_result_id_t  hit_id;		/* trigger ID from resolver */
++	librpz_policy_t	    zpolicy;	/* policy from zone */
++	librpz_policy_t	    policy;	/* adjusted by client configuration */
++	librpz_dznum_t	    dznum;	/* dnsrpzd zone number */
++	librpz_cznum_t	    cznum;	/* librpz client zone number */
++	librpz_trig_t	    trig:LIBRPZ_TRIG_SIZE;
++	bool		    log:1;	/* log rewrite given librpz_log_level */
++} librpz_result_t;
++
++
++/**
++ * librpz trace or log levels.
++ */
++typedef enum {
++	LIBRPZ_LOG_FATAL    =0,		/* always print fatal errors */
++	LIBRPZ_LOG_ERROR    =1,		/* errors have this level */
++	LIBRPZ_LOG_TRACE1   =2,		/* big events such as dnsrpzd starts */
++	LIBRPZ_LOG_TRACE2   =3,		/* smaller dnsrpzd zone transfers */
++	LIBRPZ_LOG_TRACE3   =4,		/* librpz hits */
++	LIBRPZ_LOG_TRACE4   =5,		/* librpz lookups */
++	LIBRPZ_LOG_INVALID   =999,
++} librpz_log_level_t;
++typedef librpz_log_level_t (librpz_log_level_val_t)(librpz_log_level_t level);
++LIBDEF_F(log_level_val)
++
++/**
++ * Logging function that can be supplied by the resolver.
++ * @param level is one of librpz_log_level_t
++ * @param ctx is for use by the resolver's logging system.
++ *	NULL mean a context-free message.
++ */
++typedef void(librpz_log_fnc_t)(librpz_log_level_t level, void *ctx,
++			       const char *buf);
++
++/**
++ * Point librpz logging functions to the resolver's choice.
++ */
++typedef void (librpz_set_log_t)(librpz_log_fnc_t *new_log, const char *prog_nm);
++LIBDEF_F(set_log)
++
++
++/**
++ * librpz error messages are put in these buffers.
++ * Use a structure intead of naked char* to let the compiler check the length.
++ * A function defined with "foo(char buf[120])" can be called with
++ * "char sbuf[2]; foo(sbuf)" and suffer a buffer overrun.
++ */
++typedef struct {
++	char	c[120];
++} librpz_emsg_t;
++
++
++#ifdef LIBRPZ_HAVE_ATTR
++#define LIBRPZ_UNUSED	__attribute__((unused))
++#define LIBRPZ_PF(f,l)	__attribute__((format(printf,f,l)))
++#define	LIBRPZ_NORET	__attribute__((__noreturn__))
++#else
++#define LIBRPZ_UNUSED
++#define LIBRPZ_PF(f,l)
++#define	LIBRPZ_NORET
++#endif
++
++#ifdef HAVE_BUILTIN_EXPECT
++#define LIBRPZ_LIKELY(c) __builtin_expect(!!(c), 1)
++#define LIBRPZ_UNLIKELY(c) __builtin_expect(!!(c), 0)
++#else
++#define LIBRPZ_LIKELY(c) (c)
++#define LIBRPZ_UNLIKELY(c) (c)
++#endif
++
++typedef bool (librpz_parse_log_opt_t)(librpz_emsg_t *emsg, const char *arg);
++LIBDEF_F(parse_log_opt)
++
++typedef void (librpz_vpemsg_t)(librpz_emsg_t *emsg,
++			       const char *p, va_list args);
++LIBDEF_F(vpemsg)
++typedef void (librpz_pemsg_t)(librpz_emsg_t *emsg,
++			      const char *p, ...) LIBRPZ_PF(2,3);
++LIBDEF_F(pemsg)
++
++typedef void (librpz_vlog_t)(librpz_log_level_t level, void *ctx,
++			     const char *p, va_list args);
++LIBDEF_F(vlog)
++typedef void (librpz_log_t)(librpz_log_level_t level, void *ctx,
++			    const char *p, ...) LIBRPZ_PF(3,4);
++LIBDEF_F(log)
++
++typedef void (librpz_fatal_t)(int ex_code,
++			      const char *p, ...) LIBRPZ_PF(2,3);
++extern void librpz_fatal(int ex_code,
++			 const char *p, ...) LIBRPZ_PF(2,3) LIBRPZ_NORET;
++
++typedef void (librpz_rpz_assert_t)(const char *file, unsigned line,
++				   const char *p, ...) LIBRPZ_PF(3,4);
++extern void librpz_rpz_assert(const char *file, unsigned line,
++			      const char *p, ...) LIBRPZ_PF(3,4) LIBRPZ_NORET;
++
++typedef void (librpz_rpz_vassert_t)(const char *file, uint line,
++				    const char *p, va_list args);
++extern void librpz_rpz_vassert(const char *file, uint line,
++			       const char *p, va_list args) LIBRPZ_NORET;
++
++
++/*
++ * As far as clients are concerned, all relative pointers or indexes in a
++ * version of the mapped file except trie node parent pointers remain valid
++ * forever.  A client must release a version so that it can be garbage
++ * collected by the file system.  When dnsrpzd needs to expand the file,
++ * it copies the old file to a new, larger file.  Clients can continue
++ * using the old file.
++ *
++ * Versions can also appear in a single file.  Old nodes and trie values
++ * within the file are not destroyed until all clients using the version
++ * that contained the old values release the version.
++ *
++ * A client is marked as using version by connecting to the deamon.  It is
++ * marked as using all subsequent versions.  A client releases all versions
++ * by closing the connection or a range of versions by updating is slot
++ * in the shared memory version table.
++ *
++ * As far as clients are concerned, there are the following possible librpz
++ * failures:
++ *	- malloc() or other fatal internal librpz problems indicated by
++ *	    a failing return from a librpz function
++ *	    All operations will fail until client handle is destroyed and
++ *	    recreated with librpz_client_detach() and librpz_client_create().
++ *	- corrupt database detected by librpz code, corrupt database detected
++ *	    by dnsrpzd, or disconnection from the daemon.
++ *	    Current operations will fail.
++ *
++ * Clients assume that the file has already been unlinked before
++ *	the corrupt flag is set so that they do not race with the server
++ *	over the corruption of a single file.  A client that finds the
++ *	corrupt set knows that dnsrpzd has already crashed with
++ *	abort() and is restarting.  The client can re-connect to dnsrpzd
++ *	and retransmit its configuration, backing off as usual if anything
++ *	goes wrong.
++ *
++ * Searchs of the database by a client do not need locks against dnsrpzd or
++ *	other clients, but a lock is used to protect changes to the connection
++ *	by competing threads in the client.  The client provides fuctions
++ *	to serialize the conncurrent use of any single client handle.
++ *	Functions that do nothing are appropriate for applications that are
++ *	not "threaded" or that do not share client handles among threads.
++ *	Otherwise, functions must be provided to librpz_clientcreate().
++ *	Something like the following works with pthreads:
++ *
++ * static void
++ * lock(void *mutex) { assert(pthread_mutex_lock(mutex) == 0); }
++ *
++ * static void
++ * unlock(void *mutex) { assert(pthread_mutex_unlock(mutex) == 0); }
++ *
++ * static void
++ * mutex_destroy(void *mutex) { assert(pthread_mutex_destroy(mutex) == 0); }
++ *
++ *
++ *
++ * At every instant, all of the data and pointers in the mapped file are valid.
++ *	Changes to trie node or other data are always made so that it and
++ *	all pointers in and to it remain valid for a time.  Old versions are
++ *	eventually discarded.
++ *
++ * Dnsrpzd periodically defines a new version by setting asside all changes
++ *	made since the previous version was defined.  Subsequent changes
++ *	made (only!) by dnsrpzd will be part of the next version.
++ *
++ * To discard an old version, dnsrpzd must know that all clients have stopped
++ *	using that version.  Clients do that by using part of the mapped file
++ *	to tell dnsrpzd the oldest version that each client is using.
++ *	Dnsrpzd assigns each connecting client an entry in the cversions array
++ *	in the mapped file.  The client puts version numbers into that entry
++ *	to signal to dnsrpzd which versions that can be discarded.
++ *	Dnsrpzd is free, as far as that client is concerned, to discard all
++ *	numerically smaller versions.  A client can disclaim all versions with
++ *	the version number VERSIONS_ALL or 0.
++ *
++ * The race between a client changing its entry and dnsrpzd discarding a
++ *	version is resolved by allowing dnsrpzd to discard all versions
++ *	smaller or equal to the client's version number.  If dnsrpzd is in
++ *	the midst of discarding or about to discard version N when the
++ *	client asserts N, no harm is done.  The client depends only on
++ *	the consistency of version N+1.
++ *
++ * This version mechanism depends in part on not being exercised too frequently
++ *	Version numbers are 32 bits long and dnsrpzd creates new versions
++ *	at most once every 30 seconds.
++ */
++
++
++/*
++ * Lock functions for concurrent use of a single librpz_client_t client handle.
++ */
++typedef void(librpz_mutex_t)(void *mutex);
++
++/*
++ * List of connections to dnsrpzd daemons.
++ */
++typedef struct librpz_clist librpz_clist_t;
++
++/*
++ * Client's handle on dnsrpzd.
++ */
++typedef struct librpz_client librpz_client_t;
++
++/**
++ * Create the list of connections to the dnsrpzd daemon.
++ * @param[out] emsg: error message
++ * @param lock: start exclusive access to the client handle
++ * @param unlock: end exclusive access to the client handle
++ * @param mutex_destroy: release the lock
++ * @param mutex: pointer to the lock for the client handle
++ * @param log_ctx: NULL or resolver's context log messages
++ */
++typedef librpz_clist_t *(librpz_clist_create_t)(librpz_emsg_t *emsg,
++						librpz_mutex_t *lock,
++						librpz_mutex_t *unlock,
++						librpz_mutex_t *mutex_destroy,
++						void *mutex, void *log_ctx);
++LIBDEF_F(clist_create)
++
++
++/**
++ * Release the list of dnsrpzd connections.
++ */
++typedef void (librpz_clist_detach_t)(librpz_clist_t **clistp);
++LIBDEF_F(clist_detach)
++
++/**
++ * Create a librpz client handle.
++ * @param[out] emsg: error message
++ * @param: list of dnsrpzd connections
++ * @param cstr: string of configuration settings separated by ';' or '\n'
++ * @param use_expired: true to not ignore expired zones
++ * @return client handle or NULL if the handle could not be created
++ */
++typedef librpz_client_t *(librpz_client_create_t)(librpz_emsg_t *emsg,
++						  librpz_clist_t *clist,
++						  const char *cstr,
++						  bool use_expired);
++LIBDEF_F(client_create)
++
++/**
++ * Start (if necessary) dnsrpzd and connect to it.
++ * @param[out] emsg: error message
++ * @param client handle
++ * @param optional: true if it is ok if starting the daemon is not allowed
++ */
++typedef bool (librpz_connect_t)(librpz_emsg_t *emsg, librpz_client_t *client,
++				bool optional);
++LIBDEF_F(connect)
++
++/**
++ * Start to destroy a librpz client handle.
++ * It will not be destroyed until the last set of RPZ queries represented
++ * by a librpz_rsp_t ends.
++ * @param client handle to be released
++ * @return false on error
++ */
++typedef void (librpz_client_detach_t)(librpz_client_t **clientp);
++LIBDEF_F(client_detach)
++
++/**
++ * State for a set of RPZ queries for a single DNS response
++ * or for listing the database.
++ */
++typedef struct librpz_rsp librpz_rsp_t;
++
++/**
++ * Start a set of RPZ queries for a single DNS response.
++ * @param[out] emsg: error message for false return or *rspp=NULL
++ * @param[out] rspp created context or NULL
++ * @param[out] min_ns_dotsp: NULL or pointer to configured MIN-NS-DOTS value
++ * @param client state
++ * @param have_rd: RD=1 in the DNS request
++ * @param have_do: DO=1 in the DNS request
++ * @return false on error
++ */
++typedef bool (librpz_rsp_create_t)(librpz_emsg_t *emsg, librpz_rsp_t **rspp,
++				   int *min_ns_dotsp, librpz_client_t *client,
++				   bool have_rd, bool have_do);
++LIBDEF_F(rsp_create)
++
++/**
++ * Finish RPZ work for a DNS response.
++ */
++typedef void (librpz_rsp_detach_t)(librpz_rsp_t **rspp);
++LIBDEF_F(rsp_detach)
++
++/**
++ * Get the final, accumulated result of a set of RPZ queries.
++ * Yield LIBRPZ_POLICY_UNDEFINED if
++ *  - there were no hits,
++ *  - there was a dispositive hit, be we have not recursed and are required
++ *	to recurse so that evil DNS authories will not know we are using RPZ
++ *  - we have a hit and have recursed, but later data such as NSIP could
++ *	override
++ * @param[out] emsg
++ * @param[out] result describes the hit
++ *	or result->policy=LIBRPZ_POLICY_UNDEFINED without a hit
++ * @param[out] result: current policy rewrite values
++ * @param recursed: recursion has now been done even if it was not done
++ *	when the hit was found
++ * @param[in,out] rsp state from librpz_itr_start()
++ * @return false on error
++ */
++typedef bool (librpz_rsp_result_t)(librpz_emsg_t *emsg, librpz_result_t *result,
++				   bool recursed, const librpz_rsp_t *rsp);
++LIBDEF_F(rsp_result)
++
++/**
++ * Might looking for a trigger be worthwhile?
++ * @param trig: look for this type of trigger
++ * @param ipv6: true if trig is LIBRPZ_TRIG_CLIENT_IP, LIBRPZ_TRIG_IP,
++ *	or LIBRPZ_TRIG_NSIP and the IP address is IPv6
++ * @return: true if looking could be worthwhile
++ */
++typedef bool (librpz_have_trig_t)(librpz_trig_t trig, bool ipv6,
++				  const librpz_rsp_t *rsp);
++LIBDEF_F(have_trig)
++
++/**
++ * Might looking for NSDNAME and NSIP triggers be worthwhile?
++ * @return: true if looking could be worthwhile
++ */
++typedef bool (librpz_have_ns_trig_t)(const librpz_rsp_t *rsp);
++LIBDEF_F(have_ns_trig)
++
++/**
++ * Convert the found client IP trie key to a CIDR block
++ * @param[out] emsg
++ * @param[out] prefix trigger
++ * @param[in,out] rsp state from librpz_itr_start()
++ * @return false on error
++ */
++typedef bool (librpz_rsp_clientip_prefix_t)(librpz_emsg_t *emsg,
++					    librpz_prefix_t *prefix,
++					    librpz_rsp_t *rsp);
++LIBDEF_F(rsp_clientip_prefix)
++
++/**
++ * Compute the owner name of the found or result trie key, usually to log it.
++ * An IP address key might be returned as 8.0.0.0.127.rpz-client-ip.
++ * example.com. might be a qname trigger.  example.com.rpz-nsdname. could
++ * be an NSDNAME trigger.
++ * @param[out] emsg
++ * @param[out] owner domain
++ * @param[in,out] rsp state from librpz_itr_start()
++ * @return false on error
++ */
++typedef bool (librpz_rsp_domain_t)(librpz_emsg_t *emsg,
++				   librpz_domain_buf_t *owner,
++				   librpz_rsp_t *rsp);
++LIBDEF_F(rsp_domain)
++
++/**
++ * Get the next RR of the LIBRPZ_POLICY_RECORD result after an initial use of
++ * librpz_rsp_result() or librpz_itr_node() or after a previous use of
++ * librpz_rsp_rr().  The RR is in uncompressed wire format including type,
++ * class, ttl and length in network byte order.
++ * @param[out] emsg
++ * @param[out] typep: optional host byte order record type or ns_t_invalid (0)
++ * @param[out] classp: class such as ns_c_in
++ * @param[out] ttlp: TTL
++ * @param[out] rrp: optionall malloc() buffer containting the next RR or
++ *	NULL after the last RR
++ * @param[out] result: current policy rewrite values
++ * @param qname: used construct a wildcard CNAME
++ * @param qname_size
++ * @param[in,out] rsp state from librpz_itr_start()
++ * @return false on error
++ */
++typedef bool (librpz_rsp_rr_t)(librpz_emsg_t *emsg, uint16_t *typep,
++			       uint16_t *classp, uint32_t *ttlp,
++			       librpz_rr_t **rrp, librpz_result_t *result,
++			       const uint8_t *qname, size_t qname_size,
++			       librpz_rsp_t *rsp);
++LIBDEF_F(rsp_rr)
++
++/**
++ * Get the next RR of the LIBRPZ_POLICY_RECORD result.
++ * @param[out] emsg
++ * @param[out] ttlp: TTL
++ * @param[out] rrp: malloc() buffer with SOA RR without owner name
++ * @param[out] result: current policy rewrite values
++ * @param[out] origin: SOA owner name
++ * @param[out] origin_size
++ * @param[in,out] rsp state from librpz_itr_start()
++ * @return false on error
++ */
++typedef bool (librpz_rsp_soa_t)(librpz_emsg_t *emsg, uint32_t *ttlp,
++				librpz_rr_t **rrp, librpz_domain_buf_t *origin,
++				librpz_result_t *result, librpz_rsp_t *rsp);
++LIBDEF_F(rsp_soa)
++
++/**
++ * Get the SOA serial number for a policy zone to compare with a known value
++ * to check whether a zone tranfer is complete.
++ */
++typedef bool (librpz_soa_serial_t)(librpz_emsg_t *emsg, uint32_t *serialp,
++				   const char *domain_nm, librpz_rsp_t *rsp);
++LIBDEF_F(soa_serial)
++
++/**
++ * Save the current policy checking state.
++ * @param[out] emsg
++ * @param[in,out] rsp state from librpz_itr_start()
++ * @return false on error
++ */
++typedef bool (librpz_rsp_push_t)(librpz_emsg_t *emsg, librpz_rsp_t *rsp);
++LIBDEF_F(rsp_push)
++#define LIBRPZ_RSP_STACK_DEPTH	3
++
++/**
++ * Restore the previous policy checking state.
++ * @param[out] emsg
++ * @param[out] result: NULL or restored policy rewrite values
++ * @param[in,out] rsp state from librpz_itr_start()
++ * @return false on error
++ */
++typedef bool (librpz_rsp_pop_t)(librpz_emsg_t *emsg, librpz_result_t *result,
++				librpz_rsp_t *rsp);
++LIBDEF_F(rsp_pop)
++
++/**
++ * Discard the most recently save policy checking state.
++ * @param[out] emsg
++ * @param[out] result: NULL or restored policy rewrite values
++ * @return false on error
++ */
++typedef bool (librpz_rsp_pop_discard_t)(librpz_emsg_t *emsg, librpz_rsp_t *rsp);
++LIBDEF_F(rsp_pop_discard)
++
++/**
++ * Disable a zone.
++ * @param[out] emsg
++ * @param znum
++ * @param[in,out] rsp state from librpz_itr_start()
++ * @return false on error
++ */
++typedef bool (librpz_rsp_forget_zone_t)(librpz_emsg_t *emsg,
++					librpz_cznum_t znum, librpz_rsp_t *rsp);
++LIBDEF_F(rsp_forget_zone)
++
++/**
++ * Apply RPZ to an IP address.
++ * @param[out] emsg
++ * @param addr: address to check
++ * @param ipv6: true for 16 byte IPv6 instead of 4 byte IPv4
++ * @param trig LIBRPZ_TRIG_CLIENT_IP, LIBRPZ_TRIG_IP, or LIBRPZ_TRIG_NSIP
++ * @param hit_id: caller chosen
++ * @param recursed: recursion has been done
++ * @param[in,out] rsp state from librpz_itr_start()
++ * @return false on error
++ */
++typedef bool (librpz_ck_ip_t)(librpz_emsg_t *emsg,
++			      const void *addr, uint family,
++			      librpz_trig_t trig, librpz_result_id_t hit_id,
++			      bool recursed, librpz_rsp_t *rsp);
++LIBDEF_F(ck_ip)
++
++/**
++ * Apply RPZ to a wire-format domain.
++ * @param[out] emsg
++ * @param domain in wire format
++ * @param domain_size
++ * @param trig LIBRPZ_TRIG_QNAME or LIBRPZ_TRIG_NSDNAME
++ * @param hit_id: caller chosen
++ * @param recursed: recursion has been done
++ * @param[in,out] rsp state from librpz_itr_start()
++ * @return false on error
++ */
++typedef bool (librpz_ck_domain_t)(librpz_emsg_t *emsg,
++				  const uint8_t *domain, size_t domain_size,
++				  librpz_trig_t trig, librpz_result_id_t hit_id,
++				  bool recursed, librpz_rsp_t *rsp);
++LIBDEF_F(ck_domain)
++
++/**
++ * Ask dnsrpzd to refresh a zone.
++ * @param[out] emsg error message
++ * @param librpz_domain_t domain to refresh
++ * @param client context
++ * @return false after error
++ */
++typedef bool (librpz_zone_refresh_t)(librpz_emsg_t *emsg, const char *domain,
++				       librpz_rsp_t *rsp);
++LIBDEF_F(zone_refresh)
++
++/**
++ * Get a string describing the the databasse
++ * @param license: include the license
++ * @param cfiles: include the configuration file names
++ * @param listens: include the local notify IP addresses
++ * @param[out] emsg error message if the result is null
++ * @param client context
++ * @return malloc'ed string or NULL after error
++ */
++typedef char *(librpz_db_info_t)(librpz_emsg_t *emsg,
++				 bool license, bool cfiles, bool listens,
++				 librpz_rsp_t *rsp);
++LIBDEF_F(db_info)
++
++/**
++ * Start a context for listing the nodes and/or zones in the mapped file
++ * @param[out] emsg: error message for false return or *rspp=NULL
++ * @param[out[ rspp created context or NULL
++ * @param client context
++ * @return false after error
++ */
++typedef bool (librpz_itr_start_t)(librpz_emsg_t *emsg, librpz_rsp_t **rspp,
++				  librpz_client_t *client);
++LIBDEF_F(itr_start)
++
++/**
++ * Get mapped file memory allocation statistics.
++ * @param[out] emsg: error message
++ * @param rsp state from librpz_itr_start()
++ * @return malloc'ed string or NULL after error
++ */
++typedef char *(librpz_mf_stats_t)(librpz_emsg_t *emsg, librpz_rsp_t *rsp);
++LIBDEF_F(mf_stats)
++
++/**
++ * Get versions currently used by clients.
++ * @param[out] emsg: error message
++ * @param[in,out] rsp: state from librpz_itr_start()
++ * @return malloc'ed string or NULL after error
++ */
++typedef char *(librpz_vers_stats_t)(librpz_emsg_t *emsg, librpz_rsp_t *rsp);
++LIBDEF_F(vers_stats)
++
++/**
++ * Allocate a string describing the next zone or "" after the last zone.
++ * @param[out] emsg
++ * @param all_zones to list all instead of only requested zones
++ * @param[in,out] rsp state from librpz_rsp_start()
++ * @return malloc'ed string or NULL after error
++ */
++typedef char *(librpz_itr_zone_t)(librpz_emsg_t *emsg, bool all_zones,
++				  librpz_rsp_t *rsp);
++LIBDEF_F(itr_zone)
++
++/**
++ * Describe the next trie node while dumping the database.
++ * @param[out] emsg
++ * @param[out] result describes node
++ *	or result->policy=LIBRPZ_POLICY_UNDEFINED after the last node.
++ * @param all_zones to list all instead of only requested zones
++ * @param[in,out] rsp state from librpz_itr_start()
++ * @return: false on error
++ */
++typedef bool (librpz_itr_node_t)(librpz_emsg_t *emsg, librpz_result_t *result,
++				 bool all_zones, librpz_rsp_t *rsp);
++LIBDEF_F(itr_node)
++
++/**
++ * RPZ policy to string with a backup buffer of POLICY2STR_SIZE size
++ */
++typedef const char *(librpz_policy2str_t)(librpz_policy_t policy,
++					  char *buf, size_t buf_size);
++#define POLICY2STR_SIZE sizeof("policy xxxxxx")
++LIBDEF_F(policy2str)
++
++/**
++ * Trigger type to string.
++ */
++typedef const char *(librpz_trig2str_t)(librpz_trig_t trig);
++LIBDEF_F(trig2str)
++
++/**
++ * Convert a number of seconds to a zone file duration string
++ */
++typedef const char *(librpz_secs2str_t)(time_t secs,
++					char *buf, size_t buf_size);
++#define SECS2STR_SIZE sizeof("1234567w7d24h59m59s")
++LIBDEF_F(secs2str)
++
++/**
++ * Parse a duration with 's', 'm', 'h', 'd', and 'w' units.
++ */
++typedef bool (librpz_str2secs_t)(librpz_emsg_t *emsg, time_t *val,
++				 const char *str0);
++LIBDEF_F(str2secs)
++
++/**
++ * Translate selected rtypes to strings
++ */
++typedef const char *(librpz_rtype2str_t)(uint type, char *buf, size_t buf_size);
++#define RTYPE2STR_SIZE sizeof("type xxxxx")
++LIBDEF_F(rtype2str)
++
++/**
++ * Local version of ns_name_ntop() for portability.
++ */
++typedef int (librpz_domain_ntop_t)(const u_char *src, char *dst, size_t dstsiz);
++LIBDEF_F(domain_ntop)
++
++/**
++ * Local version of ns_name_pton().
++ */
++typedef int (librpz_domain_pton2_t)(const char *src, u_char *dst, size_t dstsiz,
++				    size_t *dstlen, bool lower);
++LIBDEF_F(domain_pton2)
++
++typedef union socku socku_t;
++typedef socku_t *(librpz_mk_inet_su_t)(socku_t *su, const struct in_addr *addrp,
++				     in_port_t port);
++LIBDEF_F(mk_inet_su)
++
++typedef socku_t *(librpz_mk_inet6_su_t)(socku_t *su, const
++					struct in6_addr *addrp,
++					uint32_t scope_id, in_port_t port);
++LIBDEF_F(mk_inet6_su)
++
++typedef bool (librpz_str2su_t)(socku_t *sup, const char *str);
++LIBDEF_F(str2su)
++
++typedef char *(librpz_su2str_t)(char *str, size_t str_len, const socku_t *su);
++LIBDEF_F(su2str)
++#define SU2STR_SIZE (INET6_ADDRSTRLEN+1+6+1)
++
++
++/**
++ * default path to dnsrpzd
++ */
++const char *librpz_dnsrpzd_path;
++
++
++#undef LIBDEF
++
++/*
++ * This is the dlopen() interface to librpz.
++ */
++typedef const struct {
++	const char			*dnsrpzd_path;
++	const char			*version;
++	librpz_parse_log_opt_t		*parse_log_opt;
++	librpz_log_level_val_t		*log_level_val;
++	librpz_set_log_t		*set_log;
++	librpz_vpemsg_t			*vpemsg;
++	librpz_pemsg_t			*pemsg;
++	librpz_vlog_t			*vlog;
++	librpz_log_t			*log;
++	librpz_fatal_t			*fatal LIBRPZ_NORET;
++	librpz_rpz_assert_t		*rpz_assert LIBRPZ_NORET;
++	librpz_rpz_vassert_t		*rpz_vassert LIBRPZ_NORET;
++	librpz_clist_create_t		*clist_create;
++	librpz_clist_detach_t		*clist_detach;
++	librpz_client_create_t		*client_create;
++	librpz_connect_t		*connect;
++	librpz_client_detach_t		*client_detach;
++	librpz_rsp_create_t		*rsp_create;
++	librpz_rsp_detach_t		*rsp_detach;
++	librpz_rsp_result_t		*rsp_result;
++	librpz_have_trig_t		*have_trig;
++	librpz_have_ns_trig_t		*have_ns_trig;
++	librpz_rsp_clientip_prefix_t	*rsp_clientip_prefix;
++	librpz_rsp_domain_t		*rsp_domain;
++	librpz_rsp_rr_t			*rsp_rr;
++	librpz_rsp_soa_t		*rsp_soa;
++	librpz_soa_serial_t		*soa_serial;
++	librpz_rsp_push_t		*rsp_push;
++	librpz_rsp_pop_t		*rsp_pop;
++	librpz_rsp_pop_discard_t	*rsp_pop_discard;
++	librpz_rsp_forget_zone_t	*rsp_forget_zone;
++	librpz_ck_ip_t			*ck_ip;
++	librpz_ck_domain_t		*ck_domain;
++	librpz_zone_refresh_t		*zone_refresh;
++	librpz_db_info_t		*db_info;
++	librpz_itr_start_t		*itr_start;
++	librpz_mf_stats_t		*mf_stats;
++	librpz_vers_stats_t		*vers_stats;
++	librpz_itr_zone_t		*itr_zone;
++	librpz_itr_node_t		*itr_node;
++	librpz_policy2str_t		*policy2str;
++	librpz_trig2str_t		*trig2str;
++	librpz_secs2str_t		*secs2str;
++	librpz_str2secs_t		*str2secs;
++	librpz_rtype2str_t		*rtype2str;
++	librpz_domain_ntop_t		*domain_ntop;
++	librpz_domain_pton2_t		*domain_pton2;
++	librpz_mk_inet_su_t		*mk_inet_su;
++	librpz_mk_inet6_su_t		*mk_inet6_su;
++	librpz_str2su_t			*str2su;
++	librpz_su2str_t			*su2str;
++} librpz_0_t;
++extern librpz_0_t librpz_def_0;
++
++/*
++ * Future versions can be upward compatible by defining LIBRPZ_DEF as
++ * librpz_X_t.
++ */
++#define LIBRPZ_DEF	librpz_def_0
++#define LIBRPZ_DEF_STR	"librpz_def_0"
++
++typedef librpz_0_t librpz_t;
++extern librpz_t *librpz;
++
++
++#if LIBRPZ_LIB_OPEN == 2
++#include <dlfcn.h>
++
++/**
++ * link-load librpz
++ * @param[out] emsg: error message
++ * @param[in,out] dl_handle: NULL or pointer to new dlopen handle
++ * @param[in] path: librpz.so path
++ * @return address of interface structure or NULL on failure
++ */
++static inline librpz_t *
++librpz_lib_open(librpz_emsg_t *emsg, void **dl_handle, const char *path)
++{
++	void *handle;
++	librpz_t *new_librpz;
++
++	emsg->c[0] = '\0';
++
++	/*
++	 * Close a previously opened handle on librpz.so.
++	 */
++	if (dl_handle != NULL && *dl_handle != NULL) {
++		if (dlclose(*dl_handle) != 0) {
++			snprintf(emsg->c, sizeof(librpz_emsg_t),
++				 "dlopen(NULL): %s", dlerror());
++			return (NULL);
++		}
++		*dl_handle = NULL;
++	}
++
++	/*
++	 * First try the main executable of the process in case it was
++	 * linked to librpz.
++	 * Do not worry if we cannot search the main executable of the process.
++	 */
++	handle = dlopen(NULL, RTLD_NOW | RTLD_LOCAL);
++	if (handle != NULL) {
++		new_librpz = dlsym(handle, LIBRPZ_DEF_STR);
++		if (new_librpz != NULL) {
++			if (dl_handle != NULL)
++				*dl_handle = handle;
++			return (new_librpz);
++		}
++		if (dlclose(handle) != 0) {
++			snprintf(emsg->c, sizeof(librpz_emsg_t),
++				 "dlsym(NULL, "LIBRPZ_DEF_STR"): %s",
++				 dlerror());
++			return (NULL);
++		}
++	}
++
++	if (path == NULL || path[0] == '\0') {
++		snprintf(emsg->c, sizeof(librpz_emsg_t),
++			 "librpz not linked and no dlopen() path provided");
++		return (NULL);
++	}
++
++	handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
++	if (handle == NULL) {
++		snprintf(emsg->c, sizeof(librpz_emsg_t), "dlopen(%s): %s",
++			 path, dlerror());
++		return (NULL);
++	}
++	new_librpz = dlsym(handle, LIBRPZ_DEF_STR);
++	if (new_librpz != NULL) {
++		if (dl_handle != NULL)
++			*dl_handle = handle;
++		return (new_librpz);
++	}
++	snprintf(emsg->c, sizeof(librpz_emsg_t),
++		 "dlsym(%s, "LIBRPZ_DEF_STR"): %s",
++		 path, dlerror());
++	dlclose(handle);
++	return (NULL);
++}
++
++#elif defined(LIBRPZ_LIB_OPEN)
++
++/*
++ * Statically link to the librpz.so DSO on systems without dlopen()
++ */
++static inline librpz_t *
++librpz_lib_open(librpz_emsg_t *emsg, void **dl_handle, const char *path)
++{
++	(void)(path);
++
++	if (dl_handle != NULL)
++		*dl_handle = NULL;
++
++#if LIBRPZ_LIB_OPEN == 1
++	emsg->c[0] = '\0';
++	return (&LIBRPZ_DEF);
++#else
++	snprintf(emsg->c, sizeof(librpz_emsg_t),
++		 "librpz not available via ./configure");
++	return (NULL);
++#endif /* LIBRPZ_LIB_OPEN */
++}
++#endif /* LIBRPZ_LIB_OPEN */
++
++#endif /* LIBRPZ_H */
+Index: unboundfastrpz/fastrpz/rpz.c
+===================================================================
+--- unboundfastrpz/fastrpz/rpz.c	(nonexistent)
++++ unboundfastrpz/fastrpz/rpz.c	(working copy)
+@@ -0,0 +1,1352 @@
++/*
++ * fastrpz/rpz.c - interface to the fastrpz response policy zone library
++ *
++ * Optimize no-rewrite cases for speed but optimize rewriting for
++ * simplicity and size.
++ */
++
++#include "config.h"
++
++#ifdef ENABLE_FASTRPZ
++#include "daemon/daemon.h"
++#define LIBRPZ_LIB_OPEN FASTRPZ_LIB_OPEN
++#include "fastrpz/rpz.h"
++#include "daemon/worker.h"
++#include "iterator/iter_delegpt.h"
++#include "iterator/iter_utils.h"
++#include "iterator/iterator.h"
++#include "util/data/dname.h"
++#include "util/data/msgencode.h"
++#include "util/data/msgparse.h"
++#include "util/data/msgreply.h"
++#include "util/log.h"
++#include "util/netevent.h"
++#include "util/net_help.h"
++#include "util/regional.h"
++#include "util/storage/slabhash.h"
++#include "services/cache/dns.h"
++#include "services/cache/rrset.h"
++#include "services/mesh.h"
++#include "sldns/sbuffer.h"
++#include "sldns/rrdef.h"
++
++
++typedef enum state {
++	/* No more rewriting */
++	st_off = 1,
++	/* Send SERVFAIL */
++	st_servfail,
++	/* No dispositive hit yet */
++	st_unknown,
++	/* Let the iterator resolve a CNAME or get a delegation point. */
++	st_iterate,
++	/* Let the iterator resolve NS to check NSIP or NSDNAME triggers. */
++	st_ck_ns,
++	/* We have an answer */
++	st_rewritten,
++} st_t;
++
++
++/* RPZ state pointed to by struct comm_reply */
++typedef struct commreply_rpz {
++	/* librpz state */
++	librpz_rsp_t*	rsp;
++	/* ID for log messages */
++	int		log_id;
++
++	/* from configuration */
++	int		min_ns_dots;
++
++	/* Running in the iterator */
++	bool		iterating;
++
++	/* current and previous state and librpz result */
++	st_t		st;
++	st_t		saved_st[LIBRPZ_RSP_STACK_DEPTH-1];
++	librpz_result_t result;
++
++	/* Stop adding CNAMEs to the prepend list before this owner name. */
++	librpz_domain_buf_t cname_hit;
++	/* It is not the first CNAME */
++	bool		cname_hit_2nd;
++	librpz_result_id_t hit_id;
++} commreply_rpz_t;
++
++
++/* Generate an ID for log messages. */
++static int log_id;
++
++librpz_t *librpz;
++
++
++static void LIBRPZ_NORET
++rpz_assert(const char *s)
++{
++	fatal_exit("%s", s);
++	exit(1);
++}
++#define RPZ_ASSERT(c) ((c) ? (void)0 : rpz_assert(#c), (void)0)
++
++/*
++ * librpz client handle locking
++ */
++static void
++lock_destroy(void* mutex)
++{
++	lock_basic_destroy(mutex);
++	free(mutex);
++}
++
++static void
++lock(void* mutex)
++{
++	lock_basic_lock(mutex);
++}
++
++static void
++unlock(void* mutex)
++{
++	lock_basic_unlock(mutex);
++}
++
++
++static void
++log_fnc(librpz_log_level_t level, void* ATTR_UNUSED(ctx), const char* buf)
++{
++	/* Setting librpz_log_level overrides the unbound "verbose" level. */
++	if(level > LIBRPZ_LOG_TRACE1 &&
++	   level <= librpz->log_level_val(LIBRPZ_LOG_INVALID))
++		level = LIBRPZ_LOG_TRACE1;
++
++	switch(level) {
++	case LIBRPZ_LOG_FATAL:
++	case LIBRPZ_LOG_ERROR:		/* errors */
++	default:
++		log_err("rpz: %s", buf);
++		break;
++
++	case LIBRPZ_LOG_TRACE1:		/* big events such as dnsrpzd starts */
++		verbose(VERB_OPS, "rpz: %s", buf);
++		break;
++
++	case LIBRPZ_LOG_TRACE2:		/* smaller dnsrpzd zone transfers */
++		verbose(VERB_DETAIL, "rpz: %s", buf);
++		break;
++
++	case LIBRPZ_LOG_TRACE3:		/* librpz hits */
++		verbose(VERB_QUERY, "rpz: %s", buf);
++		break;
++
++	case LIBRPZ_LOG_TRACE4:		/* librpz lookups */
++		verbose(VERB_CLIENT, "rpz: %s", buf);
++		break;
++	}
++}
++
++
++/* Release the librpz version. */
++static void
++rpz_off(commreply_rpz_t* rpz, st_t st)
++{
++	if(!rpz)
++		return;
++	rpz->st = st;
++	librpz->rsp_detach(&rpz->rsp);
++}
++
++
++static void LIBRPZ_PF(2,3)
++log_fail(commreply_rpz_t* rpz, const char* p, ...)
++{
++	va_list args;
++
++	if(rpz->st == st_servfail)
++		return;
++
++	va_start(args, p);
++	librpz->vlog(LIBRPZ_LOG_ERROR, rpz, p, args);
++	va_end(args);
++	if(!rpz)
++		return;
++	rpz_off(rpz, st_servfail);
++}
++
++
++/* Announce a rewrite. */
++static void
++log_rewrite(uint8_t* qname, librpz_policy_t policy, const char* msg,
++	    commreply_rpz_t* rpz)
++{
++	char policy_buf[POLICY2STR_SIZE];
++	char qname_nm[LDNS_MAX_DOMAINLEN+1];
++	librpz_domain_buf_t tdomain;
++	char tdomain_nm[LDNS_MAX_DOMAINLEN+1];
++	librpz_emsg_t emsg;
++
++	if(rpz->st == st_servfail || !rpz->result.log)
++		return;
++	if(librpz->log_level_val(LIBRPZ_LOG_INVALID) < LIBRPZ_LOG_TRACE1)
++		return;
++
++	dname_str(qname, qname_nm);
++
++	if(!librpz->rsp_domain(&emsg, &tdomain, rpz->rsp)) {
++		librpz->log(LIBRPZ_LOG_ERROR, rpz, "%s", emsg.c);
++		return;
++	}
++	dname_str(tdomain.d, tdomain_nm);
++
++	librpz->log(LIBRPZ_LOG_TRACE3, rpz, "%srewriting %s via %s %s to %s",
++		    msg, qname_nm, tdomain_nm,
++		    librpz->trig2str(rpz->result.trig),
++		    librpz->policy2str(policy, policy_buf,
++				       sizeof(policy_buf)));
++}
++
++
++/* Connect to and start dnsrpzd if necessary for the unbound daemon.
++ *	Require "rpz-conf: path" to specify the rpz configuration file.
++ *	The unbound server directory name is the default rpz working
++ *	    directory.  If unbound uses chroot, then the dnsrpzd working
++ *	    directory must be in the chroot tree.
++ *	The database and socket are closed and re-opened.
++ */
++void
++rpz_init(librpz_clist_t** pclist, librpz_client_t** pclient,
++	 const struct config_file* cfg)
++{
++	lock_basic_type* mutex;
++	librpz_emsg_t emsg;
++
++	if(!librpz) {
++		librpz = librpz_lib_open(&emsg, NULL, FASTRPZ_LIBRPZ_PATH);
++		if(!librpz)
++			fatal_exit("rpz: %s", emsg.c);
++	}
++
++	librpz->set_log(&log_fnc, NULL);
++
++	if(!cfg->rpz_cstr)
++		fatal_exit("rpz: rpz-zone: not set");
++
++	librpz->client_detach(pclient);
++	librpz->clist_detach(pclist);
++
++	mutex = malloc(sizeof(*mutex));
++	if(!mutex)
++		fatal_exit("rpz: no memory for lock");
++	lock_basic_init(mutex);
++
++	*pclist = librpz->clist_create(&emsg, &lock, &unlock, &lock_destroy,
++				       mutex, NULL);
++	if(!pclist)
++		fatal_exit("rpz: %s", emsg.c);
++
++	*pclient = librpz->client_create(&emsg, *pclist, cfg->rpz_cstr, false);
++	if(!*pclient)
++		fatal_exit("rpz: %s", emsg.c);
++
++	if(!librpz->connect(&emsg, *pclient, true))
++		fatal_exit("rpz: %s", emsg.c);
++
++	verbose(VERB_OPS, "rpz: librpz version %s", librpz->version);
++}
++
++
++/* Stop using librpz on behalf of a worker thread. */
++void
++rpz_delete(librpz_clist_t** pclist, librpz_client_t** pclient)
++{
++	if(librpz) {
++		librpz->client_detach(pclient);
++		librpz->clist_detach(pclist);
++	}
++}
++
++
++/* Release the librpz resources held for a DNS client request. */
++void
++rpz_end(struct comm_reply* commreply)
++{
++	if(!commreply->rpz)
++		return;
++	rpz_off(commreply->rpz, commreply->rpz->st);
++	free(commreply->rpz);
++	commreply->rpz = NULL;
++}
++
++
++static bool
++push_st(commreply_rpz_t* rpz)
++{
++	librpz_emsg_t emsg;
++
++	if(rpz->st == st_off || rpz->st == st_servfail) {
++		librpz->log(LIBRPZ_LOG_ERROR, rpz,
++			    "state %d in push_st()", rpz->st);
++		return false;
++	}
++	if(!librpz->rsp_push(&emsg, rpz->rsp))
++		log_fail(rpz, "%s", emsg.c);
++	memmove(&rpz->saved_st[1], &rpz->saved_st[0],
++		sizeof(rpz->saved_st) - sizeof(rpz->saved_st[0]));
++	rpz->saved_st[0] = rpz->st;
++	return rpz->st != st_servfail;
++}
++
++
++static bool
++pop_st(commreply_rpz_t* rpz)
++{
++	librpz_emsg_t emsg;
++
++	if(rpz->rsp && !librpz->rsp_pop(&emsg, &rpz->result, rpz->rsp))
++		log_fail(rpz, "%s", emsg.c);
++	if(rpz->st != st_servfail)
++		rpz->st = rpz->saved_st[0];
++	memmove(&rpz->saved_st[0], &rpz->saved_st[1],
++		sizeof(rpz->saved_st) - sizeof(rpz->saved_st[0]));
++	return rpz->st != st_servfail;
++}
++
++static bool
++pop_discard_st(commreply_rpz_t* rpz)
++{
++	librpz_emsg_t emsg;
++
++	if(rpz->rsp && !librpz->rsp_pop_discard(&emsg, rpz->rsp))
++		log_fail(rpz, "%s", emsg.c);
++	memmove(&rpz->saved_st[0], &rpz->saved_st[1],
++		sizeof(rpz->saved_st) - sizeof(rpz->saved_st[0]));
++	return rpz->st != st_servfail;
++}
++
++/* Check a rewrite attempt for errors and a disabled zone. */
++static bool				/* true=repeat the check */
++ck_after(uint8_t* qname, bool recursed, librpz_trig_t trig,
++	 commreply_rpz_t* rpz)
++{
++	librpz_emsg_t emsg;
++
++	if(rpz->st == st_servfail)
++		return false;
++
++	if(!librpz->rsp_result(&emsg, &rpz->result, recursed, rpz->rsp)) {
++		log_fail(rpz, "%s", emsg.c);
++		return false;
++	}
++
++	if(rpz->result.policy == LIBRPZ_POLICY_DISABLED) {
++		/* Log the hit on the disabled zone, do not try the zone again,
++		 * and restore the state from before the check to forget the hit
++		 * before trying again. */
++		log_rewrite(qname, rpz->result.zpolicy, "disabled ", rpz);
++		if(!librpz->rsp_forget_zone(&emsg, rpz->result.cznum, rpz->rsp))
++			log_fail(rpz, "%s", emsg.c);
++		return pop_st(rpz);
++	}
++
++	/* Complain about and forget client-IP address hit that is not
++	 * dispositive.  Client-IP triggers have the highest priority
++	 * within a policy zone, but can be overridden by any hit in a policy
++	 * earlier in the client's (resolver's) list of zones, including
++	 * policies that cannot be hit until after recursion. If we allowed
++	 * client-IP triggers in secondary zones, then than two DNS requests
++	 * that differ only in DNS client-IP addresses could properly
++	 * have differing results.  The Unbound iterator treats identical
++	 * DNS requests the same regardless of DNS client-IP address.
++	 * struct query_info would need to be modified to have an optional
++	 * librpz_prefix_t containing the prefix of the client-IP address hit
++	 * from librpz->rsp_clientip_prefix().  Adding to struct query_info
++	 * would require finding and changing the many and obscure places
++	 * including the Unbound tests to memset(0) the struct query_info
++	 * that they create. */
++	if(trig == LIBRPZ_TRIG_CLIENT_IP) {
++		if(rpz->result.cznum != 0) {
++			log_rewrite(qname, rpz->result.policy,
++				     "ignore secondary ", rpz);
++			if(!pop_st(rpz))
++				log_fail(rpz, "%s", emsg.c);
++			return (false);
++		}
++	}
++
++	/* Forget the state from before the check and keep the new state
++	 * if we do not have a hit on a disabled policy zone. */
++	pop_discard_st(rpz);
++	return false;
++}
++
++
++/* Get the next RR from the policy record. */
++static bool
++next_rr(librpz_rr_t** rrp, const uint8_t* qname, size_t qname_len,
++	commreply_rpz_t* rpz)
++{
++	librpz_emsg_t emsg;
++
++	if(!librpz->rsp_rr(&emsg, NULL, NULL, NULL, rrp, &rpz->result,
++			   qname, qname_len, rpz->rsp)) {
++		log_fail(rpz, "%s", emsg.c);
++		*rrp = NULL;
++		return false;
++	}
++	return true;
++}
++
++
++static bool				/* false=fatal error to be logged */
++add_rr(struct sldns_buffer* pkt, const uint8_t* owner, size_t owner_len,
++       librpz_rr_t* rr, commreply_rpz_t* rpz)
++{
++	size_t rdlength;
++
++	rdlength = ntohs(rr->rdlength);
++
++	if(!sldns_buffer_available(pkt, owner_len + 10 + rdlength)) {
++		log_fail(rpz, "comm_reply buffer exhausted");
++		free(rr);
++		return false;
++	}
++	sldns_buffer_write(pkt, owner, owner_len);
++	/* sizeof(librpz_rr_t)=12 instead of 10 */
++	sldns_buffer_write(pkt, rr, 10 + rdlength);
++	return true;
++}
++
++
++/* Convert a fake incoming DNS message to an Unbound struct dns_msg */
++static void
++pkt2dns_msg(struct dns_msg** dnsmsg, struct sldns_buffer* pkt,
++	    commreply_rpz_t* rpz, struct regional* region)
++{
++	struct msg_parse* msgparse;
++
++	msgparse = regional_alloc(region, sizeof(*msgparse));
++	if(!msgparse) {
++		log_fail(rpz, "out of memory for msgparse");
++		*dnsmsg = NULL;
++		return;
++	}
++	memset(msgparse, 0, sizeof(*msgparse));
++	if(parse_packet(pkt, msgparse, region) != LDNS_RCODE_NOERROR) {
++		log_fail(rpz, "packet parse error");
++		*dnsmsg = NULL;
++		return;
++	}
++	*dnsmsg = dns_alloc_msg(pkt, msgparse, region);
++	if(!*dnsmsg) {
++		log_fail(rpz, "dns_alloc_msg() failed");
++		*dnsmsg = NULL;
++		return;
++	}
++	(*dnsmsg)->rep->security = sec_status_rpz_rewritten;
++}
++
++
++static bool				/* false=SERVFAIL */
++ck_ip_rrset(const void* vdata, int family, librpz_trig_t trig,
++	    uint8_t* qname, commreply_rpz_t* rpz)
++{
++	const struct packed_rrset_data* data;
++	uint rr_n;
++	size_t len;
++	librpz_emsg_t emsg;
++
++	data = vdata;
++
++	/* Loop to ignore disabled zones. */
++	do {
++		if(!push_st(rpz))
++			return false;
++		for(rr_n = 0; rr_n < data->count; ++rr_n) {
++			len = data->rr_len[rr_n];
++			/* Skip bogus including negative placeholding rdata. */
++			if((family == AF_INET &&
++			    len != sizeof(struct in_addr)+2) ||
++			   (family == AF_INET6 &&
++			    len != sizeof(struct in6_addr)+2))
++				continue;
++			if(!librpz->ck_ip(&emsg, data->rr_data[rr_n]+2,
++					  family, trig, rpz->hit_id, true,
++					  rpz->rsp)) {
++				log_fail(rpz, "%s", emsg.c);
++				return false;
++			}
++		}
++	} while(ck_after(qname, true, trig, rpz));
++	return rpz->st != st_servfail;
++}
++
++
++static bool				/* false=SERVFAIL */
++ck_dname(uint8_t* dname, size_t dname_size, librpz_trig_t trig,
++	 uint8_t* qname, bool recursed, commreply_rpz_t* rpz)
++{
++	librpz_emsg_t emsg;
++
++	/* Refuse to check the root. */
++	if(dname_is_root(dname))
++		return rpz->st != st_servfail;
++
++	/* Loop to ignore disabled zones. */
++	do {
++		if(!push_st(rpz))
++			return false;
++		if(!librpz->ck_domain(&emsg, dname, dname_size, trig,
++				      rpz->hit_id, recursed, rpz->rsp)) {
++			log_fail(rpz, "%s", emsg.c);
++			return false;
++		}
++	} while(ck_after(qname, recursed, trig, rpz));
++
++	return rpz->st != st_servfail;
++}
++
++
++/* Check the IPv4 or IPv6 addresses for one NS name. */
++static bool				/* false=st_servfail */
++ck_1nsip(uint8_t* nsname, size_t nsname_size, int family, int qtype,
++	 bool* have_ns, commreply_rpz_t* rpz, struct module_env* env)
++{
++	struct ub_packed_rrset_key* akey;
++
++	akey = rrset_cache_lookup(env->rrset_cache, nsname, nsname_size,
++				  qtype, LDNS_RR_CLASS_IN, 0, 0, 0);
++	if(akey) {
++		*have_ns = true;
++
++		if(!ck_ip_rrset(akey->entry.data, family, LIBRPZ_TRIG_NSIP,
++				nsname, rpz)) {
++			lock_rw_unlock(&akey->entry.lock);
++			return false;
++		}
++		lock_rw_unlock(&akey->entry.lock);
++	}
++	return true;
++}
++
++
++static bool				/* false=st_servfail */
++ck_qname(uint8_t* qname, size_t qname_len,
++	 bool recursed,			/* recursion done */
++	 bool wait_ns,			/* willing to iterate for NS data */
++	 commreply_rpz_t* rpz, struct module_env* env)
++{
++	uint8_t* dname;
++	size_t dname_size;
++	int cur_lab;
++	struct ub_packed_rrset_key* nskey;
++	const struct packed_rrset_data* nsdata;
++	uint8_t* nsname;
++	size_t nsname_size;
++	uint rr_n;
++	bool have_ns, tried_ns;
++
++	if(!ck_dname(qname, qname_len, LIBRPZ_TRIG_QNAME, qname, false, rpz))
++		return false;
++
++	/* Do not waste time looking for NSDNAME and NSIP hits when there
++	 * are no currently relevant triggers. */
++	if(!librpz->have_ns_trig(rpz->rsp))
++		return true;
++
++	have_ns = false;
++	tried_ns = false;
++	dname = qname;
++	dname_size = qname_len;
++	for(cur_lab = dname_count_labels(dname) - 2;
++	    cur_lab > rpz->min_ns_dots;
++	    --cur_lab) {
++		tried_ns = true;
++		dname_remove_label(&dname, &dname_size);
++		nskey = rrset_cache_lookup(env->rrset_cache, dname, dname_size,
++					   LDNS_RR_TYPE_NS, LDNS_RR_CLASS_IN,
++					   0, 0, 0);
++		if(!nskey)
++			continue;
++
++		nsdata = (const struct packed_rrset_data*)nskey->entry.data;
++		for(rr_n = 0;
++		    rr_n < nsdata->count && rpz->st == st_unknown;
++		    ++rr_n) {
++			nsname = nsdata->rr_data[rr_n]+2;
++			nsname_size = nsdata->rr_len[rr_n];
++			if(nsname_size <= 2)
++				continue;
++			nsname_size -= 2;
++			if(!ck_dname(nsname, nsname_size, LIBRPZ_TRIG_NSDNAME,
++				     qname, recursed, rpz))
++				return false;
++			if(!ck_1nsip(nsname, nsname_size, AF_INET,
++				      LDNS_RR_TYPE_A, &have_ns, rpz, env))
++				return false;
++			if(!ck_1nsip(nsname, nsname_size, AF_INET6,
++				      LDNS_RR_TYPE_AAAA, &have_ns, rpz, env))
++				return false;
++		}
++		lock_rw_unlock(&nskey->entry.lock);
++	}
++
++	/* If we failed to find NS records, then stop building the response
++	 * before a CNAME with this owner name. */
++	if(!have_ns && tried_ns && (!recursed || wait_ns)) {
++		rpz->cname_hit.size = qname_len;
++		RPZ_ASSERT(rpz->cname_hit.size <= sizeof(rpz->cname_hit.d));
++		memcpy(rpz->cname_hit.d, qname, qname_len);
++		rpz->result.hit_id = rpz->hit_id;
++		rpz->st = st_ck_ns;
++	}
++	return true;
++}
++
++
++/*
++ * Are we ready to rewrite the response?
++ */
++static bool				/* true=send rewritten response */
++ck_result(uint8_t* qname, bool recursed,
++	  commreply_rpz_t* rpz, const struct comm_point* commpoint)
++{
++	librpz_emsg_t emsg;
++
++	switch(rpz->st) {
++	case st_off:
++	case st_servfail:
++	case st_rewritten:
++		return false;
++	case st_unknown:
++		break;
++	case st_iterate:
++		return false;
++	case st_ck_ns:
++		/* An NSDNAME or NSIP check failed for lack of cached data. */
++		return false;
++	default:
++		fatal_exit("impossible RPZ state %d in rpz_worker_cache()",
++			   rpz->st);
++	}
++
++	/* Wait for a trigger. */
++	if(rpz->result.policy == LIBRPZ_POLICY_UNDEFINED) {
++		if(recursed &&
++		    rpz->result.zpolicy != LIBRPZ_POLICY_UNDEFINED &&
++		    !librpz->rsp_result(&emsg, &rpz->result, true, rpz->rsp)) {
++			log_fail(rpz, "%s", emsg.c);
++			return false;
++		}
++		if(rpz->result.policy == LIBRPZ_POLICY_UNDEFINED)
++			return false;
++	}
++
++	if(rpz->result.policy == LIBRPZ_POLICY_PASSTHRU) {
++		log_rewrite(qname, rpz->result.policy, "", rpz);
++		rpz_off(rpz, st_off);
++		return false;
++	}
++
++	/* The TCP-only policy answers UDP requests with truncated responses. */
++	if(rpz->result.policy == LIBRPZ_POLICY_TCP_ONLY &&
++	   commpoint->type == comm_tcp) {
++		rpz_off(rpz, st_off);
++		return false;
++	}
++
++	return true;
++}
++
++
++/*
++ * Convert an RPZ hit to a struct dns_msg
++ */
++static void
++get_result_msg(struct dns_msg** dnsmsg, struct query_info* qinfo,
++	       uint16_t id, uint16_t flags, bool recursed, commreply_rpz_t* rpz,
++	       struct comm_point* commpoint, struct regional* region)
++{
++	librpz_rr_t* rr;
++	librpz_domain_buf_t origin;
++	struct sldns_buffer* pkt;
++	uint16_t num_rrs;
++	librpz_emsg_t emsg;
++
++	*dnsmsg = NULL;
++	if(!ck_result(qinfo->qname, recursed, rpz, commpoint))
++		return;
++
++	rpz->st = st_rewritten;
++
++	if(rpz->result.policy == LIBRPZ_POLICY_DROP) {
++		log_rewrite(qinfo->qname, rpz->result.policy, "", rpz);
++		/* Make a fake cached message to carry
++		 * sec_status_rpz_drop and be dropped. */
++		error_encode(commpoint->buffer, LDNS_RCODE_NOERROR,
++			     qinfo, id, flags, NULL);
++		pkt2dns_msg(dnsmsg, commpoint->buffer, rpz, region);
++		(*dnsmsg)->rep->security = sec_status_rpz_drop;
++		return;
++	}
++
++	/* Create a DNS message of the RPZ data.
++	 * In many cases that message could be sent directly to the DNS client,
++	 * but sometimes iteration must be used to resolve a CNAME.
++	 * This need not be fast, because rewriting responses should be rare.
++	 * Therefore, use the simpler but slower tactic of generating a
++	 * parsed  version of the message. */
++
++	flags &= ~BIT_AA;
++	flags |= BIT_QR | BIT_RA;
++	rr = NULL;
++
++	/* The TCP-only policy answers UDP requests with truncated responses. */
++	if(rpz->result.policy == LIBRPZ_POLICY_TCP_ONLY) {
++		flags |= BIT_TC;
++
++	} else if(rpz->result.policy == LIBRPZ_POLICY_NXDOMAIN) {
++		flags |= LDNS_RCODE_NXDOMAIN;
++
++	} else if(rpz->result.policy == LIBRPZ_POLICY_CNAME) {
++		if(!rpz->iterating &&
++		   qinfo->qtype != LDNS_RR_TYPE_CNAME) {
++			/* The new DNS message would be a CNAME and
++			 * the external request was not for a CNAME.
++			 * The worker must punt to the iterator so that
++			 * the iterator can resolve the CNAME. */
++			rpz->st = st_iterate;
++			return;
++		}
++		next_rr(&rr, qinfo->qname, qinfo->qname_len, rpz);
++
++	} else if(rpz->result.policy == LIBRPZ_POLICY_RECORD ||
++		  rpz->result.policy == LIBRPZ_POLICY_NODATA) {
++		next_rr(&rr, qinfo->qname, qinfo->qname_len, rpz);
++		/* Punt to the iterator if the new DNS message would
++		 * be a CNAME that must be resolved. */
++		if(!rpz->iterating &&
++		   qinfo->qtype != LDNS_RR_TYPE_CNAME &&
++		   rr && rr->type == ntohs(LDNS_RR_TYPE_CNAME)) {
++			free(rr);
++			rpz->st = st_iterate;
++			return;
++		}
++	}
++	log_rewrite(qinfo->qname, rpz->result.policy, "", rpz);
++
++	/* Make a buffer containing a DNS message with the RPZ data. */
++	pkt = commpoint->buffer;
++	sldns_buffer_clear(pkt);
++	if(sldns_buffer_remaining(pkt) < LDNS_HEADER_SIZE) {
++		log_fail(rpz, "comm_reply buffer too small for header");
++		if(rr)
++			free(rr);
++		return;
++	}
++
++	/* Install ID, flags, QDCOUNT=1, ANCOUNT=# of RPZ RRs, NSCOUNT=0,
++	 * and ARCOUNT=1 for the RPZ SOA. */
++	sldns_buffer_write_u16(pkt, id);
++	sldns_buffer_write_u16(pkt, flags);
++	sldns_buffer_write_u16(pkt, 1);	/* QDCOUNT */
++	sldns_buffer_write_u16(pkt, 0);	/* ANCOUNT will be set later */
++	sldns_buffer_write_u16(pkt, 0);	/* NSCOUNT */
++	sldns_buffer_write_u16(pkt, 1);	/* ARCOUNT */
++
++	/* Install the question with the LDNS_RR_CLASS_RPZ bit to
++	 * to distinguish this supposed cache entry from the real deal. */
++	sldns_buffer_write(pkt, qinfo->qname, qinfo->qname_len);
++	sldns_buffer_write_u16(pkt, qinfo->qtype);
++	sldns_buffer_write_u16(pkt, LDNS_RR_CLASS_IN);
++
++	/* Install the RPZ RRs in the answer section */
++	num_rrs = 0;
++	while(rr) {
++		/* Include only the requested RRs. */
++		if(qinfo->qtype == LDNS_RR_TYPE_ANY ||
++		   rr->type == htons(qinfo->qtype) ||
++		   rr->type == htons(LDNS_RR_TYPE_CNAME)) {
++			if(!add_rr(pkt, qinfo->qname, qinfo->qname_len,
++				   rr, rpz))
++				return;
++
++			++num_rrs;
++		}
++		free(rr);
++
++		next_rr(&rr, qinfo->qname, qinfo->qname_len, rpz);
++	}
++	/* Finish ANCOUNT. */
++	if(num_rrs != 0)
++		sldns_buffer_write_u16_at(pkt, 6, num_rrs);
++
++	/* All rewritten responses have an identifying SOA record in the
++	 * additional section. */
++	if(!librpz->rsp_soa(&emsg, NULL, &rr, &origin,
++			    &rpz->result, rpz->rsp)) {
++		log_fail(rpz, "no soa");
++		return;
++	}
++	if(!add_rr(pkt, origin.d, origin.size, rr, rpz))
++		return;
++	free(rr);
++
++	/* Create a dns_msg representation of the fake incoming message. */
++	sldns_buffer_flip(pkt);
++	pkt2dns_msg(dnsmsg, pkt, rpz, region);
++}
++
++
++/* Check the RRs in the ANSWER section of a reply_info. */
++static void
++ck_reply(struct reply_info* reply, uint8_t* qname, bool wait_ns,
++	 commreply_rpz_t* rpz, struct module_env* env)
++{
++	struct ub_packed_rrset_key* rrset;
++	enum sldns_enum_rr_type type;
++	uint rrset_n;
++
++	/* Check the RRs in the ANSWER section. */
++	rpz->cname_hit.size = 0;
++	rpz->cname_hit_2nd = false;
++	for(rrset_n = 0; rrset_n < reply->an_numrrsets; ++rrset_n) {
++		/* Check all of the RRs before deciding. */
++		if(rpz->st != st_unknown)
++			return;
++
++		rrset = reply->rrsets[rrset_n];
++		if(ntohs(rrset->rk.rrset_class) != LDNS_RR_CLASS_IN)
++			continue;
++		type = ntohs(rrset->rk.type);
++
++		if(type == LDNS_RR_TYPE_A) {
++			if(!ck_ip_rrset(rrset->entry.data, AF_INET,
++					LIBRPZ_TRIG_IP, qname, rpz))
++				break;
++
++		} else if(type == LDNS_RR_TYPE_AAAA) {
++			if(!ck_ip_rrset(rrset->entry.data, AF_INET6,
++					LIBRPZ_TRIG_IP, qname, rpz))
++				break;
++
++		} else if(type == LDNS_RR_TYPE_CNAME) {
++			/* Check CNAME owners unless we already have a hit. */
++			++rpz->hit_id;
++			if(!ck_qname(rrset->rk.dname, rrset->rk.dname_len,
++				     true, wait_ns, rpz, env))
++				break;
++
++			/* Do not worry about the CNAME if it did not hit,
++			 * but note the miss so that it can be prepended
++			 * if we do hit. */
++			if(rpz->result.hit_id != rpz->hit_id) {
++				rpz->cname_hit_2nd = true;
++				continue;
++			}
++
++			/* Stop after hitting a CNAME.
++			 * The iterator must be used to include CNAMEs before
++			 * the CNAME that hit in the rewritten response. */
++			rpz->cname_hit.size = rrset->rk.dname_len;
++			RPZ_ASSERT(rpz->cname_hit.size <= sizeof(rpz->cname_hit.d));
++			memcpy(rpz->cname_hit.d, rrset->rk.dname,
++			       rpz->cname_hit.size);
++			break;
++		}
++	}
++}
++
++
++static void
++worker_servfail(struct worker* worker, struct query_info* qinfo,
++		uint16_t id, uint16_t flags, struct comm_reply* commreply)
++{
++	error_encode(commreply->c->buffer, LDNS_RCODE_SERVFAIL,
++		     qinfo, id, flags, NULL);
++	regional_free_all(worker->scratchpad);
++	comm_point_send_reply(commreply);
++}
++
++
++/* Send an RPZ answer before the iterator has started.
++ * @return: 1=continue normal unbound processing
++ *	    0=punt to the iterator
++ *	    -1=rewritten response already sent or dropped. */
++static int
++worker_send(struct dns_msg* dnsmsg, struct worker* worker,
++	    struct query_info* qinfo, uint16_t id, uint16_t flags,
++	    struct edns_data* edns, struct comm_reply* commreply)
++{
++	switch (commreply->rpz->st) {
++	case st_off:
++		return 1;
++	case st_servfail:
++		worker_servfail(worker, qinfo, id, flags, commreply);
++		return -1;
++	case st_unknown:
++		return 1;
++	case st_iterate:
++	case st_ck_ns:
++		return 0;		/* punt to the iterator */
++	case st_rewritten:
++		break;
++	default:
++		fatal_exit("impossible RPZ state %d in worker_send()",
++			   commreply->rpz->st);
++	}
++
++	if(dnsmsg->rep->security == sec_status_rpz_drop) {
++		regional_free_all(worker->scratchpad);
++		comm_point_drop_reply(commreply);
++		return -1;
++	}
++
++	edns->edns_version = EDNS_ADVERTISED_VERSION;
++	edns->udp_size = EDNS_ADVERTISED_SIZE;
++	edns->ext_rcode = 0;
++	edns->bits = 0;			/* rewritten response cannot verify. */
++	if(!reply_info_answer_encode(qinfo, dnsmsg->rep,
++				     id, flags | BIT_QR,
++				     commreply->c->buffer, 0, 1,
++				     worker->scratchpad,
++				     edns->udp_size, edns, 0, 0)) {
++		worker_servfail(worker, qinfo, id, flags, commreply);
++	} else {
++		regional_free_all(worker->scratchpad);
++		comm_point_send_reply(commreply);
++	}
++	return -1;
++}
++
++
++/* Set commreply to an RPZ context if the response might be rewritten.
++ * Try to answer now with a hit allowed before recursion (iteration). */
++bool					/* true=response sent or dropped */
++rpz_start(struct worker* worker, struct query_info* qinfo,
++	  struct comm_reply* commreply, struct edns_data* edns)
++{
++	commreply_rpz_t* rpz;
++	uint16_t id, flags;
++	struct dns_msg* dnsmsg;
++	int family;
++	const void* addr;
++	librpz_emsg_t emsg;
++
++	/* Quit if rpz not configured. */
++	if(!worker->daemon->rpz_client)
++		return false;
++
++	/* Rewrite only the Internet class */
++	if(qinfo->qclass != LDNS_RR_CLASS_IN)
++		return false;
++
++	rpz = commreply->rpz;
++	RPZ_ASSERT(!rpz);
++
++	dnsmsg = NULL;
++	id = htons(sldns_buffer_read_u16_at(commreply->c->buffer, 0));
++	flags = sldns_buffer_read_u16_at(commreply->c->buffer, 2);
++
++	rpz = malloc(sizeof(*rpz));
++	if(!rpz) {
++		librpz->log(LIBRPZ_LOG_ERROR, NULL, "no memory for rpz");
++		return 0 > worker_send(dnsmsg, worker, qinfo,
++				       id, flags, edns, commreply);
++	}
++	memset(rpz, 0, sizeof(*rpz));
++	rpz->st = st_unknown;
++	commreply->rpz = rpz;
++
++	/* Make a new ID for log messages */
++	rpz->log_id = __sync_add_and_fetch(&log_id, 1);
++
++	/* Get access to the librpz data. */
++	if(!librpz->rsp_create(&emsg, &rpz->rsp, &rpz->min_ns_dots,
++			      worker->daemon->rpz_client,
++			      (flags & BIT_RD) != 0,
++			      (edns->bits & EDNS_DO) != 0)) {
++		log_fail(rpz, "%s", emsg.c);
++		return false;
++	}
++	/* Quit if benign reasons prevent rewriting. */
++	if(!rpz->rsp) {
++		rpz->st = st_off;
++		librpz->log(LIBRPZ_LOG_TRACE1, rpz, "%s", emsg.c);
++		return false;
++	}
++
++	/* Check the client IP address.
++	 * Do not use commreply->srctype because it is often 0. */
++	family = ((struct sockaddr*)&commreply->addr)->sa_family;
++	switch(family) {
++	case AF_INET:
++		addr = &((struct sockaddr_in*)&commreply->addr)->sin_addr;
++		break;
++	case AF_INET6:
++		addr = &((struct sockaddr_in6*)&commreply->addr)->sin6_addr;
++		break;
++	default:
++		/* Maybe the client is on a UNIX domain socket. */
++		librpz->log(LIBRPZ_LOG_TRACE2, rpz,
++			    "unknown client address family %d", family);
++		addr = NULL;
++		break;
++	}
++	/* Loop to ignore disabled zones. */
++	while(addr) {
++		if(!push_st(rpz))
++			break;
++		if(!librpz->ck_ip(&emsg, addr, family, LIBRPZ_TRIG_CLIENT_IP,
++				  rpz->hit_id, true, rpz->rsp)) {
++			log_fail(rpz, "%s", emsg.c);
++			break;
++		}
++		if(!ck_after(qinfo->qname, false, LIBRPZ_TRIG_CLIENT_IP, rpz))
++			break;
++	}
++	if(rpz->st == st_servfail)
++		return 0 > worker_send(dnsmsg, worker, qinfo,
++				       id, flags, edns, commreply);
++
++	/* Check the QNAME and possibly replace a client-IP hit. */
++	ck_qname(qinfo->qname, qinfo->qname_len, false, true,
++		 rpz, &worker->env);
++
++	get_result_msg(&dnsmsg, qinfo, id, flags, false,
++		       rpz, commreply->c, worker->scratchpad);
++	return 0 > worker_send(dnsmsg, worker, qinfo,
++			       id, flags, edns, commreply);
++}
++
++
++/* Check a cached reply before iteration.
++ * @return: 1=use cache entry
++ *	    0=deny a cached entry exists in order to punt to the iterator
++ *	    -1=rewritten response already sent or dropped */
++int
++rpz_worker_cache(struct worker* worker, struct reply_info* reply,
++		 struct query_info* qinfo, uint16_t id, uint16_t flags,
++		 struct edns_data* edns, struct comm_reply* commreply)
++{
++	commreply_rpz_t* rpz;
++	struct dns_msg* dnsmsg;
++	st_t new_st;
++	librpz_rr_t* rr;
++
++	dnsmsg = NULL;
++
++	rpz = commreply->rpz;
++	switch(rpz->st) {
++	case st_off:
++		return 1;		/* Send the cache entry. */
++	case st_servfail:
++		return worker_send(dnsmsg, worker, qinfo, id, flags,
++				   edns, commreply);
++	case st_unknown:
++		break;
++	case st_iterate:
++	case st_ck_ns:
++		return 0;		/* Punt to the iterator. */
++	case st_rewritten:
++	default:
++		fatal_exit("impossible RPZ state %d in rpz_worker_cache()",
++			   rpz->st);
++	}
++
++	/* Check the RRs in the ANSWER section. */
++	if(!push_st(rpz))
++		return worker_send(dnsmsg, worker, qinfo, id, flags, edns,
++				   commreply);
++
++	ck_reply(reply, qinfo->qname, true, rpz, &worker->env);
++	if(!ck_result(qinfo->qname, true, rpz, commreply->c))
++		return worker_send(dnsmsg, worker, qinfo, id, flags, edns,
++				   commreply);
++
++	if(rpz->cname_hit.size != 0) {
++		/* Punt to the iterator if leading CNAMEs must be
++		 * included in the rewritten response. */
++		rpz->cname_hit.size = 0;
++		new_st = st_iterate;
++
++	} else if(rpz->result.policy == LIBRPZ_POLICY_CNAME) {
++		/* Punt if the rewritten response is to a CNAME. */
++		new_st = st_iterate;
++
++	} else {
++		if(rpz->result.policy == LIBRPZ_POLICY_RECORD) {
++			next_rr(&rr, qinfo->qname, qinfo->qname_len, rpz);
++			if(rr) {
++				/* Punt we are rewriting to a CNAME. */
++				if(rr->type == ntohs(LDNS_RR_TYPE_CNAME)) {
++					free(rr);
++					rpz->st = st_iterate;
++				} else {
++					free(rr);
++				}
++			}
++		}
++		get_result_msg(&dnsmsg, qinfo, id, flags, true,
++			       rpz, commreply->c, worker->scratchpad);
++		new_st = rpz->st;
++	}
++
++	switch(new_st) {
++	case st_off:
++	case st_servfail:
++		break;
++	case st_unknown:
++		pop_discard_st(rpz);
++		break;
++	case st_iterate:
++	case st_ck_ns:
++		if(pop_st(rpz))
++			rpz->st = new_st;
++		break;
++	case st_rewritten:
++		pop_discard_st(rpz);
++		break;
++	default:
++		fatal_exit("impossible RPZ state %d in rpz_worker_cache()",
++			   rpz->st);
++	}
++
++	return worker_send(dnsmsg, worker, qinfo, id, flags, edns, commreply);
++}
++
++
++/* Check a cache hit or miss for the iterator.
++ * A cache miss can already have a QNAME hit that was ignored before checking
++ * the iterator because of "QNAME-WAIT-RECURSE yes".
++ * Cache hits are treated like responses from authorities. */
++bool					/* false=SERVFAIL */
++rpz_iter_cache(struct dns_msg** msg, enum response_type* type,
++	       struct module_qstate* qstate, struct iter_qstate* iq)
++{
++	struct comm_reply* commreply;
++	commreply_rpz_t* rpz;
++	struct dns_msg* dnsmsg;
++
++	commreply = &qstate->mesh_info->reply_list->query_reply;
++	rpz = commreply->rpz;
++
++	rpz->iterating = true;
++
++	switch(rpz->st) {
++	case st_off:
++		iq->rpz_rewritten = 1;	/* RPZ has nothing to say. */
++		return true;
++	case st_servfail:
++		return false;
++	case st_unknown:
++		break;
++	case st_iterate:
++	case st_ck_ns:
++		rpz->st = st_unknown;
++		if(!ck_qname(iq->qchase.qname, iq->qchase.qname_len,
++			     *msg != NULL, true, rpz, qstate->env))
++			return false;
++		/* If we must recurse regardless and if NSIP/NSDNAME
++		 * checking failed, then delay in the hope that
++		 * recursion will also get NS data. */
++		if(rpz->st == st_ck_ns)
++			return true;
++		break;
++	case st_rewritten:
++	default:
++		fatal_exit("impossible RPZ state %d in rpz_iter_cache()",
++			   rpz->st);
++	}
++
++	push_st(rpz);
++
++	/* Check the cache hit. */
++	if(*msg)
++		ck_reply((*msg)->rep, iq->qchase.qname, true, rpz, qstate->env);
++
++	/* The DNS ID does not matter, because the generated dns_msg
++	 * is nominally from an authority and not to the DNS client. */
++	get_result_msg(&dnsmsg, &iq->qchase, 1, qstate->query_flags, true,
++		       rpz, commreply->c, qstate->region);
++
++	switch(rpz->st) {
++	case st_off:
++		iq->rpz_rewritten = 1;	/* RPZ has nothing to say. */
++		return true;
++	case st_servfail:
++		return false;
++	case st_unknown:
++		/* RPZ has nothing to say yet.  Maybe there will be a hit
++		 * later in the CNAME chain. */
++		return pop_discard_st(rpz);
++	case st_ck_ns:
++		/* Try to get NS data for a CNAME found by ck_reply() */
++		*type = RESPONSE_TYPE_CNAME;
++		return pop_discard_st(rpz);
++	case st_iterate:
++	default:
++		fatal_exit("impossible RPZ state %d in rpz_iter_cache()",
++			   rpz->st);
++	case st_rewritten:
++		break;
++	}
++
++	if(*msg && rpz->cname_hit.size != 0 && rpz->cname_hit_2nd) {
++		/* We hit a CNAME owner in the cached msg after not hitting one
++		 * or more CNAME owners.  We need to add those leading CNAMEs
++		 * to the prepend list.  Tell the iterator to treat the cached
++		 * message as a RESPONSE_TYPE_CNAME even if it contains answers.
++		 * handle_cname_response() will stop prepending CNAMEs before
++		 * the triggering CNAME.  handle_cname_response() will cause
++		 * a restart to resolve the target of the preceding CNAME,
++		 * which is the same as the hit CNAME owner. */
++		rpz->st = st_unknown;
++		*type = RESPONSE_TYPE_CNAME;
++		return pop_discard_st(rpz);
++	}
++
++	*msg = dnsmsg;
++	iq->rpz_security = dnsmsg->rep->security;
++
++	if(dnsmsg && dnsmsg->rep->an_numrrsets != 0 &&
++	   dnsmsg->rep->rrsets[0]->rk.type == htons(LDNS_RR_TYPE_CNAME)) {
++		/* The cached msg triggered a rule that rewrites to a
++		 * CNAME that must be resolved.
++		 * We have a replacement dns_msg with that CNAME and also
++		 * an SOA RR in the ADDITIONAL section that the iterator
++		 * will lose as it adds the CNAME to the prepend list.
++		 * Save the SOA RR in iq->rpz_soa. */
++		iq->rpz_soa = dnsmsg->rep->rrsets[1];
++		iq->rpz_rewritten = 1;
++		*type = RESPONSE_TYPE_CNAME;
++		return true;
++	}
++
++	/* Otherwise we have rewritten to zero or more non-CNAME RRs.
++	 * (DNAMEs are not supported.)
++	 * Tell the iterator to send the rewritten message. */
++	*type = RESPONSE_TYPE_ANSWER;
++	iq->rpz_rewritten = 1;
++	return true;
++}
++
++
++/* Check a RESPONSE_TYPE_ANSWER response from an authority in the iterator. */
++rpz_iter_resp_t
++rpz_iter_resp(struct module_qstate* qstate, struct iter_qstate* iq,
++	      struct dns_msg** resp, bool* is_cname)
++{
++	struct comm_reply* commreply;
++	commreply_rpz_t* rpz;
++	struct reply_info* rep;
++
++	*is_cname = false;
++
++	commreply = &qstate->mesh_info->reply_list->query_reply;
++	rpz = commreply->rpz;
++	switch(rpz->st) {
++	case st_off:
++	case st_servfail:
++	case st_iterate:
++	case st_rewritten:
++	default:
++		fatal_exit("impossible RPZ state %d in rpz_iter_resp()",
++			   rpz->st);
++	case st_ck_ns:
++	case st_unknown:
++		break;
++	}
++
++	/* We know !iq->rpz_rewritten and so the response was after a simple
++	 * cache miss when the original QNAME did not trigger a response
++	 * or after a CNAME whose owner name did hit but was then forgotten
++	 * with pop_st().
++	 * In either case, it is necessary to check the QNAME here.
++	 * Checking the QNAME will not lose a better hit. */
++	rpz->st = st_unknown;
++	ck_qname(iq->qchase.qname, iq->qchase.qname_len, true, false,
++		 rpz, qstate->env);
++
++	/* Check the RRs in the ANSWER section. */
++	if(!push_st(rpz))
++		return rpz_iter_resp_fail;
++	ck_reply(iq->response->rep, iq->qchase.qname, false, rpz, qstate->env);
++	get_result_msg(resp, &qstate->qinfo, 1, qstate->query_flags, true,
++		       rpz, commreply->c, qstate->region);
++	switch(rpz->st) {
++	case st_off:
++		iq->rpz_rewritten = 1;	/* Do not come back. */
++		return rpz_iter_resp_done;
++	case st_servfail:		/* Send SERVFAIL */
++		return rpz_iter_resp_fail;
++	case st_unknown:
++	case st_ck_ns:
++		return rpz_iter_resp_done;  /* continue without change */
++	case st_iterate:
++	default:
++		fatal_exit("impossible RPZ state %d in rpz_iter_resp()",
++			   rpz->st);
++	case st_rewritten:
++		/* Tell the iterator to use handle_cname_response() to
++		 * prepend any preceding CNAMEs.
++		 * We have a replacement dns_msg that also has an SOA RR in the
++		 * ADDITIONAL section that the iterator will lose if it is a
++		 * CNAME.  Save that SOA in that case. */
++		rep = (*resp)->rep;
++		if(rep->an_numrrsets != 0 &&
++		   rep->rrsets[0]->rk.type == ntohs(LDNS_RR_TYPE_CNAME)) {
++			*is_cname = true;
++			iq->rpz_soa = rep->rrsets[1];
++		}
++		return rpz_iter_resp_rewrite;
++	}
++}
++
++
++/* Tell handle_cname_response() to stop adding to the answer prepend list
++ * after adding CNAME with a target that hits a QNAME trigger.
++ * Do not change any RPZ state, but expect the call of handle_cname_response()
++ * to try to resolve the CNAME and hit the same QNAME trigger and rewrite
++ * the response. */
++rpz_cname_t
++rpz_cname(struct module_qstate* qstate,
++	  uint8_t* oname, size_t oname_size)
++{
++	struct mesh_reply* reply_list;
++	struct comm_reply* commreply;
++	commreply_rpz_t* rpz;
++	rpz_cname_t ret;
++
++	/* Quit if RPZ is off */
++	reply_list = qstate->mesh_info->reply_list;
++	if(!reply_list)
++		return rpz_cname_prepend;
++	commreply = &reply_list->query_reply;
++	rpz = commreply->rpz;
++
++	if(!rpz || rpz->st == st_off)
++		return rpz_cname_prepend;
++
++	/* Stop on a 2nd or later CNAME for rpz_iter_resp(). */
++	if(rpz->cname_hit.size != 0) {
++		if(!query_dname_compare(rpz->cname_hit.d, oname))
++			return rpz_cname_stop;
++		return rpz_cname_prepend;
++	}
++
++	if(rpz->st != st_unknown)
++		fatal_exit("impossible RPZ state %d in rpz_cname()", rpz->st);
++
++	ret = rpz_cname_prepend;
++	if(!push_st(rpz))
++		return rpz_cname_fail;
++	/* Stop before prepending a CNAME that would preempt a
++	 * rewritten response or before a possible NSDNAME or NSIP trigger. */
++	++rpz->hit_id;
++	ck_qname(oname, oname_size, true, true, rpz, qstate->env);
++	if(rpz->st != st_unknown)
++		ret = rpz_cname_stop;
++	if(!pop_st(rpz))
++		return rpz_cname_fail;
++	return ret;
++}
++
++#endif /* ENABLE_FASTRPZ */
+Index: unboundfastrpz/fastrpz/rpz.h
+===================================================================
+--- unboundfastrpz/fastrpz/rpz.h	(nonexistent)
++++ unboundfastrpz/fastrpz/rpz.h	(working copy)
+@@ -0,0 +1,138 @@
++/*
++ * fastrpz/rpz.h - interface to the fastrpz response policy zone library
++ *
++ * Copyright (c) 2016 Farsight Security, Inc.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *	http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#ifndef UNBOUND_FASTRPZ_RPZ_H
++#define UNBOUND_FASTRPZ_RPZ_H
++
++#ifndef PACKAGE_VERSION
++/* Ensure that config.h has been included to correctly set ENABLE_FASTRPZ */
++#include "config.h"
++#endif
++
++#ifdef ENABLE_FASTRPZ
++
++#include "librpz.h"
++
++#include "daemon/daemon.h"
++#include "util/config_file.h"
++
++struct comm_point;			/* forward references */
++struct comm_reply;
++struct dns_msg;
++struct edns_data;
++struct iter_qstate;
++struct query_info;
++struct reply_info;
++enum response_type;			/* iterator/iter_utils.h */
++
++
++struct commreply_rpz;
++
++/**
++ * Connect to the librpz database.
++ * @param pclist: future pointer to opaque librpz client data
++ * @param pclient: future pointer to opaque librpz client data
++ * @param cfg: parsed unbound configuration
++ */
++void rpz_init(librpz_clist_t** pclist, librpz_client_t** pclient,
++	      const struct config_file* cfg);
++
++/**
++ * Disconnect from the librpz database
++ * @param client: opaque librpz client data
++ */
++void rpz_delete(librpz_clist_t** pclist, librpz_client_t** pclient);
++
++/**
++ * Start working on a DNS request and check for client IP address triggers.
++ * @param worker: the DNS request context
++ * @param qinfo: the DNS question
++ * @param[in,out] commreply: the answer
++ * @param c: where to send the response
++ * @param[in,out] edns for the DO flag
++ * @return true if response already sent or dropped
++ */
++bool rpz_start(struct worker* worker, struct query_info* qinfo,
++	       struct comm_reply* commreply, struct edns_data* edns);
++
++/**
++ * Release resources held for a DNS request
++ * @param rspp: pointer to pointer to rpz client context.
++ */
++void rpz_end(struct comm_reply* comm_rep);
++
++/**
++ * Check a cached reply for RPZ hits before iteration
++ * @param worker: the DNS request context
++ * @param casheresp: cache reply
++ * @param qinfo: the DNS question
++ * @param id from the DNS request
++ * @param flags from the DNS request
++ * @param[in,out] edns for the DO flag
++ * @param[in,out] commreply: RPZ state
++ * @return 1=use cache entry, -1=rewritten response already sent or dropped,
++ *	0=deny a cached entry exists
++ */
++int rpz_worker_cache(struct worker* worker, struct reply_info* cacheresp,
++		     struct query_info* qinfo, uint16_t id, uint16_t flags,
++		     struct edns_data* edns, struct comm_reply* commreply);
++
++/**
++ * Check for an existing RPZ CNAME rewrite with "QNAME-WAIT-RECURSE no"
++ * that needs to be resolved before resolving the external request.
++ * @param[out] msg: rewritten CNAME response.
++ * @param qstate: query state.
++ * @param iq: iterator query state.
++ * @return false=send SERVFAIL
++ */
++bool rpz_iter_cache(struct dns_msg** msg, enum response_type* type,
++		    struct module_qstate* qstate, struct iter_qstate* iq);
++
++/**
++ * Check a response from an authority in the iterator.
++ * @param[out] type: of the final response
++ * @param qstate: query state.
++ * @param iq: iterator query state.
++ * @param is_cname: true if the rewritten response is a CNAME
++ * @return one of rpz_resp_t
++ */
++typedef enum {
++	rpz_iter_resp_fail,		/* Send SERVFAIL. */
++	rpz_iter_resp_rewrite,		/* We rewrote the response. */
++	rpz_iter_resp_done,		/* Restart to refetch glue. */
++} rpz_iter_resp_t;
++rpz_iter_resp_t rpz_iter_resp(struct module_qstate* qstate,
++			      struct iter_qstate* iq, struct dns_msg** resp,
++			      bool* is_cname);
++
++/**
++ * Check a CNAME RR
++ * @param qstate: query state.
++ * @param oname: cname owner name
++ * @param oname_size: length of oname
++ * @return: one of rpz_cname_t
++ */
++typedef enum {
++	rpz_cname_fail,			/* send SERVFAIL */
++	rpz_cname_prepend,		/* prepend CNAME as usual */
++	rpz_cname_stop,			/* stop before prepending this CNAME */
++} rpz_cname_t;
++rpz_cname_t rpz_cname(struct module_qstate* qstate,
++		      uint8_t* oname, size_t oname_size);
++
++#endif /* ENABLE_FASTRPZ */
++#endif /* UNBOUND_FASTRPZ_RPZ_H */
+Index: unboundfastrpz/fastrpz/rpz.m4
+===================================================================
+--- unboundfastrpz/fastrpz/rpz.m4	(nonexistent)
++++ unboundfastrpz/fastrpz/rpz.m4	(working copy)
+@@ -0,0 +1,64 @@
++# fastrpz/rpz.m4
++
++# ck_FASTRPZ
++# --------------------------------------------------------------------------
++# check for Fastrpz
++#   --enable-fastrpz	    enable Fastrpz response policy zones
++#   --enable-fastrpz-dl	    Fastrpz delayed link [default=have dlopen]
++#   --with-fastrpz-dir	    directory containing librpz.so
++#
++# Fastrpz can be compiled into Unbound everywhere with a reasonably
++# modern C compiler.  It is enabled on systems with dlopen() and librpz.so.
++
++AC_DEFUN([ck_FASTRPZ],
++[
++  fastrpz_avail=yes
++  AC_MSG_CHECKING([for librpz __attribute__s])
++    AC_TRY_COMPILE(,[
++	extern void f(char *p __attribute__((unused)), ...)
++	__attribute__((format(printf,1,2))) __attribute__((__noreturn__));],
++      librpz_have_attr=yes
++        AC_DEFINE([LIBRPZ_HAVE_ATTR], 1, [have __attribute__s used in librpz.h])
++        AC_MSG_RESULT([yes]),
++      librpz_have_attr=no
++        AC_MSG_RESULT([no]))
++
++  AC_SEARCH_LIBS(dlopen, dl)
++  librpz_dl=yes
++  AC_CHECK_FUNCS(dlopen dlclose dlsym,,librpz_dl=no)
++  AC_ARG_ENABLE([fastrpz-dl],
++    [  --enable-fastrpz-dl	  Fastrpz delayed link [[default=$librpz_dl]]],
++    [enable_librpz_dl="$enableval"],
++    [enable_librpz_dl="$librpz_dl"])
++  AC_ARG_WITH([fastrpz-dir],
++    [  --with-fastrpz-dir	  directory containing librpz.so],
++    [librpz_path="$withval/librpz.so"], [librpz_path="librpz.so"])
++  AC_DEFINE_UNQUOTED([FASTRPZ_LIBRPZ_PATH], ["$librpz_path"],
++    [fastrpz librpz.so])
++  if test "x$enable_librpz_dl" = "xyes"; then
++    fastrpz_lib_open=2
++  else
++    fastrpz_lib_open=1
++    # Add librpz.so to linked libraries if we are not using dlopen()
++    AC_SEARCH_LIBS([librpz_client_create], [rpz], [],
++      [fastrpz_lib_open=0
++        fastrpz_avail=no])
++  fi
++  AC_DEFINE_UNQUOTED([FASTRPZ_LIB_OPEN], [$fastrpz_lib_open],
++    [0=no fastrpz  1=static link  2=dlopen()])
++
++  AC_ARG_ENABLE([fastrpz],
++    AS_HELP_STRING([--enable-fastrpz],[enable Fastrpz response policy zones]),
++    [enable_fastrpz=$enableval],[enable_fastrpz=$fastrpz_avail])
++  if test "x$enable_fastrpz" = xyes; then
++    AC_DEFINE([ENABLE_FASTRPZ], [1], [Enable fastrpz])
++    if test "x$fastrpz_lib_open" = "x0"; then
++      AC_MSG_ERROR([[dlopen and librpz.so needed for fastrpz]])
++    fi
++    # used in Makefile.in
++    AC_SUBST([FASTRPZ_SRC], [fastrpz/rpz.c])
++    AC_SUBST([FASTRPZ_OBJ], [rpz.lo])
++  elif test "x$fastrpz_avail" = "x0"; then
++    AC_MSG_WARN([[dlopen and librpz.so needed for fastrpz]])
++  fi
++])
+Index: unboundfastrpz/iterator/iterator.c
+===================================================================
+--- unboundfastrpz/iterator/iterator.c	(revision 4923)
++++ unboundfastrpz/iterator/iterator.c	(working copy)
+@@ -68,6 +68,9 @@
+ #include "sldns/str2wire.h"
+ #include "sldns/parseutil.h"
+ #include "sldns/sbuffer.h"
++#ifdef ENABLE_FASTRPZ
++#include "fastrpz/rpz.h"
++#endif
+ 
+ int 
+ iter_init(struct module_env* env, int id)
+@@ -525,6 +528,23 @@
+ 		if(ntohs(r->rk.type) == LDNS_RR_TYPE_CNAME &&
+ 			query_dname_compare(*mname, r->rk.dname) == 0 &&
+ 			!iter_find_rrset_in_prepend_answer(iq, r)) {
++#ifdef ENABLE_FASTRPZ
++			/* Stop adding CNAME rrsets to the prepend list
++			 * before defining an RPZ hit. */
++			if(!iq->rpz_rewritten) {
++				switch (rpz_cname(qstate, *mname, *mname_len)) {
++				case rpz_cname_fail:
++					/* send SERVFAIL */
++					return 0;
++				case rpz_cname_prepend:
++					/* save the CNAME. */
++					break;
++				case rpz_cname_stop:
++					/* Pause before adding the CNAME. */
++					goto stop_short;
++				}
++			}
++#endif
+ 			/* Add this relevant CNAME rrset to the prepend list.*/
+ 			if(!iter_add_prepend_answer(qstate, iq, r))
+ 				return 0;
+@@ -533,6 +553,9 @@
+ 
+ 		/* Other rrsets in the section are ignored. */
+ 	}
++#ifdef ENABLE_FASTRPZ
++stop_short: ;
++#endif
+ 	/* add authority rrsets to authority prepend, for wildcarded CNAMEs */
+ 	for(i=msg->rep->an_numrrsets; i<msg->rep->an_numrrsets +
+ 		msg->rep->ns_numrrsets; i++) {
+@@ -1216,6 +1239,7 @@
+ 	uint8_t* delname;
+ 	size_t delnamelen;
+ 	struct dns_msg* msg = NULL;
++	enum response_type type;
+ 
+ 	log_query_info(VERB_DETAIL, "resolving", &qstate->qinfo);
+ 	/* check effort */
+@@ -1302,8 +1326,7 @@
+ 	}
+ 	if(msg) {
+ 		/* handle positive cache response */
+-		enum response_type type = response_type_from_cache(msg, 
+-			&iq->qchase);
++		type = response_type_from_cache(msg, &iq->qchase);
+ 		if(verbosity >= VERB_ALGO) {
+ 			log_dns_msg("msg from cache lookup", &msg->qinfo, 
+ 				msg->rep);
+@@ -1311,7 +1334,22 @@
+ 				(int)msg->rep->ttl, 
+ 				(int)msg->rep->prefetch_ttl);
+ 		}
++#ifdef ENABLE_FASTRPZ
++	}
++	/* Check for an RPZ hit in the cached DNS message or an existing
++	 * RPZ CNAME rewrite that can be resolved now after a hit on the QNAME
++	 * or client IP address.  This can involve a creating a fake cache
++	 * hit. It can also involve overriding an RESPONSE_TYPE_ANSWER
++	 * result from response_type_from_cache().  Or it can ignore
++	 * the cached result to refetch glue. */
++	if(!iq->rpz_rewritten &&
++	   qstate->mesh_info->reply_list &&
++	   qstate->mesh_info->reply_list->query_reply.rpz &&
++	   !rpz_iter_cache(&msg, &type, qstate, iq))
++		return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
+ 
++	if(msg) {
++#endif
+ 		if(type == RESPONSE_TYPE_CNAME) {
+ 			uint8_t* sname = 0;
+ 			size_t slen = 0;
+@@ -2716,6 +2754,62 @@
+ 			sock_list_insert(&qstate->reply_origin, 
+ 				&qstate->reply->addr, qstate->reply->addrlen, 
+ 				qstate->region);
++#ifdef ENABLE_FASTRPZ
++		/* Check the response for an RPZ hit. The response has already
++		 * been saved in the cache.  This should have the same effect
++		 * as finding that response in the cache.
++		 * We have already used rpz_iter_cache() at least once. */
++		if(!iq->rpz_rewritten &&
++		   qstate->mesh_info->reply_list &&
++		   qstate->mesh_info->reply_list->query_reply.rpz) {
++			struct dns_msg* resp;
++			bool is_cname;
++			uint8_t* sname;
++			size_t slen;
++
++			switch (rpz_iter_resp(qstate, iq, &resp, &is_cname)) {
++			case rpz_iter_resp_fail:
++				return error_response(qstate, id,
++						      LDNS_RCODE_SERVFAIL);
++			case rpz_iter_resp_rewrite:
++				/* Prepend any initial CNAMEs from the original
++				 * response up to a hit. */
++				if(!handle_cname_response(qstate, iq,
++							iq->response,
++							&sname, &slen))
++					return error_response(qstate, id,
++							LDNS_RCODE_SERVFAIL);
++				if (resp) {
++					iq->response = resp;
++					iq->rpz_security = resp->rep->security;
++					iq->rpz_rewritten = 1;
++
++					/* Send the rewritten record if it
++					 * is not a CNAME. */
++					if(!is_cname)
++					    break;
++
++					/* Prepend the new CNAME
++					 * and restart to resolve it. */
++					if(!handle_cname_response(qstate, iq,
++							resp, &sname, &slen))
++					    return error_response(qstate, id,
++							LDNS_RCODE_SERVFAIL);
++				}
++				iq->qchase.qname = sname;
++				iq->qchase.qname_len = slen;
++				iq->dp = NULL;
++				iq->refetch_glue = 0;
++				iq->query_restart_count++;
++				iq->sent_count = 0;
++				iq->state = INIT_REQUEST_STATE;
++				return 1;
++
++			case rpz_iter_resp_done:
++				break;
++			}
++		}
++#endif
+ 		if(iq->minimisation_state != DONOT_MINIMISE_STATE
+ 			&& !(iq->chase_flags & BIT_RD)) {
+ 			if(FLAGS_GET_RCODE(iq->response->rep->flags) != 
+@@ -3462,6 +3556,10 @@
+ 		 * but only if we did recursion. The nonrecursion referral
+ 		 * from cache does not need to be stored in the msg cache. */
+ 		if(!qstate->no_cache_store && qstate->query_flags&BIT_RD) {
++#ifdef ENABLE_FASTRPZ
++			/* Do not save RPZ rewritten messages. */
++			if(!iq->rpz_rewritten)
++#endif
+ 			iter_dns_store(qstate->env, &qstate->qinfo, 
+ 				iq->response->rep, 0, qstate->prefetch_leeway,
+ 				iq->dp&&iq->dp->has_parent_side_NS,
+@@ -3468,6 +3566,34 @@
+ 				qstate->region, qstate->query_flags);
+ 		}
+ 	}
++#ifdef ENABLE_FASTRPZ
++	if(iq->rpz_rewritten) {
++		/* Restore RPZ marks on a rewritten response.  The marks
++		 * are lost if the rewrite is to a CNAME. */
++		iq->response->rep->security = iq->rpz_security;
++
++		/* Append the RPZ SOA to rewritten CNAME chains. */
++		if(iq->rpz_soa) {
++			struct ub_packed_rrset_key** sets;
++			uint n;
++
++			n = iq->response->rep->rrset_count;
++			sets = regional_alloc(qstate->region,
++					      (1+n) * sizeof(*sets));
++			if(!sets) {
++				log_err("append RPZ SOA: out of memory");
++				return error_response(qstate, id,
++						      LDNS_RCODE_SERVFAIL);
++			}
++			memcpy(sets, iq->response->rep->rrsets,
++			       n * sizeof(struct ub_packed_rrset_key*));
++			sets[n] = iq->rpz_soa;
++			iq->response->rep->rrsets = sets;
++			++iq->response->rep->rrset_count;
++			++iq->response->rep->ar_numrrsets;
++		}
++	}
++#endif
+ 	qstate->return_rcode = LDNS_RCODE_NOERROR;
+ 	qstate->return_msg = iq->response;
+ 	return 0;
+Index: unboundfastrpz/iterator/iterator.h
+===================================================================
+--- unboundfastrpz/iterator/iterator.h	(revision 4923)
++++ unboundfastrpz/iterator/iterator.h	(working copy)
+@@ -386,6 +386,16 @@
+ 	 */
+ 	int minimise_count;
+ 
++
++#ifdef ENABLE_FASTRPZ
++	/** The response has been rewritten by RPZ. */
++	int rpz_rewritten;
++	/** RPZ SOA RR for the ADDITIONAL section */
++	struct ub_packed_rrset_key* rpz_soa;
++	/** sec_status_rpz_rewritten or sec_status_rpz_drop if rewritten. */
++	enum sec_status rpz_security;
++#endif
++
+ 	/**
+ 	 * Count number of time-outs. Used to prevent resolving failures when
+ 	 * the QNAME minimisation QTYPE is blocked. */
+Index: unboundfastrpz/services/cache/dns.c
+===================================================================
+--- unboundfastrpz/services/cache/dns.c	(revision 4923)
++++ unboundfastrpz/services/cache/dns.c	(working copy)
+@@ -928,6 +928,14 @@
+ 	struct regional* region, uint32_t flags)
+ {
+ 	struct reply_info* rep = NULL;
++
++#ifdef ENABLE_FASTRPZ
++	/* Never save RPZ rewritten data. */
++	if (msgrep->security == sec_status_rpz_drop ||
++	    msgrep->security == sec_status_rpz_rewritten)
++		return 1;
++#endif
++
+ 	/* alloc, malloc properly (not in region, like msg is) */
+ 	rep = reply_info_copy(msgrep, env->alloc, NULL);
+ 	if(!rep)
+Index: unboundfastrpz/services/mesh.c
+===================================================================
+--- unboundfastrpz/services/mesh.c	(revision 4923)
++++ unboundfastrpz/services/mesh.c	(working copy)
+@@ -60,6 +60,9 @@
+ #include "sldns/wire2str.h"
+ #include "services/localzone.h"
+ #include "util/data/dname.h"
++#ifdef ENABLE_FASTRPZ
++#include "fastrpz/rpz.h"
++#endif
+ #include "respip/respip.h"
+ 
+ /** subtract timers and the values do not overflow or become negative */
+@@ -1057,6 +1060,13 @@
+ 	else	secure = 0;
+ 	if(!rep && rcode == LDNS_RCODE_NOERROR)
+ 		rcode = LDNS_RCODE_SERVFAIL;
++#ifdef ENABLE_FASTRPZ
++	/* Drop the response here for LIBRPZ_POLICY_DROP after iteration. */
++	if(rep && rep->security == sec_status_rpz_drop) {
++		log_query_info(VERB_QUERY, "rpz drop", &m->s.qinfo);
++		secure = 0;
++	} else
++#endif
+ 	/* send the reply */
+ 	/* We don't reuse the encoded answer if either the previous or current
+ 	 * response has a local alias.  We could compare the alias records
+@@ -1230,6 +1240,7 @@
+ 	key.s.is_valrec = valrec;
+ 	key.s.qinfo = *qinfo;
+ 	key.s.query_flags = qflags;
++	key.reply_list = NULL;
+ 	/* We are searching for a similar mesh state when we DO want to
+ 	 * aggregate the state. Thus unique is set to NULL. (default when we
+ 	 * desire aggregation).*/
+@@ -1276,6 +1287,10 @@
+ 	if(!r)
+ 		return 0;
+ 	r->query_reply = *rep;
++#ifdef ENABLE_FASTRPZ
++	/* The new reply structure owns the RPZ state. */
++	rep->rpz = NULL;
++#endif
+ 	r->edns = *edns;
+ 	if(edns->opt_list) {
+ 		r->edns.opt_list = edns_opt_copy_region(edns->opt_list,
+Index: unboundfastrpz/util/config_file.c
+===================================================================
+--- unboundfastrpz/util/config_file.c	(revision 4923)
++++ unboundfastrpz/util/config_file.c	(working copy)
+@@ -1386,6 +1386,8 @@
+ 	free(cfg->dnstap_socket_path);
+ 	free(cfg->dnstap_identity);
+ 	free(cfg->dnstap_version);
++	if (cfg->rpz_cstr)
++		free(cfg->rpz_cstr);
+ 	config_deldblstrlist(cfg->ratelimit_for_domain);
+ 	config_deldblstrlist(cfg->ratelimit_below_domain);
+ #ifdef USE_IPSECMOD
+Index: unboundfastrpz/util/config_file.h
+===================================================================
+--- unboundfastrpz/util/config_file.h	(revision 4923)
++++ unboundfastrpz/util/config_file.h	(working copy)
+@@ -468,6 +468,11 @@
+ 	/** true to disable DNSSEC lameness check in iterator */
+ 	int disable_dnssec_lame_check;
+ 
++	/** true to enable RPZ */
++	int rpz_enable;
++	/** RPZ configuration */
++	char* rpz_cstr;
++
+ 	/** ratelimit for ip addresses. 0 is off, otherwise qps (unless overridden) */
+ 	int ip_ratelimit;
+ 	/** number of slabs for ip_ratelimit cache */
+Index: unboundfastrpz/util/configlexer.lex
+===================================================================
+--- unboundfastrpz/util/configlexer.lex	(revision 4923)
++++ unboundfastrpz/util/configlexer.lex	(working copy)
+@@ -429,6 +429,10 @@
+ 		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES) }
+ dnstap-log-forwarder-response-messages{COLON}	{
+ 		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES) }
++rpz{COLON}			{ YDVAR(0, VAR_RPZ) }
++rpz-enable{COLON}		{ YDVAR(1, VAR_RPZ_ENABLE) }
++rpz-zone{COLON}			{ YDVAR(1, VAR_RPZ_ZONE) }
++rpz-option{COLON}		{ YDVAR(1, VAR_RPZ_OPTION) }
+ disable-dnssec-lame-check{COLON} { YDVAR(1, VAR_DISABLE_DNSSEC_LAME_CHECK) }
+ ip-ratelimit{COLON}		{ YDVAR(1, VAR_IP_RATELIMIT) }
+ ratelimit{COLON}		{ YDVAR(1, VAR_RATELIMIT) }
+Index: unboundfastrpz/util/configparser.y
+===================================================================
+--- unboundfastrpz/util/configparser.y	(revision 4923)
++++ unboundfastrpz/util/configparser.y	(working copy)
+@@ -125,6 +125,7 @@
+ %token VAR_DNSTAP_LOG_CLIENT_RESPONSE_MESSAGES
+ %token VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES
+ %token VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES
++%token VAR_RPZ VAR_RPZ_ENABLE VAR_RPZ_ZONE VAR_RPZ_OPTION
+ %token VAR_RESPONSE_IP_TAG VAR_RESPONSE_IP VAR_RESPONSE_IP_DATA
+ %token VAR_HARDEN_ALGO_DOWNGRADE VAR_IP_TRANSPARENT
+ %token VAR_DISABLE_DNSSEC_LAME_CHECK
+@@ -164,7 +165,7 @@
+ 
+ %%
+ toplevelvars: /* empty */ | toplevelvars toplevelvar ;
+-toplevelvar: serverstart contents_server | stubstart contents_stub |
++toplevelvar: serverstart contents_server | stubstart contents_stub | rpzstart contents_rpz |
+ 	forwardstart contents_forward | pythonstart contents_py | 
+ 	rcstart contents_rc | dtstart contents_dt | viewstart contents_view |
+ 	dnscstart contents_dnsc | cachedbstart contents_cachedb |
+@@ -2546,6 +2547,50 @@
+ 			(strcmp($2, "yes")==0);
+ 	}
+ 	;
++rpzstart: VAR_RPZ
++	{
++		OUTYY(("\nP(rpz:)\n"));
++	}
++	;
++contents_rpz: contents_rpz content_rpz
++	| ;
++content_rpz: rpz_enable | rpz_zone | rpz_option
++	;
++rpz_enable: VAR_RPZ_ENABLE STRING_ARG
++	{
++		OUTYY(("P(rpz_enable:%s)\n", $2));
++		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
++			yyerror("expected yes or no.");
++		else cfg_parser->cfg->rpz_enable = (strcmp($2, "yes")==0);
++		free($2);
++	}
++	;
++rpz_zone: VAR_RPZ_ZONE STRING_ARG
++	{
++		char *new_cstr, *old_cstr;
++
++		OUTYY(("P(rpz_zone:%s)\n", $2));
++		old_cstr = cfg_parser->cfg->rpz_cstr;
++		(void)asprintf(&new_cstr, "%s\nzone %s", old_cstr?old_cstr:"", $2);
++		if(!new_cstr)
++			yyerror("out of memory");
++		free(old_cstr);
++		cfg_parser->cfg->rpz_cstr = new_cstr;
++	}
++	;
++rpz_option: VAR_RPZ_OPTION STRING_ARG
++	{
++		char *new_cstr, *old_cstr;
++
++		OUTYY(("P(rpz_option:%s)\n", $2));
++		old_cstr = cfg_parser->cfg->rpz_cstr;
++		(void)asprintf(&new_cstr, "%s\n%s", old_cstr ? old_cstr : "", $2);
++		if(!new_cstr)
++			yyerror("out of memory");
++		free(old_cstr);
++		cfg_parser->cfg->rpz_cstr = new_cstr;
++	}
++	;
+ pythonstart: VAR_PYTHON
+ 	{ 
+ 		OUTYY(("\nP(python:)\n")); 
+Index: unboundfastrpz/util/data/msgencode.c
+===================================================================
+--- unboundfastrpz/util/data/msgencode.c	(revision 4923)
++++ unboundfastrpz/util/data/msgencode.c	(working copy)
+@@ -585,6 +585,35 @@
+ 	return RETVAL_OK;
+ }
+ 
++#ifdef ENABLE_FASTRPZ
++/* Insert the RPZ SOA even with MINIMAL_RESPONSES */
++static int
++insert_rpz_soa(struct reply_info* rep, size_t num_rrsets, uint16_t* num_rrs,
++	       sldns_buffer* pkt, size_t rrsets_before, time_t timenow,
++	       struct regional* region, struct compress_tree_node** tree,
++	       size_t rr_offset)
++{
++	int r;
++	size_t i, setstart;
++
++	*num_rrs = 0;
++	for(i=0; i<num_rrsets; i++) {
++		if (rep->rrsets[rrsets_before+i]->rk.type != LDNS_RR_TYPE_SOA)
++			continue;
++		setstart = sldns_buffer_position(pkt);
++		if((r=packed_rrset_encode(rep->rrsets[rrsets_before+i],
++					  pkt, num_rrs, timenow, region,
++					  1, 0, tree, LDNS_SECTION_ADDITIONAL,
++					  LDNS_RR_TYPE_ANY, 0, rr_offset))
++		   != RETVAL_OK) {
++			sldns_buffer_set_position(pkt, setstart);
++			return r;
++		}
++	}
++	return RETVAL_OK;
++}
++
++#endif
+ /** store query section in wireformat buffer, return RETVAL */
+ static int
+ insert_query(struct query_info* qinfo, struct compress_tree_node** tree, 
+@@ -748,6 +777,19 @@
+ 			return 0;
+ 		}
+ 		sldns_buffer_write_u16_at(buffer, 10, arcount);
++#ifdef ENABLE_FASTRPZ
++	} else if(rep->security == sec_status_rpz_rewritten) {
++		/* Insert the RPZ SOA for rpz even with MINIMAL_RESPONSES */
++		r = insert_rpz_soa(rep, rep->ar_numrrsets, &arcount, buffer,
++				   rep->an_numrrsets + rep->ns_numrrsets,
++				   timenow, region, &tree, rr_offset);
++		if(r!= RETVAL_OK) {
++			if(r != RETVAL_TRUNC)
++				return 0;
++			/* no need to set TC bit, this is the additional */
++			sldns_buffer_write_u16_at(buffer, 10, arcount);
++		}
++#endif
+ 	}
+ 	sldns_buffer_flip(buffer);
+ 	return 1;
+Index: unboundfastrpz/util/data/packed_rrset.c
+===================================================================
+--- unboundfastrpz/util/data/packed_rrset.c	(revision 4923)
++++ unboundfastrpz/util/data/packed_rrset.c	(working copy)
+@@ -255,6 +255,10 @@
+ 	case sec_status_insecure: 	return "sec_status_insecure";
+ 	case sec_status_secure_sentinel_fail: 	return "sec_status_secure_sentinel_fail";
+ 	case sec_status_secure: 	return "sec_status_secure";
++#ifdef ENABLE_FASTRPZ
++	case sec_status_rpz_rewritten: 	return "sec_status_rpz_rewritten";
++	case sec_status_rpz_drop: 	return "sec_status_rpz_drop";
++#endif
+ 	}
+ 	return "unknown_sec_status_value";
+ }
+Index: unboundfastrpz/util/data/packed_rrset.h
+===================================================================
+--- unboundfastrpz/util/data/packed_rrset.h	(revision 4923)
++++ unboundfastrpz/util/data/packed_rrset.h	(working copy)
+@@ -193,7 +193,15 @@
+ 	sec_status_secure_sentinel_fail,
+ 	/** SECURE means that the object (RRset or message) validated 
+ 	 * according to local policy. */
+-	sec_status_secure
++	sec_status_secure,
++#ifdef ENABLE_FASTRPZ
++	/** RPZ_REWRITTEN means that the response has been rewritten by
++	 * rpz and so cannot be verified. */
++	sec_status_rpz_rewritten,
++	/** RPZ_DROP means that the response has been rewritten by rpz
++	 * as silence. */
++	sec_status_rpz_drop
++#endif
+ };
+ 
+ /**
+Index: unboundfastrpz/util/netevent.c
+===================================================================
+--- unboundfastrpz/util/netevent.c	(revision 4923)
++++ unboundfastrpz/util/netevent.c	(working copy)
+@@ -56,6 +56,9 @@
+ #ifdef HAVE_OPENSSL_ERR_H
+ #include <openssl/err.h>
+ #endif
++#ifdef ENABLE_FASTRPZ
++#include "fastrpz/rpz.h"
++#endif
+ 
+ /* -------- Start of local definitions -------- */
+ /** if CMSG_ALIGN is not defined on this platform, a workaround */
+@@ -588,6 +591,9 @@
+ 	struct cmsghdr* cmsg;
+ #endif /* S_SPLINT_S */
+ 
++#ifdef ENABLE_FASTRPZ
++	rep.rpz = NULL;
++#endif
+ 	rep.c = (struct comm_point*)arg;
+ 	log_assert(rep.c->type == comm_udp);
+ 
+@@ -677,6 +683,9 @@
+ 	int i;
+ 	struct sldns_buffer *buffer;
+ 
++#ifdef ENABLE_FASTRPZ
++	rep.rpz = NULL;
++#endif
+ 	rep.c = (struct comm_point*)arg;
+ 	log_assert(rep.c->type == comm_udp);
+ 
+@@ -720,6 +729,9 @@
+ 			(void)comm_point_send_udp_msg(rep.c, buffer,
+ 				(struct sockaddr*)&rep.addr, rep.addrlen);
+ 		}
++#ifdef ENABLE_FASTRPZ
++		rpz_end(&rep);
++#endif
+ 		if(!rep.c || rep.c->fd != fd) /* commpoint closed to -1 or reused for
+ 		another UDP port. Note rep.c cannot be reused with TCP fd. */
+ 			break;
+@@ -3035,6 +3047,9 @@
+ 		comm_point_start_listening(repinfo->c, -1,
+ 			repinfo->c->tcp_timeout_msec);
+ 	}
++#ifdef ENABLE_FASTRPZ
++	rpz_end(repinfo);
++#endif
+ }
+ 
+ void 
+@@ -3044,6 +3059,9 @@
+ 		return;
+ 	log_assert(repinfo && repinfo->c);
+ 	log_assert(repinfo->c->type != comm_tcp_accept);
++#ifdef ENABLE_FASTRPZ
++	rpz_end(repinfo);
++#endif
+ 	if(repinfo->c->type == comm_udp)
+ 		return;
+ 	reclaim_tcp_handler(repinfo->c);
+@@ -3063,6 +3081,9 @@
+ {
+ 	verbose(VERB_ALGO, "comm point start listening %d", 
+ 		c->fd==-1?newfd:c->fd);
++#ifdef ENABLE_FASTRPZ
++	rpz_end(&c->repinfo);
++#endif
+ 	if(c->type == comm_tcp_accept && !c->tcp_free) {
+ 		/* no use to start listening no free slots. */
+ 		return;
+Index: unboundfastrpz/util/netevent.h
+===================================================================
+--- unboundfastrpz/util/netevent.h	(revision 4923)
++++ unboundfastrpz/util/netevent.h	(working copy)
+@@ -120,6 +120,10 @@
+ 	/** return type 0 (none), 4(IP4), 6(IP6) */
+ 	int srctype;
+ 	/* DnsCrypt context */
++#ifdef ENABLE_FASTRPZ
++	/** per-request RPZ state */
++	struct commreply_rpz* rpz;
++#endif
+ #ifdef USE_DNSCRYPT
+ 	uint8_t client_nonce[crypto_box_HALF_NONCEBYTES];
+ 	uint8_t nmkey[crypto_box_BEFORENMBYTES];
+Index: unboundfastrpz/validator/validator.c
+===================================================================
+--- unboundfastrpz/validator/validator.c	(revision 4923)
++++ unboundfastrpz/validator/validator.c	(working copy)
+@@ -2755,6 +2755,12 @@
+ 			default:
+ 				/* NSEC proof did not work, try next */
+ 				break;
++#ifdef ENABLE_FASTRPZ
++			case sec_status_rpz_rewritten:
++			case sec_status_rpz_drop:
++				fatal_exit("impossible RPZ sec_status");
++				break;
++#endif
+ 		}
+ 
+ 		sec = nsec3_prove_nods(qstate->env, ve, 
+@@ -2788,6 +2794,12 @@
+ 			default:
+ 				/* NSEC3 proof did not work */
+ 				break;
++#ifdef ENABLE_FASTRPZ
++			case sec_status_rpz_rewritten:
++			case sec_status_rpz_drop:
++				fatal_exit("impossible RPZ sec_status");
++				break;
++#endif
+ 		}
+ 
+ 		/* Apparently, no available NSEC/NSEC3 proved NODATA, so 

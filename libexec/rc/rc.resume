@@ -1,0 +1,76 @@
+#!/bin/sh
+#
+# Copyright (c) 1999  Mitsuru IWASAKI
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# sample run command file for APM Resume Event
+
+if [ $# -ne 2 ]; then
+	echo "Usage: $0 [apm|acpi] [standby,suspend|1-4]"
+	exit 1
+fi
+
+subsystem=$1
+state=$2
+
+if [ -r /var/run/rc.suspend.pid ]; then
+	kill -9 `cat /var/run/rc.suspend.pid`
+	/bin/rm -f /var/run/rc.suspend.pid
+	echo 'rc.resume: killed rc.suspend that was still around'
+fi
+
+# Turns on a power supply of a card in the slot inactivated.
+# See also contrib/pccardq.c (only for PAO users).
+# pccardq | awk -F '~' '$5 == "inactive" \
+#	{ printf("pccardc power %d 1", $1); }' | sh
+
+# If a device driver has problems resuming, try unloading it before
+# suspend and reloading it on resume.  Example:
+# kldload usb
+
+/usr/bin/logger -t $subsystem resumed at `/bin/date +'%Y%m%d %H:%M:%S'`
+/bin/sync && /bin/sync && /bin/sync
+
+. /etc/rc.subr
+
+load_rc_config
+
+rcorder_opts="-k resume"
+
+case ${local_startup} in
+[Nn][Oo] | '') ;;
+*)     find_local_scripts_new ;;
+esac
+
+files=`rcorder ${rcorder_opts} /etc/rc.d/* ${local_rc} 2>/dev/null`
+
+for _rc_elem in $files; do
+	debug "run_rc_script $_rc_elem resume"
+	run_rc_script $_rc_elem resume
+done
+
+exit 0

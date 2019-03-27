@@ -1,0 +1,81 @@
+.\"
+.\" Copyright (c) 2003 Bruce M Simpson <bms@spc.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 15, 2018
+.Dt PMAP_QENTER 9
+.Os
+.Sh NAME
+.Nm pmap_qenter ,
+.Nm pmap_qremove
+.Nd manage temporary kernel space mappings
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/pmap.h
+.Ft void
+.Fn pmap_qenter "vm_offset_t sva" "vm_page_t *m" "int count"
+.Ft void
+.Fn pmap_qremove "vm_offset_t sva" "int count"
+.Sh DESCRIPTION
+The
+.Fn pmap_qenter
+function accepts a linear array of
+.Fa count
+pointers to wired pages
+.Fa *m ,
+and enters each of these pages into the kernel virtual address (KVA) space,
+beginning at the address
+.Fa sva .
+The pages are mapped non-executable, if possible.
+(For example, non-PAE i386 has no capability to map pages non-executable.)
+.Pp
+The
+.Fn pmap_qremove
+function tears out a mapping from the kernel virtual address space,
+beginning at
+.Fa sva
+and for
+.Fa count
+pages.
+.Sh IMPLEMENTATION NOTES
+The
+.Fn pmap_qenter
+function is intended for temporary mappings that do not require page
+modification or reference counting.
+Old mappings are simply overwritten.
+The pages
+.Em must
+be wired into physical memory.
+.Pp
+The corresponding
+.Fn pmap_qremove
+function is intended to remove such temporary mappings.
+.Sh SEE ALSO
+.Xr pmap 9
+.Sh AUTHORS
+This manual page was written by
+.An Bruce M Simpson Aq Mt bms@spc.org .

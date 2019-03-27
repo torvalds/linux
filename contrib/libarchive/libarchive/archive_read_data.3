@@ -1,0 +1,130 @@
+.\" Copyright (c) 2003-2011 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 2, 2012
+.Dt ARCHIVE_READ_DATA 3
+.Os
+.Sh NAME
+.Nm archive_read_data
+.Nm archive_read_data_block ,
+.Nm archive_read_data_skip ,
+.Nm archive_read_data_into_fd
+.Nd functions for reading streaming archives
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.In archive.h
+.Ft la_ssize_t
+.Fn archive_read_data "struct archive *" "void *buff" "size_t len"
+.Ft int
+.Fo archive_read_data_block
+.Fa "struct archive *"
+.Fa "const void **buff"
+.Fa "size_t *len"
+.Fa "off_t *offset"
+.Fc
+.Ft int
+.Fn archive_read_data_skip "struct archive *"
+.Ft int
+.Fn archive_read_data_into_fd "struct archive *" "int fd"
+.\"
+.Sh DESCRIPTION
+.Bl -tag -compact -width indent
+.It Fn archive_read_data
+Read data associated with the header just read.
+Internally, this is a convenience function that calls
+.Fn archive_read_data_block
+and fills any gaps with nulls so that callers see a single
+continuous stream of data.
+.It Fn archive_read_data_block
+Return the next available block of data for this entry.
+Unlike
+.Fn archive_read_data ,
+the
+.Fn archive_read_data_block
+function avoids copying data and allows you to correctly handle
+sparse files, as supported by some archive formats.
+The library guarantees that offsets will increase and that blocks
+will not overlap.
+Note that the blocks returned from this function can be much larger
+than the block size read from disk, due to compression
+and internal buffer optimizations.
+.It Fn archive_read_data_skip
+A convenience function that repeatedly calls
+.Fn archive_read_data_block
+to skip all of the data for this archive entry.
+Note that this function is invoked automatically by
+.Fn archive_read_next_header2
+if the previous entry was not completely consumed.
+.It Fn archive_read_data_into_fd
+A convenience function that repeatedly calls
+.Fn archive_read_data_block
+to copy the entire entry to the provided file descriptor.
+.El
+.\"
+.Sh RETURN VALUES
+Most functions return zero on success, non-zero on error.
+The possible return codes include:
+.Cm ARCHIVE_OK
+(the operation succeeded),
+.Cm ARCHIVE_WARN
+(the operation succeeded but a non-critical error was encountered),
+.Cm ARCHIVE_EOF
+(end-of-archive was encountered),
+.Cm ARCHIVE_RETRY
+(the operation failed but can be retried),
+and
+.Cm ARCHIVE_FATAL
+(there was a fatal error; the archive should be closed immediately).
+.Pp
+.Fn archive_read_data
+returns a count of bytes actually read or zero at the end of the entry.
+On error, a value of
+.Cm ARCHIVE_FATAL ,
+.Cm ARCHIVE_WARN ,
+or
+.Cm ARCHIVE_RETRY
+is returned.
+.\"
+.Sh ERRORS
+Detailed error codes and textual descriptions are available from the
+.Fn archive_errno
+and
+.Fn archive_error_string
+functions.
+.\"
+.Sh SEE ALSO
+.Xr tar 1 ,
+.Xr libarchive 3 ,
+.Xr archive_read 3 ,
+.Xr archive_read_extract 3 ,
+.Xr archive_read_filter 3 ,
+.Xr archive_read_format 3 ,
+.Xr archive_read_header 3 ,
+.Xr archive_read_open 3 ,
+.Xr archive_read_set_options 3 ,
+.Xr archive_util 3 ,
+.Xr tar 5

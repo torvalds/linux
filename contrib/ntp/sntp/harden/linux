@@ -1,0 +1,4 @@
+# generic linux hardening flags
+NTP_HARD_CFLAGS="-fPIE -fPIC -fstack-protector-all -O1"
+NTP_HARD_CPPFLAGS="-D_FORTIFY_SOURCE=2"
+NTP_HARD_LDFLAGS="-pie -Wl,-z,relro -Wl,-z,now"

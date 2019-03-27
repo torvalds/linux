@@ -1,0 +1,140 @@
+# $FreeBSD$
+
+# arge0 is connected to the LAN side of the switch PHY.
+# arge1 is connected to the single port WAN side of the switch PHY.
+
+hint.arge.0.phymask=0x0
+hint.arge.0.media=1000
+hint.arge.0.fduplex=1
+hint.arge.0.eeprommac=0x1f66ffa0
+hint.arge.0.readascii=1
+
+hint.arge.1.phymask=0x0
+hint.arge.1.media=1000
+hint.arge.1.fduplex=1
+hint.arge.1.eeprommac=0x1f66ffb4
+hint.arge.1.readascii=1
+
+# ath0 - slot 17
+hint.pcib.0.bus.0.17.0.ath_fixup_addr=0x1f661000
+hint.pcib.0.bus.0.17.0.ath_fixup_size=4096
+
+# ath1 - slot 18
+hint.pcib.0.bus.0.18.0.ath_fixup_addr=0x1f665000
+hint.pcib.0.bus.0.18.0.ath_fixup_size=4096
+
+# .. and now, telling each ath(4) NIC where to find the firmware
+# image.
+hint.ath.0.eeprom_firmware="pcib.0.bus.0.17.0.eeprom_firmware"
+hint.ath.1.eeprom_firmware="pcib.0.bus.0.18.0.eeprom_firmware"
+
+# Geom MAP
+
+# The DIR-825B1 has an 8MB flash part - HOWEVER, the 64k caldata isn't
+# at the end of the flash. It's ~ 6MB into the flash image.
+
+# mtdparts=ar7100-nor0:256k(uboot),64k(Config),1024k(vmlinux),5184k(rootfs),
+#          64k(caldata)
+
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x000040000
+hint.map.0.name="uboot"
+hint.map.0.readonly=1
+
+# This config partition is the D-Link specific configuration area.
+# I'm re-purposing it for FreeBSD.
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00040000
+hint.map.1.end=0x00050000
+hint.map.1.name="cfg"
+hint.map.1.readonly=0
+
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x0050000
+hint.map.2.end="search:0x00050000:0x10000:.!/bin/sh"
+hint.map.2.name="kernel"
+hint.map.2.readonly=1
+
+hint.map.3.at="flash/spi0"
+hint.map.3.start="search:0x00050000:0x10000:.!/bin/sh"
+hint.map.3.end=0x00660000
+hint.map.3.name="rootfs"
+hint.map.3.readonly=0
+
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x00660000
+hint.map.4.end=0x00670000
+hint.map.4.name="art"
+hint.map.4.readonly=1
+
+# GPIO specific configuration block
+
+# Don't flip on anything that isn't already enabled.
+# This includes leaving the SPI CS1/CS2 pins as GPIO pins as they're
+# not used here.
+hint.gpio.0.function_set=0x00000000
+
+hint.gpio.0.function_clear=0x00000000
+
+# These are the GPIO LEDs and buttons which can be software controlled.
+hint.gpio.0.pinmask=0x000009ff
+
+# Pin 1  - USB (LED blue)     --> works
+# Pin 2  - Power (LED orange) --> works
+# Pin 3  - Power (LED blue)   --> works
+# Pin 4  - Button (RESET)     --> works
+# Pin 5  - WPS (LED blue)     --> works
+# Pin 6  - RTL8366RB switch data line
+# Pin 7  - Planet (LED orange)--> works
+# Pin 8  - RTL8366RB switch clock line
+# Pin 9  - Button (WPS)       --> works after set to high
+# Pin 10 - N/C
+# Pin 11 - N/C
+# Pin 12 - Planet (LED blue)  --> works
+
+# LEDs are configured separately and driven by the LED device
+# usb tested good
+hint.gpioled.0.at="gpiobus0"
+hint.gpioled.0.name="usb-blue"
+hint.gpioled.0.pins=0x0001
+
+# no orange power led?
+hint.gpioled.1.at="gpiobus0"
+hint.gpioled.1.name="power-orange"
+hint.gpioled.1.pins=0x0002
+
+# blue power tested good
+hint.gpioled.2.at="gpiobus0"
+hint.gpioled.2.name="power-blue"
+hint.gpioled.2.pins=0x0004
+
+# wps tested good
+hint.gpioled.3.at="gpiobus0"
+hint.gpioled.3.name="wps-blue"
+hint.gpioled.3.pins=0x0010
+
+# orage globe tested good
+hint.gpioled.4.at="gpiobus0"
+hint.gpioled.4.name="planet-orange"
+hint.gpioled.4.pins=0x0040
+
+# no blue planet LED on this unit
+hint.gpioled.5.at="gpiobus0"
+hint.gpioled.5.name="planet-blue"
+hint.gpioled.5.pins=0x0800
+
+# GPIO I2C bus
+hint.gpioiic.0.at="gpiobus0"
+hint.gpioiic.0.pins=0x00a0
+hint.gpioiic.0.sda=0
+hint.gpioiic.0.scl=1
+
+# I2C bus
+# Don't be strict about I2C protocol - the relaxed semantics are required
+# by the realtek switch PHY.
+hint.iicbus.0.strict=0
+
+# Bit bang bus - override default delay
+#hint.iicbb.0.udelay=3
+

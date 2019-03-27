@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+FBSD_1.2 {
+};
+
+FBSD_1.3 {
+} FBSD_1.2;
+
+FBSD_1.4 {
+} FBSD_1.3;
+
+FBSD_1.5 {
+} FBSD_1.4;

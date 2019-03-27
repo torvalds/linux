@@ -1,0 +1,32 @@
+#
+# Routerstation Pro: boot from on-board flash
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+include		"AR71XX_BASE"
+ident		"RSPRO"
+hints		"RSPRO.hints"
+
+# RTC - requires hackery in the spibus code to work
+device		pcf2123_rtc
+
+# GEOM modules
+device		geom_redboot	# to get access to the SPI flash partitions
+device		xz
+options 	GEOM_UZIP
+
+# For DOS
+options 	MSDOSFS
+
+# For etherswitch support
+options 	ARGE_MDIO
+device		miiproxy
+device		etherswitch
+device		arswitch
+
+# Boot off of flash
+options 	ROOTDEVNAME=\"ufs:redboot/rootfs.uzip\"
+

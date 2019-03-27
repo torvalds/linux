@@ -1,0 +1,558 @@
+.\"	$FreeBSD$
+.\"	$OpenBSD: dc.1,v 1.27 2012/08/19 12:07:21 jmc Exp $
+.\"
+.\" Copyright (C) Caldera International Inc.  2001-2002.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed or owned by Caldera
+.\"	International, Inc.
+.\" 4. Neither the name of Caldera International, Inc. nor the names of other
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)dc.1	8.1 (Berkeley) 6/6/93
+.\"
+.Dd December 5, 2017
+.Dt DC 1
+.Os
+.Sh NAME
+.Nm dc
+.Nd desk calculator
+.Sh SYNOPSIS
+.Nm
+.Op Fl hxV
+.Op Fl e Ar expression
+.Op Fl f Ar filename
+.Op Ar filename
+.Sh DESCRIPTION
+.Nm
+is an arbitrary precision arithmetic package.
+The overall structure of
+.Nm
+is
+a stacking (reverse Polish) calculator i.e.\&
+numbers are stored on a stack.
+Adding a number pushes it onto the stack.
+Arithmetic operations pop arguments off the stack
+and push the results.
+See also the
+.Xr bc 1
+utility, which is a preprocessor for
+.Nm
+providing infix notation and a C-like syntax
+which implements functions and reasonable control
+structures for programs.
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl e Ar expr , Fl Fl expression Ar expr
+Evaluate
+.Ar expression .
+If multiple
+.Fl e
+options are specified, they will be processed in the order given.
+.It Fl f Ar filename , Fl Fl file Ar filename
+Process the content of the given file before further calculations are done.
+If multiple
+.Fl f
+options are specified, they will be processed in the order given.
+.It Fl h , Fl Fl help
+Print short usage info.
+.It Fl V , Fl Fl version
+Print version info.
+.It Fl x
+Enable extended register mode.
+This mode is used by
+.Xr bc 1
+to allow more than 256 registers.
+See
+.Sx Registers
+for a more detailed description.
+.El
+.Pp
+If neither
+.Ar expression
+nor
+.Ar file
+are specified on the command line,
+.Nm
+reads from the standard input.
+Otherwise
+.Ar expression
+and
+.Ar file
+are processed and
+.Nm
+exits.
+.Pp
+Ordinarily,
+.Nm
+operates on decimal integers,
+but one may specify an input base, output base,
+and a number of fractional digits (scale) to be maintained.
+Whitespace is ignored, except where it signals the end of a number,
+end of a line or when a register name is expected.
+The following constructions are recognized:
+.Bl -tag -width "number"
+.It Va number
+The value of the number is pushed on the stack.
+A number is an unbroken string of the digits 0\-9 and letters A\-F.
+It may be preceded by an underscore
+.Pq Sq _
+to input a negative number.
+A number may contain a single decimal point.
+A number may also contain the characters A\-F, with the values 10\-15.
+.It Cm "+ - / * % ~ ^"
+The
+top two values on the stack are added
+(+),
+subtracted
+(\-),
+multiplied (*),
+divided (/),
+remaindered (%),
+divided and remaindered (~),
+or exponentiated (^).
+The two entries are popped off the stack;
+the result is pushed on the stack in their place.
+Any fractional part of an exponent is ignored.
+.Pp
+For addition, subtraction, and remainder, the scale of the result is the
+maximum of scales of the operands.
+For division the scale of the result is defined
+by the scale set by the
+.Ic k
+operation.
+For multiplication, the scale is defined by the expression
+.Sy min(a+b,max(a,b,scale)) ,
+where
+.Sy a
+and
+.Sy b
+are the scales of the operands, and
+.Sy scale
+is the scale defined by the
+.Ic k
+operation.
+For exponentiation with a non-negative exponent, the scale of the result is
+.Sy min(a*b,max(scale,a)) ,
+where
+.Sy a
+is the scale of the base, and
+.Sy b
+is the
+.Em value
+of the exponent.
+If the exponent is negative, the scale of the result is the scale
+defined by the
+.Ic k
+operation.
+.Pp
+In the case of the division and modulus operator (~),
+the resultant quotient is pushed first followed by the remainder.
+This is a shorthand for the sequence:
+.Bd -literal -offset indent -compact
+x y / x y %
+.Ed
+The division and modulus operator is a non-portable extension.
+.It Ic a
+Pop the top value from the stack.
+If that value is a number, compute the integer part of the number modulo 256.
+If the result is zero, push an empty string.
+Otherwise push a one character string by interpreting the computed value
+as an
+.Tn ASCII
+character.
+.Pp
+If the top value is a string, push a string containing the first character
+of the original string.
+If the original string is empty, an empty string is pushed back.
+The
+.Ic a
+operator is a non-portable extension.
+.It Ic c
+All values on the stack are popped.
+.It Ic d
+The top value on the stack is duplicated.
+.It Ic e
+Equivalent to
+.Ic p ,
+except that the output is written to the standard error stream.
+.It Ic f
+All values on the stack are printed, separated by newlines.
+.It Ic G
+The top two numbers are popped from the stack and compared.
+A one is pushed if the top of the stack is equal to the second number
+on the stack.
+A zero is pushed otherwise.
+This is a non-portable extension.
+.It Ic I
+Pushes the input base on the top of the stack.
+.It Ic i
+The top value on the stack is popped and used as the
+base for further input.
+The initial input base is 10.
+.It Ic J
+Pop the top value from the stack.
+The recursion level is popped by that value and, following that,
+the input is skipped until the first occurrence of the
+.Ic M
+operator.
+The
+.Ic J
+operator is a non-portable extension, used by the
+.Xr bc 1
+command.
+.It Ic K
+The current scale factor is pushed onto the stack.
+.It Ic k
+The top of the stack is popped, and that value is used as
+a non-negative scale factor:
+the appropriate number of places
+are printed on output,
+and maintained during multiplication, division, and exponentiation.
+The interaction of scale factor,
+input base, and output base will be reasonable if all are changed
+together.
+.It Ic L Ns Ar x
+Register
+.Ar x
+is treated as a stack and its top value is popped onto the main stack.
+.It Ic l Ns Ar x
+The
+value in register
+.Ar x
+is pushed on the stack.
+The register
+.Ar x
+is not altered.
+Initially, all registers contain the value zero.
+.It Ic M
+Mark used by the
+.Ic J
+operator.
+The
+.Ic M
+operator is a non-portable extensions, used by the
+.Xr bc 1
+command.
+.It Ic N
+The top of the stack is replaced by one if the top of the stack
+is equal to zero.
+If the top of the stack is unequal to zero, it is replaced by zero.
+This is a non-portable extension.
+.It Ic n
+The top value on the stack is popped and printed without a newline.
+This is a non-portable extension.
+.It Ic O
+Pushes the output base on the top of the stack.
+.It Ic o
+The top value on the stack is popped and used as the
+base for further output.
+The initial output base is 10.
+.It Ic P
+The top of the stack is popped.
+If the top of the stack is a string, it is printed without a trailing newline.
+If the top of the stack is a number, it is interpreted as a
+base 256 number, and each digit of this base 256 number is printed as
+an
+.Tn ASCII
+character, without a trailing newline.
+.It Ic p
+The top value on the stack is printed with a trailing newline.
+The top value remains unchanged.
+.It Ic Q
+The top value on the stack is popped and the string execution level is popped
+by that value.
+.It Ic q
+Exits the program.
+If executing a string, the recursion level is
+popped by two.
+.It Ic R
+The top of the stack is removed (popped).
+This is a non-portable extension.
+.It Ic r
+The top two values on the stack are reversed (swapped).
+This is a non-portable extension.
+.It Ic S Ns Ar x
+Register
+.Ar x
+is treated as a stack.
+The top value of the main stack is popped and pushed on it.
+.It Ic s Ns Ar x
+The
+top of the stack is popped and stored into
+a register named
+.Ar x .
+.It Ic v
+Replaces the top element on the stack by its square root.
+The scale of the result is the maximum of the scale of the argument
+and the current value of scale.
+.It Ic X
+Replaces the number on the top of the stack with its scale factor.
+If the top of the stack is a string, replace it with the integer 0.
+.It Ic x
+Treats the top element of the stack as a character string
+and executes it as a string of
+.Nm
+commands.
+.It Ic Z
+Replaces the number on the top of the stack with its length.
+The length of a string is its number of characters.
+The length of a number is its number of digits, not counting the minus sign
+and decimal point.
+.It Ic z
+The stack level is pushed onto the stack.
+.It Cm \&[ Ns ... Ns Cm \&]
+Puts the bracketed
+.Tn ASCII
+string onto the top of the stack.
+If the string includes brackets, these must be properly balanced.
+The backslash character
+.Pq Sq \e
+may be used as an escape character, making it
+possible to include unbalanced brackets in strings.
+To include a backslash in a string, use a double backslash.
+.It Xo
+.Cm < Ns Va x
+.Cm > Ns Va x
+.Cm = Ns Va x
+.Cm !< Ns Va x
+.Cm !> Ns Va x
+.Cm != Ns Va x
+.Xc
+The top two elements of the stack are popped and compared.
+Register
+.Ar x
+is executed if they obey the stated
+relation.
+.It Xo
+.Cm < Ns Va x Ns e Ns Va y
+.Cm > Ns Va x Ns e Ns Va y
+.Cm = Ns Va x Ns e Ns Va y
+.Cm !< Ns Va x Ns e Ns Va y
+.Cm !> Ns Va x Ns e Ns Va y
+.Cm != Ns Va x Ns e Ns Va y
+.Xc
+These operations are variants of the comparison operations above.
+The first register name is followed by the letter
+.Sq e
+and another register name.
+Register
+.Ar x
+will be executed if the relation is true, and register
+.Ar y
+will be executed if the relation is false.
+This is a non-portable extension.
+.It Ic \&(
+The top two numbers are popped from the stack and compared.
+A one is pushed if the top of the stack is less than the second number
+on the stack.
+A zero is pushed otherwise.
+This is a non-portable extension.
+.It Ic {
+The top two numbers are popped from the stack and compared.
+A one is pushed if the top of stack is less than or equal to the
+second number on the stack.
+A zero is pushed otherwise.
+This is a non-portable extension.
+.It Ic \&!
+Interprets the rest of the line as a
+.Ux
+command.
+.It Ic \&?
+A line of input is taken from the input source (usually the terminal)
+and executed.
+.It Ic \&: Ns Ar r
+Pop two values from the stack.
+The second value on the stack is stored into the array
+.Ar r
+indexed by the top of stack.
+.It Ic \&; Ns Ar r
+Pop a value from the stack.
+The value is used as an index into register
+.Ar r .
+The value in this register is pushed onto the stack.
+.Pp
+Array elements initially have the value zero.
+Each level of a stacked register has its own array associated with
+it.
+The command sequence
+.Bd -literal -offset indent
+[first] 0:a [dummy] Sa [second] 0:a 0;a p La 0;a p
+.Ed
+.Pp
+will print
+.Bd -literal -offset indent
+second
+first
+.Ed
+.Pp
+since the string
+.Ql second
+is written in an array that is later popped, to reveal the array that
+stored
+.Ql first .
+.It Ic #
+Skip the rest of the line.
+This is a non-portable extension.
+.El
+.Ss Registers
+Registers have a single character name
+.Ar x ,
+where
+.Ar x
+may be any character, including space, tab or any other special character.
+If extended register mode is enabled using the
+.Fl x
+option and the register identifier
+.Ar x
+has the value 255, the next two characters are interpreted as a
+two-byte register index.
+The set of standard single character registers and the set of extended
+registers do not overlap.
+Extended register mode is a non-portable extension.
+.Sh EXAMPLES
+An example which prints the first ten values of
+.Ic n! :
+.Bd -literal -offset indent
+[la1+dsa*pla10>y]sy
+0sa1
+lyx
+.Ed
+.Pp
+Independent of the current input base, the command
+.Bd -literal -offset indent
+Ai
+.Ed
+.Pp
+will reset the input base to decimal 10.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It %c (0%o) is unimplemented
+an undefined operation was called.
+.It stack empty
+for not enough elements on the stack to do what was asked.
+.It stack register '%c' (0%o) is empty
+for an
+.Ar L
+operation from a stack register that is empty.
+.It Runtime warning: non-zero scale in exponent
+for a fractional part of an exponent that is being ignored.
+.It divide by zero
+for trying to divide by zero.
+.It remainder by zero
+for trying to take a remainder by zero.
+.It square root of negative number
+for trying to take the square root of a negative number.
+.It index too big
+for an array index that is larger than 2048.
+.It negative index
+for a negative array index.
+.It "input base must be a number between 2 and 16"
+for trying to set an illegal input base.
+.It output base must be a number greater than 1
+for trying to set an illegal output base.
+.It scale must be a nonnegative number
+for trying to set a negative or zero scale.
+.It scale too large
+for trying to set a scale that is too large.
+A scale must be representable as a 32-bit unsigned number.
+.It Q command argument exceeded string execution depth
+for trying to pop the recursion level more than the current
+recursion level.
+.It Q command requires a number >= 1
+for trying to pop an illegal number of recursion levels.
+.It recursion too deep
+for too many levels of nested execution.
+.Pp
+The recursion level is increased by one if the
+.Ar x
+or
+.Ar ?\&
+operation or one of the compare operations resulting in the execution
+of register is executed.
+As an exception, the recursion level is not increased if the operation
+is executed as the last command of a string.
+For example, the commands
+.Bd -literal -offset indent
+[lax]sa
+1 lax
+.Ed
+.Pp
+will execute an endless loop, while the commands
+.Bd -literal -offset indent
+[laxp]sa
+1 lax
+.Ed
+.Pp
+will terminate because of a too deep recursion level.
+.It J command argument exceeded string execution depth
+for trying to pop the recursion level more than the current
+recursion level.
+.It mark not found
+for a failed scan for an occurrence of the
+.Ic M
+operator.
+.El
+.Sh SEE ALSO
+.Xr bc 1
+.Pp
+.An -nosplit
+.An L. L. Cherry ,
+.An R. Morris
+"DC \- An Interactive Desk Calculator"
+.Pa /usr/share/doc/usd/05.dc/ .
+.Sh STANDARDS
+The arithmetic operations of the
+.Nm
+utility are expected to conform to the definition listed in the
+.Xr bc 1
+section of the
+.St -p1003.2
+specification.
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.At v6 .
+A complete rewrite of the
+.Nm
+command using the
+.Xr bn 3
+big number routines first appeared in
+.Ox 3.5 .
+.Sh AUTHORS
+.An -nosplit
+The original version of the
+.Nm
+command was written by
+.An Robert Morris
+and
+.An Lorinda Cherry .
+The current version of the
+.Nm
+utility was written by
+.An Otto Moerbeek .

@@ -1,0 +1,138 @@
+		   README for GDBserver & GDBreplay
+		    by Stu Grossman and Fred Fish
+
+Introduction:
+
+This is GDBserver, a remote server for Un*x-like systems.  It can be used to
+control the execution of a program on a target system from a GDB on a different
+host.  GDB and GDBserver communicate using the standard remote serial protocol
+implemented in remote.c, and various *-stub.c files.  They communicate via
+either a serial line or a TCP connection.
+
+Usage (server (target) side):
+
+First, you need to have a copy of the program you want to debug put onto
+the target system.  The program can be stripped to save space if needed, as
+GDBserver doesn't care about symbols.  All symbol handling is taken care of by
+the GDB running on the host system.
+
+To use the server, you log on to the target system, and run the `gdbserver'
+program.  You must tell it (a) how to communicate with GDB, (b) the name of
+your program, and (c) its arguments.  The general syntax is:
+
+	target> gdbserver COMM PROGRAM [ARGS ...]
+
+For example, using a serial port, you might say:
+
+	target> gdbserver /dev/com1 emacs foo.txt
+
+This tells gdbserver to debug emacs with an argument of foo.txt, and to
+communicate with GDB via /dev/com1.  Gdbserver now waits patiently for the
+host GDB to communicate with it.
+
+To use a TCP connection, you could say:
+
+	target> gdbserver host:2345 emacs foo.txt
+
+This says pretty much the same thing as the last example, except that we are
+going to communicate with the host GDB via TCP.  The `host:2345' argument means
+that we are expecting to see a TCP connection from `host' to local TCP port
+2345.  (Currently, the `host' part is ignored.)  You can choose any number you
+want for the port number as long as it does not conflict with any existing TCP
+ports on the target system.  This same port number must be used in the host
+GDBs `target remote' command, which will be described shortly.  Note that if
+you chose a port number that conflicts with another service, gdbserver will
+print an error message and exit.
+
+On some targets, gdbserver can also attach to running programs.  This is
+accomplished via the --attach argument.  The syntax is:
+
+	target> gdbserver COMM --attach PID
+
+PID is the process ID of a currently running process.  It isn't necessary
+to point gdbserver at a binary for the running process.
+
+Usage (host side):
+
+You need an unstripped copy of the target program on your host system, since
+GDB needs to examine it's symbol tables and such.  Start up GDB as you normally
+would, with the target program as the first argument.  (You may need to use the
+--baud option if the serial line is running at anything except 9600 baud.)
+Ie: `gdb TARGET-PROG', or `gdb --baud BAUD TARGET-PROG'.  After that, the only
+new command you need to know about is `target remote'.  It's argument is either
+a device name (usually a serial device, like `/dev/ttyb'), or a HOST:PORT
+descriptor.  For example:
+
+	(gdb) target remote /dev/ttyb
+
+communicates with the server via serial line /dev/ttyb, and:
+
+	(gdb) target remote the-target:2345
+
+communicates via a TCP connection to port 2345 on host `the-target', where
+you previously started up gdbserver with the same port number.  Note that for
+TCP connections, you must start up gdbserver prior to using the `target remote'
+command, otherwise you may get an error that looks something like
+`Connection refused'.
+
+Building gdbserver:
+
+The supported targets as of February 2002 are:
+	arm-*-linux-gnu
+	i386-*-linux-gnu
+	ia64-*-linux-gnu
+	m68k-*-linux-gnu
+	mips-*-linux-gnu
+	powerpc-*-linux-gnu
+	sh-*-linux-gnu
+
+Configuring gdbserver you should specify the same machine for host and
+target (which are the machine that gdbserver is going to run on.  This
+is not the same as the machine that gdb is going to run on; building
+gdbserver automatically as part of building a whole tree of tools does
+not currently work if cross-compilation is involved (we don't get the
+right CC in the Makefile, to start with)).
+
+Building gdbserver for your target is very straightforward.  If you build
+GDB natively on a target which gdbserver supports, it will be built
+automatically when you build GDB.  You can also build just gdbserver:
+
+	% mkdir obj
+	% cd obj
+	% path-to-gdbserver-sources/configure
+	% make
+
+If you prefer to cross-compile to your target, then you can also build
+gdbserver that way.  In a Bourne shell, for example:
+
+	% export CC=your-cross-compiler
+	% path-to-gdbserver-sources/configure your-target-name
+	% make
+
+Using GDBreplay:
+
+A special hacked down version of gdbserver can be used to replay remote
+debug log files created by gdb.  Before using the gdb "target" command to
+initiate a remote debug session, use "set remotelogfile <filename>" to tell
+gdb that you want to make a recording of the serial or tcp session.  Note
+that when replaying the session, gdb communicates with gdbreplay via tcp,
+regardless of whether the original session was via a serial link or tcp.
+
+Once you are done with the remote debug session, start gdbreplay and
+tell it the name of the log file and the host and port number that gdb
+should connect to (typically the same as the host running gdb):
+
+	$ gdbreplay logfile host:port
+
+Then start gdb (preferably in a different screen or window) and use the
+"target" command to connect to gdbreplay:
+
+	(gdb) target remote host:port
+
+Repeat the same sequence of user commands to gdb that you gave in the
+original debug session.  Gdb should not be able to tell that it is talking
+to gdbreplay rather than a real target, all other things being equal.  Note
+that gdbreplay echos the command lines to stderr, as well as the contents of
+the packets it sends and receives.  The last command echoed by gdbreplay is
+the next command that needs to be typed to gdb to continue the session in
+sync with the original session.

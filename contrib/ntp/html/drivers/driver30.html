@@ -1,0 +1,86 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+
+	<head>
+		<meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1">
+		<meta name="GENERATOR" content="Mozilla/4.06 [en] (X11; I; FreeBSD 3.0-CURRENT i386) [Netscape]">
+		<title>Motorola Oncore GPS Receiver</title>
+		<link href="scripts/style.css" type="text/css" rel="stylesheet">
+	</head>
+
+	<body>
+		<h3>Motorola Oncore GPS receiver</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->21-Oct-2010  23:44<!-- #EndDate -->
+  UTC</p>
+		<hr>
+		<h4>Synopsis</h4>
+		<p>Address: 127.127.30.<i>u</i><br>
+			Reference ID: <tt>GPS</tt><br>
+			Driver ID: ONCORE<br>
+			Serial Port: <tt>/dev/oncore.serial.</tt><i>u</i>; &nbsp;9600 baud, 8-bits, no parity.<br>
+			PPS Port: <tt>/dev/oncore.pps.</tt><i>u</i>;&nbsp; <tt>PPS_CAPTUREASSERT</tt> required,&nbsp; <tt>PPS_OFFSETASSERT</tt> supported.<br>
+			Configuration File: <tt>ntp.oncore</tt>, or <tt>ntp.oncore.</tt><i>u</i>, or <tt>ntp.oncore</tt><i>u</i>, in <tt>/etc/ntp</tt> or <tt>/etc</tt>.</p>
+		<h4>Description</h4>
+		<p>This driver supports most models of the <a href="http://www.mot.com/AECS/PNSB/products">Motorola Oncore GPS receivers</a> (Basic, PVT6, VP, UT, UT+, GT, GT+, SL, M12, M12+T), as long as they support the <i>Motorola Binary Protocol</i>.</p>
+		<p>The interesting versions of the Oncore are the VP, the UT+, the &quot;Remote&quot; which is a prepackaged UT+, and the M12 Timing. The VP is no longer available new, and the UT, GT, and SL are at end-of-life. The Motorola evaluation kit can be recommended. It interfaces to a PC straightaway, using the serial (DCD) or parallel port for PPS input and packs the receiver in a nice and sturdy box. Less expensive interface kits are available from <a href="http://www.tapr.org">TAPR</a> and <a href="http://www.synergy-gps.com">Synergy</a>.<br>&nbsp;</p>
+		<center>
+			<table>
+				<tr>
+					<td><img src="../pic/oncore_utplusbig.gif" alt="gif" height="124" width="210"></td>
+					<td><img src="../pic/oncore_evalbig.gif" alt="gif" height="124" width="182"></td>
+					<td><img src="../pic/oncore_remoteant.jpg" alt="gif" height="188" width="178"></td>
+				</tr>
+				<tr>
+					<td>
+						<center>
+							UT+ oncore</center>
+					</td>
+					<td>
+						<center>
+							Evaluation kit</center>
+					</td>
+					<td>
+						<center>
+							Oncore Remote</center>
+					</td>
+				</tr>
+			</table>
+		</center>
+		<p>The driver requires a standard <tt>PPS</tt> interface for the pulse-per-second output from the receiver. The serial data stream alone does not provide precision time stamps (0-50msec variance, according to the manual), whereas the PPS output is precise down to 50 nsec (1 sigma) for the VP/UT models and 25 nsec for the M12 Timing. If you do not have the PPS signal available, then you should probably be using the NMEA driver rather than the Oncore driver. Most of these are available on-line</p>
+		<p>The driver will use the &quot;position hold&quot; mode with user provided coordinates, the receivers built-in site-survey, or a similar algorithm implemented in this driver to determine the antenna position.</p>
+		<h4>Monitor Data</h4>
+		The driver always puts a lot of useful information on the clockstats file, and when run with debugging can be quite chatty on stdout. When first starting to use the driver you should definitely review the information written to the clockstats file to verify that the driver is running correctly.
+		<p>In addition, on platforms supporting Shared Memory, all of the messages received from the Oncore receiver are made available in shared memory for use by other programs. See the <a href="oncore-shmem.html">Oncore-SHMEM</a> manual page for information on how to use this option. For either debugging or using the SHMEM option, an Oncore Reference Manual for the specific receiver in use will be required.</p>
+		<h4>Fudge Factors</h4>
+		<dl>
+			<dt><tt>time1 <i>time</i></tt>
+			<dd>Specifies the time offset calibration factor, in seconds and fraction, with default 0.0.
+			<dt><tt>time2 <i>time</i></tt>
+			<dd>Not used by this driver.
+			<dt><tt>stratum <i>number</i></tt>
+			<dd>Specifies the driver stratum, in decimal from 0 to 15, with default 0.
+			<dt><tt>refid <i>string</i></tt>
+			<dd>Specifies the driver reference identifier, an ASCII string from one to four characters, with default <tt>GPS</tt>.
+			<dt><tt>flag1 0 | 1</tt>
+			<dd>Not used by this driver.
+			<dt><tt>flag2 0 | 1</tt>
+			<dd>Not used by this driver.
+			<dt><tt>flag3 0 | 1</tt>
+			<dd>Not used by this driver.
+			<dt><tt>flag4 0 | 1</tt>
+			<dd>Not used by this driver.
+		</dl>
+		<h4>Additional Information</h4>
+		<p>The driver was initially developed on FreeBSD, and has since been tested on Linux, SunOS and Solaris.</p>
+		<p><b>Configuration</b></p>
+		<p>There is a driver specific configuration file <tt>ntp.oncore</tt> (or <tt>ntp.oncore.</tt><i>u</i> or <tt>ntp.oncore</tt><i>u</i> if you must distinguish between more than one Oncore receiver) that contains information on the startup mode, the location of the GPS receiver, an offset of the PPS signal from zero, and the cable delay. The offset shifts the PPS signal to avoid interrupt pileups `on' the second, and adjusts the timestamp accordingly. See the driver source for information on this file. The default with no file is: no delay, no offset, and a site survey is done to get the location of the gps receiver.</p>
+		<p>The following three options can be set in the driver specific configuration file only if the driver is using the PPSAPI. The edge of the PPS signal that is `on-time' can be set with the keywords [ASSERT/CLEAR] and the word HARDPPS will cause the PPS signal to control the kernel PLL.</p>
+		<p><b>Performance</b></p>
+		<p>Really good. With the VP/UT+, the generated PPS pulse is referenced to UTC(GPS)&nbsp;with better than 50 nsec (1 sigma) accuracy. The limiting factor will be the timebase of the computer and the precision with which you can timestamp the rising flank of the PPS signal. Using FreeBSD, a FPGA&nbsp;based Timecounter/PPS&nbsp;interface, and an ovenized quartz oscillator, that performance has been reproduced. For more details on this aspect: <a href="http://phk.freebsd.dk/rover.html">Sub-Microsecond timekeeping under FreeBSD</a>.</p>
+		<hr>
+		<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+	</body>
+
+</html>

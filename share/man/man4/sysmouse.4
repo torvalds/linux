@@ -1,0 +1,465 @@
+.\" Copyright 1997 John-Mark Gurney.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY John-Mark Gurney AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 25, 2014
+.Dt SYSMOUSE 4
+.Os
+.Sh NAME
+.Nm sysmouse
+.\" .Nd supplies mouse data from syscons for other applications
+.Nd virtualized mouse driver
+.Sh SYNOPSIS
+.In sys/mouse.h
+.In sys/consio.h
+.Sh DESCRIPTION
+The console driver, in conjunction with the mouse daemon
+.Xr moused 8 ,
+supplies mouse data to the user process in the standardized way via the
+.Nm
+driver.
+This arrangement makes it possible for the console and the user process
+(such as the
+.Tn X\ Window System )
+to share the mouse.
+.Pp
+The user process which wants to utilize mouse operation simply opens
+.Pa /dev/sysmouse
+with a
+.Xr open 2
+call and reads
+mouse data from the device via
+.Xr read 2 .
+Make sure that
+.Xr moused 8
+is running, otherwise the user process will not see any data coming from
+the mouse.
+.Ss Operation Levels
+The
+.Nm
+driver has two levels of operation.
+The current operation level can be referred to and changed via ioctl calls.
+.Pp
+The level zero, the basic level, is the lowest level at which the driver
+offers the basic service to user programs.
+The
+.Nm
+driver
+provides horizontal and vertical movement of the mouse
+and state of up to three buttons in the
+.Tn MouseSystems
+format as follows.
+.Pp
+.Bl -tag -width Byte_1 -compact
+.It Byte 1
+.Bl -tag -width bit_7 -compact
+.It bit 7
+Always one.
+.It bit 6..3
+Always zero.
+.It bit 2
+Left button status; cleared if pressed, otherwise set.
+.It bit 1
+Middle button status; cleared if pressed, otherwise set.
+Always one,
+if the device does not have the middle button.
+.It bit 0
+Right button status; cleared if pressed, otherwise set.
+.El
+.It Byte 2
+The first half of horizontal movement count in two's complement;
+\-128 through 127.
+.It Byte 3
+The first half of vertical movement count in two's complement;
+\-128 through 127.
+.It Byte 4
+The second half of the horizontal movement count in two's complement;
+\-128 through 127.
+To obtain the full horizontal movement count, add
+the byte 2 and 4.
+.It Byte 5
+The second half of the vertical movement count in two's complement;
+\-128 through 127.
+To obtain the full vertical movement count, add
+the byte 3 and 5.
+.El
+.Pp
+At the level one, the extended level, mouse data is encoded
+in the standard format
+.Dv MOUSE_PROTO_SYSMOUSE
+as defined in
+.Xr mouse 4 .
+.\" .Ss Acceleration
+.\" The
+.\" .Nm
+.\" driver can somewhat `accelerate' the movement of the pointing device.
+.\" The faster you move the device, the further the pointer
+.\" travels on the screen.
+.\" The driver has an internal variable which governs the effect of
+.\" the acceleration. Its value can be modified via the driver flag
+.\" or via an ioctl call.
+.Sh IOCTLS
+This section describes two classes of
+.Xr ioctl 2
+commands:
+commands for the
+.Nm
+driver itself, and commands for the console and the console control drivers.
+.Ss Sysmouse Ioctls
+There are a few commands for mouse drivers.
+General description of the commands is given in
+.Xr mouse 4 .
+Following are the features specific to the
+.Nm
+driver.
+.Pp
+.Bl -tag -width MOUSE -compact
+.It Dv MOUSE_GETLEVEL Ar int *level
+.It Dv MOUSE_SETLEVEL Ar int *level
+These commands manipulate the operation level of the mouse driver.
+.Pp
+.It Dv MOUSE_GETHWINFO Ar mousehw_t *hw
+Returns the hardware information of the attached device in the following
+structure.
+Only the
+.Va iftype
+field is guaranteed to be filled with the correct value in the current
+version of the
+.Nm
+driver.
+.Bd -literal
+typedef struct mousehw {
+    int buttons;    /* number of buttons */
+    int iftype;     /* I/F type */
+    int type;       /* mouse/track ball/pad... */
+    int model;      /* I/F dependent model ID */
+    int hwid;       /* I/F dependent hardware ID */
+} mousehw_t;
+.Ed
+.Pp
+The
+.Va buttons
+field holds the number of buttons detected by the driver.
+.Pp
+The
+.Va iftype
+is always
+.Dv MOUSE_IF_SYSMOUSE .
+.Pp
+The
+.Va type
+tells the device type:
+.Dv MOUSE_MOUSE ,
+.Dv MOUSE_TRACKBALL ,
+.Dv MOUSE_STICK ,
+.Dv MOUSE_PAD ,
+or
+.Dv MOUSE_UNKNOWN .
+.Pp
+The
+.Va model
+is always
+.Dv MOUSE_MODEL_GENERIC
+at the operation level 0.
+It may be
+.Dv MOUSE_MODEL_GENERIC
+or one of
+.Dv MOUSE_MODEL_XXX
+constants at higher operation levels.
+.Pp
+The
+.Va hwid
+is always zero.
+.Pp
+.It Dv MOUSE_GETMODE Ar mousemode_t *mode
+The command gets the current operation parameters of the mouse
+driver.
+.Bd -literal
+typedef struct mousemode {
+    int protocol;    /* MOUSE_PROTO_XXX */
+    int rate;        /* report rate (per sec) */
+    int resolution;  /* MOUSE_RES_XXX, -1 if unknown */
+    int accelfactor; /* acceleration factor */
+    int level;       /* driver operation level */
+    int packetsize;  /* the length of the data packet */
+    unsigned char syncmask[2]; /* sync. bits */
+} mousemode_t;
+.Ed
+.Pp
+The
+.Va protocol
+field tells the format in which the device status is returned
+when the mouse data is read by the user program.
+It is
+.Dv MOUSE_PROTO_MSC
+at the operation level zero.
+.Dv MOUSE_PROTO_SYSMOUSE
+at the operation level one.
+.Pp
+The
+.Va rate
+is always set to \-1.
+.Pp
+The
+.Va resolution
+is always set to \-1.
+.Pp
+The
+.Va accelfactor
+is always 0.
+.Pp
+The
+.Va packetsize
+field specifies the length of the data packet.
+It depends on the
+operation level.
+.Pp
+.Bl -tag -width level_0__ -compact
+.It Em level 0
+5 bytes
+.It Em level 1
+8 bytes
+.El
+.Pp
+The array
+.Va syncmask
+holds a bit mask and pattern to detect the first byte of the
+data packet.
+.Va syncmask[0]
+is the bit mask to be ANDed with a byte.
+If the result is equal to
+.Va syncmask[1] ,
+the byte is likely to be the first byte of the data packet.
+Note that this method of detecting the first byte is not 100% reliable;
+thus, it should be taken only as an advisory measure.
+.Pp
+.It Dv MOUSE_SETMODE Ar mousemode_t *mode
+The command changes the current operation parameters of the mouse driver
+as specified in
+.Ar mode .
+Only
+.Va level
+may be modifiable.
+Setting values in the other field does not generate
+error and has no effect.
+.Pp
+.It Dv MOUSE_READDATA Ar mousedata_t *data
+.It Dv MOUSE_READSTATE Ar mousedata_t *state
+These commands are not supported by the
+.Nm
+driver.
+.Pp
+.It Dv MOUSE_GETSTATUS Ar mousestatus_t *status
+The command returns the current state of buttons and
+movement counts in the structure as defined in
+.Xr mouse 4 .
+.El
+.Ss Console and Consolectl Ioctls
+The user process issues console
+.Fn ioctl
+calls to the current virtual console in order to control
+the mouse pointer.
+The console
+.Fn ioctl
+also provides a method for the user process to receive a
+.Xr signal 3
+when a button is pressed.
+.Pp
+The mouse daemon
+.Xr moused 8
+uses
+.Fn ioctl
+calls to the console control device
+.Pa /dev/consolectl
+to inform the console of mouse actions including mouse movement
+and button status.
+.Pp
+Both classes of
+.Fn ioctl
+commands are defined as
+.Dv CONS_MOUSECTL
+which takes the following argument.
+.Bd -literal
+struct mouse_info {
+    int operation;
+    union {
+        struct mouse_data data;
+        struct mouse_mode mode;
+        struct mouse_event event;
+    } u;
+};
+.Ed
+.Pp
+.Bl -tag -width operation -compact
+.It Va operation
+This can be one of
+.Pp
+.Bl -tag -width MOUSE_MOVEABS -compact
+.It Dv MOUSE_SHOW
+Enables and displays mouse cursor.
+.It Dv MOUSE_HIDE
+Disables and hides mouse cursor.
+.It Dv MOUSE_MOVEABS
+Moves mouse cursor to position supplied in
+.Va u.data .
+.It Dv MOUSE_MOVEREL
+Adds position supplied in
+.Va u.data
+to current position.
+.It Dv MOUSE_GETINFO
+Returns current mouse position in the current virtual console
+and button status in
+.Va u.data .
+.It Dv MOUSE_MODE
+This sets the
+.Xr signal 3
+to be delivered to the current process when a button is pressed.
+The signal to be delivered is set in
+.Va u.mode .
+.El
+.Pp
+The above operations are for virtual consoles.
+The operations defined
+below are for the console control device and are used by
+.Xr moused 8
+to pass mouse data to the console driver.
+.Pp
+.Bl -tag -width MOUSE_MOVEABS -compact
+.It Dv MOUSE_ACTION
+.It Dv MOUSE_MOTION_EVENT
+These operations take the information in
+.Va u.data
+and act upon it.
+Mouse data will be sent to the
+.Nm
+driver if it is open.
+.Dv MOUSE_ACTION
+also processes button press actions and sends signal to the process if
+requested or performs cut and paste operations
+if the current console is a text interface.
+.It Dv MOUSE_BUTTON_EVENT
+.Va u.data
+specifies a button and its click count.
+The console driver will
+use this information for signal delivery if requested or
+for cut and paste operations if the console is in text mode.
+.El
+.Pp
+.Dv MOUSE_MOTION_EVENT
+and
+.Dv MOUSE_BUTTON_EVENT
+are newer interface and are designed to be used together.
+They are intended to replace functions performed by
+.Dv MOUSE_ACTION
+alone.
+.Pp
+.It Va u
+This union is one of
+.Pp
+.Bl -tag -width data -compact
+.It Va data
+.Bd -literal
+struct mouse_data {
+    int x;
+    int y;
+    int z;
+    int buttons;
+};
+.Ed
+.Pp
+.Va x , y
+and
+.Va z
+represent movement of the mouse along respective directions.
+.Va buttons
+tells the state of buttons.
+It encodes up to 31 buttons in the bit 0 though
+the bit 30.
+If a button is held down, the corresponding bit is set.
+.Pp
+.It Va mode
+.Bd -literal
+struct mouse_mode {
+    int mode;
+    int signal;
+};
+.Ed
+.Pp
+The
+.Va signal
+field specifies the signal to be delivered to the process.
+It must be
+one of the values defined in
+.In signal.h .
+The
+.Va mode
+field is currently unused.
+.Pp
+.It Va event
+.Bd -literal
+struct mouse_event {
+    int id;
+    int value;
+};
+.Ed
+.Pp
+The
+.Va id
+field specifies a button number as in
+.Va u.data.buttons .
+Only one bit/button is set.
+The
+.Va value
+field
+holds the click count: the number of times the user has clicked the button
+successively.
+.El
+.El
+.Sh FILES
+.Bl -tag -width /dev/consolectl -compact
+.It Pa /dev/consolectl
+device to control the console
+.It Pa /dev/sysmouse
+virtualized mouse driver
+.It Pa /dev/ttyv%d
+virtual consoles
+.El
+.Sh SEE ALSO
+.Xr vidcontrol 1 ,
+.Xr ioctl 2 ,
+.Xr signal 3 ,
+.Xr mouse 4 ,
+.Xr moused 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+.An -nosplit
+This
+manual page was written by
+.An John-Mark Gurney Aq Mt jmg@FreeBSD.org
+and
+.An Kazutaka Yokota Aq Mt yokota@FreeBSD.org .

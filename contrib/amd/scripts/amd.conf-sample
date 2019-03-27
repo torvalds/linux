@@ -1,0 +1,166 @@
+# A SAMPLE CONFIGURATION FILE FOR AMD
+
+##############################################################################
+# GLOBAL OPTIONS SECTION (must be first in amd.conf file)
+# For most options, the default value is listed first, but see amd.conf(5)
+[ global ]
+# (amd -n)
+normalize_hostnames =		no | yes
+# do we want to strip domain names from hostnames or not?
+domain_strip =			yes | no
+# (amd -p)
+print_pid =			no | yes
+pid_file =			/dev/stdout | /var/run/amd.pid
+# (amd -r)
+restart_mounts =		no | yes
+unmount_on_exit =		no | yes
+forced_unmounts =		no | yes
+# (amd -a)
+auto_dir =			/a
+# duration in seconds that a looked up name remain cached (amd -c)
+cache_duration =		300
+# (amd -d)
+local_domain =			cs.columbia.edu
+# (amd -k)
+karch =				sun4m
+# (amd -A)
+arch =				sun4
+# if you don't like autoconf picking up "sunos5" as the os-type, override it
+# (amd -O)
+os =				sos5
+# (amd -o)
+osver =				2.5.1
+# full os name
+full_os =			linux-2.2.5
+# OS vendor
+vendor =			redhat
+# if you print_version after setting up "os", it will show it. (amd -v)
+print_version =			no | yes
+# (amd -l)
+log_file =			/dev/stderr | /var/log/amd | syslog[:facility]
+# should we truncate the log file on startup?
+truncate_log =			no | yes
+# NFS (RPC) retry interval/counter, in tenths of secs (amd -t interval.counter)
+nfs_retry_interval =		8
+nfs_retransmit_counter =	11 (eleven retransmission attempts)
+# The next four are the same as the above two, but allow you to set global
+# values for all UDP vs. TCP mounts separately.
+nfs_retry_interval_udp =	16
+nfs_retransmit_counter_udp =	22
+nfs_retry_interval_tcp =	4
+nfs_retransmit_counter_tcp =	5
+# These two are specific to Amd's top-level (NFSv2/udp) mounts
+# and they can also be set separately.
+nfs_retry_interval_toplvl =	6
+nfs_retransmit_counter_toplvl =	8
+# NFS attribute cache value for Amd's automount points
+# (some OSs use this parameter in units of seconds, and others in 0.1 seconds)
+# See README.attrcache for important information about this parameter.
+auto_attrcache =		0
+# (amd -w)
+dismount_interval =		120
+# (amd -y)
+nis_domain =			nisDom-CS.columbia.edu
+# (amd -x)
+log_options =			fatal,error,user,warn,info,map,stats,all
+# (amd -D)
+debug_options =			all,defaults,test,amq,daemon,fork,\
+				full,hrtime,info,mem,mtab,str,readdir,trace,xdrtrace
+# path for mtab file during mtab debug mode
+debug_mtab_file =               /tmp/mnttab
+# (amd -S)
+plock =				yes | no
+# should browsable maps show number of entries to df/statfs (default=no)
+show_statfs_entries =		no | yes
+# (hpux) cluster name (amd -C)
+cluster =			???
+# LDAP (Lightweight Directory Access Protocol) options
+ldap_base =			"ou=Marketing, o=AMD Ltd, c=US"
+ldap_hostports =		ldap.your.domain:389
+ldap_cache_seconds =		0
+ldap_cache_maxmem =		131072
+ldap_proto_version =		2
+# default base name for hesiod maps
+hesiod_base =			automount
+# interval to check if a reload of any maps is needed
+map_reload_interval =		3600
+# alternate RPC program number to register with the port mapper
+portmap_program =		300019-300029
+# Ask for a different Amq RPC port (both UDP and TCP).
+# If set to 0 (default), Amd will pick a port automatically.
+preferred_amq_port =		1234
+# use fully qualified host names
+fully_qualified_hosts =		no | yes
+# force NFS version or NFS protocol
+nfs_vers =			2 | 3
+nfs_proto =			udp | tcp
+# perform Amq service checks via tcpwrappers (tcpd/libwrap)
+use_tcpwrappers =		yes | no
+# allow NFS requests from insecure (>=1024) ports
+nfs_allow_insecure_port =	no | yes
+# accept local NFS packets from any local interface, not just 127.0.0.1
+nfs_allow_any_interface =	no | yes
+# address used for local NFS mount and RPC server (default to localhost)
+localhost_address =		foo.example.com | 192.168.1.2
+# number of seconds to timeout before map returns output
+exec_map_timeout =		10
+# normalize multiple/trailing slashes or not?
+normalize_slashes =		yes | no
+
+##############################################################################
+# these 9 global options can be overridden by each map individually
+browsable_dirs =		no | yes | full
+map_options =			cache:=all
+map_type =			file|hesiod|ndbm|nis|nisplus|passwd|union|ldap
+# any string that will be used to override to the map /defaults entry
+map_defaults =			opts:=nosuid,rw,intr,bg,noquota;type:=link
+mount_type =			nfs | autofs
+autofs_use_lofs =		yes | no
+search_path =			/etc/local:/etc/amdmaps:/misc/yp
+# selectors are not recognized by default in the /defaults entry
+selectors_in_defaults =		no | yes
+# does this map use Sun Automounter map syntax?
+sun_map_syntax =		no | yes
+##############################################################################
+
+##############################################################################
+# DEFINE AN AMD MOUNT POINT
+[ /home ]
+# map name must be defined, all else are optional
+map_name =			/etc/amd.home | amd.home
+map_options =			cache:=all
+# if map type is not defined, will search all map types (default)
+map_type =			file|hesiod|ndbm|nis|nisplus|passwd|union|ldap
+search_path =			/etc/local:/etc/amdmaps:/misc/yp
+# an amd or autofs mount point
+mount_type =			nfs | autofs
+browsable_dirs =		yes | no
+# an optional tag to be used with amd -T tag. untagged entries are always
+# used.  Tagged ones get used only if specified with "amd -T"
+tag =				test
+
+##############################################################################
+# DEFINE ANOTHER AMD MOUNT POINT
+[ /src ]
+map_name =			/usr/local/lib/amdmaps/amu.src
+# regular amd (nfs) mount point (default)
+mount_type =			nfs
+# any string that will be used as prefix to the map /defaults entry
+# this overrides what's defined in [global]
+map_defaults =			type:=nfs
+
+##############################################################################
+# DEFINE ANOTHER AMD MOUNT POINT
+[ /test ]
+map_name =			/etc/lookup-entry.sh
+# an executable map type
+map_type =			exec
+
+##############################################################################
+# DEFINE A SUN SYNTAX MOUNT POINT
+[ /proj ]
+map_name =			/etc/amd.proj
+# does this map use Sun Automounter map syntax?
+sun_map_syntax =		yes
+
+##############################################################################

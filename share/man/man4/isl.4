@@ -1,0 +1,132 @@
+.\" Copyright (c) 2015 Michael Gmelin <freebsd@grem.de>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 18, 2018
+.Dt ISL 4
+.Os
+.Sh NAME
+.Nm isl
+.Nd Intersil(TM) I2C ISL29018 sensor driver
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines into
+the kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device isl"
+.Cd "device ig4"
+.Cd "device iicbus"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+isl_load="YES"
+ig4_load="YES"
+.Ed
+.Pp
+On many Chromebook models this driver can be automatically configured with the
+help of the
+.Xr chromebook_platform 4
+driver.
+Alternatively, the
+.Nm
+driver can be manually configured in
+.Pa /boot/device.hints :
+.Cd hint.isl.0.at="iicbus0"
+.Cd hint.isl.0.addr="0x88"
+.Cd hint.isl.1.at="iicbus1"
+.Cd hint.isl.1.addr="0x88"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides access to sensor data provided by the Intersil(TM) I2C
+ISL29018 Digital Ambient Light Sensor and Proximity Sensor with Interrupt
+Function.
+Functionality is basic and provided through the
+.Xr sysctl 8
+interface.
+.Pp
+On a system using
+.Xr device.hints 5 ,
+these values are configurable for
+.Nm :
+.Bl -tag -width "hint.isl.%d.addr"
+.It Va hint.isl.%d.at
+target
+.Xr iicbus 4 .
+.It Va hint.isl.%d.addr
+.Nm
+i2c address on the
+.Xr iicbus 4 .
+.El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables are available:
+.Bl -tag -width "dev.isl.X.resolution"
+.It Va dev.isl.X.als
+Current ALS (Ambient Light Sensor) readout.
+.It Va dev.isl.X.ir
+Current IR (InfraRed) sensor readout.
+.It Va dev.isl.X.prox
+Current proximity sensor readout.
+.It Va dev.isl.X.resolution
+Current sensor resolution.
+.It Va dev.isl.X.range
+Current sensor range.
+.El
+.Sh EXAMPLES
+.Ss Ambient light sensor read out
+.Bd -literal
+$ sysctl dev.isl.0.als
+dev.isl.0.als: 64
+.Ed
+.Ss Automatically adjust brightness
+This requires the port
+.Pa graphics/intel-backlight
+and only works with laptops using a supported Intel(R) GPU.
+.Bd -literal
+$ pkg install intel-backlight
+$ sh /usr/local/share/examples/intel-backlight/isl_backlight.sh
+.Ed
+.Sh SEE ALSO
+.Xr chromebook_platform 4 ,
+.Xr ig4 4 ,
+.Xr iicbus 4
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Michael Gmelin Aq Mt freebsd@grem.de .
+.Pp
+This manual page was written by
+.An Michael Gmelin Aq Mt freebsd@grem.de .
+.Sh BUGS
+The
+.Nm
+driver detects the device based from the I2C address.
+This might have unforeseen consequences if the initialization sequence
+is sent to an unknown device at that address.

@@ -1,0 +1,211 @@
+'\"
+'\" Copyright (c)1996-2006 by Hartmut Brandt
+'\"	All rights reserved.
+'\"
+'\" Author: harti@freebsd.org <Hartmut Brandt>
+'\"
+'\" Redistribution of this software and documentation and use in source and
+'\" binary forms, with or without modification, are permitted provided that
+'\" the following conditions are met:
+'\" 
+'\" 1. Redistributions of source code or documentation must retain the above
+'\"   copyright notice, this list of conditions and the following disclaimer.
+'\" 2. Redistributions in binary form must reproduce the above copyright
+'\"   notice, this list of conditions and the following disclaimer in the
+'\"   documentation and/or other materials provided with the distribution.
+'\"
+'\" THIS SOFTWARE AND DOCUMENTATION IS PROVIDED BY THE AUTHOR 
+'\" AND ITS CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+'\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+'\" FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+'\" THE AUTHOR OR ITS CONTRIBUTORS  BE LIABLE FOR ANY DIRECT, INDIRECT,
+'\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+'\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+'\" OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+'\" LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+'\" NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+'\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+'\"
+'\" $Begemot: libbegemot/rpoll.man,v 1.4 2004/09/21 15:59:00 brandt Exp $
+'\"
+.TH rpoll 3 "8 Dec 2006" "BEGEMOT" "BEGEMOT Library"
+.SH NAME
+rpoll - callback functions for file descriptors and timers
+.SH SYNOPSIS
+.LP
+.B "# include <rpoll.h>"
+.LP
+.BR "typedef void (*poll_f)(int " "fd" ", int " "mask" ", void *" "arg" ");"
+.br
+.BR "typedef void (*timer_f)(int " "tid" ", void *" "arg" ");"
+.LP
+.BR "int poll_register(int " "fd" ", poll_f "
+.RB "func" ", void *" "arg" ", int " "mask" ");"
+.LP
+.BR "void poll_unregister(int " "handle" ");"
+.LP
+.BR "int poll_start_timer(u_int " "msecs" ", int " "repeat" ", timer_f " "func" ","
+.if n .ti +.5i
+.BR "void *" "arg" ");"
+.LP
+.BR "void poll_stop_timer(int " "handle" ");"
+.LP
+.BR "int poll_start_utimer(unsigned long long " "usecs" ", int " "repeat" ",
+.if n .ti +.5i
+.BR "timer_f " "func" ", void *" "arg" ");"
+.LP
+.BR "void poll_dispatch(int " "wait" ");"
+.SH DESCRIPTION
+Many programs need to read from several file descriptors at the same time.
+Typically in these programs one of
+.BR select (3c)
+or
+.BR poll (2)
+is used.
+These calls are however clumsy to use and the usage of one of these calls is
+probably not portable to other systems - not all systems support both calls.
+.LP
+The
+.BR rpoll (l)
+family of functions is designed to overcome these restrictions.
+They support the well known and understood technique of event driven
+programing and, in addition to
+.BR select (3c)
+and
+.BR poll (2)
+also support timers.
+.LP
+Each event on a file descriptor or each timer event is translated into a call to a user
+defined callback function. These functions need to be registered.
+A file descriptor is registered with
+.BR poll_register .
+.I fd
+is the file descriptor to watch,
+.I mask
+is an event mask.
+It may be any combination of
+.B POLL_IN
+to get informed when input on the file descriptor is possible,
+.B POLL_OUT
+to get informed when output is possible or
+.B POLL_EXCEPT
+to get informed when an exceptional condition occures.
+An example of an exceptional condition is the arrival of urgent data.
+(Note, that an end of file condition is signaled via POLL_IN).
+.I func
+is the user function to be called and
+.I arg
+is a user supplied argument for this function.
+The callback functions is called with the file descriptor, a mask
+describing the actual events (from the set supplied in the registration) and
+the user argument.
+.B poll_register
+returns a handle, which may be used later to de-register the file descriptor.
+A file descriptor may be registered more than once, if the function, the user arguments
+or both differ in the call to
+.BR poll_register .
+If
+.I func
+and
+.I arg
+are the same, then no new registration is done, instead the event mask of the registration
+is changed to reflect the new mask.
+.LP
+A registered file descriptor may be de-registered by calling
+.B poll_unregister
+with the handle returned by
+.BR poll_register .
+.LP
+A timer is created with
+.BR poll_start_timer
+or
+.BR poll_start_utimer .
+.I msecs
+is the number of milliseconds in
+.BR poll_start_timer
+while
+.I usecs
+is the number of microseconds in
+.BR poll_start_utimer ,
+after which the timer event will be generated.
+If the functions use the
+.BR poll (2)
+system call, then
+.I usecs
+is rounded to milliseconds and
+.BR poll_start_timer
+is called.
+.I repeat
+selects one-short behavior (if 0) or a repeatable timer (if not 0). A one-short timer
+will automatically unregistered after expiry.
+.I func
+is the user function which will be called with a timer id and the user supplied
+.IR arg .
+.B poll_start_timer
+and
+.B poll_start_utimer
+return a timer id, which may be used to cancel the timer with
+.BR poll_stop_timer .
+A one-short timer should be canceled only if it has not yet fired.
+.LP
+.B poll_dispatch
+must be called to actually dispatch events. 
+.I wait
+is a flag, which should be 0, if only a poll should be done. In this case, the function returns,
+after polling the registered file descriptors and timers. If
+.I wait
+is not 0,
+.B poll_dispatch
+waits until an event occures. All events are dispatch (i.e. callback functions called) and
+.B poll_dispatch returns.
+.LP
+Typical use is:
+.LP
+.RS
+.nf
+.ft 3
+while(1)
+	poll_dispatch(1);
+.ft 1
+.fi
+.RE
+.SH "SEE ALSO"
+.BR poll (2), select (3C)
+.SH "RETURN VALUES"
+.B poll_register ,
+.B poll_start_timer
+and
+.B poll_start_utimer
+return a handle which may be used to unregister the file descriptor or
+cancel the timer.
+.LP
+Both functions and
+.B poll_dispatch
+call
+.BR xrealloc (l)
+and can end in
+.BR panic (l).
+.SH "ERRORS"
+System call or memory allocation errors are fatal and are handle by calling
+.BR panic (l).
+The one exception is a return of EINTR from
+.BR select (3c)
+or
+.BR poll (2)
+in
+.BR poll_dispatch .
+In this case
+.B poll_dispatch
+simply returns.
+.SH "BUGS"
+Obscure sequences of
+.B poll_start_timer
+and
+.B poll_stop_timer
+in callback functions may probably break the code.
+.LP
+The semantics of
+.B POLL_EXCEPT
+are not clear.
+.SH AUTHORS
+Hartmut Brandt, harti@freebsd.org

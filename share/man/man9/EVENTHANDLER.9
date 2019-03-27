@@ -1,0 +1,424 @@
+.\" Copyright (c) 2004 Joseph Koshy
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" $FreeBSD$
+.\"
+.Dd October 21, 2018
+.Dt EVENTHANDLER 9
+.Os
+.Sh NAME
+.Nm EVENTHANDLER
+.Nd kernel event handling functions
+.Sh SYNOPSIS
+.In sys/eventhandler.h
+.Fn EVENTHANDLER_DECLARE name type
+.Fn EVENTHANDLER_DEFINE name func arg priority
+.Fn EVENTHANDLER_INVOKE name ...
+.Ft eventhandler_tag
+.Fn EVENTHANDLER_REGISTER name func arg priority
+.Fn EVENTHANDLER_DEREGISTER name tag
+.Fn EVENTHANDLER_DEREGISTER_NOWAIT name tag
+.Fn EVENTHANDLER_LIST_DECLARE name
+.Fn EVENTHANDLER_LIST_DEFINE name
+.Fn EVENTHANDLER_DIRECT_INVOKE name
+.Ft eventhandler_tag
+.Fo eventhandler_register
+.Fa "struct eventhandler_list *list"
+.Fa "const char *name"
+.Fa "void *func"
+.Fa "void *arg"
+.Fa "int priority"
+.Fc
+.Ft void
+.Fo eventhandler_deregister
+.Fa "struct eventhandler_list *list"
+.Fa "eventhandler_tag tag"
+.Fc
+.Ft void
+.Fo eventhandler_deregister_nowait
+.Fa "struct eventhandler_list *list"
+.Fa "eventhandler_tag tag"
+.Fc
+.Ft "struct eventhandler_list *"
+.Fn eventhandler_find_list "const char *name"
+.Ft void
+.Fn eventhandler_prune_list "struct eventhandler_list *list"
+.Sh DESCRIPTION
+The
+.Nm
+mechanism provides a way for kernel subsystems to register interest in
+kernel events and have their callback functions invoked when these
+events occur.
+.Pp
+Callback functions are invoked in order of priority.
+The relative priority of each callback among other callbacks
+associated with an event is given by argument
+.Fa priority ,
+which is an integer ranging from
+.Dv EVENTHANDLER_PRI_FIRST
+(highest priority), to
+.Dv EVENTHANDLER_PRI_LAST
+(lowest priority).
+The symbol
+.Dv EVENTHANDLER_PRI_ANY
+may be used if the handler does not have a specific priority
+associated with it.
+.Pp
+The normal way to use this subsystem is via the macro interface.
+For events that are high frequency it is suggested that you additionally use
+.Fn EVENTHANDLER_LIST_DEFINE
+so that the event handlers can be invoked directly using
+.Fn EVENTHANDLER_DIRECT_INVOKE
+(see below).
+This saves the invoker from having to do a locked traversal of a global
+list of event handler lists.
+.Bl -tag -width indent
+.It Fn EVENTHANDLER_DECLARE
+This macro declares an event handler named by argument
+.Fa name
+with callback functions of type
+.Fa type .
+.It Fn EVENTHANDLER_DEFINE
+This macro uses
+.Xr SYSINIT 9
+to register a callback function
+.Fa func
+with event handler
+.Fa name .
+When invoked, function
+.Fa func
+will be invoked with argument
+.Fa arg
+as its first parameter along with any additional parameters passed in
+via macro
+.Fn EVENTHANDLER_INVOKE
+(see below).
+.It Fn EVENTHANDLER_REGISTER
+This macro registers a callback function
+.Fa func
+with event handler
+.Fa name .
+When invoked, function
+.Fa func
+will be invoked with argument
+.Fa arg
+as its first parameter along with any additional parameters passed in
+via macro
+.Fn EVENTHANDLER_INVOKE
+(see below).
+If registration is successful,
+.Fn EVENTHANDLER_REGISTER
+returns a cookie of type
+.Vt eventhandler_tag .
+.It Fn EVENTHANDLER_DEREGISTER
+This macro removes a previously registered callback associated with tag
+.Fa tag
+from the event handler named by argument
+.Fa name .
+It waits until no threads are running handlers for this event before
+returning, making it safe to unload a module immediately upon return
+from this function.
+.It Fn EVENTHANDLER_DEREGISTER_NOWAIT
+This macro removes a previously registered callback associated with tag
+.Fa tag
+from the event handler named by argument
+.Fa name .
+Upon return, one or more threads could still be running the removed
+function(s), but no new calls will be made.
+To remove a handler function from within that function, use this
+version of deregister, to avoid a deadlock.
+.It Fn EVENTHANDLER_INVOKE
+This macro is used to invoke all the callbacks associated with event
+handler
+.Fa name .
+This macro is a variadic one.
+Additional arguments to the macro after the
+.Fa name
+parameter are passed as the second and subsequent arguments to each
+registered callback function.
+.It Fn EVENTHANDLER_LIST_DEFINE
+This macro defines a reference to an event handler list named by
+argument
+.Fa name .
+It uses
+.Xr SYSINIT 9
+to initialize the reference and the eventhandler list.
+.It Fn EVENTHANDLER_LIST_DECLARE
+This macro declares an event handler list named by argument
+.Fa name .
+This is only needed for users of
+.Fn EVENTHANDLER_DIRECT_INVOKE
+which are not in the same compilation unit of that list's definition.
+.It Fn EVENTHANDLER_DIRECT_INVOKE
+This macro invokes the event handlers registered for the list named by
+argument
+.Fa name .
+This macro can only be used if the list was defined with
+.Fn EVENTHANDLER_LIST_DEFINE .
+The macro is variadic with the same semantics as
+.Fn EVENTHANDLER_INVOKE .
+.El
+.Pp
+The macros are implemented using the following functions:
+.Bl -tag -width indent
+.It Fn eventhandler_register
+The
+.Fn eventhandler_register
+function is used to register a callback with a given event.
+The arguments expected by this function are:
+.Bl -tag -width ".Fa priority"
+.It Fa list
+A pointer to an existing event handler list, or
+.Dv NULL .
+If
+.Fa list
+is
+.Dv NULL ,
+the event handler list corresponding to argument
+.Fa name
+is used.
+.It Fa name
+The name of the event handler list.
+.It Fa func
+A pointer to a callback function.
+Argument
+.Fa arg
+is passed to the callback function
+.Fa func
+as its first argument when it is invoked.
+.It Fa priority
+The relative priority of this callback among all the callbacks
+registered for this event.
+Valid values are those in the range
+.Dv EVENTHANDLER_PRI_FIRST
+to
+.Dv EVENTHANDLER_PRI_LAST .
+.El
+.Pp
+The
+.Fn eventhandler_register
+function returns a
+.Fa tag
+that can later be used with
+.Fn eventhandler_deregister
+to remove the particular callback function.
+.It Fn eventhandler_deregister
+The
+.Fn eventhandler_deregister
+function removes the callback associated with tag
+.Fa tag
+from the event handler list pointed to by
+.Fa list .
+If
+.Fa tag
+is
+.Va NULL ,
+all callback functions for the event are removed.
+This function will not return until all threads have exited from the
+removed handler callback function(s).
+This function is not safe to call from inside an event handler callback.
+.It Fn eventhandler_deregister_nowait
+The
+.Fn eventhandler_deregister
+function removes the callback associated with tag
+.Fa tag
+from the event handler list pointed to by
+.Fa list .
+This function is safe to call from inside an event handler
+callback.
+.It Fn eventhandler_find_list
+The
+.Fn eventhandler_find_list
+function returns a pointer to event handler list structure corresponding
+to event
+.Fa name .
+.It Fn eventhandler_prune_list
+The
+.Fn eventhandler_prune_list
+function removes all deregistered callbacks from the event list
+.Fa list .
+.El
+.Ss Kernel Event Handlers
+The following event handlers are present in the kernel:
+.Bl -tag -width indent
+.It Vt acpi_sleep_event
+Callbacks invoked when the system is being sent to sleep.
+.It Vt acpi_wakeup_event
+Callbacks invoked when the system is being woken up.
+.It Vt app_coredump_start
+Callbacks invoked at start of application core dump.
+.It Vt app_coredump_progress
+Callbacks invoked during progress of application core dump.
+.It Vt app_coredump_finish
+Callbacks invoked at finish of application core dump.
+.It Vt app_coredump_error
+Callbacks invoked on error of application core dump.
+.It Vt bpf_track
+Callbacks invoked when a BPF listener attaches to/detaches from network interface.
+.It Vt cpufreq_levels_changed
+Callback invoked when cpu frequency levels have changed.
+.It Vt cpufreq_post_change
+Callback invoked after cpu frequency has changed.
+.It Vt cpufreq_pre_change
+Callback invoked before cpu frequency has changed.
+.It Vt dcons_poll
+Callback invoked to poll for dcons changes.
+.It Vt device_attach
+Callback invoked after a device has attached.
+.It Vt device_detach
+Callbacks invoked before and after a device has detached.
+.It Vt dev_clone
+Callbacks invoked when a new entry is created under
+.Pa /dev .
+.It Vt group_attach_event
+Callback invoked when an interfance has been added to an interface group.
+.It Vt group_change_event
+Callback invoked when an change has been made to an interface group.
+.It Vt group_detach_event
+Callback invoked when an interfance has been removed from an interface group.
+.It Vt ifaddr_event
+Callbacks invoked when an address is set up on a network interface.
+.It Vt ifaddr_event_ext
+Callback invoked when an address has been added or removed from an interface. 
+.It Vt if_clone_event
+Callbacks invoked when an interface is cloned.
+.It Vt iflladdr_event
+Callback invoked when an if link layer address event has happened.
+.It Vt ifnet_arrival_event
+Callbacks invoked when a new network interface appears.
+.It Vt ifnet_departure_event
+Callbacks invoked when a network interface is taken down.
+.It Vt ifnet_link_event
+Callback invoked when an interfance link event has happened.
+.It Vt kld_load
+Callbacks invoked after a linker file has been loaded.
+.It Vt kld_unload
+Callbacks invoked after a linker file has been successfully unloaded.
+.It Vt kld_unload_try
+Callbacks invoked before a linker file is about to be unloaded.
+These callbacks may be used to return an error and prevent the unload from
+proceeding.
+.It Vt lle_event
+Callback invoked when an link layer event has happened.
+.It Vt nmbclusters_change
+Callback invoked when the number of mbuf clusters has changed.
+.It Vt nmbufs_change
+Callback invoked when the number of mbufs has changed.
+.It Vt maxsockets_change
+Callback invoked when the maximum number of sockets has changed.
+.It Vt mountroot
+Callback invoked when root has been mounted.
+.It Vt power_profile_change
+Callbacks invoked when the power profile of the system changes.
+.It Vt power_resume
+Callback invoked when the system has resumed.
+.It Vt power_suspend
+Callback invoked just before the system is suspended.
+.It Vt process_ctor
+Callback invoked when a process is created.
+.It Vt process_dtor
+Callback invoked when a process is destroyed.
+.It Vt process_exec
+Callbacks invoked when a process performs an
+.Fn exec
+operation.
+.It Vt process_exit
+Callbacks invoked when a process exits.
+.It Vt process_fini
+Callback invoked when a process memory is destroyed.
+This is never called.
+.It Vt process_fork
+Callbacks invoked when a process forks a child.
+.It Vt process_init
+Callback invoked when a process is initialized.
+.It Vt random_adaptor_attach
+Callback invoked when a new random module has been loaded.
+.It Vt register_framebuffer
+Callback invoked when a new frame buffer is registered.
+.It Vt route_redirect_event
+Callback invoked when a route gets redirected to a new location.
+.It Vt shutdown_pre_sync
+Callbacks invoked at shutdown time, before file systems are synchronized.
+.It Vt shutdown_post_sync
+Callbacks invoked at shutdown time, after all file systems are synchronized.
+.It Vt shutdown_final
+Callbacks invoked just before halting the system.
+.It Vt tcp_offload_listen_start
+Callback invoked for TCP Offload to start listening for new connections.
+.It Vt tcp_offload_listen_stop
+Callback invoked ror TCP Offload to stop listening for new connections.
+.It Vt thread_ctor
+Callback invoked when a thread object is created.
+.It Vt thread_dtor
+Callback invoked when a thread object is destroyed.
+.It Vt thread_init
+Callback invoked when a thread object is initialized.
+.It Vt thread_fini
+Callback invoked when a thread object is deinitalized.
+.It Vt usb_dev_configured
+Callback invoked when a USB device is configured
+.It Vt unregister_framebuffer
+Callback invoked when a frame buffer is deregistered.
+.It Vt vfs_mounted
+Callback invoked when a file system is mounted.
+.It Vt vfs_unmounted
+Callback invoked when a file system is unmounted.
+.It Vt vlan_config
+Callback invoked when the vlan configuration has changed.
+.It Vt vlan_unconfig
+Callback invoked when a vlan is destroyed.
+.It Vt vm_lowmem
+Callbacks invoked when virtual memory is low.
+.It Vt watchdog_list
+Callbacks invoked when the system watchdog timer is reinitialized.
+.El
+.Sh RETURN VALUES
+The macro
+.Fn EVENTHANDLER_REGISTER
+and function
+.Fn eventhandler_register
+return a cookie of type
+.Vt eventhandler_tag ,
+which may be used in a subsequent call to
+.Fn EVENTHANDLER_DEREGISTER
+or
+.Fn eventhandler_deregister .
+.Pp
+The
+.Fn eventhandler_find_list
+function
+returns a pointer to an event handler list corresponding to parameter
+.Fa name ,
+or
+.Dv NULL
+if no such list was found.
+.Sh HISTORY
+The
+.Nm
+facility first appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+This manual page was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org
+and
+.An Matt Joras Aq Mt mjoras@FreeBSD.org .

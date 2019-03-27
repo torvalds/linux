@@ -1,0 +1,19 @@
+1998.07.12
+
+This is a small 'ps' replacement, which uses information available via
+procfs(5) interface. It's primitive, but gives you the most important
+informations, i.e. how many processes are running and on which vty, and the
+pid number to kill some of them. :-)
+
+When I have some time, I'll add usual switches and other functions that normal
+'ps' has...
+
+Also, what I'm now inclined to think is that it should be reworked to use
+more general (and less complicated) sysctl(3).
+
+<abial@freebsd.org>
+
+(As of 1998.07.31 this program is no longer used in PicoBSD. See sps(1) in
+TinyWare collection).
+
+$FreeBSD$

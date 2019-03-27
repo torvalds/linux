@@ -1,0 +1,1184 @@
+.\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt.
+.\"	All rights reserved.
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\"	All rights reserved.
+.\"
+.\" Author: Harti Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Begemot: bsnmp/snmpd/snmpmod.3,v 1.14 2005/10/04 13:30:35 brandt_h Exp $
+.\"
+.Dd December 19, 2010
+.Dt SNMPMOD 3
+.Os
+.Sh NAME
+.Nm INSERT_OBJECT_OID_LINK_INDEX ,
+.Nm INSERT_OBJECT_INT_LINK_INDEX ,
+.Nm FIND_OBJECT_OID_LINK_INDEX ,
+.Nm NEXT_OBJECT_OID_LINK_INDEX ,
+.Nm FIND_OBJECT_INT_LINK_INDEX ,
+.Nm NEXT_OBJECT_INT_LINK_INDEX ,
+.Nm INSERT_OBJECT_OID_LINK ,
+.Nm INSERT_OBJECT_INT_LINK ,
+.Nm FIND_OBJECT_OID_LINK ,
+.Nm NEXT_OBJECT_OID_LINK ,
+.Nm FIND_OBJECT_INT_LINK ,
+.Nm NEXT_OBJECT_INT_LINK ,
+.Nm INSERT_OBJECT_OID ,
+.Nm INSERT_OBJECT_INT ,
+.Nm FIND_OBJECT_OID ,
+.Nm FIND_OBJECT_INT ,
+.Nm NEXT_OBJECT_OID ,
+.Nm NEXT_OBJECT_INT ,
+.Nm this_tick ,
+.Nm start_tick ,
+.Nm get_ticks ,
+.Nm systemg ,
+.Nm comm_define ,
+.Nm community ,
+.Nm oid_zeroDotZero ,
+.Nm oid_usmUnknownEngineIDs ,
+.Nm oid_usmNotInTimeWindows ,
+.Nm reqid_allocate ,
+.Nm reqid_next ,
+.Nm reqid_base ,
+.Nm reqid_istype ,
+.Nm reqid_type ,
+.Nm timer_start ,
+.Nm timer_start_repeat ,
+.Nm timer_stop ,
+.Nm fd_select ,
+.Nm fd_deselect ,
+.Nm fd_suspend ,
+.Nm fd_resume ,
+.Nm or_register ,
+.Nm or_unregister ,
+.Nm buf_alloc ,
+.Nm buf_size ,
+.Nm snmp_input_start ,
+.Nm snmp_input_finish ,
+.Nm snmp_output ,
+.Nm snmp_send_port ,
+.Nm snmp_send_trap ,
+.Nm snmp_pdu_auth_access
+.Nm string_save ,
+.Nm string_commit ,
+.Nm string_rollback ,
+.Nm string_get ,
+.Nm string_get_max ,
+.Nm string_free ,
+.Nm ip_save ,
+.Nm ip_rollback ,
+.Nm ip_commit ,
+.Nm ip_get ,
+.Nm oid_save ,
+.Nm oid_rollback ,
+.Nm oid_commit ,
+.Nm oid_get ,
+.Nm index_decode ,
+.Nm index_compare ,
+.Nm index_compare_off ,
+.Nm index_append ,
+.Nm index_append_off ,
+.Nm snmpd_usmstats ,
+.Nm bsnmpd_get_usm_stats ,
+.Nm bsnmpd_reset_usm_stats ,
+.Nm usm_first_user ,
+.Nm usm_next_user ,
+.Nm usm_find_user ,
+.Nm usm_new_user ,
+.Nm usm_delete_user ,
+.Nm usm_flush_users ,
+.Nm usm_user ,
+.Nm snmpd_target_stat ,
+.Nm bsnmpd_get_target_stats ,
+.Nm target_first_address ,
+.Nm target_next_address ,
+.Nm target_new_address ,
+.Nm target_activate_address ,
+.Nm target_delete_address ,
+.Nm target_first_param ,
+.Nm target_next_param ,
+.Nm target_new_param ,
+.Nm target_delete_param ,
+.Nm target_first_notify ,
+.Nm target_next_notify ,
+.Nm target_new_notify ,
+.Nm target_delete_notify ,
+.Nm target_flush_all ,
+.Nm target_address ,
+.Nm target_param ,
+.Nm target_notify
+.Nd "SNMP daemon loadable module interface"
+.Sh LIBRARY
+Begemot SNMP library
+.Pq libbsnmp, -lbsnmp
+.Sh SYNOPSIS
+.In bsnmp/snmpmod.h
+.Fn INSERT_OBJECT_OID_LINK_INDEX "PTR" "LIST" "LINK" "INDEX"
+.Fn INSERT_OBJECT_INT_LINK_INDEX "PTR" "LIST" "LINK" "INDEX"
+.Fn FIND_OBJECT_OID_LINK_INDEX "LIST" "OID" "SUB" "LINK" "INDEX"
+.Fn FIND_OBJECT_INT_LINK_INDEX "LIST" "OID" "SUB" "LINK" "INDEX"
+.Fn NEXT_OBJECT_OID_LINK_INDEX "LIST" "OID" "SUB" "LINK" "INDEX"
+.Fn NEXT_OBJECT_INT_LINK_INDEX "LIST" "OID" "SUB" "LINK" "INDEX"
+.Fn INSERT_OBJECT_OID_LINK "PTR" "LIST" "LINK"
+.Fn INSERT_OBJECT_INT_LINK "PTR" "LIST" "LINK"
+.Fn FIND_OBJECT_OID_LINK "LIST" "OID" "SUB" "LINK"
+.Fn FIND_OBJECT_INT_LINK "LIST" "OID" "SUB" "LINK"
+.Fn NEXT_OBJECT_OID_LINK "LIST" "OID" "SUB" "LINK"
+.Fn NEXT_OBJECT_INT_LINK "LIST" "OID" "SUB" "LINK"
+.Fn INSERT_OBJECT_OID "PTR" "LIST"
+.Fn INSERT_OBJECT_INT "PTR" "LIST"
+.Fn FIND_OBJECT_OID "LIST" "OID" "SUB"
+.Fn FIND_OBJECT_INT "LIST" "OID" "SUB"
+.Fn NEXT_OBJECT_OID "LIST" "OID" "SUB"
+.Fn NEXT_OBJECT_INT "LIST" "OID" "SUB"
+.Vt extern uint64_t this_tick ;
+.Vt extern uint64_t start_tick ;
+.Ft uint64_t
+.Fn get_ticks "void"
+.Vt extern struct systemg systemg ;
+.Ft u_int
+.Fn comm_define "u_int priv" "const char *descr" "struct lmodule *mod" "const char *str"
+.Ft const char *
+.Fn comm_string "u_int comm"
+.Vt extern u_int community ;
+.Vt extern const struct asn_oid oid_zeroDotZero ;
+.Ft u_int
+.Fn reqid_allocate "int size" "struct lmodule *mod"
+.Ft int32_t
+.Fn reqid_next "u_int type"
+.Ft int32_t
+.Fn reqid_base "u_int type"
+.Ft int
+.Fn reqid_istype "int32_t reqid" "u_int type"
+.Ft u_int
+.Fn reqid_type "int32_t reqid"
+.Ft void *
+.Fn timer_start "u_int ticks" "void (*func)(void *)" "void *uarg" "struct lmodule *mod"
+.Ft void *
+.Fn timer_start_repeat "u_int ticks" "u_int repeat_ticks" "void (*func)(void *)" "void *uarg" "struct lmodule *mod"
+.Ft void
+.Fn timer_stop "void *timer_id"
+.Ft void *
+.Fn fd_select "int fd" "void (*func)(int, void *)" "void *uarg" "struct lmodule *mod"
+.Ft void
+.Fn fd_deselect "void *fd_id"
+.Ft void
+.Fn fd_suspend "void *fd_id"
+.Ft int
+.Fn fd_resume "void *fd_id"
+.Ft u_int
+.Fn or_register "const struct asn_oid *oid" "const char *descr" "struct lmodule *mod"
+.Ft void
+.Fn or_unregister "u_int or_id"
+.Ft void *
+.Fn buf_alloc "int tx"
+.Ft size_t
+.Fn buf_size "int tx"
+.Ft enum snmpd_input_err
+.Fo snmp_input_start
+.Fa "const u_char *buf" "size_t len" "const char *source"
+.Fa "struct snmp_pdu *pdu" "int32_t *ip" "size_t *pdulen"
+.Fc
+.Ft enum snmpd_input_err
+.Fo snmp_input_finish
+.Fa "struct snmp_pdu *pdu" "const u_char *rcvbuf"
+.Fa "size_t rcvlen" "u_char *sndbuf" "size_t *sndlen" "const char *source"
+.Fa "enum snmpd_input_err ierr" "int32_t ip" "void *data"
+.Fc
+.Ft void
+.Fo snmp_output
+.Fa "struct snmp_pdu *pdu" "u_char *sndbuf" "size_t *sndlen"
+.Fa "const char *dest"
+.Fc
+.Ft void
+.Fo snmp_send_port
+.Fa "void *trans" "const struct asn_oid *port"
+.Fa "struct snmp_pdu *pdu" "const struct sockaddr *addr" "socklen_t addrlen"
+.Fc
+.Ft void
+.Fn snmp_send_trap "const struct asn_oid *oid" "..."
+.Ft enum snmp_code
+.Fn snmp_pdu_auth_access "struct snmp_pdu *pdu" "int32_t *ip"
+.Ft int
+.Fn string_save "struct snmp_value *val" "struct snmp_context *ctx" "ssize_t req_size" "u_char **strp"
+.Ft void
+.Fn string_commit "struct snmp_context *ctx"
+.Ft void
+.Fn string_rollback "struct snmp_context *ctx" "u_char **strp"
+.Ft int
+.Fn string_get "struct snmp_value *val" "const u_char *str" "ssize_t len"
+.Ft int
+.Fn string_get_max "struct snmp_value *val" "const u_char *str" "ssize_t len" "size_t maxlen"
+.Ft void
+.Fn string_free "struct snmp_context *ctx"
+.Ft int
+.Fn ip_save "struct snmp_value *val" "struct snmp_context *ctx" "u_char *ipa"
+.Ft void
+.Fn ip_rollback "struct snmp_context *ctx" "u_char *ipa"
+.Ft void
+.Fn ip_commit "struct snmp_context *ctx"
+.Ft int
+.Fn ip_get "struct snmp_value *val" "u_char *ipa"
+.Ft int
+.Fn oid_save "struct snmp_value *val" "struct snmp_context *ctx" "struct asn_oid *oid"
+.Ft void
+.Fn oid_rollback "struct snmp_context *ctx" "struct asn_oid *oid"
+.Ft void
+.Fn oid_commit "struct snmp_context *ctx"
+.Ft int
+.Fn oid_get "struct snmp_value *val" "const struct asn_oid *oid"
+.Ft int
+.Fn index_decode "const struct asn_oid *oid" "u_int sub" "u_int code" "..."
+.Ft int
+.Fn index_compare "const struct asn_oid *oid1" "u_int sub" "const struct asn_oid *oid2"
+.Ft int
+.Fn index_compare_off "const struct asn_oid *oid1" "u_int sub" "const struct asn_oid *oid2" "u_int off"
+.Ft void
+.Fn index_append "struct asn_oid *dst" "u_int sub" "const struct asn_oid *src"
+.Ft void
+.Fn index_append_off "struct asn_oid *dst" "u_int sub" "const struct asn_oid *src" "u_int off"
+.Vt extern struct snmpd_usmstat snmpd_usmstats ;
+.Ft struct snmpd_usmstat *
+.Fn bsnmpd_get_usm_stats "void"
+.Ft void
+.Fn bsnmpd_reset_usm_stats "void"
+.Ft struct usm_user *
+.Fn usm_first_user "void"
+.Ft struct usm_user *
+.Fn usm_next_user "struct usm_user *uuser"
+.Ft struct usm_user *
+.Fn usm_find_user "uint8_t *engine" "uint32_t elen" "char *uname"
+.Ft struct usm_user *
+.Fn usm_new_user "uint8_t *engine" "uint32_t elen" "char *uname"
+.Ft void
+.Fn usm_delete_user "struct usm_user *"
+.Ft void
+.Fn usm_flush_users "void"
+.Vt extern struct usm_user *usm_user;
+.Ft struct snmpd_target_stats *
+.Fn bsnmpd_get_target_stats "void"
+.Ft struct target_address *
+.Fn target_first_address "void"
+.Ft struct target_address *
+.Fn target_next_address "struct target_address *"
+.Ft struct target_address *
+.Fn target_new_address "char *"
+.Ft int
+.Fn target_activate_address "struct target_address *"
+.Ft int
+.Fn target_delete_address "struct target_address *"
+.Ft struct target_param *
+.Fn target_first_param "void"
+.Ft struct target_param *
+.Fn target_next_param "struct target_param *"
+.Ft struct target_param *
+.Fn target_new_param "char *"
+.Ft int
+.Fn target_delete_param "struct target_param *"
+.Ft struct target_notify *
+.Fn target_first_notify "void"
+.Ft struct target_notify *
+.Fn target_next_notify "struct target_notify *"
+.Ft struct target_notify *
+.Fn target_new_notify "char *"
+.Ft int
+.Fn target_delete_notify "struct target_notify *"
+.Ft void
+.Fn target_flush_all "void"
+.Vt extern const struct asn_oid oid_usmUnknownEngineIDs;
+.Vt extern const struct asn_oid oid_usmNotInTimeWindows;
+.Sh DESCRIPTION
+The
+.Xr bsnmpd 1
+SNMP daemon implements a minimal MIB which consists of the system group, part
+of the SNMP MIB, a private configuration MIB, a trap destination table, a
+UDP port table, a community table, a module table, a statistics group and
+a debugging group.
+All other MIBs are support through loadable modules.
+This allows
+.Xr bsnmpd 1
+to use for task, that are not the classical SNMP task.
+.Ss MODULE LOADING AND UNLOADING
+Modules are loaded by writing to the module table.
+This table is indexed by a string, that identifies the module to the daemon.
+This identifier is used
+to select the correct configuration section from the configuration files and
+to identify resources allocated to this module.
+A row in the module table is
+created by writing a string of non-zero length to the
+.Va begemotSnmpdModulePath
+column.
+This string must be the complete path to the file containing the module.
+A module can be unloaded by writing a zero length string to the path column
+of an existing row.
+.Pp
+Modules may depend on each other an hence must be loaded in the correct order.
+The dependencies are listed in the corresponding manual pages.
+.Pp
+Upon loading a module the SNMP daemon expects the module file to a export
+a global symbol
+.Va config .
+This symbol should be a variable of type
+.Vt struct snmp_module :
+.Bd -literal -offset indent
+typedef enum snmpd_proxy_err (*proxy_err_f)(struct snmp_pdu *, void *,
+    const struct asn_oid *, const struct sockaddr *, socklen_t,
+    enum snmpd_input_err, int32_t);
+
+
+struct snmp_module {
+	const char *comment;
+	int (*init)(struct lmodule *, int argc, char *argv[]);
+	int (*fini)(void);
+	void (*idle)(void);
+	void (*dump)(void);
+	void (*config)(void);
+	void (*start)(void);
+	proxy_err_f proxy;
+	const struct snmp_node *tree;
+	u_int tree_size;
+	void (*loading)(const struct lmodule *, int);
+};
+.Ed
+.Pp
+This structure must be statically initialized and its fields have the
+following functions:
+.Bl -tag -width ".It Va tree_size"
+.It Va comment
+This is a string that will be visible in the module table.
+It should give some hint about the function of this module.
+.It Va init
+This function is called upon loading the module.
+The module pointer should
+be stored by the module because it is needed in other calls and the
+argument vector will contain the arguments to this module from the daemons
+command line.
+This function should return 0 if everything is ok or an UNIX error code (see
+.Xr errno 3 ) .
+Once the function returns 0, the
+.Va fini
+function is called when the module is unloaded.
+.It Va fini
+The module is unloaded.
+This gives the module a chance to free resources that
+are not automatically freed.
+Be sure to free all memory, because daemons tend to run very long.
+This function pointer may be
+.Li NULL
+if it is not needed.
+.It Va idle
+If this function pointer is not
+.Li NULL ,
+the function pointed to by it is called whenever the daemon is going
+to wait for an event.
+Try to avoid using this feature.
+.It Va dump
+Whenever the daemon receives a
+.Li SIGUSR1
+it dumps it internal state via
+.Xr syslog 3 .
+If the
+.Va dump
+field is not
+.Li NULL
+it is called by the daemon to dump the state of the module.
+.It Va config
+Whenever the daemon receives a
+.Li SIGHUP
+signal it re-reads its configuration file.
+If the
+.Va config
+field is not
+.Li NULL
+it is called after reading the configuration file to give the module a chance
+to adapt to the new configuration.
+.It Va start
+If not
+.Li NULL
+this function is called after successful loading and initializing the module
+to start its actual operation.
+.It Va proxy
+If the daemon receives a PDU and that PDU has a community string whose
+community was registered by this module and
+.Va proxy
+is not
+.Li NULL
+than this function is called to handle the PDU.
+.It Va tree
+This is a pointer to the node array for the MIB tree implemented by this module.
+.It Va tree_size
+This is the number of nodes in
+.Va tree .
+.It Va loading
+If this pointer is not
+.Li NULL
+it is called whenever another module was loaded or unloaded.
+It gets a
+pointer to that module and a flag that is 0 for unloading and 1 for loading.
+.El
+.Pp
+When everything is ok, the daemon merges the module's MIB tree into its current
+global tree, calls the modules
+.Fn init
+function.
+If this function returns an error, the modules MIB tree is removed from
+the global one and the module is unloaded.
+If initialization is successful, the modules
+.Fn start
+function is called.
+After it returns the
+.Fn loaded
+functions of all modules (including the loaded one) are called.
+.Pp
+When the module is unloaded, its MIB tree is removed from the global one,
+the communities, request id ranges, running timers and selected file
+descriptors are released, the
+.Fn fini
+function is called, the module file is unloaded and the
+.Fn loaded
+functions of all other modules are called.
+.Ss IMPLEMENTING TABLES
+There are a number of macros designed to help implementing SNMP tables.
+A problem while implementing a table is the support for the GETNEXT operator.
+The GETNEXT operation has to find out whether, given an arbitrary OID, the
+lessest table row, that has an OID higher than the given OID.
+The easiest way
+to do this is to keep the table as an ordered list of structures each one
+of which contains an OID that is the index of the table row.
+This allows easy removal, insertion and search.
+.Pp
+The helper macros assume, that the table is organized as a TAILQ (see
+.Xr queue 3
+and each structure contains a
+.Vt struct asn_oid
+that is used as index.
+For simple tables with only a integer or unsigned index, an alternate form
+of the macros is available, that presume the existence of an integer or
+unsigned field as index field.
+.Pp
+The macros have name of the form
+.Bd -literal -offset indent
+{INSERT,FIND,NEXT}_OBJECT_{OID,INT}[_LINK[_INDEX]]
+.Ed
+.Pp
+The
+.Fn INSERT_*
+macros are used in the SET operation to insert a new table row into the table.
+The
+.Fn FIND_*
+macros are used in the GET operation to find a specific row in the table.
+The
+.Fn NEXT_*
+macros are used in the GETNEXT operation to find the next row in the table.
+The last two macros return a pointer to the row structure if a row is found,
+.Li NULL
+otherwise.
+The macros
+.Fn *_OBJECT_OID_*
+assume the existence of a
+.Vt struct asn_oid
+that is used as index, the macros
+.Fn *_OBJECT_INT_*
+assume the existence of an unsigned integer field that is used as index.
+.Pp
+The macros
+.Fn *_INDEX
+allow the explicit naming of the index field in the parameter
+.Fa INDEX ,
+whereas the other macros assume that this field is named
+.Va index .
+The macros
+.Fn *_LINK_*
+allow the explicit naming of the link field of the tail queues, the others
+assume that the link field is named
+.Va link .
+Explicitly naming the link field may be necessary if the same structures
+are held in two or more different tables.
+.Pp
+The arguments to the macros are as follows:
+.Bl -tag -width "INDEX"
+.It Fa PTR
+A pointer to the new structure to be inserted into the table.
+.It Fa LIST
+A pointer to the tail queue head.
+.It Fa LINK
+The name of the link field in the row structure.
+.It Fa INDEX
+The name of the index field in the row structure.
+.It Fa OID
+Must point to the
+.Va var
+field of the
+.Fa value
+argument to the node operation callback.
+This is the OID to search for.
+.It Fa SUB
+This is the index of the start of the table index in the OID pointed to
+by
+.Fa OID .
+This is usually the same as the
+.Fa sub
+argument to the node operation callback.
+.El
+.Ss DAEMON TIMESTAMPS
+The variable
+.Va this_tick
+contains the tick (there are 100 SNMP ticks in a second) when
+the current PDU processing was started.
+The variable
+.Va start_tick
+contains the tick when the daemon was started.
+The function
+.Fn get_ticks
+returns the current tick.
+The number of ticks since the daemon was started
+is
+.Bd -literal -offset indent
+get_ticks() - start_tick
+.Ed
+.Ss THE SYSTEM GROUP
+The scalar fields of the system group are held in the global variable
+.Va systemg :
+.Bd -literal -offset indent
+struct systemg {
+	u_char		*descr;
+	struct asn_oid	object_id;
+	u_char		*contact;
+	u_char		*name;
+	u_char		*location;
+	uint32_t	services;
+	uint32_t	or_last_change;
+};
+.Ed
+.Ss COMMUNITIES
+The SNMP daemon implements a community table.
+On recipte of a request message
+the community string in that message is compared to each of the community
+strings in that table, if a match is found, the global variable
+.Va community
+is set to the community identifier for that community.
+Community identifiers are unsigned integers.
+For the three standard communities there are three constants defined:
+.Bd -literal -offset indent
+#define COMM_INITIALIZE	0
+#define COMM_READ	1
+#define COMM_WRITE	2
+.Ed
+.Pp
+.Va community
+is set to
+.Li COMM_INITIALIZE
+while the assignments in the configuration file are processed.
+To
+.Li COMM_READ
+or
+.Li COMM_WRITE
+when the community strings for the read-write or read-only community are found
+in the incoming PDU.
+.Pp
+Modules can define additional communities.
+This may be necessary to provide
+transport proxying (a PDU received on one communication link is proxied to
+another link) or to implement non-UDP access points to SNMP.
+A new community is defined with the function
+.Fn comm_define .
+It takes the following parameters:
+.Bl -tag -width ".It Fa descr"
+.It Fa priv
+This is an integer identifying the community to the module.
+Each module has its own namespace with regard to this parameter.
+The community table is indexed with the module name and this identifier.
+.It Fa descr
+This is a string providing a human readable description of the community.
+It is visible in the community table.
+.It Fa mod
+This is the module defining the community.
+.It Fa str
+This is the initial community string.
+.El
+.Pp
+The function returns a globally unique community identifier.
+If a SNMPv1 or SNMPv2 PDU is
+received who's community string matches, this identifier is set into the global
+.Va community .
+.Pp
+The function
+.Fn comm_string
+returns the current community string for the given community.
+.Pp
+All communities defined by a module are automatically released when the module
+is unloaded.
+.Ss THE USER-BASED SECURITY GROUP
+The scalar statistics of the USM group are held in the global variable
+.Va snmpd_usmstats :
+.Bd -literal -offset indent
+struct snmpd_usmstat {
+	uint32_t	unsupported_seclevels;
+	uint32_t	not_in_time_windows;
+	uint32_t	unknown_users;
+	uint32_t	unknown_engine_ids;
+	uint32_t	wrong_digests;
+	uint32_t	decrypt_errors;
+};
+.Ed
+.Fn bsnmpd_get_usm_stats
+returns a pointer to the global structure containing the statistics.
+.Fn bsnmpd_reset_usm_stats
+clears the statistics of the USM group.
+.Pp
+A global list of configured USM users is maintained by the daemon.
+.Bd -literal -offset indent
+struct usm_user {
+	struct snmp_user		suser;
+	uint8_t				user_engine_id[SNMP_ENGINE_ID_SIZ];
+	uint32_t			user_engine_len;
+	char				user_public[SNMP_ADM_STR32_SIZ];
+	uint32_t			user_public_len;
+	int32_t				status;
+	int32_t				type;
+	SLIST_ENTRY(usm_user)		up;
+};
+.Ed
+This structure represents an USM user. The daemon only responds to SNMPv3 PDUs
+with user credentials matching an USM user entry in its global list.
+If a SNMPv3 PDU is received, whose security model is USM, the global
+.Va usm_user
+is set to point at the user entry that matches the credentials contained in
+the PDU.
+However, the daemon does not create or remove USM users, it gives an interface
+to external loadable module(s) to manage the list.
+.Fn usm_new_user
+adds an user entry in the list, and
+.Fn usm_delete_user
+deletes an existing entry from the list.
+.Fn usm_flush_users
+is used to remove all configured USM users.
+.Fn usm_first_user
+will return the first user in the list, or
+.Li NULL
+if the list is empty.
+.Fn usm_next_user
+will return  the next user of a given entry if one exists, or
+.Li NULL .
+The list is sorted according to the USM user name and Engine ID.
+.Fn usm_find_user
+returns the USM user entry matching the given
+.Fa engine
+and
+.Fa uname
+or
+.Li NULL
+if an user with the specified name and engine id is not present in the list.
+.Ss THE MANAGEMENT TARGET GROUP
+The Management Target group holds target address information used when sending
+SNMPv3 notifications.
+.Pp
+The scalar statistics of the Management Target group are held in the global
+variable
+.Va snmpd_target_stats :
+.Bd -literal -offset indent
+struct snmpd_target_stats {
+	uint32_t			unavail_contexts;
+	uint32_t			unknown_contexts;
+};
+.Ed
+.Fn bsnmpd_get_target_stats
+returns a pointer to the global structure containing the statistics.
+.Pp
+Three global lists of configured management target addresses, parameters and
+notifications respectively are maintained by the daemon.
+.Bd -literal -offset indent
+struct target_address {
+	char				name[SNMP_ADM_STR32_SIZ];
+	uint8_t				address[SNMP_UDP_ADDR_SIZ];
+	int32_t				timeout;
+	int32_t				retry;
+	char				taglist[SNMP_TAG_SIZ];
+	char				paramname[SNMP_ADM_STR32_SIZ];
+	int32_t				type;
+	int32_t				socket;
+	int32_t				status;
+	SLIST_ENTRY(target_address)	ta;
+};
+.Ed
+This structure represents a SNMPv3 Management Target address. Each time a SNMP
+TRAP is send the daemon will send the Trap to all active Management Target
+addresses in its global list.
+.Bd -literal -offset indent
+struct target_param {
+	char				name[SNMP_ADM_STR32_SIZ];
+	int32_t				mpmodel;
+	int32_t				sec_model;
+	char				secname[SNMP_ADM_STR32_SIZ];
+	enum snmp_usm_level		sec_level;
+	int32_t				type;
+	int32_t				status;
+	SLIST_ENTRY(target_param)	tp;
+};
+.Ed
+This structure represents the information used to generate SNMP messages to the
+associated SNMPv3 Management Target addresses.
+.Bd -literal -offset indent
+struct target_notify {
+	char				name[SNMP_ADM_STR32_SIZ];
+	char				taglist[SNMP_TAG_SIZ];
+	int32_t				notify_type;
+	int32_t				type;
+	int32_t				status;
+	SLIST_ENTRY(target_notify)	tn;
+};
+.Ed
+This structure represents Notification Tag entries - SNMP notifications are sent
+to the Target address for each entry in the Management Target Address list that
+has a tag matching the specified tag in this structure.
+.Pp
+The daemon does not create or remove entries in the Management Target group
+lists, it gives an interface to external loadable module(s) to manage the lists.
+.Fn target_new_address
+adds a target address entry, and
+.Fn target_delete_address
+deletes an existing entry from the target address list.
+.Fn target_activate_address
+creates a socket associated with the target address entry so that SNMP
+notifications may actually be send to that target address.
+.Fn target_first_address
+will return a pointer to the first target address entry in the list, while
+.Fn target_next_address
+will return a pointer to the next target address of a given entry if one exists.
+.Fn target_new_param
+adds a target parameters' entry, and
+.Fn target_delete_param
+deletes an existing entry from the target parameters list.
+.Fn target_first_param
+will return a pointer to the first target parameters' entry in the list, while
+.Fn target_next_param
+will return a pointer to the next target parameters of a given entry if one
+exists.
+.Fn target_new_notify
+adds a notification target entry, and
+.Fn target_delete_notify
+deletes an existing entry from the notification target list.
+.Fn target_first_notify
+will return a pointer to the first notification target entry in the list, while
+.Fn target_next_notify
+will return a pointer to the next notification target of a given entry if one
+exists.
+.Fn target_flush_all
+is used to remove all configured data from the three global Management Target
+Group lists.
+.Ss WELL KNOWN OIDS
+The global variable
+.Va oid_zeroDotZero
+contains the OID 0.0.
+The global variables
+.Va oid_usmUnknownEngineIDs
+.Va oid_usmNotInTimeWindows
+contains the OIDs 1.3.6.1.6.3.15.1.1.4.0 and  1.3.6.1.6.3.15.1.1.2.0 used
+in the SNMPv3 USM Engine Discovery.
+.Ss REQUEST ID RANGES
+For modules that implement SNMP client functions besides SNMP agent functions
+it may be necessary to identify SNMP requests by their identifier to allow
+easier routing of responses to the correct sub-system.
+Request id ranges
+provide a way to acquire globally non-overlapping sub-ranges of the entire
+31-bit id range.
+.Pp
+A request id range is allocated with
+.Fn reqid_allocate .
+The arguments are: the size of the range and the module allocating the range.
+For example, the call
+.Bd -literal -offset indent
+id = reqid_allocate(1000, module);
+.Ed
+.Pp
+allocates a range of 1000 request ids.
+The function returns the request
+id range identifier or 0 if there is not enough identifier space.
+The function
+.Fn reqid_base
+returns the lowest request id in the given range.
+.Pp
+Request id are allocated starting at the lowest one linear throughout the range.
+If the client application may have a lot of outstanding request the range
+must be large enough so that an id is not reused until it is really expired.
+.Fn reqid_next
+returns the sequentially next id in the range.
+.Pp
+The function
+.Fn reqid_istype
+checks whether the request id
+.Fa reqid
+is within the range identified by
+.Fa type .
+The function
+.Fn reqid_type
+returns the range identifier for the given
+.Fa reqid
+or 0 if the request id is in none of the ranges.
+.Ss TIMERS
+The SNMP daemon supports an arbitrary number of timers with SNMP tick granularity.
+The function
+.Fn timer_start
+arranges for the callback
+.Fa func
+to be called with the argument
+.Fa uarg
+after
+.Fa ticks
+SNMP ticks have expired.
+.Fa mod
+is the module that starts the timer.
+These timers are one-shot, they are not restarted.
+Repeatable timers are started with
+.Fn timer_start_repeat
+which takes an additional argument
+.Fa repeat_ticks .
+The argument
+.Fa ticks
+gives the number of ticks until the first execution of the callback, while
+.Fa repeat_ticks
+is the number of ticks between invocations of the callback.
+Note, that currently the number of initial ticks silently may be set identical
+to the number of ticks between callback invocations.
+The function returns a timer identifier that can be used to stop the timer via
+.Fn timer_stop .
+If a module is unloaded all timers started by the module that have not expired
+yet are stopped.
+.Ss FILE DESCRIPTOR SUPPORT
+A module may need to get input from socket file descriptors without blocking
+the daemon (for example to implement alternative SNMP transports).
+.Pp
+The function
+.Fn fd_select
+causes the callback function
+.Fa func
+to be called with the file descriptor
+.Fa fd
+and the user argument
+.Fa uarg
+whenever the file descriptor
+.Fa fd
+can be read or has a close condition.
+If the file descriptor is not in
+non-blocking mode, it is set to non-blocking mode.
+If the callback is not needed anymore,
+.Fn fd_deselect
+may be called with the value returned from
+.Fn fd_select .
+All file descriptors selected by a module are automatically deselected when
+the module is unloaded.
+.Pp
+To temporarily suspend the file descriptor registration
+.Fn fd_suspend
+can be called.
+This also causes the file descriptor to be switched back to
+blocking mode if it was blocking prior the call to
+.Fn fd_select .
+This is necessary to do synchronous input on a selected socket.
+The effect of
+.Fn fd_suspend
+can be undone with
+.Fn fd_resume .
+.Ss OBJECT RESOURCES
+The system group contains an object resource table.
+A module may create an entry in this table by calling
+.Fn or_register
+with the
+.Fa oid
+to be registered, a textual description in
+.Fa str
+and a pointer to the module
+.Fa mod .
+The registration can be removed with
+.Fn or_unregister .
+All registrations of a module are automatically removed if the module is
+unloaded.
+.Ss TRANSMIT AND RECEIVE BUFFERS
+A buffer is allocated via
+.Fn buf_alloc .
+The argument must be 1 for transmit and 0 for receive buffers.
+The function may return
+.Li NULL
+if there is no memory available.
+The current buffersize can be obtained with
+.Fn buf_size .
+.Sh PROCESSING PDUS
+For modules that need to do their own PDU processing (for example for proxying)
+the following functions are available:
+.Pp
+Function
+.Fn snmp_input_start
+decodes the PDU, searches the community, and sets the global
+.Va this_tick .
+It returns one of the following error codes:
+.Bl -tag -width ".It Er SNMPD_INPUT_VALBADLEN"
+.It Er SNMPD_INPUT_OK
+Everything ok, continue with processing.
+.It Er SNMPD_INPUT_FAILED
+The PDU could not be decoded, has a wrong version or an unknown
+community string.
+.It Er SNMPD_INPUT_VALBADLEN
+A SET PDU had a value field in a binding with a wrong length field in an
+ASN.1 header.
+.It Er SNMPD_INPUT_VALRANGE
+A SET PDU had a value field in a binding with a value that is out of range
+for the given ASN.1 type.
+.It Er SNMPD_INPUT_VALBADENC
+A SET PDU had a value field in a binding with wrong ASN.1 encoding.
+.It Er SNMPD_INPUT_TRUNC
+The buffer appears to contain a valid begin of a PDU, but is too short.
+For streaming transports this means that the caller must save what he
+already has and trying to obtain more input and reissue this input to
+the function.
+For datagram transports this means that part of the
+datagram was lost and the input should be ignored.
+.El
+.Pp
+The function
+.Fn snmp_input_finish
+does the other half of processing: if
+.Fn snmp_input_start
+did not return OK, tries to construct an error response.
+If the start was OK, it calls the correct function from
+.Xr bsnmpagent 3
+to execute the request and depending on the outcome constructs a response or
+error response PDU or ignores the request PDU.
+It returns either
+.Er SNMPD_INPUT_OK
+or
+.Er SNMPD_INPUT_FAILED .
+In the first case a response PDU was constructed and should be sent.
+.Pp
+The function
+.Fn snmp_output
+takes a PDU and encodes it.
+.Pp
+The function
+.Fn snmp_send_port
+takes a PDU, encodes it and sends it through the given port (identified by
+the transport and the index in the port table) to the given address.
+.Pp
+The function
+.Fn snmp_send_trap
+sends a trap to all trap destinations.
+The arguments are the
+.Fa oid
+identifying the trap and a NULL-terminated list of
+.Vt struct snmp_value
+pointers that are to be inserted into the trap binding list.
+.Fn snmp_pdu_auth_access
+verifies whether access to the object IDs contained in the
+.Fa pdu
+ should be granted or denied, according to the configured View-Based Access
+rules.
+.Fa ip
+contains the index of the first varbinding to which access was denied, or 0 if
+access to all varbindings in the PDU is granted.
+.Ss SIMPLE ACTION SUPPORT
+For simple scalar variables that need no dependencies a number of support
+functions is available to handle the set, commit, rollback and get.
+.Pp
+The following functions are used for OCTET STRING scalars, either NUL terminated
+or not:
+.Bl -tag -width "XXXXXXXXX"
+.It Fn string_save
+should be called for SNMP_OP_SET.
+.Fa value
+and
+.Fa ctx
+are the resp\&.\& arguments to the node callback.
+.Fa valp
+is a pointer to the pointer that holds the current value and
+.Fa req_size
+should be -1 if any size of the string is acceptable or a number larger or
+equal zero if the string must have a specific size.
+The function saves
+the old value in the scratch area (note, that any initial value must have
+been allocated by
+.Xr malloc 3 ) ,
+allocates a new string, copies over the new value, NUL-terminates it and
+sets the new current value.
+.It Fn string_commit
+simply frees the saved old value in the scratch area.
+.It Fn string_rollback
+frees the new value, and puts back the old one.
+.It Fn string_get
+is used for GET or GETNEXT.
+The function
+.It Fn string_get_max
+can be used instead of
+.Fn string_get
+to ensure that the returned string has a certain maximum length.
+If
+.Fa len
+is -1, the length is computed via
+.Xr strlen 3
+from the current string value.
+If the current value is NULL,
+a OCTET STRING of zero length is returned.
+.It Fn string_free
+must be called if either rollback or commit fails to free the saved old value.
+.El
+.Pp
+The following functions are used to process scalars of type IP-address:
+.Bl -tag -width "XXXXXXXXX"
+.It Fn ip_save
+Saves the current value in the scratch area and sets the new value from
+.Fa valp .
+.It Fn ip_commit
+Does nothing.
+.It Fn ip_rollback
+Restores the old IP address from the scratch area.
+.It Fn ip_get
+Retrieves the IP current address.
+.El
+.Pp
+The following functions handle OID-typed variables:
+.Bl -tag -width "XXXXXXXXX"
+.It Fn oid_save
+Saves the current value in the scratch area by allocating a
+.Vt struct asn_oid
+with
+.Xr malloc 3
+and sets the new value from
+.Fa oid .
+.It Fn oid_commit
+Frees the old value in the scratch area.
+.It Fn oid_rollback
+Restores the old OID from the scratch area and frees the old OID.
+.It Fn oid_get
+Retrieves the OID
+.El
+.Ss TABLE INDEX HANDLING
+The following functions help in handling table indexes:
+.Bl -tag -width "XXXXXXXXX"
+.It Fn index_decode
+Decodes the index part of the OID.
+The parameter
+.Fa oid
+must be a pointer to the
+.Va var
+field of the
+.Fa value
+argument of the node callback.
+The
+.Fa sub
+argument must be the index of the start of the index in the OID (this is
+the
+.Fa sub
+argument to the node callback).
+.Fa code
+is the index expression (parameter
+.Fa idx
+to the node callback).
+These parameters are followed by parameters depending on the syntax of the index
+elements as follows:
+.Bl -tag -width ".It Li OCTET STRING"
+.It Li INTEGER
+.Vt int32_t *
+expected as argument.
+.It Li COUNTER64
+.Vt uint64_t *
+expected as argument.
+Note, that this syntax is illegal for indexes.
+.It Li OCTET STRING
+A
+.Vt u_char **
+and a
+.Vt size_t *
+expected as arguments.
+A buffer is allocated to hold the decoded string.
+.It Li OID
+A
+.Vt struct asn_oid *
+is expected as argument.
+.It Li IP ADDRESS
+A
+.Vt u_int8_t *
+expected as argument that points to a buffer of at least four byte.
+.It Li COUNTER, GAUGE, TIMETICKS
+A
+.Vt u_int32_t
+expected.
+.It Li NULL
+No argument expected.
+.El
+.It Fn index_compare
+compares the current variable with an OID.
+.Fa oid1
+and
+.Fa sub
+come from the node callback arguments
+.Fa value->var
+and
+.Fa sub
+resp.
+.Fa oid2
+is the OID to compare to.
+The function returns -1, 0, +1 when the
+variable is lesser, equal, higher to the given OID.
+.Fa oid2
+must contain only the index part of the table column.
+.It Fn index_compare_off
+is equivalent to
+.Fn index_compare
+except that it takes an additional parameter
+.Fa off
+that causes it to ignore the first
+.Fa off
+components of both indexes.
+.It Fn index_append
+appends OID
+.Fa src
+beginning at position
+.Fa sub
+to
+.Fa dst .
+.It Fn index_append_off
+appends OID
+.Fa src
+beginning at position
+.Fa off
+to
+.Fa dst
+beginning at position
+.Fa sub
++
+.Fa off .
+.El
+.Sh SEE ALSO
+.Xr gensnmptree 1 ,
+.Xr bsnmpd 1 ,
+.Xr bsnmpagent 3 ,
+.Xr bsnmpclient 3 ,
+.Xr bsnmplib 3
+.Sh STANDARDS
+This implementation conforms to the applicable IETF RFCs and ITU-T
+recommendations.
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@FreeBSD.org

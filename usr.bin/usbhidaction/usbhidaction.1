@@ -1,0 +1,174 @@
+.\" $FreeBSD$
+.\" $NetBSD: usbhidaction.1,v 1.8 2003/02/25 10:35:59 wiz Exp $
+.\"
+.\" Copyright (c) 2000 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson (lennart@augustsson.net).
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd April 9, 2003
+.Dt USBHIDACTION 1
+.Os
+.Sh NAME
+.Nm usbhidaction
+.Nd perform actions according to USB HID controls
+.Sh SYNOPSIS
+.Nm
+.Op Fl diev
+.Fl c Ar config-file
+.Fl f Ar device
+.Op Fl p Ar pidfile
+.Op Fl t Ar tablefile
+.Ar arg ...
+.Sh DESCRIPTION
+The
+.Nm
+utility
+can be used to execute commands when certain values appear on HID controls.
+The normal operation for this program is to read the configuration file
+and then become a daemon and execute commands as the HID items specify.
+If a read from the HID device fails, the program dies; this will make it
+die when the USB device is unplugged.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl d
+Toggle the daemon flag.
+.It Fl e
+Instruct
+.Nm
+to die early.
+Useful when specified with multiple verbose options to see how files are parsed.
+.It Fl i
+Ignore HID items in the configuration file that do not exist in the device.
+.It Fl v
+Be verbose, and do not become a daemon.
+.It Fl c Ar config-file
+Specify a path name for the configuration file.
+.It Fl t Ar tablefile
+Specify a path name for the HID usage table file.
+.It Fl f Ar device
+Specify a path name for the device to operate on.
+If
+.Ar device
+is numeric, it is taken to be the USB HID device number.
+If it is a relative
+path, it is taken to be the name of the device under
+.Pa /dev .
+An absolute path is taken to be the literal device pathname.
+.It Fl p Ar pidfile
+Specify an alternate file in which to store the process ID.
+.El
+.Pp
+The configuration file will be re-read if the process gets a
+.Dv SIGHUP
+signal.
+.Sh CONFIGURATION
+The configuration file has a very simple format.
+Each line describes an
+action; if a line begins with a whitespace, it is considered a continuation
+of the previous line.
+Lines beginning with
+.Ql #
+are considered as comments.
+.Pp
+Each line has four parts: a name of a USB HID item, a value for that item,
+a debounce value, and an action.
+There must be whitespace between the parts.
+.Pp
+The item names are similar to those used by
+.Xr usbhidctl 1 .
+.Pp
+The value is simply a numeric value.
+When the item reports this value,
+the action will be performed.
+If the value is
+.Ql * ,
+it will match any value.
+.Pp
+The debounce value is an integer not less than 0.
+The value of 0 indicates that no debouncing should occur.
+A value of 1 will only execute the action when the state changes.
+Values greater than one specify that an action should be performed
+only when the value changes by that amount.
+.Pp
+The action is a normal command that is executed with
+.Xr system 3 .
+Before it is executed some substitution will occur:
+.Ql $n
+will be replaced by the
+.Ar n Ns th
+argument on the command line,
+.Ql $V
+will be replaced by the numeric value of the HID item,
+.Ql $N
+will be replaced by the name of the control, and
+.Ql $H
+will be replaced by the name of the HID device.
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/misc/usb_hid_usages"
+.It Pa /usr/share/misc/usb_hid_usages
+The HID usage table.
+.It Pa /var/run/usbaction.pid
+The default location of the PID file.
+.El
+.Sh EXAMPLES
+The following configuration file can be used to control a pair
+of Philips USB speakers with the HID controls on the speakers.
+.Bd -literal -offset indent
+# Configuration for various Philips USB speakers
+Consumer:Volume_Up			 1 0 mixer -f $1 vol +1
+Consumer:Volume_Down			 1 0 mixer -f $1 vol -1
+# mute not supported
+#Consumer:Mute				 1 0 mixer -f $1 mute
+Consumer:Channel_Top.Microsoft:Base_Up	 1 0 mixer -f $1 bass +1
+Consumer:Channel_Top.Microsoft:Base_Down 1 0 mixer -f $1 bass -1
+.Ed
+.Pp
+A sample invocation using this configuration would be
+.Pp
+.Dl "usbhidaction -f /dev/uhid1 -c conf /dev/mixer1"
+.Pp
+The following example controls the mixer volume using a Logitech Wingman.
+Notice the debounce of 1 for buttons and 5 for the slider.
+.Bd -literal -offset indent
+Button:Button_1	  1 1	mixer vol +10
+Button:Button_2	  1 1	mixer vol -10
+Generic_Desktop:Z * 5	mixer vol `echo $V | awk '{print int($$1/255*100)}'`
+.Ed
+.Sh SEE ALSO
+.Xr usbhidctl 1 ,
+.Xr usbhid 3 ,
+.Xr uhid 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Nx 1.6 .
+The
+.Nm
+command appeared in
+.Fx 5.1 .

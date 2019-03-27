@@ -1,0 +1,12 @@
+# $FreeBSD$
+# Although POSIX does not specify the effect of NUL bytes in scripts,
+# we ignore them.
+
+{
+	printf 'v=%03000d\0%02000d' 7 2
+	dd if=/dev/zero bs=1000 count=1 status=none
+	printf '1 w=%03000d%02000d1\0\n' 7 2
+	printf '\0l\0v\0=\0$\0{\0#\0v\0}\n'
+	printf '\0l\0w\0=\0\0$\0{\0#\0w}\0\0\0\n'
+	printf '[ "$lv.$lw.$v" = "5001.5001.$w" ]\n'
+} | ${SH}

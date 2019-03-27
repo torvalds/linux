@@ -1,0 +1,476 @@
+.\"
+.\" Copyright (c) 2003 Bruce M Simpson <bms@spc.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 20, 2016
+.Dt RMAN 9
+.Os
+.Sh NAME
+.Nm rman ,
+.Nm rman_activate_resource ,
+.Nm rman_adjust_resource ,
+.Nm rman_deactivate_resource ,
+.Nm rman_fini ,
+.Nm rman_init ,
+.Nm rman_init_from_resource ,
+.Nm rman_is_region_manager ,
+.Nm rman_manage_region ,
+.Nm rman_first_free_region ,
+.Nm rman_last_free_region ,
+.Nm rman_release_resource ,
+.Nm rman_reserve_resource ,
+.Nm rman_reserve_resource_bound ,
+.Nm rman_make_alignment_flags ,
+.Nm rman_get_start ,
+.Nm rman_get_end ,
+.Nm rman_get_device ,
+.Nm rman_get_size ,
+.Nm rman_get_flags ,
+.Nm rman_set_mapping ,
+.Nm rman_get_mapping ,
+.Nm rman_set_virtual ,
+.Nm rman_get_virtual ,
+.Nm rman_set_bustag ,
+.Nm rman_get_bustag ,
+.Nm rman_set_bushandle ,
+.Nm rman_get_bushandle ,
+.Nm rman_set_rid ,
+.Nm rman_get_rid
+.Nd resource management functions
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/rman.h
+.Ft int
+.Fn rman_activate_resource "struct resource *r"
+.Ft int
+.Fn rman_adjust_resource "struct resource *r" "rman_res_t start" "rman_res_t end"
+.Ft int
+.Fn rman_deactivate_resource "struct resource *r"
+.Ft int
+.Fn rman_fini "struct rman *rm"
+.Ft int
+.Fn rman_init "struct rman *rm"
+.Ft int
+.Fn rman_init_from_resource "struct rman *rm" "struct resource *r"
+.Ft int
+.Fn rman_is_region_manager "struct resource *r" "struct rman *rm"
+.Ft int
+.Fn rman_manage_region "struct rman *rm" "rman_res_t start" "rman_res_t end"
+.Ft int
+.Fn rman_first_free_region "struct rman *rm" "rman_res_t *start" "rman_res_t *end"
+.Ft int
+.Fn rman_last_free_region "struct rman *rm" "rman_res_t *start" "rman_res_t *end"
+.Ft int
+.Fn rman_release_resource "struct resource *r"
+.Ft "struct resource *"
+.Fo rman_reserve_resource
+.Fa "struct rman *rm" "rman_res_t start" "rman_res_t end" "rman_res_t count"
+.Fa "u_int flags" "struct device *dev"
+.Fc
+.Ft "struct resource *"
+.Fo rman_reserve_resource_bound
+.Fa "struct rman *rm" "rman_res_t start" "rman_res_t end" "rman_res_t count"
+.Fa "rman_res_t bound" "u_int flags" "struct device *dev"
+.Fc
+.Ft uint32_t
+.Fn rman_make_alignment_flags "uint32_t size"
+.Ft rman_res_t
+.Fn rman_get_start "struct resource *r"
+.Ft rman_res_t
+.Fn rman_get_end "struct resource *r"
+.Ft "struct device *"
+.Fn rman_get_device "struct resource *r"
+.Ft rman_res_t
+.Fn rman_get_size "struct resource *r"
+.Ft u_int
+.Fn rman_get_flags "struct resource *r"
+.Ft void
+.Fn rman_set_mapping "struct resource *r" "struct resource_map *map"
+.Ft void
+.Fn rman_get_mapping "struct resource *r" "struct resource_map *map"
+.Ft void
+.Fn rman_set_virtual "struct resource *r" "void *v"
+.Ft "void *"
+.Fn rman_get_virtual "struct resource *r"
+.Ft void
+.Fn rman_set_bustag "struct resource *r" "bus_space_tag_t t"
+.Ft bus_space_tag_t
+.Fn rman_get_bustag "struct resource *r"
+.Ft void
+.Fn rman_set_bushandle "struct resource *r" "bus_space_handle_t h"
+.Ft bus_space_handle_t
+.Fn rman_get_bushandle "struct resource *r"
+.Ft void
+.Fn rman_set_rid "struct resource *r" "int rid"
+.Ft int
+.Fn rman_get_rid "struct resource *r"
+.Sh DESCRIPTION
+The
+.Nm
+set of functions provides a flexible resource management abstraction.
+It is used extensively by the bus management code.
+It implements the abstractions of region and resource.
+A region descriptor is used to manage a region; this could be memory or
+some other form of bus space.
+.Pp
+Each region has a set of bounds.
+Within these bounds, allocated segments may reside.
+Each segment, termed a resource, has several properties which are
+represented by a 16-bit flag register, as follows.
+.Bd -literal
+#define RF_ALLOCATED    0x0001 /* resource has been reserved */
+#define RF_ACTIVE       0x0002 /* resource allocation has been activated */
+#define RF_SHAREABLE    0x0004 /* resource permits contemporaneous sharing */
+#define RF_FIRSTSHARE   0x0020 /* first in sharing list */
+#define RF_PREFETCHABLE 0x0040 /* resource is prefetchable */
+#define RF_UNMAPPED     0x0100 /* don't map resource when activating */
+.Ed
+.Pp
+Bits 15:10  of the flag register are used to represent the desired alignment
+of the resource within the region.
+.Pp
+The
+.Fn rman_init
+function initializes the region descriptor, pointed to by the
+.Fa rm
+argument, for use with the resource management functions.
+It is required that the fields
+.Va rm_type
+and
+.Va rm_descr
+of
+.Vt "struct rman"
+be set before calling
+.Fn rman_init .
+The field
+.Va rm_type
+shall be set to
+.Dv RMAN_ARRAY .
+The field
+.Va rm_descr
+shall be set to a string that describes the resource to be managed.
+The
+.Va rm_start
+and
+.Va rm_end
+fields may be set to limit the range of acceptable resource addresses.
+If these fields are not set,
+.Fn rman_init
+will initialize them to allow the entire range of resource addresses.
+It also initializes any mutexes associated with the structure.
+If
+.Fn rman_init
+fails to initialize the mutex, it will return
+.Er ENOMEM ; otherwise it will return 0 and
+.Fa rm
+will be initialized.
+.Pp
+The
+.Fn rman_fini
+function frees any structures associated with the structure
+pointed to by the
+.Fa rm
+argument.
+If any of the resources within the managed region have the
+.Dv RF_ALLOCATED
+flag set, it will return
+.Er EBUSY ;
+otherwise, any mutexes associated with the structure will be released
+and destroyed, and the function will return 0.
+.Pp
+The
+.Fn rman_manage_region
+function establishes the concept of a region which is under
+.Nm
+control.
+The
+.Fa rman
+argument points to the region descriptor.
+The
+.Fa start
+and
+.Fa end
+arguments specify the bounds of the region.
+If successful,
+.Fn rman_manage_region
+will return 0.
+If the region overlaps with an existing region, it will return
+.Er EBUSY .
+If any part of the region falls outside of the valid address range for
+.Fa rm ,
+it will return
+.Er EINVAL .
+.Er ENOMEM
+will be returned when
+.Fn rman_manage_region
+failed to allocate memory for the region.
+.Pp
+The
+.Fn rman_init_from_resource
+function is a wrapper routine to create a resource manager backed by an
+existing resource.
+It initializes
+.Fa rm
+using
+.Fn rman_init
+and then adds a region to
+.Fa rm
+corresponding to the address range allocated to
+.Fa r
+via
+.Fn rman_manage_region .
+.Pp
+The
+.Fn rman_first_free_region
+and
+.Fn rman_last_free_region
+functions can be used to query a resource manager for its first
+.Pq or last
+unallocated region.
+If
+.Fa rm
+contains no free region,
+these functions will return
+.Er ENOENT .
+Otherwise,
+.Fa *start
+and
+.Fa *end
+are set to the bounds of the free region and zero is returned.
+.Pp
+The
+.Fn rman_reserve_resource_bound
+function is where the bulk of the
+.Nm
+logic is located.
+It attempts to reserve a contiguous range in the specified region
+.Fa rm
+for the use of the device
+.Fa dev .
+The caller can specify the
+.Fa start
+and
+.Fa end
+of an acceptable range,
+as well as a boundary restriction and required aligment,
+and the code will attempt to find a free segment which fits.
+The
+.Fa start
+argument is the lowest acceptable starting value of the resource.
+The
+.Fa end
+argument is the highest acceptable ending value of the resource.
+Therefore,
+.Fa start No + Fa count No \- 1
+must be \[<=]
+.Fa end
+for any allocation to happen.
+The aligment requirement
+.Pq if any
+is specified in
+.Fa flags .
+The
+.Fa bound
+argument may be set to specify a boundary restriction such that an
+allocated region may cross an address that is a multiple of the
+boundary.
+The
+.Fa bound
+argument must be a power of two.
+It may be set to zero to specify no boundary restriction.
+A shared segment will be allocated if the
+.Dv RF_SHAREABLE
+flag is set, otherwise an exclusive segment will be allocated.
+If this shared segment already exists, the caller has its device
+added to the list of consumers.
+.Pp
+The
+.Fn rman_reserve_resource
+function is used to reserve resources within a previously established region.
+It is a simplified interface to
+.Fn rman_reserve_resource_bound
+which passes 0 for the
+.Fa bound
+argument.
+.Pp
+The
+.Fn rman_make_alignment_flags
+function returns the flag mask corresponding to the desired alignment
+.Fa size .
+This should be used when calling
+.Fn rman_reserve_resource_bound .
+.Pp
+The
+.Fn rman_is_region_manager
+function returns true if the allocated resource
+.Fa r
+was allocated from
+.Fa rm .
+Otherwise,
+it returns false.
+.Pp
+The
+.Fn rman_adjust_resource
+function is used to adjust the reserved address range of an allocated resource
+to reserve
+.Fa start
+through
+.Fa end .
+It can be used to grow or shrink one or both ends of the resource range.
+The current implementation does not support entirely relocating the resource
+and will fail with
+.Er EINVAL
+if the new resource range does not overlap the old resource range.
+If either end of the resource range grows and the new resource range would
+conflict with another allocated resource,
+the function will fail with
+.Er EBUSY .
+The
+.Fn rman_adjust_resource
+function does not support adjusting the resource range for shared resources
+and will fail such attempts with
+.Er EINVAL .
+Upon success,
+the resource
+.Fa r
+will have a start address of
+.Fa start
+and an end address of
+.Fa end
+and the function will return zero.
+Note that none of the constraints of the original allocation request such
+as alignment or boundary restrictions are checked by
+.Fn rman_adjust_resource .
+It is the caller's responsibility to enforce any such requirements.
+.Pp
+The
+.Fn rman_release_resource
+function releases the reserved resource
+.Fa r .
+It may attempt to merge adjacent free resources.
+.Pp
+The
+.Fn rman_activate_resource
+function marks a resource as active, by setting the
+.Dv RF_ACTIVE
+flag.
+If this is a time shared resource, and the caller has not yet acquired
+the resource, the function returns
+.Er EBUSY .
+.Pp
+The
+.Fn rman_deactivate_resource
+function marks a resource
+.Fa r
+as inactive, by clearing the
+.Dv RF_ACTIVE
+flag.
+If other consumers are waiting for this range, it will wakeup their threads.
+.Pp
+The
+.Fn rman_get_start ,
+.Fn rman_get_end ,
+.Fn rman_get_size ,
+and
+.Fn rman_get_flags
+functions return the bounds, size and flags of the previously reserved
+resource
+.Fa r .
+.Pp
+The
+.Fn rman_set_bustag
+function associates a
+.Vt bus_space_tag_t
+.Fa t
+with the resource
+.Fa r .
+The
+.Fn rman_get_bustag
+function is used to retrieve this tag once set.
+.Pp
+The
+.Fn rman_set_bushandle
+function associates a
+.Vt bus_space_handle_t
+.Fa h
+with the resource
+.Fa r .
+The
+.Fn rman_get_bushandle
+function is used to retrieve this handle once set.
+.Pp
+The
+.Fn rman_set_virtual
+function is used to associate a kernel virtual address with a resource
+.Fa r .
+The
+.Fn rman_get_virtual
+function can be used to retrieve the KVA once set.
+.Pp
+The
+.Fn rman_set_mapping
+function is used to associate a resource mapping with a resource
+.Fa r .
+The mapping must cover the entire resource.
+Setting a mapping sets the associated
+.Xr bus_space 9
+handle and tag for
+.Fa r
+as well as the kernel virtual address if the mapping contains one.
+These individual values can be retrieved via
+.Fn rman_get_bushandle ,
+.Fn rman_get_bustag ,
+and
+.Fn rman_get_virtual .
+.Pp
+The
+.Fn rman_get_mapping
+function can be used to retrieve the associated resource mapping once set.
+.Pp
+The
+.Fn rman_set_rid
+function associates a resource identifier with a resource
+.Fa r .
+The
+.Fn rman_get_rid
+function retrieves this RID.
+.Pp
+The
+.Fn rman_get_device
+function returns a pointer to the device which reserved the resource
+.Fa r .
+.Sh SEE ALSO
+.Xr bus_activate_resource 9 ,
+.Xr bus_adjust_resource 9 ,
+.Xr bus_alloc_resource 9 ,
+.Xr bus_map_resource 9 ,
+.Xr bus_release_resource 9 ,
+.Xr bus_set_resource 9 ,
+.Xr bus_space 9 ,
+.Xr mutex 9
+.Sh AUTHORS
+This manual page was written by
+.An Bruce M Simpson Aq Mt bms@spc.org .

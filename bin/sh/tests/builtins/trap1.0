@@ -1,0 +1,22 @@
+# $FreeBSD$
+
+test "$(trap 'echo trapped' EXIT; :)" = trapped || exit 1
+
+test "$(trap 'echo trapped' EXIT; /usr/bin/true)" = trapped || exit 1
+
+result=$(${SH} -c 'trap "echo trapped" EXIT; /usr/bin/false')
+test $? -eq 1 || exit 1
+test "$result" = trapped || exit 1
+
+result=$(${SH} -c 'trap "echo trapped" EXIT; exec /usr/bin/false')
+test $? -eq 1 || exit 1
+test -z "$result" || exit 1
+
+result=0
+trap 'result=$((result+1))' INT
+kill -INT $$
+test "$result" -eq 1 || exit 1
+(kill -INT $$)
+test "$result" -eq 2 || exit 1
+
+exit 0

@@ -1,0 +1,25 @@
+include "arch/regress/conf/std.regress"
+
+maxusers 4
+
+file-system 	REGRESSFS
+
+master0 	at root
+
+parenti* 	at master?
+parentii* 	at master?
+
+# The second child* instance (attaching at parentii) is useless: it will be
+# shadowed by the first one, which is semantically the same, from a parentii
+# device's point of view.
+#
+# The two child* instances are aliases, and at some point the orphan-checking
+# code skipped some aliases, in the shadowing situation and some others.
+#
+# This test should pass, the lines are valid, even though the second one is
+# useless.
+
+child* 	at hook?
+child* 	at parentii?
+
+config regress root on ?

@@ -1,0 +1,1920 @@
+# Microsoft Developer Studio Generated Dependency File, included by libapr.mak
+
+.\atomic\win32\apr_atomic.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_atomic.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_general.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_want.h"\
+	
+
+.\dso\win32\dso.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_dso.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\encoding\apr_escape.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_escape.h"\
+	".\include\apr_escape_test_char.h"\
+	".\include\apr_general.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_want.h"\
+	
+
+.\file_io\win32\buffer.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\file_io\unix\copy.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\file_io\win32\dir.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_atime.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\file_io\unix\fileacc.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\file_io\win32\filedup.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_inherit.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\file_io\win32\filepath.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\file_io\unix\filepath_util.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_general.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\file_io\win32\filestat.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_atime.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\file_io\win32\filesys.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\file_io\win32\flock.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\file_io\unix\fullrw.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	
+
+.\file_io\unix\mktemp.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_inherit.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\file_io\win32\open.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_inherit.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\file_io\win32\pipe.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\file_io\win32\readwrite.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_atime.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\file_io\win32\seek.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\file_io\unix\tempdir.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_env.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\locks\win32\proc_mutex.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_proc_mutex.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\locks\win32\thread_cond.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_cond.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_thread_cond.h"\
+	".\include\arch\win32\apr_arch_thread_mutex.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\locks\win32\thread_mutex.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_thread_mutex.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\locks\win32\thread_rwlock.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_thread_rwlock.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_thread_rwlock.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\memory\unix\apr_pools.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_atomic.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_env.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_hash.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\misc\win32\charset.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	
+
+.\misc\win32\env.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_env.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\misc\unix\errorcodes.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\misc\unix\getopt.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\misc\win32\internal.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\misc\win32\misc.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\misc\unix\otherchild.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_threadproc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\misc\win32\rand.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\misc\win32\start.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_signal.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_threadproc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\misc\win32\utf8.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_general.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\misc\unix\version.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_general.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_version.h"\
+	".\include\apr_want.h"\
+	
+
+.\mmap\unix\common.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_mmap.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_ring.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\mmap\win32\mmap.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_mmap.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_ring.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\network_io\unix\inet_ntop.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_networkio.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\network_io\unix\inet_pton.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_networkio.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\network_io\unix\multicast.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_support.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\win32\apr_arch_inherit.h"\
+	".\include\arch\win32\apr_arch_networkio.h"\
+	
+
+.\network_io\win32\sendrecv.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_networkio.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\network_io\unix\sockaddr.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_networkio.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\network_io\unix\socket_util.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	
+
+.\network_io\win32\sockets.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_inherit.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_networkio.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\network_io\win32\sockopt.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_networkio.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\passwd\apr_getpass.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_general.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\poll\unix\poll.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_ring.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\unix\apr_arch_poll_private.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_networkio.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\poll\unix\pollcb.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_ring.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\unix\apr_arch_poll_private.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_networkio.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\poll\unix\pollset.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_ring.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\unix\apr_arch_poll_private.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_inherit.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_networkio.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\poll\unix\select.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_ring.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\unix\apr_arch_poll_private.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_networkio.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\random\unix\apr_random.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_random.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	
+
+.\random\unix\sha2.c : \
+	".\include\apr.h"\
+	".\random\unix\sha2.h"\
+	
+
+.\random\unix\sha2_glue.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_random.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\random\unix\sha2.h"\
+	
+
+.\shmem\win32\shm.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\strings\apr_cpystrn.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_general.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\strings\apr_fnmatch.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_fnmatch.h"\
+	".\include\apr_general.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	
+
+.\strings\apr_snprintf.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\strings\apr_strings.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_general.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\strings\apr_strnatcmp.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_general.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_want.h"\
+	
+
+.\strings\apr_strtok.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_general.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_want.h"\
+	
+
+.\tables\apr_hash.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_general.h"\
+	".\include\apr_hash.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_time.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\tables\apr_skiplist.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_skiplist.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	
+
+.\tables\apr_tables.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_general.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\threadproc\win32\proc.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_threadproc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\threadproc\win32\signals.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_signal.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_threadproc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\threadproc\win32\thread.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_threadproc.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\threadproc\win32\threadpriv.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_threadproc.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\time\win32\time.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_atime.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\time\win32\timestr.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_atime.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\user\win32\groupinfo.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+.\user\win32\userinfo.c : \
+	".\include\apr.h"\
+	".\include\apr_allocator.h"\
+	".\include\apr_dso.h"\
+	".\include\apr_errno.h"\
+	".\include\apr_file_info.h"\
+	".\include\apr_file_io.h"\
+	".\include\apr_general.h"\
+	".\include\apr_getopt.h"\
+	".\include\apr_global_mutex.h"\
+	".\include\apr_inherit.h"\
+	".\include\apr_lib.h"\
+	".\include\apr_network_io.h"\
+	".\include\apr_poll.h"\
+	".\include\apr_pools.h"\
+	".\include\apr_portable.h"\
+	".\include\apr_proc_mutex.h"\
+	".\include\apr_shm.h"\
+	".\include\apr_strings.h"\
+	".\include\apr_tables.h"\
+	".\include\apr_thread_mutex.h"\
+	".\include\apr_thread_proc.h"\
+	".\include\apr_time.h"\
+	".\include\apr_user.h"\
+	".\include\apr_want.h"\
+	".\include\arch\apr_private_common.h"\
+	".\include\arch\win32\apr_arch_file_io.h"\
+	".\include\arch\win32\apr_arch_misc.h"\
+	".\include\arch\win32\apr_arch_utf8.h"\
+	".\include\arch\win32\apr_private.h"\
+	
+
+!IF  "$(CFG)" == "libapr - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "libapr - Win32 Debug"
+
+!ELSEIF  "$(CFG)" == "libapr - Win32 Release9x"
+
+!ELSEIF  "$(CFG)" == "libapr - Win32 Debug9x"
+
+!ELSEIF  "$(CFG)" == "libapr - x64 Release"
+
+!ELSEIF  "$(CFG)" == "libapr - x64 Debug"
+
+!ENDIF 
+
+!IF  "$(CFG)" == "libapr - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "libapr - Win32 Debug"
+
+!ELSEIF  "$(CFG)" == "libapr - Win32 Release9x"
+
+!ELSEIF  "$(CFG)" == "libapr - Win32 Debug9x"
+
+!ELSEIF  "$(CFG)" == "libapr - x64 Release"
+
+!ELSEIF  "$(CFG)" == "libapr - x64 Debug"
+
+!ENDIF 
+
+!IF  "$(CFG)" == "libapr - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "libapr - Win32 Debug"
+
+!ELSEIF  "$(CFG)" == "libapr - Win32 Release9x"
+
+!ELSEIF  "$(CFG)" == "libapr - Win32 Debug9x"
+
+!ELSEIF  "$(CFG)" == "libapr - x64 Release"
+
+!ELSEIF  "$(CFG)" == "libapr - x64 Debug"
+
+!ENDIF 
+
+.\libapr.rc : \
+	".\include\apr.h"\
+	".\include\apr_version.h"\
+	

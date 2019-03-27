@@ -1,0 +1,21 @@
+#
+# BERI_DE4_MDROOT -- Kernel for the SRI/Cambridge "BERI" (Bluespec Extensible
+# RISC # Implementation) FPGA soft core, as configured in its Terasic DE-4
+# reference configuration.
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+include "BERI_DE4_BASE"
+
+ident		BERI_DE4_MDROOT
+
+#
+# This kernel configuration uses an embedded 8MB memory root file system.
+# Adjust the following path based on local requirements.
+#
+options 	MD_ROOT			# MD is a potential root device
+options 	MD_ROOT_SIZE=26112	# 25.5MB
+options 	ROOTDEVNAME=\"ufs:md0\"

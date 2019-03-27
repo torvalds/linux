@@ -1,0 +1,26 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ftpd
+# REQUIRE: LOGIN FILESYSTEMS
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="ftpd"
+desc="Internet File Transfer Protocol daemon"
+rcvar="ftpd_enable"
+command="/usr/libexec/${name}"
+pidfile="/var/run/${name}.pid"
+start_precmd=ftpd_prestart
+
+ftpd_prestart()
+{
+	rc_flags="-D ${rc_flags}"
+	return 0
+}
+
+load_rc_config $name
+run_rc_command "$1"

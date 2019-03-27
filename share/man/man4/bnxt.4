@@ -1,0 +1,252 @@
+.\" Copyright (c) 2016 Broadcom, All Rights Reserved.
+.\" The term Broadcom refers to Broadcom Limited and/or its subsidiaries
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 30, 2019
+.Dt BNXT 4
+.Os
+.Sh NAME
+.Nm bnxt
+.Nd "Broadcom NetXtreme-C/NetXtreme-E Family Ethernet driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iflib"
+.Cd "device bnxt"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_bnxt_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various NICs based on the Broadcom BCM57301/2/4,
+and BCM57402/4/6 Ethernet controller chips.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver provides support for various NICs based on the Broadcom NetXtreme-C and
+NetXtreme-E families of Gigabit Ethernet controller chips, including the
+following:
+.Pp
+.Bl -bullet -compact
+.It
+Broadcom BCM57301 NetXtreme-C 10Gb Ethernet Controller
+.It
+Broadcom BCM57302 NetXtreme-C 10Gb/25Gb Ethernet Controller
+.It
+Broadcom BCM57304 NetXtreme-C 10Gb/25Gb/40Gb/50Gb Ethernet Controller
+.It
+Broadcom BCM57304 NetXtreme-C Ethernet Virtual Function
+.It
+Broadcom BCM57314 NetXtreme-C Ethernet Virtual Function
+.It
+Broadcom BCM57402 NetXtreme-E 10Gb Ethernet Controller
+.It
+Broadcom BCM57402 NetXtreme-E Ethernet Partition
+.It
+Broadcom BCM57404 NetXtreme-E 10Gb/25Gb Ethernet Controller
+.It
+Broadcom BCM57404 NetXtreme-E Ethernet Virtual Function
+.It
+Broadcom BCM57404 NetXtreme-E Partition
+.It
+Broadcom BCM57406 NetXtreme-E 10GBASE-T Ethernet Controller
+.It
+Broadcom BCM57406 NetXtreme-E Partition
+.It
+Broadcom BCM57407 NetXtreme-E 10GBase-T Ethernet Controller
+.It
+Broadcom BCM57407 NetXtreme-E 25Gb Ethernet Controller
+.It
+Broadcom BCM57407 NetXtreme-E Partition
+.It
+Broadcom BCM57412 NetXtreme-E Partition
+.It
+Broadcom BCM57414 NetXtreme-E Ethernet Virtual Function
+.It
+Broadcom BCM57414 NetXtreme-E Partition
+.It
+Broadcom BCM57416 NetXtreme-E Partition
+.It
+Broadcom BCM57417 NetXtreme-E Ethernet Partition
+.It
+Broadcom BCM57454 NetXtreme-E 10Gb/25Gb/40Gb/50Gb/100Gb Ethernet
+.El
+.Sh SYSCTL VARIABLES
+These variables must be set before loading the driver, either via
+.Xr loader.conf 5
+or through the use of
+.Xr kenv 1 .
+These are provided by the
+.Xr iflib 4
+framework, and might be better documented there.
+.Bl -tag -width indent
+.It Va dev.bnxt.X.iflib.override_nrxds
+Override the number of RX descriptors for each queue.
+The value is a comma separated list of three positive integers: the size of the
+completion ring,
+the size of the receive ring, and the size of the aggregation ring respectively.
+The completion ring should be at least the size of the aggregation ring plus
+four times the size of the receive ring.
+These numbers must be powers of two, and zero means to use the default.
+Defaults to 0,0,0.
+.It Va dev.bnxt.X.iflib.override_ntxds
+Override the number of TX descriptors for each queue.
+The value is a comma separated list of two positive integers: the size of the
+completion ring, and the size of the transmit ring respectively.
+The completion ring should be at least twice the size of the transmit ring.
+These numbers must be powers of two, and zero means to use the default.
+Defaults to 0,0.
+.It Va override_qs_enable
+When set, allows the number of transmit and receive queues to be different.
+If not set, the lower of the number of TX or RX queues will be used for both.
+.It Va override_nrxqs
+Set the number of RX queues.
+If zero, the number of RX queues is derived from the number of cores on the
+socket connected to the controller.
+Defaults to 0.
+.It Va override_ntxqs
+Set the number of TX queues.
+If zero, the number of TX queues is derived from the number of cores on the
+socket connected to the controller.
+.El
+.Pp
+These
+.Xr sysctl 8
+variables can be changed at any time:
+.Bl -tag -width indent
+.It Va dev.bnxt.X.vlan_only
+Require that incoming frames must have a VLAN tag on them that matches one that
+is configured for the NIC.
+Normally, both frames that have a matching VLAN tag and frames that have no
+VLAN tag are accepted.
+Defaults to 0.
+.It Va dev.bnxt.X.vlan_strip
+When non-zero the NIC strips VLAN tags on receive.
+Defaults to 0.
+.It Va dev.bnxt.X.rx_stall
+Enable buffering rather than dropping frames when there are no available host
+RX buffers for DMA.
+Defaults to 0.
+.It Va dev.bnxt.X.rss_type
+Comma-separated list of RSS hash types to support.
+Default is all types.
+Defaults to ipv4,tcp_ipv4,udp_ipv4,ipv6,tcp_ipv6,udp_ipv6.
+.It Va dev.bnxt.X.rss_key
+Current RSS key.
+Defaults to a randomly generated value which is generated for each device
+during attach.
+.It Va dev.bnxt.X.ver.hwrm_min_ver
+Minimum HWRM (HardWare Resource Manager) firmware API to support.
+If the firmware implements an older version, a warning will be printed, and the
+firmware should be upgraded.
+Defaults to 1.2.2.
+.El
+.Pp
+These
+.Xr sysctl 8
+variables are read-only:
+.Bl -tag -width indent
+.It Va dev.bnxt.X.if_name
+Current interface name of the device.
+This will normally be
+.Va bnxtX ,
+but this can be changed using
+.Cm ifconfig name .
+This sysctl allows correlating an interface with a child of
+.Va dev.bnxt .
+.It Va dev.bnxt.X.nvram.*
+Information about the NVRAM device which contains the device firmware.
+.It Va dev.bnxt.X.ver.*
+Version-related information about the device and firmware:
+.It Va dev.bnxt.X.ver.hwrm_if
+Supported HWRM API version of the currently running firmware.
+.It Va dev.bnxt.X.ver.driver_hwrm_if
+HWRM API version the driver was built to support.
+.It Va dev.bnxt.X.hwstats.*
+Per-queue statistics tracked by the hardware.
+.It Va dev.bnxt.X.hwstats.port_stats.*
+Per-port statistics tracked by the hardware.
+.It Va dev.bnxt.X.hwstats.rxq0.drop_pkts
+Number of packets dropped by hardware on queue zero.
+This number might seem high, but the count includes packets dropped due to
+incorrect destination MAC, unsubscribed multicast address, and other normal
+reasons to ignore Ethernet frames.
+.It Va dev.bnxt.X.hwstats.rxq0.tpa_*
+statistics related to HW LRO.
+.It Va dev.bnxt.X.hw_lro.*
+Enable / Disable HW LRO feature. Defaults to disable.
+Enabling HW LRO could cause issues when forwarding is enabled on host.
+.It Va dev.bnxt.X.fc
+Enable / Disable Flow Control feature. Defaults to Enable
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "bnxt%d: %s command returned %s error."
+Device firmware rejected a command from the driver.
+There might be a driver/firmware HWRM API mismatch.
+.It "bnxt%d: Timeout sending %s (timeout: %d) seq %d"
+Device firmware unresponsive.
+A PCI device reset is likely needed.
+.It "bnxt%d: Timeout sending %s (timeout: %d) msg {0x%x 0x%x} len:%d v: %d"
+Partial firmware response.
+A PCI device reset is likely needed.
+.Pp
+As of this writing, the system must be rebooted to initiate a PCI device reset.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr iflib 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 11.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Jack Vogel Aq Mt jfvogel@gmail.com 
+and 
+.An Stephen Hurd Aq Mt shurd@freebsd.org ,
+and is currently maintained by
+.An Broadcom Limited Aq Mt freebsd.pdl@broadcom.com .

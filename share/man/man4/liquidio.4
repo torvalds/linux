@@ -1,0 +1,134 @@
+.\"  BSD LICENSE
+.\"
+.\"  Copyright(c) 2017 Cavium, Inc.. All rights reserved.
+.\"  All rights reserved.
+.\"
+.\"  Redistribution and use in source and binary forms, with or without
+.\"  modification, are permitted provided that the following conditions
+.\"  are met:
+.\"
+.\"    * Redistributions of source code must retain the above copyright
+.\"      notice, this list of conditions and the following disclaimer.
+.\"    * Redistributions in binary form must reproduce the above copyright
+.\"      notice, this list of conditions and the following disclaimer in
+.\"      the documentation and/or other materials provided with the
+.\"      distribution.
+.\"    * Neither the name of Cavium, Inc. nor the names of its
+.\"      contributors may be used to endorse or promote products derived
+.\"      from this software without specific prior written permission.
+.\"
+.\"  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\"  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\"  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\"  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\"  OWNER(S) OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\"  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\"  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\"  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\"  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\"  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\"  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" $FreeBSD$
+.\"
+.Dd August 17, 2017
+.Dt LIQUIDIO 4
+.Os
+.Sh NAME
+.Nm liquidio
+.Nd "Cavium 10Gb/25Gb Ethernet driver for the FreeBSD operating system"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device lio"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_lio_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for 23XX 10Gb/25Gb Ethernet adapters.
+The driver supports Jumbo Frames, Transmit/Receive checksum
+offload, TCP segmentation offload (TSO), Large Receive Offload (LRO),
+VLAN tag insertion/extraction, VLAN checksum offload,
+VLAN TSO, and Receive Side Steering (RSS)
+.Pp
+Support for Jumbo Frames is provided via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit Jumbo Frames.
+The maximum MTU size for Jumbo Frames is 16000.
+.Pp
+For more information on configuring this device, see ifconfig(8).
+.Sh HARDWARE
+The
+.Nm
+driver supports the following cards:
+.Pp
+.Bl -bullet -compact
+.It
+LiquidIO II CN2350 210SV/225SV
+.It
+LiquidIO II CN2360 210SV/225SV
+.El
+.Sh LOADER TUBABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Pp
+.Bl -tag -width indent
+.It Va hw.lio.fw_type
+.Pp
+String that specifies type of firmware to be loaded.
+Default is "nic". Use "none" to load firmware from flash.
+.It Va hw.lio.num_queues_per_pf0
+.Pp
+Unsigned integers that specify number of queues per PF0.
+Valid range is 0 to 64.
+Use 0 to derive autoconfigures based on the number of
+cpus with a max of 8
+.It Va hw.lio.num_queues_per_pf1
+.Pp
+Unsigned integers that specify number of queues per PF1.
+Valid range is 0 to 64.
+Use 0 to derive autoconfigures based on the number of
+cpus with a max of 8
+.It Va hw.lio.console_bitmask
+.Pp
+Bitmask indicating which consoles have debug output
+redirected to syslog.
+.It Va hw.lio.rss
+.Pp
+To enable/disable driver RSS support
+.It Va hw.lio.hwlro
+.Pp
+To enable/disable hardware LRO
+.El
+.Sh SUPPORT
+For general information and support,
+go to the Cavium support website at:
+.Pa http://support.cavium.com .
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Derek Chickles Aq Mt derek.chickles@cavium.com .

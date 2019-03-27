@@ -1,0 +1,8 @@
+
+
+PING 127.0.0.1 (127.0.0.1): 56 data bytes
+1 packets transmitted, 1 packets received, 0.0% packet loss
+2 ip:::send    (args[2]: 4 64, args[4]: 4 84 0 0 64)
+2 ip:::send    (args[2]: 4 64, args[4]: 4 84 0 0 64)
+3 ip:::receive (args[2]: 4 64, args[4]: 4 84 0 0 64)
+3 ip:::receive (args[2]: 4 64, args[4]: 4 84 0 0 64)

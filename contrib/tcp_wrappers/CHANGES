@@ -1,0 +1,451 @@
+Request: after building the programs, please run the `tcpdchk' wrapper
+configuration checker. See the `tcpdchk.8' manual page (`nroff -man'
+format) for instructions. `tcpdchk' automatically identifies the most
+common configuration problems, and will save you and me a lot of time.
+
+Changes per release 7.6 (Mar 1997)
+==================================
+
+- Improved the anti source-routing protection. The code in version
+7.5 was not as strong as it could be, because I tried to be compatible
+with Linux. That was a mistake. Sorry for the inconvenience.
+
+- The program no longer terminates case of a source-routed connection,
+making the IP-spoofing code more usable for long-running daemons.
+
+- When syslogging DNS hostname problems, always stop after a limited
+number of characters.
+
+Changes per release 7.5 (Feb 1997)
+==================================
+
+- Optionally refuse source-routed TCP connections requests altogether.
+Credits to Niels Provos of Universitaet Hamburg.  File: fix_options.c.
+
+- Support for IRIX 6 (Lael Tucker).
+
+- Support for Amdahl UTS 2.1.5 (Richard E. Richmond).
+
+- Support for SINIX 5.42 (Klaus Nielsen).
+
+- SCO 5 now has vsyslog() (Bill Golden).
+
+- Hints and tips for dealing with IRIX inetd (Niko Makila, Aaron
+M Lee).
+
+- Support for BSD/OS (Paul Borman).
+
+- Support for Tandem (Emad Qawas).
+
+- Support for ISC (Frederick B. Cohen).
+
+- Workaround for UNICOS - it would choke on a setjmp() expression
+(Bruce Kelly). File: hosts_access.c, tcpdchk.c.
+
+- Increased the level of buffer overflow paranoia when printing
+unwanted IP options.  File: fix_options.c.
+
+Changes per release 7.4 (Mar 1996)
+==================================
+
+- IRIX 5.3 (and possibly, earlier releases, too) library routines call
+the non-reentrant strtok() routine. The result is that hosts may slip
+through allow/deny filters. Workaround is to not rely on the vendor's
+strtok() routine (#ifdef LIBC_CALLS_STRTOK). Credits to Th. Eifert
+(Aachen University) for spotting this one. This fix supersedes the
+earlier workaround for a similar problem in FreeBSD 2.0.
+
+Changes per release 7.3 (Feb 1996)
+==================================
+
+- More tests added to tcpdchk and tcpdmatch: make sure that the
+REAL_DAEMON_DIR actually is a directory and not a regular file;
+detect if tcpd recursively calls itself.
+
+- Edwin Kremer found an amusing fencepost error in the xgets()
+routine: lines longer than BUFLEN characters would be garbled.
+
+- The access control routines now refuse to execute "dangerous" actions
+such as `twist' when they are called from within a resident process.
+This prevents you from shooting yourself into the foot with critical
+systems programs such as, e.g., portmap or rpcbind.
+
+- Support for Unicos 8.x (Bruce Kelly). The program now closes the
+syslog client socket before running the real daemon: Cray UNICOS
+refuses to checkpoint processes with open network ports.
+
+- Support for MachTen UNIX (Albert M.C Tam).
+
+- Support for Interactive UNIX R3.2 V4.0 (Bobby D. Wright).
+
+- Support for SCO 3.2v5.0.0 OpenServer 5 (bob@odt.handy.com)
+
+- Support for Unixware 1.x and Unixware 2.x.  The old Unixware Makefile
+rule was broken. Sorry about that.
+
+- Some FreeBSD 2.0 libc routines call strtok() and severely mess up the
+allow/deny rule processing. This is very bad. Workaround:  call our own
+strtok() clone (#ifdef USE_STRSEP).
+
+- The programs now log a warning when they detect that a non-existent
+banner directory is specified.
+
+- The hosts_access.3 manual page used obsolete names for the RQ_*
+constants.
+
+Changes per release 7.2 (Jan 1995)
+==================================
+
+- Added a note to the README and manpages on using the IDENT service to
+detect sequence number spoofing and other host impersonation attacks.
+
+- Portability: ConvexOS puts RPC version numbers before the daemon path
+name (Jukka Ukkonen).
+
+- Portability: the AIX compiler disliked the strchr() declaration
+in socket.c.  I should have removed it when I included <string.h>.
+
+- Backwards compatibility: some people relied on the old leading dot or
+trailing dot magic in daemon process names.
+
+- Backwards compatibility: hostname lookup remains enabled when
+-DPARANOID is turned off. In order to disable hostname lookups you
+must turn off -DALWAYS_HOSTNAME.
+
+- Eliminated false complaints from the tcpdmatch/tcpdchk configuration
+checking programs about process names not in inetd.conf or about KNOWN
+username patterns.
+
+Changes per release 7.1 (Jan 1995)
+==================================
+
+- Portability: HP-UX permits you to break inetd.conf entries with
+backslash-newline.
+
+- Portability: EP/IX has no putenv() and some inetd.conf entries are
+spread out over two lines.
+
+- Portability: SCO with NIS support has no *netgrent() routines.
+
+Changes per release 7.0 (Jan 1995) 
+==================================
+
+- Added a last-minute workaround for a Solaris 2.4 gethostbyname()
+foulup with multi-homed hosts in DNS through NIS mode.
+
+- Added a last-minute defense against TLI weirdness: address lookups
+apparently succeed but the result netbuf is empty (ticlts transport).
+
+- Dropped several new solutions that were in need of a problem. Beta
+testers may recognize what new features were kicked out during the last
+weeks before release 7.0 came out. Such is life.
+
+- Got rid of out the environment replacement routines, at least for
+most architectures. One should not have to replace working system
+software when all that is needed is a 4.4BSD setenv() emulator.
+
+- By popular request I have added an option to send banner messages to
+clients. There is a Banners.Makefile that gives some aid for sites that
+are going to use this feature. John C. Wingenbach did some pioneering
+work here. I used to think that banners are frivolous. Now that I had
+a personal need for them I know that banners can be useful.
+
+- At last: an extensible functional interface to the pattern matching
+engine. request_init() and request_set() accept a variable-length
+name-value argument list.  The result can be passed to hosts_access().
+
+- When PARANOID mode is disabled (compile time), the wrapper does no
+hostname lookup or hostname double checks unless required by %letter
+expansions, or by access control rules that match host names.  This is
+useful for sites that don't care about internet hostnames anyway.
+Inspired by the authors of the firewalls and internet security book.
+
+- When PARANOID mode is disabled (compile time), hosts with a name/name
+or name/address conflict can be matched with the PARANOID host wildcard
+pattern, so that you can take some intelligent action instead of just
+dropping clients. Like showing a banner that explains the problem.
+
+- New percent escapes: %A expands to the server address; %H expands to
+the corresponding hostname (or address if no name is available); %n and
+%N expand to the client and server hostname (or "unknown"); %s expands
+to everything we know about the server endpoint (the opposite of the %c
+sequence for client information).
+
+- Symmetry: server and client host information is now treated on equal
+footing, so that we can reuse a lot of code.
+
+- Lazy evaluation of host names, host addresses, usernames, and so on,
+to avoid doing unnecessary work.
+
+- Dropping #ifdefs for some archaic systems made the code simpler.
+
+- Dropping the FAIL pattern made the pattern matcher much simpler.  Run
+the "tcpdchk" program to scan your access control files for any uses of
+this obscure language feature.
+
+- Moving host-specific pattern matching from string_match() to the
+host_match() routine made the code more accurate.  Run the "tcpdchk"
+program to scan your access control files for any dependencies on
+undocumented or obscure language features that are gone.
+
+- daemon@host patterns trigger on clients that connect to a specific
+internet address.  This can be useful for service providers that offer
+multiple ftp or www archives on different internet addresses, all
+belonging to one and the same host (www.foo.com, ftp.bar.com, you get
+the idea).  Inspired by a discussion with Rop Gonggrijp, Cor Bosman,
+and Casper Dik, and earlier discussions with Adrian van Bloois.
+
+- The new "tcpdchk" program critcizes all your access control rules and
+inetd.conf entries. Great for spotting obscure bugs in my own hosts.xxx
+files. This program also detects hosts with name/address conflicts and
+with other DNS-related problems. See the "tcpdchk.8" manual page.
+
+- The "tcpdmatch" program replaces the poor old "try" command. The new
+program looks in your inetd.conf file and therefore produces much more
+accurate predictions. In addition, it detects hosts with name/address
+conflicts and with other DNS-related problems. See the "tcpdmatch.8"
+manual page.  The inetd.conf lookup was suggested by Everett F Batey.
+
+- In the access control tables, the `=' between option name and value
+is no longer required.
+
+- Added 60-second timeout to the safe_finger command, to cover another
+potential problem. Suggested by Peter Wemm.
+
+- Andrew Maffei provided code that works with WIN-TCP on NCR System V.4
+UNIX. It reportedly works with versions 02.02.01 and 02.03.00. The code
+pops off all streams modules above the device driver, pushes the timod
+module to get at the peer address, and then restores the streams stack
+to the initial state.
+
+Changes per release 6.3 (Mar 1994)
+==================================
+
+- Keepalives option, to get rid of stuck daemons when people turn off
+their PC while still connected. Files: options.c, hosts_options.5.
+
+- Nice option, to calm down network daemons that take away too much CPU
+time. Files: options.c, hosts_options.5.
+
+- Ultrix perversion: the environ global pointer may be null. The
+environment replacement routines now check for this. File: environ.c.
+
+- Fixed a few places that still assumed the socket is on standard
+input. Fixed some error messages that did not provide access control
+file name and line number.  File: options.c.
+
+- Just when I was going to release 6.2 I received code for Dynix/PTX.
+That code is specific to PTX 2.x, so I'll keep around my generic
+PTX code just in case. The difference is in the handling of UDP
+services.  Files:  tli_sequent.[hc].
+
+Changes per release 6.2 (Feb 1994)
+==================================
+
+- Resurrected my year-old code to reduce DNS load by appending a dot to
+the gethostbyname() argument. This feature is still experimental and it
+may go away if it causes more problems than it solves. File: socket.c.
+
+- Auxiliary code for the Pyramid, BSD universe. Karl Vogel figured out
+what was missing: yp_get_default_domain() and vfprintf(). Files:
+workarounds.c, vfprintf.c.
+
+- Improved support for Dynix/PTX. The wrapper should now be able to
+deal with all TLI over IP services. File: ptx.c.
+
+- The try command now uses the hostname that gethostbyaddr() would
+return, instead of the hostname returned by gethostbyname(). This can
+be significant on systems with NIS that have short host names in the
+hosts map. For example, gethostbyname("wzv.win.tue.nl") returns
+"wzv.win.tue.nl"; gethostbyaddr(131.155.210.17) returns "wzv", and
+that is what we should test with. File: try.c.
+
+Changes per release 6.1 (Dec 1993)
+==================================
+
+- Re-implemented all environment access routines. Most systems have
+putenv() but no setenv(), some systems have setenv() but no putenv(),
+and there are even systems that have neither setenv() nor putenv(). The
+benefit of all this is that more systems can now be treated in the same
+way. File:  environ.c.
+
+- Workaround for a weird problem with DG/UX when the wrapper is run as
+nobody (i.e. fingerd). For some reason the ioctl(fd, I_FIND, "sockmod")
+call fails even with socket-based applications. The "fix" is to always
+assume sockets when the ioctl(fd, I_FIND, "timod") call fails. File:
+fromhost.c. Thanks to Paul de Vries (vries@dutentb.et.tudelft.nl) for
+helping me to figure out this one.
+
+- Implemented a workaround for Dynix/PTX and other systems with TLI
+that lack some essential support routines. Thanks to Bugs Brouillard
+(brouill@hsuseq.humboldt.edu) for the hospitality to try things out.
+The trick is to temporarily switch to the socket API to identify the
+client, and to switch back to TLI when done.  It still does not work
+right for basic network services such as telnet. File: fromhost.c.
+
+- Easy-to-build procedures for SCO UNIX, ConvexOS with UltraNet, EP/IX,
+Dynix 3.2, Dynix/PTX. File: Makefile.
+
+- Variable rfc931 timeout. Files: rfc931.c, options.c, log_tcp.h, try.c.
+
+- Further simplification of the rfc931 code. File: rfc931.c.
+
+- The fromhost() interface stinks: I cannot change that, but at least
+the from_sock() and from_tli() functions now accept a file descriptor
+argument.
+
+- Fixed a buglet: fromhost() would pass a garbage file descriptor to
+the isastream() call.
+
+- On some systems the finger client program lives in /usr/bsd. File:
+safe_finger.c.
+
+Changes per release 6.0 (Sept 1993)
+===================================
+
+- Easy build procedures for common platforms (sun, ultrix, aix, hpux
+and others).
+
+- TLI support, System V.4 style (Solaris, DG/UX).
+
+- Username lookup integrated with the access control language.
+Selective username lookups are now the default (was: no username
+lookups).
+
+- A safer finger command for booby traps. This one solves a host of
+possible problems with automatic reverse fingers. Thanks, Borja Marcos
+(borjam@we.lc.ehu.es) for some inspiring discussions.
+
+- KNOWN pattern that matches hosts whose name and address are known.
+
+- Cleanup of diagnostics. Errors in access-control files are now shown
+with file name and line number.
+
+- With AIX 3.2, hostnames longer than 32 would be truncated.  This
+caused hostname verification failures, so that service would be refused
+when paranoid mode was enabled.  Found by:  Adrian van Bloois
+(A.vanBloois@info.nic.surfnet.nl).
+
+- With some IRIX versions, remote username lookups failed because the
+fgets() library function does not handle partial read()s from sockets.
+Found by:  Daniel O'Callaghan (danny@austin.unimelb.edu.au).
+
+- Added a DISCLAIMER document to help you satisfy legal departments.
+
+The extension language module has undergone major revisions and
+extensions.  Thanks, John P. Rouillard (rouilj@ra.cs.umb.edu) for
+discussions, experiments, and for being a good guinea pig. The
+extensions are documented in hosts_options.5, and are enabled by
+editing the Makefile STYLE macro definition.
+
+- (Extension language) The ":" separator may now occur within options
+as long as it is protected with a backslash. A warning is issued when
+a rule ends on ":".
+
+- (Extension language) Better verification mode. When the `try' command
+is run, each option function now explains what it would do.
+
+- (Extension language) New "allow" and "deny" keywords so you can now
+have all rules within a single file. See "nroff -man hosts_options.5"
+for examples.
+
+- (Extension language) "linger" keyword to set the socket linger time
+(SO_LINGER). From:  Marc Boucher <marc@cam.org>.
+
+- (Extension language) "severity" keyword to turn the logging noise up
+or down. Many sites wanted a means to shut up the program; other sites
+wanted to emphasize specific events.  Adapted from code contributed
+by Dave Mitchell <D.Mitchell@dcs.shef.ac.uk>.
+
+Changes per release 5.1 (Mar 1993)
+==================================
+
+- The additional protection against source-routing attacks from hosts
+that pretend to have someone elses network address has become optional
+because it causes kernel panics with SunOS <= 4.1.3.
+
+Changes per release 5.0 (Mar 1993)
+==================================
+
+- Additional protection against source-routing attacks from hosts that
+pretend to have someone elses network address. For example, the address
+of a trusted host within your own network.
+
+- The access control language has been extended with a simple but
+powerful operator that greatly simplifies the design of rule sets (ALL:
+.foo.edu EXCEPT dialup.foo.edu). Blank lines are permitted, and long
+lines can be continued with backslash-newline.
+
+- All configurable stuff, including path names, has been moved into the
+Makefile so that you no longer have to hack source code to just
+configure the programs.
+
+- Ported to Solaris 2. TLI-based applications not yet supported.
+Several workarounds for System V bugs.
+
+- A small loophole in the netgroup lookup code was closed, and the
+remote username lookup code was made more portable.
+
+- Still more documentation. The README file now provides tutorial
+sections with introductions to client, server, inetd and syslogd.
+
+Changes per release 4.3 (Aug 1992) 
+==================================
+
+- Some sites reported that connections would be rejected because
+localhost != localhost.domain. The host name checking code now
+special-cases localhost (problem reported by several sites).
+
+- The programs now report an error if an existing access control file
+cannot be opened (e.g. due to lack of privileges).  Until now, the
+programs would just pretend that the access control file does not exist
+(reported by Darren Reed, avalon@coombs.anu.edu.au).
+
+- The timeout period for remote userid lookups was upped to 30 seconds,
+in order to cope with slow hosts or networks.  If this is too long for
+you, adjust the TIMEOUT definition in file rfc931.c (problem reported
+by several sites).
+
+- On hosts with more than one IP network interface, remote userid
+lookups could use the IP address of the "wrong" local interface.  The
+problem and its solution were discussed on the rfc931-users mailing
+list.  Scott Schwartz (schwartz@cs.psu.edu) folded the fix into the
+rfc931.c module.
+
+- The result of % expansion (in shell commands) is now checked for
+stuff that may confuse the shell; it is replaced by underscores
+(problem reported by Icarus Sparry, I.Sparry@gdr.bath.ac.uk).
+
+- A portability problem was fixed that caused compile-time problems
+on a CRAY (problem reported by Michael Barnett, mikeb@rmit.edu.au).
+
+Changes per release 4.0 (Jun 1992)
+==================================
+
+1 - network daemons no longer have to live within a common directory
+2 - the access control code now uses both the host address and name
+3 - an access control pattern that supports netmasks
+4 - additional protection against forged host names
+5 - a pattern that matches hosts whose name or address lookup fails
+6 - an operator that prevents hosts or services from being matched
+7 - optional remote username lookup with the RFC 931 protocol
+8 - an optional umask to prevent the creation of world-writable files
+9 - hooks for access control language extensions
+10 - last but not least, thoroughly revised documentation.
+
+Changes per release 3.0 (Oct 1991)
+==================================
+
+Enhancements over the previous release are: support for datagram (UDP
+and RPC) services, and execution of shell commands when a (remote host,
+requested service) pair matches a pattern in the access control tables.
+
+Changes per release 2.0 (May 1991)
+==================================
+
+Enhancements over the previous release are: protection against rlogin
+and rsh attacks through compromised domain name servers, optional
+netgroup support for systems with NIS (formerly YP), and an extension
+of the wild card patterns supported by the access control files.
+
+Release 1.0 (Jan 1991)

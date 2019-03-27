@@ -1,0 +1,241 @@
+.\" Copyright (c) 2000 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 23, 2011
+.Dt NG_ETHER 4
+.Os
+.Sh NAME
+.Nm ng_ether
+.Nd Ethernet netgraph node type
+.Sh SYNOPSIS
+.In netgraph/ng_ether.h
+.Sh DESCRIPTION
+The
+.Nm ether
+netgraph node type allows Ethernet interfaces to interact with
+the
+.Xr netgraph 4
+networking subsystem.
+Once the
+.Nm
+module is loaded into the kernel, a node is automatically created
+for each Ethernet interface in the system.
+Each node will attempt to name itself with the same name
+as the associated interface.
+.Pp
+Three hooks are supported:
+.Va lower , upper ,
+and
+.Va orphans .
+The hook name
+.Va divert
+may be used as an alias for
+.Va lower ,
+and is provided for backward compatibility.
+In reality, the two names represent the same hook.
+.Pp
+The
+.Va lower
+hook is a connection to the raw Ethernet device.
+When connected, all incoming packets are forwarded to this hook,
+instead of being passed to the kernel for upper layer processing.
+Writing to this hook results in a raw Ethernet frame being transmitted
+by the device.
+Normal outgoing packets are not affected by
+.Va lower
+being connected.
+.Pp
+The
+.Va upper
+hook is a connection to the upper protocol layers.
+When connected, all outgoing packets are forwarded to this hook,
+instead of being transmitted by the device.
+Writing to this hook results in a raw Ethernet frame being received by
+the kernel just as if it had come in over the wire.
+Normal incoming packets are not affected by
+.Va upper
+being connected.
+.Pp
+The
+.Va orphans
+hook is equivalent to
+.Va lower ,
+except that only unrecognized packets (that would otherwise be discarded)
+are written to the hook, while other normal incoming traffic is unaffected.
+Unrecognized packets written to
+.Va upper
+will be forwarded back out to
+.Va orphans
+if connected.
+.Pp
+In all cases, frames are raw Ethernet frames with the standard
+14 byte Ethernet header (but no checksum).
+.Pp
+When no hooks are connected,
+.Va upper
+and
+.Va lower
+are in effect connected together,
+so that packets flow normally upwards and downwards.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va orphans"
+.It Va lower
+Connection to the lower device link layer.
+.It Va upper
+Connection to the upper protocol layers.
+.It Va orphans
+Like
+.Va lower ,
+but only receives unrecognized packets.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_ETHER_GET_IFNAME Pq Ic getifname
+Returns the name of the associated interface as a
+.Dv NUL Ns -terminated
+.Tn ASCII
+string.
+Normally this is the same as the name of the node.
+.It Dv NGM_ETHER_GET_IFINDEX Pq Ic getifindex
+Returns the global index of the associated interface as a 32 bit integer.
+.It Dv NGM_ETHER_GET_ENADDR Pq Ic getenaddr
+Returns the device's unique six byte Ethernet address.
+.It Dv NGM_ETHER_SET_ENADDR Pq Ic setenaddr
+Sets the device's unique six byte Ethernet address.
+This control message is equivalent to using the
+.Dv SIOCSIFLLADDR
+.Xr ioctl 2
+system call.
+.It Dv NGM_ETHER_SET_PROMISC Pq Ic setpromisc
+Enable or disable promiscuous mode.
+This message includes a single 32 bit integer flag that enables or
+disables promiscuous mode on the interface.
+Any non-zero value enables promiscuous mode.
+.It Dv NGM_ETHER_GET_PROMISC Pq Ic getpromisc
+Get the current value of the node's promiscuous flag.
+The returned value is always either one or zero.
+Note that this flag reflects the node's own promiscuous setting
+and does not necessarily reflect the promiscuous state of the actual
+interface, which can be affected by other means (e.g.,
+.Xr bpf 4 ) .
+.It Dv NGM_ETHER_SET_AUTOSRC Pq Ic setautosrc
+Sets the automatic source address override flag.
+This message includes a single 32 bit integer flag that causes
+all outgoing packets to have their source Ethernet
+address field overwritten with the device's unique Ethernet address.
+If this flag is set to zero, the source address in outgoing packets
+is not modified.
+The default setting for this flag is disabled.
+.It Dv NGM_ETHER_GET_AUTOSRC Pq Ic getautosrc
+Get the current value of the node's source address override flag.
+The returned value is always either one or zero.
+.It Dv NGM_ETHER_ADD_MULTI Pq Ic addmulti
+Join Ethernet multicast group.
+This control message is equivalent to using the
+.Dv SIOCADDMULTI
+.Xr ioctl 2
+system call.
+.It Dv NGM_ETHER_DEL_MULTI Pq Ic delmulti
+Leave Ethernet multicast group.
+This control message is equivalent to using the
+.Dv SIOCDELMULTI
+.Xr ioctl 2
+system call.
+.It Dv NGM_ETHER_DETACH Pq Ic detach
+Detach from underlying Ethernet interface and shut down node.
+.El
+.Sh SHUTDOWN
+Upon receipt of the
+.Dv NGM_SHUTDOWN
+control message, all hooks are disconnected, promiscuous mode is disabled,
+but the node is not removed.
+Node can be shut down only using
+.Dv NGM_ETHER_DETACH
+control message.
+If the interface itself is detached (e.g., because of PC Card removal), the
+node disappears as well.
+.Sh EXAMPLES
+This command dumps all unrecognized packets received by the
+.Dq Li fxp0
+interface to standard output decoded in hex and
+.Tn ASCII :
+.Pp
+.Dl "nghook -a fxp0: orphans"
+.Pp
+This command sends the contents of
+.Pa sample.pkt
+out the interface
+.Dq Li fxp0 :
+.Pp
+.Dl "cat sample.pkt | nghook fxp0: orphans"
+.Pp
+These commands insert an
+.Xr ng_tee 4
+node between the
+.Va lower
+and
+.Va upper
+protocol layers, which can be used for
+tracing packet flow, statistics, etc.:
+.Bd -literal -offset indent
+ngctl mkpeer fxp0: tee lower right
+ngctl connect fxp0: lower upper left
+.Ed
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netgraph 4 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8 ,
+.Xr ngctl 8 ,
+.Xr nghook 8
+.Sh AUTHORS
+.An Julian Elischer Aq Mt julian@FreeBSD.org
+.An Archie Cobbs Aq Mt archie@FreeBSD.org
+.Sh BUGS
+The automatic KLD module loading mechanism that works for most
+other Netgraph node types does not work for the
+.Nm ether
+node type,
+because
+.Nm ether
+nodes are not created on demand; instead, they are created when
+Ethernet interfaces are attached or when the KLD is first loaded.
+Therefore, if the KLD is not statically compiled into the kernel,
+it is necessary to load the KLD manually in order to bring the
+.Nm ether
+nodes into existence.

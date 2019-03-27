@@ -1,0 +1,477 @@
+# regular expression test set
+# $FreeBSD$
+# Lines are at least three fields, separated by one or more tabs.  "" stands
+# for an empty field.  First field is an RE.  Second field is flags.  If
+# C flag given, regcomp() is expected to fail, and the third field is the
+# error name (minus the leading REG_).
+#
+# Otherwise it is expected to succeed, and the third field is the string to
+# try matching it against.  If there is no fourth field, the match is
+# expected to fail.  If there is a fourth field, it is the substring that
+# the RE is expected to match.  If there is a fifth field, it is a comma-
+# separated list of what the subexpressions should match, with - indicating
+# no match for that one.  In both the fourth and fifth fields, a (sub)field
+# starting with @ indicates that the (sub)expression is expected to match
+# a null string followed by the stuff after the @; this provides a way to
+# test where null strings match.  The character `N' in REs and strings
+# is newline, `S' is space, `T' is tab, `Z' is NUL.
+#
+# The full list of flags:
+#	-	placeholder, does nothing
+#	b	RE is a BRE, not an ERE
+#	&	try it as both an ERE and a BRE
+#	C	regcomp() error expected, third field is error name
+#	i	REG_ICASE
+#	m	("mundane") REG_NOSPEC
+#	s	REG_NOSUB (not really testable)
+#	n	REG_NEWLINE
+#	^	REG_NOTBOL
+#	$	REG_NOTEOL
+#	#	REG_STARTEND (see below)
+#	p	REG_PEND
+#
+# For REG_STARTEND, the start/end offsets are those of the substring
+# enclosed in ().
+
+# basics
+a		&	a	a
+abc		&	abc	abc
+abc|de		-	abc	abc
+a|b|c		-	abc	a
+
+# parentheses and perversions thereof
+a(b)c		-	abc	abc
+a\(b\)c		b	abc	abc
+a(		C	EPAREN
+a(		b	a(	a(
+a\(		-	a(	a(
+a\(		bC	EPAREN
+a\(b		bC	EPAREN
+a(b		C	EPAREN
+a(b		b	a(b	a(b
+# gag me with a right parenthesis -- 1003.2 goofed here (my fault, partly)
+a)		-	a)	a)
+)		-	)	)
+# end gagging (in a just world, those *should* give EPAREN)
+a)		b	a)	a)
+a\)		bC	EPAREN
+\)		bC	EPAREN
+a()b		-	ab	ab
+a\(\)b		b	ab	ab
+
+# anchoring and REG_NEWLINE
+^abc$		&	abc	abc
+a^b		-	a^b
+a^b		b	a^b	a^b
+a$b		-	a$b
+a$b		b	a$b	a$b
+^		&	abc	@abc
+$		&	abc	@
+^$		&	""	@
+$^		-	""	@
+\($\)\(^\)	b	""	@
+# stop retching, those are legitimate (although disgusting)
+^^		-	""	@
+$$		-	""	@
+b$		&	abNc
+b$		&n	abNc	b
+^b$		&	aNbNc
+^b$		&n	aNbNc	b
+^$		&n	aNNb	@Nb
+^$		n	abc
+^$		n	abcN	@
+$^		n	aNNb	@Nb
+\($\)\(^\)	bn	aNNb	@Nb
+^^		n^	aNNb	@Nb
+$$		n	aNNb	@NN
+^a		^	a
+a$		$	a
+^a		^n	aNb
+^b		^n	aNb	b
+a$		$n	bNa
+b$		$n	bNa	b
+a*(^b$)c*	-	b	b
+a*\(^b$\)c*	b	b	b
+
+# certain syntax errors and non-errors
+|		C	EMPTY
+|		b	|	|
+*		C	BADRPT
+*		b	*	*
++		C	BADRPT
+?		C	BADRPT
+""		&C	EMPTY
+()		-	abc	@abc
+\(\)		b	abc	@abc
+a||b		C	EMPTY
+|ab		C	EMPTY
+ab|		C	EMPTY
+(|a)b		C	EMPTY
+(a|)b		C	EMPTY
+(*a)		C	BADRPT
+(+a)		C	BADRPT
+(?a)		C	BADRPT
+({1}a)		C	BADRPT
+\(\{1\}a\)	bC	BADRPT
+(a|*b)		C	BADRPT
+(a|+b)		C	BADRPT
+(a|?b)		C	BADRPT
+(a|{1}b)	C	BADRPT
+^*		C	BADRPT
+^*		b	*	*
+^+		C	BADRPT
+^?		C	BADRPT
+^{1}		C	BADRPT
+^\{1\}		bC	BADRPT
+
+# metacharacters, backslashes
+a.c		&	abc	abc
+a[bc]d		&	abd	abd
+a\*c		&	a*c	a*c
+a\\b		&	a\b	a\b
+a\\\*b		&	a\*b	a\*b
+a\bc		&	abc	abc
+a\		&C	EESCAPE
+a\\bc		&	a\bc	a\bc
+\{		bC	BADRPT
+# trailing $ is a peculiar special case for the BRE code
+a$		&	a	a
+a$		&	a$
+a\$		&	a
+a\$		&	a$	a$
+a\\$		&	a
+a\\$		&	a$
+a\\$		&	a\$
+a\\$		&	a\	a\
+
+# back references, ugh
+a\(b\)\2c	bC	ESUBREG
+a\(b\1\)c	bC	ESUBREG
+a\(b*\)c\1d	b	abbcbbd	abbcbbd	bb
+a\(b*\)c\1d	b	abbcbd
+a\(b*\)c\1d	b	abbcbbbd
+^\(.\)\1	b	abc
+a\([bc]\)\1d	b	abcdabbd	abbd	b
+a\(\([bc]\)\2\)*d	b	abbccd	abbccd
+a\(\([bc]\)\2\)*d	b	abbcbd
+# actually, this next one probably ought to fail, but the spec is unclear
+a\(\(b\)*\2\)*d		b	abbbd	abbbd
+# here is a case that no NFA implementation does right
+\(ab*\)[ab]*\1	b	ababaaa	ababaaa	a
+# check out normal matching in the presence of back refs
+\(a\)\1bcd	b	aabcd	aabcd
+\(a\)\1bc*d	b	aabcd	aabcd
+\(a\)\1bc*d	b	aabd	aabd
+\(a\)\1bc*d	b	aabcccd	aabcccd
+\(a\)\1bc*[ce]d	b	aabcccd	aabcccd
+^\(a\)\1b\(c\)*cd$	b	aabcccd	aabcccd
+\(b*\)\(a*\1\)*	b	ab	a
+\([^_]*\)\(_*\1\)*	b	foo_foo_bar_bar_bar_baz	foo_foo	foo,_foo
+\([^_]*\)\(_*\1\)*	b	bar_bar_bar_baz	bar_bar_bar	bar,_bar
+\([^_]*\)\(_*\1\)*	b	foo_bar_baz	foo	foo
+\(.*\)\1	b	""	""
+\(.*\)\1	b	a	""
+\(.*\)\1	b	aa	aa
+\(.*\)\1	b	aaa	aa
+\(.*\)\1	b	aaaa	aaaa
+\([^_]*\)\1	b	""	""
+\([^_]*\)\1	b	a	""
+\([^_]*\)\1	b	aa	aa
+\([^_]*\)\1	b	aaa	aa
+\([^_]*\)\1	b	aaaa	aaaa
+foo\(.*\)bar\1	b	foolbarl	foolbarl	l
+foo\(.*\)bar\1	b	foobar	foobar	""
+\(\(.\)b\)*\1	b	aba
+\(\(.\)b\)*\1	b	abba
+\(\(.\)b\)*\1	b	abbba
+\(\(.\)b\)*\1	b	abbbba	bbbb	bb,b
+\(\(.\)b\)*\1	b	abbbbba	abbbbb	bb,b
+\(\(.\)b\)*\1	b	abbbbbba	abbbbb	bb,b
+\(\(.\)b\)*\1	b	abbbbbbbbbbbbbba	abbbbbbbbbbbbb	bb,b
+\(\(.\)b\)*\1	b	abbbbbbbbbbbbbbba	abbbbbbbbbbbbbbb	bb,b
+
+# ordinary repetitions
+ab*c		&	abc	abc
+ab+c		-	abc	abc
+ab?c		-	abc	abc
+a\(*\)b		b	a*b	a*b
+a\(**\)b	b	ab	ab
+a\(***\)b	bC	BADRPT
+*a		b	*a	*a
+**a		b	a	a
+***a		bC	BADRPT
+
+# the dreaded bounded repetitions
+{		&	{	{
+{abc		&	{abc	{abc
+{1		C	BADRPT
+{1}		C	BADRPT
+a{b		&	a{b	a{b
+a{1}b		-	ab	ab
+a\{1\}b		b	ab	ab
+a{1,}b		-	ab	ab
+a\{1,\}b	b	ab	ab
+a{1,2}b		-	aab	aab
+a\{1,2\}b	b	aab	aab
+a{1		C	EBRACE
+a\{1		bC	EBRACE
+a{1a		C	EBRACE
+a\{1a		bC	EBRACE
+a{1a}		C	BADBR
+a\{1a\}		bC	BADBR
+a{,2}		-	a{,2}	a{,2}
+a\{,2\}		bC	BADBR
+a{,}		-	a{,}	a{,}
+a\{,\}		bC	BADBR
+a{1,x}		C	BADBR
+a\{1,x\}	bC	BADBR
+a{1,x		C	EBRACE
+a\{1,x		bC	EBRACE
+a{300}		C	BADBR
+a\{300\}	bC	BADBR
+a{1,0}		C	BADBR
+a\{1,0\}	bC	BADBR
+ab{0,0}c	-	abcac	ac
+ab\{0,0\}c	b	abcac	ac
+ab{0,1}c	-	abcac	abc
+ab\{0,1\}c	b	abcac	abc
+ab{0,3}c	-	abbcac	abbc
+ab\{0,3\}c	b	abbcac	abbc
+ab{1,1}c	-	acabc	abc
+ab\{1,1\}c	b	acabc	abc
+ab{1,3}c	-	acabc	abc
+ab\{1,3\}c	b	acabc	abc
+ab{2,2}c	-	abcabbc	abbc
+ab\{2,2\}c	b	abcabbc	abbc
+ab{2,4}c	-	abcabbc	abbc
+ab\{2,4\}c	b	abcabbc	abbc
+((a{1,10}){1,10}){1,10}	-	a	a	a,a
+((a{1,10}){1,10}){1,10}bb	-	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaabb	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaabb
+
+# multiple repetitions
+a**		&C	BADRPT
+a++		C	BADRPT
+a??		C	BADRPT
+a*+		C	BADRPT
+a*?		C	BADRPT
+a+*		C	BADRPT
+a+?		C	BADRPT
+a?*		C	BADRPT
+a?+		C	BADRPT
+a{1}{1}		C	BADRPT
+a*{1}		C	BADRPT
+a+{1}		C	BADRPT
+a?{1}		C	BADRPT
+a{1}*		C	BADRPT
+a{1}+		C	BADRPT
+a{1}?		C	BADRPT
+a*{b}		-	a{b}	a{b}
+a\{1\}\{1\}	bC	BADRPT
+a*\{1\}		bC	BADRPT
+a\{1\}*		bC	BADRPT
+
+# brackets, and numerous perversions thereof
+a[b]c		&	abc	abc
+a[ab]c		&	abc	abc
+a[^ab]c		&	adc	adc
+a[]b]c		&	a]c	a]c
+a[[b]c		&	a[c	a[c
+a[-b]c		&	a-c	a-c
+a[^]b]c		&	adc	adc
+a[^-b]c		&	adc	adc
+a[b-]c		&	a-c	a-c
+a[b		&C	EBRACK
+a[]		&C	EBRACK
+a[1-3]c		&	a2c	a2c
+a[3-1]c		&C	ERANGE
+a[1-3-5]c	&C	ERANGE
+a[[.-.]--]c	&	a-c	a-c
+a[1-		&C	ERANGE
+a[[.		&C	EBRACK
+a[[.x		&C	EBRACK
+a[[.x.		&C	EBRACK
+a[[.x.]		&C	EBRACK
+a[[.x.]]	&	ax	ax
+a[[.x,.]]	&C	ECOLLATE
+a[[.one.]]b	&	a1b	a1b
+a[[.notdef.]]b	&C	ECOLLATE
+a[[.].]]b	&	a]b	a]b
+a[[:alpha:]]c	&	abc	abc
+a[[:notdef:]]c	&C	ECTYPE
+a[[:		&C	EBRACK
+a[[:alpha	&C	EBRACK
+a[[:alpha:]	&C	EBRACK
+a[[:alpha,:]	&C	ECTYPE
+a[[:]:]]b	&C	ECTYPE
+a[[:-:]]b	&C	ECTYPE
+a[[:alph:]]	&C	ECTYPE
+a[[:alphabet:]]	&C	ECTYPE
+[[:alnum:]]+	-	-%@a0X-	a0X
+[[:alpha:]]+	-	-%@aX0-	aX
+[[:blank:]]+	-	aSSTb	SST
+[[:cntrl:]]+	-	aNTb	NT
+[[:digit:]]+	-	a019b	019
+[[:graph:]]+	-	Sa%bS	a%b
+[[:lower:]]+	-	AabC	ab
+[[:print:]]+	-	NaSbN	aSb
+[[:punct:]]+	-	S%-&T	%-&
+[[:space:]]+	-	aSNTb	SNT
+[[:upper:]]+	-	aBCd	BC
+[[:xdigit:]]+	-	p0f3Cq	0f3C
+a[[=b=]]c	&	abc	abc
+a[[=		&C	EBRACK
+a[[=b		&C	EBRACK
+a[[=b=		&C	EBRACK
+a[[=b=]		&C	EBRACK
+a[[=b,=]]	&C	ECOLLATE
+a[[=one=]]b	&	a1b	a1b
+
+# complexities
+a(((b)))c	-	abc	abc
+a(b|(c))d	-	abd	abd
+a(b*|c)d	-	abbd	abbd
+# just gotta have one DFA-buster, of course
+a[ab]{20}	-	aaaaabaaaabaaaabaaaab	aaaaabaaaabaaaabaaaab
+# and an inline expansion in case somebody gets tricky
+a[ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab]	-	aaaaabaaaabaaaabaaaab	aaaaabaaaabaaaabaaaab
+# and in case somebody just slips in an NFA...
+a[ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab](wee|week)(knights|night)	-	aaaaabaaaabaaaabaaaabweeknights	aaaaabaaaabaaaabaaaabweeknights
+# fish for anomalies as the number of states passes 32
+12345678901234567890123456789	-	a12345678901234567890123456789b	12345678901234567890123456789
+123456789012345678901234567890	-	a123456789012345678901234567890b	123456789012345678901234567890
+1234567890123456789012345678901	-	a1234567890123456789012345678901b	1234567890123456789012345678901
+12345678901234567890123456789012	-	a12345678901234567890123456789012b	12345678901234567890123456789012
+123456789012345678901234567890123	-	a123456789012345678901234567890123b	123456789012345678901234567890123
+# and one really big one, beyond any plausible word width
+1234567890123456789012345678901234567890123456789012345678901234567890	-	a1234567890123456789012345678901234567890123456789012345678901234567890b	1234567890123456789012345678901234567890123456789012345678901234567890
+# fish for problems as brackets go past 8
+[ab][cd][ef][gh][ij][kl][mn]	-	xacegikmoq	acegikm
+[ab][cd][ef][gh][ij][kl][mn][op]	-	xacegikmoq	acegikmo
+[ab][cd][ef][gh][ij][kl][mn][op][qr]	-	xacegikmoqy	acegikmoq
+[ab][cd][ef][gh][ij][kl][mn][op][q]	-	xacegikmoqy	acegikmoq
+
+# subtleties of matching
+abc		&	xabcy	abc
+a\(b\)?c\1d	b	acd
+aBc		i	Abc	Abc
+a[Bc]*d		i	abBCcd	abBCcd
+0[[:upper:]]1	&i	0a1	0a1
+0[[:lower:]]1	&i	0A1	0A1
+a[^b]c		&i	abc
+a[^b]c		&i	aBc
+a[^b]c		&i	adc	adc
+[a]b[c]		-	abc	abc
+[a]b[a]		-	aba	aba
+[abc]b[abc]	-	abc	abc
+[abc]b[abd]	-	abd	abd
+a(b?c)+d	-	accd	accd
+(wee|week)(knights|night)	-	weeknights	weeknights
+(we|wee|week|frob)(knights|night|day)	-	weeknights	weeknights
+a[bc]d		-	xyzaaabcaababdacd	abd
+a[ab]c		-	aaabc	abc
+abc		s	abc	abc
+
+# subexpressions
+a(b)(c)d	-	abcd	abcd	b,c
+a(((b)))c	-	abc	abc	b,b,b
+a(b|(c))d	-	abd	abd	b,-
+a(b*|c|e)d	-	abbd	abbd	bb
+a(b*|c|e)d	-	acd	acd	c
+a(b*|c|e)d	-	ad	ad	@d
+a(b?)c		-	abc	abc	b
+a(b?)c		-	ac	ac	@c
+a(b+)c		-	abc	abc	b
+a(b+)c		-	abbbc	abbbc	bbb
+a(b*)c		-	ac	ac	@c
+(a|ab)(bc([de]+)f|cde)	-	abcdef	abcdef	a,bcdef,de
+# the regression tester only asks for 9 subexpressions
+a(b)(c)(d)(e)(f)(g)(h)(i)(j)k	-	abcdefghijk	abcdefghijk	b,c,d,e,f,g,h,i,j
+a(b)(c)(d)(e)(f)(g)(h)(i)(j)(k)l	-	abcdefghijkl	abcdefghijkl	b,c,d,e,f,g,h,i,j,k
+a([bc]?)c	-	abc	abc	b
+a([bc]?)c	-	ac	ac	@c
+a([bc]+)c	-	abc	abc	b
+a([bc]+)c	-	abcc	abcc	bc
+a([bc]+)bc	-	abcbc	abcbc	bc
+a(bb+|b)b	-	abb	abb	b
+a(bbb+|bb+|b)b	-	abb	abb	b
+a(bbb+|bb+|b)b	-	abbb	abbb	bb
+a(bbb+|bb+|b)bb	-	abbb	abbb	b
+(.*).*		-	abcdef	abcdef	abcdef
+(a*)*		-	bc	@b	@b
+
+# do we get the right subexpression when it is used more than once?
+a(b|c)*d	-	ad	ad	-
+a(b|c)*d	-	abcd	abcd	c
+a(b|c)+d	-	abd	abd	b
+a(b|c)+d	-	abcd	abcd	c
+a(b|c?)+d	-	ad	ad	@d
+a(b|c?)+d	-	abcd	abcd	@d
+a(b|c){0,0}d	-	ad	ad	-
+a(b|c){0,1}d	-	ad	ad	-
+a(b|c){0,1}d	-	abd	abd	b
+a(b|c){0,2}d	-	ad	ad	-
+a(b|c){0,2}d	-	abcd	abcd	c
+a(b|c){0,}d	-	ad	ad	-
+a(b|c){0,}d	-	abcd	abcd	c
+a(b|c){1,1}d	-	abd	abd	b
+a(b|c){1,1}d	-	acd	acd	c
+a(b|c){1,2}d	-	abd	abd	b
+a(b|c){1,2}d	-	abcd	abcd	c
+a(b|c){1,}d	-	abd	abd	b
+a(b|c){1,}d	-	abcd	abcd	c
+a(b|c){2,2}d	-	acbd	acbd	b
+a(b|c){2,2}d	-	abcd	abcd	c
+a(b|c){2,4}d	-	abcd	abcd	c
+a(b|c){2,4}d	-	abcbd	abcbd	b
+a(b|c){2,4}d	-	abcbcd	abcbcd	c
+a(b|c){2,}d	-	abcd	abcd	c
+a(b|c){2,}d	-	abcbd	abcbd	b
+a(b+|((c)*))+d	-	abd	abd	@d,@d,-
+a(b+|((c)*))+d	-	abcd	abcd	@d,@d,-
+
+# check out the STARTEND option
+[abc]		&#	a(b)c	b
+[abc]		&#	a(d)c
+[abc]		&#	a(bc)d	b
+[abc]		&#	a(dc)d	c
+.		&#	a()c
+b.*c		&#	b(bc)c	bc
+b.*		&#	b(bc)c	bc
+.*c		&#	b(bc)c	bc
+
+# plain strings, with the NOSPEC flag
+abc		m	abc	abc
+abc		m	xabcy	abc
+abc		m	xyz
+a*b		m	aba*b	a*b
+a*b		m	ab
+""		mC	EMPTY
+
+# cases involving NULs
+aZb		&	a	a
+aZb		&p	a
+aZb		&p#	(aZb)	aZb
+aZ*b		&p#	(ab)	ab
+a.b		&#	(aZb)	aZb
+a.*		&#	(aZb)c	aZb
+
+# word boundaries (ick)
+[[:<:]]a	&	a	a
+[[:<:]]a	&	ba
+[[:<:]]a	&	-a	a
+a[[:>:]]	&	a	a
+a[[:>:]]	&	ab
+a[[:>:]]	&	a-	a
+[[:<:]]a.c[[:>:]]	&	axcd-dayc-dazce-abc	abc
+[[:<:]]a.c[[:>:]]	&	axcd-dayc-dazce-abc-q	abc
+[[:<:]]a.c[[:>:]]	&	axc-dayc-dazce-abc	axc
+
+# past problems
+(A[1])|(A[2])|(A[3])|(A[4])|(A[5])|(A[6])|(A[7])|(A[8])|(A[9])|(A[A])	-	A1	A1
+abcdefghijklmnop	i	abcdefghijklmnop	abcdefghijklmnop
+abcdefghijklmnopqrstuv	i	abcdefghijklmnopqrstuv	abcdefghijklmnopqrstuv
+(ALAK)|(ALT[AB])|(CC[123]1)|(CM[123]1)|(GAMC)|(LC[23][EO ])|(SEM[1234])|(SL[ES][12])|(SLWW)|(SLF )|(SLDT)|(VWH[12])|(WH[34][EW])|(WP1[ESN])	-	CC11	CC11
+CC[13]1|a{21}[23][EO][123][Es][12]a{15}aa[34][EW]aaaaaaa[X]a	-	CC11	CC11
+# PR 130504
+(.|())(b)	-	ab	ab
+(()|.)(b)	-	ab	ab

@@ -1,0 +1,26 @@
+# $FreeBSD$
+
+bad=0
+for i in 0 1 2 3; do
+	for j in 0 1 2 3 4 5 6 7; do
+		for k in 0 1 2 3 4 5 6 7; do
+			case $i$j$k in
+			000) continue ;;
+			esac
+			set -- "$(printf \\$i$j$k@)"
+			set -- "${1%@}"
+			ff=
+			for f in /dev/null /dev/zero /; do
+				if [ -e "$f" ] && [ ! -e "$f$1" ]; then
+					ff=$f
+				fi
+			done
+			[ -n "$ff" ] || continue
+			if { true <$ff$1; } 2>/dev/null; then
+				echo "Bad: $i$j$k ($ff)" >&2
+				: $((bad += 1))
+			fi
+		done
+	done
+done
+exit $((bad ? 2 : 0))

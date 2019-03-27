@@ -1,0 +1,100 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_getyx.3x,v 1.18 2010/12/04 18:36:44 tom Exp $
+.TH curs_getyx 3X ""
+.SH NAME
+\fBgetyx\fR,
+\fBgetparyx\fR,
+\fBgetbegyx\fR,
+\fBgetmaxyx\fR \- get \fBcurses\fR cursor and window coordinates
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBvoid getyx(WINDOW *win, int y, int x);\fR
+.br
+\fBvoid getparyx(WINDOW *win, int y, int x);\fR
+.br
+\fBvoid getbegyx(WINDOW *win, int y, int x);\fR
+.br
+\fBvoid getmaxyx(WINDOW *win, int y, int x);\fR
+.br
+.SH DESCRIPTION
+The \fBgetyx\fR macro places the current cursor position of the given window in
+the two integer variables \fIy\fR and \fIx\fR.
+.PP
+If \fIwin\fR is a subwindow, the \fBgetparyx\fR macro places the beginning
+coordinates of the subwindow relative to the parent window into two integer
+variables \fIy\fR and \fIx\fR.
+Otherwise, \fB\-1\fR is placed into \fIy\fR and \fIx\fR.
+.PP
+Like \fBgetyx\fR, the \fBgetbegyx\fR and \fBgetmaxyx\fR macros store
+the current beginning coordinates and size of the specified window.
+.SH RETURN VALUE
+The return values of these macros are undefined (i.e.,
+they should not be used as the right-hand side of assignment statements).
+.SH NOTES
+All of these interfaces are macros.
+A "\fB&\fR" is not necessary before the variables \fIy\fR and \fIx\fR.
+.SH PORTABILITY
+The
+\fBgetyx\fR,
+\fBgetparyx\fR,
+\fBgetbegyx\fR and
+\fBgetmaxyx\fR
+macros are described in the XSI Curses standard, Issue 4.
+.PP
+This implementation also provides functions
+\fBgetbegx\fR,
+\fBgetbegy\fR,
+\fBgetcurx\fR,
+\fBgetcury\fR,
+\fBgetmaxx\fR,
+\fBgetmaxy\fR,
+\fBgetparx\fR and
+\fBgetpary\fR
+for compatibility with older versions of curses.
+.PP
+Although X/Open Curses does not address this,
+many implementations provide members of the WINDOW structure
+containing values corresponding to these macros.
+For best portability, do not rely on using the data in WINDOW,
+since some implementations make WINDOW opaque (do not allow
+direct use of its members).
+.PP
+Besides the problem of opaque structures,
+the data stored in like-named members may not have like-values in
+different implementations.
+For example, the WINDOW._maxx and WINDOW._maxy values in ncurses
+have (at least since release 1.8.1) differed by one from some
+other implementations.
+The difference is hidden by means of the macro \fBgetmaxyx\fP.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_legacy\fR(3X),
+\fBcurs_opaque\fR(3X)

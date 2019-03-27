@@ -1,0 +1,4 @@
+.\" $FreeBSD$
+Set to build the
+.Dq "OpenFabrics Enterprise Distribution"
+Infiniband software stack.

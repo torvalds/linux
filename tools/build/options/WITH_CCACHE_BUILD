@@ -1,0 +1,39 @@
+.\" $FreeBSD$
+Set to use
+.Xr ccache 1
+for the build.
+No configuration is required except to install the
+.Sy devel/ccache
+package.
+When using with
+.Xr distcc 1 ,
+set
+.Sy CCACHE_PREFIX=/usr/local/bin/distcc .
+The default cache directory of
+.Pa $HOME/.ccache
+will be used, which can be overridden by setting
+.Sy CCACHE_DIR .
+The
+.Sy CCACHE_COMPILERCHECK
+option defaults to
+.Sy content
+when using the in-tree bootstrap compiler,
+and
+.Sy mtime
+when using an external compiler.
+The
+.Sy CCACHE_CPP2
+option is used for Clang but not GCC.
+.Pp
+Sharing a cache between multiple work directories requires using a layout
+similar to
+.Pa /some/prefix/src
+.Pa /some/prefix/obj
+and an environment such as:
+.Bd -literal -offset indent
+CCACHE_BASEDIR='${SRCTOP:H}' MAKEOBJDIRPREFIX='${SRCTOP:H}/obj'
+.Ed
+.Pp
+See
+.Xr ccache 1
+for more configuration options.

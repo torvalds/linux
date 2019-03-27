@@ -1,0 +1,218 @@
+.\"
+.\" Copyright (c) 2001-2002
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\"	All rights reserved.
+.\" Copyright (c) 2003-2004
+.\"	Hartmut Brandt.
+.\"	All rights reserved.
+.\"
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Begemot: libunimsg/snmp_atm/snmp_atm.3,v 1.2 2005/05/23 12:00:29 brandt_h Exp $
+.\"
+.Dd May 23, 2005
+.Dt SNMP_ATM 3
+.Os
+.Sh NAME
+.Nm atmif_event_f ,
+.Nm atm_find_if_name ,
+.Nm atm_find_if ,
+.Nm atm_notify_aif ,
+.Nm atm_unnotify_aif
+.Nd "ATM driver module for snmpd.
+.Sh LIBRARY
+.Pq begemotSnmpdModulePath."netgraph" = "@MODPATH@snmp_netgraph.so" (FreeBSD)
+.Pq begemotSnmpdModulePath."mibII" = "@MODPATH@snmp_mibII.so"
+.Pq begemotSnmpdModulePath."atm" = "@MODPATH@snmp_atm.so"
+.Sh SYNOPSIS
+.In bsnmp/snmpmod.h
+.In bsnmp/snmp_mibII.h
+.In bsnmp/snmp_atm.h
+.Ft typedef void
+.Fn (*atmif_event_f) "struct atmif *aif" "enum atmif_notify event" "uintptr_t data" "void *uarg"
+.Ft struct atmif *
+.Fn atm_find_if_name "const char *name"
+.Ft struct atmif *
+.Fn atm_find_if "u_int ifindex"
+.Ft void *
+.Fn atm_notify_aif "struct atmif *aif" "const struct lmodule *mod" "atmif_event_f func" "void *uarg"
+.Ft void
+.Fn atm_unnotify_aif "void *not"
+.Sh DESCRIPTION
+The
+.Nm snmp_atm
+module implements a number of tables and scalars that enable remote access to
+the ATM devices in the system. It also exports a number of
+functions, that allow other modules to easily access ATM devices.
+.Pp
+The module maintains an extension to the interface structure exported by
+.Xr snmp_mibII 3
+for all ATM devices. This structure has the following fields:
+.Bd -literal -offset indent
+struct atmif {
+	struct mibif	*ifp;		/* common interface data */
+	struct atmif_mib *mib;		/* ATM MIB */
+	enum atmif_carrier_state carrier;
+	enum atmif_suni_mode mode;	/* SUNI mode SDH or SONET */
+};
+.Ed
+.Pp
+The fields have the following meaning:
+.Bl -tag -width XXX
+.It Fa ifp
+The field points to the
+.Xr snmp_mibII 3
+interface structure.
+.It Fa mib
+The special ATM interface MIB (see below).
+.It Fa carrier
+The current state of the carrier. One of the following:
+.Bl -tag -width XXX
+.It Dv ATMIF_CARRIER_ON
+carrier detected,
+.It Dv ATMIF_CARRIER_OFF
+no carrier,
+.It Dv ATMIF_CARRIER_UNKNOWN
+the state of the carrier is unknown,
+.It Dv ATMIF_CARRIER_NONE
+the device has no notion of carrier or is not able to sense it.
+.El
+.It Fa mode
+For ATM devices with a SUNI chip this is the current mode of the interface:
+.Bl -tag -width XXX
+.It Dv ATMIF_SUNI_MODE_SONET
+The interface is in SONET mode.
+.It Dv ATMIF_SUNI_MODE_SDH
+The interface is in SDH mode.
+.It Dv ATMIF_SUNI_MODE_UNKNOWN
+The interface either has no SUNI interface or the mode is unknown (for example,
+interface is down).
+.El
+.El
+.Pp
+An ATM interface can be found by name or by SNMP interface index (see
+.Xr snmp_mibII 3
+for a discussion of interface indexes).
+The function
+.Fn atm_find_if_name
+searches an interface given a name.
+The function
+.Fn atm_find_if
+searches an interface by its interface index.
+Both functions return NULL if an interface cannot be found.
+.Pp
+The ATM MIB contains the following fields:
+.Bd -literal -offset indent
+struct atmif_mib {
+	u_int	version;	/* currently 0 */
+
+	u_int	device;		/* type of hardware (system specific) */
+	u_int	serial;		/* card serial number (device specific) */
+	u_int	hw_version;	/* card version (device specific) */
+	u_int	sw_version;	/* firmware version (device specific) */
+	u_int	media;		/* physical media (see MIB) */
+
+	u_char	esi[6];		/* end system identifier (MAC) */
+	u_int	pcr;		/* supported peak cell rate */
+	u_int	vpi_bits;	/* number of used bits in VPI field */
+	u_int	vci_bits;	/* number of used bits in VCI field */
+	u_int	max_vpcs;	/* maximum number of VPCs */
+	u_int	max_vccs;	/* maximum number of VCCs */
+};
+.Ed
+.Ss NOTIFICATIONS
+An other module can register with
+.Nm
+to receive notifications when certain events happen on the ATM interface.
+The registration is done with
+.Fn atm_notify_aif
+which takes a pointer to the interface, the calling module pointer, a callback
+function and a user argument that is passed to the callback function.
+The callback function is called with the interface pointer, a notification
+code, a notification argument and the user argument. The following
+notifications are defined:
+.Bl -tag -width XXX
+.It Dv ATMIF_NOTIFY_DESTROY
+The interface is destroyed. The notification argument is not used.
+.It Dv ATMIF_NOTIFY_CARRIER
+The carrier state on the interface has changed. The argument is the
+.Em old
+state of the carrier. The new state can be obtained from the interface
+structure.
+.It Dv ATMIF_NOTIFY_VCC
+A permanent VCC has been created or destroyed. The argument is an u_int that
+can be decoded as follows:
+.Bd -literal -offset indent
+vpi = (arg >> 24) & 0xff;
+vci = (arg >>  8) & 0xffff;
+state = arg & 1;
+.Ed
+.Pp
+.Va state
+is 0 if the VCC was destroyed and 1 if it was created.
+.El
+The registration for notification can be undone by passing the return
+value from
+.Fn atm_notify_aif
+to
+.Fn atm_unnotify_aif .
+The registrations is automatically removed if the interface is destroyed.
+.Ss MIB
+The MIB implemented by the module is defined in
+.Pa BEGEMOT-ATM.txt .
+In the generic part there are two tables and one scalar, there is also
+a system specific group:
+.Bl -tag -width XXX
+.It Va begemotAtmIfTable
+This table is an extension of
+.Va ifTable .
+It contains a row for each ATM interface and is index with
+.Va ifIndex .
+All fields are read-only except the
+.Va begemotAtmIfMode
+column.
+.It Va begemotAtmIfTableLastChange
+Contains the tick when a row was created or destroyed in the above table or
+0, if the table did not change since start of the SNMP agent.
+.It Va begemotAtmHWTable
+Is also indexed by
+.Va ifIndex
+and contains hardware specific information. This table is read-only.
+.El
+.Sh FILES
+.Bl -tag -width "XXXXXXXXX"
+.It Pa @DEFPATH@atm_tree.def
+The description of the MIB tree implemented by
+.Nm .
+.It Pa @MIBSPATH@BEGEMOT-ATM.txt
+This is the MIB that is implemented by this module.
+.El
+.Sh SEE ALSO
+.Xr bsnmpd 1 ,
+.Xr gensnmptree 1 ,
+.Xr snmp_mibII 3 ,
+.Xr snmpmod 3 ,
+.Xr snmp_netgraph 3
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@FreeBSD.org

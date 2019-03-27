@@ -1,0 +1,64 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_set_allocator
+.Nd set allocation functions for libxo
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Sy typedef void *(*xo_realloc_func_t)(void *, size_t);
+.Pp
+.Sy typedef void (*xo_free_func_t)(void *);
+.Ft void
+.Fn xo_set_allocator "xo_realloc_func_t realloc_func" "xo_free_func_t free_func"
+.Sh DESCRIPTION
+The
+.Fn xo_set_allocator
+function allows
+.Nm libxo
+to be used in environments
+where the standard
+.Xr realloc 3
+and
+.Xr free 3
+functions are not available.
+.Pp
+.Fa realloc_func
+should expect the same arguments as
+.Xr realloc 3
+and return
+a pointer to memory following the same convention.
+.Fa free_func
+will receive the same argument as
+.Xr free 3
+and should release it, as appropriate for the environment.
+.Pp
+By default, the standard
+.Xr realloc 3
+and
+.Xr free 3
+functions are used.
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

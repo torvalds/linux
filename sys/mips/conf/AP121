@@ -1,0 +1,53 @@
+#
+# AP121 - the AP121 reference board from Qualcomm Atheros includes:
+#
+# * AR9330 SoC
+# * 16MB RAM
+# * 4MB flash
+# * Integrated 1x1 2GHz wifi and 10/100 bridge
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+# Include the default AR933x parameters
+include         "std.AR933X"
+
+ident           AP121
+
+# Override hints with board values
+hints           "AP121.hints"
+
+# Force the board memory - the base AP121 only has 16MB RAM
+options         AR71XX_REALMEM=(16*1024*1024)
+
+# i2c GPIO bus
+#device		gpioiic
+#device		iicbb
+#device		iicbus
+#device		iic
+
+# Options required for miiproxy and mdiobus
+options 	ARGE_MDIO	# Export an MDIO bus separate from arge
+device		miiproxy	# MDIO bus <-> MII PHY rendezvous
+
+device		etherswitch
+device		arswitch
+
+# read MSDOS formatted disks - USB
+#options 	MSDOSFS
+
+# Enable the uboot environment stuff rather then the
+# redboot stuff.
+options 	AR71XX_ENV_UBOOT
+
+# uzip - to boot natively from flash
+device		xz
+options 	GEOM_UZIP
+
+# Used for the static uboot partition map
+device          geom_map
+
+# Boot off of the rootfs, as defined in the geom_map setup.
+options 	ROOTDEVNAME=\"ufs:map/rootfs.uzip\"

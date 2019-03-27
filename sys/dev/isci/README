@@ -1,0 +1,14 @@
+FreeBSD Driver for Intel(R) C600 SAS Controller
+===============================================
+
+This driver has been developed for use with FreeBSD, version 9.0 and later.
+
+This driver uses an OS-agnostic abstraction layer library named SCIL that is
+published by Intel specifically for the C600 SAS controller.  The SAS
+controller has no firmware, so the driver is extensive and using SCIL
+minimizes the development and maintenance cost of the driver.
+
+The FreeBSD implementation files are in the isci directory, and SCIL files
+are in the isci/scil subdirectory.  As Intel publishes new versions of SCIL
+(to add features or fix bugs), the isci/scil subdirectory will be updated
+appropriately.

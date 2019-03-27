@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+# Not specified by POSIX.
+
+a=`echo -e '\a\b\e\f\n\r\t\v\\\\\0041\c'; echo .`
+b=`printf '\a\b\033\f\n\r\t\v\\\\!.'`
+[ "$a" = "$b" ]

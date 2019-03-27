@@ -1,0 +1,72 @@
+.\" Generated from openpam_nullconv.c by gendoc.pl
+.\" $OpenPAM: openpam_nullconv.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt OPENPAM_NULLCONV 3
+.Os
+.Sh NAME
+.Nm openpam_nullconv
+.Nd null conversation function
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.In security/openpam.h
+.Ft "int"
+.Fn openpam_nullconv "int n" "const struct pam_message **msg" "struct pam_response **resp" "void *data"
+.Sh DESCRIPTION
+The
+.Fn openpam_nullconv
+function is a null conversation function suitable
+for applications that want to use PAM but don't support interactive
+dialog with the user.
+Such applications should set
+.Dv PAM_AUTHTOK
+to whatever authentication
+token they've obtained on their own before calling
+.Xr pam_authenticate 3
+and / or
+.Xr pam_chauthtok 3 ,
+and their PAM configuration should specify the
+.Dv use_first_pass
+option for all modules that require access to the
+authentication token, to make sure they use
+.Dv PAM_AUTHTOK
+rather than
+try to query the user.
+.Pp
+.Sh RETURN VALUES
+The
+.Fn openpam_nullconv
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.El
+.Sh SEE ALSO
+.Xr openpam_ttyconv 3 ,
+.Xr pam 3 ,
+.Xr pam_authenticate 3 ,
+.Xr pam_chauthtok 3 ,
+.Xr pam_prompt 3 ,
+.Xr pam_set_item 3 ,
+.Xr pam_strerror 3 ,
+.Xr pam_vprompt 3
+.Sh STANDARDS
+The
+.Fn openpam_nullconv
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn openpam_nullconv
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

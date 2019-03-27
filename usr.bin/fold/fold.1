@@ -1,0 +1,117 @@
+.\" Copyright (c) 1980, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)fold.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd June 6, 2015
+.Dt FOLD 1
+.Os
+.Sh NAME
+.Nm fold
+.Nd "fold long lines for finite width output device"
+.Sh SYNOPSIS
+.Nm
+.Op Fl bs
+.Op Fl w Ar width
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility is a filter which folds the contents of the specified files,
+or the standard input if no files are specified,
+breaking the lines to have a maximum of 80 columns.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl b
+Count
+.Ar width
+in bytes rather than column positions.
+.It Fl s
+Fold line after the last blank character within the first
+.Ar width
+column positions (or bytes).
+.It Fl w Ar width
+Specify a line width to use instead of the default 80 columns.
+The
+.Ar width
+value
+should be a multiple of 8 if tabs are present, or the tabs should
+be expanded using
+.Xr expand 1
+before using
+.Nm .
+.El
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Sh SEE ALSO
+.Xr expand 1 ,
+.Xr fmt 1
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 1 .
+It was rewritten for
+.Bx 4.3 Reno
+to improve speed and modernize style.
+The
+.Fl b
+and
+.Fl s
+options were added to
+.Nx 1.0
+for
+.St -p1003.2
+compliance.
+.Sh AUTHORS
+.An -nosplit
+.An Bill Joy
+wrote the original version of
+.Nm
+on June 28, 1977.
+.An Kevin Ruddy
+rewrote the command in 1990, and
+.An J. T. Conklin
+added the missing options in 1993.
+.Sh BUGS
+If underlining (see
+.Xr ul 1 )
+is present it may be messed up by folding.

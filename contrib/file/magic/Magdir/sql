@@ -1,0 +1,141 @@
+
+#------------------------------------------------------------------------------
+# $File: sql,v 1.21 2017/03/17 21:35:28 christos Exp $
+# sql:  file(1) magic for SQL files
+#
+# From: "Marty Leisner" <mleisner@eng.mc.xerox.com>
+# Recognize some MySQL files.
+# Elan Ruusamae <glen@delfi.ee>, added MariaDB signatures
+# from https://bazaar.launchpad.net/~maria-captains/maria/5.5/view/head:/support-files/magic
+#
+0	beshort			0xfe01		MySQL table definition file
+>2	byte			x		Version %d
+>3	byte			0		\b, type UNKNOWN
+>3	byte			1		\b, type DIAM_ISAM
+>3	byte			2		\b, type HASH
+>3	byte			3		\b, type MISAM
+>3	byte			4		\b, type PISAM
+>3	byte			5		\b, type RMS_ISAM
+>3	byte			6		\b, type HEAP
+>3	byte			7		\b, type ISAM
+>3	byte			8		\b, type MRG_ISAM
+>3	byte			9		\b, type MYISAM
+>3	byte			10		\b, type MRG_MYISAM
+>3	byte			11		\b, type BERKELEY_DB
+>3	byte			12		\b, type INNODB
+>3	byte			13		\b, type GEMINI
+>3	byte			14		\b, type NDBCLUSTER
+>3	byte			15		\b, type EXAMPLE_DB
+>3	byte			16		\b, type CSV_DB
+>3	byte			17		\b, type FEDERATED_DB
+>3	byte			18		\b, type BLACKHOLE_DB
+>3	byte			19		\b, type PARTITION_DB
+>3	byte			20		\b, type BINLOG
+>3	byte			21		\b, type SOLID
+>3	byte			22		\b, type PBXT
+>3	byte			23		\b, type TABLE_FUNCTION
+>3	byte			24		\b, type MEMCACHE
+>3	byte			25		\b, type FALCON
+>3	byte			26		\b, type MARIA
+>3	byte			27		\b, type PERFORMANCE_SCHEMA
+>3	byte			127		\b, type DEFAULT
+>0x0033	ulong			x		\b, MySQL version %d
+0	belong&0xffffff00	0xfefe0500	MySQL ISAM index file
+>3	byte			x		Version %d
+0	belong&0xffffff00	0xfefe0600	MySQL ISAM compressed data file
+>3	byte			x		Version %d
+0	belong&0xffffff00	0xfefe0700	MySQL MyISAM index file
+>3	byte			x		Version %d
+>14	beshort			x		\b, %d key parts
+>16	beshort			x		\b, %d unique key parts
+>18	byte			x		\b, %d keys
+>28	bequad			x		\b, %lld records
+>36	bequad			x		\b, %lld deleted records
+0	belong&0xffffff00	0xfefe0800	MySQL MyISAM compressed data file
+>3	byte			x		Version %d
+0	belong&0xffffff00	0xfefe0900	MySQL Maria index file
+>3	byte			x		Version %d
+0	belong&0xffffff00	0xfefe0a00	MySQL Maria compressed data file
+>3	byte			x		Version %d
+0	belong&0xffffff00	0xfefe0c00
+>4	string			MACF		MySQL Maria control file
+>>3	byte			x		Version %d
+0	string			\376bin	MySQL replication log,
+>9	long			x		server id %d
+>8	byte			1
+>>13	long			69		\b, MySQL V3.2.3
+>>>19	string			x		\b, server version %s
+>>13	long			75		\b, MySQL V4.0.2-V4.1
+>>>25	string			x		\b, server version %s
+>8	byte			15		MySQL V5+,
+>>25	string			x		server version %s
+>4	string			MARIALOG	MySQL Maria transaction log file
+>>3	byte			x		Version %d
+
+#------------------------------------------------------------------------------
+# iRiver H Series database file
+# From Ken Guest <ken@linux.ie>
+# As observed from iRivNavi.iDB and unencoded firmware
+#
+0   string		iRivDB	iRiver Database file
+>11  string	>\0	Version %s
+>39  string		iHP-100	[H Series]
+
+#------------------------------------------------------------------------------
+# SQLite database files
+# Ken Guest <ken@linux.ie>, Ty Sarna, Zack Weinberg
+#
+# Version 1 used GDBM internally; its files cannot be distinguished
+# from other GDBM files.
+#
+# Version 2 used this format:
+0	string	**\ This\ file\ contains\ an\ SQLite  SQLite 2.x database
+
+# Version 3 of SQLite allows applications to embed their own "user version"
+# number in the database at offset 60.  Later, SQLite added an "application id"
+# at offset 68 that is preferred over "user version" for indicating the
+# associated application.
+#
+0   string  SQLite\ format\ 3	SQLite 3.x database
+!:mime	application/x-sqlite3
+# seldom found extension sqlite3 like in SyncData.sqlite3
+# db
+# Avira Antivir use extension "dbe" like in avevtdb.dbe, avguard_tchk.dbe
+# Unfortunately extension sqlite also used for other databases starting with string
+# "TTCONTAINER" like in tracks.sqlite contentconsumer.sqlite contentproducerrepository.sqlite
+# and with string "ZV-zlib" in like extra.sqlite
+!:ext sqlite/sqlite3/db/dbe
+>60 belong  =0x5f4d544e  (Monotone source repository)
+>68 belong  =0x0f055112  (Fossil checkout)
+>68 belong  =0x0f055113  (Fossil global configuration)
+>68 belong  =0x0f055111  (Fossil repository)
+>68 belong  =0x42654462  (Bentley Systems BeSQLite Database)
+>68 belong  =0x42654c6e  (Bentley Systems Localization File)
+>68 belong  =0x47504b47  (OGC GeoPackage file)
+>68 default x
+>>68 belong  !0          \b, application id %u
+>>60 belong  !0          \b, user version %d
+>96 belong  x            \b, last written using SQLite version %d
+
+
+# SQLite Write-Ahead Log from SQLite version >= 3.7.0
+# http://www.sqlite.org/fileformat.html#walformat
+0	belong&0xfffffffe	0x377f0682	SQLite Write-Ahead Log,
+!:ext sqlite-wal/db-wal
+>4	belong	x	version %d
+
+# SQLite Rollback Journal
+# http://www.sqlite.org/fileformat.html#rollbackjournal
+0	string	\xd9\xd5\x05\xf9\x20\xa1\x63\xd7	SQLite Rollback Journal
+
+# Panasonic channel list database svl.bin or svl.db added by Joerg Jenderek
+# https://github.com/PredatH0r/ChanSort
+0	string		PSDB\0			Panasonic channel list DataBase
+!:ext db/bin
+#!:mime	application/x-db-svl-panasonic
+>126	string		SQLite\ format\ 3
+#!:mime	application/x-panasonic-sqlite3
+>>&-15	indirect	x			\b; contains
+
+# H2 Database from http://www.h2database.com/
+0	string		--\ H2\ 0.5/B\ --\ \n	H2 Database file

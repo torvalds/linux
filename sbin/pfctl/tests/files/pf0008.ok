@@ -1,0 +1,3 @@
+extern = "{ ! 10.0.0.0/8, 10.1.2.3 }"
+block drop out log on tun1000001 inet from ! 10.0.0.0/8 to any
+block drop out log on tun1000001 inet from 10.1.2.3 to any

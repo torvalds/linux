@@ -1,0 +1,55 @@
+# $FreeBSD$
+
+e= q='?' a='*' t=texttext s='ast*que?non' p='/et[c]/' w='a b c' b='{{(#)}}'
+h='##'
+failures=''
+ok=''
+
+testcase() {
+	code="$1"
+	expected="$2"
+	oIFS="$IFS"
+	eval "$code"
+	IFS='|'
+	result="$#|$*"
+	IFS="$oIFS"
+	if [ "x$result" = "x$expected" ]; then
+		ok=x$ok
+	else
+		failures=x$failures
+		echo "For $code, expected $expected actual $result"
+	fi
+}
+
+set -f
+testcase 'set -- $s'				'1|ast*que?non'
+testcase 'set -- ${s%\?*}'			'1|ast*que'
+testcase 'set -- "${s%\?*}"'			'1|ast*que'
+testcase 'set -- ${s%\**}'			'1|ast'
+testcase 'set -- "${s%\**}"'			'1|ast'
+testcase 'set -- ${s%"$q"*}'			'1|ast*que'
+testcase 'set -- "${s%"$q"*}"'			'1|ast*que'
+testcase 'set -- ${s%"$a"*}'			'1|ast'
+testcase 'set -- "${s%"$a"*}"'			'1|ast'
+testcase 'set -- ${s%"$q"$a}'			'1|ast*que'
+testcase 'set -- "${s%"$q"$a}"'			'1|ast*que'
+testcase 'set -- ${s%"$a"$a}'			'1|ast'
+testcase 'set -- "${s%"$a"$a}"'			'1|ast'
+set +f
+
+testcase 'set -- "${b%\}}"'			'1|{{(#)}'
+# Parentheses are special in ksh, check that they can be escaped
+testcase 'set -- "${b%\)*}"'			'1|{{(#'
+testcase 'set -- "${h#\#}"'			'1|#'
+
+testcase 'set -- ${p%"${p#?}"}'			'1|/'
+testcase 'set -- ${p%"${p#??????}"}'		'1|/etc'
+testcase 'set -- ${p%"${p#???????}"}'		'1|/etc/'
+testcase 'set -- "${p%"${p#?}"}"'		'1|/'
+testcase 'set -- "${p%"${p#??????}"}"'		'1|/et[c]'
+testcase 'set -- "${p%"${p#???????}"}"'		'1|/et[c]/'
+testcase 'set -- ${p#"${p}"}'			'0|'
+testcase 'set -- "${p#"${p}"}"'			'1|'
+testcase 'set -- "${p#*\[}"'			'1|c]/'
+
+test "x$failures" = x

@@ -1,0 +1,60 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ipsec
+# REQUIRE: FILESYSTEMS
+# BEFORE:  DAEMON mountcritremote
+# KEYWORD: nojailvnet
+
+. /etc/rc.subr
+
+name="ipsec"
+desc="Internet Protocol Security protocol"
+rcvar="ipsec_enable"
+start_precmd="ipsec_prestart"
+start_cmd="ipsec_start"
+stop_precmd="test -f $ipsec_file"
+stop_cmd="ipsec_stop"
+reload_cmd="ipsec_reload"
+extra_commands="reload"
+ipsec_program="/sbin/setkey"
+# ipsec_file is set by rc.conf
+
+ipsec_prestart()
+{
+	if [ ! -f "$ipsec_file" ]; then
+		warn "$ipsec_file not readable; ipsec start aborted."
+		stop_boot
+		return 1
+	fi
+	return 0
+}
+
+ipsec_start()
+{
+	echo "Installing ipsec manual keys/policies."
+	${ipsec_program} -f $ipsec_file
+}
+
+ipsec_stop()
+{
+	echo "Clearing ipsec manual keys/policies."
+
+	# Still not 100% sure if we would like to do this.
+	# It is very questionable to do this during shutdown session
+	# since it can hang any of the remaining IPv4/v6 sessions.
+	#
+	${ipsec_program} -F
+	${ipsec_program} -FP
+}
+
+ipsec_reload()
+{
+	echo "Reloading ipsec manual keys/policies."
+	${ipsec_program} -f "$ipsec_file"
+}
+
+load_rc_config $name
+run_rc_command "$1"

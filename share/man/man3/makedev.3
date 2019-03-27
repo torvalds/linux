@@ -1,0 +1,102 @@
+.\" Copyright (c) 2008 Ed Schouten <ed@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 3, 2017
+.Dt MAKEDEV 3
+.Os
+.Sh NAME
+.Nm makedev ,
+.Nm major ,
+.Nm minor
+.Nd device number conversion
+.Sh SYNOPSIS
+.In sys/types.h
+.Ft dev_t
+.Fn makedev "int major" "int minor"
+.Ft int
+.Fn major "dev_t dev"
+.Ft int
+.Fn minor "dev_t dev"
+.Sh DESCRIPTION
+The
+.Fn makedev
+macro returns a device number created from the provided
+.Fa major
+and
+.Fa minor
+number.
+The
+.Fn major
+and
+.Fn minor
+macros return the original numbers from the device number
+.Fa dev .
+In other words, for a value
+.Va dev
+of the type
+.Vt dev_t ,
+and values
+.Va ma , mi
+of the type
+.Vt int ,
+the assertions
+.Dl dev == makedev(major(dev), minor(dev))
+.Dl ma == major(makedev(ma, mi))
+.Dl mi == minor(makedev(ma, mi))
+are valid.
+.Pp
+In previous implementations of
+.Fx
+all block and character devices were uniquely identified by a pair of
+stable major and minor numbers.
+The major number referred to a certain device class (e.g. disks, TTYs)
+while the minor number identified an instance within the device class.
+Later versions of
+.Fx
+automatically generate a unique device number for each character device
+visible in
+.Pa /dev/ .
+These numbers are not divided in device classes and are not guaranteed
+to be stable upon reboot or driver reload.
+.Pp
+On
+.Fx
+these macros are only used by utilities that need to exchange numbers
+with other operating systems that may use different encodings for
+.Vt dev_t ,
+but also applications that present these numbers to the user in a more
+conventional way.
+.Sh RETURN VALUES
+The
+.Fn major
+and
+.Fn minor
+macros return numbers whose value can span the complete range of an
+.Vt int .
+.Sh SEE ALSO
+.Xr mknod 2 ,
+.Xr devname 3 ,
+.Xr devfs 5

@@ -1,0 +1,198 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: term.7,v 1.23 2011/12/17 23:32:17 tom Exp $
+.TH term 7
+.ds n 5
+.ds d @TERMINFO@
+.SH NAME
+term \- conventions for naming terminal types
+.SH DESCRIPTION
+.PP
+The environment variable \fBTERM\fR should normally contain the type name of
+the terminal, console or display-device type you are using.  This information
+is critical for all screen-oriented programs, including your editor and mailer.
+.PP
+A default \fBTERM\fR value will be set on a per-line basis by either
+\fB/etc/inittab\fR (e.g., System\-V-like UNIXes)
+or \fB/etc/ttys\fR (BSD UNIXes).
+This will nearly always suffice for workstation and microcomputer consoles.
+.PP
+If you use a dialup line, the type of device attached to it may vary.  Older
+UNIX systems pre-set a very dumb terminal type like `dumb' or `dialup' on
+dialup lines.  Newer ones may pre-set `vt100', reflecting the prevalence of DEC
+VT100-compatible terminals and personal-computer emulators.
+.PP
+Modern telnets pass your \fBTERM\fR environment variable from the local side to
+the remote one.  There can be problems if the remote terminfo or termcap entry
+for your type is not compatible with yours, but this situation is rare and
+can almost always be avoided by explicitly exporting `vt100' (assuming you
+are in fact using a VT100-superset console, terminal, or terminal emulator.)
+.PP
+In any case, you are free to override the system \fBTERM\fR setting to your
+taste in your shell profile.  The \fB@TSET@\fP(1) utility may be of assistance;
+you can give it a set of rules for deducing or requesting a terminal type based
+on the tty device and baud rate.
+.PP
+Setting your own \fBTERM\fR value may also be useful if you have created a
+custom entry incorporating options (such as visual bell or reverse-video)
+which you wish to override the system default type for your line.
+.PP
+Terminal type descriptions are stored as files of capability data underneath
+\*d.  To browse a list of all terminal names recognized by the system, do
+.sp
+	@TOE@ | more
+.sp
+from your shell.  These capability files are in a binary format optimized for
+retrieval speed (unlike the old text-based \fBtermcap\fR format they replace);
+to examine an entry, you must use the \fB@INFOCMP@\fR(1M) command.
+Invoke it as follows:
+.sp
+	@INFOCMP@ \fIentry_name\fR
+.sp
+where \fIentry_name\fR is the name of the type you wish to examine (and the
+name of its capability file the subdirectory of \*d named for its first
+letter).  This command dumps a capability file in the text format described by
+\fBterminfo\fR(\*n).
+.PP
+The first line of a \fBterminfo\fR(\*n) description gives the names by which
+terminfo knows a terminal, separated by `|' (pipe-bar) characters with the last
+name field terminated by a comma.  The first name field is the type's
+\fIprimary name\fR, and is the one to use when setting \fBTERM\fR.  The last
+name field (if distinct from the first) is actually a description of the
+terminal type (it may contain blanks; the others must be single words).  Name
+fields between the first and last (if present) are aliases for the terminal,
+usually historical names retained for compatibility.
+.PP
+There are some conventions for how to choose terminal primary names that help
+keep them informative and unique.  Here is a step-by-step guide to naming
+terminals that also explains how to parse them:
+.PP
+First, choose a root name.  The root will consist of a lower-case letter
+followed by up to seven lower-case letters or digits.  You need to avoid using
+punctuation characters in root names, because they are used and interpreted as
+filenames and shell meta-characters (such as !, $, *, ?, etc.) embedded in them
+may cause odd and unhelpful behavior.  The slash (/), or any other character
+that may be interpreted by anyone's file system (\e, $, [, ]), is especially
+dangerous (terminfo is platform-independent, and choosing names with special
+characters could someday make life difficult for users of a future port).  The
+dot (.) character is relatively safe as long as there is at most one per root
+name; some historical terminfo names use it.
+.PP
+The root name for a terminal or workstation console type should almost always
+begin with a vendor prefix (such as \fBhp\fR for Hewlett-Packard, \fBwy\fR for
+Wyse, or \fBatt\fR for AT&T terminals), or a common name of the terminal line
+(\fBvt\fR for the VT series of terminals from DEC, or \fBsun\fR for Sun
+Microsystems workstation consoles, or \fBregent\fR for the ADDS Regent series.
+You can list the terminfo tree to see what prefixes are already in common use.
+The root name prefix should be followed when appropriate by a model number;
+thus \fBvt100\fR, \fBhp2621\fR, \fBwy50\fR.
+.PP
+The root name for a PC-Unix console type should be the OS name,
+i.e., \fBlinux\fR, \fBbsdos\fR, \fBfreebsd\fR, \fBnetbsd\fR.  It should
+\fInot\fR be \fBconsole\fR or any other generic that might cause confusion in a
+multi-platform environment!  If a model number follows, it should indicate
+either the OS release level or the console driver release level.
+.PP
+The root name for a terminal emulator (assuming it does not fit one of the
+standard ANSI or vt100 types) should be the program name or a readily
+recognizable abbreviation of it (i.e., \fBversaterm\fR, \fBctrm\fR).
+.PP
+Following the root name, you may add any reasonable number of hyphen-separated
+feature suffixes.
+.TP 5
+2p
+Has two pages of memory.  Likewise 4p, 8p, etc.
+.TP 5
+mc
+Magic-cookie.  Some terminals (notably older Wyses) can only support one
+attribute without magic-cookie lossage.  Their base entry is usually paired
+with another that has this suffix and uses magic cookies to support multiple
+attributes.
+.TP 5
+\-am
+Enable auto-margin (right-margin wraparound).
+.TP 5
+\-m
+Mono mode \- suppress color support.
+.TP 5
+\-na
+No arrow keys \- termcap ignores arrow keys which are actually there on the
+terminal, so the user can use the arrow keys locally.
+.TP 5
+\-nam
+No auto-margin \- suppress am capability.
+.TP 5
+\-nl
+No labels \- suppress soft labels.
+.TP 5
+\-nsl
+No status line \- suppress status line.
+.TP 5
+\-pp
+Has a printer port which is used.
+.TP 5
+\-rv
+Terminal in reverse video mode (black on white).
+.TP 5
+\-s
+Enable status line.
+.TP 5
+\-vb
+Use visible bell (flash) rather than beep.
+.TP 5
+\-w
+Wide; terminal is in 132 column mode.
+.PP
+Conventionally, if your terminal type is a variant intended to specify a
+line height, that suffix should go first.  So, for a hypothetical FuBarCo
+model 2317 terminal in 30-line mode with reverse video, best form would be
+\fBfubar\-30\-rv\fR (rather than, say, `fubar\-rv\-30').
+.PP
+Terminal types that are written not as standalone entries, but rather as
+components to be plugged into other entries via \fBuse\fP capabilities,
+are distinguished by using embedded plus signs rather than dashes.
+.PP
+Commands which use a terminal type to control display often accept a \-T
+option that accepts a terminal name argument.  Such programs should fall back
+on the \fBTERM\fR environment variable when no \-T option is specified.
+.SH PORTABILITY
+For maximum compatibility with older System V UNIXes, names and aliases
+should be unique within the first 14 characters.
+.SH FILES
+.TP 5
+\*d/?/*
+compiled terminal capability data base
+.TP 5
+/etc/inittab
+tty line initialization (AT&T-like UNIXes)
+.TP 5
+/etc/ttys
+tty line initialization (BSD-like UNIXes)
+.SH SEE ALSO
+\fBcurses\fR(3X), \fBterminfo\fR(\*n), \fBterm\fR(\*n).

@@ -1,0 +1,21 @@
+# $FreeBSD$
+
+failures=0
+unset LC_ALL
+export LC_CTYPE=en_US.ISO8859-1
+i=128
+set -f
+while [ "$i" -le 255 ]; do
+	i2=$((i^2))
+	c=$(printf \\"$(printf %o "$i")")
+	c2=$(printf \\"$(printf %o "$i2")")
+	IFS=$c
+	set -- $c2$c$c2$c$c2
+	if [ "$#" -ne 3 ] || [ "$1" != "$c2" ] || [ "$2" != "$c2" ] ||
+	    [ "$3" != "$c2" ]; then
+		echo "Bad results for separator $i (word $i2)" >&2
+		: $((failures += 1))
+	fi
+	i=$((i+1))
+done
+exit $((failures > 0))

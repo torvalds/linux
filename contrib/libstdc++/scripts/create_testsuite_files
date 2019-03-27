@@ -1,0 +1,54 @@
+#!/bin/sh
+
+# Constructs lists of source files (full pathnames) to test.  Two
+# files are constructed: testsuite_files, which is used to test with
+# the default dg-runtest command, and testsuite_files_interactive,
+# which is used to test cases that require input to be entered. In
+# addition, both lists are pruned of wchar_t tests if the toolchain
+# under test does not support wchar_t functionality.
+#
+# We mimic the mkcheck script in that the first time this is run, all
+# existing files are listed in "testsuite_files" in the output
+# directory.  Subsequent runs pull the list from that file, allowing
+# users to trim the list down to problematic tests, or just run
+# paticular directories or sub-directories of tests.
+#
+# Selecting individual tests can also be done with RUNTESTFLAGS, but
+# that doesn't really do all that we are trying to accomplish here.
+
+LC_ALL=C
+export LC_ALL
+
+# Both of these are in the appropriate testsuite subdirectories.
+srcdir="$1"
+outdir="$2"
+
+tmp="${TMPDIR:-/tmp}/ctt$$"
+tests_file_normal="$outdir/testsuite_files"
+tests_file_inter="$outdir/testsuite_files_interactive"
+tests_file_perf="$outdir/testsuite_files_performance"
+
+cd $srcdir
+# This is the ugly version of "everything but the current directory".  It's
+# what has to happen when find(1) doesn't support -mindepth, or -xtype.
+dlist=`echo [0-9][0-9]*`
+dlist="$dlist abi backward ext performance thread tr1"
+find $dlist "(" -type f -o -type l ")" -name "*.cc" -print > $tmp.01
+find $dlist "(" -type f -o -type l ")" -name "*.c" -print > $tmp.02
+cat  $tmp.01 $tmp.02 | sort > $tmp.1
+if test ! -s "$tmp.1"; then
+  exit 1
+fi
+
+# Now filter out classes of tests.  These classes are run using special rules.
+grep _xin $tmp.1 > $tests_file_inter
+grep -v _xin $tmp.1 > $tmp.4
+
+grep performance $tmp.4 > $tests_file_perf
+grep -v performance $tmp.4 > $tmp.5
+
+# ...more filters go here.
+cp $tmp.5 $tests_file_normal
+
+rm $tmp*
+exit 0

@@ -1,0 +1,20 @@
+language: c
+
+compiler:
+  - clang
+  - gcc
+
+os:
+  - linux
+  - osx
+
+before_install:
+  - if [ $TRAVIS_OS_NAME == "linux" ]; then
+      sudo apt-get -qq update;
+      sudo apt-get -qq install byacc flex;
+    elif [ $TRAVIS_OS_NAME == "osx" ]; then
+      brew update;
+      brew install byacc flex openssl;
+      export CFLAGS="-I/usr/local/opt/openssl/include $CFLAGS";
+      export LDFLAGS="-L/usr/local/opt/openssl/lib $LDFLAGS";
+    fi

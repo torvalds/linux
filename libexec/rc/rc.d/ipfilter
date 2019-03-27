@@ -1,0 +1,90 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ipfilter
+# REQUIRE: FILESYSTEMS
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="ipfilter"
+desc="IP packet filter"
+rcvar="ipfilter_enable"
+load_rc_config $name
+stop_precmd="test -f ${ipfilter_rules} -o -f ${ipv6_ipfilter_rules}"
+
+start_precmd="$stop_precmd"
+start_cmd="ipfilter_start"
+stop_cmd="ipfilter_stop"
+reload_precmd="$stop_precmd"
+reload_cmd="ipfilter_reload"
+resync_precmd="$stop_precmd"
+resync_cmd="ipfilter_resync"
+status_precmd="$stop_precmd"
+status_cmd="ipfilter_status"
+extra_commands="reload resync"
+required_modules="ipl:ipfilter"
+
+ipfilter_start()
+{
+	echo "Enabling ipfilter."
+	if ! ${ipfilter_program:-/sbin/ipf} -V | grep -q 'Running: yes'; then
+		${ipfilter_program:-/sbin/ipf} -E
+	fi
+	${ipfilter_program:-/sbin/ipf} -Fa
+	if [ -r "${ipfilter_rules}" ]; then
+		${ipfilter_program:-/sbin/ipf} \
+		    -f "${ipfilter_rules}" ${ipfilter_flags}
+	fi
+	if [ -r "${ipv6_ipfilter_rules}" ]; then
+		${ipfilter_program:-/sbin/ipf} -6 \
+		    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
+	fi
+}
+
+ipfilter_stop()
+{
+	if ${ipfilter_program:-/sbin/ipf} -V | grep -q 'Running: yes'; then
+		echo "Saving firewall state tables"
+		${ipfs_program:-/sbin/ipfs} -W ${ipfs_flags}
+		echo "Disabling ipfilter."
+		${ipfilter_program:-/sbin/ipf} -D
+	fi
+}
+
+ipfilter_reload()
+{
+	echo "Reloading ipfilter rules."
+
+	${ipfilter_program:-/sbin/ipf} -I -Fa
+	if [ -r "${ipfilter_rules}" ]; then
+		${ipfilter_program:-/sbin/ipf} -I \
+		    -f "${ipfilter_rules}" ${ipfilter_flags}
+		if [ $? -ne 0 ]; then
+			err 1 'Load of rules into alternate set failed; aborting reload'
+		fi
+	fi
+	if [ -r "${ipv6_ipfilter_rules}" ]; then
+		${ipfilter_program:-/sbin/ipf} -I -6 \
+		    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
+		if [ $? -ne 0 ]; then
+			err 1 'Load of IPv6 rules into alternate set failed; aborting reload'
+		fi
+	fi
+	${ipfilter_program:-/sbin/ipf} -s
+
+}
+
+ipfilter_resync()
+{
+	${ipfilter_program:-/sbin/ipf} -y ${ipfilter_flags}
+}
+
+ipfilter_status()
+{
+	${ipfilter_program:-/sbin/ipf} -V
+}
+
+run_rc_command "$1"

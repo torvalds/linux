@@ -1,0 +1,23 @@
+$ $tcsh: set19,v 1.4 2011/02/25 23:58:07 christos Exp $
+$ tc.alloc.c
+$set 19 
+1 nbytes=%d: Memoria esaurita\n
+2 free(%lx) chiamata prima di qualsiasi allocazione.
+3 free(%lx) oltre il limite superiore della memoria.
+4 free(%lx) oltre il limite inferiore della memoria.
+5 free(%lx) blocco errato.
+6 free(%lx) intervallo di controllo sbagliato.
+7 free(%lx) indice di blocco sbagliato.
+8 %s attuale allocazione di memoria:\nlibera:\t
+9 utilizzata
+10 \n\tTotale utilizzata: %d, totale libera: %d\n
+11 \tAllocata memoria da 0x%lx a 0x%lx.  Limite superiore effettivo a 0x%lx\n
+12 Allocata memoria da 0x%lx a 0x%lx (%ld).\n
+13 %s current memory allocation:\n
+14 Total space allocated from system: %d\n
+15 Number of non-inuse chunks: %d\n
+16 Number of mmapped regions: %d\n
+17 Total space in mmapped regions: %d\n
+18 Total allocated space: %d\n
+19 Total non-inuse space: %d\n
+20 Top-most, releasable space: %d\n

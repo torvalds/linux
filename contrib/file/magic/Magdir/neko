@@ -1,0 +1,12 @@
+
+#------------------------------------------------------------
+# $File: neko,v 1.1 2009/11/10 20:36:10 christos Exp $
+
+# From: Mikhail Gusarov <dottedmag@dottedmag.net>
+# NekoVM (http://nekovm.org/) bytecode
+0	string		NEKO	NekoVM bytecode
+>4	lelong		x	(%d global symbols,
+>8	lelong		x	%d global fields,
+>12	lelong		x	%d bytecode ops)
+!:mime	application/x-nekovm-bytecode
+

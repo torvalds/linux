@@ -1,0 +1,594 @@
+# $FreeBSD$
+#
+# database for kbdmap(8) 
+#
+# Format <file>:<lang>:<description>
+#
+# lang: ar bg cs da de el en es fi fr he hr hu hy is it ja kk ko nl no pl
+#       pt ro ru sh sk sl sv tr uk zh
+# lang: lang,lang
+#
+# If lang empty use 'en' (us-english) as default.
+# 
+# Example:
+# 	german.iso.kbd:de:deutsch ISO-8859-1
+# 	german.iso.kbd:en:german ISO-8859-1
+#
+# See also setlocal
+# /usr/share/locale, /usr/X11/lib/X11/locale/locale.alias
+#
+#
+# Language support: MENU, FONT
+#
+MENU:en:Choose your keyboard language
+MENU:da,no,sv:VÊlg dit keyboard layout
+MENU:de:W‰hlen Sie Ihre Tastaturbelegung
+MENU:fr:Choisissez la nationalitÈ de votre clavier
+MENU:pl:Wybierz uk≥ad klawiatury
+MENU:pt:Escolha o layout do teclado
+MENU:es:Seleccione el idioma de su teclado
+MENU:he:ÍÏ˘ ˙„Ï˜Ó‰ ˙Ù˘ ˙‡ ¯Á·
+MENU:uk:B…¬≈“¶‘ÿ “œ⁄ÀÃ¡ƒÀ’ ÀÃ¡◊¶¡‘’“…
+MENU:el:≈ÈÎ›ÓÙÂ ÙÔ ÎÁÍÙÒÔÎ¸„ÈÔ ÙÁÚ ÍÔÌÛ¸Î·Ú
+MENU:hy:¿›ÔÒª˘ ÎÔª’›≥ﬂ≥Ò« π≥Î≥Ì·Ò·ı√€·ı›¡
+#
+FONT:en:cp437-8x16.fnt
+FONT:de,fr,da,no,sv,pt,es:iso-8x16.fnt
+FONT:ru:koi8-r-8x16.fnt
+FONT:pl:iso02-8x16.fnt
+FONT:he:iso08-8x16.fnt
+FONT:uk:koi8-u-8x16.fnt
+FONT:el:iso07-8x16.fnt
+FONT:hy:haik8-8x16.fnt
+# 
+be.iso.kbd:en:Belgian ISO-8859-1
+be.iso.kbd:de:Belgisch ISO-8859-1
+be.iso.kbd:fr:Belge ISO-8859-1
+be.iso.kbd:pt,es:Belga ISO-8859-1
+
+be.iso.acc.kbd:en:Belgian ISO-8859-1 (accent keys)
+be.iso.acc.kbd:de:Belgisch ISO-8859-1 (mit Akzenten)
+be.iso.acc.kbd:fr:Belge ISO-8859-1 (avec accents)
+be.iso.acc.kbd:pt:Belga ISO-8859-1 (com acentos)
+be.iso.acc.kbd:es:Belga ISO-8859-1 (con acentos)
+
+bg.bds.ctrlcaps.kbd:en:Bulgarian (BDS)
+bg.bds.ctrlcaps.kbd:de:Bulgarisch (BDS)
+bg.phonetic.ctrlcaps.kbd:en:Bulgarian (Phonetic)
+bg.phonetic.ctrlcaps.kbd:de:Bulgarisch (phonetisch)
+
+br275.iso.kbd:en:Brazilian 275 ISO-8859-1
+br275.iso.kbd:de:Brasilianisch 275 ISO-8859-1
+br275.iso.kbd:fr:BrÈsilien 275 ISO-8859-1
+br275.iso.kbd:pt:Brasileiro 275 ISO-8859-1
+br275.iso.kbd:es:BrasileÒo 275 ISO-8859-1
+
+br275.iso.acc.kbd:en:Brazilian 275 ISO-8859-1 (accent keys)
+br275.iso.acc.kbd:de:Brasilianisch 275 ISO-8859-1 (mit Akzenten)
+br275.iso.acc.kbd:fr:BrÈsilien 275 ISO-8859-1 (avec accents)
+br275.iso.acc.kbd:pt:Brasileiro 275 ISO-8859-1 (com acentos)
+br275.iso.acc.kbd:es:BrasileÒo 275 ISO-8859-1 (con acentos)
+
+br275.cp850.kbd:en:Brazilian 275 Codepage 850
+br275.cp850.kbd:de:Brasilianisch 275 Codeseite 850
+br275.cp850.kbd:fr:BrÈsilien 275 Code page 850
+br275.cp850.kbd:pt:Brasileiro 275 Codepage 850
+br275.cp850.kbd:es:BrasileÒo 275 Codepage 850
+
+by.cp1131.kbd:en:Belarusian Codepage 1131
+by.cp1131.kbd:de:Weiﬂrussisch Code page 1131
+by.cp1131.kbd:fr:BiÈlorusse Code page 1131
+by.cp1251.kbd:de:Weiﬂrussisch Codepage 1251
+by.cp1251.kbd:en:Belarusian Codepage 1251
+by.cp1251.kbd:fr:BiÈlorusse Code page 1251
+by.iso5.kbd:en:Belarusian ISO-8859-5
+by.iso5.kbd:de:Weiﬂrussisch ISO-8859-5
+by.iso5.kbd:fr:BiÈlorusse ISO-8859-5
+
+ce.iso2.kbd:en:Central European ISO-8859-2
+ce.iso2.kbd:de:Zentral Europ‰isch ISO-8859-2
+ce.iso2.kbd:fr:Centre europÈen ISO-8859-2
+ce.iso2.kbd:es:Centroeuropeo ISO-8859-2
+
+colemak.iso15.acc.kbd:en:Colemak ergonomic alternative
+
+cs.latin2.qwertz.kbd:en:Czech ISO-8859-2 (QWERTZ, accent keys)
+cs.latin2.qwertz.kbd:de:Tschechisch ISO-8859-2 (QWERTZ, mit Akzenten)
+cs.latin2.qwertz.kbd:fr:TchËque ISO-8859-2 (QWERTZ, avec accents)
+cs.latin2.qwertz.kbd:es:Checo ISO-8859-2 (QWERTZ, con acentos)
+
+cz.iso2.kbd:en:Czech ISO-8859-2
+cz.iso2.kbd:de:Tschechisch ISO-8859-2
+cz.iso2.kbd:fr:TchËque ISO-8859-2
+cz.iso2.kbd:es:Checo ISO-8859-2
+
+danish.iso.kbd:en:Danish ISO-8859-1
+danish.iso.kbd:da:Dansk ISO-8859-1
+danish.iso.kbd:de:D‰nisch ISO-8859-1
+danish.iso.kbd:fr:Danois ISO-8859-1
+danish.iso.kbd:pt:DinamarquÍs ISO-8859-1
+danish.iso.kbd:es:DanÈs ISO-8859-1
+
+danish.iso.acc.kbd:en:Danish ISO-8859-1 (accent keys)
+danish.iso.acc.kbd:da:Dansk ISO-8859-1 (accent taster)
+danish.iso.acc.kbd:de:D‰nisch ISO-8859-1 (mit Akzenten)
+danish.iso.acc.kbd:fr:Danois ISO-8859-1 (avec accents)
+danish.iso.acc.kbd:pt:DinamarquÍs ISO-8859-1 (com acentos)
+danish.iso.acc.kbd:es:DanÈs ISO-8859-1 (con acentos)
+
+danish.cp865.kbd:en:Danish Codepage 865
+danish.cp865.kbd:da:Dansk Code page 865
+danish.cp865.kbd:de:D‰nisch Codeseite 865
+danish.cp865.kbd:fr:Danois Code page 865
+danish.cp865.kbd:pt:DinamarquÍs Codepage 865
+danish.cp865.kbd:es:DanÈs Codepage 865
+
+danish.iso.macbook.kbd:en:Danish ISO-8859-1 (macbook)
+danish.iso.macbook.kbd:da:Dansk ISO-8859-1 (macbook)
+danish.iso.macbook.kbd:de:D‰nisch ISO-8859-1 (Macbook)
+danish.iso.macbook.kbd:fr:Danois ISO-8859-1 (macbook)
+danish.iso.macbook.kbd:pt:DinamarquÍs ISO-8859-1 (macbook)
+danish.iso.macbook.kbd:es:DanÈs ISO-8859-1 (macbook)
+
+dutch.iso.acc.kbd:en:Dutch ISO keymap (accent keys)
+dutch.iso.acc.kbd:de:Holl‰ndisch (mit Akzenten)
+
+eee_nordic.kbd:en:Nordic layout on Asus eeePC
+eee_nordic.kbd:fr:NorvÈgien phonÈtique sur Asus eeePC
+
+el.iso07.kbd:en:Greek ISO-8859-7 (104 keys)
+el.iso07.kbd:fr:Grec ISO-8859-7 (104 touches)
+el.iso07.kbd:el:≈ÎÎÁÌÈÍ¸ ISO-8859-7 (104 ÎﬁÍÙÒ˘Ì)
+
+estonian.iso.kbd:en:Estonian ISO-8859-1
+estonian.iso.kbd:de:Estnisch ISO-8859-1
+estonian.iso.kbd:fr:Estonien ISO-8859-1
+estonian.iso.kbd:es:Estonio ISO-8859-1
+
+estonian.iso15.kbd:en:Estonian ISO-8859-15
+estonian.iso15.kbd:de:Estnisch ISO-8859-15
+estonian.iso15.kbd:fr:Estonien ISO-8859-15
+estonian.iso15.kbd:es:Estonio ISO-8859-15
+
+estonian.cp850.kbd:en:Estonian Codepage 850
+estonian.cp850.kbd:de:Estnisch Codeseite 850
+estonian.cp850.kbd:fr:Estonien Code page 850
+estonian.cp850.kbd:es:Estonio Codepage 850
+
+finnish.iso.kbd:en:Finnish ISO-8859-1
+finnish.iso.kbd:de:Finnisch ISO-8859-1
+finnish.iso.kbd:fr:Finlandais ISO-8859-1
+finnish.iso.kbd:es:FinlandÈs ISO-8859-1
+
+finnish.cp850.kbd:en:Finnish Codepage 850
+finnish.cp850.kbd:de:Finnisch Codeseite 850
+finnish.cp850.kbd:fr:Finlandais Code page 850
+finnish.cp850.kbd:es:FinlandÈs Codepage 850
+
+fr.iso.kbd:en:French ISO-8859-1
+fr.iso.kbd:de:Franzˆsisch ISO-8859-1
+fr.iso.kbd:fr:FranÁais ISO-8859-1
+fr.iso.kbd:pt:FrancÍs ISO-8859-1
+fr.iso.kbd:es:FrancÈs ISO-8859-1
+fr.iso.kbd:uk:Ê“¡Œ√’⁄ÿÀ¡ ISO-8859-1
+
+fr.iso.acc.kbd:en:French ISO-8859-1 (accent keys)
+fr.iso.acc.kbd:de:Franzˆsisch ISO-8859-1 (mit Akzenten)
+fr.iso.acc.kbd:fr:FranÁais ISO-8859-1 (avec accents)
+fr.iso.acc.kbd:pt:FrancÍs ISO-8859-1 (com acentos)
+fr.iso.acc.kbd:es:FrancÈs ISO-8859-1 (con acentos)
+fr.iso.acc.kbd:uk:Ê“¡Œ√’⁄ÿÀ¡ ISO-8859-1 (accent keys)
+
+fr.macbook.acc.kbd:en:French Macbook/Macbook Pro ISO-8859-15 (accent keys)
+fr.macbook.acc.kbd:de:Franzˆsisch Macbook/Macbook Pro ISO-8859-15 (mit Aksenten)
+fr.macbook.acc.kbd:fr:FranÁais Macbook/Macbook Pro ISO-8859-15 (accent keys)
+fr.macbook.acc.kbd:pt:FrancÍs Macbook/Macbook Pro ISO-8859-15 (com acentos)
+fr.macbook.acc.kbd:es:FrancÈs Macbook/Macbook Pro ISO-8859-15 (con acentos)
+
+fr.dvorak.kbd:en:French Dvorak-like
+fr.dvorak.kbd:de:Franzˆsisch Dvorak
+fr.dvorak.kbd:fr:FranÁais Dvorak
+fr.dvorak.kbd:pt:FrancÍs Dvorak
+fr.dvorak.kbd:es:FrancÈs Dvorak
+fr.dvorak.kbd:uk:French Dvorak-like
+
+fr.dvorak.acc.kbd:en:French Dvorak-like (accent keys)
+fr.dvorak.acc.kbd:de:Franzˆsisch Dvorak (mit Akzenten)
+fr.dvorak.acc.kbd:fr:FranÁais Dvorak (accent keys)
+fr.dvorak.acc.kbd:pt:FrancÍs Dvorak (com acentos)
+fr.dvorak.acc.kbd:es:FrancÈs Dvorak (con acentos)
+fr.dvorak.acc.kbd:uk:French Dvorak-like (accent keys)
+
+fr_CA.iso.acc.kbd:en:French Canadian ISO-8859-1 (accent keys)
+fr_CA.iso.acc.kbd:de:Franzˆsisch Kanada ISO-8859-1 (mit Akzenten)
+fr_CA.iso.acc.kbd:fr:FranÁais Canadien ISO-8859-1 (avec accents)
+fr_CA.iso.acc.kbd:es:Francocanadiense ISO-8859-1 (con acentos)
+fr_CA.iso.acc.kbd:uk:Ê“¡Œ√’⁄ÿÀœ-À¡Œ¡ƒ”ÿÀ¡ ISO-8859-1 (accent keys)
+
+german.iso.kbd:en:German ISO-8859-15
+german.iso.kbd:de:Deutsch ISO-8859-15
+german.iso.kbd:fr:Allemand ISO-8859-15
+german.iso.kbd:pt:Alem„o ISO-8859-15
+german.iso.kbd:es:Alem·n ISO-8859-15
+german.iso.kbd:uk:Ó¶Õ≈√ÿÀ¡ ISO-8859-15
+
+german.iso.acc.kbd:en:German ISO-8859-15 (accent keys)
+german.iso.acc.kbd:de:Deutsch ISO-8859-15 (mit Akzenten)
+german.iso.acc.kbd:fr:Allemand ISO-8859-15 (avec accents)
+german.iso.acc.kbd:pt:Alem„o ISO-8859-15 (com acentos)
+german.iso.acc.kbd:es:Alem·n ISO-8859-15 (con acentos)
+german.iso.acc.kbd:uk:Ó¶Õ≈√ÿÀ¡ ISO-8859-15 (accent keys)
+
+german.cp850.kbd:en:German Codepage 850
+german.cp850.kbd:de:Deutsch Codeseite 850
+german.cp850.kbd:fr:Allemand Code page 850
+german.cp850.kbd:pt:Alem„o Codepage 850
+german.cp850.kbd:es:Alem·n Codepage 850
+german.cp850.kbd:uk:Ó¶Õ≈√ÿÀ¡ CP-850
+
+gr.elot.acc.kbd:en:Greek ISO-8859-7 ELOT
+gr.elot.acc.kbd:de:Grieschisch ISO-8859-7 ELOT
+gr.elot.acc.kbd:fr:Grec ISO-8859-7 ELOT
+gr.elot.acc.kbd:el:≈ÎÎÁÌÈÍ¸ ISO-8859-7 ≈Àœ‘
+
+gr.us101.acc.kbd:en:Greek ISO-8859-7 (101 keys)
+gr.us101.acc.kbd:de:Grieschisch ISO-8859-7 (101 Tasten)
+gr.us101.acc.kbd:fr:Grec ISO-8859-7 (101 touches)
+gr.us101.acc.kbd:el:≈ÎÎÁÌÈÍ¸ ISO-8859-7 (101 ÎﬁÍÙÒ˘Ì)
+
+iw.iso8.kbd:en:Hebrew ISO-8859-8
+iw.iso8.kbd:de:Hebr‰isch ISO-8859-8
+iw.iso8.kbd:fr:HÈbreu ISO-8859-8
+iw.iso8.kbd:he:ISO-8859-8 ˙È¯·Ú
+
+hr.iso.kbd:en:Croatian ISO-8859-2
+hr.iso.kbd:de:Kroatisch ISO-8859-2
+hr.iso.kbd:fr:Croate ISO-8859-2
+hr.iso.kbd:es:Croata ISO-8859-2
+
+hu.iso2.101keys.kbd:en:Hungarian 101 ISO-8859-2
+hu.iso2.101keys.kbd:de:Ungarisch 101 ISO-8859-2
+hu.iso2.101keys.kbd:fr:Hongrois 101 ISO-8859-2
+hu.iso2.101keys.kbd:es:H˙ngaro 101 ISO-8859-2
+
+hu.iso2.102keys.kbd:en:Hungarian 102 ISO-8859-2
+hu.iso2.102keys.kbd:de:Ungarisch 102 ISO-8859-2
+hu.iso2.102keys.kbd:fr:Hongrois 102 ISO-8859-2
+hu.iso2.102keys.kbd:es:H˙ngaro 102 ISO-8859-2
+
+hy.armscii-8.kbd:hy:–≥€ªÒª› —›„€·ı›≥€«› •Phonetic§ π≥Î≥Ì·Ò·ı√€·ı›
+hy.armscii-8.kbd:ru:·“Õ—Œ”À¡— ∆œŒ≈‘…ﬁ≈”À¡— “¡”ÀÃ¡ƒÀ¡
+hy.armscii-8.kbd:en:Armenian phonetic layout
+hy.armscii-8.kbd:fr:ArmÈnien phonÈtique
+hy.armscii-8.kbd:de:Armenische phonetische Tastenbelegung
+
+icelandic.iso.kbd:en:Icelandic ISO-8859-1
+icelandic.iso.kbd:de:Isl‰ndisch ISO-8859-1
+icelandic.iso.kbd:fr:Islandais ISO-8859-1
+icelandic.iso.kbd:pt:IslandÍs ISO-8859-1
+icelandic.iso.kbd:es:IslandÈs ISO-8859-1
+
+icelandic.iso.acc.kbd:en:Icelandic ISO-8859-1 (accent keys)
+icelandic.iso.acc.kbd:de:Isl‰ndisch ISO-8859-1 (mit Akzenten)
+icelandic.iso.acc.kbd:fr:Islandais ISO-8859-1 (avec accents)
+icelandic.iso.acc.kbd:pt:IslandÍs ISO-8859-1 (com acentos)
+icelandic.iso.acc.kbd:es:IslandÈs ISO-8859-1 (con acentos)
+
+it.iso.kbd:en:Italian ISO-8859-1
+it.iso.kbd:de:Italienisch ISO-8859-1
+it.iso.kbd:fr:Italien ISO-8859-1
+it.iso.kbd:pt,es:Italiano ISO-8859-1
+it.iso.kbd:uk:∂‘¡Ã¶ ”ÿÀ¡ ISO-8859-1
+
+jp.106.kbd:en:Japanese 106
+jp.106.kbd:de:Japanisch 106
+jp.106.kbd:fr:Japonais 106
+jp.106.kbd:pt:JaponÍs 106
+jp.106.kbd:es:JaponÈs 106
+jp.106.kbd:uk:Ò–œŒ”ÿÀ¡ 106
+
+jp.106x.kbd:en:Japanese 106x
+jp.106x.kbd:de:Japanisch 106x
+jp.106x.kbd:fr:Japonais 106x
+jp.106x.kbd:pt:JaponÍs 106x
+jp.106x.kbd:es:JaponÈs 106x
+jp.106x.kbd:uk:Ò–œŒ”ÿÀ¡ 106x
+
+kk.pt154.kst.kbd:en:Kazakh PT154 codepage
+kk.pt154.kst.kbd:de:Kasachisch PT154 codepage
+kk.pt154.kst.kbd:fr:Kazakh PT154 code page
+kk.pt154.io.kbd:en:Kazakh PT154 codepage (with IO)
+kk.pt154.io.kbd:de:Kasachisch PT154 codepage (mit IO)
+kk.pt154.io.kbd:fr:Kazakh PT154 code page (avec IO)
+
+latinamerican.kbd:en:Latin American
+latinamerican.kbd:de:Latein Amerikanisch
+latinamerican.kbd:fr:AmÈrique latine
+latinamerican.kbd:pt,es:AmÈrica Latina
+
+latinamerican.iso.acc.kbd:en:Latin American (accent keys)
+latinamerican.iso.acc.kbd:de:Latein Amerikanisch (mit Akzenten)
+latinamerican.iso.acc.kbd:fr:AmÈrique latine (avec accents)
+latinamerican.iso.acc.kbd:pt,es:AmÈrica Latina (com acentos)
+
+lt.iso4.kbd:en:Lithuanian ISO-8859-4
+lt.iso4.kbd:de:Litauisch ISO-8859-4
+lt.iso4.kbd:fr:Lithuanien ISO-8859-4
+lt.iso4.kbd:es:Lituano ISO-8859-4
+
+norwegian.iso.kbd:en:Norwegian ISO-8859-1
+norwegian.iso.kbd:no:Norsk ISO-8859-1
+norwegian.iso.kbd:de:Norwegisch ISO-8859-1
+norwegian.iso.kbd:fr:NorvÈgien ISO-8859-1
+norwegian.iso.kbd:pt:NorueguÍs ISO-8859-1
+norwegian.iso.kbd:es:Noruego ISO-8859-1
+
+norwegian.dvorak.kbd:en:Norwegian dvorak
+norwegian.dvorak.kbd:no:Norsk dvorak
+norwegian.dvorak.kbd:de:Norwegisch dvorak
+norwegian.dvorak.kbd:fr:NorvÈgien dvorak
+norwegian.dvorak.kbd:pt:NorueguÍs dvorak
+norwegian.dvorak.kbd:es:Noruego Idvorak
+
+pl_PL.ISO8859-2.kbd:en:Polish ISO-8859-2 (programmer's)
+pl_PL.ISO8859-2.kbd:de:Polnisch ISO-8859-2 (f¸r Programmierer)
+pl_PL.ISO8859-2.kbd:fr:Polonais ISO-8859-2 (pour programmeurs)
+pl_PL.ISO8859-2.kbd:pl:Polska ISO-8859-2 (programisty)
+pl_PL.ISO8859-2.kbd:pt:PolonÍs ISO-8859-2 (para programadores)
+pl_PL.ISO8859-2.kbd:es:Polaco ISO-8859-2 (para programadores)
+
+pl_PL.dvorak.kbd:en:Polish Dvorak
+pl_PL.dvorak.kbd:de:Polnisch Dvorak
+pl_PL.dvorak.kbd:fr:Polonais Dvorak
+pl_PL.dvorak.kbd:pl:Polska Dvorak
+pl_PL.dvorak.kbd:pt:PolonÍs Dvorak
+pl_PL.dvorak.kbd:es:Polaco Dvorak
+
+pt.iso.kbd:en:Portuguese ISO-8859-1
+pt.iso.kbd:de:Portugisisch ISO-8859-1
+pt.iso.kbd:fr:Portugais ISO-8859-1
+pt.iso.kbd:pt:PortuguÍs ISO-8859-1
+pt.iso.kbd:es:PortuguÈs ISO-8859-1
+
+pt.iso.acc.kbd:en:Portuguese ISO-8859-1 (accent keys)
+pt.iso.acc.kbd:de:Portugisisch ISO-8859-1 (mit Akzenten)
+pt.iso.acc.kbd:fr:Portugais ISO-8859-1 (avec accents)
+pt.iso.acc.kbd:pt:PortuguÍs ISO-8859-1 (com acentos)
+pt.iso.acc.kbd:es:PortuguÈs ISO-8859-1 (con acentos)
+
+ru.cp866.kbd:en:Russian Codepage 866 (alternative)
+ru.cp866.kbd:de:Russisch Codeseite 866 (alternativ)
+ru.cp866.kbd:ru:Ú’””À…  Codepage 866 (alternative)
+ru.cp866.kbd:fr:Russe Code page 866 (alternative)
+ru.cp866.kbd:pt:Russo Codepage 866 (alternativo)
+ru.cp866.kbd:es:Ruso Codepage 866 (alternativo)
+ru.cp866.kbd:uk:Úœ”¶ ”ÿÀ¡ CP-866 (¡Ãÿ‘≈“Œ¡‘…◊Œ¡)
+
+ru.iso5.kbd:en:Russian ISO-8859-5
+ru.iso5.kbd:de:Russisch ISO-8859-5
+ru.iso5.kbd:fr:Russe ISO-8859-5
+ru.iso5.kbd:ru:Ú’””À…  ISO-8859-5
+ru.iso5.kbd:pt:Russo ISO-8859-5
+ru.iso5.kbd:es:Ruso ISO-8859-5
+ru.iso5.kbd:uk:Úœ”¶ ”ÿÀ…  ISO-8859-5
+
+ru.koi8-r.kbd:en:Russian koi8-r
+ru.koi8-r.kbd:de:Russisch koi8-r
+ru.koi8-r.kbd:ru:Ú’””À…  koi8-r
+ru.koi8-r.kbd:fr:Russe koi8-r
+ru.koi8-r.kbd:pt:Russo koi8-r
+ru.koi8-r.kbd:es:Ruso koi8-r
+ru.koi8-r.kbd:uk:Úœ”¶ ”ÿÀ¡ koi8-r
+
+ru.koi8-r.shift.kbd:en:Russian koi8-r (shift)
+ru.koi8-r.shift.kbd:de:Russisch koi8-r (shift)
+ru.koi8-r.shift.kbd:ru:Ú’””À…  koi8-r (shift)
+ru.koi8-r.shift.kbd:fr:Russe koi8-r (shift)
+ru.koi8-r.shift.kbd:pt:Russo koi8-r (shift)
+ru.koi8-r.shift.kbd:es:Ruso koi8-r (shift)
+ru.koi8-r.shift.kbd:uk:Úœ”¶ ”ÿÀ¡ koi8-r (shift)
+
+ru.koi8-r.win.kbd:en:Russian koi8-r (winkeys)
+ru.koi8-r.win.kbd:de:Russisch koi8-r (winkeys)
+ru.koi8-r.win.kbd:ru:Ú’””À…  koi8-r (winkeys)
+ru.koi8-r.win.kbd:fr:Russe koi8-r (winkeys)
+ru.koi8-r.win.kbd:pt:Russo koi8-r (winkeys)
+ru.koi8-r.win.kbd:es:Ruso koi8-r (winkeys)
+ru.koi8-r.win.kbd:uk:Úœ”¶ ”ÿÀ¡ koi8-r (winkeys)
+
+spanish.dvorak.kbd:en:Spanish Dvorak
+spanish.dvorak.kbd:de:Spanisch Dvorak
+spanish.dvorak.kbd:fr:Espagnol Dvorak
+spanish.dvorak.kbd:pt:Espanhol Dvorak
+spanish.dvorak.kbd:es:EspaÒol Dvorak
+
+spanish.iso.kbd:en:Spanish ISO-8859-1
+spanish.iso.kbd:de:Spanisch ISO-8859-1
+spanish.iso.kbd:fr:Espagnol ISO-8859-1
+spanish.iso.kbd:pt:Espanhol ISO-8859-1
+spanish.iso.kbd:es:EspaÒol ISO-8859-1
+
+spanish.iso.acc.kbd:en:Spanish ISO-8859-1 (accent keys)
+spanish.iso.acc.kbd:de:Spanisch ISO-8859-1 (accent keys)
+spanish.iso.acc.kbd:fr:Espagnol ISO-8859-1 (avec accents)
+spanish.iso.acc.kbd:pt:Espanhol ISO-8859-1 (com acentos)
+spanish.iso.acc.kbd:es:EspaÒol ISO-8859-1 (con acentos)
+
+spanish.iso15.acc.kbd:en:Spanish ISO-8859-15 (accent keys)
+spanish.iso15.acc.kbd:de:Spanisch ISO-8859-15 (accent keys)
+spanish.iso15.acc.kbd:fr:Espagnol ISO-8859-15 (avec accents)
+spanish.iso15.acc.kbd:pt:Espanhol ISO-8859-15 (com acentos)
+spanish.iso15.acc.kbd:es:EspaÒol ISO-8859-15 (con acentos)
+
+si.iso.kbd:en:Slovenian ISO-8859-2
+si.iso.kbd:de:Slovenisch ISO-8859-2
+si.iso.kbd:fr:SlovËne ISO-8859-2
+si.iso.kbd:pt:EslovÍnio ISO-8859-2
+si.iso.kbd:es:Esloveno ISO-8859-2
+
+sk.iso2.kbd:en:Slovak ISO-8859-2
+sk.iso2.kbd:de:Slovakisch ISO-8859-2
+sk.iso2.kbd:fr:SlovËne ISO-8859-2
+sk.iso2.kbd:es:Eslovaco ISO-8859-2
+
+swedish.iso.kbd:en:Swedish ISO-8859-1
+swedish.iso.kbd:de:Schwedisch ISO-8859-1
+swedish.iso.kbd:fr:SuÈdois ISO-8859-1
+swedish.iso.kbd:pt,es:Sueco ISO-8859-1
+
+swedish.cp850.kbd:en:Swedish Codepage 850
+swedish.cp850.kbd:de:Schwedisch Codeseite 850
+swedish.cp850.kbd:fr:SuÈdois Code page 850
+swedish.cp850.kbd:pt,es:Sueco Codepage 850
+
+swissfrench.iso.kbd:en:Swiss-French ISO-8859-1
+swissfrench.iso.kbd:de:Schweiz-Franzˆsisch ISO-8859-1
+swissfrench.iso.kbd:fr:Suisse-FranÁais ISO-8859-1
+swissfrench.iso.kbd:es:Francosuizo ISO-8859-1
+
+swissfrench.iso.acc.kbd:en:Swiss-French ISO-8859-1 (accent keys)
+swissfrench.iso.acc.kbd:de:Schweiz-Franzˆsisch ISO-8859-1 (mit Akzenten)
+swissfrench.iso.acc.kbd:fr:Suisse-FranÁais ISO-8859-1 (avec accents)
+swissfrench.iso.acc.kbd:es:Francosuizo ISO-8859-1 (con acentos)
+
+swissfrench.cp850.kbd:en:Swiss-French Codepage 850
+swissfrench.cp850.kbd:de:Schweiz-Franzˆsisch Codeseite 850
+swissfrench.cp850.kbd:fr:Suisse-FranÁais Code Page 850
+swissfrench.cp850.kbd:es:Francosuizo Codepage 850
+
+swissgerman.iso.kbd:en:Swiss-German ISO-8859-1
+swissgerman.iso.kbd:de:Schweiz-Deutsch ISO-8859-1
+swissgerman.iso.kbd:fr:Suisse-Allemand ISO-8859-1
+swissgerman.iso.kbd:pt:SuiÁo-Alem„o ISO-8859-1
+swissgerman.iso.kbd:es:Germanosuizo ISO-8859-1
+
+swissgerman.iso.acc.kbd:en:Swiss-German ISO-8859-1 (accent keys)
+swissgerman.iso.acc.kbd:de:Schweiz-Deutsch ISO-8859-1 (mit Akzenten)
+swissgerman.iso.acc.kbd:fr:Suisse-Allemand ISO-8859-1 (avec accents)
+swissgerman.iso.acc.kbd:pt:SuiÁo-Alem„o ISO-8859-1 (com acentos)
+swissgerman.iso.acc.kbd:es:Germanosuizo ISO-8859-1 (con acentos)
+
+swissgerman.cp850.kbd:en:Swiss-German Codepage 850
+swissgerman.cp850.kbd:de:Schweiz-Deutsch Codeseite 850
+swissgerman.cp850.kbd:fr:Suisse-Allemand Code Page 850
+swissgerman.cp850.kbd:pt:SuiÁo-Alem„o Codepage 850
+swissgerman.cp850.kbd:es:Germanosuizo Codepage 850
+
+swissgerman.macbook.acc.kbd:en:Swiss-German Macbook/Macbook Pro (accent keys)
+swissgerman.macbook.acc.kbd:de:Schweiz-Deutsch Macbook/Macbook Pro (mit Akzenten)
+swissgerman.macbook.acc.kbd:fr:Suisse-Allemand  Macbook/Macbook Pro (avec accents)
+swissgerman.macbook.acc.kbd:pt:SuiÁo-Alem„o Macbook/Macbook Pro (com acentos)
+swissgerman.macbook.acc.kbd:es:Germanosuizo  Macbook/Macbook Pro (con acentos)
+
+tr.iso9.q.kbd:en:Turkish ISO-8859-9
+tr.iso9.q.kbd:de:T¸rkisch ISO-8859-9
+tr.iso9.q.kbd:fr:Turc ISO-8859-9
+tr.iso9.q.kbd:uk:Ù’“≈√ÿÀ¡ ISO-8859-9
+
+uk.iso.kbd:en:United Kingdom ISO-8859-1
+uk.iso.kbd:de:Vereinigtes Kˆnigreich ISO-8859-1
+uk.iso.kbd:fr:Royaume Uni ISO-8859-1
+uk.iso.kbd:pt:Reino Unido ISO-8859-1
+uk.iso.kbd:es:Brit·nico ISO-8859-1
+
+uk.iso-ctrl.kbd:en:United Kingdom ISO-8859-1 (Caps Lock acts as Left Ctrl)
+uk.iso-ctrl.kbd:de:Vereinigtes Kˆnigreich ISO-8859-1 (Caps Lock als linke Strg)
+#uk.iso-ctrl.kbd:fr:Royaume Uni ISO-8859-1 (caps lock acts as Left Ctrl)
+#uk.iso-ctrl.kbd:pt:Reino Unido ISO-8859-1 (caps lock acts as Left Ctrl)
+#uk.iso-ctrl.kbd:es:Brit·nico ISO-8859-1 (caps lock acts as Left Ctrl)
+
+uk.cp850.kbd:en:United Kingdom Codepage 850
+uk.cp850.kbd:de:Vereinigtes Kˆnigreich Codeseite 850
+uk.cp850.kbd:fr:Royaume Uni Code page 850
+uk.cp850.kbd:pt:Reino Unido Codepage 850
+uk.cp850.kbd:es:Brit·nico Codepage 850
+
+uk.cp850-ctrl.kbd:en:United Kingdom Codepage 850 (Caps Lock acts as Left Ctrl)
+uk.cp850.kbd:de:Vereinigtes Kˆnigreich ISO-8859-1 (Caps Lock als linke Strg)
+#uk.cp850.kbd:fr:Royaume Uni ISO-8859-1 (caps lock acts as Left Ctrl)
+#uk.cp850.kbd:pt:Reino Unido ISO-8859-1 (caps lock acts as Left Ctrl)
+#uk.cp850.kbd:es:Brit·nico ISO-8859-1 (caps lock acts as Left Ctrl)
+
+uk.dvorak.kbd:en:United Kingdom Dvorak
+uk.dvorak.kbd:de:Vereinigtes Kˆnigreich Dvorak
+uk.dvorak.kbd:fr:Royaume Uni Dvorak
+uk.dvorak.kbd:pt:Reino Unido Dvorak
+uk.dvorak.kbd:es:Brit·nico Dvorak
+
+us.iso.kbd:en:United States of America ISO-8859-1
+us.iso.kbd:de:US-amerikanisch ISO-8859-1
+us.iso.kbd:fr:…tats Unis d'AmÈrique ISO-8859-1
+us.iso.kbd:pt:Estados Unidos da AmÈrica ISO-8859-1
+us.iso.kbd:es:Estadounidense ISO-8859-1
+
+us.iso.acc.kbd:en:United States of America ISO-8859-1 (accent keys)
+us.iso.acc.kbd:de:US-amerikanisch ISO-8859-1 (mit Akzenten)
+us.iso.acc.kbd:fr:…tats Unis d'AmÈrique ISO-8859-1 (avec accents)
+us.iso.acc.kbd:pt:Estados Unidos da AmÈrica ISO-8859-1 (com acentos)
+us.iso.acc.kbd:es:Estadounidense ISO-8859-1 (con acentos)
+
+us.iso.macbook.kbd:en:United States of America Macbook/Macbook Pro ISO-8859-1
+us.iso.macbook.kbd:de:US-amerikanisch Macbook/Macbook Pro ISO-8859-1
+us.iso.macbook.kbd:fr:Ôæâtats Unis d'AmÈßªique Macbook/Macbook Pro ISO-8859-1
+us.iso.macbook.kbd:pt:Estados Unidos da AmÈßªica Macbook/Macbook Pro ISO-8859-1
+us.iso.macbook.kbd:es:Estadounidense Macbook/Macbook Pro ISO-8859-1
+
+us.dvorak.kbd:en:United States of America dvorak
+us.dvorak.kbd:de:US-amerikanisch dvorak
+us.dvorak.kbd:fr:…tats Unis d'AmÈrique dvorak
+us.dvorak.kbd:pt:Estados Unidos da AmÈrica dvorak
+us.dvorak.kbd:es:Estadounidense dvorak
+
+us.dvorakr.kbd:en:United States of America righthand dvorak
+us.dvorakr.kbd:de:US-amerikanisch dvorak rechte Hand
+us.dvorakr.kbd:fr:…tats Unis d'AmÈrique dvorakr
+us.dvorakr.kbd:pt:Estados Unidos da AmÈrica dvorakr
+us.dvorakr.kbd:es:Estadounidense dvorak diestro
+
+us.dvorakl.kbd:en:United States of America lefthand dvorak
+us.dvorakl.kbd:de:US-amerikanisch dvorak linke Hand 
+us.dvorakl.kbd:fr:…tats Unis d'AmÈrique dvorakl
+us.dvorakl.kbd:pt:Estados Unidos da AmÈrica dvorakl
+us.dvorakl.kbd:es:Estadounidense dvorak zurdo
+
+us.dvorakp.kbd:en:United States of America Programmer Dvorak
+us.dvorakp.kbd:de:US-amerikanisch (Dvorak f¸r Programmierer)
+us.dvorakp.kbd:fr:…tats Unis d'AmÈrique dvorakp
+us.dvorakp.kbd:pt:Estados Unidos da AmÈrica dvorakp
+us.dvorakp.kbd:es:Estadounidense dvorakp
+
+us.dvorakx.kbd:en:United States of America dvorakx
+us.dvorakx.kbd:de:US-amerikanisch dvorakx
+us.dvorakx.kbd:fr:…tats Unis d'AmÈrique dvorakx
+us.dvorakx.kbd:pt:Estados Unidos da AmÈrica dvorakx
+us.dvorakx.kbd:es:Estadounidense dvorakx
+
+us.emacs.kbd:en:United States of America Emacs optimized layout
+us.emacs.kbd:de:US-amerikanisch f¸r Emacs optimiert
+us.emacs.kbd:fr:…tats Unis d'AmÈrique emacs
+us.emacs.kbd:pt:Estados Unidos da AmÈrica emacs
+us.emacs.kbd:es:Estadounidense optimizado para Emacs
+
+us.pc-ctrl.kbd:en:United States of America ISO-8859-1 (Caps Lock acts as Left Ctrl)
+
+us.unix.kbd:en:United States of America Traditional Unix Workstation
+us.unix.kbd:de:US-amerikanisch traditionelles Unix Layout
+us.unix.kbd:fr:…tats Unis d'AmÈrique unix
+us.unix.kbd:pt:Estados Unidos da AmÈrica unix
+us.unix.kbd:es:Estadounidense Unix tradicional
+
+ua.iso5.kbd:en:Ukrainian ISO-8859-5
+ua.iso5.kbd:de:Ukrainisch ISO-8859-5
+ua.iso5.kbd:fr:Ukrainien ISO-8859-5
+ua.iso5.kbd:ru:ıÀ“¡…Œ”À…  ISO-8859-5
+ua.iso5.kbd:uk:ıÀ“¡ßŒ”ÿÀ¡ ISO-8859-5
+
+ua.koi8-u.kbd:en:Ukrainian koi8-u
+ua.koi8-u.kbd:de:Ukrainisch koi8-u
+ua.koi8-u.kbd:fr:Ukrainien koi8-u
+ua.koi8-u.kbd:uk:ıÀ“¡ßŒ”ÿÀ¡ koi8-u
+
+ua.koi8-u.shift.alt.kbd:en:Ukrainian koi8-u with koi8-r (shift)
+ua.koi8-u.shift.alt.kbd:de:Ukrainisch koi8-u mit koi8-r (shift)
+ua.koi8-u.shift.alt.kbd:fr:Ukrainien koi8-u avec koi8-r (shift)
+ua.koi8-u.shift.alt.kbd:uk:ıÀ“¡ßŒ”ÿÀ¡ koi8-u ⁄ koi8-r (shift)

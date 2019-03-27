@@ -1,0 +1,572 @@
+2008-07-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* common.c: Try afs/cell@REALM before afs@REALM since that is what
+	OpenAFS folks have been saying is best pratices for some time
+	now. Patch from Derrick Brashear.
+
+2008-04-15  Love Hörnquist Åstrand  <lha@it.su.se>
+	* afssys.c: Avoid using entry points depending on _IOWR if there
+	is no _IOWR (on cygwin).
+
+2007-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: New library version.
+
+2007-05-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kafs.h: Add VIOCSETTOK2
+	
+2006-10-21  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: unbreak previous
+	
+	* Makefile.am: split dist and nodist sources
+	
+2006-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: add more files
+	
+2006-05-01  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kafs.3: Spelling, from Björn Sandell.
+	
+2006-04-11  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afssys.c: use afs_ioctlnum, From Tomas Olsson <tol@it.su.se>
+	
+2006-04-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afssys.c: Try harder to get the pioctl to work via the /proc or
+	/dev interface, OpenAFS choose to reuse the same ioctl number,
+	while Arla didn't.  Also, try new ioctl before the the old
+	syscalls.
+
+	* afskrb5.c (afslog_uid_int): use the simpler
+	krb5_principal_get_realm function.
+	
+2005-12-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Remove dependency on config.h, breaks IRIX build,
+	could depend on libkafs_la_OBJECTS, but that is just asking for
+	trubble.
+	
+2005-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afssys.c (k_hasafs_recheck): new function, allow rechecking if
+	AFS client have started now, internaly it resets the internal
+	state from k_hasafs() and retry retry the probing. The problem
+	with calling k_hasaf() is that is plays around with signals, and
+	that cases problem for some systems/applications.
+	
+2005-10-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kafs_locl.h: Maybe include <sys/sysctl.h>.
+
+	* afssys.c: Mac OS X 10.4 needs a runtime check if we are going to
+	use the syscall, there is no cpp define to use to check the
+	version.  Every after 10.0 (darwin 8.0) uses the /dev/ version of
+	the pioctl.
+	
+2005-10-01  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afssys.c: Support the new MacOS X 10.4 ioctl interface that is a
+	device node. Patched from Tomas Olson <tol@it.su.se>.
+	
+2005-08-26  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afskrb5.c: Default to use 2b tokens.
+
+2005-06-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* common.c: rename index to idx
+
+	* afssys.c (k_afs_cell_of_file): unconst path
+	
+2005-06-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* use struct kafs_data everywhere, don't mix with the typedef
+	kafs_data
+
+	* roken_rename.h: rename more resolve.c symbols
+	
+	* afssys.c: Don't building map_syscall_name_to_number where its
+	not used.
+
+2005-02-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: bump version to 4:1:4
+
+2005-02-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kafs.h: de-__P
+	
+2004-12-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afskrb5.c: s/KEYTYPE_DES/ETYPE_DES_CBC_CRC/
+	
+2004-08-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afssysdefs.h: ifdef protect AFS_SYSCALL for DragonFly since they
+	still define __FreeBSD__ (and __FreeBSD_version), but claim that
+	they will stop doing it some time...
+	
+	* afssysdefs.h: dragonflybsd uses 339 just like freebsd5
+	
+2004-06-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afssys.c: s/arla/nnpfs/
+	
+	* afssys.c: support the linux /proc/fs/mumel/afs_ioctl afs
+	"syscall" interface
+
+2004-01-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* common.c: search paths for AFS configuration files for the
+	OpenAFS MacOS X, fix comment
+	
+	* kafs.h: search paths for AFS configuration files for the OpenAFS
+	MacOS X
+
+2003-12-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* common.c: add _PATH_ARLA_OPENBSD & c/o
+	
+	* kafs.h: add _PATH_ARLA_OPENBSD & c/o
+	
+2003-11-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* common.c: typo, Bruno Rohee <bruno@rohee.com>
+	
+2003-11-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kafs.3: spelling, partly from jmc <jmc@prioris.mini.pw.edu.pl>
+	
+2003-09-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afskrb5.c (krb5_afslog_uid_home): be even more friendly to the
+	user and fetch context and id ourself
+	
+2003-09-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afskrb5.c (afslog_uid_int): just belive that realm hint the user
+	passed us
+
+2003-07-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: always include v4 symbols
+	
+	* afskrb.c: provide dummy krb_ function to there is no need to
+	bump major
+
+2003-06-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afskrb5.c (v5_convert): rename one of the two c to cred4
+	
+2003-04-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* common.c, kafs.h: drop the int argument (the error code) from
+	the logging function
+
+2003-04-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* afskrb5.c (v5_convert): better match what other functions do
+	with values from krb5.conf, like case insensitivity
+
+2003-04-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kafs.3: Change .Fd #include <header.h> to .In header.h
+	from Thomas Klausner <wiz@netbsd.org>
+
+2003-04-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: (libkafs_la_LDFLAGS): update version
+	
+	* Makefile.am (ROKEN_SRCS): drop strupr.c
+	
+	* kafs.3: document kafs_set_verbose
+	
+	* common.c (kafs_set_verbose): add function that (re)sets the
+	logging function
+	(_kafs_try_get_cred): add function that does (krb_data->get_cred) to
+	make logging easier (that is now done in this function)
+	(*): use _kafs_try_get_cred
+
+	* afskrb5.c (get_cred): handle that inst can be the empty string too
+	(v5_convert): use _kafs_foldup
+	(krb5_afslog_uid_home): set name
+	(krb5_afslog_uid_home): ditto
+
+	* afskrb.c (krb_afslog_uid_home): set name
+	(krb_afslog_uid_home): ditto
+
+	* kafs_locl.h (kafs_data): add name
+	(_kafs_foldup): internally export
+
+2003-04-11  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kafs.3: tell that cell-name is uppercased
+	
+	* Makefile.am: add INCLUDE_krb4 when using krb4, add INCLUDE_des
+	when using krb5, add strupr.c
+	
+	* afskrb5.c: Check the cell part of the name, not the realm part
+	when checking if 2b should be used. The reson is afs@REALM might
+	have updated their servers but not afs/cell@REALM. Add constant
+	KAFS_RXKAD_2B_KVNO.
+
+2003-04-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kafs.3: s/kerberos/Kerberos/
+	
+2003-03-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kafs.3: spelling, from <jmc@prioris.mini.pw.edu.pl>
+	
+	* kafs.3: document the kafs_settoken functions write about the
+	krb5_appdefault option for kerberos 5 afs tokens fix prototypes
+	
+2003-03-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afskrb5.c (kafs_settoken5): change signature to include a
+	krb5_context, use v5_convert
+	(v5_convert): new function, converts a krb5_ccreds to a kafs_token in
+	three diffrent ways, not at all, local 524/2b, and using 524
+	(v5_to_kt): add code to do local 524/2b
+	(get_cred): use v5_convert
+
+
+	* kafs.h (kafs_settoken5): change signature to include a
+	krb5_context
+
+	* Makefile.am: always build the libkafs library now that the
+	kerberos 5 can stand on their own
+	
+	* kafs.3: expose the krb5 functions
+	
+	* common.c (kafs_settoken_rxkad): move all content kerberos
+	version from kafs_settoken to kafs_settoken_rxkad
+	(_kafs_fixup_viceid): move the fixup the timestamp to make client
+	happy code here.
+	(_kafs_v4_to_kt): move all the kerberos 4 dependant parts from
+	kafs_settoken here.
+	(*): adapt to kafs_token
+
+	* afskrb5.c (kafs_settoken5): new function, inserts a krb5_creds
+	into kernel
+	(v5_to_kt): new function, stores a krb5_creds in struct kafs_token
+	(get_cred): add a appdefault boolean ("libkafs", realm, "afs-use-524")
+	that can used to toggle if there should v5 token should be used
+	directly or converted via 524 first.
+
+	* afskrb.c: move kafs_settoken here, use struct kafs_token
+	
+	* kafs_locl.h: include krb5-v4compat.h if needed, define an
+	internal structure struct kafs_token that carries around for rxkad
+	data that is independant of kerberos version
+	
+2003-02-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* dlfcn.h: s/intialize/initialize, from
+	<jmc@prioris.mini.pw.edu.pl>
+
+2003-02-08  Assar Westerlund  <assar@kth.se>
+
+	* afssysdefs.h: fix FreeBSD section
+
+2003-02-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* afssysdefs.h: use syscall 208 on openbsd (all version) use
+	syscall 339 on freebsd 5.0 and later, use 210 on 4.x and earlier
+	
+2002-08-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kafs.3: move around sections (from NetBSD)
+
+2002-05-31  Assar Westerlund  <assar@pdc.kth.se>
+
+	* common.c: remove the trial of afs@REALM for cell != realm, it
+	tries to use the wrong key for foreign cells
+
+2002-05-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: version number
+
+2002-04-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* common.c (find_cells): make file parameter const
+
+2001-11-01  Assar Westerlund  <assar@sics.se>
+
+	* add strsep, and bump version to 3:3:3
+
+2001-10-27  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkafs_la_LDFLAGS): set version to 3:2:3
+
+2001-10-24  Assar Westerlund  <assar@sics.se>
+
+	* afskrb.c (afslog_uid_int): handle krb_get_tf_fullname that
+	cannot take NULLs
+	(such as the MIT one)
+
+2001-10-22  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (ROKEN_SRCS): add strlcpy.c
+
+2001-10-09  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (ROKEN_SRCS): add strtok_r.c
+	* roken_rename.h (dns_srv_order): rename correctly
+	(strtok_r): add renaming
+
+2001-09-10  Assar Westerlund  <assar@sics.se>
+
+	* kafs.h, common.c: look for configuration files in /etc/arla (the
+	location in debian's arla package)
+
+2001-08-26  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: handle both krb5 and krb4 cases
+
+2001-07-19  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkafs_la_LDFLAGS): set version to 3:0:3
+
+2001-07-12  Assar Westerlund  <assar@sics.se>
+
+	* common.c: look in /etc/openafs for debian openafs
+	* kafs.h: add paths for openafs debian (/etc/openafs)
+
+	* Makefile.am: add required library dependencies
+
+2001-07-03  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkafs_la_LDFLAGS): set versoin to 2:4:2
+
+2001-06-19  Assar Westerlund  <assar@sics.se>
+
+	* common.c (_kafs_realm_of_cell): changed to first try exact match
+	in CellServDB, then exact match in DNS, and finally in-exact match
+	in CellServDB
+
+2001-05-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: only build resolve.c if doing renaming
+
+2001-02-12  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am, roken_rename.h: add rename of dns functions
+
+2000-12-11  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkafs_la_LDFLAGS): set version to 2:3:2
+
+2000-11-17  Assar Westerlund  <assar@sics.se>
+
+	* afssysdefs.h: solaris 8 apperently uses 65
+
+2000-09-19  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkafs_la_LDFLAGS): bump version to 2:2:2
+
+2000-09-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* dlfcn.c: correct arguments to some snprintf:s
+
+2000-07-25  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: bump version to 2:1:2
+
+2000-04-03  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 2:0:2
+
+2000-03-20  Assar Westerlund  <assar@sics.se>
+
+	* afssysdefs.h: make versions later than 5.7 of solaris also use
+	73
+
+2000-03-16  Assar Westerlund  <assar@sics.se>
+
+	* afskrb.c (afslog_uid_int): use krb_get_tf_fullname instead of
+	krb_get_default_principal
+
+2000-03-15  Assar Westerlund  <assar@sics.se>
+
+	* afssys.c (map_syscall_name_to_number): ignore # at
+	beginning-of-line
+
+2000-03-13  Assar Westerlund  <assar@sics.se>
+
+	* afssysdefs.h: add 230 for MacOS X per information from
+	<warner.c@apple.com>
+
+1999-12-06  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 1:2:1
+
+1999-11-22  Assar Westerlund  <assar@sics.se>
+
+	* afskrb5.c (afslog_uid_int): handle d->realm == NULL
+	
+1999-11-17  Assar Westerlund  <assar@sics.se>
+
+	* afskrb5.c (afslog_uid_int): don't look at the local realm at
+ 	all.  just use the realm from the ticket file.
+
+1999-10-20  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 1:1:1
+
+	* afskrb5.c (get_cred): always request a DES key
+
+Mon Oct 18 17:40:21 1999  Bjoern Groenvall  <bg@mummel.sics.se>
+
+	* common.c (find_cells): Trim trailing whitespace from
+ 	cellname. Lines starting with # are regarded as comments.
+
+Fri Oct  8 18:17:22 1999  Bjoern Groenvall  <bg@mummel.sics.se>
+
+	* afskrb.c, common.c : Change code to make a clear distinction
+ 	between hinted realm and ticket realm.
+
+	* kafs_locl.h: Added argument realm_hint.
+
+	* common.c (_kafs_get_cred): Change code to acquire the ``best''
+ 	possible ticket. Use cross-cell authentication only as method of
+ 	last resort.
+
+	* afskrb.c (afslog_uid_int): Add realm_hint argument and extract
+ 	realm from ticket file.
+
+	* afskrb5.c (afslog_uid_int): Added argument realm_hint.
+
+1999-10-03  Assar Westerlund  <assar@sics.se>
+
+	* afskrb5.c (get_cred): update to new krb524_convert_creds_kdc
+
+1999-08-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: ignore the comlicated aix construct if !krb4
+
+1999-07-26  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 1:0:1
+
+1999-07-22  Assar Westerlund  <assar@sics.se>
+
+	* afssysdefs.h: define AFS_SYSCALL to 73 for Solaris 2.7
+
+1999-07-07  Assar Westerlund  <assar@sics.se>
+
+	* afskrb5.c (krb5_realm_of_cell): new function
+
+	* afskrb.c (krb_realm_of_cell): new function
+	(afslog_uid_int): call krb_get_lrealm correctly
+
+1999-06-15  Assar Westerlund  <assar@sics.se>
+
+	* common.c (realm_of_cell): rename to _kafs_realm_of_cell and
+ 	un-staticize
+
+Fri Mar 19 14:52:29 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: add version-info
+
+Thu Mar 18 11:24:02 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: include Makefile.am.common
+
+Sat Feb 27 19:46:21 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: remove EXTRA_DATA (as of autoconf 2.13/automake
+ 	1.4)
+
+Thu Feb 11 22:57:37 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: set AIX_SRC also if !AIX
+
+Tue Dec  1 14:45:15 1998  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: fix AIX linkage
+
+Sun Nov 22 10:40:44 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (WFLAGS): set
+
+Sat Nov 21 16:55:19 1998  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* afskrb5.c: add homedir support
+
+Sun Sep  6 20:16:27 1998  Assar Westerlund  <assar@sics.se>
+
+	* add new functionality for specifying the homedir to krb_afslog
+ 	et al
+
+Thu Jul 16 01:27:19 1998  Assar Westerlund  <assar@sics.se>
+
+	* afssys.c: reorganize order of definitions.
+	(try_one, try_two): conditionalize
+
+Thu Jul  9 18:31:52 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* common.c (realm_of_cell): make the dns fallback work
+
+Wed Jul  8 01:39:44 1998  Assar Westerlund  <assar@sics.se>
+
+	* afssys.c (map_syscall_name_to_number): new function for finding
+ 	the number of a syscall given the name on solaris
+	(k_hasafs): try using map_syscall_name_to_number
+
+Tue Jun 30 17:19:00 1998  Assar Westerlund  <assar@sics.se>
+
+	* afssys.c: rewrite and add support for environment variable
+ 	AFS_SYSCALL
+
+	* Makefile.in (distclean): don't remove roken_rename.h
+
+Fri May 29 19:03:20 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (roken_rename.h): remove dependency
+
+Mon May 25 05:25:54 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (clean): try to remove shared library debris
+
+Sun Apr 19 09:58:40 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in: add symlink magic for linux
+
+Sat Apr  4 15:08:48 1998  Assar Westerlund  <assar@sics.se>
+
+	* kafs.h: add arla paths
+
+	* common.c (_kafs_afslog_all_local_cells): Try _PATH_ARLA_*
+	(_realm_of_cell): Try _PATH_ARLA_CELLSERVDB
+
+Thu Feb 19 14:50:22 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* common.c: Don't store expired tokens (this broke when using
+ 	pag-less rsh-sessions, and `non-standard' ticket files).
+
+Thu Feb 12 11:20:15 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* Makefile.in: Install/uninstall one library at a time.
+
+Thu Feb 12 05:38:58 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (install): one library at a time.
+
+Mon Feb  9 23:40:32 1998  Assar Westerlund  <assar@sics.se>
+
+	* common.c (find_cells): ignore empty lines
+
+Tue Jan  6 04:25:58 1998  Assar Westerlund  <assar@sics.se>
+
+	* afssysdefs.h (AFS_SYSCALL): add FreeBSD
+
+Fri Jan  2 17:08:24 1998  Assar Westerlund  <assar@sics.se>
+
+	* kafs.h: new VICEIOCTL's.  From <rb@stacken.kth.se>
+
+	* afssysdefs.h: Add OpenBSD

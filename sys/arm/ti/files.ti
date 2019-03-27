@@ -1,0 +1,24 @@
+#$FreeBSD$
+
+kern/kern_clocksource.c				standard
+
+arm/ti/ti_cpuid.c				standard
+arm/ti/ti_hwmods.c				standard
+arm/ti/ti_machdep.c				standard
+arm/ti/ti_prcm.c				standard
+arm/ti/ti_scm.c					standard
+arm/ti/ti_pinmux.c				standard
+dev/mbox/mbox_if.m				optional	ti_mbox
+arm/ti/ti_mbox.c				optional	ti_mbox
+arm/ti/ti_pruss.c				optional	ti_pruss
+arm/ti/ti_wdt.c					optional	ti_wdt
+arm/ti/ti_adc.c					optional	ti_adc
+arm/ti/ti_gpio.c				optional	gpio
+arm/ti/ti_gpio_if.m				optional	gpio
+arm/ti/ti_i2c.c					optional	ti_i2c
+arm/ti/ti_sdhci.c	 			optional	sdhci
+arm/ti/ti_spi.c		 			optional	ti_spi
+
+dev/uart/uart_dev_ti8250.c			optional	uart
+dev/uart/uart_dev_ns8250.c			optional	uart
+

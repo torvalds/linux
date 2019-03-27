@@ -1,0 +1,149 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_set_flags , xo_clear_flags
+.Nd set operational flags for a libxo handle
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft void
+.Fn xo_set_flags "xo_handle_t *handle" "unsigned flags"
+.Ft void
+.Fn xo_clear_flags "xo_handle_t *handle" "xo_xof_flags_t flags"
+.Sh DESCRIPTION
+Use the
+.Fn xo_set_flags
+function to set the flags for a
+.Nm libxo
+handle.
+To use the default handle, pass a
+.Dv NULL
+handle.
+.Pp
+The set of valid flags include:
+.Bl -tag -width "XOF_UNDERSCORES"
+.It Sy "Flag            Description"
+.It Dv XOF_CLOSE_FP
+Close file pointer on
+.Xr xo_destroy 3 .
+This flag will trigger the call of the
+.Fn close_func
+(provided via
+.Xr xo_set_writer 3 )
+when the handle is destroyed.
+.It Dv XOF_COLOR
+Enable color and effects in output regardless of output device.
+.It Dv XOF_COLOR_ALLOWED
+Allow color and effects if the output device is a terminal.
+.It Dv XOF_INFO
+Display info data attributes (HTML)
+.It Dv XOF_KEYS
+Emit the key attribute (XML)
+.It Dv XOF_LOG_GETTEXT
+Log (via stderr) each
+.Xr gettext 3
+string lookup
+.It Dv XOF_LOG_SYSLOG
+Log (via stderr) each syslog message (via
+.Xr xo_syslog 3 )
+.It Dv XOF_NO_ENV
+Do not use the
+.Ev LIBXO_OPTIONS
+environment variable.
+.It Dv XOF_PRETTY
+Make 'pretty printed' output, with the
+addition of indentation and newlines to enhance the readability of
+XML, JSON, and HTML output.
+Text output is not affected.
+.It Dv XOF_UNDERSCORES
+Replaces hyphens with underscores
+.It Dv XOF_UNITS
+Display units (XML and HMTL)
+.It Dv XOF_WARN
+Generate warnings for broken calls, triggering diagnostic
+output (on standard error) when the library notices errors during
+operations, or with arguments to functions.
+Without warnings enabled, such conditions are ignored.
+Warnings allow developers to debug their interaction with
+.Nm libxo .
+The function
+.Fn xo_failure
+can be used as a breakpoint for a debugger,
+regardless of whether warnings are enabled.
+.It Dv XOF_WARN_XML
+Generate warnings in XML on stdout
+.It Dv XOF_XPATH
+Emit XPath expressions (HTML)
+.It Dv XOF_COLUMNS
+Force
+.Xr xo_emit 3
+to return columns used
+.It Dv XOF_FLUSH
+Flush output after each
+.Xr xo_emit 3
+call
+.El
+.Pp
+If the style is
+.Dv XO_STYLE_HTML ,
+the following additional flags can be
+used:
+.Bl -tag -width "XOF_UNDERSCORES"
+.It Sy "Flag            Description"
+.It Dv XOF_XPATH
+Emit "data-xpath" attributes
+.It Dv XOF_INFO
+Emit additional informational fields for HTML
+output.
+See
+.Xr xo_set_info 3
+for details.
+.El
+.Pp
+The
+.Dv XOF_XPATH
+flag enables the emission of XPath expressions detailing
+the hierarchy of XML elements used to encode the data field, if the
+XPATH style of output were requested.
+.Pp
+If the style is
+.Dv XO_STYLE_XML ,
+the following additional flags can be
+used:
+.Bl -tag -width "XOF_UNDERSCORES"
+.It Sy "Flag            Description"
+.It XOF_KEYS
+Add 'key' attribute to the XML encoding for
+field definitions that use the 'k' modifier.
+The key attribute has
+the value "key".
+.El
+.Pp
+The
+.Fn xo_clear_flags
+function turns off the given flags in a specific
+handle. 
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

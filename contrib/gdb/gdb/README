@@ -1,0 +1,573 @@
+		     README for gdb-6.1 release
+		Updated 29 February, 2004 by Andrew Cagney
+
+This is GDB, the GNU source-level debugger.
+
+A summary of new features is in the file `gdb/NEWS'.
+
+Check the GDB home page at http://www.gnu.org/software/gdb/ for up to
+date release information, mailing list links and archives, etc.
+
+The file `gdb/PROBLEMS' contains information on problems identified
+late in the release cycle.  GDB's bug tracking data base at
+http://www.gnu.org/software/gdb/bugs/ contains a more complete list of
+bugs.
+
+
+Unpacking and Installation -- quick overview
+==========================
+
+   In this release, the GDB debugger sources, the generic GNU include
+files, the BFD ("binary file description") library, the readline
+library, and other libraries all have directories of their own
+underneath the gdb-6.1 directory.  The idea is that a variety of GNU
+tools can share a common copy of these things.  Be aware of variation
+over time--for example don't try to build gdb with a copy of bfd from
+a release other than the gdb release (such as a binutils release),
+especially if the releases are more than a few weeks apart.
+Configuration scripts and makefiles exist to cruise up and down this
+directory tree and automatically build all the pieces in the right
+order.
+
+   When you unpack the gdb-6.1.tar.gz file, you'll find a directory
+called `gdb-6.1', which contains:
+
+  COPYING       config.sub    intl         missing         opcodes
+  COPYING.LIB   configure     libiberty    mkinstalldirs   readline
+  Makefile.in   configure.in  libtool.m4   mmalloc         sim
+  README        djunpack.bat  ltcf-c.sh    move-if-change  symlink-tree
+  bfd           etc           ltcf-cxx.sh  mpw-README      texinfo
+  config        gdb           ltcf-gcj.sh  mpw-build.in    utils
+  config-ml.in  gettext.m4    ltconfig     mpw-config.in   ylwrap
+  config.guess  include       ltmain.sh    mpw-configure
+  config.if     install-sh    md5.sum      mpw-install
+
+You can build GDB right in the source directory:
+
+      cd gdb-6.1
+      ./configure
+      make
+      cp gdb/gdb /usr/local/bin/gdb	(or wherever you want)
+
+However, we recommend that an empty directory be used instead.
+This way you do not clutter your source tree with binary files
+and will be able to create different builds with different 
+configuration options.
+
+You can build GDB in any empty build directory:
+
+      mkdir build
+      cd build
+      <full path to your sources>/gdb-6.1/configure
+      make
+      cp gdb/gdb /usr/local/bin/gdb	(or wherever you want)
+
+(Building GDB with DJGPP tools for MS-DOS/MS-Windows is slightly
+different; see the file gdb-6.1/gdb/config/djgpp/README for details.)
+
+   This will configure and build all the libraries as well as GDB.  If
+`configure' can't determine your system type, specify one as its
+argument, e.g., `./configure sun4' or `./configure decstation'.
+
+   Make sure that your 'configure' line ends in 'gdb-6.1/configure':
+
+      /berman/migchain/source/gdb-6.1/configure      # RIGHT
+      /berman/migchain/source/gdb-6.1/gdb/configure  # WRONG
+
+   The gdb package contains several subdirectories, such as 'gdb',
+'bfd', and 'readline'.  If your 'configure' line ends in
+'gdb-6.1/gdb/configure', then you are configuring only the gdb
+subdirectory, not the whole gdb package.  This leads to build errors
+such as:
+
+      make: *** No rule to make target `../bfd/bfd.h', needed by `gdb.o'.  Stop.
+
+   If you get other compiler errors during this stage, see the `Reporting
+Bugs' section below; there are a few known problems.
+
+   GDB requires an ISO C (ANSI C) compiler.  If you do not have an ISO
+C compiler for your system, you may be able to download and install
+the GNU CC compiler.  It is available via anonymous FTP from the
+directory `ftp://ftp.gnu.org/pub/gnu/gcc'.
+
+   GDB can be used as a cross-debugger, running on a machine of one
+type while debugging a program running on a machine of another type.
+See below.
+
+
+More Documentation
+******************
+
+   All the documentation for GDB comes as part of the machine-readable
+distribution.  The documentation is written in Texinfo format, which
+is a documentation system that uses a single source file to produce
+both on-line information and a printed manual.  You can use one of the
+Info formatting commands to create the on-line version of the
+documentation and TeX (or `texi2roff') to typeset the printed version.
+
+   GDB includes an already formatted copy of the on-line Info version
+of this manual in the `gdb/doc' subdirectory.  The main Info file is
+`gdb-6.1/gdb/doc/gdb.info', and it refers to subordinate files
+matching `gdb.info*' in the same directory.  If necessary, you can
+print out these files, or read them with any editor; but they are
+easier to read using the `info' subsystem in GNU Emacs or the
+standalone `info' program, available as part of the GNU Texinfo
+distribution.
+
+   If you want to format these Info files yourself, you need one of the
+Info formatting programs, such as `texinfo-format-buffer' or
+`makeinfo'.
+
+   If you have `makeinfo' installed, and are in the top level GDB
+source directory (`gdb-6.1', in the case of version 6.1), you can make
+the Info file by typing:
+
+      cd gdb/doc
+      make info
+
+   If you want to typeset and print copies of this manual, you need
+TeX, a program to print its DVI output files, and `texinfo.tex', the
+Texinfo definitions file.  This file is included in the GDB
+distribution, in the directory `gdb-6.1/texinfo'.
+
+   TeX is a typesetting program; it does not print files directly, but
+produces output files called DVI files.  To print a typeset document,
+you need a program to print DVI files.  If your system has TeX
+installed, chances are it has such a program.  The precise command to
+use depends on your system; `lpr -d' is common; another (for PostScript
+devices) is `dvips'.  The DVI print command may require a file name
+without any extension or a `.dvi' extension.
+
+   TeX also requires a macro definitions file called `texinfo.tex'. 
+This file tells TeX how to typeset a document written in Texinfo
+format.  On its own, TeX cannot read, much less typeset a Texinfo file.
+ `texinfo.tex' is distributed with GDB and is located in the
+`gdb-6.1/texinfo' directory.
+
+   If you have TeX and a DVI printer program installed, you can typeset
+and print this manual.  First switch to the the `gdb' subdirectory of
+the main source directory (for example, to `gdb-6.1/gdb') and then type:
+
+      make doc/gdb.dvi
+
+   If you prefer to have the manual in PDF format, type this from the
+`gdb/doc' subdirectory of the main source directory:
+
+      make gdb.pdf
+
+For this to work, you will need the PDFTeX package to be installed.
+
+
+Installing GDB
+**************
+
+   GDB comes with a `configure' script that automates the process of
+preparing GDB for installation; you can then use `make' to build the
+`gdb' program.
+
+   The GDB distribution includes all the source code you need for GDB in
+a single directory, whose name is usually composed by appending the
+version number to `gdb'.
+
+   For example, the GDB version 6.1 distribution is in the `gdb-6.1'
+directory.  That directory contains:
+
+`gdb-6.1/{COPYING,COPYING.LIB}'
+     Standard GNU license files.  Please read them.
+
+`gdb-6.1/bfd'
+     source for the Binary File Descriptor library
+
+`gdb-6.1/config*'
+     script for configuring GDB, along with other support files
+
+`gdb-6.1/gdb'
+     the source specific to GDB itself
+
+`gdb-6.1/include'
+     GNU include files
+
+`gdb-6.1/libiberty'
+     source for the `-liberty' free software library
+
+`gdb-6.1/mmalloc'
+     source for the GNU memory-mapped malloc package
+
+`gdb-6.1/opcodes'
+     source for the library of opcode tables and disassemblers
+
+`gdb-6.1/readline'
+     source for the GNU command-line interface
+     NOTE:  The readline library is compiled for use by GDB, but will
+     not be installed on your system when "make install" is issued.
+
+`gdb-6.1/sim'
+     source for some simulators (ARM, D10V, SPARC, M32R, MIPS, PPC, V850, etc)
+
+`gdb-6.1/intl'
+     source for the GNU gettext library, for internationalization.
+     This is slightly modified from the standalone gettext
+     distribution you can get from GNU.
+
+`gdb-6.1/texinfo'
+     The `texinfo.tex' file, which you need in order to make a printed
+     manual using TeX.
+
+`gdb-6.1/etc'
+     Coding standards, useful files for editing GDB, and other
+     miscellanea.
+
+`gdb-6.1/utils'
+     A grab bag of random utilities.
+
+   Note: the following instructions are for building GDB on Unix or
+Unix-like systems.  Instructions for building with DJGPP for
+MS-DOS/MS-Windows are in the file gdb/config/djgpp/README.
+
+   The simplest way to configure and build GDB is to run `configure'
+from the `gdb-VERSION-NUMBER' source directory, which in this example
+is the `gdb-6.1' directory.
+
+   First switch to the `gdb-VERSION-NUMBER' source directory if you are
+not already in it; then run `configure'.
+
+   For example:
+
+      cd gdb-6.1
+      ./configure
+      make
+
+   Running `configure' followed by `make' builds the `bfd',
+`readline', `mmalloc', and `libiberty' libraries, then `gdb' itself.
+The configured source files, and the binaries, are left in the
+corresponding source directories.
+
+   `configure' is a Bourne-shell (`/bin/sh') script; if your system
+does not recognize this automatically when you run a different shell,
+you may need to run `sh' on it explicitly:
+
+      sh configure
+
+   If you run `configure' from a directory that contains source
+directories for multiple libraries or programs, such as the `gdb-6.1'
+source directory for version 6.1, `configure' creates configuration
+files for every directory level underneath (unless you tell it not to,
+with the `--norecursion' option).
+
+   You can run the `configure' script from any of the subordinate
+directories in the GDB distribution, if you only want to configure that
+subdirectory; but be sure to specify a path to it.
+
+   For example, with version 6.1, type the following to configure only
+the `bfd' subdirectory:
+
+      cd gdb-6.1/bfd
+      ../configure
+
+   You can install `gdb' anywhere; it has no hardwired paths. However,
+you should make sure that the shell on your path (named by the `SHELL'
+environment variable) is publicly readable.  Remember that GDB uses the
+shell to start your program--some systems refuse to let GDB debug child
+processes whose programs are not readable.
+
+
+Compiling GDB in another directory
+==================================
+
+   If you want to run GDB versions for several host or target machines,
+you need a different `gdb' compiled for each combination of host and
+target.  `configure' is designed to make this easy by allowing you to
+generate each configuration in a separate subdirectory, rather than in
+the source directory.  If your `make' program handles the `VPATH'
+feature correctly (GNU `make' and SunOS 'make' are two that should),
+running `make' in each of these directories builds the `gdb' program
+specified there.
+
+   To build `gdb' in a separate directory, run `configure' with the
+`--srcdir' option to specify where to find the source. (You also need
+to specify a path to find `configure' itself from your working
+directory.  If the path to `configure' would be the same as the
+argument to `--srcdir', you can leave out the `--srcdir' option; it
+will be assumed.)
+
+   For example, with version 6.1, you can build GDB in a separate
+directory for a Sun 4 like this:
+
+     cd gdb-6.1
+     mkdir ../gdb-sun4
+     cd ../gdb-sun4
+     ../gdb-6.1/configure
+     make
+
+   When `configure' builds a configuration using a remote source
+directory, it creates a tree for the binaries with the same structure
+(and using the same names) as the tree under the source directory.  In
+the example, you'd find the Sun 4 library `libiberty.a' in the
+directory `gdb-sun4/libiberty', and GDB itself in `gdb-sun4/gdb'.
+
+   One popular reason to build several GDB configurations in separate
+directories is to configure GDB for cross-compiling (where GDB runs on
+one machine--the host--while debugging programs that run on another
+machine--the target).  You specify a cross-debugging target by giving
+the `--target=TARGET' option to `configure'.
+
+   When you run `make' to build a program or library, you must run it
+in a configured directory--whatever directory you were in when you
+called `configure' (or one of its subdirectories).
+
+   The `Makefile' that `configure' generates in each source directory
+also runs recursively.  If you type `make' in a source directory such
+as `gdb-6.1' (or in a separate configured directory configured with
+`--srcdir=PATH/gdb-6.1'), you will build all the required libraries,
+and then build GDB.
+
+   When you have multiple hosts or targets configured in separate
+directories, you can run `make' on them in parallel (for example, if
+they are NFS-mounted on each of the hosts); they will not interfere
+with each other.
+
+
+Specifying names for hosts and targets
+======================================
+
+   The specifications used for hosts and targets in the `configure'
+script are based on a three-part naming scheme, but some short
+predefined aliases are also supported.  The full naming scheme encodes
+three pieces of information in the following pattern:
+
+     ARCHITECTURE-VENDOR-OS
+
+   For example, you can use the alias `sun4' as a HOST argument or in a
+`--target=TARGET' option.  The equivalent full name is
+`sparc-sun-sunos4'.
+
+   The `configure' script accompanying GDB does not provide any query
+facility to list all supported host and target names or aliases. 
+`configure' calls the Bourne shell script `config.sub' to map
+abbreviations to full names; you can read the script, if you wish, or
+you can use it to test your guesses on abbreviations--for example:
+
+     % sh config.sub sun4
+     sparc-sun-sunos4.1.1
+     % sh config.sub sun3
+     m68k-sun-sunos4.1.1
+     % sh config.sub decstation
+     mips-dec-ultrix4.2
+     % sh config.sub hp300bsd
+     m68k-hp-bsd
+     % sh config.sub i386v
+     i386-pc-sysv
+     % sh config.sub i786v
+     Invalid configuration `i786v': machine `i786v' not recognized
+
+`config.sub' is also distributed in the GDB source directory
+(`gdb-6.1', for version 6.1).
+
+
+`configure' options
+===================
+
+   Here is a summary of the `configure' options and arguments that are
+most often useful for building GDB.  `configure' also has several other
+options not listed here.  *note : (configure.info)What Configure Does,
+for a full explanation of `configure'.
+
+     configure [--help]
+               [--prefix=DIR]
+               [--srcdir=PATH]
+               [--norecursion] [--rm]
+	       [--enable-build-warnings]
+               [--target=TARGET]
+	       [--host=HOST]
+	       [HOST]
+
+You may introduce options with a single `-' rather than `--' if you
+prefer; but you may abbreviate option names if you use `--'.
+
+`--help'
+     Display a quick summary of how to invoke `configure'.
+
+`-prefix=DIR'
+     Configure the source to install programs and files under directory
+     `DIR'.
+
+`--srcdir=PATH'
+     *Warning: using this option requires GNU `make', or another `make'
+     that compatibly implements the `VPATH' feature.*
+     Use this option to make configurations in directories separate
+     from the GDB source directories.  Among other things, you can use
+     this to build (or maintain) several configurations simultaneously,
+     in separate directories.  `configure' writes configuration
+     specific files in the current directory, but arranges for them to
+     use the source in the directory PATH.  `configure' will create
+     directories under the working directory in parallel to the source
+     directories below PATH.
+
+`--norecursion'
+     Configure only the directory level where `configure' is executed;
+     do not propagate configuration to subdirectories.
+
+`--rm'
+     Remove the configuration that the other arguments specify.
+
+`--enable-build-warnings'
+     When building the GDB sources, ask the compiler to warn about any
+     code which looks even vaguely suspicious.  You should only using
+     this feature if you're compiling with GNU CC.  It passes the
+     following flags:
+	-Wimplicit
+	-Wreturn-type
+	-Wcomment
+	-Wtrigraphs
+	-Wformat
+	-Wparentheses
+	-Wpointer-arith
+
+`--target=TARGET'
+     Configure GDB for cross-debugging programs running on the specified
+     TARGET.  Without this option, GDB is configured to debug programs
+     that run on the same machine (HOST) as GDB itself.
+
+     There is no convenient way to generate a list of all available
+     targets.
+
+`--host=HOST'
+     Configure GDB to run on the specified HOST.
+
+     There is no convenient way to generate a list of all available
+     hosts.
+
+`HOST ...'
+     Same as `--host=HOST'.  If you omit this, GDB will guess; it's
+     quite accurate.
+
+`configure' accepts other options, for compatibility with configuring
+other GNU tools recursively; but these are the only options that affect
+GDB or its supporting libraries.
+
+
+Remote debugging
+=================
+
+   The files m68k-stub.c, i386-stub.c, and sparc-stub.c are examples
+of remote stubs to be used with remote.c.  They are designed to run
+standalone on an m68k, i386, or SPARC cpu and communicate properly
+with the remote.c stub over a serial line.
+
+   The directory gdb/gdbserver/ contains `gdbserver', a program that
+allows remote debugging for Unix applications.  gdbserver is only
+supported for some native configurations, including Sun 3, Sun 4, and
+Linux.
+
+   There are a number of remote interfaces for talking to existing ROM
+monitors and other hardware:
+
+	remote-e7000.c	 Renesas E7000 ICE
+	remote-est.c	 EST emulator
+	remote-hms.c	 Renesas Micro Systems H8/300 monitor
+	remote-mips.c	 MIPS remote debugging protocol
+	remote-rdi.c	 ARM with Angel monitor
+	remote-rdp.c	 ARM with Demon monitor
+	remote-sds.c	 PowerPC SDS monitor
+	remote-sim.c	 Generalized simulator protocol
+	remote-st.c	 Tandem ST-2000 monitor
+	remote-vx.c	 VxWorks realtime kernel
+
+   Remote-vx.c and the vx-share subdirectory contain a remote
+interface for the VxWorks realtime kernel, which communicates over TCP
+using the Sun RPC library.  This would be a useful starting point for
+other remote- via-ethernet back ends.
+
+
+Reporting Bugs in GDB
+=====================
+
+   There are several ways of reporting bugs in GDB.  The prefered
+method is to use the World Wide Web:
+
+      http://www.gnu.org/software/gdb/bugs/
+
+As an alternative, the bug report can be submitted, via e-mail, to the
+address "bug-gdb@gnu.org".
+
+   When submitting a bug, please include the GDB version number (e.g.,
+gdb-6.1), and how you configured it (e.g., "sun4" or "mach386 host,
+i586-intel-synopsys target").  Since GDB now supports so many
+different configurations, it is important that you be precise about
+this.  If at all possible, you should include the actual banner that
+GDB prints when it starts up, or failing that, the actual configure
+command that you used when configuring GDB.
+
+   For more information on how/whether to report bugs, see the
+Reporting Bugs chapter of the GDB manual (gdb/doc/gdb.texinfo).
+
+
+Graphical interface to GDB -- X Windows, MS Windows
+==========================
+
+   Several graphical interfaces to GDB are available.  You should
+check:
+
+	http://www.gnu.org/software/gdb/links/
+
+for an up-to-date list.
+
+   Emacs users will very likely enjoy the Grand Unified Debugger mode;
+try typing `M-x gdb RET'.
+
+
+Writing Code for GDB
+=====================
+
+   There is a lot of information about writing code for GDB in the
+internals manual, distributed with GDB in gdb/doc/gdbint.texinfo.  You
+can read it by hand, print it by using TeX and texinfo, or process it
+into an `info' file for use with Emacs' info mode or the standalone
+`info' program.
+
+   If you are pondering writing anything but a short patch, especially
+take note of the information about copyrights in the node Submitting
+Patches.  It can take quite a while to get all the paperwork done, so
+we encourage you to start that process as soon as you decide you are
+planning to work on something, or at least well ahead of when you
+think you will be ready to submit the patches.
+
+
+GDB Testsuite
+=============
+
+   Included with the GDB distribution is a DejaGNU based testsuite
+that can either be used to test your newly built GDB, or for
+regression testing a GDB with local modifications.
+
+   Running the testsuite requires the prior installation of DejaGNU,
+which is generally available via ftp.  The directory
+ftp://sources.redhat.com/pub/dejagnu/ will contain a recent snapshot.
+Once DejaGNU is installed, you can run the tests in one of the
+following ways:
+
+  (1)	cd gdb-6.1
+	make check-gdb
+
+or
+
+  (2)	cd gdb-6.1/gdb
+	make check
+
+or
+
+  (3)	cd gdb-6.1/gdb/testsuite
+	make site.exp	(builds the site specific file)
+	runtest -tool gdb GDB=../gdb    (or GDB=<somepath> as appropriate)
+
+The last method gives you slightly more control in case of problems
+with building one or more test executables or if you are using the
+testsuite `standalone', without it being part of the GDB source tree.
+
+See the DejaGNU documentation for further details.
+
+
+(this is for editing this file with GNU emacs)
+Local Variables:
+mode: text
+End:

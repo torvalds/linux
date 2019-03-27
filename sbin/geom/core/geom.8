@@ -1,0 +1,220 @@
+.\" Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 14, 2018
+.Dt GEOM 8
+.Os
+.Sh NAME
+.Nm geom
+.Nd "universal control utility for GEOM classes"
+.Sh SYNOPSIS
+.Nm
+.Ar class
+.Cm help
+.Nm
+.Ar class
+.Cm list
+.Op Fl a
+.Op Ar name ...
+.Nm
+.Ar class
+.Cm status
+.Op Fl ags
+.Op Ar name ...
+.Nm
+.Ar class
+.Cm load
+.Op Fl v
+.Nm
+.Ar class
+.Cm unload
+.Op Fl v
+.Nm
+.Fl p
+.Ar provider-name
+.Nm
+.Fl t
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to control various GEOM classes.
+A class has to be aware of
+.Xr geom 8
+communication methods, but there are also some standard commands
+which can be used for existing
+.Xr geom 8
+unaware classes.
+Here is the list of standard commands:
+.Bl -tag -width ".Cm status"
+.It Cm help
+List all available commands for the given class.
+.It Cm list
+Print detailed information (within the given class) about all geoms
+(if no additional arguments were specified) or the given geoms.
+This command is only available if the given class exists in the kernel.
+Additional options include:
+.Bl -tag -width ".Fl a"
+.It Fl a
+Print information for geoms without providers.
+.El
+.It Cm status
+Print general information (within the given class) about all geoms
+(if no additional arguments were specified) or the given geoms.
+This command is only available if the given class exists in the kernel.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl s"
+.It Fl a
+When used with -g, print status for geoms without providers.
+.It Fl g
+Report statuses for geoms instead of providers.
+.It Fl s
+Produce script-friendly output.
+.El
+.It Cm load
+Load the kernel module that implements the given class.
+This command is only available if the class does not yet exist in the kernel and
+the file
+.Pa geom_ Ns Ao Ar class Ac Ns Pa .ko
+can be found in one of the directories specified in
+.Va kern.module_path
+sysctl.
+.It Cm unload
+Unload the kernel module which implements the given class.
+This command is only available if the given class is loaded as a
+kernel module.
+.El
+.Pp
+Additional options include:
+.Bl -tag -width ".Cm status"
+.It Fl p Ar provider-name
+Print detailed information about the geom which provides
+.Ar provider-name .
+.It Fl t
+Display geoms hierarchy as a tree.
+.El
+.Pp
+Class-specific commands are implemented as shared libraries which
+are stored in
+.Pa /lib/geom/
+directory and are loaded via
+.Xr dlopen 3
+function when the class name is known.
+When a class-specific shared library exists, a direct utility should also be
+available under the name of
+.Nm g Ns Ar class .
+.Pp
+Currently available classes which are aware of
+.Xr geom 8 :
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+CACHE
+.It
+CONCAT
+.It
+ELI
+.It
+JOURNAL
+.It
+LABEL
+.It
+MIRROR
+.It
+MOUNTVER
+.It
+MULTIPATH
+.It
+NOP
+.It
+PART
+.It
+RAID
+.It
+RAID3
+.It
+SCHED
+.It
+SHSEC
+.It
+STRIPE
+.It
+VIRSTOR
+.El
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev GEOM_LIBRARY_PATH"
+.It Ev GEOM_LIBRARY_PATH
+Specifies the path where shared libraries are stored instead of
+.Pa /lib/geom/ .
+Multiple paths can be specified with a colon-separated list of paths.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
+.Sh EXAMPLES
+The following example shows how to set up a stripe on three disks for automatic
+configuration:
+.Bd -literal -offset indent
+geom stripe label -v -s 65536 data /dev/da0 /dev/da1 /dev/da2
+or:
+gstripe label -v -s 65536 data /dev/da0 /dev/da1 /dev/da2
+.Ed
+.Pp
+Print the list of all providers from the DISK class:
+.Bd -literal -offset indent
+geom disk list
+.Ed
+.Pp
+Unload a kernel module which implements the MD class:
+.Bd -literal -offset indent
+geom md unload
+.Ed
+.Sh SEE ALSO
+.Xr libgeom 3 ,
+.Xr geom 4 ,
+.Xr gcache 8 ,
+.Xr gconcat 8 ,
+.Xr geli 8 ,
+.Xr gjournal 8 ,
+.Xr glabel 8 ,
+.Xr gmirror 8 ,
+.Xr gmountver 8 ,
+.Xr gmultipath 8 ,
+.Xr gnop 8 ,
+.Xr gpart 8 ,
+.Xr graid3 8 ,
+.Xr gsched 8 ,
+.Xr gshsec 8 ,
+.Xr gstripe 8 ,
+.Xr gvirstor 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org

@@ -1,0 +1,2 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=txt_db.c

@@ -1,0 +1,617 @@
+// -*- C++ -*-
+//===------------------------------ charconv ------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CHARCONV
+#define _LIBCPP_CHARCONV
+
+/*
+    charconv synopsis
+
+namespace std {
+
+  // floating-point format for primitive numerical conversion
+  enum class chars_format {
+    scientific = unspecified,
+    fixed = unspecified,
+    hex = unspecified,
+    general = fixed | scientific
+  };
+
+  // 23.20.2, primitive numerical output conversion
+  struct to_chars_result {
+    char* ptr;
+    errc ec;
+  };
+
+  to_chars_result to_chars(char* first, char* last, see below value,
+                           int base = 10);
+
+  to_chars_result to_chars(char* first, char* last, float value);
+  to_chars_result to_chars(char* first, char* last, double value);
+  to_chars_result to_chars(char* first, char* last, long double value);
+
+  to_chars_result to_chars(char* first, char* last, float value,
+                           chars_format fmt);
+  to_chars_result to_chars(char* first, char* last, double value,
+                           chars_format fmt);
+  to_chars_result to_chars(char* first, char* last, long double value,
+                           chars_format fmt);
+
+  to_chars_result to_chars(char* first, char* last, float value,
+                           chars_format fmt, int precision);
+  to_chars_result to_chars(char* first, char* last, double value,
+                           chars_format fmt, int precision);
+  to_chars_result to_chars(char* first, char* last, long double value,
+                           chars_format fmt, int precision);
+
+  // 23.20.3, primitive numerical input conversion
+  struct from_chars_result {
+    const char* ptr;
+    errc ec;
+  };
+
+  from_chars_result from_chars(const char* first, const char* last,
+                               see below& value, int base = 10);
+
+  from_chars_result from_chars(const char* first, const char* last,
+                               float& value,
+                               chars_format fmt = chars_format::general);
+  from_chars_result from_chars(const char* first, const char* last,
+                               double& value,
+                               chars_format fmt = chars_format::general);
+  from_chars_result from_chars(const char* first, const char* last,
+                               long double& value,
+                               chars_format fmt = chars_format::general);
+
+} // namespace std
+
+*/
+
+#include <__errc>
+#include <type_traits>
+#include <limits>
+#include <stdint.h>
+#include <string.h>
+#include <math.h>
+
+#include <__debug>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+namespace __itoa {
+_LIBCPP_FUNC_VIS char* __u64toa(uint64_t __value, char* __buffer);
+_LIBCPP_FUNC_VIS char* __u32toa(uint32_t __value, char* __buffer);
+}
+
+#if _LIBCPP_STD_VER > 11
+
+enum class _LIBCPP_ENUM_VIS chars_format
+{
+    scientific = 0x1,
+    fixed = 0x2,
+    hex = 0x4,
+    general = fixed | scientific
+};
+
+struct _LIBCPP_TYPE_VIS to_chars_result
+{
+    char* ptr;
+    errc ec;
+};
+
+struct _LIBCPP_TYPE_VIS from_chars_result
+{
+    const char* ptr;
+    errc ec;
+};
+
+void to_chars(char*, char*, bool, int = 10) = delete;
+void from_chars(const char*, const char*, bool, int = 10) = delete;
+
+namespace __itoa
+{
+
+static constexpr uint64_t __pow10_64[] = {
+    UINT64_C(0),
+    UINT64_C(10),
+    UINT64_C(100),
+    UINT64_C(1000),
+    UINT64_C(10000),
+    UINT64_C(100000),
+    UINT64_C(1000000),
+    UINT64_C(10000000),
+    UINT64_C(100000000),
+    UINT64_C(1000000000),
+    UINT64_C(10000000000),
+    UINT64_C(100000000000),
+    UINT64_C(1000000000000),
+    UINT64_C(10000000000000),
+    UINT64_C(100000000000000),
+    UINT64_C(1000000000000000),
+    UINT64_C(10000000000000000),
+    UINT64_C(100000000000000000),
+    UINT64_C(1000000000000000000),
+    UINT64_C(10000000000000000000),
+};
+
+static constexpr uint32_t __pow10_32[] = {
+    UINT32_C(0),          UINT32_C(10),       UINT32_C(100),
+    UINT32_C(1000),       UINT32_C(10000),    UINT32_C(100000),
+    UINT32_C(1000000),    UINT32_C(10000000), UINT32_C(100000000),
+    UINT32_C(1000000000),
+};
+
+template <typename _Tp, typename = void>
+struct _LIBCPP_HIDDEN __traits_base
+{
+    using type = uint64_t;
+
+#if !defined(_LIBCPP_COMPILER_MSVC)
+    static _LIBCPP_INLINE_VISIBILITY int __width(_Tp __v)
+    {
+        auto __t = (64 - __builtin_clzll(__v | 1)) * 1233 >> 12;
+        return __t - (__v < __pow10_64[__t]) + 1;
+    }
+#endif
+
+    static _LIBCPP_INLINE_VISIBILITY char* __convert(_Tp __v, char* __p)
+    {
+        return __u64toa(__v, __p);
+    }
+
+    static _LIBCPP_INLINE_VISIBILITY auto& __pow() { return __pow10_64; }
+};
+
+template <typename _Tp>
+struct _LIBCPP_HIDDEN
+    __traits_base<_Tp, decltype(void(uint32_t{declval<_Tp>()}))>
+{
+    using type = uint32_t;
+
+#if !defined(_LIBCPP_COMPILER_MSVC)
+    static _LIBCPP_INLINE_VISIBILITY int __width(_Tp __v)
+    {
+        auto __t = (32 - __builtin_clz(__v | 1)) * 1233 >> 12;
+        return __t - (__v < __pow10_32[__t]) + 1;
+    }
+#endif
+
+    static _LIBCPP_INLINE_VISIBILITY char* __convert(_Tp __v, char* __p)
+    {
+        return __u32toa(__v, __p);
+    }
+
+    static _LIBCPP_INLINE_VISIBILITY auto& __pow() { return __pow10_32; }
+};
+
+template <typename _Tp>
+inline _LIBCPP_INLINE_VISIBILITY bool
+__mul_overflowed(unsigned char __a, _Tp __b, unsigned char& __r)
+{
+    auto __c = __a * __b;
+    __r = __c;
+    return __c > (numeric_limits<unsigned char>::max)();
+}
+
+template <typename _Tp>
+inline _LIBCPP_INLINE_VISIBILITY bool
+__mul_overflowed(unsigned short __a, _Tp __b, unsigned short& __r)
+{
+    auto __c = __a * __b;
+    __r = __c;
+    return __c > (numeric_limits<unsigned short>::max)();
+}
+
+template <typename _Tp>
+inline _LIBCPP_INLINE_VISIBILITY bool
+__mul_overflowed(_Tp __a, _Tp __b, _Tp& __r)
+{
+    static_assert(is_unsigned<_Tp>::value, "");
+#if !defined(_LIBCPP_COMPILER_MSVC)
+    return __builtin_mul_overflow(__a, __b, &__r);
+#else
+    bool __did = __b && ((numeric_limits<_Tp>::max)() / __b) < __a;
+    __r = __a * __b;
+    return __did;
+#endif
+}
+
+template <typename _Tp, typename _Up>
+inline _LIBCPP_INLINE_VISIBILITY bool
+__mul_overflowed(_Tp __a, _Up __b, _Tp& __r)
+{
+    return __mul_overflowed(__a, static_cast<_Tp>(__b), __r);
+}
+
+template <typename _Tp>
+struct _LIBCPP_HIDDEN __traits : __traits_base<_Tp>
+{
+    static constexpr int digits = numeric_limits<_Tp>::digits10 + 1;
+    using __traits_base<_Tp>::__pow;
+    using typename __traits_base<_Tp>::type;
+
+    // precondition: at least one non-zero character available
+    static _LIBCPP_INLINE_VISIBILITY char const*
+    __read(char const* __p, char const* __ep, type& __a, type& __b)
+    {
+        type __cprod[digits];
+        int __j = digits - 1;
+        int __i = digits;
+        do
+        {
+            if (!('0' <= *__p && *__p <= '9'))
+                break;
+            __cprod[--__i] = *__p++ - '0';
+        } while (__p != __ep && __i != 0);
+
+        __a = __inner_product(__cprod + __i + 1, __cprod + __j, __pow() + 1,
+                              __cprod[__i]);
+        if (__mul_overflowed(__cprod[__j], __pow()[__j - __i], __b))
+            --__p;
+        return __p;
+    }
+
+    template <typename _It1, typename _It2, class _Up>
+    static _LIBCPP_INLINE_VISIBILITY _Up
+    __inner_product(_It1 __first1, _It1 __last1, _It2 __first2, _Up __init)
+    {
+        for (; __first1 < __last1; ++__first1, ++__first2)
+            __init = __init + *__first1 * *__first2;
+        return __init;
+    }
+};
+
+}  // namespace __itoa
+
+template <typename _Tp>
+inline _LIBCPP_INLINE_VISIBILITY _Tp
+__complement(_Tp __x)
+{
+    static_assert(is_unsigned<_Tp>::value, "cast to unsigned first");
+    return _Tp(~__x + 1);
+}
+
+template <typename _Tp>
+inline _LIBCPP_INLINE_VISIBILITY auto
+__to_unsigned(_Tp __x)
+{
+    return static_cast<make_unsigned_t<_Tp>>(__x);
+}
+
+template <typename _Tp>
+inline _LIBCPP_INLINE_VISIBILITY to_chars_result
+__to_chars_itoa(char* __first, char* __last, _Tp __value, true_type)
+{
+    auto __x = __to_unsigned(__value);
+    if (__value < 0 && __first != __last)
+    {
+        *__first++ = '-';
+        __x = __complement(__x);
+    }
+
+    return __to_chars_itoa(__first, __last, __x, false_type());
+}
+
+template <typename _Tp>
+inline _LIBCPP_INLINE_VISIBILITY to_chars_result
+__to_chars_itoa(char* __first, char* __last, _Tp __value, false_type)
+{
+    using __tx = __itoa::__traits<_Tp>;
+    auto __diff = __last - __first;
+
+#if !defined(_LIBCPP_COMPILER_MSVC)
+    if (__tx::digits <= __diff || __tx::__width(__value) <= __diff)
+        return {__tx::__convert(__value, __first), {}};
+    else
+        return {__last, errc::value_too_large};
+#else
+    if (__tx::digits <= __diff)
+        return {__tx::__convert(__value, __first), {}};
+    else
+    {
+        char __buf[__tx::digits];
+        auto __p = __tx::__convert(__value, __buf);
+        auto __len = __p - __buf;
+        if (__len <= __diff)
+        {
+            memcpy(__first, __buf, __len);
+            return {__first + __len, {}};
+        }
+        else
+            return {__last, errc::value_too_large};
+    }
+#endif
+}
+
+template <typename _Tp>
+inline _LIBCPP_INLINE_VISIBILITY to_chars_result
+__to_chars_integral(char* __first, char* __last, _Tp __value, int __base,
+                    true_type)
+{
+    auto __x = __to_unsigned(__value);
+    if (__value < 0 && __first != __last)
+    {
+        *__first++ = '-';
+        __x = __complement(__x);
+    }
+
+    return __to_chars_integral(__first, __last, __x, __base, false_type());
+}
+
+template <typename _Tp>
+inline _LIBCPP_INLINE_VISIBILITY to_chars_result
+__to_chars_integral(char* __first, char* __last, _Tp __value, int __base,
+                    false_type)
+{
+    if (__base == 10)
+        return __to_chars_itoa(__first, __last, __value, false_type());
+
+    auto __p = __last;
+    while (__p != __first)
+    {
+        auto __c = __value % __base;
+        __value /= __base;
+        *--__p = "0123456789abcdefghijklmnopqrstuvwxyz"[__c];
+        if (__value == 0)
+            break;
+    }
+
+    auto __len = __last - __p;
+    if (__value != 0 || !__len)
+        return {__last, errc::value_too_large};
+    else
+    {
+        memmove(__first, __p, __len);
+        return {__first + __len, {}};
+    }
+}
+
+template <typename _Tp, enable_if_t<is_integral<_Tp>::value, int> = 0>
+inline _LIBCPP_INLINE_VISIBILITY to_chars_result
+to_chars(char* __first, char* __last, _Tp __value)
+{
+    return __to_chars_itoa(__first, __last, __value, is_signed<_Tp>());
+}
+
+template <typename _Tp, enable_if_t<is_integral<_Tp>::value, int> = 0>
+inline _LIBCPP_INLINE_VISIBILITY to_chars_result
+to_chars(char* __first, char* __last, _Tp __value, int __base)
+{
+    _LIBCPP_ASSERT(2 <= __base && __base <= 36, "base not in [2, 36]");
+    return __to_chars_integral(__first, __last, __value, __base,
+                               is_signed<_Tp>());
+}
+
+template <typename _It, typename _Tp, typename _Fn, typename... _Ts>
+inline _LIBCPP_INLINE_VISIBILITY from_chars_result
+__sign_combinator(_It __first, _It __last, _Tp& __value, _Fn __f, _Ts... __args)
+{
+    using __tl = numeric_limits<_Tp>;
+    decltype(__to_unsigned(__value)) __x;
+
+    bool __neg = (__first != __last && *__first == '-');
+    auto __r = __f(__neg ? __first + 1 : __first, __last, __x, __args...);
+    switch (__r.ec)
+    {
+    case errc::invalid_argument:
+        return {__first, __r.ec};
+    case errc::result_out_of_range:
+        return __r;
+    default:
+        break;
+    }
+
+    if (__neg)
+    {
+        if (__x <= __complement(__to_unsigned(__tl::min())))
+        {
+            __x = __complement(__x);
+            memcpy(&__value, &__x, sizeof(__x));
+            return __r;
+        }
+    }
+    else
+    {
+        if (__x <= (__tl::max)())
+        {
+            __value = __x;
+            return __r;
+        }
+    }
+
+    return {__r.ptr, errc::result_out_of_range};
+}
+
+template <typename _Tp>
+inline _LIBCPP_INLINE_VISIBILITY bool
+__in_pattern(_Tp __c)
+{
+    return '0' <= __c && __c <= '9';
+}
+
+struct _LIBCPP_HIDDEN __in_pattern_result
+{
+    bool __ok;
+    int __val;
+
+    explicit _LIBCPP_INLINE_VISIBILITY operator bool() const { return __ok; }
+};
+
+template <typename _Tp>
+inline _LIBCPP_INLINE_VISIBILITY __in_pattern_result
+__in_pattern(_Tp __c, int __base)
+{
+    if (__base <= 10)
+        return {'0' <= __c && __c < '0' + __base, __c - '0'};
+    else if (__in_pattern(__c))
+        return {true, __c - '0'};
+    else if ('a' <= __c && __c < 'a' + __base - 10)
+        return {true, __c - 'a' + 10};
+    else
+        return {'A' <= __c && __c < 'A' + __base - 10, __c - 'A' + 10};
+}
+
+template <typename _It, typename _Tp, typename _Fn, typename... _Ts>
+inline _LIBCPP_INLINE_VISIBILITY from_chars_result
+__subject_seq_combinator(_It __first, _It __last, _Tp& __value, _Fn __f,
+                         _Ts... __args)
+{
+    auto __find_non_zero = [](_It __first, _It __last) {
+        for (; __first != __last; ++__first)
+            if (*__first != '0')
+                break;
+        return __first;
+    };
+
+    auto __p = __find_non_zero(__first, __last);
+    if (__p == __last || !__in_pattern(*__p, __args...))
+    {
+        if (__p == __first)
+            return {__first, errc::invalid_argument};
+        else
+        {
+            __value = 0;
+            return {__p, {}};
+        }
+    }
+
+    auto __r = __f(__p, __last, __value, __args...);
+    if (__r.ec == errc::result_out_of_range)
+    {
+        for (; __r.ptr != __last; ++__r.ptr)
+        {
+            if (!__in_pattern(*__r.ptr, __args...))
+                break;
+        }
+    }
+
+    return __r;
+}
+
+template <typename _Tp, enable_if_t<is_unsigned<_Tp>::value, int> = 0>
+inline _LIBCPP_INLINE_VISIBILITY from_chars_result
+__from_chars_atoi(const char* __first, const char* __last, _Tp& __value)
+{
+    using __tx = __itoa::__traits<_Tp>;
+    using __output_type = typename __tx::type;
+
+    return __subject_seq_combinator(
+        __first, __last, __value,
+        [](const char* __first, const char* __last,
+           _Tp& __value) -> from_chars_result {
+            __output_type __a, __b;
+            auto __p = __tx::__read(__first, __last, __a, __b);
+            if (__p == __last || !__in_pattern(*__p))
+            {
+                __output_type __m = (numeric_limits<_Tp>::max)();
+                if (__m >= __a && __m - __a >= __b)
+                {
+                    __value = __a + __b;
+                    return {__p, {}};
+                }
+            }
+            return {__p, errc::result_out_of_range};
+        });
+}
+
+template <typename _Tp, enable_if_t<is_signed<_Tp>::value, int> = 0>
+inline _LIBCPP_INLINE_VISIBILITY from_chars_result
+__from_chars_atoi(const char* __first, const char* __last, _Tp& __value)
+{
+    using __t = decltype(__to_unsigned(__value));
+    return __sign_combinator(__first, __last, __value, __from_chars_atoi<__t>);
+}
+
+template <typename _Tp, enable_if_t<is_unsigned<_Tp>::value, int> = 0>
+inline _LIBCPP_INLINE_VISIBILITY from_chars_result
+__from_chars_integral(const char* __first, const char* __last, _Tp& __value,
+                      int __base)
+{
+    if (__base == 10)
+        return __from_chars_atoi(__first, __last, __value);
+
+    return __subject_seq_combinator(
+        __first, __last, __value,
+        [](const char* __p, const char* __last, _Tp& __value,
+           int __base) -> from_chars_result {
+            using __tl = numeric_limits<_Tp>;
+            auto __digits = __tl::digits / log2f(float(__base));
+            _Tp __a = __in_pattern(*__p++, __base).__val, __b = 0;
+
+            for (int __i = 1; __p != __last; ++__i, ++__p)
+            {
+                if (auto __c = __in_pattern(*__p, __base))
+                {
+                    if (__i < __digits - 1)
+                        __a = __a * __base + __c.__val;
+                    else
+                    {
+                        if (!__itoa::__mul_overflowed(__a, __base, __a))
+                            ++__p;
+                        __b = __c.__val;
+                        break;
+                    }
+                }
+                else
+                    break;
+            }
+
+            if (__p == __last || !__in_pattern(*__p, __base))
+            {
+                if ((__tl::max)() - __a >= __b)
+                {
+                    __value = __a + __b;
+                    return {__p, {}};
+                }
+            }
+            return {__p, errc::result_out_of_range};
+        },
+        __base);
+}
+
+template <typename _Tp, enable_if_t<is_signed<_Tp>::value, int> = 0>
+inline _LIBCPP_INLINE_VISIBILITY from_chars_result
+__from_chars_integral(const char* __first, const char* __last, _Tp& __value,
+                      int __base)
+{
+    using __t = decltype(__to_unsigned(__value));
+    return __sign_combinator(__first, __last, __value,
+                             __from_chars_integral<__t>, __base);
+}
+
+template <typename _Tp, enable_if_t<is_integral<_Tp>::value, int> = 0>
+inline _LIBCPP_INLINE_VISIBILITY from_chars_result
+from_chars(const char* __first, const char* __last, _Tp& __value)
+{
+    return __from_chars_atoi(__first, __last, __value);
+}
+
+template <typename _Tp, enable_if_t<is_integral<_Tp>::value, int> = 0>
+inline _LIBCPP_INLINE_VISIBILITY from_chars_result
+from_chars(const char* __first, const char* __last, _Tp& __value, int __base)
+{
+    _LIBCPP_ASSERT(2 <= __base && __base <= 36, "base not in [2, 36]");
+    return __from_chars_integral(__first, __last, __value, __base);
+}
+
+#endif  // _LIBCPP_STD_VER > 11
+
+_LIBCPP_END_NAMESPACE_STD
+
+_LIBCPP_POP_MACROS
+
+#endif  // _LIBCPP_CHARCONV

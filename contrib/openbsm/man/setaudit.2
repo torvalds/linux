@@ -1,0 +1,172 @@
+.\"-
+.\" Copyright (c) 2005 Robert N. M. Watson
+.\" Copyright (c) 2008 Apple Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 19, 2005
+.Dt SETAUDIT 2
+.Os
+.Sh NAME
+.Nm setaudit ,
+.Nm setaudit_addr
+.Nd "set audit session state"
+.Sh SYNOPSIS
+.In bsm/audit.h
+.Ft int
+.Fn setaudit "auditinfo_t *auditinfo"
+.Ft int
+.Fn setaudit_addr "auditinfo_addr_t *auditinfo_addr" "u_int length"
+.Sh DESCRIPTION
+The
+.Fn setaudit
+system call
+sets the active audit session state for the current process via the
+.Vt auditinfo_t
+pointed to by
+.Fa auditinfo .
+The
+.Fn setaudit_addr
+system call
+sets extended state via
+.Fa auditinfo_addr
+and
+.Fa length .
+.Pp
+The
+.Fa auditinfo_t
+data structure is defined as follows:
+.Bd -literal -offset 4n
+struct auditinfo {
+	au_id_t        ai_auid;         /* Audit user ID */
+	au_mask_t      ai_mask;         /* Audit masks */
+	au_tid_t       ai_termid;       /* Terminal ID */
+	au_asid_t      ai_asid;         /* Audit session ID */
+};
+typedef struct auditinfo        auditinfo_t;
+.Ed
+.Pp
+The
+.Fa ai_auid
+variable contains the audit identifier which is recorded in the audit log for
+each event the process caused.
+.Pp
+The
+.Fa au_mask_t
+data structure defines the bit mask for auditing successful and failed events
+out of the predefined list of event classes. It is defined as follows:
+.Bd -literal -offset 4n
+struct au_mask {
+	unsigned int    am_success;     /* success bits */
+	unsigned int    am_failure;     /* failure bits */
+};
+typedef struct au_mask  au_mask_t;
+.Ed
+.Pp
+The
+.Fa au_termid_t
+data structure defines the Terminal ID recorded with every event caused by the
+process. It is defined as follows:
+.Bd -literal -offset 4n
+struct au_tid {
+	dev_t           port;
+	u_int32_t       machine;
+};
+typedef struct au_tid   au_tid_t;
+.Ed
+.Pp
+The
+.Fa ai_asid
+variable contains the audit session ID which is recorded with every event
+caused by the process.
+.Pp
+The
+.Fn setaudit_addr
+system call
+uses the expanded
+.Fa auditinfo_addr_t
+data structure supports Terminal IDs with larger addresses such as those used
+in IP version 6.  It is defined as follows:
+.Bd -literal -offset 4n
+struct auditinfo_addr {
+	au_id_t         ai_auid;        /* Audit user ID. */
+	au_mask_t       ai_mask;        /* Audit masks. */
+	au_tid_addr_t   ai_termid;      /* Terminal ID. */
+	au_asid_t       ai_asid;        /* Audit session ID. */
+};
+typedef struct auditinfo_addr   auditinfo_addr_t;
+.Ed
+.Pp
+The
+.Fa au_tid_addr_t
+data structure which includes a larger address storage field and an additional
+field with the type of address stored:
+.Bd -literal -offset 4n
+struct au_tid_addr {
+	dev_t           at_port;
+	u_int32_t       at_type;
+	u_int32_t       at_addr[4];
+};
+typedef struct au_tid_addr      au_tid_addr_t;
+.Ed
+.Pp
+These system calls require an appropriate privilege to complete.
+.Sh RETURN VALUES
+.Rv -std setaudit setaudit_addr
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EFAULT
+A failure occurred while data transferred to or from
+the kernel failed.
+.It Bq Er EINVAL
+Illegal argument was passed by a system call.
+.It Bq Er EPERM
+The process does not have sufficient permission to complete
+the operation.
+.El
+.Sh SEE ALSO
+.Xr audit 2 ,
+.Xr auditon 2 ,
+.Xr getaudit 2 ,
+.Xr getauid 2 ,
+.Xr setauid 2 ,
+.Xr libbsm 3
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
+.Sh AUTHORS
+.An -nosplit
+This software was created by McAfee Research, the security research division
+of McAfee, Inc., under contract to Apple Computer Inc.
+Additional authors include
+.An Wayne Salamon ,
+.An Robert Watson ,
+and SPARTA Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.
+.Pp
+This manual page was written by
+.An Robert Watson Aq rwatson@FreeBSD.org .

@@ -1,0 +1,128 @@
+.\" Copyright (c) 2012 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Edward Tomasz Napierala under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 23, 2018
+.Dt CTLD 8
+.Os
+.Sh NAME
+.Nm ctld
+.Nd CAM Target Layer / iSCSI target daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Op Fl f Ar config-file
+.Op Fl u
+.Sh DESCRIPTION
+The
+.Nm
+daemon is responsible for managing the CAM Target Layer configuration,
+accepting incoming iSCSI connections, performing authentication and
+passing connections to the kernel part of the native iSCSI target.
+.Pp
+Upon startup, the
+.Nm
+daemon parses the configuration file.
+If it encounters any errors,
+.Nm
+exits.
+It then compares the configuration with the kernel list of LUNs managed
+by previously running
+.Nm
+instances, removes LUNs no longer existing in the configuration file,
+and creates new LUNs as necessary.
+After that it listens for the incoming iSCSI connections, performs
+authentication, and, if successful, passes the connections to the kernel part
+of CTL iSCSI target,
+.Xr cfiscsi 4 ,
+which handles it from that point.
+.Pp
+When it receives a SIGHUP signal, the
+.Nm
+reloads its configuration and applies the changes to the kernel.
+Changes are applied in a way that avoids unnecessary disruptions;
+for example removing one LUN does not affect other LUNs.
+.Pp
+When exiting gracefully, the
+.Nm
+daemon removes LUNs it managed and forcibly disconnects all the clients.
+Otherwise - for example, when killed with SIGKILL - LUNs stay configured
+and clients remain connected.
+.Pp
+To perform administrative actions that apply to already connected
+sessions, such as forcing termination, use
+.Xr ctladm 8 .
+.Pp
+The following options are available:
+.Bl -tag -width ".Fl P Ar pidfile"
+.It Fl f Ar config-file
+Specifies the name of the configuration file.
+The default is
+.Pa /etc/ctl.conf .
+.It Fl d
+Debug mode.
+The daemon sends verbose debug output to standard error, and does not
+put itself in the background.
+The daemon will also not fork and will exit after processing one connection.
+This option is only intended for debugging the target.
+.It Fl u
+Use UCL configuration file format instead of the traditional non-UCL format.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/ctld.pid" -compact
+.It Pa /etc/ctl.conf
+The configuration file for
+.Nm .
+The file format and configuration options are described in
+.Xr ctl.conf 5 .
+.It Pa /var/run/ctld.pid
+The default location of the
+.Nm
+PID file.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 on success, and >0 if an error occurs.
+.Sh SEE ALSO
+.Xr cfiscsi 4 ,
+.Xr ctl 4 ,
+.Xr ctl.conf 5 ,
+.Xr ctladm 8 ,
+.Xr ctlstat 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+was developed by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.

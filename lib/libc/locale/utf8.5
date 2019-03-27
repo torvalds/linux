@@ -1,0 +1,102 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Paul Borman at Krystal Technologies.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)utf2.4	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd April 7, 2004
+.Dt UTF8 5
+.Os
+.Sh NAME
+.Nm utf8
+.Nd "UTF-8, a transformation format of ISO 10646"
+.Sh SYNOPSIS
+.Nm ENCODING
+.Qq UTF-8
+.Sh DESCRIPTION
+The
+.Nm UTF-8
+encoding represents UCS-4 characters as a sequence of octets, using
+between 1 and 6 for each character.
+It is backwards compatible with
+.Tn ASCII ,
+so 0x00-0x7f refer to the
+.Tn ASCII
+character set.
+The multibyte encoding of
+.No non- Ns Tn ASCII
+characters
+consist entirely of bytes whose high order bit is set.
+The actual
+encoding is represented by the following table:
+.Bd -literal
+[0x00000000 - 0x0000007f] [00000000.0bbbbbbb] -> 0bbbbbbb
+[0x00000080 - 0x000007ff] [00000bbb.bbbbbbbb] -> 110bbbbb, 10bbbbbb
+[0x00000800 - 0x0000ffff] [bbbbbbbb.bbbbbbbb] ->
+	1110bbbb, 10bbbbbb, 10bbbbbb
+[0x00010000 - 0x001fffff] [00000000.000bbbbb.bbbbbbbb.bbbbbbbb] ->
+	11110bbb, 10bbbbbb, 10bbbbbb, 10bbbbbb
+[0x00200000 - 0x03ffffff] [000000bb.bbbbbbbb.bbbbbbbb.bbbbbbbb] ->
+	111110bb, 10bbbbbb, 10bbbbbb, 10bbbbbb, 10bbbbbb
+[0x04000000 - 0x7fffffff] [0bbbbbbb.bbbbbbbb.bbbbbbbb.bbbbbbbb] ->
+	1111110b, 10bbbbbb, 10bbbbbb, 10bbbbbb, 10bbbbbb, 10bbbbbb
+.Ed
+.Pp
+If more than a single representation of a value exists (for example,
+0x00; 0xC0 0x80; 0xE0 0x80 0x80) the shortest representation is always
+used.
+Longer ones are detected as an error as they pose a potential
+security risk, and destroy the 1:1 character:octet sequence mapping.
+.Sh SEE ALSO
+.Xr euc 5
+.Rs
+.%A "Rob Pike"
+.%A "Ken Thompson"
+.%T "Hello World"
+.%J "Proceedings of the Winter 1993 USENIX Technical Conference"
+.%Q "USENIX Association"
+.%D "January 1993"
+.Re
+.Rs
+.%A "F. Yergeau"
+.%T "UTF-8, a transformation format of ISO 10646"
+.%O "RFC 2279"
+.%D "January 1998"
+.Re
+.Rs
+.%Q "The Unicode Consortium"
+.%T "The Unicode Standard, Version 3.0"
+.%D "2000"
+.%O "as amended by the Unicode Standard Annex #27: Unicode 3.1 and by the Unicode Standard Annex #28: Unicode 3.2"
+.Re
+.Sh STANDARDS
+The
+.Nm
+encoding is compatible with RFC 2279 and Unicode 3.2.

@@ -1,0 +1,252 @@
+.\" Copyright (c) 2010 George Neville-Neil.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 24, 2012
+.Dt PMC.OCTEON 3
+.Os
+.Sh NAME
+.Nm pmc.octeon
+.Nd measurement events for
+.Tn Octeon
+family CPUs
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+There are two counters per core supported by the hardware and each is 64 bits
+wide.
+.Ss Event Specifiers (Programmable PMCs)
+MIPS programmable PMCs support the following events:
+.Bl -tag -width indent
+.It Li CLK
+.Pq Event 1
+Conditionally clocked cycles (as opposed to count/cvm_count which count even with no clocks)
+.It Li ISSUE
+.Pq Event 2
+Instructions issued but not retired
+.It Li RET
+.Pq Event 3
+Instructions retired
+.It Li NISSUE
+.Pq Event 4
+Cycles no issue
+.It Li SISSUE
+.Pq Event 5
+Cycles single issue
+.It Li DISSUE
+.Pq Event 6
+Cycles dual issue
+.It Li IFI
+.Pq Event 7
+Cycle ifetch issued (but not necessarily commit to pp_mem)
+.It Li BR
+.Pq Event 8
+Branches retired
+.It Li BRMIS
+.Pq Event 9
+Branch mispredicts
+.It Li J
+.Pq Event 10
+Jumps retired
+.It Li JMIS
+.Pq Event 11
+Jumps mispredicted
+.It Li REPLAY
+.Pq Event 12
+Mem Replays
+.It Li IUNA
+.Pq Event 13
+Cycles idle due to unaligned_replays
+.It Li TRAP
+.Pq Event 14
+trap_6a signal
+.It Li UULOAD
+.Pq Event 16
+Unexpected unaligned loads (REPUN=1)
+.It Li UUSTORE
+.Pq Event 17
+Unexpected unaligned store (REPUN=1)
+.It Li ULOAD
+.Pq Event 18
+Unaligned loads (REPUN=1 or USEUN=1)
+.It Li USTORE
+.Pq Event 19
+Unaligned store (REPUN=1 or USEUN=1)
+.It Li EC
+.Pq Event 20
+Exec clocks(must set CvmCtl[DISCE] for accurate timing)
+.It Li MC
+.Pq Event 21
+Mul clocks(must set CvmCtl[DISCE] for accurate timing)
+.It Li CC
+.Pq Event 22
+Crypto clocks(must set CvmCtl[DISCE] for accurate timing)
+.It Li CSRC
+.Pq Event 23
+Issue_csr clocks(must set CvmCtl[DISCE] for accurate timing)
+.It Li CFETCH
+.Pq Event 24
+Icache committed fetches (demand+prefetch)
+.It Li CPREF
+.Pq Event 25
+Icache committed prefetches
+.It Li ICA
+.Pq Event 26
+Icache aliases
+.It Li II
+.Pq Event 27
+Icache invalidates
+.It Li IP
+.Pq Event 28
+Icache parity error
+.It Li CIMISS
+.Pq Event 29
+Cycles idle due to imiss (must set CvmCtl[DISCE] for accurate timing)
+.It Li WBUF
+.Pq Event 32
+Number of write buffer entries created
+.It Li WDAT
+.Pq Event 33
+Number of write buffer data cycles used (may need to set CvmCtl[DISCE] for accurate counts)
+.It Li WBUFLD
+.Pq Event 34
+Number of write buffer entries forced out by loads
+.It Li WBUFFL
+.Pq Event 35
+Number of cycles that there was no available write buffer entry (may need to set CvmCtl[DISCE] and CvmMemCtl[MCLK] for accurate counts)
+.It Li WBUFTR
+.Pq Event 36
+Number of stores that found no available write buffer entries
+.It Li BADD
+.Pq Event 37
+Number of address bus cycles used (may need to set CvmCtl[DISCE] for accurate counts)
+.It Li BADDL2
+.Pq Event 38
+Number of address bus cycles not reflected (i.e. destined for L2) (may need to set CvmCtl[DISCE] for accurate counts)
+.It Li BFILL
+.Pq Event 39
+Number of fill bus cycles used (may need to set CvmCtl[DISCE] for accurate counts)
+.It Li DDIDS
+.Pq Event 40
+Number of Dstream DIDs created
+.It Li IDIDS
+.Pq Event 41
+Number of Istream DIDs created
+.It Li DIDNA
+.Pq Event 42
+Number of cycles that no DIDs were available (may need to set CvmCtl[DISCE] and CvmMemCtl[MCLK] for accurate counts)
+.It Li LDS
+.Pq Event 43
+Number of load issues
+.It Li LMLDS
+.Pq Event 44
+Number of local memory load
+.It Li IOLDS
+.Pq Event 45
+Number of I/O load issues
+.It Li DMLDS
+.Pq Event 46
+Number of loads that were not prefetches and missed in the cache
+.It Li STS
+.Pq Event 48
+Number of store issues
+.It Li LMSTS
+.Pq Event 49
+Number of local memory store issues
+.It Li IOSTS
+.Pq Event 50
+Number of I/O store issues
+.It Li IOBDMA
+.Pq Event 51
+Number of IOBDMAs
+.It Li DTLB
+.Pq Event 53
+Number of dstream TLB refill, invalid, or modified exceptions
+.It Li DTLBAD
+.Pq Event 54
+Number of dstream TLB address errors
+.It Li ITLB
+.Pq Event 55
+Number of istream TLB refill, invalid, or address error exceptions
+.It Li SYNC
+.Pq Event 56
+Number of SYNC stall cycles (may need to set CvmCtl[DISCE] for accurate counts)
+.It Li SYNCIOB
+.Pq Event 57
+Number of SYNCIOBDMA stall cycles (may need to set CvmCtl[DISCE] for accurate counts)
+.It Li SYNCW
+.Pq Event 58
+Number of SYNCWs
+.It Li ERETMIS
+.Pq Event 64
+D/eret mispredicts (CN63XX specific)
+.It Li LIKMIS
+.Pq Event 65
+Branch likely mispredicts (CN63XX specific)
+.It Li HAZTR
+.Pq Event 66
+Hazard traps due to *MTC0 to CvmCtl, Perf counter control, EntryHi, or CvmMemCtl registers (CN63XX specific)
+.El
+.Ss Event Name Aliases
+The following table shows the mapping between the PMC-independent
+aliases supported by
+.Lb libpmc
+and the underlying hardware events used.
+.Bl -column "branch-mispredicts" "cpu_clk_unhalted.core_p"
+.It Em Alias Ta Em Event
+.It Li instructions Ta Li RET
+.It Li branches Ta Li BR
+.It Li branch-mispredicts Ta Li BS
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.atom 3 ,
+.Xr pmc.core 3 ,
+.Xr pmc.iaf 3 ,
+.Xr pmc.k7 3 ,
+.Xr pmc.k8 3 ,
+.Xr pmc.mips24k 3 ,
+.Xr pmc.p4 3 ,
+.Xr pmc.p5 3 ,
+.Xr pmc.p6 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmc_cpuinfo 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4
+.Sh HISTORY
+The
+.Nm pmc
+library first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Lb libpmc
+library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .
+MIPS support was added by
+.An George Neville-Neil Aq Mt gnn@FreeBSD.org .

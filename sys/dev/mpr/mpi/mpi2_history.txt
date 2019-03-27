@@ -1,0 +1,828 @@
+/*-
+ *  Copyright 2000-2020 Broadcom Inc. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the author nor the names of any co-contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * Broadcom Inc. (LSI) MPT-Fusion Host Adapter FreeBSD
+ *
+ * $FreeBSD$
+ */
+
+ ==============================
+ Fusion-MPT MPI 2.0 / 2.5 Header File Change History
+ ==============================
+
+ Copyright 2000-2020 Broadcom Inc. All rights reserved.
+
+ ---------------------------------------
+ Header Set Release Version:    02.00.50
+ Header Set Release Date:       09-29-17
+ ---------------------------------------
+
+ Filename               Current version     Prior version
+ ----------             ---------------     -------------
+ mpi2.h                 02.00.50            02.00.49
+ mpi2_cnfg.h            02.00.42            02.00.41
+ mpi2_init.h            02.00.21            02.00.21
+ mpi2_ioc.h             02.00.34            02.00.33
+ mpi2_raid.h            02.00.11            02.00.11
+ mpi2_sas.h             02.00.10            02.00.10
+ mpi2_targ.h            02.00.09            02.00.09
+ mpi2_tool.h            02.00.14            02.00.13
+ mpi2_type.h            02.00.01            02.00.01
+ mpi2_ra.h              02.00.01            02.00.01
+ mpi2_hbd.h             02.00.04            02.00.04
+ mpi2_pci.h             02.00.02            02.00.02
+ mpi2_history.txt       02.00.46            02.00.45
+
+
+ *  Date      Version   Description
+ *  --------  --------  ------------------------------------------------------
+
+mpi2.h
+ *  04-30-07  02.00.00  Corresponds to Fusion-MPT MPI Specification Rev A.
+ *  06-04-07  02.00.01  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  06-26-07  02.00.02  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  08-31-07  02.00.03  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Moved ReplyPostHostIndex register to offset 0x6C of the
+ *                      MPI2_SYSTEM_INTERFACE_REGS and modified the define for
+ *                      MPI2_REPLY_POST_HOST_INDEX_OFFSET.
+ *                      Added union of request descriptors.
+ *                      Added union of reply descriptors.
+ *  10-31-07  02.00.04  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added define for MPI2_VERSION_02_00.
+ *                      Fixed the size of the FunctionDependent5 field in the
+ *                      MPI2_DEFAULT_REPLY structure.
+ *  12-18-07  02.00.05  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Removed the MPI-defined Fault Codes and extended the
+ *                      product specific codes up to 0xEFFF.
+ *                      Added a sixth key value for the WriteSequence register
+ *                      and changed the flush value to 0x0.
+ *                      Added message function codes for Diagnostic Buffer Post
+ *                      and Diagnsotic Release.
+ *                      New IOCStatus define: MPI2_IOCSTATUS_DIAGNOSTIC_RELEASED
+ *                      Moved MPI2_VERSION_UNION from mpi2_ioc.h.
+ *  02-29-08  02.00.06  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  03-03-08  02.00.07  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  05-21-08  02.00.08  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added #defines for marking a reply descriptor as unused.
+ *  06-27-08  02.00.09  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  10-02-08  02.00.10  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Moved LUN field defines from mpi2_init.h.
+ *  01-19-09  02.00.11  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  05-06-09  02.00.12  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      In all request and reply descriptors, replaced VF_ID
+ *                      field with MSIxIndex field.
+ *                      Removed DevHandle field from
+ *                      MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR and made those
+ *                      bytes reserved.
+ *                      Added RAID Accelerator functionality.
+ *  07-30-09  02.00.13  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  10-28-09  02.00.14  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added MSI-x index mask and shift for Reply Post Host
+ *                      Index register.
+ *                      Added function code for Host Based Discovery Action.
+ *  02-10-10  02.00.15  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added define for MPI2_FUNCTION_PWR_MGMT_CONTROL.
+ *                      Added defines for product-specific range of message
+ *                      function codes, 0xF0 to 0xFF.
+ *  05-12-10  02.00.16  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added alternative defines for the SGE Direction bit.
+ *  08-11-10  02.00.17  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  11-10-10  02.00.18  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added MPI2_IEEE_SGE_FLAGS_SYSTEMPLBCPI_ADDR define.
+ *  02-23-11  02.00.19  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added MPI2_FUNCTION_SEND_HOST_MESSAGE.
+ *  03-09-11  02.00.20  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  05-25-11  02.00.21  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  08-24-11  02.00.22  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  11-18-11  02.00.23  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Incorporating additions for MPI v2.5.
+ *  02-06-12  02.00.24  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  03-29-12  02.00.25  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added Hard Reset delay timings.
+ *  07-10-12  02.00.26  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  07-26-12  02.00.27  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  11-27-12  02.00.28  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  12-20-12  02.00.29  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added MPI25_SUP_REPLY_POST_HOST_INDEX_OFFSET.
+ *  04-09-13  02.00.30  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  04-17-13  02.00.31  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  08-19-13  02.00.32  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  12-05-13  02.00.33  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  01-08-14  02.00.34  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  06-13-14  02.00.35  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  11-18-14  02.00.36  Updated copyright information.
+ *                      Bumped MPI2_HEADER_VERSION_UNIT.
+ *  03-16-15  02.00.37  Updated for MPI v2.6.
+ *                      Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added Scratchpad registers and
+ *                      AtomicRequestDescriptorPost register to
+ *                      MPI2_SYSTEM_INTERFACE_REGS.
+ *                      Added MPI2_DIAG_SBR_RELOAD.
+ *                      Added MPI2_IOCSTATUS_INSUFFICIENT_POWER.
+ *  03-19-15  02.00.38  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  05-25-15  02.00.39  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  08-25-15  02.00.40  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added V7 HostDiagnostic register defines
+ *  12-15-15  02.00.41  Bumped MPI_HEADER_VERSION_UNIT
+ *  01-04-16  02.00.42  Bumped MPI_HEADER_VERSION_UNIT
+ *  04-05-16  02.00.43  Modified  MPI26_DIAG_BOOT_DEVICE_SELECT defines
+ *                      to be unique within first 32 characters.
+ *                      Removed AHCI support.
+ *                      Removed SOP support.
+ *                      Bumped MPI2_HEADER_VERSION_UNIT.
+ * 04-10-16  02.00.44   Bumped MPI2_HEADER_VERSION_UNIT.
+ * 07-06-16  02.00.45   Bumped MPI2_HEADER_VERSION_UNIT.
+ * 09-02-16  02.00.46   Bumped MPI2_HEADER_VERSION_UNIT.
+ * 11-23-16  02.00.47   Bumped MPI2_HEADER_VERSION_UNIT.
+ * 02-03-17  02.00.48   Bumped MPI2_HEADER_VERSION_UNIT.
+ * 06-13-17  02.00.49   Bumped MPI2_HEADER_VERSION_UNIT.
+ * 09-29-17  02.00.50   Bumped MPI2_HEADER_VERSION_UNIT.
+ *  --------------------------------------------------------------------------
+
+mpi2_cnfg.h
+ *  04-30-07  02.00.00  Corresponds to Fusion-MPT MPI Specification Rev A.
+ *  06-04-07  02.00.01  Added defines for SAS IO Unit Page 2 PhyFlags.
+ *                      Added Manufacturing Page 11.
+ *                      Added MPI2_SAS_EXPANDER0_FLAGS_CONNECTOR_END_DEVICE
+ *                      define.
+ *  06-26-07  02.00.02  Adding generic structure for product-specific
+ *                      Manufacturing pages: MPI2_CONFIG_PAGE_MANUFACTURING_PS.
+ *                      Rework of BIOS Page 2 configuration page.
+ *                      Fixed MPI2_BIOSPAGE2_BOOT_DEVICE to be a union of the
+ *                      forms.
+ *                      Added configuration pages IOC Page 8 and Driver
+ *                      Persistent Mapping Page 0.
+ *  08-31-07  02.00.03  Modified configuration pages dealing with Integrated
+ *                      RAID (Manufacturing Page 4, RAID Volume Pages 0 and 1,
+ *                      RAID Physical Disk Pages 0 and 1, RAID Configuration
+ *                      Page 0).
+ *                      Added new value for AccessStatus field of SAS Device
+ *                      Page 0 (_SATA_NEEDS_INITIALIZATION).
+ *  10-31-07  02.00.04  Added missing SEPDevHandle field to
+ *                      MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0.
+ *  12-18-07  02.00.05  Modified IO Unit Page 0 to use 32-bit version fields for
+ *                      NVDATA.
+ *                      Modified IOC Page 7 to use masks and added field for
+ *                      SASBroadcastPrimitiveMasks.
+ *                      Added MPI2_CONFIG_PAGE_BIOS_4.
+ *                      Added MPI2_CONFIG_PAGE_LOG_0.
+ *  02-29-08  02.00.06  Modified various names to make them 32-character unique.
+ *                      Added SAS Device IDs.
+ *                      Updated Integrated RAID configuration pages including
+ *                      Manufacturing Page 4, IOC Page 6, and RAID Configuration
+ *                      Page 0.
+ *  05-21-08  02.00.07  Added define MPI2_MANPAGE4_MIX_SSD_SAS_SATA.
+ *                      Added define MPI2_MANPAGE4_PHYSDISK_128MB_COERCION.
+ *                      Fixed define MPI2_IOCPAGE8_FLAGS_ENCLOSURE_SLOT_MAPPING.
+ *                      Added missing MaxNumRoutedSasAddresses field to
+ *                      MPI2_CONFIG_PAGE_EXPANDER_0.
+ *                      Added SAS Port Page 0.
+ *                      Modified structure layout for
+ *                      MPI2_CONFIG_PAGE_DRIVER_MAPPING_0.
+ *  06-27-08  02.00.08  Changed MPI2_CONFIG_PAGE_RD_PDISK_1 to use
+ *                      MPI2_RAID_PHYS_DISK1_PATH_MAX to size the array.
+ *  10-02-08  02.00.09  Changed MPI2_RAID_PGAD_CONFIGNUM_MASK from 0x0000FFFF
+ *                      to 0x000000FF.
+ *                      Added two new values for the Physical Disk Coercion Size
+ *                      bits in the Flags field of Manufacturing Page 4.
+ *                      Added product-specific Manufacturing pages 16 to 31.
+ *                      Modified Flags bits for controlling write cache on SATA
+ *                      drives in IO Unit Page 1.
+ *                      Added new bit to AdditionalControlFlags of SAS IO Unit
+ *                      Page 1 to control Invalid Topology Correction.
+ *                      Added SupportedPhysDisks field to RAID Volume Page 1 and
+ *                      added related defines.
+ *                      Added additional defines for RAID Volume Page 0
+ *                      VolumeStatusFlags field.
+ *                      Modified meaning of RAID Volume Page 0 VolumeSettings
+ *                      define for auto-configure of hot-swap drives.
+ *                      Added PhysDiskAttributes field (and related defines) to
+ *                      RAID Physical Disk Page 0.
+ *                      Added MPI2_SAS_PHYINFO_PHY_VACANT define.
+ *                      Added three new DiscoveryStatus bits for SAS IO Unit
+ *                      Page 0 and SAS Expander Page 0.
+ *                      Removed multiplexing information from SAS IO Unit pages.
+ *                      Added BootDeviceWaitTime field to SAS IO Unit Page 4.
+ *                      Removed Zone Address Resolved bit from PhyInfo and from
+ *                      Expander Page 0 Flags field.
+ *                      Added two new AccessStatus values to SAS Device Page 0
+ *                      for indicating routing problems. Added 3 reserved words
+ *                      to this page.
+ *  01-19-09  02.00.10  Fixed defines for GPIOVal field of IO Unit Page 3.
+ *                      Inserted missing reserved field into structure for IOC
+ *                      Page 6.
+ *                      Added more pending task bits to RAID Volume Page 0
+ *                      VolumeStatusFlags defines.
+ *                      Added MPI2_PHYSDISK0_STATUS_FLAG_NOT_CERTIFIED define.
+ *                      Added a new DiscoveryStatus bit for SAS IO Unit Page 0
+ *                      and SAS Expander Page 0 to flag a downstream initiator
+ *                      when in simplified routing mode.
+ *                      Removed SATA Init Failure defines for DiscoveryStatus
+ *                      fields of SAS IO Unit Page 0 and SAS Expander Page 0.
+ *                      Added MPI2_SAS_DEVICE0_ASTATUS_DEVICE_BLOCKED define.
+ *                      Added PortGroups, DmaGroup, and ControlGroup fields to
+ *                      SAS Device Page 0.
+ *  05-06-09  02.00.11  Added structures and defines for IO Unit Page 5 and IO
+ *                      Unit Page 6.
+ *                      Added expander reduced functionality data to SAS
+ *                      Expander Page 0.
+ *                      Added SAS PHY Page 2 and SAS PHY Page 3.
+ *  07-30-09  02.00.12  Added IO Unit Page 7.
+ *                      Added new device ids.
+ *                      Added SAS IO Unit Page 5.
+ *                      Added partial and slumber power management capable flags
+ *                      to SAS Device Page 0 Flags field.
+ *                      Added PhyInfo defines for power condition.
+ *                      Added Ethernet configuration pages.
+ *  10-28-09  02.00.13  Added MPI2_IOUNITPAGE1_ENABLE_HOST_BASED_DISCOVERY.
+ *                      Added SAS PHY Page 4 structure and defines.
+ *  02-10-10  02.00.14  Modified the comments for the configuration page
+ *                      structures that contain an array of data. The host
+ *                      should use the "count" field in the page data (e.g. the
+ *                      NumPhys field) to determine the number of valid elements
+ *                      in the array.
+ *                      Added/modified some MPI2_MFGPAGE_DEVID_SAS defines.
+ *                      Added PowerManagementCapabilities to IO Unit Page 7.
+ *                      Added PortWidthModGroup field to
+ *                      MPI2_SAS_IO_UNIT5_PHY_PM_SETTINGS.
+ *                      Added MPI2_CONFIG_PAGE_SASIOUNIT_6 and related defines.
+ *                      Added MPI2_CONFIG_PAGE_SASIOUNIT_7 and related defines.
+ *                      Added MPI2_CONFIG_PAGE_SASIOUNIT_8 and related defines.
+ *  05-12-10  02.00.15  Added MPI2_RAIDVOL0_STATUS_FLAG_VOL_NOT_CONSISTENT
+ *                      define.
+ *                      Added MPI2_PHYSDISK0_INCOMPATIBLE_MEDIA_TYPE define.
+ *                      Added MPI2_SAS_NEG_LINK_RATE_UNSUPPORTED_PHY define.
+ *  08-11-10  02.00.16  Removed IO Unit Page 1 device path (multi-pathing)
+ *                      defines.
+ *  11-10-10  02.00.17  Added ReceptacleID field (replacing Reserved1) to
+ *                      MPI2_MANPAGE7_CONNECTOR_INFO and reworked defines for
+ *                      the Pinout field.
+ *                      Added BoardTemperature and BoardTemperatureUnits fields
+ *                      to MPI2_CONFIG_PAGE_IO_UNIT_7.
+ *                      Added MPI2_CONFIG_EXTPAGETYPE_EXT_MANUFACTURING define
+ *                      and MPI2_CONFIG_PAGE_EXT_MAN_PS structure.
+ *  02-23-11  02.00.18  Added ProxyVF_ID field to MPI2_CONFIG_REQUEST.
+ *                      Added IO Unit Page 8, IO Unit Page 9,
+ *                      and IO Unit Page 10.
+ *                      Added SASNotifyPrimitiveMasks field to
+ *                      MPI2_CONFIG_PAGE_IOC_7.
+ *  03-09-11  02.00.19  Fixed IO Unit Page 10 (to match the spec).
+ *  05-25-11  02.00.20  Cleaned up a few comments.
+ *  08-24-11  02.00.21  Marked the IO Unit Page 7 PowerManagementCapabilities
+ *                      for PCIe link as obsolete.
+ *                      Added SpinupFlags field containing a Disable Spin-up bit
+ *                      to the MPI2_SAS_IOUNIT4_SPINUP_GROUP fields of SAS IO
+ *                      Unit Page 4.
+ *  11-18-11  02.00.22  Added define MPI2_IOCPAGE6_CAP_FLAGS_4K_SECTORS_SUPPORT.
+ *                      Added UEFIVersion field to BIOS Page 1 and defined new
+ *                      BiosOptions bits.
+ *                      Incorporating additions for MPI v2.5.
+ *  11-27-12  02.00.23  Added MPI2_MANPAGE7_FLAG_EVENTREPLAY_SLOT_ORDER.
+ *                      Added MPI2_BIOSPAGE1_OPTIONS_MASK_OEM_ID.
+ *  12-20-12  02.00.24  Marked MPI2_SASIOUNIT1_CONTROL_CLEAR_AFFILIATION as
+ *                      obsolete for MPI v2.5 and later.
+ *                      Added some defines for 12G SAS speeds.
+ *  04-09-13  02.00.25  Added MPI2_IOUNITPAGE1_ATA_SECURITY_FREEZE_LOCK.
+ *                      Fixed MPI2_IOUNITPAGE5_DMA_CAP_MASK_MAX_REQUESTS to
+ *                      match the specification.
+ *  08-19-13  02.00.26  Added reserved words to MPI2_CONFIG_PAGE_IO_UNIT_7 for
+ *                      future use.
+ *  12-05-13  02.00.27  Added MPI2_MANPAGE7_FLAG_BASE_ENCLOSURE_LEVEL for
+ *                      MPI2_CONFIG_PAGE_MAN_7.
+ *                      Added EnclosureLevel and ConnectorName fields to
+ *                      MPI2_CONFIG_PAGE_SAS_DEV_0.
+ *                      Added MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID for
+ *                      MPI2_CONFIG_PAGE_SAS_DEV_0.
+ *                      Added EnclosureLevel field to
+ *                      MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0.
+ *                      Added MPI2_SAS_ENCLS0_FLAGS_ENCL_LEVEL_VALID for
+ *                      MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0.
+ *  01-08-14  02.00.28  Added more defines for the BiosOptions field of
+ *                      MPI2_CONFIG_PAGE_BIOS_1.
+ *  06-13-14  02.00.29  Added SSUTimeout field to MPI2_CONFIG_PAGE_BIOS_1, and
+ *                      more defines for the BiosOptions field..
+ *  11-18-14  02.00.30  Updated copyright information.
+ *                      Added MPI2_BIOSPAGE1_OPTIONS_ADVANCED_CONFIG.
+ *                      Added AdapterOrderAux fields to BIOS Page 3.
+ *  03-16-15  02.00.31  Updated for MPI v2.6.
+ *                      Added BoardPowerRequirement, PCISlotPowerAllocation, and
+ *                      Flags field to IO Unit Page 7.
+ *                      Added IO Unit Page 11.
+ *                      Added new SAS Phy Event codes
+ *                      Added PCIe configuration pages.
+ *  03-19-15  02.00.32  Fixed PCIe Link Config page structure names to be
+ *                      unique in first 32 characters.
+ *  05-25-15  02.00.33  Added more defines for the BiosOptions field of
+ *                      MPI2_CONFIG_PAGE_BIOS_1.
+ *  08-25-15  02.00.34  Added PCIe Device Page 2 SGL format capability.
+ *  12-18-15  02.00.35  Added SATADeviceWaitTime to SAS IO Unit Page 4.
+ *  01-21-16  02.00.36  Added/modified MPI2_MFGPAGE_DEVID_SAS defines.
+ *                      Added Link field to PCIe Link Pages
+ *                      Added EnclosureLevel and ConnectorName to PCIe
+ *                      Device Page 0.
+ *                      Added define for PCIE IoUnit page 1 max rate shift.
+ *                      Added comment for reserved ExtPageTypes.
+ *                      Added SAS 4 22.5 gbs speed support.
+ *                      Added PCIe 4 16.0 GT/sec speec support.
+ *                      Removed AHCI support.
+ *                      Removed SOP support.
+ *                      Added NegotiatedLinkRate and NegotiatedPortWidth to
+ *                      PCIe device page 0.
+ *  04-10-16  02.00.37  Fixed MPI2_MFGPAGE_DEVID_SAS3616/3708 defines
+ *  07-01-16  02.00.38  Added Manufacturing page 7 Connector types.
+ *                      Changed declaration of ConnectorName in PCIe DevicePage0
+ *                      to match SAS DevicePage 0.
+ *                      Added SATADeviceWaitTime to IO Unit Page 11.
+ *                      Added MPI26_MFGPAGE_DEVID_SAS4008
+ *                      Added x16 PCIe width to IO Unit Page 7
+ *                      Added LINKFLAGS to control SRIS in PCIe IO Unit page 1
+ *                      phy data.
+ *                      Added InitStatus to PCIe IO Unit Page 1 header.
+ *  09-01-16  02.00.39  Added MPI26_CONFIG_PAGE_ENCLOSURE_0 and related defines.
+ *                      Added MPI26_ENCLOS_PGAD_FORM_GET_NEXT_HANDLE and
+ *                      MPI26_ENCLOS_PGAD_FORM_HANDLE page address formats.
+ *  02-02-17  02.00.40  Added MPI2_MANPAGE7_SLOT_UNKNOWN.
+ *                      Added ChassisSlot field to SAS Enclosure Page 0.
+ *                      Added ChassisSlot Valid bit (bit 5) to the Flags field
+ *                      in SAS Enclosure Page 0.
+ *  06-13-17  02.00.41  Added MPI26_MFGPAGE_DEVID_SAS3816 and 
+ *                      MPI26_MFGPAGE_DEVID_SAS3916 defines.
+ *                      Removed MPI26_MFGPAGE_DEVID_SAS4008 define.
+ *                      Added MPI26_PCIEIOUNIT1_LINKFLAGS_SRNS_EN define.
+ *                      Renamed MPI26_PCIEIOUNIT1_LINKFLAGS_EN_SRIS to 
+ *                      MPI26_PCIEIOUNIT1_LINKFLAGS_SRIS_EN.
+ *                      Renamed MPI26_PCIEIOUNIT1_LINKFLAGS_DIS_SRIS to 
+ *                      MPI26_PCIEIOUNIT1_LINKFLAGS_DIS_SEPARATE_REFCLK.
+ *  09-29-17  02.00.42  Added ControllerResetTO field to PCIe Device Page 2.
+ *                      Added NOIOB field to PCIe Device Page 2.
+ *                      Added MPI26_PCIEDEV2_CAP_DATA_BLK_ALIGN_AND_GRAN to 
+ *                      the Capabilities field of PCIe Device Page 2.
+ *  --------------------------------------------------------------------------
+
+mpi2_init.h
+ *  04-30-07  02.00.00  Corresponds to Fusion-MPT MPI Specification Rev A.
+ *  10-31-07  02.00.01  Fixed name for pMpi2SCSITaskManagementRequest_t.
+ *  12-18-07  02.00.02  Modified Task Management Target Reset Method defines.
+ *  02-29-08  02.00.03  Added Query Task Set and Query Unit Attention.
+ *  03-03-08  02.00.04  Fixed name of struct _MPI2_SCSI_TASK_MANAGE_REPLY.
+ *  05-21-08  02.00.05  Fixed typo in name of Mpi2SepRequest_t.
+ *  10-02-08  02.00.06  Removed Untagged and No Disconnect values from SCSI IO
+ *                      Control field Task Attribute flags.
+ *                      Moved LUN field defines to mpi2.h becasue they are
+ *                      common to many structures.
+ *  05-06-09  02.00.07  Changed task management type of Query Unit Attention to
+ *                      Query Asynchronous Event.
+ *                      Defined two new bits in the SlotStatus field of the SCSI
+ *                      Enclosure Processor Request and Reply.
+ *  10-28-09  02.00.08  Added defines for decoding the ResponseInfo bytes for
+ *                      both SCSI IO Error Reply and SCSI Task Management Reply.
+ *                      Added ResponseInfo field to MPI2_SCSI_TASK_MANAGE_REPLY.
+ *                      Added MPI2_SCSITASKMGMT_RSP_TM_OVERLAPPED_TAG define.
+ *  02-10-10  02.00.09  Removed unused structure that had "#if 0" around it.
+ *  05-12-10  02.00.10  Added optional vendor-unique region to SCSI IO Request.
+ *  11-10-10  02.00.11  Added MPI2_SCSIIO_NUM_SGLOFFSETS define.
+ *  11-18-11  02.00.12  Incorporating additions for MPI v2.5.
+ *  02-06-12  02.00.13  Added alternate defines for Task Priority / Command
+ *                      Priority to match SAM-4.
+ *                      Added EEDPErrorOffset to MPI2_SCSI_IO_REPLY.
+ *  07-10-12  02.00.14  Added MPI2_SCSIIO_CONTROL_SHIFT_DATADIRECTION.
+ *  04-09-13  02.00.15  Added SCSIStatusQualifier field to MPI2_SCSI_IO_REPLY,
+ *                      replacing the Reserved4 field.
+ *  11-18-14  02.00.16  Updated copyright information.
+ *  03-16-15  02.00.17  Updated for MPI v2.6.
+ *                      Added MPI26_SCSIIO_IOFLAGS_ESCAPE_PASSTHROUGH.
+ *                      Added MPI2_SEP_REQ_SLOTSTATUS_DEV_OFF and
+ *                      MPI2_SEP_REPLY_SLOTSTATUS_DEV_OFF.
+ *  08-26-15  02.00.18  Added SCSITASKMGMT_MSGFLAGS for Target Reset.
+ *  12-18-15  02.00.19  Added EEDPObservedValue added to SCSI IO Reply message.
+ *  01-04-16  02.00.20  Modified EEDP reported values in SCSI IO Reply message.
+ *  01-21-16  02.00.21  Modified MPI26_SCSITASKMGMT_MSGFLAGS_PCIE* defines to
+ *                      be unique within first 32 characters.
+ *  --------------------------------------------------------------------------
+
+mpi2_ioc.h
+ *  04-30-07  02.00.00  Corresponds to Fusion-MPT MPI Specification Rev A.
+ *  06-04-07  02.00.01  In IOCFacts Reply structure, renamed MaxDevices to
+ *                      MaxTargets.
+ *                      Added TotalImageSize field to FWDownload Request.
+ *                      Added reserved words to FWUpload Request.
+ *  06-26-07  02.00.02  Added IR Configuration Change List Event.
+ *  08-31-07  02.00.03  Removed SystemReplyQueueDepth field from the IOCInit
+ *                      request and replaced it with
+ *                      ReplyDescriptorPostQueueDepth and ReplyFreeQueueDepth.
+ *                      Replaced the MinReplyQueueDepth field of the IOCFacts
+ *                      reply with MaxReplyDescriptorPostQueueDepth.
+ *                      Added MPI2_RDPQ_DEPTH_MIN define to specify the minimum
+ *                      depth for the Reply Descriptor Post Queue.
+ *                      Added SASAddress field to Initiator Device Table
+ *                      Overflow Event data.
+ *  10-31-07  02.00.04  Added ReasonCode MPI2_EVENT_SAS_INIT_RC_NOT_RESPONDING
+ *                      for SAS Initiator Device Status Change Event data.
+ *                      Modified Reason Code defines for SAS Topology Change
+ *                      List Event data, including adding a bit for PHY Vacant
+ *                      status, and adding a mask for the Reason Code.
+ *                      Added define for
+ *                      MPI2_EVENT_SAS_TOPO_ES_DELAY_NOT_RESPONDING.
+ *                      Added define for MPI2_EXT_IMAGE_TYPE_MEGARAID.
+ *  12-18-07  02.00.05  Added Boot Status defines for the IOCExceptions field of
+ *                      the IOCFacts Reply.
+ *                      Removed MPI2_IOCFACTS_CAPABILITY_EXTENDED_BUFFER define.
+ *                      Moved MPI2_VERSION_UNION to mpi2.h.
+ *                      Changed MPI2_EVENT_NOTIFICATION_REQUEST to use masks
+ *                      instead of enables, and added SASBroadcastPrimitiveMasks
+ *                      field.
+ *                      Added Log Entry Added Event and related structure.
+ *  02-29-08  02.00.06  Added define MPI2_IOCFACTS_CAPABILITY_INTEGRATED_RAID.
+ *                      Removed define MPI2_IOCFACTS_PROTOCOL_SMP_TARGET.
+ *                      Added MaxVolumes and MaxPersistentEntries fields to
+ *                      IOCFacts reply.
+ *                      Added ProtocalFlags and IOCCapabilities fields to
+ *                      MPI2_FW_IMAGE_HEADER.
+ *                      Removed MPI2_PORTENABLE_FLAGS_ENABLE_SINGLE_PORT.
+ *  03-03-08  02.00.07  Fixed MPI2_FW_IMAGE_HEADER by changing Reserved26 to
+ *                      a U16 (from a U32).
+ *                      Removed extra 's' from EventMasks name.
+ *  06-27-08  02.00.08  Fixed an offset in a comment.
+ *  10-02-08  02.00.09  Removed SystemReplyFrameSize from MPI2_IOC_INIT_REQUEST.
+ *                      Removed CurReplyFrameSize from MPI2_IOC_FACTS_REPLY and
+ *                      renamed MinReplyFrameSize to ReplyFrameSize.
+ *                      Added MPI2_IOCFACTS_EXCEPT_IR_FOREIGN_CONFIG_MAX.
+ *                      Added two new RAIDOperation values for Integrated RAID
+ *                      Operations Status Event data.
+ *                      Added four new IR Configuration Change List Event data
+ *                      ReasonCode values.
+ *                      Added two new ReasonCode defines for SAS Device Status
+ *                      Change Event data.
+ *                      Added three new DiscoveryStatus bits for the SAS
+ *                      Discovery event data.
+ *                      Added Multiplexing Status Change bit to the PhyStatus
+ *                      field of the SAS Topology Change List event data.
+ *                      Removed define for MPI2_INIT_IMAGE_BOOTFLAGS_XMEMCOPY.
+ *                      BootFlags are now product-specific.
+ *                      Added defines for the indivdual signature bytes
+ *                      for MPI2_INIT_IMAGE_FOOTER.
+ *  01-19-09  02.00.10  Added MPI2_IOCFACTS_CAPABILITY_EVENT_REPLAY define.
+ *                      Added MPI2_EVENT_SAS_DISC_DS_DOWNSTREAM_INITIATOR
+ *                      define.
+ *                      Added MPI2_EVENT_SAS_DEV_STAT_RC_SATA_INIT_FAILURE
+ *                      define.
+ *                      Removed MPI2_EVENT_SAS_DISC_DS_SATA_INIT_FAILURE define.
+ *  05-06-09  02.00.11  Added MPI2_IOCFACTS_CAPABILITY_RAID_ACCELERATOR define.
+ *                      Added MPI2_IOCFACTS_CAPABILITY_MSI_X_INDEX define.
+ *                      Added two new reason codes for SAS Device Status Change
+ *                      Event.
+ *                      Added new event: SAS PHY Counter.
+ *  07-30-09  02.00.12  Added GPIO Interrupt event define and structure.
+ *                      Added MPI2_IOCFACTS_CAPABILITY_EXTENDED_BUFFER define.
+ *                      Added new product id family for 2208.
+ *  10-28-09  02.00.13  Added HostMSIxVectors field to MPI2_IOC_INIT_REQUEST.
+ *                      Added MaxMSIxVectors field to MPI2_IOC_FACTS_REPLY.
+ *                      Added MinDevHandle field to MPI2_IOC_FACTS_REPLY.
+ *                      Added MPI2_IOCFACTS_CAPABILITY_HOST_BASED_DISCOVERY.
+ *                      Added MPI2_EVENT_HOST_BASED_DISCOVERY_PHY define.
+ *                      Added MPI2_EVENT_SAS_TOPO_ES_NO_EXPANDER define.
+ *                      Added Host Based Discovery Phy Event data.
+ *                      Added defines for ProductID Product field
+ *                      (MPI2_FW_HEADER_PID_).
+ *                      Modified values for SAS ProductID Family
+ *                      (MPI2_FW_HEADER_PID_FAMILY_).
+ *  02-10-10  02.00.14  Added SAS Quiesce Event structure and defines.
+ *                      Added PowerManagementControl Request structures and
+ *                      defines.
+ *  05-12-10  02.00.15  Marked Task Set Full Event as obsolete.
+ *                      Added MPI2_EVENT_SAS_TOPO_LR_UNSUPPORTED_PHY define.
+ *  11-10-10  02.00.16  Added MPI2_FW_DOWNLOAD_ITYPE_MIN_PRODUCT_SPECIFIC.
+ *  02-23-11  02.00.17  Added SAS NOTIFY Primitive event, and added
+ *                      SASNotifyPrimitiveMasks field to
+ *                      MPI2_EVENT_NOTIFICATION_REQUEST.
+ *                      Added Temperature Threshold Event.
+ *                      Added Host Message Event.
+ *                      Added Send Host Message request and reply.
+ *  05-25-11  02.00.18  For Extended Image Header, added
+ *                      MPI2_EXT_IMAGE_TYPE_MIN_PRODUCT_SPECIFIC and
+ *                      MPI2_EXT_IMAGE_TYPE_MAX_PRODUCT_SPECIFIC defines.
+ *                      Deprecated MPI2_EXT_IMAGE_TYPE_MAX define.
+ *  08-24-11  02.00.19  Added PhysicalPort field to
+ *                      MPI2_EVENT_DATA_SAS_DEVICE_STATUS_CHANGE structure.
+ *                      Marked MPI2_PM_CONTROL_FEATURE_PCIE_LINK as obsolete.
+ *  11-18-11  02.00.20  Incorporating additions for MPI v2.5.
+ *  03-29-12  02.00.21  Added a product specific range to event values.
+ *  07-26-12  02.00.22  Added MPI2_IOCFACTS_EXCEPT_PARTIAL_MEMORY_FAILURE.
+ *                      Added ElapsedSeconds field to
+ *                      MPI2_EVENT_DATA_IR_OPERATION_STATUS.
+ *  08-19-13  02.00.23  For IOCInit, added MPI2_IOCINIT_MSGFLAG_RDPQ_ARRAY_MODE
+ *                      and MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY.
+ *                      Added MPI2_IOCFACTS_CAPABILITY_RDPQ_ARRAY_CAPABLE.
+ *                      Added MPI2_FW_DOWNLOAD_ITYPE_PUBLIC_KEY.
+ *                      Added Encrypted Hash Extended Image.
+ *  12-05-13  02.00.24  Added MPI25_HASH_IMAGE_TYPE_BIOS.
+ *  11-18-14  02.00.25  Updated copyright information.
+ *  03-16-15  02.00.26  Updated for MPI v2.6.
+ *                      Added MPI2_EVENT_ACTIVE_CABLE_EXCEPTION and
+ *                      MPI26_EVENT_DATA_ACTIVE_CABLE_EXCEPT.
+ *                      Added MPI2_EVENT_PCIE_LINK_COUNTER and
+ *                      MPI26_EVENT_DATA_PCIE_LINK_COUNTER.
+ *                      Added MPI26_CTRL_OP_SHUTDOWN.
+ *                      Added MPI26_CTRL_OP_LINK_CLEAR_ERROR_LOG
+ *                      Added MPI26_FW_HEADER_PID_FAMILY_3324_SAS and
+ *                      MPI26_FW_HEADER_PID_FAMILY_3516_SAS.
+ *  08-25-15  02.00.27  Added IC ARCH Class based signature defines.
+ *                      Added MPI26_EVENT_PCIE_ENUM_ES_RESOURCES_EXHAUSTED event.
+ *                      Added ConigurationFlags field to IOCInit message to
+ *                      support NVMe SGL format control.
+ *                      Added PCIe SRIOV support.
+ * 02-17-16   02.00.28  Added SAS 4 22.5 gbs speed support.
+ *                      Added PCIe 4 16.0 GT/sec speec support.
+ *                      Removed AHCI support.
+ *                      Removed SOP support.
+ * 07-01-16   02.00.29  Added Archclass for 4008 product.
+ *                      Added IOCException MPI2_IOCFACTS_EXCEPT_PCIE_DISABLED.
+ * 08-23-16   02.00.30  Added new defines for the ImageType field of FWDownload
+ *                      Request Message.
+ *                      Added new defines for the ImageType field of FWUpload
+ *                      Request Message.
+ *                      Added new values for the RegionType field in the Layout
+ *                      Data sections of the FLASH Layout Extended Image Data.
+ *                      Added new defines for the ReasonCode field of
+ *                      Active Cable Exception Event.
+ *                      Added MPI2_EVENT_ENCL_DEVICE_STATUS_CHANGE and
+ *                      MPI26_EVENT_DATA_ENCL_DEV_STATUS_CHANGE.
+ * 11-23-16   02.00.31  Added MPI2_EVENT_SAS_DEVICE_DISCOVERY_ERROR and
+ *                      MPI25_EVENT_DATA_SAS_DEVICE_DISCOVERY_ERROR.
+ * 02-02-17   02.00.32  Added MPI2_FW_DOWNLOAD_ITYPE_CBB_BACKUP.
+ *                      Added MPI25_EVENT_DATA_ACTIVE_CABLE_EXCEPT and related
+ *                      defines for the ReasonCode field.
+ * 06-13-17   02.00.33  Added MPI2_FW_DOWNLOAD_ITYPE_CPLD.
+ * 09-29-17   02.00.34  Added MPI26_EVENT_PCIDEV_STAT_RC_PCIE_HOT_RESET_FAILED
+ *                      to the ReasonCode field in PCIe Device Status Change
+ *                      Event Data.
+ * --------------------------------------------------------------------------
+
+mpi2_raid.h
+ *  04-30-07  02.00.00  Corresponds to Fusion-MPT MPI Specification Rev A.
+ *  08-31-07  02.00.01  Modifications to RAID Action request and reply,
+ *                      including the Actions and ActionData.
+ *  02-29-08  02.00.02  Added MPI2_RAID_ACTION_ADATA_DISABL_FULL_REBUILD.
+ *  05-21-08  02.00.03  Added MPI2_RAID_VOL_CREATION_NUM_PHYSDISKS so that
+ *                      the PhysDisk array in MPI2_RAID_VOLUME_CREATION_STRUCT
+ *                      can be sized by the build environment.
+ *  07-30-09  02.00.04  Added proper define for the Use Default Settings bit of
+ *                      VolumeCreationFlags and marked the old one as obsolete.
+ *  05-12-10  02.00.05  Added MPI2_RAID_VOL_FLAGS_OP_MDC define.
+ *  08-24-10  02.00.06  Added MPI2_RAID_ACTION_COMPATIBILITY_CHECK along with
+ *                      related structures and defines.
+ *                      Added product-specific range to RAID Action values.
+ *  11-18-11  02.00.07  Incorporating additions for MPI v2.5.
+ *  02-06-12  02.00.08  Added MPI2_RAID_ACTION_PHYSDISK_HIDDEN.
+ *  07-26-12  02.00.09  Added ElapsedSeconds field to MPI2_RAID_VOL_INDICATOR.
+ *                      Added MPI2_RAID_VOL_FLAGS_ELAPSED_SECONDS_VALID define.
+ *  04-17-13  02.00.10  Added MPI25_RAID_ACTION_ADATA_ALLOW_PI.
+ *  --------------------------------------------------------------------------
+
+mpi2_sas.h
+ *  04-30-07  02.00.00  Corresponds to Fusion-MPT MPI Specification Rev A.
+ *  06-26-07  02.00.01  Added Clear All Persistent Operation to SAS IO Unit
+ *                      Control Request.
+ *  10-02-08  02.00.02  Added Set IOC Parameter Operation to SAS IO Unit Control
+ *                      Request.
+ *  10-28-09  02.00.03  Changed the type of SGL in MPI2_SATA_PASSTHROUGH_REQUEST
+ *                      to MPI2_SGE_IO_UNION since it supports chained SGLs.
+ *  05-12-10  02.00.04  Modified some comments.
+ *  08-11-10  02.00.05  Added NCQ operations to SAS IO Unit Control.
+ *  11-18-11  02.00.06  Incorporating additions for MPI v2.5.
+ *  07-10-12  02.00.07  Added MPI2_SATA_PT_SGE_UNION for use in the SATA
+ *                      Passthrough Request message.
+ *  08-19-13  02.00.08  Made MPI2_SAS_OP_TRANSMIT_PORT_SELECT_SIGNAL obsolete
+ *                      for anything newer than MPI v2.0.
+ *  11-18-14  02.00.09  Updated copyright information.
+ *  03-16-15  02.00.10  Updated for MPI v2.6.
+ *                      Added MPI2_SATA_PT_REQ_PT_FLAGS_FPDMA.
+ *  --------------------------------------------------------------------------
+
+mpi2_targ.h
+ *  04-30-07  02.00.00  Corresponds to Fusion-MPT MPI Specification Rev A.
+ *  08-31-07  02.00.01  Added Command Buffer Data Location Address Space bits to
+ *                      BufferPostFlags field of CommandBufferPostBase Request.
+ *  02-29-08  02.00.02  Modified various names to make them 32-character unique.
+ *  10-02-08  02.00.03  Removed NextCmdBufferOffset from
+ *                      MPI2_TARGET_CMD_BUF_POST_BASE_REQUEST.
+ *                      Target Status Send Request only takes a single SGE for
+ *                      response data.
+ *  02-10-10  02.00.04  Added comment to MPI2_TARGET_SSP_RSP_IU structure.
+ *  11-18-11  02.00.05  Incorporating additions for MPI v2.5.
+ *  11-27-12  02.00.06  Added InitiatorDevHandle field to MPI2_TARGET_MODE_ABORT
+ *                      request message structure.
+ *                      Added AbortType MPI2_TARGET_MODE_ABORT_DEVHANDLE and
+ *                      MPI2_TARGET_MODE_ABORT_ALL_COMMANDS.
+ *  06-13-14  02.00.07  Added MinMSIxIndex and MaxMSIxIndex fields to
+ *                      MPI2_TARGET_CMD_BUF_POST_BASE_REQUEST.
+ *  11-18-14  02.00.08  Updated copyright information.
+ *  03-16-15  02.00.09  Updated for MPI v2.6.
+ *                      Added MPI26_TARGET_ASSIST_IOFLAGS_ESCAPE_PASSTHROUGH.
+ *  --------------------------------------------------------------------------
+
+mpi2_tool.h
+ *  04-30-07  02.00.00  Corresponds to Fusion-MPT MPI Specification Rev A.
+ *  12-18-07  02.00.01  Added Diagnostic Buffer Post and Diagnostic Release
+ *                      structures and defines.
+ *  02-29-08  02.00.02  Modified various names to make them 32-character unique.
+ *  05-06-09  02.00.03  Added ISTWI Read Write Tool and Diagnostic CLI Tool.
+ *  07-30-09  02.00.04  Added ExtendedType field to DiagnosticBufferPost request
+ *                      and reply messages.
+ *                      Added MPI2_DIAG_BUF_TYPE_EXTENDED.
+ *                      Incremented MPI2_DIAG_BUF_TYPE_COUNT.
+ *  05-12-10  02.00.05  Added Diagnostic Data Upload tool.
+ *  08-11-10  02.00.06  Added defines that were missing for Diagnostic Buffer
+ *                      Post Request.
+ *  05-25-11  02.00.07  Added Flags field and related defines to
+ *                      MPI2_TOOLBOX_ISTWI_READ_WRITE_REQUEST.
+ *  11-18-11  02.00.08  Incorporating additions for MPI v2.5.
+ *  07-10-12  02.00.09  Add MPI v2.5 Toolbox Diagnostic CLI Tool Request
+ *                      message.
+ *  07-26-12  02.00.10  Modified MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST so that
+ *                      it uses MPI Chain SGE as well as MPI Simple SGE.
+ *  08-19-13  02.00.11  Added MPI2_TOOLBOX_TEXT_DISPLAY_TOOL and related info.
+ *  01-08-14  02.00.12  Added MPI2_TOOLBOX_CLEAN_BIT26_PRODUCT_SPECIFIC.
+ *  11-18-14  02.00.13  Updated copyright information.
+ *  08-25-16  02.00.14  Added new values for the Flags field of Toolbox Clean
+ *                      Tool Request Message.
+ *  --------------------------------------------------------------------------
+
+mpi2_type.h
+ *  04-30-07  02.00.00  Corresponds to Fusion-MPT MPI Specification Rev A.
+ *  11-18-14  02.00.01  Updated copyright information.
+ *  --------------------------------------------------------------------------
+
+mpi2_ra.h
+ *  05-06-09  02.00.00  Initial version.
+ *  11-18-14  02.00.01  Updated copyright information.
+ *  --------------------------------------------------------------------------
+
+mpi2_hbd.h
+ *  10-28-09  02.00.00  Initial version.
+ *  08-11-10  02.00.01  Removed PortGroups, DmaGroup, and ControlGroup from
+ *                      HBD Action request, replaced by AdditionalInfo field.
+ *  11-18-11  02.00.02  Incorporating additions for MPI v2.5.
+ *  11-18-14  02.00.03  Updated copyright information.
+ *  02-17-16  02.00.04  Added SAS 4 22.5 gbs speed support.
+ *  --------------------------------------------------------------------------
+
+mpi2_pci.h
+ *  03-16-15  02.00.00  Initial version.
+ *  02-17-16  02.00.01  Removed AHCI support.
+ *                      Removed SOP support.
+ *  07-01-16  02.00.02  Added MPI26_NVME_FLAGS_FORCE_ADMIN_ERR_RESP to
+ *                      NVME Encapsulated Request.
+ *  --------------------------------------------------------------------------
+
+mpi2_history.txt         Parts list history
+
+Filename     02.00.50  02.00.49  02.00.48
+----------   --------  --------  --------
+mpi2.h       02.00.50  02.00.49  02.00.48
+mpi2_cnfg.h  02.00.42  02.00.41  02.00.40
+mpi2_init.h  02.00.21  02.00.21  02.00.21
+mpi2_ioc.h   02.00.34  02.00.33  02.00.32
+mpi2_raid.h  02.00.11  02.00.11  02.00.11
+mpi2_sas.h   02.00.10  02.00.10  02.00.10
+mpi2_targ.h  02.00.09  02.00.09  02.00.09
+mpi2_tool.h  02.00.14  02.00.14  02.00.14
+mpi2_type.h  02.00.01  02.00.01  02.00.01
+mpi2_ra.h    02.00.01  02.00.01  02.00.01
+mpi2_hbd.h   02.00.04  02.00.04  02.00.04
+mpi2_pci.h   02.00.02  02.00.02  02.00.02
+
+Filename     02.00.47  02.00.46  02.00.45  02.00.44  02.00.43  02.00.42
+----------   --------  --------  --------  --------  --------  --------
+mpi2.h       02.00.47  02.00.46  02.00.45  02.00.44  02.00.43  02.00.42
+mpi2_cnfg.h  02.00.39  02.00.39  02.00.38  02.00.37  02.00.36  02.00.35
+mpi2_init.h  02.00.21  02.00.21  02.00.21  02.00.21  02.00.21  02.00.20
+mpi2_ioc.h   02.00.31  02.00.30  02.00.29  02.00.28  02.00.28  02.00.27
+mpi2_raid.h  02.00.11  02.00.11  02.00.11  02.00.11  02.00.11  02.00.11
+mpi2_sas.h   02.00.10  02.00.10  02.00.10  02.00.10  02.00.10  02.00.10
+mpi2_targ.h  02.00.09  02.00.09  02.00.09  02.00.09  02.00.09  02.00.09
+mpi2_tool.h  02.00.14  02.00.14  02.00.13  02.00.13  02.00.13  02.00.13
+mpi2_type.h  02.00.01  02.00.01  02.00.01  02.00.01  02.00.01  02.00.01
+mpi2_ra.h    02.00.01  02.00.01  02.00.01  02.00.01  02.00.01  02.00.01
+mpi2_hbd.h   02.00.04  02.00.04  02.00.04  02.00.04  02.00.04  02.00.03
+mpi2_pci.h   02.00.02  02.00.02  02.00.02  02.00.01  02.00.01  02.00.00
+
+Filename     02.00.41  02.00.40  02.00.39  02.00.38  02.00.37  02.00.36
+----------   --------  --------  --------  --------  --------  --------
+mpi2.h       02.00.41  02.00.40  02.00.39  02.00.38  02.00.37  02.00.36
+mpi2_cnfg.h  02.00.35  02.00.34  02.00.33  02.00.32  02.00.31  02.00.30
+mpi2_init.h  02.00.19  02.00.18  02.00.17  02.00.17  02.00.17  02.00.16
+mpi2_ioc.h   02.00.27  02.00.27  02.00.26  02.00.26  02.00.26  02.00.25
+mpi2_raid.h  02.00.11  02.00.11  02.00.11  02.00.11  02.00.11  02.00.11
+mpi2_sas.h   02.00.10  02.00.10  02.00.10  02.00.10  02.00.10  02.00.09
+mpi2_targ.h  02.00.09  02.00.09  02.00.09  02.00.09  02.00.09  02.00.08
+mpi2_tool.h  02.00.13  02.00.13  02.00.13  02.00.13  02.00.13  02.00.13
+mpi2_type.h  02.00.01  02.00.01  02.00.01  02.00.01  02.00.01  02.00.01
+mpi2_ra.h    02.00.01  02.00.01  02.00.01  02.00.01  02.00.01  02.00.01
+mpi2_hbd.h   02.00.03  02.00.03  02.00.03  02.00.03  02.00.03  02.00.03
+mpi2_pci.h   02.00.00  02.00.00  02.00.00  02.00.00  02.00.00
+
+Filename     02.00.35  02.00.34  02.00.33  02.00.32  02.00.31  02.00.30
+----------   --------  --------  --------  --------  --------  --------
+mpi2.h       02.00.35  02.00.34  02.00.33  02.00.32  02.00.31  02.00.30
+mpi2_cnfg.h  02.00.29  02.00.28  02.00.27  02.00.26  02.00.25  02.00.25
+mpi2_init.h  02.00.15  02.00.15  02.00.15  02.00.15  02.00.15  02.00.15
+mpi2_ioc.h   02.00.24  02.00.24  02.00.24  02.00.23  02.00.22  02.00.22
+mpi2_raid.h  02.00.10  02.00.10  02.00.10  02.00.10  02.00.10  02.00.09
+mpi2_sas.h   02.00.08  02.00.08  02.00.08  02.00.08  02.00.07  02.00.07
+mpi2_targ.h  02.00.07  02.00.06  02.00.06  02.00.06  02.00.06  02.00.06
+mpi2_tool.h  02.00.12  02.00.12  02.00.11  02.00.11  02.00.10  02.00.10
+mpi2_type.h  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00
+mpi2_ra.h    02.00.00  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00
+mpi2_hbd.h   02.00.02  02.00.02  02.00.02  02.00.02  02.00.02  02.00.02
+
+Filename     02.00.29  02.00.28  02.00.27  02.00.26  02.00.25  02.00.24
+----------   --------  --------  --------  --------  --------  --------
+mpi2.h       02.00.29  02.00.28  02.00.27  02.00.26  02.00.25  02.00.24
+mpi2_cnfg.h  02.00.24  02.00.23  02.00.22  02.00.22  02.00.22  02.00.22
+mpi2_init.h  02.00.14  02.00.14  02.00.14  02.00.14  02.00.13  02.00.13
+mpi2_ioc.h   02.00.22  02.00.22  02.00.22  02.00.21  02.00.21  02.00.20
+mpi2_raid.h  02.00.09  02.00.09  02.00.09  02.00.08  02.00.08  02.00.08
+mpi2_sas.h   02.00.07  02.00.07  02.00.07  02.00.07  02.00.06  02.00.06
+mpi2_targ.h  02.00.06  02.00.06  02.00.05  02.00.05  02.00.05  02.00.05
+mpi2_tool.h  02.00.10  02.00.10  02.00.10  02.00.09  02.00.08  02.00.08
+mpi2_type.h  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00
+mpi2_ra.h    02.00.00  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00
+mpi2_hbd.h   02.00.02  02.00.02  02.00.02  02.00.02  02.00.02  02.00.02
+
+Filename     02.00.23  02.00.22  02.00.21  02.00.20  02.00.19  02.00.18
+----------   --------  --------  --------  --------  --------  --------
+mpi2.h       02.00.23  02.00.22  02.00.21  02.00.20  02.00.19  02.00.18
+mpi2_cnfg.h  02.00.22  02.00.21  02.00.20  02.00.19  02.00.18  02.00.17
+mpi2_init.h  02.00.12  02.00.11  02.00.11  02.00.11  02.00.11  02.00.11
+mpi2_ioc.h   02.00.20  02.00.19  02.00.18  02.00.17  02.00.17  02.00.16
+mpi2_raid.h  02.00.07  02.00.06  02.00.05  02.00.05  02.00.05  02.00.05
+mpi2_sas.h   02.00.06  02.00.05  02.00.05  02.00.05  02.00.05  02.00.05
+mpi2_targ.h  02.00.05  02.00.04  02.00.04  02.00.04  02.00.04  02.00.04
+mpi2_tool.h  02.00.08  02.00.07  02.00.07  02.00.06  02.00.06  02.00.06
+mpi2_type.h  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00
+mpi2_ra.h    02.00.00  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00
+mpi2_hbd.h   02.00.02  02.00.01  02.00.01  02.00.01  02.00.01  02.00.01
+
+Filename     02.00.17  02.00.16  02.00.15  02.00.14  02.00.13  02.00.12
+----------   --------  --------  --------  --------  --------  --------
+mpi2.h       02.00.17  02.00.16  02.00.15  02.00.14  02.00.13  02.00.12
+mpi2_cnfg.h  02.00.16  02.00.15  02.00.14  02.00.13  02.00.12  02.00.11
+mpi2_init.h  02.00.10  02.00.10  02.00.09  02.00.08  02.00.07  02.00.07
+mpi2_ioc.h   02.00.15  02.00.15  02.00.14  02.00.13  02.00.12  02.00.11
+mpi2_raid.h  02.00.05  02.00.05  02.00.04  02.00.04  02.00.04  02.00.03
+mpi2_sas.h   02.00.05  02.00.04  02.00.03  02.00.03  02.00.02  02.00.02
+mpi2_targ.h  02.00.04  02.00.04  02.00.04  02.00.03  02.00.03  02.00.03
+mpi2_tool.h  02.00.06  02.00.05  02.00.04  02.00.04  02.00.04  02.00.03
+mpi2_type.h  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00
+mpi2_ra.h    02.00.00  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00
+mpi2_hbd.h   02.00.01  02.00.00  02.00.00  02.00.00
+
+Filename     02.00.11  02.00.10  02.00.09  02.00.08  02.00.07  02.00.06
+----------   --------  --------  --------  --------  --------  --------
+mpi2.h       02.00.11  02.00.10  02.00.09  02.00.08  02.00.07  02.00.06
+mpi2_cnfg.h  02.00.10  02.00.09  02.00.08  02.00.07  02.00.06  02.00.06
+mpi2_init.h  02.00.06  02.00.06  02.00.05  02.00.05  02.00.04  02.00.03
+mpi2_ioc.h   02.00.10  02.00.09  02.00.08  02.00.07  02.00.07  02.00.06
+mpi2_raid.h  02.00.03  02.00.03  02.00.03  02.00.03  02.00.02  02.00.02
+mpi2_sas.h   02.00.02  02.00.02  02.00.01  02.00.01  02.00.01  02.00.01
+mpi2_targ.h  02.00.03  02.00.03  02.00.02  02.00.02  02.00.02  02.00.02
+mpi2_tool.h  02.00.02  02.00.02  02.00.02  02.00.02  02.00.02  02.00.02
+mpi2_type.h  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00
+
+Filename     02.00.05  02.00.04  02.00.03  02.00.02  02.00.01  02.00.00
+----------   --------  --------  --------  --------  --------  --------
+mpi2.h       02.00.05  02.00.04  02.00.03  02.00.02  02.00.01  02.00.00
+mpi2_cnfg.h  02.00.05  02.00.04  02.00.03  02.00.02  02.00.01  02.00.00
+mpi2_init.h  02.00.02  02.00.01  02.00.00  02.00.00  02.00.00  02.00.00
+mpi2_ioc.h   02.00.05  02.00.04  02.00.03  02.00.02  02.00.01  02.00.00
+mpi2_raid.h  02.00.01  02.00.01  02.00.01  02.00.00  02.00.00  02.00.00
+mpi2_sas.h   02.00.01  02.00.01  02.00.01  02.00.01  02.00.00  02.00.00
+mpi2_targ.h  02.00.01  02.00.01  02.00.01  02.00.00  02.00.00  02.00.00
+mpi2_tool.h  02.00.01  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00
+mpi2_type.h  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00
+

@@ -1,0 +1,17 @@
+$ $tcsh: set22,v 1.4 2011/02/04 18:19:36 christos Exp $
+$ tc.func.c
+$set 22
+1 %S: \t ein Alias für 
+2 \nPasswort nicht korrekt für %s\n
+3 Fehlerhafter Alias 'precmd' entfernt.\n
+4 Fehlerhafter Alias 'cwdcmd' entfernt.\n
+5 Fehlerhafter Alias 'beepcmd' entfernt.\n
+6 Fehlerhafter Alias 'periodic' entfernt.\n
+7 zerteile Kommandozeile\n
+8 Wollen Sie wirklich alle Dateien löschen? [n/j] 
+9 Übergehe das Löschen der Dateien!\n
+10 Kommandozeile ist nun:\n
+11 zerteile Kommandozeile\n
+12 in einer der Listen\n
+13 Kommandozeile ist nun:\n
+14 jJyY

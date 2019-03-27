@@ -1,0 +1,83 @@
+.\" Copyright (c) 1997
+.\"	Michael Smith
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 22, 2012
+.Dt MINIGZIP 1
+.Os
+.Sh NAME
+.Nm minigzip
+.Nd minimal implementation of the 'gzip' compression tool
+.Sh SYNOPSIS
+.Nm
+.Op Fl cd
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility is a minimal implementation of the
+.Xr gzip 1
+utility.
+It supports
+compression and decompression of individual files, as well as
+streaming compression and decompression via standard input and
+output.
+.Pp
+The default operation is compression, decompression can be
+selected by supplying the
+.Fl d
+flag on the command line.
+.Pp
+If any
+.Ar file
+arguments are supplied, the operation is performed on each file
+separately.
+Compression replaces the original file with one having a
+.Pa .gz
+suffix.
+Decompression will remove a
+.Pa .gz
+suffix if one is present.
+.Pp
+If no
+.Ar file
+arguments are supplied,
+.Nm
+reads from standard input and writes the results of the operation
+to standard output.
+.Pp
+If the
+.Fl c
+option is specified,
+.Nm
+writes the results to standard output and keep the original files
+unchanged.
+.Sh SEE ALSO
+.Xr gzip 1
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Jean-loup Gailly .

@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+set -- a b c d e f g h i j
+[ "${1\
+0\
+}" = j ]

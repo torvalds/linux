@@ -1,0 +1,29 @@
+#! /bin/sh
+
+. ./packageinfo.sh
+
+# HMS: Irix doesn't have 'head'...
+cl1=`head -1 ChangeLog || sed -e 1q ChangeLog`
+
+case "$repotype" in
+ dev) ;;
+ stable) ;;
+ *) echo "Unexpected repotype <$repotype>"
+    exit 1
+    ;;
+esac
+
+case "$repotype$cl1" in
+ dev---)
+    echo "Dev repo ChangeLog must not begin with '---'!"
+    exit 1
+    ;;
+ dev*)
+    ;;
+ stable---)
+    ;;
+ stable*)
+    echo "Stable repo Changelog must begin with '---'!"
+    exit 1
+    ;;
+esac

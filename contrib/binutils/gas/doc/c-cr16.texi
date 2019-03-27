@@ -1,0 +1,80 @@
+@c Copyright 2007 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+
+@ifset GENERIC
+@page
+@node CR16-Dependent
+@chapter CR16 Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter CR16 Dependent Features
+@end ifclear
+
+@cindex CR16 support
+@menu
+* CR16 Operand Qualifiers::     CR16 Machine Operand Qualifiers
+@end menu
+
+@node CR16 Operand Qualifiers
+@section CR16 Operand Qualifiers
+@cindex CR16 Operand Qualifiers
+
+The National Semiconductor CR16 target of @code{@value{AS}} has a few machine dependent operand qualifiers.  
+
+Operand expression type qualifier is an optional field in the instruction operand, to determines the type of the expression field of an operand. The @code{@@} is required. CR16 architecture uses one of the following expression qualifiers:
+
+@table @code
+@item  s 
+- @code{Specifies expression operand type as small}
+@item  m 
+- @code{Specifies expression operand type as medium}
+@item  l 
+- @code{Specifies expression operand type as large}
+@item  c 
+- @code{Specifies the CR16 Assembler generates a relocation entry for the operand, where pc has implied bit, the expression is adjusted accordingly. The linker uses the relocation entry to update the operand address at link time.}
+@end table
+
+CR16 target operand qualifiers and its size (in bits):
+
+@table @samp
+@item Immediate Operand
+- s ---- 4 bits
+@item 
+- m ---- 16 bits, for movb and movw instructions.
+@item 
+- m ---- 20 bits, movd instructions.
+@item 
+- l ---- 32 bits
+
+@item Absolute Operand
+- s ---- Illegal specifier for this operand.
+@item  
+- m ---- 20 bits, movd instructions.
+
+@item Displacement Operand
+- s ---- 8 bits
+@item
+- m ---- 16 bits
+@item 
+- l ---- 24 bits
+@end table
+
+For example:
+@example
+1   @code{movw $_myfun@@c,r1}
+
+    This loads the address of _myfun, shifted right by 1, into r1.
+
+2   @code{movd $_myfun@@c,(r2,r1)}
+
+    This loads the address of _myfun, shifted right by 1, into register-pair r2-r1.
+                
+3   @code{_myfun_ptr:}
+    @code{.long _myfun@@c}
+    @code{loadd _myfun_ptr, (r1,r0)}
+    @code{jal (r1,r0)}
+
+    This .long directive, the address of _myfunc, shifted right by 1 at link time.
+@end example

@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ipmon
+# REQUIRE: FILESYSTEMS hostname sysctl ipfilter
+# BEFORE:  SERVERS
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="ipmon"
+desc="Monitors /dev/ipl for logged packets"
+rcvar="ipmon_enable"
+command="/sbin/${name}"
+start_precmd="ipmon_precmd"
+
+ipmon_precmd()
+{
+	# Continue only if ipfilter or ipnat is enabled and the
+	# ipfilter module is loaded.
+	#
+	if ! checkyesno ipfilter_enable && ! checkyesno ipnat_enable && ! checkyesno rc_force ; then
+		err 1  "${name} requires either ipfilter or ipnat enabled"
+	fi
+	if ! ${ipfilter_program:-/sbin/ipf} -V | grep -q 'Running: yes' >/dev/null 2>&1; then
+		err 1 "ipfilter module is not loaded"
+	fi
+	return 0
+}
+
+load_rc_config $name
+run_rc_command "$1"

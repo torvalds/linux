@@ -1,0 +1,7 @@
+compound start
+before dotcmd
+before for
+before break
+after for
+after dotcmd, return value: 0
+compound end

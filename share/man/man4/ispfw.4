@@ -1,0 +1,60 @@
+.\" Copyright (c) 2000
+.\"     Matthew Jacob
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 30, 2015
+.Dt ISPFW 4
+.Os
+.Sh NAME
+.Nm ispfw
+.Nd "Firmware for Qlogic based SPI and FibreChannel SCSI Host Adapters"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ispfw"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ispfw_load="YES"
+.Ed
+.Sh DESCRIPTION
+This trivial driver provides access to firmware sets for the Qlogic
+based SPI and FibreChannel SCSI Host Adapters.
+It may either be
+statically linked into the kernel, or loaded as a module.
+In either
+case, the
+.Xr isp 4
+driver will notice that firmware is available to be downloaded onto
+Qlogic cards (to replace the usually out of date firmware on the cards).
+This will kick the f/w into getting unstuck.
+.Sh SEE ALSO
+.Xr isp 4
+.Sh AUTHORS
+This driver was written by
+.An Matthew Jacob .

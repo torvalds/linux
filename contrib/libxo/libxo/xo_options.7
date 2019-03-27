@@ -1,0 +1,156 @@
+.\" #
+.\" # Copyright (c) 2014-2017, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\"
+.Dd May 11, 2017
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_options
+.Nd common options for libxo\-based commands
+.Sh DESCRIPTION
+.Pp
+.Nm libxo
+allows the rendering of data into
+various output styles, including
+.Em text ,
+.Em XML ,
+.Em JSON ,
+and
+.Em HTML .
+.Nm libxo
+uses command line options to trigger rendering behavior.
+Options are recognised in three forms:
+.Bl -bullet
+.It
+\-\-libxo <options>
+.It
+\-\-libxo=<options>
+.It
+\-\-libxo:<brief\-options>
+.El
+.Pp
+The first two forms accept a comma\-separated set of words, detailed
+below, while the third form accepts a set of letters, also below.
+The triggered functionality is identical.
+.Bl -column "Token2341234"
+.It Sy "Option     " "Action"
+.It "color      " "Enable colors/effects for display styles (TEXT, HTML)"
+.It "flush      " "Flush after each emit call"
+.It "flush\-line " "Flush each line of output"
+.It "html       " "Emit HTML output"
+.It "indent=xx  " "Set the indentation level"
+.It "info       " "Add info attributes (HTML)"
+.It "json       " "Emit JSON output"
+.It "keys       " "Emit the key attribute for keys (XML)"
+.It "log\-gettext" "Log (via stderr) each gettext(3) string lookup"
+.It "log\-syslog " "Log (via stderr) each syslog message (via xo_syslog)"
+.It "no\-humanize" "Ignore the {h:} modifier (TEXT, HTML)"
+.It "no\-locale  " "Do not initialize the locale setting"
+.It "no\-retain  " "Prevent retaining formatting information"
+.It "pretty     " "Emit pretty\-printed output"
+.It "retain     " "Force retaining formatting information"
+.It "text       " "Emit TEXT output"
+.It "underscores" "Replace XML\-friendly \"\-\"s with JSON friendly \"_\"s"
+.It "units      " "Add the 'units' (XML) or 'data\-units (HTML) attribute"
+.It "warn       " "Emit warnings when libxo detects bad calls"
+.It "warn\-xml   " "Emit warnings in XML"
+.It "xml        " "Emit XML output"
+.It "xpath      " "Add XPath expressions (HTML)"
+.El
+.Pp
+The brief options are a set of single\-letter aliases for the longer
+terms, used as a single string:
+.Bl -column "Value" "Equivalent Token"
+.It Sy "Value" "Equivalent Token"
+.It "c 
+.It "f     " "flush"
+.It "F     " "flush\-line"
+.It "H     " "html"
+.It "I     " "info"
+.It "i<num>" "indent=<num>"
+.It "J     " "json"
+.It "k     " "keys"
+.It "n     " "no\-humanize"
+.It "P     " "pretty"
+.It "T     " "text"
+.It "U     " "units"
+.It "u     " "underscore
+.It "W     " "warn"
+.It "X     " "xml"
+.It "x     " "xpath"
+.El
+.Pp
+Most of these option are simple and direct, but some require
+additional details:
+.Pp
+.Fa "flush\-line"
+performs line buffering, even when the output is not directed to
+a TTY device.
+.Pp
+.Fa info
+generates additional data for HTML, encoded in attributes using
+names that state with "data\-".
+.Pp
+.Fa keys
+adds a "key" attribute for XML output to indicate that a leaf is
+an identifier for the list member.
+.Pp
+.Fa no\-humanize
+avoids "humanizing" numeric output (see
+.Xr humanize_number 3
+for details).
+.Pp
+.Fa no\-locale
+instructs
+.Nm libxo
+to avoid translating output to the current locale.
+.Pp
+.Fa no\-retain
+disables the ability of
+.Nm libxo
+to internally retain "compiled" information about formatting strings.
+.Pp
+.Fa underscores
+can be used with
+.Em JSON
+output to change
+.Em XML \-friendly
+names with dashes into
+.Em JSON \-friendly
+name with underscores.
+.Pp
+.Fa warn
+allows
+.Nm libxo
+to emit warnings on stderr when application code make incorrect calls.
+.Fa warn\-xml causes those warnings to be placed in
+.Em XML
+inside the output.
+.Sh EXAMPLES
+The following are three example invocations of
+.Xr ps 1 :
+.Bd -literal
+      ps \-\-libxo json,pretty,warn \-ux
+
+      ps \-\-libxo=xml \-lg
+
+      ps \-\-libxo:Hxc 1
+.Ed
+.Sh SEE ALSO
+.Xr libxo 3 ,
+.Xr xo_format 5
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .

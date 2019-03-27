@@ -1,0 +1,152 @@
+.\" Copyright (c) 2002
+.\"	Nate Lawson.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Nate Lawson AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 13, 2011
+.Dt TARG 4
+.Os
+.Sh NAME
+.Nm targ
+.Nd SCSI target emulator driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device targ"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides an interface for usermode programs to emulate SCSI target
+devices.
+A sample program that emulates a disk drive (similar to
+.Xr da 4 )
+can be found in
+.Pa /usr/share/examples/scsi_target .
+.Pp
+The
+.Nm
+driver supplies the control device
+.Pa /dev/targ .
+After opening the device, the file descriptor must be bound to a
+specific bus/target/LUN and enabled to process CCBs using the
+.Dv TARGIOCENABLE
+ioctl.
+The process then uses
+.Xr write 2
+to send CCBs to the SIM and
+.Xr poll 2
+or
+.Xr kqueue 2
+to see if responses are ready.
+Pointers to completed CCBs are returned via
+.Xr read 2 .
+Any data transfers requested by the user CCBs are done via zero-copy IO.
+.Sh IOCTLS
+The following
+.Xr ioctl 2
+calls are defined in the header file
+.In cam/scsi/scsi_targetio.h .
+.Bl -tag -width ".Dv TARGIOCDISABLE"
+.It Dv TARGIOCENABLE
+.Pq Vt "struct ioc_enable_lun"
+Enable target mode on the LUN specified by the following structure:
+.Bd -literal -offset indent
+struct ioc_enable_lun {
+	path_id_t	path_id;
+	target_id_t	target_id;
+	lun_id_t	lun_id;
+	int		grp6_len;
+	int		grp7_len;
+};
+.Ed
+.Pp
+The selected path (bus), target, and LUN must not already be in use or
+.Er EADDRINUSE
+is returned.
+If
+.Va grp6_len
+or
+.Va grp7_len
+are non-zero, reception of vendor-specific commands
+is enabled.
+.It Dv TARGIOCDISABLE
+Disable target mode and abort all pending CCBs.
+The CCBs may optionally be read as they complete.
+.Dv TARGIOCENABLE
+can then be called to activate a different LUN.
+Multiple disable calls have no effect.
+The
+.Xr close 2
+system call automatically disables target mode if enabled.
+.It Dv TARGIOCDEBUG
+.Pq Vt int
+Enables
+.Dv CAM_PERIPH
+debugging if the argument is non-zero, otherwise disables
+it.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /sys/cam/scsi/scsi_target.c" -compact
+.It In cam/scsi/scsi_targetio.h
+describes the usermode interface.
+.It Pa /sys/cam/scsi/scsi_target.c
+is the driver source file.
+.It Pa /dev/targ
+is the control device.
+.El
+.Sh SEE ALSO
+.Pa /usr/share/examples/scsi_target ,
+.Xr ahc 4 ,
+.Xr isp 4 ,
+.Xr scsi 4
+.Rs
+.%T "FreeBSD Target Information"
+.%U http://www.root.org/~nate/freebsd/
+.Re
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver first appeared in
+.Fx 3.0
+and was written by
+.An Justin T. Gibbs .
+It was rewritten
+for
+.Fx 5.0
+by
+.An Nate Lawson Aq Mt nate@root.org .
+.Sh BUGS
+Currently, only the
+.Xr ahc 4
+and
+.Xr isp 4
+drivers fully support target mode.
+.Pp
+The
+.Xr ahc 4
+driver does not support tagged queuing in target mode.

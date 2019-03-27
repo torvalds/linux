@@ -1,0 +1,26 @@
+		       AM-UTILS YEAR-2000 COMPLIANCE
+
+Most likely am-utils is y2k compliant.
+
+I do not know for sure because I have not certified am-utils myself, nor do
+I have the time for it.  I do not think that amd will be affected by y2k at
+all, because it does not do anything with dates other than print the date on
+the log file, in whatever format is provided by your os/libc --- especially
+the ctime(3) call.
+
+However, on Friday, September 18th 1998, Matthew Crosby <mcrosby AT ms.com>
+reported that they evaluated 6.0a16 and found it to be compliant.
+
+On March 26, 1999, Paul Balyoz <pbalyoz AT sedona.ch.intel.com> submitted a
+patch to lostaltmail which makes it print Y2K compliant dates.  He used a
+code scanner and manually "eyeballed" the code and could not find any more
+problems.  Paul's patch is included in am-utils-6.0.1s7 and newer versions.
+Paul also said that other 2-digit years used in am-utils are "harmless."
+
+NOTE: NONE OF THE PERSONS MENTIONED HERE, AUTHOR INCLUDED, ARE WILLING TO
+CERTIFY AM-UTILS AS Y2K COMPLIANT.  USE AT YOUR OWN RISK.
+
+---
+Erez Zadok.
+Maintainer, am-utils package and am-utils list.
+WWW:   http://www.am-utils.org

@@ -1,0 +1,93 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 19, 2001
+.Dt TDFX 4
+.Os
+.Sh NAME
+.Nm tdfx
+.Nd Voodoo Graphics and VoodooII Memory Access GLIDE device driver
+.Sh SYNOPSIS
+.Cd device tdfx
+.Cd device tdfx_linux
+.Sh DESCRIPTION
+This driver creates an entry in
+.Pa /dev
+that allows programs (mostly
+.Em GLIDE-based software )
+to access the device memory of the Voodoo Graphics and
+VoodooII 3D accelerators created by
+.Em 3Dfx, Inc .
+This provides an interface
+for applications based on the
+.Em GLIDE API
+or that simply use the API
+provided by the linux
+.Pa /dev/3dfx
+device to use the video device.
+.Pp
+Supports all cards based on the following chipsets:
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Em 3Dfx Voodoo Graphics
+.It
+.Em 3Dfx Voodoo II
+.El
+.Pp
+Specifically, the following cards should work:
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Em Diamond Multimedia Monster 3D
+.It
+.Em Diamond Multimedia Monster 3D II
+.El
+.Pp
+Note that this driver does not currently have support for the Voodoo
+Banshee, Voodoo3, Voodoo5, or Voodoo6 based cards.
+It also does not currently support the Voodoo Rush.
+It also does not yet handle the SLI feature of the Voodoo II boards.
+You can only use each of them separately.
+.Pp
+By including
+.Nm tdfx_linux ,
+you can enable the linux ioctl code for this driver, where the only supported
+applications currently reside.
+.Sh FILES
+.Bl -tag -width /dev/voodoo* -compact
+.It Pa /dev/3dfx
+Symlinked to default
+.Em 3dfx
+board
+.It Pa /dev/3dfx*
+.Em Character Device
+programming interface
+.Pp
+.It Pa /dev/voodoo
+Mirrors of above interfaces
+.It Pa /dev/voodoo*
+(Some apps use
+.Pa /dev/voodoo )
+.El
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Fx 5.0 ,
+and was originally developed for Linux kernel 2.0.x, later written for
+2.2.x and 2.4.x.
+.Sh AUTHORS
+.An -nosplit
+The driver was developed by
+.An Coleman Kane Aq Mt cokane@micro.ti.com
+after the linux version of this driver by
+.An Darryll Straus ,
+.An John Taylor ,
+.An Jens Axboe ,
+.An Carlo Wood Aq Mt carlo@alinoe.com
+and
+.An Joseph Kain Aq Mt joseph@3dfx.com
+to be directly compatible with it and support the many GLIDE based games
+available for Linux and
+.Ux .

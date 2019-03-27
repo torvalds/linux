@@ -1,0 +1,65 @@
+
+#-----------------------------------------------------------------------------
+# $File: misctools,v 1.17 2017/03/17 21:35:28 christos Exp $
+# misctools:  file(1) magic for miscellaneous UNIX tools.
+#
+0	search/1	%%!!			X-Post-It-Note text
+0	string/c	BEGIN:VCALENDAR		vCalendar calendar file
+!:mime	text/calendar
+# updated by Joerg Jenderek at Apr 2015
+# Extension: .vcf
+# http://en.wikipedia.org/wiki/VCard
+0	string/c	BEGIN:VCARD		vCard visiting card
+# deprecated
+#!:mime	text/x-vcard
+!:mime	text/vcard
+# VERSION must come right after BEGIN for 3.0 or 4.0 except in 2.1 , where it can be anywhere
+>12	search/14000/c	VERSION:
+# VERSION 2.1 , 3.0 or 4.0
+>>&0	string		x			\b, version %-.3s
+
+# Summary: Libtool library file
+# Extension: .la
+# Submitted by: Tomasz Trojanowski <tomek@uninet.com.pl>
+0	search/80	.la\ -\ a\ libtool\ library\ file	libtool library file
+
+# Summary: Libtool object file
+# Extension: .lo
+# Submitted by: Abel Cheung <abelcheung@gmail.com>
+0	search/80	.lo\ -\ a\ libtool\ object\ file	libtool object file
+
+# From: Daniel Novotny <dnovotny@redhat.com>
+# Update: Joerg Jenderek
+# URL: https://en.wikipedia.org/wiki/Core_dump#User-mode_memory_dumps
+# Reference: https://msdn.microsoft.com/en-us/library/ms680378%28VS.85%29.aspx
+#
+# "Windows Minidump" by TrID
+# ./misctools (version 5.25) labeled the entry as "MDMP crash report data"
+0	string		MDMP					Mini DuMP crash report
+# http://filext.com/file-extension/DMP
+!:mime	application/x-dmp
+!:ext	dmp/mdmp
+# The high-order word is an internal value that is implementation specific.
+# The low-order word is MINIDUMP_VERSION 0xA793
+>4	ulelong&0x0000FFFF	!0xA793				\b, version 0x%4.4x
+# NumberOfStreams 8,9,10,13
+>8	ulelong			x				\b, %d streams
+# StreamDirectoryRva 0x20
+>12	ulelong			!0x20				\b, 0x%8.8x RVA
+# CheckSum 0
+>16	ulelong			!0				\b, CheckSum 0x%8.8x
+# Reserved or TimeDateStamp
+>20	ledate			x				\b, %s
+# https://msdn.microsoft.com/en-us/library/windows/desktop/ms680519%28v=vs.85%29.aspx
+# Flags MINIDUMP_TYPE enumeration type 0 0x121 0x800
+>24	ulelong			x				\b, 0x%x type
+# >24	ulelong			>0				\b; include
+# >>24	ulelong			&0x00000001			\b data sections,
+# >>24	ulelong			&0x00000020			\b list of unloaded modules,
+# >>24	ulelong			&0x00000100			\b process and thread information,
+# >>24	ulelong			&0x00000800			\b memory information,
+
+# Summary: abook addressbook file
+# Submitted by: Mark Schreiber <mark7@alumni.cmu.edu>
+0	string	#\x20abook\x20addressbook\x20file abook address book
+!:mime application/x-abook-addressbook

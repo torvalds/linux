@@ -1,0 +1,107 @@
+.\" Copyright (c) 2008-2009 Fredrik Lindberg
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Aug 12, 2009
+.Dt UHSOCTL 1
+.Os
+.Sh NAME
+.Nm uhsoctl
+.Nd connection utility for Option based devices
+.Sh SYNOPSIS
+.Nm
+.Op Fl a Ar apn
+.Op Fl c Ar cid
+.Op Fl p Ar pin
+.Op Fl u Ar username
+.Op Fl k Ar password
+.Op Fl r Ar path
+.Op Fl f Ar path
+.Op Fl b | n
+.Ar interface
+.Nm
+.Fl d
+.Ar interface
+.Nm
+.Fl h
+.Sh DESCRIPTION
+.Nm
+is a small connection utility for Option N.V. devices that are based on Options
+packet interface and uses proprietary AT_* calls to establish connections.
+The utility (tries to) configure both default route and name servers
+.Po Pa /etc/resolv.conf Pc .
+.Pp
+By default
+.Nm
+detaches from the terminal upon on a successful connection, a few command-line
+options exists that allows this behavior to be changed.
+.Pp
+.Nm
+attempts to find a usable controlling serial port based on the provided network
+interface.
+If this fails you might specify a serial port manually.
+.Sh OPTIONS
+.Bl -tag -width XXXX
+.It Fl a Ar apn
+Specify APN to connect to.
+.It Fl c Ar cid
+Specify CID (Context ID) to use, by default CID 1 is used.
+If an APN has been configured once, it's enough to specify the CID used for
+further accesses.
+.It Fl p Ar pin
+Specify SIM PIN.
+.It Fl u Ar username
+Specify username.
+.It Fl k Ar password
+Specify username.
+.It Fl r Ar path
+Path to
+.Pa resolv.conf ,
+default
+.Pa /etc/resolv.conf .
+Use
+.Pa /dev/null
+to disable updating of name servers.
+.It Fl f Ar path
+Explicitly set the serial port to use as controlling terminal.
+Might be needed if the automatic detection fails.
+.It Fl b
+Fork into background directly, before a connection has been established.
+.It Fl n
+Never fork into background, run entirely in foreground.
+.El
+.Sh EXAMPLES
+Connect to
+.Dq Li apn.example.com
+on interface
+.Dq Li uhso0
+and use PIN
+.Dq 1234
+to enable the SIM card.
+.Dl "uhsoctl -a apn.example.com -p 1234 uhso0"
+.Pp
+Disconnect from a previously established connection.
+.Dl "uhsoctl -d uhso0"
+.Sh SEE ALSO
+.Xr uhso 4

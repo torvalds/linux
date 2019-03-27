@@ -1,0 +1,246 @@
+.\" $OpenBSD: rtwn.4,v 1.2 2015/07/09 11:28:53 stsp Exp $
+.\"
+.\" Copyright (c) 2010 Damien Bergamini <damien.bergamini@free.fr>
+.\" Copyright (c) 2015 Stefan Sperling <stsp@openbsd.org>
+.\" Copyright (c) 2016 Andriy Voskoboinyk <avos@freebsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 2, 2019
+.Dt RTWN 4
+.Os
+.Sh NAME
+.Nm rtwn
+.Nd Realtek IEEE 802.11 wireless network driver
+.Sh SYNOPSIS
+.Cd "options RTWN_DEBUG"
+.Cd "options RTWN_WITHOUT_UCODE"
+.Pp
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device rtwn"
+.Cd "device rtwnfw"
+.Cd "device rtwn_usb"
+.Cd "device rtwn_pci"
+.Cd "device wlan"
+.Cd "device firmware"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_rtwn_pci_load="YES"
+if_rtwn_usb_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for wireless network devices based on
+the Realtek RTL8192C, RTL8188E, RTL8192E, RTL8812A and RTL8821A
+programming APIs.
+These APIs are used by a wide variety of chips;
+most chips with USB and some with PCI interface are supported.
+.Pp
+To enable use for PCI/PCIe systems, see the rtwn_pci(4) driver;
+for USB devices, use the rtwn_usb(4) driver.
+.Pp
+The driver supports
+.Cm station ,
+.Cm adhoc ,
+.Cm hostap
+and
+.Cm monitor
+mode operation.
+There are no limitations for number of
+.Cm monitor
+mode
+virtual interfaces; in addition to any other virtual interface
+one
+.Cm station
+interface can be added (Note: RTL8821AU supports two non-monitor
+mode interfaces at the same time).
+.Pp
+All chips have hardware support for WEP, AES-CCM and TKIP encryption.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8 .
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/doc/legal/realtek.LICENSE" -compact
+.It Pa /usr/share/doc/legal/realtek.LICENSE
+.Nm
+firmware license
+.El
+.Pp
+The driver (if not compiled with
+.Cd options RTWN_WITHOUT_UCODE
+) may use following firmware files, which are loaded
+when an interface is brought up:
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /boot/kernel/rtwn-rtl8188eefw.ko
+.It Pa /boot/kernel/rtwn-rtl8188eufw.ko
+.It Pa /boot/kernel/rtwn-rtl8192cfwE_B.ko
+.It Pa /boot/kernel/rtwn-rtl8192cfwE.ko
+.It Pa /boot/kernel/rtwn-rtl8192cfwT.ko
+.It Pa /boot/kernel/rtwn-rtl8192cfwU.ko
+.It Pa /boot/kernel/rtwn-rtl8192eufw.ko
+.It Pa /boot/kernel/rtwn-rtl8812aufw.ko
+.It Pa /boot/kernel/rtwn-rtl8821aufw.ko
+.El
+.Sh EXAMPLES
+Join an existing BSS network (i.e., connect to an access point):
+.Bd -literal -offset indent
+ifconfig wlan create wlandev rtwn0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig wlan create wlandev rtwn0 ssid my_net up"
+.Pp
+Join a specific BSS network with 64-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev rtwn0 ssid my_net \e
+        wepmode on wepkey 0x1234567890 weptxkey 1 up
+.Ed
+.Pp
+Create an IBSS network with 128-bit WEP encryption on the channel 4:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev rtwn0 wlanmode adhoc ssid my_net \e
+	wepmode on wepkey 0x01020304050607080910111213 weptxkey 1 \e
+	channel 4
+.Ed
+.Pp
+Join/create an 802.11b IBSS network with network name
+.Dq Li my_net :
+.Bd -literal -offset indent
+ifconfig wlan0 create wlandev rtwn0 wlanmode adhoc
+ifconfig wlan0 inet 192.168.0.22 netmask 0xffffff00 ssid my_net \e
+	mode 11b
+.Ed
+.Pp
+Create a host-based access point:
+.Bd -literal -offset indent
+ifconfig wlan0 create wlandev rtwn0 wlanmode hostap
+ifconfig wlan0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap
+.Ed
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va dev.rtwn.%d.hwcrypto
+This tunable controls how key slots are assigned:
+.br
+0 - disable h/w crypto support. Features that require access
+to frame contents (e.g., TCP/UDP/IP Rx checksum validation)
+will not work;
+.br
+1 - use h/w crypto support for pairwise keys only;
+.br
+2 - use h/w crypto support for all keys; may not work for
+multi-vap configurations.
+.br
+By default it is set to 1.
+.It Va dev.rtwn.%d.ratectl
+This tunable switches between rate control implementations:
+.br
+0 - no rate control;
+.br
+1 - driver sends 'tx complete' reports to net80211; algorithm
+is controlled via net80211;
+.br
+2 - firmware-based rate control.
+.br
+By default it is set to 1; however driver may choose another
+algorithm in case if it is not implemented
+.br
+Currently selected algorithm is reported via
+.Em Va dev.rtwn.%d.ratectl_selected
+read-only OID.
+.It Va dev.rtwn.%d.rx_buf_size
+(USB only) Controls size of temporary Rx buffer; smaller buffer size
+may increase number of interrupts.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "rtwn%d: could not read efuse byte at address 0x%x"
+.It "rtwn%d: %s: cannot read rom, error %d"
+There was an error while reading ROM; device attach will be aborted.
+This should not happen.
+.It "rtwn%d: failed loadfirmware of file %s"
+For some reason, the driver was unable to read the microcode file from the
+filesystem.
+The file might be missing or corrupted.
+The driver will disable firmware-dependent features.
+.It "rtwn%d: wrong firmware size (%zu)"
+.It "rtwn%d: %s: failed to upload firmware %s (error %d)"
+.It "rtwn%d: timeout waiting for firmware readiness"
+Firmware upload failed; the file might be corrupted.
+The driver will disable firmware-dependent features.
+This should not happen.
+.It "rtwn%d: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr rtwn_pci 4 ,
+.Xr rtwn_usb 4 ,
+.Xr rtwnfw 4 ,
+.Xr wlan 4 ,
+.Xr wlan_amrr 4 ,
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr wlan_xauth 4 ,
+.Xr hostapd 8 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8
+.Sh HISTORY
+The
+.Cm urtwn
+driver first appeared in
+.Ox 4.9
+and
+.Fx 10.0 ;
+the
+.Nm
+driver first appeared in
+.Ox 5.8 .
+.Sh AUTHORS
+The
+.Nm
+driver was initially written by
+.An -nosplit
+.An Stefan Sperling Aq Mt stsp@openbsd.org
+and ported by
+.An Kevin Lo Aq Mt kevlo@freebsd.org .
+It was based on the
+.Cm urtwn
+driver written by
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr .
+.Sh BUGS
+The
+.Nm
+driver currently does not implement firmware-based rate control.

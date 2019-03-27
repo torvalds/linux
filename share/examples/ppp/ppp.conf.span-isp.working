@@ -1,0 +1,107 @@
+# $FreeBSD$
+
+# This is a working example of ppp.conf.span-isp that uses ppp connections
+# to the same machine through 3 null-modem serial cables.
+#
+#    cuaD03  <-> cuaD04
+#    cuaD01  <-> cuaD06
+#    cuaD00  <-> cuaD07
+#
+# with gettys running on cuaD04, cuaD06 and cuaD07.  The gettytab entry
+# for these devices has a pp= capability that references a script that
+# says:
+#
+#    #! /bin/sh
+#    tty=$(tty)
+#    exec /usr/sbin/pppin -direct isp-in-${tty#${tty%?}}
+#
+# The whole thing is brought up with these commands:
+#
+#    ppp -b isp1
+#    ppp -b isp2
+#    ppp -b isp3
+#
+# Something rather strange happens here.
+# If you connect to the vpn-in diagnostic socket with ``pppctl
+# /var/run/ppp/vpn-in'' and do a ``show links'', only a single link shows up.
+# If you connect to the vpn diagnostic socket (which is created in
+# ppp.linkup.span-isp.working, you see three links.  This is because inetd
+# is told to ``wait'' for ppp to finish and the receiving ppp gets to
+# handle all incoming packets on the first descriptor.
+#
+# This is why enabling LQR won't work - VPN-IN has magic number problems,
+# fails to reply to LQRs and the VPN invocations end up shutting down.
+#
+# If anyone can come up with a better way of doing PPP over UDP I'd be
+# interrested to hear it.  Currently, the server doesn't connect() or
+# bind().... but the client connect()s.  Is there any other way ?
+#
+#          Answers on a postcard please ! (to brian@Awfulhak.org)
+#
+
+default:
+  set speed 115200
+  set device /dev/cuaD00 /dev/cuaD01 /dev/cuaD03
+  set dial
+  set login
+  set redial 3 5
+  set timeout 0
+  enable lqr echo
+  set lqrperiod 15
+
+isp1:
+  set authname "isp1name"
+  set authkey "isp1key"
+
+isp2:
+  set authname "isp2name"
+  set authkey "isp2key"
+
+isp3:
+  set authname "isp3name"
+  set authkey "isp3key"
+
+
+vpn:
+  set enddisc LABEL
+  set speed sync
+  set mrru 1500
+  set mru 1504			# Room for the MP header
+  set authname "vpnname"
+  set authkey "vpnkey"
+  add! default HISADDR
+  disable deflate pred1 lqr
+  deny deflate pred1
+ 
+vpn1:
+  rename 1
+  set device 127.0.2.7:ppp/udp
+ 
+vpn2:
+  rename 2
+  set device 127.0.2.6:ppp/udp
+ 
+vpn3:
+  rename 3
+  set device 127.0.2.4:ppp/udp
+
+
+vpn-in:
+  set enddisc label
+  set speed sync
+  set mrru 1500
+  set mru 1504			# Room for the MP header
+  enable chap
+  disable lqr
+  set ifaddr 127.0.0.2 127.0.0.3
+  set server /var/run/ppp/vpn-in "" 0177
+
+
+isp-in-7:
+  set ifaddr 127.0.2.7 127.0.3.7
+
+isp-in-6:
+  set ifaddr 127.0.2.6 127.0.3.6
+
+isp-in-4:
+  set ifaddr 127.0.2.4 127.0.3.4

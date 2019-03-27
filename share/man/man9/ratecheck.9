@@ -1,0 +1,93 @@
+.\"-
+.\" Copyright (c) 2017 Dag-Erling Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 25, 2017
+.Dt RATECHECK 9
+.Os
+.Sh NAME
+.Nm ratecheck ,
+.Nm ppsratecheck
+.Nd "event rate limiting"
+.Sh SYNOPSIS
+.In sys/time.h
+.Ft int
+.Fn ratecheck "struct timeval *lasttime" "struct timeval *mininterval"
+.Ft int
+.Fn ppsratecheck "struct timeval *lasttime" "int *curpps" "int maxpps"
+.Sh DESCRIPTION
+The
+.Nm ratecheck
+and
+.Nm ppsratecheck
+functions facilitate rate-limiting of arbitrary events.
+The former enforces a minimum interval between events while the latter
+enforces a maximum number of events per second.
+.Pp
+The
+.Nm ratecheck
+function compares the current time to the value pointed to by
+.Fa lasttime .
+If the difference is equal to or greater than
+.Fa mininterval ,
+it returns a non-zero value and updates
+.Fa lasttime
+to the current time.
+Otherwise, it returns zero.
+.Pp
+The
+.Nm ppsratecheck
+function first compares the current time
+to
+.Fa lasttime .
+If at least a full second has passed, the value pointed to by the
+.Fa curpps
+argument is reset to 1 and
+.Fa lasttime
+is updated to the current time.
+Otherwise,
+.Fa curpps
+is incremented and
+.Fa lasttime
+is left untouched.
+In either case,
+.Nm ppsratecheck
+returns a non-zero value if and only if the updated
+.Fa curpps
+is less than or equal to
+.Fa maxpps
+or
+.Fa maxpps
+is negative.
+.Sh SEE ALSO
+.Xr counter 9
+.Sh HISTORY
+The
+.Nm ratecheck
+and
+.Nm ppsratecheck
+functions first appeared in
+.Fx 5.1 .

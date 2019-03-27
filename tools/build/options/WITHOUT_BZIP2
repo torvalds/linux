@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to not build contributed bzip2 software as a part of the base system.
+.Bf -symbolic
+The option has no effect yet.
+.Ef

@@ -1,0 +1,49 @@
+$FreeBSD$
+
+Example for creating many different builds (including different
+arch) from a common set of files, as well as building natively
+using qemu user space emulation.
+
+This creates a simple appliance that uses dnsmasq to serve DNS
+and DHCPd.
+
+This is a work in progress. Generally, to build this you should
+     cd tools/tools/nanobsd/embedded
+     sudo sh ../nanobsd.sh -c foo.cfg
+
+Some features:
+
+Image size is minimal, we grow the last partition on first boot to
+fill the media.
+
+Images are both as easy as possible to construct, as well as easy as
+possible to expand.
+
+Config			Short description
+beaglebone.cfg		Create a bootable beaglebone image
+qemu-amd64.cfg		Create a bootable amd64 image for qemu (W)
+qemu-i386.cfg		Create a bootable i386 image for qemu (W)
+qemu-mips.cfg		Create a bootable mips malta board image for
+			qemu
+qemu-mips64.cfg		Create a bootable mips malta board (64-bit
+			mode) image for qemu
+qemu-powerpc.cfg	Create a bootable 32-bit powerpc image for
+			qemu
+qemu-powerpc64.cfg	Create a bootable 64-bit IBM-flavor image for
+			qemu
+qemu-sparc64.cfg	Create a bootable sparc64 image for qemu
+rpi.cfg			Create a bootable image for Raspberry Pi B
+rpi2.cfg		Create a bootable image for Raspberry Pi2
+sam9260ek.cfg		Create a bootable image for an Atmel SAM9260-EK
+			evaluation board (still needs a kernel loaded
+			into dataflash or NAND, so experimental).
+sam9g20ek.cfg		Create a bootable image for an Atmel SAM9G20-EK
+			evaluation board (still needs a kernel loaded
+			into dataflash or NAND, so experimental). Also
+			works on many after-market boards that are somewhat
+			compatible with the references board.
+
+QEMU command lines for serial console access
+
+i386: qemu-system-i386 -m 512 -hda _.disk.image.qemu-i386.qcow2 -nographic
+amd64: qemu-system-amd64 -m 512 -hda _.disk.image.qemu-amd64.qcow2 -nographic

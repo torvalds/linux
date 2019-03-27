@@ -1,0 +1,228 @@
+.\" Copyright (c) 2018 Mariusz Zaborski <oshogbo@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 18, 2018
+.Dt CAP_GRP 3
+.Os
+.Sh NAME
+.Nm cap_getgrent ,
+.Nm cap_getgrnam ,
+.Nm cap_getgrgid ,
+.Nm cap_getgrent_r ,
+.Nm cap_getgrnam_r ,
+.Nm cap_getgrgid_r ,
+.Nm cap_setgroupent ,
+.Nm cap_setgrent ,
+.Nm cap_endgrent ,
+.Nm cap_grp_limit_cmds ,
+.Nm cap_grp_limit_fields ,
+.Nm cap_grp_limit_groups
+.Nd "library for group database operations in capability mode"
+.Sh LIBRARY
+.Lb libcap_grp
+.Sh SYNOPSIS
+.In sys/nv.h
+.In libcasper.h
+.In casper/cap_grp.h
+.Ft "struct group *"
+.Fn cap_getgrent "cap_channel_t *chan"
+.Ft "struct group *"
+.Fn cap_getgrnam "cap_channel_t *chan" "const char *name"
+.Ft "struct group *"
+.Fn cap_getgrgid "cap_channel_t *chan" "gid_t gid"
+.Ft "int"
+.Fn cap_getgrent_r "cap_channel_t *chan" "struct group *grp" "char *buffer" "size_t bufsize" "struct group **result"
+.Ft "int"
+.Fn cap_getgrnam_r "cap_channel_t *chan" "const char *name" "struct group *grp" "char *buffer" "size_t bufsize" "struct group **result"
+.Ft int
+.Fn cap_getgrgid_r "cap_channel_t *chan" "gid_t gid" "struct group *grp" "char *buffer" "size_t bufsize" "struct group **result"
+.Ft int
+.Fn cap_setgroupent "cap_channel_t *chan" "int stayopen"
+.Ft int
+.Fn cap_setgrent "cap_channel_t *chan"
+.Ft void
+.Fn cap_endgrent "cap_channel_t *chan"
+.Ft int
+.Fn cap_grp_limit_cmds "cap_channel_t *chan" "const char * const *cmds" "size_t ncmds"
+.Ft int
+.Fn cap_grp_limit_fields "cap_channel_t *chan" "const char * const *fields" "size_t nfields"
+.Ft int
+.Fn cap_grp_limit_groups "cap_channel_t *chan" "const char * const *names" "size_t nnames" "const gid_t *gids" "size_t ngids"
+.Sh DESCRIPTION
+The functions
+.Fn cap_getgrent ,
+.Fn cap_getgrnam ,
+.Fn cap_getgrgid ,
+.Fn cap_getgrent_r ,
+.Fn cap_getgrnam_r ,
+.Fn cap_getgrgid_r ,
+.Fn cap_setgroupent ,
+.Fn cap_setgrent ,
+and
+.Fn cap_endgrent
+are respectively equivalent to
+.Xr getgrent 3 ,
+.Xr getgrnam 3 ,
+.Xr getgrgid 3 ,
+.Xr getgrent_r 3 ,
+.Xr getgrnam_r 3 ,
+.Xr getgrgid_r 3 ,
+.Xr setgroupent 3 ,
+.Xr setgrent 3 ,
+and
+.Xr endgrent 3
+except that the connection to the
+.Nm system.grp
+service needs to be provided.
+.Pp
+The
+.Fn cap_grp_limit_cmds
+function limits the functions allowed in the service.
+The
+.Fa cmds
+variable can be set to
+.Dv getgrent ,
+.Dv getgrnam ,
+.Dv getgrgid ,
+.Dv getgrent_r ,
+.Dv getgrnam_r ,
+.Dv getgrgid_r ,
+.Dv setgroupent ,
+.Dv setgrent ,
+or
+.Dv endgrent
+which will allow to use the function associated with the name.
+The
+.Fa ncmds
+variable contains the number of
+.Fa cmds
+provided.
+.Pp
+The
+.Fn cap_grp_limit_fields
+function allows limit fields returned in the structure
+.Vt group .
+The
+.Fa fields
+variable can be set to
+.Dv gr_name
+.Dv gr_passwd
+.Dv gr_gid
+or
+.Dv gr_mem .
+The field which was set as the limit will be returned, while the rest of the
+values not set this way will have default values.
+The
+.Fa nfields
+variable contains the number of
+.Fa fields
+provided.
+.Pp
+The
+.Fn cap_grp_limit_groups
+function allows to limit access to groups.
+The
+.Fa names
+variable allows to limit groups by name and the
+.Fa gids
+variable by the group number.
+The
+.Fa nnames
+and
+.Fa ngids
+variables provide numbers of limited names and gids.
+.Sh EXAMPLES
+The following example first opens a capability to casper and then uses this
+capability to create the
+.Nm system.grp
+casper service and uses it to get a group name.
+.Bd -literal
+cap_channel_t *capcas, *capgrp;
+const char *cmds[] = { "getgrgid" };
+const char *fields[] = { "gr_name" };
+const gid_t gid[] = { 1 };
+struct group *group;
+
+/* Open capability to Casper. */
+capcas = cap_init();
+if (capcas == NULL)
+        err(1, "Unable to contact Casper");
+
+/* Enter capability mode sandbox. */
+if (cap_enter() < 0 && errno != ENOSYS)
+        err(1, "Unable to enter capability mode");
+
+/* Use Casper capability to create capability to the system.grp service. */
+capgrp = cap_service_open(capcas, "system.grp");
+if (capgrp == NULL)
+        err(1, "Unable to open system.grp service");
+
+/* Close Casper capability, we don't need it anymore. */
+cap_close(capcas);
+
+/* Limit service to one single function. */
+if (cap_grp_limit_cmds(capgrp, cmds, nitems(cmds)))
+	err(1, "Unable to limit access to system.grp service");
+
+/* Limit service to one field as we only need name of the group. */
+if (cap_grp_limit_fields(capgrp, fields, nitems(fields)))
+	err(1, "Unable to limit access to system.grp service");
+
+/* Limit service to one gid. */
+if (cap_grp_limit_groups(capgrp, NULL, 0, gid, nitems(gid)))
+	err(1, "Unable to limit access to system.grp service");
+
+group = cap_getgrgid(capgrp, gid[0]);
+if (group == NULL)
+	err(1, "Unable to get name of group");
+
+printf("GID %d is associated with name %s.\\n", gid[0], group->gr_name);
+
+cap_close(capgrp);
+.Ed
+.Sh SEE ALSO
+.Xr cap_enter 2 ,
+.Xr endgrent 3 ,
+.Xr err 3 ,
+.Xr getgrent 3 ,
+.Xr getgrent_r 3 ,
+.Xr getgrgid 3 ,
+.Xr getgrgid_r 3 ,
+.Xr getgrnam 3 ,
+.Xr getgrnam_r 3 ,
+.Xr setgrent 3 ,
+.Xr setgroupent 3 ,
+.Xr capsicum 4 ,
+.Xr nv 9
+.Sh AUTHORS
+The
+.Nm cap_grp
+service was implemented by
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
+under sponsorship from the FreeBSD Foundation.
+.Pp
+This manual page was written by
+.An Mariusz Zaborski Aq Mt oshogbo@FreeBSD.org .

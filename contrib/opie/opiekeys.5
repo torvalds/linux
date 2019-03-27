@@ -1,0 +1,69 @@
+.\" opiekeys.5: Manual page describing the /etc/opiekeys file.
+.\"
+.\" Portions of this software are Copyright 1995 by Randall Atkinson and Dan
+.\" McDonald, All Rights Reserved. All Rights under this copyright are assigned
+.\" to the U.S. Naval Research Laboratory (NRL). The NRL Copyright Notice and
+.\" License Agreement applies to this software.
+.\"
+.\"	History:
+.\"
+.\"	Modified by cmetz for OPIE 2.32. This is opiekeys.5, not opiekeys.1 or
+.\"         opieaccess.5.
+.\"	Written at NRL for OPIE 2.0.
+.\"
+.ll 6i
+.pl 10.5i
+.\"	@(#)opiekeys.5	2.0 (NRL) 1/10/95
+.\"	$FreeBSD$
+.\"
+.lt 6.0i
+.TH OPIEKEYS 5 "January 10, 1995"
+.AT 3
+.SH NAME
+/etc/opiekeys \- OPIE database of user key information
+
+.SH DESCRIPTION
+The 
+.I opiekeys
+file contains user information used by the OPIE software to authenticate
+users. The 
+.I opiekeys
+file is backwards compatible with the S/Key 
+.I /etc/skeykeys
+database file, but only if the hashing algorithm (MD4 and MD5) is the same
+between S/Key and OPIE (i.e., MD5 OPIE cannot use MD4 S/Key keys). The
+.I opiekeys
+file consists of six fields separated by spaces (tabs are properly 
+interpreted, but spaces should be used instead) as follows:
+.PP
+.nf
+.ta \w'              'u
+Field   	Description
+name    	User's login name.
+sequence	User's sequence number.
+seed    	User's seed.
+key     	User's last response (hex).
+date    	Last change date.
+time    	Last change time.
+.fi
+.SH SEE ALSO
+.BR ftpd (8)
+.BR login (1),
+.BR opie (4),
+.BR opiekeys (5),
+.BR opiepasswd (1),
+.BR opieinfo (1),
+.BR su (1),
+
+.SH AUTHOR
+Bellcore's S/Key was written by Phil Karn, Neil M. Haller, and John S. Walden
+of Bellcore. OPIE was created at NRL by Randall Atkinson, Dan McDonald, and
+Craig Metz.
+
+S/Key is a trademark of Bell Communications Research (Bellcore).
+
+.SH CONTACT
+OPIE is discussed on the Bellcore "S/Key Users" mailing list. To join,
+send an email request to:
+.sp
+skey-users-request@thumper.bellcore.com

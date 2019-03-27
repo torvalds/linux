@@ -1,0 +1,351 @@
+# $FreeBSD$ 
+# $NetBSD: CP.alias,v 1.12 2007/07/15 14:41:18 tnozaki Exp $
+
+037	037
+037	ebcdic-cp-ca
+037	ebcdic-cp-us
+037	ebcdic-cp-nl
+037	ebcdic-cp-wt
+037	ibm037
+
+038	038
+038	ebcdic-int
+038	ibm038
+
+273	273
+273	ibm273
+
+274	274
+274	ebcdic-be
+274	ibm274
+
+
+275	275
+275	ebcdic-br
+275	ibm275
+
+277	277
+277	ebcdic-cp-dk
+277	ebcdic-cp-no
+277	ibm277
+
+278	278
+278	ebcdic-cp-fi
+278	ebcdic-cp-se
+278	ibm278
+
+280	280
+280	ebcdic-cp-it
+280	ibm280
+
+281	281
+281	ebcdic-jp-e
+281	ibm281
+
+284	284
+284	ebcdic-cp-es
+284	ibm284
+
+285	285
+285	ebcdic-cp-gb
+285	ibm285
+
+290	290
+290	ebcdic-jp-kana
+290	ibm290
+
+297	297
+297	ebcdic-cp-fr
+297	ibm297
+
+420	420
+420	ebcdic-cp-ar1
+420	ibm420
+
+423	423
+423	ebcdic-cp-gr
+423	ibm423
+
+424	424
+424	ebcdic-cp-he
+424	ibm424
+
+
+437	437
+437	cspc8codepage437
+437	ibm437
+
+
+500	500
+500	ebcdic-cp-be
+500	ebcdic-cp-ch
+500	ibm500
+
+737	737
+737	mscp737
+
+775	775
+775	cspc775baltic
+775	mscp775
+
+850	850
+850	cspc850multilingual
+850	ibm850
+
+851	851
+851	ibm851
+
+852	852
+852	cspc852
+852	ibm852
+
+853	853
+853	ibm853
+
+855	855
+855	csibm855
+855	ibm855
+
+856	856
+856	mscp856
+
+857	857
+857	csibm857
+857	ibm857
+
+858	858
+858	ibm858
+
+860	860
+860	csibm860
+860	ibm860
+
+861	861
+861	csibm861
+861	cp-is
+861	ibm861
+
+862	cp862
+862	cspc862latinhebrew
+862	ibm862
+
+863	863
+863	csibm863
+863	ibm863
+
+864	864
+864	csibm864
+864	ibm864
+
+865	865
+865	csibm865
+865	ibm865
+
+866	866
+866	csibm866
+866	mscp866
+
+868	868
+868	cp-ar
+868	ibm868
+
+869	869
+869	cp-gr
+869	csibm869
+869	ibm869
+
+870	870
+870	ebcdic-cp-roece
+870	ebcdic-cp-yu
+870	ibm870
+
+871	871
+871	ebcdic-cp-is
+871	ibm871
+
+874	874
+874	ibm874
+874	windows-874
+
+875	875
+875	mscp875
+
+880	880
+880	ebcdic-cyrillic
+880	ibm880
+
+891	891
+891	ibm891
+
+903	903
+903	ibm903
+
+904	904
+904	ibm904
+
+905	905
+905	ebcdic-cp-tr
+905	ibm905
+
+918	918
+918	ebcdic-cp-ar2
+918	ibm918
+
+922	922
+922	ibm922
+
+932	932
+932	cswindows31j
+932	ms932
+932	mscp932
+932	shift_jis-ms
+932	sjis-ms
+932	sjis-open
+932	sjis-win
+932	windows-31j
+932	windows-932
+
+936	936
+936	mscp936
+936	windows-936
+
+949	949
+949	mscp949
+949	uhc
+
+942	942
+942	ibm942
+
+942C	942c
+942C	ibm942c
+
+943	943
+943	ibm943
+
+943C	943c
+943C	ibm943c
+
+950	950
+950	mscp950
+
+1006	1006
+1006	mscp1006
+
+1026	1026
+1026	ibm1026
+
+1046	1046
+1046	ibm1046
+
+1124	1124
+1124	ibm1124
+
+1125	1125
+1125	ibm1125
+
+1129	1129
+1129	ibm1129
+
+1131	1131
+1131	ibm1131
+
+1133	1133
+1133	ibm-cp1133
+1133	ibm1133
+
+1161	1161
+1161	csibm1161
+1161	ibm-1161
+1161	ibm1161
+
+1162	1162
+1162	csibm1162
+1162	ibm-1162
+1162	ibm1162
+1162	mscp874
+1162	windows-874
+
+1163	1163
+1163	csibm1163
+1163	ibm-1163
+1163	ibm1163
+
+1250	1250
+1250	ms-ee
+1250	mscp1250
+1250	windows-1250
+
+1251	1251
+1251	ms-cyrl
+1251	mscp1251
+1251	windows-1251
+
+1252	1252
+1252	ms-ansi
+1252	mscp1252
+1252	windows-1252
+
+1253	1253
+1253	ms-greek
+1253	mscp1253
+1253	windows-1253
+
+1254	1254
+1254	ms-turk
+1254	mscp1254
+1254	windows-1254
+
+1255	1255
+1255	ms-hebr
+1255	mscp1255
+1255	windows-1255
+
+1256	1256
+1256	ms-arab
+1256	mscp1256
+1256	windows-1256
+
+1257	1257
+1257	mscp1257
+1257	winbaltrim
+1257	windows-1257
+
+1258	1258
+1258	mscp1258
+1258	windows-1258
+
+10000	10000
+10000	cp10000_MacRoman
+
+10006	10006
+10006	cp10006_MacGreek
+
+10007	10007
+10007	cp10007_MacCyrillic
+10007	ms-mac-cyrillic
+
+10029	10029
+10029	cp10029_MacLatin2
+
+10079	10079
+10079	cp10079_MacIcelandic
+
+10081	10081
+10081	cp10081_MacTurkish
+
+50220   50220
+50220	mscp50220
+50220	windows-50220
+
+50221   50221
+50221	mscp50221
+50221	windows-50221
+
+50222   50222
+50222	mscp50222
+50222	windows-50222
+
+51932   51932
+51932	ms51932
+51932	mscp51932
+51932	windows-51932

@@ -1,0 +1,98 @@
+.\" Copyright (c) 1998 Robert Nordier
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+.\" OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 12, 1998
+.Dt BTXLD 8
+.Os
+.Sh NAME
+.Nm btxld
+.Nd link editor for BTX clients
+.Sh SYNOPSIS
+.Nm
+.Op Fl qv
+.Op Fl b Ar file
+.Op Fl E Ar address
+.Op Fl e Ar address
+.Op Fl f Ar format
+.Op Fl l Ar file
+.Op Fl o Ar filename
+.Op Fl P Ar page
+.Op Fl W Ar page
+.Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility binds the specified client executable together with a BTX
+loader program and the BTX kernel, and creates a composite object file
+suitable for loading during the boot process.
+.Pp
+The options are:
+.Bl -tag -width indent
+.It Fl q
+Quiet: inhibit warnings.
+.It Fl v
+Verbose: display information about the files processed.
+.It Fl b Ar file
+Specify the BTX kernel to be bound with the client.
+.It Fl E Ar address
+Set the client entry point.
+.It Fl e Ar address
+Set the BTX loader entry point.
+.It Fl f Ar format
+Specify the output format, where
+.Ar format
+is one of
+.Sq bin ,
+.Sq aout ,
+or
+.Sq elf .
+.It Fl l Ar file
+Specify the BTX loader to be bound with the client.
+.It Fl o Ar filename
+Name the output file.
+The default is
+.Dq a.out .
+.It Fl P Ar page
+Specify the first page of the client's segment to be marked
+.Sq present ,
+where
+.Ar page
+may be 0 or 1.
+.It Fl W Ar page
+Specify the first page of the client's segment to be marked
+.Sq writable ,
+where
+.Ar page
+may be 0, and should not exceed the number of pages occupied by the
+combined .text and .data segments of the client image.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr ld 1 ,
+.Xr boot 8
+.Sh AUTHORS
+.An Robert Nordier Aq Mt rnordier@FreeBSD.org

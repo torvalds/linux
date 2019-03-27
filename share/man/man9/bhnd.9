@@ -1,0 +1,2681 @@
+.\" Copyright (c) 2015-2016 Landon Fuller <landonf@FreeBSD.org>
+.\" Copyright (c) 2017 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Portions of this documentation were written by Landon Fuller
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 26, 2018
+.Dt BHND 9
+.Os
+.Sh NAME
+.Nm bhnd
+.Nd BHND driver programming interface
+.Sh SYNOPSIS
+.In dev/bhnd/bhnd.h
+.\"
+.Ss Bus Resource Functions
+.Ft int
+.Fo bhnd_activate_resource
+.Fa "device_t dev" "int type" "int rid" "struct bhnd_resource *r"
+.Fc
+.Ft "struct bhnd_resource *"
+.Fo bhnd_alloc_resource
+.Fa "device_t dev" "int type" "int *rid" "rman_res_t start" "rman_res_t end"
+.Fa "rman_res_t count" "u_int flags"
+.Fc
+.Ft "struct bhnd_resource *"
+.Fo bhnd_alloc_resource_any
+.Fa "device_t dev" "int type" "int *rid" "u_int flags"
+.Fc
+.Ft int
+.Fo bhnd_alloc_resources
+.Fa "device_t dev" "struct resource_spec *rs" "struct bhnd_resource **res"
+.Fc
+.Ft int
+.Fo bhnd_deactivate_resource
+.Fa "device_t dev" "int type" "int rid" "struct bhnd_resource *r"
+.Fc
+.Ft int
+.Fo bhnd_release_resource
+.Fa "device_t dev" "int type" "int rid" "struct bhnd_resource *r"
+.Fc
+.Ft void
+.Fo bhnd_release_resources
+.Fa "device_t dev" "const struct resource_spec *rs"
+.Fa "struct bhnd_resource **res"
+.Fc
+.\"
+.Ss "Bus Space Functions"
+.Ft void
+.Fo bhnd_bus_barrier
+.Fa "struct bhnd_resource *r" "bus_size_t offset"
+.Fa "bus_size_t length" "int flags"
+.Fc
+.Ft uint8_t
+.Fn bhnd_bus_read_1 "struct bhnd_resource *r" "bus_size_t offset"
+.Ft uint16_t
+.Fn bhnd_bus_read_2 "struct bhnd_resource *r" "bus_size_t offset"
+.Ft uint32_t
+.Fn bhnd_bus_read_4 "struct bhnd_resource *r" "bus_size_t offset"
+.Ft void
+.Fo bhnd_bus_read_multi_1
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint8_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_read_multi_2
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint16_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_read_multi_4
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint32_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_read_multi_stream_1
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint8_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_read_multi_stream_2
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint16_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_read_multi_stream_4
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint32_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_read_region_1
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint8_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_read_region_2
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint16_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_read_region_4
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint32_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_read_region_stream_1
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint8_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_read_region_stream_2
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint16_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_read_region_stream_4
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint32_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fn bhnd_bus_read_stream_1 "struct bhnd_resource *r" "bus_size_t offset"
+.Ft void
+.Fn bhnd_bus_read_stream_2 "struct bhnd_resource *r" "bus_size_t offset"
+.Ft uint32_t
+.Fn bhnd_bus_read_stream_4 "struct bhnd_resource *r" "bus_size_t offset"
+.Ft void
+.Fo bhnd_bus_set_multi_1
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint8_t value"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_set_multi_2
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint16_t value"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_set_multi_4
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint32_t value"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_set_region_1
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint8_t value"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_set_region_2
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint16_t value"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_set_region_4
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint32_t value"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fn bhnd_bus_write_1 "struct bhnd_resource *r" "uint8_t value"
+.Ft void
+.Fn bhnd_bus_write_2 "struct bhnd_resource *r" "uint16_t value"
+.Ft void
+.Fn bhnd_bus_write_4 "struct bhnd_resource *r" "uint32_t value"
+.Ft void
+.Fo bhnd_bus_write_multi_1
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint8_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_write_multi_2
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint16_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_write_multi_4
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint32_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_write_multi_stream_1
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint8_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_write_multi_stream_2
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint16_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_write_multi_stream_4
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint32_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_write_region_1
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint8_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_write_region_2
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint16_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_write_region_4
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint32_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_write_region_stream_1
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint8_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_write_region_stream_2
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint16_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fo bhnd_bus_write_region_stream_4
+.Fa "struct bhnd_resource *r" "bus_size_t offset" "uint32_t *datap"
+.Fa "bus_size_t count"
+.Fc
+.Ft void
+.Fn bhnd_bus_write_stream_1 "struct bhnd_resource *r" "uint8_t value"
+.Ft void
+.Fn bhnd_bus_write_stream_2 "struct bhnd_resource *r" "uint16_t value"
+.Ft void
+.Fn bhnd_bus_write_stream_4 "struct bhnd_resource *r" "uint32_t value"
+.\"
+.Ss "Device Configuration Functions"
+.Ft int
+.Fn bhnd_read_ioctl "device_t dev" "uint16_t *ioctl"
+.Ft int
+.Fn bhnd_write_ioctl "device_t dev" "uint16_t value" "uint16_t mask"
+.Ft int
+.Fn bhnd_read_iost "device_t dev" "uint16_t *iost"
+.Ft uint32_t
+.Fo bhnd_read_config
+.Fa "device_t dev" "bus_size_t offset" "void *value" "u_int width"
+.Fc
+.Ft int
+.Fo bhnd_write_config
+.Fa "device_t dev" "bus_size_t offset" "const void *value" "u_int width"
+.Fc
+.Ft int
+.Fn bhnd_reset_hw "device_t dev" "uint16_t ioctl" "uint16_t reset_ioctl"
+.Ft int
+.Fn bhnd_suspend_hw "device_t dev" "uint16_t ioctl"
+.Ft bool
+.Fn bhnd_is_hw_suspended "device_t dev"
+.\"
+.Ss "Device Information Functions"
+.Ft bhnd_attach_type
+.Fo bhnd_get_attach_type
+.Fa "device_t dev"
+.Fc
+.Ft "const struct bhnd_chipid *"
+.Fo bhnd_get_chipid
+.Fa "device_t dev"
+.Fc
+.Ft bhnd_devclass_t
+.Fo bhnd_get_class
+.Fa "device_t dev"
+.Fc
+.Ft u_int
+.Fo bhnd_get_core_index
+.Fa "device_t dev"
+.Fc
+.Ft "struct bhnd_core_info"
+.Fo bhnd_get_core_info
+.Fa "device_t dev"
+.Fc
+.Ft int
+.Fo bhnd_get_core_unit
+.Fa "device_t dev"
+.Fc
+.Ft uint16_t
+.Fo bhnd_get_device
+.Fa "device_t dev"
+.Fc
+.Ft const char *
+.Fo bhnd_get_device_name
+.Fa "device_t dev"
+.Fc
+.Ft uint8_t
+.Fo bhnd_get_hwrev
+.Fa "device_t dev"
+.Fc
+.Ft uint16_t
+.Fo bhnd_get_vendor
+.Fa "device_t dev"
+.Fc
+.Ft const char *
+.Fo bhnd_get_vendor_name
+.Fa "device_t dev"
+.Fc
+.Ft int
+.Fo bhnd_read_board_info
+.Fa "device_t dev" "struct bhnd_board_info *info"
+.Fc
+.\"
+.Ss "Device Matching Functions"
+.Ft bool
+.Fo bhnd_board_matches
+.Fa "const struct bhnd_board_info *board" "const struct bhnd_board_match *desc"
+.Fc
+.Ft device_t
+.Fo bhnd_bus_match_child
+.Fa "device_t bus" "const struct bhnd_core_match *desc"
+.Fc
+.Ft bool
+.Fo bhnd_chip_matches
+.Fa "const struct bhnd_chipid *chip" "const struct bhnd_chip_match *desc"
+.Fc
+.Ft "struct bhnd_core_match"
+.Fo bhnd_core_get_match_desc
+.Fa "const struct bhnd_core_info *core"
+.Fc
+.Ft bool
+.Fo bhnd_core_matches
+.Fa "const struct bhnd_core_info *core" "const struct bhnd_core_match *desc"
+.Fc
+.Ft bool
+.Fo bhnd_cores_equal
+.Fa "const struct bhnd_core_info *lhs" "const struct bhnd_core_info *rhs"
+.Fc
+.Ft bool
+.Fo bhnd_hwrev_matches
+.Fa "uint16_t hwrev" "const struct bhnd_hwrev_match *desc"
+.Fc
+.Ft "const struct bhnd_core_info *"
+.Fo bhnd_match_core
+.Fa "const struct bhnd_core_info *cores" "u_int num_cores"
+.Fa "const struct bhnd_core_match *desc"
+.Fc
+.\"
+.Ss "Device Table Functions"
+.Ft "const struct bhnd_device *"
+.Fo bhnd_device_lookup
+.Fa "device_t dev" "const struct bhnd_device *table" "size_t entry_size"
+.Fc
+.Ft bool
+.Fo bhnd_device_matches
+.Fa "device_t dev" "const struct bhnd_device_match *desc"
+.Fc
+.Ft uint32_t
+.Fo bhnd_device_quirks
+.Fa "device_t dev" "const struct bhnd_device *table" "size_t entry_size"
+.Fc
+.Fo BHND_BOARD_QUIRK
+.Fa "board" "flags"
+.Fc
+.Fo BHND_CHIP_QUIRK
+.Fa "chip" "hwrev" "flags"
+.Fc
+.Fo BHND_CORE_QUIRK
+.Fa "hwrev" "flags"
+.Fc
+.Fo BHND_DEVICE
+.Fa "vendor" "device" "desc" "quirks" "..."
+.Fc
+.Fo BHND_DEVICE_IS_END
+.Fa "struct bhnd_device *d"
+.Fc
+.Fo BHND_DEVICE_QUIRK_IS_END
+.Fa "struct bhnd_device_quirk *q"
+.Fc
+.Fo BHND_PKG_QUIRK
+.Fa "chip" "pkg" "flags"
+.Fc
+.Bd -literal
+struct bhnd_device_quirk {
+	struct bhnd_device_match	desc;
+	uint32_t			quirks;
+};
+.Ed
+.Bd -literal
+struct bhnd_device {
+    const struct bhnd_device_match	 core;
+    const char				*desc;
+    const struct bhnd_device_quirk	*quirks_table;
+    uint32_t				 device_flags;
+};
+.Ed
+.Bd -literal
+enum {
+	BHND_DF_ANY	= 0,
+	BHND_DF_HOSTB	= (1 << 0),
+	BHND_DF_SOC	= (1 << 1),
+	BHND_DF_ADAPTER	= (1 << 2)
+};
+.Ed
+.Bd -literal
+#define BHND_DEVICE_END { { BHND_MATCH_ANY }, NULL, NULL, 0 }
+.Ed
+.Bd -literal
+#define BHND_DEVICE_QUIRK_END { { BHND_MATCH_ANY }, 0 }
+.Ed
+.\"
+.Ss "DMA Address Translation Functions"
+.Ft int
+.Fo bhnd_get_dma_translation
+.Fa "device_t dev" "u_int width" "uint32_t flags" "bus_dma_tag_t *dmat"
+.Fa "struct bhnd_dma_translation *translation"
+.Fc
+.Bd -literal
+struct bhnd_dma_translation {
+	bhnd_addr_t	base_addr;
+	bhnd_addr_t	addr_mask;
+	bhnd_addr_t	addrext_mask;
+	uint32_t	flags;
+};
+.Ed
+.Bd -literal
+typedef enum {
+	BHND_DMA_ADDR_30BIT	= 30,
+	BHND_DMA_ADDR_32BIT	= 32,
+	BHND_DMA_ADDR_64BIT	= 64
+} bhnd_dma_addrwidth;
+.Ed
+.Bd -literal
+enum bhnd_dma_translation_flags {
+	BHND_DMA_TRANSLATION_PHYSMAP		= (1<<0),
+	BHND_DMA_TRANSLATION_BYTESWAPPED	= (1<<1)
+};
+.Ed
+.\"
+.Ss "Interrupt Functions"
+.Ft u_int
+.Fo bhnd_get_intr_count
+.Fa "device_t dev"
+.Fc
+.Ft int
+.Fo bhnd_get_intr_ivec
+.Fa "device_t dev" "u_int intr" "u_int *ivec"
+.Fc
+.Ft int
+.Fo bhnd_map_intr
+.Fa "device_t dev" "u_int intr" "rman_res_t *irq"
+.Fc
+.Ft void
+.Fo bhnd_unmap_intr
+.Fa "device_t dev" "rman_res_t irq"
+.Fc
+.\"
+.Ss "NVRAM Functions"
+.Ft int
+.Fo bhnd_nvram_getvar
+.Fa "device_t dev" "const char *name" "void *buf" "size_t *len"
+.Fa "bhnd_nvram_type type"
+.Fc
+.Ft int
+.Fo bhnd_nvram_getvar_array
+.Fa "device_t dev" "const char *name" "void *buf" "size_t size"
+.Fa "bhnd_nvram_type type"
+.Fc
+.Ft int
+.Fo bhnd_nvram_getvar_int
+.Fa "device_t dev" "const char *name" "void *value" "int width"
+.Fc
+.Ft int
+.Fn bhnd_nvram_getvar_int8 "device_t dev" "const char *name" "int8_t *value"
+.Ft int
+.Fn bhnd_nvram_getvar_int16 "device_t dev" "const char *name" "int16_t *value"
+.Ft int
+.Fn bhnd_nvram_getvar_int32 "device_t dev" "const char *name" "int32_t *value"
+.Ft int
+.Fo bhnd_nvram_getvar_uint
+.Fa "device_t dev" "const char *name" "void *value" "int width"
+.Fc
+.Ft int
+.Fo bhnd_nvram_getvar_uint8
+.Fa "device_t dev" "const char *name" "uint8_t *value"
+.Fc
+.Ft int
+.Fo bhnd_nvram_getvar_uint16
+.Fa "device_t dev" "const char *name" "uint16_t *value"
+.Fc
+.Ft int
+.Fo bhnd_nvram_getvar_uint32
+.Fa "device_t dev" "const char *name" "uint32_t *value"
+.Fc
+.Ft int
+.Fo bhnd_nvram_getvar_str
+.Fa "device_t dev" "const char *name" "char *buf" "size_t len" "size_t *rlen"
+.Fc
+.Ft "const char *"
+.Fo bhnd_nvram_string_array_next
+.Fa "const char *inp" "size_t ilen" "const char *prev" "size_t *olen"
+.Fc
+.Bd -literal
+typedef enum {
+	BHND_NVRAM_TYPE_UINT8		= 0,
+	BHND_NVRAM_TYPE_UINT16		= 1,
+	BHND_NVRAM_TYPE_UINT32		= 2,
+	BHND_NVRAM_TYPE_UINT64		= 3,
+	BHND_NVRAM_TYPE_INT8		= 4,
+	BHND_NVRAM_TYPE_INT16		= 5,
+	BHND_NVRAM_TYPE_INT32		= 6,
+	BHND_NVRAM_TYPE_INT64		= 7,
+	BHND_NVRAM_TYPE_CHAR		= 8,
+	BHND_NVRAM_TYPE_STRING		= 9,
+	BHND_NVRAM_TYPE_BOOL		= 10,
+	BHND_NVRAM_TYPE_NULL		= 11,
+	BHND_NVRAM_TYPE_DATA		= 12
+	BHND_NVRAM_TYPE_UINT8_ARRAY	= 16,
+	BHND_NVRAM_TYPE_UINT16_ARRAY	= 17,
+	BHND_NVRAM_TYPE_UINT32_ARRAY	= 18,
+	BHND_NVRAM_TYPE_UINT64_ARRAY	= 19,
+	BHND_NVRAM_TYPE_INT8_ARRAY	= 20,
+	BHND_NVRAM_TYPE_INT16_ARRAY	= 21,
+	BHND_NVRAM_TYPE_INT32_ARRAY	= 22,
+	BHND_NVRAM_TYPE_INT64_ARRAY	= 23,
+	BHND_NVRAM_TYPE_CHAR_ARRAY	= 24,
+	BHND_NVRAM_TYPE_STRING_ARRAY	= 25,
+	BHND_NVRAM_TYPE_BOOL_ARRAY	= 26
+} bhnd_nvram_type;
+.Ed
+.\"
+.Ss "Port/Region Functions"
+.Ft int
+.Fo bhnd_decode_port_rid
+.Fa "device_t dev" "int type" "int rid" "bhnd_port_type *port_type"
+.Fa "u_int *port" "u_int *region"
+.Fc
+.Ft u_int
+.Fo bhnd_get_port_count
+.Fa "device_t dev" "bhnd_port_type type"
+.Fc
+.Ft int
+.Fo bhnd_get_port_rid
+.Fa "device_t dev" "bhnd_port_type type" "u_int port" "u_int region"
+.Fc
+.Ft int
+.Fo bhnd_get_region_addr
+.Fa "device_t dev" "bhnd_port_type port_type" "u_int port" "u_int region"
+.Fa "bhnd_addr_t *region_addr" "bhnd_size_t *region_size"
+.Fc
+.Ft u_int
+.Fo bhnd_get_region_count
+.Fa "device_t dev" "bhnd_port_type type" "u_int port"
+.Fc
+.Ft bool
+.Fo bhnd_is_region_valid
+.Fa "device_t dev" "bhnd_port_type type" "u_int port" "u_int region"
+.Fc
+.Bd -literal
+typedef enum {
+	BHND_PORT_DEVICE	= 0,
+	BHND_PORT_BRIDGE	= 1,
+	BHND_PORT_AGENT		= 2
+} bhnd_port_type;
+.Ed
+.\"
+.Ss "Power Management Functions"
+.Ft int
+.Fo bhnd_alloc_pmu
+.Fa "device_t dev"
+.Fc
+.Ft int
+.Fo bhnd_release_pmu
+.Fa "device_t dev"
+.Fc
+.Ft int
+.Fo bhnd_enable_clocks
+.Fa "device_t dev" "uint32_t clocks"
+.Fc
+.Ft int
+.Fo bhnd_request_clock
+.Fa "device_t dev" "bhnd_clock clock"
+.Fc
+.Ft int
+.Fo bhnd_get_clock_freq
+.Fa "device_t dev" "bhnd_clock clock" "u_int *freq"
+.Fc
+.Ft int
+.Fo bhnd_get_clock_latency
+.Fa "device_t dev" "bhnd_clock clock" "u_int *latency"
+.Fc
+.Ft int
+.Fo bhnd_request_ext_rsrc
+.Fa "device_t dev" "u_int rsrc"
+.Fc
+.Ft int
+.Fo bhnd_release_ext_rsrc
+.Fa "device_t dev" "u_int rsrc"
+.Fc
+.Bd -literal
+typedef enum {
+	BHND_CLOCK_DYN	= (1 << 0),
+	BHND_CLOCK_ILP	= (1 << 1),
+	BHND_CLOCK_ALP	= (1 << 2),
+	BHND_CLOCK_HT	= (1 << 3)
+} bhnd_clock;
+.Ed
+.\"
+.Ss "Service Provider Functions"
+.Ft int
+.Fo bhnd_register_provider
+.Fa "device_t dev" "bhnd_service_t service"
+.Fc
+.Ft int
+.Fo bhnd_deregister_provider
+.Fa "device_t dev" "bhnd_service_t service"
+.Fc
+.Ft device_t
+.Fo bhnd_retain_provider
+.Fa "device_t dev" "bhnd_service_t service"
+.Fc
+.Ft void
+.Fo bhnd_release_provider
+.Fa "device_t dev" "device_t provider" "bhnd_service_t service"
+.Fc
+.Bd -literal
+typedef enum {
+	BHND_SERVICE_CHIPC,
+	BHND_SERVICE_PWRCTL,
+	BHND_SERVICE_PMU,
+	BHND_SERVICE_NVRAM,
+	BHND_SERVICE_GPIO,
+	BHND_SERVICE_ANY	= 1000
+} bhnd_service_t;
+.Ed
+.\"
+.Ss "Utility Functions"
+.Ft "bhnd_erom_class_t *"
+.Fo bhnd_driver_get_erom_class
+.Fa "driver_t *driver"
+.Fc
+.Ft bhnd_devclass_t
+.Fo bhnd_find_core_class
+.Fa "uint16_t vendor" "uint16_t device"
+.Fc
+.Ft "const char *"
+.Fo bhnd_find_core_name
+.Fa "uint16_t vendor" "uint16_t device"
+.Fc
+.Ft bhnd_devclass_t
+.Fo bhnd_core_class
+.Fa "const struct bhnd_core_info *ci"
+.Fc
+.Ft "const char *"
+.Fo bhnd_core_name
+.Fa "const struct bhnd_core_info *ci"
+.Fc
+.Ft int
+.Fo bhnd_format_chip_id
+.Fa "char *buffer" "size_t size" "uint16_t chip_id"
+.Fc
+.Ft void
+.Fo bhnd_set_custom_core_desc
+.Fa "device_t dev" "const char *dev_name"
+.Fc
+.Ft void
+.Fo bhnd_set_default_core_desc
+.Fa "device_t dev"
+.Fc
+.Ft "const char *"
+.Fo bhnd_vendor_name
+.Fa "uint16_t vendor"
+.Fc
+.Bd -literal
+#define	BHND_CHIPID_MAX_NAMELEN	32
+.Ed
+.\"
+.Sh DESCRIPTION
+.Nm
+provides a unified bus and driver programming interface for the
+on-chip interconnects and IP cores found in Broadcom Home Networking Division
+(BHND) devices.
+.Pp
+The BHND device family consists of MIPS/ARM SoCs (System On a Chip) and
+host-connected chipsets based on a common library of Broadcom IP cores,
+connected via one of two on-chip backplane (hardware bus) architectures.
+.Pp
+Hardware designed prior to 2009 used Broadcom's
+.Dq SSB
+backplane architecture, based on Sonics Silicon's interconnect IP.
+Each core on the Sonics backplane vends a 4 KiB register block, containing both
+device-specific CSRs, and SSB-specific per-core device management
+(enable/reset/etc) registers.
+.Pp
+Subsequent hardware is based on Broadcom's
+.Dq BCMA
+backplane, based on ARM's AMBA IP.
+The IP cores used in earlier SSB-based devices were adapted for compatibility
+with the new backplane, with additional
+.Dq wrapper
+cores providing per-core device management functions in place of the SSB
+per-core management registers.
+.Pp
+When BHND hardware is used as a host-connected peripheral (e.g., in a PCI Wi-Fi
+card), the on-chip peripheral controller core is configured to operate as
+an endpoint device, bridging access to the SoC hardware:
+.Pp
+.Bl -dash -offset indent
+.It
+Host access to SoC address space is provided via a set of register windows
+(e.g., a set of configurable windows into SoC address space mapped via PCI BARs)
+.It
+DMA is supported by the bridge core's sparse mapping of host address space into
+the backplane address space.
+These address regions may be used as a target for the on-chip DMA engine.
+.It
+Any backplane interrupt vectors routed to the bridge core may be mapped by the
+bridge to host interrupts (e.g., PCI INTx/MSI/MSI-X).
+.El
+.Pp
+The
+.Nm
+driver programming interface \(em and
+.Xr bhndb 4
+host bridge drivers \(em support the implementation of common drivers for
+Broadcom IP cores, whether attached via a BHND host bridge, or via the native
+SoC backplane.
+.\"
+.Ss "Bus Resource Functions"
+The bhnd_resource functions are wrappers for the standard
+.Vt "struct resource"
+bus APIs, providing support for
+.Vt SYS_RES_MEMORY
+resources that, on
+.Xr bhndb 4
+bridged chipsets, may require on-demand remapping of address windows
+prior to accessing bus memory.
+.Pp
+These functions are primarily used in the implementation of BHND platform device
+drivers that, on host-connected peripherals, must share a small set of register
+windows during initial setup and teardown.
+.Pp
+BHND peripherals are designed to not require register window remapping
+during normal operation, and most drivers may safely use the standard
+.Vt struct resource
+APIs directly.
+.Pp
+The
+.Fn bhnd_activate_resource
+function activates a previously allocated resource.
+.Pp
+The arguments are as follows:
+.Bl -tag -width indent
+.It Fa dev
+The device holding ownership of the allocated resource.
+.It Fa type
+The type of the resource.
+.It Fa rid
+The bus-specific handle that identifies the resource being activated.
+.It Fa r
+A pointer to the resource returned by
+.Fn bhnd_alloc_resource .
+.El
+.Pp
+The
+.Fn bhnd_alloc_resource
+function allocates a resource from a device's parent
+.Xr bhnd 4
+bus.
+.Pp
+The arguments are as follows:
+.Bl -tag -width indent
+.It Fa dev
+The device requesting resource ownership.
+.It Fa type
+The type of resource to allocate.
+This may be any type supported by the standard
+.Xr bus_alloc_resource 9
+function.
+.It Fa rid
+The bus-specific handle identifying the resource being allocated.
+.It Fa start
+The start address of the resource.
+.It Fa end
+The end address of the resource.
+.It Fa count
+The size of the resource.
+.It Fa flags
+The flags for the resource to be allocated.
+These may be any values supported by the standard
+.Xr bus_alloc_resource 9
+function.
+.El
+.Pp
+To request that the bus supply the resource's default
+.Fa start ,
+.Fa end ,
+and
+.Fa count
+values, pass
+.Fa start
+and
+.Fa end
+values of 0ul and ~0ul respectively, and a
+.Fa count
+of 1.
+.Pp
+The
+.Fn bhnd_alloc_resource_any
+function is a convenience wrapper for
+.Fn bhnd_alloc_resource ,
+using the resource's default
+.Fa start ,
+.Fa end ,
+and
+.Fa count
+values.
+.Pp
+The arguments are as follows:
+.Bl -tag -width indent
+.It Fa dev
+The device requesting resource ownership.
+.It Fa type
+The type of resource to allocate.
+This may be any type supported by the standard
+.Xr bus_alloc_resource 9
+function.
+.It Fa rid
+The bus-specific handle identifying the resource being allocated.
+.It Fa flags
+The flags for the resource to be allocated.
+These may be any values supported by the standard
+.Xr bus_alloc_resource 9
+function.
+.El
+.Pp
+The
+.Fn bhnd_alloc_resources
+function allocates resources defined in resource specification from a device's
+parent
+.Xr bhnd 4
+bus.
+.Pp
+The arguments are as follows:
+.Bl -tag -width indent
+.It Fa dev
+The device requesting ownership of the resources.
+.It Fa rs
+A standard bus resource specification. If all requested resources, are
+successfully allocated, this will be updated with the allocated resource
+identifiers.
+.It Fa res
+If all requested resources are successfully allocated, this will be populated
+with the allocated
+.Vt "struct bhnd_resource"
+instances.
+.El
+.Pp
+The
+.Fn bhnd_deactivate_resource
+function deactivates a resource previously activated by.
+.Fn bhnd_activate_resource .
+The arguments are as follows:
+.Bl -tag -width indent
+.It Fa dev
+The device holding ownership of the activated resource.
+.It Fa type
+The type of the resource.
+.It Fa rid
+The bus-specific handle identifying the resource.
+.It Fa r
+A pointer to the resource returned by bhnd_alloc_resource.
+.El
+.Pp
+The
+.Fn bhnd_release_resource
+function frees a resource previously returned by
+.Fn bhnd_alloc_resource .
+The arguments are as follows:
+.Bl -tag -width indent
+.It Fa dev
+The device holding ownership of the resource.
+.It Fa type
+The type of the resource.
+.It Fa rid
+The bus-specific handle identifying the resource.
+.It Fa r
+A pointer to the resource returned by bhnd_alloc_resource.
+.El
+.Pp
+The
+.Fn bhnd_release_resources
+function frees resources previously returned by
+.Fn bhnd_alloc_resources .
+The arguments are as follows:
+.Bl -tag -width indent
+.It Fa dev
+The device that owns the resources.
+.It Fa rs
+A standard bus resource specification previously initialized by
+.Fn bhnd_alloc_resources .
+.It Fa res
+The resources to be released.
+.El
+.Pp
+The
+.Vt bhnd_resource
+structure contains the following fields:
+.Bl -tag -width "direct"
+.It Fa res
+A pointer to the bus
+.Vt struct resource .
+.It Fa direct
+If true, the resource requires bus window remapping before it is MMIO
+accessible.
+.El
+.Pp
+.\"
+.Ss "Bus Space Functions"
+The bhnd_bus_space functions wrap their equivalent
+.Xr bus_space 9
+counterparts, and provide support for accessing bus memory via
+.Vt "struct bhnd_resource".
+.Pp
+.Bl -ohang -offset indent -compact
+.It Fn bhnd_bus_barrier
+.It Fn bhnd_bus_[read|write]_[1|2|4]
+.It Fn bhnd_bus_[read_multi|write_multi]_[1|2|4]
+.It Fn bhnd_bus_[read_multi_stream|write_multi_stream]_[1|2|4]
+.It Fn bhnd_bus_[read_region|write_region]_[1|2|4]
+.It Fn bhnd_bus_[read_region_stream|write_region_stream]_[1|2|4]
+.It Fn bhnd_bus_[read_stream|write_stream]_[1|2|4]
+.It Fn bhnd_bus_[set_multi|set_stream]_[1|2|4]
+.El
+.Pp
+Drivers that do not rely on
+.Vt "struct bhnd_resource"
+should use the standard
+.Vt struct resource
+and
+.Xr bus_space 9
+APIs directly.
+.\"
+.Ss "Device Configuration Functions"
+The
+.Fn bhnd_read_ioctl
+function is used to read the I/O control register value of device
+.Fa dev ,
+returning the current value in
+.Fa ioctl .
+.Pp
+The
+.Fn bhnd_write_ioctl
+function is used to modify the I/O control register of
+.Fa dev .
+The new value of the register is computed by updating any bits set in
+.Fa mask
+to
+.Fa value .
+The following I/O control flags are supported:
+.Bl -tag -width ".Dv BHND_IOCTL_CLK_FORCE" -offset indent
+.It Dv BHND_IOCTL_BIST
+Initiate a built-in self-test (BIST).
+Must be cleared after BIST results are read via the IOST (I/O Status) register.
+.It Dv BHND_IOCTL_PME
+Enable posting of power management events by the core.
+.It Dv BHND_IOCTL_CLK_FORCE
+Force disable of clock gating, resulting in all clocks being distributed within
+the core.
+Should be set when asserting/deasserting reset to ensure the reset signal fully
+propagates to the entire core.
+.It Dv BHND_IOCTL_CLK_EN
+If cleared, the core clock will be disabled.
+Should be set during normal operation, and cleared when the core is held in
+reset.
+.It Dv BHND_IOCTL_CFLAGS
+The mask of IOCTL bits reserved for additional core-specific I/O control flags.
+.El
+.Pp
+The
+.Fn bhnd_read_iost
+function is used to read the I/O status register of device
+.Fa dev ,
+returning the current value in
+.Fa iost .
+The following I/O status flags are supported:
+.Bl -tag -width ".Dv BHND_IOST_BIST_DONE" -offset indent
+.It Dv BHND_IOST_BIST_DONE
+Set upon BIST completion.
+Will be cleared when the
+.Dv BHND_IOCTL_BIST
+flag of the I/O control register is cleared using
+.Fn bhnd_write_ioctl .
+.It Dv BHND_IOST_BIST_FAIL
+Set upon detection of a BIST error; the value is unspecified if BIST has not
+completed and
+.Dv BHND_IOST_BIST_DONE
+is not also set.
+.It Dv BHND_IOST_CLK
+Set if the core has required that clocked be ungated, or cleared otherwise.
+The value is undefined if a core does not support clock gating.
+.It Dv BHND_IOST_DMA64
+Set if this core supports 64-bit DMA.
+.It Dv BHND_IOST_CFLAGS
+The mask of IOST bits reserved for additional core-specific I/O status flags.
+.El
+.Pp
+The
+.Fn bhnd_read_config
+function is used to read a data item of
+.Fa width
+bytes at
+.Fa offset
+from the backplane-specific agent/config space of the device
+.Fa dev .
+.Pp
+The
+.Fn bhnd_write_config
+function is used to write a data item of
+.Fa width
+bytes with
+.Fa value
+at
+.Fa offset
+from the backplane-specific agent/config space of the device
+.Fa dev .
+The requested
+.Fa width
+must be one of 1, 2, or 4 bytes.
+.Pp
+The agent/config space accessible via
+.Fn bhnd_read_config
+and
+.Fn bhnd_write_config
+is backplane-specific, and these functions should only be used for functionality
+that is not available via another
+.Nm
+function.
+.Pp
+The
+.Fn bhnd_suspend_hw
+function transitions the device
+.Fa dev
+to a low power
+.Dq RESET
+state, writing
+.Fa ioctl
+to the I/O control flags of
+.Fa dev .
+The hardware may be brought out of this state using
+.Fn bhnd_reset_hw .
+.Pp
+The
+.Fn bhnd_reset_hw
+function first transitions the device
+.Fa dev
+to a low power RESET state, writing
+.Fa ioctl_reset
+to the I/O control flags
+of
+.Fa dev ,
+and then brings the device out of RESET, writing
+.Fa ioctl
+to the device's I/O control flags.
+.Pp
+The
+.Fn bhnd_is_hw_suspended
+function returns
+.Dv true
+if the device
+.Fa dev
+is currently held in a RESET state, or is otherwise not clocked.
+Otherwise, it returns
+.Dv false .
+.Pp
+Any outstanding per-device PMU requests made using
+.Fn bhnd_enable_clocks ,
+.Fn bhnd_request_clock ,
+or
+.Fn bhnd_request_ext_rsrc
+will be released automatically upon placing a device into a RESET state.
+.Ss "Device Information Functions"
+The
+.Fn bhnd_get_attach_type
+function returns the attachment type of the parent
+.Xr bhnd 4
+bus of device
+.Fa dev .
+.Pp
+The following attachment types are supported:
+.Bl -hang -width ".Dv BHND_ATTACH_ADAPTER" -offset indent
+.It Dv BHND_ATTACH_ADAPTER
+The bus is resident on a bridged adapter, such as a PCI Wi-Fi device.
+.It Dv BHND_ATTACH_NATIVE
+The bus is resident on the native host, such as the primary or secondary bus of
+an embedded SoC.
+.El
+.Pp
+The
+.Fn bhnd_get_chipid
+function returns chip information from the parent
+.Xr bhnd 4
+bus of device
+.Fa dev .
+The returned
+.Vt bhnd_chipid
+struct contains the following fields:
+.Pp
+.Bl -tag -width "enum_addr" -offset indent
+.It Fa chip_id
+The chip identifier.
+.It Fa chip_rev
+The chip's hardware revision.
+.It Fa chip_pkg
+The chip's semiconductor package identifier.
+.Pp
+Several different physical semiconductor package variants may exist for a given
+chip, each of which may require driver workarounds for hardware errata,
+unpopulated components, etc.
+.It Fa chip_type
+The interconnect architecture used by this chip.
+.It Fa chip_caps
+The
+.Nm
+capability flags supported by this chip.
+.It Fa enum_addr
+The backplane enumeration address.
+On SSB devices, this will be the base address of the first SSB core.
+On BCMA devices, this will be the address of the enumeration ROM (EROM) core.
+.It Fa ncores
+The number of cores on the chip backplane, or 0 if unknown.
+.El
+.Pp
+The following constants are defined for known
+.Fa chip_type
+values:
+.Bl -tag -width ".Dv BHND_CHIPTYPE_BCMA_ALT" -offset indent -compact
+.It Dv BHND_CHIPTYPE_SIBA
+SSB interconnect.
+.It Dv BHND_CHIPTYPE_BCMA
+BCMA interconnect.
+.It Dv BHND_CHIPTYPE_BCMA_ALT
+BCMA-compatible variant found in Broadcom Northstar ARM SoCs.
+.It Dv BHND_CHIPTYPE_UBUS
+UBUS interconnect.
+This BCMA-derived interconnect is found in Broadcom BCM33xx DOCSIS SoCs, and
+BCM63xx xDSL SoCs.
+UBUS is not currently supported by
+.Xr bhnd 4 .
+.El
+.Pp
+The following
+.Fa chip_caps
+flags are supported:
+.Bl -tag -width ".Dv BHND_CAP_BP64" -offset indent -compact
+.It Dv BHND_CAP_BP64
+The backplane supports 64-bit addressing.
+.It Dv BHND_CAP_PMU
+PMU is present.
+.El
+.Pp
+Additional symbolic constants for known
+.Fa chip_id ,
+.Fa chip_pkg ,
+and
+.Fa chip_type
+values are defined in
+.In dev/bhnd/bhnd_ids.h .
+.Pp
+The
+.Fn bhnd_get_class
+function returns the BHND class of device
+.Fa dev ,
+if the device's
+.Em vendor
+and
+.Em device
+identifiers are recognized.
+Otherwise, returns
+.Dv BHND_DEVCLASS_OTHER .
+.Pp
+One of the following device classes will be returned:
+.Pp
+.Bl -tag -width ".Dv BHND_DEVCLASS_SOC_ROUTER"  -offset indent -compact
+.It Dv BHND_DEVCLASS_CC
+ChipCommon I/O Controller
+.It Dv BHND_DEVCLASS_CC_B
+ChipCommon Auxiliary Controller
+.It Dv BHND_DEVCLASS_PMU
+PMU Controller
+.It Dv BHND_DEVCLASS_PCI
+PCI Host/Device Bridge
+.It Dv BHND_DEVCLASS_PCIE
+PCIe Host/Device Bridge
+.It Dv BHND_DEVCLASS_PCCARD
+PCMCIA Host/Device Bridge
+.It Dv BHND_DEVCLASS_RAM
+Internal RAM/SRAM
+.It Dv BHND_DEVCLASS_MEMC
+Memory Controller
+.It Dv BHND_DEVCLASS_ENET
+IEEE 802.3 MAC/PHY
+.It Dv BHND_DEVCLASS_ENET_MAC
+IEEE 802.3 MAC
+.It Dv BHND_DEVCLASS_ENET_PHY
+IEEE 802.3 PHY
+.It Dv BHND_DEVCLASS_WLAN
+IEEE 802.11 MAC/PHY/Radio
+.It Dv BHND_DEVCLASS_WLAN_MAC
+IEEE 802.11 MAC
+.It Dv BHND_DEVCLASS_WLAN_PHY
+IEEE 802.11 PHY
+.It Dv BHND_DEVCLASS_CPU
+CPU Core
+.It Dv BHND_DEVCLASS_SOC_ROUTER
+Interconnect Router
+.It Dv BHND_DEVCLASS_SOC_BRIDGE
+Interconnect Host Bridge
+.It Dv BHND_DEVCLASS_EROM
+Device Enumeration ROM
+.It Dv BHND_DEVCLASS_NVRAM
+NVRAM/Flash Controller
+.It Dv BHND_DEVCLASS_SOFTMODEM
+Analog/PSTN SoftModem Codec
+.It Dv BHND_DEVCLASS_USB_HOST
+USB Host Controller
+.It Dv BHND_DEVCLASS_USB_DEV
+USB Device Controller
+.It Dv BHND_DEVCLASS_USB_DUAL
+USB Host/Device Controller
+.It Dv BHND_DEVCLASS_OTHER
+Other / Unknown
+.It Dv BHND_DEVCLASS_INVALID
+Invalid Class
+.El
+.Pp
+The
+.Fn bhnd_get_core_info
+function returns the core information for device
+.Fa dev .
+The returned
+.Vt bhnd_core_info
+structure contains the following fields:
+.Pp
+.Bl -tag -width "core_idx" -offset indent -compact
+.It Fa vendor
+Vendor identifier (JEP-106, ARM 4-bit continuation encoded)
+.It Fa device
+Device identifier
+.It Fa hwrev
+Hardware revision
+.It Fa core_idx
+Core index
+.It Fa unit
+Core unit
+.El
+.Pp
+Symbolic constants for common vendor and device identifiers are defined in
+.In dev/bhnd/bhnd_ids.h .
+Common vendor identifiers include:
+.Pp
+.Bl -tag -width ".Dv BHND_MFGID_MIPS" -offset indent -compact
+.It Dv BHND_MFGID_ARM
+ARM
+.It Dv BHND_MFGID_BCM
+Broadcom
+.It Dv BHND_MFGID_MIPS
+MIPS
+.El
+.Pp
+The
+.Fn bhnd_get_core_index ,
+.Fn bhnd_get_core_unit ,
+.Fn bhnd_get_device ,
+.Fn bhnd_get_hwrev ,
+and
+.Fn bhnd_get_vendor
+functions are convenience wrappers for
+.Fn bhnd_get_core_info ,
+returning, respect the
+.Fa core_idx ,
+.Fa core_unit ,
+.Fa device ,
+.Fa hwrev ,
+or
+.Fa vendor
+field from the
+.Vt bhnd_core_info
+structure.
+.Pp
+The
+.Fn bhnd_get_device_name
+function returns a human readable name for device
+.Fa dev .
+.Pp
+The
+.Fn bhnd_get_vendor_name
+function returns a human readable name for the vendor of device
+.Fa dev .
+.Pp
+The
+.Fn bhnd_read_board_info
+function attempts to read the board information for device
+.Fa dev .
+The board information will be returned in the location pointed to by
+.Fa info
+on success.
+.Pp
+The
+.Vt bhnd_board_info
+structure contains the following fields:
+.Pp
+.Bl -tag -width "board_srom_rev" -offset indent
+.It Fa board_vendor
+Vendor ID of the board manufacturer (PCI-SIG assigned).
+.It Fa board_type
+Board ID.
+.It Fa board_devid
+Device ID.
+.It Fa board_rev
+Board revision.
+.It Fa board_srom_rev
+Board SROM format revision.
+.It Fa board_flags
+Board flags (1)
+.It Fa board_flags2
+Board flags (2)
+.It Fa board_flags3
+Board flags (3)
+.El
+.Pp
+The
+.Fa board_devid
+field is the Broadcom PCI device ID that most closely matches the
+capabilities of the BHND device (if any).
+.Pp
+On PCI devices, the
+.Fa board_vendor ,
+.Fa board_type ,
+and
+.Fa board_devid
+fields default to the PCI Subsystem Vendor ID, PCI Subsystem ID, and PCI
+device ID, unless overridden in device NVRAM.
+.Pp
+On other devices, including SoCs, the
+.Fa board_vendor ,
+.Fa board_type ,
+and
+.Fa board_devid
+fields will be populated from device NVRAM.
+.Pp
+Symbolic constants for common board flags are defined in
+.In dev/bhnd/bhnd_ids.h .
+.Pp
+.Ss "Device Matching Functions"
+The bhnd device matching functions are used to match against core, chip, and
+board-level device attributes.
+Match requirements are specified using the
+.Vt "struct bhnd_board_match" ,
+.Vt "struct bhnd_chip_match" ,
+.Vt "struct bhnd_core_match" ,
+.Vt "struct bhnd_device_match" ,
+and
+.Vt "struct bhnd_hwrev_match"
+match descriptor structures.
+.Pp
+The
+.Fn bhnd_board_matches
+function returns
+.Dv true
+if
+.Fa board
+matches the board match descriptor
+.Fa desc .
+Otherwise, it returns
+.Dv false .
+.Pp
+The
+.Fn bhnd_chip_matches
+function returns
+.Dv true
+if
+.Fa chip
+matches the chip match descriptor
+.Fa desc .
+Otherwise, it returns
+.Dv false .
+.Pp
+The
+.Fn bhnd_core_matches
+function returns
+.Dv true
+if
+.Fa core
+matches the core match descriptor
+.Fa desc .
+Otherwise, it returns
+.Dv false .
+.Pp
+The
+.Fn bhnd_device_matches
+function returns
+.Dv true
+if the device
+.Fa dev
+matches the device match descriptor
+.Fa desc .
+Otherwise, it returns
+.Dv false .
+.Pp
+The
+.Fn bhnd_hwrev_matches
+function returns
+.Dv true
+if
+.Fa hwrev
+matches the hwrev match descriptor
+.Fa desc .
+Otherwise, it returns
+.Dv false .
+.Pp
+The
+.Fn bhnd_bus_match_child
+function returns the first child device of
+.Fa bus
+that matches the device match descriptor
+.Fa desc .
+If no matching child is found,
+.Dv NULL
+is returned.
+.Pp
+The
+.Fn bhnd_core_get_match_desc
+function returns an equality match descriptor for the core info in
+.Fa core .
+The returned descriptor will match only on core attributes identical to those
+defined by
+.Fa core .
+.Pp
+The
+.Fn bhnd_cores_equal
+function is a convenience wrapper for
+.Fn bhnd_core_matches
+and
+.Fn bhnd_core_get_match_desc .
+This function returns
+.Dv true
+if the
+.Vt bhnd_core_info
+structures
+.Fa lhs
+and
+.Fa rhs
+are equal.
+Otherwise, it returns
+.Dv false .
+.Pp
+The
+.Fn bhnd_match_core
+function returns a pointer to the first entry in the array
+.Fa cores
+of length
+.Fa num_cores
+that matches
+.Fa desc .
+If no matching core is found,
+.Dv NULL
+is returned.
+.Pp
+A
+.Vt bhnd_board_match
+match descriptor may be initialized using one or more of the following macros:
+.Pp
+.Bl -tag -width "Fn BHND_MATCH_BOARD_VENDOR vendor" -offset indent
+.It Fn BHND_MATCH_BOARD_VENDOR "vendor"
+Match on boards with a vendor equal to
+.Fa vendor .
+.It Fn BHND_MATCH_BOARD_TYPE "type"
+Match on boards with a type equal to
+.Dv "BHND_BOARD_ ##"
+.Fa type
+.It Fn BHND_MATCH_SROMREV "sromrev"
+Match on boards with a sromrev that matches
+.Dv "BHND_HWREV_ ##"
+.Fa sromrev .
+.It Fn BHND_MATCH_BOARD_REV "hwrev"
+Match on boards with hardware revisions that match
+.Dv "BHND_ ##"
+.Fa hwrev .
+.It Fn BHND_MATCH_BOARD "vendor" "type"
+A convenience wrapper for
+.Fn BHND_MATCH_BOARD_VENDOR
+and
+.Fn BHND_MATCH_BOARD_TYPE .
+.El
+.Pp
+For example:
+.Bd -literal -offset indent
+struct bhnd_board_match board_desc = {
+	BHND_MATCH_BOARD_VENDOR(BHND_MFGID_BROADCOM),
+	BHND_MATCH_BOARD_TYPE(BCM94360X52C),
+	BHND_MATCH_BOARD_REV(HWREV_ANY),
+	BHND_MATCH_SROMREV(RANGE(0, 10))
+};
+.Ed
+.Pp
+A
+.Vt bhnd_chip_match
+match descriptor may be initialized using one or more of the following macros:
+.Pp
+.Bl -tag -width "Fn BHND_MATCH_CHIP_IPR id pkg hwrev" -offset indent
+.It Fn BHND_MATCH_CHIP_ID "id"
+Match on chips with an ID equal to
+.Dv "BHND_CHIPID_ ##"
+.Fa id
+.It Fn BHND_MATCH_CHIP_REV "hwrev"
+Match on chips with hardware revisions that match
+.Dv "BHND_ ##"
+.Fa hwrev .
+.It Fn BHND_MATCH_CHIP_PKG "pkg"
+Match on chips with a package ID equal to
+.Dv "BHND_PKGID_ ##"
+.Fa pkg
+.It Fn BHND_MATCH_CHIP_TYPE "type"
+Match on chips with a chip type equal to
+.Dv "BHND_CHIPTYPE_ ##"
+.Fa type
+.It Fn BHND_MATCH_CHIP_IP "id" "pkg"
+A convenience wrapper for
+.Fn BHND_MATCH_CHIP_ID
+and
+.Fn BHND_MATCH_CHIP_PKG .
+.It Fn BHND_MATCH_CHIP_IPR "id" "pkg" "hwrev"
+A convenience wrapper for
+.Fn BHND_MATCH_CHIP_ID ,
+.Fn BHND_MATCH_CHIP_PKG ,
+and
+.Fn BHND_MATCH_CHIP_REV .
+.It Fn BHND_MATCH_CHIP_IR "id" "hwrev"
+A convenience wrapper for
+.Fn BHND_MATCH_CHIP_ID
+and
+.Fn BHND_MATCH_CHIP_REV .
+.El
+.Pp
+For example:
+.Bd -literal -offset indent
+struct bhnd_chip_match chip_desc = {
+	BHND_MATCH_CHIP_IP(BCM4329, BCM4329_289PIN),
+	BHND_MATCH_CHIP_TYPE(SIBA)
+};
+.Ed
+.Pp
+A
+.Vt bhnd_core_match
+match descriptor may be initialized using one or more of the following macros:
+.Pp
+.Bl -tag -width "Fn BHND_MATCH_CORE_VENDOR vendor" -offset indent
+.It Fn BHND_MATCH_CORE_VENDOR "vendor"
+Match on cores with a vendor ID equal to
+.Fa vendor
+.It Fn BHND_MATCH_CORE_ID "id"
+Match on cores with a device ID equal to
+.Fa id
+.It Fn BHND_MATCH_CORE_REV "hwrev"
+Match on cores with hardware revisions that match
+.Dv "BHND_ ##"
+.Fa hwrev .
+.It Fn BHND_MATCH_CORE_CLASS "class"
+Match on cores with a core device class equal to
+.Fa class
+.It Fn BHND_MATCH_CORE_IDX "idx"
+Match on cores with a core index equal to
+.Fa idx
+.It Fn BHND_MATCH_CORE_UNIT "unit"
+Match on cores with a core unit equal to
+.Fa unit
+.It Fn BHND_MATCH_CORE "vendor" "id"
+A convenience wrapper for
+.Fn BHND_MATCH_CORE_VENDOR
+and
+.Fn BHND_MATCH_CORE_ID .
+.El
+.Pp
+For example:
+.Bd -literal -offset indent
+struct bhnd_core_match core_desc = {
+	BHND_MATCH_CORE(BHND_MFGID_BROADCOM, BHND_COREID_CC),
+	BHND_MATCH_CORE_REV(HWREV_RANGE(0, 10))
+};
+.Ed
+.Pp
+The
+.Vt bhnd_device_match
+match descriptor supports matching on all board, chip, and core attributes,
+and may be initialized using any of the
+.Vt bhnd_board_match ,
+.Vt bhnd_chip_match ,
+or
+.Vt bhnd_core_match
+macros.
+.Pp
+For example:
+.Bd -literal -offset indent
+struct bhnd_device_match device_desc = {
+	BHND_MATCH_CHIP_IP(BCM4329, BCM4329_289PIN),
+	BHND_MATCH_BOARD_VENDOR(BHND_MFGID_BROADCOM),
+	BHND_MATCH_BOARD_TYPE(BCM94329AGB),
+	BHND_MATCH_CORE(BHND_MFGID_BROADCOM, BHND_COREID_CC),
+};
+.Ed
+.Pp
+A
+.Vt bhnd_hwrev_match
+match descriptor may be initialized using one of the following macros:
+.Pp
+.Bl -tag -width "Fn BHND_HWREV_RANGE start end" -offset indent -compact
+.It Dv BHND_HWREV_ANY
+Matches any hardware revision.
+.It Fn BHND_HWREV_EQ "hwrev"
+Matches any hardware revision equal to
+.Fa hwrev
+.It Fn BHND_HWREV_GTE "hwrev"
+Matches any hardware revision greater than or equal to
+.Fa hwrev
+.It Fn BHND_HWREV_LTE "hwrev"
+Matches any hardware revision less than or equal to
+.Fa hwrev
+.It Fn BHND_HWREV_RANGE "start" "end"
+Matches any hardware revision within an inclusive range.
+If
+.Dv BHND_HWREV_INVALID
+is specified as the
+.Fa end
+value, will match on any revision equal to or greater than
+.Fa start
+.El
+.\"
+.Ss "Device Table Functions"
+The bhnd device table functions are used to query device and
+quirk tables.
+.Pp
+The
+.Fn bhnd_device_lookup
+function returns a pointer to the first entry in device table
+.Fa table
+that matches the device
+.Fa dev .
+The table entry size is specified by
+.Fa entry_size .
+.Pp
+The
+.Fn bhnd_device_quirks
+function scan the device table
+.Fa table
+for all quirk entries that match the device
+.Fa dev ,
+returning the bitwise OR of all matching quirk flags.
+The table entry size is specified by
+.Fa entry_size .
+.Pp
+The
+.Vt bhnd_device
+structure contains the following fields:
+.Bl -tag -width "quirks_table" -offset indent -compact
+.It Fa core
+A
+.Vt bhnd_device_match
+descriptor.
+.It Fa desc
+A verbose device description suitable for use with
+.Xr device_set_desc 9 ,
+or
+.Dv NULL .
+.It Fa quirks_table
+The quirks table for this device, or
+.Dv NULL .
+.It Fa device_flags
+The device flags required when matching this entry.
+.El
+.Pp
+The following device flags are supported:
+.Bl -tag -width ".Dv BHND_DF_ADAPTER" -offset indent -compact
+.It Dv BHND_DF_ANY
+Match on any device.
+.It Dv BHND_DF_HOSTB
+Match only if the device is the
+.Xr bhndb 4
+host bridge.
+Implies
+.Dv BHND_DF_ADAPTER .
+.It Dv BHND_DF_SOC
+Match only if the device is attached to a native SoC backplane.
+.It Dv BHND_DF_ADAPTER
+Match only if the device is attached to a
+.Xr bhndb 4
+bridged backplane.
+.El
+.Pp
+A
+.Vt bhnd_device
+table entry may be initialized using one of the following macros:
+.Pp
+.Bl -ohang -offset indent
+.It Fn BHND_DEVICE "vendor" "device" "desc" "quirks" "flags"
+Match on devices with a vendor ID equal to
+.Dv BHND_MFGID_ ##
+.Fa vendor
+and a core device ID equal to
+.Dv BHND_COREID_ ##
+.Fa device .
+.Pp
+The device's verbose description is specified by the
+.Fa desc
+argument, a pointer to the device-specific quirks table is specified by the
+.Fa quirks
+argument, and any required device flags may be provided in
+.Fa flags .
+The optional
+.Fa flags
+argument defaults to
+.Dv BHND_DF_ANY
+if omitted.
+.It Dv BHND_DEVICE_END
+Terminate the
+.Vt bhnd_device
+table.
+.El
+.Pp
+For example:
+.Bd -literal -offset indent
+struct bhnd_device bhnd_usb11_devices[] = {
+	BHND_DEVICE(BCM, USB, "Broadcom USB1.1 Controller",
+	    bhnd_usb11_quirks),
+	BHND_DEVICE_END
+};
+.Ed
+.Pp
+The
+.Vt bhnd_device_quirk
+structure contains the following fields:
+.Bl -tag -width "quirks_table" -offset indent -compact
+.It Fa desc
+A
+.Vt bhnd_device_match
+descriptor.
+.It Fa quirks
+Applicable quirk flags.
+.El
+.Pp
+A bhnd_device_quirk table entry may be initialized using one of the following
+convenience macros:
+.Bl -tag -width "Fn BHND_CHIP_QUIRK chip hwrev flags" -offset indent
+.It Fn BHND_BOARD_QUIRK "board" "flags"
+Set quirk flags
+.Fa flags
+on devices with a board type equal to
+.Dv BHND_BOARD_ ##
+.Fa board .
+.It Fn BHND_CHIP_QUIRK "chip" "hwrev" "flags"
+Set quirk flags
+.Fa flags
+on devices with a chip ID equal to
+.Dv BHND_CHIPID_BCM ##
+.Fa chip
+and chip hardware revision that matches
+.Dv BHND_ ##
+.Fa hwrev .
+.It Fn BHND_PKG_QUIRK "chip" "pkg" flags"
+Set quirk flags
+.Fa flags
+on devices with a chip ID equal to
+.Dv BHND_CHIPID_BCM ##
+.Fa chip
+and chip package equal to
+.Dv BHND_ ## chip ##
+.Fa pkg .
+.It Fn BHND_CORE_QUIRK "hwrev" flags"
+Set quirk flags
+.Fa flags
+on devices with a core hardware revision that matches
+.Dv BHND_ ##
+.Fa hwrev .
+.El
+For example:
+.Bd -literal -offset indent
+struct bhnd_device_quirk bhnd_usb11_quirks[] = {
+	BHND_DEVICE(BCM, USB, "Broadcom USB1.1 Controller",
+	    bhnd_usb11_quirks),
+	BHND_DEVICE_END
+};
+.Ed
+.Ss "DMA Address Translation Functions"
+The
+.Fn bhnd_get_dma_translation
+function is used to request a DMA address translation descriptor suitable
+for use with a maximum DMA address width of
+.Fa width ,
+with support for the requested translation
+.Fa flags .
+.Pp
+If a suitable DMA address translation descriptor is found, it will be stored in
+.Fa translation ,
+and a bus DMA tag specifying the DMA translation's address restrictions will
+be stored in
+.Fa dmat .
+The
+.Fa translation
+and
+.Fa dmat
+arguments may be
+.Dv NULL
+if the translation descriptor or DMA tag are not desired.
+.Pp
+The following DMA translation flags are supported:
+.Bl -ohang -width ".Dv BHND_DMA_TRANSLATION_BYTESWAPPED" -offset indent
+.It Dv BHND_DMA_TRANSLATION_PHYSMAP
+The translation remaps the device's physical address space.
+.Pp
+This is used in conjunction with
+.Dv BHND_DMA_TRANSLATION_BYTESWAPPED
+to define a DMA translation that provides byteswapped access to physical memory
+on big-endian MIPS SoCs.
+.It Dv BHND_DMA_TRANSLATION_BYTESWAPPED
+The translation provides a byte-swapped mapping; write requests will be
+byte-swapped before being written to memory, and read requests will be
+byte-swapped before being returned.
+.Pp
+This is primarily used to perform efficient byte swapping of DMA data on
+embedded MIPS SoCs executing in big-endian mode.
+.El
+.Pp
+The following symbolic constants are defined for common DMA address widths:
+.Pp
+.Bl -tag -width ".Dv BHND_DMA_ADDR_64BIT" -offset indent -compact
+.It Dv BHND_DMA_ADDR_30BIT
+30-bit DMA
+.It Dv BHND_DMA_ADDR_32BIT
+32-bit DMA
+.It Dv BHND_DMA_ADDR_64BIT
+64-bit DMA
+.El
+.Pp
+The
+.Vt bhnd_dma_translation
+structure contains the following fields:
+.Bl -tag -width "addrext_mask"
+.It Fa base_addr
+Host-to-device physical address translation.
+This may be added to a host physical address to produce a device DMA address.
+.It Fa addr_mask
+Device-addressable address mask.
+This defines the device DMA address range, and excludes any bits reserved for
+mapping the address within the translation window at
+.Fa base_addr .
+.It Fa addrext_mask
+Device-addressable extended address mask.
+If a the per-core BHND DMA engine supports the 'addrext' control field, it can
+be used to provide address bits excluded by
+.Fa addr_mask .
+.Pp
+Support for DMA extended address changes \(em including coordination with the
+core providing device-to-host DMA address translation \(em is handled
+transparently by the DMA engine.
+.Pp
+For example, on PCI Wi-Fi devices, the Wi-Fi core's DMA engine will (in effect)
+update the PCI host bridge core's DMA
+.Dv sbtopcitranslation
+base address to map the target address prior to performing a DMA transaction.
+.It Fa flags
+Translation flags.
+.El
+.\"
+.Ss "Interrupt Functions"
+The
+.Fn bhnd_get_intr_count
+function is used to determine the number of backplane interrupt lines assigned
+to the device
+.Fa dev .
+Interrupt line identifiers are allocated in monotonically increasing order,
+starting with 0.
+.Pp
+The
+.Fn bhnd_get_intr_ivec
+function is used to determine the backplane interrupt vector assigned to
+interrupt line
+.Fa intr
+on the device
+.Fa dev ,
+writing the result to
+.Fa ivec .
+Interrupt vector assignments are backplane-specific: On BCMA devices, this
+function returns the OOB bus line assigned to the interrupt.
+On SIBA devices, it returns the target OCP slave flag number assigned to the
+interrupt.
+.Pp
+The
+.Fn bhnd_map_intr
+function is used to map interrupt line
+.Fa intr
+assigned to device
+.Fa dev
+to an IRQ number, writing the result to
+.Fa irq .
+Until unmapped, this IRQ may be used when allocating a resource of type
+SYS_RES_IRQ.
+.Pp
+Ownership of the interrupt mapping is assumed by the caller, and must be
+explicitly released using
+.Fa bhnd_unmap_intr .
+.Pp
+The
+.Fn bhnd_unmap_intr
+function is used to unmap bus IRQ
+.Fa irq
+previously mapped using
+.Fn bhnd_map_intr
+by the device
+.Fa dev .
+.\"
+.Ss "NVRAM Functions"
+The
+.Fn bhnd_nvram_getvar
+function is used to read the value of NVRAM variable
+.Fa name
+from the NVRAM provider(s) registered with the parent
+.Xr bhnd 4
+bus of device
+.Fa dev ,
+coerced to the desired data representation
+.Fa type ,
+written to the buffer specified by
+.Fa buf .
+.Pp
+Before the call, the maximum capacity of
+.Fa buf
+is specified by
+.Fa len .
+After a successful call \(em or if
+.Er ENOMEM
+is returned \(em the size of the available data will be written to
+.Fa len .
+The size of the desired data representation can be determined by calling
+.Fn bhnd_nvram_getvar
+with a
+.Dv NULL
+argument for
+.Fa buf .
+.Pp
+The following NVRAM data types are supported:
+.Pp
+.Bl -tag -width ".Dv BHND_NVRAM_TYPE_UINT64_ARRAY" -offset indent -compact
+.It Dv BHND_NVRAM_TYPE_UINT8
+unsigned 8-bit integer
+.It Dv BHND_NVRAM_TYPE_UINT16
+unsigned 16-bit integer
+.It Dv BHND_NVRAM_TYPE_UINT32
+unsigned 32-bit integer
+.It Dv BHND_NVRAM_TYPE_UINT64
+signed 64-bit integer
+.It Dv BHND_NVRAM_TYPE_INT8
+signed 8-bit integer
+.It Dv BHND_NVRAM_TYPE_INT16
+signed 16-bit integer
+.It Dv BHND_NVRAM_TYPE_INT32
+signed 32-bit integer
+.It Dv BHND_NVRAM_TYPE_INT64
+signed 64-bit integer
+.It Dv BHND_NVRAM_TYPE_CHAR
+UTF-8 character
+.It Dv BHND_NVRAM_TYPE_STRING
+UTF-8 NUL-terminated string
+.It Dv BHND_NVRAM_TYPE_BOOL
+uint8 boolean value
+.It Dv BHND_NVRAM_TYPE_NULL
+NULL (empty) value
+.It Dv BHND_NVRAM_TYPE_DATA
+opaque octet string
+.It Dv BHND_NVRAM_TYPE_UINT8_ARRAY
+array of uint8 integers
+.It Dv BHND_NVRAM_TYPE_UINT16_ARRAY
+array of uint16 integers
+.It Dv BHND_NVRAM_TYPE_UINT32_ARRAY
+array of uint32 integers
+.It Dv BHND_NVRAM_TYPE_UINT64_ARRAY
+array of uint64 integers
+.It Dv BHND_NVRAM_TYPE_INT8_ARRAY
+array of int8 integers
+.It Dv BHND_NVRAM_TYPE_INT16_ARRAY
+array of int16 integers
+.It Dv BHND_NVRAM_TYPE_INT32_ARRAY
+array of int32 integers
+.It Dv BHND_NVRAM_TYPE_INT64_ARRAY
+array of int64 integers
+.It Dv BHND_NVRAM_TYPE_CHAR_ARRAY
+array of UTF-8 characters
+.It Dv BHND_NVRAM_TYPE_STRING_ARRAY
+array of UTF-8 NUL-terminated strings
+.It Dv BHND_NVRAM_TYPE_BOOL_ARRAY
+array of uint8 boolean values
+.El
+.Pp
+The
+.Fn bhnd_nvram_getvar_array ,
+.Fn bhnd_nvram_getvar_int ,
+.Fn bhnd_nvram_getvar_int8 ,
+.Fn bhnd_nvram_getvar_int16 ,
+.Fn bhnd_nvram_getvar_int32 ,
+.Fn bhnd_nvram_getvar_uint ,
+.Fn bhnd_nvram_getvar_uint8 ,
+.Fn bhnd_nvram_getvar_uint16 ,
+.Fn bhnd_nvram_getvar_uint32 ,
+and
+.Fn bhnd_nvram_getvar_str
+functions are convenience wrappers for
+.Fn bhnd_nvram_getvar .
+.Pp
+The
+.Fn bhnd_nvram_getvar_array
+function returns either a value of exactly
+.Fa size
+in
+.Fa buf ,
+or returns an error code of
+.Er ENXIO
+if the data representation is not exactly
+.Fa size
+in length.
+.Pp
+The
+.Fn bhnd_nvram_getvar_int
+and
+.Fn bhnd_nvram_getvar_uint
+functions return the value of NVRAM variable
+.Fa name ,
+coerced to a signed or unsigned integer
+type of
+.Fa width
+(1, 2, or 4 bytes).
+.Pp
+The
+.Fn bhnd_nvram_getvar_int8 ,
+.Fn bhnd_nvram_getvar_int16 ,
+.Fn bhnd_nvram_getvar_int32 ,
+.Fn bhnd_nvram_getvar_uint ,
+.Fn bhnd_nvram_getvar_uint8 ,
+.Fn bhnd_nvram_getvar_uint16 ,
+and
+.Fn bhnd_nvram_getvar_uint32
+functions return the value of NVRAM variable
+.Fa name ,
+coerced to a signed or unsigned 8, 16, or 32-bit integer type.
+.Pp
+The
+.Fn bhnd_nvram_getvar_str
+functions return the value of NVRAM variable
+.Fa name ,
+coerced to a NUL-terminated string.
+.Pp
+The
+.Fn bhnd_nvram_string_array_next
+function iterates over all strings in the
+.Fa inp
+.Dv BHND_NVRAM_TYPE_STRING_ARRAY
+value.
+The size of
+.Fa inp ,
+including any terminating NUL character(s), is specified using the
+.Fa ilen
+argument.
+The
+.Fa prev
+argument should be either a string pointer previously returned by
+.Fn bhnd_nvram_string_array_next ,
+or
+.Dv NULL
+to begin iteration.
+If
+.Fa prev is not
+.Dv NULL ,
+the
+.Fa olen
+argument must be a pointer to the length previously returned by
+.Fn bhnd_nvram_string_array_next .
+On success, the next string element's length will be written to this pointer.
+.\"
+.Ss "Port/Region Functions"
+Per-device interconnect memory mappings are identified by a combination of
+.Em port type ,
+.Em port number ,
+and
+.Em region number .
+Port and memory region identifiers are allocated in monotonically increasing
+order for each
+.Em port type ,
+starting with 0.
+.Pp
+The following port types are supported:
+.Bl -tag -width ".Dv BHND_PORT_DEVICE" -offset indent
+.It Dv BHND_PORT_DEVICE
+Device memory.
+The device's control/status registers are always mapped by the first device port
+and region, and will be assigned a
+.Dv SYS_RES_MEMORY
+resource ID of 0.
+.It Dv BHND_PORT_BRIDGE
+Bridge memory.
+.It Dv BHND_PORT_AGENT
+Interconnect agent/wrapper.
+.El
+.Pp
+The
+.Fn bhnd_decode_port_rid
+function is used to decode the resource ID
+.Fa rid
+assigned to device
+.Fa dev ,
+of resource type
+.Fa type ,
+writing the port type to
+.Fa port_type ,
+port number to
+.Fa port ,
+and region number
+to
+.Fa region .
+.Pp
+The
+.Fn bhnd_get_port_count
+function returns the number of ports of type
+.Fa type
+assigned to device
+.Fa dev .
+.Pp
+The
+.Fn bhnd_get_port_rid
+function returns the resource ID for the
+.Dv SYS_RES_MEMORY
+resource mapping the
+.Fa port
+of
+.Fa type
+and
+.Fa region
+on device
+.Fa dev ,
+or -1 if the port or region are invalid, or do not have an assigned resource ID.
+.Pp
+The
+.Fn bhnd_get_region_addr
+function is used to determine the base address and size of the memory
+.Fa region
+on
+.Fa port
+of
+.Fa type
+assigned to
+.Fa dev .
+The region's base device address will be written to
+.Fa region_addr ,
+and the region size to
+.Fa region_size .
+.Pp
+The
+.Fn bhnd_get_region_count
+function returns the number of memory regions mapped to
+.Fa port
+of
+.Fa type
+on device
+.Fa dev .
+.Pp
+The
+.Fn bhnd_is_region_valid
+function returns
+.Dv true
+if
+.Fa region
+is a valid region mapped by
+.Fa port
+of
+.Fa type
+on device
+.Fa dev .
+.\"
+.Ss "Power Management Functions"
+Drivers must ask the parent
+.Xr bhnd 4
+bus to allocate device PMU state using
+.Fn bhnd_alloc_pmu
+before calling any another bhnd PMU functions.
+.Pp
+The
+.Fn bhnd_alloc_pmu
+function is used to allocate per-device PMU state and enable PMU request
+handling for device
+.Fa dev .
+The memory region containing the device's PMU register block must be allocated
+using
+.Xr bus_alloc_resource 9
+or
+.Fn bhnd_alloc_resource
+before calling
+.Fn bhnd_alloc_pmu ,
+and must not be released until after calling
+.Fn bhnd_release_pmu .
+.Pp
+On all supported BHND hardware, the PMU register block is mapped by the device's
+control/status registers in the first device port and region.
+.Pp
+The
+.Fn bhnd_release_pmu
+function releases the per-device PMU state previously allocated for device
+.Fa dev
+using
+.Fn bhnd_alloc_pmu .
+Any outstanding clock and external resource requests will be discarded upon
+release of the device PMU state.
+.Pp
+The
+.Fn bhnd_enable_clocks
+function is used to request that
+.Fa clocks
+be powered up and routed to the backplane on behalf of device
+.Fa dev .
+This will power any clock sources required (e.g., XTAL, PLL, etc) and wait until
+the requested clocks are stable.
+If the request succeeds, any previous clock requests issued by
+.Fa dev
+will be discarded.
+.Pp
+The following clocks are supported, and may be combined using bitwise OR to
+request multiple clocks:
+.Pp
+.Bl -tag -width ".Dv BHND_CLOCK_DYN" -offset indent
+.It BHND_CLOCK_DYN
+Dynamically select an appropriate clock source based on all outstanding clock
+requests by any device attached to the parent
+.Xr bhnd 4
+bus.
+.It BHND_CLOCK_ILP
+Idle Low-Power (ILP) Clock.
+May be used if no register access is required, or long request latency is
+acceptable.
+.It BHND_CLOCK_ALP
+Active Low-Power (ALP) Clock.
+Supports low-latency register access and low-rate DMA.
+.It BHND_CLOCK_HT
+High Throughput (HT) Clock.
+Supports high bus throughput and lowest-latency register access.
+.El
+.Pp
+The
+.Fn bhnd_request_clock
+function is used to request that
+.Fa clock
+(or faster) be powered up and routed to device
+.Fa dev .
+.Pp
+The
+.Fn bhnd_get_clock_freq
+function is used to request the current clock frequency of
+.Fa clock ,
+writing the frequency in Hz to
+.Fa freq .
+.Pp
+The
+.Fn bhnd_get_clock_latency
+function is used to determine the transition latency required for
+.Fa clock ,
+writing the latency in microseconds to
+.Fa latency .
+The
+.Dv BHND_CLOCK_HT
+latency value is suitable for use as the D11 Wi-Fi core
+.Em fastpwrup_dly
+value.
+.Pp
+The
+.Fn bhnd_request_ext_rsrc
+function is used to request that the external PMU-managed resource assigned to
+device
+.Fa dev ,
+identified by device-specific identifier
+.Fa rsrc ,
+be powered up.
+.Pp
+The
+.Fn bhnd_release_ext_rsrc
+function releases any outstanding requests by device
+.Fa dev
+for the PMU-managed resource identified by device-specific identifier
+.Fa rsrc .
+If an external resource is shared by multiple devices, it will not be powered
+down until all device requests are released.
+.\"
+.Ss "Service Provider Functions"
+The
+.Fn bhnd_register_provider
+function is used to register device
+.Fa dev
+as a provider for platform
+.Fa service
+with the parent
+.Xr bhnd 4
+bus.
+.Pp
+The following service types are supported:
+.Bl -tag -width ".Dv BHND_SERVICE_INVALID" -offset indent
+.It Dv BHND_SERVICE_CHIPC
+ChipCommon service.
+The providing device must implement the bhnd_chipc interface.
+.It Dv BHND_SERVICE_PWRCTL
+Legacy PWRCTL service.
+The providing device must implement the bhnd_pwrctl interface.
+.It Dv BHND_SERVICE_PMU
+PMU service.
+The providing device must implement the bhnd_pmu interface.
+.It Dv BHND_SERVICE_NVRAM
+NVRAM service.
+The providing device must implement the bhnd_nvram interface.
+.It Dv BHND_SERVICE_GPIO
+GPIO service.
+The providing device must implement the standard
+.Xr gpio 4
+interface.
+.It Dv BHND_SERVICE_ANY
+Matches on any service type.
+May be used with
+.Fn bhnd_deregister_provider
+to remove all service provider registrations for a device.
+.El
+.Pp
+The
+.Fn bhnd_deregister_provider
+function attempts to remove provider registration for the device
+.Fa dev
+and
+.Fa service .
+If a
+.Fa service
+argument of
+.Dv BHND_SERVICE_ANY
+is specified, this function will attempt to remove
+.Em all service provider registrations for
+.Fa dev .
+.Pp
+The
+.Fn bhnd_retain_provider
+function retains and returns a reference to the provider registered for
+.Fa service
+with the parent
+.Xr bhnd 4
+bus of devce
+.Fa dev ,
+if available.
+On success, the caller is responsible for releasing this provider reference
+using
+.Fn bhnd_release_provider .
+The service provider is guaranteed to remain available until the provider
+reference is released.
+.Pp
+The
+.Fn bhnd_release_provider
+function releases a reference to a
+.Fa provider
+for
+.Fa service ,
+previously retained by device
+.Fa dev
+using
+.Fn bhnd_retain_provider .
+.\"
+.Ss "Utility Functions"
+The
+.Fn bhnd_driver_get_erom_class
+function returns the
+.Xr bhnd_erom 9
+class for the device enumeration table format used by
+.Xr bhnd 4
+bus driver instance
+.Fa driver .
+If the driver does not support
+.Xr bhnd_erom 9
+device enumeration,
+.Dv NULL
+is returned.
+.Pp
+The
+.Fn bhnd_find_core_class
+function looks up the BHND class, if known, for the BHND vendor ID
+.Fa vendor
+and device ID
+.Fa device .
+.Pp
+The
+.Fn bhnd_find_core_name
+function is used to fetch the human-readable name, if known, for the BHND core
+with a vendor ID of
+.Fa vendor
+and device ID of
+.Fa device .
+.Pp
+The
+.Fn bhnd_core_class
+and
+.Fn bhnd_core_name
+functions are convenience wrappers for
+.Fn bhnd_find_core_class
+and
+.Fn bhnd_find_core_name ,
+that use the
+.Fa vendor
+and
+.Fa device
+fields of the core info structure
+.Fa ci .
+.Pp
+The
+.Fn bhnd_format_chip_id
+function writes a NUL-terminated human-readable representation of the BHND
+.Fa chip_id
+value to the specified
+.Fa buffer
+with a capacity of
+.Fa size .
+No more than
+.Fa size-1
+characters will be written, with the
+.Fa size'th
+character set to '\\0'.
+A buffer size of
+.Dv BHND_CHIPID_MAX_NAMELEN
+is sufficient for any string representation produced using
+.Fn bhnd_format_chip_id .
+.Pp
+The
+.Fn bhnd_set_custom_core_desc
+function uses the
+.Xr bhnd 4
+device identification of
+.Fa dev ,
+overriding the core name with the specified
+.Fa dev_name ,
+to populate the device's verbose description using
+.Xr device_set_desc .
+.Pp
+The
+.Fn bhnd_set_default_core_desc
+function uses the
+.Xr bhnd 4
+device identification of
+.Fa dev
+to populate the device's verbose description using
+.Xr device_set_desc .
+.Pp
+The
+.Fn bhnd_vendor_name
+function returns the human-readable name for the JEP-106, ARM 4-bit
+continuation encoded manufacturer ID
+.Fa vendor ,
+if known.
+.\"
+.Sh RETURN VALUES
+.Ss Bus Resource Functions
+The
+.Fn bhnd_activate_resource ,
+.Fn bhnd_alloc_resources ,
+.Fn bhnd_deactivate_resource ,
+and
+.Fn bhnd_release_resource
+functions return 0 on success, otherwise an appropriate error code is returned.
+.Pp
+The
+.Fn bhnd_alloc_resource
+and
+.Fn bhnd_alloc_resource_any
+functions return a pointer to
+.Vt "struct resource"
+on success, a null pointer otherwise.
+.\"
+.Ss "Device Configuration Functions"
+.Pp
+The
+.Fn bhnd_read_config
+and
+.Fn bhnd_write_config
+functions return 0 on success, or one of the following values on error:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The device is not a direct child of the
+.Xr bhnd 4
+bus
+.It Bq Er EINVAL
+The requested width is not one of 1, 2, or 4 bytes.
+.It Bq Er ENODEV
+Accessing agent/config space for the device is unsupported.
+.It Bq Er EFAULT
+The requested offset or width exceeds the bounds of the mapped agent/config
+space.
+.El
+.Pp
+The
+.Fn bhnd_read_ioctl ,
+.Fn bhnd_write_ioctl ,
+.Fn bhnd_read_iost ,
+.Fn bhnd_reset_hw ,
+and
+.Fn bhnd_suspend_hw
+functions return 0 on success, otherwise an appropriate error code is returned.
+.\"
+.Ss "Device Information Functions"
+.Pp
+The
+.Fn bhnd_read_board_info
+function returns 0 on success, otherwise an appropriate error code is returned.
+.\"
+.Ss "DMA Address Translation Functions"
+The
+.Fn bhnd_get_dma_translation
+function returns 0 on success, or one of the following values on error:
+.Bl -tag -width Er
+.It Bq Er ENODEV
+DMA is not supported.
+.It Bq Er ENOENT
+No DMA translation matching the requested address width and translation flags
+is available.
+.El
+.Pp
+If fetching the requested DMA address translation otherwise fails, an
+appropriate error code will be returned.
+.\"
+.Ss "Interrupt Functions"
+.Pp
+The
+.Fn bhnd_get_intr_ivec
+function returns
+0 on success, or
+.Er ENXIO
+if the requested interrupt line exceeds the number of interrupt lines assigned
+to the device.
+.Pp
+The
+.Fn bhnd_map_intr
+function returns 0 on success, otherwise an appropriate error code is returned.
+.\"
+.Ss "NVRAM Functions"
+The
+.Fn bhnd_nvram_getvar ,
+.Fn bhnd_nvram_getvar_array ,
+.Fn bhnd_nvram_getvar_int ,
+.Fn bhnd_nvram_getvar_int8 ,
+.Fn bhnd_nvram_getvar_int16 ,
+.Fn bhnd_nvram_getvar_int32 ,
+.Fn bhnd_nvram_getvar_uint ,
+.Fn bhnd_nvram_getvar_uint8 ,
+.Fn bhnd_nvram_getvar_uint16 ,
+and
+.Fn bhnd_nvram_getvar_uint32
+functions return 0 on success, or one of the following values on error:
+.Bl -tag -width Er
+.It Bq Er ENODEV
+If an NVRAM provider has not been registered with the bus.
+.It Bq Er ENOENT
+The requested variable was not found.
+.It Bq Er ENOMEM
+If the buffer of size is too small to hold the requested value.
+.It Bq Er EOPNOTSUPP
+If the value's native type is incompatible with and cannot be coerced to the
+requested type.
+.It Bq Er ERANGE
+If value coercion would overflow (or underflow) the requested type
+.El
+.Pp
+If reading the variable otherwise fails, an appropriate error code will be
+returned.
+.\"
+.Ss "Port/Region Functions"
+The
+.Fn bhnd_decode_port_rid
+function returns
+0 on success, or an appropriate error code if no matching port/region is found.
+.Pp
+The
+.Fn bhnd_get_port_rid
+function returns the resource ID for the requested port and region,
+or -1 if the port or region are invalid, or do not have an assigned resource ID.
+.Pp
+The
+.Fn bhnd_get_region_addr
+function returns
+0 on success, or an appropriate error code if no matching port/region is found.
+.\"
+.Ss "PMU Functions"
+The
+.Fn bhnd_alloc_pmu
+function returns 0 on success, otherwise an appropriate error code is returned.
+.Pp
+The
+.Fn bhnd_release_pmu
+function returns 0 on success, otherwise an appropriate error code is returned,
+and the core state will be left unmodified.
+.Pp
+The
+.Fn bhnd_enable_clocks
+and
+.Fn bhnd_request_clock
+functions return 0 on success, or one of the following values on error:
+.Bl -tag -width Er
+.It Bq Er ENODEV
+An unsupported clock was requested.
+.It Bq Er ENXIO
+No PMU or PWRCTL provider has been registered with the bus.
+.El
+.Pp
+The
+.Fn bhnd_get_clock_freq
+function returns 0 on success, or
+.Er ENODEV
+if the frequency for the specified clock is not available.
+.Pp
+The
+.Fn bhnd_get_clock_latency
+function returns 0 on success, or
+.Er ENODEV
+if the transition latency for the specified clock is not available.
+.Pp
+The
+.Fn bhnd_request_ext_rsrc
+and
+.Fn bhnd_release_ext_rsrc
+functions return 0 on success, otherwise an appropriate error code is returned.
+.Pp
+.\"
+.Ss "Service Provider Functions"
+The
+.Fn bhnd_register_provider
+function returns 0 on success,
+.Er EEXIST
+if an entry for service already exists, or an appropriate error code if
+service registration otherwise fails.
+.Pp
+The
+.Fn bhnd_deregister_provider
+function returns 0 on success, or
+.Er EBUSY
+if active references to the service provider exist.
+.Pp
+The
+.Fn bhnd_retain_provider
+function returns a pointer to
+.Vt "device_t"
+on success, a null pointer if the requested provider is not registered.
+.\"
+.Ss "Utility Functions"
+.Pp
+The
+.Fn bhnd_format_chip_id
+function returns the total number of bytes written on success, or a negative
+integer on failure.
+.\"
+.Sh SEE ALSO
+.Xr bhnd 4
+.Xr bhnd_erom 9
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver programming interface and this manual page were written by
+.An Landon Fuller Aq Mt landonf@FreeBSD.org .

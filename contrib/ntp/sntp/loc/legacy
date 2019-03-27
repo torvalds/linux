@@ -1,0 +1,18 @@
+# Legacy installations and man page suffixes
+MAN
+calc_tickadj,bin,1
+ntp-keygen,bin,1
+ntp-wait,bin,1
+ntpd,bin,1
+ntpdate,bin,1
+ntpdc,bin,1
+ntpdsim,bin,1
+ntpq,bin,1
+ntpsnmpd,bin,1
+ntpsweep,noinst,1
+ntptime,bin,1
+ntptrace,bin,1
+sntp,bin,1
+tickadj,bin,1
+timetrim,bin,1
+update-leap,bin,1

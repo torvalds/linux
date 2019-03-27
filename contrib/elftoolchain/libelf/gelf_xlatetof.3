@@ -1,0 +1,277 @@
+.\" Copyright (c) 2006,2008,2018 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: gelf_xlatetof.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd October 11, 2018
+.Dt GELF_XLATETOF 3
+.Os
+.Sh NAME
+.Nm elf32_xlate ,
+.Nm elf64_xlate ,
+.Nm gelf_xlate
+.Nd translate data between files and memory
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft "Elf_Data *"
+.Fn elf32_xlatetof "Elf_Data *dst" "Elf_Data *src" "unsigned int file_encoding"
+.Ft "Elf_Data *"
+.Fn elf32_xlatetom "Elf_Data *dst" "Elf_Data *src" "unsigned int file_encoding"
+.Ft "Elf_Data *"
+.Fn elf64_xlatetof "Elf_Data *dst" "Elf_Data *src" "unsigned int file_encoding"
+.Ft "Elf_Data *"
+.Fn elf64_xlatetom "Elf_Data *dst" "Elf_Data *src" "unsigned int file_encoding"
+.In gelf.h
+.Ft "Elf_Data *"
+.Fo gelf_xlatetof
+.Fa "Elf *elf"
+.Fa "Elf_Data *dst"
+.Fa "Elf_Data *src"
+.Fa "unsigned int file_encoding"
+.Fc
+.Ft "Elf_Data *"
+.Fo gelf_xlatetom
+.Fa "Elf *elf"
+.Fa "Elf_Data *dst"
+.Fa "Elf_Data *src"
+.Fa "unsigned int file_encoding"
+.Fc
+.Sh DESCRIPTION
+These functions translate between the file and memory representations
+of ELF data structures.
+The in-memory representation of an ELF data structure would conform to
+the byte ordering and data alignment restrictions dictated by the host
+processor.
+As described in
+.Xr elf 3 ,
+the file representation of this data structure could use a different byte
+ordering from that of the host, or could use a different layout within
+the file.
+.Pp
+Functions
+.Fn elf32_xlatetom ,
+.Fn elf64_xlatetom ,
+and
+.Fn gelf_xlatetom
+translate data from file representations to native, in-memory representations.
+Functions
+.Fn elf32_xlatetof ,
+.Fn elf64_xlatetof ,
+and
+.Fn gelf_xlatetof
+translate data from in-memory representations to file representations.
+.Pp
+Argument
+.Ar src
+denotes an
+.Vt Elf_Data
+descriptor describing the source to be translated.
+The following elements of the descriptor need to be set before
+invoking these functions:
+.Bl -hang -offset indent
+.It Va d_buf
+Set to a valid pointer value denoting the beginning of the data area
+to be translated.
+.It Va d_size
+Set to the total size in bytes of the source data area to be
+translated.
+.It Va d_type
+Set to the type of the source data being translated.
+This value is one of the values defined in the
+.Vt Elf_Type
+enumeration.
+The
+.Vt Elf_Type
+enumeration is described in
+.Xr elf 3 .
+.It Va d_version
+Set to the version number of the ELF data structures being
+translated.
+Currently only version
+.Dv EV_CURRENT
+is supported.
+.El
+.Pp
+Argument
+.Ar dst
+describes the destination buffer.
+The following elements of the
+.Vt Elf_Data
+descriptor need to be set before invoking these functions:
+.Bl -hang -offset indent
+.It Va d_buf
+Set to a valid pointer value that denotes the start of the destination
+buffer that will hold translated data.
+This value may be the same as that of the source buffer, in which case
+an in-place conversion will be attempted.
+.It Va d_size
+Set to the size of the destination buffer in bytes.
+This value will be modified if the function call succeeds.
+.It Va d_version
+Set to the desired version number of the destination.
+Currently only version
+.Dv EV_CURRENT
+is supported.
+.El
+.Pp
+These translations routines allow the source and destination buffers
+to coincide, in which case an in-place translation will be done
+if the destination is large enough to hold the translated data.
+Other kinds of overlap between the source and destination buffers
+are not permitted.
+.Pp
+On successful completion of the translation request the following
+fields of the
+.Ar dst
+descriptor would be modified:
+.Bl -hang -offset indent
+.It Va d_size
+Set to the size in bytes of the translated data.
+.It Va d_type
+Set to the
+.Va d_type
+value of the source data descriptor.
+.El
+.Pp
+Argument
+.Ar file_encoding
+specifies the encoding in which the file objects are represented.
+It must be one of:
+.Bl -hang -offset indent
+.It Dv ELFDATANONE
+File objects use the library's native byte ordering.
+.It Dv ELFDATA2LSB
+File objects use a little-endian ordering.
+.It Dv ELFDATA2MSB
+File objects use a big-endian ordering.
+.El
+.Pp
+The functions
+.Fn gelf_xlatetof
+and
+.Fn gelf_xlatetom
+select the appropriate translation scheme based on the properties of
+argument
+.Ar elf .
+.Sh RETURN VALUES
+These functions return argument
+.Ar dst
+if successful, or NULL in case of an error.
+.Sh EXAMPLES
+To translate a
+.Vt GElf_Rel
+structure to its LSB file representation use:
+.Bd -literal -offset indent
+Elf_Data dst, src;
+GElf_Rel rel;
+Elf *e;
+
+e = ...; /* See elf_begin(3). */
+
+/* Set up the 'src' descriptor. */
+memset(&src, 0, sizeof src);
+src.d_buf = &rel;
+src.d_size = sizeof(rel);
+src.d_type = ELF_T_REL;
+src.d_version = EV_CURRENT;
+
+/* Set up the 'dst' descriptor. */
+memset(&dst, 0, sizeof dst);
+dst.d_buf = filebuf;
+dst.d_size = gelf_fsize(e, ELF_T_REL, 1, EV_CURRENT);
+dst.d_version = EV_CURRENT;
+
+if (gelf_xlatetof(e, &dst, &src, ELFDATA2LSB) == NULL) {
+	printf("error: %s", elf_errmsg(0));
+}
+.Ed
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+One of arguments
+.Ar src ,
+.Ar dst
+or
+.Ar elf
+was NULL.
+.It Bq Er ELF_E_ARGUMENT
+Arguments
+.Ar src
+and
+.Ar dst
+were equal.
+.It Bq Er ELF_E_ARGUMENT
+The desired encoding parameter was not one of
+.Dv ELFDATANONE ,
+.Dv ELFDATA2LSB
+or
+.Dv ELFDATA2MSB .
+.It Bq Er ELF_E_ARGUMENT
+The
+.Ar d_type
+field of argument
+.Ar src
+specified an unsupported type.
+.It Bq Er ELF_E_DATA
+The
+.Ar src
+argument specified a buffer size that was not an integral multiple of
+its underlying type.
+.It Bq Er ELF_E_DATA
+The
+.Ar dst
+argument specified a buffer size that was too small.
+.It Bq Er ELF_E_DATA
+Argument
+.Ar dst
+specified a destination buffer that overlaps with the source
+buffer.
+.It Bq Er ELF_E_DATA
+The destination buffer for a conversion to memory had an alignment
+inappropriate for the underlying ELF type.
+.It Bq Er ELF_E_DATA
+The source buffer for a conversion to file had an alignment
+inappropriate for the underlying ELF type.
+.It Bq Er ELF_E_UNIMPL
+The version numbers for arguments
+.Ar dst
+and
+.Ar src
+were not identical.
+.It Bq Er ELF_E_UNIMPL
+The argument
+.Ar src
+requested conversion for a type which is not currently
+supported.
+.It Bq Er ELF_E_VERSION
+Argument
+.Ar src
+specified an unsupported version number.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_getdata 3 ,
+.Xr gelf 3

@@ -1,0 +1,122 @@
+        THIS TARBALL IS NOT A FULL DISTRIBUTION.
+
+The contents of this tarball is designed to be incorporated into
+software packages that utilize the AutoOpts option automation package
+and are intended to be installed on systems that may not have libopts
+installed.  It is redistributable under the terms of either the LGPL
+(see COPYING.lgpl) or under the terms of the advertising clause free BSD
+license (see COPYING.mbsd).
+
+Usage Instructions for autoconf/automake/libtoolized projects:
+
+1. Install the unrolled tarball into your package source tree,
+   copying ``libopts.m4'' to your autoconf macro directory.
+
+   In your bootstrap (pre-configure) script, you can do this:
+
+      rm -rf libopts libopts-*
+      gunzip -c `autoopts-config libsrc` | tar -xvf -
+      mv -f libopts-*.*.* libopts
+      cp -fp libopts/m4/*.m4 m4/.
+
+   I tend to put my configure auxiliary files in "m4".
+   Whatever directory you choose, if it is not ".", then
+   be sure to tell autoconf about it with:
+
+      AC_CONFIG_AUX_DIR(m4)
+
+   This is one macro where you *MUST* remember to *NOT* quote
+   the argument.  If you do, automake will get lost.
+
+2. Add an invocation of either LIBOPTS_CHECK or LIBOPTS_CHECK_NOBUILD
+   to your configure.ac file.  See LIBOPTS_CHECK: below for details.
+
+3. Add the following to your top level ``Makefile.am'' file:
+
+      if NEED_LIBOPTS
+         SUBDIRS += $(LIBOPTS_DIR)
+      endif
+
+   where ``<...>'' can be whatever other files or directories you may
+   need.  The SUBDIRS must be properly ordered.  *PLEASE NOTE* it is
+   crucial that the SUBDIRS be set under the control of an automake
+   conditional.  To work correctly, automake has to know the range of
+   possible values of SUBDIRS.  It's a magical name with magical
+   properties.  ``NEED_LIBOPTS'' will be correctly set by the
+   ``LIBOPTS_CHECK'' macro, above.
+
+4. Add ``$(LIBOPTS_CFLAGS)'' to relevant compiler flags and
+   ``$(LIBOPTS_LDADD)'' to relevant link options whereever
+   you need them in your build tree.
+
+5. Make sure your object files explicitly depend upon the
+   generated options header file.  e.g.:
+
+     $(prog_OBJECTS) : prog-opts.h
+     prog-opts.h : prog-opts.c
+     prog-opts.c : prog-opts.def
+         autogen prog-opts.def
+
+6. *OPTIONAL* --
+   If you are creating man pages and texi documentation from
+   the program options, you will need these rules somewhere, too:
+
+     man_MANS = prog.1
+     prog.1 : prog-opts.def
+         autogen -Tagman-cmd.tpl -bprog prog-opts.def
+
+     invoke-prog.texi : prog-opts.def
+         autogen -Tagtexi-cmd.tpl prog-opts.def
+
+If your package does not utilize the auto* tools, then you
+will need to hand craft the rules for building the library.
+
+LIBOPTS_CHECK:
+
+The arguments to both macro are a relative path to the directory with
+the libopts source code.  It is optional and defaults to "libopts".
+These macros work as follows:
+
+1.  LIBOPTS_CHECK([libopts/rel/path/optional])
+
+    Adds two command-line options to the generated configure script,
+    --enable-local-libopts and --disable-libopts-install.  AC_SUBST's
+    LIBOPTS_CFLAGS, LIBOPTS_LDADD, and LIBOPTS_DIR for use in
+    Makefile.am files.  Adds Automake conditional NEED_LIBOPTS which
+    will be true when the local copy of libopts should be built.  Uses
+    AC_CONFIG_FILES([$libopts-dir/Makefile]) to cause the local libopts
+    into the package build.  If the optional relative path to libopts is
+    not provided, it defaults to simply "libopts".
+
+2.  LIBOPTS_CHECK_NOBUILD([libopts/rel/path/optional])
+
+    This variant of LIBOPTS_CHECK is useful when multiple configure.ac
+    files in a package make use of a single libopts tearoff.  In that
+    case, only one of the configure.ac files should build libopts and
+    others should simply use it.  Consider this package arrangment:
+
+    all-tools/
+      configure.ac
+      common-tools/
+        configure.ac
+        libopts/
+
+    The parent package all-tools contains a subpackage common-tools
+    which can be torn off and used independently.  Programs configured
+    by both configure.ac files link against the common-tools/libopts
+    tearoff, when not using the system's libopts.  The top-level
+    configure.ac uses LIBOPTS_CHECK_NOBUILD([common-tools/libopts]),
+    while common-tools/configure.ac uses LIBOPTS_CHECK.  The difference
+    is LIBOPTS_CHECK_NOBUILD will never build the libopts tearoff,
+    leaving that to the subpackage configure.ac's LIBOPTS_CHECK.
+    Specifically, LIBOPTS_CHECK_NOBUILD always results in the
+    NEED_LIBOPTS Automake conditional being false, and does not invoke
+    AC_CONFIG_FILES(path-to-libopts/Makefile).
+
+LICENSING:
+
+This material is Copyright (C) 1992-2015 by Bruce Korb.  You are
+licensed to use this under the terms of either the GNU Lesser General
+Public License (see: COPYING.lgpl), or, at your option, the modified
+Berkeley Software Distribution License (see: COPYING.mbsd).  Both of
+these files should be included with this tarball.

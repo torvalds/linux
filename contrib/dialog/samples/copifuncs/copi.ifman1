@@ -1,0 +1,29 @@
+#! /usr/bin/perl
+#
+# This is a utility script to manipulate Fidonet-related issues
+# using Eugene Crosser's ifmail package
+#
+# Version 0.1
+#
+# (C) Michael Bravo and The Communication Tube, 1994
+#
+# You can do whatever you want with this script. I take no responsibility
+# whatsoever in anything related to this script. If you make some useful
+# additions to this, please think of sending them to me so I could partake
+# of your wisdom.
+#
+# This script was written to help attaching and requesting files from the
+# commandline, much like you do with Squish under DOS or OS/2. It is certainly
+# not perfect - I used it as an exercise in Perl. It also probably lacks
+# some other useful features, like ability to specify trunc/sent or kill/sent
+# attributes etc etc. If you really want this or some other features 
+# implemented, write me at mbravo@tctube.spb.su or mbravo@octopus.spb.su
+# and I will try to do what I can.
+#
+# Note - files don't get copied to any spool dir, so if you move attached
+# files somewhere, they won't get sent.
+#
+# This script is supposed to read ifmail's config to determine where outbound
+# directory and logfile are. The only two parameters to modify in most cases
+# are below.
+

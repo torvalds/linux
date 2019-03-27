@@ -1,0 +1,121 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: local_unbound
+# REQUIRE: FILESYSTEMS defaultroute netwait resolv
+# BEFORE: NETWORKING
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="local_unbound"
+desc="Local caching forwarding resolver"
+rcvar="local_unbound_enable"
+
+command="/usr/sbin/local-unbound"
+extra_commands="anchor configtest reload setup"
+start_precmd="local_unbound_prestart"
+start_postcmd="local_unbound_poststart"
+reload_precmd="local_unbound_configtest"
+anchor_cmd="local_unbound_anchor"
+configtest_cmd="local_unbound_configtest"
+setup_cmd="local_unbound_setup"
+pidfile="/var/run/${name}.pid"
+
+load_rc_config $name
+
+: ${local_unbound_workdir:=/var/unbound}
+: ${local_unbound_config:=${local_unbound_workdir}/unbound.conf}
+: ${local_unbound_flags:="-c ${local_unbound_config}"}
+: ${local_unbound_forwardconf:=${local_unbound_workdir}/forward.conf}
+: ${local_unbound_controlconf:=${local_unbound_workdir}/control.conf}
+: ${local_unbound_anchor:=${local_unbound_workdir}/root.key}
+: ${local_unbound_forwarders:=}
+: ${local_unbound_tls:=}
+
+do_as_unbound()
+{
+	echo "$@" | su -m unbound
+}
+
+#
+# Retrieve or update the DNSSEC root anchor
+#
+local_unbound_anchor()
+{
+	do_as_unbound ${command}-anchor -a ${local_unbound_anchor}
+	# we can't trust the exit code - check if the file exists
+	[ -f ${local_unbound_anchor} ]
+}
+
+#
+# Check the unbound configuration file
+#
+local_unbound_configtest()
+{
+	do_as_unbound ${command}-checkconf ${local_unbound_config}
+}
+
+#
+# Create the unbound configuration file and update resolv.conf to
+# point to unbound.
+#
+local_unbound_setup()
+{
+	local tls_flag
+	if checkyesno local_unbound_tls ; then
+		tls_flag="-t"
+	fi
+	echo "Performing initial setup."
+	${command}-setup -n \
+	    -u unbound \
+	    -w ${local_unbound_workdir} \
+	    -c ${local_unbound_config} \
+	    -f ${local_unbound_forwardconf} \
+	    -o ${local_unbound_controlconf} \
+	    -a ${local_unbound_anchor} \
+	    ${tls_flag} \
+	    ${local_unbound_forwarders}
+}
+
+#
+# Before starting, check that the configuration file and root anchor
+# exist.  If not, attempt to generate them.
+#
+local_unbound_prestart()
+{
+	# Create configuration file
+	if [ ! -f ${local_unbound_config} ] ; then
+		run_rc_command setup
+	fi
+
+	# Retrieve DNSSEC root key
+	if [ ! -s ${local_unbound_anchor} ] ; then
+		run_rc_command anchor
+	fi
+}
+
+#
+# After starting, wait for Unbound to report that it is ready to avoid
+# race conditions with services which require functioning DNS.
+#
+local_unbound_poststart()
+{
+	local retry=5
+
+	echo -n "Waiting for nameserver to start..."
+	until "${command}-control" status | grep -q "is running" ; do
+		if [ $((retry -= 1)) -eq 0 ] ; then
+			echo " giving up"
+			return 1
+		fi
+		echo -n "."
+		sleep 1
+	done
+	echo " good"
+}
+
+load_rc_config $name
+run_rc_command "$1"

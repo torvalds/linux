@@ -1,0 +1,65 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RIOSTREAM" 1 "2012-10-24" "librdmacm" "librdmacm" librdmacm
+.SH NAME
+riostream \- zero-copy streaming over RDMA ping-pong test.
+.SH SYNOPSIS
+.sp
+.nf
+\fIriostream\fR [-s server_address] [-b bind_address] [-B buffer_size]
+			[-I iterations] [-C transfer_count]
+			[-S transfer_size] [-p server_port] [-T test_option]
+.fi
+.SH "DESCRIPTION"
+Uses the streaming over RDMA protocol (rsocket) to connect and exchange
+data between a client and server application.
+.SH "OPTIONS"
+.TP
+\-s server_address
+The network name or IP address of the server system listening for
+connections.  The used name or address must route over an RDMA device.
+This option must be specified by the client.
+.TP
+\-b bind_address
+The local network address to bind to.
+.TP
+\-B buffer_size
+Indicates the size of the send and receive network buffers.
+.TP
+\-I iterations
+The number of times that the specified number of messages will be
+exchanged between the client and server.  (default 1000)
+.TP
+\-C transfer_count
+The number of messages to transfer from the client to the server and
+back again on each iteration.  (default 1)
+.TP
+\-S transfer_size
+The size of each send transfer, in bytes.  (default 1000)  If 'all'
+is specified, rstream will run a series of tests of various sizes.
+.TP
+\-p server_port
+The server's port number.
+.TP
+\-T test_option
+Specifies test parameters.  Available options are:
+.P
+a | async - uses asynchronous operation (e.g. select / poll)
+.P
+b | blocking - uses blocking calls
+.P
+n | nonblocking - uses non-blocking calls
+.P
+v | verify - verifies data transfers
+.SH "NOTES"
+Basic usage is to start riostream on a server system, then run
+riostream -s server_name on a client system.  By default, riostream
+will run a series of latency and bandwidth performance tests.
+Specifying a different iterations, transfer_count, or transfer_size
+will run a user customized test using default values where none
+have been specified.
+.P
+Because this test maps RDMA resources to userspace, users must ensure
+that they have available system resources and permissions.  See the
+libibverbs README file for additional details.
+.SH "SEE ALSO"
+rdma_cm(7) rstream(1)

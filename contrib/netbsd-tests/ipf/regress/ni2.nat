@@ -1,0 +1,1 @@
+map xl0 10.0.0.0/8 -> 1.1.1.1/32 portmap tcp/udp 40000:60000 sequential

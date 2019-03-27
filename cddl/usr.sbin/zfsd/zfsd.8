@@ -1,0 +1,157 @@
+.\"-
+.\" Copyright (c) 2016 Allan Jude
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 26, 2016
+.Dt ZFSD 8
+.Os
+.Sh NAME
+.Nm zfsd
+.Nd ZFS fault management daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Sh DESCRIPTION
+.Nm
+attempts to resolve ZFS faults that the kernel can't resolve by itself.
+It listens to
+.Xr devctl 4
+events, which are how the kernel notifies userland of events such as I/O
+errors and disk removals.
+.Nm
+attempts to resolve these faults by activating or deactivating hot spares
+and onlining offline vdevs.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl d
+Run in the foreground instead of daemonizing.
+.El
+.Pp
+System administrators never interact with
+.Nm
+directly.
+Instead, they control its behavior indirectly through zpool configuration.
+There are two ways to influence
+.Nm :
+assigning hotspares and setting pool properties.
+Currently, only the
+.Em autoreplace
+property has any effect.
+See
+.Xr zpool 8
+for details.
+.Pp
+.Nm
+will attempt to resolve the following types of fault:
+.Bl -tag -width a
+.It device removal
+When a leaf vdev disappears,
+.Nm
+will activate any available hotspare.
+.It device arrival
+When a new GEOM device appears,
+.Nm
+will attempt to read its ZFS label, if any.
+If it matches a previously removed vdev on an active pool,
+.Nm
+will online it.
+Once resilvering completes, any active hotspare will detach automatically.
+.Pp
+If the new device has no ZFS label but its physical path matches the
+physical path of a previously removed vdev on an active pool, and that
+pool has the autoreplace property set, then
+.Nm
+will replace the missing vdev with the newly arrived device.
+Once resilvering completes, any active hotspare will detach automatically.
+.It vdev degrade or fault events
+If a vdev becomes degraded or faulted,
+.Nm
+will activate any available hotspare.
+.It I/O errors
+If a leaf vdev generates more than 50 I/O errors in a 60 second period, then
+.Nm
+will mark that vdev as
+.Em FAULTED .
+.Xr zfs 4
+will no longer issue any I/Os to it.
+.Nm
+will activate a hotspare if one is available.
+.It Checksum errors
+If a leaf vdev generates more than 50 checksum errors in a 60 second
+period, then
+.Nm
+will mark that vdev as
+.Em DEGRADED .
+.Xr zfs 4
+will still use it, but zfsd will activate a spare anyway.
+.It Spare addition
+If the system administrator adds a hotspare to a pool that is already degraded,
+.Nm
+will activate the spare.
+.It Resilver complete
+.Nm
+will detach any hotspare once a permanent replacement finishes resilvering.
+.It Physical path change
+If the physical path of an existing disk changes,
+.Nm
+will attempt to replace any missing disk with the same physical path,
+if its pool's autoreplace property is set.
+.El
+.Pp
+.Nm
+will log interesting events and its actions to syslog with facility
+.Em daemon
+and identity
+.Op zfsd .
+.El
+.Sh FILES
+.Bl -tag -width a -compact
+.It Pa /var/db/zfsd/cases
+When
+.Nm
+exits, it serializes any unresolved casefiles here,
+then reads them back in when next it starts up.
+.El
+.Sh SEE ALSO
+.Xr devctl 4 ,
+.Xr zfs 4 ,
+.Xr zpool 8
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm
+was originally written by
+.An Justin Gibbs Aq Mt gibbs@FreeBSD.org
+and
+.An Alan Somers Aq Mt asomers@FreeBSD.org
+.Sh TODO
+In the future,
+.Nm
+should be able to resume a pool that became suspended due to device
+removals, if enough missing devices have returned.

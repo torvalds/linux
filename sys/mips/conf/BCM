@@ -1,0 +1,111 @@
+#
+# $FreeBSD$
+#
+# The Broadcom 470x/471x/535x series of processors and boards is very commonly
+# used in COTS hardware including the ASUS RT-N12, RT-N16, RT-N53.
+#
+
+ident		BCM
+cpu		CPU_MIPS74K
+
+hints		"BCM.hints"
+include		"../broadcom/std.broadcom"
+
+# ships with cfe firmware
+options 	CFE
+device		cfe
+
+options 	ALT_BREAK_TO_DEBUGGER
+options 	BREAK_TO_DEBUGGER
+options		BOOTVERBOSE=0
+
+makeoptions	TRAMPLOADADDR=0x80800000
+makeoptions	DEBUG="-g3"		#Build kernel with gdb(1) debug symbols
+makeoptions	MODULES_OVERRIDE=""
+
+options 	DDB
+options 	KDB
+
+options 	SCHED_4BSD		#4BSD scheduler
+options 	INET			#InterNETworking
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+options 	NFSCL			#Network Filesystem Client
+#options 	NFS_ROOT		#NFS usable as /, requires NFSCL
+options 	PSEUDOFS		#Pseudo-filesystem framework
+options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+
+options         FFS                     #Berkeley Fast Filesystem
+options         SOFTUPDATES             #Enable FFS soft updates support
+options         UFS_ACL                 #Support for access control lists
+options         UFS_DIRHASH             #Improve performance on big directories
+
+device		xz
+options		GEOM_UZIP
+options		GEOM_LABEL		# Providers labelization.
+options		ROOTDEVNAME=\"ufs:ufs/FBSD\"	# assumes FW built by 
+					# freebsd-build-wifi
+
+# Debugging for use in -current
+#options 	DEADLKRES
+options 	INVARIANTS
+options 	INVARIANT_SUPPORT
+
+#options	BHND_LOGLEVEL=BHND_DEBUG_LEVEL
+#options 	BUS_DEBUG
+#makeoptions	BUS_DEBUG
+options 	EARLY_PRINTF
+#options	VERBOSE_SYSINIT
+#makeoptions	VERBOSE_SYSINIT
+
+# bhnd(4)
+device		bhnd
+device		bcma			# bcma backplane
+device		bcma_nexus
+
+device		pci
+device		bhnd_pcib		# PCIe-G1 core
+
+#device		bgmac			# Broadcom GMAC - not yet
+
+device		gpio
+device		mdio
+
+#Flash
+device		spibus
+device		mx25l			# Serial Flash
+device		cfi			# Parallel Flash
+device		cfid
+
+#UART
+device		uart
+
+#Base
+device		loop
+device		ether
+device 		random
+device		md
+
+#Performance
+#options 	HWPMC_HOOKS
+#device		hwpmc
+#device	 	hwpmc_mips74k
+
+#Ethernet
+# device 	bfe			# XXX will build both pci and siba
+device 		miibus			# attachments
+
+# pci devices
+
+# USB
+options 	USB_DEBUG		# enable debug msgs
+# taken from atheros
+options 	USB_EHCI_BIG_ENDIAN_DESC        # handle big-endian byte order
+options 	USB_HOST_ALIGN=32		# AR71XX (MIPS in general?) requires this
+
+device		usb			# USB Bus (required)
+device		ohci			# OHCI interface
+device		ehci			# EHCI interface (USB 2.0)
+
+device		scbus
+device		umass
+device		da

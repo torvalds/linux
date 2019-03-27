@@ -1,0 +1,146 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)zfs_copies.kshlib	1.3	08/02/27 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+#
+# Compare the value of copies property with specified value
+# $1, the dataset name
+# $2, the expected copies value
+#
+function cmp_prop 
+{
+	typeset ds=$1
+	typeset	val_expect=$2
+	typeset val_actual
+
+	val_actual=$(get_prop copies $ds)
+	if [[ $val_actual != $val_expect ]]; then
+		log_fail "Expected value ($val_expect) != " \
+			"actual value ($val_actual)"
+	fi
+}
+
+#
+# Get the value of property used via zfs list
+# $1, the dataset name
+#
+function get_used_prop
+{
+	typeset ds=$1
+	typeset used
+
+	used=`$ZFS list -H -o used $ds`
+	used=${used%[m|M]}
+	if [[ $used == *K ]]; then
+		used=0
+	fi	
+	$ECHO $used
+}
+
+#
+# Check the used space is charged correctly
+# $1, the number of used space
+# $2, the expected common factor between the used space and the file space
+#
+function check_used
+{
+	typeset charged_spc=$1
+	typeset -i used
+	typeset -i expected_cfactor=$2
+	typeset -i cfactor
+	typeset -i fsize=${FILESIZE%[m|M]}
+
+	(( used = ${charged_spc%[m|M]} ))
+	(( cfactor = used / fsize ))
+	if (( cfactor != expected_cfactor )); then
+		log_fail "The space is not charged correctly while setting"\
+			"copies as $expected_cfactor."
+	fi
+}
+
+#
+# test ncopies on volume
+# $1  test type zfs|ufs, default zfs
+# $2  copies
+# $3  mntp for ufs test
+function do_vol_test
+{
+	typeset type=$1
+	typeset copy=$2
+	typeset mntp=$3
+	
+	vol=$TESTPOOL/$TESTVOL1 
+	vol_b_path=/dev/zvol/$TESTPOOL/$TESTVOL1
+	vol_r_path=/dev/zvol/$TESTPOOL/$TESTVOL1
+
+	log_must $ZFS create -V $VOLSIZE -o copies=$copy $vol
+	if fs_prop_exist "refreserv" ; then
+		log_must $ZFS set refreservation=none $vol
+	fi
+	if [[ $type == "ufs" ]]; then
+		log_must $ECHO y | $NEWFS $vol_r_path >/dev/null 2>&1
+		log_must $MOUNT -F ufs -o rw $vol_b_path $mntp
+	else
+		log_must $ZPOOL create $TESTPOOL1 $vol_b_path
+		log_must $ZFS create $TESTPOOL1/$TESTFS1
+	fi
+
+	(( nfilesize = copy * ${FILESIZE%m} ))
+	pre_used=$(get_used_prop $vol)
+	(( target_size = pre_used + nfilesize ))
+	
+	if [[ $type == "ufs" ]]; then
+		log_must $MKFILE $FILESIZE $mntp/$FILE
+	else
+		log_must $MKFILE $FILESIZE /$TESTPOOL1/$TESTFS1/$FILE
+	fi
+	
+	post_used=$(get_used_prop $vol)	
+	while (( post_used < target_size )) ; do
+		sleep 1
+		post_used=$(get_used_prop $vol)
+	done	
+
+	(( used = post_used - pre_used ))
+	if (( used < nfilesize )); then		
+		log_fail "The space is not charged correctly while setting"\
+                          "copies as $copy"
+	fi
+	
+	if [[ $type == "ufs" ]]; then
+		$UMOUNT $mntp
+	else
+		log_must $ZPOOL destroy $TESTPOOL1
+	fi
+
+	log_must $ZFS destroy $vol
+}

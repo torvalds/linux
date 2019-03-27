@@ -1,0 +1,78 @@
+.\"
+.\" Copyright (c) 2002 M. Warner Losh
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 9, 2002
+.Dt PCCARD 4
+.Os
+.Sh NAME
+.Nm pccard
+.Nd PC Card bus driver
+.Sh SYNOPSIS
+.Cd device pccard
+.Sh DESCRIPTION
+The
+.Nm
+driver implements the PC Card bus.
+The
+.Nm
+driver supports all PC Card bridges in the system.
+.Sh TUNABLES
+The driver supports the following tunable parameters, which may be
+added to
+.Pa /boot/loader.conf
+or set via the
+.Xr sysctl 8
+command:
+.Bl -tag -width ".Cm hw.pccard.cis_debug" -compact
+.It Cm hw.pccard.debug
+Non-zero values cause more verbose information to be printed when a
+16-bit PC Card is inserted or removed.
+.It Cm hw.pccard.cis_debug
+Non-zero value causes the CIS parsing of the 16-bit PC Card to be much
+more verbose and include a complete CIS dump.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/pccard0.cis" -compact
+.It Pa /dev/pccard0.cis
+This exclusive-use device will report all the CIS chains present in a
+PC Card, if a 16-bit PC Card is inserted in the slot.
+Only one user at a time may access the CIS.
+The CIS is presented as the relevant byte stream from the PC Card.
+For CIS tuples in Attribute Memory (the default), only the even
+locations are presented (the ODD locations are undefined per the
+standard).
+For CIS tuples in Common Memory, every byte is presented to the user.
+Decoding of the CIS tuples is done via a userland program.
+All tuples are presented to the user.
+.El
+.Sh SEE ALSO
+.Xr cardbus 4 ,
+.\" .Xr mecia 4 ,
+.Xr pccbb 4
+.\" .Xr tcic 4
+.Rs
+.%T "PC Card Standard, Release 8"
+.Re

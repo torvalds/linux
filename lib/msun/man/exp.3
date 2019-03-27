@@ -1,0 +1,192 @@
+.\" Copyright (c) 1985, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)exp.3	6.12 (Berkeley) 7/31/91
+.\" $FreeBSD$
+.\"
+.Dd December 8, 2017
+.Dt EXP 3
+.Os
+.Sh NAME
+.Nm exp ,
+.Nm expf ,
+.Nm expl ,
+.\" The sorting error is intentional.  exp, expf, and expl should be adjacent.
+.Nm exp2 ,
+.Nm exp2f ,
+.Nm exp2l ,
+.Nm expm1 ,
+.Nm expm1f ,
+.Nm expm1l ,
+.Nm pow ,
+.Nm powf ,
+.Nm powl
+.Nd exponential and power functions
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn exp "double x"
+.Ft float
+.Fn expf "float x"
+.Ft long double
+.Fn expl "long double x"
+.Ft double
+.Fn exp2 "double x"
+.Ft float
+.Fn exp2f "float x"
+.Ft long double
+.Fn exp2l "long double x"
+.Ft double
+.Fn expm1 "double x"
+.Ft float
+.Fn expm1f "float x"
+.Ft long double
+.Fn expm1l "long double x"
+.Ft double
+.Fn pow "double x" "double y"
+.Ft float
+.Fn powf "float x" "float y"
+.Ft long double
+.Fn powl "long double x" "long double y"
+.Sh DESCRIPTION
+The
+.Fn exp ,
+.Fn expf ,
+and
+.Fn expl
+functions compute the base
+.Ms e
+exponential value of the given argument
+.Fa x .
+.Pp
+The
+.Fn exp2 ,
+.Fn exp2f ,
+and
+.Fn exp2l
+functions compute the base 2 exponential of the given argument
+.Fa x .
+.Pp
+The
+.Fn expm1 ,
+.Fn expm1f ,
+and the
+.Fn expm1l
+functions compute the value exp(x)\-1 accurately even for tiny argument
+.Fa x .
+.Pp
+The
+.Fn pow ,
+.Fn powf ,
+and the
+.Fn powl
+functions compute the value
+of
+.Ar x
+to the exponent
+.Ar y .
+.Sh ERROR (due to Roundoff etc.)
+The values of
+.Fn exp 0 ,
+.Fn expm1 0 ,
+.Fn exp2 integer ,
+and
+.Fn pow integer integer
+are exact provided that they are representable.
+.\" XXX Is this really true for pow()?
+Otherwise the error in these functions is generally below one
+.Em ulp .
+.Sh RETURN VALUES
+These functions will return the appropriate computation unless an error
+occurs or an argument is out of range.
+The functions
+.Fn pow x y ,
+.Fn powf x y ,
+and
+.Fn powl x y
+raise an invalid exception and return an \*(Na if
+.Fa x
+< 0 and
+.Fa y
+is not an integer.
+.Sh NOTES
+The function
+.Fn pow x 0
+returns x**0 = 1 for all x including x = 0, \*(If, and \*(Na .
+Previous implementations of pow may
+have defined x**0 to be undefined in some or all of these
+cases.
+Here are reasons for returning x**0 = 1 always:
+.Bl -enum -width indent
+.It
+Any program that already tests whether x is zero (or
+infinite or \*(Na) before computing x**0 cannot care
+whether 0**0 = 1 or not.
+Any program that depends
+upon 0**0 to be invalid is dubious anyway since that
+expression's meaning and, if invalid, its consequences
+vary from one computer system to another.
+.It
+Some Algebra texts (e.g.\& Sigler's) define x**0 = 1 for
+all x, including x = 0.
+This is compatible with the convention that accepts a[0]
+as the value of polynomial
+.Bd -literal -offset indent
+p(x) = a[0]\(**x**0 + a[1]\(**x**1 + a[2]\(**x**2 +...+ a[n]\(**x**n
+.Ed
+.Pp
+at x = 0 rather than reject a[0]\(**0**0 as invalid.
+.It
+Analysts will accept 0**0 = 1 despite that x**y can
+approach anything or nothing as x and y approach 0
+independently.
+The reason for setting 0**0 = 1 anyway is this:
+.Bd -ragged -offset indent
+If x(z) and y(z) are
+.Em any
+functions analytic (expandable
+in power series) in z around z = 0, and if there
+x(0) = y(0) = 0, then x(z)**y(z) \(-> 1 as z \(-> 0.
+.Ed
+.It
+If 0**0 = 1, then
+\*(If**0 = 1/0**0 = 1 too; and
+then \*(Na**0 = 1 too because x**0 = 1 for all finite
+and infinite x, i.e., independently of x.
+.El
+.Sh SEE ALSO
+.Xr clog 3
+.Xr cpow 3
+.Xr fenv 3 ,
+.Xr ldexp 3 ,
+.Xr log 3 ,
+.Xr math 3
+.Sh STANDARDS
+These functions conform to
+.St -isoC-99 .

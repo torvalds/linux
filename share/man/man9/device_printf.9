@@ -1,0 +1,58 @@
+.\"
+.\" Copyright (c) 2003 M. Warner Losh
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 21, 2003
+.Dt DEVICE_PRINTF 9
+.Os
+.Sh NAME
+.Nm device_printf
+.Nd formatted output conversion
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Ft int
+.Fn device_printf "device_t dev" "const char *fmt" ...
+.Sh DESCRIPTION
+The
+.Fn device_printf
+function is a convenience interface to the
+.Xr printf 9
+function.
+It outputs the name of the
+.Fa dev
+device, followed by a colon and a space, and then what
+.Xr printf 9
+would print if you passed
+.Fa fmt
+and the remaining arguments to it.
+.Sh RETURN VALUES
+The
+.Fn device_printf
+function returns the number of characters displayed.
+.Sh SEE ALSO
+.Xr printf 3 ,
+.Xr printf 9

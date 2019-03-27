@@ -1,0 +1,560 @@
+.\"
+.\" Copyright (c) 1998 Berkeley Software Design, Inc. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Berkeley Software Design Inc's name may not be used to endorse or
+.\"    promote products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY BERKELEY SOFTWARE DESIGN INC ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL BERKELEY SOFTWARE DESIGN INC BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from BSDI $Id: mutex.4,v 1.1.2.3 1998/04/27 22:53:13 ewv Exp $
+.\" $FreeBSD$
+.\"
+.Dd May 24, 2017
+.Dt MUTEX 9
+.Os
+.Sh NAME
+.Nm mutex ,
+.Nm mtx_init ,
+.Nm mtx_destroy ,
+.Nm mtx_lock ,
+.Nm mtx_lock_spin ,
+.Nm mtx_lock_flags ,
+.Nm mtx_lock_spin_flags ,
+.Nm mtx_trylock ,
+.Nm mtx_trylock_flags ,
+.Nm mtx_trylock_spin ,
+.Nm mtx_trylock_spin_flags ,
+.Nm mtx_unlock ,
+.Nm mtx_unlock_spin ,
+.Nm mtx_unlock_flags ,
+.Nm mtx_unlock_spin_flags ,
+.Nm mtx_sleep ,
+.Nm mtx_initialized ,
+.Nm mtx_owned ,
+.Nm mtx_recursed ,
+.Nm mtx_assert ,
+.Nm MTX_SYSINIT
+.Nd kernel synchronization primitives
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/lock.h
+.In sys/mutex.h
+.Ft void
+.Fn mtx_init "struct mtx *mutex" "const char *name" "const char *type" "int opts"
+.Ft void
+.Fn mtx_destroy "struct mtx *mutex"
+.Ft void
+.Fn mtx_lock "struct mtx *mutex"
+.Ft void
+.Fn mtx_lock_spin "struct mtx *mutex"
+.Ft void
+.Fn mtx_lock_flags "struct mtx *mutex" "int flags"
+.Ft void
+.Fn mtx_lock_spin_flags "struct mtx *mutex" "int flags"
+.Ft int
+.Fn mtx_trylock "struct mtx *mutex"
+.Ft int
+.Fn mtx_trylock_flags "struct mtx *mutex" "int flags"
+.Ft void
+.Fn mtx_trylock_spin "struct mtx *mutex"
+.Ft int
+.Fn mtx_trylock_spin_flags "struct mtx *mutex" "int flags"
+.Ft void
+.Fn mtx_unlock "struct mtx *mutex"
+.Ft void
+.Fn mtx_unlock_spin "struct mtx *mutex"
+.Ft void
+.Fn mtx_unlock_flags "struct mtx *mutex" "int flags"
+.Ft void
+.Fn mtx_unlock_spin_flags "struct mtx *mutex" "int flags"
+.Ft int
+.Fn mtx_sleep "void *chan" "struct mtx *mtx" "int priority" "const char *wmesg" "int timo"
+.Ft int
+.Fn mtx_initialized "const struct mtx *mutex"
+.Ft int
+.Fn mtx_owned "const struct mtx *mutex"
+.Ft int
+.Fn mtx_recursed "const struct mtx *mutex"
+.Pp
+.Cd "options INVARIANTS"
+.Cd "options INVARIANT_SUPPORT"
+.Ft void
+.Fn mtx_assert "const struct mtx *mutex" "int what"
+.In sys/kernel.h
+.Fn MTX_SYSINIT "name" "struct mtx *mtx" "const char *description" "int opts"
+.Sh DESCRIPTION
+Mutexes are the most basic and primary method of thread synchronization.
+The major design considerations for mutexes are:
+.Bl -enum
+.It
+Acquiring and releasing uncontested mutexes should be as cheap
+as possible.
+.It
+They must have the information and storage space to support
+priority propagation.
+.It
+A thread must be able to recursively acquire a mutex,
+provided that the mutex is initialized to support recursion.
+.El
+.Pp
+There are currently two flavors of mutexes, those that context switch
+when they block and those that do not.
+.Pp
+By default,
+.Dv MTX_DEF
+mutexes will context switch when they are already held.
+As an optimization,
+they may spin for some amount
+of time before context switching.
+It is important to remember that since a thread may be preempted at any time,
+the possible context switch introduced by acquiring a mutex is guaranteed
+to not break anything that is not already broken.
+.Pp
+Mutexes which do not context switch are
+.Dv MTX_SPIN
+mutexes.
+These should only be used to protect data shared with primary interrupt
+code.
+This includes interrupt filters and low level scheduling code.
+In all architectures both acquiring and releasing of a
+uncontested spin mutex is more expensive than the same operation
+on a non-spin mutex.
+In order to protect an interrupt service routine from blocking
+against itself all interrupts are either blocked or deferred on a processor
+while holding a spin lock.
+It is permissible to hold multiple spin mutexes.
+.Pp
+Once a spin mutex has been acquired it is not permissible to acquire a
+blocking mutex.
+.Pp
+The storage needed to implement a mutex is provided by a
+.Vt struct mtx .
+In general this should be treated as an opaque object and
+referenced only with the mutex primitives.
+.Pp
+The
+.Fn mtx_init
+function must be used to initialize a mutex
+before it can be passed to any of the other mutex functions.
+The
+.Fa name
+option is used to identify the lock in debugging output etc.
+The
+.Fa type
+option is used by the witness code to classify a mutex when doing checks
+of lock ordering.
+If
+.Fa type
+is
+.Dv NULL ,
+.Fa name
+is used in its place.
+The pointer passed in as
+.Fa name
+and
+.Fa type
+is saved rather than the data it points to.
+The data pointed to must remain stable
+until the mutex is destroyed.
+The
+.Fa opts
+argument is used to set the type of mutex.
+It may contain either
+.Dv MTX_DEF
+or
+.Dv MTX_SPIN
+but not both.
+If the kernel has been compiled with
+.Cd "option INVARIANTS" ,
+.Fn mtx_init
+will assert that the
+.Fa mutex
+has not been initialized multiple times without intervening calls to
+.Fn mtx_destroy
+unless the
+.Dv MTX_NEW
+option is specified.
+See below for additional initialization options.
+.Pp
+The
+.Fn mtx_lock
+function acquires a
+.Dv MTX_DEF
+mutual exclusion lock
+on behalf of the currently running kernel thread.
+If another kernel thread is holding the mutex,
+the caller will be disconnected from the CPU
+until the mutex is available
+(i.e., it will block).
+.Pp
+The
+.Fn mtx_lock_spin
+function acquires a
+.Dv MTX_SPIN
+mutual exclusion lock
+on behalf of the currently running kernel thread.
+If another kernel thread is holding the mutex,
+the caller will spin until the mutex becomes available.
+Interrupts are disabled during the spin and remain disabled
+following the acquiring of the lock.
+.Pp
+It is possible for the same thread to recursively acquire a mutex
+with no ill effects, provided that the
+.Dv MTX_RECURSE
+bit was passed to
+.Fn mtx_init
+during the initialization of the mutex.
+.Pp
+The
+.Fn mtx_lock_flags
+and
+.Fn mtx_lock_spin_flags
+functions acquire a
+.Dv MTX_DEF
+or
+.Dv MTX_SPIN
+lock, respectively, and also accept a
+.Fa flags
+argument.
+In both cases, the only flags presently available for lock acquires are
+.Dv MTX_QUIET
+and
+.Dv MTX_RECURSE .
+If the
+.Dv MTX_QUIET
+bit is turned on in the
+.Fa flags
+argument, then if
+.Dv KTR_LOCK
+tracing is being done,
+it will be silenced during the lock acquire.
+If the
+.Dv MTX_RECURSE
+bit is turned on in the
+.Fa flags
+argument, then the mutex can be acquired recursively.
+.Pp
+The
+.Fn mtx_trylock
+and
+.Fn mtx_trylock_spin
+functions attempt to acquire a
+.Dv MTX_DEF
+or
+.Dv MTX_SPIN
+mutex, respectively, pointed to by
+.Fa mutex .
+If the mutex cannot be immediately acquired, the functions will return 0,
+otherwise the mutex will be acquired and a non-zero value will be returned.
+.Pp
+The
+.Fn mtx_trylock_flags
+and
+.Fn mtx_trylock_spin_flags
+functions have the same behavior as
+.Fn mtx_trylock
+and
+.Fn mtx_trylock_spin
+respectively, but should be used when the caller desires to pass in a
+.Fa flags
+value.
+Presently, the only valid value in the
+.Fn mtx_trylock
+and
+.Fn mtx_trylock_spin
+cases is
+.Dv MTX_QUIET ,
+and its effects are identical to those described for
+.Fn mtx_lock
+above.
+.Pp
+The
+.Fn mtx_unlock
+function releases a
+.Dv MTX_DEF
+mutual exclusion lock.
+The current thread may be preempted if a higher priority thread is waiting
+for the mutex.
+.Pp
+The
+.Fn mtx_unlock_spin
+function releases a
+.Dv MTX_SPIN
+mutual exclusion lock.
+.Pp
+The
+.Fn mtx_unlock_flags
+and
+.Fn mtx_unlock_spin_flags
+functions behave in exactly the same way as do the standard mutex
+unlock routines above, while also allowing a
+.Fa flags
+argument which may specify
+.Dv MTX_QUIET .
+The behavior of
+.Dv MTX_QUIET
+is identical to its behavior in the mutex lock routines.
+.Pp
+The
+.Fn mtx_destroy
+function is used to destroy
+.Fa mutex
+so the data associated with it may be freed
+or otherwise overwritten.
+Any mutex which is destroyed
+must previously have been initialized with
+.Fn mtx_init .
+It is permissible to have a single hold count
+on a mutex when it is destroyed.
+It is not permissible to hold the mutex recursively,
+or have another thread blocked on the mutex
+when it is destroyed.
+.Pp
+The
+.Fn mtx_sleep
+function is used to atomically release
+.Fa mtx
+while waiting for an event.
+For more details on the parameters to this function,
+see
+.Xr sleep 9 .
+.Pp
+The
+.Fn mtx_initialized
+function returns non-zero if
+.Fa mutex
+has been initialized and zero otherwise.
+.Pp
+The
+.Fn mtx_owned
+function returns non-zero
+if the current thread holds
+.Fa mutex .
+If the current thread does not hold
+.Fa mutex
+zero is returned.
+.Pp
+The
+.Fn mtx_recursed
+function returns non-zero if the
+.Fa mutex
+is recursed.
+This check should only be made if the running thread already owns
+.Fa mutex .
+.Pp
+The
+.Fn mtx_assert
+function allows assertions specified in
+.Fa what
+to be made about
+.Fa mutex .
+If the assertions are not true and the kernel is compiled with
+.Cd "options INVARIANTS"
+and
+.Cd "options INVARIANT_SUPPORT" ,
+the kernel will panic.
+Currently the following assertions are supported:
+.Bl -tag -width MA_NOTRECURSED
+.It Dv MA_OWNED
+Assert that the current thread
+holds the mutex
+pointed to by the first argument.
+.It Dv MA_NOTOWNED
+Assert that the current thread
+does not hold the mutex
+pointed to by the first argument.
+.It Dv MA_RECURSED
+Assert that the current thread has recursed on the mutex
+pointed to by the first argument.
+This assertion is only valid in conjunction with
+.Dv MA_OWNED .
+.It Dv MA_NOTRECURSED
+Assert that the current thread has not recursed on the mutex
+pointed to by the first argument.
+This assertion is only valid in conjunction with
+.Dv MA_OWNED .
+.El
+.Pp
+The
+.Fn MTX_SYSINIT
+macro is used to generate a call to the
+.Fn mtx_sysinit
+routine at system startup in order to initialize a given mutex lock.
+The parameters are the same as
+.Fn mtx_init
+but with an additional argument,
+.Fa name ,
+that is used in generating unique variable names for the related structures associated with the lock and the sysinit routine.
+.Ss The Default Mutex Type
+Most kernel code should use the default lock type,
+.Dv MTX_DEF .
+The default lock type will allow the thread
+to be disconnected from the CPU
+if the lock is already held by another thread.
+The implementation
+may treat the lock as a short term spin lock
+under some circumstances.
+However, it is always safe to use these forms of locks
+in an interrupt thread
+without fear of deadlock
+against an interrupted thread on the same CPU.
+.Ss The Spin Mutex Type
+A
+.Dv MTX_SPIN
+mutex will not relinquish the CPU
+when it cannot immediately get the requested lock,
+but will loop, waiting for the mutex to be released by another CPU.
+This could result in deadlock
+if another thread interrupted the thread which held a mutex
+and then tried to acquire the mutex.
+For this reason spin locks disable all interrupts on the local CPU.
+.Pp
+Spin locks are fairly specialized locks
+that are intended to be held for very short periods of time.
+Their primary purpose is to protect portions of the code
+that implement other synchronization primitives such as default mutexes,
+thread scheduling, and interrupt threads.
+.Ss Initialization Options
+The options passed in the
+.Fa opts
+argument of
+.Fn mtx_init
+specify the mutex type.
+One of the
+.Dv MTX_DEF
+or
+.Dv MTX_SPIN
+options is required and only one of those two options may be specified.
+The possibilities are:
+.Bl -tag -width MTX_NOWITNESS
+.It Dv MTX_DEF
+Default mutexes
+will always allow the current thread to be suspended
+to avoid deadlock conditions against interrupt threads.
+The implementation of this lock type
+may spin for a while before suspending the current thread.
+.It Dv MTX_SPIN
+Spin mutexes
+will never relinquish the CPU.
+All interrupts are disabled on the local CPU
+while any spin lock is held.
+.It Dv MTX_RECURSE
+Specifies that the initialized mutex is allowed to recurse.
+This bit must be present if the mutex is permitted to recurse.
+.Pp
+Note that neither
+.Fn mtx_trylock
+nor
+.Fn mtx_trylock_spin
+support recursion;
+that is, attempting to acquire an already-owned mutex fails.
+.It Dv MTX_QUIET
+Do not log any mutex operations for this lock.
+.It Dv MTX_NOWITNESS
+Instruct
+.Xr witness 4
+to ignore this lock.
+.It Dv MTX_DUPOK
+Witness should not log messages about duplicate locks being acquired.
+.It Dv MTX_NOPROFILE
+Do not profile this lock.
+.It Dv MTX_NEW
+Do not check for double-init.
+.El
+.Ss Lock and Unlock Flags
+The flags passed to the
+.Fn mtx_lock_flags ,
+.Fn mtx_lock_spin_flags ,
+.Fn mtx_unlock_flags ,
+and
+.Fn mtx_unlock_spin_flags
+functions provide some basic options to the caller,
+and are often used only under special circumstances to modify lock or
+unlock behavior.
+Standard locking and unlocking should be performed with the
+.Fn mtx_lock ,
+.Fn mtx_lock_spin ,
+.Fn mtx_unlock ,
+and
+.Fn mtx_unlock_spin
+functions.
+Only if a flag is required should the corresponding
+flags-accepting routines be used.
+.Pp
+Options that modify mutex behavior:
+.Bl -tag -width MTX_QUIET
+.It Dv MTX_QUIET
+This option is used to quiet logging messages during individual mutex
+operations.
+This can be used to trim superfluous logging messages for debugging purposes.
+.El
+.Ss Giant
+If
+.Va Giant
+must be acquired, it must be acquired prior to acquiring
+other mutexes.
+Put another way: it is impossible to acquire
+.Va Giant
+non-recursively while
+holding another mutex.
+It is possible to acquire other mutexes while holding
+.Va Giant ,
+and it is possible to acquire
+.Va Giant
+recursively while holding other mutexes.
+.Ss Sleeping
+Sleeping while holding a mutex (except for
+.Va Giant )
+is never safe
+and should be avoided.
+There are numerous assertions which will fail if this is attempted.
+.Ss Functions Which Access Memory in Userspace
+No mutexes should be held (except for
+.Va Giant )
+across functions which
+access memory in userspace, such as
+.Xr copyin 9 ,
+.Xr copyout 9 ,
+.Xr uiomove 9 ,
+.Xr fuword 9 ,
+etc.
+No locks are needed when calling these functions.
+.Sh SEE ALSO
+.Xr condvar 9 ,
+.Xr LOCK_PROFILING 9 ,
+.Xr locking 9 ,
+.Xr mtx_pool 9 ,
+.Xr panic 9 ,
+.Xr rwlock 9 ,
+.Xr sema 9 ,
+.Xr sleep 9 ,
+.Xr sx 9
+.Sh HISTORY
+These
+functions appeared in
+.Bsx 4.1
+and
+.Fx 5.0 .
+The
+.Fn mtx_trylock_spin
+function was added in
+.Fx 11.1 .

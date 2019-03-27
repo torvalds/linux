@@ -1,0 +1,59 @@
+#
+# BERI_DE4_BASE -- Kernel for the SRI/Cambridge "BERI" (Bluespec Extensible RISC
+# Implementation) FPGA soft core, as configured in its Terasic DE-4 reference
+# configuration.  This kernel configration must be further specialized to
+# to include a root filesystem specification.
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+include "std.BERI"
+
+options 	NFSCL			# Network Filesystem Client
+options 	NFSLOCKD		# Network Lock Manager
+options 	NFS_ROOT		# NFS usable as /, requires NFSCL
+
+options         FDT
+options         FDT_DTB_STATIC
+makeoptions     FDT_DTS_FILE=beripad-de4.dts
+
+hints		"BERI_DE4.hints"	# Flash partitions still use hints.
+
+device		altera_atse
+device		altera_avgen
+device		altera_jtag_uart
+device		altera_sdcard
+device		terasic_de4led
+device		terasic_mtl
+
+device		bpf
+device		cfi
+device		cfid
+options 	CFI_SUPPORT_STRATAFLASH
+options 	ATSE_CFI_HACK
+device		vt
+device		kbdmux
+
+device		uart
+
+device		miibus
+options 	DEVICE_POLLING
+
+#
+# DMA support
+#
+device		xdma
+device		altera_softdma
+device		altera_msgdma
+
+#
+# USB support
+#
+#options	USB_DEBUG
+#options	USB_REQ_DEBUG
+#options	USB_VERBOSE
+device		usb
+device		saf1761otg
+

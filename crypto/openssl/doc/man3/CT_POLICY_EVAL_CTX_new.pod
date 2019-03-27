@@ -1,0 +1,128 @@
+=pod
+
+=head1 NAME
+
+CT_POLICY_EVAL_CTX_new, CT_POLICY_EVAL_CTX_free,
+CT_POLICY_EVAL_CTX_get0_cert, CT_POLICY_EVAL_CTX_set1_cert,
+CT_POLICY_EVAL_CTX_get0_issuer, CT_POLICY_EVAL_CTX_set1_issuer,
+CT_POLICY_EVAL_CTX_get0_log_store, CT_POLICY_EVAL_CTX_set_shared_CTLOG_STORE,
+CT_POLICY_EVAL_CTX_get_time, CT_POLICY_EVAL_CTX_set_time -
+Encapsulates the data required to evaluate whether SCTs meet a Certificate Transparency policy
+
+=head1 SYNOPSIS
+
+ #include <openssl/ct.h>
+
+ CT_POLICY_EVAL_CTX *CT_POLICY_EVAL_CTX_new(void);
+ void CT_POLICY_EVAL_CTX_free(CT_POLICY_EVAL_CTX *ctx);
+ X509* CT_POLICY_EVAL_CTX_get0_cert(const CT_POLICY_EVAL_CTX *ctx);
+ int CT_POLICY_EVAL_CTX_set1_cert(CT_POLICY_EVAL_CTX *ctx, X509 *cert);
+ X509* CT_POLICY_EVAL_CTX_get0_issuer(const CT_POLICY_EVAL_CTX *ctx);
+ int CT_POLICY_EVAL_CTX_set1_issuer(CT_POLICY_EVAL_CTX *ctx, X509 *issuer);
+ const CTLOG_STORE *CT_POLICY_EVAL_CTX_get0_log_store(const CT_POLICY_EVAL_CTX *ctx);
+ void CT_POLICY_EVAL_CTX_set_shared_CTLOG_STORE(CT_POLICY_EVAL_CTX *ctx,
+                                                CTLOG_STORE *log_store);
+ uint64_t CT_POLICY_EVAL_CTX_get_time(const CT_POLICY_EVAL_CTX *ctx);
+ void CT_POLICY_EVAL_CTX_set_time(CT_POLICY_EVAL_CTX *ctx, uint64_t time_in_ms);
+
+=head1 DESCRIPTION
+
+A B<CT_POLICY_EVAL_CTX> is used by functions that evaluate whether Signed
+Certificate Timestamps (SCTs) fulfil a Certificate Transparency (CT) policy.
+This policy may be, for example, that at least one valid SCT is available. To
+determine this, an SCT's timestamp and signature must be verified.
+This requires:
+
+=over 2
+
+=item *
+
+the public key of the log that issued the SCT
+
+=item *
+
+the certificate that the SCT was issued for
+
+=item *
+
+the issuer certificate (if the SCT was issued for a pre-certificate)
+
+=item *
+
+the current time
+
+=back
+
+The above requirements are met using the setters described below.
+
+CT_POLICY_EVAL_CTX_new() creates an empty policy evaluation context. This
+should then be populated using:
+
+=over 2
+
+=item *
+
+CT_POLICY_EVAL_CTX_set1_cert() to provide the certificate the SCTs were issued for
+
+Increments the reference count of the certificate.
+
+=item *
+
+CT_POLICY_EVAL_CTX_set1_issuer() to provide the issuer certificate
+
+Increments the reference count of the certificate.
+
+=item *
+
+CT_POLICY_EVAL_CTX_set_shared_CTLOG_STORE() to provide a list of logs that are trusted as sources of SCTs
+
+Holds a pointer to the CTLOG_STORE, so the CTLOG_STORE must outlive the
+CT_POLICY_EVAL_CTX.
+
+=item *
+
+CT_POLICY_EVAL_CTX_set_time() to set the time SCTs should be compared with to determine if they are valid
+
+The SCT timestamp will be compared to this time to check whether the SCT was
+issued in the future. RFC6962 states that "TLS clients MUST reject SCTs whose
+timestamp is in the future". By default, this will be set to 5 minutes in the
+future (e.g. (time() + 300) * 1000), to allow for clock drift.
+
+The time should be in milliseconds since the Unix epoch.
+
+=back
+
+Each setter has a matching getter for accessing the current value.
+
+When no longer required, the B<CT_POLICY_EVAL_CTX> should be passed to
+CT_POLICY_EVAL_CTX_free() to delete it.
+
+=head1 NOTES
+
+The issuer certificate only needs to be provided if at least one of the SCTs
+was issued for a pre-certificate. This will be the case for SCTs embedded in a
+certificate (i.e. those in an X.509 extension), but may not be the case for SCTs
+found in the TLS SCT extension or OCSP response.
+
+=head1 RETURN VALUES
+
+CT_POLICY_EVAL_CTX_new() will return NULL if malloc fails.
+
+=head1 SEE ALSO
+
+L<ct(7)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

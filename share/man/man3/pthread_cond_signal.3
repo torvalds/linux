@@ -1,0 +1,72 @@
+.\" Copyright (c) 1997 Brian Cully <shmit@kublai.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 28, 1998
+.Dt PTHREAD_COND_SIGNAL 3
+.Os
+.Sh NAME
+.Nm pthread_cond_signal
+.Nd unblock a thread waiting for a condition variable
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_cond_signal "pthread_cond_t *cond"
+.Sh DESCRIPTION
+The
+.Fn pthread_cond_signal
+function unblocks one thread waiting for the condition variable
+.Fa cond .
+.Sh RETURN VALUES
+If successful, the
+.Fn pthread_cond_signal
+function will return zero, otherwise an error number will be returned
+to indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_cond_signal
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa cond
+is invalid.
+.El
+.Sh SEE ALSO
+.Xr pthread_cond_broadcast 3 ,
+.Xr pthread_cond_destroy 3 ,
+.Xr pthread_cond_init 3 ,
+.Xr pthread_cond_timedwait 3 ,
+.Xr pthread_cond_wait 3
+.Sh STANDARDS
+The
+.Fn pthread_cond_signal
+function conforms to
+.St -p1003.1-96 .

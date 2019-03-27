@@ -1,0 +1,6 @@
+include window
+input "input\n"
+call2 OK "input" wgetstr $win1
+compare wgetstr.chk
+call OK wrefresh $win1
+compare wgetstr_refresh.chk

@@ -1,0 +1,177 @@
+.\" Copyright (c) 2011 The University of Melbourne
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Julien Ridoux at the University of
+.\" Melbourne under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 21, 2011
+.Dt FFCLOCK 2
+.Os
+.Sh NAME
+.Nm ffclock_getcounter ,
+.Nm ffclock_getestimate ,
+.Nm ffclock_setestimate
+.Nd Retrieve feed-forward counter, get and set feed-forward clock estimates
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/timeffc.h
+.Ft int
+.Fn ffclock_getcounter "ffcounter *ffcount"
+.Ft int
+.Fn ffclock_getestimate "struct ffclock_estimate *cest"
+.Ft int
+.Fn ffclock_setestimate "struct ffclock_estimate *cest"
+.Sh DESCRIPTION
+The ffclock is an alternative method to synchronise the system clock.
+The ffclock implements a feed-forward paradigm and decouples the timestamping
+and timekeeping kernel functions.
+This ensures that past clock errors do not affect current timekeeping, an
+approach radically different from the feedback alternative implemented by the
+ntpd daemon when adjusting the system clock.
+The feed-forward approach has demonstrated better performance and higher
+robustness than a feedback approach when synchronising over the network.
+.Pp
+In the feed-forward context, a
+.Em timestamp
+is a cumulative value of the ticks of the timecounter, which can be converted
+into seconds by using the feed-forward
+.Em clock estimates .
+.Pp
+The
+.Fn ffclock_getcounter
+system call allows the calling process to retrieve the current value of the
+feed-forward counter maintained by the kernel.
+.Pp
+The
+.Fn ffclock_getestimate
+and
+.Fn ffclock_setestimate
+system calls allow the caller to get and set the kernel's feed-forward clock
+parameter estimates respectively.
+The
+.Fn ffclock_setestimate
+system call should be invoked by a single instance of a feed-forward
+synchronisation daemon.
+The
+.Fn ffclock_getestimate
+system call can be called by any process to retrieve the feed-forward clock
+estimates.
+.Pp
+The feed-forward approach does not require that the clock estimates be retrieved
+every time a timestamp is to be converted into seconds.
+The number of system calls can therefore be greatly reduced if the calling
+process retrieves the clock estimates from the clock synchronisation daemon
+instead.
+The
+.Fn ffclock_getestimate
+must be used when the feed-forward synchronisation daemon is not running
+.Po see
+.Sx USAGE
+below
+.Pc .
+.Pp
+The clock parameter estimates structure pointed to by
+.Fa cest
+is defined in
+.In sys/timeffc.h
+as:
+.Bd -literal
+struct ffclock_estimate {
+	struct bintime update_time;    /* Time of last estimates update. */
+	ffcounter      update_ffcount; /* Counter value at last update. */
+	ffcounter      leapsec_next;   /* Counter value of next leap second. */
+	uint64_t       period;         /* Estimate of counter period. */
+	uint32_t       errb_abs;       /* Bound on absolute clock error [ns]. */
+	uint32_t       errb_rate;      /* Bound on counter rate error [ps/s]. */
+	uint32_t       status;         /* Clock status. */
+	int16_t        leapsec_total;  /* All leap seconds seen so far. */
+	int8_t         leapsec;        /* Next leap second (in {-1,0,1}). */
+};
+.Ed
+.Pp
+Only the super-user may set the feed-forward clock estimates.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The following error codes may be set in
+.Va errno :
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The
+.Fa ffcount
+or
+.Fa cest
+pointer referenced invalid memory.
+.It Bq Er EPERM
+A user other than the super-user attempted to set the feed-forward clock
+parameter estimates.
+.El
+.Sh USAGE
+The feed-forward paradigm enables the definition of specialised clock functions.
+.Pp
+In its simplest form,
+.Fn ffclock_getcounter
+can be used to establish strict order between events or to measure small time
+intervals very accurately with a minimum performance cost.
+.Pp
+Different methods exist to access absolute time
+.Po or
+.Qq wall-clock time
+.Pc tracked by the ffclock.
+The simplest method uses the ffclock sysctl interface
+.Va kern.ffclock
+to make the system clock return the ffclock time.
+The
+.Xr clock_gettime 2
+system call can then be used to retrieve the current time seen by the
+feed-forward clock.
+Note that this setting affects the entire system and that a feed-forward
+synchronisation daemon should be running.
+.Pp
+A less automated method consists of retrieving the feed-forward counter
+timestamp from the kernel and using the feed-forward clock parameter estimates
+to convert the timestamp into seconds.
+The feed-forward clock parameter estimates can be retrieved from the kernel or
+from the synchronisation daemon directly (preferred).
+This method allows converting timestamps using different clock models as needed
+by the application, while collecting meaningful upper bounds on current clock
+error.
+.Sh SEE ALSO
+.Xr date 1 ,
+.Xr adjtime 2 ,
+.Xr clock_gettime 2 ,
+.Xr ctime 3
+.Sh HISTORY
+Feed-forward clock support first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An -nosplit
+The feed-forward clock support was written by
+.An Julien Ridoux Aq Mt jridoux@unimelb.edu.au
+in collaboration with
+.An Darryl Veitch Aq Mt dveitch@unimelb.edu.au
+at the University of Melbourne under sponsorship from the FreeBSD Foundation.

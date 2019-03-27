@@ -1,0 +1,134 @@
+.\" Copyright (c) 2007-2008, Chelsio Inc
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Chelsio Inc nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 14, 2007
+.Dt CXGB 4
+.Os
+.Sh NAME
+.Nm cxgb
+.Nd "Chelsio T3 10 Gigabit Ethernet adapter driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device firmware"
+.Cd "device cxgb"
+.Ed
+.Pp
+To load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_cxgb_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Transmit/Receive checksum offload,
+Jumbo Frames, TCP segmentation offload (TSO), Large Receive Offload (LRO),
+VLAN hardware insertion / extraction, and VLAN checksum offload.
+For further hardware information, see
+.Pa http://www.chelsio.com/ .
+.Pp
+For questions related to hardware requirements,
+refer to the documentation supplied with your Chelsio T3 adapter.
+All hardware requirements listed apply to use with
+.Fx .
+.Pp
+Support for Jumbo Frames is provided via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit Jumbo Frames.
+The maximum MTU size for Jumbo Frames is 9000.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports 10 Gigabit and 1 Gigabit Ethernet adapters based on the T3 and T3B chipset:
+.Pp
+.Bl -bullet -compact
+.It
+Chelsio 10GBase-CX4
+.It
+Chelsio 10GBase-LR
+.It
+Chelsio 10GBase-SR
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "cxgb%d: Unable to allocate bus resource: memory"
+A fatal initialization error has occurred.
+.It "cxgb%d: Unable to allocate bus resource: interrupt"
+A fatal initialization error has occurred.
+.It "cxgb%d: Could not find firmware image %s"
+The appropriate firmware kld module was not installed.
+This is a fatal initialization error.
+.El
+.Sh SUPPORT
+For general information and support,
+go to the Chelsio support website at:
+.Pa http://www.chelsio.com/ .
+.Pp
+If an issue is identified with the released source code on the supported kernel
+with a supported adapter, email the specific information related to the
+issue to
+.Aq Mt support@chelsio.com .
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 6.3
+and
+.Fx 7.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Kip Macy Aq Mt kmacy@FreeBSD.org
+with substantial support from
+.An Scott Long Aq Mt scottl@FreeBSD.org .

@@ -1,0 +1,53 @@
+.\" @(#)publickey.3r	2.1 88/08/07 4.0 RPCSRC
+.\" $FreeBSD$
+.\"
+.Dd October 6, 1987
+.Dt PUBLICKEY 3
+.Os
+.Sh NAME
+.Nm publickey , getpublickey , getsecretkey
+.Nd "get public or secret key"
+.Sh LIBRARY
+.Lb librpcsvc
+.Sh SYNOPSIS
+.In rpc/rpc.h
+.In rpc/key_prot.h
+.Ft int
+.Fo getpublickey
+.Fa "const char netname[MAXNETNAMELEN+1]"
+.Fa "char publickey[HEXKEYBYTES+1]"
+.Fc
+.Ft int
+.Fo getsecretkey
+.Fa "char netname[MAXNETNAMELEN+1]"
+.Fa "char secretkey[HEXKEYBYTES+1]"
+.Fa "char *passwd"
+.Fc
+.Sh DESCRIPTION
+These routines are used to get public and secret keys from the
+.Tn YP
+database.
+The
+.Fn getsecretkey
+function
+has an extra argument,
+.Fa passwd ,
+which is used to decrypt the encrypted secret key stored in the database.
+Both routines return 1 if they are successful in finding the key, 0 otherwise.
+The keys are returned as
+.Dv NUL Ns \-terminated ,
+hexadecimal strings.
+If the password supplied to
+.Fn getsecretkey
+fails to decrypt the secret key, the routine will return 1 but the
+.Fa secretkey
+argument will be a
+.Dv NUL
+string
+.Pq Dq .
+.Sh SEE ALSO
+.Xr publickey 5
+.Pp
+.%T "RPC Programmer's Manual"
+in
+.Pa /usr/share/doc/psd/23.rpc .

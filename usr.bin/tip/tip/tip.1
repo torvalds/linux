@@ -1,0 +1,608 @@
+.\"	$OpenBSD: tip.1,v 1.37 2006/06/07 06:35:59 mbalmer Exp $
+.\"	$NetBSD: tip.1,v 1.7 1994/12/08 09:31:05 jtc Exp $
+.\"
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)tip.1	8.4 (Berkeley) 4/18/94
+.\" $FreeBSD$
+.\"
+.Dd April 28, 2018
+.Dt TIP 1
+.Os
+.Sh NAME
+.Nm tip
+.Nd connect to a remote system
+.Sh SYNOPSIS
+.Nm
+.Op Fl nv
+.Op Fl Ar speed
+.Op Ar system-name
+.Sh DESCRIPTION
+The
+.Nm
+utility
+establishes a full-duplex connection to another machine, giving the
+appearance of being logged in directly on the remote CPU.
+It goes without saying that you must have a login on the machine (or
+equivalent) to which you wish to connect.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl n
+No escape (disable tilde).
+.It Fl v
+Set verbose mode.
+.El
+.Pp
+If
+.Ar speed
+is specified, it will override any baudrate specified in the system
+description being used.
+.Pp
+If neither
+.Ar speed
+nor
+.Ar system-name
+are specified,
+.Ar system-name
+will be set to the value of the
+.Ev HOST
+environment variable.
+.Pp
+If
+.Ar speed
+is specified but
+.Ar system-name
+is not,
+.Ar system-name
+will be set to a value of
+.Dq Li tip
+with
+.Ar speed
+appended.
+For example,
+.Nm Fl 1200
+will set
+.Ar system-name
+to
+.Dq Li tip1200 .
+.Pp
+Typed characters are normally transmitted directly to the remote
+machine (which does the echoing as well).
+A tilde
+.Pq Ql ~
+appearing as the first character of a line is an escape signal; the
+following are recognized:
+.Bl -tag -width indent
+.It Ic ~^D No or Ic ~.
+Drop the connection and exit.
+Only the connection is dropped \(en the login session is not terminated.
+.It Ic ~c Op Ar name
+Change directory to
+.Ar name
+(no argument implies change to home directory).
+.It Ic ~!
+Escape to a shell (exiting the shell will return to
+.Nm ) .
+.It Ic ~>
+Copy file from local to remote.
+The
+.Nm
+utility
+prompts for the name of a local file to transmit.
+.It Ic ~<
+Copy file from remote to local.
+The
+.Nm
+utility
+prompts first for the name of the file to be sent, then for a command
+to be executed on the remote machine.
+.It Ic ~p Ar from Op Ar to
+Send a file to a remote
+.Ux
+host.
+This command causes the remote
+.Ux
+system to run the following command string,
+sending it the
+.Ar from
+file:
+.Pp
+.Dl "stty -echo; cat > 'to'; stty echo"
+.Pp
+If the
+.Ar to
+file is not specified, the
+.Ar from
+file name is used.
+This command is actually a
+.Ux
+specific version of the
+.Ic ~>
+command.
+.It Ic ~t Ar from Op Ar to
+Take a file from a remote
+.Ux
+host.
+As in the
+.Ic ~p
+command, the
+.Ar to
+file defaults to the
+.Ar from
+file name if it is not specified.
+The remote host executes the following command string
+to send the file to
+.Nm :
+.Pp
+.Dl "cat 'from'; echo '' | tr '\e012' '\e01'"
+.It Ic ~|
+Pipe the output from a remote command to a local
+.Ux
+process.
+The command string sent to the local
+.Ux
+system is processed by the shell.
+.It Ic ~$
+Pipe the output from a local
+.Ux
+process to the remote host.
+The command string sent to the local
+.Ux
+system is processed by the shell.
+.It Ic ~C
+Fork a child process on the local system to perform special protocols
+such as
+.Tn XMODEM .
+The child program will be run with the following arrangement of
+file descriptors:
+.Bd -literal -offset indent
+0 <-> remote tty in
+1 <-> remote tty out
+2 <-> local tty stderr
+.Ed
+.It Ic ~#
+Send a
+.Dv BREAK
+to the remote system.
+For systems which do not support the necessary
+.Fn ioctl
+call, the break is simulated by a sequence of line speed changes and
+.Dv DEL
+characters.
+.It Ic ~s
+Set a variable (see the discussion below).
+.It Ic ~v
+List all variables and their values (if set).
+.It Ic ~^Z
+Stop
+.Nm
+(only available with job control).
+.It Ic ~^Y
+Stop only the
+.Dq "local side"
+of
+.Nm
+(only available with job control); the
+.Dq "remote side"
+of
+.Nm ,
+the side that displays output from the remote host, is left running.
+.It Ic ~?
+Get a summary of the tilde escapes.
+.El
+.Pp
+To find the system description, and thus the operating characteristics
+of
+.Ar system-name ,
+.Nm
+searches for a system description with a name identical to
+.Ar system-name .
+The search order is as follows:
+.Bl -enum -offset indent
+.It
+If the environment variable
+.Ev REMOTE
+does not start with a
+.Ql /
+it is assumed to be a system description, and is considered first.
+.It
+If the environment variable
+.Ev REMOTE
+begins with a
+.Ql /
+it is assumed to be a path to a
+.Xr remote 5
+database, and the specified database is searched.
+.It
+The default
+.Xr remote 5
+database,
+.Pa /etc/remote ,
+is searched.
+.El
+.Pp
+See
+.Xr remote 5
+for full documentation on system descriptions.
+.Pp
+The
+.Va br
+capability is used in system descriptions to specify the baud rate
+with which to establish a connection.
+If the value specified is not suitable, the baud rate to be used may
+be given on the command line, e.g.\&
+.Dq Li "tip -300 mds" .
+.Pp
+When
+.Nm
+establishes a connection, it sends out the connection message
+specified in the
+.Va cm
+capability of the system description being used.
+.Pp
+When
+.Nm
+prompts for an argument, for example during setup of a file transfer, the
+line typed may be edited with the standard erase and kill characters.
+A null line in response to a prompt, or an interrupt, will abort the
+dialogue and return the user to the remote machine.
+.Pp
+The
+.Nm
+utility
+guards against multiple users connecting to a remote system by opening
+modems and terminal lines with exclusive access, and by honoring the
+locking protocol used by
+.Xr uucico 8 Pq Pa ports/net/freebsd-uucp .
+.Pp
+During file transfers
+.Nm
+provides a running count of the number of lines transferred.
+When using the
+.Ic ~>
+and
+.Ic ~<
+commands, the
+.Va eofread
+and
+.Va eofwrite
+variables are used to recognize end-of-file when reading, and specify
+end-of-file when writing (see below).
+File transfers normally depend on hardwareflow or tandem mode for flow control.
+If the remote system does not support hardwareflow or tandem mode,
+.Va echocheck
+may be set to indicate that
+.Nm
+should synchronize with the remote system on the echo of each
+transmitted character.
+.Pp
+When
+.Nm
+must dial a phone number to connect to a system, it will print various
+messages indicating its actions.
+The
+.Nm
+utility
+supports a variety of auto-call units and modems with the
+.Va at
+capability in system descriptions.
+.Pp
+Support for Ventel 212+ (ventel), Hayes AT-style (hayes),
+USRobotics Courier (courier), Telebit T3000 (t3000) and
+Racal-Vadic 831 (vadic) units is enabled by default.
+.Pp
+Support for Bizcomp 1031[fw] (biz31[fw]), Bizcomp 1022[fw]
+(biz22[fw]), DEC DF0[23]-AC (df0[23]), DEC DN-11 (dn11) and
+Racal-Vadic 3451 (v3451) units can be added by recompiling
+.Nm
+with the appropriate defines.
+.Pp
+Note that if support for both the Racal-Vadic 831 and 3451 is enabled,
+they are referred to as the v831 and v3451, respectively.
+If only one of the two is supported, it is referred to as vadic.
+.Ss Variables
+The
+.Nm
+utility
+maintains a set of variables which control its operation.
+Some of these variables are read-only to normal users (root is allowed
+to change anything of interest).
+Variables may be displayed and set through the
+.Ic ~s
+escape.
+The syntax for variables is patterned after
+.Xr vi 1
+and
+.Xr Mail 1 .
+Supplying
+.Dq Li all
+as an argument to the set command displays all variables readable by
+the user.
+Alternatively, the user may request display of a particular variable
+by attaching a
+.Ql \&?
+to the end.
+For example,
+.Dq Li escape?
+displays the current escape character.
+.Pp
+Variables are numeric, string, character, or boolean values.
+Boolean variables are set merely by specifying their name; they may be
+reset by prepending a
+.Ql \&!
+to the name.
+Other variable types are set by concatenating an
+.Ql =
+and the value.
+The entire assignment must not have any blanks in it.
+A single set command may be used to interrogate as well as set a
+number of variables.
+Variables may be initialized at run time by placing set commands
+(without the
+.Ic ~s
+prefix) in the initialization file
+.Pa ~/.tiprc ;
+the
+.Fl v
+option additionally causes
+.Nm
+to display the sets as they are made.
+Certain common variables have abbreviations.
+The following is a list of common variables, their abbreviations, and
+their default values:
+.Bl -tag -width indent
+.It Va baudrate
+.Pq Vt num
+The baud rate at which the connection was established;
+abbreviated
+.Va ba .
+.It Va beautify
+.Pq Vt bool
+Discard unprintable characters when a session is being
+scripted; abbreviated
+.Va be .
+.It Va dialtimeout
+.Pq Vt num
+When dialing a phone number, the time (in seconds) to wait for a
+connection to be established; abbreviated
+.Va dial .
+.It Va echocheck
+.Pq Vt bool
+Synchronize with the remote host during file transfer by
+waiting for the echo of the last character transmitted; default is
+.Cm off .
+.It Va eofread
+.Pq Vt str
+The set of characters which signify an end-of-transmission
+during a
+.Ic ~<
+file transfer command; abbreviated
+.Va eofr .
+.It Va eofwrite
+.Pq Vt str
+The string sent to indicate end-of-transmission during a
+.Ic ~>
+file transfer command; abbreviated
+.Va eofw .
+.It Va eol
+.Pq Vt str
+The set of characters which indicate an end-of-line.
+The
+.Nm
+utility
+will recognize escape characters only after an end-of-line.
+.It Va escape
+.Pq Vt char
+The command prefix (escape) character; abbreviated
+.Va es ;
+default value is
+.Ql ~ .
+.It Va exceptions
+.Pq Vt str
+The set of characters which should not be discarded due to the
+beautification switch; abbreviated
+.Va ex ;
+default value is
+.Dq Li \et\en\ef\eb .
+.It Va force
+.Pq Vt char
+The character used to force literal data transmission;
+abbreviated
+.Va fo ;
+default value is
+.Ql ^P .
+.It Va framesize
+.Pq Vt num
+The amount of data (in bytes) to buffer between file system
+writes when receiving files; abbreviated
+.Va fr .
+.It Va hardwareflow
+.Pq Vt bool
+Whether hardware flow control (CRTSCTS) is enabled for the
+connection; abbreviated
+.Va hf ;
+default value is
+.Cm off .
+.It Va host
+.Pq Vt str
+The name of the host to which you are connected; abbreviated
+.Va ho .
+.It Va linedisc
+.Pq Vt num
+The line discipline to use; abbreviated
+.Va ld .
+.It Va prompt
+.Pq Vt char
+The character which indicates an end-of-line on the remote
+host; abbreviated
+.Va pr ;
+default value is
+.Ql \en .
+This value is used to synchronize during data transfers.
+The count of lines transferred during a file transfer command is based
+on receipt of this character.
+.It Va raise
+.Pq Vt bool
+Upper case mapping mode; abbreviated
+.Va ra ;
+default value is
+.Cm off .
+When this mode is enabled, all lowercase letters will be mapped to
+uppercase by
+.Nm
+for transmission to the remote machine.
+.It Va raisechar
+.Pq Vt char
+The input character used to toggle uppercase mapping mode;
+abbreviated
+.Va rc ;
+not set by default.
+.It Va record
+.Pq Vt str
+The name of the file in which a session script is recorded;
+abbreviated
+.Va rec ;
+default value is
+.Pa tip.record .
+.It Va script
+.Pq Vt bool
+Session scripting mode; abbreviated
+.Va sc ;
+default is
+.Cm off .
+When
+.Va script
+is
+.Cm true ,
+.Nm
+will record everything transmitted by the remote machine in the script
+record file specified in
+.Va record .
+If the
+.Va beautify
+switch is on, only printable
+.Tn ASCII
+characters will be included in the script file (those characters
+between 040 and 0177).
+The variable
+.Va exceptions
+is used to indicate characters which are an exception to the normal
+beautification rules.
+.It Va tabexpand
+.Pq Vt bool
+Expand tabs to spaces during file transfers; abbreviated
+.Va tab ;
+default value is
+.Cm false .
+Each tab is expanded to 8 spaces.
+.It Va tandem
+.Pq Vt bool
+Use XON/XOFF flow control to throttle data from the remote host;
+abbreviated
+.Va ta .
+The default value is
+.Cm true
+unless the
+.Va nt
+capability has been specified in
+.Pa /etc/remote ,
+in which case the default value is
+.Cm false .
+.It Va verbose
+.Pq Vt bool
+Verbose mode; abbreviated
+.Va verb ;
+default is
+.Cm true .
+When verbose mode is enabled,
+.Nm
+prints messages while dialing, shows the current number of lines
+transferred during a file transfer operations, and more.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width indent
+.It Ev HOME
+The home directory to use for the
+.Ic ~c
+command.
+.It Ev HOST
+The default value for
+.Ar system-name
+if none is specified via the command line.
+.It Ev PHONES
+A path to a
+.Xr phones 5
+database.
+.It Ev REMOTE
+A system description, or an absolute path to a
+.Xr remote 5
+system description database.
+.It Ev SHELL
+The name of the shell to use for the
+.Ic ~!
+command; default value is
+.Dq Li /bin/sh .
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /var/spool/lock/LCK..*" -compact
+.It Pa ~/.tiprc
+initialization file
+.It Pa tip.record
+record file
+.It Pa /etc/phones
+default
+.Xr phones 5
+file
+.It Pa /etc/remote
+global
+.Xr remote 5
+database
+.It Pa /var/log/aculog
+line access log
+.It Pa /var/spool/lock/LCK..*
+lock file to avoid conflicts with
+.Xr uucp 1 Pq Pa ports/net/freebsd-uucp
+.El
+.Sh EXAMPLES
+Connect to the first USB serial port at the speed of 115200 baud:
+.Bd -literal -offset indent
+tip ucom1 -115200
+.Ed
+.Sh SEE ALSO
+.Xr cu 1 ,
+.Xr phones 5 ,
+.Xr remote 5
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .
+.Sh BUGS
+The full set of variables is undocumented and should, probably, be
+pared down.

@@ -1,0 +1,46 @@
+# $FreeBSD$
+
+arm/broadcom/bcm2835/bcm2835_bsc.c		optional bcm2835_bsc
+arm/broadcom/bcm2835/bcm2835_cpufreq.c		standard
+arm/broadcom/bcm2835/bcm2835_dma.c		standard
+arm/broadcom/bcm2835/bcm2835_fb.c		optional sc
+arm/broadcom/bcm2835/bcm2835_fbd.c		optional vt
+arm/broadcom/bcm2835/bcm2835_ft5406.c		optional evdev bcm2835_ft5406
+arm/broadcom/bcm2835/bcm2835_gpio.c		optional gpio
+arm/broadcom/bcm2835/bcm2835_intr.c		standard
+arm/broadcom/bcm2835/bcm2835_machdep.c		optional platform
+arm/broadcom/bcm2835/bcm2835_mbox.c		standard
+arm/broadcom/bcm2835/bcm2835_rng.c		optional random
+arm/broadcom/bcm2835/bcm2835_sdhci.c		optional sdhci
+arm/broadcom/bcm2835/bcm2835_sdhost.c		optional sdhci
+arm/broadcom/bcm2835/bcm2835_spi.c		optional bcm2835_spi
+arm/broadcom/bcm2835/bcm2835_vcio.c		standard
+arm/broadcom/bcm2835/bcm2835_wdog.c		standard
+arm/broadcom/bcm2835/bcm283x_dwc_fdt.c		optional dwcotg fdt
+
+kern/kern_clocksource.c                         standard
+
+dev/mbox/mbox_if.m				standard
+
+arm/broadcom/bcm2835/bcm2835_audio.c		optional sound vchiq \
+	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+
+# VideoCore driver
+contrib/vchiq/interface/compat/vchi_bsd.c	optional vchiq \
+	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+contrib/vchiq/interface/vchiq_arm/vchiq_2835_arm.c	optional vchiq \
+	compile-with "${NORMAL_C} -Wno-unused -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+contrib/vchiq/interface/vchiq_arm/vchiq_arm.c	optional vchiq \
+	compile-with "${NORMAL_C} -Wno-unused -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+contrib/vchiq/interface/vchiq_arm/vchiq_connected.c	optional vchiq \
+	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+contrib/vchiq/interface/vchiq_arm/vchiq_core.c	optional vchiq \
+	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+contrib/vchiq/interface/vchiq_arm/vchiq_kern_lib.c	optional vchiq \
+	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+contrib/vchiq/interface/vchiq_arm/vchiq_kmod.c	optional vchiq \
+	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+contrib/vchiq/interface/vchiq_arm/vchiq_shim.c	optional vchiq \
+	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
+contrib/vchiq/interface/vchiq_arm/vchiq_util.c	optional vchiq \
+	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"

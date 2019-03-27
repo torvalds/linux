@@ -1,0 +1,20 @@
+#
+# Error messages for the k524 functions
+#
+# This might look like a com_err file, but is not
+#
+id "$Id$"
+
+error_table k524
+
+prefix KRB524
+error_code BADKEY,		"wrong keytype in ticket"
+error_code BADADDR,		"incorrect network address"
+error_code BADPRINC,		"cannot convert V5 principal"		#unused
+error_code BADREALM,		"V5 realm name longer than V4 maximum"	#unused
+error_code V4ERR,		"kerberos V4 error server"
+error_code ENCFULL,		"encoding too large at server"
+error_code DECEMPTY,		"decoding out of data"			#unused
+error_code NOTRESP,		"service not responding"		#unused
+end
+

@@ -1,0 +1,1948 @@
+2005-04-13  H.J. Lu  <hongjiu.lu@intel.com>
+
+	Moved from ../ChangeLog
+
+	2003-10-14  Bob Wilson  <bob.wilson@acm.org>
+	* xtensa.h: Formatting.  Fix comments about property section
+	names for linkonce sections.
+
+	2003-05-23  Jakub Jelinek  <jakub@redhat.com>
+	* common.h (PT_GNU_STACK): Define.
+
+	2003-01-25  Jakub Jelinek  <jakub@redhat.com>
+	* sparc.h: Add TLS relocs.  Move R_SPARC_REV32 to 252.
+
+	2002-09-26  Jakub Jelinek  <jakub@redhat.com>
+	* x86-64.h: Add TLS relocs.
+
+	2002-09-19  Jakub Jelinek  <jakub@redhat.com>
+	* i386.h (R_386_TLS_TPOFF, R_386_TLS_IE, R_386_TLS_GOTIE):
+	Define.
+
+	2002-07-10  Jakub Jelinek  <jakub@redhat.com>
+	* common.h (SHT_GNU_LIBLIST, DT_GNU_PRELINKED,
+	DT_GNU_CONFLICT*, DT_GNU_LIBLIST*): Define.
+
+	2002-05-31  Michal Ludvig  <mludvig@suse.cz>
+	* dwarf2.h (DW_CFA_low_user, DW_CFA_high_user): Renamed
+	to DW_CFA_lo_user, DW_CFA_hi_user respectively.
+
+	2002-05-23  Jakub Jelinek  <jakub@redhat.com>
+	* common.h (PT_TLS, SHF_TLS, STT_TLS, DF_STATIC_TLS): Define.
+	* ia64.h (R_IA64_LTOFF_TPREL22): Renamed from R_IA64_LTOFF_TP22.
+	* i386.h: Add TLS relocs.
+
+2003-12-19  Kazuhiro Inaoka  <inaoka.kazuhiro@renesas.com>
+
+	* m32r.h : Added m32r-linux and PIC support.  Add new ABI that
+	uses RELA.
+	(R_M32R_16_RELA, R_M32R_32_RELA, R_M32R_24_RELA,
+	R_M32R_10_PCREL_RELA, R_M32R_18_PCREL_RELA,
+	R_M32R_26_PCREL_RELA, R_M32R_HI16_ULO_RELA,
+	R_M32R_HI16_SLO_RELA, R_M32R_LO16_RELA,
+	R_M32R_SDA16_RELA, R_M32R_RELA_GNU_VTINHERIT,
+	R_M32R_RELA_GNU_VTENTRY, R_M32R_GOT24,
+	R_M32R_26_PLTREL, R_M32R_COPY, R_M32R_GLOB_DAT,
+	R_M32R_JMP_SLOT, R_M32R_RELATIVE, R_M32R_GOTOFF,
+	R_M32R_GOTPC24, R_M32R_GOT16_HI_ULO,
+	R_M32R_GOT16_HI_SLO, R_M32R_GOT16_LO,
+	R_M32R_GOTPC_HI_ULO, R_M32R_GOTPC_HI_SLO,
+	R_M32R_GOTPC_LO): New relocs.
+
+2003-12-06  Alan Modra  <amodra@bigpond.net.au>
+
+	From Jan Beulich <JBeulich@novell.com>
+	* common.h (DT_HIOS): Correct value.
+
+2003-12-03   Kazuhiro Inaoka  <inaoka.kazuhiro@renesas.com>
+
+	* m32r.h: Add new machine type m32r2 and instruction modes.
+
+2003-11-06  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc.h (R_PPC_RELAX32PC): Define.
+
+2003-10-22  Alexandre Oliva  <aoliva@redhat.com>,
+	    Michael Snyder  <msnyder@redhat.com>
+
+	* sh.h (EF_SH4A, EF_SH4AL_DSP, EF_SH4_NOFPU, EF_SH4A_NOFPU): New.
+	(EF_SH_MERGE_MACH): Combine them.
+
+2003-10-18  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* mmix.h (R_MMIX_PUSHJ_STUBBABLE): New reloc number.
+	(_bfd_mmix_before_linker_allocation): Rename from
+	_bfd_mmix_prepare_linker_allocated_gregs.
+	(_bfd_mmix_after_linker_allocation): Rename from
+	_bfd_mmix_finalize_linker_allocated_gregs.
+
+2003-10-06  Dave Brolley  <brolley@redhat.com>
+
+	* frv.h (EF_FRV_CPU_FR550): New macro.
+
+2003-09-30  Chris Demetriou  <cgd@broadcom.com>
+
+	* mips.h (E_MIPS_ARCH_64R2): New define.
+
+2003-09-23  DJ Delorie  <dj@redhat.com>
+
+	* sh.h (R_SH_SWITCH8, R_SH_GNU_VTINHERIT, R_SH_GNU_VTENTRY,
+	R_SH_LOOP_START,R_SH_LOOP_END): Move to "reserved" spaces.
+	(R_SH_DIR16, R_SH_DIR8, R_SH_DIR8UL, R_SH_DIR8UW, R_SH_DIR8U,
+	R_SH_DIR8SW, R_SH_DIR8S, R_SH_DIR4UL, R_SH_DIR4UW, R_SH_DIR4U,
+	R_SH_PSHA, R_SH_PSHL): New.
+
+2003-09-11  James Cownie <jcownie@etnus.com>
+
+	* dwarf2.h: Add HP dwarf extensions from their hacked gdb
+	header files (ftp://ftp.hp.com/pub/lang/tools/WDB/wdb-4.0.tar.gz).
+
+2003-09-04  Nick Clifton  <nickc@redhat.com>
+
+	* v850.h (E_V850E1_ARCH): Define.
+
+2003-08-21  James Cownie <jcownie@etnus.com>
+
+	* dwarf2.h: Add PGI dwarf extensions.
+
+2003-08-08 Dmitry Diky <diwil@mail.ru>
+
+	* msp430.h: Add xW42 and xE42 parts. Sort MPU list according to
+	gcc order.
+
+2003-08-07  Alan Modra  <amodra@bigpond.net.au>
+
+	* reloc-macros.h (START_RELOC_NUMBERS) : Remove PARAMS macro.  Use
+	C90 function definition.  Formatting.
+	(RELOC_NUMBER): Remove !__STDC__ code.
+
+2003-07-28  Eric Christopher  <echristo@redhat.com>
+
+	* ppc.h (R_PPC_RELAX32): New. Fake relocation.
+
+2003-07-25  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* v850.h (SHF_V850_GPREL): New.
+	(SHF_V850_EPREL): Likewise.
+	(SHF_V850_R0REL): Likewise.
+
+2003-07-09  Alexandre Oliva  <aoliva@redhat.com>
+
+	2001-05-16  Alexandre Oliva  <aoliva@redhat.com>
+	* mn10300.h: Introduce GOTPC16, GOTOFF24, GOTOFF16 and
+	PLT16, and rename GOTPC to GOTPC32 and GOTOFF to GOTOFF32.
+	Renumbered all relocs.
+	2001-04-12  Alexandre Oliva  <aoliva@redhat.com>
+	* mn10300.h (R_MN10300_GOTPC, R_MN10300_GOTOFF,
+	R_MN10300_PLT32, R_MN10300_GOT32, R_MN10300_GOT24,
+	R_MN10300_GOT16, R_MN10300_COPY, R_MN10300_GLOB_DAT,
+	R_MN10300_JMP_SLOT, R_MN10300_RELATIVE): New relocs.
+
+2003-07-09  Alexandre Oliva  <aoliva@redhat.com>
+
+	2000-04-01  Alexandre Oliva  <aoliva@cygnus.com>
+	* mn10300.h (E_MN10300_MACH_AM33_2): Renamed from
+	E_MN10300_MACH_AM332.
+	2000-03-31  Alexandre Oliva  <aoliva@cygnus.com>
+	* mn10300.h (E_MN10300_MACH_AM332): Defined.
+
+2003-07-01  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+
+	* s390.h (elf_s390_reloc_type): Add long displacement relocations
+	R_390_20, R_390_GOT20, R_390_GOTPLT20 and R_390_TLS_GOTIE20.
+
+2003-06-29  Andreas Jaeger  <aj@suse.de>
+
+	* mmix.h: Convert to ISO C90 prototypes.
+	* mips.h: Likewise.
+
+2003-06-13  Robert Millan <zeratul2@wanadoo.es>
+
+	* common.h (GNU_ABI_TAG_NETBSD): New tag.
+	(GNU_ABI_TAG_FREEBSD): New tag.
+
+2003-06-10  Richard Sandiford  <rsandifo@redhat.com>
+
+	* h8.h (E_H8_MACH_H8300SXN): New flag.
+
+2003-06-03  Nick Clifton  <nickc@redhat.com>
+
+	* v850.h (R_V850_32): Rename to R_V850_ABS32.
+	Add R_V850_REL32.
+
+2003-05-15  Roland McGrath  <roland@redhat.com>
+
+	* common.h (NT_AUXV, AT_*): New macros.
+	* external.h (Elf32_External_Auxv, Elf64_External_Auxv): New types.
+	* internal.h (Elf_Internal_Auxv): New type.
+
+2003-05-14  Michael Snyder  <msnyder@redhat.com>
+	From  Bernd Schmidt  <bernds@redhat.com>
+	* h8.h (E_H8_MACH_H8300SX): New.
+
+2003-04-24 Dhananjay Deshpande <dhananjayd@kpitcummins.com>
+
+	* h8.h (E_H8_MACH_H8300HN, E_H8_MACH_H8300SN): New
+
+2003-04-23  J"orn Rennecke <joern.rennecke@superh.com>
+
+	* common.h (EM_SH): Amend comment to refer to SuperH.
+
+2003-04-22  Kazuhiro Inaoka  <inaoka.kazuhiro@renesas.com>
+
+	* common.h: Replace references to Mitsubishi M32R with
+	references to Renesas M32R.
+
+2003-04-15  Rohit Kumar Srivastava <rohits@kpitcummins.com>
+
+	* common.h: Replace occurrances of 'Hitachi' with 'Renesas'.
+
+2003-04-01  Bob Wilson  <bob.wilson@acm.org>
+
+	* common.h (EM_XTENSA_OLD): Define.
+	* xtensa.h: New file.
+
+2003-04-01  Nick Clifton  <nickc@redhat.com>
+
+	* arm.h (ARM_NOTE_SECTION): Include .gnu in the string.
+
+2003-03-25  Stan Cox   <scox@redhat.com>
+	    Nick Clifton  <nickc@redhat.com>
+
+	Contribute support for Intel's iWMMXt chip - an	ARM variant:
+
+	* arm.h (ARM_NOTE_SECTION): Define.
+
+2003-03-03  J"orn Rennecke <joern.rennecke@superh.com>
+
+	* sh.h (EF_SH_MERGE_MACH): Make sure SH2E & SH3/SH3E merge to SH3E,
+	and SH2E & SH4 merge to SH4, not SH2E.
+
+2003-02-21  Ian Wienand  <ianw@gelato.unsw.edu.au>
+
+	* ia64.h (SHT_IA_64_LOPSREG, SHT_IA_64_HIPSREG,
+	SHT_IA_64_PRIORITY_INIT): Define.
+
+2003-02-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc64.h (IS_PPC64_TLS_RELOC): Rename from IS_TLS_RELOC.
+
+	* ppc.h: Replace DTPMOD64, TPREL64, DTPREL64 with DTPMOD32 etc.
+	(IS_PPC_TLS_RELOC): Define.
+
+2003-02-10  Nick Clifton  <nickc@redhat.com>
+
+	* arm.h (EF_ARM_MAVERICK_FLOAT): Define.
+
+2003-02-05  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc.h: Add TLS relocs.  Format.
+	* ppc64.h: Likewise.
+
+2003-01-27  Alexandre Oliva  <aoliva@redhat.com>
+
+	* mips.h (EF_MIPS_XGOT): Define.
+
+2003-01-24  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+
+	* s390.h: Add s390 TLS relocations.
+
+2003-01-23  Nick Clifton  <nickc@redhat.com>
+
+	* Add sh2e support:
+
+	2002-04-02  Alexandre Oliva  <aoliva@redhat.com>
+
+		* sh.h (EF_SH_MERGE_MACH): Handle SH2E.
+
+	2002-04-02  Elena Zannoni  <ezannoni@redhat.com>
+
+		* sh.h (EF_SH2E): New.
+
+2003-01-23  Alan Modra  <amodra@bigpond.net.au>
+
+	* sh.h: Split out various bits to bfd/elf32-sh64.h.
+
+2003-01-20  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+
+	* s390.h: Rename R_390_GOTOFF to R_390_GOTOFF32. Add new gotoff,
+	gotplt and pltoff relocations.
+
+2003-01-17  Alan Modra  <amodra@bigpond.net.au>
+
+	* common.h: Formatting, typo fixes.
+	(DT_ENCODING): Correct value.
+
+2003-01-17  Fabio Alemagna  <falemagn@aros.org>
+
+	* common.h (ELFOSABI_AROS): Define.
+	(ELFOSABI_OPENVMS): Likewise.
+	(ELFOSABI_NSK): Likewise.
+
+2003-01-16  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc.h: Split out ppc64 definitions to..
+	* pcc64.h: ..here.  New file.
+	(R_PPC64_REL30): Rename from R_PPC64_ADDR30.
+
+2003-01-13 Dmitry Diky <diwil@mail.ru>
+
+	* elf/common.h (EM_MSP430): Change e_machine value to officially
+	assigned.
+
+2003-01-02  Ben Elliston  <bje@redhat.com>
+
+	* common.h (EM_IQ2000): Define.
+	* iq2000.h: New file.
+
+2002-12-30  Chris Demetriou  <cgd@broadcom.com>
+
+	* mips.h (E_MIPS_ARCH_32R2): New define.
+
+2002-12-24    Dmitry Diky <diwil@mail.ru>
+
+	* common.h: Define msp430 machine numbers.
+	* msp430.h: New file.  Define msp430 relocs.
+
+2002-12-20  DJ Delorie  <dj@redhat.com>
+
+	* xstormy16.h: Add XSTORMY16_12.
+
+2002-12-16  Andrew MacLeod  <amacleod@redhat.com>
+
+	* xstormy16.h (START_RELOC_NUMBERS) Add relocation numbers
+	for R_XSTORMY16_LO16 and R_XSTORMY16_HI16.
+
+2002-12-10  James Cownie <jcownie@etnus.com>
+
+	* dwarf2.h (DW_TAG_upc_shared_type, DW_TAG_upc_strict_type,
+	DW_TAG_upc_relaxed_type, DW_AT_upc_threads_scaled, DW_LANG_Upc):
+	Define.
+
+2002-12-01  Stephane Carrez  <stcarrez@nerim.fr>
+
+	* m68hc11.h (EF_M68HC12_MACH, EF_M68HCS12_MACH): Define.
+	(EF_M68HC11_MACH_MASK, EF_M68HC11_MACH): Define.
+	(EF_M68HC11_MERGE_MACH, EF_M68HC11_CAN_MERGE_MACH): Define.
+
+2002-11-30  Alan Modra  <amodra@bigpond.net.au>
+
+	* mmix.h: Replace boolean with bfd_boolean.
+	* sh.h: Likewise.
+
+2002-11-28  Alan Modra  <amodra@bigpond.net.au>
+
+	* internal.h (elf32_internal_ehdr, Elf32_Internal_Ehdr,
+	elf64_internal_ehdr, Elf64_Internal_Ehdr, elf32_internal_phdr,
+	Elf32_Internal_Phdr, elf64_internal_phdr, Elf64_Internal_Phdr,
+	elf32_internal_shdr, Elf32_Internal_Shdr, elf64_internal_shdr,
+	Elf64_Internal_Shdr, elf32_internal_sym, elf64_internal_sym,
+	Elf32_Internal_Sym, Elf64_Internal_Sym, Elf32_Internal_Note,
+	elf32_internal_note, elf32_internal_rel, Elf32_Internal_Rel,
+	elf64_internal_rel, Elf64_Internal_Rel, elf32_internal_rela,
+	elf64_internal_rela, Elf32_Internal_Rela, Elf64_Internal_Rela,
+	elf32_internal_dyn, elf64_internal_dyn, Elf32_Internal_Dyn,
+	Elf64_Internal_Dyn, elf32_internal_verdef, elf64_internal_verdef,
+	elf32_internal_verdaux, elf64_internal_verdaux, elf32_internal_verneed,
+	elf64_internal_verneed, elf32_internal_vernaux, elf64_internal_vernaux,
+	elf32_internal_versym, elf64_internal_versym, Elf32_Internal_Verdef,
+	Elf64_Internal_Verdef, Elf32_Internal_Verdaux, Elf64_Internal_Verdaux,
+	Elf32_Internal_Verneed, Elf64_Internal_Verneed, Elf32_Internal_Vernaux,
+	Elf64_Internal_Vernaux, Elf32_Internal_Versym, Elf64_Internal_Versym,
+	Elf32_Internal_Syminfo, Elf64_Internal_Syminfo): Delete.
+	(Elf_Internal_Rel): Delete.
+
+2002-10-11  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* sh.h: Add SH TLS relocs.
+
+2002-09-30  Gavin Romig-Koch  <gavin@redhat.com>
+	    Ken Raeburn  <raeburn@cygnus.com>
+	    Aldy Hernandez  <aldyh@redhat.com>
+	    Eric Christopher  <echristo@redhat.com>
+	    Richard Sandiford  <rsandifo@redhat.com>
+
+	* mips.h (E_MIPS_MACH_4120, E_MIPS_MACH_5400, E_MIPS_MACH_5500): New.
+
+2002-09-12  Roland McGrath  <roland@redhat.com>
+
+	* dwarf2.h: Updates from GCC version of thie file:
+	(enum dwarf_location_atom): DW_OP_calli -> DW_OP_call_ref.
+	Add DW_OP_GNU_push_tls_address.
+	(DW_OP_lo_user): Change to 0xe0.
+
+2002-08-28  Catherine Moore  <clm@redhat.com>
+
+	* v850.h (R_V850_LONGCALL, R_V850_ALIGN,
+	R_V850_LONGJUMP): New relocations.
+
+2002-08-15  Alan Modra  <amodra@bigpond.net.au>
+
+	* i370.h: Define relocs using reloc-macros.h.
+
+2002-08-13  Stephane Carrez  <stcarrez@nerim.fr>
+
+	* m68hc11.h (E_M68HC12_BANKS, E_M68HC11_I32, E_M68HC11_F64,
+	EF_M68HC11_ABI): Define for ABI specification.
+	(STO_M68HC12_FAR, STO_M68HC12_INTERRUPT): Symbol flags for
+	linker and debugger.
+	(R_M68HC11_24, R_M68HC11_LO16, R_M68HC11_PAGE): New relocs.
+	(R_M68HC11_RL_JUMP, R_M68HC11_RL_GROUP): New reloc for linker
+	relaxation.
+
+2002-07-15  Denis Chertykov  <denisc@overta.ru>
+	    Frank Ch. Eigler  <fche@redhat.com>
+	    Ben Elliston  <bje@redhat.com>
+	    Alan Lehotsky  <alehotsky@cygnus.com>
+	    John Healy  <jhealy@redhat.com>
+	    Graham Stott  <grahams@redhat.com>
+	    Jeff Johnston  <jjohnstn@redhat.com>
+
+	* common.h (EM_IP2K): New macro.
+	(EM_IP2K_OLD): New macro.
+	* ip2k.h: New file.
+
+2002-07-01  Matt Thomas  <matt@3am-software.com>
+
+	* vax.h: Rename EF_* to EF_VAX_*.
+
+2002-06-18  Dave Brolley  <brolley@redhat.com>
+
+	From Catherine Moore, Michael Meissner, Dave Brolley:
+	* common.h (EM_CYGNUS_FRV): New macro.
+	* frv.h: New file.
+
+2002-06-06  Lars Brinkhoff  <lars@nocrew.org>
+
+	* common.h: Change registry@sco.com to registry@caldera.com.
+	(EM_PDP10, EM_PDP11): Define.
+
+2002-06-04  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* sh.h (_bfd_sh64_crange_qsort_cmpb, _bfd_sh64_crange_qsort_cmpl)
+	(_bfd_sh64_crange_bsearch_cmpb, _bfd_sh64_crange_bsearch_cmpl): New
+	prototypes.
+
+2002-06-01  Richard Henderson  <rth@redhat.com>
+
+	* alpha.h (LITUSE_ALPHA_ADDR, LITUSE_ALPHA_BASE, LITUSE_ALPHA_BYTOFF,
+	LITUSE_ALPHA_JSR, LITUSE_ALPHA_TLSGD, LITUSE_ALPHA_TLSLDM): New.
+
+2002-05-30  Richard Henderson  <rth@redhat.com>
+
+	* alpha.h (R_ALPHA_TLSGD, R_ALPHA_TLSLDM, R_ALPHA_DTPMOD64,
+	R_ALPHA_GOTDTPREL, R_ALPHA_DTPREL64, R_ALPHA_DTPRELHI,
+	R_ALPHA_DTPRELLO, R_ALPHA_DTPREL16, R_ALPHA_GOTTPREL, R_ALPHA_TPREL64,
+	R_ALPHA_TPRELHI, R_ALPHA_TPRELLO, R_ALPHA_TPREL16): New.
+
+2002-05-29  Matt Thomas  <matt@3am-software.com>
+
+	* vax.h: New file
+
+2002-05-28  Kuang Hwa Lin <kuang@sbcglobal.net>
+
+	* common.h (EM_DLX): Define.
+	* dlx.h: New file.
+
+2002-05-08  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* common.h (NT_GNU_ABI_TAG): Define.
+	(GNU_ABI_TAG_LINUX): Define.
+	(GNU_ABI_TAG_HURD): Define.
+	(GNU_ABI_TAG_SOLARIS): Define.
+	(NT_NETBSD_IDENT): Define.
+	(NT_FREEBSD_ABI_TAG): Define.
+
+2002-04-24  Elena Zannoni  <ezannoni@redhat.com>
+
+	* dwarf2.h: Add DW_AT_GNU_vector.
+
+2002-02-13  Matt Fredette  <fredette@netbsd.org>
+
+	* m68k.h (EF_M68000): Define.
+
+2002-02-12  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc.h (DT_PPC64_OPD, DT_PPC64_OPDSZ): Define.
+
+2002-02-09  Richard Henderson  <rth@redhat.com>
+
+	* alpha.h (R_ALPHA_BRSGP): New.
+
+2002-02-08  Alexandre Oliva  <aoliva@redhat.com>
+
+	Contribute sh64-elf.
+	2002-01-23  Alexandre Oliva  <aoliva@redhat.com>
+	* sh.h (R_SH_GOTPLT32, R_SH_GOT_LOW16, R_SH_GOT_MEDLOW16,
+	R_SH_GOT_MEDHI16, R_SH_GOT_HI16, R_SH_GOTPLT_LOW16,
+	R_SH_GOTPLT_MEDLOW16, R_SH_GOTPLT_MEDHI16, R_SH_GOTPLT_HI16,
+	R_SH_PLT_LOW16, R_SH_PLT_MEDLOW16, R_SH_PLT_MEDHI16,
+	R_SH_PLT_HI16, R_SH_GOTOFF_LOW16, R_SH_GOTOFF_MEDLOW16,
+	R_SH_GOTOFF_MEDHI16, R_SH_GOTOFF_HI16, R_SH_GOTPC_LOW16,
+	R_SH_GOTPC_MEDLOW16, R_SH_GOTPC_MEDHI16, R_SH_GOTPC_HI16,
+	R_SH_GOT10BY4, R_SH_GOTPLT10BY4, R_SH_GOT10BY8,
+	R_SH_GOTPLT10BY8, R_SH_COPY64, R_SH_GLOB_DAT64, R_SH_JMP_SLOT64,
+	R_SH_RELATIVE64): New relocs.
+	(R_SH_FIRST_INVALID_RELOC_4): Adjust.
+	2001-05-16  Alexandre Oliva  <aoliva@redhat.com>
+	* sh.h: Renumbered and renamed some SH5 relocations to match
+	official numbers and names; moved unmaching ones to the range
+	0xf2-0xff.
+	2001-01-06  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh.h (sh64_get_contents_type): Declare.
+	(sh64_address_is_shmedia): Likewise.
+	2000-12-30  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh.h (sh64_elf_crange): New type.
+	(struct sh64_section_data): New.
+	(sh64_elf_section_data): New macro.
+	(EF_SH5): Rename back from EF_SH64.
+	2000-12-18  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh.h (SHF_SH5_ISA32_MIXED, SHT_SH5_CR_SORTED,
+	SH64_CRANGES_SECTION_NAME, SH64_CRANGE_SIZE,
+	SH64_CRANGE_CR_ADDR_OFFSET, SH64_CRANGE_CR_SIZE_OFFSET,
+	SH64_CRANGE_CR_TYPE_OFFSET): New macros.
+	2000-12-12  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh.h (EF_SH64): Don't define EF_SH64_ABI64.
+	2000-11-27  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh.h (EF_SH64_32BIT_ABI, EF_SH64_64BIT_ABI): Delete.
+	(EF_SH64_ABI64): New.
+	2000-11-23  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh.h (EF_SH64): Rename from EF_SH5.
+	(EF_SH64_32BIT_ABI): New.
+	(EF_SH64_64BIT_ABI): New.
+	(R_SH_PT_16, R_SH_SHMEDIA_CODE
+	R_SH_IMMU5, R_SH_IMMS6, R_SH_IMMU6, R_SH_IMMS10, R_SH_IMMS10BY2,
+	R_SH_IMMS10BY4, R_SH_IMMS10BY8, R_SH_IMMS16, R_SH_IMMU16,
+	R_SH_IMM_LOW16, R_SH_IMM_LOW16_PCREL, R_SH_IMM_MEDLOW16,
+	R_SH_IMM_MEDLOW16_PCREL, R_SH_IMM_MEDHI16, R_SH_IMM_MEDHI16_PCREL,
+	R_SH_IMM_HI16, R_SH_IMM_HI16_PCREL, R_SH_64, R_SH_64_PCREL): New
+	relocs.
+	2000-09-01  Ben Elliston  <bje@redhat.com>
+	* sh.h (EF_SH5): Define.
+
+2002-02-01  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* mmix.h: Tweak comments.
+	(MMIX_LD_ALLOCATED_REG_CONTENTS_SECTION_NAME): New.
+	[BFD_ARCH_SIZE] (_bfd_mmix_prepare_linker_allocated_gregs,
+	_bfd_mmix_finalize_linker_allocated_gregs,
+	_bfd_mmix_check_all_relocs): Provide prototypes.
+
+2002-01-31  Ivan Guzvinec  <ivang@opencores.org>
+
+	* or32.h: New file.
+	* common.h: Add support for or32 targets.
+
+2002-01-28  Jason Merrill  <jason@redhat.com>
+
+	* dwarf2.h: Sync with gcc version.
+
+2002-01-16  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc.h (DT_PPC64_GLINK): Define.
+
+2002-01-15  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm.h (F_VFP_FLOAT, EF_ARM_VFP_FLOAT): Define.
+
+2002-01-09  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* common.h: Update copyright years.
+	(NT_NETBSDCORE_PROCINFO): Define.
+	(NT_NETBSDCORE_FIRSTMACH): Define.
+
+2002-01-06  Steve Ellcey  <sje@cup.hp.com>
+
+	* ia64.h (ELF_STRING_ia64_unwind_hdr): New Macro for HP-UX.
+	(SHT_IA_64_HP_OPT_ANOT): Ditto
+	(PT_IA_64_HP_OPT_ANOT): Ditto
+	(PT_IA_64_HP_HSL_ANOT): Ditto
+	(PT_IA_64_HP_STACK): Ditto
+	(SHN_IA_64_ANSI_COMMON): Ditto
+
+2001-12-17  Alan Modra  <amodra@bigpond.net.au>
+
+	* external.h (Elf_External_Sym_Shndx): Declare.
+	* internal.h (struct elf_internal_sym <st_shndx>): Make it an
+	unsigned int.
+	* common.h (SHN_BAD): Define.
+
+2001-12-13  Jakub Jelinek  <jakub@redhat.com>
+
+	* common.h (PT_GNU_EH_FRAME): Define.
+
+2001-12-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* common.h (SHN_XINDEX): Comment typo fix.
+	* internal.h (Elf_Internal_Ehdr): Change existing "unsigned short"
+	size, count and index fields to "unsigned int".
+
+2001-12-07  Geoffrey Keating  <geoffk@redhat.com>
+	    Richard Henderson  <rth@redhat.com>
+
+	* common.h (EM_XSTORMY16): Define.
+	* xstormy16.h: New file.
+
+2001-11-15  Alan Modra  <amodra@bigpond.net.au>
+
+	* common.h (NT_ARCH): Define.  Remove incorrect comment.
+
+2001-11-11  Geoffrey Keating  <geoffk@redhat.com>
+
+	* dwarf2.h (dwarf_line_number_ops): Add DWARF 3 opcodes.
+
+2001-10-30  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* mmix.h: New file.
+
+2001-10-23  Alan Modra  <amodra@bigpond.net.au>
+
+	* internal.h: White space changes to keep lines under 80 chars.
+
+2001-10-16  Jeff Holcomb  <jeffh@redhat.com>
+
+	* internal.h (elf_internal_shdr): Make contents a unsigned char *.
+
+2001-09-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* internal.h (elf_internal_rela): Make r_addend a bfd_vma.
+
+2001-09-13  Alexandre Oliva  <aoliva@redhat.com>
+
+	* common.h (EM_OPENRISC_OLD): Renamed the old EM_OPENRISC entry.
+
+2001-09-12  Alexandre Oliva  <aoliva@redhat.com>
+
+	* common.h (EM_AVR_OLD): Renamed from...
+	(EM_AVR): this, redefined as in the current ELF standard.
+	(EM_PJ_OLD): Renamed from...
+	(EM_PJ): this, redefined as in the current ELF standard.
+	(EM_R30, EM_D10V, EM_D30V, EM_V850, EM_M32R, EM_MN10300,
+	EM_MN10200, EM_OPENRISC, EM_ARC_A5, EM_XTENSA): Defined as in
+	the current ELF standard.
+	(EM_CYGNUS_ARC): Removed, unused for a long time.
+
+2001-09-04  Richard Henderson  <rth@redhat.com>
+
+	* alpha.h (R_ALPHA_OP*, R_ALPHA_IMMED*, R_ALPHA_GPVALUE): Remove.
+	(R_ALPHA_GPREL16): Rename from R_ALPHA_IMMED_GP_16.
+
+2001-08-30  Eric Christopher  <echristo@redhat.com>
+
+	* mips.h: Remove E_MIPS_MACH_MIPS32_4K.
+
+2001-08-29  Jeff Law <law@redhat.com>
+
+	* h8.h (EF_H8_MACH): New mask for encoded machine type.
+	(E_H8_MACH_H8300, E_H8_MACH_H8300H, E_H8_MACH_H8300S): New
+	machine types.
+
+2001-08-26  J"orn Rennecke <amylaar@redhat.com>
+
+	* h8.h: New file.
+
+2001-08-27  Staffan Ulfberg  <staffanu@swox.se>
+
+	* ppc.h: Add relocs from the 64-bit PowerPC ELF ABI revision 1.2.
+
+2001-06-30  Daniel Berlin  <dan@cgsoftware.com>
+
+	* dwarf2.h: Remerge with gcc version,
+	including all new DWARF 2.1 extensions.
+
+2001-06-29  James Cownie <jcownie@etnus.com>
+
+	* dwarf2.h: Add DWARF 2.1 attribues.
+
+2001-06-15  Per Bothner  <per@bothner.com>
+
+	* dwarf2.h:  Partial merge with gcc version.
+	(enum dwarf_descrim_list):  Fix typo -> dwarf_discrim_list.
+	(DW_LANG_Java):  Use value from dwarf 2.1 draft (also used in gcc).
+
+2001-05-15  Ralf Baechle  <ralf@gnu.org>
+
+	* common.h: Remove definition of EM_MIPS_RS4_BE.  The constant was
+	never in active use and is used otherwise by the ABI.
+
+2001-05-11  Jakub Jelinek  <jakub@redhat.com>
+
+	* ia64.h (ELF_STRING_ia64_unwind_once): Define.
+	(ELF_STRING_ia64_unwind_info_once): Define.
+
+2001-05-07  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* external.h: Fix typo.
+	* mips.h: Add/Extend many comments with reference to the MIPS ELF64
+	spec v. 2.4, available at e.g.
+	ftp://oss.sgi.com/pub/linux/mips/doc/ABI/ELF64.ps.
+	(EF_MIPS_UCODE): Define.
+	(EF_MIPS_OPTIONS_FIRST): Define.
+	(EF_MIPS_ARCH_ASE): Define.
+	(EF_MIPS_ARCH_ASE_MDMX): Define.
+	(EF_MIPS_ARCH_ASE_M16): Define.
+	(SHF_MIPS_ADDR): Renamed SHF_MIPS_ADDR32.
+	(SHF_MIPS_STRING): Renamed SHF_MIPS_ADDR64.
+	(SHF_MIPS_NODUPES): Define.
+	(ELF64_MIPS_R_SSYM): New MIPS ELF 64 relocation info access macro.
+	(ELF64_MIPS_R_TYPE3): Likewise.
+	(ELF64_MIPS_R_TYPE2): Likewise.
+	(ELF64_MIPS_R_TYPE): Likewise.
+	(OHW_R10KLDL): Define.
+
+2001-04-24  Todd Fries  <todd@fries.net>
+
+	* sparc.h: Fix typo.
+
+2001-04-20  Johan Rydberg  <jrydberg@opencores.org>
+
+	* openrisc.h: New file.
+	* common.h (EM_OPENRISC): New constant.
+
+2001-04-23  Bo Thorsen  <bo@suse.de>
+
+	* x86-64.h: Add vtable support.
+
+2001-03-23  Nick Clifton  <nickc@redhat.com>
+
+	* mips.h: Remove extraneous whitespace.
+
+2001-03-22  Hans-Peter Nilsson  <hp@axis.com>
+
+	* cris.h: Add leading comment about PC-relative location.
+	(R_CRIS_COPY, R_CRIS_GLOB_DAT, R_CRIS_JUMP_SLOT, R_CRIS_RELATIVE,
+	R_CRIS_16_GOT, R_CRIS_32_GOT, R_CRIS_16_GOTPLT, R_CRIS_32_GOTPLT,
+	R_CRIS_32_GOTREL, R_CRIS_32_PLT_GOTREL, R_CRIS_32_PLT_PCREL):
+	New relocs.
+
+2001-02-27  Philip Blundell  <pb@futuretv.com>
+
+	* arm.h: Add new definitions from ARM document SWS ESPC 0003 B-01.
+	(EF_PIC, et al.): Rename to EF_ARM_xx.
+
+2001-02-09  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+
+	* common.h: Add linux target for S/390.
+	* s390.h: New file.
+
+2001-01-11  Peter Targett  <peter.targett@arccores.com>
+
+	* arc.h (E_ARC_MACH_ARC5, E_ARC_MACH_ARC6, E_ARC_MACH_ARC7,
+	E_ARC_MACH_ARC8): New definitions for cpu types.
+
+	* common.h (EM_ARC): Change comment.
+
+2000-12-12  Nick Clifton  <nickc@redhat.com>
+
+	* mips.h: Fix formatting.
+
+2000-12-11  Jeffrey A Law  (law@cygnus.com)
+
+	* hppa.h (DT_HP_*): Define relative to OLD_DT_LOOS for hpux
+	compatibility.
+
+2000-10-16  Chris Demetriou  <cgd@sibyte.com>
+
+	* mips.h (E_MIPS_ARCH_32): New constant.
+	(E_MIPS_MACH_MIPS32, E_MIPS_MACH_MIPS32_4K): Replace the
+	former with the latter.
+
+	* mips.h (E_MIPS_ARCH_5, E_MIPS_ARCH_64): New definitions.
+
+	* mips.h (E_MIPS_MACH_SB1): New constant.
+
+2000-11-30  Jan Hubicka  <jh@suse.cz>
+
+	* common.h (EM_X86_64): New macro.
+	* x86-64.h: New file.
+
+2000-11-27  Hans-Peter Nilsson  <hp@axis.com>
+
+	* common.h (e_machine numbers): Clarify comments to describe how
+	EM_* constants are assigned.  Move EM_PJ from official section to
+	ad-hoc section.
+	(EM_CRIS): Correct comment to match official description.
+	(EM_MMIX): Ditto.
+
+2000-11-22  Nick Clifton  <nickc@redhat.com>
+
+	* common.h (EM_JAVELIN): New machine number.
+	(EM_FIREPATH): New machine number.
+	(EM_ZSP): New machine number.
+	(EM_MMIX): New machine number.
+	(EM_HUANY): New machine number.
+	(EM_PRISM): New machine number.
+	(SHT_GROUP): New section type.
+	(SHT_SYMTAB_SHNDX): New section type.
+	(SHF_GROUP): New section flag.
+	(SHN_XINDEX): New section index.
+	(GRP_COMDAT): New section group flag.
+
+2000-11-20  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (ELFOSABI_MONTEREY): Renamed to ...
+	(ELFOSABI_AIX): This.
+
+2000-11-16  Richard Henderson  <rth@redhat.com>
+
+	Update relocations per August psABI docs.
+	* ia64.h (R_IA64_SEGBASE): Remove.
+	(R_IA64_LTV*): Renumber to 0x74 to 0x77.
+	(R_IA64_EPLTMSB, R_IA64_EPLTLSB): Remove.
+	(R_IA64_TPREL14, R_IA64_TPREL64I): New.
+	(R_IA64_DTPMOD*): New.
+	(R_IA64_DTPREL*): New.
+
+2000-09-29  Hans-Peter Nilsson  <hp@axis.com>
+
+	* cris.h (EF_CRIS_UNDERSCORE): New.
+
+2000-09-27  Alan Modra  <alan@linuxcare.com.au>
+
+	* hppa.h (R_PARISC_DIR14F): Add.
+
+2000-09-14  Alexandre Oliva  <aoliva@redhat.com>
+
+	* sh.h (R_SH_GOT32, R_SH_PLT32, R_SH_COPY, R_SH_GLOB_DAT,
+	R_SH_JMP_SLOT, R_SH_RELATIVE, R_SH_GOTOFF, R_SH_GOTPC): Change
+	numbers to the range from 160 to 167.
+	(R_SH_FIRST_INVALID_RELOC): Adjust.
+	(R_SH_FIRST_INVALID_RELOC_2, R_SH_LAST_INVALID_RELOC_2):
+	New relocs to fill in the gap.
+
+2000-09-13  Anders Norlander  <anorland@acc.umu.se>
+
+	* mips.h (E_MIPS_MACH_4K): New define.
+
+2000-09-05  Alan Modra  <alan@linuxcare.com.au>
+
+	* hppa.h: Fix a comment.
+	(R_PARISC_PCREL12F): Define.
+	(R_PARISC_GNU_VTENTRY): Define.
+	(R_PARISC_GNU_VTINHERIT): Define.
+
+2000-09-01  Alexandre Oliva  <aoliva@redhat.com>
+
+	* sh.h (R_SH_GOT32, R_SH_PLT32, R_SH_COPY, R_SH_GLOB_DAT,
+	R_SH_JMP_SLOT, R_SH_RELATIVE, R_SH_GOTOFF, R_SH_GOTPC): New relocs.
+	(R_SH_FIRST_INVALID_RELOC): Adjust.
+
+2000-08-14  Jim Wilson  <wilson@cygnus.com>
+
+	* ia64.h (EF_IA_64_REDUCEDFP, EF_IA_64_CONS_GP,
+	EF_IA_64_NOFUNCDESC_CONS_GP, EF_IA_64_ABSOLUTE): Define.
+
+2000-08-07  Nick Clifton  <nickc@cygnus.com>
+
+	* ppc.h: Remove spurious CYGNUS LOCAL comments.
+	* v850.h: Likewise.
+
+2000-07-22  Jason Eckhardt  <jle@cygnus.com>
+
+	* i860.h: New file.
+	(elf_i860_reloc_type): Defined ELF32 i860 relocations.
+
+2000-07-20  Hans-Peter Nilsson  <hp@axis.com>
+
+	common.h (EM_CRIS): New machine number.
+	cris.h: New file.
+
+2000-07-19  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (DF_1_NODEFLIB): Renamed from DF_1_NODEPLIB.
+
+2000-07-19  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (DT_CHECKSUM): Set to 0x6ffffdf8.
+	(DTF_1_CONFEXP): It is 0x00000002 as suspected.
+
+2000-07-19  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (DT_FEATURE): Renamed from DT_FEATURE_1.
+	(DT_CONFIG): New. From Solaris 8.
+	(DT_DEPAUDIT): Likewise.
+	(DT_AUDIT): Likewise.
+	(DT_PLTPAD): Likewise.
+	(DT_MOVETAB): Likewise.
+	(DF_1_NODEPLIB): Likewise.
+	(DF_1_NODUMP): Likewise.
+	(DF_1_CONLFAT): Likewise.
+	(DT_CHECKSUM): Likewise. FIXME. Check the value on Solaris 8.
+	(DTF_1_CONFEXP): Likewise.
+
+2000-07-18  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (DT_FLAGS_1): Renamed from DT_1_FLAGS.
+
+2000-07-12  Alan Modra  <alan@linuxcare.com.au>
+
+	* internal.h (struct elf_internal_sym): Update comment for st_other.
+
+2000-07-10  Alan Modra  <alan@linuxcare.com.au>
+
+	* hppa.h: Add comments to all the relocs.
+
+2000-06-26  Marek Michalkiewicz  <marekm@linux.org.pl>
+
+	* avr.h (E_AVR_MACH_AVR5): Define.
+
+2000-06-18  Stephane Carrez  <stcarrez@worldnet.fr>
+
+	* m68hc11.h: New file, definitions for the Motorola 68hc11.
+
+2000-06-06  Alan Modra  <alan@linuxcare.com.au>
+
+	* reloc-macros.h (START_RELOC_NUMBERS): Don't define initial dummy
+	-1 valued enum.
+	(RELOC_NUMBER, FAKE_RELOC, EMPTY_RELOC): Append rather than
+	prepend comma.
+	(END_RELOC_NUMBERS): Give macro an arg to define as last enum.
+
+	* alpha.h (R_ALPHA_max): Define via END_RELOC_NUMBERS rather than
+	with EMPTY_RELOC.
+	* arc.h (R_ARC_max): Likewise.
+	* avr.h (R_AVR_max): Likewise.
+	* fr30.h (R_FR30_max): Likewise.
+	* hppa.h (R_PARISC_UNIMPLEMENTED): Likewise.
+	* i960.h (R_960_max): Likewise.
+	* m32r.h (R_M32R_max): Likewise.
+	* m68k.h (R_68K_max): Likewise.
+	* mcore.h (R_MCORE_max): Likewise.
+	* mn10300.h (R_MN10300_MAX): Likewise.
+	* pj.h (R_PJ_max): Likewise.
+	* ppc.h (R_PPC_max): Likewise.
+	* sh.h (R_SH_max): Likewise.
+	* sparc.h (R_SPARC_max): Likewise.
+	* v850.h (R_V850_max): Likewise.
+
+	* arm.h (R_ARM_max): Define via END_RELOC_NUMBERS.
+	* d10v.h (R_D10V_max): Likewise.
+	* d30v.h (R_D30V_max): Likewise.
+	* ia64.h (R_IA64_max): Likewise.
+	* mips.h (R_MIPS_maxext): Likewise.
+	* mn10200.h (R_MN10200_max): Likewise.
+
+	* i386.h (R_386_max): Remove old RELOC_NUMBER definition, and
+	define via END_RELOC_NUMBERS.
+
+2000-06-03  Alan Modra  <alan@linuxcare.com.au>
+
+	* reloc-macros.h (START_RELOC_NUMBERS): Fix name clash for
+	!__STDC__ case.
+	(RELOC_NUMBER): Use ansi stringify if ALMOST_STDC defined.
+
+2000-05-22  Richard Henderson  <rth@cygnus.com>
+
+	* ia64.h (R_IA64_PCREL60B, R_IA64_PCREL21BI): New.
+	(R_IA64_PCREL22, R_IA64_PCREL64I): New.
+
+2000-05-02  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (ELFOSABI_NONE): Renamed from ELFOSABI_SYSV.
+	(ELFOSABI_MODESTO): Defined.
+	(ELFOSABI_OPENBSD): Likewise.
+
+2000-04-21  Richard Henderson  <rth@cygnus.com>
+	    David Mosberger  <davidm@hpl.hp.com>
+
+	* ia64.h: New file.
+
+2000-04-14  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (ELFOSABI_TRUE64): Renamed to ELFOSABI_TRU64.
+
+2000-04-14  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (ELFOSABI_NETBSD): Defined.
+	(ELFOSABI_HURD): Likewise.
+	(ELFOSABI_SOLARIS): Likewise.
+	(ELFOSABI_MONTEREY): Likewise.
+	(ELFOSABI_IRIX): Likewise.
+	(ELFOSABI_FREEBSD): Likewise.
+	(ELFOSABI_TRUE64): Likewise.
+
+2000-04-07  Nick Clifton  <nickc@cygnus.com>
+
+	* arm-oabi.h: Delete.
+	* arm.h: Merge in definitions of old reloc numbers from
+	arm-oabi.h.
+
+2000-04-06  Nick Clifton  <nickc@cygnus.com>
+
+	* arm.h (EF_ARM_SYMSARESORTED): Define.
+	(EF_ARM_EABIMASK): Define.
+	(EF_ARM_EABI_VERSION): Define.
+	(EF_ARM_EABI_UNKNOWN): Define.
+	(EF_ARM_EABI_VER1): Define.
+	(PF_ARM_PI): Define.
+	(PF_ARM_ABS): Define.
+
+2000-04-05  J"orn Rennecke <amylaar@cygnus.co.uk>
+
+	* sh.h (R_SH_LOOP_START, R_SH_LOOP_END): New RELOC_NUMBERs.
+
+2000-03-27  Denis Chertykov  <denisc@overta.ru>
+
+	* avr.h: New file.  AVR ELF support for BFD.
+	* common.h: Add AVR magic number.
+
+2000-03-10  Geoffrey Keating  <geoffk@cygnus.com>
+
+	* mips.h: Add R_MIPS_GNU_REL_HI16, R_MIPS_GNU_REL_LO16,
+	R_MIPS_GNU_REL16_S2, R_MIPS_PC64 and R_MIPS_PC32 relocation
+	numbers.
+
+2000-02-23  Linas Vepstas <linas@linas.org>
+
+	* i370.h: New file.
+
+2000-02-22  Nick Clifton  <nickc@cygnus.com>
+
+	* common.h (ELF_ST_OTHER): Remove definition.
+	(ELF32_ST_OTHER): Remove definition.
+	(ELF64_ST_OTHER): Remove definition.
+
+2000-02-22  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (ELFOSABI_LINUX): Define.
+
+2000-02-17  J"orn Rennecke <amylaar@cygnus.co.uk>
+
+	* sh.h: (EF_SH_MACH_MASK, EF_SH_UNKNOWN, EF_SH1, EF_SH2): New macros.
+	(EF_SH3, EF_SH_HAS_DSP, EF_SH_DSP, EF_SH3_DSP): Likewise.
+	(EF_SH_HAS_FP, EF_SH3E, EF_SH4, EF_SH_MERGE_MACH): Likewise.
+
+2000-02-03  H.J. Lu  <hjl@gnu.org>
+
+	* arm-oabi.h: Duplicate changes made to arm.h on Jan. 27,
+	2000 by Thomas de Lellis  <tdel@windriver.com>.
+
+2000-01-27  Thomas de Lellis  <tdel@windriver.com>
+
+	* arm.h (STT_ARM_TFUNC): Define in terms of STT_LOPROC.
+	(STT_ARM_16BIT): New flag.  Denotes a label that was defined in
+	Thumb block but was does not identify a function.
+
+2000-01-20  Nick Clifton  <nickc@cygnus.com>
+
+	* common.h (EM_MCORE): Fix spelling of Motorola.
+	* mcore.h (EM_MCORE): Fix spelling of Motorola.
+
+2000-01-13  Nick Clifton  <nickc@cygnus.com>
+
+	* common.h (EM_S370): Change comment - this is now the IBM
+	System/370.
+	(EM_IA_64): Change comment - this is now the IA-64.
+
+2000-01-11  Nick Clifton  <nickc@cygnus.com>
+
+	* common.h (DT_ENCODING): Fix definition of this value.
+	(DT_LOOS): Fix definition of this value.
+	(DT_HIOS): Fix definition of this value.
+	(OLD_DT_LOOS): Value of DT_LOOS before Oct 4, 1999 draft
+	of ELF spec changed it.
+	(OLD_DT_HIOS): Value of DT_HIOS before Oct 4, 1999 draft
+	of ELF spec changed it.
+
+2000-01-10  Egor Duda  <deo@logos-m.ru>
+
+	* common.h (NT_WIN32PSTATUS): Define.  (cygwin elf core dumps).
+
+1999-12-28  Nick Clifton  <nickc@cygnus.com>
+
+	* mips.h (STO_*): Redefine in terms of STV_* values now in
+	common.h.
+
+1999-12-27  Nick Clifton  <nickc@cygnus.com>
+
+	* common.h: Upgrade to match Oct4, 1999 Draft ELF ABI Spec.
+	(EM_MIPS_RS3_LE): New machine number.
+	(EM_RCE): New machine number.
+	(EM_MMA): New machine number.
+	(EM_PCP): New machine number.
+	(EM_NCPU): New machine number.
+	(EM_NDR1): New machine number.
+	(EM_STARCORE): New machine number.
+	(EM_ME16): New machine number.
+	(EM_ST100): New machine number.
+	(EM_TINYJ): New machine number.
+	(EM_FX66): New machine number.
+	(EM_ST9PLUS): New machine number.
+	(EM_ST7): New machine number.
+	(EM_68HC16): New machine number.
+	(EM_68HC11): New machine number.
+	(EM_68HC08): New machine number.
+	(EM_68HC05): New machine number.
+	(EM_SVX): New machine number.
+	(EM_VAX): New machine number.
+	(PF_MASKOS): Change value.
+	(SHT_INIT_ARRAY): New value for sh_type field.
+	(SHT_FINI_ARRAY): New value for sh_type field.
+	(SHT_PREINIT_ARRAY): New value for sh_type field.
+	(SHT_HIUSER): Change value.
+	(SHF_MERGE): New valye for sh_flags field.
+	(SHF_STRINGS): New valye for sh_flags field.
+	(SHF_INFO_LINK): New valye for sh_flags field.
+	(SHF_OS_NONCONFORMING): New valye for sh_flags field.
+	(SHF_MASKOS): Change value.
+	(ELF_ST_VISIBILITY): New macro.
+	(ELF_ST_OTHER): New macro.
+	(STT_COMMON): New symbol type.
+	(STV_DEFAULT): Value for symbol visibility.
+	(STV_INTERNAL): Value for symbol visibility.
+	(STV_HIDDEN): Value for symbol visibility.
+	(STV_PROTECTED): Value for symbol visibility.
+	(DT_RUNPATH): New dynamic section tag.
+	(DT_FLAGS): New dynamic section tag.
+	(DT_ENCODING): New dynamic section tag.
+	(DT_PREINIT_ARRAY): New dynamic section tag.
+	(DT_PREINIT_ARRAYSZ): New dynamic section tag.
+	(DT_LOPROC): New dynamic section tag index.
+	(DT_HIPROC): New dynamic section tag index.
+	(DF_ORIGIN): Value for dynamic section flag.
+	(DF_SYMBOLIC): Value for dynamic section flag.
+	(DF_TEXTREL): Value for dynamic section flag.
+	(DF_BIND_NOW): Value for dynamic section flag.
+
+1999-12-09  Fred Fish  <fnf@cygnus.com>
+
+	* i960.h (reloc-macros.h):  Include using relative dir elf/.
+	* i386.h (reloc-macros.h):  Include using relative dir elf/.
+	* hppa.h (reloc-macros.h):  Include using relative dir elf/.
+
+1999-12-07  Jim Blandy  <jimb@cygnus.com>
+
+	* common.h (NT_PRXFPREG): New definition.
+
+Wed Dec  1 03:02:15 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* mn10300.h (E_MN10300_MACH_AM33): Define.
+
+Mon Oct 11 22:42:37 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* hppa.h (PF_HP_PAGE_SIZE): Define.
+	(PF_HP_FAR_SHARED, PF_HP_NEAR_SHARED, PF_HP_CODE): Likewise.
+	(PF_HP_MODIFY, PF_HP_LAZYSWAP, PF_HP_SBP): Likewise.
+
+Mon Oct  4 17:42:38 1999  Doug Evans  <devans@canuck.cygnus.com>
+
+	* m32r.h (E_M32RX_ARCH): Define.
+
+1999-09-15  Ulrich Drepper  <drepper@cygnus.com>
+
+	* hppa.h: Add DT_HP_GST_SIZE, DT_HP_GST_VERSION, and DT_HP_GST_HASHVAL.
+
+1999-09-04  Steve Chamberlain  <sac@pobox.com>
+
+	* pj.h: New file.
+	* common.h (EM_PJ): Define.
+
+1999-09-02  Ulrich Drepper  <drepper@cygnus.com>
+
+	* hppa.h: Add HPUX specific symbol type definitions.
+
+	* hppa.h: Add HPUX specific dynamic and program header table
+	specific definitions.
+
+1999-08-31  Scott Bambrough <scottb@netwinder.org>
+
+	* common.h (NT_TASKSTRUCT): Define.
+
+1999-07-16  Jakub Jelinek  <jj@ultra.linux.cz>
+
+	* sparc.h (EF_SPARC_SUN_US3): Define in Cheetah extensions
+	flag (as per SCD2.4.1).
+
+1999-07-16  Jakub Jelinek  <jj@ultra.linux.cz>
+
+	* sparc.h (ELF64_R_TYPE_DATA): Only use ELF64_R_TYPE bits, not
+	ELF64_R_SYM bits.
+
+1999-06-21  Philip Blundell  <pb@nexus.co.uk>
+
+	* arm.h (EF_SOFT_FLOAT, F_SOFT_FLOAT): Define.
+
+1999-07-13  Andreas Schwab  <schwab@suse.de>
+
+	* m68k.h (EF_CPU32): Move definition inside multiple inclusion
+	guard.
+
+1999-07-08  Richard Henderson  <rth@cygnus.com>
+
+	* sparc.h (ELF64_R_TYPE_DATA): Sign extend the value.
+	(ELF64_R_TYPE_INFO): Mask out all but low 24 bits of data.
+	(DT_SPARC_PLTFMT): Delete.
+	Based on a patch from Jakub Jelinek.
+
+Mon Jun 21 16:36:02 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* hppa.h (elf_hppa_reloc_type): Renamed from elf32_hppa_reloc_type.
+
+1999-06-10  Jakub Jelinek  <jj@ultra.linux.cz>
+
+	* sparc.h (R_SPARC_max_std): Define.
+
+Wed Jun  9 15:16:34 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* hppa.h: Update with various changes from newest PA ELF
+	specifications.
+
+1999-06-03  Ian Lance Taylor  <ian@zembu.com>
+
+	* common.h (EM_PPC64): Define.
+
+1999-06-02  Stu Grossman  <grossman@babylon-5.cygnus.com>
+
+	* dwarf.h: Add LANG_JAVA.
+	* dwarf2.h: Add DW_LANG_Java.
+
+1999-05-29  Nick Clifton  <nickc@cygnus.com>
+
+	* common.h (ELFOSABI_ARM): Define.
+
+1999-05-28  Nick Clifton  <nickc@cygnus.com>
+
+	* reloc-macros.h: Update comment.
+
+1999-05-28  Ian Lance Taylor  <ian@zembu.com>
+
+	* i960.h: New file.
+
+1999-05-16  Nick Clifton  <nickc@cygnus.com>
+
+	* mcore.h (R_MCORE_COPY): Define.
+	(R_MCORE_GLOB_DAT): Define.
+	(R_MCORE_JUMP_SLOT): Define.
+
+1999-05-15  Nick Clifton  <nickc@cygnus.com>
+
+	* mcore.h (R_MCORE_RELATIVE): Define.
+
+1999-05-05  Catherine Moore  <clm@cygnus.com>
+
+	* m68k.h (EF_CPU32): Define.
+
+1999-04-21  Nick Clifton  <nickc@cygnus.com>
+
+	* reloc-macros.h (START_RELOC_NUMBERS): Prepend an underscore to
+	fake reloc entry name (if possible), in order to avoid conflicts
+	with typedefs of the same name.
+
+1999-04-16  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* mips.h (EF_MIPS_32BITMODE): New.
+
+1999-04-08  Nick Clifton  <nickc@cygnus.com>
+
+	* mcore.h: New header file.  Defines for Motorola's MCore
+	processor.
+
+1999-04-08  Nick Clifton  <nickc@cygnus.com>
+
+	* common.h: Add new constants defined in: "System V Application
+	Binary Interface - DRAFT - April 29, 1998" found at the web site:
+	http://www.sco.com/developer/gabi/contents.html
+
+	(EM_MMA): Removed.  Replaced with EM_MCORE as Motorolla own this
+	value.
+
+1999-03-31  Nick Clifton  <nickc@cygnus.com>
+
+	* reloc-macros.h: Fixed to not generate an enum with a trailing
+	comma.
+
+1999-03-16  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* mips.h (E_MIPS_MACH_5000): New.
+
+1999-03-10  Ulrich Drepper  <drepper@cygnus.com>
+
+	* common.h: Add definitions for a few more Solaris ELF extensions.
+
+Thu Feb 18 18:58:26 1999  Ian Lance Taylor  <ian@cygnus.com>
+
+	* external.h: Only use attribute if __GNUC__ is defined.
+
+1999-02-17  Nick Clifton  <nickc@cygnus.com>
+
+	Patch submitted by: Scott Bambrough <scottb@corelcomputer.com>
+
+	* external.h: struct Elf_External_Versym must be packed on
+	ARM.  Code uses sizeof(Elf_External_Versym) and assumes it is
+	equal to sizeof(char[2]).  Reported by Jim Pick <jim@jimpick.com>
+
+1999-02-02  Nick Clifton  <nickc@cygnus.com>
+
+	* dwarf2.h (DWARF2_External_ARange): New structure.
+	(DWARF2_Internal_ARange): New structure.
+
+Mon Feb  1 11:33:56 1999  Catherine Moore  <clm@cygnus.com>
+
+	* arm.h:  Renumber relocs to conform to standard.
+	(EF_NEW_ABI):  Define.
+	(EF_OLD_ABI):  Define.
+	* arm-oabi.h:  New file.
+
+1999-01-28  Nick Clifton  <nickc@cygnus.com>
+
+	* fr30.h: Add R_FR30_GNU_VT{INHERIT,ENTRY} relocs.
+
+1999-01-27  Nick Clifton  <nickc@cygnus.com>
+
+	* dwarf2.h: Add typedefs for structures found in dwarf2 sections.
+
+1998-12-16  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* mips.h (E_MIPS_MACH_4111): New.
+
+1998-12-15  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* mips.h (EF_MIPS_ABI,E_MIPS_ABI_O32,E_MIPS_ABI_O64,
+	E_MIPS_ABI_EABI32,E_MIPS_ABI_EABI64):
+
+1998-12-03  Nick Clifton  <nickc@cygnus.com>
+
+	* fr30.h: Add R_FR30_48 reloc.
+
+1998-12-02  Ulrich Drepper  <drepper@cygnus.com>
+
+	* mips.h: Add external data type for conflict section.
+
+	* mips.h: Add more LL_* options from Irix 6.5.
+
+	* mips.h: Add R_MIPS_JALR and adjust R_MIPS_max appropriately.
+
+Mon Nov 30 15:25:58 1998  J"orn Rennecke <amylaar@cygnus.co.uk>
+
+	* sh.h (elf_sh_reloc_type): Add R_SH_FIRST_INVALID_RELOC,
+	R_SH_LAST_INVALID_RELOC, R_SH_SWITCH8 and R_SH_max.
+
+Tue Nov 10 15:12:28 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* common.h (EM_CYGNUS_FR30): Reduce to a 16 bit value.
+
+Tue Nov 10 15:17:28 1998  Catherine Moore  <clm@cygnus.com>
+
+	* d10v.h:  Add vtable relocs.
+
+Wed Nov  4 15:56:50 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* common.h (EM_CYGNUS_FR30): New machine number.
+
+	* fr30.h: New file: Definitions for the FR30.
+
+Fri Oct 30 11:54:15 1998  Catherine Moore  <clm@cygnus.com>
+
+	From Philip Blundell <pb@nexus.co.uk>:
+	* arm.h (R_ARM_COPY, et al.): New relocs, used by Linux for PIC.
+	(EF_ALIGN8): New flag.
+
+Tue Oct 20 11:19:50 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* common.h (NT_LWPSTATUS): Close comment accidentally left open.
+
+Mon Oct 19 20:24:11 1998  Catherine Moore  <clm@cygnus.com>
+
+	* sh.h:  Add vtable relocs.
+
+Mon Oct 19 01:44:42 1998  Felix Lee  <flee@cygnus.com>
+
+	* common.h (NT_PSTATUS, NT_FPREGS, NT_PSINFO,
+	NT_LWPSTATUS,NT_LWPSINFO): added.
+	* internal.h (Elf_Internal_Note): new structure members.
+
+Fri Oct 16 14:11:25 1998  Catherine Moore  <clm@cygnus.com>
+
+	* m32r.h:  Add vtable relocs.
+
+Tue Oct  6 09:22:22 1998  Catherine Moore  <clm@cygnus.com>
+
+	* sparc.h:  Add vtable relocs.
+
+Mon Oct  5 09:39:22 1998  Catherine Moore  <clm@cygnus.com>
+
+	* v850.h:  Add vtable relocs.
+
+Sun Oct  4 21:17:51 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* i386.h (R_386_max): Change from 252 to 24.
+
+Mon Sep 21 12:24:44 1998  Catherine Moore  <clm@cygnus.com>
+
+	* i386.h:  Change vtable reloc numbers.
+
+Sun Sep 20 00:54:22 1998  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* m68k.h: Add vtable relocs and R_68K_max.
+
+Tue Sep 15 09:56:49 CDT 1998  Catherine Moore  <clm@cygnus.com>
+
+	* arm.h:  Add vtable relocs.
+
+Mon Aug 31 11:25:27 1998  Catherine Moore  <clm@cygnus.com>
+
+	* arm.h:  Define STT_ARM_TFUNC.  Remove ST_THUMB_xxxx
+	definitions.
+
+Sat Aug 29 22:25:51 1998  Richard Henderson  <rth@cygnus.com>
+
+	* i386.h: Add vtable relocs.
+
+1998-08-25 16:42  Ulrich Drepper  <drepper@cygnus.com>
+
+	* common.h: Add SYMINFO_* macros to access Elf*_Syminfo information.
+
+	* external.h: Add Elf_External_Syminfo definition.
+
+	* internal.h: Add Elf_Internal_Syminfo, Elf32_Internal_Syminfo,
+	and Elf64_Syminfo definitions.
+
+Sun Aug  9 20:26:49 CDT 1998  Catherine Moore  <clm@cygnus.com>
+
+	* arm.h:  Add ST_THUMB definitions.
+
+Wed Aug  5 15:52:35 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* arm.h: Add ELF header flags to specify compile time optins:
+	EF_INTERWORK: New flag.
+	EF_APCS_26: New flag.
+	EF_APCS_FLOAT: New flag.
+	EF_PIC: New flag.
+
+1998-07-31 21:28  Ulrich Drepper  <drepper@cygnus.com>
+
+	* mips.h: Add missing RHF_* constants.
+
+Fri Jul 31 10:01:40 1998 Catherine Moore  <clm@cygnus.com>
+
+	* arm.h: Add R_ARM_THM_PC9 relocation.
+
+1998-07-30 16:25  Ulrich Drepper  <drepper@cygnus.com>
+
+	* common.h: Add new DT_* entries and there flag macros from Solaris.
+
+Tue Jul 28 18:14:07 1998  Stan Cox  <scox@equinox.cygnus.com>
+
+	* sparc.h: (R_SPARC_REV32): Added for little endian data e.g. sparc 86x.
+
+Fri Jul 24 11:22:06 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* mn10300.h: Add R_MN10300_24 relocation.
+
+1998-07-24  Ulrich Drepper  <drepper@cygnus.com>
+
+	* mips.h: Add MIPS64 relocation names and values.
+
+Wed Jul 22 19:29:00 Catherine Moore  <clm@cygnus.com>
+
+	* arm.h: Rename relocations.
+
+1998-07-22  Ulrich Drepper  <drepper@cygnus.com>
+
+	* ppc.h: Define enum as elf_ppc_reloc_type.
+
+Wed Jul 22 16:22:11 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* reloc-macros.h: New file.  Provides relocation macros:
+	START_RELOC_NUMBERS, RELOC_NUMBER, FAKE_RELOC, EMPTY_RELOC and
+	END_RELOC_NUMBERS used by other elf header files.
+
+	* alpha.h: Use reloc-macros.h.
+	* arc.h: Use reloc-macros.h.
+	* arm.h: Use reloc-macros.h.
+	* d10v.h: Use reloc-macros.h.
+	* d30v.h: Use reloc-macros.h.
+	* hppa.h: Use reloc-macros.h.
+	* i386.h: Use reloc-macros.h.
+	* m32r.h: Use reloc-macros.h.
+	* m68k.h: Use reloc-macros.h.
+	* mips.h: Use reloc-macros.h.
+	* mn10200.h: Use reloc-macros.h.
+	* mn10300.h: Use reloc-macros.h.
+	* ppc.h: Use reloc-macros.h.
+	* sh.h: Use reloc-macros.h.
+	* sparc.h: Use reloc-macros.h.
+	* v850.h: Use reloc-macros.h.
+
+1998-07-22 13:07  Ulrich Drepper  <drepper@cygnus.com>
+
+	* mn10300.h: Rewrite relocation definition using macros.
+	* mips.h: Likewise.
+	* ppc.h: Likewise.
+	* alpha.h: Likewise.
+	* arm.h: Likewise.
+	* d10v.h: Likewise.
+	* d30v.h: Likewise.
+	* m32r.h: Likewise.
+	* m68k.h: Likewise.
+	* mn10200.h: Likewise.
+	* sh.h: Likewise.
+	* sparc.h: Likewise.
+
+1998-07-21 13:07  Ulrich Drepper  <drepper@cygnus.com>
+
+	* arm.h: New file.
+	* d10v.h: New file.
+	* d30v.h: New file.
+	* i386.h: New file.
+	* m68k.h: New file.
+	* mn10200.h: New file.
+	* sh.h: New file.
+
+	* mips.h: Add R_MIPS_* and SHT_MIPS_* entries.
+
+	* mn10300.h: Add R_MN10300_* entries.
+
+	* ppc.h: Add R_PPC_* entries.
+
+1998-07-20 07:11  Ulrich Drepper  <drepper@cygnus.com>
+
+	* mips.h: Add ODK_*, OEX_*, OPAD_*, OHW_*, and OGP_* constants.
+	Define Elf32_External_Lib.
+
+1998-07-19 15:24  Ulrich Drepper  <drepper@cygnus.com>
+
+	* mips.h (PT_MIPS_OPTIONS): New symbol.
+	Add lots of DT_MIPS_* symbols.
+
+Fri Jun 26 10:46:35 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* mn10300.h: New file.
+
+Thu Jun 18 19:27:56 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* common.h (EM_960, EM_V800, EM_FR20, EM_RH32, EM_MMA,
+	EM_OLD_ALPHA): Add these constants.
+
+Thu Jun 11 17:59:01 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* common.h (EM_486, EM_S370): Add these constants.
+
+Tue Jun  9 09:35:29 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* common.h (EM_ARM): Add this constant.
+
+Wed May  6 09:45:30 1998  Gavin Koch  <gavin@cygnus.com>
+
+	* mips.h (EF_MIPS_MACH,E_MIPS_MACH_*): Added.
+
+Sat Apr 25 18:35:06 1998  Richard Henderson  <rth@cygnus.com>
+
+	* alpha.h (STO_ALPHA_NOPV, STO_ALPHA_STD_GPLOAD): New.
+
+Wed Apr 15 15:42:45 1998  Richard Henderson  <rth@cygnus.com>
+
+	* common.h (EM_SPARC64): Move and rename to EM_OLD_SPARCV9.
+	(EM_SPARCV9): New.  This is the official ABI name and number.
+
+Sat Feb 28 17:04:41 1998  Richard Henderson  <rth@cygnus.com>
+
+	* alpha.h (EF_ALPHA_32BIT, EF_ALPHA_CANRELAX): New.
+
+Mon Dec 15 15:07:49 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* m32r.h (EF_M32R_ARCH, E_M32R_ARCH): New flags to
+	specify machine architecture.
+
+Fri Dec  5 11:20:08 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* v850.h: New constants: SHN_V850_SCOMMON, SHN_V850_TCOMMON,
+	SHN_V850_ZCOMMON, SHT_V850_SCOMMON, SHT_V850_TCOMMON,
+	SHT_V850_ZCOMMON to handle v850 common sections.
+	enum reloc_type renamed to v850_reloc_type to avoid name
+	conflict.
+
+Thu Oct 23 13:55:24 1997  Richard Henderson  <rth@cygnus.com>
+
+	* sparc.h (enum elf_sparc_reloc_type): Add UA64 & UA16.
+
+Thu Oct 23 00:42:04 1997  Richard Henderson  <rth@dot.cygnus.com>
+
+	* sparc.h (DT_SPARC_REGISTER): New macro.
+	(DT_SPARC_PLTFMT): In support of old sparc64-linux .plts; will
+	go away soon.
+
+Tue Sep 30 13:26:58 1997  Doug Evans  <dje@canuck.cygnus.com>
+
+	* sparc.h (EF_SPARC_HAL_R1, EF_SPARC_EXT_MASK): New macros.
+	(EF_SPARCV9_{MM,TSO,PSO,RMO}): New macros.
+	(SHN_BEFORE,SHN_AFTER): New macros.
+	(SHF_EXCLUDE,SHF_ORDERED): New macros.
+	(STT_REGISTER): New macro.
+	(R_SPARC_GLOB_JMP): Deleted, but slot reserved.
+	(R_SPARC_{DISP64,PLT64,HIX22,LOX10}): New relocations.
+	(R_SPARC_{H44,M44,L44,REGISTER}): New relocations.
+	(ELF64_R_TYPE_{DATA,ID,INFO}): New macros.
+
+Wed Sep 17 16:41:42 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* v850.h: Add R_V850_CALLT_6_7_OFFSET and R_V850_CALLT_16_16_OFFSET.
+
+Tue Sep 16 14:16:17 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* v850.h (reloc_type): Add R_V850_TDA_16_16_OFFSET.
+
+Wed Sep  3 15:11:14 1997  Richard Henderson  <rth@cygnus.com>
+
+	* mips.h: Correct typo in comment.
+
+Wed Sep  3 11:25:57 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* v850.h (reloc_type): Remove R_V850_16_PCREL.
+
+Tue Sep  2 17:41:05 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* common.h: Remove magic number for V850E.
+	* common.h: Remove magic number for V850EA.
+	* v850.h: Add new flags for e_flags field in elf header.
+
+Mon Aug 25 16:06:47 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* common.h (EM_CYGNUS_V850E): backend magic number for v850e.
+	* common.h (EM_CYGNUS_V850EA): backend magic number for v850ea.
+
+Mon Aug 18 11:05:23 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* v850.h (reloc_type): Add 16 bit PC relative relocation.
+
+Fri Aug 15 05:10:09 1997  Doug Evans  <dje@canuck.cygnus.com>
+
+	* arc.h (enum reloc): Move here from elf32-arc.c.
+
+Fri Aug  8 17:05:29 1997  Doug Evans  <dje@canuck.cygnus.com>
+
+	* arc.h: New file.
+	* common.h (EM_CYGNUS_ARC): Define.
+
+Mon Jun 16 14:46:12 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* internal.h (Elf_Internal_Ehdr): Change e_phoff and e_shoff from
+	bfd_signed_vma to bfd_size_type, as they are not signed.
+
+Wed Mar  5 15:35:26 1997  Doug Evans  <dje@seba.cygnus.com>
+
+	* m32r.h (SHF_M32R_CAN_RELAX): Define.
+
+Mon Feb 24 17:49:01 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* external.h: Dump the 32/64 bit specific forms of the version
+	structures, and just define them as size independent.
+
+	* common.h (VERSYM_HIDDEN, VERSYM_VERSION): Define.
+
+Fri Feb 21 13:00:34 1997  Doug Evans  <dje@canuck.cygnus.com>
+
+	* m32r.h (enum reloc_type): Add R_M32R_SDA16.
+	(SHN_M32R_SCOMMON): Define.
+
+Wed Feb 19 15:35:31 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	From Eric Youngdale <eric@andante.jic.com>:
+	* external.h, internal.h, common.h: Added new structures and
+	definitions for ELF versions.
+
+Tue Feb 18 17:40:36 1997  Martin M. Hunt  <hunt@pizza.cygnus.com>
+
+	* common.h (EM_CYGNUS_D30V): Define.
+
+Mon Jan 27 11:54:44 1997  Doug Evans  <dje@seba.cygnus.com>
+
+	* m32r.h (enum reloc_type): Add R_M32R_HI16_[SU]LO,R_M32R_LO16.
+
+Fri Jan  3 11:32:51 1997  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* v850.h (V850_OTHER_{TDA_BYTE,ERROR}): New bits for the st_other
+	field.
+	(SHN_V850_*): Remove v850 specific section indexes, which are not
+	needed.
+	(enum reloc_type): Move the v850 relocations here from
+	elf32-v850.c
+
+Thu Jan  2 19:30:23 1997  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* v850.h: New file, provide V850 specific definitions.
+
+Tue Dec 31 14:44:32 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* common.h (DT_AUXILIARY): Define.
+	(DT_FILTER): Define.
+
+Wed Dec  4 05:03:37 1996  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* dwarf2.h: Update.
+
+Tue Nov 26 10:44:47 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* mips.h (STO_MIPS16): Define.
+
+Tue Nov 12 15:45:42 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
+
+	* d10v.h: Remove empty file.
+
+Tue Oct  8 11:31:24 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* mips.h (EF_MIPS_ABI2): Define.
+
+Thu Oct  3 10:01:40 1996  Jeffrey A Law  (law@cygnus.com)
+
+	* common.h: Break mn10x00 support into mn10200 and mn10300.
+
+Wed Oct  2 21:26:43 1996  Jeffrey A Law  (law@cygnus.com)
+
+	* common.h (EM_CYGNUS_MN10x00): Define.
+
+Mon Sep 23 09:18:04 1996  Doug Evans  <dje@seba.cygnus.com>
+
+	* m32r.h: New file.
+
+Fri Aug 30 17:06:21 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* common.h (EM_SH): Define.
+
+Tue Aug 20 14:47:54 1996  J.T. Conklin  <jtc@hippo.cygnus.com>
+
+	* common.h (EM_CYGNUS_V850): Define.
+
+Mon Aug 19 10:59:10 1996  Doug Evans  <dje@canuck.cygnus.com>
+
+	* common.h (EM_CYGNUS_M32R): Define.
+
+Mon Jul 22 18:59:55 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* mips.h (SHT_MIPS_IFACE, SHT_MIPS_CONTENT): Define.
+	(SHT_MIPS_SYMBOL_LIB): Define.
+	(SHF_MIPS_MERGE, SHF_MIPS_ADDR32, SHF_MIPS_ADDR64): Define.
+	(SHF_MIPS_NOSTRIP, SHF_MIPS_LOCAL, SHF_MIPS_NAMES): Define.
+
+Thu Jul 18 19:12:15 1996  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* dwarf2.h: New file.
+
+Jul 18 13:20:39 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
+
+	* common.h (EM_CYGNUS_D10V): Define.
+	* d10v.h: New file.
+
+Fri Jun 21 12:33:24 1996  Richard Henderson  <rth@tamu.edu>
+
+	* alpha.h: New file.
+	* common.h (EM_ALPHA): Define.
+
+Fri May 31 17:28:05 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* mips.h (Elf_External_Options, Elf_Internal_Options): Define.
+	(bfd_mips_elf_swap_options_in): Declare.
+	(bfd_mips_elf_swap_options_out): Declare.
+	(ODK_*): Define.
+	(Elf64_External_RegInfo, Elf64_Internal_RegInfo): Define.
+	(bfd_mips_elf64_swap_reginfo_in): Declare.
+	(bfd_mips_elf64_swap_reginfo_out): Declare.
+
+Thu May 30 12:35:57 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* mips.h (E_MIPS_ARCH_4): Define.
+
+Wed May 29 15:35:33 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* mips.h (Elf64_Mips_External_Rel): Define.
+	(Elf64_Mips_Internal_Rel): Define.
+	(Elf64_Mips_External_Rela, Elf64_Mips_Internal_Rela): Define.
+	(RSS_*): Define.
+
+Mon Apr 22 18:26:30 1996  Doug Evans  <dje@canuck.cygnus.com>
+
+	* sparc.h (R_SPARC_[56]): Always define.
+
+Mon Feb 19 01:55:56 1996  Doug Evans  <dje@charmed.cygnus.com>
+
+	* sparc.h (R_SPARC_{PLT32,HIPLT22,LOPLT10,PCPLT32,PCPLT22,
+	PCPLT10,5,6}): Don't define ifdef SPARC64_OLD_RELOCS.
+
+Tue Feb  6 11:33:58 1996  Doug Evans  <dje@charmed.cygnus.com>
+
+	* sparc.h (enum sparc_elf_reloc_type): Define.
+
+Wed Jan 17 09:09:16 1996  Doug Evans  <dje@canuck.cygnus.com>
+
+	* common.h: Define EM_SPARC32PLUS.
+	* sparc.h: New file.
+
+Thu Jan 11 16:27:34 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* ppc.h (SHF_EXCLUDE, SHT_ORDERED): New fields from the abi.
+
+Thu Nov 30 16:47:18 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* internal.h (struct elf_segment_map): Add includes_filehdr and
+	includes_phdrs fields.
+
+Tue Nov 28 16:58:10 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* internal.h (struct elf_segment_map): Define.
+
+Tue Oct 31 15:19:36 1995  Fred Fish  <fnf@cygnus.com>
+
+	* common.h, dwarf.h, external.h, hppa.h, internal.h,
+	mips.h, ppc.h:  Protect against multiple inclusions.
+
+Thu Sep 21 13:51:58 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* ppc.h (EF_PPC_RELOCATABLE_LIB): Add new flag bit.
+
+Fri Sep  1 15:32:17 1995  Kazumoto Kojima  <kkojima@info.kanagawa-u.ac.jp>
+
+	* mips.h: Add some definitions used on Irix 5.
+
+Tue Jun 20 10:18:28 1995  Jeff Law  (law@snake.cs.utah.edu)
+
+	* hppa.h (CPU_PA_RISC1_0): Protect from redefinitions.
+	(CPU_PA_RISC1_1): Likewise.
+
+Wed Mar  8 18:14:37 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* ppc.h: New file for PowerPC support.
+
+Tue Feb 14 13:59:13 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* common.h (EM_PPC): Use offical value of 20, not 17.
+	(EM_PPC_OLD): Define this to be the old value of EM_PPC.
+
+Tue Jan 24 09:40:59 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* common.h (EM_PPC): New macro, PowerPC machine id.
+
+Tue Jan 17 10:51:38 1995  Ian Lance Taylor  <ian@sanguine.cygnus.com>
+
+	* mips.h (SHT_MIPS_MSYM, SHT_MIPS_DWARF, SHT_MIPS_EVENTS): Define.
+
+Mon Oct 17 13:43:59 1994  Ian Lance Taylor  <ian@sanguine.cygnus.com>
+
+	* internal.h (Elf_Internal_Shdr): Remove rawdata and size fields.
+	Add bfd_section field.
+
+Tue May 24 16:11:50 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* mips.h (Elf32_External_gptab): Define.
+
+Mon May 16 13:22:04 1994  Jeff Law  (law@snake.cs.utah.edu)
+
+	* common.h (EM_HPPA): Delete.
+	(EM_PARISC): Add.
+	* hppa.h: New file.
+
+Mon May  9 13:27:03 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* common.h (SHN_LORESERVE): Rename from SHN_LORESERV.
+	(ELF32_R_TYPE, ELF32_R_INFO): Don't rely on size of unsigned char.
+	(ELF64_R_TYPE): Don't rely on size of unsigned long.
+
+Mon Apr 25 15:53:09 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* internal.h (Elf_Internal_Shdr): Use PTR, not void *.
+
+Fri Mar 11 00:34:59 1994  Peter Schauer  (pes@regent.e-technik.tu-muenchen.de)
+
+	* mips.h (SHN_MIPS_TEXT, SHN_MIPS_DATA):  Define.
+
+Sat Mar  5 14:08:54 1994  Peter Schauer  (pes@regent.e-technik.tu-muenchen.de)
+
+	* internal.h:  Remove Elf32_*, Elf64_* typedefs.  These names
+	cause conflicts with system headers, e.g. link.h in gdb/solib.c.
+	Combine 32- and 64-bit versions of *_Internal_Dyn.
+	* common.h:  Replace uses of Elf64_Word, Elf64_Xword typedefs
+	by their expansion.
+	* mips.h:  Replace uses of Elf32_Word, Elf32_Sword, Elf32_Addr
+	typedefs by their expansion. Add DT_MIPS_RLD_MAP definition.
+
+Fri Feb 18 10:39:54 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* common.h (EM_CYGNUS_POWERPC): Define.  This may be temporary,
+	depending upon how quickly I can find a real PowerPC ABI.
+
+Mon Feb  7 08:27:13 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* internal.h: Change HOST_64_BIT to BFD_HOST_64_BIT.
+
+Wed Feb  2 14:12:18 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* common.h: Add comments regarding value of EM_HPPA and how to
+	pick an unofficial value.
+
+Wed Nov 17 17:14:26 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* mips.h (SHT_MIPS_OPTIONS): Define.
+
+Mon Nov  8 17:57:00 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* mips.h: Added some more MIPS ABI macro definitions.
+
+Wed Nov  3 22:07:17 1993  Ken Raeburn  (raeburn@rtl.cygnus.com)
+
+	* common.h (EM_MIPS_RS4_BE): New macro.
+
+Tue Oct 12 07:28:18 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* mips.h: New file.  MIPS ABI specific information.
+
+Mon Jun 21 13:13:43 1993  Ken Raeburn  (raeburn@poseidon.cygnus.com)
+
+	* internal.h: Combined 32- and 64-bit versions of all structures
+	except *_Internal_Dyn.  This will simply the assembler interface,
+	and some bfd code.
+
+Tue May 25 02:00:16 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
+
+	* external.h, internal.h, common.h: Added 64-bit versions of some
+	structures and macros.  Renamed old versions to put "32" in the
+	name.  Some are unchanged.
+
+Thu Apr 29 12:12:20 1993  Ken Raeburn  (raeburn@deneb.cygnus.com)
+
+	* common.h (EM_HPPA, NT_VERSION, STN_UNDEF, DT_*): New macros.
+	* external.h (Elf_External_Dyn): New type.
+
+	* internal.h (Elf_Intenral_Shdr): New field `size'.
+	(Elf_Internal_Dyn): New type.
+
+Tue Apr 20 16:03:45 1993  Fred Fish  (fnf@cygnus.com)
+
+	* dwarf.h (LANG_CHILL):  Change value to one randomly picked in
+	the user defined range, to reduce probability of collisions.
+
+Sun Nov 15 09:34:02 1992  Fred Fish  (fnf@cygnus.com)
+
+	* dwarf.h (AT_src_coords):  Whitespace change only.
+	* dwarf.h (AT_body_begin, AT_body_end, LANG_MODULA2):
+	Add from latest gcc.
+	* dwarf.h (LANG_CHILL):  Add as GNU extension.
+
+Sat Aug  1 13:46:53 1992  Fred Fish  (fnf@cygnus.com)
+
+	* dwarf.h:  Replace with current version from gcc distribution.
+
+Fri Jun 19 19:05:09 1992  John Gilmore  (gnu at cygnus.com)
+
+	* internal.h:  Add real struct tags to all the Type_Defs, so they
+	can be used in prototypes where the Type_Defs are not known.
+
+Fri Apr  3 20:58:58 1992  Mark Eichin  (eichin at cygnus.com)
+
+	* common.h: added ELF_R_{SYM,TYPE,INFO} for handling relocation
+	info
+	added EM_MIPS, and corrected value of EM_860 based on System V ABI
+	manual.
+
+	* external.h: added Elf_External_{Rel,Rela}.
+
+	* internal.h: added Elf_Internal_{Rel,Rela}.
+	added rawdata to Elf_Internal_Shdr.
+
+Sat Nov 30 20:43:59 1991  Steve Chamberlain  (sac at rtl.cygnus.com)
+
+	* common.h, dwarf.h, external.h, internal.h, ChangeLog; moved from
+	../elf-<foo>
+
+
+Local Variables:
+version-control: never
+End:

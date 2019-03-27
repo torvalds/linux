@@ -1,0 +1,278 @@
+# Firmware configuration file.
+#
+# Global limits (some are hardware limits, others are due to the firmware).
+# nvi = 128		virtual interfaces
+# niqflint = 1023	ingress queues with freelists and/or interrupts
+# nethctrl = 64K	Ethernet or ctrl egress queues
+# neq = 64K		egress queues of all kinds, including freelists
+# nexactf = 512		MPS TCAM entries, can oversubscribe.
+
+[global]
+	rss_glb_config_mode = basicvirtual
+	rss_glb_config_options = tnlmapen,hashtoeplitz,tnlalllkp
+
+	# PL_TIMEOUT register
+	pl_timeout_value = 200		# the timeout value in units of us
+
+	sge_timer_value = 1, 5, 10, 50, 100, 200	# SGE_TIMER_VALUE* in usecs
+
+	reg[0x10c4] = 0x20000000/0x20000000 # GK_CONTROL, enable 5th thread
+
+	reg[0x7dc0] = 0x0e2f8849	# TP_SHIFT_CNT
+
+	#Tick granularities in kbps
+	tsch_ticks = 100000, 10000, 1000, 10
+
+	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe
+	filterMask = protocol
+
+	tp_pmrx = 36, 512
+	tp_pmrx_pagesize = 64K
+
+	# TP number of RX channels (0 = auto)
+	tp_nrxch = 0
+
+	tp_pmtx = 46, 512
+	tp_pmtx_pagesize = 64K
+
+	# TP number of TX channels (0 = auto)
+	tp_ntxch = 0
+
+	# TP OFLD MTUs
+	tp_mtus = 88, 256, 512, 576, 808, 1024, 1280, 1488, 1500, 2002, 2048, 4096, 4352, 8192, 9000, 9600
+
+	# enable TP_OUT_CONFIG.IPIDSPLITMODE and CRXPKTENC
+	reg[0x7d04] = 0x00010008/0x00010008
+
+	# TP_GLOBAL_CONFIG
+	reg[0x7d08] = 0x00000800/0x00000800 # set IssFromCplEnable
+
+	# TP_PC_CONFIG
+	reg[0x7d48] = 0x00000000/0x00000400 # clear EnableFLMError
+
+	# TP_PARA_REG0
+	reg[0x7d60] = 0x06000000/0x07000000 # set InitCWND to 6
+
+	# cluster, lan, or wan.
+	tp_tcptuning = lan
+
+	# LE_DB_CONFIG
+	reg[0x19c04] = 0x00000000/0x00440000 # LE Server SRAM disabled
+					     # LE IPv4 compression disabled 
+	# LE_DB_HASH_CONFIG
+	reg[0x19c28] = 0x00800000/0x01f00000 # LE Hash bucket size 8, 
+
+	# ULP_TX_CONFIG
+	reg[0x8dc0] = 0x00000104/0x00000104 # Enable ITT on PI err
+					    # Enable more error msg for ...
+					    # TPT error.
+
+	# ULP_RX_MISC_FEATURE_ENABLE
+	#reg[0x1925c] = 0x01003400/0x01003400 # iscsi tag pi bit
+					     # Enable offset decrement after ...
+					     # PI extraction and before DDP
+					     # ulp insert pi source info in DIF
+					     # iscsi_eff_offset_en
+
+	#Enable iscsi completion moderation feature
+	reg[0x1925c] = 0x000041c0/0x000031c0	# Enable offset decrement after
+						# PI extraction and before DDP.
+						# ulp insert pi source info in
+						# DIF.
+						# Enable iscsi hdr cmd mode.
+						# iscsi force cmd mode.
+						# Enable iscsi cmp mode.
+	# MC configuration
+	#mc_mode_brc[0] = 1		# mc0 - 1: enable BRC, 0: enable RBC
+
+# PFs 0-3.  These get 8 MSI/8 MSI-X vectors each.  VFs are supported by
+# these 4 PFs only.
+[function "0"]
+	wx_caps = all
+	r_caps = all
+	nvi = 1
+	rssnvi = 0
+	niqflint = 2
+	nethctrl = 2
+	neq = 4
+	nexactf = 2
+	cmask = all
+	pmask = 0x1
+
+[function "1"]
+	wx_caps = all
+	r_caps = all
+	nvi = 1
+	rssnvi = 0
+	niqflint = 2
+	nethctrl = 2
+	neq = 4
+	nexactf = 2
+	cmask = all
+	pmask = 0x2
+
+[function "2"]
+	wx_caps = all
+	r_caps = all
+	nvi = 1
+	rssnvi = 0
+	niqflint = 2
+	nethctrl = 2
+	neq = 4
+	nexactf = 2
+	cmask = all
+	pmask = 0x4
+
+[function "3"]
+	wx_caps = all
+	r_caps = all
+	nvi = 1
+	rssnvi = 0
+	niqflint = 2
+	nethctrl = 2
+	neq = 4
+	nexactf = 2
+	cmask = all
+	pmask = 0x8
+
+# PF4 is the resource-rich PF that the bus/nexus driver attaches to.
+# It gets 32 MSI/128 MSI-X vectors.
+[function "4"]
+	wx_caps = all
+	r_caps = all
+	nvi = 32
+	rssnvi = 32
+	niqflint = 512
+	nethctrl = 1024
+	neq = 2048
+	nqpcq = 8192
+	nexactf = 456
+	cmask = all
+	pmask = all
+	ncrypto_lookaside = 16
+	nclip = 320
+	nethofld = 8192
+
+	# TCAM has 6K cells; each region must start at a multiple of 128 cell.
+	# Each entry in these categories takes 2 cells each.  nhash will use the
+	# TCAM iff there is room left (that is, the rest don't add up to 3072).
+	nfilter = 2032
+	nserver = 512
+	nhpfilter = 0
+	nhash = 16384
+	protocol = ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside
+	tp_l2t = 4096
+	tp_ddp = 2
+	tp_ddp_iscsi = 2
+	tp_tls_key = 3
+	tp_tls_mxrxsize = 17408    # 16384 + 1024, governs max rx data, pm max xfer len, rx coalesce sizes
+	tp_stag = 2
+	tp_pbl = 5
+	tp_rq = 7
+	tp_srq = 128
+
+# PF5 is the SCSI Controller PF. It gets 32 MSI/40 MSI-X vectors.
+# Not used right now.
+[function "5"]
+	nvi = 1
+	rssnvi = 0
+
+# PF6 is the FCoE Controller PF. It gets 32 MSI/40 MSI-X vectors.
+# Not used right now.
+[function "6"]
+	nvi = 1
+	rssnvi = 0
+
+# The following function, 1023, is not an actual PCIE function but is used to
+# configure and reserve firmware internal resources that come from the global
+# resource pool.
+#
+[function "1023"]
+	wx_caps = all
+	r_caps = all
+	nvi = 4
+	rssnvi = 0
+	cmask = all
+	pmask = all
+	nexactf = 8
+	nfilter = 16
+
+
+# For Virtual functions, we only allow NIC functionality and we only allow
+# access to one port (1 << PF).  Note that because of limitations in the
+# Scatter Gather Engine (SGE) hardware which checks writes to VF KDOORBELL
+# and GTS registers, the number of Ingress and Egress Queues must be a power
+# of 2.
+#
+[function "0/*"]
+	wx_caps = 0x82
+	r_caps = 0x86
+	nvi = 1
+	rssnvi = 0
+	niqflint = 2
+	nethctrl = 2
+	neq = 4
+	nexactf = 2
+	cmask = all
+	pmask = 0x1
+
+[function "1/*"]
+	wx_caps = 0x82
+	r_caps = 0x86
+	nvi = 1
+	rssnvi = 0
+	niqflint = 2
+	nethctrl = 2
+	neq = 4
+	nexactf = 2
+	cmask = all
+	pmask = 0x2
+
+[function "2/*"]
+	wx_caps = 0x82
+	r_caps = 0x86
+	nvi = 1
+	rssnvi = 0
+	niqflint = 2
+	nethctrl = 2
+	neq = 4
+	nexactf = 2
+	cmask = all
+	pmask = 0x1
+
+[function "3/*"]
+	wx_caps = 0x82
+	r_caps = 0x86
+	nvi = 1
+	rssnvi = 0
+	niqflint = 2
+	nethctrl = 2
+	neq = 4
+	nexactf = 2
+	cmask = all
+	pmask = 0x2
+
+# MPS has 192K buffer space for ingress packets from the wire as well as
+# loopback path of the L2 switch.
+[port "0"]
+	dcb = none
+	#bg_mem = 25
+	#lpbk_mem = 25
+	hwm = 60
+	lwm = 15
+	dwm = 30
+
+[port "1"]
+	dcb = none
+	#bg_mem = 25
+	#lpbk_mem = 25
+	hwm = 60
+	lwm = 15
+	dwm = 30
+
+[fini]
+	version = 0x1
+	checksum = 0x4528a6ac
+#
+# $FreeBSD$
+#

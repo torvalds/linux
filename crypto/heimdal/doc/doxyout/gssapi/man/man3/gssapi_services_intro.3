@@ -1,0 +1,65 @@
+.TH "gssapi_services_intro" 3 "11 Jan 2012" "Version 1.5.2" "HeimdalGSS-APIlibrary" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+gssapi_services_intro \- Introduction to GSS-API services 
+.SH "GSS-API services"
+.PP
+.SS "Context creation"
+.IP "\(bu" 2
+delegation
+.IP "\(bu" 2
+mutual authentication
+.IP "\(bu" 2
+anonymous
+.IP "\(bu" 2
+use per message before context creation has completed
+.PP
+.PP
+return status:
+.IP "\(bu" 2
+support conf
+.IP "\(bu" 2
+support int
+.PP
+.SS "Context creation flags"
+.IP "\(bu" 2
+GSS_C_DELEG_FLAG
+.IP "\(bu" 2
+GSS_C_MUTUAL_FLAG
+.IP "\(bu" 2
+GSS_C_REPLAY_FLAG
+.IP "\(bu" 2
+GSS_C_SEQUENCE_FLAG
+.IP "\(bu" 2
+GSS_C_CONF_FLAG
+.IP "\(bu" 2
+GSS_C_INTEG_FLAG
+.IP "\(bu" 2
+GSS_C_ANON_FLAG
+.IP "\(bu" 2
+GSS_C_PROT_READY_FLAG
+.IP "\(bu" 2
+GSS_C_TRANS_FLAG
+.IP "\(bu" 2
+GSS_C_DCE_STYLE
+.IP "\(bu" 2
+GSS_C_IDENTIFY_FLAG
+.IP "\(bu" 2
+GSS_C_EXTENDED_ERROR_FLAG
+.IP "\(bu" 2
+GSS_C_DELEG_POLICY_FLAG
+.PP
+.SS "Per-message services"
+.IP "\(bu" 2
+conf
+.IP "\(bu" 2
+int
+.IP "\(bu" 2
+message integrity
+.IP "\(bu" 2
+replay detection
+.IP "\(bu" 2
+out of sequence 
+.PP
+

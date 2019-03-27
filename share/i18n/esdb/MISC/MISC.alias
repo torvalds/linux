@@ -1,0 +1,38 @@
+# $FreeBSD$ 
+# $NetBSD: esdb.alias.MISC.src,v 1.16 2007/03/13 16:34:40 tnozaki Exp $
+
+ATARIST			atari
+
+HP-ROMAN8		cshproman8
+HP-ROMAN8		roman8
+HP-ROMAN8		r8
+
+HZ			hz-gb-2312
+HZ			hz-gb2312
+
+JISX0201-KANA		cshalfwidthkatakana
+JISX0201-KANA		jis_x0201
+JISX0201-KANA		jisx0201
+JISX0201-KANA		jisx0201-1976
+JISX0201-KANA		x0201
+
+JISX0208:1990		csiso87jisx0208
+JISX0208:1990		iso-ir-87
+JISX0208:1990		jis_c6226-1983
+JISX0208:1990		jis_x0208
+JISX0208:1990		jis_x0208-1983
+JISX0208:1990		jis_x0208-1990
+JISX0208:1990		jis_x0208:1990
+JISX0208:1990		jis0208
+JISX0208:1990		jisx0208-1990
+JISX0208:1990		x0208
+
+JOHAB			cp1361
+
+Shift_JIS		csshiftjis
+Shift_JIS		ms_kanji
+Shift_JIS		sjis
+
+Shift_JIS-2004		shift_jisx0213
+
+TDS565			iso-ir-230

@@ -1,0 +1,333 @@
+
+#------------------------------------------------------------------------------
+# $File: fonts,v 1.38 2017/11/14 15:48:36 christos Exp $
+# fonts:  file(1) magic for font data
+#
+0	search/1	FONT		ASCII vfont text
+0	short		0436		Berkeley vfont data
+0	short		017001		byte-swapped Berkeley vfont data
+
+# PostScript fonts (must precede "printer" entries), quinlan@yggdrasil.com
+0	string		%!PS-AdobeFont-1.	PostScript Type 1 font text
+>20	string		>\0			(%s)
+6	string		%!PS-AdobeFont-1.	PostScript Type 1 font program data
+0	string		%!FontType1	PostScript Type 1 font program data
+6	string		%!FontType1	PostScript Type 1 font program data
+0	string		%!PS-Adobe-3.0\ Resource-Font	PostScript Type 1 font text
+
+# Summary:	PostScript Type 1 Printer Font Metrics
+# URL:		https://en.wikipedia.org/wiki/PostScript_fonts
+# Reference:	http://partners.adobe.com/public/developer/en/font/5178.PFM.pdf
+# Modified by:	Joerg Jenderek
+# Note:		moved from ./msdos magic
+# dfVersion 256=0100h
+0		uleshort	0x0100
+# GRR: line above is too general as it catches also TrueType font,
+# raw G3 data FAX, WhatsApp encrypted and Panorama database
+# dfType 129=0081h
+>66		uleshort	0x0081
+# dfVertRes 300=012Ch not needed as additional test
+#>>70		uleshort	0x012c
+# dfHorizRes 300=012Ch
+#>>>72		uleshort	0x012c
+# dfDriverInfo points to postscript information section
+>>(101.l)	string/c	Postscript	Printer Font Metrics
+# above labeled "PFM data" by ./msdos (version 5.28) or "Adobe Printer Font Metrics" by TrID
+!:mime	application/x-font-pfm
+# AppleShare Print Server
+#!:apple	ASPS????
+!:ext	pfm
+# dfCopyright 60 byte null padded Copyright string. uncomment it to get old looking
+#>>>6		string		>\060		- %-.60s
+# dfDriverInfo
+>>>139		ulelong		>0
+# often abbreviated and same as filename
+>>>>(139.l)	string		x		%s
+# dfSize
+>>>2		ulelong		x		\b, %d bytes
+# dfFace 210=D2h 9Eh
+>>>105		ulelong		>0
+# Windows font name
+>>>>(105.l)	string		x		\b, %s
+# dfItalic
+>>>80		ubyte		1		italic
+# dfUnderline
+>>>81		ubyte		1		underline
+# dfStrikeOut
+>>>82		ubyte		1		strikeout
+# dfWeight 400=0x0190 300=0x012c 500=0x01f4 600=0x0258 700=0x02bc
+>>>83		uleshort	>699		bold
+# dfPitchAndFamily 16 17 48 49 64 65
+>>>90		ubyte		16		serif
+>>>90		ubyte		17		serif proportional
+#>>>90		ubyte		48		other
+>>>90		ubyte		49		proportional
+>>>90		ubyte		64		script
+>>>90		ubyte		65		script proportional
+
+# X11 font files in SNF (Server Natural Format) format
+# updated by Joerg Jenderek at Feb 2013
+# http://computer-programming-forum.com/51-perl/8f22fb96d2e34bab.htm
+0	belong		00000004		X11 SNF font data, MSB first
+#>104	belong		00000004		X11 SNF font data, MSB first
+!:mime	application/x-font-sfn
+# GRR: line below too general as it catches also Xbase index file t3-CHAR.NDX
+0	lelong		00000004
+>104	lelong		00000004		X11 SNF font data, LSB first
+!:mime	application/x-font-sfn
+
+# X11 Bitmap Distribution Format, from Daniel Quinlan (quinlan@yggdrasil.com)
+0	search/1	STARTFONT\ 		X11 BDF font text
+
+# From: Joerg Jenderek
+# URL: http://grub.gibibit.com/New_font_format
+# Reference: util/grub-mkfont.c
+#		include/grub/fontformat.h
+# FONT_FORMAT_SECTION_NAMES_FILE
+0			string		FILE
+# FONT_FORMAT_PFF2_MAGIC
+>8			string		PFF2
+# leng 4 only at the moment
+>>4			ubelong		4
+# FONT_FORMAT_SECTION_NAMES_FONT_NAME
+>>>12			string		NAME		GRUB2 font
+!:mime			application/x-font-pf2
+!:ext			pf2
+# length of font_name
+>>>>16			ubelong		>0
+# font_name
+>>>>>20			string		>\0		"%-s"
+
+# X11 fonts, from Daniel Quinlan (quinlan@yggdrasil.com)
+# PCF must come before SGI additions ("MIPSEL MIPS-II COFF" collides)
+0	string		\001fcp			X11 Portable Compiled Font data,
+>12	lelong		^0x08			bit: LSB,
+>12	lelong		&0x08			bit: MSB,
+>12	lelong		^0x04			byte: LSB first
+>12	lelong		&0x04			byte: MSB first
+0	string		D1.0\015		X11 Speedo font data
+
+#------------------------------------------------------------------------------
+# FIGlet fonts and controlfiles
+# From figmagic supplied with Figlet version 2.2
+# "David E. O'Brien" <obrien@FreeBSD.ORG>
+0	string		flf		FIGlet font
+>3	string		>2a		version %-2.2s
+0	string		flc		FIGlet controlfile
+>3	string		>2a		version %-2.2s
+
+# libGrx graphics lib fonts, from Albert Cahalan (acahalan@cs.uml.edu)
+# Used with djgpp (DOS Gnu C++), sometimes Linux or Turbo C++
+0	belong		0x14025919	libGrx font data,
+>8	leshort		x		%dx
+>10	leshort		x		\b%d
+>40	string		x		%s
+# Misc. DOS VGA fonts, from Albert Cahalan (acahalan@cs.uml.edu)
+0	belong		0xff464f4e	DOS code page font data collection
+7	belong		0x00454741	DOS code page font data
+7	belong		0x00564944	DOS code page font data (from Linux?)
+4098	string		DOSFONT		DOSFONT2 encrypted font data
+
+# downloadable fonts for browser (prints type) anthon@mnt.org
+# https://tools.ietf.org/html/rfc3073
+0	string		PFR1		Portable Font Resource font data (new)
+>102	string		>0		\b: %s
+0	string		PFR0		Portable Font Resource font data (old)
+>4	beshort		>0		version %d
+
+# True Type fonts
+# Modified by: Joerg Jenderek
+# URL: https://en.wikipedia.org/wiki/TrueType
+# Reference: https://developer.apple.com/fonts/TrueType-Reference-Manual/
+#
+# sfnt version "typ1" used by some Apple, but no example found
+0	string	typ1
+>0	use		sfnt-font
+>0	use		sfnt-names
+# sfnt version "true" used by some Apple
+0	string	true
+>0	use		sfnt-font
+>0	use		sfnt-names
+# GRR: below test is too general
+# sfnt version often 0x00010000
+0	string	\000\001\000\000
+>0	use		sfnt-font
+>0	use		sfnt-names
+#	validate and display sfnt font data like number of tables
+0	name		sfnt-font
+# file 5.30 version assumes 00FFh as maximal number of tables
+#>4	ubeshort	<0x0100		
+# maximal 27 tables found like in Skia.ttf
+# 46 different table names mentioned on Apple specification
+# skip 1st sequence of DOS 2 backup with path separator (\~92 or /~47) misinterpreted as table number
+>4	ubeshort	<47		
+# skip bad examples with garbage table names like in a5.show HYPERC MAC
+# tag names consist of up to four characters padded with spaces at end like
+# BASE DSIG OS/2 Zapf acnt glyf cvt vmtx xref ...
+>>12	regex/4l	\^[A-Za-z][A-Za-z][A-Za-z/][A-Za-z2\ ]	
+#>>>0	ubelong	x	\b, sfnt version 0x%x
+>>>0	ubelong	!0x4f54544f	TrueType
+!:mime	application/font-sfnt
+#!:mime	font/ttf
+!:apple	????tfil
+# .ttf for TrueType font
+# EUDC.tte created by privat character editor %WINDIR%\system32\eudcedit.exe
+!:ext	ttf/tte
+# sfnt version 4F54544Fh~OTTO
+>>>0	ubelong	=0x4f54544f	OpenType
+!:mime	application/font-sfnt
+#!:mime	font/otf
+!:apple	????OTTO
+!:ext	otf
+>>>0	ubelong	x		Font data
+# DSIG=44454947h table name implies a digitally signed font
+# search range = number of tables * 16 =< maximal number of tables * 16 = 27 * 16 = 432
+>>>12	search/432	DSIG		\b, digitally signed
+>>>4	ubeshort	x		\b, %d tables
+# minimal 9 tables found like in NISC18030.ttf
+#>>>4	ubeshort	<10		TMIN
+#>>>4	ubeshort	>24		TBIG
+# table directory entries
+>>>12	string		x		\b, 1st "%4.4s"
+
+#	search and display 1st name in sfnt font which is often copyright text
+#	does not work inside font collections
+0	name		sfnt-names
+# search for naming table
+>12	search/432/s	name		
+# biggest offset 0x0100bd28 like Windows10 Fonts\simsunb.ttf
+#>>>>&8	ubelong		>0x0100bd27	BIGGEST OFFSET
+>>&8	ubelong		>0x00100000	
+# offset of name table
+>>>&-4	ubelong		x		\b, name offset 0x%x
+# GRR: pointer to name table only works if offset ~< FILE_BYTES_MAX = 100000h defined in src\file.h
+>>&8	ubelong		<0x00100000	
+>>>&-16	ubelong		x		
+# name table
+>>>>(&8.L)	ubequad	x		
+# invalid format selector 
+#>>>>>&-8	ubeshort	!0	\b, invalid selector %x
+# minimal 3 name records found like in c:\Program Files (x86)\Tesseract-OCR\tessdata\pdf.ttf
+# maximal 1227 name records found like in Apple Chancery.ttf
+#>>>>>&-6	ubeshort	<0x4	mincount
+#>>>>>&-6	ubeshort	>130	maxcount
+>>>>>&-6	ubeshort	x	\b, %d names
+# offset to start of string storage from start of table
+#>>>>>&-4	ubeshort	x	\b, record offset %d
+# 1st name record
+# string offset from start of storage area 
+#>>>>>&8		ubeshort	x	\b, string offset %d
+# string length
+#>>>>>&6		ubeshort	x	\b, string length %d
+# minimal name string 7 like in c:\Program Files (x86)\Kodi\addons\webinterface.default\lib\video-js\font\VideoJS.ttf
+# also found 0 like in SWZCONLN.TTF
+#>>>>>&6		ubeshort	<8	MIN STRING
+# maximal name string 806 like in c:\Windows\Fonts\palabi.ttf
+#>>>>>&6		ubeshort	>805	MAX STRING
+# platform identifier: 0~Apple Unicode, 1~Macintosh, 3~Microsoft
+#>>>>>&-2	ubeshort	>3	BAD PLATFORM
+>>>>>&-2	ubeshort	0	\b, Unicode
+>>>>>&-2	ubeshort	1	\b, Macintosh
+>>>>>&-2	ubeshort	3	\b, Microsoft
+# languageID (0~english Macintosh, 0409h~english Microsoft, ...)
+>>>>>&2		ubeshort	>0	\b, language 0x%x
+# name identifiers
+# often 0~copyright, 1~font, 2~font subfamily, 5~version, 13~license, 19~sample, ...
+>>>>>&4		ubeshort	>0	\b, type %d string
+# platform specific encoding:
+# 0~undefined character set, 1~UGL set with Unicode, 3~Unicode 2.0 BMP only, 4~Unicode 2.0
+#>>>>>&0		ubeshort	x	\b, %d encoding
+>>>>>&0		ubeshort	0	
+# handle only name string offset 0 because do not know how to add 2 relative offsets
+>>>>>>&6		ubeshort	0	
+>>>>>>>&(&-14.S-18)	ubyte		!0	
+# GRR: instead 806 only first MAXstring = 96 characters are displayed as defined in src\file.h
+# often copyright string that starts like \251 2006 The Monotype Corporation
+>>>>>>>>&-1		string		x	\b, %-11.96s
+# test for unicode string
+>>>>>>>&(&-14.S-18)	ubyte		0	
+>>>>>>>>&0		lestring16	x	\b, %-11.96s
+# unicode encoding
+>>>>>&0		ubeshort	>0	
+>>>>>>&6		ubeshort	0	
+>>>>>>>&(&-14.S-17)	lestring16	x	\b, %-11.96s
+
+0	string		\007\001\001\000Copyright\ (c)\ 199	Adobe Multiple Master font
+0	string		\012\001\001\000Copyright\ (c)\ 199	Adobe Multiple Master font
+
+# TrueType/OpenType font collections (.ttc)
+# URL: https://en.wikipedia.org/wiki/OpenType
+# http://www.microsoft.com/typography/otspec/otff.htm
+# Modified by: Joerg Jenderek
+# Note:	container for TrueType, OpenType font
+0	string		ttcf
+# skip ASCII text
+>4	ubyte		0		
+# sfnt version often 0x00010000 of 1st table is TrueType
+>>(12.L)	ubelong	!0x4f54544f	TrueType
+#!:mime	font/ttf
+!:apple	????tfil
+!:ext	ttc
+# sfnt version 4F54544Fh~OTTO of 1st table is OpenType font 
+>>(12.L)	ubelong	=0x4f54544f	OpenType
+#!:mime	font/otf
+!:apple	????OTTO
+# no example found for otc
+!:ext	ttc/otc
+>>4	ubyte		x		font collection data
+!:mime	application/font-sfnt
+#!:mime	font/collection
+# TCC version
+>>4	belong		0x00010000	\b, 1.0
+>>4	belong		0x00020000	\b, 2.0
+>>8	ubelong		>0		\b, %d fonts
+# array offset size = fonts * offsetsize = fonts * 4
+>>(8.L*4) ubequad	x		
+# 0x44454947 = 'DSIG'
+>>>&4	belong		0x44534947	\b, digitally signed
+# offset to 1st font
+>>12	ubelong		x		\b, at 0x%x
+# point to 1st font that starts with sfnt version
+>>(12.L) use		sfnt-font
+
+# Opentype font data from Avi Bercovich
+0	string		OTTO		OpenType font data
+!:mime application/vnd.ms-opentype
+
+# From: Alex Myczko <alex@aiei.ch>
+0	string		SplineFontDB:	Spline Font Database
+!:mime application/vnd.font-fontforge-sfd
+>14	string		x		version %s
+
+# EOT
+0x40	string		\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+>0x22	string		LP		Embedded OpenType (EOT)
+# workaround until there's lepstring16
+# >>0x52	lepstring16/h	>\0		\b, %s family
+>>0x52	short	!0
+>>>0x54	lestring16	x		\b, %s family
+!:mime application/vnd.ms-fontobject
+
+# Web Open Font Format (.woff)
+0	name		woff
+>4	belong		0x00010000	\b, TrueType
+>4	belong		0x4F54544F	\b, CFF
+>4	belong		0x74727565	\b, TrueType
+>4	default		x
+>>4	belong		x		\b, flavor %d
+>8	belong		x		\b, length %d
+#>12	beshort		x		\b, numTables %d
+#>14	beshort		x		\b, reserved %d
+#>16	belong		x		\b, totalSfntSize %d
+
+# http://www.w3.org/TR/WOFF/
+0	string		wOFF	Web Open Font Format
+>0	use		woff
+>20	beshort		x	\b, version %d
+>22	beshort		x	\b.%d
+# http://www.w3.org/TR/WOFF2/
+0	string		wOF2	Web Open Font Format (Version 2)
+>0	use		woff
+#>20	belong		x	\b, totalCompressedSize %d
+>24	beshort		x	\b, version %d
+>26	beshort		x	\b.%d

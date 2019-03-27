@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Do not build all binaries with the
+.Dv DF_BIND_NOW
+flag set.
+Run-time relocation processing will be performed on demand.

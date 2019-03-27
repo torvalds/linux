@@ -1,0 +1,14 @@
+
+#------------------------------------------------------------------------------
+# $File: vxl,v 1.4 2009/09/19 16:28:13 christos Exp $
+# VXL: file(1) magic for VXL binary IO data files
+#
+# from Ian Scott <scottim@sf.net>
+#
+# VXL is a collection of C++ libraries for Computer Vision.
+# See the vsl chapter in the VXL Book for more info
+# http://www.isbe.man.ac.uk/public_vxl_doc/books/vxl/book.html
+# http:/vxl.sf.net
+
+2	lelong	0x472b2c4e	VXL data file,
+>0	leshort	>0		schema version no %d

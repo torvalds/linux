@@ -1,0 +1,56 @@
+.\" Generated from pam_strerror.c by gendoc.pl
+.\" $OpenPAM: pam_strerror.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt PAM_STRERROR 3
+.Os
+.Sh NAME
+.Nm pam_strerror
+.Nd get PAM standard error message string
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.Ft "const char *"
+.Fn pam_strerror "const pam_handle_t *pamh" "int error_number"
+.Sh DESCRIPTION
+The
+.Fn pam_strerror
+function returns a pointer to a string containing a
+textual description of the error indicated by the
+.Fa error_number
+argument.
+The
+.Fa pamh
+argument is ignored.
+For compatibility with other implementations, it should be either a
+valid PAM handle returned by a previous call to
+.Xr pam_start 3 ,
+or
+.Dv NULL .
+.Sh RETURN VALUES
+The
+.Fn pam_strerror
+function returns
+.Dv NULL
+on failure.
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam_start 3
+.Sh STANDARDS
+.Rs
+.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
+.%D "June 1997"
+.Re
+.Sh AUTHORS
+The
+.Fn pam_strerror
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

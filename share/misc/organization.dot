@@ -1,0 +1,97 @@
+# $FreeBSD$
+
+# This file is meant to show the infrastructural organization of the
+# FreeBSD Project; what kind of teams we have and how they relate to
+# each other.
+# For a detailed description of the responsibilities and duties of the listed
+# teams, please see our Administration page at
+# https://www.freebsd.org/administration.html .
+# 
+# The graphical output can be generated from this file with the following
+# command:
+# $ dot -T png -o file.png organization.dot
+#
+# The dot binary is part of the graphics/graphviz port.
+
+digraph org {
+
+node [color=lightblue2, style=filled, bgcolor=black];
+
+# Meta-categories go here
+
+_devel [label="FreeBSD Developers"]
+_admin [label="FreeBSD Infrastructure Administrators"]
+_misc [label="Miscellaneous Hats"]
+
+# Development teams go here alphabetically sorted
+
+core [label="Core Team\ncore@FreeBSD.org\nallanjude, bcr, brooks,\nimp, hrs, jeff,\njhb, kmoore, seanc"]
+coresecretary [label="Core Team Secretary\ncore-secretary@FreeBSD.org\njrm"]
+doccommitters [label="Doc/www Committers\ndoc-committers@FreeBSD.org"]
+doceng [label="Documentation Engineering Team\ndoceng@FreeBSD.org\nbcr, gabor, gjb, hrs,\nblackend, ryusuke, wblock"]
+portscommitters [label="Ports Committers\nports-committers@FreeBSD.org"]
+portmgr [label="Port Management Team\nportmgr@FreeBSD.org\nadamw, antoine, bapt, bdrewery\nfeld, mat, rene, swills"]
+portmgrsecretary [label="Port Management Team Secretary\nportmgr-secretary@FreeBSD.org\nrene"]
+re [label="Primary Release Engineering Team\nre@FreeBSD.org\ngjb, kib,\nbdrewery, blackend,\nrgrimes, delphij,\nhrs, glebius,\nmarius"]
+secteam [label="Security Team\nsecteam@FreeBSD.org\nbenno, delphij,\ndes, emaste,\ngjb, gordon,\nremko"]
+portssecteam [label="Ports Security Team\nports-secteam@FreeBSD.org\ndelphij, amdmi3, eadler, feld, jgh, rea, riggs, sbz, simon, swills, zi"]
+secteamsecretary [label="Security Team Secretary\nsecteam-secretary@FreeBSD.org\nremko"]
+securityofficer [label="Security Officer Team\nsecurity-officer@FreeBSD.org\nbenno, delphij,\ndes, emaste,\ngjb, gordon,\nremko"]
+srccommitters [label="Src Committers\nsrc-committers@FreeBSD.org"]
+
+# Admin teams go here alphabetically sorted
+
+accounts [label="Accounts Team\naccounts@FreeBSD.org\nclusteradm"]
+backups [label="Backup Administrators\nbackups@FreeBSD.org\nclusteradm"]
+bugmeister [label="Bugmeister Team\nbugmeister@FreeBSD.org\neadler, gavin, gonzo"]
+clusteradm [label="Cluster Administrators\nclusteradm@FreeBSD.org\nallanjude, brd,\ndhw, gavin,\ngjb, peter,\nsbruno, simon,\nzi"]
+dnsadm [label="DNS Administrators\ndnsadm@FreeBSD.org\nclusteradm"]
+mirroradmin [label="FTP/WWW Mirror Site Coordinators\nmirror-admin@FreeBSD.org\nclusteradm,\nkuriyama"]
+perforceadmin [label="Perforce Repository Administrators\nperforce-admin@FreeBSD.org\nscottl, kensmith, gordon,\nrwatson, peter, dhw"]
+postmaster [label="Postmaster Team\npostmaster@FreeBSD.org\ndhw, krion, ler, philip, pi, rea, remko, zi"]
+webmaster [label="Webmaster Team\nwebmaster@FreeBSD.org\ngjb, wblock, blackend,\ngabor, hrs, wosch"]
+
+# Misc hats go here alphabetically sorted
+
+donations [label="Donations Team\ndonations@FreeBSD.org\nwilko, gahr, pgolluci,\nobrien, ds,\nrwatson"]
+marketing [label="Marketing Team\nmarketing@FreeBSD.org\nSteven Beedle, Denise Ebery, deb,\njkoshy, dru, mwlucas, imp,\nKris Moore, murray, mattt,\nJeremy C. Reed, rwatson"]
+vendorrelations [label="Vendor Relations\nvendor-relations@FreeBSD.org\ncore, FreeBSD Foundation"]
+
+# Here are the team relationships.
+# Group together all the entries for the superior team.
+# Keep the list sorted by the superior team entry.
+
+_admin -> accounts
+_admin -> backups
+_admin -> bugmeister
+_admin -> clusteradm
+_admin -> dnsadm
+_admin -> mirroradmin
+_admin -> perforceadmin
+_admin -> postmaster
+_admin -> webmaster
+
+_devel -> core
+
+_misc -> donations
+_misc -> marketing
+_misc -> vendorrelations
+
+core -> coresecretary
+core -> doceng
+core -> portmgr
+core -> re
+core -> securityofficer
+core -> srccommitters
+
+doceng -> doccommitters
+
+portmgr -> portmgrsecretary
+portmgr -> portscommitters
+
+securityofficer -> secteam
+securityofficer -> portssecteam
+
+secteam -> secteamsecretary
+
+}

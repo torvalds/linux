@@ -1,0 +1,156 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_get_loclist_entry.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd July 6, 2011
+.Dt DWARF_GET_LOCLIST_ENTRY 3
+.Os
+.Sh NAME
+.Nm dwarf_get_loclist_entry
+.Nd retrieve DWARF location list entry
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_get_loclist_entry
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Unsigned offset"
+.Fa "Dwarf_Addr *hipc"
+.Fa "Dwarf_Addr *lopc"
+.Fa "Dwarf_Ptr *data"
+.Fa "Dwarf_Unsigned *entry_len"
+.Fa "Dwarf_Unsigned *next_entry"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_get_loclist_entry
+retrieves a location list entry from the DWARF section
+.Dq ".debug_loc" .
+.Pp
+Argument
+.Ar dbg
+should reference a DWARF debug context allocated using
+.Xr dwarf_init 3 .
+.Pp
+Argument
+.Ar offset
+is an offset, relative to the
+.Dq ".debug_loc"
+section, to the start of the desired location list entry.
+.Pp
+Argument
+.Ar hipc
+should point to a location which will hold the offset, relative to the
+base address of the location list entry, of the highest program
+counter value for the entry.
+.Pp
+Argument
+.Ar lowpc
+should point to a location which will hold the offset, relative to the
+base address of the location list entry, of the lowest program counter
+value for the entry.
+.Pp
+Argument
+.Ar data
+should point to a location which will be set to a pointer to the location
+list data.
+.Pp
+Argument
+.Ar entry_len
+should point to a location which will hold the length in bytes of the
+location list data returned in argument
+.Ar data .
+.Pp
+Argument
+.Ar next_entry
+should point to a location which will hold the offset of the next
+location list entry.
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case
+of an error.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_get_loclist_entry
+returns
+.Dv DW_DLV_OK
+when it succeeds.
+It returns
+.Dv DW_DLV_NO_ENTRY
+if there is no location list at the specified offset
+.Ar offset .
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets the argument
+.Ar err .
+.Sh EXAMPLES
+To iterate through all the location list entries in the
+.Dq ".debug_loc"
+section, use:
+.Bd -literal -offset indent
+Dwarf_Debug dbg;
+Dwarf_Unsigned off, len, next;
+Dwarf_Addr hipc, lopc;
+Dwarf_Ptr data;
+Dwarf_Error de;
+int ret;
+
+off = 0;
+while ((ret = dwarf_get_loclist_entry(dbg, off, &hipc, &lopc, &data,
+    &len, &next, &de)) == DW_DLV_OK) {
+	/* ... use loclist entry ... */
+	off = next;
+}
+if (ret == DW_DLV_ERROR)
+	warnx("dwarf_get_loclist_entry failed: %s", dwarf_errmsg(de));
+.Ed
+.Sh ERRORS
+Function
+.Fn dwarf_get_loclist_entry
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_NO_ENTRY"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar dbg ,
+.Ar hipc ,
+.Ar lopc ,
+.Ar data ,
+.Ar entry_len
+or
+.Ar next_entry
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+There is no location list at the specified offset
+.Ar offset .
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_loclist 3 ,
+.Xr dwarf_loclist_from_expr 3 ,
+.Xr dwarf_loclist_from_expr_a 3 ,
+.Xr dwarf_loclist_n 3

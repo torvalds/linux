@@ -1,0 +1,180 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getitimer.2	8.3 (Berkeley) 5/16/95
+.\" $FreeBSD$
+.\"
+.Dd May 16, 1995
+.Dt GETITIMER 2
+.Os
+.Sh NAME
+.Nm getitimer ,
+.Nm setitimer
+.Nd get/set value of interval timer
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/time.h
+.Fd "#define ITIMER_REAL      0"
+.Fd "#define ITIMER_VIRTUAL   1"
+.Fd "#define ITIMER_PROF      2"
+.Ft int
+.Fn getitimer "int which" "struct itimerval *value"
+.Ft int
+.Fn setitimer "int which" "const struct itimerval *value" "struct itimerval *ovalue"
+.Sh DESCRIPTION
+The system provides each process with three interval timers,
+defined in
+.In sys/time.h .
+The
+.Fn getitimer
+system call returns the current value for the timer specified in
+.Fa which
+in the structure at
+.Fa value .
+The
+.Fn setitimer
+system call sets a timer to the specified
+.Fa value
+(returning the previous value of the timer if
+.Fa ovalue
+is not a null pointer).
+.Pp
+A timer value is defined by the
+.Fa itimerval
+structure:
+.Bd -literal -offset indent
+struct itimerval {
+	struct	timeval it_interval;	/* timer interval */
+	struct	timeval it_value;	/* current value */
+};
+.Ed
+.Pp
+If
+.Fa it_value
+is non-zero, it indicates the time to the next timer expiration.
+If
+.Fa it_interval
+is non-zero, it specifies a value to be used in reloading
+.Fa it_value
+when the timer expires.
+Setting
+.Fa it_value
+to 0 disables a timer, regardless of the value of
+.Fa it_interval .
+Setting
+.Fa it_interval
+to 0 causes a timer to be disabled after its next expiration (assuming
+.Fa it_value
+is non-zero).
+.Pp
+Time values smaller than the resolution of the
+system clock are rounded up to this resolution
+(typically 10 milliseconds).
+.Pp
+The
+.Dv ITIMER_REAL
+timer decrements in real time.
+A
+.Dv SIGALRM
+signal is
+delivered when this timer expires.
+.Pp
+The
+.Dv ITIMER_VIRTUAL
+timer decrements in process virtual time.
+It runs only when the process is executing.
+A
+.Dv SIGVTALRM
+signal
+is delivered when it expires.
+.Pp
+The
+.Dv ITIMER_PROF
+timer decrements both in process virtual time and
+when the system is running on behalf of the process.
+It is designed
+to be used by interpreters in statistically profiling the execution
+of interpreted programs.
+Each time the
+.Dv ITIMER_PROF
+timer expires, the
+.Dv SIGPROF
+signal is
+delivered.
+Because this signal may interrupt in-progress
+system calls, programs using this timer must be prepared to
+restart interrupted system calls.
+.Pp
+The maximum number of seconds allowed for
+.Fa it_interval
+and
+.Fa it_value
+in
+.Fn setitimer
+is 100000000.
+.Sh NOTES
+Three macros for manipulating time values are defined in
+.In sys/time.h .
+The
+.Fn timerclear
+macro
+sets a time value to zero,
+.Fn timerisset
+tests if a time value is non-zero, and
+.Fn timercmp
+compares two time values.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn getitimer
+and
+.Fn setitimer
+system calls
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The
+.Fa value
+argument specified a bad address.
+.It Bq Er EINVAL
+The
+.Fa value
+argument specified a time that was too large
+to be handled.
+.El
+.Sh SEE ALSO
+.Xr gettimeofday 2 ,
+.Xr select 2 ,
+.Xr sigaction 2 ,
+.Xr clocks 7
+.Sh HISTORY
+The
+.Fn getitimer
+system call appeared in
+.Bx 4.2 .

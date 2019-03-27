@@ -1,0 +1,44 @@
+Mike Haertel wrote the main program and the dfa and kwset matchers.
+
+Arthur David Olson contributed the heuristics for finding fixed substrings
+at the end of dfa.c.
+
+Richard Stallman and Karl Berry wrote the regex backtracking matcher.
+
+Henry Spencer wrote the original test suite from which grep's was derived.
+
+Scott Anderson invented the Khadafy test.
+
+David MacKenzie wrote the automatic configuration software use to
+produce the configure script.
+
+Authors of the replacements for standard library routines are identified
+in the corresponding source files.
+
+The idea of using Boyer-Moore type algorithms to quickly filter out
+non-matching text before calling the regexp matcher was originally due
+to James Woods.  He also contributed some code to early versions of
+GNU grep.
+
+Mike Haertel would like to thank Andrew Hume for many fascinating discussions
+of string searching issues over the years.  Hume & Sunday's excellent
+paper on fast string searching (AT&T Bell Laboratories CSTR #156)
+describes some of the history of the subject, as well as providing
+exhaustive performance analysis of various implementation alternatives.
+The inner loop of GNU grep is similar to Hume & Sunday's recommended
+"Tuned Boyer Moore" inner loop.
+
+More work was done on regex.[ch] by Ulrich Drepper and Arnold
+Robbins. Regex is now part of GNU C library, see this package
+for complete details and credits.
+
+Arnold Robbins contributed to improve dfa.[ch]. In fact
+it came straight from gawk-3.0.3 with small editing and fixes.
+
+Many folks contributed see THANKS, if I omited someone please
+send me email.
+
+Alain Magloire maintained GNU grep until version 2.5e.
+
+Bernhard "Bero" Rosenkränzer <bero@redhat.com> is the current maintainer.
+

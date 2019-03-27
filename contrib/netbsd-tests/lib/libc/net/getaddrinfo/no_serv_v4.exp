@@ -1,0 +1,14 @@
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host ::1 serv (empty)
+ai1: flags 0x2 family 24 socktype 2 protocol 17 addrlen 28 host ::1 serv 0
+ai2: flags 0x2 family 24 socktype 1 protocol 6 addrlen 28 host ::1 serv 0
+
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host 127.0.0.1 serv (empty)
+ai1: flags 0x2 family 2 socktype 2 protocol 17 addrlen 16 host 127.0.0.1 serv 0
+ai2: flags 0x2 family 2 socktype 1 protocol 6 addrlen 16 host 127.0.0.1 serv 0
+
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host localhost serv (empty)
+ai1: flags 0x2 family 2 socktype 2 protocol 17 addrlen 16 host 127.0.0.1 serv 0
+ai2: flags 0x2 family 2 socktype 1 protocol 6 addrlen 16 host 127.0.0.1 serv 0
+
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host (empty) serv (empty)
+hostname nor servname provided, or not known

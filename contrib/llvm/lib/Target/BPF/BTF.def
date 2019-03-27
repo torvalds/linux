@@ -1,0 +1,33 @@
+//===- BTF.def - BTF definitions --------------------------------*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// Macros for BTF.
+//
+//===----------------------------------------------------------------------===//
+
+#if !defined(HANDLE_BTF_KIND)
+#error "Missing macro definition of HANDLE_BTF_*"
+#endif
+
+HANDLE_BTF_KIND(0, UNKN)
+HANDLE_BTF_KIND(1, INT)
+HANDLE_BTF_KIND(2, PTR)
+HANDLE_BTF_KIND(3, ARRAY)
+HANDLE_BTF_KIND(4, STRUCT)
+HANDLE_BTF_KIND(5, UNION)
+HANDLE_BTF_KIND(6, ENUM)
+HANDLE_BTF_KIND(7, FWD)
+HANDLE_BTF_KIND(8, TYPEDEF)
+HANDLE_BTF_KIND(9, VOLATILE)
+HANDLE_BTF_KIND(10, CONST)
+HANDLE_BTF_KIND(11, RESTRICT)
+HANDLE_BTF_KIND(12, FUNC)
+HANDLE_BTF_KIND(13, FUNC_PROTO)
+
+#undef HANDLE_BTF_KIND

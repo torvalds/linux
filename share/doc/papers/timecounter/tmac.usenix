@@ -1,0 +1,953 @@
+.\" $FreeBSD$
+.ds CC "
+.nr PS 10
+.nr FU 0.0i	\" priniter prints this much too low
+.nr VS 11
+.ds Q `\h'-0.02i'`
+.ds U '\h'-0.02i''
+.ds `` `\h'-0.02i'`
+.ds '' '\h'-0.02i''
+.\" footnote stuff
+.nr * 0 1
+.ds [. \|[
+.ds .] ]
+.if t .ds [, \s-2\v'-.4m'\f2
+.if n .ds [, [
+.if t .ds ,] \v'.4m'\s+2\fP
+.if n .ds ,] ]
+.ds * \*([,\\n+*\*(,]
+.ds [o ``
+.ds [c ''
+.ev 1
+.ps \n(PS
+.vs \n(VS
+.ev
+.de pp
+.PP
+..
+.de PP
+.LP
+.if t .ti 0.3i
+.if n .ti 5
+..
+.de LP
+.if t .sp 0.3
+.if n .sp
+.ne 1
+.in 0
+.nr Ia 0
+.nr Ic 0
+.fi
+..
+.de IP
+.if t .sp 0.3
+.if n .sp
+.\" Ia = total indent for this guy
+.\" Ib = .ti value for this guy
+.\" Ic = auxiliary indent
+.nr Ib 0.0i
+.if \\n(Ia=0 .nr Ia 0.2i
+.if !\\$1 \{\
+.   nr Ia \w\\$1\ \ u
+.   nr Ib \\n(Ia
+.\}
+.if !\\$2 .nr Ia \\$2n
+.in \\n(Iau
+.in +\\n(Icu
+.ti -\\n(Ibu
+.if !\\$1 \{\
+\&\\$1\ \ \c
+.\}
+..
+.de QP
+.IP
+..
+.de RS
+.nr Ic +0.2i
+..
+.de RE
+.nr Ic -0.2i
+..
+.de PN
+.rs
+'sp |10.4i-\\n(FUu
+.rs
+'sp |10.4i-\\n(FUu	 \" how many traps could there be?
+.rs
+'sp |10.4i-\\n(FUu
+.PO
+'ie e \{\
+.ev 2
+.\".if t 'tl \s10\f3%\\*(CC\fP\s0
+.ev
+'\}
+'el \{\
+.ev 2
+.\".if t 'tl \s10\f3\\*(CC%\fP\s0
+.ev
+'\}
+.po
+.wh 0 hh
+'bp
+..
+.de ff
+.nr dn 0
+.if \\nx \{\
+. ev 1
+. vs \\n(VVu
+. mk QR
+' nr QS 11i+0.5v-1u+\\nyu
+' if \\n(QS>\\n(QR 'if t 'sp |\\n(QSu
+. nf
+. FN	\" print the footnotes
+. vs
+. rm FN
+. if \\n(.zfy .br\" end overflow diversion
+. if \\n(.zfy .di\" end overflow diversion
+. nr x 0 1
+. ev
+.\}
+.nr N +1
+.if \n(dn .fz	\" leftover footnote
+.ie \\nN<\\nC \{\
+'  if t 'sp |\\nTu
+'  ns
+'  po +3.12i	\" postition of 2nd column
+.\}
+.el \{\
+.  rF
+.  PN
+.  PO
+.  nr N 0
+.\}
+.nr y 0-\\nb
+.nr QQ 11i-\\nb
+.ch fx
+.ch ff
+.if t .wh \\n(QQu ff
+.if n .wh 66 ff
+.wh 12i fx
+.ch fx \\n(QQu
+.if \\n(dn .fz
+..
+.de fz   \" get leftover footnote
+.FS \&
+.nf
+.fy
+.FE
+..
+.de fx	 \" footnote overflow processing
+.if \\nx .di fy
+..
+.de FS	\" start a footnote
+.if \\n(.t<=1.7v .ne 2
+.da FN
+.nr YY \\n(.lu
+.ev 1
+.if t .ll \\n(YYu
+.if n .ll 70
+.if \\n+x=1 .fs
+.fi
+.ie \\$1 \ \ \*([,\\n*\*(,]\c
+.el \ \ \*([,\\$1\*(,]\c
+.ps -1
+.vs -1
+.nr VV \\n(.v
+..
+.de FE
+.br
+.ps +1
+.vs +1
+.ev
+.da
+.nr y -\\n(dn
+.nr QR 11i-1v-1u+\\nyu   \" y is negative
+.ie \\n(nlu+1v<\\n(QRu .ch ff \\n(QRu
+.el .ch ff \\n(nlu+1v
+..
+.de fs
+.br
+.vs \\n(VS
+\v'-0.4v'\s16\D'l 1.5i 0'\s0
+.sp -0.4v
+.vs
+..
+.de PO
+.if t \{\
+.ie e .po 1.20i
+.el   .po 1.20i
+.\}
+.if n .po 0
+..
+.de NC
+'PO
+.if t 'll \\n(LLu
+.if n 'll 78
+'nr N 0
+..
+.de 2C
+.br
+.nr LL 2.85i
+'NC
+'nr C 2
+'mk T
+'ns
+..
+.de 1C
+.br
+.if t .nr LL 6.5i
+.if n .nr LL 78
+.NC
+'nr C 1
+'mk T
+'ns
+..
+.de rF	\" reset footer to nominal
+.nr b 1.0i+\\n(FUu	\" nominal footer place
+..
+.rF
+'nr x 0 1	\" init:
+.nr y 0-\nb
+.pl 11i
+.nr QQ 11i+\ny
+.wh \n(QQu ff
+.wh 12i fx
+.ch fx \n(QQu
+.de hh
+'rs
+'if t 'sp |0.5i-\\n(FUu
+.PO
+'ie e \{\
+.ev 2
+'if t 'tl \s10\f3\\*(T2\\*(A2\fP\s0
+.ev
+'\}
+'el \{\
+.ev 2
+'if t 'tl \s10\f3\\*(A2\\*(T2\fP\s0
+.ev
+'\}
+'if t 'sp |1i-\\n(FUu
+'mk T
+'ns
+'nr x 0 1	\" number of footnotes
+.nr y 0-\\nb
+.nr QQ 11i+\\ny
+.ch ff
+.wh \\n(QQu ff
+.ch fx
+.wh 12i fx
+.ch fx \\n(QQu
+..
+.\"-------------------
+.de TI
+.nh
+.rs
+.in 0i
+.nr % \\$1
+.fi
+.nr QS \\n(.lu
+.ll 100i
+.ps 14
+.vs 17
+.ft 3
+.ds TT \\
+..
+.de AA
+.nr DL \w\\*(TT
+.nr NN 1
+.nr NL \\n(QSu-1i	\" a nice line length for title
+.if \\n(NLu*\\n(NNu<\\n(DLu .nr NN +1
+.if \\n(NLu*\\n(NNu<\\n(DLu .nr NN +1
+.if \\n(NLu*\\n(NNu<\\n(DLu .nr NN +1
+.if \\n(NLu*\\n(NNu<\\n(DLu .nr NN +1
+.if \\n(NLu*\\n(NNu<\\n(DLu .nr NN +1
+.nr QR (\\n(DLu/\\n(NNu)+0.75i	\" +.75 cuz words don't always balance
+.ll \\n(QRu
+.di TU
+.ad l
+\\*(TT
+.br
+.di
+.sp |1.0i-\\n(FUu
+.nr NP 0
+.if \\n(QSu>\\n(QRu .nr NP (\\n(QSu-\\n(QRu)/2u
+.po +\\n(NPu
+.ce 999
+.TU
+.ce 0
+.po
+.ll \\n(QSu
+.sp 0.1i
+.ft 1
+.ps 12
+.vs 14
+.sp 0.5
+..
+.de A		\" .A "Brian Author" "Affiliation"
+.in 0
+.ie !\\$2 \{\
+.ce
+\f1\\$1
+.ce
+\f2\\$2
+.\}
+.el \{\
+.ce
+\f1\\$1\f2
+.\}
+..
+.de AB
+.sp 0.20i
+.po +0.5i
+.ll -1.125i
+.ce
+\f3\s12ABSTRACT\s0\f1
+.sp 0.5
+.ps \\n(PS
+.vs \\n(VS
+.ad b
+.fi
+..
+.de EA
+.sp
+.if t .2C
+.if n .1C
+.hy 14
+..
+.de AE
+.EA
+..
+.de SH
+.br
+.in 0
+.di St
+.ft 3
+.it 1 S2
+..
+.de SH
+.NH "\\$1" "\\$2" "\\$3"
+..
+.de S2
+.br
+.di
+.sp 0.75
+.ne 3
+.ce
+.St
+.br
+.ft 1
+.sp 0.5
+.ns
+..
+.de NH
+.br
+.ne 2
+.in 0
+.nr Ia 0
+.nr Ic 0
+.fi
+.nr L 1
+.if !\\$1 .nr L \\$1\" level
+.if \\nL1 .ft 3
+.if \\nL2 .ft 3
+.if \\nL3 .ft 2
+.di Nt
+.in 0.3i
+.ti 0
+.it 1 N2
+..
+.de N2
+.br
+.in 0
+.di
+.if t .if \\nL1 .sp 0.75
+.if t .if \\nL2 .sp 0.25
+.if t .if \\nL3 .sp 0.25
+.if t .if \\nL4 .sp 0.25
+.if n .sp
+.ne 3
+.if \\nL1 .ce
+.Nt
+.br
+.ft 1
+.if t .if \\nL1 .sp 0.50
+.if t .if \\nL2 .sp 0.25
+.if t .if \\nL3 .sp 0.25
+.if t .if \\nL4 .sp 0.25
+.if n .sp
+.ns
+..
+.de XP
+.sp 0.5
+.ne 2
+.in \w[3]\ \ u
+.ti 0
+.ns
+..
+.de I
+.nr PQ \\n(.f
+.ft 2
+.if !"\\$1"" \&\\$1\\f\\n(PQ\\$2
+..
+.de R
+.ft 1
+..
+.de B
+.nr PQ \\n(.f
+.ft 3
+.if !\\$1 \&\\$1\\f\\n(PQ\\$2
+..
+.de T
+.nr PQ \\n(.f
+.if !\\$1 \&\\$3\f(CW\\$1\\f\\n(PQ\\$2
+..
+.de Ds
+'sp 0.4
+'nr DY \\n(.i
+'in 0.1i
+.if !\\$1 .in \\$1
+.ft CW
+.nf
+..
+.de DS
+.br
+.Ds \\$1
+..
+.de DE
+.br
+.De
+..
+.de De
+'sp 0.4
+.in \\n(DYu
+.ft 1
+.fi
+..
+.de np
+.br
+.in \w\(bu\ \ u
+.ti -\w\(bu\ \ u
+\(bu\ \ \c
+..
+.de lp
+.br
+.in 0
+..
+.de TS
+.br
+.ul 0
+.sp 0.5
+..
+.de TE
+.sp 0.5
+..
+.de RT
+.ft 1
+.ce 0
+.ul 0
+.if t 'll \\n(LLu
+.if n 'll \\n(LL
+.ps \\n(PS
+.vs \\n(VS
+.in 0
+.\"bd 1
+.ta 5n 10n 15n 20n 25n 30n 35n 40n 45n 50n 55n 60n 65n 70n 75n 80n
+.fi
+..
+.de KF
+'sp 0.4
+.ev 2
+.nr Zs \\n(.s
+.nr Zv \\n(.v
+.ll \\n(LLu
+.in 0
+..
+.de KE
+.br
+.ps \\n(Zs
+.vs \\n(Zvu
+.ev
+'sp 0.4
+..
+.de UX
+\\$3\s-2UNIX\s0\\$1\\$2
+..
+.de SM
+.ps -2
+..
+.	\" LG - larger
+.de LG
+.ps +2
+..
+.de EB
+.nr QQ 11i-\\nb-\\$1
+.nr b +\\n(QQu
+.nr y 0+\\nyu-\\n(QQu
+.nr QQ 11i+\\ny
+.ch ff
+.wh \\n(QQu ff
+.ch fx
+.wh 12i fx
+.ch fx \\n(QQu
+..
+.\"==============================================
+.de Zz
+.if \\nN=1 'ch Zz
+'sp 11i
+..
+.de Z
+.br
+.mk Qz
+.ev 2
+.nr Qy \\n(.l
+.ll 6.5i
+.di J
+.in 0
+.ft 1
+..
+.de ZZ
+.br
+.if !\\$1 \{\
+.  if !\\$2 .ll \\$2
+.  sp 0.4
+.  ce
+.  ft 1
+\\$1
+.  ft
+.  if !\\$2 .ll
+.\}
+.di
+.ev
+.nr QQ \\n(.t-\\n(dn-10u
+.if \\n(QQ<0 .tm oops -- called Z too late on page \\n%!
+.if \\n(QQ<0 .ex
+.sp \\n(QQu
+.mk Q2
+.ev 2
+.in 0
+.nf
+.J
+.fi
+.rm J
+.ll \\n(.lu
+.ev
+.sp |\\n(Qzu
+.nr QQ \\n(Q2-0.8v
+.EB \\n(QQu
+..
+.\"======================================================
+.de KS
+.\".tm KS:  Not implemented yet
+..
+.de KE
+.\".tm KE:  Not implemented yet
+..
+.de KF
+.\".tm KF:  Not implemented yet
+..
+.ds ' \h'\w'e'u*4/10'\z\(aa\h'-\w'e'u*4/10'
+.de BE
+.br
+..
+.lt 6.5i
+.de T1
+.ds T2 \\$1
+..
+.de A1
+.ds A2 \\$1
+..
+.nr P1 1.1i		\" picture width
+.nr P2 14u*\n(P1u/10u	\" picture depth 
+.de BB
+.in 0
+.\".nr QQ \\n(P2+0.1i
+.\".ne \\n(QQu
+.\".rs
+.\".ll -\\n(P1u
+.\".ll -0.1i
+.\".po +\\n(.lu+0.1i
+.\".sp 0.3
+.\"
+.\".sp -0.8
+.\"\!H\\n(.o
+.\".mk QQ
+.\"\!V\\n(QQ
+.\"\!DZ \\n(P1 \\n(P2
+.\".ie \\$1 .tm Picture not yet inserted for .BB
+.\".el \!P \\$1
+.\".sp -0.3
+.\".po
+.\".sp -1
+.\".if \\$1 \{\
+.\"\h'0.1i'\h'\\n(.lu'\D'l \\n(P1u 0'\D'l 0 \\n(P2u'\D'l -\\n(P1u 0'\D'l 0 -\\n(P2u'
+.\".sp -1
+.\".\}
+.\".sp 0.8
+.\".mk QQ
+.\".nr QQ +\\n(P2u
+.\".wh \\n(QQu Bb
+.\"=====
+.\" ::: .sp 1
+.\" ::: .ne 2
+.if \\n(SB=0 \{\
+.NH 1
+Author Information
+.\}
+.nr SB 1
+.PP
+..
+.de Bb
+'ch Bb
+'ll +\\n(P1u
+'ll +0.1i
+..
+.de GS
+.br
+..
+.de GE
+..
+.nr SL 0.3
+.nr LI 0.28i
+.de BL         \" begin list
+.br
+.sp \\n(SL
+.in +\\n(LIu
+.ll -0.1i
+.if \\n(Ld \{\
+.  ds Z\\n(Ld \\*(LT
+.  af LN 1
+.  nr N\\n(Ld \\n(LN
+.  ds C\\n(Ld \\*(LC
+.\}
+.nr Ld +1
+.ds LT \\$1\" LT is the List Type: 1, a, or a bulletchar
+.if \\$1 .if '\\n(Ld'1'.ds LT \(bu
+.if \\$1 .if '\\n(Ld'2'.ds LT \(ci
+.if \\$1 .if '\\n(Ld'3'.ds LT \(sq
+.if '\\*(LT'1' .af LN \\$1
+.if '\\*(LT'i' .af LN \\$1
+.if '\\*(LT'I' .af LN \\$1
+.if '\\*(LT'a' .af LN \\$1
+.if '\\*(LT'A' .af LN \\$1
+.nr LN 0	\" LN is the list element number
+.ds LC\\$2
+.\" LC is the optional bullet trailer...
+..
+.de LE            \" list element
+.br
+.ie '\\$1'' .nr LN +1
+.el \{\
+.   nr LN 0
+.   nr LN \\$1
+.\}
+.ds LX \\*(LT\\*(LC
+.if \\*(LT1 .ds LX \\n(LN\\*(LC
+.if \\*(LTa .ds LX \\n(LN\\*(LC
+.if \\*(LTA .ds LX \\n(LN\\*(LC
+.if \\*(LTi .ds LX \\n(LN\\*(LC
+.if \\*(LTI .ds LX \\n(LN\\*(LC
+.if \\n(LN=0 \{\
+.    if !'\\$1'' .ds LX \\$1\\*(LC
+.\}
+.nr QQ 3u*\w' 'u/2u
+.ti -\\w'\\*(LX\h'\\n(QQu''u
+\\*(LX\h'\\n(QQu'\c
+..
+.de EL             \" end list
+.br
+.nr Ld -1
+.if \\n(Ld>=0 \{\
+.  ds LT \\*(Z\\n(Ld
+.  nr LN \\n(N\\n(Ld
+.  ds LC \\*(C\\n(Ld
+.if '\\*(LT'1' .af LN \\*(LT
+.if '\\*(LT'i' .af LN \\*(LT
+.if '\\*(LT'I' .af LN \\*(LT
+.if '\\*(LT'a' .af LN \\*(LT
+.if '\\*(LT'A' .af LN \\*(LT
+. \}
+.in -\\n(LIu
+.ll +0.1i
+..
+.de F1
+.in 0
+\v'-0.4'\D'l \\n(.lu 0'
+.sp -0.7
+.in
+..
+.de F2
+.mk QQ
+.if !'\\nT'\\n(QQ' \{\
+.in 0
+\v'-0.4'\D'l \\n(.lu 0'
+.sp -0.4
+.in
+.\}
+..
+.de EM
+.br
+.if o \{\
+.ds A2 
+.ds T2 
+.rs
+.bp
+.ch ff
+.ch fx
+.PO
+.rs
+.sp |10.4i-\\n(FUu
+.mk QQ
+'ie e \{\
+. ev 2
+.if t 'tl \s10\f3%\\*(CC\fP\s0
+. ev
+'  \}
+'el \{\
+. ev 2
+.if t 'tl \s10\f3\\*(CC%\fP\s0
+. ev
+'  \}
+.\}
+..
+.de RF
+.sp 0.1
+.in 0.3i
+.ie !\\$1 \{\
+.nr QQ \w'\\$1\ '
+.ti -\\n(QQu
+\\$1\ \c
+.\}
+.el .ti 0
+..
+.de RZ
+.sp 0.1
+.in 0.3i
+.nr QQ \w'\\$1\ '
+.ti -\\n(QQu
+\\$1\ \c
+..
+.de zz
+.tm note:  .zz is not implemented.
+.ex
+.nr Z1 \\$1
+.nr Z2 \\$2
+.if \\n(.t<\\n(Z2 .tm note that figure ``\\$3'' does not fit at column bottom ------------------------ on page \\n%
+.ie '\\n(.z'' \{\
+.sp 0.2
+.ne \\n(Z2u
+\\!H\\n(.o
+.mk QQ
+.nr QQ +0.25v
+\\!V\\n(QQ
+\\!DZ \\n(Z1 \\n(Z2
+\\!P \\$3
+.rs
+.sp \\n(Z2u
+.sp 0.2
+.\}
+.el \{\
+.sp 0.2
+\\!.z3 \\n(Z1 \\n(Z2 "\\$3" \\n(.o
+.sp \\n(Z2u
+.sp 0.2
+.\}
+..
+.de z2
+.nr Z1 \\$1
+.nr Z2 \\$2
+.sp 0.2
+.ne \\n(Z2u
+.nr QQ (\\n(.lu-\\$1)/2u
+.sp \\n(Z2u
+.vs 0
+.po +\\n(QQu
+\X'ps: import \\$3 0 0 1 1 \\n(Z1 \\n(Z2'
+.br
+.po -\\n(QQu
+.vs
+.rs
+.sp 0.2
+..
+.de sz
+.vs \\$1
+.ps \\$1
+..
+.de M
+\f2\\$1\f1\|(\\$2)\\$3
+..
+.de B1
+.br
+.mk Bz
+..
+.de B2
+.br
+.mk By
+.nr D \\n(Byu-\\n(Bzu
+.nr L \\n(.lu+0.2i-\\n(.iu
+\h'-0.1i'\v'-0.7v'\D'l \\nLu 0'\D'l 0 -\\nDu'\D'l -\\nLu 0'\D'l 0 \\nDu'
+.sp -1
+..
+.de []
+.][ \\$1
+..
+.de ][
+.if \\$1>5 .tm Bad arg to []
+.[\\$1
+..
+.de [5 \" tm style
+.FS
+\\*([A, \\f2\\*([T\\f1,
+.ie \\n(TN \\*([M.
+.el Bell Laboratories internal memorandum (\\*([D).
+.RT
+.FE
+..
+.de [0 \" other
+.FS
+.nr [: 0
+.if !\\*([F .FP \\*([F
+.if !\\*([Q \{\
+.nr [: 1
+\\*([Q\c
+.\}
+.if !\\*([A \{\
+.nr [: 1
+\\*([A\c
+.\}
+.if !\\*([T \{\
+.if \\n([:>0 ,
+.nr [: 1
+\f2\\*([T\f1\c
+.\}
+.if !\\*([S , \\*([S\c
+.if !\\*([V , \\*([V\c
+.if !\\*([P \{\
+.ie \\n([P>0 , pp. \\*([P\c
+.el , p. \\*([P\c
+.\}
+.if !\\*([C , \\*([C\c
+.if !\\*([D , \\*([D\c
+.if \\n([:>0 \&.
+.if !\\*([O \\*([O
+.FE
+..
+.de [1
+.FS
+.if !\\*([F .FP \\*([F
+.if !\\*([Q \\*([Q,
+.if !\\*([A \\*([A,
+.if !\\*([T \\*([o\\*([T,\\*([c
+\f2\\*([J\f1\c
+.if !\\*([V , vol. \\*([V\c
+.if !\\*([N , no. \\*([N\c
+.if !\\*([P \{\
+.ie \\n([P>0 , pp. \\*([P\c
+.el , p. \\*([P\c
+.\}
+.if !\\*([I , \\*([I\c
+.if !\\*([C , \\*([C\c
+.if !\\*([D , \\*([D\c
+\&.
+.if !\\*([O \\*([O
+.FE
+..
+.de [2 \" book
+.FS
+.if !\\*([F .FP \\*([F
+.if !\\*([Q \\*([Q,
+.if !\\*([A \\*([A,
+.if !\\*([T \f2\\*([T,\f1
+.if !\\*([S \\*([S,
+.if !\\*([V \\*([V,
+.if !\\*([P \{\
+.ie \\n([P>0 pp. \\*([P,
+.el p. \\*([P,
+.\}
+\\*([I\c
+.if !\\*([C , \\*([C\c
+.if !\\*([D , \\*([D\c
+\&.
+.if !\\*([O \\*([O
+.FE
+..
+.de [4 \" report
+.FS
+.if !\\*([F .FP \\*([F
+.if !\\*([Q \\*([Q,
+.if !\\*([A \\*([A,
+.if !\\*([T \\*([o\\*([T,\\*([c
+.if !\\*([R \\*([R\c
+.if !\\*([G \& (\\*([G)\c
+.if !\\*([P \{\
+.ie \\n([P>0 , pp. \\*([P\c
+.el , p. \\*([P\c
+.\}
+.if !\\*([I , \\*([I\c
+.if !\\*([C , \\*([C\c
+.if !\\*([D , \\*([D\c
+\&.
+.if !\\*([O \\*([O
+.FE
+..
+.de [3 \" article in book
+.FS
+.if !\\*([F .FP \\*([F
+.if !\\*([Q \\*([Q,
+.if !\\*([A \\*([A,
+.if !\\*([T \\*([o\\*([T,\\*([c
+in \f2\\*([B\f1\c
+.if !\\*([E , ed. \\*([E\c
+.if !\\*([S , \\*([S\c
+.if !\\*([V , vol. \\*([V\c
+.if !\\*([P \{\
+.ie \\n([P>0 , pp. \\*([P\c
+.el , p. \\*([P\c
+.\}
+.if !\\*([I , \\*([I\c
+.if !\\*([C , \\*([C\c
+.if !\\*([D , \\*([D\c
+\&.
+.if !\\*([O \\*([O
+.FE
+..
+.de [<
+.]>
+..
+.de ]<
+.SH
+References
+.LP
+.de FP
+.\".IP \\\\$1.
+.RZ \\\\$1.
+\\..
+.rm FS FE
+..
+.de [>
+.]>
+..
+.de ]>
+.sp
+..
+.de [-
+.]-
+..
+.de ]-
+.rm [Q [A [T [J [B [E [S [V
+.rm [N [P [I [C [D [O [R [G
+..
+.de FG
+.ds QQ \fB\\$1\\fP:  \\$2
+.ie \w\\*(QQ>\\n(.l \{\
+.in +0.25i
+.ti 0
+\\*(QQ
+.in 0
+.\}
+.el \{\
+.ce
+\\*(QQ
+.\}
+..
+.1C

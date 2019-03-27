@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Set to build bootloaders without Forth support.

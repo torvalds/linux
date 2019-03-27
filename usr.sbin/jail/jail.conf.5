@@ -1,0 +1,231 @@
+.\" Copyright (c) 2012 James Gritton
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 13, 2014
+.Dt JAIL.CONF 5
+.Os
+.Sh NAME
+.Nm jail.conf
+.Nd configuration file for
+.Xr jail 8
+.Sh DESCRIPTION
+A
+.Xr jail 8
+configuration file consists of one or more jail definitions statements,
+and parameter or variable statements within those jail definitions.
+A jail definition statement looks something like a C compound statement.
+A parameter statement looks like a C assignment,
+including a terminating semicolon.
+.Pp
+The general syntax of a jail definition is:
+.Bd -literal -offset indent
+jailname {
+	parameter = "value";
+	parameter = "value";
+	...
+}
+.Ed
+.Pp
+Each jail is required to have a
+.Va name
+at the front of its definition.
+This is used by
+.Xr jail 8
+to specify a jail on the command line and report the jail status,
+and is also passed to the kernel when creating the jail.
+.Ss Parameters
+A jail is defined by a set of named parameters, specified inside the
+jail definition.
+See
+.Xr jail 8
+for a list of jail parameters passed to the kernel,
+as well as internal parameters used when creating and removing jails.
+.Pp
+A typical parameter has a name and a value.
+Some parameters are boolean and may be specified with values of
+.Dq true
+or
+.Dq false ,
+or as valueless shortcuts, with a
+.Dq no
+prefix indicating a false value.
+For example, these are equivalent:
+.Bd -literal -offset indent
+allow.mount = "false";
+allow.nomount;
+.Ed
+.Pp
+Other parameters may have more than one value.
+A comma-separated list of values may be set in a single statement,
+or an existing parameter list may be appended to using
+.Dq += :
+.Bd -literal -offset indent
+ip4.addr = 10.1.1.1, 10.1.1.2, 10.1.1.3;
+
+ip4.addr = 10.1.1.1;
+ip4.addr += 10.1.1.2;
+ip4.addr += 10.1.1.3;
+.Ed
+.Pp
+Note the
+.Va name
+parameter is implicitly set to the name in the jail definition.
+.Ss String format
+Parameter values, including jail names, can be single tokens or quoted
+strings.
+A token is any sequence of characters that aren't considered special in
+the syntax of the configuration file (such as a semicolon or
+whitespace).
+If a value contains anything more than letters, numbers, dots, dashes
+and underscores, it is advisable to put quote marks around that value.
+Either single or double quotes may be used.
+.Pp
+Special characters may be quoted by preceding them with a backslash.
+Common C-style backslash character codes are also supported, including
+control characters and octal or hex ASCII codes.
+A backslash at the end of a line will ignore the subsequent newline and
+continue the string at the start of the next line.
+.Ss Variables
+A string may use shell-style variable substitution.
+A parameter or variable name preceded by a dollar sign, and possibly
+enclosed in braces, will be replaced with the value of that parameter or
+variable.
+For example, a jail's path may be defined in terms of its name or
+hostname:
+.Bd -literal -offset indent
+path = "/var/jail/$name";
+
+path = "/var/jail/${host.hostname}";
+.Ed
+.Pp
+Variable substitution occurs in unquoted tokens or in double-quoted
+strings, but not in single-quote strings.
+.Pp
+A variable is defined in the same way a parameter is, except that the
+variable name is preceded with a dollar sign:
+.Bd -literal -offset indent
+$parentdir = "/var/jail";
+path = "$parentdir/$name";
+.Ed
+.Pp
+The difference between parameters and variables is that variables are
+only used for substitution, while parameters are used both for
+substitution and for passing to the kernel.
+.Ss Wildcards
+A jail definition with a name of
+.Dq *
+is used to define wildcard parameters.
+Every defined jail will contain both the parameters from its own
+definition statement, as well as any parameters in a wildcard
+definition.
+.Pp
+Variable substitution is done on a per-jail basis, even when that
+substitution is for a parameter defined in a wildcard section.
+This is useful for wildcard parameters based on e.g. a jail's name.
+.Pp
+Later definitions in the configuration file supersede earlier ones, so a
+wildcard section placed before (above) a jail definition defines
+parameters that could be changed on a per-jail basis.
+Or a wildcard section placed after (below) all jails would contain
+parameters that always apply to every jail.
+Multiple wildcard statements are allowed, and wildcard parameters may
+also be specified outside of a jail definition statement.
+.Pp
+If hierarchical jails are defined, a partial-matching wildcard
+definition may be specified.
+For example, a definition with a name of
+.Dq foo.*
+would apply to jails with names like
+.Dq foo.bar
+and
+.Dq foo.bar.baz .
+.Ss Comments
+The configuration file may contain comments in the common C, C++, and
+shell formats:
+.Bd -literal -offset indent
+/* This is a C style comment.
+ * It may span multiple lines.
+ */
+
+// This is a C++ style comment.
+
+#  This is a shell style comment.
+.Ed
+.Pp
+Comments are legal wherever whitespace is allowed, i.e. anywhere except
+in the middle of a string or a token.
+.Sh EXAMPLES
+.Bd -literal
+# Typical static defaults:
+# Use the rc scripts to start and stop jails.  Mount jail's /dev.
+exec.start = "/bin/sh /etc/rc";
+exec.stop = "/bin/sh /etc/rc.shutdown";
+exec.clean;
+mount.devfs;
+
+# Dynamic wildcard parameter:
+# Base the path off the jail name.
+path = "/var/jail/$name";
+
+# A typical jail.
+foo {
+	host.hostname = "foo.com";
+	ip4.addr = 10.1.1.1, 10.1.1.2, 10.1.1.3;
+}
+
+# This jail overrides the defaults defined above.
+bar {
+	exec.start = '';
+	exec.stop = '';
+	path = /;
+	mount.nodevfs;
+	persist;	// Required because there are no processes
+}
+.Ed
+.Sh SEE ALSO
+.Xr jail_set 2 ,
+.Xr rc.conf 5 ,
+.Xr jail 8 ,
+.Xr jls 8
+.Sh HISTORY
+The
+.Xr jail 8
+utility appeared in
+.Fx 4.0 .
+The
+.Nm
+file was added in
+.Fx 9.1 .
+.Sh AUTHORS
+.An -nosplit
+The jail feature was written by
+.An Poul-Henning Kamp
+for R&D Associates
+who contributed it to
+.Fx .
+.Pp
+.An James Gritton
+added the extensible jail parameters and configuration file.

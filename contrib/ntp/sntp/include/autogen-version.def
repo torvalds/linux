@@ -1,0 +1,4 @@
+#assert (version-compare >= autogen-version "5.18.5")
+// >= is usually what we want.
+// > is when we need a pre* version
+guard-option-names;

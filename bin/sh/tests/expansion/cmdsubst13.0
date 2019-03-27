@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+x=1 y=2
+[ "$(
+	case $((x+=1)) in
+	($((y+=1)))	echo bad1 ;;
+	($((y-1)))	echo $x.$y ;;
+	($((y=2)))	echo bad2 ;;
+	(*)		echo bad3 ;;
+	esac
+)" = "2.3" ] || echo "Error at $LINENO"
+[ "$x.$y" = "1.2" ] || echo "Error at $LINENO"

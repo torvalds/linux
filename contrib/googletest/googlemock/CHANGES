@@ -1,0 +1,126 @@
+Changes for 1.7.0:
+
+* All new improvements in Google Test 1.7.0.
+* New feature: matchers DoubleNear(), FloatNear(),
+  NanSensitiveDoubleNear(), NanSensitiveFloatNear(),
+  UnorderedElementsAre(), UnorderedElementsAreArray(), WhenSorted(),
+  WhenSortedBy(), IsEmpty(), and SizeIs().
+* Improvement: Google Mock can now be built as a DLL.
+* Improvement: when compiled by a C++11 compiler, matchers AllOf()
+  and AnyOf() can accept an arbitrary number of matchers.
+* Improvement: when compiled by a C++11 compiler, matchers
+  ElementsAreArray() can accept an initializer list.
+* Improvement: when exceptions are enabled, a mock method with no
+  default action now throws instead crashing the test.
+* Improvement: added class testing::StringMatchResultListener to aid
+  definition of composite matchers.
+* Improvement: function return types used in MOCK_METHOD*() macros can
+  now contain unprotected commas.
+* Improvement (potentially breaking): EXPECT_THAT() and ASSERT_THAT()
+  are now more strict in ensuring that the value type and the matcher
+  type are compatible, catching potential bugs in tests.
+* Improvement: Pointee() now works on an optional<T>.
+* Improvement: the ElementsAreArray() matcher can now take a vector or
+  iterator range as input, and makes a copy of its input elements
+  before the conversion to a Matcher.
+* Improvement: the Google Mock Generator can now generate mocks for
+  some class templates.
+* Bug fix: mock object destruction triggerred by another mock object's
+  destruction no longer hangs.
+* Improvement: Google Mock Doctor works better with newer Clang and
+  GCC now.
+* Compatibility fixes.
+* Bug/warning fixes.
+
+Changes for 1.6.0:
+
+* Compilation is much faster and uses much less memory, especially
+  when the constructor and destructor of a mock class are moved out of
+  the class body.
+* New matchers: Pointwise(), Each().
+* New actions: ReturnPointee() and ReturnRefOfCopy().
+* CMake support.
+* Project files for Visual Studio 2010.
+* AllOf() and AnyOf() can handle up-to 10 arguments now.
+* Google Mock doctor understands Clang error messages now.
+* SetArgPointee<> now accepts string literals.
+* gmock_gen.py handles storage specifier macros and template return
+  types now.
+* Compatibility fixes.
+* Bug fixes and implementation clean-ups.
+* Potentially incompatible changes: disables the harmful 'make install'
+  command in autotools.
+
+Potentially breaking changes:
+
+* The description string for MATCHER*() changes from Python-style
+  interpolation to an ordinary C++ string expression.
+* SetArgumentPointee is deprecated in favor of SetArgPointee.
+* Some non-essential project files for Visual Studio 2005 are removed.
+
+Changes for 1.5.0:
+
+ * New feature: Google Mock can be safely used in multi-threaded tests
+   on platforms having pthreads.
+ * New feature: function for printing a value of arbitrary type.
+ * New feature: function ExplainMatchResult() for easy definition of
+   composite matchers.
+ * The new matcher API lets user-defined matchers generate custom
+   explanations more directly and efficiently.
+ * Better failure messages all around.
+ * NotNull() and IsNull() now work with smart pointers.
+ * Field() and Property() now work when the matcher argument is a pointer
+   passed by reference.
+ * Regular expression matchers on all platforms.
+ * Added GCC 4.0 support for Google Mock Doctor.
+ * Added gmock_all_test.cc for compiling most Google Mock tests
+   in a single file.
+ * Significantly cleaned up compiler warnings.
+ * Bug fixes, better test coverage, and implementation clean-ups.
+
+ Potentially breaking changes:
+
+ * Custom matchers defined using MatcherInterface or MakePolymorphicMatcher()
+   need to be updated after upgrading to Google Mock 1.5.0; matchers defined
+   using MATCHER or MATCHER_P* aren't affected.
+ * Dropped support for 'make install'.
+
+Changes for 1.4.0 (we skipped 1.2.* and 1.3.* to match the version of
+Google Test):
+
+ * Works in more environments: Symbian and minGW, Visual C++ 7.1.
+ * Lighter weight: comes with our own implementation of TR1 tuple (no
+   more dependency on Boost!).
+ * New feature: --gmock_catch_leaked_mocks for detecting leaked mocks.
+ * New feature: ACTION_TEMPLATE for defining templatized actions.
+ * New feature: the .After() clause for specifying expectation order.
+ * New feature: the .With() clause for specifying inter-argument
+   constraints.
+ * New feature: actions ReturnArg<k>(), ReturnNew<T>(...), and
+   DeleteArg<k>().
+ * New feature: matchers Key(), Pair(), Args<...>(), AllArgs(), IsNull(),
+   and Contains().
+ * New feature: utility class MockFunction<F>, useful for checkpoints, etc.
+ * New feature: functions Value(x, m) and SafeMatcherCast<T>(m).
+ * New feature: copying a mock object is rejected at compile time.
+ * New feature: a script for fusing all Google Mock and Google Test
+   source files for easy deployment.
+ * Improved the Google Mock doctor to diagnose more diseases.
+ * Improved the Google Mock generator script.
+ * Compatibility fixes for Mac OS X and gcc.
+ * Bug fixes and implementation clean-ups.
+
+Changes for 1.1.0:
+
+ * New feature: ability to use Google Mock with any testing framework.
+ * New feature: macros for easily defining new matchers
+ * New feature: macros for easily defining new actions.
+ * New feature: more container matchers.
+ * New feature: actions for accessing function arguments and throwing
+   exceptions.
+ * Improved the Google Mock doctor script for diagnosing compiler errors.
+ * Bug fixes and implementation clean-ups.
+
+Changes for 1.0.0:
+
+ * Initial Open Source release of Google Mock

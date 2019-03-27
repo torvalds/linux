@@ -1,0 +1,105 @@
+.TH "Heimdal Kerberos 5 error reporting functions" 3 "11 Jan 2012" "Version 1.5.2" "HeimdalKerberos5library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+Heimdal Kerberos 5 error reporting functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_eai_to_heim_errno\fP (int eai_errno, int system_error)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_h_errno_to_heim_errno\fP (int eai_errno)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_clear_error_message\fP (krb5_context context)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_set_error_message\fP (krb5_context context, krb5_error_code ret, const char *fmt,...) __attribute__((format(printf"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_vwarn\fP (krb5_context context, krb5_error_code code, const char *fmt, va_list ap) __attribute__((format(printf"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_clear_error_message (krb5_context context)"
+.PP
+Clears the error message from the Kerberos 5 context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP The Kerberos 5 context to clear 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_eai_to_heim_errno (int eai_errno, int system_error)"
+.PP
+Convert the getaddrinfo() error code to a Kerberos et error code.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIeai_errno\fP contains the error code from getaddrinfo(). 
+.br
+\fIsystem_error\fP should have the value of errno after the failed getaddrinfo().
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Kerberos error code representing the EAI errors. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_h_errno_to_heim_errno (int eai_errno)"
+.PP
+Convert the gethostname() error code (h_error) to a Kerberos et error code.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIeai_errno\fP contains the error code from gethostname().
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Kerberos error code representing the gethostname errors. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_set_error_message (krb5_context context, krb5_error_code ret, const char * fmt,  ...)"
+.PP
+Set the context full error string for a specific error code. The error that is stored should be internationalized.
+.PP
+The if context is NULL, no error string is stored.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context 
+.br
+\fIret\fP The error code 
+.br
+\fIfmt\fP Error string for the error code 
+.br
+\fI...\fP printf(3) style parameters. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_vwarn (krb5_context context, krb5_error_code code, const char * fmt, va_list ap)"
+.PP
+Log a warning to the log, default stderr, include the error from the last failure.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIcode\fP error code of the last error 
+.br
+\fIfmt\fP message to print 
+.br
+\fIap\fP arguments 
+.RE
+.PP
+

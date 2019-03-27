@@ -1,0 +1,148 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)fork.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd December 1, 2017
+.Dt FORK 2
+.Os
+.Sh NAME
+.Nm fork
+.Nd create a new process
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft pid_t
+.Fn fork void
+.Sh DESCRIPTION
+The
+.Fn fork
+system call causes creation of a new process.
+The new process (child process) is an exact copy of the
+calling process (parent process) except for the following:
+.Bl -bullet -offset indent
+.It
+The child process has a unique process ID.
+.It
+The child process has a different parent
+process ID (i.e., the process ID of the parent process).
+.It
+The child process has its own copy of the parent's descriptors,
+except for descriptors returned by
+.Xr kqueue 2 ,
+which are not inherited from the parent process.
+These descriptors reference the same underlying objects, so that,
+for instance, file pointers in file objects are shared between
+the child and the parent, so that an
+.Xr lseek 2
+on a descriptor in the child process can affect a subsequent
+.Xr read 2
+or
+.Xr write 2
+by the parent.
+This descriptor copying is also used by the shell to
+establish standard input and output for newly created processes
+as well as to set up pipes.
+.It
+The child process' resource utilizations
+are set to 0; see
+.Xr setrlimit 2 .
+.It
+All interval timers are cleared; see
+.Xr setitimer 2 .
+.It
+The child process has only one thread,
+corresponding to the calling thread in the parent process.
+If the process has more than one thread,
+locks and other resources held by the other threads are not released
+and therefore only async-signal-safe functions
+(see
+.Xr sigaction 2 )
+are guaranteed to work in the child process until a call to
+.Xr execve 2
+or a similar function.
+.El
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn fork
+returns a value
+of 0 to the child process and returns the process ID of the child
+process to the parent process.
+Otherwise, a value of -1 is returned
+to the parent process, no child process is created, and the global
+variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn fork
+system call will fail and no child process will be created if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The system-imposed limit on the total
+number of processes under execution would be exceeded.
+The limit is given by the
+.Xr sysctl 3
+MIB variable
+.Dv KERN_MAXPROC .
+(The limit is actually ten less than this
+except for the super user).
+.It Bq Er EAGAIN
+The user is not the super user, and
+the system-imposed limit
+on the total number of
+processes under execution by a single user would be exceeded.
+The limit is given by the
+.Xr sysctl 3
+MIB variable
+.Dv KERN_MAXPROCPERUID .
+.It Bq Er EAGAIN
+The user is not the super user, and
+the soft resource limit corresponding to the
+.Fa resource
+argument
+.Dv RLIMIT_NPROC
+would be exceeded (see
+.Xr getrlimit 2 ) .
+.It Bq Er ENOMEM
+There is insufficient swap space for the new process.
+.El
+.Sh SEE ALSO
+.Xr execve 2 ,
+.Xr rfork 2 ,
+.Xr setitimer 2 ,
+.Xr setrlimit 2 ,
+.Xr sigaction 2 ,
+.Xr vfork 2 ,
+.Xr wait 2
+.Sh HISTORY
+The
+.Fn fork
+function appeared in
+.At v1 .

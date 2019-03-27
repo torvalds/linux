@@ -1,0 +1,3 @@
+map ppp0 any -> 203.203.203.203/128 mssclamp 100
+map ppp0 any -> 203.203.203.203/128 mssclamp 1000
+map ppp0 any -> 203.203.203.203/128 mssclamp 10000

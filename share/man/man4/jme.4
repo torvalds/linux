@@ -1,0 +1,196 @@
+.\" Copyright (c) 2008 Pyun YongHyeon
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 4, 2012
+.Dt JME 4
+.Os
+.Sh NAME
+.Nm jme
+.Nd JMicron Gigabit/Fast Ethernet driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device jme"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_jme_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides support for JMicron JMC25x PCI Express
+Gigabit Ethernet controllers and JMicron JMC26x PCI Express Fast
+Ethernet controllers.
+.Pp
+All LOMs supported by the
+.Nm
+driver have TCP/UDP/IP checksum offload for both transmit and receive,
+TCP segmentation offload (TSO), hardware VLAN tag stripping/insertion
+features, Wake On Lan (WOL) and an interrupt coalescing/moderation
+mechanism as well as a 64-bit multicast hash filter.
+.Pp
+The JMC25x also supports Jumbo Frames (up to 9216 bytes), which can be
+configured via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit Jumbo Frames.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to
+.Xr rc.conf 5 .
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+.It Cm 1000baseTX
+Set 1000baseTX operation over twisted pair.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+device driver provides support for the following Ethernet controllers:
+.Pp
+.Bl -bullet -compact
+.It
+JMicron JMC250 PCI Express Gigabit Ethernet controller
+.It
+JMicron JMC251 PCI Express Gigabit Ethernet with Card Read Host controller
+.It
+JMicron JMC260 PCI Express Fast Ethernet controller
+.It
+JMicron JMC261 PCI Express Gigabit Ethernet with Card Read Host controller
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width "xxxxxx"
+.It Va hw.jme.msi_disable
+This tunable disables MSI support on the Ethernet hardware.
+The default value is 0.
+.It Va hw.jme.msix_disable
+This tunable disables MSI-X support on the Ethernet hardware.
+The default value is 0.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width "xxxxxx"
+.It Va dev.jme.%d.tx_coal_to
+This variable sets the maximum amount of time to delay
+before sending a Tx completion interrupt, in microseconds.
+The accepted range is 1 to 65535; the default is 100 (100us).
+.It Va dev.jme.%d.tx_coal_pkt
+This variable sets the maximum number of outgoing packets which may be
+coalesced together into a single Tx completion interrupt.
+The accepted range is 1 to 255; the default is 8.
+.It Va dev.jme.%d.rx_coal_to
+This variable sets the maximum amount of time to wait for
+additional packets to arrive (for possible packet coalescing)
+before firing an Rx completion interrupt, in microseconds.
+The accepted range is 1 to 65535; the default is 100 (100us).
+.It Va dev.jme.%d.rx_coal_pkt
+This variable sets the maximum number of incoming packets which may be
+coalesced into a single Rx completion interrupt.
+The accepted range is 1 to 255; the default is 2.
+.It Va dev.jme.%d.process_limit
+This variable sets the maximum number of events that will be processed
+in a single batch before the handler is requeued into a taskqueue.
+The accepted range is 10 to 255; the default value is 128 events.
+The interface does not need to be brought down and up again before
+a change takes effect.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver was written by
+.An Pyun YongHyeon Aq Mt yongari@FreeBSD.org .
+It first appeared in
+.Fx 7.1 .
+.Sh CAVEATS
+The
+.Nm
+driver tries to avoid unnecessary station address reprogramming for
+controllers that use eFuse to store station address.
+The number of times that eFuse can be safely reprogrammed is 16 at
+most.
+In addition, there is no way to restore the factory default station
+address once the station address has been reprogrammed via eFuse.
+It is highly recommended not to reprogram the station address and
+it is the responsibility of the administrator to store the original station
+address in a safe place when station address is changed.
+.Pp
+There are two known 1000baseT link establishment issues with JMC25x.
+If the full mask revision number of JMC25x controller is less than
+or equal to 4 and the link partner enabled the IEEE 802.3az Energy Efficient
+Ethernet feature,  the controller will not be able to establish a
+1000baseT link.
+Also, if the length of the cable is longer than 120 meters, the controller
+can not establish a 1000baseT link.
+The known workaround for these issues is to force manual link
+configuration with 100baseTX instead of relying on auto-negotiation.
+The full mask revision number of controller can be checked with the
+verbose kernel boot option.
+Use the lower nibble of the chip revision number to get the
+full mask revision of the controller.

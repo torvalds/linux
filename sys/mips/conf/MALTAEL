@@ -1,0 +1,11 @@
+# MALTA -- Kernel config for MALTA endian-little boards
+#
+# $FreeBSD$
+ 
+ident		MALTA
+
+include		"std.MALTA"
+ 
+machine		mips mipsel
+ 
+makeoptions	KERNLOADADDR=0x80100000

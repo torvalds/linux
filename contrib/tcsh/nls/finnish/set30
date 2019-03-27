@@ -1,0 +1,16 @@
+$ $tcsh: set30,v 1.3 2006/03/02 18:46:46 christos Exp $
+$ tw.parse.c
+$set 30 
+1 starting_a_command %d\n
+2 complete %d 
+3 complete %d %S\n
+4 %s: Internal match error.\n
+5 items
+6 rows
+7 There are %d %s, list them anyway? [n/y] 
+8 looking = %d\n
+9 \ntcsh internal error: I don't know what I'm looking for!\n
+10 not a directory
+11 not found
+12 unreadable
+13 YyKk

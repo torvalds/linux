@@ -1,0 +1,95 @@
+.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Part of this documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 21, 2014
+.Dt CASU 9
+.Os
+.Sh NAME
+.Nm casueword ,
+.Nm casueword32 ,
+.Nm casuword ,
+.Nm casuword32
+.Nd fetch, compare and store data from user-space
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/systm.h
+.Ft int
+.Fn casueword "volatile u_long *base" "u_long oldval" "u_long *oldvalp" "u_long newval"
+.Ft int
+.Fn casueword32 "volatile uint32_t *base" "uint32_t oldval" "uint32_t *oldvalp" "uint32_t newval"
+.Ft u_long
+.Fn casuword "volatile u_long *base" "u_long oldval" "u_long newval"
+.Ft uint32_t
+.Fn casuword32 "volatile uint32_t *base" "uint32_t oldval" "uint32_t newval"
+.Sh DESCRIPTION
+The
+.Nm
+functions are designed to perform atomic compare-and-swap operation on
+the value in the usermode memory of the current process.
+.Pp
+The
+.Nm
+routines reads the value from user memory with address
+.Pa base ,
+and compare the value read with
+.Pa oldval .
+If the values are equal,
+.Pa newval
+is written to the
+.Pa *base .
+In case of
+.Fn casueword32
+and
+.Fn casueword ,
+old value is stored into the (kernel-mode) variable pointed by
+.Pa *oldvalp .
+The userspace value must be naturally aligned.
+.Pp
+The callers of
+.Fn casuword
+and
+.Fn casuword32
+functions cannot distinguish between -1 read from
+userspace and function failure.
+.Sh RETURN VALUES
+The
+.Fn casuword
+and
+.Fn casuword32
+functions return the data fetched or -1 on failure.
+The
+.Fn casueword
+and
+.Fn casueword32
+functions return 0 on success and -1 on failure.
+.Sh SEE ALSO
+.Xr atomic 9 ,
+.Xr fetch 9 ,
+.Xr store 9

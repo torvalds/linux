@@ -1,0 +1,49 @@
+See README.hackers for notes on coding styles.
+
+The master copy of this information can be found at:
+
+ http://support.ntp.org/Dev/MaintainerIssues#How_to_work_on_a_bug_using_BitKe
+
+If you are going to patch both ntp-stable and ntp-dev
+please do it this way:
+
+ > cd ntp-stable
+ > (make and test your changes to ntp-stable first)
+ > (commit your changes to ntp-stable)
+ > cd ../ntp-dev
+ > bk pull ../ntp-stable	(get your changes from ntp-stable)
+ > (resolve any problems and test your changes)
+ > (commit your changes to ntp-dev)
+
+With the current release of bitkeeper it is *much* easier to move changes
+from ntp-stable to ntp-dev than it is to move changes from ntp-dev to
+ntp-stable.
+
+If you make your changes in the above order and then submit them,
+it will be trivial to apply your patches.
+
+Otherwise, it will be much more difficult to apply your patches.
+
+You are pretty much done now if your repos are on pogo.udel.edu.
+
+If these patches are for a bugzilla issue, mark the issue as Resolved/READY
+with a comment of "Please pick up the patches in pogo:/wherever"
+
+---
+
+Please read (and follow) the previous section if you want to submit
+patches for both ntp-stable and ntp-dev.
+
+If you cannot easily get your patches to pogo, you may submit patches
+via the 'bk send' command:
+
+ > cd REPO
+ > bk citool	(or bk ci ... ;  bk commit ... )
+ > bk pull	# make sure your repo is up-to-date
+ > bk send -d -ubk://www.ntp.org/home/bk/REPO - > file-containing-the-patch
+ > bk receive -vv -a < file-containing-the-patch
+		# Sanity check.
+
+ # Open a bugzilla item at <http://bugzilla.ntp.org>
+
+ # After the bug is opened, visit the bug and attach file-containing-the-patch

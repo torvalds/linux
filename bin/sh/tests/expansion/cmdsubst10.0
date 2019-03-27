@@ -1,0 +1,51 @@
+# $FreeBSD$
+
+a1=$(alias)
+: $(alias testalias=abcd)
+a2=$(alias)
+[ "$a1" = "$a2" ] || echo Error at line $LINENO
+
+alias testalias2=abcd
+a1=$(alias)
+: $(unalias testalias2)
+a2=$(alias)
+[ "$a1" = "$a2" ] || echo Error at line $LINENO
+
+[ "$(command -V pwd)" = "$(command -V pwd; exit $?)" ] || echo Error at line $LINENO
+
+v=1
+: $(export v=2)
+[ "$v" = 1 ] || echo Error at line $LINENO
+
+rotest=1
+: $(readonly rotest=2)
+[ "$rotest" = 1 ] || echo Error at line $LINENO
+
+set +u
+: $(set -u)
+case $- in
+*u*) echo Error at line $LINENO ;;
+esac
+set +u
+
+set +u
+: $(set -o nounset)
+case $- in
+*u*) echo Error at line $LINENO ;;
+esac
+set +u
+
+set +u
+: $(command set -u)
+case $- in
+*u*) echo Error at line $LINENO ;;
+esac
+set +u
+
+umask 77
+u1=$(umask)
+: $(umask 022)
+u2=$(umask)
+[ "$u1" = "$u2" ] || echo Error at line $LINENO
+
+dummy=$(exit 3); [ $? -eq 3 ] || echo Error at line $LINENO

@@ -1,0 +1,164 @@
+.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 8, 2016
+.Dt GGATEL 8
+.Os
+.Sh NAME
+.Nm ggatel
+.Nd "GEOM Gate local control utility"
+.Sh SYNOPSIS
+.Nm
+.Cm create
+.Op Fl v
+.Op Fl o Cm ro | wo | rw
+.Op Fl s Ar sectorsize
+.Op Fl t Ar timeout
+.Op Fl u Ar unit
+.Ar path
+.Nm
+.Cm destroy
+.Op Fl f
+.Fl u Ar unit
+.Nm
+.Cm list
+.Op Fl v
+.Op Fl u Ar unit
+.Nm
+.Cm rescue
+.Op Fl v
+.Op Fl o Cm ro | wo | rw
+.Fl u Ar unit
+.Ar path
+.Sh DESCRIPTION
+The
+.Nm
+utility is a local GEOM Gate class consumer.
+It can be used as a replacement for
+.Xr md 4
+devices or as a
+.Dq GEOMificator
+for non GEOM-aware devices, but it was mainly created as an example
+on how to use and how to communicate with the GEOM Gate kernel subsystem.
+.Pp
+Available commands:
+.Bl -tag -width ".Cm destroy"
+.It Cm create
+Create a
+.Nm ggate
+provider related to the given regular file or device.
+.It Cm destroy
+Destroy the given
+.Nm ggate
+provider.
+.It Cm list
+List
+.Nm ggate
+providers.
+.It Cm rescue
+Take over a previously created provider and handle pending and future
+requests.
+This is useful if the initial
+.Nm
+process died.
+To prevent data loss, the given path must lead to the
+regular file or device that was used to create the provider.
+.El
+.Pp
+Available options:
+.Bl -tag -width ".Fl s Cm ro | wo | rw"
+.It Fl f
+Forcibly destroy
+.Nm ggate
+provider (cancels all pending requests).
+.It Fl o Cm ro | wo | rw
+Specify permissions to use when opening the file or device: read-only
+.Pq Cm ro ,
+write-only
+.Pq Cm wo ,
+or read-write
+.Pq Cm rw .
+Default is
+.Cm rw .
+.It Fl s Ar sectorsize
+Sector size for
+.Nm ggate
+provider.
+If not specified, it is taken from the device, or set to 512 bytes for files.
+.It Fl t Ar timeout
+Number of seconds to wait before an I/O request will be canceled.
+0 means no timeout.
+Default is 30.
+.It Fl u Ar unit
+Unit number to use.
+.It Fl v
+Do not fork, run in foreground and print debug information on standard
+output.
+.It Ar path
+Path to a regular file or device.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, or 1 if the command fails.
+To get details about the failure,
+.Nm
+should be called with the
+.Fl v
+option.
+.Sh EXAMPLES
+.Dq GEOMify
+the
+.Dq Li fd0
+device and use
+.Xr gbde 8
+to encrypt data on a floppy disk.
+.Bd -literal -offset indent
+ggatel create -u 5 /dev/fd0
+gbde init /dev/ggate5
+gbde attach ggate5
+newfs /dev/ggate5.bde
+mount /dev/ggate5.bde /secret
+cp /private/foo /secret/
+umount /secret
+gbde detach ggate5
+ggatel destroy -u 5
+.Ed
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr gbde 8 ,
+.Xr ggatec 8 ,
+.Xr ggated 8 ,
+.Xr mount 8 ,
+.Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+The
+.Nm
+utility as well as this manual page was written by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .

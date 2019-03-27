@@ -1,0 +1,41 @@
+$ $tcsh: set20,v 1.4 2015/08/13 08:54:04 christos Exp $
+$ tc.bind.c
+$set 20 
+1 Nom de touche incorrect `%S'\n
+2 Mauvais nom de touche: %S\n
+3 Mauvais nom de commande: %S\n
+4 Mauvaise touche spécifiée %S\n
+5 Chaine nulle spécifiée\n
+6 Définition de touches standard\n
+7 Définition de touches alternatives\n
+8 Définition Multi-caractères\n
+9 Définition des touches de direction\n
+10 %-15s->  n'est pas défini\n
+11 BUG!!! %s n'est lié à rien.\n
+12 Usage: bindkey [options] [--] [TOUCHE [COMMANDE]]\n
+13     -a   liste ou définit la TOUCHE dans la table des touches alternatives\n
+14     -b   interprète TOUCHE comme un nom de touche C-, M-, F- or X-\n
+15     -s   interprète COMMANDE comme une chaine littérale devant être sortie\n
+16     -c   interprète COMMANDE comme une commande intégrée ou externe\n
+17     -v   redéfinit toutes les touches pour vi\n
+18     -e   redéfinit toutes les touches pour emacs\n
+19     -d   redéfinit toutes les touches pour de l'éditeur par defaut (%s)\n
+20     -l   liste les commandes de l'éditeur avec descriptions\n
+21     -r   enlève la correspondance pour la TOUCHE\n
+22     -k   interprète TOUCHE comme un nom de touche de direction symbolique\n
+23     --   force un arrêt dans le traitement de l'option\n
+24     -u   (ou toute option incorrecte) ce message\n
+25 Sans TOUCHE ni COMMANDE, imprime toutes les associations\n
+26 Sans COMMANDE, imprime l'association pour TOUCHE.\n
+27 mauvaise spécification de touche -- chaine nulle\n
+28 mauvaise spécification de touche -- chaine vide\n
+29 mauvaise spécification de touche de fonction.  Touche nulle pas autorisé\n
+30 mauvaise spécification de touche -- nombre hexa mal formé\n
+31 mauvaise spécification de touche -- nombre octal mal formé\n
+32 mauvaise spécification de touche -- nombre décimal mal formé\n
+33 Mauvaise spécification de touche de fonction.\n
+34 Touche nulle pas autorisé\n
+35 Mauvaise spécification de touche -- nom inconnu "%S"\n
+36 Syntaxe: bind [TOUCHE | COMMANDE TOUCHE | "emacs" | "vi" | "-a"]\n
+37 Fonction incorrecte
+38  %s\t\tn'est pas défini\n

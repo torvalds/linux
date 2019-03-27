@@ -1,0 +1,6 @@
+before function
+before dotcmd
+subshell start
+before return
+after dotcmd
+after function

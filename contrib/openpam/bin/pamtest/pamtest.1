@@ -1,0 +1,189 @@
+.\"-
+.\" Copyright (c) 2011-2017 Dag-Erling Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $OpenPAM: pamtest.1 947 2019-02-24 20:18:17Z des $
+.\"
+.Dd February 24, 2019
+.Dt PAMTEST 1
+.Os
+.Sh NAME
+.Nm pamtest
+.Nd PAM policy tester
+.Sh SYNOPSIS
+.Nm
+.Op Fl dkMPsv
+.Op Fl H Ar rhost
+.Op Fl h Ar host
+.Op Fl T Ar timeout
+.Op Fl t Ar tty
+.Op Fl U Ar ruser
+.Op Fl u Ar user
+.Ar service
+.Op Ar command ...
+.Sh DESCRIPTION
+The
+.Nm
+utility offers an easy way to test PAM modules and policies from the
+command line.
+.Pp
+The
+.Nm
+utility loads the PAM policy specified by the
+.Ar service
+argument, starts a PAM transaction by calling
+.Xr pam_start 3 ,
+then executes the primitives specified by the remaining command-line
+arguments.
+Finally, it ends the transaction by calling
+.Xr pam_end 3 .
+.Pp
+The commands are:
+.Bl -tag -width 6n
+.It Cm authenticate , Cm auth
+Call
+.Xr pam_authenticate 3 .
+.It Cm acct_mgmt , Cm account
+Call
+.Xr pam_acct_mgmt 3 .
+.It Cm chauthtok , Cm change
+Call
+.Xr pam_chauthtok 3
+with the
+.Dv PAM_CHANGE_EXPIRED_AUTHTOK
+flag set.
+.It Cm forcechauthtok , Cm forcechange
+Call
+.Xr pam_chauthtok 3
+with no flags set.
+.It Cm setcred , Cm establish_cred
+Call
+.Xr pam_setcred 3
+with the
+.Dv PAM_ESTABLISH_CRED
+flag set.
+.It Cm open_session , Cm open
+Call
+.Xr pam_open_session 3 .
+.It Cm close_session , Cm close
+Call
+.Xr pam_close_session 3 .
+.It Cm unsetcred , Cm delete_cred
+Call
+.Xr pam_setcred 3
+with the
+.Dv PAM_DELETE_CRED
+flag set.
+.It Cm listenv , Cm env
+Call
+.Xr pam_getenvlist 3
+and print the contents of the list it returns.
+.El
+.Pp
+The following options are available:
+.Bl -tag -width Fl
+.It Fl d
+Enables debug messages within the OpenPAM library.
+See
+.Xr openpam_log 3
+for details.
+.It Fl H Ar rhost
+Specify the name of the fictitious remote host.
+The default is to use the name of the local host.
+.It Fl h Ar host
+Specify the name of the local host.
+The default is to use the result of calling
+.Xr gethostname 3 .
+.It Fl k
+Keep going even if one of the commands fails.
+.It Fl M
+Disable path, ownership and permission checks on module files.
+.It Fl P
+Disable service name validation and path, ownership and permission
+checks on policy files.
+.It Fl s
+Set the
+.Dv PAM_SILENT
+flag when calling the
+.Xr pam_authenticate 3 ,
+.Xr pam_acct_mgmt 3 ,
+.Xr pam_chauthok 3 ,
+.Xr pam_setcred 3 ,
+.Xr pam_open_session 3
+and
+.Xr pam_close_session 3
+primitives.
+.It Fl T Ar timeout
+Set the conversation timeout (in seconds) for
+.Xr openpam_ttyconv 3 .
+.It Fl t Ar tty
+Specify the name of the tty.
+The default is to use the result of calling
+.Xr ttyname 3 .
+.It Fl U Ar ruser
+Specify the name of the supplicant (remote user).
+.It Fl u Ar user
+Specify the name of the principal (local user).
+.It Fl v
+Enables debug messages from
+.Nm
+itself.
+.El
+.Sh EXAMPLES
+Simulate a typical PAM transaction using the
+.Dq system
+policy:
+.Bd -literal -offset indent
+pamtest -v system auth account change setcred open close unsetcred
+.Ed
+.Sh SEE ALSO
+.Xr openpam 3 ,
+.Xr pam 3 ,
+.Xr pam.conf 5
+.Sh AUTHORS
+The
+.Nm
+utility and this manual page were written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .
+.Sh BUGS
+The
+.Nm
+utility does not (yet) support setting and getting individual PAM
+items or environment variables.
+.Pp
+The
+.Nm
+utility does not afford the user complete control over the flags
+passed to the
+.Xr pam_authenticate 3 ,
+.Xr pam_acct_mgmt 3 ,
+.Xr pam_chauthok 3 ,
+.Xr pam_setcred 3 ,
+.Xr pam_open_session 3
+and
+.Xr pam_close_session 3
+primitives.

@@ -1,0 +1,189 @@
+.\"
+.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 16, 2004
+.Dt G_EVENT 9
+.Os
+.Sh NAME
+.Nm g_post_event ,
+.Nm g_waitfor_event ,
+.Nm g_cancel_event
+.Nd "GEOM events management"
+.Sh SYNOPSIS
+.In geom/geom.h
+.Ft int
+.Fn g_post_event "g_event_t *func" "void *arg" "int flag" ...
+.Ft int
+.Fn g_waitfor_event "g_event_t *func" "void *arg" "int flag" ...
+.Ft void
+.Fn g_cancel_event "void *ref"
+.Sh DESCRIPTION
+The GEOM framework has its own event queue to inform classes about important
+events.
+The event queue can be also used by GEOM classes themselves, for example
+to work around some restrictions in the I/O path, where sleeping, heavy weight
+tasks, etc.\& are not permitted.
+.Pp
+The
+.Fn g_post_event
+function tells the GEOM framework to call function
+.Fa func
+with argument
+.Fa arg
+from the event queue.
+The
+.Fa flag
+argument is passed to
+.Xr malloc 9
+for memory allocations inside of
+.Fn g_post_event .
+The only allowed flags are
+.Dv M_WAITOK
+and
+.Dv M_NOWAIT .
+The rest of the arguments are used as references to identify the event.
+An event can be canceled by using any of the given references as an
+argument to
+.Fn g_cancel_event .
+The list of references has to end with a
+.Dv NULL
+value.
+.Pp
+The
+.Fn g_waitfor_event
+function is a blocking version of the
+.Fn g_post_event
+function.
+It waits until the event is finished or canceled and then returns.
+.Pp
+The
+.Fn g_cancel_event
+function cancels all event(s) identified by
+.Fa ref .
+Cancellation is equivalent to calling the requested function
+with requested arguments and argument
+.Fa flag
+set to
+.Dv EV_CANCEL .
+.Sh RESTRICTIONS/CONDITIONS
+.Fn g_post_event :
+.Bl -item -offset indent
+.It
+The argument
+.Fa flag
+has to be
+.Dv M_WAITOK
+or
+.Dv M_NOWAIT .
+.It
+The list of references has to end with a
+.Dv NULL
+value.
+.El
+.Pp
+.Fn g_waitfor_event :
+.Bl -item -offset indent
+.It
+The argument
+.Fa flag
+has to be
+.Dv M_WAITOK
+or
+.Dv M_NOWAIT .
+.It
+The list of references has to end with a
+.Dv NULL
+value.
+.It
+The
+.Fn g_waitfor_event
+function cannot be called from an event, since doing so would result
+in a deadlock.
+.El
+.Sh RETURN VALUES
+The
+.Fn g_post_event
+and
+.Fn g_waitfor_event
+functions
+return 0 if successful; otherwise an error code is returned.
+.Sh EXAMPLES
+Example of a function called from the event queue.
+.Bd -literal -offset indent
+void
+example_event(void *arg, int flag)
+{
+
+	if (flag == EV_CANCEL) {
+		printf("Event with argument %p canceled.\\n", arg);
+		return;
+	}
+
+	printf("Event with argument %p called.\\n", arg);
+}
+.Ed
+.Sh ERRORS
+Possible errors for the
+.Fn g_post_event
+function:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+The
+.Fa flag
+argument was set to
+.Dv M_NOWAIT
+and there was insufficient memory.
+.El
+.Pp
+Possible errors for the
+.Fn g_waitfor_event
+function:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The event was canceled.
+.It Bq Er ENOMEM
+The
+.Fa flag
+argument was set to
+.Dv M_NOWAIT
+and there was insufficient memory.
+.El
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr DECLARE_GEOM_CLASS 9 ,
+.Xr g_access 9 ,
+.Xr g_attach 9 ,
+.Xr g_bio 9 ,
+.Xr g_consumer 9 ,
+.Xr g_data 9 ,
+.Xr g_geom 9 ,
+.Xr g_provider 9 ,
+.Xr g_provider_by_name 9 ,
+.Xr g_wither_geom 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .

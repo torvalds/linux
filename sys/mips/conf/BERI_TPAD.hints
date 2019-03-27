@@ -1,0 +1,51 @@
+# $FreeBSD$
+
+#
+# Altera JTAG UARTs configured for console, debugging, and data putput on the
+# Terasic tPad.
+#
+hint.altera_jtag_uart.0.at="nexus0"
+hint.altera_jtag_uart.0.maddr=0x7f000000
+hint.altera_jtag_uart.0.msize=0x40
+hint.altera_jtag_uart.0.irq=0
+
+hint.altera_jtag_uart.1.at="nexus0"
+hint.altera_jtag_uart.1.maddr=0x7f001000
+hint.altera_jtag_uart.1.msize=0x40
+
+hint.altera_jtag_uart.2.at="nexus0"
+hint.altera_jtag_uart.2.maddr=0x7f002000
+hint.altera_jtag_uart.2.msize=0x40
+
+#
+# Expose the tPad touchscreen device via an Avalon "generic" device.  Observe
+# that this is a portion of DRAM, so some care may be required in how memory
+# is exposed to FreeBSD to avoid use of that DRAM for both the touch screen
+# and FreeBSD use.
+#
+# Two separate devices are used here because alignment/width requirements for
+# I/O differ: the frame buffer accepts 16-bit I/O, and the touch input device
+# requires 32-bit I/O.
+#
+hint.altera_avgen.0.at="nexus0"
+hint.altera_avgen.0.maddr=0x04000000
+hint.altera_avgen.0.msize=0x01000000
+hint.altera_avgen.0.width=2
+hint.altera_avgen.0.fileio="rw"
+hint.altera_avgen.0.mmapio="rw"
+hint.altera_avgen.0.devname="display"
+
+hint.altera_avgen.1.at="nexus0"
+hint.altera_avgen.1.maddr=0x05000000
+hint.altera_avgen.1.msize=0x00000020
+hint.altera_avgen.1.width=4
+hint.altera_avgen.1.fileio="rw"
+hint.altera_avgen.1.mmapio="rw"
+hint.altera_avgen.1.devname="touch"
+
+#
+# On-board DE4 and tPad SD Card IP core
+#
+hint.altera_sdcardc.0.at="nexus0"
+hint.altera_sdcardc.0.maddr=0x7f008000
+hint.altera_sdcardc.0.msize=0x400

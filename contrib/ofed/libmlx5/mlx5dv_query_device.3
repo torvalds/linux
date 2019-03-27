@@ -1,0 +1,51 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org (MIT) - See COPYING.md
+.\"
+.TH MLX5DV_QUERY_DEVICE 3 2017-02-02 1.0.0
+.SH "NAME"
+mlx5dv_query_device \- Query device capabilities specific to mlx5
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/mlx5dv.h>
+.sp
+.BI "int mlx5dv_query_device(struct ibv_context *ctx_in,
+.BI "                        struct mlx5dv_context *attrs_out);
+.fi
+.SH "DESCRIPTION"
+.B mlx5dv_query_device()
+Query HW device-specific information which is important for data-path, but isn't provided by
+\fBibv_query_device\fR(3).
+.PP
+This function returns version, flags and compatibility mask. The version represents the format
+of the internal hardware structures that mlx5dv.h represents. Additions of new fields to the existed
+structures are handled by comp_mask field.
+.PP
+.nf
+struct mlx5dv_context {
+.in +8
+uint8_t         version;
+uint64_t        flags;
+uint64_t        comp_mask;
+.in -8
+};
+
+enum mlx5dv_context_flags {
+.in +8
+/*
+ * This flag indicates if CQE version 0 or 1 is needed.
+ */
+ MLX5DV_CONTEXT_FLAGS_CQE_V1 = (1 << 0),
+ MLX5DV_CONTEXT_FLAGS_MPW    = (1 << 1), /* Multi packet WQE is supported or not */
+.in -8
+};
+.fi
+.SH "RETURN VALUE"
+0 on success or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+ * Compatibility mask (comp_mask) is in/out field.
+.SH "SEE ALSO"
+.BR mlx5dv (7),
+.BR ibv_query_device (3)
+.SH "AUTHORS"
+.TP
+Leon Romanovsky <leonro@mellanox.com>

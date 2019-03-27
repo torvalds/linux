@@ -1,0 +1,1 @@
+rdr vlan0 from any to 69.248.79.193 port = 38136 -> 172.31.83.24 port 2013 udp

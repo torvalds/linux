@@ -1,0 +1,129 @@
+.\"
+.\" ----------------------------------------------------------------------------
+.\" "THE BEER-WARE LICENSE" (Revision 42):
+.\" <phk@FreeBSD.org> wrote this file.  As long as you retain this notice you
+.\" can do whatever you want with this stuff. If we meet some day, and you think
+.\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+.\" ----------------------------------------------------------------------------
+.\"
+.\" $FreeBSD$
+.\"
+.\"
+.Dd September 16, 1993
+.Dt FDWRITE 1
+.Os
+.Sh NAME
+.Nm fdwrite
+.Nd format and write floppy disks
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Op Fl y
+.Op Fl f Ar inputfile
+.Op Fl d Ar device
+.Sh DESCRIPTION
+The
+.Nm
+utility formats and writes one and more floppy disks.
+Any floppy disk device capable of formatting can be used.
+.Pp
+The
+.Nm
+utility will ask the user
+(on
+.Pa /dev/tty )
+to insert a new floppy and press return.
+The device will then be opened, and queried for its parameters,
+then each track will be formatted, written with data from the
+.Ar inputfile ,
+read back and compared.
+When the floppy disk is filled, the process is repeated, with the next disk.
+This continues until the program is interrupted or EOF is encountered on the
+.Ar inputfile .
+.Pp
+The options are as follows:
+.Bl -tag -width 10n -offset indent
+.It Fl v
+Toggle verbosity on stdout.
+Default is ``on''.
+After
+.Ar device
+is opened first time the format will be printed.
+During operation progress will be reported with the number of tracks
+remaining on the current floppy disk, and the letters I, Z, F, W,
+R and C, which indicates completion of Input, Zero-fill, Format
+Write, Read and Compare of current track respectively.
+.It Fl y
+Do not ask for presence of a floppy disk in the drive.
+This non-interactive flag
+is useful for shell scripts.
+.It Fl f Ar inputfile
+Input file to read.
+If none is given, stdin is assumed.
+.It Fl d Ar device
+The name of the floppy device to write to.
+Default is
+.Pa /dev/fd0 .
+.El
+.Pp
+The
+.Nm
+utility actually closes the
+.Ar device
+while it waits for the user to press return,
+it is thus quite possible to use the drive for other purposes at this
+time and later resume writing with the next floppy.
+.Pp
+The parameters returned from
+.Ar device
+are used for formatting.
+If custom formatting is needed, please use
+.Xr fdformat 1
+instead.
+.Sh EXAMPLES
+The
+.Nm
+utility
+was planned as a tool to make life easier when writing a set of floppies,
+one such use could be to write a tar-archive:
+.Pp
+.Dl tar cf - . | gzip -9 | fdwrite -d /dev/fd0.1720 -v
+.Pp
+The main difference from using
+.Xr tar 1 Ns 's
+multivolume facility is of course the formatting of the floppies, which
+here is done on the fly,
+thus reducing the amount of work for the floppy-jockey.
+.Sh SEE ALSO
+.Xr fdformat 1
+.Sh HISTORY
+The
+.Nm
+utility was written while waiting for ``make world'' to complete.
+Some of the code was taken from
+.Xr fdformat 1 .
+.Sh AUTHORS
+The program has been contributed by
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .
+.Sh BUGS
+Diagnostics are less than complete at present.
+.Pp
+If a floppy is sick, and the
+.Ar inputfile
+is seekable, it should ask the user to frisbee the disk, insert
+another, and rewind to the right spot and continue.
+.Pp
+This concept could be extended to cover non-seekable input also
+by employing a temporary file.
+.Pp
+An option (defaulting to zero) should allow the user to ask for
+retries in case of failure.
+.Pp
+At present a suitable tool for reading back a multivolume set
+of floppies is missing.
+Programs like
+.Xr tar 1
+for instance, will do the job, if the data has not been compressed.
+One can always trust
+.Xr dd 1
+to help out in this situation of course.

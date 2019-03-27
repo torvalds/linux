@@ -1,0 +1,321 @@
+# $FreeBSD$
+
+TYPE		ROWCOL
+NAME		SYMBOL/UCS
+SRC_ZONE	0x00-0xFF
+OOB_MODE	ILSEQ
+DST_ILSEQ	0xFFFE
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+#=======================================================================
+#   File name:  SYMBOL.TXT
+#
+#   Contents:   Map (external version) from Mac OS Symbol
+#               character set to Unicode 4.0 and later.
+#
+#   Copyright:  (c) 1994-2002, 2005 by Apple Computer, Inc., all rights
+#               reserved.
+#
+#   Contact:    charsets@apple.com
+#
+#   Changes:
+#
+#       c02  2005-Apr-05    Change mappings for 0xBD, 0xE0. Update
+#                           header comments. Matches internal xml <c1.2>
+#                           and Text Encoding Converter 2.0.
+#      b4,c1 2002-Dec-19    Update mappings for encoded glyph fragments
+#                           0xBE, 0xE6-EF, 0xF4, 0xF6-FE to use new
+#                           Unicode 3.2 characters instead of sequences
+#                           involving corporate-use characters. Update
+#                           URLs, notes. Matches internal utom<b4>.
+#       b03  1999-Sep-22    Update contact e-mail address. Matches
+#                           internal utom<b3>, ufrm<b3>, and Text
+#                           Encoding Converter version 1.5.
+#       b02  1998-Aug-18    Encoding changed for Mac OS 8.5; add new
+#                           mapping from 0xA0 to EURO SIGN. Matches
+#                           internal utom<b3>, ufrm<b3>.
+#       n05  1998-Feb-05    Update to match internal utom<n5>, ufrm<n15>
+#                           and Text Encoding Converter version 1.3:
+#                           Use standard Unicodes plus transcoding hints
+#                           instead of single corporate characters, also
+#                           change mappings for 0xE1 & 0xF1 from U+2329
+#                           & U+232A to their canonical decompositions;
+#                           see details below. Also update header
+#                           comments to new format.
+#       n03  1995-Apr-15    First version (after fixing some typos).
+#                           Matches internal ufrm<n4>.
+#
+# Standard header:
+# ----------------
+#
+#   Apple, the Apple logo, and Macintosh are trademarks of Apple
+#   Computer, Inc., registered in the United States and other countries.
+#   Unicode is a trademark of Unicode Inc. For the sake of brevity,
+#   throughout this document, "Macintosh" can be used to refer to
+#   Macintosh computers and "Unicode" can be used to refer to the
+#   Unicode standard.
+#
+#   Apple Computer, Inc. ("Apple") makes no warranty or representation,
+#   either express or implied, with respect to this document and the
+#   included data, its quality, accuracy, or fitness for a particular
+#   purpose. In no event will Apple be liable for direct, indirect,
+#   special, incidental, or consequential damages resulting from any
+#   defect or inaccuracy in this document or the included data.
+#
+#   These mapping tables and character lists are subject to change.
+#   The latest tables should be available from the following:
+#
+#   <http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/>
+#
+#   For general information about Mac OS encodings and these mapping
+#   tables, see the file "README.TXT".
+#
+# Format:
+# -------
+#
+#   Three tab-separated columns;
+#   '#' begins a comment which continues to the end of the line.
+#     Column #1 is the Mac OS Symbol code (in hex as 0xNN)
+#     Column #2 is the corresponding Unicode or Unicode sequence
+#       (in hex as 0xNNNN or 0xNNNN+0xNNNN).
+#     Column #3 is a comment containing the Unicode name.
+#       In some cases an additional comment follows the Unicode name.
+#
+#   The entries are in Mac OS Symbol code order.
+#
+#   Some of these mappings require the use of corporate characters.
+#   See the file "CORPCHAR.TXT" and notes below.
+#
+#   Control character mappings are not shown in this table, following
+#   the conventions of the standard UTC mapping tables. However, the
+#   Mac OS Symbol character set uses the standard control characters
+#   at 0x00-0x1F and 0x7F.
+#
+# Notes on Mac OS Symbol:
+# -----------------------
+#
+#   This is a legacy Mac OS encoding; in the Mac OS X Carbon and Cocoa
+#   environments, it is only supported directly in programming
+#   interfaces for QuickDraw Text, the Script Manager, and related
+#   Text Utilities. For other purposes it is supported via transcoding
+#   to and from Unicode.
+#
+#   The Mac OS Symbol encoding shares the script code smRoman
+#   (0) with the Mac OS Roman encoding. To determine if the Symbol
+#   encoding is being used, you must check if the font name is
+#   "Symbol".
+#
+#   Before Mac OS 8.5, code point 0xA0 was unused. In Mac OS 8.5
+#   and later versions, code point 0xA0 is EURO SIGN and maps to
+#   U+20AC (the Symbol font is updated for Mac OS 8.5 to reflect
+#   this).
+#
+#   The layout of the Mac OS Symbol character set is identical to
+#   the layout of the Adobe Symbol encoding vector, with the
+#   addition of the Apple logo character at 0xF0.
+#
+#   This character set encodes a number of glyph fragments. Some are
+#   used as extenders: 0x60 is used to extend radical signs, 0xBD and
+#   0xBE are used to extend vertical and horizontal arrows, etc. In
+#   addition, there are top, bottom, and center sections for
+#   parentheses, brackets, integral signs, and other signs that may
+#   extend vertically for 2 or more lines of normal text. As of
+#   Unicode 3.2, most of these are now encoded in Unicode; a few are
+#   not, so these are mapped using corporate-zone Unicode characters
+#   (see below).
+#
+#   In addition, Symbol separately encodes both serif and sans-serif
+#   forms for copyright, trademark, and registered signs. Unicode
+#   encodes only the abstract characters, so one set of these (the
+#   sans-serif forms) are also mapped using corporate-zone Unicode
+#   characters (see below).
+#
+#   The following code points are unused, and are not shown here:
+#   0x80-0x9F, 0xFF.
+#
+# Unicode mapping issues and notes:
+# ---------------------------------
+#
+#   The goals in the mappings provided here are:
+#   - Ensure roundtrip mapping from every character in the Mac OS
+#     Symbol character set to Unicode and back
+#   - Use standard Unicode characters as much as possible, to
+#     maximize interchangeability of the resulting Unicode text.
+#     Whenever possible, avoid having content carried by private-use
+#     characters.
+#
+#   Some of the characters in the Mac OS Symbol character set do not
+#   correspond to distinct, single Unicode characters. To map these
+#   and satisfy both goals above, we employ various strategies.
+#
+#   a) If possible, use private use characters in combination with
+#   standard Unicode characters to mark variants of the standard
+#   Unicode character.
+#
+#   Apple has defined a block of 32 corporate characters as "transcoding
+#   hints." These are used in combination with standard Unicode
+#   characters to force them to be treated in a special way for mapping
+#   to other encodings; they have no other effect. Sixteen of these
+#   transcoding hints are "grouping hints" - they indicate that the next
+#   2-4 Unicode characters should be treated as a single entity for
+#   transcoding. The other sixteen transcoding hints are "variant tags"
+#   - they are like combining characters, and can follow a standard
+#   Unicode (or a sequence consisting of a base character and other
+#   combining characters) to cause it to be treated in a special way for
+#   transcoding. These always terminate a combining-character sequence.
+#
+#   The transcoding coding hint used in this mapping table is the
+#   variant tag 0xF87F. Since this is combined with standard Unicode
+#   characters, some characters in the Mac OS Symbol character set map
+#   to a sequence of two Unicodes instead of a single Unicode character.
+#
+#   For example, the Mac OS Symbol character at 0xE2 is an alternate,
+#   sans-serif form of the REGISTERED SIGN (the standard mapping is for
+#   the abstract character at 0xD2, which here has a serif form). So 0xE2
+#   is mapped to 0x00AE (REGISTERED SIGN) + 0xF87F (a variant tag).
+#
+#   b) Otherwise, use private use characters by themselves to map
+#   Mac OS Symbol characters which have no relationship to any standard
+#   Unicode character.
+#
+#   The following additional corporate zone Unicode characters are
+#   used for this purpose here:
+#
+#     0xF8E5  radical extender
+#     0xF8FF  Apple logo
+#
+#   NOTE: The graphic image associated with the Apple logo character
+#   is not authorized for use without permission of Apple, and
+#   unauthorized use might constitute trademark infringement.
+#
+# Details of mapping changes in each version:
+# -------------------------------------------
+#
+#   Changes from version c01 to version c02:
+#
+#   - Update mappings for 0xBD from 0xF8E6 to 0x23D0 (use new Unicode
+#     4.0 char)
+#   - Correct mapping for 0xE0 from 0x22C4 to 0x25CA
+#
+#   Changes from version b02 to version b03/c01:
+#
+#   - Update mappings for encoded glyph fragments 0xBE, 0xE6-EF, 0xF4,
+#     0xF6-FE to use new Unicode 3.2 characters instead of using either
+#     single corporate-use characters (e.g. 0xBE was mapped to 0xF8E7) or
+#     sequences combining a standard Unicode character with a transcoding
+#     hint (e.g. 0xE6 was mapped to 0x0028+0xF870).
+#
+#   Changes from version n05 to version b02:
+#
+#   - Encoding changed for Mac OS 8.5; 0xA0 now maps to 0x20AC, EURO
+#   SIGN. 0xA0 was unmapped in earlier versions.
+#
+#   Changes from version n03 to version n05:
+#
+#   - Change strict mapping for 0xE1 & 0xF1 from U+2329 & U+232A
+#     to their canonical decompositions, U+3008 & U+3009.
+#
+#   - Change mapping for the following to use standard Unicode +
+#     transcoding hint, instead of single corporate-zone
+#     character: 0xE2-0xE4, 0xE6-0xEE, 0xF4, 0xF6-0xFE.
+#
+##################
+
+0x00 - 0x7F = 0x0000 -
+0xA0 = 0x20AC
+0xA1 = 0x03D2
+0xA2 = 0x2032
+0xA3 = 0x2264
+0xA4 = 0x2044
+0xA5 = 0x221E
+0xA6 = 0x0192
+0xA7 = 0x2663
+0xA8 = 0x2666
+0xA9 = 0x2665
+0xAA = 0x2660
+0xAB = 0x2194
+0xAC = 0x2190
+0xAD = 0x2191
+0xAE = 0x2192
+0xAF = 0x2193
+0xB0 = 0x00B0
+0xB1 = 0x00B1
+0xB2 = 0x2033
+0xB3 = 0x2265
+0xB4 = 0x00D7
+0xB5 = 0x221D
+0xB6 = 0x2202
+0xB7 = 0x2022
+0xB8 = 0x00F7
+0xB9 = 0x2260
+0xBA = 0x2261
+0xBB = 0x2248
+0xBC = 0x2026
+0xBD = 0x23D0
+0xBE = 0x23AF
+0xBF = 0x21B5
+0xC0 = 0x2135
+0xC1 = 0x2111
+0xC2 = 0x211C
+0xC3 = 0x2118
+0xC4 = 0x2297
+0xC5 = 0x2295
+0xC6 = 0x2205
+0xC7 = 0x2229
+0xC8 = 0x222A
+0xC9 = 0x2283
+0xCA = 0x2287
+0xCB = 0x2284
+0xCC = 0x2282
+0xCD = 0x2286
+0xCE = 0x2208
+0xCF = 0x2209
+0xD0 = 0x2220
+0xD1 = 0x2207
+0xD2 = 0x00AE
+0xD3 = 0x00A9
+0xD4 = 0x2122
+0xD5 = 0x220F
+0xD6 = 0x221A
+0xD7 = 0x22C5
+0xD8 = 0x00AC
+0xD9 = 0x2227
+0xDA = 0x2228
+0xDB = 0x21D4
+0xDC = 0x21D0
+0xDD = 0x21D1
+0xDE = 0x21D2
+0xDF = 0x21D3
+0xE0 = 0x25CA
+0xE1 = 0x3008
+#0xE2 = 0x00AE+0xF87F
+#0xE3 = 0x00A9+0xF87F
+#0xE4 = 0x2122+0xF87F
+0xE5 = 0x2211
+0xE6 = 0x239B
+0xE7 = 0x239C
+0xE8 = 0x239D
+0xE9 = 0x23A1
+0xEA = 0x23A2
+0xEB = 0x23A3
+0xEC = 0x23A7
+0xED = 0x23A8
+0xEE = 0x23A9
+0xEF = 0x23AA
+0xF0 = 0xF8FF
+0xF1 = 0x3009
+0xF2 = 0x222B
+0xF3 = 0x2320
+0xF4 = 0x23AE
+0xF5 = 0x2321
+0xF6 = 0x239E
+0xF7 = 0x239F
+0xF8 = 0x23A0
+0xF9 = 0x23A4
+0xFA = 0x23A5
+0xFB = 0x23A6
+0xFC = 0x23AB
+0xFD = 0x23AC
+0xFE = 0x23AD
+END_MAP

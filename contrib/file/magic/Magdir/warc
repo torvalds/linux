@@ -1,0 +1,16 @@
+
+#------------------------------------------------------------------------------
+# $File: warc,v 1.3 2010/11/25 15:05:43 christos Exp $
+# warc:  file(1) magic for WARC files
+
+0	string	WARC/	WARC Archive
+>5	string	x	version %.4s
+!:mime application/warc
+
+#------------------------------------------------------------------------------
+# Arc File Format from Internet Archive
+# see http://www.archive.org/web/researcher/ArcFileFormat.php
+0      string          filedesc://     Internet Archive File
+!:mime application/x-ia-arc
+>11    search/256      \x0A    \b
+>>&0   ubyte   >0      \b version %c

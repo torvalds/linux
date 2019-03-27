@@ -1,0 +1,66 @@
+.\" $Id$
+.\"
+.Dd April 16, 2003
+.Dt RCP 1
+.Os HEIMDAL
+.Sh NAME
+.Nm rcp
+.Nd copy file to and from remote machines
+.Sh SYNOPSIS
+.Nm rcp
+.Op Fl 45FKpxz
+.Op Fl P Ar port
+.Ar file1 file2
+.Nm rcp
+.Op Fl 45FKprxz
+.Op Fl P Ar port
+.Ar file... directory
+.Sh DESCRIPTION
+.Nm rcp
+copies files between machines. Each file argument is either a remote file name of the form
+.Dq rname@rhost:path
+or a local file (containing no colon or with a slash before the first
+colon).
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Xo
+.Fl 4 ,
+.Fl 5 ,
+.Fl K ,
+.Fl F ,
+.Fl x ,
+.Fl z
+.Xc
+These options are passed on to
+.Xr rsh 1 .
+.It Fl P Ar port
+This will pass the option
+.Fl p Ar port
+to
+.Xr rsh 1 .
+.It Fl p
+Preserve file permissions.
+.It Fl r
+Copy source directories recursively.
+.El
+.\".Sh ENVIRONMENT
+.\".Sh FILES
+.\".Sh EXAMPLES
+.Sh DIAGNOSTICS
+.Nm rcp
+is implemented as a protocol on top of
+.Xr rsh 1 ,
+and thus requires a working rsh. If you intend to use Kerberos
+authentication, rsh needs to be Kerberos aware, else you may see more
+or less strange errors, such as "login incorrect", or "lost
+connection".
+.\".Sh SEE ALSO
+.\".Sh STANDARDS
+.Sh HISTORY
+The
+.Nm rcp
+utility first appeared in 4.2BSD. This version is derived from
+4.3BSD-Reno.
+.\".Sh AUTHORS
+.\".Sh BUGS

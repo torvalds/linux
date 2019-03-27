@@ -1,0 +1,261 @@
+.\"
+.\" Copyright (C) 2000 Jason Evans <jasone@FreeBSD.org>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 19, 2013
+.Dt CONDVAR 9
+.Os
+.Sh NAME
+.Nm condvar ,
+.Nm cv_init ,
+.Nm cv_destroy ,
+.Nm cv_wait ,
+.Nm cv_wait_sig ,
+.Nm cv_wait_unlock ,
+.Nm cv_timedwait ,
+.Nm cv_timedwait_sbt ,
+.Nm cv_timedwait_sig ,
+.Nm cv_timedwait_sig_sbt ,
+.Nm cv_signal ,
+.Nm cv_broadcast ,
+.Nm cv_broadcastpri ,
+.Nm cv_wmesg
+.Nd kernel condition variable
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/proc.h
+.In sys/condvar.h
+.Ft void
+.Fn cv_init "struct cv *cvp" "const char *desc"
+.Ft void
+.Fn cv_destroy "struct cv *cvp"
+.Ft void
+.Fn cv_wait "struct cv *cvp" "lock"
+.Ft int
+.Fn cv_wait_sig "struct cv *cvp" "lock"
+.Ft void
+.Fn cv_wait_unlock "struct cv *cvp" "lock"
+.Ft int
+.Fn cv_timedwait "struct cv *cvp" "lock" "int timo"
+.Ft int
+.Fn cv_timedwait_sbt "struct cv *cvp" "lock" "sbintime_t sbt" \
+"sbintime_t pr" "int flags"
+.Ft int
+.Fn cv_timedwait_sig "struct cv *cvp" "lock" "int timo"
+.Ft int
+.Fn cv_timedwait_sig_sbt "struct cv *cvp" "lock" "sbintime_t sbt" \
+"sbintime_t pr" "int flags"
+.Ft void
+.Fn cv_signal "struct cv *cvp"
+.Ft void
+.Fn cv_broadcast "struct cv *cvp"
+.Ft void
+.Fn cv_broadcastpri "struct cv *cvp" "int pri"
+.Ft const char *
+.Fn cv_wmesg "struct cv *cvp"
+.Sh DESCRIPTION
+Condition variables are used in conjunction with mutexes to wait for conditions
+to occur.
+Condition variables are created with
+.Fn cv_init ,
+where
+.Fa cvp
+is a pointer to space for a
+.Vt struct cv ,
+and
+.Fa desc
+is a pointer to a null-terminated character string that describes the condition
+variable.
+Condition variables are destroyed with
+.Fn cv_destroy .
+Threads wait on condition variables by calling
+.Fn cv_wait ,
+.Fn cv_wait_sig ,
+.Fn cv_wait_unlock ,
+.Fn cv_timedwait ,
+or
+.Fn cv_timedwait_sig .
+Threads unblock waiters by calling
+.Fn cv_signal
+to unblock one waiter, or
+.Fn cv_broadcast
+or
+.Fn cv_broadcastpri
+to unblock all waiters.
+In addition to waking waiters,
+.Fn cv_broadcastpri
+ensures that all of the waiters have a priority of at least
+.Fa pri
+by raising the priority of any threads that do not.
+.Fn cv_wmesg
+returns the description string of
+.Fa cvp ,
+as set by the initial call to
+.Fn cv_init .
+.Pp
+The
+.Fa lock
+argument is a pointer to either a
+.Xr mutex 9 ,
+.Xr rwlock 9 ,
+or
+.Xr sx 9
+lock.
+A
+.Xr mutex 9
+argument must be initialized with
+.Dv MTX_DEF
+and not
+.Dv MTX_SPIN .
+A thread must hold
+.Fa lock
+before calling
+.Fn cv_wait ,
+.Fn cv_wait_sig ,
+.Fn cv_wait_unlock ,
+.Fn cv_timedwait ,
+or
+.Fn cv_timedwait_sig .
+When a thread waits on a condition,
+.Fa lock
+is atomically released before the thread is blocked, then reacquired
+before the function call returns.
+In addition, the thread will fully drop the
+.Va Giant
+mutex
+(even if recursed)
+while the it is suspended and will reacquire the
+.Va Giant
+mutex before the function returns.
+The
+.Fn cv_wait_unlock
+function does not reacquire the lock before returning.
+Note that the
+.Va Giant
+mutex may be specified as
+.Fa lock .
+However,
+.Va Giant
+may not be used as
+.Fa lock
+for the
+.Fn cv_wait_unlock
+function.
+All waiters must pass the same
+.Fa lock
+in conjunction with
+.Fa cvp .
+.Pp
+When
+.Fn cv_wait ,
+.Fn cv_wait_sig ,
+.Fn cv_wait_unlock ,
+.Fn cv_timedwait ,
+and
+.Fn cv_timedwait_sig
+unblock, their calling threads are made runnable.
+.Fn cv_timedwait
+and
+.Fn cv_timedwait_sig
+wait for at most
+.Fa timo
+/
+.Dv HZ
+seconds before being unblocked and returning
+.Er EWOULDBLOCK ;
+otherwise, they return 0.
+.Fn cv_wait_sig
+and
+.Fn cv_timedwait_sig
+return prematurely with a value of
+.Er EINTR
+or
+.Er ERESTART
+if a signal is caught, or 0 if signaled via
+.Fn cv_signal
+or
+.Fn cv_broadcast .
+.Pp
+.Fn cv_timedwait_sbt
+and
+.Fn cv_timedwait_sig_sbt
+functions take
+.Fa sbt
+argument instead of
+.Fa timo .
+It allows to specify relative or absolute unblock time with higher resolution
+in form of
+.Vt sbintime_t .
+The parameter
+.Fa pr
+allows to specify wanted absolute event precision.
+The parameter
+.Fa flags
+allows to pass additional
+.Fn callout_reset_sbt
+flags.
+.Sh RETURN VALUES
+If successful,
+.Fn cv_wait_sig ,
+.Fn cv_timedwait ,
+and
+.Fn cv_timedwait_sig
+return 0.
+Otherwise, a non-zero error code is returned.
+.Pp
+.Fn cv_wmesg
+returns the description string that was passed to
+.Fn cv_init .
+.Sh ERRORS
+.Fn cv_wait_sig
+and
+.Fn cv_timedwait_sig
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINTR
+A signal was caught and the system call should be interrupted.
+.It Bq Er ERESTART
+A signal was caught and the system call should be restarted.
+.El
+.Pp
+.Fn cv_timedwait
+and
+.Fn cv_timedwait_sig
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EWOULDBLOCK
+Timeout expired.
+.El
+.Sh SEE ALSO
+.Xr locking 9 ,
+.Xr mtx_pool 9 ,
+.Xr mutex 9 ,
+.Xr rwlock 9 ,
+.Xr sema 9 ,
+.Xr sleep 9 ,
+.Xr sx 9 ,
+.Xr timeout 9

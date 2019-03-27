@@ -1,0 +1,70 @@
+.\" Copyright (c) 2002, 2003 Tim J. Robbins
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 7, 2003
+.Dt MSKANJI 5
+.Os
+.Sh NAME
+.Nm mskanji
+.Nd "Shift-JIS (MS Kanji) encoding for Japanese text"
+.Sh SYNOPSIS
+.Nm ENCODING
+.Qq MSKanji
+.Sh DESCRIPTION
+Shift-JIS, also known as MS Kanji or SJIS, is an encoding system for
+Japanese characters, developed by Microsoft Corporation.
+It encodes the characters from the
+.Tn JIS
+X 0201 (ASCII/JIS-Roman) and
+.Tn JIS
+X 0208 (Japanese) character sets as sequences of either one or two bytes.
+.Pp
+Characters from the
+.Tn ASCII Ns
+/JIS-Roman character set are encoded as single bytes between 0x00 and 0x7F
+(ASCII) or 0xA1 and 0xDF (Half-width katakana).
+.Pp
+Characters from the
+.Tn JIS
+X 0208 character set are encoded as two bytes.
+The first ranges from
+0x81 - 0x9F, 0xE0 - 0xEA, 0xED - 0xEE (not
+.Tn JIS :
+.Tn NEC Ns - Ns
+selected
+.Tn IBM
+extended characters),
+0xF0 - 0xF9 (not
+.Tn JIS :
+user defined),
+or 0xFA - 0xFC (not
+.Tn JIS :
+.Tn IBM
+extended characters).
+The second byte ranges from 0x40 - 0xFC, excluding 0x7F (delete).
+.Sh SEE ALSO
+.Xr euc 5 ,
+.Xr utf8 5

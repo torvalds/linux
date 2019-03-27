@@ -1,0 +1,45 @@
+@c GDB MANUAL configuration file.  
+@c
+@c Copyright 1993, 1995, 1999, 2002 Free Software Foundation, Inc.
+@c
+@c NOTE: While the GDB manual is configurable (by changing these
+@c switches), its configuration is ***NOT*** automatically tied in to
+@c source configuration---because the authors expect that, save in
+@c unusual cases, the most inclusive form of the manual is appropriate
+@c no matter how the program itself is configured.
+@c
+@c The only automatically-varying variable is the GDB version number,
+@c which the Makefile rewrites based on the VERSION variable from
+@c `../Makefile.in'.  
+@c 
+@c GDB version number is recorded in the variable GDBVN
+@include GDBvn.texi
+@c
+@c ----------------------------------------------------------------------
+@c PLATFORM FLAGS:
+@set GENERIC
+@c
+@c HP PA-RISC target ONLY:
+@clear HPPA
+@c
+@c Refrain from discussing how to configure sw and format doc?
+@clear PRECONFIGURED
+@c
+@c ----------------------------------------------------------------------
+@c STRINGS:
+@c
+@c Name of GDB program.  Used also for (gdb) prompt string.
+@set GDBP gdb
+@c 
+@c Name of GDB product.  Used in running text.
+@set GDBN @sc{gdb}
+@c
+@c Name of host.  Should not be used in generic configs, but generic
+@c value may catch some flubs.
+@set HOST machine specific
+@c
+@c Name of GCC product
+@set NGCC @sc{gcc}
+@c 
+@c Name of GCC program
+@set GCC gcc

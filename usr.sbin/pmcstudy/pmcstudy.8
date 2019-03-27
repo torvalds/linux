@@ -1,0 +1,145 @@
+.\"
+.\" Copyright (c) 2015 Netflix, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Mar 26, 2015
+.Dt PMCSTUDY 8
+.Os
+.Sh NAME
+.Nm pmcstudy
+.Nd Perform various studies on a system's overall PMCs
+.Sh SYNOPSIS
+.Nm
+.Oo Fl i Ar inputfile | Fl A |  Fl T | Fl v | Fl m Ar max | Fl e exp | Fl Ar E | Fl h | fl H Oc
+.Nm
+.Fl i Ar inputfile
+.Nm
+.Fl v
+.Nm
+.Fl m Ar max
+.Nm
+.Fl e Ar exp-name
+.Nm
+.Fl E Ar your-expr
+.Nm
+.Fl h
+.Nm
+.Fl H
+.Nm
+.Fl T
+.Sh DESCRIPTION
+The
+.Nm
+program is designed to run various tests against your systems
+performance.
+There are roughly 20-22 canned tests that setup specific
+PMCs and then run various formulas on the output information.
+These formulas can be found in Intel documentation "Using Intel Vtune
+amplifier xe on NNN Generation Intel Core Processors".
+The NNN is either
+2nd, 3rd, 4th or 5th generation i.e., Sandy Bridge, Ivy Bridge, Haswell and Broadwell.
+Currently the program only works on these four Intel processor types.
+.Sh OPTIONS
+The following options are available:
+.Bl -tag -width indent
+.It Fl i Ar filename
+If this option is supplied, instead of running a
+.Xr pmcstat 8
+command to collect the current running information the filename will be read
+in as input instead.
+.It Fl H
+This option will display the complete list of canned formulas that can be run including
+their names which can be input to the
+.Fl e
+option.
+.It Fl e Ar name
+Execute the canned test
+.Ar name
+on the running kernel.
+.It Fl h
+If you add this option to the
+.Fl e
+option the test will not execute but instead give you a small description
+of the test that would run.
+.It Fl T
+This option will execute a test of every PMC to validate that they are working
+on your system.
+If a PMC does not show up in this test chances
+are the kernel
+.Xr hwpmc 4
+driver needs updating with new PMC information.
+.It Fl m Ar num
+This option can restrict the number of one second samples that will
+be collected by your system when running a test (it bounds the
+time the test will run).
+Without this option the test will run
+for 1024 seconds or until the user types ctrl-c.
+.It Fl v
+The verbose option adds debugging output to the command.
+.It Fl E Ar expression
+This option can be used by those that have their own ideas
+on what formulas they want to run.
+The expression given to the
+.Fl E
+option is a "formula".
+The formula can declare directly the PMCs by name
+or you can use an abbreviation %NNN.
+To find out the abbreviations
+on your system you may run the
+.Fl L
+option.
+An example of a formula of your own might be
+.Fl E
+"FP_ASSIST.ANY / INST_RETIRED.ANY_P" or using the abbreviations on a
+Haswell machine you would type
+.Fl E
+" %176 / %150".
+You must have spaces between each entry and
+you may use parentheses to prioritize the operators.
+Add (+), Subtract (-),
+Divide (/) and Multiplication (*) are supported.
+You may also introduce
+constant numbers.
+For example you can do a standard efficiency
+test like
+.Fl E
+"UOPS_RETIRED.RETIRE_SLOTS / (4 * CPU_CLK_UNHALTED.THREAD_P)".
+.It Fl L
+This option will list all known PMCs and their abbreviation (%NNN).
+.It Fl A
+Run all canned tests.
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4 ,
+.Xr pmcstat 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 11.0.
+.Sh AUTHORS
+.An Randall Stewart Aq Mt rrs@FreeBSD.org

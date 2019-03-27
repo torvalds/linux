@@ -1,0 +1,9 @@
+# $FreeBSD$ 
+# $NetBSD: HZ.src,v 1.1 2006/11/22 23:38:27 tnozaki Exp $
+
+NAME		"HZ"
+ENCODING	"HZ"
+VARIABLE	"0='CH:};GL:ASCII','CH:{;GL:GB2312'"
+DEFCSID		"ISO646-US"		0x0
+DEFCSID		"GB2312"		0x8000
+INVALID		0x3F # '?'

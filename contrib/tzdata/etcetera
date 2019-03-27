@@ -1,0 +1,79 @@
+# tzdb data for ships at sea and other miscellany
+
+# This file is in the public domain, so clarified as of
+# 2009-05-17 by Arthur David Olson.
+
+# These entries are mostly present for historical reasons, so that
+# people in areas not otherwise covered by the tz files could "zic -l"
+# to a timezone that was right for their area.  These days, the
+# tz files cover almost all the inhabited world, and the only practical
+# need now for the entries that are not on UTC are for ships at sea
+# that cannot use POSIX TZ settings.
+
+# Starting with POSIX 1003.1-2001, the entries below are all
+# unnecessary as settings for the TZ environment variable.  E.g.,
+# instead of TZ='Etc/GMT+4' one can use the POSIX setting TZ='<-04>+4'.
+#
+# Do not use a POSIX TZ setting like TZ='GMT+4', which is four hours
+# behind GMT but uses the completely misleading abbreviation "GMT".
+
+Zone	Etc/GMT		0	-	GMT
+Zone	Etc/UTC		0	-	UTC
+
+# The following link uses older naming conventions,
+# but it belongs here, not in the file 'backward',
+# as functions like gmtime load the "UTC" file to handle leap seconds properly.
+# We want this to work even on installations that omit the other older names.
+Link	Etc/UTC				UTC
+
+Link	Etc/UTC				Etc/Universal
+Link	Etc/UTC				Etc/Zulu
+
+Link	Etc/GMT				Etc/Greenwich
+Link	Etc/GMT				Etc/GMT-0
+Link	Etc/GMT				Etc/GMT+0
+Link	Etc/GMT				Etc/GMT0
+
+# Be consistent with POSIX TZ settings in the Zone names,
+# even though this is the opposite of what many people expect.
+# POSIX has positive signs west of Greenwich, but many people expect
+# positive signs east of Greenwich.  For example, TZ='Etc/GMT+4' uses
+# the abbreviation "-04" and corresponds to 4 hours behind UT
+# (i.e. west of Greenwich) even though many people would expect it to
+# mean 4 hours ahead of UT (i.e. east of Greenwich).
+
+# Earlier incarnations of this package were not POSIX-compliant,
+# and had lines such as
+#		Zone	GMT-12		-12	-	GMT-1200
+# We did not want things to change quietly if someone accustomed to the old
+# way does a
+#		zic -l GMT-12
+# so we moved the names into the Etc subdirectory.
+# Also, the time zone abbreviations are now compatible with %z.
+
+Zone	Etc/GMT-14	14	-	+14
+Zone	Etc/GMT-13	13	-	+13
+Zone	Etc/GMT-12	12	-	+12
+Zone	Etc/GMT-11	11	-	+11
+Zone	Etc/GMT-10	10	-	+10
+Zone	Etc/GMT-9	9	-	+09
+Zone	Etc/GMT-8	8	-	+08
+Zone	Etc/GMT-7	7	-	+07
+Zone	Etc/GMT-6	6	-	+06
+Zone	Etc/GMT-5	5	-	+05
+Zone	Etc/GMT-4	4	-	+04
+Zone	Etc/GMT-3	3	-	+03
+Zone	Etc/GMT-2	2	-	+02
+Zone	Etc/GMT-1	1	-	+01
+Zone	Etc/GMT+1	-1	-	-01
+Zone	Etc/GMT+2	-2	-	-02
+Zone	Etc/GMT+3	-3	-	-03
+Zone	Etc/GMT+4	-4	-	-04
+Zone	Etc/GMT+5	-5	-	-05
+Zone	Etc/GMT+6	-6	-	-06
+Zone	Etc/GMT+7	-7	-	-07
+Zone	Etc/GMT+8	-8	-	-08
+Zone	Etc/GMT+9	-9	-	-09
+Zone	Etc/GMT+10	-10	-	-10
+Zone	Etc/GMT+11	-11	-	-11
+Zone	Etc/GMT+12	-12	-	-12

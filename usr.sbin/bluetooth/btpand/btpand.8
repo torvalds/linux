@@ -1,0 +1,240 @@
+.\" $NetBSD: btpand.8,v 1.3 2008/08/17 14:43:07 plunky Exp $
+.\" $FreeBSD$
+.\"
+.\" Copyright (c) 2008 Iain Hibbert
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd August 17, 2008
+.Dt BTPAND 8
+.Os
+.Sh NAME
+.Nm btpand
+.Nd Bluetooth PAN daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl i Ar ifname
+.Op Fl m Ar mode
+.Fl a Ar addr
+.Fl d Ar device
+.Brq Fl s Ar service | Fl S Ar service Op Fl p Ar psm
+.Nm
+.Op Fl c Ar path
+.Op Fl i Ar ifname
+.Op Fl l Ar limit
+.Op Fl m Ar mode
+.Op Fl p Ar psm
+.Fl d Ar device
+.Brq Fl s Ar service | Fl S Ar service
+.Sh DESCRIPTION
+The
+.Nm
+daemon handles Bluetooth Personal Area Networking services
+in the system.
+It can operate in client mode as a Personal Area Networking User
+.Pq PANU
+or in server mode as Network Access Point
+.Pq NAP ,
+Group ad-hoc Network
+.Pq GN
+or PANU host.
+.Nm
+connects to the system via a
+.Xr tap 4
+virtual Ethernet device and forwards Ethernet packets to
+remote Bluetooth devices using the Bluetooth Network Encapsulation
+Protocol
+.Pq BNEP .
+.Pp
+The PANU client is the device that uses either the NAP or GN
+service, or can talk directly to a PANU host in a crossover
+cable fashion.
+.Pp
+A GN host forwards Ethernet packets to each of the connected PAN
+users as needed but does not provide access to any additional networks.
+.Pp
+The NAP service provides some of the features of an Ethernet bridge,
+with the NAP host forwarding Ethernet packets between each of the
+connected PAN users, and a different network
+media.
+.Pp
+Note, the only differences between NAP and GN services as implemented by
+.Nm
+are in the SDP service record.
+The bridging of packets by the NAP must be configured separately.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl a Ar address"
+.It Fl a Ar address
+In client mode, address of remote server.
+May be given as BDADDR or name, in which case
+.Nm
+will attempt to resolve the address via the
+.Xr bt_gethostbyname 3
+call.
+.It Fl c Ar path
+In server mode, specify
+.Ar path
+to the
+.Xr sdpd 8
+control socket.
+The default path is
+.Pa /var/run/sdp .
+.It Fl d Ar device
+Restrict connections to the local
+.Ar device .
+May be given as BDADDR or name, in which case
+.Nm
+will attempt to resolve the address via the
+.Xr bt_devaddr 3
+call.
+.Nm
+will set the
+.Xr tap 4
+interface physical address to the BDADDR
+of the Bluetooth radio.
+.It Fl i Ar ifname
+.Nm
+uses the
+.Xr tap 4
+driver to create a new network interface for use.
+Use this option to select a specific
+.Xr tap 4
+device interface which must already be created.
+.It Fl l Ar limit
+In server mode, limit the number of simultaneous connections.
+The default limit is 7 for NAP and GN servers,
+and 1 for a PANU server.
+.It Fl m Ar mode
+Set L2CAP connection link mode.
+Supported modes are:
+.Pp
+.Bl -tag -width 8n -compact
+.It auth
+require devices to be paired.
+.It encrypt
+auth, plus enable encryption.
+.It secure
+encryption, plus change of link key.
+.El
+.Pp
+NOT YET SUPPORTED.
+Use global device settings to set authentication and encryption.
+.It Fl p Ar psm
+Use an alternative L2CAP Protocol/Service Multiplexer
+.Pq PSM
+for server mode or client mode
+.Pq when not using Service Discovery .
+The default PSM for BNEP is 15
+.Pq 0x000f .
+.It Fl s Ar service
+Name of
+.Ar service
+to provide or connect to, the following services are recognised:
+.Pp
+.Bl -tag -width 8n -compact
+.It GN
+Group ad-hoc Network.
+.It NAP
+Network Access Point.
+.It PANU
+Personal Area Networking User.
+.El
+.It Fl S Ar service
+As per
+.Fl s
+except that
+.Nm
+will not use SDP services for connection setup.
+.El
+.Pp
+When providing networking services, the Bluetooth PAN profile says that the
+.Sq Class of Device
+property of the bluetooth controller SHALL include Networking capability
+.Pq set bit 0x020000 .
+See
+.Xr hccontrol 8
+for details.
+.Pp
+After
+.Nm
+has set up the client or server connection and opened the
+.Xr tap 4
+interface, it will create a pid file and detach.
+.Sh FILES
+.Bl -tag -width "Pa /etc/bluetooth/hosts" -compact
+.It Pa /dev/tap
+.It Pa /etc/bluetooth/hosts
+.It Pa /var/run/sdp
+.It Pa /var/run/tap Ns Em N Ns No .pid
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+.Dl ifconfig tap1 create
+.Dl btpand -a host -d mydevice -s NAP -i tap1
+.Dl dhclient tap1
+.Pp
+Will create a connection to the NAP on
+.Ar host ,
+and link that to the
+.Ar tap1
+interface.
+.Pp
+.Dl btpand -d mydevice -s GN
+.Pp
+Will create a Group Network and register the GN service with the local
+SDP server.
+.Sh SEE ALSO
+.Xr bluetooth 3 ,
+.Xr bridge 4 ,
+.Xr tap 4 ,
+.Xr dhclient 8 ,
+.Xr hccontrol 8 ,
+.Xr ifconfig 8 ,
+.Xr sdpd 8
+.Pp
+The
+.Qq Personal Area Networking Profile
+and
+.Qq Bluetooth Network Encapsulation Protocol
+specifications are available at
+.Dl http://www.bluetooth.com/
+.Sh AUTHORS
+.An Iain Hibbert
+.Sh BUGS
+There is no way to supply alternative values for the SDP record.
+.Pp
+There is no way to set net type or multicast address filters.
+.Pp
+.Nm
+does not do any address routing except to directly connected
+unicast addresses.
+All other packets are multicast.
+.Pp
+As
+.Nm
+uses the BDADDR of the Bluetooth radio as the physical address
+of the tap, only one instance can be run per radio.
+.Pp
+.Nm
+can only provide a single service.

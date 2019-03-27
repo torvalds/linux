@@ -1,0 +1,26 @@
+# $FreeBSD$
+set -e
+
+echo "1 2 3"		| { read a; echo "x${a}x"; }
+echo "1 2 3"		| { read a b; echo "x${a}x${b}x"; }
+echo "1 2 3"		| { read a b c; echo "x${a}x${b}x${c}x"; }
+echo "1 2 3"		| { read a b c d; echo "x${a}x${b}x${c}x${d}x"; }
+
+echo "	1  2 3 "	| { read a b c; echo "x${a}x${b}x${c}x"; }
+echo "	1  2 3 "	| { unset IFS; read a b c; echo "x${a}x${b}x${c}x"; }
+echo "	1  2 3 "	| { IFS=$(printf ' \t\n') read a b c; echo "x${a}x${b}x${c}x"; }
+echo "	1  2 3 "	| { IFS= read a b; echo "x${a}x${b}x"; }
+
+echo " 1,2 3 "		| { IFS=' ,' read a b c; echo "x${a}x${b}x${c}x"; }
+echo ", 2 ,3"		| { IFS=' ,' read a b c; echo "x${a}x${b}x${c}x"; }
+echo " 1 ,,3"		| { IFS=' ,' read a b c; echo "x${a}x${b}x${c}x"; }
+echo " 1 , , 3"		| { IFS=' ,' read a b c; echo "x${a}x${b}x${c}x"; }
+echo " 1 ,2 3,"		| { IFS=' ,' read a b c; echo "x${a}x${b}x${c}x"; }
+echo " 1 ,2 3,,"	| { IFS=' ,' read a b c; echo "x${a}x${b}x${c}x"; }
+
+echo " 1,2 3 "		| { IFS=', ' read a b c; echo "x${a}x${b}x${c}x"; }
+echo ", 2 ,3"		| { IFS=', ' read a b c; echo "x${a}x${b}x${c}x"; }
+echo " 1 ,,3"		| { IFS=', ' read a b c; echo "x${a}x${b}x${c}x"; }
+echo " 1 , , 3"		| { IFS=', ' read a b c; echo "x${a}x${b}x${c}x"; }
+echo " 1 ,2 3,"		| { IFS=', ' read a b c; echo "x${a}x${b}x${c}x"; }
+echo " 1 ,2 3,,"	| { IFS=', ' read a b c; echo "x${a}x${b}x${c}x"; }

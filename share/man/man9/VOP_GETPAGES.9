@@ -1,0 +1,207 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\" Copyright 2003, Garrett A. Wollman
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 7, 2017
+.Dt VOP_GETPAGES 9
+.Os
+.Sh NAME
+.Nm VOP_GETPAGES ,
+.Nm VOP_PUTPAGES
+.Nd read or write VM pages from a file
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.In vm/vm.h
+.Ft int
+.Fo VOP_GETPAGES
+.Fa "struct vnode *vp"
+.Fa "vm_page_t *ma"
+.Fa "int count"
+.Fa "int *rbehind"
+.Fa "int *rahead"
+.Fc
+.Ft int
+.Fo VOP_PUTPAGES
+.Fa "struct vnode *vp"
+.Fa "vm_page_t *ma"
+.Fa "int bytecount"
+.Fa "int flags"
+.Fa "int *rtvals"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn VOP_GETPAGES
+method is called to read in pages of virtual memory which are backed by
+ordinary files.
+If other adjacent pages are backed by adjacent regions of the same file,
+.Fn VOP_GETPAGES
+is requested to read those pages as well, although it is not required to
+do so.
+The
+.Fn VOP_PUTPAGES
+method does the converse; that is to say, it writes out adjacent dirty
+pages of virtual memory.
+.Pp
+On entry, the vnode lock is held but neither the page queue nor VM object
+locks are held.
+Both methods return in the same state on both success and error returns.
+.Pp
+The arguments are:
+.Bl -tag -width rbehind
+.It Fa vp
+The file to access.
+.It Fa ma
+Pointer to the first element of an array of pages representing a
+contiguous region of the file to be read or written.
+.It Fa count
+The length of the
+.Fa ma
+array.
+.It Fa bytecount
+The number of bytes that should be written from the pages of the array.
+.It Fa flags
+A bitfield of flags affecting the function operation.
+If
+.Dv VM_PAGER_PUT_SYNC
+is set, the write should be synchronous; control must not be returned
+to the caller until after the write is finished.
+If
+.Dv VM_PAGER_PUT_INVAL
+is set, the pages are to be invalidated after being written.
+If
+.Dv VM_PAGER_PUT_NOREUSE
+is set, the I/O performed should set the IO_NOREUSE flag, to indicate
+to the filesystem that pages should be marked for fast reuse if needed.
+This could occur via a call to
+.Xr vm_page_deactivate_noreuse 9 ,
+which puts such pages onto the head of the inactive queue.
+If
+.Dv VM_PAGER_CLUSTER_OK
+is set, writes may be performed asynchronously, so that related writes
+can be coalesced for efficiency, e.g.,
+using the clustering mechanism of the buffer cache.
+.It Fa rtvals
+An array of VM system result codes indicating the status of each
+page written by
+.Fn VOP_PUTPAGES .
+.It Fa rbehind
+Optional pointer to integer specifying number of pages to be read behind, if
+possible.
+If the filesystem supports that feature, number of actually read pages is
+reported back, otherwise zero is returned.
+.It Fa rahead
+Optional pointer to integer specifying number of pages to be read ahead, if
+possible.
+If the filesystem supports that feature, number of actually read pages is
+reported back, otherwise zero is returned.
+.El
+.Pp
+The status of the
+.Fn VOP_PUTPAGES
+method is returned on a page-by-page basis in the array
+.Fa rtvals[] .
+The possible status values are as follows:
+.Bl -tag -width VM_PAGER_ERROR
+.It Dv VM_PAGER_OK
+The page was successfully written.
+The implementation must call
+.Xr vm_page_undirty 9
+to mark the page as clean.
+.It Dv VM_PAGER_PEND
+The page was scheduled to be written asynchronously.
+When the write completes, the completion callback should
+call
+.Xr vm_object_pip_wakeup 9
+and
+.Xr vm_page_sunbusy 9
+to clear the busy flag and awaken any other threads waiting for this page,
+in addition to calling
+.Xr vm_page_undirty 9 .
+.It Dv VM_PAGER_BAD
+The page was entirely beyond the end of the backing file.
+This condition should not be possible if the vnode's file system
+is correctly implemented.
+.It Dv VM_PAGER_ERROR
+The page could not be written because of an error on the underlying storage
+medium or protocol.
+.It Dv VM_PAGER_FAIL
+Treated identically to
+.Dv VM_PAGER_ERROR .
+.It Dv VM_PAGER_AGAIN
+The page was not handled by this request.
+.El
+.Pp
+The
+.Fn VOP_GETPAGES
+method must populate and validate all requested pages in order to
+return success.
+It is expected to release any pages in
+.Fa ma
+that it does not successfully handle, by calling
+.Xr vm_page_free 9 .
+When it succeeds,
+.Fn VOP_GETPAGES
+must set the valid bits appropriately.
+Upon entry to
+.Fn VOP_GETPAGES ,
+all pages in
+.Fa ma
+are busied exclusively.
+Upon successful return, the pages must all be busied exclusively
+as well, but pages may be unbusied during processing.
+The filesystem is responsible for activating paged-out pages, but this
+does not necessarily need to be done within
+.Fn VOP_GETPAGES
+depending on the architecture of the particular filesystem.
+.Sh RETURN VALUES
+If it successfully reads all pages in
+.Fa ma ,
+.Fn VOP_GETPAGES
+returns
+.Dv VM_PAGER_OK ;
+otherwise, it returns
+.Dv VM_PAGER_ERROR .
+By convention, the return value of
+.Fn VOP_PUTPAGES
+is
+.Fa rtvals[0] .
+.Sh SEE ALSO
+.Xr vm_object_pip_wakeup 9 ,
+.Xr vm_page_free 9 ,
+.Xr vm_page_sunbusy 9 ,
+.Xr vm_page_undirty 9 ,
+.Xr vm_page_xunbusy 9 ,
+.Xr vnode 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson
+and then substantially rewritten by
+.An Garrett Wollman .

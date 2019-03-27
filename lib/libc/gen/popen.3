@@ -1,0 +1,202 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)popen.3	8.2 (Berkeley) 5/3/95
+.\" $FreeBSD$
+.\"
+.Dd May 20, 2013
+.Dt POPEN 3
+.Os
+.Sh NAME
+.Nm popen ,
+.Nm pclose
+.Nd process
+.Tn I/O
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.Ft FILE *
+.Fn popen "const char *command" "const char *type"
+.Ft int
+.Fn pclose "FILE *stream"
+.Sh DESCRIPTION
+The
+.Fn popen
+function
+.Dq opens
+a process by creating a bidirectional pipe
+forking,
+and invoking the shell.
+Any streams opened by previous
+.Fn popen
+calls in the parent process are closed in the new child process.
+Historically,
+.Fn popen
+was implemented with a unidirectional pipe;
+hence many implementations of
+.Fn popen
+only allow the
+.Fa type
+argument to specify reading or writing, not both.
+Since
+.Fn popen
+is now implemented using a bidirectional pipe, the
+.Fa type
+argument may request a bidirectional data flow.
+The
+.Fa type
+argument is a pointer to a null-terminated string
+which must be
+.Ql r
+for reading,
+.Ql w
+for writing, or
+.Ql r+
+for reading and writing.
+.Pp
+A letter
+.Ql e
+may be appended to that to request that the underlying file descriptor
+be set close-on-exec.
+.Pp
+The
+.Fa command
+argument is a pointer to a null-terminated string
+containing a shell command line.
+This command is passed to
+.Pa /bin/sh
+using the
+.Fl c
+flag; interpretation, if any, is performed by the shell.
+.Pp
+The return value from
+.Fn popen
+is a normal standard
+.Tn I/O
+stream in all respects
+save that it must be closed with
+.Fn pclose
+rather than
+.Fn fclose .
+Writing to such a stream
+writes to the standard input of the command;
+the command's standard output is the same as that of the process that called
+.Fn popen ,
+unless this is altered by the command itself.
+Conversely, reading from a
+.Dq popened
+stream reads the command's standard output, and
+the command's standard input is the same as that of the process that called
+.Fn popen .
+.Pp
+Note that output
+.Fn popen
+streams are fully buffered by default.
+.Pp
+The
+.Fn pclose
+function waits for the associated process to terminate
+and returns the exit status of the command
+as returned by
+.Xr wait4 2 .
+.Sh RETURN VALUES
+The
+.Fn popen
+function returns
+.Dv NULL
+if the
+.Xr fork 2
+or
+.Xr pipe 2
+calls fail,
+or if it cannot allocate memory.
+.Pp
+The
+.Fn pclose
+function
+returns \-1 if
+.Fa stream
+is not associated with a
+.Dq popened
+command, if
+.Fa stream
+already
+.Dq pclosed ,
+or if
+.Xr wait4 2
+returns an error.
+.Sh ERRORS
+The
+.Fn popen
+function does not reliably set
+.Va errno .
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr fork 2 ,
+.Xr pipe 2 ,
+.Xr wait4 2 ,
+.Xr fclose 3 ,
+.Xr fflush 3 ,
+.Xr fopen 3 ,
+.Xr stdio 3 ,
+.Xr system 3
+.Sh HISTORY
+A
+.Fn popen
+and a
+.Fn pclose
+function appeared in
+.At v7 .
+.Pp
+Bidirectional functionality was added in
+.Fx 2.2.6 .
+.Sh BUGS
+Since the standard input of a command opened for reading
+shares its seek offset with the process that called
+.Fn popen ,
+if the original process has done a buffered read,
+the command's input position may not be as expected.
+Similarly, the output from a command opened for writing
+may become intermingled with that of the original process.
+The latter can be avoided by calling
+.Xr fflush 3
+before
+.Fn popen .
+.Pp
+Failure to execute the shell
+is indistinguishable from the shell's failure to execute command,
+or an immediate exit of the command.
+The only hint is an exit status of 127.
+.Pp
+The
+.Fn popen
+function
+always calls
+.Xr sh 1 ,
+never calls
+.Xr csh 1 .

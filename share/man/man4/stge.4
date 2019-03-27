@@ -1,0 +1,200 @@
+.\"	$NetBSD: stge.4,v 1.7 2003/02/14 15:20:20 grant Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 23, 2010
+.Dt STGE 4
+.Os
+.Sh NAME
+.Nm stge
+.Nd Sundance/Tamarack TC9021 Gigabit Ethernet adapter driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device stge"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_stge_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides support for various NICs based on the
+Sundance/Tamarack TC9021 Gigabit Ethernet controller chip.
+.Pp
+The Sundance/Tamarack TC9021 is found on the D-Link DGE-550T
+and the Antares Microsystems Gigabit Ethernet board.
+It uses an external PHY or an external 10-bit interface.
+.Pp
+All NICs supported by the
+.Nm
+driver have TCP/UDP/IP checksum offload for both receive and
+transmit, hardware VLAN tag stripping/insertion features, and
+receive interrupt moderation mechanism as well as a 64-bit
+multicast hash filter.
+The Sundance/Tamarack TC9021 supports TBI (ten bit interface)
+and GMII transceivers, which means it can be used with either
+copper or 1000baseX fiber applications.
+.Pp
+The Sundance/Tamarack TC9021 also supports jumbo frames, which can be
+configured via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit jumbo frames.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to
+.Xr rc.conf 5 .
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 1000baseTX
+Set 1000baseTX operation over twisted pair.
+The Sundance/Tamarack supports 1000Mbps in
+.Cm autoselect
+mode only.
+.\" .It Cm 1000baseSX
+.\" Set 1000Mbps (Gigabit Ethernet) operation.
+.\" Both
+.\" .Cm full-duplex
+.\" and
+.\" .Cm half-duplex
+.\" modes are supported.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver provides support for various NICs based on the Sundance/Tamarack
+TC9021 based Gigabit Ethernet controller chips, including:
+.Pp
+.Bl -bullet -compact
+.It
+Antares Microsystems Gigabit Ethernet
+.It
+ASUS NX1101 Gigabit Ethernet
+.It
+D-Link DL-4000 Gigabit Ethernet
+.It
+IC Plus IP1000A Gigabit Ethernet
+.It
+Sundance ST-2021 Gigabit Ethernet
+.It
+Sundance ST-2023 Gigabit Ethernet
+.It
+Sundance TC9021 Gigabit Ethernet
+.It
+Tamarack TC9021 Gigabit Ethernet
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va dev.stge.%d.rxint_nframe
+Number of frames between RxDMAComplete interrupts.
+The accepted range is 1 to 255, default value is 8 frames.
+The interface has to be brought down and up again before a change takes effect.
+.It Va dev.stge.%d.rxint_dmawait
+Maximum amount of time to wait in 1us increments before issuing
+an Rx interrupt if the number of frames received is less than
+.Va rxint_nframe .
+The accepted range is 0 to 4194, default value is 30 microseconds.
+The interface has to be brought down and up again before a change takes effect.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr polling 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver was ported from
+.Nx
+and first appeared in
+.Fx 6.2 .
+The
+.Nx
+version was written by
+.An Jason R. Thorpe Aq Mt thorpej@NetBSD.org .
+.Sh AUTHORS
+The
+.Nm
+driver was ported by
+.An Pyun YongHyeon Aq Mt yongari@FreeBSD.org .

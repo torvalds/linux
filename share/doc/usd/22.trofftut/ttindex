@@ -1,0 +1,200 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)ttindex	8.1 (Berkeley) 6/8/93
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.bp
+.2C
+.SH
+Index
+.LP
+.nf
+.ps 8
+.vs 9p
+! (negating conditionals) 17
+#$ (macro argument) 16
+#*x, #(xy (invoke string macro) 14
+#b (bracketing function) 13
+#d (subscript) 11
+#f (font change) 5
+#h (horizontal motion) 12
+#nx, #n(xy (number register) 15
+#o (overstrike) 13
+#s (size change) 3
+#u (superscript) 11
+#v (vertical motion) 11
+#w (width function) 12
+#z (zero motion) 13
+\(fmcommand instead of ^command 9
+% (page number register) 10,15
+^^ (end of macro definition) 7
+^bp 9,10
+^br (break) 9
+^ce (center) 2
+^ds (define string macro) 7,14
+^fi (fill) 2
+^ft (change font) 5
+^if (conditional test) 16
+^in (indent) 6
+^lg (set ligatures 5
+^ll (line length) 6
+^nf (nofill) 2
+^nr (set number register) 14
+^pn (page number) 10
+^ps (change point size) 1,3
+^sp (space) 4
+^ss (set space size) 10
+^ta (set tab stops) 11
+^tc (set tab character) 10
+^tl (title) 9
+^tr (translate characters) 2,6
+^ul (italicize) 6
+^vs (vertical spacing) 3
+^wh (when conditional) 9,17
+accents 6,13
+apostrophes 6
+arithmetic 15
+backslash 1,3,5,14,16
+begin page (^bp) 9
+block macros (B1,B2) 8
+bold font (.ft B) 5
+boustrophedon 12
+bracketing function (##b) 13
+break (^br) 9
+break-causing commmands 9
+centering (^ce) 2
+changing fonts (^ft, #f) 5
+changing macros 15
+character set 4,5,19
+character translation (^tr) 2,6
+columnated output 10
+commands 1
+commands that cause break 9
+conditionals (^if) 16
+constant proportion 7
+default break list 9
+define macro (^de) 7
+define string macro (^ds) 14
+drawing lines 11
+em 7,11
+end of macro (^^) 7
+even page test (e) 17
+fill (^fi) 2
+fonts (^ft) 4,19
+Greek (#(*-) 5,19
+hanging indent (^ti) 12
+hints 20
+horizontal motion (#h) 12
+hp (horizontal position register) 15
+hyphen 6
+i scale indicator 4
+indent (^in) 6
+index 21
+italic font (.ft I) 4
+italicize (^ul) 6
+legal point sizes 3
+ligatures (ff,fi,fl; ^lg) 5
+line length (^ll) 6
+line spacing (^vs) 3
+local motions (#u,#d,#v,#h,#w,#o,#z,#b) 11 ff
+m scale indicator 7
+machine units 4,12
+macro arguments 15
+macros 7
+macros that change 15
+multiple backslashes 14
+negating conditionals (!) 17
+new page macro (NP) 8
+nl (current vertical position register) 15
+nofill (^nf) 2
+NROFF test (n) 17
+nested quotes 12
+number registers (^nr,#n) 14
+numbered paragraphs 12
+odd page test (o) 17
+order of evaluation 14
+overstrike (#o) 13
+p scale indicator 3
+page number register (%) 10
+page numbers (^pn, ^bp) 10
+paragraph macro (PG) 7
+Paternoster 6
+point size (^ps) 1,3
+previous font (#fP, ^ft P) 5
+previous point size (#s0,^ps) 3
+quotes 6
+relative change (\(+-) 6
+ROFF 1
+ROFF header and footer 8
+Roman font (.ft R) 4
+scale indicator i 4
+scale indicator m 7
+scale indicator p 3
+scale indicator u 12
+scale indicators in arithmetic 15
+section heading macro (SC) 15
+set space size (^ss) 10
+size _ see point size
+space (^sp) 4
+space between lines (^vs) 3
+special characters (#(xx) 5,19
+string macros (^ds,#*) 14
+subscripts (#d) 11
+superscripts (#u) 11
+tab character (^tc) 11
+tabs (^ta) 10
+temporary indent (^ti) 7
+titles (^tl) 8
+translate (^tr) 2,6,12
+TROFF examples 19
+TROFF test (t) 17
+truncating division 15
+type faces _ see fonts
+u scale indicator 12
+underline (^ul) 6
+valid point sizes 3
+vertical motion (#v) 11
+vertical position on page 9
+vertical spacing (^vs) 3
+when (^wh) 9,17
+width function (#w) 12
+width of digits 10
+zero motion (#z) 13

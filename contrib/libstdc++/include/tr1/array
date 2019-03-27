@@ -1,0 +1,251 @@
+// class template array -*- C++ -*-
+
+// Copyright (C) 2004, 2005, 2006 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 2, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License along
+// with this library; see the file COPYING.  If not, write to the Free
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
+// USA.
+
+// As a special exception, you may use this file as part of a free software
+// library without restriction.  Specifically, if other files instantiate
+// templates or use macros or inline functions from this file, or you compile
+// this file and link it with other files to produce an executable, this
+// file does not by itself cause the resulting executable to be covered by
+// the GNU General Public License.  This exception does not however
+// invalidate any other reasons why the executable file might be covered by
+// the GNU General Public License.
+
+/** @file tr1/array
+ *  This is a TR1 C++ Library header. 
+ */
+
+#ifndef _TR1_ARRAY
+#define _TR1_ARRAY 1
+
+#include <new>
+#include <iterator>
+#include <algorithm>
+#include <cstddef>
+#include <bits/functexcept.h>
+#include <ext/type_traits.h>
+
+//namespace std::tr1
+namespace std
+{
+_GLIBCXX_BEGIN_NAMESPACE(tr1)
+
+  /// @brief  struct array [6.2.2].
+  /// NB: Requires complete type _Tp.
+  template<typename _Tp, std::size_t _Nm>
+    struct array
+    {
+      typedef _Tp 	    			      value_type;
+      typedef value_type&                   	      reference;
+      typedef const value_type&             	      const_reference;
+      typedef value_type*          		      iterator;
+      typedef const value_type*			      const_iterator;
+      typedef std::size_t                    	      size_type;
+      typedef std::ptrdiff_t                   	      difference_type;
+      typedef std::reverse_iterator<iterator>	      reverse_iterator;
+      typedef std::reverse_iterator<const_iterator>   const_reverse_iterator;
+
+      // Support for zero-sized arrays mandatory.
+      value_type _M_instance[_Nm ? _Nm : 1] __attribute__((__aligned__));
+
+      // No explicit construct/copy/destroy for aggregate type.
+
+      void 
+      assign(const value_type& __u)
+      { std::fill_n(begin(), size(), __u); }
+
+      void 
+      swap(array& __other)
+      { std::swap_ranges(begin(), end(), __other.begin()); }
+
+      // Iterators.
+      iterator
+      begin()
+      { return iterator(&_M_instance[0]); }
+
+      const_iterator
+      begin() const 
+      { return const_iterator(&_M_instance[0]); }
+
+      iterator
+      end() 
+      { return iterator(&_M_instance[_Nm]); }
+
+      const_iterator
+      end() const
+      { return const_iterator(&_M_instance[_Nm]); }
+
+      reverse_iterator 
+      rbegin()
+      { return reverse_iterator(end()); }
+
+      const_reverse_iterator 
+      rbegin() const
+      { return const_reverse_iterator(end()); }
+
+      reverse_iterator 
+      rend()
+      { return reverse_iterator(begin()); }
+
+      const_reverse_iterator 
+      rend() const
+      { return const_reverse_iterator(begin()); }
+
+      // Capacity.
+      size_type 
+      size() const { return _Nm; }
+
+      size_type 
+      max_size() const { return _Nm; }
+
+      bool 
+      empty() const { return size() == 0; }
+
+      // Element access.
+      reference
+      operator[](size_type __n)
+      { return _M_instance[__n]; }
+
+      const_reference
+      operator[](size_type __n) const
+      { return _M_instance[__n]; }
+
+      reference
+      at(size_type __n)
+      { 
+	_M_check<_Nm>(__n);
+	return _M_instance[__n];
+      }
+
+      const_reference
+      at(size_type __n) const
+      {
+	_M_check<_Nm>(__n);
+	return _M_instance[__n];
+      }
+
+      reference 
+      front()
+      { return *begin(); }
+
+      const_reference 
+      front() const
+      { return *begin(); }
+
+      reference 
+      back()
+      { return _Nm ? *(end() - 1) : *end(); }
+
+      const_reference 
+      back() const
+      { return _Nm ? *(end() - 1) : *end(); }
+
+      _Tp* 
+      data()
+      { return &_M_instance[0]; }
+
+      const _Tp* 
+      data() const
+      { return &_M_instance[0]; }
+
+    private:
+      template<std::size_t _Mm>
+        typename __gnu_cxx::__enable_if<_Mm, void>::__type
+        _M_check(size_type __n) const
+        {
+	  if (__builtin_expect(__n >= _Mm, false))
+	    std::__throw_out_of_range(__N("array::_M_check"));
+	}
+
+      // Avoid "unsigned comparison with zero" warnings.
+      template<std::size_t _Mm>
+        typename __gnu_cxx::__enable_if<!_Mm, void>::__type
+        _M_check(size_type) const
+        { std::__throw_out_of_range(__N("array::_M_check")); }
+    };
+
+  // Array comparisons.
+  template<typename _Tp, std::size_t _Nm>
+    inline bool 
+    operator==(const array<_Tp, _Nm>& __one, const array<_Tp, _Nm>& __two)
+    { return std::equal(__one.begin(), __one.end(), __two.begin()); }
+
+  template<typename _Tp, std::size_t _Nm>
+    inline bool
+    operator!=(const array<_Tp, _Nm>& __one, const array<_Tp, _Nm>& __two)
+    { return !(__one == __two); }
+
+  template<typename _Tp, std::size_t _Nm>
+    inline bool
+    operator<(const array<_Tp, _Nm>& __a, const array<_Tp, _Nm>& __b)
+    { 
+      return std::lexicographical_compare(__a.begin(), __a.end(),
+					  __b.begin(), __b.end()); 
+    }
+
+  template<typename _Tp, std::size_t _Nm>
+    inline bool
+    operator>(const array<_Tp, _Nm>& __one, const array<_Tp, _Nm>& __two)
+    { return __two < __one; }
+
+  template<typename _Tp, std::size_t _Nm>
+    inline bool
+    operator<=(const array<_Tp, _Nm>& __one, const array<_Tp, _Nm>& __two)
+    { return !(__one > __two); }
+
+  template<typename _Tp, std::size_t _Nm>
+    inline bool
+    operator>=(const array<_Tp, _Nm>& __one, const array<_Tp, _Nm>& __two)
+    { return !(__one < __two); }
+
+  // Specialized algorithms [6.2.2.2].
+  template<typename _Tp, std::size_t _Nm>
+    inline void
+    swap(array<_Tp, _Nm>& __one, array<_Tp, _Nm>& __two)
+    { std::swap_ranges(__one.begin(), __one.end(), __two.begin()); }
+
+  // Tuple interface to class template array [6.2.2.5].
+  template<typename _Tp> class tuple_size;
+  template<int _Int, typename _Tp> class tuple_element;
+
+  template<typename _Tp, std::size_t _Nm>
+    struct tuple_size<array<_Tp, _Nm> >
+    { static const int value = _Nm; };
+
+  template<typename _Tp, std::size_t _Nm>
+    const int tuple_size<array<_Tp, _Nm> >::value;
+
+  template<int _Int, typename _Tp, std::size_t _Nm>
+    struct tuple_element<_Int, array<_Tp, _Nm> >
+    { typedef _Tp type; };
+
+  template<int _Int, typename _Tp, std::size_t _Nm>
+    inline _Tp&
+    get(array<_Tp, _Nm>& __arr)
+    { return __arr[_Int]; }
+
+  template<int _Int, typename _Tp, std::size_t _Nm>
+    inline const _Tp&
+    get(const array<_Tp, _Nm>& __arr)
+    { return __arr[_Int]; }
+
+_GLIBCXX_END_NAMESPACE
+}
+
+#endif

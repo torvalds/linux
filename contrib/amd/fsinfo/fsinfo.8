@@ -1,0 +1,227 @@
+.\"
+.\" Copyright (c) 1997-2014 Erez Zadok
+.\" Copyright (c) 1993 Jan-Simon Pendry.
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.\"
+.\" File: am-utils/fsinfo/fsinfo.8
+.\"
+.Dd August 31, 2016
+.Sh NAME
+.Nm fsinfo
+.Nd co-ordinate site-wide file system information
+.Sh SYNOPSIS
+.Nm
+.Op fl qv
+.Op Fl a Ar autodir
+.Op Fl b Ar bootparams
+.Op Fl d Ar dumpsets
+.Op Fl e Ar exports
+.Op Fl f Ar fstabs
+.Op Fl h Ar hostname
+.Op Fl m Ar automounts
+.Op Fl I Ar dir
+.Oo
+.Fl D
+.Ar name Ns Op = Ns Ar string
+.Oc
+.Oo
+.Fl U
+.Ar name Ns Op = Ns Ar string
+.Oc
+.Ar config ...
+.Sh DESCRIPTION
+.Bf -symbolic
+This command is obsolete.
+Users are advised to use
+.Xr autofs 5
+instead.
+.Ef
+.Pp
+The
+.Nm
+utility takes a set of system configuration information, and generates
+a coordinated set of
+.Xr amd 8 ,
+.Xr mount 8
+and
+.Xr mountd 8
+configuration files.
+.Pp
+The following options are available:
+.Bl -tag -width Fl
+.It Fl a Ar autodir
+Specifies the directory name in which to place the automounter's
+mount points.
+This defaults to
+.Pa /a .
+.It Fl b Ar bootparams_prefix
+Specifies the prefix for the
+.Pa bootparams
+file.
+If it is not given, then the file will not be generated.
+The file will be constructed for the destination machine and will be
+placed into a file named
+.Pa bootparams
+and prefixed by the
+.Ar bootparams_prefix
+string.
+The file generated contains a list of entries describing each
+diskless client that can boot from the destination machine.
+.It Fl d Ar dumpsets_prefix
+Specifies the prefix for the
+.Pa dumpsets
+file.
+If it is not specified, then the file will not be generated.
+The file will be for the destination machine and will be placed into a file
+named
+.Pa dumpsets
+prefixed by the
+.Ar dumpsets_prefix
+string.
+This file is for use by
+.Tn Imperial College's
+local backup system.
+.It Fl e Ar exports_prefix
+Defines the prefix for the
+.Pa exports
+files.
+If it is not given, then the file will not be generated.
+For each machine defined in the configuration files as having disks,
+and
+.Pa exports
+file is constructed and given a file name determined by the name of the
+machine, prefixed with the
+.Ar exports_prefix
+string.
+If a machine is defined as diskless, then no
+file will be created for it.
+The files contain entries
+for directories on the machine that may be exported to clients.
+.It Fl f Ar fstabs_prefix
+This defines the prefix for the
+.Pa fstab
+files.
+The files will only be created if this prefix is defined.
+For each machine defined in the configuration files, a
+.Pa fstab
+file is created with the file name determined by prefixing this
+.Ar fstabs_prefix
+string with the name of the machine.
+These files contain entries
+for file systems and partitions to mount at boot time.
+.It Fl h Ar hostname
+Defines the hostname of the destination machine to process for.
+If this is not specified, it defaults to the local machine name,
+as returned by
+.Xr gethostname 3 .
+.It Fl m Ar automounts_prefix
+Defines the prefix for the automounter files.
+The maps will
+only be produced if this option is specified.
+The mount maps
+suitable for the network defined by the configuration files will
+be placed into files with names calculated by prefixing the
+.Ar automounts_prefix
+string to the name of each map.
+.It Fl q
+Selects quite mode.
+Only error messages that are generated will
+be displayed.
+.It Fl v
+Selects verbose mode.
+When this is activated, more messages
+will be displayed, and all information discovered when performing the semantic
+analysis phase will be displayed.
+Each verbose message
+is output to the standard output on a line starting with a `#'
+character.
+.It Fl D Xo
+.Ar name Ns Op = Ns Ar string
+.Xc
+Defines a symbol
+.Ar name
+for the preprocessor when reading the configuration files.
+Equivalent to the
+.Em #define
+directive.
+.It Fl I Ar dir
+This option is passed into the preprocessor for the configuration
+files.
+It specifies directories in which to find include files.
+.It Fl U Ar name
+Removes and initial definition of the symbol
+.Ar name .
+Inverse of the
+.Fl D
+option.
+.It Ar config
+One or more configuration files to be passed as input to
+.Nm .
+.El
+.Pp
+The
+.Nm
+command is fully described in the document
+.%T "Amd - The 4.4BSD Automounter" .
+.Sh SEE ALSO
+.Xr amd 8 ,
+.Xr mount 8 ,
+.Xr mountd 8
+.Pp
+.Dq am-utils
+.Xr info 1
+entry.
+.Rs
+.%A Erez Zadok
+.%B "Linux NFS and Automounter Administration"
+.%O ISBN 0-7821-2739-8
+.%I Sybex
+.%D 2001
+.Re
+.Pp
+.Pa http://www.am-utils.org/
+.Rs
+.%T Amd \- The 4.4 BSD Automounter
+.Re
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Bx 4.4 .
+.Sh AUTHORS
+.An Jan-Simon Pendry Aq jsp@doc.ic.ac.uk ,
+Department of Computing, Imperial College, London, UK.
+.Pp
+.An Erez Zadok Aq ezk@cs.sunysb.edu ,
+Computer Science Department, Stony Brook University, Stony Brook, New York, USA.
+.Pp
+Other authors and contributors to am-utils are listed in the
+.Pa AUTHORS
+file distributed with am-utils.

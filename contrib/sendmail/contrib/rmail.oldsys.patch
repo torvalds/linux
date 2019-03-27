@@ -1,0 +1,108 @@
+From: Bill Gianopoulos <wag@sccux1.msd.ray.com>
+Message-Id: <199405191527.LAA03463@sccux1.msd.ray.com>
+Subject: Patch to rmail to elliminate need for snprintf
+To: sendmail@CS.Berkeley.EDU
+Date: Thu, 19 May 1994 11:27:16 -0400 (EDT)
+
+I have written the following patch to rmail which removes the requirement
+for snprintf while maintaining the protection from buffer overruns.  It also
+fixes it to compile with compilers which don't understand ANSI function
+prototypes.  Perhaps this should be included in the next version?
+
+*** rmail/rmail.c.orig	Mon May 31 18:10:44 1993
+--- rmail/rmail.c	Thu May 19 11:04:50 1994
+***************
+*** 78,86 ****
+--- 78,109 ----
+  #include <sysexits.h>
+  #include <unistd.h>
+  
++ #ifdef __STDC__
+  void err __P((int, const char *, ...));
+  void usage __P((void));
++ #else
++ void err ();
++ void usage ();
++ #endif
+  
++ #define strdup(s)	strcpy(xalloc(strlen(s) + 1), s)
++ 
++ char *
++ xalloc(sz)
++ 	register int sz;
++ {
++ 	register char *p;
++ 
++ 	/* some systems can't handle size zero mallocs */
++ 	if (sz <= 0)
++ 		sz = 1;
++ 
++ 	p = malloc((unsigned) sz);
++ 	if (p == NULL)
++ 		err(EX_UNAVAILABLE, "Out of memory!!");
++ 	return (p);
++ }
++ 
+  int
+  main(argc, argv)
+  	int argc;
+***************
+*** 230,250 ****
+  	args[i++] = "-oi";		/* Ignore '.' on a line by itself. */
+  
+  	if (from_sys != NULL) {		/* Set sender's host name. */
+! 		if (strchr(from_sys, '.') == NULL)
+! 			(void)snprintf(buf, sizeof(buf),
+  			    "-oMs%s.%s", from_sys, domain);
+! 		else
+! 			(void)snprintf(buf, sizeof(buf), "-oMs%s", from_sys);
+  		if ((args[i++] = strdup(buf)) == NULL)
+  			 err(EX_TEMPFAIL, NULL);
+  	}
+  					/* Set protocol used. */
+! 	(void)snprintf(buf, sizeof(buf), "-oMr%s", domain);
+  	if ((args[i++] = strdup(buf)) == NULL)
+  		err(EX_TEMPFAIL, NULL);
+  
+  					/* Set name of ``from'' person. */
+! 	(void)snprintf(buf, sizeof(buf), "-f%s%s",
+  	    from_path ? from_path : "", from_user);
+  	if ((args[i++] = strdup(buf)) == NULL)
+  		err(EX_TEMPFAIL, NULL);
+--- 253,285 ----
+  	args[i++] = "-oi";		/* Ignore '.' on a line by itself. */
+  
+  	if (from_sys != NULL) {		/* Set sender's host name. */
+! 		if (strchr(from_sys, '.') == NULL) {
+! 			if ((strlen(from_sys) + strlen(domain) + 6)
+! 			    > sizeof(buf))
+! 				err(EX_DATAERR, "sender hostname too long");
+! 			(void)sprintf(buf,
+  			    "-oMs%s.%s", from_sys, domain);
+! 		}
+! 		else {
+! 			if ((strlen(from_sys) + 5) > sizeof(buf))
+! 				err(EX_DATAERR ,"sender hostname too long");
+! 			(void)sprintf(buf, "-oMs%s", from_sys);
+! 		}
+  		if ((args[i++] = strdup(buf)) == NULL)
+  			 err(EX_TEMPFAIL, NULL);
+  	}
+  					/* Set protocol used. */
+! 	if ((strlen(domain) + 5) > sizeof(buf))
+! 		err(EX_DATAERR, "protocol name too long");
+! 	(void)sprintf(buf, "-oMr%s", domain);
+  	if ((args[i++] = strdup(buf)) == NULL)
+  		err(EX_TEMPFAIL, NULL);
+  
+  					/* Set name of ``from'' person. */
+! 	if (((from_path ? strlen(from_path) : 0) + strlen(from_user) + 3) 
+! 	    > sizeof(buf))
+! 		err(EX_DATAERR, "from address too long");
+! 	(void)sprintf(buf, "-f%s%s",
+  	    from_path ? from_path : "", from_user);
+  	if ((args[i++] = strdup(buf)) == NULL)
+  		err(EX_TEMPFAIL, NULL);
+-- 
+William A. Gianopoulos; Raytheon Missile Systems Division
+wag@sccux1.msd.ray.com

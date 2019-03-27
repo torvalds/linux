@@ -1,0 +1,123 @@
+.\" Generated from openpam_readlinev.c by gendoc.pl
+.\" $OpenPAM: openpam_readlinev.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt OPENPAM_READLINEV 3
+.Os
+.Sh NAME
+.Nm openpam_readlinev
+.Nd read a line from a file and split it into words
+.Sh SYNOPSIS
+.In sys/types.h
+.In stdio.h
+.In security/pam_appl.h
+.In security/openpam.h
+.Ft "char **"
+.Fn openpam_readlinev "FILE *f" "int *lineno" "int *lenp"
+.Sh DESCRIPTION
+The
+.Fn openpam_readlinev
+function reads a line from a file, splits it
+into words according to the rules described in the
+.Xr openpam_readword 3
+manual page, and returns a list of those words.
+.Pp
+If
+.Fa lineno
+is not
+.Dv NULL ,
+the integer variable it points to is
+incremented every time a newline character is read.
+This includes quoted or escaped newline characters and the newline
+character at the end of the line.
+.Pp
+If
+.Fa lenp
+is not
+.Dv NULL ,
+the number of words on the line is stored in the
+variable to which it points.
+.Sh RETURN VALUES
+If successful, the
+.Fn openpam_readlinev
+function returns a pointer to a
+dynamically allocated array of pointers to individual dynamically
+allocated NUL-terminated strings, each containing a single word, in the
+order in which they were encountered on the line.
+The array is terminated by a
+.Dv NULL
+pointer.
+.Pp
+The caller is responsible for freeing both the array and the individual
+strings by passing each of them to
+.Xr free 3 .
+.Pp
+If the end of the line was reached before any words were read,
+.Fn openpam_readlinev
+returns a pointer to a dynamically allocated array
+containing a single
+.Dv NULL
+pointer.
+.Pp
+The
+.Fn openpam_readlinev
+function can fail and return
+.Dv NULL
+for one of
+four reasons:
+.Bl -bullet
+.It
+The end of the file was reached before any words were read;
+.Va errno
+is
+zero,
+.Xr ferror 3
+returns zero, and
+.Xr feof 3
+returns a non-zero value.
+.It
+The end of the file was reached while a quote or backslash escape
+was in effect;
+.Va errno
+is set to
+.Dv EINVAL ,
+.Xr ferror 3
+returns zero, and
+.Xr feof 3
+returns a non-zero value.
+.It
+An error occurred while reading from the file;
+.Va errno
+is non-zero,
+.Xr ferror 3
+returns a non-zero value and
+.Xr feof 3
+returns zero.
+.It
+A
+.Xr malloc 3
+or
+.Xr realloc 3
+call failed;
+.Va errno
+is set to
+.Dv ENOMEM ,
+.Xr ferror 3
+returns a non-zero value, and
+.Xr feof 3
+may or may not return
+a non-zero value.
+.El
+.Sh SEE ALSO
+.Xr openpam_readline 3 ,
+.Xr openpam_readword 3 ,
+.Xr pam 3
+.Sh STANDARDS
+The
+.Fn openpam_readlinev
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn openpam_readlinev
+function and this manual page were
+developed by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

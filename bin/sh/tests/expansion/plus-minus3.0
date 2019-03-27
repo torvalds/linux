@@ -1,0 +1,44 @@
+# $FreeBSD$
+
+e= q='?' a='*' t=texttext s='ast*que?non' p='/et[c]/' w='a b c' b='{{(#)}}'
+h='##'
+failures=''
+ok=''
+
+testcase() {
+	code="$1"
+	expected="$2"
+	oIFS="$IFS"
+	eval "$code"
+	IFS='|'
+	result="$#|$*"
+	IFS="$oIFS"
+	if [ "x$result" = "x$expected" ]; then
+		ok=x$ok
+	else
+		failures=x$failures
+		echo "For $code, expected $expected actual $result"
+	fi
+}
+
+# We follow original ash behaviour for quoted ${var+-=?} expansions:
+# a double-quote in one switches back to unquoted state.
+# This allows expanding a variable as a single word if it is set
+# and substituting multiple words otherwise.
+# It is also close to the Bourne and Korn shells.
+# POSIX leaves this undefined, and various other shells treat
+# such double-quotes as introducing a second level of quoting
+# which does not do much except quoting close braces.
+
+testcase 'set -- "${p+"/et[c]/"}"'		'1|/etc/'
+testcase 'set -- "${p-"/et[c]/"}"'		'1|/et[c]/'
+testcase 'set -- "${p+"$p"}"'			'1|/etc/'
+testcase 'set -- "${p-"$p"}"'			'1|/et[c]/'
+testcase 'set -- "${p+"""/et[c]/"}"'		'1|/etc/'
+testcase 'set -- "${p-"""/et[c]/"}"'		'1|/et[c]/'
+testcase 'set -- "${p+"""$p"}"'			'1|/etc/'
+testcase 'set -- "${p-"""$p"}"'			'1|/et[c]/'
+testcase 'set -- "${p+"\@"}"'			'1|@'
+testcase 'set -- "${p+"'\''/et[c]/'\''"}"'	'1|/et[c]/'
+
+test "x$failures" = x

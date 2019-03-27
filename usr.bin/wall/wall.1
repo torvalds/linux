@@ -1,0 +1,75 @@
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)wall.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd February 24, 2012
+.Dt WALL 1
+.Os
+.Sh NAME
+.Nm wall
+.Nd write a message to users
+.Sh SYNOPSIS
+.Nm
+.Op Fl g Ar group
+.Op Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility displays the contents of
+.Ar file
+or, by default, its standard input, on the terminals of all
+currently logged in users.
+.Pp
+Only the super-user can write on the
+terminals of users who have chosen
+to deny messages or are using a program which
+automatically denies messages.
+.Bl -tag -width indent
+.It Fl g
+Send messages to users in this group.
+This option may be specified
+multiple times, and any user in any of the specified groups will
+receive the message.
+.El
+.Sh SEE ALSO
+.Xr mesg 1 ,
+.Xr talk 1 ,
+.Xr write 1 ,
+.Xr shutdown 8
+.Sh HISTORY
+A
+.Nm
+command appeared in PWB UNIX.
+.Sh BUGS
+The sender's
+.Ev LC_CTYPE
+setting is used to determine which characters are safe to write to a
+terminal, not the receiver's (which
+.Nm
+has no way of knowing).

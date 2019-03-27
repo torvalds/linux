@@ -1,0 +1,187 @@
+.\" Copyright (c) 2009-2013 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 2, 2018
+.Dt AHCI 4
+.Os
+.Sh NAME
+.Nm ahci
+.Nd Serial ATA Advanced Host Controller Interface driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
+.Cd "device ahci"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ahci_load="YES"
+.Ed
+.Pp
+The following tunables are settable from the
+.Xr loader 8 :
+.Bl -ohang
+.It Va hint.ahci. Ns Ar X Ns Va .msi
+controls Message Signaled Interrupts (MSI) usage by the specified controller.
+.Pp
+.Bl -tag -width 4n -offset indent -compact
+.It 0
+MSI disabled;
+.It 1
+single MSI vector used, if supported;
+.It 2
+multiple MSI vectors used, if supported (default);
+.El
+.It Va hint.ahci. Ns Ar X Ns Va .ccc
+controls Command Completion Coalescing (CCC) usage by the specified controller.
+Non-zero value enables CCC and defines maximum time (in ms), request can wait
+for interrupt, if there are some more requests present on controller queue.
+CCC reduces number of context switches on systems with many parallel requests,
+but it can decrease disk performance on some workloads due to additional
+command latency.
+.It Va hint.ahci. Ns Ar X Ns Va .direct
+controls whether the driver should use direct command completion from
+interrupt thread(s), or queue them to CAM completion threads.
+Default value depends on number of MSI interrupts supported and number of
+implemented SATA ports.
+.It Va hint.ahcich. Ns Ar X Ns Va .pm_level
+controls SATA interface Power Management for the specified channel,
+allowing some power to be saved at the cost of additional command
+latency.
+Possible values:
+.Pp
+.Bl -tag -width 4n -offset indent -compact
+.It 0
+interface Power Management is disabled (default);
+.It 1
+device is allowed to initiate PM state change, host is passive;
+.It 2
+host initiates PARTIAL PM state transition every time port becomes idle;
+.It 3
+host initiates SLUMBER PM state transition every time port becomes idle.
+.It 4
+driver initiates PARTIAL PM state transition 1ms after port becomes idle;
+.It 5
+driver initiates SLUMBER PM state transition 125ms after port becomes idle.
+.El
+.Pp
+Some controllers, such as ICH8, do not implement modes 2 and 3 with NCQ used.
+Because of artificial entering latency, performance degradation in modes
+4 and 5 is much smaller then in modes 2 and 3.
+.Pp
+Note that interface Power Management complicates device presence detection.
+A manual bus reset/rescan may be needed after device hot-plug, unless hardware
+implements Cold Presence Detection.
+.It Va hint.ahcich. Ns Ar X Ns Va .sata_rev
+setting to nonzero value limits maximum SATA revision (speed).
+Values 1, 2 and 3 are respectively 1.5, 3 and 6Gbps.
+.It Va hw.ahci.force
+setting to nonzero value forces driver attach to some known AHCI-capable
+chips even if they are configured for legacy IDE emulation.
+Default is 1.
+.El
+.Sh DESCRIPTION
+This driver provides the
+.Xr CAM 4
+subsystem with native access to the
+.Tn SATA
+ports of AHCI-compatible controllers.
+Each SATA port found is represented to CAM as a separate bus with one
+target, or, if HBA supports Port Multipliers, 16 targets.
+Most of the bus-management details are handled by the SATA-specific
+transport of CAM.
+Connected ATA disks are handled by the ATA protocol disk peripheral driver
+.Xr ada 4 .
+ATAPI devices are handled by the SCSI protocol peripheral drivers
+.Xr cd 4 ,
+.Xr da 4 ,
+.Xr sa 4 ,
+etc.
+.Pp
+Driver features include support for Serial ATA and ATAPI devices,
+Port Multipliers (including FIS-based switching, when supported),
+hardware command queues (up to 32 commands per port),
+Native Command Queuing, SATA interface Power Management, device hot-plug
+and Message Signaled Interrupts.
+.Pp
+Driver supports "LED" enclosure management messages, defined by the AHCI.
+When supported by hardware, it allows to control per-port activity, locate
+and fault LEDs via the
+.Xr led 4
+API or emulated
+.Xr ses 4
+device for localization and status reporting purposes.
+Supporting AHCI controllers may transmit that information to the backplane
+controllers via SGPIO interface.
+Backplane controllers interpret received
+statuses in some way (IBPI standard) to report them using present indicators.
+.Sh HARDWARE
+The
+.Nm
+driver supports AHCI compatible controllers having PCI class 1 (mass storage),
+subclass 6 (SATA) and programming interface 1 (AHCI).
+.Pp
+Also, in cooperation with atamarvell and atajmicron drivers of ata(4),
+it supports AHCI part of legacy-PATA + AHCI-SATA combined controllers,
+such as JMicron JMB36x and Marvell 88SE61xx.
+.Sh FILES
+.Bl -tag -width /dev/led/ahcich*.locate
+.It Pa /dev/led/ahci*.*.act
+activity LED device nodes
+.It Pa /dev/led/ahci*.*.fault
+fault LED device nodes
+.It Pa /dev/led/ahci*.*.locate
+locate LED device nodes
+.El
+.Sh SYSCTL
+.Bl -tag
+.It Pa dev.ahcich.X.disable_phy
+Set to 1 to disable the phy for the drive on channel X.
+Set to 0 to enable the phy.
+Useful for turning off troublemakers.
+Also useful for debugging when you need the ada drive to come and go.
+.El
+.Sh SEE ALSO
+.Xr ada 4 ,
+.Xr ata 4 ,
+.Xr cam 4 ,
+.Xr cd 4 ,
+.Xr da 4 ,
+.Xr sa 4 ,
+.Xr ses 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+.An Alexander Motin Aq Mt mav@FreeBSD.org

@@ -1,0 +1,10 @@
+pass in all
+skip 2 in proto tcp all
+block in quick proto tcp all
+skip 4 in proto udp all
+block in quick proto udp all
+pass in quick proto tcp from any to 1.1.1.1
+pass in quick proto tcp from any to 1.1.1.2 port = 22
+block in quick proto udp from any to any port = 53
+pass in quick proto udp from any to any port = 53
+block in all

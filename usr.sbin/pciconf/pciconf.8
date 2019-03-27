@@ -1,0 +1,401 @@
+.\" Copyright (c) 1997
+.\"	Stefan Esser <se@FreeBSD.org>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 14, 2018
+.Dt PCICONF 8
+.Os
+.Sh NAME
+.Nm pciconf
+.Nd diagnostic utility for the PCI bus
+.Sh SYNOPSIS
+.Nm
+.Fl l Oo Fl BbceVv Oc Op Ar device
+.Nm
+.Fl a Ar device
+.Nm
+.Fl r Oo Fl b | h Oc Ar device addr Ns Op : Ns Ar addr2
+.Nm
+.Fl w Oo Fl b | h Oc Ar device addr value
+.Nm
+.Fl D Oo Fl b | h | x Oc Ar device addr Op start Ns Op : Ns Ar count
+.Sh DESCRIPTION
+The
+.Nm
+utility provides a command line interface to functionality provided by the
+.Xr pci 4
+.Xr ioctl 2
+interface.
+As such, some of the functions are only available to users with write
+access to
+.Pa /dev/pci ,
+normally only the super-user.
+.Pp
+With the
+.Fl l
+option,
+.Nm
+lists PCI devices in the following format:
+.Bd -literal
+foo0@pci0:0:4:0: class=0x010000 card=0x00000000 chip=0x000f1000 rev=0x01 \
+hdr=0x00
+bar0@pci0:0:5:0: class=0x000100 card=0x00000000 chip=0x88c15333 rev=0x00 \
+hdr=0x00
+none0@pci0:0:6:0: class=0x020000 card=0x00000000 chip=0x802910ec rev=0x00 \
+hdr=0x00
+.Ed
+.Pp
+The first column gives the
+driver name, unit number, and selector .
+If there is no driver attached to the
+.Tn PCI
+device in question, the driver name will be
+.Dq none .
+Unit numbers for detached devices start at zero and are incremented for
+each detached device that is encountered.
+The selector
+is in a form which may directly be used for the other forms of the command.
+The second column is the class code, with the class byte printed as two
+hex digits, followed by the sub-class and the interface bytes.
+The third column gives the contents of the subvendorid register, introduced
+in revision 2.1 of the
+.Tn PCI
+standard.
+Note that it will be 0 for older cards.
+The field consists of the card ID in the upper
+half and the card vendor ID in the lower half of the value.
+.Pp
+The fourth column contains the chip device ID, which identifies the chip
+this card is based on.
+It consists of two fields, identifying the chip and
+its vendor, as above.
+The fifth column prints the chip's revision.
+The sixth column describes the header type.
+Currently assigned header types include 0 for most devices,
+1 for
+.Tn PCI
+to
+.Tn PCI
+bridges, and 2 for
+.Tn PCI
+to
+.Tn CardBus
+bridges.
+If the most significant bit
+of the header type register is set for
+function 0 of a
+.Tn PCI
+device, it is a
+.Em multi-function
+device, which contains several (similar or independent) functions on
+one chip.
+.Pp
+If the
+.Fl B
+option is supplied,
+.Nm
+will list additional information for
+.Tn PCI
+to
+.Tn PCI
+and
+.Tn PCI
+to
+.Tn CardBus
+bridges,
+specifically the resource ranges decoded by the bridge for use by devices
+behind the bridge.
+Each bridge lists a range of bus numbers handled by the bridge and its
+downstream devices.
+Memory and I/O port decoding windows are enumerated via a line in the
+following format:
+.Bd -literal
+    window[1c] = type I/O Port, range 16, addr 0x5000-0x8fff, enabled
+.Ed
+.Pp
+The first value after the
+.Dq Li window
+prefix in the square brackets is the offset of the decoding window in
+config space in hexadecimal.
+The type of a window is one of
+.Dq Memory ,
+.Dq Prefetchable Memory ,
+or
+.Dq I/O Port .
+The range indicates the binary log of the maximum address the window decodes.
+The address field indicates the start and end addresses of the decoded range.
+Finally, the last flag indicates if the window is enabled or disabled.
+.Pp
+If the
+.Fl b
+option is supplied,
+.Nm
+will list any base address registers
+.Pq BARs
+that are assigned resources for each device.
+Each BAR will be enumerated via a line in the following format:
+.Bd -literal
+    bar   [10] = type Memory, range 32, base 0xda060000, size 131072, enabled
+.Ed
+.Pp
+The first value after the
+.Dq Li bar
+prefix in the square brackets is the offset of the BAR in config space in
+hexadecimal.
+The type of a BAR is one of
+.Dq Memory ,
+.Dq Prefetchable Memory ,
+or
+.Dq I/O Port .
+The range indicates the binary log of the maximum address the BAR decodes.
+The base and size indicate the start and length of the BAR's address window,
+respectively.
+Finally, the last flag indicates if the BAR is enabled or disabled.
+.Pp
+If the
+.Fl c
+option is supplied,
+.Nm
+will list any capabilities supported by each device.
+Each capability is enumerated via a line in the following format:
+.Bd -literal
+    cap 10[40] = PCI-Express 1 root port
+.Ed
+.Pp
+The first value after the
+.Dq Li cap
+prefix is the capability ID in hexadecimal.
+The second value in the square brackets is the offset of the capability
+in config space in hexadecimal.
+The format of the text after the equals sign is capability-specific.
+.Pp
+Each extended capability is enumerated via a line in a similar format:
+.Bd -literal
+ecap 0002[100] = VC 1 max VC0
+.Ed
+.Pp
+The first value after the
+.Dq Li ecap
+prefix is the extended capability ID in hexadecimal.
+The second value in the square brackets is the offset of the extended
+capability in config space in hexadecimal.
+The format of the text after the equals sign is capability-specific.
+.Pp
+If the
+.Fl e
+option is supplied,
+.Nm
+will list any errors reported for this device in standard PCI error registers.
+Errors are checked for in the PCI status register,
+the PCI-express device status register,
+and the Advanced Error Reporting status registers.
+.Pp
+If the
+.Fl v
+option is supplied,
+.Nm
+will attempt to load the vendor/device information database, and print
+vendor, device, class and subclass identification strings for each device.
+.Pp
+If the
+.Fl V
+option is supplied,
+.Nm
+will list any vital product data
+.Pq VPD
+provided by each device.
+Each VPD keyword is enumerated via a line in the following format:
+.Bd -literal
+    VPD ro PN  = '110114640C0     '
+.Ed
+.Pp
+The first string after the
+.Dq Li VPD
+prefix indicates if the keyword is read-only
+.Dq ro
+or read-write
+.Dq rw .
+The second string provides the keyword name.
+The text after the equals sign lists the value of the keyword which is
+usually an ASCII string.
+.Pp
+If the optional
+.Ar device
+argument is given with the
+.Fl l
+flag,
+.Nm
+will only list details about a single device instead of all devices.
+.Pp
+All invocations of
+.Nm
+except for
+.Fl l
+require a
+.Ar device .
+The device can be identified either by a device name if the device is
+attached to a driver or by a selector.
+Selectors identify a PCI device by its address in PCI config space and
+can take one of the following forms:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+.Li pci Ns Va domain Ns \&: Ns Va bus Ns \&: Ns Va device Ns \&: \
+Ns Va function Ns
+.It
+.Li pci Ns Va bus Ns \&: Ns Va device Ns \&: Ns Va function Ns
+.It
+.Li pci Ns Va bus Ns \&: Ns Va device Ns
+.El
+.Pp
+In the case of an abridged form, omitted selector components are assumed to be 0.
+An optional leading device name followed by @ and an optional final colon
+will be ignored; this is so that the first column in the output of
+.Nm
+.Fl l
+can be used without modification.
+All numbers are base 10.
+.Pp
+With the
+.Fl a
+flag,
+.Nm
+determines whether any driver has been assigned to the device
+identified by
+.Ar selector .
+An exit status of zero indicates that the device has a driver;
+non-zero indicates that it does not.
+.Pp
+The
+.Fl r
+option reads a configuration space register at byte offset
+.Ar addr
+of device
+.Ar selector
+and prints out its value in hexadecimal.
+The optional second address
+.Ar addr2
+specifies a range to read.
+The
+.Fl w
+option writes the
+.Ar value
+into a configuration space register at byte offset
+.Ar addr
+of device
+.Ar selector .
+.Pp
+The
+.Fl D
+option request a dump of the specified BAR.
+Dump is performed to the standard output, raw register values
+are written.
+Use
+.Xr hexdump 1
+to convert them to human-readable dump,
+or redirect into a file to save the snapshot of the device state.
+Optionally, the
+.Ar start
+and
+.Ar count
+of the registers dumped can be specified, in multiple of the operation width,
+see next paragraph.
+.Pp
+For read, write, and dump operations, the flags
+.Fl b ,
+.Fl h ,
+and
+.Fl x
+select the width of the operation;
+.Fl b
+indicates a byte operation, and
+.Fl h
+indicates a halfword (two-byte) operation.
+.Fl x
+indicates a quadword (four-byte) operation.
+The default is to read or
+write a longword (four bytes).
+The quadword mode is only valid for BAR dump.
+.Sh ENVIRONMENT
+PCI vendor and device information is read from
+.Pa /usr/local/share/pciids/pci.ids .
+If that file is not present, it is read from
+.Pa /usr/share/misc/pci_vendors .
+This path can be overridden by setting the environment variable
+.Ev PCICONF_VENDOR_DATABASE .
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.\" .Xr pci 4 ,
+.Xr devinfo 8 ,
+.Xr kldload 8
+.Sh HISTORY
+The
+.Nm
+utility appeared first in
+.Fx 2.2 .
+The
+.Fl a
+option was added for
+.Tn PCI
+KLD support in
+.Fx 3.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.An Stefan Esser
+and
+.An Garrett Wollman .
+.Sh BUGS
+The
+.Fl b
+and
+.Fl h
+options are implemented in
+.Nm ,
+but not in the underlying
+.Xr ioctl 2 .
+.Pp
+It might be useful to give non-root users access to the
+.Fl a
+and
+.Fl r
+options.
+But only root will be able to execute a
+.Nm kldload
+to provide the device with a driver KLD, and reading of configuration space
+registers may cause a failure in badly designed
+.Tn PCI
+chips.
+.Pp
+There is currently no way to specify the caching mode for the mapping
+established by the
+.Fl D
+option,
+.Nm
+always uses uncached access.
+This is fine for control register BARs.

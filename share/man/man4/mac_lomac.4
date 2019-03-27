@@ -1,0 +1,221 @@
+.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris Costello
+.\" at Safeport Network Services and Network Associates Laboratories, the
+.\" Security Research Division of Network Associates, Inc. under
+.\" DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 25, 2012
+.Dt MAC_LOMAC 4
+.Os
+.Sh NAME
+.Nm mac_lomac
+.Nd "Low-watermark Mandatory Access Control data integrity policy"
+.Sh SYNOPSIS
+To compile LOMAC into your kernel, place the following lines in your kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Cd "options MAC_LOMAC"
+.Ed
+.Pp
+Alternately, to load the LOMAC module at boot time, place the following line
+in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Ed
+.Pp
+and in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mac_lomac_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+policy module implements the LOMAC integrity model,
+which protects the integrity of system objects and subjects by means of
+an information flow policy coupled with the subject demotion
+via floating labels.
+In LOMAC, all system subjects and objects are assigned integrity labels, made
+up of one or more hierarchical grades, depending on their types.
+Together, these label elements permit all labels to be placed in a partial
+order, with information flow protections and demotion decisions
+based on a dominance operator
+describing the order.
+The hierarchal grade field or fields are expressed
+as a value between 0 and 65535,
+with higher values reflecting higher integrity.
+.Pp
+Three special label component values exist:
+.Bl -column -offset indent ".Sy Label" "dominated by all other labels"
+.It Sy Label Ta Sy Comparison
+.It Li low Ta "dominated by all other labels"
+.It Li equal Ta "equal to all other labels"
+.It Li high Ta "dominates all other labels"
+.El
+.Pp
+The
+.Dq Li high
+label is assigned to system objects which affect the integrity of the system
+as a whole.
+The
+.Dq Li equal
+label
+may be used to indicate that a particular subject or object is exempt from
+the LOMAC protections.
+For example, a label of
+.Dq Li lomac/equal(equal-equal)
+might be used on a subject which is to be used to administratively relabel
+anything on the system.
+.Pp
+Almost all system objects are tagged with a single, active label element,
+reflecting the integrity of the object, or integrity of the data contained
+in the object.
+File system objects may contain an additional auxiliary label which
+determines the inherited integrity level for new files created in a
+directory or the alternate label assumed by the subject upon execution of
+an executable.
+In general, objects labels are represented in the following form:
+.Pp
+.Sm off
+.D1 Li lomac / Ar grade Bq Ar auxgrade
+.Sm on
+.Pp
+For example:
+.Bd -literal -offset indent
+lomac/10[2]
+lomac/low
+.Ed
+.Pp
+Subject labels consist of three label elements: a single (active) label,
+as well as a range of available labels.
+This range is represented using two ordered LOMAC label elements, and when set
+on a process, permits the process to change its active label to any label of
+greater or equal integrity to the low end of the range, and lesser or equal
+integrity to the high end of the range.
+In general, subject labels are represented in the following form:
+.Pp
+.Sm off
+.D1 Li lomac / Ar singlegrade ( lograde No - Ar higrade )
+.Sm on
+.Pp
+Modification of objects is restricted to access via the following comparison:
+.Pp
+.D1 Ar subject Ns :: Ns Ar higrade No \[>=] Ar target-object Ns :: Ns Ar grade
+.Pp
+Modification of subjects is the same, as the target subject's single grade
+is the only element taken into comparison.
+.Pp
+Demotion of a subject occurs when the following comparison is true:
+.Pp
+.D1 Ar subject Ns :: Ns Ar singlegrade No > Ar object Ns :: Ns Ar grade
+.Pp
+When demotion occurs, the subject's
+.Ar singlegrade
+and
+.Ar higrade
+are reduced to the
+object's grade, as well as the
+.Ar lograde
+if necessary.
+When the demotion occurs, in addition to the permission of the subject being
+reduced, shared
+.Xr mmap 2
+objects which it has opened in its memory space may be revoked according to
+the following
+.Xr sysctl 3
+variables:
+.Pp
+.Bl -bullet -compact
+.It
+.Va security.mac.lomac.revocation_enabled
+.It
+.Va security.mac.enforce_vm
+.It
+.Va security.mac.mmap_revocation
+.It
+.Va security.mac.mmap_revocation_via_cow
+.El
+.Pp
+Upon execution of a file, if the executable has an auxiliary label, and that
+label is within the current range of
+.Ar lograde Ns - Ns Ar higrade ,
+it will be assumed by the subject immediately.
+After this, demotion is performed just as with any other read operation, with
+the executable as the target.
+Through the use of auxiliary labels, programs may be initially executed
+at a lower effective integrity level,
+while retaining the ability to raise it again.
+.Pp
+These rules prevent subjects of lower integrity from influencing the
+behavior of higher integrity subjects by preventing the flow of information,
+and hence control, from allowing low integrity subjects to modify either
+a high integrity object or high integrity subjects acting on those objects.
+LOMAC integrity policies may be appropriate in a number of environments,
+both from the perspective of preventing corruption of the operating system,
+and corruption of user data if marked as higher integrity than the attacker.
+.Pp
+The LOMAC security model is quite similar to that of
+.Xr mac_biba 4
+and
+.Xr mac_mls 4
+in various ways.
+More background information on this can be found in their respective
+man pages.
+.Sh SEE ALSO
+.Xr mmap 2 ,
+.Xr sysctl 3 ,
+.Xr mac 4 ,
+.Xr mac_biba 4 ,
+.Xr mac_bsdextended 4 ,
+.Xr mac_ifoff 4 ,
+.Xr mac_mls 4 ,
+.Xr mac_none 4 ,
+.Xr mac_partition 4 ,
+.Xr mac_portacl 4 ,
+.Xr mac_seeotheruids 4 ,
+.Xr mac_test 4 ,
+.Xr mac 9
+.Sh HISTORY
+The
+.Nm
+policy module first appeared in
+.Fx 5.0
+and was developed by the
+.Tn TrustedBSD
+Project.
+.Sh AUTHORS
+This software was contributed to the
+.Fx
+Project by Network Associates Labs,
+the Security Research Division of Network Associates
+Inc.
+under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.

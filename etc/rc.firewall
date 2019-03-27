@@ -1,0 +1,557 @@
+#!/bin/sh -
+# Copyright (c) 1996  Poul-Henning Kamp
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+#
+# Setup system for ipfw(4) firewall service.
+#
+
+# Suck in the configuration variables.
+if [ -z "${source_rc_confs_defined}" ]; then
+	if [ -r /etc/defaults/rc.conf ]; then
+		. /etc/defaults/rc.conf
+		source_rc_confs
+	elif [ -r /etc/rc.conf ]; then
+		. /etc/rc.conf
+	fi
+fi
+
+############
+# Define the firewall type in /etc/rc.conf.  Valid values are:
+#   open        - will allow anyone in
+#   client      - will try to protect just this machine
+#   simple      - will try to protect a whole network
+#   closed      - totally disables IP services except via lo0 interface
+#   workstation - will try to protect just this machine using stateful
+#		  firewalling. See below for rc.conf variables used
+#   UNKNOWN     - disables the loading of firewall rules.
+#   filename    - will load the rules in the given filename (full path required)
+#
+# For ``client'' and ``simple'' the entries below should be customized
+# appropriately.
+
+############
+#
+# If you don't know enough about packet filtering, we suggest that you
+# take time to read this book:
+#
+#	Building Internet Firewalls, 2nd Edition
+#	Brent Chapman and Elizabeth Zwicky
+#
+#	O'Reilly & Associates, Inc
+#	ISBN 1-56592-871-7
+#	http://www.ora.com/
+#	http://www.oreilly.com/catalog/fire2/
+#
+# For a more advanced treatment of Internet Security read:
+#
+#	Firewalls and Internet Security: Repelling the Wily Hacker, 2nd Edition
+#	William R. Cheswick, Steven M. Bellowin, Aviel D. Rubin
+#
+#	Addison-Wesley / Prentice Hall
+#	ISBN 0-201-63466-X
+#	http://www.pearsonhighered.com/
+#	http://www.pearsonhighered.com/educator/academic/product/0,3110,020163466X,00.html
+#
+
+setup_loopback() {
+	############
+	# Only in rare cases do you want to change these rules
+	#
+	${fwcmd} add 100 pass all from any to any via lo0
+	${fwcmd} add 200 deny all from any to 127.0.0.0/8
+	${fwcmd} add 300 deny ip from 127.0.0.0/8 to any
+	if [ $ipv6_available -eq 0 ]; then
+		${fwcmd} add 400 deny all from any to ::1
+		${fwcmd} add 500 deny all from ::1 to any
+	fi
+}
+
+setup_ipv6_mandatory() {
+	[ $ipv6_available -eq 0 ] || return 0
+
+	############
+	# Only in rare cases do you want to change these rules
+	#
+	# ND
+	#
+	# DAD
+	${fwcmd} add pass ipv6-icmp from :: to ff02::/16
+	# RS, RA, NS, NA, redirect...
+	${fwcmd} add pass ipv6-icmp from fe80::/10 to fe80::/10
+	${fwcmd} add pass ipv6-icmp from fe80::/10 to ff02::/16
+
+	# Allow ICMPv6 destination unreachable
+	${fwcmd} add pass ipv6-icmp from any to any icmp6types 1
+
+	# Allow NS/NA/toobig (don't filter it out)
+	${fwcmd} add pass ipv6-icmp from any to any icmp6types 2,135,136
+}
+
+. /etc/rc.subr
+. /etc/network.subr
+
+if [ -n "${1}" ]; then
+	firewall_type="${1}"
+fi
+if [ -z "${firewall_rc_config_load}" ]; then
+        load_rc_config ipfw
+else
+        for i in ${firewall_rc_config_load}; do
+                load_rc_config $i
+        done
+fi
+
+afexists inet6
+ipv6_available=$?
+
+############
+# Set quiet mode if requested
+#
+case ${firewall_quiet} in
+[Yy][Ee][Ss])
+	fwcmd="/sbin/ipfw -q"
+	;;
+*)
+	fwcmd="/sbin/ipfw"
+	;;
+esac
+
+############
+# Flush out the list before we begin.
+#
+${fwcmd} -f flush
+
+setup_loopback
+setup_ipv6_mandatory
+
+############
+# Network Address Translation.  All packets are passed to natd(8)
+# before they encounter your remaining rules.  The firewall rules
+# will then be run again on each packet after translation by natd
+# starting at the rule number following the divert rule.
+#
+# For ``simple'' firewall type the divert rule should be put to a
+# different place to not interfere with address-checking rules.
+#
+case ${firewall_type} in
+[Oo][Pp][Ee][Nn]|[Cc][Ll][Ii][Ee][Nn][Tt])
+	case ${natd_enable} in
+	[Yy][Ee][Ss])
+		if [ -n "${natd_interface}" ]; then
+			${fwcmd} add 50 divert natd ip4 from any to any via ${natd_interface}
+		fi
+		;;
+	esac
+	case ${firewall_nat_enable} in
+	[Yy][Ee][Ss])
+		if [ -n "${firewall_nat_interface}" ]; then
+			if echo "${firewall_nat_interface}" | \
+				grep -q -E '^[0-9]+(\.[0-9]+){0,3}$'; then
+				firewall_nat_flags="ip ${firewall_nat_interface} ${firewall_nat_flags}"
+			else
+				firewall_nat_flags="if ${firewall_nat_interface} ${firewall_nat_flags}"
+			fi
+			${fwcmd} nat 123 config log ${firewall_nat_flags}
+			${fwcmd} add 50 nat 123 ip4 from any to any via ${firewall_nat_interface}
+		fi
+		;;
+	esac
+esac
+
+############
+# If you just configured ipfw in the kernel as a tool to solve network
+# problems or you just want to disallow some particular kinds of traffic
+# then you will want to change the default policy to open.  You can also
+# do this as your only action by setting the firewall_type to ``open''.
+#
+# ${fwcmd} add 65000 pass all from any to any
+
+
+# Prototype setups.
+#
+case ${firewall_type} in
+[Oo][Pp][Ee][Nn])
+	${fwcmd} add 65000 pass all from any to any
+	;;
+
+[Cc][Ll][Ii][Ee][Nn][Tt])
+	############
+	# This is a prototype setup that will protect your system somewhat
+	# against people from outside your own network.
+	#
+	# Configuration:
+	#  firewall_client_net:		Network address of local IPv4 network.
+	#  firewall_client_net_ipv6:	Network address of local IPv6 network.
+	############
+
+	# set this to your local network
+	net="$firewall_client_net"
+	net6="$firewall_client_net_ipv6"
+
+	# Allow limited broadcast traffic from my own net.
+	${fwcmd} add pass all from ${net} to 255.255.255.255
+
+	# Allow any traffic to or from my own net.
+	${fwcmd} add pass all from me to ${net}
+	${fwcmd} add pass all from ${net} to me
+	if [ -n "$net6" ]; then
+		${fwcmd} add pass all from me to ${net6}
+		${fwcmd} add pass all from ${net6} to me
+	fi
+
+	if [ -n "$net6" ]; then
+		# Allow any link-local multicast traffic
+		${fwcmd} add pass all from fe80::/10 to ff02::/16
+		${fwcmd} add pass all from ${net6} to ff02::/16
+		# Allow DHCPv6
+		${fwcmd} add pass udp from fe80::/10 to me 546
+	fi
+
+	# Allow TCP through if setup succeeded
+	${fwcmd} add pass tcp from any to any established
+
+	# Allow IP fragments to pass through
+	${fwcmd} add pass all from any to any frag
+
+	# Allow setup of incoming email
+	${fwcmd} add pass tcp from any to me 25 setup
+
+	# Allow setup of outgoing TCP connections only
+	${fwcmd} add pass tcp from me to any setup
+
+	# Disallow setup of all other TCP connections
+	${fwcmd} add deny tcp from any to any setup
+
+	# Allow DNS queries out in the world
+	${fwcmd} add pass udp from me to any 53 keep-state
+
+	# Allow NTP queries out in the world
+	${fwcmd} add pass udp from me to any 123 keep-state
+
+	# Everything else is denied by default, unless the
+	# IPFIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
+	# config file.
+	;;
+
+[Ss][Ii][Mm][Pp][Ll][Ee])
+	############
+	# This is a prototype setup for a simple firewall.  Configure this
+	# machine as a DNS and NTP server, and point all the machines
+	# on the inside at this machine for those services.
+	#
+	# Configuration:
+	#  firewall_simple_iif:		Inside IPv4 network interface.
+	#  firewall_simple_inet:	Inside IPv4 network address.
+	#  firewall_simple_oif:		Outside IPv4 network interface.
+	#  firewall_simple_onet:	Outside IPv4 network address.
+	#  firewall_simple_iif_ipv6:	Inside IPv6 network interface.
+	#  firewall_simple_inet_ipv6:	Inside IPv6 network prefix.
+	#  firewall_simple_oif_ipv6:	Outside IPv6 network interface.
+	#  firewall_simple_onet_ipv6:	Outside IPv6 network prefix.
+	############
+	BAD_ADDR_TBL=13
+
+	# set these to your outside interface network
+	oif="$firewall_simple_oif"
+	onet="$firewall_simple_onet"
+	oif6="${firewall_simple_oif_ipv6:-$firewall_simple_oif}"
+	onet6="$firewall_simple_onet_ipv6"
+
+	# set these to your inside interface network
+	iif="$firewall_simple_iif"
+	inet="$firewall_simple_inet"
+	iif6="${firewall_simple_iif_ipv6:-$firewall_simple_iif}"
+	inet6="$firewall_simple_inet_ipv6"
+
+	# Stop spoofing
+	${fwcmd} add deny all from ${inet} to any in via ${oif}
+	${fwcmd} add deny all from ${onet} to any in via ${iif}
+	if [ -n "$inet6" ]; then
+		${fwcmd} add deny all from ${inet6} to any in via ${oif6}
+		if [ -n "$onet6" ]; then
+			${fwcmd} add deny all from ${onet6} to any in \
+			    via ${iif6}
+		fi
+	fi
+
+	# Define stuff we should never send out or receive in.
+	# Stop RFC1918 nets on the outside interface
+	${fwcmd} table ${BAD_ADDR_TBL} flush
+	${fwcmd} table ${BAD_ADDR_TBL} add 10.0.0.0/8
+	${fwcmd} table ${BAD_ADDR_TBL} add 172.16.0.0/12
+	${fwcmd} table ${BAD_ADDR_TBL} add 192.168.0.0/16
+
+	# And stop draft-manning-dsua-03.txt (1 May 2000) nets (includes RESERVED-1,
+	# DHCP auto-configuration, NET-TEST, MULTICAST (class D), and class E)
+	# on the outside interface
+	${fwcmd} table ${BAD_ADDR_TBL} add 0.0.0.0/8
+	${fwcmd} table ${BAD_ADDR_TBL} add 169.254.0.0/16
+	${fwcmd} table ${BAD_ADDR_TBL} add 192.0.2.0/24
+	${fwcmd} table ${BAD_ADDR_TBL} add 224.0.0.0/4
+	${fwcmd} table ${BAD_ADDR_TBL} add 240.0.0.0/4
+
+	${fwcmd} add deny all from any to "table($BAD_ADDR_TBL)" via ${oif}
+
+	# Network Address Translation.  This rule is placed here deliberately
+	# so that it does not interfere with the surrounding address-checking
+	# rules.  If for example one of your internal LAN machines had its IP
+	# address set to 192.0.2.1 then an incoming packet for it after being
+	# translated by natd(8) would match the `deny' rule above.  Similarly
+	# an outgoing packet originated from it before being translated would
+	# match the `deny' rule below.
+	case ${natd_enable} in
+	[Yy][Ee][Ss])
+		if [ -n "${natd_interface}" ]; then
+			${fwcmd} add divert natd ip4 from any to any via ${natd_interface}
+		fi
+		;;
+	esac
+
+	${fwcmd} add deny all from "table($BAD_ADDR_TBL)" to any via ${oif}
+	if [ -n "$inet6" ]; then
+		# Stop unique local unicast address on the outside interface
+		${fwcmd} add deny all from fc00::/7 to any via ${oif6}
+		${fwcmd} add deny all from any to fc00::/7 via ${oif6}
+
+		# Stop site-local on the outside interface
+		${fwcmd} add deny all from fec0::/10 to any via ${oif6}
+		${fwcmd} add deny all from any to fec0::/10 via ${oif6}
+
+		# Disallow "internal" addresses to appear on the wire.
+		${fwcmd} add deny all from ::ffff:0.0.0.0/96 to any \
+		    via ${oif6}
+		${fwcmd} add deny all from any to ::ffff:0.0.0.0/96 \
+		    via ${oif6}
+
+		# Disallow packets to malicious IPv4 compatible prefix.
+		${fwcmd} add deny all from ::224.0.0.0/100 to any via ${oif6}
+		${fwcmd} add deny all from any to ::224.0.0.0/100 via ${oif6}
+		${fwcmd} add deny all from ::127.0.0.0/104 to any via ${oif6}
+		${fwcmd} add deny all from any to ::127.0.0.0/104 via ${oif6}
+		${fwcmd} add deny all from ::0.0.0.0/104 to any via ${oif6}
+		${fwcmd} add deny all from any to ::0.0.0.0/104 via ${oif6}
+		${fwcmd} add deny all from ::255.0.0.0/104 to any via ${oif6}
+		${fwcmd} add deny all from any to ::255.0.0.0/104 via ${oif6}
+
+		${fwcmd} add deny all from ::0.0.0.0/96 to any via ${oif6}
+		${fwcmd} add deny all from any to ::0.0.0.0/96 via ${oif6}
+
+		# Disallow packets to malicious 6to4 prefix.
+		${fwcmd} add deny all from 2002:e000::/20 to any via ${oif6}
+		${fwcmd} add deny all from any to 2002:e000::/20 via ${oif6}
+		${fwcmd} add deny all from 2002:7f00::/24 to any via ${oif6}
+		${fwcmd} add deny all from any to 2002:7f00::/24 via ${oif6}
+		${fwcmd} add deny all from 2002:0000::/24 to any via ${oif6}
+		${fwcmd} add deny all from any to 2002:0000::/24 via ${oif6}
+		${fwcmd} add deny all from 2002:ff00::/24 to any via ${oif6}
+		${fwcmd} add deny all from any to 2002:ff00::/24 via ${oif6}
+
+		${fwcmd} add deny all from 2002:0a00::/24 to any via ${oif6}
+		${fwcmd} add deny all from any to 2002:0a00::/24 via ${oif6}
+		${fwcmd} add deny all from 2002:ac10::/28 to any via ${oif6}
+		${fwcmd} add deny all from any to 2002:ac10::/28 via ${oif6}
+		${fwcmd} add deny all from 2002:c0a8::/32 to any via ${oif6}
+		${fwcmd} add deny all from any to 2002:c0a8::/32 via ${oif6}
+
+		${fwcmd} add deny all from ff05::/16 to any via ${oif6}
+		${fwcmd} add deny all from any to ff05::/16 via ${oif6}
+	fi
+
+	# Allow TCP through if setup succeeded
+	${fwcmd} add pass tcp from any to any established
+
+	# Allow IP fragments to pass through
+	${fwcmd} add pass all from any to any frag
+
+	# Allow setup of incoming email
+	${fwcmd} add pass tcp from any to me 25 setup
+
+	# Allow access to our DNS
+	${fwcmd} add pass tcp from any to me 53 setup
+	${fwcmd} add pass udp from any to me 53
+	${fwcmd} add pass udp from me 53 to any
+
+	# Allow access to our WWW
+	${fwcmd} add pass tcp from any to me 80 setup
+
+	# Reject&Log all setup of incoming connections from the outside
+	${fwcmd} add deny log ip4 from any to any in via ${oif} setup proto tcp
+	if [ -n "$inet6" ]; then
+		${fwcmd} add deny log ip6 from any to any in via ${oif6} \
+		    setup proto tcp
+	fi
+
+	# Allow setup of any other TCP connection
+	${fwcmd} add pass tcp from any to any setup
+
+	# Allow DNS queries out in the world
+	${fwcmd} add pass udp from me to any 53 keep-state
+
+	# Allow NTP queries out in the world
+	${fwcmd} add pass udp from me to any 123 keep-state
+
+	# Everything else is denied by default, unless the
+	# IPFIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
+	# config file.
+	;;
+
+[Ww][Oo][Rr][Kk][Ss][Tt][Aa][Tt][Ii][Oo][Nn])
+	# Configuration:
+	#  firewall_myservices:		List of ports/protocols on which this
+	#				 host offers services.
+	#  firewall_allowservices:	List of IPv4 and/or IPv6 addresses
+	#				 that have access to
+	#				 $firewall_myservices.
+	#  firewall_trusted:		List of IPv4 and/or IPv6 addresses
+	#				 that have full access to this host.
+	#				 Be very careful when setting this.
+	#				 This option can seriously degrade
+	#				 the level of protection provided by
+	#				 the firewall.
+	#  firewall_logdeny:		Boolean (YES/NO) specifying if the
+	#				 default denied packets should be
+	#				 logged (in /var/log/security).
+	#  firewall_nologports:		List of TCP/UDP ports for which
+	#				 denied incoming packets are not
+	#				 logged.
+
+	# Allow packets for which a state has been built.
+	${fwcmd} add check-state
+
+	# For services permitted below.
+	${fwcmd} add pass tcp  from me to any established
+
+	# Allow any connection out, adding state for each.
+	${fwcmd} add pass tcp  from me to any setup keep-state
+	${fwcmd} add pass udp  from me to any       keep-state
+	${fwcmd} add pass icmp from me to any       keep-state
+	if [ $ipv6_available -eq 0 ]; then
+		${fwcmd} add pass ipv6-icmp from me to any keep-state
+	fi
+
+	# Allow DHCP.
+	${fwcmd} add pass udp  from 0.0.0.0 68 to 255.255.255.255 67 out
+	${fwcmd} add pass udp  from any 67     to me 68 in
+	${fwcmd} add pass udp  from any 67     to 255.255.255.255 68 in
+	if [ $ipv6_available -eq 0 ]; then
+		${fwcmd} add pass udp from fe80::/10 to me 546 in
+	fi
+	# Some servers will ping the IP while trying to decide if it's
+	# still in use.
+	${fwcmd} add pass icmp from any to any icmptype 8
+	if [ $ipv6_available -eq 0 ]; then
+		${fwcmd} add pass ipv6-icmp from any to any icmp6type 128,129
+	fi
+
+	# Allow "mandatory" ICMP in.
+	${fwcmd} add pass icmp from any to any icmptype 3,4,11
+	if [ $ipv6_available -eq 0 ]; then
+		${fwcmd} add pass ipv6-icmp from any to any icmp6type 3
+	fi
+
+	# Add permits for this workstations published services below
+	# Only IPs and nets in firewall_allowservices is allowed in.
+	# If you really wish to let anyone use services on your
+	# workstation, then set "firewall_allowservices='any'" in /etc/rc.conf
+	#
+	# Note: We don't use keep-state as that would allow DoS of
+	#       our statetable.
+	#       You can add 'keep-state' to the lines for slightly
+	#       better performance if you fell that DoS of your
+	#       workstation won't be a problem.
+	#
+	for i in ${firewall_allowservices} ; do
+	  for j in ${firewall_myservices} ; do
+	    case $j in
+	    [0-9A-Za-z]*/[Pp][Rr][Oo][Tt][Oo])
+	      ${fwcmd} add pass ${j%/[Pp][Rr][Oo][Tt][Oo]} from $i to me
+	    ;;
+	    [0-9A-Za-z]*/[Tt][Cc][Pp])
+	      ${fwcmd} add pass tcp from $i to me ${j%/[Tt][Cc][Pp]}
+	    ;;
+	    [0-9A-Za-z]*/[Uu][Dd][Pp])
+	      ${fwcmd} add pass udp from $i to me ${j%/[Uu][Dd][Pp]}
+	    ;;
+	    *[0-9A-Za-z])
+	      echo "Consider using ${j}/tcp in firewall_myservices." \
+	        > /dev/stderr
+	      ${fwcmd} add pass tcp from $i to me $j
+	    ;;
+	    *)
+	      echo "Invalid port in firewall_myservices: $j" > /dev/stderr
+	    ;;
+	    esac
+	  done
+	done
+
+	# Allow all connections from trusted IPs.
+	# Playing with the content of firewall_trusted could seriously
+	# degrade the level of protection provided by the firewall.
+	for i in ${firewall_trusted} ; do
+	  ${fwcmd} add pass ip from $i to me
+	done
+
+	${fwcmd} add 65000 count ip from any to any
+
+	# Drop packets to ports where we don't want logging
+	for i in ${firewall_nologports} ; do
+	  ${fwcmd} add deny { tcp or udp } from any to any $i in
+	done
+
+	# Broadcasts and multicasts
+	${fwcmd} add deny ip  from any to 255.255.255.255
+	${fwcmd} add deny ip  from any to 224.0.0.0/24 in	# XXX
+
+	# Noise from routers
+	${fwcmd} add deny udp from any to any 520 in
+
+	# Noise from webbrowsing.
+	# The stateful filter is a bit aggressive, and will cause some
+	#  connection teardowns to be logged.
+	${fwcmd} add deny tcp from any 80,443 to any 1024-65535 in
+
+	# Deny and (if wanted) log the rest unconditionally.
+	log=""
+	if [ ${firewall_logdeny:-x} = "YES" -o ${firewall_logdeny:-x} = "yes" ] ; then
+	  log="log logamount 500"	# The default of 100 is too low.
+	  sysctl net.inet.ip.fw.verbose=1 >/dev/null
+	fi
+	${fwcmd} add deny $log ip from any to any
+	;;
+
+[Cc][Ll][Oo][Ss][Ee][Dd])
+	${fwcmd} add 65000 deny ip from any to any
+	;;
+[Uu][Nn][Kk][Nn][Oo][Ww][Nn])
+	;;
+*)
+	if [ -r "${firewall_type}" ]; then
+		${fwcmd} ${firewall_flags} ${firewall_type}
+	fi
+	;;
+esac

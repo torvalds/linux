@@ -1,0 +1,8 @@
+$FreeBSD$
+
+This directory tree contains tools used for the maintenance and
+testing of FreeBSD.  There is no toplevel Makefile structure since
+these tools are not meant to be built as part of the standard system,
+though there may be individual Makefiles in some of the subdirs.
+
+Please read the README files in the subdirs for further information.

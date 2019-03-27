@@ -1,0 +1,101 @@
+.\" opiesu.c: Manual page for the opiesu(1) program.
+.\"
+.\" %%% portions-copyright-cmetz-96
+.\" Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
+.\" Reserved. The Inner Net License Version 2 applies to these portions of
+.\" the software.
+.\" You should have received a copy of the license with this software. If
+.\" you didn't get a copy, you may request one from <license@inner.net>.
+.\"
+.\" Portions of this software are Copyright 1995 by Randall Atkinson and Dan
+.\" McDonald, All Rights Reserved. All Rights under this copyright are assigned
+.\" to the U.S. Naval Research Laboratory (NRL). The NRL Copyright Notice and
+.\" License Agreement applies to this software.
+.\"
+.\"	History:
+.\"
+.\"     Modified by cmetz for OPIE 2.3. Removed statement that opiesu will
+.\"		only accept OTP responses.
+.\"     Modified by cmetz for OPIE 2.2. Removed MJR DES documentation.
+.\"	Modified at NRL for OPIE 2.0.
+.\"	Documentation for the "-f" option from BSD.
+.\"	Written at Bellcore for the S/Key Version 1 software distribution
+.\"		(keysu.1).
+.\"
+.ll 6i
+.pl 10.5i
+.lt 6.0i
+.TH OPIESU 1 "January 10, 1995"
+.AT 3
+.SH NAME
+opiesu \- Replacement su(1) program that uses OPIE challenges
+.SH SYNOPSIS
+.B opiesu
+[ \-f ] [ \-c ] [
+.I user_name
+] 
+.SH DESCRIPTION
+.I opiesu
+is a replacement for the su(1) program that issues OPIE challenges and
+uses OPIE responses. It is downward compatible with keysu(1) from the
+Bellcore S/Key Version 1 distribution and the su(1) program from the 4.3BSD
+Net/2 distribution.
+.SH OPTIONS
+.TP
+.B \-f
+If the invoked shell is csh(1),  this option prevents it from
+reading the ``.cshrc'' file.  (The [f] option may be passed as a
+shell argument after the login name, so this option is redundant
+and obsolescent.)
+.TP
+.B \-c
+Set console mode where the user is expected to have secure access to the
+system. In console mode, you will be asked to input your password directly
+instead of having to use an OPIE calculator. If you do not have secure access
+to the system (i.e., you are not on the system's console), you are
+volunteering your password to attackers by using this mode.
+.TP
+.I user_name
+The name of the user to become.
+The default is root.
+.SH EXAMPLE
+.sp 0
+wintermute$ opiesu kebe
+.sp 0
+otp-md5 498 wi910502
+.sp 0
+(OTP response required)
+.sp 0
+kebe's password:  (echo on)
+.sp 0
+kebe's password: RARE GLEN HUGH BOYD NECK MOLL
+.sp 0
+wintermute# 
+.LP
+.SH FILES
+.TP
+/etc/opiekeys database of information for OPIE system.
+.LP
+.SH SEE ALSO
+.BR su (1),
+.BR opie (4),
+.BR opiekey (1),
+.BR opieinfo (1),
+.BR opiesu (1),
+.BR opielogin (1),
+.BR opieftpd (8),
+.BR opiekeys (5),
+.BR opieaccess (5)
+ 
+.SH AUTHOR
+Bellcore's S/Key was written by Phil Karn, Neil M. Haller, and John S. Walden
+of Bellcore. OPIE was created at NRL by Randall Atkinson, Dan McDonald, and
+Craig Metz.
+
+S/Key is a trademark of Bell Communications Research (Bellcore).
+
+.SH CONTACT
+OPIE is discussed on the Bellcore "S/Key Users" mailing list. To join,
+send an email request to:
+.sp 
+skey-users-request@thumper.bellcore.com

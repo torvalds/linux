@@ -1,0 +1,25 @@
+# $Id$
+
+HEIMDAL_KDC_1.0 {
+	global:
+		kdc_log;
+		kdc_log_msg;
+		kdc_log_msg_va;
+		kdc_openlog;
+		kdc_check_flags;
+		krb5_kdc_windc_init;
+		krb5_kdc_get_config;
+		krb5_kdc_pkinit_config;
+		krb5_kdc_set_dbinfo;
+		krb5_kdc_process_krb5_request;
+		krb5_kdc_process_request;
+		krb5_kdc_save_request;
+		krb5_kdc_update_time;
+		krb5_kdc_pk_initialize;
+
+		# needed for digest-service
+		_kdc_db_fetch;
+		_kdc_free_ent;
+	local:
+		*;
+};

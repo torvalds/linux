@@ -1,0 +1,270 @@
+                            -*- text -*-
+
+                   Subversion Filesystem History
+         (a love song for libsvn_fs, by C. Michael Pilato)
+
+
+The Subversion filesystem can be your best friend, or your worst
+enemy, usually depending on which side of the public API you are
+working on.  Callers of the libsvn_fs interfaces do their work in a
+world pleasantly addressed by roots (the name given to a revision or
+transaction snapshot of the versioned directory tree) and paths under
+those roots.  But once you swim beneath the surface, you quickly
+realize that there is a beast both beautiful and dangerous lying in
+wait.  What looks to the outside world as a sort of coordinate system
+with axes for "Time" and "Location" is, in fact, a complicated DAG
+subsystem, with nodes that represent revisions of versioned locations
+all interconnected in various relationships with each other.
+
+The goal of this document is straightforward: to relay knowledge about
+how to untangle that DAG subsystem -- knowledge which likely lives
+only in the minds of a few developers -- so that the Few might become
+the Many.
+
+
+
+Node-Revisions: The Nodes of the DAG
+
+When working outside the filesystem API, people generally talk about
+their versioned resources in terms of the paths of those resources,
+and the global revisions (or revisions-to-be) in which those paths
+are located.  But inside the filesystem, paths are broken down and
+stored as a hierarchical linked-list of path components.  Each of
+these path components has its own historical lineage (because
+Subversion versions directories, too!), and each revision of that
+lineage is referred to as a "node-revision".  It is these
+node-revisions which are the nodes of the DAG subsystem, or "DAG
+nodes".
+
+DAG nodes are identified by unique keys called "node-revision IDs",
+and are inter-connected in a variety of ways.  A DAG node that
+represents a directory stores information about which other DAG nodes
+represent the children of that directory.  A DAG node contains
+information about which other DAG node is its historical predecessor.
+By tracing these links from node to node, we can effectively traverse
+both space and time, both the geography and the chronology of the
+filesystem landscape.
+
+For example, the path "/trunk/src/main.c" in revision 4 of the
+filesystem consumes four DAG nodes: one for "/", one for "/trunk", one
+for "/trunk/src", and one for "/trunk/src/main.c".  The DAG node for
+"/" contains a list of the names and node-revision IDs of its
+children, among which is the node-revision ID for the child named
+"trunk".  Similar links are found in "/trunk" (for "src") and
+"/trunk/src" (for "main.c").  Additionally, if these paths existed in
+different forms in previous revisions of the filesystem, their DAG
+nodes would store the node-revision IDs of their respective
+predecessor nodes.
+
+Whenever someone uses the public API to query for information about a
+versioned path under a particular root, the typical course of action
+under-the-hood is as follows:
+
+   1. The root refers to a particular snapshot of the DAG node tree,
+      and from this we can learn the node-revision ID of the node
+      which represents the root directory ("/") as it appears in that
+      snapshot.  Given this node-revision ID, it's all DAG from here.
+
+   2. The path is split into components and traversed, beginning with
+      the root node, and walking down toward the full path.  Each
+      intermediate node-revision is read, its entries list parsed, and
+      the next component looked up in that entries list to find the
+      next node-revision ID along the traversal path.
+
+   3. Finally, we wind up with a node-revision ID for our original
+      path.  We use it and its associated node-revision to answer the
+      query.
+
+Seems pretty easy, doesn't it?  Keep reading.
+
+
+
+All About Node-Revision IDs
+
+As previously mentioned, each node-revision in the filesystem has a
+unique key, referred to as the node-revision ID.  This key is
+typically represented as a string which looks like a period-separated
+list of its three components:
+
+   1. node ID: This key is unique to the members of a single
+      historical lineage.  Differing versions of the same versioned
+      resource, irrespective of the paths and revision in which those
+      versions are located, all share this ID.  If two node-revisions
+      have different node IDs, their are historically unrelated.
+
+   2. copy ID: This key uniquely identifies a copy operation, and is
+      sometimes referred to (or at least thought of) as a "branch ID."
+      If two node-revisions have the same copy ID, they are said to be
+      on the same branch.  The only exception to this is in the key
+      "0", a special key that means "not branched".
+
+   3. txn ID: This key uniquely identifies the Subversion transaction
+      in which this node-revision came into existence.
+
+Whenever someone uses the public API to *modify* a versioned resource,
+these actions are much the same as those used when querying.  But
+there are important differences.
+
+   1. The path is traversed in the same manner is described in the
+      previous section.  The result is an in-memory linked-list of
+      information about the node-revisions which comprise the
+      components of the path.
+
+   2. But before any changes can be made to a path, its node-revision
+      and those of its parent directories must first be cloned so that
+      changes to them don't affect previous incarnations of those
+      node-revisions.  This process is called "making the path
+      mutable".  If previous operations under this transaction caused
+      one or more of the parent directories to be made mutable
+      already, they are not again cloned.
+
+   3. Once the path and all its parents are mutable, the desired
+      changes can be made to the cloned node-revision, and they in no
+      way affect prior history.
+
+To clone a node-revision means to literally make a duplicate of it
+which is granted its own unique node-revision ID.  The new
+node-revision ID consists of the same node ID as the node-revision
+that was cloned (since this is just another point along the historical
+lineage of this versioned resource), a copy ID (which will be
+discussed later), and the txn ID in which this modification is
+occuring.
+
+There are some cool things we can read between the lines above.  Since
+the only time a node-revision comes into existence is when it is brand
+new or a fresh clone, and we never do cloning except during a
+modification, then we can use the txn ID as a sort of mutability flag.
+Mutability of a node-revision is determined by comparing the txn ID of
+the node-revision with the ID of the Subversion transaction being used
+to modify the filesystem -- if, and only if, they are the same, the node
+is allowed to be changed inside that transaction.
+
+So, we know how txn IDs come into existence now.  And the origin of
+node IDs hardly warrants its own paragraph: brand new lines of history
+(introduced with svn_fs_make_file() and svn_fs_make_dir()) get new
+unique node IDs, and every other node-revision that is created simply
+keeps the same node ID as the node-revision on which it is based.
+
+So what about those copy IDs?
+
+Copy IDs are assigned to nodes-revisions to denote on which "branch"
+of a line of history that node-revision resides.  (They are called
+copy IDs for political reasons, really -- Subversion doesn't expose a
+branching API per se, instead promoting the idea that branches are
+just forks in the development of a line of history that can just as
+easily be represented using path semantics.)  New copy IDs are
+allocated whenever a branching operation occurs.  New node-revisions
+can inherit the copy IDs of their predecessors (in the trivial cloning
+case), inherit the copy-IDs of one of their parents (by nature of
+their parent being copied), or inherit new copy-IDs.  In the absence
+of any branching, node-revisions are assigned the special copy ID "0".
+
+
+
+Copies and Copy IDs
+
+Currently there are two kinds of copy operation.  The first is a
+"real" copy, and is the direct result of a call to svn_fs_copy().
+When a real copy is made, the node-revision of the copy source is
+cloned, and earns its own brand new unique node-revision ID.  This
+node-revision ID is constructed from the original node ID, a brand new
+copy ID, and (as always) the txn ID of the transaction in which the
+copy is being made.
+
+The Subversion filesystem uses a "cheap copy/lazy migration" model.
+This means that when a directory node-revision is copied via
+svn_fs_copy(), only the node-revision of the top of the copied "tree"
+is cloned (again, earning a new copy ID), not every child of that
+tree.  This makes the svn_fs_copy() operation quite fast, at least
+compared to the alternative.  From that point, any children of the
+copy target are lazily migrated.  The first time they are themselves
+modified after the original copy, they are cloned from their original
+source location into the new target location.  This lazy migration
+procedure costs about the same as a regular cloning operation, which
+keeps the "cheap copy" cheap, even the morning after.
+
+Copies of files behave no differently than copies of directories.  But
+files never have children, so effectively the "tree" being copied is
+exactly one node-revision.  This node-revision is explicitly cloned at
+the time of the copy, and there is nothing to lazily migrate
+afterwards.
+
+The second type of copy operation is a "soft" copy.  These types of
+copies are not explicitly triggered via the filesystem API, but are
+implementation artifacts of other filesystem operations.  A soft copy
+happens whenever a node-revision exists in a different branch than
+that of its parent, and the parent is again branched.  Huh?!  Let's
+see if an example will help explain this a bit.
+
+Say you have a directory, "/trunk".  Now, into "/trunk" you copy a
+file "README" from some other part of the tree.  You have now
+effectively branched the original "README"'s history -- part of it
+will live on in the original location, but part of it now thrives in
+its new "/trunk/README" location.  The copy operation assigned a brand
+new copy ID to the new node-revision for "/trunk/README", which is
+necessarily different from the copy ID assigned to the node-revision
+for "/trunk".  
+
+Later, you decide to copy "/trunk" to "/branches/mine".  So the new
+"/branches/mine" also gets a brand new copy ID, since it is now a
+historical branch of "/trunk".  But what happens when
+"/branches/mine/README" is cloned later as part of some edits you are
+making?  What copy ID does the new clone get?  Because "/trunk/README"
+was on a different historical branch than "/trunk", our copy of
+"/trunk" causes (in "README") a branch of a branch.  So
+"/branches/mine/README" gets a brand new copy ID, and the filesystem
+remembers that the copy operation associated with that ID was a soft
+copy.
+
+   [### Right about here, C-Mike's memory starts getting fuzzy ###]
+
+The following is the copy ID inheritance algorithm, used to calculate
+what copy ID a node revision will use when cloned for mutability.
+Remember that a node revision is never cloned until its parent is
+first cloned.
+
+  1.  If the node revision is already mutable, its copy ID never
+      changes.
+
+  2.  If the node revision has a copy ID of "0" (which is to say, it's
+      never been itself copied or cloned as a child of a copied
+      parent), then it inherits whatever copy ID its parent winds up
+      with.
+
+  3.  If the node revision is on the same branch as its parent before
+      cloning, it will remain on the same branch as its parent after
+      cloning.  A node revision can be said to be on the same branch
+      as its parent if:
+       
+        a) their copy IDs are the same, or
+
+        b) the node revision is not a branch point (meaning, it was
+           not the node revision created by the copy associated with
+           its copy ID), or
+
+        c) the node revision is a branch point which being accessed via
+           its copy destination path.
+
+   4.  If, however, the node revision is *not* on the same branch as
+       its parent before cloning, it cannot be on the same branch as
+       its parent after cloning.  This breaks down to two cases:
+
+        a) If the node revision was the target of the copy operation
+           whose ID it holds, then it gets to keep its same copy ID.
+
+        b) Otherwise, the node revision is the unedited child of some
+           parent that was copied, and wasn't on the same branch as
+           that parent before the copy.  In this special case, the
+           cloned node revision will get a brand new copy ID which
+           points to one of those "soft copy" things we've been
+           talking about.
+
+The initial root directory's node revision, created when the
+filesystem is initialized, begins life with a magical "0" copy ID.
+Afterward, any new nodes (as in, freshly created files and
+directories) begin life with the same copy ID as their parent.
+
+
+Traversing History
+
+   ### todo:  put the history harvesting algorithm here

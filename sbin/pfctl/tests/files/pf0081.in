@@ -1,0 +1,12 @@
+# skip step optimization involving dynaddr, tables, no-route
+# optimisation should be done on theses rules
+
+ip_list="{ ::1 ::2 ::3 0.0.0.1 0.0.0.2 0.0.0.3 }"
+table_list="{ <bar1> <bar2> <bar3> }"
+pass from (lo0) to $ip_list
+pass from <foo> to $table_list
+pass from <foo> to $ip_list
+pass from <foo> to $table_list
+pass from no-route to $table_list
+pass from no-route to $ip_list
+pass from no-route to $table_list

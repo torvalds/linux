@@ -1,0 +1,86 @@
+.\" Copyright (c) 2009 Sam Leffler, Errno Consulting
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 30, 2014
+.Dt IWNFW 4
+.Os
+.Sh NAME
+.Nm iwnfw
+.Nd "Firmware Module for Intel Wireless driver"
+.Sh SYNOPSIS
+To compile this module into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iwnfw"
+.Ed
+.Pp
+This will include firmware images for all
+.Xr iwn 4
+devices inside the kernel.
+If you want to pick only the firmware image for your network adapter choose one
+of the following:
+.Bd -ragged -offset indent
+.Cd "device iwn1000fw"
+.Cd "device iwn100fw"
+.Cd "device iwn105fw"
+.Cd "device iwn135fw"
+.Cd "device iwn2000fw"
+.Cd "device iwn2030fw"
+.Cd "device iwn4965fw"
+.Cd "device iwn5000fw"
+.Cd "device iwn5150fw"
+.Cd "device iwn6000fw"
+.Cd "device iwn6000g2afw"
+.Cd "device iwn6000g2bfw"
+.Cd "device iwn6050fw"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+iwn1000fw_load="YES"
+iwn100fw_load="YES"
+iwn105fw_load="YES"
+iwn135fw_load="YES"
+iwn2000fw_load="YES"
+iwn2030fw_load="YES"
+iwn4965fw_load="YES"
+iwn5000fw_load="YES"
+iwn5150fw_load="YES"
+iwn6000fw_load="YES"
+iwn6000g2afw_load="YES"
+iwn6000g2bfw_load="YES"
+iwn6050fw_load="YES"
+.Ed
+.Sh DESCRIPTION
+This module provides access to firmware sets for the
+Intel Wireless WiFi Link 100, 105, 135, 1000, 2000, 2030, 4965, 5000 and 6000 series of
+IEEE 802.11n adapters.
+It may be
+statically linked into the kernel, or loaded as a module.
+.Sh SEE ALSO
+.Xr iwn 4 ,
+.Xr firmware 9

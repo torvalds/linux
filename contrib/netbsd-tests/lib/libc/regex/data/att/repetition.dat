@@ -1,0 +1,140 @@
+NOTE	implicit vs. explicit repetitions : 2009-02-02
+
+# Glenn Fowler <gsf@research.att.com>
+# conforming matches (column 4) must match one of the following BREs
+#	NOMATCH
+#	(0,.)\((\(.\),\(.\))(?,?)(\2,\3)\)*
+#	(0,.)\((\(.\),\(.\))(\2,\3)(?,?)\)*
+# i.e., each 3-tuple has two identical elements and one (?,?)
+
+E	((..)|(.))				NULL		NOMATCH
+E	((..)|(.))((..)|(.))			NULL		NOMATCH
+E	((..)|(.))((..)|(.))((..)|(.))		NULL		NOMATCH
+
+E	((..)|(.)){1}				NULL		NOMATCH
+E	((..)|(.)){2}				NULL		NOMATCH
+E	((..)|(.)){3}				NULL		NOMATCH
+
+E	((..)|(.))*				NULL		(0,0)
+
+E	((..)|(.))				a		(0,1)(0,1)(?,?)(0,1)
+E	((..)|(.))((..)|(.))			a		NOMATCH
+E	((..)|(.))((..)|(.))((..)|(.))		a		NOMATCH
+
+E	((..)|(.)){1}				a		(0,1)(0,1)(?,?)(0,1)
+E	((..)|(.)){2}				a		NOMATCH
+E	((..)|(.)){3}				a		NOMATCH
+
+E	((..)|(.))*				a		(0,1)(0,1)(?,?)(0,1)
+
+E	((..)|(.))				aa		(0,2)(0,2)(0,2)(?,?)
+E	((..)|(.))((..)|(.))			aa		(0,2)(0,1)(?,?)(0,1)(1,2)(?,?)(1,2)
+E	((..)|(.))((..)|(.))((..)|(.))		aa		NOMATCH
+
+E	((..)|(.)){1}				aa		(0,2)(0,2)(0,2)(?,?)
+E	((..)|(.)){2}				aa		(0,2)(1,2)(?,?)(1,2)
+E	((..)|(.)){3}				aa		NOMATCH
+
+E	((..)|(.))*				aa		(0,2)(0,2)(0,2)(?,?)
+
+E	((..)|(.))				aaa		(0,2)(0,2)(0,2)(?,?)
+E	((..)|(.))((..)|(.))			aaa		(0,3)(0,2)(0,2)(?,?)(2,3)(?,?)(2,3)
+E	((..)|(.))((..)|(.))((..)|(.))		aaa		(0,3)(0,1)(?,?)(0,1)(1,2)(?,?)(1,2)(2,3)(?,?)(2,3)
+
+E	((..)|(.)){1}				aaa		(0,2)(0,2)(0,2)(?,?)
+E	((..)|(.)){2}				aaa		(0,3)(2,3)(?,?)(2,3)
+E	((..)|(.)){3}				aaa		(0,3)(2,3)(?,?)(2,3)
+
+E	((..)|(.))*				aaa		(0,3)(2,3)(?,?)(2,3)
+
+E	((..)|(.))				aaaa		(0,2)(0,2)(0,2)(?,?)
+E	((..)|(.))((..)|(.))			aaaa		(0,4)(0,2)(0,2)(?,?)(2,4)(2,4)(?,?)
+E	((..)|(.))((..)|(.))((..)|(.))		aaaa		(0,4)(0,2)(0,2)(?,?)(2,3)(?,?)(2,3)(3,4)(?,?)(3,4)
+
+E	((..)|(.)){1}				aaaa		(0,2)(0,2)(0,2)(?,?)
+E	((..)|(.)){2}				aaaa		(0,4)(2,4)(2,4)(?,?)
+E	((..)|(.)){3}				aaaa		(0,4)(3,4)(?,?)(3,4)
+
+E	((..)|(.))*				aaaa		(0,4)(2,4)(2,4)(?,?)
+
+E	((..)|(.))				aaaaa		(0,2)(0,2)(0,2)(?,?)
+E	((..)|(.))((..)|(.))			aaaaa		(0,4)(0,2)(0,2)(?,?)(2,4)(2,4)(?,?)
+E	((..)|(.))((..)|(.))((..)|(.))		aaaaa		(0,5)(0,2)(0,2)(?,?)(2,4)(2,4)(?,?)(4,5)(?,?)(4,5)
+
+E	((..)|(.)){1}				aaaaa		(0,2)(0,2)(0,2)(?,?)
+E	((..)|(.)){2}				aaaaa		(0,4)(2,4)(2,4)(?,?)
+E	((..)|(.)){3}				aaaaa		(0,5)(4,5)(?,?)(4,5)
+
+E	((..)|(.))*				aaaaa		(0,5)(4,5)(?,?)(4,5)
+
+E	((..)|(.))				aaaaaa		(0,2)(0,2)(0,2)(?,?)
+E	((..)|(.))((..)|(.))			aaaaaa		(0,4)(0,2)(0,2)(?,?)(2,4)(2,4)(?,?)
+E	((..)|(.))((..)|(.))((..)|(.))		aaaaaa		(0,6)(0,2)(0,2)(?,?)(2,4)(2,4)(?,?)(4,6)(4,6)(?,?)
+
+E	((..)|(.)){1}				aaaaaa		(0,2)(0,2)(0,2)(?,?)
+E	((..)|(.)){2}				aaaaaa		(0,4)(2,4)(2,4)(?,?)
+E	((..)|(.)){3}				aaaaaa		(0,6)(4,6)(4,6)(?,?)
+
+E	((..)|(.))*				aaaaaa		(0,6)(4,6)(4,6)(?,?)
+
+NOTE	additional repetition tests graciously provided by Chris Kuklewicz www.haskell.org 2009-02-02
+
+# These test a bug in OS X / FreeBSD / NetBSD, and libtree. 
+# Linux/GLIBC gets the {8,} and {8,8} wrong.
+
+:HA#100:E	X(.?){0,}Y	X1234567Y	(0,9)(7,8)
+:HA#101:E	X(.?){1,}Y	X1234567Y	(0,9)(7,8)
+:HA#102:E	X(.?){2,}Y	X1234567Y	(0,9)(7,8)
+:HA#103:E	X(.?){3,}Y	X1234567Y	(0,9)(7,8)
+:HA#104:E	X(.?){4,}Y	X1234567Y	(0,9)(7,8)
+:HA#105:E	X(.?){5,}Y	X1234567Y	(0,9)(7,8)
+:HA#106:E	X(.?){6,}Y	X1234567Y	(0,9)(7,8)
+:HA#107:E	X(.?){7,}Y	X1234567Y	(0,9)(7,8)
+:HA#108:E	X(.?){8,}Y	X1234567Y	(0,9)(8,8)
+:HA#110:E	X(.?){0,8}Y	X1234567Y	(0,9)(7,8)
+:HA#111:E	X(.?){1,8}Y	X1234567Y	(0,9)(7,8)
+:HA#112:E	X(.?){2,8}Y	X1234567Y	(0,9)(7,8)
+:HA#113:E	X(.?){3,8}Y	X1234567Y	(0,9)(7,8)
+:HA#114:E	X(.?){4,8}Y	X1234567Y	(0,9)(7,8)
+:HA#115:E	X(.?){5,8}Y	X1234567Y	(0,9)(7,8)
+:HA#116:E	X(.?){6,8}Y	X1234567Y	(0,9)(7,8)
+:HA#117:E	X(.?){7,8}Y	X1234567Y	(0,9)(7,8)
+:HA#118:E	X(.?){8,8}Y	X1234567Y	(0,9)(8,8)
+
+# These test a fixed bug in my regex-tdfa that did not keep the expanded
+# form properly grouped, so right association did the wrong thing with
+# these ambiguous patterns (crafted just to test my code when I became
+# suspicious of my implementation).  The first subexpression should use
+# "ab" then "a" then "bcd".
+
+# OS X / FreeBSD / NetBSD badly fail many of these, with impossible
+# results like (0,6)(4,5)(6,6).
+
+:HA#260:E	(a|ab|c|bcd){0,}(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#261:E	(a|ab|c|bcd){1,}(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#262:E	(a|ab|c|bcd){2,}(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#263:E	(a|ab|c|bcd){3,}(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#264:E	(a|ab|c|bcd){4,}(d*)	ababcd	NOMATCH
+:HA#265:E	(a|ab|c|bcd){0,10}(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#266:E	(a|ab|c|bcd){1,10}(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#267:E	(a|ab|c|bcd){2,10}(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#268:E	(a|ab|c|bcd){3,10}(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#269:E	(a|ab|c|bcd){4,10}(d*)	ababcd	NOMATCH
+:HA#270:E	(a|ab|c|bcd)*(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#271:E	(a|ab|c|bcd)+(d*)	ababcd	(0,6)(3,6)(6,6)
+
+# The above worked on Linux/GLIBC but the following often fail.
+# They also trip up OS X / FreeBSD / NetBSD:
+
+:HA#280:E	(ab|a|c|bcd){0,}(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#281:E	(ab|a|c|bcd){1,}(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#282:E	(ab|a|c|bcd){2,}(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#283:E	(ab|a|c|bcd){3,}(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#284:E	(ab|a|c|bcd){4,}(d*)	ababcd	NOMATCH
+:HA#285:E	(ab|a|c|bcd){0,10}(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#286:E	(ab|a|c|bcd){1,10}(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#287:E	(ab|a|c|bcd){2,10}(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#288:E	(ab|a|c|bcd){3,10}(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#289:E	(ab|a|c|bcd){4,10}(d*)	ababcd	NOMATCH
+:HA#290:E	(ab|a|c|bcd)*(d*)	ababcd	(0,6)(3,6)(6,6)
+:HA#291:E	(ab|a|c|bcd)+(d*)	ababcd	(0,6)(3,6)(6,6)

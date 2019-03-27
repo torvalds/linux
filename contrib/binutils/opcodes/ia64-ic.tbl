@@ -1,0 +1,253 @@
+Class;	Events/Instructions
+all;	IC:predicatable-instructions, IC:unpredicatable-instructions
+branches;	IC:indirect-brs, IC:ip-rel-brs
+cfm-readers;	IC:fr-readers, IC:fr-writers, IC:gr-readers, IC:gr-writers, IC:mod-sched-brs, IC:predicatable-instructions, IC:pr-writers, alloc, br.call, brl.call, br.ret, cover, loadrs, rfi, IC:chk-a, invala.e
+chk-a;	chk.a.clr, chk.a.nc
+cmpxchg;	cmpxchg1, cmpxchg2, cmpxchg4, cmpxchg8, cmp8xchg16
+czx;	czx1, czx2
+fcmp-s0;	fcmp[Field(sf)==s0]
+fcmp-s1;	fcmp[Field(sf)==s1]
+fcmp-s2;	fcmp[Field(sf)==s2]
+fcmp-s3;	fcmp[Field(sf)==s3]
+fetchadd;	fetchadd4, fetchadd8
+fp-arith;	fadd, famax, famin, fcvt.fx, fcvt.fxu, fcvt.xuf, fma, fmax, fmin, fmpy, fms, fnma, fnmpy, fnorm, fpamax, fpamin, fpcvt.fx, fpcvt.fxu, fpma, fpmax, fpmin, fpmpy, fpms, fpnma, fpnmpy, fprcpa, fprsqrta, frcpa, frsqrta, fsub
+fp-arith-s0;	IC:fp-arith[Field(sf)==s0]
+fp-arith-s1;	IC:fp-arith[Field(sf)==s1]
+fp-arith-s2;	IC:fp-arith[Field(sf)==s2]
+fp-arith-s3;	IC:fp-arith[Field(sf)==s3]
+fp-non-arith;	fabs, fand, fandcm, fclass, fcvt.xf, fmerge, fmix, fneg, fnegabs, for, fpabs, fpmerge, fpack, fpneg, fpnegabs, fselect, fswap, fsxt, fxor, xma
+fpcmp-s0;	fpcmp[Field(sf)==s0]
+fpcmp-s1;	fpcmp[Field(sf)==s1]
+fpcmp-s2;	fpcmp[Field(sf)==s2]
+fpcmp-s3;	fpcmp[Field(sf)==s3]
+fr-readers;	IC:fp-arith, IC:fp-non-arith, IC:mem-writers-fp, IC:pr-writers-fp, chk.s[Format in {M21}], getf
+fr-writers;	IC:fp-arith, IC:fp-non-arith\fclass, IC:mem-readers-fp, setf
+gr-readers;	IC:gr-readers-writers, IC:mem-readers, IC:mem-writers, chk.s, cmp, cmp4, fc, itc.i, itc.d, itr.i, itr.d, IC:mov-to-AR-gr, IC:mov-to-BR, IC:mov-to-CR, IC:mov-to-IND, IC:mov-from-IND, IC:mov-to-PR-allreg, IC:mov-to-PSR-l, IC:mov-to-PSR-um, IC:probe-all, ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d, setf, tbit, tnat
+gr-readers-writers;	IC:mov-from-IND, add, addl, addp4, adds, and, andcm, clz, IC:czx, dep\dep[Format in {I13}], extr, IC:mem-readers-int, IC:ld-all-postinc, IC:lfetch-postinc, IC:mix, IC:mux, or, IC:pack, IC:padd, IC:pavg, IC:pavgsub, IC:pcmp, IC:pmax, IC:pmin, IC:pmpy, IC:pmpyshr, popcnt, IC:probe-nofault, IC:psad, IC:pshl, IC:pshladd, IC:pshr, IC:pshradd, IC:psub, shl, shladd, shladdp4, shr, shrp, shrp4, IC:st-postinc, sub, IC:sxt, tak, thash, tpa, ttag, IC:unpack, xor, IC:zxt
+gr-writers;	alloc, dep, getf, IC:gr-readers-writers, IC:mem-readers-int, IC:mov-from-AR, IC:mov-from-BR, IC:mov-from-CR, IC:mov-from-PR, IC:mov-from-PSR, IC:mov-from-PSR-um, IC:mov-ip, movl
+indirect-brp;	brp[Format in {B7}]
+indirect-brs;	br.call[Format in {B5}], br.cond[Format in {B4}], br.ia, br.ret
+invala-all;	invala[Format in {M24}], invala.e
+ip-rel-brs;	IC:mod-sched-brs, br.call[Format in {B3}], brl.call, brl.cond, br.cond[Format in {B1}], br.cloop
+ld;	ld1, ld2, ld4, ld8, ld8.fill, ld16
+ld-a;	ld1.a, ld2.a, ld4.a, ld8.a
+ld-all-postinc;	IC:ld[Format in {M2 M3}], IC:ldfp[Format in {M12}], IC:ldf[Format in {M7 M8}]
+ld-c;	IC:ld-c-nc, IC:ld-c-clr
+ld-c-clr;	ld1.c.clr, ld2.c.clr, ld4.c.clr, ld8.c.clr, IC:ld-c-clr-acq
+ld-c-clr-acq;	ld1.c.clr.acq, ld2.c.clr.acq, ld4.c.clr.acq, ld8.c.clr.acq
+ld-c-nc;	ld1.c.nc, ld2.c.nc, ld4.c.nc, ld8.c.nc
+ld-s;	ld1.s, ld2.s, ld4.s, ld8.s
+ld-sa;	ld1.sa, ld2.sa, ld4.sa, ld8.sa
+ldf;	ldfs, ldfd, ldfe, ldf8, ldf.fill
+ldf-a;	ldfs.a, ldfd.a, ldfe.a, ldf8.a
+ldf-c;	IC:ldf-c-nc, IC:ldf-c-clr
+ldf-c-clr;	ldfs.c.clr, ldfd.c.clr, ldfe.c.clr, ldf8.c.clr
+ldf-c-nc;	ldfs.c.nc, ldfd.c.nc, ldfe.c.nc, ldf8.c.nc
+ldf-s;	ldfs.s, ldfd.s, ldfe.s, ldf8.s
+ldf-sa;	ldfs.sa, ldfd.sa, ldfe.sa, ldf8.sa
+ldfp;	ldfps, ldfpd, ldfp8
+ldfp-a;	ldfps.a, ldfpd.a, ldfp8.a
+ldfp-c;	IC:ldfp-c-nc, IC:ldfp-c-clr
+ldfp-c-clr;	ldfps.c.clr, ldfpd.c.clr, ldfp8.c.clr
+ldfp-c-nc;	ldfps.c.nc, ldfpd.c.nc, ldfp8.c.nc
+ldfp-s;	ldfps.s, ldfpd.s, ldfp8.s
+ldfp-sa;	ldfps.sa, ldfpd.sa, ldfp8.sa
+lfetch-all;	lfetch
+lfetch-fault;	lfetch[Field(lftype)==fault]
+lfetch-nofault;	lfetch[Field(lftype)==]
+lfetch-postinc;	lfetch[Format in {M14 M15}]
+mem-readers;	IC:mem-readers-fp, IC:mem-readers-int
+mem-readers-alat;	IC:ld-a, IC:ldf-a, IC:ldfp-a, IC:ld-sa, IC:ldf-sa, IC:ldfp-sa, IC:ld-c, IC:ldf-c, IC:ldfp-c
+mem-readers-fp;	IC:ldf, IC:ldfp
+mem-readers-int;	IC:cmpxchg, IC:fetchadd, IC:xchg, IC:ld
+mem-readers-spec;	IC:ld-s, IC:ld-sa, IC:ldf-s, IC:ldf-sa, IC:ldfp-s, IC:ldfp-sa
+mem-writers;	IC:mem-writers-fp, IC:mem-writers-int
+mem-writers-fp;	IC:stf
+mem-writers-int;	IC:cmpxchg, IC:fetchadd, IC:xchg, IC:st
+mix;	mix1, mix2, mix4
+mod-sched-brs;	br.cexit, br.ctop, br.wexit, br.wtop
+mod-sched-brs-counted;	br.cexit, br.cloop, br.ctop
+mov-from-AR;	IC:mov-from-AR-M, IC:mov-from-AR-I, IC:mov-from-AR-IM
+mov-from-AR-BSP;	IC:mov-from-AR-M[Field(ar3) == BSP]
+mov-from-AR-BSPSTORE;	IC:mov-from-AR-M[Field(ar3) == BSPSTORE]
+mov-from-AR-CCV;	IC:mov-from-AR-M[Field(ar3) == CCV]
+mov-from-AR-CFLG;	IC:mov-from-AR-M[Field(ar3) == CFLG]
+mov-from-AR-CSD;	IC:mov-from-AR-M[Field(ar3) == CSD]
+mov-from-AR-EC;	IC:mov-from-AR-I[Field(ar3) == EC]
+mov-from-AR-EFLAG;	IC:mov-from-AR-M[Field(ar3) == EFLAG]
+mov-from-AR-FCR;	IC:mov-from-AR-M[Field(ar3) == FCR]
+mov-from-AR-FDR;	IC:mov-from-AR-M[Field(ar3) == FDR]
+mov-from-AR-FIR;	IC:mov-from-AR-M[Field(ar3) == FIR]
+mov-from-AR-FPSR;	IC:mov-from-AR-M[Field(ar3) == FPSR]
+mov-from-AR-FSR;	IC:mov-from-AR-M[Field(ar3) == FSR]
+mov-from-AR-I;	mov_ar[Format in {I28}]
+mov-from-AR-ig;	IC:mov-from-AR-IM[Field(ar3) in {48-63 112-127}]
+mov-from-AR-IM;	mov_ar[Format in {I28 M31}]
+mov-from-AR-ITC;	IC:mov-from-AR-M[Field(ar3) == ITC]
+mov-from-AR-K;	IC:mov-from-AR-M[Field(ar3) in {K0 K1 K2 K3 K4 K5 K6 K7}]
+mov-from-AR-LC;	IC:mov-from-AR-I[Field(ar3) == LC]
+mov-from-AR-M;	mov_ar[Format in {M31}]
+mov-from-AR-PFS;	IC:mov-from-AR-I[Field(ar3) == PFS]
+mov-from-AR-RNAT;	IC:mov-from-AR-M[Field(ar3) == RNAT]
+mov-from-AR-RSC;	IC:mov-from-AR-M[Field(ar3) == RSC]
+mov-from-AR-rv;	IC:none
+mov-from-AR-SSD;	IC:mov-from-AR-M[Field(ar3) == SSD]
+mov-from-AR-UNAT;	IC:mov-from-AR-M[Field(ar3) == UNAT]
+mov-from-BR;	mov_br[Format in {I22}]
+mov-from-CR;	mov_cr[Format in {M33}]
+mov-from-CR-CMCV;	IC:mov-from-CR[Field(cr3) == CMCV]
+mov-from-CR-DCR;	IC:mov-from-CR[Field(cr3) == DCR]
+mov-from-CR-EOI;	IC:mov-from-CR[Field(cr3) == EOI]
+mov-from-CR-GPTA;	IC:mov-from-CR[Field(cr3) == GPTA]
+mov-from-CR-IFA;	IC:mov-from-CR[Field(cr3) == IFA]
+mov-from-CR-IFS;	IC:mov-from-CR[Field(cr3) == IFS]
+mov-from-CR-IHA;	IC:mov-from-CR[Field(cr3) == IHA]
+mov-from-CR-IIM;	IC:mov-from-CR[Field(cr3) == IIM]
+mov-from-CR-IIP;	IC:mov-from-CR[Field(cr3) == IIP]
+mov-from-CR-IIPA;	IC:mov-from-CR[Field(cr3) == IIPA]
+mov-from-CR-IPSR;	IC:mov-from-CR[Field(cr3) == IPSR]
+mov-from-CR-IRR;	IC:mov-from-CR[Field(cr3) in {IRR0 IRR1 IRR2 IRR3}]
+mov-from-CR-ISR;	IC:mov-from-CR[Field(cr3) == ISR]
+mov-from-CR-ITIR;	IC:mov-from-CR[Field(cr3) == ITIR]
+mov-from-CR-ITM;	IC:mov-from-CR[Field(cr3) == ITM]
+mov-from-CR-ITV;	IC:mov-from-CR[Field(cr3) == ITV]
+mov-from-CR-IVA;	IC:mov-from-CR[Field(cr3) == IVA]
+mov-from-CR-IVR;	IC:mov-from-CR[Field(cr3) == IVR]
+mov-from-CR-LID;	IC:mov-from-CR[Field(cr3) == LID]
+mov-from-CR-LRR;	IC:mov-from-CR[Field(cr3) in {LRR0 LRR1}]
+mov-from-CR-PMV;	IC:mov-from-CR[Field(cr3) == PMV]
+mov-from-CR-PTA;	IC:mov-from-CR[Field(cr3) == PTA]
+mov-from-CR-rv;	IC:none
+mov-from-CR-TPR;	IC:mov-from-CR[Field(cr3) == TPR]
+mov-from-IND;	mov_indirect[Format in {M43}]
+mov-from-IND-CPUID;	IC:mov-from-IND[Field(ireg) == cpuid]
+mov-from-IND-DBR;	IC:mov-from-IND[Field(ireg) == dbr]
+mov-from-IND-IBR;	IC:mov-from-IND[Field(ireg) == ibr]
+mov-from-IND-MSR;	IC:mov-from-IND[Field(ireg) == msr]
+mov-from-IND-PKR;	IC:mov-from-IND[Field(ireg) == pkr]
+mov-from-IND-PMC;	IC:mov-from-IND[Field(ireg) == pmc]
+mov-from-IND-PMD;	IC:mov-from-IND[Field(ireg) == pmd]
+mov-from-IND-priv;	IC:mov-from-IND[Field(ireg) in {dbr ibr pkr pmc rr}]
+mov-from-IND-RR;	IC:mov-from-IND[Field(ireg) == rr]
+mov-from-interruption-CR;	IC:mov-from-CR-ITIR, IC:mov-from-CR-IFS, IC:mov-from-CR-IIM, IC:mov-from-CR-IIP, IC:mov-from-CR-IPSR, IC:mov-from-CR-ISR, IC:mov-from-CR-IFA, IC:mov-from-CR-IHA, IC:mov-from-CR-IIPA
+mov-from-PR;	mov_pr[Format in {I25}]
+mov-from-PSR;	mov_psr[Format in {M36}]
+mov-from-PSR-um;	mov_um[Format in {M36}]
+mov-ip;	mov_ip[Format in {I25}]
+mov-to-AR;	IC:mov-to-AR-M, IC:mov-to-AR-I
+mov-to-AR-BSP;	IC:mov-to-AR-M[Field(ar3) == BSP]
+mov-to-AR-BSPSTORE;	IC:mov-to-AR-M[Field(ar3) == BSPSTORE]
+mov-to-AR-CCV;	IC:mov-to-AR-M[Field(ar3) == CCV]
+mov-to-AR-CFLG;	IC:mov-to-AR-M[Field(ar3) == CFLG]
+mov-to-AR-CSD;	IC:mov-to-AR-M[Field(ar3) == CSD]
+mov-to-AR-EC;	IC:mov-to-AR-I[Field(ar3) == EC]
+mov-to-AR-EFLAG;	IC:mov-to-AR-M[Field(ar3) == EFLAG]
+mov-to-AR-FCR;	IC:mov-to-AR-M[Field(ar3) == FCR]
+mov-to-AR-FDR;	IC:mov-to-AR-M[Field(ar3) == FDR]
+mov-to-AR-FIR;	IC:mov-to-AR-M[Field(ar3) == FIR]
+mov-to-AR-FPSR;	IC:mov-to-AR-M[Field(ar3) == FPSR]
+mov-to-AR-FSR;	IC:mov-to-AR-M[Field(ar3) == FSR]
+mov-to-AR-gr;	IC:mov-to-AR-M[Format in {M29}], IC:mov-to-AR-I[Format in {I26}]
+mov-to-AR-I;	mov_ar[Format in {I26 I27}]
+mov-to-AR-ig;	IC:mov-to-AR-IM[Field(ar3) in {48-63 112-127}]
+mov-to-AR-IM;	mov_ar[Format in {I26 I27 M29 M30}]
+mov-to-AR-ITC;	IC:mov-to-AR-M[Field(ar3) == ITC]
+mov-to-AR-K;	IC:mov-to-AR-M[Field(ar3) in {K0 K1 K2 K3 K4 K5 K6 K7}]
+mov-to-AR-LC;	IC:mov-to-AR-I[Field(ar3) == LC]
+mov-to-AR-M;	mov_ar[Format in {M29 M30}]
+mov-to-AR-PFS;	IC:mov-to-AR-I[Field(ar3) == PFS]
+mov-to-AR-RNAT;	IC:mov-to-AR-M[Field(ar3) == RNAT]
+mov-to-AR-RSC;	IC:mov-to-AR-M[Field(ar3) == RSC]
+mov-to-AR-SSD;	IC:mov-to-AR-M[Field(ar3) == SSD]
+mov-to-AR-UNAT;	IC:mov-to-AR-M[Field(ar3) == UNAT]
+mov-to-BR;	mov_br[Format in {I21}]
+mov-to-CR;	mov_cr[Format in {M32}]
+mov-to-CR-CMCV;	IC:mov-to-CR[Field(cr3) == CMCV]
+mov-to-CR-DCR;	IC:mov-to-CR[Field(cr3) == DCR]
+mov-to-CR-EOI;	IC:mov-to-CR[Field(cr3) == EOI]
+mov-to-CR-GPTA;	IC:mov-to-CR[Field(cr3) == GPTA]
+mov-to-CR-IFA;	IC:mov-to-CR[Field(cr3) == IFA]
+mov-to-CR-IFS;	IC:mov-to-CR[Field(cr3) == IFS]
+mov-to-CR-IHA;	IC:mov-to-CR[Field(cr3) == IHA]
+mov-to-CR-IIM;	IC:mov-to-CR[Field(cr3) == IIM]
+mov-to-CR-IIP;	IC:mov-to-CR[Field(cr3) == IIP]
+mov-to-CR-IIPA;	IC:mov-to-CR[Field(cr3) == IIPA]
+mov-to-CR-IPSR;	IC:mov-to-CR[Field(cr3) == IPSR]
+mov-to-CR-IRR;	IC:mov-to-CR[Field(cr3) in {IRR0 IRR1 IRR2 IRR3}]
+mov-to-CR-ISR;	IC:mov-to-CR[Field(cr3) == ISR]
+mov-to-CR-ITIR;	IC:mov-to-CR[Field(cr3) == ITIR]
+mov-to-CR-ITM;	IC:mov-to-CR[Field(cr3) == ITM]
+mov-to-CR-ITV;	IC:mov-to-CR[Field(cr3) == ITV]
+mov-to-CR-IVA;	IC:mov-to-CR[Field(cr3) == IVA]
+mov-to-CR-IVR;	IC:mov-to-CR[Field(cr3) == IVR]
+mov-to-CR-LID;	IC:mov-to-CR[Field(cr3) == LID]
+mov-to-CR-LRR;	IC:mov-to-CR[Field(cr3) in {LRR0 LRR1}]
+mov-to-CR-PMV;	IC:mov-to-CR[Field(cr3) == PMV]
+mov-to-CR-PTA;	IC:mov-to-CR[Field(cr3) == PTA]
+mov-to-CR-TPR;	IC:mov-to-CR[Field(cr3) == TPR]
+mov-to-IND;	mov_indirect[Format in {M42}]
+mov-to-IND-CPUID;	IC:mov-to-IND[Field(ireg) == cpuid]
+mov-to-IND-DBR;	IC:mov-to-IND[Field(ireg) == dbr]
+mov-to-IND-IBR;	IC:mov-to-IND[Field(ireg) == ibr]
+mov-to-IND-MSR;	IC:mov-to-IND[Field(ireg) == msr]
+mov-to-IND-PKR;	IC:mov-to-IND[Field(ireg) == pkr]
+mov-to-IND-PMC;	IC:mov-to-IND[Field(ireg) == pmc]
+mov-to-IND-PMD;	IC:mov-to-IND[Field(ireg) == pmd]
+mov-to-IND-priv;	IC:mov-to-IND
+mov-to-IND-RR;	IC:mov-to-IND[Field(ireg) == rr]
+mov-to-interruption-CR;	IC:mov-to-CR-ITIR, IC:mov-to-CR-IFS, IC:mov-to-CR-IIM, IC:mov-to-CR-IIP, IC:mov-to-CR-IPSR, IC:mov-to-CR-ISR, IC:mov-to-CR-IFA, IC:mov-to-CR-IHA, IC:mov-to-CR-IIPA
+mov-to-PR;	IC:mov-to-PR-allreg, IC:mov-to-PR-rotreg
+mov-to-PR-allreg;	mov_pr[Format in {I23}]
+mov-to-PR-rotreg;	mov_pr[Format in {I24}]
+mov-to-PSR-l;	mov_psr[Format in {M35}]
+mov-to-PSR-um;	mov_um[Format in {M35}]
+mux;	mux1, mux2
+non-access;	fc, lfetch, IC:probe-all, tpa, tak
+none;	-
+pack;	pack2, pack4
+padd;	padd1, padd2, padd4
+pavg;	pavg1, pavg2
+pavgsub;	pavgsub1, pavgsub2
+pcmp;	pcmp1, pcmp2, pcmp4
+pmax;	pmax1, pmax2
+pmin;	pmin1, pmin2
+pmpy;	pmpy2
+pmpyshr;	pmpyshr2
+pr-and-writers;	IC:pr-gen-writers-int[Field(ctype) in {and andcm}], IC:pr-gen-writers-int[Field(ctype) in {or.andcm and.orcm}]
+pr-gen-writers-fp;	fclass, fcmp
+pr-gen-writers-int;	cmp, cmp4, tbit, tf, tnat
+pr-norm-writers-fp;	IC:pr-gen-writers-fp[Field(ctype)==]
+pr-norm-writers-int;	IC:pr-gen-writers-int[Field(ctype)==]
+pr-or-writers;	IC:pr-gen-writers-int[Field(ctype) in {or orcm}], IC:pr-gen-writers-int[Field(ctype) in {or.andcm and.orcm}]
+pr-readers-br;	br.call, br.cond, brl.call, brl.cond, br.ret, br.wexit, br.wtop, break.b, hint.b, nop.b, IC:ReservedBQP
+pr-readers-nobr-nomovpr;	add, addl, addp4, adds, and, andcm, break.f, break.i, break.m, break.x, chk.s, IC:chk-a, cmp, cmp4, IC:cmpxchg, clz, IC:czx, dep, extr, IC:fp-arith, IC:fp-non-arith, fc, fchkf, fclrf, fcmp, IC:fetchadd, fpcmp, fsetc, fwb, getf, hint.f, hint.i, hint.m, hint.x, IC:invala-all, itc.i, itc.d, itr.i, itr.d, IC:ld, IC:ldf, IC:ldfp, IC:lfetch-all, mf, IC:mix, IC:mov-from-AR-M, IC:mov-from-AR-IM, IC:mov-from-AR-I, IC:mov-to-AR-M, IC:mov-to-AR-I, IC:mov-to-AR-IM, IC:mov-to-BR, IC:mov-from-BR, IC:mov-to-CR, IC:mov-from-CR, IC:mov-to-IND, IC:mov-from-IND, IC:mov-ip, IC:mov-to-PSR-l, IC:mov-to-PSR-um, IC:mov-from-PSR, IC:mov-from-PSR-um, movl, IC:mux, nop.f, nop.i, nop.m, nop.x, or, IC:pack, IC:padd, IC:pavg, IC:pavgsub, IC:pcmp, IC:pmax, IC:pmin, IC:pmpy, IC:pmpyshr, popcnt, IC:probe-all, IC:psad, IC:pshl, IC:pshladd, IC:pshr, IC:pshradd, IC:psub, ptc.e, ptc.g, ptc.ga, ptc.l, ptr.d, ptr.i, IC:ReservedQP, rsm, setf, shl, shladd, shladdp4, shr, shrp, shrp4, srlz.i, srlz.d, ssm, IC:st, IC:stf, sub, sum, IC:sxt, sync, tak, tbit, tf, thash, tnat, tpa, ttag, IC:unpack, IC:xchg, xma, xmpy, xor, IC:zxt
+pr-unc-writers-fp;	IC:pr-gen-writers-fp[Field(ctype)==unc]+11, fprcpa+11, fprsqrta+11, frcpa+11, frsqrta+11
+pr-unc-writers-int;	IC:pr-gen-writers-int[Field(ctype)==unc]+11
+pr-writers;	IC:pr-writers-int, IC:pr-writers-fp
+pr-writers-fp;	IC:pr-norm-writers-fp, IC:pr-unc-writers-fp
+pr-writers-int;	IC:pr-norm-writers-int, IC:pr-unc-writers-int, IC:pr-and-writers, IC:pr-or-writers
+predicatable-instructions;	IC:mov-from-PR, IC:mov-to-PR, IC:pr-readers-br, IC:pr-readers-nobr-nomovpr
+priv-ops;	IC:mov-to-IND-priv, bsw, itc.i, itc.d, itr.i, itr.d, IC:mov-to-CR, IC:mov-from-CR, IC:mov-to-PSR-l, IC:mov-from-PSR, IC:mov-from-IND-priv, ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d, rfi, rsm, ssm, tak, tpa, vmsw
+probe-all;	IC:probe-fault, IC:probe-nofault
+probe-fault;	probe[Format in {M40}]
+probe-nofault;	probe[Format in {M38 M39}]
+psad;	psad1
+pshl;	pshl2, pshl4
+pshladd;	pshladd2
+pshr;	pshr2, pshr4
+pshradd;	pshradd2
+psub;	psub1, psub2, psub4
+ReservedBQP;	-+15
+ReservedQP;	-+16
+rse-readers;	alloc, br.call, br.ia, br.ret, brl.call, cover, flushrs, loadrs, IC:mov-from-AR-BSP, IC:mov-from-AR-BSPSTORE, IC:mov-to-AR-BSPSTORE, IC:mov-from-AR-RNAT, IC:mov-to-AR-RNAT, rfi
+rse-writers;	alloc, br.call, br.ia, br.ret, brl.call, cover, flushrs, loadrs, IC:mov-to-AR-BSPSTORE, rfi
+st;	st1, st2, st4, st8, st8.spill, st16
+st-postinc;	IC:stf[Format in {M10}], IC:st[Format in {M5}]
+stf;	stfs, stfd, stfe, stf8, stf.spill
+sxt;	sxt1, sxt2, sxt4
+sys-mask-writers-partial;	rsm, ssm
+unpack;	unpack1, unpack2, unpack4
+unpredicatable-instructions;	alloc, br.cloop, br.ctop, br.cexit, br.ia, brp, bsw, clrrrb, cover, epc, flushrs, loadrs, rfi, vmsw
+user-mask-writers-partial;	rum, sum
+xchg;	xchg1, xchg2, xchg4, xchg8
+zxt;	zxt1, zxt2, zxt4

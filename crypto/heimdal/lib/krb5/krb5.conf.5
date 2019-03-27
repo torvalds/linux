@@ -1,0 +1,575 @@
+.\" Copyright (c) 1999 - 2005 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd May  4, 2005
+.Dt KRB5.CONF 5
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5.conf
+.Nd configuration file for Kerberos 5
+.Sh SYNOPSIS
+.In krb5.h
+.Sh DESCRIPTION
+The
+.Nm
+file specifies several configuration parameters for the Kerberos 5
+library, as well as for some programs.
+.Pp
+The file consists of one or more sections, containing a number of
+bindings.
+The value of each binding can be either a string or a list of other
+bindings.
+The grammar looks like:
+.Bd -literal -offset indent
+file:
+	/* empty */
+	sections
+
+sections:
+	section sections
+	section
+
+section:
+	'[' section_name ']' bindings
+
+section_name:
+	STRING
+
+bindings:
+	binding bindings
+	binding
+
+binding:
+	name '=' STRING
+	name '=' '{' bindings '}'
+
+name:
+	STRING
+
+.Ed
+.Li STRINGs
+consists of one or more non-whitespace characters.
+.Pp
+STRINGs that are specified later in this man-page uses the following
+notation.
+.Bl -tag -width "xxx" -offset indent
+.It boolean
+values can be either yes/true or no/false.
+.It time
+values can be a list of year, month, day, hour, min, second.
+Example: 1 month 2 days 30 min.
+If no unit is given, seconds is assumed.
+.It etypes
+valid encryption types are: des-cbc-crc, des-cbc-md4, des-cbc-md5,
+des3-cbc-sha1, arcfour-hmac-md5, aes128-cts-hmac-sha1-96, and
+aes256-cts-hmac-sha1-96 .
+.It address
+an address can be either a IPv4 or a IPv6 address.
+.El
+.Pp
+Currently recognised sections and bindings are:
+.Bl -tag -width "xxx" -offset indent
+.It Li [appdefaults]
+Specifies the default values to be used for Kerberos applications.
+You can specify defaults per application, realm, or a combination of
+these.
+The preference order is:
+.Bl -enum -compact
+.It
+.Va application Va realm Va option
+.It
+.Va application Va option
+.It
+.Va realm Va option
+.It
+.Va option
+.El
+.Pp
+The supported options are:
+.Bl -tag -width "xxx" -offset indent
+.It Li forwardable = Va boolean
+When obtaining initial credentials, make the credentials forwardable.
+.It Li proxiable = Va boolean
+When obtaining initial credentials, make the credentials proxiable.
+.It Li no-addresses = Va boolean
+When obtaining initial credentials, request them for an empty set of
+addresses, making the tickets valid from any address.
+.It Li ticket_lifetime = Va time
+Default ticket lifetime.
+.It Li renew_lifetime = Va time
+Default renewable ticket lifetime.
+.It Li encrypt = Va boolean
+Use encryption, when available.
+.It Li forward = Va boolean
+Forward credentials to remote host (for
+.Xr rsh 1 ,
+.Xr telnet 1 ,
+etc).
+.El
+.It Li [libdefaults]
+.Bl -tag -width "xxx" -offset indent
+.It Li default_realm = Va REALM
+Default realm to use, this is also known as your
+.Dq local realm .
+The default is the result of
+.Fn krb5_get_host_realm "local hostname" .
+.It Li allow_weak_crypto = Va boolean
+is weaks crypto algorithms allowed to be used, among others, DES is
+considered weak.
+.It Li clockskew = Va time
+Maximum time differential (in seconds) allowed when comparing
+times.
+Default is 300 seconds (five minutes).
+.It Li kdc_timeout = Va time
+Maximum time to wait for a reply from the kdc, default is 3 seconds.
+.It Li v4_name_convert
+.It Li v4_instance_resolve
+These are described in the
+.Xr krb5_425_conv_principal  3
+manual page.
+.It Li capath = {
+.Bl -tag -width "xxx" -offset indent
+.It Va destination-realm Li = Va next-hop-realm
+.It ...
+.It Li }
+.El
+This is deprecated, see the
+.Li capaths
+section below.
+.It Li default_cc_type = Va cctype
+sets the default credentials type.
+.It Li default_cc_name = Va ccname
+the default credentials cache name.
+If you want to change the type only use
+.Li default_cc_type .
+The string can contain variables that are expanded on runtime.
+Only support variable now is
+.Li %{uid}
+that expands to the current user id.
+.It Li default_etypes = Va etypes ...
+A list of default encryption types to use. (Default: all enctypes if
+allow_weak_crypto = TRUE, else all enctypes except single DES enctypes.)
+.It Li default_as_etypes = Va etypes ...
+A list of default encryption types to use in AS requests.  (Default: the
+value of default_etypes.)
+.It Li default_tgs_etypes = Va etypes ...
+A list of default encryption types to use in TGS requests.  (Default:
+the value of default_etypes.)
+.It Li default_etypes_des = Va etypes ...
+A list of default encryption types to use when requesting a DES credential.
+.It Li default_keytab_name = Va keytab
+The keytab to use if no other is specified, default is
+.Dq FILE:/etc/krb5.keytab .
+.It Li dns_lookup_kdc = Va boolean
+Use DNS SRV records to lookup KDC services location.
+.It Li dns_lookup_realm = Va boolean
+Use DNS TXT records to lookup domain to realm mappings.
+.It Li kdc_timesync = Va boolean
+Try to keep track of the time differential between the local machine
+and the KDC, and then compensate for that when issuing requests.
+.It Li max_retries = Va number
+The max number of times to try to contact each KDC.
+.It Li large_msg_size = Va number
+The threshold where protocols with tiny maximum message sizes are not
+considered usable to send messages to the KDC.
+.It Li ticket_lifetime = Va time
+Default ticket lifetime.
+.It Li renew_lifetime = Va time
+Default renewable ticket lifetime.
+.It Li forwardable = Va boolean
+When obtaining initial credentials, make the credentials forwardable.
+This option is also valid in the [realms] section.
+.It Li proxiable = Va boolean
+When obtaining initial credentials, make the credentials proxiable.
+This option is also valid in the [realms] section.
+.It Li verify_ap_req_nofail = Va boolean
+If enabled, failure to verify credentials against a local key is a
+fatal error.
+The application has to be able to read the corresponding service key
+for this to work.
+Some applications, like
+.Xr su 1 ,
+enable this option unconditionally.
+.It Li warn_pwexpire = Va time
+How soon to warn for expiring password.
+Default is seven days.
+.It Li http_proxy = Va proxy-spec
+A HTTP-proxy to use when talking to the KDC via HTTP.
+.It Li dns_proxy = Va proxy-spec
+Enable using DNS via HTTP.
+.It Li extra_addresses = Va address ...
+A list of addresses to get tickets for along with all local addresses.
+.It Li time_format = Va string
+How to print time strings in logs, this string is passed to
+.Xr strftime 3 .
+.It Li date_format = Va string
+How to print date strings in logs, this string is passed to
+.Xr strftime 3 .
+.It Li log_utc = Va boolean
+Write log-entries using UTC instead of your local time zone.
+.It Li scan_interfaces = Va boolean
+Scan all network interfaces for addresses, as opposed to simply using
+the address associated with the system's host name.
+.It Li fcache_version = Va int
+Use file credential cache format version specified.
+.It Li krb4_get_tickets = Va boolean
+Also get Kerberos 4 tickets in
+.Nm kinit ,
+.Nm login ,
+and other programs.
+This option is also valid in the [realms] section.
+.It Li fcc-mit-ticketflags = Va boolean
+Use MIT compatible format for file credential cache.
+It's the field ticketflags that is stored in reverse bit order for
+older than Heimdal 0.7.
+Setting this flag to
+.Dv TRUE
+make it store the MIT way, this is default for Heimdal 0.7.
+.It Li check-rd-req-server
+If set to "ignore", the framework will ignore any the server input to
+.Xr krb5_rd_req 3,
+this is very useful when the GSS-API server input the
+wrong server name into the gss_accept_sec_context call.
+.El
+.It Li [domain_realm]
+This is a list of mappings from DNS domain to Kerberos realm.
+Each binding in this section looks like:
+.Pp
+.Dl domain = realm
+.Pp
+The domain can be either a full name of a host or a trailing
+component, in the latter case the domain-string should start with a
+period.
+The trailing component only matches hosts that are in the same domain, ie
+.Dq .example.com
+matches
+.Dq foo.example.com ,
+but not
+.Dq foo.test.example.com .
+.Pp
+The realm may be the token `dns_locate', in which case the actual
+realm will be determined using DNS (independently of the setting
+of the `dns_lookup_realm' option).
+.It Li [realms]
+.Bl -tag -width "xxx" -offset indent
+.It Va REALM Li = {
+.Bl -tag -width "xxx" -offset indent
+.It Li kdc = Va [service/]host[:port]
+Specifies a list of kdcs for this realm.
+If the optional
+.Va port
+is absent, the
+default value for the
+.Dq kerberos/udp
+.Dq kerberos/tcp ,
+and
+.Dq http/tcp
+port (depending on service) will be used.
+The kdcs will be used in the order that they are specified.
+.Pp
+The optional
+.Va service
+specifies over what medium the kdc should be
+contacted.
+Possible services are
+.Dq udp ,
+.Dq tcp ,
+and
+.Dq http .
+Http can also be written as
+.Dq http:// .
+Default service is
+.Dq udp
+and
+.Dq tcp .
+.It Li admin_server = Va host[:port]
+Specifies the admin server for this realm, where all the modifications
+to the database are performed.
+.It Li kpasswd_server = Va host[:port]
+Points to the server where all the password changes are performed.
+If there is no such entry, the kpasswd port on the admin_server host
+will be tried.
+.It Li krb524_server = Va host[:port]
+Points to the server that does 524 conversions.
+If it is not mentioned, the krb524 port on the kdcs will be tried.
+.It Li v4_instance_convert
+.It Li v4_name_convert
+.It Li default_domain
+See
+.Xr krb5_425_conv_principal 3 .
+.It Li tgs_require_subkey
+a boolan variable that defaults to false.
+Old DCE secd (pre 1.1) might need this to be true.
+.El
+.It Li }
+.El
+.It Li [capaths]
+.Bl -tag -width "xxx" -offset indent
+.It Va client-realm Li = {
+.Bl -tag -width "xxx" -offset indent
+.It Va server-realm Li = Va hop-realm ...
+This serves two purposes. First the first listed
+.Va hop-realm
+tells a client which realm it should contact in order to ultimately
+obtain credentials for a service in the
+.Va server-realm .
+Secondly, it tells the KDC (and other servers) which realms are
+allowed in a multi-hop traversal from
+.Va client-realm
+to
+.Va server-realm .
+Except for the client case, the order of the realms are not important.
+.El
+.It Va }
+.El
+.It Li [logging]
+.Bl -tag -width "xxx" -offset indent
+.It Va entity Li = Va destination
+Specifies that
+.Va entity
+should use the specified
+.Li destination
+for logging.
+See the
+.Xr krb5_openlog 3
+manual page for a list of defined destinations.
+.El
+.It Li [kdc]
+.Bl -tag -width "xxx" -offset indent
+.It Li database Li = {
+.Bl -tag -width "xxx" -offset indent
+.It Li dbname Li = Va DATABASENAME
+Use this database for this realm.
+See the info documetation how to configure different database backends.
+.It Li realm Li = Va REALM
+Specifies the realm that will be stored in this database.
+It realm isn't set, it will used as the default database, there can
+only be one entry that doesn't have a
+.Li realm
+stanza.
+.It Li mkey_file Li = Pa FILENAME
+Use this keytab file for the master key of this database.
+If not specified
+.Va DATABASENAME Ns .mkey
+will be used.
+.It Li acl_file Li = PA FILENAME
+Use this file for the ACL list of this database.
+.It Li log_file Li = Pa FILENAME
+Use this file as the log of changes performed to the database.
+This file is used by
+.Nm ipropd-master
+for propagating changes to slaves.
+.El
+.It Li }
+.It Li max-request = Va SIZE
+Maximum size of a kdc request.
+.It Li require-preauth = Va BOOL
+If set pre-authentication is required.
+Since krb4 requests are not pre-authenticated they will be rejected.
+.It Li ports = Va "list of ports"
+List of ports the kdc should listen to.
+.It Li addresses = Va "list of interfaces"
+List of addresses the kdc should bind to.
+.It Li enable-kerberos4 = Va BOOL
+Turn on Kerberos 4 support.
+.It Li v4-realm = Va REALM
+To what realm v4 requests should be mapped.
+.It Li enable-524 = Va BOOL
+Should the Kerberos 524 converting facility be turned on.
+Default is the same as
+.Va enable-kerberos4 .
+.It Li enable-http = Va BOOL
+Should the kdc answer kdc-requests over http.
+.It Li enable-kaserver = Va BOOL
+If this kdc should emulate the AFS kaserver.
+.It Li tgt-use-strongest-session-key = Va BOOL
+If this is TRUE then the KDC will prefer the strongest key from the
+client's AS-REQ or TGS-REQ enctype list for the ticket session key that
+is supported by the KDC and the target principal when the target
+principal is a krbtgt principal.  Else it will prefer the first key from
+the client's AS-REQ enctype list that is also supported by the KDC and
+the target principal. Defaults to TRUE.
+.It Li svc-use-strongest-session-key = Va BOOL
+Like tgt-use-strongest-session-key, but applies to the session key
+enctype of tickets for services other than krbtgt principals. Defaults
+to TRUE.
+.It Li preauth-use-strongest-session-key = Va BOOL
+If TRUE then select the strongest possible enctype from the client's
+AS-REQ for PA-ETYPE-INFO2 (i.e., for password-based pre-authentication).
+Else pick the first supported enctype from the client's AS-REQ. Defaults
+to TRUE.
+.It Li use-strongest-server-key = Va BOOL
+If TRUE then the KDC picks, for the ticket encrypted part's key, the
+first supported enctype from the target service principal's hdb entry's
+current keyset. Else the KDC picks the first supported enctype from the
+target service principal's hdb entry's current keyset. Defaults to TRUE.
+.It Li check-ticket-addresses = Va BOOL
+Verify the addresses in the tickets used in tgs requests.
+.\" XXX
+.It Li allow-null-ticket-addresses = Va BOOL
+Allow address-less tickets.
+.\" XXX
+.It Li allow-anonymous = Va BOOL
+If the kdc is allowed to hand out anonymous tickets.
+.It Li encode_as_rep_as_tgs_rep = Va BOOL
+Encode as-rep as tgs-rep tobe compatible with mistakes older DCE secd did.
+.\" XXX
+.It Li kdc_warn_pwexpire = Va TIME
+The time before expiration that the user should be warned that her
+password is about to expire.
+.It Li logging = Va Logging
+What type of logging the kdc should use, see also [logging]/kdc.
+.It Li use_2b = {
+.Bl -tag -width "xxx" -offset indent
+.It Va principal Li = Va BOOL
+boolean value if the 524 daemon should return AFS 2b tokens for
+.Fa principal .
+.It ...
+.El
+.It Li }
+.It Li hdb-ldap-structural-object Va structural object
+If the LDAP backend is used for storing principals, this is the
+structural object that will be used when creating and when reading
+objects.
+The default value is account .
+.It Li hdb-ldap-create-base Va creation dn
+is the dn that will be appended to the principal when creating entries.
+Default value is the search dn.
+.It Li enable-digest = Va BOOL
+Should the kdc answer digest requests. The default is FALSE.
+.It Li digests_allowed = Va list of digests
+Specifies the digests the kdc will reply to. The default is
+.Li ntlm-v2 .
+.El
+.It Li [kadmin]
+.Bl -tag -width "xxx" -offset indent
+.It Li require-preauth = Va BOOL
+If pre-authentication is required to talk to the kadmin server.
+.It Li password_lifetime = Va time
+If a principal already have its password set for expiration, this is
+the time it will be valid for after a change.
+.It Li default_keys = Va keytypes...
+For each entry in
+.Va default_keys
+try to parse it as a sequence of
+.Va etype:salttype:salt
+syntax of this if something like:
+.Pp
+[(des|des3|etype):](pw-salt|afs3-salt)[:string]
+.Pp
+If
+.Ar etype
+is omitted it means everything, and if string is omitted it means the
+default salt string (for that principal and encryption type).
+Additional special values of keytypes are:
+.Bl -tag -width "xxx" -offset indent
+.It Li v5
+The Kerberos 5 salt
+.Va pw-salt
+.It Li v4
+The Kerberos 4 salt
+.Va des:pw-salt:
+.El
+.It Li use_v4_salt = Va BOOL
+When true, this is the same as
+.Pp
+.Va default_keys = Va des3:pw-salt Va v4
+.Pp
+and is only left for backwards compatibility.
+.El
+.It Li [password_quality]
+Check the Password quality assurance in the info documentation for
+more information.
+.Bl -tag -width "xxx" -offset indent
+.It Li check_library = Va library-name
+Library name that contains the password check_function
+.It Li check_function = Va function-name
+Function name for checking passwords in check_library
+.It Li policy_libraries = Va library1 ... libraryN
+List of libraries that can do password policy checks
+.It Li policies = Va policy1 ... policyN
+List of policy names to apply to the password. Builtin policies are
+among other minimum-length, character-class, external-check.
+.El
+.El
+.Sh ENVIRONMENT
+.Ev KRB5_CONFIG
+points to the configuration file to read.
+.Sh FILES
+.Bl -tag -width "/etc/krb5.conf"
+.It Pa /etc/krb5.conf
+configuration file for Kerberos 5.
+.El
+.Sh EXAMPLES
+.Bd -literal -offset indent
+[libdefaults]
+	default_realm = FOO.SE
+[domain_realm]
+	.foo.se = FOO.SE
+	.bar.se = FOO.SE
+[realms]
+	FOO.SE = {
+		kdc = kerberos.foo.se
+		v4_name_convert = {
+			rcmd = host
+		}
+		v4_instance_convert = {
+			xyz = xyz.bar.se
+		}
+		default_domain = foo.se
+	}
+[logging]
+	kdc = FILE:/var/heimdal/kdc.log
+	kdc = SYSLOG:INFO
+	default = SYSLOG:INFO:USER
+.Ed
+.Sh DIAGNOSTICS
+Since
+.Nm
+is read and parsed by the krb5 library, there is not a lot of
+opportunities for programs to report parsing errors in any useful
+format.
+To help overcome this problem, there is a program
+.Nm verify_krb5_conf
+that reads
+.Nm
+and tries to emit useful diagnostics from parsing errors.
+Note that this program does not have any way of knowing what options
+are actually used and thus cannot warn about unknown or misspelled
+ones.
+.Sh SEE ALSO
+.Xr kinit 1 ,
+.Xr krb5_425_conv_principal 3 ,
+.Xr krb5_openlog 3 ,
+.Xr strftime 3 ,
+.Xr verify_krb5_conf 8

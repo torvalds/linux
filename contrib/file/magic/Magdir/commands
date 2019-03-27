@@ -1,0 +1,118 @@
+
+#------------------------------------------------------------------------------
+# $File: commands,v 1.59 2017/08/14 07:40:38 christos Exp $
+# commands:  file(1) magic for various shells and interpreters
+#
+#0	string/w	:			shell archive or script for antique kernel text
+0	string/wt	#!\ /bin/sh		POSIX shell script text executable
+!:mime	text/x-shellscript
+0	string/wb	#!\ /bin/sh		POSIX shell script executable (binary data)
+!:mime	text/x-shellscript
+
+0	string/wt	#!\ /bin/csh		C shell script text executable
+!:mime	text/x-shellscript
+
+# korn shell magic, sent by George Wu, gwu@clyde.att.com
+0	string/wt	#!\ /bin/ksh		Korn shell script text executable
+!:mime	text/x-shellscript
+0	string/wb	#!\ /bin/ksh		Korn shell script executable (binary data)
+!:mime	text/x-shellscript
+
+0	string/wt 	#!\ /bin/tcsh		Tenex C shell script text executable
+!:mime	text/x-shellscript
+0	string/wt	#!\ /usr/bin/tcsh	Tenex C shell script text executable
+!:mime	text/x-shellscript
+0	string/wt 	#!\ /usr/local/tcsh	Tenex C shell script text executable
+!:mime	text/x-shellscript
+0	string/wt	#!\ /usr/local/bin/tcsh	Tenex C shell script text executable
+!:mime	text/x-shellscript
+
+#
+# zsh/ash/ae/nawk/gawk magic from cameron@cs.unsw.oz.au (Cameron Simpson)
+0	string/wt	#!\ /bin/zsh		Paul Falstad's zsh script text executable
+!:mime	text/x-shellscript
+0	string/wt	#!\ /usr/bin/zsh	Paul Falstad's zsh script text executable
+!:mime	text/x-shellscript
+0	string/wt	#!\ /usr/local/bin/zsh	Paul Falstad's zsh script text executable
+!:mime	text/x-shellscript
+0	string/wt	#!\ /usr/local/bin/ash	Neil Brown's ash script text executable
+!:mime	text/x-shellscript
+0	string/wt	#!\ /usr/local/bin/ae	Neil Brown's ae script text executable
+!:mime	text/x-shellscript
+0	string/wt	#!\ /bin/nawk		new awk script text executable
+!:mime	text/x-nawk
+0	string/wt	#!\ /usr/bin/nawk	new awk script text executable
+!:mime	text/x-nawk
+0	string/wt	#!\ /usr/local/bin/nawk	new awk script text executable
+!:mime	text/x-nawk
+0	string/wt	#!\ /bin/gawk		GNU awk script text executable
+!:mime	text/x-gawk
+0	string/wt	#!\ /usr/bin/gawk	GNU awk script text executable
+!:mime	text/x-gawk
+0	string/wt	#!\ /usr/local/bin/gawk	GNU awk script text executable
+!:mime	text/x-gawk
+#
+0	string/wt	#!\ /bin/awk		awk script text executable
+!:mime	text/x-awk
+0	string/wt	#!\ /usr/bin/awk	awk script text executable
+!:mime	text/x-awk
+0	regex/4096	=^[\040\t\f\r\n]{0,100}BEGIN[\040\t\f\r\n]{0,100}[{]	awk or perl script text
+
+# AT&T Bell Labs' Plan 9 shell
+0	string/wt	#!\ /bin/rc	Plan 9 rc shell script text executable
+
+# bash shell magic, from Peter Tobias (tobias@server.et-inf.fho-emden.de)
+0	string/wt	#!\ /bin/bash	Bourne-Again shell script text executable
+!:mime	text/x-shellscript
+0	string/wb	#!\ /bin/bash	Bourne-Again shell script executable (binary data)
+!:mime	text/x-shellscript
+0	string/wt	#!\ /usr/bin/bash	Bourne-Again shell script text executable
+!:mime	text/x-shellscript
+0	string/wb	#!\ /usr/bin/bash	Bourne-Again shell script executable (binary data)
+!:mime	text/x-shellscript
+0	string/wt	#!\ /usr/local/bash	Bourne-Again shell script text executable
+!:mime	text/x-shellscript
+0	string/wb	#!\ /usr/local/bash	Bourne-Again shell script executable (binary data)
+!:mime	text/x-shellscript
+0	string/wt	#!\ /usr/local/bin/bash	Bourne-Again shell script text executable
+!:mime	text/x-shellscript
+0	string/wb	#!\ /usr/local/bin/bash	Bourne-Again shell script executable (binary data)
+!:mime	text/x-shellscript
+0	string/wt	#!\ /usr/bin/env\ bash	Bourne-Again shell script text executable
+!:mime	text/x-shellscript
+
+# PHP scripts
+# Ulf Harnhammar <ulfh@update.uu.se>
+0	search/1/c	=<?php			PHP script text
+!:strength + 30
+!:mime	text/x-php
+0	search/1	=<?\n			PHP script text
+!:mime	text/x-php
+0	search/1	=<?\r			PHP script text
+!:mime	text/x-php
+0	search/1/w	#!\ /usr/local/bin/php	PHP script text executable
+!:strength + 10
+!:mime	text/x-php
+0	search/1/w	#!\ /usr/bin/php	PHP script text executable
+!:strength + 10
+!:mime	text/x-php
+# Smarty compiled template, http://www.smarty.net/
+# Elan Ruusamae <glen@delfi.ee>
+0	string	=<?php
+>5	regex	[\ \n]
+>>6	string	/*\ Smarty\ version		Smarty compiled template
+>>>24	regex	[0-9.]+				\b, version %s
+!:mime	text/x-php
+
+0	string		Zend\x00		PHP script Zend Optimizer data
+
+0	string/t	$!			DCL command file
+
+# Type: Pdmenu
+# URL:  http://packages.debian.org/pdmenu
+# From: Edward Betts <edward@debian.org>
+0	string		#!/usr/bin/pdmenu	Pdmenu configuration file text
+
+# From Danny Weldon
+0	string	\x0b\x13\x08\x00
+>0x04   uleshort	<4      ksh byte-code version %d

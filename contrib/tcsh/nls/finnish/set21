@@ -1,0 +1,5 @@
+$ $tcsh: set21,v 1.2 2006/03/02 18:46:46 christos Exp $
+$ tc.disc.c
+$set 21 
+1 Couldn't get local chars.\n
+2 Couldn't set local chars.\n

@@ -1,0 +1,149 @@
+.\" Copyright (c) 2003 Takanori Watanabe.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 17, 2007
+.Dt ACPI_THERMAL 4
+.Os
+.Sh NAME
+.Nm acpi_thermal
+.Nd ACPI thermal management subsystem
+.Sh SYNOPSIS
+.Cd "device acpi"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides the thermal management features of the ACPI module.
+This driver has a
+.Xr sysctl 8
+interface and a
+.Xr devd 8
+notification interface.
+The sysctls export properties of each ACPI thermal zone object.
+.Pp
+There can be multiple thermal zones in a system.
+For example, each CPU and the enclosure could all be separate thermal
+zones, each with its own setpoints and cooling devices.
+Thermal zones are numbered sequentially in the order they appear in
+the AML.
+.Pp
+The
+.Nm
+driver also activates the active cooling system according to
+each thermal zone's setpoints.
+.Sh SYSCTL VARIABLES
+.Bl -tag -width indent
+.It Va hw.acpi.thermal.min_runtime
+Number of seconds to continue active cooling once started.
+A new active cooling level will not be selected until this interval expires.
+.It Va hw.acpi.thermal.polling_rate
+Number of seconds between polling the current temperature.
+.It Va hw.acpi.thermal.user_override
+If set to 1, allow user override of various setpoints (below).
+The original values for these settings are obtained from the BIOS and
+system overheating and possible damage could occur if changed.
+Default is 0 (no override).
+.It Va hw.acpi.thermal.tz%d.active
+Current active cooling system state.
+If this is non-negative, the appropriate _AC%d object is running.
+Set this value to the desired active cooling level to force
+the corresponding fan object to the appropriate level.
+.It Va hw.acpi.thermal.tz%d.passive_cooling
+If set to 1, passive cooling is enabled.
+It does cooling without fans using
+.Xr cpufreq 4
+as the mechanism for controlling CPU speed.
+Default is enabled for tz0 where it is available.
+.It Va hw.acpi.thermal.tz%d.thermal_flags
+Current thermal zone status.
+These are bit-masked values.
+.It Va hw.acpi.thermal.tz%d.temperature
+Current temperature for this zone.
+.It Va hw.acpi.thermal.tz%d._PSV
+Temperature to start passive cooling by throttling down CPU, etc.
+This value can be overridden by the user.
+.It Va hw.acpi.thermal.tz%d._HOT
+Temperature to start critical suspend to disk (S4).
+This value can be overridden by the user.
+.It Va hw.acpi.thermal.tz%d._CRT
+Temperature to start critical shutdown (S5).
+This value can be overridden by the user.
+.It Va hw.acpi.thermal.tz%d._ACx
+Temperatures at which to switch to the corresponding active cooling
+level.
+The lower the _ACx value, the higher the cooling power.
+.El
+.Pp
+All temperatures are printed in Celsius.
+Values can be set in Celsius (by providing a trailing
+.Qq C )
+or Kelvin (by leaving off any trailing letter).
+When setting a value by
+.Xr sysctl 8 ,
+do not specify a trailing decimal (i.e., 90C instead of 90.0C).
+.Sh NOTIFIES
+Notifies are passed to userland via
+.Xr devd 8 .
+See
+.Pa /etc/devd.conf
+and
+.Xr devd.conf 5
+for examples.
+The
+.Nm
+driver sends events with the following attributes:
+.Pp
+.Bl -tag -width "subsystem" -compact
+.It system
+.Li ACPI
+.It subsystem
+.Li Thermal
+.It type
+The fully qualified thermal zone object path as in the ASL.
+.It notify
+An integer designating the event:
+.Pp
+.Bl -tag -width indent -compact
+.It Li 0x80
+Current temperature has changed.
+.It Li 0x81
+One or more trip points (_ACx, _PSV) have changed.
+.It Li 0x82
+One or more device lists (_ALx, _PSL, _TZD) have changed.
+.It Li 0xcc
+Non-standard notify that the system will shutdown if the temperature
+stays above _CRT or _HOT for one more poll cycle.
+.El
+.El
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr cpufreq 4 ,
+.Xr acpidump 8
+.Sh AUTHORS
+.An -nosplit
+.An Michael Smith
+.Pp
+This manual page was written by
+.An Takanori Watanabe .

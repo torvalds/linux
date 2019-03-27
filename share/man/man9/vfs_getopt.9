@@ -1,0 +1,245 @@
+.\"
+.\" Copyright (C) 2007 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 31, 2011
+.Dt VFS_GETOPT 9
+.Os
+.Sh NAME
+.Nm vfs_getopt ,
+.Nm vfs_getopts ,
+.Nm vfs_flagopt ,
+.Nm vfs_scanopt ,
+.Nm vfs_copyopt ,
+.Nm vfs_filteropt ,
+.Nm vfs_setopt ,
+.Nm vfs_setopt_part ,
+.Nm vfs_setopts
+.Nd "manipulate mount options and their values"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.Ft int
+.Fo vfs_getopt
+.Fa "struct vfsoptlist *opts" "const char *name" "void **buf" "int *len"
+.Fc
+.Ft "char *"
+.Fn vfs_getops "struct vfsoptlist *opts" "const char *name" "int *error"
+.Ft int
+.Fo vfs_flagopt
+.Fa "struct vfsoptlist *opts" "const char *name" "uint64_t *flags" "uint64_t flag"
+.Fc
+.Ft int
+.Fo vfs_scanopt
+.Fa "struct vfsoptlist *opts" "const char *name" "const char *fmt" ...
+.Fc
+.Ft int
+.Fo vfs_copyopt
+.Fa "struct vfsoptlist *opts" "const char *name" "void *dest" "int len"
+.Fc
+.Ft int
+.Fo vfs_filteropt
+.Fa "struct vfsoptlist *opts" "const char **legal"
+.Fc
+.Ft int
+.Fo vfs_setopt
+.Fa "struct vfsoptlist *opts" "const char *name" "void *value" "int len"
+.Fc
+.Ft int
+.Fo vfs_setopt_part
+.Fa "struct vfsoptlist *opts" "const char *name" "void *value" "int len"
+.Fc
+.Ft int
+.Fo vfs_setopts
+.Fa "struct vfsoptlist *opts" "const char *name" "const char *value"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn vfs_getopt
+function sets
+.Fa buf
+to point to the value of the named mount option, and sets
+.Fa len
+to the length of the value if it is not
+.Dv NULL .
+The
+.Fa buf
+argument
+will point to the actual value, and does not need to be freed or released
+(and probably should not be modified).
+.Pp
+The
+.Fn vfs_getopts
+function
+returns the value of the specified option if it is a string (i.e.,
+.Dv NUL
+terminated).
+.Pp
+The
+.Fn vfs_flagopt
+function determines if an option exists.
+If the option does exist, and
+.Fa flags
+is not
+.Dv NULL ,
+.Fa flag
+is added to those already set in
+.Fa flags .
+If the option does not exist, and
+.Fa flags
+is not
+.Dv NULL ,
+.Fa flag
+is removed from those already set in
+.Fa flags .
+An example of typical usage is:
+.Bd -literal
+if (vfs_flagopt(mp->mnt_optnew, "wormlike", NULL, 0))
+	vfs_flagopt(mp->mnt_optnew, "appendok", &(mp->flags), F_APPENDOK);
+.Ed
+.Pp
+The
+.Fn vfs_scanopt
+function performs a
+.Xr vsscanf 3
+with the option's value, using the given format,
+into the specified variable arguments.
+The value must be a string (i.e.,
+.Dv NUL
+terminated).
+.Pp
+The
+.Fn vfs_copyopt
+function creates a copy of the option's value.
+The
+.Fa len
+argument must match the length of the option's value exactly
+(i.e., a larger buffer will still cause
+.Fn vfs_copyout
+to fail with
+.Er EINVAL ) .
+.Pp
+The
+.Fn vfs_filteropt
+function ensures that no unknown options were specified.
+A option is valid if its name matches one of the names in the
+list of legal names.
+An option may be prefixed with 'no', and still be considered valid.
+.Pp
+The
+.Fn vfs_setopt
+and
+.Fn vfs_setopt_part
+functions copy new data into the option's value.
+In
+.Fn vfs_setopt ,
+the
+.Fa len
+argument must match the length of the option's value exactly
+(i.e., a larger buffer will still cause
+.Fn vfs_copyout
+to fail with
+.Er EINVAL ) .
+.Pp
+The
+.Fn vfs_setopts
+function copies a new string into the option's value.
+The string, including
+.Dv NUL
+byte, must be no longer than the option's length.
+.Sh RETURN VALUES
+The
+.Fn vfs_getopt
+function returns 0 if the option was found; otherwise,
+.Er ENOENT
+is returned.
+.Pp
+The
+.Fn vfs_getops
+function returns the specified option if it is found, and is
+.Dv NUL
+terminated.
+If the option was found, but is not
+.Dv NUL
+terminated,
+.Fa error
+is set to
+.Er EINVAL
+and
+.Dv NULL
+is returned.
+If the option was not found,
+.Fa error
+is set to 0, and
+.Dv NULL
+is returned.
+.Pp
+The
+.Fn vfs_flagopt
+function returns 1 if the option was found, and 0 if it was not.
+.Pp
+The
+.Fn vfs_scanopt
+function returns 0 if the option was not found, or was not
+.Dv NUL
+terminated; otherwise, the return value of
+.Xr vsscanf 3
+is returned.
+If
+.Xr vsscanf 3
+returns 0, it will be returned unchanged; therefore, a return value of 0 does
+not always mean the option does not exist, or is not a valid string.
+.Pp
+The
+.Fn vfs_copyopt
+and
+.Fn vfs_setopt
+functions return 0 if the copy was successful,
+.Er EINVAL
+if the option was found but the lengths did not match, and
+.Er ENOENT
+if the option was not found.
+.Pp
+The
+.Fn vfs_filteropt
+function returns 0 if all of the options are legal; otherwise,
+.Er EINVAL
+is returned.
+.Pp
+The
+.Fn vfs_setopts
+function returns 0 if the copy was successful,
+.Er EINVAL
+if the option was found but the string was too long, and
+.Er ENOENT
+if the option was not found.
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Chad David Aq Mt davidc@FreeBSD.org
+and
+.An Ruslan Ermilov Aq Mt ru@FreeBSD.org .

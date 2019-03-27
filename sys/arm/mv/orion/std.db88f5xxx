@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+include	"../mv/std.mv"
+files	"../mv/orion/files.db88f5xxx"
+
+makeoptions	KERNPHYSADDR=0x00900000
+makeoptions	KERNVIRTADDR=0xc0900000
+options		KERNVIRTADDR=0xc0900000

@@ -1,0 +1,265 @@
+.\" Copyright (c) 2003-2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 4, 2008
+.Dt PMC.K7 3
+.Os
+.Sh NAME
+.Nm pmc.k7
+.Nd measurement events for
+.Tn AMD
+.Tn Athlon
+(K7 family) CPUs
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+AMD K7 PMCs are present in the
+.Tn "AMD Athlon"
+series of CPUs and are documented in:
+.Rs
+.%B "AMD Athlon Processor x86 Code Optimization Guide"
+.%N "Publication No. 22007"
+.%D "February 2002"
+.%Q "Advanced Micro Devices, Inc."
+.Re
+.Ss PMC Features
+AMD K7 PMCs are 48 bits wide.
+Each K7 CPU contains 4 PMCs with the following capabilities:
+.Bl -column "PMC_CAP_INTERRUPT" "Support"
+.It Em Capability Ta Em Support
+.It PMC_CAP_CASCADE Ta \&No
+.It PMC_CAP_EDGE Ta Yes
+.It PMC_CAP_INTERRUPT Ta Yes
+.It PMC_CAP_INVERT Ta Yes
+.It PMC_CAP_READ Ta Yes
+.It PMC_CAP_PRECISE Ta \&No
+.It PMC_CAP_SYSTEM Ta Yes
+.It PMC_CAP_TAGGING Ta \&No
+.It PMC_CAP_THRESHOLD Ta Yes
+.It PMC_CAP_USER Ta Yes
+.It PMC_CAP_WRITE Ta Yes
+.El
+.Ss Event Qualifiers
+Event specifiers for AMD K7 PMCs can have the following optional
+qualifiers:
+.Bl -tag -width indent
+.It Li count= Ns Ar value
+Configure the counter to increment only if the number of configured
+events measured in a cycle is greater than or equal to
+.Ar value .
+.It Li edge
+Configure the counter to only count negated-to-asserted transitions
+of the conditions expressed by the other qualifiers.
+In other words, the counter will increment only once whenever a given
+condition becomes true, irrespective of the number of clocks during
+which the condition remains true.
+.It Li inv
+Invert the sense of comparison when the
+.Dq Li count
+qualifier is present, making the counter to increment when the
+number of events per cycle is less than the value specified by
+the
+.Dq Li count
+qualifier.
+.It Li os
+Configure the PMC to count events happening at privilege level 0.
+.It Li unitmask= Ns Ar mask
+This qualifier is used to further qualify a select few events,
+.Dq Li k7-dc-refills-from-l2 ,
+.Dq Li k7-dc-refills-from-system
+and
+.Dq Li k7-dc-writebacks .
+Here
+.Ar mask
+is a string of the following characters optionally separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li m
+Count operations for lines in the
+.Dq Modified
+state.
+.It Li o
+Count operations for lines in the
+.Dq Owner
+state.
+.It Li e
+Count operations for lines in the
+.Dq Exclusive
+state.
+.It Li s
+Count operations for lines in the
+.Dq Shared
+state.
+.It Li i
+Count operations for lines in the
+.Dq Invalid
+state.
+.El
+.Pp
+If no
+.Dq Li unitmask
+qualifier is specified, the default is to count events for caches
+lines in any of the above states.
+.It Li usr
+Configure the PMC to count events occurring at privilege levels 1, 2
+or 3.
+.El
+.Pp
+If neither of the
+.Dq Li os
+or
+.Dq Li usr
+qualifiers were specified, the default is to enable both.
+.Ss AMD K7 Event Specifiers
+The event specifiers supported on AMD K7 PMCs are:
+.Bl -tag -width indent
+.It Li k7-dc-accesses
+.Pq Event 40H
+Count data cache accesses.
+.It Li k7-dc-misses
+.Pq Event 41H
+Count data cache misses.
+.It Li k7-dc-refills-from-l2 Op Li ,unitmask= Ns Ar mask
+.Pq Event 42H
+Count data cache refills from L2 cache.
+This event may be further qualified using the
+.Dq Li unitmask
+qualifier.
+.It Li k7-dc-refills-from-system Op Li ,unitmask= Ns Ar mask
+.Pq Event 43H
+Count data cache refills from system memory.
+This event may be further qualified using the
+.Dq Li unitmask
+qualifier.
+.It Li k7-dc-writebacks Op Li ,unitmask= Ns Ar mask
+.Pq Event 44H
+Count data cache writebacks.
+This event may be further qualified using the
+.Dq Li unitmask
+qualifier.
+.It Li k7-hardware-interrupts
+.Pq Event CFH
+Count the number of taken hardware interrupts.
+.It Li k7-ic-fetches
+.Pq Event 80H
+Count instruction cache fetches.
+.It Li k7-ic-misses
+.Pq Event 81H
+Count instruction cache misses.
+.It Li k7-interrupts-masked-cycles
+.Pq Event CDH
+Count the number of cycles when the processor's
+.Va IF
+flag was zero.
+.It Li k7-interrupts-masked-while-pending-cycles
+.Pq Event CEH
+Count the number of cycles interrupts were masked while pending due
+to the processor's
+.Va IF
+flag being zero.
+.It Li k7-l1-and-l2-dtlb-misses
+.Pq Event 46H
+Count L1 and L2 DTLB misses.
+.It Li k7-l1-dtlb-miss-and-l2-dtlb-hits
+.Pq Event 45H
+Count L1 DTLB misses and L2 DTLB hits.
+.It Li k7-l1-itlb-misses
+.Pq Event 84H
+Count L1 ITLB misses that are L2 ITLB hits.
+.It Li k7-l1-l2-itlb-misses
+.Pq Event 85H
+Count L1 (and L2) ITLB misses.
+.It Li k7-misaligned-references
+.Pq Event 47H
+Count misaligned data references.
+.It Li k7-retired-branches
+.Pq Event C2H
+Count all retired branches (conditional, unconditional, exceptions
+and interrupts).
+.It Li k7-retired-branches-mispredicted
+.Pq Event C3H
+Count all mispredicted retired branches.
+.It Li k7-retired-far-control-transfers
+.Pq Event C6H
+Count retired far control transfers.
+.It Li k7-retired-instructions
+.Pq Event C0H
+Count all retired instructions.
+.It Li k7-retired-ops
+.Pq Event C1H
+Count retired ops.
+.It Li k7-retired-resync-branches
+.Pq Event C7H
+Count retired resync branches (non control transfer branches).
+.It Li k7-retired-taken-branches
+.Pq Event C4H
+Count retired taken branches.
+.It Li k7-retired-taken-branches-mispredicted
+.Pq Event C5H
+Count mispredicted taken branches that were retired.
+.El
+.Ss Event Name Aliases
+The following table shows the mapping between the PMC-independent
+aliases supported by
+.Lb libpmc
+and the underlying hardware events used.
+.Bl -column "branch-mispredicts" "Description"
+.It Em Alias Ta Em Event
+.It Li branches Ta Li k7-retired-branches
+.It Li branch-mispredicts Ta Li k7-retired-branches-mispredicted
+.It Li dc-misses Ta Li k7-dc-misses
+.It Li ic-misses Ta Li k7-ic-misses
+.It Li instructions Ta Li k7-retired-instructions
+.It Li interrupts Ta Li k7-hardware-interrupts
+.It Li unhalted-cycles Ta (unsupported)
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.atom 3 ,
+.Xr pmc.core 3 ,
+.Xr pmc.core2 3 ,
+.Xr pmc.iaf 3 ,
+.Xr pmc.k8 3 ,
+.Xr pmc.p4 3 ,
+.Xr pmc.p5 3 ,
+.Xr pmc.p6 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4
+.Sh HISTORY
+The
+.Nm pmc
+library first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+The
+.Lb libpmc
+library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .

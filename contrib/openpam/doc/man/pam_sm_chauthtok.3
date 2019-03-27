@@ -1,0 +1,86 @@
+.\" Generated from pam_sm_chauthtok.c by gendoc.pl
+.\" $OpenPAM: pam_sm_chauthtok.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt PAM_SM_CHAUTHTOK 3
+.Os
+.Sh NAME
+.Nm pam_sm_chauthtok
+.Nd service module implementation for pam_chauthtok
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.In security/pam_modules.h
+.Ft "int"
+.Fn pam_sm_chauthtok "pam_handle_t *pamh" "int flags" "int argc" "const char **argv"
+.Sh DESCRIPTION
+The
+.Fn pam_sm_chauthtok
+function is the service module's implementation
+of the
+.Xr pam_chauthtok 3
+API function.
+.Pp
+When the application calls
+.Xr pam_chauthtok 3 ,
+the service function is
+called twice, first with the
+.Dv PAM_PRELIM_CHECK
+flag set and then again
+with the
+.Dv PAM_UPDATE_AUTHTOK
+flag set.
+.Sh RETURN VALUES
+The
+.Fn pam_sm_chauthtok
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_ABORT
+General failure.
+.It Bq Er PAM_AUTHTOK_DISABLE_AGING
+Authentication token aging disabled.
+.It Bq Er PAM_AUTHTOK_ERR
+Authentication token failure.
+.It Bq Er PAM_AUTHTOK_LOCK_BUSY
+Authentication token lock busy.
+.It Bq Er PAM_AUTHTOK_RECOVERY_ERR
+Failed to recover old authentication token.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_IGNORE
+Ignore this module.
+.It Bq Er PAM_PERM_DENIED
+Permission denied.
+.It Bq Er PAM_SERVICE_ERR
+Error in service module.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.It Bq Er PAM_TRY_AGAIN
+Try again.
+.El
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam_chauthtok 3 ,
+.Xr pam_strerror 3
+.Sh STANDARDS
+.Rs
+.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
+.%D "June 1997"
+.Re
+.Sh AUTHORS
+The
+.Fn pam_sm_chauthtok
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

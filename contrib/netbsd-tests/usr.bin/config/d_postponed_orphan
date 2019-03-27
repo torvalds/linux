@@ -1,0 +1,21 @@
+include "arch/regress/conf/std.regress"
+
+maxusers 4
+
+file-system	REGRESSFS
+
+master0		at root
+
+parenti*	at master?
+
+# Here, parenti is negated before the child* instance is declared.  That
+# means the child* instance does not qualify as an explicit orphan and
+# therefore should _not_ be ignored.
+#
+# config(1) should error out on that config file.
+
+no parenti
+
+child*		at parenti?
+
+config regress root on ?

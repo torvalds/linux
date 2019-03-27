@@ -1,0 +1,112 @@
+#!/bin/sh
+#
+# Copyright (c) 1999  Matt Dillon
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# PROVIDE: var
+# REQUIRE: mountcritlocal
+
+# NFS /var is not supported, unless NFS /var is part of diskless NFS /
+
+. /etc/rc.subr
+
+name="var"
+desc="Populate /var directory"
+stop_cmd=':'
+
+load_rc_config $name
+
+populate_var()
+{
+	/usr/sbin/mtree -deiU -f /etc/mtree/BSD.var.dist -p /var > /dev/null
+	case ${sendmail_enable} in
+	[Nn][Oo][Nn][Ee])
+		;;
+	*)
+		/usr/sbin/mtree -deiU -f /etc/mtree/BSD.sendmail.dist -p / > /dev/null
+		;;
+	esac
+}
+
+# If we do not have a writable /var, create a memory filesystem for /var
+# unless told otherwise by rc.conf.  We don't have /usr yet so use mkdir
+# instead of touch to test.  We want mount to record its mounts so we
+# have to make sure /var/db exists before doing the mount -a.
+#
+case "${varmfs}" in
+[Yy][Ee][Ss])
+	mount_md ${varsize} /var "${varmfs_flags}"
+	;;
+[Nn][Oo])
+	;;
+*)
+	if /bin/mkdir -p /var/.diskless 2> /dev/null; then
+		rmdir /var/.diskless
+	else
+		mount_md ${varsize} /var "${varmfs_flags}"
+	fi
+esac
+
+
+# If we have an empty looking /var, populate it, but only if we have
+# /usr available.  Hopefully, we'll eventually find a workaround, but
+# in realistic diskless setups, we're probably ok.
+case "${populate_var}" in
+[Yy][Ee][Ss])
+	populate_var
+	;;
+[Nn][Oo])
+	exit 0
+	;;
+*)
+	if [ -d /var/run -a -d /var/db -a -d /var/empty ] ; then
+		true
+	elif [ -x /usr/sbin/mtree ] ; then
+		populate_var
+	else
+		# We need mtree to populate /var so try mounting /usr.
+		# If this does not work, we can not boot so it is OK to
+		# try to mount out of order.
+		mount /usr
+		if [ ! -x /usr/sbin/mtree ] ; then
+			exit 1
+		else
+			populate_var
+		fi
+	fi
+	;;
+esac
+
+# Make sure we have /var/log/utx.lastlogin and /var/log/utx.log files
+if [ ! -f /var/log/utx.lastlogin ]; then
+	cp /dev/null /var/log/utx.lastlogin
+	chmod 644 /var/log/utx.lastlogin
+fi
+if [ ! -f /var/log/utx.log ]; then
+	cp /dev/null /var/log/utx.log
+	chmod 644 /var/log/utx.log
+fi

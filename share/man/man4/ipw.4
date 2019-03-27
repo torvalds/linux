@@ -1,0 +1,155 @@
+.\" Copyright (c) 2004-2006
+.\"	Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice unmodified, this list of conditions, and the following
+.\"    disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 15, 2015
+.Dt IPW 4
+.Os
+.Sh NAME
+.Nm ipw
+.Nd "Intel PRO/Wireless 2100 IEEE 802.11 driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ipw"
+.Cd "device ipwfw"
+.Cd "device pci"
+.Cd "device wlan"
+.Cd "device firmware"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ipw_load="YES"
+.Ed
+.Pp
+In both cases, place the following line in
+.Xr loader.conf 5
+to acknowledge the firmware license (see below):
+.Bd -literal -offset indent
+legal.intel_ipw.license_ack=1
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+.Tn Intel
+PRO/Wireless 2100 MiniPCI network adapter.
+.Nm
+supports
+.Cm station ,
+.Cm adhoc ,
+and
+.Cm monitor
+mode operation.
+Only one virtual interface may be configured at any time.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Pp
+This driver requires the firmware built with the
+.Nm ipwfw
+module to work.
+For the loaded firmware to be enabled for use the license at
+.Pa /usr/share/doc/legal/intel_ipw.LICENSE
+must be agreed by adding the following line to
+.Xr loader.conf 5 :
+.Pp
+.Dl "legal.intel_ipw.license_ack=1"
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/doc/legal/intel_ipw.LICENSE" -compact
+.It Pa /usr/share/doc/legal/intel_ipw.LICENSE
+.Nm
+firmware license
+.El
+.Sh EXAMPLES
+Join an existing BSS network (i.e., connect to an access point):
+.Bd -literal -offset indent
+ifconfig wlan create wlandev ipw0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig wlan create wlandev ipw0 ssid my_net up"
+.Pp
+Join a specific BSS network with 64-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev ipw0 ssid my_net \e
+	wepmode on wepkey 0x1234567890 weptxkey 1 up
+.Ed
+.Pp
+Join a specific BSS network with 128-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev ipw0 wlanmode adhoc ssid my_net \e
+    wepmode on wepkey 0x01020304050607080910111213 weptxkey 1
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ipw%d: device timeout"
+The driver will reset the hardware.
+This should not happen.
+.It "ipw%d: firmware error"
+The onboard microcontroller crashes for some reason.
+The driver will reset the hardware.
+This should not happen.
+.It "ipw%d: timeout waiting for firmware initialization to complete"
+The onboard microcontroller failed to initialize in time.
+This should not happen.
+.It "ipw%d: could not load firmware image '%s'"
+The driver failed to load the firmware image using the
+.Xr firmware 9
+subsystem.
+Verify the
+.Xr ipwfw 4
+firmware module is installed and the license agreement
+.Xr loader 8
+tunable has been set.
+.It "ipw%d: could not load microcode"
+An attempt to upload the microcode image to the onboard microcontroller failed.
+This should not happen.
+.It "ipw%d: could not load firmware"
+An attempt to upload the firmware image to the onboard microcontroller failed.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr ipwfw 4 ,
+.Xr pci 4 ,
+.Xr wlan 4 ,
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8
+.Sh AUTHORS
+The original
+.Nm
+driver was written by
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr .

@@ -1,0 +1,94 @@
+.\" Copyright (c) 2002 Tim J. Robbins
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 7, 2002
+.Dt WCSTOL 3
+.Os
+.Sh NAME
+.Nm wcstol , wcstoul ,
+.Nm wcstoll , wcstoull ,
+.Nm wcstoimax , wcstoumax
+.Nd "convert a wide character string value to a"
+.Vt long ,
+.Vt "unsigned long" ,
+.Vt "long long" ,
+.Vt "unsigned long long" ,
+.Vt intmax_t
+or
+.Vt uintmax_t
+integer
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In wchar.h
+.Ft long
+.Fn wcstol "const wchar_t * restrict nptr" "wchar_t ** restrict endptr" "int base"
+.Ft "unsigned long"
+.Fn wcstoul "const wchar_t * restrict nptr" "wchar_t ** restrict endptr" "int base"
+.Ft "long long"
+.Fn wcstoll "const wchar_t * restrict nptr" "wchar_t ** restrict endptr" "int base"
+.Ft "unsigned long long"
+.Fn wcstoull "const wchar_t * restrict nptr" "wchar_t ** restrict endptr" "int base"
+.In inttypes.h
+.Ft intmax_t
+.Fn wcstoimax "const wchar_t * restrict nptr" "wchar_t ** restrict endptr" "int base"
+.Ft uintmax_t
+.Fn wcstoumax "const wchar_t * restrict nptr" "wchar_t ** restrict endptr" "int base"
+.Sh DESCRIPTION
+The
+.Fn wcstol ,
+.Fn wcstoul ,
+.Fn wcstoll ,
+.Fn wcstoull ,
+.Fn wcstoimax
+and
+.Fn wcstoumax
+functions are wide-character versions of the
+.Fn strtol ,
+.Fn strtoul ,
+.Fn strtoll ,
+.Fn strtoull ,
+.Fn strtoimax
+and
+.Fn strtoumax
+functions, respectively.
+Refer to their manual pages (for example
+.Xr strtol 3 )
+for details.
+.Sh SEE ALSO
+.Xr strtol 3 ,
+.Xr strtoul 3
+.Sh STANDARDS
+The
+.Fn wcstol ,
+.Fn wcstoul ,
+.Fn wcstoll ,
+.Fn wcstoull ,
+.Fn wcstoimax
+and
+.Fn wcstoumax
+functions conform to
+.St -isoC-99 .

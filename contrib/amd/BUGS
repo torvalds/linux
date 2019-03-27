@@ -1,0 +1,303 @@
+	    LIST OF KNOWN BUGS IN AM-UTILS OR OPERATING SYSTEMS
+
+Note: report am-utils bugs via Bugzilla to https://bugzilla.am-utils.org/ or
+by email to the am-utils mailing list (see www.am-utils.org).
+
+
+(1) mips-sgi-irix*
+
+[1A] known to have flaky NFS V.3 and TCP.  Amd tends to hang or spin
+infinitely after a few hours or days of use.  Users must install recommended
+patches from vendor.  Patches help, but not all the time.  Otherwise avoid
+using NFS V.3 and TCP on these systems, by setting
+
+	/defaults opts:=vers=2,proto=udp
+
+[1B] yp_all() leaks a file descriptor.  Eventually amd runs out of file
+descriptors and hangs.  Am-utils circumvents this by using its own version
+of yp_all which uses udp and iterates over NIS maps.  The latter isn't as
+reliable as yp_all() which uses TCP, but it is better than hanging.
+
+(I have some reports that older version of hpux-9, with older libc, also
+leak file descriptors.)
+
+[1C] SGI's MIPSpro C compiler on IRIX 6 has the unfortunate habit of
+creating code specificially for the machine it runs on.  The ABI and ISA
+used depend very much on the OS version and compiler release used.  This
+means that the resulting amd binary won't run on machines different from
+the build host, particularly older ones.  Older versions of am-utils
+enforced the O32 ABI when compiling with cc to work around this, but this
+ABI is deprecated in favor of the N32 ABI now, so we use -n32 -mips3 to
+ensure that the binaries run on every host capable of running IRIX 6 at
+all.  If this is not appropriate for you, configure with something like
+CC='cc -64' instead to get the desired ABI and ISA.
+
+(2) alpha-unknown-linux-gnu (RedHat Linux 4.2)
+
+hasmntopt(mnt, opt) can go into an infinite loop if opt is any substring
+of mnt->mnt_opts.  Redhat 5.0 does not have this libc bug.  Here is an
+example program:
+
+#include <stdio.h>
+#include <mntent.h>
+main()
+{
+  struct mntent mnt;
+  char *cp;
+  mnt.mnt_opts = "intr,rw,port=1023,timeo=8,foo=br,retrans=110,indirect,map=/usr/local/AMD/etc/amd.proj,boo";
+  cp = hasmntopt(&mnt, "ro");
+  printf("cp = %s\n", cp);
+  exit(0);
+}
+
+It is possible that sufficiently newer version of libc for RH4.2 fix this
+problem.
+
+
+(3) mips-dec-ultrix4.3
+
+Rainer Orth <ro@TechFak.Uni-Bielefeld.DE> reports
+
+[3A] One needs the Kernel Config Files (UDTBIN430) subset installed to
+compile am-utils, otherwise essential header files (net/if.h, net/route.h,
+rpcsvc/mount.h, rpcsvc/yp_prot.h, rpcsvc/ypclnt.h, sys/proc.h) are
+missing.
+
+[3B] It's probably impossible to build am-utils with DEC C on Ultrix V4.3.
+This compiler is pseudo-ANSI only.  Maybe the new ANSI C compiler in V4.3A
+and beyond will do.  I successfully used gcc 2.8.1.
+
+[3C] You need to build against a recent libhesiod (I used 3.0.2) and
+libresolv/lib44bsd (I used BIND 4.9.5-P1).  The resolver routines in
+libc seem to cause random memory corruption.  It is necessary to specify
+LIBS=-l44bsd.  lib44bsd is a helper library of libresolv used to supply
+functions like strdup which are missing on the host system.  This isn't
+currently autoconfiscated.
+
+[3D] You need to configure with CONFIG_SHELL=/bin/sh5 /bin/sh5 buildall;
+/bin/sh cannot handle the shell functions used in buildall and is both
+buggy and slow.
+
+[3E] At least the gcc 2.7.0 fixincludes-mangled <sys/utsname.h> needs a
+forward declaration of struct utsname to avoid lots of gcc warnings:
+
+RCS file: RCS/utsname.h,v
+retrieving revision 1.1
+diff -u -r1.1 utsname.h
+--- utsname.h   1995/06/19 13:07:01     1.1
++++ utsname.h   1998/01/27 12:34:26
+@@ -59,6 +59,7 @@
+ #ifdef KERNEL
+ #include "../h/limits.h"
+ #else /* user mode */
++struct utsname;
+ extern int     uname _PARAMS((struct utsname *));
+ #endif
+ #define __SYS_NMLN 32
+
+
+(4) powerpc-ibm-aix4.2.1.0
+
+[4A] "Randall S. Winchester" <rsw AT Glue.umd.edu> reports that for amd to
+start, you need to kill and restart rpc.mountd and possibly also make sure
+that nfsd is running.  Normally these are not required.
+
+[4B] "Stefan Vogel" <vogel AT physik.unizh.ch> reports that if your amq
+executable dump core unexpectedly, then it may be a bug in gcc 2.7.x.
+Upgrade to gcc 2.8.x or use IBM's xlC compiler.
+
+[C] Do not link amd with libnsl.  It is buggy and causes amd to core dump
+in strlen inside strdup inside svc_register().
+
+
+(5) *-linux-rh51 (RedHat Linux 5.1)
+
+There's a UDP file descriptor leak in libnsl in RedHat Linux 5.1.  This
+library part of glibc2.  Am-utils currently declares redhat 5.1 systems as
+having a "broken yp_all" and using an internal, slower, leak-free version.
+The leak is known to the glibc maintainers and a fix from them is due soon,
+but it is not yet in the glibc-2.0.7-19 RPM.
+
+
+(6) rs6000-ibm-aix4.1.x
+
+A bug in libc results in an amq binary that doesn't work; amq -v dumps core
+in xdr_string.  There is no known fix (source code or vendor patch) at this
+time.  (Please let us know if you have a fix; see www.am-utils.org.)
+
+
+(7) *-aix4.3.2.0
+
+The plock() function will pre-reserve all of the memory up to the maximum
+listed in the ulimit.  If the ulimit is infinite, plock() will try to take
+all of the system's memory, and fail with ENOMEM (Not Enough Space).
+Normally ulimit may be set to a few gigs of max memory usage, but even that
+is too much; Amd doesn't need more than a few megs of resident memory size
+(depending on the particular usage, number of maps, etc.)  Solution: lower
+your ulimit before starting amd.  This can be done inside the ctl-amd
+script, but be careful not to limit it too low.  Alternatively, don't use
+plock on aix-4.3: set it to plock=no in amd.conf (which is the default if
+you do nothing).
+
+
+(8) *-linux (systems using glibc 2.1, such as RedHat-6.x)
+
+There's a UDP file descriptor leak in the NIS routines in glibc, especially
+those that do yp_bind.  Until this is bug fixed, do not set nis_domain in
+amd.conf, but let the system pick up the default domain name as set by your
+system.  That would avoid using the buggy yp_bind routines in libc.
+
+
+(9) *-linux (SuSE systems using unfsd)
+
+The user-level nfsd (2.2beta44) on older SuSE Linux systems (and possibly
+others) dies with a SEGV when amd tries to contact it for access to a volume
+that does not exist, or one for which there is no permission to mount.
+
+
+(10) *-*-hpux11
+
+If you're using NFSv3, you must install HP patches PHNE_20344 and
+PHNE_20371.  If you don't, and you try to use amd with NFSv3 over TCP, your
+kernel will panic.
+
+
+(11) *-linux* (any system using a 2.2.18+ kernel)
+
+The Linux kernels don't support Amd's direct mounts very well, leading to
+erratic behavior: shares that don't get remounted after the first timeout,
+inability to restart Amd because its mount points cannot be unmounted, etc.
+There are some kernel patches on the am-utils Web site, which solve these
+problems.  See http://www.am-utils.org/patches/.
+
+Later 2.4.x kernels completely disallow the hack amd was using for direct
+mounts, so another solution will have to be found.
+
+Note: the above is for the old-style amd mount_type = nfs. The autofs mounts
+don't support direct mounts at all (due to lack of kernel support).
+
+(12) *-aix5.1.0.0 and *-hpux9*
+
+/bin/sh is broken and fails to run the configure script properly. You need
+to use /bin/ksh instead. The buildall script will do it for you; if for some
+reason you need to run configure directly, run it using 'ksh configure'
+instead of just 'configure'.
+
+[12A] *-aix5.2.*
+
+Apparently there is an NFS client side bug in vmount() which causes amd to
+hang when it starts (and tries to NFS-mount itself).  According to IBM
+engineers, this has to do with partial support code for IPv6: the NFS kernel
+code doesn't appear to recognize the sin_family of the amd vmount(),
+although amd does the right thing.  The bug doesn't appear to be in 5.1 or
+4.3.3.  A fix from IBM is available, APAR number IY41417.
+
+A binary built on 4.3.3 will not work on 5.2, because the kernel ABIs have
+changed.
+
+[12C] *-aix*
+
+It is important that you install bos.net.nfs.adt before configuring and
+building am-utils.  If you don't, you will get compile-time or
+configure-time errors, especially when configure tries to find AIX's
+definition of struct nfs_args.
+
+(13) *-linux and *-darwin6.0
+
+Certain linux kernels (2.4.18+ are fine, 2.4.10- are probably bad, those in
+between have not been tested) have a bug which causes them to reconnect
+broken NFS/TCP connections using unprivileged ports (greater than 1024),
+unlike the initial connections which do originate from privileged
+ports.  This can upset quite a few NFS servers and causes accesses to the
+mounted shares to fail with "Operation not permitted" (EPERM).
+
+The darwin (MacOS X) kernel defaults to using unprivileged ports, but that
+can be changed by setting the resvport mount flag (which amd sets by
+default).  Nonetheless, if a TCP connection breaks, under certain unclear
+circumstances the kernel might "forget" about that flag and start using
+unprivileged ports, causing the same EPERM error above.
+
+(14) Solaris
+
+The line "%option" in *.l files may cause Solaris /usr/ccs/bin/lex to abort
+with the error "missing translation value."  This is a bug in Solaris lex.
+
+Moreover, both Solaris yacc and lex produce code that does not pass strict
+compilation such as "gcc -Wall -Werror".
+
+Use GNU Flex and Bison instead.  You can download ready-made binaries from
+www.sunfreeware.com.  Note, however, that sometimes the binaries on
+sunfreeware.com don't seem to work, often because they are built against an
+older revision of Solaris or build tools.  In that case, build a fresh
+version of GNU flex and/or bison from the latest stable sources.  See
+http://www.gnu.org/software/flex/ and http://www.gnu.org/software/bison/.
+
+(15) Solaris 8 + patch 10899[34]-xx (18 <= xx < 25) or patch 11260[56]-xx
+
+With this patch, Sun updated the autofs kernel module and automountd
+userspace daemon from version 3 to version 4.  They also updated the
+/usr/include/rpcsvc/autofs_prot.x file, but forgot to regenerate the
+autofs_prot.h file.  Thus, when amd is compiled, it uses the old header and
+thinks it should use autofs version 3, when in fact the kernel now supports
+(and expects) only version 4.
+
+The workaround is to run 'rpcgen -C -h /usr/include/rpcsvc/autofs_prot.x >
+/usr/include/rpcsvc/autofs_prot.h' and completely reconfigure and rebuild
+am-utils (removing config.cache before running configure).
+
+The problem is fixed in patch revisions 10899[34]-25 and up.
+
+
+(16) Linux kernel 2.4+ and lofs mounts
+
+Lofs mounts are not supported by the linux kernel, at all, but since 2.4.0
+the kernel supports a similar type of mount called a bind mount.  Its
+semantics are closer to those of a hardlink than to those of lofs, and one
+of the results is that bind mounts ignore any mount options paseed to them.
+
+Amd uses bind mounts internally to emulate lofs mounts, which means that
+lofs mounts on linux will effectively ignore their mount parameters and
+inherit whatever options the original filesystem mounted upon had.
+
+
+(17) autoconf 2.57
+
+If you see configure warnings of the following kind:
+
+configure: WARNING: sys/proc.h: present but cannot be compiled
+configure: WARNING: sys/proc.h: check for missing prerequisite headers?
+configure: WARNING: sys/proc.h: proceeding with the preprocessor's result
+configure: WARNING:     ## ------------------------------------ ##
+configure: WARNING:     ## Report this to bug-autoconf@gnu.org. ##
+configure: WARNING:     ## ------------------------------------ ##
+
+please ignore them.  They are not real errors, and neither
+bug-autoconf@gnu.org nor the am-utils maintainers are interested in hearing
+about them.  Autoconf simply tries to do more than we need and attempts to
+compile each header in isolation, which fails for many system headers.
+That's ok, because we only need to know if a header file exists -- we know
+how to use it properly ourselves.
+
+While autoconf does offer a way to specify other files to be included with
+the tested header, in order to avoid these warnings, using it would enlarge
+the resulting configure script by an order of magnitude, and for no real
+gain.  Configure is big enough as it is, we don't need any more useless
+baggage in it.
+
+(18) NetBSD 2.0.2, FreeBSD 5.4, OpenBSD 3.7, and quite possibly most other
+     BSDs and other OSs (as of September 2005)
+
+Some BSD kernels don't have a way to turn off the NFS attribute cache.  They
+don't have a 'noac' mount flag, and setting various cache timeout fields in
+struct nfs_args doesn't turn off the attribute cache; instead, it sets the
+attribute cache timeout to some internal hard-coded default (usually
+anywhere from 5-30 seconds).  If Amd cannot turn off the NFS attribute
+cache, under heavy Amd usage, users could get ESTALE errors from automounted
+symlinks, or find that those symlinks point to the wrong place.  One
+workaround which would minimize this effect is to set auto_attrcache=1 in
+your amd.conf, but it doesn't eliminate the problem!  The best solutions are
+(1) to use Amd in Autofs mode, if it's supported in your OS, and (2) talk to
+your OS vendor to support a true "noac" flag.  See README.attrcache for more
+details.
+
+Erez & the am-utils team.

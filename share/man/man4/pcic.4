@@ -1,0 +1,103 @@
+.\"
+.\" Copyright (c) 2001, 2002 M. Warner Losh
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 9, 2002
+.Dt PCIC 4
+.Os
+.Sh NAME
+.Nm pcic
+.Nd PC Card bridge driver
+.Sh SYNOPSIS
+.Cd device pcic
+.Cd device pccard
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for older ISA and non-Yenta PCI PC Card bridges.
+The
+.Nm
+driver supports most
+.Tn ExCA
+devices attached to the
+.Tn ISA
+bus or
+.Tn PCI
+devices that do not conform to the Yenta specification.
+.Pp
+The following
+.Tn ISA
+devices, or true clones, are supported in the current code.
+.Pp
+.Bl -tag -width "Intel i82365SL Step A" -compact
+.It Intel i82365SL Step A
+.It Intel i82365SL Step B
+.It Intel i82365SL Step C
+.Tn Intel Ns 's
+original 16-bit PC Card controller.
+.It Intel i82365SL-DF
+.Tn Intel Ns 's
+last version of this device.
+3.3V support was added.
+.It VLSI 82C146
+An older VLSI part with some issues on some machines.
+.It Cirrus Logic PD-6710
+.It Cirrus Logic PD-6720
+.It Cirrus Logic PD-6722
+Cirrus Logic's pcic controller.
+Compatible with the i82365SL Step C with the addition of a different
+3.3V control.
+.It Ricoh RF5C296
+.It Ricoh RF5C396
+Ricoh's PC Card bridge chips.
+These are compatible with the i82365SL Step C, but with yet another
+different 3.3V control.
+.It Vadem 365
+.It Vadem 465
+Compatible with i82365SL Step C.
+.It Vadem 468
+.It Vadem 469
+Like the earlier Vadem models, but with Vadem's own, incompatible, 3.3V
+control system.
+.It IBM PCIC
+.Tn IBM
+clone of the original i82365SL part, with its own ID register value.
+Has no 3.3V ability.
+.El
+.Pp
+Many other vendors made parts in this arena, but most of them were
+compatible with one of the above chipsets.
+.Pp
+The following PCI pcmcia bridges are supported:
+.Pp
+.Bl -tag -width "Intel i82365SL Step A" -compact
+.It Cirrus Logic PD6729
+.It Cirrus Logic PD6730
+.Pp
+.It O2micro OZ6729
+.It O2micro OZ6730
+.El
+.Sh BUGS
+This does not work at all at the moment.

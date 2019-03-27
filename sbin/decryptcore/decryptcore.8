@@ -1,0 +1,122 @@
+.\" Copyright (c) 2016 Konrad Witaszczyk <def@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 29, 2018
+.Dt DECRYPTCORE 8
+.Os
+.Sh NAME
+.Nm decryptcore
+.Nd "decrypt a core dump of the operating system"
+.Sh SYNOPSIS
+.Nm
+.Op Fl fLv
+.Fl p Ar privatekeyfile
+.Fl k Ar keyfile
+.Fl e Ar encryptedcore
+.Fl c Ar core
+.Nm
+.Op Fl fLv
+.Op Fl d Ar crashdir
+.Fl p Ar privatekeyfile
+.Fl n Ar dumpnr
+.Sh DESCRIPTION
+The
+.Nm
+utility first decrypts
+.Ar keyfile
+using
+.Ar privatekeyfile
+and then uses the resulting key to decrypt
+.Ar encryptedcore
+saved by
+.Xr savecore 8 .
+The result is saved in
+.Ar core .
+.Pp
+Alternatively a user can decrypt a core dump numbered
+.Ar dumpnr
+from the
+.Ar crashdir
+directory.
+In this case a dump key from the
+.Pa key.#
+file is used and the result is saved in the
+.Pa vmcore.#
+file where
+.Dq #
+corresponds to
+.Ar dumpnr .
+.Pp
+By default
+.Nm
+does not overwrite an old core dump as a user might want to store the core
+somewhere else for the future.
+This behaviour can be changed using the
+.Fl f
+flag.
+.Pp
+The
+.Nm
+utility can be started with the following command line arguments:
+.Bl -tag -width ".Fl e Ar encryptedcore"
+.It Fl f
+Remove a decryped core dump if it already exists.
+.It Fl L
+Write log messages to
+.Xr syslogd 8 .
+.It Fl v
+Print or log verbose/debugging information.
+This option can be specified multiple times to raise the verbosity
+level.
+.It Fl p Ar privatekeyfile
+Specify location of a private key file which will be used to decrypt a dump key
+file.
+.It Fl k Ar keyfile
+Specify location of a dump key file.
+.It Fl e Ar encryptedcore
+Specify location of an encrypted core.
+.It Fl c Ar core
+Specify location of a resulting decrypted core dump.
+.It Fl d Ar crashdir
+Specify an alternative crash dump directory.
+The default crash dump directory is
+.Pa /var/crash .
+.It Fl n Ar dumpnr
+Specify a number of a crash dump to be decrypted.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr kgdb 1 ,
+.Xr capsicum 4 ,
+.Xr dumpon 8 ,
+.Xr savecore 8 ,
+.Xr syslogd 8
+.Sh AUTHORS
+The
+.Nm
+utility was implemented by
+.An Konrad Witaszczyk Aq Mt def@FreeBSD.org .

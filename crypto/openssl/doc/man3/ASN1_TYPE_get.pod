@@ -1,0 +1,100 @@
+=pod
+
+=head1 NAME
+
+ASN1_TYPE_get, ASN1_TYPE_set, ASN1_TYPE_set1, ASN1_TYPE_cmp, ASN1_TYPE_unpack_sequence, ASN1_TYPE_pack_sequence - ASN1_TYPE utility
+functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/asn1.h>
+
+ int ASN1_TYPE_get(const ASN1_TYPE *a);
+ void ASN1_TYPE_set(ASN1_TYPE *a, int type, void *value);
+ int ASN1_TYPE_set1(ASN1_TYPE *a, int type, const void *value);
+ int ASN1_TYPE_cmp(const ASN1_TYPE *a, const ASN1_TYPE *b);
+
+ void *ASN1_TYPE_unpack_sequence(const ASN1_ITEM *it, const ASN1_TYPE *t);
+ ASN1_TYPE *ASN1_TYPE_pack_sequence(const ASN1_ITEM *it, void *s,
+                                    ASN1_TYPE **t);
+
+=head1 DESCRIPTION
+
+These functions allow an ASN1_TYPE structure to be manipulated. The
+ASN1_TYPE structure can contain any ASN.1 type or constructed type
+such as a SEQUENCE: it is effectively equivalent to the ASN.1 ANY type.
+
+ASN1_TYPE_get() returns the type of B<a>.
+
+ASN1_TYPE_set() sets the value of B<a> to B<type> and B<value>. This
+function uses the pointer B<value> internally so it must B<not> be freed
+up after the call.
+
+ASN1_TYPE_set1() sets the value of B<a> to B<type> a copy of B<value>.
+
+ASN1_TYPE_cmp() compares ASN.1 types B<a> and B<b> and returns 0 if
+they are identical and non-zero otherwise.
+
+ASN1_TYPE_unpack_sequence() attempts to parse the SEQUENCE present in
+B<t> using the ASN.1 structure B<it>. If successful it returns a pointer
+to the ASN.1 structure corresponding to B<it> which must be freed by the
+caller. If it fails it return NULL.
+
+ASN1_TYPE_pack_sequence() attempts to encode the ASN.1 structure B<s>
+corresponding to B<it> into an ASN1_TYPE. If successful the encoded
+ASN1_TYPE is returned. If B<t> and B<*t> are not NULL the encoded type
+is written to B<t> overwriting any existing data. If B<t> is not NULL
+but B<*t> is NULL the returned ASN1_TYPE is written to B<*t>.
+
+=head1 NOTES
+
+The type and meaning of the B<value> parameter for ASN1_TYPE_set() and
+ASN1_TYPE_set1() is determined by the B<type> parameter.
+If B<type> is V_ASN1_NULL B<value> is ignored. If B<type> is V_ASN1_BOOLEAN
+then the boolean is set to TRUE if B<value> is not NULL. If B<type> is
+V_ASN1_OBJECT then value is an ASN1_OBJECT structure. Otherwise B<type>
+is and ASN1_STRING structure. If B<type> corresponds to a primitive type
+(or a string type) then the contents of the ASN1_STRING contain the content
+octets of the type. If B<type> corresponds to a constructed type or
+a tagged type (V_ASN1_SEQUENCE, V_ASN1_SET or V_ASN1_OTHER) then the
+ASN1_STRING contains the entire ASN.1 encoding verbatim (including tag and
+length octets).
+
+ASN1_TYPE_cmp() may not return zero if two types are equivalent but have
+different encodings. For example the single content octet of the boolean TRUE
+value under BER can have any non-zero encoding but ASN1_TYPE_cmp() will
+only return zero if the values are the same.
+
+If either or both of the parameters passed to ASN1_TYPE_cmp() is NULL the
+return value is non-zero. Technically if both parameters are NULL the two
+types could be absent OPTIONAL fields and so should match, however passing
+NULL values could also indicate a programming error (for example an
+unparseable type which returns NULL) for types which do B<not> match. So
+applications should handle the case of two absent values separately.
+
+=head1 RETURN VALUES
+
+ASN1_TYPE_get() returns the type of the ASN1_TYPE argument.
+
+ASN1_TYPE_set() does not return a value.
+
+ASN1_TYPE_set1() returns 1 for success and 0 for failure.
+
+ASN1_TYPE_cmp() returns 0 if the types are identical and non-zero otherwise.
+
+ASN1_TYPE_unpack_sequence() returns a pointer to an ASN.1 structure or
+NULL on failure.
+
+ASN1_TYPE_pack_sequence() return an ASN1_TYPE structure if it succeeds or
+NULL on failure.
+
+=head1 COPYRIGHT
+
+Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

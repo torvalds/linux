@@ -1,0 +1,727 @@
+dnl Process this file with autoconf to produce a configure script.
+dnl
+dnl And be careful when changing it!  If you must add tests with square
+dnl brackets, be sure changequote invocations surround it.
+dnl
+dnl
+dnl v2.5 needed for --bindir et al
+AC_PREREQ(2.57)
+AC_INIT(as.h)
+
+dnl Autoconf 2.57 will find the aux dir without this.  However, unless
+dnl we specify this explicitly, automake-1.7 will assume that ylwrap is in
+dnl gas/ instead of gas/../.
+AC_CONFIG_AUX_DIR(..)
+AC_CANONICAL_SYSTEM
+AC_ISC_POSIX
+
+changequote(,)dnl
+BFD_VERSION=`sed -n -e 's/^.._INIT_AUTOMAKE.*,[ 	]*\([^ 	]*\)[ 	]*).*/\1/p' < ${srcdir}/../bfd/configure.in`
+changequote([,])dnl
+AM_INIT_AUTOMAKE(gas, ${BFD_VERSION})
+
+AM_PROG_LIBTOOL
+
+AC_ARG_ENABLE(targets,
+[  --enable-targets        alternative target configurations besides the primary],
+[case "${enableval}" in
+  yes | "") AC_ERROR(enable-targets option must specify target names or 'all')
+	    ;;
+  no)	    enable_targets= ;;
+  *)	    enable_targets=$enableval ;;
+esac])dnl
+
+AC_ARG_ENABLE(commonbfdlib,
+[  --enable-commonbfdlib   build shared BFD/opcodes/libiberty library],
+[case "${enableval}" in
+  yes) commonbfdlib=true ;;
+  no)  commonbfdlib=false ;;
+  *)   AC_MSG_ERROR([bad value ${enableval} for BFD commonbfdlib option]) ;;
+esac])dnl
+
+ac_checking=yes
+if grep '^RELEASE=y' ${srcdir}/../bfd/Makefile.am >/dev/null 2>/dev/null ; then
+  ac_checking=
+fi
+AC_ARG_ENABLE(checking,
+[  --enable-checking       enable run-time checks],
+[case "${enableval}" in
+  no|none)  ac_checking= ;;
+  *)	    ac_checking=yes ;;
+esac])dnl
+if test x$ac_checking != x ; then
+  AC_DEFINE(ENABLE_CHECKING, 1, [Define if you want run-time sanity checks.])
+fi
+
+using_cgen=no
+
+AM_BINUTILS_WARNINGS
+
+# Generate a header file
+AM_CONFIG_HEADER(config.h:config.in)
+
+# If we are on a DOS filesystem, we must use gdb.ini rather than
+# .gdbinit.
+case "${host}" in
+  *-*-msdos* | *-*-go32* | *-*-mingw32* | *-*-windows*)
+    GDBINIT="gdb.ini"
+    AC_CONFIG_FILES(gdb.ini:gdbinit.in)
+    ;;
+  *)
+    GDBINIT=".gdbinit"
+    AC_CONFIG_FILES(.gdbinit:gdbinit.in)
+    ;;
+esac
+AC_SUBST(GDBINIT)
+
+#We need this for the host.  BOUT header is in host order.
+AC_C_BIGENDIAN
+
+te_file=generic
+
+# Makefile target for installing gas in $(tooldir)/bin.
+install_tooldir=install-exec-tooldir
+
+canon_targets=""
+all_targets=no
+if test -n "$enable_targets" ; then
+  for t in `echo $enable_targets | sed 's/,/ /g'`; do
+    if test $t = "all"; then
+      all_targets=yes
+      continue
+    fi
+    result=`$ac_config_sub $t 2>/dev/null`
+    if test -n "$result" ; then
+      canon_targets="$canon_targets $result"
+#    else
+#      # Permit "all", etc.  We don't support it yet though.
+#      canon_targets="$canon_targets $t"
+    fi
+  done
+  GAS_UNIQ(canon_targets)
+fi
+
+emulations=""
+
+for this_target in $target $canon_targets ; do
+
+    targ=${this_target}
+    . ${srcdir}/configure.tgt
+
+    case ${target_cpu} in
+      crisv32)
+	AC_DEFINE_UNQUOTED(DEFAULT_CRIS_ARCH, $arch,
+			   [Default CRIS architecture.])
+	;;
+    esac
+
+    if test ${this_target} = $target ; then
+      target_cpu_type=${cpu_type}
+    elif test ${target_cpu_type} != ${cpu_type} ; then
+      continue
+    fi
+
+    generic_target=${cpu_type}-${target_vendor}-${target_os}
+    case ${generic_target} in
+      i386-*-sco3.2v5*)
+	if test ${this_target} = $target; then
+	  AC_DEFINE(SCO_ELF, 1, [Define if defaulting to ELF on SCO 5.])
+	fi
+	;;
+
+      i386-*-msdosdjgpp* \
+      | i386-*-go32* \
+      | i386-go32-rtems*)
+	AC_DEFINE(STRICTCOFF, 1, [Using strict COFF?])
+	;;
+
+      i860-*-*)
+	AC_MSG_WARN(GAS support for ${generic_target} is preliminary and a work in progress)
+	;;
+
+      mips-sony-bsd*)
+	;;
+      mips-*-bsd*)
+	AC_MSG_ERROR(Unknown vendor for mips-bsd configuration.)
+	;;
+
+      ppc-*-aix5.*)
+	AC_DEFINE(AIX_WEAK_SUPPORT, 1,
+		  [Define if using AIX 5.2 value for C_WEAKEXT.])
+	;;
+      ppc-*-linux-*)
+	case "$endian" in
+	  big)  ;;
+	  *)    AC_MSG_ERROR(GNU/Linux must be configured big endian) ;;
+	esac
+	;;
+      ppc-*-solaris*)
+	if test ${this_target} = $target; then
+	  AC_DEFINE(TARGET_SOLARIS_COMMENT, 1,
+		    [Define if default target is PowerPC Solaris.])
+	fi
+	if test x${endian} = xbig; then
+	  AC_MSG_ERROR(Solaris must be configured little endian)
+	fi
+	;;
+
+      sh*-*-symbianelf*)
+	AC_DEFINE(TARGET_SYMBIAN, 1, [Define if target is Symbian OS.])
+	;;
+    esac
+
+    if test ${this_target} = $target ; then
+      endian_def=
+      if test x${endian} = xbig; then
+	endian_def=1
+      elif test x${endian} = xlittle; then
+	endian_def=0
+      fi
+      if test x${endian_def} != x; then
+	AC_DEFINE_UNQUOTED(TARGET_BYTES_BIG_ENDIAN, $endian_def,
+			   [Define as 1 if big endian.])
+      fi
+    fi
+
+# Other random stuff.
+
+    case ${cpu_type} in
+      mips)
+	# Set mips_cpu to the name of the default CPU.
+	case ${target_cpu} in
+	  mips | mipsbe | mipseb | mipsle | mipsel | mips64 | mips64el)
+	    mips_cpu=from-abi
+	    ;;
+	  mipsisa32 | mipsisa32el)
+	    mips_cpu=mips32
+	    ;;
+	  mipsisa32r2 | mipsisa32r2el)
+	    mips_cpu=mips32r2
+	    ;;
+	  mipsisa64 | mipsisa64el)
+	    mips_cpu=mips64
+	    ;;
+	  mipsisa64r2 | mipsisa64r2el)
+	    mips_cpu=mips64r2
+	    ;;
+	  mipstx39 | mipstx39el)
+	    mips_cpu=r3900
+	    ;;
+	  mips64vr | mips64vrel)
+	    mips_cpu=vr4100
+	    ;;
+	  mipsisa32r2* | mipsisa64r2*)
+changequote(,)dnl
+	    mips_cpu=`echo $target_cpu | sed -e 's/[a-z]*..r2//' -e 's/el$//'`
+changequote([,])dnl
+	    ;;
+	  mips64* | mipsisa64* | mipsisa32*)
+changequote(,)dnl
+	    mips_cpu=`echo $target_cpu | sed -e 's/[a-z]*..//' -e 's/el$//'`
+changequote([,])dnl
+	    ;;
+	  *)
+	    AC_ERROR($target_cpu isn't a supported MIPS CPU name)
+	    ;;
+	esac
+	# See whether it's appropriate to set E_MIPS_ABI_O32 for o32
+	# binaries.  It's a GNU extension that some OSes don't understand.
+	# The value only matters on ELF targets.
+	case ${target} in
+	  *-*-irix*)
+	    use_e_mips_abi_o32=0
+	    ;;
+	  *)
+	    use_e_mips_abi_o32=1
+	    ;;
+	esac
+	# Decide whether to generate 32-bit or 64-bit code by default.
+	# Used to resolve -march=from-abi when an embedded ABI is selected.
+	case ${target} in
+	  mips64*-*-* | mipsisa64*-*-*)
+	    mips_default_64bit=1
+	    ;;
+	  *)
+	    mips_default_64bit=0
+	    ;;
+	esac
+	# Decide which ABI to target by default.
+	case ${target} in
+	  mips64*-linux* | mips-sgi-irix6*)
+	    mips_default_abi=N32_ABI
+	    ;;
+	  mips*-linux*)
+	    mips_default_abi=O32_ABI
+	    ;;
+	  mips64*-openbsd*)
+	    mips_default_abi=N64_ABI
+	    ;;
+	  *)
+	    mips_default_abi=NO_ABI
+	    ;;
+	esac
+	AC_DEFINE_UNQUOTED(MIPS_CPU_STRING_DEFAULT, "$mips_cpu",
+			   [Default CPU for MIPS targets. ])
+	AC_DEFINE_UNQUOTED(USE_E_MIPS_ABI_O32, $use_e_mips_abi_o32,
+			   [Allow use of E_MIPS_ABI_O32 on MIPS targets. ])
+	AC_DEFINE_UNQUOTED(MIPS_DEFAULT_64BIT, $mips_default_64bit,
+			   [Generate 64-bit code by default on MIPS targets. ])
+	AC_DEFINE_UNQUOTED(MIPS_DEFAULT_ABI, $mips_default_abi,
+			   [Choose a default ABI for MIPS targets. ])
+	;;
+    esac
+
+    # Do we need the opcodes library?
+    case ${cpu_type} in
+      vax | tic30)
+	;;
+
+      *)
+	need_opcodes=yes
+
+	case "${enable_shared}" in
+	yes) shared_opcodes=true ;;
+	*opcodes*) shared_opcodes=true ;;
+	*) shared_opcodes=false ;;
+	esac
+	;;
+    esac
+
+    # Any other special object files needed ?
+    case ${cpu_type} in
+
+      bfin)
+        echo ${extra_objects} | grep -s "bfin-parse.o"
+        if test $? -ne 0 ; then
+          extra_objects="$extra_objects bfin-parse.o"
+        fi
+
+        echo ${extra_objects} | grep -s "bfin-lex.o"
+        if test $? -ne 0 ; then
+          extra_objects="$extra_objects bfin-lex.o"
+        fi
+        ;;
+
+      fr30 | ip2k | iq2000 | m32r | openrisc)
+	using_cgen=yes
+	;;
+
+      m32c)
+	using_cgen=yes
+	;;
+      frv)
+	using_cgen=yes
+	;;
+      m68k)
+	case ${extra_objects} in
+	*m68k-parse.o*) ;;
+	*) extra_objects="$extra_objects m68k-parse.o" ;;
+	esac
+	;;
+
+      mep)
+	using_cgen=yes
+	;;
+
+      mips)
+	echo ${extra_objects} | grep -s "itbl-parse.o"
+	if test $? -ne 0 ; then
+	  extra_objects="$extra_objects itbl-parse.o"
+	fi
+
+	echo ${extra_objects} | grep -s "itbl-lex.o"
+	if test $? -ne 0 ; then
+	  extra_objects="$extra_objects itbl-lex.o"
+	fi
+
+	echo ${extra_objects} | grep -s "itbl-ops.o"
+	if test $? -ne 0 ; then
+	  extra_objects="$extra_objects itbl-ops.o"
+	fi
+	;;
+
+      mt)
+        using_cgen=yes
+	;;
+
+      i386 | s390 | sparc)
+	if test $this_target = $target ; then
+	  AC_DEFINE_UNQUOTED(DEFAULT_ARCH, "${arch}", [Default architecture.])
+	fi
+	;;
+
+      xstormy16)
+	using_cgen=yes
+	;;
+
+      xc16x)
+	using_cgen=yes
+	;;
+
+      xtensa)
+	echo ${extra_objects} | grep -s "xtensa-relax.o"
+	if test $? -ne 0 ; then
+	  extra_objects="$extra_objects xtensa-relax.o"
+	fi
+	;;
+
+      *)
+	;;
+    esac
+
+    if test $using_cgen = yes ; then
+	case "x${extra_objects}" in
+	*cgen.o*) ;;
+	*) extra_objects="$extra_objects cgen.o" ;;
+	esac
+    fi
+
+# See if we really can support this configuration with the emulation code.
+
+    if test $this_target = $target ; then
+      obj_format=$fmt
+      te_file=$em
+    fi
+
+# From target name and format, produce a list of supported emulations.
+
+    case ${generic_target}-${fmt} in
+      mips-*-irix5*-*)	emulation="mipsbelf mipslelf mipself mipsbecoff mipslecoff mipsecoff" ;;
+      mips*-*-linux*-*) case "$endian" in
+			big)	emulation="mipsbelf mipslelf mipself" ;;
+			*)	emulation="mipslelf mipsbelf mipself" ;;
+			esac ;;
+      mips-*-lnews*-ecoff) ;;
+      mips-*-*-ecoff)	case "$endian" in
+			big)	emulation="mipsbecoff mipslecoff mipsecoff" ;;
+			*)	emulation="mipslecoff mipsbecoff mipsecoff" ;;
+			esac ;;
+      mips-*-*-elf)	case "$endian" in
+			big)	emulation="mipsbelf mipslelf mipself" ;;
+			*)	emulation="mipslelf mipsbelf mipself" ;;
+			esac ;;
+      mips-*-sysv4*MP*-*) emulation="mipsbelf mipslelf mipself mipsbecoff mipslecoff mipsecoff" ;;
+      # i386-pc-pe-coff != i386-pc-coff.
+      i386-*-pe-coff)	;;
+      # Uncommenting the next line will turn on support for i386 AOUT
+      # for the default linux configuration
+      # i386-*-linux*-elf) emulation="i386elf i386aout" ;;
+      #
+      i386-*-aout)	emulation="i386aout" ;;
+      i386-*-coff)	emulation="i386coff" ;;
+      i386-*-elf)	emulation="i386elf" ;;
+
+      # Always all formats.  The first stated emulation becomes the default.
+      cris-*-*aout*)	emulation="crisaout criself" ;;
+      cris-*-*)		emulation="criself crisaout" ;;
+    esac
+
+    emulations="$emulations $emulation"
+
+done
+
+# Turn on all targets if possible
+if test ${all_targets} = "yes"; then
+  case ${target_cpu_type} in
+  i386)
+    case ${obj_format} in
+    aout)
+      emulations="$emulations i386coff i386elf"
+      ;;
+    coff)
+      emulations="$emulations i386aout i386elf"
+    ;;
+    elf)
+      emulations="$emulations i386aout i386coff"
+      ;;
+    esac
+  ;;
+  x86_64)
+    case ${obj_format} in
+    aout)
+      emulations="$emulations i386coff i386elf"
+      ;;
+    coff)
+      emulations="$emulations i386aout i386elf"
+    ;;
+    elf)
+      emulations="$emulations i386aout i386coff"
+      ;;
+    esac
+  ;;
+  esac
+fi
+
+# Assign floating point type.  Most processors with FP support
+# IEEE FP.  On those that don't support FP at all, usually IEEE
+# is emulated.
+case ${target_cpu} in
+  vax | pdp11 )	atof=vax ;;
+  *)		atof=ieee ;;
+esac
+
+case "${obj_format}" in
+  "") AC_MSG_ERROR(GAS does not know what format to use for target ${target}) ;;
+esac
+
+# Unfortunately the cpu in cpu-opc.h file isn't always $(TARGET_CPU).
+cgen_cpu_prefix=""
+if test $using_cgen = yes ; then
+  case ${target_cpu} in
+    *) cgen_cpu_prefix=${target_cpu} ;;
+  esac
+  AC_SUBST(cgen_cpu_prefix)
+  AC_DEFINE(USING_CGEN, 1, [Using cgen code?])
+fi
+
+dnl
+dnl Make sure the desired support files exist.
+dnl
+
+if test ! -r ${srcdir}/config/tc-${target_cpu_type}.c; then
+  AC_MSG_ERROR(GAS does not support target CPU ${target_cpu_type})
+fi
+
+if test ! -r ${srcdir}/config/obj-${obj_format}.c; then
+  AC_MSG_ERROR(GAS does not have support for object file format ${obj_format})
+fi
+
+# Some COFF configurations want these random other flags set.
+case ${obj_format} in
+  coff)
+    case ${target_cpu_type} in
+      i386) AC_DEFINE(I386COFF, 1, [Using i386 COFF?]) ;;
+      m68k) AC_DEFINE(M68KCOFF, 1, [Using m68k COFF?]) ;;
+      m88k) AC_DEFINE(M88KCOFF, 1, [Using m88k COFF?]) ;;
+      x86_64) AC_DEFINE(I386COFF, 1, [Using i386 COFF?]) ;;
+    esac
+    ;;
+esac
+
+# Getting this done right is going to be a bitch.  Each configuration specified
+# with --enable-targets=... should be checked for environment, format, cpu
+# setting.
+#
+# For each configuration, the necessary object file support code must be linked
+# in.  This might be only one, it might be up to four.  The necessary emulation
+# code needs to be provided, too.
+#
+# And then there's "--enable-targets=all"....
+#
+# For now, just always do it for MIPS ELF or ECOFF configurations.  Sigh.
+
+formats="${obj_format}"
+emfiles=""
+EMULATIONS=""
+GAS_UNIQ(emulations)
+for em in . $emulations ; do
+  case $em in
+    .)	continue ;;
+    mipsbelf | mipslelf | mipself)
+	fmt=elf   file=mipself ;;
+    mipsbecoff | mipslecoff | mipsecoff)
+	fmt=ecoff file=mipsecoff ;;
+    *coff)
+	fmt=coff  file=$em ;;
+    *aout)
+	fmt=aout file=$em ;;
+    *elf)
+	fmt=elf file=$em ;;
+  esac
+  formats="$formats $fmt"
+  emfiles="$emfiles e-$file.o"
+  EMULATIONS="$EMULATIONS &$em,"
+done
+GAS_UNIQ(formats)
+GAS_UNIQ(emfiles)
+if test `set . $formats ; shift ; echo $#` -gt 1 ; then
+  for fmt in $formats ; do
+    case $fmt in
+      aout)	AC_DEFINE(OBJ_MAYBE_AOUT, 1,    [a.out support?])   ;;
+      bout)	AC_DEFINE(OBJ_MAYBE_BOUT, 1,    [b.out support?])   ;;
+      coff)	AC_DEFINE(OBJ_MAYBE_COFF, 1,    [COFF support?])    ;;
+      ecoff)	AC_DEFINE(OBJ_MAYBE_ECOFF, 1,   [ECOFF support?])   ;;
+      elf)	AC_DEFINE(OBJ_MAYBE_ELF, 1,     [ELF support?])     ;;
+      generic)	AC_DEFINE(OBJ_MAYBE_GENERIC, 1, [generic support?]) ;;
+      som)	AC_DEFINE(OBJ_MAYBE_SOM, 1,     [SOM support?])     ;;
+    esac
+    extra_objects="$extra_objects obj-$fmt.o"
+  done
+  obj_format=multi
+fi
+if test `set . $emfiles ; shift ; echo $#` -gt 0 ; then
+  DEFAULT_EMULATION=`set . $emulations ; echo $2`
+  # e-mips* has more than one emulation per file, e-i386* has just one at the
+  # moment.  If only one emulation is specified, then don't define
+  # USE_EMULATIONS or include any of the e-files as they will only be bloat.
+  case "${obj_format}${emfiles}" in
+    multi* | *mips*)
+      extra_objects="$extra_objects $emfiles"
+      AC_DEFINE(USE_EMULATIONS, 1, [Use emulation support?]) ;;
+  esac
+fi
+AC_SUBST(extra_objects)
+AC_DEFINE_UNQUOTED(EMULATIONS, $EMULATIONS, [Supported emulations.])
+AC_DEFINE_UNQUOTED(DEFAULT_EMULATION, "$DEFAULT_EMULATION",
+		   [Default emulation.])
+
+reject_dev_configs=yes
+
+case ${reject_dev_configs}-${dev} in
+  yes-yes) # Oops.
+    AC_MSG_ERROR(GAS does not support the ${generic_target} configuration.)
+    ;;
+esac
+
+AC_SUBST(target_cpu_type)
+AC_SUBST(obj_format)
+AC_SUBST(te_file)
+AC_SUBST(install_tooldir)
+AC_SUBST(atof)
+dnl AC_SUBST(emulation)
+
+# do we need the opcodes library?
+case "${need_opcodes}" in
+yes)
+  OPCODES_LIB=../opcodes/libopcodes.la
+  ;;
+esac
+
+AC_SUBST(OPCODES_LIB)
+
+AC_DEFINE_UNQUOTED(TARGET_ALIAS,	"${target_alias}", [Target alias.])
+AC_DEFINE_UNQUOTED(TARGET_CANONICAL,	"${target}",       [Canonical target.])
+AC_DEFINE_UNQUOTED(TARGET_CPU,		"${target_cpu}",   [Target CPU.])
+AC_DEFINE_UNQUOTED(TARGET_VENDOR,	"${target_vendor}", [Target vendor.])
+AC_DEFINE_UNQUOTED(TARGET_OS,		"${target_os}",    [Target OS.])
+
+AC_PROG_CC
+
+AC_PROG_YACC
+AM_PROG_LEX
+
+ALL_LINGUAS="fr tr es rw"
+ZW_GNU_GETTEXT_SISTER_DIR
+AM_PO_SUBDIRS
+
+AM_MAINTAINER_MODE
+AM_CONDITIONAL(GENINSRC_NEVER, false)
+AC_EXEEXT
+
+AC_CHECK_HEADERS(string.h stdlib.h memory.h strings.h unistd.h stdarg.h varargs.h errno.h sys/types.h)
+
+# Put this here so that autoconf's "cross-compiling" message doesn't confuse
+# people who are not cross-compiling but are compiling cross-assemblers.
+AC_MSG_CHECKING(whether compiling a cross-assembler)
+if test "${host}" = "${target}"; then
+  cross_gas=no
+else
+  cross_gas=yes
+  AC_DEFINE(CROSS_COMPILE, 1, [Compiling cross-assembler?])
+fi
+AC_MSG_RESULT($cross_gas)
+
+dnl ansidecl.h will deal with const
+dnl AC_CONST
+AC_FUNC_ALLOCA
+AC_C_INLINE
+
+# VMS doesn't have unlink.
+AC_CHECK_FUNCS(unlink remove, break)
+
+# Some systems don't have sbrk().
+AC_CHECK_FUNCS(sbrk)
+
+# do we need the math library?
+case "${need_libm}" in
+yes)
+  AC_CHECK_LIBM
+  AC_SUBST(LIBM)
+  ;;
+esac
+
+# Some non-ANSI preprocessors botch requoting inside strings.  That's bad
+# enough, but on some of those systems, the assert macro relies on requoting
+# working properly!
+GAS_WORKING_ASSERT
+
+# On some systems, the system header files may not declare malloc, realloc,
+# and free.  There are places where gas needs these functions to have been
+# declared -- such as when taking their addresses.
+gas_test_headers="
+#ifdef HAVE_MEMORY_H
+#include <memory.h>
+#endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#else
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
+#endif
+#endif
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+"
+
+# Does errno.h declare errno, or do we have to add a separate declaration
+# for it?
+GAS_CHECK_DECL_NEEDED(errno, f, int f, [
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+])
+
+AC_MSG_CHECKING(for a known getopt prototype in unistd.h)
+AC_CACHE_VAL(gas_cv_decl_getopt_unistd_h,
+[AC_TRY_COMPILE([#include <unistd.h>], [extern int getopt (int, char *const*, const char *);],
+gas_cv_decl_getopt_unistd_h=yes, gas_cv_decl_getopt_unistd_h=no)])
+AC_MSG_RESULT($gas_cv_decl_getopt_unistd_h)
+if test $gas_cv_decl_getopt_unistd_h = yes; then
+  AC_DEFINE([HAVE_DECL_GETOPT], 1,
+	    [Is the prototype for getopt in <unistd.h> in the expected format?])
+fi
+
+GAS_CHECK_DECL_NEEDED(environ, f, char **f, $gas_test_headers)
+GAS_CHECK_DECL_NEEDED(ffs, f, int (*f)(int), $gas_test_headers)
+GAS_CHECK_DECL_NEEDED(free, f, void (*f)(), $gas_test_headers)
+GAS_CHECK_DECL_NEEDED(malloc, f, char *(*f)(), $gas_test_headers)
+GAS_CHECK_DECL_NEEDED(sbrk, f, char *(*f)(), $gas_test_headers)
+GAS_CHECK_DECL_NEEDED(strstr, f, char *(*f)(), $gas_test_headers)
+
+AC_CHECK_DECLS([vsnprintf])
+
+BFD_BINARY_FOPEN
+
+dnl Required for html and install-html targets.
+AC_SUBST(datarootdir)
+AC_SUBST(docdir)
+AC_SUBST(htmldir)
+
+dnl This must come last.
+
+dnl We used to make symlinks to files in the source directory, but now
+dnl we just use the right name for .c files, and create .h files in
+dnl the build directory which include the right .h file.  Make sure
+dnl the old symlinks don't exist, so that a reconfigure in an existing
+dnl directory behaves reasonably.
+
+AC_CONFIG_FILES(Makefile doc/Makefile po/Makefile.in:po/Make-in)
+AC_CONFIG_COMMANDS([default],
+[rm -f targ-cpu.c targ-cpu.h obj-format.h obj-format.c targ-env.h atof-targ.c itbl-cpu.h
+ echo '#include "tc-'"${target_cpu_type}"'.h"' > targ-cpu.h
+ echo '#include "obj-'"${obj_format}"'.h"' > obj-format.h
+ echo '#include "te-'"${te_file}"'.h"' > targ-env.h
+ echo '#include "itbl-'"${target_cpu_type}"'.h"' > itbl-cpu.h
+ if test "x$cgen_cpu_prefix" != x ; then
+   echo '#include "opcodes/'"${cgen_cpu_prefix}"'-desc.h"' > cgen-desc.h
+ fi],
+[target_cpu_type=${target_cpu_type}
+ cgen_cpu_prefix=${cgen_cpu_prefix}
+ obj_format=${obj_format}
+ te_file=${te_file}])
+
+AC_OUTPUT

@@ -1,0 +1,115 @@
+.\" Copyright (c) 2008 Isilon Inc http://www.isilon.com/
+.\" Authors: Doug Rabson <dfr@rabson.org>
+.\" Developed with Red Inc: Alfred Perlstein <alfred@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd January 26, 2010
+.Dt RPC_GSS_SET_CALLBACK 3
+.Os
+.Sh NAME
+.Nm rpc_gss_set_callback
+.Nd "Register a security context creation callback"
+.Sh LIBRARY
+.Lb librpcsec_gss
+.Sh SYNOPSIS
+.In rpc/rpcsec_gss.h
+.Ft bool_t
+.Fo (*callback)
+.Fa "struct svc_req *req"
+.Fa "gss_cred_id_t deleg"
+.Fa "gss_ctx_id_t gss_context"
+.Fa "rpc_gss_lock_t *lock"
+.Fa "void **cookie"
+.Fc
+.Ft bool_t
+.Fn rpc_gss_set_callback "rpc_gss_callback_t *cb"
+.Sh DESCRIPTION
+Register a function which will be called when new security contexts
+are created on a server.
+This function will be called on the first RPC request which uses that
+context and has the opportunity of rejecting the request (for instance
+after matching the request credentials to an access control list).
+To accept the new security context, the callback should return
+.Dv TRUE ,
+otherwise
+.Dv FALSE .
+If the callback accepts a context, it becomes responsible for the
+lifetime of the delegated client credentials (if any).
+.Pp
+It is also possible to 'lock' the values of service and quality of
+protection used by the context.
+If a context is locked, any subsequent requests which use different
+values for service and quality of protection will be rejected.
+.Sh PARAMETERS
+.Bl -tag -width ".It gss_context"
+.It cb
+A structure containing the RPC program and version for this callback
+and a function which will be called when new contexts are created for
+the given RPC program and version
+.It req
+The RPC request using the new context
+.It deleg
+GSS-API delegated credentials (if any)
+.It gss_context
+The GSS-API context
+.It lock
+A structure used to enforce a particular QOP and service. Set
+.Fa lock->locked
+to
+.Dv TRUE
+to lock the service and QOP values
+.It cookie
+The callback function may set
+.Fa *cookie
+to any pointer sized value.
+This value can be accessed during the lifetime of the context via
+.Fn rpc_gss_getcred .
+.El
+.Sh RETURN VALUES
+Returns
+.Dv TRUE
+if the callback was registered successfully or
+.Dv FALSE
+otherwise
+.Sh SEE ALSO
+.Xr gssapi 3 ,
+.Xr rpc 3 ,
+.Xr rpc_gss_getcred 3 ,
+.Xr rpcset_gss 3
+.Sh HISTORY
+The
+.Nm
+function first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Doug Rabson Aq Mt dfr@FreeBSD.org .
+.Sh BUGS
+There is no mechanism for informing a server when a security context
+has been deleted.
+This makes it difficult to allocate resources (e.g. to return via the
+callback's
+.Fa cookie
+argument).

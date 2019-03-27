@@ -1,0 +1,181 @@
+.\" Copyright (c) 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)getmntopts.3	8.3 (Berkeley) 3/30/95
+.\" $FreeBSD$
+.\"
+.Dd February 17, 2008
+.Dt GETMNTOPTS 3
+.Os
+.Sh NAME
+.Nm getmntopts
+.Nd scan mount options
+.Sh SYNOPSIS
+.Fd #include \&"mntopts.h"
+.Ft void
+.Fo getmntopts
+.Fa "const char *options" "const struct mntopt *mopts"
+.Fa "int *flagp" "int *altflagp"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn getmntopts
+function takes a comma separated option list and a list
+of valid option names, and computes the bitmask
+corresponding to the requested set of options.
+.Pp
+The string
+.Fa options
+is broken down into a sequence of comma separated tokens.
+Each token is looked up in the table described by
+.Fa mopts
+and the bits in
+the word referenced by either
+.Fa flagp
+or
+.Fa altflagp
+(depending on the
+.Va m_altloc
+field of the option's table entry)
+are updated.
+The flag words are not initialized by
+.Fn getmntopts .
+The table,
+.Fa mopts ,
+has the following format:
+.Bd -literal
+struct mntopt {
+	char *m_option;		/* option name */
+	int m_inverse;		/* is this a negative option, e.g., "dev" */
+	int m_flag;		/* bit to set, e.g., MNT_RDONLY */
+	int m_altloc;		/* non-zero to use altflagp rather than flagp */
+};
+.Ed
+.Pp
+The members of this structure are:
+.Bl -tag -width m_inverse
+.It Va m_option
+the option name,
+for example
+.Dq Li suid .
+.It Va m_inverse
+tells
+.Fn getmntopts
+that the name has the inverse meaning of the
+bit.
+For example,
+.Dq Li suid
+is the string, whereas the
+mount flag is
+.Dv MNT_NOSUID .
+In this case, the sense of the string and the flag
+are inverted, so the
+.Va m_inverse
+flag should be set.
+.It Va m_flag
+the value of the bit to be set or cleared in
+the flag word when the option is recognized.
+The bit is set when the option is discovered,
+but cleared if the option name was preceded
+by the letters
+.Dq Li no .
+The
+.Va m_inverse
+flag causes these two operations to be reversed.
+.It Va m_altloc
+the bit should be set or cleared in
+.Fa altflagp
+rather than
+.Fa flagp .
+.El
+.Pp
+Each of the user visible
+.Dv MNT_
+flags has a corresponding
+.Dv MOPT_
+macro which defines an appropriate
+.Vt "struct mntopt"
+entry.
+To simplify the program interface and ensure consistency across all
+programs, a general purpose macro,
+.Dv MOPT_STDOPTS ,
+is defined which
+contains an entry for all the generic VFS options.
+In addition, the macros
+.Dv MOPT_FORCE
+and
+.Dv MOPT_UPDATE
+exist to enable the
+.Dv MNT_FORCE
+and
+.Dv MNT_UPDATE
+flags to be set.
+Finally, the table must be terminated by an entry with a
+.Dv NULL
+first element.
+.Sh EXAMPLES
+Most commands will use the standard option set.
+Local file systems which support the
+.Dv MNT_UPDATE
+flag, would also have an
+.Dv MOPT_UPDATE
+entry.
+This can be declared and used as follows:
+.Bd -literal
+#include "mntopts.h"
+
+struct mntopt mopts[] = {
+	MOPT_STDOPTS,
+	MOPT_UPDATE,
+	{ NULL }
+};
+
+	...
+	mntflags = mntaltflags = 0;
+	...
+	getmntopts(options, mopts, &mntflags, &mntaltflags);
+	...
+.Ed
+.Sh DIAGNOSTICS
+If the external integer variable
+.Va getmnt_silent
+is zero, then the
+.Fn getmntopts
+function displays an error message and exits if an
+unrecognized option is encountered.
+Otherwise unrecognized options are silently ignored.
+By default
+.Va getmnt_silent
+is zero.
+.Sh SEE ALSO
+.Xr err 3 ,
+.Xr mount 8
+.Sh HISTORY
+The
+.Fn getmntopts
+function appeared in
+.Bx 4.4 .

@@ -1,0 +1,107 @@
+.\" Copyright (c) 2008 Cisco Systems.  All rights reserved.
+.\"    Author: Julian Elischer
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Neither the name of the Cisco Systems nor the names of its employees
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 19, 2012
+.Dt SETFIB 2
+.Os
+.Sh NAME
+.Nm setfib
+.Nd set the default FIB (routing table) for the calling process
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/socket.h
+.Ft int
+.Fn setfib "int fib"
+.Sh DESCRIPTION
+The
+.Fn setfib
+system call sets the associated fib for all sockets opened
+subsequent to the call, to be that of the argument
+.Fa fib .
+The
+.Fa fib
+argument
+must be greater than or equal to 0
+and less than the current system maximum which
+may be retrieved by the
+.Va net.fibs
+sysctl.
+The system maximum is set in the kernel configuration file with
+.Bd -ragged -offset indent
+.Cd "options ROUTETABLES=" Ns Em N
+.Ed
+.Pp
+or in
+.Pa /boot/loader.conf
+with
+.Pp
+.Dl net.fibs= Ns Qq Em N
+.Pp
+where
+.Em N
+is an integer.
+This maximum is capped at 65536 due to the implementation storing
+the fib number in a 16-bit field in the
+.Xr mbuf 9
+packet header, however it is not suggested that one use such a large number
+as memory is allocated for every FIB regardless of whether it is used, and
+there are places where all FIBs are iterated over.
+.Pp
+The default fib of the process will be applied to all protocol families
+that support multiple fibs, and ignored by those that do not.
+The default fib for a process may be overridden for a socket with the use
+of the
+.Dv SO_SETFIB
+socket option.
+.Sh RETURN VALUES
+.Rv -std setfib
+.Sh ERRORS
+The
+.Fn setfib
+system call
+will fail and no action will be taken and return
+.Er EINVAL
+if the
+.Fa fib
+argument is greater than the current system maximum.
+.Sh SEE ALSO
+.Xr setfib 1 ,
+.Xr setsockopt 2
+.Sh STANDARDS
+The
+.Fn setfib
+system call is a
+.Fx
+extension however similar extensions
+have been added to many other
+.Ux
+style kernels.
+.Sh HISTORY
+The
+.Fn setfib
+function appeared in
+.Fx 7.1 .

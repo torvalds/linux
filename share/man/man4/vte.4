@@ -1,0 +1,151 @@
+.\" Copyright (c) 2010 Pyun YongHyeon
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 30, 2010
+.Dt VTE 4
+.Os
+.Sh NAME
+.Nm vte
+.Nd Vortex86 RDC R6040 Fast Ethernet driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device vte"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_vte_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides support for RDC R6040 Fast Ethernet controller
+which is commonly found on Vortex86 System On a Chip (SoC).
+.Pp
+The RDC R6040 has integrated 10/100 PHY for 10/100Mbps support in full
+or half-duplex.
+The controller supports interrupt moderation mechanism, a 64-bit multicast
+hash filter, VLAN over-size frame and four station addresses.
+The
+.Nm
+device driver uses three station addresses out of four as perfect
+multicast filter.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to
+.Xr rc.conf 5 .
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+device driver provides support for the following Ethernet controllers:
+.Pp
+.Bl -bullet -compact
+.It
+DM&P Vortex86 RDC R6040 Fast Ethernet controller
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width "xxxxxx"
+.It Va hw.vte.tx_deep_copy
+The RDC R6040 controller has no auto-padding support for short
+frames and the controller's DMA engine does not have capability to
+handle multiple buffers for a TX frame such that driver has to
+create a single contiguous TX buffer.
+This hardware limitation leads to poor TX performance since most of
+CPU cycles are wasted on both de-fragmenting mbuf chains and padding.
+This tunable enables deep copy operation for TX frames such that
+driver will spend less CPU cycles in de-fragmentation with the
+cost of extra TX buffer memory.
+The default value is 1 to use deep copy.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width "xxxxxx"
+.It Va dev.vte.%d.rx_mod
+Maximum number of packets to fire RX completion interrupt.
+The accepted range is 0 to 15, the default is 15.
+.It Va dev.vte.%d.tx_mod
+Maximum number of packets to fire TX completion interrupt.
+The accepted range is 0 to 15, the default is 15.
+.It Va dev.vte.%d.stats
+Show hardware MAC statistics maintained in driver.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Rs
+.%T "DM&P Electronics Inc. Vortex86"
+.%U http://www.dmp.com.tw
+.Re
+.Sh HISTORY
+The
+.Nm
+driver was written by
+.An Pyun YongHyeon Aq Mt yongari@FreeBSD.org .
+It first appeared in
+.Fx 8.3 .

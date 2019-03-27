@@ -1,0 +1,82 @@
+# WATCH OUT!  This makefile is a work in progress.             -*- makefile -*-
+#
+# I'm not very knowledgeable about MSVC and nmake beyond their most basic
+# aspects.  If anything here looks wrong to you, please let me know.
+
+# If OPENSSL_DIR is not set, builds without OpenSSL support.  If you want
+# OpenSSL support, you can set the OPENSSL_DIR variable to where you
+# installed OpenSSL.  This can be done in the environment:
+#   set OPENSSL_DIR=c:\openssl
+# Or on the nmake command line:
+#   nmake OPENSSL_DIR=C:\openssl -f Makefile.nmake
+# Or by uncommenting the following line here in the makefile...
+
+# OPENSSL_DIR=c:\openssl
+
+!IFDEF OPENSSL_DIR
+SSL_CFLAGS=/I$(OPENSSL_DIR)\include /DEVENT__HAVE_OPENSSL
+!ELSE
+SSL_CFLAGS=
+!ENDIF
+
+# Needed for correctness
+CFLAGS=/IWIN32-Code /IWIN32-Code/nmake /Iinclude /Icompat /DHAVE_CONFIG_H /I. $(SSL_CFLAGS)
+
+# For optimization and warnings
+CFLAGS=$(CFLAGS) /Ox /W3 /wd4996 /nologo
+
+# XXXX have a debug mode
+
+LIBFLAGS=/nologo
+
+CORE_OBJS=event.obj buffer.obj bufferevent.obj bufferevent_sock.obj \
+	bufferevent_pair.obj listener.obj evmap.obj log.obj evutil.obj \
+	strlcpy.obj signal.obj bufferevent_filter.obj evthread.obj \
+	bufferevent_ratelim.obj evutil_rand.obj evutil_time.obj
+WIN_OBJS=win32select.obj evthread_win32.obj buffer_iocp.obj \
+	event_iocp.obj bufferevent_async.obj
+EXTRA_OBJS=event_tagging.obj http.obj evdns.obj evrpc.obj
+
+!IFDEF OPENSSL_DIR
+SSL_OBJS=bufferevent_openssl.obj
+SSL_LIBS=libevent_openssl.lib
+!ELSE
+SSL_OBJS=
+SSL_LIBS=
+!ENDIF
+
+ALL_OBJS=$(CORE_OBJS) $(WIN_OBJS) $(EXTRA_OBJS) $(SSL_OBJS)
+STATIC_LIBS=libevent_core.lib libevent_extras.lib libevent.lib $(SSL_LIBS)
+
+
+all: static_libs tests
+
+static_libs: $(STATIC_LIBS)
+
+libevent_core.lib: $(CORE_OBJS) $(WIN_OBJS)
+	lib $(LIBFLAGS) $(CORE_OBJS) $(WIN_OBJS) /out:libevent_core.lib 
+
+libevent_extras.lib: $(EXTRA_OBJS)
+	lib $(LIBFLAGS) $(EXTRA_OBJS) /out:libevent_extras.lib
+
+libevent.lib: $(CORE_OBJS) $(WIN_OBJS) $(EXTRA_OBJS)
+	lib $(LIBFLAGS) $(CORE_OBJS) $(EXTRA_OBJS) $(WIN_OBJS) /out:libevent.lib
+
+libevent_openssl.lib: $(SSL_OBJS)
+	lib $(LIBFLAGS) $(SSL_OBJS) /out:libevent_openssl.lib
+
+clean:
+	del $(ALL_OBJS)
+	del $(STATIC_LIBS)
+	cd test
+	$(MAKE) /F Makefile.nmake clean
+	cd ..
+
+tests:
+	cd test
+!IFDEF OPENSSL_DIR
+	$(MAKE) OPENSSL_DIR=$(OPENSSL_DIR) /F Makefile.nmake
+!ELSE
+	$(MAKE) /F Makefile.nmake
+!ENDIF
+	cd ..

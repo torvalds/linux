@@ -1,0 +1,20 @@
+#
+# $FreeBSD$
+#
+# makefile dependencies for doxygen tag files
+#
+
+$(.OBJDIR)/dev_sound/dev_sound.tag:	$(.OBJDIR)/dev_pci/dev_pci.tag \
+					$(.OBJDIR)/dev_usb/dev_usb.tag \
+					$(.OBJDIR)/include/ac97_if.h \
+					$(.OBJDIR)/include/channel_if.h \
+					$(.OBJDIR)/include/feeder_if.h \
+					$(.OBJDIR)/include/mixer_if.h
+
+$(.OBJDIR)/dev_usb/dev_usb.tag:	$(.OBJDIR)/dev_pci/dev_pci.tag \
+				$(.OBJDIR)/include/usb_if.h
+
+$(.OBJDIR)/dev_pci/dev_pci.tag:	$(.OBJDIR)/include/pci_if.h \
+				$(.OBJDIR)/include/pcib_if.h \
+				$(.OBJDIR)/include/bus_if.h
+

@@ -1,0 +1,7 @@
+# $FreeBSD$
+set -e
+# PR 28852
+if true; then
+	false && true
+fi
+exit 0

@@ -1,0 +1,72 @@
+.\" Copyright (c) 2003 Alexey Zelkin <phantom@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 13, 2003
+.Dt PTHREAD_ATTR_SETCREATESUSPEND_NP 3
+.Os
+.Sh NAME
+.Nm pthread_attr_setcreatesuspend_np
+.Nd prepare attribute for creation of suspended thread
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread_np.h
+.Ft int
+.Fn pthread_attr_setcreatesuspend_np "pthread_attr_t *attr"
+.Sh DESCRIPTION
+The
+.Fn pthread_attr_setcreatesuspend_np
+instructs
+.Xr pthread_create 3
+that the thread created with the
+.Fa attr
+attribute
+should be created and left in a suspended state until explicitly resumed
+by the call to
+.Fn pthread_resume_np
+or
+.Fn pthread_resume_all_np .
+.Sh RETURN VALUES
+.Rv -std pthread_attr_setcreatesuspend_np
+.Sh ERRORS
+The
+.Fn pthread_attr_setcreatesuspend_np
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa attr
+is invalid.
+.El
+.Sh SEE ALSO
+.Xr pthread_attr_destroy 3 ,
+.Xr pthread_attr_init 3 ,
+.Xr pthread_create 3 ,
+.Xr pthread_resume_all_np 3 ,
+.Xr pthread_resume_np 3
+.Sh AUTHORS
+This manual page was written by
+.An Alexey Zelkin Aq Mt phantom@FreeBSD.org .

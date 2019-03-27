@@ -1,0 +1,148 @@
+$FreeBSD$
+
+IEEE 1394 support for FreeBSD-5.X and 4.X.
+
+1. Introduction
+
+	  This tarball contains IEEE1394(FireWire) driver which is first
+	written by Katsushi Kobayashi[1] <ikob@koganei.wide.ad.jp> and
+	modified by Hidetoshi Shimokawa <simokawa@freebsd.org>.
+	Please note this driver is still under development.
+	You can find latest snapshots under:
+		https://people.freebsd.org/~simokawa/
+	named firewire-2002XXXX.tar.gz
+
+	The driver consists of 6 parts:
+
+	- fwohci.c/fwohci_pci.c
+		OHCI[2] driver
+			- IEEE1394 link/phy chip control
+	- firewire.c
+		Chip independent driver 
+			- CSR
+			- Transaction
+			- Character devices for userland
+	- fwmem.c
+		/dev/fwmem0: physical memory of a remote node.
+	- sbp.c
+		SBP-II[3] (a.k.a. SCSI over FireWire) driver
+
+	- if_fwe.c
+		NON-Standard implementation of Ethernet over FireWire.
+
+	- bus_mgm.c (userland)
+		Bus management function for user. 
+		show topology map, change gap count, bus reset, etc.
+
+2. Installation
+
+	Suppose you have kernel source at /sys.
+
+	- Extract tarball at root directory.
+	- cd /sys/dev/firewire
+	- make 
+	- make install
+	- make load
+
+3. SBP-II support (sbp)
+
+	- You need CAM(SCSI) support in your kernel.
+	  If you are using FreeBSD-5 before 2002/03/23 or FreeBSD-4 before
+	  2002/4/8, you need to apply CAM-patch in this archive
+	  to handle HDD's(T_RBC or T_DIRECT which doesn't support READ_6).
+
+	- If you connect a few firewire devices only, try the following to
+	  reduce gap overhead.
+
+		- ./bus_mgm -g 8
+
+4. Ethernet over FireWire (if_fwe)
+
+	  This is a sample driver for ethernet emulation. Please note this
+	does NOT conform to any standards like IP over FireWire(RFC2734[4]).
+	It just sends ethernet frames encapsulated in asynchronous stream
+	packets. It doesn't scale because it does something like unicast over		multicast, but it's easy to be implemented and you can use any
+	facilities what ethernet can do. (ipv6, bridging, vlan etc.)
+
+	  It also has DEVICE_POLLING[5] support. To enable it, edit your
+	kernel config file and Makefile.fwe then rebuild kernel and if_fwe.ko.
+
+5. FireWire for Kernel Hackers
+
+          As you know, IEEE1394 is a bus and OHCI supports physical access
+	to the host memory. This means that you can access the remote
+	host over firewire without software support at the remote host.
+	In other words, you can investigate remote host's physical memory
+	whether its OS is alive or crashed or hangs up.
+
+	  You need to apply KVMLIB-patch and rebuild libkvm then rebuild ps,
+	dmesg and gdb those are statically linked.
+	You may want to apply GDB-patch in this archive to get same behavior
+	as gdb with /dev/mem or want to insert savectx(&dumppcb) into panic(),
+	breakpoint() and so on to emulation crash dump.
+
+	  You have to determine target node_id manually at this point.
+	(guess using bus_mgm -t or dmesg)
+	(Targets should be specified by EUI64 in the future)
+
+	# sysctl kern.firewire.fwmem_node=[node_id]
+
+	# ps -agx -M /dev/fwmem0 -N /sys/i386/compile/GENERIC/kernel
+	# dmesg -M /dev/fwmem0 -N /sys/i386/compile/GENERIC/kernel
+	# gdb -k -c /dev/fwmem0 /sys/i386/compile/GENERIC/kernel.debug
+	# dd if=/dev/fwmem0 of=vmcore bs=1m count=[phys. memory in MB]
+
+	remote gdb at 400,000,000 bps :-)
+
+	
+6. DV
+	I have not tested yet.
+
+7. Tested HW
+
+	OS
+	- FreeBSD-4/i386
+	- FreeBSD-4/alpha
+	- FreeBSD-5/i386
+
+	* Not tested on SMP.
+	* Not tested on big-endian machine...
+
+	OHCI
+	- Texas Instruments TSB12LV26 (PCI)
+	- Texas Instruments TSB43AA22 (PCI/Cardbus)
+
+	* There might be phy probing problem but most of the OHCI
+	  chips should work.
+	* Tested with multiple firewire buses.
+
+	SBP-II
+	- HDD: Logitec USB/FireWire LHD-P30FU
+	- HDD: Yano A-dish 120GB
+	- HDD: Yano B-Max 320GB
+		The repository of cvsup2.jp.freebsd.org is on this device.
+	- HDD: Personal Storage 3000XT 160GB
+		The last sector of this drive cannot be accessed..
+	- DVD-RAM: Panasonic LF-D340JD 
+	- SCSI-FireWire converter: Yano FWSCSI-01
+		We can recognize only 1 device/lun at this point
+	- HDD: iPod, PowerBook G4 (target mode)
+		Reported by ikob
+	- Scanner: Epson GT-9700F
+		Now works!!
+		Sane-backend needs a patch(SANE-patch in this archive).
+
+	if_fwe
+	- IPv4, IPv6, bridging, vlan.
+	- You need at least two FreeBSD machines with this driver to use.
+
+References:
+[1] ftp://ftp.uec.ac.jp/pub/firewire/beta/ 
+[2] http://developer.intel.com/technology/1394/download/ohci_11.htm
+[3] http://www.t10.org/scsi-3.htm
+[4] http://www.faqs.org/rfcs/rfc2734.html
+[5] http://info.iet.unipi.it/~luigi/polling/
+
+
+Hidetoshi Shimokawa
+simokawa@freebsd.org

@@ -1,0 +1,93 @@
+.\" Copyright (c) 1990, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This manual is derived from one contributed to Berkeley by
+.\" Michael Rendell of Memorial University of Newfoundland.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)tsort.1	8.3 (Berkeley) 4/1/94
+.\" $FreeBSD$
+.\"
+.Dd December 27, 2006
+.Dt TSORT 1
+.Os
+.Sh NAME
+.Nm tsort
+.Nd topological sort of a directed graph
+.Sh SYNOPSIS
+.Nm
+.Op Fl dlq
+.Op Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility takes a list of pairs of node names representing directed arcs in
+a graph and prints the nodes in topological order on standard output.
+Input is taken from the named
+.Ar file ,
+or from standard input if no file
+is given.
+.Pp
+There must be an even number of nodes in the input.
+Node names specified on the same line should be white space separated.
+.Pp
+Presence of a node in a graph can be represented by an arc from the node
+to itself.
+This is useful when a node is not connected to any other nodes.
+.Pp
+If the graph contains a cycle (and therefore cannot be properly sorted),
+one of the arcs in the cycle is ignored and the sort continues.
+Cycles are reported on standard error.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl d
+Turn on debugging.
+.It Fl l
+Search for and display the longest cycle.
+Can take a very long time.
+.It Fl q
+Do not display informational messages about cycles.
+This is primarily
+intended for building libraries, where optimal ordering is not critical,
+and cycles occur often.
+.El
+.Sh SEE ALSO
+.Xr ar 1
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.At v7 .
+This
+.Nm
+command and manual page are derived from sources contributed to Berkeley by
+.An Michael Rendell
+of Memorial University of Newfoundland.
+.Sh BUGS
+The
+.Nm
+utility does not recognize multibyte characters.

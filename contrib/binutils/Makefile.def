@@ -1,0 +1,536 @@
+#! /usr/bin/autogen
+AutoGen definitions Makefile.tpl;
+
+// Makefile.in is generated from Makefile.tpl by 'autogen Makefile.def'.
+// This file was originally written by Nathanael Nerode.
+//
+//   Copyright 2002, 2003, 2004, 2005, 2006 Free Software Foundation
+//
+// This file is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+// 
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+
+
+// "missing" indicates that that module doesn't supply
+// that recursive target in its Makefile.
+
+build_modules= { module= libiberty; };
+build_modules= { module= bison; };
+build_modules= { module= byacc; };
+build_modules= { module= flex; };
+build_modules= { module= m4; };
+build_modules= { module= texinfo; };
+build_modules= { module= fixincludes; };
+
+host_modules= { module= ash; };
+host_modules= { module= autoconf; };
+host_modules= { module= automake; };
+host_modules= { module= bash; };
+host_modules= { module= bfd; lib_path=.libs; bootstrap=true; };
+host_modules= { module= opcodes; lib_path=.libs; bootstrap=true; };
+host_modules= { module= binutils; bootstrap=true; };
+host_modules= { module= bison; no_check_cross= true; };
+host_modules= { module= byacc; no_check_cross= true; };
+host_modules= { module= bzip2; };
+host_modules= { module= dejagnu; };
+host_modules= { module= diff; };
+host_modules= { module= dosutils; no_check= true; };
+host_modules= { module= etc; };
+host_modules= { module= fastjar; no_check_cross= true; };
+host_modules= { module= fileutils; };
+host_modules= { module= findutils; };
+host_modules= { module= find; };
+host_modules= { module= fixincludes;
+		missing= TAGS; };
+host_modules= { module= flex; no_check_cross= true; };
+host_modules= { module= gas; bootstrap=true; };
+host_modules= { module= gcc; bootstrap=true; 
+		extra_make_flags="$(EXTRA_GCC_FLAGS)"; };
+host_modules= { module= gawk; };
+host_modules= { module= gettext; };
+host_modules= { module= gmp; lib_path=.libs; bootstrap=true;
+		extra_configure_flags='--disable-shared';
+		no_install= true; 
+	        host="none-${host_vendor}-${host_os}";
+		target="none-${host_vendor}-${host_os}"; };
+host_modules= { module= mpfr; lib_path=.libs; bootstrap=true;
+		extra_configure_flags='--disable-shared --with-gmp-build=$$r/$(HOST_SUBDIR)/gmp';
+		no_install= true; 
+	        host="none-${host_vendor}-${host_os}";
+		target="none-${host_vendor}-${host_os}"; };
+host_modules= { module= gnuserv; };
+host_modules= { module= gprof; };
+host_modules= { module= gzip; };
+host_modules= { module= hello; };
+host_modules= { module= indent; };
+host_modules= { module= intl; bootstrap=true; };
+host_modules= { module= tcl;
+                missing=mostlyclean; };
+host_modules= { module= itcl; };
+host_modules= { module= ld; bootstrap=true; };
+host_modules= { module= libcpp; bootstrap=true; };
+host_modules= { module= libdecnumber; bootstrap=true; };
+host_modules= { module= libgui; };
+host_modules= { module= libiberty; bootstrap=true; };
+host_modules= { module= libtool; };
+host_modules= { module= m4; };
+host_modules= { module= make; };
+host_modules= { module= mmalloc; no_check=true; };
+host_modules= { module= patch; };
+host_modules= { module= perl; };
+host_modules= { module= prms; };
+host_modules= { module= rcs; };
+host_modules= { module= readline; };
+host_modules= { module= release; no_install= true; no_check= true; };
+host_modules= { module= recode; };
+host_modules= { module= sed; };
+host_modules= { module= send-pr; };
+host_modules= { module= shellutils; };
+host_modules= { module= sid; };
+host_modules= { module= sim; };
+host_modules= { module= tar; };
+host_modules= { module= texinfo; no_install= true; };
+host_modules= { module= textutils; };
+host_modules= { module= time; };
+host_modules= { module= uudecode; };
+host_modules= { module= wdiff; };
+host_modules= { module= zip; no_check_cross=true; };
+host_modules= { module= zlib; no_install=true; no_check=true; bootstrap=true; };
+host_modules= { module= gdb; extra_make_flags="$(X11_FLAGS_TO_PASS)"; };
+host_modules= { module= expect; extra_make_flags="$(X11_FLAGS_TO_PASS)"; };
+host_modules= { module= guile; extra_make_flags="$(X11_FLAGS_TO_PASS)"; };
+host_modules= { module= tk; extra_make_flags="$(X11_FLAGS_TO_PASS)"; };
+host_modules= { module= libtermcap; no_check=true; 
+                missing=mostlyclean;
+                missing=clean;
+                missing=distclean;
+                missing=maintainer-clean; };
+host_modules= { module= utils; no_check=true; };
+host_modules= { module= gnattools; };
+
+target_modules = { module= libstdc++-v3; lib_path=.libs; raw_cxx=true; };
+target_modules = { module= libmudflap; lib_path=.libs; };
+target_modules = { module= libssp; lib_path=.libs; };
+target_modules = { module= newlib; };
+target_modules = { module= libgcc; bootstrap=true; no_check=true; };
+target_modules = { module= libgfortran; };
+target_modules = { module= libobjc; };
+target_modules = { module= libtermcap; no_check=true;
+                   missing=mostlyclean;
+                   missing=clean;
+                   missing=distclean;
+                   missing=maintainer-clean; };
+target_modules = { module= winsup; };
+target_modules = { module= libgloss; no_check=true; };
+target_modules = { module= libiberty; };
+target_modules = { module= gperf; };
+target_modules = { module= examples; no_check=true; no_install=true; };
+target_modules = { module= libffi; };
+target_modules = { module= libjava; raw_cxx=true; };
+target_modules = { module= zlib; };
+target_modules = { module= boehm-gc; };
+target_modules = { module= qthreads; };
+target_modules = { module= rda; };
+target_modules = { module= libada; };
+target_modules = { module= libgomp; lib_path=.libs; };
+
+// These are (some of) the make targets to be done in each subdirectory.
+// Not all; these are the ones which don't have special options.
+// "depend" indicates that a target depends on another target uniformly
+// for each subdirectory.  There can be several such lines per target.
+recursive_targets = { make_target= info; 
+                      depend=configure; };
+recursive_targets = { make_target= dvi; 
+                      depend=configure; };
+recursive_targets = { make_target= pdf; 
+                      depend=configure; };
+recursive_targets = { make_target= html; 
+                      depend=configure; };
+recursive_targets = { make_target= TAGS; 
+                      depend=configure; };
+recursive_targets = { make_target= install-info; 
+                      depend=configure;
+                      depend=info; };
+recursive_targets = { make_target= install-pdf; 
+                      depend=configure;
+                      depend=pdf; };
+recursive_targets = { make_target= install-html; 
+                      depend=configure;
+                      depend=html; };
+recursive_targets = { make_target= installcheck; 
+                      depend=configure; };
+recursive_targets = { make_target= mostlyclean; };
+recursive_targets = { make_target= clean; };
+recursive_targets = { make_target= distclean; };
+recursive_targets = { make_target= maintainer-clean; };
+
+// Flags which need to be passed down.
+
+// Directories etc.
+flags_to_pass = { flag= DESTDIR ; };
+flags_to_pass = { flag= RPATH_ENVVAR ; };
+flags_to_pass = { flag= TARGET_SUBDIR ; };
+flags_to_pass = { flag= bindir ; };
+flags_to_pass = { flag= datadir ; };
+flags_to_pass = { flag= exec_prefix ; };
+flags_to_pass = { flag= includedir ; };
+flags_to_pass = { flag= datarootdir ; };
+flags_to_pass = { flag= docdir ; };
+flags_to_pass = { flag= infodir ; };
+flags_to_pass = { flag= pdfdir ; };
+flags_to_pass = { flag= htmldir ; };
+flags_to_pass = { flag= libdir ; };
+flags_to_pass = { flag= libexecdir ; };
+flags_to_pass = { flag= lispdir ; };
+flags_to_pass = { flag= localstatedir ; };
+flags_to_pass = { flag= mandir ; };
+flags_to_pass = { flag= oldincludedir ; };
+flags_to_pass = { flag= prefix ; };
+flags_to_pass = { flag= sbindir ; };
+flags_to_pass = { flag= sharedstatedir ; };
+flags_to_pass = { flag= sysconfdir ; };
+flags_to_pass = { flag= tooldir ; };
+flags_to_pass = { flag= build_tooldir ; };
+flags_to_pass = { flag= target_alias ; };
+
+// Build tools
+flags_to_pass = { flag= BISON ; };
+flags_to_pass = { flag= CC_FOR_BUILD ; };
+flags_to_pass = { flag= CFLAGS_FOR_BUILD ; };
+flags_to_pass = { flag= CXX_FOR_BUILD ; };
+flags_to_pass = { flag= EXPECT ; };
+flags_to_pass = { flag= FLEX ; };
+flags_to_pass = { flag= INSTALL ; };
+flags_to_pass = { flag= INSTALL_DATA ; };
+flags_to_pass = { flag= INSTALL_PROGRAM ; };
+flags_to_pass = { flag= INSTALL_SCRIPT ; };
+flags_to_pass = { flag= LEX ; };
+flags_to_pass = { flag= M4 ; };
+flags_to_pass = { flag= MAKE ; };
+flags_to_pass = { flag= RUNTEST ; };
+flags_to_pass = { flag= RUNTESTFLAGS ; };
+flags_to_pass = { flag= SHELL ; };
+flags_to_pass = { flag= YACC ; };
+
+// Host tools
+flags_to_pass = { flag= ADAFLAGS ; optional=true ; };
+flags_to_pass = { flag= AR_FLAGS ; };
+flags_to_pass = { flag= BOOT_ADAFLAGS ; optional=true ; };
+flags_to_pass = { flag= BOOT_CFLAGS ; };
+flags_to_pass = { flag= BOOT_LDFLAGS ; };
+flags_to_pass = { flag= CFLAGS ; };
+flags_to_pass = { flag= CXXFLAGS ; };
+flags_to_pass = { flag= LDFLAGS ; };
+flags_to_pass = { flag= LIBCFLAGS ; };
+flags_to_pass = { flag= LIBCXXFLAGS ; };
+flags_to_pass = { flag= STAGE1_CFLAGS ; };
+flags_to_pass = { flag= STAGE1_CHECKING ; };
+flags_to_pass = { flag= STAGE1_LANGUAGES ; };
+flags_to_pass = { flag= GNATBIND ; };
+flags_to_pass = { flag= GNATMAKE ; };
+
+// Target tools
+flags_to_pass = { flag= AR_FOR_TARGET ; };
+flags_to_pass = { flag= AS_FOR_TARGET ; };
+flags_to_pass = { flag= CC_FOR_TARGET ; };
+flags_to_pass = { flag= CFLAGS_FOR_TARGET ; };
+flags_to_pass = { flag= CPPFLAGS_FOR_TARGET ; };
+flags_to_pass = { flag= CXX_FOR_TARGET ; };
+flags_to_pass = { flag= CXXFLAGS_FOR_TARGET ; };
+flags_to_pass = { flag= DLLTOOL_FOR_TARGET ; };
+flags_to_pass = { flag= GCJ_FOR_TARGET ; };
+flags_to_pass = { flag= GFORTRAN_FOR_TARGET ; };
+flags_to_pass = { flag= LD_FOR_TARGET ; };
+flags_to_pass = { flag= LIPO_FOR_TARGET ; };
+flags_to_pass = { flag= LDFLAGS_FOR_TARGET ; };
+flags_to_pass = { flag= LIBCFLAGS_FOR_TARGET ; };
+flags_to_pass = { flag= LIBCXXFLAGS_FOR_TARGET ; };
+flags_to_pass = { flag= NM_FOR_TARGET ; };
+flags_to_pass = { flag= OBJDUMP_FOR_TARGET ; };
+flags_to_pass = { flag= RANLIB_FOR_TARGET ; };
+flags_to_pass = { flag= STRIP_FOR_TARGET ; };
+flags_to_pass = { flag= WINDRES_FOR_TARGET ; };
+
+// Miscellaneous
+flags_to_pass = { flag= LANGUAGES ; optional=true ; };
+flags_to_pass = { flag= LEAN ; };
+
+// Inter-module dependencies
+
+// Build modules
+dependencies = { module=all-build-bison; on=all-build-texinfo; };
+dependencies = { module=all-build-byacc; on=all-build-texinfo; };
+dependencies = { module=all-build-flex; on=all-build-texinfo; };
+dependencies = { module=all-build-flex; on=all-build-bison; };
+dependencies = { module=all-build-flex; on=all-build-byacc; };
+dependencies = { module=all-build-flex; on=all-build-m4; };
+dependencies = { module=all-build-libiberty; on=all-build-texinfo; };
+dependencies = { module=all-build-m4; on=all-build-texinfo; };
+dependencies = { module=all-build-fixincludes; on=all-build-libiberty; };
+
+// Host modules specific to gcc.
+dependencies = { module=configure-gcc; on=configure-intl; };
+dependencies = { module=configure-gcc; on=all-binutils; };
+dependencies = { module=configure-gcc; on=all-gas; };
+dependencies = { module=configure-gcc; on=all-ld; };
+dependencies = { module=all-gcc; on=all-libiberty; hard=true; };
+dependencies = { module=all-gcc; on=all-gmp; };
+dependencies = { module=all-gcc; on=all-intl; };
+dependencies = { module=all-gcc; on=all-mpfr; };
+dependencies = { module=all-gcc; on=all-build-texinfo; };
+dependencies = { module=all-gcc; on=all-build-bison; };
+dependencies = { module=all-gcc; on=all-build-byacc; };
+dependencies = { module=all-gcc; on=all-build-flex; };
+dependencies = { module=all-gcc; on=all-build-libiberty; };
+dependencies = { module=all-gcc; on=all-build-fixincludes; };
+dependencies = { module=all-gcc; on=all-zlib; };
+dependencies = { module=all-gcc; on=all-libcpp; hard=true; };
+dependencies = { module=all-gcc; on=all-libdecnumber; hard=true; };
+dependencies = { module=all-gcc; on=all-libiberty; };
+dependencies = { module=all-gcc; on=all-fixincludes; };
+dependencies = { module=install-gcc ; on=install-fixincludes; };
+
+dependencies = { module=configure-libcpp; on=configure-libiberty; hard=true; };
+dependencies = { module=configure-libcpp; on=configure-intl; };
+dependencies = { module=all-libcpp; on=all-libiberty; hard=true; };
+dependencies = { module=all-libcpp; on=all-intl; };
+
+dependencies = { module=all-fixincludes; on=all-libiberty; };
+
+dependencies = { module=all-gnattools; on=all-target-libada; };
+
+dependencies = { module=configure-mpfr; on=all-gmp; };
+
+// Host modules specific to gdb.
+dependencies = { module=configure-gdb; on=configure-intl; };
+dependencies = { module=configure-gdb; on=configure-sim; };
+dependencies = { module=configure-gdb; on=all-bfd; };
+dependencies = { module=all-gdb; on=all-intl; };
+dependencies = { module=all-gdb; on=all-libiberty; };
+dependencies = { module=all-gdb; on=all-opcodes; };
+dependencies = { module=all-gdb; on=all-readline; };
+dependencies = { module=all-gdb; on=all-build-bison; };
+dependencies = { module=all-gdb; on=all-build-byacc; };
+dependencies = { module=all-gdb; on=all-sim; };
+
+dependencies = { module=configure-libgui; on=configure-tcl; };
+dependencies = { module=configure-libgui; on=configure-tk; };
+dependencies = { module=all-libgui; on=all-tcl; };
+dependencies = { module=all-libgui; on=all-tk; };
+dependencies = { module=all-libgui; on=all-itcl; };
+
+// Host modules specific to binutils.
+dependencies = { module=configure-bfd; on=configure-libiberty; hard=true; };
+dependencies = { module=configure-bfd; on=configure-intl; };
+dependencies = { module=all-bfd; on=all-libiberty; };
+dependencies = { module=all-bfd; on=all-intl; };
+
+dependencies = { module=configure-binutils; on=configure-intl; };
+dependencies = { module=all-binutils; on=all-libiberty; };
+dependencies = { module=all-binutils; on=all-opcodes; };
+dependencies = { module=all-binutils; on=all-bfd; };
+dependencies = { module=all-binutils; on=all-build-flex; };
+dependencies = { module=all-binutils; on=all-build-bison; };
+dependencies = { module=all-binutils; on=all-build-byacc; };
+dependencies = { module=all-binutils; on=all-intl; };
+
+// We put install-opcodes before install-binutils because the installed
+// binutils might be on PATH, and they might need the shared opcodes
+// library.
+dependencies = { module=install-binutils; on=install-opcodes; };
+
+// libopcodes depends on libbfd
+dependencies = { module=install-opcodes; on=install-bfd; };
+
+dependencies = { module=configure-gas; on=configure-intl; };
+dependencies = { module=all-gas; on=all-libiberty; };
+dependencies = { module=all-gas; on=all-opcodes; };
+dependencies = { module=all-gas; on=all-bfd; };
+dependencies = { module=all-gas; on=all-intl; };
+dependencies = { module=configure-gprof; on=configure-intl; };
+dependencies = { module=all-gprof; on=all-libiberty; };
+dependencies = { module=all-gprof; on=all-bfd; };
+dependencies = { module=all-gprof; on=all-opcodes; };
+dependencies = { module=all-gprof; on=all-intl; };
+dependencies = { module=configure-ld; on=configure-intl; };
+dependencies = { module=all-ld; on=all-libiberty; };
+dependencies = { module=all-ld; on=all-bfd; };
+dependencies = { module=all-ld; on=all-opcodes; };
+dependencies = { module=all-ld; on=all-build-bison; };
+dependencies = { module=all-ld; on=all-build-byacc; };
+dependencies = { module=all-ld; on=all-build-flex; };
+dependencies = { module=all-ld; on=all-intl; };
+
+dependencies = { module=configure-opcodes; on=configure-intl; };
+dependencies = { module=all-opcodes; on=all-bfd; };
+dependencies = { module=all-opcodes; on=all-libiberty; };
+dependencies = { module=all-opcodes; on=all-intl; };
+
+// Other host modules in the 'src' repository.
+dependencies = { module=all-dejagnu; on=all-tcl; };
+dependencies = { module=all-dejagnu; on=all-expect; };
+dependencies = { module=all-dejagnu; on=all-tk; };
+dependencies = { module=configure-expect; on=configure-tcl; };
+dependencies = { module=configure-expect; on=configure-tk; };
+dependencies = { module=all-expect; on=all-tcl; };
+dependencies = { module=all-expect; on=all-tk; };
+
+// We put install-tcl before install-itcl because itcl wants to run a
+// program on installation which uses the Tcl libraries.
+dependencies = { module=configure-itcl; on=configure-tcl; };
+dependencies = { module=configure-itcl; on=configure-tk; };
+dependencies = { module=all-itcl; on=all-tcl; };
+dependencies = { module=all-itcl; on=all-tk; };
+dependencies = { module=install-itcl; on=install-tcl; };
+
+dependencies = { module=configure-tk; on=configure-tcl; };
+dependencies = { module=all-tk; on=all-tcl; };
+
+dependencies = { module=all-sid; on=all-libiberty; };
+dependencies = { module=all-sid; on=all-bfd; };
+dependencies = { module=all-sid; on=all-opcodes; };
+dependencies = { module=all-sid; on=all-tcl; };
+dependencies = { module=all-sid; on=all-tk; };
+dependencies = { module=install-sid; on=install-tcl; };
+dependencies = { module=install-sid; on=install-tk; };
+
+dependencies = { module=configure-sim; on=configure-intl; };
+dependencies = { module=all-sim; on=all-intl; };
+dependencies = { module=all-sim; on=all-libiberty; };
+dependencies = { module=all-sim; on=all-bfd; };
+dependencies = { module=all-sim; on=all-opcodes; };
+dependencies = { module=all-sim; on=all-readline; };
+dependencies = { module=all-sim; on=configure-gdb; };
+
+// Other host modules.
+dependencies = { module=all-fastjar; on=all-zlib; };
+dependencies = { module=all-fastjar; on=all-build-texinfo; };
+dependencies = { module=all-fastjar; on=all-libiberty; };
+
+// Warning, these are not well tested.
+dependencies = { module=all-autoconf; on=all-m4; };
+dependencies = { module=all-autoconf; on=all-build-texinfo; };
+dependencies = { module=all-automake; on=all-m4; };
+dependencies = { module=all-automake; on=all-build-texinfo; };
+dependencies = { module=all-automake; on=all-autoconf; };
+dependencies = { module=all-bison; on=all-intl; };
+dependencies = { module=all-bison; on=all-build-texinfo; };
+dependencies = { module=all-diff; on=all-intl; };
+dependencies = { module=all-diff; on=all-build-texinfo; };
+dependencies = { module=all-fileutils; on=all-intl; };
+dependencies = { module=all-fileutils; on=all-build-texinfo; };
+dependencies = { module=all-flex; on=all-build-bison; };
+dependencies = { module=all-flex; on=all-build-byacc; };
+dependencies = { module=all-flex; on=all-intl; };
+dependencies = { module=all-flex; on=all-m4; };
+dependencies = { module=all-flex; on=all-build-texinfo; };
+dependencies = { module=all-gzip; on=all-intl; };
+dependencies = { module=all-gzip; on=all-zlib; };
+dependencies = { module=all-gzip; on=all-build-texinfo; };
+dependencies = { module=all-hello; on=all-intl; };
+dependencies = { module=all-hello; on=all-build-texinfo; };
+dependencies = { module=all-m4; on=all-intl; };
+dependencies = { module=all-m4; on=all-build-texinfo; };
+dependencies = { module=all-make; on=all-intl; };
+dependencies = { module=all-make; on=all-build-texinfo; };
+dependencies = { module=all-patch; on=all-build-texinfo; };
+dependencies = { module=all-make; on=all-build-texinfo; };
+dependencies = { module=all-prms; on=all-libiberty; };
+dependencies = { module=all-recode; on=all-build-texinfo; };
+dependencies = { module=all-sed; on=all-build-texinfo; };
+dependencies = { module=all-send-pr; on=all-prms; };
+dependencies = { module=all-tar; on=all-build-texinfo; };
+dependencies = { module=all-uudecode; on=all-build-texinfo; };
+
+// Target modules.  These can also have dependencies on the language
+// environment (e.g. on libstdc++).  By default target modules depend
+// on libgcc and newlib/libgloss.
+lang_env_dependencies = { module=gperf; cxx=true; };
+lang_env_dependencies = { module=libjava; cxx=true; };
+lang_env_dependencies = { module=newlib; no_c=true; };
+lang_env_dependencies = { module=libgloss; no_c=true; };
+lang_env_dependencies = { module=libgcc; no_gcc=true; no_c=true; };
+// libiberty does not depend on newlib or libgloss because it must be
+// built newlib on some targets (e.g. Cygwin).  It still needs
+// a dependency on libgcc for native targets to configure.
+lang_env_dependencies = { module=libiberty; no_c=true; };
+
+dependencies = { module=configure-target-boehm-gc; on=configure-target-qthreads; };
+dependencies = { module=configure-target-fastjar; on=configure-target-zlib; };
+dependencies = { module=all-target-fastjar; on=all-target-zlib; };
+dependencies = { module=all-target-fastjar; on=all-target-libiberty; };
+dependencies = { module=configure-target-libjava; on=configure-target-zlib; };
+dependencies = { module=configure-target-libjava; on=configure-target-boehm-gc; };
+dependencies = { module=configure-target-libjava; on=configure-target-qthreads; };
+dependencies = { module=configure-target-libjava; on=configure-target-libffi; };
+dependencies = { module=all-target-libjava; on=all-fastjar; };
+dependencies = { module=all-target-libjava; on=all-target-zlib; };
+dependencies = { module=all-target-libjava; on=all-target-boehm-gc; };
+dependencies = { module=all-target-libjava; on=all-target-qthreads; };
+dependencies = { module=all-target-libjava; on=all-target-libffi; };
+dependencies = { module=configure-target-libobjc; on=configure-target-boehm-gc; };
+dependencies = { module=all-target-libobjc; on=all-target-libiberty; };
+dependencies = { module=all-target-libobjc; on=all-target-boehm-gc; };
+dependencies = { module=all-target-libstdc++-v3; on=all-target-libiberty; };
+
+// Target modules in the 'src' repository.
+lang_env_dependencies = { module=examples; };
+lang_env_dependencies = { module=libtermcap; };
+lang_env_dependencies = { module=rda; };
+lang_env_dependencies = { module=winsup; };
+lang_env_dependencies = { module=qthreads; };
+
+dependencies = { module=all-target-libgloss; on=configure-target-newlib; };
+dependencies = { module=all-target-winsup; on=all-target-libiberty; };
+dependencies = { module=all-target-winsup; on=all-target-libtermcap; };
+
+// Toplevel bootstrap
+bootstrap_stage = {
+	id=1 ;
+
+	// * We force-disable intermodule optimizations, even if
+	//   --enable-intermodule was passed, since the installed compiler
+	//   probably can't handle them.  Luckily, autoconf always respects
+	//   the last argument when conflicting --enable arguments are passed.
+	// * Likewise, we force-disable coverage flags, since the installed
+	//   compiler probably has never heard of them.
+	stage_configure_flags='--disable-intermodule $(STAGE1_CHECKING) \
+	  --disable-coverage --enable-languages="$(STAGE1_LANGUAGES)"' ;
+	stage_cflags='$(STAGE1_CFLAGS)' ; };
+bootstrap_stage = {
+	id=2 ; prev=1 ;
+	bootstrap_target=bootstrap2 ;
+	stage_configure_flags="@stage2_werror_flag@" ;
+	stage_cflags="$(BOOT_CFLAGS)" ; };
+bootstrap_stage = {
+	id=3 ; prev=2 ; lean=1 ;
+	compare_target=compare ;
+	bootstrap_target=bootstrap ;
+	cleanstrap_target=cleanstrap ;
+	stage_configure_flags="@stage2_werror_flag@" ;
+	stage_cflags="$(BOOT_CFLAGS)" ; };
+bootstrap_stage = {
+	id=4 ; prev=3 ; lean=2 ;
+	compare_target=compare3 ;
+	bootstrap_target=bootstrap4 ;
+	stage_configure_flags="@stage2_werror_flag@" ;
+	stage_cflags="$(BOOT_CFLAGS)" ; };
+bootstrap_stage = {
+	id=profile ; prev=1 ;
+	stage_configure_flags="@stage2_werror_flag@" ;
+	stage_cflags='$(BOOT_CFLAGS) -fprofile-generate' ; };
+bootstrap_stage = {
+	id=feedback ; prev=profile ;
+	bootstrap_target=profiledbootstrap ;
+	stage_configure_flags="@stage2_werror_flag@" ;
+	stage_cflags='$(BOOT_CFLAGS) -fprofile-use' ; };

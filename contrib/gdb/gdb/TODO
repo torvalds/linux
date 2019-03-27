@@ -1,0 +1,333 @@
+If you find inaccuracies in this list, please send mail to
+gdb-patches@sources.redhat.com.  If you would like to work on any
+of these, you should consider sending mail to the same address, to
+find out whether anyone else is working on it.
+
+
+			GDB 5.1 - Fixes
+			===============
+
+Below is a list of problems identified during the GDB 5.0 release
+cycle.  People hope to have these problems fixed in 5.1.
+
+--
+
+Wow, three bug reports for the same problem in one day!  We should
+probably make fixing this a real priority :-).
+
+Anyway, thanks for reporting.
+
+The following patch will fix the problems with setting breakpoints in
+dynamically loaded objects:
+
+   http://sources.redhat.com/ml/gdb-patches/2000-05/msg00230.html
+
+This patch isn't checked in yet (ping Michael/JimB), but I hope this
+will be in the next GDB release.
+
+There should really be a test in the testsuite for this problem, since
+it keeps coming up :-(.  Any volunteers?
+
+Mark
+
+--
+
+		GDB 5.1 - New features
+		======================
+
+The following new features should be included in 5.1.
+
+--
+
+		GDB 5.1 - Cleanups
+		==================
+
+The following code cleanups will hopefully be applied to GDB 5.1.
+
+--
+
+		GDB 5.1 - Known Problems
+		========================
+
+--
+
+z8k
+
+The z8k has suffered bit rot and is known to not build.  The problem
+was occuring in the opcodes directory.
+
+--
+
+The BFD directory requires bug-fixed AUTOMAKE et.al.
+
+AUTOMAKE 1.4 incorrectly set the TEXINPUTS environment variable.  It
+contained the full path to texinfo.tex when it should have only
+contained the directory.  The bug has been fixed in the current
+AUTOMAKE sources.  Automake snapshots can be found in:
+	ftp://sources.redhat.com/pub/gdb/infrastructure
+and	ftp://sources.redhat.com/pub/binutils
+
+--
+
+Solaris 8 x86 CURSES_H problem
+http://sources.redhat.com/ml/gdb/2000-07/msg00038.html
+
+The original problem was worked around with:
+
+    2000-06-06  Michael Snyder  <msnyder@cygnus.com>
+
+        * configure.in: Enable autoconf to find curses.h on Solaris 2.8.
+        * configure: Regenerate.
+
+When building both GDB and SID using the same source tree the problem
+will still occure. sid/component/configure.in mis-configures
+<curses.h> and leaves wrong information in the config cache.
+
+--
+
+		GDB 5.2 - Fixes
+		===============
+
+--
+
+		GDB 5.2 - New features
+		======================
+
+--
+
+GCC 3.0 ABI support (but hopefully sooner...).
+
+--
+
+Objective C/C++ support (but hopefully sooner...).
+
+--
+
+Import of readline 4.2
+
+--
+
+		GDB 5.2 - Cleanups
+		==================
+
+The following cleanups have been identified as part of GDB 5.2.
+
+--
+
+Compiler warnings.
+
+Eliminate warnings for all targets on at least one host for one of the
+-W flags.  Flags up for debate include: -Wswitch -Wcomment -trigraphs
+-Wtrigraphs -Wunused-function -Wunused-label -Wunused-variable
+-Wunused-value -Wchar-subscripts -Wtraditional -Wshadow -Wcast-qual
+-Wcast-align -Wwrite-strings -Wconversion -Wstrict-prototypes
+-Wmissing-prototypes -Wmissing-declarations -Wredundant-decls
+-Woverloaded-virtual -Winline
+
+--
+
+Deprecate, if not delete, the following:
+
+        register[]
+        register_valid[]
+	REGISTER_BYTE()
+                Replaced by, on the target side
+                  supply_register()
+                and on core-gdb side:
+                  {read,write}_register_gen()
+		Remote.c will need to use something
+		other than REGISTER_BYTE() and
+		REGISTER_RAW_SIZE() when unpacking
+		[gG] packets.
+
+        STORE_PSEUDO_REGISTER
+        FETCH_PSEUDO_REGISTER
+                Now handed by the methods
+                  gdbarch_{read,write}_register()
+                which sits between core GDB and
+                the register cache.
+
+        REGISTER_CONVERTIBLE
+        REGISTER_CONVERT_TO_RAW
+        REGISTER_CONVERT_TO_VIRTUAL
+                I think these three are redundant.
+                gdbarch_register_{read,write} can
+                do any conversion it likes.
+
+        REGISTER_VIRTUAL_SIZE
+        MAX_REGISTER_VIRTUAL_SIZE
+        REGISTER_VIRTUAL_TYPE
+                I think these can be replaced by
+		the pair:
+                  FRAME_REGISTER_TYPE(frame, regnum)
+                  REGISTER_TYPE(regnum)
+
+	DO_REGISTERS_INFO
+		Replace with
+		 FRAME_REGISTER_INFO (frame, ...)
+
+	REGISTER_SIM_REGNO()
+		If nothing else rename this so that
+		how it relates to rawreg and the
+		regnum is clear.
+
+--
+
+Obsolete the targets:
+
+arm*-wince-pe
+mips*-*-pe
+sh*-*-pe
+
+--
+
+Obsolete the protocols:
+
+RDB?
+
+``As of version 5.3, WindRiver has removed the RDB server (RDB
+protocol support is built into gdb).''  -- Till.
+
+--
+
+Restructure gdb directory tree so that it avoids any 8.3 and 14
+filename problems.
+
+--
+
+Convert GDB build process to AUTOMAKE.
+
+See also sub-directory configure below.
+
+The current convention is (kind of) to use $(<header>_h) in all
+dependency lists.  It isn't done in a consistent way.
+
+--
+
+		GDB 5.2 - Known Problems
+		========================
+
+--
+
+		Code Cleanups: General
+		======================
+
+The following are more general cleanups and fixes.  They are not tied
+to any specific release.
+
+
+			New Features and Fixes
+			======================
+
+These are harder than cleanups but easier than work involving
+fundamental architectural change.
+
+--
+
+			Language Support
+			================
+
+New languages come onto the scene all the time.
+
+--
+
+Re: Various C++ things
+
+RTTI for g++ should be using the typeinfo functions rather than the
+vtables.  The typeinfo functions are always at offset 4 from the
+beginning of the vtable, and are always right. The vtables will have
+weird names like E::VB sometimes.  The typeinfo function will always
+be "E type_info function", or somesuch.
+
+value_virtual_fn_field needs to be fixed so there are no failures for
+virtual functions for C++ using g++.
+
+Testsuite cases are the major priority right now for C++ support,
+since i have to make a lot of changes that could potentially break
+each other.
+
+--
+
+
+			Symbol Support
+			==============
+
+--
+
+Investiagate ways of reducing memory.
+
+--
+
+Investigate ways of improving load time.
+
+--
+
+			Testsuite Support
+			=================
+
+There are never to many testcases.
+
+--
+
+Better thread testsuite.
+
+--
+
+Better C++ testsuite.
+
+--
+
+		Architectural Changes: General
+		==============================
+
+These are harder than simple cleanups / fixes and, consequently
+involve more work.  Typically an Architectural Change will be broken
+down into a more digestible set of cleanups and fixes.
+
+--
+
+		Architectural Change: Multi-arch et al.
+		=======================================
+
+The long term objective is to remove all assumptions that there is a
+single target with a single address space with a single instruction
+set architecture and single application binary interface.
+
+This is an ongoing effort.  The first milestone is to enable
+``multi-arch'' where by all architectural decisions are made at
+runtime.
+
+It should be noted that ``gdbarch'' is really ``gdbabi'' and
+``gdbisa''.  Once things are multi-arched breaking that down correctly
+will become much easier.
+
+--
+
+	Architectural Change: MI, LIBGDB and scripting languages
+	========================================================
+
+See also architectural changes related to the event loop.  LIBGDB
+can't be finished until there is a generic event loop being used by
+all targets.
+
+The long term objective is it to be possible to integrate GDB into
+scripting languages.
+
+--
+
+		Architectural Change: Async
+		===========================
+
+While GDB uses an event loop when prompting the user for input.  That
+event loop is not exploited by targets when they allow the target
+program to continue.  Typically targets still block in (target_wait())
+until the program again halts.
+
+The closest a target comes to supporting full asynchronous mode are
+the remote targets ``async'' and ``extended-async''.
+
+--
+
+# Local Variables:
+# mode: text
+# End:

@@ -1,0 +1,126 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)look.1	8.1 (Berkeley) 6/14/93
+.\" $FreeBSD$
+.\"
+.Dd July 17, 2004
+.Dt LOOK 1
+.Os
+.Sh NAME
+.Nm look
+.Nd display lines beginning with a given string
+.Sh SYNOPSIS
+.Nm
+.Op Fl df
+.Op Fl t Ar termchar
+.Ar string
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility displays any lines in
+.Ar file
+which contain
+.Ar string
+as a prefix.
+As
+.Nm
+performs a binary search, the lines in
+.Ar file
+must be sorted.
+.Pp
+If
+.Ar file
+is not specified, the file
+.Pa /usr/share/dict/words
+is used, only alphanumeric characters are compared and the case of
+alphabetic characters is ignored.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl d , -alphanum
+Dictionary character set and order, i.e., only alphanumeric characters
+are compared.
+.It Fl f , -ignore-case
+Ignore the case of alphabetic characters.
+.It Fl t , -terminate Ar termchar
+Specify a string termination character, i.e., only the characters
+in
+.Ar string
+up to and including the first occurrence of
+.Ar termchar
+are compared.
+.El
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of the
+.Nm
+utility.
+Their effect is described in
+.Xr environ 7 .
+.Sh FILES
+.Bl -tag -width /usr/share/dict/words -compact
+.It Pa /usr/share/dict/words
+the dictionary
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 if one or more lines were found and displayed,
+1 if no lines were found, and >1 if an error occurred.
+.Sh COMPATIBILITY
+The original manual page stated that tabs and blank characters participated
+in comparisons when the
+.Fl d
+option was specified.
+This was incorrect and the current man page matches the historic
+implementation.
+.Pp
+The
+.Fl a
+and
+.Fl -alternative
+flags are ignored for compatibility.
+.Sh SEE ALSO
+.Xr grep 1 ,
+.Xr sort 1
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.At v7 .
+.Sh BUGS
+Lines are not compared according to the current locale's collating
+order.
+Input files must be sorted with
+.Ev LC_COLLATE
+set to
+.Ql C .

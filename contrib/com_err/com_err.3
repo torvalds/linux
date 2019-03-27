@@ -1,0 +1,245 @@
+.\" Copyright (c) 2005 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.\" This manpage was contributed by Gregory McGarry.
+.\"
+.Dd July  7, 2005
+.Dt COM_ERR 3
+.Os
+.Sh NAME
+.Nm com_err ,
+.Nm com_err_va ,
+.Nm error_message ,
+.Nm error_table_name ,
+.Nm init_error_table ,
+.Nm set_com_err_hook ,
+.Nm reset_com_err_hook ,
+.Nm add_to_error_table ,
+.Nm initialize_error_table_r
+.Nm free_error_table ,
+.Nm com_right
+.Nd common error display library
+.Sh LIBRARY
+Common Error Library (libcom_err, -lcom_err)
+.Sh SYNOPSIS
+.Fd #include <stdio.h>
+.Fd #include <stdarg.h>
+.Fd #include <com_err.h>
+.Fd #include \&"XXX_err.h\&"
+.Pp
+typedef void (*errf)(const char *, long, const char *, ...);
+.Ft void
+.Fn com_err "const char *whoami" "long code" "const char *format" "..."
+.Ft void
+.Fn com_err_va "const char *whoami" "long code" "const char *format" "..."
+.Ft const char *
+.Fn error_message "long code"
+.Ft const char *
+.Fn error_table_name "int num"
+.Ft int
+.Fn init_error_table "const char **msgs" "long base" "int count"
+.Ft errf
+.Fn set_com_err_hook "errf func"
+.Ft errf
+.Fn reset_com_err_hook ""
+.Ft void
+.Fn add_to_error_table "struct et_list *new_table"
+.Ft void
+.Fn initialize_error_table_r "struct et_list **et_list" "const char **msgs" "int base" "long count"
+.Ft void
+.Fn free_error_table "struct et_list *"
+.Ft const char *
+.Fn com_right "struct et_list *list" long code"
+.Sh DESCRIPTION
+The
+.Nm
+library provides a common error-reporting mechanism for defining and
+accessing error codes and descriptions for application software
+packages.  Error descriptions are defined in a table and error codes
+are used to index the table.  The error table, the descriptions and
+the error codes are generated using
+.Xr compile_et 1 .
+.Pp
+The error table is registered with the
+.Nm
+library by calling its initialisation function defined in its header
+file.  The initialisation function is generally defined as
+.Fn initialize_<name>_error_table ,
+where
+.Em name
+is the name of the error table.
+.Pp
+If a thread-safe version of the library is needed
+.Fn initialize_<name>_error_table_r
+that internally calls
+.Fn initialize_error_table_r
+instead be used.
+.Pp
+Any variable which is to contain an error code should be declared
+.Em <name>_error_number
+where
+.Em name
+is the name of the error table.
+.Sh FUNCTIONS
+The following functions are available to the application developer:
+.Bl -tag -width compact
+.It Fn com_err "whoami" "code" "format" "..."
+Displays an error message on standard error composed of the
+.Fa whoami
+string, which should specify the program name, followed by an error
+message generated from
+.Fa code ,
+and a string produced using the
+.Xr printf 3
+.Fa format
+string and any following arguments.  If
+.Fa format
+is NULL, the formatted message will not be
+printed.  The argument
+.Fa format
+may not be omitted.
+.It Fn com_err_va "whoami" "code" "format" "va_list args"
+This routine provides an interface, equivalent to
+.Fn com_err ,
+which may be used by higher-level variadic functions (functions which
+accept variable numbers of arguments).
+.It Fn error_message "code"
+Returns the character string error message associate with
+.Fa code .
+If
+.Fa code is associated with an unknown error table, or if
+.Fa code
+is associated with a known error table but is not in the table, a
+string of the form `Unknown code XXXX NN' is returned, where XXXX is
+the error table name produced by reversing the compaction performed on
+the error table number implied by that error code, and NN is the
+offset from that base value.
+.Pp
+Although this routine is available for use when needed, its use should
+be left to circumstances which render
+.Fn com_err
+unusable.
+.Pp
+.Fn com_right
+returns the error string just like
+.Fa com_err
+but in a thread-safe way.
+.Pp
+.It Fn error_table_name "num"
+Convert a machine-independent error table number
+.Fa num
+into an error table name.
+.It Fn init_error_table "msgs" "base" "count"
+Initialise the internal error table with the array of character string
+error messages in
+.Fa msgs
+of length
+.Fa count .
+The error codes are assigned incrementally from
+.Fa base .
+This function is useful for using the error-reporting mechanism with
+custom error tables that have not been generated with
+.Xr compile_et 1 .
+Although this routine is available for use when needed, its use should
+be restricted.
+.Pp
+.Fn initialize_error_table_r
+initialize the
+.Fa et_list
+in the same way as
+.Fn init_error_table ,
+but in a thread-safe way.
+.Pp
+.It Fn set_com_err_hook "func"
+Provides a hook into the
+.Nm
+library to allow the routine
+.Fa func
+to be dynamically substituted for
+.Fn com_err .
+After
+.Fn set_com_err_hook
+ has been called, calls to
+.Fn com_err
+will turn into calls to the new hook routine.  This function is
+intended to be used in daemons to use a routine which calls
+.Xr syslog 3 ,
+or in a window system application to pop up a dialogue box.
+.It Fn reset_com_err_hook ""
+Turns off the hook set in
+.Fn set_com_err_hook .
+.It Fn add_to_error_table "new_table"
+Add the error table, its messages strings and error codes in
+.Fa new_table
+to the internal error table.
+.El
+.Sh EXAMPLES
+The following is an example using the table defined in
+.Xr compile_et 1 :
+.Pp
+.Bd -literal
+	#include <stdio.h>
+	#include <stdarg.h>
+	#include <syslog.h>
+
+	#include "test_err.h"
+
+	void
+	hook(const char *whoami, long code,
+		const char *format, va_list args)
+	{
+		char buffer[BUFSIZ];
+		static int initialized = 0;
+
+		if (!initialized) {
+			openlog(whoami, LOG_NOWAIT, LOG_DAEMON);
+			initialized = 1;
+		}
+		vsprintf(buffer, format, args);
+		syslog(LOG_ERR, "%s %s", error_message(code), buffer);
+	}
+
+	int
+	main(int argc, char *argv[])
+	{
+		char *whoami = argv[0];
+
+		initialize_test_error_table();
+		com_err(whoami, TEST_INVAL, "before hook");
+		set_com_err_hook(hook);
+		com_err(whoami, TEST_IO, "after hook");
+		return (0);
+	}
+.Ed
+.Sh SEE ALSO
+.Xr compile_et 1

@@ -1,0 +1,930 @@
+//===- llvm/Support/Dwarf.def - Dwarf definitions ---------------*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// Macros for running through Dwarf enumerators.
+//
+//===----------------------------------------------------------------------===//
+
+// TODO: Add other DW-based macros.
+#if !(                                                                         \
+    defined HANDLE_DW_TAG || defined HANDLE_DW_AT || defined HANDLE_DW_FORM || \
+    defined HANDLE_DW_OP || defined HANDLE_DW_LANG || defined HANDLE_DW_ATE || \
+    defined HANDLE_DW_VIRTUALITY || defined HANDLE_DW_DEFAULTED ||             \
+    defined HANDLE_DW_CC || defined HANDLE_DW_LNS || defined HANDLE_DW_LNE ||  \
+    defined HANDLE_DW_LNCT || defined HANDLE_DW_MACRO ||                       \
+    defined HANDLE_DW_RLE ||                                                   \
+    (defined HANDLE_DW_CFA && defined HANDLE_DW_CFA_PRED) ||                   \
+    defined HANDLE_DW_APPLE_PROPERTY || defined HANDLE_DW_UT ||                \
+    defined HANDLE_DWARF_SECTION || defined HANDLE_DW_IDX ||                   \
+    defined HANDLE_DW_END)
+#error "Missing macro definition of HANDLE_DW*"
+#endif
+
+#ifndef HANDLE_DW_TAG
+#define HANDLE_DW_TAG(ID, NAME, VERSION, VENDOR)
+#endif
+
+#ifndef HANDLE_DW_AT
+#define HANDLE_DW_AT(ID, NAME, VERSION, VENDOR)
+#endif
+
+#ifndef HANDLE_DW_FORM
+#define HANDLE_DW_FORM(ID, NAME, VERSION, VENDOR)
+#endif
+
+#ifndef HANDLE_DW_OP
+#define HANDLE_DW_OP(ID, NAME, VERSION, VENDOR)
+#endif
+
+#ifndef HANDLE_DW_LANG
+#define HANDLE_DW_LANG(ID, NAME, LOWER_BOUND, VERSION, VENDOR)
+#endif
+
+#ifndef HANDLE_DW_ATE
+#define HANDLE_DW_ATE(ID, NAME, VERSION, VENDOR)
+#endif
+
+#ifndef HANDLE_DW_VIRTUALITY
+#define HANDLE_DW_VIRTUALITY(ID, NAME)
+#endif
+
+#ifndef HANDLE_DW_DEFAULTED
+#define HANDLE_DW_DEFAULTED(ID, NAME)
+#endif
+
+#ifndef HANDLE_DW_CC
+#define HANDLE_DW_CC(ID, NAME)
+#endif
+
+#ifndef HANDLE_DW_LNS
+#define HANDLE_DW_LNS(ID, NAME)
+#endif
+
+#ifndef HANDLE_DW_LNE
+#define HANDLE_DW_LNE(ID, NAME)
+#endif
+
+#ifndef HANDLE_DW_LNCT
+#define HANDLE_DW_LNCT(ID, NAME)
+#endif
+
+#ifndef HANDLE_DW_MACRO
+#define HANDLE_DW_MACRO(ID, NAME)
+#endif
+
+#ifndef HANDLE_DW_RLE
+#define HANDLE_DW_RLE(ID, NAME)
+#endif
+
+#ifndef HANDLE_DW_CFA
+#define HANDLE_DW_CFA(ID, NAME)
+#endif
+
+#ifndef HANDLE_DW_CFA_PRED
+#define HANDLE_DW_CFA_PRED(ID, NAME, PRED)
+#endif
+
+#ifndef HANDLE_DW_APPLE_PROPERTY
+#define HANDLE_DW_APPLE_PROPERTY(ID, NAME)
+#endif
+
+#ifndef HANDLE_DW_UT
+#define HANDLE_DW_UT(ID, NAME)
+#endif
+
+#ifndef HANDLE_DWARF_SECTION
+#define HANDLE_DWARF_SECTION(ENUM_NAME, ELF_NAME, CMDLINE_NAME)
+#endif
+
+#ifndef HANDLE_DW_IDX
+#define HANDLE_DW_IDX(ID, NAME)
+#endif
+
+#ifndef HANDLE_DW_END
+#define HANDLE_DW_END(ID, NAME)
+#endif
+
+HANDLE_DW_TAG(0x0000, null, 2, DWARF)
+HANDLE_DW_TAG(0x0001, array_type, 2, DWARF)
+HANDLE_DW_TAG(0x0002, class_type, 2, DWARF)
+HANDLE_DW_TAG(0x0003, entry_point, 2, DWARF)
+HANDLE_DW_TAG(0x0004, enumeration_type, 2, DWARF)
+HANDLE_DW_TAG(0x0005, formal_parameter, 2, DWARF)
+HANDLE_DW_TAG(0x0008, imported_declaration, 2, DWARF)
+HANDLE_DW_TAG(0x000a, label, 2, DWARF)
+HANDLE_DW_TAG(0x000b, lexical_block, 2, DWARF)
+HANDLE_DW_TAG(0x000d, member, 2, DWARF)
+HANDLE_DW_TAG(0x000f, pointer_type, 2, DWARF)
+HANDLE_DW_TAG(0x0010, reference_type, 2, DWARF)
+HANDLE_DW_TAG(0x0011, compile_unit, 2, DWARF)
+HANDLE_DW_TAG(0x0012, string_type, 2, DWARF)
+HANDLE_DW_TAG(0x0013, structure_type, 2, DWARF)
+HANDLE_DW_TAG(0x0015, subroutine_type, 2, DWARF)
+HANDLE_DW_TAG(0x0016, typedef, 2, DWARF)
+HANDLE_DW_TAG(0x0017, union_type, 2, DWARF)
+HANDLE_DW_TAG(0x0018, unspecified_parameters, 2, DWARF)
+HANDLE_DW_TAG(0x0019, variant, 2, DWARF)
+HANDLE_DW_TAG(0x001a, common_block, 2, DWARF)
+HANDLE_DW_TAG(0x001b, common_inclusion, 2, DWARF)
+HANDLE_DW_TAG(0x001c, inheritance, 2, DWARF)
+HANDLE_DW_TAG(0x001d, inlined_subroutine, 2, DWARF)
+HANDLE_DW_TAG(0x001e, module, 2, DWARF)
+HANDLE_DW_TAG(0x001f, ptr_to_member_type, 2, DWARF)
+HANDLE_DW_TAG(0x0020, set_type, 2, DWARF)
+HANDLE_DW_TAG(0x0021, subrange_type, 2, DWARF)
+HANDLE_DW_TAG(0x0022, with_stmt, 2, DWARF)
+HANDLE_DW_TAG(0x0023, access_declaration, 2, DWARF)
+HANDLE_DW_TAG(0x0024, base_type, 2, DWARF)
+HANDLE_DW_TAG(0x0025, catch_block, 2, DWARF)
+HANDLE_DW_TAG(0x0026, const_type, 2, DWARF)
+HANDLE_DW_TAG(0x0027, constant, 2, DWARF)
+HANDLE_DW_TAG(0x0028, enumerator, 2, DWARF)
+HANDLE_DW_TAG(0x0029, file_type, 2, DWARF)
+HANDLE_DW_TAG(0x002a, friend, 2, DWARF)
+HANDLE_DW_TAG(0x002b, namelist, 2, DWARF)
+HANDLE_DW_TAG(0x002c, namelist_item, 2, DWARF)
+HANDLE_DW_TAG(0x002d, packed_type, 2, DWARF)
+HANDLE_DW_TAG(0x002e, subprogram, 2, DWARF)
+HANDLE_DW_TAG(0x002f, template_type_parameter, 2, DWARF)
+HANDLE_DW_TAG(0x0030, template_value_parameter, 2, DWARF)
+HANDLE_DW_TAG(0x0031, thrown_type, 2, DWARF)
+HANDLE_DW_TAG(0x0032, try_block, 2, DWARF)
+HANDLE_DW_TAG(0x0033, variant_part, 2, DWARF)
+HANDLE_DW_TAG(0x0034, variable, 2, DWARF)
+HANDLE_DW_TAG(0x0035, volatile_type, 2, DWARF)
+// New in DWARF v3:
+HANDLE_DW_TAG(0x0036, dwarf_procedure, 3, DWARF)
+HANDLE_DW_TAG(0x0037, restrict_type, 3, DWARF)
+HANDLE_DW_TAG(0x0038, interface_type, 3, DWARF)
+HANDLE_DW_TAG(0x0039, namespace, 3, DWARF)
+HANDLE_DW_TAG(0x003a, imported_module, 3, DWARF)
+HANDLE_DW_TAG(0x003b, unspecified_type, 3, DWARF)
+HANDLE_DW_TAG(0x003c, partial_unit, 3, DWARF)
+HANDLE_DW_TAG(0x003d, imported_unit, 3, DWARF)
+HANDLE_DW_TAG(0x003f, condition, 3, DWARF)
+HANDLE_DW_TAG(0x0040, shared_type, 3, DWARF)
+// New in DWARF v4:
+HANDLE_DW_TAG(0x0041, type_unit, 4, DWARF)
+HANDLE_DW_TAG(0x0042, rvalue_reference_type, 4, DWARF)
+HANDLE_DW_TAG(0x0043, template_alias, 4, DWARF)
+// New in DWARF v5:
+HANDLE_DW_TAG(0x0044, coarray_type, 5, DWARF)
+HANDLE_DW_TAG(0x0045, generic_subrange, 5, DWARF)
+HANDLE_DW_TAG(0x0046, dynamic_type, 5, DWARF)
+HANDLE_DW_TAG(0x0047, atomic_type, 5, DWARF)
+HANDLE_DW_TAG(0x0048, call_site, 5, DWARF)
+HANDLE_DW_TAG(0x0049, call_site_parameter, 5, DWARF)
+HANDLE_DW_TAG(0x004a, skeleton_unit, 5, DWARF)
+HANDLE_DW_TAG(0x004b, immutable_type, 5, DWARF)
+// Vendor extensions:
+HANDLE_DW_TAG(0x4081, MIPS_loop, 0, MIPS)
+HANDLE_DW_TAG(0x4101, format_label, 0, GNU)
+HANDLE_DW_TAG(0x4102, function_template, 0, GNU)
+HANDLE_DW_TAG(0x4103, class_template, 0, GNU)
+HANDLE_DW_TAG(0x4106, GNU_template_template_param, 0, GNU)
+HANDLE_DW_TAG(0x4107, GNU_template_parameter_pack, 0, GNU)
+HANDLE_DW_TAG(0x4108, GNU_formal_parameter_pack, 0, GNU)
+HANDLE_DW_TAG(0x4109, GNU_call_site, 0, GNU)
+HANDLE_DW_TAG(0x410a, GNU_call_site_parameter, 0, GNU)
+HANDLE_DW_TAG(0x4200, APPLE_property, 0, APPLE)
+HANDLE_DW_TAG(0xb000, BORLAND_property, 0, BORLAND)
+HANDLE_DW_TAG(0xb001, BORLAND_Delphi_string, 0, BORLAND)
+HANDLE_DW_TAG(0xb002, BORLAND_Delphi_dynamic_array, 0, BORLAND)
+HANDLE_DW_TAG(0xb003, BORLAND_Delphi_set, 0, BORLAND)
+HANDLE_DW_TAG(0xb004, BORLAND_Delphi_variant, 0, BORLAND)
+
+// Attributes.
+HANDLE_DW_AT(0x01, sibling, 2, DWARF)
+HANDLE_DW_AT(0x02, location, 2, DWARF)
+HANDLE_DW_AT(0x03, name, 2, DWARF)
+HANDLE_DW_AT(0x09, ordering, 2, DWARF)
+HANDLE_DW_AT(0x0b, byte_size, 2, DWARF)
+HANDLE_DW_AT(0x0c, bit_offset, 2, DWARF)
+HANDLE_DW_AT(0x0d, bit_size, 2, DWARF)
+HANDLE_DW_AT(0x10, stmt_list, 2, DWARF)
+HANDLE_DW_AT(0x11, low_pc, 2, DWARF)
+HANDLE_DW_AT(0x12, high_pc, 2, DWARF)
+HANDLE_DW_AT(0x13, language, 2, DWARF)
+HANDLE_DW_AT(0x15, discr, 2, DWARF)
+HANDLE_DW_AT(0x16, discr_value, 2, DWARF)
+HANDLE_DW_AT(0x17, visibility, 2, DWARF)
+HANDLE_DW_AT(0x18, import, 2, DWARF)
+HANDLE_DW_AT(0x19, string_length, 2, DWARF)
+HANDLE_DW_AT(0x1a, common_reference, 2, DWARF)
+HANDLE_DW_AT(0x1b, comp_dir, 2, DWARF)
+HANDLE_DW_AT(0x1c, const_value, 2, DWARF)
+HANDLE_DW_AT(0x1d, containing_type, 2, DWARF)
+HANDLE_DW_AT(0x1e, default_value, 2, DWARF)
+HANDLE_DW_AT(0x20, inline, 2, DWARF)
+HANDLE_DW_AT(0x21, is_optional, 2, DWARF)
+HANDLE_DW_AT(0x22, lower_bound, 2, DWARF)
+HANDLE_DW_AT(0x25, producer, 2, DWARF)
+HANDLE_DW_AT(0x27, prototyped, 2, DWARF)
+HANDLE_DW_AT(0x2a, return_addr, 2, DWARF)
+HANDLE_DW_AT(0x2c, start_scope, 2, DWARF)
+HANDLE_DW_AT(0x2e, bit_stride, 2, DWARF)
+HANDLE_DW_AT(0x2f, upper_bound, 2, DWARF)
+HANDLE_DW_AT(0x31, abstract_origin, 2, DWARF)
+HANDLE_DW_AT(0x32, accessibility, 2, DWARF)
+HANDLE_DW_AT(0x33, address_class, 2, DWARF)
+HANDLE_DW_AT(0x34, artificial, 2, DWARF)
+HANDLE_DW_AT(0x35, base_types, 2, DWARF)
+HANDLE_DW_AT(0x36, calling_convention, 2, DWARF)
+HANDLE_DW_AT(0x37, count, 2, DWARF)
+HANDLE_DW_AT(0x38, data_member_location, 2, DWARF)
+HANDLE_DW_AT(0x39, decl_column, 2, DWARF)
+HANDLE_DW_AT(0x3a, decl_file, 2, DWARF)
+HANDLE_DW_AT(0x3b, decl_line, 2, DWARF)
+HANDLE_DW_AT(0x3c, declaration, 2, DWARF)
+HANDLE_DW_AT(0x3d, discr_list, 2, DWARF)
+HANDLE_DW_AT(0x3e, encoding, 2, DWARF)
+HANDLE_DW_AT(0x3f, external, 2, DWARF)
+HANDLE_DW_AT(0x40, frame_base, 2, DWARF)
+HANDLE_DW_AT(0x41, friend, 2, DWARF)
+HANDLE_DW_AT(0x42, identifier_case, 2, DWARF)
+HANDLE_DW_AT(0x43, macro_info, 2, DWARF)
+HANDLE_DW_AT(0x44, namelist_item, 2, DWARF)
+HANDLE_DW_AT(0x45, priority, 2, DWARF)
+HANDLE_DW_AT(0x46, segment, 2, DWARF)
+HANDLE_DW_AT(0x47, specification, 2, DWARF)
+HANDLE_DW_AT(0x48, static_link, 2, DWARF)
+HANDLE_DW_AT(0x49, type, 2, DWARF)
+HANDLE_DW_AT(0x4a, use_location, 2, DWARF)
+HANDLE_DW_AT(0x4b, variable_parameter, 2, DWARF)
+HANDLE_DW_AT(0x4c, virtuality, 2, DWARF)
+HANDLE_DW_AT(0x4d, vtable_elem_location, 2, DWARF)
+// New in DWARF v3:
+HANDLE_DW_AT(0x4e, allocated, 3, DWARF)
+HANDLE_DW_AT(0x4f, associated, 3, DWARF)
+HANDLE_DW_AT(0x50, data_location, 3, DWARF)
+HANDLE_DW_AT(0x51, byte_stride, 3, DWARF)
+HANDLE_DW_AT(0x52, entry_pc, 3, DWARF)
+HANDLE_DW_AT(0x53, use_UTF8, 3, DWARF)
+HANDLE_DW_AT(0x54, extension, 3, DWARF)
+HANDLE_DW_AT(0x55, ranges, 3, DWARF)
+HANDLE_DW_AT(0x56, trampoline, 3, DWARF)
+HANDLE_DW_AT(0x57, call_column, 3, DWARF)
+HANDLE_DW_AT(0x58, call_file, 3, DWARF)
+HANDLE_DW_AT(0x59, call_line, 3, DWARF)
+HANDLE_DW_AT(0x5a, description, 3, DWARF)
+HANDLE_DW_AT(0x5b, binary_scale, 3, DWARF)
+HANDLE_DW_AT(0x5c, decimal_scale, 3, DWARF)
+HANDLE_DW_AT(0x5d, small, 3, DWARF)
+HANDLE_DW_AT(0x5e, decimal_sign, 3, DWARF)
+HANDLE_DW_AT(0x5f, digit_count, 3, DWARF)
+HANDLE_DW_AT(0x60, picture_string, 3, DWARF)
+HANDLE_DW_AT(0x61, mutable, 3, DWARF)
+HANDLE_DW_AT(0x62, threads_scaled, 3, DWARF)
+HANDLE_DW_AT(0x63, explicit, 3, DWARF)
+HANDLE_DW_AT(0x64, object_pointer, 3, DWARF)
+HANDLE_DW_AT(0x65, endianity, 3, DWARF)
+HANDLE_DW_AT(0x66, elemental, 3, DWARF)
+HANDLE_DW_AT(0x67, pure, 3, DWARF)
+HANDLE_DW_AT(0x68, recursive, 3, DWARF)
+// New in DWARF v4:
+HANDLE_DW_AT(0x69, signature, 4, DWARF)
+HANDLE_DW_AT(0x6a, main_subprogram, 4, DWARF)
+HANDLE_DW_AT(0x6b, data_bit_offset, 4, DWARF)
+HANDLE_DW_AT(0x6c, const_expr, 4, DWARF)
+HANDLE_DW_AT(0x6d, enum_class, 4, DWARF)
+HANDLE_DW_AT(0x6e, linkage_name, 4, DWARF)
+// New in DWARF v5:
+HANDLE_DW_AT(0x6f, string_length_bit_size, 5, DWARF)
+HANDLE_DW_AT(0x70, string_length_byte_size, 5, DWARF)
+HANDLE_DW_AT(0x71, rank, 5, DWARF)
+HANDLE_DW_AT(0x72, str_offsets_base, 5, DWARF)
+HANDLE_DW_AT(0x73, addr_base, 5, DWARF)
+HANDLE_DW_AT(0x74, rnglists_base, 5, DWARF)
+HANDLE_DW_AT(0x75, dwo_id, 0, DWARF) ///< Retracted from DWARF v5.
+HANDLE_DW_AT(0x76, dwo_name, 5, DWARF)
+HANDLE_DW_AT(0x77, reference, 5, DWARF)
+HANDLE_DW_AT(0x78, rvalue_reference, 5, DWARF)
+HANDLE_DW_AT(0x79, macros, 5, DWARF)
+HANDLE_DW_AT(0x7a, call_all_calls, 5, DWARF)
+HANDLE_DW_AT(0x7b, call_all_source_calls, 5, DWARF)
+HANDLE_DW_AT(0x7c, call_all_tail_calls, 5, DWARF)
+HANDLE_DW_AT(0x7d, call_return_pc, 5, DWARF)
+HANDLE_DW_AT(0x7e, call_value, 5, DWARF)
+HANDLE_DW_AT(0x7f, call_origin, 5, DWARF)
+HANDLE_DW_AT(0x80, call_parameter, 5, DWARF)
+HANDLE_DW_AT(0x81, call_pc, 5, DWARF)
+HANDLE_DW_AT(0x82, call_tail_call, 5, DWARF)
+HANDLE_DW_AT(0x83, call_target, 5, DWARF)
+HANDLE_DW_AT(0x84, call_target_clobbered, 5, DWARF)
+HANDLE_DW_AT(0x85, call_data_location, 5, DWARF)
+HANDLE_DW_AT(0x86, call_data_value, 5, DWARF)
+HANDLE_DW_AT(0x87, noreturn, 5, DWARF)
+HANDLE_DW_AT(0x88, alignment, 5, DWARF)
+HANDLE_DW_AT(0x89, export_symbols, 5, DWARF)
+HANDLE_DW_AT(0x8a, deleted, 5, DWARF)
+HANDLE_DW_AT(0x8b, defaulted, 5, DWARF)
+HANDLE_DW_AT(0x8c, loclists_base, 5, DWARF)
+// Vendor extensions:
+HANDLE_DW_AT(0x2002, MIPS_loop_begin, 0, MIPS)
+HANDLE_DW_AT(0x2003, MIPS_tail_loop_begin, 0, MIPS)
+HANDLE_DW_AT(0x2004, MIPS_epilog_begin, 0, MIPS)
+HANDLE_DW_AT(0x2005, MIPS_loop_unroll_factor, 0, MIPS)
+HANDLE_DW_AT(0x2006, MIPS_software_pipeline_depth, 0, MIPS)
+HANDLE_DW_AT(0x2007, MIPS_linkage_name, 0, MIPS)
+HANDLE_DW_AT(0x2008, MIPS_stride, 0, MIPS)
+HANDLE_DW_AT(0x2009, MIPS_abstract_name, 0, MIPS)
+HANDLE_DW_AT(0x200a, MIPS_clone_origin, 0, MIPS)
+HANDLE_DW_AT(0x200b, MIPS_has_inlines, 0, MIPS)
+HANDLE_DW_AT(0x200c, MIPS_stride_byte, 0, MIPS)
+HANDLE_DW_AT(0x200d, MIPS_stride_elem, 0, MIPS)
+HANDLE_DW_AT(0x200e, MIPS_ptr_dopetype, 0, MIPS)
+HANDLE_DW_AT(0x200f, MIPS_allocatable_dopetype, 0, MIPS)
+HANDLE_DW_AT(0x2010, MIPS_assumed_shape_dopetype, 0, MIPS)
+// This one appears to have only been implemented by Open64 for
+// fortran and may conflict with other extensions.
+HANDLE_DW_AT(0x2011, MIPS_assumed_size, 0, MIPS)
+// GNU extensions
+HANDLE_DW_AT(0x2101, sf_names, 0, GNU)
+HANDLE_DW_AT(0x2102, src_info, 0, GNU)
+HANDLE_DW_AT(0x2103, mac_info, 0, GNU)
+HANDLE_DW_AT(0x2104, src_coords, 0, GNU)
+HANDLE_DW_AT(0x2105, body_begin, 0, GNU)
+HANDLE_DW_AT(0x2106, body_end, 0, GNU)
+HANDLE_DW_AT(0x2107, GNU_vector, 0, GNU)
+HANDLE_DW_AT(0x2110, GNU_template_name, 0, GNU)
+HANDLE_DW_AT(0x210f, GNU_odr_signature, 0, GNU)
+HANDLE_DW_AT(0x2111, GNU_call_site_value, 0, GNU)
+HANDLE_DW_AT(0x2117, GNU_all_call_sites, 0, GNU)
+HANDLE_DW_AT(0x2119, GNU_macros, 0, GNU)
+// Extensions for Fission proposal.
+HANDLE_DW_AT(0x2130, GNU_dwo_name, 0, GNU)
+HANDLE_DW_AT(0x2131, GNU_dwo_id, 0, GNU)
+HANDLE_DW_AT(0x2132, GNU_ranges_base, 0, GNU)
+HANDLE_DW_AT(0x2133, GNU_addr_base, 0, GNU)
+HANDLE_DW_AT(0x2134, GNU_pubnames, 0, GNU)
+HANDLE_DW_AT(0x2135, GNU_pubtypes, 0, GNU)
+HANDLE_DW_AT(0x2136, GNU_discriminator, 0, GNU)
+// Borland extensions.
+HANDLE_DW_AT(0x3b11, BORLAND_property_read, 0, BORLAND)
+HANDLE_DW_AT(0x3b12, BORLAND_property_write, 0, BORLAND)
+HANDLE_DW_AT(0x3b13, BORLAND_property_implements, 0, BORLAND)
+HANDLE_DW_AT(0x3b14, BORLAND_property_index, 0, BORLAND)
+HANDLE_DW_AT(0x3b15, BORLAND_property_default, 0, BORLAND)
+HANDLE_DW_AT(0x3b20, BORLAND_Delphi_unit, 0, BORLAND)
+HANDLE_DW_AT(0x3b21, BORLAND_Delphi_class, 0, BORLAND)
+HANDLE_DW_AT(0x3b22, BORLAND_Delphi_record, 0, BORLAND)
+HANDLE_DW_AT(0x3b23, BORLAND_Delphi_metaclass, 0, BORLAND)
+HANDLE_DW_AT(0x3b24, BORLAND_Delphi_constructor, 0, BORLAND)
+HANDLE_DW_AT(0x3b25, BORLAND_Delphi_destructor, 0, BORLAND)
+HANDLE_DW_AT(0x3b26, BORLAND_Delphi_anonymous_method, 0, BORLAND)
+HANDLE_DW_AT(0x3b27, BORLAND_Delphi_interface, 0, BORLAND)
+HANDLE_DW_AT(0x3b28, BORLAND_Delphi_ABI, 0, BORLAND)
+HANDLE_DW_AT(0x3b29, BORLAND_Delphi_return, 0, BORLAND)
+HANDLE_DW_AT(0x3b30, BORLAND_Delphi_frameptr, 0, BORLAND)
+HANDLE_DW_AT(0x3b31, BORLAND_closure, 0, BORLAND)
+// LLVM project extensions.
+HANDLE_DW_AT(0x3e00, LLVM_include_path, 0, LLVM)
+HANDLE_DW_AT(0x3e01, LLVM_config_macros, 0, LLVM)
+HANDLE_DW_AT(0x3e02, LLVM_isysroot, 0, LLVM)
+// Apple extensions.
+HANDLE_DW_AT(0x3fe1, APPLE_optimized, 0, APPLE)
+HANDLE_DW_AT(0x3fe2, APPLE_flags, 0, APPLE)
+HANDLE_DW_AT(0x3fe3, APPLE_isa, 0, APPLE)
+HANDLE_DW_AT(0x3fe4, APPLE_block, 0, APPLE)
+HANDLE_DW_AT(0x3fe5, APPLE_major_runtime_vers, 0, APPLE)
+HANDLE_DW_AT(0x3fe6, APPLE_runtime_class, 0, APPLE)
+HANDLE_DW_AT(0x3fe7, APPLE_omit_frame_ptr, 0, APPLE)
+HANDLE_DW_AT(0x3fe8, APPLE_property_name, 0, APPLE)
+HANDLE_DW_AT(0x3fe9, APPLE_property_getter, 0, APPLE)
+HANDLE_DW_AT(0x3fea, APPLE_property_setter, 0, APPLE)
+HANDLE_DW_AT(0x3feb, APPLE_property_attribute, 0, APPLE)
+HANDLE_DW_AT(0x3fec, APPLE_objc_complete_type, 0, APPLE)
+HANDLE_DW_AT(0x3fed, APPLE_property, 0, APPLE)
+
+// Attribute form encodings.
+HANDLE_DW_FORM(0x01, addr, 2, DWARF)
+HANDLE_DW_FORM(0x03, block2, 2, DWARF)
+HANDLE_DW_FORM(0x04, block4, 2, DWARF)
+HANDLE_DW_FORM(0x05, data2, 2, DWARF)
+HANDLE_DW_FORM(0x06, data4, 2, DWARF)
+HANDLE_DW_FORM(0x07, data8, 2, DWARF)
+HANDLE_DW_FORM(0x08, string, 2, DWARF)
+HANDLE_DW_FORM(0x09, block, 2, DWARF)
+HANDLE_DW_FORM(0x0a, block1, 2, DWARF)
+HANDLE_DW_FORM(0x0b, data1, 2, DWARF)
+HANDLE_DW_FORM(0x0c, flag, 2, DWARF)
+HANDLE_DW_FORM(0x0d, sdata, 2, DWARF)
+HANDLE_DW_FORM(0x0e, strp, 2, DWARF)
+HANDLE_DW_FORM(0x0f, udata, 2, DWARF)
+HANDLE_DW_FORM(0x10, ref_addr, 2, DWARF)
+HANDLE_DW_FORM(0x11, ref1, 2, DWARF)
+HANDLE_DW_FORM(0x12, ref2, 2, DWARF)
+HANDLE_DW_FORM(0x13, ref4, 2, DWARF)
+HANDLE_DW_FORM(0x14, ref8, 2, DWARF)
+HANDLE_DW_FORM(0x15, ref_udata, 2, DWARF)
+HANDLE_DW_FORM(0x16, indirect, 2, DWARF)
+// New in DWARF v4:
+HANDLE_DW_FORM(0x17, sec_offset, 4, DWARF)
+HANDLE_DW_FORM(0x18, exprloc, 4, DWARF)
+HANDLE_DW_FORM(0x19, flag_present, 4, DWARF)
+// This was defined out of sequence.
+HANDLE_DW_FORM(0x20, ref_sig8, 4, DWARF)
+// New in DWARF v5:
+HANDLE_DW_FORM(0x1a, strx, 5, DWARF)
+HANDLE_DW_FORM(0x1b, addrx, 5, DWARF)
+HANDLE_DW_FORM(0x1c, ref_sup4, 5, DWARF)
+HANDLE_DW_FORM(0x1d, strp_sup, 5, DWARF)
+HANDLE_DW_FORM(0x1e, data16, 5, DWARF)
+HANDLE_DW_FORM(0x1f, line_strp, 5, DWARF)
+HANDLE_DW_FORM(0x21, implicit_const, 5, DWARF)
+HANDLE_DW_FORM(0x22, loclistx, 5, DWARF)
+HANDLE_DW_FORM(0x23, rnglistx, 5, DWARF)
+HANDLE_DW_FORM(0x24, ref_sup8, 5, DWARF)
+HANDLE_DW_FORM(0x25, strx1, 5, DWARF)
+HANDLE_DW_FORM(0x26, strx2, 5, DWARF)
+HANDLE_DW_FORM(0x27, strx3, 5, DWARF)
+HANDLE_DW_FORM(0x28, strx4, 5, DWARF)
+HANDLE_DW_FORM(0x29, addrx1, 5, DWARF)
+HANDLE_DW_FORM(0x2a, addrx2, 5, DWARF)
+HANDLE_DW_FORM(0x2b, addrx3, 5, DWARF)
+HANDLE_DW_FORM(0x2c, addrx4, 5, DWARF)
+// Extensions for Fission proposal
+HANDLE_DW_FORM(0x1f01, GNU_addr_index, 0, GNU)
+HANDLE_DW_FORM(0x1f02, GNU_str_index, 0, GNU)
+// Alternate debug sections proposal (output of "dwz" tool).
+HANDLE_DW_FORM(0x1f20, GNU_ref_alt, 0, GNU)
+HANDLE_DW_FORM(0x1f21, GNU_strp_alt, 0, GNU)
+
+// DWARF Expression operators.
+HANDLE_DW_OP(0x03, addr, 2, DWARF)
+HANDLE_DW_OP(0x06, deref, 2, DWARF)
+HANDLE_DW_OP(0x08, const1u, 2, DWARF)
+HANDLE_DW_OP(0x09, const1s, 2, DWARF)
+HANDLE_DW_OP(0x0a, const2u, 2, DWARF)
+HANDLE_DW_OP(0x0b, const2s, 2, DWARF)
+HANDLE_DW_OP(0x0c, const4u, 2, DWARF)
+HANDLE_DW_OP(0x0d, const4s, 2, DWARF)
+HANDLE_DW_OP(0x0e, const8u, 2, DWARF)
+HANDLE_DW_OP(0x0f, const8s, 2, DWARF)
+HANDLE_DW_OP(0x10, constu, 2, DWARF)
+HANDLE_DW_OP(0x11, consts, 2, DWARF)
+HANDLE_DW_OP(0x12, dup, 2, DWARF)
+HANDLE_DW_OP(0x13, drop, 2, DWARF)
+HANDLE_DW_OP(0x14, over, 2, DWARF)
+HANDLE_DW_OP(0x15, pick, 2, DWARF)
+HANDLE_DW_OP(0x16, swap, 2, DWARF)
+HANDLE_DW_OP(0x17, rot, 2, DWARF)
+HANDLE_DW_OP(0x18, xderef, 2, DWARF)
+HANDLE_DW_OP(0x19, abs, 2, DWARF)
+HANDLE_DW_OP(0x1a, and, 2, DWARF)
+HANDLE_DW_OP(0x1b, div, 2, DWARF)
+HANDLE_DW_OP(0x1c, minus, 2, DWARF)
+HANDLE_DW_OP(0x1d, mod, 2, DWARF)
+HANDLE_DW_OP(0x1e, mul, 2, DWARF)
+HANDLE_DW_OP(0x1f, neg, 2, DWARF)
+HANDLE_DW_OP(0x20, not, 2, DWARF)
+HANDLE_DW_OP(0x21, or, 2, DWARF)
+HANDLE_DW_OP(0x22, plus, 2, DWARF)
+HANDLE_DW_OP(0x23, plus_uconst, 2, DWARF)
+HANDLE_DW_OP(0x24, shl, 2, DWARF)
+HANDLE_DW_OP(0x25, shr, 2, DWARF)
+HANDLE_DW_OP(0x26, shra, 2, DWARF)
+HANDLE_DW_OP(0x27, xor, 2, DWARF)
+HANDLE_DW_OP(0x28, bra, 2, DWARF)
+HANDLE_DW_OP(0x29, eq, 2, DWARF)
+HANDLE_DW_OP(0x2a, ge, 2, DWARF)
+HANDLE_DW_OP(0x2b, gt, 2, DWARF)
+HANDLE_DW_OP(0x2c, le, 2, DWARF)
+HANDLE_DW_OP(0x2d, lt, 2, DWARF)
+HANDLE_DW_OP(0x2e, ne, 2, DWARF)
+HANDLE_DW_OP(0x2f, skip, 2, DWARF)
+HANDLE_DW_OP(0x30, lit0, 2, DWARF)
+HANDLE_DW_OP(0x31, lit1, 2, DWARF)
+HANDLE_DW_OP(0x32, lit2, 2, DWARF)
+HANDLE_DW_OP(0x33, lit3, 2, DWARF)
+HANDLE_DW_OP(0x34, lit4, 2, DWARF)
+HANDLE_DW_OP(0x35, lit5, 2, DWARF)
+HANDLE_DW_OP(0x36, lit6, 2, DWARF)
+HANDLE_DW_OP(0x37, lit7, 2, DWARF)
+HANDLE_DW_OP(0x38, lit8, 2, DWARF)
+HANDLE_DW_OP(0x39, lit9, 2, DWARF)
+HANDLE_DW_OP(0x3a, lit10, 2, DWARF)
+HANDLE_DW_OP(0x3b, lit11, 2, DWARF)
+HANDLE_DW_OP(0x3c, lit12, 2, DWARF)
+HANDLE_DW_OP(0x3d, lit13, 2, DWARF)
+HANDLE_DW_OP(0x3e, lit14, 2, DWARF)
+HANDLE_DW_OP(0x3f, lit15, 2, DWARF)
+HANDLE_DW_OP(0x40, lit16, 2, DWARF)
+HANDLE_DW_OP(0x41, lit17, 2, DWARF)
+HANDLE_DW_OP(0x42, lit18, 2, DWARF)
+HANDLE_DW_OP(0x43, lit19, 2, DWARF)
+HANDLE_DW_OP(0x44, lit20, 2, DWARF)
+HANDLE_DW_OP(0x45, lit21, 2, DWARF)
+HANDLE_DW_OP(0x46, lit22, 2, DWARF)
+HANDLE_DW_OP(0x47, lit23, 2, DWARF)
+HANDLE_DW_OP(0x48, lit24, 2, DWARF)
+HANDLE_DW_OP(0x49, lit25, 2, DWARF)
+HANDLE_DW_OP(0x4a, lit26, 2, DWARF)
+HANDLE_DW_OP(0x4b, lit27, 2, DWARF)
+HANDLE_DW_OP(0x4c, lit28, 2, DWARF)
+HANDLE_DW_OP(0x4d, lit29, 2, DWARF)
+HANDLE_DW_OP(0x4e, lit30, 2, DWARF)
+HANDLE_DW_OP(0x4f, lit31, 2, DWARF)
+HANDLE_DW_OP(0x50, reg0, 2, DWARF)
+HANDLE_DW_OP(0x51, reg1, 2, DWARF)
+HANDLE_DW_OP(0x52, reg2, 2, DWARF)
+HANDLE_DW_OP(0x53, reg3, 2, DWARF)
+HANDLE_DW_OP(0x54, reg4, 2, DWARF)
+HANDLE_DW_OP(0x55, reg5, 2, DWARF)
+HANDLE_DW_OP(0x56, reg6, 2, DWARF)
+HANDLE_DW_OP(0x57, reg7, 2, DWARF)
+HANDLE_DW_OP(0x58, reg8, 2, DWARF)
+HANDLE_DW_OP(0x59, reg9, 2, DWARF)
+HANDLE_DW_OP(0x5a, reg10, 2, DWARF)
+HANDLE_DW_OP(0x5b, reg11, 2, DWARF)
+HANDLE_DW_OP(0x5c, reg12, 2, DWARF)
+HANDLE_DW_OP(0x5d, reg13, 2, DWARF)
+HANDLE_DW_OP(0x5e, reg14, 2, DWARF)
+HANDLE_DW_OP(0x5f, reg15, 2, DWARF)
+HANDLE_DW_OP(0x60, reg16, 2, DWARF)
+HANDLE_DW_OP(0x61, reg17, 2, DWARF)
+HANDLE_DW_OP(0x62, reg18, 2, DWARF)
+HANDLE_DW_OP(0x63, reg19, 2, DWARF)
+HANDLE_DW_OP(0x64, reg20, 2, DWARF)
+HANDLE_DW_OP(0x65, reg21, 2, DWARF)
+HANDLE_DW_OP(0x66, reg22, 2, DWARF)
+HANDLE_DW_OP(0x67, reg23, 2, DWARF)
+HANDLE_DW_OP(0x68, reg24, 2, DWARF)
+HANDLE_DW_OP(0x69, reg25, 2, DWARF)
+HANDLE_DW_OP(0x6a, reg26, 2, DWARF)
+HANDLE_DW_OP(0x6b, reg27, 2, DWARF)
+HANDLE_DW_OP(0x6c, reg28, 2, DWARF)
+HANDLE_DW_OP(0x6d, reg29, 2, DWARF)
+HANDLE_DW_OP(0x6e, reg30, 2, DWARF)
+HANDLE_DW_OP(0x6f, reg31, 2, DWARF)
+HANDLE_DW_OP(0x70, breg0, 2, DWARF)
+HANDLE_DW_OP(0x71, breg1, 2, DWARF)
+HANDLE_DW_OP(0x72, breg2, 2, DWARF)
+HANDLE_DW_OP(0x73, breg3, 2, DWARF)
+HANDLE_DW_OP(0x74, breg4, 2, DWARF)
+HANDLE_DW_OP(0x75, breg5, 2, DWARF)
+HANDLE_DW_OP(0x76, breg6, 2, DWARF)
+HANDLE_DW_OP(0x77, breg7, 2, DWARF)
+HANDLE_DW_OP(0x78, breg8, 2, DWARF)
+HANDLE_DW_OP(0x79, breg9, 2, DWARF)
+HANDLE_DW_OP(0x7a, breg10, 2, DWARF)
+HANDLE_DW_OP(0x7b, breg11, 2, DWARF)
+HANDLE_DW_OP(0x7c, breg12, 2, DWARF)
+HANDLE_DW_OP(0x7d, breg13, 2, DWARF)
+HANDLE_DW_OP(0x7e, breg14, 2, DWARF)
+HANDLE_DW_OP(0x7f, breg15, 2, DWARF)
+HANDLE_DW_OP(0x80, breg16, 2, DWARF)
+HANDLE_DW_OP(0x81, breg17, 2, DWARF)
+HANDLE_DW_OP(0x82, breg18, 2, DWARF)
+HANDLE_DW_OP(0x83, breg19, 2, DWARF)
+HANDLE_DW_OP(0x84, breg20, 2, DWARF)
+HANDLE_DW_OP(0x85, breg21, 2, DWARF)
+HANDLE_DW_OP(0x86, breg22, 2, DWARF)
+HANDLE_DW_OP(0x87, breg23, 2, DWARF)
+HANDLE_DW_OP(0x88, breg24, 2, DWARF)
+HANDLE_DW_OP(0x89, breg25, 2, DWARF)
+HANDLE_DW_OP(0x8a, breg26, 2, DWARF)
+HANDLE_DW_OP(0x8b, breg27, 2, DWARF)
+HANDLE_DW_OP(0x8c, breg28, 2, DWARF)
+HANDLE_DW_OP(0x8d, breg29, 2, DWARF)
+HANDLE_DW_OP(0x8e, breg30, 2, DWARF)
+HANDLE_DW_OP(0x8f, breg31, 2, DWARF)
+HANDLE_DW_OP(0x90, regx, 2, DWARF)
+HANDLE_DW_OP(0x91, fbreg, 2, DWARF)
+HANDLE_DW_OP(0x92, bregx, 2, DWARF)
+HANDLE_DW_OP(0x93, piece, 2, DWARF)
+HANDLE_DW_OP(0x94, deref_size, 2, DWARF)
+HANDLE_DW_OP(0x95, xderef_size, 2, DWARF)
+HANDLE_DW_OP(0x96, nop, 2, DWARF)
+// New in DWARF v3:
+HANDLE_DW_OP(0x97, push_object_address, 3, DWARF)
+HANDLE_DW_OP(0x98, call2, 3, DWARF)
+HANDLE_DW_OP(0x99, call4, 3, DWARF)
+HANDLE_DW_OP(0x9a, call_ref, 3, DWARF)
+HANDLE_DW_OP(0x9b, form_tls_address, 3, DWARF)
+HANDLE_DW_OP(0x9c, call_frame_cfa, 3, DWARF)
+HANDLE_DW_OP(0x9d, bit_piece, 3, DWARF)
+// New in DWARF v4:
+HANDLE_DW_OP(0x9e, implicit_value, 4, DWARF)
+HANDLE_DW_OP(0x9f, stack_value, 4, DWARF)
+// New in DWARF v5:
+HANDLE_DW_OP(0xa0, implicit_pointer, 5, DWARF)
+HANDLE_DW_OP(0xa1, addrx, 5, DWARF)
+HANDLE_DW_OP(0xa2, constx, 5, DWARF)
+HANDLE_DW_OP(0xa3, entry_value, 5, DWARF)
+HANDLE_DW_OP(0xa4, const_type, 5, DWARF)
+HANDLE_DW_OP(0xa5, regval_type, 5, DWARF)
+HANDLE_DW_OP(0xa6, deref_type, 5, DWARF)
+HANDLE_DW_OP(0xa7, xderef_type, 5, DWARF)
+HANDLE_DW_OP(0xa8, convert, 5, DWARF)
+HANDLE_DW_OP(0xa9, reinterpret, 5, DWARF)
+// Vendor extensions:
+// Extensions for GNU-style thread-local storage.
+HANDLE_DW_OP(0xe0, GNU_push_tls_address, 0, GNU)
+// Extensions for Fission proposal.
+HANDLE_DW_OP(0xfb, GNU_addr_index, 0, GNU)
+HANDLE_DW_OP(0xfc, GNU_const_index, 0, GNU)
+
+// DWARF languages.
+HANDLE_DW_LANG(0x0001, C89, 0, 2, DWARF)
+HANDLE_DW_LANG(0x0002, C, 0, 2, DWARF)
+HANDLE_DW_LANG(0x0003, Ada83, 1, 2, DWARF)
+HANDLE_DW_LANG(0x0004, C_plus_plus, 0, 2, DWARF)
+HANDLE_DW_LANG(0x0005, Cobol74, 1, 2, DWARF)
+HANDLE_DW_LANG(0x0006, Cobol85, 1, 2, DWARF)
+HANDLE_DW_LANG(0x0007, Fortran77, 1, 2, DWARF)
+HANDLE_DW_LANG(0x0008, Fortran90, 1, 2, DWARF)
+HANDLE_DW_LANG(0x0009, Pascal83, 1, 2, DWARF)
+HANDLE_DW_LANG(0x000a, Modula2, 1, 2, DWARF)
+// New in DWARF v3:
+HANDLE_DW_LANG(0x000b, Java, 0, 3, DWARF)
+HANDLE_DW_LANG(0x000c, C99, 0, 3, DWARF)
+HANDLE_DW_LANG(0x000d, Ada95, 1, 3, DWARF)
+HANDLE_DW_LANG(0x000e, Fortran95, 1, 3, DWARF)
+HANDLE_DW_LANG(0x000f, PLI, 1, 3, DWARF)
+HANDLE_DW_LANG(0x0010, ObjC, 0, 3, DWARF)
+HANDLE_DW_LANG(0x0011, ObjC_plus_plus, 0, 3, DWARF)
+HANDLE_DW_LANG(0x0012, UPC, 0, 3, DWARF)
+HANDLE_DW_LANG(0x0013, D, 0, 3, DWARF)
+// New in DWARF v4:
+HANDLE_DW_LANG(0x0014, Python, 0, 4, DWARF)
+// New in DWARF v5:
+HANDLE_DW_LANG(0x0015, OpenCL, 0, 5, DWARF)
+HANDLE_DW_LANG(0x0016, Go, 0, 5, DWARF)
+HANDLE_DW_LANG(0x0017, Modula3, 1, 5, DWARF)
+HANDLE_DW_LANG(0x0018, Haskell, 0, 5, DWARF)
+HANDLE_DW_LANG(0x0019, C_plus_plus_03, 0, 5, DWARF)
+HANDLE_DW_LANG(0x001a, C_plus_plus_11, 0, 5, DWARF)
+HANDLE_DW_LANG(0x001b, OCaml, 0, 5, DWARF)
+HANDLE_DW_LANG(0x001c, Rust, 0, 5, DWARF)
+HANDLE_DW_LANG(0x001d, C11, 0, 5, DWARF)
+HANDLE_DW_LANG(0x001e, Swift, 0, 5, DWARF)
+HANDLE_DW_LANG(0x001f, Julia, 1, 5, DWARF)
+HANDLE_DW_LANG(0x0020, Dylan, 0, 5, DWARF)
+HANDLE_DW_LANG(0x0021, C_plus_plus_14, 0, 5, DWARF)
+HANDLE_DW_LANG(0x0022, Fortran03, 1, 5, DWARF)
+HANDLE_DW_LANG(0x0023, Fortran08, 1, 5, DWARF)
+HANDLE_DW_LANG(0x0024, RenderScript, 0, 5, DWARF)
+HANDLE_DW_LANG(0x0025, BLISS, 0, 5, DWARF)
+// Vendor extensions:
+HANDLE_DW_LANG(0x8001, Mips_Assembler, None, 0, MIPS)
+HANDLE_DW_LANG(0x8e57, GOOGLE_RenderScript, 0, 0, GOOGLE)
+HANDLE_DW_LANG(0xb000, BORLAND_Delphi, 0, 0, BORLAND)
+
+// DWARF attribute type encodings.
+HANDLE_DW_ATE(0x01, address, 2, DWARF)
+HANDLE_DW_ATE(0x02, boolean, 2, DWARF)
+HANDLE_DW_ATE(0x03, complex_float, 2, DWARF)
+HANDLE_DW_ATE(0x04, float, 2, DWARF)
+HANDLE_DW_ATE(0x05, signed, 2, DWARF)
+HANDLE_DW_ATE(0x06, signed_char, 2, DWARF)
+HANDLE_DW_ATE(0x07, unsigned, 2, DWARF)
+HANDLE_DW_ATE(0x08, unsigned_char, 2, DWARF)
+// New in DWARF v3:
+HANDLE_DW_ATE(0x09, imaginary_float, 3, DWARF)
+HANDLE_DW_ATE(0x0a, packed_decimal, 3, DWARF)
+HANDLE_DW_ATE(0x0b, numeric_string, 3, DWARF)
+HANDLE_DW_ATE(0x0c, edited, 3, DWARF)
+HANDLE_DW_ATE(0x0d, signed_fixed, 3, DWARF)
+HANDLE_DW_ATE(0x0e, unsigned_fixed, 3, DWARF)
+HANDLE_DW_ATE(0x0f, decimal_float, 3, DWARF)
+// New in DWARF v4:
+HANDLE_DW_ATE(0x10, UTF, 4, DWARF)
+// New in DWARF v5:
+HANDLE_DW_ATE(0x11, UCS, 5, DWARF)
+HANDLE_DW_ATE(0x12, ASCII, 5, DWARF)
+
+// DWARF attribute endianity
+HANDLE_DW_END(0x00, default)
+HANDLE_DW_END(0x01, big)
+HANDLE_DW_END(0x02, little)
+
+// DWARF virtuality codes.
+HANDLE_DW_VIRTUALITY(0x00, none)
+HANDLE_DW_VIRTUALITY(0x01, virtual)
+HANDLE_DW_VIRTUALITY(0x02, pure_virtual)
+
+// DWARF v5 Defaulted Member Encodings.
+HANDLE_DW_DEFAULTED(0x00, no)
+HANDLE_DW_DEFAULTED(0x01, in_class)
+HANDLE_DW_DEFAULTED(0x02, out_of_class)
+
+// DWARF calling convention codes.
+HANDLE_DW_CC(0x01, normal)
+HANDLE_DW_CC(0x02, program)
+HANDLE_DW_CC(0x03, nocall)
+// New in DWARF v5:
+HANDLE_DW_CC(0x04, pass_by_reference)
+HANDLE_DW_CC(0x05, pass_by_value)
+// Vendor extensions:
+HANDLE_DW_CC(0x40, GNU_renesas_sh)
+HANDLE_DW_CC(0x41, GNU_borland_fastcall_i386)
+HANDLE_DW_CC(0xb0, BORLAND_safecall)
+HANDLE_DW_CC(0xb1, BORLAND_stdcall)
+HANDLE_DW_CC(0xb2, BORLAND_pascal)
+HANDLE_DW_CC(0xb3, BORLAND_msfastcall)
+HANDLE_DW_CC(0xb4, BORLAND_msreturn)
+HANDLE_DW_CC(0xb5, BORLAND_thiscall)
+HANDLE_DW_CC(0xb6, BORLAND_fastcall)
+HANDLE_DW_CC(0xc0, LLVM_vectorcall)
+HANDLE_DW_CC(0xc1, LLVM_Win64)
+HANDLE_DW_CC(0xc2, LLVM_X86_64SysV)
+HANDLE_DW_CC(0xc3, LLVM_AAPCS)
+HANDLE_DW_CC(0xc4, LLVM_AAPCS_VFP)
+HANDLE_DW_CC(0xc5, LLVM_IntelOclBicc)
+HANDLE_DW_CC(0xc6, LLVM_SpirFunction)
+HANDLE_DW_CC(0xc7, LLVM_OpenCLKernel)
+HANDLE_DW_CC(0xc8, LLVM_Swift)
+HANDLE_DW_CC(0xc9, LLVM_PreserveMost)
+HANDLE_DW_CC(0xca, LLVM_PreserveAll)
+HANDLE_DW_CC(0xcb, LLVM_X86RegCall)
+// From GCC source code (include/dwarf2.h): This DW_CC_ value is not currently
+// generated by any toolchain.  It is used internally to GDB to indicate OpenCL C
+// functions that have been compiled with the IBM XL C for OpenCL compiler and use
+// a non-platform calling convention for passing OpenCL C vector types.
+HANDLE_DW_CC(0xff, GDB_IBM_OpenCL)
+
+// Line Number Extended Opcode Encodings
+HANDLE_DW_LNE(0x01, end_sequence)
+HANDLE_DW_LNE(0x02, set_address)
+HANDLE_DW_LNE(0x03, define_file)
+// New in DWARF v4:
+HANDLE_DW_LNE(0x04, set_discriminator)
+
+// Line Number Standard Opcode Encodings.
+HANDLE_DW_LNS(0x00, extended_op)
+HANDLE_DW_LNS(0x01, copy)
+HANDLE_DW_LNS(0x02, advance_pc)
+HANDLE_DW_LNS(0x03, advance_line)
+HANDLE_DW_LNS(0x04, set_file)
+HANDLE_DW_LNS(0x05, set_column)
+HANDLE_DW_LNS(0x06, negate_stmt)
+HANDLE_DW_LNS(0x07, set_basic_block)
+HANDLE_DW_LNS(0x08, const_add_pc)
+HANDLE_DW_LNS(0x09, fixed_advance_pc)
+// New in DWARF v3:
+HANDLE_DW_LNS(0x0a, set_prologue_end)
+HANDLE_DW_LNS(0x0b, set_epilogue_begin)
+HANDLE_DW_LNS(0x0c, set_isa)
+
+// DWARF v5 Line number header entry format.
+HANDLE_DW_LNCT(0x01, path)
+HANDLE_DW_LNCT(0x02, directory_index)
+HANDLE_DW_LNCT(0x03, timestamp)
+HANDLE_DW_LNCT(0x04, size)
+HANDLE_DW_LNCT(0x05, MD5)
+// A vendor extension until http://dwarfstd.org/ShowIssue.php?issue=180201.1 is
+// accepted and incorporated into the next DWARF standard.
+HANDLE_DW_LNCT(0x2001, LLVM_source)
+
+// DWARF v5 Macro information.
+HANDLE_DW_MACRO(0x01, define)
+HANDLE_DW_MACRO(0x02, undef)
+HANDLE_DW_MACRO(0x03, start_file)
+HANDLE_DW_MACRO(0x04, end_file)
+HANDLE_DW_MACRO(0x05, define_strp)
+HANDLE_DW_MACRO(0x06, undef_strp)
+HANDLE_DW_MACRO(0x07, import)
+HANDLE_DW_MACRO(0x08, define_sup)
+HANDLE_DW_MACRO(0x09, undef_sup)
+HANDLE_DW_MACRO(0x0a, import_sup)
+HANDLE_DW_MACRO(0x0b, define_strx)
+HANDLE_DW_MACRO(0x0c, undef_strx)
+
+// DWARF v5 Range List Entry encoding values.
+HANDLE_DW_RLE(0x00, end_of_list)
+HANDLE_DW_RLE(0x01, base_addressx)
+HANDLE_DW_RLE(0x02, startx_endx)
+HANDLE_DW_RLE(0x03, startx_length)
+HANDLE_DW_RLE(0x04, offset_pair)
+HANDLE_DW_RLE(0x05, base_address)
+HANDLE_DW_RLE(0x06, start_end)
+HANDLE_DW_RLE(0x07, start_length)
+
+// Call frame instruction encodings.
+HANDLE_DW_CFA(0x00, nop)
+HANDLE_DW_CFA(0x40, advance_loc)
+HANDLE_DW_CFA(0x80, offset)
+HANDLE_DW_CFA(0xc0, restore)
+HANDLE_DW_CFA(0x01, set_loc)
+HANDLE_DW_CFA(0x02, advance_loc1)
+HANDLE_DW_CFA(0x03, advance_loc2)
+HANDLE_DW_CFA(0x04, advance_loc4)
+HANDLE_DW_CFA(0x05, offset_extended)
+HANDLE_DW_CFA(0x06, restore_extended)
+HANDLE_DW_CFA(0x07, undefined)
+HANDLE_DW_CFA(0x08, same_value)
+HANDLE_DW_CFA(0x09, register)
+HANDLE_DW_CFA(0x0a, remember_state)
+HANDLE_DW_CFA(0x0b, restore_state)
+HANDLE_DW_CFA(0x0c, def_cfa)
+HANDLE_DW_CFA(0x0d, def_cfa_register)
+HANDLE_DW_CFA(0x0e, def_cfa_offset)
+// New in DWARF v3:
+HANDLE_DW_CFA(0x0f, def_cfa_expression)
+HANDLE_DW_CFA(0x10, expression)
+HANDLE_DW_CFA(0x11, offset_extended_sf)
+HANDLE_DW_CFA(0x12, def_cfa_sf)
+HANDLE_DW_CFA(0x13, def_cfa_offset_sf)
+HANDLE_DW_CFA(0x14, val_offset)
+HANDLE_DW_CFA(0x15, val_offset_sf)
+HANDLE_DW_CFA(0x16, val_expression)
+// Vendor extensions:
+HANDLE_DW_CFA_PRED(0x1d, MIPS_advance_loc8, SELECT_MIPS64)
+HANDLE_DW_CFA_PRED(0x2d, GNU_window_save, SELECT_SPARC)
+HANDLE_DW_CFA_PRED(0x2d, AARCH64_negate_ra_state, SELECT_AARCH64)
+HANDLE_DW_CFA_PRED(0x2e, GNU_args_size, SELECT_X86)
+
+// Apple Objective-C Property Attributes.
+// Keep this list in sync with clang's DeclSpec.h ObjCPropertyAttributeKind!
+HANDLE_DW_APPLE_PROPERTY(0x01, readonly)
+HANDLE_DW_APPLE_PROPERTY(0x02, getter)
+HANDLE_DW_APPLE_PROPERTY(0x04, assign)
+HANDLE_DW_APPLE_PROPERTY(0x08, readwrite)
+HANDLE_DW_APPLE_PROPERTY(0x10, retain)
+HANDLE_DW_APPLE_PROPERTY(0x20, copy)
+HANDLE_DW_APPLE_PROPERTY(0x40, nonatomic)
+HANDLE_DW_APPLE_PROPERTY(0x80, setter)
+HANDLE_DW_APPLE_PROPERTY(0x100, atomic)
+HANDLE_DW_APPLE_PROPERTY(0x200, weak)
+HANDLE_DW_APPLE_PROPERTY(0x400, strong)
+HANDLE_DW_APPLE_PROPERTY(0x800, unsafe_unretained)
+HANDLE_DW_APPLE_PROPERTY(0x1000, nullability)
+HANDLE_DW_APPLE_PROPERTY(0x2000, null_resettable)
+HANDLE_DW_APPLE_PROPERTY(0x4000, class)
+
+// DWARF v5 Unit Types.
+HANDLE_DW_UT(0x01, compile)
+HANDLE_DW_UT(0x02, type)
+HANDLE_DW_UT(0x03, partial)
+HANDLE_DW_UT(0x04, skeleton)
+HANDLE_DW_UT(0x05, split_compile)
+HANDLE_DW_UT(0x06, split_type)
+
+// DWARF section types. (enum name, ELF name, ELF DWO name, cmdline name)
+// Note that these IDs don't mean anything.
+// TODO: Add Mach-O and COFF names.
+// Official DWARF sections.
+HANDLE_DWARF_SECTION(DebugAbbrev, ".debug_abbrev", "debug-abbrev")
+HANDLE_DWARF_SECTION(DebugAddr, ".debug_addr", "debug-addr")
+HANDLE_DWARF_SECTION(DebugAranges, ".debug_aranges", "debug-aranges")
+HANDLE_DWARF_SECTION(DebugInfo, ".debug_info", "debug-info")
+HANDLE_DWARF_SECTION(DebugTypes, ".debug_types", "debug-types")
+HANDLE_DWARF_SECTION(DebugLine, ".debug_line", "debug-line")
+HANDLE_DWARF_SECTION(DebugLineStr, ".debug_line_str", "debug-line-str")
+HANDLE_DWARF_SECTION(DebugLoc, ".debug_loc", "debug-loc")
+HANDLE_DWARF_SECTION(DebugLoclists, ".debug_loclists", "debug-loclists")
+HANDLE_DWARF_SECTION(DebugFrame, ".debug_frame", "debug-frame")
+HANDLE_DWARF_SECTION(DebugMacro, ".debug_macro", "debug-macro")
+HANDLE_DWARF_SECTION(DebugNames, ".debug_names", "debug-names")
+HANDLE_DWARF_SECTION(DebugPubnames, ".debug_pubnames", "debug-pubnames")
+HANDLE_DWARF_SECTION(DebugPubtypes, ".debug_pubtypes", "debug-pubtypes")
+HANDLE_DWARF_SECTION(DebugGnuPubnames, ".debug_gnu_pubnames", "debug-gnu-pubnames")
+HANDLE_DWARF_SECTION(DebugGnuPubtypes, ".debug_gnu_pubtypes", "debug-gnu-pubtypes")
+HANDLE_DWARF_SECTION(DebugRanges, ".debug_ranges", "debug-ranges")
+HANDLE_DWARF_SECTION(DebugRnglists, ".debug_rnglists", "debug-rnglists")
+HANDLE_DWARF_SECTION(DebugStr, ".debug_str", "debug-str")
+HANDLE_DWARF_SECTION(DebugStrOffsets, ".debug_str_offsets", "debug-str-offsets")
+HANDLE_DWARF_SECTION(DebugCUIndex, ".debug_cu_index", "debug-cu-index")
+HANDLE_DWARF_SECTION(DebugTUIndex, ".debug_tu_index", "debug-tu-index")
+// Vendor extensions.
+HANDLE_DWARF_SECTION(AppleNames, ".apple_names", "apple-names")
+HANDLE_DWARF_SECTION(AppleTypes, ".apple_types", "apple-types")
+HANDLE_DWARF_SECTION(AppleNamespaces, ".apple_namespaces", "apple-namespaces")
+HANDLE_DWARF_SECTION(AppleObjC, ".apple_objc", "apple-objc")
+HANDLE_DWARF_SECTION(GdbIndex, ".gdb_index", "gdb-index")
+
+HANDLE_DW_IDX(0x01, compile_unit)
+HANDLE_DW_IDX(0x02, type_unit)
+HANDLE_DW_IDX(0x03, die_offset)
+HANDLE_DW_IDX(0x04, parent)
+HANDLE_DW_IDX(0x05, type_hash)
+
+
+#undef HANDLE_DW_TAG
+#undef HANDLE_DW_AT
+#undef HANDLE_DW_FORM
+#undef HANDLE_DW_OP
+#undef HANDLE_DW_LANG
+#undef HANDLE_DW_ATE
+#undef HANDLE_DW_VIRTUALITY
+#undef HANDLE_DW_DEFAULTED
+#undef HANDLE_DW_CC
+#undef HANDLE_DW_LNS
+#undef HANDLE_DW_LNE
+#undef HANDLE_DW_LNCT
+#undef HANDLE_DW_MACRO
+#undef HANDLE_DW_RLE
+#undef HANDLE_DW_CFA
+#undef HANDLE_DW_CFA_PRED
+#undef HANDLE_DW_APPLE_PROPERTY
+#undef HANDLE_DW_UT
+#undef HANDLE_DWARF_SECTION
+#undef HANDLE_DW_IDX
+#undef HANDLE_DW_END

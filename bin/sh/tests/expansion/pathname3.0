@@ -1,0 +1,29 @@
+# $FreeBSD$
+
+v=12345678
+v=$v$v$v$v
+v=$v$v$v$v
+v=$v$v$v$v
+v=$v$v$v$v
+v=$v$v$v$v
+# 8192 bytes
+v=${v##???}
+[ /*/$v = "/*/$v" ] || exit 1
+
+s=////
+s=$s$s$s$s
+s=$s$s$s$s
+s=$s$s$s$s
+s=$s$s$s$s
+# 1024 bytes
+s=${s##??????????}
+[ /var/empt[y]/$s/$v = "/var/empt[y]/$s/$v" ] || exit 2
+while [ ${#s} -lt 1034 ]; do
+	set -- /.${s}et[c]
+	[ ${#s} -gt 1018 ] || [ "$1" = /.${s}etc ] || exit 3
+	set -- /.${s}et[c]/
+	[ ${#s} -gt 1017 ] || [ "$1" = /.${s}etc/ ] || exit 4
+	set -- /.${s}et[c]/.
+	[ ${#s} -gt 1016 ] || [ "$1" = /.${s}etc/. ] || exit 5
+	s=$s/
+done

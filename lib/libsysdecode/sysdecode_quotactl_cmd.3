@@ -1,0 +1,93 @@
+.\"
+.\" Copyright (c) 2016 John Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 24, 2017
+.Dt sysdecode_quotactl_cmd 3
+.Os
+.Sh NAME
+.Nm sysdecode_quotactl_cmd
+.Nd output name of quotactl command
+.Sh LIBRARY
+.Lb libsysdecode
+.Sh SYNOPSIS
+.In sys/types.h
+.In stdbool.h
+.In stdio.h
+.In sysdecode.h
+.Ft bool
+.Fn sysdecode_quotactl_cmd "FILE *fp" "int cmd"
+.Sh DESCRIPTION
+The
+.Fn sysdecode_quotactl_cmd
+function outputs a text description of the
+.Fa cmd
+argument to
+.Xr quotactl 2
+to the stream
+.Fa fp .
+The description is formatted as an invocation of the
+.Dv QCMD
+macro defined in the
+.In ufs/ufs/quota.h
+header.
+.Pp
+The function first computes the primary and secondary values used by
+.Dv QCMD
+to construct
+.Fa cmd .
+If the primary command value does not represent a known constant,
+.Fn sysdecode_quotactl_cmd
+does not generate any output and returns
+.Dv false .
+Otherwise,
+.Fn sysdecode_quotactl_cmd
+outputs text depicting an invocation of
+.Dv QCMD
+with the associated constants for the primary and secondary command values
+and returns
+.Dv true .
+If the secondary command values does not represent a known constant,
+its value is output as a hexadecimal integer.
+.Sh RETURN VALUES
+The
+.Nm sysdecode_quotactl_cmd
+function returns
+.Dv true
+if it outputs a description of
+.Fa cmd
+and
+.Dv false
+if it does not.
+.Sh EXAMPLES
+The statement
+.Pp
+.Dl sysdecode_quotatcl_cmd(stdout, QCMD(Q_GETQUOTA, USRQUOTA);
+.Pp
+outputs the text
+.Dq QCMD(Q_GETQUOTA, USRQUOTA)
+to standard output.
+.Sh SEE ALSO
+.Xr sysdecode 3

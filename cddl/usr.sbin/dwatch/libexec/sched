@@ -1,0 +1,109 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for dtrace_sched(4) $
+# $Copyright: 2014-2018 Devin Teske. All rights reserved. $
+# $FreeBSD$
+#
+############################################################ DESCRIPTION
+#
+# Display CPU scheduling activity
+#
+############################################################ PROBE
+
+case "$PROFILE" in
+sched)
+	: ${PROBE:=sched:::} ;;
+sched-cpu)
+	: ${PROBE:=sched:::off-cpu, sched:::on-cpu, sched:::remain-cpu} ;;
+sched-exec)
+	: ${PROBE:=sched:::sleep, sched:::wakeup} ;;
+sched-pri)
+	: ${PROBE:=sched:::change-pri, sched:::lend-pri} ;;
+sched-queue)
+	: ${PROBE:=sched:::dequeue, sched:::enqueue, sched:::load-change} ;;
+*)
+	: ${PROBE:=sched:::${PROFILE#sched-}}
+esac
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+this pid_t	pid;
+this string	args;
+this string	details;
+this u_char	curprio;
+
+$PROBE /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");}
+	this->args = this->args0;
+	this->details = "";
+	this->pid = this->pid0;
+}
+
+sched:::change-pri, sched:::dequeue, sched:::enqueue,
+sched:::lend-pri, sched:::off-cpu, sched:::surrender,
+sched:::tick, sched:::wakeup /* probe ID $(( $ID + 1 )) */
+{${TRACE:+
+	printf("<$(( $ID + 1 ))>");}
+	this->curprio = (u_char)((struct thread *)args[0])->td_priority;
+
+	$( pproc -P _sched "(struct proc *)args[1]" )
+
+	this->args = this->args_sched;
+	this->pid = this->pid_sched;
+}
+
+sched:::enqueue /* probe ID $(( $ID + 2 )) */
+{${TRACE:+
+	printf("<$(( $ID + 2 ))>");}
+	/* details = "head" or "tail" */
+	this->details = (int)arg3 == 0 ? "tail" : "head";
+}
+
+sched:::change-pri, sched:::lend-pri /* probe ID $(( $ID + 3 )) */
+{${TRACE:+
+	printf("<$(( $ID + 3 ))>");}
+	/* details = "<curprio> -> <arg2>" */
+	this->details = strjoin(lltostr(this->curprio),
+		strjoin("->", lltostr((uint8_t)arg2)));
+}
+
+sched:::load-change /* probe ID $(( $ID + 4 )) */
+{${TRACE:+
+	printf("<$(( $ID + 4 ))>");}
+	/* details = "CPU<arg0> queue <arg1>" */
+	this->details = strjoin(strjoin("CPU", lltostr((int)arg0)),
+		strjoin(" queue ", lltostr((int)arg1)));
+}
+
+$PROBE /* probe ID $(( $ID + 5 )) */
+{${TRACE:+
+	printf("<$(( $ID + 5 ))>");}
+	/* details += " pid <pid> -- <proc args of pid>" */
+	this->details = strjoin(this->details, this->details == "" ? "" : " ");
+	this->details = strjoin(this->details, strjoin(
+		strjoin("pid ", lltostr(this->pid)),
+		strjoin(" -- ", this->args)));
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 6 ))
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print scheduling details
+	 */
+	printf("%s %s", probename, this->details);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

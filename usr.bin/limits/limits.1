@@ -1,0 +1,406 @@
+.\" Copyright (c) 1996 David Nugent <davidn@blaze.net.au>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, is permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice immediately at the beginning of the file, without modification,
+.\"    this list of conditions, and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. This work was done expressly for inclusion into FreeBSD.  Other use
+.\"    is permitted provided this notation is included.
+.\" 4. Absolutely no warranty of function or purpose is made by the author
+.\"    David Nugent.
+.\" 5. Modifications may be freely made to this file providing the above
+.\"    conditions are met.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 13, 2018
+.Dt LIMITS 1
+.Os
+.Sh NAME
+.Nm limits
+.Nd set or display process resource limits
+.Sh SYNOPSIS
+.Nm
+.Op Fl C Ar class | Fl P Ar pid | Fl U Ar user
+.Op Fl SHB
+.Op Fl ea
+.Op Fl bcdfklmnopstuvw Op Ar val
+.Nm
+.Op Fl C Ar class | Fl U Ar user
+.Op Fl SHB
+.Op Fl bcdfklmnopstuvw Op Ar val
+.Op Fl E
+.Oo
+.Op Ar name Ns = Ns Ar value ...
+.Ar command
+.Oc
+.Sh DESCRIPTION
+The
+.Nm
+utility either prints or sets kernel resource limits, and may optionally set
+environment variables like
+.Xr env 1
+and run a program with the selected resources.
+Three uses of the
+.Nm
+utility are possible:
+.Bl -tag -width indent
+.It Xo
+.Nm
+.Op Ar limitflags
+.Op Ar name Ns = Ns Ar value ...
+.Ar command
+.Xc
+This usage sets limits according to
+.Ar limitflags ,
+optionally sets environment variables given as
+.Ar name Ns = Ns Ar value
+pairs, and then runs the specified
+.Ar command .
+.It Nm Op Ar limitflags
+This usage determines values of resource settings according to
+.Ar limitflags ,
+does not attempt to set them and outputs these values to
+standard output.
+By default, this will output the current kernel resource settings
+active for the calling process.
+Using the
+.Fl C Ar class
+or
+.Fl U Ar user
+options, you may also display the current resource settings modified
+by the appropriate login class resource limit entries from
+the
+.Xr login.conf 5
+login capabilities database.
+.It Nm Fl e Op Ar limitflags
+This usage determines values of resource settings according to
+.Ar limitflags ,
+but does not set them.
+Like the previous usage, it outputs these values to standard
+output, except that it will emit them in
+.Ic eval
+format, suitable for the calling shell.
+If the shell is known (i.e., it is one of
+.Nm sh , csh , bash , tcsh , ksh , pdksh
+or
+.Nm rc ) ,
+.Nm
+emits
+.Ic limit
+or
+.Ic ulimit
+commands in the format understood by
+that shell.
+If the name of the shell cannot be determined, then the
+.Ic ulimit
+format used by
+.Xr sh 1
+is used.
+.Pp
+This is very useful for setting limits used by scripts, or prior
+launching of daemons and other background tasks with specific
+resource limit settings, and provides the benefit of allowing
+global configuration of maximum resource usage by maintaining a
+central database of settings in the login class database.
+.Pp
+Within a shell script,
+.Nm
+will normally be used with eval within backticks as follows:
+.Pp
+.Dl "eval `limits -e -C daemon`"
+.Pp
+which causes the output of
+.Nm
+to be evaluated and set by the current shell.
+.El
+.Pp
+The value of
+.Ar limitflags
+specified in the above contains one or more of the following options:
+.Bl -tag -width ".Fl C Ar class"
+.It Fl C Ar class
+Use current resource values, modified by the resource entries applicable
+for the login class
+.Ar class .
+.It Fl U Ar user
+Use current resource values, modified by the resource entries applicable
+to the login class the
+.Ar user
+belongs to.
+If user does not belong to any class, then the resource capabilities
+for the
+.Dq Li default
+class are used, if it exists, or the
+.Dq Li root
+class if the user is a superuser account.
+.It Fl P Ar pid
+Select or set limits for the process identified by the
+.Ar pid .
+.It Fl S
+Select display or setting of
+.Dq soft
+(or current) resource limits.
+If specific limits settings follow this switch, only soft limits are
+affected unless overridden later with either the
+.Fl H
+or
+.Fl B
+options.
+.It Fl H
+Select display or setting of
+.Dq hard
+(or maximum) resource limits.
+If specific limits settings follow this switch, only hard limits are
+affected until overridden later with either the
+.Fl S
+or
+.Fl B
+options.
+.It Fl B
+Select display or setting of both
+.Dq soft
+(current) or
+.Dq hard
+(maximum)
+resource limits.
+If specific limits settings follow this switch, both soft and hard
+limits are affected until overridden later with either the
+.Fl S
+or
+.Fl H
+options.
+.It Fl e
+Select
+.Dq "eval mode"
+formatting for output.
+This is valid only in display mode and cannot be used when running a
+command.
+The exact syntax used for output depends upon the type of shell from
+which
+.Nm
+is invoked.
+.It Fl b Op Ar val
+Select or set the
+.Va sbsize
+resource limit.
+.It Fl c Op Ar val
+Select or set (if
+.Ar val
+is specified) the
+.Va coredumpsize
+resource limit.
+A value of 0 disables core dumps.
+.It Fl d Op Ar val
+Select or set (if
+.Ar val
+is specified) the
+.Va datasize
+resource limit.
+.It Fl f Op Ar val
+Select or set the
+.Va filesize
+resource limit.
+.It Fl k Op Ar val
+Select or set the
+.Va kqueues
+resource limit.
+.It Fl l Op Ar val
+Select or set the
+.Va memorylocked
+resource limit.
+.It Fl m Op Ar val
+Select or set the
+.Va memoryuse
+size limit.
+.It Fl n Op Ar val
+Select or set the
+.Va openfiles
+resource limit.
+The system-wide limit on the maximum number of
+open files per process can be viewed by examining the
+.Va kern.maxfilesperproc
+.Xr sysctl 8
+variable.
+The total number of simultaneously open files in the entire
+system is limited to the value displayed by the
+.Va kern.maxfiles
+.Xr sysctl 8
+variable.
+.It Fl o Op Ar val
+Select or set the
+.Va umtxp
+resource limit.
+The limit determines the maximal number of the process-shared locks
+which may be simultaneously created by the processes owned by the
+user, see
+.Xr pthread 3 .
+.It Fl p Op Ar val
+Select or set the
+.Va pseudoterminals
+resource limit.
+.It Fl s Op Ar val
+Select or set the
+.Va stacksize
+resource limit.
+.It Fl t Op Ar val
+Select or set the
+.Va cputime
+resource limit.
+.It Fl u Op Ar val
+Select or set the
+.Va maxproc
+resource limit.
+The system-wide limit on the maximum number of processes
+allowed per UID can be viewed by examining the
+.Va kern.maxprocperuid
+.Xr sysctl 8
+variable.
+The maximum number of processes that can be running simultaneously
+in the entire system is limited to the value of the
+.Va kern.maxproc
+.Xr sysctl 8
+variable.
+.It Fl v Op Ar val
+Select or set the
+.Va virtualmem
+resource limit.
+This limit encompasses the entire VM space for the user process
+and is inclusive of text, data, bss, stack,
+.Xr brk 2 ,
+.Xr sbrk 2
+and
+.Xr mmap 2 Ns 'd
+space.
+.It Fl w Op Ar val
+Select or set the
+.Va swapuse
+resource limit.
+.El
+.Pp
+Valid values for
+.Ar val
+in the above set of options consist of either the
+string
+.Dq Li infinity ,
+.Dq Li inf ,
+.Dq Li unlimited
+or
+.Dq Li unlimit
+for an infinite (or kernel-defined maximum)
+limit, or a numeric value optionally followed by a suffix.
+Values which relate to size default to a value in bytes, or one of the
+following suffixes may be used as a multiplier:
+.Pp
+.Bl -tag -offset indent -width 4n -compact
+.It Li b
+512 byte blocks.
+.It Li k
+kilobytes (1024 bytes).
+.It Li m
+megabytes (1024*1024 bytes).
+.It Li g
+gigabytes.
+.It Li t
+terabytes.
+.El
+.Pp
+The
+.Va cputime
+resource defaults to a number of seconds, but a multiplier may be
+used, and as with size values, multiple values separated by a valid
+suffix are added together:
+.Pp
+.Bl -tag -offset indent -width 4n -compact
+.It Li s
+seconds.
+.It Li m
+minutes.
+.It Li h
+hours.
+.It Li d
+days.
+.It Li w
+weeks.
+.It Li y
+365 day years.
+.El
+.Bl -tag -width ".Fl C Ar class"
+.It Fl E
+Cause
+.Nm
+to completely ignore the environment it inherits.
+.It Fl a
+Force all resource settings to be displayed even if
+other specific resource settings have been specified.
+For example, if you wish to disable core dumps when starting up
+the Usenet News system, but wish to set all other resource settings
+as well that apply to the
+.Dq Li news
+account, you might use:
+.Pp
+.Dl "eval `limits -U news -aBec 0`"
+.Pp
+As with the
+.Xr setrlimit 2
+call, only the superuser may raise process
+.Dq hard
+resource limits.
+Non-root users may, however, lower them or change
+.Dq soft
+resource limits
+within to any value below the hard limit.
+When invoked to execute a program, the failure of
+.Nm
+to raise a hard limit is considered a fatal error.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility
+exits with
+.Dv EXIT_FAILURE
+if usage is incorrect in any way; i.e., an invalid
+option, or set/display options are selected in the same invocation,
+.Fl e
+is used when running a program, etc.
+When run in display or eval mode,
+.Nm
+exits with a status of
+.Dv EXIT_SUCCESS .
+When run in command mode and execution of the command succeeds, the exit status
+will be whatever the executed program returns.
+.Sh SEE ALSO
+.Xr csh 1 ,
+.Xr env 1 ,
+.Xr limit 1 ,
+.Xr sh 1 ,
+.Xr getrlimit 2 ,
+.Xr setrlimit 2 ,
+.Xr login_cap 3 ,
+.Xr login.conf 5 ,
+.Xr rctl 8 ,
+.Xr sysctl 8
+.Sh BUGS
+The
+.Nm
+utility does not handle commands with equal
+.Pq Ql =
+signs in their
+names, for obvious reasons.
+.Pp
+The
+.Nm
+utility makes no effort to ensure that resource settings emitted or displayed
+are valid and settable by the current user.
+Only a superuser account may raise hard limits, and when doing so
+the
+.Fx
+kernel will silently lower limits to values less than
+specified if the values given are too high.

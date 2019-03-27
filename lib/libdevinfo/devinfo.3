@@ -1,0 +1,247 @@
+.\"
+.\" Copyright (c) 2001 Michael Smith <msmith@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 19, 2001
+.Dt DEVINFO 3
+.Os
+.Sh NAME
+.Nm devinfo ,
+.Nm devinfo_init ,
+.Nm devinfo_free ,
+.Nm devinfo_handle_to_device ,
+.Nm devinfo_handle_to_resource ,
+.Nm devinfo_handle_to_rman ,
+.Nm devinfo_foreach_device_child ,
+.Nm devinfo_foreach_device_resource ,
+.Nm devinfo_foreach_rman_resource ,
+.Nm devinfo_foreach_rman
+.Nd device and resource information utility library
+.Sh LIBRARY
+.Lb libdevinfo
+.Sh SYNOPSIS
+.In devinfo.h
+.Ft int
+.Fn devinfo_init "void"
+.Ft void
+.Fn devinfo_free "void"
+.Ft struct devinfo_dev *
+.Fn devinfo_handle_to_device "devinfo_handle_t handle"
+.Ft struct devinfo_res *
+.Fn devinfo_handle_to_resource "devinfo_handle_t handle"
+.Ft struct devinfo_rman *
+.Fn devinfo_handle_to_rman "devinfo_handle_t handle"
+.Ft int
+.Fo devinfo_foreach_device_child
+.Fa "struct devinfo_dev *parent"
+.Fa "int \*[lp]*fn\*[rp]\*[lp]struct devinfo_dev *child, void *arg\*[rp]"
+.Fa "void *arg"
+.Fc
+.Ft int
+.Fo devinfo_foreach_device_resource
+.Fa "struct devinfo_dev *dev"
+.Fa "int \*[lp]*fn\*[rp]\*[lp]struct devinfo_dev *dev, \:struct devinfo_res *res, void *arg\*[rp]"
+.Fa "void *arg"
+.Fc
+.Ft int
+.Fo devinfo_foreach_rman_resource
+.Fa "struct devinfo_rman *rman"
+.Fa "int \*[lp]*fn\*[rp]\*[lp]struct devinfo_res *res, void *arg\*[rp]"
+.Fa "void *arg"
+.Fc
+.Ft int
+.Fo devinfo_foreach_rman
+.Fa "int \*[lp]*fn\*[rp]\*[lp]struct devinfo_rman *rman, void *arg\*[rp]"
+.Fa "void *arg"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm
+library provides access to the kernel's internal device hierarchy
+and to the I/O resource manager.
+The library uses a
+.Xr sysctl 3
+interface to obtain a snapshot of the kernel's state,
+which is then made available to the application.
+.Pp
+Due to the fact that the information may be logically arranged
+in a number of different fashions,
+the library does not attempt to impose any structure on the data.
+.Pp
+Device, resource, and resource manager information is returned in
+data structures defined in
+.In devinfo.h :
+.Bd -literal -offset indent
+struct devinfo_dev {
+    devinfo_handle_t	dd_handle;	/* device handle */
+    devinfo_handle_t	dd_parent;	/* parent handle */
+    char		*dd_name;	/* name of device */
+    char		*dd_desc;	/* device description */
+    char		*dd_drivername;	/* name of attached driver */
+    char		*dd_pnpinfo;	/* pnp info from parent bus */
+    char		*dd_location;	/* Where bus thinks dev at */
+    uint32_t		dd_devflags;	/* API flags */
+    uint16_t		dd_flags;	/* internal dev flags */
+    device_state_t	dd_state;	/* attachment state of dev */
+};
+
+struct devinfo_rman {
+    devinfo_handle_t	dm_handle;	/* resource manager handle */
+    rman_res_t		dm_start;	/* resource start */
+    rman_res_t		dm_size;	/* resource size */
+    char		*dm_desc;	/* resource description */
+};
+
+struct devinfo_res {
+    devinfo_handle_t	dr_handle;	/* resource handle */
+    devinfo_handle_t	dr_rman;	/* resource manager handle */
+    devinfo_handle_t	dr_device;	/* owning device */
+    rman_res_t		dr_start;	/* region start */
+    rman_res_t		dr_size;	/* region size */
+};
+.Ed
+.Pp
+The
+.Vt devinfo_handle_t
+values can be used to look up the correspondingly referenced structures.
+.Pp
+.Fn devinfo_init
+takes a snapshot of the kernel's internal device and resource state.
+It returns nonzero
+if after a number of retries a consistent snapshot cannot be obtained.
+.Fn devinfo_init
+must be called before any other functions can be used.
+.Pp
+.Fn devinfo_free
+releases the memory associated with the snapshot.
+Any pointers returned by other functions are invalidated by this,
+and
+.Fn devinfo_init
+must be called again before using any other functions.
+.Pp
+.Fn devinfo_handle_to_device ,
+.Fn devinfo_handle_to_resource
+and
+.Fn devinfo_handle_to_rman
+return pointers to
+.Vt devinfo_dev ,
+.Vt devinfo_res
+and
+.Vt devinfo_rman
+structures respectively based on the
+.Vt devinfo_handle_t
+passed to them.
+These functions can be used to traverse the tree from any node to any
+other node.
+If
+.Fn devinfo_handle_to_device
+is passed the constant
+.Dv DEVINFO_ROOT_DEVICE
+it will return the handle to the root of the device tree.
+.Pp
+.Fn devinfo_foreach_device_child
+invokes its callback argument
+.Fa fn
+on every device which is an immediate child of
+.Fa device .
+The
+.Fa fn
+function is also passed
+.Fa arg ,
+allowing state to be passed to the callback function.
+If
+.Fa fn
+returns a nonzero error value the traversal is halted,
+and
+.Fn devinfo_foreach_device_child
+returns the error value to its caller.
+.Pp
+.Fn devinfo_foreach_device_resource
+invokes its callback argument
+.Fa fn
+on every resource which is owned by
+.Fa device .
+The
+.Fa fn
+function is also passed
+.Fa device
+and
+.Fa arg ,
+allowing state to be passed to the callback function.
+If
+.Fa fn
+returns a nonzero error value the traversal is halted,
+and
+.Fn devinfo_foreach_device_resource
+returns the error value to its caller.
+.Pp
+.Fn devinfo_foreach_rman_resource
+invokes its callback argument
+.Fa fn
+on every resource within the resource manager
+.Fa rman .
+The
+.Fa fn
+function is also passed
+.Fa arg ,
+allowing state to be passed to the callback function.
+If
+.Fa fn
+returns a nonzero error value the traversal is halted,
+and
+.Fn devinfo_foreach_rman_resource
+returns the error value to its caller.
+.Pp
+.Fn devinfo_foreach_rman
+invokes its callback argument
+.Fa fn
+on every resource manager.
+The
+.Fa fn
+function is also passed
+.Fa arg ,
+allowing state to be passed to the callback function.
+If
+.Fa fn
+returns a nonzero error value the traversal is halted,
+and
+.Fn devinfo_foreach_rman
+returns the error value to its caller.
+.Sh SEE ALSO
+.Xr devstat 3
+.Sh HISTORY
+The
+.Nm
+library first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Michael Smith Aq Mt msmith@FreeBSD.org
+.Sh BUGS
+This is the first implementation of the library,
+and the interface is still subject to refinement.
+.Pp
+The interface does not report device classes or drivers,
+making it hard to sort by class or driver.

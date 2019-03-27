@@ -1,0 +1,378 @@
+.\"
+.\" Copyright (c) 1997
+.\" Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 3, 1997
+.Dt MOUSE 4
+.Os
+.Sh NAME
+.Nm mouse
+.Nd mouse and pointing device drivers
+.Sh SYNOPSIS
+.In sys/mouse.h
+.Sh DESCRIPTION
+The mouse drivers
+.Xr psm 4 ,
+.Xr ums 4
+and
+.Xr sysmouse 4
+provide user programs with movement and button state information of the mouse.
+Currently there are specific device drivers for bus, InPort, PS/2, and USB mice.
+The serial mouse is not directly supported by a dedicated driver, but
+it is accessible via the serial device driver or via
+.Xr moused 8
+and
+.Xr sysmouse 4 .
+.Pp
+The user program simply opens a mouse device with a
+.Xr open 2
+call and reads
+mouse data from the device via
+.Xr read 2 .
+Movement and button states are usually encoded in fixed-length data packets.
+Some mouse devices may send data in variable length of packets.
+Actual protocol (data format) used by each driver differs widely.
+.Pp
+The mouse drivers may have ``non-blocking'' attribute which will make
+the driver return immediately if mouse data is not available.
+.Pp
+Mouse device drivers often offer several levels of operation.
+The current operation level can be examined and changed via
+.Xr ioctl 2
+commands.
+The level zero is the lowest level at which the driver offers the basic
+service to user programs.
+Most drivers provide horizontal and vertical movement of the mouse
+and state of up to three buttons at this level.
+At the level one, if supported by the driver, mouse data is encoded
+in the standard format
+.Dv MOUSE_PROTO_SYSMOUSE
+as follows:
+.Pp
+.Bl -tag -width Byte_1 -compact
+.It Byte 1
+.Bl -tag -width bit_7 -compact
+.It bit 7
+Always one.
+.It bit 6..3
+Always zero.
+.It bit 2
+Left button status; cleared if pressed, otherwise set.
+.It bit 1
+Middle button status; cleared if pressed, otherwise set.
+Always one,
+if the device does not have the middle button.
+.It bit 0
+Right button status; cleared if pressed, otherwise set.
+.El
+.It Byte 2
+The first half of horizontal movement count in two's complement;
+-128 through 127.
+.It Byte 3
+The first half of vertical movement count in two's complement;
+-128 through 127.
+.It Byte 4
+The second half of the horizontal movement count in two's complement;
+-128 through 127.
+To obtain the full horizontal movement count, add
+the byte 2 and 4.
+.It Byte 5
+The second half of the vertical movement count in two's complement;
+-128 through 127.
+To obtain the full vertical movement count, add
+the byte 3 and 5.
+.It Byte 6
+The bit 7 is always zero.
+The lower 7 bits encode the first half of
+Z axis movement count in two's complement; -64 through 63.
+.It Byte 7
+The bit 7 is always zero.
+The lower 7 bits encode the second half of
+the Z axis movement count in two's complement; -64 through 63.
+To obtain the full Z axis movement count, add the byte 6 and 7.
+.It Byte 8
+The bit 7 is always zero.
+The bits 0 through 6 reflect the state
+of the buttons 4 through 10.
+If a button is pressed, the corresponding bit is cleared.
+Otherwise
+the bit is set.
+.El
+.Pp
+The first 5 bytes of this format is compatible with the MouseSystems
+format.
+The additional 3 bytes have their MSBs always set to zero.
+Thus, if the user program can interpret the MouseSystems data format and
+tries to find the first byte of the format by detecting the bit pattern
+10000xxxb,
+it will discard the additional bytes, thus, be able to decode x, y
+and states of 3 buttons correctly.
+.Pp
+Device drivers may offer operation levels higher than one.
+Refer to manual pages of individual drivers for details.
+.Sh IOCTLS
+The following
+.Xr ioctl 2
+commands are defined for the mouse drivers.
+The degree of support
+varies from one driver to another.
+This section gives general
+description of the commands.
+Refer to manual pages of individual drivers for specific details.
+.Pp
+.Bl -tag -width MOUSE -compact
+.It Dv MOUSE_GETLEVEL Ar int *level
+.It Dv MOUSE_SETLEVEL Ar int *level
+These commands manipulate the operation level of the mouse driver.
+.Pp
+.It Dv MOUSE_GETHWINFO Ar mousehw_t *hw
+Returns the hardware information of the attached device in the following
+Except for the
+.Dv iftype
+field, the device driver may not always fill the structure with correct
+values.
+Consult manual pages of individual drivers for details of support.
+.Bd -literal
+typedef struct mousehw {
+    int buttons;    /* number of buttons */
+    int iftype;     /* I/F type */
+    int type;       /* mouse/track ball/pad... */
+    int model;      /* I/F dependent model ID */
+    int hwid;       /* I/F dependent hardware ID */
+} mousehw_t;
+.Ed
+.Pp
+The
+.Dv buttons
+field holds the number of buttons detected by the driver.
+The driver
+may put an arbitrary value, such as two, in this field, if it cannot
+determine the exact number.
+.Pp
+The
+.Dv iftype
+is the type of interface:
+.Dv MOUSE_IF_SERIAL ,
+.Dv MOUSE_IF_BUS ,
+.Dv MOUSE_IF_INPORT ,
+.Dv MOUSE_IF_PS2 ,
+.Dv MOUSE_IF_USB ,
+.Dv MOUSE_IF_SYSMOUSE
+or
+.Dv MOUSE_IF_UNKNOWN .
+.Pp
+The
+.Dv type
+tells the device type:
+.Dv MOUSE_MOUSE ,
+.Dv MOUSE_TRACKBALL ,
+.Dv MOUSE_STICK ,
+.Dv MOUSE_PAD ,
+or
+.Dv MOUSE_UNKNOWN .
+.Pp
+The
+.Dv model
+may be
+.Dv MOUSE_MODEL_GENERIC
+or one of
+.Dv MOUSE_MODEL_XXX
+constants.
+.Pp
+The
+.Dv hwid
+is the ID value returned by the pointing device.
+It
+depend on the interface type; refer to the manual page of
+specific mouse drivers for possible values.
+.Pp
+.It Dv MOUSE_GETMODE Ar mousemode_t *mode
+The command reports the current operation parameters of the mouse driver.
+.Bd -literal
+typedef struct mousemode {
+    int protocol;    /* MOUSE_PROTO_XXX */
+    int rate;        /* report rate (per sec) */
+    int resolution;  /* MOUSE_RES_XXX, -1 if unknown */
+    int accelfactor; /* acceleration factor */
+    int level;       /* driver operation level */
+    int packetsize;  /* the length of the data packet */
+    unsigned char syncmask[2]; /* sync. bits */
+} mousemode_t;
+.Ed
+.Pp
+The
+.Dv protocol
+field tells the format in which the device status is returned
+when the mouse data is read by the user program.
+It is one of
+.Dv MOUSE_PROTO_XXX
+constants.
+.Pp
+The
+.Dv rate
+field is the status report rate (reports/sec) at which the device will send
+movement reports to the host computer.
+-1 if unknown or not applicable.
+.Pp
+The
+.Dv resolution
+field holds a value specifying resolution of the pointing device.
+It is a positive value or one of
+.Dv MOUSE_RES_XXX
+constants.
+.Pp
+The
+.Dv accelfactor
+field holds a value to control acceleration feature.
+It must be zero or greater.
+If it is zero, acceleration is disabled.
+.Pp
+The
+.Dv packetsize
+field tells the length of the fixed-size data packet or the length
+of the fixed part of the variable-length packet.
+The size depends on the interface type, the device type and model, the
+protocol and the operation level of the driver.
+.Pp
+The array
+.Dv syncmask
+holds a bit mask and pattern to detect the first byte of the
+data packet.
+.Dv syncmask[0]
+is the bit mask to be ANDed with a byte.
+If the result is equal to
+.Dv syncmask[1] ,
+the byte is likely to be the first byte of the data packet.
+Note that this method of detecting the first byte is not 100% reliable,
+thus, should be taken only as an advisory measure.
+.Pp
+.It Dv MOUSE_SETMODE Ar mousemode_t *mode
+The command changes the current operation parameters of the mouse driver
+as specified in
+.Ar mode .
+Only
+.Dv rate ,
+.Dv resolution ,
+.Dv level
+and
+.Dv accelfactor
+may be modifiable.
+Setting values in the other field does not generate
+error and has no effect.
+.Pp
+If you do not want to change the current setting of a field, put -1
+there.
+You may also put zero in
+.Dv resolution
+and
+.Dv rate ,
+and the default value for the fields will be selected.
+.Pp
+.It Dv MOUSE_READDATA Ar mousedata_t *data
+The command reads the raw data from the device.
+.Bd -literal
+typedef struct mousedata {
+    int len;        /* # of data in the buffer */
+    int buf[16];    /* data buffer */
+} mousedata_t;
+.Ed
+.Pp
+The calling process must fill the
+.Dv len
+field with the number of bytes to be read into the buffer.
+This command may not be supported by all drivers.
+.Pp
+.It Dv MOUSE_READSTATE Ar mousedata_t *state
+The command reads the raw state data from the device.
+It uses the same structure as above.
+This command may not be supported by all drivers.
+.Pp
+.It Dv MOUSE_GETSTATUS Ar mousestatus_t *status
+The command returns the current state of buttons and
+movement counts in the following structure.
+.Bd -literal
+typedef struct mousestatus {
+    int flags;      /* state change flags */
+    int button;     /* button status */
+    int obutton;    /* previous button status */
+    int dx;         /* x movement */
+    int dy;         /* y movement */
+    int dz;         /* z movement */
+} mousestatus_t;
+.Ed
+.Pp
+The
+.Dv button
+and
+.Dv obutton
+fields hold the current and the previous state of the mouse buttons.
+When a button is pressed, the corresponding bit is set.
+The mouse drivers may support up to 31 buttons with the bit 0 through 31.
+Few button bits are defined as
+.Dv MOUSE_BUTTON1DOWN
+through
+.Dv MOUSE_BUTTON8DOWN .
+The first three buttons correspond to left, middle and right buttons.
+.Pp
+If the state of the button has changed since the last
+.Dv MOUSE_GETSTATUS
+call, the corresponding bit in the
+.Dv flags
+field will be set.
+If the mouse has moved since the last call, the
+.Dv MOUSE_POSCHANGED
+bit in the
+.Dv flags
+field will also be set.
+.Pp
+The other fields hold movement counts since the last
+.Dv MOUSE_GETSTATUS
+call.
+The internal counters will be reset after every call to this
+command.
+.El
+.Sh FILES
+.Bl -tag -width /dev/sysmouseXX -compact
+.It Pa /dev/cuau%d
+serial ports
+.It Pa /dev/psm%d
+PS/2 mouse device
+.It Pa /dev/sysmouse
+virtual mouse device
+.It Pa /dev/ums%d
+USB mouse device
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr psm 4 ,
+.Xr sysmouse 4 ,
+.Xr ums 4 ,
+.Xr moused 8
+.\".Sh HISTORY
+.Sh AUTHORS
+This manual page was written by
+.An Kazutaka Yokota Aq Mt yokota@FreeBSD.org .

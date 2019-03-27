@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: apmd
+# REQUIRE: DAEMON apm
+# BEFORE:  LOGIN
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="apmd"
+desc="Advanced power management daemon"
+rcvar="apmd_enable"
+command="/usr/sbin/${name}"
+start_precmd="apmd_prestart"
+
+apmd_prestart()
+{
+	case `${SYSCTL_N} hw.machine_arch` in
+	i386)
+		force_depend apm || return 1
+
+		# Warn user about acpi apm compatibility support which
+		# does not work with apmd.
+		if [ ! -e /dev/apmctl ]; then
+			warn "/dev/apmctl not found; kernel is missing apm(4)"
+		fi
+		;;
+	*)
+		return 1
+		;;
+	esac
+}
+
+load_rc_config $name
+run_rc_command "$1"

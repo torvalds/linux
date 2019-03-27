@@ -1,0 +1,3 @@
+altq on em0 cbq( default ) bandwidth 100Kb tbrsize 1500 queue { qmain }
+queue qmain priority 4 
+pass on em0 all flags S/SA keep state queue qmain

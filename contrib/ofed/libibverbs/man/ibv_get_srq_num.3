@@ -1,0 +1,33 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_GET_SRQ_NUM 3 2013-06-26 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_get_srq_num  \- return srq number associated with the given shared receive queue (SRQ)
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "int ibv_get_srq_num(struct ibv_srq " "*srq" ,
+.BI "                    uint32_t " "*srq_num" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_get_srq_num()
+return srq number associated with the given shared receive queue
+The argument
+.I srq
+is an ibv_srq struct, as defined in <infiniband/verbs.h>.
+.I srq_num
+is an output parameter that holds the returned srq number.
+.PP
+.nf
+.SH "RETURN VALUE"
+.B ibv_get_srq_num()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "SEE ALSO"
+.BR ibv_alloc_pd (3),
+.BR ibv_modify_srq (3),
+.BR ibv_create_srq_ex (3)
+.SH "AUTHORS"
+.TP
+Yishai Hadas <yishaih@mellanox.com>

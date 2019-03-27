@@ -1,0 +1,87 @@
+.\" Copyright (C) 2000 Jason Evans <jasone@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 15, 2000
+.Dt SEM_DESTROY 3
+.Os
+.Sh NAME
+.Nm sem_destroy
+.Nd destroy an unnamed semaphore
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In semaphore.h
+.Ft int
+.Fn sem_destroy "sem_t *sem"
+.Sh DESCRIPTION
+The
+.Fn sem_destroy
+function destroys the unnamed semaphore pointed to by
+.Fa sem .
+After a successful call to
+.Fn sem_destroy ,
+.Fa sem
+is unusable until re-initialized by another call to
+.Xr sem_init 3 .
+.Sh RETURN VALUES
+.Rv -std sem_destroy
+.Sh ERRORS
+The
+.Fn sem_destroy
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa sem
+argument
+points to an invalid semaphore.
+.It Bq Er EBUSY
+There are currently threads blocked on the semaphore that
+.Fa sem
+points to.
+.El
+.Sh SEE ALSO
+.Xr sem_init 3
+.Sh STANDARDS
+The
+.Fn sem_destroy
+function conforms to
+.St -p1003.1-96 .
+.Pp
+.Tn POSIX
+does not define the behavior of
+.Fn sem_destroy
+if called while there are threads blocked on
+.Fa sem ,
+but this implementation is guaranteed to return \-1 and set
+.Va errno
+to
+.Er EBUSY
+if there are threads blocked on
+.Fa sem .

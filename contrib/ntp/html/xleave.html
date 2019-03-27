@@ -1,0 +1,30 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>NTP Interleaved Modes</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>NTP Interleaved Modes </h3>
+<img src="pic/pogo4.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/%7emills/pictures.html">from <i>Pogo</i>, Walt Kelly</a>
+<p>You need a little magic.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->6-Feb-2016  07:17<!-- #EndDate -->
+    UTC</p>
+<br clear="left">
+<hr>
+<p>In the protocol described in the NTP specification and reference implementation up to now, the transmit timestamp, which is captured before the message digest is computed and the packet queued for output, is properly called as a <em>softstamp</em>.  The receive timestamp, which is captured after the input driver interrupt routine and before the packet is queued for input, is properly called a <em>drivestamp</em>.  For enhanced accuracy it is desirable to capture the transmit timestamp as close to the wire as possible; for example, after the output driver interrupt routine.</p>
+<p> In other words, we would like to replace the transmit softstamp with a drivestamp, but the problem is the transmit drivestamp is available only after the packet has been sent.  A solution for this problem is the two-step or interleaved protocol described on this page and included in the the current reference implementation.  In interleaved modes the transmit drivestamp for one packet is actually carried in the immediately following packet.  The trick, however, is to implement the interleaved protocol without changing the NTP packet header format, without compromising backwards compatibility and without compromising the error recovery properties.</p>
+<p> The reference implementation captures a softstamp before the message digest routine and a drivestamp after the output interrupt routine.  In this design the latter timestamp can be considered most accurate, as it avoids the various queuing and transmission latencies.  The difference between the two timestamps, which is called the interleaved or output delay, varies from 16 &mu;s (microseconds) for a dual-core Pentium running FreeBSD 6.1 to 1100 &mu;s (microseconds) for a Sun Blade 1500 running Solaris 10.</p>
+<p>Interleaved mode can be used only in NTP symmetric and broadcast modes.
+  It is activated by the <tt>xleave</tt> option with the <tt>peer</tt> or <tt>broadcast</tt> configuration
+commands.  A broadcast server configured for interleaved mode is transparent to ordinary broadcast clients, so both ordinary and interleaved broadcast clients can use the same packets.  An interleaved symmetric active peer automatically switches to ordinary symmetric mode if the other peer is not capable of operation in interleaved mode.</p>
+<p>As demonstrated in the white paper <a href="http://www.eecis.udel.edu/~mills/onwire.html">Analysis and Simulation of the NTP On-Wire Protocols</a>, the interleaved modes have the same resistance to lost packets, duplicate packets, packets crossed in flight and protocol restarts as the ordinary modes.  An application of the interleaved symmetric mode in space missions is presented in the white paper <a href="http://www.eecis.udel.edu/~mills/proximity.html">Time Synchronization for Space Data Links</a>.</p>
+<hr>
+<div align="center"> <img src="pic/pogo1a.gif" alt="gif"> </div>
+<br>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

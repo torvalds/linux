@@ -1,0 +1,116 @@
+.\" Copyright (c) 2014 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_get_section_max_offsets.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd December 21, 2014
+.Dt DWARF_GET_SECTION_MAX_OFFSETS 3
+.Os
+.Sh NAME
+.Nm dwarf_get_section_max_offsets ,
+.Nm dwarf_get_section_max_offsets_b
+.Nd return the size of DWARF sections
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_get_section_max_offsets
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Unsigned *debug_info"
+.Fa "Dwarf_Unsigned *debug_abbrev"
+.Fa "Dwarf_Unsigned *debug_line"
+.Fa "Dwarf_Unsigned *debug_loc"
+.Fa "Dwarf_Unsigned *debug_aranges"
+.Fa "Dwarf_Unsigned *debug_macinfo"
+.Fa "Dwarf_Unsigned *debug_pubnames"
+.Fa "Dwarf_Unsigned *debug_str"
+.Fa "Dwarf_Unsigned *debug_frame"
+.Fa "Dwarf_Unsigned *debug_ranges"
+.Fa "Dwarf_Unsigned *debug_pubtypes"
+.Fc
+.Ft int
+.Fo dwarf_get_section_max_offsets_b
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Unsigned *debug_info"
+.Fa "Dwarf_Unsigned *debug_abbrev"
+.Fa "Dwarf_Unsigned *debug_line"
+.Fa "Dwarf_Unsigned *debug_loc"
+.Fa "Dwarf_Unsigned *debug_aranges"
+.Fa "Dwarf_Unsigned *debug_macinfo"
+.Fa "Dwarf_Unsigned *debug_pubnames"
+.Fa "Dwarf_Unsigned *debug_str"
+.Fa "Dwarf_Unsigned *debug_frame"
+.Fa "Dwarf_Unsigned *debug_ranges"
+.Fa "Dwarf_Unsigned *debug_pubtypes"
+.Fa "Dwarf_Unsigned *debug_types"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_get_section_max_offsets_b
+retrieves the sizes of the DWARF sections in a DWARF debug context.
+Argument
+.Ar dbg
+should reference a DWARF debug context allocated using
+.Xr dwarf_init 3 .
+The function stores the size of each DWARF section to the location
+pointed to by the argument corresponding to the section name.
+If a DWARF section does not exist, the location pointed to by the
+argument corresponding to that section will be set to zero.
+.Pp
+A value of NULL may be used for any of the arguments
+.Ar debug_info ,
+.Ar debug_abbrev ,
+.Ar debug_line ,
+.Ar debug_loc ,
+.Ar debug_aranges ,
+.Ar debug_macinfo ,
+.Ar debug_pubnames ,
+.Ar debug_str ,
+.Ar debug_frame ,
+.Ar debug_ranges ,
+.Ar debug_pubtypes
+and
+.Ar debug_types
+if the caller is not interested in the respective section size.
+.Pp
+Function
+.Fn dwarf_get_section_max_offsets
+is identical to function
+.Fn dwarf_get_section_max_offsets_b
+except that it does not provide argument
+.Ar debug_types ,
+and thus cannot return the size of the
+.Dq \&.debug_types
+section.
+.Sh RETURN VALUES
+On success, these functions return
+.Dv DW_DLV_OK .
+If argument
+.Ar dbg
+is NULL, they return
+.Dv DW_DLV_ERROR .
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_init 3

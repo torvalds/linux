@@ -1,0 +1,34 @@
+
+#------------------------------------------------------------------------------
+# $File: unknown,v 1.8 2013/01/09 22:37:24 christos Exp $
+# unknown:  file(1) magic for unknown machines
+#
+# 0x107 is 0407, 0x108 is 0410, and 0x109 is 0411; those are all PDP-11
+# (executable, pure, and split I&D, respectively), but the PDP-11 version
+# doesn't have the "version %ld", which may be a bogus COFFism (I don't
+# think there was ever COFF for the PDP-11).
+#
+# 0x10B is 0413; that's VAX demand-paged, but this is a short, not a
+# long, as it would be on a VAX.  In any case, that could collide with
+# VAX demand-paged files, as the magic number is little-endian on those
+# binaries, so the first 16 bits of the file would contain 0x10B.
+#
+# Therefore, those entries are commented out.
+#
+# 0x10C is 0414 and 0x10E is 0416; those *are* unknown.
+#
+#0	short		0x107		unknown machine executable
+#>8	short		>0		not stripped
+#>15	byte		>0		- version %ld
+#0	short		0x108		unknown pure executable
+#>8	short		>0		not stripped
+#>15	byte		>0		- version %ld
+#0	short		0x109		PDP-11 separate I&D
+#>8	short		>0		not stripped
+#>15	byte		>0		- version %ld
+#0	short		0x10b		unknown pure executable
+#>8	short		>0		not stripped
+#>15	byte		>0		- version %ld
+0	long		0x10c		unknown demand paged pure executable
+>16	long		>0		not stripped
+0	long		0x10e		unknown readable demand paged pure executable

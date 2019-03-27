@@ -1,0 +1,31 @@
+[Unit]
+Description=Validating, recursive, and caching DNS resolver
+Documentation=man:unbound(8)
+After=network.target
+Before=network-online.target nss-lookup.target
+Wants=nss-lookup.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=@UNBOUND_SBIN_DIR@/unbound
+NotifyAccess=main
+Type=notify
+CapabilityBoundingSet=CAP_IPC_LOCK CAP_NET_BIND_SERVICE CAP_SETGID CAP_SETUID CAP_SYS_CHROOT CAP_SYS_RESOURCE
+MemoryDenyWriteExecute=true
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectHome=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+ReadWritePaths=@UNBOUND_SYSCONF_DIR@ @UNBOUND_LOCALSTATE_DIR@ /run @UNBOUND_RUN_DIR@
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictRealtime=true
+SystemCallArchitectures=native
+SystemCallFilter=~@clock @cpu-emulation @debug @keyring @module mount @obsolete @resources
+

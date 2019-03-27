@@ -1,0 +1,105 @@
+.\" Copyright (c) 1998, 1999, Nicolas Souchu
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 14, 2004
+.Dt VPO 4
+.Os
+.Sh NAME
+.Nm vpo
+.Nd parallel to SCSI interface driver
+.Sh SYNOPSIS
+.Cd "device vpo"
+.Pp
+For one or more SCSI busses:
+.Cd "device scbus"
+.Sh DESCRIPTION
+The
+.Nm
+driver provide access to parallel port Iomega Zip and Jaz drives.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following parallel to SCSI interfaces:
+.Pp
+.Bl -bullet -compact
+.It
+Adaptec AIC-7110 Parallel to SCSI interface (built-in to Iomega ZIP
+drives)
+.It
+Iomega Jaz Traveller interface
+.It
+Iomega MatchMaker SCSI interface (built-in to Iomega ZIP+ drives)
+.El
+.Sh USAGE
+The driver should let you use a printer connected to the drive while
+transferring data.
+.Pp
+DOS and
+.Fx
+file systems are supported.
+When mounting a DOS file system or
+formatting a
+.Fx
+file system, check the slice of the disk with the
+.Xr gpart 8
+utility.
+.Pp
+In order to unixify a ZIP disk, put the following in /etc/disktab:
+.Bd -literal
+zip|zip 100:\\
+        :ty=removable:se#512:nc#96:nt#64:ns#32:\\
+        :pa#196608:oa#0:ba#4096:fa#512:\\
+        :pb#196608:ob#0:bb#4096:fb#512:\\
+        :pc#196608:oc#0:bc#4096:fc#512:
+.Ed
+.Pp
+and use
+.Xr bsdlabel 8 .
+.Pp
+If you have trouble with your driver, your parallel chipset may not run
+properly at the detected mode (NIBBLE, PS2 or EPP).
+Tune the
+.Xr ppc 4
+bootflags to force other modes.
+.Sh SEE ALSO
+.Xr da 4 ,
+.Xr lpt 4 ,
+.Xr ppbus 4 ,
+.Xr ppc 4 ,
+.Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Nicolas Souchu .
+.Sh BUGS
+During boot, the driver first tries to detect a classic ZIP, then a ZIP+.
+The ZIP+ detection is intrusive and may send erroneous characters to your
+printer if the drive is not connected to your parallel port.

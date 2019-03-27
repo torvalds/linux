@@ -1,0 +1,307 @@
+.\"
+.\" Copyright (c) 1997-2014 Erez Zadok
+.\" Copyright (c) 1990 Jan-Simon Pendry
+.\" Copyright (c) 1990 Imperial College of Science, Technology & Medicine
+.\" Copyright (c) 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jan-Simon Pendry at Imperial College, London.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.\" File: am-utils/amq/amq.8
+.\" $FreeBSD$
+.\"
+.Dd August 31, 2016
+.Dt AMQ 8
+.Os
+.Sh NAME
+.Nm amq
+.Nd automounter query tool
+.Sh SYNOPSIS
+.Nm
+.Op Fl fimpqsvwHTU
+.Op Fl h Ar hostname
+.Op Fl l Ar log_file
+.Op Fl x Ar log_options
+.Op Fl D Ar debug_options
+.Op Fl P Ar program_number
+.Op Oo Fl u Oc Ar directory ...
+.Sh DESCRIPTION
+.Bf -symbolic
+This command is obsolete.
+Users are advised to use
+.Xr autofs 5
+instead.
+.Ef
+.Pp
+The
+.Nm
+utility
+provides a simple way of determining the current state of the
+.Xr amd 8
+program.
+Communication is by
+.Tn RPC .
+Three modes of operation are supported by the current protocol.
+By default
+a list of mount points and auto-mounted file systems is output.
+An
+alternative host can be specified using the
+.Fl h
+option.
+.Pp
+If
+.Ar directory
+names are given, as output by default, then per file system
+information is displayed.
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl f
+Ask the automounter to flush the internal caches and reload all the maps.
+.It Fl h Ar hostname
+Specify an alternate host to query.
+By default the local host is used.
+In
+an
+.Tn HP-UX
+cluster, the root server is queried by default, since that is the system on
+which the automounter is normally run.
+.TP
+.It Fl i
+Print information about the mount maps.
+.TP
+.It Fl l Ar log_file
+Tell
+.Xr amd 8
+to use
+.Ar log_file
+as the log file name.
+For security reasons, this must be the same log file
+which
+.Xr amd 8
+used when started.
+This option is therefore only useful to
+refresh
+.Nm amd Ns 's
+open file handle on the log file, so that it can be rotated
+and compressed via daily cron jobs.
+.It Fl m
+Ask the automounter to provide a list of mounted file systems, including the
+number of references to each file system and any error which occurred while
+mounting.
+.It Fl p
+Return the process ID of the remote or locally running
+.Xr amd 8 .
+Useful when you
+need to send a signal to the local
+.Xr amd 8
+process, and would rather not have to
+search through the process table.
+This option is used in the
+.Pa ctl-amd
+script.
+.TP
+.It Fl q
+Suppress error messages produced when attempting synchronous unmounts
+with the
+.B \-u
+option.
+.TP
+.It Fl s
+Ask the automounter to provide system-wide mount statistics.
+.It Fl u
+Ask the automounter to unmount the file systems named in
+.Ar directory
+instead of providing
+information about them.
+Unmounts are requested, not forced.
+They merely
+cause the mounted file system to timeout, which will be picked up by
+.Nm amd Ns 's
+main scheduler thus causing the normal timeout action to be taken.
+If the
+.B \-u
+option is repeated,
+.B amq
+will attempt to unmount the file system synchronously by waiting until
+the timeout action is taken and returning an error if the unmount
+fails.
+Any error messages produced may be suppressed with the
+.B \-q
+option.
+.TP
+.It Fl v
+Ask the automounter for its version information.  This is a subset of the
+information output by
+.Xr amd 8 Ns 's
+.Fl v
+option.
+.It Fl w
+Translate a full pathname as returned by
+.Xr getcwd 3
+into a short
+.Xr amd 8
+pathname that goes through its mount points.
+This option requires that
+.Xr amd 8
+is running.
+.It Fl x Ar log_options
+Ask the automounter to use the logging options specified in
+.Ar log_options
+from now on.  Note that the "fatal" and "error" options cannot be turned
+off.
+.It Fl D Ar debug_options
+.BI \-D " debug_options"
+Ask the automounter to use the debugging options specified in
+.Ar debug_options
+from now on.
+.It Fl H
+Display short usage message.
+.It Fl P Ar program_number
+Contact an alternate running
+.Xr amd 8
+that had registered itself on a different
+.Tn RPC
+.Ar program_number
+and apply all other operations to that instance of the automounter.
+This is
+useful when you run multiple copies of
+.Xr amd 8 ,
+and need to manage each
+one separately.
+If not specified,
+.Nm
+will use the default program number for
+.Xr amd 8 ,
+300019.
+For security reasons, the only alternate program numbers
+.Xr amd 8
+can use range from 300019 to 300029, inclusive.
+.It Fl T
+Contact
+.Xr amd 8
+using the TCP transport only.
+Normally
+.Nm
+will try TCP, and if that failed, will try UDP.
+.It Fl U
+Contact
+.Xr amd 8
+using UDP (connectionless) transport only.
+Normally
+.Nm
+will try TCP, and if that failed, will try UDP.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa amq.x" -compact
+.It Pa amq.x
+.Tn RPC
+protocol description.
+.El
+.Sh CAVEATS
+The
+.Nm
+utility
+uses a Sun registered
+.Tn RPC
+program number (300019 decimal) which may not
+be in the
+.Xr rpc 5
+database.
+.Pp
+If the TCP wrappers library is available, and the
+.Va use_tcpwrappers
+global
+.Xr amd.conf 5
+option is set to
+.Dq Li yes ,
+then
+.Xr amd 8
+will verify that the host running
+.Nm
+is authorized to connect.
+The
+.Dq Li amd
+service name must be used in the
+.Pa /etc/hosts.allow
+and
+.Pa /etc/hosts.deny
+files.
+For example, to allow only localhost to connect to
+.Xr amd 8 ,
+add this line to
+.Pa /etc/hosts.allow :
+.Pp
+.Dl "amd: localhost"
+.Pp
+and this line to
+.Pa /etc/hosts.deny :
+.Pp
+.RS
+.Dl "amd: ALL"
+.Sh SEE ALSO
+.Xr amd.conf 5 ,
+.Xr hosts_access 5 .
+.Xr amd 8 ,
+.\" .Xr ctl-amd 8 ,
+.Pp
+.Dq am-utils
+.Xr info 1
+entry.
+.Rs
+.%A Erez Zadok
+.%B "Linux NFS and Automounter Administration"
+.%O ISBN 0-7821-2739-8
+.%I Sybex
+.%D 2001
+.Re
+.Pp
+.Pa http://www.am-utils.org/
+.Rs
+.%T Amd \- The 4.4 BSD Automounter
+.Re
+.Sh HISTORY
+The
+.Nm
+utility
+first appeared in
+.Bx 4.4 .
+.Sh AUTHORS
+.An Jan-Simon Pendry Aq jsp@doc.ic.ac.uk ,
+Department of Computing, Imperial College, London, UK.
+.Pp
+.An Erez Zadok Aq ezk@cs.sunysb.edu ,
+Computer Science Department, Stony Brook
+University, Stony Brook, New York, USA.
+.Pp
+Other authors and contributors to
+.Nm am-utils
+are listed in the
+.Pa AUTHORS
+file distributed with
+.Nm am-utils .

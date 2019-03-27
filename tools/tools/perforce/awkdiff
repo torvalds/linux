@@ -1,0 +1,42 @@
+#!/usr/bin/awk -f
+#
+#	$FreeBSD$
+#
+
+BEGIN {
+	#parentpath = "//depot/vendor/freebsd/src/sys/"
+	#childpath = "//depot/projects/opencrypto/"
+}
+$1 == "====" {
+	last_line = $0
+	last_filename = $2
+	#gsub(parentpath, "", last_filename)
+	gsub(/#[0-9]*$/, "", last_filename)
+	did_sub = 0
+}
+$1 == "====" && $2 == "<none>" {
+	new_file = $4
+	gsub(childpath, "", new_file)
+	gsub(/#[0-9]*$/, "", new_file)
+	cmd = "p4 print \"" $4 "\" | sed '/^\\/\\/depot/d' | diff -u /dev/null /dev/stdin | sed s@/dev/stdin@" new_file "@"
+	#print "x" cmd "x"
+	system(cmd)
+}
+$1 == "====" && $4 == "<none>" {
+	del_file = $2
+	gsub(parentpath, "", del_file)
+	gsub(/#[0-9]*$/, "", del_file)
+	cmd = "p4 print \"" $2 "\" | sed '/^\\/\\/depot/d' | diff -u /dev/stdin /dev/null | sed s@/dev/stdin@" del_file "@"
+	#print "x" cmd "x"
+	system(cmd)
+}
+$1 != "====" {
+	if (!did_sub && (($1 == "***************") || ($1 == "@@"))) {
+		print "--- ", last_filename ".orig"
+		print "+++ ", last_filename
+		print $0
+		did_sub = 1
+	} else {
+		print $0
+	}
+}

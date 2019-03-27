@@ -1,0 +1,80 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH IBV_RC_PINGPONG 1 "August 30, 2005" "libibverbs" "USER COMMANDS"
+
+.SH NAME
+ibv_rc_pingpong \- simple InfiniBand RC transport test
+
+.SH SYNOPSIS
+.B ibv_rc_pingpong
+[\-p port] [\-d device] [\-i ib port] [\-s size] [\-m size]
+[\-r rx depth] [\-n iters] [\-l sl] [\-e] [\-g gid index]
+[\-o] [\-t] \fBHOSTNAME\fR
+
+.B ibv_rc_pingpong
+[\-p port] [\-d device] [\-i ib port] [\-s size] [\-m size]
+[\-r rx depth] [\-n iters] [\-l sl] [\-e] [\-g gid index]
+[\-o] [\-t]
+
+.SH DESCRIPTION
+.PP
+Run a simple ping-pong test over InfiniBand via the reliable
+connected (RC) transport.
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-p\fR, \fB\-\-port\fR=\fIPORT\fR
+use TCP port \fIPORT\fR for initial synchronization (default 18515)
+.TP
+\fB\-d\fR, \fB\-\-ib\-dev\fR=\fIDEVICE\fR
+use IB device \fIDEVICE\fR (default first device found)
+.TP
+\fB\-i\fR, \fB\-\-ib\-port\fR=\fIPORT\fR
+use IB port \fIPORT\fR (default port 1)
+.TP
+\fB\-s\fR, \fB\-\-size\fR=\fISIZE\fR
+ping-pong messages of size \fISIZE\fR (default 4096)
+.TP
+\fB\-m\fR, \fB\-\-mtu\fR=\fISIZE\fR
+path MTU \fISIZE\fR (default 1024)
+.TP
+\fB\-r\fR, \fB\-\-rx\-depth\fR=\fIDEPTH\fR
+post \fIDEPTH\fR receives at a time (default 1000)
+.TP
+\fB\-n\fR, \fB\-\-iters\fR=\fIITERS\fR
+perform \fIITERS\fR message exchanges (default 1000)
+.TP
+\fB\-l\fR, \fB\-\-sl\fR=\fISL\fR
+use \fISL\fR as the service level value of the QP (default 0)
+.TP
+\fB\-e\fR, \fB\-\-events\fR
+sleep while waiting for work completion events (default is to poll for
+completions)
+.TP
+\fB\-g\fR, \fB\-\-gid-idx\fR=\fIGIDINDEX\fR
+local port \fIGIDINDEX\fR
+.TP
+\fB\-o\fR, \fB\-\-odp\fR
+use on demand paging
+.TP
+\fB\-t\fR, \fB\-\-ts\fR
+get CQE with timestamp
+
+.SH SEE ALSO
+.BR ibv_uc_pingpong (1),
+.BR ibv_ud_pingpong (1),
+.BR ibv_srq_pingpong (1),
+.BR ibv_xsrq_pingpong (1)
+
+.SH AUTHORS
+.TP
+Roland Dreier
+.RI < rolandd@cisco.com >
+
+.SH BUGS
+The network synchronization between client and server instances is
+weak, and does not prevent incompatible options from being used on the
+two instances.  The method used for retrieving work completions is not
+strictly correct, and race conditions may cause failures on some
+systems.

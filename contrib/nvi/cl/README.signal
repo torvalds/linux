@@ -1,0 +1,174 @@
+#	$Id: README.signal,v 10.1 1995/06/23 10:28:17 bostic Exp $
+
+There are six (normally) asynchronous actions about which vi cares:
+SIGHUP, SIGINT, SIGQUIT, SIGTERM, SIGTSTP and SIGWINCH.
+
+The assumptions:
+	1: The DB routines are not reentrant.
+	2: The curses routines may not be reentrant.
+	3: Neither DB nor curses will restart system calls.
+
+XXX
+Note, most C library functions don't restart system calls.  So, we should
+*probably* start blocking around any imported function that we don't know
+doesn't make a system call.  This is going to be a genuine annoyance...
+
+SIGHUP, SIGTERM
+	Used for file recovery.  The DB routines can't be reentered, nor
+	can they handle interrupted system calls, so the vi routines that
+	call DB block signals.  This means that DB routines could be
+	called at interrupt time, if necessary.
+
+SIGQUIT
+	Disabled by the signal initialization routines.  Historically, ^\
+	switched vi into ex mode, and we continue that practice.
+
+SIGWINCH:
+	The interrupt routine sets a global bit which is checked by the
+ 	key-read routine, so there are no reentrancy issues.  This means
+	that the screen will not resize until vi runs out of keys, but
+	that doesn't seem like a problem.
+
+SIGINT and SIGTSTP are a much more difficult issue to resolve.  Vi has
+to permit the user to interrupt long-running operations.  Generally, a
+search, substitution or read/write is done on a large file, or, the user
+creates a key mapping with an infinite loop.  This problem will become
+worse as more complex semantics are added to vi, especially things like
+making it a pure text widget.  There are four major solutions on the table,
+each of which have minor permutations.
+
+1:	Run in raw mode.
+
+	The up side is that there's no asynchronous behavior to worry about,
+	and obviously no reentrancy problems.  The down side is that it's easy
+	to misinterpret characters (e.g. :w big_file^Mi^V^C is going to look
+	like an interrupt) and it's easy to get into places where we won't see
+	interrupt characters (e.g. ":map a ixx^[hxxaXXX" infinitely loops in
+	historic implementations of vi).  Periodically reading the terminal
+	input buffer might solve the latter problem, but it's not going to be
+	pretty.
+
+	Also, we're going to be checking for ^C's and ^Z's both, all over
+	the place -- I hate to litter the source code with that.  For example,
+	the historic version of vi didn't permit you to suspend the screen if
+	you were on the colon command line.  This isn't right.  ^Z isn't a vi
+	command, it's a terminal event.  (Dammit.)
+
+2:	Run in cbreak mode.  There are two problems in this area.  First, the
+	current curses implementations (both System V and Berkeley) don't give
+	you clean cbreak modes. For example, the IEXTEN bit is left on, turning
+	on DISCARD and LNEXT.  To clarify, what vi WANTS is 8-bit clean, with
+	the exception that flow control and signals are turned on, and curses
+	cbreak mode doesn't give you this.
+
+	We can either set raw mode and twiddle the tty, or cbreak mode and
+	twiddle the tty.  I chose to use raw mode, on the grounds that raw
+	mode is better defined and I'm less likely to be surprised by a curses
+	implementation down the road.  The twiddling consists of setting ISIG,
+	IXON/IXOFF, and disabling some of the interrupt characters (see the
+	comments in cl_init.c).  This is all found in historic System V (SVID
+	3) and POSIX 1003.1-1992, so it should be fairly portable.
+
+	The second problem is that vi permits you to enter literal signal
+	characters, e.g. ^V^C.  There are two possible solutions.  First, you
+	can turn off signals when you get a ^V, but that means that a network
+	packet containing ^V and ^C will lose, since the ^C may take effect
+	before vi reads the ^V.  (This is particularly problematic if you're
+	talking over a protocol that recognizes signals locally and sends OOB
+	packets when it sees them.)  Second, you can turn the ^C into a literal
+	character in vi, but that means that there's a race between entering
+	^V<character>^C, i.e. the sequence may end up being ^V^C<character>.
+	Also, the second solution doesn't work for flow control characters, as
+	they aren't delivered to the program as signals.
+
+	Generally, this is what historic vi did.  (It didn't have the curses
+	problems because it didn't use curses.)  It entered signals following
+	^V characters into the input stream, (which is why there's no way to
+	enter a literal flow control character).
+
+3:	Run in mostly raw mode; turn signals on when doing an operation the
+	user might want to interrupt, but leave them off most of the time.
+
+	This works well for things like file reads and writes.  This doesn't
+	work well for trying to detect infinite maps.  The problem is that
+	you can write the code so that you don't have to turn on interrupts
+	per keystroke, but the code isn't pretty and it's hard to make sure
+	that an optimization doesn't cover up an infinite loop.  This also
+	requires interaction or state between the vi parser and the key
+	reading routines, as an infinite loop may still be returning keys
+	to the parser.
+
+	Also, if the user inserts an interrupt into the tty queue while the
+	interrupts are turned off, the key won't be treated as an interrupt,
+	and requiring the user to pound the keyboard to catch an interrupt
+	window is nasty.
+
+4:	Run in mostly raw mode, leaving signals on all of the time.  Done
+	by setting raw mode, and twiddling the tty's termios ISIG bit.
+
+	This works well for the interrupt cases, because the code only has
+	to check to see if the interrupt flag has been set, and can otherwise
+	ignore signals.  It's also less likely that we'll miss a case, and we
+	don't have to worry about synchronizing between the vi parser and the
+	key read routines.
+
+	The down side is that we have to turn signals off if the user wants
+	to enter a literal character (e.g. ^V^C).  If the user enters the
+	combination fast enough, or as part of a single network packet,
+	the text input routines will treat it as a signal instead of as a
+	literal character.  To some extent, we have this problem already,
+	since we turn off flow control so that the user can enter literal
+	XON/XOFF characters.
+
+	This is probably the easiest to code, and provides the smoothest
+	programming interface.
+
+There are a couple of other problems to consider.
+
+First, System V's curses doesn't handle SIGTSTP correctly.  If you use the
+newterm() interface, the TSTP signal will leave you in raw mode, and the
+final endwin() will leave you in the correct shell mode.  If you use the
+initscr() interface, the TSTP signal will return you to the correct shell
+mode, but the final endwin() will leave you in raw mode.  There you have
+it: proof that drug testing is not making any significant headway in the
+computer industry.  The 4BSD curses is deficient in that it does not have
+an interface to the terminal keypad.  So, regardless, we have to do our
+own SIGTSTP handling.
+
+The problem with this is that if we do our own SIGTSTP handling, in either
+models #3 or #4, we're going to have to call curses routines at interrupt
+time, which means that we might be reentering curses, which is something we
+don't want to do.
+
+Second, SIGTSTP has its own little problems.  It's broadcast to the entire
+process group, not sent to a single process.  The scenario goes something
+like this: the shell execs the mail program, which execs vi.  The user hits
+^Z, and all three programs get the signal, in some random order.  The mail
+program goes to sleep immediately (since it probably didn't have a SIGTSTP
+handler in place).  The shell gets a SIGCHLD, does a wait, and finds out
+that the only child in its foreground process group (of which it's aware)
+is asleep.  It then optionally resets the terminal (because the modes aren't
+how it left them), and starts prompting the user for input.  The problem is
+that somewhere in the middle of all of this, vi is resetting the terminal,
+and getting ready to send a SIGTSTP to the process group in order to put
+itself to sleep.  There's a solution to all of this: when vi starts, it puts
+itself into its own process group, and then only it (and possible child
+processes) receive the SIGTSTP.  This permits it to clean up the terminal
+and switch back to the original process group, where it sends that process
+group a SIGTSTP, putting everyone to sleep and waking the shell.
+
+Third, handing SIGTSTP asynchronously is further complicated by the child
+processes vi may fork off.  If vi calls ex, ex resets the terminal and
+starts running some filter, and SIGTSTP stops them both, vi has to know
+when it restarts that it can't repaint the screen until ex's child has
+finished running.  This is solveable, but it's annoying.
+
+Well, somebody had to make a decision, and this is the way it's going to be
+(unless I get talked out of it).  SIGINT is handled asynchronously, so
+that we can pretty much guarantee that the user can interrupt any operation
+at any time.  SIGTSTP is handled synchronously, so that we don't have to
+reenter curses and so that we don't have to play the process group games.
+^Z is recognized in the standard text input and command modes.  (^Z should
+also be recognized during operations that may potentially take a long time.
+The simplest solution is probably to twiddle the tty, install a handler for
+SIGTSTP, and then restore normal tty modes when the operation is complete.)

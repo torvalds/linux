@@ -1,0 +1,166 @@
+# $FreeBSD$
+
+This directory contains tools intended to help committers use git when
+interacting with standard FreeBSD project resources like Differential or svn.
+
+I. arcgit
+
+arcgit is a wrapper script around the arc command line tool that simplifies the
+automatic creation of a series of Differential reviews from a series of git
+commits.  The intended workflow is:
+
+1. Create a series of commits in git.  Each commit will be a separate review, so
+   try to make each commit as self-contained as possible.  The series of commits
+   should demonstrate a logical progression towards your end goal.  For example,
+   one commit might refactor existing code to expose a new API without changing
+   any current functionality.  A subsequent commit could then introduce your new
+   code that uses the new API.
+
+   It usually will not be helpful to present your code in the order in which it
+   was actually written and can actually be harmful.  For example, if you
+   introduced a bug early in your development process that you fixed in a
+   subsequent commit, it is a waste of your reviewer's time to have them review
+   old code with known bugs.  Instead, it would probably be best to squash the
+   bug fix into the commit that introduced it, so that the bug is never
+   presented to your reviewers in any review.
+
+   The commit headline and commit message will be imported verbatim into
+   Differential, so try to give each commit a meaningful commit message that
+   gives your reviewers the necessary context to understand your change.
+
+2. Create your reviews bu running this command in your git repo:
+     $ arcgit -r C1~..C2 -R reviewer -T testplan
+
+   C1 should be the first commit that you want reviewed, and C2 should be the
+   last commit that you want reviewed.  You may add multiple reviewers by
+   specifying the -R option multiple times.  You can CC (AKA subscribe) people
+   to a review with the -C option.  Note that if you subscribe a mailing list
+   to a review, the mailing list will be emailed for every comment or change
+   made to each review.  Please be judicious when subscibing mailing lists to
+   reviews.  It may be better to instead send a single email to the appropriate
+   list announcing all of the reviews and giving a short summary of the change
+   as a whole, along with a link to the individual reviews.
+
+3. When you need to make a change and upload it to a review, use the following
+   process.  First, check out the branch corresponding to the review (arcgit
+   automatically creates this branch for every review that it creates):
+
+     $ git checkout review_D1234
+
+   Next, make your change and perform whatever testing is necessary.  Commit it
+   to your repository with this command:
+
+     $ git commit --fixup HEAD
+
+   You can upload the change to the code review by running this command in your
+   repository while (ensure that you are still on the review_D1234 branch):
+
+     $ arc diff --update D1234 review_D1234_base
+
+   When you run arc, it will pull up your editor and give you a chance to
+   change the message that will be shown in Differential for this upload.  It's
+   recommended that you change it from the default "fixup! ...." as that does
+   not give your reviewers an indication of what changes were made.  It's not
+   recommended that you give the code review fixes meaningful commit messages
+   directly because we will be using git's autosquash feature in the next step,
+   which depends on the fixup! tag being present.
+
+   Do not merge in other branches, or rebase your review branches at this point.
+   Any changes that are made will show up in your reviews, and that will create
+   extra noise that your reviewers will have to ignore.  If a reviewer requests
+   a change that requires your commit to be based off of a later version of
+   head, I would suggest deferring the change from the review and creating a
+   new review with the change once you hit step 5.
+
+4. Once the reviews have been approved, you need to prepare your patch series
+   to be committed.  This involves squashing the fixes made in code review
+   back into the original commit that they applied to.  This gives you a clean
+   series of commits that are ready to be commited back to svn.
+
+   First, merge each of your review branches back into your main development
+   branch.  For example:
+
+     $ git checkout myfeature_dev
+     $ for branch in review_D1234 review_D1235 review_D1236; do \
+       git merge $branch || git mergetool -y || break; done
+
+  Next, do an interactive rebase to squash your code review fixes back into the
+  main commit:
+
+    $ git rebase -i -k review_D1234_base
+
+  review_D1234 should be the name of the *first* review that was created for
+  you in step 2.  For every commit, your editor will be pulled up and you will
+  be given one last chance to edit your commit message.  Make sure that you fill
+  in the "Reviewed by:" tag indicating who accepted the review.  This would
+  be a good point to add other tags like MFC after:, Sponsored by:, etc.
+
+  The rebase will not introduce any actual changes to your code if done
+  properly.  You can use this command to double-check that no changes were
+  inadvertently made here:
+
+    $ git diff myfeature_dev@{1}
+
+5. Finally, you should get up to date with the latest changes from head:
+
+    $ git pull --rebase origin master
+
+  It is not recommended that you combine this step with the rebase done in the
+  previous step.  The reason for this is that if you perform an interactive
+  rebase that changes the commit that you branch from, it becomes much more
+  difficult to use the reflog to confirm that the interactive rebase did not
+  introduce unwanted changes.
+
+  At this point, you are ready to commit your changes to head.  The importgit
+  script can be used to import your commits directly into git.
+
+II. importgit
+
+importgit is a script that can take a series of commits from git and commit them
+to a svn repository.  The script uses the git commit messages for the svn commit
+message, which allows importgit to be fully automated.  This does mean that once
+you start importgit, it will start commit things to svn without giving any
+further chance to sanity check what it's doing.
+
+importgit only supports importing commits that add or modify files.  It does not
+support importing commits that rename or delete files, to ensure that git's
+rename detection heuristics do not introduce an error in the import process.
+importgit also does not support importing merge commits.  Only linear history
+can be imported into svn.
+
+importgit must be run from a clean subversion checkout.  You should ensure that
+the working tree is up-to-date with "svn up" before running importgit.
+importgit will run svn directly, so make sure that your ssh-agent is running
+and has your ssh key loaded already.  Run importgit as follows:
+
+  $ importgit -r D1~..D2 -g /path/to/git/repo
+
+This will import every commit between D1 and D2, including both D1 and D2.  The
+invocation is very similar to the invocation given to arcgit but there is an
+important point to note.  When you rebased your commits as you followed steps 4
+and 5, the commit hashes of all of your commits changed, including C1 and C2.
+You must go back and find the new commit hashes of your commits to pass to
+importgit.  Passing -r C1~..C2 would import your commits as they were *before*
+your code review fixes were applied.
+
+III. git-svn-rebase
+
+git-svn-rebase is a script that helps you keep current when using git 
+plus subversion as outline in https://wiki.freebsd.org/GitWorkflow/GitSvn
+since it's otherwise a pain to have many branches active. It will rebase
+those branches that haven't been merged yet. Some tweaking may be needed
+if you have other, weird branches in your tree (including any stable
+branches). To run it just cd into the git subversion tree somewhere and
+type
+    $ git-svn-rebase
+and it will do its thing and leave the tree on the master branch.
+
+Your tree must be clean to start this, and while it tries to catch
+some failures, not all of them have been allowed for.
+
+IV. git-svn-init
+git-svn-init is a script that initializes the right git-svn connection as
+outlined in https://wiki.freebsd.org/GitWorkflow/GitSvn. It would be a precursor
+to the script git-svn-rebase. The script contains help, but generally you can
+run the script with no arguments and it will attempt to set up both src and
+ports repositories.

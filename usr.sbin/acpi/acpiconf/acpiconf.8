@@ -1,0 +1,118 @@
+.\"-
+.\" Copyright (c) 2000 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer
+.\"    in this position and unchanged.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 27, 2018
+.Dt ACPICONF 8
+.Os
+.Sh NAME
+.Nm acpiconf
+.Nd control ACPI power management
+.Sh SYNOPSIS
+.Nm
+.Op Fl h
+.Op Fl i Ar batt
+.Op Fl k Ar ack
+.Op Fl s Ar type
+.Sh DESCRIPTION
+The
+.Nm
+utility allows the user control of the ACPI power management
+functions.
+The following command-line options are recognized:
+.Bl -tag -width ".Fl s Ar type"
+.It Fl h
+Displays a summary of available options.
+.It Fl i Ar batt
+Get design information and current status of the battery specified
+by its number, starting with
+.Cm 0 .
+.It Fl k Ar ack
+Ack or abort a pending suspend request using the argument provided.
+.Sy Most users should not use this option directly.
+.It Fl s Ar type
+Enters the specified sleep mode.
+Recognized types are
+.Cm 1
+(only the CPU clock is stopped),
+.Cm 2
+(not implemented on most systems but similar to S1),
+.Cm 3
+(the CPU context is lost and memory context is preserved),
+and
+.Cm 4
+(the CPU context is lost and memory context is stored to disk).
+Sleep states may also be given as S1, S2, etc.
+The supported states depend on BIOS implementation, including ACPI
+byte code (AML).
+If the
+.Pa /etc/rc.suspend
+and
+.Pa /etc/rc.resume
+scripts are executable, they will be run by
+.Xr devd 8
+or
+.Xr apmd 8
+before and after entering the given sleep state.
+.Pp
+The
+.Pa /etc/rc.resume
+script uses the
+.Xr rcorder 8
+utility to call scripts in
+.Pa /etc/rc.d/
+and the
+.Va $local_startup
+directories that have a "resume" KEYWORD.
+Called scripts are supplied with single "resume"
+command line argument. See
+.Xr rc.conf 5
+for more information about
+.Va $local_startup .
+.El
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr acpidump 8 ,
+.Xr apm 8 ,
+.Xr apmd 8 ,
+.Xr devd 8 ,
+.Xr rc.conf 5 ,
+.Xr rcorder 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.An Mitsuru Iwasaki Aq Mt iwasaki@FreeBSD.org .
+This manual page was written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

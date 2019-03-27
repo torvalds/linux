@@ -1,0 +1,96 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elf_next.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd June 17, 2006
+.Dt ELF_NEXT 3
+.Os
+.Sh NAME
+.Nm elf_next
+.Nd provide sequential access to the next archive member
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft Elf_Cmd
+.Fn elf_next "Elf *elf"
+.Sh DESCRIPTION
+The
+.Fn elf_next
+function causes the ELF archive descriptor corresponding to argument
+.Ar elf
+to be adjusted to provide access to the next member in
+the archive on a subsequent call to
+.Fn elf_begin .
+.Pp
+The return value of
+.Fn elf_next
+is suitable for use in a loop invoking
+.Fn elf_begin .
+.Sh RETURN VALUES
+If successful, function
+.Fn elf_next
+returns the value
+.Dv ELF_C_READ .
+Otherwise, if argument
+.Ar elf
+was not associated with an archive, or if it was
+.Dv NULL ,
+or if any other error occurred, the value
+.Dv ELF_C_NULL
+is returned.
+.Sh EXAMPLES
+To process all the members of an archive use:
+.Bd -literal -offset indent
+Elf_Cmd cmd;
+Elf *archive, *e;
+\&...
+cmd = ELF_C_READ;
+archive = elf_begin(fd, cmd, NULL);
+while ((e = elf_begin(fd, cmd, archive)) != (Elf *) 0)
+{
+	... process `e' here ...
+
+	cmd = elf_next(e);
+	elf_end(e);
+}
+elf_end(archive);
+.Ed
+.Sh ERRORS
+Function
+.Fn elf_next
+may fail with the following error:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+was not associated with a containing
+.Xr ar 1
+archive.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_begin 3 ,
+.Xr elf_end 3 ,
+.Xr elf_rand 3

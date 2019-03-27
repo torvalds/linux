@@ -1,0 +1,233 @@
+.\" Copyright (c) 2010 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Pawel Jakub Dawidek under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 8, 2016
+.Dt HASTCTL 8
+.Os
+.Sh NAME
+.Nm hastctl
+.Nd "Highly Available Storage control utility"
+.Sh SYNOPSIS
+.Nm
+.Cm create
+.Op Fl d
+.Op Fl c Ar config
+.Op Fl e Ar extentsize
+.Op Fl k Ar keepdirty
+.Op Fl m Ar mediasize
+.Ar name ...
+.Nm
+.Cm role
+.Op Fl d
+.Op Fl c Ar config
+.Aq init | primary | secondary
+.Ar all | name ...
+.Nm
+.Cm list
+.Op Fl d
+.Op Fl c Ar config
+.Op Ar all | name ...
+.Nm
+.Cm status
+.Op Fl d
+.Op Fl c Ar config
+.Op Ar all | name ...
+.Nm
+.Cm dump
+.Op Fl d
+.Op Fl c Ar config
+.Op Ar all | name ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to control the behaviour of the
+.Xr hastd 8
+daemon.
+.Pp
+This utility should be used by HA software like
+.Nm heartbeat
+or
+.Nm ucarp
+to setup HAST resources role when changing from primary mode to
+secondary or vice versa.
+Be aware that if a file system like UFS exists on HAST provider and
+primary node dies, file system has to be checked for inconsistencies
+with the
+.Xr fsck 8
+utility after switching secondary node to primary role.
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm create"
+.It Cm create
+Initialize local provider configured for the given resource.
+Additional options include:
+.Bl -tag -width ".Fl e Ar extentsize"
+.It Fl e Ar extentsize
+Size of an extent.
+Extent is a block which is used for synchronization.
+.Xr hastd 8
+maintains a map of dirty extents and extent is the smallest region that
+can be marked as dirty.
+If any part of an extent is modified, entire extent will be synchronized
+when nodes connect.
+If extent size is too small, there will be too much disk activity
+related to dirty map updates, which will degrade performance of the
+given resource.
+If extent size is too large, synchronization, even in case of short
+outage, can take a long time increasing the risk of losing up-to-date
+node before synchronization process is completed.
+The default extent size is
+.Va 2MB .
+.It Fl k Ar keepdirty
+Maximum number of dirty extents to keep dirty all the time.
+Most recently used extents are kept dirty to reduce number of metadata
+updates.
+The default number of most recently used extents which will be kept
+dirty is
+.Va 64 .
+.It Fl m Ar mediasize
+Size of the smaller provider used as backend storage on both nodes.
+This option can be omitted if node providers have the same size on both
+sides.
+.El
+.Pp
+If size is suffixed with a k, M, G or T, it is taken as a kilobyte,
+megabyte, gigabyte or terabyte measurement respectively.
+.It Cm role
+Change role of the given resource.
+The role can be one of:
+.Bl -tag -width ".Cm secondary"
+.It Cm init
+Resource is turned off.
+.It Cm primary
+Local
+.Xr hastd 8
+daemon will act as primary node for the given resource.
+System on which resource role is set to primary can use
+.Pa /dev/hast/<name>
+GEOM provider.
+.It Cm secondary
+Local
+.Xr hastd 8
+daemon will act as secondary node for the given resource - it will wait
+for connection from the primary node and will handle I/O requests
+received from it.
+GEOM provider
+.Pa /dev/hast/<name>
+will not be created on secondary node.
+.El
+.It Cm list
+Present verbose status of the configured resources.
+.It Cm status
+Present terse (and more easy machine-parseable) status of the configured
+resources.
+.It Cm dump
+Dump metadata stored on local component for the configured resources.
+.El
+.Pp
+In addition, every subcommand can be followed by the following options:
+.Bl -tag -width ".Fl c Ar config"
+.It Fl c Ar config
+Specify alternative location of the configuration file.
+The default location is
+.Pa /etc/hast.conf .
+.It Fl d
+Print debugging information.
+This option can be specified multiple times to raise the verbosity
+level.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/hastctl" -compact
+.It Pa /etc/hast.conf
+Configuration file for
+.Nm
+and
+.Xr hastd 8 .
+.It Pa /var/run/hastctl
+Control socket used by
+.Nm
+to communicate with the
+.Xr hastd 8
+daemon.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, or one of the values described in
+.Xr sysexits 3
+on failure.
+.Sh EXAMPLES
+Initialize HAST provider, create file system on it and mount it.
+.Bd -literal -offset indent
+nodeB# hastctl create shared
+nodeB# hastd
+nodeB# hastctl role secondary shared
+
+nodeA# hastctl create shared
+nodeA# hastd
+nodeA# hastctl role primary shared
+nodeA# newfs -U /dev/hast/shared
+nodeA# mount -o noatime /dev/hast/shared /shared
+nodeA# application_start
+.Ed
+.Pp
+Switch roles for the
+.Nm shared
+HAST resource.
+.Bd -literal -offset indent
+nodeA# application_stop
+nodeA# umount -f /shared
+nodeA# hastctl role secondary shared
+
+nodeB# hastctl role primary shared
+nodeB# fsck -t ufs /dev/hast/shared
+nodeB# mount -o noatime /dev/hast/shared /shared
+nodeB# application_start
+.Ed
+.Sh SEE ALSO
+.Xr sysexits 3 ,
+.Xr geom 4 ,
+.Xr hast.conf 5 ,
+.Xr fsck 8 ,
+.Xr ggatec 8 ,
+.Xr ggatel 8 ,
+.Xr hastd 8 ,
+.Xr mount 8 ,
+.Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 8.1 .
+.Sh AUTHORS
+The
+.Nm
+was developed by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org
+under sponsorship of the FreeBSD Foundation.

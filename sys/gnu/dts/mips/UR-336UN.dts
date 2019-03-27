@@ -1,0 +1,92 @@
+/dts-v1/;
+
+#include "rt3050.dtsi"
+
+/ {
+	compatible = "UR-336UN", "ralink,rt3052-soc";
+	model = "UPVEL UR-336UN";
+
+	cfi@1f000000 {
+		compatible = "cfi-flash";
+		reg = <0x1f000000 0x800000>;
+		bank-width = <2>;
+		device-width = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		3g {
+			label = "ur-336un:green:3g";
+			gpios = <&gpio0 9 1>;
+		};
+
+		gateway {
+			label = "ur-336un:green:gateway";
+			gpios = <&gpio0 11 1>;
+		};
+
+		ap {
+			label = "ur-336un:green:ap";
+			gpios = <&gpio0 12 1>;
+		};
+
+		wps {
+			label = "ur-336un:green:wps";
+			gpios = <&gpio0 14 1>;
+		};
+
+		station {
+			label = "ur-336un:green:station";
+			gpios = <&gpio0 13 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset_wps {
+			label = "reset_wps";
+			gpios = <&gpio0 10 1>;
+			linux,code = <0x198>;
+		};
+
+		mode {
+			label = "mode";
+			gpios = <&gpio0 7 1>;
+			linux,code = <0x32>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "spi", "i2c", "jtag", "rgmii", "mdio", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+/* FIXME: no partitions defined */
+/*&ethernet {
+	mtd-mac-address = <&factory 0x4004>;
+};
+*/
+&esw {
+	mediatek,portmap = <0x2f>;
+};
+
+/* FIXME: no partitions defined */
+/*&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+*/
+&otg {
+	status = "okay";
+};

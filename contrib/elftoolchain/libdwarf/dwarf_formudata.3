@@ -1,0 +1,122 @@
+.\" Copyright (c) 2010 Joseph Koshy
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_formudata.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd June 21, 2010
+.Dt DWARF_FORMUDATA 3
+.Os
+.Sh NAME
+.Nm dwarf_formudata ,
+.Nm dwarf_formsdata
+.Nd return the value of a CONSTANT class attribute
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_formudata
+.Fa "Dwarf_Attribute attr"
+.Fa "Dwarf_Unsigned *ret"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_formsdata
+.Fa "Dwarf_Attribute attr"
+.Fa "Dwarf_Signed *ret"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+These functions return the value associated with a DWARF attribute
+describing a constant.
+.Pp
+Function
+.Fn dwarf_formudata
+sets the location pointed to by argument
+.Ar ret
+to the value of the attribute referenced by argument
+.Ar attr ,
+treating the value as an unsigned quantity.
+Argument
+.Ar attr
+must have one of the following forms:
+.Dv DW_FORM_data1 ,
+.Dv DW_FORM_data2 ,
+.Dv DW_FORM_data4 ,
+.Dv DW_FORM_data8
+and
+.Dv DW_FORM_udata .
+.Pp
+Function
+.Fn dwarf_formsdata
+sets the location pointed to by argument
+.Ar ret
+to the value of the attribute referenced by argument
+.Ar attr ,
+appropriately sign extended.
+Argument
+.Ar attr
+must have one of the following forms:
+.Dv DW_FORM_data1 ,
+.Dv DW_FORM_data2 ,
+.Dv DW_FORM_data4 ,
+.Dv DW_FORM_data8
+and
+.Dv DW_FORM_sdata .
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to return an error descriptor in case
+of an error.
+.Sh RETURN VALUES
+These functions return
+.Dv DW_DLV_OK
+on success.
+In case of an error, they return
+.Dv DW_DLV_ERROR
+and set argument
+.Ar err .
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ATTR_FORM_BAD"
+.It Bq Er DW_DLE_ARGUMENT
+Either of arguments
+.Ar attr
+or
+.Ar ret
+was NULL.
+.It Bq Er DW_DLE_ATTR_FORM_BAD
+The attribute referenced by argument
+.Ar attr
+was not of a permitted kind.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_attr 3 ,
+.Xr dwarf_formblock 3 ,
+.Xr dwarf_formflag 3 ,
+.Xr dwarf_formref 3 ,
+.Xr dwarf_formsig8 3 ,
+.Xr dwarf_formstring 3 ,
+.Xr dwarf_hasattr 3

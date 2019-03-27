@@ -1,0 +1,325 @@
+.\"-
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Klaus Klein.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 6, 2017
+.Dt HCREATE 3
+.Os
+.Sh NAME
+.Nm hcreate ,
+.Nm hcreate_r ,
+.Nm hdestroy ,
+.Nm hdestroy_r ,
+.Nm hsearch ,
+.Nm hsearch_r
+.Nd manage hash search table
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In search.h
+.Ft int
+.Fn hcreate "size_t nel"
+.Ft int
+.Fn hcreate_r "size_t nel" "struct hsearch_data *table"
+.Ft void
+.Fn hdestroy "void"
+.Ft void
+.Fn hdestroy_r "struct hsearch_data *table"
+.Ft ENTRY *
+.Fn hsearch "ENTRY item" "ACTION action"
+.Ft int
+.Fn hsearch_r "ENTRY item" "ACTION action" "ENTRY ** itemp" "struct hsearch_data *table"
+.Sh DESCRIPTION
+The
+.Fn hcreate ,
+.Fn hcreate_r ,
+.Fn hdestroy ,
+.Fn hdestroy_r
+.Fn hsearch ,
+and
+.Fn hsearch_r
+functions manage hash search tables.
+.Pp
+The
+.Fn hcreate
+function allocates sufficient space for the table, and the application should
+ensure it is called before
+.Fn hsearch
+is used.
+The
+.Fa nel
+argument is an estimate of the maximum
+number of entries that the table should contain.
+As this implementation resizes the hash table dynamically,
+this argument is ignored.
+.Pp
+The
+.Fn hdestroy
+function disposes of the search table, and may be followed by another call to
+.Fn hcreate .
+After the call to
+.Fn hdestroy ,
+the data can no longer be considered accessible.
+The
+.Fn hdestroy
+function calls
+.Xr free 3
+for each comparison key in the search table
+but not the data item associated with the key.
+.Pp
+The
+.Fn hsearch
+function is a hash-table search routine.
+It returns a pointer into a hash table
+indicating the location at which an entry can be found.
+The
+.Fa item
+argument is a structure of type
+.Vt ENTRY
+(defined in the
+.In search.h
+header) that contains two pointers:
+.Fa item.key
+points to the comparison key (a
+.Vt "char *" ) ,
+and
+.Fa item.data
+(a
+.Vt "void *" )
+points to any other data to be associated with
+that key.
+The comparison function used by
+.Fn hsearch
+is
+.Xr strcmp 3 .
+The
+.Fa action
+argument is a
+member of an enumeration type
+.Vt ACTION
+indicating the disposition of the entry if it cannot be
+found in the table.
+.Dv ENTER
+indicates that the
+.Fa item
+should be inserted in the table at an
+appropriate point.
+.Dv FIND
+indicates that no entry should be made.
+Unsuccessful resolution is
+indicated by the return of a
+.Dv NULL
+pointer.
+.Pp
+The comparison key (passed to
+.Fn hsearch
+as
+.Fa item.key )
+must be allocated using
+.Xr malloc 3
+if
+.Fa action
+is
+.Dv ENTER
+and
+.Fn hdestroy
+is called.
+.Pp
+The
+.Fn hcreate_r ,
+.Fn hdestroy_r ,
+and
+.Fn hsearch_r
+functions are re-entrant versions of the above functions that can
+operate on a table supplied by the user.
+The
+.Fn hsearch_r
+function returns
+.Dv 0
+if the action is
+.Dv ENTER
+and the element cannot be created,
+.Dv 1
+otherwise.
+If the element exists or can be created, it will be placed in
+.Fa itemp ,
+otherwise
+.Fa itemp
+will be set to
+.Dv NULL .
+.Sh RETURN VALUES
+The
+.Fn hcreate
+and
+.Fn hcreate_r
+functions return 0 if the table creation failed and the global variable
+.Va errno
+is set to indicate the error;
+otherwise, a non-zero value is returned.
+.Pp
+The
+.Fn hdestroy
+and
+.Fn hdestroy_r
+functions return no value.
+.Pp
+The
+.Fn hsearch
+and
+.Fn hsearch_r
+functions return a
+.Dv NULL
+pointer if either the
+.Fa action
+is
+.Dv FIND
+and the
+.Fa item
+could not be found or the
+.Fa action
+is
+.Dv ENTER
+and the table is full.
+.Sh EXAMPLES
+The following example reads in strings followed by two numbers
+and stores them in a hash table, discarding duplicates.
+It then reads in strings and finds the matching entry in the hash
+table and prints it out.
+.Bd -literal
+#include <stdio.h>
+#include <search.h>
+#include <string.h>
+#include <stdlib.h>
+
+struct info {			/* This is the info stored in the table */
+	int age, room;		/* other than the key. */
+};
+
+#define NUM_EMPL	5000	/* # of elements in search table. */
+
+int
+main(void)
+{
+	char str[BUFSIZ]; /* Space to read string */
+	struct info info_space[NUM_EMPL]; /* Space to store employee info. */
+	struct info *info_ptr = info_space; /* Next space in info_space. */
+	ENTRY item;
+	ENTRY *found_item; /* Name to look for in table. */
+	char name_to_find[30];
+	int i = 0;
+
+	/* Create table; no error checking is performed. */
+	(void) hcreate(NUM_EMPL);
+
+	while (scanf("%s%d%d", str, &info_ptr->age,
+	    &info_ptr->room) != EOF && i++ < NUM_EMPL) {
+		/* Put information in structure, and structure in item. */
+		item.key = strdup(str);
+		item.data = info_ptr;
+		info_ptr++;
+		/* Put item into table. */
+		(void) hsearch(item, ENTER);
+	}
+
+	/* Access table. */
+	item.key = name_to_find;
+	while (scanf("%s", item.key) != EOF) {
+		if ((found_item = hsearch(item, FIND)) != NULL) {
+			/* If item is in the table. */
+			(void)printf("found %s, age = %d, room = %d\en",
+			    found_item->key,
+			    ((struct info *)found_item->data)->age,
+			    ((struct info *)found_item->data)->room);
+		} else
+			(void)printf("no such employee %s\en", name_to_find);
+	}
+	hdestroy();
+	return 0;
+}
+.Ed
+.Sh ERRORS
+The
+.Fn hcreate ,
+.Fn hcreate_r ,
+.Fn hsearch ,
+and
+.Fn hsearch_r
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient memory is available.
+.El
+.Pp
+The
+.Fn hsearch
+and
+.Fn hsearch_r
+functions will also fail if the action is
+.Dv FIND
+and the element is not found:
+.Bl -tag -width Er
+.It Bq Er ESRCH
+The
+.Fa item
+given is not found.
+.El
+.Sh SEE ALSO
+.Xr bsearch 3 ,
+.Xr lsearch 3 ,
+.Xr malloc 3 ,
+.Xr strcmp 3 ,
+.Xr tsearch 3
+.Sh STANDARDS
+The
+.Fn hcreate ,
+.Fn hdestroy ,
+and
+.Fn hsearch
+functions conform to
+.St -xpg4.2 .
+.Sh HISTORY
+The
+.Fn hcreate ,
+.Fn hdestroy ,
+and
+.Fn hsearch
+functions first appeared in
+.At V .
+The
+.Fn hcreate_r ,
+.Fn hdestroy_r
+and
+.Fn hsearch_r
+functions are
+.Tn GNU
+extensions.
+.Sh BUGS
+The original,
+.Pf non- Tn GNU
+interface permits the use of only one hash table at a time.

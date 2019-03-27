@@ -1,0 +1,50 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2016 John H. Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 27, 2016
+.Dt BUS_RESCAN 9
+.Os
+.Sh NAME
+.Nm BUS_RESCAN
+.Nd "rescan a bus checking for devices that have been added or removed"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Ft void
+.Fn BUS_RESCAN "device_t dev"
+.Sh DESCRIPTION
+The
+.Fn BUS_RESCAN
+method is called to request a rescan of the child devices on a bus device.
+The method should add any devices that have been added since the previous
+scan and remove devices that have been removed.
+This method is not required to re-examine existing devices to determine if
+their properties have changed.
+This method is also not required to propagate the rescan request to child
+devices.
+.Sh SEE ALSO
+.Xr device 9

@@ -1,0 +1,199 @@
+.\" Copyright (c) 2017 Rick Macklem
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 5, 2018
+.Dt PNFS 4
+.Os
+.Sh NAME
+.Nm pNFS
+.Nd NFS Version 4.1 Parallel NFS Protocol
+.Sh DESCRIPTION
+The NFSv4.1 client and server provides support for the
+.Tn pNFS
+specification; see
+.%T "Network File System (NFS) Version 4 Minor Version 1 Protocol RFC 5661" .
+A pNFS service separates Read/Write operations from all other NFSv4.1
+operations, which are referred to as Metadata operations.
+The Read/Write operations are performed directly on the Data Server (DS)
+where the file's data resides, bypassing the NFS server.
+All other file operations are performed on the NFS server, which is referred to
+as a Metadata Server (MDS).
+NFS clients that do not support
+.Tn pNFS
+perform Read/Write operations on the MDS, which acts as a proxy for the
+appropriate DS(s).
+.Pp
+The NFSv4.1 protocol provides two pieces of information to pNFS aware
+clients that allow them to perform Read/Write operations directly on
+the DS.
+.Pp
+The first is DeviceInfo, which is static information defining the DS
+server.
+The critical piece of information in DeviceInfo for the layout types
+supported by FreeBSD is the IP address that is used to perform RPCs on the DS.
+It also indicates which version of NFS the DS supports, I/O size and other
+layout specific information.
+In the DeviceInfo, there is a DeviceID which, for the FreeBSD server
+is unique to the DS configuration
+and changes whenever the
+.Xr nfsd
+daemon is restarted or the server is rebooted.
+.Pp
+The second is the layout, which is per file and references the DeviceInfo
+to use via the DeviceID.
+It is for a byte range of a file and is either Read or Read/Write.
+For the FreeBSD server, a layout covers all bytes of a file.
+A layout may be recalled by the MDS using a LayoutRecall callback.
+When a client returns a layout via the LayoutReturn operation it can
+indicate that error(s) were encountered while doing I/O on the DS,
+at least for certain layout types such as the Flexible File Layout.
+.Pp
+The FreeBSD client and server supports two layout types.
+.Pp
+The File Layout is described in RFC5661 and uses the NFSv4.1 protocol
+to perform I/O on the DS.
+It does not support client aware DS mirroring and, as such,
+the FreeBSD server only provides File Layout support for non-mirrored
+configurations.
+.Pp
+The Flexible File Layout allows the use of the NFSv3, NFSv4.0 or NFSv4.1
+protocol to perform I/O on the DS and does support client aware mirroring.
+As such, the FreeBSD server uses Flexible File Layout layouts for the
+mirrored DS configurations.
+The FreeBSD server supports the
+.Dq tightly coupled
+variant and all DSs use the
+NFSv4.1 protocol for I/O operations.
+Clients that support the Flexible File Layout will do writes and commits
+to all DS mirrors in the mirror set.
+.Pp
+A FreeBSD pNFS service consists of a single MDS server plus one or more
+DS servers, all of which are FreeBSD systems.
+For a non-mirrored configuration, the FreeBSD server will issue File Layout
+layouts by default.
+However that default can be set to the Flexible File Layout by setting the
+.Xr sysctl 1
+sysctl
+.Dq vfs.nfsd.default_flexfile
+to one.
+Mirrored server configurations will only issue Flexible File Layouts.
+.Tn pNFS
+clients mount the MDS as they would a single NFS server.
+.Pp
+A FreeBSD
+.Tn pNFS
+client must be running the
+.Xr nfscbd 8
+daemon and use the mount options
+.Dq nfsv4,minorversion=1,pnfs .
+.Pp
+When files are created, the MDS creates a file tree identical to what a
+single NFS server creates, except that all the regular (VREG) files will
+be empty.
+As such, if you look at the exported tree on the MDS directly
+on the MDS server (not via an NFS mount), the files will all be of size zero.
+Each of these files will also have two extended attributes in the system
+attribute name space:
+.Bd -literal -offset indent
+pnfsd.dsfile - This extended attrbute stores the information that the
+    MDS needs to find the data file on a DS(s) for this file.
+pnfsd.dsattr - This extended attribute stores the Size, AccessTime,
+    ModifyTime and Change attributes for the file.
+.Ed
+.Pp
+For each regular (VREG) file, the MDS creates a data file on one
+(or on N of them for the mirrored case, where N is the mirror_level)
+of the DS(s) where the file's data will be stored.
+The name of this file is
+the file handle of the file on the MDS in hexadecimal at time of file creation.
+The data file will have the same file ownership, mode and NFSv4 ACL
+(if ACLs are enabled for the file system) as the file on the MDS, so that
+permission checking can be done on the DS.
+This is referred to as
+.Dq tightly coupled
+for the Flexible File Layout.
+.Pp
+For
+.Tn pNFS
+aware clients, the service generates File Layout
+or Flexible File Layout
+layouts and associated DeviceInfo.
+For non-pNFS aware NFS clients, the pNFS service appears just like a normal
+NFS service.
+For the non-pNFS aware client, the MDS will perform I/O operations on the appropriate DS(s), acting as
+a proxy for the non-pNFS aware client.
+This is also true for NFSv3 and NFSv4.0 mounts, since these are always non-pNFS
+aware.
+.Pp
+It is possible to assign a DS to an MDS exported file system so that it will
+store data for files on the MDS exported file system.
+If a DS is not assigned to an MDS exported file system, it will store data
+for files on all exported file systems on the MDS.
+.Pp
+If mirroring is enabled, the pNFS service will continue to function when
+DS(s) have failed, so long is there is at least one DS still operational
+that stores data for files on all of the MDS exported file systems.
+After a disabled mirrored DS is repaired, it is possible to recover the DS
+as a mirror while the pNFS service continues to function.
+.Pp
+See
+.Xr pnfsserver 4
+for information on how to set up a FreeBSD pNFS service.
+.Sh SEE ALSO
+.Xr nfsv4 4 ,
+.Xr pnfsserver 4 ,
+.Xr exports 5 ,
+.Xr fstab 5 ,
+.Xr rc.conf 5 ,
+.Xr nfscbd 8 ,
+.Xr nfsd 8 ,
+.Xr nfsuserd 8 ,
+.Xr pnfsdscopymr 8 ,
+.Xr pnfsdsfile 8 ,
+.Xr pnfsdskill 8
+.Sh BUGS
+Linux kernel versions prior to 4.12 only supports NFSv3 DSs in its client
+and will do all I/O through the MDS.
+For Linux 4.12 kernels, support for NFSv4.1 DSs was added, but I have seen
+Linux client crashes when testing this client.
+For Linux 4.17-rc2 kernels, I have not seen client crashes during testing,
+but it only supports the
+.Dq loosely coupled
+variant.
+To make it work correctly when mounting the FreeBSD server, you must either
+patch the Flexible File Layout client driver with a patch like:
+.Bd -literal -offset indent
+http://people.freebsd.org/~rmacklem/flexfile.patch
+.Ed
+.sp
+or set the sysctl
+.Dq vfs.nfsd.flexlinuxhack
+to one so that it works around
+the Linux client driver's limitations.
+.Pp
+Since the MDS cannot be mirrored, it is a single point of failure just
+as a non
+.Tn pNFS
+server is.

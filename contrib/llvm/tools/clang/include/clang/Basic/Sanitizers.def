@@ -1,0 +1,184 @@
+//===--- Sanitizers.def - Runtime sanitizer options -------------*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the options for specifying which runtime sanitizers to
+// enable. Users of this file must define the SANITIZER macro to make use of
+// this information. Users of this file can also define the SANITIZER_GROUP
+// macro to get information on options which refer to sets of sanitizers.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef SANITIZER
+#error "Define SANITIZER prior to including this file!"
+#endif
+
+// SANITIZER(NAME, ID)
+
+// The first value is the name of the sanitizer as a string. The sanitizer can
+// be enabled by specifying -fsanitize=NAME.
+
+// The second value is an identifier which can be used to refer to the
+// sanitizer.
+
+
+// SANITIZER_GROUP(NAME, ID, ALIAS)
+
+// The first two values have the same semantics as the corresponding SANITIZER
+// values. The third value is an expression ORing together the IDs of individual
+// sanitizers in this group.
+
+#ifndef SANITIZER_GROUP
+#define SANITIZER_GROUP(NAME, ID, ALIAS)
+#endif
+
+
+// AddressSanitizer
+SANITIZER("address", Address)
+
+// Kernel AddressSanitizer (KASan)
+SANITIZER("kernel-address", KernelAddress)
+
+// Hardware-assisted AddressSanitizer
+SANITIZER("hwaddress", HWAddress)
+
+// Kernel Hardware-assisted AddressSanitizer (KHWASan)
+SANITIZER("kernel-hwaddress", KernelHWAddress)
+
+// MemorySanitizer
+SANITIZER("memory", Memory)
+
+// Kernel MemorySanitizer (KMSAN)
+SANITIZER("kernel-memory", KernelMemory)
+
+// libFuzzer
+SANITIZER("fuzzer", Fuzzer)
+
+// libFuzzer-required instrumentation, no linking.
+SANITIZER("fuzzer-no-link", FuzzerNoLink)
+
+// ThreadSanitizer
+SANITIZER("thread", Thread)
+
+// LeakSanitizer
+SANITIZER("leak", Leak)
+
+// UndefinedBehaviorSanitizer
+SANITIZER("alignment", Alignment)
+SANITIZER("array-bounds", ArrayBounds)
+SANITIZER("bool", Bool)
+SANITIZER("builtin", Builtin)
+SANITIZER("enum", Enum)
+SANITIZER("float-cast-overflow", FloatCastOverflow)
+SANITIZER("float-divide-by-zero", FloatDivideByZero)
+SANITIZER("function", Function)
+SANITIZER("integer-divide-by-zero", IntegerDivideByZero)
+SANITIZER("nonnull-attribute", NonnullAttribute)
+SANITIZER("null", Null)
+SANITIZER("nullability-arg", NullabilityArg)
+SANITIZER("nullability-assign", NullabilityAssign)
+SANITIZER("nullability-return", NullabilityReturn)
+SANITIZER_GROUP("nullability", Nullability,
+                NullabilityArg | NullabilityAssign | NullabilityReturn)
+SANITIZER("object-size", ObjectSize)
+SANITIZER("pointer-overflow", PointerOverflow)
+SANITIZER("return", Return)
+SANITIZER("returns-nonnull-attribute", ReturnsNonnullAttribute)
+SANITIZER("shift-base", ShiftBase)
+SANITIZER("shift-exponent", ShiftExponent)
+SANITIZER_GROUP("shift", Shift, ShiftBase | ShiftExponent)
+SANITIZER("signed-integer-overflow", SignedIntegerOverflow)
+SANITIZER("unreachable", Unreachable)
+SANITIZER("vla-bound", VLABound)
+SANITIZER("vptr", Vptr)
+
+// IntegerSanitizer
+SANITIZER("unsigned-integer-overflow", UnsignedIntegerOverflow)
+
+// DataFlowSanitizer
+SANITIZER("dataflow", DataFlow)
+
+// Control Flow Integrity
+SANITIZER("cfi-cast-strict", CFICastStrict)
+SANITIZER("cfi-derived-cast", CFIDerivedCast)
+SANITIZER("cfi-icall", CFIICall)
+SANITIZER("cfi-mfcall", CFIMFCall)
+SANITIZER("cfi-unrelated-cast", CFIUnrelatedCast)
+SANITIZER("cfi-nvcall", CFINVCall)
+SANITIZER("cfi-vcall", CFIVCall)
+SANITIZER_GROUP("cfi", CFI,
+                CFIDerivedCast | CFIICall | CFIMFCall | CFIUnrelatedCast |
+                    CFINVCall | CFIVCall)
+
+// Safe Stack
+SANITIZER("safe-stack", SafeStack)
+
+// Shadow Call Stack
+SANITIZER("shadow-call-stack", ShadowCallStack)
+
+// -fsanitize=undefined includes all the sanitizers which have low overhead, no
+// ABI or address space layout implications, and only catch undefined behavior.
+SANITIZER_GROUP("undefined", Undefined,
+                Alignment | Bool | Builtin | ArrayBounds | Enum |
+                    FloatCastOverflow | FloatDivideByZero |
+                    IntegerDivideByZero | NonnullAttribute | Null | ObjectSize |
+                    PointerOverflow | Return | ReturnsNonnullAttribute | Shift |
+                    SignedIntegerOverflow | Unreachable | VLABound | Function |
+                    Vptr)
+
+// -fsanitize=undefined-trap is an alias for -fsanitize=undefined.
+SANITIZER_GROUP("undefined-trap", UndefinedTrap, Undefined)
+
+// ImplicitConversionSanitizer
+SANITIZER("implicit-unsigned-integer-truncation",
+          ImplicitUnsignedIntegerTruncation)
+SANITIZER("implicit-signed-integer-truncation", ImplicitSignedIntegerTruncation)
+SANITIZER_GROUP("implicit-integer-truncation", ImplicitIntegerTruncation,
+                ImplicitUnsignedIntegerTruncation |
+                    ImplicitSignedIntegerTruncation)
+
+SANITIZER("implicit-integer-sign-change", ImplicitIntegerSignChange)
+
+SANITIZER_GROUP("implicit-integer-arithmetic-value-change",
+                ImplicitIntegerArithmeticValueChange,
+                ImplicitIntegerSignChange | ImplicitSignedIntegerTruncation)
+
+// FIXME:
+//SANITIZER_GROUP("implicit-integer-conversion", ImplicitIntegerConversion,
+//                ImplicitIntegerArithmeticValueChange |
+//                    ImplicitUnsignedIntegerTruncation)
+//SANITIZER_GROUP("implicit-conversion", ImplicitConversion,
+//                ImplicitIntegerConversion)
+
+SANITIZER_GROUP("implicit-conversion", ImplicitConversion,
+                ImplicitIntegerArithmeticValueChange |
+                    ImplicitUnsignedIntegerTruncation)
+
+SANITIZER_GROUP("integer", Integer,
+                ImplicitConversion | IntegerDivideByZero | Shift |
+                    SignedIntegerOverflow | UnsignedIntegerOverflow)
+
+SANITIZER("local-bounds", LocalBounds)
+SANITIZER_GROUP("bounds", Bounds, ArrayBounds | LocalBounds)
+
+// EfficiencySanitizer
+SANITIZER("efficiency-cache-frag", EfficiencyCacheFrag)
+SANITIZER("efficiency-working-set", EfficiencyWorkingSet)
+// Meta-group only used internally.
+SANITIZER_GROUP("efficiency-all", Efficiency,
+                EfficiencyCacheFrag | EfficiencyWorkingSet)
+
+// Scudo hardened allocator
+SANITIZER("scudo", Scudo)
+
+// Magic group, containing all sanitizers. For example, "-fno-sanitize=all"
+// can be used to disable all the sanitizers.
+SANITIZER_GROUP("all", All, ~0ULL)
+
+#undef SANITIZER
+#undef SANITIZER_GROUP

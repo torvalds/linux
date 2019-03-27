@@ -1,0 +1,4 @@
+rdr hme0 192.168.1.0/24 port 80 -> 1.1.1.1 port 80 tcp;
+no rdr hme0 192.168.1.1 port 80 tcp;
+map hme1 10.1.0.0/16 -> 203.1.1.1/32 portmap tcp/udp 10000:20000
+no map hme1 10.1.1.0/24 tcp;

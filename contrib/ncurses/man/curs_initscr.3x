@@ -1,0 +1,143 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_initscr.3x,v 1.19 2013/07/20 19:34:14 tom Exp $
+.TH curs_initscr 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.na
+.hy 0
+.SH NAME
+\fBinitscr\fR,
+\fBnewterm\fR,
+\fBendwin\fR,
+\fBisendwin\fR,
+\fBset_term\fR,
+\fBdelscreen\fR \- \fBcurses\fR screen initialization and manipulation routines
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBWINDOW *initscr(void);\fR
+.br
+\fBint endwin(void);\fR
+.br
+\fBbool isendwin(void);\fR
+.br
+\fBSCREEN *newterm(char *type, FILE *outfd, FILE *infd);\fR
+.br
+\fBSCREEN *set_term(SCREEN *new);\fR
+.br
+\fBvoid delscreen(SCREEN* sp);\fR
+.br
+.SH DESCRIPTION
+\fBinitscr\fR is normally the first \fBcurses\fR routine to call when
+initializing a program.  A few special routines sometimes need to be
+called before it; these are \fBslk_init\fR, \fBfilter\fR, \fBripoffline\fR,
+\fBuse_env\fR.  For multiple-terminal applications, \fBnewterm\fR may be
+called before \fBinitscr\fR.
+.PP
+The initscr code determines the terminal type and initializes all \fBcurses\fR
+data structures.  \fBinitscr\fR also causes the first call to \fBrefresh\fR to
+clear the screen.  If errors occur, \fBinitscr\fR writes an appropriate error
+message to standard error and exits; otherwise, a pointer is returned to
+\fBstdscr\fR.
+.PP
+A program that outputs to more than one terminal should use the \fBnewterm\fR
+routine for each terminal instead of \fBinitscr\fR.  A program that needs to
+inspect capabilities, so it can continue to run in a line-oriented mode if the
+terminal cannot support a screen-oriented program, would also use
+\fBnewterm\fR.  The routine \fBnewterm\fR should be called once for each
+terminal.  It returns a variable of type \fBSCREEN *\fR which should be saved
+as a reference to that terminal.  The arguments are the \fItype\fR of the
+terminal to be used in place of \fB$TERM\fR, a file pointer for output to the
+terminal, and another file pointer for input from the terminal (if \fItype\fR
+is \fBNULL\fR, \fB$TERM\fR will be used).  The program must also call
+\fBendwin\fR for each terminal being used before exiting from \fBcurses\fR.
+If \fBnewterm\fR is called more than once for the same terminal, the first
+terminal referred to must be the last one for which \fBendwin\fR is called.
+.PP
+A program should always call \fBendwin\fR before exiting or escaping from
+\fBcurses\fR mode temporarily.  This routine restores tty modes, moves the
+cursor to the lower left-hand corner of the screen and resets the terminal into
+the proper non-visual mode.  Calling \fBrefresh\fR or \fBdoupdate\fR after a
+temporary escape causes the program to resume visual mode.
+.PP
+The \fBisendwin\fR routine returns \fBTRUE\fR if \fBendwin\fR has been
+called without any subsequent calls to \fBwrefresh\fR, and \fBFALSE\fR
+otherwise.
+.PP
+The \fBset_term\fR routine is used to switch between different
+terminals.  The screen reference \fBnew\fR becomes the new current
+terminal.  The previous terminal is returned by the routine.  This is
+the only routine which manipulates \fBSCREEN\fR pointers; all other
+routines affect only the current terminal.
+.PP
+The \fBdelscreen\fR routine frees storage associated with the
+\fBSCREEN\fR data structure.  The \fBendwin\fR routine does not do
+this, so \fBdelscreen\fR should be called after \fBendwin\fR if a
+particular \fBSCREEN\fR is no longer needed.
+.SH RETURN VALUE
+\fBendwin\fR returns the integer \fBERR\fR upon failure and \fBOK\fR
+upon successful completion.
+.PP
+Routines that return pointers always return \fBNULL\fR on error.
+.PP
+X/Open defines no error conditions.
+In this implementation
+\fBendwin\fP returns an error if the terminal was not initialized.
+.SH NOTES
+Note that \fBinitscr\fR and \fBnewterm\fR may be macros.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.  It
+specifies that portable applications must not call \fBinitscr\fR more than
+once.
+.PP
+Old versions of curses, e.g., BSD 4.4, may have returned a null pointer
+from \fBinitscr\fR when an error is detected, rather than exiting.
+It is safe but redundant to check the return value of \fBinitscr\fR
+in XSI Curses.
+.PP
+If the TERM variable is missing or empty, \fBinitscr\fP uses the
+value \*(``unknown\*('',
+which normally corresponds to a terminal entry with the \fIgeneric\fP
+(\fIgn\fP) capability.
+Generic entries are detected by \fBsetupterm\fP(3X) and cannot be
+used for full-screen operation.
+Other implementations may handle a missing/empty TERM variable differently.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_kernel\fR(3X),
+\fBcurs_refresh\fR(3X),
+\fBcurs_slk\fR(3X),
+\fBcurs_terminfo\fR(3X),
+\fBcurs_util\fR(3X),
+\fBcurs_variables\fR(3X).

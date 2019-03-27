@@ -1,0 +1,24 @@
+# In this test we test include override bug
+
+.include(priority = 1) "${CURDIR}/15.inc"
+
+section = {
+	value = "test";
+}
+
+overrided = {
+	value = "not-to-be-shown";
+}
+
+/*
+ BUGGED UCL:
+ overrided {
+	    key = "overrided";
+ }
+ !!! So overrided has actually rewritten the previous key
+ section {
+	    value {
+			        value = "not-to-be-shown";
+	    }
+ }
+*/

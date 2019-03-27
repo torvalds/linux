@@ -1,0 +1,204 @@
+.\" $FreeBSD$
+.Dd September 27, 2018
+.Dt IFLIB 4
+.Os
+.Sh NAME
+.Nm iflib
+.Nd Network Interface Driver Framework
+.Sh SYNOPSIS
+.Cd "device pci"
+.Cd "device iflib"
+.Sh DESCRIPTION
+.Nm
+is a framework for network interface drivers for
+.Fx .
+It is designed to remove a large amount of the boilerplate that is often
+needed for modern network interface devices, allowing driver authors to
+focus on the specific code needed for their hardware.
+This allows for a shared set of
+.Xr sysctl 8
+names, rather than each driver naming them individually.
+.Sh SYSCTL VARIABLES
+These variables must be set before loading the driver, either via
+.Xr loader.conf 5
+or through the use of
+.Xr kenv 1 .
+They are all prefixed by
+.Va dev.X.Y.iflib\&.
+where X is the driver name, and Y is the instance number.
+.Bl -tag -width indent
+.It Va override_nrxds
+Override the number of RX descriptors for each queue.
+The value is a comma separated list of positive integers.
+Some drivers only use a single value, but others may use more.
+These numbers must be powers of two, and zero means to use the default.
+Individual drivers may have additional restrictions on allowable values.
+Defaults to all zeros.
+.It Va override_ntxds
+Override the number of TX descriptors for each queue.
+The value is a comma separated list of positive integers.
+Some drivers only use a single value, but others may use more.
+These numbers must be powers of two, and zero means to use the default.
+Individual drivers may have additional restrictions on allowable values.
+Defaults to all zeros.
+.It Va override_qs_enable
+When set, allows the number of transmit and receive queues to be different.
+If not set, the lower of the number of TX or RX queues will be used for both.
+.It Va override_nrxqs
+Set the number of RX queues.
+If zero, the number of RX queues is derived from the number of cores on the
+socket connected to the controller.
+Defaults to 0.
+.It Va override_ntxqs
+Set the number of TX queues.
+If zero, the number of TX queues is derived from the number of cores on the
+socket connected to the controller.
+.It Va disable_msix
+Disables MSI-X interrupts for the device.
+.El
+.Pp
+These
+.Xr sysctl 8
+variables can be changed at any time:
+.Bl -tag -width indent
+.It Va tx_abdicate
+Controls how the transmit ring is serviced.
+If set to zero, when a frame is submitted to the transmission ring, the same
+task that is submitting it will service the ring unless there's already a
+task servicing the TX ring.
+This ensures that whenever there is a pending transmission,
+the transmit ring is being serviced.
+This results in higher transmit throughput.
+If set to a non-zero value, task returns immediately and the transmit
+ring is serviced by a different task.
+This returns control to the caller faster and under high receive load,
+may result in fewer dropped RX frames.
+.It Va rx_budget
+Sets the maximum number of frames to be received at a time.
+Zero (the default) indicates the default (currently 16) should be used.
+.El
+.Pp
+There are also some global sysctls which can change behaviour for all drivers,
+and may be changed at any time.
+.Bl -tag -width indent
+.It Va net.iflib.min_tx_latency
+If this is set to a non-zero value, iflib will avoid any attempt to combine
+multiple transmits, and notify the hardware as quickly as possible of
+new descriptors.
+This will lower the maximum throughput, but will also lower transmit latency.
+.It Va net.iflib.no_tx_batch
+Some NICs allow processing completed transmit descriptors in batches.
+Doing so usually increases the transmit throughput by reducing the number of
+transmit interrupts.
+Setting this to a non-zero value will disable the use of this feature.
+.El
+.Pp
+These
+.Xr sysctl 8
+variables are read-only:
+.Bl -tag -width indent
+.It Va driver_version
+A string indicating the internal version of the driver.
+.El
+.Pp
+There are a number of queue state
+.Xr sysctl 8
+variables as well:
+.Bl -tag -width indent
+.It Va txqZ
+The following are repeated for each transmit queue, where Z is the transmit
+queue instance number:
+.Bl -tag -width indent
+.It Va r_abdications
+Number of consumer abdications in the MP ring for this queue.
+An abdication occurs on every ring submission when tx_abdicate is true.
+.It Va r_restarts
+Number of consumer restarts in the MP ring for this queue.
+A restart occurs when an attempt to drain a non-empty ring fails,
+and the ring is already in the STALLED state.
+.It Va r_stalls
+Number of consumer stalls in the MP ring for this queue.
+A stall occurs when an attempt to drain a non-empty ring fails.
+.It Va r_starts
+Number of normal consumer starts in the MP ring for this queue.
+A start occurs when the MP ring transitions from IDLE to BUSY.
+.It Va r_drops
+Number of drops in the MP ring for this queue.
+A drop occurs when there is an attempt to add an entry to an MP ring with
+no available space.
+.It Va r_enqueues
+Number of entries which have been enqueued to the MP ring for this queue.
+.It Va ring_state
+MP (soft) ring state.
+This privides a snapshot of the current MP ring state, including the producer
+head and tail indexes, the consumer index, and the state.
+The state is one of "IDLE", "BUSY",
+"STALLED", or "ABDICATED".
+.It Va txq_cleaned
+The number of transmit descriptors which have been reclaimed.
+Total cleaned.
+.It Va txq_processed
+The number of transmit descriptors which have been processed, but may not yet
+have been reclaimed.
+.It Va txq_in_use
+Descriptors which have been added to the transmit queue,
+but have not yet been cleaned.
+This value will include both untransmitted descriptors as well as descriptors
+which have been processed.
+.It Va txq_cidx_processed
+The transmit queue consumer index of the next descriptor to process.
+.It Va txq_cidx
+The transmit queue consumer index of the oldest descriptor to reclaim.
+.It Va txq_pidx
+The transmit queue producer index where the next descriptor to transmit will
+be inserted.
+.It Va no_tx_dma_setup
+Number of times DMA mapping a transmit mbuf failed for reasons other than
+.Er EFBIG .
+.It Va txd_encap_efbig
+Number of times DMA mapping a transmit mbuf failed due to requiring too many
+segments.
+.It Va tx_map_failed
+Number of times DMA mapping a transmit mbuf failed for any reason
+(sum of no_tx_dma_setup and txd_encap_efbig)
+.It Va no_desc_avail
+Number of times a descriptor couldn't be added to the transmit ring because
+the transmit ring was full.
+.It Va mbuf_defrag_failed
+Number of times both
+.Xr m_collapse 9
+and
+.Xr m_defrag 9
+failed after an
+.Er EFBIG
+error
+result from DMA mapping a transmit mbuf.
+.It Va m_pullups
+Number of times
+.Xr m_pullup 9
+was called attempting to parse a header.
+.It Va mbuf_defrag
+Number of times
+.Xr m_defrag 9
+was called.
+.El
+.It Va rxqZ
+The following are repeated for each receive queue, where Z is the
+receive queue instance number:
+.Bl -tag -width indent
+.It Va rxq_fl0.credits
+Credits currently available in the receive ring.
+.It Va rxq_fl0.cidx
+Current receive ring consumer index.
+.It Va rxq_fl0.pidx
+Current receive ring producer index.
+.El
+.El
+.Pp
+Additional OIDs useful for driver and iflib development are exposed when the
+INVARIANTS and/or WITNESS options are enabled in the kernel.
+.Sh SEE ALSO
+.Xr iflib 9
+.Sh HISTORY
+This framework was introduced in
+.Fx 11.0 .

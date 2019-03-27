@@ -1,0 +1,174 @@
+.\" Author:	Juli Mallett <jmallett@FreeBSD.org>
+.\" Date:	June 04, 2003
+.\" Description:
+.\" 	Manual page for libufs functions:
+.\"		cgget(3)
+.\"		cgput(3)
+.\"		cgread(3)
+.\"		cgread1(3)
+.\"		cgwrite(3)
+.\"		cgwrite1(3)
+.\"
+.\" This file is in the public domain.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 19, 2018
+.Dt CGREAD 3
+.Os
+.Sh NAME
+.Nm cgget , cgput , cgread , cgread1 , cgwrite , cgwrite1
+.Nd read/write cylinder groups of UFS disks
+.Sh LIBRARY
+.Lb libufs
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.In ufs/ufs/ufsmount.h
+.In ufs/ufs/dinode.h
+.In ufs/ffs/fs.h
+.In libufs.h
+.Ft int
+.Fn cgget "struct uufsd *disk" "int cg" "struct cg *cgp"
+.Ft int
+.Fn cgput "struct uufsd *disk" "struct cg *cgp"
+.Ft int
+.Fn cgread "struct uufsd *disk"
+.Ft int
+.Fn cgread1 "struct uufsd *disk" "int cg"
+.Ft int
+.Fn cgwrite "struct uufsd *disk"
+.Ft int
+.Fn cgwrite1 "struct uufsd *disk" "int cg"
+.Sh DESCRIPTION
+The
+.Fn cgget ,
+.Fn cgread ,
+and
+.Fn cgread1
+functions provide cylinder group reads for
+.Xr libufs 3
+consumers.
+The
+.Fn cgput ,
+.Fn cgwrite ,
+and
+.Fn cgwrite1
+functions provide cylinder group writes for
+.Xr libufs 3
+consumers.
+.Pp
+The
+.Fn cgget
+function reads the cylinder group specified by
+.Fa cg
+into the buffer pointed to by
+.Fa cgp
+from the disk referenced by the user-land UFS-disk structure.
+The
+.Fn cgget
+function is the only cylinder group read function that is safe to use
+in threaded applications.
+.Pp
+The
+.Fn cgput
+function writes the cylinder group specified by
+.Va cgp
+to the disk referenced by the user-land UFS-disk structure.
+The
+.Fn cgput
+function is the only cylinder group write function that is safe to use
+in threaded applications.
+Note that the
+.Fn cgput
+function needs to be called only if the cylinder group has been
+modified and the on-disk copy needs to be updated.
+.Pp
+The
+.Fn cgread1
+function reads from the cylinder group specified by
+.Fa cg
+into the
+.Va d_cg
+cylinder-group structure in a user-land UFS-disk structure.
+It sets the
+.Va d_lcg
+field to the cylinder group number
+.Fa cg .
+.Pp
+The
+.Fn cgread
+function operates on sequential cylinder groups.
+Calling the
+.Fn cgread
+function is equivalent to calling
+.Fn cgread1
+with a cylinder group specifier equivalent to the value of the current
+.Va d_ccg
+field, and then incrementing the
+.Va d_ccg
+field.
+.Pp
+The
+.Fn cgwrite
+function stores on disk the cylinder group held in the
+.Va d_cg
+cylinder-group structure in a user-land UFS-disk structure.
+.Pp
+The
+.Fn cgwrite1
+function provides no additional functionality over the
+.Fn cgwrite
+function as there is only one place that a given cylinder group
+can correctly be written.
+If the caller gets the
+.Fa cg
+parameter wrong, the function fails with the error
+.Er EDOOFUS .
+This function remains only to provide backward compatibility.
+.Sh RETURN VALUES
+The
+.Fn cgread
+function returns 0 if there are no more cylinder groups to read,
+1 if there are more cylinder groups, and \-1 on error.
+The
+.Fn cgread1
+function returns 1 on success and \-1 on error.
+The other functions return 0 on success and \-1 on error.
+.Sh ERRORS
+The
+.Fn cgget ,
+.Fn cgread ,
+and
+.Fn cgread1
+functions may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr bread 3 .
+.Pp
+The
+.Fn cgput ,
+.Fn cgwrite ,
+and
+.Fn cgwrite1
+functions may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr bwrite 3 .
+Additionally the
+.Fn cgwrite1
+will return the
+.Er EDOOFUS
+error if the cylinder group specified does not match the
+cylinder group that it is requesting to write.
+.Sh SEE ALSO
+.Xr bread 3 ,
+.Xr bwrite 3 ,
+.Xr libufs 3
+.Sh HISTORY
+These functions first appeared as part of
+.Xr libufs 3
+in
+.Fx 5.1 .
+.Sh AUTHORS
+.An Juli Mallett Aq Mt jmallett@FreeBSD.org

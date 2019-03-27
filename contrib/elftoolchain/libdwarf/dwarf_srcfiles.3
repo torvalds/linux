@@ -1,0 +1,105 @@
+.\" Copyright (c) 2010 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: dwarf_srcfiles.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd April 28, 2010
+.Dt DWARF_SRCFILES 3
+.Os
+.Sh NAME
+.Nm dwarf_srcfiles
+.Nd retrieve source file information
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_srcfiles
+.Fa "Dwarf_Die die"
+.Fa "char ***filenames"
+.Fa "Dwarf_Signed *filenamecount"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_srcfiles
+returns the source file names associated with a compilation unit.
+Source file names are returned as an array of NUL-terminated strings.
+.Pp
+Argument
+.Ar die
+should reference a DWARF debugging information entry descriptor with
+source file information, see
+.Xr dwarf 3 .
+Argument
+.Ar filenames
+should point to a location that will hold a pointer to the returned array
+of file names.
+Argument
+.Ar filenamecount
+should point to a location that will hold the number of file names returned.
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case of an
+error.
+.Ss Memory Management
+The memory areas used for the file names and for array of pointers
+being returned are managed by the DWARF(3) library.
+The application should not attempt to directly free these memory areas.
+Portable code should indicate that the memory areas are to be freed
+by using
+.Xr dwarf_dealloc 3 .
+.Sh RETURN VALUES
+Function
+.Fn dwarf_srcfiles
+returns
+.Dv DW_DLV_OK
+when it succeeds.
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets the argument
+.Ar err .
+.Sh ERRORS
+Function
+.Fn dwarf_srcfiles
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar die ,
+.Ar filenames
+or
+.Ar filenamecount
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+The compilation unit referenced by argument
+.Ar die
+does not have associated source file information.
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered during the execution of
+this function.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_dealloc 3 ,
+.Xr dwarf_srclines 3

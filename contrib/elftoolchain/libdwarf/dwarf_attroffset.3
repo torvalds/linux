@@ -1,0 +1,86 @@
+.\" Copyright (c) 2014 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_attroffset.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd December 20, 2014
+.Dt DWARF_ATTROFFSET 3
+.Os
+.Sh NAME
+.Nm dwarf_attroffset
+.Nd retrieve the section-relative offset of an attribute descriptor
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_attroffset
+.Fa "Dwarf_Attribute at"
+.Fa "Dwarf_Off *ret_off"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_attroffset
+retrieves the section-relative offset of the attribute descriptor
+referenced by argument
+.Ar at .
+.Pp
+Argument
+.Ar ret_off
+should point to a location that is to hold the returned
+section-relative offset.
+If argument
+.Ar err
+is non-NULL, it is used to return an error descriptor in case of an
+error.
+.Sh RETURN VALUES
+On success, function
+.Fn dwarf_attroffset
+returns
+.Dv DW_DLV_OK .
+.Pp
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets argument
+.Ar err .
+.Sh COMPATIBILITY
+This function is an extension to the
+.Xr DWARF 3
+API.
+.Sh ERRORS
+The
+.Fn dwarf_attroffset
+function may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Either of the arguments
+.Ar at
+or
+.Ar ret_off
+was NULL.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_attr 3

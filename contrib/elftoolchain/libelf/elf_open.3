@@ -1,0 +1,121 @@
+.\" Copyright (c) 2012 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elf_open.3 3643 2018-10-14 21:09:24Z jkoshy $
+.\"
+.Dd May 31, 2012
+.Dt ELF_OPEN 3
+.Os
+.Sh NAME
+.Nm elf_open
+.Nd open ELF objects and ar(1) archives
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft "Elf *"
+.Fn elf_open "int fd"
+.Ft "Elf *"
+.Fn elf_openmemory "char *image" "size_t sz"
+.Sh DESCRIPTION
+.Em Important :
+The functions
+.Fn elf_open
+and
+.Fn elf_openmemory
+are extensions to the ELF(3) API, for the internal use of the
+Elftoolchain project.
+Portable applications should not use these functions.
+.Pp
+The function
+.Fn elf_open
+returns an Elf descriptor opened with mode
+.Dv ELF_C_READ
+for the ELF object or
+.Xr ar 1
+archive referenced by the file descriptor in argument
+.Ar fd .
+.Pp
+The function
+.Fn elf_openmemory
+returns an ELF descriptor opened with mode
+.Dv ELF_C_READ
+for the ELF object or
+.Xr ar 1
+archive contained in the memory area pointed to by the argument
+.Ar image .
+The argument
+.Ar sz
+specifies the size of the memory area in bytes.
+.Sh RETURN VALUES
+The function returns a pointer to a ELF descriptor if successful, or
+NULL if an error occurred.
+.Sh COMPATIBILITY
+These functions are non-standard extensions to the ELF(3) API set.
+.Pp
+The behavior of these functions differs from their counterparts
+.Xr elf_begin 3
+and
+.Xr elf_memory 3
+in that these functions will successfully open malformed ELF objects
+and
+.Xr ar 1
+archives, returning an Elf descriptor of type
+.Dv ELF_K_NONE .
+.Sh ERRORS
+These functions can fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+The argument
+.Ar fd
+was of an unsupported file type.
+.It Bq Er ELF_E_ARGUMENT
+The argument
+.Ar sz
+was zero, or the argument
+.Ar image
+was NULL.
+.It Bq Er ELF_E_IO
+The file descriptor in argument
+.Ar fd
+was invalid.
+.It Bq Er ELF_E_IO
+The file descriptor in argument
+.Ar fd
+could not be read.
+.It Bq Er ELF_E_RESOURCE
+An out of memory condition was encountered.
+.It Bq Er ELF_E_SEQUENCE
+Functions
+.Fn elf_open
+or
+.Fn elf_openmemory
+was called before a working version was established with
+.Xr elf_version 3 .
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_begin 3 ,
+.Xr elf_errno 3 ,
+.Xr elf_memory 3 ,
+.Xr gelf 3

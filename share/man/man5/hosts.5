@@ -1,0 +1,109 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)hosts.5	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd December 25, 2013
+.Dt HOSTS 5
+.Os
+.Sh NAME
+.Nm hosts
+.Nd host name data base
+.Sh DESCRIPTION
+The
+.Nm
+file contains information regarding
+the known hosts on the network.
+It can be used in conjunction with DNS, and the NIS
+maps `hosts.byaddr' and `hosts.byname', as controlled by
+.Xr nsswitch.conf 5 .
+For each host a single line should be present
+with the following information:
+.Bd -unfilled -offset indent
+Internet address
+official host name
+aliases
+.Ed
+.Pp
+Items are separated by any number of blanks and/or
+tab characters.
+A ``#'' indicates the beginning of
+a comment; characters up to the end of the line are
+not interpreted by routines which search the file.
+.Pp
+This file provides a backup used when the name server
+is not running.
+For the name server, it is suggested that only a few addresses
+be included in this file.
+These include addresses for the local interfaces that
+.Xr ifconfig 8
+needs at boot time and a few machines on the local network.
+.Pp
+This file may be created from the official host
+data base maintained at the Network Information Control
+Center
+.Pq Tn NIC ,
+though local changes may be required
+to bring it up to date regarding unofficial aliases
+and/or unknown hosts.
+As the data base maintained at
+.Tn NIC
+is incomplete, use of the name server is recommended for
+sites on the
+.Tn DARPA
+Internet.
+.Pp
+Network addresses are specified in the conventional
+``.'' (dot) notation using the
+.Xr inet_addr 3
+routine
+from the Internet address manipulation library,
+.Xr inet 3 .
+Host names may contain any printable
+character other than a field delimiter, newline,
+or comment character.
+.Sh FILES
+.Bl -tag -width /etc/hosts -compact
+.It Pa /etc/hosts
+The
+.Nm
+file resides in
+.Pa /etc .
+.El
+.Sh SEE ALSO
+.Xr gethostbyname 3 ,
+.Xr nsswitch.conf 5 ,
+.Xr ifconfig 8
+.Rs
+.%T "Name Server Operations Guide for BIND"
+.Re
+.Sh HISTORY
+The
+.Nm
+file format appeared in
+.Bx 4.2 .

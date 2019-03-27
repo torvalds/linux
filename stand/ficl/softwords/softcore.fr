@@ -1,0 +1,206 @@
+\ ** ficl/softwords/softcore.fr
+\ ** FICL soft extensions
+\ ** John Sadler (john_sadler@alum.mit.edu)
+\ ** September, 1998
+\
+\ $FreeBSD$
+
+\ ** Ficl USER variables
+\ ** See words.c for primitive def'n of USER
+\ #if FICL_WANT_USER
+variable nUser  0 nUser ! 
+: user   \ name ( -- )  
+    nUser dup @ user 1 swap +! ; 
+
+\ #endif
+
+\ ** ficl extras
+\ EMPTY cleans the parameter stack
+: empty   ( xn..x1 -- ) depth 0 ?do drop loop ;
+\ CELL- undoes CELL+
+: cell-   ( addr -- addr )  [ 1 cells ] literal -  ;
+: -rot   ( a b c -- c a b )  2 -roll ;
+
+\ ** CORE 
+: abs   ( x -- x )
+    dup 0< if negate endif ;
+decimal 32 constant bl
+
+: space   ( -- )     bl emit ;
+
+: spaces  ( n -- )   0 ?do space loop ;
+
+: abort"  
+    state @ if
+        postpone if
+        postpone ."
+        postpone cr
+        -2
+        postpone literal
+        postpone throw
+        postpone endif
+    else
+	    [char] " parse
+        rot if
+            type
+            cr
+            -2 throw
+        else
+            2drop
+        endif
+    endif
+; immediate
+
+
+\ ** CORE EXT
+0  constant false 
+false invert constant true 
+: <>   = 0= ; 
+: 0<>  0= 0= ; 
+: compile,  , ; 
+: convert   char+ 65535 >number drop ;  \ cribbed from DPANS A.6.2.0970
+: erase   ( addr u -- )    0 fill ; 
+variable span
+: expect  ( c-addr u1 -- ) accept span ! ;
+\ see marker.fr for MARKER implementation
+: nip     ( y x -- x )     swap drop ; 
+: tuck    ( y x -- x y x)  swap over ; 
+: within  ( test low high -- flag )   over - >r - r>  u<  ;
+
+
+\ ** LOCAL EXT word set
+\ #if FICL_WANT_LOCALS
+: locals|  ( name...name | -- )
+    begin
+        bl word   count
+        dup 0= abort" where's the delimiter??"
+        over c@
+        [char] | - over 1- or
+    while
+        (local)
+    repeat 2drop   0 0 (local)
+; immediate
+
+: local  ( name -- )  bl word count (local) ;  immediate
+
+: 2local  ( name -- ) bl word count (2local) ; immediate
+
+: end-locals  ( -- )  0 0 (local) ;  immediate
+
+\ #endif
+
+\ ** TOOLS word set...
+: ?     ( addr -- )  @ . ;
+: dump  ( addr u -- )
+    0 ?do
+        dup c@ . 1+
+        i 7 and 7 = if cr endif
+    loop drop
+;
+
+\ ** SEARCH+EXT words and ficl helpers
+\ BRAND-WORDLIST is a helper for ficl-named-wordlist. Usage idiom:
+\   wordlist dup create , brand-wordlist
+\ gets the name of the word made by create and applies it to the wordlist...
+: brand-wordlist  ( wid -- )   last-word >name drop wid-set-name ;
+
+: ficl-named-wordlist  \ ( hash-size name -- ) run: ( -- wid )
+    ficl-wordlist dup create , brand-wordlist does> @ ;
+
+: wordlist   ( -- )  
+    1 ficl-wordlist ;
+
+\ FICL-SET-CURRENT sets the compile wordlist and pushes the previous value
+: ficl-set-current   ( wid -- old-wid )  
+    get-current swap set-current ; 
+
+\ DO_VOCABULARY handles the DOES> part of a VOCABULARY
+\ When executed, new voc replaces top of search stack
+: do-vocabulary   ( -- ) 
+    does>  @ search> drop >search ;
+
+: ficl-vocabulary   ( nBuckets name -- )  
+    ficl-named-wordlist do-vocabulary ; 
+
+: vocabulary   ( name -- )  
+    1 ficl-vocabulary ; 
+
+\ PREVIOUS drops the search order stack
+: previous  ( --  )  search> drop ; 
+
+\ HIDDEN vocabulary is a place to keep helper words from cluttering the namespace
+\ USAGE:
+\ hide
+\ <definitions to hide>
+\ set-current
+\ <words that use hidden defs>
+\ previous ( pop HIDDEN off the search order )
+
+1 ficl-named-wordlist hidden
+: hide     hidden dup >search ficl-set-current ;
+
+\ ALSO dups the search stack...
+: also   ( -- )  
+    search> dup >search >search ; 
+
+\ FORTH drops the top of the search stack and pushes FORTH-WORDLIST
+: forth   ( -- )  
+    search> drop  
+    forth-wordlist >search ; 
+
+\ ONLY sets the search order to a default state
+: only   ( -- )  
+    -1 set-order ; 
+
+\ ORDER displays the compile wid and the search order list
+hide
+: list-wid ( wid -- )   
+    dup wid-get-name   ( wid c-addr u )
+    ?dup if 
+        type drop 
+    else 
+        drop ." (unnamed wid) " x.
+    endif cr 
+; 
+set-current   \ stop hiding words
+
+: order   ( -- )  
+    ." Search:" cr
+    get-order  0 ?do 3 spaces list-wid loop cr 
+   ." Compile: " get-current list-wid cr  
+; 
+
+: debug  ' debug-xt ; immediate
+: on-step   ." S: " .s cr ;
+
+
+\ Submitted by lch.
+: strdup ( c-addr length -- c-addr2 length2 ior )
+	0 locals| addr2 length c-addr | end-locals
+	length 1 + allocate
+	0= if
+		to addr2
+		c-addr addr2 length move
+		addr2 length 0
+	else
+		0  -1
+	endif
+	;
+
+: strcat ( 2:a 2:b -- 2:new-a )
+	0 locals|  b-length b-u b-addr a-u a-addr | end-locals
+	b-u  to b-length
+	b-addr a-addr a-u + b-length  move
+	a-addr a-u b-length +
+	;
+
+: strcpy ( 2:a 2:b -- 2:new-a )
+	locals| b-u b-addr a-u a-addr | end-locals
+	a-addr 0  b-addr b-u  strcat
+	;
+
+
+previous   \ lose hidden words from search order
+
+\ ** E N D   S O F T C O R E . F R
+

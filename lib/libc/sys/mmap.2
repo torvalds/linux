@@ -1,0 +1,523 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
+.\" $FreeBSD$
+.\"
+.Dd June 22, 2017
+.Dt MMAP 2
+.Os
+.Sh NAME
+.Nm mmap
+.Nd allocate memory, or map files or devices into memory
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/mman.h
+.Ft void *
+.Fn mmap "void *addr" "size_t len" "int prot" "int flags" "int fd" "off_t offset"
+.Sh DESCRIPTION
+The
+.Fn mmap
+system call causes the pages starting at
+.Fa addr
+and continuing for at most
+.Fa len
+bytes to be mapped from the object described by
+.Fa fd ,
+starting at byte offset
+.Fa offset .
+If
+.Fa len
+is not a multiple of the page size, the mapped region may extend past the
+specified range.
+Any such extension beyond the end of the mapped object will be zero-filled.
+.Pp
+If
+.Fa fd
+references a regular file or a shared memory object, the range of
+bytes starting at
+.Fa offset
+and continuing for
+.Fa len
+bytes must be legitimate for the possible (not necessarily
+current) offsets in the object.
+In particular, the
+.Fa offset
+value cannot be negative.
+If the object is truncated and the process later accesses a page that
+is wholly within the truncated region, the access is aborted and a
+.Dv SIGBUS
+signal is delivered to the process.
+.Pp
+If
+.Fa fd
+references a device file, the interpretation of the
+.Fa offset
+value is device specific and defined by the device driver.
+The virtual memory subsystem does not impose any restrictitions on the
+.Fa offset
+value in this case, passing it unchanged to the driver.
+.Pp
+If
+.Fa addr
+is non-zero, it is used as a hint to the system.
+(As a convenience to the system, the actual address of the region may differ
+from the address supplied.)
+If
+.Fa addr
+is zero, an address will be selected by the system.
+The actual starting address of the region is returned.
+A successful
+.Fa mmap
+deletes any previous mapping in the allocated address range.
+.Pp
+The protections (region accessibility) are specified in the
+.Fa prot
+argument by
+.Em or Ns 'ing
+the following values:
+.Pp
+.Bl -tag -width PROT_WRITE -compact
+.It Dv PROT_NONE
+Pages may not be accessed.
+.It Dv PROT_READ
+Pages may be read.
+.It Dv PROT_WRITE
+Pages may be written.
+.It Dv PROT_EXEC
+Pages may be executed.
+.El
+.Pp
+The
+.Fa flags
+argument specifies the type of the mapped object, mapping options and
+whether modifications made to the mapped copy of the page are private
+to the process or are to be shared with other references.
+Sharing, mapping type and options are specified in the
+.Fa flags
+argument by
+.Em or Ns 'ing
+the following values:
+.Bl -tag -width MAP_PREFAULT_READ
+.It Dv MAP_32BIT
+Request a region in the first 2GB of the current process's address space.
+If a suitable region cannot be found,
+.Fn mmap
+will fail.
+This flag is only available on 64-bit platforms.
+.It Dv MAP_ALIGNED Ns Pq Fa n
+Align the region on a requested boundary.
+If a suitable region cannot be found,
+.Fn mmap
+will fail.
+The
+.Fa n
+argument specifies the binary logarithm of the desired alignment.
+.It Dv MAP_ALIGNED_SUPER
+Align the region to maximize the potential use of large
+.Pq Dq super
+pages.
+If a suitable region cannot be found,
+.Fn mmap
+will fail.
+The system will choose a suitable page size based on the size of
+mapping.
+The page size used as well as the alignment of the region may both be
+affected by properties of the file being mapped.
+In particular,
+the physical address of existing pages of a file may require a specific
+alignment.
+The region is not guaranteed to be aligned on any specific boundary.
+.It Dv MAP_ANON
+Map anonymous memory not associated with any specific file.
+The file descriptor used for creating
+.Dv MAP_ANON
+must be \-1.
+The
+.Fa offset
+argument must be 0.
+.\".It Dv MAP_FILE
+.\"Mapped from a regular file or character-special device memory.
+.It Dv MAP_ANONYMOUS
+This flag is identical to
+.Dv MAP_ANON
+and is provided for compatibility.
+.It Dv MAP_EXCL
+This flag can only be used in combination with
+.Dv MAP_FIXED .
+Please see the definition of
+.Dv MAP_FIXED
+for the description of its effect.
+.It Dv MAP_FIXED
+Do not permit the system to select a different address than the one
+specified.
+If the specified address cannot be used,
+.Fn mmap
+will fail.
+If
+.Dv MAP_FIXED
+is specified,
+.Fa addr
+must be a multiple of the page size.
+If
+.Dv MAP_EXCL
+is not specified, a successful
+.Dv MAP_FIXED
+request replaces any previous mappings for the process'
+pages in the range from
+.Fa addr
+to
+.Fa addr
++
+.Fa len .
+In contrast, if
+.Dv MAP_EXCL
+is specified, the request will fail if a mapping
+already exists within the range.
+.It Dv MAP_GUARD
+Instead of a mapping, create a guard of the specified size.
+Guards allow a process to create reservations in its address space,
+which can later be replaced by actual mappings.
+.Pp
+.Fa mmap
+will not create mappings in the address range of a guard unless
+the request specifies
+.Dv MAP_FIXED .
+Guards can be destroyed with
+.Xr munmap 2 .
+Any memory access by a thread to the guarded range results
+in the delivery of a
+.Dv SIGSEGV
+signal to that thread.
+.It Dv MAP_NOCORE
+Region is not included in a core file.
+.It Dv MAP_NOSYNC
+Causes data dirtied via this VM map to be flushed to physical media
+only when necessary (usually by the pager) rather than gratuitously.
+Typically this prevents the update daemons from flushing pages dirtied
+through such maps and thus allows efficient sharing of memory across
+unassociated processes using a file-backed shared memory map.
+Without
+this option any VM pages you dirty may be flushed to disk every so often
+(every 30-60 seconds usually) which can create performance problems if you
+do not need that to occur (such as when you are using shared file-backed
+mmap regions for IPC purposes).
+Dirty data will be flushed automatically when all mappings of an object are
+removed and all descriptors referencing the object are closed.
+Note that VM/file system coherency is
+maintained whether you use
+.Dv MAP_NOSYNC
+or not.
+This option is not portable
+across
+.Ux
+platforms (yet), though some may implement the same behavior
+by default.
+.Pp
+.Em WARNING !
+Extending a file with
+.Xr ftruncate 2 ,
+thus creating a big hole, and then filling the hole by modifying a shared
+.Fn mmap
+can lead to severe file fragmentation.
+In order to avoid such fragmentation you should always pre-allocate the
+file's backing store by
+.Fn write Ns ing
+zero's into the newly extended area prior to modifying the area via your
+.Fn mmap .
+The fragmentation problem is especially sensitive to
+.Dv MAP_NOSYNC
+pages, because pages may be flushed to disk in a totally random order.
+.Pp
+The same applies when using
+.Dv MAP_NOSYNC
+to implement a file-based shared memory store.
+It is recommended that you create the backing store by
+.Fn write Ns ing
+zero's to the backing file rather than
+.Fn ftruncate Ns ing
+it.
+You can test file fragmentation by observing the KB/t (kilobytes per
+transfer) results from an
+.Dq Li iostat 1
+while reading a large file sequentially, e.g.,\& using
+.Dq Li dd if=filename of=/dev/null bs=32k .
+.Pp
+The
+.Xr fsync 2
+system call will flush all dirty data and metadata associated with a file,
+including dirty NOSYNC VM data, to physical media.
+The
+.Xr sync 8
+command and
+.Xr sync 2
+system call generally do not flush dirty NOSYNC VM data.
+The
+.Xr msync 2
+system call is usually not needed since
+.Bx
+implements a coherent file system buffer cache.
+However, it may be
+used to associate dirty VM pages with file system buffers and thus cause
+them to be flushed to physical media sooner rather than later.
+.It Dv MAP_PREFAULT_READ
+Immediately update the calling process's lowest-level virtual address
+translation structures, such as its page table, so that every memory
+resident page within the region is mapped for read access.
+Ordinarily these structures are updated lazily.
+The effect of this option is to eliminate any soft faults that would
+otherwise occur on the initial read accesses to the region.
+Although this option does not preclude
+.Fa prot
+from including
+.Dv PROT_WRITE ,
+it does not eliminate soft faults on the initial write accesses to the
+region.
+.It Dv MAP_PRIVATE
+Modifications are private.
+.It Dv MAP_SHARED
+Modifications are shared.
+.It Dv MAP_STACK
+.Dv MAP_STACK
+implies
+.Dv MAP_ANON ,
+and
+.Fa offset
+of 0.
+The
+.Fa fd
+argument
+must be -1 and
+.Fa prot
+must include at least
+.Dv PROT_READ
+and
+.Dv PROT_WRITE .
+.Pp
+This option creates
+a memory region that grows to at most
+.Fa len
+bytes in size, starting from the stack top and growing down.
+The
+stack top is the starting address returned by the call, plus
+.Fa len
+bytes.
+The bottom of the stack at maximum growth is the starting
+address returned by the call.
+.Pp
+Stacks created with
+.Dv MAP_STACK
+automatically grow.
+Guards prevent inadvertent use of the regions into which those
+stacks can grow without requiring mapping the whole stack in advance.
+.El
+.Pp
+The
+.Xr close 2
+system call does not unmap pages, see
+.Xr munmap 2
+for further information.
+.Sh NOTES
+Although this implementation does not impose any alignment restrictions on
+the
+.Fa offset
+argument, a portable program must only use page-aligned values.
+.Pp
+Large page mappings require that the pages backing an object be
+aligned in matching blocks in both the virtual address space and RAM.
+The system will automatically attempt to use large page mappings when
+mapping an object that is already backed by large pages in RAM by
+aligning the mapping request in the virtual address space to match the
+alignment of the large physical pages.
+The system may also use large page mappings when mapping portions of an
+object that are not yet backed by pages in RAM.
+The
+.Dv MAP_ALIGNED_SUPER
+flag is an optimization that will align the mapping request to the
+size of a large page similar to
+.Dv MAP_ALIGNED ,
+except that the system will override this alignment if an object already
+uses large pages so that the mapping will be consistent with the existing
+large pages.
+This flag is mostly useful for maximizing the use of large pages on the
+first mapping of objects that do not yet have pages present in RAM.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn mmap
+returns a pointer to the mapped region.
+Otherwise, a value of
+.Dv MAP_FAILED
+is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn mmap
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EACCES
+The flag
+.Dv PROT_READ
+was specified as part of the
+.Fa prot
+argument and
+.Fa fd
+was not open for reading.
+The flags
+.Dv MAP_SHARED
+and
+.Dv PROT_WRITE
+were specified as part of the
+.Fa flags
+and
+.Fa prot
+argument and
+.Fa fd
+was not open for writing.
+.It Bq Er EBADF
+The
+.Fa fd
+argument
+is not a valid open file descriptor.
+.It Bq Er EINVAL
+An invalid (negative) value was passed in the
+.Fa offset
+argument, when
+.Fa fd
+referenced a regular file or shared memory.
+.It Bq Er EINVAL
+An invalid value was passed in the
+.Fa prot
+argument.
+.It Bq Er EINVAL
+An undefined option was set in the
+.Fa flags
+argument.
+.It Bq Er EINVAL
+Both
+.Dv MAP_PRIVATE
+and
+.Dv MAP_SHARED
+were specified.
+.It Bq Er EINVAL
+None of
+.Dv MAP_ANON ,
+.Dv MAP_GUARD ,
+.Dv MAP_PRIVATE ,
+.Dv MAP_SHARED ,
+or
+.Dv MAP_STACK
+was specified.
+At least one of these flags must be included.
+.It Bq Er EINVAL
+.Dv MAP_FIXED
+was specified and the
+.Fa addr
+argument was not page aligned, or part of the desired address space
+resides out of the valid address space for a user process.
+.It Bq Er EINVAL
+Both
+.Dv MAP_FIXED
+and
+.Dv MAP_32BIT
+were specified and part of the desired address space resides outside
+of the first 2GB of user address space.
+.It Bq Er EINVAL
+The
+.Fa len
+argument
+was equal to zero.
+.It Bq Er EINVAL
+.Dv MAP_ALIGNED
+was specified and the desired alignment was either larger than the
+virtual address size of the machine or smaller than a page.
+.It Bq Er EINVAL
+.Dv MAP_ANON
+was specified and the
+.Fa fd
+argument was not -1.
+.It Bq Er EINVAL
+.Dv MAP_ANON
+was specified and the
+.Fa offset
+argument was not 0.
+.It Bq Er EINVAL
+Both
+.Dv MAP_FIXED
+and
+.Dv MAP_EXCL
+were specified, but the requested region is already used by a mapping.
+.It Bq Er EINVAL
+.Dv MAP_EXCL
+was specified, but
+.Dv MAP_FIXED
+was not.
+.It Bq Er EINVAL
+.Dv MAP_GUARD
+was specified, but the
+.Fa offset
+argument was not zero, the
+.Fa fd
+argument was not -1, or the
+.Fa prot
+argument was not
+.Dv PROT_NONE .
+.It Bq Er EINVAL
+.Dv MAP_GUARD
+was specified together with one of the flags
+.Dv MAP_ANON ,
+.Dv MAP_PREFAULT ,
+.Dv MAP_PREFAULT_READ ,
+.Dv MAP_PRIVATE ,
+.Dv MAP_SHARED ,
+.Dv MAP_STACK .
+.It Bq Er ENODEV
+.Dv MAP_ANON
+has not been specified and
+.Fa fd
+did not reference a regular or character special file.
+.It Bq Er ENOMEM
+.Dv MAP_FIXED
+was specified and the
+.Fa addr
+argument was not available.
+.Dv MAP_ANON
+was specified and insufficient memory was available.
+.El
+.Sh SEE ALSO
+.Xr madvise 2 ,
+.Xr mincore 2 ,
+.Xr minherit 2 ,
+.Xr mlock 2 ,
+.Xr mprotect 2 ,
+.Xr msync 2 ,
+.Xr munlock 2 ,
+.Xr munmap 2 ,
+.Xr getpagesize 3 ,
+.Xr getpagesizes 3

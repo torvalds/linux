@@ -1,0 +1,713 @@
+.\"	$Id: mandoc.3,v 1.41 2017/07/04 23:40:01 schwarze Exp $
+.\"
+.\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+.\" Copyright (c) 2010-2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 4 2017 $
+.Dt MANDOC 3
+.Os
+.Sh NAME
+.Nm mandoc ,
+.Nm deroff ,
+.Nm mandocmsg ,
+.Nm man_mparse ,
+.Nm man_validate ,
+.Nm mdoc_validate ,
+.Nm mparse_alloc ,
+.Nm mparse_free ,
+.Nm mparse_getkeep ,
+.Nm mparse_keep ,
+.Nm mparse_open ,
+.Nm mparse_readfd ,
+.Nm mparse_reset ,
+.Nm mparse_result ,
+.Nm mparse_strerror ,
+.Nm mparse_strlevel ,
+.Nm mparse_updaterc
+.Nd mandoc macro compiler library
+.Sh SYNOPSIS
+.In sys/types.h
+.In mandoc.h
+.Pp
+.Fd "#define ASCII_NBRSP"
+.Fd "#define ASCII_HYPH"
+.Fd "#define ASCII_BREAK"
+.Ft struct mparse *
+.Fo mparse_alloc
+.Fa "int options"
+.Fa "enum mandocerr mmin"
+.Fa "mandocmsg mmsg"
+.Fa "enum mandoc_os oe_e"
+.Fa "char *os_s"
+.Fc
+.Ft void
+.Fo (*mandocmsg)
+.Fa "enum mandocerr errtype"
+.Fa "enum mandoclevel level"
+.Fa "const char *file"
+.Fa "int line"
+.Fa "int col"
+.Fa "const char *msg"
+.Fc
+.Ft void
+.Fo mparse_free
+.Fa "struct mparse *parse"
+.Fc
+.Ft const char *
+.Fo mparse_getkeep
+.Fa "const struct mparse *parse"
+.Fc
+.Ft void
+.Fo mparse_keep
+.Fa "struct mparse *parse"
+.Fc
+.Ft int
+.Fo mparse_open
+.Fa "struct mparse *parse"
+.Fa "const char *fname"
+.Fc
+.Ft "enum mandoclevel"
+.Fo mparse_readfd
+.Fa "struct mparse *parse"
+.Fa "int fd"
+.Fa "const char *fname"
+.Fc
+.Ft void
+.Fo mparse_reset
+.Fa "struct mparse *parse"
+.Fc
+.Ft void
+.Fo mparse_result
+.Fa "struct mparse *parse"
+.Fa "struct roff_man **man"
+.Fa "char **sodest"
+.Fc
+.Ft "const char *"
+.Fo mparse_strerror
+.Fa "enum mandocerr"
+.Fc
+.Ft "const char *"
+.Fo mparse_strlevel
+.Fa "enum mandoclevel"
+.Fc
+.Ft void
+.Fo mparse_updaterc
+.Fa "struct mparse *parse"
+.Fa "enum mandoclevel *rc"
+.Fc
+.In roff.h
+.Ft void
+.Fo deroff
+.Fa "char **dest"
+.Fa "const struct roff_node *node"
+.Fc
+.In sys/types.h
+.In mandoc.h
+.In mdoc.h
+.Vt extern const char * const * mdoc_argnames;
+.Vt extern const char * const * mdoc_macronames;
+.Ft void
+.Fo mdoc_validate
+.Fa "struct roff_man *mdoc"
+.Fc
+.In sys/types.h
+.In mandoc.h
+.In man.h
+.Vt extern const char * const * man_macronames;
+.Ft "const struct mparse *"
+.Fo man_mparse
+.Fa "const struct roff_man *man"
+.Fc
+.Ft void
+.Fo man_validate
+.Fa "struct roff_man *man"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm mandoc
+library parses a
+.Ux
+manual into an abstract syntax tree (AST).
+.Ux
+manuals are composed of
+.Xr mdoc 7
+or
+.Xr man 7 ,
+and may be mixed with
+.Xr roff 7 ,
+.Xr tbl 7 ,
+and
+.Xr eqn 7
+invocations.
+.Pp
+The following describes a general parse sequence:
+.Bl -enum
+.It
+initiate a parsing sequence with
+.Xr mchars_alloc 3
+and
+.Fn mparse_alloc ;
+.It
+open a file with
+.Xr open 2
+or
+.Fn mparse_open ;
+.It
+parse it with
+.Fn mparse_readfd ;
+.It
+close it with
+.Xr close 2 ;
+.It
+retrieve the syntax tree with
+.Fn mparse_result ;
+.It
+depending on whether the
+.Fa macroset
+member of the returned
+.Vt struct roff_man
+is
+.Dv MACROSET_MDOC
+or
+.Dv MACROSET_MAN ,
+validate it with
+.Fn mdoc_validate
+or
+.Fn man_validate ,
+respectively;
+.It
+if information about the validity of the input is needed, fetch it with
+.Fn mparse_updaterc ;
+.It
+iterate over parse nodes with starting from the
+.Fa first
+member of the returned
+.Vt struct roff_man ;
+.It
+free all allocated memory with
+.Fn mparse_free
+and
+.Xr mchars_free 3 ,
+or invoke
+.Fn mparse_reset
+and go back to step 2 to parse new files.
+.El
+.Sh REFERENCE
+This section documents the functions, types, and variables available
+via
+.In mandoc.h ,
+with the exception of those documented in
+.Xr mandoc_escape 3
+and
+.Xr mchars_alloc 3 .
+.Ss Types
+.Bl -ohang
+.It Vt "enum mandocerr"
+An error or warning message during parsing.
+.It Vt "enum mandoclevel"
+A classification of an
+.Vt "enum mandocerr"
+as regards system operation.
+See the DIAGNOSTICS section in
+.Xr mandoc 1
+regarding the meanings of the levels.
+.It Vt "struct mparse"
+An opaque pointer to a running parse sequence.
+Created with
+.Fn mparse_alloc
+and freed with
+.Fn mparse_free .
+This may be used across parsed input if
+.Fn mparse_reset
+is called between parses.
+.It Vt "mandocmsg"
+A prototype for a function to handle error and warning
+messages emitted by the parser.
+.El
+.Ss Functions
+.Bl -ohang
+.It Fn deroff
+Obtain a text-only representation of a
+.Vt struct roff_node ,
+including text contained in its child nodes.
+To be used on children of the
+.Fa first
+member of
+.Vt struct roff_man .
+When it is no longer needed, the pointer returned from
+.Fn deroff
+can be passed to
+.Xr free 3 .
+.It Fn man_mparse
+Get the parser used for the current output.
+Declared in
+.In man.h ,
+implemented in
+.Pa man.c .
+.It Fn man_validate
+Validate the
+.Dv MACROSET_MAN
+parse tree obtained with
+.Fn mparse_result .
+Declared in
+.In man.h ,
+implemented in
+.Pa man.c .
+.It Fn mdoc_validate
+Validate the
+.Dv MACROSET_MDOC
+parse tree obtained with
+.Fn mparse_result .
+Declared in
+.In mdoc.h ,
+implemented in
+.Pa mdoc.c .
+.It Fn mparse_alloc
+Allocate a parser.
+The arguments have the following effect:
+.Bl -tag -offset 5n -width inttype
+.It Ar options
+When the
+.Dv MPARSE_MDOC
+or
+.Dv MPARSE_MAN
+bit is set, only that parser is used.
+Otherwise, the document type is automatically detected.
+.Pp
+When the
+.Dv MPARSE_SO
+bit is set,
+.Xr roff 7
+.Ic \&so
+file inclusion requests are always honoured.
+Otherwise, if the request is the only content in an input file,
+only the file name is remembered, to be returned in the
+.Fa sodest
+argument of
+.Fn mparse_result .
+.Pp
+When the
+.Dv MPARSE_QUICK
+bit is set, parsing is aborted after the NAME section.
+This is for example useful in
+.Xr makewhatis 8
+.Fl Q
+to quickly build minimal databases.
+.It Ar mmin
+Can be set to
+.Dv MANDOCERR_BASE ,
+.Dv MANDOCERR_STYLE ,
+.Dv MANDOCERR_WARNING ,
+.Dv MANDOCERR_ERROR ,
+.Dv MANDOCERR_UNSUPP ,
+or
+.Dv MANDOCERR_MAX .
+Messages below the selected level will be suppressed.
+.It Ar mmsg
+A callback function to handle errors and warnings.
+See
+.Pa main.c
+for an example.
+If printing of error messages is not desired,
+.Dv NULL
+may be passed.
+.It Ar os_e
+Operating system to check base system conventions for.
+If
+.Dv MANDOC_OS_OTHER ,
+the system is automatically detected from
+.Ic \&Os ,
+.Fl Ios ,
+or
+.Xr uname 3 .
+.It Ar os_s
+A default string for the
+.Xr mdoc 7
+.Ic \&Os
+macro, overriding the
+.Dv OSNAME
+preprocessor definition and the results of
+.Xr uname 3 .
+Passing
+.Dv NULL
+sets no default.
+.El
+.Pp
+The same parser may be used for multiple files so long as
+.Fn mparse_reset
+is called between parses.
+.Fn mparse_free
+must be called to free the memory allocated by this function.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
+.It Fn mparse_free
+Free all memory allocated by
+.Fn mparse_alloc .
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
+.It Fn mparse_getkeep
+Acquire the keep buffer.
+Must follow a call of
+.Fn mparse_keep .
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
+.It Fn mparse_keep
+Instruct the parser to retain a copy of its parsed input.
+This can be acquired with subsequent
+.Fn mparse_getkeep
+calls.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
+.It Fn mparse_open
+Open the file for reading.
+If that fails and
+.Fa fname
+does not already end in
+.Ql .gz ,
+try again after appending
+.Ql .gz .
+Save the information whether the file is zipped or not.
+Return a file descriptor open for reading or -1 on failure.
+It can be passed to
+.Fn mparse_readfd
+or used directly.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
+.It Fn mparse_readfd
+Parse a file descriptor opened with
+.Xr open 2
+or
+.Fn mparse_open .
+Pass the associated filename in
+.Va fname .
+This function may be called multiple times with different parameters; however,
+.Xr close 2
+and
+.Fn mparse_reset
+should be invoked between parses.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
+.It Fn mparse_reset
+Reset a parser so that
+.Fn mparse_readfd
+may be used again.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
+.It Fn mparse_result
+Obtain the result of a parse.
+One of the two pointers will be filled in.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
+.It Fn mparse_strerror
+Return a statically-allocated string representation of an error code.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
+.It Fn mparse_strlevel
+Return a statically-allocated string representation of a level code.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
+.It Fn mparse_updaterc
+If the highest warning or error level that occurred during the current
+.Fa parse
+is higher than
+.Pf * Fa rc ,
+update
+.Pf * Fa rc
+accordingly.
+This is useful after calling
+.Fn mdoc_validate
+or
+.Fn man_validate .
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
+.El
+.Ss Variables
+.Bl -ohang
+.It Va man_macronames
+The string representation of a
+.Xr man 7
+macro as indexed by
+.Vt "enum mant" .
+.It Va mdoc_argnames
+The string representation of an
+.Xr mdoc 7
+macro argument as indexed by
+.Vt "enum mdocargt" .
+.It Va mdoc_macronames
+The string representation of an
+.Xr mdoc 7
+macro as indexed by
+.Vt "enum mdoct" .
+.El
+.Sh IMPLEMENTATION NOTES
+This section consists of structural documentation for
+.Xr mdoc 7
+and
+.Xr man 7
+syntax trees and strings.
+.Ss Man and Mdoc Strings
+Strings may be extracted from mdoc and man meta-data, or from text
+nodes (MDOC_TEXT and MAN_TEXT, respectively).
+These strings have special non-printing formatting cues embedded in the
+text itself, as well as
+.Xr roff 7
+escapes preserved from input.
+Implementing systems will need to handle both situations to produce
+human-readable text.
+In general, strings may be assumed to consist of 7-bit ASCII characters.
+.Pp
+The following non-printing characters may be embedded in text strings:
+.Bl -tag -width Ds
+.It Dv ASCII_NBRSP
+A non-breaking space character.
+.It Dv ASCII_HYPH
+A soft hyphen.
+.It Dv ASCII_BREAK
+A breakable zero-width space.
+.El
+.Pp
+Escape characters are also passed verbatim into text strings.
+An escape character is a sequence of characters beginning with the
+backslash
+.Pq Sq \e .
+To construct human-readable text, these should be intercepted with
+.Xr mandoc_escape 3
+and converted with one the functions described in
+.Xr mchars_alloc 3 .
+.Ss Man Abstract Syntax Tree
+This AST is governed by the ontological rules dictated in
+.Xr man 7
+and derives its terminology accordingly.
+.Pp
+The AST is composed of
+.Vt struct roff_node
+nodes with element, root and text types as declared by the
+.Va type
+field.
+Each node also provides its parse point (the
+.Va line ,
+.Va pos ,
+and
+.Va sec
+fields), its position in the tree (the
+.Va parent ,
+.Va child ,
+.Va next
+and
+.Va prev
+fields) and some type-specific data.
+.Pp
+The tree itself is arranged according to the following normal form,
+where capitalised non-terminals represent nodes.
+.Pp
+.Bl -tag -width "ELEMENTXX" -compact
+.It ROOT
+\(<- mnode+
+.It mnode
+\(<- ELEMENT | TEXT | BLOCK
+.It BLOCK
+\(<- HEAD BODY
+.It HEAD
+\(<- mnode*
+.It BODY
+\(<- mnode*
+.It ELEMENT
+\(<- ELEMENT | TEXT*
+.It TEXT
+\(<- [[:ascii:]]*
+.El
+.Pp
+The only elements capable of nesting other elements are those with
+next-line scope as documented in
+.Xr man 7 .
+.Ss Mdoc Abstract Syntax Tree
+This AST is governed by the ontological
+rules dictated in
+.Xr mdoc 7
+and derives its terminology accordingly.
+.Qq In-line
+elements described in
+.Xr mdoc 7
+are described simply as
+.Qq elements .
+.Pp
+The AST is composed of
+.Vt struct roff_node
+nodes with block, head, body, element, root and text types as declared
+by the
+.Va type
+field.
+Each node also provides its parse point (the
+.Va line ,
+.Va pos ,
+and
+.Va sec
+fields), its position in the tree (the
+.Va parent ,
+.Va child ,
+.Va last ,
+.Va next
+and
+.Va prev
+fields) and some type-specific data, in particular, for nodes generated
+from macros, the generating macro in the
+.Va tok
+field.
+.Pp
+The tree itself is arranged according to the following normal form,
+where capitalised non-terminals represent nodes.
+.Pp
+.Bl -tag -width "ELEMENTXX" -compact
+.It ROOT
+\(<- mnode+
+.It mnode
+\(<- BLOCK | ELEMENT | TEXT
+.It BLOCK
+\(<- HEAD [TEXT] (BODY [TEXT])+ [TAIL [TEXT]]
+.It ELEMENT
+\(<- TEXT*
+.It HEAD
+\(<- mnode*
+.It BODY
+\(<- mnode* [ENDBODY mnode*]
+.It TAIL
+\(<- mnode*
+.It TEXT
+\(<- [[:ascii:]]*
+.El
+.Pp
+Of note are the TEXT nodes following the HEAD, BODY and TAIL nodes of
+the BLOCK production: these refer to punctuation marks.
+Furthermore, although a TEXT node will generally have a non-zero-length
+string, in the specific case of
+.Sq \&.Bd \-literal ,
+an empty line will produce a zero-length string.
+Multiple body parts are only found in invocations of
+.Sq \&Bl \-column ,
+where a new body introduces a new phrase.
+.Pp
+The
+.Xr mdoc 7
+syntax tree accommodates for broken block structures as well.
+The ENDBODY node is available to end the formatting associated
+with a given block before the physical end of that block.
+It has a non-null
+.Va end
+field, is of the BODY
+.Va type ,
+has the same
+.Va tok
+as the BLOCK it is ending, and has a
+.Va pending
+field pointing to that BLOCK's BODY node.
+It is an indirect child of that BODY node
+and has no children of its own.
+.Pp
+An ENDBODY node is generated when a block ends while one of its child
+blocks is still open, like in the following example:
+.Bd -literal -offset indent
+\&.Ao ao
+\&.Bo bo ac
+\&.Ac bc
+\&.Bc end
+.Ed
+.Pp
+This example results in the following block structure:
+.Bd -literal -offset indent
+BLOCK Ao
+    HEAD Ao
+    BODY Ao
+        TEXT ao
+        BLOCK Bo, pending -> Ao
+            HEAD Bo
+            BODY Bo
+                TEXT bo
+                TEXT ac
+                ENDBODY Ao, pending -> Ao
+                TEXT bc
+TEXT end
+.Ed
+.Pp
+Here, the formatting of the
+.Ic \&Ao
+block extends from TEXT ao to TEXT ac,
+while the formatting of the
+.Ic \&Bo
+block extends from TEXT bo to TEXT bc.
+It renders as follows in
+.Fl T Ns Cm ascii
+mode:
+.Pp
+.Dl <ao [bo ac> bc] end
+.Pp
+Support for badly-nested blocks is only provided for backward
+compatibility with some older
+.Xr mdoc 7
+implementations.
+Using badly-nested blocks is
+.Em strongly discouraged ;
+for example, the
+.Fl T Ns Cm html
+front-end to
+.Xr mandoc 1
+is unable to render them in any meaningful way.
+Furthermore, behaviour when encountering badly-nested blocks is not
+consistent across troff implementations, especially when using multiple
+levels of badly-nested blocks.
+.Sh SEE ALSO
+.Xr mandoc 1 ,
+.Xr man.cgi 3 ,
+.Xr mandoc_escape 3 ,
+.Xr mandoc_headers 3 ,
+.Xr mandoc_malloc 3 ,
+.Xr mansearch 3 ,
+.Xr mchars_alloc 3 ,
+.Xr tbl 3 ,
+.Xr eqn 7 ,
+.Xr man 7 ,
+.Xr mandoc_char 7 ,
+.Xr mdoc 7 ,
+.Xr roff 7 ,
+.Xr tbl 7
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+library was written by
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv
+and is maintained by
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org .

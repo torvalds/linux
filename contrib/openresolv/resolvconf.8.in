@@ -1,0 +1,323 @@
+.\" Copyright (c) 2007-2016 Roy Marples
+.\" All rights reserved
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd November 29, 2016
+.Dt RESOLVCONF 8
+.Os
+.Sh NAME
+.Nm resolvconf
+.Nd a framework for managing multiple DNS configurations
+.Sh SYNOPSIS
+.Nm
+.Fl I
+.Nm
+.Op Fl m Ar metric
+.Op Fl p
+.Op Fl x
+.Fl a Ar interface Ns Op Ar .protocol
+.No < Ns Pa file
+.Nm
+.Op Fl f
+.Fl d Ar interface Ns Op Ar .protocol
+.Nm
+.Op Fl x
+.Fl il Ar pattern
+.Nm
+.Fl u
+.Nm
+.Fl Fl version
+.Sh DESCRIPTION
+.Nm
+manages
+.Xr resolv.conf 5
+files from multiple sources, such as DHCP and VPN clients.
+Traditionally, the host runs just one client and that updates
+.Pa /etc/resolv.conf .
+More modern systems frequently have wired and wireless interfaces and there is
+no guarantee both are on the same network.
+With the advent of VPN and other
+types of networking daemons, many things now contend for the contents of
+.Pa /etc/resolv.conf .
+.Pp
+.Nm
+solves this by letting the daemon send their
+.Xr resolv.conf 5
+file to
+.Nm
+via
+.Xr stdin 4
+with the argument
+.Fl a Ar interface Ns Op Ar .protocol
+instead of the filesystem.
+.Nm
+then updates
+.Pa /etc/resolv.conf
+as it thinks best.
+When a local resolver other than libc is installed, such as
+.Xr dnsmasq 8
+or
+.Xr named 8 ,
+then
+.Nm
+will supply files that the resolver should be configured to include.
+.Pp
+.Nm
+assumes it has a job to do.
+In some situations
+.Nm
+needs to act as a deterrent to writing to
+.Pa /etc/resolv.conf .
+Where this file cannot be made immutable or you just need to toggle this
+behaviour,
+.Nm
+can be disabled by adding
+.Sy resolvconf Ns = Ns NO
+to
+.Xr resolvconf.conf 5 .
+.Pp
+.Nm
+can mark an interfaces
+.Pa resolv.conf
+as private.
+This means that the name servers listed in that
+.Pa resolv.conf
+are only used for queries against the domain/search listed in the same file.
+This only works when a local resolver other than libc is installed.
+See
+.Xr resolvconf.conf 5
+for how to configure
+.Nm
+to use a local name server and how to remove the private marking.
+.Pp
+.Nm
+can mark an interfaces
+.Pa resolv.conf
+as exclusive.
+Only the latest exclusive interface is used for processing, otherwise all are.
+.Pp
+When an interface goes down, it should then call
+.Nm
+with
+.Fl d Ar interface.*
+arguments to delete the
+.Pa resolv.conf
+file(s) for all the
+.Ar protocols
+on the
+.Ar interface .
+.Pp
+Here are some options for the above commands:-
+.Bl -tag -width pattern_opt
+.It Fl f
+Ignore non existent interfaces.
+Only really useful for deleting interfaces.
+.It Fl m Ar metric
+Set the metric of the interface when adding it, default of 0.
+Lower metrics take precedence.
+This affects the default order of interfaces when listed.
+.It Fl p
+Marks the interface
+.Pa resolv.conf
+as private.
+.It Fl x
+Mark the interface
+.Pa resolv.conf
+as exclusive when adding, otherwise only use the latest exclusive interface.
+.El
+.Pp
+.Nm
+has some more commands for general usage:-
+.Bl -tag -width pattern_opt
+.It Fl i Ar pattern
+List the interfaces and protocols, optionally matching
+.Ar pattern ,
+we have
+.Pa resolv.conf
+files for.
+.It Fl l Ar pattern
+List the
+.Pa resolv.conf
+files we have.
+If
+.Ar pattern
+is specified then we list the files for the interfaces and protocols
+that match it.
+.It Fl u
+Force
+.Nm
+to update all its subscribers.
+.Nm
+does not update the subscribers when adding a resolv.conf that matches
+what it already has for that interface.
+.It Fl Fl version
+Echo the resolvconf version to
+.Em stdout .
+.El
+.Pp
+.Nm
+also has some commands designed to be used by it's subscribers and
+system startup:-
+.Bl -tag -width pattern_opt
+.It Fl I
+Initialise the state directory
+.Pa @VARDIR@ .
+This only needs to be called if the initial system boot sequence does not
+automatically clean it out; for example the state directory is moved
+somewhere other than
+.Pa /var/run .
+If used, it should only be called once as early in the system boot sequence
+as possible and before
+.Nm
+is used to add interfaces.
+.It Fl R
+Echo the command used to restart a service.
+.It Fl r Ar service
+If the
+.Ar service
+is running then restart it.
+If the service does not exist or is not running then zero is returned,
+otherwise the result of restarting the service.
+.It Fl v
+Echo variables DOMAINS, SEARCH and NAMESERVERS so that the subscriber can
+configure the resolver easily.
+.It Fl V
+Same as
+.Fl v
+except that only the information configured in
+.Xr resolvconf.conf 5
+is set.
+.El
+.Sh INTERFACE ORDERING
+For
+.Nm
+to work effectively, it has to process the resolv.confs for the interfaces
+in the correct order.
+.Nm
+first processes interfaces from the
+.Sy interface_order
+list, then interfaces without a metic and that match the
+.Sy dynamic_order
+list, then interfaces with a metric in order and finally the rest in
+the operating systems lexical order.
+See
+.Xr resolvconf.conf 5
+for details on these lists.
+.Sh PROTOCOLS
+Here are some suggested protocol tags to use for each
+.Pa resolv.conf
+file registered on an
+.Ar interface Ns No :-
+.Bl -tag -width pattern_opt
+.It dhcp
+Dynamic Host Configuration Protocol.
+Initial versions of
+.Nm
+did not recommend a
+.Ar protocol
+tag be appended to the
+.Ar interface
+name.
+When the protocol is absent, it is assumed to be the DHCP protocol.
+.It ppp
+Point-to-Point Protocol.
+.It ra
+IPv6 Router Advertisement.
+.It dhcp6
+Dynamic Host Configuration Protocol, version 6.
+.El
+.Sh IMPLEMENTATION NOTES
+If a subscriber has the executable bit then it is executed otherwise it is
+assumed to be a shell script and sourced into the current environment in a
+subshell.
+This is done so that subscribers can remain fast, but are also not limited
+to the shell language.
+.Pp
+Portable subscribers should not use anything outside of
+.Pa /bin
+and
+.Pa /sbin
+because
+.Pa /usr
+and others may not be available when booting.
+Also, it would be unwise to assume any shell specific features.
+.Sh ENVIRONMENT
+.Bl -ohang
+.It Va IF_METRIC
+If the
+.Fl m
+option is not present then we use
+.Va IF_METRIC
+for the metric.
+.It Va IF_PRIVATE
+Marks the interface
+.Pa resolv.conf
+as private.
+.It Va IF_EXCLUSIVE
+Marks the interface
+.Pa resolv.conf
+as exclusive.
+.El
+.Sh FILES
+.Bl -ohang
+.It Pa /etc/resolv.conf.bak
+Backup file of the original resolv.conf.
+.It Pa @SYSCONFDIR@/resolvconf.conf
+Configuration file for
+.Nm .
+.It Pa @LIBEXECDIR@
+Directory of subscribers which are run every time
+.Nm
+adds, deletes or updates.
+.It Pa @LIBEXECDIR@/libc.d
+Directory of subscribers which are run after the libc subscriber is run.
+.It Pa @VARDIR@
+State directory for
+.Nm .
+.El
+.Sh SEE ALSO
+.Xr resolver 3 ,
+.Xr stdin 4 ,
+.Xr resolv.conf 5 ,
+.Xr resolvconf.conf 5
+.Sh HISTORY
+This implementation of
+.Nm
+is called openresolv and is fully command line compatible with Debian's
+resolvconf, as written by Thomas Hood.
+.Sh AUTHORS
+.An Roy Marples Aq Mt roy@marples.name
+.Sh BUGS
+Please report them to
+.Lk http://roy.marples.name/projects/openresolv
+.Pp
+.Nm
+does not validate any of the files given to it.
+.Pp
+When running a local resolver other than libc, you will need to configure it
+to include files that
+.Nm
+will generate.
+You should consult
+.Xr resolvconf.conf 5
+for instructions on how to configure your resolver.

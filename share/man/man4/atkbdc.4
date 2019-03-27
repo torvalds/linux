@@ -1,0 +1,119 @@
+.\"
+.\" Copyright (c) 1999
+.\" Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 9, 1999
+.Dt ATKBDC 4
+.Os
+.Sh NAME
+.Nm atkbdc
+.Nd the AT keyboard controller interface
+.Sh SYNOPSIS
+.Cd "options KBD_RESETDELAY=N"
+.Cd "options KBD_MAXWAIT=N"
+.Cd "options KBDIO_DEBUG=N"
+.Cd "device atkbdc"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.atkbdc.0.at="isa"
+.Cd hint.atkbdc.0.port="0x060"
+.Sh DESCRIPTION
+The keyboard controller
+.Nm
+provides I/O services for the AT keyboard and PS/2 mouse style
+pointing devices.
+This controller is required for the keyboard driver
+.Nm atkbd
+and the PS/2 pointing device driver
+.Nm psm .
+.Pp
+There can be only one
+.Nm
+device configured in the system.
+.Sh DRIVER CONFIGURATION
+.Ss Kernel Configuration Options
+The following kernel configuration options can be used to control the
+.Nm
+driver.
+They may be set in the kernel configuration file
+(see
+.Xr config 8 ) .
+.Bl -tag -width MOUSE
+.It Em KBD_RESETDELAY=X , KBD_MAXWAIT=Y
+The keyboard driver
+.Nm atkbd
+and the pointing device driver
+.Nm psm
+may ask the
+.Nm
+driver to reset these devices during the boot process.
+It sometimes takes a long time before these devices respond to
+the reset command.
+These options control how long the
+.Nm
+driver should
+wait before eventually giving up -- the driver will wait
+.Fa X
+*
+.Fa Y
+msecs at most.
+If the drivers seem unable to detect
+devices, you may want to increase these values.
+The default values are
+200 msec for
+.Fa X
+and 5
+for
+.Fa Y .
+.It Em KBDIO_DEBUG=N
+Sets the debug level to
+.Fa N .
+The default value is zero, which suppresses all debugging output.
+.El
+.\".Ss Driver Flags
+.\".Sh FILES
+.\".Sh EXAMPLE
+.\".Sh DIAGNOSTICS
+.\".Sh CAVEATS
+.\".Sh BUGS
+.Sh SEE ALSO
+.Xr atkbd 4 ,
+.Xr psm 4 ,
+.Xr config 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 3.1 .
+It is based on the kbdio module in
+.Fx 2.2 .
+.Sh AUTHORS
+The kbdio module, the
+.Nm
+driver and this manual page were written by
+.An Kazutaka Yokota Aq Mt yokota@FreeBSD.org .

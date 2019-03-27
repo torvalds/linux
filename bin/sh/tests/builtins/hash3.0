@@ -1,0 +1,3 @@
+# $FreeBSD$
+hash -v cat
+hash

@@ -1,0 +1,154 @@
+=pod
+
+=head1 NAME
+
+EVP_PKEY_set1_RSA, EVP_PKEY_set1_DSA, EVP_PKEY_set1_DH, EVP_PKEY_set1_EC_KEY,
+EVP_PKEY_get1_RSA, EVP_PKEY_get1_DSA, EVP_PKEY_get1_DH, EVP_PKEY_get1_EC_KEY,
+EVP_PKEY_get0_RSA, EVP_PKEY_get0_DSA, EVP_PKEY_get0_DH, EVP_PKEY_get0_EC_KEY,
+EVP_PKEY_assign_RSA, EVP_PKEY_assign_DSA, EVP_PKEY_assign_DH,
+EVP_PKEY_assign_EC_KEY, EVP_PKEY_assign_POLY1305, EVP_PKEY_assign_SIPHASH,
+EVP_PKEY_get0_hmac, EVP_PKEY_get0_poly1305, EVP_PKEY_get0_siphash,
+EVP_PKEY_type, EVP_PKEY_id, EVP_PKEY_base_id, EVP_PKEY_set_alias_type,
+EVP_PKEY_set1_engine - EVP_PKEY assignment functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ int EVP_PKEY_set1_RSA(EVP_PKEY *pkey, RSA *key);
+ int EVP_PKEY_set1_DSA(EVP_PKEY *pkey, DSA *key);
+ int EVP_PKEY_set1_DH(EVP_PKEY *pkey, DH *key);
+ int EVP_PKEY_set1_EC_KEY(EVP_PKEY *pkey, EC_KEY *key);
+
+ RSA *EVP_PKEY_get1_RSA(EVP_PKEY *pkey);
+ DSA *EVP_PKEY_get1_DSA(EVP_PKEY *pkey);
+ DH *EVP_PKEY_get1_DH(EVP_PKEY *pkey);
+ EC_KEY *EVP_PKEY_get1_EC_KEY(EVP_PKEY *pkey);
+
+ const unsigned char *EVP_PKEY_get0_hmac(const EVP_PKEY *pkey, size_t *len);
+ const unsigned char *EVP_PKEY_get0_poly1305(const EVP_PKEY *pkey, size_t *len);
+ const unsigned char *EVP_PKEY_get0_siphash(const EVP_PKEY *pkey, size_t *len);
+ RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey);
+ DSA *EVP_PKEY_get0_DSA(EVP_PKEY *pkey);
+ DH *EVP_PKEY_get0_DH(EVP_PKEY *pkey);
+ EC_KEY *EVP_PKEY_get0_EC_KEY(EVP_PKEY *pkey);
+
+ int EVP_PKEY_assign_RSA(EVP_PKEY *pkey, RSA *key);
+ int EVP_PKEY_assign_DSA(EVP_PKEY *pkey, DSA *key);
+ int EVP_PKEY_assign_DH(EVP_PKEY *pkey, DH *key);
+ int EVP_PKEY_assign_EC_KEY(EVP_PKEY *pkey, EC_KEY *key);
+ int EVP_PKEY_assign_POLY1305(EVP_PKEY *pkey, ASN1_OCTET_STRING *key);
+ int EVP_PKEY_assign_SIPHASH(EVP_PKEY *pkey, ASN1_OCTET_STRING *key);
+
+ int EVP_PKEY_id(const EVP_PKEY *pkey);
+ int EVP_PKEY_base_id(const EVP_PKEY *pkey);
+ int EVP_PKEY_type(int type);
+ int EVP_PKEY_set_alias_type(EVP_PKEY *pkey, int type);
+
+ int EVP_PKEY_set1_engine(EVP_PKEY *pkey, ENGINE *engine);
+
+=head1 DESCRIPTION
+
+EVP_PKEY_set1_RSA(), EVP_PKEY_set1_DSA(), EVP_PKEY_set1_DH() and
+EVP_PKEY_set1_EC_KEY() set the key referenced by B<pkey> to B<key>.
+
+EVP_PKEY_get1_RSA(), EVP_PKEY_get1_DSA(), EVP_PKEY_get1_DH() and
+EVP_PKEY_get1_EC_KEY() return the referenced key in B<pkey> or
+B<NULL> if the key is not of the correct type.
+
+EVP_PKEY_get0_hmac(), EVP_PKEY_get0_poly1305(), EVP_PKEY_get0_siphash(),
+EVP_PKEY_get0_RSA(), EVP_PKEY_get0_DSA(), EVP_PKEY_get0_DH()
+and EVP_PKEY_get0_EC_KEY() also return the referenced key in B<pkey> or B<NULL>
+if the key is not of the correct type but the reference count of the
+returned key is B<not> incremented and so must not be freed up after use.
+
+EVP_PKEY_assign_RSA(), EVP_PKEY_assign_DSA(), EVP_PKEY_assign_DH(),
+EVP_PKEY_assign_EC_KEY(), EVP_PKEY_assign_POLY1305() and
+EVP_PKEY_assign_SIPHASH() also set the referenced key to B<key>
+however these use the supplied B<key> internally and so B<key>
+will be freed when the parent B<pkey> is freed.
+
+EVP_PKEY_base_id() returns the type of B<pkey>. For example
+an RSA key will return B<EVP_PKEY_RSA>.
+
+EVP_PKEY_id() returns the actual OID associated with B<pkey>. Historically keys
+using the same algorithm could use different OIDs. For example an RSA key could
+use the OIDs corresponding to the NIDs B<NID_rsaEncryption> (equivalent to
+B<EVP_PKEY_RSA>) or B<NID_rsa> (equivalent to B<EVP_PKEY_RSA2>). The use of
+alternative non-standard OIDs is now rare so B<EVP_PKEY_RSA2> et al are not
+often seen in practice.
+
+EVP_PKEY_type() returns the underlying type of the NID B<type>. For example
+EVP_PKEY_type(EVP_PKEY_RSA2) will return B<EVP_PKEY_RSA>.
+
+EVP_PKEY_set1_engine() sets the ENGINE handling B<pkey> to B<engine>. It
+must be called after the key algorithm and components are set up.
+If B<engine> does not include an B<EVP_PKEY_METHOD> for B<pkey> an
+error occurs.
+
+EVP_PKEY_set_alias_type() allows modifying a EVP_PKEY to use a
+different set of algorithms than the default. This is currently used
+to support SM2 keys, which use an identical encoding to ECDSA.
+
+=head1 NOTES
+
+In accordance with the OpenSSL naming convention the key obtained
+from or assigned to the B<pkey> using the B<1> functions must be
+freed as well as B<pkey>.
+
+EVP_PKEY_assign_RSA(), EVP_PKEY_assign_DSA(), EVP_PKEY_assign_DH(),
+EVP_PKEY_assign_EC_KEY(), EVP_PKEY_assign_POLY1305()
+and EVP_PKEY_assign_SIPHASH() are implemented as macros.
+
+Most applications wishing to know a key type will simply call
+EVP_PKEY_base_id() and will not care about the actual type:
+which will be identical in almost all cases.
+
+Previous versions of this document suggested using EVP_PKEY_type(pkey->type)
+to determine the type of a key. Since B<EVP_PKEY> is now opaque this
+is no longer possible: the equivalent is EVP_PKEY_base_id(pkey).
+
+EVP_PKEY_set1_engine() is typically used by an ENGINE returning an HSM
+key as part of its routine to load a private key.
+
+=head1 EXAMPLES
+
+After loading an ECC key, it is possible to convert it to using SM2
+algorithms with EVP_PKEY_set_alias_type:
+
+ EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2);
+
+=head1 RETURN VALUES
+
+EVP_PKEY_set1_RSA(), EVP_PKEY_set1_DSA(), EVP_PKEY_set1_DH() and
+EVP_PKEY_set1_EC_KEY() return 1 for success or 0 for failure.
+
+EVP_PKEY_get1_RSA(), EVP_PKEY_get1_DSA(), EVP_PKEY_get1_DH() and
+EVP_PKEY_get1_EC_KEY() return the referenced key or B<NULL> if
+an error occurred.
+
+EVP_PKEY_assign_RSA(), EVP_PKEY_assign_DSA(), EVP_PKEY_assign_DH(),
+EVP_PKEY_assign_EC_KEY(), EVP_PKEY_assign_POLY1305()
+and EVP_PKEY_assign_SIPHASH() return 1 for success and 0 for failure.
+
+EVP_PKEY_base_id(), EVP_PKEY_id() and EVP_PKEY_type() return a key
+type or B<NID_undef> (equivalently B<EVP_PKEY_NONE>) on error.
+
+EVP_PKEY_set1_engine() returns 1 for success and 0 for failure.
+
+EVP_PKEY_set_alias_type() returns 1 for success and 0 for error.
+
+=head1 SEE ALSO
+
+L<EVP_PKEY_new(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

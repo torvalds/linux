@@ -1,0 +1,240 @@
+.\"-
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This software was developed by the Computer Systems Engineering group
+.\" at Lawrence Berkeley Laboratory under DARPA contract BG 91-66 and
+.\" contributed to Berkeley.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)openprom.4	8.1 (Berkeley) 6/5/93
+.\"	from: OpenBSD: openprom.4,v 1.9 2004/03/22 22:07:21 miod Exp
+.\"
+.\"-
+.\" Copyright (c) 2005 Marius Strobl <marius@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 18, 2005
+.Dt OPENPROM 4 sparc64
+.Os
+.Sh NAME
+.Nm openprom
+.Nd "OPENPROM interface"
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/ioctl.h
+.In dev/ofw/openpromio.h
+.Sh DESCRIPTION
+The
+.Pa /dev/openfirm
+device is a
+.Tn SunOS /
+.Tn Solaris
+compatible interface to the
+.Tn Open Firmware
+device tree.
+This interface is similar to the
+.Xr openprom 4
+interface.
+It uses
+.Xr ioctl 2
+calls for all operations.
+These calls refer to the nodes in the
+.Tn Open Firmware
+device tree.
+However,
+.Fx
+only implements a subset of the
+.Xr ioctl 2
+calls
+.Tn SunOS /
+.Tn Solaris
+does.
+The nodes are represented by integer values,
+which are simply describing data areas.
+Occasionally the number 0 may be used or returned instead,
+as described below.
+.Pp
+All calls use a pointer to a
+.Vt "struct openpromio"
+descriptor,
+which has the following definition:
+.Bd -literal
+struct openpromio {
+	uint32_t	oprom_size;
+	char		oprom_array[];
+};
+.Ed
+.Pp
+The
+.Va oprom_size
+member refers to the size of
+.Va oprom_array .
+The
+.Va oprom_array
+member actually works like a union.
+Depending on the
+.Xr ioctl 2
+call and whether the
+.Vt "struct openpromio"
+is used to pass in or return data,
+.Va oprom_array
+either contains an integer referring to a node or a string referring to a
+property name or property value.
+The maximum size of
+.Va oprom_array
+is
+.Dv OPROMMAXPARAM .
+.Pp
+The following
+.Xr ioctl 2
+calls are currently implemented:
+.Bl -tag -width ".Dv OPROMGETPROP"
+.It Dv OPROMNEXT
+Takes the number of a node and returns the number of the next node in the
+.Tn Open Firmware
+device tree.
+The node following the last node is number 0.
+The node following number 0 is the first node.
+.It Dv OPROMCHILD
+Takes the number of a node and returns the number of the first child of that
+node.
+This child may have siblings.
+These can be determined by using
+.Dv OPROMNEXT .
+If the node does not have a child,
+0 is returned.
+.It Dv OPROMGETPROP
+Takes the name of a property.
+Returns the property value.
+The
+.Dv OPROMGETPROP
+call refers to the node previously returned by either the
+.Dv OPROMNEXT
+or the
+.Dv OPROMCHILD
+call,
+depending on which one was invoked last.
+If the property referenced by the given name is not associated with that node,
+.Er EINVAL
+is returned.
+If the named property exists but has no value,
+an empty string is returned.
+.It Dv OPROMNXTPROP
+Takes the name of a property.
+Returns the name of the next property of the node.
+As with the
+.Dv OPROMGETPROP
+call,
+the
+.Dv OPROMNXTPROP
+call refers to the node previously returned by either the
+.Dv OPROMNEXT
+or the
+.Dv OPROMCHILD
+call.
+If the property referenced by the given name is the last property of the node,
+an empty string is returned.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/openprom"
+.It Pa /dev/openprom
+OPENPROM interface node
+.El
+.Sh DIAGNOSTICS
+The following may result in rejection of an operation:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The
+.Pa /dev/openprom
+node is already opened.
+.It Bq Er EINVAL
+The given node number is not 0 and does not correspond to any valid node,
+or the given node number is 0 where 0 is not allowed,
+or the given size value is invalid,
+or the given property name exceeds the maximum allowed length of
+.Dv OPROMMAXPARAM
+bytes.
+.It Bq Er ENOMEM
+The kernel could not allocate memory to copy in data from user-space or to
+retrieve data from the
+.Tn Open Firmware .
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr openfirm 4 ,
+.Xr eeprom 8 ,
+.Xr ofwdump 8
+.Sh HISTORY
+The first
+.Fx
+version to include the
+.Nm
+interface was
+.Fx 5.0 .
+.Sh AUTHORS
+The
+.Nm
+interface was written by
+.An Jake Burkholder Aq Mt jake@FreeBSD.org .
+.Sh CAVEATS
+Due to limitations within
+.Tn Open Firmware
+itself,
+these functions run at elevated priority and may adversely affect system
+performance.
+.Pp
+The
+.Nm
+interface exists entirely for compatibility with software like X11,
+and only the features that are actually needed for that are implemented.
+The interface sucks too much to actually use,
+new code should use the
+.Xr openfirm 4
+interface instead.

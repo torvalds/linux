@@ -1,0 +1,16 @@
+# $FreeBSD$
+
+if [ "$1" != nested ]; then
+	while :; do
+		set -- nested
+		. "$0"
+		echo bad2
+		exit 2
+	done
+	exit 0
+fi
+# To trigger the bug, the following commands must be at the top level,
+# with newlines in between.
+break
+echo bad1
+exit 1

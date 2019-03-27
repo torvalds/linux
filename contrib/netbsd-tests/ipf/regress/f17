@@ -1,0 +1,4 @@
+block in all
+block out all
+pass out quick on ppp0 proto tcp all flags S keep state
+block return-rst in quick proto tcp all

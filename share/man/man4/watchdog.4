@@ -1,0 +1,206 @@
+.\" Copyright (c) 2004 Poul-Henning Kamp <phk@FreeBSD.org>
+.\" Copyright (c) 2003, 2004 Sean M. Kelly <smkelly@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 2, 2018
+.Dt WATCHDOG 4
+.Os
+.Sh NAME
+.Nm watchdog
+.Nd "hardware and software watchdog"
+.Sh SYNOPSIS
+.In sys/watchdog.h
+.Sh DESCRIPTION
+The
+.Nm
+facility is used for controlling hardware and software watchdogs.
+.Pp
+The device
+.Pa /dev/fido
+supports several optional
+.Xr ioctl 2
+calls for configuration, and
+responds to a single operational
+.Xr ioctl
+call,
+.Dv WDIOCPATPAT .
+It takes a single argument which represents a timeout value specified as a
+power of two nanoseconds, or-ed with a flag selecting active or passive control
+of the watchdog.
+.Pp
+.Dv WD_ACTIVE
+indicates that the
+.Nm
+will be kept from timing out from userland, for instance by the
+.Xr watchdogd 8
+daemon.
+.Dv WD_PASSIVE
+indicates that the
+.Nm
+will be kept from timing out from the kernel.
+.Pp
+The
+.Dv WDIOCPATPAT
+.Xr ioctl 2
+call will return success if just one of the available
+.Xr watchdog 9
+implementations supports setting the timeout to the specified timeout.
+This
+means that at least one watchdog is armed.
+By default, this will be a hardware watchdog if one is present, but if
+no hardware watchdog is able to process the request, a default software
+watchdog is enabled.
+If the call fails, for instance if
+none of
+.Xr watchdog 9
+implementations support the timeout length, all watchdogs are disabled and must
+be explicitly re-enabled.
+.Pp
+To disable the watchdogs pass
+.Dv WD_TO_NEVER .
+If disarming the watchdog(s) failed an error is returned.
+The watchdog might
+still be armed!
+.Pp
+The optional configuration
+.Xr ioctl
+commands are listed here, along with the type of the parameter used.
+Examples of their use can be found in
+.Xr watchdogd 8 .
+.Bl -tag -width "WDIOC_SETSOFTTIMEOUTACT int  "
+.It Dv WDIOC_SETTIMEOUT Fa int
+set/reset the timer
+.It Dv WDIOC_GETTIMEOUT Fa int
+get total timeout
+.It Dv WDIOC_GETTIMELEFT Fa int
+get time left
+.It Dv WDIOC_GETPRETIMEOUT Fa int
+get the pre-timeout
+.It Dv WDIOC_SETPRETIMEOUT Fa int
+set the pre-timeout
+.It Dv WDIOC_SETPRETIMEOUTACT Fa int
+Set the action when a pre-timeout occurs (see
+.Li WD_SOFT_*
+below).
+.It Dv WDIOC_SETSOFT Fa int
+Use an internal software watchdog instead of hardware.
+There is also an external software watchdog, which is used by default
+if no hardware watchdog was attached.
+.It Dv WDIOC_SETSOFTTIMEOUTACT Fa int
+Set the action whan a soft timeout occurs.
+.El
+.Pp
+The actions that may be specified for the pre-timeout or the internal software
+watchdog are listed here.
+Multiple actions can be specified by ORing values together.
+.Bl -tag -width  WD_SOFT_PRINT
+.It Dv WD_SOFT_PANIC
+panic
+.It Dv WD_SOFT_DDB
+enter debugger
+.It Dv WD_SOFT_LOG
+log(9)
+.It Dv WD_SOFT_PRINT
+printf(9)
+.El
+.Sh RETURN VALUES
+The
+.Dv WDIOCPATPAT
+.Xr ioctl
+returns zero on success and non-zero on failure.
+.Bl -tag -width Er
+.It Bq Er EOPNOTSUPP
+No watchdog present in the kernel or
+none of the watchdogs supports the requested timeout value
+(timeout value other than 0).
+.It Bq Er EOPNOTSUPP
+Watchdog could not be disabled (timeout value of 0).
+.It Bq Er EINVAL
+Invalid flag combination passed.
+.El
+.Pp
+The configuration
+.Xr ioctl
+operations return zero on success and non-zero on failure.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+#include <paths.h>
+#include <sys/watchdog.h>
+
+#define WDPATH	"/dev/" _PATH_WATCHDOG
+int wdfd = -1;
+
+static void
+wd_init(void)
+{
+	wdfd = open(WDPATH, O_RDWR);
+	if (wdfd == -1)
+		err(1, WDPATH);
+}
+static void
+wd_reset(u_int timeout)
+{
+	if (ioctl(wdfd, WDIOCPATPAT, &timeout) == -1)
+		err(1, "WDIOCPATPAT");
+}
+
+/* in main() */
+wd_init();
+wd_reset(WD_ACTIVE|WD_TO_8SEC);
+/* potential freeze point */
+wd_reset(WD_TO_NEVER);
+.Ed
+.Pp
+Enables a watchdog to recover from a potentially freezing piece of code.
+.Pp
+.Dl "options SW_WATCHDOG"
+.Pp
+in your kernel config forces a software watchdog in the kernel
+to be configured even if a hardware watchdog is configured,
+dropping to KDB or panicking when firing, depending
+on the KDB and KDB_UNATTENDED kernel configuration options.
+.Sh SEE ALSO
+.Xr watchdogd 8 ,
+.Xr watchdog 9
+.Sh HISTORY
+The
+.Nm
+code first appeared in
+.Fx 5.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+facility was written by
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .
+The software watchdog code and this manual page were written by
+.An Sean Kelly Aq Mt smkelly@FreeBSD.org .
+Some contributions were made by
+.An Jeff Roberson Aq Mt jeff@FreeBSD.org .
+.Sh BUGS
+The
+.Dv WD_PASSIVE
+option has not yet been implemented.

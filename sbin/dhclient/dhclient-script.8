@@ -1,0 +1,297 @@
+.\"	$OpenBSD: dhclient-script.8,v 1.2 2004/04/09 18:30:15 jmc Exp $
+.\"
+.\" Copyright (c) 1997 The Internet Software Consortium.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of The Internet Software Consortium nor the names
+.\"    of its contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This software has been written for the Internet Software Consortium
+.\" by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
+.\" Enterprises.  To learn more about the Internet Software Consortium,
+.\" see ``http://www.isc.org/isc''.  To learn more about Vixie
+.\" Enterprises, see ``http://www.vix.com''.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 6, 2010
+.Dt DHCLIENT-SCRIPT 8
+.Os
+.Sh NAME
+.Nm dhclient-script
+.Nd DHCP client network configuration script
+.Sh DESCRIPTION
+The DHCP client network configuration script is invoked from time to
+time by
+.Xr dhclient 8 .
+This script is used by the DHCP client to set each interface's initial
+configuration prior to requesting an address, to test the address once it
+has been offered, and to set the interface's final configuration once a
+lease has been acquired.
+If no lease is acquired, the script is used to test predefined leases, if
+any, and also called once if no valid lease can be identified.
+.Pp
+.\" No standard client script exists for some operating systems, even though
+.\" the actual client may work, so a pioneering user may well need to create
+.\" a new script or modify an existing one.
+In general, customizations specific to a particular computer should be done
+in the
+.Pa /etc/dhclient.conf
+file.
+.Sh OPERATION
+When
+.Xr dhclient 8
+needs to invoke the client configuration script, it sets up a number of
+environment variables and runs
+.Nm .
+In all cases,
+.Va $reason
+is set to the name of the reason why the script has been invoked.
+The following reasons are currently defined:
+.Li MEDIUM , PREINIT , ARPCHECK , ARPSEND , BOUND , RENEW , REBIND , REBOOT ,
+.Li EXPIRE , FAIL
+and
+.Li TIMEOUT .
+.Bl -tag -width ".Li ARPCHECK"
+.It Li MEDIUM
+The DHCP client is requesting that an interface's media type be set.
+The interface name is passed in
+.Va $interface ,
+and the media type is passed in
+.Va $medium .
+.It Li PREINIT
+The DHCP client is requesting that an interface be configured as
+required in order to send packets prior to receiving an actual address.
+.\" For clients which use the BSD socket library,
+This means configuring the interface with an IP address of 0.0.0.0
+and a broadcast address of 255.255.255.255.
+.\" For other clients, it may be possible to simply configure the interface up
+.\" without actually giving it an IP address at all.
+The interface name is passed in
+.Va $interface ,
+and the media type in
+.Va $medium .
+.Pp
+If an IP alias has been declared in
+.Xr dhclient.conf 5 ,
+its address will be passed in
+.Va $alias_ip_address ,
+and that IP alias should be deleted from the interface,
+along with any routes to it.
+.It Li ARPSEND
+The DHCP client is requesting that an address that has been offered to
+it be checked to see if somebody else is using it, by sending an ARP
+request for that address.
+It is not clear how to implement this, so no examples exist yet.
+The IP address to check is passed in
+.Va $new_ip_address ,
+and the interface name is passed in
+.Va $interface .
+.It Li ARPCHECK
+The DHCP client wants to know if a response to the ARP request sent
+using
+.Li ARPSEND
+has been received.
+If one has, the script should exit with a nonzero status, indicating that
+the offered address has already been requested and should be declined.
+The
+.Va $new_ip_address
+and
+.Va $interface
+variables are set as with
+.Li ARPSEND .
+.It Li BOUND
+The DHCP client has done an initial binding to a new address.
+The new IP address is passed in
+.Va $new_ip_address ,
+and the interface name is passed in
+.Va $interface .
+The media type is passed in
+.Va $medium .
+Any options acquired from the server are passed using the option name
+described in
+.Xr dhcp-options 5 ,
+except that dashes
+.Pq Ql -
+are replaced by underscores
+.Pq Ql _
+in order to make valid shell variables, and the variable names start with
+.Dq Li new_ .
+So for example, the new subnet mask would be passed in
+.Va $new_subnet_mask .
+.Pp
+When a binding has been completed, a lot of network parameters are
+likely to need to be set up.
+A new
+.Pa /etc/resolv.conf
+needs to be created, using the values of
+.Va $new_domain_name
+and
+.Va $new_domain_name_servers
+(which may list more than one server, separated by spaces).
+A default route should be set using
+.Va $new_routers ,
+and static routes may need to be set up using
+.Va $new_static_routes .
+.Pp
+If an IP alias has been declared, it must be set up here.
+The alias IP address will be written as
+.Va $alias_ip_address ,
+and other DHCP options that are set for the alias (e.g., subnet mask)
+will be passed in variables named as described previously except starting with
+.Dq Li $alias_
+instead of
+.Dq Li $new_ .
+Care should be taken that the alias IP address not be used if it is identical
+to the bound IP address
+.Pq Va $new_ip_address ,
+since the other alias parameters may be incorrect in this case.
+.It Li RENEW
+When a binding has been renewed, the script is called as in
+.Li BOUND ,
+except that in addition to all the variables starting with
+.Dq Li $new_ ,
+there is another set of variables starting with
+.Dq Li $old_ .
+Persistent settings that may have changed need to be deleted - for example,
+if a local route to the bound address is being configured, the old local
+route should be deleted.
+If the default route has changed, the old default route should be deleted.
+If the static routes have changed, the old ones should be deleted.
+Otherwise, processing can be done as with
+.Li BOUND .
+.It Li REBIND
+The DHCP client has rebound to a new DHCP server.
+This can be handled as with
+.Li RENEW ,
+except that if the IP address has changed,
+the ARP table should be cleared.
+.It Li REBOOT
+The DHCP client has successfully reacquired its old address after a reboot.
+This can be processed as with
+.Li BOUND .
+.It Li EXPIRE
+The DHCP client has failed to renew its lease or acquire a new one,
+and the lease has expired.
+The IP address must be relinquished, and all related parameters should be
+deleted, as in
+.Li RENEW
+and
+.Li REBIND .
+.It Li FAIL
+The DHCP client has been unable to contact any DHCP servers, and any
+leases that have been tested have not proved to be valid.
+The parameters from the last lease tested should be deconfigured.
+This can be handled in the same way as
+.Li EXPIRE .
+.It Li TIMEOUT
+The DHCP client has been unable to contact any DHCP servers.
+However, an old lease has been identified, and its parameters have
+been passed in as with
+.Li BOUND .
+The client configuration script should test these parameters and,
+if it has reason to believe they are valid, should exit with a value of zero.
+If not, it should exit with a nonzero value.
+.El
+.Pp
+Before taking action according to
+.Va $reason ,
+.Nm
+will check for the existence of
+.Pa /etc/dhclient-enter-hooks .
+If found, it will be sourced
+.Pq see Xr sh 1 .
+After taking action according to
+.Va $reason ,
+.Nm
+will check for the existence of
+.Pa /etc/dhclient-exit-hooks .
+If found, it will be sourced
+.Pq see Xr sh 1 .
+These hooks scripts can be used to dynamically modify the environment at
+appropriate times during the DHCP negotiations.
+For example, if the administrator wishes to disable alias IP numbers on
+the DHCP interface, they might want to put the following in
+.Pa /etc/dhclient-enter-hooks :
+.Bd -literal -offset indent
+[ ."$reason" = .PREINIT ] && ifconfig $interface 0.0.0.0
+.Ed
+.Pp
+The usual way to test a lease is to set up the network as with
+.Li REBIND
+(since this may be called to test more than one lease) and then ping
+the first router defined in
+.Va $routers .
+If a response is received, the lease must be valid for the network to
+which the interface is currently connected.
+It would be more complete to try to ping all of the routers listed in
+.Va $new_routers ,
+as well as those listed in
+.Va $new_static_routes ,
+but current scripts do not do this.
+.\" .Sh FILES
+.\" Each operating system should generally have its own script file,
+.\" although the script files for similar operating systems may be similar
+.\" or even identical.
+.\" The script files included in the Internet Software Consortium DHCP
+.\" distribution appear in the distribution tree under client/scripts,
+.\" and bear the names of the operating systems on which they are intended
+.\" to work.
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr dhclient.conf 5 ,
+.Xr dhclient.leases 5 ,
+.Xr dhclient 8 ,
+.Xr dhcpd 8 ,
+.Xr dhcrelay 8
+.Sh AUTHORS
+.An -nosplit
+The original version of
+.Nm
+was written for the Internet Software Consortium by
+.An Ted Lemon Aq Mt mellon@fugue.com
+in cooperation with Vixie Enterprises.
+.Pp
+The
+.Ox
+implementation of
+.Nm
+was written by
+.An Kenneth R. Westerback Aq Mt krw@openbsd.org .
+.Sh BUGS
+If more than one interface is being used, there is no obvious way to
+avoid clashes between server-supplied configuration parameters - for
+example, the stock
+.Nm
+rewrites
+.Pa /etc/resolv.conf .
+If more than one interface is being configured,
+.Pa /etc/resolv.conf
+will be repeatedly initialized to the values provided by one server, and then
+the other.
+Assuming the information provided by both servers is valid, this should not
+cause any real problems, but it could be confusing.

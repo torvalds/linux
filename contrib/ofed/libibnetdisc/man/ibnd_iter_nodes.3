@@ -1,0 +1,20 @@
+.TH IBND_ITER_NODES 3  "July 25, 2008" "OpenIB" "OpenIB Programmer's Manual"
+.SH "NAME"
+ibnd_iter_nodes, ibnd_iter_nodes_type \- given a fabric object and a function itterate over the nodes in the fabric.
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/ibnetdisc.h>
+.sp
+.BI "void ibnd_iter_nodes(ibnd_fabric_t *fabric, ibnd_iter_func_t func, void *user_data)"
+.BI "void ibnd_iter_nodes_type(ibnd_fabric_t *fabric, ibnd_iter_func_t func, ibnd_node_type_t type, void *user_data)"
+.SH "DESCRIPTION"
+.B ibnd_iter_nodes()
+Itterate through all the nodes in the fabric and call "func" on them.
+.B ibnd_iter_nodes_type()
+The same as ibnd_iter_nodes except to limit the iteration to the nodes with the specified type.
+.SH "RETURN VALUE"
+.B ibnd_iter_nodes(), ibnd_iter_nodes_type()
+NONE
+.SH "AUTHORS"
+.TP
+Ira Weiny <weiny2@llnl.gov>

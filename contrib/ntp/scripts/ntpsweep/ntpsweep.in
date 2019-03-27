@@ -1,0 +1,205 @@
+#! @PATH_PERL@ -w
+#
+# $Id$
+#
+# DISCLAIMER
+# 
+# Copyright (C) 1999,2000 Hans Lambermont and Origin B.V.
+# 
+# Permission to use, copy, modify and distribute this software and its
+# documentation for any purpose and without fee is hereby granted,
+# provided that the above copyright notice appears in all copies and
+# that both the copyright notice and this permission notice appear in
+# supporting documentation. This software is supported as is and without
+# any express or implied warranties, including, without limitation, the
+# implied warranties of merchantability and fitness for a particular
+# purpose. The name Origin B.V. must not be used to endorse or promote
+# products derived from this software without prior written permission.
+#
+# Hans Lambermont <ntpsweep@lambermont.dyndns.org>
+
+package ntpsweep;
+use 5.006_000;
+use strict;
+use lib "@PERLLIBDIR@";
+use NTP::Util qw(do_dns ntp_read_vars ntp_peers ntp_sntp_line);
+
+(my $program = $0) =~ s%.*/(.+?)(.pl)?$%$1%;
+my ($showpeers, $maxlevel, $strip);
+my (%known_host_info, %known_host_peers);
+
+exit run(@ARGV) unless caller;
+
+sub run {
+    my $opts;
+    if (!processOptions(\@_, $opts) || 
+        (((@_ != 1) && !$opts->{host} && !@{$opts->{'host-list'}}))) {
+        usage(1);
+    };
+
+    # no STDOUT buffering
+    $| = 1;
+    ($showpeers, $maxlevel, $strip) = 
+        ($opts->{peers}, $opts->{maxlevel}, $opts->{strip});
+
+    my $hostsfile = shift;
+
+    # Main program
+
+    my @hosts;
+
+    if ($opts->{host}) {
+        push @hosts, $opts->{host};
+    }
+    else {
+        @hosts = read_hosts($hostsfile) if $hostsfile;
+        push @hosts, @{$opts->{'host-list'}};
+    }
+
+    # Print header
+    print <<EOF;
+Host                             st offset(s) version     system       processor
+--------------------------------+--+---------+-----------+------------+---------
+EOF
+
+    %known_host_info = ();
+    %known_host_peers = ();
+    scan_hosts(@hosts);
+
+    return 0;
+}
+
+sub scan_hosts {
+    my (@hosts) = @_;
+
+    my $host;
+    for $host (@hosts) {
+        scan_host($host, 0, $host => 1);
+    }
+}
+
+sub read_hosts {
+    my ($hostsfile) = @_;
+    my @hosts;
+
+    open my $hosts, $hostsfile 
+        or die "$program: FATAL: unable to read $hostsfile: $!\n";
+
+    while (<$hosts>) {
+        next if /^\s*(#|$)/; # comment/empty
+        chomp;
+        push @hosts, $_;
+    }
+
+    close $hosts;
+    return @hosts;
+}
+
+sub scan_host {
+    my ($host, $level, %trace) = @_;
+    my $stratum = 0;
+    my $offset = 0;
+    my $daemonversion = "";
+    my $system = "";
+    my $processor = "";
+    my @peers;
+    my $known_host = 0;
+
+    if (exists $known_host_info{$host}) {
+        $known_host = 1;
+    }
+    else {
+        ($offset, $stratum) = ntp_sntp_line($host);
+
+        # got answers ? If so, go on.
+        if ($stratum) {
+            my $vars = ntp_read_vars(0, [qw(processor system daemon_version)], $host) || {};
+            $daemonversion = $vars->{daemon_version};
+            $system        = $vars->{system};
+            $processor     = $vars->{processor};
+
+            # Shorten daemon_version string.
+            $daemonversion =~ s/(;|Mon|Tue|Wed|Thu|Fri|Sat|Sun).*$//;
+            $daemonversion =~ s/version=//;
+            $daemonversion =~ s/(x|)ntpd //;
+            $daemonversion =~ s/(\(|\))//g;
+            $daemonversion =~ s/beta/b/;
+            $daemonversion =~ s/multicast/mc/;
+
+            # Shorten system string
+            $system =~ s/UNIX\///;
+            $system =~ s/RELEASE/r/;
+            $system =~ s/CURRENT/c/;
+
+            # Shorten processor string
+            $processor =~ s/unknown//;
+        }
+
+        # got answers ? If so, go on.
+        if ($daemonversion) {
+            if ($showpeers) {
+                my $peers_ref = ntp_peers($host);
+                my @peers_tmp = @$peers_ref;
+                for (@peers_tmp) {
+                    $_->{remote} =~ s/^(?: |x|\.|-|\+|#|\*|o)([^ ]+)/$1/;
+                    push @peers, $_->{remote};
+                }
+            }
+        }
+
+        # Add scanned host to known_hosts array
+        #push @known_hosts, $host;
+        if ($stratum) {
+            $known_host_info{$host} = sprintf "%2d %9.3f %-11s %-12s %s",
+                $stratum, $offset, (substr $daemonversion, 0, 11),
+                (substr $system, 0, 12), (substr $processor, 0, 9);
+        }
+        else {
+            # Stratum level 0 is consider invalid
+            $known_host_info{$host} = " ?";
+        }
+        $known_host_peers{$host} = [@peers];
+    }
+
+    if ($stratum || $known_host) { # Valid or known host
+        my $printhost = ' ' x $level . (do_dns($host) || $host);
+        # Shorten host string
+        if ($strip) {
+            $printhost =~ s/$strip//;
+        }
+        # append number of peers in brackets if requested and valid
+        if ($showpeers && ($known_host_info{$host} ne " ?")) {
+            $printhost .= " (" . @{$known_host_peers{$host}} . ")";
+        }
+        # Finally print complete host line
+        printf "%-32s %s\n",
+            (substr $printhost, 0, 32), $known_host_info{$host};
+        if ($showpeers && ($maxlevel ? $level < $maxlevel : 1)) {
+            $trace{$host} = 1;
+            # Loop through peers
+            foreach my $peer (@{$known_host_peers{$host}}) {
+                if (exists $trace{$peer}) {
+                    # we've detected a loop !
+                    $printhost = ' ' x ($level + 1) . "= " . $peer;
+                    # Shorten host string
+                    $printhost =~ s/$strip// if $strip;
+                    printf "%-32s\n", substr $printhost, 0, 32;
+                } else {
+                    if ((substr $peer, 0, 3) ne "127") {
+                        scan_host($peer, $level + 1, %trace);
+                    }
+                }
+            }
+        }
+    }
+    else { # We did not get answers from this host
+        my $printhost = ' ' x $level . (do_dns($host) || $host);
+        $printhost =~ s/$strip// if $strip;
+        printf "%-32s  ?\n", substr $printhost, 0, 32;
+    }
+}
+
+@ntpsweep_opts@
+
+1;
+__END__

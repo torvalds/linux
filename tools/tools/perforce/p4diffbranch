@@ -1,0 +1,19 @@
+#!/bin/sh -
+#
+#	$FreeBSD$
+#
+
+if [ x"$#" != x"2" ]; then
+	echo "Usage: $0 <branch> <changesetnum>"
+	exit 1
+fi
+
+basescript="$(realpath "$0")"
+awkdiff="${basescript%/*}/awkdiff"
+
+branch="$1"
+changenum="$2"
+
+p4 branch -o "$branch" |
+	awk ' /^View:/ { doview = 1; next; } /^[^	]/ {doview = 0; next; } $1 && $2 && doview == 1 { system("p4 diff2 -du " $1 "@" changenum " " $2) }' changenum="$changenum" |
+	"$awkdiff"

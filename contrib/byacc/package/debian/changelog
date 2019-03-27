@@ -1,0 +1,344 @@
+byacc (20170430) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 30 Apr 2017 16:55:15 -0400
+
+byacc (20170201) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 01 Feb 2017 04:55:04 -0500
+
+byacc (20161202) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 02 Dec 2016 07:58:46 -0500
+
+byacc (20160606) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 06 Jun 2016 20:44:26 -0400
+
+byacc (20160601) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 06 Jun 2016 05:21:18 -0400
+
+byacc (20160324) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 24 Mar 2016 19:55:52 -0400
+
+byacc (20150711) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 10 Jul 2015 20:53:15 -0400
+
+byacc (20150705) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 05 Jul 2015 18:24:51 -0400
+
+byacc (20141128) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 28 Nov 2014 10:42:17 -0500
+
+byacc (20141006) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 06 Oct 2014 18:52:03 -0400
+
+byacc (20141005) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 27 Jul 2014 10:45:06 -0400
+
+byacc (20140715) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Tue, 15 Jul 2014 15:36:54 -0400
+
+byacc (20140527) unstable; urgency=low
+
+  * remove obsolete option from usage message
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Tue, 27 May 2014 22:01:55 -0400
+
+byacc (20140422) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Tue, 22 Apr 2014 04:13:20 -0400
+
+byacc (20140409) unstable; urgency=low
+
+  * integrate Tom Shield's btyacc-related changes
+  * add test-cases to fill in gaps reported by lcov
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 09 Apr 2014 15:53:59 -0400
+
+byacc (20140101) unstable; urgency=low
+
+  * yytname[] changes
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 01 Jan 2014 10:02:12 -0500
+
+byacc (20130925) unstable; urgency=low
+
+  * increase default stack-size
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 25 Sep 2013 18:41:54 -0400
+
+byacc (20130304) unstable; urgency=low
+
+  * changes prompted by Richard Mitton bug-report
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 04 Mar 2013 20:17:32 -0500
+
+byacc (20121003) unstable; urgency=low
+
+  * changes from or prompted by Adrian Bunk.
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 29 Sep 2012 09:14:31 -0400
+
+byacc (20120526) unstable; urgency=low
+
+  * minor code-cleanup.
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 26 May 2012 12:14:17 -0400
+
+byacc (20120115) unstable; urgency=low
+
+  * add testcases, improve documentation for "-s" option.
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 13 Jan 2012 20:44:34 -0500
+
+byacc (20111219) unstable; urgency=low
+
+  * add "-s" option.
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 19 Dec 2011 20:54:09 -0500
+
+byacc (20110908) unstable; urgency=low
+
+  * add "-i" option.
+  * add error-check in reader.c
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 05 Sep 2011 20:05:51 -0400
+
+byacc (20101229) unstable; urgency=low
+
+  * fixes from Christos Zoulos
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 29 Dec 2010 13:03:50 -0500
+
+byacc (20101226) unstable; urgency=low
+
+  * portability fix for MinGW
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 25 Dec 2010 19:37:54 -0500
+
+byacc (20101127) unstable; urgency=low
+
+  * corrected yyerror use of %parse-param data
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 27 Nov 2010 12:32:00 -0500
+
+byacc (20101126) unstable; urgency=low
+
+  * additional fix to generated code to avoid symbol conflict
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 26 Nov 2010 04:23:08 -0500
+
+byacc (20101124) unstable; urgency=low
+
+  * amend fix for Red Hat #112617 to restore warning message.
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 22 Nov 2010 08:21:23 -0500
+
+byacc (20101122) unstable; urgency=low
+
+  * fix for generated header to avoid symbol conflict
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 22 Nov 2010 08:21:23 -0500
+
+byacc (20100610) unstable; urgency=low
+
+  * Add package scripts to upstream source, for test-builds.
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 10 Jun 2010 08:59:11 -0400
+
+byacc (20100216-1) unstable; urgency=low
+
+  * New upstream release
+  * debian/source/format: Added using format "3.0 (quilt)"
+
+ -- Dave Beckett <dajobe@debian.org>  Tue, 20 Apr 2010 12:56:11 -0700
+
+byacc (20091027-1) unstable; urgency=low
+
+  * New upstream release
+  * debian/control:
+    - Updated to policy 3.8.4
+    - Add ${misc:Depends}
+
+ -- Dave Beckett <dajobe@debian.org>  Tue, 02 Feb 2010 21:36:34 -0800
+
+byacc (20090221-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Dave Beckett <dajobe@debian.org>  Thu, 26 Feb 2009 21:06:20 -0800
+
+byacc (20080826-1) unstable; urgency=high
+
+  * New upstream release
+  * debian/patches/02-skeleton.patch: Removed - merged upstream
+  * debian/control: Updated to policy 3.8.0
+  * debian/preinst, debian/postrm: removed - empty (lintian)
+  * debian/watch: version 3 and make FTP passive
+  * Acknowledge NMU - thanks.
+
+ -- Dave Beckett <dajobe@debian.org>  Wed, 11 Sep 2008 23:58:00 -0700
+
+byacc (20070509-1.1) unstable; urgency=high
+
+  * Non-maintainer upload.
+  * Fix stack overflow in skeleton.c with upstream patch.
+    Closes: #491182 aka CVE-2008-3196
+
+ -- Thomas Viehmann <tv@beamnet.de>  Sun, 24 Aug 2008 23:13:07 +0200
+
+byacc (20070509-1) unstable; urgency=low
+
+  * New upstream release
+  * debian/watch: Fix to use passive FTP
+  * debian/compat: added instead of use of DH_COMPAT in debian/rules
+
+ -- Dave Beckett <dajobe@debian.org>  Tue, 26 Jun 2007 22:39:45 -0700
+
+byacc (20050813-1) unstable; urgency=low
+
+  * New upstream release:
+    - Do not close union_file for -d option (Closes: #322858)
+
+ -- Dave Beckett <dajobe@debian.org>  Sun, 14 Aug 2005 10:14:12 +0100
+
+byacc (20050505-1) unstable; urgency=low
+
+  * New maintainer (Closes: #321377)
+  * Switch to new upstream and new source (Closes: #240662)
+  * debian/copyright: Update to new upstream and add source information
+    (Closes: #166300)
+  * Acknowledge fix in NMUs (Closes: #283174)
+  * New manual page does not have the formatting problem (Closes: #100947)
+  * Added debian/watch file.
+
+ -- Dave Beckett <dajobe@debian.org>  Fri,  5 Aug 2005 22:50:20 +0100
+
+byacc (1.9.1-1.1) unstable; urgency=low
+
+  * Remove alternative in prerm.  Closes: #283174
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 26 Nov 2004 18:49:09 -0700
+
+byacc (1.9.1-1) unstable; urgency=low
+
+  * Maintainer upload.
+  * Fixed alternatives entry, closes: Bug#146195;
+  * Changed priority to "extra" at behest of Daniel Bungert,
+    closes: Bug#142271.
+  * Fixed awful packaging error which meant the test/ directory was excluded
+    from the orig.tar.gz.
+
+ -- Jason Henry Parker <henry@debian.org>  Fri, 27 Sep 2002 16:25:27 -0400
+
+byacc (1.9-13.1) unstable; urgency=low
+
+  * Non-maintainer upload
+  * Removed erraneous escapes in manpage - some data wasn't visable,
+    closes: Bug#100947
+  * Alternatives entry added, closes: Bug#113168
+  * Standards-version: 3.5.6
+  * Maintainer script cleaning
+
+ -- Daniel Bungert <drb@debian.org>  Fri, 29 Mar 2002 16:58:30 -0500
+
+byacc (1.9-13) unstable; urgency=low
+
+  * Applied patch from "Randolph Chung" <tausq@debian.org> to fix build problems
+    on ia64, closes: Bug#91966
+
+ -- Jason Henry Parker <henry@debian.org>  Thu, 29 Mar 2001 21:41:19 +1000
+
+byacc (1.9-12) unstable; urgency=low
+
+  * Updated to latest version of debhelper, and Standards-Version: 3.2.1.0, closes: Bug#81444
+  * Added Build-Depends: debhelper, closes: Bug#70207
+  * Removed mktemp() calls in main.c
+  
+ -- Jason Henry Parker <henry@debian.org>  Mon, 18 Dec 2000 08:02:54 +1000
+
+byacc (1.9-11.7) unstable; urgency=low
+
+  * New maintainer.
+  * Updated to dh_make and standards version 2.4.0.0, no lintian errors
+    or warnings.
+  * Added several more files from the upstream distribution to
+    /usr/doc/byacc.
+
+ -- Jason Henry Parker <henry@debian.org>  Sat,  2 Jan 1999 03:04:17 +1000
+
+byacc (1.9-11.6) unstable; urgency=low
+
+  * Patch by <mdorman@law.miami.edu> to remove some
+    superfluous files that can interfere with the build process on other
+    architectures. (Bug #21607).
+
+ -- Vincent Renardias <vincent@waw.com>  Fri, 24 Apr 1998 19:56:58 +0200
+
+byacc (1.9-11.5) unstable; urgency=low
+
+  * Added 'binary-arch' target in debian/rules (Bug #12742).
+
+ -- Vincent Renardias <vincent@waw.com>  Sun, 9 Nov 1997 23:37:31 +0100
+
+byacc (1.9-11.4) unstable; urgency=low
+
+  * Cosmetic change (Fix bug #9623).
+
+ -- Vincent Renardias <vincent@waw.com>  Fri, 9 May 1997 16:30:24 +0200
+
+byacc (1.9-11.3) unstable; urgency=low
+
+  * Rebuilt with libc6.
+
+ -- Debian QA Group <debian-qa@lists.debian.org>  Thu, 1 May 1997 22:02:04 +0200
+
+byacc (1.9-11.2) unstable; urgency=low
+
+  * Orphaned the package at his maintainer's request (dgregor@coil.com).
+
+ -- Debian QA Group <debian-qa@lists.debian.org>  Sun, 20 Apr 1997 20:03:03 +0200
+
+byacc (1.9-11.1) unstable; urgency=low
+
+  * Converted to new source format (Fixes #8085).
+  * Compressed manpage.
+  * Fixed to allow compilation on non-i386 (Fixes #3361).
+  * Added extended description (Fixes #3567).
+  * Added diversion to avoid conflict with bison (Fixes #8086). 
+
+ -- Vincent Renardias <vincent@waw.com>  Sun, 20 Apr 1997 15:59:28 +0200

@@ -1,0 +1,473 @@
+BODY,H1,H2,H3,H4,H5,H6,P,CENTER,TD,TH,UL,DL,DIV {
+	font-family: Geneva, Arial, Helvetica, sans-serif;
+}
+BODY,TD {
+	font-size: 90%;
+}
+H1 {
+	text-align: center;
+	font-size: 160%;
+}
+H2 {
+	font-size: 120%;
+}
+H3 {
+	font-size: 100%;
+}
+CAPTION { 
+	font-weight: bold 
+}
+DIV.qindex {
+	width: 100%;
+	background-color: #e8eef2;
+	border: 1px solid #84b0c7;
+	text-align: center;
+	margin: 2px;
+	padding: 2px;
+	line-height: 140%;
+}
+DIV.navpath {
+	width: 100%;
+	background-color: #e8eef2;
+	border: 1px solid #84b0c7;
+	text-align: center;
+	margin: 2px;
+	padding: 2px;
+	line-height: 140%;
+}
+DIV.navtab {
+       background-color: #e8eef2;
+       border: 1px solid #84b0c7;
+       text-align: center;
+       margin: 2px;
+       margin-right: 15px;
+       padding: 2px;
+}
+TD.navtab {
+       font-size: 70%;
+}
+A.qindex {
+       text-decoration: none;
+       font-weight: bold;
+       color: #1A419D;
+}
+A.qindex:visited {
+       text-decoration: none;
+       font-weight: bold;
+       color: #1A419D
+}
+A.qindex:hover {
+	text-decoration: none;
+	background-color: #ddddff;
+}
+A.qindexHL {
+	text-decoration: none;
+	font-weight: bold;
+	background-color: #6666cc;
+	color: #ffffff;
+	border: 1px double #9295C2;
+}
+A.qindexHL:hover {
+	text-decoration: none;
+	background-color: #6666cc;
+	color: #ffffff;
+}
+A.qindexHL:visited { 
+	text-decoration: none; 
+	background-color: #6666cc; 
+	color: #ffffff 
+}
+A.el { 
+	text-decoration: none; 
+	font-weight: bold 
+}
+A.elRef { 
+	font-weight: bold 
+}
+A.code:link { 
+	text-decoration: none; 
+	font-weight: normal; 
+	color: #0000FF
+}
+A.code:visited { 
+	text-decoration: none; 
+	font-weight: normal; 
+	color: #0000FF
+}
+A.codeRef:link { 
+	font-weight: normal; 
+	color: #0000FF
+}
+A.codeRef:visited { 
+	font-weight: normal; 
+	color: #0000FF
+}
+A:hover { 
+	text-decoration: none; 	
+	background-color: #f2f2ff 
+}
+DL.el { 
+	margin-left: -1cm 
+}
+.fragment {
+       font-family: monospace, fixed;
+       font-size: 95%;
+}
+PRE.fragment {
+	border: 1px solid #CCCCCC;
+	background-color: #f5f5f5;
+	margin-top: 4px;
+	margin-bottom: 4px;
+	margin-left: 2px;
+	margin-right: 8px;
+	padding-left: 6px;
+	padding-right: 6px;
+	padding-top: 4px;
+	padding-bottom: 4px;
+}
+DIV.ah { 
+	background-color: black; 
+	font-weight: bold; 
+	color: #ffffff; 
+	margin-bottom: 3px; 
+	margin-top: 3px 
+}
+
+DIV.groupHeader {
+       margin-left: 16px;
+       margin-top: 12px;
+       margin-bottom: 6px;
+       font-weight: bold;
+}
+DIV.groupText { 
+	margin-left: 16px; 
+	font-style: italic; 
+	font-size: 90% 
+}
+BODY {
+	background: white;
+	color: black;
+	margin-right: 20px;
+	margin-left: 20px;
+}
+TD.indexkey {
+	background-color: #e8eef2;
+	font-weight: bold;
+	padding-right  : 10px;
+	padding-top    : 2px;
+	padding-left   : 10px;
+	padding-bottom : 2px;
+	margin-left    : 0px;
+	margin-right   : 0px;
+	margin-top     : 2px;
+	margin-bottom  : 2px;
+	border: 1px solid #CCCCCC;
+}
+TD.indexvalue {
+	background-color: #e8eef2;
+	font-style: italic;
+	padding-right  : 10px;
+	padding-top    : 2px;
+	padding-left   : 10px;
+	padding-bottom : 2px;
+	margin-left    : 0px;
+	margin-right   : 0px;
+	margin-top     : 2px;
+	margin-bottom  : 2px;
+	border: 1px solid #CCCCCC;
+}
+TR.memlist {
+	background-color: #f0f0f0; 
+}
+P.formulaDsp { 
+	text-align: center; 
+}
+IMG.formulaDsp {
+}
+IMG.formulaInl { 
+	vertical-align: middle; 
+}
+SPAN.keyword       { color: #008000 }
+SPAN.keywordtype   { color: #604020 }
+SPAN.keywordflow   { color: #e08000 }
+SPAN.comment       { color: #800000 }
+SPAN.preprocessor  { color: #806020 }
+SPAN.stringliteral { color: #002080 }
+SPAN.charliteral   { color: #008080 }
+SPAN.vhdldigit     { color: #ff00ff }
+SPAN.vhdlchar      { color: #000000 }
+SPAN.vhdlkeyword   { color: #700070 }
+SPAN.vhdllogic     { color: #ff0000 }
+
+.mdescLeft {
+	padding: 0px 8px 4px 8px;
+	font-size: 80%;
+	font-style: italic;
+	background-color: #FAFAFA;
+	border-top: 1px none #E0E0E0;
+	border-right: 1px none #E0E0E0;
+	border-bottom: 1px none #E0E0E0;
+	border-left: 1px none #E0E0E0;
+	margin: 0px;
+}
+.mdescRight {
+        padding: 0px 8px 4px 8px;
+	font-size: 80%;
+	font-style: italic;
+	background-color: #FAFAFA;
+	border-top: 1px none #E0E0E0;
+	border-right: 1px none #E0E0E0;
+	border-bottom: 1px none #E0E0E0;
+	border-left: 1px none #E0E0E0;
+	margin: 0px;
+}
+.memItemLeft {
+	padding: 1px 0px 0px 8px;
+	margin: 4px;
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-top-color: #E0E0E0;
+	border-right-color: #E0E0E0;
+	border-bottom-color: #E0E0E0;
+	border-left-color: #E0E0E0;
+	border-top-style: solid;
+	border-right-style: none;
+	border-bottom-style: none;
+	border-left-style: none;
+	background-color: #FAFAFA;
+	font-size: 80%;
+}
+.memItemRight {
+	padding: 1px 8px 0px 8px;
+	margin: 4px;
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-top-color: #E0E0E0;
+	border-right-color: #E0E0E0;
+	border-bottom-color: #E0E0E0;
+	border-left-color: #E0E0E0;
+	border-top-style: solid;
+	border-right-style: none;
+	border-bottom-style: none;
+	border-left-style: none;
+	background-color: #FAFAFA;
+	font-size: 80%;
+}
+.memTemplItemLeft {
+	padding: 1px 0px 0px 8px;
+	margin: 4px;
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-top-color: #E0E0E0;
+	border-right-color: #E0E0E0;
+	border-bottom-color: #E0E0E0;
+	border-left-color: #E0E0E0;
+	border-top-style: none;
+	border-right-style: none;
+	border-bottom-style: none;
+	border-left-style: none;
+	background-color: #FAFAFA;
+	font-size: 80%;
+}
+.memTemplItemRight {
+	padding: 1px 8px 0px 8px;
+	margin: 4px;
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-top-color: #E0E0E0;
+	border-right-color: #E0E0E0;
+	border-bottom-color: #E0E0E0;
+	border-left-color: #E0E0E0;
+	border-top-style: none;
+	border-right-style: none;
+	border-bottom-style: none;
+	border-left-style: none;
+	background-color: #FAFAFA;
+	font-size: 80%;
+}
+.memTemplParams {
+	padding: 1px 0px 0px 8px;
+	margin: 4px;
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-top-color: #E0E0E0;
+	border-right-color: #E0E0E0;
+	border-bottom-color: #E0E0E0;
+	border-left-color: #E0E0E0;
+	border-top-style: solid;
+	border-right-style: none;
+	border-bottom-style: none;
+	border-left-style: none;
+	color: #606060;
+	background-color: #FAFAFA;
+	font-size: 80%;
+}
+.search { 
+	color: #003399;
+	font-weight: bold;
+}
+FORM.search {
+	margin-bottom: 0px;
+	margin-top: 0px;
+}
+INPUT.search { 
+	font-size: 75%;
+	color: #000080;
+	font-weight: normal;
+	background-color: #e8eef2;
+}
+TD.tiny { 
+	font-size: 75%;
+}
+a {
+	color: #1A41A8;
+}
+a:visited {
+	color: #2A3798;
+}
+.dirtab { 
+	padding: 4px;
+	border-collapse: collapse;
+	border: 1px solid #84b0c7;
+}
+TH.dirtab { 
+	background: #e8eef2;
+	font-weight: bold;
+}
+HR { 
+	height: 1px;
+	border: none;
+	border-top: 1px solid black;
+}
+
+/* Style for detailed member documentation */
+.memtemplate {
+	font-size: 80%;
+	color: #606060;
+	font-weight: normal;
+	margin-left: 3px;
+} 
+.memnav { 
+	background-color: #e8eef2;
+	border: 1px solid #84b0c7;
+	text-align: center;
+	margin: 2px;
+	margin-right: 15px;
+	padding: 2px;
+}
+.memitem {
+	padding: 4px;
+	background-color: #eef3f5;
+	border-width: 1px;
+	border-style: solid;
+	border-color: #dedeee;
+	-moz-border-radius: 8px 8px 8px 8px;
+}
+.memname {
+	white-space: nowrap;
+	font-weight: bold;
+}
+.memdoc{
+	padding-left: 10px;
+}
+.memproto {
+	background-color: #d5e1e8;
+	width: 100%;
+	border-width: 1px;
+	border-style: solid;
+	border-color: #84b0c7;
+	font-weight: bold;
+	-moz-border-radius: 8px 8px 8px 8px;
+}
+.paramkey {
+	text-align: right;
+}
+.paramtype {
+	white-space: nowrap;
+}
+.paramname {
+	color: #602020;
+	font-style: italic;
+	white-space: nowrap;
+}
+/* End Styling for detailed member documentation */
+
+/* for the tree view */
+.ftvtree {
+	font-family: sans-serif;
+	margin:0.5em;
+}
+/* these are for tree view when used as main index */
+.directory { 
+	font-size: 9pt; 
+	font-weight: bold; 
+}
+.directory h3 { 
+	margin: 0px; 
+	margin-top: 1em; 
+	font-size: 11pt; 
+}
+
+/* The following two styles can be used to replace the root node title */
+/* with an image of your choice.  Simply uncomment the next two styles, */
+/* specify the name of your image and be sure to set 'height' to the */
+/* proper pixel height of your image. */
+
+/* .directory h3.swap { */
+/* 	height: 61px; */
+/* 	background-repeat: no-repeat; */
+/* 	background-image: url("yourimage.gif"); */
+/* } */
+/* .directory h3.swap span { */
+/* 	display: none; */
+/* } */
+
+.directory > h3 { 
+	margin-top: 0; 
+}
+.directory p { 
+	margin: 0px; 
+	white-space: nowrap; 
+}
+.directory div { 
+	display: none; 
+	margin: 0px; 
+}
+.directory img { 
+	vertical-align: -30%; 
+}
+/* these are for tree view when not used as main index */
+.directory-alt { 
+	font-size: 100%; 
+	font-weight: bold; 
+}
+.directory-alt h3 { 
+	margin: 0px; 
+	margin-top: 1em; 
+	font-size: 11pt; 
+}
+.directory-alt > h3 { 
+	margin-top: 0; 
+}
+.directory-alt p { 
+	margin: 0px; 
+	white-space: nowrap; 
+}
+.directory-alt div { 
+	display: none; 
+	margin: 0px; 
+}
+.directory-alt img { 
+	vertical-align: -30%; 
+}
+

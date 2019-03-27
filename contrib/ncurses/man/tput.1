@@ -1,0 +1,332 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: tput.1,v 1.32 2012/07/14 21:06:45 tom Exp $
+.TH @TPUT@ 1 ""
+.ds d @TERMINFO@
+.ds n 1
+.SH NAME
+\fB@TPUT@\fR, \fBreset\fR \- initialize a terminal or query terminfo database
+.SH SYNOPSIS
+\fB@TPUT@\fR [\fB\-T\fR\fItype\fR] \fIcapname\fR [\fIparms\fR ... ]
+.br
+\fB@TPUT@\fR [\fB\-T\fR\fItype\fR] \fBinit\fR
+.br
+\fB@TPUT@\fR [\fB\-T\fR\fItype\fR] \fBreset\fR
+.br
+\fB@TPUT@\fR [\fB\-T\fR\fItype\fR] \fBlongname\fR
+.br
+\fB@TPUT@ \-S\fR  \fB<<\fR
+.br
+\fB@TPUT@ \-V\fR
+.br
+.SH DESCRIPTION
+The \fB@TPUT@\fR utility uses the \fBterminfo\fR database to make the
+values of terminal-dependent capabilities and information available to
+the shell (see \fBsh\fR(1)), to initialize or reset the terminal, or
+return the long name of the requested terminal type.
+The result depends upon the capability's type:
+.RS
+.TP 5
+string
+\fB@TPUT@\fR writes the string to the standard output.
+No trailing newline is supplied.
+.TP
+integer
+\fB@TPUT@\fR writes the decimal value to the standard output,
+with a trailing newline.
+.TP
+boolean
+\fB@TPUT@\fR simply sets the exit code
+(\fB0\fR for TRUE if the terminal has the capability,
+\fB1\fR for FALSE if it does not),
+and writes nothing to the standard output.
+.RE
+.PP
+Before using a value returned on the standard output,
+the application should test the exit code
+(e.g., \fB$?\fR, see \fBsh\fR(1)) to be sure it is \fB0\fR.
+(See the \fBEXIT CODES\fR and \fBDIAGNOSTICS\fR sections.)
+For a complete list of capabilities
+and the \fIcapname\fR associated with each, see \fBterminfo\fR(5).
+.TP
+\fB\-T\fR\fItype\fR
+indicates the \fItype\fR of terminal.
+Normally this option is
+unnecessary, because the default is taken from the environment
+variable \fBTERM\fR.
+If \fB\-T\fR is specified, then the shell
+variables \fBLINES\fR and \fBCOLUMNS\fR will also be ignored.
+.TP
+\fIcapname\fR
+indicates the capability from the \fBterminfo\fR database.  When
+\fBtermcap\fR support is compiled in, the \fBtermcap\fR name for
+the capability is also accepted.
+.TP
+\fIparms\fR
+If the capability is a string that takes parameters, the arguments
+\fIparms\fR will be instantiated into the string.
+.IP
+Most parameters are numbers.
+Only a few terminfo capabilities require string parameters;
+\fB@TPUT@\fR uses a table to decide which to pass as strings.
+Normally \fB@TPUT@\fR uses \fBtparm\fR (3X) to perform the substitution.
+If no parameters are given for the capability,
+\fB@TPUT@\fR writes the string without performing the substitution.
+.TP
+\fB\-S\fR
+allows more than one capability per invocation of \fB@TPUT@\fR.  The
+capabilities must be passed to \fB@TPUT@\fR from the standard input
+instead of from the command line (see example).
+Only one \fIcapname\fR is allowed per line.
+The \fB\-S\fR option changes the
+meaning of the \fB0\fR and \fB1\fR boolean and string exit codes (see the
+EXIT CODES section).
+.IP
+Again, \fB@TPUT@\fR uses a table and the presence of parameters in its input
+to decide whether to use \fBtparm\fR (3X),
+and how to interpret the parameters.
+.TP
+\fB\-V\fR
+reports the version of ncurses which was used in this program, and exits.
+.TP
+\fBinit\fR
+If the \fBterminfo\fR database is present and an entry for the user's
+terminal exists (see \fB\-T\fR\fItype\fR, above), the following will
+occur:
+.RS
+.TP
+(1)
+if present, the terminal's initialization strings will be
+output as detailed in the \fBterminfo\fR(5) section on
+.IR "Tabs and Initialization" ,
+.TP
+(2)
+any delays (e.g., newline) specified in the entry will
+be set in the tty driver,
+.TP
+(3)
+tabs expansion will be turned on or off according to
+the specification in the entry, and
+.TP
+(4)
+if tabs are not expanded,
+standard tabs will be set (every 8 spaces).
+.RE
+.IP
+If an entry does not
+contain the information needed for any of the four above activities,
+that activity will silently be skipped.
+.TP
+\fBreset\fR
+Instead of putting out initialization strings, the terminal's
+reset strings will be output if present (\fBrs1\fR, \fBrs2\fR, \fBrs3\fR, \fBrf\fR).
+If the reset strings are not present, but initialization
+strings are, the initialization strings will be output.
+Otherwise, \fBreset\fR acts identically to \fBinit\fR.
+.TP
+\fBlongname\fR
+If the \fBterminfo\fR database is present and an entry for the
+user's terminal exists (see \fB\-T\fR\fItype\fR above), then the long name
+of the terminal will be put out.  The long name is the last
+name in the first line of the terminal's description in the
+\fBterminfo\fR database [see \fBterm\fR(5)].
+.PP
+If \fB@TPUT@\fR is invoked by a link named \fBreset\fR, this has the
+same effect as \fB@TPUT@ reset\fR.
+See \fB@TSET@\fR for comparison, which has similar behavior.
+.SH EXAMPLES
+.TP 5
+\fB@TPUT@ init\fR
+Initialize the terminal according to the type of
+terminal in the environmental variable \fBTERM\fR.  This
+command should be included in everyone's .profile after
+the environmental variable \fBTERM\fR has been exported, as
+illustrated on the \fBprofile\fR(5) manual page.
+.TP 5
+\fB@TPUT@ \-T5620 reset\fR
+Reset an AT&T 5620 terminal, overriding the type of
+terminal in the environmental variable \fBTERM\fR.
+.TP 5
+\fB@TPUT@ cup 0 0\fR
+Send the sequence to move the cursor to row \fB0\fR, column \fB0\fR
+(the upper left corner of the screen, usually known as the "home"
+cursor position).
+.TP 5
+\fB@TPUT@ clear\fR
+Echo the clear-screen sequence for the current terminal.
+.TP 5
+\fB@TPUT@ cols\fR
+Print the number of columns for the current terminal.
+.TP 5
+\fB@TPUT@ \-T450 cols\fR
+Print the number of columns for the 450 terminal.
+.TP 5
+\fBbold=`@TPUT@ smso` offbold=`@TPUT@ rmso`\fR
+Set the shell variables \fBbold\fR, to begin stand-out mode
+sequence, and \fBoffbold\fR, to end standout mode sequence,
+for the current terminal.  This might be followed by a
+prompt: \fBecho "${bold}Please type in your name: ${offbold}\\c"\fR
+.TP 5
+\fB@TPUT@ hc\fR
+Set exit code to indicate if the current terminal is a hard copy terminal.
+.TP 5
+\fB@TPUT@ cup 23 4\fR
+Send the sequence to move the cursor to row 23, column 4.
+.TP 5
+\fB@TPUT@ cup\fR
+Send the terminfo string for cursor-movement, with no parameters substituted.
+.TP 5
+\fB@TPUT@ longname\fR
+Print the long name from the \fBterminfo\fR database for the
+type of terminal specified in the environmental
+variable \fBTERM\fR.
+.PP
+.RS 5
+\fB@TPUT@ \-S <<!\fR
+.br
+\fB> clear\fR
+.br
+\fB> cup 10 10\fR
+.br
+\fB> bold\fR
+.br
+\fB> !\fR
+.RE
+.TP 5
+\&
+This example shows \fB@TPUT@\fR processing several capabilities in one invocation.
+It clears the screen,
+moves the cursor to position 10, 10
+and turns on bold (extra bright) mode.
+The list is terminated by an exclamation mark (\fB!\fR) on a line by itself.
+.SH FILES
+.TP
+\fB\*d\fR
+compiled terminal description database
+.TP
+\fB@DATADIR@/tabset/*\fR
+tab settings for some terminals, in a format
+appropriate to be output to the terminal (escape
+sequences that set margins and tabs); for more
+information, see the "Tabs and Initialization"
+section of \fBterminfo\fR(5)
+.SH EXIT CODES
+If the \fB\-S\fR option is used,
+\fB@TPUT@\fR checks for errors from each line,
+and if any errors are found, will set the exit code to 4 plus the
+number of lines with errors.
+If no errors are found, the exit code is \fB0\fR.
+No indication of which line failed can be given so
+exit code \fB1\fR will never appear.  Exit codes \fB2\fR, \fB3\fR, and
+\fB4\fR retain their usual interpretation.
+If the \fB\-S\fR option is not used,
+the exit code depends on the type of \fIcapname\fR:
+.RS 5
+.TP
+.I boolean
+a value of \fB0\fR is set for TRUE and \fB1\fR for FALSE.
+.TP
+.I string
+a value of \fB0\fR is set if the
+\fIcapname\fR is defined for this terminal \fItype\fR (the value of
+\fIcapname\fR is returned on standard output);
+a value of \fB1\fR is set if \fIcapname\fR
+is not defined for this terminal \fItype\fR
+(nothing is written to standard output).
+.TP
+.I integer
+a value of \fB0\fR is always set,
+whether or not \fIcapname\fR is defined for this terminal \fItype\fR.
+To determine if \fIcapname\fR is defined for this terminal \fItype\fR,
+the user must test the value written to standard output.
+A value of \fB\-1\fR
+means that \fIcapname\fR is not defined for this terminal \fItype\fR.
+.TP
+.I other
+\fBreset\fR or \fBinit\fR may fail to find their respective files.
+In that case, the exit code is set to 4 + \fBerrno\fR.
+.RE
+.PP
+Any other exit code indicates an error; see the DIAGNOSTICS section.
+.SH DIAGNOSTICS
+\fB@TPUT@\fR prints the following error messages and sets the corresponding exit
+codes.
+.PP
+.ne 15
+.TS
+l l.
+exit code	error message
+=
+\fB0\fR	T{
+(\fIcapname\fR is a numeric variable that is not specified in the
+\fBterminfo\fR(5) database for this terminal type, e.g.
+\fB@TPUT@ \-T450 lines\fR and \fB@TPUT@ \-T2621 xmc\fR)
+T}
+\fB1\fR	no error message is printed, see the \fBEXIT CODES\fR section.
+\fB2\fR	usage error
+\fB3\fR	unknown terminal \fItype\fR or no \fBterminfo\fR database
+\fB4\fR	unknown \fBterminfo\fR capability \fIcapname\fR
+\fB>4\fR	error occurred in \-S
+=
+.TE
+.SH PORTABILITY
+.PP
+The \fBlongname\fR and \fB\-S\fR options, and the parameter-substitution
+features used in the \fBcup\fR example, are not supported in BSD curses or in
+AT&T/USL curses before SVr4.
+.PP
+X/Open documents only the operands for \fBclear\fP, \fBinit\fP and \fBreset\fP.
+In this implementation, \fBclear\fP is part of the \fIcapname\fR support.
+Other implementations of \fB@TPUT@\fP on
+SVr4-based systems such as Solaris, IRIX64 and HPUX
+as well as others such as AIX and Tru64
+provide support for \fIcapname\fR operands.
+.PP
+A few platforms such as FreeBSD and NetBSD recognize termcap names rather
+than terminfo capability names in their respective \fB@TPUT@\fP commands.
+.PP
+Most implementations which provide support for \fIcapname\fR operands
+use the \fItparm\fP function to expand parameters in it.
+That function expects a mixture of numeric and string parameters,
+requiring \fB@TPUT@\fP to know which type to use.
+This implementation uses a table to determine that for
+the standard \fIcapname\fR operands, and an internal library
+function to analyze nonstandard \fIcapname\fR operands.
+Other implementations may simply guess that an operand containing only digits
+is intended to be a number.
+.SH SEE ALSO
+\fB@CLEAR@\fR(1),
+\fBstty\fR(1),
+\fBtabs\fR(\*n),
+\fBterminfo\fR(5),
+\fBcurs_termcap\fR(3X).
+.PP
+This describes \fBncurses\fR
+version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).

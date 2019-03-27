@@ -1,0 +1,88 @@
+.\"
+.\" Copyright (C) 2005-2006
+.\" 	The FreeBSD Project.
+.\" 	All rights reserved.
+.\"
+.\" Author: Harti Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 3, 2006
+.Dt SNMP_HOSTRES 3
+.Os
+.Sh NAME
+.Nm snmp_hostres
+.Nd host resources module for
+.Xr bsnmpd 8
+.Sh LIBRARY
+.Pq begemotSnmpdModulePath."hostres" = "/usr/lib/snmp_hostres.so"
+.Sh DESCRIPTION
+The
+.Nm
+module implements the HOST-RESOURCES-MIB as standardized in RFC 2790.
+.Sh RESTRICTIONS
+Not all information in the MIB is meaningful in FreeBSD or is available.
+The following variables are not implemented or carry no information:
+.Bl -tag -width indent
+.It Va hrFSType
+There are several types of file systems for which no appropriate OID
+exists yet which are supported by
+.Fx .
+For smbfs, procfs and devfs ,
+.Va hrFSOther
+is returned.
+In all other cases,
+.Va hrFSUnknown .
+.It Va hrFSBootable
+It is questionable what bootable means here.
+Does it mean that the BIOS is available to start a boot on that file system
+or does it mean that there is something bootable?
+In either case this information is not available so this variable returns True
+for the root file system (which is not necessarily correct) and False for
+all others.
+.It Va hrFSLastFullBackupDate , hrFSLastPartialBackupDate
+This is not available and always returns an empty string.
+Theoretically, this could be retrieved from
+.Pa /etc/dumpdates ,
+which would
+hardly be correct given the different ways of doing backups.
+.It Va hrDiskStorageTable
+Floppy devices are currently not reported.
+Also the names of the disks are hard-coded in the module.
+.El
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /usr/share/snmp/defs/hostres_tree.def
+The description of the MIB tree implemented by
+.Nm .
+.It Pa /usr/share/snmp/mibs/HOST-RESOURCES-TYPES.txt
+.It Pa /usr/share/snmp/mibs/HOST-RESOURCES-MIB.txt
+.It Pa /usr/share/snmp/mibs/BEGEMOT-HOSTRES-MIB.txt
+This is the MIB that is implemented by this module.
+.El
+.Sh SEE ALSO
+.Xr gensnmptree 1 ,
+.Xr snmpmod 3
+.Sh AUTHORS
+.An Victor Cruceru Aq Mt soc-victor@FreeBSD.org

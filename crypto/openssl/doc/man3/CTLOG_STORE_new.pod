@@ -1,0 +1,79 @@
+=pod
+
+=head1 NAME
+
+CTLOG_STORE_new, CTLOG_STORE_free,
+CTLOG_STORE_load_default_file, CTLOG_STORE_load_file -
+Create and populate a Certificate Transparency log list
+
+=head1 SYNOPSIS
+
+ #include <openssl/ct.h>
+
+ CTLOG_STORE *CTLOG_STORE_new(void);
+ void CTLOG_STORE_free(CTLOG_STORE *store);
+
+ int CTLOG_STORE_load_default_file(CTLOG_STORE *store);
+ int CTLOG_STORE_load_file(CTLOG_STORE *store, const char *file);
+
+=head1 DESCRIPTION
+
+A CTLOG_STORE is a container for a list of CTLOGs (Certificate Transparency
+logs). The list can be loaded from one or more files and then searched by LogID
+(see RFC 6962, Section 3.2, for the definition of a LogID).
+
+CTLOG_STORE_new() creates an empty list of CT logs. This is then populated
+by CTLOG_STORE_load_default_file() or CTLOG_STORE_load_file().
+CTLOG_STORE_load_default_file() loads from the default file, which is named
+"ct_log_list.cnf" in OPENSSLDIR (see the output of L<version>). This can be
+overridden using an environment variable named "CTLOG_FILE".
+CTLOG_STORE_load_file() loads from a caller-specified file path instead.
+Both of these functions append any loaded CT logs to the CTLOG_STORE.
+
+The expected format of the file is:
+
+ enabled_logs=foo,bar
+
+ [foo]
+ description = Log 1
+ key = <base64-encoded DER SubjectPublicKeyInfo here>
+
+ [bar]
+ description = Log 2
+ key = <base64-encoded DER SubjectPublicKeyInfo here>
+
+Once a CTLOG_STORE is no longer required, it should be passed to
+CTLOG_STORE_free(). This will delete all of the CTLOGs stored within, along
+with the CTLOG_STORE itself.
+
+=head1 NOTES
+
+If there are any invalid CT logs in a file, they are skipped and the remaining
+valid logs will still be added to the CTLOG_STORE. A CT log will be considered
+invalid if it is missing a "key" or "description" field.
+
+=head1 RETURN VALUES
+
+Both B<CTLOG_STORE_load_default_file> and B<CTLOG_STORE_load_file> return 1 if
+all CT logs in the file are successfully parsed and loaded, 0 otherwise.
+
+=head1 SEE ALSO
+
+L<ct(7)>,
+L<CTLOG_STORE_get0_log_by_id(3)>,
+L<SSL_CTX_set_ctlog_list_file(3)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

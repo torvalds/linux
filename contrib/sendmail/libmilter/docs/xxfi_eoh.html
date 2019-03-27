@@ -1,0 +1,56 @@
+<HTML>
+<HEAD><TITLE>xxfi_eoh</TITLE></HEAD>
+<BODY>
+<!--
+$Id: xxfi_eoh.html,v 1.12 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>xxfi_eoh</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+sfsistat (*xxfi_eoh)(
+	SMFICTX *ctx
+);
+</PRE>
+Handle the end of message headers.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>xxfi_eoh is called once after all headers have been sent and processed.
+</TD>
+</TR>
+<TR align="left" valign=top>
+<TH>Default Behavior</TH>
+<TD>Do nothing; return SMFIS_CONTINUE.</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>ctx</TD>
+	<TD>Opaque context structure.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2000, 2003 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

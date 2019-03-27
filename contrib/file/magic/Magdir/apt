@@ -1,0 +1,52 @@
+
+#------------------------------------------------------------------------------
+# $File: apt,v 1.1 2016/10/17 19:51:57 christos Exp $
+# apt: file(1) magic for APT Cache files
+# <http://www.fifi.org/doc/libapt-pkg-doc/cache.html/ch2.html>
+# <https://anonscm.debian.org/cgit/apt/apt.git/tree/apt-pkg/pkgcache.h#n292>
+
+# before version 10 ("old format"), data was in arch-specific long/short
+
+# old format 64 bit
+0   	name		apt-cache-64bit-be
+>12	beshort		1		\b, dirty
+>40 	bequad		x		\b, %llu packages
+>48 	bequad		x		\b, %llu versions
+
+# old format 32 bit
+0   	name    	apt-cache-32bit-be
+>8  	beshort 	1		\b, dirty
+>40 	belong  	x		\b, %u packages
+>44 	belong  	x		\b, %u versions
+
+# new format
+0	name		apt-cache-be
+>6	byte    	1		\b, dirty
+>24	belong  	x		\b, %u packages
+>28	belong		x		\b, %u versions
+
+0	bequad		0x98FE76DC
+>8	ubeshort	<10		APT cache data, version %u
+>>10	beshort	    	x	  	\b.%u, 64 bit big-endian
+>>0	use		apt-cache-64bit-be
+
+0	lequad	    	0x98FE76DC
+>8	uleshort    	<10		APT cache data, version %u
+>>10	leshort		x		\b.%u, 64 bit little-endian
+>>0	use		\^apt-cache-64bit-be
+
+0	belong	    	0x98FE76DC
+>4	ubeshort    	<10	 	APT cache data, version %u
+>>6	ubeshort    	x		\b.%u, 32 bit big-endian
+>>0	use  		apt-cache-32bit-be
+>4	ubyte	    	>9		APT cache data, version %u
+>>5	ubyte	    	x		\b.%u, big-endian
+>>0	use 		apt-cache-be
+
+0	lelong	    	0x98FE76DC
+>4	uleshort    	<10		APT cache data, version %u
+>>6	uleshort   	x		\b.%u, 32 bit little-endian
+>>0	use 		\^apt-cache-32bit-be
+>4	ubyte	    	>9		APT cache data, version %u
+>>5	ubyte	    	x		\b.%u, little-endian
+>>0	use		\^apt-cache-be

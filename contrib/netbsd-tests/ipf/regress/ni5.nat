@@ -1,0 +1,1 @@
+map ppp0 192.168.1.0/24 -> 1.1.1.1/32 proxy port ftp ftp/tcp

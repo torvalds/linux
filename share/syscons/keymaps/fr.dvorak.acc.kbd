@@ -1,0 +1,149 @@
+# A Dvorak keyboard for French
+#
+# This is a Dvorak-like layout for French
+# according to Francis Leboutte on 
+# http://www.algo.be/ergo/dvorak-fr.html
+#
+# Note that letters with accents won't be correctly
+# displayed unless one uses the correct font:
+#   vidcontrol -f iso15-8x16.fnt
+#
+#   -Frédéric Praca <frederic.praca@freebsd-fr.org>
+#   -Clément Pillias <clement.pillias@free.fr> for accent keys
+#
+# $FreeBSD$
+#                                                         alt
+# scan                       cntrl          alt    alt   cntrl lock
+# code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
+# ------------------------------------------------------------------
+  000   nop    nop    nop    nop    nop    nop    nop    nop     O
+  001   esc    esc    esc    esc    esc    esc    debug  esc     O		 	 	 
+  002	'='    '1'    nop    nop    nop    nop    nop    nop     C
+  003	'/'    '2'    nop    nop    nop    nop    nop    nop     C
+  004	'-'    '3'    nop    nop    nop    nop    nop    nop     C
+  005	'è'    '4'    nop    nop    nop    nop    nop    nop     C
+  006	'\'    '5'    nop    nop    nop    nop    nop    nop     C
+  007	dcir   '6'    nop    nop    nop    nop    nop    nop     C
+  008	'('    '7'    nop    nop    nop    nop    nop    nop     C
+  009	dgra   '8'    nop    nop    nop    nop    nop    nop     C
+  010	')'    '9'    nop    nop    nop    nop    nop    nop     C
+  011	'"'    '0'    nop    nop    nop    nop    nop    nop     C
+  012	'['    '+'    nop    nop    nop    nop    nop    nop     C
+  013	']'    '%'    nop    nop    nop    nop    nop    nop     C
+  014   bs     bs     del    del    bs     bs     del    del     O
+  015   ht     btab   nop    nop    ht     btab   nop    nop     O
+  016	':'    '?'    nop    nop    nop    nop    nop    nop     O
+  017	'''    '<'    nop    nop    nop    nop    nop    nop     C
+  018	'é'    '>'    nop    nop    nop    nop    nop    nop     C
+  019	'g'    'G'    nop    nop    nop    nop    nop    nop     C
+  020	'.'    '!'    nop    nop    nop    nop    nop    nop     O
+  021	'h'    'H'    nop    nop    nop    nop    nop    nop     C
+  022	'v'    'V'    nop    nop    nop    nop    nop    nop     C
+  023	'c'    'C'    nop    nop    nop    nop    nop    nop     C
+  024	'm'    'M'    nop    nop    nop    nop    nop    nop     C
+  025	'k'    'K'    nop    nop    nop    nop    nop    nop     C
+  026	'z'    'Z'    nop    nop    nop    nop    nop    nop     C
+  027	ddia   '&'    nop    nop    nop    nop    nop    nop     O
+  028   cr     cr     nl     nl     cr     cr     nl     nl      O
+  029   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
+  030	'o'    'O'    nop    nop    nop    nop    nop    nop     C
+  031	'a'    'A'    nop    nop    nop    nop    nop    nop     C
+  032	'u'    'U'    nop    nop    nop    nop    nop    nop     C
+  033	'e'    'E'    nop    nop    nop    nop    nop    nop     C
+  034	'b'    'B'    nop    nop    nop    nop    nop    nop     C
+  035	'f'    'F'    nop    nop    nop    nop    nop    nop     C
+  036	's'    'S'    nop    nop    nop    nop    nop    nop     C
+  037	't'    'T'    nop    nop    nop    nop    nop    nop     C
+  038	'n'    'N'    nop    nop    nop    nop    nop    nop     C
+  039	'd'    'D'    nop    nop    nop    nop    nop    nop     C
+  040	'w'    'W'    nop    nop    nop    nop    nop    nop     C
+  041   '_'    '*'    nop    nop    nop    nop    nop    nop     C
+  042   lshift lshift lshift lshift lshift lshift lshift lshift  O
+  043	dtil   '#'    nop    nop    nop    nop    nop    nop     O
+  044	';'    '|'    nop    nop    nop    nop    nop    nop     O
+  045	'q'    'Q'    nop    nop    nop    nop    nop    nop     C
+  046	','    '@'    nop    nop    nop    nop    nop    nop     O
+  047	'i'    'I'    nop    nop    nop    nop    nop    nop     C
+  048	'y'    'Y'    nop    nop    nop    nop    nop    nop     C
+  049	'x'    'X'    nop    nop    nop    nop    nop    nop     C
+  050	'r'    'R'    nop    nop    nop    nop    nop    nop     C
+  051	'l'    'L'    nop    nop    nop    nop    nop    nop     C
+  052	'p'    'P'    nop    nop    nop    nop    nop    nop     C
+  053	'j'    'J'    nop    nop    nop    nop    nop    nop     C
+  054   rshift rshift rshift rshift rshift rshift rshift rshift  O
+  055   '*'    '*'    '*'    '*'    '*'    '*'    '*'    '*'     O
+  056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
+  057   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O
+  058   clock  clock  clock  clock  clock  clock  clock  clock   O
+  059   fkey01 fkey13 fkey25 fkey37 scr01  scr11  scr01  scr11   O
+  060   fkey02 fkey14 fkey26 fkey38 scr02  scr12  scr02  scr12   O
+  061   fkey03 fkey15 fkey27 fkey39 scr03  scr13  scr03  scr13   O
+  062   fkey04 fkey16 fkey28 fkey40 scr04  scr14  scr04  scr14   O
+  063   fkey05 fkey17 fkey29 fkey41 scr05  scr15  scr05  scr15   O
+  064   fkey06 fkey18 fkey30 fkey42 scr06  scr16  scr06  scr16   O
+  065   fkey07 fkey19 fkey31 fkey43 scr07  scr07  scr07  scr07   O
+  066   fkey08 fkey20 fkey32 fkey44 scr08  scr08  scr08  scr08   O
+  067   fkey09 fkey21 fkey33 fkey45 scr09  scr09  scr09  scr09   O
+  068   fkey10 fkey22 fkey34 fkey46 scr10  scr10  scr10  scr10   O
+  069   nlock  nlock  nlock  nlock  nlock  nlock  nlock  nlock   O
+  070   slock  slock  slock  slock  slock  slock  slock  slock   O
+  071   fkey49 '7'    '7'    '7'    '7'    '7'    '7'    '7'     N
+  072   fkey50 '8'    '8'    '8'    '8'    '8'    '8'    '8'     N
+  073   fkey51 '9'    '9'    '9'    '9'    '9'    '9'    '9'     N
+  074   fkey52 '-'    '-'    '-'    '-'    '-'    '-'    '-'     N
+  075   fkey53 '4'    '4'    '4'    '4'    '4'    '4'    '4'     N
+  076   fkey54 '5'    '5'    '5'    '5'    '5'    '5'    '5'     N
+  077   fkey55 '6'    '6'    '6'    '6'    '6'    '6'    '6'     N
+  078   fkey56 '+'    '+'    '+'    '+'    '+'    '+'    '+'     N
+  079   fkey57 '1'    '1'    '1'    '1'    '1'    '1'    '1'     N
+  080   fkey58 '2'    '2'    '2'    '2'    '2'    '2'    '2'     N
+  081   fkey59 '3'    '3'    '3'    '3'    '3'    '3'    '3'     N
+  082   fkey60 '0'    '0'    '0'    '0'    '0'    '0'    '0'     N
+  083   del    '.'    '.'    '.'    '.'    '.'    boot   boot    N
+  084   nop    nop    nop    nop    nop    nop    nop    nop     O
+  085   nop    nop    nop    nop    nop    nop    nop    nop     O
+  086	'à'    'ç'    nop    nop    nop    nop    nop    nop     O
+  087   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O
+  088   fkey12 fkey24 fkey36 fkey48 scr12  scr12  scr12  scr12   O
+  089   cr     cr     nl     nl     cr     cr     nl     nl      O
+  090   rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl   O
+  091   '/'    '/'    '/'    '/'    '/'    '/'    '/'    '/'     O
+  092   nscr   nscr   debug  debug  nop    nop    nop    nop     O
+  093   ralt   ralt   ralt   ralt   ralt   ralt   ralt   ralt    O
+  094   fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49  O
+  095   fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50  O
+  096   fkey51 fkey51 fkey51 fkey51 fkey51 fkey51 fkey51 fkey51  O
+  097   fkey53 fkey53 fkey53 fkey53 fkey53 fkey53 fkey53 fkey53  O
+  098   fkey55 fkey55 fkey55 fkey55 fkey55 fkey55 fkey55 fkey55  O
+  099   fkey57 fkey57 fkey57 fkey57 fkey57 fkey57 fkey57 fkey57  O
+  100   fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58  O
+  101   fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59  O
+  102   fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
+  103	fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 boot   fkey61  O
+  104   slock  saver  slock  saver  susp   nop    susp   nop     O
+  105   fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
+  106   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
+  107   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
+  108   nop    nop    nop    nop    nop    nop    nop    nop     O
+
+  dgra  '`'    ( '/' '±' ) ( '-' '¼' ) ( 'è' '½' ) ( '\' '¾' )
+               ( '?' 'Æ' ) ( 'C' 'Ç' )
+               ( ':' 'æ' ) ( '`' '$' ) ( 'é' 'É' ) ( 'g' 164 )
+                           ( '.' '°' ) ( 'c' 'ç' ) ( 'm' 'µ' )
+               ( 'O' 'Ò' ) ( 'A' 192 ) ( 'U' 'Ù' ) ( 'E' 'È' )
+               ( 'o' 'ò' ) ( 'a' 'à' ) ( 'u' 'ù' ) ( 'e' 'è' )
+                                       ( 's' '«' ) ( 'n' '»' )
+               ( 'ç' 'Ç' ) ( '|' 188 ) ( 'I' 'Ì' )
+               ( 'à' 192 ) ( ';' 189 ) ( 'q' '{' ) ( ',' '}' )
+                           ( 'i' 'ì' ) ( 'r' 'º' ) ( 'p' '§' )
+               ( '!' '¡' )
+  dcir  '^'    ( 'a' 'â' ) ( 'e' 'ê' ) ( 'i' 'î' ) ( 'o' 'ô' ) ( 'u' 'û' )
+               ( 'A' 'Â' ) ( 'E' 'Ê' ) ( 'I' 'Î' ) ( 'O' 'Ô' ) ( 'U' 'Û' )
+  dtil  '~'    ( 'n' 'ñ' ) ( 'N' 'Ñ' )
+               ( 'a' 'ã' ) ( 'A' 'Ã' ) ( 'o' 'õ' ) ( 'O' 'Õ' )
+  ddia  '"'    ( 'a' 'ä' ) ( 'e' 'ë' ) ( 'i' 'ï' ) ( 'o' 'ö' ) ( 'u' 'ü' )
+               ( 'A' 'Ä' ) ( 'E' 'Ë' ) ( 'I' 'Ï' ) ( 'O' 'Ö' ) ( 'U' 'Ü' )
+               ( 'y' 255 ) ( 'Y' 190 )
+  dacu  '´'    ( 'a' 'á' ) ( 'e' 'é' ) ( 'i' 237 ) ( 'o' 'ó') ( 'u' 'ú' )
+               ( 'A' 'Á' ) ( 'E' 'É' ) ( 'I' 'Í' ) ( 'O' 'Ó' ) ( 'U' 'Ú' )
+               ( 'Y' 221 ) ( 'y' 253 )

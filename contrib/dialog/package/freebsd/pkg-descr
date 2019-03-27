@@ -1,0 +1,9 @@
+This is an enhanced version of the 'dialog' command. Quoting Thomas Dickey,
+the ncurses developer, "DIALOG was written by Savio Lam <lam836@cs.cuhk.hk>
+and modified by several people.
+
+"Initially, I made fixes and reviewed the code to ensure that problems
+reported were not related to ncurses. After that, I resumed development,
+adding new widget types. See the changelog for details."
+
+WWW: http://invisible-island.net/dialog/

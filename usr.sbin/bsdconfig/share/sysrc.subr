@@ -1,0 +1,758 @@
+if [ ! "$_SYSRC_SUBR" ]; then _SYSRC_SUBR=1
+#
+# Copyright (c) 2006-2015 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+[ "$_COMMON_SUBR" ] || . $BSDCFG_SHARE/common.subr || exit 1
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+if [ ! "$_SYSRC_JAILED" ]; then
+	f_dprintf "%s: loading includes..." sysrc.subr
+	f_include_lang $BSDCFG_LIBE/include/messages.subr
+fi
+
+############################################################ CONFIGURATION
+
+#
+# Standard pathnames (inherit values from shell if available)
+#
+: ${RC_DEFAULTS:="/etc/defaults/rc.conf"}
+
+############################################################ GLOBALS
+
+#
+# Global exit status variables
+#
+SUCCESS=0
+FAILURE=1
+
+#
+# Valid characters that can appear in an sh(1) variable name
+#
+# Please note that the character ranges A-Z and a-z should be avoided because
+# these can include accent characters (which are not valid in a variable name).
+# For example, A-Z matches any character that sorts after A but before Z,
+# including A and Z. Although ASCII order would make more sense, that is not
+# how it works.
+#
+VALID_VARNAME_CHARS="0-9ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
+
+############################################################ FUNCTIONS
+
+# f_clean_env [ --except $varname ... ]
+#
+# Unset all environment variables in the current scope. An optional list of
+# arguments can be passed, indicating which variables to avoid unsetting; the
+# `--except' is required to enable the exclusion-list as the remainder of
+# positional arguments.
+#
+# Be careful not to call this in a shell that you still expect to perform
+# $PATH expansion in, because this will blow $PATH away. This is best used
+# within a sub-shell block "(...)" or "$(...)" or "`...`".
+#
+f_clean_env()
+{
+	local var arg except=
+
+	#
+	# Should we process an exclusion-list?
+	#
+	if [ "$1" = "--except" ]; then
+		except=1
+		shift 1
+	fi
+
+	#
+	# Loop over a list of variable names from set(1) built-in.
+	#
+	for var in $( set | awk -F= \
+		'/^[[:alpha:]_][[:alnum:]_]*=/ {print $1}' \
+		| grep -v '^except$'
+	); do
+		#
+		# In POSIX bourne-shell, attempting to unset(1) OPTIND results
+		# in "unset: Illegal number:" and causes abrupt termination.
+		#
+		[ "$var" = OPTIND ] && continue
+
+		#
+		# Process the exclusion-list?
+		#
+		if [ "$except" ]; then
+			for arg in "$@" ""; do
+				[ "$var" = "$arg" ] && break
+			done
+			[ "$arg" ] && continue
+		fi
+
+		unset "$var"
+	done
+}
+
+# f_sysrc_get $varname
+#
+# Get a system configuration setting from the collection of system-
+# configuration files (in order: /etc/defaults/rc.conf /etc/rc.conf and
+# /etc/rc.conf.local)
+#
+# NOTE: Additional shell parameter-expansion formats are supported. For
+# example, passing an argument of "hostname%%.*" (properly quoted) will
+# return the hostname up to (but not including) the first `.' (see sh(1),
+# "Parameter Expansion" for more information on additional formats).
+#
+f_sysrc_get()
+{
+	# Sanity check
+	[ -f "$RC_DEFAULTS" -a -r "$RC_DEFAULTS" ] || return $FAILURE
+
+	# Taint-check variable name
+	case "$1" in
+	[0-9]*)
+		# Don't expand possible positional parameters
+		return $FAILURE ;;
+	*)
+		[ "$1" ] || return $FAILURE
+	esac
+
+	( # Execute within sub-shell to protect parent environment
+
+		#
+		# Clear the environment of all variables, preventing the
+		# expansion of normals such as `PS1', `TERM', etc.
+		#
+		f_clean_env --except IFS RC_CONFS RC_DEFAULTS
+
+		. "$RC_DEFAULTS" > /dev/null 2>&1
+
+		unset RC_DEFAULTS
+			# no longer needed
+
+		#
+		# If the query is for `rc_conf_files' then store the value that
+		# we inherited from sourcing RC_DEFAULTS (above) so that we may
+		# conditionally restore this value after source_rc_confs in the
+		# event that RC_CONFS does not customize the value.
+		#
+		if [ "$1" = "rc_conf_files" ]; then
+			_rc_conf_files="$rc_conf_files"
+		fi
+
+		#
+		# If RC_CONFS is defined, set $rc_conf_files to an explicit
+		# value, modifying the default behavior of source_rc_confs().
+		#
+		if [ "${RC_CONFS+set}" ]; then
+			rc_conf_files="$RC_CONFS"
+			_rc_confs_set=1
+		fi
+
+		source_rc_confs > /dev/null 2>&1
+
+		#
+		# If the query was for `rc_conf_files' AND after calling
+		# source_rc_confs the value has not changed, then we should
+		# restore the value to the one inherited from RC_DEFAULTS
+		# before performing the final query (preventing us from
+		# returning what was set via RC_CONFS when the intent was
+		# instead to query the value from the file(s) specified).
+		#
+		if [ "$1" = "rc_conf_files" -a \
+		     "$_rc_confs_set" -a \
+		     "$rc_conf_files" = "$RC_CONFS" \
+		]; then
+			rc_conf_files="$_rc_conf_files"
+			unset _rc_conf_files
+			unset _rc_confs_set
+		fi
+
+		unset RC_CONFS
+			# no longer needed
+
+		#
+		# This must be the last functional line for both the sub-shell
+		# and the function to preserve the return status from formats
+		# such as "${varname?}" and "${varname:?}" (see "Parameter
+		# Expansion" in sh(1) for more information).
+		#
+		eval printf "'%s\\n'" '"${'"$1"'}"' 2> /dev/null
+	)
+}
+
+# f_sysrc_service_configs [-a|-p] $name [$var_to_set]
+#
+# Get a list of optional `rc.conf.d' entries sourced by system `rc.d' script
+# $name (see rc.subr(8) for additional information on `rc.conf.d'). If $name
+# exists in `/etc/rc.d' or $local_startup directories and is an rc(8) script
+# the result is a space separated list of `rc.conf.d' entries sourced by the
+# $name `rc.d' script. Otherwise, if $name exists as a binary `rc.d' script,
+# the result is ``/etc/rc.conf.d/$name /usr/local/etc/rc.conf.d/$name''. The
+# result is NULL if $name does not exist.
+#
+# If $var_to_set is missing or NULL, output is to standard out. Returns success
+# if $name was found, failure otherwise.
+#
+# If `-a' flag is given and $var_to_set is non-NULL, append result to value of
+# $var_to_set rather than overwriting current contents.
+#
+# If `-p' flag is given and $var_to_set is non-NULL, prepend result to value of
+# $var_to_set rather than overwriting current contents.
+#
+# NB: The `-a' and `-p' option flags are mutually exclusive.
+#
+f_sysrc_service_configs()
+{
+	local OPTIND=1 OPTARG __flag __append= __prepend=
+	local __local_startup __dir __spath __stype __names=
+
+	while getopts ap __flag; do
+		case "$__flag" in
+		a) __append=1 __prepend= ;;
+		p) __prepend=1 __append= ;;
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+
+	[ $# -gt 0 ] || return $FAILURE
+	local __sname="$1" __var_to_set="$2"
+
+	__local_startup=$( f_sysrc_get local_startup )
+	for __dir in /etc/rc.d $__local_startup; do
+		__spath="$__dir/$__sname"
+		[ -f "$__spath" -a -x "$__spath" ] || __spath= continue
+		break
+	done
+	[ "$__spath" ] || return $FAILURE
+
+	__stype=$( file -b "$__spath" 2> /dev/null )
+	case "$__stype" in
+	*"shell script"*)
+		__names=$( exec 9<&1 1>&- 2>&-
+			last_name=
+			print_name() {
+				local name="$1"
+				case "$name" in
+				""|.|..|*/*|"$last_name") return ;;
+				esac
+				echo "$name" >&9
+				last_name="$name"
+			}
+			eval "$( awk '{
+				gsub(/load_rc_config /, "print_name ")
+				gsub(/run_rc_command /, ": ")
+				print
+			}' "$__spath" )"
+		) ;;
+	*)
+		__names="$__sname"
+	esac
+
+	local __name __test_path __configs=
+	for __name in $__names; do
+		for __dir in /etc/rc.d $__local_startup; do
+			__test_path="${__dir%/rc.d}/rc.conf.d/$__name"
+			[ -d "$__test_path" ] ||
+				__configs="$__configs $__test_path" continue
+			for __test_path in "$__test_path"/*; do
+				[ -f "$__test_path" ] || continue
+				__configs="$__configs $__test_path"
+			done	
+		done
+	done
+	__configs="${__configs# }"
+
+	if [ "$__var_to_set" ]; then
+		local __cur=
+		[ "$__append" -o "$__prepend" ] &&
+			f_getvar "$__var_to_set" __cur
+		[ "$__append"  ] && __configs="$__cur{$__cur:+ }$__configs"
+		[ "$__prepend" ] && __configs="$__configs${__cur:+ }$__cur"
+		setvar "$__var_to_set" "$__configs"
+	else
+		echo "$__configs"
+	fi
+
+	return $SUCCESS
+}
+
+# f_sysrc_get_default $varname
+#
+# Get a system configuration default setting from the default rc.conf(5) file
+# (or whatever RC_DEFAULTS points at).
+#
+f_sysrc_get_default()
+{
+	# Sanity check
+	[ -f "$RC_DEFAULTS" -a -r "$RC_DEFAULTS" ] || return $FAILURE
+
+	# Taint-check variable name
+	case "$1" in
+	[0-9]*)
+		# Don't expand possible positional parameters
+		return $FAILURE ;;
+	*)
+		[ "$1" ] || return $FAILURE
+	esac
+
+	( # Execute within sub-shell to protect parent environment
+
+		#
+		# Clear the environment of all variables, preventing the
+		# expansion of normals such as `PS1', `TERM', etc.
+		#
+		f_clean_env --except RC_DEFAULTS
+
+		. "$RC_DEFAULTS" > /dev/null 2>&1
+
+		unset RC_DEFAULTS
+			# no longer needed
+
+		#
+		# This must be the last functional line for both the sub-shell
+		# and the function to preserve the return status from formats
+		# such as "${varname?}" and "${varname:?}" (see "Parameter
+		# Expansion" in sh(1) for more information).
+		#
+		eval printf "'%s\\n'" '"${'"$1"'}"' 2> /dev/null
+	)
+}
+
+# f_sysrc_find $varname
+#
+# Find which file holds the effective last-assignment to a given variable
+# within the rc.conf(5) file(s).
+#
+# If the variable is found in any of the rc.conf(5) files, the function prints
+# the filename it was found in and then returns success. Otherwise output is
+# NULL and the function returns with error status.
+#
+f_sysrc_find()
+{
+	local varname="${1%%[!$VALID_VARNAME_CHARS]*}"
+	local regex="^[[:space:]]*$varname="
+	local rc_conf_files="$( f_sysrc_get rc_conf_files )"
+	local conf_files=
+	local file
+
+	# Check parameters
+	case "$varname" in
+	""|[0-9]*) return $FAILURE
+	esac
+
+	#
+	# If RC_CONFS is defined, set $rc_conf_files to an explicit
+	# value, modifying the default behavior of source_rc_confs().
+	#
+	[ "${RC_CONFS+set}" ] && rc_conf_files="$RC_CONFS"
+
+	#
+	# Reverse the order of files in rc_conf_files (the boot process sources
+	# these in order, so we will search them in reverse-order to find the
+	# last-assignment -- the one that ultimately effects the environment).
+	#
+	for file in $rc_conf_files; do
+		conf_files="$file${conf_files:+ }$conf_files"
+	done
+
+	#
+	# Append the defaults file (since directives in the defaults file
+	# indeed affect the boot process, we'll want to know when a directive
+	# is found there).
+	#
+	conf_files="$conf_files${conf_files:+ }$RC_DEFAULTS"
+
+	#
+	# Find which file matches assignment to the given variable name.
+	#
+	for file in $conf_files; do
+		[ -f "$file" -a -r "$file" ] || continue
+		if grep -Eq "$regex" $file; then
+			echo $file
+			return $SUCCESS
+		fi
+	done
+
+	return $FAILURE # Not found
+}
+
+# f_sysrc_desc $varname
+#
+# Attempts to return the comments associated with varname from the rc.conf(5)
+# defaults file `/etc/defaults/rc.conf' (or whatever RC_DEFAULTS points to).
+#
+# Multi-line comments are joined together. Results are NULL if no description
+# could be found.
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_sysrc_desc_awk='
+# Variables that should be defined on the invocation line:
+# 	-v varname="varname"
+#
+BEGIN {
+	regex = "^[[:space:]]*"varname"="
+	found = 0
+	buffer = ""
+}
+{
+	if ( ! found )
+	{
+		if ( ! match($0, regex) ) next
+
+		found = 1
+		sub(/^[^#]*(#[[:space:]]*)?/, "")
+		buffer = $0
+		next
+	}
+
+	if ( !/^[[:space:]]*#/ ||
+	      /^[[:space:]]*[[:alpha:]_][[:alnum:]_]*=/ ||
+	      /^[[:space:]]*#[[:alpha:]_][[:alnum:]_]*=/ ||
+	      /^[[:space:]]*$/ ) exit
+
+	sub(/(.*#)*[[:space:]]*/, "")
+	buffer = buffer" "$0
+}
+END {
+	# Clean up the buffer
+	sub(/^[[:space:]]*/, "", buffer)
+	sub(/[[:space:]]*$/, "", buffer)
+
+	print buffer
+	exit ! found
+}
+'
+f_sysrc_desc()
+{
+	awk -v varname="$1" "$f_sysrc_desc_awk" < "$RC_DEFAULTS"
+}
+
+# f_sysrc_set $varname $new_value
+#
+# Change a setting in the system configuration files (edits the files in-place
+# to change the value in the last assignment to the variable). If the variable
+# does not appear in the source file, it is appended to the end of the primary
+# system configuration file `/etc/rc.conf'.
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_sysrc_set_awk='
+# Variables that should be defined on the invocation line:
+# 	-v varname="varname"
+# 	-v new_value="new_value"
+#
+BEGIN {
+	regex = "^[[:space:]]*"varname"="
+	found = retval = 0
+}
+{
+	# If already found... just spew
+	if ( found ) { print; next }
+
+	# Does this line match an assignment to our variable?
+	if ( ! match($0, regex) ) { print; next }
+
+	# Save important match information
+	found = 1
+	matchlen = RSTART + RLENGTH - 1
+
+	# Store the value text for later munging
+	value = substr($0, matchlen + 1, length($0) - matchlen)
+
+	# Store the first character of the value
+	t1 = t2 = substr(value, 0, 1)
+
+	# Assignment w/ back-ticks, expression, or misc.
+	# We ignore these since we did not generate them
+	#
+	if ( t1 ~ /[`$\\]/ ) { retval = 1; print; next }
+
+	# Assignment w/ single-quoted value
+	else if ( t1 == "'\''" ) {
+		sub(/^'\''[^'\'']*/, "", value)
+		if ( length(value) == 0 ) t2 = ""
+		sub(/^'\''/, "", value)
+	}
+
+	# Assignment w/ double-quoted value
+	else if ( t1 == "\"" ) {
+		sub(/^"(.*\\\\+")*[^"]*/, "", value)
+		if ( length(value) == 0 ) t2 = ""
+		sub(/^"/, "", value)
+	}
+
+	# Assignment w/ non-quoted value
+	else if ( t1 ~ /[^[:space:];]/ ) {
+		t1 = t2 = "\""
+		sub(/^[^[:space:]]*/, "", value)
+	}
+
+	# Null-assignment
+	else if ( t1 ~ /[[:space:];]/ ) { t1 = t2 = "\"" }
+
+	printf "%s%c%s%c%s\n", substr($0, 0, matchlen), \
+		t1, new_value, t2, value
+}
+END { exit retval }
+'
+f_sysrc_set()
+{
+	local funcname=f_sysrc_set
+	local varname="$1" new_value="$2"
+
+	# Check arguments
+	[ "$varname" ] || return $FAILURE
+
+	#
+	# Find which rc.conf(5) file contains the last-assignment
+	#
+	local not_found=
+	local file="$( f_sysrc_find "$varname" )"
+	if [ "$file" = "$RC_DEFAULTS" -o ! "$file" ]; then
+		#
+		# We either got a null response (not found) or the variable
+		# was only found in the rc.conf(5) defaults. In either case,
+		# let's instead modify the first file from $rc_conf_files.
+		#
+
+		not_found=1
+
+		#
+		# If RC_CONFS is defined, use $RC_CONFS
+		# rather than $rc_conf_files.
+		#
+		if [ "${RC_CONFS+set}" ]; then
+			file="${RC_CONFS%%[$IFS]*}"
+		else
+			file=$( f_sysrc_get 'rc_conf_files%%[$IFS]*' )
+		fi
+	fi
+
+	#
+	# If not found, append new value to first file and return.
+	#
+	if [ "$not_found" ]; then
+		# Add a newline if missing before appending to the file
+		awk 'BEGIN { wc = 0 } NR == 1 {
+			(cmd = "wc -l " FILENAME) | getline
+			close(cmd)
+			wc = $1
+		} END { exit wc != NR }' "$file" ||
+			echo >> "$file" || return $?
+		echo "$varname=\"$new_value\"" >> "$file"
+		return $?
+	fi
+
+	#
+	# Perform sanity checks.
+	#
+	if [ ! -w "$file" ]; then
+		f_err "$msg_cannot_create_permission_denied\n" \
+		      "$pgm" "$file"
+		return $FAILURE
+	fi
+
+	#
+	# Create a new temporary file to write to.
+	#
+	local tmpfile
+	if ! f_eval_catch -dk tmpfile $funcname mktemp 'mktemp -t "%s"' "$pgm"
+	then
+		echo "$tmpfile" >&2
+		return $FAILURE
+	fi
+
+	#
+	# Fixup permissions (else we're in for a surprise, as mktemp(1) creates
+	# the temporary file with 0600 permissions, and if we simply mv(1) the
+	# temporary file over the destination, the destination will inherit the
+	# permissions from the temporary file).
+	#
+	local mode
+	f_eval_catch -dk mode $funcname stat 'stat -f "%%#Lp" "%s"' "$file" ||
+		mode=0644
+	f_eval_catch -d $funcname chmod 'chmod "%s" "%s"' "$mode" "$tmpfile"
+
+	#
+	# Fixup ownership. The destination file _is_ writable (we tested
+	# earlier above). However, this will fail if we don't have sufficient
+	# permissions (so we throw stderr into the bit-bucket).
+	#
+	local owner
+	f_eval_catch -dk owner $funcname stat \
+		'stat -f "%%u:%%g" "%s"' "$file" || owner="root:wheel"
+	f_eval_catch -d $funcname chown 'chown "%s" "%s"' "$owner" "$tmpfile"
+
+	#
+	# Operate on the matching file, replacing only the last occurrence.
+	#
+	# Use awk to ensure LF at end of each line, else files without ending
+	# LF will trigger a bug in `tail -r' where last two lines are joined.
+	#
+	local new_contents retval
+	new_contents=$( awk 1 "$file" 2> /dev/null | tail -r )
+	new_contents=$( echo "$new_contents" | awk -v varname="$varname" \
+		-v new_value="$new_value" "$f_sysrc_set_awk" )
+	retval=$?
+
+	#
+	# Write the temporary file contents.
+	#
+	echo "$new_contents" | tail -r > "$tmpfile" || return $FAILURE
+	if [ $retval -ne $SUCCESS ]; then
+		echo "$varname=\"$new_value\"" >> "$tmpfile"
+	fi
+
+	#
+	# Taint-check our results.
+	#
+	if ! f_eval_catch -d $funcname sh '/bin/sh -n "%s"' "$tmpfile"; then
+		f_err "$msg_previous_syntax_errors\n" "$pgm" "$file"
+		rm -f "$tmpfile"
+		return $FAILURE
+	fi
+
+	#
+	# Finally, move the temporary file into place.
+	#
+	f_eval_catch -de $funcname mv 'mv "%s" "%s"' "$tmpfile" "$file"
+}
+
+# f_sysrc_delete $varname
+#
+# Remove a setting from the system configuration files (edits files in-place).
+# Deletes all assignments to the given variable in all config files. If the
+# `-f file' option is passed, the removal is restricted to only those files
+# specified, otherwise the system collection of rc_conf_files is used.
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_sysrc_delete_awk='
+# Variables that should be defined on the invocation line:
+# 	-v varname="varname"
+#
+BEGIN {
+	regex = "^[[:space:]]*"varname"="
+	found = 0
+}
+{
+	if ( $0 ~ regex )
+		found = 1
+	else
+		print
+}
+END { exit ! found }
+'
+f_sysrc_delete()
+{
+	local funcname=f_sysrc_delete
+	local varname="$1"
+	local file
+
+	# Check arguments
+	[ "$varname" ] || return $FAILURE
+
+	#
+	# Operate on each of the specified files
+	#
+	local tmpfile
+	for file in ${RC_CONFS-$( f_sysrc_get rc_conf_files )}; do
+		[ -e "$file" ] || continue
+
+		#
+		# Create a new temporary file to write to.
+		#
+		if ! f_eval_catch -dk tmpfile $funcname mktemp \
+			'mktemp -t "%s"' "$pgm"
+		then
+			echo "$tmpfile" >&2
+			return $FAILURE
+		fi
+
+		#
+		# Fixup permissions and ownership (mktemp(1) defaults to 0600
+		# permissions) to instead match the destination file.
+		#
+		local mode owner
+		f_eval_catch -dk mode $funcname stat \
+			'stat -f "%%#Lp" "%s"' "$file" || mode=0644
+		f_eval_catch -dk owner $funcname stat \
+			'stat -f "%%u:%%g" "%s"' "$file" || owner="root:wheel"
+		f_eval_catch -d $funcname chmod \
+			'chmod "%s" "%s"' "$mode" "$tmpfile"
+		f_eval_catch -d $funcname chown \
+			'chown "%s" "%s"' "$owner" "$tmpfile"
+
+		#
+		# Operate on the file, removing all occurrences, saving the
+		# output in our temporary file.
+		#
+		awk -v varname="$varname" "$f_sysrc_delete_awk" "$file" \
+			> "$tmpfile"
+		if [ $? -ne $SUCCESS ]; then
+			# The file didn't contain any assignments
+			rm -f "$tmpfile"
+			continue
+		fi
+
+		#
+		# Taint-check our results.
+		#
+		if ! f_eval_catch -d $funcname sh '/bin/sh -n "%s"' "$tmpfile"
+		then
+			f_err "$msg_previous_syntax_errors\n" \
+			      "$pgm" "$file"
+			rm -f "$tmpfile"
+			return $FAILURE
+		fi
+
+		#
+		# Perform sanity checks
+		#
+		if [ ! -w "$file" ]; then
+			f_err "$msg_permission_denied\n" "$pgm" "$file"
+			rm -f "$tmpfile"
+			return $FAILURE
+		fi
+
+		#
+		# Finally, move the temporary file into place.
+		#
+		f_eval_catch -de $funcname mv \
+			'mv "%s" "%s"' "$tmpfile" "$file" || return $FAILURE
+	done
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." sysrc.subr
+
+fi # ! $_SYSRC_SUBR

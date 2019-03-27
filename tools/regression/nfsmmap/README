@@ -1,0 +1,21 @@
+$FreeBSD$
+These tests are intended to make sure that NFS's use of the
+b_{valid,dirty}{off,end} fields of struct buf is consistent with the
+VM system's use of the underlying VM pages.
+
+Test1:
+	Open the file and write into the file, creating a buf
+	with a valid range and a dirty range
+
+	Fsync, flushing the dirty range
+
+	Mmap and read the whole page.  Since only part of the page is
+	valid, the VM system must re-read the invalid parts of the
+	page.
+
+Test2:
+	This is the same as test1 without the fsync.  The VM system
+	should first write out the dirty range and then read the rest
+	of the page.  This is currently broken since the vnode_pager
+	doesn't use the original buf for its i/o and therefore the
+	information in b_dirtyoff, b_dirtyend is not available.

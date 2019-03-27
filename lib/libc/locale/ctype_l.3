@@ -1,0 +1,151 @@
+.\" Copyright (c) 2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written by David Chisnall under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 6, 2012
+.Dt CTYPE_L 3
+.Os
+.Sh NAME
+.Nm digittoint_l ,
+.Nm isalnum_l ,
+.Nm isalpha_l ,
+.Nm isascii_l ,
+.Nm isblank_l ,
+.Nm iscntrl_l ,
+.Nm isdigit_l ,
+.Nm isgraph_l ,
+.Nm ishexnumber_l ,
+.Nm isideogram_l ,
+.Nm islower_l ,
+.Nm isnumber_l ,
+.Nm isphonogram_l ,
+.Nm isprint_l ,
+.Nm ispunct_l ,
+.Nm isrune_l ,
+.Nm isspace_l ,
+.Nm isspecial_l ,
+.Nm isupper_l ,
+.Nm isxdigit_l ,
+.Nm tolower_l ,
+.Nm toupper_l
+.Nd character classification functions
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In ctype.h
+.Ft int
+.Fn digittoint_l "int c" "locale_t loc"
+.Ft int
+.Fn isalnum_l "int c" "locale_t loc"
+.Ft int
+.Fn isalpha_l "int c" "locale_t loc"
+.Ft int
+.Fn isascii_l "int c" "locale_t loc"
+.Ft int
+.Fn iscntrl_l "int c" "locale_t loc"
+.Ft int
+.Fn isdigit_l "int c" "locale_t loc"
+.Ft int
+.Fn isgraph_l "int c" "locale_t loc"
+.Ft int
+.Fn ishexnumber_l "int c" "locale_t loc"
+.Ft int
+.Fn isideogram_l "int c" "locale_t loc"
+.Ft int
+.Fn islower_l "int c" "locale_t loc"
+.Ft int
+.Fn isnumber_l "int c" "locale_t loc"
+.Ft int
+.Fn isphonogram_l "int c" "locale_t loc"
+.Ft int
+.Fn isspecial_l "int c" "locale_t loc"
+.Ft int
+.Fn isprint_l "int c" "locale_t loc"
+.Ft int
+.Fn ispunct_l "int c" "locale_t loc"
+.Ft int
+.Fn isrune_l "int c" "locale_t loc"
+.Ft int
+.Fn isspace_l "int c" "locale_t loc"
+.Ft int
+.Fn isupper_l "int c" "locale_t loc"
+.Ft int
+.Fn isxdigit_l "int c" "locale_t loc"
+.Ft int
+.Fn tolower_l "int c" "locale_t loc"
+.Ft int
+.Fn toupper_l "int c" "locale_t loc"
+.Sh DESCRIPTION
+The above functions perform character tests and conversions on the integer
+.Fa c
+in the locale
+.Fa loc .
+They behave in the same way as the versions without the _l suffix, but use the
+specified locale rather than the global or per-thread locale.
+.In ctype.h ,
+or as true functions in the C library.
+See the specific manual pages for more information.
+.Sh SEE ALSO
+.Xr digittoint 3 ,
+.Xr isalnum 3 ,
+.Xr isalpha 3 ,
+.Xr isascii 3 ,
+.Xr isblank 3 ,
+.Xr iscntrl 3 ,
+.Xr isdigit 3 ,
+.Xr isgraph 3 ,
+.Xr isideogram 3 ,
+.Xr islower 3 ,
+.Xr isphonogram 3 ,
+.Xr isprint 3 ,
+.Xr ispunct 3 ,
+.Xr isrune 3 ,
+.Xr isspace 3 ,
+.Xr isspecial 3 ,
+.Xr isupper 3 ,
+.Xr isxdigit 3 ,
+.Xr tolower 3 ,
+.Xr toupper 3 ,
+.Xr wctype 3 ,
+.Xr xlocale 3
+.Sh STANDARDS
+These functions conform to
+.St -p1003.1-2008 ,
+except for
+.Fn digittoint_l ,
+.Fn isascii_l ,
+.Fn ishexnumber_l ,
+.Fn isideogram_l ,
+.Fn isnumber_l ,
+.Fn isphonogram_l ,
+.Fn isrune_l
+and
+.Fn isspecial_l
+which are
+.Fx
+extensions.

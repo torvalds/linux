@@ -1,0 +1,109 @@
+// BuiltinsWebAssembly.def - WebAssembly builtin function database -*- C++ -*-//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file defines the WebAssembly-specific builtin function database.
+/// Users of this file must define the BUILTIN macro to make use of this
+/// information.
+///
+//===----------------------------------------------------------------------===//
+
+// The format of this database matches clang/Basic/Builtins.def.
+
+#if defined(BUILTIN) && !defined(TARGET_BUILTIN)
+#   define TARGET_BUILTIN(ID, TYPE, ATTRS, FEATURE) BUILTIN(ID, TYPE, ATTRS)
+#endif
+
+// Query the current memory size, and increase the current memory size.
+// Note that memory.size is not "c" (readnone) because it must be sequenced
+// with respect to memory.grow calls.
+BUILTIN(__builtin_wasm_memory_size, "zIi", "n")
+BUILTIN(__builtin_wasm_memory_grow, "zIiz", "n")
+
+// Floating point min/max
+BUILTIN(__builtin_wasm_min_f32, "fff", "nc")
+BUILTIN(__builtin_wasm_max_f32, "fff", "nc")
+BUILTIN(__builtin_wasm_min_f64, "ddd", "nc")
+BUILTIN(__builtin_wasm_max_f64, "ddd", "nc")
+
+// Exception handling builtins.
+TARGET_BUILTIN(__builtin_wasm_throw, "vUiv*", "r", "exception-handling")
+TARGET_BUILTIN(__builtin_wasm_rethrow, "v", "r", "exception-handling")
+
+// Atomic wait and notify.
+BUILTIN(__builtin_wasm_atomic_wait_i32, "ii*iLLi", "n")
+BUILTIN(__builtin_wasm_atomic_wait_i64, "iLLi*LLiLLi", "n")
+BUILTIN(__builtin_wasm_atomic_notify, "Uii*Ui", "n")
+
+// Saturating fp-to-int conversions
+TARGET_BUILTIN(__builtin_wasm_trunc_saturate_s_i32_f32, "if", "nc", "nontrapping-fptoint")
+TARGET_BUILTIN(__builtin_wasm_trunc_saturate_u_i32_f32, "if", "nc", "nontrapping-fptoint")
+TARGET_BUILTIN(__builtin_wasm_trunc_saturate_s_i32_f64, "id", "nc", "nontrapping-fptoint")
+TARGET_BUILTIN(__builtin_wasm_trunc_saturate_u_i32_f64, "id", "nc", "nontrapping-fptoint")
+TARGET_BUILTIN(__builtin_wasm_trunc_saturate_s_i64_f32, "LLif", "nc", "nontrapping-fptoint")
+TARGET_BUILTIN(__builtin_wasm_trunc_saturate_u_i64_f32, "LLif", "nc", "nontrapping-fptoint")
+TARGET_BUILTIN(__builtin_wasm_trunc_saturate_s_i64_f64, "LLid", "nc", "nontrapping-fptoint")
+TARGET_BUILTIN(__builtin_wasm_trunc_saturate_u_i64_f64, "LLid", "nc", "nontrapping-fptoint")
+
+// SIMD builtins
+TARGET_BUILTIN(__builtin_wasm_extract_lane_s_i8x16, "iV16cIi", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_extract_lane_u_i8x16, "iV16cIi", "nc", "unimplemented-simd128")
+TARGET_BUILTIN(__builtin_wasm_extract_lane_s_i16x8, "iV8sIi", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_extract_lane_u_i16x8, "iV8sIi", "nc", "unimplemented-simd128")
+TARGET_BUILTIN(__builtin_wasm_extract_lane_i32x4, "iV4iIi", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_extract_lane_i64x2, "LLiV2LLiIi", "nc", "unimplemented-simd128")
+TARGET_BUILTIN(__builtin_wasm_extract_lane_f32x4, "fV4fIi", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_extract_lane_f64x2, "dV2dIi", "nc", "unimplemented-simd128")
+
+TARGET_BUILTIN(__builtin_wasm_replace_lane_i8x16, "V16cV16cIii", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_replace_lane_i16x8, "V8sV8sIii", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_replace_lane_i32x4, "V4iV4iIii", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_replace_lane_i64x2, "V2LLiV2LLiIiLLi", "nc", "unimplemented-simd128")
+TARGET_BUILTIN(__builtin_wasm_replace_lane_f32x4, "V4fV4fIif", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_replace_lane_f64x2, "V2dV2dIid", "nc", "unimplemented-simd128")
+
+TARGET_BUILTIN(__builtin_wasm_add_saturate_s_i8x16, "V16cV16cV16c", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_add_saturate_u_i8x16, "V16cV16cV16c", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_add_saturate_s_i16x8, "V8sV8sV8s", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_add_saturate_u_i16x8, "V8sV8sV8s", "nc", "simd128")
+
+TARGET_BUILTIN(__builtin_wasm_sub_saturate_s_i8x16, "V16cV16cV16c", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_sub_saturate_u_i8x16, "V16cV16cV16c", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_sub_saturate_s_i16x8, "V8sV8sV8s", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_sub_saturate_u_i16x8, "V8sV8sV8s", "nc", "simd128")
+
+TARGET_BUILTIN(__builtin_wasm_bitselect, "V4iV4iV4iV4i", "nc", "simd128")
+
+TARGET_BUILTIN(__builtin_wasm_any_true_i8x16, "iV16c", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_any_true_i16x8, "iV8s", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_any_true_i32x4, "iV4i", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_any_true_i64x2, "iV2LLi", "nc", "unimplemented-simd128")
+TARGET_BUILTIN(__builtin_wasm_all_true_i8x16, "iV16c", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_all_true_i16x8, "iV8s", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_all_true_i32x4, "iV4i", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_all_true_i64x2, "iV2LLi", "nc", "unimplemented-simd128")
+
+TARGET_BUILTIN(__builtin_wasm_abs_f32x4, "V4fV4f", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_abs_f64x2, "V2dV2d", "nc", "unimplemented-simd128")
+
+TARGET_BUILTIN(__builtin_wasm_min_f32x4, "V4fV4fV4f", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_max_f32x4, "V4fV4fV4f", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_min_f64x2, "V2dV2dV2d", "nc", "unimplemented-simd128")
+TARGET_BUILTIN(__builtin_wasm_max_f64x2, "V2dV2dV2d", "nc", "unimplemented-simd128")
+
+TARGET_BUILTIN(__builtin_wasm_sqrt_f32x4, "V4fV4f", "nc", "unimplemented-simd128")
+TARGET_BUILTIN(__builtin_wasm_sqrt_f64x2, "V2dV2d", "nc", "unimplemented-simd128")
+
+TARGET_BUILTIN(__builtin_wasm_trunc_saturate_s_i32x4_f32x4, "V4iV4f", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_trunc_saturate_u_i32x4_f32x4, "V4iV4f", "nc", "simd128")
+TARGET_BUILTIN(__builtin_wasm_trunc_saturate_s_i64x2_f64x2, "V2LLiV2d", "nc", "unimplemented-simd128")
+TARGET_BUILTIN(__builtin_wasm_trunc_saturate_u_i64x2_f64x2, "V2LLiV2d", "nc", "unimplemented-simd128")
+
+#undef BUILTIN
+#undef TARGET_BUILTIN

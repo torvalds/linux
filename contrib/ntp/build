@@ -1,0 +1,204 @@
+#! /bin/sh
+
+LOGF=make.log
+IAM=`hostname || uname -n`
+MYNAME=`IFS=. ; set $IAM ; echo $1`
+SIG=
+
+case "$1" in
+ 0.*)
+    SIG=$1
+    shift
+    CONFIG_ARGS="$@"
+    KEY=`sed -e q < .buildkey-$MYNAME`
+    case "$SIG" in
+     $KEY) ;;
+     *)
+	echo "Wrong directory for build on host $IAM"
+	echo "This is <`pwd`>"
+	echo "SIG is <$SIG>"
+	echo "KEY is <$KEY>"
+	exit 1
+	;;
+    esac
+    ;;
+ *)
+    CONFIG_ARGS="$@"
+    ;;
+esac
+
+#set -e
+#set -x
+
+if [ ! -r sntp/libevent/build-aux/config.guess ] ; then
+	echo "Error: bootstrap required." 1>&2 && exit 1
+fi
+
+# sntp/scripts/cvo.sh invokes config.guess, and we want it to use the copy
+# in the build-aux directory if there's not another config.guess earlier
+# on the path, so we invoke it using env to append to the PATH.
+
+CVO=`env PATH="$PATH:./sntp/libevent/build-aux" sntp/scripts/cvo.sh @cvo@`
+case "$CVO" in
+ *-*-*-*) echo "sntp/scripts/cvo.sh returned <$CVO>, which makes no sense to me."
+    exit 1
+    ;;
+ *-*-*) ;;
+ *) echo "sntp/scripts/cvo.sh returned <$CVO>, which makes no sense to me."
+    exit 1
+    ;;
+esac
+
+case "$NTP_BDIR" in
+ '')
+    case "$IAM" in
+     *.ntp.org | *.ntfo.org)
+	NTP_BDIR=host
+	;;
+     *.udel.edu)
+	NTP_BDIR=host
+	# HMS: --enable-local-libopts is the default now...
+	#CONFIG_ARGS="$CONFIG_ARGS --enable-local-libopts"
+	case "$CVO" in
+	 *-*-ultrix*)
+	    CONFIG_ARGS="$CONFIG_ARGS --with-libregex=/usr/local"
+	    ;;
+	esac
+	;;
+     *)
+	NTP_BDIR=cvo
+	;;
+     esac
+     ;;
+esac
+
+case "$NTP_BDIR" in
+ host) 
+    BASEDIR=A.$MYNAME
+    ;;
+ cvo)
+    BASEDIR=A.$CVO
+    ;;
+ *)
+    echo "build: NTP_BDIR must be either 'cvo' or 'host'!" 1>&2
+    exit 1
+    ;;
+esac
+
+KEYSUF=""
+
+case "$CONFIG_ARGS" in
+ *--with-crypto=autokey*)
+    KEYSUF="-autokey"
+    ;;
+ *--without-crypto*)
+    KEYSUF="-noopenssl"
+    ;;
+esac
+
+case "$CONFIG_ARGS" in
+ *--disable-all-clocks*)
+    KEYSUF="$KEYSUF-no-refclocks"
+    ;;
+esac
+
+case "$CONFIG_ARGS" in
+ *--disable-debugging*)
+    KEYSUF="$KEYSUF-nodebug"
+    ;;
+esac
+
+case "$CC" in
+ '')
+    CCSUF=""
+    ;;
+ *)
+    CCSUF="-`echo $CC | sed -e 's: :_:g' -e's:/:+:g'`"
+    ;;
+esac
+
+BDIR="$BASEDIR$KEYSUF$CCSUF"
+
+[ -d "$BDIR" ] || mkdir $BDIR
+[ -f "$BDIR/.buildcvo" ] || echo $CVO > $BDIR/.buildcvo
+[ -f "$BDIR/.buildhost" ] || echo $IAM > $BDIR/.buildhost
+
+
+cd $BDIR
+
+#
+# Make sure we have a nice that works.
+# To disable use of nice, setenv NO_NICE_BUILD=1
+#
+NICEB=
+[ "$NO_NICE_BUILD" != "1" ] && nice true && NICEB=nice
+[ -z "$NICEB" ] && {
+	NICEB="./.nicebuild-$MYNAME-$SIG"
+	cat > $NICEB <<-HEREDOC
+		#! /bin/sh
+		shift
+		\$*
+HEREDOC
+	chmod +x $NICEB
+}
+
+#
+# Find a test which supports -nt, unlike Solaris /bin/sh builtin.
+#
+TEST="${TEST-}"
+if [ -z "$TEST" ] ; then
+    for try in test /bin/test /usr/bin/test ; do
+	case `$try config.status -nt ../configure 2>&1` in
+	 '')
+	    TEST="$try"
+	    # echo "Using $TEST"
+	    break
+	    ;;
+	esac		
+    done
+    if [ -z "$TEST" ] ; then
+	echo "build: need help finding test binary" 1>&2
+	exit 1
+    fi
+fi
+
+CONFIGURE="../configure"
+# We need KEYSUF because of RAND_ and others, and -noopenssl"
+#CONFIGURE="$CONFIGURE --cache-file=../config.cache-$IAM$KEYSUF$CCSUF"
+CONFIGURE="$CONFIGURE $CONFIG_ARGS"
+
+
+(	# This sequence of commands is logged to make.log.
+	# If config.status is newer than ../configure, and the same
+	# is true for sntp, we do not need to re-run configure.
+	# For libevent, the twist is we may not be configuring the
+	# tearoff, so only act if its config.status exists.
+	# Solaris /bin/sh doesn't grok -nt.
+
+	( "$TEST" config.status -nt ../configure &&
+	  "$TEST" sntp/config.status -nt ../sntp/configure &&
+	  ( "$TEST" '!' -f sntp/libevent/config.status ||
+	    "$TEST" sntp/libevent/config.status -nt ../sntp/libevent/configure ) ) ||
+		"$NICEB" -7 $CONFIGURE
+	"$TEST" Makefile -nt config.status ||
+		"$NICEB" -5 ./config.status
+	"$TEST" sntp/Makefile -nt sntp/config.status ||
+		( cd sntp && "$NICEB" -5 ./config.status )
+	"$TEST" '!' -f sntp/libevent/Makefile ||
+	  "$TEST" sntp/libevent/Makefile -nt sntp/libevent/config.status ||
+		( cd sntp/libevent && "$NICEB" -5 ./config.status )
+	"$NICEB" -14 ${MAKE-make} && "$NICEB" -11 ${MAKE-make} check
+) > $LOGF 2>&1
+
+EXITCODE=$?
+
+# clean up if we made a dummy nice script
+case "$NICEB" in
+ nice)
+    ;;
+ *)
+    rm "$NICEB"
+    ;;
+esac
+
+exit $EXITCODE

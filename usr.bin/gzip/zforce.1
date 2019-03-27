@@ -1,0 +1,53 @@
+.\"	$NetBSD: zforce.1,v 1.2 2003/12/28 12:43:43 wiz Exp $
+.\"	$OpenBSD: zforce.1,v 1.1 2003/07/29 11:50:09 otto Exp $
+.\"
+.\" Copyright (c) 2003 Otto Moerbeek <otto@drijf.net>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.Dd January 26, 2007
+.Dt ZFORCE 1
+.Os
+.Sh NAME
+.Nm zforce
+.Nd force gzip files to have a .gz suffix
+.Sh SYNOPSIS
+.Nm zforce
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility renames
+.Xr gzip 1
+files to have a
+.Sq .gz
+suffix, so that
+.Xr gzip 1
+will not compress them twice.
+This can be useful if file names were truncated during a file transfer.
+Files that have an existing
+.Sq .gz ,
+.Sq -gz ,
+.Sq _gz ,
+.Sq .tgz
+or
+.Sq .taz
+suffix, or that have not been compressed by
+.Xr gzip 1 ,
+are ignored.
+.Sh SEE ALSO
+.Xr gzip 1
+.Sh CAVEATS
+.Nm
+overwrites existing files without warning.

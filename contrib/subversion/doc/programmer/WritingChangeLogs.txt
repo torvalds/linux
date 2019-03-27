@@ -1,0 +1,220 @@
+This is an essay by Jim Blandy <jimb@redhat.com> on maintaining
+ChangeLog entries.  
+
+Although Subversion generates its ChangeLogs from svn log data,
+instead of keeping independent ChangeLog files, most of the advice
+below is as applicable to cvs log messages as to ChangeLog entries.
+
+
+Maintaining the ChangeLog
+=========================
+
+A project's ChangeLog provides a history of development.  Comments in
+the code should explain the code's present state, but ChangeLog
+entries should explain how and when it got that way.  The ChangeLog
+must show:
+
+* the relative order in which changes entered the code, so you can
+  see the context in which a change was made, and
+
+* the date at which the change entered the code, so you can relate the
+  change to outside events, like branch cuts, code freezes, and
+  releases.
+
+In the case of CVS, these refer to when the change was committed,
+because that is the context in which other developers will see the
+change.
+
+Every change to the sources should have a ChangeLog entry.  The value
+of the ChangeLog becomes much less if developers cannot rely on its
+completeness.  Even if you've only changed comments, write an entry
+that says, "Doc fix."  The only changes you needn't log are small
+changes that have no effect on the source, like formatting tweaks.
+
+In order to keep the ChangeLog a manageable size, at the beginning of
+each year, the ChangeLog should be renamed to "ChangeLog-YYYY", and a
+fresh ChangeLog file started.
+
+
+How to write ChangeLog entries
+------------------------------
+
+ChangeLog entries should be full sentences, not sentence fragments.
+Fragments are more often ambiguous, and it takes only a few more
+seconds to write out what you mean.  Fragments like `New file' or `New
+function' are acceptable, because they are standard idioms, and all
+further details should appear in the source code.
+
+The log entry should mention every file changed.  It should also
+mention by name every function, variable, macro, makefile target,
+grammar rule, etc. you changed.  However, there are common-sense
+exceptions:
+
+* If you have made a change which requires trivial changes throughout
+  the rest of the program (e.g., renaming a variable), you needn't
+  name all the functions affected.
+
+* If you have rewritten a file completely, the reader understands that
+  everything in it has changed, so your log entry may simply give the
+  file name, and say "Rewritten".
+
+In general, there is a tension between making entries easy to find by
+searching for identifiers, and wasting time or producing unreadable
+entries by being exhaustive.  Use your best judgement --- and be
+considerate of your fellow developers.
+
+Group ChangeLog entries into "paragraphs", separated by blank lines.
+Each paragraph should be a set of changes that accomplish a single
+goal.  Independent changes should be in separate paragraphs.  For
+example:
+
+    1999-03-24  Stan Shebs  <shebs@andros.cygnus.com>
+
+            * configure.host (mips-dec-mach3*): Use mipsm3, not mach3.
+
+            Attempt to sort out SCO-related configs.
+            * configure.host (i[3456]86-*-sysv4.2*): Use this instead of
+            i[3456]86-*-sysv4.2MP and i[3456]86-*-sysv4.2uw2*.
+            (i[3456]86-*-sysv5*): Recognize this.
+            * configure.tgt (i[3456]86-*-sco3.2v5*, i[3456]86-*-sco3.2v4*):
+            Recognize these.
+
+Even though this entry describes two changes to `configure.host',
+they're in separate paragraphs, because they're unrelated changes.
+The second change to `configure.host' is grouped with another change
+to `configure.tgt', because they both serve the same purpose.
+
+Also note that the author has kindly recorded his overall motivation
+for the paragraph, so we don't have to glean it from the individual
+changes.
+
+The header line for the ChangeLog entry should have the format shown
+above.  If you are using an old version of Emacs (before 20.1) that
+generates entries with more verbose dates, consider using
+`etc/add-log.el', from the GDB source tree.  If you are using vi,
+consider using the macro in `etc/add-log.vi'.  Both of these generate
+entries in the newer, terser format.
+
+One should never need the ChangeLog to understand the current code.
+If you find yourself writing a significant explanation in the
+ChangeLog, you should consider carefully whether your text doesn't
+actually belong in a comment, alongside the code it explains.  Here's
+an example of doing it right:
+
+  1999-02-23  Tom Tromey  <tromey@cygnus.com>
+
+          * cplus-dem.c (consume_count): If `count' is unreasonable,
+          return 0 and don't advance input pointer.
+
+And then, in `consume_count' in `cplus-dem.c':
+
+   while (isdigit ((unsigned char)**type))
+     {
+       count *= 10;
+       count += **type - '0';
+       /* A sanity check.  Otherwise a symbol like
+         `_Utf390_1__1_9223372036854775807__9223372036854775'
+         can cause this function to return a negative value.
+         In this case we just consume until the end of the string.  */
+      if (count > strlen (*type))
+        {
+          *type = save;
+          return 0;
+        }
+
+This is why a new function, for example, needs only a log entry saying
+"New Function" --- all the details should be in the source.
+
+Avoid the temptation to abbreviate filenames or function names, as in
+this example (mostly real, but slightly exaggerated):
+
+	* gdbarch.[ch] (gdbarch_tdep, gdbarch_bfd_arch_info,
+ 	gdbarch_byte_order, {set,}gdbarch_long_bit,
+ 	{set,}gdbarch_long_long_bit, {set,}gdbarch_ptr_bit): Corresponding
+ 	functions.
+
+This makes it difficult for others to search the ChangeLog for changes
+to the file or function they are interested in.  For example, if you
+searched for `set_gdbarch_long_bit', you would not find the above
+entry, because the writer used CSH-style globbing to abbreviate the
+list of functions.  If you gave up, and made a second pass looking for
+gdbarch.c, you wouldn't find that either.  Consider your poor readers,
+and write out the names.
+
+
+ChangeLogs and the CVS log
+--------------------------
+
+CVS maintains its own logs, which you can access using the `cvs log'
+command.  This duplicates the information present in the ChangeLog,
+but binds each entry to a specific revision, which can be helpful at
+times.
+
+However, the CVS log is no substitute for the ChangeLog files.
+
+* CVS provides no easy way to see the changes made to a set of files
+  in chronological order.  They're sorted first by filename, not by date.
+
+* Unless you put full ChangeLog paragraphs in your CVS log entries, it's 
+  difficult to pull together changes that cross several files.
+
+* CVS doesn't segregate log entries for branches from those for the
+  trunk in any useful way.
+
+In some circumstances, though, the CVS log is more useful than the
+ChangeLog, so we maintain both.  When you commit a change, you should
+provide appropriate text in both the ChangeLog and the CVS log.
+
+It is not necessary to provide CVS log entries for ChangeLog changes,
+since it would simply duplicate the contents of the file itself.  
+
+
+Writing ChangeLog entries for merges
+------------------------------------
+
+Revision management software like CVS can introduce some confusion
+when writing ChangeLog entries.  For example, one might write a change
+on a branch, and then merge it into the trunk months later.  In that
+case, what position and date should the developer use for the
+ChangeLog entry --- that of the original change, or the date of the
+merge?
+
+The principles described at the top need to hold for both the original
+change and the merged change.  That is:
+
+* On the branch (or trunk) where the change is first committed, the
+  ChangeLog entry should be written as normal, inserted at the top of
+  the ChangeLog and reflecting the date the change was committed to
+  the branch (or trunk).
+
+* When the change is then merged (to the trunk, or to another branch),
+  the ChangeLog entry should have the following form:
+
+  1999-03-26  Jim Blandy  <jimb@zwingli.cygnus.com>
+
+           Merged change from foobar_20010401_branch:
+
+           1999-03-16  Keith Seitz  <keiths@cygnus.com>
+           [...]
+
+  In this case, "Jim Blandy" is doing the merge on March 26; "Keith
+  Seitz" is the original author of the change, who committed it to
+  `foobar_20010401_branch' on March 16.
+  
+  As shown here, the entry for the merge should be like any other
+  change --- inserted at the top of the ChangeLog, and stamped with
+  the date the merge was committed.  It should indicate the origin of
+  the change, and provide the full text of the original entry,
+  indented to avoid being confused with a true log entry.  Remember
+  that people looking for the merge will search for the original
+  changelog text, so it's important to preserve it unchanged.
+
+  For the merge entry, we use the merge date, and not the original
+  date, because this is when the change appears on the trunk or branch
+  this ChangeLog documents.  Its impact on these sources is
+  independent of when or where it originated.
+
+This approach preserves the structure of the ChangeLog (entries appear
+in order, and dates reflect when they appeared), but also provides
+full information about changes' origins.
+

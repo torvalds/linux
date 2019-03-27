@@ -1,0 +1,7 @@
+This is a more complete test
+which multiple lines
+and a few typos to fix
+also I plan to add few lines
+New line
+    and to remove
+other lines

@@ -1,0 +1,6 @@
+SITE(contessa)
+SITE(emind)
+SITE(hoptoad)
+SITE(nkainc)
+SITE(well)
+SITE(ferdy)

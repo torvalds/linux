@@ -1,0 +1,68 @@
+.\" $OpenBSD: udl.4,v 1.20 2012/09/18 17:11:41 jasper Exp $
+.\" $FreeBSD$
+.\"
+.\" Copyright (c) 2009 Marcus Glocker <mglocker@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd February 15, 2015
+.Dt UDL 4
+.Os
+.Sh NAME
+.Nm udl
+.Nd DisplayLink DL-120 / DL-160 USB display devices
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device udl"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+udl_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports USB display devices based on the DisplayLink DL-120 / DL-160
+graphic chip.
+.Sh HARDWARE
+The following devices should work:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Century Corp. Japan Plus One LCD-8000U
+.It Century Corp. Japan Plus One LCD-4300U
+.It DisplayLink USB to DVI
+.It ForwardVideo EasyCAP008 USB to DVI
+.It HP USB 2.0 Docking Station (FQ834)
+.It HP USB Graphics Adapter (NL571)
+.It IOGEAR USB 2.0 External DVI (GUC2020)
+.It Koenig CMP-USBVGA10 and CMP-USBVGA11
+.It Lenovo 45K5296 USB to DVI
+.It Lenovo ThinkVision LT1421
+.It Lilliput UM-70
+.It Nanovision MiMo UM-710 and UM-740
+.It Rextron VCUD60 USB to DVI
+.It Samsung LD220
+.It StarTech CONV-USB2DVI
+.It Sunweit USB to DVI
+.It Unitek Y-2240 USB to DVI
+.It VideoHome NBdock1920
+.It i-tec USB 2.0 Docking Station (USBDVIDOCK)
+.El
+.Sh SEE ALSO
+.Xr usb 4

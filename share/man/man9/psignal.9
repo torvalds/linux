@@ -1,0 +1,165 @@
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$NetBSD: psignal.9,v 1.1 1996/06/22 22:57:35 pk Exp $
+.\" $FreeBSD$
+.\"
+.Dd October 8, 2011
+.Dt PSIGNAL 9
+.Os
+.Sh NAME
+.Nm psignal ,
+.Nm kern_psignal ,
+.Nm pgsignal ,
+.Nm gsignal ,
+.Nm tdsignal
+.Nd post signal to a thread, process, or process group
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/signalvar.h
+.Ft void
+.Fn kern_psignal "struct proc *p" "int signum"
+.Ft void
+.Fn pgsignal "struct pgrp *pgrp" "int signum" "int checkctty"
+.Ft void
+.Fn gsignal "int pgid" "int signum"
+.Ft void
+.Fn tdsignal "struct thread *td" "int signum"
+.Sh DESCRIPTION
+These functions post a signal to a thread or one or more processes.
+The argument
+.Fa signum
+common to all three functions should be in the range
+.Bq 1- Ns Dv NSIG .
+.Pp
+The
+.Fn kern_psignal
+function posts signal number
+.Fa signum
+to the process represented by the process structure
+.Fa p .
+The
+.Fn kern_psignal
+function used to be called
+.Fn psignal
+but was renamed in order to eliminate a name collision with the libc
+function of that name and facilitate code reuse.
+With a few exceptions noted below, the target process signal disposition is
+updated and is marked as runnable, so further handling of the signal is done
+in the context of the target process after a context switch.
+Note that
+.Fn kern_psignal
+does not by itself cause a context switch to happen.
+.Pp
+The target process is not marked as runnable in the following cases:
+.Bl -bullet -offset indent
+.It
+The target process is sleeping uninterruptibly.
+The signal will be
+noticed when the process returns from the system call or trap.
+.It
+The target process is currently ignoring the signal.
+.It
+If a stop signal is sent to a sleeping process that takes the
+default action
+(see
+.Xr sigaction 2 ) ,
+the process is stopped without awakening it.
+.It
+.Dv SIGCONT
+restarts a stopped process
+(or puts them back to sleep)
+regardless of the signal action
+(e.g., blocked or ignored).
+.El
+.Pp
+If the target process is being traced
+.Fn kern_psignal
+behaves as if the target process were taking the default action for
+.Fa signum .
+This allows the tracing process to be notified of the signal.
+.Pp
+The
+.Fn pgsignal
+function posts signal number
+.Fa signum
+to each member of the process group described by
+.Fa pgrp .
+If
+.Fa checkctty
+is non-zero, the signal will be posted only to processes that have
+a controlling terminal.
+.Fn pgsignal
+is implemented by walking along the process list headed by the field
+.Li pg_members
+of the process group structure
+pointed at by
+.Fa pgrp
+and calling
+.Fn kern_psignal
+as appropriate.
+If
+.Fa pgrp
+is
+.Dv NULL
+no action is taken.
+.Pp
+The
+.Fn gsignal
+function posts signal number
+.Fa signum
+to each member of the process group identified by the group id
+.Fa pgid .
+.Fn gsignal
+first finds the group structure associated with
+.Fa pgid ,
+then invokes
+.Fn pgsignal
+with the argument
+.Fa checkctty
+set to zero.
+If
+.Fa pgid
+is zero no action is taken.
+.Pp
+The
+.Fn tdsignal
+function posts signal number
+.Fa signum
+to the thread represented by the thread structure
+.Fa td .
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr signal 9 ,
+.Xr tsleep 9
+.Sh HISTORY
+The
+.Fn psignal
+function was renamed to
+.Fn kern_psignal
+in
+.Fx 9.0 .

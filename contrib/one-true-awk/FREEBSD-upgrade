@@ -1,0 +1,24 @@
+# $FreeBSD$
+
+Import of the 2005/04/24 version of the "one true awk", as described
+in "The AWK Programming Language", by Al Aho, Brian Kernighan, and
+Peter Weinberger (Addison-Wesley, 1988, ISBN 0-201-07981-X).
+
+Original sources were taken from the Brian Kernighan's AWK page
+http://www.cs.princeton.edu/~bwk/btl.mirror
+and include bug fixes up thru Oct 23, 2007.
+
+The following files were removed for this import:
+
+	buildwin.bat
+	makefile.win
+	missing95.c
+	vcvars32.bat
+	ytab.c
+	ytab.h
+	ytabc.bak
+	ytabh.bak
+
+The vendor import was done by:
+
+	cvs import src/contrib/one-true-awk BELL_LABS bwk_20071023

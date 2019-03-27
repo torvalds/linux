@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+key='must contain this'
+PS4='$key+ '
+{ r=`set -x; { :; } 2>&1 >/dev/null`; } 2>/dev/null
+case $r in
+*"$key"*) true ;;
+*) false ;;
+esac

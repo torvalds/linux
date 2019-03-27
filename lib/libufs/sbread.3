@@ -1,0 +1,145 @@
+.\" Author:	Juli Mallett <jmallett@FreeBSD.org>
+.\" Date:	June 04, 2003
+.\" Description:
+.\" 	Manual page for libufs functions:
+.\"		sbget(3)
+.\"		sbput(3)
+.\"		sbread(3)
+.\"		sbwrite(3)
+.\"
+.\" This file is in the public domain.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 19, 2018
+.Dt SBREAD 3
+.Os
+.Sh NAME
+.Nm sbget , sbput , sbread , sbwrite
+.Nd read and write superblocks of a UFS file system
+.Sh LIBRARY
+.Lb libufs
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.In ufs/ufs/ufsmount.h
+.In ufs/ufs/dinode.h
+.In ufs/ffs/fs.h
+.In libufs.h
+.Ft int
+.Fn sbget "int devfd" "struct fs **fsp" "off_t sblockloc"
+.Ft int
+.Fn sbput "int devfd" "struct fs *fs" "int numaltwrite"
+.Ft int
+.Fn sbread "struct uufsd *disk"
+.Ft int
+.Fn sbwrite "struct uufsd *disk" "int all"
+.Sh DESCRIPTION
+The
+.Fn sbget
+and
+.Fn sbread
+functions provide superblock reads for
+.Xr libufs 3
+consumers.
+The
+.Fn sbput
+and
+.Fn sbwrite
+functions provide superblock writes for
+.Xr libufs 3
+consumers.
+.Pp
+The
+.Fn sbget
+function first allocates a buffer to hold the superblock.
+Using the
+.Va devfd
+file descriptor that references the filesystem disk,
+.Fn sbget
+reads the superblock located at the byte offset specified by
+.Va sblockloc
+into the allocated buffer.
+If successful, it returns a pointer to the buffer containing the superblock in
+.Va fsp .
+The
+.Fn sbget
+function is safe to use in threaded applications.
+.Pp
+The
+.Fn sbput
+function writes the superblock specified by
+.Va fs
+to the location from which it was read on the disk referenced by the
+.Va devfd
+file descriptor.
+Additionally, the
+.Fn sbput
+function will update the first
+.Va numaltwrite
+alternate superblock locations.
+To update all the alternate superblocks,
+specify a
+.Va numaltwrite
+value of
+.Va fs->fs_ncg .
+The
+.Fn sbput
+function is safe to use in threaded applications.
+Note that the
+.Fn sbput
+function needs to be called only if the superblock has been
+modified and the on-disk copy needs to be updated.
+.Pp
+The
+.Fn sbread
+function reads the standard filesystem superblock into the
+.Va d_sb ,
+structure embedded in the given user-land UFS disk structure.
+.Pp
+The
+.Fn sbwrite
+function writes the superblock from the
+.Va d_sb ,
+structure embedded in the given user-land UFS disk structure
+to the location from which it was read.
+Additionally, the
+.Fn sbwrite
+function will write to all the alternate superblock locations if the
+.Fa all
+value is non-zero.
+.Sh RETURN VALUES
+.Rv -std sbget sbput sbread sbwrite
+.Sh ERRORS
+The
+.Fn sbget
+and
+.Fn sbread
+functions may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr bread 3 .
+Additionally, it may follow the
+.Xr libufs 3
+error methodologies in situations where no usable superblock could be
+found.
+.Pp
+The
+.Fn sbput
+and
+.Fn sbwrite
+functions may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr bwrite 3 .
+.Sh SEE ALSO
+.Xr bread 3 ,
+.Xr bwrite 3 ,
+.Xr libufs 3
+.Sh HISTORY
+These functions first appeared as part of
+.Xr libufs 3
+in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Juli Mallett Aq Mt jmallett@FreeBSD.org

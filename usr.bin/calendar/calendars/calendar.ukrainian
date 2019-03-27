@@ -1,0 +1,12 @@
+/*
+ * Ukrainian calendar files
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _calendar_ukrainian_
+#define _calendar_ukrainian_
+
+#include <uk_UA.KOI8-U/calendar.all>
+
+#endif /* !_calendar_ukrainian_ */

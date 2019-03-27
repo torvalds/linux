@@ -1,0 +1,43 @@
+# $FreeBSD$
+
+0.9:
+- Added function personal_directories, you can create on conf dir your custom 
+personal directories with your custom files inside of them and it will be copied 
+to your image.
+Thanks to Marcus Grando <mnag@FreeBSD.org> for the patch.
+
+0.8:
+- Now FreeBSD 6.X is the default configuration on TinyBSD files.
+- TinyBSD no longer use bootmanager, so fstab device was changed to ad0a.
+- Added an example configuration to WRAP motherboards. Just use 'wrap' as argument on build to use it.
+
+0.7:
+- Revision on Makefile to respect non-standard LOCALBASE/X11BASE on FreeBSD.
+Thanks to Florent Thoumie <flz@FreeBSD.org>.
+
+0.6:
+- fix script problem on symlinks creation.
+- added debug information on tinybsd build process with "====>".
+
+0.5:
+- fix script problem when the kernel is not build, it's not should process
+an image without kernel :) Thanks to Marten <info@martenvijn.nl> for the patch.
+
+0.4:
+- added pre configured images to build tinybsd: default, bridge, minimal, vpn,
+firewall and wireless. 
+- added etc/ on each image directory to the user copy your custom etc 
+configuration.
+
+0.3:
+- fix named directory missing on etc build.
+
+0.2:
+- added "device ath_rate_onoe" on kernel config file to be compiled on
+FreeBSD 6.
+- added on tinybsd script a line to clean up kernel build directory
+- added on tinybsd script a for function to copy correct pam depends.
+
+0.1:
+- TinyBSD released
+

@@ -1,0 +1,6 @@
+# $FreeBSD$ 
+# $NetBSD: DEC.src,v 1.1 2007/04/01 18:52:30 tnozaki Exp $
+
+NAME		"DECx"
+ENCODING	"NONE"
+DEFCSID		"DECx"	0

@@ -1,0 +1,58 @@
+=pod
+
+=head1 NAME
+
+ERR_load_strings, ERR_PACK, ERR_get_next_error_library - load
+arbitrary error strings
+
+=head1 SYNOPSIS
+
+ #include <openssl/err.h>
+
+ void ERR_load_strings(int lib, ERR_STRING_DATA str[]);
+
+ int ERR_get_next_error_library(void);
+
+ unsigned long ERR_PACK(int lib, int func, int reason);
+
+=head1 DESCRIPTION
+
+ERR_load_strings() registers error strings for library number B<lib>.
+
+B<str> is an array of error string data:
+
+ typedef struct ERR_string_data_st
+ {
+     unsigned long error;
+     char *string;
+ } ERR_STRING_DATA;
+
+The error code is generated from the library number and a function and
+reason code: B<error> = ERR_PACK(B<lib>, B<func>, B<reason>).
+ERR_PACK() is a macro.
+
+The last entry in the array is {0,0}.
+
+ERR_get_next_error_library() can be used to assign library numbers
+to user libraries at runtime.
+
+=head1 RETURN VALUES
+
+ERR_load_strings() returns no value. ERR_PACK() return the error code.
+ERR_get_next_error_library() returns zero on failure, otherwise a new
+library number.
+
+=head1 SEE ALSO
+
+L<ERR_load_strings(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

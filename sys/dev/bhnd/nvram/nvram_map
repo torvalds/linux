@@ -1,0 +1,3074 @@
+#-
+# Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+# Copyright (C) 2008-2015, Broadcom Corporation.
+# All Rights Reserved.
+# 
+# The contents of this file (variable names, descriptions, and offsets) were
+# extracted or derived from Broadcom's ISC-licensed sources.
+#
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+# SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+# OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+# CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+# $FreeBSD$
+
+#
+# NVRAM variable and SPROM layout descriptions.
+#
+# Process with nvram_map_gen.awk to produce bhnd_nvram_map.h and
+# bhnd_nvram_map_data.h
+#
+# NOTE: file was originally generated automatically by using libclang
+# to analyze and extract format information and descriptions from Broadcom's
+# available ISC-licensed CIS and SROM code and associated headers.
+#
+
+group "Antenna Configuration" {
+	u8	aa2g {
+		desc	"Available 2.4GHz Antennas"
+		help	"Antennas 0-3 are marked as available if the
+			 corresponding bit is set."
+	}
+	u8	aa5g {
+		desc	"Available 5GHz Antennas"
+		help	"Antennas 0-3 are marked as available if the
+			 corresponding bit is set."
+	}
+
+	u8	ag0 {
+		desc	"Antenna 0 Gain"
+		help	"The lower 6 bits represent dB as a signed number.
+			 The high 2 bits represent a positive number of
+			 quarter dBs to be added to the dB value"
+	}
+	u8	ag1 {
+		desc	"Antenna 1 Gain"
+		help	"The lower 6 bits represent dB as a signed number.
+			 The high 2 bits represent a positive number of
+			 quarter dBs to be added to the dB value"
+	}
+	u8	ag2 {
+		desc	"Antenna 2 Gain"
+		help	"The lower 6 bits represent dB as a signed number.
+			 The high 2 bits represent a positive number of
+			 quarter dBs to be added to the dB value"
+	}
+	u8	ag3 {
+		desc	"Antenna 3 Gain"
+		help	"The lower 6 bits represent dB as a signed number.
+			 The high 2 bits represent a positive number of
+			 quarter dBs to be added to the dB value"
+	}
+
+	u8	txchain {
+		desc	"Available TX Chains"
+		help	"TX chains 0-3 are marked as available if the
+			 corresponding bit is set."
+
+ 		all1	ignore
+	}
+
+	u8	rxchain {
+		desc	"Available RX Chains"
+		help	"RX chains 0-3 are marked as available if the
+			 corresponding bit is set."
+
+ 		all1	ignore
+	}
+
+	u16	antswitch {
+		desc	"Antenna Diversity Switch Type"
+		help	"The antenna diversity switch configuration used by
+			 this device. The value is hardware-specific."
+		all1	ignore
+	}
+}
+
+u8	aga0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	aga1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	aga2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	agbg0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	agbg1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	agbg2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	antswctl2g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	antswctl5g {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	boardflags {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	boardflags2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	boardflags3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	boardnum {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u16	boardrev {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	boardtype {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	boardvendor {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	bw40po {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	bwduppo {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	bxa2g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	bxa5g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	cc {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u16	cck2gpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	cckPwrOffset {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	cckbw202gpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	cckbw20ul2gpo {
+	#desc <variable description>
+	#help <variable help>
+}
+char	ccode[2] {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	cddpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	devid {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	dot11agduphrpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	dot11agduplrpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	dot11agofdmhrbw202gpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	elna2g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	elna5g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	epagain2g {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	epagain5g {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	et1macaddr[6] {
+	fmt macaddr
+	#desc <variable description>
+	#help <variable help>
+}
+u8	eu_edthresh2g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	eu_edthresh5g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	extpagain2g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	extpagain5g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	femctrl {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	freqoffset_corr {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	gainctrlsph {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	hw_iqcal_en {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	il0macaddr[6] {
+	fmt macaddr
+	#desc <variable description>
+	#help <variable help>
+}
+u8	iqcal_swp_dis {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	itt2ga0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	itt2ga1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	itt2ga2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	itt2ga3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	itt5ga0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	itt5ga1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	itt5ga2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	itt5ga3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	ledbh0 {
+	all1 ignore
+	#desc <variable description>
+	#help <variable help>
+}
+u8	ledbh1 {
+	all1 ignore
+	#desc <variable description>
+	#help <variable help>
+}
+u8	ledbh2 {
+	all1 ignore
+	#desc <variable description>
+	#help <variable help>
+}
+u8	ledbh3 {
+	all1 ignore
+	#desc <variable description>
+	#help <variable help>
+}
+u32	leddc {
+	all1 ignore
+	fmt leddc
+	#desc <variable description>
+	#help <variable help>
+}
+u16	legofdm40duppo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	legofdmbw202gpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	legofdmbw205ghpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	legofdmbw205glpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	legofdmbw205gmpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	legofdmbw20ul2gpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	legofdmbw20ul5ghpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	legofdmbw20ul5glpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	legofdmbw20ul5gmpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	macaddr[6] {
+	fmt macaddr
+	#desc <variable description>
+	#help <variable help>
+}
+u8	maxp2ga0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	maxp2ga1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	maxp2ga2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	maxp2ga3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	maxp5ga0[4] {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	maxp5ga1[4] {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	maxp5ga2[4] {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	maxp5ga3[1] {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	maxp5gha0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	maxp5gha1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	maxp5gha2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	maxp5gha3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	maxp5gla0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	maxp5gla1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	maxp5gla2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	maxp5gla3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs2gpo0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs2gpo1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs2gpo2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs2gpo3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs2gpo4 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs2gpo5 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs2gpo6 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs2gpo7 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs32po {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5ghpo0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5ghpo1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5ghpo2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5ghpo3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5ghpo4 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5ghpo5 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5ghpo6 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5ghpo7 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5glpo0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5glpo1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5glpo2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5glpo3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5glpo4 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5glpo5 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5glpo6 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5glpo7 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5gpo0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5gpo1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5gpo2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5gpo3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5gpo4 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5gpo5 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5gpo6 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcs5gpo7 {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	mcsbw202gpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	mcsbw205ghpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	mcsbw205glpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	mcsbw205gmpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	mcsbw20ul2gpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	mcsbw20ul5ghpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	mcsbw20ul5glpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	mcsbw20ul5gmpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	mcsbw402gpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	mcsbw405ghpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	mcsbw405glpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	mcsbw405gmpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	mcsbw805ghpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	mcsbw805glpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	mcsbw805gmpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcslr5ghpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcslr5glpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	mcslr5gmpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	measpower {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	measpower1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	measpower2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noisecaloffset {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noisecaloffset5g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl2ga0 {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl2ga1 {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl2ga2 {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl5ga0[4] {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl5ga1[4] {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl5ga2[4] {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl5gha0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl5gha1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl5gha2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl5gla0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl5gla1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl5gla2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl5gma0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl5gma1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl5gma2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl5gua0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl5gua1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	noiselvl5gua2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	ofdm2gpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	ofdm5ghpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	ofdm5glpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	ofdm5gpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	ofdmlrbw202gpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	opo {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa0b0 {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa0b1 {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa0b2 {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i8	pa0itssit {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	pa0maxpwr {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa1b0 {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa1b1 {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa1b2 {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa1hib0 {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa1hib1 {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa1hib2 {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	pa1himaxpwr {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i8	pa1itssit {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa1lob0 {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa1lob1 {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa1lob2 {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	pa1lomaxpwr {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	pa1maxpwr {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa2ga0[3] {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa2ga1[3] {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa2ga2[3] {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa2ga3[3] {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gccka0[3] {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gw0a0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gw0a1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gw0a2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gw0a3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gw1a0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gw1a1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gw1a2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gw1a3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gw2a0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gw2a1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gw2a2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gw2a3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gw3a0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gw3a1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gw3a2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa2gw3a3 {
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa5ga0[12] {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa5ga1[12] {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa5ga2[12] {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i16	pa5ga3[12] {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gbw4080a0[12] {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gbw4080a1[12] {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gbw40a0[12] {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gbw80a0[12] {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5ghw0a0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5ghw0a1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5ghw0a2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5ghw0a3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5ghw1a0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5ghw1a1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5ghw1a2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5ghw1a3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5ghw2a0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5ghw2a1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5ghw2a2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5ghw2a3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5ghw3a0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5ghw3a1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5ghw3a2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5ghw3a3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5glw0a0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5glw0a1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5glw0a2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5glw0a3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5glw1a0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5glw1a1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5glw1a2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5glw1a3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5glw2a0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5glw2a1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5glw2a2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5glw2a3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5glw3a0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5glw3a1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5glw3a2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5glw3a3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gw0a0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gw0a1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gw0a2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gw0a3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gw1a0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gw1a1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gw1a2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gw1a3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gw2a0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gw2a1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gw2a2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gw2a3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gw3a0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gw3a1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gw3a2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pa5gw3a3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	paparambwver {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	papdcap2g {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	papdcap5g {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	pcieingress_war {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	pdetrange2g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	pdetrange5g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	pdgain2g {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	pdgain5g {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	pdoffset2g40ma0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	pdoffset2g40ma1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	pdoffset2g40ma2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	pdoffset2g40mvalid {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pdoffset40ma0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pdoffset40ma1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pdoffset40ma2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pdoffset80ma0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pdoffset80ma1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	pdoffset80ma2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	pdoffsetcckma0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	pdoffsetcckma1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	pdoffsetcckma2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	phycal_tempdelta {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u16	rawtempsense {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	regrev {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u32	rmax {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u32	rmin {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u16	rpcal2g {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	rpcal5gb0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	rpcal5gb1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	rpcal5gb2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	rpcal5gb3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rssisav2g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rssisav5g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rssismc2g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rssismc5g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rssismf2g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rssismf5g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr2ga0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr2ga1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr2ga2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr5ga0[4] {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr5ga1[4] {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr5ga2[4] {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr5gha0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr5gha1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr5gha2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr5gla0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr5gla1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr5gla2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr5gma0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr5gma1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr5gma2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr5gua0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr5gua1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgainerr5gua2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains2gelnagaina0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains2gelnagaina1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains2gelnagaina2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains2gelnagaina3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains2gtrelnabypa0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains2gtrelnabypa1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains2gtrelnabypa2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains2gtrelnabypa3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains2gtrisoa0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains2gtrisoa1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains2gtrisoa2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains2gtrisoa3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gelnagaina0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gelnagaina1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gelnagaina2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gelnagaina3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5ghelnagaina0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5ghelnagaina1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5ghelnagaina2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5ghelnagaina3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5ghtrelnabypa0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5ghtrelnabypa1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5ghtrelnabypa2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5ghtrelnabypa3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5ghtrisoa0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5ghtrisoa1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5ghtrisoa2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5ghtrisoa3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gmelnagaina0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gmelnagaina1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gmelnagaina2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gmelnagaina3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gmtrelnabypa0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gmtrelnabypa1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gmtrelnabypa2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gmtrelnabypa3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gmtrisoa0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gmtrisoa1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gmtrisoa2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gmtrisoa3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gtrelnabypa0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gtrelnabypa1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gtrelnabypa2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gtrelnabypa3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gtrisoa0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gtrisoa1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gtrisoa2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	rxgains5gtrisoa3 {
+	#desc <variable description>
+	#help <variable help>
+}
+i8	rxpo2g {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+i8	rxpo5g {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	sar2g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	sar5g {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	sb20in40hrpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	sb20in40lrpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	sb20in80and160hr5ghpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	sb20in80and160hr5glpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	sb20in80and160hr5gmpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	sb20in80and160lr5ghpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	sb20in80and160lr5glpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	sb20in80and160lr5gmpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	sb40and80hr5ghpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	sb40and80hr5glpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	sb40and80hr5gmpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	sb40and80lr5ghpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	sb40and80lr5glpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	sb40and80lr5gmpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	sromrev {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	stbcpo {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	subband5gver {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	subvid {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	swctrlmap_2g[5] {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	tempcorrx {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	tempoffset {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	temps_hysteresis {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	temps_period {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	tempsense_option {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	tempsense_slope {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	tempthresh {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	tri2g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	tri5g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	tri5gh {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	tri5gl {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	triso2g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	triso5g {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	tssifloor2g {
+	#desc <variable description>
+	#help <variable help>
+}
+u16	tssifloor5g[4] {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	tssipos2g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	tssipos5g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	tssiposslope2g {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	tssiposslope5g {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	tworangetssi2g {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	tworangetssi5g {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txidxcap2g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txidxcap5g {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txpid2ga0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txpid2ga1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txpid2ga2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txpid2ga3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txpid5ga0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txpid5ga1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txpid5ga2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txpid5ga3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txpid5gha0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txpid5gha1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txpid5gha2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txpid5gha3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txpid5gla0 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txpid5gla1 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txpid5gla2 {
+	#desc <variable description>
+	#help <variable help>
+}
+u8	txpid5gla3 {
+	#desc <variable description>
+	#help <variable help>
+}
+u32	xtalfreq {
+	fmt decimal
+	#desc <variable description>
+	#help <variable help>
+}
+
+srom 1 {
+	0x048:	u8	il0macaddr[6]	{ +0x1, +0x0, +0x3, +0x2, +0x5, +0x4 }
+	0x04C:	u16	boardnum
+	0x054:	u8	et1macaddr[6]	{ +0x1, +0x0, +0x3, +0x2, +0x5, +0x4 }
+	0x05C:	u8	boardrev
+	0x05D:	u8	aa5g		(&0xC0, >>6)
+	0x05D:	u8	cc		(&0xF)
+	0x05D:	u8	aa2g		(&0x30, >>4)
+	0x05E:	i16	pa0b0
+	0x060:	i16	pa0b1
+	0x062:	i16	pa0b2
+	0x064:	u8	ledbh0
+	0x065:	u8	ledbh1
+	0x066:	u8	ledbh2
+	0x067:	u8	ledbh3
+	0x068:	u8	pa0maxpwr
+	0x069:	u8	pa1maxpwr
+	0x06A:	i16	pa1b0
+	0x06C:	i16	pa1b1
+	0x06E:	i16	pa1b2
+	0x070:	i8	pa0itssit
+	0x071:	i8	pa1itssit
+	0x072:	u16	boardflags
+	0x074:	u8	ag0
+	0x075:	u8	ag1
+	0x076:	char	ccode[2]	{ +0x1, +0x0 }
+	0x07E:	u8	sromrev
+	0x07F:	u8	<sromcrc>
+}
+
+srom 2-3 {
+	0x004:	u16	boardtype
+	0x006:	u16	subvid
+	0x03A:	u8	pa1himaxpwr
+	0x03B:	u8	pa1lomaxpwr
+	0x03C:	i16	pa1lob0
+	0x03E:	i16	pa1lob1
+	0x040:	i16	pa1lob2
+	0x042:	i16	pa1hib0
+	0x044:	i16	pa1hib1
+	0x046:	i16	pa1hib2
+	srom 2 {
+		0x048:	u8	il0macaddr[6] {
+			+0x1, +0x0, +0x3, +0x2, +0x5, +0x4
+		}
+		0x04C:	u16	boardnum
+		0x054:	u8	et1macaddr[6] {
+			+0x1, +0x0, +0x3, +0x2, +0x5, +0x4
+		}
+	}
+	srom 3 {
+		0x04A:	u8	macaddr[6] {
+			+0x1, +0x0, +0x3, +0x2, +0x5, +0x4
+		}
+		0x04E:	u16	boardnum
+		0x050:	u8	rssismf2g	(&0xF)
+		0x050:	u8	rssismc2g	(&0xF0, >>4)
+		0x051:	u8	bxa2g		(&0x18, >>3)
+		0x051:	u8	rssisav2g	(&0x7)
+		0x052:	u8	rssismc5g	(&0xF0, >>4)
+		0x052:	u8	rssismf5g	(&0xF)
+		0x053:	u8	bxa5g		(&0x18, >>3)
+		0x053:	u8	rssisav5g	(&0x7)
+		0x054:	u8	tri2g
+		0x055:	u8	tri5g
+		0x056:	u8	tri5gl
+		0x057:	u8	tri5gh
+		0x05A:	i8	rxpo2g
+		0x05B:	i8	rxpo5g
+	}
+	0x05C:	u8	boardrev
+	0x05D:	u8	aa5g		(&0xC0, >>6)
+	0x05D:	u8	aa2g		(&0x30, >>4)
+	0x05E:	i16	pa0b0
+	0x060:	i16	pa0b1
+	0x062:	i16	pa0b2
+	0x064:	u8	ledbh0
+	0x065:	u8	ledbh1
+	0x066:	u8	ledbh2
+	0x067:	u8	ledbh3
+	0x068:	u8	pa0maxpwr
+	0x069:	u8	pa1maxpwr
+	0x06A:	i16	pa1b0
+	0x06C:	i16	pa1b1
+	0x06E:	i16	pa1b2
+	0x070:	i8	pa0itssit
+	0x071:	i8	pa1itssit
+	srom 2 {
+		0x072:	u32	boardflags {
+					+0x0:	u16 |
+					0x038:	u16 (<<16)
+				}
+	}
+	srom 3 {
+		0x072:	u32	boardflags {
+					+0x0:	u16 |
+					+0x8:	u16 (<<16)
+				}
+	}
+	0x074:	u8	ag0
+	0x075:	u8	ag1
+	0x076:	char	ccode[2]	{ +0x1, +0x0 }
+	0x078:	u8	opo
+	srom 3 {
+		0x079:	u8	regrev
+		0x07C:	u16	leddc
+	}
+	0x07E:	u8	sromrev
+	0x07F:	u8	<sromcrc>
+}
+
+
+srom 4 {
+	0x004:	u16	boardtype
+	0x006:	u16	subvid
+	0x040:	u16	<sromsig>	(=0x5372)
+	0x042:	u16	boardrev
+	0x044:	u32	boardflags
+	0x048:	u32	boardflags2
+	0x04C:	u8	macaddr[6]	{ +0x1, +0x0, +0x3, +0x2, +0x5, +0x4 }
+	0x050:	u16	boardnum
+	0x052:	char	ccode[2]	{ +0x1, +0x0 }
+	0x054:	u8	regrev
+	0x056:	u8	ledbh0
+	0x057:	u8	ledbh1
+	0x058:	u8	ledbh2
+	0x059:	u8	ledbh3
+	0x05A:	u16	leddc
+	0x05C:	u8	aa2g
+	0x05D:	u8	aa5g
+	0x05E:	u8	ag0
+	0x05F:	u8	ag1
+	0x060:	u8	ag2
+	0x061:	u8	ag3
+	0x062:	u8	txpid2ga0
+	0x063:	u8	txpid2ga1
+	0x064:	u8	txpid2ga2
+	0x065:	u8	txpid2ga3
+	0x066:	u8	txpid5ga0
+	0x067:	u8	txpid5ga1
+	0x068:	u8	txpid5ga2
+	0x069:	u8	txpid5ga3
+	0x06A:	u8	txpid5gla0
+	0x06B:	u8	txpid5gla1
+	0x06C:	u8	txpid5gla2
+	0x06D:	u8	txpid5gla3
+	0x06E:	u8	txpid5gha0
+	0x06F:	u8	txpid5gha1
+	0x070:	u8	txpid5gha2
+	0x071:	u8	txpid5gha3
+	0x07A:	u8	rxchain		(&0xF0, >>4)
+	0x07A:	u8	txchain		(&0xF)
+	0x07B:	u8	antswitch
+	0x080:	u8	maxp2ga0
+	0x081:	u8	itt2ga0
+	0x082:	u16	pa2gw0a0
+	0x084:	u16	pa2gw1a0
+	0x086:	u16	pa2gw2a0
+	0x088:	u16	pa2gw3a0
+	0x08A:	u8	maxp5ga0[1]
+	0x08B:	u8	itt5ga0
+	0x08C:	u8	maxp5gha0
+	0x08D:	u8	maxp5gla0
+	0x08E:	u16	pa5gw0a0
+	0x090:	u16	pa5gw1a0
+	0x092:	u16	pa5gw2a0
+	0x094:	u16	pa5gw3a0
+	0x096:	u16	pa5glw0a0
+	0x098:	u16	pa5glw1a0
+	0x09A:	u16	pa5glw2a0
+	0x09C:	u16	pa5glw3a0
+	0x09E:	u16	pa5ghw0a0
+	0x0A0:	u16	pa5ghw1a0
+	0x0A2:	u16	pa5ghw2a0
+	0x0A4:	u16	pa5ghw3a0
+	0x0AE:	u8	maxp2ga1
+	0x0AF:	u8	itt2ga1
+	0x0B0:	u16	pa2gw0a1
+	0x0B2:	u16	pa2gw1a1
+	0x0B4:	u16	pa2gw2a1
+	0x0B6:	u16	pa2gw3a1
+	0x0B8:	u8	maxp5ga1[1]
+	0x0B9:	u8	itt5ga1
+	0x0BA:	u8	maxp5gha1
+	0x0BB:	u8	maxp5gla1
+	0x0BC:	u16	pa5gw0a1
+	0x0BE:	u16	pa5gw1a1
+	0x0C0:	u16	pa5gw2a1
+	0x0C2:	u16	pa5gw3a1
+	0x0C4:	u16	pa5glw0a1
+	0x0C6:	u16	pa5glw1a1
+	0x0C8:	u16	pa5glw2a1
+	0x0CA:	u16	pa5glw3a1
+	0x0CC:	u16	pa5ghw0a1
+	0x0CE:	u16	pa5ghw1a1
+	0x0D0:	u16	pa5ghw2a1
+	0x0D2:	u16	pa5ghw3a1
+	0x0DC:	u8	maxp2ga2
+	0x0DD:	u8	itt2ga2
+	0x0DE:	u16	pa2gw0a2
+	0x0E0:	u16	pa2gw1a2
+	0x0E2:	u16	pa2gw2a2
+	0x0E4:	u16	pa2gw3a2
+	0x0E6:	u8	maxp5ga2[1]
+	0x0E7:	u8	itt5ga2
+	0x0E8:	u8	maxp5gha2
+	0x0E9:	u8	maxp5gla2
+	0x0EA:	u16	pa5gw0a2
+	0x0EC:	u16	pa5gw1a2
+	0x0EE:	u16	pa5gw2a2
+	0x0F0:	u16	pa5gw3a2
+	0x0F2:	u16	pa5glw0a2
+	0x0F4:	u16	pa5glw1a2
+	0x0F6:	u16	pa5glw2a2
+	0x0F8:	u16	pa5glw3a2
+	0x0FA:	u16	pa5ghw0a2
+	0x0FC:	u16	pa5ghw1a2
+	0x0FE:	u16	pa5ghw2a2
+	0x100:	u16	pa5ghw3a2
+	0x10A:	u8	maxp2ga3
+	0x10B:	u8	itt2ga3
+	0x10C:	u16	pa2gw0a3
+	0x10E:	u16	pa2gw1a3
+	0x110:	u16	pa2gw2a3
+	0x112:	u16	pa2gw3a3
+	0x114:	u8	maxp5ga3[1]
+	0x115:	u8	itt5ga3
+	0x116:	u8	maxp5gha3
+	0x117:	u8	maxp5gla3
+	0x118:	u16	pa5gw0a3
+	0x11A:	u16	pa5gw1a3
+	0x11C:	u16	pa5gw2a3
+	0x11E:	u16	pa5gw3a3
+	0x120:	u16	pa5glw0a3
+	0x122:	u16	pa5glw1a3
+	0x124:	u16	pa5glw2a3
+	0x126:	u16	pa5glw3a3
+	0x128:	u16	pa5ghw0a3
+	0x12A:	u16	pa5ghw1a3
+	0x12C:	u16	pa5ghw2a3
+	0x12E:	u16	pa5ghw3a3
+	0x138:	u16	cck2gpo
+	0x13A:	u32	ofdm2gpo
+	0x13E:	u32	ofdm5gpo
+	0x142:	u32	ofdm5glpo
+	0x146:	u32	ofdm5ghpo
+	0x14A:	u16	mcs2gpo0
+	0x14C:	u16	mcs2gpo1
+	0x14E:	u16	mcs2gpo2
+	0x150:	u16	mcs2gpo3
+	0x152:	u16	mcs2gpo4
+	0x154:	u16	mcs2gpo5
+	0x156:	u16	mcs2gpo6
+	0x158:	u16	mcs2gpo7
+	0x15A:	u16	mcs5gpo0
+	0x15C:	u16	mcs5gpo1
+	0x15E:	u16	mcs5gpo2
+	0x160:	u16	mcs5gpo3
+	0x162:	u16	mcs5gpo4
+	0x164:	u16	mcs5gpo5
+	0x166:	u16	mcs5gpo6
+	0x168:	u16	mcs5gpo7
+	0x16A:	u16	mcs5glpo0
+	0x16C:	u16	mcs5glpo1
+	0x16E:	u16	mcs5glpo2
+	0x170:	u16	mcs5glpo3
+	0x172:	u16	mcs5glpo4
+	0x174:	u16	mcs5glpo5
+	0x176:	u16	mcs5glpo6
+	0x178:	u16	mcs5glpo7
+	0x17A:	u16	mcs5ghpo0
+	0x17C:	u16	mcs5ghpo1
+	0x17E:	u16	mcs5ghpo2
+	0x180:	u16	mcs5ghpo3
+	0x182:	u16	mcs5ghpo4
+	0x184:	u16	mcs5ghpo5
+	0x186:	u16	mcs5ghpo6
+	0x188:	u16	mcs5ghpo7
+	0x18A:	u16	cddpo
+	0x18C:	u16	stbcpo
+	0x18E:	u16	bw40po
+	0x190:	u16	bwduppo
+	0x1B6:	u8	sromrev
+	0x1B7:	u8	<sromcrc>
+}
+
+
+srom 5-7 {
+	0x004:	u16	boardtype
+	0x006:	u16	subvid
+	0x042:	u16	boardrev
+	0x044:	char	ccode[2]	{ +0x1, +0x0 }
+	0x046:	u8	regrev
+	0x04A:	u32	boardflags
+	0x04E:	u32	boardflags2
+	0x052:	u8	macaddr[6]	{ +0x1, +0x0, +0x3, +0x2, +0x5, +0x4 }
+	0x056:	u16	boardnum
+	0x05A:	u16	leddc
+	0x05C:	u8	aa2g
+	0x05D:	u8	aa5g
+	0x05E:	u8	ag0
+	0x05F:	u8	ag1
+	0x060:	u8	ag2
+	0x061:	u8	ag3
+	0x062:	u8	txpid2ga0
+	0x063:	u8	txpid2ga1
+	0x064:	u8	txpid2ga2
+	0x065:	u8	txpid2ga3
+	0x066:	u8	txpid5ga0
+	0x067:	u8	txpid5ga1
+	0x068:	u8	txpid5ga2
+	0x069:	u8	txpid5ga3
+	0x06A:	u8	txpid5gla0
+	0x06B:	u8	txpid5gla1
+	0x06C:	u8	txpid5gla2
+	0x06D:	u8	txpid5gla3
+	0x06E:	u8	txpid5gha0
+	0x06F:	u8	txpid5gha1
+	0x070:	u8	txpid5gha2
+	0x071:	u8	txpid5gha3
+	0x076:	u8	ledbh0
+	0x077:	u8	ledbh1
+	0x078:	u8	ledbh2
+	0x079:	u8	ledbh3
+	0x07A:	u8	txchain		(&0xF)
+	0x07A:	u8	rxchain		(&0xF0, >>4)
+	0x07B:	u8	antswitch
+	0x080:	u8	maxp2ga0
+	0x081:	u8	itt2ga0
+	0x082:	u16	pa2gw0a0
+	0x084:	u16	pa2gw1a0
+	0x086:	u16	pa2gw2a0
+	0x088:	u16	pa2gw3a0
+	0x08A:	u8	maxp5ga0[1]
+	0x08B:	u8	itt5ga0
+	0x08C:	u8	maxp5gha0
+	0x08D:	u8	maxp5gla0
+	0x08E:	u16	pa5gw0a0
+	0x090:	u16	pa5gw1a0
+	0x092:	u16	pa5gw2a0
+	0x094:	u16	pa5gw3a0
+	0x096:	u16	pa5glw0a0
+	0x098:	u16	pa5glw1a0
+	0x09A:	u16	pa5glw2a0
+	0x09C:	u16	pa5glw3a0
+	0x09E:	u16	pa5ghw0a0
+	0x0A0:	u16	pa5ghw1a0
+	0x0A2:	u16	pa5ghw2a0
+	0x0A4:	u16	pa5ghw3a0
+	0x0AE:	u8	maxp2ga1
+	0x0AF:	u8	itt2ga1
+	0x0B0:	u16	pa2gw0a1
+	0x0B2:	u16	pa2gw1a1
+	0x0B4:	u16	pa2gw2a1
+	0x0B6:	u16	pa2gw3a1
+	0x0B8:	u8	maxp5ga1[1]
+	0x0B9:	u8	itt5ga1
+	0x0BA:	u8	maxp5gha1
+	0x0BB:	u8	maxp5gla1
+	0x0BC:	u16	pa5gw0a1
+	0x0BE:	u16	pa5gw1a1
+	0x0C0:	u16	pa5gw2a1
+	0x0C2:	u16	pa5gw3a1
+	0x0C4:	u16	pa5glw0a1
+	0x0C6:	u16	pa5glw1a1
+	0x0C8:	u16	pa5glw2a1
+	0x0CA:	u16	pa5glw3a1
+	0x0CC:	u16	pa5ghw0a1
+	0x0CE:	u16	pa5ghw1a1
+	0x0D0:	u16	pa5ghw2a1
+	0x0D2:	u16	pa5ghw3a1
+	0x0DC:	u8	maxp2ga2
+	0x0DD:	u8	itt2ga2
+	0x0DE:	u16	pa2gw0a2
+	0x0E0:	u16	pa2gw1a2
+	0x0E2:	u16	pa2gw2a2
+	0x0E4:	u16	pa2gw3a2
+	0x0E6:	u8	maxp5ga2[1]
+	0x0E7:	u8	itt5ga2
+	0x0E8:	u8	maxp5gha2
+	0x0E9:	u8	maxp5gla2
+	0x0EA:	u16	pa5gw0a2
+	0x0EC:	u16	pa5gw1a2
+	0x0EE:	u16	pa5gw2a2
+	0x0F0:	u16	pa5gw3a2
+	0x0F2:	u16	pa5glw0a2
+	0x0F4:	u16	pa5glw1a2
+	0x0F6:	u16	pa5glw2a2
+	0x0F8:	u16	pa5glw3a2
+	0x0FA:	u16	pa5ghw0a2
+	0x0FC:	u16	pa5ghw1a2
+	0x0FE:	u16	pa5ghw2a2
+	0x100:	u16	pa5ghw3a2
+	0x10A:	u8	maxp2ga3
+	0x10B:	u8	itt2ga3
+	0x10C:	u16	pa2gw0a3
+	0x10E:	u16	pa2gw1a3
+	0x110:	u16	pa2gw2a3
+	0x112:	u16	pa2gw3a3
+	0x114:	u8	maxp5ga3[1]
+	0x115:	u8	itt5ga3
+	0x116:	u8	maxp5gha3
+	0x117:	u8	maxp5gla3
+	0x118:	u16	pa5gw0a3
+	0x11A:	u16	pa5gw1a3
+	0x11C:	u16	pa5gw2a3
+	0x11E:	u16	pa5gw3a3
+	0x120:	u16	pa5glw0a3
+	0x122:	u16	pa5glw1a3
+	0x124:	u16	pa5glw2a3
+	0x126:	u16	pa5glw3a3
+	0x128:	u16	pa5ghw0a3
+	0x12A:	u16	pa5ghw1a3
+	0x12C:	u16	pa5ghw2a3
+	0x12E:	u16	pa5ghw3a3
+	0x138:	u16	cck2gpo
+	0x13A:	u32	ofdm2gpo
+	0x13E:	u32	ofdm5gpo
+	0x142:	u32	ofdm5glpo
+	0x146:	u32	ofdm5ghpo
+	0x14A:	u16	mcs2gpo0
+	0x14C:	u16	mcs2gpo1
+	0x14E:	u16	mcs2gpo2
+	0x150:	u16	mcs2gpo3
+	0x152:	u16	mcs2gpo4
+	0x154:	u16	mcs2gpo5
+	0x156:	u16	mcs2gpo6
+	0x158:	u16	mcs2gpo7
+	0x15A:	u16	mcs5gpo0
+	0x15C:	u16	mcs5gpo1
+	0x15E:	u16	mcs5gpo2
+	0x160:	u16	mcs5gpo3
+	0x162:	u16	mcs5gpo4
+	0x164:	u16	mcs5gpo5
+	0x166:	u16	mcs5gpo6
+	0x168:	u16	mcs5gpo7
+	0x16A:	u16	mcs5glpo0
+	0x16C:	u16	mcs5glpo1
+	0x16E:	u16	mcs5glpo2
+	0x170:	u16	mcs5glpo3
+	0x172:	u16	mcs5glpo4
+	0x174:	u16	mcs5glpo5
+	0x176:	u16	mcs5glpo6
+	0x178:	u16	mcs5glpo7
+	0x17A:	u16	mcs5ghpo0
+	0x17C:	u16	mcs5ghpo1
+	0x17E:	u16	mcs5ghpo2
+	0x180:	u16	mcs5ghpo3
+	0x182:	u16	mcs5ghpo4
+	0x184:	u16	mcs5ghpo5
+	0x186:	u16	mcs5ghpo6
+	0x188:	u16	mcs5ghpo7
+	0x18A:	u16	cddpo
+	0x18C:	u16	stbcpo
+	0x18E:	u16	bw40po
+	0x190:	u16	bwduppo
+	0x1B6:	u8	sromrev
+	0x1B7:	u8	<sromcrc>
+}
+
+
+srom 8 {
+	0x004:	u16	boardtype
+	0x006:	u16	subvid
+	0x060:	u16	devid
+	0x080:	u16	<sromsig>	(=0x5372)
+	0x082:	u16	boardrev
+	0x084:	u32	boardflags
+	0x088:	u32	boardflags2
+	0x08C:	u8	macaddr[6]	{ +0x1, +0x0, +0x3, +0x2, +0x5, +0x4 }
+	0x090:	u16	boardnum
+	0x092:	char	ccode[2]	{ +0x1, +0x0 }
+	0x094:	u8	regrev
+	0x096:	u8	ledbh0
+	0x097:	u8	ledbh1
+	0x098:	u8	ledbh2
+	0x099:	u8	ledbh3
+	0x09A:	u16	leddc
+	0x09C:	u8	aa2g
+	0x09D:	u8	aa5g
+	0x09E:	u8	ag0
+	0x09F:	u8	ag1
+	0x0A0:	u8	ag2
+	0x0A1:	u8	ag3
+	0x0A2:	u8	txchain			(&0xF)
+	0x0A2:	u8	rxchain			(&0xF0, >>4)
+	0x0A3:	u8	antswitch
+	0x0A4:	u8	rssismf2g		(&0xF)
+	0x0A4:	u8	rssismc2g		(&0xF0, >>4)
+	0x0A5:	u8	bxa2g			(&0x18, >>3)
+	0x0A5:	u8	rssisav2g		(&0x7)
+	0x0A6:	u8	rssismc5g		(&0xF0, >>4)
+	0x0A6:	u8	rssismf5g		(&0xF)
+	0x0A7:	u8	bxa5g			(&0x18, >>3)
+	0x0A7:	u8	rssisav5g		(&0x7)
+	0x0A8:	u8	tri2g
+	0x0A9:	u8	tri5g
+	0x0AA:	u8	tri5gl
+	0x0AB:	u8	tri5gh
+	0x0AC:	i8	rxpo2g
+	0x0AD:	i8	rxpo5g
+	0x0AE:	u8	tssipos2g		(&0x1)
+	0x0AE:	u8	pdetrange2g		(&0xF8, >>3)
+	0x0AE:	u8	extpagain2g		(&0x6, >>1)
+	0x0AF:	u8	antswctl2g		(&0xF8, >>3)
+	0x0AF:	u8	triso2g			(&0x7)
+	0x0B0:	u8	pdetrange5g		(&0xF8, >>3)
+	0x0B0:	u8	tssipos5g		(&0x1)
+	0x0B0:	u8	extpagain5g		(&0x6, >>1)
+	0x0B1:	u8	triso5g			(&0x7)
+	0x0B1:	u8	antswctl5g		(&0xF8, >>3)
+	0x0B2:	u8	tempoffset
+	0x0B3:	u8	tempthresh
+	0x0B4:	u16	rawtempsense		(&0x1FF)
+	0x0B5:	u8	measpower		(&0xFE, >>1)
+	0x0B6:	u8	tempsense_slope
+	0x0B7:	u8	tempsense_option	(&0x3)
+	0x0B7:	u8	tempcorrx		(&0xFC, >>2)
+	0x0B8:	u8	hw_iqcal_en		(&0x20, >>5)
+	0x0B8:	u8	freqoffset_corr		(&0xF)
+	0x0B8:	u8	iqcal_swp_dis		(&0x10, >>4)
+	0x0BA:	u8	elna2g
+	0x0BB:	u8	elna5g
+	0x0BC:	u8	phycal_tempdelta
+	0x0BD:	u8	temps_period		(&0xF)
+	0x0BD:	u8	temps_hysteresis	(&0xF0, >>4)
+	0x0BE:	u8	measpower1		(&0x7F)
+	0x0BE:	u8	measpower2 {
+				+0x0:	u16 (&0x3F80, >>7)
+			}
+	0x0C0:	u8	pa0maxpwr
+	0x0C0:	u8	maxp2ga0
+	0x0C1:	i8	pa0itssit
+	0x0C1:	u8	itt2ga0
+	0x0C2:	i16	pa0b0
+	0x0C2:	u16	pa2gw0a0
+	0x0C4:	u16	pa2gw1a0
+	0x0C4:	i16	pa0b1
+	0x0C6:	i16	pa0b2
+	0x0C6:	u16	pa2gw2a0
+	0x0C8:	u8	pa1maxpwr
+	0x0C8:	u8	maxp5ga0[1]
+	0x0C9:	u8	itt5ga0
+	0x0C9:	i8	pa1itssit
+	0x0CA:	u8	maxp5gha0
+	0x0CA:	u8	pa1himaxpwr
+	0x0CB:	u8	maxp5gla0
+	0x0CB:	u8	pa1lomaxpwr
+	0x0CC:	u16	pa5gw0a0
+	0x0CC:	i16	pa1b0
+	0x0CE:	i16	pa1b1
+	0x0CE:	u16	pa5gw1a0
+	0x0D0:	i16	pa1b2
+	0x0D0:	u16	pa5gw2a0
+	0x0D2:	i16	pa1lob0
+	0x0D2:	u16	pa5glw0a0
+	0x0D4:	u16	pa5glw1a0
+	0x0D4:	i16	pa1lob1
+	0x0D6:	u16	pa5glw2a0
+	0x0D6:	i16	pa1lob2
+	0x0D8:	i16	pa1hib0
+	0x0D8:	u16	pa5ghw0a0
+	0x0DA:	i16	pa1hib1
+	0x0DA:	u16	pa5ghw1a0
+	0x0DC:	i16	pa1hib2
+	0x0DC:	u16	pa5ghw2a0
+	0x0E0:	u8	maxp2ga1
+	0x0E1:	u8	itt2ga1
+	0x0E2:	u16	pa2gw0a1
+	0x0E4:	u16	pa2gw1a1
+	0x0E6:	u16	pa2gw2a1
+	0x0E8:	u8	maxp5ga1[1]
+	0x0E9:	u8	itt5ga1
+	0x0EA:	u8	maxp5gha1
+	0x0EB:	u8	maxp5gla1
+	0x0EC:	u16	pa5gw0a1
+	0x0EE:	u16	pa5gw1a1
+	0x0F0:	u16	pa5gw2a1
+	0x0F2:	u16	pa5glw0a1
+	0x0F4:	u16	pa5glw1a1
+	0x0F6:	u16	pa5glw2a1
+	0x0F8:	u16	pa5ghw0a1
+	0x0FA:	u16	pa5ghw1a1
+	0x0FC:	u16	pa5ghw2a1
+	0x100:	u8	maxp2ga2
+	0x101:	u8	itt2ga2
+	0x102:	u16	pa2gw0a2
+	0x104:	u16	pa2gw1a2
+	0x106:	u16	pa2gw2a2
+	0x108:	u8	maxp5ga2[1]
+	0x109:	u8	itt5ga2
+	0x10A:	u8	maxp5gha2
+	0x10B:	u8	maxp5gla2
+	0x10C:	u16	pa5gw0a2
+	0x10E:	u16	pa5gw1a2
+	0x110:	u16	pa5gw2a2
+	0x112:	u16	pa5glw0a2
+	0x114:	u16	pa5glw1a2
+	0x116:	u16	pa5glw2a2
+	0x118:	u16	pa5ghw0a2
+	0x11A:	u16	pa5ghw1a2
+	0x11C:	u16	pa5ghw2a2
+	0x120:	u8	maxp2ga3
+	0x121:	u8	itt2ga3
+	0x122:	u16	pa2gw0a3
+	0x124:	u16	pa2gw1a3
+	0x126:	u16	pa2gw2a3
+	0x128:	u8	maxp5ga3[1]
+	0x129:	u8	itt5ga3
+	0x12A:	u8	maxp5gha3
+	0x12B:	u8	maxp5gla3
+	0x12C:	u16	pa5gw0a3
+	0x12E:	u16	pa5gw1a3
+	0x130:	u16	pa5gw2a3
+	0x132:	u16	pa5glw0a3
+	0x134:	u16	pa5glw1a3
+	0x136:	u16	pa5glw2a3
+	0x138:	u16	pa5ghw0a3
+	0x13A:	u16	pa5ghw1a3
+	0x13C:	u16	pa5ghw2a3
+	0x140:	u16	cck2gpo
+	0x142:	u32	ofdm2gpo
+	0x142:	u8	opo
+	0x146:	u32	ofdm5gpo
+	0x14A:	u32	ofdm5glpo
+	0x14E:	u32	ofdm5ghpo
+	0x152:	u16	mcs2gpo0
+	0x154:	u16	mcs2gpo1
+	0x156:	u16	mcs2gpo2
+	0x158:	u16	mcs2gpo3
+	0x15A:	u16	mcs2gpo4
+	0x15C:	u16	mcs2gpo5
+	0x15E:	u16	mcs2gpo6
+	0x160:	u16	mcs2gpo7
+	0x162:	u16	mcs5gpo0
+	0x164:	u16	mcs5gpo1
+	0x166:	u16	mcs5gpo2
+	0x168:	u16	mcs5gpo3
+	0x16A:	u16	mcs5gpo4
+	0x16C:	u16	mcs5gpo5
+	0x16E:	u16	mcs5gpo6
+	0x170:	u16	mcs5gpo7
+	0x172:	u16	mcs5glpo0
+	0x174:	u16	mcs5glpo1
+	0x176:	u16	mcs5glpo2
+	0x178:	u16	mcs5glpo3
+	0x17A:	u16	mcs5glpo4
+	0x17C:	u16	mcs5glpo5
+	0x17E:	u16	mcs5glpo6
+	0x180:	u16	mcs5glpo7
+	0x182:	u16	mcs5ghpo0
+	0x184:	u16	mcs5ghpo1
+	0x186:	u16	mcs5ghpo2
+	0x188:	u16	mcs5ghpo3
+	0x18A:	u16	mcs5ghpo4
+	0x18C:	u16	mcs5ghpo5
+	0x18E:	u16	mcs5ghpo6
+	0x190:	u16	mcs5ghpo7
+	0x192:	u16	cddpo
+	0x194:	u16	stbcpo
+	0x196:	u16	bw40po
+	0x198:	u16	bwduppo
+	0x19A:	u8	rxgainerr2ga0		(&0x3F)
+	0x19A:	u8	rxgainerr2ga1 {
+				+0x0:	u16 (&0x7C0, >>6)
+			}
+	0x19B:	u8	rxgainerr2ga2		(&0xF8, >>3)
+	0x19C:	u8	rxgainerr5gla0		(&0x3F)
+	0x19C:	u8	rxgainerr5gla1 {
+				+0x0:	u16 (&0x7C0, >>6)
+			}
+	0x19D:	u8	rxgainerr5gla2		(&0xF8, >>3)
+	0x19E:	u8	rxgainerr5gma0		(&0x3F)
+	0x19E:	u8	rxgainerr5gma1 {
+				+0x0:	u16 (&0x7C0, >>6)
+			}
+	0x19F:	u8	rxgainerr5gma2		(&0xF8, >>3)
+	0x1A0:	u8	rxgainerr5gha1 {
+				+0x0:	u16 (&0x7C0, >>6)
+			}
+	0x1A0:	u8	rxgainerr5gha0		(&0x3F)
+	0x1A1:	u8	rxgainerr5gha2		(&0xF8, >>3)
+	0x1A2:	u8	rxgainerr5gua1 {
+				+0x0:	u16 (&0x7C0, >>6)
+			}
+	0x1A2:	u8	rxgainerr5gua0		(&0x3F)
+	0x1A3:	u8	rxgainerr5gua2		(&0xF8, >>3)
+	0x1A4:	u8	subband5gver		(&0x7)
+	0x1A6:	u8	pcieingress_war		(&0xF)
+	0x1A8:	u8	eu_edthresh2g
+	0x1A9:	u8	eu_edthresh5g
+	0x1AA:	u8	noiselvl2ga0		(&0x1F)
+	0x1AA:	u8	noiselvl2ga1 {
+				+0x0:	u16 (&0x3E0, >>5)
+			}
+	0x1AB:	u8	noiselvl2ga2		(&0x7C, >>2)
+	0x1AC:	u8	noiselvl5gla1 {
+				+0x0:	u16 (&0x3E0, >>5)
+			}
+	0x1AC:	u8	noiselvl5gla0		(&0x1F)
+	0x1AD:	u8	noiselvl5gla2		(&0x7C, >>2)
+	0x1AE:	u8	noiselvl5gma0		(&0x1F)
+	0x1AE:	u8	noiselvl5gma1 {
+				+0x0:	u16 (&0x3E0, >>5)
+			}
+	0x1AF:	u8	noiselvl5gma2		(&0x7C, >>2)
+	0x1B0:	u8	noiselvl5gha0		(&0x1F)
+	0x1B0:	u8	noiselvl5gha1 {
+				+0x0:	u16 (&0x3E0, >>5)
+			}
+	0x1B1:	u8	noiselvl5gha2		(&0x7C, >>2)
+	0x1B2:	u8	noiselvl5gua0		(&0x1F)
+	0x1B2:	u8	noiselvl5gua1 {
+				+0x0:	u16 (&0x3E0, >>5)
+			}
+	0x1B3:	u8	noiselvl5gua2		(&0x7C, >>2)
+	0x1B4:	u8	noisecaloffset
+	0x1B5:	u8	noisecaloffset5g
+	0x1B6:	u8	sromrev
+	0x1B7:	u8	<sromcrc>
+}
+
+
+srom 9-10 {
+	0x004:	u16	boardtype
+	0x006:	u16	subvid
+	0x060:	u16	devid
+	srom 9 {
+		0x080:	u16	<sromsig>	(=0x5372)
+	}
+	0x082:	u16	boardrev
+	0x084:	u32	boardflags
+	0x088:	u32	boardflags2
+	0x08C:	u8	macaddr[6]	{ +0x1, +0x0, +0x3, +0x2, +0x5, +0x4 }
+	0x090:	u16	boardnum
+	0x092:	char	ccode[2]	{ +0x1, +0x0 }
+	0x094:	u8	regrev
+	0x096:	u8	ledbh0
+	0x097:	u8	ledbh1
+	0x098:	u8	ledbh2
+	0x099:	u8	ledbh3
+	0x09A:	u16	leddc
+	0x09C:	u8	aa2g
+	0x09D:	u8	aa5g
+	0x09E:	u8	ag0
+	0x09F:	u8	ag1
+	0x0A0:	u8	ag2
+	0x0A1:	u8	ag3
+	0x0A2:	u8	txchain			(&0xF)
+	0x0A2:	u8	rxchain			(&0xF0, >>4)
+	0x0A3:	u8	antswitch
+	0x0A4:	u8	rssismf2g		(&0xF)
+	0x0A4:	u8	rssismc2g		(&0xF0, >>4)
+	0x0A5:	u8	rssisav2g		(&0x7)
+	0x0A5:	u8	bxa2g			(&0x18, >>3)
+	0x0A6:	u8	rssismf5g		(&0xF)
+	0x0A6:	u8	rssismc5g		(&0xF0, >>4)
+	0x0A7:	u8	bxa5g			(&0x18, >>3)
+	0x0A7:	u8	rssisav5g		(&0x7)
+	0x0A8:	u8	tri2g
+	0x0A9:	u8	tri5g
+	0x0AA:	u8	tri5gl
+	0x0AB:	u8	tri5gh
+	0x0AC:	i8	rxpo2g
+	0x0AD:	i8	rxpo5g
+	0x0AE:	u8	extpagain2g		(&0x6, >>1)
+	0x0AE:	u8	tssipos2g		(&0x1)
+	0x0AE:	u8	pdetrange2g		(&0xF8, >>3)
+	0x0AF:	u8	antswctl2g		(&0xF8, >>3)
+	0x0AF:	u8	triso2g			(&0x7)
+	0x0B0:	u8	extpagain5g		(&0x6, >>1)
+	0x0B0:	u8	pdetrange5g		(&0xF8, >>3)
+	0x0B0:	u8	tssipos5g		(&0x1)
+	0x0B1:	u8	triso5g			(&0x7)
+	0x0B1:	u8	antswctl5g		(&0xF8, >>3)
+	0x0B2:	u8	tempoffset
+	0x0B3:	u8	tempthresh
+	0x0B4:	u16	rawtempsense		(&0x1FF)
+	0x0B5:	u8	measpower		(&0xFE, >>1)
+	0x0B6:	u8	tempsense_slope
+	0x0B7:	u8	tempsense_option	(&0x3)
+	0x0B7:	u8	tempcorrx		(&0xFC, >>2)
+	0x0B8:	u8	iqcal_swp_dis		(&0x10, >>4)
+	0x0B8:	u8	freqoffset_corr		(&0xF)
+	0x0B8:	u8	hw_iqcal_en		(&0x20, >>5)
+	0x0BA:	u8	elna2g
+	0x0BB:	u8	elna5g
+	0x0BC:	u8	phycal_tempdelta
+	0x0BD:	u8	temps_hysteresis	(&0xF0, >>4)
+	0x0BD:	u8	temps_period		(&0xF)
+	0x0BE:	u8	measpower2 {
+				+0x0:	u16 (&0x3F80, >>7)
+			}
+	0x0BE:	u8	measpower1		(&0x7F)
+	0x0C0:	u8	pa0maxpwr
+	0x0C0:	u8	maxp2ga0
+	0x0C1:	u8	itt2ga0
+	0x0C1:	i8	pa0itssit
+	0x0C2:	u16	pa2gw0a0
+	0x0C2:	i16	pa0b0
+	0x0C4:	i16	pa0b1
+	0x0C4:	u16	pa2gw1a0
+	0x0C6:	u16	pa2gw2a0
+	0x0C6:	i16	pa0b2
+	0x0C8:	u8	pa1maxpwr
+	0x0C8:	u8	maxp5ga0[1]
+	0x0C9:	u8	itt5ga0
+	0x0C9:	i8	pa1itssit
+	0x0CA:	u8	pa1himaxpwr
+	0x0CA:	u8	maxp5gha0
+	0x0CB:	u8	maxp5gla0
+	0x0CB:	u8	pa1lomaxpwr
+	0x0CC:	i16	pa1b0
+	0x0CC:	u16	pa5gw0a0
+	0x0CE:	u16	pa5gw1a0
+	0x0CE:	i16	pa1b1
+	0x0D0:	i16	pa1b2
+	0x0D0:	u16	pa5gw2a0
+	0x0D2:	u16	pa5glw0a0
+	0x0D2:	i16	pa1lob0
+	0x0D4:	u16	pa5glw1a0
+	0x0D4:	i16	pa1lob1
+	0x0D6:	u16	pa5glw2a0
+	0x0D6:	i16	pa1lob2
+	0x0D8:	i16	pa1hib0
+	0x0D8:	u16	pa5ghw0a0
+	0x0DA:	u16	pa5ghw1a0
+	0x0DA:	i16	pa1hib1
+	0x0DC:	u16	pa5ghw2a0
+	0x0DC:	i16	pa1hib2
+	0x0E0:	u8	maxp2ga1
+	0x0E1:	u8	itt2ga1
+	0x0E2:	u16	pa2gw0a1
+	0x0E4:	u16	pa2gw1a1
+	0x0E6:	u16	pa2gw2a1
+	0x0E8:	u8	maxp5ga1[1]
+	0x0E9:	u8	itt5ga1
+	0x0EA:	u8	maxp5gha1
+	0x0EB:	u8	maxp5gla1
+	0x0EC:	u16	pa5gw0a1
+	0x0EE:	u16	pa5gw1a1
+	0x0F0:	u16	pa5gw2a1
+	0x0F2:	u16	pa5glw0a1
+	0x0F4:	u16	pa5glw1a1
+	0x0F6:	u16	pa5glw2a1
+	0x0F8:	u16	pa5ghw0a1
+	0x0FA:	u16	pa5ghw1a1
+	0x0FC:	u16	pa5ghw2a1
+	0x100:	u8	maxp2ga2
+	0x101:	u8	itt2ga2
+	0x102:	u16	pa2gw0a2
+	0x104:	u16	pa2gw1a2
+	0x106:	u16	pa2gw2a2
+	0x108:	u8	maxp5ga2[1]
+	0x109:	u8	itt5ga2
+	0x10A:	u8	maxp5gha2
+	0x10B:	u8	maxp5gla2
+	0x10C:	u16	pa5gw0a2
+	0x10E:	u16	pa5gw1a2
+	0x110:	u16	pa5gw2a2
+	0x112:	u16	pa5glw0a2
+	0x114:	u16	pa5glw1a2
+	0x116:	u16	pa5glw2a2
+	0x118:	u16	pa5ghw0a2
+	0x11A:	u16	pa5ghw1a2
+	0x11C:	u16	pa5ghw2a2
+	0x120:	u8	maxp2ga3
+	0x121:	u8	itt2ga3
+	0x122:	u16	pa2gw0a3
+	0x124:	u16	pa2gw1a3
+	0x126:	u16	pa2gw2a3
+	0x128:	u8	maxp5ga3[1]
+	0x129:	u8	itt5ga3
+	0x12A:	u8	maxp5gha3
+	0x12B:	u8	maxp5gla3
+	0x12C:	u16	pa5gw0a3
+	0x12E:	u16	pa5gw1a3
+	0x130:	u16	pa5gw2a3
+	0x132:	u16	pa5glw0a3
+	0x134:	u16	pa5glw1a3
+	0x136:	u16	pa5glw2a3
+	0x138:	u16	pa5ghw0a3
+	0x13A:	u16	pa5ghw1a3
+	0x13C:	u16	pa5ghw2a3
+	0x140:	u16	cckbw202gpo
+	0x142:	u8	opo
+	0x142:	u16	cckbw20ul2gpo
+	0x144:	u32	legofdmbw202gpo
+	0x148:	u32	legofdmbw20ul2gpo
+	0x14C:	u32	legofdmbw205glpo
+	0x150:	u32	legofdmbw20ul5glpo
+	0x154:	u32	legofdmbw205gmpo
+	0x158:	u32	legofdmbw20ul5gmpo
+	0x15C:	u32	legofdmbw205ghpo
+	0x160:	u32	legofdmbw20ul5ghpo
+	0x164:	u32	mcsbw202gpo
+	0x168:	u32	mcsbw20ul2gpo
+	0x16C:	u32	mcsbw402gpo
+	0x170:	u32	mcsbw205glpo
+	0x174:	u32	mcsbw20ul5glpo
+	0x178:	u32	mcsbw405glpo
+	0x17C:	u32	mcsbw205gmpo
+	0x180:	u32	mcsbw20ul5gmpo
+	0x184:	u32	mcsbw405gmpo
+	0x188:	u32	mcsbw205ghpo
+	0x18C:	u32	mcsbw20ul5ghpo
+	0x190:	u32	mcsbw405ghpo
+	0x194:	u16	mcs32po
+	0x196:	u16	legofdm40duppo
+	0x198:	u8	eu_edthresh2g
+	0x199:	u8	eu_edthresh5g
+	0x19A:	u8	rxgainerr2ga0		(&0x3F)
+	0x19A:	u8	rxgainerr2ga1 {
+				+0x0:	u16 (&0x7C0, >>6)
+			}
+	0x19B:	u8	rxgainerr2ga2		(&0xF8, >>3)
+	0x19C:	u8	rxgainerr5gla0		(&0x3F)
+	0x19C:	u8	rxgainerr5gla1 {
+				+0x0:	u16 (&0x7C0, >>6)
+			}
+	0x19D:	u8	rxgainerr5gla2		(&0xF8, >>3)
+	0x19E:	u8	rxgainerr5gma0		(&0x3F)
+	0x19E:	u8	rxgainerr5gma1 {
+				+0x0:	u16 (&0x7C0, >>6)
+			}
+	0x19F:	u8	rxgainerr5gma2		(&0xF8, >>3)
+	0x1A0:	u8	rxgainerr5gha0		(&0x3F)
+	0x1A0:	u8	rxgainerr5gha1 {
+				+0x0:	u16 (&0x7C0, >>6)
+			}
+	0x1A1:	u8	rxgainerr5gha2		(&0xF8, >>3)
+	0x1A2:	u8	rxgainerr5gua0		(&0x3F)
+	0x1A2:	u8	rxgainerr5gua1 {
+				+0x0:	u16 (&0x7C0, >>6)
+			}
+	0x1A3:	u8	rxgainerr5gua2		(&0xF8, >>3)
+	0x1A4:	u8	subband5gver		(&0x7)
+	0x1A6:	u8	pcieingress_war		(&0xF)
+	0x1A8:	u8	sar2g
+	0x1A9:	u8	sar5g
+	0x1AA:	u8	noiselvl2ga1 {
+				+0x0:	u16 (&0x3E0, >>5)
+			}
+	0x1AA:	u8	noiselvl2ga0		(&0x1F)
+	0x1AB:	u8	noiselvl2ga2		(&0x7C, >>2)
+	0x1AC:	u8	noiselvl5gla0		(&0x1F)
+	0x1AC:	u8	noiselvl5gla1 {
+				+0x0:	u16 (&0x3E0, >>5)
+			}
+	0x1AD:	u8	noiselvl5gla2		(&0x7C, >>2)
+	0x1AE:	u8	noiselvl5gma1 {
+				+0x0:	u16 (&0x3E0, >>5)
+			}
+	0x1AE:	u8	noiselvl5gma0		(&0x1F)
+	0x1AF:	u8	noiselvl5gma2		(&0x7C, >>2)
+	0x1B0:	u8	noiselvl5gha0		(&0x1F)
+	0x1B0:	u8	noiselvl5gha1 {
+				+0x0:	u16 (&0x3E0, >>5)
+			}
+	0x1B1:	u8	noiselvl5gha2		(&0x7C, >>2)
+	0x1B2:	u8	noiselvl5gua0		(&0x1F)
+	0x1B2:	u8	noiselvl5gua1 {
+				+0x0:	u16 (&0x3E0, >>5)
+			}
+	0x1B3:	u8	noiselvl5gua2		(&0x7C, >>2)
+	srom 9 {
+		0x1B4:	u8	noisecaloffset
+		0x1B5:	u8	noisecaloffset5g
+		0x1B6:	u8	sromrev
+		0x1B7:	u8	<sromcrc>
+	}
+	srom 10 {
+		0x1B4:	u16	cckPwrOffset
+		0x1B6:	u16	<sromsig>	(=0x5372)
+		0x1B8:	u32	swctrlmap_2g[5] {
+					+0x0:	u32[4],
+					+0x10:	u16
+				}
+		0x1CA:	u8	sromrev
+		0x1CB:	u8	<sromcrc>
+	}
+}
+
+
+srom 11 {
+	0x004:	u16	boardtype
+	0x006:	u16	subvid
+	0x060:	u16	devid
+	0x080:	u16	<sromsig>	(=0x0634)
+	0x082:	u16	boardrev
+	0x084:	u32	boardflags
+	0x088:	u32	boardflags2
+	0x08C:	u32	boardflags3
+	0x090:	u8	macaddr[6]	{ +0x1, +0x0, +0x3, +0x2, +0x5, +0x4 }
+	0x094:	u16	boardnum
+	0x096:	char	ccode[2]	{ +0x1, +0x0 }
+	0x098:	u8	regrev
+	0x09A:	u8	ledbh0
+	0x09B:	u8	ledbh1
+	0x09C:	u8	ledbh2
+	0x09D:	u8	ledbh3
+	0x09E:	u16	leddc
+	0x0A0:	u8	aa2g
+	0x0A1:	u8	aa5g
+	0x0A2:	u8	agbg1
+	0x0A3:	u8	agbg0
+	0x0A4:	u8	aga0
+	0x0A5:	u8	agbg2
+	0x0A6:	u8	aga2
+	0x0A7:	u8	aga1
+	0x0A8:	u8	txchain			(&0xF)
+	0x0A8:	u8	rxchain			(&0xF0, >>4)
+	0x0A9:	u8	antswitch
+	0x0AA:	u8	epagain2g		(&0xE, >>1)
+	0x0AA:	u8	tssiposslope2g		(&0x1)
+	0x0AA:	u8	pdgain2g {
+				+0x0:	u16 (&0x1F0, >>4)
+			}
+	0x0AB:	u8	papdcap2g		(&0x4, >>2)
+	0x0AB:	u8	tworangetssi2g		(&0x2, >>1)
+	0x0AB:	u8	femctrl			(&0xF8, >>3)
+	0x0AC:	u8	epagain5g		(&0xE, >>1)
+	0x0AC:	u8	tssiposslope5g		(&0x1)
+	0x0AC:	u8	pdgain5g {
+				+0x0:	u16 (&0x1F0, >>4)
+			}
+	0x0AD:	u8	tworangetssi5g		(&0x2, >>1)
+	0x0AD:	u8	gainctrlsph		(&0xF8, >>3)
+	0x0AD:	u8	papdcap5g		(&0x4, >>2)
+	0x0AE:	u8	tempoffset
+	0x0AF:	u8	tempthresh
+	0x0B0:	u16	rawtempsense		(&0x1FF)
+	0x0B1:	u8	measpower		(&0xFE, >>1)
+	0x0B2:	u8	tempsense_slope
+	0x0B3:	u8	tempcorrx		(&0xFC, >>2)
+	0x0B3:	u8	tempsense_option	(&0x3)
+	0x0B4:	u16	xtalfreq
+	0x0B6:	u16	pa5gbw4080a1[12] {
+				+0x0:	u16,
+				+0x6:	u16,
+				0x0CE:	u16,
+				+0x1E:	u16,
+				0x128:	u16[8]
+			}
+	0x0B8:	u8	phycal_tempdelta
+	0x0B9:	u8	temps_period		(&0xF)
+	0x0B9:	u8	temps_hysteresis	(&0xF0, >>4)
+	0x0BA:	u8	measpower2 {
+				+0x0:	u16 (&0x3F80, >>7)
+			}
+	0x0BA:	u8	measpower1		(&0x7F)
+	0x0BE:	u16	tssifloor2g		(&0x3FF)
+	0x0C0:	u16	tssifloor5g[4]		(&0x3FF)
+	0x0C8:	u8	pdoffset2g40ma0		(&0xF)
+	0x0C8:	u8	pdoffset2g40ma1		(&0xF0, >>4)
+	0x0C9:	u8	pdoffset2g40mvalid	(&0x80, >>7)
+	0x0C9:	u8	pdoffset2g40ma2		(&0xF)
+	0x0CA:	u16	pdoffset40ma0
+	0x0CC:	u16	pdoffset40ma1
+	0x0CE:	u16	pdoffset40ma2
+	0x0D0:	u16	pdoffset80ma0
+	0x0D2:	u16	pdoffset80ma1
+	0x0D4:	u16	pdoffset80ma2
+	0x0D6:	u16	subband5gver
+	0x0D8:	u8	maxp2ga0
+	0x0DA:	i16	pa2ga0[3]
+	0x0E0:	u8	rxgains5gmtrisoa0	(&0x78, >>3)
+	0x0E0:	u8	rxgains5gmelnagaina0	(&0x7)
+	0x0E0:	u8	rxgains5gmtrelnabypa0	(&0x80, >>7)
+	0x0E1:	u8	rxgains5ghtrisoa0	(&0x78, >>3)
+	0x0E1:	u8	rxgains5ghelnagaina0	(&0x7)
+	0x0E1:	u8	rxgains5ghtrelnabypa0	(&0x80, >>7)
+	0x0E2:	u8	rxgains2gtrelnabypa0	(&0x80, >>7)
+	0x0E2:	u8	rxgains2gelnagaina0	(&0x7)
+	0x0E2:	u8	rxgains2gtrisoa0	(&0x78, >>3)
+	0x0E3:	u8	rxgains5gtrelnabypa0	(&0x80, >>7)
+	0x0E3:	u8	rxgains5gtrisoa0	(&0x78, >>3)
+	0x0E3:	u8	rxgains5gelnagaina0	(&0x7)
+	0x0E4:	u8	maxp5ga0[4]
+	0x0E8:	i16	pa5ga0[12]
+	0x100:	u8	maxp2ga1
+	0x102:	u16	pa2gccka0[3]
+	0x102:	i16	pa2ga1[3]
+	0x108:	u8	rxgains5gmtrisoa1	(&0x78, >>3)
+	0x108:	u8	rxgains5gmelnagaina1	(&0x7)
+	0x108:	u8	rxgains5gmtrelnabypa1	(&0x80, >>7)
+	0x109:	u8	rxgains5ghtrisoa1	(&0x78, >>3)
+	0x109:	u8	rxgains5ghelnagaina1	(&0x7)
+	0x109:	u8	rxgains5ghtrelnabypa1	(&0x80, >>7)
+	0x10A:	u8	rxgains2gtrelnabypa1	(&0x80, >>7)
+	0x10A:	u8	rxgains2gtrisoa1	(&0x78, >>3)
+	0x10A:	u8	rxgains2gelnagaina1	(&0x7)
+	0x10B:	u8	rxgains5gtrisoa1	(&0x78, >>3)
+	0x10B:	u8	rxgains5gtrelnabypa1	(&0x80, >>7)
+	0x10B:	u8	rxgains5gelnagaina1	(&0x7)
+	0x10C:	u8	maxp5ga1[4]
+	0x110:	u16	pa5gbw40a0[12]
+	0x110:	i16	pa5ga1[12]
+	0x128:	u8	maxp2ga2
+	0x12A:	i16	pa2ga2[3]
+	0x130:	u8	rxgains5gmtrelnabypa2	(&0x80, >>7)
+	0x130:	u8	rxgains5gmtrisoa2	(&0x78, >>3)
+	0x130:	u8	rxgains5gmelnagaina2	(&0x7)
+	0x131:	u8	rxgains5ghtrisoa2	(&0x78, >>3)
+	0x131:	u8	rxgains5ghtrelnabypa2	(&0x80, >>7)
+	0x131:	u8	rxgains5ghelnagaina2	(&0x7)
+	0x132:	u8	rxgains2gtrisoa2	(&0x78, >>3)
+	0x132:	u8	rxgains2gelnagaina2	(&0x7)
+	0x132:	u8	rxgains2gtrelnabypa2	(&0x80, >>7)
+	0x133:	u8	rxgains5gtrisoa2	(&0x78, >>3)
+	0x133:	u8	rxgains5gtrelnabypa2	(&0x80, >>7)
+	0x133:	u8	rxgains5gelnagaina2	(&0x7)
+	0x134:	u8	maxp5ga2[4]
+	0x138:	i16	pa5ga2[12]
+	0x138:	u16	pa5gbw80a0[12]
+	0x138:	u16	pa5gbw4080a0[12]
+	0x150:	u16	cckbw202gpo
+	0x152:	u16	cckbw20ul2gpo
+	0x154:	u32	mcsbw202gpo
+	0x158:	u32	mcsbw402gpo
+	0x15C:	u16	dot11agofdmhrbw202gpo
+	0x15E:	u16	ofdmlrbw202gpo
+	0x160:	u32	mcsbw205glpo
+	0x164:	u32	mcsbw405glpo
+	0x168:	u32	mcsbw805glpo
+	0x16C:	u16	rpcal2g
+	0x16E:	u16	rpcal5gb0
+	0x170:	u32	mcsbw205gmpo
+	0x174:	u32	mcsbw405gmpo
+	0x178:	u32	mcsbw805gmpo
+	0x17C:	u16	rpcal5gb1
+	0x17E:	u16	rpcal5gb2
+	0x180:	u32	mcsbw205ghpo
+	0x184:	u32	mcsbw405ghpo
+	0x188:	u32	mcsbw805ghpo
+	0x18C:	u16	rpcal5gb3
+	0x18E:	u8	pdoffsetcckma1	(&0xF0, >>4)
+	0x18E:	u8	pdoffsetcckma0	(&0xF)
+	0x18F:	u8	pdoffsetcckma2	(&0xF)
+	0x190:	u16	mcslr5glpo	(&0xFFF)
+	0x191:	u8	paparambwver	(&0xF0, >>4)
+	0x192:	u16	mcslr5gmpo
+	0x194:	u16	mcslr5ghpo
+	0x196:	u16	sb20in40hrpo
+	0x198:	u16	sb20in80and160hr5glpo
+	0x19A:	u16	sb40and80hr5glpo
+	0x19C:	u16	sb20in80and160hr5gmpo
+	0x19E:	u16	sb40and80hr5gmpo
+	0x1A0:	u16	sb20in80and160hr5ghpo
+	0x1A2:	u16	sb40and80hr5ghpo
+	0x1A4:	u16	sb20in40lrpo
+	0x1A6:	u16	sb20in80and160lr5glpo
+	0x1A8:	u8	txidxcap2g {
+				+0x0:	u16 (&0xFF0, >>4)
+			}
+	0x1A8:	u16	sb40and80lr5glpo
+	0x1AA:	u16	sb20in80and160lr5gmpo
+	0x1AC:	u8	txidxcap5g {
+				+0x0:	u16 (&0xFF0, >>4)
+			}
+	0x1AC:	u16	sb40and80lr5gmpo
+	0x1AE:	u16	sb20in80and160lr5ghpo
+	0x1B0:	u16	sb40and80lr5ghpo
+	0x1B2:	u16	dot11agduphrpo
+	0x1B4:	u16	dot11agduplrpo
+	0x1BA:	u8	sar2g
+	0x1BB:	u8	sar5g
+	0x1BC:	u8	noiselvl2ga0	(&0x1F)
+	0x1BC:	u8	noiselvl2ga1 {
+				+0x0:	u16 (&0x3E0, >>5)
+			}
+	0x1BD:	u8	noiselvl2ga2	(&0x7C, >>2)
+	0x1BE:	u8	noiselvl5ga1[4] {
+				+0x0:	u16[4] (&0x3E0, >>5)
+			}
+	0x1BE:	u8	noiselvl5ga0[4] {
+				+0x0:	u8 (&0x1F),
+				+0x2:	u8 (&0x1F),
+				+0x4:	u8 (&0x1F),
+				+0x6:	u8 (&0x1F)
+			}
+	0x1BF:	u8	noiselvl5ga2[4] {
+				+0x0:	u8 (&0x7C, >>2),
+				+0x2:	u8 (&0x7C, >>2),
+				+0x4:	u8 (&0x7C, >>2),
+				+0x6:	u8 (&0x7C, >>2)
+			}
+	0x1C6:	u8	rxgainerr2ga1 {
+				+0x0:	u16 (&0x7C0, >>6)
+			}
+	0x1C6:	u8	rxgainerr2ga0	(&0x3F)
+	0x1C7:	u8	rxgainerr2ga2	(&0xF8, >>3)
+	0x1C8:	u8	rxgainerr5ga1[4] {
+				+0x0:	u16[4] (&0x7C0, >>6)
+			}
+	0x1C8:	u8	rxgainerr5ga0[4] {
+				+0x0:	u8 (&0x3F),
+				+0x2:	u8 (&0x3F),
+				+0x4:	u8 (&0x3F),
+				+0x6:	u8 (&0x3F)
+			}
+	0x1C9:	u8	rxgainerr5ga2[4] {
+				+0x0:	u8 (&0xF8, >>3),
+				+0x2:	u8 (&0xF8, >>3),
+				+0x4:	u8 (&0xF8, >>3),
+				+0x6:	u8 (&0xF8, >>3)
+			}
+	0x1D0:	u8	eu_edthresh2g
+	0x1D1:	u8	eu_edthresh5g
+	0x1D2:	u8	sromrev
+	0x1D3:	u8	<sromcrc>
+}

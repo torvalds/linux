@@ -1,0 +1,66 @@
+/*
+ * Musik
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _de_DE_ISO8859_1_musik_
+#define _de_DE_ISO8859_1_musik_
+
+LANG=de_DE.ISO8859-1
+
+/* Barock */
+02/23	Georg Friedrich Händel in Halle an der Saale geboren, 1685
+03/14	Georg Philipp Telemann in Magdeburg geboren, 1681
+03/21	Johann Sebastian Bach in Eisenach geboren, 1685
+04/14	Georg Friedrich Händel in London gestorben, 1759
+06/25	Georg Philipp Telemann in Hamburg gestorben, 1767
+07/17	Diderich Buxtehude in Lübeck gestorben, 1707
+07/28	Johann Sebastian Bach in Leipzig gestorben, 1750
+
+/* Klassik */
+01/27	Wolfgang Amadeus Mozart in Salzburg geboren, 1756
+01/31	Franz Schubert in Lichtenthal bei Wien geboren, 1797
+02/03	Felix Mendelssohn Bartholdy in Hamburg geboren, 1809
+02/13	Richard Wagner in Venedig gestorben, 1883
+03/01	Frederic Chopin in Zelazowa-Wola bei Warschau geboren, 1810
+03/08	(Louis) Hector Berlioz in Paris gestorben, 1869
+03/25	Bela Bartok in Nagyszentmiklos geboren, 1881
+03/26	Ludwig van Beethoven in Wien gestorben, 1827
+03/28	Sergej Rachmaninow in Beverley Hills gestorben, 1943
+03/29	Carl Orff in München gestorben, 1982
+03/31	Joseph Haydn in Rohrau geboren, 1732
+04/01	Sergej Rachmaninow in Oneg geboren, 1873
+04/03	Johannes Brahms in Wien gestorben, 1897
+05/07	Johannes Brahms in Hamburg geboren, 1833
+05/18	Gustav Mahler in Wien gestorben, 1911
+05/22	Richard Wagner in Leipzig geboren, 1813
+05/31	Joseph Haydn in Wien gestorben, 1809
+06/03	Georges Bizet in Bougival bei Paris gestorben, 1875
+06/05	Carl Maria von Weber in London gestorben, 1826
+06/08	Robert Schumann in Zwickau geboren, 1810
+06/11	Richard Strauss in München geboren, 1864
+06/15	Edvard Grieg in Bergen geboren, 1843
+07/07	Gustav Mahler in Kalischt geboren, 1860
+07/10	Carl Orff in München geboren, 1895
+07/29	Robert Schumann in Endenich bei Bonn gestorben, 1856
+07/31	Franz Liszt in Bayreuth gestorben, 1886
+09/04	Edvard Grieg in Bergen gestorben, 1907
+09/08	Richard Strauss in Garmisch-Partenkirchen gestorben, 1949
+09/26	Bela Bartok in New York gestorben, 1945
+10/17	Frederic Chopin in Paris gestorben, 1849
+10/22	Franz Liszt in Raiding (Ungarn) geboren, 1811
+10/25	Georges Bizet in Paris geboren, 1838
+11/04	Felix Mendelssohn Bartholdy in Leipzig gestorben, 1847
+11/18	Carl Maria von Weber in Eutin geboren, 1786
+11/19	Franz Schubert in Wien gestorben, 1828
+11/26	Paul Hindemith in Hanau geboren, 1895
+12/05	Wolfgang Amadeus Mozart in Wien gestorben, 1791
+12/11	(Louis) Hector Berlioz in La-Côte-Saint-André geboren, 1803
+12/17	Ludwig van Beethoven in Bonn getauft, 1770
+12/28	Paul Hindemith in Frankfurt am Main gestorben, 1963
+
+/* Pop */
+09/18	Jimi Hendrix in Paris gestorben, 1970
+
+#endif /* !_de_DE_ISO8859_1_musik_ */

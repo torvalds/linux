@@ -1,0 +1,21 @@
+
+#------------------------------------------------------------------------------
+# $File: erlang,v 1.6 2010/09/20 19:19:17 rrt Exp $
+# erlang:  file(1) magic for Erlang JAM and BEAM files
+# URL:  http://www.erlang.org/faq/x779.html#AEN812
+
+# OTP R3-R4
+0	string	\0177BEAM!	Old Erlang BEAM file
+>6	short	>0		- version %d
+
+# OTP R5 and onwards
+0	string	FOR1
+>8	string	BEAM		Erlang BEAM file
+
+# 4.2 version may have a copyright notice!
+4	string	Tue\ Jan\ 22\ 14:32:44\ MET\ 1991	Erlang JAM file - version 4.2
+79	string	Tue\ Jan\ 22\ 14:32:44\ MET\ 1991	Erlang JAM file - version 4.2
+
+4	string	1.0\ Fri\ Feb\ 3\ 09:55:56\ MET\ 1995	Erlang JAM file - version 4.3
+
+0	bequad	0x0000000000ABCDEF	Erlang DETS file

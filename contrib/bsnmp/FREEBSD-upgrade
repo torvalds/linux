@@ -1,0 +1,22 @@
+$FreeBSD$
+
+This is the Begemot micro-SNMP daemon. It is the base for the ILMI daemon
+for ngATM. Be careful to feed changes back to the maintainer
+<harti@freebsd.org>, because the code here is actually shared with other
+environments besides FreeBSD.
+
+Import should be done by:
+
+	1. unpack distribution into clean directory
+
+	2. remove all unneeded files
+
+	3. cvs import \
+		-m "Virgin import of bsnmpd X.Y" \
+		src/contrib/bsnmp BEGEMOT BSNMP_X_Y
+
+	4. resolve conflicts
+
+	5. check the makefile in lib/libbsnmp and usr.sbin/bsnmp
+
+harti

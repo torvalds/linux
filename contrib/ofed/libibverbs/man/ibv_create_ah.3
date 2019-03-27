@@ -1,0 +1,65 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_CREATE_AH 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_create_ah, ibv_destroy_ah \- create or destroy an address handle (AH)
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "struct ibv_ah *ibv_create_ah(struct ibv_pd " "*pd" ",
+.BI "                             struct ibv_ah_attr " "*attr" ");
+.sp
+.BI "int ibv_destroy_ah(struct ibv_ah " "*ah" ");
+.fi
+.SH "DESCRIPTION"
+.B ibv_create_ah()
+creates an address handle (AH) associated with the protection domain
+.I pd\fR.
+The argument
+.I attr
+is an ibv_ah_attr struct, as defined in <infiniband/verbs.h>.
+.PP
+.nf
+struct ibv_ah_attr {
+.in +8
+struct ibv_global_route grh;            /* Global Routing Header (GRH) attributes */
+uint16_t                dlid;           /* Destination LID */
+uint8_t                 sl;             /* Service Level */
+uint8_t                 src_path_bits;  /* Source path bits */
+uint8_t                 static_rate;    /* Maximum static rate */
+uint8_t                 is_global;      /* GRH attributes are valid */
+uint8_t                 port_num;       /* Physical port number */
+.in -8
+};
+.sp
+.nf
+struct ibv_global_route {
+.in +8
+union ibv_gid           dgid;           /* Destination GID or MGID */
+uint32_t                flow_label;     /* Flow label */
+uint8_t                 sgid_index;     /* Source GID index */
+uint8_t                 hop_limit;      /* Hop limit */
+uint8_t                 traffic_class;  /* Traffic class */
+.in -8
+};
+.fi
+.sp
+.PP
+.B ibv_destroy_ah()
+destroys the AH
+.I ah\fR.
+.SH "RETURN VALUE"
+.B ibv_create_ah()
+returns a pointer to the created AH, or NULL if the request fails.
+.PP
+.B ibv_destroy_ah()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "SEE ALSO"
+.BR ibv_alloc_pd (3),
+.BR ibv_init_ah_from_wc (3),
+.BR ibv_create_ah_from_wc (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

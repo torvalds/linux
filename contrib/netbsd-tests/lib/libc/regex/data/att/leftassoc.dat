@@ -1,0 +1,16 @@
+NOTE	left-assoc:pass-all right-assoc:pass-none : 2002-04-29
+
+E	(a|ab)(c|bcd)(d*)	abcd	(0,4)(0,1)(1,4)(4,4)
+E	(a|ab)(bcd|c)(d*)	abcd	(0,4)(0,1)(1,4)(4,4)
+E	(ab|a)(c|bcd)(d*)	abcd	(0,4)(0,1)(1,4)(4,4)
+E	(ab|a)(bcd|c)(d*)	abcd	(0,4)(0,1)(1,4)(4,4)
+
+E	(a*)(b|abc)(c*)		abc	(0,3)(0,0)(0,3)(3,3)
+E	(a*)(abc|b)(c*)		abc	(0,3)(0,0)(0,3)(3,3)
+E	(a*)(b|abc)(c*)		abc	(0,3)(0,0)(0,3)(3,3)
+E	(a*)(abc|b)(c*)		abc	(0,3)(0,0)(0,3)(3,3)
+
+E	(a|ab)(c|bcd)(d|.*)	abcd	(0,4)(0,1)(1,4)(4,4)
+E	(a|ab)(bcd|c)(d|.*)	abcd	(0,4)(0,1)(1,4)(4,4)
+E	(ab|a)(c|bcd)(d|.*)	abcd	(0,4)(0,1)(1,4)(4,4)
+E	(ab|a)(bcd|c)(d|.*)	abcd	(0,4)(0,1)(1,4)(4,4)

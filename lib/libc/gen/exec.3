@@ -1,0 +1,368 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)exec.3	8.3 (Berkeley) 1/24/94
+.\" $FreeBSD$
+.\"
+.Dd July 28, 2018
+.Dt EXEC 3
+.Os
+.Sh NAME
+.Nm execl ,
+.Nm execlp ,
+.Nm execle ,
+.Nm exect ,
+.Nm execv ,
+.Nm execvp ,
+.Nm execvP
+.Nd execute a file
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Vt extern char **environ ;
+.Ft int
+.Fn execl "const char *path" "const char *arg" ... NULL
+.Ft int
+.Fn execlp "const char *file" "const char *arg" ... NULL
+.Ft int
+.Fn execle "const char *path" "const char *arg" ... NULL "char *const envp[]"
+.Fc
+.Ft int
+.Fn exect "const char *path" "char *const argv[]" "char *const envp[]"
+.Ft int
+.Fn execv "const char *path" "char *const argv[]"
+.Ft int
+.Fn execvp "const char *file" "char *const argv[]"
+.Ft int
+.Fn execvP "const char *file" "const char *search_path" "char *const argv[]"
+.Sh DESCRIPTION
+The
+.Nm exec
+family of functions replaces the current process image with a
+new process image.
+The functions described in this manual page are front-ends for the function
+.Xr execve 2 .
+(See the manual page for
+.Xr execve 2
+for detailed information about the replacement of the current process.)
+.Pp
+The initial argument for these functions is the pathname of a file which
+is to be executed.
+.Pp
+The
+.Fa "const char *arg"
+and subsequent ellipses in the
+.Fn execl ,
+.Fn execlp ,
+and
+.Fn execle
+functions can be thought of as
+.Em arg0 ,
+.Em arg1 ,
+\&...,
+.Em argn .
+Together they describe a list of one or more pointers to null-terminated
+strings that represent the argument list available to the executed program.
+The first argument, by convention, should point to the file name associated
+with the file being executed.
+The list of arguments
+.Em must
+be terminated by a
+.Dv NULL
+pointer.
+.Pp
+The
+.Fn exect ,
+.Fn execv ,
+.Fn execvp ,
+and
+.Fn execvP
+functions provide an array of pointers to null-terminated strings that
+represent the argument list available to the new program.
+The first argument, by convention, should point to the file name associated
+with the file being executed.
+The array of pointers
+.Sy must
+be terminated by a
+.Dv NULL
+pointer.
+.Pp
+The
+.Fn execle
+and
+.Fn exect
+functions also specify the environment of the executed process by following
+the
+.Dv NULL
+pointer that terminates the list of arguments in the argument list
+or the pointer to the argv array with an additional argument.
+This additional argument is an array of pointers to null-terminated strings
+and
+.Em must
+be terminated by a
+.Dv NULL
+pointer.
+The other functions take the environment for the new process image from the
+external variable
+.Va environ
+in the current process.
+.Pp
+Some of these functions have special semantics.
+.Pp
+The functions
+.Fn execlp ,
+.Fn execvp ,
+and
+.Fn execvP
+will duplicate the actions of the shell in searching for an executable file
+if the specified file name does not contain a slash
+.Dq Li /
+character.
+For
+.Fn execlp
+and
+.Fn execvp ,
+search path is the path specified in the environment by
+.Dq Ev PATH
+variable.
+If this variable is not specified,
+the default path is set according to the
+.Dv _PATH_DEFPATH
+definition in
+.In paths.h ,
+which is set to
+.Dq Ev /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin .
+For
+.Fn execvP ,
+the search path is specified as an argument to the function.
+In addition, certain errors are treated specially.
+.Pp
+If an error is ambiguous (for simplicity, we shall consider all
+errors except
+.Er ENOEXEC
+as being ambiguous here, although only the critical error
+.Er EACCES
+is really ambiguous),
+then these functions will act as if they stat the file to determine
+whether the file exists and has suitable execute permissions.
+If it does, they will return immediately with the global variable
+.Va errno
+restored to the value set by
+.Fn execve .
+Otherwise, the search will be continued.
+If the search completes without performing a successful
+.Fn execve
+or terminating due to an error,
+these functions will return with the global variable
+.Va errno
+set to
+.Er EACCES
+or
+.Er ENOENT
+according to whether at least one file with suitable execute permissions
+was found.
+.Pp
+If the header of a file is not recognized (the attempted
+.Fn execve
+returned
+.Er ENOEXEC ) ,
+these functions will execute the shell with the path of
+the file as its first argument.
+(If this attempt fails, no further searching is done.)
+.Pp
+The function
+.Fn exect
+executes a file with the program tracing facilities enabled (see
+.Xr ptrace 2 ) .
+.Sh RETURN VALUES
+If any of the
+.Fn exec
+functions returns, an error will have occurred.
+The return value is \-1, and the global variable
+.Va errno
+will be set to indicate the error.
+.Sh FILES
+.Bl -tag -width /bin/sh -compact
+.It Pa /bin/sh
+The shell.
+.El
+.Sh COMPATIBILITY
+Historically, the default path for the
+.Fn execlp
+and
+.Fn execvp
+functions was
+.Dq Pa :/bin:/usr/bin .
+This was changed to remove the current directory to enhance system
+security.
+.Pp
+The behavior of
+.Fn execlp
+and
+.Fn execvp
+when errors occur while attempting to execute the file is not quite historic
+practice, and has not traditionally been documented and is not specified
+by the
+.Tn POSIX
+standard.
+.Pp
+Traditionally, the functions
+.Fn execlp
+and
+.Fn execvp
+ignored all errors except for the ones described above and
+.Er ETXTBSY ,
+upon which they retried after sleeping for several seconds, and
+.Er ENOMEM
+and
+.Er E2BIG ,
+upon which they returned.
+They now return for
+.Er ETXTBSY ,
+and determine existence and executability more carefully.
+In particular,
+.Er EACCES
+for inaccessible directories in the path prefix is no longer
+confused with
+.Er EACCES
+for files with unsuitable execute permissions.
+In
+.Bx 4.4 ,
+they returned upon all errors except
+.Er EACCES ,
+.Er ENOENT ,
+.Er ENOEXEC
+and
+.Er ETXTBSY .
+This was inferior to the traditional error handling,
+since it breaks the ignoring of errors for path prefixes
+and only improves the handling of the unusual ambiguous error
+.Er EFAULT
+and the unusual error
+.Er EIO .
+The behaviour was changed to match the behaviour of
+.Xr sh 1 .
+.Sh ERRORS
+The
+.Fn execl ,
+.Fn execle ,
+.Fn execlp ,
+.Fn execvp
+and
+.Fn execvP
+functions
+may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr execve 2
+and
+.Xr malloc 3 .
+.Pp
+The
+.Fn exect
+and
+.Fn execv
+functions
+may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr execve 2 .
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr execve 2 ,
+.Xr fork 2 ,
+.Xr ktrace 2 ,
+.Xr ptrace 2 ,
+.Xr environ 7
+.Sh STANDARDS
+The
+.Fn execl ,
+.Fn execv ,
+.Fn execle ,
+.Fn execlp
+and
+.Fn execvp
+functions
+conform to
+.St -p1003.1-88 .
+The
+.Fn execvP
+function first appeared in
+.Fx 5.2 .
+.Sh BUGS
+The type of the
+.Fa argv
+and
+.Fa envp
+parameters to
+.Fn execle ,
+.Fn exect ,
+.Fn execv ,
+.Fn execvp ,
+and
+.Fn execvP
+is a historical accident and no sane implementation should modify the provided
+strings.
+The bogus parameter types trigger false positives from
+.Li const
+correctness analyzers.
+On
+.Fx ,
+the
+.Fn __DECONST
+macro may be used to work around this limitation.
+.Pp
+Due to a fluke of the C standard, on platforms other than
+.Fx
+the definition of
+.Dv NULL
+may be the untyped number zero, rather than a
+.Ad (void *)0
+expression.
+To distinguish the concepts, they are referred to as a
+.Dq null pointer constant
+and a
+.Dq null pointer ,
+respectively.
+On exotic computer architectures that
+.Fx
+does not support, the null pointer constant and null pointer may have a
+different representation.
+In general, where this document and others reference a
+.Dv NULL
+value, they actually imply a null pointer.
+E.g., for portability to non-FreeBSD operating systems on exotic computer
+architectures, one may use
+.Li (char *)NULL
+in place of
+.Dv NULL
+when invoking
+.Fn execl ,
+.Fn execle ,
+and
+.Fn execlp .

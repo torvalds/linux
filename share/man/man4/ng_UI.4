@@ -1,0 +1,93 @@
+.\" Copyright (c) 1996-1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\" $Whistle: ng_UI.8,v 1.4 1999/01/25 02:37:56 archie Exp $
+.\"
+.Dd January 19, 1999
+.Dt NG_UI 4
+.Os
+.Sh NAME
+.Nm ng_UI
+.Nd UI netgraph node type
+.Sh SYNOPSIS
+.In netgraph/ng_UI.h
+.Sh DESCRIPTION
+The
+.Nm UI
+node type has two hooks,
+.Dv upstream
+and
+.Dv downstream .
+Packets received on
+.Dv downstream
+must have 0x03 (indicating unnumbered information) as their first byte;
+if not the packet is dropped.
+This byte is then stripped and the
+remainder of the packet sent out on
+.Dv upstream .
+.Pp
+Conversely, packets received on
+.Dv upstream
+will have a 0x03 byte prepended to them before being forwarded out on the
+.Dv downstream
+hook.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va downstream"
+.It Va downstream
+Downstream connection.
+Packets on this side of the node have a 0x03 as
+their first byte.
+.It Va upstream
+Upstream connection.
+Packets on this side of the node have the
+initial 0x03 byte stripped off.
+.El
+.Sh CONTROL MESSAGES
+This node type supports only the generic control messages.
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when both hooks have been disconnected.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ngctl 8
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Julian Elischer Aq Mt julian@FreeBSD.org

@@ -1,0 +1,17 @@
+# $FreeBSD$
+#	@(#)networks	5.1 (Berkeley) 6/30/90
+#
+# Your Local Networks Database
+#
+your-net	127				# your comment
+your-netmask	255.255.255			# subnet mask for your-net
+
+#
+# Your subnets
+#
+subnet1		127.0.1		alias1		# comment 1
+subnet2		127.0.2		alias2		# comment 2
+
+#
+# Internet networks (from nic.ddn.mil)
+#

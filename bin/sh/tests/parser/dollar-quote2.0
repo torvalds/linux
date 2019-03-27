@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+# This depends on the ASCII character set.
+
+[ $'\e' = "$(printf "\033")" ]

@@ -1,0 +1,16 @@
+#
+# $FreeBSD$
+#
+SRCS=	timings.c
+PROG=	timings
+
+CFLAGS+=-Wall -I../../../include
+
+CLEANFILES=	${PROG}.core
+
+MAN=
+
+.include <bsd.prog.mk>
+
+test: ${PROG}
+	@./timings

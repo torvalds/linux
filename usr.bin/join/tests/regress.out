@@ -1,0 +1,5 @@
+!Name,Data1,Data2
+Foo,1,Bar
+Bar,2,(unknown)
+Baz,3,2
+Foobar,(unknown),1

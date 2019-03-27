@@ -1,0 +1,132 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 19, 2018
+.Dt COLOR.LUA 8
+.Os
+.Sh NAME
+.Nm color.lua
+.Nd FreeBSD color module
+.Sh DESCRIPTION
+.Nm
+contains functionality for working with colors.
+.Pp
+Before using the functionality provided by
+.Nm ,
+it must be included with a statement such as the following:
+.Pp
+.Dl local color = require("color")
+.Pp
+The following color constants are exported from
+.Nm :
+.Bl -tag -width "Ic color.MAGENTA" -offset indent
+.It Ic color.BLACK
+.It Ic color.RED
+.It Ic color.GREEN
+.It Ic color.YELLOW
+.It Ic color.BLUE
+.It Ic color.MAGENTA
+.It Ic color.CYAN
+.It Ic color.WHITE
+.El
+.Pp
+The following attribute constants are exported from
+.Nm :
+.Bl -tag -width "Ic color.DEFAULT" -offset indent
+.It Ic color.DEFAULT
+.It Ic color.BRIGHT
+.It Ic color.DIM
+.El
+.Pp
+The following functions are exported from
+.Nm :
+.Bl -tag -width "Fn color.isEnabled" -offset indent
+.It Fn color.isEnabled
+Returns True if
+.Xr loader 8
+has been configured to not allow color, False otherwise.
+This checks the
+.Ev loader_color
+.Xr loader.conf 5
+variable, along with
+.Fn core.isSerialBoot .
+.It Fn color.escapefg color_value
+Returns the escape sequence that encodes
+.Fa color_value
+as a foreground color.
+.Fn color.escapefg
+returns an empty string if color is disabled.
+.It Fn color.resetfg
+Returns the escape sequence for the default foreground color.
+.Fn color.resetfg
+returns an empty string if color is disabled.
+.It Fn color.escapebg color_value
+Returns the escape sequence that encodes
+.Fa color_value
+as a background color.
+.Fn color.escapebg
+returns an empty string if color is disabled.
+.It Fn color.resetbg
+Returns the escape sequence for the default background color.
+.Fn color.resetbg
+returns an empty string if color is disabled.
+.It Fn color.escape fg_color bg_color attribute
+Returns an escape sequence that encodes
+.Fa fg_color
+as the foreground color,
+.Fa bg_color
+as the background color, and
+.Fa attribute
+applied.
+.Fn color.escape
+returns an empty string if color is disabled.
+.It Fn color.default
+Returns the escape sequence for the default color scheme, white on black with
+no attributes applied.
+.Fn color.default
+returns an empty string if color is disabled.
+.It Fn color.highlight str
+Returns
+.Fa str
+with the
+.Ic color.BRIGHT
+attribute applied before it and reset after it.
+.Fn color.highlight
+returns
+.Fa str
+if color is disabled.
+.El
+.Sh SEE ALSO
+.Xr screen.lua 8
+.Sh AUTHORS
+The
+.Nm
+file was originally written by
+.An Pedro Souza Aq Mt pedrosouza@FreeBSD.org .
+Later work and this manual page was done by
+.An Kyle Evans Aq Mt kevans@FreeBSD.org .

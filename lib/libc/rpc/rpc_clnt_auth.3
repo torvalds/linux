@@ -1,0 +1,96 @@
+.\" @(#)rpc_clnt_auth.3n 1.21 93/05/07 SMI; from SVr4
+.\" Copyright 1989 AT&T
+.\" @(#)rpc_clnt_auth 1.4 89/07/20 SMI;
+.\" Copyright (c) 1988 Sun Microsystems, Inc. - All Rights Reserved.
+.\"	$NetBSD: rpc_clnt_auth.3,v 1.1 2000/06/03 09:29:50 fvdl Exp $
+.\" $FreeBSD$
+.Dd May 7, 1993
+.Dt RPC_CLNT_AUTH 3
+.Os
+.Sh NAME
+.Nm auth_destroy ,
+.Nm authnone_create ,
+.Nm authsys_create ,
+.Nm authsys_create_default
+.Nd library routines for client side remote procedure call authentication
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In rpc/rpc.h
+.Ft "void"
+.Fn auth_destroy "AUTH *auth"
+.Ft "AUTH *"
+.Fn authnone_create "void"
+.Ft "AUTH *"
+.Fn authsys_create "const char *host" "const uid_t uid" "const gid_t gid" "const int len" "const gid_t *aup_gids"
+.Ft "AUTH *"
+.Fn authsys_create_default "void"
+.Sh DESCRIPTION
+These routines are part of the
+RPC library that allows C language programs to make procedure
+calls on other machines across the network,
+with desired authentication.
+.Pp
+These routines are normally called after creating the
+.Vt CLIENT
+handle.
+The
+.Va cl_auth
+field of the
+.Vt CLIENT
+structure should be initialized by the
+.Vt AUTH
+structure returned by some of the following routines.
+The client's authentication information
+is passed to the server when the
+RPC
+call is made.
+.Pp
+Only the
+.Dv NULL
+and the
+.Dv SYS
+style of authentication is discussed here.
+.Sh Routines
+.Bl -tag -width authsys_create_default()
+.It Fn auth_destroy
+A function macro that destroys the authentication
+information associated with
+.Fa auth .
+Destruction usually involves deallocation
+of private data structures.
+The use of
+.Fa auth
+is undefined after calling
+.Fn auth_destroy .
+.It Fn authnone_create
+Create and return an RPC
+authentication handle that passes nonusable
+authentication information with each remote procedure call.
+This is the default authentication used by RPC.
+.It Fn authsys_create
+Create and return an RPC authentication handle that contains
+.Dv AUTH_SYS
+authentication information.
+The
+.Fa host
+argument
+is the name of the machine on which the information was
+created;
+.Fa uid
+is the user's user ID;
+.Fa gid
+is the user's current group ID;
+.Fa len
+and
+.Fa aup_gids
+refer to a counted array of groups to which the user belongs.
+.It Fn authsys_create_default
+Call
+.Fn authsys_create
+with the appropriate arguments.
+.El
+.Sh SEE ALSO
+.Xr rpc 3 ,
+.Xr rpc_clnt_calls 3 ,
+.Xr rpc_clnt_create 3

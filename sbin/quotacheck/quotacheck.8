@@ -1,0 +1,203 @@
+.\" Copyright (c) 1983, 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Robert Elz at The University of Melbourne.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)quotacheck.8	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd January 25, 2007
+.Dt QUOTACHECK 8
+.Os
+.Sh NAME
+.Nm quotacheck
+.Nd file system quota consistency checker
+.Sh SYNOPSIS
+.Nm
+.Op Fl guv
+.Op Fl c Ar 32 | 64
+.Op Fl l Ar maxrun
+.Fl a
+.Nm
+.Op Fl guv
+.Op Fl c Ar 32 | 64
+.Ar filesystem ...
+.Sh DESCRIPTION
+The
+.Nm
+utility examines each file system,
+builds a table of current disk usage,
+and compares this table against that recorded
+in the disk quota file for the file system.
+If any inconsistencies are detected, both the
+quota file and the current system copy of the
+incorrect quotas are updated (the latter only
+occurs if an active file system is checked).
+By default both user and group quotas are checked.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl a
+If supplied in place of any file system names,
+.Nm
+will check all the file systems indicated in
+.Pa /etc/fstab
+to be read-write with disk quotas.
+By default only the types of quotas listed in
+.Pa /etc/fstab
+are checked.
+.It Fl c Ar 32 | 64
+Before performing its checks,
+.Nm
+will convert the quota file to the specified word size.
+A conversion size of 64 is given to request conversion to
+the new 64-bit quota file format.
+A conversion size of 32 is given to request conversion back to
+the old 32-bit quota file format.
+The original quota file is left unchanged and moved aside with an
+underscore and its format size plus a
+.Pa .orig
+extension added to its name.
+Thus, the original 32-bit
+.Pa quota.user
+quota file converted to the 64-bit format quota file will be renamed to
+.Pa quota.user_32.orig .
+.It Fl g
+Only group quotas listed in
+.Pa /etc/fstab
+are to be checked.
+.It Fl l Ar maxrun
+Specifies the maximum number of concurrent file systems
+to check in parallel.
+If this option is omitted, or if
+.Ar maxrun
+is zero, parallel passes are run as per
+.Xr fsck 8 .
+This option is deprecated and parallel passes are always run
+as per
+.Xr fsck 8 .
+.It Fl u
+Only user quotas listed in
+.Pa /etc/fstab
+are to be checked.
+.It Fl v
+Report discrepancies between the
+calculated and recorded disk quotas and other additional diagnostic messages.
+.El
+.Pp
+Specifying both
+.Fl g
+and
+.Fl u
+is equivalent to the default.
+Parallel passes are run on the file systems required,
+using the pass numbers in
+.Pa /etc/fstab
+in an identical fashion to
+.Xr fsck 8 .
+.Pp
+Normally,
+.Nm
+operates silently.
+.Pp
+The
+.Nm
+utility expects each file system to be checked to have a
+quota files named
+.Pa quota.user
+and
+.Pa quota.group
+which are located at the root of the associated file system.
+These defaults may be overridden in
+.Pa /etc/fstab .
+If a file is not present,
+.Nm
+will create it.
+These files should be edited with the
+.Xr edquota 8
+utility.
+.Pp
+The
+.Nm
+utility is normally run at boot time from the
+.Pa /etc/rc
+file.
+The rc startup procedure is controlled by the
+.Pa /etc/rc.conf
+variable
+.Ar check_quotas .
+Note that to enable this functionality in
+.Pa /etc/rc
+you also need to enable startup quota procedures
+with the variable
+.Ar enable_quotas
+in
+.Pa /etc/rc.conf .
+The kernel must also be built with
+.Cd "options QUOTA" .
+.Pp
+The
+.Nm
+utility accesses the raw device in calculating the actual
+disk usage for each user.
+Thus, the file systems
+checked should be quiescent while
+.Nm
+is running.
+.Sh FILES
+.Bl -tag -width quota.group -compact
+.It Pa quota.user
+at the file system root with user quotas
+.It Pa quota.group
+at the file system root with group quotas
+.It Pa /etc/fstab
+default file systems
+.El
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr quotactl 2 ,
+.Xr fstab 5 ,
+.Xr rc.conf 5 ,
+.Xr edquota 8 ,
+.Xr fsck 8 ,
+.Xr quotaon 8 ,
+.Xr repquota 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.2 .
+.Sh BUGS
+The quota system will ignore UIDs or GIDs that would be negative
+when evaluated as a signed value.
+Typically those types of ids can appear in the file system from NFS
+mounts or archive files from other operating systems.
+Extremely large UIDs or GIDs will cause
+.Nm
+to run for an unreasonable amount of time and also produce extremely
+large quota data files.

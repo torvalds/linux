@@ -1,0 +1,89 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 25, 2012
+.Dt IPFW 4
+.Os
+.Sh NAME
+.Nm ipfw
+.Nd IP packet filter and traffic accounting
+.Sh SYNOPSIS
+To compile
+the driver
+into the kernel, place the following option in the kernel configuration
+file:
+.Bd -ragged -offset indent
+.Cd "options IPFIREWALL"
+.Ed
+.Pp
+Other related kernel options
+which may also be useful are:
+.Bd -ragged -offset indent
+.Cd "options IPFIREWALL_DEFAULT_TO_ACCEPT"
+.Cd "options IPFIREWALL_VERBOSE"
+.Cd "options IPFIREWALL_VERBOSE_LIMIT=100"
+.Ed
+.Pp
+To load
+the driver
+as a module at boot time, add the following line into the
+.Xr loader.conf 5
+file:
+.Bd -literal -offset indent
+ipfw_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+system facility allows filtering,
+redirecting, and other operations on
+.Tn IP
+packets travelling through
+network interfaces.
+.Pp
+The default behavior of
+.Nm
+is to block all incoming and outgoing traffic.
+This behavior can be modified, to allow all traffic through the
+.Nm
+firewall by default, by enabling the
+.Dv IPFIREWALL_DEFAULT_TO_ACCEPT
+kernel option.
+This option may be useful when configuring
+.Nm
+for the first time.
+If the default
+.Nm
+behavior is to allow everything, it is easier to cope with
+firewall-tuning mistakes which may accidentally block all traffic.
+.Pp
+To enable logging of packets passing through
+.Nm ,
+enable the
+.Dv IPFIREWALL_VERBOSE
+kernel option.
+The
+.Dv IPFIREWALL_VERBOSE_LIMIT
+option will prevent
+.Xr syslogd 8
+from flooding system logs or causing local Denial of Service.
+This option may be set to the number of packets which will be logged on
+a per-entry basis before the entry is rate-limited.
+.Pp
+The user interface for
+.Nm
+is implemented by the
+.Xr ipfw 8
+utility, so please refer to the
+.Xr ipfw 8
+manpage for a complete description of the
+.Nm
+capabilities and how to use it.
+.Sh SEE ALSO
+.Xr setsockopt 2 ,
+.Xr divert 4 ,
+.Xr ip 4 ,
+.Xr ipfw 8 ,
+.Xr sysctl 8 ,
+.Xr syslogd 8 ,
+.Xr pfil 9

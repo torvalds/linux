@@ -1,0 +1,127 @@
+.\" Copyright (c) 2010 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: dwarf_hasform.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd May 22, 2010
+.Dt DWARF_HASFORM 3
+.Os
+.Sh NAME
+.Nm dwarf_hasform ,
+.Nm dwarf_whatform ,
+.Nm dwarf_whatform_direct
+.Nd query attribute forms
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_hasform
+.Fa "Dwarf_Attribute attr"
+.Fa "Dwarf_Half form"
+.Fa "Dwarf_Bool *ret"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_whatform
+.Fa "Dwarf_Attribute attr"
+.Fa "Dwarf_Half *retform"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_whatform_direct
+.Fa "Dwarf_Attribute attr"
+.Fa "Dwarf_Half *retform"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_hasform
+indicates whether the DWARF attribute denoted by argument
+.Ar attr
+has the attribute form specified by argument
+.Ar form .
+If the attribute has the specified form, then
+argument
+.Ar ret
+is set to a non-zero value, otherwise it is set to zero.
+If argument
+.Ar err
+is non-NULL, it will be used to return an error descriptor in
+case of an error.
+.Pp
+Function
+.Fn dwarf_whatform
+sets the location specified by argument
+.Ar retform
+to the attribute form code for the DWARF attribute referenced
+by argument
+.Ar attr .
+If the attribute referenced by argument
+.Ar attr
+has an indirect form attribute, this function will return the final
+form for the attribute.
+If argument
+.Ar err
+is non-NULL, it will be used to return an error descriptor in
+case of an error.
+.Pp
+Function
+.Fn dwarf_whatform_direct
+sets the location specified by argument
+.Ar retform
+to the attribute form code for the DWARF attribute referenced
+by argument
+.Ar attr .
+If the form is an indirect form, the function sets the location
+specified by argument
+.Ar retform
+to
+.Dv DW_FORM_indirect .
+If argument
+.Ar err
+is non-NULL, it will be used to return an error descriptor in
+case of an error.
+.Sh RETURN VALUES
+These functions return
+.Dv DW_DLV_OK
+on success.
+In case of an error, these functions return
+.Dv DW_DLV_ERR
+and set argument
+.Ar err .
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Any of the arguments
+.Ar attr ,
+.Ar ret ,
+or
+.Ar retform
+was NULL.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_attr 3 ,
+.Xr dwarf_hasattr 3

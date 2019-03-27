@@ -1,0 +1,86 @@
+.\"
+.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 16, 2004
+.Dt G_WITHER_GEOM 9
+.Os
+.Sh NAME
+.Nm g_wither_geom
+.Nd "destroy geom and related providers and consumers when you get a chance"
+.Sh SYNOPSIS
+.In geom/geom.h
+.Ft void
+.Fn g_wither_geom "struct g_geom *gp" "int error"
+.Sh DESCRIPTION
+The
+.Fn g_wither_geom
+function tells GEOM that geom
+.Fa gp
+is to be destroyed.
+GEOM sets an error on each provider of the given geom (in the
+orphaning process) and waits for a chance to destroy the geom.
+If the access count of any possessed consumer goes to 0, the consumer will be
+detached and destroyed automatically.
+If the last consumer attached to any possessed provider will be detached,
+the provider will be destroyed.
+If there are no more providers nor consumers, the geom will be
+destroyed.
+.Pp
+This is an automatic
+.Dq garbage collect
+to avoid duplicated code in all classes.
+Before it is called, field
+.Va softc
+should be disposed of and set to
+.Dv NULL .
+Note that the
+.Fn g_wither_geom
+function gives no guarantee that the geom will be immediately destroyed, mostly
+because the access counts of the geom's consumers and providers may not be 0.
+That is why calling this function for every geom from a given class is not enough
+to be sure that the class can be unloaded.
+.Sh RESTRICTIONS/CONDITIONS
+The argument
+.Fa error
+must be nonzero.
+.Pp
+The topology lock has to be held.
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr DECLARE_GEOM_CLASS 9 ,
+.Xr g_access 9 ,
+.Xr g_attach 9 ,
+.Xr g_bio 9 ,
+.Xr g_consumer 9 ,
+.Xr g_data 9 ,
+.Xr g_event 9 ,
+.Xr g_geom 9 ,
+.Xr g_provider 9 ,
+.Xr g_provider_by_name 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .

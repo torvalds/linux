@@ -1,0 +1,92 @@
+{
+  "indian-languages": {
+    "gurmukhi": "ਲਹੌਰ ਪਾਕਿਸਤਾਨੀ ਪੰਜਾਬ ਦੀ ਰਾਜਧਾਨੀ ਹੈ । ਲੋਕ ਗਿਣਤੀ ਦੇ ਨਾਲ ਕਰਾਚੀ ਤੋਂ ਬਾਅਦ ਲਹੌਰ ਦੂਜਾ ਸਭ ਤੋਂ ਵੱਡਾ ਸ਼ਹਿਰ ਹੈ । ਲਹੌਰ ਪਾਕਿਸਤਾਨ ਦਾ ਸਿਆਸੀ, ਰਹਤਲੀ ਤੇ ਪੜ੍ਹਾਈ ਦਾ ਗੜ੍ਹ ਹੈ ਅਤੇ ਇਸ ਲਈ ਇਹਨੂੰ ਪਾਕਿਸਤਾਨ ਦਾ ਦਿਲ ਵੀ ਕਿਹਾ ਜਾਂਦਾ ਹੈ । ਲਹੌਰ ਦਰਿਆ-ਏ-ਰਾਵੀ ਦੇ ਕੰਢੇ ਤੇ ਵਸਦਾ ਹੈ ਤੇ ਇਸਦੀ ਲੋਕ ਗਿਣਤੀ ਇੱਕ ਕਰੋੜ ਦੇ ਨੇੜੇ ਹੈ ।",
+    "shahmukhi": "لہور پاکستانی پنجاب دا دارالحکومت اے۔ لوک گنتی دے نال کراچی توں بعد لہور دوجا سبھ توں وڈا شہر اے۔ لہور پاکستان دا سیاسی، رہتلی تے پڑھائی دا گڑھ اے تے اس لئی ایھنوں پاکستان دا دل وی کیھا جاندا اے۔ لہور دریاۓ راوی دے کنڈھے تے وسدا اے اسدی لوک گنتی اک کروڑ دے نیڑے اے ۔",
+    "tranliteration": "lahor pākistān panjāb dā dārul hakūmat ē. lōk giṇtī dē nāḷ karācī tō᷈ bāad lahor dūjā sab tō᷈ vaḍḍā shahr ē. lahor pākistān dā siāsī, rahtalī tē paṛā̀ī dā gā́ṛ ē tē is laī ihnū᷈ pākistān dā dil vī kehā jāndā ē. lahor dariāē rāvī dē kanḍē tē vasdā ē. isdī lōk giṇtī ikk karōṛ dē nēṛē ē."
+  }
+,
+  "employees": {
+    "wc": [
+      "෴ - 0xdf4 - 1",
+      "ණ - 0xdab - 1",
+      "් - 0xdca - 0",
+      "ණ - 0xdab - 1",
+      "្ - 0x17d2 - 0",
+      "෴ - 0xdf4 - 1",
+      "1 - 0x31 - 1",
+      "͏ - 0x34f - 0",
+      "2 - 0x32 - 1",
+      "⃝ - 0x20dd - 0"
+    ],
+    "fancy": "1͏2⃝",
+    "v1": "γιγνώσκειν",
+    "v2": "ὦ ἄνδρες ᾿Αθηναῖοι",
+    "v1": "ახლავე გაიაროთ რეგისტრაცია",
+    "v2": "Unicode-ის მეათე საერთაშორისო",
+    "width": 55,
+    "sinhala": "෴ණ්ණ෴",
+    "width": 4,
+    "sinhala": "෴",
+    "width": 1,
+    "sinhala": "෴ණ්ණ෴෴ණ්ණ෴",
+    "width": 8,
+    "not-sinhala": "123456",
+    "tag": "ර්‍ඝ",
+    "width": 2,
+    "employee": [
+      {
+        "first-name": "Jim",
+        "nic-name": "\"რეგტ\"",
+        "last-name": "გთხოვთ ახ",
+        "department": 431,
+        "percent-time": 90,
+        "benefits": "full"
+      },
+      {
+        "first-name": "Terry",
+        "nic-name": "\"<one\"",
+        "last-name": "Οὐχὶ ταὐτὰ παρίσταταί μοι Jones",
+        "department": 660,
+        "percent-time": 90,
+        "benefits": "full"
+      },
+      {
+        "first-name": "Leslie",
+        "nic-name": "\"Les\"",
+        "last-name": "Patterson",
+        "department": 341,
+        "percent-time": 60,
+        "benefits": "full"
+      },
+      {
+        "first-name": "Ashley",
+        "nic-name": "\"Ash\"",
+        "last-name": "Meter & Smith",
+        "department": 1440,
+        "percent-time": 40
+      },
+      {
+        "first-name": "0123456789",
+        "nic-name": "\"0123456789\"",
+        "last-name": "012345678901234567890",
+        "department": 1440,
+        "percent-time": 40
+      },
+      {
+        "first-name": "ახლა",
+        "nic-name": "\"გაიარო\"",
+        "last-name": "საერთაშორისო",
+        "department": 123,
+        "percent-time": 90,
+        "benefits": "full"
+      },
+      {
+        "first-name": "෴ණ්ණ෴෴ණ්ණ෴",
+        "nic-name": "\"Mick\"",
+        "last-name": "෴ණ්ණ෴෴ණ්ණ෴෴ණ්ණ෴෴෴",
+        "department": 110,
+        "percent-time": 20
+      }
+    ]
+  }
+}

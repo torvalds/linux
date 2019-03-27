@@ -1,0 +1,222 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2001 Boris Popov
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 20, 2001
+.Dt MBCHAIN 9
+.Os
+.Sh NAME
+.Nm mbchain ,
+.Nm mb_init ,
+.Nm mb_initm ,
+.Nm mb_done ,
+.Nm mb_detach ,
+.Nm mb_fixhdr ,
+.Nm mb_reserve ,
+.Nm mb_put_uint8 ,
+.Nm mb_put_uint16be ,
+.Nm mb_put_uint16le ,
+.Nm mb_put_uint32be ,
+.Nm mb_put_uint32le ,
+.Nm mb_put_int64be ,
+.Nm mb_put_int64le ,
+.Nm mb_put_mem ,
+.Nm mb_put_mbuf ,
+.Nm mb_put_uio
+.Nd "set of functions to build an mbuf chain from various data types"
+.Sh SYNOPSIS
+.Cd options LIBMCHAIN
+.Li kldload libmchain
+.Pp
+.In sys/param.h
+.In sys/uio.h
+.In sys/mchain.h
+.Ft int
+.Fn mb_init "struct mbchain *mbp"
+.Ft void
+.Fn mb_initm "struct mbchain *mbp" "struct mbuf *m"
+.Ft void
+.Fn mb_done "struct mbchain *mbp"
+.Ft struct mbuf *
+.Fn mb_detach "struct mbchain *mbp"
+.Ft int
+.Fn mb_fixhdr "struct mbchain *mbp"
+.Ft caddr_t
+.Fn mb_reserve "struct mbchain *mbp" "int size"
+.Ft int
+.Fn mb_put_uint8 "struct mbchain *mbp" "uint8_t x"
+.Ft int
+.Fn mb_put_uint16be "struct mbchain *mbp" "uint16_t x"
+.Ft int
+.Fn mb_put_uint16le "struct mbchain *mbp" "uint16_t x"
+.Ft int
+.Fn mb_put_uint32be "struct mbchain *mbp" "uint32_t x"
+.Ft int
+.Fn mb_put_uint32le "struct mbchain *mbp" "uint32_t x"
+.Ft int
+.Fn mb_put_int64be "struct mbchain *mbp" "int64_t x"
+.Ft int
+.Fn mb_put_int64le "struct mbchain *mbp" "int64_t x"
+.Ft int
+.Fn mb_put_mem "struct mbchain *mbp" "c_caddr_t source" "int size" "int type"
+.Ft int
+.Fn mb_put_mbuf "struct mbchain *mbp" "struct mbuf *m"
+.Ft int
+.Fn mb_put_uio "struct mbchain *mbp" "struct uio *uiop" "int size"
+.Sh DESCRIPTION
+These functions are used to compose mbuf chains from various data types.
+The
+.Vt mbchain
+structure is used as a working context and should be initialized with a call
+to either
+.Fn mb_init
+or
+.Fn mb_initm .
+It has the following fields:
+.Bl -tag -width ".Va mb_count"
+.It Va "mb_top"
+.Pq Vt "struct mbuf *"
+A pointer to the top of constructed mbuf chain.
+.It Va mb_cur
+.Pq Vt "struct mbuf *"
+A pointer to the currently filled mbuf.
+.It Va mb_mleft
+.Pq Vt int
+Number of bytes left in the current mbuf.
+.It Va mb_count
+.Pq Vt int
+Total number of bytes placed in the mbuf chain.
+.It Va mb_copy
+.Pq Vt "mb_copy_t *"
+User-defined function to perform a copy into mbuf;
+useful if any unusual
+data conversion is necessary.
+.It Va mb_udata
+.Pq Vt "void *"
+User-supplied data which can be used in the
+.Va mb_copy
+function.
+.El
+.Pp
+.Fn mb_done
+function disposes an mbuf chain pointed to by
+.Fa mbp->mb_top
+field and sets
+the field to
+.Dv NULL .
+.Pp
+.Fn mb_detach
+function returns the value of
+.Fa mbp->mb_top
+field and sets its value to
+.Dv NULL .
+.Pp
+.Fn mb_fixhdr
+recalculates the length of an mbuf chain and updates the
+.Va m_pkthdr.len
+field of the first mbuf in the chain.
+It returns the calculated length.
+.Pp
+.Fn mb_reserve
+ensures that the object of the length specified by the
+.Fa size
+argument will fit in the current mbuf (mbuf allocation is performed if
+necessary), and advances all pointers as if the real data was placed.
+Returned
+value will point to the beginning of the reserved space.
+Note that the size
+of the object should not exceed
+.Dv MLEN
+bytes.
+.Pp
+All
+.Fn mb_put_*
+functions perform an actual copy of the data into mbuf chain.
+Functions which have
+.Cm le
+or
+.Cm be
+suffixes will perform conversion to the little\- or big\-endian data formats.
+.Pp
+.Fn mb_put_mem
+function copies
+.Fa size
+bytes of data specified by the
+.Fa source
+argument to an mbuf chain.
+The
+.Fa type
+argument specifies the method used to perform a copy,
+and can be one of the following:
+.Bl -tag -width ".Dv MB_MINLINE"
+.It Dv MB_MSYSTEM
+Use
+.Fn bcopy
+function.
+.It Dv MB_MUSER
+Use
+.Xr copyin 9
+function.
+.It Dv MB_MINLINE
+Use an
+.Dq inline
+loop which does not call any function.
+.It Dv MB_MZERO
+Do not copy any data, but just fill the destination with zero bytes.
+.It Dv MB_MCUSTOM
+Call function specified by the
+.Fa mbp->mb_copy
+field.
+.El
+.Sh RETURN VALUES
+All
+.Ft int
+functions except
+.Fn mb_fixhdr
+return zero if successful and an error code otherwise.
+.Pp
+.Em Note :
+after failure of any function, an mbuf chain is left in the broken state,
+and only
+.Fn mb_done
+function can safely be called to destroy it.
+.Sh EXAMPLES
+.Bd -literal
+struct mbchain *mbp;
+struct mbuf *m;
+
+mb_init(mbp);
+mb_put_uint8(mbp, 33);
+mb_put_uint16le(mbp, length);
+m = m_copym(mbp->mb_top, 0, M_COPYALL, M_WAIT);
+send(m);
+mb_done(mbp);
+.Ed
+.Sh SEE ALSO
+.Xr mbuf 9 ,
+.Xr mdchain 9
+.Sh AUTHORS
+This manual page was written by
+.An Boris Popov Aq Mt bp@FreeBSD.org .

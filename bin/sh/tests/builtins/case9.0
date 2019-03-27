@@ -1,0 +1,39 @@
+# $FreeBSD$
+
+errors=0
+
+f() {
+	result=
+	case $1 in
+	a) result=${result}a ;;
+	b) result=${result}b ;&
+	c) result=${result}c ;&
+	d) result=${result}d ;;
+	e) result=${result}e ;&
+	esac
+}
+
+check() {
+	f "$1"
+	if [ "$result" != "$2" ]; then
+		printf "For %s, expected %s got %s\n" "$1" "$2" "$result"
+		errors=$((errors + 1))
+	fi
+}
+
+check '' ''
+check a a
+check b bcd
+check c cd
+check d d
+check e e
+
+if ! (case 1 in
+	1) false ;&
+	2) true ;;
+esac) then
+	echo "Subshell bad"
+	errors=$((errors + 1))
+fi
+
+exit $((errors != 0))

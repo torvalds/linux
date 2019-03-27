@@ -1,0 +1,26 @@
+.nr tp 8
+.nr hm 3v
+.nr fm 2v
+.nr tm 5v
+.nr bm 4v
+.cs R
+.sc
+.sz 6
+.ll +10n
+.lt \n(.l
+.de $h
+.tl 'Fortune Database'\\*(Se'\*(td'
+..
+.de $f
+.tl ''- % -''
+..
+.2c
+.nf
+.ta
+.ta 8n 16n 24n 32n 40n 48n 56n 64n 72n 80n
+.de %%
+.sp .3
+.ce
+\(sq\|\(sq\|\(sq\|\(sq\|\(sq\|\(sq\|\(sq\|\(sq\|\(sq
+.sp .2
+..

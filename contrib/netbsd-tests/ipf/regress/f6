@@ -1,0 +1,48 @@
+block in proto tcp from any to any port = 23
+block in proto udp from any to any port = 23
+block in proto tcp/udp from any to any port = 23
+pass in proto tcp from any to any port <= 1023
+pass in proto udp from any to any port <= 1023
+pass in proto tcp/udp from any to any port <= 1023
+block in proto tcp from any to any port >= 1024
+block in proto udp from any to any port >= 1024
+block in proto tcp/udp from any to any port >= 1024
+pass in proto tcp from any to any port >= 1024
+pass in proto udp from any to any port >= 1024
+pass in proto tcp/udp from any to any port >= 1024
+block in proto tcp from any to any port 0 >< 512
+block in proto udp from any to any port 0 >< 512
+block in proto tcp/udp from any to any port 0 >< 512
+pass in proto tcp from any to any port 0 >< 512
+pass in proto udp from any to any port 0 >< 512
+pass in proto tcp/udp from any to any port 0 >< 512
+block in proto tcp from any to any port 6000 <> 6009
+block in proto udp from any to any port 6000 <> 6009
+block in proto tcp/udp from any to any port 6000 <> 6009
+pass in proto tcp from any to any port 6000 <> 6009
+pass in proto udp from any to any port 6000 <> 6009
+pass in proto tcp/udp from any to any port 6000 <> 6009
+pass in proto tcp from any to any port = 23
+pass in proto udp from any to any port = 23
+pass in proto tcp/udp from any to any port = 23
+block in proto tcp from any to any port != 21
+block in proto udp from any to any port != 21
+block in proto tcp/udp from any to any port != 21
+pass in proto tcp from any to any port != 21
+pass in proto udp from any to any port != 21
+pass in proto tcp/udp from any to any port != 21
+block in proto tcp from any to any port < 1024
+block in proto udp from any to any port < 1024
+block in proto tcp/udp from any to any port < 1024
+pass in proto tcp from any to any port < 1024
+pass in proto udp from any to any port < 1024
+pass in proto tcp/udp from any to any port < 1024
+block in proto tcp from any to any port > 1023
+block in proto udp from any to any port > 1023
+block in proto tcp/udp from any to any port > 1023
+pass in proto tcp from any to any port > 1023
+pass in proto udp from any to any port > 1023
+pass in proto tcp/udp from any to any port > 1023
+block in proto tcp from any to any port <= 1023
+block in proto udp from any to any port <= 1023
+block in proto tcp/udp from any to any port <= 1023

@@ -1,0 +1,364 @@
+This directory contains source for a library of binary -> decimal
+and decimal -> binary conversion routines, for single-, double-,
+and extended-precision IEEE binary floating-point arithmetic, and
+other IEEE-like binary floating-point, including "double double",
+as in
+
+	T. J. Dekker, "A Floating-Point Technique for Extending the
+	Available Precision", Numer. Math. 18 (1971), pp. 224-242
+
+and
+
+	"Inside Macintosh: PowerPC Numerics", Addison-Wesley, 1994
+
+The conversion routines use double-precision floating-point arithmetic
+and, where necessary, high precision integer arithmetic.  The routines
+are generalizations of the strtod and dtoa routines described in
+
+	David M. Gay, "Correctly Rounded Binary-Decimal and
+	Decimal-Binary Conversions", Numerical Analysis Manuscript
+	No. 90-10, Bell Labs, Murray Hill, 1990;
+	http://cm.bell-labs.com/cm/cs/what/ampl/REFS/rounding.ps.gz
+
+(based in part on papers by Clinger and Steele & White: see the
+references in the above paper).
+
+The present conversion routines should be able to use any of IEEE binary,
+VAX, or IBM-mainframe double-precision arithmetic internally, but I (dmg)
+have so far only had a chance to test them with IEEE double precision
+arithmetic.
+
+The core conversion routines are strtodg for decimal -> binary conversions
+and gdtoa for binary -> decimal conversions.  These routines operate
+on arrays of unsigned 32-bit integers of type ULong, a signed 32-bit
+exponent of type Long, and arithmetic characteristics described in
+struct FPI; FPI, Long, and ULong are defined in gdtoa.h.  File arith.h
+is supposed to provide #defines that cause gdtoa.h to define its
+types correctly.  File arithchk.c is source for a program that
+generates a suitable arith.h on all systems where I've been able to
+test it.
+
+The core conversion routines are meant to be called by helper routines
+that know details of the particular binary arithmetic of interest and
+convert.  The present directory provides helper routines for 5 variants
+of IEEE binary floating-point arithmetic, each indicated by one or
+two letters:
+
+	f	IEEE single precision
+	d	IEEE double precision
+	x	IEEE extended precision, as on Intel 80x87
+		and software emulations of Motorola 68xxx chips
+		that do not pad the way the 68xxx does, but
+		only store 80 bits
+	xL	IEEE extended precision, as on Motorola 68xxx chips
+	Q	quad precision, as on Sun Sparc chips
+	dd	double double, pairs of IEEE double numbers
+		whose sum is the desired value
+
+For decimal -> binary conversions, there are three families of
+helper routines: one for round-nearest (or the current rounding
+mode on IEEE-arithmetic systems that provide the C99 fegetround()
+function, if compiled with -DHonor_FLT_ROUNDS):
+
+	strtof
+	strtod
+	strtodd
+	strtopd
+	strtopf
+	strtopx
+	strtopxL
+	strtopQ
+
+one with rounding direction specified:
+
+	strtorf
+	strtord
+	strtordd
+	strtorx
+	strtorxL
+	strtorQ
+
+and one for computing an interval (at most one bit wide) that contains
+the decimal number:
+
+	strtoIf
+	strtoId
+	strtoIdd
+	strtoIx
+	strtoIxL
+	strtoIQ
+
+The latter call strtoIg, which makes one call on strtodg and adjusts
+the result to provide the desired interval.  On systems where native
+arithmetic can easily make one-ulp adjustments on values in the
+desired floating-point format, it might be more efficient to use the
+native arithmetic.  Routine strtodI is a variant of strtoId that
+illustrates one way to do this for IEEE binary double-precision
+arithmetic -- but whether this is more efficient remains to be seen.
+
+Functions strtod and strtof have "natural" return types, float and
+double -- strtod is specified by the C standard, and strtof appears
+in the stdlib.h of some systems, such as (at least some) Linux systems.
+The other functions write their results to their final argument(s):
+to the final two argument for the strtoI... (interval) functions,
+and to the final argument for the others (strtop... and strtor...).
+Where possible, these arguments have "natural" return types (double*
+or float*), to permit at least some type checking.  In reality, they
+are viewed as arrays of ULong (or, for the "x" functions, UShort)
+values. On systems where long double is the appropriate type, one can
+pass long double* final argument(s) to these routines.  The int value
+that these routines return is the return value from the call they make
+on strtodg; see the enum of possible return values in gdtoa.h.
+
+Source files g_ddfmt.c, misc.c, smisc.c, strtod.c, strtodg.c, and ulp.c
+should use true IEEE double arithmetic (not, e.g., double extended),
+at least for storing (and viewing the bits of) the variables declared
+"double" within them.
+
+One detail indicated in struct FPI is whether the target binary
+arithmetic departs from the IEEE standard by flushing denormalized
+numbers to 0.  On systems that do this, the helper routines for
+conversion to double-double format (when compiled with
+Sudden_Underflow #defined) penalize the bottom of the exponent
+range so that they return a nonzero result only when the least
+significant bit of the less significant member of the pair of
+double values returned can be expressed as a normalized double
+value.  An alternative would be to drop to 53-bit precision near
+the bottom of the exponent range.  To get correct rounding, this
+would (in general) require two calls on strtodg (one specifying
+126-bit arithmetic, then, if necessary, one specifying 53-bit
+arithmetic).
+
+By default, the core routine strtodg and strtod set errno to ERANGE
+if the result overflows to +Infinity or underflows to 0.  Compile
+these routines with NO_ERRNO #defined to inhibit errno assignments.
+
+Routine strtod is based on netlib's "dtoa.c from fp", and
+(f = strtod(s,se)) is more efficient for some conversions than, say,
+strtord(s,se,1,&f).  Parts of strtod require true IEEE double
+arithmetic with the default rounding mode (round-to-nearest) and, on
+systems with IEEE extended-precision registers, double-precision
+(53-bit) rounding precision.  If the machine uses (the equivalent of)
+Intel 80x87 arithmetic, the call
+	_control87(PC_53, MCW_PC);
+does this with many compilers.  Whether this or another call is
+appropriate depends on the compiler; for this to work, it may be
+necessary to #include "float.h" or another system-dependent header
+file.
+
+Source file strtodnrp.c gives a strtod that does not require 53-bit
+rounding precision on systems (such as Intel IA32 systems) that may
+suffer double rounding due to use of extended-precision registers.
+For some conversions this variant of strtod is less efficient than the
+one in strtod.c when the latter is run with 53-bit rounding precision.
+
+The values that the strto* routines return for NaNs are determined by
+gd_qnan.h, which the makefile generates by running the program whose
+source is qnan.c.  Note that the rules for distinguishing signaling
+from quiet NaNs are system-dependent.  For cross-compilation, you need
+to determine arith.h and gd_qnan.h suitably, e.g., using the
+arithmetic of the target machine.
+
+C99's hexadecimal floating-point constants are recognized by the
+strto* routines (but this feature has not yet been heavily tested).
+Compiling with NO_HEX_FP #defined disables this feature.
+
+When compiled with -DINFNAN_CHECK, the strto* routines recognize C99's
+NaN and Infinity syntax.  Moreover, unless No_Hex_NaN is #defined, the
+strto* routines also recognize C99's NaN(...) syntax: they accept
+(case insensitively) strings of the form NaN(x), where x is a string
+of hexadecimal digits and spaces; if there is only one string of
+hexadecimal digits, it is taken for the fraction bits of the resulting
+NaN; if there are two or more strings of hexadecimal digits, each
+string is assigned to the next available sequence of 32-bit words of
+fractions bits (starting with the most significant), right-aligned in
+each sequence.
+
+For binary -> decimal conversions, I've provided just one family
+of helper routines:
+
+	g_ffmt
+	g_dfmt
+	g_ddfmt
+	g_xfmt
+	g_xLfmt
+	g_Qfmt
+
+which do a "%g" style conversion either to a specified number of decimal
+places (if their ndig argument is positive), or to the shortest
+decimal string that rounds to the given binary floating-point value
+(if ndig <= 0).  They write into a buffer supplied as an argument
+and return either a pointer to the end of the string (a null character)
+in the buffer, if the buffer was long enough, or 0.  Other forms of
+conversion are easily done with the help of gdtoa(), such as %e or %f
+style and conversions with direction of rounding specified (so that, if
+desired, the decimal value is either >= or <= the binary value).
+On IEEE-arithmetic systems that provide the C99 fegetround() function,
+if compiled with -DHonor_FLT_ROUNDS, these routines honor the current
+rounding mode.
+
+For an example of more general conversions based on dtoa(), see
+netlib's "printf.c from ampl/solvers".
+
+For double-double -> decimal, g_ddfmt() assumes IEEE-like arithmetic
+of precision max(126, #bits(input)) bits, where #bits(input) is the
+number of mantissa bits needed to represent the sum of the two double
+values in the input.
+
+The makefile creates a library, gdtoa.a.  To use the helper
+routines, a program only needs to include gdtoa.h.  All the
+source files for gdtoa.a include a more extensive gdtoaimp.h;
+among other things, gdtoaimp.h has #defines that make "internal"
+names end in _D2A.  To make a "system" library, one could modify
+these #defines to make the names start with __.
+
+Various comments about possible #defines appear in gdtoaimp.h,
+but for most purposes, arith.h should set suitable #defines.
+
+Systems with preemptive scheduling of multiple threads require some
+manual intervention.  On such systems, it's necessary to compile
+dmisc.c, dtoa.c gdota.c, and misc.c with MULTIPLE_THREADS #defined,
+and to provide (or suitably #define) two locks, acquired by
+ACQUIRE_DTOA_LOCK(n) and freed by FREE_DTOA_LOCK(n) for n = 0 or 1.
+(The second lock, accessed in pow5mult, ensures lazy evaluation of
+only one copy of high powers of 5; omitting this lock would introduce
+a small probability of wasting memory, but would otherwise be harmless.)
+Routines that call dtoa or gdtoa directly must also invoke freedtoa(s)
+to free the value s returned by dtoa or gdtoa.  It's OK to do so whether
+or not MULTIPLE_THREADS is #defined, and the helper g_*fmt routines
+listed above all do this indirectly (in gfmt_D2A(), which they all call).
+
+By default, there is a private pool of memory of length 2000 bytes
+for intermediate quantities, and MALLOC (see gdtoaimp.h) is called only
+if the private pool does not suffice.   2000 is large enough that MALLOC
+is called only under very unusual circumstances (decimal -> binary
+conversion of very long strings) for conversions to and from double
+precision.  For systems with preemptively scheduled multiple threads
+or for conversions to extended or quad, it may be appropriate to
+#define PRIVATE_MEM nnnn, where nnnn is a suitable value > 2000.
+For extended and quad precisions, -DPRIVATE_MEM=20000 is probably
+plenty even for many digits at the ends of the exponent range.
+Use of the private pool avoids some overhead.
+
+Directory test provides some test routines.  See its README.
+I've also tested this stuff (except double double conversions)
+with Vern Paxson's testbase program: see
+
+	V. Paxson and W. Kahan, "A Program for Testing IEEE Binary-Decimal
+	Conversion", manuscript, May 1991,
+	ftp://ftp.ee.lbl.gov/testbase-report.ps.Z .
+
+(The same ftp directory has source for testbase.)
+
+Some system-dependent additions to CFLAGS in the makefile:
+
+	HU-UX: -Aa -Ae
+	OSF (DEC Unix): -ieee_with_no_inexact
+	SunOS 4.1x: -DKR_headers -DBad_float_h
+
+If you want to put this stuff into a shared library and your
+operating system requires export lists for shared libraries,
+the following would be an appropriate export list:
+
+	dtoa
+	freedtoa
+	g_Qfmt
+	g_ddfmt
+	g_dfmt
+	g_ffmt
+	g_xLfmt
+	g_xfmt
+	gdtoa
+	strtoIQ
+	strtoId
+	strtoIdd
+	strtoIf
+	strtoIx
+	strtoIxL
+	strtod
+	strtodI
+	strtodg
+	strtof
+	strtopQ
+	strtopd
+	strtopdd
+	strtopf
+	strtopx
+	strtopxL
+	strtorQ
+	strtord
+	strtordd
+	strtorf
+	strtorx
+	strtorxL
+
+When time permits, I (dmg) hope to write in more detail about the
+present conversion routines; for now, this README file must suffice.
+Meanwhile, if you wish to write helper functions for other kinds of
+IEEE-like arithmetic, some explanation of struct FPI and the bits
+array may be helpful.  Both gdtoa and strtodg operate on a bits array
+described by FPI *fpi.  The bits array is of type ULong, a 32-bit
+unsigned integer type.  Floating-point numbers have fpi->nbits bits,
+with the least significant 32 bits in bits[0], the next 32 bits in
+bits[1], etc.  These numbers are regarded as integers multiplied by
+2^e (i.e., 2 to the power of the exponent e), where e is the second
+argument (be) to gdtoa and is stored in *exp by strtodg.  The minimum
+and maximum exponent values fpi->emin and fpi->emax for normalized
+floating-point numbers reflect this arrangement.  For example, the
+P754 standard for binary IEEE arithmetic specifies doubles as having
+53 bits, with normalized values of the form 1.xxxxx... times 2^(b-1023),
+with 52 bits (the x's) and the biased exponent b represented explicitly;
+b is an unsigned integer in the range 1 <= b <= 2046 for normalized
+finite doubles, b = 0 for denormals, and b = 2047 for Infinities and NaNs.
+To turn an IEEE double into the representation used by strtodg and gdtoa,
+we multiply 1.xxxx... by 2^52 (to make it an integer) and reduce the
+exponent e = (b-1023) by 52:
+
+	fpi->emin = 1 - 1023 - 52
+	fpi->emax = 1046 - 1023 - 52
+
+In various wrappers for IEEE double, we actually write -53 + 1 rather
+than -52, to emphasize that there are 53 bits including one implicit bit.
+Field fpi->rounding indicates the desired rounding direction, with
+possible values
+	FPI_Round_zero = toward 0,
+	FPI_Round_near = unbiased rounding -- the IEEE default,
+	FPI_Round_up = toward +Infinity, and
+	FPI_Round_down = toward -Infinity
+given in gdtoa.h.
+
+Field fpi->sudden_underflow indicates whether strtodg should return
+denormals or flush them to zero.  Normal floating-point numbers have
+bit fpi->nbits in the bits array on.  Denormals have it off, with
+exponent = fpi->emin.  Strtodg provides distinct return values for normals
+and denormals; see gdtoa.h.
+
+Compiling g__fmt.c, strtod.c, and strtodg.c with -DUSE_LOCALE causes
+the decimal-point character to be taken from the current locale; otherwise
+it is '.'.
+
+Source files dtoa.c and strtod.c in this directory are derived from
+netlib's "dtoa.c from fp" and are meant to function equivalently.
+When compiled with Honor_FLT_ROUNDS #defined (on systems that provide
+FLT_ROUNDS and fegetround() as specified in the C99 standard), they
+honor the current rounding mode.  Because FLT_ROUNDS is buggy on some
+(Linux) systems -- not reflecting calls on fesetround(), as the C99
+standard says it should -- when Honor_FLT_ROUNDS is #defined, the
+current rounding mode is obtained from fegetround() rather than from
+FLT_ROUNDS, unless Trust_FLT_ROUNDS is also #defined.
+
+Compile with -DUSE_LOCALE to use the current locale; otherwise
+decimal points are assumed to be '.'.  With -DUSE_LOCALE, unless
+you also compile with -DNO_LOCALE_CACHE, the details about the
+current "decimal point" character string are cached and assumed not
+to change during the program's execution.
+
+On machines with a 64-bit long double and perhaps a 113-bit "quad"
+type, you can invoke "make Printf" to add Printf (and variants, such
+as Fprintf) to gdtoa.a.  These are analogs, declared in stdio1.h, of
+printf and fprintf, etc. in which %La, %Le, %Lf, and %Lg are for long
+double and (if appropriate) %Lqa, %Lqe, %Lqf, and %Lqg are for quad
+precision printing.
+
+Please send comments to	David M. Gay (dmg at acm dot org, with " at "
+changed at "@" and " dot " changed to ".").

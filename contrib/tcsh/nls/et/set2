@@ -1,0 +1,111 @@
+$ $tcsh: set2,v 1.3 2011/02/04 18:19:33 christos Exp $
+$ Signal names
+$set 2 
+1 Null signaal
+2 Hangup
+3 Katkestus
+4 Quit
+5 Vigane instruktsioon
+6 Trace/BPT trap
+7 Abort
+8 IOT trap
+9 System Crash Imminent
+10 Error exit
+11 EMT trap
+12 Floating exception
+13 Tapetud
+14 Kasutaja signaal 1
+15 Kasutaja signaal 2
+16 Segmenteerimise rike
+17 Viga siinil
+18 Program range error
+19 Operand range error
+20 Vigane süsteemifunktsioon
+21 Katkenud toru
+22 Alarmkell
+23 Terminated
+24 Alamprotsessi olek muutus
+25 Alamprotsessi surm
+26 Apollo-spetsiifiline tõrge
+27 Alamprotsess peatatud või lõpetas
+28 Alamprotsess lõpetas
+29 Voolutõrge
+30 Resource Lost
+31 Break (Ctrl-Break)
+32 Sisend/väljund võimalik
+33 Asünkroonne S/V (select)
+34 Urgent condition on I/O channel
+35 Multitasking wake-up
+36 Multitasking kill
+37 Fortrani asünkroonne S/V lõpetas
+38 Recovery
+39 Mitteparandatav mälu viga
+40 CPU aja piirang on ületatud
+41 System shutdown imminent
+42 micro-tasking group-no wakeup flag set
+43 Thread error - (use cord -T for detailed info)
+44 CRAY Y-MP registri paarsuse viga
+45 Information request
+46 Peatatud (signaal)
+47 Seisatud (signaal)
+48 Peatatud
+49 Seisatud
+50 Jätkab
+51 Peatatud (tty sisend)
+52 Seisatud (tty sisend)
+53 Peatatud (tty väljund)
+54 Seisatud (tty väljund)
+55 Akna olek muutus
+56 Akna suurus muutus
+57 Telefoni olek muutus
+58 Cpu aja piirang on ületatud
+59 Faili suuruse piirang on ületatud
+60 Virtuaalaja alarm
+61 Profiling time alarm
+62 DIL signaal
+63 Pollable event occured
+64 Protsessi lwpd on blokeeritud
+65 Spetsiaalne LWP signaal
+66 Spetsiaalne CPR Signaal
+67 Spetsiaalne CPR Signaal
+68 Esimene reaalaja signaal
+69 Teine reaalaja signaal
+70 Kolmas reaalaja signaal
+71 Neljas reaalaja signaal
+72 Neljas viimane reaalaja signaal
+73 Kolmas viimane reaalaja signaal
+74 Teine viimane reaalaja signaal
+75 Viimane reaalaja signaal
+76 LAN Asünkroonne I/O
+77 PTY read/write availability
+78 I/O intervention required
+79 HFT monitor mode granted
+80 HFT monitor mode should be relinguished
+81 HFT sound control has completed
+82 Data in HFT ring buffer
+83 Migrate process
+84 Secure attention key
+85 Reschedule
+86 Signaling SS$_DEBUG
+87 Prioriteedi muutus
+88 Tuvastati tõeline tupiksituatsioon
+89 Uus sisendsümbol
+90 Pinu piirang on ületatud
+91 Kasutamata signaal
+92 LM overlay
+93 süsteemi külmutamine
+94 süsteemi sulatamine
+95 tupiksituatsioon
+96 mälu suuruse piirang on ületatud
+97 andmete suuruse piirang on ületatud
+98 exceeded memory size limit of 32KB
+99 exce error for no memory
+100 check point start
+101 check point start of kernel
+102 restart start
+103 restart of kernel
+104 XMU suuruse piirang on ületatud
+105 RLG0 piirang on ületatud
+106 RLG1 piirang on ületatud
+107 RLG2 piirang on ületatud
+108 RLG3 piirang on ületatud

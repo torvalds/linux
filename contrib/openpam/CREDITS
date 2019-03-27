@@ -1,0 +1,54 @@
+
+       _Ἀπόδοτε οὖν τὰ Καίσαρος Καίσαρι καὶ τὰ τοῦ Θεοῦ τῷ Θεῷ_
+
+The OpenPAM library was developed for the FreeBSD Project by ThinkSec AS
+and Network Associates Laboratories, the Security Research Division of
+Network Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+("CBOSS"), as part of the DARPA CHATS research program.
+
+Principal design and development by:
+
+	 Dag-Erling Smørgrav <des@des.no>
+
+The following persons (in alphabetical order) have contributed,
+directly or indirectly, with patches, criticism, suggestions, or
+ideas:
+
+	Andrew Morgan <morgan@transmeta.com>
+	Ankita Pal <pal.ankita.ankita@gmail.com>
+	Baptiste Daroussin <bapt@freebsd.org>
+	Brian Fundakowski Feldman <green@freebsd.org>
+	Christos Zoulas <christos@netbsd.org>
+	Daniel Richard G. <skunk@iskunk.org>
+	Darren J. Moffat <darren.moffat@sun.com>
+	Dimitry Andric <dim@freebsd.org>
+	Dmitry V. Levin <ldv@altlinux.org>
+	Don Lewis <truckman@freebsd.org>
+	Emmanuel Dreyfus <manu@netbsd.org>
+	Eric Melville <eric@freebsd.org>
+	Espen Grøndahl <espegro@usit.uio.no>
+	Gary Winiger <gary.winiger@sun.com>
+	Gavin Atkinson <gavin@freebsd.org>
+	Gleb Smirnoff <glebius@freebsd.org>
+	Hubert Feyrer <hubert@feyrer.de>
+	Jason Evans <jasone@freebsd.org>
+	Joe Marcus Clarke <marcus@freebsd.org>
+	Jörg Sonnenberger <joerg@britannica.bec.de>
+	Juli Mallett <jmallett@freebsd.org>
+	Larry Baird <lab@gta.com>
+	Maëlle Lesage <lesage.maelle@gmail.com>
+	Mark Murray <markm@freebsd.org>
+	Matthias Drochner <drochner@netbsd.org>
+	Mike Petullo <mike@flyn.org>
+	Mikhail Teterin <mi@aldan.algebra.com>
+	Mikko Työläjärvi <mbsd@pacbell.net>
+	Nick Hibma <nick@van-laarhoven.org>
+	Patrick Bihan-Faou <patrick-fbsd@mindstep.com>
+	Robert Watson <rwatson@freebsd.org>
+	Ruslan Ermilov <ru@freebsd.org>
+	Sebastian Krahmer <sebastian.krahmer@gmail.com>
+	Solar Designer <solar@openwall.com>
+	Takanori Saneto <sanewo@ba2.so-net.ne.jp>
+	Tim Creech <tcreech@tcreech.com>
+	Wojciech A. Koszek <wkoszek@freebsd.org>
+	Yar Tikhiy <yar@freebsd.org>

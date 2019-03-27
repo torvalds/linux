@@ -1,0 +1,265 @@
+.\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt.
+.\" 	All rights reserved.
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\" 	All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
+.\"
+.\" $Begemot: libunimsg/man/unisap.3,v 1.5 2005/06/15 11:37:11 brandt_h Exp $
+.\"
+.Dd June 14, 2005
+.Dt UNISAP 3
+.Os
+.Sh NAME
+.Nm unimsg ,
+.Nm unisve_check_addr ,
+.Nm unisve_check_selector ,
+.Nm unisve_check_blli_id2 ,
+.Nm unisve_check_blli_id3 ,
+.Nm unisve_check_bhli ,
+.Nm unisve_check_sap ,
+.Nm unisve_overlap_addr ,
+.Nm unisve_overlap_selector ,
+.Nm unisve_overlap_blli_id2 ,
+.Nm unisve_overlap_blli_id3 ,
+.Nm unisve_overlap_bhli ,
+.Nm unisve_overlap_sap ,
+.Nm unisve_is_catchall ,
+.Nm unisve_match
+.Nd "ATM signalling library - ATM SAP handling"
+.Sh LIBRARY
+Begemot ATM signalling library
+.Pq libunimsg, -lunimsg
+.Sh SYNOPSIS
+.In uni4/unisap.h
+.Ft int
+.Fn unisve_check_addr "const struct unisve_addr *sve"
+.Ft int
+.Fn unisve_check_selector "const struct unisve_selector *sve"
+.Ft int
+.Fn unisve_check_blli_id2 "const struct unisve_blli_id2 *sve"
+.Ft int
+.Fn unisve_check_blli_id3 "const struct unisve_blli_id3 *sve"
+.Ft int
+.Fn unisve_check_bhli "const struct unisve_bhli *sve"
+.Ft int
+.Fn unisve_check_sap "const struct uni_sap *sve"
+.Ft int
+.Fn unisve_overlap_addr "const struct unisve_addr *sve1" "const struct unisve_addr *sve2"
+.Ft int
+.Fn unisve_overlap_selector "const struct unisve_selector *sve1" "const struct unisve_selector *sve2"
+.Ft int
+.Fn unisve_overlap_blli_id2 "const struct unisve_blli_id2 *sve1" "const struct unisve_blli_id2 *sve2"
+.Ft int
+.Fn unisve_overlap_blli_id3 "const struct unisve_blli_id3 *sve1" "const struct unisve_blli_id3 *sve2"
+.Ft int
+.Fn unisve_overlap_bhli "const struct unisve_bhli *sve1" "const struct unisve_bhli *sve2"
+.Ft int
+.Fn unisve_overlap_sap "const struct uni_sap *sap1" "const struct uni_sap *sap2"
+.Ft int
+.Fn unisve_is_catchall "const struct uni_sap *sap"
+.Ft int
+.Fn unisve_match "const struct uni_sap *sap" \
+"const struct uni_ie_called *called" "const struct uni_ie_blli *blli" \
+"const struct uni_ie_bhli *bhli"
+.Sh DESCRIPTION
+The
+.Nm
+library contains functions to handle Service Access Points (SAP) and SAP Vector
+Elements (SVE) as specified in the ATM Forum ATM API Semantic Description.
+SAPs are the analog of TCP and UDP ports in the ATM world.
+As usually in ATM they are a couple of orders of magnitude more complex as
+their Internet equivalent.
+See the ATM Forum document for a description.
+.Pp
+A SAP is a data structure:
+.Bd -literal -offset indent
+struct uni_sap {
+	struct unisve_addr	addr;
+	struct unisve_selector	selector;
+	struct unisve_blli_id2	blli_id2;
+	struct unisve_blli_id3	blli_id3;
+	struct unisve_bhli	bhli;
+};
+.Ed
+.Pp
+that consists of 5 elements matching different information elements in
+the SETUP message.
+Each of these elements has a tag that defines how the SVE is to be matched
+with the information element.
+The tag is one of
+.Bl -tag -width ".Dv UNISVE_PRESENT"
+.It Dv UNISVE_ABSENT
+The information element has to absent from the SETUP message.
+.It Dv UNISVE_PRESENT
+The information element has to be present in the SETUP message and must
+match the SVE.
+.It Dv UNISVE_ANY
+The information element may be absent from the SETUP message or may
+have any value.
+.El
+.Pp
+The called address is matched by a
+.Bd -literal -offset indent
+struct unisve_addr {
+	enum unisve_tag	tag;
+	enum uni_addr_type type;/* type of address */
+	enum uni_addr_plan plan;/* addressing plan */
+	uint32_t	len;	/* length of address */
+	u_char		addr[UNI_ADDR_MAXLEN];
+};
+.Ed
+.Pp
+Here
+.Fa type
+is the type of address and
+.Fa plan
+is the address plan.
+.Fa len
+is the length of the address (for ATME addresses not counting the selector byte)
+and
+.Fa addr is the address itself.
+.Pp
+In case of ATME addresses the selector byte is matched by a
+.Bd -literal -offset indent
+struct unisve_selector {
+	enum unisve_tag	tag;
+	uint8_t		selector;
+};
+.Ed
+.Pp
+Here
+.Fa selector
+is the selector byte that must match the 20th byte of the ATME calling address
+from the SETUP message.
+.Pp
+The BLLI information element is matched by two SVEs: one for layer 2 options
+and one for layer 3 options.
+The layer 2 SVE is:
+.Bd -literal -offset indent
+struct unisve_blli_id2 {
+	enum unisve_tag	tag;
+	uint8_t		proto:5;/* the protocol */
+	uint8_t		user:7;	/* user specific protocol */
+};
+.Ed
+.Pp
+Where the
+.Fa user
+fields is matched only if the
+.Fa proto
+field specifies
+.Dv UNI_BLLI_L2_USER .
+The layer 3 SVE is:
+.Bd -literal -offset indent
+struct unisve_blli_id3 {
+	enum unisve_tag	tag;
+	uint8_t		proto:5;/* L3 protocol */
+	uint8_t		user:7;	/* user specific protocol */
+	uint8_t		ipi:8;	/* ISO/IEC TR 9557 IPI */
+	uint32_t	oui:24;	/* IEEE 802.1 OUI */
+	uint32_t	pid:16;	/* IEEE 802.1 PID */
+	uint32_t	noipi;	/* ISO/IEC TR 9557 per frame */
+};
+.Ed
+For the exact rules how matching occures refer to the source code or the
+ATM Forum document.
+.Pp
+Finally the BHLI information element is matched with a
+.Bd -literal -offset indent
+struct unisve_bhli {
+	enum unisve_tag	tag;
+	enum uni_bhli	type;	/* type of info */
+	uint32_t	len;	/* length of info */
+	uint8_t		info[8];/* info itself */
+};
+.Ed
+.Pp
+For each SVE type there is a function that checks whether the SVE is correct
+specified.
+The functions
+.Fn unisve_check_addr ,
+.Fn unisve_check_selector ,
+.Fn unisve_check_blli_id2 ,
+.Fn unisve_check_blli_id3 ,
+and
+.Fn unisve_check_bhli
+return one of the following error codes:
+.Bd -literal -offset indent
+enum {
+	UNISVE_OK = 0,
+	UNISVE_ERROR_BAD_TAG,
+	UNISVE_ERROR_TYPE_PLAN_CONFLICT,
+	UNISVE_ERROR_ADDR_SEL_CONFLICT,
+	UNISVE_ERROR_ADDR_LEN,
+	UNISVE_ERROR_BAD_ADDR_TYPE,
+	UNISVE_ERROR_BAD_BHLI_TYPE,
+	UNISVE_ERROR_BAD_BHLI_LEN,
+};
+.Ed
+.Pp
+A code of
+.Li UNISVE_OK
+means that the SVE has no error.
+The function
+.Fn unisve_check_sap
+checks a complete SAP and returns one of the above codes.
+.Pp
+There is a definition
+.Dv UNISVE_ERRSTR
+that evaluates to a comma separated list of strings that can be used
+to initializes an array of char pointers to map the error codes into
+human readable strings.
+.Pp
+The ATM Forum document defines the concept of overlaping SAPs.
+This basically means, that an incoming SETUP could match more than one SAP
+(and more than one application) to receive the SETUP.
+For each SVE type there is a function that checks whether two SVEs overlap
+and there is a function that checks whether two SAPs overlap.
+The functions
+.Fn unisve_overlap_addr ,
+.Fn unisve_overlap_selector ,
+.Fn unisve_overlap_blli_id2 ,
+.Fn unisve_overlap_blli_id3 ,
+.Fn unisve_overlap_bhli , and
+.Fn unisve_overlap_sap
+return 1 if the SVEs or SAPs overlap and 0 if they do not.
+They assume, that the SAPs are correct.
+.Pp
+The ATM Forum document specifies a catch-all SAP.
+The function
+.Fn unisve_is_catchall
+returns 1 if the SAP is the catch-all SAP and 0 otherwise.
+.Pp
+Finally the function
+.Fn unisve_match
+is used to match a SAP against the information elements from a SETUP message.
+It returns 1 if they match and 0 otherwise.
+.Sh SEE ALSO
+.Xr libunimsg 3
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@FreeBSD.org

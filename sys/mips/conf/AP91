@@ -1,0 +1,66 @@
+#
+# Specific board setup for the Atheros AP91 reference board.
+#
+# The AP91 has the following hardware:
+#
+# + AR7241 CPU SoC
+# + AR9287 Wifi
+# + Integrated switch (XXX speed?)
+# + 4MB flash
+# + 16MB RAM
+# + uboot environment
+
+# $FreeBSD$
+
+#NO_UNIVERSE
+
+include		"std.AR724X"
+ident		"AP91"
+hints		"AP91.hints"
+
+options 	AR71XX_REALMEM=16*1024*1024
+
+options 	AR71XX_ENV_UBOOT
+
+# Limit inlines
+makeoptions	INLINE_LIMIT=768
+
+# We bite the performance overhead for now; the kernel won't
+# fit if the mutexes are inlined.
+options 	MUTEX_NOINLINE
+options 	RWLOCK_NOINLINE
+options 	SX_NOINLINE
+
+# There's no need to enable swapping on this platform.
+options 	NO_SWAPPING
+
+# For DOS - enable if required
+# options 	MSDOSFS
+
+# uncompress - to boot read-only lzma natively from flash
+device		xz
+options 	GEOM_UZIP
+options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uzip\"
+
+# Not enough space for these..
+nooptions 	INVARIANTS
+nooptions 	INVARIANT_SUPPORT
+nooptions 	WITNESS
+nooptions 	WITNESS_SKIPSPIN
+nooptions 	DEBUG_REDZONE
+nooptions 	DEBUG_MEMGUARD
+
+# Used for the static uboot partition map
+device          geom_map
+
+# Options needed for the EEPROM based calibration/PCI configuration data.
+options 	AR71XX_ATH_EEPROM	# Fetch EEPROM/PCI config from flash
+options 	ATH_EEPROM_FIRMWARE	# Use EEPROM from flash
+device		firmware		# Used by the above
+
+# Options required for miiproxy and mdiobus
+options 	ARGE_MDIO		# Export an MDIO bus separate from arge
+device		miiproxy		# MDIO bus <-> MII PHY rendezvous
+
+device		etherswitch
+device		arswitch

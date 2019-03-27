@@ -1,0 +1,111 @@
+.\" Copyright (C) 1999 Matthew Dillon. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 2, 2017
+.Dt KVM_SWAPINFO 3
+.Os
+.Sh NAME
+.Nm kvm_getswapinfo
+.Nd return swap summary statistics for the system
+.Sh LIBRARY
+.Lb libkvm
+.Sh SYNOPSIS
+.In kvm.h
+.Ft int
+.Fn kvm_getswapinfo "kvm_t *kd" "struct kvm_swap *" "int maxswap" "int flags"
+.Sh DESCRIPTION
+The
+.Fn kvm_getswapinfo
+function fills an array of
+.Vt kvm_swap
+structures with swap summary
+information for each swap device, for up to
+.Fa maxswap
+\- 1 devices.
+The number of devices, up to
+.Fa maxswap
+\- 1, is returned.
+A grand
+total of all swap devices (including any devices that go beyond
+.Fa maxswap
+\- 1) is returned in one additional array entry.
+This
+entry is not counted in the return value.
+Thus, if you specify a
+.Fa maxswap
+value of 1, the function will typically return the
+value 0 and the single
+.Vt kvm_swap
+structure will be filled with
+the grand total over all swap devices.
+The grand total is calculated
+from all available swap devices whether or not you made room
+for them all in the array.
+The grand total is returned.
+.Pp
+The flags argument is currently unused and must be passed as 0.
+.Pp
+If an error occurs, -1 is returned.
+.Pp
+Each swap partition and the grand total is summarized in the
+.Vt kvm_swap
+structure.
+This structure contains the following fields:
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Va char ksw_devname[] ;
+.It
+.Va u_int ksw_total ;
+.It
+.Va u_int ksw_used ;
+.It
+.Va int ksw_flags ;
+.El
+.Pp
+Values are in
+.Dv PAGE_SIZE Ns 'd
+chunks (see
+.Xr getpagesize 3 ) .
+.Va ksw_flags
+contains
+a copy of the swap device flags.
+.Sh CACHING
+This function caches the nlist values for various kernel variables which
+it reuses in successive calls.
+You may call the function with
+.Fa kd
+==
+.Dv NULL
+to clear the cache.
+.Sh DIAGNOSTICS
+If the load average was unobtainable, \-1 is returned; otherwise,
+the number of swap devices actually retrieved is returned.
+.Pp
+If the name of the swap device does not fit in the static char buffer
+in the structure, it is truncated.
+The buffer is always zero terminated.
+.Sh SEE ALSO
+.Xr kvm 3

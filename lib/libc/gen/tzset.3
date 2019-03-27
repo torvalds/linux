@@ -1,0 +1,338 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Arthur Olson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)tzset.3	8.2 (Berkeley) 11/17/93
+.\" $FreeBSD$
+.\"
+.Dd November 17, 1993
+.Dt TZSET 3
+.Os
+.Sh NAME
+.Nm tzset ,
+.Nm tzsetwall
+.Nd initialize time conversion information
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In time.h
+.Ft void
+.Fn tzset void
+.Ft void
+.Fn tzsetwall void
+.Sh DESCRIPTION
+The
+.Fn tzset
+function
+initializes time conversion information used by the library routine
+.Xr localtime 3 .
+The environment variable
+.Ev TZ
+specifies how this is done.
+.Pp
+If
+.Ev TZ
+does not appear in the environment, the best available approximation to
+local wall clock time, as specified by the
+.Xr tzfile 5 Ns -format
+file
+.Pa /etc/localtime
+is used.
+.Pp
+If
+.Ev TZ
+appears in the environment but its value is a null string, Coordinated
+Universal Time
+.Pq Tn UTC
+is used (without leap second correction).
+.Pp
+If
+.Ev TZ
+appears in the environment and its value begins with a colon
+.Pq Ql \&: ,
+the rest of its value is used as a pathname of a
+.Xr tzfile 5 Ns -format
+file from which to read the time conversion information.
+If the first character of the pathname is a slash
+.Pq Ql /
+it is used as
+an absolute pathname; otherwise, it is used as a pathname relative to
+the system time conversion information directory.
+.Pp
+If its value does not begin with a colon, it is first used as the pathname
+of a file (as described above) from which to read the time conversion
+information.
+If that file cannot be read, the value is then interpreted as a direct
+specification (the format is described below) of the time conversion
+information.
+.Pp
+If the
+.Ev TZ
+environment variable does not specify a
+.Xr tzfile 5 Ns -format
+file and cannot be interpreted as a direct specification,
+.Tn UTC
+is used.
+.Pp
+The
+.Fn tzsetwall
+function
+sets things up so that
+.Xr localtime 3
+returns the best available approximation of local wall clock time.
+.Sh SPECIFICATION FORMAT
+When
+.Ev TZ
+is used directly as a specification of the time conversion information,
+it must have the following syntax (spaces inserted for clarity):
+.Bd -ragged -offset indent
+.Em std offset
+.Bo
+.Em dst
+.Bq Em offset
+.Bq , Em rule
+.Bc
+.Ed
+.Pp
+Where:
+.Bl -tag -width std_and_dst -offset indent
+.It Em std No and Em dst
+Three or more bytes that are the designation for the standard
+.Pq Em std
+or summer
+.Pq Em dst
+time zone.
+Only
+.Em std
+is required; if
+.Em dst
+is missing, then summer time does not apply in this locale.
+Upper and lowercase letters are explicitly allowed.
+Any characters
+except a leading colon
+.Pq Ql \&: ,
+digits, comma
+.Pq Ql \&, ,
+minus
+.Pq Ql \- ,
+plus
+.Pq Ql + ,
+and
+.Tn ASCII
+.Dv NUL
+are allowed.
+.It Em offset
+Indicates the value one must add to the local time to arrive at
+Coordinated Universal Time.
+The
+.Em offset
+has the form:
+.Bd -ragged -offset indent
+.Sm off
+.Em hh Bo
+.Em : mm
+.Bq Em : ss
+.Bc
+.Sm on
+.Ed
+.Pp
+The minutes
+.Pq Em mm
+and seconds
+.Pq Em ss
+are optional.
+The hour
+.Pq Em hh
+is required and may be a single digit.
+The
+.Em offset
+following
+.Em std
+is required.
+If no
+.Em offset
+follows
+.Em dst ,
+summer time is assumed to be one hour ahead of standard time.
+One or
+more digits may be used; the value is always interpreted as a decimal
+number.
+The hour must be between zero and 24, and the minutes (and
+seconds) \(em if present \(em between zero and 59.
+If preceded by a
+.Pq Ql \-
+the time zone shall be east of the Prime Meridian; otherwise it shall be
+west (which may be indicated by an optional preceding
+.Pq Ql + ) .
+.It Em rule
+Indicates when to change to and back from summer time.
+The
+.Em rule
+has the form:
+.Bd -ragged -offset indent
+.Em date/time,date/time
+.Ed
+.Pp
+where the first
+.Em date
+describes when the change from standard to summer time occurs and the
+second
+.Em date
+describes when the change back happens.
+Each
+.Em time
+field describes when, in current local time, the change to the other
+time is made.
+.Pp
+The format of
+.Em date
+is one of the following:
+.Bl -tag -width "M.m.n.d"
+.It Sy J Em n
+The Julian day
+.Em n
+(1 \*(Le
+.Em n
+\*(Le 365).
+Leap days are not counted; that is, in all years \(em including leap
+years \(em February 28 is day 59 and March 1 is day 60.
+It is
+impossible to explicitly refer to the occasional February 29.
+.It Em n
+The zero-based Julian day
+(0 \*(Le
+.Em n
+\*(Le 365 ) .
+Leap days are counted, and it is possible to refer to February 29.
+.It Sy M Em m.n.d
+The
+.Em d Ns 'th
+day (0 \*(Le
+.Em d
+\*(Le 6)
+of week
+.Em n
+of month
+.Em m
+of the year
+(1 \*(Le
+.Em n
+\*(Le 5),
+(1 \*(Le
+.Em m
+\*(Le 12),
+where week 5 means
+.Do
+the last
+.Em d
+day in month
+.Em m
+.Dc
+which may occur in either the fourth or the fifth week).
+Week 1 is the
+first week in which the
+.Em d Ns 'th
+day occurs.
+Day zero is Sunday.
+.Pp
+The
+.Em time
+has the same format as
+.Em offset
+except that no leading sign
+.Pq Ql \-
+or
+.Pq Ql +
+is allowed.
+The default, if
+.Em time
+is not given, is
+.Sy 02:00:00 .
+.El
+.Pp
+If no
+.Em rule
+is present in the
+.Ev TZ
+specification, the rules specified
+by the
+.Xr tzfile 5 Ns -format
+file
+.Em posixrules
+in the system time conversion information directory are used, with the
+standard and summer time offsets from
+.Tn UTC
+replaced by those specified by
+the
+.Em offset
+values in
+.Ev TZ .
+.El
+.Pp
+For compatibility with System V Release 3.1, a semicolon
+.Pq Ql \&;
+may be used to separate the
+.Em rule
+from the rest of the specification.
+.Sh FILES
+.Bl -tag -width /usr/share/zoneinfo/posixrules -compact
+.It Pa /etc/localtime
+local time zone file
+.It Pa /usr/share/zoneinfo
+time zone directory
+.It Pa /usr/share/zoneinfo/posixrules
+rules for
+.Tn POSIX Ns -style
+.Tn TZ Ns 's
+.It Pa /usr/share/zoneinfo/Etc/GMT
+for
+.Tn UTC
+leap seconds
+.El
+.Pp
+If the file
+.Pa /usr/share/zoneinfo/UTC
+does not exist,
+.Tn UTC
+leap seconds are loaded from
+.Pa /usr/share/zoneinfo/posixrules .
+.Sh SEE ALSO
+.Xr date 1 ,
+.Xr gettimeofday 2 ,
+.Xr ctime 3 ,
+.Xr getenv 3 ,
+.Xr time 3 ,
+.Xr tzfile 5
+.Sh HISTORY
+The
+.Fn tzset
+and
+.Fn tzsetwall
+functions first appeared in
+.Bx 4.4 .

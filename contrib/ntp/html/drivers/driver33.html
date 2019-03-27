@@ -1,0 +1,36 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+
+	<head>
+		<meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1">
+		<title>Dumb Clock</title>
+		<link href="scripts/style.css" type="text/css" rel="stylesheet">
+	</head>
+
+	<body>
+		<h3>Dumb Clock</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->21-Oct-2010  23:44<!-- #EndDate -->
+  UTC</p>
+		<hr>
+		<h4>Synopsis</h4>
+		<p>Address: 127.127.33.<i>u</i><br>
+			Reference ID: <tt>DUMBCLOCK</tt><br>
+			Driver ID: <tt>DUMBCLOCK</tt><br>
+			Serial Port: <tt>/dev/dumbclock<i>u</i></tt>; 9600 bps, 8-bits, no parity<br>
+			Features: <tt>(none)</tt></p>
+		<h4>Description</h4>
+		<p>This driver supports a dumb ASCII clock that only emits localtime at a reliable interval. This has no provisions for leap seconds, quality codes, etc. It assumes output in the local time zone, and that the C library mktime()/localtime() routines will correctly convert back and forth between local and UTC.</p>
+		<p>Most of this code is originally from refclock_wwvb.c with thanks. It has been so mangled that wwvb is not a recognizable ancestor.</p>
+		<pre>
+Timecode format: hh:mm:ssCL
+hh:mm:ss - local time
+C - \r (carriage return)
+L - \n (newline)
+</pre>
+		<hr>
+		<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+	</body>
+
+</html>

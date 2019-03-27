@@ -1,0 +1,63 @@
+# $FreeBSD$
+
+Tip can be configured in a number of ways:
+
+ACU's:
+-----
+
+ACU				Define in makefile
+--------------------		---------------
+BIZCOMP 1022, 1031		BIZ1022, BIZ1031
+DEC DF02-AC, DF03-AC		DF02, DF03
+DEC DN-11/Able Quadracall	DN11
+Ventel				VENTEL
+Vadic 831			V831
+
+New ACU's may be added by editing the ACU description table
+in acutab.c and writing a ``driver''.
+
+ACU usage can be monitored by defining ACULOG in the makefile.
+If this is done and no phone numbers should appear in the
+log file, define PRISTINE in the makefile.
+
+Variables:
+---------
+
+Tip's internal workings revolve around a set of (possibly)
+user defined variables.  These are statically initialized
+in vars.c, and from the remote file.
+
+Note that adding or deleting variables requires tip to be completedly
+recompiled, as indexes into the variable table are used to avoid
+expensive lookups.  These defines are set in tip.h.
+
+Commands:
+--------
+
+The command dispatch table is defined in cmdtab.c.  Commands
+may have attributes such as EXPerimental and PRIVileged (only
+root may execute).
+
+
+
+--------------------------------------------------------------------------
+
+Recent changes about Jan 82 
+
+A new, improved version of tip is now available.  The most important
+addition is the capacility to specify a phone number with tip.  The
+default baud rate is 1200.  To use it do:
+
+	tip phone-number
+or
+	tip -300 phone-number
+
+for 300 baud.
+
+A ~^Z command has been added to tip as well.
+
+A new cu program is available that interfaces to the tip program.
+It attempts to give the same user interface as cu but it is really
+the tip program so you have all the advantages of tip.  This allows
+cu (actually tip) to search for a free ACU instead of having the
+user specify which one he wants.

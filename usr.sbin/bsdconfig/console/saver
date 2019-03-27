@@ -1,0 +1,195 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="080.console"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
+
+############################################################ FUNCTIONS
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local prompt="$msg_saver_menu_text"
+	local menu_list="
+		'1 $msg_none'    '$msg_none_saver_desc'
+		'2 $msg_blank'   '$msg_blank_desc'
+		'3 $msg_beastie' '$msg_beastie_desc'
+		'4 $msg_daemon'  '$msg_daemon_desc'
+		'5 $msg_dragon'  '$msg_dragon_desc'
+		'6 $msg_fade'    '$msg_fade_desc'
+		'7 $msg_fire'    '$msg_fire_desc'
+		'8 $msg_green'   '$msg_green_desc'
+		'9 $msg_logo'    '$msg_logo_desc'
+		'a $msg_rain'    '$msg_rain_desc'
+		'b $msg_snake'   '$msg_snake_desc'
+		'c $msg_star'    '$msg_star_desc'
+		'd $msg_warp'    '$msg_warp_desc'
+		'$msg_timeout'   '$msg_timeout_desc'
+	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_choose_a_screen_saver"
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	case "$( f_sysrc_get saver )" in
+	[Nn][Oo]|'') defaultitem="1 $msg_none"    ;;
+	blank)       defaultitem="2 $msg_blank"   ;;
+	beastie)     defaultitem="3 $msg_beastie" ;;
+	daemon)      defaultitem="4 $msg_daemon"  ;;
+	dragon)      defaultitem="5 $msg_dragon"  ;;
+	fade)        defaultitem="6 $msg_fade"    ;;
+	fire)        defaultitem="7 $msg_fire"    ;;
+	green)       defaultitem="8 $msg_green"   ;;
+	logo)        defaultitem="9 $msg_logo"    ;;
+	rain)        defaultitem="a $msg_rain"    ;;
+	snake)       defaultitem="b $msg_snake"   ;;
+	star)        defaultitem="c $msg_star"    ;;
+	warp)        defaultitem="d $msg_warp"    ;;
+	esac
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_menutag_store -s "$menu_choice"
+	return $retval
+}
+
+############################################################ MAIN
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Process command-line arguments
+#
+while getopts h$GETOPTS_STDARGS flag; do
+	case "$flag" in
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+#
+# Initialize
+#
+f_dialog_title "$msg_system_console_screen_saver"
+f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
+f_mustberoot_init
+
+#
+# Launch application main menu
+#
+dialog_menu_main || f_die
+f_dialog_menutag_fetch mtag
+
+case "$mtag" in
+"$msg_timeout") # Set the screen saver timeout interval
+	f_dialog_title "$msg_value_required"
+	f_dialog_input blanktime "$msg_enter_timeout_period" \
+	               "$( f_sysrc_get blanktime )" &&
+		f_eval_catch "$0" f_sysrc_set \
+			'f_sysrc_set blanktime "%s"' "$blanktime" || f_die
+	f_dialog_title_restore
+	exit $SUCCESS
+esac
+
+saver_to_set=
+case "$mtag" in
+"1 $msg_none") # Disable the screensaver
+	saver_to_set="NO" ;;
+"2 $msg_blank") # Simply blank the screen
+	saver_to_set="blank" ;;
+"3 $msg_beastie") # "BSD Daemon" animated screen saver (graphics)
+	saver_to_set="beastie" ;;
+"4 $msg_daemon") # "BSD Daemon" animated screen saver (text)
+	saver_to_set="daemon" ;;
+"5 $msg_dragon") # Dragon screensaver (graphics)
+	saver_to_set="dragon" ;;
+"6 $msg_fade") # Fade out effect screen saver
+	saver_to_set="fade" ;;
+"7 $msg_fire") # Flames effect screen saver
+	saver_to_set="fire" ;;
+"8 $msg_green") # "Green" power saving mode (if supported by monitor)
+	saver_to_set="green" ;;
+"9 $msg_logo") # FreeBSD "logo" animated screen saver (graphics)
+	saver_to_set="logo" ;;
+"a $msg_rain") # Rain drops screen saver
+	saver_to_set="rain" ;;
+"b $msg_snake") # Draw a FreeBSD "snake" on your screen
+	saver_to_set="snake" ;;
+"c $msg_star") # A "twinkling stars" effect
+	saver_to_set="star" ;;
+"d $msg_warp") # A "stars warping" effect
+	saver_to_set="warp" ;;
+esac
+
+if [ "$saver_to_set" ]; then
+	f_eval_catch "$0" f_sysrc_set \
+		'f_sysrc_set saver "%s"' "$saver_to_set" || f_die
+	break
+else
+	f_die 1 "$msg_unknown_saver"
+fi
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

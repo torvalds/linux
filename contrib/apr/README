@@ -1,0 +1,167 @@
+Apache Portable Runtime Library (APR)
+-------------------------------------
+
+   The Apache Portable Runtime Library provides a predictable and
+   consistent interface to underlying platform-specific
+   implementations, with an API to which software developers may code
+   and be assured of predictable if not identical behavior regardless
+   of the platform on which their software is built, relieving them of
+   the need to code special-case conditions to work around or take
+   advantage of platform-specific deficiencies or features.
+
+   APR and its companion libraries are implemented entirely in C
+   and provide a common programming interface across a wide variety
+   of operating system platforms without sacrificing performance.
+   Currently supported platforms include:
+
+     UNIX variants
+     Windows
+     Netware
+     Mac OS X
+     OS/2
+
+   To give a brief overview, the primary core
+   subsystems of APR 1.3 include the following:
+
+     Atomic operations
+     Dynamic Shared Object loading
+     File I/O
+     Locks (mutexes, condition variables, etc)
+     Memory management (high performance allocators)
+     Memory-mapped files
+     Multicast Sockets
+     Network I/O
+     Shared memory
+     Thread and Process management
+     Various data structures (tables, hashes, priority queues, etc)
+
+   For a more complete list, please refer to the following URLs:
+
+     http://apr.apache.org/docs/apr/modules.html
+
+   Users of APR 0.9 should be aware that migrating to the APR 1.x
+   programming interfaces may require some adjustments; APR 1.x is
+   neither source nor binary compatible with earlier APR 0.9 releases.
+   Users of APR 1.x can expect consistent interfaces and binary backwards
+   compatibility throughout the entire APR 1.x release cycle, as defined
+   in our versioning rules:
+
+     http://apr.apache.org/versioning.html
+
+   APR is already used extensively by the Apache HTTP Server
+   version 2 and the Subversion revision control system, to
+   name but a few.  We list all known projects using APR at
+   http://apr.apache.org/projects.html -- so please let us know
+   if you find our libraries useful in your own projects!
+
+
+Using a Subversion Checkout on Unix
+===================================
+
+If you are building APR from SVN, you need to perform a prerequisite
+step.  You must have autoconf, libtool and python installed for this 
+to work.  The prerequisite is simply;
+
+  ./buildconf
+
+If you are building APR from a distribution tarball, buildconf is
+already run for you, and you do not need autoconf, libtool or python
+installed or to run buildconf unless you have patched APR's buildconf 
+inputs (such as configure.in, build.conf, virtually any file within 
+the build/ tree, or you add or remove source files).
+
+Remember when updating from svn that you must rerun ./buildconf again 
+to effect any changes made to the build schema in your fresh update.
+
+
+Configuring and Building APR on Unix
+====================================
+
+Simply;
+
+   ./configure --prefix=/desired/path/of/apr
+   make
+   make test
+   make install
+
+Configure has additional options, ./configure --help will offer you
+those choices.  You may also add CC=compiler CFLAGS="compiler flags"
+etc. prior to the ./configure statement (on the same line).  Please
+be warned, some flags must be passed as part of the CC command,
+itself, in order for autoconf to make the right determinations. Eg.;
+
+  CC="gcc -m64" ./configure --prefix=/desired/path/of/apr
+
+will inform APR that you are compiling to a 64 bit CPU, and autoconf
+must consider that when setting up all of APR's internal and external
+type declarations.
+
+For more verbose output from testall, you may wish to invoke testall
+with the flag;
+
+   cd test
+   ./testall -v
+
+
+Building APR RPM files on Linux
+===============================
+
+Run the following to create SRPMs:
+
+rpmbuild -ts apr-<version>.tar.bz2
+rpmbuild -ts apr-util-<version>.tar.bz2
+
+Run the following to create RPMs (or build from the SRPMs):
+
+rpmbuild -tb apr-<version>.tar.bz2
+rpmbuild -tb apr-util-<version>.tar.bz2
+
+Resolve dependencies as appropriate.
+
+
+Configuring and Building APR on Windows
+=======================================
+
+Using Visual Studio, you can build and run the test validation of APR.
+The Makefile.win make file has a bunch of documentation about it's
+options, but a trivial build is simply;
+
+  nmake -f Makefile.win 
+  nmake -f Makefile.win PREFIX=c:\desired\path\of\apr install
+
+Note you must manually modify the include\apr.hw file before you
+build to change default options, see the #define APR_HAS_... or the
+#define APR_HAVE_... statements.  Be careful, many of these aren't
+appropriate to be modified.  The most common change is 
+
+#define APR_HAVE_IPV6           1
+
+rather than 0 if this build of APR will be used strictly on machines
+with the IPv6 adapter support installed.
+
+It's trivial to include the apr.dsp (for a static library) or the
+libapr.dsp (for a dynamic library) in your own build project, or you
+can load apr.dsw in Visual Studio 2002 (.NET) or later, which will
+convert these for you into apr.sln and associated .vcproj files.
+
+When using APR as a dynamic library, nothing special is required,
+simply link to libapr.lib.  To use it as a static library, simply 
+define APR_DECLARE_STATIC before you include any apr header files 
+in your source, and link to apr.lib instead.
+
+
+Generating Test Coverage information with gcc
+=============================================
+
+If you want to generate test coverage data, use the following steps:
+
+  ./buildconf
+  CFLAGS="-fprofile-arcs -ftest-coverage" ./configure
+  make
+  cd test
+  make
+  ./testall
+  cd ..
+  make gcov
+
+

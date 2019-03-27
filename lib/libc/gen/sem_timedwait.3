@@ -1,0 +1,163 @@
+.\" Copyright (c) 2008, David Xu <davidxu@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Portions of this text are reprinted and reproduced in electronic form
+.\" from IEEE Std 1003.1, 2004 Edition, Standard for Information Technology --
+.\" Portable Operating System Interface (POSIX), The Open Group Base
+.\" Specifications Issue 6, Copyright (C) 2001-2004 by the Institute of
+.\" Electrical and Electronics Engineers, Inc and The Open Group.  In the
+.\" event of any discrepancy between this version and the original IEEE and
+.\" The Open Group Standard, the original IEEE and The Open Group Standard is
+.\" the referee document.  The original Standard can be obtained online at
+.\"	http://www.opengroup.org/unix/online.html.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 24, 2017
+.Dt SEM_TIMEDWAIT 3
+.Os
+.Sh NAME
+.Nm sem_timedwait ,
+.Nm sem_clockwait_np
+.Nd "lock a semaphore"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In semaphore.h
+.In time.h
+.Ft int
+.Fn sem_timedwait "sem_t * restrict sem" "const struct timespec * restrict abs_timeout"
+.Ft int
+.Fn sem_clockwait_np "sem_t * restrict sem" "clockid_t clock_id" "int flags" "const struct timespec * rqtp" "struct timespec * rmtp"
+.Sh DESCRIPTION
+The
+.Fn sem_timedwait
+function locks the semaphore referenced by
+.Fa sem ,
+as in the
+.Xr sem_wait 3
+function.
+However, if the semaphore cannot be locked without waiting for
+another process or thread to unlock the semaphore by performing
+a
+.Xr sem_post 3
+function, this wait will be terminated when the specified timeout expires.
+.Pp
+The timeout will expire when the absolute time specified by
+.Fa abs_timeout
+passes, as measured by the clock on which timeouts are based (that is,
+when the value of that clock equals or exceeds
+.Fa abs_timeout ) ,
+or if the
+absolute time specified by
+.Fa abs_timeout
+has already been passed at the time of the call.
+.Pp
+Note that the timeout is based on the
+.Dv CLOCK_REALTIME
+clock.
+.Pp
+The validity of the
+.Fa abs_timeout
+is not checked if the semaphore can be locked immediately.
+.Pp
+The
+.Fn sem_clockwait_np
+function is a more flexible variant of
+.Fn sem_timedwait .
+The
+.Fa clock_id
+parameter specifies the reference clock.
+If the
+.Fa flags
+parameter contains
+.Dv TIMER_ABSTIME ,
+then the requested timeout
+.Pq Fa rqtp
+is an absolute timeout; otherwise,
+the timeout is relative.
+If this function fails with
+.Er EINTR
+and the timeout is relative,
+a non-NULL
+.Fa rmtp
+will be updated to contain the amount of time remaining in the interval
+.Po
+the requested time minus the time actually slept
+.Pc .
+An absolute timeout has no effect on
+.Fa rmtp .
+A single structure can be used for both
+.Fa rqtp
+and
+.Fa rmtp .
+.Sh RETURN VALUES
+These
+functions return zero if the calling process successfully performed the
+semaphore lock operation on the semaphore designated by
+.Fa sem .
+If the call was unsuccessful, the state of the semaphore is unchanged,
+and the function returns a value of \-1 and sets the global variable
+.Va errno
+to indicate the error.
+.Sh ERRORS
+These functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa sem
+argument does not refer to a valid semaphore, or the process or thread would
+have blocked, and the
+.Fa abs_timeout
+parameter specified a nanoseconds field value less than zero or greater than
+or equal to 1000 million.
+.It Bq Er ETIMEDOUT
+The semaphore could not be locked before the specified timeout expired.
+.It Bq Er EINTR
+A signal interrupted this function.
+.El
+.Sh SEE ALSO
+.Xr sem_post 3 ,
+.Xr sem_trywait 3 ,
+.Xr sem_wait 3
+.Sh STANDARDS
+The
+.Fn sem_timedwait
+function conforms to
+.St -p1003.1-2004 .
+The
+.Fn sem_clockwait_np
+function is not specified by any standard;
+it exists only on
+.Fx
+at the time of this writing.
+.Sh HISTORY
+The
+.Fn sem_timedwait
+function first appeared in
+.Fx 5.0 .
+The
+.Fn sem_clockwait_np
+function first appeared in
+.Fx 11.1 .

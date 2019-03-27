@@ -1,0 +1,206 @@
+/* This file contains the definitions and documentation for the
+   machine modes used in the GNU compiler.
+   Copyright (C) 1987, 1992, 1994, 1997, 1998, 2000, 2003, 2004, 2005
+   Free Software Foundation, Inc.
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
+
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
+
+
+/* This file defines all the MACHINE MODES used by GCC.
+
+   A machine mode specifies a size and format of data
+   at the machine level.
+
+   Each RTL expression has a machine mode.
+
+   At the syntax tree level, each ..._TYPE and each ..._DECL node
+   has a machine mode which describes data of that type or the
+   data of the variable declared.  */
+
+/* This file is included by the genmodes program.  Its text is the
+   body of a function.  Do not rely on this, it will change in the
+   future.
+
+   The following statements can be used in this file -- all have
+   the form of a C macro call.  In their arguments:
+
+   A CLASS argument must be one of the constants defined in
+   mode-classes.def, less the leading MODE_ prefix; some statements
+   that take CLASS arguments have restrictions on which classes are
+   acceptable.  For instance, INT.
+
+   A MODE argument must be the printable name of a machine mode,
+   without quotation marks or trailing "mode".  For instance, SI.
+
+   A PRECISION, BYTESIZE, or COUNT argument must be a positive integer
+   constant.
+
+   A FORMAT argument must be one of the real_mode_format structures
+   declared in real.h, or else a literal 0.  Do not put a leading &
+   on the argument.
+
+   An EXPR argument must be a syntactically valid C expression.
+   If an EXPR contains commas, you may need to write an extra pair of
+   parentheses around it, so it appears to be a single argument to the
+   statement.
+
+   This file defines only those modes which are of use on almost all
+   machines.  Other modes can be defined in the target-specific
+   mode definition file, config/ARCH/ARCH-modes.def.
+
+   Order matters in this file in so far as statements which refer to
+   other modes must appear after the modes they refer to.  However,
+   statements which do not refer to other modes may appear in any
+   order.
+
+     RANDOM_MODE (MODE);
+        declares MODE to be of class RANDOM.
+
+     CC_MODE (MODE);
+        declares MODE to be of class CC.
+
+     INT_MODE (MODE, BYTESIZE);
+        declares MODE to be of class INT and BYTESIZE bytes wide.
+	All of the bits of its representation are significant.
+
+     FRACTIONAL_INT_MODE (MODE, PRECISION, BYTESIZE);
+        declares MODE to be of class INT, BYTESIZE bytes wide in
+	storage, but with only PRECISION significant bits.
+
+     FLOAT_MODE (MODE, BYTESIZE, FORMAT);
+        declares MODE to be of class FLOAT and BYTESIZE bytes wide,
+	using floating point format FORMAT.
+	All of the bits of its representation are significant.
+
+     DECIMAL FLOAT_MODE (MODE, BYTESIZE);
+	declares MODE to be of class DECIMAL_FLOAT and BYTESIZE bytes
+	wide.  All of the bits of its representation are significant.
+
+     FRACTIONAL_FLOAT_MODE (MODE, PRECISION, BYTESIZE, FORMAT);
+        declares MODE to be of class FLOAT, BYTESIZE bytes wide in
+	storage, but with only PRECISION significant bits, using
+	floating point format FORMAT.
+
+     RESET_FLOAT_FORMAT (MODE, FORMAT);
+	changes the format of MODE, which must be class FLOAT,
+	to FORMAT.  Use in an ARCH-modes.def to reset the format
+	of one of the float modes defined in this file.
+
+     PARTIAL_INT_MODE (MODE);
+        declares a mode of class PARTIAL_INT with the same size as
+	MODE (which must be an INT mode).  The name of the new mode
+	is made by prefixing a P to the name MODE.  This statement
+	may grow a PRECISION argument in the future.
+
+     VECTOR_MODE (CLASS, MODE, COUNT);
+        Declare a vector mode whose component mode is MODE (of class
+	CLASS) with COUNT components.  CLASS must be INT or FLOAT.
+	The name of the vector mode takes the form VnX where n is
+	COUNT in decimal and X is MODE.
+
+     VECTOR_MODES (CLASS, WIDTH);
+        For all modes presently declared in class CLASS, construct
+	corresponding vector modes having width WIDTH.  Modes whose
+	byte sizes do not evenly divide WIDTH are ignored, as are
+	modes that would produce vector modes with only one component,
+	and modes smaller than one byte (if CLASS is INT) or smaller
+	than two bytes (if CLASS is FLOAT).  CLASS must be INT or
+	FLOAT.  The names follow the same rule as VECTOR_MODE uses.
+
+     COMPLEX_MODES (CLASS);
+        For all modes presently declared in class CLASS, construct
+	corresponding complex modes.  Modes smaller than one byte
+	are ignored.  For FLOAT modes, the names are derived by
+	replacing the 'F' in the mode name with a 'C'.  (It is an
+	error if there is no 'F'.  For INT modes, the names are
+	derived by prefixing a C to the name.
+
+     ADJUST_BYTESIZE (MODE, EXPR);
+     ADJUST_ALIGNMENT (MODE, EXPR);
+     ADJUST_FLOAT_FORMAT (MODE, EXPR);
+        Arrange for the byte size, alignment, or floating point format
+	of MODE to be adjustable at run time.  EXPR will be executed
+	once after processing all command line options, and should
+	evaluate to the desired byte size, alignment, or format.
+
+	Unlike a FORMAT argument, if you are adjusting a float format
+	you must put an & in front of the name of each format structure.
+
+   Note: If a mode is ever made which is more than 255 bytes wide,
+   machmode.h and genmodes.c will have to be changed to allocate
+   more space for the mode_size and mode_alignment arrays.  */
+
+/* VOIDmode is used when no mode needs to be specified,
+   as for example on CONST_INT RTL expressions.  */
+RANDOM_MODE (VOID);
+
+/* BLKmode is used for structures, arrays, etc.
+   that fit no more specific mode.  */
+RANDOM_MODE (BLK);
+
+/* Single bit mode used for booleans.  */
+FRACTIONAL_INT_MODE (BI, 1, 1);
+
+/* Basic integer modes.  We go up to TI in generic code (128 bits).
+   The name OI is reserved for a 256-bit type (needed by some back ends).
+   FIXME TI shouldn't be generically available either.  */
+INT_MODE (QI, 1);
+INT_MODE (HI, 2);
+INT_MODE (SI, 4);
+INT_MODE (DI, 8);
+INT_MODE (TI, 16);
+
+/* No partial integer modes are defined by default.  */
+
+/* Basic floating point modes.  SF and DF are the only modes provided
+   by default.  The names QF, HF, XF, and TF are reserved for targets
+   that need 1-word, 2-word, 80-bit, or 128-bit float types respectively.
+
+   These are the IEEE mappings.  They can be overridden with
+   RESET_FLOAT_FORMAT or at runtime (in OVERRIDE_OPTIONS).  */
+
+FLOAT_MODE (SF, 4, ieee_single_format);
+FLOAT_MODE (DF, 8, ieee_double_format);
+
+/* Basic CC modes.
+   FIXME define this only for targets that need it.  */
+CC_MODE (CC);
+
+/* Allow the target to specify additional modes of various kinds.  */
+#if HAVE_EXTRA_MODES
+# include EXTRA_MODES_FILE
+#endif
+
+/* Complex modes.  */
+COMPLEX_MODES (INT);
+COMPLEX_MODES (FLOAT);
+
+/* Decimal floating point modes.  */
+DECIMAL_FLOAT_MODE (SD, 4, decimal_single_format);
+DECIMAL_FLOAT_MODE (DD, 8, decimal_double_format);
+DECIMAL_FLOAT_MODE (TD, 16, decimal_quad_format);
+
+/* The symbol Pmode stands for one of the above machine modes (usually SImode).
+   The tm.h file specifies which one.  It is not a distinct mode.  */
+
+/*
+Local variables:
+mode:c
+version-control: t
+End:
+*/

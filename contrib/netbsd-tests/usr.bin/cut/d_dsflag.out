@@ -1,0 +1,32 @@
+----- test: cut -f 1 -d : -s d_cut.in -----
+12
+qwe
+
+----- test: cut -f 2 -d : -s d_cut.in -----
+34
+rty
+qwe
+----- test: cut -f 3 -d : -s d_cut.in -----
+56
+uio
+
+----- test: cut -f 1-2 -d : -s d_cut.in -----
+12:34
+qwe:rty
+:qwe
+----- test: cut -f 2,3 -d : -s d_cut.in -----
+34:56
+rty:uio
+qwe:
+----- test: cut -f 4 -d : -s d_cut.in -----
+
+p[]
+
+----- test: cut -f 1-3,4-7 -d : -s d_cut.in -----
+12:34:56
+qwe:rty:uio:p[]:asd:fgh:jkl
+:qwe:::rty:uio:
+----- test: cut -f 1,2-7 -d : -s d_cut.in -----
+12:34:56
+qwe:rty:uio:p[]:asd:fgh:jkl
+:qwe:::rty:uio:

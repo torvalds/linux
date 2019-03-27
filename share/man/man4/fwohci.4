@@ -1,0 +1,158 @@
+.\" Copyright (c) 1998,1999,2000 Katsushi Kobayashi and Hidetoshi Shimokawa
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the acknowledgement as bellow:
+.\"
+.\"    This product includes software developed by K. Kobayashi and H. Shimokawa
+.\"
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\"
+.Dd March 3, 2008
+.Dt FWOHCI 4
+.Os
+.Sh NAME
+.Nm fwohci
+.Nd OHCI FireWire chipset device driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device firewire"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+firewire_load="YES"
+.Ed
+.Pp
+To disable physical access (see
+.Sx BUGS
+section for detail), put the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.firewire.phydma_enable=0
+.Ed
+.Sh HARDWARE
+The
+.Nm
+driver provides support for PCI/CardBus FireWire interface cards.
+The driver supports the following IEEE 1394 OHCI chipsets:
+.Pp
+.Bl -bullet -compact
+.It
+Adaptec AHA-894x/AIC-5800
+.It
+Apple Pangea
+.It
+Apple UniNorth
+.It
+Intel 82372FB
+.It
+IOGEAR GUF320
+.It
+Lucent / Agere FW322/323
+.It
+NEC uPD72861
+.It
+NEC uPD72870
+.It
+NEC uPD72871/2
+.It
+NEC uPD72873
+.It
+NEC uPD72874
+.It
+National Semiconductor CS4210
+.It
+Ricoh R5C551
+.It
+Ricoh R5C552
+.It
+Sony CX3022
+.It
+Sony i.LINK (CXD3222)
+.It
+Sun PCIO-2 (RIO 1394)
+.It
+Texas Instruments PCI4410A
+.It
+Texas Instruments PCI4450
+.It
+Texas Instruments PCI4451
+.It
+Texas Instruments TSB12LV22
+.It
+Texas Instruments TSB12LV23
+.It
+Texas Instruments TSB12LV26
+.It
+Texas Instruments TSB43AA22
+.It
+Texas Instruments TSB43AB21/A/AI/A-EP
+.It
+Texas Instruments TSB43AB22/A
+.It
+Texas Instruments TSB43AB23
+.It
+Texas Instruments TSB82AA2
+.It
+VIA Fire II (VT6306)
+.El
+.Sh SEE ALSO
+.Xr firewire 4 ,
+.Xr fwe 4 ,
+.Xr fwip 4 ,
+.Xr sbp 4 ,
+.Xr fwcontrol 8 ,
+.Xr kldload 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was written by
+.An Katsushi Kobayashi
+and
+.An Hidetoshi Shimokawa .
+.Sh BUGS
+The driver allows physical access from any nodes on the bus by default.
+This means that any devices on the bus can read and modify any memory space
+which can be accessed by an IEEE 1394 OHCI chip.
+It is allowed mostly for
+.Xr sbp 4
+devices.
+This should be changed to allow it only for specific devices.
+Anyway, FireWire is a bus and not expected to be connected with
+un-trustable devices because a node can monitor all the traffic.

@@ -1,0 +1,200 @@
+.\"-
+.\" Copyright 2006, 2007 Colin Percival
+.\" All rights reserved
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted providing that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 14, 2017
+.Dt FREEBSD-UPDATE 8
+.Os
+.Sh NAME
+.Nm freebsd-update
+.Nd fetch and install binary updates to FreeBSD
+.Sh SYNOPSIS
+.Nm
+.Op Fl b Ar basedir
+.Op Fl d Ar workdir
+.Op Fl f Ar conffile
+.Op Fl F
+.Op Fl k Ar KEY
+.Op Fl r Ar newrelease
+.Op Fl s Ar server
+.Op Fl t Ar address
+.Op Fl -not-running-from-cron
+.Cm command ...
+.Sh DESCRIPTION
+The
+.Nm
+tool is used to fetch, install, and rollback binary
+updates to the
+.Fx
+base system.
+Note that updates are only available if they are being built for the
+.Fx
+release and architecture being used; in particular, the
+.Fx
+Security Team only builds updates for releases shipped in binary form
+by the
+.Fx
+Release Engineering Team, e.g.,
+.Fx
+11.2-RELEASE and
+.Fx
+12.0-RELEASE, but not
+.Fx
+11.2-STABLE or
+.Fx
+13.0-CURRENT.
+.Sh OPTIONS
+The following options are supported:
+.Bl -tag -width "-r newrelease"
+.It Fl b Ar basedir
+Operate on a system mounted at
+.Ar basedir .
+(default:
+.Pa / ,
+or as given in the configuration file.)
+.It Fl d Ar workdir
+Store working files in
+.Ar workdir .
+(default:
+.Pa /var/db/freebsd-update/ ,
+or as given in the configuration file.)
+.It Fl f Ar conffile
+Read configuration options from
+.Ar conffile .
+(default:
+.Pa /etc/freebsd-update.conf )
+.It Fl F
+Force
+.Nm Cm fetch
+to proceed in the case of an unfinished upgrade.
+.It Fl k Ar KEY
+Trust an RSA key with SHA256 of
+.Ar KEY .
+(default: read value from configuration file.)
+.It Fl r Ar newrelease
+Specify the new release (e.g. 11.2-RELEASE) to which
+.Nm
+should upgrade (upgrade command only).
+.It Fl s Ar server
+Fetch files from the specified server or server pool.
+(default: read value from configuration file.)
+.It Fl t Ar address
+Mail output of
+.Cm cron
+command, if any, to
+.Ar address .
+(default: root, or as given in the configuration file.)
+.It Fl -not-running-from-cron
+Force
+.Nm Cm fetch
+to proceed when there is no controlling tty.
+This is for use by automated scripts and orchestration tools.
+Please do not run
+.Nm Cm fetch
+from crontab or similar using this flag, see:
+.Nm Cm cron
+.It Fl -currently-running Ar release
+Do not detect the currently-running release; instead, assume that the
+system is running the specified
+.Ar release .
+This is most likely to be useful when upgrading jails.
+.El
+.Sh COMMANDS
+The
+.Cm command
+can be any one of the following:
+.Bl -tag -width "rollback"
+.It Cm fetch
+Based on the currently installed world and the configuration
+options set, fetch all available binary updates.
+.It Cm cron
+Sleep a random amount of time between 1 and 3600 seconds,
+then download updates as if the
+.Cm fetch
+command was used.
+If updates are downloaded, an email will be sent
+(to root or a different address if specified via the
+.Fl t
+option or in the configuration file).
+As the name suggests, this command is designed for running
+from
+.Xr cron 8 ;
+the random delay serves to minimize the probability that
+a large number of machines will simultaneously attempt to
+fetch updates.
+.It Cm upgrade
+Fetch files necessary for upgrading to a new release.
+Before using this command, make sure that you read the
+announcement and release notes for the new release in
+case there are any special steps needed for upgrading.
+Note that this command may require up to 500 MB of space in
+.Ar workdir
+depending on which components of the
+.Fx
+base system are installed.
+.It Cm install
+Install the most recently fetched updates or upgrade.
+.It Cm rollback
+Uninstall the most recently installed updates.
+.It Cm IDS
+Compare the system against a "known good" index of the
+installed release.
+.El
+.Sh TIPS
+.Bl -bullet
+.It
+If your clock is set to local time, adding the line
+.Pp
+.Dl 0 3 * * * root /usr/sbin/freebsd-update cron
+.Pp
+to /etc/crontab will check for updates every night.
+If your clock is set to UTC, please pick a random time
+other than 3AM, to avoid overly imposing an uneven load
+on the server(s) hosting the updates.
+.It
+In spite of its name,
+.Nm
+IDS should not be relied upon as an "Intrusion Detection
+System", since if the system has been tampered with
+it cannot be trusted to operate correctly.
+If you intend to use this command for intrusion-detection
+purposes, make sure you boot from a secure disk (e.g., a CD).
+.El
+.Sh FILES
+.Bl -tag -width "/etc/freebsd-update.conf"
+.It Pa /etc/freebsd-update.conf
+Default location of the
+.Nm
+configuration file.
+.It Pa /var/db/freebsd-update/
+Default location where
+.Nm
+stores temporary files and downloaded updates.
+.El
+.Sh SEE ALSO
+.Xr freebsd-update.conf 5
+.Sh AUTHORS
+.An Colin Percival Aq Mt cperciva@FreeBSD.org

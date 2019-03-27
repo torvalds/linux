@@ -1,0 +1,103 @@
+#
+# Kernel configuration for Altera SOCFPGA development kits.
+#
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
+#
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+# $FreeBSD$
+
+ident		SOCFPGA
+include 	"std.armv7"
+include 	"../altera/socfpga/std.socfpga"
+
+makeoptions	MODULES_OVERRIDE=""
+
+makeoptions	WERROR="-Werror"
+
+options 	SCHED_ULE		# ULE scheduler
+options 	PLATFORM		# Platform based SoC
+options 	SMP			# Enable multiple cores
+
+options 	SOC_ALTERA_ARRIA10
+options 	SOC_ALTERA_CYCLONE5
+
+# NFS root from boopt/dhcp
+#options 	BOOTP
+#options 	BOOTP_NFSROOT
+#options 	BOOTP_COMPAT
+#options 	BOOTP_NFSV3
+#options 	BOOTP_WIRED_TO=ue0
+
+# Interrupt controller
+device		gic
+
+# ARM MPCore timer
+device		mpcore_timer
+
+# DMA support
+device		xdma
+device		pl330
+
+# MMC/SD/SDIO Card slot support
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+device		dwmmc
+
+# Pseudo devices
+
+device		loop
+device		random
+device		pty
+device		md
+device		gpio
+
+# USB support
+options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
+device		usb
+device		dwcotg
+
+device		umass
+device		scbus			# SCSI bus (required for ATA/SCSI)
+device		da			# Direct Access (disks)
+device		pass
+
+# Serial ports
+device		uart
+device		uart_snps
+
+# I2C (TWSI)
+device		iic
+device		iicbus
+
+# SPI
+device		spibus
+device		cqspi
+device		n25q
+
+# Ethernet
+device		ether
+device		mii
+device		smsc
+device		smscphy
+device		dwc
+device		micphy
+
+# USB ethernet support, requires miibus
+device		miibus
+device		axe			# ASIX Electronics USB Ethernet
+device		bpf			# Berkeley packet filter
+
+# Flattened Device Tree
+options 	FDT			# Configure using FDT/DTB data

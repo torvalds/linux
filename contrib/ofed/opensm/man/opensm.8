@@ -1,0 +1,1561 @@
+.TH OPENSM 8 "Sept 15, 2014" "OpenIB" "OpenIB Management"
+
+.SH NAME
+opensm \- InfiniBand subnet manager and administration (SM/SA)
+
+.SH SYNOPSIS
+.B opensm
+[\-\-version]]
+[\-F | \-\-config <file_name>]
+[\-c(reate-config) <file_name>]
+[\-g(uid) <GUID in hex>]
+[\-l(mc) <LMC>]
+[\-p(riority) <PRIORITY>]
+[\-\-smkey <SM_Key>]
+[\-\-sm_sl <SL number>]
+[\-r(eassign_lids)]
+[\-R <engine name(s)> | \-\-routing_engine <engine name(s)>]
+[\-\-do_mesh_analysis]
+[\-\-lash_start_vl <vl number>]
+[\-A | \-\-ucast_cache]
+[\-z | \-\-connect_roots]
+[\-M <file name> | \-\-lid_matrix_file <file name>]
+[\-U <file name> | \-\-lfts_file <file name>]
+[\-S | \-\-sadb_file <file name>]
+[\-a | \-\-root_guid_file <path to file>]
+[\-u | \-\-cn_guid_file <path to file>]
+[\-G | \-\-io_guid_file <path to file>]
+[\-\-port\-shifting]
+[\-\-scatter\-ports <random seed>]
+[\-H | \-\-max_reverse_hops <max reverse hops allowed>]
+[\-X | \-\-guid_routing_order_file <path to file>]
+[\-m | \-\-ids_guid_file <path to file>]
+[\-o(nce)]
+[\-s(weep) <interval>]
+[\-t(imeout) <milliseconds>]
+[\-\-retries <number>]
+[\-\-maxsmps <number>]
+[\-\-console [off | local | socket | loopback]]
+[\-\-console-port <port>]
+[\-i | \-\-ignore_guids <equalize-ignore-guids-file>]
+[\-w | \-\-hop_weights_file <path to file>]
+[\-O | \-\-port_search_ordering_file <path to file>]
+[\-O | \-\-dimn_ports_file <path to file>] (DEPRECATED)
+[\-f <log file path> | \-\-log_file <log file path> ]
+[\-L | \-\-log_limit <size in MB>] [\-e(rase_log_file)]
+[\-P(config) <partition config file> ]
+[\-N | \-\-no_part_enforce] (DEPRECATED)
+[\-Z | \-\-part_enforce [both | in | out | off]]
+[\-W | \-\-allow_both_pkeys]
+[\-Q | \-\-qos [\-Y | \-\-qos_policy_file <file name>]]
+[\-\-congestion\-control]
+[\-\-cckey <key>]
+[\-y | \-\-stay_on_fatal]
+[\-B | \-\-daemon]
+[\-J | \-\-pidfile <file_name>]
+[\-I | \-\-inactive]
+[\-\-perfmgr]
+[\-\-perfmgr_sweep_time_s <seconds>]
+[\-\-prefix_routes_file <path>]
+[\-\-consolidate_ipv6_snm_req]
+[\-\-log_prefix <prefix text>]
+[\-\-torus_config <path to file>]
+[\-v(erbose)] [\-V] [\-D <flags>] [\-d(ebug) <number>]
+[\-h(elp)] [\-?]
+
+.SH DESCRIPTION
+.PP
+opensm is an InfiniBand compliant Subnet Manager and Administration,
+and runs on top of OpenIB.
+
+opensm provides an implementation of an InfiniBand Subnet Manager and
+Administration. Such a software entity is required to run for in order
+to initialize the InfiniBand hardware (at least one per each
+InfiniBand subnet).
+
+opensm also now contains an experimental version of a performance
+manager as well.
+
+opensm defaults were designed to meet the common case usage on clusters with up to a few hundred nodes. Thus, in this default mode, opensm will scan the IB
+fabric, initialize it, and sweep occasionally for changes.
+
+opensm attaches to a specific IB port on the local machine and configures only
+the fabric connected to it. (If the local machine has other IB ports,
+opensm will ignore the fabrics connected to those other ports). If no port is
+specified, it will select the first "best" available port.
+
+opensm can present the available ports and prompt for a port number to
+attach to.
+
+By default, the run is logged to two files: /var/log/messages and /var/log/opensm.log.
+The first file will register only general major events, whereas the second
+will include details of reported errors. All errors reported in this second
+file should be treated as indicators of IB fabric health issues.
+(Note that when a fatal and non-recoverable error occurs, opensm will exit.)
+Both log files should include the message "SUBNET UP" if opensm was able to
+setup the subnet correctly.
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-\-version\fR
+Prints OpenSM version and exits.
+.TP
+\fB\-F\fR, \fB\-\-config\fR <config file>
+The name of the OpenSM config file. When not specified
+\fB\% /etc/opensm/opensm.conf\fP will be used (if exists).
+.TP
+\fB\-c\fR, \fB\-\-create-config\fR <file name>
+OpenSM will dump its configuration to the specified file and exit.
+This is a way to generate OpenSM configuration file template.
+.TP
+\fB\-g\fR, \fB\-\-guid\fR <GUID in hex>
+This option specifies the local port GUID value
+with which OpenSM should bind.  OpenSM may be
+bound to 1 port at a time.
+If GUID given is 0, OpenSM displays a list
+of possible port GUIDs and waits for user input.
+Without -g, OpenSM tries to use the default port.
+.TP
+\fB\-l\fR, \fB\-\-lmc\fR <LMC value>
+This option specifies the subnet's LMC value.
+The number of LIDs assigned to each port is 2^LMC.
+The LMC value must be in the range 0-7.
+LMC values > 0 allow multiple paths between ports.
+LMC values > 0 should only be used if the subnet
+topology actually provides multiple paths between
+ports, i.e. multiple interconnects between switches.
+Without -l, OpenSM defaults to LMC = 0, which allows
+one path between any two ports.
+.TP
+\fB\-p\fR, \fB\-\-priority\fR <Priority value>
+This option specifies the SM\'s PRIORITY.
+This will effect the handover cases, where master
+is chosen by priority and GUID.  Range goes from 0
+(default and lowest priority) to 15 (highest).
+.TP
+\fB\-\-smkey\fR <SM_Key value>
+This option specifies the SM\'s SM_Key (64 bits).
+This will effect SM authentication.
+Note that OpenSM version 3.2.1 and below used the default value '1'
+in a host byte order, it is fixed now but you may need this option to
+interoperate with old OpenSM running on a little endian machine.
+.TP
+\fB\-\-sm_sl\fR <SL number>
+This option sets the SL to use for communication with the SM/SA.
+Defaults to 0.
+.TP
+\fB\-r\fR, \fB\-\-reassign_lids\fR
+This option causes OpenSM to reassign LIDs to all
+end nodes. Specifying -r on a running subnet
+may disrupt subnet traffic.
+Without -r, OpenSM attempts to preserve existing
+LID assignments resolving multiple use of same LID.
+.TP
+\fB\-R\fR, \fB\-\-routing_engine\fR <Routing engine names>
+This option chooses routing engine(s) to use instead of Min Hop
+algorithm (default).  Multiple routing engines can be specified
+separated by commas so that specific ordering of routing algorithms
+will be tried if earlier routing engines fail.  If all configured
+routing engines fail, OpenSM will always attempt to route with Min Hop
+unless 'no_fallback' is included in the list of routing engines.
+Supported engines: minhop, updn, dnup, file, ftree, lash, dor, torus-2QoS,
+dfsssp, sssp.
+.TP
+\fB\-\-do_mesh_analysis\fR
+This option enables additional analysis for the lash routing engine to
+precondition switch port assignments in regular cartesian meshes which
+may reduce the number of SLs required to give a deadlock free routing.
+.TP
+\fB\-\-lash_start_vl\fR <vl number>
+This option sets the starting VL to use for the lash routing algorithm.
+Defaults to 0.
+.TP
+\fB\-A\fR, \fB\-\-ucast_cache\fR
+This option enables unicast routing cache and prevents routing
+recalculation (which is a heavy task in a large cluster) when
+there was no topology change detected during the heavy sweep, or
+when the topology change does not require new routing calculation,
+e.g. when one or more CAs/RTRs/leaf switches going down, or one or
+more of these nodes coming back after being down.
+A very common case that is handled by the unicast routing cache
+is host reboot, which otherwise would cause two full routing
+recalculations: one when the host goes down, and the other when
+the host comes back online.
+.TP
+\fB\-z\fR, \fB\-\-connect_roots\fR
+This option enforces routing engines (up/down and
+fat-tree) to make connectivity between root switches and in
+this way to be fully IBA compliant. In many cases this can
+violate "pure" deadlock free algorithm, so use it carefully.
+.TP
+\fB\-M\fR, \fB\-\-lid_matrix_file\fR <file name>
+This option specifies the name of the lid matrix dump file
+from where switch lid matrices (min hops tables) will be
+loaded.
+.TP
+\fB\-U\fR, \fB\-\-lfts_file\fR <file name>
+This option specifies the name of the LFTs file
+from where switch forwarding tables will be loaded when using "file" routing
+engine.
+.TP
+\fB\-S\fR, \fB\-\-sadb_file\fR <file name>
+This option specifies the name of the SA DB dump file
+from where SA database will be loaded.
+.TP
+\fB\-a\fR, \fB\-\-root_guid_file\fR <file name>
+Set the root nodes for the Up/Down or Fat-Tree routing
+algorithm to the guids provided in the given file (one to a line).
+.TP
+\fB\-u\fR, \fB\-\-cn_guid_file\fR <file name>
+Set the compute nodes for the Fat-Tree or DFSSSP/SSSP routing algorithms
+to the port GUIDs provided in the given file (one to a line).
+.TP
+\fB\-G\fR, \fB\-\-io_guid_file\fR <file name>
+Set the I/O nodes for the Fat-Tree or DFSSSP/SSSP routing algorithms
+to the port GUIDs provided in the given file (one to a line).
+.br
+In the case of Fat-Tree routing:
+.br
+I/O nodes are non-CN nodes allowed to use up to max_reverse_hops switches
+the wrong way around to improve connectivity.
+.br
+In the case of (DF)SSSP routing:
+.br
+Providing guids of compute and/or I/O nodes will ensure that paths towards
+those nodes are as much separated as possible within their node category,
+i.e., I/O traffic will not share the same link if multiple links are available.
+.TP
+\fB\-\-port\-shifting\fR
+This option enables a feature called \fBport shifting\fR.  In some
+fabrics, particularly cluster environments, routes commonly align and
+congest with other routes due to algorithmically unchanging traffic
+patterns.  This routing option will "shift" routing around in an
+attempt to alleviate this problem.
+.TP
+\fB\-\-scatter\-ports\fR <random seed>
+This option is used to randomize port selection in routing rather than
+using a round-robin algorithm (which is the default). Value supplied
+with option is used as a random seed.  If value is 0,
+which is the default, the scatter ports option is disabled.
+.TP
+\fB\-H\fR, \fB\-\-max_reverse_hops\fR <max reverse hops allowed>
+Set the maximum number of reverse hops an I/O node is allowed
+to make. A reverse hop is the use of a switch the wrong way around.
+.TP
+\fB\-m\fR, \fB\-\-ids_guid_file\fR <file name>
+Name of the map file with set of the IDs which will be used
+by Up/Down routing algorithm instead of node GUIDs
+(format: <guid> <id> per line).
+.TP
+\fB\-X\fR, \fB\-\-guid_routing_order_file\fR <file name>
+Set the order port guids will be routed for the MinHop
+and Up/Down routing algorithms to the guids provided in the
+given file (one to a line).
+.TP
+\fB\-o\fR, \fB\-\-once\fR
+This option causes OpenSM to configure the subnet
+once, then exit.  Ports remain in the ACTIVE state.
+.TP
+\fB\-s\fR, \fB\-\-sweep\fR <interval value>
+This option specifies the number of seconds between
+subnet sweeps.  Specifying -s 0 disables sweeping.
+Without -s, OpenSM defaults to a sweep interval of
+10 seconds.
+.TP
+\fB\-t\fR, \fB\-\-timeout\fR <value>
+This option specifies the time in milliseconds
+used for transaction timeouts.
+Timeout values should be > 0.
+Without -t, OpenSM defaults to a timeout value of
+200 milliseconds.
+.TP
+\fB\-\-retries\fR <number>
+This option specifies the number of retries used
+for transactions.
+Without --retries, OpenSM defaults to 3 retries
+for transactions.
+.TP
+\fB\-\-maxsmps\fR <number>
+This option specifies the number of VL15 SMP MADs
+allowed on the wire at any one time.
+Specifying \-\-maxsmps 0 allows unlimited outstanding
+SMPs.
+Without \-\-maxsmps, OpenSM defaults to a maximum of
+4 outstanding SMPs.
+.TP
+\fB\-\-console [off | local | loopback | socket]\fR
+This option brings up the OpenSM console (default off).  Note, loopback and
+socket open a socket which can be connected to WITHOUT CREDENTIALS.  Loopback
+is safer if access to your SM host is controlled.  tcp_wrappers
+(hosts.[allow|deny]) is used with loopback and socket.  loopback and socket
+will only be available if OpenSM was built with --enable-console-loopback
+(default yes) and --enable-console-socket (default no) respectively.
+.TP
+\fB\-\-console-port\fR <port>
+Specify an alternate telnet port for the socket console (default 10000).
+Note that this option only appears if OpenSM was built with
+--enable-console-socket.
+.TP
+\fB\-i\fR, \fB\-\-ignore_guids\fR <equalize-ignore-guids-file>
+This option provides the means to define a set of ports
+(by node guid and port number) that will be ignored by the link load
+equalization algorithm.
+.TP
+\fB\-w\fR, \fB\-\-hop_weights_file\fR <path to file>
+This option provides weighting factors per port representing a hop cost in
+computing the lid matrix.  The file consists of lines containing a switch port
+GUID (specified as a 64 bit hex number, with leading 0x), output port number,
+and weighting factor.  Any port not listed in the file defaults to a weighting
+factor of 1.  Lines starting with # are comments.  Weights affect only the
+output route from the port, so many useful configurations will require weights
+to be specified in pairs.
+.TP
+\fB\-O\fR, \fB\-\-port_search_ordering_file\fR <path to file>
+This option tweaks the routing. It suitable for two cases:
+1. While using DOR routing algorithm.
+This option provides a mapping between hypercube dimensions and ports
+on a per switch basis for the DOR routing engine.  The file consists
+of lines containing a switch node GUID (specified as a 64 bit hex
+number, with leading 0x) followed by a list of non-zero port numbers,
+separated by spaces, one switch per line.  The order for the port
+numbers is in one to one correspondence to the dimensions.  Ports not
+listed on a line are assigned to the remaining dimensions, in port
+order.  Anything after a # is a comment.
+2. While using general routing algorithm.
+This option provides the order of the ports that would be chosen for routing,
+from each switch rather than searching for an appropriate port from port 1 to N.
+The file consists of lines containing a switch node GUID (specified as a 64 bit
+hex number, with leading 0x) followed by a list of non-zero port numbers,
+separated by spaces, one switch per line.  In case of DOR, the order for the
+port numbers is in one to one correspondence to the dimensions.  Ports not
+listed on a line are assigned to the remaining dimensions, in port
+order.  Anything after a # is a comment.
+.TP
+\fB\-O\fR, \fB\-\-dimn_ports_file\fR <path to file> \fB(DEPRECATED)\fR
+This is a deprecated flag. Please use \fB\-\-port_search_ordering_file\fR instead.
+This option provides a mapping between hypercube dimensions and ports
+on a per switch basis for the DOR routing engine.  The file consists
+of lines containing a switch node GUID (specified as a 64 bit hex
+number, with leading 0x) followed by a list of non-zero port numbers,
+separated by spaces, one switch per line.  The order for the port
+numbers is in one to one correspondence to the dimensions.  Ports not
+listed on a line are assigned to the remaining dimensions, in port
+order.  Anything after a # is a comment.
+.TP
+\fB\-x\fR, \fB\-\-honor_guid2lid\fR
+This option forces OpenSM to honor the guid2lid file,
+when it comes out of Standby state, if such file exists
+under OSM_CACHE_DIR, and is valid.
+By default, this is FALSE.
+.TP
+\fB\-f\fR, \fB\-\-log_file\fR <file name>
+This option defines the log to be the given file.
+By default, the log goes to /var/log/opensm.log.
+For the log to go to standard output use -f stdout.
+.TP
+\fB\-L\fR, \fB\-\-log_limit\fR <size in MB>
+This option defines maximal log file size in MB. When
+specified the log file will be truncated upon reaching
+this limit.
+.TP
+\fB\-e\fR, \fB\-\-erase_log_file\fR
+This option will cause deletion of the log file
+(if it previously exists). By default, the log file
+is accumulative.
+.TP
+\fB\-P\fR, \fB\-\-Pconfig\fR <partition config file>
+This option defines the optional partition configuration file.
+The default name is \fB\%/etc/opensm/partitions.conf\fP.
+.TP
+\fB\-\-prefix_routes_file\fR <file name>
+Prefix routes control how the SA responds to path record queries for
+off-subnet DGIDs.  By default, the SA fails such queries. The
+.B PREFIX ROUTES
+section below describes the format of the configuration file.
+The default path is \fB\%/etc/opensm/prefix\-routes.conf\fP.
+.TP
+\fB\-Q\fR, \fB\-\-qos\fR
+This option enables QoS setup. It is disabled by default.
+.TP
+\fB\-Y\fR, \fB\-\-qos_policy_file\fR <file name>
+This option defines the optional QoS policy file. The default
+name is \fB\%/etc/opensm/qos-policy.conf\fP. See
+QoS_management_in_OpenSM.txt in opensm doc for more information on
+configuring QoS policy via this file.
+.TP
+\fB\-\-congestion_control\fR
+(EXPERIMENTAL) This option enables congestion control configuration.
+It is disabled by default.  See config file for congestion control
+configuration options.
+\fB\-\-cc_key\fR <key>
+(EXPERIMENTAL) This option configures the CCkey to use when configuring
+congestion control.  Note that this option does not configure a new
+CCkey into switches and CAs.  Defaults to 0.
+.TP
+\fB\-N\fR, \fB\-\-no_part_enforce\fR \fB(DEPRECATED)\fR
+This is a deprecated flag. Please use \fB\-\-part_enforce\fR instead.
+This option disables partition enforcement on switch external ports.
+.TP
+\fB\-Z\fR, \fB\-\-part_enforce\fR [both | in | out | off]
+This option indicates the partition enforcement type (for switches).
+Enforcement type can be inbound only (in), outbound only (out),
+both or disabled (off). Default is both.
+.TP
+\fB\-W\fR, \fB\-\-allow_both_pkeys\fR
+This option indicates whether both full and limited membership on the
+same partition can be configured in the PKeyTable. Default is not
+to allow both pkeys.
+.TP
+\fB\-y\fR, \fB\-\-stay_on_fatal\fR
+This option will cause SM not to exit on fatal initialization
+issues: if SM discovers duplicated guids or a 12x link with
+lane reversal badly configured.
+By default, the SM will exit on these errors.
+.TP
+\fB\-B\fR, \fB\-\-daemon\fR
+Run in daemon mode - OpenSM will run in the background.
+.TP
+\fB\-J\fR, \fB\-\-pidfile <file_name>\fR
+Makes the SM write its own PID to the specified file when started in daemon
+mode.
+.TP
+\fB\-I\fR, \fB\-\-inactive\fR
+Start SM in inactive rather than init SM state.  This
+option can be used in conjunction with the perfmgr so as to
+run a standalone performance manager without SM/SA.  However,
+this is NOT currently implemented in the performance manager.
+.TP
+\fB\-\-perfmgr\fR
+Enable the perfmgr.  Only takes effect if --enable-perfmgr was specified at
+configure time.  See performance-manager-HOWTO.txt in opensm doc for
+more information on running perfmgr.
+.TP
+\fB\-\-perfmgr_sweep_time_s\fR <seconds>
+Specify the sweep time for the performance manager in seconds
+(default is 180 seconds).  Only takes
+effect if --enable-perfmgr was specified at configure time.
+.TP
+.BI --consolidate_ipv6_snm_req
+Use shared MLID for IPv6 Solicited Node Multicast groups per MGID scope
+and P_Key.
+.TP
+\fB\-\-log_prefix\fR <prefix text>
+This option specifies the prefix to the syslog messages from OpenSM.
+A suitable prefix can be used to identify the IB subnet in syslog messages
+when two or more instances of OpenSM run in a single node to manage multiple
+fabrics. For example, in a dual-fabric (or dual-rail) IB cluster, the prefix
+for the first fabric could be "mpi" and the other fabric could be "storage".
+.TP
+\fB\-\-torus_config\fR <path to torus\-2QoS config file>
+This option defines the file name for the extra configuration
+information needed for the torus-2QoS routing engine.   The default
+name is \fB\%/etc/opensm/torus-2QoS.conf\fP
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+This option increases the log verbosity level.
+The -v option may be specified multiple times
+to further increase the verbosity level.
+See the -D option for more information about
+log verbosity.
+.TP
+\fB\-V\fR
+This option sets the maximum verbosity level and
+forces log flushing.
+The -V option is equivalent to \'-D 0xFF -d 2\'.
+See the -D option for more information about
+log verbosity.
+.TP
+\fB\-D\fR <value>
+This option sets the log verbosity level.
+A flags field must follow the -D option.
+A bit set/clear in the flags enables/disables a
+specific log level as follows:
+
+ BIT    LOG LEVEL ENABLED
+ ----   -----------------
+ 0x01 - ERROR (error messages)
+ 0x02 - INFO (basic messages, low volume)
+ 0x04 - VERBOSE (interesting stuff, moderate volume)
+ 0x08 - DEBUG (diagnostic, high volume)
+ 0x10 - FUNCS (function entry/exit, very high volume)
+ 0x20 - FRAMES (dumps all SMP and GMP frames)
+ 0x40 - ROUTING (dump FDB routing information)
+ 0x80 - SYS (syslog at LOG_INFO level in addition to OpenSM logging)
+
+Without -D, OpenSM defaults to ERROR + INFO (0x3).
+Specifying -D 0 disables all messages.
+Specifying -D 0xFF enables all messages (see -V).
+High verbosity levels may require increasing
+the transaction timeout with the -t option.
+.TP
+\fB\-d\fR, \fB\-\-debug\fR <value>
+This option specifies a debug option.
+These options are not normally needed.
+The number following -d selects the debug
+option to enable as follows:
+
+ OPT   Description
+ ---    -----------------
+ -d0  - Ignore other SM nodes
+ -d1  - Force single threaded dispatching
+ -d2  - Force log flushing after each log message
+ -d3  - Disable multicast support
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Display this usage info then exit.
+.TP
+\fB\-?\fR
+Display this usage info then exit.
+
+.SH ENVIRONMENT VARIABLES
+.PP
+The following environment variables control opensm behavior:
+
+OSM_TMP_DIR - controls the directory in which the temporary files generated by
+opensm are created. These files are: opensm-subnet.lst, opensm.fdbs, and
+opensm.mcfdbs. By default, this directory is /var/log.
+
+OSM_CACHE_DIR - opensm stores certain data to the disk such that subsequent
+runs are consistent. The default directory used is /var/cache/opensm.
+The following files are included in it:
+
+ guid2lid  - stores the LID range assigned to each GUID
+ guid2mkey - stores the MKey previously assiged to each GUID
+ neighbors - stores a map of the GUIDs at either end of each link
+             in the fabric
+
+.SH NOTES
+.PP
+When opensm receives a HUP signal, it starts a new heavy sweep as if a trap was received or a topology change was found.
+.PP
+Also, SIGUSR1 can be used to trigger a reopen of /var/log/opensm.log for
+logrotate purposes.
+
+.SH PARTITION CONFIGURATION
+.PP
+The default name of OpenSM partitions configuration file is
+\fB\%/etc/opensm/partitions.conf\fP. The default may be changed
+by using the --Pconfig (-P) option with OpenSM.
+
+The default partition will be created by OpenSM unconditionally even
+when partition configuration file does not exist or cannot be accessed.
+
+The default partition has P_Key value 0x7fff. OpenSM\'s port will always
+have full membership in default partition. All other end ports will have
+full membership if the partition configuration file is not found or cannot
+be accessed, or limited membership if the file exists and can be accessed
+but there is no rule for the Default partition.
+
+Effectively, this amounts to the same as if one of the following rules
+below appear in the partition configuration file.
+
+In the case of no rule for the Default partition:
+
+Default=0x7fff : ALL=limited, SELF=full ;
+
+In the case of no partition configuration file or file cannot be accessed:
+
+Default=0x7fff : ALL=full ;
+
+
+File Format
+
+Comments:
+
+Line content followed after \'#\' character is comment and ignored by
+parser.
+
+General file format:
+
+<Partition Definition>:[<newline>]<Partition Properties>;
+
+     Partition Definition:
+       [PartitionName][=PKey][,indx0][,ipoib_bc_flags][,defmember=full|limited]
+
+        PartitionName  - string, will be used with logging. When
+                         omitted, empty string will be used.
+        PKey           - P_Key value for this partition. Only low 15
+                         bits will be used. When omitted will be
+                         autogenerated.
+        indx0          - indicates that this pkey should be inserted in
+                         block 0 index 0.
+        ipoib_bc_flags - used to indicate/specify IPoIB capability of
+                         this partition.
+
+        defmember=full|limited|both - specifies default membership for
+                         port guid list. Default is limited.
+
+     ipoib_bc_flags:
+        ipoib_flag|[mgroup_flag]*
+
+        ipoib_flag:
+            ipoib  - indicates that this partition may be used for
+                     IPoIB, as a result the IPoIB broadcast group will
+                     be created with the mgroup_flag flags given,
+                     if any.
+
+     Partition Properties:
+       [<Port list>|<MCast Group>]* | <Port list>
+
+     Port list:
+        <Port Specifier>[,<Port Specifier>]
+
+     Port Specifier:
+        <PortGUID>[=[full|limited|both]]
+
+        PortGUID         - GUID of partition member EndPort.
+                           Hexadecimal numbers should start from
+                           0x, decimal numbers are accepted too.
+        full, limited,   - indicates full and/or limited membership for
+        both               this port.  When omitted (or unrecognized)
+                           limited membership is assumed.  Both
+                           indicates both full and limited membership
+                           for this port.
+
+     MCast Group:
+        mgid=gid[,mgroup_flag]*<newline>
+
+                         - gid specified is verified to be a Multicast
+                           address.  IP groups are verified to match
+                           the rate and mtu of the broadcast group.
+                           The P_Key bits of the mgid for IP groups are
+                           verified to either match the P_Key specified
+                           in by "Partition Definition" or if they are
+                           0x0000 the P_Key will be copied into those
+                           bits.
+
+     mgroup_flag:
+        rate=<val>  - specifies rate for this MC group
+                      (default is 3 (10GBps))
+        mtu=<val>   - specifies MTU for this MC group
+                      (default is 4 (2048))
+        sl=<val>    - specifies SL for this MC group
+                      (default is 0)
+        scope=<val> - specifies scope for this MC group
+                      (default is 2 (link local)).  Multiple scope
+                      settings are permitted for a partition.
+                      NOTE: This overwrites the scope nibble of the
+                            specified mgid.  Furthermore specifying
+                            multiple scope settings will result in
+                            multiple MC groups being created.
+        Q_Key=<val>     - specifies the Q_Key for this MC group
+                          (default: 0x0b1b for IP groups, 0 for other
+                           groups)
+                          WARNING: changing this for the broadcast
+                                   group may break IPoIB on client
+                                   nodes!! 
+        TClass=<val>    - specifies tclass for this MC group
+                          (default is 0)
+        FlowLabel=<val> - specifies FlowLabel for this MC group
+                          (default is 0)
+
+Note that values for rate, mtu, and scope, for both partitions and multicast
+groups, should be specified as defined in the IBTA specification (for example,
+mtu=4 for 2048).
+
+There are several useful keywords for PortGUID definition:
+
+ - 'ALL' means all end ports in this subnet.
+ - 'ALL_CAS' means all Channel Adapter end ports in this subnet.
+ - 'ALL_SWITCHES' means all Switch end ports in this subnet.
+ - 'ALL_ROUTERS' means all Router end ports in this subnet.
+ - 'SELF' means subnet manager's port.
+
+Empty list means no ports in this partition.
+
+Notes:
+
+White space is permitted between delimiters ('=', ',',':',';').
+
+PartitionName does not need to be unique, PKey does need to be unique.
+If PKey is repeated then those partition configurations will be merged
+and first PartitionName will be used (see also next note).
+
+It is possible to split partition configuration in more than one
+definition, but then PKey should be explicitly specified (otherwise
+different PKey values will be generated for those definitions).
+
+Examples:
+
+ Default=0x7fff : ALL, SELF=full ;
+ Default=0x7fff : ALL, ALL_SWITCHES=full, SELF=full ;
+
+ NewPartition , ipoib : 0x123456=full, 0x3456789034=limi, 0x2134af2306 ;
+
+ YetAnotherOne = 0x300 : SELF=full ;
+ YetAnotherOne = 0x300 : ALL=limited ;
+
+ ShareIO = 0x80 , defmember=full : 0x123451, 0x123452;
+ # 0x123453, 0x123454 will be limited
+ ShareIO = 0x80 : 0x123453, 0x123454, 0x123455=full;
+ # 0x123456, 0x123457 will be limited
+ ShareIO = 0x80 : defmember=limited : 0x123456, 0x123457, 0x123458=full;
+ ShareIO = 0x80 , defmember=full : 0x123459, 0x12345a;
+ ShareIO = 0x80 , defmember=full : 0x12345b, 0x12345c=limited, 0x12345d;
+
+ # multicast groups added to default
+ Default=0x7fff,ipoib:
+        mgid=ff12:401b::0707,sl=1 # random IPv4 group
+        mgid=ff12:601b::16    # MLDv2-capable routers
+        mgid=ff12:401b::16    # IGMP
+        mgid=ff12:601b::2     # All routers
+        mgid=ff12::1,sl=1,Q_Key=0xDEADBEEF,rate=3,mtu=2 # random group
+        ALL=full;
+
+
+Note:
+
+The following rule is equivalent to how OpenSM used to run prior to the
+partition manager:
+
+ Default=0x7fff,ipoib:ALL=full;
+
+.SH QOS CONFIGURATION
+.PP
+There are a set of QoS related low-level configuration parameters.
+All these parameter names are prefixed by "qos_" string. Here is a full
+list of these parameters:
+
+ qos_max_vls    - The maximum number of VLs that will be on the subnet
+ qos_high_limit - The limit of High Priority component of VL
+                  Arbitration table (IBA 7.6.9)
+ qos_vlarb_low  - Low priority VL Arbitration table (IBA 7.6.9)
+                  template
+ qos_vlarb_high - High priority VL Arbitration table (IBA 7.6.9)
+                  template
+                  Both VL arbitration templates are pairs of
+                  VL and weight
+ qos_sl2vl      - SL2VL Mapping table (IBA 7.6.6) template. It is
+                  a list of VLs corresponding to SLs 0-15 (Note
+                  that VL15 used here means drop this SL)
+
+Typical default values (hard-coded in OpenSM initialization) are:
+
+ qos_max_vls 15
+ qos_high_limit 0
+ qos_vlarb_low 0:0,1:4,2:4,3:4,4:4,5:4,6:4,7:4,8:4,9:4,10:4,11:4,12:4,13:4,14:4
+ qos_vlarb_high 0:4,1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0,13:0,14:0
+ qos_sl2vl 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,7
+
+The syntax is compatible with rest of OpenSM configuration options and
+values may be stored in OpenSM config file (cached options file).
+
+In addition to the above, we may define separate QoS configuration
+parameters sets for various target types. As targets, we currently support
+CAs, routers, switch external ports, and switch's enhanced port 0. The
+names of such specialized parameters are prefixed by "qos_<type>_"
+string. Here is a full list of the currently supported sets:
+
+ qos_ca_  - QoS configuration parameters set for CAs.
+ qos_rtr_ - parameters set for routers.
+ qos_sw0_ - parameters set for switches' port 0.
+ qos_swe_ - parameters set for switches' external ports.
+
+Examples:
+ qos_sw0_max_vls=2
+ qos_ca_sl2vl=0,1,2,3,5,5,5,12,12,0,
+ qos_swe_high_limit=0
+
+.SH PREFIX ROUTES
+.PP
+Prefix routes control how the SA responds to path record queries for
+off-subnet DGIDs.  By default, the SA fails such queries.
+Note that IBA does not specify how the SA should obtain off-subnet path
+record information.
+The prefix routes configuration is meant as a stop-gap until the
+specification is completed.
+.PP
+Each line in the configuration file is a 64-bit prefix followed by a
+64-bit GUID, separated by white space.
+The GUID specifies the router port on the local subnet that will
+handle the prefix.
+Blank lines are ignored, as is anything between a \fB#\fP character
+and the end of the line.
+The prefix and GUID are both in hex, the leading 0x is optional.
+Either, or both, can be wild-carded by specifying an
+asterisk instead of an explicit prefix or GUID.
+.PP
+When responding to a path record query for an off-subnet DGID,
+opensm searches for the first prefix match in the configuration file.
+Therefore, the order of the lines in the configuration file is important:
+a wild-carded prefix at the beginning of the configuration file renders
+all subsequent lines useless.
+If there is no match, then opensm fails the query.
+It is legal to repeat prefixes in the configuration file,
+opensm will return the path to the first available matching router.
+A configuration file with a single line where both prefix and GUID
+are wild-carded means that a path record query specifying any
+off-subnet DGID should return a path to the first available router.
+This configuration yields the same behavior formerly achieved by
+compiling opensm with -DROUTER_EXP which has been obsoleted.
+
+.SH MKEY CONFIGURATION
+.PP
+OpenSM supports configuring a single management key (MKey) for use across
+the subnet.
+
+The following configuration options are available:
+
+ m_key                  - the 64-bit MKey to be used on the subnet
+                          (IBA 14.2.4)
+ m_key_protection_level - the numeric value of the MKey ProtectBits
+                          (IBA 14.2.4.1)
+ m_key_lease_period     - the number of seconds a CA will wait for a
+                          response from the SM before resetting the
+                          protection level to 0 (IBA 14.2.4.2).
+
+OpenSM will configure all ports with the MKey specified by m_key, defaulting
+to a value of 0. A m_key value of 0 disables MKey protection on the subnet.
+Switches and HCAs with a non-zero MKey will not accept requests to change
+their configuration unless the request includes the proper MKey.
+
+MKey Protection Levels
+
+MKey protection levels modify how switches and CAs respond to SMPs lacking
+a valid MKey.
+OpenSM will configure each port's ProtectBits to support the level defined by
+the m_key_protection_level parameter.  If no parameter is specified, OpenSM
+defaults to operating at protection level 0.
+
+There are currently 4 protection levels defined by the IBA:
+
+ 0 - Queries return valid data, including MKey.  Configuration changes
+     are not allowed unless the request contains a valid MKey.
+ 1 - Like level 0, but the MKey is set to 0 (0x00000000) in queries,
+     unless the request contains a valid MKey.
+ 2 - Neither queries nor configuration changes are allowed, unless the
+     request contains a valid MKey.
+ 3 - Identical to 2.  Maintained for backwards compatibility.
+
+MKey Lease Period
+
+InfiniBand supports a MKey lease timeout, which is intended to allow
+administrators or a new SM to recover/reset lost MKeys on a fabric.
+
+If MKeys are enabled on the subnet and a switch or CA receives a request that
+requires a valid MKey but does not contain one, it warns the SM by sending a trap
+(Bad M_Key, Trap 256).  If the MKey lease period is non-zero, it also starts a
+countdown timer for the time specified by the lease period.
+If a SM (or other agent) responds with the correct MKey, the timer is stopped
+and reset.  Should the timer reach zero, the switch or CA will reset its MKey
+protection level to 0, exposing the MKey and allowing recovery.
+
+OpenSM will initialize all ports to use a mkey lease period of the number of
+seconds specified in the config file.  If no mkey_lease_period is specified,
+a default of 0 will be used.
+
+OpenSM normally quickly responds to all Bad_M_Key traps, resetting the lease
+timers.  Additionally, OpenSM's subnet sweeps will also cancel
+any running timers.  For maximum protection against accidentally-exposed MKeys,
+the MKey lease time should be a few multiples of the subnet sweep time.
+If OpenSM detects at startup that your sweep interval is greater than your
+MKey lease period, it will reset the lease period to be greater than the
+sweep interval.  Similarly, if sweeping is disabled at startup, it will be
+re-enabled with an interval less than the Mkey lease period.
+
+If OpenSM is required to recover a subnet for which it is missing mkeys,
+it must do so one switch level at a time.  As such, the total time to
+recover the subnet may be as long as the mkey lease period multiplied by
+the maximum number of hops between the SM and an endpoint, plus one.
+
+MKey Effects on Diagnostic Utilities
+
+Setting a MKey may have a detrimental effect on diagnostic software run on
+the subnet, unless your diagnostic software is able to retrieve MKeys from the
+SA or can be explicitly configured with the proper MKey.  This is particularly
+true at protection level 2, where CAs will ignore queries for management
+information that do not contain the proper MKey.
+
+.SH ROUTING
+.PP
+OpenSM now offers nine routing engines:
+
+1.  Min Hop Algorithm - based on the minimum hops to each node where the
+path length is optimized.
+
+2.  UPDN Unicast routing algorithm - also based on the minimum hops to each
+node, but it is constrained to ranking rules. This algorithm should be chosen
+if the subnet is not a pure Fat Tree, and deadlock may occur due to a
+loop in the subnet.
+
+3. DNUP Unicast routing algorithm - similar to UPDN but allows routing in
+fabrics which have some CA nodes attached closer to the roots than some switch
+nodes.
+
+4.  Fat Tree Unicast routing algorithm - this algorithm optimizes routing
+for congestion-free "shift" communication pattern.
+It should be chosen if a subnet is a symmetrical or almost symmetrical
+fat-tree of various types, not just K-ary-N-Trees: non-constant K, not
+fully staffed, any Constant Bisectional Bandwidth (CBB) ratio.
+Similar to UPDN, Fat Tree routing is constrained to ranking rules.
+
+5. LASH unicast routing algorithm - uses Infiniband virtual layers
+(SL) to provide deadlock-free shortest-path routing while also
+distributing the paths between layers. LASH is an alternative
+deadlock-free topology-agnostic routing algorithm to the non-minimal
+UPDN algorithm avoiding the use of a potentially congested root node.
+
+6. DOR Unicast routing algorithm - based on the Min Hop algorithm, but
+avoids port equalization except for redundant links between the same
+two switches.  This provides deadlock free routes for hypercubes when
+the fabric is cabled as a hypercube and for meshes when cabled as a
+mesh (see details below).
+
+7. Torus-2QoS unicast routing algorithm - a DOR-based routing algorithm
+specialized for 2D/3D torus topologies.  Torus-2QoS provides deadlock-free
+routing while supporting two quality of service (QoS) levels.  In addition
+it is able to route around multiple failed fabric links or a single failed
+fabric switch without introducing deadlocks, and without changing path SL
+values granted before the failure.
+
+8. DFSSSP unicast routing algorithm - a deadlock-free
+single-source-shortest-path routing, which uses the SSSP algorithm
+(see algorithm 9.) as the base to optimize link utilization and uses
+Infiniband virtual lanes (SL) to provide deadlock-freedom.
+
+9. SSSP unicast routing algorithm - a single-source-shortest-path routing
+algorithm, which globally balances the number of routes per link to
+optimize link utilization. This routing algorithm has no restrictions
+in terms of the underlying topology.
+
+OpenSM also supports a file method which
+can load routes from a table. See \'Modular Routing Engine\' for more
+information on this.
+
+The basic routing algorithm is comprised of two stages:
+
+1. MinHop matrix calculation
+   How many hops are required to get from each port to each LID ?
+   The algorithm to fill these tables is different if you run standard
+(min hop) or Up/Down.
+   For standard routing, a "relaxation" algorithm is used to propagate
+min hop from every destination LID through neighbor switches
+   For Up/Down routing, a BFS from every target is used. The BFS tracks link
+direction (up or down) and avoid steps that will perform up after a down
+step was used.
+
+2. Once MinHop matrices exist, each switch is visited and for each target LID a
+decision is made as to what port should be used to get to that LID.
+   This step is common to standard and Up/Down routing. Each port has a
+counter counting the number of target LIDs going through it.
+   When there are multiple alternative ports with same MinHop to a LID,
+the one with less previously assigned LIDs is selected.
+   If LMC > 0, more checks are added: Within each group of LIDs assigned to
+same target port,
+   a. use only ports which have same MinHop
+   b. first prefer the ones that go to different systemImageGuid (then
+the previous LID of the same LMC group)
+   c. if none - prefer those which go through another NodeGuid
+   d. fall back to the number of paths method (if all go to same node).
+
+Effect of Topology Changes
+
+OpenSM will preserve existing routing in any case where there is no change in
+the fabric switches unless the -r (--reassign_lids) option is specified.
+
+-r
+.br
+--reassign_lids
+          This option causes OpenSM to reassign LIDs to all
+          end nodes. Specifying -r on a running subnet
+          may disrupt subnet traffic.
+          Without -r, OpenSM attempts to preserve existing
+          LID assignments resolving multiple use of same LID.
+
+If a link is added or removed, OpenSM does not recalculate
+the routes that do not have to change. A route has to change
+if the port is no longer UP or no longer the MinHop. When routing changes
+are performed, the same algorithm for balancing the routes is invoked.
+
+In the case of using the file based routing, any topology changes are
+currently ignored The 'file' routing engine just loads the LFTs from the file
+specified, with no reaction to real topology. Obviously, this will not be able
+to recheck LIDs (by GUID) for disconnected nodes, and LFTs for non-existent
+switches will be skipped. Multicast is not affected by 'file' routing engine
+(this uses min hop tables).
+
+
+Min Hop Algorithm
+
+The Min Hop algorithm is invoked by default if no routing algorithm is
+specified.  It can also be invoked by specifying '-R minhop'.
+
+The Min Hop algorithm is divided into two stages: computation of
+min-hop tables on every switch and LFT output port assignment. Link
+subscription is also equalized with the ability to override based on
+port GUID. The latter is supplied by:
+
+-i <equalize-ignore-guids-file>
+.br
+\-\-ignore_guids <equalize-ignore-guids-file>
+          This option provides the means to define a set of ports
+          (by guid) that will be ignored by the link load
+          equalization algorithm. Note that only endports (CA,
+          switch port 0, and router ports) and not switch external
+          ports are supported.
+
+LMC awareness routes based on (remote) system or switch basis.
+
+
+Purpose of UPDN Algorithm
+
+The UPDN algorithm is designed to prevent deadlocks from occurring in loops
+of the subnet. A loop-deadlock is a situation in which it is no longer
+possible to send data between any two hosts connected through the loop. As
+such, the UPDN routing algorithm should be used if the subnet is not a pure
+Fat Tree, and one of its loops may experience a deadlock (due, for example,
+to high pressure).
+
+The UPDN algorithm is based on the following main stages:
+
+1.  Auto-detect root nodes - based on the CA hop length from any switch in
+the subnet, a statistical histogram is built for each switch (hop num vs
+number of occurrences). If the histogram reflects a specific column (higher
+than others) for a certain node, then it is marked as a root node. Since
+the algorithm is statistical, it may not find any root nodes. The list of
+the root nodes found by this auto-detect stage is used by the ranking
+process stage.
+
+    Note 1: The user can override the node list manually.
+    Note 2: If this stage cannot find any root nodes, and the user did
+            not specify a guid list file, OpenSM defaults back to the
+            Min Hop routing algorithm.
+
+2.  Ranking process - All root switch nodes (found in stage 1) are assigned
+a rank of 0. Using the BFS algorithm, the rest of the switch nodes in the
+subnet are ranked incrementally. This ranking aids in the process of enforcing
+rules that ensure loop-free paths.
+
+3.  Min Hop Table setting - after ranking is done, a BFS algorithm is run from
+each (CA or switch) node in the subnet. During the BFS process, the FDB table
+of each switch node traversed by BFS is updated, in reference to the starting
+node, based on the ranking rules and guid values.
+
+At the end of the process, the updated FDB tables ensure loop-free paths
+through the subnet.
+
+Note: Up/Down routing does not allow LID routing communication between
+switches that are located inside spine "switch systems".
+The reason is that there is no way to allow a LID route between them
+that does not break the Up/Down rule.
+One ramification of this is that you cannot run SM on switches other
+than the leaf switches of the fabric.
+
+
+UPDN Algorithm Usage
+
+Activation through OpenSM
+
+Use '-R updn' option (instead of old '-u') to activate the UPDN algorithm.
+Use '-a <root_guid_file>' for adding an UPDN guid file that contains the
+root nodes for ranking.
+If the `-a' option is not used, OpenSM uses its auto-detect root nodes
+algorithm.
+
+Notes on the guid list file:
+
+1.   A valid guid file specifies one guid in each line. Lines with an invalid
+format will be discarded.
+.br
+2.   The user should specify the root switch guids. However, it is also
+possible to specify CA guids; OpenSM will use the guid of the switch (if
+it exists) that connects the CA to the subnet as a root node.
+
+Purpose of DNUP Algorithm
+
+The DNUP algorithm is designed to serve a similar purpose to UPDN. However
+it is intended to work in network topologies which are unsuited to
+UPDN due to nodes being connected closer to the roots than some of
+the switches.  An example would be a fabric which contains nodes and
+uplinks connected to the same switch. The operation of DNUP is the
+same as UPDN with the exception of the ranking process.  In DNUP all
+switch nodes are ranked based solely on their distance from CA Nodes,
+all switch nodes directly connected to at least one CA are assigned a
+value of 1 all other switch nodes are assigned a value of one more than
+the minimum rank of all neighbor switch nodes.
+
+Fat-tree Routing Algorithm
+
+The fat-tree algorithm optimizes routing for "shift" communication pattern.
+It should be chosen if a subnet is a symmetrical or almost symmetrical
+fat-tree of various types.
+It supports not just K-ary-N-Trees, by handling for non-constant K,
+cases where not all leafs (CAs) are present, any CBB ratio.
+As in UPDN, fat-tree also prevents credit-loop-deadlocks.
+
+If the root guid file is not provided ('-a' or '--root_guid_file' options),
+the topology has to be pure fat-tree that complies with the following rules:
+  - Tree rank should be between two and eight (inclusively)
+  - Switches of the same rank should have the same number
+    of UP-going port groups*, unless they are root switches,
+    in which case the shouldn't have UP-going ports at all.
+  - Switches of the same rank should have the same number
+    of DOWN-going port groups, unless they are leaf switches.
+  - Switches of the same rank should have the same number
+    of ports in each UP-going port group.
+  - Switches of the same rank should have the same number
+    of ports in each DOWN-going port group.
+  - All the CAs have to be at the same tree level (rank).
+
+If the root guid file is provided, the topology doesn't have to be pure
+fat-tree, and it should only comply with the following rules:
+  - Tree rank should be between two and eight (inclusively)
+  - All the Compute Nodes** have to be at the same tree level (rank).
+    Note that non-compute node CAs are allowed here to be at different
+    tree ranks.
+
+* ports that are connected to the same remote switch are referenced as
+\'port group\'.
+
+** list of compute nodes (CNs) can be specified by \'-u\' or \'--cn_guid_file\'
+OpenSM options.
+
+Topologies that do not comply cause a fallback to min hop routing.
+Note that this can also occur on link failures which cause the topology
+to no longer be "pure" fat-tree.
+
+Note that although fat-tree algorithm supports trees with non-integer CBB
+ratio, the routing will not be as balanced as in case of integer CBB ratio.
+In addition to this, although the algorithm allows leaf switches to have any
+number of CAs, the closer the tree is to be fully populated, the more
+effective the "shift" communication pattern will be.
+In general, even if the root list is provided, the closer the topology to a
+pure and symmetrical fat-tree, the more optimal the routing will be.
+
+The algorithm also dumps compute node ordering file (opensm-ftree-ca-order.dump)
+in the same directory where the OpenSM log resides. This ordering file provides
+the CN order that may be used to create efficient communication pattern, that
+will match the routing tables.
+
+Routing between non-CN nodes
+
+The use of the cn_guid_file option allows non-CN nodes to be located on different levels in the fat tree.
+In such case, it is not guaranteed that the Fat Tree algorithm will route between two non-CN nodes.
+To solve this problem, a list of non-CN nodes can be specified by \'-G\' or \'--io_guid_file\' option.
+Theses nodes will be allowed to use switches the wrong way round a specific number of times (specified by \'-H\' or \'--max_reverse_hops\'.
+With the proper max_reverse_hops and io_guid_file values, you can ensure full connectivity in the Fat Tree.
+
+Please note that using max_reverse_hops creates routes that use the switch in a counter-stream way.
+This option should never be used to connect nodes with high bandwidth traffic between them ! It should only be used
+to allow connectivity for HA purposes or similar.
+Also having routes the other way around can in theory cause credit loops.
+
+Use these options with extreme care !
+
+Activation through OpenSM
+
+Use '-R ftree' option to activate the fat-tree algorithm.
+Use '-a <root_guid_file>' to provide root nodes for ranking. If the `-a' option
+is not used, routing algorithm will detect roots automatically.
+Use '-u <root_cn_file>' to provide the list of compute nodes. If the `-u' option
+is not used, all the CAs are considered as compute nodes.
+
+Note: LMC > 0 is not supported by fat-tree routing. If this is
+specified, the default routing algorithm is invoked instead.
+
+
+LASH Routing Algorithm
+
+LASH is an acronym for LAyered SHortest Path Routing. It is a
+deterministic shortest path routing algorithm that enables topology
+agnostic deadlock-free routing within communication networks.
+
+When computing the routing function, LASH analyzes the network
+topology for the shortest-path routes between all pairs of sources /
+destinations and groups these paths into virtual layers in such a way
+as to avoid deadlock.
+
+Note LASH analyzes routes and ensures deadlock freedom between switch
+pairs. The link from HCA between and switch does not need virtual
+layers as deadlock will not arise between switch and HCA.
+
+In more detail, the algorithm works as follows:
+
+1) LASH determines the shortest-path between all pairs of source /
+destination switches. Note, LASH ensures the same SL is used for all
+SRC/DST - DST/SRC pairs and there is no guarantee that the return
+path for a given DST/SRC will be the reverse of the route SRC/DST.
+
+2) LASH then begins an SL assignment process where a route is assigned
+to a layer (SL) if the addition of that route does not cause deadlock
+within that layer. This is achieved by maintaining and analysing a
+channel dependency graph for each layer. Once the potential addition
+of a path could lead to deadlock, LASH opens a new layer and continues
+the process.
+
+3) Once this stage has been completed, it is highly likely that the
+first layers processed will contain more paths than the latter ones.
+To better balance the use of layers, LASH moves paths from one layer
+to another so that the number of paths in each layer averages out.
+
+Note, the implementation of LASH in opensm attempts to use as few layers
+as possible. This number can be less than the number of actual layers
+available.
+
+In general LASH is a very flexible algorithm. It can, for example,
+reduce to Dimension Order Routing in certain topologies, it is topology
+agnostic and fares well in the face of faults.
+
+It has been shown that for both regular and irregular topologies, LASH
+outperforms Up/Down. The reason for this is that LASH distributes the
+traffic more evenly through a network, avoiding the bottleneck issues
+related to a root node and always routes shortest-path.
+
+The algorithm was developed by Simula Research Laboratory.
+
+
+Use '-R lash -Q ' option to activate the LASH algorithm.
+
+Note: QoS support has to be turned on in order that SL/VL mappings are
+used.
+
+Note: LMC > 0 is not supported by the LASH routing. If this is
+specified, the default routing algorithm is invoked instead.
+
+For open regular cartesian meshes the DOR algorithm is the ideal
+routing algorithm. For toroidal meshes on the other hand there
+are routing loops that can cause deadlocks. LASH can be used to
+route these cases. The performance of LASH can be improved by
+preconditioning the mesh in cases where there are multiple links
+connecting switches and also in cases where the switches are not
+cabled consistently. An option exists for LASH to do this. To
+invoke this use '-R lash -Q --do_mesh_analysis'. This will
+add an additional phase that analyses the mesh to try to determine
+the dimension and size of a mesh. If it determines that the mesh
+looks like an open or closed cartesian mesh it reorders the ports
+in dimension order before the rest of the LASH algorithm runs.
+
+DOR Routing Algorithm
+
+The Dimension Order Routing algorithm is based on the Min Hop
+algorithm and so uses shortest paths.  Instead of spreading traffic
+out across different paths with the same shortest distance, it chooses
+among the available shortest paths based on an ordering of dimensions.
+Each port must be consistently cabled to represent a hypercube
+dimension or a mesh dimension.  Alternatively, the -O option can be
+used to assign a custom mapping between the ports on a given switch,
+and the associated dimension.  Paths are grown from a destination back
+to a source using the lowest dimension (port) of available paths at
+each step.  This provides the ordering necessary to avoid deadlock.
+When there are multiple links between any two switches, they still
+represent only one dimension and traffic is balanced across them
+unless port equalization is turned off.  In the case of hypercubes,
+the same port must be used throughout the fabric to represent the
+hypercube dimension and match on both ends of the cable, or the -O
+option used to accomplish the alignment.  In the case of meshes, the
+dimension should consistently use the same pair of ports, one port on
+one end of the cable, and the other port on the other end, continuing
+along the mesh dimension, or the -O option used as an override.
+
+Use '-R dor' option to activate the DOR algorithm.
+
+DFSSSP and SSSP Routing Algorithm
+
+The (Deadlock-Free) Single-Source-Shortest-Path routing algorithm is
+designed to optimize link utilization thru global balancing of routes,
+while supporting arbitrary topologies. The DFSSSP routing algorithm
+uses Infiniband virtual lanes (SL) to provide deadlock-freedom.
+
+The DFSSSP algorithm consists of five major steps:
+.br
+1) It discovers the subnet and models the subnet as a directed
+multigraph in which each node represents a node of the physical
+network and each edge represents one direction of the full-duplex
+links used to connect the nodes.
+.br
+2) A loop, which iterates over all CA and switches of the subnet, will
+perform three steps to generate the linear forwarding tables for
+each switch:
+.br
+2.1) use Dijkstra's algorithm to find the shortest path from all
+nodes to the current selected destination;
+.br
+2.2) update the edge weights in the graph, i.e. add the number of
+routes, which use a link to reach the destination,
+to the link/edge;
+.br
+2.3) update the LFT of each switch with the outgoing port which was
+used in the current step to route the traffic to the
+destination node.
+.br
+3) After the number of available virtual lanes or layers in the subnet
+is detected and a channel dependency graph is initialized for each
+layer, the algorithm will put each possible route of the subnet into
+the first layer.
+.br
+4) A loop iterates over all channel dependency graphs (CDG) and performs
+the following substeps:
+.br
+4.1) search for a cycle in the current CDG;
+.br
+4.2) when a cycle is found, i.e. a possible deadlock is present,
+one edge is selected and all routes, which induced this edge,
+are moved to the "next higher" virtual layer (CDG[i+1]);
+.br
+4.3) the cycle search is continued until all cycles are broken and
+routes are moved "up".
+.br
+5) When the number of needed layers does not exceeds the number of
+available SL/VL to remove all cycles in all CDGs, the rounting is
+deadlock-free and an relation table is generated, which contains
+the assignment of routes from source to destination to a SL
+
+Note on SSSP:
+.br
+This algorithm does not perform the steps 3)-5) and can not be
+considered to be deadlock-free for all topologies. But on the one
+hand, you can choose this algorithm for really large networks
+(5,000+ CAs and deadlock-free by design) to reduce
+the runtime of the algorithm. On the other hand, you might use
+the SSSP routing algorithm as an alternative, when all deadlock-free
+routing algorithms fail to route the network for whatever reason.
+In the last case, SSSP was designed to deliver an equal or higher
+bandwidth due to better congestion avoidance than the Min Hop
+routing algorithm.
+
+Notes for usage:
+.br
+a) running DFSSSP: '-R dfsssp -Q'
+.br
+a.1) QoS has to be configured to equally spread the load on the
+available SL or virtual lanes
+.br
+a.2) applications must perform a path record query to get path SL for
+each route, which the application will use to transmite packages
+.br
+b) running SSSP:   '-R sssp'
+.br
+c) both algorithms support LMC > 0
+
+Hints for optimizing I/O traffic:
+.br
+Having more nodes (I/O and compute) connected to a switch than incoming links
+can result in a 'bad' routing of the I/O traffic as long as (DF)SSSP routing
+is not aware of the dedicated I/O nodes, i.e., in the following network
+configuration CN1-CN3 might send all I/O traffic via Link2 to IO1,IO2:
+
+     CN1         Link1        IO1
+.br
+        \\       /----\\       /
+.br
+  CN2 -- Switch1      Switch2 -- CN4
+.br
+        /       \\----/       \\
+.br
+     CN3         Link2        IO2
+
+To prevent this from happening (DF)SSSP can use both the compute node guid
+file and the I/O guid file specified by the \'-u\' or \'--cn_guid_file\' and
+\'-G\' or \'--io_guid_file\' options (similar to the Fat-Tree routing).
+This ensures that traffic towards compute nodes and I/O nodes is balanced
+separately and therefore distributed as much as possible across the available
+links. Port GUIDs, as listed by ibstat, must be specified (not Node GUIDs).
+.br
+The priority for the optimization is as follows:
+.br
+  compute nodes -> I/O nodes -> other nodes
+.br
+Possible use case szenarios:
+.br
+a) neither \'-u\' nor \'-G\' are specified: all nodes a treated as \'other nodes\'
+and therefore balanced equally;
+.br
+b) \'-G\' is specified: traffic towards I/O nodes will be balanced optimally;
+.br
+c) the system has three node types, such as login/admin, compute and I/O,
+but the balancing focus should be I/O, then one has to use \'-u\' and \'-G\'
+with I/O guids listed in cn_guid_file and compute node guids listed in
+io_guid_file;
+.br
+d) ...
+
+Torus-2QoS Routing Algorithm
+
+Torus-2QoS is routing algorithm designed for large-scale 2D/3D torus fabrics;
+see torus-2QoS(8) for full documentation.
+
+Use '-R torus-2QoS -Q' or '-R torus-2QoS,no_fallback -Q'
+to activate the torus-2QoS algorithm.
+
+
+Routing References
+
+To learn more about deadlock-free routing, see the article
+"Deadlock Free Message Routing in Multiprocessor Interconnection Networks"
+by William J Dally and Charles L Seitz (1985).
+
+To learn more about the up/down algorithm, see the article
+"Effective Strategy to Compute Forwarding Tables for InfiniBand Networks"
+by Jose Carlos Sancho, Antonio Robles, and Jose Duato at the
+Universidad Politecnica de Valencia.
+
+To learn more about LASH and the flexibility behind it, the requirement
+for layers, performance comparisons to other algorithms, see the
+following articles:
+
+"Layered Routing in Irregular Networks", Lysne et al, IEEE
+Transactions on Parallel and Distributed Systems, VOL.16, No12,
+December 2005.
+
+"Routing for the ASI Fabric Manager", Solheim et al. IEEE
+Communications Magazine, Vol.44, No.7, July 2006.
+
+"Layered Shortest Path (LASH) Routing in Irregular System Area
+Networks", Skeie et al. IEEE Computer Society Communication
+Architecture for Clusters 2002.
+
+To learn more about the DFSSSP and SSSP routing algorithm,
+see the articles:
+.br
+J. Domke, T. Hoefler and W. Nagel: Deadlock-Free Oblivious Routing
+for Arbitrary Topologies, In Proceedings of the 25th IEEE International
+Parallel & Distributed Processing Symposium (IPDPS 2011)
+.br
+T. Hoefler, T. Schneider and A. Lumsdaine: Optimized Routing for
+Large-Scale InfiniBand Networks, In 17th Annual IEEE Symposium on High
+Performance Interconnects (HOTI 2009)
+
+Modular Routine Engine
+
+Modular routing engine structure allows for the ease of
+"plugging" new routing modules.
+
+Currently, only unicast callbacks are supported. Multicast
+can be added later.
+
+One existing routing module is up-down "updn", which may be
+activated with '-R updn' option (instead of old '-u').
+
+General usage is:
+$ opensm -R 'module-name'
+
+There is also a trivial routing module which is able
+to load LFT tables from a file.
+
+Main features:
+
+ - this will load switch LFTs and/or LID matrices (min hops tables)
+ - this will load switch LFTs according to the path entries introduced
+   in the file
+ - no additional checks will be performed (such as "is port connected",
+   etc.)
+ - in case when fabric LIDs were changed this will try to reconstruct
+   LFTs correctly if endport GUIDs are represented in the file
+   (in order to disable this, GUIDs may be removed from the file
+    or zeroed)
+
+The file format is compatible with output of 'ibroute' util and for
+whole fabric can be generated with dump_lfts.sh script.
+
+To activate file based routing module, use:
+
+  opensm -R file -U /path/to/lfts_file
+
+If the lfts_file is not found or is in error, the default routing
+algorithm is utilized.
+
+The ability to dump switch lid matrices (aka min hops tables) to file and
+later to load these is also supported.
+
+The usage is similar to unicast forwarding tables loading from a lfts
+file (introduced by 'file' routing engine), but new lid matrix file
+name should be specified by -M or --lid_matrix_file option. For example:
+
+  opensm -R file -M ./opensm-lid-matrix.dump
+
+The dump file is named \'opensm-lid-matrix.dump\' and will be generated
+in standard opensm dump directory (/var/log by default) when
+OSM_LOG_ROUTING logging flag is set.
+
+When routing engine 'file' is activated, but the lfts file is not specified
+or not cannot be open default lid matrix algorithm will be used.
+
+There is also a switch forwarding tables dumper which generates
+a file compatible with dump_lfts.sh output. This file can be used
+as input for forwarding tables loading by 'file' routing engine.
+Both or one of options -U and -M can be specified together with \'-R file\'.
+
+.SH PER MODULE LOGGING CONFIGURATION
+.PP
+To enable per module logging, configure per_module_logging_file to
+the per module logging config file name in the opensm options
+file. To disable, configure per_module_logging_file to (null)
+there.
+
+The per module logging config file format is a set of lines with module
+name and logging level as follows:
+
+ <module name><separator><logging level>
+
+ <module name> is the file name including .c
+ <separator> is either = , space, or tab
+ <logging level> is the same levels as used in the coarse/overall
+ logging as follows:
+
+ BIT    LOG LEVEL ENABLED
+ ----   -----------------
+ 0x01 - ERROR (error messages)
+ 0x02 - INFO (basic messages, low volume)
+ 0x04 - VERBOSE (interesting stuff, moderate volume)
+ 0x08 - DEBUG (diagnostic, high volume)
+ 0x10 - FUNCS (function entry/exit, very high volume)
+ 0x20 - FRAMES (dumps all SMP and GMP frames)
+ 0x40 - ROUTING (dump FDB routing information)
+ 0x80 - SYS (syslog at LOG_INFO level in addition to OpenSM logging)
+
+.SH FILES
+.TP
+.B /etc/opensm/opensm.conf
+default OpenSM config file.
+
+.TP
+.B /etc/opensm/ib-node-name-map
+default node name map file.  See ibnetdiscover for more information on format.
+
+.TP
+.B /etc/opensm/partitions.conf
+default partition config file
+
+.TP
+.B /etc/opensm/qos-policy.conf
+default QOS policy config file
+
+.TP
+.B /etc/opensm/prefix-routes.conf
+default prefix routes file
+
+.TP
+.B /etc/opensm/per-module-logging.conf
+default per module logging config file
+
+.TP
+.B /etc/opensm/torus-2QoS.conf
+default torus-2QoS config file
+
+.SH AUTHORS
+.TP
+Hal Rosenstock
+.RI < hal@mellanox.com >
+.TP
+Sasha Khapyorsky
+.RI < sashak@voltaire.com >
+.TP
+Eitan Zahavi
+.RI < eitan@mellanox.co.il >
+.TP
+Yevgeny Kliteynik
+.RI < kliteyn@mellanox.co.il >
+.TP
+Thomas Sodring
+.RI < tsodring@simula.no >
+.TP
+Ira Weiny
+.RI < weiny2@llnl.gov >
+.TP
+Dale Purdy
+.RI < purdy@sgi.com >
+
+.SH SEE ALSO
+torus-2QoS(8), torus-2QoS.conf(5).

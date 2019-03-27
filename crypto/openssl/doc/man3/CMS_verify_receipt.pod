@@ -1,0 +1,54 @@
+=pod
+
+=head1 NAME
+
+CMS_verify_receipt - verify a CMS signed receipt
+
+=head1 SYNOPSIS
+
+ #include <openssl/cms.h>
+
+ int CMS_verify_receipt(CMS_ContentInfo *rcms, CMS_ContentInfo *ocms,
+                        STACK_OF(X509) *certs, X509_STORE *store,
+                        unsigned int flags);
+
+=head1 DESCRIPTION
+
+CMS_verify_receipt() verifies a CMS signed receipt. B<rcms> is the signed
+receipt to verify. B<ocms> is the original SignedData structure containing the
+receipt request. B<certs> is a set of certificates in which to search for the
+signing certificate. B<store> is a trusted certificate store (used for chain
+verification).
+
+B<flags> is an optional set of flags, which can be used to modify the verify
+operation.
+
+=head1 NOTES
+
+This functions behaves in a similar way to CMS_verify() except the flag values
+B<CMS_DETACHED>, B<CMS_BINARY>, B<CMS_TEXT> and B<CMS_STREAM> are not
+supported since they do not make sense in the context of signed receipts.
+
+=head1 RETURN VALUES
+
+CMS_verify_receipt() returns 1 for a successful verification and zero if an
+error occurred.
+
+The error can be obtained from L<ERR_get_error(3)>
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>,
+L<CMS_sign_receipt(3)>,
+L<CMS_verify(3)>,
+
+=head1 COPYRIGHT
+
+Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

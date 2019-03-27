@@ -1,0 +1,427 @@
+.\"-
+.\" Copyright (c) 2000-2014 Dag-Erling Smørgrav
+.\" Copyright (c) 2013-2016 Michael Gmelin <freebsd@grem.de>
+.\" All rights reserved.
+.\" Portions Copyright (c) 1999 Massachusetts Institute of Technology; used
+.\" by permission.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer
+.\"    in this position and unchanged.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 6, 2018
+.Dt FETCH 1
+.Os
+.Sh NAME
+.Nm fetch
+.Nd retrieve a file by Uniform Resource Locator
+.Sh SYNOPSIS
+.Nm
+.Op Fl 146AadFlMmnPpqRrsUv
+.Op Fl B Ar bytes
+.Op Fl -bind-address= Ns Ar host
+.Op Fl -ca-cert= Ns Ar file
+.Op Fl -ca-path= Ns Ar dir
+.Op Fl -cert= Ns Ar file
+.Op Fl -crl= Ns Ar file
+.Op Fl i Ar file
+.Op Fl -key= Ns Ar file
+.Op Fl N Ar file
+.Op Fl -no-passive
+.Op Fl -no-proxy= Ns Ar list
+.Op Fl -no-sslv3
+.Op Fl -no-tlsv1
+.Op Fl -no-verify-hostname
+.Op Fl -no-verify-peer
+.Op Fl o Ar file
+.Op Fl -referer= Ns Ar URL
+.Op Fl S Ar bytes
+.Op Fl T Ar seconds
+.Op Fl -user-agent= Ns Ar agent-string
+.Op Fl w Ar seconds
+.Ar URL ...
+.Nm
+.Op Fl 146AadFlMmnPpqRrsUv
+.Op Fl B Ar bytes
+.Op Fl -bind-address= Ns Ar host
+.Op Fl -ca-cert= Ns Ar file
+.Op Fl -ca-path= Ns Ar dir
+.Op Fl -cert= Ns Ar file
+.Op Fl -crl= Ns Ar file
+.Op Fl i Ar file
+.Op Fl -key= Ns Ar file
+.Op Fl N Ar file
+.Op Fl -no-passive
+.Op Fl -no-proxy= Ns Ar list
+.Op Fl -no-sslv3
+.Op Fl -no-tlsv1
+.Op Fl -no-verify-hostname
+.Op Fl -no-verify-peer
+.Op Fl o Ar file
+.Op Fl -referer= Ns Ar URL
+.Op Fl S Ar bytes
+.Op Fl T Ar seconds
+.Op Fl -user-agent= Ns Ar agent-string
+.Op Fl w Ar seconds
+.Fl h Ar host Fl f Ar file Oo Fl c Ar dir Oc
+.Sh DESCRIPTION
+The
+.Nm
+utility provides a command-line interface to the
+.Xr fetch 3
+library.
+Its purpose is to retrieve the file(s) pointed to by the URL(s) on the
+command line.
+.Pp
+The following options are available:
+.Bl -tag -width Fl
+.It Fl 1 , -one-file
+Stop and return exit code 0 at the first successfully retrieved file.
+.It Fl 4 , -ipv4-only
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6 , -ipv6-only
+Forces
+.Nm
+to use IPv6 addresses only.
+.It Fl A , -no-redirect
+Do not automatically follow ``temporary'' (302) redirects.
+Some broken Web sites will return a redirect instead of a not-found
+error when the requested object does not exist.
+.It Fl a , -retry
+Automatically retry the transfer upon soft failures.
+.It Fl B Ar bytes , Fl -buffer-size= Ns Ar bytes
+Specify the read buffer size in bytes.
+The default is 16,384 bytes.
+Attempts to set a buffer size lower than this will be silently
+ignored.
+The number of reads actually performed is reported at verbosity level
+two or higher (see the
+.Fl v
+flag).
+.It Fl -bind-address= Ns Ar host
+Specifies a hostname or IP address to which sockets used for outgoing
+connections will be bound.
+.It Fl c Ar dir
+The file to retrieve is in directory
+.Ar dir
+on the remote host.
+This option is deprecated and is provided for backward compatibility
+only.
+.It Fl -ca-cert= Ns Ar file
+[SSL]
+Path to certificate bundle containing trusted CA certificates.
+If not specified,
+.Pa /usr/local/etc/ssl/cert.pem
+is used.
+If this file does not exist,
+.Pa /etc/ssl/cert.pem
+is used instead.
+If neither file exists and no CA path has been configured,
+OpenSSL's default CA cert and path settings apply.
+The certificate bundle can contain multiple CA certificates.
+The
+.Pa security/ca_root_nss
+port is a common source of a current CA bundle.
+.It Fl -ca-path= Ns Ar dir
+[SSL]
+The directory
+.Ar dir
+contains trusted CA hashes.
+.It Fl -cert= Ns Ar file
+[SSL]
+.Ar file
+is a PEM encoded client certificate/key which will be used in
+client certificate authentication.
+.It Fl -crl= Ns Ar file
+[SSL]
+Points to certificate revocation list
+.Ar file ,
+which has to be in PEM format and may contain peer certificates that have
+been revoked.
+.It Fl d , -direct
+Use a direct connection even if a proxy is configured.
+.It Fl F , -force-restart
+In combination with the
+.Fl r
+flag, forces a restart even if the local and remote files have
+different modification times.
+Implies
+.Fl R .
+.It Fl f Ar file
+The file to retrieve is named
+.Ar file
+on the remote host.
+This option is deprecated and is provided for backward compatibility
+only.
+.It Fl h Ar host
+The file to retrieve is located on the host
+.Ar host .
+This option is deprecated and is provided for backward compatibility
+only.
+.It Fl i Ar file , Fl -if-modified-since= Ns Ar file
+If-Modified-Since mode: the remote file will only be retrieved if it
+is newer than
+.Ar file
+on the local host.
+(HTTP only)
+.It Fl -key= Ns Ar file
+[SSL]
+.Ar file
+is a PEM encoded client key that will be used in client certificate
+authentication in case key and client certificate are stored separately.
+.It Fl l , -symlink
+If the target is a file-scheme URL, make a symbolic link to the target
+rather than trying to copy it.
+.It Fl M
+.It Fl m , -mirror
+Mirror mode: if the file already exists locally and has the same size
+and modification time as the remote file, it will not be fetched.
+Note that the
+.Fl m
+and
+.Fl r
+flags are mutually exclusive.
+.It Fl N Ar file , Fl -netrc= Ns Ar file
+Use
+.Ar file
+instead of
+.Pa ~/.netrc
+to look up login names and passwords for FTP sites.
+See
+.Xr ftp 1
+for a description of the file format.
+This feature is experimental.
+.It Fl n , -no-mtime
+Do not preserve the modification time of the transferred file.
+.It Fl -no-passive
+Forces the FTP code to use active mode.
+.It Fl -no-proxy= Ns Ar list
+Either a single asterisk, which disables the use of proxies
+altogether, or a comma- or whitespace-separated list of hosts for
+which proxies should not be used.
+.It Fl -no-sslv3
+[SSL]
+Do not allow SSL version 3 when negotiating the connection.
+This option is deprecated and is provided for backward compatibility
+only.
+SSLv3 is disabled by default.
+Set
+.Ev SSL_ALLOW_SSL3
+to change this behavior.
+.It Fl -no-tlsv1
+[SSL]
+Do not allow TLS version 1 when negotiating the connection.
+.It Fl -no-verify-hostname
+[SSL]
+Do not verify that the hostname matches the subject of the
+certificate presented by the server.
+.It Fl -no-verify-peer
+[SSL]
+Do not verify the peer certificate against trusted CAs.
+.It Fl o Ar file , Fl -output= Ns Ar file
+Set the output file name to
+.Ar file .
+By default, a ``pathname'' is extracted from the specified URI, and
+its basename is used as the name of the output file.
+A
+.Ar file
+argument of
+.Sq Li \&-
+indicates that results are to be directed to the standard output.
+If the
+.Ar file
+argument is a directory, fetched file(s) will be placed within the
+directory, with name(s) selected as in the default behaviour.
+.It Fl P
+.It Fl p , -passive
+Use passive FTP.
+These flags have no effect, since passive FTP is the default, but are
+provided for compatibility with earlier versions where active FTP was
+the default.
+To force active mode, use the
+.Fl -no-passive
+flag or set the
+.Ev FTP_PASSIVE_MODE
+environment variable to
+.Ql NO .
+.It Fl -referer= Ns Ar URL
+Specifies the referrer URL to use for HTTP requests.
+If
+.Ar URL
+is set to
+.Dq auto ,
+the document URL will be used as referrer URL.
+.It Fl q , -quiet
+Quiet mode.
+.It Fl R , -keep-output
+The output files are precious, and should not be deleted under any
+circumstances, even if the transfer failed or was incomplete.
+.It Fl r , -restart
+Restart a previously interrupted transfer.
+Note that the
+.Fl m
+and
+.Fl r
+flags are mutually exclusive.
+.It Fl S Ar bytes , Fl -require-size= Ns Ar bytes
+Require the file size reported by the server to match the specified
+value.
+If it does not, a message is printed and the file is not fetched.
+If the server does not support reporting file sizes, this option is
+ignored and the file is fetched unconditionally.
+.It Fl s , -print-size
+Print the size in bytes of each requested file, without fetching it.
+.It Fl T Ar seconds , Fl -timeout= Ns Ar seconds
+Set timeout value to
+.Ar seconds .
+Overrides the environment variables
+.Ev FTP_TIMEOUT
+for FTP transfers or
+.Ev HTTP_TIMEOUT
+for HTTP transfers if set.
+.It Fl U , -passive-portrange-default
+When using passive FTP, allocate the port for the data connection from
+the low (default) port range.
+See
+.Xr ip 4
+for details on how to specify which port range this corresponds to.
+.It Fl -user-agent= Ns Ar agent-string
+Specifies the User-Agent string to use for HTTP requests.
+This can be useful when working with HTTP origin or proxy servers that
+differentiate between user agents.
+.It Fl v , -verbose
+Increase verbosity level.
+.It Fl w Ar seconds , Fl -retry-delay= Ns Ar seconds
+When the
+.Fl a
+flag is specified, wait this many seconds between successive retries.
+.El
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+signal (see the
+.Cm status
+argument for
+.Xr stty 1 ) ,
+the current transfer rate statistics will be written to the
+standard error output, in the same format as the standard completion
+message.
+.Sh ENVIRONMENT
+.Bl -tag -width HTTP_TIMEOUT
+.It Ev FTP_TIMEOUT
+Maximum time, in seconds, to wait before aborting an FTP connection.
+.It Ev HTTP_TIMEOUT
+Maximum time, in seconds, to wait before aborting an HTTP connection.
+.El
+.Pp
+See
+.Xr fetch 3
+for a description of additional environment variables, including
+.Ev FETCH_BIND_ADDRESS ,
+.Ev FTP_LOGIN ,
+.Ev FTP_PASSIVE_MODE ,
+.Ev FTP_PASSWORD ,
+.Ev FTP_PROXY ,
+.Ev ftp_proxy ,
+.Ev HTTP_ACCEPT ,
+.Ev HTTP_AUTH ,
+.Ev HTTP_PROXY ,
+.Ev http_proxy ,
+.Ev HTTP_PROXY_AUTH ,
+.Ev HTTP_REFERER ,
+.Ev HTTP_USER_AGENT ,
+.Ev NETRC ,
+.Ev NO_PROXY ,
+.Ev no_proxy ,
+.Ev SSL_CA_CERT_FILE ,
+.Ev SSL_CA_CERT_PATH ,
+.Ev SSL_CLIENT_CERT_FILE ,
+.Ev SSL_CLIENT_KEY_FILE ,
+.Ev SSL_CRL_FILE ,
+.Ev SSL_ALLOW_SSL3 ,
+.Ev SSL_NO_TLS1 ,
+.Ev SSL_NO_TLS1_1 ,
+.Ev SSL_NO_TLS1_2 ,
+.Ev SSL_NO_VERIFY_HOSTNAME
+and
+.Ev SSL_NO_VERIFY_PEER .
+.Sh EXIT STATUS
+The
+.Nm
+command returns zero on success, or one on failure.
+If multiple URLs are listed on the command line,
+.Nm
+will attempt to retrieve each one of them in turn, and will return
+zero only if they were all successfully retrieved.
+.Pp
+If the
+.Fl i
+argument is used and the remote file is not newer than the
+specified file then the command will still return success,
+although no file is transferred.
+.Sh SEE ALSO
+.Xr fetch 3 ,
+.Xr phttpget 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 2.1.5 .
+This implementation first appeared in
+.Fx 4.1 .
+.Sh AUTHORS
+.An -nosplit
+The original implementation of
+.Nm
+was done by
+.An Jean-Marc Zucconi Aq Mt jmz@FreeBSD.org .
+It was extensively re-worked for
+.Fx 2.2
+by
+.An Garrett Wollman Aq Mt wollman@FreeBSD.org ,
+and later completely rewritten to use the
+.Xr fetch 3
+library by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org
+and
+.An Michael Gmelin Aq Mt freebsd@grem.de .
+.Sh NOTES
+The
+.Fl b
+and
+.Fl t
+options are no longer supported and will generate warnings.
+They were workarounds for bugs in other OSes which this implementation
+does not trigger.
+.Pp
+One cannot both use the
+.Fl h ,
+.Fl c
+and
+.Fl f
+options and specify URLs on the command line.

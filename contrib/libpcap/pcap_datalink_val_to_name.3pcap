@@ -1,0 +1,54 @@
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP_DATALINK_VAL_TO_NAME 3PCAP "3 January 2014"
+.SH NAME
+pcap_datalink_val_to_name, pcap_datalink_val_to_description \- get a
+name or description for a link-layer header type value
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap.h>
+.ft
+.LP
+.ft B
+const char *pcap_datalink_val_to_name(int dlt);
+const char *pcap_datalink_val_to_description(int dlt);
+.ft
+.fi
+.SH DESCRIPTION
+.B pcap_datalink_val_to_name()
+translates a link-layer header type value to the corresponding
+link-layer header type name, which is the
+.B DLT_
+name for the link-layer header type value with the
+.B DLT_
+removed.
+.B NULL
+is returned if the type value does not correspond to a known
+.B DLT_
+value.
+.PP
+.B pcap_datalink_val_to_description()
+translates a link-layer header type value to a short description of that
+link-layer header type.
+.B NULL
+is returned if the type value does not correspond to a known
+.B DLT_
+value.

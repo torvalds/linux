@@ -1,0 +1,111 @@
+Testing with TEST_LENGTH = 8
+
+test _bit_byte, _bit_mask, and bitstr_size
+  i   _bit_byte(i)   _bit_mask(i) bitstr_size(i)
+  0              0              1              0
+  1              0              2              1
+  2              0              4              1
+  3              0              8              1
+  4              0             16              1
+  5              0             32              1
+  6              0             64              1
+  7              0            128              1
+
+test bit_alloc, clearbits, bit_ffc, bit_ffs
+be:   0  -1 00000000
+is:   0  -1 00000000
+
+test bit_set
+be:   1   0 10010010
+is:   1   0 10010010
+
+test bit_clear
+be:   0   3 00010000
+is:   0   3 00010000
+
+test bit_test using previous bitstring
+  i    bit_test(i)
+  0              0
+  1              0
+  2              0
+  3              8
+  4              0
+  5              0
+  6              0
+  7              0
+
+test clearbits
+be:   0  -1 00000000
+is:   0  -1 00000000
+
+test bit_nset and bit_nclear
+be:   0   1 01111110
+is:   0   1 01111110
+be:   0   1 01000010
+is:   0   1 01000010
+be:   0  -1 00000000
+is:   0  -1 00000000
+be:   7   0 11111110
+is:   7   0 11111110
+be:   0  -1 00000000
+is:   0  -1 00000000
+
+first 1 bit should move right 1 position each line
+  0  -1   0 11111111
+  1   0   1 01111111
+  2   0   2 00111111
+  3   0   3 00011111
+  4   0   4 00001111
+  5   0   5 00000111
+  6   0   6 00000011
+  7   0   7 00000001
+
+first 0 bit should move right 1 position each line
+  0   0  -1 00000000
+  1   1   0 10000000
+  2   2   0 11000000
+  3   3   0 11100000
+  4   4   0 11110000
+  5   5   0 11111000
+  6   6   0 11111100
+  7   7   0 11111110
+
+first 0 bit should move left 1 position each line
+  0  -1   0 11111111
+  1   7   0 11111110
+  2   6   0 11111100
+  3   5   0 11111000
+  4   4   0 11110000
+  5   3   0 11100000
+  6   2   0 11000000
+  7   1   0 10000000
+
+first 1 bit should move left 1 position each line
+  0   0  -1 00000000
+  1   0   7 00000001
+  2   0   6 00000011
+  3   0   5 00000111
+  4   0   4 00001111
+  5   0   3 00011111
+  6   0   2 00111111
+  7   0   1 01111111
+
+0 bit should move right 1 position each line
+  0   0   1 01111111
+  1   1   0 10111111
+  2   2   0 11011111
+  3   3   0 11101111
+  4   4   0 11110111
+  5   5   0 11111011
+  6   6   0 11111101
+  7   7   0 11111110
+
+1 bit should move right 1 position each line
+  0   1   0 10000000
+  1   0   1 01000000
+  2   0   2 00100000
+  3   0   3 00010000
+  4   0   4 00001000
+  5   0   5 00000100
+  6   0   6 00000010
+  7   0   7 00000001

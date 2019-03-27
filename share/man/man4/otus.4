@@ -1,0 +1,169 @@
+.\" $FreeBSD$
+.\"
+.\" Copyright (c) 2015 Adrian Chadd <adrian@FreeBSD.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd September 25, 2015
+.Dt OTUS 4
+.Os
+.Sh NAME
+.Nm otus
+.Nd Atheros AR9170 USB IEEE 802.11a/b/g/n wireless network device
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ehci"
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
+.Cd "device otus"
+.Cd "device wlan"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time,
+place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_otus_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports USB 2.0 wireless network devices based on the Atheros
+AR9170 chipset.
+.Pp
+The Atheros AR9170 is a draft-802.11n adapter that uses an external
+radio to operate in either 2.4GHz only or 2.4GHz and 5GHz.
+.Pp
+The AR9101 radio supports 1T1R operation in 2GHz only.
+.Pp
+The AR9102 radio supports 2T2R operation in 2GHz only.
+.Pp
+The AR9104 radio supports 2T2R operation both 2GHz and 5GHz.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA-PSK and WPA2-PSK).
+WPA is the de facto encryption standard for wireless networks.
+It is strongly recommended that WEP
+not be used as the sole mechanism
+to secure wireless communication,
+due to serious weaknesses in it.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8 .
+.Sh FILES
+The driver needs at least version 1.0 of the following firmware files,
+which is loaded when an interface is attached:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /boot/kernel/otusfw-init.ko
+.It Pa /boot/kernel/otusfw-main.ko
+.El
+.Sh HARDWARE
+The
+.Nm
+driver provices support for Atheros AR9170 USB IEEE 802.11b/g/n
+wireless network adapters, including:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It 3Com 3CRUSBN275
+.It Arcadyan WN7512
+.\" .It AVM FRITZ!WLAN USB Stick N
+.It CACE AirPcap \&Nx
+.It D-Link DWA-130 rev \&D1
+.It D-Link DWA-160 rev A1
+.It D-Link DWA-160 rev A2
+.It IO-Data WN-GDN/US2
+.It NEC Aterm WL300NU-G
+.It Netgear WNDA3100
+.It Netgear WN111 v2
+.It Planex GW-US300
+.It SMC Networks SMCWUSB-N2
+.It TP-Link TL-WN821N v1, v2
+.It Ubiquiti SR71 USB
+.It Unex DNUA-81
+.It Z-Com UB81
+.It Z-Com UB82
+.It ZyXEL NWD-271N
+.El
+.Sh EXAMPLES
+Join an existing BSS network (i.e., connect to an access point):
+.Bd -literal -offset indent
+ifconfig wlan create wlandev otus0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig wlan create wlandev otus0 ssid my_net up"
+.Pp
+Join a specific BSS network with 64-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev otus0 ssid my_net \e
+        wepmode on wepkey 0x1234567890 weptxkey 1 up
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "%s: failed load firmware of file otusfw-main"
+For some reason, the driver was unable to read the microcode file from the
+filesystem.
+The file might be missing or corrupted.
+.El
+.Sh SEE ALSO
+.Xr intro 1 ,
+.Xr netintro 4 ,
+.Xr otusfw 4 ,
+.Xr usb 4 ,
+.Xr wlan 4 ,
+.Xr arp 8 ,
+.Xr hostapd 8 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Damien Bergamini Aq Mt damien@openbsd.org
+and ported by
+.An Adrian Chadd Aq Mt adrian@freebsd.org .
+.Sh CAVEATS
+The
+.Nm
+driver only supports 802.11a/b/g operations.
+802.11n operation is not supported at this time.

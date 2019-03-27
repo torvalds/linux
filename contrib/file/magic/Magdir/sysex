@@ -1,0 +1,320 @@
+
+#------------------------------------------------------------------------
+# $File: sysex,v 1.9 2017/03/17 21:35:28 christos Exp $
+# sysex: file(1) magic for MIDI sysex files
+#
+# GRR: original 1 byte test at offset was too general as it catches also many FATs of DOS filesystems
+# where real SYStem EXclusive messages at offset 1 are limited to seven bits
+# http://en.wikipedia.org/wiki/MIDI
+0	ubeshort&0xFF80		0xF000		SysEx File -
+
+# North American Group
+>1	byte			0x01		Sequential
+>1	byte			0x02		IDP
+>1	byte			0x03		OctavePlateau
+>1	byte			0x04		Moog
+>1	byte			0x05		Passport
+>1	byte			0x06		Lexicon
+>1	byte			0x07		Kurzweil/Future Retro
+>>3	byte			0x77		777
+>>4	byte			0x00		Bank
+>>4	byte			0x01		Song
+>>5	byte			0x0f		16
+>>5	byte			0x0e		15
+>>5	byte			0x0d		14
+>>5	byte			0x0c		13
+>>5	byte			0x0b		12
+>>5	byte			0x0a		11
+>>5	byte			0x09		10
+>>5	byte			0x08		9
+>>5	byte			0x07		8
+>>5	byte			0x06		7
+>>5	byte			0x05		6
+>>5	byte			0x04		5
+>>5	byte			0x03		4
+>>5	byte			0x02		3
+>>5	byte			0x01		2
+>>5	byte			0x00		1
+>>5	byte			0x10		(ALL)
+>>2	byte			x			\b, Channel %d
+>1	byte			0x08		Fender
+>1	byte			0x09		Gulbransen
+>1	byte			0x0a		AKG
+>1	byte			0x0b		Voyce
+>1	byte			0x0c		Waveframe
+>1	byte			0x0d		ADA
+>1	byte			0x0e		Garfield
+>1	byte			0x0f		Ensoniq
+>1	byte			0x10		Oberheim
+>>2	byte			0x06		Matrix 6 series
+>>3	byte			0x0A		Dump (All)
+>>3	byte			0x01		Dump (Bank)
+>>4 belong			0x0002040E		Matrix 1000
+>>>11 byte			<2			User bank %d
+>>>11 byte			>1			Preset bank %d
+>1	byte			0x11		Apple
+>1	byte			0x12		GreyMatter
+>1	byte			0x14		PalmTree
+>1	byte			0x15		JLCooper
+>1	byte			0x16		Lowrey
+>1	byte			0x17		AdamsSmith
+>1	byte			0x18		E-mu
+>1	byte			0x19		Harmony
+>1	byte			0x1a		ART
+>1	byte			0x1b		Baldwin
+>1	byte			0x1c		Eventide
+>1	byte			0x1d		Inventronics
+>1	byte			0x1f		Clarity
+
+# European Group
+>1	byte			0x21		SIEL
+>1	byte			0x22		Synthaxe
+>1	byte			0x24		Hohner
+>1	byte			0x25		Twister
+>1	byte			0x26		Solton
+>1	byte			0x27		Jellinghaus
+>1	byte			0x28		Southworth
+>1	byte			0x29		PPG
+>1	byte			0x2a		JEN
+>1	byte			0x2b		SSL
+>1	byte			0x2c		AudioVertrieb
+
+>1	byte			0x2f		ELKA
+>>3	byte			0x09		EK-44
+
+>1	byte			0x30		Dynacord
+>1	byte			0x31		Jomox
+>1	byte			0x33		Clavia
+>1	byte			0x39		Soundcraft
+# Some Waldorf info from http://Stromeko.Synth.net/Downloads#WaldorfDocs
+>1	byte			0x3e		Waldorf
+>>2	byte			0x00		microWave
+>>2	byte			0x0E		microwave2 / XT
+>>2	byte			0x0F		Q / Q+
+>>3	byte			=0			(default id)
+>>3 byte			>0			(
+>>>3 byte			<0x7F		\bdevice %d)
+>>>3 byte			=0x7F		\bbroadcast id)
+>>3	byte			0x7f		Microwave I
+>>>4	byte			0x00		SNDR (Sound Request)
+>>>4	byte			0x10		SNDD (Sound Dump)
+>>>4	byte			0x20		SNDP (Sound Parameter Change)
+>>>4	byte			0x30		SNDQ (Sound Parameter Inquiry)
+>>>4	byte			0x70		BOOT (Sound Reserved)
+>>>4	byte			0x01		MULR (Multi Request)
+>>>4	byte			0x11		MULD (Multi Dump)
+>>>4	byte			0x21		MULP (Multi Parameter Change)
+>>>4	byte			0x31		MULQ (Multi Parameter Inquiry)
+>>>4	byte			0x71		OS (Multi Reserved)
+>>>4	byte			0x02		DRMR (Drum Map Request)
+>>>4	byte			0x12		DRMD (Drum Map Dump)
+>>>4	byte			0x22		DRMP (Drum Map Parameter Change)
+>>>4	byte			0x32		DRMQ (Drum Map Parameter Inquiry)
+>>>4	byte			0x72		BIN (Drum Map Reserved)
+>>>4	byte			0x03		PATR (Sequencer Pattern Request)
+>>>4	byte			0x13		PATD (Sequencer Pattern Dump)
+>>>4	byte			0x23		PATP (Sequencer Pattern Parameter Change)
+>>>4	byte			0x33		PATQ (Sequencer Pattern Parameter Inquiry)
+>>>4	byte			0x73		AFM (Sequencer Pattern Reserved)
+>>>4	byte			0x04		GLBR (Global Parameter Request)
+>>>4	byte			0x14		GLBD (Global Parameter Dump)
+>>>4	byte			0x24		GLBP (Global Parameter Parameter Change)
+>>>4	byte			0x34		GLBQ (Global Parameter Parameter Inquiry)
+>>>4	byte			0x07		MODR (Mode Parameter Request)
+>>>4	byte			0x17		MODD (Mode Parameter Dump)
+>>>4	byte			0x27		MODP (Mode Parameter Parameter Change)
+>>>4	byte			0x37		MODQ (Mode Parameter Parameter Inquiry)
+>>2	byte			0x10		microQ
+>>>4	byte			0x00		SNDR (Sound Request)
+>>>4	byte			0x10		SNDD (Sound Dump)
+>>>4	byte			0x20		SNDP (Sound Parameter Change)
+>>>4	byte			0x30		SNDQ (Sound Parameter Inquiry)
+>>>4	byte			0x70		(Sound Reserved)
+>>>4	byte			0x01		MULR (Multi Request)
+>>>4	byte			0x11		MULD (Multi Dump)
+>>>4	byte			0x21		MULP (Multi Parameter Change)
+>>>4	byte			0x31		MULQ (Multi Parameter Inquiry)
+>>>4	byte			0x71		OS (Multi Reserved)
+>>>4	byte			0x02		DRMR (Drum Map Request)
+>>>4	byte			0x12		DRMD (Drum Map Dump)
+>>>4	byte			0x22		DRMP (Drum Map Parameter Change)
+>>>4	byte			0x32		DRMQ (Drum Map Parameter Inquiry)
+>>>4	byte			0x72		BIN (Drum Map Reserved)
+>>>4	byte			0x04		GLBR (Global Parameter Request)
+>>>4	byte			0x14		GLBD (Global Parameter Dump)
+>>>4	byte			0x24		GLBP (Global Parameter Parameter Change)
+>>>4	byte			0x34		GLBQ (Global Parameter Parameter Inquiry)
+>>2	byte			0x11		rackAttack
+>>>4	byte			0x00		SNDR (Sound Parameter Request)
+>>>4	byte			0x10		SNDD (Sound Parameter Dump)
+>>>4	byte			0x20		SNDP (Sound Parameter Parameter Change)
+>>>4	byte			0x30		SNDQ (Sound Parameter Parameter Inquiry)
+>>>4	byte			0x01		PRGR (Program Parameter Request)
+>>>4	byte			0x11		PRGD (Program Parameter Dump)
+>>>4	byte			0x21		PRGP (Program Parameter Parameter Change)
+>>>4	byte			0x31		PRGQ (Program Parameter Parameter Inquiry)
+>>>4	byte			0x71		OS (Program Parameter Reserved)
+>>>4	byte			0x03		PATR (Pattern Parameter Request)
+>>>4	byte			0x13		PATD (Pattern Parameter Dump)
+>>>4	byte			0x23		PATP (Pattern Parameter Parameter Change)
+>>>4	byte			0x33		PATQ (Pattern Parameter Parameter Inquiry)
+>>>4	byte			0x04		GLBR (Global Parameter Request)
+>>>4	byte			0x14		GLBD (Global Parameter Dump)
+>>>4	byte			0x24		GLBP (Global Parameter Parameter Change)
+>>>4	byte			0x34		GLBQ (Global Parameter Parameter Inquiry)
+>>>4	byte			0x05		EFXR (FX Parameter Request)
+>>>4	byte			0x15		EFXD (FX Parameter Dump)
+>>>4	byte			0x25		EFXP (FX Parameter Parameter Change)
+>>>4	byte			0x35		EFXQ (FX Parameter Parameter Inquiry)
+>>>4	byte			0x07		MODR (Mode Command Request)
+>>>4	byte			0x17		MODD (Mode Command Dump)
+>>>4	byte			0x27		MODP (Mode Command Parameter Change)
+>>>4	byte			0x37		MODQ (Mode Command Parameter Inquiry)
+>>2	byte			0x03		Wave
+>>>4	byte			0x00		SBPR (Soundprogram)
+>>>4	byte			0x01		SAPR (Performance)
+>>>4	byte			0x02		SWAVE (Wave)
+>>>4	byte			0x03		SWTBL (Wave control table)
+>>>4	byte			0x04		SVT (Velocity Curve)
+>>>4	byte			0x05		STT (Tuning Table)
+>>>4	byte			0x06		SGLB (Global Parameters)
+>>>4	byte			0x07		SARRMAP (Performance Program Change Map)
+>>>4	byte			0x08		SBPRMAP (Sound Program Change Map)
+>>>4	byte			0x09		SBPRPAR (Sound Parameter)
+>>>4	byte			0x0A		SARRPAR (Performance Parameter)
+>>>4	byte			0x0B		SINSPAR (Instrument/External Parameter)
+>>>4	byte			0x0F		SBULK (Bulk Switch on/off)
+
+# Japanese Group
+>1	byte			0x40		Kawai
+>>3	byte			0x20		K1
+>>3	byte			0x22		K4
+
+>1	byte			0x41		Roland
+>>3	byte			0x14		D-50
+>>3	byte			0x2b		U-220
+>>3	byte			0x02		TR-707
+
+>1	byte			0x42		Korg
+>>3	byte			0x19		M1
+
+>1	byte			0x43		Yamaha
+>1	byte			0x44		Casio
+>1	byte			0x46		Kamiya
+>1	byte			0x47		Akai
+>1	byte			0x48		Victor
+>1	byte			0x49		Mesosha
+>1	byte			0x4b		Fujitsu
+>1	byte			0x4c		Sony
+>1	byte			0x4e		Teac
+>1	byte			0x50		Matsushita
+>1	byte			0x51		Fostex
+>1	byte			0x52		Zoom
+>1	byte			0x54		Matsushita
+>1	byte			0x57		Acoustic tech. lab.
+# http://www.midi.org/techspecs/manid.php
+>1	belong&0xffffff00	0x00007400	Ta Horng
+>1	belong&0xffffff00	0x00007500	e-Tek
+>1	belong&0xffffff00	0x00007600	E-Voice
+>1	belong&0xffffff00	0x00007700	Midisoft
+>1	belong&0xffffff00	0x00007800	Q-Sound
+>1	belong&0xffffff00	0x00007900	Westrex
+>1	belong&0xffffff00	0x00007a00	Nvidia*
+>1	belong&0xffffff00	0x00007b00	ESS
+>1	belong&0xffffff00	0x00007c00	Mediatrix
+>1	belong&0xffffff00	0x00007d00	Brooktree
+>1	belong&0xffffff00	0x00007e00	Otari
+>1	belong&0xffffff00	0x00007f00	Key Electronics
+>1	belong&0xffffff00	0x00010000	Shure
+>1	belong&0xffffff00	0x00010100	AuraSound
+>1	belong&0xffffff00	0x00010200	Crystal
+>1	belong&0xffffff00	0x00010300	Rockwell
+>1	belong&0xffffff00	0x00010400	Silicon Graphics
+>1	belong&0xffffff00	0x00010500	Midiman
+>1	belong&0xffffff00	0x00010600	PreSonus
+>1	belong&0xffffff00	0x00010800	Topaz
+>1	belong&0xffffff00	0x00010900	Cast Lightning
+>1	belong&0xffffff00	0x00010a00	Microsoft
+>1	belong&0xffffff00	0x00010b00	Sonic Foundry
+>1	belong&0xffffff00	0x00010c00	Line 6
+>1	belong&0xffffff00	0x00010d00	Beatnik Inc.
+>1	belong&0xffffff00	0x00010e00	Van Koerving
+>1	belong&0xffffff00	0x00010f00	Altech Systems
+>1	belong&0xffffff00	0x00011000	S & S Research
+>1	belong&0xffffff00	0x00011100	VLSI Technology
+>1	belong&0xffffff00	0x00011200	Chromatic
+>1	belong&0xffffff00	0x00011300	Sapphire
+>1	belong&0xffffff00	0x00011400	IDRC
+>1	belong&0xffffff00	0x00011500	Justonic Tuning
+>1	belong&0xffffff00	0x00011600	TorComp
+>1	belong&0xffffff00	0x00011700	Newtek Inc.
+>1	belong&0xffffff00	0x00011800	Sound Sculpture
+>1	belong&0xffffff00	0x00011900	Walker Technical
+>1	belong&0xffffff00	0x00011a00	Digital Harmony
+>1	belong&0xffffff00	0x00011b00	InVision
+>1	belong&0xffffff00	0x00011c00	T-Square
+>1	belong&0xffffff00	0x00011d00	Nemesys
+>1	belong&0xffffff00	0x00011e00	DBX
+>1	belong&0xffffff00	0x00011f00	Syndyne
+>1	belong&0xffffff00	0x00012000	Bitheadz
+>1	belong&0xffffff00	0x00012100	Cakewalk
+>1	belong&0xffffff00	0x00012200	Staccato
+>1	belong&0xffffff00	0x00012300	National Semicon.
+>1	belong&0xffffff00	0x00012400	Boom Theory
+>1	belong&0xffffff00	0x00012500	Virtual DSP Corp
+>1	belong&0xffffff00	0x00012600	Antares
+>1	belong&0xffffff00	0x00012700	Angel Software
+>1	belong&0xffffff00	0x00012800	St Louis Music
+>1	belong&0xffffff00	0x00012900	Lyrrus dba G-VOX
+>1	belong&0xffffff00	0x00012a00	Ashley Audio
+>1	belong&0xffffff00	0x00012b00	Vari-Lite
+>1	belong&0xffffff00	0x00012c00	Summit Audio
+>1	belong&0xffffff00	0x00012d00	Aureal Semicon.
+>1	belong&0xffffff00	0x00012e00	SeaSound
+>1	belong&0xffffff00	0x00012f00	U.S. Robotics
+>1	belong&0xffffff00	0x00013000	Aurisis
+>1	belong&0xffffff00	0x00013100	Nearfield Multimedia
+>1	belong&0xffffff00	0x00013200	FM7 Inc.
+>1	belong&0xffffff00	0x00013300	Swivel Systems
+>1	belong&0xffffff00	0x00013400	Hyperactive
+>1	belong&0xffffff00	0x00013500	MidiLite
+>1	belong&0xffffff00	0x00013600	Radical
+>1	belong&0xffffff00	0x00013700	Roger Linn
+>1	belong&0xffffff00	0x00013800	Helicon
+>1	belong&0xffffff00	0x00013900	Event
+>1	belong&0xffffff00	0x00013a00	Sonic Network
+>1	belong&0xffffff00	0x00013b00	Realtime Music
+>1	belong&0xffffff00	0x00013c00	Apogee Digital
+
+>1	belong&0xffffff00	0x00202b00	Medeli Electronics
+>1	belong&0xffffff00	0x00202c00	Charlie Lab
+>1	belong&0xffffff00	0x00202d00	Blue Chip Music
+>1	belong&0xffffff00	0x00202e00	BEE OH Corp
+>1	belong&0xffffff00	0x00202f00	LG Semicon America
+>1	belong&0xffffff00	0x00203000	TESI
+>1	belong&0xffffff00	0x00203100	EMAGIC
+>1	belong&0xffffff00	0x00203200	Behringer
+>1	belong&0xffffff00	0x00203300	Access Music
+>1	belong&0xffffff00	0x00203400	Synoptic
+>1	belong&0xffffff00	0x00203500	Hanmesoft Corp
+>1	belong&0xffffff00	0x00203600	Terratec
+>1	belong&0xffffff00	0x00203700	Proel SpA
+>1	belong&0xffffff00	0x00203800	IBK MIDI
+>1	belong&0xffffff00	0x00203900	IRCAM
+>1	belong&0xffffff00	0x00203a00	Propellerhead Software
+>1	belong&0xffffff00	0x00203b00	Red Sound Systems
+>1	belong&0xffffff00	0x00203c00	Electron ESI AB
+>1	belong&0xffffff00	0x00203d00	Sintefex Audio
+>1	belong&0xffffff00	0x00203e00	Music and More
+>1	belong&0xffffff00	0x00203f00	Amsaro
+>1	belong&0xffffff00	0x00204000	CDS Advanced Technology
+>1	belong&0xffffff00	0x00204100	Touched by Sound
+>1	belong&0xffffff00	0x00204200	DSP Arts
+>1	belong&0xffffff00	0x00204300	Phil Rees Music
+>1	belong&0xffffff00	0x00204400	Stamer Musikanlagen GmbH
+>1	belong&0xffffff00	0x00204500	Soundart
+>1	belong&0xffffff00	0x00204600	C-Mexx Software
+>1	belong&0xffffff00	0x00204700	Klavis Tech.
+>1	belong&0xffffff00	0x00204800	Noteheads AB
+
+0	string			T707		Roland TR-707 Data

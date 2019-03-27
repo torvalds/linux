@@ -1,0 +1,228 @@
+.\" Copyright (c) 2018 Devin Teske <dteske@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 22, 2018
+.Dt DTRACE_SCTP 4
+.Os
+.Sh NAME
+.Nm dtrace_sctp
+.Nd a DTrace provider for tracing events related to the
+.Xr sctp 4
+protocol
+.Sh SYNOPSIS
+.Fn sctp:cwnd::init uint32_t uint32_t uintptr_t int int
+.Fn sctp:cwnd::ack uint32_t uint32_t uintptr_t int int
+.Fn sctp:cwnd::rttvar uint64_t uint64_t uint64_t uint64_t uint64_t
+.Fn sctp:cwnd::rttstep uint64_t uint64_t uint64_t uint64_t uint64_t
+.Fn sctp:cwnd::fr uint32_t uint32_t uintptr_t int int
+.Fn sctp:cwnd::to uint32_t uint32_t uintptr_t int int
+.Fn sctp:cwnd::bl uint32_t uint32_t uintptr_t int int
+.Fn sctp:cwnd::ecn uint32_t uint32_t uintptr_t int int
+.Fn sctp:cwnd::pd uint32_t uint32_t uintptr_t int int
+.Fn sctp:rwnd:assoc:val uint32_t uint32_t int int
+.Fn sctp:flightsize:net:val uint32_t uint32_t uintptr_t int int
+.Fn sctp:flightsize:assoc:val uint32_t uint32_t int int
+.Fn sctp:::receive "pktinfo_t *" "csinfo_t *" "ipinfo_t *" "sctpsinfo_t *" \
+    "sctpinfo_t *"
+.Fn sctp:::send "pktinfo_t *" "csinfo_t *" "ipinfo_t *" "sctpsinfo_t *" \
+    "sctpinfo_t *"
+.Fn sctp:::state-change "void *" "csinfo_t *" "void *" "sctpsinfo_t *" \
+    "void *" "sctplsinfo_t *"
+.Sh DESCRIPTION
+The DTrace
+.Nm sctp
+provider allows users to trace events in the
+.Xr sctp 4
+protocol implementation.
+This provider is similar to the
+.Xr dtrace_ip 4
+and
+.Xr dtrace_udp 4
+providers,
+but additionally contains probes corresponding to protocol events at a level
+higher than packet reception and transmission.
+.Pp
+The
+.Fn sctp:cwnd::
+probes track changes in the congestion window on a netp.
+The
+.Fn sctp:rwnd::
+probes track changes in the receiver window for an assoc.
+The
+.Fn sctp:flightsize:net:val
+probe tracks changes in the flight size on a net or assoc and the
+.Fn sctp:flightsize:assoc:val
+probe provides the total flight version.
+.Pp
+The arguments of all
+.Nm sctp
+probes except for
+.Fn sctp:cwnd::rtt*
+and
+.Fn sctp::assoc:val
+are the Vtag for this end,
+the port number of the local side,
+the pointer to
+.Dv struct sctp_nets *changing ,
+the old value of the cwnd,
+and the new value of the cwnd.
+.Pp
+The arguments of
+.Fn sctp:::val
+are similar to the above except the fourth argument is the up/down amount.
+.Pp
+The
+.Fn sctp:cwnd::rtt*
+probe arguments are a bitmap of
+.Dv Vtag << 32 | localport << 16 | remoteport ,
+a bitmap of
+.Dv obw | nbw ,
+a bitmap of
+.Dv bwrtt | newrtt ,
+.Dv flight ,
+and a bitmap of
+.Dv (cwnd << 32) | point << 16 | retval(0/1) .
+.Pp
+The
+.Fn sctp:cwnd::init
+probe fires when a remotely-initiated active SCTP open succeeds.
+At this point the new connection is in the ESTABLISHED state, and the probe
+arguments expose the headers associated with the final ACK of the four-way
+handshake.
+.Pp
+The
+.Fn sctp:::send
+and
+.Fn sctp:::receive
+probes fire when the host sends or receives an SCTP packet, respectively.
+As with the
+.Xr dtrace_udp 4
+provider,
+.Nm sctp
+probes fire only for packets sent by or to the local host; forwarded packets are
+handled in the IP layer and are only visible to the
+.Xr dtrace_ip 4
+provider.
+.Pp
+The
+.Fn sctp:::state-change
+probe fires upon local SCTP association state transitions.
+Its first, third and fifth arguments are currently always
+.Dv NULL .
+Its last argument describes the from-state in the transition, and the to-state
+can be obtained from
+.Dv args[3]->sctps_state .
+.\" .Sh ARGUMENTS
+.Sh FILES
+.Bl -tag -width "/usr/lib/dtrace/sctp.d" -compact
+.It Pa /usr/lib/dtrace/sctp.d
+DTrace type and translator definitions for the
+.Nm sctp
+provider.
+.El
+.Sh EXAMPLES
+A script that logs SCTP packets in real time:
+.Bd -literal -offset indent
+#pragma D option quiet
+#pragma D option switchrate=10hz
+
+dtrace:::BEGIN
+{
+        printf(" %3s %15s:%-5s      %15s:%-5s\n", "CPU",
+            "LADDR", "LPORT", "RADDR", "RPORT");
+}
+
+sctp:::send
+{
+        printf(" %3d %16s:%-5d -> %16s:%-5d\n", cpu,
+            args[2]->ip_saddr, args[4]->sctp_sport,
+            args[2]->ip_daddr, args[4]->sctp_dport);
+}
+
+sctp:::receive
+{
+        printf(" %3d %16s:%-5d <- %16s:%-5d\n", cpu,
+            args[2]->ip_daddr, args[4]->sctp_dport,
+            args[2]->ip_saddr, args[4]->sctp_sport);
+}
+.Ed
+A script that logs SCTP association state changes as they occur:
+.Bd -literal -offset indent
+#pragma D option quiet
+#pragma D option switchrate=10
+
+int last[int];
+
+dtrace:::BEGIN
+{
+        printf(" %3s %12s  %-25s    %-25s\n",
+            "CPU", "DELTA(us)", "OLD", "NEW");
+}
+
+sctp:::state-change
+/ last[args[1]->cs_cid] /
+{
+        this->elapsed = (timestamp - last[args[1]->cs_cid]) / 1000;
+        printf(" %3d %12d  %-25s -> %-25s\n", cpu, this->elapsed,
+            sctp_state_string[args[5]->sctps_state],
+            sctp_state_string[args[3]->sctps_state]);
+        last[args[1]->cs_cid] = timestamp;
+}
+
+sctp:::state-change
+/ last[args[1]->cs_cid] == 0 /
+{
+        printf(" %3d %12s  %-25s -> %-25s\n", cpu, "-",
+            sctp_state_string[args[5]->sctps_state],
+            sctp_state_string[args[3]->sctps_state]);
+        last[args[1]->cs_cid] = timestamp;
+}
+.Ed
+.Sh COMPATIBILITY
+The
+.Fn sctp:::send ,
+.Fn sctp:::receive ,
+and
+.Fn sctp:::state-change
+probes are compatible with the
+.Nm sctp
+provider in Solaris.
+All other probes are only available in FreeBSD.
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr dtrace_ip 4 ,
+.Xr dtrace_udp 4 ,
+.Xr dtrace_udplite 4 ,
+.Xr sctp 4 ,
+.Xr SDT 9
+.\" .Sh HISTORY
+.\" The
+.\" .Nm sctp
+.\" provider first appeared in
+.\" .Fx
+.\" UNKNOWN.
+.Sh AUTHORS
+This manual page was written by
+.An Devin Teske Aq Mt dteske@FreeBSD.org .

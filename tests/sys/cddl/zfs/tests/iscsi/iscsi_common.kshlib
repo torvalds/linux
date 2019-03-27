@@ -1,0 +1,87 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)iscsi_common.kshlib	1.2	07/03/14 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+#
+# Check if a volume is a valide iscsi target 
+# $1 volume name
+# return 0 if suceeds, otherwise, return 1
+# 
+function is_iscsi_target
+{
+	typeset dataset=$1
+	typeset target targets
+
+	[[ -z $dataset ]] && return 1
+
+	targets=$($ISCSITADM list target | $GREP "Target:" | $AWK '{print $2}')
+	[[ -z $targets ]] && return 1
+	
+	for target in $targets; do
+		[[ $dataset == $target ]] && return 0
+	done
+
+	return 1
+}
+
+#
+# Get the iSCSI name of a target
+# $1 target name
+#
+function iscsi_name
+{
+	typeset target=$1
+	typeset name
+
+	[[ -z $target ]] && log_fail "No parameter."
+
+	if ! is_iscsi_target $target ; then
+		log_fail "Not a target."
+	fi
+
+	name=$($ISCSITADM list target $target | $GREP "iSCSI Name:" \
+		| $AWK '{print $2}')
+
+	return $name
+}
+
+#
+# Check shareiscsi option is supported or not
+# return 0 if it is supported, otherwise return 1
+#
+function check_shareiscsi
+{
+	$ZFS set 2>&1 | $GREP shareiscsi
+	[[ $? -ne 0 ]] && return 1
+
+	return 0
+}

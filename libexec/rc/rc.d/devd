@@ -1,0 +1,42 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: devd
+# REQUIRE: netif ldconfig
+# BEFORE: NETWORKING mountcritremote
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="devd"
+desc="Device state change daemon"
+rcvar="devd_enable"
+command="/sbin/${name}"
+
+start_precmd=${name}_prestart
+stop_precmd=find_pidfile
+
+find_pidfile()
+{
+	if get_pidfile_from_conf pid-file /etc/devd.conf; then
+		pidfile="$_pidfile_from_conf"
+	else
+		pidfile="/var/run/${name}.pid"
+	fi
+}
+
+devd_prestart()
+{
+	find_pidfile
+
+	# If devd is disabled, turn it off in the kernel to avoid unnecessary
+	# memory usage.
+	if ! checkyesno ${rcvar}; then
+	    $SYSCTL hw.bus.devctl_queue=0
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

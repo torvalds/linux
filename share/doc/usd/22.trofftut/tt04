@@ -1,0 +1,189 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)tt04	8.1 (Berkeley) 6/8/93
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\"
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\"
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\"
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.NH
+Indents and Line Lengths
+.PP
+.UL troff
+starts with a line length of 6.5 inches,
+which some people think is too wide for 8\(12\(mu11 paper.
+To reset the line length,
+use
+the
+.BD .ll
+command, as in
+.P1
+^ll 6i
+.P2
+As with
+.BD .sp ,
+the actual length can be specified in several ways;
+inches are probably the most intuitive.
+.PP
+The maximum line length provided by the typesetter is 7.5 inches, by the way.
+To use the full width, you will have to reset the default physical left margin (``page offset''),
+which is normally slightly less than one inch from the left edge
+of the paper.
+This is done by the
+.BD .po
+command.
+.P1
+^po 0
+.P2
+sets the offset as far to the left as it will go.
+.WS
+.PP
+The indent command
+.BD .in
+causes the left margin to be indented
+by some specified amount from the page offset.
+If we use
+.BD .in
+to move the left margin in,
+and
+.BD .ll
+to move the right margin to the left,
+we can
+make offset blocks of text:
+.P1
+^in 0.3i
+^ll \(mi0.3i
+text to be set into a block
+^ll +0.3i
+^in \(mi0.3i
+.P2
+will create a block that looks like this:
+.P1
+.fi
+.ll -0.3i
+Pater noster qui est in caelis sanctificetur nomen tuum;
+adveniat regnum tuum; fiat voluntas tua, sicut in caelo,
+et in terra. ...
+Amen.
+.ll +0.3i
+.P2
+Notice the use of `+' and `\(mi'
+to specify the amount of change.
+These change the previous setting by the specified amount,
+rather than just overriding it.
+The distinction is quite important:
+.BD .ll\ +1i
+makes lines one inch longer;
+.BD .ll\ 1i
+makes them one inch
+.ul
+long.
+.PP
+With
+.BD .in ,
+.BD .ll
+and
+.BD .po ,
+the previous value is used if no argument is specified.
+.PP
+To indent a single line, use the `temporary indent'
+command
+.BD .ti .
+For example, all paragraphs in this memo
+effectively begin with the command
+.P1
+^ti 3
+.P2
+Three of what?
+The default unit for
+.BD .ti ,
+as for most horizontally oriented commands
+.BD .ll , (
+.BD .in ,
+.BD .po ),
+is ems;
+an em is roughly the width of the letter `m'
+in the current point size.
+(Precisely, an em in size
+.ul
+p
+is
+.ul
+p
+points.)
+Although inches are usually clearer than ems to people who don't set type
+for a living,
+ems have a place:
+they are a measure of size that is proportional to the current point size.
+If you want to make text that keeps its proportions
+regardless of point size,
+you should use ems for all dimensions.
+Ems can be specified as scale factors directly,
+as in
+.BD .ti\ 2.5m .
+.PP
+Lines can also be indented negatively
+if the indent is already positive:
+.P1
+^ti \(mi0.3i
+.P2
+causes the next line to be moved back three tenths of an inch.
+Thus to make a decorative initial capital,
+we indent the whole paragraph, then move the letter `P' back with
+a
+.BD .ti
+command:
+.P1
+.ll -0.3i
+.fi
+.in +.3i
+.ti -0.3i
+\s36\v'2'P\v'-2'\s0ater noster qui est in caelis sanctificetur
+nomen tuum;
+adveniat regnum tuum;
+'in -.3i
+fiat voluntas tua,
+sicut in caelo, et in terra. ...
+Amen.
+.ll +0.3i
+.P2
+Of course, there is also some trickery to make the `P'
+bigger (just a `\es36P\es0'),
+and to move it
+down from its normal position
+(see the section on local motions).

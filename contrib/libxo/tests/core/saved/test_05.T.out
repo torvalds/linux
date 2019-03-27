@@ -1,0 +1,39 @@
+Sample text
+This sample text was taken from the Punjabi Wikipedia article on Lahore and transliterated into the Latin script.
+Gurmukhi:
+ਲਹੌਰ ਪਾਕਿਸਤਾਨੀ ਪੰਜਾਬ ਦੀ ਰਾਜਧਾਨੀ ਹੈ । ਲੋਕ ਗਿਣਤੀ ਦੇ ਨਾਲ ਕਰਾਚੀ ਤੋਂ ਬਾਅਦ ਲਹੌਰ ਦੂਜਾ ਸਭ ਤੋਂ ਵੱਡਾ ਸ਼ਹਿਰ ਹੈ । ਲਹੌਰ ਪਾਕਿਸਤਾਨ ਦਾ ਸਿਆਸੀ, ਰਹਤਲੀ ਤੇ ਪੜ੍ਹਾਈ ਦਾ ਗੜ੍ਹ ਹੈ ਅਤੇ ਇਸ ਲਈ ਇਹਨੂੰ ਪਾਕਿਸਤਾਨ ਦਾ ਦਿਲ ਵੀ ਕਿਹਾ ਜਾਂਦਾ ਹੈ । ਲਹੌਰ ਦਰਿਆ-ਏ-ਰਾਵੀ ਦੇ ਕੰਢੇ ਤੇ ਵਸਦਾ ਹੈ ਤੇ ਇਸਦੀ ਲੋਕ ਗਿਣਤੀ ਇੱਕ ਕਰੋੜ ਦੇ ਨੇੜੇ ਹੈ ।
+Shahmukhi:
+لہور پاکستانی پنجاب دا دارالحکومت اے۔ لوک گنتی دے نال کراچی توں بعد لہور دوجا سبھ توں وڈا شہر اے۔ لہور پاکستان دا سیاسی، رہتلی تے پڑھائی دا گڑھ اے تے اس لئی ایھنوں پاکستان دا دل وی کیھا جاندا اے۔ لہور دریاۓ راوی دے کنڈھے تے وسدا اے اسدی لوک گنتی اک کروڑ دے نیڑے اے ۔
+Transliteration:
+lahor pākistān panjāb dā dārul hakūmat ē. lōk giṇtī dē nāḷ karācī tō᷈ bāad lahor dūjā sab tō᷈ vaḍḍā shahr ē. lahor pākistān dā siāsī, rahtalī tē paṛā̀ī dā gā́ṛ ē tē is laī ihnū᷈ pākistān dā dil vī kehā jāndā ē. lahor dariāē rāvī dē kanḍē tē vasdā ē. isdī lōk giṇtī ikk karōṛ dē nēṛē ē.
+Wide char: ෴ - 0xdf4 - 1
+Wide char: ණ - 0xdab - 1
+Wide char: ් - 0xdca - 0
+Wide char: ණ - 0xdab - 1
+Wide char: ្ - 0x17d2 - 0
+Wide char: ෴ - 0xdf4 - 1
+Wide char: 1 - 0x31 - 1
+Wide char: ͏ - 0x34f - 0
+Wide char: 2 - 0x32 - 1
+Wide char: ⃝ - 0x20dd - 0
+Cool: [1͏2⃝]
+Οὐχὶ ταὐτὰ παρίσταταί μοι γιγνώσκειν, ὦ ἄνδρες ᾿Αθηναῖοι
+გთხოვთ ახლავე გაიაროთ რეგისტრაცია Unicode-ის მეათე საერთაშორისო
+Width: 63
+[෴ණ්ණ෴]
+Width: 6
+[෴]
+Width: 3
+[෴ණ්ණ෴]
+Width: 6
+[1234]
+[ර්‍ඝ]
+Width: 4
+First Name               Last Name     Department  Time (%)
+Jim ("რეგტ")             გთხოვთ ახ          431      90
+Terry ("<one")           Οὐχὶ ταὐτὰ παρ     660      90
+Leslie ("Les")           Patterson          341      60
+Ashley ("Ash")           Meter & Smith     1440      40
+0123456789 ("0123456789")01234567890123    1440      40
+ახლა ("გაიარო")          საერთაშორისო       123      90
+෴ණ්ණ෴෴ණ්ණ෴ ("Mick")        ෴ණ්ණ෴෴ණ්ණ෴෴ණ්ණ෴෴෴     110      20

@@ -1,0 +1,227 @@
+.\" $NetBSD: blacklistd.conf.5,v 1.5 2016/06/08 12:48:37 wiz Exp $
+.\"
+.\" Copyright (c) 2015 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Christos Zoulas.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd June 7, 2016
+.Dt BLACKLISTD.CONF 5
+.Os
+.Sh NAME
+.Nm blacklistd.conf
+.Nd configuration file format for blacklistd
+.Sh DESCRIPTION
+The
+.Nm
+files contains configuration lines for
+.Xr blacklistd 8 .
+It contains one entry per line, and is similar to
+.Xr inetd.conf 5 .
+There must be an entry for each field of the configuration file, with
+entries for each field separated by a tab or a space.
+Comments are denoted by a
+.Dq #
+at the beginning of a line.
+.Pp
+There are two kinds of configuration lines,
+.Va local
+and
+.Va remote .
+By default, configuration lines are
+.Va local ,
+i.e. the address specified refers to the addresses on the local machine.
+To switch to between
+.Va local
+and
+.Va remote
+configuration lines you can specify the stanzas:
+.Dq [local]
+and
+.Dq [remote] .
+.Pp
+On
+.Va local
+and
+.Va remote
+lines
+.Dq *
+means use the default, or wildcard match.
+In addition, for
+.Va remote
+lines
+.Dq =
+means use the values from the matched
+.Va local
+configuration line.
+.Pp
+The first four fields,
+.Va location ,
+.Va type ,
+.Va proto ,
+and
+.Va owner
+are used to match the
+.Va local
+or
+.Va remote
+addresses, whereas the last 3 fields
+.Va name ,
+.Va nfail ,
+and
+.Va disable
+are used to modify the filtering action.
+.Pp
+The first field denotes the
+.Va location
+as an address, mask, and port.
+The syntax for the
+.Va location
+is:
+.Bd -literal -offset indent
+	[<address>|<interface>][/<mask>][:<port>]
+.Ed
+.Pp
+The
+.Dv address
+can be an IPv4 address in numeric format, an IPv6 address
+in numeric format and enclosed by square brackets, or an interface name.
+Mask modifiers are not allowed on interfaces because interfaces
+have multiple address in different protocols where the mask has a different
+size.
+.Pp
+The
+.Dv mask
+is always numeric, but the
+.Dv port
+can be either numeric or symbolic.
+.Pp
+The second field is the socket
+.Va type :
+.Dv stream ,
+.Dv dgram ,
+or numeric.
+The third field is the
+.Va prococol :
+.Dv tcp ,
+.Dv udp ,
+.Dv tcp6 ,
+.Dv udp6 ,
+or numeric.
+The fourth file is the effective user
+.Va ( owner )
+of the daemon process reporting the event,
+either as a username or a userid.
+.Pp
+The rest of the fields are controlling the behavior of the filter.
+.Pp
+The
+.Va name
+field, is the name of the packet filter rule to be used.
+If the
+.Va name
+starts with a
+.Dq - ,
+then the default rulename is prepended to the given name.
+If the
+.Dv name
+contains a
+.Dq / ,
+the remaining portion of the name is interpreted as the mask to be
+applied to the address specified in the rule, so one can block whole
+subnets for a single rule violation.
+.Pp
+The
+.Va nfail
+field contains the number of failed attempts before access is blocked,
+defaulting to
+.Dq *
+meaning never, and the last field
+.Va disable
+specifies the amount of time since the last access that the blocking
+rule should be active, defaulting to
+.Dq *
+meaning forever.
+The default unit for
+.Va disable
+is seconds, but one can specify suffixes for different units, such as
+.Dq m
+for minutes
+.Dq h
+for hours and
+.Dq d
+for days.
+.Pp
+Matching is done first by checking the
+.Va local
+rules one by one, from the most specific to the least specific.
+If a match is found, then the
+.Va remote
+rules are applied, and if a match is found the
+.Va name ,
+.Va nfail ,
+and
+.Va disable
+fields can be altered by the
+.Va remote
+rule that matched.
+.Pp
+The
+.Va remote
+rules can be used for whitelisting specific addresses, changing the mask
+size, or the rule that the packet filter uses, the number of failed attempts,
+or the blocked duration.
+.Sh FILES
+.Bl -tag -width /etc/blacklistd.conf -compact
+.It Pa /etc/blacklistd.conf
+Configuration file.
+.El
+.Sh EXAMPLES
+.Bd -literal -offset
+# Block ssh, after 3 attempts for 6 hours on the bnx0 interface
+[local]
+# location	type	proto	owner	name	nfail	duration
+bnx0:ssh	*	*	*	*	3	6h
+[remote]
+# Never block 1.2.3.4
+1.2.3.4:ssh	*	*	*	*	*	*
+# For addresses coming from 8.8.0.0/16 block class C networks instead
+# individual hosts, but keep the rest of the blocking parameters the same.
+8.8.0.0/16:ssh	*	*	*	/24	=	=
+.Ed
+.Sh SEE ALSO
+.Xr blacklistctl 8 ,
+.Xr blacklistd 8
+.Sh HISTORY
+.Nm
+first appeared in
+.Nx 7 .
+.Fx
+support for
+.Nm
+was implemented in
+.Fx 11 .
+.Sh AUTHORS
+.An Christos Zoulas

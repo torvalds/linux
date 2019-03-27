@@ -1,0 +1,23 @@
+#!/usr/bin/perl
+
+#
+# Test program for /dev/random
+# Read and display random numbers.
+# Try tapping shift/alt/ctrl to get more randomness.
+#
+# $FreeBSD$
+#
+
+for (;;) {
+	open(BIN, "/dev/random") || die "Cannot open /dev/random - $!\n";
+	$len = sysread(BIN, $a, 128);
+	close(BIN);
+	if ($len > 0) {
+		print "$len bytes read: ";
+		for ($j = 0; $j < $len; $j++) {
+			$k = unpack("C", substr($a, $j, 1));
+			printf("%.2X ", $k);
+		}
+		printf "\n";
+	}
+}

@@ -1,0 +1,89 @@
+.\" $FreeBSD$
+.\"
+.Dd October 23, 2018
+.Dt LDD 1
+.Os
+.Sh NAME
+.Nm ldd
+.Nd list dynamic object dependencies
+.Sh SYNOPSIS
+.Nm
+.Op Fl a
+.Op Fl v
+.Op Fl f Ar format
+.Ar program ...
+.Sh DESCRIPTION
+The
+.Nm
+utility displays all shared objects that are needed to run the given program or
+to load the given shared object.
+Contrary to
+.Xr nm 1 ,
+the list includes
+.Dq indirect
+dependencies that are the result of needed shared objects which themselves
+depend on yet other shared objects.
+.Pp
+Zero, one or two
+.Fl f
+options may be given.
+The argument is a format string passed to
+.Xr rtld 1
+and allows customization of
+.Nm Ns 's
+output.
+If one is given, it sets
+.Ev LD_TRACE_LOADED_OBJECTS_FMT1 .
+If two are given, they set
+.Ev LD_TRACE_LOADED_OBJECTS_FMT1
+and
+.Ev LD_TRACE_LOADED_OBJECTS_FMT2 ,
+respectively.
+See
+.Xr rtld 1
+for details, including a list of recognized conversion characters.
+.Pp
+The
+.Fl a
+option displays the list of all objects that are needed by each loaded
+object.
+This option does not work with
+.Xr a.out 5
+binaries.
+.Pp
+The
+.Fl v
+option displays a verbose listing of the dynamic linking headers
+encoded in the executable.
+See the source code and include
+files for the definitive meaning of all the fields.
+.Sh IMPLEMENTATION NOTES
+.Nm
+lists the dependencies of an executable by setting
+.Xr rtld 1
+environment variables and running the executable in a child process.
+If the executable is corrupt or invalid,
+.Nm
+may therefore fail without providing any diagnostic error messages.
+.Sh EXAMPLES
+The following is an example of a shell pipeline which uses the
+.Fl f
+option.
+It will print a report of all ELF binaries in the current directory,
+which link against libc.so.6:
+.Dl "find . -type f | xargs -n1 file -F ' ' | grep 'ELF.*dynamically' | cut -f1 -d' ' | xargs ldd -f '%A %o\en' | grep libc.so.6"
+.Sh SEE ALSO
+.Xr ld 1 ,
+.Xr nm 1 ,
+.Xr readelf 1 ,
+.Xr rtld 1
+.Sh HISTORY
+A
+.Nm
+utility first appeared in SunOS 4.0, it appeared in its current form in
+.Fx 1.1 .
+.Pp
+The
+.Fl v
+support is based on code written by
+.An John Polstra Aq Mt jdp@polstra.com

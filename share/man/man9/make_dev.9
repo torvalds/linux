@@ -1,0 +1,492 @@
+.\" Copyright (c) 1999 Chris Costello
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 2, 2016
+.Dt MAKE_DEV 9
+.Os
+.Sh NAME
+.Nm make_dev ,
+.Nm make_dev_cred ,
+.Nm make_dev_credf ,
+.Nm make_dev_p ,
+.Nm make_dev_s ,
+.Nm make_dev_alias ,
+.Nm make_dev_alias_p ,
+.Nm destroy_dev ,
+.Nm destroy_dev_sched ,
+.Nm destroy_dev_sched_cb ,
+.Nm destroy_dev_drain ,
+.Nm dev_depends
+.Nd manage
+.Vt cdev Ns 's
+and DEVFS registration for devices
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/conf.h
+.Ft void
+.Fn make_dev_args_init "struct make_dev_args *args"
+.Ft int
+.Fn make_dev_s "struct make_dev_args *args" "struct cdev **cdev" "const char *fmt" ...
+.Ft int
+.Fn make_dev_alias_p "int flags" "struct cdev **cdev" "struct cdev *pdev" "const char *fmt" ...
+.Ft void
+.Fn destroy_dev "struct cdev *dev"
+.Ft void
+.Fn destroy_dev_sched "struct cdev *dev"
+.Ft void
+.Fn destroy_dev_sched_cb "struct cdev *dev" "void (*cb)(void *)" "void *arg"
+.Ft void
+.Fn destroy_dev_drain "struct cdevsw *csw"
+.Ft void
+.Fn dev_depends "struct cdev *pdev" "struct cdev *cdev"
+.Pp
+LEGACY INTERFACES
+.Ft struct cdev *
+.Fn make_dev "struct cdevsw *cdevsw" "int unit" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
+.Ft struct cdev *
+.Fn make_dev_cred "struct cdevsw *cdevsw" "int unit" "struct ucred *cr" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
+.Ft struct cdev *
+.Fn make_dev_credf "int flags" "struct cdevsw *cdevsw" "int unit" "struct ucred *cr" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
+.Ft int
+.Fn make_dev_p "int flags" "struct cdev **cdev" "struct cdevsw *devsw" "struct ucred *cr" "uid_t uid" "gid_t gid" "int mode" "const char *fmt" ...
+.Ft struct cdev *
+.Fn make_dev_alias "struct cdev *pdev" "const char *fmt" ...
+.Sh DESCRIPTION
+The
+.Fn make_dev_s
+function creates a
+.Fa cdev
+structure for a new device, which is returned into the
+.Fa cdev
+argument.
+It also notifies
+.Xr devfs 5
+of the presence of the new device, that causes corresponding nodes
+to be created.
+Besides this, a
+.Xr devctl 4
+notification is sent.
+The function takes the structure
+.Va struct make_dev_args args ,
+which specifies the parameters for the device creation:
+.Pp
+.Bd -literal -offset indent -compact
+struct make_dev_args {
+	size_t		 mda_size;
+	int		 mda_flags;
+	struct cdevsw	*mda_devsw;
+	struct ucred	*mda_cr;
+	uid_t		 mda_uid;
+	gid_t		 mda_gid;
+	int		 mda_mode;
+	int		 mda_unit;
+	void		*mda_si_drv1;
+	void		*mda_si_drv2;
+};
+.Ed
+Before use and filling with the desired values, the structure must be
+initialized by the
+.Fn make_dev_args_init
+function, which ensures that future kernel interface expansion does
+not affect driver source code or binary interface.
+.Pp
+The created device will be owned by
+.Va args.mda_uid ,
+with the group ownership as
+.Va args.mda_gid .
+The name is the expansion of
+.Va fmt
+and following arguments as
+.Xr printf 9
+would print it.
+The name determines its path under
+.Pa /dev
+or other
+.Xr devfs 5
+mount point and may contain slash
+.Ql /
+characters to denote subdirectories.
+The permissions of the file specified in
+.Va args.mda_mode
+are defined in
+.In sys/stat.h :
+.Pp
+.Bd -literal -offset indent -compact
+#define S_IRWXU 0000700    /* RWX mask for owner */
+#define S_IRUSR 0000400    /* R for owner */
+#define S_IWUSR 0000200    /* W for owner */
+#define S_IXUSR 0000100    /* X for owner */
+
+#define S_IRWXG 0000070    /* RWX mask for group */
+#define S_IRGRP 0000040    /* R for group */
+#define S_IWGRP 0000020    /* W for group */
+#define S_IXGRP 0000010    /* X for group */
+
+#define S_IRWXO 0000007    /* RWX mask for other */
+#define S_IROTH 0000004    /* R for other */
+#define S_IWOTH 0000002    /* W for other */
+#define S_IXOTH 0000001    /* X for other */
+
+#define S_ISUID 0004000    /* set user id on execution */
+#define S_ISGID 0002000    /* set group id on execution */
+#define S_ISVTX 0001000    /* sticky bit */
+#ifndef _POSIX_SOURCE
+#define S_ISTXT 0001000
+#endif
+.Ed
+.Pp
+The
+.Va args.mda_cr
+argument specifies credentials that will be stored in the
+.Fa si_cred
+member of the initialized
+.Fa struct cdev .
+.Pp
+The
+.Va args.mda_flags
+argument alters the operation of
+.Fn make_dev_s.
+The following values are currently accepted:
+.Pp
+.Bl -tag -width "It Dv MAKEDEV_CHECKNAME" -compact -offset indent
+.It Dv MAKEDEV_REF
+reference the created device
+.It Dv MAKEDEV_NOWAIT
+do not sleep, the call may fail
+.It Dv MAKEDEV_WAITOK
+allow the function to sleep to satisfy malloc
+.It Dv MAKEDEV_ETERNAL
+created device will be never destroyed
+.It Dv MAKEDEV_CHECKNAME
+return an error if the device name is invalid or already exists
+.El
+.Pp
+Only
+.Dv MAKEDEV_NOWAIT ,
+.Dv MAKEDEV_WAITOK
+and
+.Dv MAKEDEV_CHECKNAME
+values are accepted for the
+.Fn make_dev_alias_p
+function.
+.Pp
+The
+.Dv MAKEDEV_WAITOK
+flag is assumed if none of
+.Dv MAKEDEV_WAITOK ,
+.Dv MAKEDEV_NOWAIT
+is specified.
+.Pp
+The
+.Xr dev_clone 9
+event handler shall specify
+.Dv MAKEDEV_REF
+flag when creating a device in response to lookup, to avoid race where
+the device created is destroyed immediately after
+.Xr devfs_lookup 9
+drops his reference to cdev.
+.Pp
+The
+.Dv MAKEDEV_ETERNAL
+flag allows the kernel to not acquire some locks when translating system
+calls into the cdevsw methods calls.
+It is responsibility of the driver author to make sure that
+.Fn destroy_dev
+is never called on the returned cdev.
+For the convenience, use the
+.Dv MAKEDEV_ETERNAL_KLD
+flag for the code that can be compiled into kernel or loaded
+(and unloaded) as loadable module.
+.Pp
+A panic will occur if the
+.Dv MAKEDEV_CHECKNAME
+flag is not specified
+and the device name is invalid or already exists.
+.Pp
+The
+.Fn make_dev_p
+use of the form
+.Bd -literal -offset indent
+struct cdev *dev;
+int res;
+res = make_dev_p(flags, &dev, cdevsw, cred, uid, gid, perms, name);
+.Ed
+is equivalent to the code
+.Bd -literal -offset indent
+struct cdev *dev;
+struct make_dev_args args;
+int res;
+
+make_dev_args_init(&args);
+args.mda_flags = flags;
+args.mda_devsw = cdevsw;
+args.mda_cred = cred;
+args.mda_uid = uid;
+args.mda_gid = gid;
+args.mda_mode = perms;
+res = make_dev_s(&args, &dev, name);
+.Ed
+.Pp
+Similarly, the
+.Fn make_dev_credf
+function call is equivalent to
+.Bd -literal -offset indent
+	(void) make_dev_s(&args, &dev, name);
+.Ed
+In other words,
+.Fn make_dev_credf
+does not allow the caller to obtain the return value, and in
+kernels compiled with the
+.Va INVARIANTS
+options, the function asserts that the device creation succeeded.
+.Pp
+The
+.Fn make_dev_cred
+function is equivalent to the call
+.Bd -literal -offset indent
+make_dev_credf(0, cdevsw, unit, cr, uid, gid, perms, fmt, ...);
+.Ed
+.Pp
+The
+.Fn make_dev
+function call is the same as
+.Bd -literal -offset indent
+make_dev_credf(0, cdevsw, unit, NULL, uid, gid, perms, fmt, ...);
+.Ed
+.Pp
+The
+.Fn make_dev_alias_p
+function takes the returned
+.Ft cdev
+from
+.Fn make_dev
+and makes another (aliased) name for this device.
+It is an error to call
+.Fn make_dev_alias_p
+prior to calling
+.Fn make_dev .
+.Pp
+The
+.Fn make_dev_alias
+function is similar to
+.Fn make_dev_alias
+but it returns the resulting aliasing
+.Ft *cdev
+and may not return an error.
+.Pp
+The
+.Fa cdev
+returned by
+.Fn make_dev_s
+and
+.Fn make_dev_alias_p
+has two fields,
+.Fa si_drv1
+and
+.Fa si_drv2 ,
+that are available to store state.
+Both fields are of type
+.Ft void * ,
+and can be initialized simultaneously with the
+.Va cdev
+allocation by filling
+.Va args.mda_si_drv1
+and
+.Va args.mda_si_drv2
+members of the
+.Fn make_dev_s
+argument structure, or filled after the
+.Va cdev
+is allocated, if using legacy interfaces.
+In the latter case, the driver should handle the race of
+accessing uninitialized
+.Va si_drv1
+and
+.Va si_drv2
+itself.
+These are designed to replace the
+.Fa unit
+argument to
+.Fn make_dev ,
+which can be obtained with
+.Fn dev2unit .
+.Pp
+The
+.Fn destroy_dev
+function takes the returned
+.Fa cdev
+from
+.Fn make_dev
+and destroys the registration for that device.
+The notification is sent to
+.Xr devctl 4
+about the destruction event.
+Do not call
+.Fn destroy_dev
+on devices that were created with
+.Fn make_dev_alias .
+.Pp
+The
+.Fn dev_depends
+function establishes a parent-child relationship between two devices.
+The net effect is that a
+.Fn destroy_dev
+of the parent device will also result in the destruction of the
+child device(s),
+if any exist.
+A device may simultaneously be a parent and a child,
+so it is possible to build a complete hierarchy.
+.Pp
+The
+.Fn destroy_dev_sched_cb
+function schedules execution of the
+.Fn destroy_dev
+for the specified
+.Fa cdev
+in the safe context.
+After
+.Fn destroy_dev
+is finished, and if the supplied
+.Fa cb
+is not
+.Dv NULL ,
+the callback
+.Fa cb
+is called, with argument
+.Fa arg .
+The
+.Fn destroy_dev_sched
+function is the same as
+.Bd -literal -offset indent
+destroy_dev_sched_cb(cdev, NULL, NULL);
+.Ed
+.Pp
+The
+.Fn d_close
+driver method cannot call
+.Fn destroy_dev
+directly.
+Doing so causes deadlock when
+.Fn destroy_dev
+waits for all threads to leave the driver methods.
+Also, because
+.Fn destroy_dev
+sleeps, no non-sleepable locks may be held over the call.
+The
+.Fn destroy_dev_sched
+family of functions overcome these issues.
+.Pp
+The device driver may call the
+.Fn destroy_dev_drain
+function to wait until all devices that have supplied
+.Fa csw
+as cdevsw, are destroyed.
+This is useful when driver knows that
+.Fn destroy_dev_sched
+is called for all instantiated devices, but need to postpone module
+unload until
+.Fn destroy_dev
+is actually finished for all of them.
+.Sh RETURN VALUES
+If successful,
+.Fn make_dev_s
+and
+.Fn make_dev_p
+will return 0, otherwise they will return an error.
+If successful,
+.Fn make_dev_credf
+will return a valid
+.Fa cdev
+pointer, otherwise it will return
+.Dv NULL .
+.Sh ERRORS
+The
+.Fn make_dev_s ,
+.Fn make_dev_p
+and
+.Fn make_dev_alias_p
+calls will fail and the device will be not registered if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+The
+.Dv MAKEDEV_NOWAIT
+flag was specified and a memory allocation request could not be satisfied.
+.It Bq Er ENAMETOOLONG
+The
+.Dv MAKEDEV_CHECKNAME
+flag was specified and the provided device name is longer than
+.Dv SPECNAMELEN .
+.It Bq Er EINVAL
+The
+.Dv MAKEDEV_CHECKNAME
+flag was specified and the provided device name is empty, contains a
+.Qq \&.
+or
+.Qq ..
+path component or ends with
+.Ql / .
+.It Bq Er EINVAL
+The
+.Dv MAKEDEV_CHECKNAME
+flag was specified and the provided device name contains invalid characters.
+.It Bq Er EEXIST
+The
+.Dv MAKEDEV_CHECKNAME
+flag was specified and the provided device name already exists.
+.El
+.Sh SEE ALSO
+.Xr devctl 4 ,
+.Xr devfs 5 ,
+.Xr dev_clone 9
+.Sh HISTORY
+The
+.Fn make_dev
+and
+.Fn destroy_dev
+functions first appeared in
+.Fx 4.0 .
+The function
+.Fn make_dev_alias
+first appeared in
+.Fx 4.1 .
+The function
+.Fn dev_depends
+first appeared in
+.Fx 5.0 .
+The functions
+.Fn make_dev_credf ,
+.Fn destroy_dev_sched ,
+.Fn destroy_dev_sched_cb
+first appeared in
+.Fx 7.0 .
+The function
+.Fn make_dev_p
+first appeared in
+.Fx 8.2 .
+The function
+.Fn make_dev_s
+first appeared in
+.Fx 11.0 .

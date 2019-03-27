@@ -1,0 +1,124 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ip6addrctl
+# REQUIRE: FILESYSTEMS
+# BEFORE: netif
+# KEYWORD: nojailvnet
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="ip6addrctl"
+desc="configure address selection policy for IPv6 and IPv4"
+rcvar="ip6addrctl_enable"
+start_cmd="ip6addrctl_start"
+stop_cmd="ip6addrctl_stop"
+extra_commands="status prefer_ipv6 prefer_ipv4"
+status_cmd="ip6addrctl"
+prefer_ipv6_cmd="ip6addrctl_prefer_ipv6"
+prefer_ipv4_cmd="ip6addrctl_prefer_ipv4"
+config_file="/etc/ip6addrctl.conf"
+
+set_rcvar_obsolete ipv6_enable ipv6_activate_all_interfaces
+set_rcvar_obsolete ipv6_prefer ip6addrctl_policy
+
+IP6ADDRCTL_CMD="/usr/sbin/ip6addrctl"
+
+ip6addrctl_prefer_ipv6()
+{
+	afexists inet6 || return 0
+
+	${IP6ADDRCTL_CMD} flush >/dev/null 2>&1
+	cat <<EOT | ${IP6ADDRCTL_CMD} install /dev/stdin
+	::1/128		 50	 0
+	::/0		 40	 1
+	::ffff:0:0/96	 35	 4
+	2002::/16	 30	 2
+	2001::/32	  5	 5
+	fc00::/7	  3	13
+	::/96		  1	 3
+	fec0::/10	  1	11
+	3ffe::/16	  1	12
+EOT
+}
+
+ip6addrctl_prefer_ipv4()
+{
+	afexists inet6 || return 0
+
+	${IP6ADDRCTL_CMD} flush >/dev/null 2>&1
+	cat <<EOT | ${IP6ADDRCTL_CMD} install /dev/stdin
+	::1/128		 50	 0
+	::/0		 40	 1
+	::ffff:0:0/96	100	 4
+	2002::/16	 30	 2
+	2001::/32	  5	 5
+	fc00::/7	  3	13
+	::/96		  1	 3
+	fec0::/10	  1	11
+	3ffe::/16	  1	12
+EOT
+}
+
+ip6addrctl_start()
+{
+	afexists inet6 || return 0
+
+	# install the policy of the address selection algorithm.
+	case "${ip6addrctl_policy}" in
+	[Aa][Uu][Tt][Oo])
+		if [ -r "${config_file}" -a -s "${config_file}" ]; then
+			${IP6ADDRCTL_CMD} flush >/dev/null 2>&1
+			${IP6ADDRCTL_CMD} install "${config_file}"
+		else
+			if checkyesno ipv6_activate_all_interfaces; then
+				ip6addrctl_prefer_ipv6
+			elif [ -n "$(list_vars ifconfig_\*_ipv6)" ]; then
+				ip6addrctl_prefer_ipv6
+			else
+				ip6addrctl_prefer_ipv4
+			fi
+		fi
+	;;
+	ipv4_prefer)
+		ip6addrctl_prefer_ipv4
+	;;
+	ipv6_prefer)
+		ip6addrctl_prefer_ipv6
+	;;
+	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+		# Backward compatibility when ipv6_prefer=YES
+		ip6addrctl_prefer_ipv6
+	;;
+	[Nn][Oo]|[Ff][Aa][Ll][Ss][Ee]|[Oo][Ff][Ff]|0)
+		# Backward compatibility when ipv6_prefer=NO
+		ip6addrctl_prefer_ipv4
+	;;
+	[Nn][Oo][Nn][Ee])
+		${IP6ADDRCTL_CMD} flush >/dev/null 2>&1
+	;;
+	*)
+		warn "\$ip6addrctl_policy is invalid: ${ip6addrctl_policy}. " \
+		    " \"ipv4_prefer\" is used instead."
+		ip6addrctl_prefer_ipv4
+	;;
+	esac
+
+	if checkyesno ip6addrctl_verbose; then
+		echo 'Address selection policy table for IPv4 and IPv6:'
+		${IP6ADDRCTL_CMD}
+	fi
+}
+
+ip6addrctl_stop()
+{
+	afexists inet6 || return 0
+
+	ip6addrctl flush >/dev/null 2>&1
+}
+
+load_rc_config $name
+run_rc_command "$1"

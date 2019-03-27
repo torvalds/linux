@@ -1,0 +1,120 @@
+
+#------------------------------------------------------------------------------
+# $File: mips,v 1.10 2014/04/30 21:41:02 christos Exp $
+# mips:  file(1) magic for MIPS ECOFF and Ucode, as used in SGI IRIX
+# and DEC Ultrix
+#
+0	beshort	0x0160		MIPSEB ECOFF executable
+>20	beshort	0407		(impure)
+>20	beshort	0410		(swapped)
+>20	beshort	0413		(paged)
+>8	belong	>0		not stripped
+>8	belong	0		stripped
+>22	byte	x		- version %d
+>23	byte	x		\b.%d
+#
+0	beshort	0x0162		MIPSEL-BE ECOFF executable
+>20	beshort	0407		(impure)
+>20	beshort	0410		(swapped)
+>20	beshort	0413		(paged)
+>8	belong	>0		not stripped
+>8	belong	0		stripped
+>23	byte	x		- version %d
+>22	byte	x		\b.%d
+#
+0	beshort	0x6001		MIPSEB-LE ECOFF executable
+>20	beshort	03401		(impure)
+>20	beshort	04001		(swapped)
+>20	beshort	05401		(paged)
+>8	belong	>0		not stripped
+>8	belong	0		stripped
+>23	byte	x		- version %d
+>22	byte	x		\b.%d
+#
+0	beshort	0x6201		MIPSEL ECOFF executable
+>20	beshort	03401		(impure)
+>20	beshort	04001		(swapped)
+>20	beshort	05401		(paged)
+>8	belong	>0		not stripped
+>8	belong	0		stripped
+>23	byte	x		- version %d
+>22	byte	x		\b.%d
+#
+# MIPS 2 additions
+#
+0	beshort	0x0163		MIPSEB MIPS-II ECOFF executable
+>20	beshort	0407		(impure)
+>20	beshort	0410		(swapped)
+>20	beshort	0413		(paged)
+>8	belong	>0		not stripped
+>8	belong	0		stripped
+>22	byte	x		- version %d
+>23	byte	x		\b.%d
+#
+0	beshort	0x0166		MIPSEL-BE MIPS-II ECOFF executable
+>20	beshort	0407		(impure)
+>20	beshort	0410		(swapped)
+>20	beshort	0413		(paged)
+>8	belong	>0		not stripped
+>8	belong	0		stripped
+>22	byte	x		- version %d
+>23	byte	x		\b.%d
+#
+0	beshort	0x6301		MIPSEB-LE MIPS-II ECOFF executable
+>20	beshort	03401		(impure)
+>20	beshort	04001		(swapped)
+>20	beshort	05401		(paged)
+>8	belong	>0		not stripped
+>8	belong	0		stripped
+>23	byte	x		- version %d
+>22	byte	x		\b.%d
+#
+0	beshort	0x6601		MIPSEL MIPS-II ECOFF executable
+>20	beshort	03401		(impure)
+>20	beshort	04001		(swapped)
+>20	beshort	05401		(paged)
+>8	belong	>0		not stripped
+>8	belong	0		stripped
+>23	byte	x		- version %d
+>22	byte	x		\b.%d
+#
+# MIPS 3 additions
+#
+0	beshort	0x0140		MIPSEB MIPS-III ECOFF executable
+>20	beshort	0407		(impure)
+>20	beshort	0410		(swapped)
+>20	beshort	0413		(paged)
+>8	belong	>0		not stripped
+>8	belong	0		stripped
+>22	byte	x		- version %d
+>23	byte	x		\b.%d
+#
+0	beshort	0x0142		MIPSEL-BE MIPS-III ECOFF executable
+>20	beshort	0407		(impure)
+>20	beshort	0410		(swapped)
+>20	beshort	0413		(paged)
+>8	belong	>0		not stripped
+>8	belong	0		stripped
+>22	byte	x		- version %d
+>23	byte	x		\b.%d
+#
+0	beshort	0x4001		MIPSEB-LE MIPS-III ECOFF executable
+>20	beshort	03401		(impure)
+>20	beshort	04001		(swapped)
+>20	beshort	05401		(paged)
+>8	belong	>0		not stripped
+>8	belong	0		stripped
+>23	byte	x		- version %d
+>22	byte	x		\b.%d
+#
+0	beshort	0x4201		MIPSEL MIPS-III ECOFF executable
+>20	beshort	03401		(impure)
+>20	beshort	04001		(swapped)
+>20	beshort	05401		(paged)
+>8	belong	>0		not stripped
+>8	belong	0		stripped
+>23	byte	x		- version %d
+>22	byte	x		\b.%d
+#
+0	beshort	0x180		MIPSEB Ucode
+0	beshort	0x182		MIPSEL-BE Ucode

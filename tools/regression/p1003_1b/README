@@ -1,0 +1,14 @@
+$FreeBSD$
+
+p1003_1b: Regression tests for the scheduling facilities.
+The following should always work as of the release of 4.0:
+
+p1003_1b fifo : Check that the FIFO scheduler seems to work.
+p1003_1b p26 :  Check that we support the expected features.
+p1003_1b sched: Check that schedule switching seems to work.
+p1003_1b yield: Check that yielding runs the expected process.
+
+As of today "p1003_1b yield" doesn't work.  I have a minimal set
+of patches I'm waiting for approval to commit.
+
+Peter dufault@freebsd.org

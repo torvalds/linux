@@ -1,0 +1,518 @@
+This is the file NEWS for the flex package. It records user -visible
+changes between releases of flex.
+
+See the file COPYING for copying conditions.
+
+* version 2.5.37 released 2012-08-03
+
+** Import flex into git. See
+   git://flex.git.sourceforge.net/gitroot/flex/flex.
+
+** Fix make install target to not fail when the flex++ program is
+   already installed
+
+** New translations from the translation project: de, fi, pl, vi
+
+* version 2.5.36 released 2012-07-20
+
+** various portability fixes that quiet compiler warnings on 64-bit
+   hosts
+
+** various manual fixes, including correcting the name of a %option and
+   updating some simple examples to use ANSI C syntax
+
+** various bug fixes that prevent certain error conditions from
+   persisting when they should not persist
+
+** improvements to the test suite so it behaves better when linking
+   compiled files
+
+** new translations from the translation project: ca, da, es, fi, fr,
+   ga, ko, pt_br, ro, ru, sv, tr, zh_cn
+
+** the flex distribution is now built with automake 1.10.1 and automake
+   2.61
+
+* version 2.5.35 released 2008-02-26
+
+** fixed bug that prevented flex from accepting certain comments in the
+  scanner file (resolves bugs #1849809 and #1849805)
+
+** fix bug that prevented headers for all functions from being generated
+  (resolves bug #1628314)
+
+** change yy_size_t to be size_t (resolves bug #1849812)
+
+** new de, nl, pl, pt_br, vi translations from the translation project
+
+* version 2.5.34 released 2007-12-12
+
+** introduce yylex_init_extra; see the manual for details
+
+** introduce %option extra-type="your_type *" (resolves bug #1744505)
+
+** The flex program now parses multiple short concatenated options (resolves bug
+  #1619820). Thanks to Petr Machata of Red Hat on this issue.
+
+** better checking after yyalloc/yyrealloc (resolves bug #1595967)
+
+** flex now provides for a libfl_pic.a compiled with position
+   independent code. Particularly useful when including a flex scanner
+   in a shared library and with more recent versions of gcc. Thanks to the Debian project for the idea.
+
+** SourceForge feature request #1658379: Expose YY_BUF_SIZE in the
+	header file.
+
+** flex better escapes filenames with special characters in them
+   (resolves bug #1623600)
+
+** a memory leak was plugged(resolves bug #1601111)
+
+** pattern language expanded; see the manual for details on the below
+   highlights
+
+*** pattern options added to specify patterns as case-insensitive or
+    case-sensitive
+
+*** pattern options to specify whether the "." character should match
+    the newline character
+
+*** pattern options added to allow ignoring of whitespace in patterns
+
+*** POSIX character classes may be negated in patterns
+
+*** patterns may now use set difference, union operators
+
+** the manual now contains an appendix listing various common patterns
+   which may be useful when writing scanners
+
+** some memory leaks were removed from the C++ scanner (but the C++
+  scanner is still experimental and may change radically without
+  notice)
+
+** c++ scanners can now use yywrap
+
+** added new unit test for c++ and yywrap
+
+** portability fixes to some unit tests
+
+** flex man page and flex manual in pdf now distributed in the flex
+distribution
+
+** new ca, vi, ga, nl translations from the translation project
+
+** flex no longer comes with an rpm spec file
+
+** flex development now happens with automake 1.9.6
+
+* version 2.5.33 released 2006-2-20
+
+** all flex resources are now to be found from the website at
+   http://flex.sourceforge.net/
+
+** there was no release 2.5.32 published
+
+** numerous bug and security fixes
+
+** new nl, vi, sv, ro, po, ga, ca, fr, tr translations from the translation project
+
+** upgrade to use gettext 0.12 (this now makes the "pdf" and "ps"
+   targets in the build system able to be run successfully)
+
+* version 2.5.31 released 2003-4-1
+
+** remove --enable-maintainer-mode configure option; none of the
+   Makefiles were using it and it can be unduely confusing
+
+* version 2.5.30 released 2003-4-1
+
+** yylineno is per-buffer in reentrant scanners
+
+** added %top directive for placing code at the top of the generated
+   scanner; see manual for details
+
+** flex now uses m4 to generate scanners; while this means that
+   scanners are more readable, it means that flex requires m4 to be
+   installed; see manual for details
+
+* version 2.5.29 released 2003-3-5
+
+** Automatic stack management for multiple input buffers in C and C++ scanners
+
+** moved the flex documentation to a new doc/ subdirectory
+
+** cleanups to the yy namespace
+
+* version 2.5.28 released 2003-2-12
+
+** flex is now hosted at sourceforge
+
+** Fixed trailing slash bug in YY_INPUT macro def
+
+** Flex now warns if always-interactive is specified with fast or full
+
+* version 2.5.27 released 2003-1-21
+
+** flex now works with recent bison versions
+
+** new pt_br translation from the translation project
+
+* version 2.5.26 released 2003-1-14
+
+** Fixed table deserialization bug on big-endian archs. Patch sent from Bryce Nichols <bryce@bnichols.org>
+
+** yyleng has proper declarations now; this caused flex to generate
+   unusable scanners for some programs
+
+** the flex distribution now includes a spec file suitable for use
+   with rpm
+
+** some more c++ fixes
+
+** new es translation from the translation project
+
+** slight tweeks to the flex_int*_t types
+
+** flex now warns about pattern ranges that might be ambiguous when
+   generating a case-insensitive scanner
+
+
+* version 2.5.25 released 2002-12-2
+
+** flex now uses flex_int*_t types. For C99 systems, they are just the
+   int*_t types; for non-C99 systems, we just make some typedefs
+
+** new pt_br translation from the translation project
+
+* version 2.5.24 released 2002-11-25
+
+* more portability fixes
+
+** the manual continues to be updated and edited, but it's still got a
+   ways to go
+
+** it is possible to have multiple c++ scanners in the same program again
+
+** new turkish translation from the translation project
+
+* version 2.5.23 released 2002-10-21
+
+** more portability fixes
+
+** the manual includes a title page and a table-of-contents when printed
+
+** the test suite can be run with "make check" from the top-level
+   directory
+
+** configure now accepts the --enable-maintainer-mode option
+
+** gettext functionality is now only available externally
+
+** the constant FLEX_BETA is defined if flex is a beta release
+
+** the script create-test was not included in the distribution and it
+   should have been
+
+* version 2.5.22 released 2002-10-10
+
+** more portability fixes around how we get ahold of the integral
+   types; there is a constant FLEX_NEED_INTEGRAL_TYPE_DEFINITIONS
+   which you should define if you don't have the <inttypes.h> header
+   file (after you complain to your C vendor for not providing a
+   reasonable C environment)
+
+** more test suite cleanups; in particular, the test suite should run
+   correctly when build from a different directory
+
+** upgraded automake to 1.7 and consequently autoconf to 2.54; this
+   means, among other things, that there is some support for
+formatting the manual in postscript and pdf in the distributed
+   Makefile.in (and therefore in the Makefile built by configure)
+
+** the flex.1 manpage is generated by help2man; (this has been true
+   for quite a while but was not listed here)
+
+** flex now includes three defined constants to indicate which version
+  of flex generated a scanner (YY_FLEX_{MAJOR,MINOR,SUBMINOR}_VERSION)
+
+** flex tries its best to output only the relevant portions of the
+   skeleton when generating a scanner, thus avoiding as much
+   conditional compilation as possible
+
+* version 2.5.21 released 2002-9-17
+
+** one of the tests in the test suite broke the dist target
+
+* version 2.5.20 released 2002-9-16
+
+** A flex scanner has the ability to save the DFA tables to a file,
+   and load them at runtime when needed; see the manual for details
+
+** Added %option bison-bridge (--bison-bridge)
+
+** Removed %option reentrant-bison/--reentrant-bison/-Rb
+
+** yylineno is present in all scanners; Modified nasty performance
+   penalty warning with yylineno in documentation
+
+** test-table-opts is now run last in the test suite because it's so fat
+
+** flex can, to some extent, diagnose where internal problems occur
+
+** new translations from the translation project: fr, ca, de, ru, sv
+
+**Flex generates C99 defs now; see YY_TRADITIONAL_FUNC_DEFS in the
+  manual if that's not a good thing for you
+
+* version 2.5.19 released 2002-9-5
+
+** prevent segfault on input lines which are longer than the allocated
+   space (problem report from Manoj Srivastava
+   <srivasta@golden-gryphon.com>)
+
+** Changed option 'header' to 'header-file'
+
+* version 2.5.18 released 2002-9-4
+
+** portability fixes for integer constants and in the way the test
+   suite reports its results
+
+** the test for bison was reporting bison missing when it was, in
+   fact, found
+
+** if we don't find GNU indent, we're more careful when we're not
+   finding it
+
+* version 2.5.17 released 2002-8-29
+
+** more portability fixes
+
+** updated config.sub and config.guess
+
+** flex is indented by GNU indent (this was done earlier but not
+   explicitly documented)
+
+* version 2.5.16 released 2002-8-28
+
+** c++ scanners compile again
+
+** there is now an indent target in the top-level Makefile; configure
+   checks for GNU indent which is required for proper operation of the
+   indent target
+
+** some more portability fixes were made
+
+** %options and invocation sections of manual merged
+
+** a c++ test was added to the test suite
+
+** we're trying to clean up more files in the test suite's make clean
+   targets
+
+* version 2.5.15 released 2002-8-21
+
+** reject-state buffer is now dynamically allocated and REJECT buffer
+   variables are reentrant-safe
+
+** manual now discusses memory usage
+
+** skeleton now processed by m4 before mkskel.sh; (this only matters
+   if you want to change the skeleton or if you're doing flex development)
+
+** zh_cn translation added from translation project
+
+** a bug that caused a segfault has now been fixed
+
+** the test suite now respects the usual CFLAGS, etc. variables
+
+** removed some warnings which some tests trigggered with the -s option
+
+** the flex-generated header file now tries to be smarter about
+   conditionally including start conditions
+
+** tables code omitted from generated scanner when not used
+
+* version 2.5.14 released 2002-8-15
+
+** the tests using the reentrant c scanner as c++ were reworked
+   slightly to be sure that the c++ was enforced
+
+** de translation now included in the distribution
+
+** various portability fixes regarding nls support, c++ include
+   headers, etc.
+
+* version 2.5.13 released 2002-8-15
+
+** the header file output with %option header is now much smaller
+
+** Fixed type mismatch in printf in scanner skeleton
+
+** yylex_init now reports errors
+
+* version 2.5.12 released 2002-8-8
+
+** updated gettext support to 0.11.5
+
+** new fr translation from the translation project
+
+** bison is no longer needed to build flex; If you are building flex
+   from a release (i.e., not from a cvs snapshot), then you don't need
+   to have a pre-built lex around either (unless you modify scan.l, of
+   course); (This has been true for some time, but was not mentioned
+   here.)
+
+* version 2.5.11 released 2002-7-31
+
+** Fixed bug where yyless did not consider yylineno
+
+** the yylineno performance hit is now gone
+
+** fixed some typos in the manual and we now include texinfo.tex in
+   the distribution
+
+** traditional prototypes output for C scanners, controlled by a
+   preprocessor symbol; see documentation for details
+
+* version 2.5.10 released 2002-7-24
+
+** yy_globals renamed to yyscanner and yy_globals_t renamed to
+   yy_guts_t
+
+** added dist-bzip2 option to Makefile.am so we now produce a bzip2'd
+   archive in addition to the standard gzip archive
+
+*  version 2.5.9
+
+** new tests in test suite: test-mem-{nr,r}, test-posix,
+   test-posixly-correct, test-debug-{nr,r}
+
+** made changes to work with gcc-3.2 development code
+
+** ability to choose which memory functions are used in flex
+
+** new yylex_destroy() function for the non-reentrant scanner
+
+** new handling of POSIXLY_CORRECT environment variable
+
+** the test suite now has its copyrights explicitly described
+
+** new ca, de, fr, ru, sv, tr translations
+
+* version 2.5.8
+
+** a new --posix option generates scanners with posix-style abc{1,3}
+   compatible parsing, see manual for the screwy details
+
+* version 2.5.7
+
+** configure.in now includes a call to AC_PREREQ to enforce the
+   requirement for autoconf at least 2.50 (This only effects you if
+   you're doing flex development.)
+
+** configure now uses autoconf's versioning information and configure
+   --help reports the bug-reporting address for flex
+
+** test suite now only reports success versus failure; reporting
+   skipped is problematic under the current setup
+
+** compilation with --disable-nls now works
+
+** flex can now be built in a separate directory
+
+* version 2.5.6
+
+** gettext support added (from gettext 0.11)
+
+*** translations for ca, da, de, es, fr, ko, ru, sv, tr included
+
+** distribution now built under automake 1.6 and autoconf 2.53
+
+** command-line option parsing happens differently now:
+
+*** Added long option parsing
+
+*** Options -n and -c, previously deprecated, now simply do nothing
+
+*** Options are now parsed left to right
+
+** added a number of new options
+
+*** All positive %options are now accessible from the command line
+
+*** Added option -D, to define a preprocessor symbol
+
+*** Added option --header=FILE to specify a C .h file to generate
+
+*** added option --yywrap to call yywrap on EOF
+
+*** added option --yylineno to track line count in yylineno
+
+*** --yyclass=NAME name of C++ class when generating c++ scanners
+
+*** for long option names which are associated with existing short
+options, see accompanying documentation
+
+*** new %option nounistd or command-line --nounistd added to prevent
+    flex from generating #include <unistd.h> on systems that don't
+    have that include file
+
+** Support for reentrant C scanners has been added
+
+*** Updated the manual with the new reentrant API
+
+*** Two new options %option reentrant (-R) and 
+%option reentrant-bison (-Rb)
+
+*** All globals optionally placed into struct yyglobals_t
+
+*** All access to globals replaced by macro invocations
+
+*** All functions optionally take one additional
+argument, yy_globals
+
+*** New style for invoking reentrant scanner:
+yylex_init(void** scanner );
+yylex( scanner );
+yylex_destroy( scanner );
+
+*** Added get/set functions for members of struct yy_globals_t
+e.g.,  yyget_text, yyget_leng, etc
+
+*** Prefix substitution added for new functions
+
+*** Macro shortcuts to the lengthy get/set functions
+provided for use in actions, e.g.,  yytext, yyleng, etc
+
+*** Arbitrary, user-defined data, "yyextra", may be added to scanner
+
+** %option nomain no longer implies %option yywrap
+But the inverse is still true
+
+** Developer test suite added
+
+*** TESTS/ directory has been added. Users can 
+'make test' in the TESTS directory to execute the test suite
+
+** Support for bison variables yylval and yylloc added
+
+** automake support for the build process
+
+** manual is now in texinfo/info format
+
+*** flex.1 removed from distribution
+
+** flex no longer generates C-language scanners with C++-style
+   comments
+
+** flex now generates scanners in c++ which are compatible with
+   recent c++ compilers
+
+** flex input scanner now recognizes '\r' as an EOL character
+
+See the file ONEWS for changes in earlier releases.
+
+Local Variables:
+mode: text
+mode: outline-minor
+end:

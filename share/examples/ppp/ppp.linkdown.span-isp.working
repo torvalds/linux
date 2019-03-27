@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+# This is a working example of ppp.linkdown.span-isp that uses ppp connections
+# to the same machine through 3 null-modem serial cables.
+
+# The ISP links start our MP version of ppp as they come up
+isp1:
+  !bg pppctl /var/run/ppp/vpn link 1 close
+
+isp2:
+  !bg pppctl /var/run/ppp/vpn link 2 close
+
+isp3:
+  !bg pppctl /var/run/ppp/vpn link 3 close
+
+vpn:
+  set server none

@@ -1,0 +1,177 @@
+.\" Copyright (c) 1983, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)logger.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd December 5, 2017
+.Dt LOGGER 1
+.Os
+.Sh NAME
+.Nm logger
+.Nd make entries in the system log
+.Sh SYNOPSIS
+.Nm
+.Op Fl 46Ais
+.Op Fl f Ar file
+.Op Fl H Ar hostname
+.Op Fl h Ar host
+.Op Fl P Ar port
+.Op Fl p Ar pri
+.Op Fl S Ar addr Ns \&: Ns Ar port
+.Op Fl t Ar tag
+.Op Ar message ...
+.Sh DESCRIPTION
+The
+.Nm
+utility provides a shell command interface to the
+.Xr syslog 3
+system log module.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl 4
+Force
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Force
+.Nm
+to use IPv6 addresses only.
+.It Fl A
+By default,
+.Nm
+tries to send the message to only one address,
+even if the host has more than one A or AAAA record.
+If this option is specified,
+.Nm
+tries to send the message to all addresses.
+.It Fl i
+Log the process id of the logger process
+with each line.
+.It Fl s
+Log the message to standard error, as well as the system log.
+.It Fl f Ar file
+Read the contents of the specified file into syslog.
+This option is ignored when a message is also specified.
+.It Fl H Ar hostname
+Set the hostname in the header of the message to specified value.
+If not specified, host part of
+.Xr gethostname 3
+will be used.
+.It Fl h Ar host
+Send the message to the remote system
+.Ar host
+instead of logging it locally.
+Note that
+.Nm
+currently supports
+.Li AF_INET
+.Pq IPv4 ,
+.Li AF_INET6
+.Pq IPv6 ,
+and
+.Li AF_LOCAL
+.Pq Unix-domain socket
+address families.
+The following address formats are valid in
+.Ar host :
+.Pp
+.Bl -tag -width "AF_LOCAL" -compact
+.It Li AF_INET
+192.168.2.1
+.It Li AF_INET6
+2001:db8::1
+.It Li AF_LOCAL
+.Pa /var/run/log
+.El
+.It Fl P Ar port
+Send the message to the specified
+.Ar port
+number on a remote system,
+which can be specified as a service name
+or as a decimal number.
+The default is
+.Dq Li syslog .
+If an unknown service name is used,
+.Nm
+prints a warning and falls back to port 514.
+.It Fl p Ar pri
+Enter the message with the specified priority.
+The priority may be specified numerically or as a
+.Li facility.level
+pair.
+For example,
+.Dq Fl p Li local3.info
+logs the message(s) as
+.Ar info Ns rmational
+level in the
+.Ar local3
+facility.
+The default is
+.Dq Li user.notice .
+.It Fl S Ar addr Ns \&: Ns Ar port
+Specify source address and/or source port when using
+.Fl h
+option.
+The same address will be used for all of the remote addresses
+when
+.Fl A
+flag is enabled.
+Note that a numeric IPv6 address in
+.Ar addr
+must be enclosed with
+.Dq \&[
+and
+.Dq \&] .
+.It Fl t Ar tag
+Mark every line in the log with the specified
+.Ar tag
+rather than the default of current login name.
+.It Ar message
+Write the message to log; if not specified, and the
+.Fl f
+flag is not
+provided, standard input is logged.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+.Bd -literal -offset indent -compact
+logger System rebooted
+
+logger \-p local0.notice \-t HOSTIDM \-f /dev/idmc
+.Ed
+.Sh SEE ALSO
+.Xr syslog 3 ,
+.Xr syslogd 8
+.Sh STANDARDS
+The
+.Nm
+command is expected to be
+.St -p1003.2
+compatible.

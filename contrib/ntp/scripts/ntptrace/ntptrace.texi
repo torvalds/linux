@@ -1,0 +1,40 @@
+\input texinfo    @c -*-texinfo-*-
+@c %**start of header
+@setfilename ntptrace.info
+@settitle Ntptrace User's Manual
+@include ../../sntp/include/version.texi
+@paragraphindent 2
+@c %**end of header
+
+@ifinfo
+This file documents the use of @code{ntptrace},
+a program from the NTP Project
+@end ifinfo
+
+@direntry
+* ntptrace: (ntptrace).                 Trace the ntp server to the primary time source.
+@end direntry
+
+@titlepage
+@title ntptrace User's Manual
+@subtitle ntptrace, version @value{VERSION}, @value{UPDATED}
+@c @author Max @email{foo@ntp.org}
+@end titlepage
+
+@c @page
+@c @vskip 0pt plus 1filll
+
+@node Top, ntptrace Description, (dir), (dir)
+@top Simple Network Time Protocol User Manual
+
+This document describes the use of the NTP Project's @code{ntptrace} program.
+This document applies to version @value{VERSION} of @code{ntptrace}.
+
+@shortcontents
+
+@menu
+* ntptrace Description::            Description
+* ntptrace Invocation::		    Invoking ntptrace
+@end menu
+
+@include invoke-ntptrace.texi

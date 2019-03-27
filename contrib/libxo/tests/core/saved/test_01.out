@@ -1,0 +1,38 @@
+Item        Total Sold    In Stock    On Order  SKU
+gum               1412          54          10  GRO-000-415
+rope                85           4           2  HRD-000-212
+ladder               0           2           1  HRD-000-517
+bolt              4123         144          42  HRD-000-632
+water               17          14           2  GRO-000-2331
+
+
+Item 'gum':
+   Total sold: 1412.0
+   In stock: 54
+   On order: 10
+   SKU: GRO-000-415
+Item 'rope':
+   Total sold: 85.0
+   In stock: 4
+   On order: 2
+   SKU: HRD-000-212
+Item 'ladder':
+   Total sold: 0
+   In stock: 2
+   On order: 1
+   SKU: HRD-000-517
+Item 'bolt':
+   Total sold: 4123.0
+   In stock: 144
+   On order: 42
+   SKU: HRD-000-632
+Item 'water':
+   Total sold: 17.0
+   In stock: 14
+   On order: 2
+   SKU: GRO-000-2331
+Item 'fish':
+   Total sold: 1321.0
+   In stock: 45
+   On order: 1
+   SKU: GRO-000-533

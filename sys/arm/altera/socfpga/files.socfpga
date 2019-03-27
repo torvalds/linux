@@ -1,0 +1,23 @@
+# $FreeBSD$
+
+kern/kern_clocksource.c				standard
+
+arm/altera/socfpga/socfpga_common.c		standard
+arm/altera/socfpga/socfpga_machdep.c		standard
+arm/altera/socfpga/socfpga_manager.c		standard
+arm/altera/socfpga/socfpga_rstmgr.c		standard
+arm/altera/socfpga/socfpga_mp.c			optional smp
+arm/altera/socfpga/socfpga_gpio.c		optional gpio
+
+dev/mmc/host/dwmmc.c				optional dwmmc
+dev/mmc/host/dwmmc_altera.c			optional dwmmc
+
+# Arria 10
+arm/altera/socfpga/socfpga_a10_manager.c	standard
+
+# BERI specific
+dev/beri/beri_ring.c				optional beri_ring
+dev/beri/beri_mem.c				optional beri_mem
+dev/beri/virtio/virtio.c			optional beri_vtblk | vtbe
+dev/beri/virtio/virtio_block.c			optional beri_vtblk
+dev/beri/virtio/network/if_vtbe.c		optional vtbe

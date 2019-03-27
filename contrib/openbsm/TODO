@@ -1,0 +1,23 @@
+OpenBSM TODO
+
+- Build a regression test suite for libbsm that generates each token
+  type and then compares the results with known good data.  Make sure to
+  test that things work properly with respect to endianness of the local
+  platform.
+- Document contents of libbsm "public" data structures in libbsm man pages.
+- The audit.log.5 man page is incomplete, as it does not describe all
+  token types.
+- It might be desirable to be able to provide EOPNOTSUPP system call stubs
+  on systems that don't have the necessary audit system calls; that would
+  allow the full libbsm and tool set to build, just not run.
+- Teach praudit how to begin printing at any point in a token stream, not
+  just at the beginning of a record.  This will make it easier to use
+  praudit in test suites processing single-token files without header and
+  trailer context.
+- Document audit_warn event arguments.
+- Allow the path /etc/security to be configured at configure-time so that
+  alternative locations can be used.
+- NLS support for au_strerror(3), which provides error strings for BSM errors
+  not available on the local OS platform.
+- Support for client certificates in auditdistd, to include certificate chain
+  validation.

@@ -1,0 +1,24 @@
+# multiple repetitions
+a**		&C	BADRPT
+a++		C	BADRPT
+a??		C	BADRPT
+a*+		C	BADRPT
+a*?		C	BADRPT
+a+*		C	BADRPT
+a+?		C	BADRPT
+a?*		C	BADRPT
+a?+		C	BADRPT
+a{1}{1}		C	BADRPT
+a*{1}		C	BADRPT
+a+{1}		C	BADRPT
+a?{1}		C	BADRPT
+a{1}*		C	BADRPT
+a{1}+		C	BADRPT
+a{1}?		C	BADRPT
+# Begin FreeBSD
+a*{b}		b	a{b}	a{b}
+a*{b}		C	BADRPT
+# End FreeBSD
+a\{1\}\{1\}	bC	BADRPT
+a*\{1\}		bC	BADRPT
+a\{1\}*		bC	BADRPT

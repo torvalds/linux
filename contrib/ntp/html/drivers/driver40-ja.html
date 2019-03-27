@@ -1,0 +1,535 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="ja">
+
+	<head>
+		<meta http-equiv="content-type" content="text/html;charset=utf-8">
+		<meta name="generator" content="HTML Tidy, see www.w3.org">
+		<meta http-equiv="Content-Style-Type" content="text/css">
+		<meta http-equiv="Content-Script-Type" content="text/javascript">
+		<title>JJY Receivers</title>
+		<link rev="made" href="http://www.bea.hi-ho.ne.jp/abetakao/">
+		<link rel="start" href="http://www.eecis.udel.edu/~mills/ntp/html/refclock.html">
+		<link href="scripts/style.css" type="text/css" rel="stylesheet">
+	</head>
+
+	<body>
+		<h3>JJY Receivers</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->12-Oct-2017  09:05<!-- #EndDate -->
+  UTC &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<a href="driver40.html">ENGLISH（英語）</a> &nbsp; <a href="driver40-ja.html">JAPANESE（日本語）</a></p>
+		<hr>
+		<h4>Synopsis</h4>
+		Address: 127.127.40.<em>u</em><br>
+		Reference ID: <code>JJY</code><br>
+		Driver ID: <code>JJY</code><br>
+		Serial Port: <code>/dev/jjy<em>u</em></code>; それぞれのJJY受信機、GPS時計、テレフォンJJYを参照して下さい。
+		<h4>Description</h4>
+		<p>このドライバーは、以下の、日本で販売されている JJY受信機、GPS時計と、電話回線による時刻配信サービスをサポートしています。
+		</p>
+		<table width="100%">
+		<tr>
+		<td width="50%" style="vertical-align:top;">
+		<a href="#mode-1">トライステート &nbsp; TS-JJY01, TS-JJY02</a><br>
+		<a href="#mode-2">シーデックス &nbsp; JST2000</a><br>
+		<a href="#mode-3">エコー計測器 &nbsp; LT-2000</a><br>
+		<a href="#mode-4">シチズンTIC &nbsp; JJY-200</a><br>
+		<a href="#mode-5">トライステート &nbsp; TS-GPSclock-01</a><br>
+		</td>
+		<td width="50%" style="vertical-align:top; border-left:solid; padding:0px 0px 0px 10px;">
+		<a href="#mode-6">セイコー タイム システム &nbsp; TDC-300</a><br>
+		<a href="#mode-100">テレフォンJJY</a><br>
+		</td>
+		</tr>
+		</table>
+		<ul>
+
+			<li>
+				<p><a name="mode-1">トライステート &nbsp; TS-JJY01, TS-JJY02</a> &nbsp; <a href="http://www.tristate.ne.jp/">http://www.tristate.ne.jp/</a> (日本語)</p><br>
+				<dl>
+					<dt>NTPの設定 ( ntp.conf )</dt>
+					<dd><br>
+						<dl>
+							<dt>server &nbsp; 127.127.40.X &nbsp; mode 1</dt>
+							<dd><br></dd>
+							<dt>fudge &nbsp; 127.127.40.X &nbsp; time1 0.NNN &nbsp; flag1 0|1</dt>
+							<dd>
+								<p>Time1 は、受信機からの時刻に加算する調整時間を、固定小数点形式の秒で設定します。<br>
+								この受信機には、数10ミリ秒 ( 0.0NN秒 ) から百数10ミリ秒 ( 0.1NN秒 ) の調整時間を設定すると良いでしょう。</p>
+								<p>Flag1 は、時刻同期には無関係です。Flag1 を 1 に設定すると、状態を問い合わせるコマンドを DATE コマンドと STIM コマンドの前に発行して、応答を clockstats ファイルに記録します。</p>
+								<table border="1" summary="fudge flag1">
+									<tr><td>0 (Default)</td><td>DCST と STUS コマンドは、発行しません。</td></tr>
+									<tr><td>1</td><td>DCST と STUS コマンドを、発行します。</td></tr>
+								</table>
+							</dd>
+						</dl>
+						<br>
+					</dd>
+					<dt>インターフェース</dt>
+					<dd>
+						<p>RS-232C, 9600 BPS, 8ビット, パリティなし, 1ストップ・ビット</p>
+						<br>
+					</dd>
+					<dt>日時データの形式</dt>
+					<dd><br>
+						<table summary="CommandAndReply">
+							<tr>
+								<td>コマンド</td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>応答</td>
+							</tr>
+							<tr>
+								<td><code>dcst{CR}{LF}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>valid{CR}{LF} | invalid{CR}{LF}</code></td>
+							</tr>
+							<tr>
+								<td><code>stus{CR}{LF}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>adjusted{CR}{LF} | unadjusted{CR}{LF}</code></td>
+							</tr>
+							<tr>
+								<td><code>time{CR}{LF}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>HH:MM:SS{CR}{LF}</code></td>
+							</tr>
+							<tr>
+								<td><code>date{CR}{LF}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>YYYY/MM/DD WWW{CR}{LF}</code></td>
+							</tr>
+							<tr>
+								<td><code>stim{CR}{LF}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>HH:MM:SS{CR}{LF}</code></td>
+							</tr>
+						</table>
+						<p>日付と時刻は、別々に問い合わせます。日付が深夜０時の前か後かの不確定をチェックするため、日付の問い合わせの前後に時刻を問い合わせています。</p><br>
+					</dd>
+				</dl>
+			</li>
+
+			<li>
+				<p><a name="mode-2">シーデックス &nbsp; JST2000</a> &nbsp; <a href="http://www.c-dex.co.jp/">http://www.c-dex.co.jp/</a> (日本語)</p><br>
+				<dl>
+					<dt>NTPの設定 ( ntp.conf )</dt>
+					<dd><br>
+						<dl>
+							<dt>server &nbsp; 127.127.40.X &nbsp; mode 2</dt>
+							<dd><br></dd>
+							<dt>fudge &nbsp; 127.127.40.X &nbsp; time1 0.NNN</dt>
+						</dl>
+						<br>
+					</dd>
+					<dt>インターフェース</dt>
+					<dd>
+						<p>RS-232C, 9600 BPS, 8ビット, パリティなし, 1ストップ・ビット</p>
+						<br>
+					</dd>
+					<dt>日時データの形式</dt>
+					<dd><br>
+						<table summary="CommandAndReply">
+							<tr>
+								<td>コマンド</td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>応答</td>
+							</tr>
+							<tr>
+								<td><code>{ENQ}1J{ETX}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>{STX}JYYMMDDWHHMMSSS{ETX}</code></td>
+							</tr>
+						</table>
+						<br>
+					</dd>
+				</dl>
+			</li>
+
+			<li>
+				<p><a name="mode-3">エコー計測器 &nbsp; LT-2000</a> &nbsp; <!-- a href="http://www.clock.co.jp/" --></p><br>
+				<p>エコー計測器株式会社は解散しました。2015年7月に、一部の事業は、フレックタイム株式会社に継承されました。</p><br>
+				<dl>
+					<dt>NTPの設定 ( ntp.conf )</dt>
+					<dd><br>
+						<dl>
+							<dt>server &nbsp; 127.127.40.X &nbsp; mode 3</dt>
+							<dd><br></dd>
+							<dt>fudge &nbsp; 127.127.40.X &nbsp; time1 0.NNN</dt>
+						</dl>
+						<br>
+					</dd>
+					<dt>Interface</dt>
+					<dd>
+						<p>RS-232C, 9600 BPS, 8ビット, パリティなし, 1ストップ・ビット</p>
+						<br>
+					</dd>
+					<dt>Time code format</dt>
+					<dd><br>
+						<table summary="CommandAndReply">
+							<tr>
+								<td>コマンド</td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>応答</td>
+							</tr>
+							<tr>
+								<td><code>C</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>( Mode 2 : Continuous )</td>
+							</tr>
+							<tr>
+								<td>( Every second before 0.5 second )</td>
+								<td></td>
+								<td><code>YYMMDDWHHMMSS{ST1}{ST2}{ST3}{ST4}{CR}</code></td>
+							</tr>
+							<tr>
+								<td><code>#</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>( Mode 1 : Request&amp;Send )</td>
+							</tr>
+						</table>
+						<br>
+					</dd>
+				</dl>
+			</li>
+
+			<li>
+				<p><a name="mode-4">シチズンTIC &nbsp; JJY-200</a> &nbsp; <a href="http://www.tic-citizen.co.jp/">http://www.tic-citizen.co.jp/</a> (日本語)</p><br>
+				<dl>
+					<dt>NTPの設定 ( ntp.conf )</dt>
+					<dd><br>
+						<dl>
+							<dt>server &nbsp; 127.127.40.X &nbsp; mode 4</dt>
+							<dd><br></dd>
+							<dt>fudge &nbsp; 127.127.40.X &nbsp; time1 0.NNN</dt>
+						</dl>
+						<br>
+					</dd>
+					<dt>インターフェース</dt>
+					<dd>
+						<p>RS-232C, 4800 BPS, 8ビット, パリティなし, 1ストップ・ビット</p>
+						<br>
+					</dd>
+					<dt>日時データの形式</dt>
+					<dd><br>
+						<table summary="CommandAndReply">
+							<tr>
+								<td>コマンド</td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>応答</td>
+							</tr>
+							<tr>
+								<td>( Every second )</td>
+								<td></td>
+								<td><code>'XX YY/MM/DD W HH:MM:SS{CR}</code></td>
+							</tr>
+						</table>
+						<br>
+					</dd>
+				</dl>
+			</li>
+
+			<li>
+				<p><a name="mode-5">トライステート &nbsp; TS-GPSclock-01</a> &nbsp; <a href="http://www.tristate.ne.jp/">http://www.tristate.ne.jp/</a> (日本語)</p>
+				<p>このドライバーは、JJY受信機ではないGPS時計のトライステート TS-GPSclock-01 のコマンド・レスポンス・モードをサポートします。<br>
+				TS-GPSclock-01 は、オンボードのスイッチとメニューでコマンド・レスポンス・モードとタイム・ゾーンをJST（日本標準時）に設定しなければなりまん。<br>
+				この Type 40 のドライバーの他, TS-GPSclock-01 のNMEAモードは、<a href="driver20.html">一般 NMEA GPS ドライバー ( Type 20 )</a> でも利用することができます。</p>
+				<dl>
+					<dt>NTPの設定 ( ntp.conf )</dt>
+					<dd><br>
+						<dl>
+							<dt>server &nbsp; 127.127.40.X &nbsp; mode 5</dt>
+							<dd><br></dd>
+							<dt>fudge &nbsp; 127.127.40.X &nbsp; time1 0.NNN &nbsp; flag1 0|1</dt>
+							<dd>
+								<p>Time1 は、受信機からの時刻に加算する調整時間を、固定小数点形式の秒で設定します</p>
+								<p>Flag1 は、時刻同期には無関係です。Flag1 を 1 に設定すると、状態を問い合わせるコマンドを DATE コマンドと STIM コマンドの前に発行して、応答を clockstats ファイルに記録します。</p>
+								<table border="1" summary="fudge flag1">
+									<tr><td>0 (Default)</td><td>STUS コマンドは、発行しません。</td></tr>
+									<tr><td>1</td><td>STUS コマンドを、発行します。</td></tr>
+								</table>
+							</dd>
+						</dl>
+						<br>
+					</dd>
+					<dt>インターフェース</dt>
+					<dd>
+						<p>USB ( /dev/ttyACM<em>0</em> )</p>
+						<br>
+					</dd>
+					<dt>日時データの形式</dt>
+					<dd><br>
+						<table summary="CommandAndReply">
+							<tr>
+								<td>コマンド</td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>応答</td>
+							</tr>
+							<tr>
+								<td><code>stus{CR}{LF}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>*R{CR}{LF} | *G{CR}{LF} | *U{CR}{LF} | +U{CR}{LF}</code></td>
+							</tr>
+							<tr>
+								<td><code>time{CR}{LF}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>HH:MM:SS{CR}{LF}</code></td>
+							</tr>
+							<tr>
+								<td><code>date{CR}{LF}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>YYYY/MM/DD{CR}{LF}</code></td>
+							</tr>
+							<tr>
+								<td><code>time{CR}{LF}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>HH:MM:SS{CR}{LF}</code></td>
+							</tr>
+						</table>
+						<p>日付と時刻は、別々に問い合わせます。日付が深夜０時の前か後かの不確定をチェックするため、日付の問い合わせの前後に時刻を問い合わせています。</p><br>
+					</dd>
+				</dl>
+			</li>
+
+			<li>
+				<p><a name="mode-6">セイコー タイム システム &nbsp; TDC-300</a> &nbsp; <a href="http://www.seiko-sts.co.jp/">http://www.seiko-sts.co.jp/</a> (英語と日本語)</p><br>
+				<p>TDC-300 は、フロント・パネルのメニュー表示とスイッチで type 3 のデータ形式に設定しなければなりません。</p>
+				<dl>
+					<dt>NTP configuration ( ntp.conf )</dt>
+					<dd><br>
+						<dl>
+							<dt>server &nbsp; 127.127.40.X &nbsp; mode 6</dt>
+							<dd><br></dd>
+							<dt>fudge &nbsp; 127.127.40.X &nbsp; time1 0.NNN</dt>
+						</dl>
+						<br>
+					</dd>
+					<dt>インターフェース</dt>
+					<dd>
+						<p>RS-232C, 2400 BPS, 8-bits, no parity, 1 stop bit</p>
+						<br>
+					</dd>
+					<dt>日時データの形式</dt>
+					<dd><br>
+						<table summary="CommandAndReply">
+							<tr>
+								<td>コマンド</td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>応答</td>
+							</tr>
+							<tr>
+								<td></td>
+								<td></td>
+								<td><code>{STX}YYMMDDWHHMMSS{ETX}</code></td>
+							</tr>
+							<tr>
+								<td>( 5 to 10 mSec. before second )</td>
+								<td></td>
+								<td><code>{STX}{xE5}{ETX}</code></td>
+							</tr>
+						</table>
+						<br>
+					</dd>
+				</dl>
+			</li>
+
+			<li>
+				<p><a name="mode-100">テレフォンJJY</a> &nbsp; <a href="http://jjy.nict.go.jp/">http://jjy.nict.go.jp/</a> (英語と日本語)</p>
+				<p>テレフォンJJYは、電話回線による時刻配信サービスです。<br>
+				このサービスは、国立研究開発法人　情報通信研究機構が提供しています。</p>
+				<p>注意：　このモード（テレフォンJJY）は、refclock_acts ( Type 18 ) のドライバーと同時に利用することはできません。
+				設定ファイルの phone は、server と関係付けられていないため、ドライバーの refclock_acts ( type 18 ) も、この refclock_jjy ( type 40, mode 100 to 180 ) のいずれも、
+				複数の phone のうち、どれが自分に関係するものか識別できないからです。</p>
+				<dl>
+					<dt>NTPの設定 ( ntp.conf )</dt>
+					<dd>
+						<dl>
+							<dt>server &nbsp; 127.127.40.X &nbsp; mode (100, 101 to 180) &nbsp; minpoll N</dt>
+							<dd>
+							<p>モード 100 を設定した場合、このドライバーは、遅延を計測するためのループバック・コマンドは発行せず、電話回線とシステムの処理による遅延は調整しません。<br>
+							モード 101 から 180 を設定した場合、このドライバーは、ループバック・コマンドを発行して、テレフォンJJYのループバック回路を通して電話回線とシステムの処理による遅延を計測します。<br>
+							テレフォンJJYのループバック回路を経由した往復の時間は、5回、計測されます。
+							それぞれの遅延時間のうち、700ミリ秒を超えたものは、平均遅延時間の計算より除外されます。
+							また、700ミリ秒以下の有効な遅延時間が、3回以上の場合は、そのうち、最大の遅延時間は、平均遅延時間の計算より除外され、
+							4回以上の場合は、そのうち、最小の遅延時間は、平均遅延時間の計算より除外されます。
+							調整時間は、往復時間　×　( モード番号 - 100 ) % で計算し、同期する時刻に加算されます。<br>
+							モード 101 から 180 を設定して自動遅延補正を選択するなら、モード 145 から 165 が良いでしょう。</p>
+							<p>デフォルトの日時問い合わせ処理間隔 6 ( 64 秒 ) は、このモードには、短すぎます。　"minpoll" は、8 ( 256 秒, 約 4 分 ) 以上を設定して下さい。<br>
+							日時問い合わせ処理間隔は、秒数を 2 のべき乗で指定します。　minpoll の値が、12 なら 4096 秒（約1時間）、14 なら 16384 秒（約4.5時間）、16 なら 65536 秒（約18時間）となります。</p><br>
+							</dd>
+							<dt>fudge &nbsp; 127.127.40.X &nbsp; flag1 0|1 &nbsp; flag2 0|1 &nbsp; flag3 0|1 &nbsp; flag4 0|1</dt>
+							<dd>
+								<p>Time1 は、受信機からの時刻に加算する調整時間を、固定小数点形式の秒で設定します。<br>
+								mode 100 の場合は、time1 で調整する時間を設定したほうが良いでしょう。<br>
+								mode 101 から 180 の場合は、このドライバーが計測したループバックの遅延時間の一定の割合を同期時刻に加算しますので、time1 は設定しないほうが良いでしょう。</p>
+								<div style="text-align:left;">Flag1 は、タッチ・トーンかダイヤル・パルスかを指定します。</div>
+								<table border="1" summary="fudge flag1">
+									<tr><td>0 (Default)</td><td>タッチ・トーン</td><td>ATDWTnn...nn</td></tr>
+									<tr><td>1</td><td>ダイヤル・パルス</td><td>ATDWPnn...nn</td></tr>
+								</table>
+								<br>
+								<div style="text-align:left;">Flag2 は、エラー訂正プロトコルを指定します。</div>
+								<table border="1" summary="fudge flag2">
+									<tr><td>0 (Default)</td><td>ノーマル（エラー訂正なし）</td><td>AT\N0</td></tr>
+									<tr><td>1</td><td>V42, MNP, ノーマルの自動選択</td><td>AT\N3</td></tr>
+								</table>
+								<br>
+								<div style="text-align:left;">Flag3 は、スピーカーのオン／オフを指定します。</div>
+								<table border="1" summary="fudge flag3">
+									<tr><td>0 (Default)</td><td>オフ</td><td>ATM0Ln</td></tr>
+									<tr><td>1</td><td>オン</td><td>ATM2Ln</td></tr>
+								</table>
+								<br>
+								<div style="text-align:left;">Flag4 は、スピーカーの音量を指定します。</div>
+								<table border="1" summary="fudge flag4">
+									<tr><td>0 (Default)</td><td>低</td><td>ATMnL1</td></tr>
+									<tr><td>1</td><td>中</td><td>ATMnL2</td></tr>
+								</table>
+								<br>
+							</dd>
+							<dt>phone 042NNNNNNN</dt>
+							<dd>
+								<p>電話番号は、<a href="http://jjy.nict.go.jp/">http://jjy.nict.go.jp/</a> で公開されています。<br>
+								電話番号の桁数をチェックしています。もし、日本国外から発信するために国際電話アクセス番号と国番号を付加すると、桁数制限を超えます。<br>
+								また、電話番号の最初の2桁や3桁をチェックしています。日本の緊急番号や特別のサービスの番号を指定することはできません。<br>
+								内線から外線に発信する時は、"0," ( ゼロとカンマ ) を先頭に付加して下さい。外線発信番号は、チェックしていて、それ以外の外線発信番号を指定することはできません。</p>
+							</dd>
+						</dl>
+						<br>
+					</dd>
+					<dt>インターフェース</dt>
+					<dd>
+						<p>RS-232C 又は USB, 2400 BPS, 8ビット, パリティなし, 1ストップ・ビット</p>
+						<p>モデム制御コマンド:<br>
+						<code>ATE0Q0V1, ATMnLn, AT&amp;K4, AT+MS=V22B, AT%C0, AT\Nn, ATH1, ATDWxnn...nn</code><br>
+						<code>+++, ATH0</code></p>
+						<br>
+					</dd>
+					<dt>日時データの形式</dt>
+					<dd><br>
+						<table summary="CommandAndReply">
+							<tr>
+								<td>プロンプト</td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>コマンド</td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>応答</td>
+							</tr>
+							<tr>
+								<td><code>Name{SP}?{SP}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>TJJY{CR}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>Welcome messages</td>
+							</tr>
+							<tr>
+								<td><code>&gt;</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>LOOP{CR}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>( Switch to the loopback circuit )</td>
+							</tr>
+							<tr>
+								<td><code>&nbsp;</code></td>
+								<td>&nbsp;&nbsp;</td>
+								<td><code>( One char. )</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>( One char. )</code></td>
+							</tr>
+							<tr>
+								<td><code>&nbsp;</code></td>
+								<td>&nbsp;&nbsp;</td>
+								<td><code>COM{CR}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>( Exit from the loopback circuit )</td>
+							</tr>
+							<tr>
+								<td><code>&gt;</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>TIME{CR}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>HHMMSS{CR}HHMMSS{CR}HHMMSS{CR}</code> 3 times on second</td>
+							</tr>
+							<tr>
+								<td><code>&gt;</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>4DATE{CR}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>YYYYMMDD{CR}</code></td>
+							</tr>
+							<tr>
+								<td><code>&gt;</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>LEAPSEC{CR}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>{SP}0{CR} | +1{CR} | -1{CR}</code></td>
+							</tr>
+							<tr>
+								<td><code>&gt;</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>TIME{CR}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>HHMMSS{CR}HHMMSS{CR}HHMMSS{CR}</code> 3 times on second</td>
+							</tr>
+							<tr>
+								<td><code>&gt;</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>BYE{CR}</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>Sayounara messages</td>
+							</tr>
+						</table>
+						<p>日付と時刻は、別々に問い合わせます。日付が深夜０時の前か後かの不確定をチェックするため、日付の問い合わせの前後に時刻を問い合わせています。<br>
+						うるう秒は、処理していません。情報として clockstats ファイルに記録しているだけです。</p>
+						<br>
+					</dd>
+				</dl>
+			</li>
+
+		</ul>
+
+		<p>JJY は、長波で日本標準時(JST)を送信している無線局で、国立研究開発法人　情報通信研究機構が運用しています。JJY の運用情報などは、 <a href="http://www.nict.go.jp/">http://www.nict.go.jp/</a>（英語と日本語）や <a href="http://jjy.nict.go.jp/">http://jjy.nict.go.jp/</a>（英語と日本語）で提供されています。</p>
+		<p>実際のシリアル・ポートのデバイスにシンボリック・リンクを作成して下さい。シンボリック・リンクを作成するコマンドは、以下のとおりです。</p>
+		<p><code>ln -s /dev/ttyS0 /dev/jjy0</code></p>
+		<p>RS-232C から USB への変換ケーブルを利用して、JJY受信機、GPS時計、モデムをRS-232Cポートではなく、USBに接続することができます。この場合のシンボリック・リンクを作成するコマンドは、以下のとおりです。</p>
+		<p><code>ln -s /dev/ttyUSB0 /dev/jjy0</code></p>
+		<p>Windows NT の場合は、 COM<em>X</em>: の数字部分がドライバーのユニット番号に使用されます。 ドライバーのユニット 1 は、COM1: にユニット 3 は、COM3: に対応します。</p>
+		<h4>Monitor Data</h4>
+		<p>このドライバーは、JJY受信機、GPS時計、モデムとの送受信データを <code>clockstats</code> ファイルに記録します。</p>
+		<p><code>
+		statsdir /var/log/ntpd/<br>
+		filegen clockstats file  clockstats type day enable
+		</code></p>
+		<div style="text-align:left;">レコード中のマークについて</div>
+		<table border="1" summary="Clockstats">
+			<tr><td><code>JJY</code>&nbsp;</td><td>情報（このドライバーの開始または終了）</td></tr>
+			<tr><td><code>--&gt;</code>&nbsp;</td><td>送信データ</td></tr>
+			<tr><td><code>&lt;--</code>&nbsp;</td><td>受信データ</td></tr>
+			<tr><td><code>---</code>&nbsp;</td><td>情報</td></tr>
+			<tr><td><code>===</code>&nbsp;</td><td>情報（ポーリングの開始、および、同期時刻）</td></tr>
+			<tr><td><code>-W-</code>&nbsp;</td><td>警告メッセージ</td></tr>
+			<tr><td><code>-X-</code>&nbsp;</td><td>エラー・メッセージ</td></tr>
+		</table>
+		<h4>Fudge Factors</h4>
+		<dl>
+			<dt><code>time1 <em>time</em></code></dt>
+			<dd>受信機からの時刻に対する調整時間を、固定小数点形式の秒で設定します。デフォルトは、0.0秒です。</dd>
+			<dt><code>time2 <em>time</em></code></dt>
+			<dd>未使用。</dd>
+			<dt><code>stratum <em>number</em></code></dt>
+			<dd>NTPの階層番号を 0 から 15 で指定します。デフォルトは、0です。</dd>
+			<dt><code>refid <em>string</em></code></dt>
+			<dd>ドライバーIDで、ASCII の1文字から4文字で指定します。デフォルトは、<code>JJY</code> です。</dd>
+			<dt><code>flag1 0 | 1</code></dt>
+			<dd>それぞれのモードを参照して下さい。</dd>
+			<dt><code>flag2 0 | 1</code></dt>
+			<dd>それぞれのモードを参照して下さい。</dd>
+			<dt><code>flag3 0 | 1</code></dt>
+			<dd>それぞれのモードを参照して下さい。</dd>
+			<dt><code>flag4 0 | 1</code></dt>
+			<dd>それぞれのモードを参照して下さい。</dd>
+		</dl>
+		<hr>
+		<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+	</body>
+
+</html>

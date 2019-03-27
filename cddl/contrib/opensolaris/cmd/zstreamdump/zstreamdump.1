@@ -1,0 +1,71 @@
+'\" te
+.\" Copyright (c) 2011, Martin Matuska <mm@FreeBSD.org>.
+.\" All Rights Reserved.
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License (the "License").
+.\" You may not use this file except in compliance with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or http://www.opensolaris.org/os/licensing.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" Copyright (c) 2009, Sun Microsystems, Inc. All Rights Reserved.
+.\" Copyright (c) 2013, Delphix. All Rights Reserved.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 31, 2013
+.Dt ZSTREAMDUMP 8
+.Os
+.Sh NAME
+.Nm zstreamdump
+.Nd filter data in zfs send stream
+.Sh SYNOPSIS
+.Nm
+.Op Fl C
+.Op Fl d
+.Op Fl v
+.Sh DESCRIPTION
+The
+.Nm
+utility reads from the output of the
+.Qq Nm zfs Cm send
+command, then displays headers and some statistics from that output. See
+.Xr zfs 8 .
+.Pp
+The following options are supported:
+.Bl -tag -width indent
+.It Fl C
+Suppress the validation of checksums.
+.It Fl d
+Dump contents of blocks modified, implies verbose.
+.It Fl v
+Verbose. Dump all headers, not only begin and end headers.
+.El
+.Sh SEE ALSO
+.Xr zfs 8
+.Sh AUTHORS
+This manual page is a
+.Xr mdoc 7
+reimplementation of the
+.Tn OpenSolaris
+manual page
+.Em zstreamdump(1M) ,
+modified and customized for
+.Fx
+and licensed under the
+.Tn Common Development and Distribution License
+.Pq Tn CDDL .
+.Pp
+The
+.Xr mdoc 7
+implementation of this manual page was initially written by
+.An Martin Matuska Aq mm@FreeBSD.org .

@@ -1,0 +1,636 @@
+.\" Copyright (c) 2006-2008 Joel Dahl <joel@FreeBSD.org>
+.\" Copyright (c) 2008 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 1, 2018
+.Dt SND_HDA 4
+.Os
+.Sh NAME
+.Nm snd_hda
+.Nd "Intel High Definition Audio bridge device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device sound"
+.Cd "device snd_hda"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_hda_load="YES"
+.Ed
+.Sh DESCRIPTION
+The High Definition (HD) Audio specification was developed by Intel as the
+logical successor of the old AC'97 specification and has several advantages,
+such as higher bandwidth which allows more channels and more detailed formats,
+support for several logical audio devices, and general purpose DMA channels.
+.Pp
+The
+.Nm
+driver includes HDA bus controller driver (hdac), HDA codec driver (hdacc)
+and HDA codecs audio functions bridge driver (hdaa) that allows
+the generic audio driver,
+.Xr sound 4 ,
+to be used with this hardware.
+Only audio functions are supported by
+.Nm .
+Modem and other possible functions are not implemented.
+.Pp
+The
+.Nm
+driver supports hardware that conforms with revision 1.0 of the Intel High
+Definition Audio specification and tries to behave much like the Microsoft
+Universal Audio Architecture (UAA) draft (revision 0.7b) for handling audio
+devices.
+.Pp
+According to HDA and UAA specifications, depending on the number of HDA buses
+and codecs present in system, their audio capabilities and BIOS provided
+configuration, the
+.Nm
+driver often provides several PCM audio devices.
+For example, one device for main rear 7.1 output and inputs, one device
+for independent headset connectors at front and one device for SPDIF or
+HDMI audio input/output.
+The assignment of audio inputs and outputs may be tuned with
+.Xr device.hints 5
+or
+.Xr sysctl 8 .
+The driver's verbose boot messages provide a lot of information about
+the operation of the driver and present audio setup.
+.Pp
+The default audio device may be tuned by setting the
+.Ar hw.snd.default_unit
+sysctl, as described in
+.Xr sound 4 ,
+or explicitly specified in application settings.
+.Ss Boot-time Configuration
+The following variables are available at boot-time through the
+.Xr device.hints 5
+file:
+.Bl -tag -width ".Va hint.hdac.%d.config"-offset indent
+.It Va hint.hdac.%d.config
+Configures a range of possible controller options.
+Possible values are:
+.Dq Li 64bit ,
+.Dq Li dmapos ,
+.Dq Li msi .
+An option prefixed with
+.Dq Li no ,
+such as
+.Dq Li nomsi ,
+will do the opposite and takes precedence.
+Options can be separated by whitespace and commas.
+.It Va hint.hdac.%d.msi
+Controls MSI (Message Signaled Interrupts) support.
+.It Va hint.hdac.%d.cad%d.nid%d.config
+Same as
+.Va hint.hdaa.%d.nid%d.config
+.It Va hint.hdaa.%d.config
+Configures a range of possible audio function options.
+Possible values are:
+.Dq Li eapdinv ,
+.Dq Li ivref ,
+.Dq Li ivref50 ,
+.Dq Li ivref80 ,
+.Dq Li ivref100 ,
+.Dq Li fixedrate ,
+.Dq Li forcestereo ,
+.Dq Li ovref ,
+.Dq Li ovref50 ,
+.Dq Li ovref80 ,
+.Dq Li ovref100 ,
+.Dq Li senseinv ,
+.Dq Li softpcmvol ,
+and
+.Dq Li vref .
+An option prefixed with
+.Dq Li no ,
+such as
+.Dq Li nofixedrate ,
+will do the opposite and takes precedence.
+Options can be separated by whitespace and commas.
+.Pp
+The
+.Dq Li eapdinv
+option inverts External Amplifier Power Down signal.
+The
+.Dq Li fixedrate
+denies all sampling rates except 48KHz.
+The
+.Dq Li forcestereo
+denies mono playback/recording.
+The
+.Dq Li senseinv
+option inverts jack sensing logic.
+The
+.Dq Li ivref Ns Ar X
+and
+.Dq Li ovref Ns Ar X
+options control the voltage used to power external microphones.
+.It Va hint.hdaa.%d.gpio_config
+Overrides audio function GPIO pins configuration set by BIOS.
+May be specified as a set of space-separated
+.Dq Ar num Ns = Ns Ar value
+pairs, where
+.Ar num
+is GPIO line number, and
+.Ar value
+is one of:
+.Dq Li keep ,
+.Dq Li set ,
+.Dq Li clear ,
+.Dq Li disable
+and
+.Dq Li input .
+.Pp
+.Dq Li GPIO Ns s
+are a codec's General Purpose I/O pins which system integrators sometimes
+use to control external muters, amplifiers and so on.
+If you have no sound, or sound volume is not adequate, you may have to
+experiment a bit with the GPIO setup to find the optimal setup for your
+system.
+.It Va hint.hdaa.%d.nid%d.config
+Overrides audio function pin configuration set by BIOS.
+May be specified as a 32-bit hexadecimal value with a leading
+.Dq 0x ,
+or as a set of space-separated
+.Dq Ar option Ns = Ns Ar value
+pairs.
+.It Va hint.pcm.%d.rec.autosrc
+Controls automatic recording source feature:
+.Bl -tag -width 2n -compact
+.It 0
+disabled,
+.It 1
+once on attach,
+.It 2
+enabled.
+.El
+When enabled, driver will automatically set recording source of the mixer to
+connected input using jack presence detection statuses.
+.El
+.Pp
+Pin configuration is the UAA driver's main source of information about codec
+usage.
+This information is usually provided by the codec manufacturer and tuned
+by system integrators for specific system requirements.
+The
+.Nm
+driver allows users to override it to fix integrator mistakes or to use the
+available codec in alternative ways (for example to get stereo output and 2
+inputs instead of a single 5.1 output).
+.Pp
+The following options are supported:
+.Bl -tag -width ".Va device=" -offset indent
+.It Va as
+Association number.
+Associations are used to group individual pins to form a complex multi-pin
+device.
+For example, to group 4 connectors for 7.1 input/output, or to treat several
+input connectors as sources for the same input device.
+Association numbers can be specified as numeric values from 0 to 15.
+A value of 0 means disabled pin.
+A value of 15 is a set of independent unassociated pins.
+Each association includes only pins of the same direction (in/out) and is
+detected atomically (all pins or none).
+A separate PCM audio device is created for every pair of input and
+output associations.
+.It Va seq
+Sequence number.
+A unique, per-association number used to order pins inside the
+particular association.
+Sequence numbers can be specified as numeric values from 0 to 15.
+.Pp
+The sequence number 15 has a special meaning for output associations.
+Output pins with this number and device type
+.Dq Ar Headphones
+will duplicate (with automatic mute if jack detection is supported) the
+first pin in that association.
+.Pp
+The sequence numbers 14 and 15 has a special meaning for input associations.
+Their presence in association defines it as multiplexed or mixed respectively.
+If none of them are present and there are more than one pin in association,
+the association will provide multichannel input.
+.Pp
+For multichannel input/output associations sequence numbers encode
+channel pairs positions:
+0 - Front, 1 - Center/LFE, 2 - Back, 3 - Front Wide Center, 4 - Side.
+Standard combinations are: (0) - Stereo; (0, 2), (0, 4) - Quadro;
+(0, 1, 2), (0, 1, 4) - 5.1; (0, 1, 2, 4) - 7.1.
+.It Va device
+Device type.
+Can be specified as a number from 0 to 15 or as a name:
+.Dq Li Line-out ,
+.Dq Li Speaker ,
+.Dq Li Headphones,
+.Dq Li CD ,
+.Dq Li SPDIF-out ,
+.Dq Li Digital-out ,
+.Dq Li Modem-line ,
+.Dq Li Modem-handset ,
+.Dq Li Line-in ,
+.Dq Li AUX ,
+.Dq Li Mic ,
+.Dq Li Telephony ,
+.Dq Li SPDIF-in ,
+.Dq Li Digital-in ,
+.Dq Li Res.E ,
+or
+.Dq Li Other .
+The device type also describes the pin direction (in/out).
+For example,
+.Dq Li CD
+always means an input pin, while
+.Dq Li Headphones
+always means an output.
+.It Va conn
+Connection type.
+Can be specified as a number from 0 to 3.
+The connection type can also be specified as one of the special names
+.Dq Li Jack ,
+.Dq Li None ,
+.Dq Li Fixed ,
+or
+.Dq Li Both .
+Pins with a connection type of
+.Dq Li None
+are disabled.
+.It Va ctype
+Connector physical type.
+Can be specified as a number from 0 to 15.
+This is a reference only value.
+It is ignored by the
+.Nm
+driver.
+.It Va color
+Connector color.
+Can be specified as a number from 0 to 15 or as one of the names
+.Dq Li Unknown ,
+.Dq Li Black ,
+.Dq Li Grey ,
+.Dq Li Blue ,
+.Dq Li Green ,
+.Dq Li Red ,
+.Dq Li Orange ,
+.Dq Li Yellow ,
+.Dq Li Purple ,
+.Dq Li Pink ,
+.Dq Li Res.A ,
+.Dq Li Res.B ,
+.Dq Li Res.C ,
+.Dq Li Res.D ,
+.Dq Li White ,
+or
+.Dq Li Other .
+This is a reference only value.
+It is ignored by the
+.Nm
+driver.
+.It Va loc
+Connector physical location.
+Can be specified as a number from 0 to 63.
+This is a reference only value.
+It is ignored by the
+.Nm
+driver.
+.It Va misc
+Misc bits.
+Can be specified as a number from 0 to 15.
+Bit 0 has a special meaning.
+When set it means that jack detection is not implemented in hardware.
+.El
+.Ss Runtime Configuration
+The following
+.Xr sysctl 8
+variables are available in addition to those available to all
+.Xr sound 4
+devices:
+.Bl -tag -width ".Va dev.hdaa.%d.nid%d_original" -offset indent
+.It Va dev.hdac.%d.pindump
+Setting this to a non-zero value dumps the current pin configuration, main
+capabilities and jack sense status of all audio functions on the controller
+to console and syslog.
+.It Va dev.hdac.%d.polling
+Enables polling mode.
+In this mode the driver operates by querying the device state on timer
+ticks using
+.Xr callout 9
+instead of interrupts.
+Polling is disabled by default.
+Do not enable it unless you are facing weird interrupt problems or if the
+device cannot generate interrupts at all.
+.It Va dev.hdaa.%d.config
+Run-time equivalent of the
+.Va hint.hdaa.%d.config
+tunable.
+.It Va dev.hdaa.%d.gpi_state
+Current state of GPI lines.
+.It Va dev.hdaa.%d.gpio_state
+Current state of GPIO lines.
+.It Va dev.hdaa.%d.gpio_config
+Run-time equivalent of the
+.Va hint.hdaa.%d.gpio.config
+tunable.
+.It Va dev.hdaa.%d.gpo_state
+Current state of GPO lines.
+.It Va dev.hdaa.%d.nid%d_config
+Run-time equivalent of the
+.Va hint.hdaa.%d.nid%d.config
+tunable.
+.It Va dev.hdaa.%d.nid%d_original
+Original pin configuration written by BIOS.
+.It Va dev.hdaa.%d.reconfig
+Setting this to a non-zero value makes driver to destroy existing pcm devices
+and process new pins configuration set via
+.Va dev.hdaa.%d.nid%d_config .
+.It Va dev.pcm.%d.play.32bit , dev.pcm.%d.rec.32bit
+HDA controller uses 32bit representation for all samples of more then 16 bits.
+These variables allow to specify how many bits of these 32 should be
+used by CODEC.
+Depending on codec capabilities, possible values are 20, 24 and 32 bit.
+The default value is 24.
+.It Va dev.pcm.%d.rec.autosrc
+Run-time equivalent of the
+.Va hint.pcm.%d.rec.autosrc
+tunable.
+.El
+.Sh EXAMPLES
+Taking HP Compaq DX2300 with Realtek ALC888 HDA codec for example.
+This system has two audio connectors on a front side, three audio connectors
+on a rear side and one internal speaker.
+According to verbose driver output and the codec datasheet,
+this codec has five stereo DACs and two stereo ADCs, all of them are routable to
+any codec pin (external connector).
+All codec pins are reversible (could be configured either as input or output).
+.Pp
+So high codec uniformity and flexibility allow driver to configure it in many
+different ways, depending on requested pins usage described by pins configuration.
+The driver reports such default pin configuration when verbose messages enabled:
+.Bd -literal
+hdaa0: nid   0x    as seq device       conn  jack    loc        color   misc
+hdaa0: 20 01014020 2  0  Line-out      Jack  1/8     Rear       Green   0
+hdaa0: 21 99130110 1  0  Speaker       Fixed ATAPI   Onboard    Unknown 1
+hdaa0: 22 411111f0 15 0  Speaker       None  1/8     Rear       Black   1 DISA
+hdaa0: 23 411111f0 15 0  Speaker       None  1/8     Rear       Black   1 DISA
+hdaa0: 24 01a19830 3  0  Mic           Jack  1/8     Rear       Pink    8
+hdaa0: 25 02a1983f 3  15 Mic           Jack  1/8     Front      Pink    8
+hdaa0: 26 01813031 3  1  Line-in       Jack  1/8     Rear       Blue    0
+hdaa0: 27 0221401f 1  15 Headphones    Jack  1/8     Front      Green   0
+hdaa0: 28 411111f0 15 0  Speaker       None  1/8     Rear       Black   1 DISA
+hdaa0: 30 411111f0 15 0  Speaker       None  1/8     Rear       Black   1 DISA
+hdaa0: 31 411111f0 15 0  Speaker       None  1/8     Rear       Black   1 DISA
+.Ed
+.Pp
+Here we can see, that the nodes with ID (nid) 25 and 27 are front panel
+connectors (Jack, Front), nids 20, 24 and 26 are rear panel connectors
+(Jack, Rear) and nid 21 is a built-in speaker (Fixed, Onboard).
+Pins with nids 22, 23, 28, 30 and 31 will be disabled by driver due to "None"
+connectivity.
+So the pin count and description matches to connectors that we have.
+.Pp
+Using association (as) and sequence (seq) fields values pins are grouped into
+3 associations:
+.Bd -literal
+hdaa0: Association 0 (1) out:
+hdaa0:   Pin nid=21 seq=0
+hdaa0:   Pin nid=27 seq=15
+hdaa0: Association 1 (2) out:
+hdaa0:   Pin nid=20 seq=0
+hdaa0: Association 2 (3) in:
+hdaa0:   Pin nid=24 seq=0
+hdaa0:   Pin nid=26 seq=1
+hdaa0:   Pin nid=25 seq=15
+.Ed
+.Pp
+Each
+.Xr pcm 4
+device uses two associations: one for playback and one for recording.
+Associations processed and assigned to
+.Xr pcm 4
+devices in increasing numerical order.
+In this case association #0 (1) will become
+.Li pcm0
+device playback, using the internal speakers and
+.Ar Headphones
+jack with speaker automute on the headphones jack connection.
+Association #1 (2) will become
+.Li pcm1
+playback, using the
+.Ar Line-out
+jack.
+Association #2 (3) will become
+.Li pcm0
+recording, using the external microphones and the
+.Ar Line-in
+jack.
+.Pp
+The
+.Nm
+driver provides extensive verbose messages to diagnose its operation
+logic and describe its current codec configuration.
+.Pp
+Using
+.Xr device.hints 5
+it is possible to modify the configuration of the existing pins,
+allowing a broad range of different audio setups.
+Here are a few examples of some setups possible for this particular
+hardware:
+.Ss Example 1
+Setting the
+.Xr device.hints 5
+options
+.Bd -literal
+hint.hdac.0.cad0.nid20.config="as=1"
+hint.hdac.0.cad0.nid21.config="as=2"
+.Ed
+.Pp
+will swap line-out and speaker functions.
+So the
+.Li pcm0
+device will play to the line-out and headphones jacks.
+Line-out will be muted on the headphones jack connection.
+Recording on
+.Li pcm0
+will go from two external microphones and line-in jacks.
+.Li pcm1
+playback will go to the internal speaker.
+.Ss Example 2
+Setting the
+.Xr device.hints 5
+options
+.Bd -literal
+hint.hdac.0.cad0.nid20.config="as=1 seq=15 device=Headphones"
+hint.hdac.0.cad0.nid27.config="as=2 seq=0"
+hint.hdac.0.cad0.nid25.config="as=4 seq=0"
+.Ed
+.Pp
+will split the headphones and one of the microphones to a separate device.
+The
+.Li pcm0
+device will play to the internal speaker and to the line-out jack, with
+speaker automute on the line-out jack connection.
+Recording on
+.Li pcm0
+will use input from one external microphone and the line-in jacks.
+The
+.Li pcm1
+device will be completely dedicated to a headset (headphones and mic)
+connected to the front connectors.
+.Ss Example 3
+Setting the
+.Xr device.hints 5
+options
+.Bd -literal
+hint.hdac.0.cad0.nid20.config="as=1 seq=0"
+hint.hdac.0.cad0.nid26.config="as=2 seq=0"
+hint.hdac.0.cad0.nid27.config="as=3 seq=0"
+hint.hdac.0.cad0.nid25.config="as=4 seq=0"
+hint.hdac.0.cad0.nid24.config="as=5 seq=0 device=Line-out"
+hint.hdac.0.cad0.nid21.config="as=6 seq=0"
+.Ed
+.Pp
+will give 4 independent devices:
+.Li pcm0
+.Pq line-out and line-in ,
+.Li pcm1
+.Pq headphones and mic ,
+.Li pcm2
+.Pq additional line-out via retasked rear mic jack ,
+and
+.Li pcm3
+.Pq internal speaker .
+.Ss Example 4
+Setting the
+.Xr device.hints 5
+options
+.Bd -literal
+hint.hdac.0.cad0.nid20.config="as=1 seq=0"
+hint.hdac.0.cad0.nid24.config="as=1 seq=1 device=Line-out"
+hint.hdac.0.cad0.nid26.config="as=1 seq=2 device=Line-out"
+hint.hdac.0.cad0.nid21.config="as=2 seq=0"
+.Ed
+.Pp
+will give 2 devices:
+.Li pcm0
+for 5.1 playback via 3 rear connectors (line-out and retasked
+mic and line-in) and headset (headphones and mic) at front connectors.
+.Li pcm1
+for internal speaker playback.
+On headphones connection rear connectors will be muted.
+.Sh MIXER CONTROLS
+Depending on codec configuration, these controls and signal sources could be
+reported to
+.Xr sound 4 :
+.Bl -tag -width ".Va speaker" -offset indent
+.It Va vol
+overall output level (volume)
+.It Va rec
+overall recording level
+.It Va igain
+input-to-output monitoring loopback level
+.It Va ogain
+external amplifier control
+.It Va pcm
+PCM playback
+.It Va mix
+input mix
+.It Va mic
+first external or second internal microphone input
+.It Va monitor
+first internal or second external microphone input
+.It Va line , Va line1 , Va line2 , Va line3
+analog (line) inputs
+.It Va dig1 , Va dig2 , Va dig3
+digital (S/PDIF, HDMI or DisplayPort) inputs
+.It Va cd
+CD input
+.It Va speaker
+PC speaker input
+.It Va phin , Va phout , Va radio , Va video
+other random inputs
+.El
+.Pp
+Controls have different precision.
+Some could be just an on/off triggers.
+Most of controls use logarithmic scale.
+.Sh HARDWARE
+The
+.Nm
+driver supports controllers having PCI class 4 (multimedia) and
+subclass 3 (HDA), compatible with Intel HDA specification.
+.Pp
+The
+.Nm
+driver supports more than two hundred different controllers and CODECs.
+There is no sense to list all of them here, as in most cases specific CODEC
+configuration and wiring are more important then type of the CODEC itself.
+.Sh SEE ALSO
+.Xr snd_ich 4 ,
+.Xr sound 4 ,
+.Xr device.hints 5 ,
+.Xr loader.conf 5 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 6.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Stephane E. Potvin Aq Mt sepotvin@videotron.ca ,
+.An Ariff Abdullah Aq Mt ariff@FreeBSD.org
+and
+.An Alexander Motin Aq Mt mav@FreeBSD.org .
+This manual page was written by
+.An Joel Dahl Aq Mt joel@FreeBSD.org ,
+.An Alexander Motin Aq Mt mav@FreeBSD.org
+and
+.An Giorgos Keramidas Aq Mt keramida@FreeBSD.org .
+.Sh BUGS
+Some Hardware/OEM vendors tend to screw up BIOS settings or use custom
+unusual CODEC wiring that create problems to the driver.
+This may result in missing pcm devices, or a state where the
+.Nm
+driver seems to attach and work, but no sound is played.
+Some cases can be solved by tuning
+.Pa loader.conf
+variables.
+But before trying to fix problem that way, make sure that there really is
+a problem and that the PCM audio device in use really corresponds to the
+expected audio connector.
+.Pp
+Some vendors use non-standardized General Purpose I/O (GPIO) pins of the codec
+to control external amplifiers.
+In some cases setting a combination of GPIO bits may be needed to make
+sound work on a specific device.
+.Pp
+HDMI and DisplayPort audio may also require support from video driver.

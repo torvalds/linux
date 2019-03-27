@@ -1,0 +1,129 @@
+.TH "hx509 error functions" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+hx509 error functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "void \fBhx509_clear_error_string\fP (hx509_context context)"
+.br
+.ti -1c
+.RI "void \fBhx509_set_error_stringv\fP (hx509_context context, int flags, int code, const char *fmt, va_list ap)"
+.br
+.ti -1c
+.RI "void \fBhx509_set_error_string\fP (hx509_context context, int flags, int code, const char *fmt,...)"
+.br
+.ti -1c
+.RI "char * \fBhx509_get_error_string\fP (hx509_context context, int error_code)"
+.br
+.ti -1c
+.RI "void \fBhx509_free_error_string\fP (char *str)"
+.br
+.ti -1c
+.RI "void \fBhx509_err\fP (hx509_context context, int exit_code, int error_code, const char *fmt,...)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+See the \fBHx509 error reporting functions\fP for description and examples. 
+.SH "Function Documentation"
+.PP 
+.SS "void hx509_clear_error_string (hx509_context context)"
+.PP
+Resets the error strings the hx509 context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.RE
+.PP
+
+.SS "void hx509_err (hx509_context context, int exit_code, int error_code, const char * fmt,  ...)"
+.PP
+Print error message and fatally exit from error code
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIexit_code\fP exit() code from process. 
+.br
+\fIerror_code\fP Error code for the reason to exit. 
+.br
+\fIfmt\fP format string with the exit message. 
+.br
+\fI...\fP argument to format string. 
+.RE
+.PP
+
+.SS "void hx509_free_error_string (char * str)"
+.PP
+Free error string returned by \fBhx509_get_error_string()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIstr\fP error string to free. 
+.RE
+.PP
+
+.SS "char* hx509_get_error_string (hx509_context context, int error_code)"
+.PP
+Get an error string from context associated with error_code.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIerror_code\fP Get error message for this error code.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+error string, free with \fBhx509_free_error_string()\fP. 
+.RE
+.PP
+
+.SS "void hx509_set_error_string (hx509_context context, int flags, int code, const char * fmt,  ...)"
+.PP
+See \fBhx509_set_error_stringv()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIflags\fP 
+.IP "\(bu" 2
+HX509_ERROR_APPEND appends the error string to the old messages (code is updated). 
+.PP
+.br
+\fIcode\fP error code related to error message 
+.br
+\fIfmt\fP error message format 
+.br
+\fI...\fP arguments to error message format 
+.RE
+.PP
+
+.SS "void hx509_set_error_stringv (hx509_context context, int flags, int code, const char * fmt, va_list ap)"
+.PP
+Add an error message to the hx509 context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIflags\fP 
+.IP "\(bu" 2
+HX509_ERROR_APPEND appends the error string to the old messages (code is updated). 
+.PP
+.br
+\fIcode\fP error code related to error message 
+.br
+\fIfmt\fP error message format 
+.br
+\fIap\fP arguments to error message format 
+.RE
+.PP
+

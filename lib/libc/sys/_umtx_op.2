@@ -1,0 +1,1437 @@
+.\" Copyright (c) 2016 The FreeBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 13, 2017
+.Dt _UMTX_OP 2
+.Os
+.Sh NAME
+.Nm _umtx_op
+.Nd interface for implementation of userspace threading synchronization primitives
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/umtx.h
+.Ft int
+.Fn _umtx_op "void *obj" "int op" "u_long val" "void *uaddr" "void *uaddr2"
+.Sh DESCRIPTION
+The
+.Fn _umtx_op
+system call provides kernel support for userspace implementation of
+the threading synchronization primitives.
+The
+.Lb libthr
+uses the syscall to implement
+.St -p1003.1-2001
+pthread locks, like mutexes, condition variables and so on.
+.Ss STRUCTURES
+The operations, performed by the
+.Fn _umtx_op
+syscall, operate on userspace objects which are described
+by the following structures.
+Reserved fields and paddings are omitted.
+All objects require ABI-mandated alignment, but this is not currently
+enforced consistently on all architectures.
+.Pp
+The following flags are defined for flag fields of all structures:
+.Bl -tag -width indent
+.It Dv USYNC_PROCESS_SHARED
+Allow selection of the process-shared sleep queue for the thread sleep
+container, when the lock ownership cannot be granted immediately,
+and the operation must sleep.
+The process-shared or process-private sleep queue is selected based on
+the attributes of the memory mapping which contains the first byte of
+the structure, see
+.Xr mmap 2 .
+Otherwise, if the flag is not specified, the process-private sleep queue
+is selected regardless of the memory mapping attributes, as an optimization.
+.Pp
+See the
+.Sx SLEEP QUEUES
+subsection below for more details on sleep queues.
+.El
+.Bl -hang -offset indent
+.It Sy Mutex
+.Bd -literal
+struct umutex {
+	volatile lwpid_t m_owner;
+	uint32_t         m_flags;
+	uint32_t         m_ceilings[2];
+	uintptr_t        m_rb_lnk;
+};
+.Ed
+.Pp
+The
+.Dv m_owner
+field is the actual lock.
+It contains either the thread identifier of the lock owner in the
+locked state, or zero when the lock is unowned.
+The highest bit set indicates that there is contention on the lock.
+The constants are defined for special values:
+.Bl -tag -width indent
+.It Dv UMUTEX_UNOWNED
+Zero, the value stored in the unowned lock.
+.It Dv UMUTEX_CONTESTED
+The contenion indicator.
+.It Dv UMUTEX_RB_OWNERDEAD
+A thread owning the robust mutex terminated.
+The mutex is in unlocked state.
+.It Dv UMUTEX_RB_NOTRECOV
+The robust mutex is in a non-recoverable state.
+It cannot be locked until reinitialized.
+.El
+.Pp
+The
+.Dv m_flags
+field may contain the following umutex-specific flags, in addition to
+the common flags:
+.Bl -tag -width indent
+.It Dv UMUTEX_PRIO_INHERIT
+Mutex implements
+.Em Priority Inheritance
+protocol.
+.It Dv UMUTEX_PRIO_PROTECT
+Mutex implements
+.Em Priority Protection
+protocol.
+.It Dv UMUTEX_ROBUST
+Mutex is robust, as described in the
+.Sx ROBUST UMUTEXES
+section below.
+.It Dv UMUTEX_NONCONSISTENT
+Robust mutex is in a transient non-consistent state.
+Not used by kernel.
+.El
+.Pp
+In the manual page, mutexes not having
+.Dv UMUTEX_PRIO_INHERIT
+and
+.Dv UMUTEX_PRIO_PROTECT
+flags set, are called normal mutexes.
+Each type of mutex
+.Pq normal, priority-inherited, and priority-protected
+has a separate sleep queue associated
+with the given key.
+.Pp
+For priority protected mutexes, the
+.Dv m_ceilings
+array contains priority ceiling values.
+The
+.Dv m_ceilings[0]
+is the ceiling value for the mutex, as specified by
+.St -p1003.1-2008
+for the
+.Em Priority Protected
+mutex protocol.
+The
+.Dv m_ceilings[1]
+is used only for the unlock of a priority protected mutex, when
+unlock is done in an order other than the reversed lock order.
+In this case,
+.Dv m_ceilings[1]
+must contain the ceiling value for the last locked priority protected
+mutex, for proper priority reassignment.
+If, instead, the unlocking mutex was the last priority propagated
+mutex locked by the thread,
+.Dv m_ceilings[1]
+should contain \-1.
+This is required because kernel does not maintain the ordered lock list.
+.It Sy Condition variable
+.Bd -literal
+struct ucond {
+	volatile uint32_t c_has_waiters;
+	uint32_t          c_flags;
+	uint32_t          c_clockid;
+};
+.Ed
+.Pp
+A non-zero
+.Dv c_has_waiters
+value indicates that there are in-kernel waiters for the condition,
+executing the
+.Dv UMTX_OP_CV_WAIT
+request.
+.Pp
+The
+.Dv c_flags
+field contains flags.
+Only the common flags
+.Pq Dv USYNC_PROCESS_SHARED
+are defined for ucond.
+.Pp
+The
+.Dv c_clockid
+member provides the clock identifier to use for timeout, when the
+.Dv UMTX_OP_CV_WAIT
+request has both the
+.Dv CVWAIT_CLOCKID
+flag and the timeout specified.
+Valid clock identifiers are a subset of those for
+.Xr clock_gettime 2 :
+.Bl -bullet -compact
+.It
+.Dv CLOCK_MONOTONIC
+.It
+.Dv CLOCK_MONOTONIC_FAST
+.It
+.Dv CLOCK_MONOTONIC_PRECISE
+.It
+.Dv CLOCK_PROF
+.It
+.Dv CLOCK_REALTIME
+.It
+.Dv CLOCK_REALTIME_FAST
+.It
+.Dv CLOCK_REALTIME_PRECISE
+.It
+.Dv CLOCK_SECOND
+.It
+.Dv CLOCK_UPTIME
+.It
+.Dv CLOCK_UPTIME_FAST
+.It
+.Dv CLOCK_UPTIME_PRECISE
+.It
+.Dv CLOCK_VIRTUAL
+.El
+.It Sy Reader/writer lock
+.Bd -literal
+struct urwlock {
+	volatile int32_t rw_state;
+	uint32_t         rw_flags;
+	uint32_t         rw_blocked_readers;
+	uint32_t         rw_blocked_writers;
+};
+.Ed
+.Pp
+The
+.Dv rw_state
+field is the actual lock.
+It contains both the flags and counter of the read locks which were
+granted.
+Names of the
+.Dv rw_state
+bits are following:
+.Bl -tag -width indent
+.It Dv URWLOCK_WRITE_OWNER
+Write lock was granted.
+.It Dv URWLOCK_WRITE_WAITERS
+There are write lock waiters.
+.It Dv URWLOCK_READ_WAITERS
+There are read lock waiters.
+.It Dv URWLOCK_READER_COUNT(c)
+Returns the count of currently granted read locks.
+.El
+.Pp
+At any given time there may be only one thread to which the writer lock
+is granted on the
+.Vt struct rwlock ,
+and no threads are granted read lock.
+Or, at the given time, up to
+.Dv URWLOCK_MAX_READERS
+threads may be granted the read lock simultaneously, but write lock is
+not granted to any thread.
+.Pp
+The following flags for the
+.Dv rw_flags
+member of
+.Vt struct urwlock
+are defined, in addition to the common flags:
+.Bl -tag -width indent
+.It Dv URWLOCK_PREFER_READER
+If specified, immediately grant read lock requests when
+.Dv urwlock
+is already read-locked, even in presence of unsatisfied write
+lock requests.
+By default, if there is a write lock waiter, further read requests are
+not granted, to prevent unfair write lock waiter starvation.
+.El
+.Pp
+The
+.Dv rw_blocked_readers
+and
+.Dv rw_blocked_writers
+members contain the count of threads which are sleeping in kernel,
+waiting for the associated request type to be granted.
+The fields are used by kernel to update the
+.Dv URWLOCK_READ_WAITERS
+and
+.Dv URWLOCK_WRITE_WAITERS
+flags of the
+.Dv rw_state
+lock after requesting thread was woken up.
+.It Sy Semaphore
+.Bd -literal
+struct _usem2 {
+	volatile uint32_t _count;
+	uint32_t          _flags;
+};
+.Ed
+.Pp
+The
+.Dv _count
+word represents a counting semaphore.
+A non-zero value indicates an unlocked (posted) semaphore, while zero
+represents the locked state.
+The maximal supported semaphore count is
+.Dv USEM_MAX_COUNT .
+.Pp
+The
+.Dv _count
+word, besides the counter of posts (unlocks), also contains the
+.Dv USEM_HAS_WAITERS
+bit, which indicates that locked semaphore has waiting threads.
+.Pp
+The
+.Dv USEM_COUNT()
+macro, applied to the
+.Dv _count
+word, returns the current semaphore counter, which is the number of posts
+issued on the semaphore.
+.Pp
+The following bits for the
+.Dv _flags
+member of
+.Vt struct _usem2
+are defined, in addition to the common flags:
+.Bl -tag -width indent
+.It Dv USEM_NAMED
+Flag is ignored by kernel.
+.El
+.It Sy Timeout parameter
+.Bd -literal
+struct _umtx_time {
+	struct timespec _timeout;
+	uint32_t        _flags;
+	uint32_t        _clockid;
+};
+.Ed
+.Pp
+Several
+.Fn _umtx_op
+operations allow the blocking time to be limited, failing the request
+if it cannot be satisfied in the specified time period.
+The timeout is specified by passing either the address of
+.Vt struct timespec ,
+or its extended variant,
+.Vt struct _umtx_time ,
+as the
+.Fa uaddr2
+argument of
+.Fn _umtx_op .
+They are distinguished by the
+.Fa uaddr
+value, which must be equal to the size of the structure pointed to by
+.Fa uaddr2 ,
+casted to
+.Vt uintptr_t .
+.Pp
+The
+.Dv _timeout
+member specifies the time when the timeout should occur.
+Legal values for clock identifier
+.Dv _clockid
+are shared with the
+.Fa clock_id
+argument to the
+.Xr clock_gettime 2
+function,
+and use the same underlying clocks.
+The specified clock is used to obtain the current time value.
+Interval counting is always performed by the monotonic wall clock.
+.Pp
+The
+.Dv _flags
+argument allows the following flags to further define the timeout behaviour:
+.Bl -tag -width indent
+.It Dv UMTX_ABSTIME
+The
+.Dv _timeout
+value is the absolute time.
+The thread will be unblocked and the request failed when specified
+clock value is equal or exceeds the
+.Dv _timeout.
+.Pp
+If the flag is absent, the timeout value is relative, that is the amount
+of time, measured by the monotonic wall clock from the moment of the request
+start.
+.El
+.El
+.Ss SLEEP QUEUES
+When a locking request cannot be immediately satisfied, the thread is
+typically put to
+.Em sleep ,
+which is a non-runnable state terminated by the
+.Em wake
+operation.
+Lock operations include a
+.Em try
+variant which returns an error rather than sleeping if the lock cannot
+be obtained.
+Also,
+.Fn _umtx_op
+provides requests which explicitly put the thread to sleep.
+.Pp
+Wakes need to know which threads to make runnable, so sleeping threads
+are grouped into containers called
+.Em sleep queues .
+A sleep queue is identified by a key, which for
+.Fn _umtx_op
+is defined as the physical address of some variable.
+Note that the
+.Em physical
+address is used, which means that same variable mapped multiple
+times will give one key value.
+This mechanism enables the construction of
+.Em process-shared
+locks.
+.Pp
+A related attribute of the key is shareability.
+Some requests always interpret keys as private for the current process,
+creating sleep queues with the scope of the current process even if
+the memory is shared.
+Others either select the shareability automatically from the
+mapping attributes, or take additional input as the
+.Dv USYNC_PROCESS_SHARED
+common flag.
+This is done as optimization, allowing the lock scope to be limited
+regardless of the kind of backing memory.
+.Pp
+Only the address of the start byte of the variable specified as key is
+important for determining corresponding sleep queue.
+The size of the variable does not matter, so, for example, sleep on the same
+address interpeted as
+.Vt uint32_t
+and
+.Vt long
+on a little-endian 64-bit platform would collide.
+.Pp
+The last attribute of the key is the object type.
+The sleep queue to which a sleeping thread is assigned is an individual
+one for simple wait requests, mutexes, rwlocks, condvars and other
+primitives, even when the physical address of the key is same.
+.Pp
+When waking up a limited number of threads from a given sleep queue,
+the highest priority threads that have been blocked for the longest on
+the queue are selected.
+.Ss ROBUST UMUTEXES
+The
+.Em robust umutexes
+are provided as a substrate for a userspace library to implement
+.Tn POSIX
+robust mutexes.
+A robust umutex must have the
+.Dv UMUTEX_ROBUST
+flag set.
+.Pp
+On thread termination, the kernel walks two lists of mutexes.
+The two lists head addresses must be provided by a prior call to
+.Dv UMTX_OP_ROBUST_LISTS
+request.
+The lists are singly-linked.
+The link to next element is provided by the
+.Dv m_rb_lnk
+member of the
+.Vt struct umutex .
+.Pp
+Robust list processing is aborted if the kernel finds a mutex
+with any of the following conditions:
+.Bl -dash -offset indent -compact
+.It
+the
+.Dv UMUTEX_ROBUST
+flag is not set
+.It
+not owned by the current thread, except when the mutex is pointed to
+by the
+.Dv robust_inactive
+member of the
+.Vt struct umtx_robust_lists_params ,
+registered for the current thread
+.It
+the combination of mutex flags is invalid
+.It
+read of the umutex memory faults
+.It
+the list length limit described in
+.Xr libthr 3
+is reached.
+.El
+.Pp
+Every mutex in both lists is unlocked as if the
+.Dv UMTX_OP_MUTEX_UNLOCK
+request is performed on it, but instead of the
+.Dv UMUTEX_UNOWNED
+value, the
+.Dv m_owner
+field is written with the
+.Dv UMUTEX_RB_OWNERDEAD
+value.
+When a mutex in the
+.Dv UMUTEX_RB_OWNERDEAD
+state is locked by kernel due to the
+.Dv UMTX_OP_MUTEX_TRYLOCK
+and
+.Dv UMTX_OP_MUTEX_LOCK
+requests, the lock is granted and
+.Er EOWNERDEAD
+error is returned.
+.Pp
+Also, the kernel handles the
+.Dv UMUTEX_RB_NOTRECOV
+value of
+.Dv the m_owner
+field specially, always returning the
+.Er ENOTRECOVERABLE
+error for lock attempts, without granting the lock.
+.Ss OPERATIONS
+The following operations, requested by the
+.Fa op
+argument to the function, are implemented:
+.Bl -tag -width indent
+.It Dv UMTX_OP_WAIT
+Wait.
+The arguments for the request are:
+.Bl -tag -width "obj"
+.It Fa obj
+Pointer to a variable of type
+.Vt long .
+.It Fa val
+Current value of the
+.Dv *obj .
+.El
+.Pp
+The current value of the variable pointed to by the
+.Fa obj
+argument is compared with the
+.Fa val .
+If they are equal, the requesting thread is put to interruptible sleep
+until woken up or the optionally specified timeout expires.
+.Pp
+The comparison and sleep are atomic.
+In other words, if another thread writes a new value to
+.Dv *obj
+and then issues
+.Dv UMTX_OP_WAKE ,
+the request is guaranteed to not miss the wakeup,
+which might otherwise happen between comparison and blocking.
+.Pp
+The physical address of memory where the
+.Fa *obj
+variable is located, is used as a key to index sleeping threads.
+.Pp
+The read of the current value of the
+.Dv *obj
+variable is not guarded by barriers.
+In particular, it is the user's duty to ensure the lock acquire
+and release memory semantics, if the
+.Dv UMTX_OP_WAIT
+and
+.Dv UMTX_OP_WAKE
+requests are used as a substrate for implementing a simple lock.
+.Pp
+The request is not restartable.
+An unblocked signal delivered during the wait always results in sleep
+interruption and
+.Er EINTR
+error.
+.Pp
+Optionally, a timeout for the request may be specified.
+.It Dv UMTX_OP_WAKE
+Wake the threads possibly sleeping due to
+.Dv UMTX_OP_WAIT .
+The arguments for the request are:
+.Bl -tag -width "obj"
+.It Fa obj
+Pointer to a variable, used as a key to find sleeping threads.
+.It Fa val
+Up to
+.Fa val
+threads are woken up by this request.
+Specify
+.Dv INT_MAX
+to wake up all waiters.
+.El
+.It Dv UMTX_OP_MUTEX_TRYLOCK
+Try to lock umutex.
+The arguments to the request are:
+.Bl -tag -width "obj"
+.It Fa obj
+Pointer to the umutex.
+.El
+.Pp
+Operates same as the
+.Dv UMTX_OP_MUTEX_LOCK
+request, but returns
+.Er EBUSY
+instead of sleeping if the lock cannot be obtained immediately.
+.It Dv UMTX_OP_MUTEX_LOCK
+Lock umutex.
+The arguments to the request are:
+.Bl -tag -width "obj"
+.It Fa obj
+Pointer to the umutex.
+.El
+.Pp
+Locking is performed by writing the current thread id into the
+.Dv m_owner
+word of the
+.Vt struct umutex .
+The write is atomic, preserves the
+.Dv UMUTEX_CONTESTED
+contention indicator, and provides the acquire barrier for
+lock entrance semantic.
+.Pp
+If the lock cannot be obtained immediately because another thread owns
+the lock, the current thread is put to sleep, with
+.Dv UMUTEX_CONTESTED
+bit set before.
+Upon wake up, the lock conditions are re-tested.
+.Pp
+The request adheres to the priority protection or inheritance protocol
+of the mutex, specified by the
+.Dv UMUTEX_PRIO_PROTECT
+or
+.Dv UMUTEX_PRIO_INHERIT
+flag, respectively.
+.Pp
+Optionally, a timeout for the request may be specified.
+.Pp
+A request with a timeout specified is not restartable.
+An unblocked signal delivered during the wait always results in sleep
+interruption and
+.Er EINTR
+error.
+A request without timeout specified is always restarted after return
+from a signal handler.
+.It Dv UMTX_OP_MUTEX_UNLOCK
+Unlock umutex.
+The arguments to the request are:
+.Bl -tag -width "obj"
+.It Fa obj
+Pointer to the umutex.
+.El
+.Pp
+Unlocks the mutex, by writing
+.Dv UMUTEX_UNOWNED
+(zero) value into
+.Dv m_owner
+word of the
+.Vt struct umutex .
+The write is done with a release barrier, to provide lock leave semantic.
+.Pp
+If there are threads sleeping in the sleep queue associated with the
+umutex, one thread is woken up.
+If more than one thread sleeps in the sleep queue, the
+.Dv UMUTEX_CONTESTED
+bit is set together with the write of the
+.Dv UMUTEX_UNOWNED
+value into
+.Dv m_owner .
+.Pp
+The request adheres to the priority protection or inheritance protocol
+of the mutex, specified by the
+.Dv UMUTEX_PRIO_PROTECT
+or
+.Dv UMUTEX_PRIO_INHERIT
+flag, respectively.
+See description of the
+.Dv m_ceilings
+member of the
+.Vt struct umutex
+structure for additional details of the request operation on the
+priority protected protocol mutex.
+.It Dv UMTX_OP_SET_CEILING
+Set ceiling for the priority protected umutex.
+The arguments to the request are:
+.Bl -tag -width "uaddr"
+.It Fa obj
+Pointer to the umutex.
+.It Fa val
+New ceiling value.
+.It Fa uaddr
+Address of a variable of type
+.Vt uint32_t .
+If not
+.Dv NULL
+and the update was successful, the previous ceiling value is
+written to the location pointed to by
+.Fa uaddr .
+.El
+.Pp
+The request locks the umutex pointed to by the
+.Fa obj
+parameter, waiting for the lock if not immediately available.
+After the lock is obtained, the new ceiling value
+.Fa val
+is written to the
+.Dv m_ceilings[0]
+member of the
+.Vt struct umutex,
+after which the umutex is unlocked.
+.Pp
+The locking does not adhere to the priority protect protocol,
+to conform to the
+.Tn POSIX
+requirements for the
+.Xr pthread_mutex_setprioceiling 3
+interface.
+.It Dv UMTX_OP_CV_WAIT
+Wait for a condition.
+The arguments to the request are:
+.Bl -tag -width "uaddr2"
+.It Fa obj
+Pointer to the
+.Vt struct ucond .
+.It Fa val
+Request flags, see below.
+.It Fa uaddr
+Pointer to the umutex.
+.It Fa uaddr2
+Optional pointer to a
+.Vt struct timespec
+for timeout specification.
+.El
+.Pp
+The request must be issued by the thread owning the mutex pointed to
+by the
+.Fa uaddr
+argument.
+The
+.Dv c_hash_waiters
+member of the
+.Vt struct ucond ,
+pointed to by the
+.Fa obj
+argument, is set to an arbitrary non-zero value, after which the
+.Fa uaddr
+mutex is unlocked (following the appropriate protocol), and
+the current thread is put to sleep on the sleep queue keyed by
+the
+.Fa obj
+argument.
+The operations are performed atomically.
+It is guaranteed to not miss a wakeup from
+.Dv UMTX_OP_CV_SIGNAL
+or
+.Dv UMTX_OP_CV_BROADCAST
+sent between mutex unlock and putting the current thread on the sleep queue.
+.Pp
+Upon wakeup, if the timeout expired and no other threads are sleeping in
+the same sleep queue, the
+.Dv c_hash_waiters
+member is cleared.
+After wakeup, the
+.Fa uaddr
+umutex is not relocked.
+.Pp
+The following flags are defined:
+.Bl -tag -width "CVWAIT_CLOCKID"
+.It Dv CVWAIT_ABSTIME
+Timeout is absolute.
+.It Dv CVWAIT_CLOCKID
+Clockid is provided.
+.El
+.Pp
+Optionally, a timeout for the request may be specified.
+Unlike other requests, the timeout value is specified directly by a
+.Vt struct timespec ,
+pointed to by the
+.Fa uaddr2
+argument.
+If the
+.Dv CVWAIT_CLOCKID
+flag is provided, the timeout uses the clock from the
+.Dv c_clockid
+member of the
+.Vt struct ucond ,
+pointed to by
+.Fa obj
+argument.
+Otherwise,
+.Dv CLOCK_REALTIME
+is used, regardless of the clock identifier possibly specified in the
+.Vt struct _umtx_time .
+If the
+.Dv CVWAIT_ABSTIME
+flag is supplied, the timeout specifies absolute time value, otherwise
+it denotes a relative time interval.
+.Pp
+The request is not restartable.
+An unblocked signal delivered during
+the wait always results in sleep interruption and
+.Er EINTR
+error.
+.It Dv UMTX_OP_CV_SIGNAL
+Wake up one condition waiter.
+The arguments to the request are:
+.Bl -tag -width "obj"
+.It Fa obj
+Pointer to
+.Vt struct ucond .
+.El
+.Pp
+The request wakes up at most one thread sleeping on the sleep queue keyed
+by the
+.Fa obj
+argument.
+If the woken up thread was the last on the sleep queue, the
+.Dv c_has_waiters
+member of the
+.Vt struct ucond
+is cleared.
+.It Dv UMTX_OP_CV_BROADCAST
+Wake up all condition waiters.
+The arguments to the request are:
+.Bl -tag -width "obj"
+.It Fa obj
+Pointer to
+.Vt struct ucond .
+.El
+.Pp
+The request wakes up all threads sleeping on the sleep queue keyed by the
+.Fa obj
+argument.
+The
+.Dv c_has_waiters
+member of the
+.Vt struct ucond
+is cleared.
+.It Dv UMTX_OP_WAIT_UINT
+Same as
+.Dv UMTX_OP_WAIT ,
+but the type of the variable pointed to by
+.Fa obj
+is
+.Vt u_int
+.Pq a 32-bit integer .
+.It Dv UMTX_OP_RW_RDLOCK
+Read-lock a
+.Vt struct rwlock
+lock.
+The arguments to the request are:
+.Bl -tag -width "obj"
+.It Fa obj
+Pointer to the lock (of type
+.Vt struct rwlock )
+to be read-locked.
+.It Fa val
+Additional flags to augment locking behaviour.
+The valid flags in the
+.Fa val
+argument are:
+.Bl -tag -width indent
+.It Dv URWLOCK_PREFER_READER
+.El
+.El
+.Pp
+The request obtains the read lock on the specified
+.Vt struct rwlock
+by incrementing the count of readers in the
+.Dv rw_state
+word of the structure.
+If the
+.Dv URWLOCK_WRITE_OWNER
+bit is set in the word
+.Dv rw_state ,
+the lock was granted to a writer which has not yet relinquished
+its ownership.
+In this case the current thread is put to sleep until it makes sense to
+retry.
+.Pp
+If the
+.Dv URWLOCK_PREFER_READER
+flag is set either in the
+.Dv rw_flags
+word of the structure, or in the
+.Fa val
+argument of the request, the presence of the threads trying to obtain
+the write lock on the same structure does not prevent the current thread
+from trying to obtain the read lock.
+Otherwise, if the flag is not set, and the
+.Dv URWLOCK_WRITE_WAITERS
+flag is set in
+.Dv rw_state ,
+the current thread does not attempt to obtain read-lock.
+Instead it sets the
+.Dv URWLOCK_READ_WAITERS
+in the
+.Dv rw_state
+word and puts itself to sleep on corresponding sleep queue.
+Upon wakeup, the locking conditions are re-evaluated.
+.Pp
+Optionally, a timeout for the request may be specified.
+.Pp
+The request is not restartable.
+An unblocked signal delivered during the wait always results in sleep
+interruption and
+.Er EINTR
+error.
+.It Dv UMTX_OP_RW_WRLOCK
+Write-lock a
+.Vt struct rwlock
+lock.
+The arguments to the request are:
+.Bl -tag -width "obj"
+.It Fa obj
+Pointer to the lock (of type
+.Vt struct rwlock )
+to be write-locked.
+.El
+.Pp
+The request obtains a write lock on the specified
+.Vt struct rwlock ,
+by setting the
+.Dv URWLOCK_WRITE_OWNER
+bit in the
+.Dv rw_state
+word of the structure.
+If there is already a write lock owner, as indicated by the
+.Dv URWLOCK_WRITE_OWNER
+bit being set, or there are read lock owners, as indicated
+by the read-lock counter, the current thread does not attempt to
+obtain the write-lock.
+Instead it sets the
+.Dv URWLOCK_WRITE_WAITERS
+in the
+.Dv rw_state
+word and puts itself to sleep on corresponding sleep queue.
+Upon wakeup, the locking conditions are re-evaluated.
+.Pp
+Optionally, a timeout for the request may be specified.
+.Pp
+The request is not restartable.
+An unblocked signal delivered during the wait always results in sleep
+interruption and
+.Er EINTR
+error.
+.It Dv UMTX_OP_RW_UNLOCK
+Unlock rwlock.
+The arguments to the request are:
+.Bl -tag -width "obj"
+.It Fa obj
+Pointer to the lock (of type
+.Vt struct rwlock )
+to be unlocked.
+.El
+.Pp
+The unlock type (read or write) is determined by the
+current lock state.
+Note that the
+.Vt struct rwlock
+does not save information about the identity of the thread which
+acquired the lock.
+.Pp
+If there are pending writers after the unlock, and the
+.Dv URWLOCK_PREFER_READER
+flag is not set in the
+.Dv rw_flags
+member of the
+.Fa *obj
+structure, one writer is woken up, selected as described in the
+.Sx SLEEP QUEUES
+subsection.
+If the
+.Dv URWLOCK_PREFER_READER
+flag is set, a pending writer is woken up only if there is
+no pending readers.
+.Pp
+If there are no pending writers, or, in the case that the
+.Dv URWLOCK_PREFER_READER
+flag is set, then all pending readers are woken up by unlock.
+.It Dv UMTX_OP_WAIT_UINT_PRIVATE
+Same as
+.Dv UMTX_OP_WAIT_UINT ,
+but unconditionally select the process-private sleep queue.
+.It Dv UMTX_OP_WAKE_PRIVATE
+Same as
+.Dv UMTX_OP_WAKE ,
+but unconditionally select the process-private sleep queue.
+.It Dv UMTX_OP_MUTEX_WAIT
+Wait for mutex availability.
+The arguments to the request are:
+.Bl -tag -width "obj"
+.It Fa obj
+Address of the mutex.
+.El
+.Pp
+Similarly to the
+.Dv UMTX_OP_MUTEX_LOCK ,
+put the requesting thread to sleep if the mutex lock cannot be obtained
+immediately.
+The
+.Dv UMUTEX_CONTESTED
+bit is set in the
+.Dv m_owner
+word of the mutex to indicate that there is a waiter, before the thread
+is added to the sleep queue.
+Unlike the
+.Dv UMTX_OP_MUTEX_LOCK
+request, the lock is not obtained.
+.Pp
+The operation is not implemented for priority protected and
+priority inherited protocol mutexes.
+.Pp
+Optionally, a timeout for the request may be specified.
+.Pp
+A request with a timeout specified is not restartable.
+An unblocked signal delivered during the wait always results in sleep
+interruption and
+.Er EINTR
+error.
+A request without a timeout automatically restarts if the signal disposition
+requested restart via the
+.Dv SA_RESTART
+flag in
+.Vt struct sigaction
+member
+.Dv sa_flags .
+.It Dv UMTX_OP_NWAKE_PRIVATE
+Wake up a batch of sleeping threads.
+The arguments to the request are:
+.Bl -tag -width "obj"
+.It Fa obj
+Pointer to the array of pointers.
+.It Fa val
+Number of elements in the array pointed to by
+.Fa obj .
+.El
+.Pp
+For each element in the array pointed to by
+.Fa obj ,
+wakes up all threads waiting on the
+.Em private
+sleep queue with the key
+being the byte addressed by the array element.
+.It Dv UMTX_OP_MUTEX_WAKE
+Check if a normal umutex is unlocked and wake up a waiter.
+The arguments for the request are:
+.Bl -tag -width "obj"
+.It Fa obj
+Pointer to the umutex.
+.El
+.Pp
+If the
+.Dv m_owner
+word of the mutex pointed to by the
+.Fa obj
+argument indicates unowned mutex, which has its contention indicator bit
+.Dv UMUTEX_CONTESTED
+set, clear the bit and wake up one waiter in the sleep queue associated
+with the byte addressed by the
+.Fa obj ,
+if any.
+Only normal mutexes are supported by the request.
+The sleep queue is always one for a normal mutex type.
+.Pp
+This request is deprecated in favor of
+.Dv UMTX_OP_MUTEX_WAKE2
+since mutexes using it cannot synchronize their own destruction.
+That is, the
+.Dv m_owner
+word has already been set to
+.Dv UMUTEX_UNOWNED
+when this request is made,
+so that another thread can lock, unlock and destroy the mutex
+(if no other thread uses the mutex afterwards).
+Clearing the
+.Dv UMUTEX_CONTESTED
+bit may then modify freed memory.
+.It Dv UMTX_OP_MUTEX_WAKE2
+Check if a umutex is unlocked and wake up a waiter.
+The arguments for the request are:
+.Bl -tag -width "obj"
+.It Fa obj
+Pointer to the umutex.
+.It Fa val
+The umutex flags.
+.El
+.Pp
+The request does not read the
+.Dv m_flags
+member of the
+.Vt struct umutex ;
+instead, the
+.Fa val
+argument supplies flag information, in particular, to determine the
+sleep queue where the waiters are found for wake up.
+.Pp
+If the mutex is unowned, one waiter is woken up.
+.Pp
+If the mutex memory cannot be accessed, all waiters are woken up.
+.Pp
+If there is more than one waiter on the sleep queue, or there is only
+one waiter but the mutex is owned by a thread, the
+.Dv UMUTEX_CONTESTED
+bit is set in the
+.Dv m_owner
+word of the
+.Vt struct umutex .
+.It Dv UMTX_OP_SEM2_WAIT
+Wait until semaphore is available.
+The arguments to the request are:
+.Bl -tag -width "obj"
+.It Fa obj
+Pointer to the semaphore (of type
+.Vt struct _usem2 ) .
+.El
+.Pp
+Put the requesting thread onto a sleep queue if the semaphore counter
+is zero.
+If the thread is put to sleep, the
+.Dv USEM_HAS_WAITERS
+bit is set in the
+.Dv _count
+word to indicate waiters.
+The function returns either due to
+.Dv _count
+indicating the semaphore is available (non-zero count due to post),
+or due to a wakeup.
+The return does not guarantee that the semaphore is available,
+nor does it consume the semaphore lock on successful return.
+.Pp
+Optionally, a timeout for the request may be specified.
+.Pp
+A request with non-absolute timeout value is not restartable.
+An unblocked signal delivered during such wait results in sleep
+interruption and
+.Er EINTR
+error.
+.It Dv UMTX_OP_SEM2_WAKE
+Wake up waiters on semaphore lock.
+The arguments to the request are:
+.Bl -tag -width "obj"
+.It Fa obj
+Pointer to the semaphore (of type
+.Vt struct _usem2 ) .
+.El
+.Pp
+The request wakes up one waiter for the semaphore lock.
+The function does not increment the semaphore lock count.
+If the
+.Dv USEM_HAS_WAITERS
+bit was set in the
+.Dv _count
+word, and the last sleeping thread was woken up, the bit is cleared.
+.It Dv UMTX_OP_SHM
+Manage anonymous
+.Tn POSIX
+shared memory objects (see
+.Xr shm_open 2 ) ,
+which can be attached to a byte of physical memory, mapped into the
+process address space.
+The objects are used to implement process-shared locks in
+.Dv libthr .
+.Pp
+The
+.Fa val
+argument specifies the sub-request of the
+.Dv UMTX_OP_SHM
+request:
+.Bl -tag -width indent
+.It Dv UMTX_SHM_CREAT
+Creates the anonymous shared memory object, which can be looked up
+with the specified key
+.Fa uaddr.
+If the object associated with the
+.Fa uaddr
+key already exists, it is returned instead of creating a new object.
+The object's size is one page.
+On success, the file descriptor referencing the object is returned.
+The descriptor can be used for mapping the object using
+.Xr mmap 2 ,
+or for other shared memory operations.
+.It Dv UMTX_SHM_LOOKUP
+Same as
+.Dv UMTX_SHM_CREATE
+request, but if there is no shared memory object associated with
+the specified key
+.Fa uaddr ,
+an error is returned, and no new object is created.
+.It Dv UMTX_SHM_DESTROY
+De-associate the shared object with the specified key
+.Fa uaddr.
+The object is destroyed after the last open file descriptor is closed
+and the last mapping for it is destroyed.
+.It Dv UMTX_SHM_ALIVE
+Checks whether there is a live shared object associated with the
+supplied key
+.Fa uaddr .
+Returns zero if there is, and an error otherwise.
+This request is an optimization of the
+.Dv UMTX_SHM_LOOKUP
+request.
+It is cheaper when only the liveness of the associated object is asked
+for, since no file descriptor is installed in the process fd table
+on success.
+.El
+.Pp
+The
+.Fa uaddr
+argument specifies the virtual address, which backing physical memory
+byte identity is used as a key for the anonymous shared object
+creation or lookup.
+.It Dv UMTX_OP_ROBUST_LISTS
+Register the list heads for the current thread's robust mutex lists.
+The arguments to the request are:
+.Bl -tag -width "uaddr"
+.It Fa val
+Size of the structure passed in the
+.Fa uaddr
+argument.
+.It Fa uaddr
+Pointer to the structure of type
+.Vt struct umtx_robust_lists_params .
+.El
+.Pp
+The structure is defined as
+.Bd -literal
+struct umtx_robust_lists_params {
+	uintptr_t	robust_list_offset;
+	uintptr_t	robust_priv_list_offset;
+	uintptr_t	robust_inact_offset;
+};
+.Ed
+.Pp
+The
+.Dv robust_list_offset
+member contains address of the first element in the list of locked
+robust shared mutexes.
+The
+.Dv robust_priv_list_offset
+member contains address of the first element in the list of locked
+robust private mutexes.
+The private and shared robust locked lists are split to allow fast
+termination of the shared list on fork, in the child.
+.Pp
+The
+.Dv robust_inact_offset
+contains a pointer to the mutex which might be locked in nearby future,
+or might have been just unlocked.
+It is typically set by the lock or unlock mutex implementation code
+around the whole operation, since lists can be only changed race-free
+when the thread owns the mutex.
+The kernel inspects the
+.Dv robust_inact_offset
+in addition to walking the shared and private lists.
+Also, the mutex pointed to by
+.Dv robust_inact_offset
+is handled more loosely at the thread termination time,
+than other mutexes on the list.
+That mutex is allowed to be not owned by the current thread,
+in which case list processing is continued.
+See
+.Sx ROBUST UMUTEXES
+subsection for details.
+.El
+.Sh RETURN VALUES
+If successful,
+all requests, except
+.Dv UMTX_SHM_CREAT
+and
+.Dv UMTX_SHM_LOOKUP
+sub-requests of the
+.Dv UMTX_OP_SHM
+request, will return zero.
+The
+.Dv UMTX_SHM_CREAT
+and
+.Dv UMTX_SHM_LOOKUP
+return a shared memory file descriptor on success.
+On error \-1 is returned, and the
+.Va errno
+variable is set to indicate the error.
+.Sh ERRORS
+The
+.Fn _umtx_op
+operations can fail with the following errors:
+.Bl -tag -width "[ETIMEDOUT]"
+.It Bq Er EFAULT
+One of the arguments point to invalid memory.
+.It Bq Er EINVAL
+The clock identifier, specified for the
+.Vt struct _umtx_time
+timeout parameter, or in the
+.Dv c_clockid
+member of
+.Vt struct ucond,
+is invalid.
+.It Bq Er EINVAL
+The type of the mutex, encoded by the
+.Dv m_flags
+member of
+.Vt struct umutex ,
+is invalid.
+.It Bq Er EINVAL
+The
+.Dv m_owner
+member of the
+.Vt struct umutex
+has changed the lock owner thread identifier during unlock.
+.It Bq Er EINVAL
+The
+.Dv timeout.tv_sec
+or
+.Dv timeout.tv_nsec
+member of
+.Vt struct _umtx_time
+is less than zero, or
+.Dv timeout.tv_nsec
+is greater than 1000000000.
+.It Bq Er EINVAL
+The
+.Fa op
+argument specifies invalid operation.
+.It Bq Er EINVAL
+The
+.Fa uaddr
+argument for the
+.Dv UMTX_OP_SHM
+request specifies invalid operation.
+.It Bq Er EINVAL
+The
+.Dv UMTX_OP_SET_CEILING
+request specifies non priority protected mutex.
+.It Bq Er EINVAL
+The new ceiling value for the
+.Dv UMTX_OP_SET_CEILING
+request, or one or more of the values read from the
+.Dv m_ceilings
+array during lock or unlock operations, is greater than
+.Dv RTP_PRIO_MAX .
+.It Bq Er EPERM
+Unlock attempted on an object not owned by the current thread.
+.It Bq Er EOWNERDEAD
+The lock was requested on an umutex where the
+.Dv m_owner
+field was set to the
+.Dv UMUTEX_RB_OWNERDEAD
+value, indicating terminated robust mutex.
+The lock was granted to the caller, so this error in fact
+indicates success with additional conditions.
+.It Bq Er ENOTRECOVERABLE
+The lock was requested on an umutex which
+.Dv m_owner
+field is equal to the
+.Dv UMUTEX_RB_NOTRECOV
+value, indicating abandoned robust mutex after termination.
+The lock was not granted to the caller.
+.It Bq Er ENOTTY
+The shared memory object, associated with the address passed to the
+.Dv UMTX_SHM_ALIVE
+sub-request of
+.Dv UMTX_OP_SHM
+request, was destroyed.
+.It Bq Er ESRCH
+For the
+.Dv UMTX_SHM_LOOKUP ,
+.Dv UMTX_SHM_DESTROY ,
+and
+.Dv UMTX_SHM_ALIVE
+sub-requests of the
+.Dv UMTX_OP_SHM
+request, there is no shared memory object associated with the provided key.
+.It Bq Er ENOMEM
+The
+.Dv UMTX_SHM_CREAT
+sub-request of the
+.Dv UMTX_OP_SHM
+request cannot be satisfied, because allocation of the shared memory object
+would exceed the
+.Dv RLIMIT_UMTXP
+resource limit, see
+.Xr setrlimit 2 .
+.It Bq Er EAGAIN
+The maximum number of readers
+.Dv ( URWLOCK_MAX_READERS )
+were already granted ownership of the given
+.Vt struct rwlock
+for read.
+.It Bq Er EBUSY
+A try mutex lock operation was not able to obtain the lock.
+.It Bq Er ETIMEDOUT
+The request specified a timeout in the
+.Fa uaddr
+and
+.Fa uaddr2
+arguments, and timed out before obtaining the lock or being woken up.
+.It Bq Er EINTR
+A signal was delivered during wait, for a non-restartable operation.
+Operations with timeouts are typically non-restartable, but timeouts
+specified in absolute time may be restartable.
+.It Bq Er ERESTART
+A signal was delivered during wait, for a restartable operation.
+Mutex lock requests without timeout specified are restartable.
+The error is not returned to userspace code since restart
+is handled by usual adjustment of the instruction counter.
+.El
+.Sh SEE ALSO
+.Xr clock_gettime 2 ,
+.Xr mmap 2 ,
+.Xr setrlimit 2 ,
+.Xr shm_open 2 ,
+.Xr sigaction 2 ,
+.Xr thr_exit 2 ,
+.Xr thr_kill 2 ,
+.Xr thr_kill2 2 ,
+.Xr thr_new 2 ,
+.Xr thr_self 2 ,
+.Xr thr_set_name 2 ,
+.Xr signal 3
+.Sh STANDARDS
+The
+.Fn _umtx_op
+system call is non-standard and is used by the
+.Lb libthr
+to implement
+.St -p1003.1-2001
+.Xr pthread 3
+functionality.
+.Sh BUGS
+A window between a unlocking robust mutex and resetting the pointer in the
+.Dv robust_inact_offset
+member of the registered
+.Vt struct umtx_robust_lists_params
+allows another thread to destroy the mutex, thus making the kernel inspect
+freed or reused memory.
+The
+.Li libthr
+implementation is only vulnerable to this race when operating on
+a shared mutex.
+A possible fix for the current implementation is to strengthen the checks
+for shared mutexes before terminating them, in particular, verifying
+that the mutex memory is mapped from a shared memory object allocated
+by the
+.Dv UMTX_OP_SHM
+request.
+This is not done because it is believed that the race is adequately
+covered by other consistency checks, while adding the check would
+prevent alternative implementations of
+.Li libpthread .

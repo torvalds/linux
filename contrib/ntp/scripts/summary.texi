@@ -1,0 +1,40 @@
+\input texinfo    @c -*-texinfo-*-
+@c %**start of header
+@setfilename summary.info
+@settitle Summary User's Manual
+@include ../sntp/include/version.texi
+@paragraphindent 2
+@c %**end of header
+
+@ifinfo
+This file documents the use of @code{summary},
+a program from the NTP Project
+@end ifinfo
+
+@direntry
+* summary: (summary).                 Summarize (something)
+@end direntry
+
+@titlepage
+@title summary User's Manual
+@subtitle summary, version @value{VERSION}, @value{UPDATED}
+@c @author Max @email{foo@ntp.org}
+@end titlepage
+
+@c @page
+@c @vskip 0pt plus 1filll
+
+@node Top, summary Description, (dir), (dir)
+@top Summary User Manual
+
+This document describes the use of the NTP Project's @code{summary} program.
+This document applies to version @value{VERSION} of @code{summary}.
+
+@shortcontents
+
+@menu
+* summary Description::             Description
+* summary Invocation::		    Invoking summary
+@end menu
+
+@include invoke-summary.texi

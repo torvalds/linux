@@ -1,0 +1,217 @@
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 24, 2018
+.Dt SF 4
+.Os
+.Sh NAME
+.Nm sf
+.Nd "Adaptec AIC-6915"
+.Qq Starfire
+PCI Fast Ethernet adapter driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device sf"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_sf_load="YES"
+.Ed
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 13.0
+and later.
+See https://github.com/freebsd/fcp/blob/master/fcp-0101.md for more
+information.
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Adaptec Duralink Fast Ethernet adapters
+based on the Adaptec AIC-6915 "Starfire" chipset.
+.Pp
+The AIC-6915 is a bus master controller with an MII interface.
+It
+supports high and low priority transmit and receive queues, TCP/IP
+checksum offload, multiple DMA descriptor formats and both polling
+and producer/consumer DMA models.
+The AIC-6915 receive filtering
+options include a 16 entry perfect filter, a 512-bit hash table
+for multicast addresses, a 512-bit hash table for priority address
+matching and VLAN filtering.
+An external MII-compliant transceiver
+is required for media interfacing.
+.Pp
+Multiport adapters consist of several AIC-6915 controllers connected
+via a PCI to PCI bridge.
+Each controller is treated as a separate
+interface by the
+.Nm
+driver.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to the
+.Pa /etc/rc.conf
+file.
+.It 10baseT/UTP
+Set 10Mbps operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It full-duplex
+Force full duplex operation
+.It half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+Adapters supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+ANA-62011 64-bit single port 10/100baseTX adapter
+.It
+ANA-62022 64-bit dual port 10/100baseTX adapter
+.It
+ANA-62044 64-bit quad port 10/100baseTX adapter
+.It
+ANA-69011 32-bit single port 10/100baseTX adapter
+.It
+ANA-62020 64-bit single port 100baseFX adapter
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va dev.sf.%d.int_mod
+Maximum amount of time to delay interrupt processing in units of
+102.4us.
+The accepted range is 0 to 31, the default value is 1 (102.4us).
+Value 0 completely disables the interrupt moderation.
+The interface does not need to be brought down and up again before
+a change takes effect.
+.It Va dev.sf.%d.stats
+Display lots of useful MAC counters maintained in the driver.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "sf%d: couldn't map memory"
+A fatal initialization error has occurred.
+This may
+happen if the PCI BIOS not configured the device, which may be because
+the BIOS has been configured for a "Plug and Play" operating system.
+The "Plug and Play OS" setting in the BIOS should be set to "no" or
+"off" in order for PCI devices to work properly with
+.Fx .
+.It "sf%d: couldn't map ports"
+A fatal initialization error has occurred.
+This may
+happen if the PCI BIOS not configured the device, which may be because
+the BIOS has been configured for a "Plug and Play" operating system.
+The "Plug and Play OS" setting in the BIOS should be set to "no" or
+"off" in order for PCI devices to work properly with
+.Fx .
+.It "sf%d: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "sf%d: no memory for softc struct!"
+The driver failed to allocate memory for per-device instance information
+during initialization.
+.It "sf%d: failed to enable I/O ports/memory mapping!"
+The driver failed to initialize PCI I/O port or shared memory access.
+This might happen if the card is not in a bus-master slot.
+.It "sf%d: watchdog timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr polling 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Rs
+.%T The Adaptec AIC-6915 Programmer's Manual
+.%U http://download.adaptec.com/pdfs/user_guides/aic6915_pg.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu .

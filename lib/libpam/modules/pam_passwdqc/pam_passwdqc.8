@@ -1,0 +1,267 @@
+.\" Copyright (c) 2000-2002 Solar Designer.
+.\" All rights reserved.
+.\" Copyright (c) 2001 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" Portions of this software were developed for the FreeBSD Project by
+.\" ThinkSec AS and NAI Labs, the Security Research Division of Network
+.\" Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+.\" ("CBOSS"), as part of the DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 15, 2002
+.Dt PAM_PASSWDQC 8
+.Os
+.Sh NAME
+.Nm pam_passwdqc
+.Nd Password quality-control PAM module
+.Sh SYNOPSIS
+.Op Ar service-name
+.Ar module-type
+.Ar control-flag
+.Pa pam_passwdqc
+.Op Ar options
+.Sh DESCRIPTION
+The
+.Nm
+module is a simple password strength checking module for
+PAM.
+In addition to checking regular passwords, it offers support for
+passphrases and can provide randomly generated passwords.
+.Pp
+The
+.Nm
+module provides functionality for only one PAM category:
+password changing.
+In terms of the
+.Ar module-type
+parameter, this is the
+.Dq Li password
+feature.
+.Pp
+The
+.Fn pam_chauthtok
+service function will ask the user for a new password, and verify that
+it meets certain minimum standards.
+If the chosen password is unsatisfactory, the service function returns
+.Dv PAM_AUTHTOK_ERR .
+.Pp
+The following options may be passed to the authentication module:
+.Bl -tag -width indent
+.It Xo
+.Sm off
+.Cm min No = Ar N0 , N1 , N2 , N3 , N4
+.Sm on
+.Xc
+.Sm off
+.Pq Cm min No = Cm disabled , No 24 , 12 , 8 , 7
+.Sm on
+The minimum allowed password lengths for different kinds of
+passwords/passphrases.
+The keyword
+.Cm disabled
+can be used to
+disallow passwords of a given kind regardless of their length.
+Each subsequent number is required to be no larger than the preceding
+one.
+.Pp
+.Ar N0
+is used for passwords consisting of characters from one character
+class only.
+The character classes are: digits, lower-case letters, upper-case
+letters, and other characters.
+There is also a special class for
+.No non- Ns Tn ASCII
+characters which could not
+be classified, but are assumed to be non-digits.
+.Pp
+.Ar N1
+is used for passwords consisting of characters from two character
+classes, which do not meet the requirements for a passphrase.
+.Pp
+.Ar N2
+is used for passphrases.
+A passphrase must consist of sufficient words (see the
+.Cm passphrase
+option below).
+.Pp
+.Ar N3
+and
+.Ar N4
+are used for passwords consisting of characters from three
+and four character classes, respectively.
+.Pp
+When calculating the number of character classes, upper-case letters
+used as the first character and digits used as the last character of a
+password are not counted.
+.Pp
+In addition to being sufficiently long, passwords are required to
+contain enough different characters for the character classes and
+the minimum length they have been checked against.
+.It Cm max Ns = Ns Ar N
+.Pq Cm max Ns = Ns 40
+The maximum allowed password length.
+This can be used to prevent users from setting passwords which may be
+too long for some system services.
+The value 8 is treated specially: if
+.Cm max
+is set to 8, passwords longer than 8 characters will not be rejected,
+but will be truncated to 8 characters for the strength checks and the
+user will be warned.
+This is for compatibility with the traditional DES password hashes,
+which truncate the password at 8 characters.
+.Pp
+It is important that you do set
+.Cm max Ns = Ns 8
+if you are using the traditional
+hashes, or some weak passwords will pass the checks.
+.It Cm passphrase Ns = Ns Ar N
+.Pq Cm passphrase Ns = Ns 3
+The number of words required for a passphrase, or 0 to disable
+passphrase support.
+.It Cm match Ns = Ns Ar N
+.Pq Cm match Ns = Ns 4
+The length of common substring required to conclude that a password is
+at least partially based on information found in a character string,
+or 0 to disable the substring search.
+Note that the password will not be rejected once a weak substring is
+found; it will instead be subjected to the usual strength requirements
+with the weak substring removed.
+.Pp
+The substring search is case-insensitive and is able to detect and
+remove a common substring spelled backwards.
+.It Xo
+.Sm off
+.Cm similar No = Cm permit | deny
+.Sm on
+.Xc
+.Pq Cm similar Ns = Ns Cm deny
+Whether a new password is allowed to be similar to the old one.
+The passwords are considered to be similar when there is a sufficiently
+long common substring and the new password with the substring removed
+would be weak.
+.It Xo
+.Sm off
+.Cm random No = Ar N Op , Cm only
+.Sm on
+.Xc
+.Pq Cm random Ns = Ns 42
+The size of randomly-generated passwords in bits, or 0 to disable this
+feature.
+Passwords that contain the offered randomly-generated string will be
+allowed regardless of other possible restrictions.
+.Pp
+The
+.Cm only
+modifier can be used to disallow user-chosen passwords.
+.It Xo
+.Sm off
+.Cm enforce No = Cm none | users | everyone
+.Sm on
+.Xc
+.Pq Cm enforce Ns = Ns Cm everyone
+The module can be configured to warn of weak passwords only, but not
+actually enforce strong passwords.
+The
+.Cm users
+setting will enforce strong passwords for non-root users only.
+.It Cm non-unix
+Normally,
+.Nm
+uses
+.Xr getpwnam 3
+to obtain the user's personal login information and use that during
+the password strength checks.
+This behavior can be disabled with the
+.Cm non-unix
+option.
+.It Cm retry Ns = Ns Ar N
+.Pq Cm retry Ns = Ns 3
+The number of times the module will ask for a new password if the user
+fails to provide a sufficiently strong password and enter it twice the
+first time.
+.It Cm ask_oldauthtok Ns Op = Ns Cm update
+Ask for the old password as well.
+Normally,
+.Nm
+leaves this task for subsequent modules.
+With no argument, the
+.Cm ask_oldauthtok
+option will cause
+.Nm
+to ask for the old password during the preliminary check phase.
+If the
+.Cm ask_oldauthtok
+option is specified with the
+.Cm update
+argument,
+.Nm
+will do that during the update phase.
+.It Cm check_oldauthtok
+This tells
+.Nm
+to validate the old password before giving a
+new password prompt.
+Normally, this task is left for subsequent modules.
+.Pp
+The primary use for this option is when
+.Cm ask_oldauthtok Ns = Ns Cm update
+is also specified, in which case no other modules gets a chance to ask
+for and validate the password.
+Of course, this will only work with
+.Ux
+passwords.
+.It Cm use_first_pass , use_authtok
+Use the new password obtained by modules stacked before
+.Nm .
+This disables user interaction within
+.Nm .
+The only difference between
+.Cm use_first_pass
+and
+.Cm use_authtok
+is that the former is incompatible with
+.Cm ask_oldauthtok .
+.El
+.Sh SEE ALSO
+.Xr getpwnam 3 ,
+.Xr pam.conf 5 ,
+.Xr pam 8
+.Sh AUTHORS
+The
+.Nm
+module was written by
+.An Solar Designer Aq Mt solar@openwall.com .
+This manual page, derived from the author's documentation, was written
+for the
+.Fx
+Project by
+ThinkSec AS and NAI Labs, the Security Research Division of Network
+Associates, Inc.\& under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.

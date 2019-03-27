@@ -1,0 +1,30 @@
+# $FreeBSD$
+set -e
+
+P=${TMPDIR:-/tmp}
+cd $P
+T=$(mktemp -d sh-test.XXXXXX)
+
+chmod 0 $T
+if [ `id -u` -ne 0 ]; then
+	# Root can always cd, regardless of directory permissions.
+	cd -L $T 2>/dev/null && exit 1
+	[ "$PWD" = "$P" ]
+	[ "$(pwd)" = "$P" ]
+	cd -P $T 2>/dev/null && exit 1
+	[ "$PWD" = "$P" ]
+	[ "$(pwd)" = "$P" ]
+fi
+
+chmod 755 $T
+cd $T
+mkdir -p 1/2/3
+ln -s 1/2 link1
+ln -s 2/3 1/link2
+(cd -L 1/../1 && [ "$(pwd -L)" = "$P/$T/1" ])
+(cd -L link1 && [ "$(pwd -L)" = "$P/$T/link1" ])
+(cd -L link1 && [ "$(pwd -P)" = "$P/$T/1/2" ])
+(cd -P link1 && [ "$(pwd -L)" = "$P/$T/1/2" ])
+(cd -P link1 && [ "$(pwd -P)" = "$P/$T/1/2" ])
+
+rm -rf ${P}/${T}

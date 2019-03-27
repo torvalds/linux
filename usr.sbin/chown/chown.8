@@ -1,0 +1,182 @@
+.\" Copyright (c) 1990, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)chown.8	8.3 (Berkeley) 3/31/94
+.\" $FreeBSD$
+.\"
+.Dd January 7, 2017
+.Dt CHOWN 8
+.Os
+.Sh NAME
+.Nm chown
+.Nd change file owner and group
+.Sh SYNOPSIS
+.Nm
+.Op Fl fhvx
+.Oo
+.Fl R
+.Op Fl H | Fl L | Fl P
+.Oc
+.Ar owner Ns Op : Ns Ar group
+.Ar
+.Nm
+.Op Fl fhvx
+.Oo
+.Fl R
+.Op Fl H | Fl L | Fl P
+.Oc
+.No : Ns Ar group
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility changes the user ID and/or the group ID of the specified files.
+Symbolic links named by arguments are silently left unchanged unless
+.Fl h
+is used.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl H
+If the
+.Fl R
+option is specified, symbolic links on the command line are followed
+and hence unaffected by the command.
+(Symbolic links encountered during traversal are not followed.)
+.It Fl L
+If the
+.Fl R
+option is specified, all symbolic links are followed.
+.It Fl P
+If the
+.Fl R
+option is specified, no symbolic links are followed.
+This is the default.
+.It Fl R
+Change the user ID and/or the group ID of the file hierarchies rooted
+in the files, instead of just the files themselves.
+Beware of unintentionally matching the
+.Dq Pa ".."
+hard link to the parent directory when using wildcards like
+.Dq Li ".*" .
+.It Fl f
+Do not report any failure to change file owner or group, nor modify
+the exit status to reflect such failures.
+.It Fl h
+If the file is a symbolic link, change the user ID and/or the
+group ID of the link itself.
+.It Fl v
+Cause
+.Nm
+to be verbose, showing files as the owner is modified.
+If the
+.Fl v
+flag is specified more than once,
+.Nm
+will print the filename, followed by the old and new numeric user/group ID.
+.It Fl x
+File system mount points are not traversed.
+.El
+.Pp
+The
+.Fl H ,
+.Fl L
+and
+.Fl P
+options are ignored unless the
+.Fl R
+option is specified.
+In addition, these options override each other and the
+command's actions are determined by the last one specified.
+.Pp
+The
+.Ar owner
+and
+.Ar group
+operands are both optional, however, one must be specified.
+If the
+.Ar group
+operand is specified, it must be preceded by a colon (``:'') character.
+.Pp
+The
+.Ar owner
+may be either a numeric user ID or a user name.
+If a user name is also a numeric user ID, the operand is used as a
+user name.
+The
+.Ar group
+may be either a numeric group ID or a group name.
+If a group name is also a numeric group ID, the operand is used as a
+group name.
+.Pp
+The ownership of a file may only be altered by a super-user for
+obvious security reasons.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+signal (see the
+.Cm status
+argument for
+.Xr stty 1 ) ,
+then the current filename as well as the old and new file owner and group
+are displayed.
+.Sh EXIT STATUS
+.Ex -std
+.Sh COMPATIBILITY
+Previous versions of the
+.Nm
+utility used the dot (``.'') character to distinguish the group name.
+This has been changed to be a colon (``:'') character so that user and
+group names may contain the dot character.
+.Pp
+On previous versions of this system, symbolic links did not have
+owners.
+.Pp
+The
+.Fl v
+and
+.Fl x
+options are non-standard and their use in scripts is not recommended.
+.Sh SEE ALSO
+.Xr chgrp 1 ,
+.Xr find 1 ,
+.Xr chown 2 ,
+.Xr fts 3 ,
+.Xr symlink 7
+.Sh STANDARDS
+The
+.Nm
+utility is expected to be
+.St -p1003.2
+compliant.
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.At v1 .

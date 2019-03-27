@@ -1,0 +1,20 @@
+# $FreeBSD$
+
+mips/atheros/ar531x/apb.c			standard
+mips/atheros/ar531x/if_are.c			optional are
+mips/atheros/ar531x/ar5315_spi.c		optional ar5315_spi
+mips/atheros/ar531x/ar5315_wdog.c		optional ar5315_wdog
+mips/atheros/ar531x/ar5315_gpio.c		optional gpio
+mips/atheros/ar531x/ar5315_machdep.c		standard
+mips/atheros/ar531x/ar5315_chip.c		standard
+mips/atheros/ar531x/ar5315_setup.c		standard
+mips/atheros/ar531x/uart_bus_ar5315.c		optional uart_ar5315
+mips/atheros/ar531x/uart_cpu_ar5315.c		optional uart_ar5315
+
+mips/atheros/ar531x/ar5312_chip.c		standard
+
+mips/atheros/ar71xx_bus_space_reversed.c	standard
+mips/mips/tick.c				standard
+
+# Non Intrng
+mips/mips/intr_machdep.c			optional !intrng

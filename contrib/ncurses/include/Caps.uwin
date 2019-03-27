@@ -1,0 +1,1084 @@
+##############################################################################
+# Copyright (c) 2001-2006,2010 Free Software Foundation, Inc.                #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+# Author: Thomas Dickey
+#
+# $Id: Caps.uwin,v 1.5 2010/12/04 18:49:20 tom Exp $
+#
+# This is an adaptation of ncurses' termcap/terminfo capability table, which
+# is designed to align with U/Win's terminfo.
+#
+# This table is used to generate initializers for tables that drive tic,
+# infocmp, and the library compilation code used to support the termcap 
+# compatibility hack.  It is also used to generate the tabular portion of the
+# terminfo(5) man page; lines beginning with `#%' are passed through to become
+# the terminfo table.
+#
+# This file has three major sections; a standard-capabilities table, two
+# extension-capability tables, and a section of aliases declarations.
+# The first two have the same format, as follows:
+#
+# FILE FORMAT
+#
+# Column 1: terminfo variable name
+# Column 2: terminfo capability name
+# Column 3: capability type (boolean, numeric, or string)
+# Column 4: termcap capability name
+# Column 5: KEY_xxx name, if any, `-' otherwise
+# Column 6: value for KEY_xxx name, if any, `-' otherwise
+# Column 7: Lead with `Y' if capability should be emitted in termcap
+#           translations, `-' otherwise
+# Column 8: capability description
+#
+# The codes following [Y-] in column 7 describe the versions of termcap which
+# use the given capability.  This information is not used by the curses library
+# proper; rather, it's there to help the terminfo maintainer avoid emitting
+# termcap entry translations that are more than 1023 bytes long (and tank a
+# lot of old termcap-using programs).  The codes read as follows:
+#	B = mentioned in the BSD man page for 4.4BSD curses
+#	C = used by the 4.4BSD curses library
+#	G = mentioned in the documentation for GNU termcap
+#	E = used by GNU Emacs
+#	K = remove this terminfo capability when translating to standard format
+# The important codes are C and E.  A cap with C or E should be preserved in
+# translation if possible.  The problem is that preserving all such caps may
+# lead to some termcap translations being too long.  The termcap maintainer
+# has a bit of a juggling act to do...potential problem cases are marked with
+# an asterisk (*).
+#
+# The aliases section has the following format:
+#
+# Column 1: either `capalias' or `infoalias'
+# Column 2: name to be aliased
+# Column 3: what name it should translate to.  The name IGNORE means it
+#           should be discarded with a warning message.
+# Column 4: name of the extension set (used for compiler warning messages)
+# Column 5: capability description (usually an associated terminfo variable)
+#
+# HANDLING TERMCAP AND TERMINFO EXTENSIONS
+#
+# There are basically five different ways to handle termcap and terminfo
+# extensions:
+#
+# 1. Don't list the capname here, or list it but comment it out (the latter
+# is preferable; someone might want to handle it in the future).  If you do
+# this, the capability will be treated as unknown and raise a warning from
+# the compiler.
+#
+# 2. Alias it.  This is appropriate if the capability has the same meaning
+# as an already-supported one.  The compiler will handle aliasing, emitting
+# an appropriate informational message whenever an alias fires.
+#
+# 3. List it in the standard table.  You almost certainly do *not* want
+# to do this -- the capabilities in that one, and their order, have been
+# carefully chosen to be SVr4-binary-compatible when they're written out
+# as a terminfo object, and breaking this would be bad.  It's up the ncurses
+# library what to do with the terminfo data after it's read in.
+#
+# 4. List it in the aliases table with an IGNORE target field.  If you
+# do this, the capability will be ignored on input (though the user will
+# get a warning message about it).
+#
+# 5. List it in the extensions table. If you do this, the compiler will
+# silently accept the capability, but the curses library proper will never
+# see it (because it won't be written out as part of the terminfo object
+# format).  It's up to you what you have the compiler do with it.
+#
+# There are two opposite reasons to choose option 5.  One is when you want
+# to eat the capability silently and discard it when doing translations
+# to terminfo with tic -I.  Some very old obsolete BSD caps like :kn: are
+# in this class.  Nothing will ever use them again.
+#
+# More usually, you want the compiler to try to deduce something from the
+# capability value that it can use to translate it into your output format.
+# You'll need to write custom code, probably in postprocess_termcap() or
+# postprocess_terminfo(), to handle the translation.
+#
+# CONTROLLING ENTRY LENGTH 
+#
+# Notes on specific elisions made to fit translations within 1023 bytes:
+#
+# Machines with IBM PC-like keyboards want to be able to define the following
+# keys: key_npage, key_ppage, key_home, key_ll (which is used for in termcap-
+# only environments for End or Home-Down), key_dc, and key_ic.  This is also
+# the set of keys the `joe' editor will be upset if it can't see.  So don't 
+# trim those out of the set to be translated to termcap, or various users of
+# the termcap file will become irate.
+#
+# It might look tempting to leave those long init strings out of translations.
+# We can't do it (yet); 4.4BSD tput and tset use them.
+#
+# We retain the sgr capability in translation in spite of the fact that neither
+# 4.4BSD nor GNU Emacs uses it, because (a) some entry naming distinctions are
+# hard to understand without it, and (b) the entries in which it is long tend
+# to be older types that don't use up a lot of string space on function keys.
+# The tic(1) translation code will complain and elide it if it makes a critical
+# difference (there is special code in tic to recognize this situation).
+#
+# Yes, BSD tset(1) uses hpa.  We elide hpa/vpa anyway because the motion
+# optimizer in BSD curses didn't use them.  This omission seems to be the
+# single most effective one, it shortened the resolved length of all thirteen
+# problem entries in the 9.9.0 version of the terminfo master below critical.
+#
+# It would be nice to keep f11 and f12 for Emacs use, but a couple of termcap
+# translations go back over critical if we do this.  As 4.4BSD curses fades
+# into history and GNU termcap's application base shrinks towards being GNU 
+# Emacs only, we'll probably elide out some BSD-only capabilities in order
+# to buy space for non-essentials Emacs is still using.  Capabilities high
+# on that hit list: rc, sc, uc.
+#
+#############################################################################
+#
+# STANDARD CAPABILITIES
+#
+#%The following is a complete table of the capabilities included in a
+#%terminfo description block and available to terminfo-using code.  In each
+#%line of the table,
+#%
+#%The \fBvariable\fR is the name by which the programmer (at the terminfo level)
+#%accesses the capability.
+#%
+#%The \fBcapname\fR is the short name used in the text of the database,
+#%and is used by a person updating the database.
+#%Whenever possible, capnames are chosen to be the same as or similar to
+#%the ANSI X3.64-1979 standard (now superseded by ECMA-48, which uses 
+#%identical or very similar names).  Semantics are also intended to match
+#%those of the specification.
+#%
+#%The termcap code is the old
+#%.B termcap
+#%capability name (some capabilities are new, and have names which termcap
+#%did not originate).
+#%.P
+#%Capability names have no hard length limit, but an informal limit of 5
+#%characters has been adopted to keep them short and to allow the tabs in
+#%the source file
+#%.B Caps
+#%to line up nicely.
+#%
+#%Finally, the description field attempts to convey the semantics of the
+#%capability.  You may find some codes in the description field:
+#%.TP
+#%(P)
+#%indicates that padding may be specified
+#%.TP
+#%#[1-9]
+#%in the description field indicates that the string is passed through tparm with
+#%parms as given (#\fIi\fP).
+#%.TP
+#%(P*)
+#%indicates that padding may vary in proportion to the number of
+#%lines affected
+#%.TP
+#%(#\d\fIi\fP\u)
+#%indicates the \fIi\fP\uth\d parameter.
+#%
+#%.PP
+#% These are the boolean capabilities:
+#%
+#%.na
+#%.TS H
+#%center expand;
+#%c l l c
+#%c l l c
+#%lw25 lw6 lw2 lw20.
+#%\fBVariable	Cap-	TCap	Description\fR
+#%\fBBooleans	name	Code\fR
+auto_left_margin		bw	bool	bw	-	-	YB-G-	cub1 wraps from column 0 to last column
+auto_right_margin		am	bool	am	-	-	YBCGE	terminal has automatic margins
+no_esc_ctlc			xsb	bool	xb	-	-	YBCG-	beehive (f1=escape, f2=ctrl C)
+ceol_standout_glitch		xhp	bool	xs	-	-	YBCGE	standout not erased by overwriting (hp)
+eat_newline_glitch		xenl	bool	xn	-	-	YBCGE	newline ignored after 80 cols (concept)
+erase_overstrike		eo	bool	eo	-	-	YBCG-	can erase overstrikes with a blank
+generic_type			gn	bool	gn	-	-	YB-G-	generic line type
+hard_copy			hc	bool	hc	-	-	YBCG-	hardcopy terminal
+has_meta_key			km	bool	km	-	-	YB-GE	Has a meta key (i.e., sets 8th-bit)
+has_status_line			hs	bool	hs	-	-	YB-G-	has extra status line
+insert_null_glitch		in	bool	in	-	-	YBCGE	insert mode distinguishes nulls
+memory_above			da	bool	da	-	-	YBCG-	display may be retained above the screen
+memory_below			db	bool	db	-	-	YB-GE	display may be retained below the screen
+move_insert_mode		mir	bool	mi	-	-	YBCGE	safe to move while in insert mode
+move_standout_mode		msgr	bool	ms	-	-	YBCGE	safe to move while in standout mode
+over_strike			os	bool	os	-	-	YBCG-	terminal can overstrike
+status_line_esc_ok		eslok	bool	es	-	-	YB-G-	escape can be used on the status line
+dest_tabs_magic_smso		xt	bool	xt	-	-	YBCGE	tabs destructive, magic so char (t1061)
+tilde_glitch			hz	bool	hz	-	-	YB-GE	cannot print ~'s (hazeltine)
+transparent_underline		ul	bool	ul	-	-	YBCGE	underline character overstrikes
+xon_xoff			xon	bool	xo	-	-	YB---	terminal uses xon/xoff handshaking
+needs_xon_xoff			nxon	bool	nx	-	-	-----	padding will not work, xon/xoff required
+prtr_silent			mc5i	bool	5i	-	-	-----	printer will not echo on screen
+hard_cursor			chts	bool	HC	-	-	-----	cursor is hard to see
+non_rev_rmcup			nrrmc	bool	NR	-	-	-----	smcup does not reverse rmcup
+no_pad_char			npc	bool	NP	-	-	-----	pad character does not exist
+non_dest_scroll_region		ndscr	bool	ND	-	-	-----	scrolling region is non-destructive
+back_color_erase		bce	bool	ut	-	-	-----	screen erased with background color
+can_change			ccc	bool	cc	-	-	-----	terminal can re-define existing colors
+hue_lightness_saturation	hls	bool	hl	-	-	-----	terminal uses only HLS color notation (Tektronix)
+#%.TE
+#%.ad
+#%
+#%These are the numeric capabilities:
+#%
+#%.na
+#%.TS H
+#%center expand;
+#%c l l c
+#%c l l c
+#%lw25 lw6 lw2 lw20.
+#%\fBVariable	Cap-	TCap	Description\fR
+#%\fBNumeric	name	Code\fR
+columns				cols	num	co	-	-	YBCGE	number of columns in a line
+init_tabs			it	num	it	-	-	YB-G-	tabs initially every # spaces
+lines				lines	num	li	-	-	YBCGE	number of lines on screen or page
+lines_of_memory			lm	num	lm	-	-	YB-G-	lines of memory if > line. 0 means varies
+magic_cookie_glitch		xmc	num	sg	-	-	YBCGE	number of blank characters left by smso or rmso
+padding_baud_rate		pb	num	pb	-	-	YB-GE	lowest baud rate where padding needed
+virtual_terminal		vt	num	vt	-	-	YB---	virtual terminal number (CB/unix)
+width_status_line		wsl	num	ws	-	-	YB-G-	number of columns in status line
+num_labels			nlab	num	Nl	-	-	-----	number of labels on screen
+label_height			lh	num	lh	-	-	-----	rows in each label
+label_width			lw	num	lw	-	-	-----	columns in each label
+buttons				btns	num	BT	-	-	-----	number of buttons on mouse
+#max_attributes			ma	num	ma	-	-	YBC--	maximum combined attributes terminal can handle
+#maximum_windows		wnum	num	MW	-	-	-----	maximum number of defineable windows
+# These came in with SVr4's color support
+max_colors			colors	num	Co	-	-	-----	maximum number of colors on screen
+max_pairs			pairs	num	pa	-	-	-----	maximum number of color-pairs on the screen
+no_color_video			ncv	num	NC	-	-	-----	video attributes that cannot be used with colors
+#%.TE
+#%.ad
+#%
+#%The following numeric capabilities are present in the SVr4.0 term structure,
+#%but are not yet documented in the man page.  They came in with SVr4's
+#%printer support.
+#%
+#%.na
+#%
+#%These are the string capabilities:
+#%
+#%.na
+#%.TS H
+#%center expand;
+#%c l l c
+#%c l l c
+#%lw25 lw6 lw2 lw20.
+#%\fBVariable	Cap-	TCap	Description\fR
+#%\fBString	name	Code\fR
+back_tab			cbt	str	bt	-		-	YBCGE	back tab (P)
+bell				bel	str	bl	-		-	YB-GE	audible signal (bell) (P)
+carriage_return			cr	str	cr	-		-	YBCGE	carriage return (P*) (P*)
+change_scroll_region		csr	str	cs	-		-	YBCGE	change region to line #1 to line #2 (P)
+clear_all_tabs			tbc	str	ct	-		-	YB-G-	clear all tab stops (P)
+clear_screen			clear	str	cl	-		-	YBCGE	clear screen and home cursor (P*)
+clr_eol				el	str	ce	-		-	YBCGE	clear to end of line (P)
+clr_eos				ed	str	cd	-		-	YBCGE	clear to end of screen (P*)
+column_address			hpa	str	ch	-		-	-B-GE*	horizontal position #1, absolute (P)
+command_character		cmdch	str	CC	-		-	YB-G-	terminal settable cmd character in prototype !?
+cursor_address			cup	str	cm	-		-	YBCGE	move to row #1 columns #2
+cursor_down			cud1	str	do	-		-	YBCGE	down one line
+cursor_home			home	str	ho	-		-	YBCGE	home cursor (if no cup)
+cursor_invisible		civis	str	vi	-		-	YB-G-	make cursor invisible
+cursor_left			cub1	str	le	-		-	YBCGE	move left one space
+cursor_mem_address		mrcup	str	CM	-		-	YB-G-	memory relative cursor addressing, move to row #1 columns #2
+cursor_normal			cnorm	str	ve	-		-	YBCGE	make cursor appear normal (undo civis/cvvis)
+cursor_right			cuf1	str	nd	-		-	YBCGE	non-destructive space (move right one space)
+cursor_to_ll			ll	str	ll	-		-	YBCGE	last line, first column (if no cup)
+cursor_up			cuu1	str	up	-		-	YBCGE	up one line
+cursor_visible			cvvis	str	vs	-		-	YBCGE	make cursor very visible
+delete_character		dch1	str	dc	-		-	YBCGE	delete character (P*)
+delete_line			dl1	str	dl	-		-	YBCGE	delete line (P*)
+dis_status_line			dsl	str	ds	-		-	YB-G-	disable status line
+down_half_line			hd	str	hd	-		-	YB-G-	half a line down
+enter_alt_charset_mode		smacs	str	as	-		-	YB-G-	start alternate character set (P)
+enter_blink_mode		blink	str	mb	-		-	YB-G-	turn on blinking
+enter_bold_mode			bold	str	md	-		-	YB-G-	turn on bold (extra bright) mode
+enter_ca_mode			smcup	str	ti	-		-	YBCGE	string to start programs using cup
+enter_delete_mode		smdc	str	dm	-		-	YBCGE	enter delete mode
+enter_dim_mode			dim	str	mh	-		-	YB-G-	turn on half-bright mode
+enter_insert_mode		smir	str	im	-		-	YBCGE	enter insert mode
+enter_secure_mode		invis	str	mk	-		-	-B-G-*	turn on blank mode (characters invisible)
+enter_protected_mode		prot	str	mp	-		-	-B-G-*	turn on protected mode
+enter_reverse_mode		rev	str	mr	-		-	YB-G-	turn on reverse video mode
+enter_standout_mode		smso	str	so	-		-	YBCGE	begin standout mode
+enter_underline_mode		smul	str	us	-		-	YBCGE	begin underline mode
+erase_chars			ech	str	ec	-		-	YB-G-	erase #1 characters (P)
+exit_alt_charset_mode		rmacs	str	ae	-		-	YB-G-	end alternate character set (P)
+exit_attribute_mode		sgr0	str	me	-		-	YB-GE	turn off all attributes
+exit_ca_mode			rmcup	str	te	-		-	YBCGE	strings to end programs using cup
+exit_delete_mode		rmdc	str	ed	-		-	YBCGE	end delete mode
+exit_insert_mode		rmir	str	ei	-		-	YBCGE	exit insert mode
+exit_standout_mode		rmso	str	se	-		-	YBCGE	exit standout mode
+exit_underline_mode		rmul	str	ue	-		-	YBCGE	exit underline mode
+flash_screen			flash	str	vb	-		-	YBCGE	visible bell (may not move cursor)
+form_feed			ff	str	ff	-		-	YB-G-	hardcopy terminal page eject (P*)
+from_status_line		fsl	str	fs	-		-	YB-G-	return from status line
+init_1string			is1	str	i1	-		-	YB-G-	initialization string
+init_2string			is2	str	is	-		-	YB-G-	initialization string
+init_3string			is3	str	i3	-		-	YB-G-	initialization string
+init_file			if	str	if	-		-	YB-G-	name of initialization file
+insert_character		ich1	str	ic	-		-	YBCGE	insert character (P)
+insert_line			il1	str	al	-		-	YBCGE	insert line (P*)
+insert_padding			ip	str	ip	-		-	YBCGE	insert padding after inserted character
+key_backspace			kbs	str	kb	KEY_BACKSPACE	0407	YB-G-	backspace key
+key_catab			ktbc	str	ka	KEY_CATAB	0526	-B-G-*	clear-all-tabs key
+key_clear			kclr	str	kC	KEY_CLEAR	0515	-B-G-*	clear-screen or erase key
+key_ctab			kctab	str	kt	KEY_CTAB	0525	-B-G-*	clear-tab key
+key_dc				kdch1	str	kD	KEY_DC		0512	YB-G-	delete-character key
+key_dl				kdl1	str	kL	KEY_DL		0510	-B-G-*	delete-line key
+key_down			kcud1	str	kd	KEY_DOWN	0402	YBCGE	down-arrow key
+key_eic				krmir	str	kM	KEY_EIC		0514	-B-G-*	sent by rmir or smir in insert mode
+key_eol				kel	str	kE	KEY_EOL		0517	-B-G-*	clear-to-end-of-line key
+key_eos				ked	str	kS	KEY_EOS		0516	-B-G-*	clear-to-end-of-screen key
+key_f0				kf0	str	k0	KEY_F(0)	0410	YBCGE	F0 function key
+key_f1				kf1	str	k1	KEY_F(1)	-	YBCGE	F1 function key
+key_f10				kf10	str	k;	KEY_F(10)	-	----E	F10 function key
+key_f2				kf2	str	k2	KEY_F(2)	-	YBCGE	F2 function key
+key_f3				kf3	str	k3	KEY_F(3)	-	YBCGE	F3 function key
+key_f4				kf4	str	k4	KEY_F(4)	-	YBCGE	F4 function key
+key_f5				kf5	str	k5	KEY_F(5)	-	YBCGE	F5 function key
+key_f6				kf6	str	k6	KEY_F(6)	-	YBCGE	F6 function key
+key_f7				kf7	str	k7	KEY_F(7)	-	YBCGE	F7 function key
+key_f8				kf8	str	k8	KEY_F(8)	-	YBCGE	F8 function key
+key_f9				kf9	str	k9	KEY_F(9)	-	YBCGE	F9 function key
+key_home			khome	str	kh	KEY_HOME	0406	YBCGE	home key
+key_ic				kich1	str	kI	KEY_IC		0513	YB-GE	insert-character key
+key_il				kil1	str	kA	KEY_IL		0511	-B-G-*	insert-line key
+key_left			kcub1	str	kl	KEY_LEFT	0404	YBCGE	left-arrow key
+key_ll				kll	str	kH	KEY_LL		0533	YB-G-	lower-left key (home down)
+key_npage			knp	str	kN	KEY_NPAGE	0522	YB-GE	next-page key
+key_ppage			kpp	str	kP	KEY_PPAGE	0523	YB-GE	previous-page key
+key_right			kcuf1	str	kr	KEY_RIGHT	0405	YBCGE	right-arrow key
+key_sf				kind	str	kF	KEY_SF		0520	-B-G-*	scroll-forward key
+key_sr				kri	str	kR	KEY_SR		0521	-B-G-*	scroll-backward key
+key_stab			khts	str	kT	KEY_STAB	0524	-B-G-*	set-tab key
+key_up				kcuu1	str	ku	KEY_UP		0403	YBCGE	up-arrow key
+keypad_local			rmkx	str	ke	-		-	YBCGE	leave 'keyboard_transmit' mode
+keypad_xmit			smkx	str	ks	-		-	YBCGE	enter 'keyboard_transmit' mode
+lab_f0				lf0	str	l0	-		-	-B-G-*	label on function key f0 if not f0
+lab_f1				lf1	str	l1	-		-	-B-G-*	label on function key f1 if not f1
+lab_f10				lf10	str	la	-		-	-----	label on function key f10 if not f10
+lab_f2				lf2	str	l2	-		-	-B-G-*	label on function key f2 if not f2
+lab_f3				lf3	str	l3	-		-	-B-G-*	label on function key f3 if not f3
+lab_f4				lf4	str	l4	-		-	-B-G-*	label on function key f4 if not f4
+lab_f5				lf5	str	l5	-		-	-B-G-*	label on function key f5 if not f5
+lab_f6				lf6	str	l6	-		-	-B-G-*	label on function key f6 if not f6
+lab_f7				lf7	str	l7	-		-	-B-G-*	label on function key f7 if not f7
+lab_f8				lf8	str	l8	-		-	-B-G-*	label on function key f8 if not f8
+lab_f9				lf9	str	l9	-		-	-B-G-*	label on function key f9 if not f9
+meta_off			rmm	str	mo	-		-	YB-G-*	turn off meta mode
+meta_on				smm	str	mm	-		-	YB-G-*	turn on meta mode (8th-bit on)
+newline				nel	str	nw	-		-	YB-G-*	newline (behave like cr followed by lf)
+pad_char			pad	str	pc	-		-	YBCGE	padding char (instead of null)
+parm_dch			dch	str	DC	-		-	YB-GE	delete #1 characters (P*)
+parm_delete_line		dl	str	DL	-		-	YBCGE	delete #1 lines (P*)
+parm_down_cursor		cud	str	DO	-		-	YBCGE	down #1 lines (P*)
+parm_ich			ich	str	IC	-		-	YB-GE	insert #1 characters (P*)
+parm_index			indn	str	SF	-		-	YBCG-	scroll forward #1 lines (P)
+parm_insert_line		il	str	AL	-		-	YBCGE	insert #1 lines (P*)
+parm_left_cursor		cub	str	LE	-		-	YBCGE	move #1 characters to the left (P)
+parm_right_cursor		cuf	str	RI	-		-	YBCGE	move #1 characters to the right (P*)
+parm_rindex			rin	str	SR	-		-	YBCG-	scroll back #1 lines (P)
+parm_up_cursor			cuu	str	UP	-		-	YBCGE	up #1 lines (P*)
+pkey_key			pfkey	str	pk	-		-	-B---	program function key #1 to type string #2
+pkey_local			pfloc	str	pl	-		-	-B---	program function key #1 to execute string #2
+pkey_xmit			pfx	str	px	-		-	-B---	program function key #1 to transmit string #2
+print_screen			mc0	str	ps	-		-	-B-G-*	print contents of screen
+prtr_off			mc4	str	pf	-		-	-B-G-*	turn off printer
+prtr_on				mc5	str	po	-		-	-B-G-*	turn on printer
+repeat_char			rep	str	rp	-		-	YB-GE	repeat char #1 #2 times (P*)
+reset_1string			rs1	str	r1	-		-	-B---	reset string
+reset_2string			rs2	str	r2	-		-	-B---	reset string
+reset_3string			rs3	str	r3	-		-	-B---	reset string
+reset_file			rf	str	rf	-		-	-B---	name of reset file
+restore_cursor			rc	str	rc	-		-	YBCG-	restore cursor to position of last save_cursor
+row_address			vpa	str	cv	-		-	-B-GE*	vertical position #1 absolute (P)
+save_cursor			sc	str	sc	-		-	YBCG-	save current cursor position (P)
+scroll_forward			ind	str	sf	-		-	YBCGE	scroll text up (P)
+scroll_reverse			ri	str	sr	-		-	YBCGE	scroll text down (P)
+set_attributes			sgr	str	sa	-		-	YB-G-	define video attributes #1-#9 (PG9)
+set_tab				hts	str	st	-		-	YB-G-	set a tab in every row, current columns
+set_window			wind	str	wi	-		-	-B-GE	current window is lines #1-#2 cols #3-#4
+tab				ht	str	ta	-		-	YBCGE	tab to next 8-space hardware tab stop
+to_status_line			tsl	str	ts	-		-	YB-G-	move to status line, column #1
+underline_char			uc	str	uc	-		-	YBCG-	underline char and move past it
+up_half_line			hu	str	hu	-		-	YB-G-	half a line up
+init_prog			iprog	str	iP	-		-	-B---	path name of program for initialization
+key_a1				ka1	str	K1	KEY_A1		0534	YB-GE	upper left of keypad
+key_a3				ka3	str	K3	KEY_A3		0535	YB-GE	upper right of keypad
+key_b2				kb2	str	K2	KEY_B2		0536	YB-GE	center of keypad
+key_c1				kc1	str	K4	KEY_C1		0537	YB-GE	lower left of keypad
+key_c3				kc3	str	K5	KEY_C3		0540	YB-GE	lower right of keypad
+prtr_non			mc5p	str	pO	-		-	-B-G-*	turn on printer for #1 bytes
+#
+# SVr1 capabilities stop here.	IBM's version of terminfo is the same as
+# SVr4 up to this point, but has a different set afterwards.
+#
+char_padding			rmp	str	rP	-		-	-----	like ip but when in insert mode
+acs_chars			acsc	str	ac	-		-	-----	graphics charset pairs, based on vt100
+plab_norm			pln	str	pn	-		-	-----	program label #1 to show string #2
+key_btab			kcbt	str	kB	KEY_BTAB	0541	-----	back-tab key
+enter_xon_mode			smxon	str	SX	-		-	-----	turn on xon/xoff handshaking
+exit_xon_mode			rmxon	str	RX	-		-	-----	turn off xon/xoff handshaking
+enter_am_mode			smam	str	SA	-		-	-----	turn on automatic margins
+exit_am_mode			rmam	str	RA	-		-	-----	turn off automatic margins
+xon_character			xonc	str	XN	-		-	-----	XON character
+xoff_character			xoffc	str	XF	-		-	-----	XOFF character
+ena_acs				enacs	str	eA	-		-	-----	enable alternate char set
+label_on			smln	str	LO	-		-	-----	turn on soft labels
+label_off			rmln	str	LF	-		-	-----	turn off soft labels
+key_beg				kbeg	str	@1	KEY_BEG		0542	-----	begin key
+key_cancel			kcan	str	@2	KEY_CANCEL	0543	-----	cancel key
+key_close			kclo	str	@3	KEY_CLOSE	0544	-----	close key
+key_command			kcmd	str	@4	KEY_COMMAND	0545	-----	command key
+key_copy			kcpy	str	@5	KEY_COPY	0546	-----	copy key
+key_create			kcrt	str	@6	KEY_CREATE	0547	-----	create key
+key_end				kend	str	@7	KEY_END		0550	-----	end key
+key_enter			kent	str	@8	KEY_ENTER	0527	-----	enter/send key
+key_exit			kext	str	@9	KEY_EXIT	0551	-----	exit key
+key_find			kfnd	str	@0	KEY_FIND	0552	-----	find key
+key_help			khlp	str	%1	KEY_HELP	0553	-----	help key
+key_mark			kmrk	str	%2	KEY_MARK	0554	-----	mark key
+key_message			kmsg	str	%3	KEY_MESSAGE	0555	-----	message key
+key_move			kmov	str	%4	KEY_MOVE	0556	-----	move key
+key_next			knxt	str	%5	KEY_NEXT	0557	-----	next key
+key_open			kopn	str	%6	KEY_OPEN	0560	-----	open key
+key_options			kopt	str	%7	KEY_OPTIONS	0561	-----	options key
+key_previous			kprv	str	%8	KEY_PREVIOUS	0562	-----	previous key
+key_print			kprt	str	%9	KEY_PRINT	0532	-----	print key
+key_redo			krdo	str	%0	KEY_REDO	0563	-----	redo key
+key_reference			kref	str	&1	KEY_REFERENCE	0564	-----	reference key
+key_refresh			krfr	str	&2	KEY_REFRESH	0565	-----	refresh key
+key_replace			krpl	str	&3	KEY_REPLACE	0566	-----	replace key
+key_restart			krst	str	&4	KEY_RESTART	0567	-----	restart key
+key_resume			kres	str	&5	KEY_RESUME	0570	-----	resume key
+key_save			ksav	str	&6	KEY_SAVE	0571	-----	save key
+key_suspend			kspd	str	&7	KEY_SUSPEND	0627	-----	suspend key
+key_undo			kund	str	&8	KEY_UNDO	0630	-----	undo key
+key_sbeg			kBEG	str	&9	KEY_SBEG	0572	-----	shifted begin key
+key_scancel			kCAN	str	&0	KEY_SCANCEL	0573	-----	shifted cancel key
+key_scommand			kCMD	str	*1	KEY_SCOMMAND	0574	-----	shifted command key
+key_scopy			kCPY	str	*2	KEY_SCOPY	0575	-----	shifted copy key
+key_screate			kCRT	str	*3	KEY_SCREATE	0576	-----	shifted create key
+key_sdc				kDC	str	*4	KEY_SDC		0577	-----	shifted delete-character key
+key_sdl				kDL	str	*5	KEY_SDL		0600	-----	shifted delete-line key
+key_select			kslt	str	*6	KEY_SELECT	0601	-----	select key
+key_send			kEND	str	*7	KEY_SEND	0602	-----	shifted end key
+key_seol			kEOL	str	*8	KEY_SEOL	0603	-----	shifted clear-to-end-of-line key
+key_sexit			kEXT	str	*9	KEY_SEXIT	0604	-----	shifted exit key
+key_sfind			kFND	str	*0	KEY_SFIND	0605	-----	shifted find key
+key_shelp			kHLP	str	#1	KEY_SHELP	0606	-----	shifted help key
+key_shome			kHOM	str	#2	KEY_SHOME	0607	-----	shifted home key
+key_sic				kIC	str	#3	KEY_SIC		0610	-----	shifted insert-character key
+key_sleft			kLFT	str	#4	KEY_SLEFT	0611	-----	shifted left-arrow key
+key_smessage			kMSG	str	%a	KEY_SMESSAGE	0612	-----	shifted message key
+key_smove			kMOV	str	%b	KEY_SMOVE	0613	-----	shifted move key
+key_snext			kNXT	str	%c	KEY_SNEXT	0614	-----	shifted next key
+key_soptions			kOPT	str	%d	KEY_SOPTIONS	0615	-----	shifted options key
+key_sprevious			kPRV	str	%e	KEY_SPREVIOUS	0616	-----	shifted previous key
+key_sprint			kPRT	str	%f	KEY_SPRINT	0617	-----	shifted print key
+key_sredo			kRDO	str	%g	KEY_SREDO	0620	-----	shifted redo key
+key_sreplace			kRPL	str	%h	KEY_SREPLACE	0621	-----	shifted replace key
+key_sright			kRIT	str	%i	KEY_SRIGHT	0622	-----	shifted right-arrow key
+key_srsume			kRES	str	%j	KEY_SRSUME	0623	-----	shifted resume key
+key_ssave			kSAV	str	!1	KEY_SSAVE	0624	-----	shifted save key
+key_ssuspend			kSPD	str	!2	KEY_SSUSPEND	0625	-----	shifted suspend key
+key_sundo			kUND	str	!3	KEY_SUNDO	0626	-----	shifted undo key
+req_for_input			rfi	str	RF	-		-	-----	send next input char (for ptys)
+key_f11				kf11	str	F1	KEY_F(11)	-	----E	F11 function key
+key_f12				kf12	str	F2	KEY_F(12)	-	----E	F12 function key
+key_f13				kf13	str	F3	KEY_F(13)	-	----E	F13 function key
+key_f14				kf14	str	F4	KEY_F(14)	-	----E	F14 function key
+key_f15				kf15	str	F5	KEY_F(15)	-	----E	F15 function key
+key_f16				kf16	str	F6	KEY_F(16)	-	----E	F16 function key
+key_f17				kf17	str	F7	KEY_F(17)	-	----E	F17 function key
+key_f18				kf18	str	F8	KEY_F(18)	-	----E	F18 function key
+key_f19				kf19	str	F9	KEY_F(19)	-	----E	F19 function key
+key_f20				kf20	str	FA	KEY_F(20)	-	----E	F20 function key
+key_f21				kf21	str	FB	KEY_F(21)	-	----E	F21 function key
+key_f22				kf22	str	FC	KEY_F(22)	-	----E	F22 function key
+key_f23				kf23	str	FD	KEY_F(23)	-	----E	F23 function key
+key_f24				kf24	str	FE	KEY_F(24)	-	----E	F24 function key
+key_f25				kf25	str	FF	KEY_F(25)	-	----E	F25 function key
+key_f26				kf26	str	FG	KEY_F(26)	-	----E	F26 function key
+key_f27				kf27	str	FH	KEY_F(27)	-	----E	F27 function key
+key_f28				kf28	str	FI	KEY_F(28)	-	----E	F28 function key
+key_f29				kf29	str	FJ	KEY_F(29)	-	----E	F29 function key
+key_f30				kf30	str	FK	KEY_F(30)	-	----E	F30 function key
+key_f31				kf31	str	FL	KEY_F(31)	-	----E	F31 function key
+key_f32				kf32	str	FM	KEY_F(32)	-	----E	F32 function key
+key_f33				kf33	str	FN	KEY_F(33)	-	----E	F33 function key
+key_f34				kf34	str	FO	KEY_F(34)	-	----E	F34 function key
+key_f35				kf35	str	FP	KEY_F(35)	-	----E	F35 function key
+key_f36				kf36	str	FQ	KEY_F(36)	-	----E	F36 function key
+key_f37				kf37	str	FR	KEY_F(37)	-	----E	F37 function key
+key_f38				kf38	str	FS	KEY_F(38)	-	----E	F38 function key
+key_f39				kf39	str	FT	KEY_F(39)	-	----E	F39 function key
+key_f40				kf40	str	FU	KEY_F(40)	-	----E	F40 function key
+key_f41				kf41	str	FV	KEY_F(41)	-	----E	F41 function key
+key_f42				kf42	str	FW	KEY_F(42)	-	----E	F42 function key
+key_f43				kf43	str	FX	KEY_F(43)	-	----E	F43 function key
+key_f44				kf44	str	FY	KEY_F(44)	-	----E	F44 function key
+key_f45				kf45	str	FZ	KEY_F(45)	-	----E	F45 function key
+key_f46				kf46	str	Fa	KEY_F(46)	-	----E	F46 function key
+key_f47				kf47	str	Fb	KEY_F(47)	-	----E	F47 function key
+key_f48				kf48	str	Fc	KEY_F(48)	-	----E	F48 function key
+key_f49				kf49	str	Fd	KEY_F(49)	-	----E	F49 function key
+key_f50				kf50	str	Fe	KEY_F(50)	-	----E	F50 function key
+key_f51				kf51	str	Ff	KEY_F(51)	-	----E	F51 function key
+key_f52				kf52	str	Fg	KEY_F(52)	-	----E	F52 function key
+key_f53				kf53	str	Fh	KEY_F(53)	-	----E	F53 function key
+key_f54				kf54	str	Fi	KEY_F(54)	-	----E	F54 function key
+key_f55				kf55	str	Fj	KEY_F(55)	-	----E	F55 function key
+key_f56				kf56	str	Fk	KEY_F(56)	-	----E	F56 function key
+key_f57				kf57	str	Fl	KEY_F(57)	-	----E	F57 function key
+key_f58				kf58	str	Fm	KEY_F(58)	-	----E	F58 function key
+key_f59				kf59	str	Fn	KEY_F(59)	-	----E	F59 function key
+key_f60				kf60	str	Fo	KEY_F(60)	-	----E	F60 function key
+key_f61				kf61	str	Fp	KEY_F(61)	-	----E	F61 function key
+key_f62				kf62	str	Fq	KEY_F(62)	-	----E	F62 function key
+key_f63				kf63	str	Fr	KEY_F(63)	-	----E	F63 function key
+clr_bol				el1	str	cb	-		-	-----	Clear to beginning of line
+clear_margins			mgc	str	MC	-		-	-----	clear right and left soft margins
+set_left_margin			smgl	str	ML	-		-	-----	set left soft margin at current column.	 See smgl. (ML is not in BSD termcap).
+set_right_margin		smgr	str	MR	-		-	-----	set right soft margin at current column
+device_type			devt	str	dv	-		-	-----	Indicate language/codeset support
+code_set_init			csin	str	ci	-		-	-----	Init sequence for multiple codesets
+set0_des_seq			s0ds	str	s0	-		-	-----	Shift to codeset 0 (EUC set 0, ASCII)
+set1_des_seq			s1ds	str	s1	-		-	-----	Shift to codeset 1
+set2_des_seq			s2ds	str	s2	-		-	-----	Shift to codeset 2
+set3_des_seq			s3ds	str	s3	-		-	-----	Shift to codeset 3
+key_mouse			kmous	str	Km	KEY_MOUSE	0631	-----	Mouse event has occurred
+mouse_info			minfo	str	Mi	-		-	-----	Mouse status information
+req_mouse_pos			reqmp	str	RQ	-		-	-----	Request mouse position
+get_mouse			getm	str	Gm	-		-	-----	Curses should get button events, parameter #1 not documented.
+release_mouse			relm	str	Rm	-		-	-----	Curses should release the mouse */
+color_names			colornm	str	Yw	-		-	-----	Give name for color #1
+initialize_color		initc	str	Ic	-		-	-----	initialize color #1 to (#2,#3,#4)
+initialize_pair			initp	str	Ip	-		-	-----	Initialize color pair #1 to fg=(#2,#3,#4), bg=(#5,#6,#7)
+orig_colors			oc	str	oc	-		-	-----	Set all color pairs to the original ones
+orig_pair			op	str	op	-		-	-----	Set default pair to its original value
+set_a_background		setab	str	AB	-		-	-----	Set background color to #1, using ANSI escape
+set_a_foreground		setaf	str	AF	-		-	-----	Set foreground color to #1, using ANSI escape
+set_background			setb	str	Sb	-		-	-----	Set background color #1
+set_color_pair			scp	str	sp	-		-	-----	Set current color pair to #1
+set_foreground			setf	str	Sf	-		-	-----	Set foreground color #1
+#%.TE
+#%.ad
+#%
+# The magic token below tells the tic compiler-generator code that all the caps
+# past it should be ignored (not written out) when dumping terminfo objects. It
+# also tells the man page table generator not to pass through following lines
+# This means we can have obsolete capabilities and pseudo-capabilities that are
+# recognized for termcap or terminfo compilation, but not output.
+#
+# %%-STOP-HERE-%%
+#
+# Don't move this casually!  In fact, don't move it at all unless you're
+# either doing it to add System V or XPG4 extensions, or have decided you
+# don't care about SVr4 binary compatibility.
+#
+#############################################################################
+#
+# TERMCAP EXTENSION CAPABILITIES
+#
+# The capabilities below are either obsolete or extensions on certain systems.
+# They are not used by SVR4 terminfo.  Some are used by captoinfo to translate
+# termcap sources; the rest are listed for completeness, and in case somebody
+# cares about them enough to hack in code that will translate them into
+# terminfo capabilities.
+#
+# The first part of the list is from Ross Ridge's `mytinfo' package
+# (comp.sources.unix, volume 26); the variable names and terminfo names (as
+# well as the termcap codes) match his list.
+#
+# This group of codes is not marked obsolete in 4.4BSD, but have no direct
+# terminfo equivalents.  The rs capability is specially translated to terminfo
+# r2, and vice versa, if an entry does not already have an r2.  Similarly,
+# i2 is translated to r3 if there is no r3 (because SV terminfo maps is to i2).
+# The ug capability is thrown away, but assumed to be whatever sg is if the
+# latter is nonzero and we're dumping in termcap format.
+#
+termcap_init2			OTi2	str	i2	-		-	YB---	secondary initialization string
+termcap_reset			OTrs	str	rs	-		-	YB-G-	terminal reset string
+magic_cookie_glitch_ul		OTug	num	ug	-		-	YBCGE	number of blanks left by ul
+#
+# Obsolete termcap capabilities.  Some are used for termcap translation.  The
+# code uses the 'OT' prefix we put on obsolete capabilities to suppress
+# printing them in terminfo source dumps of compiled entries.
+#
+backspaces_with_bs		OTbs	bool	bs	-		-	YBCGE	uses ^H to move left
+crt_no_scrolling		OTns	bool	ns	-		-	YBCG-	crt cannot scroll
+no_correctly_working_cr		OTnc	bool	nc	-		-	YBCG-	no way to go to start of line
+carriage_return_delay		OTdC	num	dC	-		-	YB-G-	pad needed for CR
+new_line_delay			OTdN	num	dN	-		-	YB-G-	pad needed for LF
+linefeed_if_not_lf		OTnl	str	nl	-		-	YBCGE	use to move down
+backspace_if_not_bs		OTbc	str	bc	-		-	YBCGE	move left, if not ^H
+#
+# GNU termcap library extensions.  The GNU termcap file distributed with
+# Emacs no longer uses these, but MT showed up in pre-9.0 versions of the
+# BSD termcap file.  The name clash with terminfo MT is resolved by type
+# info; MT is converted to km.
+#
+gnu_has_meta_key		OTMT	bool	MT	-		-	----E	has meta key
+# gnu_tab_width			OTtw	num	tw	-		-	----E	tab width in spaces
+#
+# GNU termcap *does* include the following extended capability,  Only the
+# now-obsolete Ann Arbor terminals used it.
+#
+# gnu_change_scroll_region	OTcS	str	cS	-		-	---GE	alternate set scrolling region 
+#
+# The following comments describe capnames so ancient that I believe no
+# software uses them any longer.  Some of these have to go because they
+# clash with terminfo names in ways that cannot be resolved by type
+# information.
+#
+# These mytinfo codes are not used in the 4.4BSD curses code.  They are
+# marked obsolete in the 4.4BSD manual pages.
+#
+# There is one conflict with terminfo; ma is in both.  This conflict is
+# resolved by type information.
+#
+# The `ko' capability is translated by special code.  It should contain a
+# comma-separated list of capabilities for which there are corresponding keys.
+# The `kn' code is accepted but ignored.
+#
+# The `ma' capability seems to have been designed to map between the rogue(2)
+# motion keys (including jkhl) and characters emitted by arrow keys on some
+# primitive pre-ANSI terminals.  It's so obsolete it's fossilized...
+#
+# Here is a description of memory_lock_above and memory_unlock:
+# "You can 'freeze' data on the screen by turning on Memory Lock in a line of
+# text.  All lines above the cursor's current line become locked in place on
+# the screen.  Then enter data normally.  When the screen fills up, any
+# further data entered forces the first line of unfrozen line text to scroll
+# under the frozen data.  Lines scrolled off the screen are inserted into
+# memory immediately preceding the first frozen line." (from the HP 700/96
+# User's manual).  VT100/ANSI memory lock set is \E[>2h, reset is \E[>2l.
+#
+# Applications that use terminfo are supposed to behave as though xr is
+# always true.
+#
+linefeed_is_newline		OTNL	bool	NL	-		-	YB---	move down with \n
+# even_parity			OTEP	bool	EP	-		-	-B---	terminal requires even parity
+# odd_parity			OTOP	bool	OP	-		-	-B---	terminal requires odd parity
+# half_duplex			OTHD	bool	HD	-		-	-B---	terminal is half-duplex
+# lower_case_only		OTLC	bool	LC	-		-	-B---	terminal has only lower case
+# upper_case_only		OTUC	bool	UC	-		-	-B---	terminal has only upper case
+backspace_delay			OTdB	num	dB	-		-	YB-G-	padding required for ^H
+# form_feed_delay		OTdF	num	dF	-		-	-B-G-	padding required for ^L
+horizontal_tab_delay		OTdT	num	dT	-		-	YB-G-	padding required for ^I
+# vertical_tab_delay		OTdV	num	dV	-		-	-B---	padding required for ^V
+number_of_function_keys		OTkn	num	kn	-		-	-B-G-	count of function keys
+other_non_function_keys		OTko	str	ko	-		-	-B-G-	list of self-mapped keycaps
+arrow_key_map			OTma	str	ma	-		-	YBC--	map arrow keys rogue(1) motion keys
+# memory_lock_above		OTml	str	ml	-		-	-B---	lock visible screen memory above the current line
+# memory_unlock			OTmu	str	mu	-		-	-B---	unlock visible screen memory above the current line
+has_hardware_tabs		OTpt	bool	pt	-		-	YB---	has 8-char tabs invoked with ^I
+return_does_clr_eol		OTxr	bool	xr	-		-	YB---	return clears the line
+# tek_4025_insert_line		OTxx	bool	xx	-		-	-BC--	Tektronix 4025 insert-line glitch
+#
+# mytinfo described this as a termcap capability, but it's not listed in the
+# 4.4BSD man pages, and not found in the 4.4BSD termcap file.  The ncurses
+# package, like System V, behaves as though it is always true.
+#
+# rind_only_at_top		OTxq	bool	xq	-		-	-----	reverse index only works from top line
+#
+# University of Waterloo termcap extensions (as described in mytinfo).
+# The `xl' termcap file clashes with a terminfo name; this ambiguity cannot
+# be resolved by a type check.  The descriptions are guesses from what was
+# in the mytinfo tables. 
+#
+# key_interrupt_char		OTki	str	ki	-		-	-----	string set by interrupt key (?)
+# key_kill_char			OTkk	str	kk	-		-	-----	string set by kill key (?)
+# key_suspend_char		OTkz	str	kz	-		-	-----	string set by suspend key (?)
+# initialization_messy		OTxc	bool	xc	-		-	-----	initialization leaves garbage on the screen (?)
+# ind_at_bottom_does_cr		OTxl	bool	xl	-		-	-----	index does a carriage return
+#
+# Nonstandard capabilities unique to Ross Ridge's `mytinfo' package.
+# SR clashes with a terminfo name; this ambiguity cannot be resolved by a type
+# check.
+#
+# scroll_left			OTsl1	str	Sl	-		-	-----	scroll screen leftward
+# scroll_right			OTsr1	str	Sr	-		-	-----	scroll screen rightward
+# parm_scroll_left		OTsl	str	SL	-		-	-----	scroll screen leftward #1 characters
+# parm_scroll_right		OTsr	str	SR	-		-	-----	scroll screen rightward #1 characters
+#
+# The mytinfo capabilities end here.
+#
+# XENIX extensions:
+#
+# Xenix defined its own set of forms-drawing capabilities:
+#
+# cap	IBM ASCII	description             ACS         	ASCII
+# ---	-----------	--------------------    -------------	------
+# G1	191 \277 M-?	single upper right   	ACS_URCORNER
+# G2	218 \332 M-Z	single upper left	ACS_ULCORNER
+# G3	192 \300 M-@	single lower left	ACS_LLCORNER
+# G4	217 \331 M-Y	single lower right	ACS_LRCORNER
+# G5	187 \273 M-;	double upper right
+# G6	201 \311 M-I	double upper left
+# G7	200 \310 M-H	double lower left
+# G8	188 \274 M-<	double lower right
+# GC	197 \305 M-E	single intersection	ACS_PLUS	_ _
+# GD	194 \302 M-B	single down-tick	ACS_TTEE	 |
+# GH	196 \304 M-D	single horizontal line	ACS_HLINE
+# GL	180 \264 M-4	single left tick	ACS_RTEE	-|
+# GR	195 \303 M-C	single right tick	ACS_LTEE	|-
+# GU	193 \301 M-A	single up tick		ACS_BTEE	_|_
+# GV	179 \263 M-3	single vertical line	ACS_VLINE
+# Gc	206 \316 M-N	double intersection
+# Gd	203 \313 M-K	double down tick
+# Gh	205 \315 M-M	double horizontal line
+# Gl	204 \204 M-L	double left tick
+# Gr	185 \271 M-9	double right tick
+# Gu	202 \312 M-J	double up tick
+# Gv	186 \272 M-:	double vertical line
+#
+# The compiler will translate the single-line caps and discard the others
+# (via IGNORE aliases further down).  We don't want to do normal pad 
+# translation on these, they're often single-character printable ASCII
+# strings that happen to be numerics.  There's awk code in parametrized.sh
+# that detects the acs_ prefix and uses it to suppress pad translation.
+# These terminfo names are invented.
+#
+acs_ulcorner			OTG2	str	G2	-		-	-----	single upper left
+acs_llcorner			OTG3	str	G3	-		-	-----	single lower left
+acs_urcorner			OTG1	str	G1	-		-	-----	single upper right
+acs_lrcorner			OTG4	str	G4	-		-	-----	single lower right
+acs_ltee			OTGR	str	GR	-		-	-----	tee pointing right
+acs_rtee			OTGL	str	GL	-		-	-----	tee pointing left
+acs_btee			OTGU	str	GU	-		-	-----	tee pointing up
+acs_ttee			OTGD	str	GD	-		-	-----	tee pointing down
+acs_hline			OTGH	str	GH	-		-	-----	single horizontal line
+acs_vline			OTGV	str	GV	-		-	-----	single vertical line
+acs_plus			OTGC	str	GC	-		-	-----	single intersection
+#
+#############################################################################
+#
+# TERMINFO EXTENSION CAPABILITIES
+#
+# This section is almost all comments.  What it's mainly for is to describe
+# what capabilities need to be squeezed out to get down to the XSI Curses
+# standard set.  They are flagged with K.
+#
+# HP extensions
+#
+# These extensions follow ptr_non (replacing everything after it) in HP
+# terminfo files.  Except for memory_lock and memory_unlock, they are
+# functionally identical to SVr4 extensions, but they make the binary format
+# different.  Grrr....
+#
+memory_lock			meml	str	ml	-		-	----K	lock memory above cursor
+memory_unlock			memu	str	mu	-		-	----K	unlock memory
+#plab_norm			pln	str	pn	-		-	-----	program label #1 to show string #2
+#label_on			smln	str	LO	-		-	-----	turn on soft labels
+#label_off			rmln	str	LF	-		-	-----	turn off soft labels
+#key_f11			kf11	str	F1	-		-	-----	F11 function key
+#key_f12			kf12	str	F2	-		-	-----	F12 function key
+#key_f13			kf13	str	F3	-		-	-----	F13 function key
+#key_f14			kf14	str	F4	-		-	-----	F14 function key
+#key_f15			kf15	str	F5	-		-	-----	F15 function key
+#key_f16			kf16	str	F6	-		-	-----	F16 function key
+#key_f17			kf17	str	F7	-		-	-----	F17 function key
+#key_f18			kf18	str	F8	-		-	-----	F18 function key
+#key_f19			kf19	str	F9	-		-	-----	F19 function key
+#key_f20			kf20	str	FA	-		-	-----	F20 function key
+#key_f21			kf21	str	FB	-		-	-----	F21 function key
+#key_f22			kf22	str	FC	-		-	-----	F22 function key
+#key_f23			kf23	str	FD	-		-	-----	F23 function key
+#key_f24			kf24	str	FE	-		-	-----	F24 function key
+#key_f25			kf25	str	FF	-		-	-----	F25 function key
+#key_f26			kf26	str	FG	-		-	-----	F26 function key
+#key_f27			kf27	str	FH	-		-	-----	F27 function key
+#key_f28			kf28	str	FI	-		-	-----	F28 function key
+#key_f29			kf29	str	FJ	-		-	-----	F29 function key
+#key_f30			kf30	str	FK	-		-	-----	F30 function key
+#key_f31			kf31	str	FL	-		-	-----	F31 function key
+#key_f32			kf32	str	FM	-		-	-----	F32 function key
+#key_f33			kf33	str	FN	-		-	-----	F33 function key
+#key_f34			kf34	str	FO	-		-	-----	F34 function key
+#key_f35			kf35	str	FP	-		-	-----	F35 function key
+#key_f36			kf36	str	FQ	-		-	-----	F36 function key
+#key_f37			kf37	str	FR	-		-	-----	F37 function key
+#key_f38			kf38	str	FS	-		-	-----	F38 function key
+#key_f39			kf39	str	FT	-		-	-----	F39 function key
+#key_f40			kf40	str	FU	-		-	-----	F40 function key
+#key_f41			kf41	str	FV	-		-	-----	F41 function key
+#key_f42			kf42	str	FW	-		-	-----	F42 function key
+#key_f43			kf43	str	FX	-		-	-----	F43 function key
+#key_f44			kf44	str	FY	-		-	-----	F44 function key
+#key_f45			kf45	str	FZ	-		-	-----	F45 function key
+#key_f46			kf46	str	Fa	-		-	-----	F46 function key
+#key_f47			kf47	str	Fb	-		-	-----	F47 function key
+#key_f48			kf48	str	Fc	-		-	-----	F48 function key
+#key_f49			kf49	str	Fd	-		-	-----	F49 function key
+#key_f50			kf50	str	Fe	-		-	-----	F50 function key
+#key_f51			kf51	str	Ff	-		-	-----	F51 function key
+#key_f52			kf52	str	Fg	-		-	-----	F52 function key
+#key_f53			kf53	str	Fh	-		-	-----	F53 function key
+#key_f54			kf54	str	Fi	-		-	-----	F54 function key
+#key_f55			kf55	str	Fj	-		-	-----	F55 function key
+#key_f56			kf56	str	Fk	-		-	-----	F56 function key
+#key_f57			kf57	str	Fl	-		-	-----	F57 function key
+#key_f58			kf58	str	Fm	-		-	-----	F58 function key
+#key_f59			kf59	str	Fn	-		-	-----	F59 function key
+#key_f60			kf60	str	Fo	-		-	-----	F60 function key
+#key_f61			kf61	str	Fp	-		-	-----	F61 function key
+#key_f62			kf62	str	Fq	-		-	-----	F62 function key
+#key_f63			kf63	str	Fr	-		-	-----	F63 function key
+#
+# IBM extensions
+#
+# These extensions follow ptr_non (replacing everything after it) in IBM
+# terminfo files.
+#
+# The places in the box[12] capabilities correspond to acsc characters, here is
+# the mapping:
+#
+#	box1[0]  = ACS_ULCORNER
+#	box1[1]  = ACS_HLINE	
+#	box1[2]  = ACS_URCORNER
+#	box1[3]  = ACS_VLINE
+#	box1[4]  = ACS_LRCORNER
+#	box1[5]  = ACS_LLCORNER
+#	box1[6]  = ACS_TTEE
+#	box1[7]  = ACS_RTEE
+#	box1[8]  = ACS_BTEE
+#	box1[9]  = ACS_LTEE
+#	box1[10] = ACS_PLUS
+#
+# The box2 characters are the double-line versions of these forms graphics.
+#
+box_chars_1			box1	str	bx	-		-	----K	box characters primary set
+#box_chars_2			box2	str	by	-		-	----K	box characters secondary set
+#box_attr_1			batt1	str	Bx	-		-	----K	attributes for box1
+#box_attr_2			batt2	str	By	-		-	----K	attributes for box2
+#color_bg_0			colb0	str	d0	-		-	----K	background color 0
+#color_bg_1			colb1	str	d1	-		-	----K	background color 1
+#color_bg_2			colb2	str	d2	-		-	----K	background color 2
+#color_bg_3			colb3	str	d3	-		-	----K	background color 3
+#color_bg_4			colb4	str	d4	-		-	----K	background color 4
+#color_bg_5			colb5	str	d5	-		-	----K	background color 5
+#color_bg_6			colb6	str	d6	-		-	----K	background color 6
+#color_bg_7			colb7	str	d7	-		-	----K	background color 7
+#color_fg_0			colf0	str	c0	-		-	----K	foreground color 0
+#color_fg_1			colf1	str	c1	-		-	----K	foreground color 1
+#color_fg_2			colf2	str	c2	-		-	----K	foreground color 2
+#color_fg_3			colf3	str	c3	-		-	----K	foreground color 3
+#color_fg_4			colf4	str	c4	-		-	----K	foreground color 4
+#color_fg_5			colf5	str	c5	-		-	----K	foreground color 5
+#color_fg_6			colf6	str	c6	-		-	----K	foreground color 6
+#color_fg_7			colf7	str	c7	-		-	----K	foreground color 7
+#font_0				font0	str	f0	-		-	-----	select font 0
+#font_1				font1	str	f1	-		-	-----	select font 1
+#font_2				font2	str	f2	-		-	-----	select font 2
+#font_3				font3	str	f3	-		-	-----	select font 3
+#font_4				font4	str	f4	-		-	----K	select font 4
+#font_5				font5	str	f5	-		-	----K	select font 5
+#font_6				font6	str	f6	-		-	----K	select font 6
+#font_7				font7	str	f7	-		-	----K	select font 7
+#key_back_tab			kbtab	str	k0	-		-	-----	backtab key
+#key_do				kdo	str	ki	-		-	----K	do request key
+#key_command			kcmd	str	kd	-		-	----K	command-request key
+#key_command_pane		kcpn	str	kW	-		-	----K	command-pane key
+#key_end			kend	str	kw	-		-	-----	end key
+#key_help			khlp	str	kq	-		-	-----	help key
+#key_newline			knl	str	nl	-		-	----K	newline key
+#key_next_pane			knpn	str	kv	-		-	----K	next-pane key
+#key_prev_cmd			kppn	str	kp	-		-	----K	previous-command key
+#key_prev_pane			kppn	str	kV	-		-	----K	previous-pane key
+#key_quit			kquit	str	kQ	-		-	----K	quit key
+#key_select			ksel	str	kU	-		-	-----	select key
+#key_scroll_left		kscl	str	kz	-		-	----K	scroll left
+#key_scroll_right		kscr	str	kZ	-		-	----K	scroll right
+#key_tab			ktab	str	ko	-		-	----K	tab key
+#key_smap_in1			kmpf1	str	Kv	-		-	----K	special mapped key 1 input
+#key_smap_out1			kmpt1	str	KV	-		-	----K	special mapped key 1 output
+#key_smap_in2			kmpf2	str	Kw	-		-	----K	special mapped key 2 input
+#key_smap_out2			kmpt2	str	KW	-		-	----K	special mapped key 2 output
+#key_smap_in3			kmpf3	str	Kx	-		-	----K	special mapped key 3 input
+#key_smap_out3			kmpt3	str	KX	-		-	----K	special mapped key 3 output
+#key_smap_in4			kmpf4	str	Ky	-		-	----K	special mapped key 4 input
+#key_smap_out4			kmpt4	str	KY	-		-	----K	special mapped key 4 output
+#key_smap_in5			kmpf5	str	Kz	-		-	----K	special mapped key 5 input
+#key_smap_out5			kmpt5	str	KZ	-		-	----K	special mapped key 5 output
+#appl_defined_str		apstr	str	za	-		-	----K	application-defined string
+# The key_smap_in[6789] and key_smap_out[6789] capabilities aren't described in
+# the IBM manual pages, so the cap name strings are guesses.  The terminfo
+# names are almost certainly right, the termcap ones almost certainly wrong.
+#key_smap_in6			kmpf6	str	k!	-		-	----K	special mapped key 6 input
+#key_smap_out6			kmpt6	str	K@	-		-	----K	special mapped key 6 output
+#key_smap_in7			kmpf7	str	k#	-		-	----K	special mapped key 7 input
+#key_smap_out7			kmpt7	str	K$	-		-	----K	special mapped key 7 output
+#key_smap_in8			kmpf8	str	k%	-		-	----K	special mapped key 8 input
+#key_smap_out8			kmpt8	str	K^	-		-	----K	special mapped key 8 output
+#key_smap_in9			kmpf9	str	k&	-		-	----K	special mapped key 9 input
+#key_smap_out9			kmpt9	str	K*	-		-	----K	special mapped key 9 output
+# Undocumented capabilities end here
+#key_sf1			ksf1	str	S1	-		-	----K	special function key 1
+#key_sf2			ksf2	str	S2	-		-	----K	special function key 2
+#key_sf3			ksf3	str	S3	-		-	----K	special function key 3
+#key_sf4			ksf4	str	S4	-		-	----K	special function key 4
+#key_sf5			ksf5	str	S5	-		-	----K	special function key 5
+#key_sf6			ksf6	str	S6	-		-	----K	special function key 6
+#key_sf7			ksf7	str	S7	-		-	----K	special function key 7
+#key_sf8			ksf8	str	S8	-		-	----K	special function key 8
+#key_sf9			ksf9	str	S9	-		-	----K	special function key 9
+#key_sf10			ksf10	str	SA	-		-	----K	special function key 10
+# AIX version 3 documents different codes for F11, F12 and does not mention
+# F13-F64.  AIX version 4 uses the same naming for F0-F63 as above.
+#key_f11			kf11	str	k<	-		-	-----	function key 11
+#key_f12			kf12	str	k>	-		-	-----	function key 12
+# Undocumented capabilities end here.
+#key_action			kact	str	kJ	-		-	----K	sent by action key
+# The IBM docs say these capabilities are for table-drawing, and are
+# valid only for aixterm descriptions.
+#enter_topline_mode		topl	str	tp	-		-	----K	start top-line mode
+#enter_bottom_mode		btml	str	bm	-		-	----K	start bottom-line mode
+#enter_rvert_mode		rvert	str	rv	-		-	----K	start right-vertical mode
+#enter_lvert_mode		lvert	str	lv	-		-	----K	start left-vertical mode
+#
+#############################################################################
+#
+# ALIAS DECLARATIONS
+#
+# Here we set up aliases for translating extensions into standard terminfo.
+#
+#---------------------------------- Termcap aliases -------------------------
+#
+# BSD aliases:
+#
+# This is a common error in many termcap files.  We'll get notified during
+# translation when this (or any other alias) fires.
+#
+capalias	sb	sr	BSD	scroll text down
+#
+# AT&T extensions:
+#
+# The old AT&T 5410, 5420, 5425, pc6300plus, 610, and s4 entries used a set of
+# nonstandard capabilities.  Its signature is the KM capability, used to name
+# some sort of keymap file.  EE, BO, CI, CV, XS, DS, FL and FE are in this
+# set.  Comments in the original, and a little cross-checking with other AT&T
+# documentation, seem to establish the following mappings:
+#
+capalias	BO	mr	AT&T	enter_reverse_mode
+capalias	CI	vi	AT&T	cursor_invisible
+capalias	CV	ve	AT&T	cursor_normal
+capalias	DS	mh	AT&T	enter_dim_mode
+#capalias	EE	me	AT&T	exit_attribute_mode	
+capalias	FE	LF	AT&T	label_on
+capalias	FL	LO	AT&T	label_off
+capalias	XS	mk	AT&T	enter_secure_mode
+#
+# We comment out EE because the conflicting XENIX EE is more common in 
+# old entries.
+#
+# XENIX extensions:
+#
+# These are the ones we know how to translate directly:
+#
+capalias	EE	mh	XENIX	exit_attribute_mode	
+capalias	GE	ae	XENIX	exit_alt_charset_mode
+capalias	GS	as	XENIX	enter_alt_charset_mode
+capalias	CF	vi	XENIX	cursor_invis
+capalias	CO	ve	XENIX	cursor_normal
+capalias	EN	@7	XENIX	key_end
+capalias	HM	kh	XENIX	key_home
+capalias	LD	kL	XENIX	key_dl
+capalias	PD	kN	XENIX	key_npage
+capalias	PN	po	XENIX	prtr_off
+capalias	PS	pf	XENIX	prtr_on
+capalias	PU	kP	XENIX	key_ppage
+capalias	RT	@8	XENIX	kent
+capalias	UP	ku	XENIX	kcuu1
+capalias	G6	IGNORE	XENIX	double-ACS_ULCORNER
+capalias	G7	IGNORE	XENIX	double-ACS_LLCORNER
+capalias	G5	IGNORE	XENIX	double-ACS_URCORNER
+capalias	G8	IGNORE	XENIX	double-ACS_LRCORNER
+capalias	Gr	IGNORE	XENIX	double-ACS_LTEE
+capalias	Gr	IGNORE	XENIX	double-ACS_RTEE
+capalias	Gu	IGNORE	XENIX	double-ACS_BTEE
+capalias	Gd	IGNORE	XENIX	double ACS_TTEE
+capalias	Gh	IGNORE	XENIX	double-ACS_HLINE
+capalias	Gv	IGNORE	XENIX	double-ACS_VLINE
+capalias	Gc	IGNORE	XENIX	double-ACS_PLUS
+capalias	GG	IGNORE	XENIX	acs-glitch
+#
+# IBM extensions:
+#
+capalias	kq	%1	IBM	key_help
+#
+# Iris extensions:
+#
+capalias	HS	mh	IRIS	enter_dim_mode
+#
+# Tektronix extensions:
+#
+capalias	KA	k;	Tek	key_f10
+capalias	KB	F1	Tek	key_f11
+capalias	KC	F2	Tek	key_f12
+capalias	KD	F3	Tek	key_f13
+capalias	KE	F4	Tek	key_f14
+capalias	KF	F5	Tek	key_f15
+capalias	BC	Sb	Tek	set_background
+capalias	FC	Sf	Tek	set_foreground
+#
+# There are also the following:
+#
+#	XENIX	XENIX variable name	name clash with terminfo?
+#	-----	-------------------	-------------------------
+#	CL	key_char_left
+#	CR	key_char_right
+#	CW	key_change_window
+#	HP	??
+#	LF	key_linefeed 		label_off
+#	NU	key_next_unlocked_cell
+#	PL	??
+#	PR	??
+#	RC	key_recalc		remove_clock
+#	RF	key_toggle_ref		req_for_input
+#	WL	key_word_left
+#	WR	key_word_right
+#
+# If you know what any of the question-marked ones mean, please tell us.
+#
+#--------------------------------- Terminfo aliases ------------------------
+#
+# IBM extensions:
+#
+infoalias	font0	s0ds	IBM	set0_des_seq
+infoalias	font1	s1ds	IBM	set1_des_seq
+infoalias	font2	s2ds	IBM	set2_des_seq
+infoalias	font3	s3ds	IBM	set3_des_seq
+infoalias	kbtab	kcbt	IBM	key_backtab
+infoalias	ksel	kslt	IBM	key_select
+#
+# Some others are identical to SVr4/XPG4 capabilities, in particular:
+# kcmd, kend, khlp, and kf11...kf63.
+#
+#############################################################################

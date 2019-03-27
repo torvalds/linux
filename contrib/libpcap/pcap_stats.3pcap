@@ -1,0 +1,97 @@
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP_STATS 3PCAP "3 January 2014"
+.SH NAME
+pcap_stats \- get capture statistics
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap/pcap.h>
+.ft
+.LP
+.ft B
+int pcap_stats(pcap_t *p, struct pcap_stat *ps);
+.ft
+.fi
+.SH DESCRIPTION
+.B pcap_stats()
+fills in the
+.B struct pcap_stat
+pointed to by its second argument.  The values represent
+packet statistics from the start of the run to the time of the call.
+.PP
+.B pcap_stats()
+is supported only on live captures, not on ``savefiles''; no statistics
+are stored in ``savefiles'', so no statistics are available when reading
+from a ``savefile''.
+.PP
+A
+.B struct pcap_stat
+has the following members:
+.RS
+.TP
+.B ps_recv
+number of packets received;
+.TP
+.B ps_drop
+number of packets dropped because there was no room in the operating
+system's buffer when they arrived, because packets weren't being read
+fast enough;
+.TP
+.B ps_ifdrop
+number of packets dropped by the network interface or its driver.
+.RE
+.PP
+The statistics do not behave the same way on all platforms.
+.B ps_recv
+might count packets whether they passed any filter set with
+.BR pcap_setfilter (3PCAP)
+or not, or it might count only packets that pass the filter.
+It also might, or might not, count packets dropped because there was no
+room in the operating system's buffer when they arrived.
+.B ps_drop
+is not available on all platforms; it is zero on platforms where it's
+not available.  If packet filtering is done in libpcap, rather than in
+the operating system, it would count packets that don't pass the filter.
+Both
+.B ps_recv
+and
+.B ps_drop
+might, or might not, count packets not yet read from the operating
+system and thus not yet seen by the application.
+.B ps_ifdrop
+might, or might not, be implemented; if it's zero, that might mean that
+no packets were dropped by the interface, or it might mean that the
+statistic is unavailable, so it should not be treated as an indication
+that the interface did not drop any packets.
+.SH RETURN VALUE
+.B pcap_stats()
+returns 0 on success and returns \-1 if there is an error or if
+.I p
+doesn't support packet statistics.
+If \-1 is returned,
+.B pcap_geterr()
+or
+.B pcap_perror()
+may be called with
+.I p
+as an argument to fetch or display the error text.
+.SH SEE ALSO
+pcap(3PCAP), pcap_geterr(3PCAP)

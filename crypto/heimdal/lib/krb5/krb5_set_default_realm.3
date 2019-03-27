@@ -1,0 +1,164 @@
+.\" Copyright (c) 2003 - 2005 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd April 24, 2005
+.Dt KRB5_SET_DEFAULT_REALM 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_copy_host_realm ,
+.Nm krb5_free_host_realm ,
+.Nm krb5_get_default_realm ,
+.Nm krb5_get_default_realms ,
+.Nm krb5_get_host_realm ,
+.Nm krb5_set_default_realm
+.Nd default and host realm read and manipulation routines
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Ft krb5_error_code
+.Fo krb5_copy_host_realm
+.Fa "krb5_context context"
+.Fa "const krb5_realm *from"
+.Fa "krb5_realm **to"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_free_host_realm
+.Fa "krb5_context context"
+.Fa "krb5_realm *realmlist"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_default_realm
+.Fa "krb5_context context"
+.Fa "krb5_realm *realm"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_default_realms
+.Fa "krb5_context context"
+.Fa "krb5_realm **realm"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_host_realm
+.Fa "krb5_context context"
+.Fa "const char *host"
+.Fa "krb5_realm **realms"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_set_default_realm
+.Fa "krb5_context context"
+.Fa "const char *realm"
+.Fc
+.Sh DESCRIPTION
+.Fn krb5_copy_host_realm
+copies the list of realms from
+.Fa from
+to
+.Fa to .
+.Fa to
+should be freed by the caller using
+.Fa krb5_free_host_realm .
+.Pp
+.Fn krb5_free_host_realm
+frees all memory allocated by
+.Fa realmlist .
+.Pp
+.Fn krb5_get_default_realm
+returns the first default realm for this host.
+The realm returned should be freed with
+.Fn free .
+.Pp
+.Fn krb5_get_default_realms
+returns a
+.Dv NULL
+terminated list of default realms for this context.
+Realms returned by
+.Fn krb5_get_default_realms
+should be freed with
+.Fn krb5_free_host_realm .
+.Pp
+.Fn krb5_get_host_realm
+returns a
+.Dv NULL
+terminated list of realms for
+.Fa host
+by looking up the information in the
+.Li [domain_realm]
+in
+.Pa krb5.conf
+or in
+.Li DNS .
+If the mapping in
+.Li [domain_realm]
+results in the string
+.Li dns_locate ,
+DNS is used to lookup the realm.
+.Pp
+When using
+.Li DNS
+to a resolve the domain for the host a.b.c,
+.Fn krb5_get_host_realm
+looks for a
+.Dv TXT
+resource record named
+.Li _kerberos.a.b.c ,
+and if not found, it strips off the first component and tries a again
+(_kerberos.b.c) until it reaches the root.
+.Pp
+If there is no configuration or DNS information found,
+.Fn krb5_get_host_realm
+assumes it can use the domain part of the
+.Fa host
+to form a realm.
+Caller must free
+.Fa realmlist
+with
+.Fn krb5_free_host_realm .
+.Pp
+.Fn krb5_set_default_realm
+sets the default realm for the
+.Fa context .
+If
+.Dv NULL
+is used as a
+.Fa realm ,
+the
+.Li [libdefaults]default_realm
+stanza in
+.Pa krb5.conf
+is used.
+If there is no such stanza in the configuration file, the
+.Fn krb5_get_host_realm
+function is used to form a default realm.
+.Sh SEE ALSO
+.Xr free 3 ,
+.Xr krb5.conf 5

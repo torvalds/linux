@@ -1,0 +1,6 @@
+block drop in log (all) quick on lo0 all
+block drop in log quick on lo0 all
+block drop in log (all) quick on lo0 all
+block drop in log quick on lo0 all
+block drop in log on lo0 all
+block drop in log (all) on lo0 all

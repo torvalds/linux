@@ -1,0 +1,126 @@
+#
+# Kernel configuration for Samsung Exynos 5 SoC.
+#
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
+#
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+# $FreeBSD$
+
+makeoptions	WERROR="-Werror"
+
+include 	"std.armv7"
+options 	SCHED_ULE		# ULE scheduler
+options 	PLATFORM		# Platform based SoC
+options 	PREEMPTION		# Enable kernel thread preemption
+options 	INET			# InterNETworking
+options 	INET6			# IPv6 communications protocols
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+options 	SCTP			# Stream Control Transmission Protocol
+options 	FFS			# Berkeley Fast Filesystem
+options 	SOFTUPDATES		# Enable FFS soft updates support
+options 	UFS_ACL			# Support for access control lists
+options 	UFS_DIRHASH		# Improve performance on big directories
+options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
+options 	QUOTA			# Enable disk quotas for UFS
+options 	NFSCL			# Network Filesystem Client
+options 	NFSLOCKD		# Network Lock Manager
+options 	NFS_ROOT		# NFS usable as /, requires NFSCL
+options 	MSDOSFS			# MSDOS Filesystem
+options 	CD9660			# ISO 9660 Filesystem
+options 	PROCFS			# Process filesystem (requires PSEUDOFS)
+options 	PSEUDOFS		# Pseudo-filesystem framework
+options 	TMPFS			# Efficient memory filesystem
+options 	GEOM_PART_GPT		# GUID Partition Tables
+options 	GEOM_PART_BSD		# BSD partition scheme
+options 	GEOM_PART_MBR		# MBR partition scheme
+options 	COMPAT_43		# Compatible with BSD 4.3 [KEEP THIS!]
+options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
+options 	KTRACE			# ktrace(1) support
+options 	SYSVSHM			# SYSV-style shared memory
+options 	SYSVMSG			# SYSV-style message queues
+options 	SYSVSEM			# SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
+options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
+options 	VFP			# Enable floating point hardware support
+options 	SMP			# Enable multiple cores
+
+# NFS root from boopt/dhcp
+#options 	BOOTP
+#options 	BOOTP_NFSROOT
+#options 	BOOTP_COMPAT
+#options 	BOOTP_NFSV3
+#options 	BOOTP_WIRED_TO=ue0
+
+options 	ROOTDEVNAME=\"ufs:/dev/da0\"
+
+# MMC/SD/SDIO Card slot support
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+device		dwmmc
+
+# Interrupt controller
+device		gic
+
+# ARM Generic Timer
+device		generic_timer
+
+# Pseudo devices
+
+device		loop
+device		random
+device		pty
+device		md
+device		gpio
+
+# USB support
+options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
+device		usb
+#device		musb
+device		ehci
+#device		ohci
+device		xhci
+
+device		umass
+device		scbus			# SCSI bus (required for ATA/SCSI)
+device		da			# Direct Access (disks)
+device		pass
+
+# SATA
+#device		ata
+#device		atadisk
+#device		mvs
+
+# Serial ports
+device		uart
+
+# I2C (TWSI)
+device		iic
+device		iicbus
+
+# SPI
+device		spibus
+device		exynos_spi
+
+# Ethernet
+device		ether
+device		mii
+device		smsc
+device		smscphy
+
+# USB ethernet support, requires miibus
+device		miibus
+device		axe			# ASIX Electronics USB Ethernet
+device		bpf			# Berkeley packet filter

@@ -1,0 +1,38 @@
+
+#------------------------------------------------------------------------------
+# $File: mcrypt,v 1.5 2009/09/19 16:28:10 christos Exp $
+# Mavroyanopoulos Nikos <nmav@hellug.gr>
+# mcrypt:   file(1) magic for mcrypt 2.2.x;
+0	string		\0m\3		mcrypt 2.5 encrypted data,
+>4	string		>\0		algorithm: %s,
+>>&1	leshort		>0		keysize: %d bytes,
+>>>&0	string		>\0		mode: %s,
+
+0	string		\0m\2		mcrypt 2.2 encrypted data,
+>3	byte		0		algorithm: blowfish-448,
+>3	byte		1		algorithm: DES,
+>3	byte		2		algorithm: 3DES,
+>3	byte		3		algorithm: 3-WAY,
+>3	byte		4		algorithm: GOST,
+>3	byte		6		algorithm: SAFER-SK64,
+>3	byte		7		algorithm: SAFER-SK128,
+>3	byte		8		algorithm: CAST-128,
+>3	byte		9		algorithm: xTEA,
+>3	byte		10		algorithm: TWOFISH-128,
+>3	byte		11		algorithm: RC2,
+>3	byte		12		algorithm: TWOFISH-192,
+>3	byte		13		algorithm: TWOFISH-256,
+>3	byte		14		algorithm: blowfish-128,
+>3	byte		15		algorithm: blowfish-192,
+>3	byte		16		algorithm: blowfish-256,
+>3	byte		100		algorithm: RC6,
+>3	byte		101		algorithm: IDEA,
+>4	byte		0		mode: CBC,
+>4	byte		1		mode: ECB,
+>4	byte		2		mode: CFB,
+>4	byte		3		mode: OFB,
+>4	byte		4		mode: nOFB,
+>5	byte		0		keymode: 8bit
+>5	byte		1		keymode: 4bit
+>5	byte		2		keymode: SHA-1 hash
+>5	byte		3		keymode: MD5 hash

@@ -1,0 +1,104 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 24, 1996
+.Dt VOP_RDWR 9
+.Os
+.Sh NAME
+.Nm VOP_READ ,
+.Nm VOP_WRITE
+.Nd read or write a file
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.In sys/uio.h
+.Ft int
+.Fn VOP_READ "struct vnode *vp" "struct uio *uio" "int ioflag" "struct ucred *cred"
+.Ft int
+.Fn VOP_WRITE "struct vnode *vp" "struct uio *uio" "int ioflag" "struct ucred *cred"
+.Sh DESCRIPTION
+These entry points read or write the contents of a file
+.Pp
+The arguments are:
+.Bl -tag -width ioflag
+.It Fa vp
+The vnode of the file.
+.It Fa uio
+The location of the data to be read or written.
+.It Fa ioflag
+Various flags.
+.It Fa cnp
+The credentials of the caller.
+.El
+.Pp
+The
+.Fa ioflag
+argument is used to give directives and hints to the file system.
+When attempting a read, the high 16 bits are used to provide a
+read-ahead hint (in units of file system blocks) that the file system
+should attempt.
+The low 16 bits are a bit mask which can contain
+the following flags:
+.Bl -tag -width ".Dv IO_NODELOCKED"
+.It Dv IO_UNIT
+Do I/O as atomic unit.
+.It Dv IO_APPEND
+Append write to end.
+.It Dv IO_SYNC
+Do I/O synchronously.
+.It Dv IO_NODELOCKED
+Underlying node already locked.
+.It Dv IO_NDELAY
+.Dv FNDELAY
+flag set in file table.
+.It Dv IO_VMIO
+Data already in VMIO space.
+.El
+.Sh LOCKS
+The file should be locked on entry and will still be locked on exit.
+.Sh RETURN VALUES
+Zero is returned on success, otherwise an error code is returned.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EFBIG
+An attempt was made to write a file that exceeds the process's file size
+limit or the maximum file size.
+.It Bq Er ENOSPC
+The file system is full.
+.It Bq Er EPERM
+An append-only flag is set on the file, but the caller is attempting to
+write before the current end of file.
+.El
+.Sh SEE ALSO
+.Xr uiomove 9 ,
+.Xr vnode 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

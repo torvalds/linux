@@ -1,0 +1,43 @@
+\input texinfo    @c -*-texinfo-*-
+@c %**start of header
+@setfilename ntpsweep.info
+@settitle ntpsweep User's Manual
+@include ../../sntp/include/version.texi
+@paragraphindent 2
+@c %**end of header
+
+@ifinfo
+This file documents the use of @code{ntpsweep},
+a program from
+the NTP Project,
+that is used to wait until @code{ntpd} has been able to
+synchronize and stabilize the time on the current host.
+@end ifinfo
+
+@direntry
+* ntpsweep: (ntpsweep).                 Wait for ntpd to synchronize and stabilize the system clock.
+@end direntry
+
+@titlepage
+@title ntpsweep User's Manual
+@subtitle ntpsweep, version @value{VERSION}, @value{UPDATED}
+@c @author Max @email{foo@ntp.org}
+@end titlepage
+
+@c @page
+@c @vskip 0pt plus 1filll
+
+@node Top, ntpsweep Description, (dir), (dir)
+
+This document describes the use of the NTP Project's @code{ntpsweep} program.
+
+This document applies to version @value{VERSION} of @code{ntpsweep}.
+
+@shortcontents
+
+@menu
+* ntpsweep Description::            Description
+* ntpsweep Invocation::		Invoking ntpsweep
+@end menu
+
+@include invoke-ntpsweep.texi

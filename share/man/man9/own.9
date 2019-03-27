@@ -1,0 +1,230 @@
+.\"
+.\" Copyright (c) 2015 M. Warner Losh
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 20, 2015
+.Dt OWN 9
+.Os
+.Sh NAME
+.Nm own ,
+.Nm own_send_command ,
+.Nm own_commmand_wait ,
+.Nm own_self_command ,
+.Nm own_acquire_bus ,
+.Nm own crc ,
+.Nm own_release_bus ,
+.Nm OWN_ACQUIRE_BUS ,
+.Nm OWN_CRC ,
+.Nm OWN_RELEASE_BUS ,
+.Nm OWN_SEND_COMMAND
+.Nd Dallas Semiconductor 1-Wire Network and Transport Interface
+.Sh SYNOPSIS
+.In sys/bus.h
+.In dev/ow/own.h
+.Ft int
+.Fn own_send_command "device_t pdev" "struct ow_cmd *cmd"
+.Ft int
+.Fn own_command_wait "device_t pdev" "struct ow_cmd *cmd"
+.Ft int
+.Fn own_self_command "device_t pdev" "struct ow_cmd *cmd" "uint8_t xpt_cmd"
+.Ft int
+.Fn own_acquire_bus "device_t pdev" "int how"
+.Ft int
+.Fn own_release_bus "device_t pdev"
+.Ft int
+.Fn own_crc "device_t pdev" "uint8_t *buffer" "size_t len"
+.Ft int
+.Fn OWN_SEND_COMMAND "device_t ndev" "device_t pdev" "struct ow_cmd *cmd"
+.Ft int
+.Fn OWN_ACQUIRE_BUS "device_t ndev" "device_t pdev" "int how"
+.Ft void
+.Fn OWN_RELEASE_BUS "device_t ndev" "device_t pdev"
+.Ft uint8_t
+.Fn OWN_CRC "device_t ndev" "device_t pdev" "uint8_t *buffer" "size_t len"
+.Sh DESCRIPTION
+The
+.Nm
+interface defines three sets of functions for interacting with 1-Wire
+devices:
+sending commands,
+reserving the bus,
+and
+ensuring data integrity.
+Wrappers are provided for the raw
+.Nm OWN
+.Xr kobj 9
+interfaces and should be used for improved safety over the
+.Xr kobj 9
+ones.
+.Ss Bus Commands
+The 1-Wire bus defines different layers of access to the devices on
+the bus.
+The
+.Nm
+functions provide access to the network and transport layers.
+The network layer designates the next command as being either for all
+devices on the bus, or for a specific device.
+The network layer also specifies the speed used by the link layer.
+.Pp
+.Vt "struct ow_cmd"
+encapsulates network access, speed, and timing information.
+It specifies the commands to send and whether or not to read data.
+Its members are:
+.Bl -tag -width ".Va xxxx"
+.It Va flags
+Flags controlling the interpretation of the structure.
+These flags are defined in
+.In dev/ow/ow.h :
+.Bl -tag -width indent
+.It OW_FLAG_OVERDRIVE
+Send
+.Va xpt_cmd
+bytes and read
+.Va xpt_read
+bytes at overdrive speed.
+.It OW_FLAG_READ_BIT
+Interpret
+.Va xpt_read_len
+to be in bits to be read after
+.Va xpt_cmd
+rather than bytes.
+.El
+.It Va rom_cmd
+ROM command bytes to send.
+.It Va rom_len
+Number of ROM command bytes to send.
+.It Va rom_read_len
+Number of bytes to read after sending the ROM command.
+.It Va rom_read
+Buffer for bytes read after the ROM command.
+.It Va xpt_cmd
+Transport command to send.
+.It Va xpt_len
+Length of the transport command bytes to send.
+Specify 0 for no transport command.
+.It Va xpt_read_len
+Number of bytes to read after
+.Va xpt_cmd
+bytes are sent.
+If the
+.Dv OW_FLAG_READ_BIT
+bit is set in
+.Va flags ,
+then it is the number of bits to read.
+Bits read are packed into bytes.
+.It Va xpt_read
+Buffer for data read.
+.El
+.Pp
+.Fn own_command_wait
+acquires the 1-Wire bus, waiting if necessary,
+sends the command,
+and
+then releases the bus.
+.Fn own_send_command
+sends the command without bus reservation.
+.Fa pdev
+is the client device (the presentation layer device) sending the command.
+The
+.Fa cmd
+argument describes the transaction to send to the 1-Wire bus.
+.Pp
+.Fn own_self_command
+fills in
+.Fa cmd
+with a MATCH_ROM ROM command, the ROM address of
+.Fa pdev
+and the
+.Fa xpt_cmd
+as a convenient way to create directed commands.
+.Ss Bus Reservation
+The 1-Wire system includes an advisory lock for the bus that
+presentation layer devices can use to coordinate access.
+Locking is purely advisory at this time.
+.Pp
+.Fn own_acquire_bus
+reserves the bus.
+It waits indefinitely if the
+.Fa how
+argument is
+.Dv OWN_WAIT
+and returns the error
+.Dv EWOULDBLOCK
+if passed
+.Dv OWN_DONTWAIT
+when the bus is owned by another client.
+.Pp
+.Fn own_release_bus
+releases the bus.
+.Ss Data Integrity
+.Fn own_crc
+computes the 1-Wire standard CRC function over the data
+passed in
+.Fa buffer
+and
+.Fa len
+and returns the result.
+.Ss Notes
+The 1-Wire standard (Maxim AN937) defines layers that are akin to ISO
+networking layers.
+The lowest relevant layer, the link layer, defines the polling windows
+and the timing of the signaling of different modes.
+The network layer is built on top of the link layer
+and is used to address devices in a unicast or multicast manner.
+The transport layer defines commands and responses from the devices.
+The presentation layer is composed of the device specific commands and
+actions used to control the specific 1-Wire devices on bus.
+.Pp
+These interfaces are implemented by the
+.Xr ow 4
+device.
+Presentation layer devices (children of the newbus
+.Xr ow 4
+device) should only call the functions described here.
+The functionality provided by the
+.Xr owc 4
+device (specifically the
+.Xr owll 9
+interface) should only be called by the
+.Xr ow 4
+driver.
+.Sh SEE ALSO
+.Xr ow 4 ,
+.Xr owc 4 ,
+.Xr owll 9
+.Pa  https://pdfserv.maximintegrated.com/en/an/AN937.pdf
+.Sh LEGAL
+.Tn 1-Wire
+is a registered trademark of Maxim Integrated Products, Inc.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+The
+.Nm
+device driver and this manual page were written by
+.An Warner Losh .

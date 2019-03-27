@@ -1,0 +1,12 @@
+
+#------------------------------------------------------------------------------
+# $File: fusecompress,v 1.2 2011/08/08 09:05:55 christos Exp $
+# fusecompress:   file(1) magic for fusecompress
+0	string	\037\135\211	FuseCompress(ed) data
+>3	byte	0x00	(none format)
+>3	byte	0x01	(bz2 format)
+>3	byte	0x02	(gz format)
+>3	byte	0x03	(lzo format)
+>3	byte	0x04	(xor format)
+>3	byte	>0x04	(unknown format)
+>4	long	x	uncompressed size: %d

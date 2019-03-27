@@ -1,0 +1,107 @@
+.\"	$NetBSD: trm.4,v 1.3 2001/11/11 05:24:45 tsutsui Exp $
+.\"
+.\" Copyright (c) 2002, David E O'Brien.  All rights reserved.
+.\" Copyright (c) 2001, Izumi Tsutsui.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 8, 2002
+.Dt TRM 4
+.Os
+.Sh NAME
+.Nm trm
+.Nd Tekram TRM-S1040 ASIC based PCI SCSI host adapter driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device trm"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+trm_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports PCI SCSI host adapters based on the Tekram TRM-S1040 SCSI ASIC.
+.Sh HARDWARE
+SCSI controllers supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+.Tn Tekram DC-315
+PCI Ultra SCSI adapter without BIOS and internal SCSI connector
+.It
+.Tn Tekram DC-315U
+PCI Ultra SCSI adapter without BIOS
+.It
+.Tn Tekram DC-395F
+PCI Ultra-Wide SCSI adapter with flash BIOS and 68-pin external SCSI connector
+.It
+.Tn Tekram DC-395U
+PCI Ultra SCSI adapter with flash BIOS
+.It
+.Tn Tekram DC-395UW
+PCI Ultra-Wide SCSI adapter with flash BIOS
+.It
+.Tn Tekram DC-395U2W
+PCI Ultra2-Wide SCSI adapter with flash BIOS
+.El
+.Pp
+For the Tekram DC-310/U and DC-390F/U/UW/U2B/U2W/U3W PCI SCSI host adapters,
+use the
+.Xr sym 4
+driver.
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr da 4 ,
+.Xr intro 4 ,
+.Xr sa 4 ,
+.Xr scsi 4 ,
+.Xr sym 4
+.Pp
+.Pa http://www.tekram.com/
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was originally written for
+.Fx 3.0 Ns /i386
+by
+.An Erich Chen
+of Tekram Technology,
+and ported to
+.Fx 5.0
+by
+.An Olivier Houchard Aq Mt cognet@FreeBSD.org .

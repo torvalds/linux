@@ -1,0 +1,157 @@
+.\"
+.\" Copyright (c) 2010 Weongyo Jeong.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 24, 2012
+.Dt USBDUMP 8
+.Os
+.Sh NAME
+.Nm usbdump
+.Nd "dump traffic on USB host controller"
+.Sh SYNOPSIS
+.Nm
+.Op Fl i Ar ifname
+.Op Fl r Ar file
+.Op Fl s Ar snaplen
+.Op Fl v
+.Op Fl w Ar file
+.Op Fl f Ar filter
+.Op Fl b Ar file
+.Op Fl h
+.Sh DESCRIPTION
+The
+.Nm
+utility provides a way to dump USB packets on host controllers.
+.Pp
+The following options are accepted:
+.Bl -tag -width ".Fl f Ar file"
+.It Fl b Ar file
+Store data part of the USB trace in binary format to the given
+.Ar file .
+This option also works with the -r and -f options.
+.It Fl i Ar ifname
+Listen on USB bus interface
+.Ar ifname .
+.It Fl r Ar file
+Read the raw packets from
+.Ar file .
+This option also works with the -f option.
+.It Fl s Ar snaplen
+Snapshot
+.Ar snaplen
+bytes from each packet.
+.It Fl v
+Enable debugging messages.
+When defined multiple times the verbosity level increases.
+.It Fl w Ar file
+Write the raw packets to
+.Ar file .
+This option also works with the -s and -v options.
+.It Fl f Ar filter
+The filter argument consists of either one or two numbers separated by a dot.
+The first indicates the device unit number which should be traced.
+The second number which is optional indicates the endpoint which should be traced.
+To get all traffic for the control endpoint, two filters should be
+created, one for endpoint 0 and one for endpoint 128.
+If 128 is added to the endpoint number that means IN direction, else OUT direction is implied.
+A device unit or endpoint value of -1 means ignore this field.
+If no filters are specified, all packets are passed through using the default -1,-1 filter.
+This option can be specified multiple times.
+.It Fl h
+This option displays a summary of the command line options.
+.El
+.Sh EXAMPLES
+Capture the USB raw packets on usbus2:
+.Pp
+.Dl "usbdump -i usbus2 -s 256 -v"
+.Pp
+Dump the USB raw packets of usbus2 into the file without packet
+size limit:
+.Pp
+.Dl "usbdump -i usbus2 -s 0 -w /tmp/dump_pkts"
+.Pp
+Dump the USB raw packets of usbus2, but only the control endpoint traffic
+of device unit number 3:
+.Pp
+.Dl "usbdump -i usbus2 -s 0 -f 3.0 -f 3.128 -w /tmp/dump_pkts"
+.Pp
+Read and display the USB raw packets from previous file:
+.Pp
+.Dl "usbdump -r /tmp/dump_pkts -v"
+.Sh OUTPUT FORMAT
+The output format of
+.Nm
+is as follows:
+.Pp
+.Dl "<time> <bus>.<addr> <ep> <xfertype> <S/D> (<frames>/<length>) <...>"
+.Pp
+The meaning of the output format elements is as follows:
+.Bl -tag -width "<xfertype>"
+.It <time>
+A timestamp preceding all output lines.
+The timestamp has the format "hh:mm:ss.frac" and is as accurate as
+the kernel's clock.
+.It <bus>
+The USB host controller's bus unit number.
+.It <addr>
+The unique number of the USB device as allocated by the host controller driver.
+.It <ep>
+The USB endpoint address that indicates whether the address is
+.Dv OUT
+or
+.Dv IN .
+.It <xfertype>
+The USB transfer type.
+Can be
+.Dv CTRL ,
+.Dv ISOC ,
+.Dv BULK
+or
+.Dv INTR .
+.It <S/D>
+`S' indicates a USB submit.
+`D' indicates a USB transfer done.
+.It <frames>
+Numbers of frames in this packets.
+If this is a USB submit, its value is
+.Li xfer->nframes
+which means how many frames are acceptable or registered to transfer.
+If this is a USB done,
+.Li xfer->aframes
+is the actual number of frames.
+.It <length>
+Total packet size.
+If this is a USB submit, its value is
+.Li xfer->sumlen .
+If this is a USB done, its value is
+.Li xfer->actlen .
+.It <...>
+Optional field used for printing an error string if the packet is from USB done.
+.El
+.Sh SEE ALSO
+.Xr usbconfig 8
+.Sh AUTHORS
+.An Weongyo Jeong Aq Mt weongyo@FreeBSD.org

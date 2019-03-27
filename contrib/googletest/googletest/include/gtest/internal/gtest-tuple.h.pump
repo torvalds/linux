@@ -1,0 +1,348 @@
+$$ -*- mode: c++; -*-
+$var n = 10  $$ Maximum number of tuple fields we want to support.
+$$ This meta comment fixes auto-indentation in Emacs. }}
+// Copyright 2009 Google Inc.
+// All Rights Reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+// Implements a subset of TR1 tuple needed by Google Test and Google Mock.
+
+// GOOGLETEST_CM0001 DO NOT DELETE
+
+#ifndef GTEST_INCLUDE_GTEST_INTERNAL_GTEST_TUPLE_H_
+#define GTEST_INCLUDE_GTEST_INTERNAL_GTEST_TUPLE_H_
+
+#include <utility>  // For ::std::pair.
+
+// The compiler used in Symbian has a bug that prevents us from declaring the
+// tuple template as a friend (it complains that tuple is redefined).  This
+// bypasses the bug by declaring the members that should otherwise be
+// private as public.
+// Sun Studio versions < 12 also have the above bug.
+#if defined(__SYMBIAN32__) || (defined(__SUNPRO_CC) && __SUNPRO_CC < 0x590)
+# define GTEST_DECLARE_TUPLE_AS_FRIEND_ public:
+#else
+# define GTEST_DECLARE_TUPLE_AS_FRIEND_ \
+    template <GTEST_$(n)_TYPENAMES_(U)> friend class tuple; \
+   private:
+#endif
+
+// Visual Studio 2010, 2012, and 2013 define symbols in std::tr1 that conflict
+// with our own definitions. Therefore using our own tuple does not work on
+// those compilers.
+#if defined(_MSC_VER) && _MSC_VER >= 1600  /* 1600 is Visual Studio 2010 */
+# error "gtest's tuple doesn't compile on Visual Studio 2010 or later. \
+GTEST_USE_OWN_TR1_TUPLE must be set to 0 on those compilers."
+#endif
+
+
+$range i 0..n-1
+$range j 0..n
+$range k 1..n
+// GTEST_n_TUPLE_(T) is the type of an n-tuple.
+#define GTEST_0_TUPLE_(T) tuple<>
+
+$for k [[
+$range m 0..k-1
+$range m2 k..n-1
+#define GTEST_$(k)_TUPLE_(T) tuple<$for m, [[T##$m]]$for m2 [[, void]]>
+
+]]
+
+// GTEST_n_TYPENAMES_(T) declares a list of n typenames.
+
+$for j [[
+$range m 0..j-1
+#define GTEST_$(j)_TYPENAMES_(T) $for m, [[typename T##$m]]
+
+
+]]
+
+// In theory, defining stuff in the ::std namespace is undefined
+// behavior.  We can do this as we are playing the role of a standard
+// library vendor.
+namespace std {
+namespace tr1 {
+
+template <$for i, [[typename T$i = void]]>
+class tuple;
+
+// Anything in namespace gtest_internal is Google Test's INTERNAL
+// IMPLEMENTATION DETAIL and MUST NOT BE USED DIRECTLY in user code.
+namespace gtest_internal {
+
+// ByRef<T>::type is T if T is a reference; otherwise it's const T&.
+template <typename T>
+struct ByRef { typedef const T& type; };  // NOLINT
+template <typename T>
+struct ByRef<T&> { typedef T& type; };  // NOLINT
+
+// A handy wrapper for ByRef.
+#define GTEST_BY_REF_(T) typename ::std::tr1::gtest_internal::ByRef<T>::type
+
+// AddRef<T>::type is T if T is a reference; otherwise it's T&.  This
+// is the same as tr1::add_reference<T>::type.
+template <typename T>
+struct AddRef { typedef T& type; };  // NOLINT
+template <typename T>
+struct AddRef<T&> { typedef T& type; };  // NOLINT
+
+// A handy wrapper for AddRef.
+#define GTEST_ADD_REF_(T) typename ::std::tr1::gtest_internal::AddRef<T>::type
+
+// A helper for implementing get<k>().
+template <int k> class Get;
+
+// A helper for implementing tuple_element<k, T>.  kIndexValid is true
+// iff k < the number of fields in tuple type T.
+template <bool kIndexValid, int kIndex, class Tuple>
+struct TupleElement;
+
+
+$for i [[
+template <GTEST_$(n)_TYPENAMES_(T)>
+struct TupleElement<true, $i, GTEST_$(n)_TUPLE_(T) > {
+  typedef T$i type;
+};
+
+
+]]
+}  // namespace gtest_internal
+
+template <>
+class tuple<> {
+ public:
+  tuple() {}
+  tuple(const tuple& /* t */)  {}
+  tuple& operator=(const tuple& /* t */) { return *this; }
+};
+
+
+$for k [[
+$range m 0..k-1
+template <GTEST_$(k)_TYPENAMES_(T)>
+class $if k < n [[GTEST_$(k)_TUPLE_(T)]] $else [[tuple]] {
+ public:
+  template <int k> friend class gtest_internal::Get;
+
+  tuple() : $for m, [[f$(m)_()]] {}
+
+  explicit tuple($for m, [[GTEST_BY_REF_(T$m) f$m]]) : [[]]
+$for m, [[f$(m)_(f$m)]] {}
+
+  tuple(const tuple& t) : $for m, [[f$(m)_(t.f$(m)_)]] {}
+
+  template <GTEST_$(k)_TYPENAMES_(U)>
+  tuple(const GTEST_$(k)_TUPLE_(U)& t) : $for m, [[f$(m)_(t.f$(m)_)]] {}
+
+$if k == 2 [[
+  template <typename U0, typename U1>
+  tuple(const ::std::pair<U0, U1>& p) : f0_(p.first), f1_(p.second) {}
+
+]]
+
+  tuple& operator=(const tuple& t) { return CopyFrom(t); }
+
+  template <GTEST_$(k)_TYPENAMES_(U)>
+  tuple& operator=(const GTEST_$(k)_TUPLE_(U)& t) {
+    return CopyFrom(t);
+  }
+
+$if k == 2 [[
+  template <typename U0, typename U1>
+  tuple& operator=(const ::std::pair<U0, U1>& p) {
+    f0_ = p.first;
+    f1_ = p.second;
+    return *this;
+  }
+
+]]
+
+  GTEST_DECLARE_TUPLE_AS_FRIEND_
+
+  template <GTEST_$(k)_TYPENAMES_(U)>
+  tuple& CopyFrom(const GTEST_$(k)_TUPLE_(U)& t) {
+
+$for m [[
+    f$(m)_ = t.f$(m)_;
+
+]]
+    return *this;
+  }
+
+
+$for m [[
+  T$m f$(m)_;
+
+]]
+};
+
+
+]]
+// 6.1.3.2 Tuple creation functions.
+
+// Known limitations: we don't support passing an
+// std::tr1::reference_wrapper<T> to make_tuple().  And we don't
+// implement tie().
+
+inline tuple<> make_tuple() { return tuple<>(); }
+
+$for k [[
+$range m 0..k-1
+
+template <GTEST_$(k)_TYPENAMES_(T)>
+inline GTEST_$(k)_TUPLE_(T) make_tuple($for m, [[const T$m& f$m]]) {
+  return GTEST_$(k)_TUPLE_(T)($for m, [[f$m]]);
+}
+
+]]
+
+// 6.1.3.3 Tuple helper classes.
+
+template <typename Tuple> struct tuple_size;
+
+
+$for j [[
+template <GTEST_$(j)_TYPENAMES_(T)>
+struct tuple_size<GTEST_$(j)_TUPLE_(T) > {
+  static const int value = $j;
+};
+
+
+]]
+template <int k, class Tuple>
+struct tuple_element {
+  typedef typename gtest_internal::TupleElement<
+      k < (tuple_size<Tuple>::value), k, Tuple>::type type;
+};
+
+#define GTEST_TUPLE_ELEMENT_(k, Tuple) typename tuple_element<k, Tuple >::type
+
+// 6.1.3.4 Element access.
+
+namespace gtest_internal {
+
+
+$for i [[
+template <>
+class Get<$i> {
+ public:
+  template <class Tuple>
+  static GTEST_ADD_REF_(GTEST_TUPLE_ELEMENT_($i, Tuple))
+  Field(Tuple& t) { return t.f$(i)_; }  // NOLINT
+
+  template <class Tuple>
+  static GTEST_BY_REF_(GTEST_TUPLE_ELEMENT_($i, Tuple))
+  ConstField(const Tuple& t) { return t.f$(i)_; }
+};
+
+
+]]
+}  // namespace gtest_internal
+
+template <int k, GTEST_$(n)_TYPENAMES_(T)>
+GTEST_ADD_REF_(GTEST_TUPLE_ELEMENT_(k, GTEST_$(n)_TUPLE_(T)))
+get(GTEST_$(n)_TUPLE_(T)& t) {
+  return gtest_internal::Get<k>::Field(t);
+}
+
+template <int k, GTEST_$(n)_TYPENAMES_(T)>
+GTEST_BY_REF_(GTEST_TUPLE_ELEMENT_(k,  GTEST_$(n)_TUPLE_(T)))
+get(const GTEST_$(n)_TUPLE_(T)& t) {
+  return gtest_internal::Get<k>::ConstField(t);
+}
+
+// 6.1.3.5 Relational operators
+
+// We only implement == and !=, as we don't have a need for the rest yet.
+
+namespace gtest_internal {
+
+// SameSizeTuplePrefixComparator<k, k>::Eq(t1, t2) returns true if the
+// first k fields of t1 equals the first k fields of t2.
+// SameSizeTuplePrefixComparator(k1, k2) would be a compiler error if
+// k1 != k2.
+template <int kSize1, int kSize2>
+struct SameSizeTuplePrefixComparator;
+
+template <>
+struct SameSizeTuplePrefixComparator<0, 0> {
+  template <class Tuple1, class Tuple2>
+  static bool Eq(const Tuple1& /* t1 */, const Tuple2& /* t2 */) {
+    return true;
+  }
+};
+
+template <int k>
+struct SameSizeTuplePrefixComparator<k, k> {
+  template <class Tuple1, class Tuple2>
+  static bool Eq(const Tuple1& t1, const Tuple2& t2) {
+    return SameSizeTuplePrefixComparator<k - 1, k - 1>::Eq(t1, t2) &&
+        ::std::tr1::get<k - 1>(t1) == ::std::tr1::get<k - 1>(t2);
+  }
+};
+
+}  // namespace gtest_internal
+
+template <GTEST_$(n)_TYPENAMES_(T), GTEST_$(n)_TYPENAMES_(U)>
+inline bool operator==(const GTEST_$(n)_TUPLE_(T)& t,
+                       const GTEST_$(n)_TUPLE_(U)& u) {
+  return gtest_internal::SameSizeTuplePrefixComparator<
+      tuple_size<GTEST_$(n)_TUPLE_(T) >::value,
+      tuple_size<GTEST_$(n)_TUPLE_(U) >::value>::Eq(t, u);
+}
+
+template <GTEST_$(n)_TYPENAMES_(T), GTEST_$(n)_TYPENAMES_(U)>
+inline bool operator!=(const GTEST_$(n)_TUPLE_(T)& t,
+                       const GTEST_$(n)_TUPLE_(U)& u) { return !(t == u); }
+
+// 6.1.4 Pairs.
+// Unimplemented.
+
+}  // namespace tr1
+}  // namespace std
+
+
+$for j [[
+#undef GTEST_$(j)_TUPLE_
+
+]]
+
+
+$for j [[
+#undef GTEST_$(j)_TYPENAMES_
+
+]]
+
+#undef GTEST_DECLARE_TUPLE_AS_FRIEND_
+#undef GTEST_BY_REF_
+#undef GTEST_ADD_REF_
+#undef GTEST_TUPLE_ELEMENT_
+
+#endif  // GTEST_INCLUDE_GTEST_INTERNAL_GTEST_TUPLE_H_

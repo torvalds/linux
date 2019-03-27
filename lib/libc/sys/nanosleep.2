@@ -1,0 +1,200 @@
+.\"	$NetBSD: nanosleep.2,v 1.23 2016/11/14 10:40:59 wiz Exp $
+.\"
+.\" Copyright (c) 1986, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)sleep.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd March 17, 2017
+.Dt NANOSLEEP 2
+.Os
+.Sh NAME
+.Nm nanosleep
+.Nd high resolution sleep
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In time.h
+.Ft int
+.Fo clock_nanosleep
+.Fa "clockid_t clock_id"
+.Fa "int flags"
+.Fa "const struct timespec *rqtp"
+.Fa "struct timespec *rmtp"
+.Fc
+.Ft int
+.Fo nanosleep
+.Fa "const struct timespec *rqtp"
+.Fa "struct timespec *rmtp"
+.Fc
+.Sh DESCRIPTION
+If the
+.Dv TIMER_ABSTIME
+flag is not set in the
+.Fa flags
+argument, then
+.Fn clock_nanosleep
+suspends execution of the calling thread until either the
+time interval specified by the
+.Fa rqtp
+argument has elapsed,
+or a signal is delivered to the calling process and its
+action is to invoke a signal-catching function or to terminate the
+process.
+The clock used to measure the time is specified by the
+.Fa clock_id
+argument.
+.Pp
+If the
+.Dv TIMER_ABSTIME
+flag is set in the
+.Fa flags
+argument, then
+.Fn clock_nanosleep
+suspends execution of the calling thread until either the value
+of the clock specified by the
+.Fa clock_id
+argument reaches the absolute time specified by the
+.Fa rqtp
+argument,
+or a signal is delivered to the calling process and its
+action is to invoke a signal-catching function or to terminate the
+process.
+If, at the time of the call, the time value specified by
+.Fa rqtp
+is less than or equal to the time value of the specified clock, then
+.Fn clock_nanosleep
+returns immediately and the calling thread is not suspended.
+.Pp
+The suspension time may be longer than requested due to the
+scheduling of other activity by the system.
+An unmasked signal will terminate the sleep early, regardless of the
+.Dv SA_RESTART
+value on the interrupting signal.
+The
+.Fa rqtp
+and
+.Fa rmtp
+arguments can point to the same object.
+.Pp
+The following
+.Fa clock_id
+values are supported:
+.Pp
+.Bl -item -compact -offset indent
+.It
+CLOCK_MONOTONIC
+.It
+CLOCK_MONOTONIC_FAST
+.It
+CLOCK_MONOTONIC_PRECISE
+.It
+CLOCK_REALTIME
+.It
+CLOCK_REALTIME_FAST
+.It
+CLOCK_REALTIME_PRECISE
+.It
+CLOCK_SECOND
+.It
+CLOCK_UPTIME
+.It
+CLOCK_UPTIME_FAST
+.It
+CLOCK_UPTIME_PRECISE
+.El
+.Pp
+The
+.Fn nanosleep
+function behaves like
+.Fn clock_nanosleep
+with a
+.Fa clock_id
+argument of
+.Dv CLOCK_REALTIME
+and without the
+.Dv TIMER_ABSTIME
+flag in the
+.Fa flags
+argument.
+.Sh RETURN VALUES
+These functions return zero when the requested time has elapsed.
+.Pp
+If these functions return for any other reason, then
+.Fn clock_nanosleep
+will directly return the error number, and
+.Fn nanosleep
+will return \-1 with the global variable
+.Va errno
+set to indicate the error.
+If a relative sleep is interrupted by a signal and
+.Fa rmtp
+is
+.Pf non- Dv NULL ,
+the timespec structure it references is updated to contain the
+unslept amount (the request time minus the time actually slept).
+.Sh ERRORS
+These functions can fail with the following errors.
+.Bl -tag -width Er
+.It Bq Er EFAULT
+Either
+.Fa rqtp
+or
+.Fa rmtp
+points to memory that is not a valid part of the process
+address space.
+.It Bq Er EINTR
+The function was interrupted by the delivery of a signal.
+.It Bq Er EINVAL
+The
+.Fa rqtp
+argument specified a nanosecond value less than zero
+or greater than or equal to 1000 million.
+.It Bq Er EINVAL
+The
+.Fa flags
+argument contained an invalid flag.
+.It Bq Er EINVAL
+The
+.Fa clock_id
+argument was
+.Dv CLOCK_THREAD_CPUTIME_ID
+or an unrecognized value.
+.It Bq Er ENOTSUP
+The
+.Fa clock_id
+argument was valid but not supported by this implementation of
+.Fn clock_nanosleep .
+.El
+.Sh SEE ALSO
+.Xr clock_gettime 2 ,
+.Xr sigaction 2 ,
+.Xr sleep 3
+.Sh STANDARDS
+These functions conform to
+.St -p1003.1-2008 .

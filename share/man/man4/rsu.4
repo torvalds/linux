@@ -1,0 +1,196 @@
+.\" $OpenBSD: rsu.4,v 1.11 2013/02/14 07:40:42 jmc Exp $
+.\" $FreeBSD$
+.\"
+.\" Copyright (c) 2010 Damien Bergamini <damien.bergamini@free.fr>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd April 4, 2018
+.Dt RSU 4
+.Os
+.Sh NAME
+.Nm rsu
+.Nd Realtek RTL8188SU/RTL8192SU USB IEEE 802.11b/g/n wireless network device
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ehci"
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
+.Cd "device rsu"
+.Cd "device rsufw"
+.Cd "device wlan"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time,
+place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_rsu_load="YES"
+rsu-rtl8712fw_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports USB 2.0 wireless network devices based on Realtek
+RTL8188SU, RTL8191SU and RTL8192SU chipsets.
+.Pp
+The RTL8188SU is a highly integrated 802.11n adapter that combines
+a MAC, a 1T1R capable baseband and an RF in a single chip.
+It operates in the 2GHz spectrum only.
+.Pp
+The RTL8191SU is a highly integrated multiple-in, single-out (MISO)
+802.11n adapter that combines a MAC, a 1T2R capable baseband and an
+RF in a single chip.
+It operates in the 2GHz spectrum only.
+.Pp
+The RTL8192SU is a highly integrated multiple-in, multiple-out (MIMO)
+802.11n adapter that combines a MAC, a 2T2R capable baseband and an
+RF in a single chip.
+It operates in the 2GHz spectrum only.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA-PSK and WPA2-PSK).
+WPA is the de facto encryption standard for wireless networks.
+It is strongly recommended that WEP
+not be used as the sole mechanism
+to secure wireless communication,
+due to serious weaknesses in it.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8 .
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/doc/legal/realtek.LICENSE" -compact
+.It Pa /usr/share/doc/legal/realtek.LICENSE
+.Nm
+firmware license
+.El
+.Pp
+The driver needs at least version 1.2 of the following firmware file,
+which is loaded when an interface is attached:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /boot/kernel/rsu-rtl8712fw.ko
+.El
+.Sh HARDWARE
+The
+.Nm
+driver provices support for Realtek RTL8188SU/RTL8192SU USB IEEE 802.11b/g/n
+wireless network adapters, including:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It ASUS USB-N10
+.It Belkin F7D1101 v1
+.It D-Link DWA-131 A1
+.It EDUP EP-MS150N(W)
+.It Edimax EW-7622UMN
+.It Hercules HWGUn-54
+.It Hercules HWNUm-300
+.It Planex GW-USNano
+.It Sitecom WL-349 v1
+.It Sitecom WL-353
+.It Sweex LW154
+.It TRENDnet TEW-646UBH
+.It TRENDnet TEW-648UB
+.It TRENDnet TEW-649UB
+.El
+.Sh EXAMPLES
+Join an existing BSS network (i.e., connect to an access point):
+.Bd -literal -offset indent
+ifconfig wlan create wlandev rsu0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig wlan create wlandev rsu0 ssid my_net up"
+.Pp
+Join a specific BSS network with 64-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev rsu0 ssid my_net \e
+        wepmode on wepkey 0x1234567890 weptxkey 1 up
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "%s: failed load firmware of file rsu-rtl8712fw"
+For some reason, the driver was unable to read the microcode file from the
+filesystem.
+The file might be missing or corrupted.
+.It "device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr intro 1 ,
+.Xr netintro 4 ,
+.Xr rsufw 4 ,
+.Xr usb 4 ,
+.Xr wlan 4 ,
+.Xr arp 8 ,
+.Xr hostapd 8 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.9 and
+.Fx 10.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Damien Bergamini Aq Mt damien@openbsd.org
+and ported by
+.An Rui Paulo Aq Mt rpaulo@freebsd.org .
+The 802.11n support was added by
+.An Adrian Chadd Aq Mt adrian@freebsd.org .
+.Sh CAVEATS
+The
+.Nm
+driver currently does not support 802.11n transmit aggregation,
+either A-MSDU or A-MPDU.
+.Pp
+The
+.Nm
+driver does not capture management frames in non-monitor modes;
+without this limitation some firmware functions (e.g., 'join bss')
+will not work properly.

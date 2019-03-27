@@ -1,0 +1,199 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)tt08	8.1 (Berkeley) 6/8/93
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.NH
+Introduction to Macros
+.PP
+Before we can go much further in
+.UL troff ,
+we need to learn a bit about the
+macro
+facility.
+In its simplest form, a macro is just a shorthand notation
+quite similar to a string.
+Suppose we want every paragraph to start
+in exactly the same way _
+with a space and a temporary indent of two ems:
+.P1
+^sp
+^ti +2m
+.P2
+Then to save typing, we would like to collapse these into
+one shorthand line,
+a
+.UL troff
+`command' like
+.P1
+^PP
+.P2
+that would be treated by
+.UL troff
+exactly as
+.P1
+^sp
+^ti +2m
+.P2
+.BD .PP
+is called a
+.ul
+macro.
+The way we tell
+.UL troff
+what
+.BD .PP
+means is to
+.ul
+define
+it with the
+.BD .de
+command:
+.P1
+^de PP
+^sp
+^ti +2m
+^^
+.P2
+The first line names the macro
+(we used
+.BD .PP ' `
+for `paragraph',
+and upper case so it wouldn't conflict with
+any name that
+.UL troff
+might
+already know about).
+The last line
+.BD ..
+marks the end of the definition.
+In between is the text,
+which is simply inserted whenever
+.UL troff
+sees the `command'
+or macro call
+.P1
+^PP
+.P2
+A macro
+can contain any mixture of text and formatting commands.
+.PP
+The definition of
+.BD .PP
+has to precede its first use;
+undefined macros are simply ignored.
+Names are restricted to one or two characters.
+.PP
+Using macros for commonly occurring sequences of commands
+is critically important.
+Not only does it save typing,
+but it makes later changes much easier.
+Suppose we decide that the paragraph indent is too small,
+the vertical space is much too big,
+and roman font should be forced.
+Instead of changing the whole document,
+we need only change the definition of
+.BD .PP
+to
+something like
+.P1
+^de PP	\e" paragraph macro
+^sp 2p
+^ti +3m
+^ft R
+^^
+.P2
+and the change takes
+effect everywhere we used
+.BD .PP .
+.PP
+.BD \e"
+is a
+.UL troff
+command that causes the rest of the line to be ignored.
+We use it here to add comments to the macro
+definition
+(a wise idea once definitions get complicated).
+.PP
+As another example of macros,
+consider these two which start and end a block of offset,
+unfilled text, like most of the examples in this paper:
+.P1
+^de BS	\e" start indented block
+^sp
+^nf
+^in +0.3i
+^^
+^de BE	\e" end indented block
+^sp
+^fi
+^in \(mi0.3i
+^^
+.P2
+Now we can surround text like
+.P1
+Copy to
+John Doe
+Richard Roberts
+Stanley Smith
+.P2
+by the commands
+.BD .BS
+and
+.BD .BE ,
+and it will come out as it did above.
+Notice that we indented by
+.BD .in\ +0.3i
+instead of
+.BD .in\ 0.3i .
+This way we can nest our uses of
+.BD .BS
+and
+.BD BE
+to get blocks within blocks.
+.PP
+If later on we decide that the indent
+should be 0.5i, then it is only necessary to
+change the definitions of
+.BD .BS
+and
+.BD .BE ,
+not the whole paper.

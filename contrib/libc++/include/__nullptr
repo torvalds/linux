@@ -1,0 +1,62 @@
+// -*- C++ -*-
+//===--------------------------- __nullptr --------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_NULLPTR
+#define _LIBCPP_NULLPTR
+
+#include <__config>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+#ifdef _LIBCPP_HAS_NO_NULLPTR
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+struct _LIBCPP_TEMPLATE_VIS nullptr_t
+{
+    void* __lx;
+
+    struct __nat {int __for_bool_;};
+
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR nullptr_t() : __lx(0) {}
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR nullptr_t(int __nat::*) : __lx(0) {}
+
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR operator int __nat::*() const {return 0;}
+
+    template <class _Tp>
+        _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR
+        operator _Tp* () const {return 0;}
+
+    template <class _Tp, class _Up>
+        _LIBCPP_INLINE_VISIBILITY
+        operator _Tp _Up::* () const {return 0;}
+
+    friend _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR bool operator==(nullptr_t, nullptr_t) {return true;}
+    friend _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR bool operator!=(nullptr_t, nullptr_t) {return false;}
+};
+
+inline _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR nullptr_t __get_nullptr_t() {return nullptr_t(0);}
+
+#define nullptr _VSTD::__get_nullptr_t()
+
+_LIBCPP_END_NAMESPACE_STD
+
+#else  // _LIBCPP_HAS_NO_NULLPTR
+
+namespace std
+{
+    typedef decltype(nullptr) nullptr_t;
+}
+
+#endif  // _LIBCPP_HAS_NO_NULLPTR
+
+#endif  // _LIBCPP_NULLPTR

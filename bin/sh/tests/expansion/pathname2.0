@@ -1,0 +1,35 @@
+# $FreeBSD$
+
+unset LC_ALL
+LC_COLLATE=C
+export LC_COLLATE
+
+failures=0
+
+check() {
+	testcase=$1
+	expect=$2
+	eval "set -- $testcase"
+	actual="$*"
+	if [ "$actual" != "$expect" ]; then
+		failures=$((failures+1))
+		printf '%s\n' "For $testcase, expected $expect actual $actual"
+	fi
+}
+
+set -e
+T=$(mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXX)
+trap 'rm -rf $T' 0
+cd -P $T
+
+mkdir testdir testdir2 'testdir/*' 'testdir/?' testdir/a testdir/b testdir2/b
+mkdir testdir2/.c
+touch testf 'testdir/*/1' 'testdir/?/1' testdir/a/1 testdir/b/1 testdir2/b/.a
+
+check '*\/' 'testdir/ testdir2/'
+check '"testdir/"*"/1"' 'testdir/*/1 testdir/?/1 testdir/a/1 testdir/b/1'
+check '"testdir/"*"/"*' 'testdir/*/1 testdir/?/1 testdir/a/1 testdir/b/1'
+check '"testdir/"*\/*' 'testdir/*/1 testdir/?/1 testdir/a/1 testdir/b/1'
+check '"testdir"*"/"*"/"*' 'testdir/*/1 testdir/?/1 testdir/a/1 testdir/b/1'
+
+exit $((failures != 0))

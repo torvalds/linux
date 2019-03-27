@@ -1,0 +1,25 @@
+.TH "page_keyset" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+page_keyset \- Certificate store operations 
+Type of certificates store:
+.IP "\(bu" 2
+MEMORY In memory based format. Doesnt support storing.
+.IP "\(bu" 2
+FILE FILE supports raw DER certicates and PEM certicates. When PEM is used the file can contain may certificates and match private keys. Support storing the certificates. DER format only supports on certificate and no private key.
+.IP "\(bu" 2
+PEM-FILE Same as FILE, defaulting to PEM encoded certificates.
+.IP "\(bu" 2
+PEM-FILE Same as FILE, defaulting to DER encoded certificates.
+.IP "\(bu" 2
+PKCS11
+.IP "\(bu" 2
+PKCS12
+.IP "\(bu" 2
+DIR
+.IP "\(bu" 2
+KEYCHAIN Apple Mac OS X KeyChain backed keychain object.
+.PP
+.PP
+See the library functions here: \fBhx509 certificate store functions\fP 

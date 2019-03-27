@@ -1,0 +1,101 @@
+.\" Copyright (c) 1996 John Birrell <jb@cimlogic.com.au>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by John Birrell.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 4, 1996
+.Dt PTHREAD_SETSPECIFIC 3
+.Os
+.Sh NAME
+.Nm pthread_setspecific
+.Nd set a thread-specific data value
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_setspecific "pthread_key_t key" "const void *value"
+.Sh DESCRIPTION
+The
+.Fn pthread_setspecific
+function associates a thread-specific value with a
+.Fa key
+obtained via a previous call to
+.Fn pthread_key_create .
+Different threads can bind different values to the same key.
+These values are
+typically pointers to blocks of dynamically allocated memory that have been
+reserved for use by the calling thread.
+.Pp
+The effect of calling
+.Fn pthread_setspecific
+with a key value not obtained from
+.Fn pthread_key_create
+or after
+.Fa key
+has been deleted with
+.Fn pthread_key_delete
+is undefined.
+.Pp
+The
+.Fn pthread_setspecific
+function may be called from a thread-specific data destructor function,
+however this may result in lost storage or infinite loops if doing so
+causes non-NULL key values to remain after
+.Bq PTHREAD_DESTRUCTOR_ITERATIONS
+iterations of destructor calls have been made.
+.Sh RETURN VALUES
+If successful, the
+.Fn pthread_setspecific
+function will return zero.
+Otherwise an error number will be returned to
+indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_setspecific
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient memory exists to associate the value with the
+.Fa key .
+.It Bq Er EINVAL
+The
+.Fa key
+value is invalid.
+.El
+.Sh SEE ALSO
+.Xr pthread_getspecific 3 ,
+.Xr pthread_key_create 3 ,
+.Xr pthread_key_delete 3
+.Sh STANDARDS
+The
+.Fn pthread_setspecific
+function conforms to
+.St -p1003.1-96 .

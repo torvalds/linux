@@ -1,0 +1,313 @@
+.\" Copyright (c) 2011-2016, Chelsio Inc
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Chelsio Inc nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 9, 2017
+.Dt CXGBEV 4
+.Os
+.Sh NAME
+.Nm cxgbev
+.Nd "Chelsio T4-, T5-, and T6-based 100Gb, 40Gb, 25Gb, 10Gb, and 1Gb Ethernet VF driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device cxgbe"
+.Cd "device cxgbev"
+.Ed
+.Pp
+To load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_cxgbev_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Virtual Functions on PCI Express Ethernet adapters
+based on the Chelsio Terminator 4, Terminator 5, and Terminator 6 ASICs
+(T4, T5, and T6).
+The driver supports Jumbo Frames, Transmit/Receive checksum offload,
+TCP segmentation offload (TSO), Large Receive Offload (LRO), VLAN
+tag insertion/extraction, VLAN checksum offload, VLAN TSO, and
+Receive Side Steering (RSS).
+For further hardware information and questions related to hardware
+requirements, see
+.Pa http://www.chelsio.com/ .
+.Pp
+The
+.Nm
+driver uses different names for devices based on the associated ASIC:
+.Bl -column -offset indent "ASIC" "Port Name"
+.It Sy ASIC Ta Sy Port Name Ta Sy Parent Device
+.It T4 Ta cxgbev Ta t4vf
+.It T5 Ta cxlv Ta t5vf
+.It T6 Ta ccv Ta t6vf
+.El
+.Pp
+Loader tunables with the hw.cxgbe prefix apply to VFs from all cards.
+The Physical Function driver for Chelsio Terminator adapters shares these
+tunables.
+The driver provides sysctl MIBs for both ports and parent devices using
+the names above.
+For example, a T5 VF provides port MIBs under dev.cxlv and
+parent device MIBs under dev.t5vf.
+References to sysctl MIBs in the remainder of this page use
+dev.<port> for port MIBs and dev.<nexus> for parent device MIBs.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Virtual Functions on 100Gb and 25Gb Ethernet adapters
+based on the T6 ASIC:
+.Pp
+.Bl -bullet -compact
+.It
+Chelsio T6225-CR
+.It
+Chelsio T6225-SO-CR
+.It
+Chelsio T62100-LP-CR
+.It
+Chelsio T62100-SO-CR
+.It
+Chelsio T62100-CR
+.El
+.Pp
+The
+.Nm
+driver supports Virtual Functions on 40Gb, 10Gb and 1Gb Ethernet adapters
+based on the T5 ASIC:
+.Pp
+.Bl -bullet -compact
+.It
+Chelsio T580-CR
+.It
+Chelsio T580-LP-CR
+.It
+Chelsio T580-LP-SO-CR
+.It
+Chelsio T560-CR
+.It
+Chelsio T540-CR
+.It
+Chelsio T540-LP-CR
+.It
+Chelsio T522-CR
+.It
+Chelsio T520-LL-CR
+.It
+Chelsio T520-CR
+.It
+Chelsio T520-SO
+.It
+Chelsio T520-BT
+.It
+Chelsio T504-BT
+.El
+.Pp
+The
+.Nm
+driver supports Virtual Functions on 10Gb and 1Gb Ethernet adapters based
+on the T4 ASIC:
+.Pp
+.Bl -bullet -compact
+.It
+Chelsio T420-CR
+.It
+Chelsio T422-CR
+.It
+Chelsio T440-CR
+.It
+Chelsio T420-BCH
+.It
+Chelsio T440-BCH
+.It
+Chelsio T440-CH
+.It
+Chelsio T420-SO
+.It
+Chelsio T420-CX
+.It
+Chelsio T420-BT
+.It
+Chelsio T404-BT
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.cxgbe.ntxq
+Number of tx queues used for a port.
+The default is 16 or the number
+of CPU cores in the system, whichever is less.
+.It Va hw.cxgbe.nrxq
+Number of rx queues used for a port.
+The default is 8 or the number
+of CPU cores in the system, whichever is less.
+.It Va hw.cxgbe.holdoff_timer_idx
+Timer index value used to delay interrupts.
+The holdoff timer list has the values 1, 5, 10, 50, 100, and 200
+by default (all values are in microseconds) and the index selects a
+value from this list.
+The default value is 1 which means the timer value is 5us.
+Different interfaces can be assigned different values at any time via the
+dev.<port>.X.holdoff_tmr_idx sysctl.
+.It Va hw.cxgbe.holdoff_pktc_idx
+Packet-count index value used to delay interrupts.
+The packet-count list has the values 1, 8, 16, and 32 by default,
+and the index selects a value from this list.
+The default value is -1 which means packet counting is disabled and interrupts
+are generated based solely on the holdoff timer value.
+Different interfaces can be assigned different values via the
+dev.<port>.X.holdoff_pktc_idx sysctl.
+This sysctl works only when the interface has never been marked up (as done by
+ifconfig up).
+.It Va hw.cxgbe.qsize_txq
+Number of entries in a transmit queue's descriptor ring.
+A buf_ring of the same size is also allocated for additional
+software queuing.
+See
+.Xr ifnet 9 .
+The default value is 1024.
+Different interfaces can be assigned different values via the
+dev.<port>.X.qsize_txq sysctl.
+This sysctl works only when the interface has never been marked up (as done by
+ifconfig up).
+.It Va hw.cxgbe.qsize_rxq
+Number of entries in a receive queue's descriptor ring.
+The default value is 1024.
+Different interfaces can be assigned different values via the
+dev.<port>.X.qsize_rxq sysctl.
+This sysctl works only when the interface has never been marked up (as done by
+ifconfig up).
+.It Va hw.cxgbe.interrupt_types
+Permitted interrupt types.
+Bit 0 represents INTx (line interrupts), bit 1 MSI, and bit 2 MSI-X.
+The default is 7 (all allowed).
+The driver selects the best possible type out of the allowed types.
+Note that Virtual Functions do not support INTx interrupts and fail
+to attach if neither MSI nor MSI-X are enabled.
+.It Va hw.cxgbe.fl_pktshift
+Number of padding bytes inserted before the beginning of an Ethernet
+frame in the receive buffer.
+The default value of 2 ensures that the Ethernet payload (usually the IP header)
+is at a 4 byte aligned address.
+0-7 are all valid values.
+.It Va hw.cxgbe.fl_pad
+A non-zero value ensures that writes from the hardware to a receive buffer are
+padded up to the specified boundary.
+The default is -1 which lets the driver pick a pad boundary.
+0 disables trailer padding completely.
+.It Va hw.cxgbe.buffer_packing
+Allow the hardware to deliver multiple frames in the same receive buffer
+opportunistically.
+The default is -1 which lets the driver decide.
+0 or 1 explicitly disable or enable this feature.
+.It Va hw.cxgbe.allow_mbufs_in_cluster
+1 allows the driver to lay down one or more mbufs within the receive buffer
+opportunistically.
+This is the default.
+0 prohibits the driver from doing so.
+.It Va hw.cxgbe.largest_rx_cluster
+.It Va hw.cxgbe.safest_rx_cluster
+Sizes of rx clusters.
+Each of these must be set to one of the sizes available
+(usually 2048, 4096, 9216, and 16384) and largest_rx_cluster must be greater
+than or equal to safest_rx_cluster.
+The defaults are 16384 and 4096 respectively.
+The driver never attempts to allocate a receive buffer larger than
+largest_rx_cluster and falls back to allocating buffers of
+safest_rx_cluster size if an allocation larger than safest_rx_cluster fails.
+Note that largest_rx_cluster merely establishes a ceiling -- the driver is
+allowed to allocate buffers of smaller sizes.
+.El
+.Pp
+Certain settings and resources for Virtual Functions are dictated
+by the parent Physical Function driver.
+For example, the Physical Function driver limits the number of queues
+available to a Virtual Function.
+Some of these limits can be adjusted in the firmware configuration file
+used with the Physical Function driver.
+.Pp
+The PAUSE settings on the port of a Virtual Function are inherited from
+the settings of the same port on the Physical Function.
+Virtual Functions cannot modify the setting and track changes made to
+the associated port's setting by the Physical Function driver.
+.Pp
+Receive queues on a Virtual Function always drop packets in response to
+congestion
+.Po
+equivalent to setting
+.Va hw.cxgbe.cong_drop
+to 1
+.Pc .
+.Pp
+The VF driver currently depends on the PF driver.
+As a result, loading the VF driver also loads the PF driver as a
+dependency.
+.Sh SUPPORT
+For general information and support,
+go to the Chelsio support website at:
+.Pa http://www.chelsio.com/ .
+.Pp
+If an issue is identified with this driver with a supported adapter,
+email all the specific information related to the issue to
+.Aq Mt support@chelsio.com .
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr cxgbe 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 11.1
+and
+.Fx 11.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Navdeep Parhar Aq Mt np@FreeBSD.org
+and
+.An John Baldwin Aq Mt jhb@FreeBSD.org .

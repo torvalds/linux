@@ -1,0 +1,69 @@
+# $FreeBSD$
+# $NetBSD: UCS%GEORGIAN-ACADEMY@OldCapital.src,v 1.1 2006/06/15 15:34:20 tnozaki Exp $
+
+TYPE		ROWCOL
+NAME		"UCS/GEORGIAN-ACADEMY:OldCapital"
+SRC_ZONE	0x0000 - 0xF1D2
+OOB_MODE	INVALID
+DST_INVALID	0x100
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+#
+# This mapping data is made from the mapping data provided by X-TT Project.
+# Original notice:
+#
+# GEORGIAN encodings to unicode table
+# 
+# Copyright (c) 1999 Takuya SHIOZAKI, All Rights reserved.
+# Copyright (c) 1999 Pablo Saratxaga <srtxg@chanae.alphanet.ch>
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+# 
+# Major Release ID: X-TrueType Server Version 1.3 [Aoi MATSUBARA Release 3]
+# 
+# 
+# -georgian-academy is the encoding used by academic world and university
+# of Georgia; also known as "de facto RS encoding", widely used on web
+# servers; it follows same ordering as unicode.
+# -georgian-ps is the "Parliament-Soros found" encoding.
+#
+0x0000 - 0x00BF = 0x00 -
+#0x00AB = 0xE7
+#0x00BB = 0xE8
+0x10A0 - 0x10C5 = 0xC0 -
+0x10F6 = 0xE6
+0x10FB = 0xEE
+0x2018 = 0xE9
+0x2019 = 0xEA
+0x201C = 0xEC
+0x201E = 0xEB
+0x201F = 0xEC # -> 0x201C
+0x203F = 0xED
+0x221E = 0xFB # -> 0xF1D2
+0x2264 = 0xFC
+0x2265 = 0xFD
+0xF182 - 0xF18C = 0xF0 -
+0xF1D0 = 0xFE
+0xF1D1 = 0xFF
+0xF1D2 = 0xFB
+END_MAP

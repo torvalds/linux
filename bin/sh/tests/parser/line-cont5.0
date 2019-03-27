@@ -1,0 +1,14 @@
+# $FreeBSD$
+
+bad=1
+case x in
+x\
+) ;\
+; *) exit 7
+esac &\
+& bad= &\
+& : >\
+>/dev/null
+
+false |\
+| [ -z "$bad" ]

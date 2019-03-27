@@ -1,0 +1,99 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_get_abbrev_children_flag.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd March 14, 2011
+.Dt DWARF_GET_ABBREV_CHILDREN_FLAG 3
+.Os
+.Sh NAME
+.Nm dwarf_get_abbrev_children_flag
+.Nd return a flag indicating the presence of children
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_get_abbrev_children_flag
+.Fa "Dwarf_Abbrev abbrev"
+.Fa "Dwarf_Signed *ret"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_get_abbrev_children_flag
+retrieves a flag indicating whether the DWARF debug information entry
+associated with a DWARF abbreviation descriptor has child entries.
+.Pp
+Argument
+.Ar abbrev
+should be a valid DWARF abbreviation descriptor, as returned by
+.Xr dwarf_get_abbrev 3 .
+.Pp
+Argument
+.Ar ret
+should point to a location which will hold the returned
+flag.
+The value returned will be one of the following:
+.Bl -tag -width ".Dv DW_CHILDREN_yes" -compact
+.It Dv DW_CHILDREN_yes
+The debugging information entry associated with the
+specified abbreviation descriptor has children.
+.It Dv DW_CHILDREN_no
+The debugging information entry associated with the
+specified abbreviation descriptor has no children.
+.El
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case of an
+error.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_get_abbrev_children_flag
+returns
+.Dv DW_DLV_OK
+when it succeeds.
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets the argument
+.Ar err .
+.Sh ERRORS
+Function
+.Fn dwarf_get_abbrev_children_flag
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Either of arguments
+.Ar abbrev
+or
+.Ar ret
+was NULL.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_get_abbrev 3 ,
+.Xr dwarf_get_abbrev_code 3 ,
+.Xr dwarf_get_abbrev_entry 3 ,
+.Xr dwarf_get_abbrev_tag 3

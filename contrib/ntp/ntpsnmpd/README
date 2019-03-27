@@ -1,0 +1,40 @@
+NTP SNMP subagent for Net-SNMP
+
+Installation Guides:
+
+- install net-snmp from source (configure, make;, make install)
+- edit the snmpd configuration file (/usr/local/share/snmp/snmpd.conf):
+  add the lines
+   master agentx
+   agentXSocket   tcp:localhost:705
+  and check which read-only community is configured (should be "rocommunity  public")  
+- start snmpd (sudo /usr/local/sbin/snmpd) and check that it is running correctly by running the command
+  snmpwalk -v2c -c public localhost
+  (which should output a lot of data values for the supported built-in MIBs of net-snmp)
+- build the libntpq and the libntp library
+- build the ntpsnmpd application (make) and run it (./ntpsnmpd)
+- now you can run 
+   snmpwalk -v2c -c public localhost enterprises.5597.99
+  which should give you a list of all currently supported NTP MIB objects and their current values
+  
+Please note that currently I use a private MIB OID (enterprises.5597 is the Meinberg top level OEM OID and 99 is my temporary working space for this project). 
+The final OID has to be registered with IANA and this is done by the RFC Editor when the NTPv4 MIB RFC is standardized. 
+I will try to do this earlier in order to be able to have a working solution at the end of this project.
+
+In its current state the daemon supports these objects:
+
+ntpEntSoftwareName
+ntpEntSoftwareVersion
+ntpEntSoftwareVersionVal
+ntpEntSoftwareVendor
+ntpEntSystemType
+ntpEntTimeResolution
+ntpEntTimeResolutionVal
+ntpEntTimePrecision
+ntpEntTimePrecisionVal
+ntpEntTimeDistance
+
+They all use the libntpq library to access information from the ntpd instance with mode 6 packets.
+
+Next step is to implement the status section of the MIB (section 2). 
+

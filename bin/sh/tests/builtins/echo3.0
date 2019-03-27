@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+# Not specified by POSIX.
+
+[ "`echo -e 'a\cb' c; echo d`" = "ad" ]

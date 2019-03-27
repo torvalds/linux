@@ -1,0 +1,3 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=\
+        err.c err_all.c err_prn.c

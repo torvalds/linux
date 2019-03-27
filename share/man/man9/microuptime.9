@@ -1,0 +1,124 @@
+.\" Copyright (c) 2000 Kelly Yancey
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 21, 2015
+.Dt MICROUPTIME 9
+.Os
+.Sh NAME
+.Nm binuptime ,
+.Nm getbinuptime ,
+.Nm microuptime ,
+.Nm getmicrouptime ,
+.Nm nanouptime ,
+.Nm getnanouptime ,
+.Nm sbinuptime ,
+.Nm getsbinuptime
+.Nd get the time elapsed since boot
+.Sh SYNOPSIS
+.In sys/time.h
+.Ft void
+.Fn binuptime "struct bintime *bt"
+.Ft void
+.Fn getbinuptime "struct bintime *bt"
+.Ft void
+.Fn microuptime "struct timeval *tv"
+.Ft void
+.Fn getmicrouptime "struct timeval *tv"
+.Ft void
+.Fn nanouptime "struct timespec *ts"
+.Ft void
+.Fn getnanouptime "struct timespec *tsp"
+.Ft sbintime_t
+.Fn sbinuptime "void"
+.Ft sbintime_t
+.Fn getsbinuptime "void"
+.Sh DESCRIPTION
+The
+.Fn binuptime
+and
+.Fn getbinuptime
+functions store the time elapsed since boot as a
+.Vt "struct bintime"
+at the address specified by
+.Fa bt .
+The
+.Fn microuptime
+and
+.Fn getmicrouptime
+functions perform the same utility, but record the elapsed time as a
+.Vt "struct timeval"
+instead.
+Similarly the
+.Fn nanouptime
+and
+.Fn getnanouptime
+functions store the elapsed time as a
+.Vt "struct timespec" .
+The
+.Fn sbinuptime
+and
+.Fn getsbinuptime
+functions return the time elapsed since boot as a
+.Vt "sbintime_t" .
+.Pp
+The
+.Fn binuptime ,
+.Fn microuptime ,
+.Fn nanouptime ,
+and
+.Fn sbinuptime
+functions
+always query the timecounter to return the current time as precisely as
+possible.
+Whereas
+.Fn getbinuptime ,
+.Fn getmicrouptime ,
+.Fn getnanouptime ,
+and
+.Fn getsbinuptime
+functions are abstractions which return a less precise, but
+faster to obtain, time.
+.Pp
+The intent of the
+.Fn getbinuptime ,
+.Fn getmicrouptime ,
+.Fn getnanouptime ,
+and
+.Fn getsbinuptime
+functions is to enforce the user's preference for timer accuracy versus
+execution time.
+.Sh SEE ALSO
+.Xr bintime 9 ,
+.Xr get_cyclecount 9 ,
+.Xr getbintime 9 ,
+.Xr getmicrotime 9 ,
+.Xr getnanotime 9 ,
+.Xr microtime 9 ,
+.Xr nanotime 9 ,
+.Xr tvtohz 9
+.Sh AUTHORS
+This manual page was written by
+.An Kelly Yancey Aq Mt kbyanc@posi.net .

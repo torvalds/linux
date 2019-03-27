@@ -1,0 +1,191 @@
+# $FreeBSD$
+
+# This file is meant to list all FreeBSD doc+www committers and describe the
+# mentor-mentee relationships between them.
+# The graphical output can be generated from this file with the following
+# command:
+# $ dot -T png -o file.png committers-doc.dot
+#
+# The dot binary is part of the graphics/graphviz port.
+
+digraph doc {
+
+# Node definitions follow this example:
+#
+#   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??"]
+#
+# ????/??/?? is the date when the commit bit was obtained, usually the one you
+# can find looking at svn logs for the svnadmin/conf/access file.
+# Use YYYY/MM/DD format.
+#
+# For returned commit bits, the node definition will follow this example:
+#
+#   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??\n????/??/??"]
+#
+# The first date is the same as for an active committer, the second date is
+# the date when the commit bit has been returned. Again, check svn logs.
+
+node [color=grey62, style=filled, bgcolor=black];
+
+# Alumni go here. Try to keep things sorted.
+
+ache [label="Andrey Chernov\nache@FreeBSD.org\n1997/06/13\n2010/12/11"]
+bmah [label="Bruce A. Mah\nbmah@FreeBSD.org\n2000/08/22\n2009/09/13"]
+bvs [label="Vitaly Bogdanov\nbvs@FreeBSD.org\n2005/10/03\n2010/12/11"]
+ceri [label="Ceri Davies\nceri@FreeBSD.org\n2002/03/17\n2012/02/29"]
+den [label="Denis Peplin\nden@FreeBSD.org\n2003/09/13\n2009/07/09"]
+garys [label="Gary W. Swearingen\ngarys@FreeBSD.org\n2005/08/21\n2008/03/02"]
+jcamou [label="Jesus R. Camou\njcamou@FreeBSD.org\n2005/03/02\n2008/12/20"]
+jesusr [label="Jesus Rodriguez Cuesta\njesusr@FreeBSD.org\n1998/12/10\n2010/12/11"]
+jim [label="Jim Mock\njim@FreeBSD.org\n1999/08/11\n2003/12/15"]
+josef [label="Josef El-Rayes\njosef@FreeBSD.org\n2004/01/15\n2008/03/29"]
+marcel [label="Marcel Moolenaar\nmarcel@FreeBSD.org\n1999/07/03\n2012/04/25"]
+mheinen [label="Martin Heinen\nmheinen@FreeBSD.org\n2002/10/04\n2006/04/26"]
+murray [label="Murray Stokely\nmurray@FreeBSD.org\n2000/04/05\n2012/04/25"]
+nik [label="Nik Clayton\nnik@FreeBSD.org\n1998/02/26\n2008/12/20"]
+pgj [label="Gabor Pali\npgj@FreeBSD.org\n2008/04/21\n2010/12/01"]
+roam [label="Peter Pentchev\nroam@FreeBSD.org\n2003/02/14\n2012/02/29"]
+
+node [color=lightblue2, style=filled, bgcolor=black];
+
+# Current doc committers go here. Try to keep things sorted.
+
+ale [label="Alex Dupre\nale@FreeBSD.org\n2003/12/22"]
+allanjude [label="Allan Jude\nallanjude@FreeBSD.org\n2014/05/17"]
+bcr [label="Benedict Reuschling\nbcr@FreeBSD.org\n2009/12/24"]
+bhd [label="Björn Heidotting\nbhd@FreeBSD.org\n2014/10/14"]
+blackend [label="Marc Fonvieille\nblackend@FreeBSD.org\n2002/06/16"]
+brd [label="Brad Davis\nbrd@FreeBSD.org\n2005/06/01"]
+brueffer [label="Christian Brueffer\nbrueffer@FreeBSD.org\n2003/01/13"]
+chinsan [label="Chinsan Huang\nchinsan@FreeBSD.org\n2006/09/20"]
+crees [label="Chris Rees\ncrees@FreeBSD.org\n2013/05/27"]
+danger [label="Daniel Gerzo\ndanger@FreeBSD.org\n2006/08/20"]
+delphij [label="Xin Li\ndelphij@FreeBSD.org\n2004/09/14"]
+dexter [label="Michael Dexter\ndexter@FreeBSD.org\n2016/11/15"]
+dru [label="Dru Lavigne\ndru@FreeBSD.org\n2013/01/22"]
+eadler [label="Eitan Adler\neadler@FreeBSD.org\n2012/10/15"]
+ebrandi [label="Edson Brandi\nebrandi@FreeBSD.org\n2012/09/13"]
+gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2007/02/02"]
+ganbold [label="Ganbold Tsagaankhuu\nganbold@FreeBSD.org\n2008/02/26"]
+gavin [label="Gavin Atkinson\ngavin@FreeBSD.org\n2011/07/18"]
+gjb [label="Glen Barber\ngjb@FreeBSD.org\n2010/09/01"]
+hrs [label="Hiroki Sato\nhrs@FreeBSD.org\n2000/07/06"]
+issyl0 [label="Isabell Long\nissyl0@FreeBSD.org\n2012/04/25"]
+jgh [label="Jason Helfman\njgh@FreeBSD.org\n2014/01/20"]
+jkois [label="Johann Kois\njkois@FreeBSD.org\n2004/11/11"]
+joel [label="Joel Dahl\njoel@FreeBSD.org\n2005/04/05"]
+keramida [label="Giorgos Keramidas\nkeramida@FreeBSD.org\n2001/10/12"]
+linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2004/03/31"]
+loader [label="Fukang Chen\nloader@FreeBSD.org\n2007/07/30"]
+manolis [label="Manolis Kiagias\nmanolis@FreeBSD.org\n2008/05/24"]
+marck [label="Dmitry Morozovsky\nmarck@FreeBSD.org\n2004/08/10"]
+maxim [label="Maxim Konovalov\nmaxim@FreeBSD.org\n2002/02/07"]
+miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2007/10/26"]
+pav [label="Pav Lucistnik\npav@FreeBSD.org\n2005/08/12"]
+pluknet [label="Sergey Kandaurov\npluknet@FreeBSD.org\n2012/02/14"]
+remko [label="Remko Lodder\nremko@FreeBSD.org\n2004/10/16"]
+rene [label="Rene Ladan\nrene@FreeBSD.org\n2008/11/03"]
+ryusuke [label="Ryusuke Suzuki\nryusuke@FreeBSD.org\n2009/12/21"]
+sevan [label="Sevan Janiyan\nsevan@FreeBSD.org\n2016/09/16"]
+simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2003/07/20"]
+skreuzer [label="Steven Kreuzer\nskreuzer@FreeBSD.org\n2014/01/15"]
+taras [label="Taras Korenko\ntaras@FreeBSD.org\n2010/06/25"]
+trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/03/25"]
+wblock [label="Warren Block\nwblock@FreeBSD.org\n2011/09/12"]
+ygy [label="Guangyuan Yang\nygy@FreeBSD.org\n2017/09/18"]
+zeising [label="Niclas Zeising\nzeising@FreeBSD.org\n2012/07/03"]
+
+# Here are the mentor/mentee relationships.
+# Group together all the mentees for a particular mentor.
+# Keep the list sorted by mentor login.
+
+bcr -> gavin
+bcr -> wblock
+bcr -> eadler
+bcr -> dru
+bcr -> crees
+bcr -> jgh
+bcr -> allanjude
+bcr -> bhd
+bcr -> sevan
+bcr -> dexter
+
+blackend -> ale
+
+brueffer -> joel
+
+ceri -> brd
+ceri -> brueffer
+ceri -> linimon
+ceri -> roam
+ceri -> simon
+
+den -> marck
+
+delphij -> chinsan
+delphij -> loader
+
+eadler -> allanjude
+
+gabor -> pgj
+gabor -> manolis
+gabor -> taras
+gabor -> issyl0
+gabor -> ebrandi
+
+gjb -> wblock
+gjb -> rene
+gjb -> dru
+gjb -> crees
+
+hrs -> ryusuke
+hrs -> dru
+hrs -> skreuzer
+
+jesusr -> jcamou
+
+jim -> trhodes
+
+jkois -> miwi
+jkois -> bcr
+jkois -> gavin
+jkois -> gjb
+jkois -> eadler
+
+joel -> zeising
+
+keramida -> blackend
+keramida -> danger
+keramida -> gabor
+keramida -> ganbold
+keramida -> garys
+keramida -> gjb
+keramida -> pav
+
+marck -> bvs
+marck -> pluknet
+marck -> taras
+
+maxim -> taras
+
+mheinen -> jkois
+
+murray -> ceri
+murray -> delphij
+
+nik -> bmah
+nik -> keramida
+
+remko -> jkois
+remko -> rene
+remko -> jgh
+
+simon -> josef
+simon -> remko
+
+trhodes -> danger
+trhodes -> jcamou
+
+wblock -> jgh
+wblock -> allanjude
+}

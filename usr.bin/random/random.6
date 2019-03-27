@@ -1,0 +1,125 @@
+.\" Copyright (c) 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)random.6	8.2 (Berkeley) 3/31/94
+.\" $FreeBSD$
+.\"
+.Dd February 8, 2003
+.Dt RANDOM 6
+.Os
+.Sh NAME
+.Nm random
+.Nd random lines from a file or random numbers
+.Sh SYNOPSIS
+.Nm
+.Op Fl elrUuw
+.Op Fl f Ar filename
+.Op Ar denominator
+.Sh DESCRIPTION
+.Nm Random
+has two distinct modes of operations.
+The default is to read in lines
+from the standard input and randomly write them out
+to the standard output with a probability of
+1 /
+.Ar denominator .
+The default
+.Ar denominator
+for this mode of operation is 2, giving each line a 50/50 chance of
+being displayed.
+.Pp
+The second mode of operation is to read in a file from
+.Ar filename
+and randomize the contents of the file and send it back out to
+standard output.
+The contents can be randomized based off of newlines or based off of
+space characters as determined by
+.Xr isspace 3 .
+The default
+.Ar denominator
+for this mode of operation is 1, which gives each line a chance to be
+displayed, but in a
+.Xr random 3
+order.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl e
+If the
+.Fl e
+option is specified,
+.Nm
+does not read or write anything, and simply exits with a random
+exit value of 0 to
+.Ar denominator
+\&- 1, inclusive.
+.It Fl f Ar filename
+The
+.Fl f
+option is used to specify the
+.Ar filename
+to read from.
+Standard input is used if
+.Ar filename
+is set to
+.Sq Fl .
+.It Fl l
+Randomize the input via newlines (the default).
+.It Fl r
+The
+.Fl r
+option guarantees that the output is unbuffered.
+.It Fl U
+Tells
+.Xr random 6
+that it is okay for it to reuse any given line or word when creating a
+randomized output.
+.It Fl u
+Tells
+.Xr random 6
+not to select the same line or word from a file more than once (the
+default).
+This does not guarantee uniqueness if there are two of the
+same tokens from the input, but it does prevent selecting the same
+token more than once.
+.It Fl w
+Randomize words separated by
+.Xr isspace 3
+instead of newlines.
+.El
+.Sh SEE ALSO
+.Xr random 3 ,
+.Xr fortune 6
+.Sh HISTORY
+The
+functionality to randomizing lines and words was added in 2003 by
+.An Sean Chittenden Aq Mt seanc@FreeBSD.org .
+.Sh BUGS
+No index is used when printing out tokens from the list which
+makes it rather slow for large files (10MB+).
+For smaller
+files, however, it should still be quite fast and efficient.

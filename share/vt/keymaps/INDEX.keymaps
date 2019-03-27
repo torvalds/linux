@@ -1,0 +1,605 @@
+# $FreeBSD$
+#
+# database for kbdmap(8) 
+#
+# Format <file>:<lang>:<description>
+#
+# lang: ar bg cs da de el en es fi fr he hr hu hy is it ja kk ko nl no pl
+#       pt ro ru sh sk sl sv tr uk zh
+# lang: lang,lang
+#
+# If lang empty use 'en' (us-english) as default.
+# 
+# Example:
+# 	german.iso.kbd:de:deutsch
+# 	german.iso.kbd:en:german
+#
+# See also setlocal
+# /usr/share/locale, /usr/local/lib/X11/locale/locale.alias
+#
+#
+# Language support: MENU, FONT
+#
+MENU:en:Choose your keyboard layout
+MENU:da,no,sv:Vælg dit keyboard layout
+MENU:de:Wählen Sie Ihre Tastaturbelegung
+MENU:fr:Choisissez la disposition de votre clavier
+MENU:pl:Wybierz układ klawiatury
+MENU:pt:Escolha o layout do teclado
+MENU:es:Seleccione la disposición de su teclado
+MENU:he:ךלש תדלקמה תפש תא רחב
+MENU:uk:Оберiть розкладку клавіатури
+MENU:el:Επιλέξτε το πληκτρολόγιο της κονσόλας
+MENU:hy:Ընտրեք ստեղնաշարի դասավորությունը
+MENU:tr:Klavye düzeninizi seçiniz
+
+#
+# The font definition for "en" is the fall-back font for
+# all languages.
+# Add language specific font definitions only where required!
+#
+FONT:en:vgarom-8x16.hex
+
+#
+be.kbd:en:Belgian
+be.kbd:de:Belgisch
+be.kbd:fr:Belge
+be.kbd:pt,es:Belga
+
+be.acc.kbd:en:Belgian (accent keys)
+be.acc.kbd:de:Belgisch (mit Akzenten)
+be.acc.kbd:fr:Belge (avec accents)
+be.acc.kbd:pt:Belga (com acentos)
+be.acc.kbd:es:Belga (con acentos)
+
+bg.bds.kbd:en:Bulgarian (BDS)
+bg.bds.kbd:de:Bulgarisch (BDS)
+
+bg.phonetic.kbd:en:Bulgarian (Phonetic)
+bg.phonetic.kbd:de:Bulgarisch (phonetisch)
+
+br.kbd:en:Brazilian (accent keys)
+br.kbd:de:Brasilianisch (mit Akzenten)
+br.kbd:fr:Brésilien (avec accents)
+br.kbd:pt:Brasileiro (com acentos)
+br.kbd:es:Brasileño (con acentos)
+
+br.noacc.kbd:en:Brazilian (without accent keys)
+br.noacc.kbd:de:Brasilianisch (ohne Akzente)
+br.noacc.kbd:fr:Brésilien (sans accents)
+br.noacc.kbd:pt:Brasileiro (without accent keys)
+br.noacc.kbd:es:Brasileño (without accent keys)
+
+by.kbd:en:Belarusian
+by.kbd:de:Weißrussisch
+by.kbd:fr:Biélorusse
+
+centraleuropean.kbd:en:Central European
+centraleuropean.kbd:de:Zentral Europäisch
+centraleuropean.kbd:fr:Centre européen
+centraleuropean.kbd:es:Centroeuropeo
+
+centraleuropean.qwerty.kbd:en:Central European (QWERTY)
+centraleuropean.qwerty.kbd:de:Zentral Europäisch (QWERTY)
+centraleuropean.qwerty.kbd:fr:Centre européen (QWERTY)
+centraleuropean.qwerty.kbd:es:Centroeuropeo (QWERTY)
+
+colemak.acc.kbd:en:Colemak ergonomic alternative
+
+cz.kbd:en:Czech (QWERTZ, accent keys)
+cz.kbd:de:Tschechisch (QWERTZ, mit Akzenten)
+cz.kbd:fr:Tchèque (QWERTZ, avec accents)
+cz.kbd:es:Checo (QWERTZ, con acentos)
+
+cz.kbd.from-ce:en:Czech
+cz.kbd.from-ce:de:Tschechisch
+cz.kbd.from-ce:fr:Tchèque
+cz.kbd.from-ce:es:Checo
+
+cz.qwerty.kbd.from-ce:en:Czech (QWERTY)
+cz.qwerty.kbd.from-ce:de:Tschechisch (QWERTY)
+cz.qwerty.kbd.from-ce:fr:Tchèquey (QWERTY)
+cz.qwerty.kbd.from-ce:es:Checo (QWERTY)
+
+dk.kbd:en:Danish
+dk.kbd:da:Dansk
+dk.kbd:de:Dänisch
+dk.kbd:fr:Danois
+dk.kbd:pt:Dinamarquês
+dk.kbd:es:Danés
+
+dk.acc.kbd:en:Danish (accent keys)
+dk.acc.kbd:da:Dansk (accent taster)
+dk.acc.kbd:de:Dänisch (mit Akzenten)
+dk.acc.kbd:fr:Danois (avec accents)
+dk.acc.kbd:pt:Dinamarquês (com acentos)
+dk.acc.kbd:es:Danés (con acentos)
+
+dk.kbd.from-cp865:en:Danish
+dk.kbd.from-cp865:da:Dansk
+dk.kbd.from-cp865:de:Dänisch
+dk.kbd.from-cp865:fr:Danois
+dk.kbd.from-cp865:pt:Dinamarquês
+dk.kbd.from-cp865:es:Danés
+
+dk.macbook.kbd:en:Danish (macbook)
+dk.macbook.kbd:da:Dansk (macbook)
+dk.macbook.kbd:de:Dänisch (Macbook)
+dk.macbook.kbd:fr:Danois (macbook)
+dk.macbook.kbd:pt:Dinamarquês (macbook)
+dk.macbook.kbd:es:Danés (macbook)
+
+nl.kbd:en:Dutch (accent keys)
+nl.kbd:de:Holländisch (mit Akzenten)
+
+nordic.asus-eee.kbd:en:Nordic layout on Asus eeePC
+nordic.asus-eee.kbd:fr:Norvégien phonétique sur Asus eeePC
+
+gr.kbd:en:Greek (104 keys)
+gr.kbd:fr:Grec (104 touches)
+gr.kbd:el:Ελληνικό (104 πλήκτρων)
+
+ee.kbd.from-iso1:en:Estonian
+ee.kbd.from-iso1:de:Estnisch
+ee.kbd.from-iso1:fr:Estonien
+ee.kbd.from-iso1:es:Estonio
+
+ee.kbd:en:Estonian
+ee.kbd:de:Estnisch
+ee.kbd:fr:Estonien
+ee.kbd:es:Estonio
+
+ee.kbd.from-cp850:en:Estonian
+ee.kbd.from-cp850:de:Estnisch
+ee.kbd.from-cp850:fr:Estonien
+ee.kbd.from-cp850:es:Estonio
+
+fi.kbd:en:Finnish
+fi.kbd:de:Finnisch
+fi.kbd:fr:Finlandais
+fi.kbd:es:Finlandés
+
+fi.kbd.from-cp850:en:Finnish
+fi.kbd.from-cp850:de:Finnisch
+fi.kbd.from-cp850:fr:Finlandais
+fi.kbd.from-cp850:es:Finlandés
+
+fr.kbd:en:French
+fr.kbd:de:Französisch
+fr.kbd:fr:Français
+fr.kbd:pt:Francês
+fr.kbd:es:Francés
+fr.kbd:uk:Французька
+
+fr.acc.kbd:en:French (accent keys)
+fr.acc.kbd:de:Französisch (mit Akzenten)
+fr.acc.kbd:fr:Français (avec accents)
+fr.acc.kbd:pt:Francês (com acentos)
+fr.acc.kbd:es:Francés (con acentos)
+fr.acc.kbd:uk:Французька (accent keys)
+
+fr.macbook.kbd:en:French Macbook/Macbook Pro (accent keys)
+fr.macbook.kbd:de:Französisch Macbook/Macbook Pro (mit Aksenten)
+fr.macbook.kbd:fr:Français Macbook/Macbook Pro (accent keys)
+fr.macbook.kbd:pt:Francês Macbook/Macbook Pro (com acentos)
+fr.macbook.kbd:es:Francés Macbook/Macbook Pro (con acentos)
+
+fr.dvorak.kbd:en:French Dvorak-like
+fr.dvorak.kbd:de:Französisch Dvorak
+fr.dvorak.kbd:fr:Français Dvorak
+fr.dvorak.kbd:pt:Francês Dvorak
+fr.dvorak.kbd:es:Francés Dvorak
+fr.dvorak.kbd:uk:French Dvorak-like
+
+fr.dvorak.acc.kbd:en:French Dvorak-like (accent keys)
+fr.dvorak.acc.kbd:de:Französisch Dvorak (mit Akzenten)
+fr.dvorak.acc.kbd:fr:Français Dvorak (accent keys)
+fr.dvorak.acc.kbd:pt:Francês Dvorak (com acentos)
+fr.dvorak.acc.kbd:es:Francés Dvorak (con acentos)
+fr.dvorak.acc.kbd:uk:French Dvorak-like (accent keys)
+
+ca.kbd:en:Canadian Bilingual
+
+ca-fr.kbd:en:French Canadian (accent keys)
+ca-fr.kbd:de:Französisch Kanada (mit Akzenten)
+ca-fr.kbd:fr:Français Canadien (avec accents)
+ca-fr.kbd:es:Francocanadiense (con acentos)
+ca-fr.kbd:uk:Французько-канадська (accent keys)
+
+de.kbd:en:German
+de.kbd:de:Deutsch
+de.kbd:fr:Allemand
+de.kbd:pt:Alemão
+de.kbd:es:Alemán
+de.kbd:tr:Almanca
+de.kbd:uk:Німецька
+
+de.acc.kbd:en:German (accent keys)
+de.acc.kbd:de:Deutsch (mit Akzenten)
+de.acc.kbd:fr:Allemand (avec accents)
+de.acc.kbd:pt:Alemão (com acentos)
+de.acc.kbd:es:Alemán (con acentos)
+de.acc.kbd:uk:Німецька (accent keys)
+
+de.noacc.kbd:en:German (no accent keys)
+de.noacc.kbd:de:Deutsch (ohne Akzente)
+de.noacc.kbd:fr:Allemand (sans accents)
+de.noacc.kbd:pt:Alemão (no accent keys)
+de.noacc.kbd:es:Alemán (no accent keys)
+de.noacc.kbd:uk:Німецька (no accent keys)
+
+de.kbd.from-cp850:en:German
+de.kbd.from-cp850:de:Deutsch
+de.kbd.from-cp850:fr:Allemand
+de.kbd.from-cp850:pt:Alemão
+de.kbd.from-cp850:es:Alemán
+de.kbd.from-cp850:uk:Німецька
+
+gr.elot.acc.kbd:en:Greek ELOT
+gr.elot.acc.kbd:de:Grieschisch ELOT
+gr.elot.acc.kbd:fr:Grec ELOT
+gr.elot.acc.kbd:el:Ελληνικό ΕΛΟΤ
+
+gr.101.acc.kbd:en:Greek (101 keys)
+gr.101.acc.kbd:de:Grieschisch (101 Tasten)
+gr.101.acc.kbd:fr:Grec (101 touches)
+gr.101.acc.kbd:el:Ελληνικό (101 πλήκτρων)
+
+il.kbd:en:Hebrew
+il.kbd:de:Hebräisch
+il.kbd:fr:Hébreu
+il.kbd::תירבע
+
+hr.kbd:en:Croatian
+hr.kbd:de:Kroatisch
+hr.kbd:fr:Croate
+hr.kbd:es:Croata
+
+hu.101.kbd:en:Hungarian (101 keys)
+hu.101.kbd:de:Ungarisch (101 Tasten)
+hu.101.kbd:fr:Hongrois (101 touches)
+hu.101.kbd:es:Húngaro (101)
+
+hu.102.kbd:en:Hungarian (102 keys)
+hu.102.kbd:de:Ungarisch (102 Tasten)
+hu.102.kbd:fr:Hongrois (102 touches)
+hu.102.kbd:es:Húngaro (102)
+
+am.kbd:hy:Հայերեն հնչյունային (Phonetic) դասավորություն
+am.kbd:ru:Армянская фонетическая раскладка
+am.kbd:en:Armenian phonetic layout
+am.kbd:fr:Arménien phonétique
+am.kbd:de:Armenische phonetische Tastenbelegung
+
+is.kbd:en:Icelandic
+is.kbd:de:Isländisch
+is.kbd:fr:Islandais
+is.kbd:pt:Islandês
+is.kbd:es:Islandés
+
+is.acc.kbd:en:Icelandic (accent keys)
+is.acc.kbd:de:Isländisch (mit Akzenten)
+is.acc.kbd:fr:Islandais (avec accents)
+is.acc.kbd:pt:Islandês (com acentos)
+is.acc.kbd:es:Islandés (con acentos)
+
+it.kbd:en:Italian
+it.kbd:de:Italienisch
+it.kbd:fr:Italien
+it.kbd:pt,es:Italiano
+it.kbd:uk:Італійська
+
+jp.kbd:en:Japanese 106
+jp.kbd:de:Japanisch 106
+jp.kbd:fr:Japonais 106
+jp.kbd:pt:Japonês 106
+jp.kbd:es:Japonés 106
+jp.kbd:uk:Японська 106
+
+jp.capsctrl.kbd:en:Japanese 106x
+jp.capsctrl.kbd:de:Japanisch 106x
+jp.capsctrl.kbd:fr:Japonais 106x
+jp.capsctrl.kbd:pt:Japonês 106x
+jp.capsctrl.kbd:es:Japonés 106x
+jp.capsctrl.kbd:uk:Японська 106x
+
+kz.kst.kbd:en:Kazakh
+kz.kst.kbd:de:Kasachisch
+kz.kst.kbd:fr:Kazakh
+
+kz.io.kbd:en:Kazakh
+kz.io.kbd:de:Kasachisch
+kz.io.kbd:fr:Kazakh
+
+latinamerican.kbd:en:Latin American
+latinamerican.kbd:de:Latein Amerikanisch
+latinamerican.kbd:fr:Amérique latine
+latinamerican.kbd:pt,es:América Latina
+
+latinamerican.acc.kbd:en:Latin American (accent keys)
+latinamerican.acc.kbd:de:Latein Amerikanisch (mit Akzenten)
+latinamerican.acc.kbd:fr:Amérique latine (avec accents)
+latinamerican.acc.kbd:pt,es:América Latina (com acentos)
+
+lt.kbd:en:Lithuanian
+lt.kbd:de:Litauisch
+lt.kbd:fr:Lithuanien
+lt.kbd:es:Lituano
+
+no.kbd:en:Norwegian
+no.kbd:no:Norsk
+no.kbd:de:Norwegisch
+no.kbd:fr:Norvégien
+no.kbd:pt:Norueguês
+no.kbd:es:Noruego
+
+no.dvorak.kbd:en:Norwegian dvorak
+no.dvorak.kbd:no:Norsk dvorak
+no.dvorak.kbd:de:Norwegisch dvorak
+no.dvorak.kbd:fr:Norvégien dvorak
+no.dvorak.kbd:pt:Norueguês dvorak
+no.dvorak.kbd:es:Noruego Idvorak
+
+pl.kbd:en:Polish (programmer's)
+pl.kbd:de:Polnisch (für Programmierer)
+pl.kbd:fr:Polonais (pour programmeurs)
+pl.kbd:pl:Polska (programisty)
+pl.kbd:pt:Polonês (para programadores)
+pl.kbd:es:Polaco (para programadores)
+
+pl.dvorak.kbd:en:Polish Dvorak
+pl.dvorak.kbd:de:Polnisch Dvorak
+pl.dvorak.kbd:fr:Polonais Dvorak
+pl.dvorak.kbd:pl:Polska Dvorak
+pl.dvorak.kbd:pt:Polonês Dvorak
+pl.dvorak.kbd:es:Polaco Dvorak
+
+pt.kbd:en:Portuguese
+pt.kbd:de:Portugisisch
+pt.kbd:fr:Portugais
+pt.kbd:pt:Português
+pt.kbd:es:Portugués
+
+pt.acc.kbd:en:Portuguese (accent keys)
+pt.acc.kbd:de:Portugisisch (mit Akzenten)
+pt.acc.kbd:fr:Portugais (avec accents)
+pt.acc.kbd:pt:Português (com acentos)
+pt.acc.kbd:es:Portugués (con acentos)
+
+ru.kbd.from-cp866:en:Russian (alternative)
+ru.kbd.from-cp866:de:Russisch (alternativ)
+ru.kbd.from-cp866:ru:Русский (alternative)
+ru.kbd.from-cp866:fr:Russe (alternative)
+ru.kbd.from-cp866:pt:Russo (alternativo)
+ru.kbd.from-cp866:es:Ruso (alternativo)
+ru.kbd.from-cp866:uk:Російська (альтернативна)
+
+ru.kbd.from-iso5:en:Russian
+ru.kbd.from-iso5:de:Russisch
+ru.kbd.from-iso5:fr:Russe
+ru.kbd.from-iso5:ru:Русский
+ru.kbd.from-iso5:pt:Russo
+ru.kbd.from-iso5:es:Ruso
+ru.kbd.from-iso5:uk:Російський
+
+ru.kbd:en:Russian
+ru.kbd:de:Russisch
+ru.kbd:ru:Русский
+ru.kbd:fr:Russe
+ru.kbd:pt:Russo
+ru.kbd:es:Ruso
+ru.kbd:uk:Російська
+
+ru.shift.kbd:en:Russian (shift)
+ru.shift.kbd:de:Russisch (shift)
+ru.shift.kbd:ru:Русский (shift)
+ru.shift.kbd:fr:Russe (shift)
+ru.shift.kbd:pt:Russo (shift)
+ru.shift.kbd:es:Ruso (shift)
+ru.shift.kbd:uk:Російська (shift)
+
+ru.win.kbd:en:Russian (winkeys)
+ru.win.kbd:de:Russisch (winkeys)
+ru.win.kbd:ru:Русский (winkeys)
+ru.win.kbd:fr:Russe (winkeys)
+ru.win.kbd:pt:Russo (winkeys)
+ru.win.kbd:es:Ruso (winkeys)
+ru.win.kbd:uk:Російська (winkeys)
+
+es.dvorak.kbd:en:Spanish Dvorak
+es.dvorak.kbd:de:Spanisch Dvorak
+es.dvorak.kbd:fr:Espagnol Dvorak
+es.dvorak.kbd:pt:Espanhol Dvorak
+es.dvorak.kbd:es:Español Dvorak
+
+es.kbd.from-iso1:en:Spanish
+es.kbd.from-iso1:de:Spanisch
+es.kbd.from-iso1:fr:Espagnol
+es.kbd.from-iso1:pt:Espanhol
+es.kbd.from-iso1:es:Español
+
+es.acc.kbd:en:Spanish (accent keys)
+es.acc.kbd:de:Spanisch (accent keys)
+es.acc.kbd:fr:Espagnol (avec accents)
+es.acc.kbd:pt:Espanhol (com acentos)
+es.acc.kbd:es:Español (con acentos)
+
+es.kbd:en:Spanish (accent keys)
+es.kbd:de:Spanisch (accent keys)
+es.kbd:fr:Espagnol (avec accents)
+es.kbd:pt:Espanhol (com acentos)
+es.kbd:es:Español (con acentos)
+
+si.kbd:en:Slovenian
+si.kbd:de:Slovenisch
+si.kbd:fr:Slovène
+si.kbd:pt:Eslovênio
+si.kbd:es:Esloveno
+
+sk.kbd:en:Slovak
+sk.kbd:de:Slovakisch
+sk.kbd:fr:Slovène
+sk.kbd:es:Eslovaco
+
+se.kbd:en:Swedish
+se.kbd:de:Schwedisch
+se.kbd:fr:Suédois
+se.kbd:pt,es:Sueco
+
+se.kbd.from-cp850:en:Swedish
+se.kbd.from-cp850:de:Schwedisch
+se.kbd.from-cp850:fr:Suédois
+se.kbd.from-cp850:pt,es:Sueco
+
+ch-fr.kbd:en:Swiss-French
+ch-fr.kbd:de:Schweiz-Französisch
+ch-fr.kbd:fr:Suisse-Français
+ch-fr.kbd:es:Francosuizo
+
+ch-fr.acc.kbd:en:Swiss-French (accent keys)
+ch-fr.acc.kbd:de:Schweiz-Französisch (mit Akzenten)
+ch-fr.acc.kbd:fr:Suisse-Français (avec accents)
+ch-fr.acc.kbd:es:Francosuizo (con acentos)
+
+ch-fr.kbd.from-cp850:en:Swiss-French
+ch-fr.kbd.from-cp850:de:Schweiz-Französisch
+ch-fr.kbd.from-cp850:fr:Suisse-Français
+ch-fr.kbd.from-cp850:es:Francosuizo
+
+ch.kbd:en:Swiss-German
+ch.kbd:de:Schweiz-Deutsch
+ch.kbd:fr:Suisse-Allemand
+ch.kbd:pt:Suiço-Alemão
+ch.kbd:es:Germanosuizo
+
+ch.acc.kbd:en:Swiss-German (accent keys)
+ch.acc.kbd:de:Schweiz-Deutsch (mit Akzenten)
+ch.acc.kbd:fr:Suisse-Allemand (avec accents)
+ch.acc.kbd:pt:Suiço-Alemão (com acentos)
+ch.acc.kbd:es:Germanosuizo (con acentos)
+
+ch.kbd.from-cp850:en:Swiss-German
+ch.kbd.from-cp850:de:Schweiz-Deutsch
+ch.kbd.from-cp850:fr:Suisse-Allemand
+ch.kbd.from-cp850:pt:Suiço-Alemão
+ch.kbd.from-cp850:es:Germanosuizo
+
+ch.macbook.acc.kbd:en:Swiss-German Macbook/Macbook Pro (accent keys)
+ch.macbook.acc.kbd:de:Schweiz-Deutsch Macbook/Macbook Pro (mit Akzenten)
+ch.macbook.acc.kbd:fr:Suisse-Allemand  Macbook/Macbook Pro (avec accents)
+ch.macbook.acc.kbd:pt:Suiço-Alemão Macbook/Macbook Pro (com acentos)
+ch.macbook.acc.kbd:es:Germanosuizo  Macbook/Macbook Pro (con acentos)
+
+tr.kbd:en:Turkish (Q)
+tr.kbd:de:Türkisch (Q)
+tr.kbd:fr:Turc (Q)
+tr.kbd:uk:Турецька (Q)
+tr.kbd:tr:Türkçe (Q)
+
+tr.f.kbd:en:Turkish (F)
+tr.f.kbd:de:Türkisch (F)
+tr.f.kbd:fr:Turc (F)
+tr.f.kbd:uk:Турецька (F)
+tr.f.kbd:tr:Türkçe (F)
+
+uk.kbd:en:United Kingdom
+uk.kbd:de:Vereinigtes Königreich
+uk.kbd:fr:Royaume Uni
+uk.kbd:pt:Reino Unido
+uk.kbd:es:Británico
+
+uk.capsctrl.kbd:en:United Kingdom (Caps Lock acts as Left Ctrl)
+uk.capsctrl.kbd:de:Vereinigtes Königreich (Caps Lock als linke Strg)
+#uk.capsctrl.kbd:fr:Royaume Uni (caps lock acts as Left Ctrl)
+#uk.capsctrl.kbd:pt:Reino Unido (caps lock acts as Left Ctrl)
+#uk.capsctrl.kbd:es:Británico (caps lock acts as Left Ctrl)
+
+uk.dvorak.kbd:en:United Kingdom Dvorak
+uk.dvorak.kbd:de:Vereinigtes Königreich Dvorak
+uk.dvorak.kbd:fr:Royaume Uni Dvorak
+uk.dvorak.kbd:pt:Reino Unido Dvorak
+uk.dvorak.kbd:es:Británico Dvorak
+
+uk.macbook.kbd:en:United Kingdom Macbook
+uk.macbook.kbd:de:Vereinigtes Königreich Macbook
+uk.macbook.kbd:fr:Royaume Uni Macbook
+uk.macbook.kbd:pt:Reino Unido Macbook
+uk.macbook.kbd:es:Británico Macbook
+
+us.kbd:en:United States of America
+us.kbd:de:US-amerikanisch
+us.kbd:fr:États Unis d'Amérique
+us.kbd:pt:Estados Unidos da América
+us.kbd:es:Estadounidense
+
+us.acc.kbd:en:United States of America (accent keys)
+us.acc.kbd:de:US-amerikanisch (mit Akzenten)
+us.acc.kbd:fr:États Unis d'Amérique (avec accents)
+us.acc.kbd:pt:Estados Unidos da América (com acentos)
+us.acc.kbd:es:Estadounidense (con acentos)
+
+us.dvorak.kbd:en:United States of America dvorak
+us.dvorak.kbd:de:US-amerikanisch dvorak
+us.dvorak.kbd:fr:États Unis d'Amérique dvorak
+us.dvorak.kbd:pt:Estados Unidos da América dvorak
+us.dvorak.kbd:es:Estadounidense dvorak
+
+us.dvorakr.kbd:en:United States of America righthand dvorak
+us.dvorakr.kbd:de:US-amerikanisch dvorak rechte Hand
+us.dvorakr.kbd:fr:États Unis d'Amérique dvorakr
+us.dvorakr.kbd:pt:Estados Unidos da América dvorakr
+us.dvorakr.kbd:es:Estadounidense dvorak diestro
+
+us.dvorakl.kbd:en:United States of America lefthand dvorak
+us.dvorakl.kbd:de:US-amerikanisch dvorak linke Hand 
+us.dvorakl.kbd:fr:États Unis d'Amérique dvorakl
+us.dvorakl.kbd:pt:Estados Unidos da América dvorakl
+us.dvorakl.kbd:es:Estadounidense dvorak zurdo
+
+us.dvorakp.kbd:en:United States of America Programmer Dvorak
+us.dvorakp.kbd:de:US-amerikanisch (Dvorak für Programmierer)
+us.dvorakp.kbd:fr:États Unis d'Amérique dvorakp
+us.dvorakp.kbd:pt:Estados Unidos da América dvorakp
+us.dvorakp.kbd:es:Estadounidense dvorakp
+
+us.dvorakx.kbd:en:United States of America dvorakx
+us.dvorakx.kbd:de:US-amerikanisch dvorakx
+us.dvorakx.kbd:fr:États Unis d'Amérique dvorakx
+us.dvorakx.kbd:pt:Estados Unidos da América dvorakx
+us.dvorakx.kbd:es:Estadounidense dvorakx
+
+us.emacs.kbd:en:United States of America Emacs optimized layout
+us.emacs.kbd:de:US-amerikanisch für Emacs optimiert
+us.emacs.kbd:fr:États Unis d'Amérique emacs
+us.emacs.kbd:pt:Estados Unidos da América emacs
+us.emacs.kbd:es:Estadounidense optimizado para Emacs
+
+us.ctrl.kbd:en:United States of America (Caps Lock acts as Left Ctrl)
+
+us.unix.kbd:en:United States of America Traditional Unix Workstation
+us.unix.kbd:de:US-amerikanisch traditionelles Unix Layout
+us.unix.kbd:fr:États Unis d'Amérique unix
+us.unix.kbd:pt:Estados Unidos da América unix
+us.unix.kbd:es:Estadounidense Unix tradicional
+
+us.macbook.kbd:en:United States of America Macbook/Macbook Pro ISO-8859-1
+us.macbook.kbd:de:US-amerikanisch Macbook/Macbook Pro ISO-8859-1
+us.macbook.kbd:fr:États Unis d'Amérique Macbook / Macbook Pro ISO-8859-1
+us.macbook.kbd:pt:Estados Unidos da América Macbook/Macbook Pro ISO-8859-1
+us.macbook.kbd:es:Estadounidense Macbook/Macbook Pro ISO-8859-1
+
+ua.kbd.from-iso5:en:Ukrainian
+ua.kbd.from-iso5:de:Ukrainisch
+ua.kbd.from-iso5:fr:Ukrainien
+ua.kbd.from-iso5:ru:Украинский
+ua.kbd.from-iso5:uk:Українська
+
+ua.kbd:en:Ukrainian
+ua.kbd:de:Ukrainisch
+ua.kbd:fr:Ukrainien
+ua.kbd:uk:Українська
+
+ua.shift.alt.kbd:en:Ukrainian (with Russian) (shift)
+ua.shift.alt.kbd:de:Ukrainisch (mit Russisch) (shift)
+ua.shift.alt.kbd:fr:Ukrainien (koi8-u avec koi8-r) (shift)
+ua.shift.alt.kbd:uk:Українська (koi8-u з) koi8-r (shift)

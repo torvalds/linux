@@ -1,0 +1,549 @@
+.\" $OpenBSD: imsg_init.3,v 1.13 2015/07/11 16:23:59 deraadt Exp $
+.\"
+.\" Copyright (c) 2010 Nicholas Marriott <nicm@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF MIND, USE, DATA OR PROFITS, WHETHER
+.\" IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
+.\" OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd $Mdocdate: July 11 2015 $
+.Dt IMSG_INIT 3
+.Os
+.Sh NAME
+.Nm imsg_init ,
+.Nm imsg_read ,
+.Nm imsg_get ,
+.Nm imsg_compose ,
+.Nm imsg_composev ,
+.Nm imsg_create ,
+.Nm imsg_add ,
+.Nm imsg_close ,
+.Nm imsg_free ,
+.Nm imsg_flush ,
+.Nm imsg_clear ,
+.Nm ibuf_open ,
+.Nm ibuf_dynamic ,
+.Nm ibuf_add ,
+.Nm ibuf_reserve ,
+.Nm ibuf_seek ,
+.Nm ibuf_size ,
+.Nm ibuf_left ,
+.Nm ibuf_close ,
+.Nm ibuf_write ,
+.Nm ibuf_free ,
+.Nm msgbuf_init ,
+.Nm msgbuf_clear ,
+.Nm msgbuf_write ,
+.Nm msgbuf_drain
+.Nd IPC messaging functions
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/queue.h
+.In sys/uio.h
+.In imsg.h
+.Ft void
+.Fn imsg_init "struct imsgbuf *ibuf" "int fd"
+.Ft ssize_t
+.Fn imsg_read "struct imsgbuf *ibuf"
+.Ft ssize_t
+.Fn imsg_get "struct imsgbuf *ibuf" "struct imsg *imsg"
+.Ft int
+.Fn imsg_compose "struct imsgbuf *ibuf" "u_int32_t type" "uint32_t peerid" \
+    "pid_t pid" "int fd" "const void *data" "u_int16_t datalen"
+.Ft int
+.Fn imsg_composev "struct imsgbuf *ibuf" "u_int32_t type" "u_int32_t peerid" \
+    "pid_t pid" "int fd" "const struct iovec *iov" "int iovcnt"
+.Ft "struct ibuf *"
+.Fn imsg_create "struct imsgbuf *ibuf" "u_int32_t type" "u_int32_t peerid" \
+    "pid_t pid" "u_int16_t datalen"
+.Ft int
+.Fn imsg_add "struct ibuf *buf" "const void *data" "u_int16_t datalen"
+.Ft void
+.Fn imsg_close "struct imsgbuf *ibuf" "struct ibuf *msg"
+.Ft void
+.Fn imsg_free "struct imsg *imsg"
+.Ft int
+.Fn imsg_flush "struct imsgbuf *ibuf"
+.Ft void
+.Fn imsg_clear "struct imsgbuf *ibuf"
+.Ft "struct ibuf *"
+.Fn ibuf_open "size_t len"
+.Ft "struct ibuf *"
+.Fn ibuf_dynamic "size_t len" "size_t max"
+.Ft int
+.Fn ibuf_add "struct ibuf *buf" "const void *data" "size_t len"
+.Ft "void *"
+.Fn ibuf_reserve "struct ibuf *buf" "size_t len"
+.Ft "void *"
+.Fn ibuf_seek "struct ibuf *buf" "size_t pos" "size_t len"
+.Ft size_t
+.Fn ibuf_size "struct ibuf *buf"
+.Ft size_t
+.Fn ibuf_left "struct ibuf *buf"
+.Ft void
+.Fn ibuf_close "struct msgbuf *msgbuf" "struct ibuf *buf"
+.Ft int
+.Fn ibuf_write "struct msgbuf *msgbuf"
+.Ft void
+.Fn ibuf_free "struct ibuf *buf"
+.Ft void
+.Fn msgbuf_init "struct msgbuf *msgbuf"
+.Ft void
+.Fn msgbuf_clear "struct msgbuf *msgbuf"
+.Ft int
+.Fn msgbuf_write "struct msgbuf *msgbuf"
+.Ft void
+.Fn msgbuf_drain "struct msgbuf *msgbuf" "size_t n"
+.Sh DESCRIPTION
+The
+.Nm imsg
+functions provide a simple mechanism for communication between processes
+using sockets.
+Each transmitted message is guaranteed to be presented to the receiving program
+whole.
+They are commonly used in privilege separated processes, where processes with
+different rights are required to cooperate.
+.Pp
+A program using these functions should be linked with
+.Em -lutil .
+.Pp
+The basic
+.Nm
+structure is the
+.Em imsgbuf ,
+which wraps a file descriptor and represents one side of a channel on which
+messages are sent and received:
+.Bd -literal -offset indent
+struct imsgbuf {
+	TAILQ_HEAD(, imsg_fd)	fds;
+	struct ibuf_read	r;
+	struct msgbuf		w;
+	int			fd;
+	pid_t			pid;
+};
+.Ed
+.Pp
+.Fn imsg_init
+is a routine which initializes
+.Fa ibuf
+as one side of a channel associated with
+.Fa fd .
+The file descriptor is used to send and receive messages,
+but is not closed by any of the imsg functions.
+An imsgbuf is initialized with the
+.Em w
+member as the output buffer queue,
+.Em fd
+with the file descriptor passed to
+.Fn imsg_init
+and the other members for internal use only.
+.Pp
+The
+.Fn imsg_clear
+function frees any data allocated as part of an imsgbuf.
+.Pp
+.Fn imsg_create ,
+.Fn imsg_add
+and
+.Fn imsg_close
+are generic construction routines for messages that are to be sent using an
+imsgbuf.
+.Pp
+.Fn imsg_create
+creates a new message with header specified by
+.Fa type ,
+.Fa peerid
+and
+.Fa pid .
+A
+.Fa pid
+of zero uses the process ID returned by
+.Xr getpid 2
+when
+.Fa ibuf
+was initialized.
+In addition to this common imsg header,
+.Fa datalen
+bytes of space may be reserved for attaching to this imsg.
+This space is populated using
+.Fn imsg_add .
+Additionally, the file descriptor
+.Fa fd
+may be passed over the socket to the other process.
+If
+.Fa fd
+is given, it is closed in the sending program after the message is sent.
+A value of \-1 indicates no file descriptor should be passed.
+.Fn imsg_create
+returns a pointer to a new message if it succeeds, NULL otherwise.
+.Pp
+.Fn imsg_add
+appends to
+.Fa imsg
+.Fa len
+bytes of ancillary data pointed to by
+.Fa buf .
+It returns
+.Fa len
+if it succeeds, \-1 otherwise.
+.Pp
+.Fn imsg_close
+completes creation of
+.Fa imsg
+by adding it to
+.Fa imsgbuf
+output buffer.
+.Pp
+.Fn imsg_compose
+is a routine which is used to quickly create and queue an imsg.
+It takes the same parameters as the
+.Fn imsg_create ,
+.Fn imsg_add
+and
+.Fn imsg_close
+routines,
+except that only one ancillary data buffer can be provided.
+This routine returns 1 if it succeeds, \-1 otherwise.
+.Pp
+.Fn imsg_composev
+is similar to
+.Fn imsg_compose .
+It takes the same parameters, except that the ancillary data buffer is specified
+by
+.Fa iovec .
+.Pp
+.Fn imsg_flush
+is a function which calls
+.Fn msgbuf_write
+in a loop until all imsgs in the output buffer are sent.
+It returns 0 if it succeeds, \-1 otherwise.
+.Pp
+The
+.Fn imsg_read
+routine reads pending data with
+.Xr recvmsg 2
+and queues it as individual messages on
+.Fa imsgbuf .
+It returns the number of bytes read on success, or \-1 on error.
+A return value of \-1 from
+.Fn imsg_read
+invalidates
+.Fa imsgbuf ,
+and renders it suitable only for passing to
+.Fn imsg_clear .
+.Pp
+.Fn imsg_get
+fills in an individual imsg pending on
+.Fa imsgbuf
+into the structure pointed to by
+.Fa imsg .
+It returns the total size of the message, 0 if no messages are ready, or \-1
+for an error.
+Received messages are returned as a
+.Em struct imsg ,
+which must be freed by
+.Fn imsg_free
+when no longer required.
+.Em struct imsg
+has this form:
+.Bd -literal -offset indent
+struct imsg {
+	struct imsg_hdr	 hdr;
+	int		 fd;
+	void		*data;
+};
+
+struct imsg_hdr {
+	u_int32_t	 type;
+	u_int16_t	 len;
+	u_int16_t	 flags;
+	u_int32_t	 peerid;
+	u_int32_t	 pid;
+};
+.Ed
+.Pp
+The header members are:
+.Bl -tag -width Ds -offset indent
+.It type
+A integer identifier, typically used to express the meaning of the message.
+.It len
+The total length of the imsg, including the header and any ancillary data
+transmitted with the message (pointed to by the
+.Em data
+member of the message itself).
+.It flags
+Flags used internally by the imsg functions: should not be used by application
+programs.
+.It peerid, pid
+32-bit values specified on message creation and free for any use by the
+caller, normally used to identify the message sender.
+.El
+.Pp
+In addition,
+.Em struct imsg
+has the following:
+.Bl -tag -width Ds -offset indent
+.It fd
+The file descriptor specified when the message was created and passed using the
+socket control message API, or \-1 if no file descriptor was sent.
+.It data
+A pointer to the ancillary data transmitted with the imsg.
+.El
+.Pp
+The IMSG_HEADER_SIZE define is the size of the imsg message header, which
+may be subtracted from the
+.Fa len
+member of
+.Em struct imsg_hdr
+to obtain the length of any additional data passed with the message.
+.Pp
+MAX_IMSGSIZE is defined as the maximum size of a single imsg, currently
+16384 bytes.
+.Sh BUFFERS
+The imsg API defines functions to manipulate buffers, used internally and during
+construction of imsgs with
+.Fn imsg_create .
+A
+.Em struct ibuf
+is a single buffer and a
+.Em struct msgbuf
+a queue of output buffers for transmission:
+.Bd -literal -offset indent
+struct ibuf {
+	TAILQ_ENTRY(ibuf)	 entry;
+	u_char			*buf;
+	size_t			 size;
+	size_t			 max;
+	size_t			 wpos;
+	size_t			 rpos;
+	int			 fd;
+};
+
+struct msgbuf {
+	TAILQ_HEAD(, ibuf)	 bufs;
+	u_int32_t		 queued;
+	int			 fd;
+};
+.Ed
+.Pp
+The
+.Fn ibuf_open
+function allocates a fixed-length buffer.
+The buffer may not be resized and may contain a maximum of
+.Fa len
+bytes.
+On success
+.Fn ibuf_open
+returns a pointer to the buffer; on failure it returns NULL.
+.Pp
+.Fn ibuf_dynamic
+allocates a resizable buffer of initial length
+.Fa len
+and maximum size
+.Fa max .
+Buffers allocated with
+.Fn ibuf_dynamic
+are automatically grown if necessary when data is added.
+.Pp
+.Fn ibuf_add
+is a routine which appends a block of data to
+.Fa buf .
+0 is returned on success and \-1 on failure.
+.Pp
+.Fn ibuf_reserve
+is used to reserve
+.Fa len
+bytes in
+.Fa buf .
+A pointer to the start of the reserved space is returned, or NULL on error.
+.Pp
+.Fn ibuf_seek
+is a function which returns a pointer to the part of the buffer at offset
+.Fa pos
+and of extent
+.Fa len .
+NULL is returned if the requested range is outside the part of the buffer
+in use.
+.Pp
+.Fn ibuf_size
+and
+.Fn ibuf_left
+are functions which return the total bytes used and available in
+.Fa buf
+respectively.
+.Pp
+.Fn ibuf_close
+appends
+.Fa buf
+to
+.Fa msgbuf
+ready to be sent.
+.Pp
+The
+.Fn ibuf_write
+routine transmits as many pending buffers as possible from
+.Fn msgbuf
+using
+.Xr writev 2 .
+It returns 1 if it succeeds, \-1 on error and 0 when no buffers were
+pending or an EOF condition on the socket is detected.
+Temporary resource shortages are returned with errno
+.Er EAGAIN
+and require the application to retry again in the future.
+.Pp
+.Fn ibuf_free
+frees
+.Fa buf
+and any associated storage.
+.Pp
+The
+.Fn msgbuf_init
+function initializes
+.Fa msgbuf
+so that buffers may be appended to it.
+The
+.Em fd
+member should also be set directly before
+.Fn msgbuf_write
+is used.
+.Pp
+.Fn msgbuf_clear
+empties a msgbuf, removing and discarding any queued buffers.
+.Pp
+The
+.Fn msgbuf_write
+routine calls
+.Xr sendmsg 2
+to transmit buffers queued in
+.Fa msgbuf .
+It returns 1 if it succeeds, \-1 on error, and 0 when the queue was empty
+or an EOF condition on the socket is detected.
+Temporary resource shortages are returned with errno
+.Er EAGAIN
+and require the application to retry again in the future.
+.Pp
+.Fn msgbuf_drain
+discards data from buffers queued in
+.Fa msgbuf
+until
+.Fa n
+bytes have been removed or
+.Fa msgbuf
+is empty.
+.Sh EXAMPLES
+In a typical program, a channel between two processes is created with
+.Xr socketpair 2 ,
+and an
+.Em imsgbuf
+created around one file descriptor in each process:
+.Bd -literal -offset indent
+struct imsgbuf	parent_ibuf, child_ibuf;
+int		imsg_fds[2];
+
+if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, imsg_fds) == -1)
+	err(1, "socketpair");
+
+switch (fork()) {
+case -1:
+	err(1, "fork");
+case 0:
+	/* child */
+	close(imsg_fds[0]);
+	imsg_init(&child_ibuf, imsg_fds[1]);
+	exit(child_main(&child_ibuf));
+}
+
+/* parent */
+close(imsg_fds[1]);
+imsg_init(&parent_ibuf, imsg_fds[0]);
+exit(parent_main(&parent_ibuf));
+.Ed
+.Pp
+Messages may then be composed and queued on the
+.Em imsgbuf ,
+for example using the
+.Fn imsg_compose
+function:
+.Bd -literal -offset indent
+enum imsg_type {
+	IMSG_A_MESSAGE,
+	IMSG_MESSAGE2
+};
+
+int
+child_main(struct imsgbuf *ibuf)
+{
+	int	idata;
+	...
+	idata = 42;
+	imsg_compose(ibuf, IMSG_A_MESSAGE,
+		0, 0, -1, &idata, sizeof idata);
+	...
+}
+.Ed
+.Pp
+A mechanism such as
+.Xr poll 2
+or the
+.Xr event 3
+library is used to monitor the socket file descriptor.
+When the socket is ready for writing, queued messages are transmitted with
+.Fn msgbuf_write :
+.Bd -literal -offset indent
+	if (msgbuf_write(&ibuf-\*(Gtw) \*(Lt= 0 && errno != EAGAIN) {
+		/* handle write failure */
+	}
+.Ed
+.Pp
+And when ready for reading, messages are first received using
+.Fn imsg_read
+and then extracted with
+.Fn imsg_get :
+.Bd -literal -offset indent
+void
+dispatch_imsg(struct imsgbuf *ibuf)
+{
+	struct imsg	imsg;
+	ssize_t         n, datalen;
+	int		idata;
+
+	if ((n = imsg_read(ibuf)) == -1 || n == 0) {
+		/* handle socket error */
+	}
+
+	for (;;) {
+		if ((n = imsg_get(ibuf, &imsg)) == -1) {
+			/* handle read error */
+		}
+		if (n == 0)	/* no more messages */
+			return;
+		datalen = imsg.hdr.len - IMSG_HEADER_SIZE;
+
+		switch (imsg.hdr.type) {
+		case IMSG_A_MESSAGE:
+			if (datalen \*(Lt sizeof idata) {
+				/* handle corrupt message */
+			}
+			memcpy(&idata, imsg.data, sizeof idata);
+			/* handle message received */
+			break;
+		...
+		}
+
+		imsg_free(&imsg);
+	}
+}
+.Ed
+.Sh SEE ALSO
+.Xr socketpair 2 ,
+.Xr unix 4

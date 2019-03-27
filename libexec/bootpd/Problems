@@ -1,0 +1,66 @@
+# $FreeBSD$
+
+Common problems and ways to work around them:
+
+Bootpd complains: "bind: Address already in use" and fails to start.
+	You are already running something that has bound the
+	BOOTP listening port number.  Check /etc/inetd.conf or
+	the equivalent for a bootp line (or in startup files).
+
+Bootpd complains that it "can not get IP addr for HOSTNAME"
+
+	If the entry is a "dummy" (not a real host) used only for
+	reference by other entries, put '.' in front of the name.
+
+	If the entry is for a real client and the IP address for
+	the client can not be found using gethostbyname(), specify
+	the IP address for the client using numeric form.
+
+Bootpd takes a long time to finish parsing the bootptab file:
+
+	Excessive startup time is usually caused by waiting for
+	timeouts on failed DNS lookup operations.  If this is the
+	problem, find the client names for which DNS lookup fails
+	and change the bootptab to specify the IP addresses for
+	those clients using numeric form.
+
+	When bootptab entries do not specify an ip address, bootpd
+	attempts to lookup the tagname as a host name to find the
+	IP address.  To suppress this default action, either make
+	the entry a "dummy" or specify its IP numeric address.
+
+	If your DNS lookups work but are just slow, consider either
+	running bootpd on the same machine as the DNS server or
+	running a caching DNS server on the host running bootpd.
+
+My huge bootptab file causes startup time to be so long that clients
+give up waiting for a reply.
+
+	Truly huge bootptab files make "inetd" mode impractical.
+	Start bootpd in "standalone" mode when the server boots.
+
+	Another possibility is to run one bootpd on each network
+	segment so each one can have a smaller bootptab.  Only one
+	instance of bootpd may run on one server, so you would need
+	to use a different server for each network segment.
+
+My bootp clients are given responses with a boot file name that is
+not a fully specified path.
+
+	Make sure the TFTP directory or home directory tags are set:
+	:td=/tftpboot:	(or)
+	:hd=/usr/boot:	(for example)
+
+My PC clients running Sun's PC-NFS Pro v1.1 fail to receive
+acceptable responses from the bootp server.
+
+	These clients send a request with the DHCP "message length"
+	option and the (new) BOOTP "broadcast flag" both set.
+	The bootp server (on SunOS) will send a fragmented reply
+	unless you override the length with :ms=1024: (or less).
+	The "broadcast flag" is not yet supported, but there is
+	a simple work-around, just add :ra=255.255.255.255:
+	for any clients that need their reply broadcasted.
+	You may need to use a differnet broadcast address.
+	(Thanks to Ivan Auger <ivan.auger@wadsworth.org>)
+

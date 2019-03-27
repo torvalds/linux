@@ -1,0 +1,129 @@
+.\" Copyright (c) 1987, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)mkdep.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd October 23, 2015
+.Dt MKDEP 1
+.Os
+.Sh NAME
+.Nm mkdep
+.Nd construct Makefile dependency list
+.Sh SYNOPSIS
+.Nm
+.Op Fl ap
+.Op Fl f Ar file
+.Op Ar flags
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility takes a set of flags for the C compiler and a list
+of C source files as arguments and constructs a set of include
+file dependencies which are written into the file ``.depend''.
+An example of its use in a Makefile might be:
+.Bd -literal -offset indent
+CFLAGS= -O -I../include
+SRCS= file1.c file2.c
+
+depend:
+	mkdep ${CFLAGS} ${SRCS}
+.Ed
+.Pp
+where the macro SRCS is the list of C source files and the macro
+CFLAGS is the list of flags for the C compiler.
+.Pp
+The user has the ability to change the preprocessor and preprocessor options
+used.
+For instance, to use
+.Sy cc
+as the preprocessor and to ignore system
+headers, one would use
+.Bd -literal -offset indent
+depend:
+	env MKDEP_CPP="cc -E" MKDEP_CPP_OPTS=-MM mkdep \\
+		${CFLAGS} ${SRCS}
+.Ed
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+Append to the output file,
+so that multiple
+.Nm Ns 's
+may be run from a single Makefile.
+.It Fl f
+Write the include file dependencies to
+.Ar file ,
+instead of the default ``.depend''.
+.It Fl p
+Cause
+.Nm
+to produce dependencies of the form:
+.Bd -literal -offset indent
+program: program.c
+.Ed
+.Pp
+so that subsequent makes will produce
+.Ar program
+directly from its C module rather than using an intermediate
+.Pa \&.o
+module.
+This is useful for programs whose source is contained in a single
+module.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width MKDEP_CPP_OPTS
+.It Ev CC
+Specifies the C compiler to use.
+The specified compiler is expected to have
+options consistent with the GNU C compiler.
+The default is
+.Sy cc .
+.It Ev MKDEP_CPP
+Specifies the preprocessor to use.
+The default is "${CC} -E".
+.It Ev MKDEP_CPP_OPTS
+Specifies the non-CFLAGS options for the preprocessor.
+The default is
+"-M".
+.El
+.Sh FILES
+.Bl -tag -width .depend -compact
+.It Pa .depend
+File containing list of dependencies.
+.El
+.Sh SEE ALSO
+.Xr cc 1 ,
+.Xr cpp 1 ,
+.Xr make 1
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 Tahoe .

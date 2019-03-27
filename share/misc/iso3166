@@ -1,0 +1,557 @@
+# $FreeBSD$
+#
+# Please consult with https://www.FreeBSD.org/internal/i18n.html before
+# making changes to this file.
+#
+# ISO 3166 country codes
+# This includes many places that are not legally independent countries,
+# but which is it convenient to refer to separately from their
+# parent lands.
+#
+# The original information in this file comes from ftp.ripe.net,
+# which got it from DIN, the official keeper of these codes.
+# The file format used by RIPE was not suitable, so it has been
+# rearranged to put the two-letter country code first.  The country
+# names were capitalized, and most parenthetical designations have
+# been deleted unless necessary to distinguish two countries.
+#
+# The ISO3166 Maintenance Agency can be found at:
+#	http://www.iso.org/iso/country_codes.htm
+#
+# two	three	number	name
+AF	AFG	004	Afghanistan
+AL	ALB	008	Albania
+AX	ALA	248	Åland Islands
+DZ	DZA	012	Algeria
+AS	ASM	016	American Samoa
+AD	AND	020	Andorra
+AO	AGO	024	Angola
+AI	AIA	660	Anguilla
+AQ	ATA	010	Antarctica
+AG	ATG	028	Antigua and Barbuda
+AR	ARG	032	Argentina
+AM	ARM	051	Armenia
+AW	ABW	533	Aruba
+AU	AUS	036	Australia
+AT	AUT	040	Austria
+AZ	AZE	031	Azerbaijan
+BS	BHS	044	Bahamas
+BH	BHR	048	Bahrain
+BD	BGD	050	Bangladesh
+BB	BRB	052	Barbados
+BY	BLR	112	Belarus
+BE	BEL	056	Belgium
+BZ	BLZ	084	Belize
+BJ	BEN	204	Benin
+BM	BMU	060	Bermuda
+BT	BTN	064	Bhutan
+BO	BOL	068	Bolivia, Plurinational State of
+BQ	BES	535	Bonaire, Sint Eustatius and Saba
+BA	BIH	070	Bosnia and Herzegovina
+BW	BWA	072	Botswana
+BV	BVT	074	Bouvet Island
+BR	BRA	076	Brazil
+IO	IOT	086	British Indian Ocean Territory
+BN	BRN	096	Brunei Darussalam
+BG	BGR	100	Bulgaria
+BF	BFA	854	Burkina Faso
+BI	BDI	108	Burundi
+KH	KHM	116	Cambodia
+CM	CMR	120	Cameroon
+CA	CAN	124	Canada
+CV	CPV	132	Cabo Verde
+KY	CYM	136	Cayman Islands
+CF	CAF	140	Central African Republic
+TD	TCD	148	Chad
+CL	CHL	152	Chile
+CN	CHN	156	China
+CX	CXR	162	Christmas Island
+CC	CCK	166	Cocos (Keeling) Islands
+CO	COL	170	Colombia
+KM	COM	174	Comoros
+CG	COG	178	Congo
+CD	COD	180	Congo, Democratic Republic of the
+CK	COK	184	Cook Islands
+CR	CRI	188	Costa Rica
+CI	CIV	384	Côte d'Ivoire
+HR	HRV	191	Croatia
+CU	CUB	192	Cuba
+CW	CUW	531	Curaçao
+CY	CYP	196	Cyprus
+CZ	CZE	203	Czech Republic
+DK	DNK	208	Denmark
+DJ	DJI	262	Djibouti
+DM	DMA	212	Dominica
+DO	DOM	214	Dominican Republic
+EC	ECU	218	Ecuador
+EG	EGY	818	Egypt
+SV	SLV	222	El Salvador
+GQ	GNQ	226	Equatorial Guinea
+ER	ERI	232	Eritrea
+EE	EST	233	Estonia
+ET	ETH	231	Ethiopia
+FK	FLK	238	Falkland Islands (Malvinas)
+FO	FRO	234	Faroe Islands
+FJ	FJI	242	Fiji
+FI	FIN	246	Finland
+FR	FRA	250	France
+GF	GUF	254	French Guiana
+PF	PYF	258	French Polynesia
+TF	ATF	260	French Southern Territories
+GA	GAB	266	Gabon
+GM	GMB	270	Gambia
+GE	GEO	268	Georgia
+DE	DEU	276	Germany
+GH	GHA	288	Ghana
+GI	GIB	292	Gibraltar
+GR	GRC	300	Greece
+GL	GRL	304	Greenland
+GD	GRD	308	Grenada
+GP	GLP	312	Guadeloupe
+GU	GUM	316	Guam
+GT	GTM	320	Guatemala
+GG	GGY	831	Guernsey
+GN	GIN	324	Guinea
+GW	GNB	624	Guinea-Bissau
+GY	GUY	328	Guyana
+HT	HTI	332	Haiti
+HM	HMD	334	Heard Island and McDonald Islands
+VA	VAT	336	Holy See
+HN	HND	340	Honduras
+HK	HKG	344	Hong Kong
+HU	HUN	348	Hungary
+IS	ISL	352	Iceland
+IN	IND	356	India
+ID	IDN	360	Indonesia
+IR	IRN	364	Iran (Islamic Republic of)
+IQ	IRQ	368	Iraq
+IE	IRL	372	Ireland
+IM	IMN	833	Isle of Man
+IL	ISR	376	Israel
+IT	ITA	380	Italy
+JM	JAM	388	Jamaica
+JP	JPN	392	Japan
+JE	JEY	832	Jersey
+JO	JOR	400	Jordan
+KZ	KAZ	398	Kazakhstan
+KE	KEN	404	Kenya
+KI	KIR	296	Kiribati
+KP	PRK	408	Korea (Democratic People's Republic of)
+KR	KOR	410	Korea (Republic of)
+KW	KWT	414	Kuwait
+KG	KGZ	417	Kyrgyzstan
+LA	LAO	418	Lao People's Democratic Republic
+LV	LVA	428	Latvia
+LB	LBN	422	Lebanon
+LS	LSO	426	Lesotho
+LR	LBR	430	Liberia
+LY	LBY	434	Libya
+LI	LIE	438	Liechtenstein
+LT	LTU	440	Lithuania
+LU	LUX	442	Luxembourg
+MO	MAC	446	Macao
+MK	MKD	807	Macedonia (the former Yugoslav Republic of)
+MG	MDG	450	Madagascar
+MW	MWI	454	Malawi
+MY	MYS	458	Malaysia
+MV	MDV	462	Maldives
+ML	MLI	466	Mali
+MT	MLT	470	Malta
+MH	MHL	584	Marshall Islands
+MQ	MTQ	474	Martinique
+MR	MRT	478	Mauritania
+MU	MUS	480	Mauritius
+YT	MYT	175	Mayotte
+MX	MEX	484	Mexico
+FM	FSM	583	Micronesia (Federated States of)
+MD	MDA	498	Moldova (Republic of)
+MC	MCO	492	Monaco
+MN	MNG	496	Mongolia
+ME	MNE	499	Montenegro
+MS	MSR	500	Montserrat
+MA	MAR	504	Morocco
+MZ	MOZ	508	Mozambique
+MM	MMR	104	Myanmar
+NA	NAM	516	Namibia
+NR	NRU	520	Nauru
+NP	NPL	524	Nepal
+NL	NLD	528	Netherlands
+NC	NCL	540	New Caledonia
+NZ	NZL	554	New Zealand
+NI	NIC	558	Nicaragua
+NE	NER	562	Niger
+NG	NGA	566	Nigeria
+NU	NIU	570	Niue
+NF	NFK	574	Norfolk Island
+MP	MNP	580	Northern Mariana Islands
+NO	NOR	578	Norway
+OM	OMN	512	Oman
+PK	PAK	586	Pakistan
+PW	PLW	585	Palau
+PS	PSE	275	Palestine, State of
+PA	PAN	591	Panama
+PG	PNG	598	Papua New Guinea
+PY	PRY	600	Paraguay
+PE	PER	604	Peru
+PH	PHL	608	Philippines
+PN	PCN	612	Pitcairn
+PL	POL	616	Poland
+PT	PRT	620	Portugal
+PR	PRI	630	Puerto Rico
+QA	QAT	634	Qatar
+RE	REU	638	Réunion
+RO	ROU	642	Romania
+RU	RUS	643	Russian Federation
+RW	RWA	646	Rwanda
+BL	BLM	652	Saint Barthélemy
+SH	SHN	654	Saint Helena Ascension and Tristan da Cunha
+KN	KNA	659	Saint Kitts and Nevis
+LC	LCA	662	Saint Lucia
+MF	MAF	663	Saint Martin (French part)
+PM	SPM	666	Saint Pierre and Miquelon
+VC	VCT	670	Saint Vincent and the Grenadines
+WS	WSM	882	Samoa
+SM	SMR	674	San Marino
+ST	STP	678	Sao Tome and Principe
+SA	SAU	682	Saudi Arabia
+SN	SEN	686	Senegal
+RS	SRB	688	Serbia
+SC	SYC	690	Seychelles
+SL	SLE	694	Sierra Leone
+SG	SGP	702	Singapore
+SX	SXM	534	Sint Maarten (Dutch part)
+SK	SVK	703	Slovakia
+SI	SVN	705	Slovenia
+SB	SLB	090	Solomon Islands
+SO	SOM	706	Somalia
+ZA	ZAF	710	South Africa
+GS	SGS	239	South Georgia and the South Sandwich Islands
+SS	SSD	728	South Sudan
+ES	ESP	724	Spain
+LK	LKA	144	Sri Lanka
+SD	SDN	729	Sudan
+SR	SUR	740	Suriname
+SJ	SJM	744	Svalbard and Jan Mayen
+SZ	SWZ	748	Eswatini
+SE	SWE	752	Sweden
+CH	CHE	756	Switzerland
+SY	SYR	760	Syrian Arab Republic
+TW	TWN	158	Taiwan
+TJ	TJK	762	Tajikistan
+TZ	TZA	834	Tanzania United Republic of
+TH	THA	764	Thailand
+TL	TLS	626	Timor-Leste
+TG	TGO	768	Togo
+TK	TKL	772	Tokelau
+TO	TON	776	Tonga
+TT	TTO	780	Trinidad and Tobago
+TN	TUN	788	Tunisia
+TR	TUR	792	Turkey
+TM	TKM	795	Turkmenistan
+TC	TCA	796	Turks and Caicos Islands
+TV	TUV	798	Tuvalu
+UG	UGA	800	Uganda
+UA	UKR	804	Ukraine
+AE	ARE	784	United Arab Emirates
+GB	GBR	826	United Kingdom of Great Britain and Northern Ireland
+US	USA	840	United States of America
+UM	UMI	581	United States Minor Outlying Islands
+UY	URY	858	Uruguay
+UZ	UZB	860	Uzbekistan
+VU	VUT	548	Vanuatu
+VE	VEN	862	Venezuela, Bolivarian Republic of
+VN	VNM	704	Viet Nam
+VG	VGB	092	Virgin Islands (British)
+VI	VIR	850	Virgin Islands (U.S.)
+WF	WLF	876	Wallis and Futuna
+EH	ESH	732	Western Sahara
+YE	YEM	887	Yemen
+ZM	ZMB	894	Zambia
+ZW	ZWE	716	Zimbabwe
+#
+# Revision history:
+#
+#
+# List of changes applied, as specified in registration newsletters:
+#
+# Newsletter III-1, 1989-12-5:
+#   Burma deleted, Myanmar added (same numeric value, change of country name)
+#
+# Newsletter III-2, 1990-07-16
+#   Namibia, changing information not included in this file
+#
+# Newsletter III-3, 1990-08-14
+#   Afghanistan, changing information not included in this file
+#
+# Newsletter III-4, 1990-08-14
+#   Ethiopia, changing information not included in this file
+#
+# Newsletter III-5, 1990-08-14
+#   Fiji, changing information not included in this file
+#
+# Newsletter III-6, 1990-08-14
+#   Hungary, changing information not included in this file
+#
+# Newsletter III-7, 1990-08-14
+#   Unification of Yemen, under new numeric code
+#
+# Newsletter III-8, 1990-08-14
+#   Romania, changing information not included in this file
+#
+# Newsletter III-9, 1990-08-14
+#   Poland, changing information not included in this file
+#
+# Newsletter III-10, 1990-08-14
+#   Kampuchea deleted, Cambodia added (same numeric value, change of name)
+#
+# Newsletter III-11, 1990-08-14
+#   Benin, changing information not included in this file
+#
+# Newsletter III-12, 1990-12-04
+#   Czechoslovakia, changing information not included in this file
+#
+# Newsletter III-13, 1990-10-30
+#   Germany unified (DDR deleted, new name and numeric code for unified Germany)
+#
+# Newsletter III-14 1991-02-10
+#   Mozambique, changing information not included in this file
+#
+# Newsletter III-15 1991-02-10
+#   Bulgaria, changing information not included in this file
+#
+# Newsletter III-16 1992-06-15
+#   ESTONIA added (EE, EST, 233)
+#
+# Newsletter III-17 1992-06-15
+#   LATVIA added (LV, LVA, 428)
+#
+# Newsletter III-18 1992-06-15
+#   Lithuania added
+#
+# Newsletter III-19 1992-06-15
+#   Belarus, named and 3c changed
+#
+# Newsletter III-20 1992-04-06
+#   Albania, changing information not included in this file
+#
+# Newsletter III-21 1992-04-06
+#   Congo, changing information not included in this file
+#
+# Newsletter III-22 1992-04-19
+#   Micronesia, name changed to Micronesia (Federated States of)
+#
+# Newsletter III-23 1992-04-19
+#   Ukraine, name changed
+#
+# Newsletter III-24 1993-06-18
+#   France, Metropolitan (FX) added (European part of France thus excluding:
+#                 GF, GP, MQ, NC, PF, PM, RE, TF, WF, YT)
+#
+# Newsletter III-25, 1991-12-18
+#   Pitcairn, changing information not included in this file
+#
+# Newsletter III-26, 1992-06-15
+#   Croatia, added NR, HRV, 191
+#
+# Newsletter III-27, 1992-06-15
+#   Armenia, added AM, ARM, 051
+#
+# Newsletter III-28, 1992-08-28
+#   Georgia added
+#
+# Newsletter III-29, 1992-06-15
+#   Russian Federation added
+#
+# Newsletter III-30, 1992-06-15
+#   Turkmenistan added
+#
+# Newsletter III-31, 1992-06-15
+#   Kazakhstan added
+#
+# Newsletter III-32, 1992-06-15
+#   Kyrgyzstan added
+#
+# Newsletter III-33, 1992-06-15
+#   Tajikistan added
+#
+# Newsletter III-34, 1992-06-15
+#   Uzbekistan added
+#
+# Newsletter III-35, 1992-06-15
+#   Azerbaijan added
+#
+# Newsletter III-36 1992-06-15
+#   MOLDOVA, REPUBLIC OF added (MD, MDA, 498)
+#
+# Newsletter III-37 1992-08-30
+#   USSR deleted
+#
+# Newsletter III-38, 1993-06-15
+#   Slovenia, number code 705 assigned
+#
+# Newsletter III-39 (undated)
+#   BOSNIA AND HERZEGOWINA added (BA, BIH, 070)
+#
+# Newsletter III-40 1993-07-12
+#   YEMEN, REPUBLIC OF changed to YEMEN
+#
+# Newsletter III-41 1993-07-28
+#   MAURITIUS, changes outside this document
+#
+# Newsletter III-42 1993-07-12
+#   SAINT VINCENT AND THE GRENADINES, changes outside this document
+#
+# Newsletter III-43 1993-07-12
+#   MONGOLIA, changes outside this document
+#
+# Newsletter III-44 1993-07-22
+#   PANAMA, changed numeric code from 590 to 591
+#
+# Newsletter III-45 1993-07-28
+#   YUGOSLAVIA changed numeric code from 890 to 891
+#
+# Newsletter III-46 1993-07-12
+#   NEUTRAL ZONE deleted
+#
+# Newsletter III-47 1993-07-12
+#   NETHERLANDS ANTILLES changed numeric code from 532 to 530
+#
+# Newsletter III-48, 1993-07-12
+#   Added MAYOTTE
+#
+# Newsletter III-49, 1993-06-15
+#   Slovakia added
+#
+# Newsletter III-50, 1993-06-15
+#   Czech Republic added
+#
+# Newsletter III-51, 1993-06-15
+#   Czechoslovakia officially deleted
+#
+# Newsletter III-52, 1993-07-02
+#   Angola, changing information not included in this file. Official name
+#   change to Republic of Angola
+#
+# Newsletter III-53, 1993-07-12
+#   Madagascar, changing information not included in this file. Official
+#   name change to Republic of Madagascar
+#
+# Newsletter III-54, 1993-07-23
+#   South Georgia and the South Sandwich Islands, previously covered by
+#   Falkland Islands
+#
+# Newsletter III-55, 1993-07-16
+#   Ethiopia, numeric code change to 231
+#
+# Newsletter III-56, 1993-07-16
+#   Eritrea, changing information not included in this file
+#   Previously covered by the entry ET
+#
+# Newsletter III-57, 1993-07-16
+#   Macedonia, the former Yugoslav Republic of,
+#   Previously covered by the entry YU
+#
+# Newsletter III-58, 1993-07-16
+#   Afghanistan, changing information not included in this file
+#   Official name change to Islamic State of Afghanistan
+#
+# Newsletter III-32, 1993-07-25 amendment
+#   Kyrgyzstan, changing information not included in this file. Official name
+#   change to Kyrgyz Republic
+#
+# Newsletter III-59, 1994-01-26
+#   Andorra, changing information not included in this file. Official name
+#   change to Pricipality of Andorra
+#
+# Newsletter III-60, 1994-01-26
+#   Cambodia, changing information not included in this file. Official name
+#   change to Kingdom of Cambodia
+#
+# Thu Feb 10 1994
+# At this point the fourth edition of ISO 3166 appears. It can *now* be
+# ordered from national standards institutions. The RIPE NCC will continue
+# tracking changes.
+#
+# [deletia]
+# Newsletter IV-2 1997-07-14
+#  ZAIRE (ZA) changed to CONGO, THE DEMOCRATIC REPUBLIC OF THE  (CD)
+#  change of name, alpha-2 and alpha-3, numeric remains 180
+#
+# Newsletter V-3 2002-02-01
+#  ROMANIA (RO) changed alpha-3 code from ROM to ROU.  Numeric remains 642.
+#
+# Newsletter V-4 2002-05-20
+#  KAZAKSTAN (KZ) changed short name to KAZAKHSTAN (no change in this file,
+#  which already had the `h' spelling).  MACAU (MO) changed short name to
+#  MACAO (again).  Numeric, alpha-2, and alpha-3 codes remain unchanged.
+#  AFGHANISTAN (AF), AZERBAIJAN (AZ), BAHRAIN (BH), BOSNIA AND HERZEGOVINA
+#  (BA), FIJI (FJ), HONG KONG (HK), KIRIBATI (KI), NIUE (NU), SOMALIA (SO),
+#  and VENEZUELA (VE) all changed official names, which are not included in
+#  this file.
+#
+# Newsletter V-5 2002-05-20
+#  EAST TIMOR changed alpha-2 code from TP to TL and alpha-3 from TMP to TLS.
+#  Numeric remains 626.
+#
+# Newsletter V-6 2002-11-15
+#  EAST TIMOR (TL) changed short name to TIMOR-LESTE.  Codes unchanged.
+#
+# Newsletter V-7 2003-01-14
+#  COMOROS (KM) changed official name, not included in this file.
+#
+# Newsletter V-8 2003-07-23
+#  YUGOSLAVIA (YU) changed official name, short name, alpha-2, and alpha-3.
+#
+# Newsletter V-9 2004-02-13
+#  ALAND ISLANDS (AX) added as a new entry.  In the official newsletter,
+#  this territory is shown with the correct (Swedish) orthography.  As this
+#  file is restricted to the ASCII character set, we have substituted the
+#  letter `A' for the Swedish letter U+00C5.  (The Finnish name for this
+#  semi-autonomous territory is Ahvenanmaa, but the official place-names
+#  in the territory are Swedish-only.)  Note that the standard collation
+#  order for Swedish in Finland would sort this letter after Z.
+#
+# Newsletter V-10 2004-04-26
+#  Name changes not relevant to this file.
+#
+# Newsletter V-11 2006-03-29
+#  GUERNSEY (GG), ISLE OF MAN (IM), and JERSEY (JE) added as new entries.
+#  These territories were previously included as a part of the UNITED
+#  KINGDOM (GB).
+#
+# Newsletter V-12 2006-09-26
+#  Removed SERBIA AND MONTENEGRO (CS).  Added SERBIA (RS) and MONTENEGRO (ME).
+#
+# Newsletter VI-1 2007-09-21
+#  Added SAINT BARTHELEMY (BL) and SAINT MARTIN (MF).
+#
+# Newsletter VI-2 2008-04-25
+#  Name changes for Moldova, Montenegro and other minor corrections.
+#
+# Newsletter VI-3 2008-09-09
+#  Name change for Nepal and other minor corrections.
+#  Not relevant to this file.
+#
+# Newsletter VI-4 2009-01-07
+#  Name change for the Republic of Moldova and other minor corrections.
+#
+# Newsletter VI-5 2009-03-03
+#  Name change for Bolivarian Republic of Venezuela and other minor corrections.
+#
+# Newsletter VI-6 2009-05-08
+#  Name change for Plurinational State of Bolivia.
+#
+# Newsletter VI-7 2010-02-22
+#  Name change for Saint Helena, Ascension and Tristan da Cunha
+#
+# Newsletter VI-8 2010-12-15
+#  BONAIRE, SAINT EUSTATIUS AND SABA (BQ), CURACAO (CW) and
+#  SINT MAARTEN (DUTCH PART) (SX) added as new entries.
+#  NETHERLANDS ANTILLES (AN) removed.
+#
+# Newsletter VI-9 2011-06-12
+#  Name changes for Fiji and Myanmar as well as other minor corrections
+#
+# Newsletter VI-10 2011-08-09
+#  Code elements for South Sudan.
+#

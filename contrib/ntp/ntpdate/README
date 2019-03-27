@@ -1,0 +1,7 @@
+README file for directory ./ntpdate of the NTP Version 4 distribution
+
+This directory contains the sources for the ntpdate utility program. See
+the README and RELNOTES files in the parent directory for directions on
+how to make and install this program. The current version number of this
+program is in the version.c file.
+

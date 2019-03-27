@@ -1,0 +1,1916 @@
+'\" t
+.\" $Id: dialog.1,v 1.205 2018/06/19 00:26:13 tom Exp $
+.\" Copyright 2005-2017,2018  Thomas E. Dickey
+.\"
+.\" This program is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU Lesser General Public License, version 2.1
+.\" as published by the Free Software Foundation.
+.\"
+.\" This program is distributed in the hope that it will be useful, but
+.\" WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this program; if not, write to
+.\"	Free Software Foundation, Inc.
+.\"	51 Franklin St., Fifth Floor
+.\"	Boston, MA 02110, USA.
+.\"
+.\" definitions for renaming
+.ds p dialog
+.ds l dialog
+.ds L Dialog
+.ds D DIALOG
+.\"
+.de ES
+.ne 8
+.IP
+..
+.de Ex
+.RS +7
+.PP
+.nf
+.ft CW
+..
+.de Ee
+.fi
+.ft R
+.RE
+..
+.\" Bulleted paragraph
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.
+.TH \*D 1 "" "$Date: 2018/06/19 00:26:13 $"
+.SH NAME
+dialog \- display dialog boxes from shell scripts
+.SH SYNOPSIS
+\fB\*p --clear\fP
+.br
+.BI "\*p --create-rc " file
+.br
+\fB\*p --print-maxsize\fP
+.br
+\fB\*p\fP
+\fIcommon-options\fP
+\fIbox-options\fP
+.SH DESCRIPTION
+\fB\*L\fP
+is a program that will let you present a variety of questions or
+display messages using dialog boxes from a shell script.
+These types of dialog boxes are implemented
+(though not all are necessarily compiled into \fB\*p\fR):
+.RS
+.LP
+.nh
+.na
+.BR buildlist ", "
+.BR calendar ", "
+.BR checklist ", "
+.BR dselect ", "
+.BR editbox ", "
+.BR form ", "
+.BR fselect ", "
+.BR gauge ", "
+.BR infobox ", "
+.BR inputbox ", "
+.BR inputmenu ", "
+.BR menu ", "
+.BR mixedform ", "
+.BR mixedgauge ", "
+.BR msgbox " (message), "
+.BR passwordbox ", "
+.BR passwordform ", "
+.BR pause ", "
+.BR prgbox ", "
+.BR programbox ", "
+.BR progressbox ", "
+.BR radiolist ", "
+.BR rangebox ", "
+.BR tailbox ", "
+.BR tailboxbg ", "
+.BR textbox ", "
+.BR timebox ", "
+.BR treeview ", and "
+.BR yesno " (yes/no)."
+.ad
+.hy
+.RE
+.PP
+You can put more than one dialog box into a script:
+.bP
+Use the "\fB--and-widget\fP" token to force \fB\*p\fP to proceed to the next
+dialog unless you have pressed ESC to cancel, or
+.bP
+Simply add the tokens for the next dialog box, making a chain.
+\*L stops chaining when the return code from a dialog is nonzero,
+e.g., Cancel or No (see DIAGNOSTICS).
+.PP
+Some widgets, e.g., checklist, will write text to \fB\*p\fP's output.
+Normally that is the standard error, but there are options for
+changing this: "\fB--output-fd\fP", "\fB--stderr\fP" and "\fB--stdout\fP".
+No text is written if the Cancel button (or ESC) is pressed;
+\fB\*p\fP exits immediately in that case.
+.
+.\" ************************************************************************
+.SH OPTIONS
+All options begin with "\fB--\fP"
+(two ASCII hyphens,
+for the benefit of those using systems with deranged locale support).
+.PP
+A "\fB--\fP" by itself is used as an escape,
+i.e., the next token on the command-line is not treated as an option.
+.RS
+.B \*p --title -- --Not an option
+.RE
+.PP
+The "\fB--args\fP" option tells \fB\*p\fP to list the command-line
+parameters to the standard error.
+This is useful when debugging complex scripts using
+the "\fB--\fP" and "\fB--file\fP",
+since the command-line may be rewritten as these are expanded.
+.PP
+The "\fB--file\fP" option tells \fB\*p\fP to read parameters from
+the file named as its value.
+.RS
+.B \*p --file \fIparameterfile
+.RE
+.PP
+Blanks not within double-quotes are discarded
+(use backslashes to quote single characters).
+The result is inserted into the command-line,
+replacing "\fB--file\fP" and its option value.
+Interpretation of the command-line resumes from that point.
+If \fIparameterfile\fP begins with "&", \fB\*p\fP
+interprets the following text as a file descriptor number
+rather than a filename.
+.PP
+Most widgets accept \fIheight\fP and \fIwidth\fP parameters,
+which can be used to automatically size the widget to accommodate
+multi-line message \fIprompt\fP values:
+.bP
+If the parameter is negative, 
+\fB\*l\fP uses the screen's size.
+.bP
+If the parameter is zero,
+\fB\*l\fP uses minimum size for the widget to display the \fIprompt\fP
+and data.
+.bP
+Otherwise, \fB\*l\fP uses the given size for the widget.
+.
+.SS \fBCommon Options\fP
+Most of the common options are reset before processing each widget.
+.
+.IP "\fB--ascii-lines
+Rather than draw graphics lines around boxes,
+draw ASCII "+" and "-" in the same place.
+See also "\fB--no-lines\fR".
+.
+.IP "\fB--aspect \fIratio"
+This gives you some control over the box dimensions when using auto
+sizing (specifying 0 for height and width).
+It represents width / height.
+The default is 9, which means 9 characters wide to every 1 line high.
+.
+.IP "\fB--backtitle \fIbacktitle"
+Specifies a
+\fIbacktitle\fP
+string to be displayed on the backdrop, at the top of the screen.
+.
+.IP "\fB--begin \fIy x"
+Specify the position of the upper left corner of a dialog box on the screen.
+.
+.IP "\fB--cancel-label \fIstring"
+Override the label used for \*(``Cancel\*('' buttons.
+.
+.IP "\fB--clear"
+Clears the widget screen, keeping only the screen_color background.
+Use this when you combine widgets with "\fB--and-widget\fR" to erase the
+contents of a previous widget on the screen, so it won't be seen
+under the contents of a following widget.
+Understand this as the complement of "\fB--keep-window\fR".
+To compare the effects, use these:
+.
+.ES
+All three widgets visible, staircase effect, ordered 1,2,3:
+.Ex
+\*p \e
+                               --begin 2 2 --yesno "" 0 0 \e
+    --and-widget               --begin 4 4 --yesno "" 0 0 \e
+    --and-widget               --begin 6 6 --yesno "" 0 0
+.Ee
+.
+.ES
+Only the last widget is left visible:
+.Ex
+\*p \e
+                 --clear       --begin 2 2 --yesno "" 0 0 \e
+    --and-widget --clear       --begin 4 4 --yesno "" 0 0 \e
+    --and-widget               --begin 6 6 --yesno "" 0 0
+.Ee
+.
+.ES
+All three widgets visible, staircase effect, ordered 3,2,1:
+.Ex
+\*p \e
+                 --keep-window --begin 2 2 --yesno "" 0 0 \e
+    --and-widget --keep-window --begin 4 4 --yesno "" 0 0 \e
+    --and-widget               --begin 6 6 --yesno "" 0 0
+.Ee
+.
+.ES
+First and third widget visible, staircase effect, ordered 3,1:
+.Ex
+\*p \e
+                 --keep-window --begin 2 2 --yesno "" 0 0 \e
+    --and-widget --clear       --begin 4 4 --yesno "" 0 0 \e
+    --and-widget               --begin 6 6 --yesno "" 0 0
+.Ee
+.IP
+Note, if you want to restore original console colors and send your
+cursor home after the dialog program has exited, use the \fBclear\fR\ (1)
+command.
+.
+.IP "\fB--colors"
+Interpret embedded "\eZ" sequences in the dialog text
+by the following character,
+which tells \fB\*p\fP to set colors or video attributes:
+.RS
+.bP
+0 through 7 are the ANSI color numbers used in curses:
+black,
+red,
+green,
+yellow,
+blue,
+magenta,
+cyan and
+white respectively.
+.bP
+Bold is set by 'b', reset by 'B'.
+.bP
+Reverse is set by 'r', reset by 'R'.
+.bP
+Underline is set by 'u', reset by 'U'.
+.bP
+The settings are cumulative, e.g., "\eZb\eZ1" makes the following text
+bold (perhaps bright) red.
+.bP
+Restore normal settings with "\eZn".
+.RE
+.
+.IP "\fB--column-separator \fIstring"
+Tell \fB\*p\fP to split data for radio/checkboxes and menus on the
+occurrences of the given string, and to align the split data into columns.
+.
+.IP "\fB--cr-wrap"
+Interpret embedded newlines in the dialog text as a newline on the screen.
+Otherwise, \fB\*p\fR will only wrap lines
+where needed to fit inside the text box.
+.IP
+Even though you can control line breaks with this,
+\fB\*L\fR will still wrap any lines that are too long for the width of the box.
+Without cr-wrap, the layout of your text may be formatted to look nice
+in the source code of your script without affecting the way it will
+look in the dialog.
+.IP
+The \fIcr-wrap\fP feature is implemented subject to these conditions:
+.RS
+.bP
+the string contains \*(``\en\*('' and the \fB--no-nl-expand\fP option is
+not used, or
+.bP
+the \fB--trim\fP option is used.
+.RE
+.IP
+For more information, see \fBWhitespace Options\fP.
+.
+.IP "\fB--create-rc \fIfile"
+When
+\fB\*p\fP
+supports run-time configuration,
+this can be used to dump a sample configuration file to the file specified
+by
+.IR file "."
+.
+.IP "\fB--date-format \fIformat"
+If the host provides \fBstrftime\fP,
+this option allows you to specify the format of the date printed for
+the \fB--calendar\fP widget.
+The time of day (hour, minute, second) are the current local time.
+.
+.IP "\fB--defaultno"
+Make the default value of the
+\fByes/no\fP
+box a
+.BR No .
+Likewise, treat the default button of widgets that provide
+\*(``OK\*('' and \*(``Cancel\*(''
+as a \fICancel\fP.
+If "\fB--nocancel\fP" or "\fB--visit-items\fP" are given
+those options overrides this,
+making the default button always \*(``Yes\*(''
+(internally the same as \*(``OK\*('').
+.
+.IP "\fB--default-button \fIstring"
+Set the default (preselected) button in a widget.
+By preselecting a button,
+a script makes it possible for the user to simply press \fIEnter\fP
+to proceed through a dialog with minimum interaction.
+.IP
+The option's value is the name of the button:
+.IR ok ,
+.IR yes ,
+.IR cancel ,
+.IR no ,
+.IR help "\ or"
+.IR extra .
+.IP
+Normally the first button in each widget is the default.
+The first button shown is determined by the widget
+together with the "\fB--nook\fP" and "\fB--nocancel\fP options.
+If this option is not given, there is no default button assigned.
+.
+.IP "\fB--default-item \fIstring"
+Set the default item in a checklist, form or menu box.
+Normally the first item in the box is the default.
+.
+.IP "\fB--exit-label \fIstring"
+Override the label used for \*(``EXIT\*('' buttons.
+.
+.IP "\fB--extra-button"
+Show an extra button, between \*(``OK\*('' and \*(``Cancel\*('' buttons.
+.
+.IP "\fB--extra-label \fIstring"
+Override the label used for \*(``Extra\*('' buttons.
+Note: for inputmenu widgets, this defaults to \*(``Rename\*(''.
+.
+.IP "\fB--help"
+Prints the help message to the standard output and exits.
+The help message is also printed if no options are given,
+or if an unrecognized option is given.
+.
+.IP "\fB--help-button"
+Show a help-button after \*(``OK\*('' and \*(``Cancel\*('' buttons,
+e.g., in checklist, radiolist and menu boxes,
+and other widgets which have an \*(``OK\*('' button,
+whether or not the \*(``Cancel\*('' button is used.
+.IP
+On exit, the return status will indicate that the Help button was pressed.
+\fB\*L\fP will also write a message to its output
+after the token \*(``HELP\*('':
+.RS
+.bP
+If "\fB--item-help\fR" is also given, the item-help text will be written.
+.bP
+Otherwise, the item's tag (the first field) will be written.
+.RE
+.IP
+.IP
+You can use the \fB--help-tags\fP option and/or set the DIALOG_ITEM_HELP
+environment variable to modify these messages and exit-status.
+.
+.IP "\fB--help-label \fIstring"
+Override the label used for \*(``Help\*('' buttons.
+.
+.IP "\fB--help-status"
+If the help-button is selected,
+writes the checklist, radiolist or form information
+after the item-help \*(``HELP\*('' information.
+This can be used to reconstruct the state of a checklist after processing
+the help request.
+.
+.IP "\fB--help-tags"
+Modify the messages written on exit for \fB--help-button\fP
+by making them always just the item's tag.
+This does not affect the exit status code.
+.
+.IP "\fB--hfile \fIfilename"
+Display the given file using a textbox when the user presses F1.
+.
+.IP "\fB--hline \fIstring"
+Display the given string centered at the bottom of the widget.
+.
+.IP "\fB--ignore"
+Ignore options that \fB\*p\fP does not recognize.
+Some well-known ones such as "\fB--icon\fP" are ignored anyway,
+but this is a better choice for compatibility with other implementations.
+.
+.IP "\fB--input-fd \fIfd"
+Read keyboard input from the given file descriptor.
+Most \fB\*p\fR scripts read from the standard input,
+but the gauge widget reads a pipe (which is always standard input).
+Some configurations do not work properly when
+\fB\*p\fP tries to reopen the terminal.
+Use this option (with appropriate juggling of file-descriptors)
+if your script must work in that type of environment.
+.
+.IP "\fB--insecure"
+Makes the password widget friendlier but less secure,
+by echoing asterisks for each character.
+.
+.IP "\fB--iso-week"
+Set the starting point for the week-number
+shown in the "\fB--calendar\fP" option
+according to ISO-8601, which starts numbering
+with the first week which includes a Thursday in January.
+.
+.IP "\fB--item-help"
+Interpret the tags data for checklist, radiolist and menu boxes
+adding a column which is displayed in the bottom line of the
+screen, for the currently selected item.
+.
+.IP "\fB--keep-tite"
+When built with \fBncurses\fP,
+\fB\*p\fP normally checks to see if it is running in an \fBxterm\fP,
+and in that case tries to suppress the initialization strings that
+would make it switch to the alternate screen.
+Switching between the normal and alternate screens
+is visually distracting in a script which runs \fB\*p\fP
+several times.
+Use this option to allow \fB\*p\fP to use those initialization strings.
+.
+.IP "\fB--keep-window"
+Normally when \fB\*p\fR performs several \fBtailboxbg\fR widgets
+connected by "\fB--and-widget\fR",
+it clears the old widget from the screen by painting over it.
+Use this option to suppress that repainting.
+.IP
+At exit, \fB\*p\fR repaints all of the widgets which have been
+marked with "\fB--keep-window\fR", even if they are not \fBtailboxbg\fR widgets.
+That causes them to be repainted in reverse order.
+See the discussion of the "\fB--clear\fR" option for examples.
+.
+.IP "\fB--last-key"
+At exit, report the last key which the user entered.
+This is the curses key code rather than a symbol or literal character.
+It can be used by scripts to distinguish between two keys which are
+bound to the same action.
+.
+.IP "\fB--max-input \fIsize"
+Limit input strings to the given size.
+If not specified, the limit is 2048.
+.
+.IP "\fB--no-cancel"
+.IP "\fB--nocancel"
+Suppress the \*(``Cancel\*('' button in checklist, inputbox and menu box modes.
+A script can still test if the user pressed the ESC key to cancel to quit.
+.
+.IP "\fB--no-collapse"
+Normally \fB\*p\fR converts tabs to spaces and reduces multiple
+spaces to a single space for text which is displayed in a message boxes, etc.
+Use this option to disable that feature.
+Note that \fB\*p\fR will still wrap text,
+subject to the "\fB--cr-wrap\fR" and "\fB--trim\fR" options.
+.IP
+The \fIno-collapse\fP feature is implemented subject to these conditions:
+.RS
+.bP
+the string contains \*(``\en\*('' and the \fB--no-nl-expand\fP option is
+not used, or
+.bP
+the \fB--trim\fP option is not used.
+.RE
+.IP
+For more information, see \fBWhitespace Options\fP.
+.
+.IP "\fB--no-items"
+Some widgets (checklist, inputmenu, radiolist, menu) display a list
+with two columns (a \*(``tag\*('' and \*(``item\*('',
+i.e., \*(``description\*('').
+This option tells \fB\*p\fP to read shorter rows,
+omitting the \*(``item\*('' part of the list.
+This is occasionally useful, e.g., if the tags provide enough information.
+.IP
+See also \fB--no-tags\fP.
+If both options are given, this one is ignored.
+.
+.IP "\fB--no-kill"
+Tells
+\fB\*p\fP
+to put the
+\fBtailboxbg\fP
+box in the background,
+printing its process id to \fB\*p\fP's output.
+SIGHUP is disabled for the background process.
+.
+.IP "\fB--no-label \fIstring"
+Override the label used for \*(``No\*('' buttons.
+.
+.IP "\fB--no-lines
+Rather than draw lines around boxes, draw spaces in the same place.
+See also "\fB--ascii-lines\fR".
+.
+.IP "\fB--no-mouse
+Do not enable the mouse.
+.
+.IP "\fB--no-nl-expand
+Do not convert "\en" substrings of the message/prompt text into
+literal newlines.
+.IP
+The \fIno-nl-expand\fP feature is used only if
+the string contains \*(``\en\*('' so that there is something to convert.
+.IP
+For more information, see \fBWhitespace Options\fP.
+.
+.IP "\fB--no-ok"
+.IP "\fB--nook"
+Suppress the \*(``OK\*('' button in checklist, inputbox and menu box modes.
+A script can still test if the user pressed
+the \*(``Enter\*('' key to accept the data.
+.
+.IP "\fB--no-shadow"
+Suppress shadows that would be drawn to the right and bottom of each dialog box.
+.
+.IP "\fB--no-tags"
+Some widgets (checklist, inputmenu, radiolist, menu) display a list
+with two columns (a \*(``tag\*('' and \*(``description\*('').
+The tag is useful for scripting, but may not help the user.
+The \fB--no-tags\fP option (from Xdialog) may be used to suppress the
+column of tags from the display.
+Unlike the \fB--no-items\fP option,
+this does not affect the data which is read from the script.
+.IP
+Xdialog does not display the tag column for the analogous buildlist
+and treeview widgets; \fB\*p\fP does the same.
+.IP
+Normally \fB\*p\fP allows you to quickly move to entries on the displayed list,
+by matching a single character to the first character of the tag.
+When the \fB--no-tags\fP option is given, \fB\*p\fP matches against
+the first character of the description.
+In either case, the matchable character is highlighted.
+.
+.IP "\fB--ok-label \fIstring"
+Override the label used for \*(``OK\*('' buttons.
+.
+.IP "\fB--output-fd \fIfd"
+Direct output to the given file descriptor.
+Most \fB\*p\fR scripts write to the standard error,
+but error messages may also be written there, depending on your script.
+.
+.IP "\fB--separator \fIstring"
+.IP "\fB--output-separator \fIstring"
+Specify a string that will separate the output on \fB\*p\fP's output from
+checklists, rather than a newline (for \fB--separate-output\fP) or a space.
+This applies to other widgets such as forms and editboxes which normally
+use a newline.
+.
+.IP "\fB--print-maxsize"
+Print the maximum size of dialog boxes, i.e., the screen size,
+to \fB\*p\fP's output.
+This may be used alone, without other options.
+.
+.IP "\fB--print-size"
+Prints the size of each dialog box to \fB\*p\fP's output
+when the box is initialized.
+.
+.IP "\fB--print-text-only \fIstring [ height [ width ] ]"
+Prints the string as it would be wrapped in a message box
+to \fB\*p\fP's output.
+.IP
+Because the optional \fIheight\fP and \fIwidth\fP default to zero,
+if they are omitted, \fB\*p\fP autosizes according to the screen dimensions.
+.
+.IP "\fB--print-text-size \fIstring [ height [ width ] ]"
+Prints the size of the string as it would be wrapped in a message box,
+to \fB\*p\fP's output,
+as
+.Ex
+height width
+.Ee
+.IP
+Because the optional \fIheight\fP and \fIwidth\fP parameters default to zero,
+if they are omitted, \fB\*p\fP autosizes according to the screen dimensions.
+.
+.IP "\fB--print-version"
+Prints \fB\*p\fR's version to \fB\*p\fP's output.
+This may be used alone, without other options.
+It does not cause \fBdialog\fP to exit by itself.
+.
+.IP "\fB--quoted"
+Normally \fB\*p\fP quotes the strings returned by checklist's
+as well as the item-help text.
+Use this option to quote all string results.
+.IP "\fB--reorder"
+By default, the buildlist widget uses the same order for the output (right)
+list as for the input (left).
+Use this option to tell \fB\*p\fP to use the order
+in which a user adds selections to the output list.
+.
+.IP "\fB--scrollbar"
+For widgets holding a scrollable set of data,
+draw a scrollbar on its right-margin.
+This does not respond to the mouse.
+.
+.IP "\fB--separate-output"
+For certain widgets (buildlist, checklist, treeview),
+output result one line at a time, with no quoting.
+This facilitates parsing by another program.
+.
+.IP "\fB--separate-widget \fIstring"
+Specify a string that will separate the output on \fB\*p\fP's output from
+each widget.
+This is used to simplify parsing the result of a dialog with several widgets.
+If this option is not given,
+the default separator string is a tab character.
+.
+.IP "\fB--shadow"
+Draw a shadow to the right and bottom of each dialog box.
+.
+.IP "\fB--single-quoted"
+Use single-quoting as needed (and no quotes if unneeded) for the
+output of checklist's as well as the item-help text.
+If this option is not set, \fB\*p\fP uses double quotes around each item.
+In either case,
+\fB\*p\fP adds backslashes to make the output useful in shell scripts.
+.
+.IP "\fB--size-err"
+Check the resulting size of a dialog box before trying to use it,
+printing the resulting size if it is larger than the screen.
+(This option is obsolete, since all new-window calls are checked).
+.
+.IP "\fB--sleep \fIsecs"
+Sleep (delay) for the given number of seconds after processing a dialog box.
+.
+.IP "\fB--stderr"
+Direct output to the standard error.
+This is the default, since curses normally writes screen updates to
+the standard output.
+.
+.IP "\fB--stdout"
+Direct output to the standard output.
+This option is provided for compatibility with Xdialog,
+however using it in portable scripts is not recommended,
+since curses normally writes its screen updates to the standard output.
+If you use this option, \fB\*p\fR attempts to reopen the terminal
+so it can write to the display.
+Depending on the platform and your environment, that may fail.
+.
+.IP "\fB--tab-correct"
+Convert each tab character to one or more spaces
+(for the \fBtextbox\fP widget; otherwise to a single space).
+Otherwise, tabs are rendered according to the curses library's interpretation.
+The \fB--no-collapse\fP option disables tab expansion.
+.
+.IP "\fB--tab-len \fIn"
+Specify the number of spaces that a tab character occupies if the
+"\fB--tab-correct\fP" option is given.
+The default is 8.
+This option is only effective for the \fBtextbox\fP widget.
+.
+.IP "\fB--time-format \fIformat"
+If the host provides \fBstrftime\fP,
+this option allows you to specify the format of the time printed for
+the \fB--timebox\fP widget.
+The day, month, year values in this case are for the current local time.
+.
+.IP "\fB--timeout \fIsecs"
+Timeout (exit with error code)
+if no user response within the given number of seconds.
+A timeout of zero seconds is ignored.
+.IP
+This option is ignored by the "\fB--pause\fP" widget.
+It is also overridden if the background "\fB--tailboxbg\fP" option is used
+to set up multiple concurrent widgets.
+.
+.IP "\fB--title \fItitle"
+Specifies a
+\fItitle\fP
+string to be displayed at the top of the dialog box.
+.
+.IP "\fB--trace \fIfilename"
+logs the command-line parameters,
+keystrokes and other information to the given file.
+If \fBdialog\fP reads a configure file, it is logged as well.
+Piped input to the \fIgauge\fP widget is logged.
+Use control/T to log a picture of the current dialog window.
+.IP
+The \fB\*p\fR program handles some command-line parameters specially,
+and removes them from the parameter list as they are processed.
+For example, if the first option is \fB--trace\fP,
+then that is processed (and removed) before \fB\*p\fR initializes the display.
+.
+.IP "\fB--week-start \fIday"
+sets the starting day for the week, used in the "\fB--calendar\fP" option.
+The \fIday\fP parameter can be
+.RS
+.bP
+a number (0 to 6, Sunday through Saturday using POSIX) or
+.bP
+the special value \*(``locale\*('' (this works with systems using glibc,
+providing an extension to the \fBlocale\fP command,
+the \fBfirst_weekday\fP value).
+.bP
+a string matching one of the abbreviations for the day of the week
+shown in the \fBcalendar\fP widget, e.g., \*(``Mo\*('' for \*(``Monday\*(''.
+.RE
+.
+.IP "\fB--trim"
+eliminate leading blanks,
+trim literal newlines and repeated blanks from message text.
+.IP
+The \fItrim\fP feature is implemented subject to these conditions:
+.RS
+.bP
+the string does not contain \*(``\en\*('' or
+.bP
+the \fB--no-nl-expand\fP option is used.
+.RE
+.IP
+For more information, see \fBWhitespace Options\fP.
+.
+.IP
+See also the "\fB--cr-wrap\fR" and "\fB--no-collapse\fR" options.
+.
+.IP "\fB--version"
+Prints \fB\*p\fR's version to the standard output, and exits.
+See also "\fB--print-version\fP".
+.
+.IP "\fB--visit-items"
+Modify the tab-traversal of checklist, radiolist, menubox and inputmenu
+to include the list of items as one of the states.
+This is useful as a visual aid,
+i.e., the cursor position helps some users.
+.IP
+When this option is given, the cursor is initially placed on the list.
+Abbreviations (the first letter of the tag) apply to the list items.
+If you tab to the button row, abbreviations apply to the buttons.
+.
+.IP "\fB--yes-label \fIstring"
+Override the label used for \*(``Yes\*('' buttons.
+.
+.\" ************************************************************************
+.SS Box Options
+All dialog boxes have at least three parameters:
+.TP 7
+\fItext\fP
+the caption or contents of the box.
+.TP 7
+\fIheight\fP
+the height of the dialog box.
+.TP 7
+\fIwidth\fP
+the width of the dialog box.
+.PP
+Other parameters depend on the box type.
+.
+.
+.IP "\fB--buildlist \fItext height width list-height \fR[ \fItag item status \fR] \fI..."
+A \fBbuildlist\fP dialog displays two lists, side-by-side.
+The list on the left shows unselected items.
+The list on the right shows selected items.
+As items are selected or unselected, they move between the lists.
+.IP
+Use a carriage return or the \*(``OK\*('' button to accept the current value
+in the selected-window and exit.
+The results are written using the order displayed in the selected-window.
+.IP
+The initial on/off state of each entry is specified by
+.IR status "."
+.IP
+The dialog behaves like a \fBmenu\fP, using the \fB--visit-items\fP
+to control whether the cursor is allowed to visit the lists directly.
+.RS
+.bP
+If \fB--visit-items\fP is not given,
+tab-traversal uses two states (OK/Cancel).
+.bP
+If \fB--visit-items\fP is given,
+tab-traversal uses four states (Left/Right/OK/Cancel).
+.RE
+.IP
+Whether or not \fB--visit-items\fP is given,
+it is possible to move the highlight between the two lists using
+the default "^" (left-column) and "$" (right-column) keys.
+.IP
+On exit, a list of the \fItag\fP
+strings of those entries that are turned on
+will be printed on \fB\*p\fP's output.
+.IP
+If the "\fB--separate-output\fP" option is not given,
+the strings will be quoted as needed
+to make it simple for scripts to separate them.
+By default, this uses double-quotes.
+See the "\fB--single-quoted\fP" option, which modifies the quoting behavior.
+.
+.
+.IP "\fB--calendar \fItext height width day month year"
+A \fBcalendar\fP box displays
+month, day and year in separately adjustable windows.
+If the values for day, month or year are missing or negative,
+the current date's corresponding values are used.
+You can increment or decrement any of those using the
+left-, up-, right-, and down-arrows.
+Use vi-style h, j, k and l for moving around the array of days in a month.
+Use tab or backtab to move between windows.
+If the year is given as zero, the current date is used as an initial value.
+.IP
+On exit, the date is printed in the form day/month/year.
+The format can be overridden using the \fB--date-format\fP option.
+.
+.
+.IP "\fB--checklist \fItext height width list-height \fR[ \fItag item status \fR] \fI..."
+A \fBchecklist\fP box is similar to a \fBmenu\fP box;
+there are multiple entries presented in the form of a menu.
+Another difference is
+that you can indicate which entry is currently selected, by setting its
+.IR status " to " on "."
+Instead of choosing
+one entry among the entries, each entry can be turned on or off by the user.
+The initial on/off state of each entry is specified by
+.IR status "."
+.IP
+On exit, a list of the \fItag\fP
+strings of those entries that are turned on
+will be printed on \fB\*p\fP's output.
+.IP
+If the "\fB--separate-output\fP" option is not given,
+the strings will be quoted as needed
+to make it simple for scripts to separate them.
+By default, this uses double-quotes.
+See the "\fB--single-quoted\fP" option, which modifies the quoting behavior.
+.
+.
+.IP "\fB--dselect \fIfilepath height width\fR"
+The directory-selection dialog displays a text-entry window
+in which you can type a directory,
+and above that a windows with directory names.
+.IP
+Here
+\fBfilepath\fP
+can be a filepath in which case the directory window
+will display the contents of the path and the text-entry window will contain
+the preselected directory.
+.IP
+Use tab or arrow keys to move between the windows.
+Within the directory window, use the up/down arrow keys
+to scroll the current selection.
+Use the space-bar to copy the current selection into the text-entry
+window.
+.IP
+Typing any printable characters switches focus to the text-entry window,
+entering that character as well as scrolling the directory
+window to the closest match.
+.IP
+Use a carriage return or the \*(``OK\*('' button to accept the current value
+in the text-entry window and exit.
+.IP
+On exit, the contents of the text-entry window are written
+to \fB\*p\fP's output.
+.
+.IP "\fB--editbox \fIfilepath height width\fR"
+The edit-box dialog displays a copy of the file.
+You may edit it using
+the \fIbackspace\fP, \fIdelete\fP and cursor keys
+to correct typing errors.
+It also recognizes pageup/pagedown.
+Unlike the \fB--inputbox\fP,
+you must tab to the \*(``OK\*('' or \*(``Cancel\*('' buttons
+to close the dialog.
+Pressing the \*(``Enter\*('' key within the box will split
+the corresponding line.
+.IP
+On exit, the contents of the edit window are written to \fB\*p\fP's output.
+.
+.nf
+.IP "\fB--form \fItext height width formheight \fR[ \fIlabel y x item y x flen ilen \fR] \fI..."
+.fi
+The \fBform\fP dialog displays a form consisting of labels and fields,
+which are positioned on a scrollable window by coordinates given in the script.
+The field length \fIflen\fR and input-length \fIilen\fR tell how long
+the field can be.
+The former defines the length shown for a selected field,
+while the latter defines the permissible length of the data entered in the
+field.
+.RS
+.bP
+If \fIflen\fR is zero, the corresponding field cannot be altered.
+and the contents of the field determine the displayed-length.
+.bP
+If \fIflen\fR is negative, the corresponding field cannot be altered,
+and the negated value of \fIflen\fR is used as the displayed-length.
+.bP
+If \fIilen\fR is zero, it is set to \fIflen\fR.
+.RE
+.IP
+Use up/down arrows (or control/N, control/P) to move between fields.
+Use tab to move between windows.
+.IP
+On exit, the contents of the form-fields are written to \fB\*p\fP's output,
+each field separated by a newline.
+The text used to fill non-editable fields
+(\fIflen\fR is zero or negative)
+is not written out.
+.
+.
+.IP "\fB--fselect \fIfilepath height width\fR"
+The \fBfselect\fP (file-selection) dialog displays a text-entry window
+in which you can type a filename (or directory),
+and above that two windows with directory names and filenames.
+.IP
+Here
+\fBfilepath\fP
+can be a filepath in which case the file and directory windows
+will display the contents of the path and the text-entry window will contain
+the preselected filename.
+.IP
+Use tab or arrow keys to move between the windows.
+Within the directory or filename windows, use the up/down arrow keys
+to scroll the current selection.
+Use the space-bar to copy the current selection into the text-entry
+window.
+.IP
+Typing any printable characters switches focus to the text-entry window,
+entering that character as well as scrolling the directory and filename
+windows to the closest match.
+.IP
+Typing the space character forces \fB\*p\fP to complete the current
+name (up to the point where there may be a match against more than one
+entry).
+.IP
+Use a carriage return or the \*(``OK\*('' button to accept the current value
+in the text-entry window and exit.
+.IP
+On exit, the contents of the text-entry window are written
+to \fB\*p\fP's output.
+.
+.
+.IP "\fB--gauge \fItext height width [percent]\fR"
+A
+\fBgauge\fP
+box displays a meter along the bottom of the box.
+The meter indicates the percentage.
+New percentages are read from
+standard input, one integer per line.
+The meter is updated
+to reflect each new percentage.
+If the standard input reads the string \*(``XXX\*('',
+then the first line following is taken as an integer percentage,
+then subsequent lines up to another \*(``XXX\*('' are used for a new prompt.
+The gauge exits when EOF is reached on the standard input.
+.IP
+The \fIpercent\fR value denotes the initial percentage shown in the meter.
+If not specified, it is zero.
+.IP
+On exit, no text is written to \fB\*p\fP's output.
+The widget accepts no input, so the exit status is always OK.
+.
+.
+.IP "\fB--infobox \fItext height width"
+An \fBinfo\fP box is basically a \fBmessage\fP box.
+However, in this case, \fB\*p\fP
+will exit immediately after displaying the message to the user.
+The screen is not cleared when \fB\*p\fP
+exits, so that the message will remain on the screen until the calling
+shell script clears it later.
+This is useful when you want to inform
+the user that some operations are carrying on that may require some
+time to finish.
+.IP
+On exit, no text is written to \fB\*p\fP's output.
+An OK exit status is returned.
+.
+.
+.IP "\fB--inputbox \fItext height width [init]"
+An
+\fBinput\fP
+box is useful when you want to ask questions that
+require the user to input a string as the answer.
+If init is supplied
+it is used to initialize the input string.
+When entering the string,
+the \fIbackspace\fP, \fIdelete\fP and cursor keys
+can be used to correct typing errors.
+If the input string is longer than
+can fit in the dialog box, the input field will be scrolled.
+.IP
+On exit, the input string will be printed on \fB\*p\fP's output.
+.
+.
+.IP "\fB--inputmenu \fItext height width menu-height \fR[ \fItag item \fR] \fI..."
+An \fBinputmenu\fP box is very similar to an ordinary \fBmenu\fP box.
+There are only a few differences between them:
+.RS
+.TP 4
+1.
+The entries are not automatically centered but left adjusted.
+.TP
+2.
+An extra button (called \fIRename\/\fP) is implied to rename
+the current item when it is pressed.
+.TP
+3.
+It is possible to rename the current entry by pressing the
+\fIRename\fP
+button.
+Then \fB\*p\fP will write the following on \fB\*p\fP's output.
+.IP
+RENAMED <tag> <item>
+.RE
+.
+.
+.IP "\fB--menu \fItext height width menu-height \fR[ \fItag item \fR] \fI..."
+As its name suggests, a
+\fBmenu\fP
+box is a dialog box that can be used to present a list of choices in
+the form of a menu for the user to choose.
+Choices are displayed in the order given.
+Each menu entry consists of a \fItag\fP string and an \fIitem\fP string.
+The \fItag\fP
+gives the entry a name to distinguish it from the other entries in the
+menu.
+The \fIitem\fP is a short description of the option that the entry represents.
+The user can move between the menu entries by pressing the
+cursor keys, the first letter of the \fItag\fP
+as a hot-key, or the number keys \fI1\fP through \fI9\fP.
+There are \fImenu-height\fP
+entries displayed in the menu at one time, but the menu will be
+scrolled if there are more entries than that.
+.IP
+On exit the \fItag\fP
+of the chosen menu entry will be printed on \fB\*p\fP's output.
+If the "\fB--help-button\fR" option is given, the corresponding help
+text will be printed if the user selects the help button.
+.
+.nf
+.IP "\fB--mixedform \fItext height width formheight \fR[ \fIlabel y x item y x flen ilen itype \fR] \fI..."
+.fi
+The \fBmixedform\fP dialog displays a form consisting of labels and fields,
+much like the \fB--form\fP dialog.
+It differs by adding a field-type parameter to each field's description.
+Each bit in the type denotes an attribute of the field:
+.RS
+.TP 5
+1
+hidden, e.g., a password field.
+.TP 5
+2
+readonly, e.g., a label.
+.RE
+.
+.IP "\fB--mixedgauge \fItext height width percent \fR[ \fItag1 item1 \fR] \fI..."
+A \fBmixedgauge\fP box displays a meter along the bottom of the box.
+The meter indicates the percentage.
+.IP
+It also displays a list of the \fItag\/\fP- and \fIitem\/\fP-values at the
+top of the box.
+See \*l(3) for the tag values.
+.IP
+The \fItext\fP is shown as a caption between the list and meter.
+The \fIpercent\fR value denotes the initial percentage shown in the meter.
+.IP
+No provision is made for reading data from the standard input as \fB--gauge\fP
+does.
+.IP
+On exit, no text is written to \fB\*p\fP's output.
+The widget accepts no input, so the exit status is always OK.
+.
+.IP "\fB--msgbox \fItext height width"
+A \fBmessage\fP box is very similar to a \fByes/no\fP box.
+The only difference between a \fBmessage\fP box and a \fByes/no\fP
+box is that a \fBmessage\fP box has only a single \fBOK\fP button.
+You can use this dialog box to display any message you like.
+After reading the message, the user can press the \fIENTER\fP key so that
+\fB\*p\fP will exit and the calling shell script can continue its operation.
+.IP
+If the message is too large for the space,
+\fB\*p\fP may allow you to scroll it,
+provided that the underlying curses implementation is capable enough.
+In this case, a percentage is shown in the base of the widget.
+.IP
+On exit, no text is written to \fB\*p\fP's output.
+Only an \*(``OK\*('' button is provided for input,
+but an ESC exit status may be returned.
+.
+.IP "\fB--pause \fItext height width seconds\fR"
+A
+\fBpause\fP
+box displays a meter along the bottom of the box.
+The meter indicates how many seconds remain until the end of the pause.
+The pause exits when timeout is reached
+or the user presses the OK button
+(status OK)
+or the user presses the CANCEL button
+or Esc key.
+.IP "\fB--passwordbox \fItext height width [init]"
+A \fBpassword\fP box is similar to an input box,
+except that the text the user enters is not displayed.
+This is useful when prompting for passwords or other
+sensitive information.
+Be aware that if anything is passed in \*(``init\*('', it
+will be visible in the system's process table to casual snoopers.
+Also, it
+is very confusing to the user to provide them with a default password they
+cannot see.
+For these reasons, using \*(``init\*('' is highly discouraged.
+See "\fB--insecure\fP" if you do not care about your password.
+.IP
+On exit, the input string will be printed on \fB\*p\fP's output.
+.
+.
+.nf
+.IP "\fB--passwordform \fItext height width formheight \fR[ \fIlabel y x item y x flen ilen \fR] \fI..."
+.fi
+This is identical to \fB--form\fP except that all text fields are
+treated as \fBpassword\fP widgets rather than \fBinputbox\fP widgets.
+.
+.
+.IP "\fB--prgbox \fItext command height width"
+.IP "\fB--prgbox \fIcommand height width"
+A \fBprgbox\fP is very similar to a \fBprogrambox\fP.
+.IP
+This dialog box is used to display the output of a command that is
+specified as an argument to \fBprgbox\fP.
+.IP
+After the command completes, the user can press the \fIENTER\fP key so that
+\fBdialog\fP will exit and the calling shell script can continue its operation.
+.IP
+If three parameters are given, it displays the text under the title,
+delineated from the scrolling file's contents.
+If only two parameters are given, this text is omitted.
+.
+.
+.IP "\fB--programbox \fItext height width"
+.IP "\fB--programbox \fIheight width"
+A \fBprogrambox\fP is very similar to a \fBprogressbox\fP.
+The only difference between a \fBprogram\fP box and a \fBprogress\fP
+box is that a \fBprogram\fP box displays an \fBOK\fP button
+(but only after the command completes).
+.IP
+This dialog box is used to display the piped output of a command.
+After the command completes, the user can press the \fIENTER\fP key so that
+\fBdialog\fP will exit and the calling shell script can continue its operation.
+.IP
+If three parameters are given, it displays the text under the title,
+delineated from the scrolling file's contents.
+If only two parameters are given, this text is omitted.
+.
+.
+.IP "\fB--progressbox \fItext height width"
+.IP "\fB--progressbox \fIheight width"
+A \fBprogressbox\fP is similar to an \fBtailbox\fP,
+except that
+.RS
+.TP 3
+a) rather than displaying the contents of a file,
+it displays the piped output of a command and
+.TP 3
+b) it will exit when it reaches the end of the file
+(there is no \*(``OK\*('' button).
+.RE
+.IP
+If three parameters are given, it displays the text under the title,
+delineated from the scrolling file's contents.
+If only two parameters are given, this text is omitted.
+.
+.
+.IP "\fB--radiolist \fItext height width list-height \fR [ \fItag item status \fR] \fI..."
+A \fBradiolist\fP box is similar to a \fBmenu\fP box.
+The only difference is
+that you can indicate which entry is currently selected, by setting its
+.IR status " to " on "."
+.IP
+On exit, the tag of the selected item is written to \fB\*p\fP's output.
+.
+.
+.IP "\fB--tailbox \fIfile height width"
+Display text from a file in a dialog box, as in a "tail -f" command.
+Scroll left/right using vi-style 'h' and 'l', or arrow-keys.
+A '0' resets the scrolling.
+.IP
+On exit, no text is written to \fB\*p\fP's output.
+Only an \*(``OK\*('' button is provided for input,
+but an ESC exit status may be returned.
+.
+.
+.nf
+.IP "\fB--rangebox \fItext height width min-value max-value default-value"
+.fi
+Allow the user to select from a range of values, e.g., using a slider.
+The dialog shows the current value as a bar (like the gauge dialog).
+Tabs or arrow keys move the cursor between the buttons and the value.
+When the cursor is on the value,
+you can edit it by:
+.RS
+.TP 5
+left/right cursor movement to select a digit to modify
+.TP 5
++/-
+characters to increment/decrement the digit by one
+.TP 5
+0 through 9
+to set the digit to the given value
+.RE
+.IP
+Some keys are also recognized in all cursor positions:
+.RS
+.TP 5
+home/end
+set the value to its maximum or minimum
+.TP 5
+pageup/pagedown
+increment the value so that the slider moves by one column
+.RE
+.
+.
+.IP "\fB--tailboxbg \fIfile height width"
+Display text from a file in a dialog box as a background task,
+as in a "tail -f &" command.
+Scroll left/right using vi-style 'h' and 'l', or arrow-keys.
+A '0' resets the scrolling.
+.IP
+\*L treats the background task specially if there are other
+widgets (\fB--and-widget\fP) on the screen concurrently.
+Until those widgets are closed (e.g., an \*(``OK\*(''),
+\fB\*p\fP will perform all of the tailboxbg widgets in the same process,
+polling for updates.
+You may use a tab to traverse between the widgets on the screen,
+and close them individually, e.g., by pressing \fIENTER\fP.
+Once the non-tailboxbg widgets are closed, \fB\*p\fP forks a copy of itself
+into the background, and prints its process id if the "\fB--no-kill\fP" option
+is given.
+.IP
+On exit, no text is written to \fB\*p\fP's output.
+Only an \*(``EXIT\*('' button is provided for input,
+but an ESC exit status may be returned.
+.IP
+NOTE:
+Older versions of \fB\*p\fP forked immediately and attempted to
+update the screen individually.
+Besides being bad for performance,
+it was unworkable.
+Some older scripts may not work properly with the polled scheme.
+.
+.
+.IP "\fB--textbox \fIfile height width"
+A
+\fBtext\fP
+box lets you display the contents of a text file in a dialog box.
+It is like a simple text file viewer.
+The user can move through the file by using the
+cursor, page-up, page-down
+and \fIHOME/END\fR keys available on most keyboards.
+If the lines are too long to be displayed in the box,
+the \fILEFT/RIGHT\fP
+keys can be used to scroll the text region horizontally.
+You may also use vi-style keys h, j, k, and l in place of the cursor keys,
+and B or N in place of the page-up and page-down keys.
+Scroll up/down using vi-style 'k' and 'j', or arrow-keys.
+Scroll left/right using vi-style 'h' and 'l', or arrow-keys.
+A '0' resets the left/right scrolling.
+For more convenience,
+vi-style forward and backward searching functions are also provided.
+.IP
+On exit, no text is written to \fB\*p\fP's output.
+Only an \*(``EXIT\*('' button is provided for input,
+but an ESC exit status may be returned.
+.
+.
+.IP "\fB--timebox \fItext height [width hour minute second]"
+A dialog is displayed which allows you to select hour, minute and second.
+If the values for hour, minute or second are missing or negative,
+the current date's corresponding values are used.
+You can increment or decrement any of those using the
+left-, up-, right- and down-arrows.
+Use tab or backtab to move between windows.
+.IP
+On exit, the result is printed in the form hour:minute:second.
+The format can be overridden using the \fB--time-format\fP option.
+.
+.
+.IP "\fB--treeview \fItext height width list-height \fR[ \fItag item status depth \fR] \fI..."
+Display data organized as a tree.
+Each group of data contains a tag,
+the text to display for the item,
+its status (\*(``on\*('' or \*(``off\*('')
+and the depth of the item in the tree.
+.IP
+Only one item can be selected (like the \fBradiolist\fP).
+The tag is not displayed.
+.IP
+On exit, the tag of the selected item is written to \fB\*p\fP's output.
+.
+.
+.IP "\fB--yesno \fItext height width"
+A \fByes/no\fP dialog box of
+size \fIheight\fP rows by \fIwidth\fP columns will be displayed.
+The string specified by
+\fItext\fP
+is displayed inside the dialog box.
+If this string is too long to fit
+in one line, it will be automatically divided into multiple lines at
+appropriate places.
+The
+\fItext\fP
+string can also contain the sub-string
+.RI """" \en """"
+or newline characters
+.RI ` \en '
+to control line breaking explicitly.
+This dialog box is useful for
+asking questions that require the user to answer either yes or no.
+The dialog box has a
+\fBYes\fP
+button and a
+\fBNo\fP
+button, in which the user can switch between by pressing the
+.IR TAB " key."
+.IP
+On exit, no text is written to \fB\*p\fP's output.
+In addition to the \*(``Yes\*('' and \*(``No\*('' exit codes (see DIAGNOSTICS)
+an ESC exit status may be returned.
+.IP
+The codes used for \*(``Yes\*('' and \*(``No\*(''
+match those used for \*(``OK\*('' and \*(``Cancel\*('',
+internally no distinction is made.
+.
+.\" ************************************************************************
+.SS "Obsolete Options"
+.\" from cdialog 0.9a (Pako)
+.IP "\fB--beep"
+This was used to tell the original cdialog that it should make a beep
+when the separate processes of the tailboxbg widget would repaint the screen.
+.
+.\" from cdialog 0.9a (Pako)
+.IP "\fB--beep-after"
+Beep after a user has completed a widget by pressing one of the buttons.
+.
+.\" ************************************************************************
+.SS "Whitespace Options"
+.PP
+These options can be used to transform whitespace (space, tab, newline)
+as dialog reads the script:
+.RS
+.BR --cr-wrap ,
+.BR --no-collapse ,
+.BR --no-nl-expand ", and"
+.B --trim
+.RE
+.PP
+The options are not independent:
+.bP
+\fB\*L\fP checks if the script contains at least one \*(``\en\*(''
+and (unless \fB--no-nl-expand\fP is set) will ignore the
+\fB--no-collapse\fP and \fB--trim\fP options.
+.bP
+After checking for \*(``\en\*('' and the \fB--no-nl-expand\fP option,
+\fB\*l\fP handles the \fB--trim\fP option.
+.IP
+If the \fB--trim\fP option takes effect,
+then \fB\*l\fP ignores \fB--no-collapse\fP.
+It changes sequences of tabs, spaces
+(and newlines unless \fB-cr-wrap\fP is set) to a single space.
+.bP
+If neither the \*(``\en\*('' or \fB--trim\fP cases apply,
+\fB\*l\fP checks \fB--no-collapse\fP to decide whether to reduce
+sequences of tabs and spaces to a single space.
+.IP
+In this case, \fB\*l\fP ignores \fB-cr-wrap\fP and does not modify newlines.
+.PP
+Taking those dependencies into account,
+here is a table summarizing the behavior
+for the various combinations of options.
+The table assumes that the script contains at least one \*(``\en\*(''
+when the \fB--no-nl-expand\fP option is not set.
+.na
+.TS
+center tab(/) ;
+lB lB lB lB lB
+lB lB lB lB lB
+_ _ _ _ _
+lw5 lw5 lw5 lw5 lw30.
+cr-/no-/no-/trim/Result
+wrap/collapse/nl-expand
+no/no/no/no/T{
+Convert tab to space.
+Convert newline to space.
+Convert \*(``\en\*('' to newline. 
+T}
+no/no/no/yes/T{
+Convert tab to space.
+Convert newline to space.
+Convert \*(``\en\*('' to newline. 
+T}
+no/no/yes/no/T{
+Convert tab to space.
+Do not convert newline to space.
+Convert multiple-space to single.
+Show \*(``\en\*('' literally.
+T}
+no/no/yes/yes/T{
+Convert tab to space.
+Convert multiple-space to single.
+Convert newline to space.
+Show \*(``\en\*('' literally.
+T}
+no/yes/no/no/T{
+Convert newline to space.
+Convert \*(``\en\*('' to newline. 
+T}
+no/yes/no/yes/T{
+Convert newline to space.
+Convert \*(``\en\*('' to newline. 
+T}
+no/yes/yes/no/T{
+Do not convert newline to space.
+Do not reduce multiple blanks.
+Show \*(``\en\*('' literally.
+T}
+no/yes/yes/yes/T{
+Convert multiple-space to single.
+Convert newline to space.
+Show \*(``\en\*('' literally.
+T}
+yes/no/no/no/T{
+Convert tab to space.
+Wrap on newline.
+Convert \*(``\en\*('' to newline. 
+T}
+yes/no/no/yes/T{
+Convert tab to space.
+Wrap on newline.
+Convert \*(``\en\*('' to newline. 
+T}
+yes/no/yes/no/T{
+Convert tab to space.
+Do not convert newline to space.
+Convert multiple-space to single.
+Show \*(``\en\*('' literally.
+T}
+yes/no/yes/yes/T{
+Convert tab to space.
+Convert multiple-space to single.
+Wrap on newline.
+Show \*(``\en\*('' literally.
+T}
+yes/yes/no/no/T{
+Wrap on newline.
+Convert \*(``\en\*('' to newline. 
+T}
+yes/yes/no/yes/T{
+Wrap on newline.
+Convert \*(``\en\*('' to newline. 
+T}
+yes/yes/yes/no/T{
+Do not convert newline to space.
+Do not reduce multiple blanks.
+Show \*(``\en\*('' literally.
+T}
+yes/yes/yes/yes/T{
+Convert multiple-space to single.
+Wrap on newline.
+Show \*(``\en\*('' literally.
+T}
+.TE
+.ad
+.
+.\" ************************************************************************
+.SH "RUN-TIME CONFIGURATION"
+.TP 4
+1.
+Create a sample configuration file by typing:
+.LP
+.Ex
+\*p --create-rc \fIfile\fP
+.Ee
+.TP 4
+2.
+At start,
+\fB\*p\fP
+determines the settings to use as follows:
+.RS
+.TP 4
+a)
+if environment variable
+\fBDIALOGRC\fP
+is set, its value determines the name of the configuration file.
+.TP 4
+b)
+if the file in (a) is not found, use the file
+\fI$HOME/.dialogrc\fP
+as the configuration file.
+.TP 4
+c)
+if the file in (b) is not found, try using the GLOBALRC file determined at
+compile-time, i.e., \fI/etc/dialogrc\fP.
+.TP 4
+d)
+if the file in (c) is not found, use compiled in defaults.
+.RE
+.TP 4
+3.
+Edit the sample configuration file and copy it to some place that
+\fB\*p\fP
+can find, as stated in step 2 above.
+.
+.\" ************************************************************************
+.SH "KEY BINDINGS"
+You can override or add to key bindings in \fB\*p\fP
+by adding to the configuration file.
+\fB\*L\fP's \fBbindkey\fP command maps single keys to its internal coding.
+.Ex
+bindkey \fIwidget\fP \fIcurses_key\fP \fIdialog_key\fP
+.Ee
+.PP
+The \fIwidget\fP name can be "*" (all widgets), or
+specific widgets such as \fBtextbox\fP.
+Specific widget bindings override the "*" bindings.
+User-defined bindings override the built-in bindings.
+.PP
+The \fIcurses_key\fP can be any of the names derived from
+\fBcurses.h\fP, e.g., \*(``HELP\*('' from \*(``KEY_HELP\*(''.
+\fB\*L\fP also recognizes ANSI control characters such as "^A", "^?",
+as well as C1-controls such as "~A" and "~?".
+Finally, it allows any single character to be escaped with a backslash.
+.PP
+\fB\*L\fP's internal keycode names correspond to the
+\fBDLG_KEYS_ENUM\fP type in
+\fBdlg_keys.h\fP, e.g., \*(``HELP\*('' from \*(``DLGK_HELP\*(''.
+.SS Widget Names
+.PP
+Some widgets (such as the formbox) have an area where fields can be edited.
+Those are managed in a subwindow of the widget, and
+may have separate keybindings from the main widget
+because the subwindows are registered using a different name.
+.TS
+center tab(/) ;
+lI lI lI
+_ _ _
+l l l .
+Widget/Window name/Subwindow Name
+calendar/calendar
+checklist/checklist
+editbox/editbox/editbox2
+form/formbox/formfield
+fselect/fselect/fselect2
+inputbox/inputbox/inputbox2
+menu/menubox/menu
+msgbox/msgbox
+pause/pause
+progressbox/progressbox
+radiolist/radiolist
+tailbox/tailbox
+textbox/textbox/searchbox
+timebox/timebox
+yesno/yesno
+_
+.TE
+.PP
+Some widgets are actually other widgets,
+using internal settings to modify the behavior.
+Those use the same widget name as the actual widget:
+.TS
+center tab(/) ;
+lI lI
+_ _
+l l .
+Widget/Actual Widget
+dselect/fselect
+infobox/msgbox
+inputmenu/menu
+mixedform/form
+passwordbox/inputbox
+passwordform/form
+prgbox/progressbox
+programbox/progressbox
+tailboxbg/tailbox
+_
+.TE
+.SS Built-in Bindings
+This manual page does not list the key bindings for each widget,
+because that detailed information can be obtained by running \fB\*p\fP.
+If you have set the \fB--trace\fP option,
+\fB\*p\fP writes the key-binding information for each widget
+as it is registered.
+.SS Example
+Normally \fB\*p\fP uses different keys for navigating between the buttons
+and editing part of a dialog versus navigating within the editing part.
+That is, tab (and back-tab) traverse buttons
+(or between buttons and the editing part),
+while arrow keys traverse fields within the editing part.
+Tabs are also recognized as a special case for traversing between
+widgets, e.g., when using multiple tailboxbg widgets.
+.PP
+Some users may wish to use the same key for traversing within the
+editing part as for traversing between buttons.
+The form widget is written to support this sort of redefinition of
+the keys, by adding a special group in \fBdlgk_keys.h\fP
+for \*(``form\*('' (left/right/next/prev).
+Here is an example binding demonstrating how to do this:
+.Ex
+bindkey formfield TAB  form_NEXT
+bindkey formbox   TAB  form_NEXT
+bindkey formfield BTAB form_prev
+bindkey formbox   BTAB form_prev
+.Ee
+.PP
+That type of redefinition would not be useful in other widgets,
+e.g., calendar, due to the potentially large number of fields to traverse.
+.
+.\" ************************************************************************
+.SH ENVIRONMENT
+.TP 15
+\fBDIALOGOPTS\fP
+Define this variable to apply any of the common options to each widget.
+Most of the common options are reset before processing each widget.
+If you set the options in this environment variable,
+they are applied to \fB\*p\fP's state after the reset.
+As in the "\fB--file\fP" option,
+double-quotes and backslashes are interpreted.
+.IP
+The "\fB--file\fP" option is not considered a common option
+(so you cannot embed it within this environment variable).
+.TP 15
+\fBDIALOGRC\fP
+Define this variable if you want to specify the name of the configuration file
+to use.
+.TP 15
+\fBDIALOG_CANCEL\fP
+.TP 15
+\fBDIALOG_ERROR\fP
+.TP 15
+\fBDIALOG_ESC\fP
+.TP 15
+\fBDIALOG_EXTRA\fP
+.TP 15
+\fBDIALOG_HELP\fP
+.TP 15
+\fBDIALOG_ITEM_HELP\fP
+.TP 15
+\fBDIALOG_OK\fP
+Define any of these variables to change the exit code on
+Cancel (1),
+error (\-1),
+ESC (255),
+Extra (3),
+Help (2),
+Help with \fB--item-help\fP (2),
+or OK (0).
+Normally shell scripts cannot distinguish between \-1 and 255.
+.TP 15
+\fBDIALOG_TTY\fP
+Set this variable to \*(``1\*('' to provide compatibility with older versions
+of \fB\*p\fP which assumed that if the script redirects the standard output,
+that the "\fB--stdout\fP" option was given.
+.SH FILES
+.TP 20
+\fI$HOME/.dialogrc\fP
+default configuration file
+.SH EXAMPLES
+The \fB\*p\fP sources contain several samples
+of how to use the different box options and how they look.
+Just take a look into the directory \fBsamples/\fP of the source.
+.SH DIAGNOSTICS
+Exit status is subject to being overridden by environment variables.
+The default values and corresponding environment variables
+that can override them are:
+.TP 5
+0
+if the \fBYES\fP or \fBOK\fP button is pressed (DIALOG_OK).
+.TP 5
+1
+if the
+.BR No " or " Cancel
+button is pressed (DIALOG_CANCEL).
+.TP 5
+2
+if the
+.B Help
+button is pressed (DIALOG_HELP),
+.br
+except as noted below about DIALOG_ITEM_HELP.
+.TP 5
+3
+if the
+.B Extra
+button is pressed (DIALOG_EXTRA).
+.TP 5
+4
+if the
+.B Help
+button is pressed,
+.br
+and the \fB--item-help\fP option is set
+.br
+and the DIALOG_ITEM_HELP environment variable is set to 4.
+.IP
+While any of the exit-codes can be overridden using environment variables,
+this special case was introduced in 2004 to simplify compatibility.
+\fB\*L\fP uses DIALOG_ITEM_HELP(4) internally,
+but unless the environment variable is also set,
+it changes that to DIALOG_HELP(2) on exit.
+.TP 5
+\-1
+if errors occur inside \fB\*p\fP (DIALOG_ERROR)
+or \fB\*p\fP exits because the \fIESC\fP key (DIALOG_ESC) was pressed.
+.
+.\" ************************************************************************
+.SH PORTABILITY
+\fB\*L\fP works with X/Open curses.
+However, some implementations have deficiencies:
+.RS 3
+.bP
+HPUX curses (and perhaps others) do not open the terminal properly for
+the \fInewterm\fP function.
+This interferes with \fB\*p\fP's \fB--input-fd\fP option,
+by preventing cursor-keys and similar escape sequences from being recognized.
+.bP
+NetBSD 5.1 curses has incomplete support for wide-characters.
+\fB\*p\fP will build, but not all examples display properly.
+.RE
+.\" ************************************************************************
+.SH COMPATIBILITY
+You may want to write scripts which run with
+other \fBdialog\fP \*(``clones\*(''.
+.SS Original Dialog
+First, there is the \*(``original\*('' \fBdialog\fP program to consider
+(versions 0.3 to 0.9).
+It had some misspelled (or inconsistent) options.
+The \fB\*p\fP program maps those deprecated options to the preferred ones.
+They include:
+.RS
+.TS
+tab(/) ;
+lI lI
+_ _
+l l.
+Option/Treatment
+\fB--beep-after\fP/ignored
+\fB--guage\fP/mapped to \fB--gauge\fP
+_
+.TE
+.RE
+.SS Xdialog
+This is an X application, rather than a terminal program.
+With some care, it is possible to write useful scripts that work
+with both \fBXdialog\fP and \fBdialog\fP.
+.PP
+The \fB\*p\fP program ignores these options which are recognized
+by \fBXdialog\fP:
+.RS
+.TS
+tab(/) ;
+lI lI
+_ _
+l l.
+Option/Treatment
+\fB--allow-close\fP/ignored
+\fB--auto-placement\fP/ignored
+\fB--fixed-font\fP/ignored
+\fB--icon\fP/ignored
+\fB--keep-colors\fP/ignored
+\fB--no-close\fP/ignored
+\fB--no-cr-wrap\fP/ignored
+\fB--screen-center\fP/ignored
+\fB--separator\fP/mapped to \fB--separate-output\fP
+\fB--smooth\fP/ignored
+\fB--under-mouse\fP/ignored
+\fB--wmclass\fP/ignored
+_
+.TE
+.RE
+.PP
+\fBXdialog\fP's manpage has a section discussing its compatibility
+with \fB\*p\fP.
+There are some differences not shown in the manpage.
+For example, the html documentation states
+.RS
+.PP
+Note: former Xdialog releases used the "\en" (line feed) as a
+results separator for the checklist widget;
+this has been changed to "/" in Xdialog v1.5.0
+to make it compatible with (c)dialog.
+In your old scripts using the Xdialog checklist, you
+will then have to add the \fB--separate-output\fP option before the
+\fB--checklist\fP one.
+.RE
+.PP
+\fB\*L\fP has not used a different separator;
+the difference was likely due to confusion regarding some script.
+.SS Whiptail
+Then there is \fBwhiptail\fP.
+For practical purposes, it is maintained by Debian
+(very little work is done by its upstream developers).
+Its documentation (README.whiptail) claims
+.Ex
+whiptail(1) is a lightweight replacement for \*p(1),
+to provide dialog boxes for shell scripts.
+It is built on the
+newt windowing library rather than the ncurses library, allowing
+it to be smaller in embedded environments such as installers,
+rescue disks, etc.
+
+whiptail is designed to be drop-in compatible with \*p, but
+has less features: some dialog boxes are not implemented, such
+as tailbox, timebox, calendarbox, etc.
+.Ee
+.PP
+Comparing actual sizes (Debian testing, 2007/1/10):
+The total of sizes for \fBwhiptail\fP,
+the newt, popt and slang libraries is 757\ KB.
+The comparable number for \fB\*p\fP (counting ncurses) is 520\ KB.
+Disregard the first paragraph.
+.PP
+The second paragraph is misleading, since \fBwhiptail\fP
+also does not work for common options of \fB\*p\fP,
+such as the gauge box.
+\fBwhiptail\fP is less compatible with \fB\*p\fP than the
+original mid-1990s dialog 0.4 program.
+.PP
+\fBwhiptail\fP's manpage borrows features from \fB\*p\fP, e.g.,
+but oddly cites only \fB\*p\fP versions up to 0.4 (1994) as a source.
+That is, its manpage refers to features which
+were borrowed from more recent versions of \fB\*p\fP, e.g.,
+.bP
+\fB--gauge\fP (from 0.5)
+.bP
+\fB--passwordbox\fP (from Debian changes in 1999),
+.bP
+\fB--default-item\fP (from \fB\*p\fP 2000/02/22),
+.bP
+\fB--output-fd\fP (from \fB\*p\fP 2002/08/14).
+.PP
+Somewhat humorously, one may note that the \fBpopt\fP feature
+(undocumented in its manpage)
+of using a "--" as an escape was documented in \fB\*p\fP's manpage about
+a year before it was mentioned in \fBwhiptail\fP's manpage.
+\fBwhiptail\fP's manpage incorrectly attributes that to \fBgetopt\fP
+(and is inaccurate anyway).
+.PP
+Debian uses \fBwhiptail\fP for the official \fB\*p\fP variation.
+.PP
+The \fB\*p\fP program ignores or maps these options which are recognized
+by \fBwhiptail\fP:
+.RS
+.TS
+tab(/) ;
+lI lI
+_ _
+l l.
+Option/Treatment
+\fB--cancel-button\fP/mapped to \fB--cancel-label\fP
+\fB--fb\fP/ignored
+\fB--fullbutton\fP/ignored
+\fB--no-button\fP/mapped to \fB--no-label\fP
+\fB--nocancel\fP/mapped to \fB--no-cancel\fP
+\fB--noitem\fP/mapped to \fB--no-items\fP
+\fB--notags\fP/mapped to \fB--no-tags\fP
+\fB--ok-button\fP/mapped to \fB--ok-label\fP
+\fB--scrolltext\fP/mapped to \fB--scrollbar\fP
+\fB--topleft\fP/mapped to \fB--begin 0 0\fP
+\fB--yes-button\fP/mapped to \fB--yes-label\fP
+_
+.TE
+.RE
+.LP
+There are visual differences which are not addressed by command-line options:
+.bP
+\fB\*p\fP centers lists within the window.
+\fBwhiptail\fP typically puts lists against the left margin.
+.bP
+\fBwhiptail\fP uses angle brackets ("<" and ">") for marking buttons.
+\fB\*p\fP uses square brackets.
+.bP
+\fBwhiptail\fP marks the limits of subtitles with vertical bars.
+\fB\*p\fP does not mark the limits.
+.bP
+\fBwhiptail\fP attempts to mark the top/bottom cells of a scrollbar
+with up/down arrows.
+When it cannot do this,
+it fills those cells with the background color
+of the scrollbar and confusing the user.
+\fB\*p\fP uses the entire scrollbar space,
+thereby getting better resolution.
+.\" ************************************************************************
+.SH BUGS
+Perhaps.
+.SH AUTHOR
+.LP
+Thomas E.\& Dickey (updates for 0.9b and beyond)
+.SH CONTRIBUTORS
+Kiran Cherupally \(en the mixed form and mixed gauge widgets.
+.LP
+Tobias C.\& Rittweiler
+.LP
+Valery Reznic \(en the form and progressbox widgets.
+.LP
+Yura Kalinichenko adapted the gauge widget as \*(``pause\*(''.
+.PP
+This is a rewrite (except as needed to provide compatibility)
+of the earlier version of \fB\*p 0.9a\fP,
+which lists as authors:
+.bP
+Savio Lam \(en version 0.3, \*(``dialog\*(''
+.bP
+Stuart Herbert \(en patch for version 0.4
+.bP
+Marc Ewing \(en the gauge widget.
+.bP
+Pasquale De Marco \*(``Pako\*('' \(en version 0.9a, \*(``cdialog\*(''

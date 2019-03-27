@@ -1,0 +1,117 @@
+.\" Copyright (c) 2004 Atte Peltomaki
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 29, 2006
+.Dt SND_ES137X 4
+.Os
+.Sh NAME
+.Nm snd_es137x
+.Nd "Ensoniq AudioPCI ES137x bridge device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device sound"
+.Cd "device snd_es137x"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_es137x_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+bridge driver allows the generic audio driver
+.Xr sound 4
+to attach to the Ensoniq 137x audio cards.
+.Ss Runtime Configuration
+The following
+.Xr sysctl 8
+variables are available in addition to those available to all
+.Xr sound 4
+devices:
+.Bl -tag -width ".Va hw.snd.pcm%d.latency_timer" -offset indent
+.It Va hw.snd.pcm%d.latency_timer
+Controls the PCI latency timer setting.
+Increasing this value will solve most popping and crackling issues
+(especially on VIA motherboards).
+.It Va hw.snd.pcm%d.spdif_enabled
+Enables S/PDIF output on the primary playback channel.
+This
+.Xr sysctl 8
+variable is available only if the device is known to support S/PDIF output.
+.It Va dev.pcm.%d.polling
+Experimental polling mode, where the driver operates by querying the device
+state on each tick using
+.Xr callout 9 .
+Polling is disabled by default.
+Do not enable it unless you are facing weird interrupt problems or if the
+device cannot generate interrupts at all.
+.El
+.Sh HARDWARE
+The
+.Nm
+driver supports the following sound cards:
+.Pp
+.Bl -bullet -compact
+.It
+Creative CT5880-A
+.It
+Creative CT5880-C
+.It
+Creative CT5880-D
+.It
+Creative CT5880-E
+.It
+Creative SB AudioPCI CT4730
+.It
+Ensoniq AudioPCI ES1370
+.It
+Ensoniq AudioPCI ES1371-A
+.It
+Ensoniq AudioPCI ES1371-B
+.It
+Ensoniq AudioPCI ES1373-A
+.It
+Ensoniq AudioPCI ES1373-B
+.It
+Ensoniq AudioPCI ES1373-8
+.El
+.Sh SEE ALSO
+.Xr sound 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Russell Cattelan Aq Mt cattelan@thebarn.com
+.An Cameron Grant Aq Mt cg@FreeBSD.org
+.An Joachim Kuebart
+.An Jonathan Noack Aq Mt noackjr@alumni.rice.edu

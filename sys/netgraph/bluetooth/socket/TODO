@@ -1,0 +1,15 @@
+$Id: TODO,v 1.1 2002/11/24 19:47:07 max Exp $
+$FreeBSD$
+
+FIXME/TODO list
+
+1) Deal properly with "shutdown"s and hook "disconnect"s
+
+	How to let L2CAP node that user called "shutdown" on node or
+	have "disconnect"ed downstream hook. Should L2CAP node deal
+	with it?
+
+2) Locking
+
+	It is OK to use mutexes, but is there a better way?
+

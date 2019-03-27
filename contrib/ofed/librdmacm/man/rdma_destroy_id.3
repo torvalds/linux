@@ -1,0 +1,23 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_DESTROY_ID" 3 "2010-07-19" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_destroy_id \- Release a communication identifier.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "int" rdma_destroy_id
+.BI "(struct rdma_cm_id *" id ");"
+.SH ARGUMENTS
+.IP "id" 12
+The communication identifier to destroy.
+.SH "DESCRIPTION"
+Destroys the specified rdma_cm_id and cancels any outstanding
+asynchronous operation.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
+.SH "NOTES"
+Users must free any associated QP with the rdma_cm_id before
+calling this routine and ack all related events.
+.SH "SEE ALSO"
+rdma_create_id(3), rdma_destroy_qp(3), rdma_ack_cm_event(3)

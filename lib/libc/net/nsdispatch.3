@@ -1,0 +1,254 @@
+.\"	$NetBSD: nsdispatch.3,v 1.8 1999/03/22 19:44:53 garbled Exp $
+.\"
+.\" Copyright (c) 1997, 1998, 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Luke Mewburn.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of The NetBSD Foundation nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 15, 2018
+.Dt NSDISPATCH 3
+.Os
+.Sh NAME
+.Nm nsdispatch
+.Nd name-service switch dispatcher routine
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In stdarg.h
+.In nsswitch.h
+.Ft int
+.Fo nsdispatch
+.Fa "void *retval"
+.Fa "const ns_dtab dtab[]"
+.Fa "const char *database"
+.Fa "const char *method_name"
+.Fa "const ns_src defaults[]"
+.Fa "..."
+.Fc
+.Sh DESCRIPTION
+The
+.Fn nsdispatch
+function invokes the methods specified in
+.Va dtab
+in the order given by
+.Xr nsswitch.conf 5
+for the database
+.Va database
+until a successful entry is found.
+.Pp
+.Va retval
+is passed to each method to modify as necessary, to pass back results to
+the caller of
+.Fn nsdispatch .
+.Pp
+Each method has the function signature described by the typedef:
+.Pp
+.Ft typedef int
+.Fn \*(lp*nss_method\*(rp "void *retval" "void *mdata" "va_list *ap" ;
+.Pp
+.Va dtab
+is an array of
+.Va ns_dtab
+structures, which have the following format:
+.Bd -literal -offset indent
+typedef struct _ns_dtab {
+	const char	*src;
+	nss_method	 method;
+	void		*mdata;
+} ns_dtab;
+.Ed
+.Pp
+The
+.Fa dtab
+array should consist of one entry for each source type that is
+implemented, with
+.Va src
+as the name of the source,
+.Va method
+as a function which handles that source, and
+.Va mdata
+as a handle on arbitrary data to be passed to the method.
+The last entry in
+.Va dtab
+should contain
+.Dv NULL
+values for
+.Va src ,
+.Va method ,
+and
+.Va mdata .
+.Pp
+Additionally, methods may be implemented in NSS modules, in
+which case they are selected using the
+.Fa database
+and
+.Fa method_name
+arguments along with the configured source.
+Modules must use source names different from the built-in ones.
+.Pp
+.Va defaults
+contains a list of default sources to try if
+.Xr nsswitch.conf 5
+is missing or corrupted, or if there is no relevant entry for
+.Va database .
+It is an array of
+.Va ns_src
+structures, which have the following format:
+.Bd -literal -offset indent
+typedef struct _ns_src {
+	const char	*src;
+	uint32_t	 flags;
+} ns_src;
+.Ed
+.Pp
+The
+.Fa defaults
+array should consist of one entry for each source to be configured by
+default indicated by
+.Va src ,
+and
+.Va flags
+set to the criterion desired
+(usually
+.Dv NS_SUCCESS ;
+refer to
+.Sx Method return values
+for more information).
+The last entry in
+.Va defaults
+should have
+.Va src
+set to
+.Dv NULL
+and
+.Va flags
+set to 0.
+.Pp
+For convenience, a global variable defined as:
+.Pp
+.Dl extern const ns_src __nsdefaultsrc[];
+.Pp
+exists which contains a single default entry for the source
+.Sq files
+that may be used by callers which do not require complicated default
+rules.
+.Pp
+.Sq Va ...
+are optional extra arguments, which are passed to the appropriate method
+as a variable argument list of the type
+.Vt va_list .
+.Ss Valid source types
+While there is support for arbitrary sources, the following
+#defines for commonly implemented sources are available:
+.Bl -column NSSRC_COMPAT compat -offset indent
+.It Sy "#define	value"
+.It Dv NSSRC_FILES Ta  \&"files\&"
+.It Dv NSSRC_DB Ta \&"db\&"
+.It Dv NSSRC_DNS Ta \&"dns\&"
+.It Dv NSSRC_NIS Ta \&"nis\&"
+.It Dv NSSRC_COMPAT Ta \&"compat\&"
+.El
+.Pp
+Refer to
+.Xr nsswitch.conf 5
+for a complete description of what each source type is.
+.Ss Method return values
+The
+.Vt nss_method
+functions must return one of the following values depending upon status
+of the lookup:
+.Bl -column "Return value" "Status code"
+.It Sy "Return value	Status code"
+.It Dv NS_SUCCESS Ta success
+.It Dv NS_NOTFOUND Ta notfound
+.It Dv NS_UNAVAIL Ta unavail
+.It Dv NS_TRYAGAIN Ta tryagain
+.It Dv NS_RETURN Ta -none-
+.El
+.Pp
+Refer to
+.Xr nsswitch.conf 5
+for a complete description of each status code.
+.Pp
+The
+.Fn nsdispatch
+function returns the value of the method that caused the dispatcher to
+terminate, or
+.Dv NS_NOTFOUND
+otherwise.
+.Sh NOTES
+.Fx Ns 's
+.Lb libc
+provides stubs for compatibility with NSS modules
+written for the
+.Tn GNU
+C Library
+.Nm nsswitch
+interface.
+However, these stubs only support the use of the
+.Dq Li passwd
+and
+.Dq Li group
+databases.
+.Sh SEE ALSO
+.Xr hesiod 3 ,
+.Xr stdarg 3 ,
+.Xr nsswitch.conf 5 ,
+.Xr yp 8
+.Sh HISTORY
+The
+.Fn nsdispatch
+function first appeared in
+.Fx 5.0 .
+It was imported from the
+.Nx
+Project,
+where it appeared first in
+.Nx 1.4 .
+Support for NSS modules first appeared in
+.Fx 5.1 .
+.Sh AUTHORS
+.An Luke Mewburn Aq Mt lukem@netbsd.org
+wrote this freely-distributable name-service switch implementation,
+using ideas from the
+.Tn ULTRIX
+svc.conf(5)
+and
+.Tn Solaris
+nsswitch.conf(4)
+manual pages.
+The
+.Fx
+Project
+added the support for threads and NSS modules, and normalized the uses
+of
+.Fn nsdispatch
+within the standard C library.

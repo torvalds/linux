@@ -1,0 +1,373 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)rsend.kshlib	1.3	09/01/12 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+#
+# Set up test model which includes various datasets
+#
+#               @final
+#               @snapB
+#               @init
+#               |
+#   ______ pclone
+#  |      /
+#  |@psnap
+#  ||                         @final
+#  ||@final       @final      @snapC
+#  ||@snapC       @snapC      @snapB
+#  ||@snapA       @snapB      @snapA
+#  ||@init        @init       @init 
+#  |||            |           |
+# $pool -------- $FS ------- fs1 ------- fs2
+#    \             \\_____     \          |         
+#     vol           vol   \____ \         @fsnap   
+#      |              |        \ \              \  
+#      @init          @vsnap   |  ------------ fclone
+#      @snapA         @init \  |                    |
+#      @final         @snapB \ |                    @init
+#                     @snapC  vclone                @snapA
+#                     @final       |                @final
+#                                 @init 
+#                                 @snapC
+#                                 @final 
+#
+# $1 pool name
+#
+function setup_test_model
+{
+	typeset pool=$1
+
+	log_must $ZFS create -p $pool/$FS/fs1/fs2
+
+	log_must $ZFS snapshot $pool@psnap
+	log_must $ZFS clone $pool@psnap $pool/pclone
+
+	if is_global_zone ; then
+		log_must $ZFS create -V 16M $pool/vol
+		log_must $ZFS create -V 16M $pool/$FS/vol
+
+		log_must $ZFS snapshot $pool/$FS/vol@vsnap
+		log_must $ZFS clone $pool/$FS/vol@vsnap $pool/$FS/vclone
+	fi
+
+	log_must snapshot_tree $pool/$FS/fs1/fs2@fsnap
+	log_must $ZFS clone $pool/$FS/fs1/fs2@fsnap $pool/$FS/fs1/fclone
+	log_must $ZFS snapshot -r $pool@init
+
+	log_must snapshot_tree $pool@snapA
+	log_must snapshot_tree $pool@snapC
+	log_must snapshot_tree $pool/pclone@snapB
+	log_must snapshot_tree $pool/$FS@snapB
+	log_must snapshot_tree $pool/$FS@snapC
+	log_must snapshot_tree $pool/$FS/fs1@snapA
+	log_must snapshot_tree $pool/$FS/fs1@snapB
+	log_must snapshot_tree $pool/$FS/fs1@snapC
+	log_must snapshot_tree $pool/$FS/fs1/fclone@snapA
+
+	if is_global_zone ; then
+		log_must $ZFS snapshot $pool/vol@snapA
+		log_must $ZFS snapshot $pool/$FS/vol@snapB
+		log_must $ZFS snapshot $pool/$FS/vol@snapC
+		log_must $ZFS snapshot $pool/$FS/vclone@snapC
+	fi
+
+	log_must $ZFS snapshot -r $pool@final
+
+	return 0
+}
+
+#
+# Cleanup the BACKDIR and given pool content and all the sub datasets
+#
+# $1 pool name
+#
+function cleanup_pool
+{
+	typeset pool=$1
+	log_must $RM -rf $BACKDIR/*
+
+	if is_global_zone ; then
+		log_must $ZFS destroy -Rf $pool
+	else
+		typeset list=$($ZFS list -H -r -t filesystem,snapshot,volume -o name $pool)	
+		for ds in $list ; do
+			if [[ $ds != $pool ]] ; then
+				if datasetexists $ds ; then
+					log_must $ZFS destroy -Rf $ds
+				fi
+			fi
+		done
+	fi
+
+	typeset mntpnt=$(get_prop mountpoint $pool)
+	if ! ismounted $pool ; then
+		# Make sure mountpoint directory is empty
+		if [[ -d $mntpnt ]]; then
+			log_must $RM -rf $mntpnt/*
+		fi
+		
+		log_must $ZFS mount $pool
+	fi
+	if [[ -d $mntpnt ]]; then
+		log_must $RM -rf $mntpnt/*
+	fi
+
+	return 0
+}
+
+#
+# Detect if the given two filesystems have same sub-datasets
+#
+# $1 source filesystem
+# $2 destination filesystem
+#
+function cmp_ds_subs
+{
+	typeset src_fs=$1
+	typeset dst_fs=$2
+
+	$ZFS list -r -H -t filesystem,snapshot,volume -o name $src_fs > $BACKDIR/src1
+	$ZFS list -r -H -t filesystem,snapshot,volume -o name $dst_fs > $BACKDIR/dst1
+
+	eval $SED -e 's:^$src_fs:PREFIX:g' < $BACKDIR/src1 > $BACKDIR/src
+	eval $SED -e 's:^$dst_fs:PREFIX:g' < $BACKDIR/dst1 > $BACKDIR/dst
+
+	$DIFF $BACKDIR/src $BACKDIR/dst
+	typeset -i ret=$?
+
+	$RM -f $BACKDIR/src $BACKDIR/dst $BACKDIR/src1 $BACKDIR/dst1
+
+	return $ret
+}
+
+#
+# Compare all the directores and files in two filesystems
+#
+# $1 source filesystem
+# $2 destination filesystem
+#
+function cmp_ds_cont
+{
+	typeset src_fs=$1
+	typeset dst_fs=$2
+
+	typeset srcdir dstdir
+	srcdir=$(get_prop mountpoint $src_fs)
+	dstdir=$(get_prop mountpoint $dst_fs)
+
+	$DIFF -r $srcdir $dstdir > /dev/null 2>&1
+	print $?
+}
+
+#
+# Compare the given two dataset properties
+#
+# $1 dataset 1
+# $2 dataset 2
+#
+function cmp_ds_prop
+{
+	typeset dtst1=$1
+	typeset dtst2=$2
+
+	for item in "type" "origin" "volblocksize" "aclinherit" "aclmode" \
+		"atime" "canmount" "checksum" "compression" "copies" "devices" \
+		"exec" "quota" "readonly" "recordsize" "reservation" "setuid" \
+		"shareiscsi" "sharenfs" "snapdir" "version" "volsize" "xattr" \
+		"zoned" "mountpoint";
+	do
+		$ZFS get -H -o property,value,source $item $dtst1 >> \
+			$BACKDIR/dtst1
+		$ZFS get -H -o property,value,source $item $dtst2 >> \
+			$BACKDIR/dtst2
+	done
+
+	eval $SED -e 's:$dtst1:PREFIX:g' < $BACKDIR/dtst1 > $BACKDIR/dtst1
+	eval $SED -e 's:$dtst2:PREFIX:g' < $BACKDIR/dtst2 > $BACKDIR/dtst2
+
+	$DIFF $BACKDIR/dtst1 $BACKDIR/dtst2
+	typeset -i ret=$?
+
+	$RM -f $BACKDIR/dtst1 $BACKDIR/dtst2
+
+	return $ret
+
+}
+
+#
+# Random create directories and files
+#
+# $1 directory
+#
+function random_tree
+{
+	typeset dir=$1
+
+	if [[ -d $dir ]]; then 
+		$RM -rf $dir
+	fi
+	$MKDIR -p $dir
+	typeset -i ret=$?
+
+	typeset -i nl nd nf
+	((nl = RANDOM % 6 + 1))
+	((nd = RANDOM % 3 ))
+	((nf = RANDOM % 5 ))
+	$MKTREE -b $dir -l $nl -d $nd -f $nf
+	((ret |= $?))
+
+	return $ret
+}
+
+#
+# Put data in filesystem and take snapshot
+#
+# $1 snapshot name
+#
+function snapshot_tree
+{
+	typeset snap=$1
+	typeset ds=${snap%%@*}
+	typeset type=$(get_prop "type" $ds)
+	
+	typeset -i ret=0
+	if [[ $type == "filesystem" ]]; then
+		typeset mntpnt=$(get_prop mountpoint $ds)
+		((ret |= $?))
+
+		if ((ret == 0)) ; then
+			eval random_tree $mntpnt/${snap##$ds}
+			((ret |= $?))
+		fi
+	fi
+
+	if ((ret == 0)) ; then
+		$ZFS snapshot $snap
+		((ret |= $?))
+	fi
+
+	return $ret
+}
+
+#
+# Destroy the given snapshot and stuff
+#
+# $1 snapshot
+#
+function destroy_tree
+{
+	typeset -i ret=0
+	typeset snap
+	for snap in "$@" ; do
+		$ZFS destroy $snap
+		ret=$?
+
+		typeset ds=${snap%%@*}
+		typeset type=$(get_prop "type" $ds)
+		if [[ $type == "filesystem" ]]; then
+			typeset mntpnt=$(get_prop mountpoint $ds)
+			((ret |= $?))
+
+			if ((ret != 0)); then
+				$RM -r $mntpnt/$snap
+				((ret |= $?))
+			fi
+		fi
+
+		if ((ret != 0)); then
+			return $ret
+		fi
+	done
+
+	return 0
+}
+
+#
+# Get all the sub-datasets of give dataset with specific suffix
+#
+# $1 Given dataset
+# $2 Suffix
+#
+function getds_with_suffix
+{
+	typeset ds=$1
+	typeset suffix=$2
+
+	typeset list=$($ZFS list -r -H -t filesystem,snapshot,volume -o name $ds \
+		| $GREP "$suffix$")
+
+	$ECHO $list
+}
+
+#
+# Output inherited properties whitch is edited for file system
+#
+function fs_inherit_prop
+{
+	typeset fs_prop
+	if is_global_zone ; then
+		fs_prop=$($ZFS inherit 2>&1 | \
+			$AWK '$2=="YES" && $3=="YES" {print $1}')
+	else
+		fs_prop=$($ZFS inherit 2>&1 | \
+			$AWK '$2=="YES" && $3=="YES" {print $1}'|
+			$EGREP -v "devices|sharenfs|sharesmb|zoned")
+	fi
+
+	$ECHO $fs_prop
+}
+
+#
+# Output inherited properties for volume
+#
+function vol_inherit_prop
+{
+	$ECHO "checksum readonly shareiscsi"
+}
+
+#
+# Get the destination dataset to compare
+#
+function get_dst_ds
+{
+	typeset srcfs=$1
+	typeset dstfs=$2
+
+	#
+	# If the srcfs is not pool
+	#
+	if ! $ZPOOL list $srcfs > /dev/null 2>&1 ; then
+		eval dstfs="$dstfs/${srcfs#*/}"
+	fi
+
+	$ECHO $dstfs
+}

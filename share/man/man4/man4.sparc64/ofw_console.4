@@ -1,0 +1,126 @@
+.\"-
+.\" Copyright (c) 2001 Miodrag Vallat.
+.\" Copyright (c) 2005 Marius Strobl <marius@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistribution of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	from: OpenBSD: pcons.4,v 1.4 2003/06/02 16:16:26 miod Exp
+.\" $FreeBSD$
+.\"
+.Dd June 18, 2005
+.Dt OFW_CONSOLE 4 sparc64
+.Os
+.Sh NAME
+.Nm ofw_console
+.Nd "Open Firmware console"
+.Sh SYNOPSIS
+.Cd "device ofw_console"
+.Cd "options OFWCONS_POLL_HZ=N"
+.Pp
+.Cd "options KDB"
+.Cd "options DDB"
+.Cd "options ALT_BREAK_TO_DEBUGGER"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a simple text console,
+using the Open Firmware services for input and output.
+It will use the Open Firmware console devices set via the
+.Va input-device
+and
+.Va output-device
+variables.
+.Pp
+This driver is deprecated and only provided as a fallback console mechanism
+if the real console hardware can not be driven by
+.Fx .
+.Pp
+In case the
+.Nm
+console appears to work too slowly, its responsiveness probably can be improved
+by including
+.Cd "options OFWCONS_POLL_HZ=N" .
+When omitted,
+.Dv OFWCONS_POLL_HZ
+defaults to 4.
+For example, on
+.Tn Sun Ultra 2
+a value of 20 or higher works best.
+Too high values, on the other hand, can cause
+.Nm
+to unnecessarily consume CPU.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/keyboard" -compact
+.It Pa /dev/console
+.It Pa /dev/keyboard
+terminal input device in case the console input device is the keyboard
+.It Pa /dev/screen
+terminal output device in case the console output device is the screen
+.It Pa /dev/tty[a-z]
+terminal device in case both the console input and output device is tty[a-z]
+.El
+.Sh SEE ALSO
+.Xr creator 4 ,
+.Xr machfb 4 ,
+.Xr syscons 4 ,
+.Xr uart 4 ,
+.Xr eeprom 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Benno Rice Aq Mt benno@FreeBSD.org .
+.Sh CAVEATS
+Since the Open Firmware will handle BREAK
+(or Stop-A)
+sequences before
+.Nm ,
+the preferred way to enter
+.Xr ddb 4
+when using
+.Nm
+is to include
+.Cd "options ALT_BREAK_TO_DEBUGGER"
+in a ddb-enabled kernel, and enter the alternate BREAK sequence
+(RETURN TILDE CTRL-b).
+.Sh BUGS
+The
+.Nm
+driver
+is not a real
+.Xr tty 4
+driver and is not MPSAFE.
+The
+.Nm
+driver also does not attach to the hardware resources it actually talks to.
+Therefore it cannot be included in the kernel together with real console
+hardware drivers
+like
+.Xr creator 4 ,
+.Xr machfb 4
+and
+.Xr uart 4 .

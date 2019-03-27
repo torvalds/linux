@@ -1,0 +1,143 @@
+.\" Copyright (c) 2015 Dmitry Vagin <daemon.hammer@ya.ru>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 29, 2015
+.Dt NG_CHECKSUM 4
+.Os
+.Sh NAME
+.Nm ng_checksum
+.Nd reconstructing IP checksums node type
+.Sh SYNOPSIS
+.In netgraph/ng_checksum.h
+.Sh DESCRIPTION
+The
+.Nm checksum
+node can calculate, or prepare for calculation in hardware,
+IPv4 header, TCP and UDP checksums.
+.Sh HOOKS
+This node type has two hooks:
+.Bl -tag -width ".Va out"
+.It Va in
+Packets received on this hook are processed according to settings specified
+in config and then forwarded to the
+.Ar out
+hook, if it exists and is connected. Otherwise they are reflected back to the
+.Ar in
+hook.
+.It Va out
+Packets received on this hook are forwarded to the
+.Ar in
+hook without any changes.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_CHECKSUM_SETDLT Pq Ic setdlt
+Sets the data link type on the
+.Va in
+hook. Currently, supported types are
+.Cm DLT_RAW
+(raw IP datagrams) and
+.Cm DLT_EN10MB
+(Ethernet). DLT_ definitions can be found in the
+.In net/bpf.h
+header. Currently used values are
+.Cm DLT_EN10MB
+= 1 and
+.Cm DLT_RAW
+= 12.
+.It Dv NGM_CHECKSUM_GETDLT Pq Ic getdlt
+This control message obtains the data link type on the
+.Va in
+hook.
+.It Dv NGM_CHECKSUM_SETCONFIG Pq Ic setconfig
+Sets the node configuration. The following
+.Vt "struct ng_checksum_config"
+must be supplied as an argument:
+.Bd -literal -offset 4n
+struct ng_checksum_config {
+	uint64_t	csum_flags;
+	uint64_t	csum_offload;
+};
+.Ed
+.Pp
+The
+.Va csum_flags
+can be set to any combination of CSUM_IP, CSUM_TCP, CSUM_UDP, CSUM_TCP_IPV6 and CSUM_UDP_IPV6
+(other values are ignored) for instructing the node to calculate the corresponding checksum.
+.Pp
+The
+.Va csum_offload
+value can be set to any combination of CSUM_IP, CSUM_TCP, CSUM_UDP, CSUM_TCP_IPV6 and CSUM_UDP_IPV6
+(other values are ignored) for instructing the node what checksums should be requested from the hardware.
+.Pp
+The node also takes into account any combination of
+CSUM_IP, CSUM_TCP, CSUM_UDP, CSUM_TCP_IPV6 and CSUM_UDP_IPV6 already
+flagged on the mbuf.
+.It Dv NGM_CHECKSUM_GETCONFIG Pq Ic getconfig
+This control message obtains the current node configuration returned as a
+.Vt "struct ng_checksum_config" .
+.It Dv NGM_CHECKSUM_GET_STATS Pq Ic getstats
+Returns node statistics as a
+.Vt "struct ng_checksum_stats" .
+.It Dv NGM_CHECKSUM_CLR_STATS Pq Ic clrstats
+Clear the node statistics.
+.It Dv NGM_CHECKSUM_GETCLR_STATS Pq Ic getclrstats
+This command is identical to
+.Dv NGM_CHECKSUM_GET_STATS ,
+except that the statistics are also atomically cleared.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh EXAMPLES
+.Xr ngctl 8
+script:
+.Bd -literal -offset 4n
+/usr/sbin/ngctl -f- <<-SEQ
+	msg checksum-1: setdlt 1
+	msg checksum-1: setconfig { csum_flags=0 csum_offload=6 }
+SEQ
+.Ed
+.Pp
+Set the data link type to
+.Cm DLT_EN10MB
+(Ethernet), do not set additional checksum flags
+and request that the hardware calculate CSUM_IP_UDP|CSUM_IP_TCP.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_patch 4 ,
+.Xr ngctl 8
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 10.2
+and first submitted in
+.Fx 12.0 .
+.Sh AUTHORS
+.An "Dmitry Vagin" Aq daemon.hammer@ya.ru .

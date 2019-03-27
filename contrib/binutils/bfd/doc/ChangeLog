@@ -1,0 +1,158 @@
+2007-07-02  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2007-06-30  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* Makefile.in: Likewise.
+
+2007-06-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* Makefile.in: Regenerated.
+
+2007-05-22  Nick Clifton  <nickc@redhat.com>
+
+	* bfd.texinfo: Use @copying around the copyright notice.
+	* bfdint.texi: Likewise.
+
+2007-05-21  Nick Clifton  <nickc@redhat.com>
+
+	* bfdint.texi: Add GNU Free Documentation License notice.
+
+2007-04-24  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2007-02-17  Mark Mitchell  <mark@codesourcery.com>
+	    Nathan Sidwell  <nathan@codesourcery.com>
+	    Vladimir Prus  <vladimir@codesourcery.com
+	    Joseph Myers  <joseph@codesourcery.com>
+
+	* Makefile.in: Regenerate.
+
+2006-07-24  Ralk Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	* bfd..texinfo: Fix spelling mistakes.
+	* bfdint.texinfo: Likewise.
+
+2006-07-18  Nigel Stephens  <nigel@mips.com>
+
+	* bfd.texinfo: Add @section for "What to Put Where".
+
+2006-06-07  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* bfd.texinfo: Remove local @tex code.
+
+2006-06-05  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2006-05-11  Carlos O'Donell  <carlos@codesourcery.com>
+
+	* bfd.texinfo: Rename "Index" to "BFD Index"  
+
+2006-04-06  Carlos O'Donell  <carlos@codesourcery.com>
+
+	* Makefile.am: Add install-html and install-html-am targets. 
+	Define datarootdir, docdir and htmldir.
+	* Makefile.in: Regenerate.
+
+2006-02-27  Carlos O'Donell  <carlos@codesourcery.com>
+
+	* Makefile.am: Add html target.
+	* Makefile.in: Regenerate.
+
+2005-07-24  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* chew.c: Include <string.h>.
+
+2005-07-22  DJ Delorie  <dj@redhat.com>
+
+	* chew.c: Include stdlib.h.
+
+2005-07-22  Kazu Hirata  <kazu@codesourcery.com>
+
+	* chew.c: Don't include sysdep.h.
+
+2005-05-09  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* Makefile.am: Use a temporary file to build chew.
+	* Makefile.in: Regenerated.
+
+2005-05-04  Nick Clifton  <nickc@redhat.com>
+
+	* chew.c: Update the address and phone number of the FSF
+	organization in the GPL notice.
+
+2005-05-05  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* Makefile.am (INCLUDES): Remove -D_GNU_SOURCE.
+	* Makefile.in: Regenerate.
+
+2005-04-29  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* Makefile.am: Remove stamp rules.  Depend on chew.c
+	instead of $(MKDOC).
+	* Makefile.in: Regnerated.
+
+2005-04-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* Makefile.am (INCLUDES): New. Add -D_GNU_SOURCE.
+	(chew.o): Use it.
+	* Makefile.in: Regenerate.
+
+2005-04-14  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2005-04-12  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2005-02-21  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2005-02-13  Maciej W. Rozycki  <macro@linux-mips.org>
+
+	* Makefile.am: Use CFLAGS_FOR_BUILD and LDFLAGS_FOR_BUILD for
+	building chew.
+	* Makefile.in: Regenerate.
+
+2005-02-01  Ben Elliston  <bje@au.ibm.com>
+
+	* chew.c: Remove #if 0'd code throughout. Similarly, collapse #if
+	1'd code.
+	
+2004-12-20  Ian Lance Taylor  <ian@c2microsystems.com>
+
+	* Makefile.am: Use $(SHELL) whenever we run move-if-change.
+	* Makefile.in: Rebuild.
+
+2004-09-19  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* Makefile.am (AUTOMAKE_OPTIONS): Require 1.9.
+	(bfd.info): Rename the target to ...
+	($(srcdir)/bfd.info): This.
+	* Makefile.in: Regenerated.
+
+2004-09-17  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2004-03-27  Alan Modra  <amodra@bigpond.net.au>
+
+	* bfdint.texi: Remove all mention of elflink.h.
+
+2004-03-19  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+For older changes see ChangeLog-9103
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

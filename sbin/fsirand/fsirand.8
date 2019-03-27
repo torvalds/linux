@@ -1,0 +1,116 @@
+.\" Copyright (c) 1997 Todd C. Miller <Todd.Miller@courtesan.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\"	This product includes software developed by Todd C. Miller.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+.\" THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+.\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$OpenBSD: fsirand.8,v 1.6 1997/02/23 03:58:26 millert Exp $
+.\" $FreeBSD$
+.\"
+.Dd January 25, 1997
+.Dt FSIRAND 8
+.Os
+.Sh NAME
+.Nm fsirand
+.Nd randomize inode generation numbers
+.Sh SYNOPSIS
+.Nm
+.Op Fl b
+.Op Fl f
+.Op Fl p
+.Ar special
+.Op Ar "special ..."
+.Sh DESCRIPTION
+The
+.Nm
+utility installs random generation numbers on all the inodes for
+each file system specified on the command line by
+.Ar special .
+This increases the security of NFS-exported file systems by making
+it difficult to ``guess'' filehandles.
+.Pp
+.Em Note :
+.Xr newfs 8
+now does the equivalent of
+.Nm
+itself so it is no longer necessary to
+run
+.Nm
+by hand on a new file system.
+It is only used to
+re-randomize or report on an existing file system.
+.Pp
+The
+.Nm
+utility should only be used on an unmounted file system that
+has been checked with
+.Xr fsck 8
+or a file system that is mounted read-only.
+The
+.Nm
+utility may be used on the root file system in single-user mode
+but the system should be rebooted via ``reboot -n'' afterwards.
+.Sh OPTIONS
+The available options are as follows:
+.Bl -tag -width indent
+.It Fl b
+Use the default block size (usually 512 bytes) instead
+of the value gleaned from the disklabel.
+.It Fl f
+Force
+.Nm
+to run even if the file system on
+.Ar special
+is not marked as clean.
+.It Fl p
+Print the current generation numbers for all inodes instead of
+generating new ones.
+.El
+.Sh SEE ALSO
+.Xr fs 5 ,
+.Xr fsck 8 ,
+.Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in SunOS 3.x.
+.Pp
+This version of
+.Nm
+first appeared in
+.Ox 2.1 .
+.Pp
+A
+.Fx
+version first appeared in
+.Fx 2.2.5 .
+.Sh AUTHORS
+.An Todd C. Miller Aq Mt Todd.Miller@courtesan.com
+.Sh CAVEATS
+Since
+.Nm
+allocates enough memory to hold all the inodes in
+a given cylinder group it may use a large amount
+of memory for large disks with few cylinder groups.

@@ -1,0 +1,171 @@
+.\" Copyright (c) 2009 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 23, 2015
+.Dt MVS 4
+.Os
+.Sh NAME
+.Nm mvs
+.Nd Marvell Serial ATA Host Controller driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
+.Cd "device mvs"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mvs_load="YES"
+.Ed
+.Pp
+The following tunables are settable from the
+.Xr loader 8 :
+.Bl -ohang
+.It Va hint.mvs. Ns Ar X Ns Va .msi
+controls Message Signaled Interrupts (MSI) usage by the specified controller.
+.It Va hint.mvs. Ns Ar X Ns Va .ccc
+controls Command Completion Coalescing (CCC) usage by the specified controller.
+Non-zero value enables CCC and defines maximum time (in us), request can wait
+for interrupt.
+CCC reduces number of context switches on systems with many parallel requests,
+but it can decrease disk performance on some workloads due to additional
+command latency.
+.It Va hint.mvs. Ns Ar X Ns Va .cccc
+defines number of completed commands for CCC, which trigger interrupt without
+waiting for specified coalescing timeout.
+.It Va hint.mvsch. Ns Ar X Ns Va .pm_level
+controls SATA interface Power Management for the specified channel,
+allowing some power to be saved at the cost of additional command
+latency.
+Possible values:
+.Pp
+.Bl -tag -width 4n -offset indent -compact
+.It 0
+interface Power Management is disabled (default);
+.It 1
+device is allowed to initiate PM state change, host is passive;
+.It 4
+driver initiates PARTIAL PM state transition 1ms after port becomes idle;
+.It 5
+driver initiates SLUMBER PM state transition 125ms after port becomes idle.
+.El
+.Pp
+Note that interface Power Management is not compatible with
+device presence detection.
+A manual bus reset is needed on device hot-plug.
+.It Va hint.mvsch. Ns Ar X Ns Va .sata_rev
+setting to nonzero value limits maximum SATA revision (speed).
+Values 1, 2 and 3 are respectively 1.5, 3 and 6Gbps.
+.El
+.Sh DESCRIPTION
+This driver provides the
+.Xr CAM 4
+subsystem with native access to the
+.Tn SATA
+ports of several generations (Gen-I/II/IIe) of Marvell SATA controllers.
+Each SATA port found is represented to CAM as a separate bus with one
+target, or, if HBA supports Port Multipliers (Gen-II/IIe), 16 targets.
+Most of the bus-management details are handled by the SATA-specific
+transport of CAM.
+Connected ATA disks are handled by the ATA protocol disk peripheral driver
+.Xr ada 4 .
+ATAPI devices are handled by the SCSI protocol peripheral drivers
+.Xr cd 4 ,
+.Xr da 4 ,
+.Xr sa 4 ,
+etc.
+.Pp
+Driver features include support for Serial ATA and ATAPI devices,
+Port Multipliers (including FIS-based switching, when supported),
+hardware command queues (up to 31 command per port),
+Native Command Queuing, SATA interface Power Management, device hot-plug
+and Message Signaled Interrupts.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following controllers:
+.Pp
+Gen-I (SATA 1.5Gbps):
+.Bl -bullet -compact -offset "xxxxxx"
+.It
+88SX5040
+.It
+88SX5041
+.It
+88SX5080
+.It
+88SX5081
+.El
+.Pp
+Gen-II (SATA 3Gbps, NCQ, PMP):
+.Bl -bullet -compact -offset "xxxxxx"
+.It
+88SX6040
+.It
+88SX6041 (including Adaptec 1420SA)
+.It
+88SX6080
+.It
+88SX6081
+.El
+.Pp
+Gen-IIe (SATA 3Gbps, NCQ, PMP with FBS):
+.Bl -bullet -compact -offset "xxxxxx"
+.It
+88SX6042
+.It
+88SX7042 (including Adaptec 1430SA)
+.It
+88F5182 SoC
+.It
+88F6281 SoC
+.It
+MV78100 SoC
+.El
+.Pp
+Note, that this hardware supports command queueing and FIS-based switching
+only for ATA DMA commands.
+ATAPI and non-DMA ATA commands executed one by one for each port.
+.Sh SEE ALSO
+.Xr ada 4 ,
+.Xr ata 4 ,
+.Xr cam 4 ,
+.Xr cd 4 ,
+.Xr da 4 ,
+.Xr sa 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 8.1 .
+.Sh AUTHORS
+.An Alexander Motin Aq Mt mav@FreeBSD.org

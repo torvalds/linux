@@ -1,0 +1,150 @@
+$NetBSD: timesoftfloat.txt,v 1.1 2000/06/06 08:15:11 bjh21 Exp $
+$FreeBSD$
+
+Documentation for the `timesoftfloat' Program of SoftFloat Release 2a
+
+John R. Hauser
+1998 December 14
+
+
+-------------------------------------------------------------------------------
+Introduction
+
+The `timesoftfloat' program evaluates the speed of SoftFloat's floating-
+point routines.  Each routine can be evaluated for every relevant rounding
+mode, tininess mode, and/or rounding precision.
+
+
+-------------------------------------------------------------------------------
+Contents
+
+    Introduction
+    Contents
+    Legal Notice
+    Executing `timesoftfloat'
+    Options
+        -help
+        -precision32, -precision64, -precision80
+        -nearesteven, -tozero, -down, -up
+        -tininessbefore, -tininessafter
+    Function Sets
+
+
+
+-------------------------------------------------------------------------------
+Legal Notice
+
+The `timesoftfloat' program was written by John R. Hauser.
+
+THIS SOFTWARE IS DISTRIBUTED AS IS, FOR FREE.  Although reasonable effort
+has been made to avoid it, THIS SOFTWARE MAY CONTAIN FAULTS THAT WILL AT
+TIMES RESULT IN INCORRECT BEHAVIOR.  USE OF THIS SOFTWARE IS RESTRICTED TO
+PERSONS AND ORGANIZATIONS WHO CAN AND WILL TAKE FULL RESPONSIBILITY FOR ANY
+AND ALL LOSSES, COSTS, OR OTHER PROBLEMS ARISING FROM ITS USE.
+
+
+-------------------------------------------------------------------------------
+Executing `timesoftfloat'
+
+The `timesoftfloat' program is intended to be invoked from a command line
+interpreter as follows:
+
+    timesoftfloat [<option>...] <function>
+
+Here square brackets ([]) indicate optional items, while angled brackets
+(<>) denote parameters to be filled in.  The `<function>' argument is
+the name of the SoftFloat routine to evaluate, such as `float32_add' or
+`float64_to_int32'.  The allowed options are detailed in the next section,
+_Options_.  If `timesoftfloat' is executed without any arguments, a summary
+of usage is written.  It is also possible to evaluate all machine functions
+in a single invocation as explained in the section _Function_Sets_ later in
+this document.
+
+Ordinarily, a function's speed will be evaulated separately for each of
+the four rounding modes, one after the other.  If the rounding mode is not
+supposed to have any affect on the results of a function--for instance,
+some operations do not require rounding--only the nearest/even rounding mode
+is timed.  In the same way, if a function is affected by the way in which
+underflow tininess is detected, `timesoftfloat' times the function both with
+tininess detected before rounding and after rounding.  For extended double-
+precision operations affected by rounding precision control, `timesoftfloat'
+also times the function for all three rounding precision modes, one after
+the other.  Evaluation of a function can be limited to a single rounding
+mode, a single tininess mode, and/or a single rounding precision with
+appropriate options (see _Options_).
+
+For each function and mode evaluated, `timesoftfloat' reports the speed of
+the function in kops/s, or ``thousands of operations per second''.  This
+unit of measure differs from the traditional MFLOPS (``millions of floating-
+point operations per second'') only in being a factor of 1000 smaller.
+(1000 kops/s is exactly 1 MFLOPS.)  Speeds are reported in thousands instead
+of millions because software floating-point often executes at less than
+1 MFLOPS.
+
+The speeds reported by `timesoftfloat' may be affected somewhat by other
+programs executing at the same time as `timesoftfloat'.
+
+Note that the remainder operations (`float32_rem', `float64_rem',
+`floatx80_rem' and `float128_rem') will be markedly slower than other
+operations, particularly for extended double precision (`floatx80') and
+quadruple precision (`float128').  This is inherent to the remainder
+function itself and is not a failing of the SoftFloat implementation.
+
+
+-------------------------------------------------------------------------------
+Options
+
+The `timesoftfloat' program accepts several command options.  If mutually
+contradictory options are given, the last one has priority.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+-help
+
+The `-help' option causes a summary of program usage to be written, after
+which the program exits.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+-precision32, -precision64, -precision80
+
+For extended double-precision functions affected by rounding precision
+control, the `-precision32' option restricts evaluation to only the cases
+in which rounding precision is equivalent to single precision.  The other
+rounding precision options are not timed.  Likewise, the `-precision64'
+and `-precision80' options fix the rounding precision equivalent to double
+precision or extended double precision, respectively.  These options are
+ignored for functions not affected by rounding precision control.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+-nearesteven, -tozero, -down, -up
+
+The `-nearesteven' option restricts evaluation to only the cases in which
+the rounding mode is nearest/even.  The other rounding mode options are not
+timed.  Likewise, `-tozero' forces rounding to zero; `-down' forces rounding
+down; and `-up' forces rounding up.  These options are ignored for functions
+that are exact and thus do not round.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+-tininessbefore, -tininessafter
+
+The `-tininessbefore' option restricts evaluation to only the cases
+detecting underflow tininess before rounding.  Tininess after rounding
+is not timed.  Likewise, `-tininessafter' forces underflow tininess to be
+detected after rounding only.  These options are ignored for functions not
+affected by the way in which underflow tininess is detected.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+
+-------------------------------------------------------------------------------
+Function Sets
+
+Just as `timesoftfloat' can test an operation for all four rounding modes in
+sequence, multiple operations can also be tested with a single invocation.
+Three sets are recognized:  `-all1', `-all2', and `-all'.  The set `-all1'
+comprises all one-operand functions; `-all2' is all two-operand functions;
+and `-all' is all functions.  A function set can be used in place of a
+function name in the command line, as in
+
+    timesoftfloat [<option>...] -all
+
+

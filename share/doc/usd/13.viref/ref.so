@@ -1,0 +1,103 @@
+.\" Copyright (c) 1994
+.\"     The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 1994, 1995, 1996
+.\"	Keith Bostic.  All rights reserved.
+.\"
+.\" See the LICENSE file for redistribution information.
+.\"
+.\"     @(#)ref.so	8.9 (Berkeley) 8/17/96
+.\"
+.\"
+.\" indented paragraph, with spaces between the items, bold font
+.de IP
+.\".tm arg 1 \\$1 arg 2 \\$2 arg 3 \\$3
+.sp 1
+.nr PS \\n(ps
+.nr ps 0
+.ip "\fB\\$1\fP" \\$2
+.nr ps \\n(PS
+.br
+..
+.\" indented paragraph, no spaces between the items, bold font
+.de Ip
+.\".tm arg 1 \\$1 arg 2 \\$2 arg 3 \\$3
+.nr PS \\n(ps
+.nr ps 0
+.ns
+.ip "\fB\\$1\fP" \\$2
+.nr ps \\n(PS
+.br
+..
+.\" start nested .IP
+.de SS
+.sp
+.ba +5n
+..
+.\" end nested .IP
+.de SE
+.ba -5n
+..
+.\" nested .IP, no spaces, normal font
+.de SP
+.\".tm arg 1 \\$1 arg 2 \\$2 arg 3 \\$3
+.nr PS \\n(ps
+.nr ps 0
+.ns
+.ip "\\$1" 9n
+.nr ps \\n(PS
+..
+.\" typewriter font
+.de LI
+\&\fC\\$1\fP\\$2
+..
+.\" ex/vi names in command font
+.de EV
+\&\fB\\$1\fP/\fB\\$2\fP\\$3
+..
+.\" command names
+.de CO
+\&\fB\\$1\fP\\$2
+..
+.\" key words for index
+.de KY
+.sy echo >>index '\\$1	\\n%'
+..
+.\" option names
+.de OP
+\&\fB\\$1\fP\\$2
+..
+.\" paren quoted (typewriter font)
+.de PQ
+(\*(lq\fC\\$1\fP\*(rq)\\$2
+..
+.\" quoted bold
+.de QB
+\*(lq\fB\\$1\fP\*(rq\\$2
+..
+.\" quoted command
+.de QC
+\*(lq\fB\\$1\fP\*(rq\\$2
+..
+.\" quoted option
+.de QO
+\*(lq\fB\\$1\fP\*(rq\\$2
+..
+.\" quoted (no font change)
+.de QQ
+\*(lq\\$1\*(rq\\$2
+..
+.\" quoted (typewriter font)
+.de QT
+\*(lq\fC\\$1\fP\*(rq\\$2
+..
+.\" section macro to build TOC
+.de SH
+.(x
+\\$2
+.)x
+.sh \\$1 "\\$2"
+..
+.\" manual section
+.de XR
+\&\fI\\$1\fP(\\$2)\\$3
+..

@@ -1,0 +1,60 @@
+@ignore
+@c Set file name and title for man page.
+@setfilename fsf-funding
+@settitle Funding Free Software
+@c man begin SEEALSO
+gpl(7), gfdl(7).
+@c man end
+@end ignore
+@node Funding
+@c man begin DESCRIPTION
+@unnumbered Funding Free Software
+
+If you want to have more free software a few years from now, it makes
+sense for you to help encourage people to contribute funds for its
+development.  The most effective approach known is to encourage
+commercial redistributors to donate.
+
+Users of free software systems can boost the pace of development by
+encouraging for-a-fee distributors to donate part of their selling price
+to free software developers---the Free Software Foundation, and others.
+
+The way to convince distributors to do this is to demand it and expect
+it from them.  So when you compare distributors, judge them partly by
+how much they give to free software development.  Show distributors
+they must compete to be the one who gives the most.
+
+To make this approach work, you must insist on numbers that you can
+compare, such as, ``We will donate ten dollars to the Frobnitz project
+for each disk sold.''  Don't be satisfied with a vague promise, such as
+``A portion of the profits are donated,'' since it doesn't give a basis
+for comparison.
+
+Even a precise fraction ``of the profits from this disk'' is not very
+meaningful, since creative accounting and unrelated business decisions
+can greatly alter what fraction of the sales price counts as profit.
+If the price you pay is $50, ten percent of the profit is probably
+less than a dollar; it might be a few cents, or nothing at all.
+
+Some redistributors do development work themselves.  This is useful too;
+but to keep everyone honest, you need to inquire how much they do, and
+what kind.  Some kinds of development make much more long-term
+difference than others.  For example, maintaining a separate version of
+a program contributes very little; maintaining the standard version of a
+program for the whole community contributes much.  Easy new ports
+contribute little, since someone else would surely do them; difficult
+ports such as adding a new CPU to the GNU Compiler Collection contribute more;
+major new features or packages contribute the most.
+
+By establishing the idea that supporting further development is ``the
+proper thing to do'' when distributing free software for a fee, we can
+assure a steady flow of resources into making more free software.
+@c man end
+
+@display
+@c man begin COPYRIGHT
+Copyright @copyright{} 1994 Free Software Foundation, Inc.
+Verbatim copying and redistribution of this section is permitted
+without royalty; alteration is not permitted.
+@c man end
+@end display

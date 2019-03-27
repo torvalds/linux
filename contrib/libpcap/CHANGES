@@ -1,0 +1,864 @@
+Wednesday, Jan. 25, 2017 guy@alum.mit.edu
+  Summary for 1.9.0 libpcap release
+    Man page improvements
+    Fix Linux cooked mode userspace filtering (GitHub pull request #429)
+    Fix compilation if IPv6 support not enabled
+    Fix some Linux memory-mapped capture buffer size issues
+    Don't fail if kernel filter can't be set on Linux (GitHub issue
+      #549)
+    Improve sorting of interfaces for pcap_findalldevs()
+    Don't list Linux usbmon devices if usbmon module isn't loaded
+    Report PCAP_ERROR_PERM_DENIED if no permission to open Linux usbmon
+      devices
+    Fix DLT_ type for Solaris IPNET devices
+    Always return an error message for errors finding DAG or Myricom
+      devices
+    If possible, don't require that a device be openable when
+      enumerating them for pcap_findalldevs()
+    Don't put incompletely-initialized addresses in the address list for
+    When finding Myricom devices, update description for regular
+      interfaces that are Myricom devices and handle SNF_FLAGS=0x2(port
+      aggregation enabled)
+    Fix compilation error in DAG support
+    Fix issues with CMake configuration
+    Add support for stream buffers larger than 2GB on newer DAG cards
+    Remove support for building against DAG versions without STREAMS
+      support (before dag-3.0.0 2007)
+
+Tuesday, Oct. 25, 2016 mcr@sandelman.ca
+  Summary for 1.8.1 libpcap release
+    Add a target in Makefile.in for Exuberant Ctags use: 'extags'.
+    Rename configure.in to configure.ac: autoconf 2.59
+    Clean up the name-to-DLT mapping table.
+    Add some newer DLT_ values: IPMI_HPM_2,ZWAVE_R1_R2,ZWAVE_R3,WATTSTOPPER_DLM,ISO_14443,RDS
+    Clarify what the return values are for both success and failure.
+    Many changes to build on windows
+    Check for the "break the loop" condition in the inner loop for TPACKET_V3.
+    Fix handling of packet count in the TPACKET_V3 inner loop: GitHub issue #493.
+    Filter out duplicate looped back CAN frames.
+    Fix the handling of loopback filters for IPv6 packets.
+    Add a link-layer header type for RDS (IEC 62106) groups.
+    Use different intermediate folders for x86 and x64 builds on Windows.
+    On Linux, handle all CAN captures with pcap-linux.c, in cooked mode.
+    Removes the need for the "host-endian" link-layer header type.
+    Compile with '-Wused-but-marked-unused' in devel mode if supported
+    Have separate DLTs for big-endian and host-endian SocketCAN headers.
+    Reflect version.h being renamed to pcap_version.h.
+    Require that version.h be generated: all build procedures we support generate version.h (autoconf, CMake, MSVC)!
+    Properly check for sock_recv() errors.
+    Re-impose some of Winsock's limitations on sock_recv().
+    Replace sprintf() with pcap_snprintf().
+    Fix signature of pcap_stats_ex_remote().
+    Initial cmake support for remote packet capture.
+    Have rpcap_remoteact_getsock() return a SOCKET and supply an "is active" flag.
+    Clean up {DAG, Septel, Myricom SNF}-only builds.
+    Do UTF-16-to-ASCII conversion into the right place.
+    pcap_create_interface() needs the interface name on Linux.
+    Clean up hardware time stamp support: the "any" device does not support any time stamp types.
+    Add support for capturing on FreeBSD usbusN interfaces.
+    Add a LINKTYPE/DLT_ value for FreeBSD USB.
+    Go back to using PCAP_API on Windows.
+    CMake support
+    Add TurboCap support from WinPcap.
+    Recognize 802.1ad nested VLAN tag in vlan filter.
+
+Thursday Sep. 3, 2015 guy@alum.mit.edu
+  Summary for 1.7.5 libpcap release
+	Man page cleanups.
+	Add some allocation failure checks.
+	Fix a number of Linux/ucLinux configure/build issues.
+	Fix some memory leaks.
+	Recognize 802.1ad nested VLAN tag in vlan filter.
+	Fix building Bluetooth Linux Monitor support with BlueZ 5.1+
+
+Saturday Jun. 27, 2015 mcr@sandelman.ca
+  Summary for 1.7.4 libpcap release
+	Include fix for GitHub issue #424 -- out of tree builds.
+
+Friday Apr. 10, 2015 guy@alum.mit.edu
+  Summary for 1.7.3 libpcap release
+	Work around a Linux bonding driver bug.
+
+Thursday Feb. 12, 2015 guy@alum.mit.edu/mcr@sandelman.ca
+  Summary for 1.7.2 libpcap release
+	Support for filtering Geneve encapsulated packets.
+	Generalize encapsulation handling, fixing some bugs.
+	Don't add null addresses to address lists.
+	Add pcap_dump_open_append() to open for appending.
+	Fix the swapping of isochronous descriptors in Linux USB.
+	Attempt to handle TPACKET_V1 with 32-bit userland and 64-bit kernel.
+
+Wednesday Nov. 12, 2014 guy@alum.mit.edu/mcr@sandelman.ca
+  Summary for 1.7.0 libpcap release
+	Fix handling of zones for BPF on Solaris
+	new DLT for ZWAVE
+	clarifications for read timeouts.
+	Use BPF extensions in compiled filters, fixing VLAN filters
+	some fixes to compilation without stdint.h
+	EBUSY can now be returned by SNFv3 code.
+	Fix the range checks in BPF loads
+	Various DAG fixes.
+	Various Linux fixes.
+
+Monday Aug. 12, 2014 guy@alum.mit.edu
+  Summary for 1.6.2 libpcap release
+	Don't crash on filters testing a non-existent link-layer type
+	    field.
+	Fix sending in non-blocking mode on Linux with memory-mapped
+	    capture.
+	Fix timestamps when reading pcap-ng files on big-endian
+	    machines.
+
+Saturday  Jul. 19, 2014 mcr@sandelman.ca
+  Summary for 1.6.1 libpcap release
+	some fixes for the any device
+	changes for how --enable-XXX (--enable-sniffing, --enable-can) works
+
+Wednesday Jul. 2, 2014 mcr@sandelman.ca
+  Summary for 1.6.0 libpcap release
+        Don't support D-Bus sniffing on OS X
+        fixes for byte order issues with NFLOG captures
+        Handle using cooked mode for DLT_NETLINK in activate_new().
+        on platforms where you can not capture on down interfaces, do not list them
+        but: do list interfaces which are down, if you can capture on them!
+
+Wednesday December 18, 2013 guy@alum.mit.edu
+Summary for 1.5.3 libpcap release
+	Don't let packets that don't match the current filter get to the
+	    application when TPACKET_V3 is used. (GitHub issue #331)
+	Fix handling of pcap_loop()/pcap_dispatch() with a packet count
+	    of 0 on some platforms (including Linux with TPACKET_V3).
+	    (GitHub issue #333)
+	Work around TPACKET_V3 deficiency that causes packets to be lost
+	    when a timeout of 0 is specified. (GitHub issue #335)
+	Man page formatting fixes.
+
+Wednesday December 4, 2013 guy@alum.mit.edu
+Summary for 1.5.2 libpcap release
+	Fix libpcap to work when compiled with TPACKET_V3 support and
+	    running on a kernel without TPACKET_V3 support. (GitHub
+	    issue #329)
+
+Wednesday November 20, 2013 guy@alum.mit.edu
+Summary for 1.5.1 libpcap release
+	Report an error, rather than crashing, if an IPv6 address is
+	    used for link-layer filtering.  (Wireshark bug 9376)
+
+Wednesday October 30, 2013 guy@alum.mit.edu
+Summary for 1.5.0 libpcap release
+	TPACKET_V3 support added for Linux
+	Point users to the the-tcpdump-group repository on GitHub rather
+	    than the mcr repository
+	Checks added for malloc()/realloc()/etc. failures
+	Fixed build on Solaris 11
+	Support filtering filtering E1 SS7 traffic on MTP2 layer Annex A
+	Use "ln -s" to link man pages by default
+        Add support for getting nanosecond-resolution time stamps when
+	    capturing and reading capture files
+        Many changes to autoconf to deal better with non-GCC compilers
+        added many new DLT types
+
+Saturday April 6, 2013 guy@alum.mit.edu
+Summary for 1.4.0 libpcap release
+	Add netfilter/nfqueue interface.
+	If we don't have support for IPv6 address resolution, support,
+	    in filter expressions, what IPv6 stuff we can.
+	Fix pcap-config to include -lpthread if canusb support is
+	    present
+	Try to fix "pcap_parse not defined" problems when --without-flex
+	    and --without-bison are used when you have Flex and Bison
+	Fix some issues with the pcap_loop man page.
+	Fix pcap_getnonblock() and pcap_setnonblock() to fill in the
+	    supplied error message buffer
+	Fix typo that, it appeared, would cause pcap-libdlpi.c not to
+	    compile (perhaps systems with libdlpi also have BPF and use
+	    that instead)
+	Catch attempts to call pcap_compile() on a non-activated pcap_t
+	Fix crash on Linux with CAN-USB support without usbfs
+	Fix addition of VLAN tags for Linux cooked captures
+	Check for both EOPNOTSUPP and EINVAL after SIOCETHTOOL ioctl, so
+	    that the driver can report either one if it doesn't support
+	    SIOCETHTOOL
+	Add DLT_INFINIBAND and DLT_SCTP
+	Describe "proto XXX" and "protochain XXX" in the pcap-filter man
+	    page
+	Handle either directories, or symlinks to directories, that
+	    correspond to interfaces in /sys/class/net
+	Fix handling of VLAN tag insertion to check, on Linux 3.x
+	    kernels, for VLAN tag valid flag
+	Clean up some man pages
+	Support libnl3 as well as libnl1 and libnl2 on Linux
+	Fix handling of Bluetooth devices on 3.x Linux kernels
+
+Friday  March 30, 2012.  mcr@sandelman.ca
+Summary for 1.3.0 libpcap release
+        Handle DLT_PFSYNC in {FreeBSD, other *BSD+Mac OS X, other}.
+        Linux: Don't fail if netfilter isn't enabled in the kernel.
+        Add new link-layer type for NFC Forum LLCP.
+        Put the CANUSB stuff into EXTRA_DIST, so it shows up in the release tarball.
+        Add LINKTYPE_NG40/DLT_NG40.
+        Add DLT_MPEG_2_TS/LINKTYPE_MPEG_2_TS for MPEG-2 transport streams.
+        [PATCH] Fix AIX-3.5 crash with read failure during stress
+        AIX fixes.
+        Introduce --disable-shared configure option.
+        Added initial support for canusb devices.
+        Include the pcap(3PCAP) additions as 1.2.1 changes.
+        many updates to documentation: pcap.3pcap.in
+        Improve 'inbound'/'outbound' capture filters under Linux.
+        Note the cleanup of handling of new DLT_/LINKTYPE_ values.
+        On Lion, don't build for PPC.
+        For mac80211 devices we need to clean up monitor mode on exit.
+
+Friday  December 9, 2011.  guy@alum.mit.edu.
+Summary for 1.2.1 libpcap release
+	Update README file.
+	Fix typoes in README.linux file.
+	Clean up some compiler warnings.
+	Fix Linux compile problems and tests for ethtool.h.
+	Treat Debian/kFreeBSD and GNU/Hurd as systems with GNU
+	 toolchains.
+	Support 802.1 QinQ as a form of VLAN in filters.
+	Treat "carp" as equivalent to "vrrp" in filters.
+	Fix code generated for "ip6 protochain".
+	Add some new link-layer header types.
+	Support capturing NetFilter log messages on Linux.
+	Clean up some error messages.
+	Turn off monitor mode on exit for mac80211 interfaces on Linux.
+	Fix problems turning monitor mode on for non-mac80211 interfaces
+	 on Linux.
+	Properly fail if /sys/class/net or /proc/net/dev exist but can't
+	 be opened.
+	Fail if pcap_activate() is called on an already-activated
+	 pcap_t, and add a test program for that.
+	Fix filtering in pcap-ng files.
+	Don't build for PowerPC on Mac OS X Lion.
+	Simplify handling of new DLT_/LINKTYPE_ values.
+	Expand pcap(3PCAP) man page.
+
+Sunday  July 24, 2011.  mcr@sandelman.ca.
+Summary for 1.2 libpcap release
+        All of the changes listed below for 1.1.1 and 1.1.2.
+        Changes to error handling for pcap_findalldevs().
+        Fix the calculation of the frame size in memory-mapped captures.
+        Add a link-layer header type for STANAG 5066 D_PDUs.
+        Add a link-layer type for a variant of 3GPP TS 27.010.
+        Noted real nature of LINKTYPE_ARCNET.
+        Add a link-layer type for DVB-CI.
+        Fix configure-script discovery of VLAN acceleration support.
+         see http://netoptimizer.blogspot.com/2010/09/tcpdump-vs-vlan-tags.html
+        Linux, HP-UX, AIX, NetBSD and OpenBSD compilation/conflict fixes.
+        Protect against including AIX 5.x's <net/bpf.h> having been included.
+        Add DLT_DBUS, for raw D-Bus messages.
+        Treat either EPERM or EACCES as "no soup for you".
+        Changes to permissions on DLPI systems.
+        Add DLT_IEEE802_15_4_NOFCS for 802.15.4 interfaces.
+
+Fri.    August 6, 2010.  guy@alum.mit.edu.
+Summary for 1.1.2 libpcap release
+	Return DLT_ values, not raw LINKTYPE_ values from
+	  pcap_datalink() when reading pcap-ng files
+	Add support for "wlan ra" and "wlan ta", to check the RA and TA
+	  of WLAN frames that have them
+	Don't crash if "wlan addr{1,2,3,4}" are used without 802.11
+	  headers
+	Do filtering on USB and Bluetooth capturing
+	On FreeBSD/SPARC64, use -fPIC - it's apparently necessary
+	Check for valid port numbers (fit in a 16-bit unsigned field) in
+	  "port" filters
+	Reject attempts to put savefiles into non-blocking mode
+	Check for "no such device" for the "get the media types" ioctl
+	  in *BSD
+	Improve error messages from bpf_open(), and let it do the error
+	  handling
+	Return more specific errors from pcap_can_set_rfmon(); fix
+	  documentation
+	Update description fetching code for FreeBSD, fix code for
+	  OpenBSD
+	Ignore /sys/net/dev files if we get ENODEV for them, not just
+	  ENXIO; fixes handling of bonding devices on Linux
+	Fix check for a constant 0 argument to BPF_DIV
+	Use the right version of ar when cross-building
+	Free any filter set on a savefile when the savefile is closed
+	Include the CFLAGS setting when configure was run in the
+	  compiler flags
+	Add support for 802.15.4 interfaces on Linux
+
+Thu.    April 1, 2010.  guy@alum.mit.edu.
+Summary for 1.1.1 libpcap release
+	Update CHANGES to reflect more of the changes in 1.1.0.
+	Fix build on RHEL5.
+	Fix shared library build on AIX.
+
+Thu.	March 11, 2010.  ken@netfunctional.ca/guy@alum.mit.edu.
+Summary for 1.1.0 libpcap release
+	Add SocketCAN capture support
+	Add Myricom SNF API support
+	Update Endace DAG and ERF support
+	Add support for shared libraries on Solaris, HP-UX, and AIX
+	Build, install, and un-install shared libraries by default;
+	  don't build/install shared libraries on platforms we don't support
+	Fix building from a directory other than the source directory
+	Fix compiler warnings and builds on some platforms
+	Update config.guess and config.sub
+	Support monitor mode on mac80211 devices on Linux
+	Fix USB memory-mapped capturing on Linux; it requires a new DLT_
+	  value
+	On Linux, scan /sys/class/net for devices if we have it; scan
+	  it, or /proc/net/dev if we don't have /sys/class/net, even if
+	  we have getifaddrs(), as it'll find interfaces with no
+	  addresses
+	Add limited support for reading pcap-ng files
+	Fix BPF driver-loading error handling on AIX
+	Support getting the full-length interface description on FreeBSD
+	In the lexical analyzer, free up any addrinfo structure we got back
+	  from getaddrinfo().
+	Add support for BPF and libdlpi in OpenSolaris (and SXCE)
+	Hyphenate "link-layer" everywhere
+	Add /sys/kernel/debug/usb/usbmon to the list of usbmon locations
+	In pcap_read_linux_mmap(), if there are no frames available, call
+	  poll() even if we're in non-blocking mode, so we pick up
+	  errors, and check for the errors in question.
+	Note that poll() works on BPF devices is Snow Leopard
+	If an ENXIO or ENETDOWN is received, it may mean the device has
+	  gone away.  Deal with it.
+	For BPF, raise the default capture buffer size to from 32k to 512k
+	Support ps_ifdrop on Linux
+	Added a bunch of #ifdef directives to make wpcap.dll (WinPcap) compile
+	 under cygwin.
+	Changes to Linux mmapped captures.
+	Fix bug where create_ring would fail for particular snaplen and
+	  buffer size combinations
+	Update pcap-config so that it handles libpcap requiring
+	  additional libraries
+	Add workaround for threadsafeness on Windows
+	Add missing mapping for DLT_ENC <-> LINKTYPE_ENC
+	DLT: Add DLT_CAN_SOCKETCAN
+	DLT: Add Solaris ipnet
+	Don't check for DLT_IPNET if it's not defined
+	Add link-layer types for Fibre Channel FC-2
+	Add link-layer types for Wireless HART
+	Add link-layer types for AOS
+	Add link-layer types for DECT
+	Autoconf fixes (AIX, HP-UX, OSF/1, Tru64 cleanups)
+	Install headers unconditionally, and include vlan.h/bluetooth.h if
+	  enabled
+	Autoconf fixes+cleanup
+	Support enabling/disabling bluetooth (--{en,dis}able-bluetooth)
+	Support disabling SITA support (--without-sita)
+	Return -1 on failure to create packet ring (if supported but
+	  creation failed)
+	Fix handling of 'any' device, so that it can be opened, and no longer
+	  attempt to open it in Monitor mode
+	Add support for snapshot length for USB Memory-Mapped Interface
+	Fix configure and build on recent Linux kernels
+	Fix memory-mapped Linux capture to support pcap_next() and
+	  pcap_next_ex()
+	Fixes for Linux USB capture
+	DLT: Add DLT_LINUX_EVDEV
+	DLT: Add DLT_GSMTAP_UM
+	DLT: Add DLT_GSMTAP_ABIS
+
+Mon.    October 27, 2008.  ken@netfunctional.ca.  Summary for 1.0.0 libpcap release
+	Compile with IPv6 support by default
+	Compile with large file support on by default
+	Add pcap-config script, which deals with -I/-L flags for compiling
+	DLT: Add IPMB
+	DLT: Add LAPD
+	DLT: Add AX25 (AX.25 w/KISS header)
+	DLT: Add JUNIPER_ST
+	802.15.4 support
+	Variable length 802.11 header support
+	X2E data type support
+	SITA ACN Interface support - see README.sita
+	Support for memory-mapped capture on Linux
+	Support for zerocopy BPF on platforms that support it
+	Support for setting buffer size when opening devices
+	Support for setting monitor mode when opening 802.11 devices
+	Better support for dealing with VLAN tagging/stripping on Linux
+	Fix dynamic library support on OSX
+	Return PCAP_ERROR_IFACE_NOT_UP if the interface isn't 'UP', so applications
+	 can print better diagnostic information
+	Return PCAP_ERROR_PERM_DENIED if we don't have permission to open a device, so
+	 applications can tell the user they need to go play with permissions
+	On Linux, ignore ENETDOWN so we can continue to capture packets if the
+	 interface goes down and comes back up again.
+	On Linux, support new tpacket frame headers (2.6.27+)
+	On Mac OS X, add scripts for changing permissions on /dev/bpf* and launchd plist
+	On Solaris, support 'passive mode' on systems that support it
+	Fixes to autoconf and general build environment
+	Man page reorganization + cleanup
+	Autogenerate VERSION numbers better
+
+Mon.    September 10, 2007.  ken@xelerance.com.  Summary for 0.9.8 libpcap release
+        Change build process to put public libpcap headers into pcap subir
+        DLT: Add value for IPMI IPMB packets
+        DLT: Add value for u10 Networks boards
+        Require <net/pfvar.h> for pf definitions - allows reading of pflog formatted
+         libpcap files on an OS other than where the file was generated
+
+Wed.	April 25, 2007.  ken@xelerance.com.  Summary for 0.9.6 libpcap release
+
+	Put the public libpcap headers into a pcap subdirectory in both the
+	 source directory and the target include directory, and have include
+	 files at the top-level directory to include those headers, for
+	 backwards compatibility.
+	Add Bluetooth support
+	Add USB capturing support on Linux
+	Add support for the binary USB sniffing interface in Linux
+	Add support for new FreeBSD BIOCSDIRECTION ioctl
+	Add additional filter operations for 802.11 frame types
+	Add support for filtering on MTP2 frame types
+	Propagate some changes from the main branch, so the x.9 branch has
+	 all the DLT_ and LINKTYPE_ values that the main branch does
+	Reserved a DLT_ and SAVEFILE_ value for PPI (Per Packet Info)
+	 encapsulated packets
+	Add LINKTYPE_ for IEEE 802.15.4, with address fields padded as done
+	 by Linux drivers
+	Add LINKTYPE_ value corresponding to DLT_IEEE802_16_MAC_CPS.
+	Add DLT for IEEE 802.16 (WiMAX) MAC Common Part Sublayer
+	Add DLT for Bluetooth HCI UART transport layer
+	When building a shared library, build with "-fPIC" on Linux to support x86_64
+	Link with "$(CC) -shared" rather than "ld -shared" when building a
+	 ".so" shared library
+	Add support for autoconf 2.60
+	Fixes to discard unread packets when changing filters
+	Changes to handle name changes in the DAG library resulting from
+	 switching to libtool.
+	Add support for new DAG ERF types.
+        Add an explicit "-ldag" when building the shared library, so the DAG
+	 library dependency is explicit.
+	Mac OSX fixes for dealing with "wlt" devices
+	Fixes in add_or_find_if() & pcap_findalldevs() to optimize generating
+	 device lists
+	Fixed a bug in pcap_open_live(). The return value of PacketSetHwFilter
+	 was not checked.
+
+Tue.	September 19, 2006. ken@xelerance.com. Summary for 0.9.5 libpcap release
+
+	Support for LAPD frames with vISDN
+	Support for ERF on channelized T1/E1 cards via DAG API
+	Fix capitalization that caused issues crossc compiling on Linux
+	Better failure detection on PacketGetAdapterNames()
+	Fixes for MPLS packet generation (link layer)
+	OP_PACKET now matches the beginning of the packet, instead of
+	 beginning+link-layer
+	Add DLT/LINKTYPE for carrying FRF.16 Multi-link Frame Relay
+	Fix allocation of buffer for list of link-layer types
+	Added a new DLT and LINKTYPE value for ARINC 653 Interpartition Communcation Messages
+	Fixed a typo in a DLT value: it should start with DLT_ and not LINKTYPE_
+	Redefined DLT_CAN20B and LINKTYPE_CAN20B as #190 (as this is the right value for CAN).
+	Added definition for DLT_A429 and LINKTYPE_A429 as #184.
+	Added a new DLT and LINKTYPE value for CAN v2.0B frames.
+	Add support for DLT_JUNIPER_VP.
+	Don't double-count received packets on Linux systems that
+	 support the PACKET_STATISTICS getsockopt() argument on
+	 PF_PACKET sockets.
+	Add support for DLT_IEEE802_11 and DLT_IEEE802_11_RADIO link
+	 layers in Windows
+	Add support to build libpcap.lib and wpcap.dll under Cygnus and
+	 MingW32.
+
+Mon. 	September 5, 2005.  ken@xelerance.com. Summary for 0.9.4 libpcap release
+
+	Support for radiotap on Linux (Mike Kershaw)
+	Fixes for HP-UX
+	Support for additional Juniper link-layer types
+	Fixes for filters on MPLS-encapsulated packets
+	"vlan" filter fixed
+	"pppoed" and "pppoes" filters added; the latter modifies later
+	parts of the filter expression to look at the PPP headers and
+	headers in the PPP payload
+
+Tue. 	July 5, 2005.  ken@xelerance.com. Summary for 0.9.3 libpcap release
+
+	Fixes for compiling on nearly every platform,
+		including improved 64bit support
+	MSDOS Support
+	Add support for sending packets
+	OpenBSD pf format support
+	IrDA capture (Linux only)
+
+Tue.   March 30, 2004. mcr@sandelman.ottawa.on.ca. Summary for 3.8.3 release
+
+	Fixed minor problem in gencode.c that would appear on 64-bit
+	platforms.
+	Version number is now sane.
+
+Mon.   March 29, 2004. mcr@sandelman.ottawa.on.ca. Summary for 3.8.2 release
+
+	updates for autoconf 2.5
+	fixes for ppp interfaces for freebsd 4.1
+	pcap gencode can generate code for 802.11, IEEE1394, and pflog.
+
+Wed.   November 12, 2003. mcr@sandelman.ottawa.on.ca. Summary for 0.8 release
+
+	added pcap_findalldevs()
+	Win32 patches from NetGroup, Politecnico di Torino (Italy)
+	OpenBSD pf, DLT_PFLOG added
+	Many changes to ATM support.
+	lookup pcap_lookupnet()
+	Added DLT_ARCNET_LINUX, DLT_ENC, DLT_IEEE802_11_RADIO, DLT_SUNATM,
+		DLT_IP_OVER_FC, DLT_FRELAY, others.
+	Sigh.  More AIX wonderfulness.
+	Document updates.
+	Changes to API: pcap_next_ex(), pcap_breakloop(), pcap_dump_flush(),
+			pcap_list_datalinks(), pcap_set_datalink(),
+			pcap_lib_version(), pcap_datalink_val_to_name(),
+			pcap_datalink_name_to_val(), new error returns.
+
+Tuesday, February 25, 2003. fenner@research.att.com.  0.7.2 release
+
+ 	Support link types that use 802.2 always, never, and sometimes.
+ 	Don't decrease the size of the BPF buffer from the default.
+ 	Support frame relay.
+ 	Handle 32-bit timestamps in DLPI, and pass the right buffer size.
+ 	Handle Linux systems with modern kernel but without
+ 	 SOL_PACKET in the userland headers.
+ 	Linux support for ARPHRD_RAWHDLC.
+ 	Handle 32-bit timestamps in snoop.
+ 	Support eg (Octane/O2xxx/O3xxx Gigabit) devices.
+ 	Add new reserved DLT types.
+
+Monday October 23, 2001. mcr@sandelman.ottawa.on.ca. Summary for 0.7 release
+
+	Added pcap_findalldevs() call to get list of interfaces in a MI way.
+
+	pcap_stats() has been documented as to what its counters mean on
+	each platform.
+
+Tuesday January 9, 2001. guy@alum.mit.edu. Summary for 0.6 release
+
+	New Linux libpcap implementation, which, in 2.2 and later
+	kernels, uses PF_PACKET sockets and supports kernel packet
+	filtering (if compiled into the kernel), and supports the "any"
+	device for capturing on all interfaces.  Cleans up promiscuous
+	mode better on pre-2.2 kernels, and has various other fixes
+	(handles 2.4 ARPHRD_IEEE802_TR, handles ISDN devices better,
+	doesn't show duplicate packets on loopback interface, etc.).
+
+	Fixed HP-UX libpcap implementation to correctly get the PPA for
+	an interface, to allow interfaces to be opened by interface name.
+
+	libpcap savefiles have system-independent link-layer type values
+	in the header, rather than sometimes platform-dependent DLT_
+	values, to make it easier to exchange capture files between
+	different OSes.
+
+	Non-standard capture files produced by some Linux tcpdumps, e.g.
+	the one from Red Hat Linux 6.2 and later, can now be read.
+
+	Updated autoconf stock files.
+
+	Filter expressions can filter on VLAN IDs and various OSI
+	protocols, and work on Token Ring (with non-source-routed
+	packets).
+
+	"pcap_open_dead()" added to allow compiling filter expressions
+	to pcap code without opening a capture device or capture file.
+
+	Header files fixed to allow use in C++ programs.
+
+	Removed dependancy on native headers for packet layout.
+	Removed Linux specific headers that were shipped.
+
+	Security fixes: Strcpy replaced with strlcpy, sprintf replaced
+	with snprintf.
+
+	Fixed bug that could cause subsequent "pcap_compile()"s to fail
+	erroneously after one compile failed.
+
+	Assorted other bug fixes.
+
+	README.aix and README.linux files added to describe
+	platform-specific issues.
+
+	"getifaddrs()" rather than SIOCGIFCONF used, if available.
+
+v0.5 Sat Jun 10 11:09:15 PDT 2000
+
+itojun@iijlab.net
+- Brought in KAME IPv6/IPsec bpf compiler.
+- Fixes for NetBSD.
+- Support added for OpenBSD DLT_LOOP and BSD/OS DLT_C_HDLC (Cisco HDLC),
+  and changes to work around different BSDs having different DLT_ types
+  with the same numeric value.
+
+Assar Westerlund  <assar@sics.se>
+- Building outside the source code tree fixed.
+- Changed to write out time stamps with 32-bit seconds and microseconds
+  fields, regardless of whether those fields are 32 bits or 64 bits in
+  the OS's native "struct timeval".
+- Changed "pcap_lookupdev()" to dynamically grow the buffer into which
+  the list of interfaces is read as necessary in order to hold the
+  entire list.
+
+Greg Troxel <gdt@ir.bbn.com>
+- Added a new "pcap_compile_nopcap()", which lets you compile a filter
+  expression into a BPF program without having an open live capture or
+  capture file.
+
+v0.4 Sat Jul 25 12:40:09 PDT 1998
+
+- Fix endian problem with DLT_NULL devices. From FreeBSD via Bill
+  Fenner (fenner@parc.xerox.com)
+
+- Fix alignment problem with FDDI under DLPI. This was causing core
+  dumps under Solaris.
+
+- Added configure options to disable flex and bison. Resulted from a
+  bug report by barnett@grymoire.crd.ge.com (Bruce Barnett). Also added
+  options to disable gcc and to force a particular packet capture type.
+
+- Added support for Fore ATM interfaces (qaa and fa) under IRIX. Thanks
+  to John Hawkinson (jhawk@mit.edu)
+
+- Change Linux PPP and SLIP to use DLT_RAW since the kernel does not
+  supply any "link layer" data.
+
+- Change Linux to use SIOCGIFHWADDR ioctl to determine link layer type.
+  Thanks to Thomas Sailer (sailer@ife.ee.ethz.ch)
+
+- Change IRIX PPP to use DLT_RAW since the kernel does not supply any
+  "link layer" data.
+
+- Modified to support the new BSD/OS 2.1 PPP and SLIP link layer header
+  formats.
+
+- Added some new SGI snoop interface types. Thanks to Steve Alexander
+  (sca@refugee.engr.sgi.com)
+
+- Fixes for HP-UX 10.20 (which is similar to HP-UX 9). Thanks to
+  Richard Allen (ra@hp.is) and Steinar Haug (sthaug@nethelp.no)
+
+- Fddi supports broadcast as reported by Jeff Macdonald
+  (jeff@iacnet.com). Also correct ieee802 and arcnet.
+
+- Determine Linux pcap buffer size at run time or else it might not be
+  big enough for some interface types (e.g. FDDI). Thanks to Jes
+  Sorensen (Jes.Sorensen@cern.ch)
+
+- Fix some linux alignment problems.
+
+- Document promisc argument to pcap_open_live(). Reported by Ian Marsh
+  (ianm@sics.se)
+
+- Support Metricom radio packets under Linux. Thanks to Kevin Lai
+  (laik@gunpowder.stanford.edu)
+
+- Bind to interface name under Linux to avoid packets from multiple
+  interfaces on multi-homed hosts. Thanks to Kevin Lai
+  (laik@gunpowder.stanford.edu)
+
+- Change L_SET to SEEK_SET for HP-UX. Thanks to Roland Roberts
+  (rroberts@muller.com)
+
+- Fixed an uninitialized memory reference found by Kent Vander Velden
+  (graphix@iastate.edu)
+
+- Fixed lex pattern for IDs to allow leading digits. As reported by
+  Theo de Raadt (deraadt@cvs.openbsd.org)
+
+- Fixed Linux include file problems when using GNU libc.
+
+- Ifdef ARPHRD_FDDI since not all versions of the Linux kernel have it.
+  Reported reported by Eric Jacksch (jacksch@tenebris.ca)
+
+- Fixed bug in pcap_dispatch() that kept it from returning on packet
+  timeouts.
+
+- Changed ISLOOPBACK() macro when IFF_LOOPBACK isn't available to check
+  for "lo" followed by an eos or digit (newer versions of Linux
+  apparently call the loopback "lo" instead of "lo0").
+
+- Fixed Linux networking include files to use ints instead of longs to
+  avoid problems with 64 bit longs on the alpha. Thanks to Cristian
+  Gafton (gafton@redhat.com)
+
+v0.3 Sat Nov 30 20:56:27 PST 1996
+
+- Added Linux support.
+
+- Fixed savefile bugs.
+
+- Solaris x86 fix from Tim Rylance (t.rylance@elsevier.nl)
+
+- Add support for bpf kernel port filters.
+
+- Remove duplicate atalk protocol table entry. Thanks to Christian
+  Hopps (chopps@water.emich.edu)
+
+- Fixed pcap_lookupdev() to ignore nonexistent devices. This was
+  reported to happen under BSD/OS by David Vincenzetti
+  (vince@cryptonet.it)
+
+- Avoid solaris compiler warnings. Thanks to Bruce Barnett
+  (barnett@grymoire.crd.ge.com)
+
+v0.2.1 Sun Jul 14 03:02:26 PDT 1996
+
+- Fixes for HP-UX 10. Thanks in part to to Thomas Wolfram
+  (wolf@prz.tu-berlin.de) and Rick Jones (raj@hpisrdq.cup.hp.com)
+
+- Added support for SINIX. Thanks to Andrej Borsenkow
+  (borsenkow.msk@sni.de)
+
+- Fixes for AIX (although this system is not yet supported). Thanks to
+  John Hawkinson (jhawk@mit.edu)
+
+- Use autoconf's idea of the top level directory in install targets.
+  Thanks to John Hawkinson.
+
+- Add missing autoconf packet capture result message. Thanks to Bill
+  Fenner (fenner@parc.xerox.com)
+
+- Fixed padding problems in the pf module.
+
+- Fixed some more alignment problems on the alpha.
+
+- Added explicit netmask support. Thanks to Steve Nuchia
+  (steve@research.oknet.com)
+
+- Fixed to handle raw ip addresses such as 0.0.0.1 without "left
+  justifing"
+
+- Add "sca" keyword (for DEC cluster services) as suggested by Terry
+  Kennedy (terry@spcvxa.spc.edu)
+
+- Add "atalk" keyword as suggested by John Hawkinson.
+
+- Add "igrp" keyword.
+
+- Fixed HID definition in grammar.y to be a string, not a value.
+
+- Use $CC when checking gcc version. Thanks to Carl Lindberg
+  (carl_lindberg@blacksmith.com)
+
+- Removed obsolete reference to pcap_immediate() from the man page.
+  Michael Stolarchuk (mts@terminator.rs.itd.umich.edu)
+
+- DLT_NULL has a 4 byte family header. Thanks to Jeffrey Honig
+  (jch@bsdi.com)
+
+v0.2 Sun Jun 23 02:28:42 PDT 1996
+
+- Add support for HP-UX. Resulted from code contributed by Tom Murray
+  (tmurray@hpindck.cup.hp.com) and Philippe-Andri Prindeville
+  (philipp@res.enst.fr)
+
+- Update INSTALL with a reminder to install include files. Thanks to
+  Mark Andrews (mandrews@aw.sgi.com)
+
+- Fix bpf compiler alignment bug on the alpha.
+
+- Use autoconf to detect architectures that can't handle misaligned
+  accesses.
+
+- Added loopback support for snoop. Resulted from report Steve
+  Alexander (sca@engr.sgi.com)
+
+v0.1 Fri Apr 28 18:11:03 PDT 1995
+
+- Fixed compiler and optimizer bugs.  The BPF filter engine uses unsigned
+  comparison operators, while the code generator and optimizer assumed
+  signed semantics in several places.  Thanks to Charlie Slater
+  (cslater@imatek.com) for pointing this out.
+
+- Removed FDDI ifdef's, they aren't really needed. Resulted from report
+  by Gary Veum (veum@boa.gsfc.nasa.gov).
+
+- Add pcap-null.c which allows offline use of libpcap on systems that
+  don't support live package capture. This feature resulting from a
+  request from Jan van Oorschot (j.p.m.voorschot@et.tudelft.nl).
+
+- Make bpf_compile() reentrant. Fix thanks to Pascal Hennequin
+  (Pascal.Hennequin@hugo.int-evry.fr).
+
+- Port to GNU autoconf.
+
+- Fix pcap-dlpi.c to work with isdn. Resulted from report by Flemming
+  Johansen (fsj@csd.cri.dk).
+
+- Handle multi-digit interface unit numbers (aka ppa's) under dlpi.
+  Resulted from report by Daniel Ehrlich (ehrlich@cse.psu.edu).
+
+- Fix pcap-dlpi.c to work in non-promiscuous mode. Resulted from report
+  by Jeff Murphy (jcmurphy@acsu.buffalo.edu).
+
+- Add support for "long jumps". Thanks to Jeffrey Mogul
+  (mogul@pa.dec.com).
+
+- Fix minor problems when compiling with BDEBUG as noticed by Scott
+  Bertilson (scott@unet.umn.edu).
+
+- Declare sys_errlist "const char *const" to avoid problems under
+  FreeBSD. Resulted from report by jher@eden.com.
+
+v0.0.6 Fri Apr 28 04:07:13 PDT 1995
+
+- Add missing variable declaration missing from 0.0.6
+
+v0.0.5 Fri Apr 28 00:22:21 PDT 1995
+
+- Workaround for problems when pcap_read() returns 0 due to the timeout
+  expiring.
+
+v0.0.4 Thu Apr 20 20:41:48 PDT 1995
+
+- Change configuration to not use gcc v2 flags with gcc v1.
+
+- Fixed a bug in pcap_next(); if pcap_dispatch() returns 0, pcap_next()
+  should also return 0. Thanks to Richard Stevens (rstevens@noao.edu).
+
+- Fixed configure to test for snoop before dlpi to avoid problems under
+  IRIX 5. Thanks to J. Eric Townsend (jet@abulafia.genmagic.com).
+
+- Hack around deficiency in Ultrix's make.
+
+- Fix two bugs related to the Solaris pre-5.3.2 bufmod bug; handle
+  savefiles that have more than snapshot bytes of data in them (so we
+  can read old savefiles) and avoid writing such files.
+
+- Added checkioctl which is used with gcc to check that the
+  "fixincludes" script has been run.
+
+v0.0.3 Tue Oct 18 18:13:46 PDT 1994
+
+- Fixed configure to test for snoop before dlpi to avoid problems under
+  IRIX 5. Thanks to J. Eric Townsend (jet@abulafia.genmagic.com).
+
+v0.0.2 Wed Oct 12 20:56:37 PDT 1994
+
+- Implement timeout in the dlpi pcap_open_live(). Thanks to Richard
+  Stevens.
+
+- Determine pcap link type from dlpi media type. Resulted from report
+  by Mahesh Jethanandani (mahesh@npix.com).
+
+v0.0.1 Fri Jun 24 14:50:57 PDT 1994
+
+- Fixed bug in nit_setflags() in pcap-snit.c. The streams ioctl timeout
+  wasn't being initialized sometimes resulting in an "NIOCSFLAGS:
+  Invalid argument" error under OSF/1. Reported by Matt Day
+  (mday@artisoft.com) and Danny Mitzel (dmitzel@whitney.hitc.com).
+
+- Turn on FDDI support by default.
+
+v0.0 Mon Jun 20 19:20:16 PDT 1994
+
+- Initial release.
+
+- Fixed bug with greater/less keywords, reported by Mark Andrews
+  (mandrews@alias.com).
+
+- Fix bug where '|' was defined as BPF_AND instead of BPF_OR, reported
+  by Elan Amir (elan@leeb.cs.berkeley.edu).
+
+- Machines with little-endian byte ordering are supported thanks to
+  Jeff Mogul.
+
+- Add hack for version 2.3 savefiles which don't have caplen and len
+  swapped thanks to Vern Paxson.
+
+- Added "&&" and "||" aliases for "and" and "or" thanks to Vern Paxson.
+
+- Added length, inbound and outbound keywords.

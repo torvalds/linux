@@ -1,0 +1,118 @@
+.\"-
+.\" Copyright (c) 2004-2009 Apple Inc.
+.\" Copyright (c) 2015 Christian Brueffer
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of
+.\"    its contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd July 29, 2015
+.Dt AU_NOTIFY 3
+.Os
+.Sh NAME
+.Nm au_get_state ,
+.Nm au_notify_initialize ,
+.Nm au_notify_terminate
+.Nd "audit event notification"
+.Sh LIBRARY
+.Lb libbsm
+.Sh SYNOPSIS
+.In bsm/libbsm.h
+.Ft int
+.Fn au_get_state "void"
+.Ft uint32_t
+.Fn au_notify_initialize "void"
+.Ft int
+.Fn au_notify_terminate "void"
+.Sh DESCRIPTION
+The
+.Nm au_notify
+audit notification API tracks audit state in a form permitting efficient
+update, avoiding frequent system calls to check the kernel audit state.
+It is implemented only for Darwin/Mac OS X.
+.Pp
+The
+.Fn au_get_state
+function provides a lightweight way to check whether or not auditing is
+enabled.
+If a client wants to use this function to determine whether an entire
+series of audit calls should be made -- as in the common case of a caller
+building a set of tokens, then writing them -- it should cache the audit
+status in a local variable.
+This function always returns the current state of auditing.
+If audit notification has not already been initialized by calling
+.Fn au_notify_initialize
+it will be automatically initialized on the first call of
+this function.
+.Pp
+The
+.Fn au_notify_initialize
+function initializes audit notification.
+.Pp
+The
+.Fn au_notify_terminate
+function cancels audit notification and frees the resources associated with it.
+Responsible code that no longer needs to use
+.Fn au_get_state
+should call this function.
+.Sh RETURN VALUES
+If no error occurred the
+.Fn au_get_state
+function returns
+.Dv AUC_NOAUDIT
+if auditing is disabled or suspended, and
+.Dv AUC_AUDITING
+if auditing is enabled and active.
+Otherwise, the function can return any of the errno values defined for
+.Xr setaudit 2 ,
+or
+.Dv AU_UNIMPL
+if audit does not appear to be supported by the system.
+.Pp
+The
+.Fn au_notify_initialize
+function returns 0 on success,
+.Dv AU_UNIMPL
+if audit does not appear to be supported by the system,
+or one of the status codes defined in
+.In notify.h
+on Mac OS X to indicate the error.
+.Pp
+The
+.Fn au_notify_terminate
+function returns 0 on success, or \-1 on failure.
+.Sh SEE ALSO
+.Xr libbsm 3 ,
+.Xr notify 3 (Mac OS X)
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer, Inc., in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
+.Sh AUTHORS
+This software was created by
+.An Apple Computer, Inc .
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.

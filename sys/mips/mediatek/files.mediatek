@@ -1,0 +1,39 @@
+# $FreeBSD$
+
+mips/mediatek/mtk_machdep.c 		standard
+mips/mediatek/mtk_sysctl.c 		standard
+mips/mediatek/mtk_soc.c 		standard
+mips/mediatek/mtk_reset.c 		standard
+mips/mediatek/mtk_clock.c 		standard
+mips/mediatek/mtk_pinctrl.c 		standard
+mips/mediatek/palmbus.c			standard
+mips/mediatek/mtk_intr_v1.c 		optional mtk_intr_v1
+mips/mediatek/mtk_intr_v2.c 		optional mtk_intr_v2
+mips/mediatek/mtk_intr_gic.c 		optional mtk_intr_gic
+mips/mediatek/uart_dev_mtk.c 		optional uart uart_dev_mtk
+mips/mediatek/mtk_spi_v1.c 		optional spibus mtk_spi_v1
+mips/mediatek/mtk_spi_v2.c 		optional spibus mtk_spi_v2
+mips/mediatek/mtk_usb_phy.c 		optional usb mtk_usb_phy
+mips/mediatek/mtk_xhci.c 		optional usb xhci
+mips/mediatek/mtk_ohci.c 		optional usb ohci
+mips/mediatek/mtk_ehci.c 		optional usb ehci
+mips/mediatek/mtk_dotg.c 		optional usb dwcotg
+mips/mediatek/mtk_pcie.c 		optional pci
+mips/mediatek/mtk_gpio_v1.c 		optional gpio mtk_gpio_v1
+mips/mediatek/mtk_gpio_v2.c 		optional gpio mtk_gpio_v2
+#mips/mediatek/mtk_mmc.c 		optional mmc
+
+# Ralink/Mediatek Ethernet driver
+dev/rt/if_rt.c 				optional rt
+
+# Standard MIPS ticker
+mips/mips/tick.c 			standard
+
+# Temporary Reset if
+mips/mediatek/fdt_reset.c 		standard
+mips/mediatek/fdt_reset_if.m 		standard
+
+# Switch
+dev/etherswitch/mtkswitch/mtkswitch.c 	optional mtkswitch
+dev/etherswitch/mtkswitch/mtkswitch_rt3050.c 	optional mtkswitch
+dev/etherswitch/mtkswitch/mtkswitch_mt7620.c 	optional mtkswitch

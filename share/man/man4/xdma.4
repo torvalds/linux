@@ -1,0 +1,77 @@
+.\" Copyright (c) 2016 Ruslan Bukin <br@bsdpad.com>
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 12, 2016
+.Dt XDMA 4
+.Os
+.Sh NAME
+.Nm xdma
+.Nd DMA abstraction layer
+.Sh SYNOPSIS
+To compile xDMA device support into the kernel, place the following line
+in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device xdma"
+.Ed
+.Pp
+To compile xDMA FDT-based test driver, place the following line as well:
+.Bd -literal -offset indent
+.Cd "device xdma_test"
+.Ed
+.Sh DESCRIPTION
+xDMA is a DMA framework designed to abstract the interaction between device
+drivers and DMA engines.
+.Pp
+xDMA defines an interface for efficient interaction between the device driver
+and DMA controller.
+The
+.Nm
+device provides a virtual DMA controller and virtual channels called xchans.
+The controller provides virtual channels management (allocation, deallocation,
+configuration) and interrupt notification esteblishment needed to receive
+events from the hardware DMA controller.
+.Nm
+supports the following transfer types:
+.Bl -hang -offset indent -width xxxxxxxx
+.It Nm Cyclic
+A non-stop periodic transfer designed for applications like audio.
+.It Nm Memcpy
+A memory-to-memory transfer.
+.El
+.Sh SEE ALSO
+.Xr bus_dma 9
+.Sh HISTORY
+Support for xDMA first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+.An -nosplit
+.Fx
+xDMA framework was first added by
+.An Ruslan Bukin Aq Mt br@FreeBSD.org .

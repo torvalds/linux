@@ -1,0 +1,413 @@
+Index: trunk/doc/unbound.conf.5.in
+===================================================================
+--- trunk/doc/unbound.conf.5.in	(revision 4357)
++++ trunk/doc/unbound.conf.5.in	(working copy)
+@@ -701,6 +701,13 @@
+ this option in enabled. Only use if you know what you are doing.
+ This option only has effect when qname-minimisation is enabled. Default is off.
+ .TP
++.B aaaa\-filter: \fI<yes or no>
++Activate behavior similar to BIND's AAAA-filter.
++This forces the dropping of all AAAA records, unless in the case of
++explicit AAAA queries, when no A records have been confirmed.
++This also causes an additional A query to be sent for each AAAA query.
++This breaks DNSSEC!
++.TP
+ .B private\-address: \fI<IP address or subnet>
+ Give IPv4 of IPv6 addresses or classless subnets. These are addresses
+ on your private network, and are not allowed to be returned for
+Index: trunk/iterator/iter_scrub.c
+===================================================================
+--- trunk/iterator/iter_scrub.c	(revision 4357)
++++ trunk/iterator/iter_scrub.c	(working copy)
+@@ -617,6 +617,32 @@
+ }
+ 
+ /**
++ * ASN: Lookup A records from rrset cache.
++ * @param qinfo: the question originally asked.
++ * @param env: module environment with config and cache.
++ * @param ie: iterator environment with private address data.
++ * @return 0 if no A record found, 1 if A record found.
++ */
++static int
++asn_lookup_a_record_from_cache(struct query_info* qinfo,
++	struct module_env* env, struct iter_env* ATTR_UNUSED(ie))
++{
++	struct ub_packed_rrset_key* akey;
++
++	/* get cached A records for queried name */
++	akey = rrset_cache_lookup(env->rrset_cache, qinfo->qname,
++		qinfo->qname_len, LDNS_RR_TYPE_A, qinfo->qclass,
++		0, *env->now, 0);
++	if(akey) { /* we had some. */
++		log_rrset_key(VERB_ALGO, "ASN-AAAA-filter: found A record",
++			      akey);
++		lock_rw_unlock(&akey->entry.lock);
++		return 1;
++	}
++	return 0;
++}
++
++/**
+  * Given a response event, remove suspect RRsets from the response.
+  * "Suspect" rrsets are potentially poison. Note that this routine expects
+  * the response to be in a "normalized" state -- that is, all "irrelevant"
+@@ -635,6 +661,7 @@
+ 	struct query_info* qinfo, uint8_t* zonename, struct module_env* env,
+ 	struct iter_env* ie)
+ {
++	int found_a_record = 0; /* ASN: do we have a A record? */
+ 	int del_addi = 0; /* if additional-holding rrsets are deleted, we
+ 		do not trust the normalized additional-A-AAAA any more */
+ 	struct rrset_parse* rrset, *prev;
+@@ -670,6 +697,13 @@
+ 		rrset = rrset->rrset_all_next;
+ 	}
+ 
++	/* ASN: Locate any A record we can find */
++	if((ie->aaaa_filter) && (qinfo->qtype == LDNS_RR_TYPE_AAAA)) {
++		found_a_record = asn_lookup_a_record_from_cache(qinfo,
++			env, ie);
++	}
++	/* ASN: End of added code */
++
+ 	/* At this point, we brutally remove ALL rrsets that aren't 
+ 	 * children of the originating zone. The idea here is that, 
+ 	 * as far as we know, the server that we contacted is ONLY 
+@@ -680,6 +714,24 @@
+ 	prev = NULL;
+ 	rrset = msg->rrset_first;
+ 	while(rrset) {
++
++		/* ASN: For AAAA records only... */
++		if((ie->aaaa_filter) && (rrset->type == LDNS_RR_TYPE_AAAA)) {
++			/* ASN: If this is not a AAAA query, then remove AAAA
++			 * records, no questions asked. If this IS a AAAA query
++			 * then remove AAAA records if we have an A record.
++			 * Otherwise, leave things be. */
++			if((qinfo->qtype != LDNS_RR_TYPE_AAAA) ||
++				(found_a_record)) {
++				remove_rrset("ASN-AAAA-filter: removing AAAA "
++					"for record", pkt, msg, prev, &rrset);
++				continue;
++			}
++			log_nametypeclass(VERB_ALGO, "ASN-AAAA-filter: "
++				"keep AAAA for", zonename,
++				LDNS_RR_TYPE_AAAA, qinfo->qclass);
++		}
++		/* ASN: End of added code */
+ 
+ 		/* remove private addresses */
+ 		if( (rrset->type == LDNS_RR_TYPE_A || 
+Index: trunk/iterator/iter_utils.c
+===================================================================
+--- trunk/iterator/iter_utils.c	(revision 4357)
++++ trunk/iterator/iter_utils.c	(working copy)
+@@ -175,6 +175,7 @@
+ 	}
+ 	iter_env->supports_ipv6 = cfg->do_ip6;
+ 	iter_env->supports_ipv4 = cfg->do_ip4;
++	iter_env->aaaa_filter = cfg->aaaa_filter;
+ 	return 1;
+ }
+ 
+Index: trunk/iterator/iterator.c
+===================================================================
+--- trunk/iterator/iterator.c	(revision 4357)
++++ trunk/iterator/iterator.c	(working copy)
+@@ -1847,6 +1847,53 @@
+ 
+ 	return 0;
+ }
++
++/**
++ * ASN: This event state was added as an intermediary step between
++ * QUERYTARGETS_STATE and the next step, in order to cast a subquery for the
++ * purpose of caching A records for the queried name.
++ * 
++ * @param qstate: query state.
++ * @param iq: iterator query state.
++ * @param ie: iterator shared global environment.
++ * @param id: module id.
++ * @return true if the event requires more request processing immediately,
++ *         false if not. This state only returns true when it is generating
++ *         a SERVFAIL response because the query has hit a dead end.
++ */
++static int
++asn_processQueryAAAA(struct module_qstate* qstate, struct iter_qstate* iq,
++	struct iter_env* ATTR_UNUSED(ie), int id)
++{
++	struct module_qstate* subq = NULL;
++
++	log_assert(iq->fetch_a_for_aaaa == 0);
++
++	/* flag the query properly in order to not loop */
++	iq->fetch_a_for_aaaa = 1;
++
++	/* re-throw same query, but with a different type */
++	if(!generate_sub_request(iq->qchase.qname,
++        	iq->qchase.qname_len, LDNS_RR_TYPE_A,
++		iq->qchase.qclass, qstate, id, iq,
++		INIT_REQUEST_STATE, FINISHED_STATE, &subq, 1)) {
++		log_nametypeclass(VERB_ALGO, "ASN-AAAA-filter: failed "
++			"preloading of A record for",
++			iq->qchase.qname, LDNS_RR_TYPE_A,
++			iq->qchase.qclass);
++		return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
++	}
++	log_nametypeclass(VERB_ALGO, "ASN-AAAA-filter: "
++		"preloading records in cache for",
++		iq->qchase.qname, LDNS_RR_TYPE_A,
++		iq->qchase.qclass);
++
++	/* set this query as waiting */
++	qstate->ext_state[id] = module_wait_subquery;
++	/* at this point break loop */
++	return 0;
++}
++/* ASN: End of added code */
+ 	
+ /** 
+  * This is the request event state where the request will be sent to one of
+@@ -1894,6 +1941,13 @@
+ 		return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
+ 	}
+ 	
++	/* ASN: If we have a AAAA query, then also query for A records */
++	if((ie->aaaa_filter) && (iq->qchase.qtype == LDNS_RR_TYPE_AAAA) &&
++		(iq->fetch_a_for_aaaa == 0)) {
++		return next_state(iq, ASN_FETCH_A_FOR_AAAA_STATE);
++	}
++	/* ASN: End of added code */
++
+ 	/* Make sure we have a delegation point, otherwise priming failed
+ 	 * or another failure occurred */
+ 	if(!iq->dp) {
+@@ -3095,6 +3149,61 @@
+ 	return 0;
+ }
+ 
++/** 
++ * ASN: Do final processing on responses to A queries originated from AAAA
++ * queries. Events reach this state after the iterative resolution algorithm
++ * terminates.
++ * This is required down the road to decide whether to scrub AAAA records
++ * from the results or not.
++ *
++ * @param qstate: query state.
++ * @param id: module id.
++ * @param forq: super query state.
++ */
++static void
++asn_processAAAAResponse(struct module_qstate* qstate, int id,
++	struct module_qstate* super)
++{
++	/*struct iter_qstate* iq = (struct iter_qstate*)qstate->minfo[id];*/
++	struct iter_qstate* super_iq = (struct iter_qstate*)super->minfo[id];
++	struct delegpt_ns* dpns = NULL;
++	int error = (qstate->return_rcode != LDNS_RCODE_NOERROR);
++
++	log_assert(super_iq->fetch_a_for_aaaa > 0);
++
++	/* let super go to evaluation of targets after this */
++	super_iq->state = QUERYTARGETS_STATE;
++
++	log_query_info(VERB_ALGO, "ASN-AAAA-filter: processAAAAResponse",
++		&qstate->qinfo);
++	log_query_info(VERB_ALGO, "ASN-AAAA-filter: processAAAAResponse super",
++		&super->qinfo);
++
++	if(super_iq->dp)
++		dpns = delegpt_find_ns(super_iq->dp,
++			qstate->qinfo.qname, qstate->qinfo.qname_len);
++	if (!dpns) {
++		/* not interested */
++		verbose(VERB_ALGO, "ASN-AAAA-filter: subq: %s, but parent not "
++			"interested%s", (error ? "error, but" : "success"),
++			(super_iq->dp ? "anymore" : " (was reset)"));
++		log_query_info(VERB_ALGO, "ASN-AAAA-filter: superq", &super->qinfo);
++		if(super_iq->dp && error)
++			delegpt_log(VERB_ALGO, super_iq->dp);
++		return;
++	} else if (error) {
++		verbose(VERB_ALGO, "ASN-AAAA-filter: mark as failed, "
++			"and go to target query.");
++		/* see if the failure did get (parent-lame) info */
++		if(!cache_fill_missing(super->env,
++			super_iq->qchase.qclass, super->region,
++			super_iq->dp))
++		log_err("ASN-AAAA-filter: out of memory adding missing");
++		dpns->resolved = 1; /* mark as failed */
++	}
++}
++/* ASN: End of added code */
++
+ /*
+  * Return priming query results to interested super querystates.
+  * 
+@@ -3114,6 +3223,9 @@
+ 	else if(super->qinfo.qtype == LDNS_RR_TYPE_DS && ((struct iter_qstate*)
+ 		super->minfo[id])->state == DSNS_FIND_STATE)
+ 		processDSNSResponse(qstate, id, super);
++	else if (super->qinfo.qtype == LDNS_RR_TYPE_AAAA && ((struct iter_qstate*)
++		super->minfo[id])->state == ASN_FETCH_A_FOR_AAAA_STATE)
++		asn_processAAAAResponse(qstate, id, super);
+ 	else if(qstate->return_rcode != LDNS_RCODE_NOERROR)
+ 		error_supers(qstate, id, super);
+ 	else if(qstate->is_priming)
+@@ -3151,6 +3263,9 @@
+ 			case INIT_REQUEST_3_STATE:
+ 				cont = processInitRequest3(qstate, iq, id);
+ 				break;
++			case ASN_FETCH_A_FOR_AAAA_STATE:
++				cont = asn_processQueryAAAA(qstate, iq, ie, id);
++				break;
+ 			case QUERYTARGETS_STATE:
+ 				cont = processQueryTargets(qstate, iq, ie, id);
+ 				break;
+@@ -3460,6 +3575,8 @@
+ 		return "INIT REQUEST STATE (stage 2)";
+ 	case INIT_REQUEST_3_STATE:
+ 		return "INIT REQUEST STATE (stage 3)";
++	case ASN_FETCH_A_FOR_AAAA_STATE:
++		return "ASN_FETCH_A_FOR_AAAA_STATE";
+ 	case QUERYTARGETS_STATE :
+ 		return "QUERY TARGETS STATE";
+ 	case PRIME_RESP_STATE :
+@@ -3484,6 +3601,7 @@
+ 		case INIT_REQUEST_STATE :
+ 		case INIT_REQUEST_2_STATE :
+ 		case INIT_REQUEST_3_STATE :
++		case ASN_FETCH_A_FOR_AAAA_STATE :
+ 		case QUERYTARGETS_STATE :
+ 		case COLLECT_CLASS_STATE :
+ 			return 0;
+Index: trunk/iterator/iterator.h
+===================================================================
+--- trunk/iterator/iterator.h	(revision 4357)
++++ trunk/iterator/iterator.h	(working copy)
+@@ -130,6 +130,9 @@
+ 	 */
+ 	int* target_fetch_policy;
+ 
++	/** ASN: AAAA-filter flag */
++	int aaaa_filter;
++
+ 	/** lock on ratelimit counter */
+ 	lock_basic_type queries_ratelimit_lock;
+ 	/** number of queries that have been ratelimited */
+@@ -182,6 +185,14 @@
+ 	INIT_REQUEST_3_STATE,
+ 
+ 	/**
++	 * This state is responsible for intercepting AAAA queries,
++	 * and launch a A subquery on the same target, to populate the
++	 * cache with A records, so the AAAA filter scrubbing logic can
++	 * work.
++	 */
++	ASN_FETCH_A_FOR_AAAA_STATE,
++
++	/**
+ 	 * Each time a delegation point changes for a given query or a 
+ 	 * query times out and/or wakes up, this state is (re)visited. 
+ 	 * This state is responsible for iterating through a list of 
+@@ -364,6 +375,13 @@
+ 	 * be used when creating the state. A higher one will be attempted.
+ 	 */
+ 	int refetch_glue;
++
++	/**
++	 * ASN: This is a flag that, if true, means that this query is
++	 * for fetching A records to populate cache and determine if we must
++	 * return AAAA records or not.
++	 */
++	int fetch_a_for_aaaa;
+ 
+ 	/** list of pending queries to authoritative servers. */
+ 	struct outbound_list outlist;
+Index: trunk/pythonmod/interface.i
+===================================================================
+--- trunk/pythonmod/interface.i	(revision 4357)
++++ trunk/pythonmod/interface.i	(working copy)
+@@ -851,6 +851,7 @@
+    int harden_dnssec_stripped;
+    int harden_referral_path;
+    int use_caps_bits_for_id;
++   int aaaa_filter; /* ASN */
+    struct config_strlist* private_address;
+    struct config_strlist* private_domain;
+    size_t unwanted_threshold;
+Index: trunk/util/config_file.c
+===================================================================
+--- trunk/util/config_file.c	(revision 4357)
++++ trunk/util/config_file.c	(working copy)
+@@ -195,6 +195,7 @@
+ 	cfg->harden_referral_path = 0;
+ 	cfg->harden_algo_downgrade = 0;
+ 	cfg->use_caps_bits_for_id = 0;
++	cfg->aaaa_filter = 0; /* ASN: default is disabled */
+ 	cfg->caps_whitelist = NULL;
+ 	cfg->private_address = NULL;
+ 	cfg->private_domain = NULL;
+Index: trunk/util/config_file.h
+===================================================================
+--- trunk/util/config_file.h	(revision 4357)
++++ trunk/util/config_file.h	(working copy)
+@@ -209,6 +209,8 @@
+ 	int harden_algo_downgrade;
+ 	/** use 0x20 bits in query as random ID bits */
+ 	int use_caps_bits_for_id;
++	/** ASN: enable AAAA filter? */
++	int aaaa_filter;
+ 	/** 0x20 whitelist, domains that do not use capsforid */
+ 	struct config_strlist* caps_whitelist;
+ 	/** strip away these private addrs from answers, no DNS Rebinding */
+Index: trunk/util/configlexer.lex
+===================================================================
+--- trunk/util/configlexer.lex	(revision 4357)
++++ trunk/util/configlexer.lex	(working copy)
+@@ -279,6 +279,7 @@
+ use-caps-for-id{COLON}		{ YDVAR(1, VAR_USE_CAPS_FOR_ID) }
+ caps-whitelist{COLON}		{ YDVAR(1, VAR_CAPS_WHITELIST) }
+ unwanted-reply-threshold{COLON}	{ YDVAR(1, VAR_UNWANTED_REPLY_THRESHOLD) }
++aaaa-filter{COLON}		{ YDVAR(1, VAR_AAAA_FILTER) }
+ private-address{COLON}		{ YDVAR(1, VAR_PRIVATE_ADDRESS) }
+ private-domain{COLON}		{ YDVAR(1, VAR_PRIVATE_DOMAIN) }
+ prefetch-key{COLON}		{ YDVAR(1, VAR_PREFETCH_KEY) }
+Index: trunk/util/configparser.y
+===================================================================
+--- trunk/util/configparser.y	(revision 4357)
++++ trunk/util/configparser.y	(working copy)
+@@ -95,6 +95,7 @@
+ %token VAR_STATISTICS_CUMULATIVE VAR_OUTGOING_PORT_PERMIT 
+ %token VAR_OUTGOING_PORT_AVOID VAR_DLV_ANCHOR_FILE VAR_DLV_ANCHOR
+ %token VAR_NEG_CACHE_SIZE VAR_HARDEN_REFERRAL_PATH VAR_PRIVATE_ADDRESS
++%token VAR_AAAA_FILTER
+ %token VAR_PRIVATE_DOMAIN VAR_REMOTE_CONTROL VAR_CONTROL_ENABLE
+ %token VAR_CONTROL_INTERFACE VAR_CONTROL_PORT VAR_SERVER_KEY_FILE
+ %token VAR_SERVER_CERT_FILE VAR_CONTROL_KEY_FILE VAR_CONTROL_CERT_FILE
+@@ -203,6 +204,7 @@
+ 	server_dlv_anchor_file | server_dlv_anchor | server_neg_cache_size |
+ 	server_harden_referral_path | server_private_address |
+ 	server_private_domain | server_extended_statistics | 
++	server_aaaa_filter |
+ 	server_local_data_ptr | server_jostle_timeout | 
+ 	server_unwanted_reply_threshold | server_log_time_ascii | 
+ 	server_domain_insecure | server_val_sig_skew_min | 
+@@ -1183,6 +1185,15 @@
+ 		OUTYY(("P(server_caps_whitelist:%s)\n", $2));
+ 		if(!cfg_strlist_insert(&cfg_parser->cfg->caps_whitelist, $2))
+ 			yyerror("out of memory");
++	}
++	;
++server_aaaa_filter: VAR_AAAA_FILTER STRING_ARG
++	{
++		OUTYY(("P(server_aaaa_filter:%s)\n", $2));
++		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
++			yyerror("expected yes or no.");
++		else cfg_parser->cfg->aaaa_filter = (strcmp($2, "yes")==0);
++		free($2);
+ 	}
+ 	;
+ server_private_address: VAR_PRIVATE_ADDRESS STRING_ARG

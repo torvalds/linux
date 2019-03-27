@@ -1,0 +1,13 @@
+#! /bin/sh
+#
+# Common setup.
+#
+# $FreeBSD$
+#
+PATH=../:.:$PATH
+. config
+. config.mesh
+
+WLAN=`ifconfig wlan create wlanmode mesh wlandev $WIRELESS`
+ifconfig $WLAN meshid $MESHID channel $CHANNEL mtu 1500
+wlandebug -i $WLAN mesh+hwmp+state+scan+assoc

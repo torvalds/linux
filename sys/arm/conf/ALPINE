@@ -1,0 +1,84 @@
+# Kernel configuration for Alpine Board.
+#
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
+#
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+# $FreeBSD$
+
+ident		ALPINE
+
+include 	"std.armv7"
+include 	"../annapurna/alpine/std.alpine"
+
+makeoptions	MODULES_OVERRIDE=""
+makeoptions	WERROR="-Werror"
+
+options 	SCHED_4BSD		# 4BSD scheduler
+options 	SMP			# Enable multiple cores
+options 	PLATFORM
+
+# Interrupt controller
+device		gic
+
+# Annapurna Alpine drivers
+device		al_ccu			# Alpine Cache Coherency Unit
+device		al_nb_service		# Alpine North Bridge Service
+device		al_iofic		# I/O Fabric Interrupt Controller
+device		al_serdes		# Serializer/Deserializer
+device		al_udma			# Universal DMA
+
+# Pseudo devices
+device		loop
+device		random
+device		pty
+device		md
+device		gpio
+
+# ATA controllers
+device		ahci		# AHCI-compatible SATA controllers
+device		ata		# Legacy ATA/SATA controllers
+
+# ATA/SCSI peripherals
+device		scbus		# SCSI bus (required for ATA/SCSI)
+device		ch		# SCSI media changers
+device		da		# Direct Access (disks)
+device		sa		# Sequential Access (tape etc)
+device		cd		# CD
+device		pass		# Passthrough device (direct ATA/SCSI access)
+device		ses		# Enclosure Services (SES and SAF-TE)
+#device		ctl		# CAM Target Layer
+
+# Serial ports
+device		uart
+
+# PCI/PCIE
+device		pci
+device		pci_host_generic
+device		al_pci		# Annapurna Alpine PCI-E
+
+# Ethernet
+device		ether
+device		mii
+device		bpf
+device		al_eth		# Annapurna Alpine Ethernet NIC
+options 	DEVICE_POLLING
+
+# USB ethernet support, requires miibus
+device		miibus
+
+#FDT
+options 	FDT
+options 	FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=annapurna-alpine.dts

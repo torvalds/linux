@@ -1,0 +1,236 @@
+.\" 
+.\" Copyright (c) 2015 Spectra Logic Corporation
+.\" All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    substantially similar to the "NO WARRANTY" disclaimer below
+.\"    ("Disclaimer") and any redistribution must be conditioned upon
+.\"    including a substantially similar Disclaimer requirement for further
+.\"    binary redistribution.
+.\" 
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGES.
+.\" 
+.\" Authors: Ken Merry           (Spectra Logic Corporation)
+.\" 
+.\" $FreeBSD$
+.\"
+.Dd May 18, 2016
+.Dt ZONECTL 8
+.Os
+.Sh NAME
+.Nm zonectl
+.Nd Shingled Magnetic Recording Zone Control utility
+.Sh SYNOPSIS
+.Nm
+.Aq Fl d Ar dev
+.Aq Fl c Ar cmd
+.Op Fl a
+.Op Fl l Ar LBA
+.Op Fl o Ar rep_opts
+.Op Fl P Ar print_opts
+.Sh DESCRIPTION
+Manage
+.Tn SCSI
+and
+.Tn ATA
+Zoned Block devices.
+This allows managing devices that conform to the
+.Tn SCSI
+Zoned Block Commands (ZBC) and
+.Tn ATA
+Zoned ATA Command Set (ZAC)
+specifications.
+Devices using these command sets are usually hard drives using Shingled
+Magnetic Recording (SMR).
+There are three types of SMR drives:
+.Bl -tag -width 13n
+.It Drive Managed
+Drive Managed drives look and act just like a standard random access block
+device, but underneath, the drive reads and writes the bulk of its capacity
+using SMR zones.
+Sequential writes will yield better performance, but writing sequentially
+is not required.
+.It Host Aware
+Host Aware drives expose the underlying zone layout via
+.Tn SCSI
+or
+.Tn ATA
+commands and allow the host to manage the zone conditions.
+The host is not required to manage the zones on the drive, though.
+Sequential writes will yield better performance in Sequential Write
+Preferred zones, but the host can write randomly in those zones.
+.It Host Managed
+Host Managed drives expose the underlying zone layout via
+.Tn SCSI
+or
+.Tn ATA
+commands.
+The host is required to access the zones according to the rules described
+by the zone layout.
+Any commands that violate the rules will be returned with an error.
+.El
+.Pp
+SMR drives are divided into zones (typically in the range of 256MB each)
+that fall into three general categories:
+.Bl -tag -width 20n
+.It Conventional
+These are also known as Non Write Pointer zones.
+These zones can be randomly written without an unexpected performance penalty.
+.It Sequential Preferred
+These zones should be written sequentially starting at the write pointer
+for the zone.
+They may be written randomly.
+Writes that do not conform to the zone layout may be significantly slower
+than expected.
+.It Sequential Required
+These zones must be written sequentially.
+If they are not written sequentially, starting at the write pointer, the
+command will fail.
+.El
+.Pp
+.Bl -tag -width 12n
+.It Fl c Ar cmd
+Specify the zone subcommand:
+.Bl -tag -width 6n
+.It params
+Display device parameters, including the type of device (Drive Managed,
+Host Aware, Host Managed, Not Zoned), the zone commands supported, and
+how many open zones it supports.
+.It rz
+Issue the Report Zones command.
+All zones are returned by default.
+Specify report options with
+.Fl o
+and printing options with
+.Fl P .
+Specify the starting LBA with
+.Fl l .
+Note that
+.Dq reportzones
+is also accepted as a command argument.
+.It open
+Explicitly open the zone specified by the starting LBA.
+.It close
+Close the zone specified by starting LBA.
+.It finish
+Finish the zone specified by the starting LBA.
+.It rwp
+Reset the write pointer for the zone specified by the starting LBA.
+.El
+.It Fl a
+For the Open, Close, Finish, and Reset Write Pointer operations, apply the
+operation to all zones on the drive.
+.It Fl l Ar lba
+Specify the starting LBA.
+For the Report Zones command, this tells the drive to report starting with
+the zone that starts at the given LBA.
+For the other commands, this allows the user to identify the zone requested
+by its starting LBA.
+The LBA may be specified in decimal, hexadecimal or octal notation.
+.It Fl o Ar rep_opt
+For the Report Zones command, specify a subset of zones to report.
+.Bl -tag -width 8n
+.It all
+Report all zones.
+This is the default.
+.It emtpy
+Report only empty zones.
+.It imp_open
+Report zones that are implicitly open.
+This means that the host has sent a write to the zone without explicitly
+opening the zone.
+.It exp_open
+Report zones that are explicitly open.
+.It closed
+Report zones that have been closed by the host.
+.It full
+Report zones that are full.
+.It ro
+Report zones that are in the read only state.
+Note that
+.Dq readonly
+is also accepted as an argument.
+.It offline
+Report zones that are in the offline state.
+.It reset
+Report zones that the device recommends should have their write pointers reset.
+.It nonseq
+Report zones that have the Non Sequential Resources Active flag set.
+These are zones that are Sequential Write Preferred, but have been written
+non-sequentially.
+.It nonwp
+Report Non Write Pointer zones, also known as Conventional zones.
+.El
+.It Fl P Ar print_opt
+Specify a printing option for Report Zones:
+.Bl -tag -width 7n
+.It normal
+Normal Report Zones output.
+This is the default.
+The summary and column headings are printed, fields are separated by spaces
+and the fields themselves may contain spaces.
+.It summary
+Just print the summary:  the number of zones, the maximum LBA (LBA of the
+last logical block on the drive), and the value of the 
+.Dq same 
+field.
+The
+.Dq same
+field describes whether the zones on the drive are all identical, all
+different, or whether they are the same except for the last zone, etc.
+.It script
+Print the zones in a script friendly format.
+The summary and column headings are omitted, the fields are separated by
+commas, and the fields do not contain spaces.
+The fields contain underscores where spaces would normally be used.
+.El
+.El
+.Sh EXAMPLES
+.Bd -literal -offset indent
+zonectl -d /dev/da5 -c params
+.Ed
+.Pp
+Display basic zoning information for disk da5.
+.Pp
+.Bd -literal -offset indent
+zonectl -d /dev/da5 -c rz
+.Ed
+.Pp
+Issue the Report Zones command to disk da5, and print out all
+zones on the drive in the default format.
+.Pp
+.Bd -literal -offset indent
+zonectl -d /dev/da5 -c rz -o reset -P script
+.Ed
+.Pp
+Issue the Report Zones command to disk da5, and print out all
+of the zones that have the Reset Write Pointer Recommended bit set to true.
+Print the zones in a script friendly form.
+.Pp
+.Bd -literal -offset indent
+zonectl -d /dev/da5 -c rwp -l 0x2c80000
+.Ed
+.Pp
+Issue the Reset Write Pointer command to disk da5 for the zone
+that starts at LBA 0x2c80000.
+.Pp
+.Bd -literal -offset indent
+.Sh AUTHORS
+.An Kenneth Merry Aq ken@FreeBSD.org

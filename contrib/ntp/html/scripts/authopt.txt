@@ -1,0 +1,12 @@
+document.write("<p>Authentication Commands and Options</p4><ul>\
+<li class='inline'><a href='authopt.html#automax'>automax - specify Autokey regeneration interval</a></li>\
+<li class='inline'><a href='authopt.html#controlkey'>controlkey - specify control key ID</a></li>\
+<li class='inline'><a href='authopt.html#crypto'>crypto - configure Autokey parameters</a></li>\
+<li class='inline'><a href='authopt.html#ident'>ident - specify Autokey ephemeral group name</a></li>\
+<li class='inline'><a href='authopt.html#keys'>keys - specify symmetric keys filename</a></li>\
+<li class='inline'><a href='authopt.html#keysdir'>keysdir - specify Autokey key directory</a></li>\
+<li class='inline'><a href='authopt.html#requestkey'>requestkey - specify request key ID</a></li>\
+<li class='inline'><a href='authopt.html#revoke'>revoke - specify Autokey randomization interval</a></li>\
+<li class='inline'><a href='authopt.html#trustedkey'>trustedkey - specify trusted key IDs</a></li>\
+<li class='inline'><a href='comdex.html'>Command Index</a></li>\
+</ul>")

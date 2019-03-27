@@ -1,0 +1,87 @@
+/*-
+ * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/dts-v1/;
+
+/include/ "exynos5420.dtsi"
+
+/ {
+	model = "Chromebook Peach Pit";
+
+	memory {
+		device_type = "memory";
+		reg = < 0x20000000 0xdf000000 >; /* 3.5G */
+	};
+
+	SOC: Exynos5@0 {
+
+		fimd0: fimd@14400000 {
+			status = "okay";
+
+			panel-size = < 1366 768 >;
+			panel-hsync = < 80 32 48 >;
+			panel-vsync = < 14 5 3 >;
+			panel-clk-div = < 17 >;
+			panel-backlight-pin = < 25 >;
+		};
+
+		spi2: spi@12d40000 {
+			status = "okay";
+		};
+
+		keyboard-controller {
+			compatible = "google,mkbp-keyb";
+			google,key-rows = <8>;
+			google,key-columns = <13>;
+			freebsd,intr-gpio = < 21 >;
+		};
+
+		usbdrd_phy0: phy@12100000 {
+			vbus-supply = < 217 >;
+		};
+
+		usbdrd_phy1: phy@12500000 {
+			vbus-supply = < 218 >;
+		};
+
+		mmc2: dwmmc@12220000 {
+			status = "okay";
+			num-slots = <1>;
+			supports-highspeed;
+			samsung,dw-mshc-ciu-div = <3>;
+			samsung,dw-mshc-sdr-timing = <2 3>;
+			samsung,dw-mshc-ddr-timing = <1 2>;
+			bus-frequency = <50000000>;
+
+			slot@0 {
+				reg = <0>;
+				bus-width = <4>;
+			};
+		};
+	};
+};

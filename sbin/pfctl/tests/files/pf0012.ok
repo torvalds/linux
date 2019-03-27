@@ -1,0 +1,5 @@
+pass in inet from 127.0.0.1 to 127.0.0.0/8 no state
+pass in inet from 127.0.0.0/16 to 127.0.0.0/24 no state
+pass in inet from 127.0.0.0/25 to ! 127.0.0.0/26 flags S/SA keep state
+pass in inet from ! 127.0.0.1 to 127.0.0.0/16 flags S/SA keep state
+pass in inet from ! 127.0.0.1 to ! 127.0.0.0/8 flags S/SA keep state

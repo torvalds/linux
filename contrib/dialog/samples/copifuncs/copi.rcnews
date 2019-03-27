@@ -1,0 +1,79 @@
+#! /bin/sh
+##  $Revision: 1.1 $
+##  News boot script.
+
+##  =()<. @<_PATH_SHELLVARS>@>()=
+. /usr/lib/news/innshellvars
+
+##  Pick ${INND} or ${INNDSTART}
+WHAT=${INNDSTART}
+##  Set to true or false
+DOINNWATCH=false
+MAIL="${MAILCMD} -s 'Boot-time Usenet warning on `hostname`' ${NEWSMASTER}"
+
+##  RFLAG is set below; set FLAGS as appropriate.
+RFLAG=""
+FLAGS="-i0 -c0"
+
+##  Clean shutdown?
+if [ -f ${SERVERPID} ] ; then
+    ( echo 'INND:  PID file exists -- unclean shutdown!' >/dev/console )
+    RFLAG="-r"
+fi
+
+if [ ! -f ${NEWSLIB}/.news.daily ] ; then
+    echo 'No .news.daily file; need to run news.daily?' | eval ${MAIL}
+else
+    case `find ${NEWSLIB} -name .news.daily -mtime +1 -print 2>/dev/null` in
+    "")
+	;;
+    *)
+	echo 'Old .news.daily file; need to run news.daily?' | eval ${MAIL}
+	;;
+    esac
+fi
+
+##  Active file recovery.
+if [ ! -s ${ACTIVE} ] ; then
+    if [ -s ${NEWACTIVE} ] ; then
+	mv ${NEWACTIVE} ${ACTIVE}
+    else
+	if [ -s ${OLDACTIVE} ] ; then
+	    cp ${OLDACTIVE} ${ACTIVE}
+	else
+	    ( echo 'INND:   No active file!' >/dev/console )
+	    exit 1
+	fi
+    fi
+    RFLAG="-r"
+    # You might want to rebuild the DBZ database, too:
+    #echo "cd ${NEWSLIB} \
+    #		&& makehistory -r \
+    #		&& mv history.n.dir history.dir \
+    #		&& mv history.n.pag history.pag" | su ${NEWSUSER}
+fi
+
+##  Remove temporary batchfiles and lock files.
+( cd ${BATCH} && rm -f bch* )
+( cd ${LOCKS} && rm -f LOCK* )
+( cd ${TEMPSOCKDIR} && rm -f ${TEMPSOCK} )
+rm -f ${NEWSCONTROL} ${NNTPCONNECT} ${SERVERPID}
+
+##  Start the show.
+( echo 'Starting innd.' >/dev/console )
+eval ${WHAT} ${RFLAG} ${FLAGS}
+
+# Gee, looks like lisp, doesn't it?
+${DOINNWATCH} && {
+    echo "( ( sleep 60 ; ${INNWATCH} ) & )" | su ${NEWSUSER}
+}
+
+RMFILE=${MOST_LOGS}/expire.rm
+if [ -s ${MOST_LOGS}/expire.rm ] ; then
+    ( echo "Removing articles from pre-downtime expire run." >/dev/console )
+    (
+	echo 'System shut down during expire.  Unlinking articles listed in'
+	echo ${RMFILE}
+    ) | eval ${MAIL}
+    echo "${NEWSBIN}/expirerm ${RMFILE}" | su ${NEWSUSER} &
+fi

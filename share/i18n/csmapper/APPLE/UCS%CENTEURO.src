@@ -1,0 +1,247 @@
+# $FreeBSD$
+# $NetBSD: UCS%CENTEURO.src,v 1.2 2006/04/08 15:47:39 tnozaki Exp $
+
+TYPE		ROWCOL
+NAME		UCS/CENTEURO
+SRC_ZONE	0x0000-0x25CA
+OOB_MODE	INVALID
+DST_INVALID	0x100
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+#
+# This mapping data is made from the mapping data provided by Unicode, Inc.
+# Original notice:
+#
+#=======================================================================
+#   File name:  CENTEURO.TXT
+#
+#   Contents:   Map (external version) from Mac OS Central European
+#               character set to Unicode 2.1 and later.
+#
+#   Copyright:  (c) 1995-2002, 2005 by Apple Computer, Inc., all rights
+#               reserved.
+#
+#   Contact:    charsets@apple.com
+#
+#   Changes:
+#
+#       c02  2005-Apr-04    Update header comments. Matches internal xml
+#                           <c1.1> and Text Encoding Converter 2.0.
+#      b3,c1 2002-Dec-19    Update URLs. Matches internal utom<b1>.
+#       b02  1999-Sep-22    Update contact e-mail address. Matches
+#                           internal utom<b1>, ufrm<b1>, and Text
+#                           Encoding Converter version 1.5.
+#       n05  1998-Feb-05    Update header comments to new format; no
+#                           mapping changes. Matches internal utom<n3>,
+#                           ufrm<n13>, and Text Encoding Converter
+#                           version 1.3.
+#       n03  1995-Apr-15    First version (after fixing some typos).
+#                           Matches internal ufrm<n5>.
+#
+# Standard header:
+# ----------------
+#
+#   Apple, the Apple logo, and Macintosh are trademarks of Apple
+#   Computer, Inc., registered in the United States and other countries.
+#   Unicode is a trademark of Unicode Inc. For the sake of brevity,
+#   throughout this document, "Macintosh" can be used to refer to
+#   Macintosh computers and "Unicode" can be used to refer to the
+#   Unicode standard.
+#
+#   Apple Computer, Inc. ("Apple") makes no warranty or representation,
+#   either express or implied, with respect to this document and the
+#   included data, its quality, accuracy, or fitness for a particular
+#   purpose. In no event will Apple be liable for direct, indirect, 
+#   special, incidental, or consequential damages resulting from any
+#   defect or inaccuracy in this document or the included data.
+#
+#   These mapping tables and character lists are subject to change.
+#   The latest tables should be available from the following:
+#
+#   <http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/>
+#
+#   For general information about Mac OS encodings and these mapping
+#   tables, see the file "README.TXT".
+#
+# Format:
+# -------
+#
+#   Three tab-separated columns;
+#   '#' begins a comment which continues to the end of the line.
+#     Column #1 is the Mac OS Central European code (in hex as 0xNN)
+#     Column #2 is the corresponding Unicode (in hex as 0xNNNN)
+#     Column #3 is a comment containing the Unicode name
+#
+#   The entries are in Mac OS Central European code order.
+#
+#   Control character mappings are not shown in this table, following
+#   the conventions of the standard UTC mapping tables. However, the
+#   Mac OS Central European character set uses the standard control
+#   characters at 0x00-0x1F and 0x7F.
+#
+# Notes on Mac OS Central European:
+# ---------------------------------
+#
+#   This is a legacy Mac OS encoding; in the Mac OS X Carbon and Cocoa
+#   environments, it is only supported directly in programming
+#   interfaces for QuickDraw Text, the Script Manager, and related
+#   Text Utilities. For other purposes it is supported via transcoding
+#   to and from Unicode.
+#
+#   This character set is intended to cover the following languages:
+#
+#   Polish, Czech, Slovak, Hungarian, Estonian, Latvian, Lithuanian
+#
+#   These are written in Latin script, but using a different set of
+#   of accented characters than Mac OS Roman. The Mac OS Central
+#   European character set also includes a number of characters
+#   needed for the Mac OS user interface and localization (e.g.
+#   ellipsis, bullet, copyright sign), several typographic
+#   punctuation symbols, math symbols, etc. However, it has a
+#   smaller set of punctuation and symbols than Mac OS Roman. All of
+#   the characters in Mac OS Central European that are also in the
+#   Mac OS Roman character set are at the same code point in both
+#   character sets; this improves application compatibility.
+#
+#   Note: This does not have the same letter repertoire as ISO
+#   8859-2 (Latin-2); each has some accented letters that the other
+#   does not have.
+#
+# Unicode mapping issues and notes:
+# ---------------------------------
+#
+# Details of mapping changes in each version:
+# -------------------------------------------
+#
+##################
+0x0000 - 0x007F = 0x00 -
+0x00A0 = 0xCA
+0x00A3 = 0xA3
+0x00A7 = 0xA4
+0x00A8 = 0xAC
+0x00A9 = 0xA9
+0x00AB = 0xC7
+0x00AC = 0xC2
+0x00AE = 0xA8
+0x00B0 = 0xA1
+0x00B6 = 0xA6
+0x00BB = 0xC8
+0x00C1 = 0xE7
+0x00C4 = 0x80
+0x00C9 = 0x83
+0x00CD = 0xEA
+0x00D3 = 0xEE
+0x00D4 = 0xEF
+0x00D5 = 0xCD
+0x00D6 = 0x85
+0x00DA = 0xF2
+0x00DC = 0x86
+0x00DD = 0xF8
+0x00DF = 0xA7
+0x00E1 = 0x87
+0x00E4 = 0x8A
+0x00E9 = 0x8E
+0x00ED = 0x92
+0x00F3 = 0x97
+0x00F4 = 0x99
+0x00F5 = 0x9B
+0x00F6 = 0x9A
+0x00F7 = 0xD6
+0x00FA = 0x9C
+0x00FC = 0x9F
+0x00FD = 0xF9
+0x0100 = 0x81
+0x0101 = 0x82
+0x0104 = 0x84
+0x0105 = 0x88
+0x0106 = 0x8C
+0x0107 = 0x8D
+0x010C = 0x89
+0x010D = 0x8B
+0x010E = 0x91
+0x010F = 0x93
+0x0112 = 0x94
+0x0113 = 0x95
+0x0116 = 0x96
+0x0117 = 0x98
+0x0118 = 0xA2
+0x0119 = 0xAB
+0x011A = 0x9D
+0x011B = 0x9E
+0x0122 = 0xFE
+0x0123 = 0xAE
+0x012A = 0xB1
+0x012B = 0xB4
+0x012E = 0xAF
+0x012F = 0xB0
+0x0136 = 0xB5
+0x0137 = 0xFA
+0x0139 = 0xBD
+0x013A = 0xBE
+0x013B = 0xB9
+0x013C = 0xBA
+0x013D = 0xBB
+0x013E = 0xBC
+0x0141 = 0xFC
+0x0142 = 0xB8
+0x0143 = 0xC1
+0x0144 = 0xC4
+0x0145 = 0xBF
+0x0146 = 0xC0
+0x0147 = 0xC5
+0x0148 = 0xCB
+0x014C = 0xCF
+0x014D = 0xD8
+0x0150 = 0xCC
+0x0151 = 0xCE
+0x0154 = 0xD9
+0x0155 = 0xDA
+0x0156 = 0xDF
+0x0157 = 0xE0
+0x0158 = 0xDB
+0x0159 = 0xDE
+0x015A = 0xE5
+0x015B = 0xE6
+0x0160 = 0xE1
+0x0161 = 0xE4
+0x0164 = 0xE8
+0x0165 = 0xE9
+0x016A = 0xED
+0x016B = 0xF0
+0x016E = 0xF1
+0x016F = 0xF3
+0x0170 = 0xF4
+0x0171 = 0xF5
+0x0172 = 0xF6
+0x0173 = 0xF7
+0x0179 = 0x8F
+0x017A = 0x90
+0x017B = 0xFB
+0x017C = 0xFD
+0x017D = 0xEB
+0x017E = 0xEC
+0x02C7 = 0xFF
+0x2013 = 0xD0
+0x2014 = 0xD1
+0x2018 = 0xD4
+0x2019 = 0xD5
+0x201A = 0xE2
+0x201C = 0xD2
+0x201D = 0xD3
+0x201E = 0xE3
+0x2020 = 0xA0
+0x2022 = 0xA5
+0x2026 = 0xC9
+0x2039 = 0xDC
+0x203A = 0xDD
+0x2122 = 0xAA
+0x2202 = 0xB6
+0x2206 = 0xC6
+0x2211 = 0xB7
+0x221A = 0xC3
+0x2260 = 0xAD
+0x2264 = 0xB2
+0x2265 = 0xB3
+0x25CA = 0xD7
+END_MAP

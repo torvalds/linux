@@ -1,0 +1,5 @@
+$ $tcsh: set8,v 1.3 2006/03/02 18:46:45 christos Exp $
+$ ed.term.c
+$set 8
+1 Unknown switch
+2 Invalid argument

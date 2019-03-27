@@ -1,0 +1,4 @@
+before dotcmd
+before while
+before return
+after dotcmd, return value: 0

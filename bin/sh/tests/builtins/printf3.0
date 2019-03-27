@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+set -e
+v=$(! printf "%d" @wrong 2>/dev/null)
+[ "$v" = "0" ]

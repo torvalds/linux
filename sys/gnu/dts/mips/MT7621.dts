@@ -1,0 +1,56 @@
+/dts-v1/;
+
+#include "mt7621.dtsi"
+
+/ {
+	compatible = "mediatek,mt7621-eval-board", "mediatek,mt7621-soc";
+	model = "Mediatek MT7621 evaluation board";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x2000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,57600";
+	};
+
+	nand@1e003000 {
+		partition@0 {
+			label = "uboot";
+			reg = <0x00000 0x80000>; /* 64 KB */
+		};
+
+		partition@80000 {
+			label = "uboot_env";
+			reg = <0x80000 0x80000>; /* 64 KB */
+		};
+
+		partition@100000 {
+			label = "factory";
+			reg = <0x100000 0x40000>;
+		};
+
+		partition@140000 {
+			label = "rootfs";
+			reg = <0x140000 0xec0000>;
+		};
+	};
+};
+
+&sdhci {
+	status = "okay";
+};
+
+&xhci {
+	status = "okay";
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "uart2", "uart3", "rgmii2", "sdhci";
+			ralink,function = "gpio";
+		};
+	};
+};

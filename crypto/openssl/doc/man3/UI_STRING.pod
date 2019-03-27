@@ -1,0 +1,148 @@
+=pod
+
+=head1 NAME
+
+UI_STRING, UI_string_types, UI_get_string_type,
+UI_get_input_flags, UI_get0_output_string,
+UI_get0_action_string, UI_get0_result_string, UI_get_result_string_length,
+UI_get0_test_string, UI_get_result_minsize,
+UI_get_result_maxsize, UI_set_result, UI_set_result_ex
+- User interface string parsing
+
+=head1 SYNOPSIS
+
+ #include <openssl/ui.h>
+
+ typedef struct ui_string_st UI_STRING;
+
+ enum UI_string_types {
+     UIT_NONE = 0,
+     UIT_PROMPT,                 /* Prompt for a string */
+     UIT_VERIFY,                 /* Prompt for a string and verify */
+     UIT_BOOLEAN,                /* Prompt for a yes/no response */
+     UIT_INFO,                   /* Send info to the user */
+     UIT_ERROR                   /* Send an error message to the user */
+ };
+
+ enum UI_string_types UI_get_string_type(UI_STRING *uis);
+ int UI_get_input_flags(UI_STRING *uis);
+ const char *UI_get0_output_string(UI_STRING *uis);
+ const char *UI_get0_action_string(UI_STRING *uis);
+ const char *UI_get0_result_string(UI_STRING *uis);
+ int UI_get_result_string_length(UI_STRING *uis);
+ const char *UI_get0_test_string(UI_STRING *uis);
+ int UI_get_result_minsize(UI_STRING *uis);
+ int UI_get_result_maxsize(UI_STRING *uis);
+ int UI_set_result(UI *ui, UI_STRING *uis, const char *result);
+ int UI_set_result_ex(UI *ui, UI_STRING *uis, const char *result, int len);
+
+=head1 DESCRIPTION
+
+The B<UI_STRING> gets created internally and added to a B<UI> whenever
+one of the functions UI_add_input_string(), UI_dup_input_string(),
+UI_add_verify_string(), UI_dup_verify_string(),
+UI_add_input_boolean(), UI_dup_input_boolean(), UI_add_info_string(),
+UI_dup_info_string(), UI_add_error_string() or UI_dup_error_string()
+is called.
+For a B<UI_METHOD> user, there's no need to know more.
+For a B<UI_METHOD> creator, it is of interest to fetch text from these
+B<UI_STRING> objects as well as adding results to some of them.
+
+UI_get_string_type() is used to retrieve the type of the given
+B<UI_STRING>.
+
+UI_get_input_flags() is used to retrieve the flags associated with the
+given B<UI_STRING>.
+
+UI_get0_output_string() is used to retrieve the actual string to
+output (prompt, info, error, ...).
+
+UI_get0_action_string() is used to retrieve the action description
+associated with a B<UIT_BOOLEAN> type B<UI_STRING>.
+For all other B<UI_STRING> types, NULL is returned.
+See L<UI_add_input_boolean(3)>.
+
+UI_get0_result_string() and UI_get_result_string_length() are used to
+retrieve the result of a prompt and its length.
+This is only useful for B<UIT_PROMPT> and B<UIT_VERIFY> type strings.
+For all other B<UI_STRING> types, UI_get0_result_string() returns NULL
+and UI_get_result_string_length() returns -1.
+
+UI_get0_test_string() is used to retrieve the string to compare the
+prompt result with.
+This is only useful for B<UIT_VERIFY> type strings.
+For all other B<UI_STRING> types, NULL is returned.
+
+UI_get_result_minsize() and UI_get_result_maxsize() are used to
+retrieve the minimum and maximum required size of the result.
+This is only useful for B<UIT_PROMPT> and B<UIT_VERIFY> type strings.
+For all other B<UI_STRING> types, -1 is returned.
+
+UI_set_result_ex() is used to set the result value of a prompt and its length.
+For B<UIT_PROMPT> and B<UIT_VERIFY> type UI strings, this sets the
+result retrievable with UI_get0_result_string() by copying the
+contents of B<result> if its length fits the minimum and maximum size
+requirements.
+For B<UIT_BOOLEAN> type UI strings, this sets the first character of
+the result retrievable with UI_get0_result_string() to the first
+B<ok_char> given with UI_add_input_boolean() or UI_dup_input_boolean()
+if the B<result> matched any of them, or the first of the
+B<cancel_chars> if the B<result> matched any of them, otherwise it's
+set to the NUL char C<\0>.
+See L<UI_add_input_boolean(3)> for more information on B<ok_chars> and
+B<cancel_chars>.
+
+UI_set_result() does the same thing as UI_set_result_ex(), but calculates
+its length internally.
+It expects the string to be terminated with a NUL byte, and is therefore
+only useful with normal C strings.
+
+=head1 RETURN VALUES
+
+UI_get_string_type() returns the UI string type.
+
+UI_get_input_flags() returns the UI string flags.
+
+UI_get0_output_string() returns the UI string output string.
+
+UI_get0_action_string() returns the UI string action description
+string for B<UIT_BOOLEAN> type UI strings, NULL for any other type.
+
+UI_get0_result_string() returns the UI string result buffer for
+B<UIT_PROMPT> and B<UIT_VERIFY> type UI strings, NULL for any other
+type.
+
+UI_get_result_string_length() returns the UI string result buffer's
+content length for B<UIT_PROMPT> and B<UIT_VERIFY> type UI strings,
+-1 for any other type.
+
+UI_get0_test_string() returns the UI string action description
+string for B<UIT_VERIFY> type UI strings, NULL for any other type.
+
+UI_get_result_minsize() returns the minimum allowed result size for
+the UI string for B<UIT_PROMPT> and B<UIT_VERIFY> type strings,
+-1 for any other type.
+
+UI_get_result_maxsize() returns the minimum allowed result size for
+the UI string for B<UIT_PROMPT> and B<UIT_VERIFY> type strings,
+-1 for any other type.
+
+UI_set_result() returns 0 on success or when the UI string is of any
+type other than B<UIT_PROMPT>, B<UIT_VERIFY> or B<UIT_BOOLEAN>, -1 on
+error.
+
+=head1 SEE ALSO
+
+L<UI(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut
+

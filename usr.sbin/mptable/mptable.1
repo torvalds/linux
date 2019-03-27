@@ -1,0 +1,69 @@
+.\" Copyright (c) 1996
+.\"	Steve Passe <fsmp@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the developer may NOT be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 28, 1997
+.Dt MPTABLE 1
+.Os
+.Sh NAME
+.Nm mptable
+.Nd display MP configuration table
+.Sh SYNOPSIS
+.Nm
+.Op Fl dmesg
+.Op Fl verbose
+.Op Fl grope
+.Op Fl help
+.Sh DESCRIPTION
+The
+.Nm
+command finds and analyzes the MP configuration table on
+an Intel(tm) MP spec capable motherboard.
+It is useful for debugging an SMP kernel that will not boot, as well
+as examining the configuration of a system.
+It can be run with a UniProcessor kernel.
+.Pp
+It must be run with gid kmem privileges.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl dmesg
+Include a dmesg dump.
+.It Fl grope
+Look in areas it should not NEED to, use ONLY as a last resort.
+.It Fl help
+Print a usage message and exits.
+.It Fl verbose
+Print extra info.
+.El
+.Sh SEE ALSO
+.Xr smp 4 ,
+.Xr dmesg 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An Steve Passe Aq Mt fsmp@FreeBSD.org

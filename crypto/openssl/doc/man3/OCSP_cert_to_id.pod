@@ -1,0 +1,89 @@
+=pod
+
+=head1 NAME
+
+OCSP_cert_to_id, OCSP_cert_id_new, OCSP_CERTID_free, OCSP_id_issuer_cmp,
+OCSP_id_cmp, OCSP_id_get0_info - OCSP certificate ID utility functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/ocsp.h>
+
+ OCSP_CERTID *OCSP_cert_to_id(const EVP_MD *dgst,
+                              X509 *subject, X509 *issuer);
+
+ OCSP_CERTID *OCSP_cert_id_new(const EVP_MD *dgst,
+                               X509_NAME *issuerName,
+                               ASN1_BIT_STRING *issuerKey,
+                               ASN1_INTEGER *serialNumber);
+
+ void OCSP_CERTID_free(OCSP_CERTID *id);
+
+ int OCSP_id_issuer_cmp(OCSP_CERTID *a, OCSP_CERTID *b);
+ int OCSP_id_cmp(OCSP_CERTID *a, OCSP_CERTID *b);
+
+ int OCSP_id_get0_info(ASN1_OCTET_STRING **piNameHash, ASN1_OBJECT **pmd,
+                       ASN1_OCTET_STRING **pikeyHash,
+                       ASN1_INTEGER **pserial, OCSP_CERTID *cid);
+
+
+=head1 DESCRIPTION
+
+OCSP_cert_to_id() creates and returns a new B<OCSP_CERTID> structure using
+message digest B<dgst> for certificate B<subject> with issuer B<issuer>. If
+B<dgst> is B<NULL> then SHA1 is used.
+
+OCSP_cert_id_new() creates and returns a new B<OCSP_CERTID> using B<dgst> and
+issuer name B<issuerName>, issuer key hash B<issuerKey> and serial number
+B<serialNumber>.
+
+OCSP_CERTID_free() frees up B<id>.
+
+OCSP_id_cmp() compares B<OCSP_CERTID> B<a> and B<b>.
+
+OCSP_id_issuer_cmp() compares only the issuer name of B<OCSP_CERTID> B<a> and B<b>.
+
+OCSP_id_get0_info() returns the issuer name hash, hash OID, issuer key hash and
+serial number contained in B<cid>. If any of the values are not required the
+corresponding parameter can be set to B<NULL>.
+
+=head1 RETURN VALUES
+
+OCSP_cert_to_id() and OCSP_cert_id_new() return either a pointer to a valid
+B<OCSP_CERTID> structure or B<NULL> if an error occurred.
+
+OCSP_id_cmp() and OCSP_id_issuer_cmp() returns zero for a match and non-zero
+otherwise.
+
+OCSP_CERTID_free() does not return a value.
+
+OCSP_id_get0_info() returns 1 for success and 0 for failure.
+
+=head1 NOTES
+
+OCSP clients will typically only use OCSP_cert_to_id() or OCSP_cert_id_new():
+the other functions are used by responder applications.
+
+The values returned by OCSP_id_get0_info() are internal pointers and B<MUST
+NOT> be freed up by an application: they will be freed when the corresponding
+B<OCSP_CERTID> structure is freed.
+
+=head1 SEE ALSO
+
+L<crypto(7)>,
+L<OCSP_request_add1_nonce(3)>,
+L<OCSP_REQUEST_new(3)>,
+L<OCSP_resp_find_status(3)>,
+L<OCSP_response_status(3)>,
+L<OCSP_sendreq_new(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

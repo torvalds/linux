@@ -1,0 +1,115 @@
+.\" #
+.\" # Copyright (c) 2015, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, January 2015
+.\" 
+.Dd January 22, 2015
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_open_marker , xo_open_marker_h , xo_close_marker , xo_close_marker_h
+.Nd prevent and allow closing of open constructs
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft int
+.Fn xo_open_marker "const char *name"
+.Ft int
+.Fn xo_open_marker_h "xo_handle_t *handle" "const char *name"
+.Ft int
+.Fn xo_close_marker "const char *name"
+.Ft int
+.Fn  xo_close_marker_h "xo_handle_t *handle" "const char *name"
+.Sh DESCRIPTION
+.Nm libxo
+represents hierarchy using two constructs:
+.Dq containers
+and
+.Dq lists .
+A marker can be used to affect how open constructs are closed, either
+by preventing their (implicit or explicit) closure or by forcing their
+closure.
+While a marker is open, no other open constructs can be closed. 
+When a marker is closed, all constructs open since the marker was opened
+will be closed.
+A marker is used to "freeze" any open constructs.
+Calls to
+.Fn xo_close_*
+functions that would normally close them will be ignored, effectively
+blocking their closure.
+However when
+.Fn xo_close_marker
+is called, any containers, lists, or leaf-lists open since the
+matching
+.Fn xo_open_marker
+call will be close and the marker discarded.
+Markers use names which are not user-visible, allowing the caller to
+choose appropriate internal names.
+The marker has no value and is not emitted in any form.
+.Pp
+To open a marker, call
+.Fn xo_open_marker
+or
+.Fn xo_open_marker_h .
+The former uses the default handle and
+the latter accepts a specific handle.
+.Pp
+To close a marker, use the
+.Fn xo_close_marker
+or
+.Fn xo_close_marker_h
+functions.
+.Pp
+Each open call must have a matching close call.
+.Pp
+In this example, the
+.Fn xo_close_container
+call on line [1] will be ignored, since the open marker "outer"
+will prevent close of any open constructs that precede it.
+The
+.Fn xo_close_marker
+call on line [2] will close the "system" container, since it was
+opened after the "outer" marker.
+.Bd -literal -offset indent -compact
+    Example:
+
+        xo_open_container("top");
+	xo_open_marker("outer");
+        xo_open_container("system");
+        xo_emit("{:host-name/%s%s%s", hostname,
+                domainname ? "." : "", domainname ?: "");
+        xo_close_container("top");   /* [1] */
+	xo_close_marker("outer");    /* [2] */
+        xo_close_container("top");
+.Ed
+.Pp
+In this example, the code whiffles through a list of fish, calling a
+function to emit details about each fish.  The marker "fish-guts" is
+used to ensure that any constructs opened by the function are closed
+properly.
+.Bd -literal -offset indent
+    for (i = 0; fish[i]; i++) {
+        xo_open_instance("fish");
+        xo_open_marker("fish-guts");
+        dump_fish_details(i);
+        xo_close_marker("fish-guts");
+    }
+.Ed
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

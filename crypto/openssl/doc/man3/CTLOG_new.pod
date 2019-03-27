@@ -1,0 +1,72 @@
+=pod
+
+=head1 NAME
+
+CTLOG_new, CTLOG_new_from_base64, CTLOG_free,
+CTLOG_get0_name, CTLOG_get0_log_id, CTLOG_get0_public_key -
+encapsulates information about a Certificate Transparency log
+
+=head1 SYNOPSIS
+
+ #include <openssl/ct.h>
+
+ CTLOG *CTLOG_new(EVP_PKEY *public_key, const char *name);
+ int CTLOG_new_from_base64(CTLOG ** ct_log,
+                           const char *pkey_base64, const char *name);
+ void CTLOG_free(CTLOG *log);
+ const char *CTLOG_get0_name(const CTLOG *log);
+ void CTLOG_get0_log_id(const CTLOG *log, const uint8_t **log_id,
+                        size_t *log_id_len);
+ EVP_PKEY *CTLOG_get0_public_key(const CTLOG *log);
+
+=head1 DESCRIPTION
+
+CTLOG_new() returns a new CTLOG that represents the Certificate Transparency
+(CT) log with the given public key. A name must also be provided that can be
+used to help users identify this log. Ownership of the public key is
+transferred.
+
+CTLOG_new_from_base64() also creates a new CTLOG, but takes the public key in
+base64-encoded DER form and sets the ct_log pointer to point to the new CTLOG.
+The base64 will be decoded and the public key parsed.
+
+Regardless of whether CTLOG_new() or CTLOG_new_from_base64() is used, it is the
+caller's responsibility to pass the CTLOG to CTLOG_free() once it is no longer
+needed. This will delete it and, if created by CTLOG_new(), the EVP_PKEY that
+was passed to it.
+
+CTLOG_get0_name() returns the name of the log, as provided when the CTLOG was
+created. Ownership of the string remains with the CTLOG.
+
+CTLOG_get0_log_id() sets *log_id to point to a string containing that log's
+LogID (see RFC 6962). It sets *log_id_len to the length of that LogID. For a
+v1 CT log, the LogID will be a SHA-256 hash (i.e. 32 bytes long). Ownership of
+the string remains with the CTLOG.
+
+CTLOG_get0_public_key() returns the public key of the CT log. Ownership of the
+EVP_PKEY remains with the CTLOG.
+
+=head1 RETURN VALUES
+
+CTLOG_new() will return NULL if an error occurs.
+
+CTLOG_new_from_base64() will return 1 on success, 0 otherwise.
+
+=head1 SEE ALSO
+
+L<ct(7)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

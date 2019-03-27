@@ -1,0 +1,1382 @@
+\ Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
+\
+\ Permission is hereby granted, free of charge, to any person obtaining
+\ a copy of this software and associated documentation files (the
+\ "Software"), to deal in the Software without restriction, including
+\ without limitation the rights to use, copy, modify, merge, publish,
+\ distribute, sublicense, and/or sell copies of the Software, and to
+\ permit persons to whom the Software is furnished to do so, subject to
+\ the following conditions:
+\
+\ The above copyright notice and this permission notice shall be
+\ included in all copies or substantial portions of the Software.
+\
+\ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+\ EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+\ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+\ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+\ BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+\ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+\ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+\ SOFTWARE.
+
+\ ----------------------------------------------------------------------
+\ This is the common T0 code for processing handshake messages (code that
+\ is used by both client and server).
+
+preamble {
+
+#include <stddef.h>
+#include <string.h>
+
+#include "inner.h"
+
+/*
+ * This macro evaluates to a pointer to the current engine context.
+ */
+#define ENG  ((br_ssl_engine_context *)(void *)((unsigned char *)t0ctx - offsetof(br_ssl_engine_context, cpu)))
+
+}
+
+\ IMPLEMENTATION NOTES
+\ ====================
+\
+\ This code handles all records except application data records.
+\ Application data is accepted (incoming records, outgoing payload data)
+\ only when the application_data flag is set, which is done at the end
+\ of the handshake; and it is cleared whenever a renegotiation or a
+\ closure takes place.
+\
+\ Incoming alerts are processed on the fly; fatal alerts terminate the
+\ context, while warnings are ignored, except for close_notify, which
+\ triggers the closure procedure. That procedure never returns (it ends
+\ with an 'ERR_OK fail' call). We can thus make this processing right
+\ into the read functions.
+\
+\ Specific actions from the caller (closure or renegotiation) may happen
+\ only when jumping back into the T0 code, i.e. just after a 'co' call.
+\ Similarly, incoming record type may change only while the caller has
+\ control, so we need to check that type only when returning from a 'co'.
+\
+\ The handshake processor needs to defer back to the caller ('co') only
+\ in one of the following situations:
+\
+\ -- Some handshake data is expected.
+\
+\ -- The handshake is finished, and application data may flow. There may
+\    be some incoming handshake data (HelloRequest from the server). This
+\    is the only situation where a renegotiation call won't be ignored.
+\
+\ -- Some change-cipher-spec data is expected.
+\
+\ -- An alert record is expected. Other types of incoming records will be
+\    skipped.
+\
+\ -- Waiting for the currently accumulated record to be sent and the
+\    output buffer to become free again for another record.
+
+\ Placeholder for handling not yet implemented functionalities.
+: NYI ( -- ! )
+	"NOT YET IMPLEMENTED!" puts cr -1 fail ;
+
+\ Debug function that prints a string (and a newline) on stderr.
+cc: DBG ( addr -- ) {
+	extern void *stderr;
+	extern int fprintf(void *, const char *, ...);
+	fprintf(stderr, "%s\n", &t0_datablock[T0_POPi()]);
+}
+
+\ Debug function that prints a string and an integer value (followed
+\ by a newline) on stderr.
+cc: DBG2 ( addr x -- ) {
+	extern void *stderr;
+	extern int fprintf(void *, const char *, ...);
+	int32_t x = T0_POPi();
+	fprintf(stderr, "%s: %ld (0x%08lX)\n",
+		&t0_datablock[T0_POPi()], (long)x, (unsigned long)(uint32_t)x);
+}
+
+\ Mark the context as failed with a specific error code. This also
+\ returns control to the caller.
+cc: fail ( err -- ! ) {
+	br_ssl_engine_fail(ENG, (int)T0_POPi());
+	T0_CO();
+}
+
+\ Read a byte from the context (address is offset in context).
+cc: get8 ( addr -- val ) {
+	size_t addr = (size_t)T0_POP();
+	T0_PUSH(*((unsigned char *)ENG + addr));
+}
+
+\ Read a 16-bit word from the context (address is offset in context).
+cc: get16 ( addr -- val ) {
+	size_t addr = (size_t)T0_POP();
+	T0_PUSH(*(uint16_t *)(void *)((unsigned char *)ENG + addr));
+}
+
+\ Read a 32-bit word from the context (address is offset in context).
+cc: get32 ( addr -- val ) {
+	size_t addr = (size_t)T0_POP();
+	T0_PUSH(*(uint32_t *)(void *)((unsigned char *)ENG + addr));
+}
+
+\ Set a byte in the context (address is offset in context).
+cc: set8 ( val addr -- ) {
+	size_t addr = (size_t)T0_POP();
+	*((unsigned char *)ENG + addr) = (unsigned char)T0_POP();
+}
+
+\ Set a 16-bit word in the context (address is offset in context).
+cc: set16 ( val addr -- ) {
+	size_t addr = (size_t)T0_POP();
+	*(uint16_t *)(void *)((unsigned char *)ENG + addr) = (uint16_t)T0_POP();
+}
+
+\ Set a 32-bit word in the context (address is offset in context).
+cc: set32 ( val addr -- ) {
+	size_t addr = (size_t)T0_POP();
+	*(uint32_t *)(void *)((unsigned char *)ENG + addr) = (uint32_t)T0_POP();
+}
+
+\ Define a word that evaluates as an address of a field within the
+\ engine context. The field name (C identifier) must follow in the
+\ source. For field 'foo', the defined word is 'addr-foo'.
+: addr-eng:
+	next-word { field }
+	"addr-" field + 0 1 define-word
+	0 8191 "offsetof(br_ssl_engine_context, " field + ")" + make-CX
+	postpone literal postpone ; ;
+
+addr-eng: max_frag_len
+addr-eng: log_max_frag_len
+addr-eng: peer_log_max_frag_len
+addr-eng: shutdown_recv
+addr-eng: record_type_in
+addr-eng: record_type_out
+addr-eng: version_in
+addr-eng: version_out
+addr-eng: application_data
+addr-eng: version_min
+addr-eng: version_max
+addr-eng: suites_buf
+addr-eng: suites_num
+addr-eng: server_name
+addr-eng: client_random
+addr-eng: server_random
+addr-eng: ecdhe_curve
+addr-eng: ecdhe_point
+addr-eng: ecdhe_point_len
+addr-eng: reneg
+addr-eng: saved_finished
+addr-eng: flags
+addr-eng: pad
+addr-eng: action
+addr-eng: alert
+addr-eng: close_received
+addr-eng: protocol_names_num
+addr-eng: selected_protocol
+
+\ Similar to 'addr-eng:', for fields in the 'session' substructure.
+: addr-session-field:
+	next-word { field }
+	"addr-" field + 0 1 define-word
+	0 8191 "offsetof(br_ssl_engine_context, session) + offsetof(br_ssl_session_parameters, " field + ")" + make-CX
+	postpone literal postpone ; ;
+
+addr-session-field: session_id
+addr-session-field: session_id_len
+addr-session-field: version
+addr-session-field: cipher_suite
+addr-session-field: master_secret
+
+\ Check a server flag by index.
+: flag? ( index -- bool )
+	addr-flags get32 swap >> 1 and neg ;
+
+\ Define a word that evaluates to an error constant. This assumes that
+\ all relevant error codes are in the 0..63 range.
+: err:
+	next-word { name }
+	name 0 1 define-word
+	0 63 "BR_" name + make-CX postpone literal postpone ; ;
+
+err: ERR_OK
+err: ERR_BAD_PARAM
+err: ERR_BAD_STATE
+err: ERR_UNSUPPORTED_VERSION
+err: ERR_BAD_VERSION
+err: ERR_BAD_LENGTH
+err: ERR_TOO_LARGE
+err: ERR_BAD_MAC
+err: ERR_NO_RANDOM
+err: ERR_UNKNOWN_TYPE
+err: ERR_UNEXPECTED
+err: ERR_BAD_CCS
+err: ERR_BAD_ALERT
+err: ERR_BAD_HANDSHAKE
+err: ERR_OVERSIZED_ID
+err: ERR_BAD_CIPHER_SUITE
+err: ERR_BAD_COMPRESSION
+err: ERR_BAD_FRAGLEN
+err: ERR_BAD_SECRENEG
+err: ERR_EXTRA_EXTENSION
+err: ERR_BAD_SNI
+err: ERR_BAD_HELLO_DONE
+err: ERR_LIMIT_EXCEEDED
+err: ERR_BAD_FINISHED
+err: ERR_RESUME_MISMATCH
+err: ERR_INVALID_ALGORITHM
+err: ERR_BAD_SIGNATURE
+err: ERR_WRONG_KEY_USAGE
+err: ERR_NO_CLIENT_AUTH
+
+\ Get supported curves (bit mask).
+cc: supported-curves ( -- x ) {
+	uint32_t x = ENG->iec == NULL ? 0 : ENG->iec->supported_curves;
+	T0_PUSH(x);
+}
+
+\ Get supported hash functions (bit mask and number).
+\ Note: this (on purpose) skips MD5.
+cc: supported-hash-functions ( -- x num ) {
+	int i;
+	unsigned x, num;
+
+	x = 0;
+	num = 0;
+	for (i = br_sha1_ID; i <= br_sha512_ID; i ++) {
+		if (br_multihash_getimpl(&ENG->mhash, i)) {
+			x |= 1U << i;
+			num ++;
+		}
+	}
+	T0_PUSH(x);
+	T0_PUSH(num);
+}
+
+\ Test support for RSA signatures.
+cc: supports-rsa-sign? ( -- bool ) {
+	T0_PUSHi(-(ENG->irsavrfy != 0));
+}
+
+\ Test support for ECDSA signatures.
+cc: supports-ecdsa? ( -- bool ) {
+	T0_PUSHi(-(ENG->iecdsa != 0));
+}
+
+\ (Re)initialise the multihasher.
+cc: multihash-init ( -- ) {
+	br_multihash_init(&ENG->mhash);
+}
+
+\ Flush the current record: if some payload data has been accumulated,
+\ close the record and schedule it for sending. If there is no such data,
+\ this function does nothing.
+cc: flush-record ( -- ) {
+	br_ssl_engine_flush_record(ENG);
+}
+
+\ Yield control to the caller.
+\ When the control is returned to us, react to the new context. Returned
+\ value is a bitwise combination of the following:
+\   0x01   handshake data is available
+\   0x02   change-cipher-spec data is available
+\   0x04   some data other than handshake or change-cipher-spec is available
+\   0x08   output buffer is ready for a new outgoing record
+\   0x10   renegotiation is requested and not to be ignored
+\ Flags 0x01, 0x02 and 0x04 are mutually exclusive.
+: wait-co ( -- state )
+	co
+	0
+	addr-action get8 dup if
+		case
+			1 of 0 do-close endof
+			2 of addr-application_data get8 1 = if
+				0x10 or
+			then endof
+		endcase
+	else
+		drop
+	then
+	addr-close_received get8 ifnot
+		has-input? if
+			addr-record_type_in get8 case
+
+				\ ChangeCipherSpec
+				20 of 0x02 or endof
+
+				\ Alert -- if close_notify received, trigger
+				\ the closure sequence.
+				21 of process-alerts if -1 do-close then endof
+
+				\ Handshake
+				22 of 0x01 or endof
+
+				\ Not CCS, Alert or Handshake.
+				drop 0x04 or 0
+			endcase
+		then
+	then
+	can-output? if 0x08 or then ;
+
+\ Send an alert message. This shall be called only when there is room for
+\ an outgoing record.
+: send-alert ( level alert -- )
+	21 addr-record_type_out set8
+	swap write8-native drop write8-native drop
+	flush-record ;
+
+\ Send an alert message of level "warning". This shall be called only when
+\ there is room for an outgoing record.
+: send-warning ( alert -- )
+	1 swap send-alert ;
+
+\ Fail by sending a fatal alert.
+: fail-alert ( alert -- ! )
+	{ alert }
+	flush-record
+	begin can-output? not while wait-co drop repeat
+	2 alert send-alert
+	begin can-output? not while wait-co drop repeat
+	alert 512 + fail ;
+
+\ Perform the close operation:
+\ -- Prevent new application data from the caller.
+\ -- Incoming data is discarded (except alerts).
+\ -- Outgoing data is flushed.
+\ -- A close_notify alert is sent.
+\ -- If 'cnr' is zero, then incoming data is discarded until a close_notify
+\    is received.
+\ -- At the end, the context is terminated.
+\
+\ cnr shall be either 0 or -1.
+: do-close ( cnr -- ! )
+	\ 'cnr' is set to non-zero when a close_notify is received from
+	\ the peer.
+	{ cnr }
+
+	\ Get out of application data state. If we were accepting
+	\ application data (flag is 1), and we still expect a close_notify
+	\ from the peer (cnr is 0), then we should set the flag to 2.
+	\ In all other cases, flag should be set to 0.
+	addr-application_data get8 cnr not and 1 << addr-application_data set8
+
+	\ Flush existing payload if any.
+	flush-record
+
+	\ Wait for room to send the close_notify. Since individual records
+	\ can always hold at least 512 bytes, we know that when there is
+	\ room, then there is room for a complete close_notify (two bytes).
+	begin can-output? not while cnr wait-for-close >cnr repeat
+
+	\ Write the close_notify and flush it.
+	\ 21 addr-record_type_out set8
+	\ 1 write8-native 0 write8-native 2drop
+	\ flush-record
+	0 send-warning
+
+	\ Loop until our record has been sent (we know it's gone when
+	\ writing is again possible) and a close_notify has been received.
+	cnr
+	begin
+		dup can-output? and if ERR_OK fail then
+		wait-for-close
+	again ;
+
+\ Yield control to the engine, with a possible flush. If 'cnr' is 0,
+\ then input is analysed: all input is discarded, until a close_notify
+\ is received.
+: wait-for-close ( cnr -- cnr )
+	co
+	dup ifnot
+		has-input? if
+			addr-record_type_in get8 21 = if
+				drop process-alerts
+				\ If we received a close_notify then we
+				\ no longer accept incoming application
+				\ data records.
+				0 addr-application_data set8
+			else
+				discard-input
+			then
+		then
+	then ;
+
+\ Test whether there is some accumulated payload that still needs to be
+\ sent.
+cc: payload-to-send? ( -- bool ) {
+	T0_PUSHi(-br_ssl_engine_has_pld_to_send(ENG));
+}
+
+\ Test whether there is some available input data.
+cc: has-input? ( -- bool ) {
+	T0_PUSHi(-(ENG->hlen_in != 0));
+}
+
+\ Test whether some payload bytes may be written.
+cc: can-output? ( -- bool ) {
+	T0_PUSHi(-(ENG->hlen_out > 0));
+}
+
+\ Discard current input entirely.
+cc: discard-input ( -- ) {
+	ENG->hlen_in = 0;
+}
+
+\ Low-level read for one byte. If there is no available byte right
+\ away, then -1 is returned. Otherwise, the byte value is returned.
+\ If the current record type is "handshake" then the read byte is also
+\ injected in the multi-hasher.
+cc: read8-native ( -- x ) {
+	if (ENG->hlen_in > 0) {
+		unsigned char x;
+
+		x = *ENG->hbuf_in ++;
+		if (ENG->record_type_in == BR_SSL_HANDSHAKE) {
+			br_multihash_update(&ENG->mhash, &x, 1);
+		}
+		T0_PUSH(x);
+		ENG->hlen_in --;
+	} else {
+		T0_PUSHi(-1);
+	}
+}
+
+\ Low-level read for several bytes. On entry, this expects an address
+\ (offset in the engine context) and a length; these values designate
+\ where the chunk should go. Upon exit, the new address and length
+\ are pushed; that output length contains how many bytes could not be
+\ read. If there is no available byte for reading, the address and
+\ length are unchanged.
+\ If the current record type is "handshake" then the read bytes are
+\ injected in the multi-hasher.
+cc: read-chunk-native ( addr len -- addr len ) {
+	size_t clen = ENG->hlen_in;
+	if (clen > 0) {
+		uint32_t addr, len;
+
+		len = T0_POP();
+		addr = T0_POP();
+		if ((size_t)len < clen) {
+			clen = (size_t)len;
+		}
+		memcpy((unsigned char *)ENG + addr, ENG->hbuf_in, clen);
+		if (ENG->record_type_in == BR_SSL_HANDSHAKE) {
+			br_multihash_update(&ENG->mhash, ENG->hbuf_in, clen);
+		}
+		T0_PUSH(addr + (uint32_t)clen);
+		T0_PUSH(len - (uint32_t)clen);
+		ENG->hbuf_in += clen;
+		ENG->hlen_in -= clen;
+	}
+}
+
+\ Process available alert bytes. If a fatal alert is received, then the
+\ context is terminated; otherwise, this returns either true (-1) if a
+\ close_notify was received, false (0) otherwise.
+: process-alerts ( -- bool )
+	0
+	begin has-input? while read8-native process-alert-byte or repeat
+	dup if 1 addr-shutdown_recv set8 then ;
+
+\ Process an alert byte. Returned value is non-zero if this is a close_notify,
+\ zero otherwise.
+: process-alert-byte ( x -- bool )
+	addr-alert get8 case
+		0 of
+			\ 'alert' field is 0, so this byte shall be a level.
+			\ Levels shall be 1 (warning) or 2 (fatal); we convert
+			\ all other values to "fatal".
+			dup 1 <> if drop 2 then
+			addr-alert set8 0
+		endof
+		1 of
+			0 addr-alert set8
+			\ close_notify has value 0.
+			\ no_renegotiation has value 100, and we treat it
+			\ as a fatal alert.
+			dup 100 = if 256 + fail then
+			0=
+		endof
+		\ Fatal alert implies context termination.
+		drop 256 + fail
+	endcase ;
+
+\ In general we only deal with handshake data here. Alerts are processed
+\ in specific code right when they are received, and ChangeCipherSpec has
+\ its own handling code. So we need to check that the data is "handshake"
+\ only when returning from a coroutine call.
+
+\ Yield control to the engine. Alerts are processed; if incoming data is
+\ neither handshake or alert, then an error is triggered.
+: wait-for-handshake ( -- )
+	wait-co 0x07 and 0x01 > if ERR_UNEXPECTED fail then ;
+
+\ Flush outgoing data (if any), then wait for the output buffer to be
+\ clear; when this is done, set the output record type to the specified
+\ value.
+: wait-rectype-out ( rectype -- )
+	{ rectype }
+	flush-record
+	begin
+		can-output? if rectype addr-record_type_out set8 ret then
+		wait-co drop
+	again ;
+
+\ Read one byte of handshake data. Block until that byte is available.
+\ This does not check any length.
+: read8-nc ( -- x )
+	begin
+		read8-native dup 0< ifnot ret then
+		drop wait-for-handshake
+	again ;
+
+\ Test whether there are some more bytes in the current record. These
+\ bytes have not necessarily been received yet (processing of unencrypted
+\ records may begin before all bytes are received).
+cc: more-incoming-bytes? ( -- bool ) {
+	T0_PUSHi(ENG->hlen_in != 0 || !br_ssl_engine_recvrec_finished(ENG));
+}
+
+\ For reading functions, the TOS is supposed to contain the number of bytes
+\ that can still be read (from encapsulating structure header), and it is
+\ updated.
+
+: check-len ( lim len -- lim )
+	- dup 0< if ERR_BAD_PARAM fail then ;
+
+\ Read one byte of handshake data. This pushes an integer in the 0..255 range.
+: read8 ( lim -- lim x )
+	1 check-len read8-nc ;
+
+\ Read a 16-bit value (in the 0..65535 range)
+: read16 ( lim -- lim n )
+	2 check-len read8-nc 8 << read8-nc + ;
+
+\ Read a 24-bit value (in the 0..16777215 range)
+: read24 ( lim -- lim n )
+	3 check-len read8-nc 8 << read8-nc + 8 << read8-nc + ;
+
+\ Read some bytes. The "address" is an offset within the context
+\ structure.
+: read-blob ( lim addr len -- lim )
+	{ addr len }
+	len check-len
+	addr len
+	begin
+		read-chunk-native
+		dup 0 = if 2drop ret then
+		wait-for-handshake
+	again ;
+
+\ Read some bytes and drop them.
+: skip-blob ( lim len -- lim )
+	swap over check-len swap
+	begin dup while read8-nc drop 1- repeat
+	drop ;
+
+\ Read a 16-bit length, then skip exactly that many bytes.
+: read-ignore-16 ( lim -- lim )
+	read16 skip-blob ;
+
+\ Open a substructure: the inner structure length is checked against,
+\ and subtracted, from the output structure current limit.
+: open-elt ( lim len -- lim-outer lim-inner )
+	dup { len }
+	- dup 0< if ERR_BAD_PARAM fail then
+	len ;
+
+\ Close the current structure. This checks that the limit is 0.
+: close-elt ( lim -- )
+	if ERR_BAD_PARAM fail then ;
+
+\ Write one byte of handshake data.
+: write8 ( n -- )
+	begin
+		dup write8-native if drop ret then
+		wait-co drop
+	again ;
+
+\ Low-level write for one byte. On exit, it pushes either -1 (byte was
+\ written) or 0 (no room in output buffer).
+cc: write8-native ( x -- bool ) {
+	unsigned char x;
+
+	x = (unsigned char)T0_POP();
+	if (ENG->hlen_out > 0) {
+		if (ENG->record_type_out == BR_SSL_HANDSHAKE) {
+			br_multihash_update(&ENG->mhash, &x, 1);
+		}
+		*ENG->hbuf_out ++ = x;
+		ENG->hlen_out --;
+		T0_PUSHi(-1);
+	} else {
+		T0_PUSHi(0);
+	}
+}
+
+\ Write a 16-bit value.
+: write16 ( n -- )
+	dup 8 u>> write8 write8 ;
+
+\ Write a 24-bit value.
+: write24 ( n -- )
+	dup 16 u>> write8 write16 ;
+
+\ Write some bytes. The "address" is an offset within the context
+\ structure.
+: write-blob ( addr len -- )
+	begin
+		write-blob-chunk
+		dup 0 = if 2drop ret then
+		wait-co drop
+	again ;
+
+cc: write-blob-chunk ( addr len -- addr len ) {
+	size_t clen = ENG->hlen_out;
+	if (clen > 0) {
+		uint32_t addr, len;
+
+		len = T0_POP();
+		addr = T0_POP();
+		if ((size_t)len < clen) {
+			clen = (size_t)len;
+		}
+		memcpy(ENG->hbuf_out, (unsigned char *)ENG + addr, clen);
+		if (ENG->record_type_out == BR_SSL_HANDSHAKE) {
+			br_multihash_update(&ENG->mhash, ENG->hbuf_out, clen);
+		}
+		T0_PUSH(addr + (uint32_t)clen);
+		T0_PUSH(len - (uint32_t)clen);
+		ENG->hbuf_out += clen;
+		ENG->hlen_out -= clen;
+	}
+}
+
+\ Write a blob with the length as header (over one byte)
+: write-blob-head8 ( addr len -- )
+	dup write8 write-blob ;
+
+\ Write a blob with the length as header (over two bytes)
+: write-blob-head16 ( addr len -- )
+	dup write16 write-blob ;
+
+\ Perform a byte-to-byte comparison between two blobs. Each blob is
+\ provided as an "address" (offset in the context structure); the
+\ length is common. Returned value is true (-1) if the two blobs are
+\ equal, false (0) otherwise.
+cc: memcmp ( addr1 addr2 len -- bool ) {
+	size_t len = (size_t)T0_POP();
+	void *addr2 = (unsigned char *)ENG + (size_t)T0_POP();
+	void *addr1 = (unsigned char *)ENG + (size_t)T0_POP();
+	int x = memcmp(addr1, addr2, len);
+	T0_PUSH((uint32_t)-(x == 0));
+}
+
+\ Copy bytes between two areas, whose addresses are provided as
+\ offsets in the context structure.
+cc: memcpy ( dst src len -- ) {
+	size_t len = (size_t)T0_POP();
+	void *src = (unsigned char *)ENG + (size_t)T0_POP();
+	void *dst = (unsigned char *)ENG + (size_t)T0_POP();
+	memcpy(dst, src, len);
+}
+
+\ Get string length (zero-terminated). The string address is provided as
+\ an offset relative to the context start. Returned length does not include
+\ the terminated 0.
+cc: strlen ( str -- len ) {
+	void *str = (unsigned char *)ENG + (size_t)T0_POP();
+	T0_PUSH((uint32_t)strlen(str));
+}
+
+\ Fill a buffer with zeros. The buffer address is an offset in the context.
+cc: bzero ( addr len -- ) {
+	size_t len = (size_t)T0_POP();
+	void *addr = (unsigned char *)ENG + (size_t)T0_POP();
+	memset(addr, 0, len);
+}
+
+\ Scan the list of supported cipher suites for a given value. If found,
+\ then the list index at which it was found is returned; otherwise, -1
+\ is returned.
+: scan-suite ( suite -- index )
+	{ suite }
+	addr-suites_num get8 { num }
+	0
+	begin dup num < while
+		dup 1 << addr-suites_buf + get16 suite = if ret then
+		1+
+	repeat
+	drop -1 ;
+
+\ =======================================================================
+
+\ Generate random bytes into buffer (address is offset in context).
+cc: mkrand ( addr len -- ) {
+	size_t len = (size_t)T0_POP();
+	void *addr = (unsigned char *)ENG + (size_t)T0_POP();
+	br_hmac_drbg_generate(&ENG->rng, addr, len);
+}
+
+\ Read a handshake message header: type and length. These are returned
+\ in reverse order (type is TOS, length is below it).
+: read-handshake-header-core ( -- lim type )
+	read8-nc 3 read24 swap drop swap ;
+
+\ Read a handshake message header: type and length. If the header is for
+\ a HelloRequest message, then it is discarded and a new header is read
+\ (repeatedly if necessary).
+: read-handshake-header ( -- lim type )
+	begin
+		read-handshake-header-core dup 0= while
+		drop if ERR_BAD_HANDSHAKE fail then
+	repeat ;
+
+\ =======================================================================
+
+\ Cipher suite processing.
+\
+\ Unfortunately, cipher suite identifiers are attributed mostly arbitrary,
+\ so we have to map the cipher suite numbers we support into aggregate
+\ words that encode the information we need. Table below is organized
+\ as a sequence of pairs of 16-bit words, the first being the cipher suite
+\ identifier, the second encoding the algorithm elements. The suites are
+\ ordered by increasing cipher suite ID, so that fast lookups may be
+\ performed with a binary search (not implemented for the moment, since it
+\ does not appear to matter much in practice).
+\
+\ Algorithm elements are encoded over 4 bits each, in the following order
+\ (most significant to least significant):
+\ 
+\ -- Server key type:
+\       0  RSA           (RSA key exchange)
+\       1  ECDHE-RSA     (ECDHE key exchange, RSA signature)
+\       2  ECDHE-ECDSA   (ECDHE key exchange, ECDSA signature)
+\       3  ECDH-RSA      (ECDH key exchange, certificate is RSA-signed)
+\       4  ECDH-ECDSA    (ECDH key exchange, certificate is ECDSA-signed)
+\ -- Encryption algorithm:
+\       0  3DES/CBC
+\       1  AES-128/CBC
+\       2  AES-256/CBC
+\       3  AES-128/GCM
+\       4  AES-256/GCM
+\       5  ChaCha20/Poly1305
+\       6  AES-128/CCM
+\       7  AES-256/CCM
+\       8  AES-128/CCM8
+\       9  AES-256/CCM8
+\ -- MAC algorithm:
+\       0  none         (for suites with AEAD encryption)
+\       2  HMAC/SHA-1
+\       4  HMAC/SHA-256
+\       5  HMAC/SHA-384
+\ -- PRF for TLS-1.2:
+\       4  with SHA-256
+\       5  with SHA-384
+\
+\ WARNING: if adding a new cipher suite that does not use SHA-256 for the
+\ PRF (with TLS 1.2), be sure to check the suites_sha384[] array defined
+\ in ssl/ssl_keyexport.c
+
+data: cipher-suite-def
+
+hexb| 000A 0024 | \ TLS_RSA_WITH_3DES_EDE_CBC_SHA
+hexb| 002F 0124 | \ TLS_RSA_WITH_AES_128_CBC_SHA
+hexb| 0035 0224 | \ TLS_RSA_WITH_AES_256_CBC_SHA
+hexb| 003C 0144 | \ TLS_RSA_WITH_AES_128_CBC_SHA256
+hexb| 003D 0244 | \ TLS_RSA_WITH_AES_256_CBC_SHA256
+
+hexb| 009C 0304 | \ TLS_RSA_WITH_AES_128_GCM_SHA256
+hexb| 009D 0405 | \ TLS_RSA_WITH_AES_256_GCM_SHA384
+
+hexb| C003 4024 | \ TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
+hexb| C004 4124 | \ TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
+hexb| C005 4224 | \ TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
+hexb| C008 2024 | \ TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
+hexb| C009 2124 | \ TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
+hexb| C00A 2224 | \ TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
+hexb| C00D 3024 | \ TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
+hexb| C00E 3124 | \ TLS_ECDH_RSA_WITH_AES_128_CBC_SHA
+hexb| C00F 3224 | \ TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
+hexb| C012 1024 | \ TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
+hexb| C013 1124 | \ TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+hexb| C014 1224 | \ TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+
+hexb| C023 2144 | \ TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+hexb| C024 2255 | \ TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
+hexb| C025 4144 | \ TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256
+hexb| C026 4255 | \ TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384
+hexb| C027 1144 | \ TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+hexb| C028 1255 | \ TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+hexb| C029 3144 | \ TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256
+hexb| C02A 3255 | \ TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384
+hexb| C02B 2304 | \ TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+hexb| C02C 2405 | \ TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+hexb| C02D 4304 | \ TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
+hexb| C02E 4405 | \ TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
+hexb| C02F 1304 | \ TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+hexb| C030 1405 | \ TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+hexb| C031 3304 | \ TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
+hexb| C032 3405 | \ TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
+
+hexb| C09C 0604 | \ TLS_RSA_WITH_AES_128_CCM
+hexb| C09D 0704 | \ TLS_RSA_WITH_AES_256_CCM
+hexb| C0A0 0804 | \ TLS_RSA_WITH_AES_128_CCM_8
+hexb| C0A1 0904 | \ TLS_RSA_WITH_AES_256_CCM_8
+hexb| C0AC 2604 | \ TLS_ECDHE_ECDSA_WITH_AES_128_CCM
+hexb| C0AD 2704 | \ TLS_ECDHE_ECDSA_WITH_AES_256_CCM
+hexb| C0AE 2804 | \ TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
+hexb| C0AF 2904 | \ TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8
+
+hexb| CCA8 1504 | \ TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+hexb| CCA9 2504 | \ TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+
+hexb| 0000 | \ List terminator.
+
+\ Convert cipher suite identifier to element words. This returns 0 if
+\ the cipher suite is not known.
+: cipher-suite-to-elements ( suite -- elts )
+	{ id }
+	cipher-suite-def
+	begin
+		dup 2+ swap data-get16
+		dup ifnot 2drop 0 ret then
+		id = if data-get16 ret then
+		2+
+	again ;
+
+\ Check that a given cipher suite is supported. Note that this also
+\ returns true (-1) for the TLS_FALLBACK_SCSV pseudo-ciphersuite.
+: suite-supported? ( suite -- bool )
+	dup 0x5600 = if drop -1 ret then
+	cipher-suite-to-elements 0<> ;
+
+\ Get expected key type for cipher suite. The key type is one of
+\ BR_KEYTYPE_RSA or BR_KEYTYPE_EC, combined with either BR_KEYTYPE_KEYX
+\ (RSA encryption or static ECDH) or BR_KEYTYPE_SIGN (RSA or ECDSA
+\ signature, for ECDHE cipher suites).
+: expected-key-type ( suite -- key-type )
+	cipher-suite-to-elements 12 >>
+	case
+		0 of CX 0 63 { BR_KEYTYPE_RSA | BR_KEYTYPE_KEYX } endof
+		1 of CX 0 63 { BR_KEYTYPE_RSA | BR_KEYTYPE_SIGN } endof
+		2 of CX 0 63 { BR_KEYTYPE_EC  | BR_KEYTYPE_SIGN } endof
+		3 of CX 0 63 { BR_KEYTYPE_EC  | BR_KEYTYPE_KEYX } endof
+		4 of CX 0 63 { BR_KEYTYPE_EC  | BR_KEYTYPE_KEYX } endof
+		0 swap
+	endcase ;
+
+\ Test whether the cipher suite uses RSA key exchange.
+: use-rsa-keyx? ( suite -- bool )
+	cipher-suite-to-elements 12 >> 0= ;
+
+\ Test whether the cipher suite uses ECDHE key exchange, signed with RSA.
+: use-rsa-ecdhe? ( suite -- bool )
+	cipher-suite-to-elements 12 >> 1 = ;
+
+\ Test whether the cipher suite uses ECDHE key exchange, signed with ECDSA.
+: use-ecdsa-ecdhe? ( suite -- bool )
+	cipher-suite-to-elements 12 >> 2 = ;
+
+\ Test whether the cipher suite uses ECDHE key exchange (with RSA or ECDSA).
+: use-ecdhe? ( suite -- bool )
+	cipher-suite-to-elements 12 >> dup 0> swap 3 < and ;
+
+\ Test whether the cipher suite uses ECDH (static) key exchange.
+: use-ecdh? ( suite -- bool )
+	cipher-suite-to-elements 12 >> 2 > ;
+
+\ Get identifier for the PRF (TLS 1.2).
+: prf-id ( suite -- id )
+	cipher-suite-to-elements 15 and ;
+
+\ Test whether a cipher suite is only for TLS-1.2. Cipher suites that
+\ can be used with TLS-1.0 or 1.1 use HMAC/SHA-1. RFC do not formally
+\ forbid using a CBC-based TLS-1.2 cipher suite, e.g. based on HMAC/SHA-256,
+\ with older protocol versions; however, servers should not do that, since
+\ it may confuse clients. Since the server code does not try such games,
+\ for consistency, the client should reject it as well (normal servers
+\ don't do that, so any attempt is a sign of foul play).
+: use-tls12? ( suite -- bool )
+	cipher-suite-to-elements 0xF0 and 0x20 <> ;
+
+\ Switch to negotiated security parameters for input or output.
+: switch-encryption ( is-client for-input -- )
+	{ for-input }
+	addr-cipher_suite get16 cipher-suite-to-elements { elts }
+
+	\ prf_id
+	elts 15 and
+
+	\ mac_id
+	elts 4 >> 15 and
+
+	\ cipher type and key length
+	elts 8 >> 15 and case
+		\ 3DES/CBC
+		0 of 0 24
+			for-input if
+				switch-cbc-in
+			else
+				switch-cbc-out
+			then
+		endof
+
+		\ AES-128/CBC
+		1 of 1 16
+			for-input if
+				switch-cbc-in
+			else
+				switch-cbc-out
+			then
+		endof
+
+		\ AES-256/CBC
+		2 of 1 32
+			for-input if
+				switch-cbc-in
+			else
+				switch-cbc-out
+			then
+		endof
+
+		\ AES-128/GCM
+		3 of drop 16
+			for-input if
+				switch-aesgcm-in
+			else
+				switch-aesgcm-out
+			then
+		endof
+
+		\ AES-256/GCM
+		4 of drop 32
+			for-input if
+				switch-aesgcm-in
+			else
+				switch-aesgcm-out
+			then
+		endof
+
+		\ ChaCha20+Poly1305
+		5 of drop
+			for-input if
+				switch-chapol-in
+			else
+				switch-chapol-out
+			then
+		endof
+
+		\ Now we only have AES/CCM suites (6 to 9). Since the
+		\ input is between 0 and 15, and we checked values 0 to 5,
+		\ we only need to reject values larger than 9.
+		dup 9 > if
+			ERR_BAD_PARAM fail
+		then
+
+		\ Stack: is_client prf_id mac_id cipher_id
+		\ We want to remove the mac_id (it is zero for CCM suites)
+		\ and replace the cipher_id with the key and tag lengths.
+		\ The following table applies:
+		\  id   key length   tag length
+		\   6       16          16
+		\   7       32          16
+		\   8       16           8
+		\   9       32           8
+		swap drop
+		dup 1 and 4 << 16 + swap
+		8 and 16 swap -
+		for-input if
+			switch-aesccm-in
+		else
+			switch-aesccm-out
+		then
+		ret
+	endcase
+	;
+
+cc: switch-cbc-out ( is_client prf_id mac_id aes cipher_key_len -- ) {
+	int is_client, prf_id, mac_id, aes;
+	unsigned cipher_key_len;
+
+	cipher_key_len = T0_POP();
+	aes = T0_POP();
+	mac_id = T0_POP();
+	prf_id = T0_POP();
+	is_client = T0_POP();
+	br_ssl_engine_switch_cbc_out(ENG, is_client, prf_id, mac_id,
+		aes ? ENG->iaes_cbcenc : ENG->ides_cbcenc, cipher_key_len);
+}
+
+cc: switch-cbc-in ( is_client prf_id mac_id aes cipher_key_len -- ) {
+	int is_client, prf_id, mac_id, aes;
+	unsigned cipher_key_len;
+
+	cipher_key_len = T0_POP();
+	aes = T0_POP();
+	mac_id = T0_POP();
+	prf_id = T0_POP();
+	is_client = T0_POP();
+	br_ssl_engine_switch_cbc_in(ENG, is_client, prf_id, mac_id,
+		aes ? ENG->iaes_cbcdec : ENG->ides_cbcdec, cipher_key_len);
+}
+
+cc: switch-aesgcm-out ( is_client prf_id cipher_key_len -- ) {
+	int is_client, prf_id;
+	unsigned cipher_key_len;
+
+	cipher_key_len = T0_POP();
+	prf_id = T0_POP();
+	is_client = T0_POP();
+	br_ssl_engine_switch_gcm_out(ENG, is_client, prf_id,
+		ENG->iaes_ctr, cipher_key_len);
+}
+
+cc: switch-aesgcm-in ( is_client prf_id cipher_key_len -- ) {
+	int is_client, prf_id;
+	unsigned cipher_key_len;
+
+	cipher_key_len = T0_POP();
+	prf_id = T0_POP();
+	is_client = T0_POP();
+	br_ssl_engine_switch_gcm_in(ENG, is_client, prf_id,
+		ENG->iaes_ctr, cipher_key_len);
+}
+
+cc: switch-chapol-out ( is_client prf_id -- ) {
+	int is_client, prf_id;
+
+	prf_id = T0_POP();
+	is_client = T0_POP();
+	br_ssl_engine_switch_chapol_out(ENG, is_client, prf_id);
+}
+
+cc: switch-chapol-in ( is_client prf_id -- ) {
+	int is_client, prf_id;
+
+	prf_id = T0_POP();
+	is_client = T0_POP();
+	br_ssl_engine_switch_chapol_in(ENG, is_client, prf_id);
+}
+
+cc: switch-aesccm-out ( is_client prf_id cipher_key_len tag_len -- ) {
+	int is_client, prf_id;
+	unsigned cipher_key_len, tag_len;
+
+	tag_len = T0_POP();
+	cipher_key_len = T0_POP();
+	prf_id = T0_POP();
+	is_client = T0_POP();
+	br_ssl_engine_switch_ccm_out(ENG, is_client, prf_id,
+		ENG->iaes_ctrcbc, cipher_key_len, tag_len);
+}
+
+cc: switch-aesccm-in ( is_client prf_id cipher_key_len tag_len -- ) {
+	int is_client, prf_id;
+	unsigned cipher_key_len, tag_len;
+
+	tag_len = T0_POP();
+	cipher_key_len = T0_POP();
+	prf_id = T0_POP();
+	is_client = T0_POP();
+	br_ssl_engine_switch_ccm_in(ENG, is_client, prf_id,
+		ENG->iaes_ctrcbc, cipher_key_len, tag_len);
+}
+
+\ Write Finished message.
+: write-Finished ( from_client -- )
+	compute-Finished
+	20 write8 12 write24 addr-pad 12 write-blob ;
+
+\ Read Finished message.
+: read-Finished ( from_client -- )
+	compute-Finished
+	read-handshake-header 20 <> if ERR_UNEXPECTED fail then
+	addr-pad 12 + 12 read-blob
+	close-elt
+	addr-pad dup 12 + 12 memcmp ifnot ERR_BAD_FINISHED fail then ;
+
+\ Compute the "Finished" contents (either the value to send, or the
+\ expected value). The 12-byte string is written in the pad. The
+\ "from_client" value is non-zero for the Finished sent by the client.
+\ The computed value is also saved in the relevant buffer for handling
+\ secure renegotiation.
+: compute-Finished ( from_client -- )
+	dup addr-saved_finished swap ifnot 12 + then swap
+	addr-cipher_suite get16 prf-id compute-Finished-inner
+	addr-pad 12 memcpy ;
+
+cc: compute-Finished-inner ( from_client prf_id -- ) {
+	int prf_id = T0_POP();
+	int from_client = T0_POPi();
+	unsigned char tmp[48];
+	br_tls_prf_seed_chunk seed;
+
+	br_tls_prf_impl prf = br_ssl_engine_get_PRF(ENG, prf_id);
+	seed.data = tmp;
+	if (ENG->session.version >= BR_TLS12) {
+		seed.len = br_multihash_out(&ENG->mhash, prf_id, tmp);
+	} else {
+		br_multihash_out(&ENG->mhash, br_md5_ID, tmp);
+		br_multihash_out(&ENG->mhash, br_sha1_ID, tmp + 16);
+		seed.len = 36;
+	}
+	prf(ENG->pad, 12, ENG->session.master_secret,
+		sizeof ENG->session.master_secret,
+		from_client ? "client finished" : "server finished",
+		1, &seed);
+}
+
+\ Receive ChangeCipherSpec and Finished from the peer.
+: read-CCS-Finished ( is-client -- )
+	has-input? if
+		addr-record_type_in get8 20 <> if ERR_UNEXPECTED fail then
+	else
+		begin
+			wait-co 0x07 and dup 0x02 <> while
+			if ERR_UNEXPECTED fail then
+		repeat
+		drop
+	then
+	read8-nc 1 <> more-incoming-bytes? or if ERR_BAD_CCS fail then
+	dup 1 switch-encryption
+
+	\ Read and verify Finished from peer.
+	not read-Finished ;
+
+\ Send ChangeCipherSpec and Finished to the peer.
+: write-CCS-Finished ( is-client -- )
+	\ Flush and wait for output buffer to be clear, so that we may
+	\ write our ChangeCipherSpec. We must switch immediately after
+	\ triggering the flush.
+	20 wait-rectype-out
+	1 write8
+	flush-record
+	dup 0 switch-encryption
+	22 wait-rectype-out
+	write-Finished
+	flush-record ;
+
+\ Read and parse a list of supported signature algorithms (with hash
+\ functions). The resulting bit field is returned.
+: read-list-sign-algos ( lim -- lim value )
+	0 { hashes }
+	read16 open-elt
+	begin dup while
+		read8 { hash } read8 { sign }
+
+		\ If hash is 0x08 then this is a "new algorithm" identifier,
+		\ and we set the corresponding bit if it is in the 0..15
+		\ range. Otherwise, we keep the value only if the signature
+		\ is either 1 (RSA) or 3 (ECDSA), and the hash is one of the
+		\ SHA-* functions (2 to 6). Note that we reject MD5.
+		hash 8 = if
+			sign 15 <= if
+				1 sign 16 + << hashes or >hashes
+			then
+		else
+			hash 2 >= hash 6 <= and
+			sign 1 = sign 3 = or
+			and if
+				hashes 1 sign 1- 2 << hash + << or >hashes
+			then
+		then
+	repeat
+	close-elt
+	hashes ;
+
+\ =======================================================================
+
+\ Compute total chain length. This includes the individual certificate
+\ headers, but not the total chain header. This also sets the cert_cur,
+\ cert_len and chain_len context fields.
+cc: total-chain-length ( -- len ) {
+	size_t u;
+	uint32_t total;
+
+	total = 0;
+	for (u = 0; u < ENG->chain_len; u ++) {
+		total += 3 + (uint32_t)ENG->chain[u].data_len;
+	}
+	T0_PUSH(total);
+}
+
+\ Get length for current certificate in the chain; if the chain end was
+\ reached, then this returns -1.
+cc: begin-cert ( -- len ) {
+	if (ENG->chain_len == 0) {
+		T0_PUSHi(-1);
+	} else {
+		ENG->cert_cur = ENG->chain->data;
+		ENG->cert_len = ENG->chain->data_len;
+		ENG->chain ++;
+		ENG->chain_len --;
+		T0_PUSH(ENG->cert_len);
+	}
+}
+
+\ Copy a chunk of certificate data into the pad. Returned value is the
+\ chunk length, or 0 if the certificate end is reached.
+cc: copy-cert-chunk ( -- len ) {
+	size_t clen;
+
+	clen = ENG->cert_len;
+	if (clen > sizeof ENG->pad) {
+		clen = sizeof ENG->pad;
+	}
+	memcpy(ENG->pad, ENG->cert_cur, clen);
+	ENG->cert_cur += clen;
+	ENG->cert_len -= clen;
+	T0_PUSH(clen);
+}
+
+\ Write a Certificate message. Total chain length (excluding the 3-byte
+\ header) is returned; it is 0 if the chain is empty.
+: write-Certificate ( -- total_chain_len )
+	11 write8
+	total-chain-length dup
+	dup 3 + write24 write24
+	begin
+		begin-cert
+		dup 0< if drop ret then write24
+		begin copy-cert-chunk dup while
+			addr-pad swap write-blob
+		repeat
+		drop
+	again ;
+
+cc: x509-start-chain ( by_client -- ) {
+	const br_x509_class *xc;
+	uint32_t bc;
+
+	bc = T0_POP();
+	xc = *(ENG->x509ctx);
+	xc->start_chain(ENG->x509ctx, bc ? ENG->server_name : NULL);
+}
+
+cc: x509-start-cert ( length -- ) {
+	const br_x509_class *xc;
+
+	xc = *(ENG->x509ctx);
+	xc->start_cert(ENG->x509ctx, T0_POP());
+}
+
+cc: x509-append ( length -- ) {
+	const br_x509_class *xc;
+	size_t len;
+
+	xc = *(ENG->x509ctx);
+	len = T0_POP();
+	xc->append(ENG->x509ctx, ENG->pad, len);
+}
+
+cc: x509-end-cert ( -- ) {
+	const br_x509_class *xc;
+
+	xc = *(ENG->x509ctx);
+	xc->end_cert(ENG->x509ctx);
+}
+
+cc: x509-end-chain ( -- err ) {
+	const br_x509_class *xc;
+
+	xc = *(ENG->x509ctx);
+	T0_PUSH(xc->end_chain(ENG->x509ctx));
+}
+
+cc: get-key-type-usages ( -- key-type-usages ) {
+	const br_x509_class *xc;
+	const br_x509_pkey *pk;
+	unsigned usages;
+
+	xc = *(ENG->x509ctx);
+	pk = xc->get_pkey(ENG->x509ctx, &usages);
+	if (pk == NULL) {
+		T0_PUSH(0);
+	} else {
+		T0_PUSH(pk->key_type | usages);
+	}
+}
+
+\ Read a Certificate message.
+\ Parameter: non-zero if this is a read by the client of a certificate
+\ sent by the server; zero otherwise.
+\ Returned value:
+\   - Empty: 0
+\   - Valid: combination of key type and allowed key usages.
+\   - Invalid: negative (-x for error code x)
+: read-Certificate ( by_client -- key-type-usages )
+	\ Get header, and check message type.
+	read-handshake-header 11 = ifnot ERR_UNEXPECTED fail then
+
+	\ If the chain is empty, do some special processing.
+	dup 3 = if
+		read24 if ERR_BAD_PARAM fail then
+		swap drop ret
+	then
+
+	\ Start processing the chain through the X.509 engine.
+	swap x509-start-chain
+
+	\ Total chain length is a 24-bit integer.
+	read24 open-elt
+	begin
+		dup while
+		read24 open-elt
+		dup x509-start-cert
+
+		\ We read the certificate by chunks through the pad, so
+		\ as to use the existing reading function (read-blob)
+		\ that also ensures proper hashing.
+		begin
+			dup while
+			dup 256 > if 256 else dup then { len }
+			addr-pad len read-blob
+			len x509-append
+		repeat
+		close-elt
+		x509-end-cert
+	repeat
+
+	\ We must close the chain AND the handshake message.
+	close-elt
+	close-elt
+
+	\ Chain processing is finished; get the error code.
+	x509-end-chain
+	dup if neg ret then drop
+
+	\ Return key type and usages.
+	get-key-type-usages ;
+
+\ =======================================================================
+
+\ Copy a specific protocol name from the list to the pad. The byte
+\ length is returned.
+cc: copy-protocol-name ( idx -- len ) {
+	size_t idx = T0_POP();
+	size_t len = strlen(ENG->protocol_names[idx]);
+	memcpy(ENG->pad, ENG->protocol_names[idx], len);
+	T0_PUSH(len);
+}
+
+\ Compare name in pad with the configured list of protocol names.
+\ If a match is found, then the index is returned; otherwise, -1
+\ is returned.
+cc: test-protocol-name ( len -- n ) {
+	size_t len = T0_POP();
+	size_t u;
+
+	for (u = 0; u < ENG->protocol_names_num; u ++) {
+		const char *name;
+
+		name = ENG->protocol_names[u];
+		if (len == strlen(name) && memcmp(ENG->pad, name, len) == 0) {
+			T0_PUSH(u);
+			T0_RET();
+		}
+	}
+	T0_PUSHi(-1);
+}

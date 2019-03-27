@@ -1,0 +1,103 @@
+.\" #
+.\" # Copyright (c) 2015, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt XOHTML 1
+.Os
+.Sh NAME
+.Nm xohtml
+.Nd display libxo html output
+.Xr xo_emit 3
+.Sh SYNOPSIS
+.Nm xohtml
+.Op Fl "b <base>"
+.Op Fl "c" <command>"
+.Op Fl "f" <output>
+.Op Fl "w"
+.Op Ar command [argument ...]
+.Sh DESCRIPTION
+.Nm
+is a tool for preparing
+.Xr libxo 3
+HTML output for display in modern HTML web browsers.
+.Nm
+can operate in two modes.
+If command is provided
+either with the
+.Fl c
+option or as argument(s) to the
+.Nm
+command, that command is executed and the resulting output is processed.
+If no command is given, the
+standard input is used.
+.Pp
+.Nm
+is typically used to wrap
+.Nm libxo
+output with sufficient HTML content to allow display in a web browser.
+This includes parent HTML tags as well as
+.Nm CSS
+stylesheets and
+.Nm Javascript
+files.
+.Pp
+If the command is given directly on the command line,
+.Nm
+will add the "--libxo=html" option needed to generate HTML output
+from
+.Nm libxo "-enabled"
+applications.  See
+.Xr xo_options 7
+for details.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Ic -b Ar base | Ic --base Ar base
+Supplies a source path for the CSS and Javascript files referenced in
+the output of
+.Nm xohtml .
+.It Ic -c Ar command | Ic --command Ar command
+Use the given command instead of one on the command line.
+This command should be quoted if it consists of multiple tokens, and
+should contain the "--libxo=html" option or equivalent, since the
+command is used directly.
+.It Ic -f Ar file | Ic --file Ar file
+Output is saved to the given file, rather than to the standard output
+descriptor.
+.It Ic -w | --web
+Uses the official
+.Nm libxo
+website URL as the source path for the CSS and Javascript files
+referenced in the output of
+.Nm xohtml .
+.El
+.Pp
+.Sh EXAMPLES
+The following command line will run "du --libxo=html ~/src" and save
+the output to /tmp/src.html:
+.Bd -literal -offset indent
+    xohtml du ~/src > /tmp/src.html
+.Ed
+.Pp
+The following command line will run "du --libxo=html,warn ~/src" and save
+the output to /tmp/src.html:
+.Bd -literal -offset indent
+    du --libxo=html,warn ~/src | xohtml -f /tmp/src.html
+.Ed
+.Pp
+The following command line will run "du --libxo=html,warn ~/src" and save
+the output to /tmp/src.html:
+.Bd -literal -offset indent
+    xohtml -c "du --libxo=html,warn ~/src" -f /tmp/src.html
+.Ed
+.Pp
+.Sh SEE ALSO
+.Xr libxo 3 ,
+.Xr xo_emit 3 ,
+.Xr xo_options 7

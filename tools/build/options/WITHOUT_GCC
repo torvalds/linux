@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Set to not build and install gcc and g++ as part of the normal build process.

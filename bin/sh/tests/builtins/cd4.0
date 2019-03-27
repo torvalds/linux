@@ -1,0 +1,38 @@
+# $FreeBSD$
+
+# This test assumes that whatever mechanism cd -P uses to determine the
+# pathname to the current directory if it is longer than PATH_MAX requires
+# read permission on all parent directories. It also works if this
+# requirement always applies.
+
+set -e
+L=$(getconf PATH_MAX / 2>/dev/null) || L=4096
+[ "$L" -lt 100000 ] 2>/dev/null || L=4096
+L=$((L+100))
+T=$(mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXX)
+trap 'chmod u+r ${T}; rm -rf ${T}' 0
+cd -Pe $T
+D=$(pwd)
+chmod u-r "$D"
+if [ -r "$D" ]; then
+	# Running as root, cannot test.
+	exit 0
+fi
+set +e
+while [ ${#D} -lt $L ]; do
+	mkdir veryverylongdirectoryname || exit
+	cd -Pe veryverylongdirectoryname 2>/dev/null
+	r=$?
+	[ $r -gt 1 ] && exit $r
+	if [ $r -eq 1 ]; then
+		# Verify that the directory was changed correctly.
+		cd -Pe .. || exit
+		[ "$(pwd)" = "$D" ] || exit
+		# Verify that omitting -e results in success.
+		cd -P veryverylongdirectoryname 2>/dev/null || exit
+		exit 0
+	fi
+	D=$D/veryverylongdirectoryname
+done
+echo "cd -Pe never returned 1"
+exit 0

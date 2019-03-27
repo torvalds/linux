@@ -1,0 +1,51 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_CREATE_COMP_CHANNEL 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_create_comp_channel, ibv_destroy_comp_channel \- create or
+destroy a completion event channel
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "struct ibv_comp_channel *ibv_create_comp_channel(struct ibv_context
+.BI "                                                 " "*context" );
+.sp
+.BI "int ibv_destroy_comp_channel(struct ibv_comp_channel " "*channel" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_create_comp_channel()
+creates a completion event channel for the RDMA device context
+.I context\fR.
+.PP
+.B ibv_destroy_comp_channel()
+destroys the completion event channel
+.I channel\fR.
+.SH "RETURN VALUE"
+.B ibv_create_comp_channel()
+returns a pointer to the created completion event channel, or NULL if the request fails.
+.PP
+.B ibv_destroy_comp_channel()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+A "completion channel" is an abstraction introduced by libibverbs that
+does not exist in the InfiniBand Architecture verbs specification or
+RDMA Protocol Verbs Specification.  A completion channel is
+essentially file descriptor that is used to deliver completion
+notifications to a userspace process.  When a completion event is
+generated for a completion queue (CQ), the event is delivered via the
+completion channel attached to that CQ.  This may be useful to steer
+completion events to different threads by using multiple completion
+channels.
+.PP
+.B ibv_destroy_comp_channel()
+fails if any CQs are still associated with the completion event
+channel being destroyed.
+.SH "SEE ALSO"
+.BR ibv_open_device (3),
+.BR ibv_create_cq (3),
+.BR ibv_get_cq_event (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

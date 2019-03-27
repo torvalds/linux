@@ -1,0 +1,6 @@
+# List of function matchers common to C/C++ applications that make sense to
+# never instrument. You can use this as an argument to
+# -fxray-never-instrument=<path> along with your project-specific lists.
+
+# Never instrument any function whose symbol starts with __xray.
+fun:__xray*

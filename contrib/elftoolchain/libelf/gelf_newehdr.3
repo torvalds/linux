@@ -1,0 +1,195 @@
+.\" Copyright (c) 2006-2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: gelf_newehdr.3 3643 2018-10-14 21:09:24Z jkoshy $
+.\"
+.Dd October 22, 2007
+.Dt GELF_NEWEHDR 3
+.Os
+.Sh NAME
+.Nm elf32_newehdr ,
+.Nm elf64_newehdr ,
+.Nm gelf_newehdr
+.Nd retrieve or allocate the object file header
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft "Elf32_Ehdr *"
+.Fn elf32_newehdr "Elf *elf"
+.Ft "Elf64_Ehdr *"
+.Fn elf64_newehdr "Elf *elf"
+.In gelf.h
+.Ft "void *"
+.Fn gelf_newehdr "Elf *elf" "int elfclass"
+.Sh DESCRIPTION
+These functions retrieve the ELF header from the ELF descriptor
+.Ar elf ,
+allocating a new header if needed.
+File data structures are translated to their in-memory representations
+as described in
+.Xr elf 3 .
+.Pp
+Function
+.Fn elf32_newehdr
+returns a pointer to a 32 bit
+.Vt Elf32_Ehdr
+structure.
+Function
+.Fn elf64_newehdr
+returns a pointer to a 64 bit
+.Vt Elf64_Ehdr
+structure.
+.Pp
+When argument
+.Ar elfclass
+has value
+.Dv ELFCLASS32 ,
+function
+.Fn gelf_newehdr
+returns the value returned by
+.Fn elf32_newehdr "elf" .
+When argument
+.Ar elfclass
+has value
+.Dv ELFCLASS64
+it returns the value returned by
+.Fn elf64_newehdr "elf" .
+.Pp
+If a fresh header structure is allocated, the members of the
+structure are initialized as follows:
+.Bl -tag -width indent
+.It Va "e_ident[EI_MAG0..EI_MAG3]"
+Identification bytes at offsets
+.Dv EI_MAG0 ,
+.Dv EI_MAG1 ,
+.Dv EI_MAG2
+and
+.Dv EI_MAG3
+are set to the ELF signature.
+.It Va "e_ident[EI_CLASS]"
+The identification byte at offset
+.Dv EI_CLASS
+is set to the ELF class associated with the function being called
+or to argument
+.Ar elfclass
+for function
+.Fn gelf_newehdr .
+.It Va "e_ident[EI_DATA]"
+The identification byte at offset
+.Dv EI_DATA
+is set to
+.Dv ELFDATANONE .
+.It Va "e_ident[EI_VERSION]"
+The identification byte at offset
+.Dv EI_VERSION
+is set to the ELF library's operating version set by a prior call to
+.Xr elf_version 3 .
+.It Va e_machine
+is set to
+.Dv EM_NONE .
+.It Va e_type
+is set to
+.Dv ELF_K_NONE .
+.It Va e_version
+is set to the ELF library's operating version set by a prior call to
+.Xr elf_version 3 .
+.El
+.Pp
+Other members of the header are set to zero.
+The application is responsible for changing these values
+as needed before calling
+.Fn elf_update .
+.Pp
+If successful, these three functions set the
+.Dv ELF_F_DIRTY
+flag on ELF descriptor
+.Ar elf .
+.Sh RETURN VALUES
+These functions return a pointer to a translated header descriptor
+if successful, or NULL on failure.
+.Sh COMPATIBILITY
+The
+.Fn gelf_newehdr
+function uses a type of
+.Ft "void *"
+for its returned value.
+This differs from some other implementations of the ELF(3) API, which use an
+.Ft "unsigned long"
+return type.
+.Sh ERRORS
+These functions can fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+The argument
+.Ar elf
+was null.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+was not a descriptor for an ELF object.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elfclass
+had an unsupported value.
+.It Bq Er ELF_E_ARGUMENT
+The class of the ELF descriptor
+.Ar elf
+did not match that of the requested operation.
+.It Bq Er ELF_E_ARGUMENT
+For function
+.Fn gelf_newehdr ,
+the class of argument
+.Ar elf
+was not
+.Dv ELFCLASSNONE
+and did not match the argument
+.Ar elfclass .
+.It Bq Er ELF_E_CLASS
+The ELF class of descriptor
+.Ar elf
+did not match that of the API function being called.
+.It Bq Er ELF_E_HEADER
+A malformed ELF header was detected.
+.It Bq Er ELF_E_RESOURCE
+An out of memory condition was detected during execution.
+.It Bq Er ELF_E_SECTION
+The ELF descriptor in argument
+.Ar elf
+did not adhere to the conventions used for extended numbering.
+.It Bq Er ELF_E_VERSION
+The ELF descriptor
+.Ar elf
+had an unsupported ELF version number.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf32_getehdr 3 ,
+.Xr elf64_getehdr 3 ,
+.Xr elf_flagdata 3 ,
+.Xr elf_getident 3 ,
+.Xr elf_update 3 ,
+.Xr elf_version 3 ,
+.Xr gelf 3 ,
+.Xr gelf_getehdr 3 ,
+.Xr elf 5

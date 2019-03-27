@@ -1,0 +1,46 @@
+# $FreeBSD$
+IFS=,
+
+SPECIAL="break abc,\
+	continue abc,\
+	.,
+	exit abc,
+	export -x,
+	readonly -x,
+	return abc,
+	set -z,
+	shift abc,
+	trap -y,
+	unset -y"
+
+UTILS="alias -y,\
+	cat -z,\
+	cd abc def,\
+	command break abc,\
+	expr 1 +,\
+	fc -z,\
+	getopts,\
+	hash -z,\
+	jobs -z,\
+	printf,\
+	pwd abc,\
+	read,\
+	test abc =,\
+	ulimit -z,\
+	umask -z,\
+	unalias -z,\
+	wait abc"
+
+# Special built-in utilities must abort on an option or operand error.
+set -- ${SPECIAL}
+for cmd in "$@"
+do
+	${SH} -c "${cmd}; exit 0" 2>/dev/null && exit 1
+done
+
+# Other utilities must not abort.
+set -- ${UTILS}
+for cmd in "$@"
+do
+	${SH} -c "${cmd}; exit 0" 2>/dev/null || exit 1
+done

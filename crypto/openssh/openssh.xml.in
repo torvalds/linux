@@ -1,0 +1,90 @@
+<?xml version='1.0'?>
+<!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
+<!--
+    Copyright (c) 2006 Chad Mynhier.
+
+    Permission to use, copy, modify, and distribute this software for any
+    purpose with or without fee is hereby granted, provided that the above
+    copyright notice and this permission notice appear in all copies.
+
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<service_bundle type='manifest' name='OpenSSH server'>
+
+    <service
+        name='site/__SYSVINIT_NAME__'
+        type='service'
+        version='1'>
+
+<!--
+	We default to disabled so administrator can decide to enable or not.
+-->
+        <create_default_instance enabled='false'/>
+
+        <single_instance/>
+
+        <dependency
+            name='filesystem-local'
+            grouping='require_all'
+            restart_on='none'
+            type='service'>
+            <service_fmri value='svc:/system/filesystem/local'/>
+        </dependency>
+
+        <dependency
+            name='network'
+            grouping='require_all'
+            restart_on='none'
+            type='service'>
+            <service_fmri value='svc:/milestone/network'/>
+        </dependency>
+
+        <dependent
+            name='multi-user-server'
+            restart_on='none'
+            grouping='optional_all'>
+            <service_fmri value='svc:/milestone/multi-user-server'/>
+        </dependent>
+
+        <exec_method
+            name='start'
+            type='method'
+            exec='__SMF_METHOD_DIR__/__SYSVINIT_NAME__ start'
+            timeout_seconds='60'>
+            <method_context/>
+        </exec_method>
+
+        <exec_method
+            name='stop'
+            type='method'
+            exec=':kill'
+            timeout_seconds='60'>
+            <method_context/>
+        </exec_method>
+
+        <property_group
+            name='startd'
+            type='framework'>
+            <propval name='ignore_error' type='astring' value='core,signal'/>
+        </property_group>
+
+        <template>
+            <common_name>
+                <loctext xml:lang='C'>OpenSSH server</loctext>
+            </common_name>
+            <documentation>
+                <manpage
+                    title='sshd'
+                    section='1M'
+                    manpath='@prefix@/man'/>
+            </documentation>
+        </template>
+    </service>
+</service_bundle>

@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_status_gmirror_enable" in
+    [Yy][Ee][Ss])
+	echo
+	echo 'Checking status of gmirror(8) devices:'
+
+	if gmirror status; then
+		components="$(gmirror status -s | fgrep -v COMPLETE)"
+		if [ "${components}" ]; then
+			rc=3
+		else
+			rc=0
+		fi
+	else
+		rc=2
+	fi
+	;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

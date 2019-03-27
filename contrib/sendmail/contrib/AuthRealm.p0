@@ -1,0 +1,44 @@
+Patch from John Marshall (slightly modified).
+
+diff --git a/sendmail/srvrsmtp.c b/sendmail/srvrsmtp.c
+index 7dba983..bf804ab 100644
+--- a/sendmail/srvrsmtp.c
++++ b/sendmail/srvrsmtp.c
+@@ -84,7 +84,7 @@ static int reset_saslconn __P((sasl_conn_t **_conn, char *_hostname,
+ # define RESET_SASLCONN	\
+ 	do							\
+ 	{							\
+-		result = reset_saslconn(&conn, AuthRealm, remoteip, \
++		result = reset_saslconn(&conn, hostname, remoteip, \
+ 					localip, auth_id, &ext_ssf); \
+ 		if (result != SASL_OK)				\
+ 			sasl_ok = false;			\
+@@ -938,8 +938,6 @@ smtp(nullserver, d_flags, e)
+ 	e->e_features = features;
+ 	hostname = macvalue('j', e);
+ #if SASL
+-	if (AuthRealm == NULL)
+-		AuthRealm = hostname;
+ 	sasl_ok = bitset(SRV_OFFER_AUTH, features);
+ 	n_mechs = 0;
+ 	authenticating = SASL_NOT_AUTH;
+@@ -948,8 +946,8 @@ smtp(nullserver, d_flags, e)
+ 	if (sasl_ok)
+ 	{
+ # if SASL >= 20000
+-		result = sasl_server_new("smtp", AuthRealm, NULL, NULL, NULL,
+-					 NULL, 0, &conn);
++		result = sasl_server_new("smtp", hostname, AuthRealm, NULL,
++					 NULL, NULL, 0, &conn);
+ # elif SASL > 10505
+ 		/* use empty realm: only works in SASL > 1.5.5 */
+ 		result = sasl_server_new("smtp", AuthRealm, "", NULL, 0, &conn);
+@@ -5392,7 +5390,7 @@ reset_saslconn(sasl_conn_t **conn, char *hostname,
+ 
+ 	sasl_dispose(conn);
+ # if SASL >= 20000
+-	result = sasl_server_new("smtp", hostname, NULL, NULL, NULL,
++	result = sasl_server_new("smtp", hostname, AuthRealm, NULL, NULL,
+ 				 NULL, 0, conn);
+ # elif SASL > 10505
+ 	/* use empty realm: only works in SASL > 1.5.5 */

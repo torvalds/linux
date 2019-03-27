@@ -1,0 +1,167 @@
+.\" Copyright (c) 1998, Nicolas Souchu
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 15, 2017
+.Dt IICBUS 4
+.Os
+.Sh NAME
+.Nm iicbus
+.Nd I2C bus system
+.Sh SYNOPSIS
+.Cd "device iicbus"
+.Cd "device iicbb"
+.Pp
+.Cd "device iic"
+.Cd "device ic"
+.Cd "device iicsmb"
+.Sh DESCRIPTION
+The
+.Em iicbus
+system provides a uniform, modular and architecture-independent
+system for the implementation of drivers to control various I2C devices
+and to utilize different I2C controllers.
+.Sh I2C
+I2C is an acronym for Inter Integrated Circuit bus.
+The I2C bus was developed
+in the early 1980's by Philips semiconductors.
+Its purpose was to provide an
+easy way to connect a CPU to peripheral chips in a TV-set.
+.Pp
+The BUS physically consists of 2 active wires and a ground connection.
+The active wires, SDA and SCL, are both bidirectional.
+Where SDA is the
+Serial DAta line and SCL is the Serial CLock line.
+.Pp
+Every component hooked up to the bus has its own unique address whether it
+is a CPU, LCD driver, memory, or complex function chip.
+Each of these chips
+can act as a receiver and/or transmitter depending on its functionality.
+Obviously an LCD driver is only a receiver, while a memory or I/O chip can
+both be transmitter and receiver.
+Furthermore there may be one or
+more BUS MASTERs.
+.Pp
+The BUS MASTER is the chip issuing the commands on the BUS.
+In the I2C protocol
+specification it is stated that the IC that initiates a data transfer on the
+bus is considered the BUS MASTER.
+At that time all the others are regarded to
+as the BUS SLAVEs.
+As mentioned before, the IC bus is a Multi-MASTER BUS.
+This means that more than one IC capable of initiating data transfer can be
+connected to it.
+.Sh DEVICES
+Some I2C device drivers are available:
+.Pp
+.Bl -column "Device drivers" -compact
+.It Em Devices Ta Em Description
+.It Sy iic Ta "general i/o operation"
+.It Sy ic Ta "network IP interface"
+.It Sy iicsmb Ta "I2C to SMB software bridge"
+.El
+.Sh INTERFACES
+The I2C protocol may be implemented by hardware or software.
+Software
+interfaces rely on very simple hardware, usually two lines
+twiddled by 2 registers.
+Hardware interfaces are more intelligent and receive
+8-bit characters they write to the bus according to the I2C protocol.
+.Pp
+I2C interfaces may act on the bus as slave devices, allowing spontaneous
+bidirectional communications, thanks to the multi-master capabilities of the
+I2C protocol.
+.Pp
+Some I2C interfaces are available:
+.Pp
+.Bl -column "Interface drivers" -compact
+.It Em Interface Ta Em Description
+.It Sy pcf Ta "Philips PCF8584 master/slave interface"
+.It Sy iicbb Ta "generic bit-banging master-only driver"
+.It Sy lpbb Ta "parallel port specific bit-banging interface"
+.It Sy bktr Ta "Brooktree848 video chipset, hardware and software master-only interface"
+.El
+.Sh BUS FREQUENCY CONFIGURATION
+The operating frequency of an I2C bus may be fixed or configurable.
+The bus may be used as part of some larger standard interface, and that
+interface specification may require a fixed frequency.
+The driver for that hardware would not honor an attempt to configure a
+different speed.
+A general purpose I2C bus, such as those found in many embedded systems,
+will often support multiple bus frequencies.
+.Pp
+When a system supports multiple I2C buses, a different frequency can
+be configured for each bus by number, represented by the
+.Va %d
+in the variable names below.
+Buses can be configured using any combination of device hints,
+Flattened Device Tree (FDT) data, tunables set via
+.Xr loader 8 ,
+or at runtime using
+.Xr sysctl 8 .
+When configuration is supplied using more than one method, FDT and
+hint data will be overridden by a tunable, which can be overridden by
+.Xr sysctl 8 .
+.Ss Device Hints
+Set
+.Va hint.iicbus.%d.frequency
+to the frequency in Hz, on systems that use device hints to configure
+I2C devices.
+The hint is also honored by systems that use FDT data if
+no frequency is configured using FDT.
+.Ss Flattened Device Tree Data
+Configure the I2C bus speed using the FDT standard
+.Va clock-frequency
+property of the node describing the I2C controller hardware.
+.Ss Sysctl and Tunable
+Set
+.Va dev.iicbus.%d.frequency
+in
+.Xr loader.conf 5 .
+The same variable can be changed at any time with
+.Xr sysctl 8 .
+Reset the bus using
+.Xr i2c 8
+or the
+.Xr iic 4
+.Va I2CRSTCARD
+ioctl to make the change take effect.
+.Sh SEE ALSO
+.Xr bktr 4 ,
+.Xr fdt 4 ,
+.Xr iic 4 ,
+.Xr iicbb 4 ,
+.Xr lpbb 4 ,
+.Xr pcf 4 ,
+.Xr i2c 8
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Nicolas Souchu .

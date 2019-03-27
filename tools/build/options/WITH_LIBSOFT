@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+On armv6 only, set to enable soft float ABI compatibility libraries.
+This option is for transitioning to the new hard float ABI.

@@ -1,0 +1,140 @@
+.\" Copyright (c) 2018 Vincenzo Maffione
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 11, 2018
+.Dt PTNET 4
+.Os
+.Sh NAME
+.Nm ptnet
+.Nd Ethernet driver for passed-through netmap ports
+.Sh SYNOPSIS
+This network driver is included in
+.Xr netmap 4 ,
+and it can be compiled into the kernel by adding the following
+line in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device netmap"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides direct access to host netmap ports,
+from within a Virtual Machine (VM).
+Applications running inside
+the VM can access the TX/RX rings and buffers of a netmap port
+that the hypervisor has passed-through to the VM.
+Hypervisor support for
+.Nm
+is currently available for QEMU/KVM.
+Any
+.Xr netmap 4
+port can be passed-through, including physical NICs,
+.Xr vale 4
+ports, netmap pipes, etc.
+.Pp
+The main use-case for netmap passthrough is Network Function
+Virtualization (NFV), where middlebox applications running within
+VMs may want to process very high packet rates (e.g., 1-10 millions
+packets per second or more).
+Note, however, that those applications
+must use the device in netmap mode in order to achieve such rates.
+In addition to the general advantages of netmap, the improved
+performance of
+.Nm
+when compared to hypervisor device emulation or paravirtualization (e.g.,
+.Xr vtnet 4 ,
+.Xr vmx 4 )
+comes from the hypervisor being completely bypassed in the data-path.
+For example, when using
+.Xr vtnet 4
+the VM has to convert each
+.Xr mbuf 9
+to a VirtIO-specific packet representation
+and publish that to a VirtIO queue; on the hypervisor side, the
+packet is extracted from the VirtIO queue and converted to a
+hypervisor-specific packet representation.
+The overhead of format conversions (and packet copies, in same cases) is not
+incured by
+.Nm
+in netmap mode, because mbufs are not used at all, and the packet format
+is the one defined by netmap (e.g.,
+.Ar struct netmap_slot )
+along the whole data-path.
+No format conversions or copies happen.
+.Pp
+It is also possible to use a
+.Nm
+device like a regular network interface, which interacts with the
+.Fx
+network stack (i.e., not in netmap mode).
+However, in that case it is necessary to pay the cost of data copies
+between mbufs and netmap buffers, which generally results in lower
+TCP/UDP performance than
+.Xr vtnet 4
+or other paravirtualized network devices.
+If the passed-through netmap port supports the VirtIO network header,
+.Nm
+is able to use it, and support TCP/UDP checksum offload (for both transmit
+and receive), TCP segmentation offload (TSO) and TCP large receive offload
+(LRO).
+Currently,
+.Xr vale 4
+ports support the header.
+Note that the VirtIO network header is generally not used in NFV
+use-cases, because middleboxes are not endpoints of TCP/UDP connections.
+.Sh TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width "xxxxxx"
+.It Va dev.netmap.ptnet_vnet_hdr
+This tunable enables (1) or disables (0) the VirtIO network header.
+If enabled,
+.Nm
+uses the same header used by
+.Xr vtnet 4
+to exchange offload metadata with the hypervisor.
+If disabled, no header is prepended to transmitted and received
+packets.
+The metadata is necessary to support TCP/UDP checksum offloads,
+TSO, and LRO.
+The default value is 1.
+.El
+.Sh SEE ALSO
+.Xr netintro 4 ,
+.Xr netmap 4 ,
+.Xr vale 4 ,
+.Xr virtio 4 ,
+.Xr vmx 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver was written by
+.An Vincenzo Maffione Aq Mt vmaffione@FreeBSD.org .
+It first appeared in
+.Fx 12.0 .

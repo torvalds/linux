@@ -1,0 +1,268 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)history_common.kshlib	1.3	07/07/31 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+#
+# Execute arguments and record them to the log file.
+# Notice: EXPECT_HISTORY need be defined.
+#
+# $1-n arguments for execution.
+#
+function exec_record
+{
+	[[ -z $EXPECT_HISTORY ]] && log_fail "EXPECT_HISTORY is undefined."
+
+	typeset long_hist
+	typeset user='root'
+	typeset opt
+	while getopts ":lu:" opt; do
+		case $opt in
+			l)	long_hist=1;;
+			u)	user=$OPTARG ;;
+		esac	
+	done
+	shift $(($OPTIND -1))
+
+	if [[ $user == 'root' ]]; then
+		log_must "$@"
+	else
+		log_must $SU $user -c "$@"
+	fi
+	user_id=$(id -u $user)
+
+	typeset cmdline="$@"
+	# Remove "eval" ">*" & "<*" for 'zfs send' and 'zfs receive'.
+	cmdline=${cmdline#eval}
+	cmdline=${cmdline%%\>*}
+	cmdline=${cmdline%%\<*}
+
+	# Remove additional blank
+	cmdline=${cmdline## }
+	cmdline=${cmdline%% }
+
+	# Get the basename of command. i.e: /usr/sbin/zpool -> zpool
+	typeset cmd=$($ECHO $cmdline | $AWK '{print $1}')
+	eval cmdline=\${cmdline#$cmd}
+	cmd=${cmd##*/}
+
+	# Write basic history to file
+	print -n $cmd $cmdline >> $EXPECT_HISTORY
+	if [[ -n $long_hist ]]; then
+		# Write long history to file
+		hn=$($HOSTNAME)
+		zn=$($ZONENAME)
+		[ "$zn" = "global" ] && zn=""
+		[ -n "$zn" ] && zn=":$zn"
+		print -n " [user $user_id ($user) on $hn$zn]" >> $EXPECT_HISTORY
+	fi
+	# Plus enter in the end of line
+	print >> $EXPECT_HISTORY
+}
+
+#
+# Format 'zpool history' output to specified file.
+#
+# $1 pool name
+# $2 output file.
+# $3 option
+#
+function format_history
+{
+	typeset pool=$1
+	typeset outfile=$2
+	typeset option=$3
+
+	[[ -z $pool || -z $outfile ]] && \
+		log_fail "Usage: format_history <pool> <outfile> [option]"
+
+	typeset temp_history=$TMPDIR/temp_history.format_history.${TESTCASE_ID}
+	$ZPOOL history $option $pool > $temp_history
+
+	# Truncate output file
+	$CAT /dev/null > $outfile
+
+	typeset line
+	typeset -i n=0
+	while read line; do
+		# Ignore the first line and empty line
+		if [[ $n -eq 0 || -z $line ]]; then
+			n=1; continue
+		fi
+		$ECHO ${line#* } >> $outfile
+	done < $temp_history
+
+	$RM -f $temp_history
+}
+
+#
+# Get the additional pool history.
+#
+# $1 pool name
+# $2 additional history file
+# $3 option
+#
+function additional_history
+{
+	typeset pool=$1
+	typeset add_his_file=$2
+	typeset option=$3
+
+	if [[ -z $pool || -z $add_his_file ]]; then
+		log_fail "Usage: additional_history <pool> " \
+			"<additional_history_file> [option]"
+	fi
+
+	typeset temp_history=$TMPDIR/temp_history.additional_history.${TESTCASE_ID}
+	# Current current history
+	format_history $pool $temp_history $option
+	# Figure out new history
+	$DIFF $temp_history $REAL_HISTORY | $GREP "^<" | $SED 's/^<[ ]*//' > \
+		$add_his_file
+	
+	$CP $temp_history $REAL_HISTORY
+	$RM -f $temp_history
+}
+
+#
+# Get given dataset id
+#
+# $1 dataset name
+#
+function get_dataset_id
+{
+	typeset ds=$1
+
+	#
+	# The zdb information looks like:
+	#
+	# Dataset pool/fs [ZPL], ID 21, cr_txg 6, 18.0K, 4 objects
+	#
+	typeset dst_id=$($ZDB $ds | $GREP "^Dataset $ds " | \
+			$AWK -F\, '{print $2}' | $AWK '{print $2}')
+
+	$ECHO $dst_id
+}
+
+#
+# Special case of verify_history, but only for destroyed datasets.  This is
+# needed because get_dataset_id depends on still having the original dataset
+# in order to obtain its dataset id.
+#
+function verify_destroyed #<his_file> <ds_id>
+{
+	typeset his_file=$1
+	typeset ds_id=$2
+
+	$GREP -E "\[txg:[0-9]+\] destroy [^ ]+ \($ds_id\)" $his_file \
+		> /dev/null 2>&1
+	(($? == 0)) && return 0
+	return 1
+}
+
+#
+# Verify directly executed commands in a history file.  This differs from
+# verify_history in that it checks for explicit commands as opposed to
+# internally generated commands.
+#
+function verify_direct_history #<his_file> <subcmd> <ds>
+{
+	typeset his_file=$1
+	typeset subcmd=$2
+	typeset ds=$3
+
+	$GREP "zfs ${subcmd} ${ds}" ${his_file} > /dev/null 2>&1
+	(($? == 0)) && return 0
+	return 1
+}
+
+# This function mostly just helps to collapse the case statement
+# in verify_history.  It returns whether the line matches (1==true).
+function verify_history_line
+{
+	typeset line=$1
+	typeset subcmd=$2
+	typeset ds=$3
+	typeset keyword=$4
+
+	typeset dst_id=$(get_dataset_id $ds)
+	log_note "Line: '$line'"
+	log_note "Checking cmd($subcmd) for $ds, keyword='$keyword'"
+	$ECHO $line | $GREP -E "\[txg:[0-9]+\] $subcmd $ds \($dst_id\)" | \
+		$GREP $keyword >/dev/null 2>&1
+	[[ $? == 0 ]] && return 1
+	return 0
+}
+
+#
+# Scan history file and check if it include expected internal history
+# information
+#
+# $1 history file
+# $2 subcmd
+# $3 dataset
+# $4 keyword
+#
+function verify_history #<his_file> <subcmd> <ds> [keyword]
+{
+	typeset his_file=$1
+	typeset subcmd=$2
+	typeset ds=$3
+	typeset keyword=$4
+
+	typeset line found=0
+	log_note "Test1"
+	while read line; do
+		case $subcmd in
+		snapshot|rollback|inherit)
+			# [txg:12] snapshot system/foo@0 (46)
+			keyword="$subcmd"
+			verify_history_line "$line" $subcmd $ds $keyword
+			[[ $? == 0 ]] && return 0
+			;;
+		allow)
+			# [txg:10] permission update testpool.1477/testfs.1477 (40) s-$@basic snapshot
+			_subcmd="permission update"
+			verify_history_line "$line" "$_subcmd" $ds "$keyword"
+			[[ $? == 0 ]] && return 0
+			;;
+		unallow)
+			# [txg:174] permission remove testpool.1477/testfs.1477 (40) El$ @set
+			_subcmd="permission remove"
+			verify_history_line "$line" "$_subcmd" $ds "$keyword"
+			[[ $? == 0 ]] && return 0
+			;;
+		*)
+			;;
+		esac
+	done < $his_file
+	return 1
+}

@@ -1,0 +1,136 @@
+.\" Copyright 1998 Juniper Networks, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 29, 1998
+.Dt TACPLUS.CONF 5
+.Os
+.Sh NAME
+.Nm tacplus.conf
+.Nd TACACS+ client configuration file
+.Sh SYNOPSIS
+.Pa /etc/tacplus.conf
+.Sh DESCRIPTION
+.Nm
+contains the information necessary to configure the TACACS+ client
+library.
+It is parsed by
+.Fn tac_config
+(see
+.Xr libtacplus 3 ) .
+The file contains one or more lines of text, each describing a
+single TACACS+ server which is to be used by the library.
+Leading
+white space is ignored, as are empty lines and lines containing
+only comments.
+.Pp
+A TACACS+ server is described by two to four fields on a line.
+The
+fields are separated by white space.
+The
+.Ql #
+character at the beginning of a field begins a comment, which extends
+to the end of the line.
+A field may be enclosed in double quotes,
+in which case it may contain white space and/or begin with the
+.Ql #
+character.
+Within a quoted string, the double quote character can
+be represented by
+.Ql \e\&" ,
+and the backslash can be represented by
+.Ql \e\e .
+No other escape sequences are supported.
+.Pp
+The first field specifies
+the server host, either as a fully qualified domain name or as a
+dotted-quad IP address.
+The host may optionally be followed by a
+.Ql \&:
+and a numeric port number, without intervening white space.
+If the
+port specification is omitted, it defaults to 49, the standard TACACS+
+port.
+.Pp
+The second field contains the shared secret, which should be known
+only to the client and server hosts.
+It is an arbitrary string
+of characters, though it must be enclosed in double quotes if it
+contains white space or is empty.
+An empty secret disables the
+normal encryption mechanism, causing all data to cross the network in
+cleartext.
+.Pp
+The third field contains a decimal integer specifying the timeout
+in seconds for communicating with the server.
+The timeout applies
+separately to each connect, write, and read operation.
+If this field
+is omitted, it defaults to 3 seconds.
+.Pp
+The optional fourth field may contain the string
+.Ql single-connection .
+If this option is included, the library will attempt to negotiate
+with the server to keep the TCP connection open for multiple
+sessions.
+Some older TACACS+ servers become confused if this option
+is specified.
+.Pp
+Up to 10 TACACS+ servers may be specified.
+The servers are tried in
+order, until a valid response is received or the list is exhausted.
+.Pp
+The standard location for this file is
+.Pa /etc/tacplus.conf .
+An alternate pathname may be specified in the call to
+.Fn tac_config
+(see
+.Xr libtacplus 3 ) .
+Since the file contains sensitive information in the form of the
+shared secrets, it should not be readable except by root.
+.Sh FILES
+.Bl -tag -width Pa
+.It Pa /etc/tacplus.conf
+.El
+.Sh EXAMPLES
+.Bd -literal
+# A simple entry using all the defaults:
+tacserver.domain.com	OurLittleSecret
+
+# A server using a non-standard port, with an increased timeout and
+# the "single-connection" option.
+auth.domain.com:4333	"Don't tell!!"	15	single-connection
+
+# A server specified by its IP address:
+192.168.27.81		$X*#..38947ax-+=
+.Ed
+.Sh SEE ALSO
+.Xr libtacplus 3
+.Sh AUTHORS
+This documentation was written by
+.An John Polstra ,
+and donated to the
+.Fx
+project by Juniper Networks, Inc.

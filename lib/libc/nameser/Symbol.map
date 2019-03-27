@@ -1,0 +1,52 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	__ns_makecanon;
+	__ns_msg_getflag;
+	__ns_name_ntol;
+	__ns_name_ntop;
+	__ns_name_pton;
+	__ns_name_unpack;
+	__ns_name_pack;
+	__ns_name_uncompress;
+	__ns_name_compress;
+	__ns_name_rollback;
+	__ns_name_skip;
+	__ns_get16;
+	__ns_get32;
+	__ns_put16;
+	__ns_put32;
+	__ns_initparse;
+	__ns_parserr;
+	_ns_flagdata;
+	__ns_samedomain;
+	__ns_samename;
+	__ns_skiprr;
+	__ns_sprintrr;
+	__ns_sprintrrf;
+	__ns_format_ttl;
+	__ns_parse_ttl;
+};
+
+FBSD_1.4 {
+	__ns_parserr2;
+	__ns_name_pton2;
+	__ns_name_unpack2;
+	__ns_name_length;
+	__ns_name_eq;
+	__ns_name_owned;
+	__ns_name_map;
+	__ns_name_labels;
+	__ns_newmsg_init;
+	__ns_newmsg_copy;
+	__ns_newmsg_id;
+	__ns_newmsg_flag;
+	__ns_newmsg_q;
+	__ns_newmsg_rr;
+	__ns_newmsg_done;
+	__ns_rdata_unpack;
+	__ns_rdata_equal;
+	__ns_rdata_refers;
+};

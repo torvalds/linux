@@ -1,0 +1,7 @@
+@c $Id$
+
+@node Programming with Kerberos, Migration, Windows compatibility, Top
+@chapter Programming with Kerberos
+
+See the Kerberos 5 API introduction and documentation on the Heimdal
+webpage.

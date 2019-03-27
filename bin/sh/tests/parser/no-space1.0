@@ -1,0 +1,18 @@
+# $FreeBSD$
+
+# These are ugly but are required to work.
+
+set -e
+
+while(false)do(:)done
+if(false)then(:)fi
+if(false)then(:)else(:)fi
+(:&&:)||:
+until(:)do(:)done
+case x in(x);;*)exit 1;(:)esac
+case x in(x);;*)exit 1;;esac
+for i do(:)done
+{(:)}
+f(){(:)}
+:|:
+(:)|(:)

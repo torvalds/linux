@@ -1,0 +1,522 @@
+.\" Copyright (c) 2003-2008 Joseph Koshy
+.\" Copyright (c) 2007 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 25, 2018
+.Dt PMCSTAT 8
+.Os
+.Sh NAME
+.Nm pmcstat
+.Nd "performance measurement with performance monitoring hardware"
+.Sh SYNOPSIS
+.Nm
+.Op Fl C
+.Op Fl D Ar pathname
+.Op Fl E
+.Op Fl F Ar pathname
+.Op Fl G Ar pathname
+.Op Fl I
+.Op Fl L
+.Op Fl M Ar mapfilename
+.Op Fl N
+.Op Fl O Ar logfilename
+.Op Fl P Ar event-spec
+.Op Fl R Ar logfilename
+.Op Fl S Ar event-spec
+.Op Fl T
+.Op Fl U
+.Op Fl W
+.Op Fl a Ar pathname
+.Op Fl c Ar cpu-spec
+.Op Fl d
+.Op Fl e
+.Op Fl f Ar pluginopt
+.Op Fl g
+.Op Fl i Ar lwp
+.Op Fl k Ar kerneldir
+.Op Fl l Ar secs
+.Op Fl m Ar pathname
+.Op Fl n Ar rate
+.Op Fl o Ar outputfile
+.Op Fl p Ar event-spec
+.Op Fl q
+.Op Fl r Ar fsroot
+.Op Fl s Ar event-spec
+.Op Fl t Ar process-spec
+.Op Fl u Ar event-spec
+.Op Fl v
+.Op Fl w Ar secs
+.Op Fl z Ar graphdepth
+.Op Ar command Op Ar args
+.Sh DESCRIPTION
+The
+.Nm
+utility measures system performance using the facilities provided by
+.Xr hwpmc 4 .
+.Pp
+The
+.Nm
+utility can measure both hardware events seen by the system as a
+whole, and those seen when a specified set of processes are executing
+on the system's CPUs.
+If a specific set of processes is being targeted (for example,
+if the
+.Fl t Ar process-spec
+option is specified, or if a command line is specified using
+.Ar command ) ,
+then measurement occurs till
+.Ar command
+exits, or till all target processes specified by the
+.Fl t Ar process-spec
+options exit, or till the
+.Nm
+utility is interrupted by the user.
+If a specific set of processes is not targeted for measurement, then
+.Nm
+will perform system-wide measurements till interrupted by the
+user.
+.Pp
+A given invocation of
+.Nm
+can mix allocations of system-mode and process-mode PMCs, of both
+counting and sampling flavors.
+The values of all counting PMCs are printed in human readable form
+at regular intervals by
+.Nm .
+The output of sampling PMCs may be configured to go to a log file for
+subsequent offline analysis, or, at the expense of greater
+overhead, may be configured to be printed in text form on the fly.
+.Pp
+Hardware events to measure are specified to
+.Nm
+using event specifier strings
+.Ar event-spec .
+The syntax of these event specifiers is machine dependent and is
+documented in
+.Xr pmc 3 .
+.Pp
+A process-mode PMC may be configured to be inheritable by the target
+process' current and future children.
+.Sh OPTIONS
+The following options are available:
+.Bl -tag -width indent
+.It Fl C
+Toggle between showing cumulative or incremental counts for
+subsequent counting mode PMCs specified on the command line.
+The default is to show incremental counts.
+.It Fl D Ar pathname
+Create files with per-program samples in the directory named
+by
+.Ar pathname .
+The default is to create these files in the current directory.
+.It Fl E
+Toggle showing per-process counts at the time a tracked process
+exits for subsequent process-mode PMCs specified on the command line.
+This option is useful for mapping the performance characteristics of a
+complex pipeline of processes when used in conjunction with the
+.Fl d
+option.
+The default is to not to enable per-process tracking.
+.It Fl F Ar pathname
+Print calltree (Kcachegrind) information to file
+.Ar pathname .
+If argument
+.Ar pathname
+is a
+.Dq Li -
+this information is sent to the output file specified by the
+.Fl o
+option.
+.It Fl G Ar pathname
+Print callchain information to file
+.Ar pathname .
+If argument
+.Ar pathname
+is a
+.Dq Li -
+this information is sent to the output file specified by the
+.Fl o
+option.
+.It Fl I
+Skip symbol lookup and display address instead.
+.It Fl L
+List all event names.
+.It Fl M Ar mapfilename
+Write the mapping between executable objects encountered in the event
+log and the abbreviated pathnames used for
+.Xr gprof 1
+profiles to file
+.Ar mapfilename .
+If this option is not specified, mapping information is not written.
+Argument
+.Ar mapfilename
+may be a
+.Dq Li -
+in which case this mapping information is sent to the output
+file configured by the
+.Fl o
+option.
+.It Fl N
+Toggle capturing callchain information for subsequent sampling PMCs.
+The default is for sampling PMCs to capture callchain information.
+.It Fl O Ar logfilename
+Send logging output to file
+.Ar logfilename .
+If
+.Ar logfilename
+is of the form
+.Ar hostname Ns : Ns Ar port ,
+where
+.Ar hostname
+does not start with a
+.Ql \&.
+or a
+.Ql / ,
+then
+.Nm
+will open a network socket to host
+.Ar hostname
+on port
+.Ar port .
+.Pp
+If the
+.Fl O
+option is not specified and one of the logging options is requested,
+then
+.Nm
+will print a textual form of the logged events to the configured
+output file.
+.It Fl P Ar event-spec
+Allocate a process mode sampling PMC measuring hardware events
+specified in
+.Ar event-spec .
+.It Fl R Ar logfilename
+Perform offline analysis using sampling data in file
+.Ar logfilename .
+.It Fl S Ar event-spec
+Allocate a system mode sampling PMC measuring hardware events
+specified in
+.Ar event-spec .
+.It Fl T
+Use a top like mode for sampling PMCs. The following hotkeys
+can be used: 'c+a' switch to accumulative mode, 'c+d' switch
+to delta mode, 'm' merge PMCs, 'n' change view, 'p' show next
+PMC, ' ' pause, 'q' quit. calltree only: 'f' cost under threshold
+is seen as a dot.
+.It Fl U
+Toggle capturing user-space call traces while in kernel mode.
+The default is for sampling PMCs to capture user-space callchain information
+while in user-space mode, and kernel callchain information while in kernel mode.
+.It Fl W
+Toggle logging the incremental counts seen by the threads of a
+tracked process each time they are scheduled on a CPU.
+This is an experimental feature intended to help analyse the
+dynamic behaviour of processes in the system.
+It may incur substantial overhead if enabled.
+The default is for this feature to be disabled.
+.It Fl a Ar pathname
+Perform a symbol and file:line lookup for each address in each
+callgraph and save the output to
+.Ar pathname .
+Unlike
+.Fl m
+that only resolves the first symbol in the graph, this resolves
+every node in the callgraph, or prints out addresses if no
+lookup information is available.
+This option requires the
+.Fl R
+option to read in samples that were previously collected and
+saved with the
+.Fl O
+option.
+.It Fl c Ar cpu-spec
+Set the cpus for subsequent system mode PMCs specified on the
+command line to
+.Ar cpu-spec .
+Argument
+.Ar cpu-spec
+is a comma separated list of CPU numbers, or the literal
+.Sq *
+denoting all available CPUs.
+The default is to allocate system mode PMCs on all available
+CPUs.
+.It Fl d
+Toggle between process mode PMCs measuring events for the target
+process' current and future children or only measuring events for
+the target process.
+The default is to measure events for the target process alone.
+(it has to be passed in the command line prior to
+.Fl p ,
+.Fl s ,
+.Fl P ,
+or
+.Fl S ) .
+.It Fl e
+Specify that the gprof profile files will use a wide history counter.
+These files are produced in a format compatible with
+.Xr gprof 1 .
+However, other tools that cannot fully parse a BSD-style
+gmon header might be unable to correctly parse these files.
+.It Fl f Ar pluginopt
+Pass option string to the active plugin.
+.br
+threshold=<float> do not display cost under specified value (Top).
+.br
+skiplink=0|1 replace node with cost under threshold by a dot (Top).
+.It Fl g
+Produce profiles in a format compatible with
+.Xr gprof 1 .
+A separate profile file is generated for each executable object
+encountered.
+Profile files are placed in sub-directories named by their PMC
+event name.
+.It Fl i Ar lwp
+Filter on thread ID
+.Ar lwp ,
+which you can get from
+.Xr ps 1
+.Fl o
+.Li lwp .
+.It Fl k Ar kerneldir
+Set the pathname of the kernel directory to argument
+.Ar kerneldir .
+This directory specifies where
+.Nm
+should look for the kernel and its modules.
+The default is to use the path of the running kernel obtained from the
+.Va kern.bootfile
+sysctl.
+.It Fl l Ar secs
+Set system-wide performance measurement duration for
+.Ar secs
+seconds.
+The argument
+.Ar secs
+may be a fractional value.
+.It Fl m Ar pathname
+Print the sampled PCs with the name, the start and ending addresses
+of the function within they live.
+The
+.Ar pathname
+argument is mandatory and indicates where the information will be stored.
+If argument
+.Ar pathname
+is a
+.Dq Li -
+this information is sent to the output file specified by the
+.Fl o
+option.
+This option requires the
+.Fl R
+option to read in samples that were previously collected and
+saved with the
+.Fl O
+option.
+.It Fl n Ar rate
+Set the default sampling rate for subsequent sampling mode
+PMCs specified on the command line.
+The default is to configure PMCs to sample the CPU's instruction
+pointer every 65536 events.
+.It Fl o Ar outputfile
+Send counter readings and textual representations of logged data
+to file
+.Ar outputfile .
+The default is to send output to
+.Pa stderr
+when collecting live data and to
+.Pa stdout
+when processing a pre-existing logfile.
+.It Fl p Ar event-spec
+Allocate a process mode counting PMC measuring hardware events
+specified in
+.Ar event-spec .
+.It Fl q
+Decrease verbosity.
+.It Fl r Ar fsroot
+Set the top of the filesystem hierarchy under which executables
+are located to argument
+.Ar fsroot .
+The default is
+.Pa / .
+.It Fl s Ar event-spec
+Allocate a system mode counting PMC measuring hardware events
+specified in
+.Ar event-spec .
+.It Fl t Ar process-spec
+Attach process mode PMCs to the processes named by argument
+.Ar process-spec .
+Argument
+.Ar process-spec
+may be a non-negative integer denoting a specific process id, or a
+regular expression for selecting processes based on their command names.
+.It Fl u Ar event-spec
+Provide short description of event.
+.It Fl v
+Increase verbosity.
+.It Fl w Ar secs
+Print the values of all counting mode PMCs or sampling mode PMCs
+for top mode every
+.Ar secs
+seconds.
+The argument
+.Ar secs
+may be a fractional value.
+The default interval is 5 seconds.
+.It Fl z Ar graphdepth
+When printing system-wide callgraphs, limit callgraphs to the depth
+specified by argument
+.Ar graphdepth .
+.El
+.Pp
+If
+.Ar command
+is specified, it is executed using
+.Xr execvp 3 .
+.Sh EXAMPLES
+To perform system-wide statistical sampling on an AMD Athlon CPU with
+samples taken every 32768 instruction retirals and data being sampled
+to file
+.Pa sample.stat ,
+use:
+.Dl "pmcstat -O sample.stat -n 32768 -S k7-retired-instructions"
+.Pp
+To execute
+.Nm firefox
+and measure the number of data cache misses suffered
+by it and its children every 12 seconds on an AMD Athlon, use:
+.Dl "pmcstat -d -w 12 -p k7-dc-misses firefox"
+.Pp
+To measure instructions retired for all processes named
+.Dq emacs
+use:
+.Dl "pmcstat -t '^emacs$' -p instructions"
+.Pp
+To measure instructions retired for processes named
+.Dq emacs
+for a period of 10 seconds use:
+.Dl "pmcstat -t '^emacs$' -p instructions sleep 10"
+.Pp
+To count instruction tlb-misses on CPUs 0 and 2 on a Intel
+Pentium Pro/Pentium III SMP system use:
+.Dl "pmcstat -c 0,2 -s p6-itlb-miss"
+.Pp
+To collect profiling information for a specific process with pid 1234
+based on instruction cache misses seen by it use:
+.Dl "pmcstat -P ic-misses -t 1234 -O /tmp/sample.out"
+.Pp
+To perform system-wide sampling on all configured processors
+based on processor instructions retired use:
+.Dl "pmcstat -S instructions -O /tmp/sample.out"
+If callgraph capture is not desired use:
+.Dl "pmcstat -N -S instructions -O /tmp/sample.out"
+.Pp
+To send the generated event log to a remote machine use:
+.Dl "pmcstat -S instructions -O remotehost:port"
+On the remote machine, the sample log can be collected using
+.Xr nc 1 :
+.Dl "nc -l remotehost port > /tmp/sample.out"
+.Pp
+To generate
+.Xr gprof 1
+compatible profiles from a sample file use:
+.Dl "pmcstat -R /tmp/sample.out -g"
+.Pp
+To print a system-wide profile with callgraphs to file
+.Pa "foo.graph"
+use:
+.Dl "pmcstat -R /tmp/sample.out -G foo.graph"
+.Sh DIAGNOSTICS
+If option
+.Fl v
+is specified,
+.Nm
+may issue the following diagnostic messages:
+.Bl -diag
+.It "#callchain/dubious-frames"
+The number of callchain records that had an
+.Dq impossible
+value for a return address.
+.It "#exec handling errors"
+The number of
+.Xr exec 2
+events in the log file that named executables that could not be
+analyzed.
+.It "#exec/elf"
+The number of
+.Xr exec 2
+events that named ELF executables.
+.It "#exec/unknown"
+The number of
+.Xr exec 2
+events that named executables with unrecognized formats.
+.It "#samples/total"
+The total number of samples in the log file.
+.It "#samples/unclaimed"
+The number of samples that could not be correlated to a known
+executable object (i.e., to an executable, shared library, the
+kernel or the runtime loader).
+.It "#samples/unknown-object"
+The number of samples that were associated with an executable
+with an unrecognized object format.
+.El
+.Pp
+.Ex -std
+.Sh COMPATIBILITY
+Due to the limitations of the
+.Pa gmon.out
+file format,
+.Xr gprof 1
+compatible profiles generated by the
+.Fl g
+option do not contain information about calls that cross executable
+boundaries.
+The generated
+.Pa gmon.out
+files are also only meaningful for native executables.
+.Sh SEE ALSO
+.Xr gprof 1 ,
+.Xr nc 1 ,
+.Xr execvp 3 ,
+.Xr pmc 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4 ,
+.Xr pmccontrol 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 6.0 .
+It is
+.Ud
+.Sh AUTHORS
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org
+.Sh BUGS
+The
+.Nm
+utility cannot yet analyse
+.Xr hwpmc 4
+logs generated by non-native architectures.

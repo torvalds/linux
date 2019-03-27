@@ -1,0 +1,102 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ul.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd August 4, 2004
+.Dt UL 1
+.Os
+.Sh NAME
+.Nm ul
+.Nd do underlining
+.Sh SYNOPSIS
+.Nm
+.Op Fl i
+.Op Fl t Ar terminal
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility reads the named files (or standard input if none are given)
+and translates occurrences of underscores to the sequence
+which indicates underlining for the terminal in use, as specified
+by the environment variable
+.Ev TERM .
+The file
+.Pa /etc/termcap
+is read to determine the appropriate sequences for underlining.
+If the terminal is incapable of underlining, but is capable of
+a standout mode then that is used instead.
+If the terminal can overstrike,
+or handles underlining automatically,
+.Nm
+degenerates to
+.Xr cat 1 .
+If the terminal cannot underline, underlining is ignored.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl i
+Underlining is indicated by a separate line containing appropriate
+dashes
+.Ql \- ;
+this is useful when you want to look at the underlining
+which is present in an
+.Xr nroff 1
+output stream on a CRT-terminal.
+.It Fl t Ar terminal
+Overrides the terminal type specified in the environment with
+.Ar terminal .
+.El
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL , LC_CTYPE
+and
+.Ev TERM
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr colcrt 1 ,
+.Xr man 1 ,
+.Xr nroff 1
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 3.0 .
+.Sh BUGS
+The
+.Xr nroff 1
+command usually outputs a series of backspaces and underlines intermixed
+with the text to indicate underlining.
+No attempt is made to optimize
+the backward motion.

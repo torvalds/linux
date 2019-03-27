@@ -1,0 +1,14 @@
+# map all tcp connections from 10.1.0.0/16 to 240.1.0.1, changing the source
+# port number to something between 10,000 and 20,000 inclusive.  For all other
+# IP packets, allocate an IP # between 240.1.0.0 and 240.1.0.255, temporarily
+# for each new user.
+#
+map ed1 10.1.0.0/16 -> 240.1.0.1/32 portmap tcp 10000:20000
+map ed1 10.1.0.0/16 -> 240.1.0.0/24
+#
+# Redirection is triggered for input packets.
+# For example, to redirect FTP connections through this box, to the local ftp
+# port, forcing them to connect through a proxy, you would use:
+#
+rdr ed0 0.0.0.0/0 port ftp -> 127.0.0.1 port ftp
+#

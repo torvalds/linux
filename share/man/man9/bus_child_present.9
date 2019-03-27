@@ -1,0 +1,87 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2003 M. Warner Losh
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 27, 2003
+.Dt BUS_CHILD_PRESENT 9
+.Os
+.Sh NAME
+.Nm bus_child_present
+.Nd "ask the bus driver to see if this device is still really present"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Pp
+.In machine/bus.h
+.In sys/rman.h
+.In machine/resource.h
+.Ft int
+.Fn bus_child_present "device_t dev"
+.Sh DESCRIPTION
+The
+.Fn bus_child_present
+function requests that the parent device driver of
+.Fa dev
+check to see if the
+hardware represented by
+.Fa dev
+is still physically accessible at this time.
+While the notion of accessible varies from bus to bus, generally
+hardware that is not accessible cannot be accessed via the
+.Fn bus_space*
+methods that would otherwise be used to access the device.
+.Pp
+This does not ask the question
+.Dq does this device have children?
+which can better be answered by
+.Xr device_get_children 9 .
+.Sh RETURN VALUES
+A zero return value indicates that the device is not present in the
+system.
+A non-zero return value indicates that the device is present in the
+system, or that the state of the device cannot be determined.
+.Sh EXAMPLES
+This is some example code.
+It only calls stop when the
+.Xr dc 4
+device is actually present.
+.Bd -literal -offset indent
+device_t dev;
+dc_softc *sc;
+
+sc = device_get_softc(dev);
+if (bus_child_present(dev))
+	dc_stop(sc);
+.Ed
+.Sh SEE ALSO
+.Xr device 9 ,
+.Xr driver 9
+.Sh AUTHORS
+This manual page was written by
+.An Warner Losh Aq Mt imp@FreeBSD.org .

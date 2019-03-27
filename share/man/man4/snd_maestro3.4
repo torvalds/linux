@@ -1,0 +1,94 @@
+.\" Copyright (c) 2001 Scott Long
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 15, 2005
+.Dt SND_MAESTRO3 4
+.Os
+.Sh NAME
+.Nm snd_maestro3
+.Nd "ESS Maestro3/Allegro-1 bridge device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device sound"
+.Cd "device snd_maestro3"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_maestro3_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the ESS Maestro3 and Allegro-1 sound chips
+under the PCM framework.
+These chips are mostly found in laptop computers and feature an AC97 mixer,
+a multi-channel sample rate converter that can mix up to four digital audio
+streams in hardware, recording support, and external volume control buttons.
+.Pp
+The firmware for the sound processor is licensed under the GNU Public
+License, and thus this driver is not included in the default
+.Pa GENERIC
+kernel.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following audio devices:
+.Pp
+.Bl -bullet -compact
+.It
+ESS Technology Allegro-1
+.It
+ESS Technology Maestro3
+.El
+.Sh DIAGNOSTICS
+The hardware volume control buttons can be connected to two different pin
+sets (GPIO or GD) on the chip, depending on the manufacturer.
+The driver has no way of determining this configuration, so a hint may be
+used to override the default guess.
+The default setting for hardware volume control assumes that GD pins
+are wired to control the hardware volume.
+For systems that have the GPIO pins wired to the hardware volume control
+buttons, add the line
+.Dq Li hint.pcm.0.hwvol_config="0"
+to the file
+.Pa /boot/device.hints
+to override the default setting.
+.Sh SEE ALSO
+.Xr sound 4 ,
+.Xr loader.conf 5
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.3 .
+.Sh AUTHORS
+.An Scott Long Aq Mt scottl@FreeBSD.org
+.An Darrel Anderson Aq Mt anderson@cs.duke.edu

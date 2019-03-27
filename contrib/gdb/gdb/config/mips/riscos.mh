@@ -1,0 +1,16 @@
+# OBSOLETE # Host: MIPS running RISC/os
+# OBSOLETE 
+# OBSOLETE XM_FILE= xm-riscos.h
+# OBSOLETE 
+# OBSOLETE NAT_FILE= nm-riscos.h
+# OBSOLETE NATDEPFILES= infptrace.o inftarg.o fork-child.o corelow.o mips-nat.o
+# OBSOLETE 
+# OBSOLETE MH_CFLAGS=-Wf,-XNh10000
+# OBSOLETE 
+# OBSOLETE # ptrace(2) apparently has problems in the BSD environment.  No workaround is
+# OBSOLETE # known except to select the sysv environment.  Could we use /proc instead?
+# OBSOLETE # These "sysv environments" and "bsd environments" often end up being a pain.
+# OBSOLETE #
+# OBSOLETE # This is not part of CFLAGS because perhaps not all C compilers have this
+# OBSOLETE # option.
+# OBSOLETE CC= cc -systype sysv

@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+set -- -yz -wx
+opt=wrong1 OPTARG=wrong2
+while getopts :x opt; do
+	echo "$opt:${OPTARG-unset}"
+done
+echo "OPTIND=$OPTIND"

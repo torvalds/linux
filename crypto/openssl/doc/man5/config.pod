@@ -1,0 +1,436 @@
+=pod
+
+=head1 NAME
+
+config - OpenSSL CONF library configuration files
+
+=head1 DESCRIPTION
+
+The OpenSSL CONF library can be used to read configuration files.
+It is used for the OpenSSL master configuration file B<openssl.cnf>
+and in a few other places like B<SPKAC> files and certificate extension
+files for the B<x509> utility. OpenSSL applications can also use the
+CONF library for their own purposes.
+
+A configuration file is divided into a number of sections. Each section
+starts with a line B<[ section_name ]> and ends when a new section is
+started or end of file is reached. A section name can consist of
+alphanumeric characters and underscores.
+
+The first section of a configuration file is special and is referred
+to as the B<default> section. This section is usually unnamed and spans from the
+start of file until the first named section. When a name is being looked up
+it is first looked up in a named section (if any) and then the
+default section.
+
+The environment is mapped onto a section called B<ENV>.
+
+Comments can be included by preceding them with the B<#> character
+
+Other files can be included using the B<.include> directive followed
+by a path. If the path points to a directory all files with
+names ending with B<.cnf> or B<.conf> are included from the directory.
+Recursive inclusion of directories from files in such directory is not
+supported. That means the files in the included directory can also contain
+B<.include> directives but only inclusion of regular files is supported
+there. The inclusion of directories is not supported on systems without
+POSIX IO support.
+
+It is strongly recommended to use absolute paths with the B<.include>
+directive. Relative paths are evaluated based on the application current
+working directory so unless the configuration file containing the
+B<.include> directive is application specific the inclusion will not
+work as expected.
+
+There can be optional B<=> character and whitespace characters between
+B<.include> directive and the path which can be useful in cases the
+configuration file needs to be loaded by old OpenSSL versions which do
+not support the B<.include> syntax. They would bail out with error
+if the B<=> character is not present but with it they just ignore
+the include.
+
+Each section in a configuration file consists of a number of name and
+value pairs of the form B<name=value>
+
+The B<name> string can contain any alphanumeric characters as well as
+a few punctuation symbols such as B<.> B<,> B<;> and B<_>.
+
+The B<value> string consists of the string following the B<=> character
+until end of line with any leading and trailing white space removed.
+
+The value string undergoes variable expansion. This can be done by
+including the form B<$var> or B<${var}>: this will substitute the value
+of the named variable in the current section. It is also possible to
+substitute a value from another section using the syntax B<$section::name>
+or B<${section::name}>. By using the form B<$ENV::name> environment
+variables can be substituted. It is also possible to assign values to
+environment variables by using the name B<ENV::name>, this will work
+if the program looks up environment variables using the B<CONF> library
+instead of calling getenv() directly. The value string must not exceed 64k in
+length after variable expansion. Otherwise an error will occur.
+
+It is possible to escape certain characters by using any kind of quote
+or the B<\> character. By making the last character of a line a B<\>
+a B<value> string can be spread across multiple lines. In addition
+the sequences B<\n>, B<\r>, B<\b> and B<\t> are recognized.
+
+All expansion and escape rules as described above that apply to B<value>
+also apply to the path of the B<.include> directive.
+
+=head1 OPENSSL LIBRARY CONFIGURATION
+
+Applications can automatically configure certain
+aspects of OpenSSL using the master OpenSSL configuration file, or optionally
+an alternative configuration file. The B<openssl> utility includes this
+functionality: any sub command uses the master OpenSSL configuration file
+unless an option is used in the sub command to use an alternative configuration
+file.
+
+To enable library configuration the default section needs to contain an
+appropriate line which points to the main configuration section. The default
+name is B<openssl_conf> which is used by the B<openssl> utility. Other
+applications may use an alternative name such as B<myapplication_conf>.
+All library configuration lines appear in the default section at the start
+of the configuration file.
+
+The configuration section should consist of a set of name value pairs which
+contain specific module configuration information. The B<name> represents
+the name of the I<configuration module>. The meaning of the B<value> is
+module specific: it may, for example, represent a further configuration
+section containing configuration module specific information. E.g.:
+
+ # This must be in the default section
+ openssl_conf = openssl_init
+
+ [openssl_init]
+
+ oid_section = new_oids
+ engines = engine_section
+
+ [new_oids]
+
+ ... new oids here ...
+
+ [engine_section]
+
+ ... engine stuff here ...
+
+The features of each configuration module are described below.
+
+=head2 ASN1 Object Configuration Module
+
+This module has the name B<oid_section>. The value of this variable points
+to a section containing name value pairs of OIDs: the name is the OID short
+and long name, the value is the numerical form of the OID. Although some of
+the B<openssl> utility sub commands already have their own ASN1 OBJECT section
+functionality not all do. By using the ASN1 OBJECT configuration module
+B<all> the B<openssl> utility sub commands can see the new objects as well
+as any compliant applications. For example:
+
+ [new_oids]
+
+ some_new_oid = 1.2.3.4
+ some_other_oid = 1.2.3.5
+
+It is also possible to set the value to the long name followed
+by a comma and the numerical OID form. For example:
+
+ shortName = some object long name, 1.2.3.4
+
+=head2 Engine Configuration Module
+
+This ENGINE configuration module has the name B<engines>. The value of this
+variable points to a section containing further ENGINE configuration
+information.
+
+The section pointed to by B<engines> is a table of engine names (though see
+B<engine_id> below) and further sections containing configuration information
+specific to each ENGINE.
+
+Each ENGINE specific section is used to set default algorithms, load
+dynamic, perform initialization and send ctrls. The actual operation performed
+depends on the I<command> name which is the name of the name value pair. The
+currently supported commands are listed below.
+
+For example:
+
+ [engine_section]
+
+ # Configure ENGINE named "foo"
+ foo = foo_section
+ # Configure ENGINE named "bar"
+ bar = bar_section
+
+ [foo_section]
+ ... foo ENGINE specific commands ...
+
+ [bar_section]
+ ... "bar" ENGINE specific commands ...
+
+The command B<engine_id> is used to give the ENGINE name. If used this
+command must be first. For example:
+
+ [engine_section]
+ # This would normally handle an ENGINE named "foo"
+ foo = foo_section
+
+ [foo_section]
+ # Override default name and use "myfoo" instead.
+ engine_id = myfoo
+
+The command B<dynamic_path> loads and adds an ENGINE from the given path. It
+is equivalent to sending the ctrls B<SO_PATH> with the path argument followed
+by B<LIST_ADD> with value 2 and B<LOAD> to the dynamic ENGINE. If this is
+not the required behaviour then alternative ctrls can be sent directly
+to the dynamic ENGINE using ctrl commands.
+
+The command B<init> determines whether to initialize the ENGINE. If the value
+is B<0> the ENGINE will not be initialized, if B<1> and attempt it made to
+initialized the ENGINE immediately. If the B<init> command is not present
+then an attempt will be made to initialize the ENGINE after all commands in
+its section have been processed.
+
+The command B<default_algorithms> sets the default algorithms an ENGINE will
+supply using the functions ENGINE_set_default_string().
+
+If the name matches none of the above command names it is assumed to be a
+ctrl command which is sent to the ENGINE. The value of the command is the
+argument to the ctrl command. If the value is the string B<EMPTY> then no
+value is sent to the command.
+
+For example:
+
+
+ [engine_section]
+
+ # Configure ENGINE named "foo"
+ foo = foo_section
+
+ [foo_section]
+ # Load engine from DSO
+ dynamic_path = /some/path/fooengine.so
+ # A foo specific ctrl.
+ some_ctrl = some_value
+ # Another ctrl that doesn't take a value.
+ other_ctrl = EMPTY
+ # Supply all default algorithms
+ default_algorithms = ALL
+
+=head2 EVP Configuration Module
+
+This modules has the name B<alg_section> which points to a section containing
+algorithm commands.
+
+Currently the only algorithm command supported is B<fips_mode> whose
+value can only be the boolean string B<off>. If B<fips_mode> is set to B<on>,
+an error occurs as this library version is not FIPS capable.
+
+=head2 SSL Configuration Module
+
+This module has the name B<ssl_conf> which points to a section containing
+SSL configurations.
+
+Each line in the SSL configuration section contains the name of the
+configuration and the section containing it.
+
+Each configuration section consists of command value pairs for B<SSL_CONF>.
+Each pair will be passed to a B<SSL_CTX> or B<SSL> structure if it calls
+SSL_CTX_config() or SSL_config() with the appropriate configuration name.
+
+Note: any characters before an initial dot in the configuration section are
+ignored so the same command can be used multiple times.
+
+For example:
+
+ ssl_conf = ssl_sect
+
+ [ssl_sect]
+
+ server = server_section
+
+ [server_section]
+
+ RSA.Certificate = server-rsa.pem
+ ECDSA.Certificate = server-ecdsa.pem
+ Ciphers = ALL:!RC4
+
+The system default configuration with name B<system_default> if present will
+be applied during any creation of the B<SSL_CTX> structure.
+
+Example of a configuration with the system default:
+
+ ssl_conf = ssl_sect
+
+ [ssl_sect]
+
+ system_default = system_default_sect
+
+ [system_default_sect]
+
+ MinProtocol = TLSv1.2
+
+
+=head1 NOTES
+
+If a configuration file attempts to expand a variable that doesn't exist
+then an error is flagged and the file will not load. This can happen
+if an attempt is made to expand an environment variable that doesn't
+exist. For example in a previous version of OpenSSL the default OpenSSL
+master configuration file used the value of B<HOME> which may not be
+defined on non Unix systems and would cause an error.
+
+This can be worked around by including a B<default> section to provide
+a default value: then if the environment lookup fails the default value
+will be used instead. For this to work properly the default value must
+be defined earlier in the configuration file than the expansion. See
+the B<EXAMPLES> section for an example of how to do this.
+
+If the same variable exists in the same section then all but the last
+value will be silently ignored. In certain circumstances such as with
+DNs the same field may occur multiple times. This is usually worked
+around by ignoring any characters before an initial B<.> e.g.
+
+ 1.OU="My first OU"
+ 2.OU="My Second OU"
+
+=head1 EXAMPLES
+
+Here is a sample configuration file using some of the features
+mentioned above.
+
+ # This is the default section.
+
+ HOME=/temp
+ RANDFILE= ${ENV::HOME}/.rnd
+ configdir=$ENV::HOME/config
+
+ [ section_one ]
+
+ # We are now in section one.
+
+ # Quotes permit leading and trailing whitespace
+ any = " any variable name "
+
+ other = A string that can \
+ cover several lines \
+ by including \\ characters
+
+ message = Hello World\n
+
+ [ section_two ]
+
+ greeting = $section_one::message
+
+This next example shows how to expand environment variables safely.
+
+Suppose you want a variable called B<tmpfile> to refer to a
+temporary filename. The directory it is placed in can determined by
+the B<TEMP> or B<TMP> environment variables but they may not be
+set to any value at all. If you just include the environment variable
+names and the variable doesn't exist then this will cause an error when
+an attempt is made to load the configuration file. By making use of the
+default section both values can be looked up with B<TEMP> taking
+priority and B</tmp> used if neither is defined:
+
+ TMP=/tmp
+ # The above value is used if TMP isn't in the environment
+ TEMP=$ENV::TMP
+ # The above value is used if TEMP isn't in the environment
+ tmpfile=${ENV::TEMP}/tmp.filename
+
+Simple OpenSSL library configuration example to enter FIPS mode:
+
+ # Default appname: should match "appname" parameter (if any)
+ # supplied to CONF_modules_load_file et al.
+ openssl_conf = openssl_conf_section
+
+ [openssl_conf_section]
+ # Configuration module list
+ alg_section = evp_sect
+
+ [evp_sect]
+ # Set to "yes" to enter FIPS mode if supported
+ fips_mode = yes
+
+Note: in the above example you will get an error in non FIPS capable versions
+of OpenSSL.
+
+More complex OpenSSL library configuration. Add OID and don't enter FIPS mode:
+
+ # Default appname: should match "appname" parameter (if any)
+ # supplied to CONF_modules_load_file et al.
+ openssl_conf = openssl_conf_section
+
+ [openssl_conf_section]
+ # Configuration module list
+ alg_section = evp_sect
+ oid_section = new_oids
+
+ [evp_sect]
+ # This will have no effect as FIPS mode is off by default.
+ # Set to "yes" to enter FIPS mode, if supported
+ fips_mode = no
+
+ [new_oids]
+ # New OID, just short name
+ newoid1 = 1.2.3.4.1
+ # New OID shortname and long name
+ newoid2 = New OID 2 long name, 1.2.3.4.2
+
+The above examples can be used with any application supporting library
+configuration if "openssl_conf" is modified to match the appropriate "appname".
+
+For example if the second sample file above is saved to "example.cnf" then
+the command line:
+
+ OPENSSL_CONF=example.cnf openssl asn1parse -genstr OID:1.2.3.4.1
+
+will output:
+
+    0:d=0  hl=2 l=   4 prim: OBJECT            :newoid1
+
+showing that the OID "newoid1" has been added as "1.2.3.4.1".
+
+=head1 ENVIRONMENT
+
+=over 4
+
+=item B<OPENSSL_CONF>
+
+The path to the config file.
+Ignored in set-user-ID and set-group-ID programs.
+
+=item B<OPENSSL_ENGINES>
+
+The path to the engines directory.
+Ignored in set-user-ID and set-group-ID programs.
+
+=back
+
+=head1 BUGS
+
+Currently there is no way to include characters using the octal B<\nnn>
+form. Strings are all null terminated so nulls cannot form part of
+the value.
+
+The escaping isn't quite right: if you want to use sequences like B<\n>
+you can't use any quote escaping on the same line.
+
+Files are loaded in a single pass. This means that an variable expansion
+will only work if the variables referenced are defined earlier in the
+file.
+
+=head1 SEE ALSO
+
+L<x509(1)>, L<req(1)>, L<ca(1)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

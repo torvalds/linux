@@ -1,0 +1,42 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>ntptrace - trace a chain of NTP servers back to the primary source</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3><tt>ntptrace</tt> - trace a chain of NTP servers back to the primary source</h3>
+<img src="pic/alice13.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>Alice's Adventures in Wonderland</i>, Lewis Carroll</a>
+<p>The rabbit knows the way back.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->31-Jan-2014  06:54<!-- #EndDate -->
+    UTC</p>
+<br clear="left">
+<hr>
+<h4>Synopsis</h4>
+<tt>ntptrace [ -n ] [ -m <i>maxhosts</i> ] [ <i>server</i> ]</tt>
+<h4>Description</h4>
+<p><tt>ntptrace</tt> is a <tt>perl</tt> script that uses the <tt>ntpq</tt> utility program to follow the chain of NTP&nbsp;servers from a given host back to the primary time source. For <tt>ntptrace</tt> to work properly, each of these servers must implement the NTP&nbsp;Control and Monitoring Protocol specified in RFC 1305 and enable NTP&nbsp;Mode 6 packets.</p>
+<p>If given no arguments, <tt>ntptrace</tt> starts with <tt>localhost</tt>. Here is an example of the output from <tt>ntptrace</tt>:</p>
+<pre>
+% ntptrace
+localhost: stratum 4, offset 0.0019529, synch distance 0.144135
+server2ozo.com: stratum 2, offset 0.0124263, synch distance 0.115784
+usndh.edu: stratum 1, offset 0.0019298, synch distance 0.011993, refid 'WWVB'
+</pre>
+<p>On each line, the fields are (left to right): the host name, the host stratum, the time offset between that host and the local host (as measured by <tt>ntptrace</tt>; this is why it is not always zero for &quot;<tt>localhost</tt>&quot;), the host synchronization distance, and (only for stratum-1 servers) the reference clock ID. All times are given in seconds. Note that the stratum is the server hop count to the primary source, while the synchronization distance is the estimated error relative to the primary source. These terms are precisely defined in RFC-1305.</p>
+<h4>Options</h4>
+<dl>
+  <dt><tt>-m <i>max_hosts</i></tt></dt>
+  <dd>Sets the upper limit of the number of hosts to check (default: unlimited).</dd>
+  <dt><tt>-n</tt></dt>
+  <dd>Turns off the printing of host names; instead, host IP addresses are given. This may be useful if a nameserver is down.</dd>
+</dl>
+<h4>Bugs</h4>
+<p>This program makes no attempt to improve accuracy by doing multiple samples.</p>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

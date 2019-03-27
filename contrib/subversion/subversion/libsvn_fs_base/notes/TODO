@@ -1,0 +1,137 @@
+What's happening now
+
+The filesystem needs some path validation stuffs independent of the
+SVN path utilities.  A filesystem path is a well-defined Thing that
+should be held a safe distance away from future changes to SVN's
+general path library.
+
+
+Incorrectnesses
+
+We must ensure that node numbers are never reused.  If we open a node,
+svn_fs_delete it, and then create new nodes, what happens when the
+original node structure suddenly comes to refer to an entirely
+different node?  Files become directories?
+
+We should convert filenames to some canonical Unicode form, for
+comparison.
+
+Does everyone call svn_fs__check_fs who should?
+
+svn_fs_delete will actually delete non-empty directories, if they're
+not cloned.  This is inconsistent; should it be fixed?
+
+Does every operation on a deleted node or completed transaction fail
+gracefully?
+
+Produce helpful error messages when filename paths contain null
+characters.
+
+
+Uglinesses
+
+Fix up comments in svn_fs.h for transactions.
+
+Add `public name' member to filesystem structure, to use to identify
+the filesystem in error messages.  When driven by DAV, this could be a
+URL.
+
+When a dag function signals an error, it has no idea what the path of
+the relevant node was.  But node revision ID's are pretty useless to
+the user.  tree.c should probably rewrap some errors.
+
+svn_fs__getsize shouldn't rely on a maximum value for detecting
+overflow.
+
+The use of svn_fs__getsize in svn_fs__parse_id is ugly --- what if
+svn_vernum_t and apr_size_t aren't the same size?
+
+Consider some macros or accessory functions for referencing the pieces
+of the NODE-REVISION skel (instead of seeing stuff like
+node->children->next->next and such other unreadable rubbish)
+
+
+Slownesses
+
+We don't store older node revisions as deltas yet.
+
+The delta algorithm walks the whole tree using a single pool, so the
+memory used is proportional to the size of the target tree.  Instead,
+it should use a separate subpool every time it recurses into a new
+directory, and free that subpool as soon as it's done processing that
+subdirectory, so the memory used is proportional to the depth of the
+tree.
+
+We should move as much real content out of the NODE-REVISION skel as
+possible; the skels should be holding only small stuff (node kind,
+flags).
+- File contents and deltas should be moved out to a `contents' table.
+  The NODE-REVISION skel should simply contain a key into that table.
+- Directory contents should be moved out to a `directories' table,
+  with a separate table entry for each directory entry.  Keys into the
+  table should be of the form `NODE-ID ENTRY-NAME NODE-REVISION', and
+  values should be node revision ID's, or the word `deleted'; to look
+  up an entry named E in a directory whose node revision is N.R,
+  search for the entry `N E x', where x is the largest number present
+  <= R.
+- Property lists should be moved out to a table `properties', indexed
+  similarly to the above.  We could deltify property contents the
+  same way we do file contents.
+
+
+Amenities
+
+Extend svn_fs_copy to handle mutable nodes.
+
+Long term ideas:
+
+- directory entry cache:
+  Create a cache mapping a node revision id X plus a filename component
+  N onto a new node revision id Y, meaning that X is a directory in
+  which the name N is bound to ID Y.  If everything were in the cache,
+  this function could run with no I/O except for the final node.
+
+  Since node revisions never change, we wouldn't have to worry about
+  invalidating the cache.  Mutable node objects will need special
+  handling, of course.
+
+- fulltext cache:
+  If we've recently computed a node's fulltext, we might want to keep
+  that around in case we need to compute one of its nearby ancestors'
+  fulltext, too.  This could be a waste, though --- the access
+  patterns are a mix of linear scan (backwards to reconstruct a given
+  revision) and random (who knows what node we'll hit next), so it's
+  not clear what cache policy would be effective.  Best to record some
+  data on how many delta applications a given cache would avoid before
+  implementing it.
+
+- delta cache:
+  As people update, we're going to be recomputing text deltas for the
+  most recently changed files pretty often.  It might be worthwhile to
+  cache the deltas for a little while.
+
+- Handle Unicode canonicalization for directory and property names
+  ourselves.  People should be able to hand us any valid UTF-8
+  sequence, perhaps with precomposed characters or non-spacing marks
+  in a non-canonical order, and find the appropriate matches, given
+  the rules defined by the Unicode standard.
+
+Keeping repositories alive in the long term: Berkeley DB is infamous
+for changing its file format from one revision to the next.  If someone
+saves a Subversion 1.0 repository on a CD somewhere, and then tries to
+read it seven years later, their chance of being able to read it with
+the latest revision of Subversion is nil.  The solution:
+
+- Define a simply XML repository dump format for the complete
+  repository data.  This should be the same format we use for CVS
+  repository conversion.  We'll have an import function.
+
+- Write a program that is simple and self-contained --- does not use
+  Berkeley DB, no fancy XML tools, uses nothing but POSIX read and
+  seek --- that can dump a Subversion repository in that format.
+
+- For each revision of Subversion, make a sample repository, and
+  archive a copy of it away as test data.
+
+- Write a test suite that verifies that the repository dump program
+  can handle all of the archived formats.

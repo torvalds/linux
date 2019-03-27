@@ -1,0 +1,260 @@
+.TH SH 1
+.SH NAME
+sh, ., break, case, cd, continue, eval, exec, exit, export, for, if, read, readonly, set, shift, trap, umask, wait, while \- shell
+.SH SYNOPSIS
+\fBsh\fR [\fB\-eiknqstvxu\fR] [\fB\-c \fIstr\fR] \fB[\fIfile\fR]\fR
+.br
+.de FL
+.TP
+\\fB\\$1\\fR
+\\$2
+..
+.de EX
+.TP 20
+\\fB\\$1\\fR
+# \\$2
+..
+.SH OPTIONS
+.FL "\-c" "Execute the commands in \fIstr\fR"
+.FL "\-e" "Quit on error"
+.FL "\-i" "Interactive mode; ignore QUIT, TERMINATE, INTERRUPT"
+.FL "\-k" "Look for name=value everywhere on command line"
+.FL "\-n" "Do not execute commands"
+.FL "\-q" "Change qflag from sig_ign to sig_del"
+.FL "\-s" "Read commands from standard input"
+.FL "\-t" "Exit after reading and executing one command"
+.FL "\-v" "Echo input lines as they are read"
+.FL "\-x" "Trace"
+.FL "\-u" "Unset variables"
+.SH EXAMPLES
+.EX "sh script" "Run a shell script"
+.SH DESCRIPTION
+.I Sh
+is the shell, which forms the user's main interface with the system.
+On startup, the shell reads /etc/profile and $HOME/.profile, if they exist,
+and executes any commands they contain.  The Minix shell has most of the
+features of the V7 (Bourne) shell, including redirection of input and output,
+pipes, magic characters, background processes, and shell scripts.  A brief
+summary follows, but whole books have been written on shell programming alone.
+.LP
+Some of the more common notations are:
+.PP
+.in +2.45i
+.ta 2i 2.2i
+.ti -2.2i
+date	#	Regular command
+.ti -2.2i
+sort <file	#	Redirect \fIstdin\fR (standard input)
+.ti -2.2i
+sort <file1  >file2	#	Redirect \fIstdin\fR and \fIstdout\fR
+.ti -2.2i
+cc file.c  2>error	#	Redirect \fIstderr\fR
+.ti -2.2i
+a.out >f  2>&1	#	Combine standard output and standard error
+.ti -2.2i
+sort <file1  >>file2	#	Append output to \fIfile2\fR
+.ti -2.2i
+sort <file1  >file2 &	#	Background job
+.ti -2.2i
+(ls \-l; a.out) &	#	Run two background commands sequentially
+.ti -2.2i
+sort <file | wc	#	Two-process pipeline
+.ti -2.2i
+sort <f | uniq | wc	#	Three-process pipeline
+.ti -2.2i
+ls \-l *.c	#	List all files ending in \fI.c\fR
+.ti -2.2i
+ls \-l [\fIa-c\fR]*	#	List all files beginning with \fIa\fR, \fIb\fR, or \fIc\fR
+.ti -2.2i
+ls \-l ?	#	List all one-character file names
+.ti -2.2i
+ls \e?	#	List the file whose name is question mark
+.ti -2.2i
+ls \(fm???\(fm	#	List the file whose name is three question marks
+.ti -2.2i
+v=/usr/ast	#	Set shell variable \fIv\fR
+.ti -2.2i
+ls \-l $v	#	Use shell variable \fIv\fR
+.ti -2.2i
+PS1=\(fmHi! \(fm	#	Change the primary prompt to \fIHi!\fR
+.ti -2.2i
+PS2=\(fmMore: \(fm	#	Change the secondary prompt to \fIMore:\fR
+.ti -2.2i
+ls \-l $HOME	#	List the home directory
+.ti -2.2i
+echo $PATH	#	Echo the search path
+.ti -2.2i
+echo $?	#	Echo exit status of previous command in decimal
+.ti -2.2i
+echo $$	#	Echo shell's pid in decimal
+.ti -2.2i
+echo $!	#	Echo PID of last background process
+.ti -2.2i
+echo $#	#	Echo number of parameters (shell script)
+.ti -2.2i
+echo $2	#	Echo second parameter (shell script)
+.ti -2.2i
+echo "$2"	#	Echo second parameter without expanding spaces
+.ti -2.2i
+echo $*	#	Echo all parameters (shell script)
+.ti -2.2i
+echo $@	#	Echo all parameters (shell script)
+.ti -2.2i
+echo "$@"	#	Echo all parameters without expanding spaces
+.in -2.45i
+.LP
+The shell uses the following variables for specific purposes:
+.PP
+.in +2.25i
+.ta 2i
+.ti -2i
+SHELL	the path of the current shell
+.ti -2i
+HOME	the default value for the cd(1) command
+.ti -2i
+PATH	the directories to be searched to find commands
+.ti -2i
+IFS	the internal field separators for command strings
+.ti -2i
+PS1	the primary shell prompt
+.ti -2i
+PS2	the secondary shell prompt
+.in -2.25i
+.LP
+There are various forms of substitution on the shell command line:
+.PP
+.in +2.25i
+.ta 2i
+.ti -2i
+`...`	Command string between back-quotes is replaced by its output
+.ti -2i
+"..."	Permits variable substitution between quotes
+.ti -2i
+\&'...'	Inhibits variable substitution between quotes
+.ti -2i
+$VAR	Replaced by contents of variable VAR
+.ti -2i
+${VAR}	Delimits variable VAR from any following string
+.in -2.25i
+.LP
+The expressions below depend on whether or not VAR has ever been set.
+If VAR has been set, they give:
+.PP
+.in +2.25i
+.ta 2i
+.ti -2i
+${VAR-str}	Replace expression by VAR, else by str
+.ti -2i
+${VAR=str}	Replace expression by VAR, else by str and set VAR to str
+.ti -2i
+${VAR?str}	Replace expression by VAR, else print str and exit shell
+.ti -2i
+${VAR+str}	Replace expression by str, else by null string
+.in -2.25i
+.LP
+If a colon is placed after VAR, the expressions depend on whether or not
+VAR is currently set and non-null.
+.LP
+The shell has a number of built-in commands:
+.PP
+.in +2.25i
+.ta 2i
+.ti -2i
+:	return true status
+.ti -2i
+\&. fn	execute shell script fn on current path
+.ti -2i
+break [n]	break from a for, until or while loop; exit n levels
+.ti -2i
+continue [n]	continue a for, until or while loop; resume nth loop
+.ti -2i
+cd [dir]	change current working directory; move to $HOME
+.ti -2i
+eval cmd	rescan cmd, performing substitutions
+.ti -2i
+eval	rescan the current command line
+.ti -2i
+exec cmd	execute cmd without creating a new process
+.ti -2i
+exec <|>	with no command name, modify shell I/O
+.ti -2i
+exit [n]	exit a shell program, with exit value n
+.ti -2i
+export [var]	export var to shell's children; list exported variables
+.ti -2i
+pwd	print the name of the current working directory
+.ti -2i
+read var	read a line from stdin and assign to var
+.ti -2i
+readonly [var]	make var readonly; list readonly variables
+.ti -2i
+set -f	set shell flag (+f unsets flag)
+.ti -2i
+set str	set positional parameter to str
+.ti -2i
+set	show the current shell variables
+.ti -2i
+shift	reassign positional parameters (except ${0}) one left
+.ti -2i
+times	print accumulated user and system times for processes
+.ti -2i
+trap arg sigs	trap signals sigs and run arg on receipt
+.ti -2i
+trap	list trapped signals
+.ti -2i
+umask [n]	set the user file creation mask; show the current umask
+.ti -2i
+wait [n]	wait for process pid n; wait for all processes
+.in -2.25i
+.LP
+The shell also contains a programming language, which has the following
+operators and flow control statements:
+.PP
+.in +3.50i
+.ta 2i 3.25i
+.ti -3.25i
+#	Comment	The rest of the line is ignored
+.ti -3.25i
+=	Assignment	Set a shell variable
+.ti -3.25i
+&&	Logical AND	Execute second command only if first succeeds
+.ti -3.25i
+||	Logical OR	Execute second command only if first fails
+.ti -3.25i
+(...)	Group	Execute enclosed commands before continuing
+.in -3.50i
+.PP
+.in +2.25i
+.ta 2i
+.ti -2i
+for	For loop (for ... in ... do ... done)
+.ti -2i
+case	Case statement ((case ... ) ... ;; ... esac)
+.ti -2i
+esac	Case statement end
+.ti -2i
+while	While loop (while ... do ... done)
+.ti -2i
+do	Do/For/While loop start (do ... until ...)
+.ti -2i
+done	For/While loop end
+.ti -2i
+if	Conditional statement (if ... else ... elif ... fi)
+.ti -2i
+in	For loop selection
+.ti -2i
+then	Conditional statement start
+.ti -2i
+else	Conditional statement alternative
+.ti -2i
+elif	Conditional statement end
+.ti -2i
+until	Do loop end
+.ti -2i
+fi	Conditional statement end
+.in -2.25i
+.SH "SEE ALSO"
+.BR echo (1),
+.BR expr (1),
+.BR pwd (1),
+.BR true (1).

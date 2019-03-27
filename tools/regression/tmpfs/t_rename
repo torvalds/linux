@@ -1,0 +1,190 @@
+#!/bin/sh
+#
+# $NetBSD: t_rename,v 1.7 2007/07/23 15:05:43 jmmv Exp $
+#
+# Copyright (c) 2005, 2006 The NetBSD Foundation, Inc.
+# All rights reserved.
+#
+# This code is derived from software contributed to The NetBSD Foundation
+# by Julio M. Merino Vidal, developed as part of Google's Summer of Code
+# 2005 program.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+#
+# Verifies that the rename operation works (either by renaming entries or
+# by moving them).
+#
+
+test_run() {
+	test_mount
+
+	test_name "'.' and '..' entries cannot be renamed"
+	mkdir a || die
+	mv a/. c 2>/dev/null && die
+	mv a/.. c 2>/dev/null && die
+	rmdir a || die
+
+	test_name "Cross device renames do not work"
+	mkdir a || die
+	${Src_Dir}/h_tools rename a /var/tmp/a >/dev/null 2>&1 && die
+	rmdir a || die
+
+	test_name "Directories can be renamed"
+	mkdir a || die
+	mv a c || die
+	test -d a && die
+	test -d c || die
+	rmdir c || die
+
+	test_name "The '..' entry is updated after moves"
+	mkdir a || die
+	mkdir b || die
+	mv b a || die
+	test -d a/b/../b || die
+	test -d a/b/../../a || die
+	eval $(stat -s a/b)
+	[ ${st_nlink} = 2 ] || die
+	eval $(stat -s a)
+	[ ${st_nlink} = 3 ] || die
+	rmdir a/b || die
+	rmdir a || die
+
+	test_name "The '..' entry is correct after renames"
+	mkdir a || die
+	mkdir b || die
+	mv b a || die
+	mv a c || die
+	test -d c/b/../b || die
+	test -d c/b/../../c || die
+	rmdir c/b || die
+	rmdir c || die
+
+	test_name "The '..' entry is correct after multiple moves"
+	mkdir a || die
+	mkdir b || die
+	mv b a || die
+	mv a c || die
+	mv c/b d || die
+	test -d d/../c || die
+	rmdir d || die
+	rmdir c || die
+
+	test_name "Rename works if the target file exists"
+	touch a || die
+	touch b || die
+	mv a b || die
+	test -f a && die
+	test -f b || die
+	rm b
+
+	test_name "Rename a directory to a override an empty directory works"
+	mkdir a || die
+	touch a/c || die
+	mkdir b || die
+	${Src_Dir}/h_tools rename a b >/dev/null 2>&1 || die
+	test -e a && die
+	test -d b || die
+	test -f b/c || die
+	rm b/c
+	rmdir b
+
+	test_name "Rename a directory to a override a non-empty directory fails"
+	mkdir a || die
+	touch a/c || die
+	mkdir b || die
+	touch b/d || die
+	err=$(${Src_Dir}/h_tools rename a b 2>&1) && die
+	echo ${err} | grep 'Directory not empty' >/dev/null || die
+	test -d a || die
+	test -f a/c || die
+	test -d b || die
+	test -f b/d || die
+	rm a/c
+	rm b/d
+	rmdir a
+	rmdir b
+
+	test_name "Rename a directory to a override a file fails"
+	mkdir a || die
+	touch b || die
+	err=$(${Src_Dir}/h_tools rename a b 2>&1) && die
+	echo ${err} | grep 'Not a directory' >/dev/null || die
+	test -d a || die
+	test -f b || die
+	rmdir a
+	rm b
+
+	test_name "Rename a file to a override a directory fails"
+	touch a || die
+	mkdir b || die
+	err=$(${Src_Dir}/h_tools rename a b 2>&1) && die
+	echo ${err} | grep 'Is a directory' >/dev/null || die
+	test -f a || die
+	test -d b || die
+	rm a
+	rmdir b
+
+	mkdir dir || die
+	touch dir/a
+	echo 'mv dir/a dir/b' | kqueue_monitor 2 dir dir/a || die
+	test_name "Renaming a file raises NOTE_RENAME on the old file"
+	kqueue_check dir/a NOTE_RENAME || die
+	test_name "Renaming a file raises NOTE_WRITE on the parent directory"
+	kqueue_check dir NOTE_WRITE || die
+	rm dir/b || die
+	rmdir dir || die
+
+	mkdir dir || die
+	touch dir/a
+	touch dir/b
+	echo 'mv dir/a dir/b' | kqueue_monitor 3 dir dir/a dir/b || die
+	test_name "Renaming a file raises NOTE_RENAME on the old file"
+	kqueue_check dir/a NOTE_RENAME || die
+	test_name "Renaming a file raises NOTE_WRITE on the parent directory"
+	kqueue_check dir NOTE_WRITE || die
+	test_name "Renaming a file raises NOTE_DELETE on the target file"
+	kqueue_check dir/b NOTE_DELETE || die
+	rm dir/b || die
+	rmdir dir || die
+
+	mkdir dir1 || die
+	mkdir dir2 || die
+	touch dir1/a
+	echo 'mv dir1/a dir2/a' | kqueue_monitor 3 dir1 dir1/a dir2 || die
+	test_name "Moving a file raises NOTE_RENAME on the old file"
+	kqueue_check dir1/a NOTE_RENAME || die
+	test_name "Moving a file raises NOTE_WRITE on the source directory"
+	kqueue_check dir1 NOTE_WRITE || die
+	test_name "Moving a file raises NOTE_WRITE on the target directory"
+	kqueue_check dir2 NOTE_WRITE || die
+	rm dir2/a || die
+	rmdir dir1 || die
+	rmdir dir2 || die
+
+	test_unmount
+}
+
+. ${SUBRDIR}/h_funcs.subr

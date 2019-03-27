@@ -1,0 +1,53 @@
+Whilst a lot of the work in tnftp (both the original sources in NetBSD
+and this port) was done by Luke Mewburn, it would not be as usable
+without the enhancements, bug fixes, or input from the following people:
+
+Amitai Schlair			<schmonz@schmonz.com>
+Anders Dinsen			<anders@dinsen.net>
+Anders Magnusson		<ragge@ltu.se>
+Arkadiusz Miskiewicz		<misiek@pld.org.pl>
+Brian Stark			<bstark1990@netscape.net>
+Chris G. Demetriou		<cgd@NetBSD.org>
+Christos Zoulas			<christos@NetBSD.org>
+Dan Winship			<danw@mit.edu>
+Darren Reed			<darrenr@pobox.com>
+David Brownlee			<abs@mono.org>
+David Carrel			<carrel@NetBSD.org>
+DervishD			<raul@pleyades.net>
+Douwe Kiela			<virtus@wanadoo.nl>
+Eugene Kotlyarov		<ekot@protek36.esoo.ru>
+Geoff Wing			<mason@primenet.com.au>
+Giles Lean			<giles@nemeton.com.au>
+Havard Eidnes			<Havard.Eidnes@runit.sintef.no>
+Hubert Feyrer			<hubert@feyrer.de>
+ITOH Yasufumi			<itohy@NetBSD.org> 
+Jason R. Thorpe			<thorpej@NetBSD.org>
+John Hawkinson			<jhawk@mit.edu>
+Joseph S. Myers			<jsm28@cam.ac.uk>
+Jun-ichiro itojun Hagino	<itojun@NetBSD.org> 
+Kimmo Suominen			<kim@tac.nyc.ny.us>
+Klaus Klein			<kleink@NetBSD.org>
+Launey Thomas			<ljt@alum.mit.edu>
+Luke Mewburn			<lukem@NetBSD.org>
+Marc Horowitz			<marc@mit.edu>
+Mathieu Arnold			<mat@FreeBSD.org>
+Matthew R. Green		<mrg@eterna.com.au>
+Matthias Pfaller		<leo@dachau.marco.de>
+Matthias Scheler		<tron@zhadum.de>
+Maxim Konovalov			<maxim@FreeBSD.org>
+Maxime Henrion			<mux@FreeBSD.org>
+Michael L. Hitch		<osymh@terra.oscs.montana.edu>
+Mike Heffner			<mikeh@FreeBSD.org>
+Onno van der Linden		<o.vd.linden@quicknet.nl>
+Ruslan Ermilov			<ru@FreeBSD.org>
+Ryoji Kanai			<rkanai@eeye.com>
+Scott Aaron Bamford		<sab@ansic.net>
+Simon Burge			<simonb@thistledown.com.au>
+Steve McClellan			<steve.mcclellan@radisys.com>
+TAMURA Kent			<kent@NetBSD.org>
+Stoned Elipot			<seb@NetBSD.org>
+Todd C. Miller			<Todd.Miller@courtesan.com>
+YAMANO Yuji			<yyamano@NetBSD.org>
+Yar Tikhiy			<yar@FreeBSD.org>
+
+Apologies to anyone missed.

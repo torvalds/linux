@@ -1,0 +1,20 @@
+#! /bin/sh
+#
+# Setup a TDMA master and bridge it to a wired NIC.
+#
+# $FreeBSD$
+#
+PATH=.:$PATH
+. config
+
+SSID='freebsd+tdma'
+
+WLAN=`ifconfig wlan create wlanmode tdma wlandev $WIRELESS`
+ifconfig $WLAN ssid "$SSID" tdmaslot 0 channel $CHANNEL
+wlandebug -i $WLAN state+scan+tdma
+
+BRIDGE=`ifconfig bridge create`
+ifconfig $BRIDGE addm $WLAN addm $WIRED 192.168.2.1/24
+
+ifconfig $WIRED up
+ifconfig $WLAN up

@@ -1,0 +1,277 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Paul Vixie.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Copyright (c) 2014,2016 Spectra Logic Corporation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    substantially similar to the "NO WARRANTY" disclaimer below
+.\"    ("Disclaimer") and any redistribution must be conditioned upon
+.\"    including a substantially similar Disclaimer requirement for further
+.\"    binary redistribution.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\"     @(#)bitstring.3	8.1 (Berkeley) 7/19/93
+.\" $FreeBSD$
+.\"
+.Dd May 23, 2016
+.Dt BITSTRING 3
+.Os
+.Sh NAME
+.Nm bit_alloc ,
+.Nm bit_clear ,
+.Nm bit_count ,
+.Nm bit_decl ,
+.Nm bit_ffc ,
+.Nm bit_ffs ,
+.Nm bit_ffc_at ,
+.Nm bit_ffs_at ,
+.Nm bit_nclear ,
+.Nm bit_nset ,
+.Nm bit_set ,
+.Nm bit_test ,
+.Nm bitstr_size
+.Nd bit-string manipulation functions and macros
+.Sh SYNOPSIS
+.In bitstring.h
+.Ft bitstr_t *
+.Fn bit_alloc "int nbits"
+.Ft void
+.Fn bit_decl "bitstr_t *name" "int nbits"
+.Ft void
+.Fn bit_clear "bitstr_t *name" "int bit"
+.Ft void
+.Fn bit_count "bitstr_t *name" "int count" "int nbits" "int *value"
+.Ft void
+.Fn bit_ffc "bitstr_t *name" "int nbits" "int *value"
+.Ft void
+.Fn bit_ffs "bitstr_t *name" "int nbits" "int *value"
+.Ft void
+.Fn bit_ffc_at "bitstr_t *name" "int start" "int nbits" "int *value"
+.Ft void
+.Fn bit_ffs_at "bitstr_t *name" "int start" "int nbits" "int *value"
+.Ft void
+.Fn bit_nclear "bitstr_t *name" "int start" "int stop"
+.Ft void
+.Fn bit_nset "bitstr_t *name" "int start" "int stop"
+.Ft void
+.Fn bit_set "bitstr_t *name" "int bit"
+.Ft int
+.Fn bitstr_size "int nbits"
+.Ft int
+.Fn bit_test "bitstr_t *name" "int bit"
+.Sh DESCRIPTION
+These macros operate on strings of bits.
+.Pp
+The function
+.Fn bit_alloc
+returns a pointer of type
+.Dq Fa "bitstr_t *"
+to sufficient space to store
+.Fa nbits
+bits, or
+.Dv NULL
+if no space is available.
+If successful, the returned bit string is initialized with all bits cleared.
+.Pp
+The macro
+.Fn bit_decl
+declares a bit string with sufficient space to store
+.Fa nbits
+bits.
+.Fn bit_decl
+may be used to include statically sized bit strings in structure
+definitions or to create bit strings on the stack.
+Users of this macro are responsible for initialization of the bit string,
+typically via a global initialization of the containing struct or use of the
+.Fn bit_nset
+or
+.Fn bin_nclear
+functions.
+.Pp
+The macro
+.Fn bitstr_size
+returns the number of bytes necessary to store
+.Fa nbits
+bits.
+This is useful for copying bit strings.
+.Pp
+The functions
+.Fn bit_clear
+and
+.Fn bit_set
+clear or set the zero-based numbered bit
+.Fa bit ,
+in the bit string
+.Ar name .
+.Pp
+The
+.Fn bit_nset
+and
+.Fn bit_nclear
+functions
+set or clear the zero-based numbered bits from
+.Fa start
+through
+.Fa stop
+in the bit string
+.Ar name .
+.Pp
+The
+.Fn bit_test
+function
+evaluates to non-zero if the zero-based numbered bit
+.Fa bit
+of bit string
+.Fa name
+is set, and zero otherwise.
+.Pp
+The function
+.Fn bit_ffc
+stores in the location referenced by
+.Fa value
+the zero-based number of the first bit not set in the array of
+.Fa nbits
+bits referenced by
+.Fa name .
+If all bits are set, the location referenced by
+.Fa value
+is set to \-1.
+.Pp
+The
+.Fn bit_ffs
+function
+stores in the location referenced by
+.Fa value
+the zero-based number of the first bit set in the array of
+.Fa nbits
+bits referenced by
+.Fa name .
+If no bits are set, the location referenced by
+.Fa value
+is set to \-1.
+.Pp
+The function
+.Fn bit_ffc_at
+stores in the location referenced by
+.Fa value
+the zero-based number of the first bit not set in the array of
+.Fa nbits
+bits referenced by
+.Fa name ,
+at or after the zero-based bit index
+.Fa start .
+If all bits at or after
+.Fa start
+are set, the location referenced by
+.Fa value
+is set to \-1.
+.Pp
+The
+.Fn bit_ffs_at
+function
+stores in the location referenced by
+.Fa value
+the zero-based number of the first bit set in the array of
+.Fa nbits
+bits referenced by
+.Fa name ,
+at or after the zero-based bit index
+.Fa start .
+If no bits are set after
+.Fa start ,
+the location referenced by
+.Fa value
+is set to \-1.
+.Pp
+The
+.Fn bit_count
+function stores in the location referenced by
+.Fa value
+the number of bits set in the array of
+.Fa nbits
+bits referenced by
+.Fa name ,
+at or after the zero-based bit index
+.Fa start .
+.Pp
+The arguments in bit string macros are evaluated only once and may safely
+have side effects.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+#include <limits.h>
+#include <bitstring.h>
+
+\&...
+#define	LPR_BUSY_BIT		0
+#define	LPR_FORMAT_BIT		1
+#define	LPR_DOWNLOAD_BIT	2
+\&...
+#define	LPR_AVAILABLE_BIT	9
+#define	LPR_MAX_BITS		10
+
+make_lpr_available()
+{
+	bitstr_t bit_decl(bitlist, LPR_MAX_BITS);
+	...
+	bit_nclear(bitlist, 0, LPR_MAX_BITS - 1);
+	...
+	if (!bit_test(bitlist, LPR_BUSY_BIT)) {
+		bit_clear(bitlist, LPR_FORMAT_BIT);
+		bit_clear(bitlist, LPR_DOWNLOAD_BIT);
+		bit_set(bitlist, LPR_AVAILABLE_BIT);
+	}
+}
+.Ed
+.Sh SEE ALSO
+.Xr malloc 3 ,
+.Xr bitset 9
+.Sh HISTORY
+The
+.Nm bitstring
+functions first appeared in
+.Bx 4.4 .

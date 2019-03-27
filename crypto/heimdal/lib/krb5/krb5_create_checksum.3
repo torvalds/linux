@@ -1,0 +1,226 @@
+.\" Copyright (c) 1999-2005 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd August 12, 2005
+.Dt NAME 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_checksum ,
+.Nm krb5_checksum_disable ,
+.Nm krb5_checksum_is_collision_proof ,
+.Nm krb5_checksum_is_keyed ,
+.Nm krb5_checksumsize ,
+.Nm krb5_cksumtype_valid ,
+.Nm krb5_copy_checksum ,
+.Nm krb5_create_checksum ,
+.Nm krb5_crypto_get_checksum_type
+.Nm krb5_free_checksum ,
+.Nm krb5_free_checksum_contents ,
+.Nm krb5_hmac ,
+.Nm krb5_verify_checksum
+.Nd creates, handles and verifies checksums
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Pp
+.Li "typedef Checksum krb5_checksum;"
+.Ft void
+.Fo krb5_checksum_disable
+.Fa "krb5_context context"
+.Fa "krb5_cksumtype type"
+.Fc
+.Ft krb5_boolean
+.Fo krb5_checksum_is_collision_proof
+.Fa "krb5_context context"
+.Fa "krb5_cksumtype type"
+.Fc
+.Ft krb5_boolean
+.Fo krb5_checksum_is_keyed
+.Fa "krb5_context context"
+.Fa "krb5_cksumtype type"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cksumtype_valid
+.Fa "krb5_context context"
+.Fa "krb5_cksumtype ctype"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_checksumsize
+.Fa "krb5_context context"
+.Fa "krb5_cksumtype type"
+.Fa "size_t *size"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_create_checksum
+.Fa "krb5_context context"
+.Fa "krb5_crypto crypto"
+.Fa "krb5_key_usage usage"
+.Fa "int type"
+.Fa "void *data"
+.Fa "size_t len"
+.Fa "Checksum *result"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_verify_checksum
+.Fa "krb5_context context"
+.Fa "krb5_crypto crypto"
+.Fa "krb5_key_usage usage"
+.Fa "void *data"
+.Fa "size_t len"
+.Fa "Checksum *cksum"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_crypto_get_checksum_type
+.Fa "krb5_context context"
+.Fa "krb5_crypto crypto"
+.Fa "krb5_cksumtype *type"
+.Fc
+.Ft void
+.Fo krb5_free_checksum
+.Fa "krb5_context context"
+.Fa "krb5_checksum *cksum"
+.Fc
+.Ft void
+.Fo krb5_free_checksum_contents
+.Fa "krb5_context context"
+.Fa "krb5_checksum *cksum"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_hmac
+.Fa "krb5_context context"
+.Fa "krb5_cksumtype cktype"
+.Fa "const void *data"
+.Fa "size_t len"
+.Fa "unsigned usage"
+.Fa "krb5_keyblock *key"
+.Fa "Checksum *result"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_copy_checksum
+.Fa "krb5_context context"
+.Fa "const krb5_checksum *old"
+.Fa "krb5_checksum **new"
+.Fc
+.Sh DESCRIPTION
+The
+.Li krb5_checksum
+structure holds a Kerberos checksum.
+There is no component inside
+.Li krb5_checksum
+that is directly referable.
+.Pp
+The functions are used to create and verify checksums.
+.Fn krb5_create_checksum
+creates a checksum of the specified data, and puts it in
+.Fa result .
+If
+.Fa crypto
+is
+.Dv NULL ,
+.Fa usage_or_type
+specifies the checksum type to use; it must not be keyed. Otherwise
+.Fa crypto
+is an encryption context created by
+.Fn krb5_crypto_init ,
+and
+.Fa usage_or_type
+specifies a key-usage.
+.Pp
+.Fn krb5_verify_checksum
+verifies the
+.Fa checksum
+against the provided data.
+.Pp
+.Fn krb5_checksum_is_collision_proof
+returns true is the specified checksum is collision proof (that it's
+very unlikely that two strings has the same hash value, and that it's
+hard to find two strings that has the same hash). Examples of
+collision proof checksums are MD5, and SHA1, while CRC32 is not.
+.Pp
+.Fn krb5_checksum_is_keyed
+returns true if the specified checksum type is keyed (that the hash
+value is a function of both the data, and a separate key). Examples of
+keyed hash algorithms are HMAC-SHA1-DES3, and RSA-MD5-DES. The
+.Dq plain
+hash functions MD5, and SHA1 are not keyed.
+.Pp
+.Fn krb5_crypto_get_checksum_type
+returns the checksum type that will be used when creating a checksum for the given
+.Fa crypto
+context.
+This function is useful in combination with
+.Fn krb5_checksumsize
+when you want to know the size a checksum will
+use when you create it.
+.Pp
+.Fn krb5_cksumtype_valid
+returns 0 or an error if the checksumtype is implemented and not
+currently disabled in this kerberos library.
+.Pp
+.Fn krb5_checksumsize
+returns the size of the outdata of checksum function.
+.Pp
+.Fn krb5_copy_checksum
+returns a copy of the checksum
+.Fn krb5_free_checksum
+should use used to free the
+.Fa new
+checksum.
+.Pp
+.Fn krb5_free_checksum
+free the checksum and the content of the checksum.
+.Pp
+.Fn krb5_free_checksum_contents
+frees the content of checksum in
+.Fa cksum .
+.Pp
+.Fn krb5_hmac
+calculates the HMAC over
+.Fa data
+(with length
+.Fa len )
+using the keyusage
+.Fa usage
+and keyblock
+.Fa key .
+Note that keyusage is not always used in checksums.
+.Pp
+.Nm krb5_checksum_disable
+globally disables the checksum type.
+.\" .Sh EXAMPLE
+.\" .Sh BUGS
+.Sh SEE ALSO
+.Xr krb5_crypto_init 3 ,
+.Xr krb5_c_encrypt 3 ,
+.Xr krb5_encrypt 3

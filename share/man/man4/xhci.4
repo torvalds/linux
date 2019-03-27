@@ -1,0 +1,80 @@
+.\"
+.\" Copyright (c) 2011 Hans Petter Selasky. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 24, 2018
+.Dt XHCI 4
+.Os
+.Sh NAME
+.Nm xhci
+.Nd USB eXtensible Host Controller driver
+.Sh SYNOPSIS
+.Cd "device xhci"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+.Tn USB
+eXtensible Host Controller Interface,
+which allows use of
+.Tn USB
+1.0, 2.0 and 3.0 devices on the same
+.Tn USB
+port.
+.Pp
+The
+.Tn XHCI
+controller supports
+.Tn USB
+connection speeds up to 5.0Gbps when using a USB 3.0 compliant device.
+.Sh HARDWARE
+The
+.Nm
+driver supports
+.Tn XHCI
+compatible controllers having PCI class 12 (serial bus),
+subclass 3 (USB) and programming interface 48 (XHCI).
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.xhci.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
+.El
+.Sh SEE ALSO
+.Xr ehci 4 ,
+.Xr ohci 4 ,
+.Xr uhci 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 8.2 .

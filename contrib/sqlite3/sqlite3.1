@@ -1,0 +1,286 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH SQLITE3 1 "Fri Oct 31 10:41:31 EDT 2014"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+.B sqlite3 
+\- A command line interface for SQLite version 3
+
+.SH SYNOPSIS
+.B sqlite3
+.RI [ options ]
+.RI [ databasefile ]
+.RI [ SQL ]
+
+.SH SUMMARY
+.PP
+.B sqlite3
+is a terminal-based front-end to the SQLite library that can evaluate
+queries interactively and display the results in multiple formats.
+.B sqlite3
+can also be used within shell scripts and other applications to provide
+batch processing features.
+
+.SH DESCRIPTION
+To start a
+.B sqlite3
+interactive session, invoke the
+.B sqlite3
+command and optionally provide the name of a database file.  If the
+database file does not exist, it will be created.  If the database file
+does exist, it will be opened.
+
+For example, to create a new database file named "mydata.db", create
+a table named "memos" and insert a couple of records into that table:
+.sp
+$ 
+.B sqlite3 mydata.db
+.br
+SQLite version 3.8.8
+.br
+Enter ".help" for instructions
+.br
+sqlite>
+.B create table memos(text, priority INTEGER);
+.br
+sqlite>
+.B insert into memos values('deliver project description', 10);
+.br
+sqlite>
+.B insert into memos values('lunch with Christine', 100);
+.br
+sqlite>
+.B select * from memos;
+.br
+deliver project description|10
+.br
+lunch with Christine|100
+.br
+sqlite>
+.sp
+
+If no database name is supplied, the ATTACH sql command can be used
+to attach to existing or create new database files.  ATTACH can also
+be used to attach to multiple databases within the same interactive
+session.  This is useful for migrating data between databases,
+possibly changing the schema along the way.
+
+Optionally, a SQL statement or set of SQL statements can be supplied as
+a single argument.  Multiple statements should be separated by
+semi-colons.
+
+For example:
+.sp
+$ 
+.B sqlite3 -line mydata.db 'select * from memos where priority > 20;'
+.br
+    text = lunch with Christine
+.br
+priority = 100
+.br
+.sp
+
+.SS SQLITE META-COMMANDS
+.PP
+The interactive interpreter offers a set of meta-commands that can be
+used to control the output format, examine the currently attached
+database files, or perform administrative operations upon the
+attached databases (such as rebuilding indices).   Meta-commands are
+always prefixed with a dot (.).
+
+A list of available meta-commands can be viewed at any time by issuing
+the '.help' command.  For example:
+.sp
+sqlite>
+.B .help
+.nf
+.tr %.
+%backup ?DB? FILE      Backup DB (default "main") to FILE
+%bail on|off           Stop after hitting an error.  Default OFF
+%clone NEWDB           Clone data into NEWDB from the existing database
+%databases             List names and files of attached databases
+%dump ?TABLE? ...      Dump the database in an SQL text format
+                         If TABLE specified, only dump tables matching
+                         LIKE pattern TABLE.
+%echo on|off           Turn command echo on or off
+%eqp on|off            Enable or disable automatic EXPLAIN QUERY PLAN
+%exit                  Exit this program
+%explain ?on|off?      Turn output mode suitable for EXPLAIN on or off.
+                         With no args, it turns EXPLAIN on.
+%fullschema            Show schema and the content of sqlite_stat tables
+%headers on|off        Turn display of headers on or off
+%help                  Show this message
+%import FILE TABLE     Import data from FILE into TABLE
+%indices ?TABLE?       Show names of all indices
+                         If TABLE specified, only show indices for tables
+                         matching LIKE pattern TABLE.
+%load FILE ?ENTRY?     Load an extension library
+%log FILE|off          Turn logging on or off.  FILE can be stderr/stdout
+%mode MODE ?TABLE?     Set output mode where MODE is one of:
+                         csv      Comma-separated values
+                         column   Left-aligned columns.  (See .width)
+                         html     HTML <table> code
+                         insert   SQL insert statements for TABLE
+                         line     One value per line
+                         list     Values delimited by .separator string
+                         tabs     Tab-separated values
+                         tcl      TCL list elements
+%nullvalue STRING      Use STRING in place of NULL values
+%once FILENAME         Output for the next SQL command only to FILENAME
+%open ?FILENAME?       Close existing database and reopen FILENAME
+%output ?FILENAME?     Send output to FILENAME or stdout
+%print STRING...       Print literal STRING
+%prompt MAIN CONTINUE  Replace the standard prompts
+%quit                  Exit this program
+%read FILENAME         Execute SQL in FILENAME
+%restore ?DB? FILE     Restore content of DB (default "main") from FILE
+%save FILE             Write in-memory database into FILE
+%schema ?TABLE?        Show the CREATE statements
+                         If TABLE specified, only show tables matching
+                         LIKE pattern TABLE.
+%separator STRING ?NL? Change separator used by output mode and .import
+                         NL is the end-of-line mark for CSV
+%shell CMD ARGS...     Run CMD ARGS... in a system shell
+%show                  Show the current values for various settings
+%stats on|off          Turn stats on or off
+%system CMD ARGS...    Run CMD ARGS... in a system shell
+%tables ?TABLE?        List names of tables
+                         If TABLE specified, only list tables matching
+                         LIKE pattern TABLE.
+%timeout MS            Try opening locked tables for MS milliseconds
+%timer on|off          Turn SQL timer on or off
+%trace FILE|off        Output each SQL statement as it is run
+%vfsname ?AUX?         Print the name of the VFS stack
+%width NUM1 NUM2 ...   Set column widths for "column" mode
+                         Negative values right-justify
+sqlite>
+.sp
+.fi
+.SH OPTIONS
+.B sqlite3
+has the following options:
+.TP
+.B \-bail
+Stop after hitting an error.
+.TP
+.B \-batch
+Force batch I/O.
+.TP
+.B \-column
+Query results will be displayed in a table like form, using
+whitespace characters to separate the columns and align the
+output.
+.TP
+.BI \-cmd\  command
+run
+.I command
+before reading stdin
+.TP
+.B \-csv
+Set output mode to CSV (comma separated values).
+.TP
+.B \-echo
+Print commands before execution.
+.TP
+.BI \-init\  file
+Read and execute commands from
+.I file
+, which can contain a mix of SQL statements and meta-commands.
+.TP
+.B \-[no]header
+Turn headers on or off.
+.TP
+.B \-help
+Show help on options and exit.
+.TP
+.B \-html
+Query results will be output as simple HTML tables.
+.TP
+.B \-interactive
+Force interactive I/O.
+.TP
+.B \-line
+Query results will be displayed with one value per line, rows
+separated by a blank line.  Designed to be easily parsed by
+scripts or other programs
+.TP
+.B \-list
+Query results will be displayed with the separator (|, by default)
+character between each field value.  The default.
+.TP
+.BI \-mmap\  N
+Set default mmap size to
+.I N
+\.
+.TP
+.BI \-nullvalue\  string
+Set string used to represent NULL values.  Default is ''
+(empty string).
+.TP
+.BI \-separator\  separator
+Set output field separator.  Default is '|'.
+.TP
+.B \-stats
+Print memory stats before each finalize.
+.TP
+.B \-version
+Show SQLite version.
+.TP
+.BI \-vfs\  name
+Use
+.I name
+as the default VFS.
+
+
+.SH INIT FILE
+.B sqlite3
+reads an initialization file to set the configuration of the
+interactive environment.  Throughout initialization, any previously
+specified setting can be overridden.  The sequence of initialization is
+as follows:
+
+o The default configuration is established as follows:
+
+.sp
+.nf
+.cc |
+mode            = LIST
+separator       = "|"
+main prompt     = "sqlite> "
+continue prompt = "   ...> "
+|cc .
+.sp
+.fi
+
+o If the file 
+.B ~/.sqliterc
+exists, it is processed first.
+can be found in the user's home directory, it is
+read and processed.  It should generally only contain meta-commands.
+
+o If the -init option is present, the specified file is processed.
+
+o All other command line options are processed.
+
+.SH SEE ALSO
+http://www.sqlite.org/cli.html
+.br
+The sqlite3-doc package.
+.SH AUTHOR
+This manual page was originally written by Andreas Rottmann
+<rotty@debian.org>, for the Debian GNU/Linux system (but may be used
+by others). It was subsequently revised by Bill Bumgarner <bbum@mac.com> and
+further updated by Laszlo Boszormenyi <gcs@debian.hu> .

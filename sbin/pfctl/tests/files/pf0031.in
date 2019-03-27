@@ -1,0 +1,21 @@
+set block-policy drop
+block return in on lo0 all
+block return in on lo0 inet all
+block return in on lo0 inet6 all
+block drop in on lo0 all
+block drop in on lo0 inet all
+block drop in on lo0 inet6 all
+block in on lo0 all
+block in on lo0 inet all
+block in on lo0 inet6 all
+#set block-policy return
+block return in on lo0 all
+block return in on lo0 inet all
+block return in on lo0 inet6 all
+block drop in on lo0 all
+block drop in on lo0 inet all
+block drop in on lo0 inet6 all
+block in on lo0 all
+block in on lo0 inet all
+block in on lo0 inet6 all
+

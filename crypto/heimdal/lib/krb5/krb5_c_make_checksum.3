@@ -1,0 +1,297 @@
+.\" Copyright (c) 2003 - 2006 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd Nov  17, 2006
+.Dt KRB5_C_MAKE_CHECKSUM 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_c_block_size ,
+.Nm krb5_c_decrypt ,
+.Nm krb5_c_encrypt ,
+.Nm krb5_c_encrypt_length ,
+.Nm krb5_c_enctype_compare ,
+.Nm krb5_c_get_checksum ,
+.Nm krb5_c_is_coll_proof_cksum ,
+.Nm krb5_c_is_keyed_cksum ,
+.Nm krb5_c_keylength ,
+.Nm krb5_c_make_checksum ,
+.Nm krb5_c_make_random_key ,
+.Nm krb5_c_set_checksum ,
+.Nm krb5_c_valid_cksumtype ,
+.Nm krb5_c_valid_enctype ,
+.Nm krb5_c_verify_checksum ,
+.Nm krb5_c_checksum_length
+.Nd Kerberos 5 crypto API
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Pp
+.Ft krb5_error_code
+.Fo krb5_c_block_size
+.Fa "krb5_context context"
+.Fa "krb5_enctype enctype"
+.Fa "size_t *blocksize"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_c_decrypt
+.Fa "krb5_context context"
+.Fa "const krb5_keyblock key"
+.Fa "krb5_keyusage usage"
+.Fa "const krb5_data *ivec"
+.Fa "krb5_enc_data *input"
+.Fa "krb5_data *output"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_c_encrypt
+.Fa "krb5_context context"
+.Fa "const krb5_keyblock *key"
+.Fa "krb5_keyusage usage"
+.Fa "const krb5_data *ivec"
+.Fa "const krb5_data *input"
+.Fa "krb5_enc_data *output"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_c_encrypt_length
+.Fa "krb5_context context"
+.Fa "krb5_enctype enctype"
+.Fa "size_t inputlen"
+.Fa "size_t *length"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_c_enctype_compare
+.Fa "krb5_context context"
+.Fa "krb5_enctype e1"
+.Fa "krb5_enctype e2"
+.Fa "krb5_boolean *similar"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_c_make_random_key
+.Fa "krb5_context context"
+.Fa "krb5_enctype enctype"
+.Fa "krb5_keyblock *random_key"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_c_make_checksum
+.Fa "krb5_context context"
+.Fa "krb5_cksumtype cksumtype"
+.Fa "const krb5_keyblock *key"
+.Fa "krb5_keyusage usage"
+.Fa "const krb5_data *input"
+.Fa "krb5_checksum *cksum"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_c_verify_checksum
+.Fa "krb5_context context"
+.Fa "const krb5_keyblock *key"
+.Fa "krb5_keyusage usage"
+.Fa "const krb5_data *data"
+.Fa "const krb5_checksum *cksum"
+.Fa "krb5_boolean *valid"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_c_checksum_length
+.Fa "krb5_context context"
+.Fa "krb5_cksumtype cksumtype"
+.Fa "size_t *length"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_c_get_checksum
+.Fa "krb5_context context"
+.Fa "const krb5_checksum *cksum"
+.Fa "krb5_cksumtype *type"
+.Fa "krb5_data **data"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_c_set_checksum
+.Fa "krb5_context context"
+.Fa "krb5_checksum *cksum"
+.Fa "krb5_cksumtype type"
+.Fa "const krb5_data *data"
+.Fc
+.Ft krb5_boolean
+.Fo krb5_c_valid_enctype
+.Fa krb5_enctype etype"
+.Fc
+.Ft krb5_boolean
+.Fo krb5_c_valid_cksumtype
+.Fa "krb5_cksumtype ctype"
+.Fc
+.Ft krb5_boolean
+.Fo krb5_c_is_coll_proof_cksum
+.Fa "krb5_cksumtype ctype"
+.Fc
+.Ft krb5_boolean
+.Fo krb5_c_is_keyed_cksum
+.Fa "krb5_cksumtype ctype"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_c_keylengths
+.Fa "krb5_context context"
+.Fa "krb5_enctype enctype"
+.Fa "size_t *inlength"
+.Fa "size_t *keylength"
+.Fc
+.Sh DESCRIPTION
+The functions starting with krb5_c are compat functions with MIT kerberos.
+.Pp
+The
+.Li krb5_enc_data
+structure holds and encrypted data.
+There are two public accessable members of
+.Li krb5_enc_data .
+.Li enctype
+that holds the encryption type of the data encrypted and
+.Li ciphertext
+that is a
+.Ft krb5_data
+that might contain the encrypted data.
+.Pp
+.Fn krb5_c_block_size
+returns the blocksize of the encryption type.
+.Pp
+.Fn krb5_c_decrypt
+decrypts
+.Fa input
+and store the data in
+.Fa output.
+If
+.Fa ivec
+is
+.Dv NULL
+the default initialization vector for that encryption type will be used.
+.Pp
+.Fn krb5_c_encrypt
+encrypts the plaintext in
+.Fa input
+and store the ciphertext in
+.Fa output .
+.Pp
+.Fn krb5_c_encrypt_length
+returns the length the encrypted data given the plaintext length.
+.Pp
+.Fn krb5_c_enctype_compare
+compares to encryption types and returns if they use compatible
+encryption key types.
+.Pp
+.Fn krb5_c_make_checksum
+creates a checksum
+.Fa cksum
+with the checksum type
+.Fa cksumtype
+of the data in
+.Fa data .
+.Fa key
+and
+.Fa usage
+are used if the checksum is a keyed checksum type.
+Returns 0 or an error code.
+.Pp
+.Fn krb5_c_verify_checksum
+verifies the checksum
+of
+.Fa data
+in
+.Fa cksum
+that was created with
+.Fa key
+using the key usage
+.Fa usage .
+.Fa verify
+is set to non-zero if the checksum verifies correctly and zero if not.
+Returns 0 or an error code.
+.Pp
+.Fn krb5_c_checksum_length
+returns the length of the checksum.
+.Pp
+.Fn krb5_c_set_checksum
+sets the
+.Li krb5_checksum
+structure given
+.Fa type
+and
+.Fa data .
+The content of
+.Fa cksum
+should be freeed with
+.Fn krb5_c_free_checksum_contents .
+.Pp
+.Fn krb5_c_get_checksum
+retrieves the components of the
+.Li krb5_checksum .
+structure.
+.Fa data
+should be free with
+.Fn krb5_free_data .
+If some either of
+.Fa data
+or
+.Fa checksum
+is not needed for the application,
+.Dv NULL
+can be passed in.
+.Pp
+.Fn krb5_c_valid_enctype
+returns true if
+.Fa etype
+is a valid encryption type.
+.Pp
+.Fn krb5_c_valid_cksumtype
+returns true if
+.Fa ctype
+is a valid checksum type.
+.Pp
+.Fn krb5_c_is_keyed_cksum
+return true if
+.Fa ctype
+is a keyed checksum type.
+.Pp
+.Fn krb5_c_is_coll_proof_cksum
+returns true if
+.Fa ctype
+is a collision proof checksum type.
+.Pp
+.Fn krb5_c_keylengths
+return the minimum length
+.Fa ( inlength )
+bytes needed to create a key and the
+length
+.Fa ( keylength )
+of the resulting key
+for the
+.Fa enctype .
+.Sh SEE ALSO
+.Xr krb5 3 ,
+.Xr krb5_create_checksum 3 ,
+.Xr krb5_free_data 3 ,
+.Xr kerberos 8

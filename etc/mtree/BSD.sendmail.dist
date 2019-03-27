@@ -1,0 +1,14 @@
+# $FreeBSD$
+#
+# Please see the file src/etc/mtree/README before making changes to this file.
+#
+
+/set type=dir uname=root gname=wheel mode=0755
+.               nochange
+    var             nochange
+        spool           nochange
+            clientmqueue    uname=smmsp gname=smmsp mode=0770
+            ..
+        ..
+    ..
+..

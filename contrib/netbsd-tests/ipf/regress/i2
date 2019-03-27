@@ -1,0 +1,9 @@
+log in proto tcp all
+pass in proto 6 from any to any
+pass in proto udp from localhost to localhost
+block in proto ipv6 from any to any
+block in proto 17 from any to any
+block in proto 250 from any to any
+pass in proto tcp/udp from any to any
+block in proto tcp-udp from any to any
+block in proto tcp-udp from any to any

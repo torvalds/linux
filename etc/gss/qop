@@ -1,0 +1,3 @@
+# $FreeBSD$
+GSS_KRB5_CONF_C_QOP_DES		0x0100	kerberosv5
+GSS_KRB5_CONF_C_QOP_DES3_KD	0x0200	kerberosv5

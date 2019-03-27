@@ -1,0 +1,81 @@
+-- $Id$ --
+
+PKCS12 DEFINITIONS ::=
+
+BEGIN
+
+IMPORTS ContentInfo FROM cms
+	DigestInfo FROM rfc2459
+	heim_any, heim_any_set FROM heim;
+
+-- The PFX PDU
+
+id-pkcs-12 OBJECT IDENTIFIER ::= { iso(1) member-body(2) us(840)
+	rsadsi(113549) pkcs(1) pkcs-12(12) }
+
+id-pkcs-12PbeIds                   OBJECT IDENTIFIER ::= { id-pkcs-12 1}
+id-pbeWithSHAAnd128BitRC4          OBJECT IDENTIFIER ::= { id-pkcs-12PbeIds 1}
+id-pbeWithSHAAnd40BitRC4           OBJECT IDENTIFIER ::= { id-pkcs-12PbeIds 2}
+id-pbeWithSHAAnd3-KeyTripleDES-CBC OBJECT IDENTIFIER ::= { id-pkcs-12PbeIds 3}
+id-pbeWithSHAAnd2-KeyTripleDES-CBC OBJECT IDENTIFIER ::= { id-pkcs-12PbeIds 4}
+id-pbeWithSHAAnd128BitRC2-CBC      OBJECT IDENTIFIER ::= { id-pkcs-12PbeIds 5}
+id-pbewithSHAAnd40BitRC2-CBC       OBJECT IDENTIFIER ::= { id-pkcs-12PbeIds 6}
+
+id-pkcs12-bagtypes		OBJECT IDENTIFIER ::= { id-pkcs-12 10 1}
+
+id-pkcs12-keyBag		OBJECT IDENTIFIER ::= { id-pkcs12-bagtypes 1 }
+id-pkcs12-pkcs8ShroudedKeyBag	OBJECT IDENTIFIER ::= { id-pkcs12-bagtypes 2 }
+id-pkcs12-certBag		OBJECT IDENTIFIER ::= { id-pkcs12-bagtypes 3 }
+id-pkcs12-crlBag		OBJECT IDENTIFIER ::= { id-pkcs12-bagtypes 4 }
+id-pkcs12-secretBag		OBJECT IDENTIFIER ::= { id-pkcs12-bagtypes 5 }
+id-pkcs12-safeContentsBag	OBJECT IDENTIFIER ::= { id-pkcs12-bagtypes 6 }
+
+
+PKCS12-MacData ::= SEQUENCE {
+    	mac 		DigestInfo,
+	macSalt	        OCTET STRING,
+	iterations	INTEGER OPTIONAL
+}
+
+PKCS12-PFX ::= SEQUENCE {
+    	version		INTEGER,
+    	authSafe	ContentInfo,
+    	macData    	PKCS12-MacData OPTIONAL
+}
+
+PKCS12-AuthenticatedSafe ::= SEQUENCE OF ContentInfo
+	-- Data if unencrypted
+	-- EncryptedData if password-encrypted
+	-- EnvelopedData if public key-encrypted
+
+PKCS12-Attribute ::= SEQUENCE {
+	attrId	   	OBJECT IDENTIFIER,
+	attrValues 	-- SET OF -- heim_any_set
+}
+
+PKCS12-Attributes ::= SET OF PKCS12-Attribute
+
+PKCS12-SafeBag ::= SEQUENCE {
+  	bagId	      	OBJECT IDENTIFIER,
+  	bagValue      	[0] heim_any,
+  	bagAttributes 	PKCS12-Attributes OPTIONAL
+}
+
+PKCS12-SafeContents ::= SEQUENCE OF PKCS12-SafeBag
+
+PKCS12-CertBag ::= SEQUENCE {
+	certType	OBJECT IDENTIFIER,
+  	certValue      	[0] heim_any
+}
+
+PKCS12-PBEParams ::= SEQUENCE {
+	salt		OCTET STRING,
+	iterations	INTEGER (0..4294967295) OPTIONAL
+}
+
+PKCS12-OctetString ::= OCTET STRING
+
+-- KeyBag ::= PrivateKeyInfo
+-- PKCS8ShroudedKeyBag ::= EncryptedPrivateKeyInfo
+
+END

@@ -1,0 +1,178 @@
+.\" Copyright (c) 2005 Scott Long
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 8, 2017
+.Dt ARCMSR 4
+.Os
+.Sh NAME
+.Nm arcmsr
+.Nd Areca RAID Controller driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
+.Cd "device da"
+.Cd "device arcmsr"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+arcmsr_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Areca ARC-11xx, ARC-12xx, ARC-13xx,
+ARC-16xx and ARC-18xx series of SAS and SATA RAID controllers.
+These controllers feature RAID-0, 1, 3, 5, 6, and 10 and
+JBOD acceleration for up to 16 SATA drives.
+RAID level and stripe level
+migration, online capacity expansion, hot insertion/removal, automatic failover
+and rebuild, and SMART are also supported.
+Access to the arrays is provided
+via the SCSI CAM
+.Pa /dev/da?
+device nodes.
+A management interface is also present via the
+.Pa /dev/arcmsr?
+device node.
+Management tools for i386 and amd64 are available from Areca.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following cards:
+.Pp
+.Bl -bullet -compact
+.It
+ARC-1110
+.It
+ARC-1120
+.It
+ARC-1130
+.It
+ARC-1160
+.It
+ARC-1170
+.It
+ARC-1110ML
+.It
+ARC-1120ML
+.It
+ARC-1130ML
+.It
+ARC-1160ML
+.It
+ARC-1200
+.It
+ARC-1201
+.It
+ARC-1203
+.It
+ARC-1210
+.It
+ARC-1212
+.It
+ARC-1213
+.It
+ARC-1214
+.It
+ARC-1216
+.It
+ARC-1220
+.It
+ARC-1222
+.It
+ARC-1223
+.It
+ARC-1224
+.It
+ARC-1226
+.It
+ARC-1230
+.It
+ARC-1231
+.It
+ARC-1260
+.It
+ARC-1261
+.It
+ARC-1270
+.It
+ARC-1280
+.It
+ARC-1210ML
+.It
+ARC-1220ML
+.It
+ARC-1231ML
+.It
+ARC-1261ML
+.It
+ARC-1280ML
+.It
+ARC-1380
+.It
+ARC-1381
+.It
+ARC-1680
+.It
+ARC-1681
+.It
+ARC-1880
+.It
+ARC-1882
+.It
+ARC-1883
+.It
+ARC-1884
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/arcmsr?" -compact
+.It Pa /dev/da?
+Array block device
+.It Pa /dev/arcmsr?
+Management interface
+.El
+.Sh SEE ALSO
+.Xr da 4 ,
+.Xr scbus 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.4 .
+.Sh AUTHORS
+The driver was written by
+.An Erich Chen Aq Mt erich@areca.com.tw .
+.Sh BUGS
+The driver has been tested on i386 and amd64.
+It likely requires additional
+work to function on big-endian architectures.

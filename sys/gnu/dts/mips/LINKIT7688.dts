@@ -1,0 +1,182 @@
+/dts-v1/;
+
+#include "mt7628an.dtsi"
+
+/ {
+	compatible = "mediatek,linkit", "mediatek,mt7628an-soc";
+	model = "MediaTek LinkIt Smart 7688";
+
+	chosen {
+		bootargs = "console=ttyS2,57600";
+	};
+
+	aliases {
+		serial0 = &uart2;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x8000000>;
+	};
+
+	bootstrap {
+		compatible = "mediatek,linkit";
+
+		status = "okay";
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		wifi {
+			label = "mediatek:orange:wifi";
+			gpios = <&wgpio 0 0>;
+			default-state = "on";
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		wps {
+			label = "reset";
+			gpios = <&gpio1 6 1>;
+			linux,code = <0x211>;
+		};
+	};
+
+	wgpio: gpio-wifi {
+		compatible = "mediatek,gpio-wifi";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "gpio";
+			ralink,function = "gpio";
+		};
+
+		perst {
+			ralink,group = "perst";
+			ralink,function = "gpio";
+		};
+
+		refclk {
+			ralink,group = "refclk";
+			ralink,function = "gpio";
+		};
+
+		i2s {
+			ralink,group = "i2s";
+			ralink,function = "gpio";
+		};
+
+		spis {
+			ralink,group = "spis";
+			ralink,function = "gpio";
+		};
+
+		wled_kn {
+			ralink,group = "wled_kn";
+			ralink,function = "gpio";
+		};
+
+		wled_an {
+			ralink,group = "wled_an";
+			ralink,function = "wled_an";
+		};
+
+		wdt {
+			ralink,group = "wdt";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&wmac {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_pins>, <&spi_cs1_pins>;
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "mx25l25635e";
+		spi-max-frequency = <40000000>;
+		m25p,chunked-io = <31>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x1fb0000>;
+		};
+	};
+
+	spidev@1 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "linux,spidev";
+		reg = <1>;
+		spi-max-frequency = <40000000>;
+	};
+};
+
+&i2c {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&pwm {
+	status = "okay";
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x28>;
+};
+
+&sdhci {
+	status = "okay";
+	mediatek,cd-high;
+};
+
+&wmac {
+	status = "okay";
+};

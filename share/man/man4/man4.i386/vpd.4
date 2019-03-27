@@ -1,0 +1,90 @@
+.\" Copyright (c) 2003 Matthew N. Dodd <winter@jurai.net>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 31, 2004
+.Dt VPD 4 i386
+.Os
+.Sh NAME
+.Nm vpd
+.Nd "Vital Product Data kernel interface"
+.Sh SYNOPSIS
+.Cd "device vpd"
+.Sh DESCRIPTION
+.Tn IBM ThinkPad
+notebooks (and most
+.Tn IBM
+desktop PCs) have a 48-byte
+Vital Product Data (VPD) structure located in the BIOS Shadow RAM.
+.Pp
+The VPD provides machine type and model information, the build ID
+(this is roughly the BIOS version) and serial number information.
+.Pp
+The
+.Nm
+driver scans the BIOS area and claims the memory used by the VPD
+structure.
+It provides the
+.Xr sysctl 3
+branch
+.Va hw.vpd
+to allow this information to be accessed by the userland.
+The following variables are provided, one per VPD attachment (there should
+only be one):
+.Pp
+.Bl -tag -width ".Dv MACHINE_MODEL" -compact
+.It Dv MACHINE_TYPE
+.Pq Va machine.type
+Machine type.
+.It Dv MACHINE_MODEL
+.Pq Va machine.model
+Machine model.
+.It Dv BUILD_ID
+.Pq Va build.id
+BIOS Build ID.
+.It Dv SERIAL_BOX
+.Pq Va serial.box
+Box Serial Number.
+.It Dv SERIAL_PLANAR
+.Pq Va serial.planar
+Motherboard Serial Number.
+.El
+.Sh SEE ALSO
+.Rs
+.%T "TP General - Using the BIOS Build ID to identify IBM ThinkPad systems"
+.%N "Reference #: MIGR-45120"
+.%D "November 22, 2002"
+.%U "http://www.ibm.com/support/docview.wss?uid=psg1MIGR-45120"
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.1 .
+.Sh AUTHORS
+The
+.Nm
+driver and this manual page were written by
+.An Matthew N. Dodd Aq Mt mdodd@FreeBSD.org .

@@ -1,0 +1,39 @@
+# $FreeBSD$
+
+failures=0
+
+check() {
+	if ! eval "[ $* ]"; then
+		echo "Failed: $*"
+		: $((failures += 1))
+	fi
+}
+
+s='ast*que?non' sq=\' dq=\"
+
+check '"$(cat <<EOF
+${s}
+EOF
+)" = "ast*que?non"'
+
+check '"$(cat <<EOF
+${s+'$sq'x'$sq'}
+EOF
+)" = ${sq}x${sq}'
+
+check '"$(cat <<EOF
+${s#ast}
+EOF
+)" = "*que?non"'
+
+check '"$(cat <<EOF
+${s##"ast"}
+EOF
+)" = "*que?non"'
+
+check '"$(cat <<EOF
+${s##'$sq'ast'$sq'}
+EOF
+)" = "*que?non"'
+
+exit $((failures != 0))

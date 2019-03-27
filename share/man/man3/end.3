@@ -1,0 +1,79 @@
+.\" Copyright (c) 1986
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)end.3	6.4 (Berkeley) 1/24/94
+.\" $FreeBSD$
+.\"
+.Dd August 28, 2000
+.Dt END 3
+.Os
+.Sh NAME
+.Nm end ,
+.Nm etext ,
+.Nm edata
+.Nd end boundaries of image segments
+.Sh SYNOPSIS
+.Vt extern end ;
+.Vt extern etext ;
+.Vt extern edata ;
+.Sh DESCRIPTION
+The globals
+.Va end , etext
+and
+.Va edata
+are program segment end addresses.
+.Pp
+.Va etext
+is the first address after the end of the text segment.
+.Pp
+.Va edata
+is the first address after the end of the initialized data segment.
+.Pp
+.Va end
+is the first address after the end of the data segment
+.Pq Tn BSS
+when the program is loaded.
+Use the
+.Xr sbrk 2
+.\".Fn sbrk 0
+system call with zero as its argument to find the current end of the
+data segment.
+.Sh SEE ALSO
+.Xr sbrk 2 ,
+.Xr malloc 3 ,
+.Xr a.out 5
+.Sh HISTORY
+An
+.Nm
+manual page appeared in
+.At v6 .
+.Sh BUGS
+Traditionally, no variable existed that pointed to the start of the
+text segment because the text segment always started at address zero.
+Although it is no longer valid to make this assumption, no
+variable similar to the ones documented above exists to point to the
+start of the text segment.

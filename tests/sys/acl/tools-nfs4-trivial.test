@@ -1,0 +1,82 @@
+# Copyright (c) 2011 Edward Tomasz Napierała <trasz@FreeBSD.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# This is a tools-level test for acl_is_trivial_np(3).  Run it as root on ZFS.
+# Note that this does not work on UFS with NFSv4 ACLs enabled - UFS recognizes
+# both kind of trivial ACLs and replaces it by the default one.
+#
+# WARNING: Creates files in unsafe way.
+
+$ whoami
+> root
+$ umask 022
+
+# Check whether ls(1) correctly recognizes PSARC/2010/029-style trivial ACLs.
+$ touch xxx
+
+$ ls -l xxx | cut -d' ' -f1
+> -rw-r--r--
+
+$ getfacl -q xxx
+>             owner@:rw-p--aARWcCos:-------:allow
+>             group@:r-----a-R-c--s:-------:allow
+>          everyone@:r-----a-R-c--s:-------:allow
+
+# Check whether ls(1) correctly recognizes draft-style trivial ACLs.
+$ rm xxx
+$ touch xxx
+$ setfacl -a0 owner@:x:deny,owner@:rwpAWCo:allow,group@:wxp:deny,group@:r:allow,everyone@:wxpAWCo:deny,everyone@:raRcs:allow xxx
+$ setfacl -x5 xxx
+$ setfacl -x5 xxx
+$ setfacl -x5 xxx
+
+$ ls -l xxx | cut -d' ' -f1
+> -rw-r--r--
+
+$ getfacl -q xxx
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             group@:-wxp----------:-------:deny
+>             group@:r-------------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
+
+# Make sure ls(1) actually can recognize something as non-trivial.
+$ setfacl -x0 xxx
+
+$ ls -l xxx | cut -d' ' -f1
+> -rw-r--r--+
+
+$ getfacl -q xxx
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             group@:-wxp----------:-------:deny
+>             group@:r-------------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
+
+$ rm xxx
+

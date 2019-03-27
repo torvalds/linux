@@ -1,0 +1,190 @@
+.\" $FreeBSD$
+.\" Written by Tom Rhodes
+.\" This file is in the public domain.
+.\"
+.Dd January 26, 2012
+.Dt CISS 4
+.Os
+.Sh NAME
+.Nm ciss
+.Nd Common Interface for SCSI-3 Support driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device ciss"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ciss_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver claims to provide a common interface between generic SCSI
+transports and intelligent host adapters.
+.Pp
+The
+.Nm
+driver supports
+.Em CISS
+as defined in the document entitled
+.%T "CISS Command Interface for SCSI-3 Support Open Specification, Version 1.04, Valence Number 1" ,
+dated 2000/11/27, produced by Compaq Computer Corporation.
+.Pp
+We provide a shim layer between the
+.Nm
+interface and
+.Xr CAM 4 ,
+offloading most of the queueing and being-a-disk chores onto CAM.
+Entry to the driver is via the PCI bus attachment
+.Fn ciss_probe ,
+.Fn ciss_attach ,
+etc.\& and via the CAM interface
+.Fn ciss_cam_action ,
+and
+.Fn ciss_cam_poll .
+The Compaq
+.Nm
+adapters require faked responses to get reasonable
+behavior out of them.
+In addition, the
+.Nm
+command set is by no means adequate to support the functionality
+of a RAID controller,
+and thus the supported Compaq adapters utilize portions of the
+control protocol from earlier Compaq adapter families.
+.Pp
+Currently
+.Nm
+supports the
+.Dq simple
+and
+.Dq performant
+transport layer.
+.Pp
+Non-disk devices (such as internal DATs and devices
+attached to the external SCSI bus) are supported as normal CAM devices
+provided that they are exported by the controller firmware and are not
+marked as being masked.
+Masked devices can be exposed by setting the
+.Va hw.ciss.expose_hidden_physical
+tunable to non-zero at boot time.
+Direct Access devices (such as disk
+drives) are only exposed as
+.Xr pass 4
+devices.
+Hot-insertion and removal of devices is supported and notification messages
+will be reported to the console and logs.
+.Pp
+The problem which adapter freezes with the message
+.Dq ADAPTER HEARTBEAT FAILED
+might be solved by updating the firmware and/or setting the
+.Va hw.ciss.nop_message_heartbeat
+tunable to non-zero at boot time.
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Compaq Smart Array 5300 (simple mode only)
+.It
+Compaq Smart Array 532
+.It
+Compaq Smart Array 5i
+.It
+HP Smart Array 5312
+.It
+HP Smart Array 6i
+.It
+HP Smart Array 641
+.It
+HP Smart Array 642
+.It
+HP Smart Array 6400
+.It
+HP Smart Array 6400 EM
+.It
+HP Smart Array E200
+.It
+HP Smart Array E200i
+.It
+HP Smart Array P212
+.It
+HP Smart Array P220i
+.It
+HP Smart Array P222
+.It
+HP Smart Array P230i
+.It
+HP Smart Array P400
+.It
+HP Smart Array P400i
+.It
+HP Smart Array P410
+.It
+HP Smart Array P410i
+.It
+HP Smart Array P411
+.It
+HP Smart Array P420
+.It
+HP Smart Array P420i
+.It
+HP Smart Array P421
+.It
+HP Smart Array P430
+.It
+HP Smart Array P430i
+.It
+HP Smart Array P431
+.It
+HP Smart Array P530
+.It
+HP Smart Array P531
+.It
+HP Smart Array P600
+.It
+HP Smart Array P721m
+.It
+HP Smart Array P731m
+.It
+HP Smart Array P800
+.It
+HP Smart Array P812
+.It
+HP Smart Array P830
+.It
+HP Smart Array P830i
+.It
+HP Modular Smart Array 20 (MSA20)
+.It
+HP Modular Smart Array 500 (MSA500)
+.El
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr pass 4 ,
+.Xr xpt 4 ,
+.Xr loader.conf 5 ,
+.Xr camcontrol 8
+.Rs
+.%T "CISS Command Interface for SCSI-3 Support Open Specification, Version 1.04, Valence Number 1"
+.%D 2000/11/27
+.%Q "Compaq Computer Corporation"
+.Re
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Mike Smith Aq Mt msmith@FreeBSD.org .
+.Pp
+This manual page is based on his comments and was written by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org .

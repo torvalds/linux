@@ -1,0 +1,52 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wpa_supplicant", "wpa_supplicant\wpa_supplicant.vcproj", "{8BCFDA77-AEDC-4168-8897-5B73105BBB87}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wpa_cli", "wpa_cli\wpa_cli.vcproj", "{E3A7B181-22CC-4DA3-8410-6AD69879A9EC}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wpasvc", "wpasvc\wpasvc.vcproj", "{E2A4A85F-CA77-406D-8ABF-63EF94545ACC}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wpa_passphrase", "wpa_passphrase\wpa_passphrase.vcproj", "{ADBE4EA8-F0C5-40C2-AE89-C56D0F2EC1DF}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "win_if_list", "win_if_list\win_if_list.vcproj", "{9E87CD9C-60CE-4533-85CF-85CA3A9BF26A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "eapol_test", "eapol_test\eapol_test.vcproj", "{0E3F2C6D-1372-48D6-BCAB-E584917C4DE3}"
+EndProject
+Global
+	GlobalSection(DPCodeReviewSolutionGUID) = preSolution
+		DPCodeReviewSolutionGUID = {00000000-0000-0000-0000-000000000000}
+	EndGlobalSection
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8BCFDA77-AEDC-4168-8897-5B73105BBB87}.Debug|Win32.ActiveCfg = Debug|Win32
+		{8BCFDA77-AEDC-4168-8897-5B73105BBB87}.Debug|Win32.Build.0 = Debug|Win32
+		{8BCFDA77-AEDC-4168-8897-5B73105BBB87}.Release|Win32.ActiveCfg = Release|Win32
+		{8BCFDA77-AEDC-4168-8897-5B73105BBB87}.Release|Win32.Build.0 = Release|Win32
+		{E3A7B181-22CC-4DA3-8410-6AD69879A9EC}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E3A7B181-22CC-4DA3-8410-6AD69879A9EC}.Debug|Win32.Build.0 = Debug|Win32
+		{E3A7B181-22CC-4DA3-8410-6AD69879A9EC}.Release|Win32.ActiveCfg = Release|Win32
+		{E3A7B181-22CC-4DA3-8410-6AD69879A9EC}.Release|Win32.Build.0 = Release|Win32
+		{E2A4A85F-CA77-406D-8ABF-63EF94545ACC}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E2A4A85F-CA77-406D-8ABF-63EF94545ACC}.Debug|Win32.Build.0 = Debug|Win32
+		{E2A4A85F-CA77-406D-8ABF-63EF94545ACC}.Release|Win32.ActiveCfg = Release|Win32
+		{E2A4A85F-CA77-406D-8ABF-63EF94545ACC}.Release|Win32.Build.0 = Release|Win32
+		{ADBE4EA8-F0C5-40C2-AE89-C56D0F2EC1DF}.Debug|Win32.ActiveCfg = Debug|Win32
+		{ADBE4EA8-F0C5-40C2-AE89-C56D0F2EC1DF}.Debug|Win32.Build.0 = Debug|Win32
+		{ADBE4EA8-F0C5-40C2-AE89-C56D0F2EC1DF}.Release|Win32.ActiveCfg = Release|Win32
+		{ADBE4EA8-F0C5-40C2-AE89-C56D0F2EC1DF}.Release|Win32.Build.0 = Release|Win32
+		{9E87CD9C-60CE-4533-85CF-85CA3A9BF26A}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9E87CD9C-60CE-4533-85CF-85CA3A9BF26A}.Debug|Win32.Build.0 = Debug|Win32
+		{9E87CD9C-60CE-4533-85CF-85CA3A9BF26A}.Release|Win32.ActiveCfg = Release|Win32
+		{9E87CD9C-60CE-4533-85CF-85CA3A9BF26A}.Release|Win32.Build.0 = Release|Win32
+		{0E3F2C6D-1372-48D6-BCAB-E584917C4DE3}.Debug|Win32.ActiveCfg = Debug|Win32
+		{0E3F2C6D-1372-48D6-BCAB-E584917C4DE3}.Debug|Win32.Build.0 = Debug|Win32
+		{0E3F2C6D-1372-48D6-BCAB-E584917C4DE3}.Release|Win32.ActiveCfg = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

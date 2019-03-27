@@ -1,0 +1,198 @@
+.\"	$NetBSD: hesinfo.1,v 1.1 1999/01/25 22:45:55 lukem Exp $
+.\"
+.\" from: #Id: hesinfo.1,v 1.9 1996/11/07 01:57:12 ghudson Exp #
+.\"
+.\" Copyright 1987, 1996 by the Massachusetts Institute of Technology.
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 27, 1996
+.Dt HESINFO 1
+.Os
+.Sh NAME
+.Nm hesinfo
+.Nd "find out what is stored in the Hesiod database"
+.Sh SYNOPSIS
+.Nm
+.Op Fl bl
+.Ar HesiodName HesiodNameType
+.Sh DESCRIPTION
+The
+.Nm
+utility takes two arguments, a name to be resolved and a string, known
+as a
+.Ar HesiodNameType .
+It then prints the information returned by
+the Hesiod nameserver.
+.Pp
+The value returned by
+.Nm
+is of the type
+.Ar HesiodNameType .
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl l
+Selects long format.
+.It Fl b
+Prints the fully\-qualified string passed to the nameserver.
+.El
+.Ss VALID Hesiod_Names
+The following types of identifiers may be used in the
+.Ar HesiodName
+argument to
+.Nm .
+These values will be resolved by accessing the
+.Xr hesiod 3
+database.
+.Bl -tag -width indent
+.It Aq Ar username
+the 8\-character\-or\-less string used to identify users or classes
+(e.g.\& joeuser, root, 1.00, etc).
+Used with the
+.Ar Hesiod_Name_Types
+.Cm passwd ,
+.Cm pobox ,
+and
+.Cm filsys .
+.It Aq Ar uid
+the id number assigned to a user.
+.It Aq Ar groupid
+the id number assigned to a group.
+.It Aq Ar groupname
+a name identifying a unique group.
+.It Aq Ar file\-system\-name
+the name of an Athena file system.
+.It Xo
+.Ao Ar "rvd\-server" Ac : Ns Aq Ar pack
+.Xc
+the name of an rvd's server and pack separated by a colon.
+.It Xo
+.Ao Ar "nfs\-server" Ac : Ns Aq Ar partition
+.Xc
+the name of an
+.Tn NFS
+server and its partition separated by a colon.
+.It Aq Ar workstation\-name
+the machine name of an Athena workstation (e.g.\& E40\-343\-3).
+.It Aq Ar service\-name
+name of an Athena service (e.g.\& Zephyr).
+.It Aq Ar service\-type
+name of
+.Ux
+service (valid entries are defined in
+.Pa /etc/services ) .
+.It Aq Ar printer\-name
+name of a printer.
+.It Aq Ar printer\-cluster\-name
+name of an Athena print cluster.
+.It Aq Ar foo
+some
+.Nm
+calls (e.g.\&
+.Cm prclusterlist )
+do not require a specific
+.Ar HesiodName
+argument.
+However, you must include a dummy string (e.g.\&
+.Ql foo )
+for
+.Nm
+to work properly.
+.El
+.Ss VALID Hesiod_Name_Types
+The following symbols are valid substitutions for the
+.Ar HesiodNameType
+argument to
+.Nm .
+.Bl -tag -width indent
+.It Cm passwd
+returns string suitable for inclusion in
+.Pa /etc/passwd ,
+searching with
+.Aq Ar username .
+.It Cm pobox
+returns information on the pobox assigned to the user specified by
+.Ar HesiodName ,
+searching with
+.Aq Ar username .
+.It Cm uid
+returns string suitable for inclusion in
+.Pa /etc/passwd ,
+searching with
+.Aq Ar uid .
+.It Cm gid
+returns string suitable for inclusion in
+.Pa /etc/group ,
+searching with
+.Aq Ar groupid .
+.It Cm group
+returns string suitable for inclusion in
+.Pa /etc/group ,
+searching with
+.Aq Ar groupname .
+.It Cm grplist
+returns subgroups included in superset
+defined by
+.Aq Ar groupname .
+.It Cm filsys
+returns file system type, export point, server, mount mode, and import point
+for the following valid
+.Ar HesiodNames
+(see above) -
+.Aq Ar "file\-system\-name" ,
+.Aq Ar username ,
+.Ao Ar "rvd\-server" Ac : Ns Aq Ar pack ,
+and
+.Ao Ar "nfs\-server" Ac : Ns Aq Ar partition .
+.It Cm cluster
+returns information about the local cluster the workstation, specified by
+.Aq Ar "workstation\-name" .
+Included is information about the local file and print servers.
+This information is accesses by
+.Sy clusterinfo
+at boot time.
+.It Cm sloc
+returns network name of service host for
+.Aq Ar service\-name .
+.It Cm service
+returns Internet protocol type and protocol service port for
+.Aq Ar service\-type .
+.It Cm pcap
+returns a valid entry for
+.Pa /etc/printcap
+for
+.Aq Ar printer\-name .
+.It Cm prcluserlist
+returns a list of print clusters.
+.It Cm prcluster
+returns a list of printers in a cluster specified by
+.Aq Ar printer\-cluster\-name .
+.El
+.Sh FILES
+.Bl -tag -width /etc/hesiod.conf
+.It Pa /etc/hesiod.conf
+.El
+.Sh SEE ALSO
+.Xr hesiod 3 ,
+.Xr named 8
+.Rs
+.%T "Hesiod - Project Athena Technical Plan -- Name Service"
+.Re
+.Sh AUTHORS
+.An Steve Dyer ,
+IBM/Project Athena
+.Pp
+Copyright 1987, 1988, 1996 by the Massachusetts Institute of Technology.

@@ -1,0 +1,79 @@
+.\"
+.\" Copyright (c) 2008 David Malone
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" "
+.Dd July 16, 2008
+.Dt ACCF_DNS 9
+.Os
+.Sh NAME
+.Nm accf_dns
+.Nd buffer incoming DNS requests until the whole first request is present
+.Sh SYNOPSIS
+.Nm options INET
+.Nm options ACCEPT_FILTER_DNS
+.Nm kldload accf_dns
+.Sh DESCRIPTION
+This is a filter to be placed on a socket that will be using
+.Fn accept
+to receive incoming connections.
+.Pp
+It prevents the application from receiving the connected descriptor via
+.Fn accept
+until a whole DNS request is available on the socket.
+It does this by reading the first two bytes of the request,
+to determine its size,
+and waiting until the required amount of data is available to be read.
+.Pp
+The
+.Fa ACCEPT_FILTER_DNS
+kernel option is also a module that can be enabled at runtime via
+.Xr kldload 8
+if the INET option has been compiled into the kernel.
+.Sh EXAMPLES
+If the
+.Nm
+module is available in the kernel,
+the following code will enable the DNS accept filter
+on a socket
+.Fa sok .
+.Bd -literal -offset 0i
+	struct accept_filter_arg afa;
+
+	bzero(&afa, sizeof(afa));
+	strcpy(afa.af_name, "dnsready");
+	setsockopt(sok, SOL_SOCKET, SO_ACCEPTFILTER, &afa, sizeof(afa));
+.Ed
+.Sh SEE ALSO
+.Xr setsockopt 2 ,
+.Xr accept_filter 9 ,
+.Xr accf_data 9 ,
+.Xr accf_http 9
+.Sh HISTORY
+The accept filter mechanism was introduced in
+.Fx 4.0 .
+.Sh AUTHORS
+This manual page and the filter were written by
+.An David Malone .

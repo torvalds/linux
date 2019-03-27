@@ -1,0 +1,222 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_outopts.3x,v 1.25 2010/12/04 18:38:55 tom Exp $
+.TH curs_outopts 3X ""
+.na
+.hy 0
+.SH NAME
+\fBclearok\fR,
+\fBidlok\fR,
+\fBidcok\fR,
+\fBimmedok\fR,
+\fBleaveok\fR,
+\fBsetscrreg\fR,
+\fBwsetscrreg\fR,
+\fBscrollok\fR,
+\fBnl\fR,
+\fBnonl\fR \- \fBcurses\fR output options
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBint clearok(WINDOW *win, bool bf);\fR
+.br
+\fBint idlok(WINDOW *win, bool bf);\fR
+.br
+\fBvoid idcok(WINDOW *win, bool bf);\fR
+.br
+\fBvoid immedok(WINDOW *win, bool bf);\fR
+.br
+\fBint leaveok(WINDOW *win, bool bf);\fR
+.br
+\fBint setscrreg(int top, int bot);\fR
+.br
+\fBint wsetscrreg(WINDOW *win, int top, int bot);\fR
+.br
+\fBint scrollok(WINDOW *win, bool bf);\fR
+.br
+\fBint nl(void);\fR
+.br
+\fBint nonl(void);\fR
+.br
+.SH DESCRIPTION
+These routines set options that change the style of output within
+\fBcurses\fR.
+All options are initially \fBFALSE\fR, unless otherwise stated.
+It is not necessary to turn these options off before calling \fBendwin\fR.
+.PP
+If \fBclearok\fR is called with \fBTRUE\fR as argument, the next
+call to \fBwrefresh\fR with this window will clear the screen completely and
+redraw the entire screen from scratch.
+This is useful when the contents of the
+screen are uncertain, or in some cases for a more pleasing visual effect.
+If
+the \fIwin\fR argument to \fBclearok\fR is the global variable \fBcurscr\fR,
+the next call to \fBwrefresh\fR with any window causes the screen to be cleared
+and repainted from scratch.
+.PP
+If \fBidlok\fR is called with \fBTRUE\fR as second argument, \fBcurses\fR
+considers using the hardware insert/delete line feature of terminals so
+equipped.
+Calling \fBidlok\fR with \fBFALSE\fR as second argument disables use
+of line insertion and deletion.
+This option should be enabled only if the
+application needs insert/delete line, for example, for a screen editor.
+It is
+disabled by default because insert/delete line tends to be visually annoying
+when used in applications where it is not really needed.
+If insert/delete line
+cannot be used, \fBcurses\fR redraws the changed portions of all lines.
+.PP
+If \fBidcok\fR is called with \fBFALSE\fR as second argument, \fBcurses\fR
+no longer considers using the hardware insert/delete character feature of
+terminals so equipped.
+Use of character insert/delete is enabled by default.
+Calling \fBidcok\fR with \fBTRUE\fR as second argument re-enables use
+of character insertion and deletion.
+.PP
+If \fBimmedok\fR is called with \fBTRUE as argument\fR, any change
+in the window image, such as the ones caused by \fBwaddch, wclrtobot, wscrl\fR,
+etc., automatically cause a call to \fBwrefresh\fR.
+However, it may
+degrade performance considerably, due to repeated calls to \fBwrefresh\fR.
+It is disabled by default.
+.PP
+Normally, the hardware cursor is left at the location of the window cursor
+being refreshed.
+The \fBleaveok\fR option allows the cursor to be left
+wherever the update happens to leave it.
+It is useful for applications where
+the cursor is not used, since it reduces the need for cursor motions.
+.PP
+The \fBsetscrreg\fR and \fBwsetscrreg\fR routines allow the application
+programmer to set a software scrolling region in a window.
+The \fItop\fR and
+\fIbot\fR parameters
+are the line numbers of the top and bottom margin of the scrolling
+region.
+(Line 0 is the top line of the window.)  If this option and
+\fBscrollok\fR are enabled, an attempt to move off the bottom margin line
+causes all lines in the scrolling region to scroll one line in the direction
+of the first line.
+Only the text of the window is scrolled.
+(Note that this
+has nothing to do with the use of a physical scrolling region capability in the
+terminal, like that in the VT100.
+If \fBidlok\fR is enabled and the terminal
+has either a scrolling region or insert/delete line capability, they will
+probably be used by the output routines.)
+.PP
+The \fBscrollok\fR option controls what happens when the cursor of a window is
+moved off the edge of the window or scrolling region, either as a result of a
+newline action on the bottom line, or typing the last character of the last
+line.
+If disabled, (\fIbf\fR is \fBFALSE\fR), the cursor is left on the bottom
+line.
+If enabled, (\fIbf\fR is \fBTRUE\fR), the window is scrolled up one line
+(Note that to get the physical scrolling effect on the terminal, it is
+also necessary to call \fBidlok\fR).
+.PP
+The \fBnl\fR and \fBnonl\fR routines control whether the underlying display
+device translates the return key into newline on input, and whether it
+translates newline into return and line-feed on output (in either case, the
+call \fBaddch('\\n')\fR does the equivalent of return and line feed on the
+virtual screen).
+Initially, these translations do occur.
+If you disable them
+using \fBnonl\fR, \fBcurses\fR will be able to make better use of the line-feed
+capability, resulting in faster cursor motion.
+Also, \fBcurses\fR will then be
+able to detect the return key.
+.SH RETURN VALUE
+The functions \fBsetscrreg\fR and \fBwsetscrreg\fR return \fBOK\fR upon success
+and \fBERR\fR upon failure.
+All other routines that return an integer always
+return \fBOK\fR.
+.PP
+X/Open does not define any error conditions.
+.PP
+In this implementation, those functions that have a window pointer
+will return an error if the window pointer is null.
+.RS
+.TP 5
+.B wclrtoeol
+returns an error
+if the cursor position is about to wrap.
+.TP 5
+.B wsetscrreg
+returns an error if the scrolling region limits extend outside the window.
+.RE
+.PP
+X/Open does not define any error conditions.
+This implementation returns an error
+if the window pointer is null.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.
+.PP
+The XSI Curses standard is ambiguous on the question of whether \fBraw\fR()
+should disable the CRLF translations controlled by \fBnl\fR() and \fBnonl\fR().
+BSD curses did turn off these translations; AT&T curses (at least as late as
+SVr1) did not.
+We choose to do so, on the theory that a programmer requesting
+raw input wants a clean (ideally 8-bit clean) connection that the operating
+system will not alter.
+.PP
+Some historic curses implementations had, as an undocumented feature, the
+ability to do the equivalent of \fBclearok(..., 1)\fR by saying
+\fBtouchwin(stdscr)\fR or \fBclear(stdscr)\fR.
+This will not work under
+ncurses.
+.PP
+Earlier System V curses implementations specified that with \fBscrollok\fR
+enabled, any window modification triggering a scroll also forced a physical
+refresh.
+XSI Curses does not require this, and \fBncurses\fR avoids doing
+it to perform better vertical-motion optimization at \fBwrefresh\fR
+time.
+.PP
+The XSI Curses standard does not mention that the cursor should be
+made invisible as a side-effect of \fBleaveok\fR.
+SVr4 curses documentation does this, but the code does not.
+Use \fBcurs_set\fR to make the cursor invisible.
+.SH NOTES
+Note that \fBclearok\fR, \fBleaveok\fR, \fBscrollok\fR, \fBidcok\fR, \fBnl\fR,
+\fBnonl\fR and \fBsetscrreg\fR may be macros.
+.PP
+The \fBimmedok\fR routine is useful for windows that are used as terminal
+emulators.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_addch\fR(3X),
+\fBcurs_clear\fR(3X),
+\fBcurs_initscr\fR(3X),
+\fBcurs_scroll\fR(3X),
+\fBcurs_refresh\fR(3X),
+\fBcurs_variables\fR(3X).

@@ -1,0 +1,9 @@
+$FreeBSD$
+
+This directory is for the EXACT same use as src/contrib, except it
+holds crypto sources.  In other words, this holds raw sources obtained
+from various third party vendors, with FreeBSD patches applied.  No
+compilation is done from this directory, it is all done from the
+src/secure directory.  The separation between src/contrib and src/crypto
+is the result of an old USA law, which made these sources export
+controlled, so they had to be kept separate.

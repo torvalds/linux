@@ -1,0 +1,347 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"	@(#)ssc	8.1 (Berkeley) 8/14/93
+.\"
+.\" $FreeBSD$
+.SH
+Appendix C: An Advanced Example
+.PP
+This Appendix gives an example of a grammar using some
+of the advanced features discussed in Section 10.
+The desk calculator example in Appendix A is
+modified to provide a desk calculator that
+does floating point interval arithmetic.
+The calculator understands floating point
+constants, the arithmetic operations +, \-, *, /,
+unary \-, and = (assignment), and has 26 floating
+point variables, ``a'' through ``z''.
+Moreover, it also understands
+.I intervals ,
+written
+.DS
+	( x , y )
+.DE
+where
+.I x
+is less than or equal to
+.I y .
+There are 26 interval valued variables ``A'' through ``Z''
+that may also be used.
+The usage is similar to that in Appendix A; assignments
+return no value, and print nothing, while expressions print
+the (floating or interval) value.
+.PP
+This example explores a number of interesting features
+of Yacc and C.
+Intervals are represented by a structure, consisting of the
+left and right endpoint values, stored as
+.I double 's.
+This structure is given a type name, INTERVAL, by using
+.I typedef .
+The Yacc value stack can also contain floating point scalars, and
+integers (used to index into the arrays holding the variable values).
+Notice that this entire strategy depends strongly on being able to
+assign structures and unions in C.
+In fact, many of the actions call functions that return structures
+as well.
+.PP
+It is also worth noting the use of YYERROR to handle error conditions:
+division by an interval containing 0, and an interval presented in
+the wrong order.
+In effect, the error recovery mechanism of Yacc is used to throw away the
+rest of the offending line.
+.PP
+In addition to the mixing of types on the value stack,
+this grammar also demonstrates an interesting use of syntax to
+keep track of the type (e.g. scalar or interval) of intermediate
+expressions.
+Note that a scalar can be automatically promoted to an interval if
+the context demands an interval value.
+This causes a large number of conflicts when the grammar is run through
+Yacc: 18 Shift/Reduce and 26 Reduce/Reduce.
+The problem can be seen by looking at the two input lines:
+.DS
+	2.5 + ( 3.5 \- 4. )
+.DE
+and
+.DS
+	2.5 + ( 3.5 , 4. )
+.DE
+Notice that the 2.5 is to be used in an interval valued expression
+in the second example, but this fact is not known until
+the ``,'' is read; by this time, 2.5 is finished, and the parser cannot go back
+and change its mind.
+More generally, it might be necessary to look ahead an arbitrary number of
+tokens to decide whether to convert a scalar to an interval.
+This problem is evaded by having two rules for each binary interval
+valued operator: one when the left operand is a scalar, and one when
+the left operand is an interval.
+In the second case, the right operand must be an interval,
+so the conversion will be applied automatically.
+Despite this evasion, there are still many cases where the
+conversion may be applied or not, leading to the above
+conflicts.
+They are resolved by listing the rules that yield scalars first
+in the specification file; in this way, the conflicts will
+be resolved in the direction of keeping scalar
+valued expressions scalar valued until they are forced to become
+intervals.
+.PP
+This way of handling multiple types is very instructive, but not very general.
+If there were many kinds of expression types, instead of just two,
+the number of rules needed would increase dramatically, and the conflicts
+even more dramatically.
+Thus, while this example is instructive, it is better practice in a
+more normal programming language environment to
+keep the type information as part of the value, and not as part
+of the grammar.
+.PP
+Finally, a word about the lexical analysis.
+The only unusual feature is the treatment of floating point constants.
+The C library routine
+.I atof
+is used to do the actual conversion from a character string
+to a double precision value.
+If the lexical analyzer detects an error,
+it responds by returning a token that
+is illegal in the grammar, provoking a syntax error
+in the parser, and thence error recovery.
+.LD
+
+%{
+
+#  include  <stdio.h>
+#  include  <ctype.h>
+
+typedef  struct  interval  {
+	double  lo,  hi;
+	}  INTERVAL;
+
+INTERVAL  vmul(),  vdiv();
+
+double  atof();
+
+double  dreg[ 26 ];
+INTERVAL  vreg[ 26 ];
+
+%}
+
+%start    lines
+
+%union    {
+	int  ival;
+	double  dval;
+	INTERVAL  vval;
+	}
+
+%token  <ival>  DREG  VREG	/*  indices  into  dreg,  vreg  arrays  */
+
+%token  <dval>  CONST		/*  floating  point  constant  */
+
+%type  <dval>  dexp		/*  expression  */
+
+%type  <vval>  vexp		/*  interval  expression  */
+
+	/*  precedence  information  about  the  operators  */
+
+%left	\'+\'  \'\-\'
+%left	\'*\'  \'/\'
+%left	UMINUS        /*  precedence  for  unary  minus  */
+
+%%
+
+lines	:	/*  empty  */
+	|	lines  line
+	;
+
+line	:	dexp  \'\en\'
+			{	printf(  "%15.8f\en",  $1  );  }
+	|	vexp  \'\en\'
+			{	printf(  "(%15.8f  ,  %15.8f  )\en",  $1.lo,  $1.hi  );  }
+	|	DREG  \'=\'  dexp  \'\en\'
+			{	dreg[$1]  =  $3;  }
+	|	VREG  \'=\'  vexp  \'\en\'
+			{	vreg[$1]  =  $3;  }
+	|	error  \'\en\'
+			{	yyerrok;  }
+	;
+
+dexp	:	CONST
+	|	DREG
+			{	$$  =  dreg[$1];  }
+	|	dexp  \'+\'  dexp
+			{	$$  =  $1  +  $3;  }
+	|	dexp  \'\-\'  dexp
+			{	$$  =  $1  \-  $3;  }
+	|	dexp  \'*\'  dexp
+			{	$$  =  $1  *  $3;  }
+	|	dexp  \'/\'  dexp
+			{	$$  =  $1  /  $3;  }
+	|	\'\-\'  dexp	%prec  UMINUS
+			{	$$  =  \- $2;  }
+	|	\'(\'  dexp  \')\'
+			{	$$  =  $2;  }
+	;
+
+vexp	:	dexp
+			{	$$.hi  =  $$.lo  =  $1;  }
+	|	\'(\'  dexp  \',\'  dexp  \')\'
+			{
+			$$.lo  =  $2;
+			$$.hi  =  $4;
+			if(  $$.lo  >  $$.hi  ){
+				printf(  "interval  out  of  order\en"  );
+				YYERROR;
+				}
+			}
+	|	VREG
+			{	$$  =  vreg[$1];    }
+	|	vexp  \'+\'  vexp
+			{	$$.hi  =  $1.hi  +  $3.hi;
+				$$.lo  =  $1.lo  +  $3.lo;    }
+	|	dexp  \'+\'  vexp
+			{	$$.hi  =  $1  +  $3.hi;
+				$$.lo  =  $1  +  $3.lo;    }
+	|	vexp  \'\-\'  vexp
+			{	$$.hi  =  $1.hi  \-  $3.lo;
+				$$.lo  =  $1.lo  \-  $3.hi;    }
+	|	dexp  \'\-\'  vexp
+			{	$$.hi  =  $1  \-  $3.lo;
+				$$.lo  =  $1  \-  $3.hi;    }
+	|	vexp  \'*\'  vexp
+			{	$$  =  vmul(  $1.lo,  $1.hi,  $3  );  }
+	|	dexp  \'*\'  vexp
+			{	$$  =  vmul(  $1,  $1,  $3  );  }
+	|	vexp  \'/\'  vexp
+			{	if(  dcheck(  $3  )  )  YYERROR;
+				$$  =  vdiv(  $1.lo,  $1.hi,  $3  );  }
+	|	dexp  \'/\'  vexp
+			{	if(  dcheck(  $3  )  )  YYERROR;
+				$$  =  vdiv(  $1,  $1,  $3  );  }
+	|	\'\-\'  vexp	%prec  UMINUS
+			{	$$.hi  =  \-$2.lo;    $$.lo  =  \-$2.hi;    }
+	|	\'(\'  vexp  \')\'
+			{	$$  =  $2;  }
+	;
+
+%%
+
+#  define  BSZ  50        /*  buffer  size  for  floating  point  numbers  */
+
+	/*  lexical  analysis  */
+
+yylex(){
+	register  c;
+
+	while(  (c=getchar())  ==  \' \'  ){  /*  skip  over  blanks  */  }
+
+	if(  isupper(  c  )  ){
+		yylval.ival  =  c  \-  \'A\';
+		return(  VREG  );
+		}
+	if(  islower(  c  )  ){
+		yylval.ival  =  c  \-  \'a\';
+		return(  DREG  );
+		}
+
+	if(  isdigit(  c  )  ||  c==\'.\'  ){
+		/*  gobble  up  digits,  points,  exponents  */
+
+		char  buf[BSZ+1],  *cp  =  buf;
+		int  dot  =  0,  exp  =  0;
+
+		for(  ;  (cp\-buf)<BSZ  ;  ++cp,c=getchar()  ){
+
+			*cp  =  c;
+			if(  isdigit(  c  )  )  continue;
+			if(  c  ==  \'.\'  ){
+				if(  dot++  ||  exp  )  return(  \'.\'  );    /*  will  cause  syntax  error  */
+				continue;
+				}
+
+			if(  c  ==  \'e\'  ){
+				if(  exp++  )  return(  \'e\'  );    /*  will  cause  syntax  error  */
+				continue;
+				}
+
+			/*  end  of  number  */
+			break;
+			}
+		*cp  =  \'\e0\';
+		if(  (cp\-buf)  >=  BSZ  )  printf(  "constant  too  long:  truncated\en"  );
+		else  ungetc(  c,  stdin  );    /*  push  back  last  char  read  */
+		yylval.dval  =  atof(  buf  );
+		return(  CONST  );
+		}
+	return(  c  );
+	}
+
+INTERVAL  hilo(  a,  b,  c,  d  )  double  a,  b,  c,  d;  {
+	/*  returns  the  smallest  interval  containing  a,  b,  c,  and  d  */
+	/*  used  by  *,  /  routines  */
+	INTERVAL  v;
+
+	if(  a>b  )  {  v.hi  =  a;    v.lo  =  b;  }
+	else  {  v.hi  =  b;    v.lo  =  a;  }
+
+	if(  c>d  )  {
+		if(  c>v.hi  )  v.hi  =  c;
+		if(  d<v.lo  )  v.lo  =  d;
+		}
+	else  {
+		if(  d>v.hi  )  v.hi  =  d;
+		if(  c<v.lo  )  v.lo  =  c;
+		}
+	return(  v  );
+	}
+
+INTERVAL  vmul(  a,  b,  v  )  double  a,  b;    INTERVAL  v;  {
+	return(  hilo(  a*v.hi,  a*v.lo,  b*v.hi,  b*v.lo  )  );
+	}
+
+dcheck(  v  )  INTERVAL  v;  {
+	if(  v.hi  >=  0.  &&  v.lo  <=  0.  ){
+		printf(  "divisor  interval  contains  0.\en"  );
+		return(  1  );
+		}
+	return(  0  );
+	}
+
+INTERVAL  vdiv(  a,  b,  v  )  double  a,  b;    INTERVAL  v;  {
+	return(  hilo(  a/v.hi,  a/v.lo,  b/v.hi,  b/v.lo  )  );
+	}
+.DE
+.bp

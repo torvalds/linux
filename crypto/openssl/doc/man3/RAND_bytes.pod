@@ -1,0 +1,78 @@
+=pod
+
+=head1 NAME
+
+RAND_bytes, RAND_priv_bytes, RAND_pseudo_bytes - generate random data
+
+=head1 SYNOPSIS
+
+ #include <openssl/rand.h>
+
+ int RAND_bytes(unsigned char *buf, int num);
+ int RAND_priv_bytes(unsigned char *buf, int num);
+
+Deprecated:
+
+ #if OPENSSL_API_COMPAT < 0x10100000L
+ int RAND_pseudo_bytes(unsigned char *buf, int num);
+ #endif
+
+=head1 DESCRIPTION
+
+RAND_bytes() puts B<num> cryptographically strong pseudo-random bytes
+into B<buf>.
+
+RAND_priv_bytes() has the same semantics as RAND_bytes().  It is intended to
+be used for generating values that should remain private. If using the
+default RAND_METHOD, this function uses a separate "private" PRNG
+instance so that a compromise of the "public" PRNG instance will not
+affect the secrecy of these private values, as described in L<RAND(7)>
+and L<RAND_DRBG(7)>.
+
+=head1 NOTES
+
+Always check the error return value of RAND_bytes() and
+RAND_priv_bytes() and do not take randomness for granted: an error occurs
+if the CSPRNG has not been seeded with enough randomness to ensure an
+unpredictable byte sequence.
+
+=head1 RETURN VALUES
+
+RAND_bytes() and RAND_priv_bytes()
+return 1 on success, -1 if not supported by the current
+RAND method, or 0 on other failure. The error code can be
+obtained by L<ERR_get_error(3)>.
+
+=head1 HISTORY
+
+=over 2
+
+=item *
+
+RAND_pseudo_bytes() was deprecated in OpenSSL 1.1.0; use RAND_bytes() instead.
+
+=item *
+
+The RAND_priv_bytes() function was added in OpenSSL 1.1.1.
+
+=back
+
+=head1 SEE ALSO
+
+L<RAND_add(3)>,
+L<RAND_bytes(3)>,
+L<RAND_priv_bytes(3)>,
+L<ERR_get_error(3)>,
+L<RAND(7)>,
+L<RAND_DRBG(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,86 @@
+.\" Copyright (c) 2004 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd March 20, 2004
+.Dt KRB524_CONVERT_CREDS_KDC 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb524_convert_creds_kdc ,
+.Nm krb524_convert_creds_kdc_ccache
+.Nd converts Kerberos 5 credentials to Kerberos 4 credentials
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Ft krb5_error_code
+.Fo krb524_convert_creds_kdc
+.Fa "krb5_context context"
+.Fa "krb5_creds *in_cred"
+.Fa "struct credentials *v4creds"
+.Fc
+.Ft krb5_error_code
+.Fo krb524_convert_creds_kdc_ccache
+.Fa "krb5_context context"
+.Fa "krb5_ccache ccache"
+.Fa "krb5_creds *in_cred"
+.Fa "struct credentials *v4creds"
+.Fc
+.Sh DESCRIPTION
+Convert the Kerberos 5 credential to Kerberos 4 credential.
+This is done by sending them to the 524 service in the KDC.
+.Pp
+.Fn krb524_convert_creds_kdc
+converts the Kerberos 5 credential in
+.Fa in_cred
+to Kerberos 4 credential that is stored in
+.Fa credentials .
+.Pp
+.Fn krb524_convert_creds_kdc_ccache
+is different from
+.Fn krb524_convert_creds_kdc
+in that way that if
+.Fa in_cred
+doesn't contain a DES session key, then a new one is fetched from the
+KDC and stored in the cred cache
+.Fa ccache ,
+and then the KDC is queried to convert the credential.
+.Pp
+This interfaces are used to make the migration to Kerberos 5 from
+Kerberos 4 easier.
+There are few services that still need Kerberos 4, and this is mainly
+for compatibility for those services.
+Some services, like AFS, really have Kerberos 5 supports, but still
+uses the 524 interface to make the migration easier.
+.Sh SEE ALSO
+.Xr krb5 3 ,
+.Xr krb5.conf 5

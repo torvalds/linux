@@ -1,0 +1,143 @@
+.TH "hx509 enviroment functions" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+hx509 enviroment functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "int \fBhx509_env_add\fP (hx509_context context, hx509_env *env, const char *key, const char *value)"
+.br
+.ti -1c
+.RI "int \fBhx509_env_add_binding\fP (hx509_context context, hx509_env *env, const char *key, hx509_env list)"
+.br
+.ti -1c
+.RI "const char * \fBhx509_env_lfind\fP (hx509_context context, hx509_env env, const char *key, size_t len)"
+.br
+.ti -1c
+.RI "const char * \fBhx509_env_find\fP (hx509_context context, hx509_env env, const char *key)"
+.br
+.ti -1c
+.RI "hx509_env \fBhx509_env_find_binding\fP (hx509_context context, hx509_env env, const char *key)"
+.br
+.ti -1c
+.RI "void \fBhx509_env_free\fP (hx509_env *env)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "int hx509_env_add (hx509_context context, hx509_env * env, const char * key, const char * value)"
+.PP
+Add a new key/value pair to the hx509_env.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIenv\fP enviroment to add the enviroment variable too. 
+.br
+\fIkey\fP key to add 
+.br
+\fIvalue\fP value to add
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_env_add_binding (hx509_context context, hx509_env * env, const char * key, hx509_env list)"
+.PP
+Add a new key/binding pair to the hx509_env.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIenv\fP enviroment to add the enviroment variable too. 
+.br
+\fIkey\fP key to add 
+.br
+\fIlist\fP binding list to add
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "const char* hx509_env_find (hx509_context context, hx509_env env, const char * key)"
+.PP
+Search the hx509_env for a key.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIenv\fP enviroment to add the enviroment variable too. 
+.br
+\fIkey\fP key to search for.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the value if the key is found, NULL otherwise. 
+.RE
+.PP
+
+.SS "hx509_env hx509_env_find_binding (hx509_context context, hx509_env env, const char * key)"
+.PP
+Search the hx509_env for a binding.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIenv\fP enviroment to add the enviroment variable too. 
+.br
+\fIkey\fP key to search for.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the binding if the key is found, NULL if not found. 
+.RE
+.PP
+
+.SS "void hx509_env_free (hx509_env * env)"
+.PP
+Free an hx509_env enviroment context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIenv\fP the enviroment to free. 
+.RE
+.PP
+
+.SS "const char* hx509_env_lfind (hx509_context context, hx509_env env, const char * key, size_t len)"
+.PP
+Search the hx509_env for a length based key.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIenv\fP enviroment to add the enviroment variable too. 
+.br
+\fIkey\fP key to search for. 
+.br
+\fIlen\fP length of key.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the value if the key is found, NULL otherwise. 
+.RE
+.PP
+

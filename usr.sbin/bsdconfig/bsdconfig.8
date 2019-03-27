@@ -1,0 +1,254 @@
+.\" Copyright (c) 2012 Ron McDowell
+.\" Copyright (c) 2012-2013 Devin Teske
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 5, 2013
+.Dt BSDCONFIG 8
+.Os
+.Sh NAME
+.Nm bsdconfig
+.Nd system configuration utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl h
+.Nm
+.Ar command
+.Op Fl h
+.Nm
+.Op OPTIONS
+.Op command Op OPTIONS
+.Sh DESCRIPTION
+.Nm
+is used to set up many system configuration settings, both for new systems, as
+well as changing configuration settings of existing systems.
+.Pp
+.Nm
+optionally takes a command as an argument.
+If invoked with no arguments, it will bring up an interactive menu listing the
+available modules.
+.Pp
+The following options are available:
+.Bl -tag -width indent+
+.It Fl d
+Provide lots of debugging info on standard-out when running.
+.It Fl D Ar file
+Send debugging info to file.
+If file begins with a plus-sign debug info is sent to both standard-out and
+file (minus the leading plus).
+.It Fl f Ar file
+Load
+.Ar file
+as script and then exit.
+If multiple occurrences, program will only exit after last occurrence.
+If
+.Ar file
+is a single dash
+.Pq Sq Fl ,
+.Nm
+reads from standard input.
+.It Fl h
+Print usage statement and exit.
+.It Fl S
+Secure X11 mode
+.Pq implies Fl X .
+As root, always prompt-for and validate
+.Xr sudo 8
+username/password before starting.
+.It Fl X
+Use
+.Xr Xdialog 1
+in place of
+.Xr dialog 1 .
+.El
+.Sh COMMANDS
+The following commands
+.Pq sorted alphabetically
+are currently included in the base
+.Nm
+program, with more to be added soon.
+Other commands can be added, as detailed below in the
+.Cm ADDING COMMANDS
+section, and once added, will appear in the master menu as well as in the
+.Cm -h
+listing.
+.Bl -tag -width ".Cm syscons_screenmap"
+.It Cm console
+Utilities to customize the behavior of the system console.
+.It Cm defaultrouter
+Shortcut to the Default Router/Gateway menu under networking.
+.It Cm diskmgmt
+Manage disk partitions and/or labels.
+Executes
+.Xr sade 8 .
+.It Cm docsinstall
+Executes the
+.Cm bsdinstall docsinstall
+sub-utility to allow installation/re-installation of the FreeBSD Documentation
+set(s).
+.It Cm dot
+Generate a graphviz
+.Xr dot 1
+language file
+.Pq printed on stdout
+visualizing the
+.Nm
+menu, include, and shortcut structure relationships.
+See
+.Dq bsdconfig dot -h
+for more details.
+.It Cm groupadd
+Shortcut to the Add Groups menu under groupmgmt.
+.It Cm groupdel
+Shortcut to the Delete Groups menu under groupmgmt.
+.It Cm groupedit
+Shortcut to the Edit/View Groups menu under groupmgmt.
+.It Cm groupmgmt
+Utilities to Add/Change/View/Delete Group Accounts.
+.It Cm hostname
+Shortcut to the Hostname/Domain menu under networking.
+.It Cm kern_securelevel
+Shortcut to the kern.securelevel menu under security.
+.It Cm mouse
+Utilities for configuring, exploring, and enabling console mouse support.
+.It Cm mouse_disable
+Shortcut to the Disable menu under mouse.
+.It Cm mouse_enable
+Shortcut to the Enable menu under mouse.
+.It Cm mouse_flags
+Shortcut to the Flags menu under mouse.
+.It Cm mouse_port
+Shortcut to the Port menu under mouse.
+.It Cm mouse_type
+Shortcut to the Type menu under mouse.
+.It Cm nameservers
+Shortcut to the DNS Nameservers menu under networking.
+.It Cm netdev
+Shortcut to the Network Interfaces menu under networking.
+.It Cm networking
+Utilities to set/change Hostname/Domain, Network Interfaces, Default
+Router/Gateway, and DNS Nameservers.
+.It Cm packages
+Browse, install, uninstall, or re-install packaged software.
+.It Cm password
+Set the system administrator
+.Pq root
+password.
+.It Cm security
+Configure various system security settings.
+.It Cm startup
+Configure various aspects of system startup.
+.It Cm startup_misc
+Shortcut to the Miscellaneous Startup Services menu under startup.
+.It Cm startup_rcadd
+Shortcut to the Add New menu under the View/Edit Startup Configuration menu
+(startup_rcconf) of startup.
+.It Cm startup_rcconf
+Shortcut to the View/Edit Startup Configuration menu under startup.
+.It Cm startup_rcdelete
+Shortcut to the Delete menu under the View/Edit Startup Configuration menu
+(startup_rcconf) of startup.
+.It Cm startup_rcvar
+Shortcut to the Toggle Startup Services menu under startup.
+.\" use neutral name, e.g. console_keymap instead of syscons_keymap?
+.\" font (encoding) selection not applicable to vt(4)!
+.It Cm syscons_font
+Shortcut to the Font menu under console.
+.\" .It Cm console_keymap
+.\" Shortcut to the Keymap menu under console.
+.It Cm syscons_keymap
+Shortcut to the Keymap menu under console.
+.\" .It Cm vt_repeat
+.\" Shortcut to the Repeat menu under console.
+.It Cm syscons_repeat
+Shortcut to the Repeat menu under console.
+.\" .It Cm vt_saver
+.\" Shortcut to the Saver menu under console.
+.It Cm syscons_saver
+Shortcut to the Saver menu under console.
+.\" screenmap (encoding) selection not applicable to vt(4)!
+.It Cm syscons_screenmap
+Shortcut to the Screenmap menu under console.
+.\" .It Cm vt_syscons_ttys
+.\" Shortcut to the Ttys menu under console.
+.It Cm syscons_ttys
+Shortcut to the Ttys menu under console.
+.It Cm timezone
+Set the regional timezone of the local machine.
+.It Cm ttys
+Edit the
+.Xr ttys 5
+database with your favorite editor.
+.It Cm useradd
+Shortcut to the Add Users menu under usermgmt.
+.It Cm userdel
+Shortcut to the Delete Users menu under usermgmt.
+.It Cm useredit
+Shortcut to the Edit/View Users menu under usermgmt.
+.It Cm usermgmt
+Utilities to Add/Edit/View/Delete User Accounts.
+.El
+.Sh INTERNATIONALIZATION
+i18n features are built into
+.Nm
+and language-specific translation files will be added as they become available.
+In the absence of language-specific translation files, the default
+.Pq en_US.ISO8859-1
+files will be used.
+.Sh ADDING COMMANDS
+To be documented later.
+Document menu_selection="command|*" syntax of INDEX files.
+.Sh ENVIRONMENT VARIABLES
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev LC_ALL"
+.It Ev LANG
+If LANG is set, messages and index information will be read from files named
+messages.$LANG and INDEX.$LANG and fall back to files named messages and INDEX
+if messages.$LANG and INDEX.$LANG do not exist.
+LANG takes precedence over LC_ALL.
+.It Ev LC_ALL
+If LC_ALL is set, messages and index information will be read from files named
+messages.$LC_ALL and INDEX.$LC_ALL and fall back to files named messages and
+INDEX if messages.$LC_ALL and INDEX.$LC_ALL do not exist.
+.El
+.Sh FILES
+/usr/share/examples/bsdconfig/bsdconfigrc can be copied to $HOME/.bsdconfigrc
+and customized as needed.
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr bsdinstall 8
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 9.2 .
+.Sh AUTHORS
+.An Ron McDowell
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.Sh BUGS
+The docsinstall and diskmgmt modules call bsdinstall.
+Bugs found in these modules should be considered those of bsdinstall, not
+.Nm .

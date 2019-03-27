@@ -1,0 +1,1026 @@
+/****************************************************************
+Copyright (C) Lucent Technologies 1997
+All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and
+its documentation for any purpose and without fee is hereby
+granted, provided that the above copyright notice appear in all
+copies and that both that the copyright notice and this
+permission notice and warranty disclaimer appear in supporting
+documentation, and that the name Lucent Technologies or any of
+its entities not be used in advertising or publicity pertaining
+to distribution of the software without specific, written prior
+permission.
+
+LUCENT DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS.
+IN NO EVENT SHALL LUCENT OR ANY OF ITS ENTITIES BE LIABLE FOR ANY
+SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+THIS SOFTWARE.
+****************************************************************/
+
+This file lists all bug fixes, changes, etc., made since the AWK book
+was sent to the printers in August, 1987.
+
+Dec 20, 2012:
+	fiddled makefile to get correct yacc and bison flags.  pick yacc
+	(linux) or bison (mac) as necessary.
+
+	added  __attribute__((__noreturn__)) to a couple of lines in
+	proto.h, to silence someone's enthusiastic checker.
+
+	fixed obscure call by value bug in split(a[1],a) reported on
+	9fans.  the management of temporary values is just a mess; i
+	took a shortcut by making an extra string copy.  thanks
+	to paul patience and arnold robbins for passing it on and for
+	proposed patches.
+
+	tiny fiddle in setfval to eliminate -0 results in T.expr, which
+	has irritated me for 20+ years.
+
+Aug 10, 2011:
+	another fix to avoid core dump with delete(ARGV); again, many thanks
+	to ruslan ermilov.
+
+Aug 7, 2011:
+	split(s, a, //) now behaves the same as split(s, a, "")
+
+Jun 12, 2011:
+	/pat/, \n /pat/ {...} is now legal, though bad style to use.
+
+	added checks to new -v code that permits -vnospace; thanks to
+	ruslan ermilov for spotting this and providing the patch. 
+
+	removed fixed limit on number of open files; thanks to aleksey
+	cheusov and christos zoulos. 
+
+	fixed day 1 bug that resurrected deleted elements of ARGV when
+	used as filenames (in lib.c).
+
+	minor type fiddles to make gcc -Wall -pedantic happier (but not
+	totally so); turned on -fno-strict-aliasing in makefile.
+
+May 6, 2011:
+	added #ifdef for isblank.
+	now allows -ffoo as well as -f foo arguments.
+	(thanks, ruslan)
+
+May 1, 2011:
+	after advice from todd miller, kevin lo, ruslan ermilov,
+	and arnold robbins, changed srand() to return the previous
+	seed (which is 1 on the first call of srand).  the seed is
+	an Awkfloat internally though converted to unsigned int to
+	pass to the library srand().  thanks, everyone. 
+
+	fixed a subtle (and i hope low-probability) overflow error
+	in fldbld, by adding space for one extra \0.  thanks to 
+	robert bassett for spotting this one and providing a fix.
+
+	removed the files related to compilation on windows.  i no
+	longer have anything like a current windows environment, so
+	i can't test any of it.
+
+May 23, 2010:
+	fixed long-standing overflow bug in run.c; many thanks to
+	nelson beebe for spotting it and providing the fix.
+
+	fixed bug that didn't parse -vd=1 properly; thanks to santiago
+	vila for spotting it.
+
+Feb 8, 2010:
+	i give up.  replaced isblank with isspace in b.c; there are
+	no consistent header files.
+
+Nov 26, 2009:
+	fixed a long-standing issue with when FS takes effect.  a
+	change to FS is now noticed immediately for subsequent splits.
+
+	changed the name getline() to awkgetline() to avoid yet another
+	name conflict somewhere.
+
+Feb 11, 2009:
+	temporarily for now defined HAS_ISBLANK, since that seems to
+	be the best way through the thicket.  isblank arrived in C99,
+	but seems to be arriving at different systems at different
+	times.
+
+Oct 8, 2008:
+	fixed typo in b.c that set tmpvec wrongly.  no one had ever
+	run into the problem, apparently.  thanks to alistair crooks.
+
+Oct 23, 2007:
+	minor fix in lib.c: increase inputFS to 100, change malloc
+	for fields to n+1.  
+
+	fixed memory fault caused by out of order test in setsval.
+
+	thanks to david o'brien, freebsd, for both fixes.
+
+May 1, 2007:
+	fiddle in makefile to fix for BSD make; thanks to igor sobrado.
+
+Mar 31, 2007:
+	fixed some null pointer refs calling adjbuf.
+
+Feb 21, 2007:
+	fixed a bug in matching the null RE in sub and gsub.  thanks to al aho
+	who actually did the fix (in b.c), and to wolfgang seeberg for finding
+	it and providing a very compact test case.
+
+	fixed quotation in b.c; thanks to Hal Pratt and the Princeton Dante
+	Project.
+
+	removed some no-effect asserts in run.c.
+
+	fiddled maketab.c to not complain about bison-generated values.
+
+	removed the obsolete -V argument; fixed --version to print the
+	version and exit.
+
+	fixed wording and an outright error in the usage message; thanks to igor
+	sobrado and jason mcintyre.
+
+	fixed a bug in -d that caused core dump if no program followed.
+
+Jan 1, 2007:
+	dropped mac.code from makefile; there are few non-MacOSX
+	mac's these days.
+
+Jan 17, 2006:
+	system() not flagged as unsafe in the unadvertised -safe option.
+	found it while enhancing tests before shipping the ;login: article.
+	practice what you preach.
+
+	removed the 9-years-obsolete -mr and -mf flags.
+
+	added -version and --version options.
+
+	core dump on linux with BEGIN {nextfile}, now fixed.
+
+	removed some #ifdef's in run.c and lex.c that appear to no 
+	longer be necessary.
+
+Apr 24, 2005:
+	modified lib.c so that values of $0 et al are preserved in the END
+	block, apparently as required by posix.  thanks to havard eidnes
+	for the report and code.
+
+Jan 14, 2005:
+	fixed infinite loop in parsing, originally found by brian tsang.
+	thanks to arnold robbins for a suggestion that started me
+	rethinking it.
+
+Dec 31, 2004:
+	prevent overflow of -f array in main, head off potential error in 
+	call of SYNTAX(), test malloc return in lib.c, all with thanks to 
+	todd miller.
+
+Dec 22, 2004:
+	cranked up size of NCHARS; coverity thinks it can be overrun with
+	smaller size, and i think that's right.  added some assertions to b.c
+	to catch places where it might overrun.  the RE code is still fragile.
+
+Dec 5, 2004:
+	fixed a couple of overflow problems with ridiculous field numbers:
+	e.g., print $(2^32-1).  thanks to ruslan ermilov, giorgos keramidas
+	and david o'brien at freebsd.org for patches.  this really should
+	be re-done from scratch.
+
+Nov 21, 2004:
+	fixed another 25-year-old RE bug, in split.  it's another failure
+	to (re-)initialize.  thanks to steve fisher for spotting this and
+	providing a good test case.
+
+Nov 22, 2003:
+	fixed a bug in regular expressions that dates (so help me) from 1977;
+	it's been there from the beginning.  an anchored longest match that
+	was longer than the number of states triggered a failure to initialize
+	the machine properly.  many thanks to moinak ghosh for not only finding
+	this one but for providing a fix, in some of the most mysterious
+	code known to man.
+
+	fixed a storage leak in call() that appears to have been there since
+	1983 or so -- a function without an explicit return that assigns a 
+	string to a parameter leaked a Cell.  thanks to moinak ghosh for 
+	spotting this very subtle one.
+
+Jul 31, 2003:
+	fixed, thanks to andrey chernov and ruslan ermilov, a bug in lex.c
+	that mis-handled the character 255 in input.  (it was being compared
+	to EOF with a signed comparison.)
+
+Jul 29, 2003:
+	fixed (i think) the long-standing botch that included the beginning of
+	line state ^ for RE's in the set of valid characters; this led to a
+	variety of odd problems, including failure to properly match certain
+	regular expressions in non-US locales.  thanks to ruslan for keeping
+	at this one.
+
+Jul 28, 2003:
+	n-th try at getting internationalization right, with thanks to volker
+	kiefel, arnold robbins and ruslan ermilov for advice, though they
+	should not be blamed for the outcome.  according to posix, "."  is the
+	radix character in programs and command line arguments regardless of
+	the locale; otherwise, the locale should prevail for input and output
+	of numbers.  so it's intended to work that way.
+	
+	i have rescinded the attempt to use strcoll in expanding shorthands in
+	regular expressions (cclenter).  its properties are much too
+	surprising; for example [a-c] matches aAbBc in locale en_US but abBcC
+	in locale fr_CA.  i can see how this might arise by implementation
+	but i cannot explain it to a human user.  (this behavior can be seen
+	in gawk as well; we're leaning on the same library.)
+
+	the issue appears to be that strcoll is meant for sorting, where
+	merging upper and lower case may make sense (though note that unix
+	sort does not do this by default either).  it is not appropriate
+	for regular expressions, where the goal is to match specific
+	patterns of characters.  in any case, the notations [:lower:], etc.,
+	are available in awk, and they are more likely to work correctly in
+	most locales.
+
+	a moratorium is hereby declared on internationalization changes.
+	i apologize to friends and colleagues in other parts of the world.
+	i would truly like to get this "right", but i don't know what
+	that is, and i do not want to keep making changes until it's clear.
+
+Jul 4, 2003:
+	fixed bug that permitted non-terminated RE, as in "awk /x".
+
+Jun 1, 2003:
+	subtle change to split: if source is empty, number of elems
+	is always 0 and the array is not set.
+
+Mar 21, 2003:
+	added some parens to isblank, in another attempt to make things
+	internationally portable.
+
+Mar 14, 2003:
+	the internationalization changes, somewhat modified, are now
+	reinstated.  in theory awk will now do character comparisons
+	and case conversions in national language, but "." will always
+	be the decimal point separator on input and output regardless
+	of national language.  isblank(){} has an #ifndef.
+
+	this no longer compiles on windows: LC_MESSAGES isn't defined
+	in vc6++.
+
+	fixed subtle behavior in field and record splitting: if FS is
+	a single character and RS is not empty, \n is NOT a separator.
+	this tortuous reading is found in the awk book; behavior now
+	matches gawk and mawk.
+
+Dec 13, 2002:
+	for the moment, the internationalization changes of nov 29 are
+	rolled back -- programs like x = 1.2 don't work in some locales,
+	because the parser is expecting x = 1,2.  until i understand this
+	better, this will have to wait.
+
+Nov 29, 2002:
+	modified b.c (with tiny changes in main and run) to support
+	locales, using strcoll and iswhatever tests for posix character
+	classes.  thanks to ruslan ermilov (ru@freebsd.org) for code.
+	the function isblank doesn't seem to have propagated to any
+	header file near me, so it's there explicitly.  not properly
+	tested on non-ascii character sets by me.
+
+Jun 28, 2002:
+	modified run/format() and tran/getsval() to do a slightly better
+	job on using OFMT for output from print and CONVFMT for other
+	number->string conversions, as promised by posix and done by 
+	gawk and mawk.  there are still places where it doesn't work
+	right if CONVFMT is changed; by then the STR attribute of the
+	variable has been irrevocably set.  thanks to arnold robbins for
+	code and examples.
+
+	fixed subtle bug in format that could get core dump.  thanks to
+	Jaromir Dolecek <jdolecek@NetBSD.org> for finding and fixing.
+	minor cleanup in run.c / format() at the same time.
+
+	added some tests for null pointers to debugging printf's, which
+	were never intended for external consumption.  thanks to dave
+	kerns (dkerns@lucent.com) for pointing this out.
+
+	GNU compatibility: an empty regexp matches anything (thanks to
+	dag-erling smorgrav, des@ofug.org).  subject to reversion if
+	this does more harm than good.
+
+	pervasive small changes to make things more const-correct, as
+	reported by gcc's -Wwrite-strings.  as it says in the gcc manual,
+	this may be more nuisance than useful.  provoked by a suggestion
+	and code from arnaud desitter, arnaud@nimbus.geog.ox.ac.uk
+
+	minor documentation changes to note that this now compiles out
+	of the box on Mac OS X.
+
+Feb 10, 2002:
+	changed types in posix chars structure to quiet solaris cc.
+
+Jan 1, 2002:
+	fflush() or fflush("") flushes all files and pipes.
+
+	length(arrayname) returns number of elements; thanks to 
+	arnold robbins for suggestion.
+
+	added a makefile.win to make it easier to build on windows.
+	based on dan allen's buildwin.bat.
+
+Nov 16, 2001:
+	added support for posix character class names like [:digit:],
+	which are not exactly shorter than [0-9] and perhaps no more
+	portable.  thanks to dag-erling smorgrav for code.
+
+Feb 16, 2001:
+	removed -m option; no longer needed, and it was actually
+	broken (noted thanks to volker kiefel).
+
+Feb 10, 2001:
+	fixed an appalling bug in gettok: any sequence of digits, +,-, E, e,
+	and period was accepted as a valid number if it started with a period.
+	this would never have happened with the lex version.
+
+	other 1-character botches, now fixed, include a bare $ and a
+	bare " at the end of the input.
+
+Feb 7, 2001:
+	more (const char *) casts in b.c and tran.c to silence warnings.
+
+Nov 15, 2000:
+	fixed a bug introduced in august 1997 that caused expressions
+	like $f[1] to be syntax errors.  thanks to arnold robbins for
+	noticing this and providing a fix.
+
+Oct 30, 2000:
+	fixed some nextfile bugs: not handling all cases.  thanks to
+	arnold robbins for pointing this out.  new regressions added.
+
+	close() is now a function.  it returns whatever the library
+	fclose returns, and -1 for closing a file or pipe that wasn't
+	opened.
+
+Sep 24, 2000:
+	permit \n explicitly in character classes; won't work right
+	if comes in as "[\n]" but ok as /[\n]/, because of multiple
+	processing of \'s.  thanks to arnold robbins.
+
+July 5, 2000:
+	minor fiddles in tran.c to keep compilers happy about uschar.
+	thanks to norman wilson.
+
+May 25, 2000:
+	yet another attempt at making 8-bit input work, with another
+	band-aid in b.c (member()), and some (uschar) casts to head 
+	off potential errors in subscripts (like isdigit).  also
+	changed HAT to NCHARS-2.  thanks again to santiago vila.
+
+	changed maketab.c to ignore apparently out of range definitions
+	instead of halting; new freeBSD generates one.  thanks to
+	jon snader <jsnader@ix.netcom.com> for pointing out the problem.
+
+May 2, 2000:
+	fixed an 8-bit problem in b.c by making several char*'s into
+	unsigned char*'s.  not clear i have them all yet.  thanks to
+	Santiago Vila <sanvila@unex.es> for the bug report.
+
+Apr 21, 2000:
+	finally found and fixed a memory leak in function call; it's
+	been there since functions were added ~1983.  thanks to
+	jon bentley for the test case that found it.
+
+	added test in envinit to catch environment "variables" with
+	names beginning with '='; thanks to Berend Hasselman.
+
+Jul 28, 1999:
+	added test in defn() to catch function foo(foo), which
+	otherwise recurses until core dump.  thanks to arnold
+	robbins for noticing this.
+
+Jun 20, 1999:
+	added *bp in gettok in lex.c; appears possible to exit function
+	without terminating the string.  thanks to russ cox.
+
+Jun 2, 1999:
+	added function stdinit() to run to initialize files[] array,
+	in case stdin, etc., are not constants; some compilers care.
+
+May 10, 1999:
+	replaced the ERROR ... FATAL, etc., macros with functions
+	based on vprintf, to avoid problems caused by overrunning
+	fixed-size errbuf array.  thanks to ralph corderoy for the
+	impetus, and for pointing out a string termination bug in
+	qstring as well.
+
+Apr 21, 1999:
+	fixed bug that caused occasional core dumps with commandline
+	variable with value ending in \.  (thanks to nelson beebe for
+	the test case.)
+
+Apr 16, 1999:
+	with code kindly provided by Bruce Lilly, awk now parses 
+	/=/ and similar constructs more sensibly in more places.
+	Bruce also provided some helpful test cases.
+
+Apr 5, 1999:
+	changed true/false to True/False in run.c to make it
+	easier to compile with C++.  Added some casts on malloc
+	and realloc to be honest about casts; ditto.  changed
+	ltype int to long in struct rrow to reduce some 64-bit
+	complaints; other changes scattered throughout for the
+	same purpose.  thanks to Nelson Beebe for these portability
+	improvements.
+
+	removed some horrible pointer-int casting in b.c and elsewhere
+	by adding ptoi and itonp to localize the casts, which are
+	all benign.  fixed one incipient bug that showed up on sgi
+	in 64-bit mode.
+
+	reset lineno for new source file; include filename in error
+	message.  also fixed line number error in continuation lines.
+	(thanks to Nelson Beebe for both of these.)
+
+Mar 24, 1999:
+	Nelson Beebe notes that irix 5.3 yacc dies with a bogus
+	error; use a newer version or switch to bison, since sgi
+	is unlikely to fix it.
+
+Mar 5, 1999:
+	changed isnumber to is_number to avoid the problem caused by
+	versions of ctype.h that include the name isnumber.
+
+	distribution now includes a script for building on a Mac,
+	thanks to Dan Allen.
+
+Feb 20, 1999:
+	fixed memory leaks in run.c (call) and tran.c (setfval).
+	thanks to Stephen Nutt for finding these and providing the fixes.
+
+Jan 13, 1999:
+	replaced srand argument by (unsigned int) in run.c;
+	avoids problem on Mac and potentially on Unix & Windows.
+	thanks to Dan Allen.
+
+	added a few (int) casts to silence useless compiler warnings.
+	e.g., errorflag= in run.c jump().
+
+	added proctab.c to the bundle outout; one less thing
+	to have to compile out of the box.
+
+	added calls to _popen and _pclose to the win95 stub for
+	pipes (thanks to Steve Adams for this helpful suggestion).
+	seems to work, though properties are not well understood
+	by me, and it appears that under some circumstances the
+	pipe output is truncated.  Be careful.
+
+Oct 19, 1998:
+	fixed a couple of bugs in getrec: could fail to update $0
+	after a getline var; because inputFS wasn't initialized, 
+	could split $0 on every character, a misleading diversion.
+
+	fixed caching bug in makedfa: LRU was actually removing
+	least often used.
+
+	thanks to ross ridge for finding these, and for providing
+	great bug reports.
+
+May 12, 1998:
+	fixed potential bug in readrec: might fail to update record
+	pointer after growing.  thanks to dan levy for spotting this
+	and suggesting the fix.
+
+Mar 12, 1998:
+	added -V to print version number and die.
+
+Feb 11, 1998:
+	subtle silent bug in lex.c: if the program ended with a number
+	longer than 1 digit, part of the input would be pushed back and
+	parsed again because token buffer wasn't terminated right.
+	example:  awk 'length($0) > 10'.  blush.  at least i found it
+	myself.
+
+Aug 31, 1997:
+	s/adelete/awkdelete/: SGI uses this in malloc.h.
+	thanks to nelson beebe for pointing this one out.
+
+Aug 21, 1997:
+	fixed some bugs in sub and gsub when replacement includes \\.
+	this is a dark, horrible corner, but at least now i believe that
+	the behavior is the same as gawk and the intended posix standard.
+	thanks to arnold robbins for advice here.
+
+Aug 9, 1997:
+	somewhat regretfully, replaced the ancient lex-based lexical
+	analyzer with one written in C.  it's longer, generates less code,
+	and more portable; the old one depended too much on mysterious
+	properties of lex that were not preserved in other environments.
+	in theory these recognize the same language.
+
+	now using strtod to test whether a string is a number, instead of
+	the convoluted original function.  should be more portable and
+	reliable if strtod is implemented right.
+
+	removed now-pointless optimization in makefile that tries to avoid
+	recompilation when awkgram.y is changed but symbols are not.
+
+	removed most fixed-size arrays, though a handful remain, some
+	of which are unchecked.  you have been warned.
+
+Aug 4, 1997:
+	with some trepidation, replaced the ancient code that managed
+	fields and $0 in fixed-size arrays with arrays that grow on
+	demand.  there is still some tension between trying to make this
+	run fast and making it clean; not sure it's right yet.
+
+	the ill-conceived -mr and -mf arguments are now useful only
+	for debugging.  previous dynamic string code removed.
+
+	numerous other minor cleanups along the way.
+
+Jul 30, 1997:
+	using code provided by dan levy (to whom profuse thanks), replaced
+	fixed-size arrays and awkward kludges by a fairly uniform mechanism
+	to grow arrays as needed for printf, sub, gsub, etc.
+
+Jul 23, 1997:
+	falling off the end of a function returns "" and 0, not 0.
+	thanks to arnold robbins.
+
+Jun 17, 1997:
+	replaced several fixed-size arrays by dynamically-created ones
+	in run.c; added overflow tests to some previously unchecked cases.
+	getline, toupper, tolower.
+
+	getline code is still broken in that recursive calls may wind
+	up using the same space.  [fixed later]
+
+	increased RECSIZE to 8192 to push problems further over the horizon.
+
+	added \r to \n as input line separator for programs, not data.
+	damn CRLFs.
+
+	modified format() to permit explicit printf("%c", 0) to include
+	a null byte in output.  thanks to ken stailey for the fix.
+
+	added a "-safe" argument that disables file output (print >,
+	print >>), process creation (cmd|getline, print |, system), and
+	access to the environment (ENVIRON).  this is a first approximation
+	to a "safe" version of awk, but don't rely on it too much.  thanks
+	to joan feigenbaum and matt blaze for the inspiration long ago.
+
+Jul 8, 1996:
+	fixed long-standing bug in sub, gsub(/a/, "\\\\&"); thanks to
+	ralph corderoy.
+
+Jun 29, 1996:
+	fixed awful bug in new field splitting; didn't get all the places
+	where input was done.
+
+Jun 28, 1996:
+	changed field-splitting to conform to posix definition: fields are
+	split using the value of FS at the time of input; it used to be
+	the value when the field or NF was first referred to, a much less
+	predictable definition.  thanks to arnold robbins for encouragement
+	to do the right thing.
+
+May 28, 1996:
+	fixed appalling but apparently unimportant bug in parsing octal
+	numbers in reg exprs.
+
+	explicit hex in reg exprs now limited to 2 chars: \xa, \xaa.
+
+May 27, 1996:
+	cleaned up some declarations so gcc -Wall is now almost silent.
+
+	makefile now includes backup copies of ytab.c and lexyy.c in case
+	one makes before looking; it also avoids recreating lexyy.c unless
+	really needed.
+
+	s/aprintf/awkprint, s/asprintf/awksprintf/ to avoid some name clashes
+	with unwisely-written header files.
+
+	thanks to jeffrey friedl for several of these.
+
+May 26, 1996:
+	an attempt to rationalize the (unsigned) char issue.  almost all
+	instances of unsigned char have been removed; the handful of places
+	in b.c where chars are used as table indices have been hand-crafted.
+	added some latin-1 tests to the regression, but i'm not confident;
+	none of my compilers seem to care much.  thanks to nelson beebe for
+	pointing out some others that do care.
+
+May 2, 1996:
+	removed all register declarations.
+
+	enhanced split(), as in gawk, etc:  split(s, a, "") splits s into
+	a[1]...a[length(s)] with each character a single element.
+
+	made the same changes for field-splitting if FS is "".
+
+	added nextfile, as in gawk: causes immediate advance to next
+	input file. (thanks to arnold robbins for inspiration and code).
+
+	small fixes to regexpr code:  can now handle []], [[], and
+	variants;  [] is now a syntax error, rather than matching 
+	everything;  [z-a] is now empty, not z.  far from complete
+	or correct, however.  (thanks to jeffrey friedl for pointing out
+	some awful behaviors.)
+
+Apr 29, 1996:
+	replaced uchar by uschar everywhere; apparently some compilers
+	usurp this name and this causes conflicts.
+
+	fixed call to time in run.c (bltin); arg is time_t *.
+
+	replaced horrible pointer/long punning in b.c by a legitimate
+	union.  should be safer on 64-bit machines and cleaner everywhere.
+	(thanks to nelson beebe for pointing out some of these problems.)
+
+	replaced nested comments by #if 0...#endif in run.c, lib.c.
+
+	removed getsval, setsval, execute macros from run.c and lib.c.
+	machines are 100x faster than they were when these macros were
+	first used.
+
+	revised filenames: awk.g.y => awkgram.y, awk.lx.l => awklex.l,
+	y.tab.[ch] => ytab.[ch], lex.yy.c => lexyy.c, all in the aid of
+	portability to nameless systems.
+
+	"make bundle" now includes yacc and lex output files for recipients
+	who don't have yacc or lex.
+
+Aug 15, 1995:
+	initialized Cells in setsymtab more carefully; some fields
+	were not set.  (thanks to purify, all of whose complaints i
+	think i now understand.)
+
+	fixed at least one error in gsub that looked at -1-th element
+	of an array when substituting for a null match (e.g., $).
+
+	delete arrayname is now legal; it clears the elements but leaves
+	the array, which may not be the right behavior.
+
+	modified makefile: my current make can't cope with the test used
+	to avoid unnecessary yacc invocations.
+
+Jul 17, 1995:
+	added dynamically growing strings to awk.lx.l and b.c
+	to permit regular expressions to be much bigger.
+	the state arrays can still overflow.
+
+Aug 24, 1994:
+	detect duplicate arguments in function definitions (mdm).
+
+May 11, 1994:
+	trivial fix to printf to limit string size in sub().
+
+Apr 22, 1994:
+	fixed yet another subtle self-assignment problem:
+	$1 = $2; $1 = $1 clobbered $1.
+
+	Regression tests now use private echo, to avoid quoting problems.
+
+Feb 2, 1994:
+	changed error() to print line number as %d, not %g.
+
+Jul 23, 1993:
+	cosmetic changes: increased sizes of some arrays,
+	reworded some error messages.
+
+	added CONVFMT as in posix (just replaced OFMT in getsval)
+
+	FILENAME is now "" until the first thing that causes a file
+	to be opened.
+
+Nov 28, 1992:
+	deleted yyunput and yyoutput from proto.h;
+	different versions of lex give these different declarations.
+
+May 31, 1992:
+	added -mr N and -mf N options: more record and fields.
+	these really ought to adjust automatically.
+
+	cleaned up some error messages; "out of space" now means
+	malloc returned NULL in all cases.
+
+	changed rehash so that if it runs out, it just returns;
+	things will continue to run slow, but maybe a bit longer.
+
+Apr 24, 1992:
+	remove redundant close of stdin when using -f -.
+
+	got rid of core dump with -d; awk -d just prints date.
+
+Apr 12, 1992:
+	added explicit check for /dev/std(in,out,err) in redirection.
+	unlike gawk, no /dev/fd/n yet.
+
+	added (file/pipe) builtin.  hard to test satisfactorily.
+	not posix.
+
+Feb 20, 1992:
+	recompile after abortive changes;  should be unchanged.
+
+Dec 2, 1991:
+	die-casting time:  converted to ansi C, installed that.
+
+Nov 30, 1991:
+	fixed storage leak in freefa, failing to recover [N]CCL.
+	thanks to Bill Jones (jones@cs.usask.ca)
+
+Nov 19, 1991:
+	use RAND_MAX instead of literal in builtin().
+
+Nov 12, 1991:
+	cranked up some fixed-size arrays in b.c, and added a test for
+	overflow in penter.  thanks to mark larsen.
+
+Sep 24, 1991:
+	increased buffer in gsub.  a very crude fix to a general problem.
+	and again on Sep 26.
+
+Aug 18, 1991:
+	enforce variable name syntax for commandline variables: has to
+	start with letter or _.
+
+Jul 27, 1991:
+	allow newline after ; in for statements.
+
+Jul 21, 1991:
+	fixed so that in self-assignment like $1=$1, side effects
+	like recomputing $0 take place.  (this is getting subtle.)
+
+Jun 30, 1991:
+	better test for detecting too-long output record.
+
+Jun 2, 1991:
+	better defense against very long printf strings.
+	made break and continue illegal outside of loops.
+
+May 13, 1991:
+	removed extra arg on gettemp, tempfree.  minor error message rewording.
+
+May 6, 1991:
+	fixed silly bug in hex parsing in hexstr().
+	removed an apparently unnecessary test in isnumber().
+	warn about weird printf conversions.
+	fixed unchecked array overwrite in relex().
+
+	changed for (i in array) to access elements in sorted order.
+	then unchanged it -- it really does run slower in too many cases.
+	left the code in place, commented out.
+
+Feb 10, 1991:
+	check error status on all writes, to avoid banging on full disks.
+
+Jan 28, 1991:
+	awk -f - reads the program from stdin.
+
+Jan 11, 1991:
+	failed to set numeric state on $0 in cmd|getline context in run.c.
+
+Nov 2, 1990:
+	fixed sleazy test for integrality in getsval;  use modf.
+
+Oct 29, 1990:
+	fixed sleazy buggy code in lib.c that looked (incorrectly) for
+	too long input lines.
+
+Oct 14, 1990:
+	fixed the bug on p. 198 in which it couldn't deduce that an
+	argument was an array in some contexts.  replaced the error
+	message in intest() by code that damn well makes it an array.
+
+Oct 8, 1990:
+	fixed horrible bug:  types and values were not preserved in
+	some kinds of self-assignment. (in assign().)
+
+Aug 24, 1990:
+	changed NCHARS to 256 to handle 8-bit characters in strings
+	presented to match(), etc.
+
+Jun 26, 1990:
+	changed struct rrow (awk.h) to use long instead of int for lval,
+	since cfoll() stores a pointer in it.  now works better when int's
+	are smaller than pointers!
+
+May 6, 1990:
+	AVA fixed the grammar so that ! is uniformly of the same precedence as
+	unary + and -.  This renders illegal some constructs like !x=y, which
+	now has to be parenthesized as !(x=y), and makes others work properly:
+	!x+y is (!x)+y, and x!y is x !y, not two pattern-action statements.
+	(These problems were pointed out by Bob Lenk of Posix.)
+
+	Added \x to regular expressions (already in strings).
+	Limited octal to octal digits; \8 and \9 are not octal.
+	Centralized the code for parsing escapes in regular expressions.
+	Added a bunch of tests to T.re and T.sub to verify some of this.
+
+Feb 9, 1990:
+	fixed null pointer dereference bug in main.c:  -F[nothing].  sigh.
+
+	restored srand behavior:  it returns the current seed.
+
+Jan 18, 1990:
+	srand now returns previous seed value (0 to start).
+
+Jan 5, 1990:
+	fix potential problem in tran.c -- something was freed,
+	then used in freesymtab.
+
+Oct 18, 1989:
+	another try to get the max number of open files set with
+	relatively machine-independent code.
+
+	small fix to input() in case of multiple reads after EOF.
+
+Oct 11, 1989:
+	FILENAME is now defined in the BEGIN block -- too many old
+	programs broke.
+
+	"-" means stdin in getline as well as on the commandline.
+
+	added a bunch of casts to the code to tell the truth about
+	char * vs. unsigned char *, a right royal pain.  added a
+	setlocale call to the front of main, though probably no one
+	has it usefully implemented yet.
+
+Aug 24, 1989:
+	removed redundant relational tests against nullnode if parse
+	tree already had a relational at that point.
+
+Aug 11, 1989:
+	fixed bug:  commandline variable assignment has to look like
+	var=something.  (consider the man page for =, in file =.1)
+
+	changed number of arguments to functions to static arrays
+	to avoid repeated malloc calls.
+
+Aug 2, 1989:
+	restored -F (space) separator
+
+Jul 30, 1989:
+	added -v x=1 y=2 ... for immediate commandline variable assignment;
+	done before the BEGIN block for sure.  they have to precede the
+	program if the program is on the commandline.
+	Modified Aug 2 to require a separate -v for each assignment.
+
+Jul 10, 1989:
+	fixed ref-thru-zero bug in environment code in tran.c
+
+Jun 23, 1989:
+	add newline to usage message.
+
+Jun 14, 1989:
+	added some missing ansi printf conversion letters: %i %X %E %G.
+	no sensible meaning for h or L, so they may not do what one expects.
+
+	made %* conversions work.
+
+	changed x^y so that if n is a positive integer, it's done
+	by explicit multiplication, thus achieving maximum accuracy.
+	(this should be done by pow() but it seems not to be locally.)
+	done to x ^= y as well.
+
+Jun 4, 1989:
+	ENVIRON array contains environment: if shell variable V=thing,
+		ENVIRON["V"] is "thing"
+
+	multiple -f arguments permitted.  error reporting is naive.
+	(they were permitted before, but only the last was used.)
+
+	fixed a really stupid botch in the debugging macro dprintf
+
+	fixed order of evaluation of commandline assignments to match
+	what the book claims:  an argument of the form x=e is evaluated
+	at the time it would have been opened if it were a filename (p 63).
+	this invalidates the suggested answer to ex 4-1 (p 195).
+
+	removed some code that permitted -F (space) fieldseparator,
+	since it didn't quite work right anyway.  (restored aug 2)
+
+Apr 27, 1989:
+	Line number now accumulated correctly for comment lines.
+
+Apr 26, 1989:
+	Debugging output now includes a version date,
+	if one compiles it into the source each time.
+
+Apr 9, 1989:
+	Changed grammar to prohibit constants as 3rd arg of sub and gsub;
+	prevents class of overwriting-a-constant errors.  (Last one?)
+	This invalidates the "banana" example on page 43 of the book.
+
+	Added \a ("alert"), \v (vertical tab), \xhhh (hexadecimal),
+	as in ANSI, for strings.  Rescinded the sloppiness that permitted
+	non-octal digits in \ooo.  Warning:  not all compilers and libraries
+	will be able to deal with \x correctly.
+
+Jan 9, 1989:
+	Fixed bug that caused tempcell list to contain a duplicate.
+	The fix is kludgy.
+
+Dec 17, 1988:
+	Catches some more commandline errors in main.
+	Removed redundant decl of modf in run.c (confuses some compilers).
+	Warning:  there's no single declaration of malloc, etc., in awk.h
+	that seems to satisfy all compilers.
+
+Dec 7, 1988:
+	Added a bit of code to error printing to avoid printing nulls.
+	(Not clear that it actually would.)
+
+Nov 27, 1988:
+	With fear and trembling, modified the grammar to permit
+	multiple pattern-action statements on one line without
+	an explicit separator.  By definition, this capitulation
+	to the ghost of ancient implementations remains undefined
+	and thus subject to change without notice or apology.
+	DO NOT COUNT ON IT.
+
+Oct 30, 1988:
+	Fixed bug in call() that failed to recover storage.
+
+	A warning is now generated if there are more arguments
+	in the call than in the definition (in lieu of fixing
+	another storage leak).
+
+Oct 20, 1988:
+	Fixed %c:  if expr is numeric, use numeric value;
+	otherwise print 1st char of string value.  still
+	doesn't work if the value is 0 -- won't print \0.
+
+	Added a few more checks for running out of malloc.
+
+Oct 12, 1988:
+	Fixed bug in call() that freed local arrays twice.
+
+	Fixed to handle deletion of non-existent array right;
+	complains about attempt to delete non-array element.
+
+Sep 30, 1988:
+	Now guarantees to evaluate all arguments of built-in
+	functions, as in C;  the appearance is that arguments
+	are evaluated before the function is called.  Places
+	affected are sub (gsub was ok), substr, printf, and
+	all the built-in arithmetic functions in bltin().
+	A warning is generated if a bltin() is called with
+	the wrong number of arguments.
+
+	This requires changing makeprof on p167 of the book.
+
+Aug 23, 1988:
+	setting FILENAME in BEGIN caused core dump, apparently
+	because it was freeing space not allocated by malloc.
+
+July 24, 1988:
+	fixed egregious error in toupper/tolower functions.
+	still subject to rescinding, however.
+
+July 2, 1988:
+	flush stdout before opening file or pipe
+
+July 2, 1988:
+	performance bug in b.c/cgoto(): not freeing some sets of states.
+	partial fix only right now, and the number of states increased
+	to make it less obvious.
+
+June 1, 1988:
+	check error status on close
+
+May 28, 1988:
+	srand returns seed value it's using.
+	see 1/18/90
+
+May 22, 1988:
+	Removed limit on depth of function calls.
+
+May 10, 1988:
+	Fixed lib.c to permit _ in commandline variable names.
+
+Mar 25, 1988:
+	main.c fixed to recognize -- as terminator of command-
+	line options.  Illegal options flagged.
+	Error reporting slightly cleaned up.
+
+Dec 2, 1987:
+	Newer C compilers apply a strict scope rule to extern
+	declarations within functions.  Two extern declarations in
+	lib.c and tran.c have been moved to obviate this problem.
+
+Oct xx, 1987:
+	Reluctantly added toupper and tolower functions.
+	Subject to rescinding without notice.
+
+Sep 17, 1987:
+	Error-message printer had printf(s) instead of
+	printf("%s",s);  got core dumps when the message
+	included a %.
+
+Sep 12, 1987:
+	Very long printf strings caused core dump;
+	fixed aprintf, asprintf, format to catch them.
+	Can still get a core dump in printf itself.
+
+

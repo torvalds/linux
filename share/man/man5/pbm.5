@@ -1,0 +1,88 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 27, 1991
+.Dt PBM 5
+.Os
+.Sh NAME
+.Nm pbm
+.Nd portable bitmap file format
+.Sh DESCRIPTION
+The portable bitmap format is a lowest common denominator monochrome
+file format.
+It was originally designed to make it reasonable to mail bitmaps
+between different types of machines using the typical stupid network
+mailers we have today.
+Now it serves as the common language of a large family of bitmap
+conversion filters.
+The definition is as follows:
+.Pp
+.Bl -bullet -compact
+.It
+A "magic number" for identifying the file type.
+A pbm file's magic number is the two characters "P1".
+.It
+Whitespace (blanks, TABs, CRs, LFs).
+.It
+A width, formatted as ASCII characters in decimal.
+.It
+Whitespace.
+.It
+A height, again in ASCII decimal.
+.It
+Whitespace.
+.It
+Width * height bits, each either '1' or '0', starting at the top-left
+corner of the bitmap, proceeding in normal English reading order.
+.It
+The character '1' means black, '0' means white.
+.It
+Whitespace in the bits section is ignored.
+.It
+Characters from a "#" to the next end-of-line are ignored (comments).
+.It
+No line should be longer than 70 characters.
+.El
+.Pp
+Here is an example of a small bitmap in this format:
+.Bd -literal
+P1
+# feep.pbm
+24 7
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 1 1 1 1 0 0 1 1 1 1 0 0 1 1 1 1 0 0 1 1 1 1 0
+0 1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 1 0
+0 1 1 1 0 0 0 1 1 1 0 0 0 1 1 1 0 0 0 1 1 1 1 0
+0 1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0
+0 1 0 0 0 0 0 1 1 1 1 0 0 1 1 1 1 0 0 1 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+.Ed
+.Pp
+Programs that read this format should be as lenient as possible,
+accepting anything that looks remotely like a bitmap.
+.Pp
+There is also a variant on the format, available
+by setting the RAWBITS option at compile time.
+This variant is
+different in the following ways:
+.Pp
+.Bl -bullet -compact
+.It
+The "magic number" is "P4" instead of "P1".
+.It
+The bits are stored eight per byte, high bit first low bit last.
+.It
+No whitespace is allowed in the bits section, and only a single character
+of whitespace (typically a newline) is allowed after the height.
+.It
+The files are eight times smaller and many times faster to read and write.
+.El
+.Sh AUTHORS
+Copyright (C) 1989, 1991 by
+.An Jef Poskanzer .
+.\" Permission to use, copy, modify, and distribute this software and its
+.\" documentation for any purpose and without fee is hereby granted, provided
+.\" that the above copyright notice appear in all copies and that both that
+.\" copyright notice and this permission notice appear in supporting
+.\" documentation.  This software is provided "as is" without express or
+.\" implied warranty.

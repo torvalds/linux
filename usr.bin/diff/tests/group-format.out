@@ -1,0 +1,27 @@
+/*
+ * A comment 
+ *
+<<<<<<< (local)
+ * And another  bla
+=======
+ * And another bla
+>>>>>>> (stock)
+ *
+<<<<<<< (local)
+ * And yet another
+=======
+ * and yet another
+>>>>>>> (stock)
+ */
+
+int
+main(void)
+{
+<<<<<<< (local)
+=======
+
+>>>>>>> (stock)
+	printf("something");
+
+	return (0);
+}

@@ -1,0 +1,83 @@
+=pod
+
+=head1 NAME
+
+X509_chain_up_ref,
+X509_new, X509_free, X509_up_ref - X509 certificate ASN1 allocation functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509.h>
+
+ X509 *X509_new(void);
+ void X509_free(X509 *a);
+ int X509_up_ref(X509 *a);
+ STACK_OF(X509) *X509_chain_up_ref(STACK_OF(X509) *x);
+
+=head1 DESCRIPTION
+
+The X509 ASN1 allocation routines, allocate and free an
+X509 structure, which represents an X509 certificate.
+
+X509_new() allocates and initializes a X509 structure with reference count
+B<1>.
+
+X509_free() decrements the reference count of B<X509> structure B<a> and
+frees it up if the reference count is zero. If B<a> is NULL nothing is done.
+
+X509_up_ref() increments the reference count of B<a>.
+
+X509_chain_up_ref() increases the reference count of all certificates in
+chain B<x> and returns a copy of the stack.
+
+=head1 NOTES
+
+The function X509_up_ref() if useful if a certificate structure is being
+used by several different operations each of which will free it up after
+use: this avoids the need to duplicate the entire certificate structure.
+
+The function X509_chain_up_ref() doesn't just up the reference count of
+each certificate it also returns a copy of the stack, using sk_X509_dup(),
+but it serves a similar purpose: the returned chain persists after the
+original has been freed.
+
+=head1 RETURN VALUES
+
+If the allocation fails, X509_new() returns B<NULL> and sets an error
+code that can be obtained by L<ERR_get_error(3)>.
+Otherwise it returns a pointer to the newly allocated structure.
+
+X509_up_ref() returns 1 for success and 0 for failure.
+
+X509_chain_up_ref() returns a copy of the stack or B<NULL> if an error
+occurred.
+
+=head1 SEE ALSO
+
+L<d2i_X509(3)>,
+L<ERR_get_error(3)>,
+L<X509_CRL_get0_by_serial(3)>,
+L<X509_get0_signature(3)>,
+L<X509_get_ext_d2i(3)>,
+L<X509_get_extension_flags(3)>,
+L<X509_get_pubkey(3)>,
+L<X509_get_subject_name(3)>,
+L<X509_get_version(3)>,
+L<X509_NAME_add_entry_by_txt(3)>,
+L<X509_NAME_ENTRY_get_object(3)>,
+L<X509_NAME_get_index_by_NID(3)>,
+L<X509_NAME_print_ex(3)>,
+L<X509_sign(3)>,
+L<X509V3_get_d2i(3)>,
+L<X509_verify_cert(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,115 @@
+.\"	$NetBSD: time.9,v 1.1 1995/11/25 21:24:53 perry Exp $
+.\"
+.\" Copyright (c) 1994 Christopher G. Demetriou
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Christopher G. Demetriou
+.\"      for the NetBSD Project.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 17, 2004
+.Dt TIME 9
+.Os
+.Sh NAME
+.Nm boottime ,
+.Nm time_second ,
+.Nm time_uptime
+.Nd system time variables
+.Sh SYNOPSIS
+.In sys/time.h
+.Pp
+.Vt extern struct timeval boottime ;
+.Vt extern time_t time_second ;
+.Vt extern time_t time_uptime ;
+.Sh DESCRIPTION
+The
+.Va boottime
+variable holds the system boot time.
+.Pp
+The
+.Va time_second
+variable is the system's
+.Dq wall time
+clock to the second.
+.Pp
+The
+.Va time_uptime
+variable is the number of seconds since boot.
+.Pp
+The
+.Xr bintime 9 ,
+.Xr getbintime 9 ,
+.Xr microtime 9 ,
+.Xr getmicrotime 9 ,
+.Xr nanotime 9 ,
+and
+.Xr getnanotime 9
+functions can be used to get the current time more accurately and in an
+atomic manner.
+Similarly, the
+.Xr binuptime 9 ,
+.Xr getbinuptime 9 ,
+.Xr microuptime 9 ,
+.Xr getmicrouptime 9 ,
+.Xr nanouptime 9 ,
+and
+.Xr getnanouptime 9
+functions can be used to get the time elapse since boot more accurately
+and in an atomic manner.
+The
+.Va boottime
+variable may be read and written without special precautions.
+.Sh SEE ALSO
+.Xr clock_settime 2 ,
+.Xr ntp_adjtime 2 ,
+.Xr settimeofday 2 ,
+.Xr bintime 9 ,
+.Xr binuptime 9 ,
+.Xr getbintime 9 ,
+.Xr getbinuptime 9 ,
+.Xr getmicrotime 9 ,
+.Xr getmicrouptime 9 ,
+.Xr getnanotime 9 ,
+.Xr getnanouptime 9 ,
+.Xr microtime 9 ,
+.Xr microuptime 9 ,
+.Xr nanotime 9 ,
+.Xr nanouptime 9
+.Rs
+.%A "Poul-Henning Kamp"
+.%T "Timecounters: Efficient and precise timekeeping in SMP kernels"
+.%J "Proceedings of EuroBSDCon 2002, Amsterdam"
+.%O /usr/share/doc/papers/timecounter.ascii.gz
+.Re
+.Rs
+.%A "Marshall Kirk McKusick"
+.%A "George V. Neville-Neil"
+.%B "The Design and Implementation of the FreeBSD Operating System"
+.%D "July 2004"
+.%I "Addison-Wesley"
+.%P "57-61,65-66"
+.Re

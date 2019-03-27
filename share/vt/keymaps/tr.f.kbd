@@ -1,0 +1,121 @@
+# Turkish F Keyboard (01-08-2017)
+#
+# $FreeBSD$
+#
+# Ufuk Guler
+# ufukguler@yahoo.com
+#
+# Mobile        : +(90) 544 848 39 09
+#                                                         alt
+# scan                       cntrl          alt    alt   cntrl lock
+# code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
+# ------------------------------------------------------------------
+  000   nop    nop    nop    nop    nop    nop    nop    nop     O
+  001   esc    esc    esc    esc    esc    esc    debug  esc     O
+  002   '1'    '!'    '1'    '!'    0xB9   0xA1   '1'    '!'     O
+  003   '2'    '"'    nul    '"'    0xB2   nop    '2'    nul     O
+  004   '3'    '^'    nop    nop    '#'    0xB3   '#'    '#'     O
+  005   '4'    '$'    nop    '$'    0xBC   nop    '4'    '$'     O
+  006   '5'    '%'    nop    '%'    0xBD   nop    '5'    '%'     O
+  007   '6'    '&'    nop    '&'    0xBE   nop    '6'    nop     O
+  008   '7'    '''    nop    '''    '{'    nop    nop    '&'     O
+  009   '8'    '('    nop    '('    '['    nop    nop    '*'     O
+  010   '9'    ')'    '9'    ')'    ']'    0xB1   gs     '('     O
+  011   '0'    '='    nop    '='    '}'    0xB0   nop    ')'     O
+  012   '/'    '?'    nop    nop    '\'    0xBF   fs     nop     O
+  013   '-'    '_'    nop    nop    '|'    nop    nop    '+'     O
+  014   bs     bs     del    del    bs     bs     del    del     O
+  015   ht     btab   nop    nop    ht     btab   nop    nop     O
+  016   'f'    'F'    ack    ack    '@'    nop    ack    ack     C
+  017   'g'    'G'    bel    bel    bel    bel    bel    bel     C
+  018   0x011F 0x011E nop    nop    nop    nop    nop    nop     C
+  019   0x0131 'I'    ht     ht     0xB6   ht     ht     ht      C
+  020   'o'    'O'    si     si     0xF4   0xD4   si     si      C
+  021   'd'    'D'    eot    eot    0xA5   eot    eot    eot     C
+  022   'r'    'R'    dc2    dc2    0xAE   dc2    dc2    dc2     C
+  023   'n'    'N'    so     so     so     so     so     so      C
+  024   'h'    'H'    bs     bs     0xB0   bs     bs     bs      C
+  025   'p'    'P'    dle    dle    0xA3   dle    dle    dle     C
+  026   'q'    'Q'    dc1    dc1    0xA8   dc1    dc1    dc1     C
+  027   'w'    'W'    etb    etb    0x7E   nop    nop    nop     C
+  028   cr     cr     nl     nl     cr     cr     nl     nl      O
+  029   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
+  030   'u'    'U'    nak    nak    0xFB   0xDB   nak    nak     C
+  031   'i'    0x0130 nop    nop    0xEE   0x0130 nop    nop     C
+  032   'e'    'E'    enq    enq    0x20AC enq    enq    enq     C
+  033   'a'    'A'    soh    soh    0xE2   0xC2   soh    soh     C
+  034   0xFC   0xDC   nop    nop    0xFB   0xDB   nop    nop     C
+  035   't'    'T'    dc4    dc4    0x2122 dc4    dc4    dc4     C
+  036   'k'    'K'    vt     vt     vt     vt     vt     vt      C
+  037   'm'    'M'    cr     cr     0xB5   cr     cr     cr      C
+  038   'l'    'L'    ff     ff     ff     ff     ff     ff      C
+  039   'y'    'Y'    em     em     0xB4   em    ';'     ':'     C
+  040   0x015F 0x015E '''    '"'    '#'    0x02C7 '#'    '"'     C
+  041   '+'    '*'    nop    '*'    0xAC   0xB1   nop    nop     C
+  042   lshift lshift lshift lshift lshift lshift lshift lshift  O
+  043   'x'    'X'    can    can    0x60   0x60   can    can     C
+  044   'j'    'J'    nl     nl     0xAB   'J'    nl     nl      C
+  045   0xF6   0xD6   nop    nop    0xBB   nop    nop    nop     C
+  046   'v'    'V'    syn    0x60   0x201C syn    syn    syn     C
+  047   'c'    'C'    etx    etx    0xA2   0xA9   etx    etx     C
+  048   0xE7    0xC7  nop    nop    0x201D nop    nop    nop     C
+  049   'z'    'Z'    sub    sub    sub    sub    sub    sub     C
+  050   's'    'S'    dc3    dc3    0xA7   dc3    dc3    dc3     C
+  051   'b'    'B'    stx    stx    0xD7   stx    ','    '<'     C
+  052   '.'    ':'    '.'    ':'    0xF7   0x2022 '.'    '>'     C
+  053   ','    ';'    ','    ';'    0x2022 nop    '/'    '?'     O
+  054   rshift rshift rshift rshift rshift rshift rshift rshift  O
+  055   '*'    '*'    '*'    '*'    '*'    '*'    '*'    '*'     O
+  056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
+  057   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O
+  058   clock  clock  clock  clock  clock  clock  clock  clock   O
+  059   fkey01 fkey13 fkey25 fkey37 scr01  scr11  scr01  scr11   O
+  060   fkey02 fkey14 fkey26 fkey38 scr02  scr12  scr02  scr12   O
+  061   fkey03 fkey15 fkey27 fkey39 scr03  scr13  scr03  scr13   O
+  062   fkey04 fkey16 fkey28 fkey40 scr04  scr14  scr04  scr14   O
+  063   fkey05 fkey17 fkey29 fkey41 scr05  scr15  scr05  scr15   O
+  064   fkey06 fkey18 fkey30 fkey42 scr06  scr16  scr06  scr16   O
+  065   fkey07 fkey19 fkey31 fkey43 scr07  scr07  scr07  scr07   O
+  066   fkey08 fkey20 fkey32 fkey44 scr08  scr08  scr08  scr08   O
+  067   fkey09 fkey21 fkey33 fkey45 scr09  scr09  scr09  scr09   O
+  068   fkey10 fkey22 fkey34 fkey46 scr10  scr10  scr10  scr10   O
+  069   nlock  nlock  nlock  nlock  nlock  nlock  nlock  nlock   O
+  070   slock  slock  slock  slock  slock  slock  slock  slock   O
+  071   fkey49 '7'    '7'    '7'    '7'    '7'    '7'    '7'     N
+  072   fkey50 '8'    '8'    '8'    '8'    '8'    '8'    '8'     N
+  073   fkey51 '9'    '9'    '9'    '9'    '9'    '9'    '9'     N
+  074   fkey52 '-'    '-'    '-'    '-'    '-'    '-'    '-'     N
+  075   fkey53 '4'    '4'    '4'    '4'    '4'    '4'    '4'     N
+  076   fkey54 '5'    '5'    '5'    '5'    '5'    '5'    '5'     N
+  077   fkey55 '6'    '6'    '6'    '6'    '6'    '6'    '6'     N
+  078   fkey56 '+'    '+'    '+'    '+'    '+'    '+'    '+'     N
+  079   fkey57 '1'    '1'    '1'    '1'    '1'    '1'    '1'     N
+  080   fkey58 '2'    '2'    '2'    '2'    '2'    '2'    '2'     N
+  081   fkey59 '3'    '3'    '3'    '3'    '3'    '3'    '3'     N
+  082   fkey60 '0'    '0'    '0'    '0'    '0'    '0'    '0'     N
+  083   del    ','    ','    ','    ','    ','    boot   boot    N
+  084   nop    nop    nop    nop    nop    nop    nop    nop     O
+  085   nop    nop    nop    nop    nop    nop    nop    nop     O
+  086   '<'    '>'    '<'    '>'    '|'    0xA6   nop    0xA6    O
+  087   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O
+  088   fkey12 fkey24 fkey36 fkey48 scr12  scr12  scr12  scr12   O
+  089   cr     cr     nl     nl     cr     cr     nl     nl      O
+  090   rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl   O
+  091   '/'    '/'    '/'    '/'    '/'    '/'    '/'    '/'     N
+  092   nscr   pscr   debug  debug  nop    nop    nop    nop     O
+  093   ralt   ralt   ralt   ralt   ralt   ralt   ralt   ralt    O
+  094   fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49  O
+  095   fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50  O
+  096   fkey51 fkey51 fkey51 fkey51 fkey51 fkey51 fkey51 fkey51  O
+  097   fkey53 fkey53 fkey53 fkey53 fkey53 fkey53 fkey53 fkey53  O
+  098   fkey55 fkey55 fkey55 fkey55 fkey55 fkey55 fkey55 fkey55  O
+  099   fkey57 fkey57 fkey57 fkey57 fkey57 fkey57 fkey57 fkey57  O
+  100   fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58  O
+  101   fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59  O
+  102   fkey60 paste  fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
+  103   fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 boot   fkey61  O
+  104   slock  saver  slock  saver  susp   nop    susp   nop     O
+  105   fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
+  106   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
+  107   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
+  108   nop    nop    nop    nop    nop    nop    nop    nop     O

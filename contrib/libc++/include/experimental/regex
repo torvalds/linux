@@ -1,0 +1,62 @@
+// -*- C++ -*-
+//===----------------------------- regex ----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXPERIMENTAL_REGEX
+#define _LIBCPP_EXPERIMENTAL_REGEX
+/*
+    experimental/regex synopsis
+
+// C++1z
+namespace std {
+namespace experimental {
+inline namespace fundamentals_v1 {
+namespace pmr {
+
+  template <class BidirectionalIterator>
+  using match_results =
+    std::match_results<BidirectionalIterator,
+                       polymorphic_allocator<sub_match<BidirectionalIterator>>>;
+
+  typedef match_results<const char*> cmatch;
+  typedef match_results<const wchar_t*> wcmatch;
+  typedef match_results<string::const_iterator> smatch;
+  typedef match_results<wstring::const_iterator> wsmatch;
+
+} // namespace pmr
+} // namespace fundamentals_v1
+} // namespace experimental
+} // namespace std
+
+ */
+
+#include <experimental/__config>
+#include <regex>
+#include <experimental/string>
+#include <experimental/memory_resource>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_LFTS_PMR
+
+template <class _BiDirIter>
+using match_results =
+    _VSTD::match_results<_BiDirIter,
+        polymorphic_allocator<_VSTD::sub_match<_BiDirIter>>>;
+
+typedef match_results<const char*> cmatch;
+typedef match_results<const wchar_t*> wcmatch;
+typedef match_results<_VSTD_LFTS_PMR::string::const_iterator> smatch;
+typedef match_results<_VSTD_LFTS_PMR::wstring::const_iterator> wsmatch;
+
+_LIBCPP_END_NAMESPACE_LFTS_PMR
+
+#endif /* _LIBCPP_EXPERIMENTAL_REGEX */

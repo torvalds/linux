@@ -1,0 +1,990 @@
+.\" $FreeBSD$
+.Dd November 3, 2018
+.Dt ED 1
+.Os
+.Sh NAME
+.Nm ed ,
+.Nm red
+.Nd text editor
+.Sh SYNOPSIS
+.Nm
+.Op Fl
+.Op Fl s
+.Op Fl p Ar string
+.Op Ar file
+.Nm red
+.Op Fl
+.Op Fl s
+.Op Fl p Ar string
+.Op Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility is a line-oriented text editor.
+It is used to create, display, modify and otherwise manipulate text
+files.
+When invoked as
+.Nm red ,
+the editor runs in
+.Qq restricted
+mode, in which the only difference is that the editor restricts the
+use of filenames which start with
+.Ql \&!
+(interpreted as shell commands by
+.Nm )
+or contain a
+.Ql \&/ .
+Note that editing outside of the current directory is only prohibited
+if the user does not have write access to the current directory.
+If a user has write access to the current directory, then symbolic
+links can be created in the current directory, in which case
+.Nm red
+will not stop the user from editing the file that the symbolic link
+points to.
+.Pp
+If invoked with a
+.Ar file
+argument, then a copy of
+.Ar file
+is read into the editor's buffer.
+Changes are made to this copy and not directly to
+.Ar file
+itself.
+Upon quitting
+.Nm ,
+any changes not explicitly saved with a
+.Em w
+command are lost.
+.Pp
+Editing is done in two distinct modes:
+.Em command
+and
+.Em input .
+When first invoked,
+.Nm
+is in command mode.
+In this mode commands are read from the standard input and
+executed to manipulate the contents of the editor buffer.
+A typical command might look like:
+.Pp
+.Sm off
+.Cm ,s No / Em old Xo
+.No / Em new
+.No / Cm g
+.Xc
+.Sm on
+.Pp
+which replaces all occurrences of the string
+.Em old
+with
+.Em new .
+.Pp
+When an input command, such as
+.Em a
+(append),
+.Em i
+(insert) or
+.Em c
+(change), is given,
+.Nm
+enters input mode.
+This is the primary means
+of adding text to a file.
+In this mode, no commands are available;
+instead, the standard input is written
+directly to the editor buffer.
+Lines consist of text up to and
+including a
+.Em newline
+character.
+Input mode is terminated by
+entering a single period
+.Pq Em .\&
+on a line.
+.Pp
+All
+.Nm
+commands operate on whole lines or ranges of lines; e.g.,
+the
+.Em d
+command deletes lines; the
+.Em m
+command moves lines, and so on.
+It is possible to modify only a portion of a line by means of replacement,
+as in the example above.
+However even here, the
+.Em s
+command is applied to whole lines at a time.
+.Pp
+In general,
+.Nm
+commands consist of zero or more line addresses, followed by a single
+character command and possibly additional parameters; i.e.,
+commands have the structure:
+.Pp
+.Sm off
+.Xo
+.Op Ar address Op , Ar address
+.Ar command Op Ar parameters
+.Xc
+.Sm on
+.Pp
+The address(es) indicate the line or range of lines to be affected by the
+command.
+If fewer addresses are given than the command accepts, then
+default addresses are supplied.
+.Sh OPTIONS
+The following options are available:
+.Bl -tag -width indent
+.It Fl s
+Suppress diagnostics.
+This should be used if
+.Nm Ns 's
+standard input is from a script.
+.It Fl p Ar string
+Specify a command prompt.
+This may be toggled on and off with the
+.Em P
+command.
+.It Ar file
+Specify the name of a file to read.
+If
+.Ar file
+is prefixed with a
+bang (!), then it is interpreted as a shell command.
+In this case,
+what is read is
+the standard output of
+.Ar file
+executed via
+.Xr sh 1 .
+To read a file whose name begins with a bang, prefix the
+name with a backslash (\\).
+The default filename is set to
+.Ar file
+only if it is not prefixed with a bang.
+.El
+.Sh LINE ADDRESSING
+An address represents the number of a line in the buffer.
+The
+.Nm
+utility maintains a
+.Em current address
+which is
+typically supplied to commands as the default address when none is specified.
+When a file is first read, the current address is set to the last line
+of the file.
+In general, the current address is set to the last line
+affected by a command.
+.Pp
+A line address is
+constructed from one of the bases in the list below, optionally followed
+by a numeric offset.
+The offset may include any combination
+of digits, operators (i.e.,
+.Em + ,
+.Em -
+and
+.Em ^ )
+and whitespace.
+Addresses are read from left to right, and their values are computed
+relative to the current address.
+.Pp
+One exception to the rule that addresses represent line numbers is the
+address
+.Em 0
+(zero).
+This means "before the first line,"
+and is legal wherever it makes sense.
+.Pp
+An address range is two addresses separated either by a comma or
+semi-colon.
+The value of the first address in a range cannot exceed the
+value of the second.
+If only one address is given in a range, then
+the second address is set to the given address.
+If an
+.Em n Ns -tuple
+of addresses is given where
+.Em "n\ >\ 2" ,
+then the corresponding range is determined by the last two addresses in
+the
+.Em n Ns -tuple .
+If only one address is expected, then the last address is used.
+.Pp
+Each address in a comma-delimited range is interpreted relative to the
+current address.
+In a semi-colon-delimited range, the first address is
+used to set the current address, and the second address is interpreted
+relative to the first.
+.Pp
+The following address symbols are recognized:
+.Bl -tag -width indent
+.It .
+The current line (address) in the buffer.
+.It $
+The last line in the buffer.
+.It n
+The
+.Em n Ns th
+line in the buffer
+where
+.Em n
+is a number in the range
+.Em [0,$] .
+.It - or ^
+The previous line.
+This is equivalent to
+.Em -1
+and may be repeated with cumulative effect.
+.It -n or ^n
+The
+.Em n Ns th
+previous line, where
+.Em n
+is a non-negative number.
+.It +
+The next line.
+This is equivalent to
+.Em +1
+and may be repeated with cumulative effect.
+.It +n
+The
+.Em n Ns th
+next line, where
+.Em n
+is a non-negative number.
+.It , or %
+The first through last lines in the buffer.
+This is equivalent to
+the address range
+.Em 1,$ .
+.It ;
+The current through last lines in the buffer.
+This is equivalent to
+the address range
+.Em .,$ .
+.It /re/
+The next line containing the regular expression
+.Em re .
+The search wraps to the beginning of the buffer and continues down to the
+current line, if necessary.
+// repeats the last search.
+.It ?re?
+The
+previous line containing the regular expression
+.Em re .
+The search wraps to the end of the buffer and continues up to the
+current line, if necessary.
+?? repeats the last search.
+.It 'lc
+The
+line previously marked by a
+.Em k
+(mark) command, where
+.Em lc
+is a lower case letter.
+.El
+.Sh REGULAR EXPRESSIONS
+Regular expressions are patterns used in selecting text.
+For example, the command:
+.Pp
+.Sm off
+.Cm g No / Em string Xo
+.No /
+.Xc
+.Sm on
+.Pp
+prints all lines containing
+.Em string .
+Regular expressions are also
+used by the
+.Em s
+command for selecting old text to be replaced with new.
+.Pp
+In addition to a specifying string literals, regular expressions can
+represent
+classes of strings.
+Strings thus represented are said to be matched
+by the corresponding regular expression.
+If it is possible for a regular expression
+to match several strings in a line, then the left-most longest match is
+the one selected.
+.Pp
+The following symbols are used in constructing regular expressions:
+.Bl -tag -width indent
+.It c
+Any character
+.Em c
+not listed below, including
+.Ql \&{ ,
+.Ql \&} ,
+.Ql \&( ,
+.Ql \&) ,
+.Ql <
+and
+.Ql > ,
+matches itself.
+.It Pf \e c
+Any backslash-escaped character
+.Em c ,
+except for
+.Ql \&{ ,
+.Ql \&} ,
+.Ql \&( ,
+.Ql \&) ,
+.Ql <
+and
+.Ql > ,
+matches itself.
+.It .
+Match any single character.
+.It Op char-class
+Match any single character in
+.Em char-class .
+To include a
+.Ql \&]
+in
+.Em char-class ,
+it must be the first character.
+A range of characters may be specified by separating the end characters
+of the range with a
+.Ql - ,
+e.g.,
+.Ql a-z
+specifies the lower case characters.
+The following literal expressions can also be used in
+.Em char-class
+to specify sets of characters:
+.Pp
+.Bl -column "[:alnum:]" "[:cntrl:]" "[:lower:]" "[:xdigit:]" -compact
+.It [:alnum:] Ta [:cntrl:] Ta [:lower:] Ta [:space:]
+.It [:alpha:] Ta [:digit:] Ta [:print:] Ta [:upper:]
+.It [:blank:] Ta [:graph:] Ta [:punct:] Ta [:xdigit:]
+.El
+.Pp
+If
+.Ql -
+appears as the first or last
+character of
+.Em char-class ,
+then it matches itself.
+All other characters in
+.Em char-class
+match themselves.
+.Pp
+Patterns in
+.Em char-class
+of the form:
+.Pp
+.Bl -item -compact -offset 2n
+.It
+.Op \&. Ns Ar col-elm Ns .\&
+or,
+.It
+.Op = Ns Ar col-elm Ns =
+.El
+.Pp
+where
+.Ar col-elm
+is a
+.Em collating element
+are interpreted according to the current locale settings
+(not currently supported).
+See
+.Xr regex 3
+and
+.Xr re_format 7
+for an explanation of these constructs.
+.It Op ^char-class
+Match any single character, other than newline, not in
+.Em char-class .
+.Em Char-class
+is defined
+as above.
+.It ^
+If
+.Em ^
+is the first character of a regular expression, then it
+anchors the regular expression to the beginning of a line.
+Otherwise, it matches itself.
+.It $
+If
+.Em $
+is the last character of a regular expression, it
+anchors the regular expression to the end of a line.
+Otherwise, it matches itself.
+.It Pf \e <
+Anchor the single character regular expression or subexpression
+immediately following it to the beginning of a word.
+(This may not be available)
+.It Pf \e >
+Anchor the single character regular expression or subexpression
+immediately following it to the end of a word.
+(This may not be available)
+.It Pf \e (re\e)
+Define a subexpression
+.Em re .
+Subexpressions may be nested.
+A subsequent backreference of the form
+.Pf \e Em n ,
+where
+.Em n
+is a number in the range [1,9], expands to the text matched by the
+.Em n Ns th
+subexpression.
+For example, the regular expression
+.Ql \e(.*\e)\e1
+matches any string
+consisting of identical adjacent substrings.
+Subexpressions are ordered relative to
+their left delimiter.
+.It *
+Match the single character regular expression or subexpression
+immediately preceding it zero or more times.
+If
+.Em *
+is the first
+character of a regular expression or subexpression, then it matches
+itself.
+The
+.Em *
+operator sometimes yields unexpected results.
+For example, the regular expression
+.Ql b*
+matches the beginning of
+the string
+.Ql abbb
+(as opposed to the substring
+.Ql bbb ) ,
+since a null match
+is the only left-most match.
+.It \e{n,m\e} or \e{n,\e} or \e{n\e}
+Match the single character regular expression or subexpression
+immediately preceding it at least
+.Em n
+and at most
+.Em m
+times.
+If
+.Em m
+is omitted, then it matches at least
+.Em n
+times.
+If the comma is also omitted, then it matches exactly
+.Em n
+times.
+.El
+.Pp
+Additional regular expression operators may be defined depending on the
+particular
+.Xr regex 3
+implementation.
+.Sh COMMANDS
+All
+.Nm
+commands are single characters, though some require additional parameters.
+If a command's parameters extend over several lines, then
+each line except for the last
+must be terminated with a backslash (\\).
+.Pp
+In general, at most one command is allowed per line.
+However, most commands accept a print suffix, which is any of
+.Em p
+(print),
+.Em l
+(list),
+or
+.Em n
+(enumerate),
+to print the last line affected by the command.
+.Pp
+An interrupt (typically ^C) has the effect of aborting the current command
+and returning the editor to command mode.
+.Pp
+The
+.Nm
+utility
+recognizes the following commands.
+The commands are shown together with
+the default address or address range supplied if none is
+specified (in parenthesis).
+.Bl -tag -width indent
+.It (.)a
+Append text to the buffer after the addressed line.
+Text is entered in input mode.
+The current address is set to last line entered.
+.It (.,.)c
+Change lines in the buffer.
+The addressed lines are deleted
+from the buffer, and text is appended in their place.
+Text is entered in input mode.
+The current address is set to last line entered.
+.It (.,.)d
+Delete the addressed lines from the buffer.
+If there is a line after the deleted range, then the current address is set
+to this line.
+Otherwise the current address is set to the line
+before the deleted range.
+.It e Ar file
+Edit
+.Ar file ,
+and sets the default filename.
+If
+.Ar file
+is not specified, then the default filename is used.
+Any lines in the buffer are deleted before
+the new file is read.
+The current address is set to the last line read.
+.It e Ar !command
+Edit the standard output of
+.Ar !command ,
+(see
+.Ar !command
+below).
+The default filename is unchanged.
+Any lines in the buffer are deleted before the output of
+.Ar command
+is read.
+The current address is set to the last line read.
+.It E Ar file
+Edit
+.Ar file
+unconditionally.
+This is similar to the
+.Em e
+command,
+except that unwritten changes are discarded without warning.
+The current address is set to the last line read.
+.It f Ar file
+Set the default filename to
+.Ar file .
+If
+.Ar file
+is not specified, then the default unescaped filename is printed.
+.It (1,$)g/re/command-list
+Apply
+.Ar command-list
+to each of the addressed lines matching a regular expression
+.Ar re .
+The current address is set to the
+line currently matched before
+.Ar command-list
+is executed.
+At the end of the
+.Em g
+command, the current address is set to the last line affected by
+.Ar command-list .
+.Pp
+Each command in
+.Ar command-list
+must be on a separate line,
+and every line except for the last must be terminated by a backslash
+(\\).
+Any commands are allowed, except for
+.Em g ,
+.Em G ,
+.Em v ,
+and
+.Em V .
+A newline alone in
+.Ar command-list
+is equivalent to a
+.Em p
+command.
+.It (1,$)G/re/
+Interactively edit the addressed lines matching a regular expression
+.Ar re .
+For each matching line,
+the line is printed,
+the current address is set,
+and the user is prompted to enter a
+.Ar command-list .
+At the end of the
+.Em G
+command, the current address
+is set to the last line affected by (the last)
+.Ar command-list .
+.Pp
+The format of
+.Ar command-list
+is the same as that of the
+.Em g
+command.
+A newline alone acts as a null command list.
+A single
+.Ql &
+repeats the last non-null command list.
+.It H
+Toggle the printing of error explanations.
+By default, explanations are not printed.
+It is recommended that ed scripts begin with this command to
+aid in debugging.
+.It h
+Print an explanation of the last error.
+.It (.)i
+Insert text in the buffer before the current line.
+Text is entered in input mode.
+The current address is set to the last line entered.
+.It (.,.+1)j
+Join the addressed lines.
+The addressed lines are
+deleted from the buffer and replaced by a single
+line containing their joined text.
+The current address is set to the resultant line.
+.It (.)klc
+Mark a line with a lower case letter
+.Em lc .
+The line can then be addressed as
+.Em 'lc
+(i.e., a single quote followed by
+.Em lc )
+in subsequent commands.
+The mark is not cleared until the line is
+deleted or otherwise modified.
+.It (.,.)l
+Print the addressed lines unambiguously.
+If a single line fills more than one screen (as might be the case
+when viewing a binary file, for instance), a
+.Dq Li --More--
+prompt is printed on the last line.
+The
+.Nm
+utility waits until the RETURN key is pressed
+before displaying the next screen.
+The current address is set to the last line
+printed.
+.It (.,.)m(.)
+Move lines in the buffer.
+The addressed lines are moved to after the
+right-hand destination address, which may be the address
+.Em 0
+(zero).
+The current address is set to the
+last line moved.
+.It (.,.)n
+Print the addressed lines along with
+their line numbers.
+The current address is set to the last line
+printed.
+.It (.,.)p
+Print the addressed lines.
+The current address is set to the last line
+printed.
+.It P
+Toggle the command prompt on and off.
+Unless a prompt was specified by with command-line option
+.Fl p Ar string ,
+the command prompt is by default turned off.
+.It q
+Quit
+.Nm .
+.It Q
+Quit
+.Nm
+unconditionally.
+This is similar to the
+.Em q
+command,
+except that unwritten changes are discarded without warning.
+.It ($)r Ar file
+Read
+.Ar file
+to after the addressed line.
+If
+.Ar file
+is not specified, then the default
+filename is used.
+If there was no default filename prior to the command,
+then the default filename is set to
+.Ar file .
+Otherwise, the default filename is unchanged.
+The current address is set to the last line read.
+.It ($)r Ar !command
+Read
+to after the addressed line
+the standard output of
+.Ar !command ,
+(see the
+.Ar !command
+below).
+The default filename is unchanged.
+The current address is set to the last line read.
+.It (.,.)s/re/replacement/
+.It (.,.)s/re/replacement/g
+.It (.,.)s/re/replacement/n
+Replace text in the addressed lines
+matching a regular expression
+.Ar re
+with
+.Ar replacement .
+By default, only the first match in each line is replaced.
+If the
+.Em g
+(global) suffix is given, then every match to be replaced.
+The
+.Em n
+suffix, where
+.Em n
+is a positive number, causes only the
+.Em n Ns th
+match to be replaced.
+It is an error if no substitutions are performed on any of the addressed
+lines.
+The current address is set the last line affected.
+.Pp
+.Ar \&Re
+and
+.Ar replacement
+may be delimited by any character other than space and newline
+(see the
+.Em s
+command below).
+If one or two of the last delimiters is omitted, then the last line
+affected is printed as though the print suffix
+.Em p
+were specified.
+.Pp
+An unescaped
+.Ql &
+in
+.Ar replacement
+is replaced by the currently matched text.
+The character sequence
+.Em \em ,
+where
+.Em m
+is a number in the range [1,9], is replaced by the
+.Em m th
+backreference expression of the matched text.
+If
+.Ar replacement
+consists of a single
+.Ql % ,
+then
+.Ar replacement
+from the last substitution is used.
+Newlines may be embedded in
+.Ar replacement
+if they are escaped with a backslash (\\).
+.It (.,.)s
+Repeat the last substitution.
+This form of the
+.Em s
+command accepts a count suffix
+.Em n ,
+or any combination of the characters
+.Em r ,
+.Em g ,
+and
+.Em p .
+If a count suffix
+.Em n
+is given, then only the
+.Em n Ns th
+match is replaced.
+The
+.Em r
+suffix causes
+the regular expression of the last search to be used instead of the
+that of the last substitution.
+The
+.Em g
+suffix toggles the global suffix of the last substitution.
+The
+.Em p
+suffix toggles the print suffix of the last substitution
+The current address is set to the last line affected.
+.It (.,.)t(.)
+Copy (i.e., transfer) the addressed lines to after the right-hand
+destination address, which may be the address
+.Em 0
+(zero).
+The current address is set to the last line
+copied.
+.It u
+Undo the last command and restores the current address
+to what it was before the command.
+The global commands
+.Em g ,
+.Em G ,
+.Em v ,
+and
+.Em V .
+are treated as a single command by undo.
+.Em u
+is its own inverse.
+.It (1,$)v/re/command-list
+Apply
+.Ar command-list
+to each of the addressed lines not matching a regular expression
+.Ar re .
+This is similar to the
+.Em g
+command.
+.It (1,$)V/re/
+Interactively edit the addressed lines not matching a regular expression
+.Ar re .
+This is similar to the
+.Em G
+command.
+.It (1,$)w Ar file
+Write the addressed lines to
+.Ar file .
+Any previous contents of
+.Ar file
+is lost without warning.
+If there is no default filename, then the default filename is set to
+.Ar file ,
+otherwise it is unchanged.
+If no filename is specified, then the default
+filename is used.
+The current address is unchanged.
+.It (1,$)wq Ar file
+Write the addressed lines to
+.Ar file ,
+and then executes a
+.Em q
+command.
+.It (1,$)w Ar !command
+Write the addressed lines to the standard input of
+.Ar !command ,
+(see the
+.Em !command
+below).
+The default filename and current address are unchanged.
+.It (1,$)W Ar file
+Append the addressed lines to the end of
+.Ar file .
+This is similar to the
+.Em w
+command, expect that the previous contents of file is not clobbered.
+The current address is unchanged.
+.It Pf (.+1)z n
+Scroll
+.Ar n
+lines at a time starting at addressed line.
+If
+.Ar n
+is not specified, then the current window size is used.
+The current address is set to the last line printed.
+.It !command
+Execute
+.Ar command
+via
+.Xr sh 1 .
+If the first character of
+.Ar command
+is
+.Ql \&! ,
+then it is replaced by text of the
+previous
+.Ar !command .
+The
+.Nm
+utility does not process
+.Ar command
+for backslash (\\) escapes.
+However, an unescaped
+.Em %
+is replaced by the default filename.
+When the shell returns from execution, a
+.Ql \&!
+is printed to the standard output.
+The current line is unchanged.
+.It ($)=
+Print the line number of the addressed line.
+.It (.+1)newline
+Print the addressed line, and sets the current address to
+that line.
+.El
+.Sh FILES
+.Bl -tag -width /tmp/ed.* -compact
+.It Pa /tmp/ed.*
+buffer file
+.It Pa ed.hup
+the file to which
+.Nm
+attempts to write the buffer if the terminal hangs up
+.El
+.Sh DIAGNOSTICS
+When an error occurs,
+.Nm
+prints a
+.Ql \&?
+and either returns to command mode
+or exits if its input is from a script.
+An explanation of the last error can be
+printed with the
+.Em h
+(help) command.
+.Pp
+Since the
+.Em g
+(global) command masks any errors from failed searches and substitutions,
+it can be used to perform conditional operations in scripts; e.g.,
+.Pp
+.Sm off
+.Cm g No / Em old Xo
+.No / Cm s
+.No // Em new
+.No /
+.Xc
+.Sm on
+.Pp
+replaces any occurrences of
+.Em old
+with
+.Em new .
+If the
+.Em u
+(undo) command occurs in a global command list, then
+the command list is executed only once.
+.Pp
+If diagnostics are not disabled, attempting to quit
+.Nm
+or edit another file before writing a modified buffer
+results in an error.
+If the command is entered a second time, it succeeds,
+but any changes to the buffer are lost.
+.Sh SEE ALSO
+.Xr sed 1 ,
+.Xr sh 1 ,
+.Xr vi 1 ,
+.Xr regex 3
+.Pp
+USD:12-13
+.Rs
+.%A B. W. Kernighan
+.%A P. J. Plauger
+.%B Software Tools in Pascal
+.%O Addison-Wesley
+.%D 1981
+.Re
+.Sh LIMITATIONS
+The
+.Nm
+utility processes
+.Ar file
+arguments for backslash escapes, i.e., in a filename,
+any characters preceded by a backslash (\\) are
+interpreted literally.
+.Pp
+If a text (non-binary) file is not terminated by a newline character,
+then
+.Nm
+appends one on reading/writing it.
+In the case of a binary file,
+.Nm
+does not append a newline on reading/writing.
+.Pp
+per line overhead: 4 ints
+.Sh HISTORY
+An
+.Nm
+command appeared in
+.At v1 .
+.Sh BUGS
+The
+.Nm
+utility does not recognize multibyte characters.

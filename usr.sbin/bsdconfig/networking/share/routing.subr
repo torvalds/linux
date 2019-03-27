@@ -1,0 +1,133 @@
+if [ ! "$_NETWORKING_ROUTING_SUBR" ]; then _NETWORKING_ROUTING_SUBR=1
+#
+# Copyright (c) 2006-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." networking/routing.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/media/tcpip.subr
+f_include $BSDCFG_SHARE/networking/common.subr
+f_include $BSDCFG_SHARE/networking/ipaddr.subr
+f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+############################################################ FUNCTIONS
+
+# f_dialog_input_defaultrouter
+#
+# Edits the default router.
+#
+f_dialog_input_defaultrouter()
+{
+	local funcname=f_dialog_input_defaultrouter
+
+	#
+	# Get the defaultrouter. When this is not configured, the default is
+	# "NO", however we don't ever want to present this default to the user
+	# in the following dialog. If the current value is "NO", then try to
+	# obtain the value from the running system using route(8).
+	#
+	# NOTE: Our `f_route_get_default' function will return NULL if the
+	# system does not have an active default router set (which is what we
+	# want).
+	#
+	local defaultrouter="$( f_sysrc_get 'defaultrouter:-NO' )"
+	local defaultrouter_orig="$defaultrouter" # for change-tracking
+	case "$defaultrouter" in
+	[Nn][Oo]) f_route_get_default defaultrouter ;;
+	esac
+
+	#
+	# Return with-error when there are NFS-mounts currently active. If the
+	# default router/gateway is changed while NFS-exported directories are
+	# mounted, the system will hang.
+	#
+	if f_nfs_mounted && ! f_jailed; then
+		local setting
+		f_sprintf setting "$msg_current_default_router" \
+		                  "$defaultrouter"
+		f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
+			return $DIALOG_CANCEL
+	fi
+
+	#
+	# Loop until the user provides taint-free input.
+	#
+	local retval
+	while :; do
+		f_dialog_input defaultrouter \
+		               "$msg_please_enter_default_router" \
+		               "$defaultrouter" "$hline_num_punc_tab_enter"
+		retval=$?
+		[ "$defaultrouter" ] || return $DIALOG_OK
+		[ $retval -eq $DIALOG_OK ] || return $retval
+
+		# Taint-check the user's input
+		f_dialog_validate_ipaddr "$defaultrouter" && break
+	done
+
+	#
+	# Save only if the user changed the default router/gateway.
+	#
+	if [ "$defaultrouter" != "$defaultrouter_orig" ]; then
+		f_dialog_info "$msg_saving_default_router"
+
+		# Save the default router/gateway
+		f_eval_catch $funcname f_sysrc_set \
+			'f_sysrc_set defaultrouter "%s"' "$defaultrouter"
+	fi
+
+	#
+	# Only ask to apply setting if the current defaultrouter is different
+	# than the stored configuration (in rc.conf(5)).
+	#
+	local dr
+	f_route_get_default dr
+	if [ "$dr" != "$defaultrouter" ]; then
+		f_dialog_clear
+		f_yesno "$msg_activate_default_router" "$dr" "$defaultrouter"
+		if [ $? -eq $DIALOG_OK ]; then
+			# Apply the default router/gateway
+			f_eval_catch -d $funcname route 'route delete default'
+			f_eval_catch $funcname route \
+				'route add default "%s"' "$defaultrouter" ||
+				return $DIALOG_CANCEL
+		fi
+	fi
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." networking/routing.subr
+
+fi # ! $_NETWORKING_ROUTING_SUBR

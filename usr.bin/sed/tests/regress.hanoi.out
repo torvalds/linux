@@ -1,0 +1,17 @@
+:abcd:    :    :
+:abc :    :d   :
+:ab  :c   :d   :
+:ab  :cd  :    :
+:a   :cd  :b   :
+:ad  :c   :b   :
+:ad  :    :bc  :
+:a   :    :bcd :
+:    :a   :bcd :
+:    :ad  :bc  :
+:c   :ad  :b   :
+:cd  :a   :b   :
+:cd  :ab  :    :
+:c   :ab  :d   :
+:    :abc :d   :
+:    :abcd:    :
+Done!  Try another, or end with ^D.

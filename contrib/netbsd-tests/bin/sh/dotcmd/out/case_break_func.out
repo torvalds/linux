@@ -1,0 +1,8 @@
+before case
+before dotcmd
+before function
+before break
+after break
+after function
+after dotcmd, return value: 0
+after case

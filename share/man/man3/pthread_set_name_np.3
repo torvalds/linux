@@ -1,0 +1,77 @@
+.\" Copyright (c) 2003 Alexey Zelkin <phantom@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 12, 2018
+.Dt PTHREAD_SET_NAME_NP 3
+.Os
+.Sh NAME
+.Nm pthread_get_name_np ,
+.Nm pthread_set_name_np
+.Nd set and retrieve the thread name
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread_np.h
+.Ft void
+.Fn pthread_get_name_np "pthread_t thread" "char *name" "size_t len"
+.Ft void
+.Fn pthread_set_name_np "pthread_t thread" "const char *name"
+.Sh DESCRIPTION
+The
+.Fn pthread_set_name_np
+function applies a copy of the given
+.Fa name
+to the given
+.Fa thread .
+.Pp
+The
+.Fn pthread_get_name_np
+function retrieves the
+.Fa name
+associated with
+.Fa thread .
+If
+.Fn pthread_set_name_np
+was not previously called for
+.Fa thread ,
+the buffer pointed to by
+.Fa name
+will be empty.
+.Sh ERRORS
+Because of the debugging nature of these functions, all errors that may
+appear inside are silently ignored.
+.Sh SEE ALSO
+.Xr thr_set_name 2
+.Sh STANDARDS
+.Fn pthread_set_name_np
+and
+.Fn pthread_get_name_np
+are non-standard extensions.
+.Sh AUTHORS
+This manual page was written by
+.An Alexey Zelkin Aq Mt phantom@FreeBSD.org
+and
+.An Yuri Pankov Aq Mt yuripv@yuripv.net .

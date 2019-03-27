@@ -1,0 +1,427 @@
+PRIMARY AUTHORS AND MAJOR CONTRIBUTORS TO AM_UTILS:
+Original authors of amd were the Berkeley team and especially Jan-Simon
+Pendry.  Since then many people have contributed patches.
+
+This file lists the ones who contributed major code changes, in no
+particular order, and I thank them all.  This is of course not to diminish
+the smaller contributes of the many others.  Thank you all.
+
+* Erez Zadok <ezk AT cs.sunysb.edu>
+
+The most significant changes were made by Erez Zadok in terms of bug fixes,
+ports, and new features added.  Erez Zadok is the current maintainer of
+am-utils, as of January 1997.
+
+* Ion Badulescu <ion AT cs.columbia.edu>
+
+Co-maintainer of am-utils since late 1999: Linux and Solaris autofs support,
+Linux NFSv3 support, major code reorganization, etc...
+
+* Randall S. Winchester <rsw AT glue.umd.edu>
+
+May 7, 1997: contributed a special version of upl102 that included NFS V.3
+support.  Some of the code was contributed by Christos Zoulas
+<christos AT deshaw.com>.  I (Erez) ported these changes to am-utils.
+
+September 12, 1997: lots of small prototype cleanups and fixes to numerous
+files.
+
+January 27, 1998: support pid files in the amd.conf file.  Provide base name
+for hesiod zone files.  Always use /etc/amd.conf if exists.
+
+August 8, 1998: add detection support for NFS V.3 for NetBSD 1.3F.
+
+February 1, 1998: fixes for NetBSD to better detect its features.
+
+September 4, 1999: assorted fixes for NetBSD 1.4+.
+
+* Hannes Reinecke <hare AT MathI.UNI-Heidelberg.DE>
+
+Back in 1995, contributed code for linux.  A new parser for file system
+specific options that only exist under linux.
+
+* Leif Johansson <leifj AT matematik.su.se>
+
+June 22, 1997: minor patch to ensure that systems without an RE library work.
+
+June 23, 1997: mount options should be properly comma limited.
+
+July 10, 1997: info_ldap.c and prototype changes to all map _init and _mtime
+functions.  Contributed scripts/amd2ldif.pl.
+
+August 4, 1997: info_ldap.c fixes and adding two new amd.conf ldap
+variables: ldap_cache_seconds and ldap_cache_maxmem.
+
+* Andreas Stolcke <stolcke AT speech.sri.com>
+
+June 22, 1997: patches to ensure that proto= and vers= options work
+properly in mount tables and can be overridden.  Later on, more code
+contribued to optimize the best combination of proto/vers.
+
+July 4, 1997: patches to get NFS V.3 working under irix5.
+
+September 9, 1997: initialize all fields of mntent_t structures to 0.
+
+October 2, 1997: don't log an RPC timeout as an error but only as an info
+message.
+
+December 19, 1997: detected an FMR (Free Memory Read) in amd/mntfs.c,
+uninit_mntfs().
+
+* Danny Braniss <danny AT cs.huji.ac.il>
+
+July, 6 1997: contributed patches to hesiod on bsdi3.
+
+* Tom Schmidt <tschmidt AT micron.com>
+
+July 10, 1997: Recommdation to include libgdbm if libc has no dbm_open.
+Patches for netgrp(host) command.  Mods to aux/config.guess to recognize
+sun3.
+
+January 19, 1998: print correct -l option depending if system supports
+syslog and/or syslog facilities.
+
+January 29, 1998: fix for 0.0.0.0 loopback on SunOS 3.X which defines
+IFF_ROUTE instead of IFF_LOOPBACK.
+
+May 30, 2000: correct logging types for addopts/mergeopts messages.
+
+* Daniel S. Riley  <dsr AT mail.lns.cornell.edu>
+
+July 11, 1997: fixes to DU-4.0 to support string POSIX.1 signals, and struct
+sockaddr with sa_len field.
+
+July 13, 1997: Move amd.conf parsing to before switch_option() on log/debug
+options.  Minor type wrt "ro" option in libamu/mount_fs.c.  Added more
+fillers of mnttab options, for acdirmax, acdirmin, acregmax, acregmin, noac,
+grpid, nosuid, and actimo.
+
+August 15, 1998: fix memory leak in processing of /defaults, and avoid
+accessing uninitialized memory in osf1.
+
+* Roman Hodek <Roman.Hodek AT informatik.uni-erlangen.de>
+
+July 23, 1997: Got lots of patches from the Debian Linux folks, who fixed
+several generic bugs, and one serious one for Linux.  The latter involved
+using connected sockets for NFS mounts on kernels 1.3.10 and older.  Roman's
+work is baed on amd-upl102, and work from Ian Murdock <imurdock AT debian.org>
+and Dominik Kubla <dominik AT debian.org>.
+
+* Rainer Orth <ro AT TechFak.Uni-Bielefeld.DE>
+
+August 6, 1997: assorted fixes to support hesiod-1.3, solaris 2.4 (which I
+already fixed but did not release yet), and support for $LDFLAGS at
+configure/compile time.
+
+February 24, 1998: lots of patches for ultrix 4.3 port.
+
+February 28, 1998: lots of documentation fixes!
+
+January 8, 1999: texi fixes, and more Ultrix 4.3 fixes, among others.
+
+January 11, 1999: hesiod_isup function.  Fix format errors in dlog/plog.
+Remove obsolete or unnecessary files/macros.  Don't report disabled file
+systems.  More misc fixes.
+
+February 3, 1998: don't start autofs listener unless autofs maps were in
+use.
+
+December 10, 1999: assorted fixed and lots of fixes to support in-kernel
+mount tables in Solaris 8.
+
+February 9, 2000: new debug options hrtime (hi-res timer) and xdrtrace.  bug
+fixes.
+
+* Jason Thorpe <thorpej AT nas.nasa.gov>
+
+August 25, 1997: make amd work when talking to NIS+ servers in NIS
+compatibility mode.  Fix originally came from Matthieu Herrb
+<matthieu AT laas.fr>.
+
+* Chris Metcalf <metcalf AT catfish.lcs.mit.edu>
+
+August 29, 1997: patch to make amd use FQHN for NFS/RPC authentication,
+useful esp. for cross-domain NFS mounts.
+September 2, 1997: if plock() succeeded, don't display errno string.
+
+* Enami Tsugutomo <enami AT cv.sony.co.jp>
+
+September 4, 1997: don't ping remote servers with NFS V.3 always, but V.2,
+regardless of client's NFS version. (conf/transp/transp_sockets.c)
+
+* Dan Riley <dsr AT mail.lns.cornell.edu>
+
+September 19, 1997: make sure that amd works with more secure portmappers
+that do not allow forwarding of RPC messages to other services.
+
+* Wolfgang Rupprecht <wolfgang AT wsrcc.com>
+
+August 10, 1997: netbsd and other bsd systems have a mask flag for
+pcfs_args (msdos mount).
+
+* Christos Zoulas <christos AT zoulas.com>
+
+September 25, 1997: fix to initialize uid/gid fields of pcfs_args_t on
+netbsd.
+
+October 10, 1997: compile time cleanups of printf()s in hlfsd code.  If nfs
+server is down or does not support a portmapper call, then mark it down as
+version 2, and try again later.
+
+November 29, 2002: compile fixes for NetBSD, a couple of bug fixes (one
+already fixed by maintainers)
+
+April 12, 2003: support new "unmount" option, useful to timeout removable
+local media mounts.
+
+October 12, 2004: patch to support two new amd.conf options, domain_strip
+and auto_attrcache.  Patch to cleanup NFS attribute-cache flag computation.
+Patch to fix an inconsistency in timeouts in the RPC code between socket and
+TLI implementations.  Patch to print version string (amd -v) after all
+options had been initialized, so we can print domain, host, and hostd.
+Linux patch to use umount2(2) if umount(2) fails.
+
+* Bill Paul <wpaul AT ctr.columbia.edu>
+
+November 5, 1997: NFS v.3 support for AIX 4.2.1, which does *not* include
+headers for this.  Bill had to guess at the right structures, field names,
+sizes, alignment, etc.
+
+January 15, 1999: small ldap bug fixes.
+
+* Stefan Vogel <vogel AT physik-rzu.unizh.ch>
+
+November 14, 1997: typo in the subscription instructions to amd-dev.
+
+* Guntram Wolski <gwolsk AT sei.com>
+
+November 15, 1997: pointed out mismatching documentation for the -o option.
+
+* Michael Hucka <hucka AT eecs.umich.edu>
+
+January 11, 1997: pointed out reversed definition of NFS mount options vers
+and proto.
+
+* Albert Chin <china AT pprd.abbott.com>
+
+January 12, 1998: minor bug in output of amd -H.
+
+June 23, 2005: assortment of small compile bugs on aix4, and solaris 5/6/7.
+
+* Thomas Richter <richter AT chemie.fu-berlin.de>
+
+January 13, 1998: use case insensitive comparisons for variables that need
+it (such as all hostname related ones, and more).
+
+July 20, 1998: don't leak memory in the private version of yp_all (when
+vendor yp_all is bad).
+
+* Fred Korz <korz AT smarts.com>
+
+January 30, 1998: minor typo fixed to tftp example in am-utils.texi.
+
+* Donald Buczek <buczek AT MPIMG-Berlin-Dahlem.MPG.DE>
+
+March 6, 1998: correctly inherit existing NFS V.3 mounts upon restart.
+
+March 17, 1998: compare log file name and syslog string with correct length.
+
+March 20, 1998: do not close stdout in case it gets reused elsewhere and to
+allow startup script to redirect it.  Set a temporary secure umask(0022)
+before writing log file and restore it afterwards.
+
+* Matthew Crosby <mcrosby AT ms.com>
+
+April 20, 1998: allow arbitrary number of interfaces in wire listing.
+
+* David O'Brien <obrien AT NUXI.com>
+
+September 4, 1998: bug fix to avoid overrunning hostname buffer, and minor
+amd.conf man page typo correction.
+
+September 22, 1999: use more secure vsnprintf in real_plog().
+
+* Danny Rathjens <dkr AT cs.fiu.edu>
+
+October 29, 1998: swap arguments to kill(2) in amd.c.
+
+* Mike Mitchell <mcm AT unx.sas.com>
+
+November 3, 1998: amd/nfs_subr.c (nfsproc_lookup_2_svc): try to avoid a race
+condition between unmounting and re-mounting an entry, by increasing the ttl
+of a looked up entry before unmounting it.
+
+* Douglas K. Rand" <rand AT aero.und.edu>
+
+December 3, 1998: case insensitive host name match for nfsl.
+
+* David Wolfskill <dhw AT whistle.com>
+January 28, 1999: don't turn on/off noconn option if it was already in that
+state.
+
+* Jeffrey C Honig <jch AT BSDI.COM>
+March 14, 1999: clean up more autogenerated files upon "make distclean".
+
+March 15, 1999: avoid overly verbose NIS warning even on systems that don't
+run NIS.  On BSD systems, wire.c uses getifaddrs(), sysctl(), IRS routines,
+and more fixes.  Numerous IP packet security fixes.
+
+March 16, 1999: documentation typos. new cdfs options. ufs structure
+detection for bsdi4.
+
+September 17, 1999: fixes to expn.
+
+* Paul Balyoz <pbalyoz AT sedona.ch.intel.com>
+March 26, 1999: ensure lostaltmail displays Y2K compliant dates.
+
+* Jon Peatfield <J.S.Peatfield AT damtp.cam.ac.uk>
+March 30, 1999: turn off incomplete NFS V.3 support in HPUX 10.20.
+
+September 22, 1999: safe reloading of maps without first clearing old
+copies, and using cached copies if map failed to reload.
+
+* Peter Breitenlohner <peb AT mppmu.mpg.de>
+July 24, 1999: patch for linux 2.2.x to work with older libc5 systems, and
+nis_isup mis-logic fixes.
+December 13, 2001: report typos in scripts/amd.conf.5.
+
+* Dale Talcott <aeh AT quest.cc.purdue.edu>
+July 26, 1999: added NFS3 support for AIX mounting.
+
+* Christophe Kalt <Christophe-Kalt AT deshaw.com>
+July 14, 1999: add netgrpd() syntax function which uses FQHN.
+
+* Andrew J. Korty <ajk AT purdue.edu>
+September 5, 1999: pawd works for type:=nfsl.
+
+* Nick Williams <njw AT ms.com>
+September 1, 1999: bug fix for incorrect symlinks when two locations are
+requested simultaneously.
+
+November 1, 1999: fixes to sync maps even if they are set to mapcache:=sync.
+
+January 19, 2000: fix (and reduce the incidence of) stale file handles when
+doing rapid mounts and umounts in succession.
+
+June 5, 2000: better handling of potential race-conditions during rapid
+u/mounts.  Correctly update d_drops stats for amq -s.
+
+* Johann Pfefferl <johann.pfefferl.jp AT germany.agfa.com>
+November 16, 1999: fix to ldap code so repeated calls to string2he don't
+corrupt the string passed.
+
+* Amitha Perera <perera AT cs.rpi.edu>
+December 9, 1999: detect all wire() interfaces correctly.
+
+* Steven Danz <sdanz AT awc.kc.noaa.gov>
+January 25, 2000: allow browsable auto maps.
+
+* Wolfram Klaus	<klaus AT physik.fu-berlin.de>.
+November 21, 2000: recognize proplist mnttab flag.
+
+* Thomas Klausner <tk AT giga.or.at>
+November 21, 2000: lots of NetBSD fixes (many of which are generic).
+
+April 18, 2003: patch to reference am-utils info pages in man page.
+
+November 28, 2004: small fixes to typos in amd.conf(5) man page.
+
+* Olaf Kirch <okir AT caldera.de>
+February 1, 2001: important Linux NFS error number mapping fixed
+
+* Ahmon Dancy <dancy AT franz.com>
+February 9, 2001: Apple Rhapsody/Darwin/OS X port
+
+* Sebastien Bahloul <sebastien.bahloul AT mangoosta.fr>
+July 3, 2001: LDAP fixes and updates to support new APIs
+
+March 27, 2002: LDAP bug and port to HPUX-11.
+
+* Philippe Troin <phil AT fifi.org>
+July 12, 2001: Proper handling of GNU getopt, support for optionally
+disabling LDAP/Hesiod, fixes for the dev/nodev option on Linux.  Texi
+documentation fix.
+
+November 28, 2001: Bug fix.  Support "nolock" as an NFS option, not a
+generic mount option.
+
+July 17, 2003: pref:=null core dump fix.  libgdbm portability.  tcpd/librap
+support.  And a few other things for the 6.0 branch.
+
+* Trond Myklebust <trond.myklebust AT fys.uio.no>
+January 10, 2002: Proper initialization of the timeo parameter on Linux, TCP
+_must_ have a timeout 2 orders of magnitude larger than UDP
+
+* George Ross <gdmr AT dcs.ed.ac.uk>
+April 29, 2002: Rework of old code, support for wildcards in LDAP queries,
+and an FD leak fix.  Amd -A support.
+
+October 21, 2002: ldap_unbind fix for SIGPIPE, and support for LDAPv3
+protocol version parameter (with Tim Colles <timc AT inf.ed.ac.uk>).
+
+* Matthias Scheler <tron AT zhadum.de>
+June 14, 2002: patch to use "xlatecookie" NFS mount option.
+
+* Jun-ichiro itojun Hagino <itojun AT iijlab.net>.
+June 11, 2002: minor fixes to support NetBSD 1.6A.
+
+* Sean Fagan <sef AT apple.com>
+March 14, 2003: detect and use the MNT2_GEN_OPT_AUTOMNTFS mount flag
+on OS X / Darwin.
+
+* Hendrik Scholz <hscholz AT raisdorf.net>
+June 9, 2003: mk-amd-map should open temp db file using O_EXCL.
+
+* Mark Davies <mark AT mcs.vuw.ac.nz>
+July 14, 2003: define "xlatecookie" mnttab option if not defined (for
+NetBSD).  Support null hesiod entries if they start with a ".".
+
+* Eric S. Raymond <esr AT thyrsus.com>
+December 9, 2003: fix unbalanced [] typo in fsinfo man page.
+
+* Martin Blapp <mb AT imp.ch>
+July 6, 2004: recognize fields in pcfs_args_t in FreeBSD 5.
+
+* Dan Nelson <dnelson AT allantgroup.com>
+August 2, 2004: pawd to recognize "host" type mounts.
+
+* Hauke Fath <hauke AT Espresso.Rhein-Neckar.DE>
+August 3, 2004: pawd to recognize "linkx" type mounts.
+
+* Michael van Elst <M.van.Elst AT science-computing.de>
+September 1, 2004: bug fix to avoid race condition in calls to mntctl on
+AIX.
+
+* Jonathan Chen <jon+amd AT spock.org>
+October 22, 2004: patch/fix to move mlock/mlockall/plock code after the
+fork().
+June 29, 2005: core dump going off end of exported_ap[] array.
+September 29, 2005: patch/fix for pawd not to go into an infinite loop.
+October 25, 2005: patch/fix for pawd to repeatedly resolve path.
+
+* David Rage <rage AT ucl.ac.uk>
+January 17, 2005: prevent Amd from logging 'Read-only filesystem' errors
+when the mount point has an ancestor (i.e. '/') that is mounted read-only.
+
+* Kevin Layer <layer AT franz.com>
+January 28, 2005: basic instructions how to setup Amd on Mac OS-X.
+
+* Dan Ottavio <dottavio AT ic.sunysb.edu>
+March 2, 2005: new global amd.conf option debug_mtab_file, to set the debug
+mtab file when using debug_options=mtab.  Default has changed from "./mtab"
+to "/tmp/mtab" to avoid security problem.  Bug fixed to ensure that Amd
+terminates properly even mtab file doesn't exist.
+
+* Erik Kline <ekline at ekline dot com>
+January 3, 2005: implementation of executable maps for Amd.
+
+* Jim Zajkowski <jim.zajkowski AT gmail.com>
+March 14, 2005: small patch to amd2ldif.
+
+* Adam Morley <adam at gmi dot com>
+January 27, 2005: synchronize what amd2ldif does vs. what the ldap.schema
+expects.
+
+* Graeme Wilford <G.Wilford AT surrey.ac.uk>
+July 4, 2005: buffer overflow in pawd.
+

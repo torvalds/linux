@@ -1,0 +1,56 @@
+
+#------------------------------------------------------------------------------
+# $File: cups,v 1.5 2017/03/17 21:35:28 christos Exp $
+# Cups: file(1) magic for the cups raster file format
+# From: Laurent Martelli <martellilaurent@gmail.com>
+# http://www.cups.org/documentation.php/spec-raster.html
+#
+
+0	name		cups-le
+>280	lelong		x		\b, %d
+>284	lelong		x		\bx%d dpi
+>376	lelong		x		\b, %dx
+>380	lelong		x		\b%d pixels
+>388	lelong		x		%d bits/color
+>392	lelong		x		%d bits/pixel
+>400	lelong		0		ColorOrder=Chunky
+>400	lelong		1		ColorOrder=Banded
+>400	lelong		2		ColorOrder=Planar
+>404	lelong		0		ColorSpace=gray
+>404	lelong		1		ColorSpace=RGB
+>404	lelong		2		ColorSpace=RGBA
+>404	lelong		3		ColorSpace=black
+>404	lelong		4		ColorSpace=CMY
+>404	lelong		5		ColorSpace=YMC
+>404	lelong		6		ColorSpace=CMYK
+>404	lelong		7		ColorSpace=YMCK
+>404	lelong		8		ColorSpace=KCMY
+>404	lelong		9		ColorSpace=KCMYcm
+>404	lelong		10		ColorSpace=GMCK
+>404	lelong		11		ColorSpace=GMCS
+>404	lelong		12		ColorSpace=WHITE
+>404	lelong		13		ColorSpace=GOLD
+>404	lelong		14		ColorSpace=SILVER
+>404	lelong		15		ColorSpace=CIE XYZ
+>404	lelong		16		ColorSpace=CIE Lab
+>404	lelong		17		ColorSpace=RGBW
+>404	lelong		18		ColorSpace=sGray
+>404	lelong		19		ColorSpace=sRGB
+>404	lelong		20		ColorSpace=AdobeRGB
+
+# Cups Raster image format, Big Endian
+0	string		RaS
+>3	string		t		Cups Raster version 1, Big Endian
+>3	string		2		Cups Raster version 2, Big Endian
+>3	string		3		Cups Raster version 3, Big Endian
+!:mime	application/vnd.cups-raster
+>0	use		\^cups-le
+
+
+# Cups Raster image format, Little Endian
+1	string		SaR
+>0	string		t		Cups Raster version 1, Little Endian
+>0	string		2		Cups Raster version 2, Little Endian
+>0	string		3		Cups Raster version 3, Little Endian
+!:mime	application/vnd.cups-raster
+>0	use		cups-le

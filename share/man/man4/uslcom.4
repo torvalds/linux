@@ -1,0 +1,226 @@
+.\"	$OpenBSD: uslcom.4,v 1.6 2007/10/08 03:10:42 jcs Exp $
+.\"
+.\" Copyright (c) 2006 Jonathan Gray <jsg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 26, 2017
+.Dt USLCOM 4
+.Os
+.Sh NAME
+.Nm uslcom
+.Nd Silicon Laboratories CP2101/CP2102/CP2103/CP2104/CP2105 based USB serial adapter
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device usb"
+.Cd "device ucom"
+.Cd "device uslcom"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+uslcom_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Silicon Laboratories CP2101/CP2102/CP2103/CP2104/CP2105
+based USB serial adapters.
+.Sh HARDWARE
+The following devices should work with the
+.Nm
+driver:
+.Pp
+.Bl -bullet -compact
+.It
+AC-Services CAN, CIS-IBUS, IBUS and OBD interfaces
+.It
+Aerocomm Radio
+.It
+AKTACOM ACE-1001 cable
+.It
+AMBER Wireless AMB2560
+.It
+Arkham DS-101 Adapter
+.It
+Argussoft ISP
+.It
+Arygon Technologies Mifare RFID Reader
+.It
+AVIT Research USB-TTL interface
+.It
+B&G H3000 Data Cable
+.It
+Balluff RFID reader
+.It
+Baltech card reader
+.It
+BEI USB VCP Sensor
+.It
+Burnside Telecom Desktop Mobile
+.It
+chip45.com Crumb128 module
+.It
+Clipsal 5000CT2, 5500PACA, 5500PCU, 560884, 5800PC, C5000CT2
+and L51xx C-Bus Home Automation products
+.It
+Commander 2 EDGE(GSM) Modem
+.It
+Cygnal Fasttrax GPS and Debug adapter
+.It
+DataApex MultiCOM USB to RS232 converter
+.It
+Degree Controls USB adapter
+.It
+DekTec DTA Plus VHF/UHF Booster
+.It
+Dell DW700 GPS Receiver
+.It
+Digianswer ZigBee/802.15.4 MAC
+.It
+Dynastream ANT Development kits
+.It
+Elan USBcount50, USBscope50, USBpulse100 and USBwave12
+.It
+ELV USB-I2C interface
+.It
+EMS C1007 HF RFID controller
+.It
+Festo CPX-USB and CMSP interfaces
+.It
+Gemalto Prox-PU/CU contactless card reader
+.It
+Helicomm IP-Link 1220-DVM
+.It
+IMS USB-RS422 adapter
+.It
+Infinity GPS-MIC-1 Radio Monophone
+.It
+INSYS Modem
+.It
+IRZ SG-10 and MC35pu GSM/GPRS Modems
+.It
+Jablotron PC-60B
+.It
+Kamstrup M-Bus Master MultiPort 250D
+and Optical Eye/3 wire utility meter interfaces
+.It
+Kyocera GPS
+.It
+Link Instruments MS-019 and MS-028
+Oscilloscope/Logic Analyzer/Pattern Generators
+.It
+Lipowsky Baby-JTAG, Baby-LIN and HARP-1
+.It
+MEI CashFlow SC and Series 2000 cash acceptors
+.It
+MJS USB-TOSLINK Adapter
+.It
+MobiData GPRS USB Modems
+.It
+MSD DashHawk
+.It
+Multiplex RC adapter
+.It
+Optris MSpro LT Thermometer
+.It
+Owen AC4 USB-RS485 converter
+.It
+Pirelli DP-L10 SIP phone
+.It
+PLX CA-42 Phone cable
+.It
+Pololu USB to Serial
+.It
+Procyon AVS Mind Machine
+.It
+Renesas RX-Stick for RX610
+.It
+Siemens MC60 Cable
+.It
+Silicon Laboratories generic CP2101/CP2102/CP2103/CP2104/CP2105 chips
+.It
+Software Bisque Paramount ME
+.It
+SPORTident BSM7-D USB
+.It
+Suunto Sports Instrument
+.It
+Syntech CipherLab USB Barcode Scanner
+.It
+T-Com TC 300 SIP phone
+.It
+Tams Master Easy Control
+.It
+Telegesis ETRX2USB
+.It
+Timewave HamLinkUSB
+.It
+Tracient RFID Reader
+.It
+Track Systems Traqmate
+.It
+Vaisala USB Instrument cable
+.It
+VStabi Controller
+.It
+WAGO 750-923 USB Service Cable
+.It
+WaveSense Jazz Blood Glucose Meter
+.It
+WIENER Plein & Baus CML Data Logger, RCM Remote,
+and PL512 and MPOD PSUs
+.It
+WMR RIGblaster Plug&Play and RIGtalk RT1
+.It
+Zephyr Bioharness
+.El
+.Sh FILES
+.Bl -tag -width "/dev/ttyU*.init" -compact
+.It Pa /dev/ttyU*
+for callin ports
+.It Pa /dev/ttyU*.init
+.It Pa /dev/ttyU*.lock
+corresponding callin initial-state and lock-state devices
+.Pp
+.It Pa /dev/cuaU*
+for callout ports
+.It Pa /dev/cuaU*.init
+.It Pa /dev/cuaU*.lock
+corresponding callout initial-state and lock-state devices
+.El
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr ucom 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 4.0 .
+The first
+.Fx
+release to include it was
+.Fx 7.1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Jonathan Gray Aq Mt jsg@openbsd.org .

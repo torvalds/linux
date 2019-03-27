@@ -1,0 +1,179 @@
+.\" Copyright (c) 1995 David Nugent <davidn@blaze.net.au>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, is permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice immediately at the beginning of the file, without modification,
+.\"    this list of conditions, and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. This work was done expressly for inclusion into FreeBSD.  Other use
+.\"    is permitted provided this notation is included.
+.\" 4. Absolutely no warranty of function or purpose is made by the author
+.\"    David Nugent.
+.\" 5. Modifications may be freely made to this file providing the above
+.\"    conditions are met.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 20, 2008
+.Dt LOGIN_TIMES 3
+.Os
+.Sh NAME
+.Nm parse_lt ,
+.Nm in_lt ,
+.Nm in_ltm ,
+.Nm in_ltms ,
+.Nm in_lts
+.Nd functions for parsing and checking login time periods
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In sys/types.h
+.In time.h
+.In login_cap.h
+.Ft login_time_t
+.Fn parse_lt "const char *str"
+.Ft int
+.Fn in_lt "const login_time_t *lt" "time_t *ends"
+.Ft int
+.Fn in_ltm "const login_time_t *lt" "struct tm *t" "time_t *ends"
+.Ft int
+.Fn in_ltms "const login_time_t *lt" "struct tm *t" "time_t *ends"
+.Ft int
+.Fn in_lts "const login_time_t *lt" "time_t *ends"
+.Sh DESCRIPTION
+This set of functions may be used for parsing and checking login and
+session times against a predefined list of allowed login times as
+used in
+.Xr login.conf 5 .
+.Pp
+The format of allowed and disallowed session times specified in the
+.Ar times.allow
+and
+.Ar times.deny
+capability fields in a login class are comprised of a prefix which
+specifies one or more 2- or 3-character day codes, followed by
+a start and end time in 24 hour format separated by a hyphen.
+Day codes may be concatenated together to select specific days, or
+the special mnemonics "Any" and "All" (for any/all days of the week),
+"Wk" for any day of the week (excluding Saturdays and Sundays) and
+"Wd" for any weekend day may be used.
+.Pp
+For example, the following time period:
+.Dl MoThFrSa1400-2200
+is interpreted as Monday, Thursday through Saturday between the hours
+of 2pm and 10pm.
+.Dl Wd0600-1800
+means Saturday and Sunday, between the hours of 6am through 6pm, and
+.Dl Any0400-1600
+means any day of the week, between 4am and 4pm.
+.Pp
+Note that all time periods reference system local time.
+.Pp
+The
+.Fn parse_lt
+function converts the ASCII representation of a time period into
+a structure of type
+.Ft login_time_t .
+This is defined as:
+.Bd -literal
+typedef struct login_time
+{
+  u_short	lt_start;   /* Start time */
+  u_short	lt_end;	    /* End time */
+  u_char	lt_dow;	    /* Days of week */
+} login_time_t;
+.Ed
+.Pp
+The
+.Ar lt_start
+and
+.Ar lt_end
+fields contain the number of minutes past midnight at which the
+described period begins and ends.
+The
+.Ar lt_dow
+field is a bit field, containing one bit for each day of the week
+and one bit unused.
+A series
+.Em LTM_*
+macros may be used for testing bits individually and in combination.
+If no bits are set in this field - i.e., it contains the value
+.Em LTM_NONE
+- then the entire period is assumed invalid.
+This is used as a convention to mark the termination of an array
+of login_time_t values.
+If
+.Fn parse_lt
+returns a
+.Ar login_time_t
+with
+.Ar lt_dow
+equal to
+.Em LTM_NONE
+then a parsing error was encountered.
+.Pp
+The remaining functions provide the ability to test a given time_t or
+struct tm value against a specific time period or array of time
+periods.
+The
+.Fn in_ltm
+function determines whether the given time described by the struct tm
+passed as the second parameter falls within the period described
+by the first parameter.
+A boolean value is returned, indicating whether or not the time
+specified falls within the period.
+If the time does fall within the time period, and the third
+parameter to the function is not NULL, the time at which the
+period ends relative to the time passed is returned.
+.Pp
+The
+.Fn in_ltms
+function is similar to
+.Fn in_ltm
+except that the first parameter must be a pointer to an array
+of login_time_t objects, which is up to LC_MAXTIMES (64)
+elements in length, and terminated by an element with its
+.Ar lt_dow
+field set to
+.Em LTM_NONE .
+.Pp
+The
+.Fn in_lt
+and
+.Fn in_lts
+functions are equivalent to
+.Fn in_ltm
+and
+.Fn in_ltms ,
+respectively, with the second argument set to the current time as
+returned by
+.Xr localtime 3 .
+.Sh RETURN VALUES
+The
+.Fn parse_lt
+function returns a filled in structure of type login_time_t containing the
+parsed time period.
+If a parsing error occurs, the lt_dow field is set to
+.Em LTM_NONE
+(i.e., 0).
+.Pp
+The
+.Fn in_ltm
+function returns non-zero if the given time falls within the period described
+by the login_time_t passed as the first parameter.
+.Pp
+The
+.Fn in_ltms
+function returns the index of the first time period found in which the given
+time falls, or -1 if none of them apply.
+.Sh SEE ALSO
+.Xr getcap 3 ,
+.Xr login_cap 3 ,
+.Xr login_class 3 ,
+.Xr login.conf 5 ,
+.Xr termcap 5

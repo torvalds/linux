@@ -1,0 +1,193 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="080.console"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
+
+############################################################ FUNCTIONS
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local prompt="$msg_font_menu_text"
+	local menu_list="
+		'1 $msg_none'        '$msg_use_hardware_default_font'
+		'2 $msg_ibm_437'     '$msg_ibm_437_desc'
+		'3 $msg_ibm_850'     '$msg_ibm_850_desc'
+		'4 $msg_ibm_865'     '$msg_ibm_865_desc'
+		'5 $msg_ibm_866'     '$msg_ibm_866_desc'
+		'6 $msg_ibm_866u'    '$msg_ibm_866u_desc'
+		'7 $msg_ibm_1251'    '$msg_ibm_1251_desc'
+		'8 $msg_iso_8859_1'  '$msg_iso_8859_1_desc'
+		'9 $msg_iso_8859_2'  '$msg_iso_8859_2_desc'
+		'a $msg_iso_8859_4'  '$msg_iso_8859_4_desc'
+		'b $msg_iso_8859_7'  '$msg_iso_8859_7_desc'
+		'c $msg_iso_8859_8'  '$msg_iso_8859_8_desc'
+		'd $msg_iso_8859_15' '$msg_iso_8859_15_desc'
+		'e $msg_swiss'       '$msg_swiss_desc'
+	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_choose_a_font"
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	case "$( f_sysrc_get font8x8 )" in
+	[Nn][Oo]|'') defaultitem="1 $msg_none"        ;;
+	cp437-8x8)   defaultitem="2 $msg_ibm_437"     ;;
+	cp850-8x8)   defaultitem="3 $msg_ibm_850"     ;;
+	cp865-8x8)   defaultitem="4 $msg_ibm_865"     ;;
+	cp866-8x8)   defaultitem="5 $msg_ibm_866"     ;;
+	cp866u-8x8)  defaultitem="6 $msg_ibm_866u"    ;;
+	cp1251-8x8)  defaultitem="7 $msg_ibm_1251"    ;;
+	iso-8x8)     defaultitem="8 $msg_iso_8859_1"  ;;
+	iso02-8x8)   defaultitem="9 $msg_iso_8859_2"  ;;
+	iso04-8x8)   defaultitem="a $msg_iso_8859_4"  ;;
+	iso07-8x8)   defaultitem="b $msg_iso_8859_7"  ;;
+	iso08-8x8)   defaultitem="c $msg_iso_8859_8"  ;;
+	iso15-8x8)   defaultitem="d $msg_iso_8859_15" ;;
+	swiss-8x8)   defaultitem="e $msg_swiss"       ;;
+	esac
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_menutag_store -s "$menu_choice"
+	return $retval
+}
+
+############################################################ MAIN
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Process command-line arguments
+#
+while getopts h$GETOPTS_STDARGS flag; do
+	case "$flag" in
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+#
+# Initialize
+#
+f_dialog_title "$msg_system_console_font"
+f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
+f_mustberoot_init
+
+#
+# Launch application main menu
+#
+dialog_menu_main || f_die
+f_dialog_menutag_fetch mtag
+
+f8= f14= f16= mc_start=
+case "$mtag" in
+"1 $msg_none") # Use hardware default font
+	f8="NO" f14="NO" f16="NO" ;;
+"2 $msg_ibm_437") # English and others, VGA default
+	f8="cp437-8x8" f14="cp437-8x14" f16="cp437-8x16" ;;
+"3 $msg_ibm_850") # Western Europe, IBM encoding
+	f8="cp850-8x8" f14="cp850-8x14" f16="cp850-8x16" ;;
+"4 $msg_ibm_865") # Norwegian, IBM encoding
+	f8="cp865-8x8" f14="cp865-8x14" f16="cp865-8x16" ;;
+"5 $msg_ibm_866") # Russian, IBM encoding (use with KOI8-R screenmap)
+	f8="cp866-8x8" f14="cp866-8x14" f16="cp866b-8x16" mc_start="3" ;;
+"6 $msg_ibm_866u") # Ukrainian, IBM encoding (use w/ KOI8-U screenmap)
+	f8="cp866u-8x8" f14="cp866u-8x14" f16="cp866u-8x16" mc_start="3" ;;
+"7 $msg_ibm_1251") # Cyrillic, MS Windows encoding
+	f8="cp1251-8x8" f14="cp1251-8x14" f16="cp1251-8x16" mc_start="3" ;;
+"8 $msg_iso_8859_1") # Western Europe, ISO encoding
+	f8="iso-8x8" f14="iso-8x14" f16="iso-8x16" ;;
+"9 $msg_iso_8859_2") # Eastern Europe, ISO encoding
+	f8="iso02-8x8" f14="iso02-8x14" f16="iso02-8x16" ;;
+"a $msg_iso_8859_4") # Baltic, ISO encoding
+	f8="iso04-8x8" f14="iso04-8x14" f16="iso04-8x16" ;;
+"b $msg_iso_8859_7") # Greek, ISO encoding
+	f8="iso07-8x8" f14="iso07-8x14" f16="iso07-8x16" ;;
+"c $msg_iso_8859_8") # Hebrew, ISO encoding
+	f8="iso08-8x8" f14="iso08-8x14" f16="iso08-8x16" ;;
+"d $msg_iso_8859_15") # Europe, ISO encoding
+	f8="iso15-8x8" f14="iso15-8x14" f16="iso15-8x16" ;;
+"e $msg_swiss") # English, better resolution
+	f8="swiss-8x8" f14="NO" f16="swiss-8x16" ;;
+esac
+
+[ "$f8" -a "$f14" -a "$f16" ] || f_die 1 "$msg_unknown_font_selection"
+
+f_eval_catch "$0" f_sysrc_set 'f_sysrc_set font8x8 "%s"' "$f8" || f_die
+f_eval_catch "$0" f_sysrc_set 'f_sysrc_set font8x14 "%s"' "$f14" || f_die
+f_eval_catch "$0" f_sysrc_set 'f_sysrc_set font8x16 "%s"' "$f16" || f_die
+
+if [ "$mc_start" ]; then
+	f_eval_catch "$0" f_sysrc_set \
+		'f_sysrc_set mousechar_start "%s"' "$mc_start" || f_die
+else
+	f_eval_catch "$0" f_sysrc_delete \
+		'f_sysrc_delete mousechar_start' || f_die
+fi
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

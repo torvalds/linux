@@ -1,0 +1,188 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 9, 2018
+.Dt CONFIG.LUA 8
+.Os
+.Sh NAME
+.Nm config.lua
+.Nd FreeBSD config module
+.Sh DESCRIPTION
+.Nm
+contains configuration and module loading functionality.
+.Pp
+Before hooking into or using the functionality provided by
+.Nm ,
+it must be included with a statement such as the following:
+.Pp
+.Dl local config = require("config")
+.Ss Exported functions
+The following functions are exported from
+.Nm :
+.Bl -tag -width "config.setCarouselIndex(id, idx)" -offset indent
+.It Fn config.getCarouselIndex id
+Returns the currently chosen index in the carousel menu entry described by
+.Ev id .
+See the definition of
+.Xr menu.lua 8
+for a more in-depth explanation of carousels.
+.It Fn config.setCarouselIndex id idx
+Set the chosen index for the carousel menu entry described by
+.Ev id
+to
+.Ev idx .
+A lookup will be done as needed to determine what value
+.Ev idx
+actually corresponds to.
+.It Fn config.processFile name silent
+Process and parse
+.Ev name
+as a configuration file.
+Returns true if
+.Ev name
+exists and parses without error, false otherwise.
+If
+.Ev silent
+is true,
+.Fn config.processFile
+will not consider a failure to read the file as a failure.
+.It Fn config.parse text
+Parse
+.Ev text
+as a configuration file.
+This is used internally by
+.Fn config.processFile
+to parse the contents of a configuration file.
+Returns true if parsing succeeds without error, false if an error occurred.
+A message is also printed to the console if an error is encountered.
+.It Fn config.loadKernel other_kernel
+Attempts to load
+.Ev other_kernel
+as a kernel.
+If
+.Ev other_kernel
+is unset
+.Fn config.loadKernel
+will attempt to load
+.Dq kernel .
+Otherwise, it will try to load
+.Dq kernel
+first from
+.Pa /boot/{other_kernel} ,
+then from
+.Pa {other_kernel} .
+.Pp
+The latter is tried in case an absolute path has been specified to the kernel
+to use.
+.Ev module_path
+is amended to include the directory the kernel was found in if either of these
+paths result in a loaded kernel.
+.Pp
+If no kernel was loaded from either of these paths,
+.Fn config.loadKernel
+will attempt to load a kernel named
+.Dq {other_kernel}
+from
+.Ev module_path
+instead of attempting to load a kernel named
+.Dq kernel .
+.Pp
+Returns true if a kernel was loaded, false if no kernel was loaded.
+.It Fn config.selectKernel kernel
+Set
+.Ev kernel
+to the kernel that will be loaded when either
+.Ic autoboot
+or
+.Ic boot
+are invoked.
+This is usually called by the menu system as the kernel selector carousel is
+toggled through.
+.It Fn config.load file reload
+Loads
+.Ev file
+as a configuration file.
+If
+.Ev file
+is not specified,
+.Pa /boot/defaults/loader.conf
+is used.
+.Fn config.load
+will then silently attempt to process any files specified in
+.Ev loader_conf_files
+after
+.Ev file
+has been processed.
+.Xr nextboot 8
+configuration will also be checked as part of
+.Fn config.load .
+Before returning, all
+.Dq config.loaded
+hooks will be run if
+.Ev reload
+is not set to true.
+.It Fn config.reload file
+Reloads
+.Ev file
+as a configuration file.
+.Fn config.reload
+will restore the environment to how it existed before the last config was
+loaded, then it will invoke
+.Fn config.load file .
+Before returning, all
+.Dq config.reloaded
+hooks will be run.
+.It Fn config.loadelf
+Loads all ELF objects, the selected kernel as well as any modules configured to
+be preloaded in
+.Xr loader.conf 5 .
+This will be called by the Lua intercepted
+.Ic autoboot
+and
+.Ic boot
+commands.
+.El
+.Ss Defined Hooks
+The following hooks are defined in
+.Nm :
+.Bl -tag -width "config.reloaded" -offset indent
+.It config.loaded
+.It config.reloaded
+.El
+.Sh SEE ALSO
+.Xr loader.conf 5 ,
+.Xr loader 8 ,
+.Xr menu.lua 8 ,
+.Xr nextboot 8
+.Sh AUTHORS
+The
+.Nm
+file was originally written by
+.An Pedro Souza Aq Mt pedrosouza@FreeBSD.org .
+Later work and this manual page was done by
+.An Kyle Evans Aq Mt kevans@FreeBSD.org .

@@ -1,0 +1,46 @@
+# $FreeBSD$
+#
+# This list is taken from RFC 2068.
+#
+100 OK		Continue
+101 OK		Switching Protocols
+200 OK		OK
+201 OK		Created
+202 OK		Accepted
+203 INFO	Non-Authoritative Information
+204 OK		No Content
+205 OK		Reset Content
+206 OK		Partial Content
+300 MOVED	Multiple Choices
+301 MOVED	Moved Permanently
+302 MOVED	Moved Temporarily
+303 MOVED	See Other
+304 OK		Not Modified
+305 INFO	Use Proxy
+307 MOVED	Temporary Redirect
+308 MOVED	Permanent Redirect
+400 PROTO	Bad Request
+401 AUTH	Unauthorized
+402 AUTH	Payment Required
+403 AUTH	Forbidden
+404 UNAVAIL	Not Found
+405 PROTO	Method Not Allowed
+406 PROTO	Not Acceptable
+407 AUTH	Proxy Authentication Required
+408 TIMEOUT	Request Time-out
+409 EXISTS	Conflict
+410 UNAVAIL	Gone
+411 PROTO	Length Required
+412 SERVER	Precondition Failed
+413 PROTO	Request Entity Too Large
+414 PROTO	Request-URI Too Large
+415 PROTO	Unsupported Media Type
+416 UNAVAIL	Requested Range Not Satisfiable
+417 SERVER	Expectation Failed
+500 SERVER	Internal Server Error
+501 PROTO	Not Implemented
+502 SERVER	Bad Gateway
+503 TEMP	Service Unavailable
+504 TIMEOUT	Gateway Time-out
+505 PROTO	HTTP Version not supported
+999 PROTO	Protocol error

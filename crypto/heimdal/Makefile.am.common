@@ -1,0 +1,4 @@
+# $Id$
+
+include $(top_srcdir)/cf/Makefile.am.common
+

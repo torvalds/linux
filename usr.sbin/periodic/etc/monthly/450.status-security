@@ -1,0 +1,47 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$monthly_status_security_enable" in
+    [Yy][Ee][Ss])
+	echo ""
+	echo "Security check:"
+
+	case "$monthly_status_security_inline" in
+	    [Yy][Ee][Ss])
+		monthly_status_security_output="";;
+	esac
+
+	export security_output="${monthly_status_security_output}"
+	rc=0
+	case "${monthly_status_security_output}" in
+	    "")
+		if tempfile=`mktemp ${TMPDIR:-/tmp}/450.status-security.XXXXXX`
+		then
+			periodic security > $tempfile || rc=3
+			if [ -s "$tempfile" ]; then
+				cat "$tempfile"
+				rc=3
+			fi
+			rm -f "$tempfile"
+		fi;;
+	    /*)
+		echo "    (output logged separately)"
+		periodic security || rc=3;;
+	    *)
+		echo "    (output mailed separately)"
+		periodic security || rc=3;;
+	esac;;
+    *)  rc=0;;
+esac
+
+exit $rc

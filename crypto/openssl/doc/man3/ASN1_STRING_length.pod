@@ -1,0 +1,113 @@
+=pod
+
+=head1 NAME
+
+ASN1_STRING_dup, ASN1_STRING_cmp, ASN1_STRING_set, ASN1_STRING_length,
+ASN1_STRING_type, ASN1_STRING_get0_data, ASN1_STRING_data,
+ASN1_STRING_to_UTF8 - ASN1_STRING utility functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/asn1.h>
+
+ int ASN1_STRING_length(ASN1_STRING *x);
+ const unsigned char * ASN1_STRING_get0_data(const ASN1_STRING *x);
+ unsigned char * ASN1_STRING_data(ASN1_STRING *x);
+
+ ASN1_STRING * ASN1_STRING_dup(ASN1_STRING *a);
+
+ int ASN1_STRING_cmp(ASN1_STRING *a, ASN1_STRING *b);
+
+ int ASN1_STRING_set(ASN1_STRING *str, const void *data, int len);
+
+ int ASN1_STRING_type(const ASN1_STRING *x);
+
+ int ASN1_STRING_to_UTF8(unsigned char **out, const ASN1_STRING *in);
+
+=head1 DESCRIPTION
+
+These functions allow an B<ASN1_STRING> structure to be manipulated.
+
+ASN1_STRING_length() returns the length of the content of B<x>.
+
+ASN1_STRING_get0_data() returns an internal pointer to the data of B<x>.
+Since this is an internal pointer it should B<not> be freed or
+modified in any way.
+
+ASN1_STRING_data() is similar to ASN1_STRING_get0_data() except the
+returned value is not constant. This function is deprecated:
+applications should use ASN1_STRING_get0_data() instead.
+
+ASN1_STRING_dup() returns a copy of the structure B<a>.
+
+ASN1_STRING_cmp() compares B<a> and B<b> returning 0 if the two
+are identical. The string types and content are compared.
+
+ASN1_STRING_set() sets the data of string B<str> to the buffer
+B<data> or length B<len>. The supplied data is copied. If B<len>
+is -1 then the length is determined by strlen(data).
+
+ASN1_STRING_type() returns the type of B<x>, using standard constants
+such as B<V_ASN1_OCTET_STRING>.
+
+ASN1_STRING_to_UTF8() converts the string B<in> to UTF8 format, the
+converted data is allocated in a buffer in B<*out>. The length of
+B<out> is returned or a negative error code. The buffer B<*out>
+should be freed using OPENSSL_free().
+
+=head1 NOTES
+
+Almost all ASN1 types in OpenSSL are represented as an B<ASN1_STRING>
+structure. Other types such as B<ASN1_OCTET_STRING> are simply typedef'ed
+to B<ASN1_STRING> and the functions call the B<ASN1_STRING> equivalents.
+B<ASN1_STRING> is also used for some B<CHOICE> types which consist
+entirely of primitive string types such as B<DirectoryString> and
+B<Time>.
+
+These functions should B<not> be used to examine or modify B<ASN1_INTEGER>
+or B<ASN1_ENUMERATED> types: the relevant B<INTEGER> or B<ENUMERATED>
+utility functions should be used instead.
+
+In general it cannot be assumed that the data returned by ASN1_STRING_data()
+is null terminated or does not contain embedded nulls. The actual format
+of the data will depend on the actual string type itself: for example
+for an IA5String the data will be ASCII, for a BMPString two bytes per
+character in big endian format, and for an UTF8String it will be in UTF8 format.
+
+Similar care should be take to ensure the data is in the correct format
+when calling ASN1_STRING_set().
+
+=head1 RETURN VALUES
+
+ASN1_STRING_length() returns the length of the content of B<x>.
+
+ASN1_STRING_get0_data() and ASN1_STRING_data() return an internal pointer to
+the data of B<x>.
+
+ASN1_STRING_dup() returns a valid B<ASN1_STRING> structure or B<NULL> if an
+error occurred.
+
+ASN1_STRING_cmp() returns an integer greater than, equal to, or less than 0,
+according to whether B<a> is greater than, equal to, or less than B<b>.
+
+ASN1_STRING_set() returns 1 on success or 0 on error.
+
+ASN1_STRING_type() returns the type of B<x>.
+
+ASN1_STRING_to_UTF8() returns the number of bytes in output string B<out> or a
+negative value if an error occurred.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

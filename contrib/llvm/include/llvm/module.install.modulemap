@@ -1,0 +1,27 @@
+
+module LLVM_Extern_Config_Def {
+ textual header "Config/AsmParsers.def"
+ textual header "Config/AsmPrinters.def"
+ textual header "Config/Disassemblers.def"
+ textual header "Config/Targets.def"
+ export *
+}
+
+module LLVM_Extern_IR_Attributes_Gen {
+  textual header "IR/Attributes.gen"
+  textual header "IR/Attributes.inc"
+}
+
+module LLVM_Extern_IR_Intrinsics_Gen {
+  textual header "IR/Intrinsics.gen"
+  textual header "IR/Intrinsics.inc"
+}
+
+module LLVM_Extern_IR_Intrinsics_Enum {
+  textual header "IR/IntrinsicEnums.inc"
+}
+
+module LLVM_Extern_Utils_DataTypes {
+  header "Support/DataTypes.h"
+  export *
+}

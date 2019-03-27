@@ -1,0 +1,225 @@
+.\"	$NetBSD: mk48txx.4,v 1.16 2009/04/10 17:14:07 joerg Exp $
+.\"
+.\" Copyright (c) 2000, 2002 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 25, 2009
+.Dt MK48TXX 4
+.Os
+.Sh NAME
+.Nm mk48txx
+.Nd
+.Tn Mostek
+time-of-day clock driver
+.Sh SYNOPSIS
+.In sys/eventhandler.h
+.In sys/lock.h
+.In sys/mutex.h
+.In dev/mk48txx/mk48txxvar.h
+.Pp
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device mk48txx"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver is a back-end for several models of
+.Tn Mostek
+time-of-day clock chips.
+It provides access methods to retrieve and set date and time for use with the
+.Dq Li clock
+KOBJ interface.
+.Pp
+To tie an instance of this device to the system, use the
+.Fn mk48txx_attach
+function and the mk48txx_softc structure defined as follows:
+.Pp
+.Ft "int"
+.Fn mk48txx_attach "device_t dev"
+.Bd -literal
+typedef uint8_t (*mk48txx_nvrd_t)(device_t dev, int off);
+typedef void (*mk48txx_nvwr_t)(device_t dev, int off, uint8_t v);
+.Ed
+.Bd -literal
+struct mk48txx_softc {
+	struct resource	sc_res;
+	struct mtx	sc_mtx;
+	eventhandler_tag	sc_wet;
+	const char	*sc_model;
+	bus_size_t	sc_nvramsz;
+	bus_size_t	sc_clkoffset;
+	u_int		sc_year0;
+	u_int		sc_flag;
+	mk48txx_nvrd_t	sc_nvrd;
+	mk48txx_nvwr_t	sc_nvwr;
+};
+.Ed
+.Bl -tag -width indent
+.It Fa sc_res
+The bus resource used for accessing the chip's non-volatile memory
+.Pq including the clock registers ,
+which must be supplied by the front-end when using the default access methods
+.Pq see below .
+Otherwise this member is optional.
+.It Fa sc_mtx
+The hardware mutex used when accessing the chip's non-volatile memory
+.Pq including the clock registers ,
+which must be initialized with
+.Dv MTX_DEF
+by the front-end.
+.It Fa sc_wet
+The event handler tag for the watchdog functionality,
+which is registered by the
+.Fn mk48txx_attach
+function if supported by the chip and specified as part of the
+machine-dependent features
+.Pq see below .
+.It Fa sc_model
+The chip model which this instance should serve.
+This member must be set to one of
+.Dq mk48t02 ,
+.Dq mk48t08 ,
+.Dq mk48t18 ,
+or
+.Dq mk48t59
+by the front-end.
+.It Fa sc_nvramsz
+The size of the non-volatile RAM in the
+.Tn Mostek
+chip,
+which is set by the
+.Fn mk48txx_attach
+function.
+.It Fa sc_clkoffset
+The offset into the control registers of the
+.Tn Mostek
+chip,
+which is set by the
+.Fn mk48txx_attach
+function.
+.It Fa sc_year0
+The year offset to be used with the
+.Sq year
+counter of the clock,
+which must be set by the front-end.
+This value is generally dependent on the system configuration in which
+the clock device is mounted.
+For instance, on
+.Tn Sun Microsystems
+machines the convention is to have clock's two-digit year represent
+the year since 1968.
+.It Fa sc_flag
+This flag is used to specify machine-dependent features.
+The following flags are supported:
+.Bl -tag -width ".Dv MK48TXX_WDOG_ENABLE_WDS"
+.It Dv MK48TXX_NO_CENT_ADJUST
+If the resulting date retrieved with the
+.Dq Li clock_gettime() method
+would be earlier than January 1, 1970,
+the driver will assume that the chip's year counter actually represents a
+year in the 21st century.
+This behavior can be overridden by setting this flag,
+which causes the
+.Nm
+driver to respect the clock's century bit instead.
+.It Dv MK48TXX_WDOG_REGISTER
+When this flag is set,
+the
+.Nm
+driver will register as a watchdog via the interface defined in
+.Xr watchdog 9
+if supported by the specific chip model.
+.It Dv MK48TXX_WDOG_ENABLE_WDS
+When this flag is set,
+the
+.Nm
+driver will set the watchdog steering
+.Pq WDS
+bit when enabling the watchdog functionality of the chip.
+enabled
+.Pq see the chip documentation for further information regarding the WDS bit .
+.El
+.It Fa sc_nvread
+.It Fa sc_nvwrite
+These members specify the access methods for reading respectively writing
+clock device registers.
+The default,
+when
+.Dv NULL
+is passed as an access method,
+is to access the chip memory
+.Pq and clock registers
+as if they were direct-mapped using the specified bus resource.
+.Pp
+Otherwise, the driver will call the respective function supplied by the
+front-end to perform the access,
+passing it the offset
+.Va off
+of the chip memory
+.Pq or clock register
+location to be read from or written to, respectively.
+.El
+.Sh HARDWARE
+The following models are supported:
+.Pp
+.Bl -tag -width indent -offset indent -compact
+.It Tn Mostek MK48T02
+.It Tn Mostek MK48T08
+.It Tn Mostek MK48T18
+.It Tn Mostek MK48T59
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr watchdog 9
+.Sh HISTORY
+The
+.Nm mk48txx
+driver appeared in
+.Nx 1.5 .
+The first
+.Fx
+version to include it was
+.Fx 5.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written for
+.Nx
+by
+.An Paul Kranenburg Aq Mt pk@NetBSD.org .
+It was ported to
+.Fx
+by
+.An Thomas Moestl Aq Mt tmm@FreeBSD.org
+and later on improved by
+.An Marius Strobl Aq Mt marius@FreeBSD.org .

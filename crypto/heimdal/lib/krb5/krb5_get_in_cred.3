@@ -1,0 +1,274 @@
+.\" Copyright (c) 2003 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd May 31, 2003
+.Dt KRB5_GET_IN_TKT 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_get_in_tkt ,
+.Nm krb5_get_in_cred ,
+.Nm krb5_get_in_tkt_with_password ,
+.Nm krb5_get_in_tkt_with_keytab ,
+.Nm krb5_get_in_tkt_with_skey ,
+.Nm krb5_free_kdc_rep ,
+.Nm krb5_password_key_proc
+.Nd deprecated initial authentication functions
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Pp
+.Ft krb5_error_code
+.Fo krb5_get_in_tkt
+.Fa "krb5_context context"
+.Fa "krb5_flags options"
+.Fa "const krb5_addresses *addrs"
+.Fa "const krb5_enctype *etypes"
+.Fa "const krb5_preauthtype *ptypes"
+.Fa "krb5_key_proc key_proc"
+.Fa "krb5_const_pointer keyseed"
+.Fa "krb5_decrypt_proc decrypt_proc"
+.Fa "krb5_const_pointer decryptarg"
+.Fa "krb5_creds *creds"
+.Fa "krb5_ccache ccache"
+.Fa "krb5_kdc_rep *ret_as_reply"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_in_cred
+.Fa "krb5_context context"
+.Fa "krb5_flags options"
+.Fa "const krb5_addresses *addrs"
+.Fa "const krb5_enctype *etypes"
+.Fa "const krb5_preauthtype *ptypes"
+.Fa "const krb5_preauthdata *preauth"
+.Fa "krb5_key_proc key_proc"
+.Fa "krb5_const_pointer keyseed"
+.Fa "krb5_decrypt_proc decrypt_proc"
+.Fa "krb5_const_pointer decryptarg"
+.Fa "krb5_creds *creds"
+.Fa "krb5_kdc_rep *ret_as_reply"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_in_tkt_with_password
+.Fa "krb5_context context"
+.Fa "krb5_flags options"
+.Fa "krb5_addresses *addrs"
+.Fa "const krb5_enctype *etypes"
+.Fa "const krb5_preauthtype *pre_auth_types"
+.Fa "const char *password"
+.Fa "krb5_ccache ccache"
+.Fa "krb5_creds *creds"
+.Fa "krb5_kdc_rep *ret_as_reply"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_in_tkt_with_keytab
+.Fa "krb5_context context"
+.Fa "krb5_flags options"
+.Fa "krb5_addresses *addrs"
+.Fa "const krb5_enctype *etypes"
+.Fa "const krb5_preauthtype *pre_auth_types"
+.Fa "krb5_keytab keytab"
+.Fa "krb5_ccache ccache"
+.Fa "krb5_creds *creds"
+.Fa "krb5_kdc_rep *ret_as_reply"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_in_tkt_with_skey
+.Fa "krb5_context context"
+.Fa "krb5_flags options"
+.Fa "krb5_addresses *addrs"
+.Fa "const krb5_enctype *etypes"
+.Fa "const krb5_preauthtype *pre_auth_types"
+.Fa "const krb5_keyblock *key"
+.Fa "krb5_ccache ccache"
+.Fa "krb5_creds *creds"
+.Fa "krb5_kdc_rep *ret_as_reply"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_free_kdc_rep
+.Fa "krb5_context context"
+.Fa "krb5_kdc_rep *rep"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_password_key_proc
+.Fa "krb5_context context"
+.Fa "krb5_enctype type"
+.Fa "krb5_salt salt"
+.Fa "krb5_const_pointer keyseed"
+.Fa "krb5_keyblock **key"
+.Fc
+.Sh DESCRIPTION
+.Bf Em
+All the functions in this manual page are deprecated in the MIT
+implementation, and will soon be deprecated in Heimdal too, don't use them.
+.Ef
+.Pp
+Getting initial credential ticket for a principal.
+.Nm krb5_get_in_cred
+is the function all other krb5_get_in function uses to fetch tickets.
+The other krb5_get_in function are more specialized and therefor
+somewhat easier to use.
+.Pp
+If your need is only to verify a user and password, consider using
+.Xr krb5_verify_user 3
+instead, it have a much simpler interface.
+.Pp
+.Nm krb5_get_in_tkt
+and
+.Nm krb5_get_in_cred
+fetches initial credential, queries after key using the
+.Fa key_proc
+argument.
+The differences between the two function is that
+.Nm krb5_get_in_tkt
+stores the credential in a
+.Li krb5_creds
+while
+.Nm krb5_get_in_cred
+stores the credential in a
+.Li krb5_ccache .
+.Pp
+.Nm krb5_get_in_tkt_with_password ,
+.Nm krb5_get_in_tkt_with_keytab ,
+and
+.Nm krb5_get_in_tkt_with_skey
+does the same work as
+.Nm krb5_get_in_cred
+but are more specialized.
+.Pp
+.Nm krb5_get_in_tkt_with_password
+uses the clients password to authenticate.
+If the password argument is
+.Dv NULL
+the user user queried with the default password query function.
+.Pp
+.Nm krb5_get_in_tkt_with_keytab
+searches the given keytab for a service entry for the client principal.
+If the keytab is
+.Dv NULL
+the default keytab is used.
+.Pp
+.Nm krb5_get_in_tkt_with_skey
+uses a key to get the initial credential.
+.Pp
+There are some common arguments to the krb5_get_in functions, these are:
+.Pp
+.Fa options
+are the
+.Dv KDC_OPT
+flags.
+.Pp
+.Fa etypes
+is a
+.Dv NULL
+terminated array of encryption types that the client approves.
+.Pp
+.Fa addrs
+a list of the addresses that the initial ticket.
+If it is
+.Dv NULL
+the list will be generated by the library.
+.Pp
+.Fa pre_auth_types
+a
+.Dv NULL
+terminated array of pre-authentication types.
+If
+.Fa pre_auth_types
+is
+.Dv NULL
+the function will try without pre-authentication and return those
+pre-authentication that the KDC returned.
+.Pp
+.Fa ret_as_reply
+will (if not
+.Dv NULL )
+be filled in with the response of the KDC and should be free with
+.Fn krb5_free_kdc_rep .
+.Pp
+.Fa key_proc
+is a pointer to a function that should return a key salted appropriately.
+Using
+.Dv NULL
+will use the default password query function.
+.Pp
+.Fa decrypt_proc
+Using
+.Dv NULL
+will use the default decryption function.
+.Pp
+.Fa decryptarg
+will be passed to the decryption function
+.Fa decrypt_proc .
+.Pp
+.Fa creds
+creds should be filled in with the template for a credential that
+should be requested.
+The client and server elements of the creds structure must be filled in.
+Upon return of the function it will be contain the content of the
+requested credential
+.Fa ( krb5_get_in_cred ) ,
+or it will be freed with
+.Xr krb5_free_creds 3
+(all the other krb5_get_in functions).
+.Pp
+.Fa ccache
+will store the credential in the credential cache
+.Fa ccache .
+The credential cache will not be initialized, thats up the the caller.
+.Pp
+.Nm krb5_password_key_proc
+is a library function that is suitable using as the
+.Fa krb5_key_proc
+argument to
+.Nm krb5_get_in_cred
+or
+.Nm krb5_get_in_tkt .
+.Fa keyseed
+should be a pointer to a
+.Dv NUL
+terminated string or
+.Dv NULL .
+.Nm krb5_password_key_proc
+will query the user for the pass on the console if the password isn't
+given as the argument
+.Fa keyseed .
+.Pp
+.Fn krb5_free_kdc_rep
+frees the content of
+.Fa rep .
+.Sh SEE ALSO
+.Xr krb5 3 ,
+.Xr krb5_verify_user 3 ,
+.Xr krb5.conf 5 ,
+.Xr kerberos 8

@@ -1,0 +1,72 @@
+/*
+ * $FreeBSD$
+ */
+
+/*
+ * This only needs to contain symbols that are not listed in
+ * symbol maps from other parts of libc (i.e., not found in
+ * stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...).
+ */
+FBSD_1.0 {
+	/* PSEUDO syscalls */
+	_exit;
+
+	.mcount;
+	_setjmp;
+	_longjmp;
+	fabs;
+	__flt_rounds;
+	fpgetmask;
+	fpgetprec;
+	fpgetround;
+	fpgetsticky;
+	fpsetmask;
+	fpsetprec;
+	fpsetround;
+	__infinity;
+	__nan;
+	makecontext;
+	rfork_thread;
+	setjmp;
+	longjmp;
+	sigsetjmp;
+	siglongjmp;
+	htonl;
+	htons;
+	ntohl;
+	ntohs;
+	amd64_get_fsbase;
+	amd64_get_gsbase;
+	amd64_set_fsbase;
+	amd64_set_gsbase;
+	brk;
+	sbrk;
+	vfork;
+};
+
+FBSD_1.6 {
+	 x86_pkru_get_perm;
+	 x86_pkru_set_perm;
+	 x86_pkru_protect_range;
+	 x86_pkru_unprotect_range;
+};
+
+/*
+ *
+ * FreeBSD private ABI
+ *
+ */
+FBSDprivate_1.0 {
+	/* PSEUDO syscalls */
+	_getlogin;
+
+	_set_tp;
+	___longjmp;
+	__makecontext;
+	__longjmp;
+	__signalcontext;
+	signalcontext;
+	__siglongjmp;
+	_brk;
+	_vfork;
+};

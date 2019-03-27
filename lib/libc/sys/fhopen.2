@@ -1,0 +1,147 @@
+.\"	$NetBSD: fhopen.2,v 1.1 1999/06/30 01:32:15 wrstuden Exp $
+.\"
+.\" Copyright (c) 1999 National Aeronautics & Space Administration
+.\" All rights reserved.
+.\"
+.\" This software was written by William Studenmund of the
+.\" Numerical Aerospace Simulation Facility, NASA Ames Research Center.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the National Aeronautics & Space Administration
+.\"    nor the names of its contributors may be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NATIONAL AERONAUTICS & SPACE ADMINISTRATION
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE ADMINISTRATION OR CONTRIB-
+.\" UTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 29, 1999
+.Dt FHOPEN 2
+.Os
+.Sh NAME
+.Nm fhopen ,
+.Nm fhstat ,
+.Nm fhstatfs
+.Nd access file via file handle
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.In sys/stat.h
+.Ft int
+.Fn fhopen "const fhandle_t *fhp" "int flags"
+.Ft int
+.Fn fhstat "const fhandle_t *fhp" "struct stat *sb"
+.Ft int
+.Fn fhstatfs "const fhandle_t *fhp" "struct statfs *buf"
+.Sh DESCRIPTION
+These system calls provide a means to access a file given the file handle
+.Fa fhp .
+As this method bypasses directory access restrictions, these calls are
+restricted to the superuser.
+.Pp
+The
+.Fn fhopen
+system call
+opens the file referenced by
+.Fa fhp
+for reading and/or writing as specified by the argument
+.Fa flags
+and returns the file descriptor to the calling process.
+The
+.Fa flags
+argument
+is specified by
+.Em or Ns 'ing
+together the flags used for the
+.Xr open 2
+system call.
+All said flags are valid except for
+.Dv O_CREAT .
+.Pp
+The
+.Fn fhstat
+and
+.Fn fhstatfs
+system calls
+provide the functionality of the
+.Xr fstat 2
+and
+.Xr fstatfs 2
+calls except that they return information for the file referred to by
+.Fa fhp
+rather than an open file.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn fhopen
+returns the file descriptor for the opened file;
+otherwise the value \-1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Pp
+.Rv -std fhstat fhstatfs
+.Sh ERRORS
+In addition to the errors returned by
+.Xr open 2 ,
+.Xr fstat 2 ,
+and
+.Xr fstatfs 2
+respectively,
+.Fn fhopen ,
+.Fn fhstat ,
+and
+.Fn fhstatfs
+will return
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Calling
+.Fn fhopen
+with
+.Dv O_CREAT
+set.
+.It Bq Er ESTALE
+The file handle
+.Fa fhp
+is no longer valid.
+.El
+.Sh SEE ALSO
+.Xr fstat 2 ,
+.Xr fstatfs 2 ,
+.Xr getfh 2 ,
+.Xr open 2
+.Sh HISTORY
+The
+.Fn fhopen ,
+.Fn fhstat ,
+and
+.Fn fhstatfs
+system calls first appeared in
+.Nx 1.5
+and were adapted to
+.Fx 4.0
+by
+.An Alfred Perlstein .
+.Sh AUTHORS
+This manual page was written by
+.An William Studenmund
+for
+.Nx .

@@ -1,0 +1,688 @@
+.\" Copyright (c) 2003 - 2007 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd October 26, 2005
+.Dt GSS_ACQUIRE_CRED 3
+.Os HEIMDAL
+.Sh NAME
+.Nm gss_accept_sec_context ,
+.Nm gss_acquire_cred ,
+.Nm gss_add_cred ,
+.Nm gss_add_oid_set_member ,
+.Nm gss_canonicalize_name ,
+.Nm gss_compare_name ,
+.Nm gss_context_time ,
+.Nm gss_create_empty_oid_set ,
+.Nm gss_delete_sec_context ,
+.Nm gss_display_name ,
+.Nm gss_display_status ,
+.Nm gss_duplicate_name ,
+.Nm gss_export_name ,
+.Nm gss_export_sec_context ,
+.Nm gss_get_mic ,
+.Nm gss_import_name ,
+.Nm gss_import_sec_context ,
+.Nm gss_indicate_mechs ,
+.Nm gss_init_sec_context ,
+.Nm gss_inquire_context ,
+.Nm gss_inquire_cred ,
+.Nm gss_inquire_cred_by_mech ,
+.Nm gss_inquire_mechs_for_name ,
+.Nm gss_inquire_names_for_mech ,
+.Nm gss_krb5_ccache_name ,
+.Nm gss_krb5_compat_des3_mic ,
+.Nm gss_krb5_copy_ccache ,
+.Nm gss_krb5_import_cred
+.Nm gsskrb5_extract_authz_data_from_sec_context ,
+.Nm gsskrb5_register_acceptor_identity ,
+.Nm gss_krb5_import_ccache ,
+.Nm gss_krb5_get_tkt_flags ,
+.Nm gss_process_context_token ,
+.Nm gss_release_buffer ,
+.Nm gss_release_cred ,
+.Nm gss_release_name ,
+.Nm gss_release_oid_set ,
+.Nm gss_seal ,
+.Nm gss_sign ,
+.Nm gss_test_oid_set_member ,
+.Nm gss_unseal ,
+.Nm gss_unwrap ,
+.Nm gss_verify ,
+.Nm gss_verify_mic ,
+.Nm gss_wrap ,
+.Nm gss_wrap_size_limit
+.Nd Generic Security Service Application Program Interface library
+.Sh LIBRARY
+GSS-API library (libgssapi, -lgssapi)
+.Sh SYNOPSIS
+.In gssapi.h
+.Pp
+.Ft OM_uint32
+.Fo gss_accept_sec_context
+.Fa "OM_uint32 * minor_status"
+.Fa "gss_ctx_id_t * context_handle"
+.Fa "const gss_cred_id_t acceptor_cred_handle"
+.Fa "const gss_buffer_t input_token_buffer"
+.Fa "const gss_channel_bindings_t input_chan_bindings"
+.Fa "gss_name_t * src_name"
+.Fa "gss_OID * mech_type"
+.Fa "gss_buffer_t output_token"
+.Fa "OM_uint32 * ret_flags"
+.Fa "OM_uint32 * time_rec"
+.Fa "gss_cred_id_t * delegated_cred_handle"
+.Fc
+.Pp
+.Ft OM_uint32
+.Fo gss_acquire_cred
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_name_t desired_name"
+.Fa "OM_uint32 time_req"
+.Fa "const gss_OID_set desired_mechs"
+.Fa "gss_cred_usage_t cred_usage"
+.Fa "gss_cred_id_t * output_cred_handle"
+.Fa "gss_OID_set * actual_mechs"
+.Fa "OM_uint32 * time_rec"
+.Fc
+.Ft OM_uint32
+.Fo gss_add_cred
+.Fa "OM_uint32 *minor_status"
+.Fa "const gss_cred_id_t input_cred_handle"
+.Fa "const gss_name_t desired_name"
+.Fa "const gss_OID desired_mech"
+.Fa "gss_cred_usage_t cred_usage"
+.Fa "OM_uint32 initiator_time_req"
+.Fa "OM_uint32 acceptor_time_req"
+.Fa "gss_cred_id_t *output_cred_handle"
+.Fa "gss_OID_set *actual_mechs"
+.Fa "OM_uint32 *initiator_time_rec"
+.Fa "OM_uint32 *acceptor_time_rec"
+.Fc
+.Ft OM_uint32
+.Fo gss_add_oid_set_member
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_OID member_oid"
+.Fa "gss_OID_set * oid_set"
+.Fc
+.Ft OM_uint32
+.Fo gss_canonicalize_name
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_name_t input_name"
+.Fa "const gss_OID mech_type"
+.Fa "gss_name_t * output_name"
+.Fc
+.Ft OM_uint32
+.Fo gss_compare_name
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_name_t name1"
+.Fa "const gss_name_t name2"
+.Fa "int * name_equal"
+.Fc
+.Ft OM_uint32
+.Fo gss_context_time
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_ctx_id_t context_handle"
+.Fa "OM_uint32 * time_rec"
+.Fc
+.Ft OM_uint32
+.Fo gss_create_empty_oid_set
+.Fa "OM_uint32 * minor_status"
+.Fa "gss_OID_set * oid_set"
+.Fc
+.Ft OM_uint32
+.Fo gss_delete_sec_context
+.Fa "OM_uint32 * minor_status"
+.Fa "gss_ctx_id_t * context_handle"
+.Fa "gss_buffer_t output_token"
+.Fc
+.Ft OM_uint32
+.Fo gss_display_name
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_name_t input_name"
+.Fa "gss_buffer_t output_name_buffer"
+.Fa "gss_OID * output_name_type"
+.Fc
+.Ft OM_uint32
+.Fo gss_display_status
+.Fa "OM_uint32 *minor_status"
+.Fa "OM_uint32 status_value"
+.Fa "int status_type"
+.Fa "const gss_OID mech_type"
+.Fa "OM_uint32 *message_context"
+.Fa "gss_buffer_t status_string"
+.Fc
+.Ft OM_uint32
+.Fo gss_duplicate_name
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_name_t src_name"
+.Fa "gss_name_t * dest_name"
+.Fc
+.Ft OM_uint32
+.Fo gss_export_name
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_name_t input_name"
+.Fa "gss_buffer_t exported_name"
+.Fc
+.Ft OM_uint32
+.Fo gss_export_sec_context
+.Fa "OM_uint32 * minor_status"
+.Fa "gss_ctx_id_t * context_handle"
+.Fa "gss_buffer_t interprocess_token"
+.Fc
+.Ft OM_uint32
+.Fo gss_get_mic
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_ctx_id_t context_handle"
+.Fa "gss_qop_t qop_req"
+.Fa "const gss_buffer_t message_buffer"
+.Fa "gss_buffer_t message_token"
+.Fc
+.Ft OM_uint32
+.Fo gss_import_name
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_buffer_t input_name_buffer"
+.Fa "const gss_OID input_name_type"
+.Fa "gss_name_t * output_name"
+.Fc
+.Ft OM_uint32
+.Fo gss_import_sec_context
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_buffer_t interprocess_token"
+.Fa "gss_ctx_id_t * context_handle"
+.Fc
+.Ft OM_uint32
+.Fo gss_indicate_mechs
+.Fa "OM_uint32 * minor_status"
+.Fa "gss_OID_set * mech_set"
+.Fc
+.Ft OM_uint32
+.Fo gss_init_sec_context
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_cred_id_t initiator_cred_handle"
+.Fa "gss_ctx_id_t * context_handle"
+.Fa "const gss_name_t target_name"
+.Fa "const gss_OID mech_type"
+.Fa "OM_uint32 req_flags"
+.Fa "OM_uint32 time_req"
+.Fa "const gss_channel_bindings_t input_chan_bindings"
+.Fa "const gss_buffer_t input_token"
+.Fa "gss_OID * actual_mech_type"
+.Fa "gss_buffer_t output_token"
+.Fa "OM_uint32 * ret_flags"
+.Fa "OM_uint32 * time_rec"
+.Fc
+.Ft OM_uint32
+.Fo gss_inquire_context
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_ctx_id_t context_handle"
+.Fa "gss_name_t * src_name"
+.Fa "gss_name_t * targ_name"
+.Fa "OM_uint32 * lifetime_rec"
+.Fa "gss_OID * mech_type"
+.Fa "OM_uint32 * ctx_flags"
+.Fa "int * locally_initiated"
+.Fa "int * open_context"
+.Fc
+.Ft OM_uint32
+.Fo gss_inquire_cred
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_cred_id_t cred_handle"
+.Fa "gss_name_t * name"
+.Fa "OM_uint32 * lifetime"
+.Fa "gss_cred_usage_t * cred_usage"
+.Fa "gss_OID_set * mechanisms"
+.Fc
+.Ft OM_uint32
+.Fo gss_inquire_cred_by_mech
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_cred_id_t cred_handle"
+.Fa "const gss_OID mech_type"
+.Fa "gss_name_t * name"
+.Fa "OM_uint32 * initiator_lifetime"
+.Fa "OM_uint32 * acceptor_lifetime"
+.Fa "gss_cred_usage_t * cred_usage"
+.Fc
+.Ft OM_uint32
+.Fo gss_inquire_mechs_for_name
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_name_t input_name"
+.Fa "gss_OID_set * mech_types"
+.Fc
+.Ft OM_uint32
+.Fo gss_inquire_names_for_mech
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_OID mechanism"
+.Fa "gss_OID_set * name_types"
+.Fc
+.Ft OM_uint32
+.Fo gss_krb5_ccache_name
+.Fa "OM_uint32 *minor"
+.Fa "const char *name"
+.Fa "const char **old_name"
+.Fc
+.Ft OM_uint32
+.Fo gss_krb5_copy_ccache
+.Fa "OM_uint32 *minor"
+.Fa "gss_cred_id_t cred"
+.Fa "krb5_ccache out"
+.Fc
+.Ft OM_uint32
+.Fo gss_krb5_import_cred
+.Fa "OM_uint32 *minor_status"
+.Fa "krb5_ccache id"
+.Fa "krb5_principal keytab_principal"
+.Fa "krb5_keytab keytab"
+.Fa "gss_cred_id_t *cred"
+.Fc
+.Ft OM_uint32
+.Fo gss_krb5_compat_des3_mic
+.Fa "OM_uint32 * minor_status"
+.Fa "gss_ctx_id_t context_handle"
+.Fa "int onoff"
+.Fc
+.Ft OM_uint32
+.Fo gsskrb5_extract_authz_data_from_sec_context
+.Fa "OM_uint32 *minor_status"
+.Fa "gss_ctx_id_t context_handle"
+.Fa "int ad_type"
+.Fa "gss_buffer_t ad_data"
+.Fc
+.Ft OM_uint32
+.Fo gsskrb5_register_acceptor_identity
+.Fa "const char *identity"
+.Fc
+.Ft OM_uint32
+.Fo gss_krb5_import_cache
+.Fa "OM_uint32 *minor"
+.Fa "krb5_ccache id"
+.Fa "krb5_keytab keytab"
+.Fa "gss_cred_id_t *cred"
+.Fc
+.Ft OM_uint32
+.Fo gss_krb5_get_tkt_flags
+.Fa "OM_uint32 *minor_status"
+.Fa "gss_ctx_id_t context_handle"
+.Fa "OM_uint32 *tkt_flags"
+.Fc
+.Ft OM_uint32
+.Fo gss_process_context_token
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_ctx_id_t context_handle"
+.Fa "const gss_buffer_t token_buffer"
+.Fc
+.Ft OM_uint32
+.Fo gss_release_buffer
+.Fa "OM_uint32 * minor_status"
+.Fa "gss_buffer_t buffer"
+.Fc
+.Ft OM_uint32
+.Fo gss_release_cred
+.Fa "OM_uint32 * minor_status"
+.Fa "gss_cred_id_t * cred_handle"
+.Fc
+.Ft OM_uint32
+.Fo gss_release_name
+.Fa "OM_uint32 * minor_status"
+.Fa "gss_name_t * input_name"
+.Fc
+.Ft OM_uint32
+.Fo gss_release_oid_set
+.Fa "OM_uint32 * minor_status"
+.Fa "gss_OID_set * set"
+.Fc
+.Ft OM_uint32
+.Fo gss_seal
+.Fa "OM_uint32 * minor_status"
+.Fa "gss_ctx_id_t context_handle"
+.Fa "int conf_req_flag"
+.Fa "int qop_req"
+.Fa "gss_buffer_t input_message_buffer"
+.Fa "int * conf_state"
+.Fa "gss_buffer_t output_message_buffer"
+.Fc
+.Ft OM_uint32
+.Fo gss_sign
+.Fa "OM_uint32 * minor_status"
+.Fa "gss_ctx_id_t context_handle"
+.Fa "int qop_req"
+.Fa "gss_buffer_t message_buffer"
+.Fa "gss_buffer_t message_token"
+.Fc
+.Ft OM_uint32
+.Fo gss_test_oid_set_member
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_OID member"
+.Fa "const gss_OID_set set"
+.Fa "int * present"
+.Fc
+.Ft OM_uint32
+.Fo gss_unseal
+.Fa "OM_uint32 * minor_status"
+.Fa "gss_ctx_id_t context_handle"
+.Fa "gss_buffer_t input_message_buffer"
+.Fa "gss_buffer_t output_message_buffer"
+.Fa "int * conf_state"
+.Fa "int * qop_state"
+.Fc
+.Ft OM_uint32
+.Fo gss_unwrap
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_ctx_id_t context_handle"
+.Fa "const gss_buffer_t input_message_buffer"
+.Fa "gss_buffer_t output_message_buffer"
+.Fa "int * conf_state"
+.Fa "gss_qop_t * qop_state"
+.Fc
+.Ft OM_uint32
+.Fo gss_verify
+.Fa "OM_uint32 * minor_status"
+.Fa "gss_ctx_id_t context_handle"
+.Fa "gss_buffer_t message_buffer"
+.Fa "gss_buffer_t token_buffer"
+.Fa "int * qop_state"
+.Fc
+.Ft OM_uint32
+.Fo gss_verify_mic
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_ctx_id_t context_handle"
+.Fa "const gss_buffer_t message_buffer"
+.Fa "const gss_buffer_t token_buffer"
+.Fa "gss_qop_t * qop_state"
+.Fc
+.Ft OM_uint32
+.Fo gss_wrap
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_ctx_id_t context_handle"
+.Fa "int conf_req_flag"
+.Fa "gss_qop_t qop_req"
+.Fa "const gss_buffer_t input_message_buffer"
+.Fa "int * conf_state"
+.Fa "gss_buffer_t output_message_buffer"
+.Fc
+.Ft OM_uint32
+.Fo gss_wrap_size_limit
+.Fa "OM_uint32 * minor_status"
+.Fa "const gss_ctx_id_t context_handle"
+.Fa "int conf_req_flag"
+.Fa "gss_qop_t qop_req"
+.Fa "OM_uint32 req_output_size"
+.Fa "OM_uint32 * max_input_size"
+.Fc
+.Sh DESCRIPTION
+Generic Security Service API (GSS-API) version 2, and its C binding,
+is described in
+.Li RFC2743
+and
+.Li RFC2744 .
+Version 1 (deprecated) of the C binding is described in
+.Li RFC1509 .
+.Pp
+Heimdals GSS-API implementation supports the following mechanisms
+.Bl -bullet
+.It
+.Li GSS_KRB5_MECHANISM
+.It
+.Li GSS_SPNEGO_MECHANISM
+.El
+.Pp
+GSS-API have generic name types that all mechanism are supposed to
+implement (if possible):
+.Bl -bullet
+.It
+.Li GSS_C_NT_USER_NAME
+.It
+.Li GSS_C_NT_MACHINE_UID_NAME
+.It
+.Li GSS_C_NT_STRING_UID_NAME
+.It
+.Li GSS_C_NT_HOSTBASED_SERVICE
+.It
+.Li GSS_C_NT_ANONYMOUS
+.It
+.Li GSS_C_NT_EXPORT_NAME
+.El
+.Pp
+GSS-API implementations that supports Kerberos 5 have some additional
+name types:
+.Bl -bullet
+.It
+.Li GSS_KRB5_NT_PRINCIPAL_NAME
+.It
+.Li GSS_KRB5_NT_USER_NAME
+.It
+.Li GSS_KRB5_NT_MACHINE_UID_NAME
+.It
+.Li GSS_KRB5_NT_STRING_UID_NAME
+.El
+.Pp
+In GSS-API, names have two forms, internal names and contiguous string
+names.
+.Bl -bullet
+.It
+.Li Internal name and mechanism name
+.Pp
+Internal names are implementation specific representation of
+a GSS-API name.
+.Li Mechanism names
+special form of internal names corresponds to one and only one mechanism.
+.Pp
+In GSS-API an internal name is stored in a
+.Dv gss_name_t .
+.It
+.Li Contiguous string name and exported name
+.Pp
+Contiguous string names are gssapi names stored in a
+.Dv OCTET STRING
+that together with a name type identifier (OID) uniquely specifies a
+gss-name.
+A special form of the contiguous string name is the exported name that
+have a OID embedded in the string to make it unique.
+Exported name have the nametype
+.Dv GSS_C_NT_EXPORT_NAME .
+.Pp
+In GSS-API an contiguous string name is stored in a
+.Dv gss_buffer_t .
+.Pp
+Exported names also have the property that they are specified by the
+mechanism itself and compatible between different GSS-API
+implementations.
+.El
+.Sh ACCESS CONTROL
+There are two ways of comparing GSS-API names, either comparing two
+internal names with each other or two contiguous string names with
+either other.
+.Pp
+To compare two internal names with each other, import (if needed) the
+names with
+.Fn gss_import_name
+into the GSS-API implementation and the compare the imported name with
+.Fn gss_compare_name .
+.Pp
+Importing names can be slow, so when its possible to store exported
+names in the access control list, comparing contiguous string name
+might be better.
+.Pp
+when comparing contiguous string name, first export them into a
+.Dv GSS_C_NT_EXPORT_NAME
+name with
+.Fn gss_export_name
+and then compare with
+.Xr memcmp 3 .
+.Pp
+Note that there are might be a difference between the two methods of
+comparing names.
+The first (using
+.Fn gss_compare_name )
+will compare to (unauthenticated) names are the same.
+The second will compare if a mechanism will authenticate them as the
+same principal.
+.Pp
+For example, if
+.Fn gss_import_name
+name was used with
+.Dv GSS_C_NO_OID
+the default syntax is used for all mechanism the GSS-API
+implementation supports.
+When compare the imported name of
+.Dv GSS_C_NO_OID
+it may match serveral mechanism names (MN).
+.Pp
+The resulting name from
+.Fn gss_display_name
+must not be used for acccess control.
+.Sh FUNCTIONS
+.Fn gss_display_name
+takes the gss name in
+.Fa input_name
+and puts a printable form in
+.Fa output_name_buffer .
+.Fa output_name_buffer
+should be freed when done using
+.Fn gss_release_buffer .
+.Fa output_name_type
+can either be
+.Dv NULL
+or a pointer to a
+.Li gss_OID
+and will in the latter case contain the OID type of the name.
+The name must only be used for printing.
+If access control is needed, see section
+.Sx ACCESS CONTROL .
+.Pp
+.Fn gss_inquire_context
+returns information about the context.
+Information is available even after the context have expired.
+.Fa lifetime_rec
+argument is set to
+.Dv GSS_C_INDEFINITE
+(dont expire) or the number of seconds that the context is still valid.
+A value of 0 means that the context is expired.
+.Fa mech_type
+argument should be considered readonly and must not be released.
+.Fa src_name
+and
+.Fn dest_name
+are both mechanims names and must be released with
+.Fn gss_release_name
+when no longer used.
+.Pp
+.Nm gss_context_time
+will return the amount of time (in seconds) of the context is still
+valid.
+If its expired
+.Fa time_rec
+will be set to 0 and
+.Dv GSS_S_CONTEXT_EXPIRED
+returned.
+.Pp
+.Fn gss_sign ,
+.Fn gss_verify ,
+.Fn gss_seal ,
+and
+.Fn gss_unseal
+are part of the GSS-API V1 interface and are obsolete.
+The functions should not be used for new applications.
+They are provided so that version 1 applications can link against the
+library.
+.Sh EXTENSIONS
+.Fn gss_krb5_ccache_name
+sets the internal kerberos 5 credential cache name to
+.Fa name .
+The old name is returned in
+.Fa old_name ,
+and must not be freed.
+The data allocated for
+.Fa old_name
+is free upon next call to
+.Fn gss_krb5_ccache_name .
+This function is not threadsafe if
+.Fa old_name
+argument is used.
+.Pp
+.Fn gss_krb5_copy_ccache
+will extract the krb5 credentials that are transferred from the
+initiator to the acceptor when using token delegation in the Kerberos
+mechanism.
+The acceptor receives the delegated token in the last argument to
+.Fn gss_accept_sec_context .
+.Pp
+.Fn gss_krb5_import_cred
+will import the krb5 credentials (both keytab and/or credential cache)
+into gss credential so it can be used withing GSS-API.
+The
+.Fa ccache
+is copied by reference and thus shared, so if the credential is destroyed
+with
+.Fa krb5_cc_destroy ,
+all users of thep
+.Fa gss_cred_id_t
+returned by
+.Fn gss_krb5_import_ccache
+will fail.
+.Pp
+.Fn gsskrb5_register_acceptor_identity
+sets the Kerberos 5 filebased keytab that the acceptor will use.  The
+.Fa identifier
+is the file name.
+.Pp
+.Fn gsskrb5_extract_authz_data_from_sec_context
+extracts the Kerberos authorizationdata that may be stored within the
+context.
+Tha caller must free the returned buffer
+.Fa ad_data
+with
+.Fn gss_release_buffer
+upon success.
+.Pp
+.Fn gss_krb5_get_tkt_flags
+return the ticket flags for the kerberos ticket receive when
+authenticating the initiator.
+Only valid on the acceptor context.
+.Pp
+.Fn gss_krb5_compat_des3_mic
+turns on or off the compatibility with older version of Heimdal using
+des3 get and verify mic, this is way to programmatically set the
+[gssapi]broken_des3_mic and [gssapi]correct_des3_mic flags (see
+COMPATIBILITY section in
+.Xr gssapi 3 ) .
+If the CPP symbol
+.Dv GSS_C_KRB5_COMPAT_DES3_MIC
+is present,
+.Fn gss_krb5_compat_des3_mic
+exists.
+.Fn gss_krb5_compat_des3_mic
+will be removed in a later version of the GSS-API library.
+.Sh SEE ALSO
+.Xr gssapi 3 ,
+.Xr krb5 3 ,
+.Xr krb5_ccache 3 ,
+.Xr kerberos 8

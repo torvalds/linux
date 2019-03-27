@@ -1,0 +1,80 @@
+
+   Three pieces of state need to be kept for each side of each option.
+   (You need the localside, sending WILL/WONT & receiving DO/DONT, and
+   the remoteside, sending DO/DONT and receiving WILL/WONT)
+
+	MY_STATE:	What state am I in?
+	WANT_STATE:	What state do I want?
+	WANT_RESP:	How many requests have I initiated?
+
+   Default values:
+	MY_STATE = WANT_STATE = DONT
+	WANT_RESP = 0
+
+   The local setup will change based on the state of the Telnet
+   variables.  When we are the originator, we can either make the
+   local setup changes at option request time (in which case if
+   the option is denied we need to change things back) or when
+   the option is acknowledged.
+
+   To initiate a switch to NEW_STATE:
+
+	if ((WANT_RESP == 0 && NEW_STATE == MY_STATE) ||
+			WANT_STATE == NEW_STATE) {
+	    do nothing;
+	} else {
+	    /*
+	     * This is where the logic goes to change the local setup
+	     * if we are doing so at request initiation
+	     */
+	    WANT_STATE = NEW_STATE;
+	    send NEW_STATE;
+	    WANT_RESP += 1;
+	}
+
+   When receiving NEW_STATE:
+
+	if (WANT_RESP) {
+	    --WANT_RESP;
+	    if (WANT_RESP && (NEW_STATE == MY_STATE))
+		--WANT_RESP;
+	}
+	if (WANT_RESP == 0) {
+	    if (NEW_STATE != WANT_STATE) {
+		/*
+		 * This is where the logic goes to decide if it is ok
+		 * to switch to NEW_STATE, and if so, do any necessary
+		 * local setup changes.
+		 */
+		if (ok_to_switch_to NEW_STATE)
+		    WANT_STATE = NEW_STATE;
+		else
+		    WANT_RESP++;
+*		if (MY_STATE != WANT_STATE)
+		    reply with WANT_STATE;
+	    } else {
+		/*
+		 * This is where the logic goes to change the local setup
+		 * if we are doing so at request acknowledgment
+		 */
+	    }
+	}
+	MY_STATE = NEW_STATE;
+
+* This if() line is not needed, it should be ok to always do the
+  "reply with WANT_STATE".  With the if() line, asking to turn on
+  an option that the other side doesn't understand is:
+		Send DO option
+		Recv WONT option
+  Without the if() line, it is:
+		Send DO option
+		Recv WONT option
+		Send DONT option
+  If the other side does not expect to receive the latter case,
+  but generates the latter case, then there is a potential for
+  option negotiation loops.  An implementation that does not expect
+  to get the second case should not generate it, an implementation
+  that does expect to get it may or may not generate it, and things
+  will still work.  Being conservative in what we send, we have the
+  if() statement in, but we expect the other side to generate the
+  last response.

@@ -1,0 +1,68 @@
+.\"
+.\" $FreeBSD$
+.\"
+.\" Copyright (c) 2009, 2010 Marc Balmer <marc@msys.ch>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd December 27, 2009
+.Dt WAKE 8
+.Os
+.Sh NAME
+.Nm wake
+.Nd send Wake on LAN frames to hosts on a local Ethernet network
+.Sh SYNOPSIS
+.Nm
+.Op Ar interface
+.Ar lladdr
+.Op Ar lladdr ...
+.Sh DESCRIPTION
+The
+.Nm
+program is used to send Wake on LAN (WoL) frames over a local
+Ethernet network to one or more hosts using their link layer (hardware)
+addresses.
+WoL functionality is generally enabled in a machine's BIOS
+and can be used to power on machines from a remote system without
+having physical access to them.
+.Pp
+.Ar interface
+is an Ethernet interface of the local machine and is used to send the
+Wake on LAN frames over it.
+If there is only one Ethernet device available that is up and running, then the
+.Ar interface
+argument can be omitted.
+.Ar lladdr
+is the link layer address of the remote machine.
+This can be specified as the actual hardware address
+(six hexadecimal numbers separated by colons)
+or as a hostname entry in
+.Pa /etc/ethers .
+.Nm
+accepts multiple
+.Ar lladdr
+addresses.
+Link layer addresses can be determined and set using
+.Xr ifconfig 8 .
+.Sh FILES
+.Bl -tag -width "/etc/ethers" -compact
+.It Pa /etc/ethers
+Ethernet host name data base.
+.El
+.Sh SEE ALSO
+.Xr ethers 5 ,
+.Xr ifconfig 8
+.Sh AUTHORS
+.Nm
+was written by
+.An Marc Balmer Aq Mt marc@msys.ch .

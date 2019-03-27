@@ -1,0 +1,9 @@
+block in proto icmp from any to any icmp-type echo
+pass in proto icmp from any to any icmp-type echo
+block in proto icmp from any to any icmp-type unreach code 3
+pass in proto icmp from any to any icmp-type unreach code 3
+block in proto icmp from any to any icmp-type echorep
+pass in proto icmp from any to any icmp-type echorep
+pass in proto icmp all icmp-type maskreq keep state
+pass in proto icmp all icmp-type timest keep state
+pass in proto icmp all icmp-type inforeq keep state

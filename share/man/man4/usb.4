@@ -1,0 +1,192 @@
+.\" Copyright (c) 1997, 1998 Nick Hibma <n_hibma@FreeBSD.org>
+.\" Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 24, 2018
+.Dt USB 4
+.Os
+.Sh NAME
+.Nm usb
+.Nd Universal Serial Bus
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device usb"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+usb_load="YES"
+.Ed
+.Sh USERLAND PROGRAMMING
+USB functions can be accessed from userland through the libusb library.
+See
+.Xr libusb 3
+for more information.
+.Sh DESCRIPTION
+.Fx
+provides machine-independent bus support and drivers for
+.Tn USB
+devices in host and device side mode.
+.Pp
+The
+.Nm
+driver has three layers:
+.Bl -tag -width 6n -offset indent
+.It USB Controller (Bus)
+.It USB Device
+.It USB Driver
+.El
+.Pp
+The controller attaches to a physical bus
+like
+.Xr pci 4 .
+The
+.Tn USB
+bus attaches to the controller, and the root hub attaches
+to the controller.
+Any devices attached to the bus will attach to the root hub
+or another hub attached to the
+.Tn USB
+bus.
+.Pp
+The
+.Nm uhub
+device will always be present as it is needed for the root hub.
+.Sh INTRODUCTION TO USB
+The
+.Tn USB
+is a system where external devices can be connected to a PC.
+The most common USB speeds are:
+.Bl -tag -width 6n -offset indent
+.It Low Speed (1.5MBit/sec)
+.It Full Speed (12MBit/sec)
+.It High Speed (480MBit/sec)
+.El
+.Pp
+Each
+.Tn USB
+has a USB controller that is the master of the bus.
+The physical communication is simplex which means the host controller only
+communicates with one USB device at a time.
+.Pp
+There can be up to 127 devices connected to an USB HUB tree.
+The addresses are assigned dynamically by the host when each device is
+attached to the bus.
+.Pp
+Within each device there can be up to 16 endpoints.
+Each endpoint is individually addressed and the addresses are static.
+Each of these endpoints will communicate in one of four different modes:
+.Em control , isochronous , bulk ,
+or
+.Em interrupt .
+A device always has at least one endpoint.
+This endpoint has address 0 and is a control endpoint and is used to give
+commands to and extract basic data, such as descriptors, from the device.
+Each endpoint, except the control endpoint, is unidirectional.
+.Pp
+The endpoints in a device are grouped into interfaces.
+An interface is a logical unit within a device, e.g., a compound device with
+both a keyboard and a trackball, would present one interface for each.
+An interface can sometimes be set into different modes, called alternate
+settings, which affects how it operates.
+Different alternate settings can have different endpoints within it.
+.Pp
+A device may operate in different configurations.
+Depending on the configuration, the device may present different sets of
+endpoints and interfaces.
+.Pp
+The bus enumeration of the
+.Tn USB
+bus proceeds in several steps:
+.Bl -enum
+.It
+Any interface specific driver can attach to the device.
+.It
+If none is found, generic interface class drivers can attach.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
+.El
+.Sh SEE ALSO
+The
+.Tn USB
+specifications can be found at:
+.Pp
+.D1 Pa http://www.usb.org/developers/docs/
+.Pp
+.Xr libusb 3 ,
+.Xr aue 4 ,
+.Xr axe 4 ,
+.Xr axge 4 ,
+.Xr cue 4 ,
+.Xr ehci 4 ,
+.Xr kue 4 ,
+.Xr mos 4 ,
+.Xr ohci 4 ,
+.Xr pci 4 ,
+.Xr rue 4 ,
+.Xr ucom 4 ,
+.Xr udav 4 ,
+.Xr uhci 4 ,
+.Xr uhid 4 ,
+.Xr ukbd 4 ,
+.Xr ulpt 4 ,
+.Xr umass 4 ,
+.Xr ums 4 ,
+.Xr uplcom 4 ,
+.Xr urio 4 ,
+.Xr uvscom 4 ,
+.Xr xhci 4
+.Xr usbconfig 8 ,
+.Xr usbdi 9
+.Sh STANDARDS
+The
+.Nm
+module complies with the USB 2.0 standard.
+.Sh HISTORY
+The
+.Nm
+module has been inspired by the
+.Nx
+USB stack initially written by
+.An Lennart Augustsson .
+The
+.Nm
+module was written by
+.An Hans Petter Selasky Aq Mt hselasky@FreeBSD.org .

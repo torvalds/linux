@@ -1,0 +1,200 @@
+.\" Copyright 1998 Juniper Networks, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 30, 1999
+.Dt RADIUS.CONF 5
+.Os
+.Sh NAME
+.Nm radius.conf
+.Nd RADIUS client configuration file
+.Sh SYNOPSIS
+.Pa /etc/radius.conf
+.Sh DESCRIPTION
+.Nm
+contains the information necessary to configure the RADIUS client
+library.
+It is parsed by
+.Xr rad_config 3 .
+The file contains one or more lines of text, each describing a
+single RADIUS server which will be used by the library.
+Leading
+white space is ignored, as are empty lines and lines containing
+only comments.
+.Pp
+A RADIUS server is described by three to seven fields on a line:
+.Pp
+.Bl -item -offset indent -compact
+.It
+Service type
+.It
+Server host
+.It
+Shared secret
+.It
+Timeout
+.It
+Retries
+.It
+Dead time
+.It
+Bind address
+.El
+.Pp
+The fields are separated by white space.
+The
+.Ql #
+character at the beginning of a field begins a comment, which extends
+to the end of the line.
+A field may be enclosed in double quotes,
+in which case it may contain white space and/or begin with the
+.Ql #
+character.
+Within a quoted string, the double quote character can
+be represented by
+.Ql \e\&" ,
+and the backslash can be represented by
+.Ql \e\e .
+No other escape sequences are supported.
+.Pp
+The first field gives the service type, either
+.Ql auth
+for RADIUS authentication or
+.Ql acct
+for RADIUS accounting.
+If a single server provides both services, two
+lines are required in the file.
+Earlier versions of this file did
+not include a service type.
+For backward compatibility, if the first
+field is not
+.Ql auth
+or
+.Ql acct
+the library behaves as if
+.Ql auth
+were specified, and interprets the fields in the line as if they
+were fields two through five.
+.Pp
+The second field specifies
+the server host, either as a fully qualified domain name or as a
+dotted-quad IP address.
+The host may optionally be followed by a
+.Ql \&:
+and a numeric port number, without intervening white space.
+If the
+port specification is omitted, it defaults to the
+.Ql radius
+or
+.Ql radacct
+service in the
+.Pa /etc/services
+file for service types
+.Ql auth
+and
+.Ql acct ,
+respectively.
+If no such entry is present, the standard ports 1812 and 1813 are
+used.
+.Pp
+The third field contains the shared secret, which should be known
+only to the client and server hosts.
+It is an arbitrary string of
+characters, though it must be enclosed in double quotes if it
+contains white space.
+The shared secret may be
+any length, but the RADIUS protocol uses only the first 128
+characters.
+N.B., some popular RADIUS servers have bugs which
+prevent them from working properly with secrets longer than 16
+characters.
+.Pp
+The fourth field contains a decimal integer specifying the timeout in
+seconds for receiving a valid reply from the server.
+If this field
+is omitted, it defaults to 3 seconds.
+.Pp
+The fifth field contains a decimal integer specifying the maximum
+number of attempts that will be made to authenticate with the server
+before giving up.
+If omitted, it defaults to 3 attempts.
+Note,
+this is the total number of attempts and not the number of retries.
+.Pp
+The sixth field contains a decimal integer specifying a time interval
+in seconds when the server will not requested if it was inaccessible
+on the last try. 0 means ask always.
+.Pp
+The seventh field contains an IP address on multihomed host. All
+requests will be binded to this IP.
+.Pp
+Up to 10 RADIUS servers may be specified for each service type.
+The servers are tried in
+round-robin fashion, until a valid response is received or the
+maximum number of tries has been reached for all servers.
+.Pp
+The standard location for this file is
+.Pa /etc/radius.conf .
+But an alternate pathname may be specified in the call to
+.Xr rad_config 3 .
+Since the file contains sensitive information in the form of the
+shared secrets, it should not be readable except by root.
+.Sh FILES
+.Bl -tag -width Pa
+.It Pa /etc/radius.conf
+.El
+.Sh EXAMPLES
+.Bd -literal
+# A simple entry using all the defaults:
+acct  radius1.domain.com  OurLittleSecret
+
+# A server still using the obsolete RADIUS port, with increased
+# timeout and maximum tries:
+auth  auth.domain.com:1645  "I can't see you"  5  4
+
+# As above but set dead time and bind address
+auth  auth.domain.com:1645  "I can't see you"  5  4  60  192.168.1.8
+
+# A server specified by its IP address:
+auth  192.168.27.81  $X*#..38947ax-+=
+.Ed
+.Sh SEE ALSO
+.Xr libradius 3
+.Rs
+.%A C. Rigney, et al
+.%T "Remote Authentication Dial In User Service (RADIUS)"
+.%O RFC 2138
+.Re
+.Rs
+.%A C. Rigney
+.%T RADIUS Accounting
+.%O RFC 2139
+.Re
+.Sh AUTHORS
+This documentation was written by
+.An John Polstra ,
+and donated to the
+.Fx
+project by Juniper Networks, Inc.

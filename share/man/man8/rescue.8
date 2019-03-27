@@ -1,0 +1,184 @@
+.\" Copyright (c) 2003 Tim Kientzle <kientzle@acm.org>
+.\" Copyright (c) 2003 Simon L. Nielsen <simon@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 23, 2003
+.Dt RESCUE 8
+.Os
+.Sh NAME
+.Nm rescue
+.Nd rescue utilities in
+.Pa /rescue
+.Sh DESCRIPTION
+The
+.Pa /rescue
+directory contains a collection of common utilities intended for use
+in recovering a badly damaged system.
+With the transition to a dynamically-linked root beginning with
+.Fx 5.2 ,
+there is a real possibility that the standard tools in
+.Pa /bin
+and
+.Pa /sbin
+may become non-functional due to a failed upgrade or a disk error.
+The tools in
+.Pa /rescue
+are statically linked and should therefore be more resistant to
+damage.
+However, being statically linked, the tools in
+.Pa /rescue
+are also less functional than the standard utilities.
+In particular, they do not have full use of the locale,
+.Xr pam 3 ,
+and nsswitch libraries.
+.Pp
+If your system fails to boot, and it shows a prompt similar to:
+.Pp
+.Dl "Enter full pathname of shell or RETURN for /bin/sh: "
+.Pp
+the first thing to try running is the standard shell,
+.Pa /bin/sh .
+If that fails, try running
+.Pa /rescue/sh ,
+which is the
+.Nm
+shell.
+To repair the system, the root partition must first be remounted
+read-write.
+This can be done with the following
+.Xr mount 8
+command:
+.Pp
+.Dl "/rescue/mount -uw /"
+.Pp
+The next step is to double-check the contents of
+.Pa /bin , /sbin ,
+and
+.Pa /usr/lib ,
+possibly mounting a
+.Fx
+rescue or
+.Dq "live file system"
+CD-ROM (e.g.,
+.Li disc2
+of the officially released
+.Fx
+ISO images) and copying files from there.
+Once it is possible to successfully run
+.Pa /bin/sh , /bin/ls ,
+and other standard utilities, try rebooting back into the standard
+system.
+.Pp
+The
+.Pa /rescue
+tools are compiled using
+.Xr crunchgen 1 ,
+which makes them considerably more compact than the standard
+utilities.
+To build a
+.Fx
+system where space is critical,
+.Pa /rescue
+can be used as a replacement for the standard
+.Pa /bin
+and
+.Pa /sbin
+directories; simply change
+.Pa /bin
+and
+.Pa /sbin
+to be symbolic links pointing to
+.Pa /rescue .
+Since
+.Pa /rescue
+is statically linked, it should also be possible to dispense with much
+of
+.Pa /usr/lib
+in such an environment.
+.Pp
+In contrast to its predecessor
+.Pa /stand ,
+.Pa /rescue
+is updated during normal
+.Fx
+source and binary upgrades.
+.Sh FILES
+.Bl -tag -width ".Pa /rescue" -compact
+.It Pa /rescue
+Root of the
+.Nm
+hierarchy.
+.El
+.Sh SEE ALSO
+.Xr crunchgen 1 ,
+.Xr crash 8
+.Sh HISTORY
+The
+.Nm
+utilities first appeared in
+.Fx 5.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+system was written by
+.An Tim Kientzle Aq Mt kientzle@FreeBSD.org ,
+based on ideas taken from
+.Nx .
+This manual page was written by
+.An Simon L. Nielsen Aq Mt simon@FreeBSD.org ,
+based on text by
+.An Tim Kientzle Aq Mt kientzle@FreeBSD.org .
+.Sh BUGS
+Most of the
+.Nm
+tools work even in a fairly crippled system.
+The most egregious exception is the
+.Nm
+version of
+.Xr vi 1 ,
+which currently requires that
+.Pa /usr
+be mounted so that it can access the
+.Xr termcap 5
+files.
+Hopefully, a failsafe
+.Xr termcap 3
+entry will eventually be added into the
+.Xr ncurses 3
+library, so that
+.Pa /rescue/vi
+can be used even in a system where
+.Pa /usr
+cannot immediately be mounted.
+In the meantime, the
+.Nm
+version of the
+.Xr ed 1
+editor can be used from
+.Pa /rescue/ed
+if you need to edit files, but cannot mount
+.Pa /usr .

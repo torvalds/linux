@@ -1,0 +1,104 @@
+# Makefile.mips
+# $FreeBSD$
+#
+# Makefile for FreeBSD
+#
+# This makefile is constructed from a machine description:
+#	config machineid
+# Most changes should be made in the machine description
+#	/sys/mips/conf/``machineid''
+# after which you should do
+#	 config machineid
+# Generic makefile changes should be made in
+#	/sys/conf/Makefile.mips
+# after which config should be rerun for all machines.
+#
+
+# Which version of config(8) is required.
+%VERSREQ=	600012
+
+STD8X16FONT?=	iso
+
+.if !defined(S)
+.if exists(./@/.)
+S=	./@
+.else
+S=	../../..
+.endif
+.endif
+.include "$S/conf/kern.pre.mk"
+
+INCLUDES+= -I$S/contrib/libfdt
+
+LDSCRIPT_NAME?=ldscript.$M
+SYSTEM_LD:= ${SYSTEM_LD:$S/conf/${LDSCRIPT_NAME}=${LDSCRIPT_NAME}}
+SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/${LDSCRIPT_NAME}=${LDSCRIPT_NAME}}
+
+KERNLOADADDR?=0x80001000
+# This obscure value is defined by CFE for WR160N
+# To be changed later
+TRAMPLOADADDR?=0x807963c0
+
+# We default to the MIPS32 ISA, if none specified in the
+# kernel configuration file.
+ARCH_FLAGS?=-march=mips32
+EXTRA_FLAGS=-fno-pic -mno-abicalls -G0 -DKERNLOADADDR=${KERNLOADADDR}
+
+HACK_EXTRA_FLAGS=-shared
+
+# We add the -fno-pic flag to kernels because otherwise performance
+# is extremely poor, as well as -mno-abicalls to force no ABI usage.
+CFLAGS+=${EXTRA_FLAGS} $(ARCH_FLAGS)
+HACK_EXTRA_FLAGS+=${EXTRA_FLAGS} $(ARCH_FLAGS)
+TRAMP_ARCH_FLAGS?=$(ARCH_FLAGS)
+TRAMP_EXTRA_FLAGS=${EXTRA_FLAGS} ${TRAMP_ARCH_FLAGS}
+# Kernel code is always compiled with soft-float on MIPS
+TRAMP_EXTRA_FLAGS+=-msoft-float
+.if ${MACHINE_ARCH:Mmips64*} != ""
+TRAMP_ELFSIZE=64
+.else
+TRAMP_ELFSIZE=32
+.endif
+
+ASM_CFLAGS+=${CFLAGS} -D_LOCORE -DLOCORE
+
+.if !defined(WITHOUT_KERNEL_TRAMPOLINE)
+KERNEL_EXTRA=trampoline
+KERNEL_EXTRA_INSTALL=${KERNEL_KO}.tramp.bin
+trampoline: ${KERNEL_KO}.tramp.bin
+${KERNEL_KO}.tramp.bin: ${KERNEL_KO} $S/$M/$M/elf_trampoline.c \
+	$S/$M/$M/inckern.S 
+	${OBJCOPY} --strip-symbol '$$d' --strip-symbol '$$a' \
+		-g --strip-symbol '$$t' ${FULLKERNEL} ${KERNEL_KO}.tmp
+	sed -e s/${KERNLOADADDR}/${TRAMPLOADADDR}/ -e s/" + SIZEOF_HEADERS"// \
+		 ${LDSCRIPT_NAME} > ${LDSCRIPT_NAME}.tramp.noheader
+	${CC} -O -nostdlib -I. -I$S ${TRAMP_EXTRA_FLAGS} ${TRAMP_LDFLAGS} -Xlinker \
+		-T -Xlinker ${LDSCRIPT_NAME}.tramp.noheader \
+		-DKERNNAME="\"${KERNEL_KO}.tmp\"" -DELFSIZE=${TRAMP_ELFSIZE} \
+		$S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c \
+		-o ${KERNEL_KO}.tramp.elf
+	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.elf \
+		${KERNEL_KO}.tramp.bin
+.endif
+
+%BEFORE_DEPEND
+
+%OBJS
+
+%FILES.c
+
+%FILES.s
+
+%FILES.m
+
+%CLEAN
+
+CLEAN+=	${LDSCRIPT_NAME} ${LDSCRIPT_NAME}.tramp.noheader \
+	${KERNEL_KO}.tramp.elf ${KERNEL_KO}.tramp.bin
+
+${LDSCRIPT_NAME}: $S/conf/${LDSCRIPT_NAME}
+	sed s/KERNLOADADDR/${KERNLOADADDR}/g $S/conf/${LDSCRIPT_NAME} \
+		> ${LDSCRIPT_NAME}
+%RULES
+
+.include "$S/conf/kern.post.mk"

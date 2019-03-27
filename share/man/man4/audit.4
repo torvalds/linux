@@ -1,0 +1,148 @@
+.\" Copyright (c) 2006 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 31, 2009
+.Dt AUDIT 4
+.Os
+.Sh NAME
+.Nm audit
+.Nd Security Event Audit
+.Sh SYNOPSIS
+.Cd "options AUDIT"
+.Sh DESCRIPTION
+Security Event Audit is a facility to provide fine-grained, configurable
+logging of security-relevant events, and is intended to meet the requirements
+of the Common Criteria (CC) Common Access Protection Profile (CAPP)
+evaluation.
+The
+.Fx
+.Nm
+facility implements the de facto industry standard BSM API, file
+formats, and command line interface, first found in the Solaris operating
+system.
+Information on the user space implementation can be found in
+.Xr libbsm 3 .
+.Pp
+Audit support is enabled at boot, if present in the kernel, using an
+.Xr rc.conf 5
+flag.
+The audit daemon,
+.Xr auditd 8 ,
+is responsible for configuring the kernel to perform
+.Nm ,
+pushing
+configuration data from the various audit configuration files into the
+kernel.
+.Ss Audit Special Device
+The kernel
+.Nm
+facility provides a special device,
+.Pa /dev/audit ,
+which is used by
+.Xr auditd 8
+to monitor for
+.Nm
+events, such as requests to cycle the log, low disk
+space conditions, and requests to terminate auditing.
+This device is not intended for use by applications.
+.Ss Audit Pipe Special Devices
+Audit pipe special devices, discussed in
+.Xr auditpipe 4 ,
+provide a configurable live tracking mechanism to allow applications to
+tee the audit trail, as well as to configure custom preselection parameters
+to track users and events in a fine-grained manner.
+.Sh SEE ALSO
+.Xr auditreduce 1 ,
+.Xr praudit 1 ,
+.Xr audit 2 ,
+.Xr auditctl 2 ,
+.Xr auditon 2 ,
+.Xr getaudit 2 ,
+.Xr getauid 2 ,
+.Xr poll 2 ,
+.Xr select 2 ,
+.Xr setaudit 2 ,
+.Xr setauid 2 ,
+.Xr libbsm 3 ,
+.Xr auditpipe 4 ,
+.Xr audit.log 5 ,
+.Xr audit_class 5 ,
+.Xr audit_control 5 ,
+.Xr audit_event 5 ,
+.Xr audit_user 5 ,
+.Xr audit_warn 5 ,
+.Xr rc.conf 5 ,
+.Xr audit 8 ,
+.Xr auditd 8 ,
+.Xr auditdistd 8
+.Sh HISTORY
+The
+.Tn OpenBSM
+implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
+.Pp
+Support for kernel
+.Nm
+first appeared in
+.Fx 6.2 .
+.Sh AUTHORS
+.An -nosplit
+This software was created by McAfee Research, the security research division
+of McAfee, Inc., under contract to Apple Computer Inc.
+Additional authors include
+.An Wayne Salamon ,
+.An Robert Watson ,
+and SPARTA Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.
+.Pp
+This manual page was written by
+.An Robert Watson Aq Mt rwatson@FreeBSD.org .
+.Sh BUGS
+The
+.Fx
+kernel does not fully validate that audit records submitted by user
+applications are syntactically valid BSM; as submission of records is limited
+to privileged processes, this is not a critical bug.
+.Pp
+Instrumentation of auditable events in the kernel is not complete, as some
+system calls do not generate audit records, or generate audit records with
+incomplete argument information.
+.Pp
+Mandatory Access Control (MAC) labels, as provided by the
+.Xr mac 4
+facility, are not audited as part of records involving MAC decisions.
+.Pp
+Currently the
+.Nm
+syscalls are not supported for jailed processes.
+However, if a process has
+.Nm
+session state associated with it, audit records will still be produced and a zonename token
+containing the jail's ID or name will be present in the audit records.

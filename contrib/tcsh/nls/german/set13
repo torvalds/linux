@@ -1,0 +1,13 @@
+$ $tcsh: set13,v 1.4 2011/02/04 18:19:36 christos Exp $
+$ sh.exec.c
+$set 13
+1 hash=%-4d dir=%-2d prog=%s\n
+2 %d Hash-Buckets mit jeweils %d Bits\n
+3 debug mask = 0x%08x\n
+4 %d Treffer, %d Fehler, %d%%\n
+5 %S: Befehl in Shell eingebaut.\n
+6 %S: Befehl nicht gefunden.\n
+7 where: / in Befehl ist nicht sinnvoll\n
+8 %S ist ein Alias für 
+9 %S ist ein eingebauter Shell-Befehl\n
+10 Hash-Fehler: 

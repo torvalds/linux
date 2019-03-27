@@ -1,0 +1,93 @@
+.\"
+.\" Copyright (c) 2003 Joseph Koshy <jkoshy@FreeBSD.org>
+.\" Copyright (c) 2006 Ceri Davies <ceri@FreeBSD.org>
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 19, 2006
+.Dt P_CANSEE 9
+.Os
+.Sh NAME
+.Nm p_cansee
+.Nd determine visibility of a process
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/proc.h
+.Ft int
+.Fn p_cansee "struct thread *td" "struct proc *p"
+.Sh DESCRIPTION
+This function can be used to determine if a given process
+.Fa p
+is visible to the thread
+.Fa td ,
+where the notion of
+.Dq visibility
+may be read as
+.Dq "awareness of existence" .
+.Pp
+The function is implemented using
+.Xr cr_cansee 9 ,
+and the dependencies on
+.Xr sysctl 8
+variables documented in the
+.Xr cr_cansee 9
+manual page apply.
+.Sh RETURN VALUES
+The
+.Fn p_cansee
+function
+returns
+.Li 0
+if the process denoted by
+.Fa p
+is visible by thread
+.Fa td ,
+or a non-zero error return value otherwise.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ESRCH
+Process
+.Fa p
+is not visible to thread
+.Fa td
+as determined by
+.Xr cr_cansee 9 .
+.It Bq Er ESRCH
+Thread
+.Fa td
+has been jailed and process
+.Fa p
+does not belong to the same jail as
+.Fa td .
+.It Bq Er ESRCH
+The MAC subsystem denied visibility.
+.El
+.Sh SEE ALSO
+.Xr jail 2 ,
+.Xr sysctl 8 ,
+.Xr cr_cansee 9 ,
+.Xr mac 9 ,
+.Xr p_candebug 9 ,
+.Xr prison_check 9

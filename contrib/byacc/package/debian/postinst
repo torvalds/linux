@@ -1,0 +1,15 @@
+#! /bin/sh
+# postinst script for byacc
+
+set -e
+
+if [ $1 != "upgrade" ] ; then
+	update-alternatives \
+		--install /usr/bin/yacc yacc /usr/bin/byacc 80 \
+		--slave /usr/share/man/man1/yacc.1.gz yaccman \
+			/usr/share/man/man1/byacc.1.gz
+fi
+
+#DEBHELPER#
+
+exit 0

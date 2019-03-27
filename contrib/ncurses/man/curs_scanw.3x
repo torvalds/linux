@@ -1,0 +1,95 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_scanw.3x,v 1.17 2010/12/04 18:40:45 tom Exp $
+.TH curs_scanw 3X ""
+.SH NAME
+\fBscanw\fR,
+\fBwscanw\fR,
+\fBmvscanw\fR,
+\fBmvwscanw\fR,
+\fBvwscanw\fR, \fBvw_scanw\fR \- convert formatted input from a \fBcurses\fR window
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBint scanw(char *fmt, ...);\fR
+.br
+\fBint wscanw(WINDOW *win, char *fmt, ...);\fR
+.br
+\fBint mvscanw(int y, int x, char *fmt, ...);\fR
+.br
+\fBint mvwscanw(WINDOW *win, int y, int x, char *fmt, ...);\fR
+.br
+\fBint vw_scanw(WINDOW *win, char *fmt, va_list varglist);\fR
+.br
+\fBint vwscanw(WINDOW *win, char *fmt, va_list varglist);\fR
+.SH DESCRIPTION
+The \fBscanw\fR, \fBwscanw\fR and \fBmvscanw\fR routines are analogous to
+\fBscanf\fR [see \fBscanf\fR(3)].  The effect of these routines is as though
+\fBwgetstr\fR were called on the window, and the resulting line used as input
+for \fBsscanf\fR(3).  Fields which do not map to a variable in the \fIfmt\fR
+field are lost.
+.PP
+The \fBvwscanw\fR and \fBvw_scanw\fR routines are analogous to \fBvscanf\fR.
+They perform a \fBwscanw\fR using a variable argument list.
+The third argument is a \fIva_list\fR,
+a pointer to a list of arguments, as defined in \fB<stdarg.h>\fR.
+.SH RETURN VALUE
+\fBvwscanw\fR returns \fBERR\fR on failure and an integer equal to the
+number of fields scanned on success.
+.PP
+Applications may use the return value from the \fBscanw\fR, \fBwscanw\fR,
+\fBmvscanw\fR and \fBmvwscanw\fR routines to determine the number of fields
+which were mapped in the call.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH PORTABILITY
+The XSI Curses standard, Issue 4 describes these functions.  The function
+\fBvwscanw\fR is marked TO BE WITHDRAWN, and is to be replaced by a function
+\fBvw_scanw\fR using the \fB<stdarg.h>\fR interface.
+The Single Unix Specification, Version 2 states that
+\fBvw_scanw\fR  is preferred to \fBvwscanw\fR since the latter requires
+including \fB<varargs.h>\fR, which
+cannot be used in the same file as \fB<stdarg.h>\fR.
+This implementation uses \fB<stdarg.h>\fR for both, because that header
+is included in \fB<curses.h\fR>.
+.LP
+Both XSI and The Single Unix Specification, Version 2 state that these
+functions return ERR or OK.
+Since the underlying \fBscanf\fR can return the number of items scanned,
+and the SVr4 code was documented to use this feature,
+this is probably an editing error which was introduced in XSI,
+rather than being done intentionally.
+Portable applications should only test if the return value is ERR,
+since the OK value (zero) is likely to be misleading.
+One possible way to get useful results would be to use a "%n" conversion
+at the end of the format string to ensure that something was processed.
+.SH SEE ALSO
+\fBcurses\fR(3X), \fBcurs_getstr\fR(3X), \fBcurs_printw\fR(3X), \fBscanf\fR(3)

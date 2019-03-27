@@ -1,0 +1,128 @@
+.\" Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: hcsecd.8,v 1.8 2003/09/08 18:54:20 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd November 16, 2002
+.Dt HCSECD 8
+.Os
+.Sh NAME
+.Nm hcsecd
+.Nd control link keys and PIN codes for Bluetooth devices
+.Sh SYNOPSIS
+.Nm
+.Op Fl dh
+.Fl f Ar configfile
+.Sh DESCRIPTION
+The
+.Nm
+daemon controls link keys and PIN codes for Bluetooth devices.
+It opens a raw HCI socket and listens for
+.Dv Link_Key_Request ,
+.Dv PIN_Code_Request
+and
+.Dv Link_Key_Notification
+HCI events.
+.Pp
+Once a
+.Dv Link_Key_Request
+or
+.Dv PIN_Code_Request
+HCI event is received, the daemon scans the configuration file for a
+matching entry.
+The remote device BD_ADDR is used as a key.
+If no matching entry was found, the default entry will be used.
+If no default entry was found then it is assumed that no link key and no
+PIN code exists.
+For any given entry, the link key takes precedence over the PIN code.
+If a link key was not specified, the device must generate the link key from
+the PIN code.
+If an entry was found and the link key (or PIN code) exists, the
+.Dv Link_Key_Request_Reply
+(or
+.Dv PIN_Code_Request_Reply )
+command will be sent back to the device.
+Otherwise, the
+.Dv Link_Key_Request_Negative_Reply
+(or
+.Dv PIN_Code_Request_Negative_Reply )
+command will be sent back to the device.
+.Pp
+The
+.Nm
+daemon also handles HCI
+.Dv Link_Key_Notification
+events and caches link keys created from the PIN codes in memory.
+To preserve link keys between restarts the
+.Nm
+daemon dumps link keys for all entries in the
+.Pa /var/db/hcsecd.keys
+link keys file.
+If it exists, the link keys file gets processed by the
+.Nm
+daemon after it processes its main configuration file.
+The link keys file gets written every time the
+.Nm
+daemon shuts down gracefully.
+It is possible to force the
+.Nm
+daemon to re-read its main configuration file and dump the link keys file by
+sending the
+.Dv HUP
+signal to the
+.Nm
+process.
+The user is expected to not modify the link keys file by hand.
+.Pp
+The command line options are as follows:
+.Bl -tag -width indent
+.It Fl d
+Do not detach from the controlling terminal.
+.It Fl f Ar configfile
+Specify the name of the configuration file.
+The default is
+.Pa /etc/bluetooth/hcsecd.conf .
+.It Fl h
+Display usage message and exit.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/bluetooth/hcsecd.conf" -compact
+.It Pa /etc/bluetooth/hcsecd.conf
+.It Pa /var/db/hcsecd.keys
+.It Pa /var/run/hcsecd.pid
+.El
+.Sh SEE ALSO
+.Xr ng_btsocket 4 ,
+.Xr ng_hci 4 ,
+.Xr hcsecd.conf 5 ,
+.Xr hccontrol 8 ,
+.Xr hcseriald 8
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
+.Sh BUGS
+Currently there is no way to select the link key or the PIN code based on
+which local device received the request.
+Everything is based on the remote device BD_ADDR.
+An interface for external helpers to obtain link keys and PIN codes is missing.

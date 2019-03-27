@@ -1,0 +1,68 @@
+WHAT IS TNFTP?
+--------------
+
+`tnftp' is a `port' of the NetBSD FTP client to other systems.
+See http://www.NetBSD.org/ for more details about NetBSD.
+
+tnftp was formerly known as `lukemftp'
+It was renamed to `tnftp' by Luke Mewburn in February 2003.
+
+The enhancements over the standard ftp client in 4.4BSD (and
+derivatives) include:
+	* command-line editing within ftp
+	* command-line fetching of URLS, including support for:
+	    - http proxies (see $http_proxy, $ftp_proxy)
+	    - authentication
+	* configurable prompt
+	* context sensitive command and filename completion
+	* dynamic progress bar
+	* feature negotiation extensions from RFC 2389
+	  (see `feat' and `remopts')
+	* extensions to ftp from the IETF ftpext working group
+	  (see `mlsd' and `mlst')
+	* IPv6 support (from the WIDE project)
+	* modification time preservation
+	* paging of local and remote files, and of directory listings
+	  (see `lpage', `page', `pdir')
+	* passive mode support, with fallback to active mode
+	* retrieval of filenames listed in a given file (see `fget')
+	* `set option' override of ftp environment variables
+	* TIS Firewall Toolkit gate ftp proxy support (see `gate')
+	* transfer-rate throttling (see `-T', `rate')
+	* uploading of files on the command line (see `-u')
+	* (Dante) SOCKS5 support
+
+Previous features, currently disabled until a test system is available:
+	* SOCKS4 support
+
+
+INSTALLATION
+------------
+
+Refer to `INSTALL' for more information on how to compile and install tnftp.
+
+
+FEEDBACK / BUG REPORTS
+----------------------
+
+Please email feedback back to the maintainer:
+	Luke Mewburn <lukem@NetBSD.org>.
+
+
+COPYRIGHT
+---------
+
+tnftp is covered by a BSD-style copyright notice.
+Please refer to the file `COPYING' for more information.
+
+
+AVAILABILITY
+------------
+
+The primary ftp site for tnftp is:
+	ftp://ftp.NetBSD.org/pub/NetBSD/misc/tnftp/
+
+
+DOCUMENT REFERENCE
+------------------
+$NetBSD: README,v 1.10 2007/08/06 01:58:57 lukem Exp $

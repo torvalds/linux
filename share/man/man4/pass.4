@@ -1,0 +1,242 @@
+.\"
+.\" Copyright (c) 1998, 1999 Kenneth D. Merry.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 3, 2017
+.Dt PASS 4
+.Os
+.Sh NAME
+.Nm pass
+.Nd CAM application passthrough driver
+.Sh SYNOPSIS
+.Cd device pass
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a way for userland applications to issue CAM CCBs to the
+kernel.
+.Pp
+Since the
+.Nm
+driver allows direct access to the CAM subsystem, system administrators
+should exercise caution when granting access to this driver.
+If used
+improperly, this driver can allow userland applications to crash a machine
+or cause data loss.
+.Pp
+The
+.Nm
+driver attaches to every
+.Tn SCSI
+and
+.Tn ATA
+device found in the system.
+Since it attaches to every device, it provides a generic means of accessing
+.Tn SCSI
+and
+.Tn ATA
+devices, and allows the user to access devices which have no
+"standard" peripheral driver associated with them.
+.Sh KERNEL CONFIGURATION
+It is only necessary to configure one
+.Nm
+device in the kernel;
+.Nm
+devices are automatically allocated as
+.Tn SCSI
+and
+.Tn ATA
+devices are found.
+.Sh IOCTLS
+.Bl -tag -width 5n
+.It CAMIOCOMMAND union ccb *
+This ioctl takes most kinds of CAM CCBs and passes them through to the CAM
+transport layer for action.
+Note that some CCB types are not allowed
+through the passthrough device, and must be sent through the
+.Xr xpt 4
+device instead.
+Some examples of xpt-only CCBs are XPT_SCAN_BUS,
+XPT_DEV_MATCH, XPT_RESET_BUS, XPT_SCAN_LUN, XPT_ENG_INQ, and XPT_ENG_EXEC.
+These CCB types have various attributes that make it illogical or
+impossible to service them through the passthrough interface.
+.Pp
+If the user would like the kernel to do error recovery, the
+.Dv CAM_PASS_ERR_RECOVER
+flag must be set on the CCB, and the retry_count field set to the number
+of retries.
+.It CAMGETPASSTHRU union ccb *
+This ioctl takes an XPT_GDEVLIST CCB, and returns the passthrough device
+corresponding to the device in question.
+Although this ioctl is available through the
+.Nm
+driver, it is of limited use, since the caller must already know that
+the device in question is a passthrough device if they are issuing this
+ioctl.
+It is probably more useful to issue this ioctl through the
+.Xr xpt 4
+device.
+.It CAMIOQUEUE union ccb *
+Queue a CCB to the
+.Nm
+driver to be executed asynchronously.
+The caller may use
+.Xr select 2 ,
+.Xr poll 2
+or
+.Xr kevent 2
+to receive notification when the CCB has completed.
+.Pp
+This ioctl takes most CAM CCBs, but some CCB types are not allowed through
+the pass device, and must be sent through the
+.Xr xpt 4
+device instead.
+Some examples of xpt-only CCBs are XPT_SCAN_BUS,
+XPT_DEV_MATCH, XPT_RESET_BUS, XPT_SCAN_LUN, XPT_ENG_INQ, and XPT_ENG_EXEC.
+These CCB types have various attributes that make it illogical or
+impossible to service them through the passthrough interface.
+.Pp
+Although the
+.Dv CAMIOQUEUE
+ioctl is not defined to take an argument, it does require a
+pointer to a union ccb.
+It is not defined to take an argument to avoid an extra malloc and copy
+inside the generic
+.Xr ioctl 2
+handler.
+.Pp
+The completed CCB will be returned via the
+.Dv CAMIOGET
+ioctl.
+An error will only be returned from the
+.Dv CAMIOQUEUE
+ioctl if there is an error allocating memory for the request or copying
+memory from userland.
+All other errors will be reported as standard CAM CCB status errors.
+Since the CCB is not copied back to the user process from the pass driver
+in the
+.Dv CAMIOQUEUE
+ioctl, the user's passed-in CCB will not be modfied.
+This is the case even with immediate CCBs.
+Instead, the completed CCB must be retrieved via the
+.Dv CAMIOGET
+ioctl and the status examined.
+.Pp
+Multiple CCBs may be queued via the
+.Dv CAMIOQUEUE
+ioctl at any given time, and they may complete in a different order than
+the order that they were submitted.
+The caller must take steps to identify CCBs that are queued and completed.
+The
+.Dv periph_priv
+structure inside struct ccb_hdr is available for userland use with the
+.Dv CAMIOQUEUE
+and
+.Dv CAMIOGET
+ioctls, and will be preserved across calls.
+Also, the periph_links linked list pointers inside struct ccb_hdr are
+available for userland use with the
+.Dv CAMIOQUEUE
+and
+.Dv CAMIOGET
+ioctls and will be preserved across calls.
+.Pp
+If the user would like the kernel to do error recovery, the
+.Dv CAM_PASS_ERR_RECOVER
+flag must be set on the CCB, and the retry_count field set to the number
+of retries.
+.It CAMIOGET union ccb *
+Retrieve completed CAM CCBs queued via the
+.Dv CAMIOQUEUE
+ioctl.
+An error will only be returned from the
+.Dv CAMIOGET
+ioctl if the
+.Nm
+driver fails to copy data to the user process or if there are no completed
+CCBs available to retrieve.
+If no CCBs are available to retrieve,
+errno will be set to
+.Dv ENOENT .
+.Pp
+All other errors will be reported as standard CAM CCB status errors.
+.Pp
+Although the
+.Dv CAMIOGET
+ioctl is not defined to take an argument, it does require a
+pointer to a union ccb.
+It is not defined to take an argument to avoid an extra malloc and copy
+inside the generic
+.Xr ioctl 2
+handler.
+.Pp
+The pass driver will report via
+.Xr select 2 ,
+.Xr poll 2
+or
+.Xr kevent 2
+when a CCB has completed.
+One CCB may be retrieved per
+.Dv CAMIOGET
+call.
+CCBs may be returned in an order different than the order they were
+submitted.
+So the caller should use the
+.Dv periph_priv
+area inside the CCB header to store pointers to identifying information.
+.El
+.Sh FILES
+.Bl -tag -width /dev/passn -compact
+.It Pa /dev/pass Ns Ar n
+Character device nodes for the
+.Nm
+driver.
+There should be one of these for each device accessed through the
+CAM subsystem.
+.El
+.Sh DIAGNOSTICS
+None.
+.Sh SEE ALSO
+.Xr kqueue 2 ,
+.Xr poll 2 ,
+.Xr select 2 ,
+.Xr cam 3 ,
+.Xr cam_cdbparse 3 ,
+.Xr cam 4 ,
+.Xr cd 4 ,
+.Xr ctl 4 ,
+.Xr da 4 ,
+.Xr sa 4 ,
+.Xr xpt 4 ,
+.Xr camcontrol 8 ,
+.Xr camdd 8
+.Sh HISTORY
+The CAM passthrough driver first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An Kenneth Merry Aq Mt ken@FreeBSD.org

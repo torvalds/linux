@@ -1,0 +1,148 @@
+.\"     $OpenBSD: txp.4,v 1.8 2001/06/26 02:09:11 pjanzen Exp $
+.\"
+.\" Copyright (c) 2001 Jason L. Wright (jason@thought.net)
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 24, 2018
+.Dt TXP 4
+.Os
+.Sh NAME
+.Nm txp
+.Nd "3Com 3XP Typhoon/Sidewinder (3CR990) Ethernet interface"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device txp"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_txp_load="YES"
+.Ed
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 13.0
+and later.
+See https://github.com/freebsd/fcp/blob/master/fcp-0101.md for more
+information.
+.Sh DESCRIPTION
+The
+.Nm
+interface provides access to the 10Mb/s and 100Mb/s Ethernet networks via the
+.Tn 3Com
+.Tn Typhoon/Sidewinder
+chipset.
+.Pp
+Basic Ethernet functions are provided as well as support for
+.Xr vlan 4
+tag removal and insertion assistance, receive
+.Xr ip 4 ,
+.Xr tcp 4 ,
+and
+.Xr udp 4
+checksum offloading,
+and
+transmit
+.Xr ip 4
+checksum offloading.
+There is currently no support for
+transmit
+.Xr tcp 4
+or
+.Xr udp 4
+checksum offloading,
+.Xr tcp 4
+segmentation, nor
+.Xr ipsec 4
+acceleration.
+.Pp
+When a
+.Nm
+interface is brought up, by default, it will attempt to auto-negotiate the
+link speed and duplex mode.
+The speeds, in order of attempt, are:
+100Mb/s Full Duplex, 100Mb/s Half Duplex, 10 Mb/s Full Duplex, and
+10 Mb/s Half Duplex.
+.Pp
+The
+.Nm
+supports several media types, which are selected via the
+.Xr ifconfig 8
+command.
+The supported media types are:
+.Bl -tag -width indent
+.It Cm media autoselect
+Attempt to autoselect the media type (default)
+.It Cm media 100baseTX mediaopt full-duplex
+Use 100baseTX, full duplex
+.It Cm media 100baseTX Op Cm mediaopt half-duplex
+Use 100baseTX, half duplex
+.It Cm media 10baseT mediaopt full-duplex
+Use 10baseT, full duplex
+.It Cm media 10baseT Op Cm mediaopt half-duplex
+Use 10baseT, half duplex
+.El
+.Sh HARDWARE
+The
+.Nm
+driver supports the following cards:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+3Com 3CR990-TX-95
+.It
+3Com 3CR990-TX-97
+.It
+3Com 3cR990B-TXM
+.It
+3Com 3CR990SVR95
+.It
+3Com 3CR990SVR97
+.It
+3Com 3cR990B-SRV
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr inet 4 ,
+.Xr intro 4 ,
+.Xr ip 4 ,
+.Xr miibus 4 ,
+.Xr tcp 4 ,
+.Xr udp 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 2.9 .

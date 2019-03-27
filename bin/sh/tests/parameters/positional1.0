@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+set -- a b c d e f g h i j
+[ "$1" = a ] || echo "error at line $LINENO"
+[ "${1}" = a ] || echo "error at line $LINENO"
+[ "${1-foo}" = a ] || echo "error at line $LINENO"
+[ "${1+foo}" = foo ] || echo "error at line $LINENO"
+[ "$1+foo" = a+foo ] || echo "error at line $LINENO"
+[ "$10" = a0 ] || echo "error at line $LINENO"
+[ "$100" = a00 ] || echo "error at line $LINENO"
+[ "${10}" = j ] || echo "error at line $LINENO"
+[ "${10-foo}" = j ] || echo "error at line $LINENO"
+[ "${100-foo}" = foo ] || echo "error at line $LINENO"

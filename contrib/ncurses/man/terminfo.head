@@ -1,0 +1,114 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: terminfo.head,v 1.21 2013/03/09 22:11:36 tom Exp $
+.TH terminfo 5 "" "" "File Formats"
+.ds n 5
+.ds d @TERMINFO@
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.IP \(bu 4
+..
+.SH NAME
+terminfo \- terminal capability data base
+.SH SYNOPSIS
+\*d/*/*
+.SH DESCRIPTION
+.I Terminfo
+is a data base describing terminals, used by screen-oriented programs such as
+\fBnvi\fR(1),
+\fBrogue\fR(1)
+and libraries such as
+\fBcurses\fR(3X).
+.I Terminfo
+describes terminals by giving a set of capabilities which they
+have, by specifying how to perform screen operations, and by
+specifying padding requirements and initialization sequences.
+This describes \fBncurses\fR
+version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).
+.PP
+Entries in
+.I terminfo
+consist of a sequence of `,' separated fields (embedded commas may be
+escaped with a backslash or notated as \\054).
+White space after the `,' separator is ignored.
+The first entry for each terminal gives the names which are known for the
+terminal, separated by `|' characters.
+The first name given is the most common abbreviation for the terminal,
+the last name given should be a long name fully identifying the terminal,
+and all others are understood as synonyms for the terminal name.
+All names but the last should be in lower case and contain no blanks;
+the last name may well contain upper case and blanks for readability.
+.PP
+Lines beginning with a `#' in the first column are treated as comments.
+While comment lines are legal at any point, the output of \fB@CAPTOINFO@\fP
+and \fB@INFOTOCAP@\fP (aliases for \fB@TIC@\fP)
+will move comments so they occur only between entries.
+.PP
+Newlines and leading tabs may be used for formatting entries for readability.
+These are removed from parsed entries.
+The \fB@INFOCMP@\ \-f\fP option relies on this to format if-then-else expressions:
+the result can be read by \fB@TIC@\fP.
+.PP
+Terminal names (except for the last, verbose entry) should
+be chosen using the following conventions.
+The particular piece of hardware making up the terminal should
+have a root name, thus \*(``hp2621\*(''.
+This name should not contain hyphens.
+Modes that the hardware can be in, or user preferences, should
+be indicated by appending a hyphen and a mode suffix.
+Thus, a vt100 in 132 column mode would be vt100\-w.
+The following suffixes should be used where possible:
+.PP
+.TS
+center ;
+l c l
+l l l.
+\fBSuffix	Meaning	Example\fP
+\-\fInn\fP	Number of lines on the screen	aaa\-60
+\-\fIn\fPp	Number of pages of memory	c100\-4p
+\-am	With automargins (usually the default)	vt100\-am
+\-m	Mono mode; suppress color       	ansi\-m
+\-mc	Magic cookie; spaces when highlighting	wy30\-mc
+\-na	No arrow keys (leave them in local)	c100\-na
+\-nam	Without automatic margins       	vt100\-nam
+\-nl	No status line                  	att4415\-nl
+\-ns	No status line                  	hp2626\-ns
+\-rv	Reverse video                   	c100\-rv
+\-s	Enable status line              	vt100\-s
+\-vb	Use visible bell instead of beep	wy370\-vb
+\-w	Wide mode (> 80 columns, usually 132)	vt100\-w
+.TE
+.PP
+For more on terminal naming conventions, see the \fBterm(7)\fR manual page.
+.SS Predefined Capabilities
+.\" Head of terminfo man page ends here
+.ps -1

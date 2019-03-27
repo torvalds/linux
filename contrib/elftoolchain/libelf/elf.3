@@ -1,0 +1,616 @@
+.\" Copyright (c) 2006-2008,2011 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elf.3 3643 2018-10-14 21:09:24Z jkoshy $
+.\"
+.Dd October 10, 2018
+.Dt ELF 3
+.Os
+.Sh NAME
+.Nm elf
+.Nd API for manipulating ELF objects
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Sh DESCRIPTION
+The
+.Lb libelf
+provides functions that allow an application to read and manipulate
+ELF object files, and to read
+.Xr ar 1
+archives.
+The library allows the manipulation of ELF objects in a byte ordering
+and word-size independent way, allowing an application to read and
+create ELF objects for 32 and 64 bit architectures and for little-
+and big-endian machines.
+The library is capable of processing ELF objects that use extended
+section numbering.
+.Pp
+This manual page serves to provide an overview of the functionality in
+the ELF library.
+Further information may found in the manual pages for individual
+.Xr ELF 3
+functions that comprise the library.
+.Ss ELF Concepts
+As described in
+.Xr elf 5 ,
+ELF files contain several data structures that are laid out in a
+specific way.
+ELF files begin with an
+.Dq Executable Header ,
+and may contain an optional
+.Dq Program Header Table ,
+and optional data in the form of ELF
+.Dq sections .
+A
+.Dq Section Header Table
+describes the content of the data in these sections.
+.Pp
+ELF objects have an associated
+.Dq "ELF class"
+which denotes the natural machine word size for the architecture
+the object is associated with.
+Objects for 32 bit architectures have an ELF class of
+.Dv ELFCLASS32 .
+Objects for 64 bit architectures have an ELF class of
+.Dv ELFCLASS64 .
+.Pp
+ELF objects also have an associated
+.Dq endianness
+which denotes the endianness of the machine architecture associated
+with the object.
+This may be
+.Dv ELFDATA2LSB
+for little-endian architectures and
+.Dv ELFDATA2MSB
+for big-endian architectures.
+.Pp
+ELF objects are also associated with an API version number.
+This version number determines the layout of the individual components
+of an ELF file and the semantics associated with these.
+.Ss Data Representation And Translation
+The
+.Xr ELF 3
+library distinguishes between
+.Dq native
+representations of ELF data structures and their
+.Dq file
+representations.
+.Pp
+An application would work with ELF data in its
+.Dq native
+representation, i.e., using the native byteorder and alignment mandated
+by the processor the application is running on.
+The
+.Dq file
+representation of the same data could use a different byte ordering
+and follow different constraints on object alignment than these native
+constraints.
+.Pp
+Accordingly, the
+.Xr ELF 3
+library offers translation facilities
+.Xr ( elf32_xlatetof 3 ,
+.Xr elf32_xlatetom 3 ,
+.Xr elf64_xlatetof 3
+and
+.Xr elf64_xlatetom 3 )
+to and from these representations.
+It also provides higher-level APIs
+.Xr ( gelf_xlatetof 3 ,
+.Xr gelf_xlatetom 3 )
+that retrieve and store data from the ELF object in a class-agnostic
+manner.
+.Ss Library Working Version
+Conceptually, there are three version numbers associated with an
+application using the ELF library to manipulate ELF objects:
+.Bl -bullet -compact -offset indent
+.It
+The ELF version that the application was compiled against.
+This version determines the ABI expected by the application.
+.It
+The ELF version of the ELF object being manipulated by the
+application through the ELF library.
+.It
+The ELF version (or set of versions) supported by the ELF library itself.
+.El
+.Pp
+In order to facilitate working with ELF objects of differing versions,
+the ELF library requires the application to call the
+.Fn elf_version
+function before invoking many of its operations, in order to inform
+the library of the application's desired working version.
+.Pp
+In the current implementation, all three versions have to be
+.Dv EV_CURRENT .
+.Ss Namespace use
+The ELF library uses the following prefixes:
+.Bl -tag -width "ELF_F_*"
+.It Dv elf_
+Used for class-independent functions.
+.It Dv elf32_
+Used for functions working with 32 bit ELF objects.
+.It Dv elf64_
+Used for functions working with 64 bit ELF objects.
+.It Dv Elf_
+Used for class-independent data types.
+.It Dv ELF_C_
+Used for command values used in a few functions.
+These symbols are defined as members of the
+.Vt Elf_Cmd
+enumeration.
+.It Dv ELF_E_
+Used for error numbers.
+.It Dv ELF_F_
+Used for flags.
+.It Dv ELF_K_
+These constants define the kind of file associated with an ELF
+descriptor.
+See
+.Xr elf_kind 3 .
+The symbols are defined by the
+.Vt Elf_Kind
+enumeration.
+.It Dv ELF_T_
+These values are defined by the
+.Vt Elf_Type
+enumeration, and denote the types of ELF data structures
+that can be present in an ELF object.
+.El
+.Pp
+In addition, the library uses symbols with prefixes
+.Dv _ELF
+and
+.Dv _libelf
+for its internal use.
+.Ss Descriptors
+Applications communicate with the library using descriptors.
+These are:
+.Bl -tag -width ".Vt Elf_Data"
+.It Vt Elf
+An
+.Vt Elf
+descriptor represents an ELF object or an
+.Xr ar 1
+archive.
+It is allocated using one of the
+.Fn elf_begin
+or
+.Fn elf_memory
+functions.
+An
+.Vt Elf
+descriptor can be used to read and write data to an ELF file.
+An
+.Vt Elf
+descriptor can be associated with zero or more
+.Vt Elf_Scn
+section descriptors.
+.Pp
+Given an ELF descriptor, the application may retrieve the ELF
+object's class-dependent
+.Dq "Executable Header"
+structures using the
+.Fn elf32_getehdr
+or
+.Fn elf64_getehdr
+functions.
+A new Ehdr structure may be allocated using the
+.Fn elf64_newehdr
+or
+.Fn elf64_newehdr
+functions.
+.Pp
+The
+.Dq "Program Header Table"
+associated with an ELF descriptor may be allocated using the
+.Fn elf32_getphdr
+or
+.Fn elf64_getphdr
+functions.
+A new program header table may be allocated or an existing table
+resized using the
+.Fn elf32_newphdr
+or
+.Fn elf64_newphdr
+functions.
+.Pp
+The
+.Vt Elf
+structure is opaque and has no members visible to the
+application.
+.It Vt Elf_Data
+An
+.Vt Elf_Data
+data structure describes an individual chunk of a ELF file as
+represented in memory.
+It has the following application-visible members:
+.Bl -tag -width ".Vt unsigned int d_version" -compact
+.It Vt "uint64_t d_align"
+The in-file alignment of the data buffer within its containing ELF section.
+This value must be non-zero and a power of two.
+.It Vt "void *d_buf"
+A pointer to data in memory.
+.It Vt "uint64_t d_off"
+The offset within the containing section where this descriptor's data
+would be placed.
+This field will be computed by the library unless the application
+requests full control of the ELF object's layout.
+.It Vt "uint64_t d_size"
+The number of bytes of data in this descriptor.
+.It Vt "Elf_Type d_type"
+The ELF type (see below) of the data in this descriptor.
+.It Vt "unsigned int d_version"
+The operating version for the data in this buffer.
+.El
+.Pp
+.Vt Elf_Data
+descriptors are usually associated with
+.Vt Elf_Scn
+descriptors.
+Existing data descriptors associated with an ELF section may be
+structures are retrieved using the
+.Fn elf_getdata
+and
+.Fn elf_rawdata
+functions.
+The
+.Fn elf_newdata
+function may be used to attach new data descriptors to an ELF section.
+.It Vt Elf_Scn
+.Vt Elf_Scn
+descriptors represent a section in an ELF object.
+.Pp
+They are retrieved using the
+.Fn elf_getscn
+function.
+An application may iterate through the existing sections of an ELF
+object using the
+.Fn elf_nextscn
+function.
+New sections may be allocated using the
+.Fn elf_newscn
+function.
+.Pp
+The
+.Vt Elf_Scn
+descriptor is opaque and contains no application modifiable fields.
+.El
+.Ss Supported Elf Types
+The following ELF datatypes are supported by the library.
+.Pp
+.Bl -tag -width ".Dv ELF_T_SYMINFO" -compact
+.It Dv ELF_T_ADDR
+Machine addresses.
+.It Dv ELF_T_BYTE
+Byte data.
+The library will not attempt to translate byte data.
+.It Dv ELF_T_CAP
+Software and hardware capability records.
+.It Dv ELF_T_DYN
+Records used in a section of type
+.Dv SHT_DYNAMIC .
+.It Dv ELF_T_EHDR
+ELF executable header.
+.It Dv ELF_T_GNUHASH
+GNU-style hash tables.
+.It Dv ELF_T_HALF
+16-bit unsigned words.
+.It Dv ELF_T_LWORD
+64 bit unsigned words.
+.It Dv ELF_T_MOVE
+ELF Move records.
+.\".It Dv ELF_T_MOVEP
+.\" As yet unsupported.
+.It Dv ELF_T_NOTE
+ELF Note structures.
+.It Dv ELF_T_OFF
+File offsets.
+.It Dv ELF_T_PHDR
+ELF program header table entries.
+.It Dv ELF_T_REL
+ELF relocation entries.
+.It Dv ELF_T_RELA
+ELF relocation entries with addends.
+.It Dv ELF_T_SHDR
+ELF section header entries.
+.It Dv ELF_T_SWORD
+Signed 32-bit words.
+.It Dv ELF_T_SXWORD
+Signed 64-bit words.
+.It Dv ELF_T_SYMINFO
+ELF symbol information.
+.It Dv ELF_T_SYM
+ELF symbol table entries.
+.It Dv ELF_T_VDEF
+Symbol version definition records.
+.It Dv ELF_T_VNEED
+Symbol version requirement records.
+.It Dv ELF_T_WORD
+Unsigned 32-bit words.
+.It Dv ELF_T_XWORD
+Unsigned 64-bit words.
+.El
+.Pp
+The symbol
+.Dv ELF_T_NUM
+denotes the number of Elf types known to the library.
+.Pp
+The following table shows the mapping between ELF section types
+defined in
+.Xr elf 5
+and the types supported by the library.
+.Bl -column ".Dv SHT_PREINIT_ARRAY" ".Dv ELF_T_SYMINFO"
+.It Em Section Type Ta Em "Library Type" Ta Em Description
+.It Dv SHT_DYNAMIC Ta Dv ELF_T_DYN Ta Xo
+.Sq .dynamic
+section entries.
+.Xc
+.It Dv SHT_DYNSYM Ta Dv ELF_T_SYM Ta Symbols for dynamic linking.
+.It Dv SHT_FINI_ARRAY Ta Dv ELF_T_ADDR Ta Termination function pointers.
+.It Dv SHT_GNU_HASH Ta Dv ELF_T_GNUHASH Ta GNU hash sections.
+.It Dv SHT_GNU_LIBLIST Ta Dv ELF_T_WORD Ta List of libraries to be pre-linked.
+.It Dv SHT_GNU_verdef Ta Dv ELF_T_VDEF Ta Symbol version definitions.
+.It Dv SHT_GNU_verneed Ta Dv ELF_T_VNEED Ta Symbol versioning requirements.
+.It Dv SHT_GNU_versym Ta Dv ELF_T_HALF Ta Version symbols.
+.It Dv SHT_GROUP Ta Dv ELF_T_WORD Ta Section group marker.
+.It Dv SHT_HASH Ta Dv ELF_T_HASH Ta Symbol hashes.
+.It Dv SHT_INIT_ARRAY Ta Dv ELF_T_ADDR Ta Initialization function pointers.
+.It Dv SHT_NOBITS Ta Dv ELF_T_BYTE Ta Xo
+Empty sections.
+See
+.Xr elf 5 .
+.Xc
+.It Dv SHT_NOTE Ta Dv ELF_T_NOTE Ta ELF note records.
+.It Dv SHT_PREINIT_ARRAY Ta Dv ELF_T_ADDR Ta Pre-initialization function pointers.
+.It Dv SHT_PROGBITS Ta Dv ELF_T_BYTE Ta Machine code.
+.It Dv SHT_REL Ta Dv ELF_T_REL Ta ELF relocation records.
+.It Dv SHT_RELA Ta Dv ELF_T_RELA Ta Relocation records with addends.
+.It Dv SHT_STRTAB Ta Dv ELF_T_BYTE Ta String tables.
+.It Dv SHT_SYMTAB Ta Dv ELF_T_SYM Ta Symbol tables.
+.It Dv SHT_SYMTAB_SHNDX Ta Dv ELF_T_WORD Ta Used with extended section numbering.
+.It Dv SHT_SUNW_dof Ta Dv ELF_T_BYTE Ta Xo
+Used by
+.Xr dtrace 1 .
+.Xc
+.It Dv SHT_SUNW_move Ta Dv ELF_T_MOVE Ta ELF move records.
+.It Dv SHT_SUNW_syminfo Ta Dv ELF_T_SYMINFO Ta Additional symbol flags.
+.It Dv SHT_SUNW_verdef Ta Dv ELF_T_VDEF Ta Xo
+Same as
+.Dv SHT_GNU_verdef .
+.Xc
+.It Dv SHT_SUNW_verneed Ta Dv ELF_T_VNEED Ta Xo
+Same as
+.Dv SHT_GNU_verneed .
+.Xc
+.It Dv SHT_SUNW_versym Ta Dv ELF_T_HALF Ta Xo
+Same as
+.Dv SHT_GNU_versym .
+.Xc
+.El
+.Pp
+Section types in the range
+.Dv [ SHT_LOOS ,
+.Dv SHT_HIUSER ]
+are otherwise considered to be of type
+.Dv ELF_T_BYTE .
+.Ss Functional Grouping
+This section contains a brief overview of the available functionality
+in the ELF library.
+Each function listed here is described further in its own manual page.
+.Bl -tag -width indent
+.It "Archive Access"
+.Bl -tag -compact -width indent
+.It Fn elf_getarsym
+Retrieve the archive symbol table.
+.It Fn elf_getarhdr
+Retrieve the archive header for an object.
+.It Fn elf_getbase
+Retrieve the offset of a member inside an archive.
+.It Fn elf_next
+Iterate through an
+.Xr ar 1
+archive.
+.It Fn elf_rand
+Random access inside an
+.Xr ar 1
+archive.
+.El
+.It "Data Structures"
+.Bl -tag -compact -width indent
+.It Fn elf_getdata
+Retrieve translated data for an ELF section.
+.It Fn elf_getscn
+Retrieve the section descriptor for a named section.
+.It Fn elf_ndxscn
+Retrieve the index for a section.
+.It Fn elf_newdata
+Add a new
+.Vt Elf_Data
+descriptor to an ELF section.
+.It Fn elf_newscn
+Add a new section descriptor to an ELF descriptor.
+.It Fn elf_nextscn
+Iterate through the sections in an ELF object.
+.It Fn elf_rawdata
+Retrieve untranslated data for an ELF section.
+.It Fn elf_rawfile
+Return a pointer to the untranslated file contents for an ELF object.
+.It Fn elf32_getehdr , Fn elf64_getehdr
+Retrieve the Executable Header in an ELF object.
+.It Fn elf32_getphdr , Fn elf64_getphdr
+Retrieve the Program Header Table in an ELF object.
+.It Fn elf32_getshdr , Fn elf64_getshdr
+Retrieve the ELF section header associated with an
+.Vt Elf_Scn
+descriptor.
+.It Fn elf32_newehdr , Fn elf64_newehdr
+Allocate an Executable Header in an ELF object.
+.It Fn elf32_newphdr , Fn elf64_newphdr
+Allocate or resize the Program Header Table in an ELF object.
+.El
+.It "Data Translation"
+.Bl -tag -compact -width indent
+.It Fn elf32_xlatetof , Fn elf64_xlatetof
+Translate an ELF data structure from its native representation to its
+file representation.
+.It Fn elf32_xlatetom , Fn elf64_xlatetom
+Translate an ELF data structure from its file representation to a
+native representation.
+.El
+.It "Error Reporting"
+.Bl -tag -compact -width indent
+.It Fn elf_errno
+Retrieve the current error.
+.It Fn elf_errmsg
+Retrieve a human readable description of the current error.
+.El
+.It "Initialization"
+.Bl -tag -compact -width indent
+.It Fn elf_begin
+Opens an
+.Xr ar 1
+archive or ELF object given a file descriptor.
+.It Fn elf_end
+Close an ELF descriptor and release all its resources.
+.It Fn elf_memory
+Opens an
+.Xr ar 1
+archive or ELF object present in a memory arena.
+.It Fn elf_version
+Sets the operating version.
+.El
+.It "IO Control"
+.Bl -tag -width ".Fn elf_setshstrndx" -compact
+.It Fn elf_cntl
+Manage the association between and ELF descriptor and its underlying file.
+.It Fn elf_flagdata
+Mark an
+.Vt Elf_Data
+descriptor as dirty.
+.It Fn elf_flagehdr
+Mark the ELF Executable Header in an ELF descriptor as dirty.
+.It Fn elf_flagphdr
+Mark the ELF Program Header Table in an ELF descriptor as dirty.
+.It Fn elf_flagscn
+Mark an
+.Vt Elf_Scn
+descriptor as dirty.
+.It Fn elf_flagshdr
+Mark an ELF Section Header as dirty.
+.It Fn elf_setshstrndx
+Set the index of the section name string table for the ELF object.
+.It Fn elf_update
+Recompute ELF object layout and optionally write the modified object
+back to the underlying file.
+.El
+.It "Queries"
+.Bl -tag -width ".Fn elf_getshstrndx" -compact
+.It Fn elf32_checksum , Fn elf64_checkum
+Compute checksum of an ELF object.
+.It Fn elf_getident
+Retrieve the identification bytes for an ELF object.
+.It Fn elf_getphdrnum
+Retrieve the number of program headers in an ELF object.
+.It Fn elf_getshdrnum
+Retrieve the number of sections in an ELF object.
+.It Fn elf_getshdrstrndx
+Retrieve the section index of the section name string table in
+an ELF object.
+.It Fn elf_hash
+Compute the ELF hash value of a string.
+.It Fn elf_kind
+Query the kind of object associated with an ELF descriptor.
+.It Fn elf32_fsize , Fn elf64_fsize
+Return the size of the file representation of an ELF type.
+.El
+.El
+.Ss Controlling ELF Object Layout
+In the usual mode of operation, library will compute section
+offsets and alignments based on the contents of an ELF descriptor's
+sections without need for further intervention by the
+application.
+.Pp
+However, if the application wishes to take complete charge of the
+layout of the ELF file, it may set the
+.Dv ELF_F_LAYOUT
+flag on an ELF descriptor using
+.Xr elf_flagelf 3 ,
+following which the library will use the data offsets and alignments
+specified by the application when laying out the file.
+Application control of file layout is described further in the
+.Xr elf_update 3
+manual page.
+.Pp
+Gaps in between sections will be filled with the fill character
+set by function
+.Fn elf_fill .
+.Ss Error Handling
+In case an error is encountered, these library functions set an
+internal error number and signal the presence of the error by
+returning an special return value.
+The application can check the
+current error number by calling
+.Xr elf_errno 3 .
+A human readable description of the recorded error is available by
+calling
+.Xr elf_errmsg 3 .
+.Ss Memory Management Rules
+The library keeps track of all
+.Vt Elf_Scn
+and
+.Vt Elf_Data
+descriptors associated with an ELF descriptor and recovers them
+when the descriptor is closed using
+.Xr elf_end 3 .
+Thus the application must not call
+.Xr free 3
+on data structures allocated by the ELF library.
+.Pp
+Conversely the library will not
+free data that it has not allocated.
+As an example, an application may call
+.Xr elf_newdata 3
+to allocate a new
+.Vt Elf_Data
+descriptor and can set the
+.Va d_off
+member of the descriptor to point to a region of memory allocated
+using
+.Xr malloc 3 .
+It is the applications responsibility to free this arena, though the
+library will reclaim the space used by the
+.Vt Elf_Data
+descriptor itself.
+.Sh SEE ALSO
+.Xr gelf 3 ,
+.Xr ar 5 ,
+.Xr elf 5
+.Sh HISTORY
+The original ELF(3) API was developed for Unix System V.
+The current implementation of the ELF(3) API appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+The ELF library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .

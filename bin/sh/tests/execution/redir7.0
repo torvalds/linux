@@ -1,0 +1,21 @@
+# $FreeBSD$
+
+failures=0
+
+check() {
+	if [ "$2" != "$3" ]; then
+		echo "Failure at $1" >&2
+		failures=$((failures + 1))
+	fi
+}
+
+check $LINENO "$(trap "echo bye" EXIT; f() { :; }; f >/dev/null)" bye
+check $LINENO "$(trap "echo bye" EXIT; f() { :; }; { f; } >/dev/null)" bye
+check $LINENO "$(trap "echo bye" EXIT; f() { :; }; (f) >/dev/null)" bye
+check $LINENO "$(trap "echo bye" EXIT; f() { :; }; (f >/dev/null))" bye
+check $LINENO "$(${SH} -c 'trap "echo bye" EXIT; f() { :; }; f >/dev/null')" bye
+check $LINENO "$(${SH} -c 'trap "echo bye" EXIT; f() { :; }; { f; } >/dev/null')" bye
+check $LINENO "$(${SH} -c 'trap "echo bye" EXIT; f() { :; }; (f) >/dev/null')" bye
+check $LINENO "$(${SH} -c 'trap "echo bye" EXIT; f() { :; }; (f >/dev/null)')" bye
+
+exit $((failures > 0))

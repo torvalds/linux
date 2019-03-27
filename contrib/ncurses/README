@@ -1,0 +1,217 @@
+-------------------------------------------------------------------------------
+-- Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.               --
+--                                                                           --
+-- Permission is hereby granted, free of charge, to any person obtaining a   --
+-- copy of this software and associated documentation files (the             --
+-- "Software"), to deal in the Software without restriction, including       --
+-- without limitation the rights to use, copy, modify, merge, publish,       --
+-- distribute, distribute with modifications, sublicense, and/or sell copies --
+-- of the Software, and to permit persons to whom the Software is furnished  --
+-- to do so, subject to the following conditions:                            --
+--                                                                           --
+-- The above copyright notice and this permission notice shall be included   --
+-- in all copies or substantial portions of the Software.                    --
+--                                                                           --
+-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS   --
+-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF                --
+-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN --
+-- NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,       --
+-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR     --
+-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE --
+-- USE OR OTHER DEALINGS IN THE SOFTWARE.                                    --
+--                                                                           --
+-- Except as contained in this notice, the name(s) of the above copyright    --
+-- holders shall not be used in advertising or otherwise to promote the      --
+-- sale, use or other dealings in this Software without prior written        --
+-- authorization.                                                            --
+-------------------------------------------------------------------------------
+-- $Id: README,v 1.25 2012/08/11 20:11:26 tom Exp $
+-------------------------------------------------------------------------------
+		README file for the ncurses package
+
+See the file ANNOUNCE for a summary of ncurses features and ports.
+See the file INSTALL for instructions on how to build and install ncurses.
+See the file NEWS for a release history and bug-fix notes.
+See the file TO-DO for things that still need doing, including known bugs.
+
+Browse the file misc/ncurses-intro.html for narrative descriptions of how
+to use ncurses and the panel, menu, and form libraries.
+ 
+Browse the file doc/html/hackguide.html for a tour of the package internals.
+
+ROADMAP AND PACKAGE OVERVIEW:
+
+You should be reading this file in a directory called:  ncurses-d.d, where d.d
+is the current version number (see the dist.mk file in this directory for
+that).  There should be a number of subdirectories, including `c++', `form',
+`man', `menu', `misc', `ncurses', `panel', `progs', `test', 'tack' and `Ada95'. 
+(The 'tack' program may be distributed separately).
+
+A full build/install of this package typically installs several libraries, a
+handful of utilities, and a database hierarchy.  Here is an inventory of the
+pieces:
+
+The libraries are:
+
+	libncurses.a       (normal)
+	libncurses.so      (shared)
+	libncurses_g.a     (debug and trace code enabled)
+	libncurses_p.a     (profiling enabled)
+
+	libpanel.a         (normal)
+	libpanel.so        (shared)
+	libpanel_g.a       (debug and trace code enabled)
+
+	libmenu.a          (normal)
+	libmenu.so         (shared)
+	libmenu_g.a        (debug enabled)
+
+	libform.a          (normal)
+	libform.so         (shared)
+	libform_g.a        (debug enabled)
+
+If you configure using the --enable-widec option, a "w" is appended to the
+library names (e.g., libncursesw.a), and the resulting libraries support
+wide-characters, e.g., via a UTF-8 locale.  The corresponding header files
+are compatible with the non-wide-character configuration; wide-character
+features are provided by ifdef's in the header files.  The wide-character
+library interfaces are not binary-compatible with the non-wide-character
+version.
+
+If you configure using the --enable-reentrant option, a "t" is appended to the
+library names (e.g., libncursest.a) and the resulting libraries have a
+different binary interface which makes the ncurses interface more "opaque".
+
+The ncurses libraries implement the curses API.  The panel, menu and forms
+libraries implement clones of the SVr4 panel, menu and forms APIs.  The source
+code for these lives in the `ncurses', `panel', `menu', and `form' directories
+respectively.
+
+In the `c++' directory, you'll find code that defines an interface to the
+curses, forms, menus and panels library packaged as C++ classes, and a demo program in C++
+to test it.  These class definition modules are not installed by the 'make
+install.libs' rule as libncurses++.
+
+In the `Ada95' directory, you'll find code and documentation for an
+Ada95 binding of the curses API, to be used with the GNAT compiler.
+This binding is built by a normal top-level `make' if configure detects
+an usable version of GNAT (3.11 or above). It is not installed automatically.
+See the Ada95 directory for more build and installation instructions and
+for documentation of the binding.
+
+To do its job, the ncurses code needs your terminal type to be set in the
+environment variable TERM (normally set by your OS; under UNIX, getty(1)
+typically does this, but you can override it in your .profile); and, it needs a
+database of terminal descriptions in which to look up your terminal type's
+capabilities.
+
+In older (V7/BSD) versions of curses, the database was a flat text file,
+/etc/termcap; in newer (USG/USL) versions, the database is a hierarchy of
+fast-loading binary description blocks under /usr/lib/terminfo.  These binary
+blocks are compiled from an improved editable text representation called
+`terminfo' format (documented in man/terminfo.5).  The ncurses library can use
+either /etc/termcap or the compiled binary terminfo blocks, but prefers the
+second form.
+
+In the `misc' directory, there is a text file terminfo.src, in editable
+terminfo format, which can be used to generate the terminfo binaries (that's
+what make install.data does).  If the package was built with the
+--enable-termcap option enabled, and the ncurses library cannot find a terminfo
+description for your terminal, it will fall back to the termcap file supplied
+with your system (which the ncurses package installation leaves strictly
+alone).
+
+The utilities are as follows:
+
+	tic             -- terminfo source to binary compiler
+	infocmp         -- terminfo binary to source decompiler/comparator
+	clear           -- emits clear-screen for current terminal
+	tabs            -- set tabs on a terminal
+	tput            -- shell-script access to terminal capabilities.
+	toe             -- table of entries utility
+	tset            -- terminal-initialization utility
+
+The first two (tic and infocmp) are used for manipulating terminfo
+descriptions; the next two (clear and tput) are for use in shell scripts.  The
+last (tset) is provided for 4.4BSD compatibility.  The source code for all of
+these lives in the `progs' directory.
+
+Detailed documentation for all libraries and utilities can be found in the
+`man' and `doc' directories.  An HTML introduction to ncurses, panels, and
+menus programming lives in the `doc/html' directory.  Manpages in HTML format
+are under `doc/html/man'.
+
+The `test' directory contains programs that can be used to verify or
+demonstrate the functions of the ncurses libraries.  See test/README for
+descriptions of these programs.  Notably, the `ncurses' utility is designed to
+help you systematically exercise the library functions.
+
+AUTHORS:
+
+Pavel Curtis: 
+	wrote the original ncurses
+
+Zeyd M. Ben-Halim:
+	port of original to Linux and many enhancements.
+
+Thomas Dickey (maintainer for 1.9.9g through 4.1, resuming with FSF's 5.0):
+	configuration scripts, porting, mods to adhere to XSI Curses in the
+	areas of background color, terminal modes.  Also memory leak testing,
+	the wresize, default colors and key definition extensions and numerous
+	bug fixes -- more than half of those enumerated in NEWS beginning with
+	the internal release 1.8.9, see
+
+		http://invisible-island.net/personal/changelogs.html
+
+Florian La Roche (official maintainer for FSF's ncurses 4.2)
+	Beginning with release 4.2, ncurses is distributed under an MIT-style
+	license.
+
+Eric S. Raymond:
+	the man pages, infocmp(1), tput(1), clear(1), captoinfo(1), tset(1),
+	toe(1), most of tic(1), trace levels, the HTML intro, wgetnstr() and
+	many other entry points, the cursor-movement optimization, the
+	scroll-pack optimizer for vertical motions, the mouse interface and
+	xterm mouse support, and the ncurses test program.
+
+Juergen Pfeifer
+	The menu and form libraries, C++ bindings for ncurses, menus, forms and
+	panels, as well as the Ada95 binding.  Ongoing support for panel.
+
+CONTRIBUTORS:
+
+Alexander V. Lukyanov
+	for numerous fixes and improvements to the optimization logic.
+
+David MacKenzie
+	for first-class bug-chasing and methodical testing.
+
+Ross Ridge
+	for the code that hacks termcap parameterized strings into terminfo.
+
+Warren Tucker and Gerhard Fuernkranz,
+	for writing and sending the panel library.
+
+Hellmuth Michaelis,
+	for many patches and testing the optimization code.
+
+Eric Newton, Ulrich Drepper, and Anatoly Ivasyuk:
+	the C++ code.
+
+Jonathan Ross,
+	for lessons in using sed.
+
+Keith Bostic (maintainer of 4.4BSD curses)
+	for help, criticism, comments, bug-finding, and being willing to
+	deep-six BSD curses for this one when it grew up.
+
+Richard Stallman,
+	for his commitment to making ncurses free software.
+
+Countless other people have contributed by reporting bugs, sending fixes,
+suggesting improvements, and generally whining about ncurses :-)
+
+BUGS:
+	See the INSTALL file for bug and developer-list addresses.
+	The Hacker's Guide in the doc directory includes some guidelines
+	on how to report bugs in ways that will get them fixed most quickly.

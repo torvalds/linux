@@ -1,0 +1,34 @@
+$ $tcsh: set23,v 1.3 2011/02/04 18:19:43 christos Exp $
+$ tc.os.c
+$set 23 
+1 Nombre de cpu/máquina incorrecto
+2 Ruta hasta máquina demasiado grande
+3 desconocida
+4 máquina: %s\n
+5 %d: No he encontrado esa máquina\n
+6 setlocal: %s: %s\n
+7 No he encontrado esa máquina
+8 Está atrapado en un universo que nunca creo
+9 Getwarp falló
+10 Warp inválido
+11 Setwarp falló
+12 Universo ilegal
+13 Error Desconocido: %d
+14 nombre_sis:  %s\n
+15 nombre_nodo: %s\n
+16 release:  %s\n
+17 versión:  %s\n
+18 máquina:  %s\n
+19 getwd: No puedo abrir ".." (%s)
+20 getwd: No puedo cambiar a ".." (%s)
+21 getwd: Error de lectura en ".." (%s)
+22 getwd: No puedo volver a "." (%s)
+23 getwd: No puedo ejecutar stat de "/" (%s)
+24 getwd: No puedo ejecutar stat de "." (%s)
+25 getwd: No puedo ejecutar stat de "%s" (%s)
+26 getwd: No puedo abrir el directorio "%s" (%s)
+27 getwd: No puedo encontrar "." en ".." (%s)
+28 Tipo de sistema inválido
+29 No se ha fijado el tipo de sistema
+30 Demasiados argumentos
+31 Argumento inválido

@@ -1,0 +1,138 @@
+.\"-
+.\" Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
+.\" All rights reserved.
+.\""
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
+.\"    redistribution must be conditioned upon including a substantially
+.\"    similar Disclaimer requirement for further binary redistribution.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF NONINFRINGEMENT, MERCHANTIBILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+.\" THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY,
+.\" OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\" $FreeBSD$
+.\"/
+.Dd January 25, 2019
+.Dt ATH_HAL 4
+.Os
+.Sh NAME
+.Nm ath_hal
+.Nd "Atheros Hardware Access Layer (HAL)"
+.Sh SYNOPSIS
+.Cd "device ath_hal"
+or
+.Cd "device ath_ar5210"
+.Cd "device ath_ar5211"
+.Cd "device ath_ar5212"
+.Cd "device ath_rf2413"
+.Cd "device ath_rf2417"
+.Cd "device ath_rf2425"
+.Cd "device ath_rf5111"
+.Cd "device ath_rf5112"
+.Cd "device ath_rf5413"
+.Cd "device ath_ar5416"
+.\".Cd "device ath_ar5312"
+.\".Cd "device ath_rf2136"
+.\".Cd "device ath_rf2137"
+.Cd "device ath_ar9130"
+.Cd "device ath_ar9160"
+.Cd "device ath_ar9280"
+.Cd "device ath_ar9285"
+.Cd "device ath_ar9287"
+.Cd "device ath_ar9300"
+.Sh DESCRIPTION
+The hal provides hardware support for wireless network adapters based on
+the Atheros AR5210, AR5211, AR5212, AR5213, AR2413, AR2417, AR2425,
+AR5413, AR5416, AR5418, AR5424, AR9130, AR9160, AR9220, AR9280, AR9285,
+AR9287, AR9380, AR9390, AR9580, AR9590, AR9562 and QCA9565
+chips (and companion RF/baseband parts).
+This code is part of the
+.Xr ath 4
+driver but configured separately to allow fine-grained control
+over the set of chips supported.
+Selecting
+.Nm
+enables support for all PCI and Cardbus devices.
+.Pp
+Some devices come in Cardbus/MiniPCI/PCI format.
+Others (for example AR2413, AR2427, AR5418, AR9280, AR9285, AR9287) come in
+PCIe, Mini-PCIe or ExpressCard format.
+.Pp
+Historically this code has been released in a binary-only form
+and packaged as a separate module.
+With the release of source code for the hal this is no longer true
+and the code is tightly integrated with the driver.
+.Sh HARDWARE
+The following cards are among those supported by the
+.Nm
+module:
+.Pp
+.Bl -column -compact "Samsung SWL-5200N" "AR5212" "Cardbus" "a/b/g"
+.It Em "Card	Chip	Bus	Standard"
+.It "Aztech WL830PC	AR5212	CardBus	b/g"
+.It "D-Link DWL-A650	AR5210	CardBus	a"
+.It "D-Link DWL-AB650	AR5211	CardBus	a/b"
+.It "D-Link DWL-A520	AR5210	PCI	a"
+.It "D-Link DWL-AG520	AR5212	PCI	a/b/g"
+.It "D-Link DWL-AG650	AR5212	CardBus	a/b/g"
+.It "D-Link DWL-G520B	AR5212	PCI	b/g"
+.It "D-Link DWL-G650B	AR5212	CardBus	b/g"
+.It "Elecom LD-WL54AG	AR5212	Cardbus	a/b/g"
+.It "Elecom LD-WL54	AR5211	Cardbus	a"
+.It "Fujitsu E5454	AR5212	Cardbus	a/b/g"
+.It "Fujitsu FMV-JW481	AR5212	Cardbus	a/b/g"
+.It "Fujitsu E5454	AR5212	Cardbus	a/b/g"
+.It "HP NC4000	AR5212	PCI	a/b/g"
+.It "I/O Data WN-AB	AR5212	CardBus	a/b"
+.It "I/O Data WN-AG	AR5212	CardBus	a/b/g"
+.It "I/O Data WN-A54	AR5212	CardBus	a"
+.It "Linksys WMP55AG	AR5212	PCI	a/b/g"
+.It "Linksys WPC51AB	AR5211	CardBus	a/b"
+.It "Linksys WPC55AG	AR5212	CardBus	a/b/g"
+.It "NEC PA-WL/54AG	AR5212	CardBus	a/b/g"
+.It "Netgear WAG311	AR5212	PCI	a/b/g"
+.It "Netgear WAB501	AR5211	CardBus	a/b"
+.It "Netgear WAG511	AR5212	CardBus	a/b/g"
+.It "Netgear WG311 (aka WG311v1)	AR5212	PCI	b/g"
+.It "Netgear WG311v2	AR5212	PCI	b/g"
+.It "Netgear WG311T	AR5212	PCI	b/g"
+.It "Netgear WG511T	AR5212	CardBus	b/g"
+.It "Orinoco 8480	AR5212	CardBus	a/b/g"
+.It "Orinoco 8470WD	AR5212	CardBus	a/b/g"
+.It "Proxim Skyline 4030	AR5210	CardBus	a"
+.It "Proxim Skyline 4032	AR5210	PCI	a"
+.It "Samsung SWL-5200N	AR5212	CardBus	a/b/g"
+.It "SMC SMC2735W	AR5210	CardBus	a"
+.It "Sony PCWA-C700	AR5212	Cardbus	a/b"
+.It "Sony PCWA-C300S	AR5212	Cardbus	b/g"
+.It "Sony PCWA-C500	AR5210	Cardbus	a"
+.It "3Com 3CRPAG175	AR5212	CardBus	a/b/g"
+.It "TP-LINK TL-WDN4800	AR9380	PCIe	a/b/g/n"
+.El
+.Sh SEE ALSO
+.Xr ath 4
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Fx 5.2 .
+.Sh BUGS
+See
+.Xr ath 4
+for known bugs.

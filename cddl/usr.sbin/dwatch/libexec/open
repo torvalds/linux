@@ -1,0 +1,57 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for open[at](2) [or similar] entry $
+# $Copyright: 2014-2018 Devin Teske. All rights reserved. $
+# $FreeBSD$
+#
+############################################################ DESCRIPTION
+#
+# Print path being passed to open(2), openat(2), or similar
+#
+############################################################ PROBE
+
+case "$PROFILE" in
+open) : ${PROBE:=syscall::open:entry, syscall::openat:entry} ;;
+   *) : ${PROBE:=syscall::$PROFILE:entry}
+esac
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+this string path;
+this u_char at;
+
+$PROBE /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");
+}
+	/*
+	 * Should we expect the first argument to be a file descriptor?
+	 * NB: Based on probefunc ending in "at" (e.g., openat(2))
+	 */
+	this->at = strstr(probefunc, "at") ==
+		(probefunc + strlen(probefunc) - 2) ? 1 : 0;
+
+	this->path = copyinstr(this->at ? arg1 : arg0);
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 1 ))
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print path details
+	 */
+	printf("%s", this->path);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

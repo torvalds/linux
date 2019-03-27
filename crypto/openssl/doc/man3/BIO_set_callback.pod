@@ -1,0 +1,240 @@
+=pod
+
+=head1 NAME
+
+BIO_set_callback_ex, BIO_get_callback_ex, BIO_set_callback, BIO_get_callback,
+BIO_set_callback_arg, BIO_get_callback_arg, BIO_debug_callback,
+BIO_callback_fn_ex, BIO_callback_fn
+- BIO callback functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/bio.h>
+
+ typedef long (*BIO_callback_fn_ex)(BIO *b, int oper, const char *argp,
+                                    size_t len, int argi,
+                                    long argl, int ret, size_t *processed);
+ typedef long (*BIO_callback_fn)(BIO *b, int oper, const char *argp, int argi,
+                                 long argl, long ret);
+
+ void BIO_set_callback_ex(BIO *b, BIO_callback_fn_ex callback);
+ BIO_callback_fn_ex BIO_get_callback_ex(const BIO *b);
+
+ void BIO_set_callback(BIO *b, BIO_callback_fn cb);
+ BIO_callback_fn BIO_get_callback(BIO *b);
+ void BIO_set_callback_arg(BIO *b, char *arg);
+ char *BIO_get_callback_arg(const BIO *b);
+
+ long BIO_debug_callback(BIO *bio, int cmd, const char *argp, int argi,
+                         long argl, long ret);
+
+=head1 DESCRIPTION
+
+BIO_set_callback_ex() and BIO_get_callback_ex() set and retrieve the BIO
+callback. The callback is called during most high level BIO operations. It can
+be used for debugging purposes to trace operations on a BIO or to modify its
+operation.
+
+BIO_set_callback() and BIO_get_callback() set and retrieve the old format BIO
+callback. New code should not use these functions, but they are retained for
+backwards compatibility. Any callback set via BIO_set_callback_ex() will get
+called in preference to any set by BIO_set_callback().
+
+BIO_set_callback_arg() and BIO_get_callback_arg() are macros which can be
+used to set and retrieve an argument for use in the callback.
+
+BIO_debug_callback() is a standard debugging callback which prints
+out information relating to each BIO operation. If the callback
+argument is set it is interpreted as a BIO to send the information
+to, otherwise stderr is used.
+
+BIO_callback_fn_ex() is the type of the callback function and BIO_callback_fn()
+is the type of the old format callback function. The meaning of each argument
+is described below:
+
+=over 4
+
+=item B<b>
+
+The BIO the callback is attached to is passed in B<b>.
+
+=item B<oper>
+
+B<oper> is set to the operation being performed. For some operations
+the callback is called twice, once before and once after the actual
+operation, the latter case has B<oper> or'ed with BIO_CB_RETURN.
+
+=item B<len>
+
+The length of the data requested to be read or written. This is only useful if
+B<oper> is BIO_CB_READ, BIO_CB_WRITE or BIO_CB_GETS.
+
+=item B<argp> B<argi> B<argl>
+
+The meaning of the arguments B<argp>, B<argi> and B<argl> depends on
+the value of B<oper>, that is the operation being performed.
+
+=item B<processed>
+
+B<processed> is a pointer to a location which will be updated with the amount of
+data that was actually read or written. Only used for BIO_CB_READ, BIO_CB_WRITE,
+BIO_CB_GETS and BIO_CB_PUTS.
+
+=item B<ret>
+
+B<ret> is the return value that would be returned to the
+application if no callback were present. The actual value returned
+is the return value of the callback itself. In the case of callbacks
+called before the actual BIO operation 1 is placed in B<ret>, if
+the return value is not positive it will be immediately returned to
+the application and the BIO operation will not be performed.
+
+=back
+
+The callback should normally simply return B<ret> when it has
+finished processing, unless it specifically wishes to modify the
+value returned to the application.
+
+=head1 CALLBACK OPERATIONS
+
+In the notes below, B<callback> defers to the actual callback
+function that is called.
+
+=over 4
+
+=item B<BIO_free(b)>
+
+ callback_ex(b, BIO_CB_FREE, NULL, 0, 0, 0L, 1L, NULL)
+
+or
+
+ callback(b, BIO_CB_FREE, NULL, 0L, 0L, 1L)
+
+is called before the free operation.
+
+=item B<BIO_read_ex(b, data, dlen, readbytes)>
+
+ callback_ex(b, BIO_CB_READ, data, dlen, 0, 0L, 1L, NULL)
+
+or
+
+ callback(b, BIO_CB_READ, data, dlen, 0L, 1L)
+
+is called before the read and
+
+ callback_ex(b, BIO_CB_READ | BIO_CB_RETURN, data, dlen, 0, 0L, retvalue,
+             &readbytes)
+
+or
+
+ callback(b, BIO_CB_READ|BIO_CB_RETURN, data, dlen, 0L, retvalue)
+
+after.
+
+=item B<BIO_write(b, data, dlen, written)>
+
+ callback_ex(b, BIO_CB_WRITE, data, dlen, 0, 0L, 1L, NULL)
+
+or
+
+ callback(b, BIO_CB_WRITE, datat, dlen, 0L, 1L)
+
+is called before the write and
+
+ callback_ex(b, BIO_CB_WRITE | BIO_CB_RETURN, data, dlen, 0, 0L, retvalue,
+             &written)
+
+or
+
+ callback(b, BIO_CB_WRITE|BIO_CB_RETURN, data, dlen, 0L, retvalue)
+
+after.
+
+=item B<BIO_gets(b, buf, size)>
+
+ callback_ex(b, BIO_CB_GETS, buf, size, 0, 0L, 1, NULL, NULL)
+
+or
+
+ callback(b, BIO_CB_GETS, buf, size, 0L, 1L)
+
+is called before the operation and
+
+ callback_ex(b, BIO_CB_GETS | BIO_CB_RETURN, buf, size, 0, 0L, retvalue,
+             &readbytes)
+
+or
+
+ callback(b, BIO_CB_GETS|BIO_CB_RETURN, buf, size, 0L, retvalue)
+
+after.
+
+=item B<BIO_puts(b, buf)>
+
+ callback_ex(b, BIO_CB_PUTS, buf, 0, 0, 0L, 1L, NULL);
+
+or
+
+ callback(b, BIO_CB_PUTS, buf, 0, 0L, 1L)
+
+is called before the operation and
+
+ callback_ex(b, BIO_CB_PUTS | BIO_CB_RETURN, buf, 0, 0, 0L, retvalue, &written)
+
+or
+
+ callback(b, BIO_CB_PUTS|BIO_CB_RETURN, buf, 0, 0L, retvalue)
+
+after.
+
+=item B<BIO_ctrl(BIO *b, int cmd, long larg, void *parg)>
+
+ callback_ex(b, BIO_CB_CTRL, parg, 0, cmd, larg, 1L, NULL)
+
+or
+
+ callback(b, BIO_CB_CTRL, parg, cmd, larg, 1L)
+
+is called before the call and
+
+ callback_ex(b, BIO_CB_CTRL | BIO_CB_RETURN, parg, 0, cmd, larg, ret, NULL)
+
+or
+
+ callback(b, BIO_CB_CTRL|BIO_CB_RETURN, parg, cmd, larg, ret)
+
+after.
+
+Note: B<cmd> == B<BIO_CTRL_SET_CALLBACK> is special, because B<parg> is not the
+argument of type B<BIO_info_cb> itself.  In this case B<parg> is a pointer to
+the actual call parameter, see B<BIO_callback_ctrl>.
+
+=back
+
+=head1 EXAMPLE
+
+The BIO_debug_callback() function is a good example, its source is
+in crypto/bio/bio_cb.c
+
+=head1 RETURN VALUES
+
+BIO_get_callback_ex() and BIO_get_callback() return the callback function
+previously set by a call to BIO_set_callback_ex() and BIO_set_callback()
+respectively.
+
+BIO_get_callback_arg() returns a B<char> pointer to the value previously set
+via a call to BIO_set_callback_arg().
+
+BIO_debug_callback() returns 1 or B<ret> if it's called after specific BIO
+operations.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

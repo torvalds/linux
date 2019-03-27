@@ -1,0 +1,90 @@
+.\"	$KAME: ipsec_strerror.3,v 1.9 2001/08/17 07:21:36 itojun Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 14, 2006
+.Dt IPSEC_STRERROR 3
+.Os
+.\"
+.Sh NAME
+.Nm ipsec_strerror
+.Nd error messages for the IPsec policy manipulation library
+.\"
+.Sh SYNOPSIS
+.In netipsec/ipsec.h
+.Ft "const char *"
+.Fn ipsec_strerror
+.\"
+.Sh DESCRIPTION
+.In netipsec/ipsec.h
+declares
+.Pp
+.Dl extern int ipsec_errcode;
+.Pp
+which is used to pass an error code from IPsec policy manipulation library
+to a user program.
+The
+.Fn ipsec_strerror
+function can be used to obtain the error message string for the error code.
+.Pp
+The array pointed to is not to be modified by the program.
+Since
+.Fn ipsec_strerror
+uses
+.Xr strerror 3
+as an underlying function, calling
+.Xr strerror 3
+after
+.Fn ipsec_strerror
+would overwrite the return value from
+.Fn ipsec_strerror
+and make it invalid.
+.\"
+.Sh RETURN VALUES
+The
+.Fn ipsec_strerror
+function always returns a pointer to C string.
+The C string must not be overwritten by the caller.
+.\"
+.Sh SEE ALSO
+.Xr ipsec_set_policy 3
+.\"
+.Sh HISTORY
+The
+.Fn ipsec_strerror
+function first appeared in WIDE/KAME IPv6 protocol stack kit.
+.\"
+.Sh BUGS
+The
+.Fn ipsec_strerror
+function will return its result which may be overwritten by subsequent calls.
+.Pp
+.Va ipsec_errcode
+is not thread safe.

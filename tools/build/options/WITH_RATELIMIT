@@ -1,0 +1,12 @@
+.\" $FreeBSD$
+Set to build the system with rate limit support.
+.Pp
+This makes
+.Dv SO_MAX_PACING_RATE
+effective in
+.Xr getsockopt 2 ,
+and
+.Ar txrlimit
+support in
+.Xr ifconfig 8 ,
+by proxy.

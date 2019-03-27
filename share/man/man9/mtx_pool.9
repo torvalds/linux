@@ -1,0 +1,184 @@
+.\"
+.\" Copyright (C) 2002 Garrett Rooney <rooneg@electricjellyfish.net>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 6, 2010
+.Dt MTX_POOL 9
+.Os
+.Sh NAME
+.Nm mtx_pool ,
+.Nm mtx_pool_alloc ,
+.Nm mtx_pool_find ,
+.Nm mtx_pool_lock ,
+.Nm mtx_pool_lock_spin ,
+.Nm mtx_pool_unlock ,
+.Nm mtx_pool_unlock_spin ,
+.Nm mtx_pool_create ,
+.Nm mtx_pool_destroy
+.Nd "mutex pool routines"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/lock.h
+.In sys/mutex.h
+.Ft "struct mtx *"
+.Fn mtx_pool_alloc "struct mtx_pool *pool"
+.Ft "struct mtx *"
+.Fn mtx_pool_find "struct mtx_pool *pool" "void *ptr"
+.Ft void
+.Fn mtx_pool_lock "struct mtx_pool *pool" "void *ptr"
+.Ft void
+.Fn mtx_pool_lock_spin "struct mtx_pool *pool" "void *ptr"
+.Ft void
+.Fn mtx_pool_unlock "struct mtx_pool *pool" "void *ptr"
+.Ft void
+.Fn mtx_pool_unlock_spin "struct mtx_pool *pool" "void *ptr"
+.Ft "struct mtx_pool *"
+.Fn mtx_pool_create "const char *mtx_name" "int pool_size" "int opts"
+.Ft "void"
+.Fn mtx_pool_destroy "struct mtx_pool **poolp"
+.Sh DESCRIPTION
+Mutex pools are designed to be used as short term leaf mutexes;
+i.e., the last mutex one might acquire before calling
+.Xr mtx_sleep 9 .
+They operate using a shared pool of mutexes.
+A mutex may be chosen from the pool based on a supplied pointer,
+which may or may not point to anything valid,
+or the caller may allocate an arbitrary shared mutex from the pool
+and save the returned mutex pointer for later use.
+.Pp
+The shared mutexes in the
+.Va mtxpool_sleep
+mutex pool,
+which is created by default,
+are standard, non-recursive,
+blockable mutexes, and should only be used in appropriate situations.
+The mutexes in the
+.Va mtxpool_lockbuilder
+mutex pool are similar, except that they are initialized with the MTX_NOWITNESS
+flag so that they may be used to build higher-level locks.
+Other mutex pools may be created that contain mutexes with different
+properties, such as spin mutexes.
+.Pp
+The caller can lock and unlock mutexes returned by the pool routines, but
+since the mutexes are shared, the caller should not attempt to destroy them
+or modify their characteristics.
+While pool mutexes are normally leaf mutexes
+(meaning that one cannot depend on any ordering guarantees
+after obtaining one),
+one can still obtain other mutexes under carefully controlled circumstances.
+Specifically, if one has a private mutex
+(one that was allocated and initialized by the caller),
+one can obtain it after obtaining a pool mutex if ordering issues are
+carefully accounted for.
+In these cases the private mutex winds up being the true leaf mutex.
+.Pp
+Pool mutexes have the following advantages:
+.Pp
+.Bl -enum -offset indent -compact
+.It
+No structural overhead;
+i.e., they can be associated with a structure without adding bloat to it.
+.It
+Mutexes can be obtained for invalid pointers, which is useful when one uses
+mutexes to interlock destructor operations.
+.It
+No initialization or destruction overhead.
+.It
+Can be used with
+.Xr mtx_sleep 9 .
+.El
+.Pp
+And the following disadvantages:
+.Pp
+.Bl -enum -offset indent -compact
+.It
+Should generally only be used as leaf mutexes.
+.It
+Pool/pool dependency ordering cannot be guaranteed.
+.It
+Possible L1 cache mastership contention between CPUs.
+.El
+.Pp
+.Fn mtx_pool_alloc
+obtains a shared mutex from the specified pool.
+This routine uses a simple rover to choose one of the shared mutexes managed
+by the
+.Nm
+subsystem.
+.Pp
+.Fn mtx_pool_find
+returns the shared mutex associated with the specified address.
+This routine will create a hash out of the pointer passed into it
+and will choose a shared mutex from the specified pool based on that hash.
+The pointer does not need to point to anything real.
+.Pp
+.Fn mtx_pool_lock ,
+.Fn mtx_pool_lock_spin ,
+.Fn mtx_pool_unlock ,
+and
+.Fn mtx_pool_unlock_spin
+lock and unlock the shared mutex from the specified pool
+associated with the specified address;
+they are a combination of
+.Fn mtx_pool_find
+and
+.Xr mtx_lock 9 ,
+.Xr mtx_lock_spin 9 ,
+.Xr mtx_unlock 9 ,
+and
+.Xr mtx_unlock_spin 9 ,
+respectively.
+Since these routines must first find the mutex to operate on,
+they are not as fast as directly using the mutex pointer returned by
+a previous invocation of
+.Fn mtx_pool_find
+or
+.Fn mtx_pool_alloc .
+.Pp
+.Fn mtx_pool_create
+allocates and initializes a new mutex pool of the
+specified size.
+The pool size must be a power of two.
+The
+.Fa opts
+argument is passed to
+.Xr mtx_init 9
+to set the options for each mutex in the pool.
+.Pp
+.Fn mtx_pool_destroy
+calls
+.Xr mtx_destroy 9
+on each mutex in the specified pool,
+deallocates the memory associated with the pool,
+and assigns NULL to the pool pointer.
+.Sh SEE ALSO
+.Xr locking 9 ,
+.Xr mutex 9
+.Sh HISTORY
+These routines first appeared in
+.Fx 5.0 .

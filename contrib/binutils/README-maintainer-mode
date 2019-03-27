@@ -1,0 +1,14 @@
+
+                Notes on enabling maintainer mode
+
+Note that if you configure with --enable-maintainer-mode, you will need
+special versions of automake, autoconf, libtool and gettext. You will
+find the sources for these in ftp://sources.redhat.com/pub/binutils.
+
+Note - "make distclean" does not work with maintainer mode enabled.
+The Makefiles in the some of the po/ subdirectories depend upon the
+Makefiles in their parent directories, and distclean will delete the
+Makefiles in the parent directories before running the Makefiles in
+the child directories.  There is no easy way around this (short of
+changing the automake macros) as these dependencies need to exist in
+order to correctly build the NLS files.

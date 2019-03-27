@@ -1,0 +1,73 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>The Network Time Protocol (NTP) Distribution</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>The Network Time Protocol (NTP) Distribution</h3>
+<img src="pic/barnstable.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/%7emills/pictures.html"><i>P.T. Bridgeport Bear</i>; from <i>Pogo</i>, Walt Kelly</a>
+<p>Pleased to meet you.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->31-Mar-2014  05:41<!-- #EndDate -->
+</p>
+<br clear="left">
+<h4>Related Links</h4>
+<ul>
+  <li>A list of all links is on the <a href="sitemap.html">Site Map</a> page.</li>
+</ul>
+<h4>Table of Contents</h4>
+<ul>
+  <li class="inline"><a href="#intro">Introduction</a></li>
+  <li class="inline"><a href="#hand">The Handbook</a></li>
+  <li class="inline"><a href="#build">Building and Installing NTP</a></li>
+  <li class="inline"><a href="#prob">Resolving Problems</a></li>
+  <li class="inline"><a href="#info">Further Information</a></li>
+</ul>
+<hr>
+<h4 id="intro">Introduction</h4>
+<p>Note: The NTP Version 4 software contained in this distribution is available without charge under the conditions set forth in the <a href="copyright.html">Copyright Notice</a>.</p>
+<dl>
+  <dd>It is very important that readers understand that the NTP document collection began 25 years ago and remains today a work in progress. It has evolved as new features were invented and old features retired. It has been widely copied, cached and morphed to other formats, including man pages, with varying loss of fidelity. However, these HTML pages are the ONLY authoritative and definitive reference. Readers should always use the collection that comes with the distribution they use. A copy of the online collection at <a href="http://www.ntp.org">www.ntp.org</a> is normally included in the most recent snapshot, but might not agree with an earlier snapshot or release version.</dd>
+</dl>
+<p>This distribution is an implementation of RFC-5905 &quot;Network Time Protocol Version 4: Protocol and Algorithms Specification&quot;.<br>
+  NTP is widely used to synchronize a computer to Internet time servers or other sources, such as a radio or satellite receiver or telephone modem service. It can also be used as a server for dependent clients. It provides accuracies typically less than a millisecond on LANs and up to a few milliseconds on WANs. Typical NTP configurations utilize multiple redundant servers and diverse network paths in order to achieve high accuracy and reliability.</p>
+<p>This distribution includes a simulation framework in which substantially all the runtime NTP operations and most features can be tested and evaluated. This has been very useful in exploring in vitro response to unusual circumstances or over time periods impractical in vivo. Details are on the <a href="ntpdsim.html">Network Time Protocol (NTP) Simulator</a> page.</p>
+<h4 id="hand">The Handbook</h4>
+<p>A good deal of tutorial and directive information is available on the handbook pages. These should be read in conjunction with the command and option information available on the pages listed on the sitemap page.</p>
+<dl>
+  <dt><a href="release.html">NTP Version 4 Release Notes</a></dt>
+  <dd>Lists recent changes and new features in the current distribution.</dd>
+  <dt><a href="assoc.html">Association Management</a></dt>
+  <dd>Describes how to configure servers and peers and manage the various options. Includes automatic server discovery schemes.</dd>
+  <dt><a href="discover.html">Automatic Server Discovery Schemes</a></dt>
+  <dd>Describes automatic server discovery using broadcast, multicast, manycast and server pool scheme.</dd>
+  <dt><a href="access.html">Access Control Support</a></dt>
+  <dd>Describes the access control mechanisms that can be used to limit client access to various time and management functions.</dd>
+  <dt><a href="authentic.html">Authentication Support</a></dt>
+  <dd>Describes the authentication mechanisms for symmetric-key and public-key cryptography.</dd>
+  <dt><a href="rate.html">Rate Management</a></dt>
+  <dd>Describes the principles of rate management to minimize network load and defend against DoS attacks.</dd>
+  <dt>&nbsp;</dt>
+  <dt><a href="refclock.html">Reference Clock Support</a></dt>
+  <dd>Describes the collection of radio clocks used to synchronize primary servers.</dd>
+  <dt><a href="warp.html">How NTP Works</a></dt>
+  <dd>Gives an overview of the NTP daemon architecture and how it works.</dd>
+</dl>
+<h4 id="build">Building and Installing NTP</h4>
+<p>NTP supports Unix, VMS and Windows (2000 and later) systems. The <a href="build.html">Building and Installing the Distribution</a> page details the procedures for building and installing on a typical system. This distribution includes drivers for many radio and satellite receivers and telephone modem services in the US, Canada and Europe. A list of supported drivers is on the <a href="refclock.html">Reference Clock Drivers</a> page. The default build includes the debugging options and all drivers that run on the target machine; however, options and drivers can be included or excluded using options on the <a href="config.html">Configuration Options</a> page.</p>
+<h4 id="prob">Resolving Problems</h4>
+<p>Like other things in modern Internet life, NTP problems can be devilishly intricate. This distribution includes a number of utilities designed to identify and repair problems using an integrated management protocol supported by the <a href="ntpq.html"><tt>ntpq</tt></a> utility program. </p>
+<p>The <a href="debug.html">NTP Debugging Techniques</a> and <a href="hints.html">Hints and Kinks</a> pages contain useful information for identifying problems and devising solutions. Additional information on reference clock driver construction and debugging is in the <a href="rdebug.html">Debugging Hints for Reference Clock Drivers</a> page.</p>
+<p>Users are invited to report bugs and offer suggestions via the <a href="bugs.html">NTP Bug Reporting Procedures</a> page.</p>
+<h4 id="info">Further Information</h4>
+<p>The <a href="sitemap.html">Site Map</a> page contains a list of document collections arranged by topic. The Program Manual Pages collection may be the best place to start. The <a href="comdex.html">Command Index</a> collection contains a list of all configuration file commands together with a short function description. A great wealth of additional information is available via the External Links collection, including a book and numerous background papers and briefing presentations.</p>
+<p>Background information on computer network time synchronization is on the <a href="http://www.eecis.udel.edu/%7emills/exec.html">Executive Summary - Computer Network Time Synchronization</a> page. Discussion on new features and interoperability with previous NTP versions is on the <a href="release.html">NTP Version 4 Release Notes</a> page. Background information, bibliography and briefing slides suitable for presentations are on the <a href="http://www.eecis.udel.edu/%7emills/ntp.html">Network Time Synchronization Research Project</a> page. Additional information is at the NTP web site <a href="http://www.ntp.org">www.ntp.org</a>.</p>
+<hr>
+<div align="center"> <img src="pic/pogo1a.gif" alt="gif"></div>
+<br>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

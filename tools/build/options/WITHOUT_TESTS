@@ -1,0 +1,9 @@
+.\" $FreeBSD$
+Set to not build nor install the
+.Fx
+Test Suite in
+.Pa /usr/tests/ .
+See
+.Xr tests 7
+for more details.
+This also disables the build of all test-related dependencies, including ATF.

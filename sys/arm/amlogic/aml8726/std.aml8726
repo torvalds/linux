@@ -1,0 +1,25 @@
+# $FreeBSD$
+
+cpu		CPU_CORTEXA
+machine		arm armv7
+makeoptions	CONF_CFLAGS="-march=armv7a"
+
+# Physical memory starts at 0x80000000.  We assume the kernel is loaded
+# at 0x80100000 by u-boot (which doesn't support ubldr since it's missing
+# CONFIG_API).  The kernel must be supplied as a binary since u-boot is
+# also missing CONFIG_CMD_ELF.
+#
+#
+options 	KERNVIRTADDR=0xc0100000		# Used in ldscript.arm
+makeoptions	KERNVIRTADDR=0xc0100000
+
+device		fdt_pinctrl
+
+files		"../amlogic/aml8726/files.aml8726"
+
+# Set all global interrupts to be edge triggered, active high.
+options		GIC_DEFAULT_ICFGR_INIT=0xffffffff
+
+#options 	EARLY_PRINTF
+#options 	SOCDEV_PA=0xc8100000
+#options 	SOCDEV_VA=0xd8100000

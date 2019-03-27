@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Set to not build nvme related tools and kernel modules.

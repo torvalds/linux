@@ -1,0 +1,210 @@
+.\" Copyright 1995, 1996, 1997
+.\"     Guy Helmer, Ames, Iowa 50014.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY GUY HELMER ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL GUY HELMER BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 10, 2002
+.Dt RMUSER 8
+.Os
+.Sh NAME
+.Nm rmuser
+.Nd remove users from the system
+.Sh SYNOPSIS
+.Nm
+.Op Fl yv
+.Op Fl f Ar file
+.Op Ar username ...
+.Sh DESCRIPTION
+The
+.Nm
+utility removes one or more users submitted on the command line
+or from a file.
+In removing a user from the system, this utility:
+.Bl -enum
+.It
+Removes the user's
+.Xr crontab 1
+entry (if any).
+.It
+Removes any
+.Xr at 1
+jobs belonging to the user.
+.It
+Sends a
+.Dv SIGKILL
+signal to all processes owned by the user.
+.It
+Removes the user from the system's local password file.
+.It
+Removes the user's home directory (if it is owned by the user),
+including handling of symbolic links in the path to the actual home
+directory.
+.It
+Removes the incoming mail and POP daemon mail files belonging to the
+user from
+.Pa /var/mail .
+.It
+Removes all files owned by the user from
+.Pa /tmp , /var/tmp ,
+and
+.Pa /var/tmp/vi.recover .
+.It
+Removes the username from all groups to which it belongs in
+.Pa /etc/group .
+(If a group becomes empty and the group name is the same as the username,
+the group is removed; this complements
+.Xr adduser 8 Ns 's
+per-user unique groups.)
+.It
+Removes all message queues, shared memory segments and
+semaphores owned by the user.
+.El
+.Pp
+The
+.Nm
+utility refuses to remove users whose UID is 0 (typically root), since
+certain actions (namely, killing all the user's processes, and perhaps
+removing the user's home directory) would cause damage to a running system.
+If it is necessary to remove a user whose UID is 0, see
+.Xr vipw 8
+for information on directly editing the password file.
+.Pp
+If
+.Nm
+was not invoked with the
+.Fl y
+option, it will
+show the selected user's password file entry and ask for confirmation
+that the user be removed.
+It will then ask for confirmation to delete
+the user's home directory.
+If the answer is in the affirmative, the home
+directory and any files and subdirectories under it will be deleted only if
+they are owned by the user.
+See
+.Xr pw 8
+for more details.
+.Pp
+As
+.Nm
+operates, it informs the user regarding the current activity.
+If any
+errors occur, they are posted to standard error and, if it is possible for
+.Nm
+to continue, it will.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Ar username"
+.It Fl f Ar file
+The
+.Nm
+utility will get a list of users to be removed from
+.Ar file ,
+which will contain one user per line.
+Anything following a hash mark
+.Pq Ql # ,
+including the hash mark itself, is considered a comment and will not
+be processed.
+If the file is owned by anyone other than a user with
+UID 0, or is writable by anyone other than the owner,
+.Nm
+will refuse to continue.
+.It Fl y
+Implicitly answer
+.Dq Li yes
+to any and all prompts.
+Currently, this includes
+prompts on whether to remove the specified user and whether to remove
+the home directory.
+This option requires that either the
+.Fl f
+option be used, or one or more user names be given as command line
+arguments.
+.It Fl v
+Enable verbose mode.
+Normally,
+the output includes one line per removed user;
+however,
+with this option
+.Nm
+will be much more chatty about the steps taken.
+.It Ar username
+Identifies one or more users to be removed; if not present,
+.Nm
+interactively asks for one or more users to be removed.
+.El
+.Sh FILES
+.Bl -tag -width "Pa /etc/master.passwd" -compact
+.It Pa /etc/master.passwd
+.It Pa /etc/passwd
+.It Pa /etc/group
+.It Pa /etc/spwd.db
+.It Pa /etc/pwd.db
+.El
+.Sh SEE ALSO
+.Xr at 1 ,
+.Xr chpass 1 ,
+.Xr crontab 1 ,
+.Xr finger 1 ,
+.Xr passwd 1 ,
+.Xr group 5 ,
+.Xr passwd 5 ,
+.Xr adduser 8 ,
+.Xr pw 8 ,
+.Xr pwd_mkdb 8 ,
+.Xr vipw 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 2.2 .
+.Sh BUGS
+The
+.Nm
+utility does not comprehensively search the file system for all files
+owned by the removed user and remove them; to do so on a system
+of any size is prohibitively slow and I/O intensive.
+It is also unable to remove symbolic links that were created by the
+user in
+.Pa /tmp
+or
+.Pa /var/tmp ,
+as symbolic links on
+.Bx 4.4
+file systems do not contain information
+as to who created them.
+Also, there may be other files created in
+.Pa /var/mail
+other than
+.Pa /var/mail/ Ns Ar username
+and
+.Pa /var/mail/.pop. Ns Ar username
+that are not owned by the removed user but should be removed.
+.Pp
+The
+.Nm
+utility has no knowledge of YP/NIS, and it operates only on the
+local password file.

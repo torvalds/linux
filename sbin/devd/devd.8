@@ -1,0 +1,163 @@
+.\"
+.\" Copyright (c) 2002 M. Warner Losh.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 5, 2016
+.Dt DEVD 8
+.Os
+.Sh NAME
+.Nm devd
+.Nd "device state change daemon"
+.Sh SYNOPSIS
+.Nm
+.Op Fl dnq
+.Op Fl f Ar file
+.Op Fl l Ar num
+.Sh DESCRIPTION
+The
+.Nm
+daemon provides a way to have userland programs run when certain
+kernel events happen.
+.Pp
+The following options are accepted.
+.Bl -tag -width ".Fl f Ar file"
+.It Fl d
+Run in the foreground instead of becoming a daemon and log additional information for debugging.
+.It Fl f Ar file
+Use configuration file
+.Ar file
+instead of the default
+.Pa /etc/devd.conf .
+If option
+.Fl f
+is specified more than once, the last file specified is used.
+.It Fl l Ar num
+Limit concurrent socket connections to
+.Ar num .
+The default connection limit is 10.
+.It Fl n
+Do not process all pending events before becoming a daemon.
+Instead, call daemon right away.
+.It Fl q
+Quiet mode.
+Only log messages at priority LOG_WARNING or above.
+.El
+.Sh IMPLEMENTATION NOTES
+The
+.Nm
+utility
+is a system daemon that runs in the background all the time.
+Whenever a device is added to or removed from the device tree,
+.Nm
+will execute actions specified in
+.Xr devd.conf 5 .
+For example,
+.Nm
+might execute
+.Xr dhclient 8
+when an Ethernet adapter is added to the system, and kill the
+.Xr dhclient 8
+instance when the same adapter is removed.
+Another example would be for
+.Nm
+to use a table to locate and load via
+.Xr kldload 8
+the proper driver for an unrecognized device that is added to the system.
+.Pp
+The
+.Nm
+utility
+hooks into the
+.Xr devctl 4
+device driver.
+This device driver has hooks into the device configuration system.
+When nodes are added or deleted from the tree, this device will
+deliver information about the event to
+.Nm .
+Once
+.Nm
+has parsed the message, it will search its action list for that kind
+of event and perform the action with the highest matching value.
+For most mundane uses, the default handlers are adequate.
+However, for more advanced users, the power is present to tweak every
+aspect of what happens.
+.Pp
+The
+.Nm
+utility
+reads
+.Pa /etc/devd.conf
+or the alternate configuration file specified with a
+.Fl f
+option and uses that file to drive the rest of the process.
+While the format of this file is described in
+.Xr devd.conf 5 ,
+some basics are covered here.
+In the
+.Ic options
+section, one can define multiple directories to search
+for config files.
+All files in these directories whose names match the pattern
+.Pa *.conf
+are parsed.
+These files are intended to be installed by third party vendors that
+wish to hook into the
+.Nm
+system without modifying the user's other
+config files.
+.Pp
+Since
+.Xr devctl 4
+allows only one active reader,
+.Nm
+multiplexes it, forwarding all events to any number of connected clients.
+Clients connect by opening the SOCK_SEQPACKET
+.Ux
+domain socket at
+.Pa /var/run/devd.seqpacket.pipe .
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/devd.seqpacket.pipe" -compact
+.It Pa /etc/devd.conf
+The default
+.Nm
+configuration file.
+.It Pa /var/run/devd.seqpacket.pipe
+The socket used by
+.Nm
+to communicate with its clients.
+.It Pa /var/run/devd.pipe
+A deprecated socket retained for use with old clients.
+.El
+.Sh SEE ALSO
+.Xr devctl 4 ,
+.Xr devd.conf 5
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An M. Warner Losh

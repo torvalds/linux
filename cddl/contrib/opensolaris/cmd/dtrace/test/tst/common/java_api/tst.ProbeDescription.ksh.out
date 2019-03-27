@@ -1,0 +1,8 @@
+syscall:::entry
+:::BEGIN
+::isdigit:entry
+:genunix:isdigit:entry
+fbt:genunix:isdigit:entry
+fbt:genunix:isdigit:entry
+:syscall::entry
+::syscall:entry

@@ -1,0 +1,49 @@
+\ ** ficl/softwords/ficllocal.fr
+\ ** stack comment style local syntax...
+\ {{ a b c -- d e }}
+\ variables before the "--" are initialized in reverse order
+\ from the stack. Those after the "--" are zero initialized
+\ Uses locals...
+\ locstate: 0 = looking for -- or }}
+\           1 = found --
+\
+\ $FreeBSD$
+
+hide
+0 constant zero
+
+: ?--   s" --" compare 0= ;
+: ?}}   s" }}" compare 0= ;
+
+set-current
+
+: {{
+    0 dup  locals| nLocs locstate |
+    begin
+        parse-word 
+        ?dup 0= abort" Error: out of text without seeing }}"
+        2dup 2dup  ?-- -rot ?}} or 0=
+    while
+        nLocs 1+ to nLocs
+    repeat
+
+    ?-- if 1 to locstate endif
+
+    nLocs 0 do
+        (local) 
+    loop
+
+    locstate 1 = if
+        begin
+            parse-word
+            2dup ?}} 0=
+        while
+            postpone zero  (local)
+        repeat
+        2drop
+    endif
+
+    0 0 (local)
+; immediate compile-only
+ 
+previous

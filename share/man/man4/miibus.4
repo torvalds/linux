@@ -1,0 +1,197 @@
+.\" Written by Tom Rhodes for the FreeBSD Project.
+.\" Please see the /usr/src/COPYRIGHT file for copyright information.
+.\"
+.\" This document takes information from the IEEE 802.3 Standard
+.\" along with various comments from Peter Wemm, Robert Watson, and Bill Paul.
+.\" Originally this file looked much like the NetBSD mii(4) manual page, but
+.\" I doubt you would ever notice due to large differences.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 1, 2015
+.Dt MIIBUS 4
+.Os
+.Sh NAME
+.Nm miibus
+.Nd IEEE 802.3 Media Independent Interface network bus
+.Sh SYNOPSIS
+For most network interface cards (NIC):
+.Cd "device miibus"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides an interconnection between the Media Access Control (MAC)
+sublayer, the Physical Layer entities (PHY), Station Management (STA)
+entities, and the PHY Layer as defined by the IEEE 802.3 Standard.
+.Pp
+The
+.Nm
+layer allows network device drivers to share common support
+code for various external PHY devices.
+Most 10/100 network interface cards either use an MII transceiver
+or have built-in transceivers that can be programmed using an MII
+interface.
+The
+.Nm
+driver currently handles all of the media detection,
+selection, and reporting using the ifmedia interface.
+A generic driver has been included for all PHYs that are not
+handled by a specific driver, this is possible because all
+10/100 PHYs implement the same general register set along with
+their vendor specific register set.
+.Pp
+The following network device drivers use the
+.Nm
+interface:
+.Pp
+.Bl -tag -compact -width ".Xr fxp 4"
+.It Xr ae 4
+Attansic/Atheros L2 Fast Ethernet
+.It Xr age 4
+Attansic/Atheros L1 Gigabit Ethernet
+.It Xr alc 4
+Atheros AR8131/AR8132 PCIe Ethernet
+.It Xr ale 4
+Atheros AR8121/AR8113/AR8114 PCIe Ethernet
+.It Xr aue 4
+ADMtek USB Ethernet
+.It Xr axe 4
+ASIX Electronics AX88172 USB Ethernet
+.It Xr axge 4
+ASIX Electronics AX88178A/AX88179 USB Ethernet
+.It Xr bce 4
+Broadcom NetXtreme II Gigabit Ethernet
+.It Xr bfe 4
+Broadcom BCM4401 Ethernet
+.It Xr bge 4
+Broadcom BCM570xx Gigabit Ethernet
+.It Xr cas 4
+Sun Cassini/Cassini+ and National Semiconductor DP83065 Saturn
+.It Xr dc 4
+DEC/Intel 21143 and various workalikes
+.It Xr ed 4
+NE[12]000, SMC Ultra, 3c503, DS8390 cards
+.It Xr et 4
+Agere ET1310 Gigabit Ethernet
+.It Xr fxp 4
+Intel EtherExpress PRO/100B
+.It Xr gem 4
+Sun ERI, Sun GEM and Apple GMAC Ethernet
+.It Xr hme 4
+Sun HME Ethernet
+.It Xr jme 4
+JMicron JMC250 Gigabit/JMC260 Fast Ethernet
+.It Xr lge 4
+Level 1 LXT1001 NetCellerator Gigabit Ethernet
+.It Xr msk 4
+Marvell/SysKonnect Yukon II Gigabit Ethernet
+.It Xr nfe 4
+NVIDIA nForce MCP Networking Adapter
+.It Xr nge 4
+National Semiconductor DP83820/DP83821 Gigabit Ethernet
+.It Xr pcn 4
+AMD Am79C97x PCI 10/100
+.It Xr re 4
+RealTek 8139C+/8169/8169S/8110S
+.It Xr rl 4
+RealTek 8129/8139
+.It Xr rue 4
+RealTek RTL8150 USB To Fast Ethernet
+.It Xr sf 4
+Adaptec AIC-6915
+.It Xr sge 4
+Silicon Integrated Systems SiS190/191 Ethernet
+.It Xr sis 4
+Silicon Integrated Systems SiS 900/SiS 7016
+.It Xr sk 4
+SysKonnect SK-984x and SK-982x Gigabit Ethernet
+.It Xr smsc 4
+SMSC LAN9xxx USB Fast Ethernet
+.It Xr ste 4
+Sundance ST201 (D-Link DFE-550TX)
+.It Xr stge 4
+Sundance/Tamarack TC9021 Gigabit Ethernet
+.It Xr tl 4
+Texas Instruments ThunderLAN
+.It Xr tx 4
+SMC EtherPower II (83c170)
+.It Xr udav 4
+Davicom DM9601 USB Ethernet
+.It Xr ure 4
+RealTek RTL8152 USB To Fast Ethernet
+.It Xr vge 4
+VIA VT612x PCI Gigabit Ethernet
+.It Xr vr 4
+VIA Rhine, Rhine II
+.It Xr vte 4
+DM&P Vortex86 RDC R6040 Fast Ethernet
+.It Xr wb 4
+Winbond W89C840F
+.It Xr xl 4
+3Com 3c90x
+.El
+.Sh COMPATIBILITY
+The implementation of
+.Nm
+was originally intended to have similar API interfaces
+to
+.Bsx 3.0
+and
+.Nx ,
+but as a result are not well behaved newbus device drivers.
+.Sh SEE ALSO
+.Xr ae 4 ,
+.Xr age 4 ,
+.Xr alc 4 ,
+.Xr ale 4 ,
+.Xr arp 4 ,
+.Xr aue 4 ,
+.Xr axe 4 ,
+.Xr axge 4 ,
+.Xr bce 4 ,
+.Xr bfe 4 ,
+.Xr bge 4 ,
+.Xr cas 4 ,
+.Xr dc 4 ,
+.Xr ed 4 ,
+.Xr et 4 ,
+.Xr fxp 4 ,
+.Xr gem 4 ,
+.Xr hme 4 ,
+.Xr jme 4 ,
+.Xr lge 4 ,
+.Xr msk 4 ,
+.Xr netintro 4 ,
+.Xr nfe 4 ,
+.Xr nge 4 ,
+.Xr pcn 4 ,
+.Xr re 4 ,
+.Xr rgephy 4 ,
+.Xr rl 4 ,
+.Xr rue 4 ,
+.Xr sf 4 ,
+.Xr sge 4 ,
+.Xr sis 4 ,
+.Xr sk 4 ,
+.Xr smsc 4 ,
+.Xr ste 4 ,
+.Xr stge 4 ,
+.Xr tl 4 ,
+.Xr tx 4 ,
+.Xr udav 4 ,
+.Xr ure 4 ,
+.Xr vge 4 ,
+.Xr vr 4 ,
+.Xr vte 4 ,
+.Xr wb 4 ,
+.Xr xl 4
+.Sh STANDARDS
+More information on MII can be found in the IEEE 802.3 Standard.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 3.3 .
+.Sh AUTHORS
+This manual page was written by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org .

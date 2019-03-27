@@ -1,0 +1,356 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)nfsd.8	8.4 (Berkeley) 3/29/95
+.\" $FreeBSD$
+.\"
+.Dd February 14, 2019
+.Dt NFSD 8
+.Os
+.Sh NAME
+.Nm nfsd
+.Nd remote
+.Tn NFS
+server
+.Sh SYNOPSIS
+.Nm
+.Op Fl ardute
+.Op Fl n Ar num_servers
+.Op Fl h Ar bindip
+.Op Fl p Ar pnfs_setup
+.Op Fl m Ar mirror_level
+.Op Fl V Ar virtual_hostname
+.Op Fl Fl maxthreads Ar max_threads
+.Op Fl Fl minthreads Ar min_threads
+.Sh DESCRIPTION
+The
+.Nm
+utility runs on a server machine to service
+.Tn NFS
+requests from client machines.
+At least one
+.Nm
+must be running for a machine to operate as a server.
+.Pp
+Unless otherwise specified, eight servers per CPU for
+.Tn UDP
+transport are started.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl r
+Register the
+.Tn NFS
+service with
+.Xr rpcbind 8
+without creating any servers.
+This option can be used along with the
+.Fl u
+or
+.Fl t
+options to re-register NFS if the rpcbind server is restarted.
+.It Fl d
+Unregister the
+.Tn NFS
+service with
+.Xr rpcbind 8
+without creating any servers.
+.It Fl V Ar virtual_hostname
+Specifies a hostname to be used as a principal name, instead of
+the default hostname.
+.It Fl n Ar threads
+Specifies how many servers to create.  This option is equivalent to specifying
+.Fl Fl maxthreads
+and
+.Fl Fl minthreads
+with their respective arguments to
+.Ar threads .
+.It Fl Fl maxthreads Ar threads
+Specifies the maximum servers that will be kept around to service requests.
+.It Fl Fl minthreads Ar threads
+Specifies the minimum servers that will be kept around to service requests.
+.It Fl h Ar bindip
+Specifies which IP address or hostname to bind to on the local host.
+This option is recommended when a host has multiple interfaces.
+Multiple
+.Fl h
+options may be specified.
+.It Fl a
+Specifies that nfsd should bind to the wildcard IP address.
+This is the default if no
+.Fl h
+options are given.
+It may also be specified in addition to any
+.Fl h
+options given.
+Note that NFS/UDP does not operate properly when
+bound to the wildcard IP address whether you use -a or do not use -h.
+.It Fl p Ar pnfs_setup
+Enables pNFS support in the server and specifies the information that the
+daemon needs to start it.
+This option can only be used on one server and specifies that this server
+will be the MetaData Server (MDS) for the pNFS service.
+This can only be done if there is at least one FreeBSD system configured
+as a Data Server (DS) for it to use.
+.Pp
+The
+.Ar pnfs_setup
+string is a set of fields separated by ',' characters:
+.Bl -tag -width Ds
+Each of these fields specifies one DS.
+It consists of a server hostname, followed by a ':'
+and the directory path where the DS's data storage file system is mounted on
+this MDS server.
+This can optionally be followed by a '#' and the mds_path, which is the
+directory path for an exported file system on this MDS.
+If this is specified, it means that this DS is to be used to store data
+files for this mds_path file system only.
+If this optional component does not exist, the DS will be used to store data
+files for all exported MDS file systems.
+The DS storage file systems must be mounted on this system before the
+.Nm
+is started with this option specified.
+.br
+For example:
+.sp
+nfsv4-data0:/data0,nfsv4-data1:/data1
+.sp
+would specify two DS servers called nfsv4-data0 and nfsv4-data1 that comprise
+the data storage component of the pNFS service.
+These two DSs would be used to store data files for all exported file systems
+on this MDS.
+The directories
+.Dq /data0
+and
+.Dq /data1
+are where the data storage servers exported
+storage directories are mounted on this system (which will act as the MDS).
+.br
+Whereas, for the example:
+.sp
+nfsv4-data0:/data0#/export1,nfsv4-data1:/data1#/export2
+.sp
+would specify two DSs as above, however nfsv4-data0 will be used to store
+data files for
+.Dq /export1
+and nfsv4-data1 will be used to store data files for
+.Dq /export2 .
+.El
+.sp
+When using IPv6 addresses for DSs
+be wary of using link local addresses.
+The IPv6 address for the DS is sent to the client and there is no scope
+zone in it.
+As such, a link local address may not work for a pNFS client to DS
+TCP connection.
+When parsed,
+.Nm
+will only use a link local address if it is the only address returned by
+.Xr getaddrinfo 3
+for the DS hostname.
+.It Fl m Ar mirror_level
+This option is only meaningful when used with the
+.Fl p
+option.
+It specifies the
+.Dq mirror_level ,
+which defines how many of the DSs will
+have a copy of a file's data storage file.
+The default of one implies no mirroring of data storage files on the DSs.
+The
+.Dq mirror_level
+would normally be set to 2 to enable mirroring, but
+can be as high as NFSDEV_MAXMIRRORS.
+There must be at least
+.Dq mirror_level
+DSs for each exported file system on the MDS, as specified in the
+.Fl p
+option.
+This implies that, for the above example using "#/export1" and "#/export2",
+mirroring cannot be done.
+There would need to be two DS entries for each of "#/export1" and "#/export2"
+in order to support a
+.Dq mirror_level
+of two.
+.Pp
+If mirroring is enabled, the server must use the Flexible File
+layout.
+If mirroring is not enabled, the server will use the File layout
+by default, but this default can be changed to the Flexible File layout if the
+.Xr sysctl 1
+vfs.nfsd.default_flexfile
+is set non-zero.
+.It Fl t
+Serve
+.Tn TCP NFS
+clients.
+.It Fl u
+Serve
+.Tn UDP NFS
+clients.
+.It Fl e
+Ignored; included for backward compatibility.
+.El
+.Pp
+For example,
+.Dq Li "nfsd -u -t -n 6"
+serves
+.Tn UDP
+and
+.Tn TCP
+transports using six daemons.
+.Pp
+A server should run enough daemons to handle
+the maximum level of concurrency from its clients,
+typically four to six.
+.Pp
+The
+.Nm
+utility listens for service requests at the port indicated in the
+.Tn NFS
+server specification; see
+.%T "Network File System Protocol Specification" ,
+RFC1094,
+.%T "NFS: Network File System Version 3 Protocol Specification" ,
+RFC1813,
+.%T "Network File System (NFS) Version 4 Protocol" ,
+RFC3530 and
+.%T "Network File System (NFS) Version 4 Minor Version 1 Protocol" ,
+RFC5661.
+.Pp
+If
+.Nm
+detects that
+.Tn NFS
+is not loaded in the running kernel, it will attempt
+to load a loadable kernel module containing
+.Tn NFS
+support using
+.Xr kldload 2 .
+If this fails, or no
+.Tn NFS
+KLD is available,
+.Nm
+will exit with an error.
+.Pp
+If
+.Nm
+is to be run on a host with multiple interfaces or interface aliases, use
+of the
+.Fl h
+option is recommended.
+If you do not use the option NFS may not respond to
+UDP packets from the same IP address they were sent to.
+Use of this option
+is also recommended when securing NFS exports on a firewalling machine such
+that the NFS sockets can only be accessed by the inside interface.
+The
+.Nm ipfw
+utility
+would then be used to block nfs-related packets that come in on the outside
+interface.
+.Pp
+If the server has stopped servicing clients and has generated a console message
+like
+.Dq Li "nfsd server cache flooded..." ,
+the value for vfs.nfsd.tcphighwater needs to be increased.
+This should allow the server to again handle requests without a reboot.
+Also, you may want to consider decreasing the value for
+vfs.nfsd.tcpcachetimeo to several minutes (in seconds) instead of 12 hours
+when this occurs.
+.Pp
+Unfortunately making vfs.nfsd.tcphighwater too large can result in the mbuf
+limit being reached, as indicated by a console message
+like
+.Dq Li "kern.ipc.nmbufs limit reached" .
+If you cannot find values of the above
+.Nm sysctl
+values that work, you can disable the DRC cache for TCP by setting
+vfs.nfsd.cachetcp to 0.
+.Pp
+The
+.Nm
+utility has to be terminated with
+.Dv SIGUSR1
+and cannot be killed with
+.Dv SIGTERM
+or
+.Dv SIGQUIT .
+The
+.Nm
+utility needs to ignore these signals in order to stay alive as long
+as possible during a shutdown, otherwise loopback mounts will
+not be able to unmount.
+If you have to kill
+.Nm
+just do a
+.Dq Li "kill -USR1 <PID of master nfsd>"
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr nfsstat 1 ,
+.Xr kldload 2 ,
+.Xr nfssvc 2 ,
+.Xr nfsv4 4 ,
+.Xr pnfs 4 ,
+.Xr pnfsserver 4 ,
+.Xr exports 5 ,
+.Xr stablerestart 5 ,
+.Xr gssd 8 ,
+.Xr ipfw 8 ,
+.Xr mountd 8 ,
+.Xr nfsiod 8 ,
+.Xr nfsrevoke 8 ,
+.Xr nfsuserd 8 ,
+.Xr rpcbind 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.4 .
+.Sh BUGS
+If
+.Nm
+is started when
+.Xr gssd 8
+is not running, it will service AUTH_SYS requests only. To fix the problem
+you must kill
+.Nm
+and then restart it, after the
+.Xr gssd 8
+is running.
+.Pp
+If mirroring is enabled via the
+.Fl m
+option and there are Linux clients doing NFSv4.1 mounts, those clients
+need to be patched to support the
+.Dq tightly coupled
+variant of
+the Flexible File layout or the
+.Xr sysctl 1
+vfs.nfsd.flexlinuxhack
+must be set to one on the MDS as a workaround.

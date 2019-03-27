@@ -1,0 +1,88 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 30, 1999
+.Dt VOP_ADVLOCK 9
+.Os
+.Sh NAME
+.Nm VOP_ADVLOCK
+.Nd advisory record locking
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.In sys/fcntl.h
+.In sys/lockf.h
+.Ft int
+.Fn VOP_ADVLOCK "struct vnode *vp" "caddr_t id" "int op" "struct flock *fl" "int flags"
+.Sh DESCRIPTION
+The arguments are:
+.Bl -tag -width flags
+.It Fa vp
+The vnode being manipulated.
+.It Fa id
+The id token which is changing the lock.
+.It Fa op
+The operation to perform (see
+.Xr fcntl 2 ) .
+.It Fa fl
+Description of the lock.
+.It Fa flags
+One of more of the following:
+.Pp
+.Bl -tag -width ".Dv F_UNLCK" -offset indent -compact
+.It Dv F_RDLCK
+Shared or read lock.
+.It Dv F_UNLCK
+Unlock.
+.It Dv F_WRLCK
+Exclusive or write lock.
+.It Dv F_WAIT
+Wait until lock is granted.
+.It Dv F_FLOCK
+Use
+.Xr flock 2
+semantics for lock.
+.It Dv F_POSIX
+Use POSIX semantics for lock.
+.El
+.El
+.Pp
+This entry point manipulates advisory record locks on the file.
+Most file systems delegate the work for this call to
+.Fn lf_advlock .
+.Sh RETURN VALUES
+Zero is returned on success, otherwise an error is returned.
+.Sh SEE ALSO
+.Xr fcntl 2 ,
+.Xr flock 2 ,
+.Xr vnode 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

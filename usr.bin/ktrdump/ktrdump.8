@@ -1,0 +1,95 @@
+.\"-
+.\" Copyright (c) 2002 Chad David
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 22, 2018
+.Dt KTRDUMP 8
+.Os
+.Sh NAME
+.Nm ktrdump
+.Nd print kernel ktr trace buffer
+.Sh SYNOPSIS
+.Nm
+.Op Fl cflqrtH
+.Op Fl i Ar ktrfile
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl o Ar outfile
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to dump the contents of the kernel ktr trace buffer.
+.Pp
+The following options are available:
+.Bl -tag -width ".Fl i Ar ktrfile"
+.It Fl c
+Print the CPU number that each entry was logged from.
+.It Fl l
+Poll the kernel ktr trace buffer periodically dumping any new events after
+each poll.
+.It Fl f
+Print the file and line number that each entry was logged from.
+.It Fl q
+Quiet mode; do not print the column header.
+.It Fl r
+Print relative timestamps rather than absolute timestamps.
+.It Fl t
+Print the timestamp for each entry.
+.It Fl H
+Print the thread ID for each entry.
+.It Fl i Ar ktrfile
+File containing saved ktr trace events; for more information see the
+.Xr ktr 4
+manual page.
+.It Fl N Ar system
+The kernel image to resolve symbols from.
+The default is the value returned via
+.Xr getbootfile 3 .
+.It Fl M Ar core
+The core file or memory image to read from.
+The default is
+.Pa /dev/mem .
+.It Fl o Ar outfile
+The file to write the output to.
+The default is standard output.
+.El
+.Sh SEE ALSO
+.Xr ktr 4 ,
+.Xr ktr 9
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was implemented by
+.An Jake Burkholder Aq Mt jake@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Chad David Aq Mt davidc@FreeBSD.org .

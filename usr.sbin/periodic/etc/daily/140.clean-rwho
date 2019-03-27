@@ -1,0 +1,53 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+# Remove stale files in /var/rwho
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_clean_rwho_enable" in
+    [Yy][Ee][Ss])
+	if [ -z "$daily_clean_rwho_days" ]
+	then
+	    echo '$daily_clean_rwho_enable is enabled but' \
+		'$daily_clean_rwho_days is not set'
+	    rc=2
+	elif [ ! -d /var/rwho ]
+	then
+	    echo '$daily_clean_rwho_enable is enabled but /var/rwho' \
+		"doesn't exist"
+	    rc=2
+	else
+	    echo ""
+	    echo "Removing stale files from /var/rwho:"
+
+	    case "$daily_clean_rwho_verbose" in
+		[Yy][Ee][Ss])
+		    print=-print;;
+		*)
+		    print=;;
+	    esac
+
+	    if cd /var/rwho
+	    then
+		rc=$(find . ! -name . -mtime +$daily_clean_rwho_days \
+		    -delete $print | tee /dev/stderr | wc -l)
+		[ -z "$print" ] && rc=0
+		[ $rc -gt 1 ] && rc=1
+	    else
+		rc=3
+	    fi
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

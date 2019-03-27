@@ -1,0 +1,509 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# Copyright (c) 2013-2018 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_include $BSDCFG_SHARE/dialog.subr
+
+############################################################ GLOBALS
+
+#
+# Strings that should be moved to an i18n file and loaded with f_include_lang()
+#
+hline_arrows_tab_enter="Press arrows, TAB or ENTER"
+hline_arrows_tab_space_enter="Press arrows, TAB, SPACE or ENTER"
+msg_abort="Abort"
+msg_exit="Exit"
+msg_freebsd_installer="FreeBSD Installer"
+msg_gpt_active_fix="Your hardware is known to have issues booting in CSM/Legacy/BIOS mode from GPT partitions that are not set active. Would you like the installer to apply this workaround for you?"
+msg_lenovo_fix="Your model of Lenovo is known to have a BIOS bug that prevents it booting from GPT partitions without UEFI. Would you like the installer to apply a workaround for you?"
+msg_an_installation_step_has_been_aborted="An installation step has been aborted. Would you like\nto restart the installation or exit the installer?"
+msg_no="NO"
+msg_restart="Restart"
+msg_yes="YES"
+
+############################################################ FUNCTIONS
+
+# error [$msg]
+#
+# Display generic error message when a script fails. An optional message
+# argument can preceed the generic message. User is given the choice of
+# restarting the installer or exiting.
+#
+error()
+{
+	local title="$msg_abort"
+	local btitle="$msg_freebsd_installer"
+	local prompt="${1:+$1\n\n}$msg_an_installation_step_has_been_aborted"
+	local hline="$hline_arrows_tab_space_enter"
+
+	[ "$DISTDIR_IS_UNIONFS" ] && umount -f "$BSDINSTALL_DISTDIR"
+	[ -f "$PATH_FSTAB" ] && bsdinstall umount
+
+	local height width
+	f_dialog_buttonbox_size height width \
+		"$title" "$btitle" "$prompt" "$hline"
+
+	if $DIALOG \
+		--title "$title"           \
+		--backtitle "$btitle"      \
+		--hline "$hline"           \
+		--no-label "$msg_exit"     \
+		--yes-label "$msg_restart" \
+		--yesno "$prompt" $height $width
+	then
+		exec $0
+		# NOTREACHED
+	fi
+	exit 1
+}
+
+# dialog_workaround
+#
+# Ask the user if they wish to apply a workaround
+#
+dialog_workaround()
+{
+	local passed_msg="$1"
+	local title="$DIALOG_TITLE"
+	local btitle="$DIALOG_BACKTITLE"
+	local prompt # Calculated below
+	local hline="$hline_arrows_tab_enter"
+
+	local height=8 width=50 prefix="   "
+	local plen=${#prefix} list= line=
+	local max_width=$(( $width - 3 - $plen ))
+
+	local yes no defaultno extra_args format
+	if [ "$USE_XDIALOG" ]; then
+		yes=ok no=cancel defaultno=default-no
+		extra_args="--wrap --left"
+		format="$passed_msg"
+	else
+		yes=yes no=no defaultno=defaultno
+		extra_args="--cr-wrap"
+		format="$passed_msg"
+	fi
+
+	# Add height for Xdialog(1)
+	[ "$USE_XDIALOG" ] && height=$(( $height + $height / 5 + 3 ))
+
+	prompt=$( printf "$format" )
+	f_dprintf "%s: Workaround prompt" "$0"
+	$DIALOG \
+		--title "$title"        \
+		--backtitle "$btitle"   \
+		--hline "$hline"        \
+		--$yes-label "$msg_yes" \
+		--$no-label "$msg_no"   \
+		$extra_args             \
+		--yesno "$prompt" $height $width
+}
+
+############################################################ MAIN
+
+f_dprintf "Began Installation at %s" "$( date )"
+
+rm -rf $BSDINSTALL_TMPETC
+mkdir $BSDINSTALL_TMPETC
+
+trap true SIGINT	# This section is optional
+bsdinstall keymap
+
+trap error SIGINT	# Catch cntrl-C here
+bsdinstall hostname || error "Set hostname failed"
+
+export DISTRIBUTIONS="base.txz kernel.txz"
+if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
+	DISTMENU=`awk -F'\t' '!/^(kernel\.txz|base\.txz)/{print $1,$5,$6}' $BSDINSTALL_DISTDIR/MANIFEST`
+	DISTMENU="$(echo ${DISTMENU} | sed -E 's/\.txz//g')"
+
+	exec 3>&1
+	EXTRA_DISTS=$( eval dialog \
+	    --backtitle \"FreeBSD Installer\" \
+	    --title \"Distribution Select\" --nocancel --separate-output \
+	    --checklist \"Choose optional system components to install:\" \
+	    0 0 0 $DISTMENU \
+	2>&1 1>&3 )
+	for dist in $EXTRA_DISTS; do
+		export DISTRIBUTIONS="$DISTRIBUTIONS $dist.txz"
+	done
+fi
+
+LOCAL_DISTRIBUTIONS="MANIFEST"
+FETCH_DISTRIBUTIONS=""
+for dist in $DISTRIBUTIONS; do
+	if [ ! -f $BSDINSTALL_DISTDIR/$dist ]; then
+		FETCH_DISTRIBUTIONS="$FETCH_DISTRIBUTIONS $dist"
+	else
+		LOCAL_DISTRIBUTIONS="$LOCAL_DISTRIBUTIONS $dist"
+	fi
+done
+LOCAL_DISTRIBUTIONS=`echo $LOCAL_DISTRIBUTIONS`	# Trim white space
+FETCH_DISTRIBUTIONS=`echo $FETCH_DISTRIBUTIONS`	# Trim white space
+
+if [ -n "$FETCH_DISTRIBUTIONS" -a -n "$BSDINSTALL_CONFIGCURRENT" ]; then
+	dialog --backtitle "FreeBSD Installer" --title "Network Installation" --msgbox "Some installation files were not found on the boot volume. The next few screens will allow you to configure networking so that they can be downloaded from the Internet." 0 0
+	bsdinstall netconfig || error
+	NETCONFIG_DONE=yes
+fi
+
+if [ -n "$FETCH_DISTRIBUTIONS" ]; then
+	exec 3>&1
+	BSDINSTALL_DISTSITE=$(`dirname $0`/mirrorselect 2>&1 1>&3)
+	MIRROR_BUTTON=$?
+	exec 3>&-
+	test $MIRROR_BUTTON -eq 0 || error "No mirror selected"
+	export BSDINSTALL_DISTSITE
+fi
+
+rm -f $PATH_FSTAB
+touch $PATH_FSTAB
+
+#
+# Try to detect known broken platforms and apply their workarounds
+#
+
+if f_interactive; then
+	sys_maker=$( kenv -q smbios.system.maker )
+	f_dprintf "smbios.system.maker=[%s]" "$sys_maker"
+	sys_model=$( kenv -q smbios.system.product )
+	f_dprintf "smbios.system.product=[%s]" "$sys_model"
+	sys_version=$( kenv -q smbios.system.version )
+	f_dprintf "smbios.system.version=[%s]" "$sys_version"
+	sys_mb_maker=$( kenv -q smbios.planar.maker )
+	f_dprintf "smbios.planar.maker=[%s]" "$sys_mb_maker"
+	sys_mb_product=$( kenv -q smbios.planar.product )
+	f_dprintf "smbios.planar.product=[%s]" "$sys_mb_product"
+
+	#
+	# Laptop Models
+	#
+	case "$sys_maker" in
+	"LENOVO")
+		case "$sys_version" in
+		"ThinkPad X220"|"ThinkPad T420"|"ThinkPad T520"|"ThinkPad W520"|"ThinkPad X1")
+			dialog_workaround "$msg_lenovo_fix"
+			retval=$?
+			f_dprintf "lenovofix_prompt=[%s]" "$retval"
+			if [ $retval -eq $DIALOG_OK ]; then
+				export ZFSBOOT_PARTITION_SCHEME="GPT + Lenovo Fix"
+				export WORKAROUND_LENOVO=1
+			fi
+			;;
+		esac
+		;;
+	"Dell Inc.")
+		case "$sys_model" in
+		"Latitude E6330"|"Latitude E7440"|"Latitude E7240"|"Precision Tower 5810")
+			dialog_workaround "$msg_gpt_active_fix"
+			retval=$?
+			f_dprintf "gpt_active_fix_prompt=[%s]" "$retval"
+			if [ $retval -eq $DIALOG_OK ]; then
+				export ZFSBOOT_PARTITION_SCHEME="GPT + Active"
+				export WORKAROUND_GPTACTIVE=1
+			fi
+			;;
+		esac
+		;;
+	"Hewlett-Packard")
+		case "$sys_model" in
+		"HP ProBook 4330s")
+			dialog_workaround "$msg_gpt_active_fix"
+			retval=$?
+			f_dprintf "gpt_active_fix_prompt=[%s]" "$retval"
+			if [ $retval -eq $DIALOG_OK ]; then
+				export ZFSBOOT_PARTITION_SCHEME="GPT + Active"
+				export WORKAROUND_GPTACTIVE=1
+			fi
+			;;
+		esac
+		;;
+	esac
+	#
+	# Motherboard Models
+	#
+	case "$sys_mb_maker" in
+	"Intel Corporation")
+		case "$sys_mb_product" in
+		"DP965LT"|"D510MO")
+			dialog_workaround "$msg_gpt_active_fix"
+			retval=$?
+			f_dprintf "gpt_active_fix_prompt=[%s]" "$retval"
+			if [ $retval -eq $DIALOG_OK ]; then
+				export ZFSBOOT_PARTITION_SCHEME="GPT + Active"
+				export WORKAROUND_GPTACTIVE=1
+			fi
+			;;
+		esac
+		;;
+	"Acer")
+		case "$sys_mb_product" in
+		"Veriton M6630G")
+			dialog_workaround "$msg_gpt_active_fix"
+			retval=$?
+			f_dprintf "gpt_active_fix_prompt=[%s]" "$retval"
+			if [ $retval -eq $DIALOG_OK ]; then
+				export ZFSBOOT_PARTITION_SCHEME="GPT + Active"
+				export WORKAROUND_GPTACTIVE=1
+			fi
+			;;
+		esac
+		;;
+	esac
+fi
+
+PMODES="\
+\"Auto (UFS)\" \"Guided Disk Setup\" \
+Manual \"Manual Disk Setup (experts)\" \
+Shell \"Open a shell and partition by hand\""
+
+CURARCH=$( uname -m )
+case $CURARCH in
+	amd64|arm64|i386)	# Booting ZFS Supported
+		PMODES="$PMODES \"Auto (ZFS)\" \"Guided Root-on-ZFS\""
+		;;
+	*)		# Booting ZFS Unspported
+		;;
+esac
+
+exec 3>&1
+PARTMODE=`echo $PMODES | xargs dialog --backtitle "FreeBSD Installer" \
+	--title "Partitioning" \
+	--menu "How would you like to partition your disk?" \
+	0 0 0 2>&1 1>&3` || exit 1
+exec 3>&-
+
+case "$PARTMODE" in
+"Auto (UFS)")	# Guided
+	bsdinstall autopart || error "Partitioning error"
+	bsdinstall mount || error "Failed to mount filesystem"
+	;;
+"Shell")	# Shell
+	clear
+	echo "Use this shell to set up partitions for the new system. When finished, mount the system at $BSDINSTALL_CHROOT and place an fstab file for the new system at $PATH_FSTAB. Then type 'exit'. You can also enter the partition editor at any time by entering 'bsdinstall partedit'."
+	sh 2>&1
+	;;
+"Manual")	# Manual
+	if f_isset debugFile; then
+		# Give partedit the path to our logfile so it can append
+		BSDINSTALL_LOG="${debugFile#+}" bsdinstall partedit || error "Partitioning error"
+	else
+		bsdinstall partedit || error "Partitioning error"
+	fi
+	bsdinstall mount || error "Failed to mount filesystem"
+	;;
+"Auto (ZFS)")	# ZFS
+	bsdinstall zfsboot || error "ZFS setup failed"
+	bsdinstall mount || error "Failed to mount filesystem"
+	;;
+*)
+	error "Unknown partitioning mode"
+	;;
+esac
+
+if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
+	ALL_DISTRIBUTIONS="$DISTRIBUTIONS"
+	WANT_DEBUG=
+
+	# Download to a directory in the new system as scratch space
+	BSDINSTALL_FETCHDEST="$BSDINSTALL_CHROOT/usr/freebsd-dist"
+	mkdir -p "$BSDINSTALL_FETCHDEST" || error "Could not create directory $BSDINSTALL_FETCHDEST"
+
+	export DISTRIBUTIONS="$FETCH_DISTRIBUTIONS"
+	# Try to use any existing distfiles
+	if [ -d $BSDINSTALL_DISTDIR ]; then
+		DISTDIR_IS_UNIONFS=1
+		mount_nullfs -o union "$BSDINSTALL_FETCHDEST" "$BSDINSTALL_DISTDIR"
+	else
+		export DISTRIBUTIONS="$FETCH_DISTRIBUTIONS"
+		export BSDINSTALL_DISTDIR="$BSDINSTALL_FETCHDEST"
+	fi
+
+	export FTP_PASSIVE_MODE=YES
+	# Iterate through the distribution list and set a flag if debugging
+	# distributions have been selected.
+	for _DISTRIBUTION in $DISTRIBUTIONS; do
+		case $_DISTRIBUTION in
+			*-dbg.*)
+				[ -e $BSDINSTALL_DISTDIR/$_DISTRIBUTION ] \
+					&& continue
+				WANT_DEBUG=1
+				DEBUG_LIST="\n$DEBUG_LIST\n$_DISTRIBUTION"
+				;;
+			*)
+				;;
+		esac
+	done
+
+	# Fetch the distributions.
+	bsdinstall distfetch
+	rc=$?
+
+	if [ $rc -ne 0 ]; then
+		# If unable to fetch the remote distributions, recommend
+		# deselecting the debugging distributions, and retrying the
+		# installation, since failure to fetch *-dbg.txz should not
+		# be considered a fatal installation error.
+		msg="Failed to fetch remote distribution"
+		if [ ! -z "$WANT_DEBUG" ]; then
+			# Trim leading and trailing newlines.
+			DEBUG_LIST="${DEBUG_LIST%%\n}"
+			DEBUG_LIST="${DEBUG_LIST##\n}"
+			msg="$msg\n\nPlease deselect the following distributions"
+			msg="$msg and retry the installation:"
+			msg="$msg\n$DEBUG_LIST"
+		fi
+		error "$msg"
+	fi
+	export DISTRIBUTIONS="$ALL_DISTRIBUTIONS"
+fi
+
+if [ ! -z "$LOCAL_DISTRIBUTIONS" ]; then
+	# Download to a directory in the new system as scratch space
+	BSDINSTALL_FETCHDEST="$BSDINSTALL_CHROOT/usr/freebsd-dist"
+	mkdir -p "$BSDINSTALL_FETCHDEST" || error "Could not create directory $BSDINSTALL_FETCHDEST"
+	# Try to use any existing distfiles
+	if [ -d $BSDINSTALL_DISTDIR ]; then
+		DISTDIR_IS_UNIONFS=1
+		mount_nullfs -o union "$BSDINSTALL_FETCHDEST" "$BSDINSTALL_DISTDIR"
+		export BSDINSTALL_DISTDIR="$BSDINSTALL_FETCHDEST"
+	fi
+	env DISTRIBUTIONS="$LOCAL_DISTRIBUTIONS" \
+		BSDINSTALL_DISTSITE="file:///usr/freebsd-dist" \
+		bsdinstall distfetch || \
+		error "Failed to fetch distribution from local media"
+fi
+
+bsdinstall checksum || error "Distribution checksum failed"
+bsdinstall distextract || error "Distribution extract failed"
+
+# Set up boot loader
+bsdinstall bootconfig || error "Failed to configure bootloader"
+
+bsdinstall rootpass || error "Could not set root password"
+
+trap true SIGINT	# This section is optional
+if [ "$NETCONFIG_DONE" != yes ]; then
+	bsdinstall netconfig	# Don't check for errors -- the user may cancel
+fi
+bsdinstall time
+bsdinstall services
+bsdinstall hardening
+
+dialog --backtitle "FreeBSD Installer" --title "Add User Accounts" --yesno \
+    "Would you like to add users to the installed system now?" 0 0 && \
+    bsdinstall adduser
+
+finalconfig() {
+	exec 3>&1
+	REVISIT=$(dialog --backtitle "FreeBSD Installer" \
+	    --title "Final Configuration" --no-cancel --menu \
+	    "Setup of your FreeBSD system is nearly complete. You can now modify your configuration choices. After this screen, you will have an opportunity to make more complex changes using a shell." 0 0 0 \
+		"Exit" "Apply configuration and exit installer" \
+		"Add User" "Add a user to the system" \
+		"Root Password" "Change root password" \
+		"Hostname" "Set system hostname" \
+		"Network" "Networking configuration" \
+		"Services" "Set daemons to run on startup" \
+		"System Hardening" "Set security options" \
+		"Time Zone" "Set system timezone" \
+		"Handbook" "Install FreeBSD Handbook (requires network)" 2>&1 1>&3)
+	exec 3>&-
+
+	case "$REVISIT" in
+	"Add User")
+		bsdinstall adduser
+		finalconfig
+		;;
+	"Root Password")
+		bsdinstall rootpass
+		finalconfig
+		;;
+	"Hostname")
+		bsdinstall hostname
+		finalconfig
+		;;
+	"Network")
+		bsdinstall netconfig
+		finalconfig
+		;;
+	"Services")
+		bsdinstall services
+		finalconfig
+		;;
+	"System Hardening")
+		bsdinstall hardening
+		finalconfig
+		;;
+	"Time Zone")
+		bsdinstall time
+		finalconfig
+		;;
+	"Handbook")
+		bsdinstall docsinstall
+		finalconfig
+		;;
+	esac
+}
+
+# Allow user to change his mind
+finalconfig
+
+trap error SIGINT	# SIGINT is bad again
+bsdinstall config  || error "Failed to save config"
+
+if [ -n "$DISTDIR_IS_UNIONFS" ]; then
+	umount -f $BSDINSTALL_DISTDIR
+fi
+
+if [ ! -z "$BSDINSTALL_FETCHDEST" ]; then
+	rm -rf "$BSDINSTALL_FETCHDEST"
+fi
+
+dialog --backtitle "FreeBSD Installer" --title "Manual Configuration" \
+    --default-button no --yesno \
+   "The installation is now finished. Before exiting the installer, would you like to open a shell in the new system to make any final manual modifications?" 0 0
+if [ $? -eq 0 ]; then
+	clear
+	echo This shell is operating in a chroot in the new system. \
+	    When finished making configuration changes, type \"exit\".
+	chroot "$BSDINSTALL_CHROOT" /bin/sh 2>&1
+fi
+
+bsdinstall entropy
+bsdinstall umount
+
+f_dprintf "Installation Completed at %s" "$( date )"
+
+################################################################################
+# END
+################################################################################

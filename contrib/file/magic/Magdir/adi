@@ -1,0 +1,13 @@
+
+#------------------------------------------------------------------------------
+# $File: adi,v 1.4 2009/09/19 16:28:07 christos Exp $
+# adi: file(1) magic for ADi's objects
+# From Gregory McGarry <g.mcgarry@ieee.org>
+#
+0	leshort		0x521c		COFF DSP21k
+>18	lelong		&02		executable,
+>18	lelong		^02
+>>18	lelong		&01		static object,
+>>18	lelong		^01		relocatable object,
+>18	lelong		&010		stripped
+>18	lelong		^010		not stripped

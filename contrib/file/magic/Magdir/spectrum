@@ -1,0 +1,80 @@
+
+#------------------------------------------------------------------------------
+# $File: spectrum,v 1.8 2017/09/11 23:51:12 christos Exp $
+# spectrum:  file(1) magic for Spectrum emulator files.
+#
+# John Elliott <jce@seasip.demon.co.uk>
+
+#
+# Spectrum +3DOS header
+#
+0       string          PLUS3DOS\032    Spectrum +3 data
+>15     byte            0               - BASIC program
+>15     byte            1               - number array
+>15     byte            2               - character array
+>15     byte            3               - memory block
+>>16    belong          0x001B0040      (screen)
+>15     byte            4               - Tasword document
+>15     string          TAPEFILE        - ZXT tapefile
+#
+# Tape file. This assumes the .TAP starts with a Spectrum-format header,
+# which nearly all will.
+#
+# Update: Sanity-check string contents to be printable.
+#  -Adam Buchbinder <adam.buchbinder@gmail.com>
+#
+0       string          \023\000\000
+>4      string          >\0
+>>4     string          <\177           Spectrum .TAP data "%-10.10s"
+>>>3    byte            0               - BASIC program
+>>>3    byte            1               - number array
+>>>3    byte            2               - character array
+>>>3    byte            3               - memory block
+>>>>14  belong          0x001B0040      (screen)
+
+# The following three blocks are from pak21-spectrum@srcf.ucam.org
+# TZX tape images
+0      string          ZXTape!\x1a     Spectrum .TZX data
+>8     byte            x               version %d
+>9     byte            x               \b.%d
+
+# RZX input recording files
+0      string          RZX!            Spectrum .RZX data
+>4     byte            x               version %d
+>5     byte            x               \b.%d
+
+# Floppy disk images
+0      string          MV\ -\ CPCEMU\ Disk-Fil Amstrad/Spectrum .DSK data
+0      string          MV\ -\ CPC\ format\ Dis Amstrad/Spectrum DU54 .DSK data
+0      string          EXTENDED\ CPC\ DSK\ Fil Amstrad/Spectrum Extended .DSK data
+0      string          SINCLAIR        Spectrum .SCL Betadisk image
+
+# Hard disk images
+0      string          RS-IDE\x1a      Spectrum .HDF hard disk image
+>7     byte            x               \b, version 0x%02x
+
+# SZX snapshots (fuse and spectaculator)
+# Martin M. S. Pedersen <martin@linux.com>
+# http://www.spectaculator.com/docs/zx-state/header.shtml
+#
+0      string		ZXST	       zx-state snapshot
+>4     byte		x	       version %d
+>5     byte		x	       \b.%d
+>>6    byte		0	       16k ZX Spectrum
+>>6    byte		1	       48k ZX Spectrum/ZX Spectrum+
+>>6    byte		2	       ZX Spectrum 128
+>>6    byte		3	       ZX Spectrum +2
+>>6    byte		4	       ZX Spectrum +2A/+2B
+>>6    byte		5	       ZX Spectrum +3
+>>6    byte		6	       ZX Spectrum +3e
+>>6    byte		7	       Pentagon 128
+>>6    byte		8	       Timex Sinclair TC2048
+>>6    byte		9	       Timex Sinclair TC2068
+>>6    byte	       10	       Scorpion ZS-256
+>>6    byte	       11	       ZX Spectrum SE
+>>6    byte	       12	       Timex Sinclair TS2068
+>>6    byte	       13	       Pentagon 512
+>>6    byte	       14	       Pentagon 1024
+>>6    byte	       15	       48k ZX Spectrum (NTSC)
+>>6    byte	       16	       ZX Spectrum 12Ke
+>>>7   byte		1	       (alternate timings)

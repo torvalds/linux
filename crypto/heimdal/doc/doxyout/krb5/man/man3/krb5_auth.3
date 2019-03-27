@@ -1,0 +1,138 @@
+.TH "Heimdal Kerberos 5 authentication functions" 3 "11 Jan 2012" "Version 1.5.2" "HeimdalKerberos5library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+Heimdal Kerberos 5 authentication functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_rd_req_in_ctx_alloc\fP (krb5_context context, krb5_rd_req_in_ctx *ctx)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_rd_req_in_set_keytab\fP (krb5_context context, krb5_rd_req_in_ctx in, krb5_keytab keytab)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_rd_req_in_set_pac_check\fP (krb5_context context, krb5_rd_req_in_ctx in, krb5_boolean flag)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_rd_req_out_get_server\fP (krb5_context context, krb5_rd_req_out_ctx out, krb5_principal *principal)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_rd_req_out_ctx_free\fP (krb5_context context, krb5_rd_req_out_ctx ctx)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_rd_req_ctx\fP (krb5_context context, krb5_auth_context *auth_context, const krb5_data *inbuf, krb5_const_principal server, krb5_rd_req_in_ctx inctx, krb5_rd_req_out_ctx *outctx)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_rd_req_ctx (krb5_context context, krb5_auth_context * auth_context, const krb5_data * inbuf, krb5_const_principal server, krb5_rd_req_in_ctx inctx, krb5_rd_req_out_ctx * outctx)"
+.PP
+The core server function that verify application authentication requests from clients.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Keberos 5 context. 
+.br
+\fIauth_context\fP the authentication context, can be NULL, then default values for the authentication context will used. 
+.br
+\fIinbuf\fP the (AP-REQ) authentication buffer
+.br
+\fIserver\fP the server with authenticate as, if NULL the function will try to find any available credential in the keytab that will verify the reply. The function will prefer the server the server client specified in the AP-REQ, but if there is no mach, it will try all keytab entries for a match. This have serious performance issues for larger keytabs.
+.br
+\fIinctx\fP control the behavior of the function, if NULL, the default behavior is used. 
+.br
+\fIoutctx\fP the return outctx, free with \fBkrb5_rd_req_out_ctx_free()\fP. 
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Kerberos 5 error code, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_rd_req_in_ctx_alloc (krb5_context context, krb5_rd_req_in_ctx * ctx)"
+.PP
+Allocate a krb5_rd_req_in_ctx as an input parameter to \fBkrb5_rd_req_ctx()\fP. The caller should free the context with krb5_rd_req_in_ctx_free() when done with the context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Keberos 5 context. 
+.br
+\fIctx\fP in ctx to \fBkrb5_rd_req_ctx()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Kerberos 5 error code, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_rd_req_in_set_keytab (krb5_context context, krb5_rd_req_in_ctx in, krb5_keytab keytab)"
+.PP
+Set the keytab that \fBkrb5_rd_req_ctx()\fP will use.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Keberos 5 context. 
+.br
+\fIin\fP in ctx to \fBkrb5_rd_req_ctx()\fP. 
+.br
+\fIkeytab\fP keytab that \fBkrb5_rd_req_ctx()\fP will use, only copy the pointer, so the caller must free they keytab after krb5_rd_req_in_ctx_free() is called.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Kerberos 5 error code, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_rd_req_in_set_pac_check (krb5_context context, krb5_rd_req_in_ctx in, krb5_boolean flag)"
+.PP
+Set if krb5_rq_red() is going to check the Windows PAC or not
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Keberos 5 context. 
+.br
+\fIin\fP krb5_rd_req_in_ctx to check the option on. 
+.br
+\fIflag\fP flag to select if to check the pac (TRUE) or not (FALSE).
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Kerberos 5 error code, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_rd_req_out_ctx_free (krb5_context context, krb5_rd_req_out_ctx ctx)"
+.PP
+Free the krb5_rd_req_out_ctx.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Keberos 5 context. 
+.br
+\fIctx\fP krb5_rd_req_out_ctx context to free. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_rd_req_out_get_server (krb5_context context, krb5_rd_req_out_ctx out, krb5_principal * principal)"
+.PP
+Get the principal that was used in the request from the client. Might not match whats in the ticket if \fBkrb5_rd_req_ctx()\fP searched in the keytab for a matching key.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Kerberos 5 context. 
+.br
+\fIout\fP a krb5_rd_req_out_ctx from \fBkrb5_rd_req_ctx()\fP. 
+.br
+\fIprincipal\fP return principal, free with \fBkrb5_free_principal()\fP. 
+.RE
+.PP
+

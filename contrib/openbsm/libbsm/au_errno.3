@@ -1,0 +1,110 @@
+.\"-
+.\" Copyright (c) 2008 Apple Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1.  Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\" 2.  Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\" 3.  Neither the name of Apple Inc. ("Apple") nor the names of
+.\"     its contributors may be used to endorse or promote products derived
+.\"     from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY APPLE AND ITS CONTRIBUTORS "AS IS" AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL APPLE OR ITS CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE. 
+.\"
+.Dd December 8, 2008
+.Dt AU_BSM_TO_ERRNO 3
+.Os
+.Sh NAME
+.Nm au_bsm_to_errno ,
+.Nm au_errno_to_bsm ,
+.Nm au_strerror
+.Nd "convert between BSM and local error numbers"
+.Sh LIBRARY
+.Lb libbsm
+.Sh SYNOPSIS
+.In bsm/libbsm.h
+.Ft int
+.Fn au_bsm_to_errno "u_char bsm_error" "int *errorp"
+.Ft u_char
+.Fn au_errno_to_bsm "int error"
+.Ft const char *
+.Fn au_strerror "int bsm_error"
+.Sh DESCRIPTION
+These interfaces may be used to convert between the local (
+.Xr errno 2 )
+and BSM error number spaces found in BSM return tokens.
+.Pp
+The
+.Fn au_bsm_to_errno
+function accepts a BSM error value,
+.Fa bsm_error ,
+and converts it to an
+.Xr errno 2
+that will be stored in the integer pointed to by
+.Fa errorp
+if successful.
+This call will fail if the BSM error cannot be mapped into a local error
+number, which may occur if the return token was generated on another
+operating system.
+.Pp
+The
+.Fn au_errno_to_bsm
+function accepts a local
+.Xr errno 2
+value, and returns the BSM error number for it.
+This call cannot fail, and instead returns a BSM error number indicating to
+a later decoder that the error could not be encoded.
+.Pp
+The
+.Fn au_strerror
+function converts a BSM error value to a string, generally by converting first to a
+local error number and using the local
+.Xr strerror 3
+function, but will also work for errors that are not locally defined.
+.Sh RETURN VALULES
+On success,
+.Fn au_bsm_to_errno
+returns 0 and a converted error value; on failure, it returns -1 but does not
+set
+.Xr errno 2 .
+.Pp
+On success,
+.Fn au_strerror
+returns a pointer to an error string; on failure it will return
+.Dv NULL .
+.Sh SEE ALSO
+.Xr au_to_return 3 ,
+.Xr au_to_return32 3 ,
+.Xr au_to_return64 3 ,
+.Xr libbsm 3
+.Sh HISTORY
+.Fn au_bsm_to_errno
+and
+.Fn au_errno_to_bsm
+were introduced in OpenBSM 1.1.
+.Sh AUTHORS
+These functions were implemented by
+.An Robert Watson
+under contract to Apple Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.
+.Sh BUGS
+.Nm au_strerror
+is unable to provide localized strings for errors not available in the local
+operating system.

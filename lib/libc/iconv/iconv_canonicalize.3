@@ -1,0 +1,74 @@
+.\" Copyright (c) 2009 Gabor Kovesdan <gabor@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Portions of this text are reprinted and reproduced in electronic form
+.\" from IEEE Std 1003.1, 2004 Edition, Standard for Information Technology --
+.\" Portable Operating System Interface (POSIX), The Open Group Base
+.\" Specifications Issue 6, Copyright (C) 2001-2004 by the Institute of
+.\" Electrical and Electronics Engineers, Inc and The Open Group.  In the
+.\" event of any discrepancy between this version and the original IEEE and
+.\" The Open Group Standard, the original IEEE and The Open Group Standard is
+.\" the referee document.  The original Standard can be obtained online at
+.\"	http://www.opengroup.org/unix/online.html.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 20, 2009
+.Dt ICONV_CANONICALIZE 3
+.Os
+.Sh NAME
+.Nm iconv_canonicalize
+.Nd resolving character encoding names to canonical form
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In iconv.h
+.Ft const char *
+.Fn iconv_canonicalize "const char *name"
+.Sh DESCRIPTION
+The
+.Fn iconv_canonicalize
+function resolves the character encoding name specified by the
+.Fa name
+argument to its canonical form.
+.Sh RETURN VALUES
+Upon successful completion
+.Fn iconv_canonicalize ,
+returns the canonical name of the given encoding.
+If the specified name is already a canonical name, the same
+value is returned.
+If the specified name is not an existing character encoding
+name, NULL is returned.
+.Sh SEE ALSO
+.Xr iconv 3
+.Sh STANDARDS
+The
+.Nm
+function is a non-standard extension, which appeared in
+the GNU implementation and was adopted in
+.Fx 9.0
+for compatibility's sake.
+.Sh AUTHORS
+This manual page was written by
+.An Gabor Kovesdan Aq Mt gabor@FreeBSD.org .

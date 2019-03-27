@@ -1,0 +1,38 @@
+# $FreeBSD$
+
+# These may be a bit unclear in the POSIX spec or the proposed revisions,
+# and conflict with bash's interpretation, but I think ksh93's interpretation
+# makes most sense. In particular, it makes no sense to me that single-quotes
+# must match but are not removed.
+
+e= q='?' a='*' t=texttext s='ast*que?non' p='/et[c]/' w='a b c' b='{{(#)}}'
+h='##'
+failures=''
+ok=''
+
+testcase() {
+	code="$1"
+	expected="$2"
+	oIFS="$IFS"
+	eval "$code"
+	IFS='|'
+	result="$#|$*"
+	IFS="$oIFS"
+	if [ "x$result" = "x$expected" ]; then
+		ok=x$ok
+	else
+		failures=x$failures
+		echo "For $code, expected $expected actual $result"
+	fi
+}
+
+testcase 'set -- ${e:-'"'"'}'"'"'}'		'1|}'
+testcase "set -- \${e:-\\'}"			"1|'"
+testcase "set -- \${e:-\\'\\'}"			"1|''"
+testcase "set -- \"\${e:-'}\""			"1|'"
+testcase "set -- \"\${e:-'}'}\""		"1|''}"
+testcase "set -- \"\${e:-''}\""			"1|''"
+testcase 'set -- ${e:-\a}'			'1|a'
+testcase 'set -- "${e:-\a}"'			'1|\a'
+
+test "x$failures" = x

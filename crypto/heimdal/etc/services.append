@@ -1,0 +1,29 @@
+#
+# $Id$
+#
+# Kerberos services
+#
+kerberos	88/udp		kerberos-sec	# Kerberos v5 UDP
+kerberos	88/tcp		kerberos-sec	# Kerberos v5 TCP
+kpasswd		464/udp				# password changing
+kpasswd		464/tcp				# password changing
+klogin		543/tcp				# Kerberos authenticated rlogin
+kshell		544/tcp		krcmd		# and remote shell
+ekshell		545/tcp		      # Kerberos encrypted remote shell -kfall
+ekshell2	2106/tcp	      # What U of Colorado @ Boulder uses?
+kerberos-adm	749/udp				# v5 kadmin
+kerberos-adm	749/tcp				# v5 kadmin
+kerberos-iv	750/udp		kdc		# Kerberos authentication--udp
+kerberos-iv	750/tcp		kdc		# Kerberos authentication--tcp
+kerberos_master 751/udp				# v4 kadmin
+kerberos_master 751/tcp				# v4 kadmin
+krb_prop	754/tcp		hprop		# Kerberos slave propagation
+kpop		1109/tcp			# Pop with Kerberos
+eklogin		2105/tcp			# Kerberos encrypted rlogin
+rkinit		2108/tcp			# Kerberos remote kinit
+kf		2110/tcp			# forward credentials
+kx		2111/tcp			# X over kerberos
+kip		2112/tcp			# IP over kerberos
+kauth		2120/tcp			# Remote kauth
+iprop		2121/tcp			# incremental propagation
+krb524		4444/udp			# MIT 5->4

@@ -1,0 +1,6 @@
+$FreeBSD$
+
+The smbfs distribution was written with FreeBSD in mind, so the only
+change required before an import is:
+
+rm -rf kernel

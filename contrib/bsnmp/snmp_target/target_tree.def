@@ -1,0 +1,87 @@
+#-
+# Copyright (C) 2010 The FreeBSD Foundation
+# All rights reserved.
+#
+# This software was developed by Shteryana Sotirova Shopova under
+# sponsorship from the FreeBSD Foundation.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#   documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+include "tc.def"
+
+(1 internet
+  (6 snmpV2
+    (1 snmpDomains
+      (1 snmpUDPDomain
+      )
+    )
+    (3 snmpModules
+      (12 snmpTargetMIB
+        (1 snmpTargetObjects
+          (1 snmpTargetSpinLock INTEGER op_snmp_target GET SET)
+          (2 snmpTargetAddrTable
+            (1 snmpTargetAddrEntry : OCTETSTRING op_snmp_target_addrs
+              (1 snmpTargetAddrName OCTETSTRING)
+              (2 snmpTargetAddrTDomain OID GET SET)
+              (3 snmpTargetAddrTAddress OCTETSTRING | TAddress GET SET)
+              (4 snmpTargetAddrTimeout INTEGER GET SET)
+              (5 snmpTargetAddrRetryCount INTEGER GET SET)
+              (6 snmpTargetAddrTagList OCTETSTRING | SnmpTagList GET SET)
+              (7 snmpTargetAddrParams OCTETSTRING GET SET)
+              (8 snmpTargetAddrStorageType StorageType GET SET)
+              (9 snmpTargetAddrRowStatus RowStatus GET SET)
+            )
+          )
+          (3 snmpTargetParamsTable
+            (1 snmpTargetParamsEntry : OCTETSTRING op_snmp_target_params
+              (1 snmpTargetParamsName OCTETSTRING)
+              (2 snmpTargetParamsMPModel INTEGER GET SET)
+              (3 snmpTargetParamsSecurityModel INTEGER GET SET)
+              (4 snmpTargetParamsSecurityName OCTETSTRING | SnmpAdminString GET SET)
+              (5 snmpTargetParamsSecurityLevel ENUM ( 1 noAuthNoPriv 2 authNoPriv 3 authPriv ) GET SET)
+              (6 snmpTargetParamsStorageType StorageType GET SET)
+              (7 snmpTargetParamsRowStatus RowStatus GET SET)
+            )
+          )
+          (4 snmpUnavailableContexts COUNTER op_snmp_target GET)
+          (5 snmpUnknownContexts COUNTER op_snmp_target GET)
+        )
+      )
+      (13 snmpNotificationMIB
+        (1 snmpNotifyObjects
+          (1 snmpNotifyTable
+            (1 snmpNotifyEntry : OCTETSTRING op_snmp_notify
+              (1 snmpNotifyName OCTETSTRING)
+              (2 snmpNotifyTag OCTETSTRING | SnmpTagValue GET SET)
+              (3 snmpNotifyType ENUM ( 1 trap 2 inform ) GET SET)
+              (4 snmpNotifyStorageType StorageType GET SET)
+              (5 snmpNotifyRowStatus RowStatus GET SET)
+            )
+          )
+        )
+      )
+    )
+  )
+)

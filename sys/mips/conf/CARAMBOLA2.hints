@@ -1,0 +1,107 @@
+#
+# This file adds to the values in AR91XX_BASE.hints.
+#
+# $FreeBSD$
+
+# mdiobus on arge1
+hint.argemdio.0.at="nexus0"
+hint.argemdio.0.maddr=0x1a000000
+hint.argemdio.0.msize=0x1000
+hint.argemdio.0.order=0
+
+# Embedded Atheros Switch
+hint.arswitch.0.at="mdio0"
+
+# XXX this should really say it's an AR933x switch, as there
+# are some vlan specific differences here!
+hint.arswitch.0.is_7240=1
+hint.arswitch.0.numphys=4
+hint.arswitch.0.phy4cpu=1	# phy 4 is a "CPU" separate PHY
+hint.arswitch.0.is_rgmii=0
+hint.arswitch.0.is_gmii=1	# arge1 <-> switch PHY is GMII
+
+# arge0 - MII, autoneg, phy(4)
+hint.arge.0.phymask=0x10	# PHY4
+hint.arge.0.mdio=mdioproxy1	# .. off of the switch mdiobus
+hint.arge.0.eeprommac=0x1fff0000
+
+# arge1 - GMII, 1000/full
+hint.arge.1.phymask=0x0		# No directly mapped PHYs
+hint.arge.1.media=1000
+hint.arge.1.fduplex=1
+hint.arge.1.eeprommac=0x1fff0006
+
+
+# ART calibration data mapping
+hint.ar71xx_caldata.0.at="nexus0"
+hint.ar71xx_caldata.0.order=0
+# Where the ART is - last 64k in the first 8MB of flash
+hint.ar71xx_caldata.0.map.0.ath_fixup_addr=0x1fff0000
+hint.ar71xx_caldata.0.map.0.ath_fixup_size=16384
+
+# And now tell the ath(4) driver where to look!
+hint.ath.0.eeprom_firmware="ar71xx_caldata.0.map.0.eeprom_firmware"
+
+# The AP121 16MB flash layout:
+#
+# [    0.700000] 0x000000000000-0x000000040000 : "u-boot"
+# [    0.710000] 0x000000040000-0x000000050000 : "u-boot-env"
+# [    0.710000] 0x000000050000-0x000000250000 : "kernel"
+# [    0.720000] 0x000000250000-0x000000fe0000 : "rootfs"
+# [    0.720000] mtd: partition "rootfs" set to be root filesystem
+# [    0.730000] mtd: partition "rootfs_data" created automatically, ofs=480000, len=B60000 
+# [    0.740000] 0x000000480000-0x000000fe0000 : "rootfs_data"
+# [    0.740000] 0x000000fe0000-0x000000ff0000 : "nvram"
+# [    0.750000] 0x000000ff0000-0x000001000000 : "art"
+# [    0.750000] 0x000000050000-0x000000fe0000 : "firmware"
+
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x000040000
+hint.map.0.name="uboot"
+hint.map.0.readonly=1
+
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00040000
+hint.map.1.end=0x00050000
+hint.map.1.name="uboot-env"
+hint.map.1.readonly=0
+
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x00050000
+hint.map.2.end="search:0x00050000:0x10000:.!/bin/sh"
+hint.map.2.name="kernel"
+hint.map.2.readonly=0
+
+hint.map.3.at="flash/spi0"
+hint.map.3.start="search:0x00050000:0x10000:.!/bin/sh"
+hint.map.3.end=0x00fe0000
+hint.map.3.name="rootfs"
+hint.map.3.readonly=0
+
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x00fe0000
+hint.map.4.end=0x00ff0000
+hint.map.4.name="cfg"
+hint.map.4.readonly=0
+
+# This is radio calibration section.  It is (or should be!) unique
+# for each board, to take into account thermal and electrical differences
+# as well as the regulatory compliance data.
+#
+hint.map.5.at="flash/spi0"
+hint.map.5.start=0x00ff0000
+hint.map.5.end=0x01000000
+hint.map.5.name="art"
+hint.map.5.readonly=1
+
+# GPIO specific configuration block
+
+# Don't flip on anything that isn't already enabled.
+# This includes leaving the SPI CS1/CS2 pins as GPIO pins as they're
+# not used here.
+hint.gpio.0.function_set=0x00000000
+hint.gpio.0.function_clear=0x00000000
+
+# These are the GPIO LEDs and buttons which can be software controlled.
+hint.gpio.0.pinmask=0x00fc1803

@@ -1,0 +1,28 @@
+
+#------------------------------------------------------------------------------
+# $File: esri,v 1.4 2009/09/19 16:28:09 christos Exp $
+# ESRI Shapefile format (.shp .shx .dbf=DBaseIII)
+# Based on info from
+# <URL:http://www.esri.com/library/whitepapers/pdfs/shapefile.pdf>
+0	belong	9994	ESRI Shapefile
+>4	belong	=0
+>8	belong	=0
+>12	belong	=0
+>16	belong	=0
+>20	belong	=0
+>28	lelong	x	version %d
+>24	belong	x	length %d
+>32	lelong	=0	type Null Shape
+>32	lelong	=1	type Point
+>32	lelong	=3	type PolyLine
+>32	lelong	=5	type Polygon
+>32	lelong	=8	type MultiPoint
+>32	lelong	=11	type PointZ
+>32	lelong	=13	type PolyLineZ
+>32	lelong	=15	type PolygonZ
+>32	lelong	=18	type MultiPointZ
+>32	lelong	=21	type PointM
+>32	lelong	=23	type PolyLineM
+>32	lelong	=25	type PolygonM
+>32	lelong	=28	type MultiPointM
+>32	lelong	=31	type MultiPatch

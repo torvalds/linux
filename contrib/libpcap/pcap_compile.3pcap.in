@@ -1,0 +1,80 @@
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP_COMPILE 3PCAP "7 April 2014"
+.SH NAME
+pcap_compile \- compile a filter expression
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap/pcap.h>
+.ft
+.LP
+.ft B
+int pcap_compile(pcap_t *p, struct bpf_program *fp,
+.ti +8
+const char *str, int optimize, bpf_u_int32 netmask);
+.ft
+.fi
+.SH DESCRIPTION
+.B pcap_compile()
+is used to compile the string
+.I str
+into a filter program.  See
+.BR pcap-filter (@MAN_MISC_INFO@)
+for the syntax of that string.
+.I program
+is a pointer to a
+.I bpf_program
+struct and is filled in by
+.BR pcap_compile() .
+.I optimize
+controls whether optimization on the resulting code is performed.
+.I netmask
+specifies the IPv4 netmask of the network on which packets are being
+captured; it is used only when checking for IPv4 broadcast addresses in
+the filter program.  If the netmask of the network on which packets are
+being captured isn't known to the program, or if packets are being
+captured on the Linux "any" pseudo-interface that can capture on more
+than one network, a value of PCAP_NETMASK_UNKNOWN can be supplied; tests
+for IPv4 broadcast addresses will fail to compile, but all other tests in
+the filter program will be OK.
+.LP
+NOTE: in libpcap 1.8.0 and later,
+.B pcap_compile()
+can be used in multiple threads within a single process.  However, in
+earlier versions of libpcap, it is
+.I not
+safe to use
+.B pcap_compile()
+in multiple threads in a single process without some form of mutual
+exclusion allowing only one thread to call it at any given time.
+.SH RETURN VALUE
+.B pcap_compile()
+returns 0 on success and \-1 on failure.
+If \-1 is returned,
+.B pcap_geterr()
+or
+.B pcap_perror()
+may be called with
+.I p
+as an argument to fetch or display the error text.
+.SH SEE ALSO
+pcap(3PCAP), pcap_setfilter(3PCAP), pcap_freecode(3PCAP),
+pcap_geterr(3PCAP), pcap-filter(@MAN_MISC_INFO@)

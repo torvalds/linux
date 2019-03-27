@@ -1,0 +1,233 @@
+.\" Copyright (c) 2012 Davide Italiano <davide@FreeBSD.org> 
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 19, 2012
+.Dt PMC.SANDYBRIDGEUC 3
+.Os
+.Sh NAME
+.Nm pmc.sandybridgeuc
+.Nd uncore measurement events for
+.Tn Intel
+.Tn Sandy Bridge
+family CPUs
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+.Tn Intel
+.Tn "Sandy Bridge"
+CPUs contain PMCs conforming to version 3 of the
+.Tn Intel
+performance measurement architecture.
+These CPUs contain two classes of PMCs:
+.Bl -tag -width "Li PMC_CLASS_UCP"
+.It Li PMC_CLASS_UCF
+Fixed-function counters that count only one hardware event per counter.
+.It Li PMC_CLASS_UCP
+Programmable counters that may be configured to count one of a defined
+set of hardware events.
+.El
+.Pp
+The number of PMCs available in each class and their widths need to be
+determined at run time by calling
+.Xr pmc_cpuinfo 3 .
+.Pp
+Intel Sandy Bridge PMCs are documented in
+.Rs
+.%B "Intel(R) 64 and IA-32 Architectures Software Developers Manual"
+.%T "Volume 3B: System Programming Guide, Part 2"
+.%N "Order Number: 253669-039US"
+.%D May 2011
+.%Q "Intel Corporation"
+.Re
+.Ss SANDYBRIDGE UNCORE FIXED FUNCTION PMCS
+These PMCs and their supported events are documented in
+.Xr pmc.ucf 3 .
+Not all CPUs in this family implement fixed-function counters.
+.Ss SANDYBRIDGE UNCORE PROGRAMMABLE PMCS
+The programmable PMCs support the following capabilities:
+.Bl -column "PMC_CAP_INTERRUPT" "Support"
+.It Em Capability Ta Em Support
+.It PMC_CAP_CASCADE Ta \&No
+.It PMC_CAP_EDGE Ta Yes
+.It PMC_CAP_INTERRUPT Ta \&No
+.It PMC_CAP_INVERT Ta Yes
+.It PMC_CAP_READ Ta Yes
+.It PMC_CAP_PRECISE Ta \&No
+.It PMC_CAP_SYSTEM Ta \&No
+.It PMC_CAP_TAGGING Ta \&No
+.It PMC_CAP_THRESHOLD Ta Yes
+.It PMC_CAP_USER Ta \&No
+.It PMC_CAP_WRITE Ta Yes
+.El
+.Ss Event Qualifiers
+Event specifiers for these PMCs support the following common
+qualifiers:
+.Bl -tag -width indent
+.It Li cmask= Ns Ar value
+Configure the PMC to increment only if the number of configured
+events measured in a cycle is greater than or equal to
+.Ar value .
+.It Li edge
+Configure the PMC to count the number of de-asserted to asserted
+transitions of the conditions expressed by the other qualifiers.
+If specified, the counter will increment only once whenever a
+condition becomes true, irrespective of the number of clocks during
+which the condition remains true.
+.It Li inv
+Invert the sense of comparison when the
+.Dq Li cmask
+qualifier is present, making the counter increment when the number of
+events per cycle is less than the value specified by the
+.Dq Li cmask
+qualifier.
+.El
+.Ss Event Specifiers (Programmable PMCs)
+Sandy Bridge programmable PMCs support the following events:
+.Bl -tag -width indent
+.It Li CBO_XSNP_RESPONSE.RSPIHITI
+.Pq Event 22H, Umask 01H
+Snoop responses received from processor cores to requests initiated by this
+Cbox.
+Must combine with one of the umask values of 20H, 40H, 80H
+.It Li CBO_XSNP_RESPONSE.RSPIHITFSE
+.Pq Event 22H, Umask 02H
+Must combine with one of the umask values of 20H, 40H, 80H
+.It Li CBO_XSNP_RESPONSE.RSPSHITFSE
+.Pq Event 22H, Umask 04H
+Must combine with one of the umask values of 20H, 40H, 80H
+.It Li CBO_XSNP_RESPONSE.RSPSFWDM
+.Pq Event 22H, Umask 08H
+.It Li CBO_XSNP_RESPONSE.RSPIFWDM
+.Pq Event 22H, Umask 01H
+.It Li CBO_XSNP_RESPONSE.AND_EXTERNAL
+.Pq Event 22H, Umask 20H
+Filter on cross-core snoops resulted in external snoop request.
+Must combine with at least one of 01H, 02H, 04H, 08H, 10H
+.It Li CBO_XSNP_RESPONSE.AND_XCORE
+.Pq Event 22H, Umask 40H
+Filter on cross-core snoops resulted in core request.
+Must combine with at least one of 01H, 02H, 04H, 08H, 10H
+.It Li CBO_XSNP_RESPONSE.AND_XCORE
+.Pq Event 22H, Umask 80H
+Filter on cross-core snoops resulted in LLC evictions.
+Must combine with at least one of 01H, 02H, 04H, 08H, 10H
+.It Li CBO_CACHE_LOOKUP.M
+.Pq Event 34H, Umask 01H
+LLC lookup request that access cache and found line in M-state.
+Must combine with one of the umask values of 10H, 20H, 40H, 80H
+.It Li CBO_CACHE_LOOKUP.E
+.Pq Event 34H, Umask 02H
+LLC lookup request that access cache and found line in E-state.
+Must combine with one of the umask values of 10H, 20H, 40H, 80H
+.It Li CBO_CACHE_LOOKUP.S
+.Pq Event 34H, Umask 04H
+LLC lookup request that access cache and found line in S-state.
+Must combine with one of the umask values of 10H, 20H, 40H, 80H
+.It Li CBO_CACHE_LOOKUP.I
+.Pq Event 34H, Umask 08H
+LLC lookup request that access cache and found line in I-state.
+Must combine with one of the umask values of 10H, 20H, 40H, 80H
+.It Li CBO_CACHE_LOOKUP.AND_READ
+.Pq Event 34H, Umask 10H
+Filter on processor core initiated cacheable read requests.
+Must combine with at least one of 01H, 02H, 04H, 08H
+.It Li CBO_CACHE_LOOKUP_AND_READ2
+.Pq Event 34H, Umask 20H
+Filter on processor core initiated cacheable write requests.
+Must combine with at least one of 01H, 02H, 04H, 08H
+.It Li CBO_CACHE_LOOKUP.AND_EXTSNP
+.Pq Event 34H, Umask 40H
+Filter on external snoop requests.
+Must combine with at least one of 01H, 02H, 04H, 08H
+.It Li CBO_CACHE_LOOKUP.AND_ANY
+.Pq Event 34H, Umask 80H
+Filter on any IRQ or IPQ initiated requests including uncacheable,
+noncoherent requests.
+Must combine with at least one of 01H, 02H, 04H, 08H
+.It Li IMPH_CBO_TRK_OCCUPANCY.ALL
+.Pq Event 80H, Umask 01H
+Counts cycles weighted by the number of core-outgoing valid entries.
+Valid entries are between allocation to the first of IDIO or DRSO messages.
+Accounts for coherent and incoherent traffic.
+Counter 0 only
+.It Li IMPH_CBO_TRK_REQUEST.ALL
+.Pq Event 81H, Umask 01H
+Counts the number of core-outgoing entries.
+Accounts for coherent and incoherent traffic.
+.It Li IMPH_CBO_TRK_REQUEST.WRITES
+.Pq Event 81H, Umask 20H
+Counts the number of allocated write entries, include full, partial, and
+evictions.
+.It Li IMPH_CBO_TRK_REQUEST.EVICTIONS
+.Pq Event 81H, Umask 80H
+Counts the number of evictions allocated.
+.It Li IMPH_COH_TRK_OCCUPANCY.ALL
+.Pq Event 83H, Umask 01H
+Counts cycles weighted by the
+number of core-outgoing valid entries in the coherent tracker queue.
+Counter 0 only
+.It Li IMPH_COH_TRK_REQUEST.ALL
+.Pq Event 84H, Umask 01H
+Counts the number of core-outgoing entries in the coherent tracker queue.
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.atom 3 ,
+.Xr pmc.core 3 ,
+.Xr pmc.corei7 3 ,
+.Xr pmc.corei7uc 3 ,
+.Xr pmc.iaf 3 ,
+.Xr pmc.k7 3 ,
+.Xr pmc.k8 3 ,
+.Xr pmc.p4 3 ,
+.Xr pmc.p5 3 ,
+.Xr pmc.p6 3 ,
+.Xr pmc.sandybridge 3 ,
+.Xr pmc.sandybridgexeon 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmc.ucf 3 ,
+.Xr pmc.westmere 3 ,
+.Xr pmc.westmereuc 3 ,
+.Xr pmc_cpuinfo 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4
+.Sh HISTORY
+The
+.Nm pmc
+library first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Lb libpmc
+library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .
+The support for the Sandy Bridge
+microarchitecture was added by
+.An Davide Italiano Aq Mt davide@FreeBSD.org .

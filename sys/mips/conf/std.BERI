@@ -1,0 +1,64 @@
+#
+# BERI_TEMPLATE -- a template kernel configuration for the SRI/Cambridge
+# "BERI" (Bluespec Extensible RISC Implementation) FPGA soft core CPU.  This
+# kernel configuration file will be included by other board-specific files,
+# and so contains only BERI features common across all board targets.
+#
+# $FreeBSD$
+#
+
+machine		mips mips64
+
+cpu		CPU_BERI
+
+options 	HZ=200
+
+makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
+
+makeoptions 	KERNLOADADDR=0xffffffff80100000
+
+include		"../beri/std.beri"
+
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+
+makeoptions	MODULES_OVERRIDE=""
+
+options 	DDB
+options 	KDB
+options 	ALT_BREAK_TO_DEBUGGER
+options 	KTRACE
+
+options 	CAPABILITY_MODE
+options 	CAPABILITIES
+
+options 	COMPAT_FREEBSD10
+options 	COMPAT_FREEBSD11
+
+options 	INTRNG
+options 	SCHED_ULE
+
+options 	FFS			#Berkeley Fast Filesystem
+
+options 	INET
+options 	INET6
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+options 	KGSSAPI
+options 	NFSCL
+options 	NFSLOCKD
+options 	NFS_ROOT
+
+# Debugging for use in -current
+#options 	DEADLKRES		#Enable the deadlock resolver
+options 	INVARIANTS		#Enable calls of extra sanity checking
+options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
+#options 	WITNESS			#Enable checks to detect deadlocks and cycles
+#options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
+
+device		crypto
+device		cryptodev
+device		ether
+device		geom_map
+device		loop
+device		md
+device		random
+device		snp

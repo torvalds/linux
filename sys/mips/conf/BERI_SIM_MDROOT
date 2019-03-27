@@ -1,0 +1,20 @@
+#
+# BERI_SIM_MDROOT -- Kernel for the SRI/Cambridge "BERI" (Bluespec Extensible
+# RISC Implementation) FPGA soft core, as configured for simulation.
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+include "BERI_SIM_BASE"
+
+ident		BERI_SIM_MDROOT
+
+#
+# This kernel configuration uses an embedded memory root file system.
+# Adjust the following path based on local requirements.
+#
+options 	MD_ROOT			# MD is a potential root device
+options 	MD_ROOT_SIZE=26112	# 25.5MB
+options 	ROOTDEVNAME=\"ufs:md0\"

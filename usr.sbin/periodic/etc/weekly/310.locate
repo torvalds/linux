@@ -1,0 +1,32 @@
+#!/bin/sh -
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$weekly_locate_enable" in
+    [Yy][Ee][Ss])
+	echo ""
+	echo "Rebuilding locate database:"
+
+	locdb=/var/db/locate.database
+
+	touch $locdb && rc=0 || rc=3
+	chown nobody $locdb || rc=3
+	chmod 644 $locdb || rc=3
+
+	cd /
+	echo /usr/libexec/locate.updatedb | nice -n 5 su -fm nobody || rc=3
+	chmod 444 $locdb || rc=3;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

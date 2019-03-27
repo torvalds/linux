@@ -1,0 +1,94 @@
+.\" Copyright (c) 1983, 1990, 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)gcore.1	8.2 (Berkeley) 4/18/94
+.\" $FreeBSD$
+.\"
+.Dd July 13, 2016
+.Dt GCORE 1
+.Os
+.Sh NAME
+.Nm gcore
+.Nd get core images of running process
+.Sh SYNOPSIS
+.Nm
+.Op Fl f
+.Op Fl c Ar core
+.Op Ar executable
+.Ar pid
+.Sh DESCRIPTION
+The
+.Nm
+utility creates a core image of the specified process,
+suitable for use with
+.Xr gdb 1 .
+By default, the core is written to the file
+.Dq Pa core.<pid> .
+The process identifier,
+.Ar pid ,
+must be given on the command line.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl c
+Write the core file to the specified file instead of
+.Dq Pa core.<pid> .
+.It Fl f
+Dumps all available segments, excluding only malformed and undumpable segments.
+Unlike the default invocation, this flag dumps mappings of devices which
+may invalidate the state of device transactions or trigger other unexpected
+behavior.
+As a result, this flag should only be used when the behavior of the
+application and any devices it has mapped is fully understood and any side
+effects can be controlled or tolerated.
+.El
+.Sh FILES
+.Bl -tag -width /var/log/messages -compact
+.It Pa core.<pid>
+the core image
+.El
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.Bx 4.2 .
+.Sh BUGS
+Because of the
+.Xr ptrace 2
+usage
+.Nm
+may not work with processes which are actively being investigated with
+.Xr truss 1
+or
+.Xr gdb 1 .
+Additionally, interruptable sleeps may exit with EINTR.
+.Pp
+The
+.Nm
+utility is not compatible with the original
+.Bx 4.2
+version.

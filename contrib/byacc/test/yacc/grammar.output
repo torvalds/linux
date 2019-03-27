@@ -1,0 +1,2214 @@
+   0  $accept : program $end
+
+   1  program :
+   2          | translation_unit
+
+   3  translation_unit : external_declaration
+   4                   | translation_unit external_declaration
+
+   5  external_declaration : declaration
+   6                       | function_definition
+   7                       | ';'
+   8                       | linkage_specification
+   9                       | T_ASM T_ASMARG ';'
+  10                       | error T_MATCHRBRACE
+  11                       | error ';'
+
+  12  braces : T_LBRACE T_MATCHRBRACE
+
+  13  linkage_specification : T_EXTERN T_STRING_LITERAL braces
+  14                        | T_EXTERN T_STRING_LITERAL declaration
+
+  15  declaration : decl_specifiers ';'
+  16              | decl_specifiers init_declarator_list ';'
+
+  17  $$1 :
+
+  18  declaration : any_typedef decl_specifiers $$1 opt_declarator_list ';'
+
+  19  any_typedef : T_EXTENSION T_TYPEDEF
+  20              | T_TYPEDEF
+
+  21  opt_declarator_list :
+  22                      | declarator_list
+
+  23  declarator_list : declarator
+  24                  | declarator_list ',' declarator
+
+  25  $$2 :
+
+  26  $$3 :
+
+  27  function_definition : decl_specifiers declarator $$2 opt_declaration_list T_LBRACE $$3 T_MATCHRBRACE
+
+  28  $$4 :
+
+  29  function_definition : declarator $$4 opt_declaration_list T_LBRACE T_MATCHRBRACE
+
+  30  opt_declaration_list :
+  31                       | T_VA_DCL
+  32                       | declaration_list
+
+  33  declaration_list : declaration
+  34                   | declaration_list declaration
+
+  35  decl_specifiers : decl_specifier
+  36                  | decl_specifiers decl_specifier
+
+  37  decl_specifier : storage_class
+  38                 | type_specifier
+  39                 | type_qualifier
+
+  40  storage_class : T_AUTO
+  41                | T_EXTERN
+  42                | T_REGISTER
+  43                | T_STATIC
+  44                | T_INLINE
+  45                | T_EXTENSION
+
+  46  type_specifier : T_CHAR
+  47                 | T_DOUBLE
+  48                 | T_FLOAT
+  49                 | T_INT
+  50                 | T_LONG
+  51                 | T_SHORT
+  52                 | T_SIGNED
+  53                 | T_UNSIGNED
+  54                 | T_VOID
+  55                 | T_Bool
+  56                 | T_Complex
+  57                 | T_Imaginary
+  58                 | T_TYPEDEF_NAME
+  59                 | struct_or_union_specifier
+  60                 | enum_specifier
+
+  61  type_qualifier : T_TYPE_QUALIFIER
+  62                 | T_DEFINE_NAME
+
+  63  struct_or_union_specifier : struct_or_union any_id braces
+  64                            | struct_or_union braces
+  65                            | struct_or_union any_id
+
+  66  struct_or_union : T_STRUCT
+  67                  | T_UNION
+
+  68  init_declarator_list : init_declarator
+  69                       | init_declarator_list ',' init_declarator
+
+  70  init_declarator : declarator
+
+  71  $$5 :
+
+  72  init_declarator : declarator '=' $$5 T_INITIALIZER
+
+  73  enum_specifier : enumeration any_id braces
+  74                 | enumeration braces
+  75                 | enumeration any_id
+
+  76  enumeration : T_ENUM
+
+  77  any_id : T_IDENTIFIER
+  78         | T_TYPEDEF_NAME
+
+  79  declarator : pointer direct_declarator
+  80             | direct_declarator
+
+  81  direct_declarator : identifier_or_ref
+  82                    | '(' declarator ')'
+  83                    | direct_declarator T_BRACKETS
+  84                    | direct_declarator '(' parameter_type_list ')'
+  85                    | direct_declarator '(' opt_identifier_list ')'
+
+  86  pointer : '*' opt_type_qualifiers
+  87          | '*' opt_type_qualifiers pointer
+
+  88  opt_type_qualifiers :
+  89                      | type_qualifier_list
+
+  90  type_qualifier_list : type_qualifier
+  91                      | type_qualifier_list type_qualifier
+
+  92  parameter_type_list : parameter_list
+  93                      | parameter_list ',' T_ELLIPSIS
+
+  94  parameter_list : parameter_declaration
+  95                 | parameter_list ',' parameter_declaration
+
+  96  parameter_declaration : decl_specifiers declarator
+  97                        | decl_specifiers abs_declarator
+  98                        | decl_specifiers
+
+  99  opt_identifier_list :
+ 100                      | identifier_list
+
+ 101  identifier_list : any_id
+ 102                  | identifier_list ',' any_id
+
+ 103  identifier_or_ref : any_id
+ 104                    | '&' any_id
+
+ 105  abs_declarator : pointer
+ 106                 | pointer direct_abs_declarator
+ 107                 | direct_abs_declarator
+
+ 108  direct_abs_declarator : '(' abs_declarator ')'
+ 109                        | direct_abs_declarator T_BRACKETS
+ 110                        | T_BRACKETS
+ 111                        | direct_abs_declarator '(' parameter_type_list ')'
+ 112                        | direct_abs_declarator '(' ')'
+ 113                        | '(' parameter_type_list ')'
+ 114                        | '(' ')'
+
+state 0
+	$accept : . program $end  (0)
+	program : .  (1)
+
+	error  shift 1
+	'('  shift 2
+	'*'  shift 3
+	'&'  shift 4
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 6
+	T_DEFINE_NAME  shift 7
+	T_AUTO  shift 8
+	T_EXTERN  shift 9
+	T_REGISTER  shift 10
+	T_STATIC  shift 11
+	T_TYPEDEF  shift 12
+	T_INLINE  shift 13
+	T_EXTENSION  shift 14
+	T_CHAR  shift 15
+	T_DOUBLE  shift 16
+	T_FLOAT  shift 17
+	T_INT  shift 18
+	T_VOID  shift 19
+	T_LONG  shift 20
+	T_SHORT  shift 21
+	T_SIGNED  shift 22
+	T_UNSIGNED  shift 23
+	T_ENUM  shift 24
+	T_STRUCT  shift 25
+	T_UNION  shift 26
+	T_Bool  shift 27
+	T_Complex  shift 28
+	T_Imaginary  shift 29
+	T_TYPE_QUALIFIER  shift 30
+	T_ASM  shift 31
+	';'  shift 32
+	$end  reduce 1
+
+	program  goto 33
+	decl_specifiers  goto 34
+	decl_specifier  goto 35
+	storage_class  goto 36
+	type_specifier  goto 37
+	type_qualifier  goto 38
+	struct_or_union_specifier  goto 39
+	enum_specifier  goto 40
+	declarator  goto 41
+	direct_declarator  goto 42
+	struct_or_union  goto 43
+	pointer  goto 44
+	any_id  goto 45
+	identifier_or_ref  goto 46
+	enumeration  goto 47
+	translation_unit  goto 48
+	external_declaration  goto 49
+	declaration  goto 50
+	function_definition  goto 51
+	linkage_specification  goto 52
+	any_typedef  goto 53
+
+
+state 1
+	external_declaration : error . T_MATCHRBRACE  (10)
+	external_declaration : error . ';'  (11)
+
+	T_MATCHRBRACE  shift 54
+	';'  shift 55
+	.  error
+
+
+state 2
+	direct_declarator : '(' . declarator ')'  (82)
+
+	'('  shift 2
+	'*'  shift 3
+	'&'  shift 4
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 56
+	.  error
+
+	declarator  goto 57
+	direct_declarator  goto 42
+	pointer  goto 44
+	any_id  goto 45
+	identifier_or_ref  goto 46
+
+
+state 3
+	pointer : '*' . opt_type_qualifiers  (86)
+	pointer : '*' . opt_type_qualifiers pointer  (87)
+	opt_type_qualifiers : .  (88)
+
+	T_DEFINE_NAME  shift 7
+	T_TYPE_QUALIFIER  shift 30
+	'('  reduce 88
+	'*'  reduce 88
+	'&'  reduce 88
+	T_IDENTIFIER  reduce 88
+	T_TYPEDEF_NAME  reduce 88
+	T_BRACKETS  reduce 88
+	','  reduce 88
+	')'  reduce 88
+
+	type_qualifier  goto 58
+	opt_type_qualifiers  goto 59
+	type_qualifier_list  goto 60
+
+
+state 4
+	identifier_or_ref : '&' . any_id  (104)
+
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 56
+	.  error
+
+	any_id  goto 61
+
+
+state 5
+	any_id : T_IDENTIFIER .  (77)
+
+	.  reduce 77
+
+
+6: reduce/reduce conflict (reduce 58, reduce 78) on '('
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_TYPEDEF_NAME
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_DEFINE_NAME
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_AUTO
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_EXTERN
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_REGISTER
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_STATIC
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_INLINE
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_EXTENSION
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_CHAR
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_DOUBLE
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_FLOAT
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_INT
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_VOID
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_LONG
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_SHORT
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_SIGNED
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_UNSIGNED
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_ENUM
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_STRUCT
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_UNION
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_Bool
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_Complex
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_Imaginary
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_TYPE_QUALIFIER
+6: reduce/reduce conflict (reduce 58, reduce 78) on T_BRACKETS
+6: reduce/reduce conflict (reduce 58, reduce 78) on ';'
+6: reduce/reduce conflict (reduce 58, reduce 78) on ','
+6: reduce/reduce conflict (reduce 58, reduce 78) on ')'
+state 6
+	type_specifier : T_TYPEDEF_NAME .  (58)
+	any_id : T_TYPEDEF_NAME .  (78)
+
+	'('  reduce 58
+	'*'  reduce 58
+	'&'  reduce 58
+	T_IDENTIFIER  reduce 58
+	T_TYPEDEF_NAME  reduce 58
+	T_DEFINE_NAME  reduce 58
+	T_AUTO  reduce 58
+	T_EXTERN  reduce 58
+	T_REGISTER  reduce 58
+	T_STATIC  reduce 58
+	T_TYPEDEF  reduce 78
+	T_INLINE  reduce 58
+	T_EXTENSION  reduce 58
+	T_CHAR  reduce 58
+	T_DOUBLE  reduce 58
+	T_FLOAT  reduce 58
+	T_INT  reduce 58
+	T_VOID  reduce 58
+	T_LONG  reduce 58
+	T_SHORT  reduce 58
+	T_SIGNED  reduce 58
+	T_UNSIGNED  reduce 58
+	T_ENUM  reduce 58
+	T_STRUCT  reduce 58
+	T_UNION  reduce 58
+	T_Bool  reduce 58
+	T_Complex  reduce 58
+	T_Imaginary  reduce 58
+	T_TYPE_QUALIFIER  reduce 58
+	T_BRACKETS  reduce 58
+	T_LBRACE  reduce 78
+	T_VA_DCL  reduce 78
+	';'  reduce 58
+	','  reduce 58
+	'='  reduce 78
+	')'  reduce 58
+
+
+state 7
+	type_qualifier : T_DEFINE_NAME .  (62)
+
+	.  reduce 62
+
+
+state 8
+	storage_class : T_AUTO .  (40)
+
+	.  reduce 40
+
+
+state 9
+	linkage_specification : T_EXTERN . T_STRING_LITERAL braces  (13)
+	linkage_specification : T_EXTERN . T_STRING_LITERAL declaration  (14)
+	storage_class : T_EXTERN .  (41)
+
+	T_STRING_LITERAL  shift 62
+	'('  reduce 41
+	'*'  reduce 41
+	'&'  reduce 41
+	T_IDENTIFIER  reduce 41
+	T_TYPEDEF_NAME  reduce 41
+	T_DEFINE_NAME  reduce 41
+	T_AUTO  reduce 41
+	T_EXTERN  reduce 41
+	T_REGISTER  reduce 41
+	T_STATIC  reduce 41
+	T_INLINE  reduce 41
+	T_EXTENSION  reduce 41
+	T_CHAR  reduce 41
+	T_DOUBLE  reduce 41
+	T_FLOAT  reduce 41
+	T_INT  reduce 41
+	T_VOID  reduce 41
+	T_LONG  reduce 41
+	T_SHORT  reduce 41
+	T_SIGNED  reduce 41
+	T_UNSIGNED  reduce 41
+	T_ENUM  reduce 41
+	T_STRUCT  reduce 41
+	T_UNION  reduce 41
+	T_Bool  reduce 41
+	T_Complex  reduce 41
+	T_Imaginary  reduce 41
+	T_TYPE_QUALIFIER  reduce 41
+	';'  reduce 41
+
+
+state 10
+	storage_class : T_REGISTER .  (42)
+
+	.  reduce 42
+
+
+state 11
+	storage_class : T_STATIC .  (43)
+
+	.  reduce 43
+
+
+state 12
+	any_typedef : T_TYPEDEF .  (20)
+
+	.  reduce 20
+
+
+state 13
+	storage_class : T_INLINE .  (44)
+
+	.  reduce 44
+
+
+state 14
+	any_typedef : T_EXTENSION . T_TYPEDEF  (19)
+	storage_class : T_EXTENSION .  (45)
+
+	T_TYPEDEF  shift 63
+	'('  reduce 45
+	'*'  reduce 45
+	'&'  reduce 45
+	T_IDENTIFIER  reduce 45
+	T_TYPEDEF_NAME  reduce 45
+	T_DEFINE_NAME  reduce 45
+	T_AUTO  reduce 45
+	T_EXTERN  reduce 45
+	T_REGISTER  reduce 45
+	T_STATIC  reduce 45
+	T_INLINE  reduce 45
+	T_EXTENSION  reduce 45
+	T_CHAR  reduce 45
+	T_DOUBLE  reduce 45
+	T_FLOAT  reduce 45
+	T_INT  reduce 45
+	T_VOID  reduce 45
+	T_LONG  reduce 45
+	T_SHORT  reduce 45
+	T_SIGNED  reduce 45
+	T_UNSIGNED  reduce 45
+	T_ENUM  reduce 45
+	T_STRUCT  reduce 45
+	T_UNION  reduce 45
+	T_Bool  reduce 45
+	T_Complex  reduce 45
+	T_Imaginary  reduce 45
+	T_TYPE_QUALIFIER  reduce 45
+	';'  reduce 45
+
+
+state 15
+	type_specifier : T_CHAR .  (46)
+
+	.  reduce 46
+
+
+state 16
+	type_specifier : T_DOUBLE .  (47)
+
+	.  reduce 47
+
+
+state 17
+	type_specifier : T_FLOAT .  (48)
+
+	.  reduce 48
+
+
+state 18
+	type_specifier : T_INT .  (49)
+
+	.  reduce 49
+
+
+state 19
+	type_specifier : T_VOID .  (54)
+
+	.  reduce 54
+
+
+state 20
+	type_specifier : T_LONG .  (50)
+
+	.  reduce 50
+
+
+state 21
+	type_specifier : T_SHORT .  (51)
+
+	.  reduce 51
+
+
+state 22
+	type_specifier : T_SIGNED .  (52)
+
+	.  reduce 52
+
+
+state 23
+	type_specifier : T_UNSIGNED .  (53)
+
+	.  reduce 53
+
+
+state 24
+	enumeration : T_ENUM .  (76)
+
+	.  reduce 76
+
+
+state 25
+	struct_or_union : T_STRUCT .  (66)
+
+	.  reduce 66
+
+
+state 26
+	struct_or_union : T_UNION .  (67)
+
+	.  reduce 67
+
+
+state 27
+	type_specifier : T_Bool .  (55)
+
+	.  reduce 55
+
+
+state 28
+	type_specifier : T_Complex .  (56)
+
+	.  reduce 56
+
+
+state 29
+	type_specifier : T_Imaginary .  (57)
+
+	.  reduce 57
+
+
+state 30
+	type_qualifier : T_TYPE_QUALIFIER .  (61)
+
+	.  reduce 61
+
+
+state 31
+	external_declaration : T_ASM . T_ASMARG ';'  (9)
+
+	T_ASMARG  shift 64
+	.  error
+
+
+state 32
+	external_declaration : ';' .  (7)
+
+	.  reduce 7
+
+
+state 33
+	$accept : program . $end  (0)
+
+	$end  accept
+
+
+state 34
+	declaration : decl_specifiers . ';'  (15)
+	declaration : decl_specifiers . init_declarator_list ';'  (16)
+	function_definition : decl_specifiers . declarator $$2 opt_declaration_list T_LBRACE $$3 T_MATCHRBRACE  (27)
+	decl_specifiers : decl_specifiers . decl_specifier  (36)
+
+	'('  shift 2
+	'*'  shift 3
+	'&'  shift 4
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 6
+	T_DEFINE_NAME  shift 7
+	T_AUTO  shift 8
+	T_EXTERN  shift 65
+	T_REGISTER  shift 10
+	T_STATIC  shift 11
+	T_INLINE  shift 13
+	T_EXTENSION  shift 66
+	T_CHAR  shift 15
+	T_DOUBLE  shift 16
+	T_FLOAT  shift 17
+	T_INT  shift 18
+	T_VOID  shift 19
+	T_LONG  shift 20
+	T_SHORT  shift 21
+	T_SIGNED  shift 22
+	T_UNSIGNED  shift 23
+	T_ENUM  shift 24
+	T_STRUCT  shift 25
+	T_UNION  shift 26
+	T_Bool  shift 27
+	T_Complex  shift 28
+	T_Imaginary  shift 29
+	T_TYPE_QUALIFIER  shift 30
+	';'  shift 67
+	.  error
+
+	decl_specifier  goto 68
+	storage_class  goto 36
+	type_specifier  goto 37
+	type_qualifier  goto 38
+	struct_or_union_specifier  goto 39
+	enum_specifier  goto 40
+	init_declarator_list  goto 69
+	init_declarator  goto 70
+	declarator  goto 71
+	direct_declarator  goto 42
+	struct_or_union  goto 43
+	pointer  goto 44
+	any_id  goto 45
+	identifier_or_ref  goto 46
+	enumeration  goto 47
+
+
+state 35
+	decl_specifiers : decl_specifier .  (35)
+
+	.  reduce 35
+
+
+state 36
+	decl_specifier : storage_class .  (37)
+
+	.  reduce 37
+
+
+state 37
+	decl_specifier : type_specifier .  (38)
+
+	.  reduce 38
+
+
+state 38
+	decl_specifier : type_qualifier .  (39)
+
+	.  reduce 39
+
+
+state 39
+	type_specifier : struct_or_union_specifier .  (59)
+
+	.  reduce 59
+
+
+state 40
+	type_specifier : enum_specifier .  (60)
+
+	.  reduce 60
+
+
+state 41
+	function_definition : declarator . $$4 opt_declaration_list T_LBRACE T_MATCHRBRACE  (29)
+	$$4 : .  (28)
+
+	.  reduce 28
+
+	$$4  goto 72
+
+
+state 42
+	declarator : direct_declarator .  (80)
+	direct_declarator : direct_declarator . T_BRACKETS  (83)
+	direct_declarator : direct_declarator . '(' parameter_type_list ')'  (84)
+	direct_declarator : direct_declarator . '(' opt_identifier_list ')'  (85)
+
+	'('  shift 73
+	T_BRACKETS  shift 74
+	T_TYPEDEF_NAME  reduce 80
+	T_DEFINE_NAME  reduce 80
+	T_AUTO  reduce 80
+	T_EXTERN  reduce 80
+	T_REGISTER  reduce 80
+	T_STATIC  reduce 80
+	T_TYPEDEF  reduce 80
+	T_INLINE  reduce 80
+	T_EXTENSION  reduce 80
+	T_CHAR  reduce 80
+	T_DOUBLE  reduce 80
+	T_FLOAT  reduce 80
+	T_INT  reduce 80
+	T_VOID  reduce 80
+	T_LONG  reduce 80
+	T_SHORT  reduce 80
+	T_SIGNED  reduce 80
+	T_UNSIGNED  reduce 80
+	T_ENUM  reduce 80
+	T_STRUCT  reduce 80
+	T_UNION  reduce 80
+	T_Bool  reduce 80
+	T_Complex  reduce 80
+	T_Imaginary  reduce 80
+	T_TYPE_QUALIFIER  reduce 80
+	T_LBRACE  reduce 80
+	T_VA_DCL  reduce 80
+	';'  reduce 80
+	','  reduce 80
+	'='  reduce 80
+	')'  reduce 80
+
+
+state 43
+	struct_or_union_specifier : struct_or_union . any_id braces  (63)
+	struct_or_union_specifier : struct_or_union . braces  (64)
+	struct_or_union_specifier : struct_or_union . any_id  (65)
+
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 56
+	T_LBRACE  shift 75
+	.  error
+
+	any_id  goto 76
+	braces  goto 77
+
+
+state 44
+	declarator : pointer . direct_declarator  (79)
+
+	'('  shift 2
+	'&'  shift 4
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 56
+	.  error
+
+	direct_declarator  goto 78
+	any_id  goto 45
+	identifier_or_ref  goto 46
+
+
+state 45
+	identifier_or_ref : any_id .  (103)
+
+	.  reduce 103
+
+
+state 46
+	direct_declarator : identifier_or_ref .  (81)
+
+	.  reduce 81
+
+
+state 47
+	enum_specifier : enumeration . any_id braces  (73)
+	enum_specifier : enumeration . braces  (74)
+	enum_specifier : enumeration . any_id  (75)
+
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 56
+	T_LBRACE  shift 75
+	.  error
+
+	any_id  goto 79
+	braces  goto 80
+
+
+state 48
+	program : translation_unit .  (2)
+	translation_unit : translation_unit . external_declaration  (4)
+
+	error  shift 1
+	'('  shift 2
+	'*'  shift 3
+	'&'  shift 4
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 6
+	T_DEFINE_NAME  shift 7
+	T_AUTO  shift 8
+	T_EXTERN  shift 9
+	T_REGISTER  shift 10
+	T_STATIC  shift 11
+	T_TYPEDEF  shift 12
+	T_INLINE  shift 13
+	T_EXTENSION  shift 14
+	T_CHAR  shift 15
+	T_DOUBLE  shift 16
+	T_FLOAT  shift 17
+	T_INT  shift 18
+	T_VOID  shift 19
+	T_LONG  shift 20
+	T_SHORT  shift 21
+	T_SIGNED  shift 22
+	T_UNSIGNED  shift 23
+	T_ENUM  shift 24
+	T_STRUCT  shift 25
+	T_UNION  shift 26
+	T_Bool  shift 27
+	T_Complex  shift 28
+	T_Imaginary  shift 29
+	T_TYPE_QUALIFIER  shift 30
+	T_ASM  shift 31
+	';'  shift 32
+	$end  reduce 2
+
+	decl_specifiers  goto 34
+	decl_specifier  goto 35
+	storage_class  goto 36
+	type_specifier  goto 37
+	type_qualifier  goto 38
+	struct_or_union_specifier  goto 39
+	enum_specifier  goto 40
+	declarator  goto 41
+	direct_declarator  goto 42
+	struct_or_union  goto 43
+	pointer  goto 44
+	any_id  goto 45
+	identifier_or_ref  goto 46
+	enumeration  goto 47
+	external_declaration  goto 81
+	declaration  goto 50
+	function_definition  goto 51
+	linkage_specification  goto 52
+	any_typedef  goto 53
+
+
+state 49
+	translation_unit : external_declaration .  (3)
+
+	.  reduce 3
+
+
+state 50
+	external_declaration : declaration .  (5)
+
+	.  reduce 5
+
+
+state 51
+	external_declaration : function_definition .  (6)
+
+	.  reduce 6
+
+
+state 52
+	external_declaration : linkage_specification .  (8)
+
+	.  reduce 8
+
+
+state 53
+	declaration : any_typedef . decl_specifiers $$1 opt_declarator_list ';'  (18)
+
+	T_TYPEDEF_NAME  shift 82
+	T_DEFINE_NAME  shift 7
+	T_AUTO  shift 8
+	T_EXTERN  shift 65
+	T_REGISTER  shift 10
+	T_STATIC  shift 11
+	T_INLINE  shift 13
+	T_EXTENSION  shift 66
+	T_CHAR  shift 15
+	T_DOUBLE  shift 16
+	T_FLOAT  shift 17
+	T_INT  shift 18
+	T_VOID  shift 19
+	T_LONG  shift 20
+	T_SHORT  shift 21
+	T_SIGNED  shift 22
+	T_UNSIGNED  shift 23
+	T_ENUM  shift 24
+	T_STRUCT  shift 25
+	T_UNION  shift 26
+	T_Bool  shift 27
+	T_Complex  shift 28
+	T_Imaginary  shift 29
+	T_TYPE_QUALIFIER  shift 30
+	.  error
+
+	decl_specifiers  goto 83
+	decl_specifier  goto 35
+	storage_class  goto 36
+	type_specifier  goto 37
+	type_qualifier  goto 38
+	struct_or_union_specifier  goto 39
+	enum_specifier  goto 40
+	struct_or_union  goto 43
+	enumeration  goto 47
+
+
+state 54
+	external_declaration : error T_MATCHRBRACE .  (10)
+
+	.  reduce 10
+
+
+state 55
+	external_declaration : error ';' .  (11)
+
+	.  reduce 11
+
+
+state 56
+	any_id : T_TYPEDEF_NAME .  (78)
+
+	.  reduce 78
+
+
+state 57
+	direct_declarator : '(' declarator . ')'  (82)
+
+	')'  shift 84
+	.  error
+
+
+state 58
+	type_qualifier_list : type_qualifier .  (90)
+
+	.  reduce 90
+
+
+state 59
+	pointer : '*' opt_type_qualifiers .  (86)
+	pointer : '*' opt_type_qualifiers . pointer  (87)
+
+	'*'  shift 3
+	'('  reduce 86
+	'&'  reduce 86
+	T_IDENTIFIER  reduce 86
+	T_TYPEDEF_NAME  reduce 86
+	T_BRACKETS  reduce 86
+	','  reduce 86
+	')'  reduce 86
+
+	pointer  goto 85
+
+
+state 60
+	opt_type_qualifiers : type_qualifier_list .  (89)
+	type_qualifier_list : type_qualifier_list . type_qualifier  (91)
+
+	T_DEFINE_NAME  shift 7
+	T_TYPE_QUALIFIER  shift 30
+	'('  reduce 89
+	'*'  reduce 89
+	'&'  reduce 89
+	T_IDENTIFIER  reduce 89
+	T_TYPEDEF_NAME  reduce 89
+	T_BRACKETS  reduce 89
+	','  reduce 89
+	')'  reduce 89
+
+	type_qualifier  goto 86
+
+
+state 61
+	identifier_or_ref : '&' any_id .  (104)
+
+	.  reduce 104
+
+
+state 62
+	linkage_specification : T_EXTERN T_STRING_LITERAL . braces  (13)
+	linkage_specification : T_EXTERN T_STRING_LITERAL . declaration  (14)
+
+	T_TYPEDEF_NAME  shift 82
+	T_DEFINE_NAME  shift 7
+	T_AUTO  shift 8
+	T_EXTERN  shift 65
+	T_REGISTER  shift 10
+	T_STATIC  shift 11
+	T_TYPEDEF  shift 12
+	T_INLINE  shift 13
+	T_EXTENSION  shift 14
+	T_CHAR  shift 15
+	T_DOUBLE  shift 16
+	T_FLOAT  shift 17
+	T_INT  shift 18
+	T_VOID  shift 19
+	T_LONG  shift 20
+	T_SHORT  shift 21
+	T_SIGNED  shift 22
+	T_UNSIGNED  shift 23
+	T_ENUM  shift 24
+	T_STRUCT  shift 25
+	T_UNION  shift 26
+	T_Bool  shift 27
+	T_Complex  shift 28
+	T_Imaginary  shift 29
+	T_TYPE_QUALIFIER  shift 30
+	T_LBRACE  shift 75
+	.  error
+
+	decl_specifiers  goto 87
+	decl_specifier  goto 35
+	storage_class  goto 36
+	type_specifier  goto 37
+	type_qualifier  goto 38
+	struct_or_union_specifier  goto 39
+	enum_specifier  goto 40
+	struct_or_union  goto 43
+	enumeration  goto 47
+	declaration  goto 88
+	braces  goto 89
+	any_typedef  goto 53
+
+
+state 63
+	any_typedef : T_EXTENSION T_TYPEDEF .  (19)
+
+	.  reduce 19
+
+
+state 64
+	external_declaration : T_ASM T_ASMARG . ';'  (9)
+
+	';'  shift 90
+	.  error
+
+
+state 65
+	storage_class : T_EXTERN .  (41)
+
+	.  reduce 41
+
+
+state 66
+	storage_class : T_EXTENSION .  (45)
+
+	.  reduce 45
+
+
+state 67
+	declaration : decl_specifiers ';' .  (15)
+
+	.  reduce 15
+
+
+state 68
+	decl_specifiers : decl_specifiers decl_specifier .  (36)
+
+	.  reduce 36
+
+
+state 69
+	declaration : decl_specifiers init_declarator_list . ';'  (16)
+	init_declarator_list : init_declarator_list . ',' init_declarator  (69)
+
+	';'  shift 91
+	','  shift 92
+	.  error
+
+
+state 70
+	init_declarator_list : init_declarator .  (68)
+
+	.  reduce 68
+
+
+state 71
+	function_definition : decl_specifiers declarator . $$2 opt_declaration_list T_LBRACE $$3 T_MATCHRBRACE  (27)
+	init_declarator : declarator .  (70)
+	init_declarator : declarator . '=' $$5 T_INITIALIZER  (72)
+	$$2 : .  (25)
+
+	'='  shift 93
+	T_TYPEDEF_NAME  reduce 25
+	T_DEFINE_NAME  reduce 25
+	T_AUTO  reduce 25
+	T_EXTERN  reduce 25
+	T_REGISTER  reduce 25
+	T_STATIC  reduce 25
+	T_TYPEDEF  reduce 25
+	T_INLINE  reduce 25
+	T_EXTENSION  reduce 25
+	T_CHAR  reduce 25
+	T_DOUBLE  reduce 25
+	T_FLOAT  reduce 25
+	T_INT  reduce 25
+	T_VOID  reduce 25
+	T_LONG  reduce 25
+	T_SHORT  reduce 25
+	T_SIGNED  reduce 25
+	T_UNSIGNED  reduce 25
+	T_ENUM  reduce 25
+	T_STRUCT  reduce 25
+	T_UNION  reduce 25
+	T_Bool  reduce 25
+	T_Complex  reduce 25
+	T_Imaginary  reduce 25
+	T_TYPE_QUALIFIER  reduce 25
+	T_LBRACE  reduce 25
+	T_VA_DCL  reduce 25
+	';'  reduce 70
+	','  reduce 70
+
+	$$2  goto 94
+
+
+state 72
+	function_definition : declarator $$4 . opt_declaration_list T_LBRACE T_MATCHRBRACE  (29)
+	opt_declaration_list : .  (30)
+
+	T_TYPEDEF_NAME  shift 82
+	T_DEFINE_NAME  shift 7
+	T_AUTO  shift 8
+	T_EXTERN  shift 65
+	T_REGISTER  shift 10
+	T_STATIC  shift 11
+	T_TYPEDEF  shift 12
+	T_INLINE  shift 13
+	T_EXTENSION  shift 14
+	T_CHAR  shift 15
+	T_DOUBLE  shift 16
+	T_FLOAT  shift 17
+	T_INT  shift 18
+	T_VOID  shift 19
+	T_LONG  shift 20
+	T_SHORT  shift 21
+	T_SIGNED  shift 22
+	T_UNSIGNED  shift 23
+	T_ENUM  shift 24
+	T_STRUCT  shift 25
+	T_UNION  shift 26
+	T_Bool  shift 27
+	T_Complex  shift 28
+	T_Imaginary  shift 29
+	T_TYPE_QUALIFIER  shift 30
+	T_VA_DCL  shift 95
+	T_LBRACE  reduce 30
+
+	decl_specifiers  goto 87
+	decl_specifier  goto 35
+	storage_class  goto 36
+	type_specifier  goto 37
+	type_qualifier  goto 38
+	struct_or_union_specifier  goto 39
+	enum_specifier  goto 40
+	struct_or_union  goto 43
+	enumeration  goto 47
+	declaration  goto 96
+	any_typedef  goto 53
+	opt_declaration_list  goto 97
+	declaration_list  goto 98
+
+
+state 73
+	direct_declarator : direct_declarator '(' . parameter_type_list ')'  (84)
+	direct_declarator : direct_declarator '(' . opt_identifier_list ')'  (85)
+	opt_identifier_list : .  (99)
+
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 6
+	T_DEFINE_NAME  shift 7
+	T_AUTO  shift 8
+	T_EXTERN  shift 65
+	T_REGISTER  shift 10
+	T_STATIC  shift 11
+	T_INLINE  shift 13
+	T_EXTENSION  shift 66
+	T_CHAR  shift 15
+	T_DOUBLE  shift 16
+	T_FLOAT  shift 17
+	T_INT  shift 18
+	T_VOID  shift 19
+	T_LONG  shift 20
+	T_SHORT  shift 21
+	T_SIGNED  shift 22
+	T_UNSIGNED  shift 23
+	T_ENUM  shift 24
+	T_STRUCT  shift 25
+	T_UNION  shift 26
+	T_Bool  shift 27
+	T_Complex  shift 28
+	T_Imaginary  shift 29
+	T_TYPE_QUALIFIER  shift 30
+	')'  reduce 99
+
+	decl_specifiers  goto 99
+	decl_specifier  goto 35
+	storage_class  goto 36
+	type_specifier  goto 37
+	type_qualifier  goto 38
+	struct_or_union_specifier  goto 39
+	enum_specifier  goto 40
+	parameter_type_list  goto 100
+	parameter_list  goto 101
+	parameter_declaration  goto 102
+	opt_identifier_list  goto 103
+	identifier_list  goto 104
+	struct_or_union  goto 43
+	any_id  goto 105
+	enumeration  goto 47
+
+
+state 74
+	direct_declarator : direct_declarator T_BRACKETS .  (83)
+
+	.  reduce 83
+
+
+state 75
+	braces : T_LBRACE . T_MATCHRBRACE  (12)
+
+	T_MATCHRBRACE  shift 106
+	.  error
+
+
+state 76
+	struct_or_union_specifier : struct_or_union any_id . braces  (63)
+	struct_or_union_specifier : struct_or_union any_id .  (65)
+
+	T_LBRACE  shift 75
+	'('  reduce 65
+	'*'  reduce 65
+	'&'  reduce 65
+	T_IDENTIFIER  reduce 65
+	T_TYPEDEF_NAME  reduce 65
+	T_DEFINE_NAME  reduce 65
+	T_AUTO  reduce 65
+	T_EXTERN  reduce 65
+	T_REGISTER  reduce 65
+	T_STATIC  reduce 65
+	T_INLINE  reduce 65
+	T_EXTENSION  reduce 65
+	T_CHAR  reduce 65
+	T_DOUBLE  reduce 65
+	T_FLOAT  reduce 65
+	T_INT  reduce 65
+	T_VOID  reduce 65
+	T_LONG  reduce 65
+	T_SHORT  reduce 65
+	T_SIGNED  reduce 65
+	T_UNSIGNED  reduce 65
+	T_ENUM  reduce 65
+	T_STRUCT  reduce 65
+	T_UNION  reduce 65
+	T_Bool  reduce 65
+	T_Complex  reduce 65
+	T_Imaginary  reduce 65
+	T_TYPE_QUALIFIER  reduce 65
+	T_BRACKETS  reduce 65
+	';'  reduce 65
+	','  reduce 65
+	')'  reduce 65
+
+	braces  goto 107
+
+
+state 77
+	struct_or_union_specifier : struct_or_union braces .  (64)
+
+	.  reduce 64
+
+
+state 78
+	declarator : pointer direct_declarator .  (79)
+	direct_declarator : direct_declarator . T_BRACKETS  (83)
+	direct_declarator : direct_declarator . '(' parameter_type_list ')'  (84)
+	direct_declarator : direct_declarator . '(' opt_identifier_list ')'  (85)
+
+	'('  shift 73
+	T_BRACKETS  shift 74
+	T_TYPEDEF_NAME  reduce 79
+	T_DEFINE_NAME  reduce 79
+	T_AUTO  reduce 79
+	T_EXTERN  reduce 79
+	T_REGISTER  reduce 79
+	T_STATIC  reduce 79
+	T_TYPEDEF  reduce 79
+	T_INLINE  reduce 79
+	T_EXTENSION  reduce 79
+	T_CHAR  reduce 79
+	T_DOUBLE  reduce 79
+	T_FLOAT  reduce 79
+	T_INT  reduce 79
+	T_VOID  reduce 79
+	T_LONG  reduce 79
+	T_SHORT  reduce 79
+	T_SIGNED  reduce 79
+	T_UNSIGNED  reduce 79
+	T_ENUM  reduce 79
+	T_STRUCT  reduce 79
+	T_UNION  reduce 79
+	T_Bool  reduce 79
+	T_Complex  reduce 79
+	T_Imaginary  reduce 79
+	T_TYPE_QUALIFIER  reduce 79
+	T_LBRACE  reduce 79
+	T_VA_DCL  reduce 79
+	';'  reduce 79
+	','  reduce 79
+	'='  reduce 79
+	')'  reduce 79
+
+
+state 79
+	enum_specifier : enumeration any_id . braces  (73)
+	enum_specifier : enumeration any_id .  (75)
+
+	T_LBRACE  shift 75
+	'('  reduce 75
+	'*'  reduce 75
+	'&'  reduce 75
+	T_IDENTIFIER  reduce 75
+	T_TYPEDEF_NAME  reduce 75
+	T_DEFINE_NAME  reduce 75
+	T_AUTO  reduce 75
+	T_EXTERN  reduce 75
+	T_REGISTER  reduce 75
+	T_STATIC  reduce 75
+	T_INLINE  reduce 75
+	T_EXTENSION  reduce 75
+	T_CHAR  reduce 75
+	T_DOUBLE  reduce 75
+	T_FLOAT  reduce 75
+	T_INT  reduce 75
+	T_VOID  reduce 75
+	T_LONG  reduce 75
+	T_SHORT  reduce 75
+	T_SIGNED  reduce 75
+	T_UNSIGNED  reduce 75
+	T_ENUM  reduce 75
+	T_STRUCT  reduce 75
+	T_UNION  reduce 75
+	T_Bool  reduce 75
+	T_Complex  reduce 75
+	T_Imaginary  reduce 75
+	T_TYPE_QUALIFIER  reduce 75
+	T_BRACKETS  reduce 75
+	';'  reduce 75
+	','  reduce 75
+	')'  reduce 75
+
+	braces  goto 108
+
+
+state 80
+	enum_specifier : enumeration braces .  (74)
+
+	.  reduce 74
+
+
+state 81
+	translation_unit : translation_unit external_declaration .  (4)
+
+	.  reduce 4
+
+
+state 82
+	type_specifier : T_TYPEDEF_NAME .  (58)
+
+	.  reduce 58
+
+
+83: shift/reduce conflict (shift 82, reduce 17) on T_TYPEDEF_NAME
+state 83
+	declaration : any_typedef decl_specifiers . $$1 opt_declarator_list ';'  (18)
+	decl_specifiers : decl_specifiers . decl_specifier  (36)
+	$$1 : .  (17)
+
+	T_TYPEDEF_NAME  shift 82
+	T_DEFINE_NAME  shift 7
+	T_AUTO  shift 8
+	T_EXTERN  shift 65
+	T_REGISTER  shift 10
+	T_STATIC  shift 11
+	T_INLINE  shift 13
+	T_EXTENSION  shift 66
+	T_CHAR  shift 15
+	T_DOUBLE  shift 16
+	T_FLOAT  shift 17
+	T_INT  shift 18
+	T_VOID  shift 19
+	T_LONG  shift 20
+	T_SHORT  shift 21
+	T_SIGNED  shift 22
+	T_UNSIGNED  shift 23
+	T_ENUM  shift 24
+	T_STRUCT  shift 25
+	T_UNION  shift 26
+	T_Bool  shift 27
+	T_Complex  shift 28
+	T_Imaginary  shift 29
+	T_TYPE_QUALIFIER  shift 30
+	'('  reduce 17
+	'*'  reduce 17
+	'&'  reduce 17
+	T_IDENTIFIER  reduce 17
+	';'  reduce 17
+
+	decl_specifier  goto 68
+	storage_class  goto 36
+	type_specifier  goto 37
+	type_qualifier  goto 38
+	struct_or_union_specifier  goto 39
+	enum_specifier  goto 40
+	struct_or_union  goto 43
+	enumeration  goto 47
+	$$1  goto 109
+
+
+state 84
+	direct_declarator : '(' declarator ')' .  (82)
+
+	.  reduce 82
+
+
+state 85
+	pointer : '*' opt_type_qualifiers pointer .  (87)
+
+	.  reduce 87
+
+
+state 86
+	type_qualifier_list : type_qualifier_list type_qualifier .  (91)
+
+	.  reduce 91
+
+
+state 87
+	declaration : decl_specifiers . ';'  (15)
+	declaration : decl_specifiers . init_declarator_list ';'  (16)
+	decl_specifiers : decl_specifiers . decl_specifier  (36)
+
+	'('  shift 2
+	'*'  shift 3
+	'&'  shift 4
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 6
+	T_DEFINE_NAME  shift 7
+	T_AUTO  shift 8
+	T_EXTERN  shift 65
+	T_REGISTER  shift 10
+	T_STATIC  shift 11
+	T_INLINE  shift 13
+	T_EXTENSION  shift 66
+	T_CHAR  shift 15
+	T_DOUBLE  shift 16
+	T_FLOAT  shift 17
+	T_INT  shift 18
+	T_VOID  shift 19
+	T_LONG  shift 20
+	T_SHORT  shift 21
+	T_SIGNED  shift 22
+	T_UNSIGNED  shift 23
+	T_ENUM  shift 24
+	T_STRUCT  shift 25
+	T_UNION  shift 26
+	T_Bool  shift 27
+	T_Complex  shift 28
+	T_Imaginary  shift 29
+	T_TYPE_QUALIFIER  shift 30
+	';'  shift 67
+	.  error
+
+	decl_specifier  goto 68
+	storage_class  goto 36
+	type_specifier  goto 37
+	type_qualifier  goto 38
+	struct_or_union_specifier  goto 39
+	enum_specifier  goto 40
+	init_declarator_list  goto 69
+	init_declarator  goto 70
+	declarator  goto 110
+	direct_declarator  goto 42
+	struct_or_union  goto 43
+	pointer  goto 44
+	any_id  goto 45
+	identifier_or_ref  goto 46
+	enumeration  goto 47
+
+
+state 88
+	linkage_specification : T_EXTERN T_STRING_LITERAL declaration .  (14)
+
+	.  reduce 14
+
+
+state 89
+	linkage_specification : T_EXTERN T_STRING_LITERAL braces .  (13)
+
+	.  reduce 13
+
+
+state 90
+	external_declaration : T_ASM T_ASMARG ';' .  (9)
+
+	.  reduce 9
+
+
+state 91
+	declaration : decl_specifiers init_declarator_list ';' .  (16)
+
+	.  reduce 16
+
+
+state 92
+	init_declarator_list : init_declarator_list ',' . init_declarator  (69)
+
+	'('  shift 2
+	'*'  shift 3
+	'&'  shift 4
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 56
+	.  error
+
+	init_declarator  goto 111
+	declarator  goto 110
+	direct_declarator  goto 42
+	pointer  goto 44
+	any_id  goto 45
+	identifier_or_ref  goto 46
+
+
+state 93
+	init_declarator : declarator '=' . $$5 T_INITIALIZER  (72)
+	$$5 : .  (71)
+
+	.  reduce 71
+
+	$$5  goto 112
+
+
+state 94
+	function_definition : decl_specifiers declarator $$2 . opt_declaration_list T_LBRACE $$3 T_MATCHRBRACE  (27)
+	opt_declaration_list : .  (30)
+
+	T_TYPEDEF_NAME  shift 82
+	T_DEFINE_NAME  shift 7
+	T_AUTO  shift 8
+	T_EXTERN  shift 65
+	T_REGISTER  shift 10
+	T_STATIC  shift 11
+	T_TYPEDEF  shift 12
+	T_INLINE  shift 13
+	T_EXTENSION  shift 14
+	T_CHAR  shift 15
+	T_DOUBLE  shift 16
+	T_FLOAT  shift 17
+	T_INT  shift 18
+	T_VOID  shift 19
+	T_LONG  shift 20
+	T_SHORT  shift 21
+	T_SIGNED  shift 22
+	T_UNSIGNED  shift 23
+	T_ENUM  shift 24
+	T_STRUCT  shift 25
+	T_UNION  shift 26
+	T_Bool  shift 27
+	T_Complex  shift 28
+	T_Imaginary  shift 29
+	T_TYPE_QUALIFIER  shift 30
+	T_VA_DCL  shift 95
+	T_LBRACE  reduce 30
+
+	decl_specifiers  goto 87
+	decl_specifier  goto 35
+	storage_class  goto 36
+	type_specifier  goto 37
+	type_qualifier  goto 38
+	struct_or_union_specifier  goto 39
+	enum_specifier  goto 40
+	struct_or_union  goto 43
+	enumeration  goto 47
+	declaration  goto 96
+	any_typedef  goto 53
+	opt_declaration_list  goto 113
+	declaration_list  goto 98
+
+
+state 95
+	opt_declaration_list : T_VA_DCL .  (31)
+
+	.  reduce 31
+
+
+state 96
+	declaration_list : declaration .  (33)
+
+	.  reduce 33
+
+
+state 97
+	function_definition : declarator $$4 opt_declaration_list . T_LBRACE T_MATCHRBRACE  (29)
+
+	T_LBRACE  shift 114
+	.  error
+
+
+state 98
+	opt_declaration_list : declaration_list .  (32)
+	declaration_list : declaration_list . declaration  (34)
+
+	T_TYPEDEF_NAME  shift 82
+	T_DEFINE_NAME  shift 7
+	T_AUTO  shift 8
+	T_EXTERN  shift 65
+	T_REGISTER  shift 10
+	T_STATIC  shift 11
+	T_TYPEDEF  shift 12
+	T_INLINE  shift 13
+	T_EXTENSION  shift 14
+	T_CHAR  shift 15
+	T_DOUBLE  shift 16
+	T_FLOAT  shift 17
+	T_INT  shift 18
+	T_VOID  shift 19
+	T_LONG  shift 20
+	T_SHORT  shift 21
+	T_SIGNED  shift 22
+	T_UNSIGNED  shift 23
+	T_ENUM  shift 24
+	T_STRUCT  shift 25
+	T_UNION  shift 26
+	T_Bool  shift 27
+	T_Complex  shift 28
+	T_Imaginary  shift 29
+	T_TYPE_QUALIFIER  shift 30
+	T_LBRACE  reduce 32
+
+	decl_specifiers  goto 87
+	decl_specifier  goto 35
+	storage_class  goto 36
+	type_specifier  goto 37
+	type_qualifier  goto 38
+	struct_or_union_specifier  goto 39
+	enum_specifier  goto 40
+	struct_or_union  goto 43
+	enumeration  goto 47
+	declaration  goto 115
+	any_typedef  goto 53
+
+
+state 99
+	decl_specifiers : decl_specifiers . decl_specifier  (36)
+	parameter_declaration : decl_specifiers . declarator  (96)
+	parameter_declaration : decl_specifiers . abs_declarator  (97)
+	parameter_declaration : decl_specifiers .  (98)
+
+	'('  shift 116
+	'*'  shift 3
+	'&'  shift 4
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 6
+	T_DEFINE_NAME  shift 7
+	T_AUTO  shift 8
+	T_EXTERN  shift 65
+	T_REGISTER  shift 10
+	T_STATIC  shift 11
+	T_INLINE  shift 13
+	T_EXTENSION  shift 66
+	T_CHAR  shift 15
+	T_DOUBLE  shift 16
+	T_FLOAT  shift 17
+	T_INT  shift 18
+	T_VOID  shift 19
+	T_LONG  shift 20
+	T_SHORT  shift 21
+	T_SIGNED  shift 22
+	T_UNSIGNED  shift 23
+	T_ENUM  shift 24
+	T_STRUCT  shift 25
+	T_UNION  shift 26
+	T_Bool  shift 27
+	T_Complex  shift 28
+	T_Imaginary  shift 29
+	T_TYPE_QUALIFIER  shift 30
+	T_BRACKETS  shift 117
+	','  reduce 98
+	')'  reduce 98
+
+	decl_specifier  goto 68
+	storage_class  goto 36
+	type_specifier  goto 37
+	type_qualifier  goto 38
+	struct_or_union_specifier  goto 39
+	enum_specifier  goto 40
+	declarator  goto 118
+	direct_declarator  goto 42
+	abs_declarator  goto 119
+	direct_abs_declarator  goto 120
+	struct_or_union  goto 43
+	pointer  goto 121
+	any_id  goto 45
+	identifier_or_ref  goto 46
+	enumeration  goto 47
+
+
+state 100
+	direct_declarator : direct_declarator '(' parameter_type_list . ')'  (84)
+
+	')'  shift 122
+	.  error
+
+
+state 101
+	parameter_type_list : parameter_list .  (92)
+	parameter_type_list : parameter_list . ',' T_ELLIPSIS  (93)
+	parameter_list : parameter_list . ',' parameter_declaration  (95)
+
+	','  shift 123
+	')'  reduce 92
+
+
+state 102
+	parameter_list : parameter_declaration .  (94)
+
+	.  reduce 94
+
+
+state 103
+	direct_declarator : direct_declarator '(' opt_identifier_list . ')'  (85)
+
+	')'  shift 124
+	.  error
+
+
+state 104
+	opt_identifier_list : identifier_list .  (100)
+	identifier_list : identifier_list . ',' any_id  (102)
+
+	','  shift 125
+	')'  reduce 100
+
+
+state 105
+	identifier_list : any_id .  (101)
+
+	.  reduce 101
+
+
+state 106
+	braces : T_LBRACE T_MATCHRBRACE .  (12)
+
+	.  reduce 12
+
+
+state 107
+	struct_or_union_specifier : struct_or_union any_id braces .  (63)
+
+	.  reduce 63
+
+
+state 108
+	enum_specifier : enumeration any_id braces .  (73)
+
+	.  reduce 73
+
+
+state 109
+	declaration : any_typedef decl_specifiers $$1 . opt_declarator_list ';'  (18)
+	opt_declarator_list : .  (21)
+
+	'('  shift 2
+	'*'  shift 3
+	'&'  shift 4
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 56
+	';'  reduce 21
+
+	declarator  goto 126
+	direct_declarator  goto 42
+	pointer  goto 44
+	any_id  goto 45
+	identifier_or_ref  goto 46
+	opt_declarator_list  goto 127
+	declarator_list  goto 128
+
+
+state 110
+	init_declarator : declarator .  (70)
+	init_declarator : declarator . '=' $$5 T_INITIALIZER  (72)
+
+	'='  shift 93
+	';'  reduce 70
+	','  reduce 70
+
+
+state 111
+	init_declarator_list : init_declarator_list ',' init_declarator .  (69)
+
+	.  reduce 69
+
+
+state 112
+	init_declarator : declarator '=' $$5 . T_INITIALIZER  (72)
+
+	T_INITIALIZER  shift 129
+	.  error
+
+
+state 113
+	function_definition : decl_specifiers declarator $$2 opt_declaration_list . T_LBRACE $$3 T_MATCHRBRACE  (27)
+
+	T_LBRACE  shift 130
+	.  error
+
+
+state 114
+	function_definition : declarator $$4 opt_declaration_list T_LBRACE . T_MATCHRBRACE  (29)
+
+	T_MATCHRBRACE  shift 131
+	.  error
+
+
+state 115
+	declaration_list : declaration_list declaration .  (34)
+
+	.  reduce 34
+
+
+state 116
+	direct_declarator : '(' . declarator ')'  (82)
+	direct_abs_declarator : '(' . abs_declarator ')'  (108)
+	direct_abs_declarator : '(' . parameter_type_list ')'  (113)
+	direct_abs_declarator : '(' . ')'  (114)
+
+	'('  shift 116
+	'*'  shift 3
+	'&'  shift 4
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 6
+	T_DEFINE_NAME  shift 7
+	T_AUTO  shift 8
+	T_EXTERN  shift 65
+	T_REGISTER  shift 10
+	T_STATIC  shift 11
+	T_INLINE  shift 13
+	T_EXTENSION  shift 66
+	T_CHAR  shift 15
+	T_DOUBLE  shift 16
+	T_FLOAT  shift 17
+	T_INT  shift 18
+	T_VOID  shift 19
+	T_LONG  shift 20
+	T_SHORT  shift 21
+	T_SIGNED  shift 22
+	T_UNSIGNED  shift 23
+	T_ENUM  shift 24
+	T_STRUCT  shift 25
+	T_UNION  shift 26
+	T_Bool  shift 27
+	T_Complex  shift 28
+	T_Imaginary  shift 29
+	T_TYPE_QUALIFIER  shift 30
+	T_BRACKETS  shift 117
+	')'  shift 132
+	.  error
+
+	decl_specifiers  goto 99
+	decl_specifier  goto 35
+	storage_class  goto 36
+	type_specifier  goto 37
+	type_qualifier  goto 38
+	struct_or_union_specifier  goto 39
+	enum_specifier  goto 40
+	declarator  goto 57
+	direct_declarator  goto 42
+	abs_declarator  goto 133
+	direct_abs_declarator  goto 120
+	parameter_type_list  goto 134
+	parameter_list  goto 101
+	parameter_declaration  goto 102
+	struct_or_union  goto 43
+	pointer  goto 121
+	any_id  goto 45
+	identifier_or_ref  goto 46
+	enumeration  goto 47
+
+
+state 117
+	direct_abs_declarator : T_BRACKETS .  (110)
+
+	.  reduce 110
+
+
+state 118
+	parameter_declaration : decl_specifiers declarator .  (96)
+
+	.  reduce 96
+
+
+state 119
+	parameter_declaration : decl_specifiers abs_declarator .  (97)
+
+	.  reduce 97
+
+
+state 120
+	abs_declarator : direct_abs_declarator .  (107)
+	direct_abs_declarator : direct_abs_declarator . T_BRACKETS  (109)
+	direct_abs_declarator : direct_abs_declarator . '(' parameter_type_list ')'  (111)
+	direct_abs_declarator : direct_abs_declarator . '(' ')'  (112)
+
+	'('  shift 135
+	T_BRACKETS  shift 136
+	','  reduce 107
+	')'  reduce 107
+
+
+state 121
+	declarator : pointer . direct_declarator  (79)
+	abs_declarator : pointer .  (105)
+	abs_declarator : pointer . direct_abs_declarator  (106)
+
+	'('  shift 116
+	'&'  shift 4
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 56
+	T_BRACKETS  shift 117
+	','  reduce 105
+	')'  reduce 105
+
+	direct_declarator  goto 78
+	direct_abs_declarator  goto 137
+	any_id  goto 45
+	identifier_or_ref  goto 46
+
+
+state 122
+	direct_declarator : direct_declarator '(' parameter_type_list ')' .  (84)
+
+	.  reduce 84
+
+
+state 123
+	parameter_type_list : parameter_list ',' . T_ELLIPSIS  (93)
+	parameter_list : parameter_list ',' . parameter_declaration  (95)
+
+	T_TYPEDEF_NAME  shift 82
+	T_DEFINE_NAME  shift 7
+	T_AUTO  shift 8
+	T_EXTERN  shift 65
+	T_REGISTER  shift 10
+	T_STATIC  shift 11
+	T_INLINE  shift 13
+	T_EXTENSION  shift 66
+	T_CHAR  shift 15
+	T_DOUBLE  shift 16
+	T_FLOAT  shift 17
+	T_INT  shift 18
+	T_VOID  shift 19
+	T_LONG  shift 20
+	T_SHORT  shift 21
+	T_SIGNED  shift 22
+	T_UNSIGNED  shift 23
+	T_ENUM  shift 24
+	T_STRUCT  shift 25
+	T_UNION  shift 26
+	T_Bool  shift 27
+	T_Complex  shift 28
+	T_Imaginary  shift 29
+	T_TYPE_QUALIFIER  shift 30
+	T_ELLIPSIS  shift 138
+	.  error
+
+	decl_specifiers  goto 99
+	decl_specifier  goto 35
+	storage_class  goto 36
+	type_specifier  goto 37
+	type_qualifier  goto 38
+	struct_or_union_specifier  goto 39
+	enum_specifier  goto 40
+	parameter_declaration  goto 139
+	struct_or_union  goto 43
+	enumeration  goto 47
+
+
+state 124
+	direct_declarator : direct_declarator '(' opt_identifier_list ')' .  (85)
+
+	.  reduce 85
+
+
+state 125
+	identifier_list : identifier_list ',' . any_id  (102)
+
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 56
+	.  error
+
+	any_id  goto 140
+
+
+state 126
+	declarator_list : declarator .  (23)
+
+	.  reduce 23
+
+
+state 127
+	declaration : any_typedef decl_specifiers $$1 opt_declarator_list . ';'  (18)
+
+	';'  shift 141
+	.  error
+
+
+state 128
+	opt_declarator_list : declarator_list .  (22)
+	declarator_list : declarator_list . ',' declarator  (24)
+
+	','  shift 142
+	';'  reduce 22
+
+
+state 129
+	init_declarator : declarator '=' $$5 T_INITIALIZER .  (72)
+
+	.  reduce 72
+
+
+state 130
+	function_definition : decl_specifiers declarator $$2 opt_declaration_list T_LBRACE . $$3 T_MATCHRBRACE  (27)
+	$$3 : .  (26)
+
+	.  reduce 26
+
+	$$3  goto 143
+
+
+state 131
+	function_definition : declarator $$4 opt_declaration_list T_LBRACE T_MATCHRBRACE .  (29)
+
+	.  reduce 29
+
+
+state 132
+	direct_abs_declarator : '(' ')' .  (114)
+
+	.  reduce 114
+
+
+state 133
+	direct_abs_declarator : '(' abs_declarator . ')'  (108)
+
+	')'  shift 144
+	.  error
+
+
+state 134
+	direct_abs_declarator : '(' parameter_type_list . ')'  (113)
+
+	')'  shift 145
+	.  error
+
+
+state 135
+	direct_abs_declarator : direct_abs_declarator '(' . parameter_type_list ')'  (111)
+	direct_abs_declarator : direct_abs_declarator '(' . ')'  (112)
+
+	T_TYPEDEF_NAME  shift 82
+	T_DEFINE_NAME  shift 7
+	T_AUTO  shift 8
+	T_EXTERN  shift 65
+	T_REGISTER  shift 10
+	T_STATIC  shift 11
+	T_INLINE  shift 13
+	T_EXTENSION  shift 66
+	T_CHAR  shift 15
+	T_DOUBLE  shift 16
+	T_FLOAT  shift 17
+	T_INT  shift 18
+	T_VOID  shift 19
+	T_LONG  shift 20
+	T_SHORT  shift 21
+	T_SIGNED  shift 22
+	T_UNSIGNED  shift 23
+	T_ENUM  shift 24
+	T_STRUCT  shift 25
+	T_UNION  shift 26
+	T_Bool  shift 27
+	T_Complex  shift 28
+	T_Imaginary  shift 29
+	T_TYPE_QUALIFIER  shift 30
+	')'  shift 146
+	.  error
+
+	decl_specifiers  goto 99
+	decl_specifier  goto 35
+	storage_class  goto 36
+	type_specifier  goto 37
+	type_qualifier  goto 38
+	struct_or_union_specifier  goto 39
+	enum_specifier  goto 40
+	parameter_type_list  goto 147
+	parameter_list  goto 101
+	parameter_declaration  goto 102
+	struct_or_union  goto 43
+	enumeration  goto 47
+
+
+state 136
+	direct_abs_declarator : direct_abs_declarator T_BRACKETS .  (109)
+
+	.  reduce 109
+
+
+state 137
+	abs_declarator : pointer direct_abs_declarator .  (106)
+	direct_abs_declarator : direct_abs_declarator . T_BRACKETS  (109)
+	direct_abs_declarator : direct_abs_declarator . '(' parameter_type_list ')'  (111)
+	direct_abs_declarator : direct_abs_declarator . '(' ')'  (112)
+
+	'('  shift 135
+	T_BRACKETS  shift 136
+	','  reduce 106
+	')'  reduce 106
+
+
+state 138
+	parameter_type_list : parameter_list ',' T_ELLIPSIS .  (93)
+
+	.  reduce 93
+
+
+state 139
+	parameter_list : parameter_list ',' parameter_declaration .  (95)
+
+	.  reduce 95
+
+
+state 140
+	identifier_list : identifier_list ',' any_id .  (102)
+
+	.  reduce 102
+
+
+state 141
+	declaration : any_typedef decl_specifiers $$1 opt_declarator_list ';' .  (18)
+
+	.  reduce 18
+
+
+state 142
+	declarator_list : declarator_list ',' . declarator  (24)
+
+	'('  shift 2
+	'*'  shift 3
+	'&'  shift 4
+	T_IDENTIFIER  shift 5
+	T_TYPEDEF_NAME  shift 56
+	.  error
+
+	declarator  goto 148
+	direct_declarator  goto 42
+	pointer  goto 44
+	any_id  goto 45
+	identifier_or_ref  goto 46
+
+
+state 143
+	function_definition : decl_specifiers declarator $$2 opt_declaration_list T_LBRACE $$3 . T_MATCHRBRACE  (27)
+
+	T_MATCHRBRACE  shift 149
+	.  error
+
+
+state 144
+	direct_abs_declarator : '(' abs_declarator ')' .  (108)
+
+	.  reduce 108
+
+
+state 145
+	direct_abs_declarator : '(' parameter_type_list ')' .  (113)
+
+	.  reduce 113
+
+
+state 146
+	direct_abs_declarator : direct_abs_declarator '(' ')' .  (112)
+
+	.  reduce 112
+
+
+state 147
+	direct_abs_declarator : direct_abs_declarator '(' parameter_type_list . ')'  (111)
+
+	')'  shift 150
+	.  error
+
+
+state 148
+	declarator_list : declarator_list ',' declarator .  (24)
+
+	.  reduce 24
+
+
+state 149
+	function_definition : decl_specifiers declarator $$2 opt_declaration_list T_LBRACE $$3 T_MATCHRBRACE .  (27)
+
+	.  reduce 27
+
+
+state 150
+	direct_abs_declarator : direct_abs_declarator '(' parameter_type_list ')' .  (111)
+
+	.  reduce 111
+
+
+State 6 contains 29 reduce/reduce conflicts.
+State 83 contains 1 shift/reduce conflict.
+
+
+44 terminals, 43 nonterminals
+115 grammar rules, 151 states

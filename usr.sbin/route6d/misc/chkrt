@@ -1,0 +1,64 @@
+#!/usr/bin/perl
+#
+# $FreeBSD$
+#
+$dump="/var/tmp/route6d_dump";
+$pidfile="/var/run/route6d.pid";
+
+system("rm -f $dump");
+
+open(FD, "< $pidfile") || die "Can not open $pidfile";
+$_ = <FD>;
+chop;
+close(FD);
+system("kill -INT $_");
+
+open(NS, "/usr/bin/netstat -r -n|") || die "Can not open netstat";
+while (<NS>) {
+	chop;
+	next unless (/^3f/ || /^5f/);
+	@f = split(/\s+/);
+	$gw{$f[0]} = $f[1];
+	$int{$f[0]} = $f[3];
+}
+close(NS);
+
+$err=0;
+sleep(2);
+open(FD, "< $dump") || die "Can not open $dump";
+while (<FD>) {
+	chop;
+	next unless (/^    3f/ || /^    5f/);
+	@f = split(/\s+/);
+	$dst = $f[1];
+	$f[2] =~ /if\(\d:([a-z0-9]+)\)/;
+	$intf = $1;
+	$f[3] =~ /gw\(([a-z0-9:]+)\)/;
+	$gateway = $1;
+	$f[4] =~ /\[(\d+)\]/;
+	$metric = $1;
+	$f[5] =~ /age\((\d+)\)/;
+	$age = $1;
+	unless (defined($gw{$dst})) {
+		print "NOT FOUND: $dst $intf $gateway $metric $age\n";
+		$err++;
+		next;
+	}
+	if ($gw{$dst} ne $gateway && $gw{$dst} !~ /link#\d+/) {
+		print "WRONG GW: $dst $intf $gateway $metric $age\n";
+		print "kernel gw: $gw{$dst}\n";
+		$err++;
+		next;
+	}
+	if ($int{$dst} ne $intf) {
+		print "WRONG IF: $dst $intf $gateway $metric $age\n";
+		print "kernel if: $int{$dst}\n";
+		$err++;
+		next;
+	}
+}
+close(FD);
+
+if ($err == 0) {
+	print "No error found\n";
+}

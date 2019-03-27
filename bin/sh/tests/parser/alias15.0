@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+f_echoanddo() {
+	printf '%s\n' "$*"
+	"$@"
+}
+
+alias echoanddo='f_echoanddo '
+alias alias0='echo test2'
+eval 'echoanddo echo test1'
+eval 'echoanddo alias0'
+exit 0

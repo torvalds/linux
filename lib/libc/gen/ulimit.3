@@ -1,0 +1,98 @@
+.\" Copyright (c) 2002 Kyle Martin.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 4, 2003
+.Dt ULIMIT 3
+.Os
+.Sh NAME
+.Nm ulimit
+.Nd get and set process limits
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In ulimit.h
+.Ft long
+.Fn ulimit "int cmd" "..."
+.Sh DESCRIPTION
+The
+.Fn ulimit
+function will get and set process limits.
+Currently this is limited to the maximum file size.
+The
+.Fa cmd
+argument is one of the following:
+.Bl -tag -width ".Dv UL_GETFSIZE"
+.It Dv UL_GETFSIZE
+will return the maximum file size in units of 512 blocks of
+the current process.
+.It Dv UL_SETFSIZE
+will attempt to set the maximum file size of the current
+process and its children with the second argument expressed as a long.
+.El
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn ulimit
+returns the value requested;
+otherwise the value \-1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn ulimit
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The command specified was invalid.
+.It Bq Er EPERM
+The limit specified to
+.Fn ulimit
+would have raised the maximum limit value,
+and the caller is not the super-user.
+.El
+.Sh SEE ALSO
+.Xr getrlimit 2
+.Sh STANDARDS
+The
+.Fn ulimit
+function conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn ulimit
+function first appeared in
+.Fx 5.0 .
+.Sh BUGS
+The
+.Fn ulimit
+function provides limited precision for
+setting and retrieving process limits.
+If there is a need for greater precision than the
+type
+.Vt long
+provides, the
+.Xr getrlimit 2
+and
+.Xr setrlimit 2
+functions should be considered.

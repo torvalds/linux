@@ -1,0 +1,89 @@
+#!/bin/sh
+# $FreeBSD$
+
+: ${DIALOG_OK=0}
+: ${DIALOG_CANCEL=1}
+: ${DIALOG_HELP=2}
+: ${DIALOG_EXTRA=3}
+: ${DIALOG_ITEM_HELP=4}
+: ${DIALOG_ESC=255}
+
+MACHINE=`uname -m`
+
+# resolv.conf from DHCP ends up in here, so make sure the directory exists
+mkdir /tmp/bsdinstall_etc
+
+kbdcontrol -d >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+	# Syscons: use xterm, start interesting things on other VTYs
+	TERM=xterm
+
+	# Don't send ESC on function-key 62/63 (left/right command key)
+	kbdcontrol -f 62 '' > /dev/null 2>&1
+	kbdcontrol -f 63 '' > /dev/null 2>&1
+
+	if [ -z "$EXTERNAL_VTY_STARTED" ]; then
+		# Init will clean these processes up if/when the system
+		# goes multiuser
+		touch /tmp/bsdinstall_log
+		tail -f /tmp/bsdinstall_log > /dev/ttyv2 &
+		/usr/libexec/getty autologin ttyv3 &
+		EXTERNAL_VTY_STARTED=1
+	fi
+else
+	# Serial or other console
+	echo
+	echo "Welcome to FreeBSD!"
+	echo
+	echo "Please choose the appropriate terminal type for your system."
+	echo "Common console types are:"
+	echo "   ansi     Standard ANSI terminal"
+	echo "   vt100    VT100 or compatible terminal"
+	echo "   xterm    xterm terminal emulator (or compatible)"
+	echo "   cons25w  cons25w terminal"
+	echo
+	echo -n "Console type [vt100]: "
+	read TERM
+	TERM=${TERM:-vt100}
+fi
+export TERM
+
+if [ -f /etc/installerconfig ]; then
+	if bsdinstall script /etc/installerconfig; then
+		dialog --backtitle "FreeBSD Installer" --title "Complete" --no-cancel --ok-label "Reboot" --pause "Installation of FreeBSD complete! Rebooting in 10 seconds" 10 30 10
+		reboot
+	else
+		dialog --backtitle "FreeBSD Installer" --title "Error" --textbox /tmp/bsdinstall_log 0 0
+	fi
+	exit 
+fi
+
+dialog --backtitle "FreeBSD Installer" --title "Welcome" --extra-button --extra-label "Shell" --ok-label "Install" --cancel-label "Live CD" --yesno "Welcome to FreeBSD! Would you like to begin an installation or use the live CD?" 0 0
+
+case $? in
+$DIALOG_OK)	# Install
+	# If not netbooting, have the installer configure the network
+	dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
+	if [ ${dlv:=0} -eq 0 -a ! -f /etc/diskless ]; then
+		BSDINSTALL_CONFIGCURRENT=yes; export BSDINSTALL_CONFIGCURRENT
+	fi
+
+	trap true SIGINT	# Ignore cntrl-C here
+	bsdinstall
+	if [ $? -eq 0 ]; then
+		dialog --backtitle "FreeBSD Installer" --title "Complete" --yes-label "Reboot" --no-label "Live CD" --yesno "Installation of FreeBSD complete! Would you like to reboot into the installed system now?" 0 0 && reboot
+	else
+		. /etc/rc.local
+	fi
+	;;
+$DIALOG_CANCEL)	# Live CD
+	exit 0
+	;;
+$DIALOG_EXTRA)	# Shell
+	clear
+	echo "When finished, type 'exit' to return to the installer."
+	/bin/sh
+	. /etc/rc.local
+	;;
+esac
+

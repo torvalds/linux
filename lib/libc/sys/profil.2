@@ -1,0 +1,122 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Donn Seeley of BSDI.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)profil.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd December 1, 2017
+.Dt PROFIL 2
+.Os
+.Sh NAME
+.Nm profil
+.Nd control process profiling
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn profil "char *samples" "size_t size" "vm_offset_t offset" "int scale"
+.Sh DESCRIPTION
+The
+.Fn profil
+system call enables or disables
+program counter profiling of the current process.
+If profiling is enabled,
+then at every profiling clock tick,
+the kernel updates an appropriate count in the
+.Fa samples
+buffer.
+The frequency of the profiling clock is recorded
+in the header in the profiling output file.
+.Pp
+The buffer
+.Fa samples
+contains
+.Fa size
+bytes and is divided into
+a series of 16-bit bins.
+Each bin counts the number of times the program counter
+was in a particular address range in the process
+when a profiling clock tick occurred while profiling was enabled.
+For a given program counter address,
+the number of the corresponding bin is given
+by the relation:
+.Bd -literal -offset indent
+[(pc - offset) / 2] * scale / 65536
+.Ed
+.Pp
+The
+.Fa offset
+argument is the lowest address at which
+the kernel takes program counter samples.
+The
+.Fa scale
+argument ranges from 1 to 65536 and
+can be used to change the span of the bins.
+A scale of 65536 maps each bin to 2 bytes of address range;
+a scale of 32768 gives 4 bytes, 16384 gives 8 bytes and so on.
+Intermediate values provide approximate intermediate ranges.
+A
+.Fa scale
+value of 0 disables profiling.
+.Sh RETURN VALUES
+.Rv -std profil
+.Sh FILES
+.Bl -tag -width /usr/lib/gcrt0.o -compact
+.It Pa /usr/lib/gcrt0.o
+profiling C run-time startup file
+.It Pa gmon.out
+conventional name for profiling output file
+.El
+.Sh ERRORS
+The following error may be reported:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The buffer
+.Fa samples
+contains an invalid address.
+.El
+.Sh SEE ALSO
+.Xr gprof 1
+.Sh HISTORY
+The
+.Fn profil
+function appeared in
+.At v6 .
+.Sh BUGS
+This routine should be named
+.Fn profile .
+.Pp
+The
+.Fa samples
+argument should really be a vector of type
+.Fa "unsigned short" .
+.Pp
+The format of the gmon.out file is undocumented.

@@ -1,0 +1,686 @@
+.\" Copyright (c) 1985, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)systat.1	8.2 (Berkeley) 12/30/93
+.\" $FreeBSD$
+.\"
+.Dd December 5, 2016
+.Dt SYSTAT 1
+.Os
+.Sh NAME
+.Nm systat
+.Nd display system statistics
+.Sh SYNOPSIS
+.Nm
+.Op Fl display
+.Op Ar display-commands
+.Op Ar refresh-interval
+.Sh DESCRIPTION
+The
+.Nm
+utility displays various system statistics in a screen oriented fashion
+using the curses screen display library,
+.Xr ncurses 3 .
+.Pp
+While
+.Nm
+is running the screen is usually divided into two windows (an exception
+is the vmstat display which uses the entire screen).
+The
+upper window depicts the current system load average.
+The
+information displayed in the lower window may vary, depending on
+user commands.
+The last line on the screen is reserved for user
+input and error messages.
+.Pp
+By default
+.Nm
+displays the processes getting the largest percentage of the processor
+in the lower window.
+Other displays show swap space usage, disk
+.Tn I/O
+statistics (a la
+.Xr iostat 8 ) ,
+virtual memory statistics (a la
+.Xr vmstat 8 ) ,
+.Tn TCP/IP
+statistics,
+and network connections (a la
+.Xr netstat 1 ) .
+.Pp
+Input is interpreted at two different levels.
+A ``global'' command interpreter processes all keyboard input.
+If this command interpreter fails to recognize a command, the
+input line is passed to a per-display command interpreter.
+This
+allows each display to have certain display-specific commands.
+.Pp
+Command line options:
+.Bl -tag -width "refresh_interval"
+.It Fl Ns Ar display
+The
+.Fl
+flag expects
+.Ar display
+to be one of:
+.Ic icmp ,
+.Ic icmp6 ,
+.Ic ifstat ,
+.Ic iostat ,
+.Ic ip ,
+.Ic ip6 ,
+.Ic netstat ,
+.Ic pigs ,
+.Ic sctp ,
+.Ic swap ,
+.Ic tcp ,
+.Ic vmstat ,
+or
+.Ic zarc ,
+These displays can also be requested interactively (without the
+.Dq Fl )
+and are described in
+full detail below.
+.It Ar refresh-interval
+The
+.Ar refresh-value
+specifies the screen refresh time interval in seconds.
+Time interval can be fractional.
+.It Ar display-commands
+A list of commands specific to this display.
+These commands can also be entered interactively and are described for
+each display separately below.
+If the command requires arguments, they can be specified as separate
+command line arguments.
+A command line argument
+.Fl -
+will finish display commands.
+For example:
+.Pp
+.Dl Nm Fl ifstat Fl match Ar bge0,em1 Fl pps
+.Pp
+This will display statistics of packets per second for network interfaces
+named as bge0 and em1.
+.Pp
+.Dl Nm Fl iostat Fl numbers Fl - Ar 2.1
+.Pp
+This will display all IO statistics in a numeric format and the information
+will be refreshed each 2.1 seconds.
+.El
+.Pp
+Certain characters cause immediate action by
+.Nm .
+These are
+.Bl -tag -width Fl
+.It Ic \&^L
+Refresh the screen.
+.It Ic \&^G
+Print the name of the current ``display'' being shown in
+the lower window and the refresh interval.
+.It Ic \&:
+Move the cursor to the command line and interpret the input
+line typed as a command.
+While entering a command the
+current character erase, word erase, and line kill characters
+may be used.
+.El
+.Pp
+The following commands are interpreted by the ``global''
+command interpreter.
+.Bl -tag -width Fl
+.It Ic help
+Print the names of the available displays on the command line.
+.It Ic load
+Print the load average over the past 1, 5, and 15 minutes
+on the command line.
+.It Ic stop
+Stop refreshing the screen.
+.It Xo
+.Op Ic start
+.Op Ar number
+.Xc
+Start (continue) refreshing the screen.
+If a second, numeric,
+argument is provided it is interpreted as a refresh interval
+(in seconds).
+Supplying only a number will set the refresh interval to this
+value.
+.It Ic quit
+Exit
+.Nm .
+(This may be abbreviated to
+.Ic q . )
+.El
+.Pp
+The available displays are:
+.Bl -tag -width Ic
+.It Ic pigs
+Display, in the lower window, those processes resident in main
+memory and getting the
+largest portion of the processor (the default display).
+When less than 100% of the
+processor is scheduled to user processes, the remaining time
+is accounted to the ``idle'' process.
+.It Ic icmp
+Display, in the lower window, statistics about messages received and
+transmitted by the Internet Control Message Protocol
+.Pq Dq Tn ICMP .
+The left half of the screen displays information about received
+packets, and the right half displays information regarding transmitted
+packets.
+.Pp
+The
+.Ic icmp
+display understands two commands:
+.Ic mode
+and
+.Ic reset .
+The
+.Ic mode
+command is used to select one of four display modes, given as its argument:
+.Bl -tag -width absoluteXX -compact
+.It Ic rate :
+show the rate of change of each value in packets (the default)
+per second
+.It Ic delta :
+show the rate of change of each value in packets per refresh interval
+.It Ic since :
+show the total change of each value since the display was last reset
+.It Ic absolute :
+show the absolute value of each statistic
+.El
+.Pp
+The
+.Ic reset
+command resets the baseline for
+.Ic since
+mode.
+The
+.Ic mode
+command with no argument will display the current mode in the command
+line.
+.It Ic icmp6
+This display is like the
+.Ic icmp
+display,
+but displays statistics for IPv6 ICMP.
+.It Ic ip
+Otherwise identical to the
+.Ic icmp
+display, except that it displays
+.Tn IP
+and
+.Tn UDP
+statistics.
+.It Ic ip6
+Like the
+.Ic ip
+display,
+except that it displays
+.Tn IPv6
+statistics.
+It does not display
+.Tn UDP statistics.
+.It Ic sctp
+Like
+.Ic icmp ,
+but with
+.Tn SCTP
+statistics.
+.It Ic tcp
+Like
+.Ic icmp ,
+but with
+.Tn TCP
+statistics.
+.It Ic iostat
+Display, in the lower window, statistics about processor use
+and disk throughput.
+Statistics on processor use appear as
+bar graphs of the amount of time executing in user mode (``user''),
+in user mode running low priority processes (``nice''), in
+system mode (``system''), in interrupt mode (``interrupt''),
+and idle (``idle'').
+Statistics
+on disk throughput show, for each drive, megabytes per second,
+average number of disk transactions per second, and
+average kilobytes of data per transaction.
+This information may be
+displayed as bar graphs or as rows of numbers which scroll downward.
+Bar
+graphs are shown by default.
+.Pp
+The following commands are specific to the
+.Ic iostat
+display; the minimum unambiguous prefix may be supplied.
+.Pp
+.Bl -tag -width Fl -compact
+.It Cm numbers
+Show the disk
+.Tn I/O
+statistics in numeric form.
+Values are
+displayed in numeric columns which scroll downward.
+.It Cm bars
+Show the disk
+.Tn I/O
+statistics in bar graph form (default).
+.It Cm kbpt
+Toggle the display of kilobytes per transaction.
+(the default is to
+not display kilobytes per transaction).
+.El
+.It Ic swap
+Show information about swap space usage on all the
+swap areas compiled into the kernel.
+The first column is the device name of the partition.
+The next column is the total space available in the partition.
+The
+.Ar Used
+column indicates the total blocks used so far;
+the graph shows the percentage of space in use on each partition.
+If there are more than one swap partition in use,
+a total line is also shown.
+Areas known to the kernel, but not in use are shown as not available.
+.It Ic vmstat
+Take over the entire display and show a (rather crowded) compendium
+of statistics related to virtual memory usage, process scheduling,
+device interrupts, system name translation caching, disk
+.Tn I/O
+etc.
+.Pp
+The upper left quadrant of the screen shows the number
+of users logged in and the load average over the last one, five,
+and fifteen minute intervals.
+Below this line are statistics on memory utilization.
+The first row of the table reports memory usage only among
+active processes, that is processes that have run in the previous
+twenty seconds.
+The second row reports on memory usage of all processes.
+The first column reports on the number of kilobytes in physical pages
+claimed by processes.
+The second column reports the number of kilobytes in physical pages that
+are devoted to read only text pages.
+The third and fourth columns report the same two figures for
+virtual pages, that is the number of kilobytes in pages that would be
+needed if all processes had all of their pages.
+Finally the last column shows the number of kilobytes in physical pages
+on the free list.
+.Pp
+Below the memory display is a list of the
+average number of processes (over the last refresh interval)
+that are runnable (`r'), in page wait (`p'),
+in disk wait other than paging (`d'),
+sleeping (`s'), and swapped out but desiring to run (`w').
+The row also shows the average number of context switches
+(`Csw'), traps (`Trp'; includes page faults), system calls (`Sys'),
+interrupts (`Int'), network software interrupts (`Sof'), and page
+faults (`Flt').
+.Pp
+Below the process queue length listing is a numerical listing and
+a bar graph showing the amount of
+system (shown as `='), interrupt (shown as `+'), user (shown as `>'),
+nice (shown as `-'), and idle time (shown as ` ').
+.Pp
+Below the process display are statistics on name translations.
+It lists the number of names translated in the previous interval,
+the number and percentage of the translations that were
+handled by the system wide name translation cache, and
+the number and percentage of the translations that were
+handled by the per process name translation cache.
+.Pp
+To the right of the name translations display are lines showing
+the number of dirty buffers in the buffer cache (`dtbuf'),
+desired maximum size of vnode cache (`desvn'),
+number of vnodes actually allocated (`numvn'),
+and
+number of allocated vnodes that are free (`frevn').
+.Pp
+At the bottom left is the disk usage display.
+It reports the number of
+kilobytes per transaction, transactions per second, megabytes
+per second and the percentage of the time the disk was busy averaged
+over the refresh period of the display (by default, five seconds).
+The system keeps statistics on most every storage device.
+In general, up
+to seven devices are displayed.
+The devices displayed by default are the
+first devices in the kernel's device list.
+See
+.Xr devstat 3
+and
+.Xr devstat 9
+for details on the devstat system.
+.Pp
+Under the date in the upper right hand quadrant are statistics
+on paging and swapping activity.
+The first two columns report the average number of pages
+brought in and out per second over the last refresh interval
+due to page faults and the paging daemon.
+The third and fourth columns report the average number of pages
+brought in and out per second over the last refresh interval
+due to swap requests initiated by the scheduler.
+The first row of the display shows the average
+number of disk transfers per second over the last refresh interval;
+the second row of the display shows the average
+number of pages transferred per second over the last refresh interval.
+.Pp
+Below the paging statistics is a column of lines regarding the virtual
+memory system.
+The first few lines describe,
+in units (except as noted below)
+of pages per second averaged over the sampling interval,
+pages copied on write (`cow'),
+pages zero filled on demand (`zfod'),
+pages optimally zero filled on demand (`ozfod'),
+the ratio of the (average) ozfod / zfod as a percentage (`%ozfod'),
+pages freed by the page daemon (`daefr'),
+pages freed by exiting processes (`prcfr'),
+total pages freed (`totfr'),
+pages reactivated from the free list (`react'),
+the average number of
+times per second that the page daemon was awakened (`pdwak'),
+pages analyzed by the page daemon (`pdpgs'),
+and
+in-transit blocking page faults (`intrn').
+Note that the units are special for `%ozfod' and `pdwak'.
+The next few lines describe,
+as amounts of memory in kilobytes,
+pages wired down (`wire'),
+active pages (`act'),
+inactive pages (`inact'),
+dirty pages queued for laundering (`laund'),
+and
+free pages (`free').
+Note that the values displayed are the current transient ones;
+they are not averages.
+.Pp
+At the bottom of this column is a line showing the
+amount of virtual memory, in kilobytes, mapped into the buffer cache (`buf').
+This statistic is not useful.
+It exists only as a placeholder for the corresponding useful statistic
+(the amount of real memory used to cache disks).
+The most important component of the latter (the amount of real memory
+used by the vm system to cache disks) is not available,
+but can be guessed from the `inact' amount under some system loads.
+.Pp
+Running down the right hand side of the display is a breakdown
+of the interrupts being handled by the system.
+At the top of the list is the total interrupts per second
+over the time interval.
+The rest of the column breaks down the total on a device
+by device basis.
+Only devices that have interrupted at least once since boot time are shown.
+.Pp
+The following commands are specific to the
+.Ic vmstat
+display; the minimum unambiguous prefix may be supplied.
+.Pp
+.Bl -tag -width Ar -compact
+.It Cm boot
+Display cumulative statistics since the system was booted.
+.It Cm run
+Display statistics as a running total from the point this
+command is given.
+.It Cm time
+Display statistics averaged over the refresh interval (the default).
+.It Cm zero
+Reset running statistics to zero.
+.El
+.It Ic zarc
+display arc cache usage and hit/miss statistics.
+.It Ic netstat
+Display, in the lower window, network connections.
+By default,
+network servers awaiting requests are not displayed.
+Each address
+is displayed in the format ``host.port'', with each shown symbolically,
+when possible.
+It is possible to have addresses displayed numerically,
+limit the display to a set of ports, hosts, and/or protocols
+(the minimum unambiguous prefix may be supplied):
+.Pp
+.Bl -tag -width Ar -compact
+.It Cm all
+Toggle the displaying of server processes awaiting requests (this
+is the equivalent of the
+.Fl a
+flag to
+.Xr netstat 1 ) .
+.It Cm numbers
+Display network addresses numerically.
+.It Cm names
+Display network addresses symbolically.
+.It Cm proto Ar protocol
+Display only network connections using the indicated
+.Ar protocol .
+Supported protocols are ``tcp'', ``udp'', and ``all''.
+.It Cm ignore Op Ar items
+Do not display information about connections associated with
+the specified hosts or ports.
+Hosts and ports may be specified
+by name (``vangogh'', ``ftp''), or numerically.
+Host addresses
+use the Internet dot notation (``128.32.0.9'').
+Multiple items
+may be specified with a single command by separating them with
+spaces.
+.It Cm display Op Ar items
+Display information about the connections associated with the
+specified hosts or ports.
+As for
+.Ar ignore ,
+.Op Ar items
+may be names or numbers.
+.It Cm show Op Ar ports\&|hosts
+Show, on the command line, the currently selected protocols,
+hosts, and ports.
+Hosts and ports which are being ignored
+are prefixed with a `!'.
+If
+.Ar ports
+or
+.Ar hosts
+is supplied as an argument to
+.Cm show ,
+then only the requested information will be displayed.
+.It Cm reset
+Reset the port, host, and protocol matching mechanisms to the default
+(any protocol, port, or host).
+.El
+.It Ic ifstat
+Display the network traffic going through active interfaces on the
+system.
+Idle interfaces will not be displayed until they receive some
+traffic.
+.Pp
+For each interface being displayed, the current, peak and total
+statistics are displayed for incoming and outgoing traffic.
+By default,
+the
+.Ic ifstat
+display will automatically scale the units being used so that they are
+in a human-readable format.
+The scaling units used for the current and
+peak
+traffic columns can be altered by the
+.Ic scale
+command.
+.Bl -tag -width ".Cm scale Op Ar units"
+.It Cm scale Op Ar units
+Modify the scale used to display the current and peak traffic over all
+interfaces.
+The following units are recognised: kbit, kbyte, mbit,
+mbyte, gbit, gbyte and auto.
+.It Cm pps
+Show statistics in packets per second instead of bytes/bits per second.
+A subsequent call of
+.Ic pps
+switches this mode off.
+.It Cm match Op Ar patterns
+Display only interfaces that match pattern provided as an argument.
+Patterns should be in shell syntax separated by whitespaces or commas.
+If this command is called without arguments then all interfaces are displayed.
+For example:
+.Pp
+.Dl match em0, bge1
+.Pp
+This will display em0 and bge1 interfaces.
+.Pp
+.Dl match em*, bge*, lo0
+.Pp
+This will display all
+.Ic em
+interfaces, all
+.Ic bge
+interfaces and the loopback interface.
+.El
+.El
+.Pp
+Commands to switch between displays may be abbreviated to the
+minimum unambiguous prefix; for example, ``io'' for ``iostat''.
+Certain information may be discarded when the screen size is
+insufficient for display.
+For example, on a machine with 10
+drives the
+.Ic iostat
+bar graph displays only 3 drives on a 24 line terminal.
+When
+a bar graph would overflow the allotted screen space it is
+truncated and the actual value is printed ``over top'' of the bar.
+.Pp
+The following commands are common to each display which shows
+information about disk drives.
+These commands are used to
+select a set of drives to report on, should your system have
+more drives configured than can normally be displayed on the
+screen.
+.Pp
+.Bl -tag -width Ar -compact
+.It Cm ignore Op Ar drives
+Do not display information about the drives indicated.
+Multiple
+drives may be specified, separated by spaces.
+.It Cm display Op Ar drives
+Display information about the drives indicated.
+Multiple drives
+may be specified, separated by spaces.
+.It Cm only Op Ar drives
+Display only the specified drives.
+Multiple drives may be specified,
+separated by spaces.
+.It Cm drives
+Display a list of available devices.
+.It Cm match Xo
+.Ar type , Ns Ar if , Ns Ar pass
+.Op | Ar ...
+.Xc
+Display devices matching the given pattern.
+The basic matching
+expressions are the same as those used in
+.Xr iostat 8
+with one difference.
+Instead of specifying multiple
+.Fl t
+arguments which are then ORed together, the user instead specifies multiple
+matching expressions joined by the pipe
+.Pq Ql \&|
+character.
+The comma
+separated arguments within each matching expression are ANDed together, and
+then the pipe separated matching expressions are ORed together.
+Any
+device matching the combined expression will be displayed, if there is room
+to display it.
+For example:
+.Pp
+.Dl match da,scsi | cd,ide
+.Pp
+This will display all SCSI Direct Access devices and all IDE CDROM devices.
+.Pp
+.Dl match da | sa | cd,pass
+.Pp
+This will display all Direct Access devices, all Sequential Access devices,
+and all passthrough devices that provide access to CDROM drives.
+.El
+.Sh FILES
+.Bl -tag -width /boot/kernel/kernel -compact
+.It Pa /boot/kernel/kernel
+For the namelist.
+.It Pa /dev/kmem
+For information in main memory.
+.It Pa /etc/hosts
+For host names.
+.It Pa /etc/networks
+For network names.
+.It Pa /etc/services
+For port names.
+.El
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr kvm 3 ,
+.Xr icmp 4 ,
+.Xr icmp6 4 ,
+.Xr ip 4 ,
+.Xr ip6 4 ,
+.Xr tcp 4 ,
+.Xr udp 4 ,
+.Xr gstat 8 ,
+.Xr iostat 8 ,
+.Xr vmstat 8
+.Sh HISTORY
+The
+.Nm
+program appeared in
+.Bx 4.3 .
+The
+.Ic icmp ,
+.Ic ip ,
+and
+.Ic tcp
+displays appeared in
+.Fx 3.0 ;
+the notion of having different display modes for the
+.Tn ICMP ,
+.Tn IP ,
+.Tn TCP ,
+and
+.Tn UDP
+statistics was stolen from the
+.Fl C
+option to
+.Xr netstat 1
+in Silicon Graphics'
+.Tn IRIX
+system.
+.Sh BUGS
+Certain displays presume a minimum of 80 characters per line.
+The
+.Ic vmstat
+display looks out of place because it is (it was added in as
+a separate display rather than created as a new program).

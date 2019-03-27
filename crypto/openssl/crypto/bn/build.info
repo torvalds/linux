@@ -1,0 +1,67 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=\
+        bn_add.c bn_div.c bn_exp.c bn_lib.c bn_ctx.c bn_mul.c bn_mod.c \
+        bn_print.c bn_rand.c bn_shift.c bn_word.c bn_blind.c \
+        bn_kron.c bn_sqrt.c bn_gcd.c bn_prime.c bn_err.c bn_sqr.c \
+        {- $target{bn_asm_src} -} \
+        bn_recp.c bn_mont.c bn_mpi.c bn_exp2.c bn_gf2m.c bn_nist.c \
+        bn_depr.c bn_const.c bn_x931p.c bn_intern.c bn_dh.c bn_srp.c
+INCLUDE[../../libcrypto]=../../crypto/include
+
+INCLUDE[bn_exp.o]=..
+
+GENERATE[bn-586.s]=asm/bn-586.pl \
+	$(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+DEPEND[bn-586.s]=../perlasm/x86asm.pl
+GENERATE[co-586.s]=asm/co-586.pl \
+	$(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+DEPEND[co-586.s]=../perlasm/x86asm.pl
+GENERATE[x86-mont.s]=asm/x86-mont.pl \
+	$(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+DEPEND[x86-mont.s]=../perlasm/x86asm.pl
+GENERATE[x86-gf2m.s]=asm/x86-gf2m.pl \
+	$(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+DEPEND[x86-gf2m.s]=../perlasm/x86asm.pl
+
+GENERATE[sparcv9a-mont.S]=asm/sparcv9a-mont.pl $(PERLASM_SCHEME)
+INCLUDE[sparcv9a-mont.o]=..
+GENERATE[sparcv9-mont.S]=asm/sparcv9-mont.pl $(PERLASM_SCHEME)
+INCLUDE[sparcv9-mont.o]=..
+GENERATE[vis3-mont.S]=asm/vis3-mont.pl $(PERLASM_SCHEME)
+INCLUDE[vis3-mont.o]=..
+GENERATE[sparct4-mont.S]=asm/sparct4-mont.pl $(PERLASM_SCHEME)
+INCLUDE[sparct4-mont.o]=..
+GENERATE[sparcv9-gf2m.S]=asm/sparcv9-gf2m.pl $(PERLASM_SCHEME)
+INCLUDE[sparcv9-gf2m.o]=..
+
+GENERATE[bn-mips.S]=asm/mips.pl $(PERLASM_SCHEME)
+INCLUDE[bn-mips.o]=..
+GENERATE[mips-mont.S]=asm/mips-mont.pl $(PERLASM_SCHEME)
+INCLUDE[mips-mont.o]=..
+
+GENERATE[s390x-mont.S]=asm/s390x-mont.pl $(PERLASM_SCHEME)
+GENERATE[s390x-gf2m.s]=asm/s390x-gf2m.pl $(PERLASM_SCHEME)
+
+GENERATE[x86_64-mont.s]=asm/x86_64-mont.pl $(PERLASM_SCHEME)
+GENERATE[x86_64-mont5.s]=asm/x86_64-mont5.pl $(PERLASM_SCHEME)
+GENERATE[x86_64-gf2m.s]=asm/x86_64-gf2m.pl $(PERLASM_SCHEME)
+GENERATE[rsaz-x86_64.s]=asm/rsaz-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[rsaz-avx2.s]=asm/rsaz-avx2.pl $(PERLASM_SCHEME)
+
+GENERATE[bn-ia64.s]=asm/ia64.S
+GENERATE[ia64-mont.s]=asm/ia64-mont.pl $(LIB_CFLAGS) $(LIB_CPPFLAGS)
+
+GENERATE[parisc-mont.s]=asm/parisc-mont.pl $(PERLASM_SCHEME)
+
+# ppc - AIX, Linux, MacOS X...
+GENERATE[bn-ppc.s]=asm/ppc.pl $(PERLASM_SCHEME)
+GENERATE[ppc-mont.s]=asm/ppc-mont.pl $(PERLASM_SCHEME)
+GENERATE[ppc64-mont.s]=asm/ppc64-mont.pl $(PERLASM_SCHEME)
+
+GENERATE[alpha-mont.S]=asm/alpha-mont.pl $(PERLASM_SCHEME)
+
+GENERATE[armv4-mont.S]=asm/armv4-mont.pl $(PERLASM_SCHEME)
+INCLUDE[armv4-mont.o]=..
+GENERATE[armv4-gf2m.S]=asm/armv4-gf2m.pl $(PERLASM_SCHEME)
+INCLUDE[armv4-gf2m.o]=..
+GENERATE[armv8-mont.S]=asm/armv8-mont.pl $(PERLASM_SCHEME)

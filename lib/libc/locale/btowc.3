@@ -1,0 +1,88 @@
+.\" Copyright (c) 2002 Tim J. Robbins
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 13, 2012
+.Dt BTOWC 3
+.Os
+.Sh NAME
+.Nm btowc ,
+.Nm wctob
+.Nd "convert between wide and single-byte characters"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In wchar.h
+.Ft wint_t
+.Fn btowc "int c"
+.Ft int
+.Fn wctob "wint_t c"
+.In wchar.h
+.In xlocale.h
+.Ft wint_t
+.Fn btowc_l "int c" "locale_t loc"
+.Ft int
+.Fn wctob_l "wint_t c" "locale_t loc"
+.Sh DESCRIPTION
+The
+.Fn btowc
+function converts a single-byte character into a corresponding wide character.
+If the character is
+.Dv EOF
+or not valid in the initial shift state,
+.Fn btowc
+returns
+.Dv WEOF .
+.Pp
+The
+.Fn wctob
+function converts a wide character into a corresponding single-byte character.
+If the wide character is
+.Dv WEOF
+or not able to be represented as a single byte in the initial shift state,
+.Fn wctob
+returns
+.Dv EOF .
+.Pp
+The _l-suffixed versions take an explicit locale argument, while the
+non-suffixed versions use the current global or per-thread locale.
+.Sh SEE ALSO
+.Xr mbrtowc 3 ,
+.Xr multibyte 3 ,
+.Xr wcrtomb 3
+.Sh STANDARDS
+The
+.Fn btowc
+and
+.Fn wctob
+functions conform to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn btowc
+and
+.Fn wctob
+functions first appeared in
+.Fx 5.0 .

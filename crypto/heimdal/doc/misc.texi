@@ -1,0 +1,58 @@
+@c $Id$
+
+@node Things in search for a better place, Kerberos 4 issues, Applications, Top
+@chapter Things in search for a better place
+
+@section Making things work on Ciscos
+
+Modern versions of Cisco IOS has some support for authenticating via
+Kerberos 5. This can be used both by having the router get a ticket when
+you login (boring), and by using Kerberos authenticated telnet to access
+your router (less boring). The following has been tested on IOS
+11.2(12), things might be different with other versions. Old versions
+are known to have bugs.
+
+To make this work, you will first have to configure your router to use
+Kerberos (this is explained in the documentation). A sample
+configuration looks like the following:
+
+@example
+aaa new-model
+aaa authentication login default krb5-telnet krb5 enable
+aaa authorization exec krb5-instance
+kerberos local-realm FOO.SE
+kerberos srvtab entry host/router.foo.se 0 891725446 4 1 8 012345678901234567
+kerberos server FOO.SE 10.0.0.1
+kerberos instance map admin 15
+@end example
+
+This tells you (among other things) that when logging in, the router
+should try to authenticate with kerberised telnet, and if that fails try
+to verify a plain text password via a Kerberos ticket exchange (as
+opposed to a local database, RADIUS or something similar), and if that
+fails try the local enable password. If you're not careful when you
+specify the `login default' authentication mechanism, you might not be
+able to login at all. The `instance map' and `authorization exec' lines
+says that people with `admin' instances should be given `enabled' shells
+when logging in.
+
+The numbers after the principal on the `srvtab' line are principal type,
+time stamp (in seconds since 1970), key version number (4), keytype (1 ==
+des), key length (always 8 with des), and then the key.
+
+To make the Heimdal KDC produce tickets that the Cisco can decode you
+might have to turn on the @samp{encode_as_rep_as_tgs_rep} flag in the
+KDC. You will also have to specify that the router can't handle anything
+but @samp{des-cbc-crc}. This can be done with the @samp{del_enctype}
+command of @samp{kadmin}.
+
+This all fine and so, but unless you have an IOS version with encryption
+(available only in the U.S) it doesn't really solve any problems. Sure
+you don't have to send your password over the wire, but since the telnet
+connection isn't protected it's still possible for someone to steal your
+session. This won't be fixed until someone adds integrity to the telnet
+protocol.
+
+A working solution would be to hook up a machine with a real operating
+system to the console of the Cisco and then use it as a backwards
+terminal server.

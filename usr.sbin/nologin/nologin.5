@@ -1,0 +1,96 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)nologin.8	8.1 (Berkeley) 6/19/93
+.\" $FreeBSD$
+.\"
+.Dd May 10, 2007
+.Dt NOLOGIN 5
+.Os
+.Sh NAME
+.Nm nologin
+.Nd disallow logins
+.Sh DESCRIPTION
+Programs such as
+.Xr login 1
+disallow logins if the
+.Nm
+file exists.
+The programs display the contents of
+.Nm
+to the user if possible and interrupt the login sequence.
+This makes it simple to temporarily prevent incoming logins systemwide.
+.Pp
+To disable logins on a per-account basis,
+investigate
+.Xr nologin 8 .
+.Sh SECURITY
+The
+.Nm
+file is ignored for user root by default.
+.Sh IMPLEMENTATION NOTES
+The
+.Nm
+feature is implemented through
+.Xr login.conf 5 ,
+which allows to change the pathname of the
+file and to extend the list of users
+exempt from temporary login restriction.
+.Pp
+PAM-aware programs can be selectively configured to respect
+.Nm
+using the
+.Xr pam_nologin 8
+module via
+.Xr pam.conf 5 .
+.Pp
+The
+.Nm
+file will be removed at system boot if it resides in
+.Pa /var/run
+and
+.Va cleanvar_enable
+is set to
+.Dq Li YES
+in
+.Xr rc.conf 5 ,
+which is default.
+Therefore system reboot can effectively re-enable logins.
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/nologin" -compact
+.It Pa /var/run/nologin
+default location of
+.Nm
+.El
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr login.conf 5 ,
+.Xr pam.conf 5 ,
+.Xr rc.conf 5 ,
+.Xr nologin 8 ,
+.Xr pam_nologin 8 ,
+.Xr shutdown 8

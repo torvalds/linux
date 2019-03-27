@@ -1,0 +1,112 @@
+.\" Copyright (c) 2003 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project in part by Network
+.\" Associates Laboratories, the Security Research Division of Network
+.\" Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+.\" as part of the DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 25, 2015
+.Dt MAC.CONF 5
+.Os
+.Sh NAME
+.Nm mac.conf
+.Nd format of the MAC library configuration file
+.Sh DESCRIPTION
+The
+.Nm
+file configures the default label elements to be used by policy-agnostic
+applications that operate on MAC labels.
+A file contains a series of default label sets specified by object class,
+in addition to blank lines and comments preceded by a
+.Ql #
+symbol.
+.Pp
+Currently, the implementation supports two syntax styles for label
+element declaration.
+The old (deprecated) syntax consists of a
+single line with two fields separated by white space: the object
+class name, and a list of label elements as used by the
+.Xr mac_prepare 3
+library calls prior to an application invocation of a function from
+.Xr mac_get 3 .
+.Pp
+The newer more preferred syntax consists of three fields separated by
+white space: the label group, object class name and a list of
+label elements.
+.Pp
+Label element names may optionally begin with a
+.Ql \&?
+symbol to indicate that a failure to retrieve the label element for
+an object should be silently ignored, and improves usability if the
+set of MAC policies may change over time.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/mac.conf" -compact
+.It Pa /etc/mac.conf
+MAC library configuration file.
+.El
+.Sh EXAMPLES
+The following example configures user applications to operate with
+four MAC policies:
+.Xr mac_biba 4 ,
+.Xr mac_mls 4 ,
+SEBSD,
+and
+.Xr mac_partition 4 .
+.Bd -literal -offset indent
+#
+# Default label set to be used by simple MAC applications
+
+default_labels file ?biba,?lomac,?mls,?sebsd
+default_labels ifnet ?biba,?lomac,?mls,?sebsd
+default_labels process ?biba,?lomac,?mls,?partition,?sebsd
+default_labels socket ?biba,?lomac,?mls
+
+#
+# Deprecated (old) syntax
+
+default_file_labels ?biba,?mls,?sebsd
+default_ifnet_labels ?biba,?mls,?sebsd
+default_process_labels ?biba,?mls,partition,?sebsd
+.Ed
+.Pp
+In this example, userland applications will attempt to retrieve Biba,
+MLS, and SEBSD labels for all object classes; for processes, they will
+additionally attempt to retrieve a Partition identifier.
+In all cases except the Partition identifier, failure to retrieve a
+label due to the respective policy not being present will be ignored.
+.Sh SEE ALSO
+.Xr mac 3 ,
+.Xr mac_get 3 ,
+.Xr mac_prepare 3 ,
+.Xr mac 4 ,
+.Xr mac 9
+.Sh HISTORY
+Support for Mandatory Access Control was introduced in
+.Fx 5.0
+as part of the
+.Tn TrustedBSD
+Project.

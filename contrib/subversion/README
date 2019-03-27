@@ -1,0 +1,84 @@
+
+               Subversion, a version control system.
+               =====================================
+
+$LastChangedDate: 2016-05-31 14:07:51 +0000 (Tue, 31 May 2016) $
+
+Contents:
+
+     I. A FEW POINTERS
+    II. DOCUMENTATION
+   III. PARTICIPATING IN THE SUBVERSION COMMUNITY
+    IV. QUICKSTART GUIDE
+     V. CONVERTING FROM CVS
+
+
+
+I.    A FEW POINTERS
+
+      For an overview of the Subversion project, visit
+
+         http://subversion.apache.org/
+
+      Once you have a Subversion client you can get the latest version
+      of the code with the command:
+
+         $ svn co http://svn.apache.org/repos/asf/subversion/trunk subversion
+
+
+
+II.   DOCUMENTATION
+
+      The main documentation is the Subversion Book - an on-line version
+      can be found at:
+      
+         http://svnbook.red-bean.com/
+
+      It is written in DocBook XML, and the sources can be found at:
+
+         http://svn.code.sf.net/p/svnbook/source/trunk/
+         
+      If you wish to build the documentation from source, read the
+      en/README file within the book source.
+
+
+
+III.  PARTICIPATING IN THE SUBVERSION COMMUNITY
+
+      First, read http://subversion.apache.org/docs/community-guide/
+      It describes Subversion coding and log message standards, as well
+      as how to join discussion lists.
+
+      Talk on IRC with developers:  irc.freenode.net, channel #svn-dev.
+
+      Read the FAQ:  http://subversion.apache.org/faq.html
+
+
+
+IV.   QUICKSTART GUIDE
+
+      See the final section of the first chapter of the Subversion Book.
+
+
+
+V.    CONVERTING FROM CVS
+
+      If you're a CVS user trying to move your CVS history over to
+      Subversion, then be sure to visit the 'cvs2svn' project:
+
+         http://cvs2svn.tigris.org
+
+      You can get the latest released version of the cvs2svn converter
+      from the project downloads area:
+
+         http://cvs2svn.tigris.org/servlets/ProjectDocumentList?folderID=2976
+
+      Please note that the cvs2svn project is a *separate* project from
+      Subversion.  If you have problems with cvs2svn or are confused,
+      please email the cvs2svn project's mailing lists, not the
+      Subversion lists.
+
+      Finally, be sure to see Appendix B in the Subversion Book.  It
+      contains a very quick overview of the major differences between
+      CVS and Subversion.
+

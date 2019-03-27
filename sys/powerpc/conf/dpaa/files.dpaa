@@ -1,0 +1,123 @@
+# $FreeBSD$
+
+# NetCommSw drivers
+contrib/ncsw/etc/error.c				optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/etc/ncsw_list.c				optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/etc/memcpy.c				optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/etc/mm.c					optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/etc/ncsw_mem.c				optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/etc/sprint.c				optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/BM/bm.c			optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/BM/bman_low.c			optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/BM/bm_pool.c			optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/BM/bm_portal.c			optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/SP/fm_sp.c			optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/Rtc/fm_rtc.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/Rtc/fman_rtc.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/Port/fman_port.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/Port/fm_port.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/Port/fm_port_im.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/Pcd/fm_cc.c			optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/Pcd/fm_kg.c			optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/Pcd/fman_kg.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/Pcd/fm_manip.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/Pcd/fm_pcd.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/Pcd/fm_plcr.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/Pcd/fm_prs.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/Pcd/fman_prs.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/MAC/dtsec.c			optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/MAC/dtsec_mii_acc.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/MAC/fman_dtsec.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/MAC/fman_dtsec_mii_acc.c	optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/MAC/fm_mac.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/MAC/fman_dtsec.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/MAC/tgec.c			optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/MAC/tgec_mii_acc.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/MAC/fman_tgec.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/HC/hc.c			optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/fm_muram.c			optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/fm_ncsw.c			optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/FM/fman_ncsw.c			optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/QM/qm.c			optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/Peripherals/QM/qm_portal_fqr.c		optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/user/env/stdlib.c				optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/user/env/xx.c				optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+contrib/ncsw/user/env/core.c				optional dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+
+# FreeBSD Wrappers
+dev/dpaa/portals_common.c			optional dpaa		\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+dev/dpaa/bman_portals.c				optional dpaa fdt	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+dev/dpaa/bman.c					optional dpaa		\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+dev/dpaa/bman_fdt.c				optional dpaa fdt	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+dev/dpaa/qman_portals.c				optional dpaa fdt	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+dev/dpaa/qman.c					optional dpaa		\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+dev/dpaa/qman_fdt.c				optional dpaa fdt	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+dev/dpaa/fman.c				optional dpaa fdt			\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+dev/dpaa/fman_mdio.c			optional dpaa fdt			\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+dev/dpaa/fman_fdt.c				optional dpaa fdt			\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+dev/dpaa/if_dtsec.c				optional dpaa			\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+dev/dpaa/if_dtsec_im.c			optional dpaa			\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+dev/dpaa/if_dtsec_rm.c			optional dpaa			\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+dev/dpaa/if_dtsec_fdt.c			optional dpaa			\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+
+# Examples
+dev/dpaa/bman-example.c			optional bman_example dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
+dev/dpaa/qman-example.c			optional qman_example dpaa	\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"

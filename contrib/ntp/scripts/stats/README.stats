@@ -1,0 +1,246 @@
+Statistics file formats (README.stats)
+
+The xntp3 daemon can produce a variety of statistics files which are
+useful for maintenance, evaluation and retrospective calibration
+purposes. See the xntpd.8 man page for instructions on how to configure
+this feature. Since these files can become rather large and cumbersome,
+they are ordinarily reduced to summary form by running the summary.sh
+shell script once per day, week or month, as appropriate. There are
+three file collections presently defined: peerstats, loopstats and
+clockstats, each of which is described in this note.
+
+peerstats
+
+The following data are collected in the peerstats files. The files are
+reduced to summary data using the peer.sh shell script. See the peer.awk
+script for further information. A line in the file is produced upon
+reception of each valid update from a configured peer.
+
+  49236 30.756 140.173.96.1 9474 0.000603 0.37532
+
+  49236             modified Julian day number
+  30.756            time of day (s) past midnight UTC
+  140.173.96.1      peer identifier (IP address or receiver identifier)
+  9474              peer status word (hex) (see NTP specification)
+  0.000603          offset (s)
+  0.08929           delay (s)
+  0.37532           dispersion (s)
+
+loopstats
+
+The following data are collected in the loopstats files. The files are
+reduced to summary data using the loop.sh shell script. See the loop.awk
+script for further information. A line in the file is produced at each
+valid update of the local clock.
+
+  49236 11.897 -0.000004 -35.9384 0
+
+  49236             modified Julian day number
+  11.897            time of day (s) past midnight UTC
+  -0.000004         time offset (s)
+  -35.9384          frequency offset (ppm)
+  0                 phase-lock loop time constant
+
+clockstats
+
+The following data are collected in the clockstats files. The files are
+reduced to summary data using the clock.sh shell script, which also
+updates the ensemble, etf, itf and tdata data files as well. See the
+clock.awk, ensemble.awk, etf.awk, itf.awk and tdta.awk scripts for
+further information. A line in the file is produced at each valid update
+received from a configured radio clock. Data are at present recorded for
+several radios. The first part of each data line is similar for all
+radios, e.g.:
+
+  49234 60517.826 127.127.4.1   93 247 16:48:21.814
+
+  49234             modified Julian day number
+  60517.826         time of day (s) past midnight UTC
+  127.127.4.1       receiver identifier (Spectracom 8170/Netclock-2)
+  93 247 16:48:21.814  timecode (format varies)
+
+In the case of the Austron GPS receiver, a good deal of additional
+information is extracted from the radio, as described below. The formats
+shown consist of one line with all the fields shown in order. The
+timecode formats specific to each radio follow. See the file
+README.timecodes for detailed information on the timecode formats used
+by these radios.
+
+Spectracom 8170/Netclock-2 WWVB receiver
+
+  49234 60517.826 127.127.4.1 ?A93 247 16:48:21.814
+
+  The '?' and 'A' characters are present only when the receiver is
+  unsynchronized; otherwise, they are replaced by space ' ' characters.
+
+IRIG audio decoder
+
+  49234 60517.826 127.127.6.0 247 16:48:21?
+
+  The '?' character is present only when the receiver is unsynchronized.
+
+Austron 2200A/2201A GPS receiver
+
+  49234 60580.843 127.127.10.1 93:247:16:49:24.814?
+
+  The '?' character is present only when the receiver is unsynchronized.
+
+Depending on the installed options, the Austron 2200A/2201A recognizes a
+number of special commands that report various data items. See the
+refclock_as2201.c source module for a list of the commands used. These
+data are collected only if the following line is included in the
+configuration file ntp.conf:
+
+  fudge 127.127.10.1 flag4 1    # enable extended statistics collection
+
+The format of each data line returned is summarized in the following
+list.
+
+External time/frequency data (requires input buffer option IN)
+
+These data determine the deviations of external time/frequency inputs
+relative to receiver oscillator time. The following data are typical
+using an external cesium oscillator PPS and 5-MHz outputs.
+
+  49234 60580.843 127.127.10.1 93:247:16:49:24.814 ETF
+
+  -85.9             time interval (ns)
+  -89.0             average time interval (ns)
+  4.0               time interval sigma (ns)
+  +1.510E-11        time interval rate
+  -4.500E-11        deltaf/f
+  +1.592E-11        average deltaf/f
+  5.297E-13         sigma deltaf/f
+  500               number of samples
+
+Model and option identifiers
+
+These data show the receiver model number and option configuration.
+
+  49234 60708.848 127.127.10.1 93:247:16:51:32.817 ID;OPT;VER
+
+  GPS 2201A         model ident (must be "GPS 2200A" or "GPS 2201A")
+  TTY1              rs232 option present (required)
+  TC1               IRIG option present (optional)
+  LORAN             LORAN assist option present (optional)
+  IN                input buffer option present (optional)
+  OUT1              output buffer option present (required)
+  B.00              data processor software version ("B.00" or later)
+  B.00              signal processor software version ("B.00" or later)
+  28-Apr-93         software version date ("28-Apr-93" or later)
+
+Internal time/frequency data
+
+These data determine the deviations of the receiver oscillator with
+respect to satellite time.
+
+  49234 60564.846 127.127.10.1 93:247:16:49:08.816 ITF
+
+  COCO              current mode (must be "COCO")
+  0                 code coast mode (must be zero)
+  +6.6152E-08       code sigma (s)
+  -3.5053E-08       code delta t (s)
+  -4.0361E-11       deltat/t
+  -6.4746E-11       oscillator ageing rate
+  500.00            loop time constant
+  4.984072          electrical tuning (V)
+
+GPS/LORAN ensemble data (requires LORAN assist option LORAN)
+
+These data determine the deviations and weights to calculate ensemble
+time from GPS and LORAN data.
+
+  49234 60596.852 127.127.10.1 93:247:16:49:40.812 LORAN ENSEMBLE
+
+  +9.06E-08         GPS t (s)
+  +3.53E-08         GPS sigma (s)
+  .532              GPS weight
+  +3.71E-08         LORAN t (s)
+  +3.76E-08         LORAN sigma (s)
+  .468              LORAN weight
+  +6.56E-08         ensemble t
+  +6.94E-08         ensemble sigma (s)
+
+LORAN stationkeeping data (requires LORAN assist option LORAN)
+
+These data determine which stations of the LORAN chain are being
+tracked, together with individual signal/noise ratios, deviations and
+weights.
+
+  49234 60532.850 127.127.10.1 93:247:16:48:36.820 LORAN TDATA
+
+  M                 station identifier; data follows
+  OK                status (must be "OK" for tracking)
+  0                 cw flag
+  0                 sw flag
+  1162.17           time of arrival
+  -4.6              snr (-30.0 if not "OK" status)
+  1.67E-07          2-sample phase-time deviation
+  .507              weight (included only if "OK" status)
+  W AQ 0 0 3387.80 -31.0  station identifier and data
+  X OK 0 0 1740.27 -11.2 2.20E-07 .294  station identifier and data
+  Y OK 0 0 2180.71 -4.6 2.68E-07 .198  station identifier and data
+  Z CV 0 0 3392.94 -30.0  station identifier and data
+
+Oscillator status and environment
+
+These data determine the receiver oscillator type, mode, status and
+environment. Nominal operating conditions are shown below.
+
+  49234 60628.847 127.127.10.1 93:247:16:50:12.817 OSC;ET;TEMP
+
+  1121 Software     Control  oscillator model and mode (must be
+                    "Software Control")
+  Locked            status (must be "Locked")
+  4.979905          electrical tuning (V)
+  44.81             oscillator cavity temperature
+
+Receiver position, status and offsets
+
+These data determine the receiver position and elevation, together with
+programmable delay corrections for the antenna cable and receiver.
+
+  49234 60788.847 127.127.10.1 93:247:16:52:52.817 POS;PPS;PPSOFF
+
+  +39:40:48.425     receiver latitude (N)
+  -075:45:02.392    receiver longitude (E)
+  +74.09            receiver elevation (m)
+  Stored            position status (must be "Stored")
+  UTC               PPS/PPM alignment (must be "UTC")
+  0                 receiver delay (ns) (should be zero for calibrated
+                    receiver)
+  200               cable delay (ns)
+  0                 user time bias (ns) (must be zero)
+
+Satellite tracking status
+
+These data determine how many satellites are being tracked. At the
+present state of constellation development, there should be at least
+three visible satellites in view. Much of the time the maximum of
+seven are being tracked; rarely this number drops to two.
+
+  49234 60612.850 127.127.10.1 93:247:16:49:56.820 TRSTAT
+
+  24 T              satellite prn and status (T = track, A = acquire)
+  16 A 13 T 20 T 18 T 07 T 12 T  list continued
+
+UTC leap-second information
+
+These data determine when the next leap second is to occur. The exact
+method to use is obscure.
+
+  49234 60548.847 127.127.10.1 93:247:16:48:52.818 UTC
+
+  -1.2107E-08       A0 term (s)
+  -1.2790E-13       A1 term (s)
+  +9.0000E+00       current leap seconds (s)
+  +2.0480E+05       time for leap seconds (s)
+  +2.0100E+02       week number for delta leap (weeks)
+  +1.9100E+02       week number for future leap (weeks)
+  +4.0000E+00       day number for future leap (days)
+  +9.0000E+00       future leap seconds (s)
+
+David L. Mills
+University of Delaware
+mills@udel.edu
+23 October 1993

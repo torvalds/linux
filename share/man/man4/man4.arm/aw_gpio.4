@@ -1,0 +1,102 @@
+.\"-
+.\" Copyright (c) 2017 Emmanuel Vadot <manu@freebsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Dec 25, 2017
+.Dt AW_GPIO 4
+.Os
+.Sh NAME
+.Nm aw_gpio
+.Nd driver for the GPIO and pin muxing functionalities on Allwinner SoC
+.Sh SYNOPSIS
+.Cd "device gpio"
+.Cd "options SOC_ALLWINNER_A10"
+.Cd "options SOC_ALLWINNER_A13"
+.Cd "options SOC_ALLWINNER_A20"
+.Cd "options SOC_ALLWINNER_A31"
+.Cd "options SOC_ALLWINNER_A31S"
+.Cd "options SOC_ALLWINNER_A33"
+.Cd "options SOC_ALLWINNER_A83T"
+.Cd "options SOC_ALLWINNER_H2PLUS"
+.Cd "options SOC_ALLWINNER_H3"
+.Cd "options SOC_ALLWINNER_A64"
+.Cd "options SOC_ALLWINNER_H5"
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides support for the Allwinner pin muxing and GPIO on
+Allwinner SoCs.
+.Sh HARDWARE
+The current version of the
+.Nm
+driver supports the GPIO/pinmuxing controller with one of the following
+compatible strings :
+.Pp
+.Bl -bullet -compact
+.It
+allwinner,sun4i-a10-pinctrl
+.It
+allwinner,sun5i-a13-pinctrl
+.It
+allwinner,sun7i-a20-pinctrl
+.It
+allwinner,sun6i-a31-pinctrl
+.It
+allwinner,sun6i-a31s-pinctrl
+.It
+allwinner,sun6i-a31-r-pinctrl
+.It
+allwinner,sun6i-a33-pinctrl
+.It
+allwinner,sun8i-a83t-pinctrl
+.It
+allwinner,sun8i-a83t-r-pinctrl
+.It
+allwinner,sun8i-h3-pinctrl
+.It
+allwinner,sun50i-h5-pinctrl
+.It
+allwinner,sun8i-h3-r-pinctrl
+.It
+allwinner,sun50i-a64-pinctrl
+.It
+allwinner,sun50i-a64-r-pinctrl
+.El
+.Sh SEE ALSO
+.Xr fdt 4 ,
+.Xr gpio 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+device driver was originally written by
+.An Ganbold Tsagaankhuu Aq Mt ganbold@freebsd.org .
+This manual page was written by
+.An Emmanuel Vadot Aq Mt manu@freebsd.org .

@@ -1,0 +1,120 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 24, 2001
+.Dt WATCH 8
+.Os
+.Sh NAME
+.Nm watch
+.Nd snoop on another tty line
+.Sh SYNOPSIS
+.Nm
+.Op Fl cinotW
+.Op Fl f Ar snpdev
+.Op Ar tty
+.Sh DESCRIPTION
+The
+.Nm
+utility allows the user to examine all data coming through a specified tty
+using the
+.Xr snp 4
+device.
+If the
+.Xr snp 4
+device is not available,
+.Nm
+will attempt to load the module
+.Pq Nm snp .
+The
+.Nm
+utility writes to standard output.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl c
+Reconnect on close.
+If the tty observed by
+.Nm
+is closed, automatically reattach to the same tty.
+If this option is not specified,
+.Nm
+will request a new tty if running in interactive mode or exit if running
+without a controlling tty.
+.It Fl f Ar snpdev
+If this option is specified,
+.Nm
+will use
+.Ar snpdev
+as the
+.Xr snp 4
+device.
+Without this option,
+.Nm
+will attempt to find the next available
+.Xr snp 4
+device.
+.It Fl i
+Force interactive mode.
+Interactive mode is a default if
+.Nm
+is started from a tty.
+If output is redirected to a file, interactive mode can still be requested
+by specifying this option.
+.It Fl n
+Disable the ability to switch the watched tty interactively.
+This disables
+both change requests made with <control-X> as well as automatic prompting
+when the current tty is closed or overflows.
+In all cases where a prompt
+would be displayed,
+.Nm
+will exit.
+The reconnect flags are unaffected by
+this option.
+When this flag is used, <control-X> is passed through to the terminal.
+.It Fl o
+Reconnect on overflow.
+The behavior of
+.Nm
+if the observed tty overflows is similar to the behavior if the observed tty
+is closed.
+For more info see
+.Xr snp 4 .
+.It Fl t
+Print the date and time when observation of a given tty is started.
+.It Fl W
+Allow write access to observed tty.
+.It Ar tty
+Tty may be specified as a tty-style device, such as a pseudo tty device,
+a virtual console, or a serial line, etc.
+Names may be preceded by
+.Pa /dev/ .
+.El
+.Sh OPERATION
+While running in interactive mode, all user input is discarded except for:
+.Pp
+.Bl -tag -width "XXXX" -compact
+.It Sy "<control-G>"
+Exit
+.Nm .
+.It Sy "<control-W>"
+Clear screen.
+.It Sy "<control-X>"
+Change attached tty, unless this feature is disabled, in which case
+control-X is passed to the terminal as with other control characters.
+.El
+.Sh SEE ALSO
+.Xr pty 4 ,
+.Xr sio 4 ,
+.Xr snp 4 ,
+.Xr kldload 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 2.1 .
+.Sh AUTHORS
+.An Ugen J.S. Antsilevich Aq Mt ugen@NetVision.net.il
+.Sh BUGS
+No terminal emulation is performed.
+All user output is reproduced as-is.

@@ -1,0 +1,248 @@
+.\"-
+.\" Copyright (c) 2005-2007 Robert N. M. Watson
+.\" Copyright (c) 2008-2009 Apple Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd March 5, 2009
+.Dt LIBBSM 3
+.Os
+.Sh NAME
+.Nm libbsm
+.Nd "Basic Security Module (BSM) Audit API"
+.Sh LIBRARY
+.Lb libbsm
+.Sh SYNOPSIS
+.In bsm/libbsm.h
+.Sh DESCRIPTION
+The
+.Nm
+library routines provide an interface to BSM audit record streams, allowing
+both the parsing of existing audit streams, as well as the creation of new
+audit records and streams.
+.Sh INTERFACES
+The
+.Nm
+library
+provides a large number of Audit programming interfaces in several classes:
+event stream interfaces, class interfaces, control interfaces, event
+interfaces, I/O interfaces, mask interfaces, notification interfaces, token
+interfaces, and user interfaces.
+These are described respectively in the
+.Xr au_class 3 ,
+.Xr au_control 3 ,
+.Xr au_event 3 ,
+.Xr au_mask 3 ,
+.Xr au_notify 3 ,
+.Xr au_stream 3 ,
+.Xr au_token 3 ,
+and
+.Xr au_user 3
+manual pages.
+.Ss Audit Event Stream Interfaces
+Audit event stream interfaces support interaction with file-backed audit
+event streams:
+.Xr au_close 3 ,
+.Xr au_close_buffer 3 ,
+.Xr au_free_token 3 ,
+.Xr au_open 3 ,
+.Xr au_write 3 ,
+.Xr audit_submit 3 .
+.Ss Audit Class Interfaces
+Audit class interfaces support the look up of information from the
+.Xr audit_class 5
+database:
+.Xr endauclass 3 ,
+.Xr getauclassent 3 ,
+.Xr getauclassent_r 3 ,
+.Xr getauclassnam 3 ,
+.Xr getauclassnam_r 3 ,
+.Xr setauclass 3 .
+.Ss Audit Control Interfaces
+Audit control interfaces support the look up of information from the
+.Xr audit_control 5
+database:
+.Xr endac 3 ,
+.Xr setac 3 ,
+.Xr getacdir 3 ,
+.Xr getacfilesz 3 ,
+.Xr getacflg 3 ,
+.Xr getacmin 3 ,
+.Xr getacna 3 ,
+.Xr getacpol 3 ,
+.Xr au_poltostr 3 ,
+.Xr au_strtopol 3 .
+.Ss Audit Event Interfaces
+Audit event interfaces support the look up of information from the
+.Xr audit_event 5
+database:
+.Xr endauevent 3 ,
+.Xr setauevent 3 ,
+.Xr getauevent 3 ,
+.Xr getauevent_r 3 ,
+.Xr getauevnam 3 ,
+.Xr getauevnam_r 3 ,
+.Xr getauevnonam 3 ,
+.Xr getauevnonam_r 3 ,
+.Xr getauevnum 3 ,
+.Xr getauevnum_r 3 .
+.Ss Audit I/O Interfaces
+Audit I/O interfaces support the processing and printing of tokens, as well
+as the reading of audit records:
+.Xr au_fetch_tok 3 ,
+.Xr au_print_tok 3 ,
+.Xr au_read_rec 3 .
+.Ss Audit Mask Interfaces
+Audit mask interfaces convert support the conversion between strings and
+.Vt au_mask_t
+values.
+They may also be used to determine if a particular audit event is matched
+by a mask:
+.Xr au_preselect 3 ,
+.Xr getauditflagsbin 3 ,
+.Xr getauditflagschar 3 .
+.Ss Audit Notification Interfaces
+Audit notification routines track audit state in a form permitting efficient
+update, avoiding frequent system calls to check the kernel audit state:
+.Xr au_get_state 3 ,
+.Xr au_notify_initialize 3 ,
+.Xr au_notify_terminate 3 .
+These interfaces are implemented only for Darwin/Mac OS X.
+.Ss Audit Token Interface
+Audit token interfaces permit the creation of tokens for use in creating
+audit records for submission to event streams.
+Each interface converts a C type to its
+.Vt token_t
+representation:
+.Xr au_to_arg 3 ,
+.Xr au_to_arg32 3 ,
+.Xr au_to_arg64 3 ,
+.Xr au_to_attr64 3 ,
+.Xr au_to_data 3 ,
+.Xr au_to_exec_args 3 ,
+.Xr au_to_exec_env 3 ,
+.Xr au_to_exit 3 ,
+.Xr au_to_file 3 ,
+.Xr au_to_groups 3 ,
+.Xr au_to_header32 3 ,
+.Xr au_to_header64 3 ,
+.Xr au_to_in_addr 3 ,
+.Xr au_to_in_addr_ex 3 ,
+.Xr au_to_ip 3 ,
+.Xr au_to_ipc 3 ,
+.Xr au_to_ipc_perm 3 ,
+.Xr au_to_iport 3 ,
+.Xr au_to_me 3 ,
+.Xr au_to_newgroups 3 ,
+.Xr au_to_opaque 3 ,
+.Xr au_to_path 3 ,
+.Xr au_to_process 3 ,
+.Xr au_to_process32 3 ,
+.Xr au_to_process64 3 ,
+.Xr au_to_process_ex 3 ,
+.Xr au_to_process32_ex 3 ,
+.Xr au_to_process64_ex 3 ,
+.Xr au_to_return 3 ,
+.Xr au_to_return32 3 ,
+.Xr au_to_return64 3 ,
+.Xr au_to_seq 3 ,
+.Xr au_to_sock_inet 3 ,
+.Xr au_to_sock_inet32 3 ,
+.Xr au_to_sock_inet128 3 ,
+.Xr au_to_socket_ex 3 ,
+.Xr au_to_subject 3 ,
+.Xr au_to_subject32 3 ,
+.Xr au_to_subject64 3 ,
+.Xr au_to_subject_ex 3 ,
+.Xr au_to_subject32_ex 3 ,
+.Xr au_to_subject64_ex 3 ,
+.Xr au_to_text 3 ,
+.Xr au_to_trailer 3 ,
+.Xr au_to_zonename 3 .
+.Ss Audit User Interfaces
+Audit user interfaces support the look up of information from the
+.Xr audit_user 5
+database:
+.Xr au_user_mask 3 ,
+.Xr endauuser 3 ,
+.Xr setauuser 3 ,
+.Xr getauuserent 3 ,
+.Xr getauuserent_r 3 ,
+.Xr getauusernam 3 ,
+.Xr getauusernam_r 3 ,
+.Xr getfauditflags 3 .
+.Ss Audit Constant Conversion Interfaces
+These functions convert between BSM and local constants, including the
+.Xr errno 2
+number, socket type, and protocol famil spaces, and must be used to generate
+and interpret BSM return and extended socket tokens:
+.Xr au_bsm_to_domain 3 ,
+.Xr au_bsm_to_errno 3 ,
+.Xr au_bsm_to_fcntl_cmd 3 ,
+.Xr au_bsm_to_socket_type 3 ,
+.Xr au_domain_to_bsm 3 ,
+.Xr au_errno_to_bsm 3 ,
+.Xr au_fcntl_cmd_to_bsm 3 ,
+.Xr au_socket_type_to_bsm 3 .
+.Sh SEE ALSO
+.Xr au_class 3 ,
+.Xr au_domain 3 ,
+.Xr au_errno 3 ,
+.Xr au_mask 3 ,
+.Xr au_notify 3 ,
+.Xr au_socket_type 3 ,
+.Xr au_stream 3 ,
+.Xr au_token 3 ,
+.Xr au_user 3 ,
+.Xr audit_submit 3 ,
+.Xr audit_class 5 ,
+.Xr audit_control 5
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer, Inc., in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
+.Sh AUTHORS
+.An -nosplit
+This software was created by
+.An Robert Watson ,
+.An Wayne Salamon ,
+and
+.An Suresh Krishnaswamy
+for McAfee Research, the security research division of McAfee,
+Inc., under contract to Apple Computer, Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.
+.Sh BUGS
+Bugs would not be unlikely.
+.Pp
+The
+.Nm
+library implementations are generally thread-safe, but not reentrant.
+.Pp
+The assignment of routines to classes could use some work, as it is
+decidely ad hoc.
+For example,
+.Fn au_read_rec
+should probably be considered a stream routine.

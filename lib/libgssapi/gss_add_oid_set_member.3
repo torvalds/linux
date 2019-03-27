@@ -1,0 +1,129 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2005 Doug Rabson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.\"
+.\" The following commands are required for all man pages.
+.Dd January 26, 2010
+.Dt GSS_ADD_OID_SET_MEMBER 3 PRM
+.Os
+.Sh NAME
+.Nm gss_add_oid_set_member
+.Nd Add an object identifier to a set
+.\" This next command is for sections 2 and 3 only.
+.\" .Sh LIBRARY
+.Sh SYNOPSIS
+.In "gssapi/gssapi.h"
+.Ft OM_uint32
+.Fo gss_add_oid_set_member
+.Fa "OM_uint32 *minor_status"
+.Fa "const gss_OID member_oid"
+.Fa "gss_OID_set *oid_set"
+.Fc
+.Sh DESCRIPTION
+Add an Object Identifier to an Object Identifier set.
+This routine is intended for use in conjunction with
+.Fn gss_create_empty_oid_set
+when constructing a set of mechanism OIDs for input to
+.Fn gss_acquire_cred .
+The
+.Fa oid_set
+parameter must refer to an OID-set that was created by GSS-API
+(e.g. a set returned by
+.Fn gss_create_empty_oid_set ).
+GSS-API creates a copy of the
+.Fa member_oid
+and inserts this copy into the set,
+expanding the storage allocated to the OID-set's elements array if
+necessary.
+The routine may add the new member OID anywhere within the elements
+array,
+and implementations should verify that the new
+.Fa member_oid
+is not already contained within the elements array;
+if the
+.Fa member_oid
+is already present,
+the
+.Fa oid_set
+should remain unchanged.
+.Sh PARAMETERS
+.Bl -tag -width ".It minor_status"
+.It minor_status
+Mechanism specific status code.
+.It member_oid
+The object identifier to copied into the set.
+.It oid_set
+The set in which the object identifier should be inserted.
+.El
+.Sh RETURN VALUES
+.Bl -tag -width ".It GSS_S_COMPLETE"
+.It GSS_S_COMPLETE
+Successful completion
+.El
+.Sh SEE ALSO
+.Xr gss_acquire_cred 3 ,
+.Xr gss_create_empty_oid_set 3
+.Sh STANDARDS
+.Bl -tag -width ".It RFC 2743"
+.It RFC 2743
+Generic Security Service Application Program Interface Version 2, Update 1
+.It RFC 2744
+Generic Security Service API Version 2 : C-bindings
+.El
+.Sh HISTORY
+The
+.Nm
+function first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+John Wray, Iris Associates
+.Sh COPYRIGHT
+Copyright (C) The Internet Society (2000).  All Rights Reserved.
+.Pp
+This document and translations of it may be copied and furnished to
+others, and derivative works that comment on or otherwise explain it
+or assist in its implementation may be prepared, copied, published
+and distributed, in whole or in part, without restriction of any
+kind, provided that the above copyright notice and this paragraph are
+included on all such copies and derivative works.  However, this
+document itself may not be modified in any way, such as by removing
+the copyright notice or references to the Internet Society or other
+Internet organizations, except as needed for the purpose of
+developing Internet standards in which case the procedures for
+copyrights defined in the Internet Standards process must be
+followed, or as required to translate it into languages other than
+English.
+.Pp
+The limited permissions granted above are perpetual and will not be
+revoked by the Internet Society or its successors or assigns.
+.Pp
+This document and the information contained herein is provided on an
+"AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING
+TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING
+BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION
+HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF
+MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.

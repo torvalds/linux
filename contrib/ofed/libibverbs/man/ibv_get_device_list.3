@@ -1,0 +1,67 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_GET_DEVICE_LIST 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_get_device_list, ibv_free_device_list \- get and release list of available RDMA devices
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "struct ibv_device **ibv_get_device_list(int " "*num_devices" );
+.sp
+.BI "void ibv_free_device_list(struct ibv_device " "**list" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_get_device_list()
+returns a NULL-terminated array of RDMA devices currently available.
+The argument
+.I num_devices
+is optional; if not NULL, it is set to the number of devices returned in the array.
+.PP
+.B ibv_free_device_list()
+frees the array of devices
+.I list
+returned by
+.B ibv_get_device_list()\fR.
+.SH "RETURN VALUE"
+.B ibv_get_device_list()
+returns the array of available RDMA devices, or sets
+.I errno
+and returns NULL if the request fails. If no devices are found then
+.I num_devices
+is set to 0, and non-NULL is returned.
+.PP
+.B ibv_free_device_list()
+returns no value.
+.SH "ERRORS"
+.TP
+.B EPERM
+Permission denied.
+.TP
+.B ENOSYS
+No kernel support for RDMA.
+.TP
+.B ENOMEM
+Insufficient memory to complete the operation.
+.SH "NOTES"
+Client code should open all the devices it intends to use with
+.B ibv_open_device()\fR before calling
+.B ibv_free_device_list()\fR.
+Once it frees the array with
+.B ibv_free_device_list()\fR,
+it will be able to use only the open devices; pointers to unopened devices will no longer be valid.
+.P
+Setting the environment variable
+.BR IBV_SHOW_WARNINGS
+will cause warnings to be emitted to stderr if a kernel verbs device
+is discovered, but no corresponding userspace driver can be found for
+it.
+.SH "SEE ALSO"
+.BR ibv_fork_init (3),
+.BR ibv_get_device_name (3),
+.BR ibv_get_device_guid (3),
+.BR ibv_open_device (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

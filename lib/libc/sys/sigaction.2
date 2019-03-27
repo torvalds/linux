@@ -1,0 +1,794 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	From: @(#)sigaction.2	8.2 (Berkeley) 4/3/94
+.\" $FreeBSD$
+.\"
+.Dd June 28, 2018
+.Dt SIGACTION 2
+.Os
+.Sh NAME
+.Nm sigaction
+.Nd software signal facilities
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In signal.h
+.Bd -literal
+struct  sigaction {
+        void    (*sa_handler)(int);
+        void    (*sa_sigaction)(int, siginfo_t *, void *);
+        int     sa_flags;               /* see signal options below */
+        sigset_t sa_mask;               /* signal mask to apply */
+};
+.Ed
+.Pp
+.Ft int
+.Fo sigaction
+.Fa "int sig"
+.Fa "const struct sigaction * restrict act"
+.Fa "struct sigaction * restrict oact"
+.Fc
+.Sh DESCRIPTION
+The system defines a set of signals that may be delivered to a process.
+Signal delivery resembles the occurrence of a hardware interrupt:
+the signal is normally blocked from further occurrence, the current thread
+context is saved, and a new one is built.
+A process may specify a
+.Em handler
+to which a signal is delivered, or specify that a signal is to be
+.Em ignored .
+A process may also specify that a default action is to be taken
+by the system when a signal occurs.
+A signal may also be
+.Em blocked
+for a thread,
+in which case it will not be delivered to that thread until it is
+.Em unblocked .
+The action to be taken on delivery is determined at the time
+of delivery.
+Normally, signal handlers execute on the current stack
+of the thread.
+This may be changed, on a per-handler basis,
+so that signals are taken on a special
+.Em "signal stack" .
+.Pp
+Signal routines normally execute with the signal that caused their
+invocation
+.Em blocked ,
+but other signals may yet occur.
+A global
+.Em "signal mask"
+defines the set of signals currently blocked from delivery
+to a thread.
+The signal mask for a thread is initialized
+from that of its parent (normally empty).
+It may be changed with a
+.Xr sigprocmask 2
+or
+.Xr pthread_sigmask 3
+call, or when a signal is delivered to the thread.
+.Pp
+When a signal
+condition arises for a process or thread, the signal is added to a set of
+signals pending for the process or thread.
+Whether the signal is directed at the process in general or at a specific
+thread depends on how it is generated.
+For signals directed at a specific thread,
+if the signal is not currently
+.Em blocked
+by the thread then it is delivered to the thread.
+For signals directed at the process,
+if the signal is not currently
+.Em blocked
+by all threads then it is delivered to one thread that does not have it blocked
+(the selection of which is unspecified).
+Signals may be delivered any time a thread enters the operating system
+(e.g., during a system call, page fault or trap, or clock interrupt).
+If multiple signals are ready to be delivered at the same time,
+any signals that could be caused by traps are delivered first.
+Additional signals may be processed at the same time, with each
+appearing to interrupt the handlers for the previous signals
+before their first instructions.
+The set of pending signals is returned by the
+.Xr sigpending 2
+system call.
+When a caught signal
+is delivered, the current state of the thread is saved,
+a new signal mask is calculated (as described below),
+and the signal handler is invoked.
+The call to the handler
+is arranged so that if the signal handling routine returns
+normally the thread will resume execution in the context
+from before the signal's delivery.
+If the thread wishes to resume in a different context, then it
+must arrange to restore the previous context itself.
+.Pp
+When a signal is delivered to a thread a new signal mask is
+installed for the duration of the process' signal handler
+(or until a
+.Xr sigprocmask 2
+system call is made).
+This mask is formed by taking the union of the current signal mask set,
+the signal to be delivered, and
+the signal mask associated with the handler to be invoked.
+.Pp
+The
+.Fn sigaction
+system call
+assigns an action for a signal specified by
+.Fa sig .
+If
+.Fa act
+is non-NULL, it specifies an action
+.Dv ( SIG_DFL ,
+.Dv SIG_IGN ,
+or a handler routine) and mask to be used when delivering the specified signal.
+If
+.Fa oact
+is non-NULL, the previous handling information for the signal
+is returned to the user.
+.Pp
+The above declaration of
+.Vt "struct sigaction"
+is not literal.
+It is provided only to list the accessible members.
+See
+.In sys/signal.h
+for the actual definition.
+In particular, the storage occupied by
+.Va sa_handler
+and
+.Va sa_sigaction
+overlaps, and it is nonsensical for an application to attempt to use both
+simultaneously.
+.Pp
+Once a signal handler is installed, it normally remains installed
+until another
+.Fn sigaction
+system call is made, or an
+.Xr execve 2
+is performed.
+A signal-specific default action may be reset by
+setting
+.Va sa_handler
+to
+.Dv SIG_DFL .
+The defaults are process termination, possibly with core dump;
+no action; stopping the process; or continuing the process.
+See the signal list below for each signal's default action.
+If
+.Va sa_handler
+is
+.Dv SIG_DFL ,
+the default action for the signal is to discard the signal,
+and if a signal is pending,
+the pending signal is discarded even if the signal is masked.
+If
+.Va sa_handler
+is set to
+.Dv SIG_IGN
+current and pending instances
+of the signal are ignored and discarded.
+.Pp
+Options may be specified by setting
+.Va sa_flags .
+The meaning of the various bits is as follows:
+.Bl -tag -offset indent -width SA_RESETHANDXX
+.It Dv SA_NOCLDSTOP
+If this bit is set when installing a catching function
+for the
+.Dv SIGCHLD
+signal,
+the
+.Dv SIGCHLD
+signal will be generated only when a child process exits,
+not when a child process stops.
+.It Dv SA_NOCLDWAIT
+If this bit is set when calling
+.Fn sigaction
+for the
+.Dv SIGCHLD
+signal, the system will not create zombie processes when children of
+the calling process exit.
+If the calling process subsequently issues a
+.Xr wait 2
+(or equivalent), it blocks until all of the calling process's child
+processes terminate, and then returns a value of \-1 with
+.Va errno
+set to
+.Er ECHILD .
+The same effect of avoiding zombie creation can also be achieved by setting
+.Va sa_handler
+for
+.Dv SIGCHLD
+to
+.Dv SIG_IGN .
+.It Dv SA_ONSTACK
+If this bit is set, the system will deliver the signal to the process
+on a
+.Em "signal stack" ,
+specified by each thread with
+.Xr sigaltstack 2 .
+.It Dv SA_NODEFER
+If this bit is set, further occurrences of the delivered signal are
+not masked during the execution of the handler.
+.It Dv SA_RESETHAND
+If this bit is set, the handler is reset back to
+.Dv SIG_DFL
+at the moment the signal is delivered.
+.It Dv SA_RESTART
+See paragraph below.
+.It Dv SA_SIGINFO
+If this bit is set, the handler function is assumed to be pointed to by the
+.Va sa_sigaction
+member of
+.Vt "struct sigaction"
+and should match the prototype shown above or as below in
+.Sx EXAMPLES .
+This bit should not be set when assigning
+.Dv SIG_DFL
+or
+.Dv SIG_IGN .
+.El
+.Pp
+If a signal is caught during the system calls listed below,
+the call may be forced to terminate
+with the error
+.Er EINTR ,
+the call may return with a data transfer shorter than requested,
+or the call may be restarted.
+Restart of pending calls is requested
+by setting the
+.Dv SA_RESTART
+bit in
+.Va sa_flags .
+The affected system calls include
+.Xr open 2 ,
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr sendto 2 ,
+.Xr recvfrom 2 ,
+.Xr sendmsg 2
+and
+.Xr recvmsg 2
+on a communications channel or a slow device (such as a terminal,
+but not a regular file)
+and during a
+.Xr wait 2
+or
+.Xr ioctl 2 .
+However, calls that have already committed are not restarted,
+but instead return a partial success (for example, a short read count).
+.Pp
+After a
+.Xr pthread_create 3
+the signal mask is inherited by the new thread and
+the set of pending signals and the signal stack for the new thread are empty.
+.Pp
+After a
+.Xr fork 2
+or
+.Xr vfork 2
+all signals, the signal mask, the signal stack,
+and the restart/interrupt flags are inherited by the child.
+.Pp
+The
+.Xr execve 2
+system call reinstates the default
+action for all signals which were caught and
+resets all signals to be caught on the user stack.
+Ignored signals remain ignored;
+the signal mask remains the same;
+signals that restart pending system calls continue to do so.
+.Pp
+The following is a list of all signals
+with names as in the include file
+.In signal.h :
+.Bl -column SIGVTALARMXX "create core imagexxx"
+.It Sy NAME Ta Sy Default Action Ta Sy Description
+.It Dv SIGHUP Ta terminate process Ta terminal line hangup
+.It Dv SIGINT Ta terminate process Ta interrupt program
+.It Dv SIGQUIT Ta create core image Ta quit program
+.It Dv SIGILL Ta create core image Ta illegal instruction
+.It Dv SIGTRAP Ta create core image Ta trace trap
+.It Dv SIGABRT Ta create core image Ta Xr abort 3 call (formerly Dv SIGIOT )
+.It Dv SIGEMT Ta create core image Ta emulate instruction executed
+.It Dv SIGFPE Ta create core image Ta floating-point exception
+.It Dv SIGKILL Ta terminate process Ta kill program
+.It Dv SIGBUS Ta create core image Ta bus error
+.It Dv SIGSEGV Ta create core image Ta segmentation violation
+.It Dv SIGSYS Ta create core image Ta non-existent system call invoked
+.It Dv SIGPIPE Ta terminate process Ta write on a pipe with no reader
+.It Dv SIGALRM Ta terminate process Ta real-time timer expired
+.It Dv SIGTERM Ta terminate process Ta software termination signal
+.It Dv SIGURG Ta discard signal Ta urgent condition present on socket
+.It Dv SIGSTOP Ta stop process Ta stop (cannot be caught or ignored)
+.It Dv SIGTSTP Ta stop process Ta stop signal generated from keyboard
+.It Dv SIGCONT Ta discard signal Ta continue after stop
+.It Dv SIGCHLD Ta discard signal Ta child status has changed
+.It Dv SIGTTIN Ta stop process Ta background read attempted from control terminal
+.It Dv SIGTTOU Ta stop process Ta background write attempted to control terminal
+.It Dv SIGIO Ta discard signal Ta I/O is possible on a descriptor (see Xr fcntl 2 )
+.It Dv SIGXCPU Ta terminate process Ta cpu time limit exceeded (see Xr setrlimit 2 )
+.It Dv SIGXFSZ Ta terminate process Ta file size limit exceeded (see Xr setrlimit 2 )
+.It Dv SIGVTALRM Ta terminate process Ta virtual time alarm (see Xr setitimer 2 )
+.It Dv SIGPROF Ta terminate process Ta profiling timer alarm (see Xr setitimer 2 )
+.It Dv SIGWINCH Ta discard signal Ta window size change
+.It Dv SIGINFO Ta discard signal Ta status request from keyboard
+.It Dv SIGUSR1 Ta terminate process Ta user defined signal 1
+.It Dv SIGUSR2 Ta terminate process Ta user defined signal 2
+.El
+.Sh NOTE
+The
+.Va sa_mask
+field specified in
+.Fa act
+is not allowed to block
+.Dv SIGKILL
+or
+.Dv SIGSTOP .
+Any attempt to do so will be silently ignored.
+.Pp
+The following functions are either reentrant or not interruptible
+by signals and are async-signal safe.
+Therefore applications may
+invoke them, without restriction, from signal-catching functions
+or from a child process after calling
+.Xr fork 2
+in a multi-threaded process:
+.Pp
+Base Interfaces:
+.Pp
+.Fn _Exit ,
+.Fn _exit ,
+.Fn accept ,
+.Fn access ,
+.Fn alarm ,
+.Fn bind ,
+.Fn cfgetispeed ,
+.Fn cfgetospeed ,
+.Fn cfsetispeed ,
+.Fn cfsetospeed ,
+.Fn chdir ,
+.Fn chmod ,
+.Fn chown ,
+.Fn close ,
+.Fn connect ,
+.Fn creat ,
+.Fn dup ,
+.Fn dup2 ,
+.Fn execl ,
+.Fn execle ,
+.Fn execv ,
+.Fn execve ,
+.Fn faccessat ,
+.Fn fchdir ,
+.Fn fchmod ,
+.Fn fchmodat ,
+.Fn fchown ,
+.Fn fchownat ,
+.Fn fcntl ,
+.Fn fork ,
+.Fn fstat ,
+.Fn fstatat ,
+.Fn fsync ,
+.Fn ftruncate ,
+.Fn getegid ,
+.Fn geteuid ,
+.Fn getgid ,
+.Fn getgroups ,
+.Fn getpeername ,
+.Fn getpgrp ,
+.Fn getpid ,
+.Fn getppid ,
+.Fn getsockname ,
+.Fn getsockopt ,
+.Fn getuid ,
+.Fn kill ,
+.Fn link ,
+.Fn linkat ,
+.Fn listen ,
+.Fn lseek ,
+.Fn lstat ,
+.Fn mkdir ,
+.Fn mkdirat ,
+.Fn mkfifo ,
+.Fn mkfifoat ,
+.Fn mknod ,
+.Fn mknodat ,
+.Fn open ,
+.Fn openat ,
+.Fn pause ,
+.Fn pipe ,
+.Fn poll ,
+.Fn pselect ,
+.Fn pthread_sigmask ,
+.Fn raise ,
+.Fn read ,
+.Fn readlink ,
+.Fn readlinkat ,
+.Fn recv ,
+.Fn recvfrom ,
+.Fn recvmsg ,
+.Fn rename ,
+.Fn renameat ,
+.Fn rmdir ,
+.Fn select ,
+.Fn send ,
+.Fn sendmsg ,
+.Fn sendto ,
+.Fn setgid ,
+.Fn setpgid ,
+.Fn setsid ,
+.Fn setsockopt ,
+.Fn setuid ,
+.Fn shutdown ,
+.Fn sigaction ,
+.Fn sigaddset ,
+.Fn sigdelset ,
+.Fn sigemptyset ,
+.Fn sigfillset ,
+.Fn sigismember ,
+.Fn signal ,
+.Fn sigpending ,
+.Fn sigprocmask ,
+.Fn sigsuspend ,
+.Fn sleep ,
+.Fn sockatmark ,
+.Fn socket ,
+.Fn socketpair ,
+.Fn stat ,
+.Fn symlink ,
+.Fn symlinkat ,
+.Fn tcdrain ,
+.Fn tcflow ,
+.Fn tcflush ,
+.Fn tcgetattr ,
+.Fn tcgetpgrp ,
+.Fn tcsendbreak ,
+.Fn tcsetattr ,
+.Fn tcsetpgrp ,
+.Fn time ,
+.Fn times ,
+.Fn umask ,
+.Fn uname ,
+.Fn unlink ,
+.Fn unlinkat ,
+.Fn utime ,
+.Fn wait ,
+.Fn waitpid ,
+.Fn write .
+.Pp
+X/Open Systems Interfaces:
+.Pp
+.Fn sigpause ,
+.Fn sigset ,
+.Fn utimes .
+.Pp
+Realtime Interfaces:
+.Pp
+.Fn aio_error ,
+.Fn clock_gettime ,
+.Fn timer_getoverrun ,
+.Fn aio_return ,
+.Fn fdatasync ,
+.Fn sigqueue ,
+.Fn timer_gettime ,
+.Fn aio_suspend ,
+.Fn sem_post ,
+.Fn timer_settime .
+.Pp
+Base Interfaces not specified as async-signal safe by
+.Tn POSIX :
+.Pp
+.Fn fpathconf ,
+.Fn pathconf ,
+.Fn sysconf .
+.Pp
+Base Interfaces not specified as async-signal safe by
+.Tn POSIX ,
+but planned to be:
+.Pp
+.Fn ffs ,
+.Fn htonl ,
+.Fn htons ,
+.Fn memccpy ,
+.Fn memchr ,
+.Fn memcmp ,
+.Fn memcpy ,
+.Fn memmove ,
+.Fn memset ,
+.Fn ntohl ,
+.Fn ntohs ,
+.Fn stpcpy ,
+.Fn stpncpy ,
+.Fn strcat ,
+.Fn strchr ,
+.Fn strcmp ,
+.Fn strcpy ,
+.Fn strcspn ,
+.Fn strlen ,
+.Fn strncat ,
+.Fn strncmp ,
+.Fn strncpy ,
+.Fn strnlen ,
+.Fn strpbrk ,
+.Fn strrchr ,
+.Fn strspn ,
+.Fn strstr ,
+.Fn strtok_r ,
+.Fn wcpcpy ,
+.Fn wcpncpy ,
+.Fn wcscat ,
+.Fn wcschr ,
+.Fn wcscmp ,
+.Fn wcscpy ,
+.Fn wcscspn ,
+.Fn wcslen ,
+.Fn wcsncat ,
+.Fn wcsncmp ,
+.Fn wcsncpy ,
+.Fn wcsnlen ,
+.Fn wcspbrk ,
+.Fn wcsrchr ,
+.Fn wcsspn ,
+.Fn wcsstr ,
+.Fn wcstok ,
+.Fn wmemchr ,
+.Fn wmemcmp ,
+.Fn wmemcpy ,
+.Fn wmemmove ,
+.Fn wmemset .
+.Pp
+Extension Interfaces:
+.Pp
+.Fn accept4 ,
+.Fn bindat ,
+.Fn closefrom ,
+.Fn connectat ,
+.Fn eaccess ,
+.Fn ffsl ,
+.Fn ffsll ,
+.Fn flock ,
+.Fn fls ,
+.Fn flsl ,
+.Fn flsll ,
+.Fn futimesat ,
+.Fn pipe2 ,
+.Fn strlcat .
+.Fn strlcpy ,
+.Fn strsep .
+.Pp
+In addition, reading or writing
+.Va errno
+is async-signal safe.
+.Pp
+All functions not in the above lists are considered to be unsafe
+with respect to signals.
+That is to say, the behaviour of such
+functions is undefined when they are called from a signal handler
+that interrupted an unsafe function.
+In general though, signal handlers should do little more than set a
+flag; most other actions are not safe.
+.Pp
+Also, it is good practice to make a copy of the global variable
+.Va errno
+and restore it before returning from the signal handler.
+This protects against the side effect of
+.Va errno
+being set by functions called from inside the signal handler.
+.Sh RETURN VALUES
+.Rv -std sigaction
+.Sh EXAMPLES
+There are three possible prototypes the handler may match:
+.Bl -tag -offset indent -width short
+.It Tn ANSI C :
+.Ft void
+.Fn handler int ;
+.It Traditional BSD style:
+.Ft void
+.Fn handler int "int code" "struct sigcontext *scp" ;
+.It Tn POSIX Dv SA_SIGINFO :
+.Ft void
+.Fn handler int "siginfo_t *info" "ucontext_t *uap" ;
+.El
+.Pp
+The handler function should match the
+.Dv SA_SIGINFO
+prototype if the
+.Dv SA_SIGINFO
+bit is set in
+.Va sa_flags .
+It then should be pointed to by the
+.Va sa_sigaction
+member of
+.Vt "struct sigaction" .
+Note that you should not assign
+.Dv SIG_DFL
+or
+.Dv SIG_IGN
+this way.
+.Pp
+If the
+.Dv SA_SIGINFO
+flag is not set, the handler function should match
+either the
+.Tn ANSI C
+or traditional
+.Bx
+prototype and be pointed to by
+the
+.Va sa_handler
+member of
+.Vt "struct sigaction" .
+In practice,
+.Fx
+always sends the three arguments of the latter and since the
+.Tn ANSI C
+prototype is a subset, both will work.
+The
+.Va sa_handler
+member declaration in
+.Fx
+include files is that of
+.Tn ANSI C
+(as required by
+.Tn POSIX ) ,
+so a function pointer of a
+.Bx Ns -style
+function needs to be casted to
+compile without warning.
+The traditional
+.Bx
+style is not portable and since its capabilities
+are a full subset of a
+.Dv SA_SIGINFO
+handler,
+its use is deprecated.
+.Pp
+The
+.Fa sig
+argument is the signal number, one of the
+.Dv SIG...
+values from
+.In signal.h .
+.Pp
+The
+.Fa code
+argument of the
+.Bx Ns -style
+handler and the
+.Va si_code
+member of the
+.Fa info
+argument to a
+.Dv SA_SIGINFO
+handler contain a numeric code explaining the
+cause of the signal, usually one of the
+.Dv SI_...
+values from
+.In sys/signal.h
+or codes specific to a signal, i.e., one of the
+.Dv FPE_...
+values for
+.Dv SIGFPE .
+.Pp
+The
+.Fa scp
+argument to a
+.Bx Ns -style
+handler points to an instance of
+.Vt "struct sigcontext" .
+.Pp
+The
+.Fa uap
+argument to a
+.Tn POSIX
+.Dv SA_SIGINFO
+handler points to an instance of
+ucontext_t.
+.Sh ERRORS
+The
+.Fn sigaction
+system call
+will fail and no new signal handler will be installed if one
+of the following occurs:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa sig
+argument
+is not a valid signal number.
+.It Bq Er EINVAL
+An attempt is made to ignore or supply a handler for
+.Dv SIGKILL
+or
+.Dv SIGSTOP .
+.El
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr kill 2 ,
+.Xr ptrace 2 ,
+.Xr setitimer 2 ,
+.Xr setrlimit 2 ,
+.Xr sigaltstack 2 ,
+.Xr sigpending 2 ,
+.Xr sigprocmask 2 ,
+.Xr sigsuspend 2 ,
+.Xr wait 2 ,
+.Xr fpsetmask 3 ,
+.Xr setjmp 3 ,
+.Xr siginfo 3 ,
+.Xr siginterrupt 3 ,
+.Xr sigsetops 3 ,
+.Xr ucontext 3 ,
+.Xr tty 4
+.Sh STANDARDS
+The
+.Fn sigaction
+system call is expected to conform to
+.St -p1003.1-90 .
+The
+.Dv SA_ONSTACK
+and
+.Dv SA_RESTART
+flags are Berkeley extensions,
+as are the signals,
+.Dv SIGTRAP ,
+.Dv SIGEMT ,
+.Dv SIGBUS ,
+.Dv SIGSYS ,
+.Dv SIGURG ,
+.Dv SIGIO ,
+.Dv SIGXCPU ,
+.Dv SIGXFSZ ,
+.Dv SIGVTALRM ,
+.Dv SIGPROF ,
+.Dv SIGWINCH ,
+and
+.Dv SIGINFO .
+Those signals are available on most
+.Bx Ns \-derived
+systems.
+The
+.Dv SA_NODEFER
+and
+.Dv SA_RESETHAND
+flags are intended for backwards compatibility with other operating
+systems.
+The
+.Dv SA_NOCLDSTOP ,
+and
+.Dv SA_NOCLDWAIT
+.\" and
+.\" SA_SIGINFO
+flags are featuring options commonly found in other operating systems.
+The flags are approved by
+.St -susv2 ,
+along with the option to avoid zombie creation by ignoring
+.Dv SIGCHLD .

@@ -1,0 +1,102 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 29, 2008
+.Dt VOP_ATTRIB 9
+.Os
+.Sh NAME
+.Nm VOP_GETATTR ,
+.Nm VOP_SETATTR
+.Nd get and set attributes on a file or directory
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn VOP_GETATTR "struct vnode *vp" "struct vattr *vap" "struct ucred *cred"
+.Ft int
+.Fn VOP_SETATTR "struct vnode *vp" "struct vattr *vap" "struct ucred *cred"
+.Sh DESCRIPTION
+These entry points manipulate various attributes of a file or directory,
+including file permissions, owner, group, size,
+access time and modification time.
+.Pp
+The arguments are:
+.Bl -tag -width cred
+.It Fa vp
+The vnode of the file.
+.It Fa vap
+The attributes of the file.
+.It Fa cred
+The user credentials of the calling process.
+.El
+.Pp
+Attributes which are not being modified by
+.Fn VOP_SETATTR
+should be set to the value
+.Dv VNOVAL ;
+.Fn VATTR_NULL
+may be used to clear all the values, and should generally be used to reset
+the contents of
+.Fa *vap
+prior to setting specific values.
+.Sh LOCKS
+.Fn VOP_GETATTR
+expects the vnode to be locked on entry and will leave the vnode locked on
+return.
+The lock type can be either shared or exclusive.
+.Pp
+.Fn VOP_SETATTR
+expects the vnode to be locked on entry and will leave the vnode locked on
+return.
+The lock type must be exclusive.
+.Sh RETURN VALUES
+.Fn VOP_GETATTR
+returns 0 if it was able to retrieve the attribute data via
+.Fa *vap ,
+otherwise an appropriate error is returned.
+.Fn VOP_SETATTR
+returns zero if the attributes were changed successfully, otherwise an
+appropriate error is returned.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EPERM
+The file is immutable.
+.It Bq Er EACCES
+The caller does not have permission to modify the file or directory attributes.
+.It Bq Er EROFS
+The file system is read-only.
+.El
+.Sh SEE ALSO
+.Xr VFS 9 ,
+.Xr vnode 9 ,
+.Xr VOP_ACCESS 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

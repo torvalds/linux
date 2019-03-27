@@ -1,0 +1,154 @@
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)tput.1	8.2 (Berkeley) 3/19/94
+.\" $FreeBSD$
+.\"
+.Dd June 15, 2002
+.Dt TPUT 1
+.Os
+.Sh NAME
+.Nm tput ,
+.Nm clear
+.Nd terminal capability interface
+.Sh SYNOPSIS
+.Nm
+.Op Fl T Ar term
+.Ar attribute ...
+.Nm clear
+.Sh DESCRIPTION
+The
+.Nm
+utility makes terminal-dependent information available to users or shell
+applications.
+When invoked as the
+.Nm clear
+utility, the screen will be cleared as if
+.Dl tput clear
+had been executed.
+The options to
+.Nm
+are as follows:
+.Bl -tag -width Ds
+.It Fl T
+The terminal name as specified in the
+.Xr termcap 5
+database, for example,
+.Dq vt100
+or
+.Dq xterm .
+If not specified,
+.Nm
+retrieves the
+.Dq Ev TERM
+variable from the environment.
+.El
+.Pp
+The
+.Nm
+utility outputs a string for each
+.Ar attribute
+that is of type string; a number for each of type integer.
+Otherwise,
+.Nm
+exits 0 if the terminal has the capability and 1 if it does not,
+without further action.
+.Pp
+If an
+.Ar attribute
+is of type string, and takes arguments (e.g.\& cursor movement,
+the termcap
+.Dq cm
+sequence) the arguments are taken from the command line immediately
+following the attribute.
+.Pp
+The following special attributes are available:
+.Bl -tag -width Ar
+.It Cm clear
+Clear the screen (the
+.Xr termcap 5
+.Dq cl
+sequence).
+.It Cm init
+Initialize the terminal (the
+.Xr termcap 5
+.Dq is
+sequence).
+.It Cm longname
+Print the descriptive name of the user's terminal type.
+.It Cm reset
+Reset the terminal (the
+.Xr termcap 5
+.Dq rs
+sequence).
+.El
+.Sh EXIT STATUS
+The exit status of
+.Nm
+is as follows:
+.Bl -tag -width indent
+.It 0
+If the last attribute
+.Ar attribute
+argument is of type string or integer, its value was successfully written
+to standard output.
+If the argument is of type boolean, the terminal has this attribute.
+.It 1
+This terminal does not have the specified boolean
+.Ar attribute .
+.It 2
+Usage error.
+.It 3
+No information is available about the specified terminal type.
+.El
+.Sh SEE ALSO
+.Xr termcap 5 ,
+.Xr terminfo 5
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.4 .
+.Sh BUGS
+The
+.Nm
+utility cannot really distinguish between different types of attributes.
+.Pp
+Some termcap entries depend upon having a
+.Sq %
+in them that is just a
+.Sq %
+and nothing more.
+Right now we just warn about them if they do not
+have a valid type declaration.
+These warnings are sent to
+stderr.

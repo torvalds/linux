@@ -1,0 +1,285 @@
+.\" Copyright (c) 1983, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)ms.diffs	8.1 (Berkeley) 6/8/93
+.\"
+.\"	$FreeBSD$
+.\"
+.nr LL 6.5i
+.nr FL 6.0i
+.if t .nr PD .5v
+.if t .ds m \u\(ul\dm
+.if n .ds m -m
+.AM
+.OH 'A Revised Version of \*ms''USD:18-%'
+.EH 'USD:18-%''A Revised Version of \*ms'
+.ND
+.TL
+A Revised Version of \*ms
+.AU
+Bill Tuthill
+.AI
+Computing Services
+University of California
+Berkeley, CA  94720
+.PP
+The \*ms macros have been slightly revised and re\%arranged for the
+Berkeley Unix distribution.
+Because of the rearrangement,
+the new macros can be read by the computer
+in about half the time required by the previous version of \*ms.
+This means that output will begin to appear between ten seconds
+and several minutes more quickly, depending on the system load.
+On long files, however, the savings in total time are not substantial.
+The old version of \*ms is still available as \*mos.
+.PP
+Several bugs in \*ms have been fixed, including
+a bad problem with the .1C macro,
+minor difficulties with boxed text,
+a break induced by .EQ before initialization,
+the failure to set tab stops in displays,
+and several bothersome errors in the \fBrefer\fP macros.
+Macros used only at Bell Laboratories have been removed.
+There are a few extensions to previous \*ms macros,
+and a number of new macros, but all the documented \*ms macros
+still work exactly as they did before, and have the same names as before.
+Output produced with \*ms should look like output produced with \*mos.
+.PP
+One important new feature is automatically numbered footnotes.
+Footnote numbers are printed by means of a pre-defined string
+(\e\(**\(**), which you invoke separately from .FS and .FE.
+Each time it is used, this string increases the footnote number by one,
+whether or not you use .FS and .FE in your text.
+Footnote numbers will be superscripted on the phototypesetter
+and on daisy-wheel terminals, but on low-resolution devices
+(such as the lpr and a crt), they will be bracketed.
+If you use \e\(**\(** to indicate numbered footnotes,
+then the .FS macro will automatically include
+the footnote number at the bottom of the page.
+This footnote, for example, was produced as follows:\**
+.DS
+This footnote, for example, was produced as follows:\e\(**\(**
+\&.FS
+.sp -.2
+	...
+\&.FE
+.DE
+.FS
+If you never use the ``\e\(**\(**'' string,
+no footnote numbers will appear anywhere in the text,
+including down here.
+The output footnotes will look exactly like
+footnotes produced with \*mos.
+.FE
+If you are using \e\(**\(** to number footnotes,
+but want a particular footnote to be marked with an asterisk or a dagger,
+then give that mark as the first argument to .FS: \(dg
+.DS
+then give that mark as the first argument to .FS: \e(dg
+\&.FS   \e(dg
+.sp -.2
+	...
+\&.FE
+.DE
+.FS \(dg
+In the footnote, the dagger will appear where the footnote
+number would otherwise appear, as on the left.
+.FE
+Footnote numbering will be temporarily suspended,
+because the \e\(**\(** string is not used.
+Instead of a dagger, you could use an asterisk *
+or double dagger \(dd, represented as \|\e(dd.
+.PP
+Another new feature is a macro for printing theses
+according to Berkeley standards.
+This macro is called .TM, which stands for thesis mode.
+(It is much like the .th macro in \*me.)
+It will put page numbers in the upper right-hand corner;
+number the first page; suppress the date;
+and doublespace everything except quotes, displays, and keeps.
+Use it at the top of each file making up your thesis.
+Calling .TM defines the .CT macro for chapter titles,
+which skips to a new page and moves the pagenumber to the center footer.
+The .P1 (P one) macro can be used even without thesis mode
+to print the header on page 1,
+which is suppressed except in thesis mode.
+If you want roman numeral page numbering,
+use an ``.af\0PN\0i'' request.
+.PP
+There is a new macro especially for bibliography entries,
+called .XP, which stands for exdented paragraph.
+It will exdent the first line of the paragraph by \en(PI units,
+usually 5n (the same as the indent for the first line of a .PP).
+Most bibliographies are printed this way.
+Here are some examples of exdented paragraphs:
+.XP
+Lumley, Lyle S., \fISex in Crustaceans: Shell Fish Habits,\fP\|
+Harbinger Press, Tampa Bay and San Diego, October 1979.
+243 pages.
+The pioneering work in this field.
+.XP
+Leffadinger, Harry A., ``Mollusk Mating Season: 52 Weeks, or All Year?''
+in \fIActa Biologica,\fP\| vol. 42, no. 11, November 1980.
+A provocative thesis, but the conclusions are wrong.
+.LP
+Of course, you will have to take care of
+italicizing the book title and journal,
+and quoting the title of the journal article.
+Indentation or exdentation can be changed
+by setting the value of number register PI.
+.PP
+If you need to produce endnotes rather than footnotes,
+put the references in a file of their own.
+This is similar to what you would do if you were
+typing the paper on a conventional typewriter.
+Note that you can use automatic footnote numbering
+without actually having .FS and .FE pairs in your text.
+If you place footnotes in a separate file,
+you can use .IP macros with \e\(**\(**\| as a hanging tag;
+this will give you numbers at the left-hand margin.
+With some styles of endnotes,
+you would want to use .PP rather then .IP macros,
+and specify \e\(**\(** before the reference begins.
+.PP
+There are four new macros to help produce a table of contents.
+Table of contents entries must be enclosed in .XS and .XE pairs,
+with optional .XA macros for additional entries;
+arguments to .XS and .XA specify the page number,
+to be printed at the right.
+A final .PX macro prints out the table of contents.
+Here is a sample of typical input and output text:
+.DS
+\&.XS  ii
+Introduction
+\&.XA  1
+Chapter 1: Review of the Literature
+\&.XA  23
+Chapter 2: Experimental Evidence
+\&.XE
+\&.PX
+.sp .5
+.lt 5.5i
+.tl ''\fBTable of Contents\fP''
+.ta 5i 5.5iR
+.sp
+Introduction  	ii\|
+Chapter 1: Review of the Literature 	1
+Chapter 2: Experimental Evidence 	23
+.sp .5
+.DE
+The .XS and .XE pairs may also be used in the text,
+after a section header for instance,
+in which case page numbers are supplied automatically.
+However, most documents that require a table of contents
+are too long to produce in one run,
+which is necessary if this method is to work.
+It is recommended that you do a table of contents
+after finishing your document.
+To print out the table of contents, use the .PX macro;
+if you forget it, nothing will happen.
+.PP
+As an aid in producing text that will format correctly
+with both \fBnroff\fP and \fBtroff\fP,
+there are some new string definitions that define quotation marks
+and dashes for each of these two formatting programs.
+The \e\(**\^\u_\d string will yield two hyphens in \fBnroff\fP,
+but in \fBtroff\fP it will produce an em dash\*-
+like this one.
+The \e\(**Q and \e\(**U strings will produce
+`` and '' in \fBtroff\fP, but " in \fBnroff\fP.
+(In typesetting, the double quote is traditionally considered bad form.)
+.PP
+There are now a large number of optional
+foreign accent marks defined by the \*ms macros.
+All the accent marks available in \*mos are present,
+and they all work just as they always did.
+However, there are better definitions available
+by placing .AM at the beginning of your document.
+Unlike the \*mos accent marks,
+the accent strings should come \fIafter\fP\| the letter being accented.
+Here is a list of the diacritical marks,
+with examples of what they look like.
+.DS
+.ta 2i 3i
+name of accent	input   	output
+\l'3.5i'
+acute accent	e\e\(**\'	e\*'
+grave accent	e\e\(**\`	e\*`
+circumflex	o\e\(**\d^\u	o\*^
+cedilla 	c\e\(**,	c\*,
+tilde   	n\e\(**\d~\u	n\*~
+question	\e\(**? 	\*?
+exclamation	\e\(**! 	\*!
+umlaut  	u\e\(**:	u\*:
+digraph s	\e\(**8 	\*8
+hac\*vek	c\e\(**v	c\*v
+macron  	a\e\(**_	a\*_
+underdot	s\e\(**.	s\*.
+o-slash 	o\e\(**/	o\*/
+angstrom	a\e\(**o	a\*o
+yogh     	kni\e\(**3t 	kni\*3t
+Thorn   	\e\(**(Th	\*(Th
+thorn   	\e\(**(th	\*(th
+Eth     	\e\(**(D-	\*(D-
+eth     	\e\(**(d-	\*(d-
+hooked o	\e\(**q 	\*q
+ae ligature	\e\(**(ae	\*(ae
+AE ligature	\e\(**(Ae	\*(Ae
+oe ligature	\e\(**(oe	\*(oe
+OE ligature	\e\(**(Oe	\*(Oe
+.DE
+If you want to use these new diacritical marks,
+don't forget the .AM at the top of your file.
+Without it, some will not print at all,
+and others will be placed on the wrong letter.
+.PP
+It is also possible to produce custom headers and footers
+that are different on even and odd pages.
+The .OH and .EH macros define odd and even headers,
+while .OF and .EF define odd and even footers.
+Arguments to these four macros are specified as with .tl.
+This document was produced with:
+.DS
+\&.OH  \'\ef\^IThe  -mx  Macros\'\'Page  %\ef\^P\'
+\&.EH  \'\ef\^IPage  %\'\'The  -mx  Macros\ef\^P\'
+.DE
+Note that it would be an error to have an apostrophe in the header text;
+if you need one, you will have to use a different delimiter
+around the left, center, and right portions of the title.
+You can use any character as a delimiter, provided it doesn't appear
+elsewhere in the argument to .OH, .EH, .OF, or EF.
+.PP
+The \*ms macros work in conjunction with
+the \fBtbl\fR, \fBeqn\fR, and \fBrefer\fR preprocessors.
+Macros to deal with these items are read in only as needed,
+as are the thesis macros (.TM),
+the special accent mark definitions (.AM),
+table of contents macros (.XS and .XE),
+and macros to format the optional cover page.
+The code for the \*ms package lives in /usr/lib/tmac/tmac.s,
+and sourced files reside in the directory /usr/ucb/lib/ms.
+.sp

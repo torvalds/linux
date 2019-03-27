@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set to build
+.Xr cxgbetool 8

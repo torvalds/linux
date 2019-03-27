@@ -1,0 +1,60 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>How NTP Works</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>How NTP Works</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->10-Mar-2014  05:24<!-- #EndDate -->
+    UTC</p>
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/special.txt"></script>
+<script type="text/javascript" language="javascript" src="scripts/external.txt"></script>
+<h4>Table of Contents</h4>
+<ul>
+  <li class="inline"><a href="#intro">1. Introduction and Overview</a></li>
+  <li class="inline"><a href="#scale">2. NTP Timescale and Data Formats</a></li>
+  <li class="inline"><a href="#arch">3. Architecture and Algorithms</a></li>
+</ul>
+<hr>
+<h4 align="center">Abstract</h4>
+<blockquote>
+  <p align="left"> This page and its dependencies contain a technical description of the Network Time Protocol (NTP) architecture and operation.  It is intended for  administrators, operators and monitoring personnel. Additional information for nontechnical readers can be found in the white paper <a href="http://www.eecis.udel.edu/~mills/exec.html">Executive Summary: Computer Network Time Synchronization</a>. While this page and its dependencies are primarily concerned with NTP, additional information on related protocols can be found in the white papers <a href="http://www.eecis.udel.edu/~mills/ptp.html">IEEE 1588 Precision Time Protocol (PTP)</a> and  <a href="http://www.eecis.udel.edu/~mills/proximity.html">Time Synchronization for Space Data Links</a>. Note that reference to a page in this document collection is to a page in the collection, while reference to a  <em>white paper</em> is to a document at the <a href="http://www.eecis.udel.edu/~mills/ntp.html">Network Time Synchronization Research Project</a> web site.</p>
+</blockquote>
+<h4 id="intro">1. Introduction and Overview</h4>
+
+<p>NTP time synchronization services are widely available in the public Internet. The public NTP subnet currently   includes several thousand servers in most countries and on every continent of the globe, including Antarctica, and sometimes in space and on the sea floor. These servers support, directly or indirectly, a total population estimated at over 25 million computers in the global Internet.</p>
+<p> The NTP subnet operates with a hierarchy of levels, where each level is assigned a number called the stratum. Stratum 1 (primary) servers at the lowest level are directly synchronized to national time services via satellite, radio or telephone modem. Stratum 2 (secondary) servers at the next higher level are synchronized to stratum 1 servers and so on. Normally, NTP clients and servers with a relatively small number of clients do not synchronize to public primary servers. There are several hundred public secondary servers operating at higher strata and are the preferred choice.</p>
+<p>This page presents an overview of the NTP implementation included in this software distribution. We refer to this implementation as the <em>reference implementation</em> only because it was  used to test and validate the NTPv4 specification RFC-5905. It is best read in conjunction with the briefings and white papers on the <a href="http://www.eecis.udel.edu/~mills/ntp.html">Network Time Synchronization Research Project</a> page. An executive summary suitable for management and planning purposes is in the white paper <a href="http://www.eecis.udel.edu/~mills/exec.html">Executive Summary: Computer Network Time Synchronization</a>.</p>
+<h4 id="scale">2. NTP Timescale and Data Formats</h4>
+<p>NTP clients and servers synchronize to the  Coordinated Universal Time (UTC) timescale used by national laboratories and disseminated by radio, satellite and telephone modem. This is a global timescale independent of geographic position. There are no provisions to correct for local time zone or daylight savings time; however, these functions can be performed by the operating system on a per-user basis.</p>
+<p> The UT1 timescale, upon which UTC is based, is determined by the rotation of the Earth about its axis. The Earth rotation is gradually slowing down relative to International Atomic Time (TAI). In order to rationalize  UTC with respect to TAI, a  leap second is inserted  at intervals of about 18 months, as determined by the  International Earth Rotation Service (IERS). Reckoning with leap seconds in the NTP timescale is described in the white paper <a href="http://www.eecis.udel.edu/~mills/leap.html">The NTP Timescale and Leap Seconds</a>.</p>
+<p>The historic insertions are documented in the <tt>leap-seconds.list</tt> file, which can be downloaded from the NIST FTP servers. This file is updated at intervals not exceeding six months. Leap second warnings are disseminated by the national laboratories in the broadcast timecode format. These warnings are propagated from the NTP primary servers via other server to the clients  by the NTP on-wire protocol. The leap second is implemented by the operating system kernel, as described in  the white  paper <a href="http://www.eecis.udel.edu/~mills/leap.html">The NTP Timescale and Leap Seconds</a>. Implementation details are described on the <a href="leap.html">Leap Second Processing</a> page.</p>
+<div align="center">
+<img src="pic/time1.gif" alt="gif">
+<p>Figure 1. NTP Data Formats</p>
+</div>
+<p>Figure 1 shows two  NTP time formats, a 64-bit <em>timestamp</em> format and a 128-bit <em>datestamp</em> format. The datestamp format is used internally, while the timestamp format is used in packet headers exchanged between clients and servers. The timestamp format spans 136 years, called an <em>era</em>. The current era began on 1 January 1900, while  the next one begins in 2036. Details on these formats and conversions between them are  in the white paper <a href="http://www.eecis.udel.edu/~mills/y2k.html">The NTP Era and Era Numbering</a>. However, the NTP protocol will synchronize correctly, regardless of era, as long as  the system clock is set initially within  68 years of the correct time. Further discussion on this issue is in the white paper <a href="http://www.eecis.udel.edu/~mills/time.html">NTP Timestamp Calculations</a>. Ordinarily, these formats are not seen by application programs, which convert these NTP formats to native Unix or Windows formats.</p>
+<h4 id="arch">3. Architecture and Algorithms</h4>
+<div align="center">
+  <p><img src="pic/fig_3_1.gif" alt="gif"></p>
+  <p>Figure 2. NTP Daemon Processes and Algorithms</p>
+</div>
+<p>The overall organization of the NTP architecture is shown in Figure 2. It is useful in this context to consider the implementation as both a client of upstream (lower stratum) servers and as a server for downstream (higher stratum) clients. It includes a pair of peer/poll processes for each reference clock or remote  server used as a synchronization source. Packets are exchanged between the client and server using the <em>on-wire protocol</em> described in  the white paper <a href="http://www.eecis.udel.edu/~mills/onwire.html">Analysis and Simulation of the NTP On-Wire Protocols</a>. The protocol is resistant to lost, replayed or spoofed packets.</p>
+<p> The poll process sends NTP packets at intervals ranging from 8 s to 36 hr. The intervals are managed as described on the <a href="poll.html">Poll Process</a> page to maximize accuracy while minimizing network load. The peer process receives NTP packets and  performs  the packet sanity tests described on the <a href="decode.html">Event Messages and Status Words</a> page and  <a href="decode.html#flash">flash status word</a>. The flash status word reports in addition the results of various access control and security checks described in the white paper <a href="http://www.eecis.udel.edu/~mills/security.html">NTP Security Analysis</a>. A sophisticated  traffic monitoring   facility described on the <a href="rate.html">Rate Management and the Kiss-o'-Death Packet</a> page protects against denial-of-service (DoS) attacks.</p>
+<p>Packets that fail one or more of these tests are summarily discarded. Otherwise, the peer process runs the on-wire protocol that uses four raw timestamps: the <em>origin timestamp</em> <em>T</em><sub>1</sub> upon departure of the client request, the <em>receive timestamp</em> <em>T</em><sub>2</sub> upon arrival at the server, the <em>transmit timestamp</em> <em>T</em><sub>3</sub> upon departure of the server reply, and the <em>destination timestamp</em> <em>T</em><sub>4</sub> upon arrival at the client. These timestamps, which are recorded by the <tt>rawstats</tt> option of the <a href="monopt.html#filegen"><tt>filegen</tt></a> command, are used to calculate the clock offset and roundtrip delay samples:</p>
+<div align="center">
+  <p>offset = [(<em>T</em><sub>2</sub> -<em> T</em><sub>1</sub>) + (<em>T</em><sub>3</sub> - <em>T</em><sub>4</sub>)] / 2,<br>
+    delay = (<em>T</em><sub>4</sub> - <em>T</em><sub>1</sub>) - (<em>T</em><sub>3</sub> - <em>T</em><sub>2</sub>).</p>
+</div>
+<p>In this description the transmit timestamps <em>T</em><sub>1</sub> and <em>T</em><sub>3</sub> are <em>softstamps</em> measured by the inline code. Softstamps are  subject to various queuing and processing delays. A more accurate measurement uses <em>drivestamps</em>,   as described on the <a href="xleave.html">NTP Interleaved Modes</a> page. These issues along with mathematical models are discussed in the white paper <a href="http://www.eecis.udel.edu/~mills/time.html">NTP Timestamp Calculations</a>.</p>
+<p>The offset and delay statistics for one or more peer processes are processed by a suite of mitigation algorithms. The algorithm described on the <a href="filter.html">Clock Filter Algorithm</a> page  selects the    offset  and  delay samples most likely to produce accurate results. Those servers that have passed  the  sanity tests     are declared <em>selectable</em>. From the selectable population the statistics are used by the algorithm described on the <a href="select.html">Clock Select Algorithm</a> page to determine a number of <em>truechimers</em> according to Byzantine agreement and correctness principles. From the truechimer population the algorithm described on the <a href="cluster.html">Clock Cluster Algorithm</a> page determines a number of <em>survivors</em> on the basis of statistical clustering principles.</p>
+<p> The algorithms described on the <a href="prefer.html">Mitigation Rules and the <tt>prefer</tt> Keyword</a> page combine the survivor offsets, designate one of them as the <em>system peer</em> and produces the final offset used by the algorithm described on the <a href="discipline.html">Clock Discipline Algorithm</a> page to adjust the system clock time and frequency. The clock offset and frequency, are recorded by the <tt>loopstats</tt> option of the <a href="monopt.html#filegen"><tt>filegen</tt></a> command. For additional details about these algorithms, see the Architecture Briefing on the <a href="http://www.eecis.udel.edu/~mills/ntp.html">Network Time Synchronization Research Project</a> page. For additional information on statistacl principles and performance metrics, see the <a href="stats.html">Performance Metrics</a> page.</p>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

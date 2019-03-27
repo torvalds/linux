@@ -1,0 +1,171 @@
+/*===---- module.modulemap - intrinsics module map -------------------------===
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ *===-----------------------------------------------------------------------===
+ */
+
+module _Builtin_intrinsics [system] [extern_c] {
+  explicit module altivec {
+    requires altivec
+    header "altivec.h"
+  }
+
+  explicit module arm {
+    requires arm
+
+    explicit module acle {
+      header "arm_acle.h"
+      export *
+    }
+
+    explicit module neon {
+      requires neon
+      header "arm_neon.h"
+      header "arm_fp16.h"
+      export *
+    }
+  }
+
+  explicit module intel {
+    requires x86
+    export *
+
+    header "immintrin.h"
+    textual header "f16cintrin.h"
+    textual header "avxintrin.h"
+    textual header "avx2intrin.h"
+    textual header "avx512fintrin.h"
+    textual header "avx512erintrin.h"
+    textual header "fmaintrin.h"
+
+    header "x86intrin.h"
+    textual header "bmiintrin.h"
+    textual header "bmi2intrin.h"
+    textual header "lzcntintrin.h"
+    textual header "xopintrin.h"
+    textual header "fma4intrin.h"
+    textual header "mwaitxintrin.h"
+    textual header "clzerointrin.h"
+    textual header "wbnoinvdintrin.h"
+    textual header "cldemoteintrin.h"
+    textual header "waitpkgintrin.h"
+    textual header "movdirintrin.h"
+    textual header "pconfigintrin.h"
+    textual header "sgxintrin.h"
+    textual header "ptwriteintrin.h"
+    textual header "invpcidintrin.h"
+
+    textual header "__wmmintrin_aes.h"
+    textual header "__wmmintrin_pclmul.h"
+
+    explicit module mm_malloc {
+      requires !freestanding
+      header "mm_malloc.h"
+      export * // note: for <stdlib.h> dependency
+    }
+
+    explicit module cpuid {
+      requires gnuinlineasm
+      header "cpuid.h"
+    }
+
+    explicit module mmx {
+      header "mmintrin.h"
+    }
+
+    explicit module sse {
+      export mm_malloc
+      export mmx
+      export sse2 // note: for hackish <emmintrin.h> dependency
+      header "xmmintrin.h"
+    }
+
+    explicit module sse2 {
+      export sse
+      header "emmintrin.h"
+    }
+
+    explicit module sse3 {
+      export sse2
+      header "pmmintrin.h"
+    }
+
+    explicit module ssse3 {
+      export sse3
+      header "tmmintrin.h"
+    }
+
+    explicit module sse4_1 {
+      export ssse3
+      header "smmintrin.h"
+    }
+
+    explicit module sse4_2 {
+      export sse4_1
+      header "nmmintrin.h"
+    }
+
+    explicit module sse4a {
+      export sse3
+      header "ammintrin.h"
+    }
+
+    explicit module popcnt {
+      header "popcntintrin.h"
+    }
+
+    explicit module mm3dnow {
+      header "mm3dnow.h"
+    }
+
+    explicit module aes_pclmul {
+      header "wmmintrin.h"
+      export aes
+      export pclmul
+    }
+  }
+
+  explicit module systemz {
+    requires systemz
+    export *
+
+    header "s390intrin.h"
+
+    explicit module htm {
+      requires htm
+      header "htmintrin.h"
+      header "htmxlintrin.h"
+    }
+
+    explicit module zvector {
+      requires zvector, vx
+      header "vecintrin.h"
+    }
+  }
+}
+
+module _Builtin_stddef_max_align_t [system] [extern_c] {
+  header "__stddef_max_align_t.h"
+}
+
+module opencl_c {
+  requires opencl
+  header "opencl-c.h"
+}

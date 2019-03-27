@@ -1,0 +1,287 @@
+.\"	$NetBSD: ccd.4,v 1.5 1995/10/09 06:09:09 thorpej Exp $
+.\"
+.\" Copyright (c) 1994 Jason Downs.
+.\" Copyright (c) 1994, 1995 Jason R. Thorpe.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed for the NetBSD Project
+.\"	by Jason Downs and Jason R. Thorpe.
+.\" 4. Neither the name of the author nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 9, 1995
+.Dt CCD 4
+.Os
+.Sh NAME
+.Nm ccd
+.Nd Concatenated Disk driver
+.Sh SYNOPSIS
+.Cd "device ccd"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides the capability of combining one or more disks/partitions
+into one virtual disk.
+.Pp
+This document assumes that you are familiar with how to generate kernels,
+how to properly configure disks and devices in a kernel
+configuration file, and how to partition disks.
+.Pp
+In order to compile in support for the
+.Nm ,
+you must add a line similar
+to the following to your kernel configuration file:
+.Pp
+.Dl "device	ccd		# concatenated disk devices"
+.Pp
+As of the
+.Fx 3.0
+release, you do not need to
+configure your kernel with
+.Nm
+but may instead use it as a kernel loadable
+module.
+Simply running
+.Xr ccdconfig 8
+will load the module into the kernel.
+.Pp
+A
+.Nm
+may be either serially concatenated or interleaved.
+To serially
+concatenate the partitions, specify the interleave factor of 0.
+Note that mirroring may not be used with an interleave factor of 0.
+.Pp
+There is a run-time utility that is used for configuring
+.Nm Ns s .
+See
+.Xr ccdconfig 8
+for more information.
+.Ss The Interleave Factor
+If a
+.Nm
+is interleaved correctly, a
+.Dq striping
+effect is achieved, which can increase sequential read/write
+performance.
+The interleave factor is expressed in units of
+.Dv DEV_BSIZE
+(usually 512 bytes).
+For large writes, the optimum interleave factor
+is typically the size of a track, while for large reads, it is about a
+quarter of a track.
+(Note that this changes greatly depending on the
+number and speed of disks.)
+For instance, with eight 7,200 RPM drives
+on two Fast-Wide SCSI buses, this translates to about 128 for writes
+and 32 for reads.
+A larger interleave tends to work better when the
+disk is taking a multitasking load by localizing the file I/O from
+any given process onto a single disk.
+You lose sequential performance when
+you do this, but sequential performance is not usually an issue with a
+multitasking load.
+.Pp
+An interleave factor must be specified when using a mirroring configuration,
+even when you have only two disks (i.e., the layout winds up being the same
+no matter what the interleave factor).
+The interleave factor will determine
+how I/O is broken up, however, and a value 128 or greater is recommended.
+.Pp
+.Nm
+has an option for a parity disk, but does not currently implement it.
+.Pp
+The best performance is achieved if all component disks have the same
+geometry and size.
+Optimum striping cannot occur with different
+disk types.
+.Pp
+For random-access oriented workloads, such as news servers, a larger
+interleave factor (e.g., 65,536) is more desirable.
+Note that there
+is not much
+.Nm
+can do to speed up applications that are seek-time limited.
+Larger
+interleave factors will at least reduce the chance of having to seek
+two disk-heads to read one directory or a file.
+.Ss Disk Mirroring
+You can configure the
+.Nm
+to
+.Dq mirror
+any even number of disks.
+See
+.Xr ccdconfig 8
+for how to specify the necessary flags.
+For example, if you have a
+.Nm
+configuration specifying four disks, the first two disks will be mirrored with
+the second two disks.
+A write will be run to both sides of
+the mirror.
+A read will be run to either side of the mirror depending
+on what the driver believes to be most optimal.
+If the read fails,
+the driver will automatically attempt to read the same sector from the
+other side of the mirror.
+Currently
+.Nm
+uses a dual seek zone model to optimize reads for a multi-tasking load
+rather than a sequential load.
+.Pp
+In an event of a disk
+failure, you can use
+.Xr dd 1
+to recover the failed disk.
+.Pp
+Note that a one-disk
+.Nm
+is not the same as the original partition.
+In particular, this means
+if you have a file system on a two-disk mirrored
+.Nm
+and one of the disks fail, you cannot mount and use the remaining
+partition as itself; you have to configure it as a one-disk
+.Nm .
+You cannot replace a disk in a mirrored
+.Nm
+partition without first backing up the partition, then replacing the disk,
+then restoring the partition.
+.Ss Linux Compatibility
+The
+.Tn Linux
+compatibility mode does not try to read the label that
+.Tn Linux Ns '
+.Xr md 4
+driver leaves on the raw devices.
+You will have to give the order
+of devices and the interleave factor on your own.
+When in
+.Tn Linux
+compatibility mode,
+.Nm
+will convert the interleave factor from
+.Tn Linux
+terminology.
+That means you give the same interleave factor that you
+gave as chunk size in
+.Tn Linux .
+.Pp
+If you have a
+.Tn Linux
+.Xr md 4
+device in
+.Dq legacy
+mode, do not use the
+.Dv CCDF_LINUX
+flag in
+.Xr ccdconfig 8 .
+Use the
+.Dv CCDF_NO_OFFSET
+flag instead.
+In that case you have to convert
+the interleave factor on your own, usually it is
+.Tn Linux Ns '
+chunk size multiplied by two.
+.Pp
+Using a
+.Tn Linux
+RAID this way is potentially dangerous and can destroy
+the data in there.
+Since
+.Fx
+does not read the label used by
+.Tn Linux ,
+changes in
+.Tn Linux
+might invalidate the compatibility layer.
+.Pp
+However, using this is reasonably safe if you test the compatibility
+before mounting a RAID read-write for the first time.
+Just using
+.Xr ccdconfig 8
+without mounting does not write anything to the
+.Tn Linux
+RAID.
+Then you do a
+.Nm fsck.ext2fs Pq Pa ports/sysutils/e2fsprogs
+on the
+.Nm
+device using the
+.Fl n
+flag.
+You can mount the file system read-only to check files in there.
+If all this works, it is unlikely that there is a problem with
+.Nm .
+Keep in mind that even when the
+.Tn Linux
+compatibility mode in
+.Nm
+is working correctly, bugs in
+.Fx Ap s
+.Nm ex2fs
+implementation would still destroy
+your data.
+.Sh WARNINGS
+If just one (or more) of the disks in a
+.Nm
+fails, the entire
+file system will be lost unless you are mirroring the disks.
+.Pp
+If one of the disks in a mirror is lost, you should still
+be able to back up your data.
+If a write error occurs, however, data
+read from that sector may be non-deterministic.
+It may return the data
+prior to the write or it may return the data that was written.
+When a
+write error occurs, you should recover and regenerate the data as soon
+as possible.
+.Pp
+Changing the interleave or other parameters for a
+.Nm
+disk usually destroys whatever data previously existed on that disk.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/ccd*"
+.It Pa /dev/ccd*
+.Nm
+device special files
+.El
+.Sh SEE ALSO
+.Xr dd 1 ,
+.Xr ccdconfig 8 ,
+.Xr config 8 ,
+.Xr disklabel 8 ,
+.Xr fsck 8 ,
+.Xr gvinum 8 ,
+.Xr mount 8 ,
+.Xr newfs 8
+.Sh HISTORY
+The concatenated disk driver was originally written at the University of
+Utah.

@@ -1,0 +1,270 @@
+@c $Id$
+
+@node Applications, Things in search for a better place, Setting up a realm, Top
+
+@chapter Applications
+
+@menu
+* Authentication modules::
+* AFS::
+@end menu
+
+@node  Authentication modules, AFS, Applications, Applications
+@section Authentication modules
+
+The problem of having different authentication mechanisms has been
+recognised by several vendors, and several solutions have appeared. In
+most cases these solutions involve some kind of shared modules that are
+loaded at run-time.  Modules for some of these systems can be found in
+@file{lib/auth}.  Presently there are modules for Digital's SIA,
+and IRIX' @code{login} and @code{xdm} (in
+@file{lib/auth/afskauthlib}).
+
+@menu
+* Digital SIA::                 
+* IRIX::                        
+@end menu
+
+@node Digital SIA, IRIX, Authentication modules, Authentication modules
+@subsection Digital SIA
+
+How to install the SIA module depends on which OS version you're
+running. Tru64 5.0 has a new command, @file{siacfg}, which makes this
+process quite simple. If you have this program, you should just be able
+to run:
+@example
+siacfg -a KRB5 /usr/athena/lib/libsia_krb5.so
+@end example
+
+On older versions, or if you want to do it by hand, you have to do the
+following (not tested by us on Tru64 5.0):
+
+@itemize @bullet
+
+@item
+Make sure @file{libsia_krb5.so} is available in
+@file{/usr/athena/lib}. If @file{/usr/athena} is not on local disk, you
+might want to put it in @file{/usr/shlib} or someplace else. If you do,
+you'll have to edit @file{krb5_matrix.conf} to reflect the new location
+(you will also have to do this if you installed in some other directory
+than @file{/usr/athena}). If you built with shared libraries, you will
+have to copy the shared @file{libkrb.so}, @file{libdes.so},
+@file{libkadm.so}, and @file{libkafs.so} to a place where the loader can
+find them (such as @file{/usr/shlib}).
+@item
+Copy (your possibly edited) @file{krb5_matrix.conf} to @file{/etc/sia}.
+@item
+Apply @file{security.patch} to @file{/sbin/init.d/security}.
+@item
+Turn on KRB5 security by issuing @kbd{rcmgr set SECURITY KRB5} and
+@kbd{rcmgr set KRB5_MATRIX_CONF krb5_matrix.conf}.
+@item
+Digital thinks you should reboot your machine, but that really shouldn't
+be necessary.  It's usually sufficient just to run
+@kbd{/sbin/init.d/security start} (and restart any applications that use
+SIA, like @code{xdm}.)
+@end itemize
+
+Users with local passwords (like @samp{root}) should be able to login
+safely.
+
+When using Digital's xdm the @samp{KRB5CCNAME} environment variable isn't
+passed along as it should (since xdm zaps the environment). Instead you
+have to set @samp{KRB5CCNAME} to the correct value in
+@file{/usr/lib/X11/xdm/Xsession}. Add a line similar to
+@example
+KRB5CCNAME=FILE:/tmp/krb5cc`id -u`_`ps -o ppid= -p $$`; export KRB5CCNAME
+@end example
+If you use CDE, @code{dtlogin} allows you to specify which additional
+environment variables it should export. To add @samp{KRB5CCNAME} to this
+list, edit @file{/usr/dt/config/Xconfig}, and look for the definition of
+@samp{exportList}. You want to add something like:
+@example
+Dtlogin.exportList:     KRB5CCNAME
+@end example
+
+@subsubheading Notes to users with Enhanced security
+
+Digital's @samp{ENHANCED} (C2) security, and Kerberos solve two
+different problems. C2 deals with local security, adds better control of
+who can do what, auditing, and similar things. Kerberos deals with
+network security.
+
+To make C2 security work with Kerberos you will have to do the
+following.
+
+@itemize @bullet
+@item
+Replace all occurrences of @file{krb5_matrix.conf} with
+@file{krb5+c2_matrix.conf} in the directions above.
+@item
+You must enable ``vouching'' in the @samp{default} database.  This will
+make the OSFC2 module trust other SIA modules, so you can login without
+giving your C2 password. To do this use @samp{edauth} to edit the
+default entry @kbd{/usr/tcb/bin/edauth -dd default}, and add a
+@samp{d_accept_alternate_vouching} capability, if not already present.
+@item
+For each user who does @emph{not} have a local C2 password, you should
+set the password expiration field to zero. You can do this for each
+user, or in the @samp{default} table. To do this use @samp{edauth} to
+set (or change) the @samp{u_exp} capability to @samp{u_exp#0}.
+@item
+You also need to be aware that the shipped @file{login}, @file{rcp}, and
+@file{rshd}, don't do any particular C2 magic (such as checking for
+various forms of disabled accounts), so if you rely on those features,
+you shouldn't use those programs. If you configure with
+@samp{--enable-osfc2}, these programs will, however, set the login
+UID. Still: use at your own risk.
+@end itemize
+
+At present @samp{su} does not accept the vouching flag, so it will not
+work as expected.
+
+Also, kerberised ftp will not work with C2 passwords. You can solve this
+by using both Digital's ftpd and our on different ports.
+
+@strong{Remember}, if you do these changes you will get a system that
+most certainly does @emph{not} fulfil the requirements of a C2
+system. If C2 is what you want, for instance if someone else is forcing
+you to use it, you're out of luck.  If you use enhanced security because
+you want a system that is more secure than it would otherwise be, you
+probably got an even more secure system. Passwords will not be sent in
+the clear, for instance.
+
+@node IRIX, , Digital SIA, Authentication modules
+@subsection IRIX
+
+The IRIX support is a module that is compatible with Transarc's
+@file{afskauthlib.so}.  It should work with all programs that use this
+library. This should include @command{login} and @command{xdm}.
+
+The interface is not very documented but it seems that you have to copy
+@file{libkafs.so}, @file{libkrb.so}, and @file{libdes.so} to
+@file{/usr/lib}, or build your @file{afskauthlib.so} statically.
+
+The @file{afskauthlib.so} itself is able to reside in
+@file{/usr/vice/etc}, @file{/usr/afsws/lib}, or the current directory
+(wherever that is).
+
+IRIX 6.4 and newer seem to have all programs (including @command{xdm} and
+@command{login}) in the N32 object format, whereas in older versions they
+were O32. For it to work, the @file{afskauthlib.so} library has to be in
+the same object format as the program that tries to load it. This might
+require that you have to configure and build for O32 in addition to the
+default N32.
+
+Apart from this it should ``just work''; there are no configuration
+files.
+
+Note that recent Irix 6.5 versions (at least 6.5.22) have PAM,
+including a @file{pam_krb5.so} module.  Not all relevant programs use
+PAM, though, e.g.@: @command{ssh}. In particular, for console
+graphical login you need to turn off @samp{visuallogin} and turn on
+@samp{xdm} with @command{chkconfig}.
+
+@node AFS, , Authentication modules, Applications
+@section AFS
+
+@cindex AFS
+AFS is a distributed filesystem that uses Kerberos for authentication.
+
+@cindex OpenAFS
+@cindex Arla
+For more information about AFS see OpenAFS
+@url{http://www.openafs.org/} and Arla
+@url{http://www.stacken.kth.se/projekt/arla/}.
+
+@subsection kafs and afslog
+@cindex afslog
+
+@manpage{afslog,1} will obtains AFS tokens for a number of cells. What cells to get
+tokens for can either be specified as an explicit list, as file paths to
+get tokens for, or be left unspecified, in which case will use whatever
+magic @manpage{kafs,3} decides upon.
+
+If not told what cell to get credentials for, @manpage{kafs,3} will
+search for the files ThisCell and TheseCells in the locations
+specified in @manpage{kafs,3} and try to get tokens for these cells
+and the cells specified in $HOME/.TheseCells.
+
+More usefully it will look at and ~/.TheseCells in your home directory
+and for each line which is a cell get afs token for these cells.
+
+The TheseCells file defines the the cells to which applications on the
+local client machine should try to aquire tokens for. It must reside in
+the directories searched by @manpage{kafs,3} on every AFS client machine.
+
+The file is in ASCII format and contains one character string, the cell
+name, per line. Cell names are case sensitive, but most cell names
+are lower case.
+
+See manpage for @manpage{kafs,3} for search locations of ThisCell and TheseCells.
+
+@subsection How to get a KeyFile
+
+@file{ktutil -k AFSKEYFILE:KeyFile get afs@@MY.REALM}
+
+or you can extract it with kadmin
+
+@example
+kadmin> ext -k AFSKEYFILE:/usr/afs/etc/KeyFile afs@@My.CELL.NAME
+@end example
+
+You have to make sure you have a @code{des-cbc-md5} encryption type since that
+is the enctype that will be converted.
+
+@subsection How to convert a srvtab to a KeyFile
+
+You need a @file{/usr/vice/etc/ThisCell} containing the cellname of your
+AFS-cell.
+
+@file{ktutil copy krb4:/root/afs-srvtab AFSKEYFILE:/usr/afs/etc/KeyFile}.
+
+If keyfile already exists, this will add the new key in afs-srvtab to
+KeyFile.
+
+@section Using 2b tokens with AFS
+
+@subsection What is 2b ?
+
+2b is the name of the proposal that was implemented to give basic
+Kerberos 5 support to AFS in rxkad. It's not real Kerberos 5 support
+since it still uses fcrypt for data encryption and not Kerberos
+encryption types.
+
+Its only possible (in all cases) to do this for DES encryption types
+because only then the token (the AFS equivalent of a ticket) will be
+smaller than the maximum size that can fit in the token cache in the
+OpenAFS/Transarc client. It is a so tight fit that some extra wrapping
+on the ASN1/DER encoding is removed from the Kerberos ticket.
+
+2b uses a Kerberos 5 EncTicketPart instead of a Kerberos 4 ditto for
+the part of the ticket that is encrypted with the service's key. The
+client doesn't know what's inside the encrypted data so to the client
+it doesn't matter.
+
+To  differentiate between Kerberos 4 tickets and Kerberos 5 tickets, 2b
+uses a special kvno, 213 for 2b tokens and 255 for Kerberos 5 tokens.
+
+Its a requirement that all AFS servers that support 2b also support
+native Kerberos 5 in rxkad.
+
+@subsection Configuring a Heimdal kdc to use 2b tokens
+
+Support for 2b tokens in the kdc are turned on for specific principals
+by adding them to the string list option @code{[kdc]use_2b} in the
+kdc's @file{krb5.conf} file.
+
+@example
+[kdc]
+	use_2b = @{
+		afs@@SU.SE = yes
+		afs/it.su.se@@SU.SE = yes
+	@}
+@end example
+
+@subsection Configuring AFS clients for 2b support
+
+There is no need to configure AFS clients for 2b support. The only
+software that needs to be installed/upgrade is a Kerberos 5 enabled
+@file{afslog}.

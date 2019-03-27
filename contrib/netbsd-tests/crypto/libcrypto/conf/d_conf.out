@@ -1,0 +1,94 @@
+num_items             = 47
+num_nodes             = 24
+num_alloc_nodes       = 32
+num_expands           = 16
+num_expand_reallocs   = 1
+num_contracts         = 0
+num_contract_reallocs = 0
+num_hash_calls        = 60
+num_comp_calls        = 5
+num_insert            = 47
+num_replace           = 0
+num_delete            = 0
+num_no_delete         = 0
+num_retrieve          = 5
+num_retrieve_miss     = 8
+num_hash_comps        = 132
+node      0 ->   4
+node      1 ->   1
+node      2 ->   1
+node      3 ->   4
+node      4 ->   0
+node      5 ->   2
+node      6 ->   1
+node      7 ->   1
+node      8 ->   6
+node      9 ->   2
+node     10 ->   1
+node     11 ->   1
+node     12 ->   3
+node     13 ->   1
+node     14 ->   4
+node     15 ->   3
+node     16 ->   5
+node     17 ->   0
+node     18 ->   2
+node     19 ->   0
+node     20 ->   2
+node     21 ->   2
+node     22 ->   0
+node     23 ->   1
+20 nodes used out of 24
+47 items
+load 1.95  actual load 2.35
+init2=10
+cipher1=NULL
+s_client:cipher1=DES_CBC_MD5:DES_CBC_SHA:DES_EDE_SHA:RC4_MD5cipher2		= DES_CBC_MD5 DES_CBC_SHA DES_EDE_SHA RC4_MD5
+---------------------------- DUMP ------------------------
+[req] Attribute_text_7=Email Address
+[req] Attribute_text_2=State or Province Name (full name)
+[default] tmp_cert_dir=/tmp/eay/.ca_certs
+[req] Attribute_text_1=Country Name (2 letter code)
+[[genrsa]]
+[req] Attribute_default_5=TR
+[req] Attribute_text_6=Common Name (eg, YOUR name)
+[req] Attribute_default_1=AU
+[[req]]
+[[special]]
+[[gendh]]
+[req] Attribute_text_3=Locality Name (eg, city)
+[req] Attribute_type_1=countryName
+[default] init5==10' again
+[req] Attribute_type_3=localityName
+[s_client] cipher3=DES_CBC_MD5 DES_CBC_SHA DES_EDE_SHA RC4_MD5
+[default] in\#it1=10
+[req] Attribute_text_4=Organization Name (eg, company)
+[req] Attribute_type_7=emailAddress
+[gendh] def_generator=2
+[default] HOME=/tmp/eay
+[s_client] cipher4=DES_CBC_MD5 DES_CBC_SHA DES_EDE_SHA RC4_MD5
+[default] init=5
+[SSLeay] version=0.5.0
+[req] Attribute_type_4=organizationName
+[default] tmp2_cert_dir=thisis/tmp/eaystuff
+[req] Attribute_type_5=organizationalUnitName
+[[SSLEAY]]
+[default] init4=10'
+[[default]]
+[default] LOGNAME=Eric Young (home=/tmp/eay)
+[special] RANDFILE=/tmp/eay/.rand
+[req] default_keyfile=privkey.pem
+[req] Attribute_default_4=Mincom Pty Ltd
+[req] Attribute_default_2=Queensland
+[gendh] default_bits=512
+[req] default_bits=512
+[default] init2=10
+[SSLEAY] version=0.5.0
+[s_client] cipher1=DES_CBC_MD5:DES_CBC_SHA:DES_EDE_SHA:RC4_MD5cipher2		= DES_CBC_MD5 DES_CBC_SHA DES_EDE_SHA RC4_MD5
+[req] Attribute_text_5=Organizational Unit Name (eg, section)
+[req] Attribute_type_2=stateOrProvinceName
+[genrsa] default_bits=512
+[default] init3=10'
+[[SSLeay]]
+[[s_client]]
+[req] Attribute_type_6=commonName

@@ -1,0 +1,1183 @@
+if [ ! "$_USERMGMT_USER_SUBR" ]; then _USERMGMT_USER_SUBR=1
+#
+# Copyright (c) 2012 Ron McDowell
+# Copyright (c) 2012-2015 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." usermgmt/user.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/usermgmt/group_input.subr
+f_include $BSDCFG_SHARE/usermgmt/user_input.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="070.usermgmt"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+############################################################ CONFIGURATION
+
+# set some reasonable defaults if /etc/adduser.conf does not exist.
+[ -f /etc/adduser.conf ] && f_include /etc/adduser.conf
+: ${defaultclass:=""}
+: ${defaultshell:="/bin/sh"}
+: ${homeprefix:="/home"}
+: ${passwdtype:="yes"}
+: ${udotdir:="/usr/share/skel"}
+: ${uexpire:=""}
+	# Default account expire time. Format is similar to upwexpire variable.
+: ${ugecos:="User &"}
+: ${upwexpire:=""}
+	# The default password expiration time. Format of the date is either a
+	# UNIX time in decimal, or a date in dd-mmm-yy[yy] format, where dd is
+	# the day, mmm is the month in either numeric or alphabetic format, and
+	# yy[yy] is either a two or four digit year. This variable also accepts
+	# a relative date in the form of n[mhdwoy] where n is a decimal, octal
+	# (leading 0) or hexadecimal (leading 0x) digit followed by the number
+	# of Minutes, Hours, Days, Weeks, Months or Years from the current date
+	# at which the expiration time is to be set.
+
+#
+# uexpire and upwexpire from adduser.conf(5) differ only slightly from what
+# pw(8) accepts as `date' argument(s); pw(8) requires a leading `+' for the
+# relative date syntax (n[mhdwoy]).
+#
+case "$uexpire" in *[mhdwoy])
+	f_isinteger "${uexpire%[mhdwoy]}" && uexpire="+$uexpire"
+esac
+case "$upwexpire" in *[mhdwoy])
+	f_isinteger "${upwexpire%[mhdwoy]}" && upwexpire="+$upwexpire"
+esac
+
+############################################################ FUNCTIONS
+
+# f_user_create_homedir $user
+#
+# Create home directory for $user.
+#
+f_user_create_homedir()
+{
+	local funcname=f_user_create_homedir
+	local user="$1"
+
+	[ "$user" ] || return $FAILURE
+
+	local user_account_expire user_class user_gecos user_gid user_home_dir
+	local user_member_groups user_name user_password user_password_expire
+	local user_shell user_uid # Variables created by f_input_user() below
+	f_input_user "$user" || return $FAILURE
+
+	f_dprintf "Creating home directory \`%s' for user \`%s'" \
+	          "$user_home_dir" "$user"
+
+	local _user_gid _user_home_dir _user_uid
+	f_shell_escape "$user_gid"      _user_gid
+	f_shell_escape "$user_home_dir" _user_home_dir
+	f_shell_escape "$user_uid"      _user_uid
+	f_eval_catch $funcname mkdir "mkdir -p '%s'" "$_user_home_dir" ||
+		return $FAILURE
+	f_eval_catch $funcname chown "chown '%i:%i' '%s'" \
+		"$_user_uid" "$_user_gid" "$_user_home_dir" || return $FAILURE
+}
+
+# f_user_copy_dotfiles $user
+#
+# Copy `skel' dot-files from $udotdir (global inherited from /etc/adduser.conf)
+# to the home-directory of $user. Attempts to create the home-directory first
+# if it doesn't exist.
+#
+f_user_copy_dotfiles()
+{
+	local funcname=f_user_copy_dotfiles
+	local user="$1"
+
+	[ "$udotdir" ] || return $FAILURE
+	[ "$user"    ] || return $FAILURE
+
+	local user_account_expire user_class user_gecos user_gid user_home_dir
+	local user_member_groups user_name user_password user_password_expire
+	local user_shell user_uid # Variables created by f_input_user() below
+	f_input_user "$user" || return $FAILURE
+
+	f_dprintf "Copying dot-files from \`%s' to \`%s'" \
+	          "$udotdir" "$user_home_dir"
+
+	# Attempt to create the home directory if it doesn't exist
+	[ -d "$user_home_dir" ] ||
+		f_user_create_homedir "$user" || return $FAILURE
+
+	local _user_gid _user_home_dir _user_uid
+	f_shell_escape "$user_gid"      _user_gid
+	f_shell_escape "$user_home_dir" _user_home_dir
+	f_shell_escape "$user_uid"      _user_uid
+
+	local - # Localize `set' to this function
+	set +f # Enable glob pattern-matching for paths
+	cd "$udotdir" || return $FAILURE
+
+	local _file file retval
+	for file in dot.*; do
+		[ -e "$file" ] || continue # no-match
+
+		f_shell_escape "$file" "_file"
+		f_eval_catch $funcname cp "cp -n '%s' '%s'" \
+			"$_file" "$_user_home_dir/${_file#dot}"
+		retval=$?
+		[ $retval -eq $SUCCESS ] || break
+		f_eval_catch $funcname chown \
+			"chown -h '%i:%i' '%s'" \
+			"$_user_uid" "$_user_gid" \
+			"$_user_home_dir/${_file#dot}"
+		retval=$?
+		[ $retval -eq $SUCCESS ] || break
+	done
+
+	cd -
+	return $retval
+}
+
+# f_user_add [$user]
+#
+# Create a login account. If both $user (as a first argument) and $VAR_USER are
+# unset or NULL and we are running interactively, prompt the end-user to enter
+# the name of a new login account and (if $VAR_NO_CONFIRM is unset or NULL)
+# prompt the end-user to answer some questions about the new account. Variables
+# that can be used to script user input:
+#
+# 	VAR_USER [Optional if running interactively]
+# 		The login to add. Ignored if given non-NULL first-argument.
+# 	VAR_USER_ACCOUNT_EXPIRE [Optional]
+# 		The account expiration time. Format is similar to
+# 		VAR_USER_PASSWORD_EXPIRE variable below. Default is to never
+# 		expire the account.
+# 	VAR_USER_DOTFILES_CREATE [Optional]
+# 		If non-NULL, populate the user's home directory with the
+# 		template files found in $udotdir (`/usr/share/skel' default).
+# 	VAR_USER_GECOS [Optional]
+# 		Often the full name of the account holder. Default is NULL.
+# 	VAR_USER_GID [Optional]
+# 		Numerical primary-group ID to use. If NULL or unset, the group
+# 		ID is automatically chosen.
+# 	VAR_USER_GROUPS [Optional]
+# 		Comma-separated list of additional groups to which the user is
+# 		a member of. Default is NULL (no additional groups).
+# 	VAR_USER_HOME [Optional]
+# 		The home directory to set. If NULL or unset, the home directory
+# 		is automatically calculated.
+# 	VAR_USER_HOME_CREATE [Optional]
+# 		If non-NULL, create the user's home directory if it doesn't
+# 		already exist.
+# 	VAR_USER_LOGIN_CLASS [Optional]
+# 		Login class to use when creating the login. Default is NULL.
+# 	VAR_USER_PASSWORD [Optional]
+# 		Unencrypted password to use. If unset or NULL, password
+# 		authentication for the login is disabled.
+# 	VAR_USER_PASSWORD_EXPIRE [Optional]
+# 		The password expiration time. Format of the date is either a
+# 		UNIX time in decimal, or a date in dd-mmm-yy[yy] format, where
+# 		dd is the day, mmm is the month in either numeric or alphabetic
+# 		format, and yy[yy] is either a two or four digit year. This
+# 		variable also accepts a relative date in the form of +n[mhdwoy]
+# 		where n is a decimal, octal (leading 0) or hexadecimal (leading
+# 		0x) digit followed by the number of Minutes, Hours, Days,
+# 		Weeks, Months or Years from the current date at which the
+# 		expiration time is to be set. Default is to never expire the
+# 		account password.
+# 	VAR_USER_SHELL [Optional]
+# 		Path to login shell to use. Default is `/bin/sh'.
+# 	VAR_USER_UID [Optional]
+# 		Numerical user ID to use. If NULL or unset, the user ID is
+# 		automatically chosen.
+#
+# Returns success if the user account was successfully created.
+#
+f_user_add()
+{
+	local funcname=f_user_add
+	local title # Calculated below
+	local alert=f_show_msg no_confirm=
+
+	f_getvar $VAR_NO_CONFIRM no_confirm
+	[ "$no_confirm" ] && alert=f_show_info
+
+	local input
+	f_getvar 3:-\$$VAR_USER input "$1"
+
+	#
+	# NB: pw(8) has a ``feature'' wherein `-n name' can be taken as UID
+	# instead of name. Work-around is to also pass `-u UID' at the same
+	# time (the UID is ignored in this case, so any UID will do).
+	#
+	if [ "$input" ] && f_quietly pw usershow -n "$input" -u 1337; then
+		f_show_err "$msg_login_already_used" "$input"
+		return $FAILURE
+	fi
+
+	local user_name="$input"
+	while f_interactive && [ ! "$user_name" ]; do
+		f_dialog_input_name user_name "$user_name" ||
+			return $SUCCESS
+		[ "$user_name" ] ||
+			f_show_err "$msg_please_enter_a_user_name"
+	done
+	if [ ! "$user_name" ]; then
+		f_show_err "$msg_no_user_specified"
+		return $FAILURE
+	fi
+
+	local user_account_expire user_class user_gecos user_gid user_home_dir
+	local user_member_groups user_password user_password_expire user_shell
+	local user_uid user_dotfiles_create= user_home_create=
+	f_getvar $VAR_USER_ACCOUNT_EXPIRE-\$uexpire    user_account_expire
+	f_getvar $VAR_USER_DOTFILES_CREATE:+\$msg_yes  user_dotfiles_create
+	f_getvar $VAR_USER_GECOS-\$ugecos              user_gecos
+	f_getvar $VAR_USER_GID                         user_gid
+	f_getvar $VAR_USER_GROUPS                      user_member_groups
+	f_getvar $VAR_USER_HOME:-\${homeprefix%/}/\$user_name \
+	                                               user_home_dir
+	f_getvar $VAR_USER_HOME_CREATE:+\$msg_yes      user_home_create
+	f_getvar $VAR_USER_LOGIN_CLASS-\$defaultclass  user_class
+	f_getvar $VAR_USER_PASSWORD                    user_password
+	f_getvar $VAR_USER_PASSWORD_EXPIRE-\$upwexpire user_password_expire
+	f_getvar $VAR_USER_SHELL-\$defaultshell        user_shell
+	f_getvar $VAR_USER_UID                         user_uid
+
+	# Create home-dir if no script-override and does not exist
+	f_isset $VAR_USER_HOME_CREATE || [ -d "$user_home_dir" ] ||
+		user_home_create="$msg_yes"
+	# Copy dotfiles if home-dir creation is desired, does not yet exist,
+	# and no script-override has been set
+	f_isset $VAR_USER_DOTFILES_CREATE ||
+		[ "$user_home_create" != "$msg_yes" ] ||
+		[ -d "$user_home_dir" ] || user_dotfiles_create="$msg_yes"
+	# Create home-dir if copying dotfiles but home-dir does not exist
+	[ "$user_dotfiles_create" -a ! -d "$user_home_dir" ] &&
+		user_home_create="$msg_yes"
+
+	# Set flags for meaningful NULL values if-provided
+	local no_account_expire= no_password_expire= null_gecos= null_members=
+	local user_password_disable=
+	f_isset $VAR_USER_ACCOUNT_EXPIRE &&
+		[ ! "$user_account_expire"  ] && no_account_expire=1
+	f_isset $VAR_USER_GECOS &&
+		[ ! "$user_gecos"           ] && null_gecos=1
+	f_isset $VAR_USER_GROUPS &&
+		[ ! "$user_member_groups"   ] && null_members=1
+	f_isset $VAR_USER_PASSWORD &&
+		[ ! "$user_password"        ] && user_password_disable=1
+	f_isset $VAR_USER_PASSWORD_EXPIRE &&
+		[ ! "$user_password_expire" ] && no_password_expire=1
+
+	if f_interactive && [ ! "$no_confirm" ]; then
+		f_dialog_noyes \
+			"$msg_use_default_values_for_all_account_details"
+		retval=$?
+		if [ $retval -eq $DIALOG_ESC ]; then
+			return $SUCCESS
+		elif [ $retval -ne $DIALOG_OK ]; then
+			#
+			# Ask series of questions to pre-fill the editor screen
+			#
+			# Defaults used in each dialog should allow the user to
+			# simply hit ENTER to proceed, because cancelling any
+			# single dialog will cause them to be returned to the
+			# previous menu.
+			#
+
+			f_dialog_input_gecos user_gecos "$user_gecos" ||
+				return $FAILURE
+			if [ "$passwdtype" = "yes" ]; then
+				f_dialog_input_password user_password \
+					user_password_disable ||
+					return $FAILURE
+			fi
+			f_dialog_input_uid user_uid "$user_uid" ||
+				return $FAILURE
+			f_dialog_input_gid user_gid "$user_gid" ||
+				return $FAILURE
+			f_dialog_input_member_groups user_member_groups \
+				"$user_member_groups" || return $FAILURE
+			f_dialog_input_class user_class "$user_class" ||
+				return $FAILURE
+			f_dialog_input_expire_password user_password_expire \
+				"$user_password_expire" || return $FAILURE
+			f_dialog_input_expire_account user_account_expire \
+				"$user_account_expire" || return $FAILURE
+			f_dialog_input_home_dir user_home_dir \
+				"$user_home_dir" || return $FAILURE
+			if [ ! -d "$user_home_dir" ]; then
+				f_dialog_input_home_create user_home_create ||
+					return $FAILURE
+				if [ "$user_home_create" = "$msg_yes" ]; then
+					f_dialog_input_dotfiles_create \
+						user_dotfiles_create ||
+						return $FAILURE
+				fi
+			fi
+			f_dialog_input_shell user_shell "$user_shell" ||
+				return $FAILURE
+		fi
+	fi
+
+	#
+	# Loop until the user decides to Exit, Cancel, or presses ESC
+	#
+	title="$msg_add $msg_user: $user_name"
+	if f_interactive; then
+		local mtag retval defaultitem=
+		while :; do
+			f_dialog_title "$title"
+			f_dialog_menu_user_add "$defaultitem"
+			retval=$?
+			f_dialog_title_restore
+			f_dialog_menutag_fetch mtag
+			f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
+			defaultitem="$mtag"
+
+			# Return if user either pressed ESC or chose Cancel/No
+			[ $retval -eq $DIALOG_OK ] || return $FAILURE
+
+			case "$mtag" in
+			X) # Add/Exit
+			   local var
+			   for var in account_expire class gecos gid home_dir \
+			   	member_groups name password_expire shell uid \
+			   ; do
+			   	local _user_$var
+			   	eval f_shell_escape \"\$user_$var\" _user_$var
+			   done
+
+			   local cmd="pw useradd -n '$_user_name'"
+			   [ "$user_gid"   ] && cmd="$cmd -g '$_user_gid'"
+			   [ "$user_shell" ] && cmd="$cmd -s '$_user_shell'"
+			   [ "$user_uid"   ] && cmd="$cmd -u '$_user_uid'"
+			   [ "$user_account_expire" -o \
+			     "$no_account_expire" ] &&
+			   	cmd="$cmd -e '$_user_account_expire'"
+			   [ "$user_class" -o "$null_class" ] &&
+			   	cmd="$cmd -L '$_user_class'"
+			   [ "$user_gecos" -o "$null_gecos" ] &&
+			   	cmd="$cmd -c '$_user_gecos'"
+			   [ "$user_home_dir" ] &&
+			   	cmd="$cmd -d '$_user_home_dir'"
+			   [ "$user_member_groups" ] &&
+			   	cmd="$cmd -G '$_user_member_groups'"
+			   [ "$user_password_expire" -o \
+			     "$no_password_expire" ] &&
+			   	cmd="$cmd -p '$_user_password_expire'"
+
+			   # Execute the command
+			   if [ "$user_password_disable" ]; then
+			   	f_eval_catch $funcname pw '%s -h -' "$cmd"
+			   elif [ "$user_password" ]; then
+			   	echo "$user_password" | f_eval_catch \
+			   		$funcname pw '%s -h 0' "$cmd"
+			   else
+			   	f_eval_catch $funcname pw '%s' "$cmd"
+			   fi || continue
+
+			   # Create home directory if desired
+			   [ "${user_home_create:-$msg_no}" != "$msg_no" ] &&
+			   	f_user_create_homedir "$user_name"
+
+			   # Copy dotfiles if desired
+			   [ "${user_dotfiles_create:-$msg_no}" != \
+			     "$msg_no" ] && f_user_copy_dotfiles "$user_name"
+
+			   break # to success
+			   ;;
+			1) # Login (prompt for new login name)
+			   f_dialog_input_name input "$user_name" ||
+			   	continue
+			   if f_quietly pw usershow -n "$input" -u 1337; then
+			   	f_show_err "$msg_login_already_used" "$input"
+			   	continue
+			   fi
+			   user_name="$input"
+			   title="$msg_add $msg_user: $user_name"
+			   user_home_dir="${homeprefix%/}/$user_name"
+			   ;;
+			2) # Full Name
+			   f_dialog_input_gecos user_gecos "$user_gecos" &&
+			   	[ ! "$user_gecos" ] && null_gecos=1 ;;
+			3) # Password
+			   f_dialog_input_password \
+			   	user_password user_password_disable ;;
+			4) # User ID
+			   f_dialog_input_uid user_uid "$user_uid" ;;
+			5) # Group ID
+			   f_dialog_input_gid user_gid "$user_gid" ;;
+			6) # Member of Groups
+			   f_dialog_input_member_groups \
+			   	user_member_groups "$user_member_groups" &&
+			   	[ ! "$user_member_groups" ] &&
+			   	null_members=1 ;;
+			7) # Login Class
+			   f_dialog_input_class user_class "$user_class" &&
+			   	[ ! "$user_class" ] && null_class=1 ;;
+			8) # Password Expires On
+			   f_dialog_input_expire_password \
+			   	user_password_expire "$user_password_expire" &&
+			   	[ ! "$user_password_expire" ] &&
+			   	no_password_expire=1 ;;
+			9) # Account Expires On
+			   f_dialog_input_expire_account \
+			   	user_account_expire "$user_account_expire" &&
+			   	[ ! "$user_account_expire" ] &&
+			   	no_account_expire=1 ;;
+			A) # Home Directory
+			   f_dialog_input_home_dir \
+			   	user_home_dir "$user_home_dir" ;;
+			B) # Shell
+			   f_dialog_input_shell user_shell "$user_shell" ;;
+			C) # Create Home Directory?
+			   if [ "${user_home_create:-$msg_no}" != "$msg_no" ]
+			   then
+			   	user_home_create="$msg_no"
+			   else
+			   	user_home_create="$msg_yes"
+			   fi ;;
+			D) # Create Dotfiles?
+			   if [ "${user_dotfiles_create:-$msg_no}" != \
+			        "$msg_no" ]
+			   then
+			   	user_dotfiles_create="$msg_no"
+			   else
+			   	user_dotfiles_create="$msg_yes"
+			   fi ;;
+			esac
+		done
+	else
+		local var
+		for var in account_expire class gecos gid home_dir \
+			member_groups name password_expire shell uid \
+		; do
+			local _user_$var
+			eval f_shell_escape \"\$user_$var\" _user_$var
+		done
+
+		# Form the command
+		local cmd="pw useradd -n '$_user_name'"
+		[ "$user_gid"      ] && cmd="$cmd -g '$_user_gid'"
+		[ "$user_home_dir" ] && cmd="$cmd -d '$_user_home_dir'"
+		[ "$user_shell"    ] && cmd="$cmd -s '$_user_shell'"
+		[ "$user_uid"      ] && cmd="$cmd -u '$_user_uid'"
+		[ "$user_account_expire" -o "$no_account_expire" ] &&
+			cmd="$cmd -e '$_user_account_expire'"
+		[ "$user_class" -o "$null_class" ] &&
+			cmd="$cmd -L '$_user_class'"
+		[ "$user_gecos" -o "$null_gecos" ] &&
+			cmd="$cmd -c '$_user_gecos'"
+		[ "$user_member_groups" -o "$null_members" ] &&
+			cmd="$cmd -G '$_user_member_groups'"
+		[ "$user_password_expire" -o "$no_password_expire" ] &&
+			cmd="$cmd -p '$_user_password_expire'"
+
+		# Execute the command
+		local retval err
+		if [ "$user_password_disable" ]; then
+			f_eval_catch -k err $funcname pw '%s -h -' "$cmd"
+		elif [ "$user_password" ]; then
+			err=$( echo "$user_password" | f_eval_catch -de \
+				$funcname pw '%s -h 0' "$cmd" 2>&1 )
+		else
+			f_eval_catch -k err $funcname pw '%s' "$cmd"
+		fi
+		retval=$?
+		if [ $retval -ne $SUCCESS ]; then
+			f_show_err "%s" "$err"
+			return $retval
+		fi
+
+		# Create home directory if desired
+		[ "${user_home_create:-$msg_no}" != "$msg_no" ] &&
+			f_user_create_homedir "$user_name"
+
+		# Copy dotfiles if desired
+		[ "${user_dotfiles_create:-$msg_no}" != "$msg_no" ] &&
+			f_user_copy_dotfiles "$user_name"
+	fi
+
+	f_dialog_title "$title"
+	$alert "$msg_login_added"
+	f_dialog_title_restore
+	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 1
+
+	return $SUCCESS
+}
+
+# f_user_delete [$user]
+#
+# Delete a user. If both $user (as a first argument) and $VAR_USER are unset or
+# NULL and we are running interactively, prompt the end-user to select a user
+# account from a list of those available. Variables that can be used to script
+# user input:
+#
+# 	VAR_USER [Optional if running interactively]
+# 		The user to delete. Ignored if given non-NULL first-argument.
+#
+# Returns success if the user account was successfully deleted.
+#
+f_user_delete()
+{
+	local funcname=f_user_delete
+	local title # Calculated below
+	local alert=f_show_msg no_confirm=
+
+	f_getvar $VAR_NO_CONFIRM no_confirm
+	[ "$no_confirm" ] && alert=f_show_info
+
+	local input
+	f_getvar 3:-\$$VAR_USER input "$1"
+
+	if f_interactive && [ ! "$input" ]; then
+		f_dialog_menu_user_list || return $SUCCESS
+		f_dialog_menutag_fetch input
+		[ "$input" = "X $msg_exit" ] && return $SUCCESS
+	elif [ ! "$input" ]; then
+		f_show_err "$msg_no_user_specified"
+		return $FAILURE
+	fi
+
+	local user_account_expire user_class user_gecos user_gid user_home_dir
+	local user_member_groups user_name user_password user_password_expire
+	local user_shell user_uid # Variables created by f_input_user() below
+	if [ "$input" ] && ! f_input_user "$input"; then
+		f_show_err "$msg_login_not_found" "$input"
+		return $FAILURE
+	fi
+
+	local user_group_delete= user_home_delete=
+	f_getvar $VAR_USER_GROUP_DELETE:-\$msg_no user_group_delete
+	f_getvar $VAR_USER_HOME_DELETE:-\$msg_no  user_home_delete
+
+	# Attempt to translate user GID into a group name
+	local user_group
+	if user_group=$( pw groupshow -g "$user_gid" 2> /dev/null ); then
+		user_group="${user_group%%:*}"
+		# Default to delete the primary group if no script-override and
+		# exists with same name as the user (same logic used by pw(8))
+		f_isset $VAR_USER_GROUP_DELETE ||
+			[ "$user_group" != "$user_name" ] ||
+			user_group_delete="$msg_yes"
+	fi
+
+	#
+	# Loop until the user decides to Exit, Cancel, or presses ESC
+	#
+	title="$msg_delete $msg_user: $user_name"
+	if f_interactive; then
+		local mtag retval defaultitem=
+		while :; do
+			f_dialog_title "$title"
+			f_dialog_menu_user_delete "$user_name" "$defaultitem"
+			retval=$?
+			f_dialog_title_restore
+			f_dialog_menutag_fetch mtag
+			f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
+			defaultitem="$mtag"
+
+			# Return if user either pressed ESC or chose Cancel/No
+			[ $retval -eq $DIALOG_OK ] || return $FAILURE
+
+			case "$mtag" in
+			X) # Delete/Exit
+			   f_shell_escape "$user_uid" _user_uid
+
+			   # Save group information in case pw(8) deletes it
+			   # and we wanted to keep it (to be restored below)
+			   if [ "${user_group_delete:-$msg_no}" = "$msg_no" ]
+			   then
+			   	local v vars="gid members name password"
+			   	for v in $vars; do local group_$var; done
+			   	f_input_group "$user_group"
+
+			   	# Remove user-to-delete from group members
+			   	# NB: Otherwise group restoration could fail
+			   	local name length=0 _members=
+			  	while [ $length -ne ${#group_members} ]; do
+			   		name="${group_members%%,*}"
+			   		[ "$name" != "$user_name" ] &&
+			   			_members="$_members,$name"
+			   		length=${#group_members}
+			   		group_members="${group_members#*,}"
+			   	done
+			   	group_members="${_members#,}"
+
+			   	# Create escaped variables for f_eval_catch()
+			   	for v in $vars; do
+			   		local _group_$v
+			   		eval f_shell_escape \
+			   			\"\$group_$v\" _group_$v
+			   	done
+			   fi
+
+			   # Delete the user (if asked to delete home directory
+			   # display [X]dialog notification to show activity)
+			   local cmd="pw userdel -u '$_user_uid'"
+			   if [ "$user_home_delete" = "$msg_yes" -a \
+			        "$USE_XDIALOG" ]
+			   then
+			   	local err
+			   	err=$(
+			   		exec 9>&1
+			   		f_eval_catch -e $funcname pw \
+			   		  "%s -r" "$cmd" \
+			   		  >&$DIALOG_TERMINAL_PASSTHRU_FD 2>&9 |
+			   		  f_xdialog_info \
+			   		  	"$msg_deleting_home_directory"
+			   	)
+			   	[ ! "$err" ]
+			   elif [ "$user_home_delete" = "$msg_yes" ]; then
+			   	f_dialog_info "$msg_deleting_home_directory"
+			   	f_eval_catch $funcname pw '%s -r' "$cmd"
+			   else
+			   	f_eval_catch $funcname pw '%s' "$cmd"
+			   fi || continue
+
+			   #
+			   # pw(8) may conditionally delete the primary group,
+			   # which may not be what is desired.
+			   #
+			   # If we've been asked to delete the group and pw(8)
+			   # chose not to, delete it. Otherwise, if we're told
+			   # to NOT delete the group, we may need to restore it
+			   # since pw(8) doesn't have a flag to tell `userdel'
+			   # to not delete the group.
+			   # 
+			   # NB: If primary group and user have different names
+			   # the group may not have been deleted (again, see PR
+			   # 169471 and SVN r263114 for details).
+			   #
+			   if [ "${user_group_delete:-$msg_no}" != "$msg_no" ]
+			   then
+			   	f_quietly pw groupshow -g "$user_gid" &&
+			   	f_eval_catch $funcname pw \
+			   		"pw groupdel -g '%s'" "$_user_gid"
+			   elif ! f_quietly pw groupshow -g "$group_gid" &&
+			        [ "$group_name" -a "$group_gid" ]
+			   then
+			   	# Group deleted by pw(8), so restore it
+			   	local cmd="pw groupadd -n '$_group_name'"
+			   	cmd="$cmd -g '$_group_gid'"
+			   	cmd="$cmd -M '$_group_members'"
+
+			   	# Get the group password (pw(8) groupshow does
+			  	# NOT provide this (even if running privileged)
+			   	local group_password_enc
+			   	group_password_enc=$( getent group | awk -F: '
+			   		!/^[[:space:]]*(#|$)/ && \
+			   		    $1 == ENVIRON["group_name"] && \
+			   		    $3 == ENVIRON["group_gid"] && \
+			   		    $4 == ENVIRON["group_members"] \
+			   		{ print $2; exit }
+			   	' )
+			   	if [ "$group_password_enc" ]; then
+			   		echo "$group_password_enc" |
+			   			f_eval_catch $funcname \
+			   				pw '%s -H 0' "$cmd"
+			   	else
+			   		f_eval_catch $funcname \
+			   			pw '%s -h -' "$cmd"
+			   	fi
+			   fi
+
+			   break # to success
+			   ;;
+			1) # Login (select different login from list)
+			   f_dialog_menu_user_list "$user_name" || continue
+			   f_dialog_menutag_fetch mtag
+
+			   [ "$mtag" = "X $msg_exit" ] && continue
+
+			   if ! f_input_user "$mtag"; then
+			   	f_show_err "$msg_login_not_found" "$mtag"
+			   	# Attempt to fall back to previous selection
+			   	f_input_user "$input" || return $FAILURE
+			   else
+			   	input="$mtag"
+			   fi
+			   title="$msg_delete $msg_user: $user_name"
+			   ;;
+			C) # Delete Primary Group?
+			   if [ "${user_group_delete:-$msg_no}" != "$msg_no" ]
+			   then
+			   	user_group_delete="$msg_no"
+			   else
+			   	user_group_delete="$msg_yes"
+			   fi ;;
+			D) # Delete Home Directory?
+			   if [ "${user_home_delete:-$msg_no}" != "$msg_no" ]
+			   then
+			   	user_home_delete="$msg_no"
+			   else
+			   	user_home_delete="$msg_yes"
+			   fi ;;
+			esac
+		done
+	else
+		f_shell_escape "$user_uid" _user_uid
+
+		# Save group information in case pw(8) deletes it
+		# and we wanted to keep it (to be restored below)
+		if [ "${user_group_delete:-$msg_no}" = "$msg_no" ]; then
+			local v vars="gid members name password"
+			for v in $vars; do local group_$v; done
+			f_input_group "$user_group"
+
+			# Remove user we're about to delete from group members
+			# NB: Otherwise group restoration could fail
+			local name length=0 _members=
+			while [ $length -ne ${#group_members} ]; do
+				name="${group_members%%,*}"
+				[ "$name" != "$user_name" ] &&
+					_members="$_members,$name"
+				length=${#group_members}
+				group_members="${group_members#*,}"
+			done
+			group_members="${_members#,}"
+
+			# Create escaped variables for later f_eval_catch()
+			for v in $vars; do
+				local _group_$v
+				eval f_shell_escape \"\$group_$v\" _group_$v
+			done
+		fi
+
+		# Delete the user (if asked to delete home directory
+		# display [X]dialog notification to show activity)
+		local err cmd="pw userdel -u '$_user_uid'"
+		if [ "$user_home_delete" = "$msg_yes" -a "$USE_XDIALOG" ]; then
+			err=$(
+				exec 9>&1
+				f_eval_catch -de $funcname pw \
+					'%s -r' "$cmd" 2>&9 | f_xdialog_info \
+					"$msg_deleting_home_directory"
+			)
+			[ ! "$err" ]
+		elif [ "$user_home_delete" = "$msg_yes" ]; then
+			f_dialog_info "$msg_deleting_home_directory"
+			f_eval_catch -k err $funcname pw '%s -r' "$cmd"
+		else
+			f_eval_catch -k err $funcname pw '%s' "$cmd"
+		fi
+		local retval=$?
+		if [ $retval -ne $SUCCESS ]; then
+			f_show_err "%s" "$err"
+			return $retval
+		fi
+
+		#
+		# pw(8) may conditionally delete the primary group, which may
+		# not be what is desired.
+		#
+		# If we've been asked to delete the group and pw(8) chose not
+		# to, delete it. Otherwise, if we're told to NOT delete the
+		# group, we may need to restore it since pw(8) doesn't have a
+		# flag to tell `userdel' to not delete the group.
+		# 
+		# NB: If primary group and user have different names the group
+		# may not have been deleted (again, see PR 169471 and SVN
+		# r263114 for details).
+		#
+		if [ "${user_group_delete:-$msg_no}" != "$msg_no" ]
+		then
+			f_quietly pw groupshow -g "$user_gid" &&
+			f_eval_catch $funcname pw \
+				"pw groupdel -g '%s'" "$_user_gid"
+		elif ! f_quietly pw groupshow -g "$group_gid" &&
+		     [ "$group_name" -a "$group_gid" ]
+		then
+			# Group deleted by pw(8), so restore it
+			local cmd="pw groupadd -n '$_group_name'"
+			cmd="$cmd -g '$_group_gid'"
+			cmd="$cmd -M '$_group_members'"
+			local group_password_enc
+			group_password_enc=$( getent group | awk -F: '
+				!/^[[:space:]]*(#|$)/ && \
+				    $1 == ENVIRON["group_name"] && \
+				    $3 == ENVIRON["group_gid"] && \
+				    $4 == ENVIRON["group_members"] \
+				{ print $2; exit }
+			' )
+			if [ "$group_password_enc" ]; then
+				echo "$group_password_enc" |
+					f_eval_catch $funcname \
+						pw '%s -H 0' "$cmd"
+			else
+				f_eval_catch $funcname pw '%s -h -' "$cmd"
+			fi
+		fi
+	fi
+
+	f_dialog_title "$title"
+	$alert "$msg_login_deleted"
+	f_dialog_title_restore
+	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 1
+
+	return $SUCCESS
+}
+
+# f_user_edit [$user]
+#
+# Modify a login account. If both $user (as a first argument) and $VAR_USER are
+# unset or NULL and we are running interactively, prompt the end-user to select
+# a login account from a list of those available. Variables that can be used to
+# script user input:
+#
+# 	VAR_USER [Optional if running interactively]
+# 		The login to modify. Ignored if given non-NULL first-argument.
+# 	VAR_USER_ACCOUNT_EXPIRE [Optional]
+# 		The account expiration time. Format is similar to
+# 		VAR_USER_PASSWORD_EXPIRE variable below. If unset, account
+# 		expiry is unchanged. If set but NULL, account expiration is
+# 		disabled (same as setting a value of `0').
+# 	VAR_USER_DOTFILES_CREATE [Optional]
+# 		If non-NULL, re-populate the user's home directory with the
+# 		template files found in $udotdir (`/usr/share/skel' default).
+# 	VAR_USER_GECOS [Optional]
+# 		Often the full name of the account holder. If unset, the GECOS
+# 		field is unmodified. If set but NULL, the field is blanked.
+# 	VAR_USER_GID [Optional]
+# 		Numerical primary-group ID to set. If NULL or unset, the group
+# 		ID is unchanged.
+# 	VAR_USER_GROUPS [Optional]
+# 		Comma-separated list of additional groups to which the user is
+# 		a member of. If set but NULL, group memberships are reset (this
+# 		login will not be a member of any additional groups besides the
+# 		primary group). If unset, group membership is unmodified.
+# 	VAR_USER_HOME [Optional]
+# 		The home directory to set. If NULL or unset, the home directory
+# 		is unchanged.
+# 	VAR_USER_HOME_CREATE [Optional]
+# 		If non-NULL, create the user's home directory if it doesn't
+# 		already exist.
+# 	VAR_USER_LOGIN_CLASS [Optional]
+# 		Login class to set. If unset, the login class is unchanged. If
+# 		set but NULL, the field is blanked.
+# 	VAR_USER_PASSWORD [Optional]
+# 		Unencrypted password to set. If unset, the login password is
+# 		unmodified. If set but NULL, password authentication for the
+# 		login is disabled.
+# 	VAR_USER_PASSWORD_EXPIRE [Optional]
+# 		The password expiration time. Format of the date is either a
+# 		UNIX time in decimal, or a date in dd-mmm-yy[yy] format, where
+# 		dd is the day, mmm is the month in either numeric or alphabetic
+# 		format, and yy[yy] is either a two or four digit year. This
+# 		variable also accepts a relative date in the form of +n[mhdwoy]
+# 		where n is a decimal, octal (leading 0) or hexadecimal (leading
+# 		0x) digit followed by the number of Minutes, Hours, Days,
+# 		Weeks, Months or Years from the current date at which the
+# 		expiration time is to be set. If unset, password expiry is
+# 		unchanged. If set but NULL, password expiration is disabled
+# 		(same as setting a value of `0').
+# 	VAR_USER_SHELL [Optional]
+# 		Path to login shell to set. If NULL or unset, the shell is
+# 		unchanged.
+# 	VAR_USER_UID [Optional]
+# 		Numerical user ID to set. If NULL or unset, the user ID is
+# 		unchanged.
+#
+# Returns success if the user account was successfully modified.
+#
+f_user_edit()
+{
+	local funcname=f_user_edit
+	local title # Calculated below
+	local alert=f_show_msg no_confirm=
+
+	f_getvar $VAR_NO_CONFIRM no_confirm
+	[ "$no_confirm" ] && alert=f_show_info
+
+	local input
+	f_getvar 3:-\$$VAR_USER input "$1"
+
+	#
+	# NB: pw(8) has a ``feature'' wherein `-n name' can be taken as UID
+	# instead of name. Work-around is to also pass `-u UID' at the same
+	# time (the UID is ignored in this case, so any UID will do).
+	#
+	if [ "$input" ] && ! f_quietly pw usershow -n "$input" -u 1337; then
+		f_show_err "$msg_login_not_found" "$input"
+		return $FAILURE
+	fi
+
+	if f_interactive && [ ! "$input" ]; then
+		f_dialog_menu_user_list || return $SUCCESS
+		f_dialog_menutag_fetch input
+		[ "$input" = "X $msg_exit" ] && return $SUCCESS
+	elif [ ! "$input" ]; then
+		f_show_err "$msg_no_user_specified"
+		return $FAILURE
+	fi
+
+	local user_account_expire user_class user_gecos user_gid user_home_dir
+	local user_member_groups user_name user_password user_password_expire
+	local user_shell user_uid # Variables created by f_input_user() below
+	if ! f_input_user "$input"; then
+		f_show_err "$msg_login_not_found" "$input"
+		return $FAILURE
+	fi
+
+	#
+	# Override values probed by f_input_user() with desired values
+	#
+	f_isset $VAR_USER_GID   && f_getvar $VAR_USER_GID   user_gid
+	f_isset $VAR_USER_HOME  && f_getvar $VAR_USER_HOME  user_home_dir
+	f_isset $VAR_USER_SHELL && f_getvar $VAR_USER_SHELL user_shell
+	f_isset $VAR_USER_UID   && f_getvar $VAR_USER_UID   user_uid
+	local user_dotfiles_create= user_home_create=
+	f_getvar $VAR_USER_DOTFILES_CREATE:+\$msg_yes user_dotfiles_create
+	f_getvar $VAR_USER_HOME_CREATE:+\$msg_yes     user_home_create
+	local no_account_expire=
+	if f_isset $VAR_USER_ACCOUNT_EXPIRE; then
+		f_getvar $VAR_USER_ACCOUNT_EXPIRE user_account_expire
+		[ "$user_account_expire" ] || no_account_expire=1
+	fi
+	local null_gecos=
+	if f_isset $VAR_USER_GECOS; then
+		f_getvar $VAR_USER_GECOS user_gecos
+		[ "$user_gecos" ] || null_gecos=1
+	fi
+	local null_members=
+	if f_isset $VAR_USER_GROUPS; then
+		f_getvar $VAR_USER_GROUPS user_member_groups
+		[ "$user_member_groups" ] || null_members=1
+	fi
+	local null_class=
+	if f_isset $VAR_USER_LOGIN_CLASS; then
+		f_getvar $VAR_USER_LOGIN_CLASS user_class
+		[ "$user_class" ] || null_class=1
+	fi
+	local user_password_disable=
+	if f_isset $VAR_USER_PASSWORD; then
+		f_getvar $VAR_USER_PASSWORD user_password
+		[ "$user_password" ] || user_password_disable=1
+	fi
+	local no_password_expire=
+	if f_isset $VAR_USER_PASSWORD_EXPIRE; then
+		f_getvar $VAR_USER_PASSWORD_EXPIRE user_password_expire
+		[ "$user_password_expire" ] || no_password_expire=1
+	fi
+
+	#
+	# Loop until the user decides to Exit, Cancel, or presses ESC
+	#
+	title="$msg_edit_view $msg_user: $user_name"
+	if f_interactive; then
+		local mtag retval defaultitem=
+		while :; do
+			f_dialog_title "$title"
+			f_dialog_menu_user_edit "$defaultitem"
+			retval=$?
+			f_dialog_title_restore
+			f_dialog_menutag_fetch mtag
+			f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
+			defaultitem="$mtag"
+
+			# Return if user either pressed ESC or chose Cancel/No
+			[ $retval -eq $DIALOG_OK ] || return $FAILURE
+
+			case "$mtag" in
+			X) # Save/Exit
+			   local var
+			   for var in account_expire class gecos gid home_dir \
+			   	member_groups name password_expire shell uid \
+			   ; do
+			   	local _user_$var
+			   	eval f_shell_escape \"\$user_$var\" _user_$var
+			   done
+
+			   local cmd="pw usermod -n '$_user_name'"
+			   [ "$user_gid"   ] && cmd="$cmd -g '$_user_gid'"
+			   [ "$user_shell" ] && cmd="$cmd -s '$_user_shell'"
+			   [ "$user_uid"   ] && cmd="$cmd -u '$_user_uid'"
+			   [ "$user_account_expire" -o \
+			     "$no_account_expire" ] &&
+			   	cmd="$cmd -e '$_user_account_expire'"
+			   [ "$user_class" -o "$null_class" ] &&
+			   	cmd="$cmd -L '$_user_class'"
+			   [ "$user_gecos" -o "$null_gecos" ] &&
+			   	cmd="$cmd -c '$_user_gecos'"
+			   [ "$user_home_dir"  ] &&
+			   	cmd="$cmd -d '$_user_home_dir'"
+			   [ "$user_member_groups" -o "$null_members" ] &&
+			   	cmd="$cmd -G '$_user_member_groups'"
+			   [ "$user_password_expire" -o \
+			     "$no_password_expire" ] &&
+			   	cmd="$cmd -p '$_user_password_expire'"
+
+			   # Execute the command
+			   if [ "$user_password_disable" ]; then
+			   	f_eval_catch $funcname pw '%s -h -' "$cmd"
+			   elif [ "$user_password" ]; then
+			   	echo "$user_password" | f_eval_catch \
+			   		$funcname pw '%s -h 0' "$cmd"
+			   else
+			   	f_eval_catch $funcname pw '%s' "$cmd"
+			   fi || continue
+
+			   # Create home directory if desired
+			   [ "${user_home_create:-$msg_no}" != "$msg_no" ] &&
+			   	f_user_create_homedir "$user_name"
+
+			   # Copy dotfiles if desired
+			   [ "${user_dotfiles_create:-$msg_no}" != \
+			     "$msg_no" ] && f_user_copy_dotfiles "$user_name"
+
+			   break # to success
+			   ;;
+			1) # Login (select different login from list)
+			   f_dialog_menu_user_list "$user_name" || continue
+			   f_dialog_menutag_fetch mtag
+
+			   [ "$mtag" = "X $msg_exit" ] && continue
+
+			   if ! f_input_user "$mtag"; then
+			   	f_show_err "$msg_login_not_found" "$mtag"
+			   	# Attempt to fall back to previous selection
+			   	f_input_user "$input" || return $FAILURE
+			   else
+			   	input="$mtag"
+			   fi
+			   title="$msg_edit_view $msg_user: $user_name"
+			   ;;
+			2) # Full Name
+			   f_dialog_input_gecos user_gecos "$user_gecos" &&
+			   	[ ! "$user_gecos" ] && null_gecos=1 ;;
+			3) # Password
+			   f_dialog_input_password \
+			   	user_password user_password_disable ;;
+			4) # User ID
+			   f_dialog_input_uid user_uid "$user_uid" ;;
+			5) # Group ID
+			   f_dialog_input_gid user_gid "$user_gid" ;;
+			6) # Member of Groups
+			   f_dialog_input_member_groups \
+			   	user_member_groups "$user_member_groups" &&
+			   	[ ! "$user_member_groups" ] &&
+			   	null_members=1 ;;
+			7) # Login Class
+			   f_dialog_input_class user_class "$user_class" &&
+			   	[ ! "$user_class" ] && null_class=1 ;;
+			8) # Password Expires On
+			   f_dialog_input_expire_password \
+			   	user_password_expire "$user_password_expire" &&
+			   	[ ! "$user_password_expire" ] &&
+			   	no_password_expire=1 ;;
+			9) # Account Expires On
+			   f_dialog_input_expire_account \
+			   	user_account_expire "$user_account_expire" &&
+			   	[ ! "$user_account_expire" ] &&
+			   	no_account_expire=1 ;;
+			A) # Home Directory
+			   f_dialog_input_home_dir \
+			   	user_home_dir "$user_home_dir" ;;
+			B) # Shell
+			   f_dialog_input_shell user_shell "$user_shell" ;;
+			C) # Create Home Directory?
+			   if [ "${user_home_create:-$msg_no}" != "$msg_no" ]
+			   then
+			   	user_home_create="$msg_no"
+			   else
+			   	user_home_create="$msg_yes"
+			   fi ;;
+			D) # Create Dotfiles?
+			   if [ "${user_dotfiles_create:-$msg_no}" != \
+			        "$msg_no" ]
+			   then
+			   	user_dotfiles_create="$msg_no"
+			   else
+			   	user_dotfiles_create="$msg_yes"
+			   fi ;;
+			esac
+		done
+	else
+		local var
+		for var in account_expire class gecos gid home_dir \
+			member_groups name password_expire shell uid \
+		; do
+			local _user_$var
+			eval f_shell_escape \"\$user_$var\" _user_$var
+		done
+
+		# Form the command
+		local cmd="pw usermod -n '$_user_name'"
+		[ "$user_gid"      ] && cmd="$cmd -g '$_user_gid'"
+		[ "$user_home_dir" ] && cmd="$cmd -d '$_user_home_dir'"
+		[ "$user_shell"    ] && cmd="$cmd -s '$_user_shell'"
+		[ "$user_uid"      ] && cmd="$cmd -u '$_user_uid'"
+		[ "$user_account_expire" -o "$no_account_expire" ] &&
+			cmd="$cmd -e '$_user_account_expire'"
+		[ "$user_class" -o "$null_class" ] &&
+			cmd="$cmd -L '$_user_class'"
+		[ "$user_gecos" -o "$null_gecos" ] &&
+			cmd="$cmd -c '$_user_gecos'"
+		[ "$user_member_groups" -o "$null_members" ] &&
+			cmd="$cmd -G '$_user_member_groups'"
+		[ "$user_password_expire" -o "$no_password_expire" ] &&
+			cmd="$cmd -p '$_user_password_expire'"
+
+		# Execute the command
+		local retval err
+		if [ "$user_password_disable" ]; then
+			f_eval_catch -k err $funcname pw '%s -h -' "$cmd"
+		elif [ "$user_password" ]; then
+			err=$( echo "$user_password" | f_eval_catch -de \
+				$funcname pw '%s -h 0' "$cmd" 2>&1 )
+		else
+			f_eval_catch -k err $funcname pw '%s' "$cmd"
+		fi
+		retval=$?
+		if [ $retval -ne $SUCCESS ]; then
+			f_show_err "%s" "$err"
+			return $retval
+		fi
+
+		# Create home directory if desired
+		[ "${user_home_create:-$msg_no}" != "$msg_no" ] &&
+			f_user_create_homedir "$user_name"
+
+		# Copy dotfiles if desired
+		[ "${user_dotfiles_create:-$msg_no}" != "$msg_no" ] &&
+			f_user_copy_dotfiles "$user_name"
+	fi
+
+	f_dialog_title "$title"
+	$alert "$msg_login_updated"
+	f_dialog_title_restore
+	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 1
+
+	return $SUCCESS
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." usermgmt/user.subr
+
+fi # ! $_USERMGMT_USER_SUBR

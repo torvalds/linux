@@ -1,0 +1,105 @@
+.\" Copyright (c) 2003 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris
+.\" Costello at Safeport Network Services and Network Associates
+.\" Laboratories, the Security Research Division of Network Associates,
+.\" Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part
+.\" of the DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 7, 2003
+.Dt BSDE_PARSE_RULE 3
+.Os
+.Sh NAME
+.Nm bsde_parse_rule ,
+.Nm bsde_parse_rule_string
+.Nd "parse file system firewall rules"
+.Sh LIBRARY
+.Lb libugidfw
+.Sh SYNOPSIS
+.In ugidfw.h
+.Ft int
+.Fo bsde_parse_rule
+.Fa "int argc" "char *argv[]" "struct mac_bsdextended_rule *rule"
+.Fa "size_t buflen" "char *errstr"
+.Fc
+.Ft int
+.Fo bsde_parse_rule_string
+.Fa "const char *string" "struct mac_bsdextended_rule *rule"
+.Fa "size_t buflen" "char *errstr"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn bsde_parse_rule
+function parses an argument vector
+(e.g.\&
+.Fa argv
+as passed to
+.Fn main )
+into
+.Fa rule .
+If an error occurs,
+.Fa *errstr
+is filled in with the error string
+(up to
+.Fa errlen
+characters, including the terminating
+.Dv NUL ) .
+.Pp
+The
+.Fn bsde_parse_rule_string
+function is identical to
+.Fn bsde_parse_rule ,
+except that it parses a single string rather than an array of arguments.
+.Sh RETURN VALUES
+The
+.Fn bsde_parse_rule_string
+and
+.Fn bsde_parse_rule
+functions return 0 if successful;
+otherwise the value \-1 is returned and the value of
+.Fa *errstr
+is filled in as documented in
+.Sx DESCRIPTION .
+.Sh SEE ALSO
+.Xr bsde_delete_rule 3 ,
+.Xr bsde_get_rule 3 ,
+.Xr bsde_get_rule_count 3 ,
+.Xr bsde_get_rule_slots 3 ,
+.Xr bsde_rule_to_string 3 ,
+.Xr bsde_set_rule 3 ,
+.Xr libugidfw 3 ,
+.Xr mac_bsdextended 4 ,
+.Xr ugidfw 8
+.Sh AUTHORS
+This software was contributed to the
+.Fx
+Project by Network Associates Labs,
+the Security Research Division of Network Associates
+Inc.
+under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.

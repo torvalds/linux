@@ -1,0 +1,205 @@
+.\" $FreeBSD$
+.Dd August 12, 2017
+.Dt UNITS 1
+.Os
+.Sh NAME
+.Nm units
+.Nd conversion program
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar filename
+.Op Fl H Ar filename
+.Op Fl qvUV
+.Op Ar from-unit to-unit
+.Sh OPTIONS
+The following options are available:
+.Bl -tag -width indent
+.It Fl h \&No , Fl -help
+Show an overview of options
+.It Fl f Ar filename \&No , Fl -file Ar filename
+Specify the name of the units data file to load.
+.It Fl H Ar filename \&No , Fl -history Ar filename
+Ignored, for compatibility with GNU units.
+.It Fl e , Fl -exponential
+Behave as if -o '%6e' was typed.
+.It Fl q \&No , Fl -quiet
+Suppress prompting of the user for units and the display of statistics
+about the number of units loaded.
+.It Fl U \&No , Fl -unitsfile
+If the default unit file exists prints its location.
+If not, print
+.Qo
+Units data file not found
+.Qc
+.It Fl t \&No , Fl -terse
+Only print the result.  This is used when calling
+.Nm
+from other programs for easy to parse results.
+.It Fl v \&No , Fl -verbose
+Print the units in the conversion output.
+Be more verbose in general.
+.It Fl o Ar format \&No , Fl -output-format Ar format
+Select the output format string by which numbers are printed.
+.It Fl V \&No , Fl -version
+Print the version number, usage, and then exit.
+.It Ar from-unit to-unit
+Allow a single unit conversion to be done directly from the command
+line.
+The program will not print prompts.
+It will print out the
+result of the single specified conversion.
+.El
+.Sh DESCRIPTION
+The
+.Nm
+program converts quantities expressed in various scales to
+their equivalents in other scales.
+The
+.Nm
+program can only
+handle multiplicative or affine scale changes.
+It works interactively by prompting
+the user for input:
+.Bd -literal
+    You have: meters
+    You want: feet
+            * 3.2808399
+            / 0.3048
+
+    You have: cm^3
+    You want: gallons
+            * 0.00026417205
+            / 3785.4118
+
+    You have: meters/s
+    You want: furlongs/fortnight
+            * 6012.8848
+            / 0.00016630952
+
+    You have: 1|2 inch
+    You want: cm
+            * 1.27
+            / 0.78740157
+
+    You have: 85 degF
+    You want: degC
+	29.444444
+.Ed
+.Pp
+Powers of units can be specified using the '^' character as shown in
+the example, or by simple concatenation: 'cm3' is equivalent to 'cm^3'.
+Multiplication of units can be specified by using spaces, a dash or
+an asterisk.
+Division of units is indicated by the slash ('/').
+Note that multiplication has a higher precedence than division,
+so 'm/s/s' is the same as 'm/s^2' or 'm/s s'.
+Division of numbers
+must be indicated using the vertical bar ('|').
+To convert half a
+meter, you would write '1|2 meter'.
+If you write '1/2 meter' then the
+units program would interpret that as equivalent to '0.5/meter'.
+If you enter incompatible unit types, the units program will
+print a message indicating that the units are not conformable and
+it will display the reduced form for each unit:
+.Bd -literal
+    You have: ergs/hour
+    You want: fathoms kg^2 / day
+    conformability error
+            2.7777778e-11 kg m^2 / sec^3
+            2.1166667e-05 kg^2 m / sec
+.Ed
+.Pp
+The conversion information is read from a units data file.
+The default
+file includes definitions for most familiar units, abbreviations and
+metric prefixes.
+Some constants of nature included are:
+.Pp
+.Bl -column -offset indent -compact "mercury"
+.It "pi	ratio of circumference to diameter"
+.It "c	speed of light"
+.It "e	charge on an electron"
+.It "g	acceleration of gravity"
+.It "force	same as g"
+.It "mole	Avogadro's number"
+.It "water	pressure per unit height of water"
+.It "mercury	pressure per unit height of mercury"
+.It "au	astronomical unit"
+.El
+.Pp
+The unit 'pound' is a unit of mass.
+Compound names are run together
+so 'pound force' is a unit of force.
+The unit 'ounce' is also a unit
+of mass.
+The fluid ounce is 'floz'.
+British units that differ from
+their US counterparts are prefixed with 'br', and currency is prefixed
+with its country name: 'belgiumfranc', 'britainpound'.
+When searching
+for a unit, if the specified string does not appear exactly as a unit
+name, then
+.Nm
+will try to remove a trailing 's' or a
+trailing 'es' and check again for a match.
+.Pp
+To find out what units are available read the standard units file.
+If you want to add your own units you can supply your own file.
+A unit is specified on a single line by
+giving its name and an equivalence.
+Be careful to define
+new units in terms of old ones so that a reduction leads to the
+primitive units which are marked with '!' characters.
+The
+.Nm
+program will not detect infinite loops that could be caused
+by careless unit definitions.
+Comments in the unit definition file
+begin with a '#' or '/' character at the beginning of a line.
+.Pp
+Prefixes are defined in the same way as standard units, but with
+a trailing dash at the end of the prefix name.
+If a unit is not found
+even after removing trailing 's' or 'es', then it will be checked
+against the list of prefixes.
+Prefixes will be removed until a legal
+base unit is identified.
+.Pp
+Here is an example of a short units file that defines some basic
+units.
+.Pp
+.Bl -column -offset indent -compact "minute"
+.It "m	!a!"
+.It "sec	!b!"
+.It "micro-	1e-6"
+.It "minute	60 sec"
+.It "hour	60 min"
+.It "inch	0.0254 m"
+.It "ft	12 inches"
+.It "mile	5280 ft"
+.El
+.Sh FILES
+.Bl -tag -width /usr/share/misc/definitions.units -compact
+.It Pa /usr/share/misc/definitions.units
+the standard units library
+.El
+.Sh AUTHORS
+.An Adrian Mariano Aq Mt adrian@cam.cornell.edu
+.Sh BUGS
+The effect of including a '/' in a prefix is surprising.
+.Pp
+Exponents entered by the user can be only one digit.
+You can work around this by multiplying several terms.
+.Pp
+The user must use | to indicate division of numbers and / to
+indicate division of symbols.
+This distinction should not
+be necessary.
+.Pp
+The program contains various arbitrary limits on the length
+of the units converted and on the length of the data file.
+.Pp
+The program should use a hash table to store units so that
+it does not take so long to load the units list and check
+for duplication.

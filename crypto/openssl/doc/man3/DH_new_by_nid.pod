@@ -1,0 +1,39 @@
+=pod
+
+=head1 NAME
+
+DH_new_by_nid, DH_get_nid - get or find DH named parameters
+
+=head1 SYNOPSIS
+
+ #include <openssl/dh.h>
+ DH *DH_new_by_nid(int nid);
+ int *DH_get_nid(const DH *dh);
+
+=head1 DESCRIPTION
+
+DH_new_by_nid() creates and returns a DH structure containing named parameters
+B<nid>. Currently B<nid> must be B<NID_ffdhe2048>, B<NID_ffdhe3072>,
+B<NID_ffdhe4096>, B<NID_ffdhe6144> or B<NID_ffdhe8192>.
+
+DH_get_nid() determines if the parameters contained in B<dh> match
+any named set. It returns the NID corresponding to the matching parameters or
+B<NID_undef> if there is no match.
+
+=head1 RETURN VALUES
+
+DH_new_by_nid() returns a set of DH parameters or B<NULL> if an error occurred.
+
+DH_get_nid() returns the NID of the matching set of parameters or
+B<NID_undef> if there is no match.
+
+=head1 COPYRIGHT
+
+Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

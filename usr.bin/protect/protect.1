@@ -1,0 +1,89 @@
+.\" Copyright (c) 2013 Hudson River Trading LLC
+.\" Written by: John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 19, 2013
+.Dt PROTECT 1
+.Os
+.Sh NAME
+.Nm protect
+.Nd "protect processes from being killed when swap space is exhausted"
+.Sh SYNOPSIS
+.Nm
+.Op Fl i
+.Ar command
+.Nm
+.Op Fl cdi
+.Fl g Ar pgrp | Fl p Ar pid
+.Sh DESCRIPTION
+The
+.Nm
+command is used to mark processes as protected.
+The kernel does not kill protected processes when swap space is exhausted.
+Note that this protected state is not inherited by child processes by default.
+.Pp
+The options are:
+.Bl -tag -width XXXXXXXXXX
+.It Fl c
+Remove protection from the specified processes.
+.It Fl d
+Apply the operation to all current children of the specified processes.
+.It Fl i
+Apply the operation to all future children of the specified processes.
+.It Fl g Ar pgrp
+Apply the operation to all processes in the specified process group.
+.It Fl p Ar pid
+Apply the operation to the specified process.
+.It Ar command
+Execute
+.Ar command
+as a protected process.
+.El
+.Pp
+Note that only one of the
+.Fl p
+or
+.Fl g
+flags may be specified when adjusting the state of existing processes.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Mark the Xorg server as protected:
+.Pp
+.Dl "pgrep Xorg | xargs protect -p"
+.Pp
+Protect all ssh sessions and their child processes:
+.Pp
+.Dl "pgrep sshd | xargs protect -dip"
+.Pp
+Remove protection from all current and future processes:
+.Pp
+.Dl "protect -cdi -p 1"
+.Sh SEE ALSO
+.Xr procctl 2
+.Sh BUGS
+If you protect a runaway process that allocates all memory the system will
+deadlock.

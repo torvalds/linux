@@ -1,0 +1,55 @@
+.\" Copyright (c) 2016
+.\"	Oleksandr Tymoshenko <gonzo@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 9, 2017
+.Dt BYTGPIO 4
+.Os
+.Sh NAME
+.Nm bytgpio
+.Nd Intel Bay Trail SoC GPIO controller
+.Sh SYNOPSIS
+.Cd "device gpio"
+.Cd "device bytgpio"
+.Sh DESCRIPTION
+The
+.Nm
+is a driver for GPIO controller that can be found in Intel's Bay Trail SoC family.
+.Pp
+Bay Trail SoC has three banks of GPIO pins exposed to userland as /dev/gpiocN,
+where N is 0, 1, and 2. Pins in each bank are pre-named to match names
+on boards schematics: GPIO_S0_SCnn, GPIO_S0_NCnn, and GPIO_S5_nn.
+.Sh SEE ALSO
+.Xr gpio 3 ,
+.Xr gpio 4 ,
+.Xr gpioctl 8
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 11.1 .
+.Sh AUTHORS
+This driver and man page was written by
+.An Oleksandr Tymoshenko Aq Mt gonzo@FreeBSD.org .

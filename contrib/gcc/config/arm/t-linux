@@ -1,0 +1,15 @@
+# Just for these, we omit the frame pointer since it makes such a big
+# difference.  It is then pointless adding debugging.
+TARGET_LIBGCC2_CFLAGS = -fomit-frame-pointer -fPIC
+LIBGCC2_DEBUG_CFLAGS = -g0
+
+LIB1ASMSRC = arm/lib1funcs.asm
+LIB1ASMFUNCS = _udivsi3 _divsi3 _umodsi3 _modsi3 _dvmd_lnx
+
+# MULTILIB_OPTIONS = mhard-float/msoft-float
+# MULTILIB_DIRNAMES = hard-float soft-float
+
+# EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o
+
+# LIBGCC = stmp-multilib
+# INSTALL_LIBGCC = install-multilib

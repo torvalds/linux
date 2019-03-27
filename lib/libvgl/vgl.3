@@ -1,0 +1,471 @@
+.\"-
+.\" Copyright (c) 1997 Søren Schmidt
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer,
+.\"    in this position and unchanged.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd February 25, 2012
+.Dt VGL 3
+.Os
+.Sh NAME
+.Nm VGLBitmapAllocateBits ,
+.Nm VGLBitmapCopy ,
+.Nm VGLBitmapCreate ,
+.Nm VGLBitmapDestroy ,
+.Nm VGLBitmapPutChar ,
+.Nm VGLBitmapString ,
+.Nm VGLBlankDisplay ,
+.Nm VGLBox ,
+.Nm VGLCheckSwitch ,
+.Nm VGLClear ,
+.Nm VGLEllipse ,
+.Nm VGLEnd ,
+.Nm VGLFilledBox ,
+.Nm VGLFilledEllipse ,
+.Nm VGLGetXY ,
+.Nm VGLInit ,
+.Nm VGLLine ,
+.Nm VGLKeyboardInit ,
+.Nm VGLKeyboardEnd ,
+.Nm VGLKeyboardGetCh ,
+.Nm VGLMouseInit ,
+.Nm VGLMouseMode ,
+.Nm VGLMouseSetImage ,
+.Nm VGLMouseSetStdImage ,
+.Nm VGLMouseStatus ,
+.Nm VGLPanScreen ,
+.Nm VGLSetBorder ,
+.Nm VGLSetPalette ,
+.Nm VGLSetPaletteIndex ,
+.Nm VGLSetVScreenSize ,
+.Nm VGLSetXY ,
+.Nm VGLTextSetFontFile
+.Nd Video Graphics Library functions
+.Sh LIBRARY
+.Lb libvgl
+.Sh SYNOPSIS
+.In sys/fbio.h
+.In sys/consio.h
+.In sys/kbio.h
+.In vgl.h
+.Ft int
+.Fn VGLInit "int mode"
+.Ft void
+.Fn VGLEnd "void"
+.Ft void
+.Fn VGLCheckSwitch "void"
+.Ft int
+.Fn VGLTextSetFontFile "char *filename"
+.Ft int
+.Fn VGLKeyboardInit "int code"
+.Ft void
+.Fn VGLKeyboardEnd "void"
+.Ft int
+.Fn VGLKeyboardGetCh "void"
+.Ft int
+.Fn VGLMouseInit "int mode"
+.Ft void
+.Fn VGLMouseMode "int mode"
+.Ft int
+.Fn VGLMouseStatus "int *x" "int *y" "char *buttons"
+.Ft void
+.Fn VGLMouseSetImage "VGLBitmap *AndMask" "VGLBitmap *OrMask"
+.Ft void
+.Fn VGLMouseSetStdImage "void"
+.Ft u_long
+.Fn VGLGetXY "VGLBitmap *object" "int x" "int y"
+.Ft void
+.Fn VGLSetXY "VGLBitmap *object" "int x" "int y" "u_long color"
+.Ft void
+.Fn VGLLine "VGLBitmap *object" "int x1" "int y1" "int x2" "int y2" "u_long color"
+.Ft void
+.Fn VGLBox "VGLBitmap *object" "int x1" "int y1" "int x2" "int y2" "u_long color"
+.Ft void
+.Fn VGLFilledBox "VGLBitmap *object" "int x1" "int y1" "int x2" "int y2" "u_long color"
+.Ft void
+.Fn VGLEllipse "VGLBitmap *object" "int xc" "int yc" "int a" "int b" "u_long color"
+.Ft void
+.Fn VGLFilledEllipse "VGLBitmap *object" "int xc" "int yc" "int a" "int b" "u_long color"
+.Ft VGLBitmap *
+.Fn VGLBitmapCreate "int type" "int xsize" "int ysize" "byte *bits"
+.Ft void
+.Fn VGLBitmapDestroy "VGLBitmap *object"
+.Ft int
+.Fn VGLBitmapAllocateBits "VGLBitmap *object"
+.Ft int
+.Fn VGLBitmapCopy "VGLBitmap *src" "int srcx" "int srcy" "VGLBitmap *dst" "int dstx" "int dsty" "int width" "int hight"
+.Ft void
+.Fn VGLBitmapPutChar "VGLBitmap *Object" "int x" "int y" "byte ch" "u_long fgcol" "u_long bgcol" "int fill" "int dir"
+.Ft void
+.Fn VGLBitmapString "VGLBitmap *Object" "int x" "int y" "char *str" "u_long fgcol" "u_long bgcol" "int fill" "int dir"
+.Ft void
+.Fn VGLClear "VGLBitmap *object" "u_long color"
+.Ft void
+.Fn VGLSetPalette "byte *red" "byte *green" "byte *blue"
+.Ft void
+.Fn VGLSetPaletteIndex "byte color" "byte red" "byte green" "byte blue"
+.Ft void
+.Fn VGLSetBorder "byte color"
+.Ft int
+.Fn VGLSetVScreenSize "VGLBitmap *object" "int vxsize" "int vysize"
+.Ft int
+.Fn VGLPanScreen "VGLBitmap *object" "int x" "int y"
+.Ft void
+.Fn VGLBlankDisplay "int blank"
+.Sh DESCRIPTION
+.Nm Libvgl
+is a library that enables the programmer access to the graphics
+modes supported by the console driver (syscons).
+The library takes care of
+programming the actual video hardware, and provides a number of simple
+functions to do various graphic operations.
+There is also support for a
+mouse via the standard mouse system in
+.Fx ,
+see
+.Xr mouse 4 ,
+including the ability to transparently have a mouse pointer superimposed on
+the graphic image currently being worked on.
+The library takes care of screen switching by storing the current image in
+memory before switching to another virtual console, and restoring when the
+user switches back.
+This allows several graphic applications at once, but
+on different virtual consoles.
+.Pp
+Below is a short description of the various functions:
+.Pp
+.Fn VGLInit
+initialize the library and set up the graphic mode
+.Va mode .
+.Pp
+.Fn VGLEnd
+terminate graphic mode, and restore the screenmode that was active before
+.Fn VGLInit
+was called.
+.Pp
+.Fn VGLCheckSwitch
+if the program goes into longer periods of processing without doing
+any graphics output, calling this function occasionally will allow
+the system to switch screens.
+.Pp
+.Fn VGLTextSetFontFile
+instruct the char/string functions to use the font in file
+.Pa filename
+instead of the builtin font.
+.Pp
+.Fn VGLKeyboardInit
+set up the keyboard in the
+.Dq raw
+I/O mode and
+specify the key code to be used.
+.Va code
+must be
+.Dv VGL_XLATEKEYS ,
+.Dv VGL_CODEKEYS ,
+or
+.Dv VGL_RAWKEYS .
+When
+.Dv VGL_XLATEKEYS
+is specified, the keyboard translates the raw keyboard scan code into
+a character code.
+If
+.Dv VGL_RAWKEYS
+is used, the raw keyboard scan code is read as is.
+.Dv VGL_CODEKEYS
+is the intermediate key code; each key is assigned a unique code whereas
+more than one raw scan code may be generated when a key is pressed.
+.Pp
+.Fn VGLKeyboardEnd
+when you have finished using the keyboard, call this function.
+.Pp
+.Fn VGLKeyboardGetCh
+read one byte from the keyboard.
+As the keyboard I/O is in the
+.Dq raw
+input mode, the function will not block even if there is no input data,
+and returns 0.
+.Pp
+.Fn VGLMouseInit
+initialize the mouse.
+The optional on-screen mouse pointer is shown if the
+argument is
+.Dv VGL_MOUSESHOW .
+.Pp
+.Fn VGLMouseMode
+either shows the mouse pointer if the argument is
+.Dv VGL_MOUSESHOW ,
+or hides the mouse pointer if the argument is
+.Dv VGL_MOUSEHIDE .
+.Pp
+.Fn VGLMouseStatus
+returns the current mouse pointer coordinates and button state in
+.Va x , y ,
+buttons.
+The return value reflects if the mouse pointer
+is currently shown on screen or not.
+.Pp
+.Fn VGLMouseSetImage
+with this function it is possible to change the image of the mouse pointer
+on screen.
+.Pp
+.Fn VGLMouseSetStdImage
+this function restores the mouse pointer to the standard arrow.
+.Pp
+.Fn VGLGetXY
+retrieves the color of the pixel located at
+.Va x , y ,
+coordinates of the
+.Va object
+argument, and returns it as a u_long value.
+.Pp
+.Fn VGLSetXY
+sets the color of the pixel located at
+.Va x , y ,
+coordinates of the
+.Va object
+argument to
+.Va color
+u_long value.
+.Pp
+.Fn VGLLine
+draw a line from
+.Va x1 , y1
+to
+.Va x2 , y2
+in color
+.Va color .
+.Pp
+.Fn VGLBox
+draw a box with upper left hand corner at
+.Va x1 , y1
+and lower right hand corner at
+.Va x2 , y2
+in color
+.Va color .
+.Pp
+.Fn VGLFilledBox
+draw a filled (solid) box with upper left hand corner at
+.Va x1 , y1
+and lower right hand corner at
+.Va x2 , y2
+in color
+.Va color .
+.Pp
+.Fn VGLEllipse
+draw an ellipse centered at
+.Va xc , yc
+make it
+.Va a
+pixels wide, and
+.Va b
+pixels high in color
+.Va color .
+.Pp
+.Fn VGLFilledEllipse
+draw a filled (solid) ellipse centered at
+.Va xc , yc
+make it
+.Va a
+pixels wide, and
+.Va b
+pixels high in color
+.Va color .
+.Pp
+.Fn VGLBitmapCreate
+create a bitmap object and initialize it with the specified
+values and bit data.
+.Va type
+must be
+.Dv MEMBUF
+for the in-memory bitmap.
+.Va bits
+may be NULL so that bitmap data may be associated later.
+.Pp
+There also is a macro,
+.Fn VGLBITMAP_INITIALIZER "type" "xsize" "ysize" "bits"
+to initialize a statically declared bitmap object.
+.Pp
+.Fn VGLBitmapDestroy
+free the bitmap data and the bitmap object.
+.Pp
+.Fn VGLBitmapAllocateBits
+allocate a bit data buffer for the specified object.
+.Pp
+.Fn VGLBitmapCopy
+copy a rectangle of pixels from bitmap
+.Va src
+upper left hand corner at
+.Va srcx , srcy
+to bitmap
+.Va dst
+at
+.Va dstx , dsty
+of the size
+.Va width , height .
+.Pp
+.Fn VGLBitmapPutChar
+write the character
+.Va ch
+at position
+.Va x , y
+in foreground color
+.Va fgcol .
+If
+.Va fill
+is != 0, use the color
+.Va bgcol
+as background otherwise the background is transparent.
+The character is drawn in the direction specified by the argument
+.Va dir .
+.Pp
+.Fn VGLBitmapString
+write the string
+.Va str
+at position
+.Va x , y
+in foreground color
+.Va fgcol .
+If
+.Va fill
+is != 0, use the color
+.Va bgcol
+as background otherwise the background is transparent.
+The string is drawn in the direction specified by the argument
+.Va dir .
+.Pp
+.Fn VGLClear
+clears the entire bitmap to color
+.Va color .
+.Pp
+.Fn VGLSetPalette
+this function sets the palette used, the arguments
+.Va red , green , blue
+should point to byte arrays of 256 positions each.
+.Pp
+.Fn VGLSetPaletteIndex
+set the palette index
+.Va color
+to the specified RGB value.
+.Pp
+.Fn VGLSetBorder
+set the border color to color
+.Va color .
+.Pp
+.Fn VGLSetVScreenSize
+change the virtual screen size of the display.
+Note that this
+function must be called when our vty is in the foreground.
+And
+.Va object
+must be
+.Va VGLDisplay .
+Passing an in-memory bitmap to this function results in error.
+.Pp
+The desired virtual screen width may not be achievable because
+of the video card hardware.
+In such case the video driver (and
+underlying video BIOS) may choose the next largest values.
+Always examine
+.Va object->VXsize
+and
+.Va VYsize
+after calling this function, in order to see how the virtual screen
+is actually set up.
+.Pp
+In order to set up the largest possible virtual screen, you may
+call this function with arbitrary large values.
+.Pp
+.Dl VGLSetVScreenSize(10000, 10000);
+.Pp
+.Fn VGLPanScreen
+change the origin of the displayed screen in the virtual screen.
+Note that this function must be called when our vty is in the
+foreground.
+.Va object
+must be
+.Va VGLDisplay .
+Passing an in-memory bitmap to this function results in error.
+.Pp
+.Fn VGLBlankDisplay
+blank the display if the argument
+.Va blank
+\*(Ne 0.
+This can be done to shut off the screen during display updates that
+the user should first see when it is done.
+.Ss Program termination and signal processing
+It is important to call
+.Fn VGLEnd
+before terminating the program.
+Care must be taken if you install signal handlers and try to call
+.Fn VGLEnd
+and
+.Xr exit 3
+to end the program.
+If a signal is caught while the program is inside
+.Nm libvgl
+functions,
+.Fn VGLEnd
+may not be able to properly restore the graphics hardware.
+.Pp
+The recommended way to handle signals and program termination is to
+have a flag to indicate signal's delivery.
+Your signal handlers set this flag but do not terminate
+the program immediately.
+The main part of the program checks the flag to see if it is
+supposed to terminate, and calls
+.Fn VGLEnd
+and
+.Xr exit 3
+if the flag is set.
+.Pp
+Note that
+.Fn VGLInit
+installs its internal signal handlers for
+.Dv SIGINT , SIGTERM , SIGSEGV ,
+and
+.Dv SIGBUS ,
+and terminates the program at appropriate time,
+after one of these signals is caught.
+If you want to have your own signal handlers for these signals,
+install handlers
+.Em after
+.Fn VGLInit .
+.Pp
+.Dv SIGUSR1
+and
+.Dv SIGUSR2
+are internally used by
+.Nm libvgl
+to control screen switching and the mouse pointer,
+and are not available to
+.Nm libvgl
+client programs.
+.Sh HISTORY
+The
+.Nm vgl
+library appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An S\(/oren Schmidt Aq Mt sos@FreeBSD.org

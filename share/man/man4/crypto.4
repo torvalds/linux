@@ -1,0 +1,442 @@
+.\"	$NetBSD: crypto.4,v 1.24 2014/01/27 21:23:59 pgoyette Exp $
+.\"
+.\" Copyright (c) 2008 The NetBSD Foundation, Inc.
+.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Portions of this documentation were written by John-Mark Gurney
+.\" under sponsorship of the FreeBSD Foundation and
+.\" Rubicon Communications, LLC (Netgate).
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Coyote Point Systems, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.\"
+.\" Copyright (c) 2004
+.\"	Jonathan Stone <jonathan@dsg.stanford.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Jonathan Stone AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Jonathan Stone OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 21, 2017
+.Dt CRYPTO 4
+.Os
+.Sh NAME
+.Nm crypto ,
+.Nm cryptodev
+.Nd user-mode access to hardware-accelerated cryptography
+.Sh SYNOPSIS
+.Cd device crypto
+.Cd device cryptodev
+.Pp
+.In sys/ioctl.h
+.In sys/time.h
+.In crypto/cryptodev.h
+.Sh DESCRIPTION
+The
+.Nm
+driver gives user-mode applications access to hardware-accelerated
+cryptographic transforms, as implemented by the
+.Xr crypto 9
+in-kernel interface.
+.Pp
+The
+.Pa /dev/crypto
+special device provides an
+.Xr ioctl 2
+based interface.
+User-mode applications should open the special device,
+then issue
+.Xr ioctl 2
+calls on the descriptor.
+User-mode access to
+.Pa /dev/crypto
+is controlled by three
+.Xr sysctl 8
+variables,
+.Ic kern.userasymcrypto
+and
+.Ic kern.cryptodevallowsoft .
+.Pp
+The
+.Nm
+device provides two distinct modes of operation: one mode for
+symmetric-keyed cryptographic requests, and a second mode for
+both asymmetric-key (public-key/private-key) requests, and for
+modular arithmetic (for Diffie-Hellman key exchange and other
+cryptographic protocols).
+The two modes are described separately below.
+.Sh THEORY OF OPERATION
+Regardless of whether symmetric-key or asymmetric-key operations are
+to be performed, use of the device requires a basic series of steps:
+.Bl -enum
+.It
+Open a file descriptor for the device.
+See
+.Xr open 2 .
+.It
+If any symmetric operation will be performed,
+create one session, with
+.Dv CIOCGSESSION .
+Most applications will require at least one symmetric session.
+Since cipher and MAC keys are tied to sessions, many
+applications will require more.
+Asymmetric operations do not use sessions.
+.It
+Submit requests, synchronously with
+.Dv CIOCCRYPT
+(symmetric),
+.Dv CIOCCRYPTAEAD
+(symmetric),
+or
+.Dv CIOCKEY
+(asymmetric).
+.It
+Destroy one session with
+.Dv CIOCFSESSION .
+.It
+Close the device with
+.Xr close 2 .
+.El
+.Sh SYMMETRIC-KEY OPERATION
+The symmetric-key operation mode provides a context-based API
+to traditional symmetric-key encryption (or privacy) algorithms,
+or to keyed and unkeyed one-way hash (HMAC and MAC) algorithms.
+The symmetric-key mode also permits fused operation,
+where the hardware performs both a privacy algorithm and an integrity-check
+algorithm in a single pass over the data: either a fused
+encrypt/HMAC-generate operation, or a fused HMAC-verify/decrypt operation.
+.Pp
+To use symmetric mode, you must first create a session specifying
+the algorithm(s) and key(s) to use; then issue encrypt or decrypt
+requests against the session.
+.Ss Algorithms
+For a list of supported algorithms, see
+.Xr crypto 7
+and
+.Xr crypto 9 .
+.Ss IOCTL Request Descriptions
+.\"
+.Bl -tag -width CIOCGSESSION
+.\"
+.It Dv CRIOGET Fa int *fd
+Clone the fd argument to
+.Xr ioctl 2 ,
+yielding a new file descriptor for the creation of sessions.
+.\"
+.It Dv CIOCFINDDEV Fa struct crypt_find_op *fop
+.Bd -literal
+struct crypt_find_op {
+    int     crid;       /* driver id + flags */
+    char    name[32];   /* device/driver name */
+};
+
+.Ed
+If
+.Fa crid
+is -1, then find the driver named
+.Fa name
+and return the id in
+.Fa crid .
+If
+.Fa crid
+is not -1, return the name of the driver with
+.Fa crid
+in
+.Fa name .
+In either case, if the driver is not found,
+.Dv ENOENT
+is returned.
+.It Dv CIOCGSESSION Fa struct session_op *sessp
+.Bd -literal
+struct session_op {
+    u_int32_t cipher;	/* e.g. CRYPTO_DES_CBC */
+    u_int32_t mac;	/* e.g. CRYPTO_MD5_HMAC */
+
+    u_int32_t keylen;	/* cipher key */
+    void * key;
+    int mackeylen;	/* mac key */
+    void * mackey;
+
+    u_int32_t ses;	/* returns: ses # */
+};
+
+.Ed
+Create a new cryptographic session on a file descriptor for the device;
+that is, a persistent object specific to the chosen
+privacy algorithm, integrity algorithm, and keys specified in
+.Fa sessp .
+The special value 0 for either privacy or integrity
+is reserved to indicate that the indicated operation (privacy or integrity)
+is not desired for this session.
+.Pp
+Multiple sessions may be bound to a single file descriptor.
+The session ID returned in
+.Fa sessp-\*[Gt]ses
+is supplied as a required field in the symmetric-operation structure
+.Fa crypt_op
+for future encryption or hashing requests.
+.\" .Pp
+.\" This implementation will never return a session ID of 0 for a successful
+.\" creation of a session, which is a
+.\" .Nx
+.\" extension.
+.Pp
+For non-zero symmetric-key privacy algorithms, the privacy algorithm
+must be specified in
+.Fa sessp-\*[Gt]cipher ,
+the key length in
+.Fa sessp-\*[Gt]keylen ,
+and the key value in the octets addressed by
+.Fa sessp-\*[Gt]key .
+.Pp
+For keyed one-way hash algorithms, the one-way hash must be specified
+in
+.Fa sessp-\*[Gt]mac ,
+the key length in
+.Fa sessp-\*[Gt]mackey ,
+and the key value in the octets addressed by
+.Fa sessp-\*[Gt]mackeylen .
+.\"
+.Pp
+Support for a specific combination of fused privacy  and
+integrity-check algorithms depends on whether the underlying
+hardware supports that combination.
+Not all combinations are supported
+by all hardware, even if the hardware supports each operation as a
+stand-alone non-fused operation.
+.It Dv CIOCCRYPT Fa struct crypt_op *cr_op
+.Bd -literal
+struct crypt_op {
+    u_int32_t ses;
+    u_int16_t op;	/* e.g. COP_ENCRYPT */
+    u_int16_t flags;
+    u_int len;
+    caddr_t src, dst;
+    caddr_t mac;		/* must be large enough for result */
+    caddr_t iv;
+};
+
+.Ed
+Request a symmetric-key (or hash) operation.
+The file descriptor argument to
+.Xr ioctl 2
+must have been bound to a valid session.
+To encrypt, set
+.Fa cr_op-\*[Gt]op
+to
+.Dv COP_ENCRYPT .
+To decrypt, set
+.Fa cr_op-\*[Gt]op
+to
+.Dv COP_DECRYPT .
+The field
+.Fa cr_op-\*[Gt]len
+supplies the length of the input buffer; the fields
+.Fa cr_op-\*[Gt]src ,
+.Fa cr_op-\*[Gt]dst ,
+.Fa cr_op-\*[Gt]mac ,
+.Fa cr_op-\*[Gt]iv
+supply the addresses of the input buffer, output buffer,
+one-way hash, and initialization vector, respectively.
+If a session is using both a privacy algorithm and a hash algorithm,
+the request will generate a hash of the input buffer before
+generating the output buffer by default.
+If the
+.Dv COP_F_CIPHER_FIRST
+flag is included in the
+.Fa cr_op-\*[Gt]flags
+field,
+then the request will generate a hash of the output buffer after
+executing the privacy algorithm.
+.It Dv CIOCCRYPTAEAD Fa struct crypt_aead *cr_aead
+.Bd -literal
+struct crypt_aead {
+    u_int32_t ses;
+    u_int16_t op;	/* e.g. COP_ENCRYPT */
+    u_int16_t flags;
+    u_int len;
+    u_int aadlen;
+    u_int ivlen;
+    caddr_t src, dst;
+    caddr_t aad;
+    caddr_t tag;		/* must be large enough for result */
+    caddr_t iv;
+};
+
+.Ed
+The
+.Dv CIOCCRYPTAEAD
+is similar to the
+.Dv CIOCCRYPT
+but provides additional data in
+.Fa cr_aead-\*[Gt]aad
+to include in the authentication mode.
+.It Dv CIOCFSESSION Fa u_int32_t ses_id
+Destroys the /dev/crypto session associated with the file-descriptor
+argument.
+.It Dv CIOCNFSESSION Fa struct crypt_sfop *sfop ;
+.Bd -literal
+struct crypt_sfop {
+    size_t count;
+    u_int32_t *sesid;
+};
+
+.Ed
+Destroys the
+.Fa sfop-\*[Gt]count
+sessions specified by the
+.Fa sfop
+array of session identifiers.
+.El
+.\"
+.Sh ASYMMETRIC-KEY OPERATION
+.Ss Asymmetric-key algorithms
+Contingent upon hardware support, the following asymmetric
+(public-key/private-key; or key-exchange subroutine) operations may
+also be available:
+.Pp
+.Bl -column "CRK_DH_COMPUTE_KEY" "Input parameter" "Output parameter" -offset indent -compact
+.It Em "Algorithm" Ta "Input parameter" Ta "Output parameter"
+.It Em " " Ta "Count" Ta "Count"
+.It Dv CRK_MOD_EXP Ta 3 Ta 1
+.It Dv CRK_MOD_EXP_CRT Ta 6 Ta 1
+.It Dv CRK_DSA_SIGN Ta 5 Ta 2
+.It Dv CRK_DSA_VERIFY Ta 7 Ta 0
+.It Dv CRK_DH_COMPUTE_KEY Ta 3 Ta 1
+.El
+.Pp
+See below for discussion of the input and output parameter counts.
+.Ss Asymmetric-key commands
+.Bl -tag -width CIOCKEY
+.It Dv CIOCASYMFEAT Fa int *feature_mask
+Returns a bitmask of supported asymmetric-key operations.
+Each of the above-listed asymmetric operations is present
+if and only if the bit position numbered by the code for that operation
+is set.
+For example,
+.Dv CRK_MOD_EXP
+is available if and only if the bit
+.Pq 1 \*[Lt]\*[Lt] Dv CRK_MOD_EXP
+is set.
+.It Dv CIOCKEY Fa struct crypt_kop *kop
+.Bd -literal
+struct crypt_kop {
+    u_int crk_op;		/* e.g. CRK_MOD_EXP */
+    u_int crk_status;		/* return status */
+    u_short crk_iparams;	/* # of input params */
+    u_short crk_oparams;	/* # of output params */
+    u_int crk_pad1;
+    struct crparam crk_param[CRK_MAXPARAM];
+};
+
+/* Bignum parameter, in packed bytes. */
+struct crparam {
+    void * crp_p;
+    u_int crp_nbits;
+};
+
+.Ed
+Performs an asymmetric-key operation from the list above.
+The specific operation is supplied in
+.Fa kop-\*[Gt]crk_op ;
+final status for the operation is returned in
+.Fa kop-\*[Gt]crk_status .
+The number of input arguments and the number of output arguments
+is specified in
+.Fa kop-\*[Gt]crk_iparams
+and
+.Fa kop-\*[Gt]crk_iparams ,
+respectively.
+The field
+.Fa crk_param[]
+must be filled in with exactly
+.Fa kop-\*[Gt]crk_iparams + kop-\*[Gt]crk_oparams
+arguments, each encoded as a
+.Fa struct crparam
+(address, bitlength) pair.
+.Pp
+The semantics of these arguments are currently undocumented.
+.El
+.Sh SEE ALSO
+.Xr aesni 4 ,
+.Xr hifn 4 ,
+.Xr ipsec 4 ,
+.Xr padlock 4 ,
+.Xr safe 4 ,
+.Xr ubsec 4 ,
+.Xr crypto 7 ,
+.Xr geli 8 ,
+.Xr crypto 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.0 .
+The
+.Nm
+driver was imported to
+.Fx 5.0 .
+.Sh BUGS
+Error checking and reporting is weak.
+.Pp
+The values specified for symmetric-key key sizes to
+.Dv CIOCGSESSION
+must exactly match the values expected by
+.Xr opencrypto 9 .
+The output buffer and MAC buffers supplied to
+.Dv CIOCCRYPT
+must follow whether privacy or integrity algorithms were specified for
+session: if you request a
+.No non- Ns Dv NULL
+algorithm, you must supply a suitably-sized buffer.
+.Pp
+The scheme for passing arguments for asymmetric requests is baroque.
+.Pp
+The naming inconsistency between
+.Dv CRIOGET
+and the various
+.Dv CIOC Ns \&*
+names is an unfortunate historical artifact.

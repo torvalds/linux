@@ -1,0 +1,165 @@
+.\" Copyright (c) 2005 David Xu <davidxu@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Portions of this text are reprinted and reproduced in electronic form
+.\" from IEEE Std 1003.1, 2004 Edition, Standard for Information Technology --
+.\" Portable Operating System Interface (POSIX), The Open Group Base
+.\" Specifications Issue 6, Copyright (C) 2001-2004 by the Institute of
+.\" Electrical and Electronics Engineers, Inc and The Open Group.  In the
+.\" event of any discrepancy between this version and the original IEEE and
+.\" The Open Group Standard, the original IEEE and The Open Group Standard is
+.\" the referee document.  The original Standard can be obtained online at
+.\"	http://www.opengroup.org/unix/online.html.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 15, 2016
+.Dt MQ_NOTIFY 2
+.Os
+.Sh NAME
+.Nm mq_notify
+.Nd "notify process that a message is available (REALTIME)"
+.Sh LIBRARY
+.Lb librt
+.Sh SYNOPSIS
+.In mqueue.h
+.Ft int
+.Fn mq_notify "mqd_t mqdes" "const struct sigevent *notification"
+.Sh DESCRIPTION
+If the argument notification is not
+.Dv NULL ,
+this system call will register the calling process to be notified of message
+arrival at an empty message queue associated with the specified message
+queue descriptor,
+.Fa mqdes .
+The notification specified by the
+.Fa notification
+argument will be sent to
+the process when the message queue transitions from empty to non-empty.
+At any time, only one process may be registered for notification by a
+message queue.
+If the calling process or any other process has already
+registered for notification of message arrival at the specified message
+queue, subsequent attempts to register for that message queue will fail.
+.Pp
+The
+.Fa notification
+argument points to a
+.Vt sigevent
+structure that defines how the calling process will be notified.
+If
+.Fa notification->sigev_notify
+is
+.Dv SIGEV_NONE ,
+then no signal will be posted, but the error status and the return status
+for the operation will be set appropriately.
+For
+.Dv SIGEV_SIGNO
+and
+.Dv SIGEV_THREAD_ID
+notifications,
+the signal specified in
+.Fa notification->sigev_signo
+will be sent to the calling process
+.Pq Dv SIGEV_SIGNO
+or to the thread whose LWP ID is
+.Fa notification->sigev_notify_thread_id
+.Pq Dv SIGEV_THREAD_ID .
+The information for the queued signal will include:
+.Bl -column ".Va si_value"
+.It Sy Member Ta Sy Value
+.It Va si_code Ta Dv SI_MESGQ
+.It Va si_value Ta
+the value stored in
+.Fa notification->sigev_value
+.It Va si_mqd Ta Fa mqdes
+.El
+.Pp
+If
+.Fa notification
+is
+.Dv NULL
+and the process is currently registered for notification by the specified
+message queue, the existing registration will be removed.
+.Pp
+When the notification is sent to the registered process, its registration
+is removed.
+The message queue then is available for registration.
+.Pp
+If a process has registered for notification of message arrival at a
+message queue and some thread is blocked in
+.Fn mq_receive
+waiting to receive a message when a message arrives at the queue, the
+arriving message will satisfy the appropriate
+.Fn mq_receive .
+The resulting behavior is as if the message queue remains empty, and no
+notification will be sent.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn mq_notify
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa mqdes
+argument is not a valid message queue descriptor.
+.It Bq Er EBUSY
+Process is already registered for notification by the message queue.
+.It Bq Er EINVAL
+The asynchronous notification method in
+.Fa notification->sigev_notify
+is invalid or not supported.
+.El
+.Sh SEE ALSO
+.Xr mq_open 2 ,
+.Xr mq_send 2 ,
+.Xr mq_timedsend 2 ,
+.Xr sigevent 3 ,
+.Xr siginfo 3
+.Sh STANDARDS
+The
+.Fn mq_notify
+system call conforms to
+.St -p1003.1-2004 .
+.Sh HISTORY
+Support for
+.Tn POSIX
+message queues first appeared in
+.Fx 7.0 .
+.Sh COPYRIGHT
+Portions of this text are reprinted and reproduced in electronic form
+from IEEE Std 1003.1, 2004 Edition, Standard for Information Technology --
+Portable Operating System Interface (POSIX), The Open Group Base
+Specifications Issue 6, Copyright (C) 2001-2004 by the Institute of
+Electrical and Electronics Engineers, Inc and The Open Group.  In the
+event of any discrepancy between this version and the original IEEE and
+The Open Group Standard, the original IEEE and The Open Group Standard is
+the referee document.  The original Standard can be obtained online at
+http://www.opengroup.org/unix/online.html.

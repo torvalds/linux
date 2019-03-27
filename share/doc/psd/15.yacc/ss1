@@ -1,0 +1,175 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ss1	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.tr *\(**
+.tr |\(or
+.SH
+1: Basic Specifications
+.PP
+Names refer to either tokens or nonterminal symbols.
+Yacc requires
+token names to be declared as such.
+In addition, for reasons discussed in Section 3, it is often desirable
+to include the lexical analyzer as part of the specification file;
+it may be useful to include other programs as well.
+Thus, every specification file consists of three sections:
+the
+.I declarations ,
+.I "(grammar) rules" ,
+and
+.I programs .
+The sections are separated by double percent ``%%'' marks.
+(The percent ``%'' is generally used in Yacc specifications as an escape character.)
+.PP
+In other words, a full specification file looks like
+.DS
+declarations
+%%
+rules
+%%
+programs
+.DE
+.PP
+The declaration section may be empty.
+Moreover, if the programs section is omitted, the second %% mark may be omitted also;
+thus, the smallest legal Yacc specification is
+.DS
+%%
+rules
+.DE
+.PP
+Blanks, tabs, and newlines are ignored except
+that they may not appear in names or multi-character reserved symbols.
+Comments may appear wherever a name is legal; they are enclosed
+in /* . . . */, as in C and PL/I.
+.PP
+The rules section is made up of one or more grammar rules.
+A grammar rule has the form:
+.DS
+A  :  BODY  ;
+.DE
+A represents a nonterminal name, and BODY represents a sequence of zero or more names and literals.
+The colon and the semicolon are Yacc punctuation.
+.PP
+Names may be of arbitrary length, and may be made up of letters, dot ``.'', underscore ``\_'', and
+non-initial digits.
+Upper and lower case letters are distinct.
+The names used in the body of a grammar rule may represent tokens or nonterminal symbols.
+.PP
+A literal consists of a character enclosed in single quotes ``\'''.
+As in C, the backslash ``\e'' is an escape character within literals, and all the C escapes
+are recognized.
+Thus
+.DS
+\'\en\'	newline
+\'\er\'	return
+\'\e\'\'	single quote ``\'''
+\'\e\e\'	backslash ``\e''
+\'\et\'	tab
+\'\eb\'	backspace
+\'\ef\'	form feed
+\'\exxx\'	``xxx'' in octal
+.DE
+For a number of technical reasons, the
+\s-2NUL\s0
+character (\'\e0\' or 0) should never
+be used in grammar rules.
+.PP
+If there are several grammar rules with the same left hand side, the vertical bar ``|''
+can be used to avoid rewriting the left hand side.
+In addition,
+the semicolon at the end of a rule can be dropped before a vertical bar.
+Thus the grammar rules
+.DS
+A	:	B  C  D   ;
+A	:	E  F   ;
+A	:	G   ;
+.DE
+can be given to Yacc as
+.DS
+A	:	B  C  D
+	|	E  F
+	|	G
+	;
+.DE
+It is not necessary that all grammar rules with the same left side appear together in the grammar rules section,
+although it makes the input much more readable, and easier to change.
+.PP
+If a nonterminal symbol matches the empty string, this can be indicated in the obvious way:
+.DS
+empty :   ;
+.DE
+.PP
+Names representing tokens must be declared; this is most simply done by writing
+.DS
+%token   name1  name2 . . .
+.DE
+in the declarations section.
+(See Sections 3 , 5, and 6 for much more discussion).
+Every name not defined in the declarations section is assumed to represent a nonterminal symbol.
+Every nonterminal symbol must appear on the left side of at least one rule.
+.PP
+Of all the nonterminal symbols, one, called the
+.I "start symbol" ,
+has particular importance.
+The parser is designed to recognize the start symbol; thus,
+this symbol represents the largest,
+most general structure described by the grammar rules.
+By default,
+the start symbol is taken to be the left hand side of the first
+grammar rule in the rules section.
+It is possible, and in fact desirable, to declare the start
+symbol explicitly in the declarations section using the %start keyword:
+.DS
+%start   symbol
+.DE
+.PP
+The end of the input to the parser is signaled by a special token, called the
+.I endmarker .
+If the tokens up to, but not including, the endmarker form a structure
+which matches the start symbol, the parser function returns to its caller
+after the endmarker is seen; it
+.I accepts
+the input.
+If the endmarker is seen in any other context, it is an error.
+.PP
+It is the job of the user-supplied lexical analyzer
+to return the endmarker when appropriate; see section 3, below.
+Usually the endmarker represents some reasonably obvious 
+I/O status, such as ``end-of-file'' or ``end-of-record''.

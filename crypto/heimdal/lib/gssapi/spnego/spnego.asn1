@@ -1,0 +1,63 @@
+-- $Id$
+
+SPNEGO DEFINITIONS ::=
+BEGIN
+
+MechType::= OBJECT IDENTIFIER
+
+MechTypeList ::= SEQUENCE OF MechType
+
+ContextFlags ::= BIT STRING {
+    delegFlag       (0),
+    mutualFlag      (1),
+    replayFlag      (2),
+    sequenceFlag    (3),
+    anonFlag        (4),
+    confFlag        (5),
+    integFlag       (6)
+}
+
+NegHints ::= SEQUENCE {
+    hintName       [0]  GeneralString	OPTIONAL,
+    hintAddress    [1]  OCTET STRING	OPTIONAL
+} 
+
+NegTokenInitWin ::= SEQUENCE {
+    mechTypes       [0] MechTypeList,
+    reqFlags        [1] ContextFlags   OPTIONAL,
+    mechToken       [2] OCTET STRING   OPTIONAL,
+    negHints        [3] NegHints       OPTIONAL
+}
+
+NegTokenInit ::= SEQUENCE {
+    mechTypes       [0] MechTypeList,
+    reqFlags        [1] ContextFlags   OPTIONAL,
+    mechToken       [2] OCTET STRING   OPTIONAL,
+    mechListMIC	    [3] OCTET STRING   OPTIONAL,
+    ...
+}
+
+-- NB: negResult is not OPTIONAL in the new SPNEGO spec but
+-- Windows clients do not always send it
+NegTokenResp ::= SEQUENCE {
+    negResult      [0] ENUMERATED {
+                            accept_completed    (0),
+                            accept_incomplete   (1),
+                            reject              (2),
+                            request-mic         (3) }          OPTIONAL,
+    supportedMech  [1] MechType                                OPTIONAL,
+    responseToken  [2] OCTET STRING                            OPTIONAL,
+    mechListMIC    [3] OCTET STRING                            OPTIONAL,
+    ...
+}
+
+NegotiationToken ::= CHOICE {
+	negTokenInit[0]		NegTokenInit,
+	negTokenResp[1]		NegTokenResp
+}
+
+NegotiationTokenWin ::= CHOICE {
+	negTokenInit[0]		NegTokenInitWin
+}
+
+END

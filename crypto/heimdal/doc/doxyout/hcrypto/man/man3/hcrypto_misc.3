@@ -1,0 +1,44 @@
+.TH "hcrypto miscellaneous functions" 3 "11 Jan 2012" "Version 1.5.2" "Heimdal crypto library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+hcrypto miscellaneous functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "int \fBPKCS5_PBKDF2_HMAC_SHA1\fP (const void *password, size_t password_len, const void *salt, size_t salt_len, unsigned long iter, size_t keylen, void *key)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "int PKCS5_PBKDF2_HMAC_SHA1 (const void * password, size_t password_len, const void * salt, size_t salt_len, unsigned long iter, size_t keylen, void * key)"
+.PP
+As descriped in PKCS5, convert a password, salt, and iteration counter into a crypto key.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIpassword\fP Password. 
+.br
+\fIpassword_len\fP Length of password. 
+.br
+\fIsalt\fP Salt 
+.br
+\fIsalt_len\fP Length of salt. 
+.br
+\fIiter\fP iteration counter. 
+.br
+\fIkeylen\fP the output key length. 
+.br
+\fIkey\fP the output key.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success, non 1 on failure. 
+.RE
+.PP
+

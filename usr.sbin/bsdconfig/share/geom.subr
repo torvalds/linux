@@ -1,0 +1,430 @@
+if [ ! "$_GEOM_SUBR" ]; then _GEOM_SUBR=1
+#
+# Copyright (c) 2012-2014 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." geom.subr
+f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/struct.subr
+
+############################################################ GLOBALS
+
+NGEOM_CLASSES=0 # Set by f_geom_get_all()/f_geom_reset()
+
+#
+# GEOM classes for use with f_geom_find()
+#
+# NB: Since $GEOM_CLASS_ANY is the NULL string, make sure you quote it whenever
+#     you put arguments after it.
+#
+setvar GEOM_CLASS_ANY		"any"
+setvar GEOM_CLASS_DEV		"DEV"
+setvar GEOM_CLASS_DISK		"DISK"
+setvar GEOM_CLASS_ELI		"ELI"
+setvar GEOM_CLASS_FD		"FD"
+setvar GEOM_CLASS_LABEL		"LABEL"
+setvar GEOM_CLASS_MD		"MD"
+setvar GEOM_CLASS_NOP		"NOP"
+setvar GEOM_CLASS_PART		"PART"
+setvar GEOM_CLASS_RAID		"RAID"
+setvar GEOM_CLASS_SWAP		"SWAP"
+setvar GEOM_CLASS_VFS		"VFS"
+setvar GEOM_CLASS_ZFS_VDEV	"ZFS::VDEV"
+setvar GEOM_CLASS_ZFS_ZVOL	"ZFS::ZVOL"
+
+#
+# GEOM structure definitions
+#
+f_struct_define GEOM_CLASS \
+	id name ngeoms
+f_struct_define GEOM_GEOM \
+	id class_ref config name nconsumers nproviders rank
+	# Also consumerN where N is 1 through nconsumers
+	# Also providerN where N is 1 through nproviders
+f_struct_define GEOM_CONSUMER \
+	id geom_ref config mode provider_ref
+f_struct_define GEOM_PROVIDER \
+	id geom_ref config mode name mediasize
+
+# The config property of GEOM_GEOM struct is defined as this
+f_struct_define GEOM_GEOM_CONFIG \
+	entries first fwheads fwsectors last modified scheme state
+
+# The config property of GEOM_PROVIDER struct is defined as this
+f_struct_define GEOM_PROVIDER_CONFIG \
+	descr file fwheads fwsectors ident length type unit
+
+#
+# Default behavior is to call f_geom_get_all() automatically when loaded.
+#
+: ${GEOM_SELF_SCAN_ALL=1}
+
+############################################################ FUNCTIONS
+
+# f_geom_get_all
+#
+# Parse sysctl(8) `kern.geom.confxml' data into a series of structs. GEOM
+# classes are at the top of the hierarchy and are stored as numbered structs
+# from 1 to $NGEOM_CLASSES (set by this function) named `geom_class_C'. GEOM
+# objects within each class are stored as numbered structs from 1 to `ngeoms'
+# (a property of the GEOM class struct) named `geom_class_C_geom_N' (where C
+# is the class number and N is the geom number).
+#
+# Use the function f_geom_find() to get a list of geoms (execute without
+# arguments) or find specific geoms by class or name.
+#
+f_geom_get_all()
+{
+	eval "$( sysctl -n kern.geom.confxml | awk '
+	BEGIN {
+		struct_count["class"] = 0
+		struct_count["geom"] = 0
+		struct_count["consumer"] = 0
+		struct_count["provider"] = 0
+	}
+	############################################### FUNCTIONS
+	function set_value(prop, value)
+	{
+		if (!struct_stack[cur_struct]) return
+		printf "%s set %s \"%s\"\n",
+			struct_stack[cur_struct], prop, value
+	}
+	function create(type, id)
+	{
+		if (struct = created[type "_" id])
+			print "f_struct_free", struct
+		else {
+			struct = struct_stack[cur_struct]
+			struct = struct ( struct ? "" : "geom" )
+			struct = struct "_" type "_" ++struct_count[type]
+			created[type "_" id] = struct
+		}
+		print "debug= f_struct_new GEOM_" toupper(type), struct
+		cur_struct++
+		struct_stack[cur_struct] = struct
+		type_stack[cur_struct] = type
+		set_value("id", id)
+	}
+	function create_config()
+	{
+		struct = struct_stack[cur_struct]
+		struct = struct ( struct ? "" : "geom" )
+		struct = struct "_config"
+		set_value("config", struct)
+		type = type_stack[cur_struct]
+		print "debug= f_struct_new GEOM_" toupper(type) "_CONFIG", \
+		      struct
+		cur_struct++
+		struct_stack[cur_struct] = struct
+		type_stack[cur_struct] = type "_config"
+	}
+	function extract_attr(field, attr)
+	{
+		if (match(field, attr "=\"0x[[:xdigit:]]+\"")) {
+			len = length(attr)
+			return substr($2, len + 3, RLENGTH - len - 3)
+		}
+	}
+	function extract_data(type)
+	{
+		data = $0
+		sub("^[[:space:]]*<" type ">", "", data)
+		sub("</" type ">.*$", "", data)
+		return data
+	}
+	############################################### OPENING PATTERNS
+	$1 == "<mesh>" { mesh = 1 }
+	$1 ~ /^<(class|geom)$/ && mesh {
+		prop = substr($1, 2)
+		if ((ref = extract_attr($2, "ref")) != "")
+			set_value(prop "_ref", ref)
+		else if ((id = extract_attr($2, "id")) != "")
+			create(prop, id)
+	}
+	$1 ~ /^<(consumer|provider)$/ && mesh {
+		prop = substr($1, 2)
+		if ((ref = extract_attr($2, "ref")) != "")
+			set_value(prop "_ref", ref)
+		else if ((id = extract_attr($2, "id")) != "") {
+			create(prop, id)
+			cur_struct--
+			propn = struct_count[prop]
+			set_value(prop propn, struct_stack[cur_struct+1])
+			cur_struct++
+		}
+	}
+	$1 == "<config>" && mesh { create_config() }
+	############################################### PROPERTIES
+	$1 ~ /^<[[:alnum:]]+>/ {
+		prop = $1
+		sub(/^</, "", prop); sub(/>.*/, "", prop)
+		set_value(prop, extract_data(prop))
+	}
+	############################################### CLOSING PATTERNS
+	$1 ~ "^</(consumer|provider|config)>$" { cur_struct-- }
+	$1 == "</geom>" {
+		set_value("nconsumers", struct_count["consumer"])
+		set_value("nproviders", struct_count["provider"])
+		cur_struct--
+		struct_count["consumer"] = 0
+		struct_count["provider"] = 0
+	}
+	$1 == "</class>" {
+		set_value("ngeoms", struct_count["geom"])
+		cur_struct--
+		struct_count["consumer"] = 0
+		struct_count["provider"] = 0
+		struct_count["geom"] = 0
+	}
+	$1 == "</mesh>" {
+		printf "NGEOM_CLASSES=%u\n", struct_count["class"]
+		delete struct_count
+		mesh = 0
+	}' )"
+}
+
+# f_geom_reset
+#
+# Reset the registered GEOM chain.
+#
+f_geom_reset()
+{
+	local classn=1 class ngeoms geomn geom
+	while [ $classn -le ${NGEOM_CLASSES:-0} ]; do
+		class=geom_class_$classn
+		$class get ngeoms ngeoms
+		geomn=1
+		while [ $geomn -le $ngeoms ]; do
+			f_struct_free ${class}_geom_$geomn
+			geomn=$(( $geomn + 1 ))
+		done
+		classn=$(( $classn + 1 ))
+	done
+	NGEOM_CLASSES=0
+}
+
+# f_geom_rescan
+#
+# Rescan all GEOMs - convenience function.
+#
+f_geom_rescan()
+{
+	f_geom_reset
+	f_geom_get_all
+}
+
+# f_geom_find $name [$type [$var_to_set]]
+#
+# Find one or more registered GEOMs by name, type, or both. Returns a space-
+# separated list of GEOMs matching the search criterion. The $type argument
+# should be the GEOM class (see $GEOM_CLASS_* variables in GLOBALS above).
+#
+# If $var_to_set is missing or NULL, the GEOM name(s) are printed to standard
+# out for capturing in a sub-shell (which is less-recommended because of
+# performance degredation; for example, when called in a loop).
+#
+f_geom_find()
+{
+	local __name="$1" __type="${2:-$GEOM_CLASS_ANY}" __var_to_set="$3"
+	local __classn=1 __class __class_name __ngeoms
+	local __geomn __geom __geom_name __found=
+	while [ $__classn -le ${NGEOM_CLASSES:-0} ]; do
+		__class=geom_class_$__classn
+		$__class get name __class_name
+		if [ "$__type" != "$GEOM_CLASS_ANY" -a \
+		     "$__type" != "$__class_name" ]
+		then
+			__classn=$(( $__classn + 1 ))
+			continue
+		fi
+
+		__geomn=1
+		$__class get ngeoms __ngeoms || __ngeoms=0
+		while [ $__geomn -le $__ngeoms ]; do
+			__geom=${__class}_geom_$__geomn
+			$__geom get name __geom_name
+			[ "$__name" = "$__geom_name" -o ! "$__name" ] &&
+				__found="$__found $__geom"
+			__geomn=$(( $__geomn + 1 ))
+		done
+		__classn=$(( $__classn + 1 ))
+	done
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "${__found# }"
+	else
+		echo $__found
+	fi
+	[ "$__found" ] # Return status
+}
+
+# f_geom_find_by $prop $find [$type [$var_to_set]]
+#
+# Find GEOM-related struct where $prop of the struct is equal to $find. Returns
+# NULL or the name of the first GEOM struct to match. The $type argument should
+# be one of the following:
+#
+# 	NULL		Find any of the below
+# 	class		Find GEOM_CLASS struct
+# 	geom		Find GEOM_GEOM struct
+# 	consumer	Find GEOM_CONSUMER struct
+# 	provider	Find GEOM_PROVIDER struct
+#
+# The $prop argument can be any property of the given type of struct. Some
+# properties are common to all types (such as id) so the $type argument is
+# optional (allowing you to return any struct whose property matches $find).
+#
+# If $var_to_set is missing or NULL, the GEOM struct name is printed to
+# standard out for capturing in a sub-shell (which is less-recommended because
+# of performance degredation; for example when called in a loop).
+#
+f_geom_find_by()
+{
+	local __prop="$1" __find="$2" __type="$3" __var_to_set="$4"
+	local __classn=1 __class __ngeoms
+	local __geomn __geom __nitems
+	local __itype __itemn __item
+	local __value __found=
+
+	if [ ! "$__prop" ]; then
+		[ "$__var_to_set" ] && setvar "$__var_to_set" ""
+		return $FAILURE
+	fi
+
+	case "$__type" in
+	"") : OK ;;
+	class|GEOM_CLASS) __type=class ;;
+	geom|GEOM_GEOM) __type=geom ;;
+	consumer|GEOM_CONSUMER) __type=consumer ;;
+	provider|GEOM_PROVIDER) __type=provider ;;
+	*)
+		[ "$__var_to_set" ] && setvar "$__var_to_set" ""
+		return $FAILURE
+	esac
+
+	while [ $__classn -le ${NGEOM_CLASSES:-0} ]; do
+		__class=geom_class_$__classn
+
+		if [ "${__type:-class}" = "class" ]; then
+			$__class get "$__prop" __value || __value=
+			[ "$__value" = "$__find" ] && __found="$__class" break
+			[ "$__type" ] && __classn=$(( $__classn + 1 )) continue
+		fi
+
+		__geomn=1
+		$__class get ngeoms __ngeoms || __ngeoms=0
+		while [ $__geomn -le $__ngeoms ]; do
+			__geom=${__class}_geom_$__geomn
+
+			if [ "${__type:-geom}" = "geom" ]; then
+				$__geom get "$__prop" __value || __value=
+				[ "$__value" = "$__find" ] &&
+					__found="$__geom" break
+				[ "$__type" ] &&
+					__geomn=$(( $__geomn + 1 )) continue
+			fi
+
+			for __itype in ${__type:-consumer provider}; do
+				$__geom get n${__itype}s __nitems || continue
+				__itemn=1
+				while [ $__itemn -le $__nitems ]; do
+					__item=${__geom}_${__itype}_$__itemn
+
+					$__item get "$__prop" __value ||
+						__value=
+					[ "$__value" = "$__find" ] &&
+						__found="$__item" break
+					__itemn=$(( $__itemn + 1 ))
+				done
+				[ "$__found" ] && break
+			done
+			[ "$__found" ] && break
+			__geomn=$(( $__geomn + 1 ))
+		done
+		[ "$__found" ] && break
+		__classn=$(( $__classn + 1 ))
+	done
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__found"
+	else
+		[ "$__found" ] && echo "$__found"
+	fi
+	[ "$__found" ] # Return status
+}
+
+# f_geom_parent $geom|$consumer|$provider|$config [$var_to_set]
+#
+# Get the GEOM class associated with one of $geom, $consumer, $provider or
+# $config.
+#
+# If $var_to_set is missing or NULL, the GEOM class name is printed to standard
+# out for capturing in a sub-shell (which is less-recommended because of
+# performance degredation; for example when called in a loop).
+#
+f_geom_parent()
+{
+	local __struct="$1" __var_to_set="$2"
+	# NB: Order of pattern matches below is important
+	case "$__struct" in
+	*_config*) __struct="${__struct%_config*}" ;;
+	*_consumer_*) __struct="${__struct%_consumer_[0-9]*}" ;;
+	*_provider_*) __struct="${__struct%_provider_[0-9]*}" ;;
+	*_geom_*) __struct="${__struct%_geom_[0-9]*}" ;;
+	*) __struct=
+	esac
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__struct"
+	else
+		echo "$__struct"
+	fi
+	f_struct "$__struct" # Return status
+}
+
+############################################################ MAIN
+
+#
+# Parse GEOM configuration unless requested otherwise
+#
+f_dprintf "%s: GEOM_SELF_SCAN_ALL=[%s]" geom.subr "$GEOM_SELF_SCAN_ALL"
+case "$GEOM_SELF_SCAN_ALL" in
+""|0|[Nn][Oo]|[Oo][Ff][Ff]|[Ff][Aa][Ll][Ss][Ee]) : do nothing ;;
+*)
+	f_geom_get_all
+	if [ "$debug" ]; then
+		debug= f_geom_find "" "$GEOM_CLASS_ANY" geoms
+		f_count ngeoms $geoms
+		f_dprintf "%s: Initialized %u geom devices in %u classes." \
+		          geom.subr "$ngeoms" "$NGEOM_CLASSES"
+		unset geoms ngeoms
+	fi
+esac
+
+f_dprintf "%s: Successfully loaded." geom.subr
+
+fi # ! $_GEOM_SUBR

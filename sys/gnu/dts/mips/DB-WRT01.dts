@@ -1,0 +1,98 @@
+/dts-v1/;
+
+#include "mt7620a.dtsi"
+
+/ {
+	compatible = "ralink,mt7620a-soc";
+	model = "Planex DB-WRT01";
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		power {
+			label = "db-wrt01:orange:power";
+			gpios = <&gpio1 1 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		s1 {
+			label = "wps";
+			gpios = <&gpio0 2 1>;
+			linux,code = <0x211>;
+		};
+	};
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "mx25l6405d";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x7b0000>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "spi refclk", "rgmii1";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ephy_pins>;
+	mtd-mac-address = <&factory 0x4>;
+	mediatek,portmap = "llllw";
+};
+
+&gsw {
+	mediatek,port4 = "ephy";
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&pcie {
+	status = "okay";
+};

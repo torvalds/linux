@@ -1,0 +1,124 @@
+.\" Copyright (c) 2008 Konstantin Belousov
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 2, 2015
+.Dt DEVFS_CDEVPRIV 9
+.Os
+.Sh NAME
+.Nm devfs_set_cdevpriv ,
+.Nm devfs_get_cdevpriv ,
+.Nm devfs_clear_cdevpriv
+.Nd manage per-open filedescriptor data for devices
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/conf.h
+.Bd -literal
+typedef	void d_priv_dtor_t(void *data);
+.Ed
+.Ft int
+.Fn devfs_get_cdevpriv "void **datap"
+.Ft int
+.Fn devfs_set_cdevpriv "void *priv" "d_priv_dtor_t *dtr"
+.Ft void
+.Fn devfs_clear_cdevpriv "void"
+.Sh DESCRIPTION
+The
+.Fn devfs_xxx_cdevpriv
+family of functions allows the
+.Fa cdev
+driver methods to associate some driver-specific data with each
+user process
+.Xr open 2
+of the device special file.
+Currently, functioning of these functions is restricted to the context
+of the
+.Fa cdevsw
+switch method calls performed as
+.Xr devfs 5
+operations in response to system calls that use filedescriptors.
+.Pp
+The
+.Fn devfs_set_cdevpriv
+function associates a data pointed by
+.Va priv
+with current calling context (filedescriptor).
+The data may be retrieved later, possibly from another call
+performed on this filedescriptor, by the
+.Fn devfs_get_cdevpriv
+function.
+The
+.Fn devfs_clear_cdevpriv
+disassociates previously attached data from context.
+Immediately after
+.Fn devfs_clear_cdevpriv
+finished operating, the
+.Va dtr
+callback is called, with private data supplied
+.Va data
+argument.
+The
+.Fn devfs_clear_cdevpriv
+function will be also be called if the open callback
+function returns an error code.
+.Pp
+On the last filedescriptor close, system automatically arranges
+.Fn devfs_clear_cdevpriv
+call.
+.Pp
+If successful, the functions return 0.
+.Pp
+The function
+.Fn devfs_set_cdevpriv
+returns the following values on error:
+.Bl -tag -width Er
+.It Bq Er ENOENT
+The current call is not associated with some filedescriptor.
+.It Bq Er EBUSY
+The private driver data is already associated with current
+filedescriptor.
+.El
+.Pp
+The function
+.Fn devfs_get_cdevpriv
+returns the following values on error:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The current call is not associated with some filedescriptor.
+.It Bq Er ENOENT
+The private driver data was not associated with current
+filedescriptor, or
+.Fn devfs_clear_cdevpriv
+was called.
+.El
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr open 2 ,
+.Xr devfs 5
+.Sh HISTORY
+The
+.Fn devfs_cdevpriv
+family of functions first appeared in
+.Fx 7.1 .

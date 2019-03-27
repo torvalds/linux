@@ -1,0 +1,4 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=\
+        aria.c
+

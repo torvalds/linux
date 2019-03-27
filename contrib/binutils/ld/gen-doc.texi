@@ -1,0 +1,25 @@
+@c ------------------------------ CONFIGURATION VARS:
+@c 1. Inclusiveness of this manual
+@set GENERIC
+
+@c 2. Specific target machines
+@set ARM
+@set H8300
+@set HPPA
+@set I960
+@set M68HC11
+@set MMIX
+@set MSP430
+@set POWERPC
+@set POWERPC64
+@set Renesas
+@set SPU
+@set TICOFF
+@set WIN32
+@set XTENSA
+
+@c 3. Properties of this configuration
+@clear SingleFormat
+@set UsesEnvVars
+@c ------------------------------ end CONFIGURATION VARS
+

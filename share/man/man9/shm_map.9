@@ -1,0 +1,186 @@
+.\"
+.\" Copyright (c) 2011 Hudson River Trading LLC
+.\" Written by: John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 14, 2011
+.Dt SHM_MAP 9
+.Os
+.Sh NAME
+.Nm shm_map , shm_unmap
+.Nd "map shared memory objects into the kernel's address space"
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/mman.h
+.Ft int
+.Fn shm_map "struct file *fp" "size_t size" "off_t offset" "void **memp"
+.Ft int
+.Fn shm_unmap "struct file *fp" "void *mem" "size_t size"
+.Sh DESCRIPTION
+The
+.Fn shm_map
+and
+.Fn shm_unmap
+functions provide an API for mapping shared memory objects into the kernel.
+Shared memory objects are created by
+.Xr shm_open 2 .
+These objects can then be passed into the kernel via file descriptors.
+.Pp
+A shared memory object cannot be shrunk while it is mapped into the kernel.
+This is to avoid invalidating any pages that may be wired into the kernel's
+address space.
+Shared memory objects can still be grown while mapped into the kernel.
+.Pp
+To simplify the accounting needed to enforce the above requirement,
+callers of this API are required to unmap the entire region mapped by
+.Fn shm_map
+when calling
+.Fn shm_unmap .
+Unmapping only a portion of the region is not permitted.
+.Pp
+The
+.Fn shm_map
+function locates the shared memory object associated with the open file
+.Fa fp .
+It maps the region of that object described by
+.Fa offset
+and
+.Fa size
+into the kernel's address space.
+If it succeeds,
+.Fa *memp
+will be set to the start of the mapping.
+All pages for the range will be wired into memory upon successful return.
+.Pp
+The
+.Fn shm_unmap
+function unmaps a region previously mapped by
+.Fn shm_map .
+The
+.Fa mem
+argument should match the value previously returned in
+.Fa *memp ,
+and the
+.Fa size
+argument should match the value passed to
+.Fn shm_map .
+.Pp
+Note that
+.Fn shm_map
+will not hold an extra reference on the open file
+.Fa fp
+for the lifetime of the mapping.
+Instead,
+the calling code is required to do this if it wishes to use
+.Fn shm_unmap
+on the region in the future.
+.Sh RETURN VALUES
+The
+.Fn shm_map
+and
+.Fn shm_unmap
+functions return zero on success or an error on failure.
+.Sh EXAMPLES
+The following function accepts a file descriptor for a shared memory
+object.
+It maps the first sixteen kilobytes of the object into the kernel,
+performs some work on that address,
+and then unmaps the address before returning.
+.Bd -literal -offset indent
+int
+shm_example(int fd)
+{
+	struct file *fp;
+	void *mem;
+	int error;
+
+	error = fget(curthread, fd, CAP_MMAP, &fp);
+	if (error)
+		return (error);
+	error = shm_map(fp, 16384, 0, &mem);
+	if (error) {
+		fdrop(fp, curthread);
+		return (error);
+	}
+
+	/* Do something with 'mem'. */
+
+	error = shm_unmap(fp, mem, 16384);
+	fdrop(fp, curthread);
+	return (error);
+}
+.Ed
+.Sh ERRORS
+The
+.Fn shm_map
+function returns the following errors on failure:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The open file
+.Fa fp
+is not a shared memory object.
+.It Bq Er EINVAL
+The requested region described by
+.Fa offset
+and
+.Fa size
+extends beyond the end of the shared memory object.
+.It Bq Er ENOMEM
+Insufficient address space was available.
+.It Bq Er EACCES
+The shared memory object could not be mapped due to a protection error.
+.It Bq Er EINVAL
+The shared memory object could not be mapped due to some other VM error.
+.El
+.Pp
+The
+.Fn shm_unmap
+function returns the following errors on failure:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The open file
+.Fa fp
+is not a shared memory object.
+.It Bq Er EINVAL
+The address range described by
+.Fa mem
+and
+.Fa size
+is not a valid address range.
+.It Bq Er EINVAL
+The address range described by
+.Fa mem
+and
+.Fa size
+is not backed by the shared memory object associated with the open file
+.Fa fp ,
+or the address range does not cover the entire mapping of the object.
+.El
+.Sh SEE ALSO
+.Xr shm_open 2
+.Sh HISTORY
+This API was first introduced in
+.Fx 10.0 .

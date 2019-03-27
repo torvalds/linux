@@ -1,0 +1,1078 @@
+.\" Copyright (C) 1996
+.\" David L. Nugent.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY DAVID L. NUGENT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL DAVID L. NUGENT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 8, 2019
+.Dt PW 8
+.Os
+.Sh NAME
+.Nm pw
+.Nd create, remove, modify & display system users and groups
+.Sh SYNOPSIS
+.Nm
+.Op Fl R Ar rootdir
+.Op Fl V Ar etcdir
+.Ar useradd
+.Oo Fl n Oc name Oo Fl u Ar uid Oc
+.Op Fl C Ar config
+.Op Fl q
+.Op Fl c Ar comment
+.Op Fl d Ar dir
+.Op Fl e Ar date
+.Op Fl p Ar date
+.Op Fl g Ar group
+.Op Fl G Ar grouplist
+.Op Fl m
+.Op Fl M Ar mode
+.Op Fl k Ar dir
+.Op Fl w Ar method
+.Op Fl s Ar shell
+.Op Fl o
+.Op Fl L Ar class
+.Op Fl h Ar fd | Fl H Ar fd
+.Op Fl N
+.Op Fl P
+.Op Fl Y
+.Nm
+.Op Fl R Ar rootdir
+.Op Fl V Ar etcdir
+.Ar useradd
+.Fl D
+.Op Fl C Ar config
+.Op Fl q
+.Op Fl b Ar dir
+.Op Fl e Ar days
+.Op Fl p Ar days
+.Op Fl g Ar group
+.Op Fl G Ar grouplist
+.Op Fl k Ar dir
+.Op Fl M Ar mode
+.Op Fl u Ar min , Ns Ar max
+.Op Fl i Ar min , Ns Ar max
+.Op Fl w Ar method
+.Op Fl s Ar shell
+.Op Fl y Ar path
+.Nm
+.Op Fl R Ar rootdir
+.Op Fl V Ar etcdir
+.Ar userdel
+.Oo Fl n Oc name|uid | Fl u Ar uid
+.Op Fl r
+.Op Fl Y
+.Nm
+.Op Fl R Ar rootdir
+.Op Fl V Ar etcdir
+.Ar usermod
+.Oo Fl n Oc name|uid Oo Fl u Ar newuid Oc | Fl u Ar uid
+.Op Fl C Ar config
+.Op Fl q
+.Op Fl c Ar comment
+.Op Fl d Ar dir
+.Op Fl e Ar date
+.Op Fl p Ar date
+.Op Fl g Ar group
+.Op Fl G Ar grouplist
+.Op Fl l Ar newname
+.Op Fl m
+.Op Fl M Ar mode
+.Op Fl k Ar dir
+.Op Fl w Ar method
+.Op Fl s Ar shell
+.Op Fl L Ar class
+.Op Fl h Ar fd | Fl H Ar fd
+.Op Fl N
+.Op Fl P
+.Op Fl Y
+.Nm
+.Op Fl R Ar rootdir
+.Op Fl V Ar etcdir
+.Ar usershow
+.Oo Fl n Oc name|uid | Fl u Ar uid
+.Op Fl F
+.Op Fl P
+.Op Fl 7
+.Op Fl a
+.Nm
+.Op Fl R Ar rootdir
+.Op Fl V Ar etcdir
+.Ar usernext
+.Op Fl C Ar config
+.Op Fl q
+.Nm
+.Op Fl R Ar rootdir
+.Op Fl V Ar etcdir
+.Ar groupadd
+.Oo Fl n Oc name Oo Fl g Ar gid Oc
+.Op Fl C Ar config
+.Op Fl q
+.Op Fl M Ar members
+.Op Fl o
+.Op Fl h Ar fd | Fl H Ar fd
+.Op Fl N
+.Op Fl P
+.Op Fl Y
+.Nm
+.Op Fl R Ar rootdir
+.Op Fl V Ar etcdir
+.Ar groupdel
+.Oo Fl n Oc name|gid | Fl g Ar gid
+.Op Fl Y
+.Nm
+.Op Fl R Ar rootdir
+.Op Fl V Ar etcdir
+.Ar groupmod
+.Oo Fl n Oc name|gid Oo Fl g Ar newgid Oc | Fl g Ar gid
+.Op Fl C Ar config
+.Op Fl q
+.Op Fl l Ar newname
+.Op Fl M Ar members
+.Op Fl m Ar newmembers
+.Op Fl d Ar oldmembers
+.Op Fl h Ar fd | Fl H Ar fd
+.Op Fl N
+.Op Fl P
+.Op Fl Y
+.Nm
+.Op Fl R Ar rootdir
+.Op Fl V Ar etcdir
+.Ar groupshow
+.Oo Fl n Oc name|gid | Fl g Ar gid
+.Op Fl F
+.Op Fl P
+.Op Fl a
+.Nm
+.Op Fl R Ar rootdir
+.Op Fl V Ar etcdir
+.Ar groupnext
+.Op Fl C Ar config
+.Op Fl q
+.Nm
+.Op Fl R Ar rootdir
+.Op Fl V Ar etcdir
+.Ar lock
+.Oo Fl n Oc name|uid | Fl u Ar uid
+.Op Fl C Ar config
+.Op Fl q
+.Nm
+.Op Fl R Ar rootdir
+.Op Fl V Ar etcdir
+.Ar unlock
+.Oo Fl n Oc name|uid | Fl u Ar uid
+.Op Fl C Ar config
+.Op Fl q
+.Sh DESCRIPTION
+The
+.Nm
+utility is a command-line based editor for the system
+.Ar user
+and
+.Ar group
+files, allowing the superuser an easy to use and standardized way of adding,
+modifying and removing users and groups.
+Note that
+.Nm
+only operates on the local user and group files.
+.Tn NIS
+users and groups must be
+maintained on the
+.Tn NIS
+server.
+The
+.Nm
+utility handles updating the
+.Pa passwd ,
+.Pa master.passwd ,
+.Pa group
+and the secure and insecure
+password database files, and must be run as root.
+.Pp
+The first one or two keywords provided to
+.Nm
+on the command line provide the context for the remainder of the arguments.
+The keywords
+.Ar user
+and
+.Ar group
+may be combined with
+.Ar add ,
+.Ar del ,
+.Ar mod ,
+.Ar show ,
+or
+.Ar next
+in any order.
+(For example,
+.Ar showuser ,
+.Ar usershow ,
+.Ar show user ,
+and
+.Ar user show
+all mean the same thing.)
+This flexibility is useful for interactive scripts calling
+.Nm
+for user and group database manipulation.
+Following these keywords,
+the user or group name or numeric id may be optionally specified as an
+alternative to using the
+.Fl n Ar name ,
+.Fl u Ar uid ,
+.Fl g Ar gid
+options.
+.Pp
+The following flags are common to most or all modes of operation:
+.Bl -tag -width "-G grouplist"
+.It Fl R Ar rootdir
+Specifies an alternate root directory within which
+.Nm
+will operate.
+Any paths specified will be relative to
+.Va rootdir .
+.It Fl V Ar etcdir
+Set an alternate location for the password, group, and configuration files.
+Can be used to maintain a user/group database in an alternate location.
+If this switch is specified, the system
+.Pa /etc/pw.conf
+will not be sourced for default configuration data,
+but the file pw.conf in the specified directory will be used instead
+.Pq or none, if it does not exist .
+The
+.Fl C
+flag may be used to override this behaviour.
+As an exception to the general rule where options must follow the operation
+type, the
+.Fl V
+flag must be used on the command line before the operation keyword.
+.It Fl C Ar config
+By default,
+.Nm
+reads the file
+.Pa /etc/pw.conf
+to obtain policy information on how new user accounts and groups are to be created.
+The
+.Fl C
+option specifies a different configuration file.
+While most of the contents of the configuration file may be overridden via
+command-line options, it may be more convenient to keep standard information in a
+configuration file.
+.It Fl q
+Use of this option causes
+.Nm
+to suppress error messages,
+which may be useful in interactive environments where it
+is preferable to interpret status codes returned by
+.Nm
+rather than messing up a carefully formatted display.
+.It Fl N
+This option is available in
+.Ar add
+and
+.Ar modify
+operations, and tells
+.Nm
+to output the result of the operation without updating the user or group
+databases.
+You may use the
+.Fl P
+option to switch between standard passwd and readable formats.
+.It Fl Y
+Using this option with any of the update modes causes
+.Nm
+to run
+.Xr make 1
+after changing to the directory
+.Pa /var/yp .
+This is intended to allow automatic updating of
+.Tn NIS
+database files.
+If separate passwd and group files are being used by
+.Tn NIS ,
+then use the
+.Fl y Ar path
+option to specify the location of the
+.Tn NIS
+passwd database so that
+.Nm
+will concurrently update it with the system password
+databases.
+.El
+.Sh USER OPTIONS
+The following options apply to the
+.Ar useradd
+and
+.Ar usermod
+commands:
+.Bl -tag -width "-G grouplist"
+.It Oo Fl n Oc Ar name
+Required unless
+.Fl u Ar uid
+is given.
+Specify the user/account name.
+In the case of
+.Ar usermod
+can be a uid.
+.It Fl u Ar uid
+Required if
+.Ar name
+is not given.
+Specify the user/account numeric id.
+In the case of
+.Ar usermod
+if paired with
+.Ar name ,
+changes the numeric id of the named user/account.
+.Pp
+Usually, only one of these options is required,
+as the account name will imply the uid, or vice versa.
+However, there are times when both are needed.
+For example, when changing the uid of an existing user with
+.Ar usermod ,
+or overriding the default uid when creating a new account with
+.Ar useradd .
+To automatically allocate the uid to a new user with
+.Ar useradd ,
+then do
+.Em not
+use the
+.Fl u
+option.
+Either the account or userid can also be provided immediately after the
+.Ar useradd ,
+.Ar userdel ,
+.Ar usermod
+or
+.Ar usershow
+keywords on the command line without using the
+.Fl n
+or
+.Fl u
+options.
+.El
+.Bl -tag -width "-G grouplist"
+.It Fl c Ar comment
+This field sets the contents of the passwd GECOS field,
+which normally contains up to four comma-separated fields containing the
+user's full name, office or location,
+and work and home phone numbers.
+These sub-fields are used by convention only, however, and are optional.
+If this field is to contain spaces,
+the comment must be enclosed in double quotes
+.Ql \&" .
+Avoid using commas in this field as these are used as sub-field separators,
+and the colon
+.Ql \&:
+character also cannot be used as this is the field separator for the passwd
+file itself.
+.It Fl d Ar dir
+This option sets the account's home directory.
+Normally,
+this is only used if the home directory is to be different from the
+default determined from
+.Pa /etc/pw.conf
+- normally
+.Pa /home
+with the account name as a subdirectory.
+.It Fl e Ar date
+Set the account's expiration date.
+Format of the date is either a UNIX time in decimal, or a date in
+.Ql dd-mmm-yy[yy]
+format, where dd is the day,
+mmm is the month, either in numeric or alphabetic format
+('Jan', 'Feb', etc) and year is either a two or four digit year.
+This option also accepts a relative date in the form
+.Ql \&+n[mhdwoy]
+where
+.Ql \&n
+is a decimal,
+octal (leading 0) or hexadecimal (leading 0x) digit followed by the
+number of Minutes, Hours, Days, Weeks, Months or Years from the current date at
+which the expiration date is to be set.
+.It Fl p Ar date
+Set the account's password expiration date.
+This field is similar to the account expiration date option, except that it
+applies to forced password changes.
+This is set in the same manner as the
+.Fl e
+option.
+.It Fl g Ar group
+Set the account's primary group to the given group.
+.Ar group
+may be defined by either its name or group number.
+.It Fl G Ar grouplist
+Set secondary group memberships for an account.
+.Ar grouplist
+is a comma, space, or tab-separated list of group names or group numbers.
+The user is added to the groups specified in
+.Ar grouplist ,
+and removed from all groups not specified.
+The current login session is not affected by group membership changes,
+which only take effect when the user reconnects.
+Note: do not add a user to their primary group with
+.Ar grouplist .
+.It Fl L Ar class
+This option sets the login class for the user being created.
+See
+.Xr login.conf 5
+and
+.Xr passwd 5
+for more information on user login classes.
+.It Fl m
+This option instructs
+.Nm
+to attempt to create the user's home directory.
+While primarily useful when adding a new account with
+.Ar useradd ,
+this may also be of use when moving an existing user's home directory elsewhere
+on the file system.
+The new home directory is populated with the contents of the
+.Ar skeleton
+directory, which typically contains a set of shell configuration files that the
+user may personalize to taste.
+Files in this directory are usually named
+.Pa dot . Ns Aq Ar config
+where the
+.Pa dot
+prefix will be stripped.
+When
+.Fl m
+is used on an account with
+.Ar usermod ,
+existing configuration files in the user's home directory are
+.Em not
+overwritten from the skeleton files.
+.Pp
+When a user's home directory is created,
+it will by default be a subdirectory of the
+.Ar basehome
+directory as specified by the
+.Fl b
+option (see below), bearing the name of the new account.
+This can be overridden by the
+.Fl d
+option on the command line, if desired.
+.It Fl M Ar mode
+Create the user's home directory with the specified
+.Ar mode ,
+modified by the current
+.Xr umask 2 .
+If omitted, it is derived from the parent process'
+.Xr umask 2 .
+This option is only useful in combination with the
+.Fl m
+flag.
+.It Fl k Ar dir
+Set the
+.Ar skeleton
+directory, from which basic startup and configuration files are copied when
+the user's home directory is created.
+This option only has meaning when used with the
+.Fl d
+or
+.Fl m
+flags.
+.It Fl s Ar shell
+Set or changes the user's login shell to
+.Ar shell .
+If the path to the shell program is omitted,
+.Nm
+searches the
+.Ar shellpath
+specified in
+.Pa /etc/pw.conf
+and fills it in as appropriate.
+Note that unless you have a specific reason to do so, you should avoid
+specifying the path - this will allow
+.Nm
+to validate that the program exists and is executable.
+Specifying a full path (or supplying a blank "" shell) avoids this check
+and allows for such entries as
+.Pa /nonexistent
+that should be set for accounts not intended for interactive login.
+.It Fl h Ar fd
+This option provides a special interface by which interactive scripts can
+set an account password using
+.Nm .
+Because the command line and environment are fundamentally insecure mechanisms
+by which programs can accept information,
+.Nm
+will only allow setting of account and group passwords via a file descriptor
+(usually a pipe between an interactive script and the program).
+.Ar sh ,
+.Ar bash ,
+.Ar ksh
+and
+.Ar perl
+all possess mechanisms by which this can be done.
+Alternatively,
+.Nm
+will prompt for the user's password if
+.Fl h Ar 0
+is given, nominating
+.Em stdin
+as the file descriptor on which to read the password.
+Note that this password will be read only once and is intended
+for use by a script rather than for interactive use.
+If you wish to have new password confirmation along the lines of
+.Xr passwd 1 ,
+this must be implemented as part of an interactive script that calls
+.Nm .
+.Pp
+If a value of
+.Ql \&-
+is given as the argument
+.Ar fd ,
+then the password will be set to
+.Ql \&* ,
+rendering the account inaccessible via password-based login.
+.It Fl H Ar fd
+Read an encrypted password string from the specified file descriptor.
+This is like
+.Fl h ,
+but the password should be supplied already encrypted in a form
+suitable for writing directly to the password database.
+.El
+.Pp
+It is possible to use
+.Ar useradd
+to create a new account that duplicates an existing user id.
+While this is normally considered an error and will be rejected, the
+.Fl o
+option overrides the check for duplicates and allows the duplication of
+the user id.
+This may be useful if you allow the same user to login under
+different contexts (different group allocations, different home
+directory, different shell) while providing basically the same
+permissions for access to the user's files in each account.
+.Pp
+The
+.Ar useradd
+command also has the ability to set new user and group defaults by using the
+.Fl D
+option.
+Instead of adding a new user,
+.Nm
+writes a new set of defaults to its configuration file,
+.Pa /etc/pw.conf .
+When using the
+.Fl D
+option, you must not use either
+.Fl n Ar name
+or
+.Fl u Ar uid
+or an error will result.
+Use of
+.Fl D
+changes the meaning of several command line switches in the
+.Ar useradd
+command.
+These are:
+.Bl -tag -width "-G grouplist"
+.It Fl D
+Set default values in
+.Pa /etc/pw.conf
+configuration file, or a different named configuration file if the
+.Fl C Ar config
+option is used.
+.It Fl b Ar dir
+Set the root directory in which user home directories are created.
+The default value for this is
+.Pa /home ,
+but it may be set elsewhere as desired.
+.It Fl e Ar days
+Set the default account expiration period in days.
+When
+.Fl D
+is used, the
+.Ar days
+argument is interpreted differently.
+It must be numeric and represents the number of days after creation
+that the account expires.
+A value of 0 suppresses automatic calculation of the expiry date.
+.It Fl p Ar days
+Set the default password expiration period in days.
+When
+.Fl D
+is used, the
+.Ar days
+argument is interpreted differently.
+It must be numeric and represents the number of days after creation
+that the account expires.
+A value of 0 suppresses automatic calculation of the expiry date.
+.It Fl g Ar group
+Set the default group for new users.
+If a blank group is specified using
+.Fl g Ar \&"" ,
+then new users will be allocated their own private primary group
+with the same name as their login name.
+If a group is supplied, either its name or uid may be given as an argument.
+.It Fl G Ar grouplist
+Set the default groups in which new users are granted membership.
+This is a separate set of groups from the primary group.
+Avoid nominating the same group as both primary and extra groups.
+In other words, these extra groups determine membership in groups
+.Em other than
+the primary group.
+.Ar grouplist
+is a comma-separated list of group names or ids, and are always
+stored in
+.Pa /etc/pw.conf
+by their symbolic names.
+.It Fl L Ar class
+This option sets the default login class for new users.
+.It Fl k Ar dir
+Set the default
+.Em skeleton
+directory,
+from which prototype shell and other initialization files are copied when
+.Nm
+creates a user's home directory.
+See description of
+.Fl k
+for naming conventions of these files.
+.It Xo
+.Fl u Ar min , Ns Ar max ,
+.Fl i Ar min , Ns Ar max
+.Xc
+Set the minimum and maximum user and group ids allocated for new
+accounts and groups created by
+.Nm .
+The default values for each is 1000 minimum and 32000 maximum.
+.Ar min
+and
+.Ar max
+are both numbers, where max must be greater than min,
+and both must be between 0 and 32767.
+In general,
+user and group ids less than 100 are reserved for use by the system,
+and numbers greater than 32000 may also be reserved for special purposes
+.Pq used by some system daemons .
+.It Fl w Ar method
+The
+.Fl w
+option selects the default method used to set passwords for newly created user
+accounts.
+.Ar method
+is one of:
+.Pp
+.Bl -tag -width random -offset indent -compact
+.It no
+disable login on newly created accounts
+.It yes
+force the password to be the account name
+.It none
+force a blank password
+.It random
+generate a random password
+.El
+.Pp
+The
+.Ql \&random
+or
+.Ql \&no
+methods are the most secure; in the former case,
+.Nm
+generates a password and prints it to stdout,
+which is suitable when users are issued passwords rather than being allowed
+to select their own
+.Pq possibly poorly chosen
+password.
+The
+.Ql \&no
+method requires that the superuser use
+.Xr passwd 1
+to render the account accessible with a password.
+.It Fl y Ar path
+This sets the pathname of the database used by
+.Tn NIS
+if you are not sharing
+the information from
+.Pa /etc/master.passwd
+directly with
+.Tn NIS .
+You should only set this option for
+.Tn NIS
+servers.
+.El
+.Pp
+The
+.Ar userdel
+command has three distinct options.
+The
+.Fl n Ar name
+and
+.Fl u Ar uid
+options have already been covered above.
+The additional option is:
+.Bl -tag -width "-G grouplist"
+.It Fl r
+This tells
+.Nm
+to remove the user's home directory and all of its contents.
+The
+.Nm
+utility errs on the side of caution when removing files from the system.
+Firstly,
+it will not do so if the uid of the account being removed is also used by
+another account on the system, and the 'home' directory in the password file is
+a valid path that commences with the character
+.Ql \&/ .
+Secondly, it will only remove files and directories that are actually owned by
+the user, or symbolic links owned by anyone under the user's home directory.
+Finally, after deleting all contents owned by the user only empty directories
+will be removed.
+If any additional cleanup work is required, this is left to the administrator.
+.El
+.Pp
+Mail spool files and crontabs are always removed when an account is deleted as
+these are unconditionally attached to the user name.
+Jobs queued for processing by
+.Ar at
+are also removed if the user's uid is unique and not also used by another
+account on the system.
+.Pp
+The
+.Ar usermod
+command adds one additional option:
+.Bl -tag -width "-G grouplist"
+.It Fl l Ar newname
+This option allows changing of an existing account name to
+.Ql \&newname .
+The new name must not already exist, and any attempt to duplicate an
+existing account name will be rejected.
+.El
+.Pp
+The
+.Ar usershow
+command allows viewing of an account in one of two formats.
+By default, the format is identical to the format used in
+.Pa /etc/master.passwd
+with the password field replaced with a
+.Ql \&* .
+If the
+.Fl P
+option is used, then
+.Nm
+outputs the account details in a more human readable form.
+If the
+.Fl 7
+option is used, the account details are shown in v7 format.
+The
+.Fl a
+option lists all users currently on file.
+Using
+.Fl F
+forces
+.Nm
+to print the details of an account even if it does not exist.
+.Pp
+The command
+.Ar usernext
+returns the next available user and group ids separated by a colon.
+This is normally of interest only to interactive scripts or front-ends
+that use
+.Nm .
+.Sh GROUP OPTIONS
+The
+.Fl C
+and
+.Fl q
+options (explained at the start of the previous section) are available
+with the group manipulation commands.
+Other common options to all group-related commands are:
+.Bl -tag -width "-m newmembers"
+.It Oo Fl n Oc Ar name
+Required unless
+.Fl g Ar gid
+is given.
+Specify the group name.
+In the case of
+.Ar groupmod
+can be a gid.
+.It Fl g Ar gid
+Required if
+.Ar name
+is not given.
+Specify the group numeric id.
+In the case of
+.Ar groupmod
+if paired with
+.Ar name ,
+changes the numeric id of the named group.
+.Pp
+As with the account name and id fields, you will usually only need
+to supply one of these, as the group name implies the uid and vice
+versa.
+You will only need to use both when setting a specific group id
+against a new group or when changing the uid of an existing group.
+.It Fl M Ar memberlist
+This option provides an alternative way to add existing users to a
+new group (in groupadd) or replace an existing membership list (in
+groupmod).
+.Ar memberlist
+is a comma separated list of valid and existing user names or uids.
+.It Fl m Ar newmembers
+Similar to
+.Fl M ,
+this option allows the
+.Em addition
+of existing users to a group without replacing the existing list of
+members.
+Login names or user ids may be used, and duplicate users are
+silently eliminated.
+.It Fl d Ar oldmembers
+Similar to
+.Fl M ,
+this option allows the
+.Em deletion
+of existing users from a group without replacing the existing list of
+members.
+Login names or user ids may be used, and duplicate users are
+silently eliminated.
+.El
+.Pp
+.Ar groupadd
+also has a
+.Fl o
+option that allows allocation of an existing group id to a new group.
+The default action is to reject an attempt to add a group,
+and this option overrides the check for duplicate group ids.
+There is rarely any need to duplicate a group id.
+.Pp
+The
+.Ar groupmod
+command adds one additional option:
+.Bl -tag -width "-m newmembers"
+.It Fl l Ar newname
+This option allows changing of an existing group name to
+.Ql \&newname .
+The new name must not already exist,
+and any attempt to duplicate an existing group
+name will be rejected.
+.El
+.Pp
+Options for
+.Ar groupshow
+are the same as for
+.Ar usershow ,
+with the
+.Fl g Ar gid
+replacing
+.Fl u Ar uid
+to specify the group id.
+The
+.Fl 7
+option does not apply to the
+.Ar groupshow
+command.
+.Pp
+The command
+.Ar groupnext
+returns the next available group id on standard output.
+.Sh USER LOCKING
+The
+.Nm
+utility
+supports a simple password locking mechanism for users; it works by
+prepending the string
+.Ql *LOCKED*
+to the beginning of the password field in
+.Pa master.passwd
+to prevent successful authentication.
+.Pp
+The
+.Ar lock
+and
+.Ar unlock
+commands take a user name or uid of the account to lock or unlock,
+respectively.
+The
+.Fl V ,
+.Fl C ,
+and
+.Fl q
+options as described above are accepted by these commands.
+.Sh NOTES
+For a summary of options available with each command, you can use
+.Dl pw [command] help
+For example,
+.Dl pw useradd help
+lists all available options for the useradd operation.
+.Pp
+The
+.Nm
+utility allows 8-bit characters in the passwd GECOS field (user's full name,
+office, work and home phone number subfields), but disallows them in
+user login and group names.
+Use 8-bit characters with caution, as connection to the Internet will
+require that your mail transport program supports 8BITMIME, and will
+convert headers containing 8-bit characters to 7-bit quoted-printable
+format.
+.Xr sendmail 8
+does support this.
+Use of 8-bit characters in the GECOS field should be used in
+conjunction with the user's default locale and character set
+and should not be implemented without their use.
+Using 8-bit characters may also affect other
+programs that transmit the contents of the GECOS field over the
+Internet, such as
+.Xr fingerd 8 ,
+and a small number of TCP/IP clients, such as IRC, where full names
+specified in the passwd file may be used by default.
+.Pp
+The
+.Nm
+utility writes a log to the
+.Pa /var/log/userlog
+file when actions such as user or group additions or deletions occur.
+The location of this logfile can be changed in
+.Xr pw.conf 5 .
+.Sh FILES
+.Bl -tag -width /etc/master.passwd.new -compact
+.It Pa /etc/master.passwd
+The user database
+.It Pa /etc/passwd
+A Version 7 format password file
+.It Pa /etc/login.conf
+The user capabilities database
+.It Pa /etc/group
+The group database
+.It Pa /etc/pw.conf
+Pw default options file
+.It Pa /var/log/userlog
+User/group modification logfile
+.El
+.Sh EXAMPLES
+Add new user Glurmo Smith (gsmith).
+A gsmith login group is created if not already present.
+The login shell is set to
+.Xr csh 1 .
+A new home directory at
+.Pa /home/gsmith
+is created if it does not already exist.
+Finally, a random password is generated and displayed:
+.Bd -literal -offset indent
+pw useradd -n gsmith -c "Glurmo Smith" -s /bin/csh -m -w random
+.Ed
+.Pp
+Delete the gsmith user and their home directory, including contents.
+.Bd -literal -offset indent
+pw userdel -n gsmith -r
+.Ed
+.Pp
+Add the existing user jsmith to the wheel group,
+in addition to the other groups jsmith is already a member of.
+.Bd -literal -offset indent
+pw groupmod wheel -m jsmith
+.Ed
+.Sh EXIT STATUS
+The
+.Nm
+utility returns EXIT_SUCCESS on successful operation, otherwise
+.Nm
+returns one of the
+following exit codes defined by
+.Xr sysexits 3
+as follows:
+.Bl -tag -width xxxx
+.It EX_USAGE
+.Bl -bullet -compact
+.It
+Command line syntax errors (invalid keyword, unknown option).
+.El
+.It EX_NOPERM
+.Bl -bullet -compact
+.It
+Attempting to run one of the update modes as non-root.
+.El
+.It EX_OSERR
+.Bl -bullet -compact
+.It
+Memory allocation error.
+.It
+Read error from password file descriptor.
+.El
+.It EX_DATAERR
+.Bl -bullet -compact
+.It
+Bad or invalid data provided or missing on the command line or
+via the password file descriptor.
+.It
+Attempted to remove, rename root account or change its uid.
+.El
+.It EX_OSFILE
+.Bl -bullet -compact
+.It
+Skeleton directory is invalid or does not exist.
+.It
+Base home directory is invalid or does not exist.
+.It
+Invalid or non-existent shell specified.
+.El
+.It EX_NOUSER
+.Bl -bullet -compact
+.It
+User, user id, group or group id specified does not exist.
+.It
+User or group recorded, added, or modified unexpectedly disappeared.
+.El
+.It EX_SOFTWARE
+.Bl -bullet -compact
+.It
+No more group or user ids available within specified range.
+.El
+.It EX_IOERR
+.Bl -bullet -compact
+.It
+Unable to rewrite configuration file.
+.It
+Error updating group or user database files.
+.It
+Update error for passwd or group database files.
+.El
+.It EX_CONFIG
+.Bl -bullet -compact
+.It
+No base home directory configured.
+.El
+.El
+.Sh SEE ALSO
+.Xr chpass 1 ,
+.Xr passwd 1 ,
+.Xr umask 2 ,
+.Xr group 5 ,
+.Xr login.conf 5 ,
+.Xr passwd 5 ,
+.Xr pw.conf 5 ,
+.Xr pwd_mkdb 8 ,
+.Xr vipw 8
+.Sh HISTORY
+The
+.Nm
+utility was written to mimic many of the options used in the SYSV
+.Em shadow
+support suite, but is modified for passwd and group fields specific to
+the
+.Bx 4.4
+operating system, and combines all of the major elements
+into a single command.

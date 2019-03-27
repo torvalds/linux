@@ -1,0 +1,158 @@
+: DOCDD
+	skip_past_newline
+	get_stuff_in_command kill_bogus_lines catstr
+	;
+
+: ENDDD
+	skip_past_newline
+	;
+
+: EXAMPLE
+	skip_past_newline	
+	get_stuff_in_command kill_bogus_lines do_fancy_stuff translatecomments 
+	courierize catstr
+
+	;
+
+: INODE 
+	"@node " catstr skip_past_newline copy_past_newline catstr 
+	;
+
+: CODE_FRAGMENT
+	EXAMPLE 
+	;
+
+: COMMENT
+	skip_past_newline
+	get_stuff_in_command
+	drop
+	;
+
+: SYNOPSIS
+	skip_past_newline
+	"@strong{Synopsis}\n" catstr
+	"@example\n" catstr
+	get_stuff_in_command  
+	kill_bogus_lines
+	indent
+	catstr
+	"@end example\n" catstr
+
+	;
+
+: func
+	"@findex "	- a
+	skip_past_newline
+	copy_past_newline
+	dup		- a x x 
+	"@subsubsection @code{" - a x x b 
+	swap
+	remchar
+	"}\n" - a x b x c
+	catstr 	catstr 	catstr 	catstr 	catstr 
+	;
+
+: FUNCTION
+	"@findex "	- a
+	skip_past_newline
+	copy_past_newline
+	dup		- a x x 
+	"@subsubsection @code{" - a x x b 
+	swap
+	remchar
+	"}\n" - a x b x c
+	catstr 	catstr 	catstr 	catstr 	catstr 
+	;
+
+: bodytext
+	get_stuff_in_command 
+	bulletize
+	kill_bogus_lines
+	do_fancy_stuff
+	courierize
+	catstr
+	"\n" catstr
+	;
+
+: asection
+	skip_past_newline
+	catstr
+	copy_past_newline 	
+	do_fancy_stuff catstr 	
+	bodytext	
+	;
+
+: SECTION 
+	"@section " asection  ;
+
+: SUBSECTION
+	"@subsection " asection  ;
+
+: SUBSUBSECTION
+	"@subsubsection " asection  ;
+
+: subhead
+	skip_past_newline
+	bodytext
+	;
+
+
+
+	
+: DESCRIPTION 
+	"@strong{Description}@*\n" catstr subhead ;
+
+: RETURNS
+	"@strong{Returns}@*\n" catstr subhead ;
+
+: INTERNAL_FUNCTION
+	func ;
+
+
+: INTERNAL_DEFINITION 
+	func ;
+
+
+: INTERNAL
+	func ;
+
+: TYPEDEF
+	FUNCTION ;
+
+: SENUM
+	skip_past_newline
+	"Here are the possible values for @code{enum "
+	copy_past_newline remchar catstr
+	"}:\n\n" catstr catstr
+	;
+: ENUM
+	skip_past_newline
+	"@deffn {} "
+	copy_past_newline catstr catstr
+	;
+: ENUMX
+	skip_past_newline
+	"@deffnx {} "
+	copy_past_newline catstr
+	catstr
+	;
+: ENUMEQ
+	skip_past_newline
+	"@deffn {} "
+	copy_past_newline catstr catstr
+	skip_past_newline
+	;
+: ENUMEQX
+	skip_past_newline
+	"@deffnx {} "
+	copy_past_newline catstr
+	catstr
+	skip_past_newline
+	;
+: ENUMDOC
+	skip_past_newline
+	get_stuff_in_command
+	strip_trailing_newlines
+	catstr
+	"\n@end deffn\n" catstr
+	;

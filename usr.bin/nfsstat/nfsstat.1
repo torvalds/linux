@@ -1,0 +1,158 @@
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)nfsstat.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd October 1, 2018
+.Dt NFSSTAT 1
+.Os
+.Sh NAME
+.Nm nfsstat
+.Nd display
+.Tn NFS
+statistics
+.Sh SYNOPSIS
+.Nm
+.Op Fl -libxo
+.Op Fl cdEemszW
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl w Ar wait
+.Sh DESCRIPTION
+The
+.Nm
+command displays statistics kept about
+.Tn NFS
+client and server activity.
+For the NFSv4 server, the statistics are for operations within the Compound
+RPCs and not the count of RPCs.
+If you wish to compare RPC counts between NFSv3 and NFSv4, you must use
+statistics in the client(s).
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl c
+Only display client side statistics.
+.It Fl d
+Display statistics for the NFS server that are similar to those
+displayed by
+.Xr iostat 8 .
+This includes kilobytes per transfer, transfers per second, and megabytes per
+second for read, write, and all operations.
+It also includes the current queue depth, the busy percentage, and latency
+for all operations.
+If the
+.Fl W
+flag is added, commits per second, commit latency, read latency, and write
+latency are also added to the display.
+The busy percentage shown can exceed 100 at times.
+This is because of the way busy percentages are calculated.
+The busy time is calculated by adding the elapsed time between the
+last time an operation started or finished,
+and the current time.
+If there is only one operation outstanding, the "busy time" time
+will get updated with the total time of that operation.
+That means that the difference in the busy time between the two
+measurement intervals (often 1 second)
+will increase by more than the measurement interval.
+.It Fl e
+Report the extra statistics collected by the NFS client and
+server for NFSv4.
+.It Fl E
+Similar to
+.Fl e
+except that the statistics include NFSv4.1 and the numbers aren't clipped
+at one billion.
+Only one of
+.Fl e
+or
+.Fl E
+can be specified.
+.It Fl M
+Extract values associated with the name list from the specified core
+instead of the default
+.Pa /dev/kmem .
+.It Fl m
+Report the mount options for all NFS client mounts.
+This option overrides all others and
+.Nm
+will exit after completing the report.
+.It Fl N
+Extract the name list from the specified system instead of the default
+.Pa /boot/kernel/kernel .
+.It Fl s
+Only display server side statistics.
+.It Fl W
+Use wide format with interval short summary.
+This option is especially
+useful when combined with
+.Fl c ,
+.Fl d ,
+or
+.Fl s
+and a time delay.
+.It Fl w
+Display a shorter summary of
+.Tn NFS
+activity for both the client and server at
+.Ar wait
+second intervals.
+.It Fl z
+Reset statistics after displaying them.
+.It Fl q
+Do not print header
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /boot/kernel/kernel" -compact
+.It Pa /boot/kernel/kernel
+default kernel namelist
+.It Pa /dev/kmem
+default memory file
+.El
+.Sh SEE ALSO
+.Xr fstat 1 ,
+.Xr netstat 1 ,
+.Xr ps 1 ,
+.Xr systat 1 ,
+.Xr sysctl 3 ,
+.Xr iostat 8 ,
+.Xr nfsdumpstate 8 ,
+.Xr pstat 8 ,
+.Xr vmstat 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.4 .

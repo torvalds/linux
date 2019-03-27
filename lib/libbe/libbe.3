@@ -1,0 +1,504 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2017 Kyle Kneitinger
+.\" All rights reserved.
+.\" Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 12, 2019
+.Dt LIBBE 3
+.Os
+.Sh NAME
+.Nm libbe
+.Nd library for creating, destroying and modifying ZFS boot environments
+.Sh LIBRARY
+.Lb libbe
+.Sh SYNOPSIS
+.In be.h
+.Ft "libbe_handle_t *hdl" Ns
+.Fn libbe_init "const char *be_root"
+.Pp
+.Ft void
+.Fn libbe_close "libbe_handle_t *hdl"
+.Pp
+.Ft const char * Ns
+.Fn be_active_name "libbe_handle_t *hdl"
+.Pp
+.Ft const char * Ns
+.Fn be_active_path "libbe_handle_t *hdl"
+.Pp
+.Ft const char * Ns
+.Fn be_nextboot_name "libbe_handle_t *hdl"
+.Pp
+.Ft const char * Ns
+.Fn be_nextboot_path "libbe_handle_t *hdl"
+.Pp
+.Ft const char * Ns
+.Fn be_root_path "libbe_handle_t *hdl"
+.Pp
+.Ft int
+.Fn be_create "libbe_handle_t *hdl" "const char *be_name"
+.Pp
+.Ft int
+.Fn be_create_from_existing "libbe_handle_t *hdl" "const char *be_name" "const char *be_origin"
+.Pp
+.Ft int
+.Fn be_create_from_existing_snap "libbe_handle_t *hdl" "const char *be_name" "const char *snap"
+.Pp
+.Ft int
+.Fn be_rename "libbe_handle_t *hdl" "const char *be_old" "const char *be_new"
+.Pp
+.Ft int
+.Fn be_activate "libbe_handle_t *hdl" "const char *be_name" "bool temporary"
+.Ft int
+.Fn be_destroy "libbe_handle_t *hdl" "const char *be_name" "int options"
+.Pp
+.Ft void
+.Fn be_nicenum "uint64_t num" "char *buf" "size_t bufsz"
+.Pp
+.\" TODO: Write up of mount options
+.\" typedef enum {
+.\"	BE_MNT_FORCE		= 1 << 0,
+.\"	BE_MNT_DEEP		= 1 << 1,
+.\" } be_mount_opt_t
+.Ft int
+.Fn be_mount "libbe_handle_t *hdl" "char *be_name" "char *mntpoint" "int flags" "char *result"
+.Pp
+.Ft int
+.Fn be_mounted_at "libbe_handle_t *hdl" "const char *path" "nvlist_t *details"
+.Pp
+.Ft int
+.Fn be_unmount "libbe_handle_t *hdl" "char *be_name" "int flags"
+.Pp
+.Ft int
+.Fn libbe_errno "libbe_handle_t *hdl"
+.Pp
+.Ft const char * Ns
+.Fn libbe_error_description "libbe_handle_t *hdl"
+.Pp
+.Ft void
+.Fn libbe_print_on_error "libbe_handle_t *hdl" "bool doprint"
+.Pp
+.Ft int
+.Fn be_root_concat "libbe_handle_t *hdl" "const char *be_name" "char *result"
+.Pp
+.Ft int
+.Fn be_validate_name "libbe_handle_t *hdl" "const char *be_name"
+.Pp
+.Ft int
+.Fn be_validate_snap "libbe_handle_t *hdl" "const char *snap"
+.Pp
+.Ft int
+.Fn be_exists "libbe_handle_t *hdl" "char *be_name"
+.Pp
+.Ft int
+.Fn be_export "libbe_handle_t *hdl" "const char *be_name" "int fd"
+.Pp
+.Ft int
+.Fn be_import "libbe_handle_t *hdl" "const char *be_name" "int fd"
+.Pp
+.Ft int
+.Fn be_prop_list_alloc "nvlist_t **prop_list"
+.Pp
+.Ft int
+.Fn be_get_bootenv_props "libbe_handle_t *hdl" "nvlist_t *be_list"
+.Pp
+.Ft int
+.Fn be_get_dataset_props "libbe_handle_t *hdl" "const char *ds_name" "nvlist_t *props"
+.Pp
+.Ft int
+.Fn be_get_dataset_snapshots "libbe_handle_t *hdl" "const char *ds_name" "nvlist_t *snap_list"
+.Pp
+.Ft void
+.Fn be_prop_list_free "nvlist_t *prop_list"
+.Sh DESCRIPTION
+.Nm
+interfaces with libzfs to provide a set of functions for various operations
+regarding ZFS boot environments including "deep" boot environments in which
+a boot environments has child datasets.
+.Pp
+A context structure is passed to each function, allowing for a small amount
+of state to be retained, such as errors from previous operations.
+.Nm
+may be configured to print the corresponding error message to
+.Dv stderr
+when an error is encountered with
+.Fn libbe_print_on_error .
+.Pp
+All functions returning an
+.Vt int
+return 0 on success, or a
+.Nm
+errno otherwise as described in
+.Sx DIAGNOSTICS .
+.Pp
+The
+.Fn libbe_init
+function takes an optional BE root and initializes
+.Nm ,
+returning a
+.Vt "libbe_handle_t *"
+on success, or
+.Dv NULL
+on error.
+If a BE root is supplied,
+.Nm
+will only operate out of that pool and BE root.
+An error may occur if:
+.Bl -column
+.It /boot and / are not on the same filesystem and device,
+.It libzfs fails to initialize,
+.It The system has not been properly booted with a ZFS boot
+environment,
+.It Nm
+fails to open the zpool the active boot environment resides on, or
+.It Nm
+fails to locate the boot environment that is currently mounted.
+.El
+.Pp
+The
+.Fn libbe_close
+function frees all resources previously acquired in
+.Fn libbe_init ,
+invalidating the handle in the process.
+.Pp
+The
+.Fn be_active_name
+function returns the name of the currently booted boot environment.
+This boot environment may not belong to the same BE root as the root libbe
+is operating on!
+.Pp
+The
+.Fn be_active_path
+function returns the full path of the currently booted boot environment.
+This boot environment may not belong to the same BE root as the root libbe
+is operating on!
+.Pp
+The
+.Fn be_nextboot_name
+function returns the name of the boot environment that will be active on reboot.
+.Pp
+The
+.Fn be_nextboot_path
+function returns the full path of the boot environment that will be
+active on reboot.
+.Pp
+The
+.Fn be_root_path
+function returns the boot environment root path.
+.Pp
+The
+.Fn be_create
+function creates a boot environment with the given name.
+It will be created from a snapshot of the currently booted boot environment.
+.Pp
+The
+.Fn be_create_from_existing
+function creates a boot environment with the given name from the name of an
+existing boot environment.
+A snapshot will be made of the base boot environment, and the new boot
+environment will be created from that.
+.Pp
+The
+.Fn be_create_from_existing_snap
+function creates a boot environment with the given name from an existing
+snapshot.
+.Pp
+The
+.Fn be_rename
+function renames a boot environment without unmounting it, as if renamed with
+the
+.Fl u
+argument were passed to
+.Nm zfs
+.Cm rename
+.Pp
+The
+.Fn be_activate
+function makes a boot environment active on the next boot.
+If the
+.Fa temporary
+flag is set, then it will be active for the next boot only, as done by
+.Xr zfsbootcfg 8 .
+Next boot functionality is currently only available when booting in x86 BIOS
+mode.
+.Pp
+The
+.Fn be_destroy
+function will recursively destroy the given boot environment.
+It will not destroy a mounted boot environment unless the
+.Dv BE_DESTROY_FORCE
+option is set in
+.Fa options .
+If the
+.Dv BE_DESTROY_ORIGIN
+option is set in
+.Fa options ,
+the
+.Fn be_destroy
+function will destroy the origin snapshot to this boot environment as well.
+.Pp
+The
+.Fn be_nicenum
+function will format
+.Fa name
+in a traditional ZFS humanized format, similar to
+.Xr humanize_number 3 .
+This function effectively proxies
+.Fn zfs_nicenum
+from libzfs.
+.Pp
+The
+.Fn be_mount
+function will mount the given boot environment.
+If
+.Fa mountpoint
+is
+.Dv NULL ,
+a mount point will be generated in
+.Pa /tmp
+using
+.Xr mkdtemp 3 .
+If
+.Fa result
+is not
+.Dv NULL ,
+it should be large enough to accommodate
+.Dv BE_MAXPATHLEN
+including the null terminator.
+the final mount point will be copied into it.
+Setting the
+.Dv BE_MNT_FORCE
+flag will pass
+.Dv MNT_FORCE
+to the underlying
+.Xr mount 2
+call.
+.Pp
+The
+.Fn be_mounted_at
+function will check if there is a boot environment mounted at the given
+.Fa path .
+If
+.Fa details
+is not
+.Dv NULL ,
+it will be populated with a list of the mounted dataset's properties.
+This list of properties matches the properties collected by
+.Fn be_get_bootenv_props .
+.Pp
+The
+.Fn be_unmount
+function will unmount the given boot environment.
+Setting the
+.Dv BE_MNT_FORCE
+flag will pass
+.Dv MNT_FORCE
+to the underlying
+.Xr mount 2
+call.
+.Pp
+The
+.Fn libbe_errno
+function returns the
+.Nm
+errno.
+.Pp
+The
+.Fn libbe_error_description
+function returns a string description of the currently set
+.Nm
+errno.
+.Pp
+The
+.Fn libbe_print_on_error
+function will change whether or not
+.Nm
+prints the description of any encountered error to
+.Dv stderr ,
+based on
+.Fa doprint .
+.Pp
+The
+.Fn be_root_concat
+function will concatenate the boot environment root and the given boot
+environment name into
+.Fa result .
+.Pp
+The
+.Fn be_validate_name
+function will validate the given boot environment name for both length
+restrictions as well as valid character restrictions.
+This function does not set the internal library error state.
+.Pp
+The
+.Fn be_validate_snap
+function will validate the given snapshot name.
+The snapshot must have a valid name, exist, and have a mountpoint of
+.Pa / .
+This function does not set the internal library error state.
+.Pp
+The
+.Fn be_exists
+function will check whether the given boot environment exists and has a
+mountpoint of
+.Pa / .
+This function does not set the internal library error state, but will return
+the appropriate error.
+.Pp
+The
+.Fn be_export
+function will export the given boot environment to the file specified by
+.Fa fd .
+A snapshot will be created of the boot environment prior to export.
+.Pp
+The
+.Fn be_import
+function will import the boot environment in the file specified by
+.Fa fd ,
+and give it the name
+.Fa be_name .
+.Pp
+The
+.Fn be_prop_list_alloc
+function allocates a property list suitable for passing to
+.Fn be_get_bootenv_props ,
+.Fn be_get_dataset_props ,
+or
+.Fn be_get_dataset_snapshots .
+It should be freed later by
+.Fa be_prop_list_free .
+.Pp
+The
+.Fn be_get_bootenv_props
+function will populate
+.Fa be_list
+with
+.Vt nvpair_t
+of boot environment names paired with an
+.Vt nvlist_t
+of their properties.
+The following properties are currently collected as appropriate:
+.Bl -column "Returned name"
+.It Sy Returned name Ta Sy Description
+.It dataset Ta -
+.It name Ta Boot environment name
+.It mounted Ta Current mount point
+.It mountpoint Ta Do mountpoint Dc property
+.It origin Ta Do origin Dc property
+.It creation Ta Do creation Dc property
+.It active Ta Currently booted environment
+.It used Ta Literal Do used Dc property
+.It usedds Ta Literal Do usedds Dc property
+.It usedsnap Ta Literal Do usedrefreserv Dc property
+.It referenced Ta Literal Do referenced Dc property
+.It nextboot Ta Active on next boot
+.El
+.Pp
+Only the
+.Dq dataset ,
+.Dq name ,
+.Dq active ,
+and
+.Dq nextboot
+returned values will always be present.
+All other properties may be omitted if not available.
+.Pp
+The
+.Fn be_get_dataset_props
+function will get properties of the specified dataset.
+.Fa props
+is populated directly with a list of the properties as returned by
+.Fn be_get_bootenv_props .
+.Pp
+The
+.Fn be_get_dataset_snapshots
+function will retrieve all snapshots of the given dataset.
+.Fa snap_list
+will be populated with a list of
+.Vt nvpair_t
+exactly as specified by
+.Fn be_get_bootenv_props .
+.Pp
+The
+.Fn be_prop_list_free
+function will free the property list.
+.Sh DIAGNOSTICS
+Upon error, one of the following values will be returned:
+.Bl -dash -offset indent -compact
+.It
+BE_ERR_SUCCESS
+.It
+BE_ERR_INVALIDNAME
+.It
+BE_ERR_EXISTS
+.It
+BE_ERR_NOENT
+.It
+BE_ERR_PERMS
+.It
+BE_ERR_DESTROYACT
+.It
+BE_ERR_DESTROYMNT
+.It
+BE_ERR_BADPATH
+.It
+BE_ERR_PATHBUSY
+.It
+BE_ERR_PATHLEN
+.It
+BE_ERR_BADMOUNT
+.It
+BE_ERR_NOORIGIN
+.It
+BE_ERR_MOUNTED
+.It
+BE_ERR_NOMOUNT
+.It
+BE_ERR_ZFSOPEN
+.It
+BE_ERR_ZFSCLONE
+.It
+BE_ERR_IO
+.It
+BE_ERR_NOPOOL
+.It
+BE_ERR_NOMEM
+.It
+BE_ERR_UNKNOWN
+.It
+BE_ERR_INVORIGIN
+.El
+.Sh SEE ALSO
+.Xr bectl 8
+.Sh HISTORY
+.Nm
+and its corresponding command,
+.Xr bectl 8 ,
+were written as a 2017 Google Summer of Code project with Allan Jude serving
+as a mentor.
+Later work was done by
+.An Kyle Evans Aq Mt kevans@FreeBSD.org .

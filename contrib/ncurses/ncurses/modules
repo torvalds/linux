@@ -1,0 +1,244 @@
+# $Id: modules,v 1.120 2013/01/26 22:17:55 tom Exp $
+##############################################################################
+# Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.                #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+# Author: Thomas E. Dickey	1996-on
+#
+
+@ base
+# Library objects
+hardscroll	lib		$(serial)	$(HEADER_DEPS)
+hashmap		lib		$(serial)	$(HEADER_DEPS)
+lib_addch	lib		$(base)		$(HEADER_DEPS)
+lib_addstr	lib		$(base)		$(HEADER_DEPS)
+lib_beep	lib		$(base)		$(HEADER_DEPS)
+lib_bkgd	lib		$(base)		$(HEADER_DEPS)
+lib_box 	lib		$(base)		$(HEADER_DEPS)
+lib_chgat	lib		$(base)		$(HEADER_DEPS)
+lib_clear	lib		$(base)		$(HEADER_DEPS)
+lib_clearok	lib		$(base)		$(HEADER_DEPS)
+lib_clrbot	lib		$(base)		$(HEADER_DEPS)
+lib_clreol	lib		$(base)		$(HEADER_DEPS)
+lib_color	lib		$(base)		$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_colorset	lib		$(base)		$(HEADER_DEPS)
+lib_delch	lib		$(base)		$(HEADER_DEPS)
+lib_delwin	lib		$(base)		$(HEADER_DEPS)
+lib_echo	lib		$(base)		$(HEADER_DEPS)
+lib_endwin	lib		$(base)		$(HEADER_DEPS)
+lib_erase	lib		$(base)		$(HEADER_DEPS)
+lib_flash	lib		$(base)		$(HEADER_DEPS)
+lib_gen 	lib		.		$(HEADER_DEPS)
+lib_getch	lib		$(base)		$(HEADER_DEPS)	$(srcdir)/fifo_defs.h
+lib_getstr	lib		$(base)		$(HEADER_DEPS)
+lib_hline	lib		$(base)		$(HEADER_DEPS)
+lib_immedok	lib		$(base)		$(HEADER_DEPS)
+lib_inchstr	lib		$(base)		$(HEADER_DEPS)
+lib_initscr	lib		$(base)		$(HEADER_DEPS)
+lib_insch	lib		$(base)		$(HEADER_DEPS)
+lib_insdel	lib		$(base)		$(HEADER_DEPS)
+lib_insnstr	lib		$(base)		$(HEADER_DEPS)
+lib_instr	lib		$(base)		$(HEADER_DEPS)
+lib_isendwin	lib		$(base)		$(HEADER_DEPS)
+lib_leaveok	lib		$(base)		$(HEADER_DEPS)
+lib_mouse	lib		$(base)		$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_move	lib		$(base)		$(HEADER_DEPS)
+lib_mvcur	lib		$(serial)	$(HEADER_DEPS)	$(INCDIR)/tic.h $(srcdir)/../progs/dump_entry.h
+lib_mvwin	lib		$(base)		$(HEADER_DEPS)
+lib_newterm	lib		$(base)		$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_newwin	lib		$(base)		$(HEADER_DEPS)
+lib_nl		lib		$(base)		$(HEADER_DEPS)
+lib_overlay	lib		$(base)		$(HEADER_DEPS)
+lib_pad 	lib		$(base)		$(HEADER_DEPS)
+lib_printw	lib		$(base)		$(HEADER_DEPS)
+lib_redrawln	lib		$(base)		$(HEADER_DEPS)
+lib_refresh	lib		$(base)		$(HEADER_DEPS)
+lib_restart	lib		$(base)		$(HEADER_DEPS)
+lib_scanw	lib		$(base)		$(HEADER_DEPS)
+lib_screen	lib		$(base)		$(HEADER_DEPS)
+lib_scroll	lib		$(base)		$(HEADER_DEPS)
+lib_scrollok	lib		$(base)		$(HEADER_DEPS)
+lib_scrreg	lib		$(base)		$(HEADER_DEPS)
+lib_set_term	lib		$(base)		$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_slk 	lib		$(base)		$(HEADER_DEPS)
+lib_slkatr_set	lib		$(base)		$(HEADER_DEPS)
+lib_slkatrof 	lib		$(base)		$(HEADER_DEPS)
+lib_slkatron 	lib		$(base)		$(HEADER_DEPS)
+lib_slkatrset 	lib		$(base)		$(HEADER_DEPS)
+lib_slkattr 	lib		$(base)		$(HEADER_DEPS)
+lib_slkclear 	lib		$(base)		$(HEADER_DEPS)
+lib_slkcolor 	lib		$(base)		$(HEADER_DEPS)
+lib_slkinit 	lib		$(base)		$(HEADER_DEPS)
+lib_slklab	lib		$(base)		$(HEADER_DEPS)
+lib_slkrefr	lib		$(base)		$(HEADER_DEPS)
+lib_slkset	lib		$(base)		$(HEADER_DEPS)
+lib_slktouch	lib		$(base)		$(HEADER_DEPS)
+lib_touch	lib		$(base)		$(HEADER_DEPS)
+lib_tracedmp	lib		$(trace)	$(HEADER_DEPS)
+lib_tracemse	lib		$(trace)	$(HEADER_DEPS)
+lib_tstp	lib		$(serial)	$(HEADER_DEPS)	$(srcdir)/SigAction.h
+lib_ungetch	lib		$(base)		$(HEADER_DEPS)	$(srcdir)/fifo_defs.h
+lib_vidattr	lib		$(serial)	$(HEADER_DEPS)
+lib_vline	lib		$(base)		$(HEADER_DEPS)
+lib_wattroff	lib		$(base)		$(HEADER_DEPS)
+lib_wattron	lib		$(base)		$(HEADER_DEPS)
+lib_winch	lib		$(base)		$(HEADER_DEPS)
+lib_window	lib		$(base)		$(HEADER_DEPS)
+link_test 	lib		.		$(HEADER_DEPS)
+nc_panel	lib		$(base)		$(HEADER_DEPS)
+safe_sprintf	lib		$(base)		$(HEADER_DEPS)
+tty_update	lib		$(serial)	$(HEADER_DEPS)
+varargs		lib		$(trace)	$(HEADER_DEPS)
+
+# Modules for porting
+vsscanf 	lib		$(base)		$(HEADER_DEPS)
+
+# actually an extension, but with its own configure option (--disable-leaks)
+lib_freeall	lib		$(base)		$(HEADER_DEPS)	$(INCDIR)/tic.h
+
+# XSI extensions to the base library (wide-character)
+@ widechar
+charable	lib		$(wide)		$(HEADER_DEPS)
+lib_add_wch	lib		$(wide)		$(HEADER_DEPS)
+lib_box_set	lib		$(wide)		$(HEADER_DEPS)
+lib_cchar	lib		$(wide)		$(HEADER_DEPS)
+lib_erasewchar	lib		$(wide)		$(HEADER_DEPS)
+lib_get_wch	lib		$(wide)		$(HEADER_DEPS)
+lib_get_wstr	lib		$(wide)		$(HEADER_DEPS)
+lib_hline_set	lib		$(wide)		$(HEADER_DEPS)
+lib_in_wch	lib		$(wide)		$(HEADER_DEPS)
+lib_in_wchnstr	lib		$(wide)		$(HEADER_DEPS)
+lib_ins_wch	lib		$(wide)		$(HEADER_DEPS)
+lib_inwstr	lib		$(wide)		$(HEADER_DEPS)
+lib_key_name	lib		$(wide)		$(HEADER_DEPS)
+lib_pecho_wchar	lib		$(wide)		$(HEADER_DEPS)
+lib_slk_wset	lib		$(wide)		$(HEADER_DEPS)
+lib_unget_wch	lib		$(wide)		$(HEADER_DEPS)
+lib_vid_attr	lib		$(wide)		$(HEADER_DEPS)
+lib_vline_set	lib		$(wide)		$(HEADER_DEPS)
+lib_wacs	lib		$(wide)		$(HEADER_DEPS)
+lib_wunctrl	lib		$(wide)		$(HEADER_DEPS)
+
+# Extensions to the base library
+@ ext_funcs
+expanded	lib		.		$(HEADER_DEPS)
+legacy_coding	lib		$(base)		$(HEADER_DEPS)
+lib_dft_fgbg	lib		$(base)		$(HEADER_DEPS)
+lib_print	lib		$(tinfo)	$(HEADER_DEPS)
+resizeterm	lib		$(base)		$(HEADER_DEPS)
+trace_xnames	lib		$(trace)	$(HEADER_DEPS)
+use_screen	lib		$(tinfo)	$(HEADER_DEPS)
+use_window	lib		$(base)		$(HEADER_DEPS)
+wresize		lib		$(base)		$(HEADER_DEPS)
+
+# Support for termcap (and tic, etc.), which can be a separate library
+@ termlib
+access		lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+add_tries	lib		$(tinfo)	$(HEADER_DEPS)
+alloc_ttype	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+codes		lib		.		$(HEADER_DEPS)
+comp_captab	lib		.		$(HEADER_DEPS)	$(INCDIR)/tic.h ../include/hashsize.h
+comp_error	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+comp_hash	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h ../include/hashsize.h
+db_iterator	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+doalloc		lib		$(tinfo)	$(HEADER_DEPS)
+entries		lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+fallback	lib		.		$(HEADER_DEPS)
+free_ttype	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+getenv_num	lib		$(tinfo)	$(HEADER_DEPS)
+home_terminfo	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+init_keytry	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h init_keytry.h
+lib_acs 	lib		$(tinfo)	$(HEADER_DEPS)
+lib_baudrate	lib		$(tinfo)	$(HEADER_DEPS)	../include/termcap.h
+lib_cur_term	lib		$(tinfo)	$(HEADER_DEPS)	../include/termcap.h
+lib_data	lib		$(tinfo)	$(HEADER_DEPS)
+lib_has_cap	lib		$(tinfo)	$(HEADER_DEPS)
+lib_kernel	lib		$(tinfo)	$(HEADER_DEPS)
+lib_keyname	lib		.		$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_longname	lib		$(tinfo)	$(HEADER_DEPS)
+lib_napms	lib		$(tinfo)	$(HEADER_DEPS)
+lib_options	lib		$(tinfo)	$(HEADER_DEPS)
+lib_raw 	lib		$(tinfo)	$(HEADER_DEPS)
+lib_setup	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_termcap	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h ../include/termcap.h $(INCDIR)/capdefaults.c
+lib_termname	lib		$(tinfo)	$(HEADER_DEPS)
+lib_tgoto	lib		$(tinfo)	$(HEADER_DEPS)	../include/termcap.h
+lib_ti		lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_tparm	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_tputs	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h ../include/termcap.h
+lib_trace	lib		$(trace)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_traceatr	lib		$(trace)	$(HEADER_DEPS)
+lib_tracebits	lib		$(trace)	$(HEADER_DEPS)
+lib_tracechr	lib		$(trace)	$(HEADER_DEPS)
+lib_ttyflags	lib		$(tinfo)	$(HEADER_DEPS)
+lib_twait	lib		$(serial)	$(HEADER_DEPS)
+name_match	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+names		lib		.		$(HEADER_DEPS)
+obsolete	lib		$(tinfo)	$(HEADER_DEPS)
+read_entry	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h $(INCDIR)/hashed_db.h
+read_termcap	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+strings		lib		$(tinfo)	$(HEADER_DEPS)
+trace_buf	lib		$(trace)	$(HEADER_DEPS)
+trace_tries	lib		$(trace)	$(HEADER_DEPS)
+tries		lib		$(base)		$(HEADER_DEPS)
+trim_sgr0	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+unctrl		lib		.		$(HEADER_DEPS)
+visbuf		lib		$(trace)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+
+# Modules used only for tic, other programs using internal interfaces
+@ ticlib
+alloc_entry	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+captoinfo	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+comp_expand	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+comp_parse	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+comp_scan	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+parse_entry	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h ../include/parametrized.h
+write_entry	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h $(INCDIR)/hashed_db.h
+
+# Extensions to the termlib library
+@ ext_tinfo
+define_key	lib		$(base)		$(HEADER_DEPS)
+hashed_db	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h $(INCDIR)/hashed_db.h
+key_defined	lib		$(base)		$(HEADER_DEPS)
+keybound	lib		$(base)		$(HEADER_DEPS)
+keyok		lib		$(base)		$(HEADER_DEPS)
+version		lib		$(base)		$(HEADER_DEPS)
+
+# Porting
+@ port_drivers
+lib_driver      lib             $(base)		$(HEADER_DEPS)
+
+@ port_win32con
+gettimeofday	lib		$(win32con)	$(HEADER_DEPS)
+wcwidth		lib             $(win32con)	$(HEADER_DEPS)
+widechars	lib             $(wide)		$(HEADER_DEPS)
+win_driver	lib             $(win32con)	$(HEADER_DEPS)
+
+@ port_tinfo
+tinfo_driver	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+
+# vile:makemode

@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+{
+	trap - INT
+	${SH} -c 'kill -INT $PPID' &
+	wait
+} &
+wait $!
+r=$?
+[ "$r" -gt 128 ] && [ "$(kill -l "$r")" = INT ]

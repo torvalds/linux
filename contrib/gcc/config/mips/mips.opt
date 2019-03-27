@@ -1,0 +1,222 @@
+; Options for the MIPS port of the compiler
+;
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT
+; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+; or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+; License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+mabi=
+Target RejectNegative Joined
+-mabi=ABI	Generate code that conforms to the given ABI
+
+mabicalls
+Target Report Mask(ABICALLS)
+Generate code that can be used in SVR4-style dynamic objects
+
+mad
+Target Report Var(TARGET_MAD)
+Use PMC-style 'mad' instructions
+
+march=
+Target RejectNegative Joined Var(mips_arch_string)
+-march=ISA	Generate code for the given ISA
+
+mbranch-likely
+Target Report Mask(BRANCHLIKELY)
+Use Branch Likely instructions, overriding the architecture default
+
+mcheck-zero-division
+Target Report Mask(CHECK_ZERO_DIV)
+Trap on integer divide by zero
+
+mdivide-breaks
+Target Report RejectNegative Mask(DIVIDE_BREAKS)
+Use branch-and-break sequences to check for integer divide by zero
+
+mdivide-traps
+Target Report RejectNegative InverseMask(DIVIDE_BREAKS, DIVIDE_TRAPS)
+Use trap instructions to check for integer divide by zero
+
+mdouble-float
+Target Report RejectNegative InverseMask(SINGLE_FLOAT, DOUBLE_FLOAT)
+Allow hardware floating-point instructions to cover both 32-bit and 64-bit operations
+
+mdsp
+Target Report Mask(DSP)
+Use MIPS-DSP instructions
+
+mdebug
+Target Var(TARGET_DEBUG_MODE) Undocumented
+
+mdebugd
+Target Var(TARGET_DEBUG_D_MODE) Undocumented
+
+meb
+Target Report RejectNegative Mask(BIG_ENDIAN)
+Use big-endian byte order
+
+mel
+Target Report RejectNegative InverseMask(BIG_ENDIAN, LITTLE_ENDIAN)
+Use little-endian byte order
+
+membedded-data
+Target Report Var(TARGET_EMBEDDED_DATA)
+Use ROM instead of RAM
+
+mexplicit-relocs
+Target Report Mask(EXPLICIT_RELOCS)
+Use NewABI-style %reloc() assembly operators
+
+mfix-r4000
+Target Report Mask(FIX_R4000)
+Work around certain R4000 errata
+
+mfix-r4400
+Target Report Mask(FIX_R4400)
+Work around certain R4400 errata
+
+mfix-sb1
+Target Report Var(TARGET_FIX_SB1)
+Work around errata for early SB-1 revision 2 cores
+
+mfix-vr4120
+Target Report Var(TARGET_FIX_VR4120)
+Work around certain VR4120 errata
+
+mfix-vr4130
+Target Report Var(TARGET_FIX_VR4130)
+Work around VR4130 mflo/mfhi errata
+
+mfix4300
+Target Report Var(TARGET_4300_MUL_FIX)
+Work around an early 4300 hardware bug
+
+mfp-exceptions
+Target Report Mask(FP_EXCEPTIONS)
+FP exceptions are enabled
+
+mfp32
+Target Report RejectNegative InverseMask(FLOAT64)
+Use 32-bit floating-point registers
+
+mfp64
+Target Report RejectNegative Mask(FLOAT64)
+Use 64-bit floating-point registers
+
+mflush-func=
+Target RejectNegative Joined Var(mips_cache_flush_func) Init(CACHE_FLUSH_FUNC)
+-mflush-func=FUNC	Use FUNC to flush the cache before calling stack trampolines
+
+mfused-madd
+Target Report Mask(FUSED_MADD)
+Generate floating-point multiply-add instructions
+
+mgp32
+Target Report RejectNegative InverseMask(64BIT)
+Use 32-bit general registers
+
+mgp64
+Target Report RejectNegative Mask(64BIT)
+Use 64-bit general registers
+
+mhard-float
+Target Report RejectNegative InverseMask(SOFT_FLOAT, HARD_FLOAT)
+Allow the use of hardware floating-point instructions
+
+mips
+Target RejectNegative Joined
+-mipsN	Generate code for ISA level N
+
+mips16
+Target Report RejectNegative Mask(MIPS16)
+Generate mips16 code
+
+mips3d
+Target Report RejectNegative Mask(MIPS3D)
+Use MIPS-3D instructions
+
+mlong-calls
+Target Report Var(TARGET_LONG_CALLS)
+Use indirect calls
+
+mlong32
+Target Report RejectNegative InverseMask(LONG64, LONG32)
+Use a 32-bit long type
+
+mlong64
+Target Report RejectNegative Mask(LONG64)
+Use a 64-bit long type
+
+mmemcpy
+Target Report Var(TARGET_MEMCPY)
+Don't optimize block moves
+
+mmips-tfile
+Target
+Use the mips-tfile postpass
+
+mno-flush-func
+Target RejectNegative
+Do not use a cache-flushing function before calling stack trampolines
+
+mno-mips16
+Target Report RejectNegative InverseMask(MIPS16)
+Generate normal-mode code
+
+mno-mips3d
+Target Report RejectNegative InverseMask(MIPS3D)
+Do not use MIPS-3D instructions
+
+mpaired-single
+Target Report Mask(PAIRED_SINGLE_FLOAT)
+Use paired-single floating-point instructions
+
+mshared
+Target Report Var(TARGET_SHARED) Init(1)
+When generating -mabicalls code, make the code suitable for use in shared libraries
+
+msingle-float
+Target Report RejectNegative Mask(SINGLE_FLOAT)
+Restrict the use of hardware floating-point instructions to 32-bit operations
+
+msoft-float
+Target Report RejectNegative Mask(SOFT_FLOAT)
+Prevent the use of all hardware floating-point instructions
+
+msplit-addresses
+Target Report Mask(SPLIT_ADDRESSES)
+Optimize lui/addiu address loads
+
+msym32
+Target Report Var(TARGET_SYM32)
+Assume all symbols have 32-bit values
+
+mtune=
+Target RejectNegative Joined Var(mips_tune_string)
+-mtune=PROCESSOR	Optimize the output for PROCESSOR
+
+muninit-const-in-rodata
+Target Report Var(TARGET_UNINIT_CONST_IN_RODATA)
+Put uninitialized constants in ROM (needs -membedded-data)
+
+mvr4130-align
+Target Report Mask(VR4130_ALIGN)
+Perform VR4130-specific alignment optimizations
+
+mxgot
+Target Report Var(TARGET_XGOT)
+Lift restrictions on GOT size

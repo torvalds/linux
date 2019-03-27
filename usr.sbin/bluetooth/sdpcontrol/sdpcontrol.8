@@ -1,0 +1,118 @@
+.\" Copyright (c) 2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: sdpcontrol.8,v 1.1 2003/09/08 02:27:27 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd February 7, 2015
+.Dt SDPCONTROL 8
+.Os
+.Sh NAME
+.Nm sdpcontrol
+.Nd Bluetooth Service Discovery Protocol query utility
+.Sh SYNOPSIS
+.Nm
+.Fl h
+.Nm
+.Fl a Ar address
+.Ar command
+.Op Ar parameters ...
+.Nm
+.Fl l
+.Op Fl c Ar path
+.Ar command
+.Op Ar parameters ...
+.Sh DESCRIPTION
+The
+.Nm
+utility attempts to query the specified Service Discovery Protocol (SDP) server.
+Remote SDP servers are identified by their address.
+Connection to the local SDP server is made via the control socket.
+The
+.Nm
+utility uses Service Search Attribute Requests and prints results to
+standard output and error messages to standard error.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a Ar address
+Connect to the remote device with the specified address.
+The address can be specified as BD_ADDR or a name.
+If a name was specified, the
+.Nm
+utility attempts to resolve the name via
+.Xr bt_gethostbyname 3 .
+.It Fl c Ar path
+Specify path to the control socket.
+The default path is
+.Pa /var/run/sdp .
+.It Fl h
+Display usage message and exit.
+.It Fl l
+Query the local SDP server via the control socket.
+.It Ar command
+One of the supported commands (see below).
+The special command
+.Cm help
+can be used to obtain a list of all supported commands.
+To get more information about a specific command, use
+.Cm help Ar command .
+.It Ar parameters
+One or more optional space separated command parameters.
+.El
+.Sh COMMANDS
+The currently supported node commands in
+.Nm
+are:
+.Pp
+.Bl -tag -width "Browse" -offset indent -compact
+.It Cm Browse
+.It Cm Search
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr bluetooth 3 ,
+.Xr sdp 3
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
+.Sh CAVEATS
+The
+.Nm
+utility only implements client side functionality.
+.Pp
+The
+.Nm
+utility only requests the following attributes from the SDP server:
+.Pp
+.Bl -enum -offset indent -compact
+.It
+Service Record Handle
+.It
+Service Class ID List
+.It
+Protocol Descriptor List
+.It
+Bluetooth Profile Descriptor List
+.El

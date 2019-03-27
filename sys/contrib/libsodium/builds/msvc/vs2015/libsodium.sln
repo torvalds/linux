@@ -1,0 +1,52 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libsodium", "libsodium\libsodium.vcxproj", "{A185B162-6CB6-4502-B03F-B56F7699A8D9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		DynDebug|Win32 = DynDebug|Win32
+		DynDebug|x64 = DynDebug|x64
+		DynRelease|Win32 = DynRelease|Win32
+		DynRelease|x64 = DynRelease|x64
+		LtcgDebug|Win32 = LtcgDebug|Win32
+		LtcgDebug|x64 = LtcgDebug|x64
+		LtcgRelease|Win32 = LtcgRelease|Win32
+		LtcgRelease|x64 = LtcgRelease|x64
+		StaticDebug|Win32 = StaticDebug|Win32
+		StaticDebug|x64 = StaticDebug|x64
+		StaticRelease|Win32 = StaticRelease|Win32
+		StaticRelease|x64 = StaticRelease|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.DynDebug|Win32.ActiveCfg = DebugDLL|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.DynDebug|Win32.Build.0 = DebugDLL|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.DynDebug|x64.ActiveCfg = DebugDLL|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.DynDebug|x64.Build.0 = DebugDLL|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.DynRelease|Win32.ActiveCfg = ReleaseDLL|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.DynRelease|Win32.Build.0 = ReleaseDLL|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.DynRelease|x64.ActiveCfg = ReleaseDLL|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.DynRelease|x64.Build.0 = ReleaseDLL|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.LtcgDebug|Win32.ActiveCfg = DebugLTCG|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.LtcgDebug|Win32.Build.0 = DebugLTCG|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.LtcgDebug|x64.ActiveCfg = DebugLTCG|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.LtcgDebug|x64.Build.0 = DebugLTCG|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.LtcgRelease|Win32.ActiveCfg = ReleaseLTCG|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.LtcgRelease|Win32.Build.0 = ReleaseLTCG|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.LtcgRelease|x64.ActiveCfg = ReleaseLTCG|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.LtcgRelease|x64.Build.0 = ReleaseLTCG|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.StaticDebug|Win32.ActiveCfg = DebugLIB|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.StaticDebug|Win32.Build.0 = DebugLIB|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.StaticDebug|x64.ActiveCfg = DebugLIB|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.StaticDebug|x64.Build.0 = DebugLIB|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.StaticRelease|Win32.ActiveCfg = ReleaseLIB|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.StaticRelease|Win32.Build.0 = ReleaseLIB|Win32
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.StaticRelease|x64.ActiveCfg = ReleaseLIB|x64
+		{A185B162-6CB6-4502-B03F-B56F7699A8D9}.StaticRelease|x64.Build.0 = ReleaseLIB|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

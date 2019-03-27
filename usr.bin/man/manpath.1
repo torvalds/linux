@@ -1,0 +1,118 @@
+.\"-
+.\"  Copyright (c) 2010 Gordon Tetlow
+.\"  All rights reserved.
+.\"
+.\"  Redistribution and use in source and binary forms, with or without
+.\"  modification, are permitted provided that the following conditions
+.\"  are met:
+.\"  1. Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\"  2. Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\"
+.\"  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\"  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\"  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\"  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\"  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\"  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\"  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\"  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\"  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\"  SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 11, 2017
+.Dt MANPATH 1
+.Os
+.Sh NAME
+.Nm manpath
+.Nd display search path for manual pages
+.Sh SYNOPSIS
+.Nm
+.Op Fl Ldq
+.Sh DESCRIPTION
+The
+.Nm
+utility determines the user's manual search path from
+the user's
+.Ev PATH ,
+and local configuration files.
+This result is echoed to the standard output.
+.Bl -tag -width ".Fl d"
+.It Fl L
+Output manual locales list instead of the manual path.
+.It Fl d
+Print extra debugging information.
+.It Fl q
+Suppresses warning messages.
+.El
+.Sh IMPLEMENTATION NOTES
+The
+.Nm
+utility constructs the manual path from two sources:
+.Bl -enum -compact
+.It
+From each component of the user's
+.Ev PATH
+for the first of:
+.Bl -dash -compact
+.It
+.Pa pathname/man
+.It
+.Pa pathname/MAN
+.It
+If pathname ends with /bin:
+.Pa pathname/../share/man
+and
+.Pa pathname/../man
+.El
+.It
+The configuration files listed in the
+.Sx FILES
+section for
+.Va MANPATH
+entries.
+.El
+The information from these locations is then concatenated together.
+.Pp
+If the
+.Fl L
+flag is set, the
+.Nm
+utility will search the configuration files listed in the
+.Sx FILES
+section for
+.Va MANLOCALE
+entries.
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev MANLOCALES"
+.It Ev MANLOCALES
+If set with the
+.Fl L
+flag, causes the utility to display a warning and the value, overriding any
+other configuration found on the system.
+.It Ev MANPATH
+If set, causes the utility to display a warning and the value, overriding
+any other configuration found on the system.
+.It Ev PATH
+Influences the manual path as described in the
+.Sx IMPLEMENTATION NOTES .
+.El
+.Sh FILES
+.Bl -tag -width indent -compact
+.It Pa /etc/man.conf
+System configuration file.
+.It Pa /usr/local/etc/man.d/*.conf
+Local configuration files.
+.El
+.Sh SEE ALSO
+.Xr apropos 1 ,
+.Xr man 1 ,
+.Xr whatis 1 ,
+.Xr man.conf 5

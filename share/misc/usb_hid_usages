@@ -1,0 +1,1740 @@
+# $FreeBSD$
+#
+# USB HID usage table
+# Syntax:
+#  - lines that do not start with a white space give the number and name of
+#    a usage page.
+#  - lines that start with a white space give the number and name of
+#    a usage with the last given page.
+#    If the number is * then the line matches all usages and the name
+#    is a printf formatting string that will be given the usage number.
+#
+1	Generic Desktop
+	0x00	Undefined
+	0x01	Pointer
+	0x02	Mouse
+	0x03	Reserved
+	0x04	Joystick
+	0x05	Game Pad
+	0x06	Keyboard
+	0x07	Keypad
+	0x08	Multi-axis Controller
+	0x09	Tablet PC System Controls
+	0x30	X
+	0x31	Y
+	0x32	Z
+	0x33	Rx
+	0x34	Ry
+	0x35	Rz
+	0x36	Slider
+	0x37	Dial
+	0x38	Wheel
+	0x39	Hat Switch
+	0x3A	Counted Buffer
+	0x3B	Byte Count
+	0x3C	Motion Wakeup
+	0x3D	Start
+	0x3E	Select
+	0x40	Vx
+	0x41	Vy
+	0x42	Vz
+	0x43	Vbrx
+	0x44	Vbry
+	0x45	Vbrx
+	0x46	Vno
+	0x47	Feature Notification
+	0x48	Resolution Multiplier
+	0x80	System Control
+	0x81	System Power Down
+	0x82	System Sleep
+	0x83	System Wake Up
+	0x84	System Context Menu
+	0x85	System Main Menu
+	0x86	System App Menu
+	0x87	System Menu Help
+	0x88	System Menu Exit
+	0x89	System Menu Select
+	0x8A	System Menu Right
+	0x8B	System Menu Left
+	0x8C	System Menu Up
+	0x8D	System Menu Down
+	0x8E	System Cold Restart
+	0x8F	System Warm Restart
+	0x90	D-pad Up
+	0x91	D-pad Down
+	0x92	D-pad Right
+	0x93	D-pad Left
+	0xA0	System Dock
+	0xA1	System Undock
+	0xA2	System Setup
+	0xA3	System Break
+	0xA4	System Debugger Break
+	0xA5	Application Break
+	0xA6	Application Debugger Break
+	0xA7	System Speaker Mute
+	0xA8	System Hibernate
+	0xB0	System Display Invert
+	0xB1	System Display Internal
+	0xB2	System Display External
+	0xB3	System Display Both
+	0xB4	System Display Dual
+	0xB5	System Display Toggle Int/Ext
+	0xB6	System Display Swap Primary/Secondary
+	0xB7	System Display LCD Autoscale
+
+2	Simulation Controls
+	0x00	Undefined
+	0x01	Flight Simulation Device
+	0x02	Automobile Simulation Device
+	0x03	Tank Simulation Device
+	0x04	Spaceship Simulation Device
+	0x05	Submarine Simulation Device
+	0x06	Sailing Simulation Device
+	0x07	Motorcycle Simulation Device
+	0x08	Sports Simulation Device
+	0x09	Airplane Simulation Device
+	0x0A	Helicopter Simulation Device
+	0x0B	Magic Carpet Simulation Device
+	0x0C	Bicycle Simulation Device
+	0x20	Flight Control Stick
+	0x21	Flight Stick
+	0x22	Cyclic Control
+	0x23	Cyclic Trim
+	0x24	Flight Yoke
+	0x25	Track Control
+	0x26	Reserved
+	0xB0	Aileron
+	0xB1	Aileron Trim
+	0xB2	Anti-Torque Control
+	0xB3	Autopilot Enable
+	0xB4	Chaff Release
+	0xB5	Collective Control
+	0xB6	Dive Brake
+	0xB7	Electronic Countermeasures
+	0xB8	Elevator
+	0xB9	Elevator Trim
+	0xBA	Rudder
+	0xBB	Throttle
+	0xBC	Flight Communication
+	0xBD	Flare Release
+	0xBE	Landing Gear
+	0xBF	Toe Brake
+	0xC0	Trigger
+	0xC1	Weapons Arm
+	0xC2	Weapons Select
+	0xC3	Wing Flaps
+	0xC4	Accelerator
+	0xC5	Brake
+	0xC6	Clutch
+	0xC7	Shifter
+	0xC8	Steering
+	0xC9	Turret Direction
+	0xCA	Barrel Elevation
+	0xCB	Dive Plane
+	0xCC	Ballast
+	0xCD	Bicycle Crank
+	0xCE	Handle Bars
+	0xCF	Front Brake
+	0xD0	Rear Brake
+
+3	VR Controls
+	0x00	Unidentified
+	0x01	Belt
+	0x02	Body Suit
+	0x03	Flexor
+	0x04	Glove
+	0x05	Head Tracker
+	0x06	Head Mounted Display
+	0x07	Hand Tracker
+	0x08	Oculometer
+	0x09	Vest
+	0x0A	Animatronic Device
+	0x20	Stereo Enable
+	0x21	Display Enable
+
+4	Sports Controls
+	0x00	Unidentified
+	0x01	Baseball Bat
+	0x02	Golf Club
+	0x03	Rowing Machine
+	0x04	Treadmill
+	0x30	Oar
+	0x31	Slope
+	0x32	Rate
+	0x33	Stick Speed
+	0x34	Stick Face Angle
+	0x35	Stick Heel/Toe
+	0x36	Stick Follow Through
+	0x37	Stick Tempo
+	0x38	Stick Type
+	0x39	Stick Height
+	0x50	Putter
+	0x51	1 Iron
+	0x52	2 Iron
+	0x53	3 Iron
+	0x54	4 Iron
+	0x55	5 Iron
+	0x56	6 Iron
+	0x57	7 Iron
+	0x58	8 Iron
+	0x59	9 Iron
+	0x5A	10 Iron
+	0x5B	11 Iron
+	0x5C	Sand Wedge
+	0x5D	Loft Wedge
+	0x5E	Power Wedge
+	0x5F	1 Wood
+	0x60	3 Wood
+	0x61	5 Wood
+	0x62	7 Wood
+	0x63	9 Wood
+
+5	Game Controls
+	0x00	Undefined
+	0x01	3D Game Controller
+	0x02	Pinball Device
+	0x03	Gun Device
+	0x20	Point of View
+	0x21	Turn Right/Left
+	0x22	Pitch Forward/Backward
+	0x23	Roll Right/Left
+	0x24	Move Right/Left
+	0x25	Move Forward/Backward
+	0x26	Move Up/Down
+	0x27	Lean Right/Left
+	0x28	Lean Forward/Backward
+	0x29	Height of POV
+	0x2A	Flipper
+	0x2B	Secondary Flipper
+	0x2C	Bump
+	0x2D	New Game
+	0x2E	Shoot Ball
+	0x2F	Player
+	0x30	Gun Bolt
+	0x31	Gun Clip
+	0x32	Gun Selector
+	0x33	Gun Single Shot
+	0x34	Gun Burst
+	0x35	Gun Automatic
+	0x36	Gun Safety
+	0x37	Gamepad Fire/Jump
+	0x39	Gamepad Trigger
+
+6	Generic Device Control
+	0x00	Unidentified
+	0x20	Battery Strength
+	0x21	Wireless Channel
+	0x22	Wireless ID
+	0x23	Discover Wireless Control
+	0x24	Security Code Character Entered
+	0x25	Security Code Character Erased
+	0x26	Security Code Cleared
+
+7	Keyboard
+	0x00	Reserved (no event indicated)
+	0x01	Keyboard ErrorRollOver
+	0x02	Keyboard POSTFail
+	0x03	Keyboard ErrorUndefined
+	0x04	Keyboard a and A
+	0x05	Keyboard b and B
+	0x06	Keyboard c and C
+	0x07	Keyboard d and D
+	0x08	Keyboard e and E
+	0x09	Keyboard f and F
+	0x0A	Keyboard g and G
+	0x0B	Keyboard h and H
+	0x0C	Keyboard i and I
+	0x0D	Keyboard j and J
+	0x0E	Keyboard k and K
+	0x0F	Keyboard l and L
+	0x10	Keyboard m and M
+	0x11	Keyboard n and N
+	0x12	Keyboard o and O
+	0x13	Keyboard p and P
+	0x14	Keyboard q and Q
+	0x15	Keyboard r and R
+	0x16	Keyboard s and S
+	0x17	Keyboard t and T
+	0x18	Keyboard u and U
+	0x19	Keyboard v and V
+	0x1A	Keyboard w and W
+	0x1B	Keyboard x and X
+	0x1C	Keyboard y and Y
+	0x1D	Keyboard z and Z
+	0x1E	Keyboard 1 and !
+	0x1F	Keyboard 2 and @
+	0x20	Keyboard 3 and #
+	0x21	Keyboard 4 and $
+	0x22	Keyboard 5 and %
+	0x23	Keyboard 6 and ^
+	0x24	Keyboard 7 and &
+	0x25	Keyboard 8 and *
+	0x26	Keyboard 9 and (
+	0x27	Keyboard 0 and )
+	0x28	Keyboard Return (ENTER)
+	0x29	Keyboard ESCAPE
+	0x2A	Keyboard DELETE (Backspace)
+	0x2B	Keyboard Tab
+	0x2C	Keyboard Spacebar
+	0x2D	Keyboard - and (underscore)
+	0x2E	Keyboard = and +
+	0x2F	Keyboard [ and {
+	0x30	Keyboard ] and }
+	0x31	Keyboard \ and |
+	0x32	Keyboard Non-US # and ~
+	0x33	Keyboard ; and :
+	0x34	Keyboard ' and "
+	0x35	Keyboard Grave Accent and Tilde
+	0x36	Keyboard , and <
+	0x37	Keyboard . and >
+	0x38	Keyboard / and ?
+	0x39	Keyboard Caps Lock
+	0x3A	Keyboard F1
+	0x3B	Keyboard F2
+	0x3C	Keyboard F3
+	0x3D	Keyboard F4
+	0x3E	Keyboard F5
+	0x3F	Keyboard F6
+	0x40	Keyboard F7
+	0x41	Keyboard F8
+	0x42	Keyboard F9
+	0x43	Keyboard F10
+	0x44	Keyboard F11
+	0x45	Keyboard F12
+	0x46	Keyboard PrintScreen
+	0x47	Keyboard Scroll Lock
+	0x48	Keyboard Pause
+	0x49	Keyboard Insert
+	0x4A	Keyboard Home
+	0x4B	Keyboard PageUp
+	0x4C	Keyboard Delete Forward
+	0x4D	Keyboard End
+	0x4E	Keyboard PageDown
+	0x4F	Keyboard RightArrow
+	0x50	Keyboard LeftArrow
+	0x51	Keyboard DownArrow
+	0x52	Keyboard UpArrow
+	0x53	Keypad Num Lock and Clear
+	0x54	Keypad /
+	0x55	Keypad *
+	0x56	Keypad -
+	0x57	Keypad +
+	0x58	Keypad ENTER
+	0x59	Keypad 1 and End
+	0x5A	Keypad 2 and Down Arrow
+	0x5B	Keypad 3 and PageDn
+	0x5C	Keypad 4 and Left Arrow
+	0x5D	Keypad 5
+	0x5E	Keypad 6 and Right Arrow
+	0x5F	Keypad 7 and Home
+	0x60	Keypad 8 and Up Arrow
+	0x61	Keypad 9 and PageUp
+	0x62	Keypad 0 and Insert
+	0x63	Keypad . and Delete
+	0x64	Keyboard Non-US \ and |
+	0x65	Keyboard Application
+	0x66	Keyboard Power
+	0x67	Keypad =
+	0x68	Keyboard F13
+	0x69	Keyboard F14
+	0x6A	Keyboard F15
+	0x6B	Keyboard F16
+	0x6C	Keyboard F17
+	0x6D	Keyboard F18
+	0x6E	Keyboard F19
+	0x6F	Keyboard F20
+	0x70	Keyboard F21
+	0x71	Keyboard F22
+	0x72	Keyboard F23
+	0x73	Keyboard F24
+	0x74	Keyboard Execute
+	0x75	Keyboard Help
+	0x76	Keyboard Menu
+	0x77	Keyboard Select
+	0x78	Keyboard Stop
+	0x79	Keyboard Again
+	0x7A	Keyboard Undo
+	0x7B	Keyboard Cut
+	0x7C	Keyboard Copy
+	0x7D	Keyboard Paste
+	0x7E	Keyboard Find
+	0x7F	Keyboard Mute
+	0x80	Keyboard Volume Up
+	0x81	Keyboard Volume Down
+	0x82	Keyboard Locking Caps Lock
+	0x83	Keyboard Locking Num Lock
+	0x84	Keyboard Locking Scroll Lock
+	0x85	Keypad Comma
+	0x86	Keypad Equal Sign
+	0x87	Keyboard International1
+	0x88	Keyboard International2
+	0x89	Keyboard International3
+	0x8A	Keyboard International4
+	0x8B	Keyboard International5
+	0x8C	Keyboard International6
+	0x8D	Keyboard International7
+	0x8E	Keyboard International8
+	0x8F	Keyboard International9
+	0x90	Keyboard LANG1
+	0x91	Keyboard LANG2
+	0x92	Keyboard LANG3
+	0x93	Keyboard LANG4
+	0x94	Keyboard LANG5
+	0x95	Keyboard LANG6
+	0x96	Keyboard LANG7
+	0x97	Keyboard LANG8
+	0x98	Keyboard LANG9
+	0x99	Keyboard Alternate Erase
+	0x9A	Keyboard SysReq/Attention
+	0x9B	Keyboard Cancel
+	0x9C	Keyboard Clear
+	0x9D	Keyboard Prior
+	0x9E	Keyboard Return
+	0x9F	Keyboard Separator
+	0xA0	Keyboard Out
+	0xA1	Keyboard Oper
+	0xA2	Keyboard Clear/Again
+	0xA3	Keyboard CrSel/Props
+	0xA4	Keyboard ExSel
+	0xB0	Keypad 00
+	0xB1	Keypad 000
+	0xB2	Thousands Separator
+	0xB3	Decimal Separator
+	0xB4	Currency Unit
+	0xB5	Currency Sub-unit
+	0xB6	Keypad (
+	0xB7	Keypad )
+	0xB8	Keypad {
+	0xB9	Keypad }
+	0xBA	Keypad Tab
+	0xBB	Keypad Backspace
+	0xBC	Keypad A
+	0xBD	Keypad B
+	0xBE	Keypad C
+	0xBF	Keypad D
+	0xC0	Keypad E
+	0xC1	Keypad F
+	0xC2	Keypad XOR
+	0xC3	Keypad ^
+	0xC4	Keypad %
+	0xC5	Keypad <
+	0xC6	Keypad >
+	0xC7	Keypad &
+	0xC8	Keypad &&
+	0xC9	Keypad |
+	0xCA	Keypad ||
+	0xCB	Keypad :
+	0xCC	Keypad #
+	0xCD	Keypad Space
+	0xCE	Keypad @
+	0xCF	Keypad !
+	0xD0	Keypad Memory Store
+	0xD1	Keypad Memory Recall
+	0xD2	Keypad Memory Clear
+	0xD3	Keypad Memory Add
+	0xD4	Keypad Memory Subtract
+	0xD5	Keypad Memory Multiply
+	0xD6	Keypad Memory Divide
+	0xD7	Keypad +/-
+	0xD8	Keypad Clear
+	0xD9	Keypad Clear Entry
+	0xDA	Keypad Binary
+	0xDB	Keypad Octal
+	0xDC	Keypad Decimal
+	0xDD	Keypad Hexadecimal
+	0xE0	Keyboard LeftControl
+	0xE1	Keyboard LeftShift
+	0xE2	Keyboard LeftAlt
+	0xE3	Keyboard Left GUI
+	0xE4	Keyboard RightControl
+	0xE5	Keyboard RightShift
+	0xE6	Keyboard RightAlt
+	0xE7	Keyboard Right GUI
+
+8	LEDs
+	0x00	Undefined
+	0x01	Num Lock
+	0x02	Caps Lock
+	0x03	Scroll Lock
+	0x04	Compose
+	0x05	Kana
+	0x06	Power
+	0x07	Shift
+	0x08	Do Not Disturb
+	0x09	Mute
+	0x0A	Tone Enable
+	0x0B	High Cut Filter
+	0x0C	Low Cut Filter
+	0x0D	Equalizer Enable
+	0x0E	Sound Field On
+	0x0F	Surround On
+	0x10	Repeat
+	0x11	Stereo
+	0x12	Sampling Rate Detect
+	0x13	Spinning
+	0x14	CAV
+	0x15	CLV
+	0x16	Recording Format Detect
+	0x17	Off-Hook
+	0x18	Ring
+	0x19	Message Waiting
+	0x1A	Data Mode
+	0x1B	Battery Operation
+	0x1C	Battery OK
+	0x1D	Battery Low
+	0x1E	Speaker
+	0x1F	Head Set
+	0x20	Hold
+	0x21	Microphone
+	0x22	Coverage
+	0x23	Night Mode
+	0x24	Send Calls
+	0x25	Call Pickup
+	0x26	Conference
+	0x27	Stand-by
+	0x28	Camera On
+	0x29	Camera Off
+	0x2A	On-Line
+	0x2B	Off-Line
+	0x2C	Busy
+	0x2D	Ready
+	0x2E	Paper-Out
+	0x2F	Paper-Jam
+	0x30	Remote
+	0x31	Forward
+	0x32	Reverse
+	0x33	Stop
+	0x34	Rewind
+	0x35	Fast Forward
+	0x36	Play
+	0x37	Pause
+	0x38	Record
+	0x39	Error
+	0x3A	Usage Selected Indicator
+	0x3B	Usage In Use Indicator
+	0x3C	Usage Multi Mode Indicator
+	0x3D	Indicator On
+	0x3E	Indicator Flash
+	0x3F	Indicator Slow Blink
+	0x40	Indicator Fast Blink
+	0x41	Indicator Off
+	0x42	Flash On Time
+	0x43	Slow Blink On Time
+	0x44	Slow Blink Off Time
+	0x45	Fast Blink On Time
+	0x46	Fast Blink Off Time
+	0x47	Usage Indicator Color
+	0x48	Indicator Red
+	0x49	Indicator Green
+	0x4A	Indicator Amber
+	0x4B	Generic Indicator
+	0x4C	System Suspend
+	0x4D	External Power Connected
+
+9	Button
+	0x00	No Button Pressed
+	*	Button %d
+
+10	Ordinal
+	0x00	Reserved
+	*	Instance %d
+
+11	Telephony
+	0x00	Unassigned
+	0x01	Phone
+	0x02	Answering Machine
+	0x03	Message Controls
+	0x04	Handset
+	0x05	Headset
+	0x06	Telephony Key Pad
+	0x07	Programmable Button
+	0x20	Hook Switch
+	0x21	Flash
+	0x22	Feature
+	0x23	Hold
+	0x24	Redial
+	0x25	Transfer
+	0x26	Drop
+	0x27	Park
+	0x28	Forward Calls
+	0x29	Alternate Function
+	0x2A	Line
+	0x2B	Speaker Phone
+	0x2C	Conference
+	0x2D	Ring Enable
+	0x2E	Ring Select
+	0x2F	Phone Mute
+	0x30	Caller ID
+	0x31	Send
+	0x50	Speed Dial
+	0x51	Store Number
+	0x52	Recall Number
+	0x53	Phone Directory
+	0x70	Voice Mail
+	0x71	Screen Calls
+	0x72	Do Not Disturb
+	0x73	Message
+	0x74	Answer On/Off
+	0x90	Inside Dial Tone
+	0x91	Outside Dial Tone
+	0x92	Inside Ring Tone
+	0x93	Outside Ring Tone
+	0x94	Priority Ring Tone
+	0x95	Inside Ringback
+	0x96	Priority Ringback
+	0x97	Line Busy Tone
+	0x98	Reorder Tone
+	0x99	Call Waiting Tone
+	0x9A	Confirmation Tone 1
+	0x9B	Confirmation Tone 2
+	0x9C	Tones Off
+	0x9D	Outside Ringback
+	0x9E	Ringer
+	0xB0	Phone Key 0
+	0xB1	Phone Key 1
+	0xB2	Phone Key 2
+	0xB3	Phone Key 3
+	0xB4	Phone Key 4
+	0xB5	Phone Key 5
+	0xB6	Phone Key 6
+	0xB7	Phone Key 7
+	0xB8	Phone Key 8
+	0xB9	Phone Key 9
+	0xBA	Phone Key Star
+	0xBB	Phone Key Pound
+	0xBC	Phone Key A
+	0xBD	Phone Key B
+	0xBE	Phone Key C
+	0xBF	Phone Key D
+
+12	Consumer
+	0x00	Unassigned
+	0x01	Consumer Control
+	0x02	Numeric Key Pad
+	0x03	Programmable Buttons
+	0x04	Microphone
+	0x05	Headphone
+	0x06	Graphic Equalizer
+	0x20	+10
+	0x21	+100
+	0x22	AM/PM
+	0x30	Power
+	0x31	Reset
+	0x32	Sleep
+	0x33	Sleep After
+	0x34	Sleep Mode
+	0x35	Illumination
+	0x36	Function Buttons
+	0x40	Menu
+	0x41	Menu Pick
+	0x42	Menu Up
+	0x43	Menu Down
+	0x44	Menu Left
+	0x45	Menu Right
+	0x46	Menu Escape
+	0x47	Menu Value Increase
+	0x48	Menu Value Decrease
+	0x60	Data On Screen
+	0x61	Closed Caption
+	0x62	Closed Caption Select
+	0x63	VCR/TV
+	0x64	Broadcast Mode
+	0x65	Snapshot
+	0x66	Still
+	0x80	Selection
+	0x81	Assign Selection
+	0x82	Mode Step
+	0x83	Recall Last
+	0x84	Enter Channel
+	0x85	Order Movie
+	0x86	Channel
+	0x87	Media Selection
+	0x88	Media Select Computer
+	0x89	Media Select TV
+	0x8A	Media Select WWW
+	0x8B	Media Select DVD
+	0x8C	Media Select Telephone
+	0x8D	Media Select Program Guide
+	0x8E	Media Select Video Phone
+	0x8F	Media Select Games
+	0x90	Media Select Messages
+	0x91	Media Select CD
+	0x92	Media Select VCR
+	0x93	Media Select Tuner
+	0x94	Quit
+	0x95	Help
+	0x96	Media Select Tape
+	0x97	Media Select Cable
+	0x98	Media Select Satellite
+	0x99	Media Select Security
+	0x9A	Media Select Home
+	0x9B	Media Select Call
+	0x9C	Channel Increment
+	0x9D	Channel Decrement
+	0x9E	Media Select SAP
+	0xA0	VCR Plus
+	0xA1	Once
+	0xA2	Daily
+	0xA3	Weekly
+	0xA4	Monthly
+	0xB0	Play
+	0xB1	Pause
+	0xB2	Record
+	0xB3	Fast Forward
+	0xB4	Rewind
+	0xB5	Scan Next Track
+	0xB6	Scan Previous Track
+	0xB7	Stop
+	0xB8	Eject
+	0xB9	Random Play
+	0xBA	Select DisC
+	0xBB	Enter Disc
+	0xBC	Repeat
+	0xBD	Tracking
+	0xBE	Track Normal
+	0xBF	Slow Tracking
+	0xC0	Frame Forward
+	0xC1	Frame Back
+	0xC2	Mark
+	0xC3	Clear Mark
+	0xC4	Repeat From Mark
+	0xC5	Return To Mark
+	0xC6	Search Mark Forward
+	0xC7	Search Mark Backwards
+	0xC8	Counter Reset
+	0xC9	Show Counter
+	0xCA	Tracking Increment
+	0xCB	Tracking Decrement
+	0xCC	Stop/Eject
+	0xCD	Play/Pause
+	0xCE	Play/Skip
+	0xE0	Volume
+	0xE1	Balance
+	0xE2	Mute
+	0xE3	Bass
+	0xE4	Treble
+	0xE5	Bass Boost
+	0xE6	Surround Mode
+	0xE7	Loudness
+	0xE8	MPX
+	0xE9	Volume Increment
+	0xEA	Volume Decrement
+	0xF0	Speed Select
+	0xF1	Playback Speed
+	0xF2	Standard Play
+	0xF3	Long Play
+	0xF4	Extended Play
+	0xF5	Slow
+	0x100	Fan Enable
+	0x101	Fan Speed
+	0x102	Light Enable
+	0x103	Light Illumination Level
+	0x104	Climate Control Enable
+	0x105	Room Temperature
+	0x106	Security Enable
+	0x107	Fire Alarm
+	0x108	Police Alarm
+	0x109	Proximity
+	0x10A	Motion
+	0x10B	Duress Alarm
+	0x10C	Holdup Alarm
+	0x10D	Medical Alarm
+	0x150	Balance Right
+	0x151	Balance Left
+	0x152	Bass Increment
+	0x153	Bass Decrement
+	0x154	Treble Increment
+	0x155	Treble Decrement
+	0x160	Speaker System
+	0x161	Channel Left
+	0x162	Channel Right
+	0x163	Channel Center
+	0x164	Channel Front
+	0x165	Channel Center Front
+	0x166	Channel Side
+	0x167	Channel Surround
+	0x168	Channel Low Frequency Enhancement
+	0x169	Channel Top
+	0x16A	Channel Unknown
+	0x170	Sub-channel
+	0x171	Sub-channel Increment
+	0x172	Sub-channel Decrement
+	0x173	Alternate Audio Increment
+	0x174	Alternate Audio Decrement
+	0x180	Application Launch Buttons
+	0x181	AL Launch Button Configuration Tool
+	0x182	AL Programmable Button Configuration
+	0x183	AL Consumer Control Configuration
+	0x184	AL Word Processor
+	0x185	AL Text Editor
+	0x186	AL Spreadsheet
+	0x187	AL Graphics Editor
+	0x188	AL Presentation App
+	0x189	AL Database App
+	0x18A	AL Email Reader
+	0x18B	AL Newsreader
+	0x18C	AL Voicemail
+	0x18D	AL Contacts/Address Book
+	0x18E	AL Calendar/Schedule
+	0x18F	AL Task/Project Manager
+	0x190	AL Log/Journal/Timecard
+	0x191	AL Checkbook/Finance
+	0x192	AL Calculator
+	0x193	AL A/V Capture/Playback
+	0x194	AL Local Machine Browser
+	0x195	AL LAN/WAN Browser
+	0x196	AL Internet Browser
+	0x197	AL Remote Networking/ISP Connect
+	0x198	AL Network Conference
+	0x199	AL Network Chat
+	0x19A	AL Telephony/Dialer
+	0x19B	AL Logon
+	0x19C	AL Logoff
+	0x19D	AL Logon/Logoff
+	0x19E	AL Terminal Lock/Screensaver
+	0x19F	AL Control Panel
+	0x1A0	AL Command Line Processor/Run
+	0x1A1	AL Process/Task Manager
+	0x1A2	AL Select Tast/Application
+	0x1A3	AL Next Task/Application
+	0x1A4	AL Previous Task/Application
+	0x1A5	AL Preemptive Halt Task/Application
+	0x1A6	AL Integrated Help Center
+	0x1A7	AL Documents
+	0x1A8	AL Thesaurus
+	0x1A9	AL Dictionary
+	0x1AA	AL Desktop
+	0x1AB	AC Spell Check
+	0x1AC	AL Grammar Check
+	0x1AD	AL Wireless Status
+	0x1AE	AL Keyboard Layout
+	0x1AF	AL Virus Protection
+	0x1B0	AL Encryption
+	0x1B1	AL Screen Saver
+	0x1B2	AL Alarms
+	0x1B3	AL Clock
+	0x1B4	AL File Browser
+	0x1B5	AL Power Status
+	0x1B6	AL Image Browser
+	0x1B7	AL Audio Browser
+	0x1B8	AL Movie Browser
+	0x1B9	AL Digital Rights Manager
+	0x1BA	AL Digital Wallet
+	0x1BC	AL Instant Messaging
+	0x1BD	AL OEM Feature/Tips/Tutorial Browser
+	0x1BE	AL OEM Help
+	0x1BF	AL Online Community
+	0x1C0	AL Entertainment Content Browser
+	0x1C1	AL Online Shopping Browser
+	0x1C2	AL SmartCard Information/Help
+	0x1C3	AL Market Monitor/Finance Browser
+	0x1C4	AL Customized Corporate News Browser
+	0x1C5	AL Online Activity Browser
+	0x1C6	AL Research/Search Browser
+	0x1C7	AL Audio Player
+	0x200	Generic GUI Application Controls
+	0x201	AC New
+	0x202	AC Open
+	0x203	AC Close
+	0x204	AC Exit
+	0x205	AC Maximize
+	0x206	AC Minimize
+	0x207	AC Save
+	0x208	AC Print
+	0x209	AC Properties
+	0x21A	AC Undo
+	0x21B	AC Copy
+	0x21C	AC Cut
+	0x21D	AC Paste
+	0x21E	AC Select All
+	0x21F	AC Find
+	0x220	AC Find and Replace
+	0x221	AC Search
+	0x222	AC Go To
+	0x223	AC Home
+	0x224	AC Back
+	0x225	AC Forward
+	0x226	AC Stop
+	0x227	AC Refresh
+	0x228	AC Previous Link
+	0x229	AC Next Link
+	0x22A	AC Bookmarks
+	0x22B	AC History
+	0x22C	AC Subscriptions
+	0x22D	AC Zoom In
+	0x22E	AC Zoom Out
+	0x22F	AC Zoom
+	0x230	AC Full Screen View
+	0x231	AC Normal View
+	0x232	AC View Toggle
+	0x233	AC Scroll Up
+	0x234	AC Scroll Down
+	0x235	AC Scroll
+	0x236	AC Pan Left
+	0x237	AC Pan Right
+	0x238	AC Pan
+	0x239	AC New Window
+	0x23A	AC Tile Horizontally
+	0x23B	AC Tile Vertically
+	0x23C	AC Format
+	0x23D	AC Edit
+	0x23E	AC Bold
+	0x23F	AC Italics
+	0x240	AC Underline
+	0x241	AC Strikethrough
+	0x242	AC Subscript
+	0x243	AC Superscript
+	0x244	AC All Caps
+	0x245	AC Rotate
+	0x246	AC Resize
+	0x247	AC Flip Horizontal
+	0x248	AC Flip Vertical
+	0x249	AC Mirror Horizontal
+	0x24A	AC Mirror Vertical
+	0x24B	AC Font Select
+	0x24C	AC Font Color
+	0x24D	AC Font Size
+	0x24E	AC Justify Left
+	0x24F	AC Justify Center H
+	0x250	AC Justify Right
+	0x251	AC Justify Block H
+	0x252	AC Justify Top
+	0x253	AC Justify Center V
+	0x254	AC Justify Bottom
+	0x255	AC Justify Block V
+	0x256	AC Justify Decrease
+	0x257	AC Justify Increase
+	0x258	AC Numbered List
+	0x259	AC Restart Numbering
+	0x25A	AC Bulleted List
+	0x25B	AC Promote
+	0x25C	AC Demote
+	0x25D	AC Yes
+	0x25E	AC No
+	0x25F	AC Cancel
+	0x260	AC Catalog
+	0x261	AC Buy/Checkout
+	0x262	AC Add to Cart
+	0x263	AC Expand
+	0x264	AC Expand All
+	0x265	AC Collapse
+	0x266	AC Collapse All
+	0x267	AC Print Preview
+	0x268	AC Paste Special
+	0x269	AC Insert Mode
+	0x26A	AC Delete
+	0x26B	AC Lock
+	0x26C	AC Unlock
+	0x26D	AC Protect
+	0x26E	AC Unprotect
+	0x26F	AC Attach Comment
+	0x270	AC Delete Comment
+	0x271	AC View Comment
+	0x272	AC Select Word
+	0x273	AC Select Sentence
+	0x274	AC Select Paragraph
+	0x275	AC Select Column
+	0x276	AC Select Row
+	0x277	AC Select Table
+	0x278	AC Select Object
+	0x279	AC Redo/Repeat
+	0x27A	AC Sort
+	0x27B	AC Sort Ascending
+	0x27C	AC Sort Descending
+	0x27D	AC Filter
+	0x27E	AC Set Clock
+	0x27F	AC View Clock
+	0x280	AC Select Time Zone
+	0x281	AC Edit Time Zones
+	0x282	AC Set Alarm
+	0x283	AC Clear Alarm
+	0x284	AC Snooze Alarm
+	0x285	AC Reset Alarm
+	0x286	AC Synchronize
+	0x287	AC Send/Receive
+	0x288	AC Send To
+	0x289	AC Reply
+	0x28A	AC Reply All
+	0x28B	AC Forward Msg
+	0x28C	AC Send
+	0x28D	AC Attach File
+	0x28E	AC Upload
+	0x28F	AC Download (Save Target As)
+	0x290	AC Set Borders
+	0x291	AC Insert Row
+	0x292	AC Insert Column
+	0x293	AC Insert File
+	0x294	AC Insert Picture
+	0x295	AC Insert Object
+	0x296	AC Insert Symbol
+	0x297	AC Save and Close
+	0x298	AC Rename
+	0x299	AC Merge
+	0x29A	AC Split
+	0x29B	AC Distribute Horizontally
+	0x29C	AC Distribute Vertically
+
+13	Digitizer
+	0x00	Undefined
+	0x01	Digitizer
+	0x02	Pen
+	0x03	Light Pen
+	0x04	Touch Screen
+	0x05	Touch Pad
+	0x06	White Board
+	0x07	Coordinate Measuring Machine
+	0x08	3D Digitizer
+	0x09	Stereo Plotter
+	0x0A	Articulated Arm
+	0x0B	Armature
+	0x0C	Multiple Point Digitizer
+	0x0D	Free Space Wand
+	0x0E	Device Configuration
+	0x20	Stylus
+	0x21	Puck
+	0x22	Finger
+	0x23	Device Settings
+	0x30	Tip Pressure
+	0x31	Barrel Pressure
+	0x32	In Range
+	0x33	Touch
+	0x34	Untouch
+	0x35	Tap
+	0x36	Quality
+	0x37	Data Valid
+	0x38	Transducer Index
+	0x39	Tablet Function Keys
+	0x3A	Program Change Keys
+	0x3B	Battery Strength
+	0x3C	Invert
+	0x3D	X Tilt
+	0x3E	Y Tilt
+	0x3F	Azimuth
+	0x40	Altitude
+	0x41	Twist
+	0x42	Tip Switch
+	0x43	Secondary Tip Switch
+	0x44	Barrel Switch
+	0x45	Eraser
+	0x46	Tablet Pick
+	0x47	Touch Valid
+	0x48	Width
+	0x49	Height
+	0x51	Contact Identifier
+	0x52	Device Mode
+	0x53	Device Identifier
+	0x54	Contact Count
+	0x55	Contact Count Maximum
+
+15	Physical Interface Device
+	0x00	Undefined
+	0x01	Physical Interface Device
+	0x20	Normal
+	0x21	Set Effect Report
+	0x22	Effect Block Index
+	0x23	Parameter Block Offset
+	0x24	ROM Flag
+	0x25	Effect Type
+	0x26	ET Constant Force
+	0x27	ET Ramp
+	0x28	ET Custom Force Data
+	0x30	ET Square
+	0x31	ET Sine
+	0x32	ET Triangle
+	0x33	ET Sawtooth Up
+	0x34	ET Sawtooth Down
+	0x40	ET Spring
+	0x41	ET Damper
+	0x42	ET Inertia
+	0x43	ET Friction
+	0x50	Duration
+	0x51	Sample Period
+	0x52	Gain
+	0x53	Trigger Button
+	0x54	Trigger Repeat Interval
+	0x55	Axes Enable
+	0x56	Direction Enable
+	0x57	Direction
+	0x58	Type Specific Block Offset
+	0x59	Block Type
+	0x5A	Set Envelope Report
+	0x5B	Attack Level
+	0x5C	Attack Time
+	0x5D	Fade Level
+	0x5E	Fade Time
+	0x5F	Set Condition Report
+	0x60	CP Offset
+	0x61	Positive Coefficient
+	0x62	Negative Coefficient
+	0x63	Positive Saturation
+	0x64	Negative Saturation
+	0x65	Dead Band
+	0x66	Download Force Sample
+	0x67	Isoch Custom Force Enable
+	0x68	Custom Force Data Report
+	0x69	Custom Force Data
+	0x6A	Custom Force Vendor Defined Data
+	0x6B	Set Custom Force Report
+	0x6C	Custom Force Data Offset
+	0x6D	Sample Count
+	0x6E	Set Periodic Report
+	0x6F	Offset
+	0x70	Magnitude
+	0x71	Phase
+	0x72	Period
+	0x73	Set Constant Force Report
+	0x74	Set Ramp Force Report
+	0x75	Ramp Start
+	0x76	Ramp End
+	0x77	Effect Operation Report
+	0x78	Effect Operation
+	0x79	Op Effect Start
+	0x7A	Op Effect Start Solo
+	0x7B	Op Effect Stop
+	0x7C	Loop Count
+	0x7D	Device Gain Report
+	0x7E	Device Gain
+	0x7F	PID Pool Report
+	0x80	RAM Pool Size
+	0x81	ROM Pool Size
+	0x82	ROM Effect Block Count
+	0x83	Simultaneous Effects Max
+	0x84	Pool Alignment
+	0x85	PID Pool Move Report
+	0x86	Move Source
+	0x87	Move Destination
+	0x88	Move Length
+	0x89	PID Block Load Report
+	0x8B	Block Load Status
+	0x8C	Block Load Success
+	0x8D	Block Load Full
+	0x8E	Block Load Error
+	0x8F	Block Handle
+	0x90	PID Block Free Report
+	0x91	Type Specific Block Handle
+	0x92	PID State Report
+	0x94	Effect Playing
+	0x95	PID Device Control Report
+	0x96	PID Device Control
+	0x97	DC Enable Actuators
+	0x98	DC Disable Actuators
+	0x99	DC Stop All Effects
+	0x9A	DC Device Reset
+	0x9B	DC Device Pause
+	0x9C	DC Device Continue
+	0x9F	Device Paused
+	0xA0	Actuators Enable
+	0xA4	Safety Switch
+	0xA5	Actuator Override Switch
+	0xA6	Actuator Power
+	0xA7	Start Delay
+	0xA8	Parameter Block Size
+	0xA9	Device Managed Pool
+	0xAA	Shared Parameter Blocks
+	0xAB	Create New Effect Report
+	0xAC	RAM Pool Available
+
+16	Unicode
+	*	Unicode Char u%04x
+
+20	Alphnumeric Display
+	0x00	Undefined
+	0x01	Alphanumeric Display
+	0x02	Bitmapped Display
+	0x20	Display Attributes Report
+	0x21	ASCII Character Set
+	0x22	Data Read Back
+	0x23	Font Read Back
+	0x24	Display Control Report
+	0x25	Clear Display
+	0x26	Display Enable
+	0x27	Screen Saver Delay
+	0x28	Screen Saver Enable
+	0x29	Vertical Scroll
+	0x2A	Horizontal Scroll
+	0x2B	Character Report
+	0x2C	Display Data
+	0x2D	Display Status
+	0x2E	Stat Not Ready
+	0x2F	Stat Ready
+	0x30	Err Not a loadable character
+	0x31	Err Font data cannot be read
+	0x32	Cursor Position Report
+	0x33	Row
+	0x34	Column
+	0x35	Rows
+	0x36	Columns
+	0x37	Cursor Pixel Positioning
+	0x38	Cursor Mode
+	0x39	Cursor Enable
+	0x3A	Cursor Blink
+	0x3B	Font Report
+	0x3C	Font Data
+	0x3D	Character Width
+	0x3E	Character Height
+	0x3F	Character Spacing Horizontal
+	0x40	Character Spacing Vertical
+	0x41	Unicode Character Set
+	0x42	Font 7-Segment
+	0x43	7-Segment Direct Map
+	0x44	Font 14-Segment
+	0x45	14-Segment Direct Map
+	0x46	Display Brightness
+	0x47	Display Contrast
+	0x48	Character Attribute
+	0x49	Attribute Readback
+	0x4A	Attribute Data
+	0x4B	Char Attr Enhance
+	0x4C	Char Attr Underline
+	0x4D	Char Attr Blink
+	0x80	Bitmap Size X
+	0x81	Bitmap Size Y
+	0x83	Bit Depth Format
+	0x84	Display Orientation
+	0x85	Palette Report
+	0x86	Palette Data Size
+	0x87	Palette Data Offset
+	0x88	Palette Data
+	0x8A	Blit Report
+	0x8B	Blit Rectangle X1
+	0x8C	Blit Rectangle Y1
+	0x8D	Blit Rectangle X2
+	0x8E	Blit Rectangle Y2
+	0x8F	Blit Data
+	0x90	Soft Button
+	0x91	Soft Button ID
+	0x92	Soft Button Side
+	0x93	Soft Button Offset 1
+	0x94	Soft Button Offset 2
+	0x95	Soft Button Report
+
+64	Medical Instrument
+	0x00	Undefined
+	0x01	Medical Ultrasound
+	0x20	VCR/Acquisition
+	0x21	Freeze/Thaw
+	0x22	Clip Store
+	0x23	Update
+	0x24	Next
+	0x25	Save
+	0x26	Print
+	0x27	Microphone Enable
+	0x40	Cine
+	0x41	Transmit Power
+	0x42	Volume
+	0x43	Focus
+	0x44	Depth
+	0x60	Soft Step - Primary
+	0x61	Soft Step - Secondary
+	0x70	Depth Gain Compensation
+	0x80	Zoom Select
+	0x81	Zoom Adjust
+	0x82	Spectral Doppler Mode Select
+	0x83	Spectral Doppler Adjust
+	0x84	Color Doppler Mode Select
+	0x85	Color Doppler Adjust
+	0x86	Motion Mode Select
+	0x87	Motion Mode Adjust
+	0x88	2-D Mode Select
+	0x89	2-D Mode Adjust
+	0xA0	Soft Control Select
+	0xA1	Soft Control Adjust
+
+128	Monitor
+	0x00	Undefined
+	0x01	Monitor Control
+	0x02	EDID Information
+	0x03	VDIF Information
+	0x04	VESA Version
+
+129	Monitor Enumerated Values
+	0x00	unassigned
+	*	ENUM %d
+
+130	VESA Virtual Controls
+	0x01	Degauss
+	0x10	Brightness
+	0x12	Contrast
+	0x16	Red Video Gain
+	0x18	Green Video Gain
+	0x1A	Blue Video Gain
+	0x1C	Focus
+	0x20	Horizontal Position
+	0x22	Horizontal Size
+	0x24	Horizontal Pincushion
+	0x26	Horizontal Pincushion Balance
+	0x28	Horizontal Misconvergence
+	0x2A	Horizontal Linearity
+	0x2C	Horizontal Linearity Balance
+	0x30	Vertical Position
+	0x32	Vertical Size
+	0x34	Vertical Pincushion
+	0x36	Vertical Pincushion Balance
+	0x38	Vertical Misconvergence
+	0x3A	Vertical Linearity
+	0x3C	Vertical Linearity Balance
+	0x40	Parallelogram Distortion
+	0x42	Trapezoidal Distortion
+	0x44	Tilt
+	0x46	Top Corner Distortion Control
+	0x48	Top Corner Distortion Balance
+	0x4A	Bottom Corner Distortion Control
+	0x4C	Bottom Corner Distortion Balance
+	0x56	Horizontal Moiré
+	0x58	Vertical Moiré
+	0x5E	Input Level Select
+	0x60	Input Source Select
+	0x6C	Red Video Black Level
+	0x6E	Green Video Black Level
+	0x70	Blue Video Black Level
+	0xA2	Auto Size Center
+	0xA4	Polarity Horizontal Synchronization
+	0xA6	Polarity Vertical Synchronization
+	0xA8	Synchronization Type
+	0xAA	Screen Orientation
+	0xAC	Horizontal Frequency
+	0xAE	Vertical Frequency
+	0xB0	Settings
+	0xCA	On Screen Display
+	0xD4	Stereo Mode
+
+132	Power Device
+	0x00	Undefined
+	0x01	iName
+	0x02	PresentStatus
+	0x03	ChangedStatus
+	0x04	UPS
+	0x05	PowerSupply
+	0x10	BatterySystem
+	0x11	BatterySystemID
+	0x12	Battery
+	0x13	BatteryID
+	0x14	Charger
+	0x15	ChargerID
+	0x16	PowerConverter
+	0x17	PowerConverterID
+	0x18	OutletSystem
+	0x19	OutletSystemID
+	0x1A	Input
+	0x1B	InputID
+	0x1C	Output
+	0x1D	OutputID
+	0x1E	Flow
+	0x1F	FlowID
+	0x20	Outlet
+	0x21	OutletID
+	0x22	Gang
+	0x23	GangID
+	0x24	PowerSummary
+	0x25	PowerSummeryID
+	0x30	Voltage
+	0x31	Current
+	0x32	Frequency
+	0x33	ApparentPower
+	0x34	ActivePower
+	0x35	PercentLoad
+	0x36	Temperature
+	0x37	Humidity
+	0x38	BadCount
+	0x40	ConfigVoltage
+	0x41	ConfigCurrent
+	0x42	ConfigFrequency
+	0x43	ConfigApparentPower
+	0x44	ConfigActivePower
+	0x45	ConfigPercentLoad
+	0x46	ConfigTemperature
+	0x47	ConfigHumidity
+	0x50	SwitchOnControl
+	0x51	SwitchOffControl
+	0x52	ToggleControl
+	0x53	LowVoltageTransfer
+	0x54	HighVoltageTransfer
+	0x55	DelayBeforeReboot
+	0x56	DelayBeforeStartup
+	0x57	DelayBeforeShutdown
+	0x58	Test
+	0x59	ModuleReset
+	0x5A	AudibleAlarmControl
+	0x60	Present
+	0x61	Good
+	0x62	InternalFailure
+	0x63	VoltageOutOfRange
+	0x64	FrequencyOutOfRange
+	0x65	Overload
+	0x66	OverCharged
+	0x67	OverTemperature
+	0x68	ShutdownRequested
+	0x69	ShutdownImminent
+	0x6A	Reserved
+	0x6B	SwitchOn/Off
+	0x6C	Switchable
+	0x6D	Used
+	0x6E	Boost
+	0x6F	Buck
+	0x70	Initialized
+	0x71	Tested
+	0x72	Awaiting Power
+	0x73	CommunicationLost
+	0xFD	iManufacturer
+	0xFE	iProduct
+	0xFF	iSerialNumber
+
+133	Battery System
+	0x00	Undefined
+	0x01	SMBBatteryMode
+	0x02	SMBBatteryStatus
+	0x03	SMBAlarmWarning
+	0x04	SMBChargerMode
+	0x05	SMBChargerStatus
+	0x06	SMBChargerSpecInfo
+	0x07	SMBSelectorState
+	0x08	SMBSelectorPresets
+	0x09	SMBSelectorInfo
+	0x10	OptionalMfgFunction1
+	0x11	OptionalMfgFunction2
+	0x12	OptionalMfgFunction3
+	0x13	OptionalMfgFunction4
+	0x14	OptionalMfgFunction5
+	0x15	ConnectionToSMBus
+	0x16	OutputConnection
+	0x17	ChargerConnection
+	0x18	BatteryInsertion
+	0x19	Usenext
+	0x1A	OKToUse
+	0x1B	BatterySupported
+	0x1C	SelectorRevision
+	0x1D	ChargingIndicator
+	0x28	ManufacturerAccess
+	0x29	RemainingCapacityLimit
+	0x2A	RemainingTimeLimit
+	0x2B	AtRate
+	0x2C	CapacityMode
+	0x2D	BroadcastToCharger
+	0x2E	PrimaryBattery
+	0x2F	ChargeController
+	0x40	TerminateCharge
+	0x41	TermminateDischarge
+	0x42	BelowRemainingCapacityLimit
+	0x43	RemainingTimeLimitExpired
+	0x44	Charging
+	0x45	Discharging
+	0x46	FullyCharged
+	0x47	FullyDischarged
+	0x48	ConditioningFlag
+	0x49	AtRateOK
+	0x4A	SMBErrorCode
+	0x4B	NeedReplacement
+	0x60	AtRateTimeToFull
+	0x61	AtRateTimeToEmpty
+	0x62	AverageCurrent
+	0x63	Maxerror
+	0x64	RelativeStateOfCharge
+	0x65	AbsoluteStateOfCharge
+	0x66	RemainingCapacity
+	0x67	FullChargeCapacity
+	0x68	RunTimeToEmpty
+	0x69	AverageTimeToEmpty
+	0x6A	AverageTimeToFull
+	0x6B	CycleCount
+	0x80	BattPackModelLevel
+	0x81	InternalChargeController
+	0x82	PrimaryBatterySupport
+	0x83	DesignCapacity
+	0x84	SpecificationInfo
+	0x85	ManufacturerDate
+	0x86	SerialNumber
+	0x87	iManufacturerName
+	0x88	iDevicename
+	0x89	iDeviceChemistery
+	0x8A	ManufacturerData
+	0x8B	Rechargeable
+	0x8C	WarningCapacityLimit
+	0x8D	CapacityGranularity1
+	0x8E	CapacityGranularity2
+	0x8F	iOEMInformation
+	0xC0	InhibitCharge
+	0xC1	EnablePolling
+	0xC2	ResetToZero
+	0xD0	ACPresent
+	0xD1	BatteryPresent
+	0xD2	PowerFail
+	0xD3	AlarmInhibited
+	0xD4	ThermistorUnderRange
+	0xD5	ThermistorHot
+	0xD6	ThermistorCold
+	0xD7	ThermistorOverRange
+	0xD8	VoltageOutOfRange
+	0xD9	CurrentOutOfRange
+	0xDA	CurrentNotRegulated
+	0xDB	VoltageNotRegulated
+	0xDC	MasterMode
+	0xF0	ChargerSelectorSupport
+	0xF1	ChargerSpec
+	0xF2	Level2
+	0xF3	Level3
+
+140	Bar Code Scanner
+	0x00	Undefined
+	0x01	Bar Code Badge Reader
+	0x02	Bar Code Scanner
+	0x03	Dumb Bar Code Scanner
+	0x04	Cordless Scanner Base
+	0x05	Bar Code Scanner Cradle
+	0x10	Attribute Report
+	0x11	Settings Report
+	0x12	Scanned Data Report
+	0x13	Raw Scanned Data Report
+	0x14	Trigger Report
+	0x15	Status Report
+	0x16	UPC/EAN Control Report
+	0x17	EAN 2/3 Label Control Report
+	0x18	Code 39 Control Report
+	0x19	Interleaved 2 of 5 Control Report
+	0x1A	Standard 2 of 5 Control Report
+	0x1B	MSI Plessey Control Report
+	0x1C	Codabar Control Report
+	0x1D	Code 128 Control Report
+	0x1E	Misc 1D Control Report
+	0x1F	2D Control Report
+	0x30	Aiming/Pointer Mode
+	0x31	Bar Code Present Sensor
+	0x32	Class 1A Laser
+	0x33	Class 2 Laser
+	0x34	Heater Present
+	0x35	Contact Scanner
+	0x36	Electronic Article Surveillance Notification
+	0x37	Constant Electronic Article
+	0x38	Error Indication
+	0x39	Fixed Beeper
+	0x3A	Good Decode Indication
+	0x3B	Hands Free Scanning
+	0x3C	Intrinsically Safe
+	0x3D	Klasse Eins Laser
+	0x3E	Long Range Scanner
+	0x3F	Mirror Speed Control
+	0x40	Not On File Indication
+	0x41	Programmable Beeper
+	0x42	Triggerless
+	0x43	Wand
+	0x44	Water Resistant
+	0x45	Multi-Range Scanner
+	0x46	Proximity Sensor
+	0x4D	Fragment Decoding
+	0x4E	Scanner Read Confidence
+	0x4F	Data Prefix
+	0x50	Prefix AIMI
+	0x51	Prefix None
+	0x52	Prefix Proprietary
+	0x55	Active Time
+	0x56	Aiming Laser Pattern
+	0x57	Bar Code Present
+	0x58	Beeper State
+	0x59	Laser On Time
+	0x5A	Laser State
+	0x5B	Lockout Timeout
+	0x5C	Motor State
+	0x5D	Motor Timeout
+	0x5E	Power On Reset Scanner
+	0x5F	Prevent Read of Barcodes
+	0x60	Initiate Barcode Read
+	0x61	Trigger State
+	0x62	Trigger Mode
+	0x63	Trigger Mode Blinking Laser On
+	0x64	Trigger Mode Continuous Laser On
+	0x65	Trigger Mode Laser on while Pulled
+	0x66	Trigger Mode Laser stays on after Trigger release
+	0x6D	Commit Parameters to NVM
+	0x6E	Parameter Scanning
+	0x6F	Parameters Changed
+	0x70	Set parapeter default values
+	0x75	Scanner In Cradle
+	0x76	Scanner In Range
+	0x7A	Aim Duration
+	0x7B	Good Read Lamp Duration
+	0x7C	Good Read Lamp Intensity
+	0x7D	Good Read LED
+	0x7E	Good Read Tone Frequence
+	0x7F	Good Read Tone Length
+	0x80	Good Read Tone Volume
+	0x82	No Read Message
+	0x83	Not On File Volume
+	0x84	Powerup Beep
+	0x85	Sound Error Beep
+	0x86	Sound Good Read Beep
+	0x87	Sound Not On File Beep
+	0x88	Good Read When to Write
+	0x89	GRWTI After Decode
+	0x8A	GRWTI Beep/Lamp after transmit
+	0x8B	GRWTI No Beep/Lamp use at all
+	0x91	Bookland EAN
+	0x92	Convert EAN 8 to 13 Type
+	0x93	Convert UPC A to EAN-13
+	0x94	Convert UPC-E to A
+	0x95	EAN-13
+	0x96	EAN-8
+	0x97	EAN-99 128_Mandatory
+	0x98	EAN-99 P5/128_Optional
+	0x9A	UPC/EAN
+	0x9B	UPC/EAN Coupon Code
+	0x9C	UPC/EAN Periodicals
+	0x9D	UPC-A
+	0x9E	UPC-A with 128 Mandatory
+	0x9F	UPC-A with 128 Optional
+	0xA0	UPC-A with P5 Optional
+	0xA1	UPC-E
+	0xA2	UPC-E1
+	0xA9	Periodical
+	0xAA	Periodical Auto-Discriminate + 2
+	0xAB	Periodical Only Decode with + 2
+	0xAC	Periodical Ignore + 2
+	0xAD	Periodical Auto-Discriminate + 5
+	0xAE	Periodical Only Decode with + 5
+	0xAF	Periodical Ignore + 5
+	0xB0	Check
+	0xB1	Check Disable Price
+	0xB2	Check Enable 4 digit Price
+	0xB3	Check Enable 5 digit Price
+	0xB4	Check Enable European 4 digit Price
+	0xB5	Check European 5 digit Price
+	0xB7	EAN Two Label
+	0xB8	EAN Three Label
+	0xB9	EAN 8 Flag Digit 1
+	0xBA	EAN 8 Flag Digit 2
+	0xBB	EAN 8 Flag Digit 3
+	0xBC	EAN 13 Flag Digit 1
+	0xBD	EAN 13 Flag Digit 2
+	0xBE	EAN 13 Flag Digit 3
+	0xBF	Add EAN 2/3 Label Definition
+	0xC0	Clear all EAN 2/3 Label Definitions
+	0xC3	Codabar
+	0xC4	Code 128
+	0xC7	Code 39
+	0xC8	Code 93
+	0xC9	Full ASCII Conversion
+	0xCA	Interleaved 2 of 5
+	0xCB	Italian Pharmacy Code
+	0xCC	MSI/Plessey
+	0xCD	Standard 2 of 5 IATA
+	0xCE	Standard 2 of 5
+	0xD3	Transmit Start/Stop
+	0xD4	Tri-Optic
+	0xD5	UCC/EAN-128
+	0xD6	Check Digit
+	0xD7	Check Digit Disable
+	0xD8	Check Digit Enable Interleaved 2 of 5 OPCC
+	0xD9	Check Digit Enable Interleaved 2 of 5 USS
+	0xDA	Check Digit Enable Standard 2 of 5 OPCC
+	0xDB	Check Digit Enable Standard 2 of 5 USS
+	0xDC	Check Digit Enable One MSI Plessey
+	0xDD	Check Digit Enable Two MSI Plessey
+	0xDE	Check Digit Codabar Enable
+	0xDF	Check Digit Code 39 Enable
+	0xF0	Transmit Check Digit
+	0xF1	Disable Check Digit Transmit
+	0xF2	Enable Check Digit Transmit
+	0xFB	Symbology Identifier 1
+	0xFC	Symbology Identifier 2
+	0xFD	Symbology Identifier 3
+	0xFE	Decoded Data
+	0xFF	Decode Data Continued
+	0x100	Bar Space Data
+	0x101	Scanner Data Accuracy
+	0x102	Raw Data Polarity
+	0x103	Polarity Inverted Bar Code
+	0x104	Polarity Normal Bar Code
+	0x106	Minimum Length to Decode
+	0x107	Maximum Length to Decode
+	0x108	First Discrete Length to Decode
+	0x109	Second Discrete Length to Decode
+	0x10A	Data Length Method
+	0x10B	DL Method Read any
+	0x10C	DL Method Check in Range
+	0x10D	DL Method Check for Discrete
+	0x110	Aztec Code
+	0x111	BC412
+	0x112	Channel Code
+	0x113	Code 16
+	0x114	Code 32
+	0x115	Code 49
+	0x116	Code One
+	0x117	Colorcode
+	0x118	Data Matrix
+	0x119	MaxiCode
+	0x11A	MicroPDF
+	0x11B	PDF-417
+	0x11C	PosiCode
+	0x11D	QR Code
+	0x11E	SuperCode
+	0x11F	UltraCode
+	0x120	USD-5 (Slug Code)
+	0x121	VeriCode
+
+141	Weighing Device
+	0x00	Undefined
+	0x01	Weighing Device
+	0x20	Scale Device
+	0x21	Scale Class I Metric
+	0x22	Scale Class I Metric
+	0x23	Scale Class II Metric
+	0x24	Scale Class III Metric
+	0x25	Scale Class IIIL Metric
+	0x26	Scale Class IV Metric
+	0x27	Scale Class III English
+	0x28	Scale Class IIIL English
+	0x29	Scale Class IV English
+	0x2A	Scale Class Generic
+	0x30	Scale Attribute Report
+	0x31	Scale Control Report
+	0x32	Scale Data Report
+	0x33	Scale Status Report
+	0x34	Scale Weight Limit Report
+	0x35	Scale Statistics Report
+	0x40	Data Weight
+	0x41	Data Scaling
+	0x50	Weight Unit
+	0x51	Weight Unit Milligram
+	0x52	Weight Unit Gram
+	0x53	Weight Unit Kilogram
+	0x54	Weight Unit Carats
+	0x55	Weight Unit Taels
+	0x56	Weight Unit Grains
+	0x57	Weight Unit Pennyweights
+	0x58	Weight Unit Metric Ton
+	0x59	Weight Unit Avoir Ton
+	0x5A	Weight Unit Troy Ounce
+	0x5B	Weight Unit Ounce
+	0x5C	Weight Unit Pound
+	0x60	Calibration Count
+	0x61	Re-Zero Count
+	0x70	Scale Status
+	0x71	Scale Status Fault
+	0x72	Scale Status Stable at Center of Zero
+	0x73	Scale Status In Motion
+	0x74	Scale Status Weight Stable
+	0x75	Scale Status Under Zero
+	0x76	Scale Status Over Weight Limit
+	0x77	Scale Status Requires Rezeroing
+	0x80	Zero Scale
+	0x81	Enforced Zero Return
+
+142	Magnetic Stripe Reader
+	0x00	Undefined
+	0x01	MSR Device Read-Only
+	0x11	Track 1 Length
+	0x12	Track 2 Length
+	0x13	Track 3 Length
+	0x14	Track JIS Length
+	0x20	Track Data
+	0x21	Track 1 Data
+	0x22	Track 2 Data
+	0x23	Track 3 Data
+	0x24	Track JIS Data
+
+144	Camera Control
+
+145	Arcade Device
+
+# Some Microsoft non-standard extensions
+0xFF00	Microsoft
+	0xE9	Base Up
+	0xEA	Base Down

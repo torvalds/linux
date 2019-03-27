@@ -1,0 +1,48 @@
+.\" Copyright (c) 1986, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)pres2.pic	8.1 (Berkeley) 6/8/93
+.\"
+.PS
+ellipse ht .3i wid .6i "\s-1CALC1\s+1"
+ellipse ht .3i wid .6i "\s-1CALC2\s+1" at 1st ellipse + (.75i,0i)
+ellipse ht .3i wid .6i "\s-1CALC3\s+1" at 1st ellipse + (1.5i,0i)
+ellipse ht .3i wid .8i "\s-1FORMAT1\s+1" at 1st ellipse - (0i,.5i)
+ellipse ht .3i wid .8i "\s-1FORMAT2\s+1" at 3rd ellipse - (0i,.5i)
+ellipse ht .3i wid .75i "\s-1\"WRITE\"\s+1" at 5th ellipse - (.75i,.5i)
+line <- from 1st ellipse up .5i left .4i chop .1825i
+line <- from 1st ellipse up .5i right .4i chop .1825i
+line <- from 2nd ellipse up .5i left .4i chop .1825i
+line <- from 2nd ellipse up .5i right .4i chop .1825i
+line <- from 3rd ellipse up .5i left .4i chop .1825i
+line <- from 3rd ellipse up .5i right .4i chop .1825i
+arrow from 1st ellipse to 4th ellipse chop .15i
+arrow from 2nd ellipse to 5th ellipse chop 
+arrow from 3rd ellipse to 5th ellipse chop .15i
+arrow from 4th ellipse to 6th ellipse chop
+arrow from 5th ellipse to 6th ellipse chop
+.PE

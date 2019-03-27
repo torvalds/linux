@@ -1,0 +1,141 @@
+.\"
+.\" Copyright (c) 1995 David Hovemeyer <daveho@infocom.com>
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 10, 2015
+.Dt SHMCTL 2
+.Os
+.Sh NAME
+.Nm shmctl
+.Nd shared memory control
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/ipc.h
+.In sys/shm.h
+.Ft int
+.Fn shmctl "int shmid" "int cmd" "struct shmid_ds *buf"
+.Sh DESCRIPTION
+Performs the action specified by
+.Fa cmd
+on the shared memory segment identified by
+.Fa shmid :
+.Bl -tag -width SHM_UNLOCKX
+.It Dv IPC_STAT
+Fetch the segment's
+.Fa "struct shmid_ds" ,
+storing it in the memory pointed to by
+.Fa buf .
+.\"
+.\" XXX need to make sure that this is correct for FreeBSD
+.\"
+.It Dv IPC_SET
+Changes the
+.Fa shm_perm.uid ,
+.Fa shm_perm.gid ,
+and
+.Fa shm_perm.mode
+members of the segment's
+.Fa "struct shmid_ds"
+to match those of the struct pointed to by
+.Fa buf .
+The calling process's effective uid must
+match either
+.Fa shm_perm.uid
+or
+.Fa shm_perm.cuid ,
+or it must have superuser privileges.
+.It Dv IPC_RMID
+Removes the segment from the system.
+The removal will not take
+effect until all processes having attached the segment have exited.
+For the operation
+to succeed, the calling process's effective uid must match
+.Fa shm_perm.uid
+or
+.Fa shm_perm.cuid ,
+or the process must have superuser privileges.
+If the
+.Va kern.ipc.shm_allow_removed
+.Xr sysctl 3
+variable is set to 0, once the IPC_RMID operation has taken place,
+no further processes will be allowed to attach the segment.
+.\" .It Dv SHM_LOCK
+.\" Locks the segment in memory.  The calling process must have
+.\" superuser privileges. Not implemented in FreeBSD.
+.\" .It Dv SHM_UNLOCK
+.\" Unlocks the segment from memory.  The calling process must
+.\" have superuser privileges.  Not implemented in FreeBSD.
+.El
+.Pp
+The
+.Vt shmid_ds
+structure is defined as follows:
+.\"
+.\" I fiddled with the spaces a bit to make it fit well when viewed
+.\" with nroff, but otherwise it is straight from sys/shm.h
+.\"
+.Bd -literal
+struct shmid_ds {
+    struct ipc_perm shm_perm;   /* operation permission structure */
+    size_t          shm_segsz;  /* size of segment in bytes */
+    pid_t           shm_lpid;   /* process ID of last shared memory op */
+    pid_t           shm_cpid;   /* process ID of creator */
+    int             shm_nattch; /* number of current attaches */
+    time_t          shm_atime;  /* time of last shmat() */
+    time_t          shm_dtime;  /* time of last shmdt() */
+    time_t          shm_ctime;  /* time of last change by shmctl() */
+};
+.Ed
+.Sh RETURN VALUES
+.Rv -std shmctl
+.Sh ERRORS
+The
+.Fn shmctl
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid operation, or
+no shared memory segment was found corresponding to
+.Fa shmid .
+.\"
+.\" XXX I think the following is right: ipcperm() only returns EPERM
+.\"	when an attempt is made to modify (IPC_M) by a non-creator
+.\"	non-owner
+.It Bq Er EPERM
+The calling process's effective uid does not match the uid of
+the shared memory segment's owner or creator.
+.It Bq Er EACCES
+Permission denied due to mismatch between operation and mode of
+shared memory segment.
+.El
+.Sh "SEE ALSO"
+.Xr shmat 2 ,
+.Xr shmdt 2 ,
+.Xr shmget 2 ,
+.Xr ftok 3

@@ -1,0 +1,157 @@
+.\" Copyright (c) 1994 Winning Strategies, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Winning Strategies, Inc.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd February 12, 2005
+.Dt CATOPEN 3
+.Os
+.Sh NAME
+.Nm catopen
+.Nd open message catalog
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In nl_types.h
+.Ft nl_catd
+.Fn catopen "const char *name" "int oflag"
+.Sh DESCRIPTION
+The
+.Fn catopen
+function opens the message catalog specified by
+.Fa name
+and returns a message catalog descriptor.
+If
+.Fa name
+contains a
+.Sq /
+then
+.Fa name
+specifies the full pathname for the message catalog, otherwise the value
+of the environment variable
+.Ev NLSPATH
+is used with
+the following substitutions:
+.Bl -tag -width XXX
+.It \&%N
+The value of the
+.Fa name
+argument.
+.It \&%L
+The value of the
+.Ev LANG
+environment variable or the
+.Dv LC_MESSAGES
+category (see below).
+.It \&%l
+The language element from the
+.Ev LANG
+environment variable or from the
+.Dv LC_MESSAGES
+category.
+.It \&%t
+The territory element from the
+.Ev LANG
+environment variable or from the
+.Dv LC_MESSAGES
+category.
+.It \&%c
+The codeset element from the
+.Ev LANG
+environment variable or from the
+.Dv LC_MESSAGES
+category.
+.It \&%%
+A single % character.
+.El
+.Pp
+An empty string is substituted for undefined values.
+.Pp
+Path names templates defined in
+.Ev NLSPATH
+are separated by colons
+.Pq Sq \&: .
+A leading or two adjacent colons
+is equivalent to specifying %N.
+.Pp
+If the
+.Fa oflag
+argument is set to the
+.Dv NL_CAT_LOCALE
+constant,
+.Dv LC_MESSAGES
+locale category used to open the message catalog; using
+.Dv NL_CAT_LOCALE
+conforms to the
+.St -xpg4
+standard.
+You can specify 0 for compatibility with
+.St -xpg3 ;
+when
+.Fa oflag
+is set to 0, the
+.Ev LANG
+environment variable
+determines the message catalog locale.
+.Pp
+A message catalog descriptor
+remains valid in a process until that process closes it, or
+until a successful call to one of the
+.Xr exec 3
+function.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn catopen
+returns a message catalog descriptor.
+Otherwise, (nl_catd) -1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Argument
+.Fa name
+does not point to a valid message catalog, or catalog is corrupt.
+.It Bq Er ENAMETOOLONG
+An entire path to the message catalog exceeded 1024 characters.
+.It Bq Er ENOENT
+The named message catalog does not exists, or the
+.Fa name
+argument points to an empty string.
+.It Bq Er ENOMEM
+Insufficient memory is available.
+.El
+.Sh SEE ALSO
+.Xr gencat 1 ,
+.Xr catclose 3 ,
+.Xr catgets 3 ,
+.Xr setlocale 3
+.Sh STANDARDS
+The
+.Fn catopen
+function conforms to
+.St -p1003.1-2001 .

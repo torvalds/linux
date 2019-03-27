@@ -1,0 +1,152 @@
+.\" Copyright (c) 1997, 1998, 1999, 2000-2003
+.\"     Bill Paul <wpaul@windriver.com>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 24, 2015
+.Dt AXGE 4
+.Os
+.Sh NAME
+.Nm axge
+.Nd "ASIX Electronics AX88178A/AX88179 USB Gigabit Ethernet driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device xhci"
+.Cd "device ehci"
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
+.Cd "device miibus"
+.Cd "device uether"
+.Cd "device axge"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_axge_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB Gigabit Ethernet adapters based on the ASIX
+Electronics AX88179 USB 3.0 and AX88178A USB 2.0 chipsets.
+.Pp
+The AX88179 and AX88178A contain a 10/100/1000 Ethernet MAC with a GMII
+interface for interfacing with the Gigabit Ethernet PHY.
+.Pp
+These devices will operate with both USB 1.x and USB 2.0 controllers, and the
+AX88179 will operate with USB 3.0 controllers.
+Packets are received and transmitted over separate USB bulk transfer endpoints.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to
+.Xr rc.conf 5 .
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 1000baseT
+Set 1000Mbps (Gigabit Ethernet) operation (AX88178 only).
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr rgephy 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 10.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Kevin Lo Aq Mt kevlo@FreeBSD.org
+and
+.An Li-Wen Hsu Aq Mt lwhsu@FreeBSD.org .
+This manual page was adapted by
+.An Mark Johnston Aq Mt markj@FreeBSD.org
+from the
+.Xr axe 4
+manual page.

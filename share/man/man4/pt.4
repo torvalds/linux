@@ -1,0 +1,91 @@
+.\" Copyright (c) 1995
+.\"	Peter Dufault,  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 2, 1995
+.Dt PT 4
+.Os
+.Sh NAME
+.Nm pt
+.Nd SCSI processor type driver
+.Sh SYNOPSIS
+.Cd device pt
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for a
+.Tn SCSI
+processor type device.
+These are usually scanners and other devices using the
+.Tn SCSI
+link as a communication interface with device
+specific commands embedded in the data stream.
+.Pp
+A
+.Tn SCSI
+adapter must be separately configured into the system
+before this driver can be used.
+.Pp
+This device supports
+.Xr read 2
+and
+.Xr write 2 ,
+and the
+.Xr ioctl 2
+calls described below.
+.Sh IOCTLS
+The following
+.Xr ioctl 2
+calls are supported by the
+.Nm
+driver.
+They are defined in the header file
+.In sys/ptio.h .
+.Bl -tag -width 012345678901234
+.It PTIOCGETTIMEOUT
+This ioctl allows userland applications to fetch the current
+.Nm
+driver read and write timeout.
+The value returned is in seconds.
+.It PTIOCSETTIMEOUT
+This ioctl allows userland applications to set the current
+.Nm
+driver read and write timeouts.
+The value should be in seconds.
+.El
+.Sh FILES
+.Bl -tag -width /dev/ptQQQ -compact
+.It Pa /dev/pt Ns Ar N
+the
+.Ar N Ns th processor device.
+.El
+.Sh SEE ALSO
+.Xr cam 4
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Fx 2.1 .

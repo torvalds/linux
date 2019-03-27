@@ -1,0 +1,72 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)p6	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+IX. STATISTICS
+.PP
+The following numbers
+are presented to suggest the scale of the Research
+.UX
+operation.
+Those of our users
+not involved in document preparation
+tend to use the system for
+program development, especially language work.
+There are few important
+``applications'' programs.
+.PP
+Overall, we have today:
+.PP
+.SP .5
+.TS
+center;
+r5 l.
+125	user population
+33	maximum simultaneous users
+1,630	directories
+28,300	files
+301,700	512-byte secondary storage blocks used
+.TE
+.SP .5
+There is a ``background'' process that
+runs at the lowest possible priority; it is used
+to soak up any idle \*sCPU\*n time.
+It has been used to produce a million-digit
+approximation to the constant \fIe\fR,
+and other semi-infinite problems.
+Not counting this background work, we average daily:
+.SP .5
+.TS
+center;
+r 5 l.
+13,500	commands
+9.6	\*sCPU\*n hours
+230	connect hours
+62	different users
+240	log-ins
+.TE
+.SP .5
+.SH
+X. ACKNOWLEDGMENTS
+.PP
+The contributors to
+.UX
+are, in the traditional but here especially apposite
+phrase, too numerous to mention.
+Certainly, collective salutes are due to our colleagues in the
+Computing Science Research Center.
+R. H. Canaday contributed much to the basic design of the
+file system.
+We are particularly appreciative
+of the inventiveness,
+thoughtful criticism,
+and constant support of
+R. Morris, M. D. McIlroy,
+and J. F. Ossanna.
+.[
+$LIST$
+.]

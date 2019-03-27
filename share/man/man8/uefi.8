@@ -1,0 +1,148 @@
+.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 14, 2018
+.Dt UEFI 8
+.Os
+.Sh NAME
+.Nm UEFI
+.Nd Unified Extensible Firmware Interface bootstrapping procedures
+.Sh DESCRIPTION
+The
+.Nm
+Unified Extensible Firmware Interface provides boot- and run-time services
+to operating systems.
+.Nm
+is a replacement for the legacy BIOS on the i386 and amd64 CPU architectures,
+and is also used on arm, arm64 and ia64.
+.Pp
+The UEFI specification is the successor to the Extensible Firmware Interface
+(EFI) specification.
+The terms are often used interchangeably.
+.Pp
+The
+.Nm
+boot process loads system bootstrap code located in an EFI System Partition
+(ESP).
+The ESP is a GPT or MBR partition with a specific identifier that contains an
+.Xr msdosfs 5
+FAT file system with a specified file hierarchy.
+.Bl -column -offset indent ".Sy Partition Scheme" ".Sy ESP Identifier"
+.It Sy "Partition Scheme" Ta Sy "ESP Identifier"
+.It GPT Ta C12A7328-F81F-11D2-BA4B-00A0C93EC93B
+.It MBR Ta 0xEF
+.El
+.Pp
+The
+.Nm
+boot process proceeds as follows:
+.Bl -enum -offset indent -compact
+.It
+.Nm
+firmware runs at power up and searches for an OS loader in the EFI system
+partition.
+The path to the loader may be set by an EFI environment variable.
+If not set, an architecture-specific default is used.
+.Bl -column -offset indent "Architecture" "Default Path"
+.It Sy Architecture Ta Sy Default Path
+.It amd64 Ta Pa /EFI/BOOT/BOOTX64.EFI
+.It arm64 Ta Pa /EFI/BOOT/BOOTAA64.EFI
+.El
+.Pp
+The default
+.Nm
+boot configuration for
+.Fx
+installs
+.Pa loader.efi
+in the default path.
+.It
+.Pa loader.efi
+reads boot configuration from
+.Pa /boot.config
+or
+.Pa /boot/config .
+.It
+.Pa loader.efi
+searches partitions of type
+.Li freebsd-ufs
+and
+.Li freebsd-zfs
+for
+.Pa loader.efi .
+The search begins with partitions on the device from which
+.Pa loader.efi
+was loaded, and continues with other available partitions.
+If both
+.Li freebsd-ufs
+and
+.Li freebsd-zfs
+partitions exist on the same device the
+.Li freebsd-zfs
+partition is preferred.
+.It
+.Pa loader.efi
+loads and boots the kernel, as described in
+.Xr loader 8 .
+.El
+.Pp
+The
+.Xr vt 4
+system console is automatically selected when booting via
+.Nm .
+.Sh FILES
+.Bl -tag -width /boot/loader -compact
+.Nm
+bootstrap
+.It Pa /boot/loader.efi
+Final stage bootstrap
+.It Pa /boot/kernel/kernel
+default kernel
+.It Pa /boot/kernel.old/kernel
+typical non-default kernel (optional)
+.El
+.Sh SEE ALSO
+.Xr vt 4 ,
+.Xr boot.config 5 ,
+.Xr msdosfs 5 ,
+.Xr boot 8 ,
+.Xr efibootmgr 8 ,
+.Xr efidp 8 ,
+.Xr efivar 8 ,
+.Xr gpart 8 ,
+.Xr uefisign 8
+.Sh HISTORY
+EFI boot support for the ia64 architecture first appeared in
+.Fx 5.0 .
+.Nm
+boot support for amd64 first appeared in
+.Fx 10.1
+and for arm64 in
+.Fx 11.0 .
+.Sh CAVEATS
+EFI environment variables are not supported by
+.Xr loader 8
+or the kernel.

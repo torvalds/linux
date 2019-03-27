@@ -1,0 +1,200 @@
+.\"	$OpenBSD: strlcpy.3,v 1.26 2013/09/30 12:02:35 millert Exp $
+.\"
+.\" Copyright (c) 1998, 2000 Todd C. Miller <Todd.Miller@courtesan.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+.\" THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+.\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 26, 2016
+.Dt STRLCPY 3
+.Os
+.Sh NAME
+.Nm strlcpy ,
+.Nm strlcat
+.Nd size-bounded string copying and concatenation
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In string.h
+.Ft size_t
+.Fn strlcpy "char * restrict dst" "const char * restrict src" "size_t dstsize"
+.Ft size_t
+.Fn strlcat "char * restrict dst" "const char * restrict src" "size_t dstsize"
+.Sh DESCRIPTION
+The
+.Fn strlcpy
+and
+.Fn strlcat
+functions copy and concatenate strings with the
+same input parameters and output result as
+.Xr snprintf 3 .
+They are designed to be safer, more consistent, and less error
+prone replacements for the easily misused functions
+.Xr strncpy 3
+and
+.Xr strncat 3 .
+.Pp
+.Fn strlcpy
+and
+.Fn strlcat
+take the full size of the destination buffer and guarantee
+NUL-termination if there is room.
+Note that room for the NUL should be included in
+.Fa dstsize .
+.Pp
+.Fn strlcpy
+copies up to
+.Fa dstsize
+\- 1 characters from the string
+.Fa src
+to
+.Fa dst ,
+NUL-terminating the result if
+.Fa dstsize
+is not 0.
+.Pp
+.Fn strlcat
+appends string
+.Fa src
+to the end of
+.Fa dst .
+It will append at most
+.Fa dstsize
+\- strlen(dst) \- 1 characters.
+It will then NUL-terminate, unless
+.Fa dstsize
+is 0 or the original
+.Fa dst
+string was longer than
+.Fa dstsize
+(in practice this should not happen
+as it means that either
+.Fa dstsize
+is incorrect or that
+.Fa dst
+is not a proper string).
+.Pp
+If the
+.Fa src
+and
+.Fa dst
+strings overlap, the behavior is undefined.
+.Sh RETURN VALUES
+Besides quibbles over the return type
+.Pf ( Va size_t
+versus
+.Va int )
+and signal handler safety
+.Pf ( Xr snprintf 3
+is not entirely safe on some systems), the
+following two are equivalent:
+.Bd -literal -offset indent
+n = strlcpy(dst, src, len);
+n = snprintf(dst, len, "%s", src);
+.Ed
+.Pp
+Like
+.Xr snprintf 3 ,
+the
+.Fn strlcpy
+and
+.Fn strlcat
+functions return the total length of the string they tried to create.
+For
+.Fn strlcpy
+that means the length of
+.Fa src .
+For
+.Fn strlcat
+that means the initial length of
+.Fa dst
+plus
+the length of
+.Fa src .
+.Pp
+If the return value is
+.Cm >=
+.Va dstsize ,
+the output string has been truncated.
+It is the caller's responsibility to handle this.
+.Sh EXAMPLES
+The following code fragment illustrates the simple case:
+.Bd -literal -offset indent
+char *s, *p, buf[BUFSIZ];
+
+\&...
+
+(void)strlcpy(buf, s, sizeof(buf));
+(void)strlcat(buf, p, sizeof(buf));
+.Ed
+.Pp
+To detect truncation, perhaps while building a pathname, something
+like the following might be used:
+.Bd -literal -offset indent
+char *dir, *file, pname[MAXPATHLEN];
+
+\&...
+
+if (strlcpy(pname, dir, sizeof(pname)) >= sizeof(pname))
+	goto toolong;
+if (strlcat(pname, file, sizeof(pname)) >= sizeof(pname))
+	goto toolong;
+.Ed
+.Pp
+Since it is known how many characters were copied the first time, things
+can be sped up a bit by using a copy instead of an append:
+.Bd -literal -offset indent
+char *dir, *file, pname[MAXPATHLEN];
+size_t n;
+
+\&...
+
+n = strlcpy(pname, dir, sizeof(pname));
+if (n >= sizeof(pname))
+	goto toolong;
+if (strlcpy(pname + n, file, sizeof(pname) - n) >= sizeof(pname) - n)
+	goto toolong;
+.Ed
+.Pp
+However, one may question the validity of such optimizations, as they
+defeat the whole purpose of
+.Fn strlcpy
+and
+.Fn strlcat .
+As a matter of fact, the first version of this manual page got it wrong.
+.Sh SEE ALSO
+.Xr snprintf 3 ,
+.Xr strncat 3 ,
+.Xr strncpy 3 ,
+.Xr wcslcpy 3
+.Sh HISTORY
+The
+.Fn strlcpy
+and
+.Fn strlcat
+functions first appeared in
+.Ox 2.4 ,
+and
+.Fx 3.3 .

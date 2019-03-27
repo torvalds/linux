@@ -1,0 +1,31 @@
+# $FreeBSD$
+
+set -e
+{
+	echo 1
+	echo two
+	echo three
+} | {
+	read x
+	[ "$x" = 1 ]
+	(read x
+	[ "$x" = two ])
+	read x
+	[ "$x" = three ]
+}
+
+T=`mktemp sh-test.XXXXXX`
+trap 'rm -f "$T"' 0
+{
+	echo 1
+	echo two
+	echo three
+} >$T
+{
+	read x
+	[ "$x" = 1 ]
+	(read x
+	[ "$x" = two ])
+	read x
+	[ "$x" = three ]
+} <$T

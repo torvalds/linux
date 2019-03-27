@@ -1,0 +1,9 @@
+BasedOnStyle: LLVM
+IndentWidth: 8
+UseTab: Always
+BreakBeforeBraces: Mozilla
+AllowShortIfStatementsOnASingleLine: false
+IndentCaseLabels: false
+AccessModifierOffset: -8
+AlignAfterOpenBracket: AlwaysBreak
+SortIncludes: false

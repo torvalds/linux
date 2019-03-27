@@ -1,0 +1,800 @@
+.\"-
+.\" Copyright (c) 1980, 1990, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
+.\" $FreeBSD$
+.\"
+.Dd October 31, 2018
+.Dt PS 1
+.Os
+.Sh NAME
+.Nm ps
+.Nd process status
+.Sh SYNOPSIS
+.Nm
+.Op Fl -libxo
+.Op Fl aCcdefHhjlmrSTuvwXxZ
+.Op Fl O Ar fmt | Fl o Ar fmt
+.Op Fl G Ar gid Ns Op , Ns Ar gid Ns Ar ...
+.Op Fl J Ar jid Ns Op , Ns Ar jid Ns Ar ...
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl p Ar pid Ns Op , Ns Ar pid Ns Ar ...
+.Op Fl t Ar tty Ns Op , Ns Ar tty Ns Ar ...
+.Op Fl U Ar user Ns Op , Ns Ar user Ns Ar ...
+.Nm
+.Op Fl -libxo
+.Op Fl L
+.Sh DESCRIPTION
+The
+.Nm
+utility
+displays a header line, followed by lines containing information about
+all of your
+processes that have controlling terminals.
+If the
+.Fl x
+options is specified,
+.Nm
+will also display processes that do not have controlling terminals.
+.Pp
+A different set of processes can be selected for display by using any
+combination of the
+.Fl a , G , J , p , T , t ,
+and
+.Fl U
+options.
+If more than one of these options are given, then
+.Nm
+will select all processes which are matched by at least one of the
+given options.
+.Pp
+For the processes which have been selected for display,
+.Nm
+will usually display one line per process.
+The
+.Fl H
+option may result in multiple output lines (one line per thread) for
+some processes.
+By default all of these output lines are sorted first by controlling
+terminal, then by process ID.
+The
+.Fl m , r , u ,
+and
+.Fl v
+options will change the sort order.
+If more than one sorting option was given, then the selected processes
+will be sorted by the last sorting option which was specified.
+.Pp
+For the processes which have been selected for display, the information
+to display is selected based on a set of keywords (see the
+.Fl L , O ,
+and
+.Fl o
+options).
+The default output format includes, for each process, the process' ID,
+controlling terminal, state, CPU time (including both user and system time)
+and associated command.
+.Pp
+If the
+.Nm
+process is associated with a terminal, the default output width is that of the
+terminal; otherwise the output width is unlimited.
+See also the
+.Fl w
+option.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
+.It Fl a
+Display information about other users' processes as well as your own.
+If the
+.Va security.bsd.see_other_uids
+sysctl is set to zero, this option is honored only if the UID of the user is 0.
+.It Fl c
+Change the
+.Dq command
+column output to just contain the executable name,
+rather than the full command line.
+.It Fl C
+Change the way the CPU percentage is calculated by using a
+.Dq raw
+CPU calculation that ignores
+.Dq resident
+time (this normally has
+no effect).
+.It Fl d
+Arrange processes into descendancy order and prefix each command with
+indentation text showing sibling and parent/child relationships as a tree.
+If either of the
+.Fl m
+and
+.Fl r
+options are also used, they control how sibling processes are sorted
+relative to each other.
+Note that this option has no effect if the
+.Dq command
+column is not the last column displayed.
+.It Fl e
+Display the environment as well.
+.It Fl f
+Show command-line and environment information about swapped out processes.
+This option is honored only if the UID of the user is 0.
+.It Fl G
+Display information about processes which are running with the specified
+real group IDs.
+.It Fl H
+Show all of the threads associated with each process.
+.It Fl h
+Repeat the information header as often as necessary to guarantee one
+header per page of information.
+.It Fl j
+Print information associated with the following keywords:
+.Cm user , pid , ppid , pgid , sid , jobc , state , tt , time ,
+and
+.Cm command .
+.It Fl J
+Display information about processes which match the specified jail IDs.
+This may be either the
+.Cm jid
+or
+.Cm name
+of the jail.
+Use
+.Fl J
+.Sy 0
+to display only host processes.
+This flag implies
+.Fl x
+by default.
+.It Fl L
+List the set of keywords available for the
+.Fl O
+and
+.Fl o
+options.
+.It Fl l
+Display information associated with the following keywords:
+.Cm uid , pid , ppid , cpu , pri , nice , vsz , rss , mwchan , state ,
+.Cm tt , time ,
+and
+.Cm command .
+.It Fl M
+Extract values associated with the name list from the specified core
+instead of the currently running system.
+.It Fl m
+Sort by memory usage, instead of the combination of controlling
+terminal and process ID.
+.It Fl N
+Extract the name list from the specified system instead of the default,
+which is the kernel image the system has booted from.
+.It Fl O
+Add the information associated with the space or comma separated list
+of keywords specified, after the process ID,
+in the default information
+display.
+Keywords may be appended with an equals
+.Pq Ql =
+sign and a string.
+This causes the printed header to use the specified string instead of
+the standard header.
+.It Fl o
+Display information associated with the space or comma separated
+list of keywords specified.
+The last keyword in the list may be appended with an equals
+.Pq Ql =
+sign and a string that spans the rest of the argument, and can contain
+space and comma characters.
+This causes the printed header to use the specified string instead of
+the standard header.
+Multiple keywords may also be given in the form of more than one
+.Fl o
+option.
+So the header texts for multiple keywords can be changed.
+If all keywords have empty header texts, no header line is written.
+.It Fl p
+Display information about processes which match the specified process IDs.
+.It Fl r
+Sort by current CPU usage, instead of the combination of controlling
+terminal and process ID.
+.It Fl S
+Change the way the process times, namely cputime, systime, and usertime,
+are calculated by summing all exited children to their parent process.
+.It Fl T
+Display information about processes attached to the device associated
+with the standard input.
+.It Fl t
+Display information about processes attached to the specified terminal
+devices.
+Full pathnames, as well as abbreviations (see explanation of the
+.Cm tt
+keyword) can be specified.
+.It Fl U
+Display the processes belonging to the specified usernames.
+.It Fl u
+Display information associated with the following keywords:
+.Cm user , pid , %cpu , %mem , vsz , rss , tt , state , start , time ,
+and
+.Cm command .
+The
+.Fl u
+option implies the
+.Fl r
+option.
+.It Fl v
+Display information associated with the following keywords:
+.Cm pid , state , time , sl , re , pagein , vsz , rss , lim , tsiz ,
+.Cm %cpu , %mem ,
+and
+.Cm command .
+The
+.Fl v
+option implies the
+.Fl m
+option.
+.It Fl w
+Use at least 132 columns to display information, instead of the default which
+is the window size if
+.Nm
+is associated with a terminal.
+If the
+.Fl w
+option is specified more than once,
+.Nm
+will use as many columns as necessary without regard for the window size.
+Note that this option has no effect if the
+.Dq command
+column is not the last column displayed.
+.It Fl X
+When displaying processes matched by other options, skip any processes
+which do not have a controlling terminal.
+This is the default behaviour.
+.It Fl x
+When displaying processes matched by other options, include processes
+which do not have a controlling terminal.
+This is the opposite of the
+.Fl X
+option.
+If both
+.Fl X
+and
+.Fl x
+are specified in the same command, then
+.Nm
+will use the one which was specified last.
+.It Fl Z
+Add
+.Xr mac 4
+label to the list of keywords for which
+.Nm
+will display information.
+.El
+.Pp
+A complete list of the available keywords are listed below.
+Some of these keywords are further specified as follows:
+.Bl -tag -width lockname
+.It Cm %cpu
+The CPU utilization of the process; this is a decaying average over up to
+a minute of previous (real) time.
+Since the time base over which this is computed varies (since processes may
+be very young) it is possible for the sum of all
+.Cm %cpu
+fields to exceed 100%.
+.It Cm %mem
+The percentage of real memory used by this process.
+.It Cm class
+Login class associated with the process.
+.It Cm flags
+The flags associated with the process as in
+the include file
+.In sys/proc.h :
+.Bl -column P_SINGLE_BOUNDARY 0x40000000
+.It Dv "P_ADVLOCK" Ta No "0x00001" Ta "Process may hold a POSIX advisory lock"
+.It Dv "P_CONTROLT" Ta No "0x00002" Ta "Has a controlling terminal"
+.It Dv "P_KPROC" Ta No "0x00004" Ta "Kernel process"
+.It Dv "P_PPWAIT" Ta No "0x00010" Ta "Parent is waiting for child to exec/exit"
+.It Dv "P_PROFIL" Ta No "0x00020" Ta "Has started profiling"
+.It Dv "P_STOPPROF" Ta No "0x00040" Ta "Has thread in requesting to stop prof"
+.It Dv "P_HADTHREADS" Ta No "0x00080" Ta "Has had threads (no cleanup shortcuts)"
+.It Dv "P_SUGID" Ta No "0x00100" Ta "Had set id privileges since last exec"
+.It Dv "P_SYSTEM" Ta No "0x00200" Ta "System proc: no sigs, stats or swapping"
+.It Dv "P_SINGLE_EXIT" Ta No "0x00400" Ta "Threads suspending should exit, not wait"
+.It Dv "P_TRACED" Ta No "0x00800" Ta "Debugged process being traced"
+.It Dv "P_WAITED" Ta No "0x01000" Ta "Someone is waiting for us"
+.It Dv "P_WEXIT" Ta No "0x02000" Ta "Working on exiting"
+.It Dv "P_EXEC" Ta No "0x04000" Ta "Process called exec"
+.It Dv "P_WKILLED" Ta No "0x08000" Ta "Killed, shall go to kernel/user boundary ASAP"
+.It Dv "P_CONTINUED" Ta No "0x10000" Ta "Proc has continued from a stopped state"
+.It Dv "P_STOPPED_SIG" Ta No "0x20000" Ta "Stopped due to SIGSTOP/SIGTSTP"
+.It Dv "P_STOPPED_TRACE" Ta No "0x40000" Ta "Stopped because of tracing"
+.It Dv "P_STOPPED_SINGLE" Ta No "0x80000" Ta "Only one thread can continue"
+.It Dv "P_PROTECTED" Ta No "0x100000" Ta "Do not kill on memory overcommit"
+.It Dv "P_SIGEVENT" Ta No "0x200000" Ta "Process pending signals changed"
+.It Dv "P_SINGLE_BOUNDARY" Ta No "0x400000" Ta "Threads should suspend at user boundary"
+.It Dv "P_HWPMC" Ta No "0x800000" Ta "Process is using HWPMCs"
+.It Dv "P_JAILED" Ta No "0x1000000" Ta "Process is in jail"
+.It Dv "P_TOTAL_STOP" Ta No "0x2000000" Ta "Stopped for system suspend"
+.It Dv "P_INEXEC" Ta No "0x4000000" Ta Process is in Xr execve 2
+.It Dv "P_STATCHILD" Ta No "0x8000000" Ta "Child process stopped or exited"
+.It Dv "P_INMEM" Ta No "0x10000000" Ta "Loaded into memory"
+.It Dv "P_SWAPPINGOUT" Ta No "0x20000000" Ta "Process is being swapped out"
+.It Dv "P_SWAPPINGIN" Ta No "0x40000000" Ta "Process is being swapped in"
+.It Dv "P_PPTRACE" Ta No "0x80000000" Ta "Vforked child issued ptrace(PT_TRACEME)"
+.El
+.It Cm flags2
+The flags kept in
+.Va p_flag2
+associated with the process as in
+the include file
+.In sys/proc.h :
+.Bl -column P2_INHERIT_PROTECTED 0x00000001
+.It Dv "P2_INHERIT_PROTECTED" Ta No "0x00000001" Ta "New children get P_PROTECTED"
+.It Dv "P2_NOTRACE" Ta No "0x00000002" Ta "No" Xr ptrace 2 attach or coredumps
+.It Dv "P2_NOTRACE_EXEC" Ta No "0x00000004" Ta Keep P2_NOPTRACE on Xr execve 2
+.It Dv "P2_AST_SU" Ta No "0x00000008" Ta "Handles SU ast for kthreads"
+.It Dv "P2_PTRACE_FSTP" Ta No "0x00000010" Ta "SIGSTOP from PT_ATTACH not yet handled"
+.El
+.It Cm label
+The MAC label of the process.
+.It Cm lim
+The soft limit on memory used, specified via a call to
+.Xr setrlimit 2 .
+.It Cm lstart
+The exact time the command started, using the
+.Ql %c
+format described in
+.Xr strftime 3 .
+.It Cm lockname
+The name of the lock that the process is currently blocked on.
+If the name is invalid or unknown, then
+.Dq ???\&
+is displayed.
+.It Cm logname
+The login name associated with the session the process is in (see
+.Xr getlogin 2 ) .
+.It Cm mwchan
+The event name if the process is blocked normally, or the lock name if
+the process is blocked on a lock.
+See the wchan and lockname keywords
+for details.
+.It Cm nice
+The process scheduling increment (see
+.Xr setpriority 2 ) .
+.It Cm rss
+the real memory (resident set) size of the process (in 1024 byte units).
+.It Cm start
+The time the command started.
+If the command started less than 24 hours ago, the start time is
+displayed using the
+.Dq Li %H:%M
+format described in
+.Xr strftime 3 .
+If the command started less than 7 days ago, the start time is
+displayed using the
+.Dq Li %a%H
+format.
+Otherwise, the start time is displayed using the
+.Dq Li %e%b%y
+format.
+.It Cm state
+The state is given by a sequence of characters, for example,
+.Dq Li RWNA .
+The first character indicates the run state of the process:
+.Pp
+.Bl -tag -width indent -compact
+.It Li D
+Marks a process in disk (or other short term, uninterruptible) wait.
+.It Li I
+Marks a process that is idle (sleeping for longer than about 20 seconds).
+.It Li L
+Marks a process that is waiting to acquire a lock.
+.It Li R
+Marks a runnable process.
+.It Li S
+Marks a process that is sleeping for less than about 20 seconds.
+.It Li T
+Marks a stopped process.
+.It Li W
+Marks an idle interrupt thread.
+.It Li Z
+Marks a dead process (a
+.Dq zombie ) .
+.El
+.Pp
+Additional characters after these, if any, indicate additional state
+information:
+.Pp
+.Bl -tag -width indent -compact
+.It Li +
+The process is in the foreground process group of its control terminal.
+.It Li <
+The process has raised CPU scheduling priority.
+.It Li C
+The process is in
+.Xr capsicum 4
+capability mode.
+.It Li E
+The process is trying to exit.
+.It Li J
+Marks a process which is in
+.Xr jail 2 .
+The hostname of the prison can be found in
+.Pa /proc/ Ns Ao Ar pid Ac Ns Pa /status .
+.It Li L
+The process has pages locked in core (for example, for raw I/O).
+.It Li N
+The process has reduced CPU scheduling priority (see
+.Xr setpriority 2 ) .
+.It Li s
+The process is a session leader.
+.It Li V
+The process' parent is suspended during a
+.Xr vfork 2 ,
+waiting for the process to exec or exit.
+.It Li W
+The process is swapped out.
+.It Li X
+The process is being traced or debugged.
+.El
+.It Cm tt
+An abbreviation for the pathname of the controlling terminal, if any.
+The abbreviation consists of the three letters following
+.Pa /dev/tty ,
+or, for pseudo-terminals, the corresponding entry in
+.Pa /dev/pts .
+This is followed by a
+.Ql -
+if the process can no longer reach that
+controlling terminal (i.e., it has been revoked).
+A
+.Ql -
+without a preceding two letter abbreviation or pseudo-terminal device number
+indicates a process which never had a controlling terminal.
+The full pathname of the controlling terminal is available via the
+.Cm tty
+keyword.
+.It Cm wchan
+The event (an address in the system) on which a process waits.
+When printed numerically, the initial part of the address is
+trimmed off and the result is printed in hex, for example, 0x80324000 prints
+as 324000.
+.El
+.Pp
+When printing using the command keyword, a process that has exited and
+has a parent that has not yet waited for the process (in other words, a zombie)
+is listed as
+.Dq Li <defunct> ,
+and a process which is blocked while trying
+to exit is listed as
+.Dq Li <exiting> .
+If the arguments cannot be located (usually because it has not been set, as is
+the case of system processes and/or kernel threads) the command name is printed
+within square brackets.
+The
+.Nm
+utility first tries to obtain the arguments cached by the kernel (if they were
+shorter than the value of the
+.Va kern.ps_arg_cache_limit
+sysctl).
+The process can change the arguments shown with
+.Xr setproctitle 3 .
+Otherwise,
+.Nm
+makes an educated guess as to the file name and arguments given when the
+process was created by examining memory or the swap area.
+The method is inherently somewhat unreliable and in any event a process
+is entitled to destroy this information.
+The ucomm (accounting) keyword can, however, be depended on.
+If the arguments are unavailable or do not agree with the ucomm keyword,
+the value for the ucomm keyword is appended to the arguments in parentheses.
+.Sh KEYWORDS
+The following is a complete list of the available keywords and their
+meanings.
+Several of them have aliases (keywords which are synonyms).
+.Pp
+.Bl -tag -width ".Cm sigignore" -compact
+.It Cm %cpu
+percentage CPU usage (alias
+.Cm pcpu )
+.It Cm %mem
+percentage memory usage (alias
+.Cm pmem )
+.It Cm acflag
+accounting flag (alias
+.Cm acflg )
+.It Cm args
+command and arguments
+.It Cm class
+login class
+.It Cm comm
+command
+.It Cm command
+command and arguments
+.It Cm cow
+number of copy-on-write faults
+.It Cm cpu
+short-term CPU usage factor (for scheduling)
+.It Cm dsiz
+data size (in Kbytes)
+.It Cm emul
+system-call emulation environment (ABI)
+.It Cm etime
+elapsed running time, format
+.Do
+.Op days- Ns
+.Op hours\&: Ns
+minutes:seconds
+.Dc
+.It Cm etimes
+elapsed running time, in decimal integer seconds
+.It Cm fib
+default FIB number, see
+.Xr setfib 1
+.It Cm flags
+the process flags, in hexadecimal (alias
+.Cm f )
+.It Cm flags2
+the additional set of process flags, in hexadecimal (alias
+.Cm f2 )
+.It Cm gid
+effective group ID (alias
+.Cm egid )
+.It Cm group
+group name (from egid) (alias
+.Cm egroup )
+.It Cm inblk
+total blocks read (alias
+.Cm inblock )
+.It Cm jail
+jail name
+.It Cm jid
+jail ID
+.It Cm jobc
+job control count
+.It Cm ktrace
+tracing flags
+.It Cm label
+MAC label
+.It Cm lim
+memoryuse limit
+.It Cm lockname
+lock currently blocked on (as a symbolic name)
+.It Cm logname
+login name of user who started the session
+.It Cm lstart
+time started
+.It Cm lwp
+thread (light-weight process) ID (alias
+.Cm tid )
+.It Cm majflt
+total page faults
+.It Cm minflt
+total page reclaims
+.It Cm msgrcv
+total messages received (reads from pipes/sockets)
+.It Cm msgsnd
+total messages sent (writes on pipes/sockets)
+.It Cm mwchan
+wait channel or lock currently blocked on
+.It Cm nice
+nice value (alias
+.Cm ni )
+.It Cm nivcsw
+total involuntary context switches
+.It Cm nlwp
+number of threads (light-weight processes) tied to a process
+.It Cm nsigs
+total signals taken (alias
+.Cm nsignals )
+.It Cm nswap
+total swaps in/out
+.It Cm nvcsw
+total voluntary context switches
+.It Cm nwchan
+wait channel (as an address)
+.It Cm oublk
+total blocks written (alias
+.Cm oublock )
+.It Cm paddr
+process pointer
+.It Cm pagein
+pageins (same as majflt)
+.It Cm pgid
+process group number
+.It Cm pid
+process ID
+.It Cm ppid
+parent process ID
+.It Cm pri
+scheduling priority
+.It Cm re
+core residency time (in seconds; 127 = infinity)
+.It Cm rgid
+real group ID
+.It Cm rgroup
+group name (from rgid)
+.It Cm rss
+resident set size
+.It Cm rtprio
+realtime priority (101 = not a realtime process)
+.It Cm ruid
+real user ID
+.It Cm ruser
+user name (from ruid)
+.It Cm sid
+session ID
+.It Cm sig
+pending signals (alias
+.Cm pending )
+.It Cm sigcatch
+caught signals (alias
+.Cm caught )
+.It Cm sigignore
+ignored signals (alias
+.Cm ignored )
+.It Cm sigmask
+blocked signals (alias
+.Cm blocked )
+.It Cm sl
+sleep time (in seconds; 127 = infinity)
+.It Cm ssiz
+stack size (in Kbytes)
+.It Cm start
+time started
+.It Cm state
+symbolic process state (alias
+.Cm stat )
+.It Cm svgid
+saved gid from a setgid executable
+.It Cm svuid
+saved UID from a setuid executable
+.It Cm systime
+accumulated system CPU time
+.It Cm tdaddr
+thread address
+.It Cm tdname
+thread name
+.It Cm tdev
+control terminal device number
+.It Cm time
+accumulated CPU time, user + system (alias
+.Cm cputime )
+.It Cm tpgid
+control terminal process group ID
+.It Cm tracer
+tracer process ID
+.\".It Cm trss
+.\"text resident set size (in Kbytes)
+.It Cm tsid
+control terminal session ID
+.It Cm tsiz
+text size (in Kbytes)
+.It Cm tt
+control terminal name (two letter abbreviation)
+.It Cm tty
+full name of control terminal
+.It Cm ucomm
+name to be used for accounting
+.It Cm uid
+effective user ID (alias
+.Cm euid )
+.It Cm upr
+scheduling priority on return from system call (alias
+.Cm usrpri )
+.It Cm uprocp
+process pointer
+.It Cm user
+user name (from UID)
+.It Cm usertime
+accumulated user CPU time
+.It Cm vmaddr
+vmspace pointer
+.It Cm vsz
+virtual size in Kbytes (alias
+.Cm vsize )
+.It Cm wchan
+wait channel (as a symbolic name)
+.It Cm xstat
+exit or stop status (valid only for stopped or zombie process)
+.El
+.Pp
+Note that the
+.Cm pending
+column displays bitmask of signals pending in the process queue when
+.Fl H
+option is not specified, otherwise the per-thread queue of pending signals
+is shown.
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev COLUMNS"
+.It Ev COLUMNS
+If set, specifies the user's preferred output width in column positions.
+By default,
+.Nm
+attempts to automatically determine the terminal width.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /boot/kernel/kernel" -compact
+.It Pa /boot/kernel/kernel
+default system namelist
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Display information on all system processes:
+.Pp
+.Dl $ ps -auxw
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr pgrep 1 ,
+.Xr pkill 1 ,
+.Xr procstat 1 ,
+.Xr w 1 ,
+.Xr kvm 3 ,
+.Xr libxo 3 ,
+.Xr strftime 3 ,
+.Xr xo_parse_args 3 ,
+.Xr mac 4 ,
+.Xr procfs 5 ,
+.Xr pstat 8 ,
+.Xr sysctl 8 ,
+.Xr mutex 9
+.Sh STANDARDS
+For historical reasons, the
+.Nm
+utility under
+.Fx
+supports a different set of options from what is described by
+.St -p1003.2 ,
+and what is supported on
+.No non- Ns Bx
+operating systems.
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.At v3
+in section 8 of the manual.
+.Sh BUGS
+Since
+.Nm
+cannot run faster than the system and is run as any other scheduled
+process, the information it displays can never be exact.
+.Pp
+The
+.Nm
+utility does not correctly display argument lists containing multibyte
+characters.

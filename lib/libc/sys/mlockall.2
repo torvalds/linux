@@ -1,0 +1,146 @@
+.\"	$NetBSD: mlockall.2,v 1.11 2003/04/16 13:34:54 wiz Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe of the Numerical Aerospace Simulation Facility,
+.\" NASA Ames Research Center.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 25, 2012
+.Dt MLOCKALL 2
+.Os
+.Sh NAME
+.Nm mlockall ,
+.Nm munlockall
+.Nd lock (unlock) the address space of a process
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/mman.h
+.Ft int
+.Fn mlockall "int flags"
+.Ft int
+.Fn munlockall "void"
+.Sh DESCRIPTION
+The
+.Fn mlockall
+system call locks into memory the physical pages associated with the
+address space of a process until the address space is unlocked, the
+process exits, or execs another program image.
+.Pp
+The following flags affect the behavior of
+.Fn mlockall :
+.Bl -tag -width ".Dv MCL_CURRENT"
+.It Dv MCL_CURRENT
+Lock all pages currently mapped into the process's address space.
+.It Dv MCL_FUTURE
+Lock all pages mapped into the process's address space in the future,
+at the time the mapping is established.
+Note that this may cause future mappings to fail if those mappings
+cause resource limits to be exceeded.
+.El
+.Pp
+Since physical memory is a potentially scarce resource, processes are
+limited in how much they can lock down.
+A single process can lock the minimum of a system-wide
+.Dq wired pages
+limit
+.Va vm.max_wired
+and the per-process
+.Dv RLIMIT_MEMLOCK
+resource limit.
+.Pp
+If
+.Va security.bsd.unprivileged_mlock
+is set to 0 these calls are only available to the super-user.
+If
+.Va vm.old_mlock
+is set to 1 the per-process
+.Dv RLIMIT_MEMLOCK
+resource limit will not be applied for
+.Fn mlockall
+calls.
+.Pp
+The
+.Fn munlockall
+call unlocks any locked memory regions in the process address space.
+Any regions mapped after an
+.Fn munlockall
+call will not be locked.
+.Sh RETURN VALUES
+A return value of 0 indicates that the call
+succeeded and all pages in the range have either been locked or unlocked.
+A return value of \-1 indicates an error occurred and the locked
+status of all pages in the range remains unchanged.
+In this case, the global location
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Fn mlockall
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa flags
+argument is zero, or includes unimplemented flags.
+.It Bq Er ENOMEM
+Locking the indicated range would exceed either the system or per-process
+limit for locked memory.
+.It Bq Er EAGAIN
+Some or all of the memory mapped into the process's address space
+could not be locked when the call was made.
+.It Bq Er EPERM
+The calling process does not have the appropriate privilege to perform
+the requested operation.
+.El
+.Sh SEE ALSO
+.Xr mincore 2 ,
+.Xr mlock 2 ,
+.Xr mmap 2 ,
+.Xr munmap 2 ,
+.Xr setrlimit 2
+.Sh STANDARDS
+The
+.Fn mlockall
+and
+.Fn munlockall
+functions are believed to conform to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn mlockall
+and
+.Fn munlockall
+functions first appeared in
+.Fx 5.1 .
+.Sh BUGS
+The per-process resource limit is a limit on the amount of virtual
+memory locked, while the system-wide limit is for the number of locked
+physical pages.
+Hence a process with two distinct locked mappings of the same physical page
+counts as 2 pages against the per-process limit and as only a single page
+in the system limit.

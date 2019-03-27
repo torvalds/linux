@@ -1,0 +1,2 @@
+table role = nat type = tree number = 100
+	{ 1.1.1.1/32; !2.2.0.0/16; 2.2.2.0/24; };

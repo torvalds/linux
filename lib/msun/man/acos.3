@@ -1,0 +1,87 @@
+.\" Copyright (c) 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)acos.3	5.1 (Berkeley) 5/2/91
+.\" $FreeBSD$
+.\"
+.Dd July 31, 2008
+.Dt ACOS 3
+.Os
+.Sh NAME
+.Nm acos ,
+.Nm acosf ,
+.Nm acosl
+.Nd arc cosine functions
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn acos "double x"
+.Ft float
+.Fn acosf "float x"
+.Ft long double
+.Fn acosl "long double x"
+.Sh DESCRIPTION
+The
+.Fn acos ,
+.Fn acosf ,
+and
+.Fn acosl
+functions compute the principal value of the arc cosine of
+.Fa x .
+.Sh RETURN VALUES
+These functions return the arc cosine in the range
+.Bq 0 , \*(Pi
+radians.
+If:
+.Bd -unfilled -offset indent
+.Pf \&| Ns Ar x Ns \&| > 1 ,
+.Ed
+.Pp
+.Fn acos x
+raises an invalid exception and returns an \*(Na.
+.Sh SEE ALSO
+.Xr asin 3 ,
+.Xr atan 3 ,
+.Xr atan2 3 ,
+.Xr cos 3 ,
+.Xr cosh 3 ,
+.Xr fenv 3 ,
+.Xr math 3 ,
+.Xr sin 3 ,
+.Xr sinh 3 ,
+.Xr tan 3 ,
+.Xr tanh 3
+.Sh STANDARDS
+The
+.Fn acos ,
+.Fn acosf ,
+and
+.Fn acosl
+functions conform to
+.St -isoC-99 .

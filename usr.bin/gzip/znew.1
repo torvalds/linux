@@ -1,0 +1,71 @@
+.\"	$NetBSD: znew.1,v 1.2 2003/12/28 12:43:43 wiz Exp $
+.\"	$OpenBSD: znew.1,v 1.1 2003/08/02 20:52:50 otto Exp $
+.\"
+.\" Copyright (c) 2003 Otto Moerbeek <otto@drijf.net>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.Dd January 26, 2007
+.Dt ZNEW 1
+.Os
+.Sh NAME
+.Nm znew
+.Nd convert compressed files to gzipped files
+.Sh SYNOPSIS
+.Nm
+.Op Fl ftv9K
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility uncompresses files compressed by
+.Xr compress 1
+and recompresses them with
+.Xr gzip 1 .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl f
+Overwrite existing
+.Sq .gz
+files.
+Unless this option is specified,
+.Nm
+refuses to overwrite existing files.
+.It Fl t
+Test integrity of the gzipped file before deleting the original file.
+If the integrity check fails, the original
+.Sq .Z
+file is not removed.
+.It Fl v
+Print a report specifying the achieved compression ratios.
+.It Fl 9
+Use the -9 mode of
+.Xr gzip 1 ,
+achieving better compression at the cost of slower execution.
+.It Fl K
+Keep the original
+.Sq .Z
+file if it uses less disk blocks than the gzipped one.
+A disk block is 1024 bytes.
+.El
+.Sh SEE ALSO
+.Xr gzip 1
+.Sh CAVEATS
+The
+.Nm
+utility tries to maintain the file mode of the original file.
+If the original file is not writable, it is not able to do that and
+.Nm
+will print a warning.

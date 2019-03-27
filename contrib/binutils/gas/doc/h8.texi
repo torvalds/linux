@@ -1,0 +1,26 @@
+@clear ALL-ARCH
+@clear GENERIC
+@clear INTERNALS
+@clear MULTI-OBJ
+@clear AOUT
+@clear BOUT
+@set COFF
+@clear ELF
+@set Renesas-all
+@set H8/300
+@set H8/500
+@set SH
+@clear DIFF-TBL-KLUGE
+@set IEEEFLOAT
+@clear W32
+@set W16
+@set SPECIAL-SYMS
+@set AS as
+@set GCC gcc
+@set LD ld
+@set TARGET H8/300 and H8/500
+@set TARGET H8/300, H8/500, and Renesas SH
+@set OBJ-NAME COFF
+@c
+@clear have-stabs
+@set abnormal-separator

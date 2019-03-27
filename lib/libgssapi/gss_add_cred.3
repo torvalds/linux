@@ -1,0 +1,337 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2005 Doug Rabson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.\"
+.\" The following commands are required for all man pages.
+.Dd January 26, 2010
+.Dt GSS_ADD_CRED 3 PRM
+.Os
+.Sh NAME
+.Nm gss_add_cred
+.Nd Construct credentials incrementally
+.\" This next command is for sections 2 and 3 only.
+.\" .Sh LIBRARY
+.Sh SYNOPSIS
+.In "gssapi/gssapi.h"
+.Ft OM_uint32
+.Fo gss_add_cred
+.Fa "OM_uint32 *minor_status"
+.Fa "const gss_cred_id_t input_cred_handle"
+.Fa "const gss_name_t desired_name"
+.Fa "const gss_OID desired_mech"
+.Fa "gss_cred_usage_t cred_usage"
+.Fa "OM_uint32 initiator_time_req"
+.Fa "OM_uint32 acceptor_time_req"
+.Fa "gss_cred_id_t *output_cred_handle"
+.Fa "gss_OID_set *actual_mechs"
+.Fa "OM_uint32 *initiator_time_rec"
+.Fa "OM_uint32 *acceptor_time_rec"
+.Fc
+.Sh DESCRIPTION
+Adds a credential-element to a credential.
+The credential-element is identified by the name of the principal to
+which it refers.
+GSS-API implementations must impose a local access-control policy on
+callers of this routine to prevent unauthorized callers from acquiring
+credential-elements to which they are not entitled.
+This routine is not intended to provide a "login to the network"
+function,
+as such a function would involve the creation of new
+mechanism-specific authentication data,
+rather than merely acquiring a GSS-API handle to existing data.
+Such functions,
+if required,
+should be defined in implementation-specific extensions to the API.
+.Pp
+If
+.Fa desired_name
+is
+.Dv GSS_C_NO_NAME ,
+the call is interpreted as a request to add a credential element that
+will invoke default behavior when passed to
+.Fn gss_init_sec_context
+(if cred_usage is
+.Dv GSS_C_INITIATE
+or
+.Dv GSS_C_BOTH )
+or
+.Fn gss_accept_sec_context
+(if
+.Fa cred_usage
+is
+.Dv GSS_C_ACCEPT
+or
+.Dv GSS_C_BOTH ).
+.Pp
+This routine is expected to be used primarily by context acceptors,
+since implementations are likely to provide mechanism-specific ways of
+obtaining GSS-API initiator credentials from the system login process.
+Some implementations may therefore not support the acquisition of
+.Dv GSS_C_INITIATE
+or
+.Dv GSS_C_BOTH
+credentials via
+.Fn gss_acquire_cred
+for any name other than
+.Dv GSS_C_NO_NAME ,
+or a name produced by applying either
+.Fn gss_inquire_cred
+to a valid credential,
+or
+.Fn gss_inquire_context
+to an active context.
+.Pp
+If credential acquisition is time-consuming for a mechanism,
+the mechanism may choose to delay the actual acquisition until the
+credential is required (e.g. by
+.Fn gss_init_sec_context
+or
+.Fn gss_accept_sec_context ).
+Such mechanism-specific implementation decisions should be invisible
+to the calling application;
+thus a call of
+.Fn gss_inquire_cred
+immediately following the call of
+.Fn gss_add_cred
+must return valid credential data,
+and may therefore incur the overhead of a deferred credential acquisition.
+.Pp
+This routine can be used to either compose a new credential containing
+all credential-elements of the original in addition to the
+newly-acquire credential-element,
+or to add the new credential-element to an existing credential.
+If
+.Dv NULL
+is specified for the
+.Fa output_cred_handle
+parameter argument,
+the new credential-element will be added to the credential identified
+by
+.Fa input_cred_handle ;
+if a valid pointer is specified for the
+.Fa output_cred_handle
+parameter,
+a new credential handle will be created.
+.Pp
+If
+.Dv GSS_C_NO_CREDENTIAL
+is specified as the
+.Fa input_cred_handle ,
+.Fn gss_add_cred
+will compose a credential (and set the
+.Fa output_cred_handle
+parameter accordingly) based on default behavior.
+That is, the call will have the same effect as if the application had
+first made a call to
+.Fn gss_acquire_cred ,
+specifying the same usage and passing
+.Dv GSS_C_NO_NAME
+as the
+.Fa desired_name
+parameter to obtain an explicit credential handle embodying default
+behavior,
+passed this credential handle to
+.Fn gss_add_cred ,
+and finally called
+.Fn gss_release_cred
+on the first credential handle.
+.Pp
+If
+.Dv GSS_C_NO_CREDENTIAL
+is specified as the
+.Fa input_cred_handle
+parameter,
+a non-
+.Dv NULL
+.Fa output_cred_handle
+must be supplied.
+.Sh PARAMETERS
+.Bl -tag -width ".It output_cred_handle"
+.It minor_status
+Mechanism specific status code.
+.It input_cred_handle
+The credential to which a credential-element will be added.
+If
+.Dv GSS_C_NO_CREDENTIAL
+is specified, the routine will compose the new credential based on
+default behavior (see description above).
+Note that, while the credential-handle is not modified by
+.Fn gss_add_cred ,
+the underlying credential will be modified if
+.Fa output_credential_handle
+is
+.Dv NULL .
+.It desired_name
+Name of principal whose credential should be acquired.
+.It desired_mech
+Underlying security mechanism with which the credential may be used.
+.It cred_usage
+.Bl -tag -width "GSS_C_INITIATE"
+.It GSS_C_BOTH
+Credential may be used either to initiate or accept security
+contexts.
+.It GSS_C_INITIATE
+Credential will only be used to initiate security contexts.
+.It GSS_C_ACCEPT
+Credential will only be used to accept security contexts.
+.El
+.It initiator_time_req
+Number of seconds that the credential should remain valid for
+initiating security contexts.
+This argument is ignored if the composed credentials are of type
+.Dv GSS_C_ACCEPT .
+Specify
+.Dv GSS_C_INDEFINITE
+to request that the credentials have the maximum permitted initiator lifetime.
+.It acceptor_time_req
+Number of seconds that the credential should remain valid for
+accepting security contexts.
+This argument is ignored if the composed credentials are of type
+.Dv GSS_C_INITIATE .
+Specify
+.Dv GSS_C_INDEFINITE
+to request that the credentials have the maximum permitted initiator lifetime.
+.It output_cred_handle
+The returned credential handle,
+containing
+the new credential-element and all the credential-elements from
+.Fa input_cred_handle .
+If a valid pointer to a
+.Fa gss_cred_id_t
+is supplied for this parameter,
+.Fn gss_add_cred
+creates a new credential handle containing all credential-elements
+from the
+.Fa input_cred_handle
+and the newly acquired credential-element;
+if
+.Dv NULL
+is specified for this parameter,
+the newly acquired credential-element will be added to the credential
+identified by
+.Fa input_cred_handle .
+.Pp
+The resources associated with any credential handle returned via this
+parameter must be released by the application after use with a call to
+.Fn gss_release_cred .
+.It actual_mechs
+The complete set of mechanisms for which the new credential is valid.
+Storage for the returned OID-set must be freed by the application
+after use with a call to
+.Fn gss_release_oid_set .
+Specify
+.Dv NULL if not required.
+.It initiator_time_rec
+Actual number of seconds for which the returned credentials will
+remain valid for initiating contexts using the specified mechanism.
+If the implementation or mechanism does not support expiration of
+credentials,
+the value
+.Dv GSS_C_INDEFINITE
+will be returned.
+Specify
+.Dv NULL
+if not required.
+.It acceptor_time_rec
+Actual number of seconds for which the returned credentials will
+remain valid for accepting security contexts using the specified
+mechanism.
+If the implementation or mechanism does not support expiration of
+credentials,
+the value
+.Dv GSS_C_INDEFINITE
+will be returned.
+Specify
+.Dv NULL
+if not required.
+.El
+.Sh RETURN VALUES
+.Bl -tag -width ".It GSS_S_CREDENTIALS_EXPIRED"
+.It GSS_S_COMPLETE
+Successful completion.
+.It GSS_S_BAD_MECH
+Unavailable mechanism requested.
+.It GSS_S_BAD_NAMETYPE
+Type contained within desired_name parameter is not supported
+.It GSS_S_BAD_NAME
+Value supplied for desired_name parameter is ill-formed.
+.It GSS_S_DUPLICATE_ELEMENT
+The credential already contains an element for the requested mechanism
+with overlapping usage and validity period.
+.It GSS_S_CREDENTIALS_EXPIRED
+The required credentials could not be added because they have expired.
+.It GSS_S_NO_CRED
+No credentials were found for the specified name.
+.El
+.Sh SEE ALSO
+.Xr gss_accept_sec_context 3 ,
+.Xr gss_acquire_cred 3 ,
+.Xr gss_init_sec_context 3 ,
+.Xr gss_inquire_context 3 ,
+.Xr gss_inquire_cred 3 ,
+.Xr gss_release_cred 3 ,
+.Xr gss_release_oid_set 3
+.Sh STANDARDS
+.Bl -tag -width ".It RFC 2743"
+.It RFC 2743
+Generic Security Service Application Program Interface Version 2, Update 1
+.It RFC 2744
+Generic Security Service API Version 2 : C-bindings
+.El
+.Sh HISTORY
+The
+.Nm
+function first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+John Wray, Iris Associates
+.Sh COPYRIGHT
+Copyright (C) The Internet Society (2000).  All Rights Reserved.
+.Pp
+This document and translations of it may be copied and furnished to
+others, and derivative works that comment on or otherwise explain it
+or assist in its implementation may be prepared, copied, published
+and distributed, in whole or in part, without restriction of any
+kind, provided that the above copyright notice and this paragraph are
+included on all such copies and derivative works.  However, this
+document itself may not be modified in any way, such as by removing
+the copyright notice or references to the Internet Society or other
+Internet organizations, except as needed for the purpose of
+developing Internet standards in which case the procedures for
+copyrights defined in the Internet Standards process must be
+followed, or as required to translate it into languages other than
+English.
+.Pp
+The limited permissions granted above are perpetual and will not be
+revoked by the Internet Society or its successors or assigns.
+.Pp
+This document and the information contained herein is provided on an
+"AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING
+TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING
+BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION
+HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF
+MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.

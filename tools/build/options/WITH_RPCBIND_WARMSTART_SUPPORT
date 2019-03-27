@@ -1,0 +1,4 @@
+.\" $FreeBSD$
+Set to build
+.Xr rpcbind 8
+with warmstart support.

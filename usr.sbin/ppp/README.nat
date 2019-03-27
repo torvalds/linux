@@ -1,0 +1,378 @@
+Copyright (c) 2001 Charles Mott <cm@linktel.net>
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+
+$FreeBSD$
+
+User PPP NAT (Packet Aliasing)
+
+
+
+0. Contents
+    1. Background
+    2. Setup
+    3. New commands in ppp
+    4. Future Work
+    5. Authors / Acknowledgements
+    6. Revision History for Aliasing Code
+
+
+
+1. Background
+
+User mode ppp has embedded NAT (Network Address Translation) code.
+Enabling this, either by the "-nat" command line option or the
+"nat enable yes" command in a ppp.conf file, makes the ppp host
+automatically NAT IP packets forwarded from a local network, making
+them appear to come from the ppp host machine.  Incoming packets
+from the outside world are then appropriately de-NAT'd.
+
+The process of NAT'ing involves both the IP address and the TCP or UDP
+port numbers. ICMP echo and timestamp packets are natted by their id
+numbers.  ICMP error messages can be properly directed by examining the
+fragment of the offending packet which is contained in the body of the
+message.
+
+This software was specifically meant to support users who have
+unregistered, private address IP networks (e.g. 192.168.0.x or 10.0.0.x
+addresses).  The ppp host can act as a gateway for these networks, and
+computers on the local area net will have some degree of Internet access
+without the need for a registered IP address.  Additionally, there will
+be no need for an Internet service provider to maintain routing tables
+for the local area network.
+
+A disadvantage of NAT is that machines on the local network,
+behind the ppp host, are not visible from the outside world.  They can
+establish TCP connections and make UDP inquiries (such as domain name
+service requests) but the connections seem to come from the ppp host
+itself.  There is, in effect, a partial firewall.  Of course, if this is
+what you want, the disadvantage becomes an advantage.
+
+A second disadvantage is that "IP encoding" protocols, which send IP
+address or port information within the data stream, are not supported
+for the cases where exception code exists.  This implementation has
+workarounds for FTP and IRC DCC, the most well known of the IP encoding
+protocols.  This frees users from depending on using the ftp passive
+mode and avoiding IRC DCC sends, as is sometimes the case with other
+masquerading solutions.
+
+The implementation supports all standard, non-encoding TCP and UDP protocols.
+Examples of these protocols are http, gopher and telnet. The standard UDP
+mode of Real-Audio is not presently supported, but the TCP mode does work
+correctly.
+
+The NAT code also handles many ICMP messages.  In particular,
+ping and traceroute are supported.
+
+
+
+2. Packet Aliasing Setup
+
+It is recommended that users first verify correct ppp operation without
+NAT enabled.  This will confirm that the ppp.conf file is
+properly set up and that there are no ppp problems. Then start ppp with
+the "-nat" option on the command line.  The user should verify that
+the ppp host can correctly connect to the Internet in NAT
+mode.  Finally, check that machines on the private network can access
+the Internet.
+
+The NAT software handles all packets, whether they come from
+the host or another computer on the local area network.  Thus, a correctly
+operating ppp host indicates that the software should work properly for
+other computers on the private network.
+
+If the ppp host can access the Internet, but other computers on the local
+network cannot, check that IP forwarding is enabled on the ppp host. Also,
+verify that the other computers use this machine as a gateway.  Of course,
+you should also verify that machines within the local area network
+communicate properly.  A common error is inconsistent subnet addresses
+and masks.
+
+
+
+3. New commands in ppp
+
+In order to control NAT behaviour in a simple manner (no need for
+recompilation), a new command has been added to ppp: nat.  This
+is in addition to the -nat command line option.  System managers and
+more experienced users may prefer to use the ppp command syntax
+within the ppp.conf file.  The nat command also allows NAT
+behaviour to be more precisely specified.
+
+The decision to add a command instead of extending 'set' or 'option' was
+to make obvious that these options only work when NAT is enabled.
+
+The syntax for 'nat' is
+
+    ppp>  nat option [yes|no]
+
+where option is given by one of the following templates.
+
+
+ - nat enable [yes|no]  (default no)
+
+Enable NAT functionality.  If disabled, no other NAT
+options will have any effect.  You should usually enable NAT
+before routing any packets over the link; good points are in the
+initial script or right before adding a route.  If you do not always
+want NAT, consider using the -nat option to ppp instead of this
+command.
+
+
+ - nat deny_incoming [yes|no] (default yes)
+
+Set to "yes" to disable all incoming connections.  This just drops
+connections to, for example, ftp, telnet or web servers.  The NAT
+mechanism prevents these connections. Technically, this option denies
+all incoming TCP and UDP requests, making the NAT software a
+fairly efficient one-way firewall.  The default is no, which will allow
+all incoming connections to telnetd, ftpd, etc.
+
+
+ - nat log [yes|no]
+
+Controls logging of NAT link creation to "/var/log/alias.log" - this
+is usually only useful if debugging a setup, to see if the bug is in
+the PPP NATing.  The debugging information is fairly limited, listing
+the number of NAT links open for different protocols.
+
+
+ - nat same_ports [yes|no] (default yes)
+
+When a connection is being established going through the NAT
+routines, it will normally have its port number changed to allow the
+NAT code to track it.  If same_ports is enabled, the NAT
+software attempts to keep the connection's source port unchanged.
+This will allow rsh, RPC and other specialised protocols to work
+_most of the time_, at least on the host machine.  Please, do not
+report this being unstable as a bug - it is a result of the way
+NAT has to work. TCP/IP was intended to have one IP address
+per machine.
+
+
+ - nat use_sockets [yes|no] (default yes)
+
+This is a fairly obscure option.  For the most part, the NAT
+software does not have to allocate system sockets when it chooses a
+NAT port number.  Under very specific circumstances, FTP data
+connections (which don't know the remote port number, though it is
+usually 20) and IRC DCC send (which doesn't know either the address or
+the port from which the connection will come), there can potentially be
+some interference with an open server socket having the same port number
+on the ppp host machine.  This possibility for interference only exists
+until the TCP connection has been acknowledged on both sides.  The safe
+option is yes, though fewer system resources are consumed by specifying
+no.
+
+
+ - nat unregistered_only [yes|no] (default no)
+
+NAT normally remaps all packets coming from the local area
+network to the ppp host machine address.  Set this option to only map
+addresses from the following standard ranges for private, unregistered
+addresses:
+
+                10.0.0.0     ->   10.255.255.255
+                172.16.0.0   ->   172.31.255.255
+                192.168.0.0  ->   192.168.255.255  */
+
+In the instance that there is a subnet of public addresses and another
+subnet of private addresses being routed by the ppp host, then only the
+packets on the private subnet will be NAT'd.
+
+
+- nat port <proto> <local addr>:<port>  <nat port>
+
+This command allows incoming traffic to <nat port> on the host
+machine to be redirected to a specific machine and port on the
+local area network.  One example of this would be:
+
+    nat port tcp 192.168.0.4:telnet  8066
+
+All traffic to port 8066 of the ppp host would then be sent to
+the telnet port (23) of machine 192.168.0.4.  Port numbers
+can either be designated numerically or by symbolic names
+listed in /etc/services.  Similarly, addresses can be either
+in dotted quad notation or in /etc/hosts.
+
+
+- nat addr <local addr> <public addr>
+
+This command allows traffic for a public IP address to be
+redirected to a machine on the local network.  This function
+is known as "static NAT".  An address assignment of 0 refers
+to the default address of the ppp host.  Normally static
+NAT is useful if your ISP has allocated a small block of
+IP addresses to the user, but it can even be used in the
+case of a single, dynamically allocated IP address:
+
+    nat addr 10.0.0.8 0
+
+The above command would redirect all incoming traffic to
+machine 10.0.0.8.
+
+If several address NATs specify the same public address
+as follows
+
+    nat addr 192.168.0.2  public_addr
+    nat addr 192.168.0.3  public_addr
+    nat addr 192.168.0.4  public_addr
+
+then incoming traffic will be directed to the last
+translated local address (192.168.0.4), but outgoing
+traffic to the first two addresses will still be NAT'd
+to the specified public address.
+
+
+
+4. Future Work
+
+What is called NAT here has been variously called masquerading, packet
+aliasing and transparent proxying by others.  It is an extremely useful
+function to many users, but it is also necessarily imperfect.  The
+occasional IP-encoding protocols always need workarounds (hacks).
+Users who are interested in supporting new IP-encoding protocols
+can follow the examples of alias_ftp.c and alias_irc.c.
+
+ICMP error messages are currently handled only in the incoming direction.
+A handler needs to be added to correctly NAT outgoing error messages.
+
+IRC and FTP exception handling make reasonable, though not strictly correct
+assumptions, about how IP encoded messages will appear in the control
+stream.  Programmers may wish to consider how to make this process more
+robust.
+
+The NAT engine (alias.c, alias_db.c, alias_ftp.c, alias_irc.c
+and alias_util.c) runs in user space, and is intended to be both portable
+and reusable for interfaces other than ppp.  To access the basic engine
+only requires four simple function calls (initialisation, communication of
+host address, outgoing NAT and incoming de-NATing).
+
+
+
+5. Authors / Acknowledgements
+
+Charles Mott (cm@linktel.net)  <versions 1.0 - 1.8, 2.0, 2.1>
+Eivind Eklund (perhaps@yes.no) <versions 1.8b - 1.9, new ppp commands>
+
+Listed below, in chronological order, are individuals who have provided
+valuable comments and/or debugging assistance.
+
+    Gary Roberts
+    Tom Torrance
+    Reto Burkhalter
+    Martin Renters
+    Brian Somers
+    Paul Traina
+    Ari Suutari
+    J. Fortes
+    Andrzej Bialeki
+
+
+
+6. Revision History for Aliasing Code
+
+Version 1.0: August 11, 1996 (cjm)
+
+Version 1.1:  August 20, 1996  (cjm)
+    PPP host accepts incoming connections for ports 0 to 1023.
+
+Version 1.2:  September 7, 1996 (cjm)
+    Fragment handling error in alias_db.c corrected.
+
+Version 1.3: September 15, 1996 (cjm)
+    - Generalised mechanism for handling incoming connections
+      (no more 0 to 1023 restriction).
+    - Increased ICMP support (will handle traceroute now).
+    - Improved TCP close connection logic.
+
+Version 1.4: September 16, 1996
+    Can't remember (this version only lasted a day -- cjm).
+
+Version 1.5: September 17, 1996 (cjm)
+    Corrected error in handling incoming UDP packets
+    with zero checksum.
+
+Version 1.6: September 18, 1996
+    Simplified ICMP data storage.  Will now handle
+    tracert from Win95 as well as FreeBSD traceroute.
+
+Version 1.7: January 9, 1997 (cjm)
+    - Reduced malloc() activity for ICMP echo and
+      timestamp requests.
+    - Added handling for out-of-order IP fragments.
+    - Switched to differential checksum computation
+      for IP headers (TCP, UDP and ICMP checksums
+      were already differential).
+    - Accepts FTP data connections from other than
+      port 20.  This allows one ftp connections
+      from two hosts which are both running packet
+      aliasing.
+
+Version 1.8: January 14, 1997 (cjm)
+    - Fixed data type error in function StartPoint()
+      in alias_db.c (this bug did not exist before v1.7)
+
+Version 1.8b: January 16, 1997 (Eivind Eklund <perhaps@yes.no>)
+    - Upgraded base PPP version to be the source code from
+      FreeBSD 2.1.6, with additional security patches.  This
+      version should still be possible to run on 2.1.5, though -
+      I've run it with a 2.1.5 kernel without problems.
+      (Update done with the permission of cjm)
+
+Version 1.9: February 1, 1997 (Eivind Eklund <perhaps@yes.no>)
+    - Added support for IRC DCC (ee)
+    - Changed the aliasing routines to use ANSI style throughout -
+      minor API changes for integration with other programs than PPP (ee)
+    - Changed the build process, making all options switchable
+      from the Makefile (ee)
+    - Fixed minor security hole in alias_ftp.c for other applications
+      of the aliasing software.  Hole could _not_ manifest in
+      PPP+pktAlias, but could potentially manifest in other
+      applications of the aliasing. (ee)
+    - Connections initiated from packet aliasing host machine will
+      not have their port number aliased unless it conflicts with
+      an aliasing port already being used. (There is an option to
+      disable this for debugging) (cjm)
+    - Sockets will be allocated in cases where there might be
+      port interference with the host machine.  This can be disabled
+      in cases where the ppp host will be acting purely as a
+      masquerading router and not generate any traffic of its own.
+      (cjm)
+
+Version 2.0: March, 1997 (cjm)
+    - Incoming packets which are not recognised by the packet
+      aliasing engine are now completely dropped in ip.c.
+    - Aliasing links are cleared when a host interface address
+      changes (due to re-dial and dynamic address allocation).
+    - PacketAliasPermanentLink() API added.
+    - Option for only aliasing private, unregistered IP addresses
+      added.
+    - Substantial rework to the aliasing lookup engine.
+
+Version 2.1: May, 1997 (cjm)
+    - Continuing rework to the aliasing lookup engine to support
+      multiple incoming addresses and static NAT.
+    - Now supports outgoing as well as incoming ICMP error messages/
+    - PPP commands to support address and port redirection.
+

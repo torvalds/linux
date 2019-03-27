@@ -1,0 +1,158 @@
+.\" Copyright (c) 1980, 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)w.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd December 1, 2015
+.Dt W 1
+.Os
+.Sh NAME
+.Nm w
+.Nd "display who is logged in and what they are doing"
+.Sh SYNOPSIS
+.Nm
+.Op Fl -libxo
+.Op Fl dhin
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Ar user ...
+.Sh DESCRIPTION
+The
+.Nm
+utility prints a summary of the current activity on the system,
+including what each user is doing.
+The first line displays the current time of day, how long the system has
+been running, the number of users logged into the system, and the load
+averages.
+The load average numbers give the number of jobs in the run queue averaged
+over 1, 5 and 15 minutes.
+.Pp
+The fields output are the user's login name, the name of the terminal the
+user is on, the host from which the user is logged in, the time the user
+logged on, the time since the user last typed anything,
+and the name and arguments of the current process.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
+.It Fl d
+dumps out the entire process list on a per controlling
+tty basis, instead of just the top level process.
+.It Fl h
+Suppress the heading.
+.It Fl i
+Output is sorted by idle time.
+.It Fl M
+Extract values associated with the name list from the specified
+core instead of the default
+.Pa /dev/kmem .
+.It Fl N
+Extract the name list from the specified system instead of the
+default
+.Pa /boot/kernel/kernel .
+.It Fl n
+Do not attempt to resolve network addresses (normally
+.Nm
+interprets addresses and attempts to display them as names).
+When
+.Fl n
+is specified more than once, hostnames stored in utmp are attempted to
+resolve to display them as network addresses.
+.El
+.Pp
+If one or more
+.Ar user
+names are specified, the output is restricted to those users.
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/utx.active" -compact
+.It Pa /var/run/utx.active
+list of users on the system
+.El
+.Sh COMPATIBILITY
+The
+.Fl f ,
+.Fl l ,
+.Fl s ,
+and
+.Fl w
+flags are no longer supported.
+.Sh SEE ALSO
+.Xr finger 1 ,
+.Xr ps 1 ,
+.Xr uptime 1 ,
+.Xr who 1 ,
+.Xr libxo 3 ,
+.Xr xo_parse_args 3
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 3.0 .
+.Sh BUGS
+The notion of the
+.Dq current process
+is muddy.
+The current algorithm is
+.Do
+the highest numbered process on the terminal
+that is not ignoring interrupts, or, if there is none, the highest numbered
+process on the terminal
+.Dc .
+This fails, for example, in critical sections of programs like the shell
+and editor, or when faulty programs running in the background fork and fail
+to ignore interrupts.
+(In cases where no process can be found,
+.Nm
+prints
+.Ql \- . )
+.Pp
+The
+.Tn CPU
+time is only an estimate, in particular, if someone leaves a background
+process running after logging out, the person currently on that terminal is
+.Dq charged
+with the time.
+.Pp
+Background processes are not shown, even though they account for
+much of the load on the system.
+.Pp
+Sometimes processes, typically those in the background, are printed with
+null or garbaged arguments.
+In these cases, the name of the command is printed in parentheses.
+.Pp
+The
+.Nm
+utility does not know about the new conventions for detection of background
+jobs.
+It will sometimes find a background job instead of the right one.

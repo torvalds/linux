@@ -1,0 +1,169 @@
+.\" Copyright (c) 2008 Yahoo!, Inc.
+.\" All rights reserved.
+.\" Written by: John Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 15, 2017
+.Dt KVM_GETPCPU 3
+.Os
+.Sh NAME
+.Nm kvm_dpcpu_setcpu ,
+.Nm kvm_getmaxcpu ,
+.Nm kvm_getpcpu
+.Nd access per-CPU data
+.Sh LIBRARY
+.Lb libkvm
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/pcpu.h
+.In sys/sysctl.h
+.In kvm.h
+.Ft int
+.Fn kvm_dpcpu_setcpu "kvm_t *kd" "u_int cpu"
+.Ft int
+.Fn kvm_getmaxcpu "kvm_t *kd"
+.Ft int
+.Fn kvm_getncpus "kvm_t *kd"
+.Ft void *
+.Fn kvm_getpcpu "kvm_t *kd" "int cpu"
+.Ft ssize_t
+.Fn kvm_read_zpcpu "kvm_t *kd" "u_long base" "void *buf" "size_t size" "int cpu"
+.Ft uint64_t
+.Fn kvm_counter_u64_fetch "kvm_t *kd" "u_long base"
+.Sh DESCRIPTION
+The
+.Fn kvm_dpcpu_setcpu ,
+.Fn kvm_getmaxcpu ,
+and
+.Fn kvm_getpcpu
+functions are used to access the per-CPU data of active processors in the
+kernel indicated by
+.Fa kd .
+Per-CPU storage comes in two flavours: data stored directly in a
+.Vt "struct pcpu"
+associated with each CPU, and dynamic per-CPU storage (DPCPU), in which a
+single kernel symbol refers to different data depending on what CPU it is
+accessed from.
+.Pp
+The
+.Fn kvm_getmaxcpu
+function returns the maximum number of CPUs supported by the kernel.
+.Pp
+The
+.Fn kvm_getncpus
+function returns the current number of CPUs in the kernel.
+.Pp
+The
+.Fn kvm_getpcpu
+function returns a buffer holding the per-CPU data for a single CPU.
+This buffer is described by the
+.Vt "struct pcpu"
+type.
+The caller is responsible for releasing the buffer via a call to
+.Xr free 3
+when it is no longer needed.
+If
+.Fa cpu
+is not active, then
+.Dv NULL
+is returned instead.
+.Pp
+The
+.Fn kvm_read_zpcpu
+function is used to obtain private per-CPU copy from a
+.Dv UMA_ZONE_PCPU
+.Xr zone 9 .
+It takes
+.Fa base
+argument as base address of an allocation and copyies
+.Fa size
+bytes into
+.Fa buf
+from the part of allocation that is private to
+.Fa cpu .
+.Pp
+The
+.Fn kvm_counter_u64_fetch
+function fetches value of a
+.Xr counter 9
+pointed by
+.Fa base
+address.
+.Pp
+Symbols for dynamic per-CPU data are accessed via
+.Xr kvm_nlist 3
+as with other symbols.
+.Nm libkvm
+maintains a notion of the "current CPU", set by
+.Fn kvm_dpcpu_setcpu ,
+which defaults to 0.
+Once another CPU is selected,
+.Xr kvm_nlist 3
+will return pointers to that data on the appropriate CPU.
+.Sh CACHING
+.Fn kvm_getmaxcpu
+and
+.Fn kvm_getpcpu
+cache the nlist values for various kernel variables which are
+reused in successive calls.
+You may call either function with
+.Fa kd
+set to
+.Dv NULL
+to clear this cache.
+.Sh RETURN VALUES
+On success, the
+.Fn kvm_getmaxcpu
+function returns the maximum number of CPUs supported by the kernel.
+If an error occurs,
+it returns -1 instead.
+.Pp
+On success, the
+.Fn kvm_getpcpu
+function returns a pointer to an allocated buffer or
+.Dv NULL .
+If an error occurs,
+it returns -1 instead.
+.Pp
+On success, the
+.Fn kvm_dpcpu_setcpu
+call returns 0; if an error occurs, it returns -1 instead.
+.Pp
+On success, the
+.Fn kvm_read_zpcpu
+function returns number of bytes copied.
+If an error occurs, it returns -1 instead.
+.Pp
+If any function encounters an error,
+then an error message may be retrieved via
+.Xr kvm_geterr 3 .
+.Sh SEE ALSO
+.Xr free 3 ,
+.Xr kvm 3 ,
+.Xr counter 9 ,
+.Xr zone 9

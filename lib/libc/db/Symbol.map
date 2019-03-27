@@ -1,0 +1,36 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	dbopen;
+	dbm_open;
+	dbm_close;
+	dbm_fetch;
+	dbm_firstkey;
+	dbm_nextkey;
+	dbm_delete;
+	dbm_store;
+	dbm_error;
+	dbm_clearerr;
+	dbm_dirfno;
+	mpool_open;
+	mpool_filter;
+	mpool_get;
+	mpool_put;
+	mpool_close;
+	mpool_sync;
+	mpool_stat;
+};
+
+FBSD_1.1 {
+	mpool_new;
+	mpool_delete;
+};
+
+FBSDprivate_1.0 {
+	__bt_open;
+	__dbpanic;
+	__hash_open;
+	__rec_open;
+};

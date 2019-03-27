@@ -1,0 +1,31 @@
+defaults {
+	key = "val"
+	foo = "bar"
+	many = "values here"
+}
+
+mything {
+	.inherit "defaults"
+	key = "newval"
+	key = "newval1"
+}
+mything {
+	.inherit "mything"
+	key = "newval"
+}
+.priority 3
+
+defaults {
+	key = "val1"
+	foo = "bar1"
+	many = "values here"
+}
+mything1 {
+	key2 = "wtf??"
+	.priority 1
+	.inherit "defaults"
+	.inherit "mything"
+	.inherit "mything1"
+	key1 = "newval"
+	key2 = "OMG" # low priority
+}

@@ -1,0 +1,112 @@
+# Serbian translation of dialog.
+# Copyright (C) 2005 Free Software Foundation, Inc.
+# This file is distributed under the same license as the dialog package.
+# Aleksandar Jelenak <jelenak@verizon.net>, 2005.
+# Мирослав Николић <miroslavnikolic@rocketmail.com>, 2011.
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog-1.1.20080819\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2011-12-24 21:29+0200\n"
+"Last-Translator: Мирослав Николић <miroslavnikolic@rocketmail.com>\n"
+"Language-Team: Serbian <gnu@prevod.org>\n"
+"Language: sr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: buttons.c:385
+msgid "Yes"
+msgstr "Да"
+
+#: buttons.c:393
+msgid "No"
+msgstr "Не"
+
+#: buttons.c:401
+msgid "OK"
+msgstr "У реду"
+
+#: buttons.c:409
+msgid "Cancel"
+msgstr "Поништи"
+
+#: buttons.c:417
+msgid "EXIT"
+msgstr "ИЗЛАЗ"
+
+#: buttons.c:425
+msgid "Extra"
+msgstr "Додатно"
+
+#: buttons.c:433
+msgid "Help"
+msgstr "Помоћ"
+
+#. Headline "Month"
+#: calendar.c:273
+msgid "Month"
+msgstr "Месец"
+
+#. Headline "Year"
+#: calendar.c:293
+msgid "Year"
+msgstr "Година"
+
+#: dialog.c:741
+msgid "Rename"
+msgstr "Преименуј"
+
+#: fselect.c:550
+msgid "Directories"
+msgstr "Директоријуми"
+
+#: fselect.c:551
+msgid "Files"
+msgstr "Датотеке"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "Успешно"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "Неуспешно"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "Прошло"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "Завршено"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "Проверено"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "Урађено"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "Прескочено"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "У току"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "Н/Д"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "Укупно напредовање"
+
+#: textbox.c:489
+msgid "Search"
+msgstr "Претрага"

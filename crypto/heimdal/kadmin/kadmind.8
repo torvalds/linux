@@ -1,0 +1,160 @@
+.\" Copyright (c) 2002 - 2004 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd December  8, 2004
+.Dt KADMIND 8
+.Os HEIMDAL
+.Sh NAME
+.Nm kadmind
+.Nd "server for administrative access to Kerberos database"
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Oo Fl c Ar file \*(Ba Xo
+.Fl Fl config-file= Ns Ar file
+.Xc
+.Oc
+.Oo Fl k Ar file \*(Ba Xo
+.Fl Fl key-file= Ns Ar file
+.Xc
+.Oc
+.Op Fl Fl keytab= Ns Ar keytab
+.Oo Fl r Ar realm \*(Ba Xo
+.Fl Fl realm= Ns Ar realm
+.Xc
+.Oc
+.Op Fl d | Fl Fl debug
+.Oo Fl p Ar port \*(Ba Xo
+.Fl Fl ports= Ns Ar port
+.Xc
+.Oc
+.Ek
+.Sh DESCRIPTION
+.Nm
+listens for requests for changes to the Kerberos database and performs
+these, subject to permissions.  When starting, if stdin is a socket it
+assumes that it has been started by
+.Xr inetd 8 ,
+otherwise it behaves as a daemon, forking processes for each new
+connection. The
+.Fl Fl debug
+option causes
+.Nm
+to accept exactly one connection, which is useful for debugging.
+.Pp
+The
+.Xr kpasswdd 8
+daemon is responsible for the Kerberos 5 password changing protocol
+(used by
+.Xr kpasswd 1 ) .
+.Pp
+This daemon should only be run on the master server, and not on any
+slaves.
+.Pp
+Principals are always allowed to change their own password and list
+their own principal.  Apart from that, doing any operation requires
+permission explicitly added in the ACL file
+.Pa /var/heimdal/kadmind.acl .
+The format of this file is:
+.Bd -ragged
+.Va principal
+.Va rights
+.Op Va principal-pattern
+.Ed
+.Pp
+Where rights is any (comma separated) combination of:
+.Bl -bullet -compact
+.It
+change-password or cpw
+.It
+list
+.It
+delete
+.It
+modify
+.It
+add
+.It
+get
+.It
+all
+.El
+.Pp
+And the optional
+.Ar principal-pattern
+restricts the rights to operations on principals that match the
+glob-style pattern.
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Fl c Ar file , Fl Fl config-file= Ns Ar file
+location of config file
+.It Fl k Ar file , Fl Fl key-file= Ns Ar file
+location of master key file
+.It Fl Fl keytab= Ns Ar keytab
+what keytab to use
+.It Fl r Ar realm , Fl Fl realm= Ns Ar realm
+realm to use
+.It Fl d , Fl Fl debug
+enable debugging
+.It Fl p Ar port , Fl Fl ports= Ns Ar port
+ports to listen to. By default, if run as a daemon, it listens to port
+749, but you can add any number of ports with this option. The port
+string is a whitespace separated list of port specifications, with the
+special string
+.Dq +
+representing the default port.
+.El
+.\".Sh ENVIRONMENT
+.Sh FILES
+.Pa /var/heimdal/kadmind.acl
+.Sh EXAMPLES
+This will cause
+.Nm
+to listen to port 4711 in addition to any
+compiled in defaults:
+.Pp
+.D1 Nm Fl Fl ports Ns Li "=\*[q]+ 4711\*[q] &"
+.Pp
+This acl file will grant Joe all rights, and allow Mallory to view and
+add host principals.
+.Bd -literal -offset indent
+joe/admin@EXAMPLE.COM      all
+mallory/admin@EXAMPLE.COM  add,get  host/*@EXAMPLE.COM
+.Ed
+.\".Sh DIAGNOSTICS
+.Sh SEE ALSO
+.Xr kpasswd 1 ,
+.Xr kadmin 8 ,
+.Xr kdc 8 ,
+.Xr kpasswdd 8

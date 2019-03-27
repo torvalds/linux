@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+# Check that the running userland and kernel versions are in sync.
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_status_world_kernel" in
+    [Yy][Ee][Ss])
+	rc=0
+	_U=$(/usr/bin/uname -U 2>/dev/null)
+	_K=$(/usr/bin/uname -K 2>/dev/null)
+	[ -z "${_U}" -o -z "${_K}" ] && exit 0
+	echo ""
+	echo "Checking userland and kernel versions:"
+	if [ "${_U}" != "${_K}" ]; then
+	    echo "Userland and kernel are not in sync"
+	    echo "Userland version: ${_U}"
+	    echo "Kernel version: ${_K}"
+	    rc=1
+	else
+	    echo "Userland and kernel are in sync."
+	fi
+	;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

@@ -1,0 +1,22 @@
+cxx_library(
+    name='zlib_wrapper',
+    visibility=['PUBLIC'],
+    exported_linker_flags=['-lz'],
+    header_namespace='',
+    exported_headers=['zstd_zlibwrapper.h'],
+    headers=[
+        'gzcompatibility.h',
+        'gzguts.h',
+    ],
+    srcs=glob(['*.c']),
+    deps=[
+        '//lib:zstd',
+        '//lib:zstd_common',
+    ],
+)
+
+cxx_binary(
+    name='minigzip',
+    srcs=['examples/minigzip.c'],
+    deps=[':zlib_wrapper'],
+)

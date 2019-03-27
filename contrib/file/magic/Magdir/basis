@@ -1,0 +1,18 @@
+
+#----------------------------------------------------------------
+# $File: basis,v 1.4 2009/09/19 16:28:08 christos Exp $
+# basis: file(1) magic for BBx/Pro5-files
+#      Oliver Dammer <dammer@olida.de>	 2005/11/07
+# http://www.basis.com business-basic-files.
+#
+0	string		\074\074bbx\076\076	BBx
+>7	string		\000			indexed file
+>7	string		\001			serial file
+>7	string		\002			keyed file
+>>13	short		0			(sort)
+>7	string		\004			program
+>>18	byte		x			(LEVEL %d)
+>>>23	string		>\000			psaved
+>7	string		\006			mkeyed file
+>>13	short		0			(sort)
+>>8	string		\000			(mkey)

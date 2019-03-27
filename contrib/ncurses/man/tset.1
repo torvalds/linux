@@ -1,0 +1,300 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2011,2013 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: tset.1,v 1.29 2013/12/21 22:15:53 tom Exp $
+.TH @TSET@ 1 ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.SH NAME
+\fB@TSET@\fR, \fBreset\fR \- terminal initialization
+.SH SYNOPSIS
+\fB@TSET@\fR [\fB\-IQVcqrsw\fR] [\fB\-\fR] [\fB\-e\fR \fIch\fR] [\fB\-i\fR \fIch\fR] [\fB\-k\fR \fIch\fR] [\fB\-m\fR \fImapping\fR] [\fIterminal\fR]
+.br
+\fBreset\fR [\fB\-IQVcqrsw\fR] [\fB\-\fR] [\fB\-e\fR \fIch\fR] [\fB\-i\fR \fIch\fR] [\fB\-k\fR \fIch\fR] [\fB\-m\fR \fImapping\fR] [\fIterminal\fR]
+.SH DESCRIPTION
+\&\fBTset\fR initializes terminals.
+\fBTset\fR first determines the type of terminal that you are using.
+This determination is done as follows, using the first terminal type found.
+.PP
+1. The \fBterminal\fR argument specified on the command line.
+.PP
+2. The value of the \fBTERM\fR environmental variable.
+.PP
+3. (BSD systems only.) The terminal type associated with the standard
+error output device in the \fI/etc/ttys\fR file.
+(On System\-V-like UNIXes and systems using that convention,
+\fIgetty\fR does this job by setting
+\fBTERM\fR according to the type passed to it by \fI/etc/inittab\fR.)
+.PP
+4. The default terminal type, \*(``unknown\*(''.
+.PP
+If the terminal type was not specified on the command-line, the \fB\-m\fR
+option mappings are then applied (see the section
+.B TERMINAL TYPE MAPPING
+for more information).
+Then, if the terminal type begins with a question mark (\*(``?\*(''), the
+user is prompted for confirmation of the terminal type.  An empty
+response confirms the type, or, another type can be entered to specify
+a new type.  Once the terminal type has been determined, the terminfo
+entry for the terminal is retrieved.  If no terminfo entry is found
+for the type, the user is prompted for another terminal type.
+.PP
+Once the terminfo entry is retrieved, the window size, backspace, interrupt
+and line kill characters (among many other things) are set and the terminal
+and tab initialization strings are sent to the standard error output.
+Finally, if the erase, interrupt and line kill characters have changed,
+or are not set to their default values, their values are displayed to the
+standard error output.
+Use the \fB\-c\fP or \fB\-w\fP option to select only the window sizing
+versus the other initialization.
+If neither option is given, both are assumed.
+.PP
+When invoked as \fBreset\fR, \fB@TSET@\fR sets cooked and echo modes,
+turns off cbreak and raw modes, turns on newline translation and
+resets any unset special characters to their default values before
+doing the terminal initialization described above.  This is useful
+after a program dies leaving a terminal in an abnormal state.  Note,
+you may have to type
+.sp
+    \fB<LF>reset<LF>\fR
+.sp
+(the line-feed character is normally control-J) to get the terminal
+to work, as carriage-return may no longer work in the abnormal state.
+Also, the terminal will often not echo the command.
+.PP
+The options are as follows:
+.TP 5
+.B \-c
+Set control characters and modes.
+.TP 5
+.B \-e
+Set the erase character to \fIch\fR.
+.TP
+.B \-I
+Do not send the terminal or tab initialization strings to the terminal.
+.TP
+.B \-i
+Set the interrupt character to \fIch\fR.
+.TP
+.B \-k
+Set the line kill character to \fIch\fR.
+.TP
+.B \-m
+Specify a mapping from a port type to a terminal.
+See the section
+.B TERMINAL TYPE MAPPING
+for more information.
+.TP
+.B \-Q
+Do not display any values for the erase, interrupt and line kill characters.
+Normally \fB@TSET@\fR displays the values for control characters which
+differ from the system's default values.
+.TP
+.B \-q
+The terminal type is displayed to the standard output, and the terminal is
+not initialized in any way.  The option `\-' by itself is equivalent but
+archaic.
+.TP
+.B \-r
+Print the terminal type to the standard error output.
+.TP
+.B \-s
+Print the sequence of shell commands to initialize the environment variable
+\fBTERM\fR to the standard output.
+See the section
+.B SETTING THE ENVIRONMENT
+for details.
+.TP
+.B \-V
+reports the version of ncurses which was used in this program, and exits.
+.TP
+.B \-w
+Resize the window to match the size deduced via \fBsetupterm\fP.
+Normally this has no effect,
+unless \fBsetupterm\fP is not able to detect the window size.
+.PP
+The arguments for the \fB\-e\fR, \fB\-i\fR, and \fB\-k\fR
+options may either be entered as actual characters or by using the `hat'
+notation, i.e., control-h may be specified as \*(``^H\*('' or \*(``^h\*(''.
+.
+.SH SETTING THE ENVIRONMENT
+It is often desirable to enter the terminal type and information about
+the terminal's capabilities into the shell's environment.
+This is done using the \fB\-s\fR option.
+.PP
+When the \fB\-s\fR option is specified, the commands to enter the information
+into the shell's environment are written to the standard output.  If
+the \fBSHELL\fR environmental variable ends in \*(``csh\*('', the commands
+are for \fBcsh\fR, otherwise, they are for \fBsh\fR.
+Note, the \fBcsh\fR commands set and unset the shell variable
+\fBnoglob\fR, leaving it unset.  The following line in the \fB.login\fR
+or \fB.profile\fR files will initialize the environment correctly:
+.sp
+    eval \`@TSET@ \-s options ... \`
+.
+.SH TERMINAL TYPE MAPPING
+When the terminal is not hardwired into the system (or the current
+system information is incorrect) the terminal type derived from the
+\fI/etc/ttys\fR file or the \fBTERM\fR environmental variable is often
+something generic like \fBnetwork\fR, \fBdialup\fR, or \fBunknown\fR.
+When \fB@TSET@\fR is used in a startup script it is often desirable to
+provide information about the type of terminal used on such ports.
+.PP
+The purpose of the \fB\-m\fR option is to map
+from some set of conditions to a terminal type, that is, to
+tell \fB@TSET@\fR
+\*(``If I'm on this port at a particular speed,
+guess that I'm on that kind of terminal\*(''.
+.PP
+The argument to the \fB\-m\fR option consists of an optional port type, an
+optional operator, an optional baud rate specification, an optional
+colon (\*(``:\*('') character and a terminal type.  The port type is a
+string (delimited by either the operator or the colon character).
+The operator may be any combination of
+\*(``>\*('',
+\*(``<\*('',
+\*(``@\*('',
+and \*(``!\*('';
+\*(``>\*('' means greater than,
+\*(``<\*('' means less than,
+\*(``@\*('' means equal to and
+\*(``!\*('' inverts the sense of the test.
+The baud rate is specified as a number and is compared with the speed
+of the standard error output (which should be the control terminal).
+The terminal type is a string.
+.PP
+If the terminal type is not specified on the command line, the \fB\-m\fR
+mappings are applied to the terminal type.  If the port type and baud
+rate match the mapping, the terminal type specified in the mapping
+replaces the current type.  If more than one mapping is specified, the
+first applicable mapping is used.
+.PP
+For example, consider the following mapping: \fBdialup>9600:vt100\fR.
+The port type is dialup , the operator is >, the baud rate
+specification is 9600, and the terminal type is vt100.  The result of
+this mapping is to specify that if the terminal type is \fBdialup\fR,
+and the baud rate is greater than 9600 baud, a terminal type of
+\fBvt100\fR will be used.
+.PP
+If no baud rate is specified, the terminal type will match any baud rate.
+If no port type is specified, the terminal type will match any port type.
+For example, \fB\-m dialup:vt100 \-m :?xterm\fR
+will cause any dialup port, regardless of baud rate, to match the terminal
+type vt100, and any non-dialup port type to match the terminal type ?xterm.
+Note, because of the leading question mark, the user will be
+queried on a default port as to whether they are actually using an xterm
+terminal.
+.PP
+No whitespace characters are permitted in the \fB\-m\fR option argument.
+Also, to avoid problems with meta-characters, it is suggested that the
+entire \fB\-m\fR option argument be placed within single quote characters,
+and that \fBcsh\fR users insert a backslash character (\*(``\e\*('') before
+any exclamation marks (\*(``!\*('').
+.SH HISTORY
+The \fB@TSET@\fR command appeared in BSD 3.0.  The \fBncurses\fR implementation
+was lightly adapted from the 4.4BSD sources for a terminfo environment by Eric
+S. Raymond <esr@snark.thyrsus.com>.
+.SH COMPATIBILITY
+The \fB@TSET@\fR utility has been provided for backward-compatibility with BSD
+environments (under most modern UNIXes, \fB/etc/inittab\fR and \fIgetty\fR(1)
+can set \fBTERM\fR appropriately for each dial-up line; this obviates what was
+\fB@TSET@\fR's most important use).  This implementation behaves like 4.4BSD
+tset, with a few exceptions specified here.
+.PP
+The \fB\-S\fR option of BSD tset no longer works;
+it prints an error message to stderr and dies.
+The \fB\-s\fR option only sets \fBTERM\fR, not \fBTERMCAP\fP.
+Both of these changes are because the \fBTERMCAP\fR variable
+is no longer supported under terminfo-based \fBncurses\fR,
+which makes \fB@TSET@ \-S\fR useless
+(we made it die noisily rather than silently induce lossage).
+.PP
+There was an undocumented 4.4BSD feature that invoking tset via a link named
+`TSET` (or via any other name beginning with an upper-case letter) set the
+terminal to use upper-case only.  This feature has been omitted.
+.PP
+The \fB\-A\fR, \fB\-E\fR, \fB\-h\fR, \fB\-u\fR and \fB\-v\fR
+options were deleted from the \fB@TSET@\fR
+utility in 4.4BSD.
+None of them were documented in 4.3BSD and all are
+of limited utility at best.
+The \fB\-a\fR, \fB\-d\fR, and \fB\-p\fR options are similarly
+not documented or useful, but were retained as they appear to be in
+widespread use.  It is strongly recommended that any usage of these
+three options be changed to use the \fB\-m\fR option instead.
+The \fB\-n\fP option remains, but has no effect.
+The \fB\-adnp\fR options are therefore omitted from the usage summary above.
+.PP
+It is still permissible to specify the \fB\-e\fR, \fB\-i\fR,
+and \fB\-k\fR options without arguments,
+although it is strongly recommended that such usage be fixed to
+explicitly specify the character.
+.PP
+As of 4.4BSD,
+executing \fB@TSET@\fR as \fBreset\fR no longer implies the \fB\-Q\fR option.
+Also, the interaction between the \- option and the \fIterminal\fR
+argument in some historic implementations of \fB@TSET@\fR has been removed.
+.SH ENVIRONMENT
+The \fB@TSET@\fR command uses these environment variables:
+.TP 5
+SHELL
+tells \fB@TSET@\fP whether to initialize \fBTERM\fP using \fBsh\fP or
+\fBcsh\fP syntax.
+.TP 5
+TERM
+Denotes your terminal type.
+Each terminal type is distinct, though many are similar.
+.TP 5
+TERMCAP
+may denote the location of a termcap database.
+If it is not an absolute pathname, e.g., begins with a `/',
+\fB@TSET@\fP removes the variable from the environment before looking
+for the terminal description.
+.SH FILES
+.TP 5
+/etc/ttys
+system port name to terminal type mapping database (BSD versions only).
+.TP
+@TERMINFO@
+terminal capability database
+.SH SEE ALSO
+.hy 0
+csh(1),
+sh(1),
+stty(1),
+curs_terminfo(3X),
+tty(4),
+terminfo(5),
+ttys(5),
+environ(7)
+.hy
+.PP
+This describes \fBncurses\fR
+version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).

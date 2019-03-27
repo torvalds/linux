@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# See uefisign(8) manual page for usage instructions.
+#
+# $FreeBSD$
+#
+
+die() {
+	echo "$*" > /dev/stderr
+	exit 1
+}
+
+if [ $# -ne 1 ]; then
+	echo "usage: $0 common-name"
+	exit 1
+fi
+
+certfile="${1}.pem"
+efifile="${1}.cer"
+keyfile="${1}.key"
+# XXX: Set this to ten years; we don't want system to suddenly stop booting
+#      due to certificate expiration.  Better way would be to use Authenticode
+#      Timestamp.  That said, the rumor is UEFI implementations ignore it anyway.
+days="3650"
+subj="/CN=${1}"
+
+[ ! -e "${certfile}" ] || die "${certfile} already exists"
+[ ! -e "${efifile}" ] || die "${efifile} already exists"
+[ ! -e "${keyfile}" ] || die "${keyfile} already exists"
+
+umask 077 || die "umask 077 failed"
+
+openssl genrsa -out "${keyfile}" 2048 2> /dev/null || die "openssl genrsa failed"
+openssl req -new -x509 -sha256 -days "${days}" -subj "${subj}" -key "${keyfile}" -out "${certfile}" || die "openssl req failed"
+openssl x509 -inform PEM -outform DER -in "${certfile}" -out "${efifile}" || die "openssl x509 failed"
+
+echo "certificate: ${certfile}; private key: ${keyfile}; certificate to enroll in UEFI: ${efifile}"

@@ -1,0 +1,72 @@
+4500 002c 10c9 4000 ff06 5c9d cbcb cbcb 96cb e002 8032 0015 bd6b c9c8 0000 0000 6002 2238 655d 0000 0204 0064 
+
+List of active MAP/Redirect filters:
+map ppp0 0/0 -> 203.203.203.203/32 mssclamp 100
+
+List of active sessions:
+MAP 192.168.1.3     32818 <- -> 203.203.203.203 32818 [150.203.224.2 21]
+
+Hostmap table:
+192.168.1.3,150.203.224.2 -> 203.203.203.203,0.0.0.0 (use = 1)
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------
+4500 002c 10c9 4000 ff06 5c9d cbcb cbcb 96cb e002 8032 0015 bd6b c9c8 0000 0000 6002 2238 61d9 0000 0204 03e8 
+
+List of active MAP/Redirect filters:
+map ppp0 0/0 -> 203.203.203.203/32 mssclamp 1000
+
+List of active sessions:
+MAP 192.168.1.3     32818 <- -> 203.203.203.203 32818 [150.203.224.2 21]
+
+Hostmap table:
+192.168.1.3,150.203.224.2 -> 203.203.203.203,0.0.0.0 (use = 1)
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------
+4500 002c 10c9 4000 ff06 5c9d cbcb cbcb 96cb e002 8032 0015 bd6b c9c8 0000 0000 6002 2238 600d 0000 0204 05b4 
+
+List of active MAP/Redirect filters:
+map ppp0 0/0 -> 203.203.203.203/32 mssclamp 10000
+
+List of active sessions:
+MAP 192.168.1.3     32818 <- -> 203.203.203.203 32818 [150.203.224.2 21]
+
+Hostmap table:
+192.168.1.3,150.203.224.2 -> 203.203.203.203,0.0.0.0 (use = 1)
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------

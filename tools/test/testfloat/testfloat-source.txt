@@ -1,0 +1,444 @@
+
+TestFloat Release 2a Source Documentation
+
+John R. Hauser
+1998 December 16
+
+
+-------------------------------------------------------------------------------
+Introduction
+
+TestFloat is a program for testing that a floating-point implementation
+conforms to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+All standard operations supported by the system can be tested, except for
+conversions to and from decimal.  Any of the following machine formats can
+be tested:  single precision, double precision, extended double precision,
+and/or quadruple precision.  Testing extended double-precision or quadruple-
+precision formats requires a C compiler that supports 64-bit integer
+arithmetic.
+
+This document gives information needed for compiling and/or porting
+TestFloat.
+
+The source code for TestFloat is intended to be relatively machine-
+independent.  TestFloat is written in C, and should be compilable using
+any ISO/ANSI C compiler.  At the time of this writing, the program has
+been successfully compiled using the GNU C Compiler (`gcc') for several
+platforms.  Because ISO/ANSI C does not provide access to some features
+of IEC/IEEE floating-point such as the exception flags, porting TestFloat
+unfortunately involves some machine-dependent coding.
+
+TestFloat depends on SoftFloat, which is a software implementation of
+floating-point that conforms to the IEC/IEEE Standard.  SoftFloat is not
+included with the TestFloat sources.  It can be obtained from the Web
+page `http://HTTP.CS.Berkeley.EDU/~jhauser/arithmetic/SoftFloat.html'.
+
+In addition to a program for testing a machine's floating-point, the
+TestFloat package includes a variant for testing SoftFloat called
+`testsoftfloat'.  The sources for both programs are intermixed, and both are
+described here.
+
+The first release of TestFloat (Release 1) was called _FloatTest_.  The old
+name has been obsolete for some time.
+
+
+-------------------------------------------------------------------------------
+Limitations
+
+TestFloat as written requires an ISO/ANSI-style C compiler.  No attempt has
+been made to accommodate compilers that are not ISO-conformant.  Older ``K&R-
+style'' compilers are not adequate for compiling TestFloat.  All testing I
+have done so far has been with the GNU C Compiler.  Compilation with other
+compilers should be possible but has not been tested.
+
+The TestFloat sources assume that source code file names can be longer than
+8 characters.  In order to compile under an MS-DOS-style system, many of the
+source files will need to be renamed, and the source and makefiles edited
+appropriately.  Once compiled, the TestFloat program does not depend on the
+existence of long file names.
+
+The underlying machine is assumed to be binary with a word size that is a
+power of 2.  Bytes are 8 bits.  Testing of extended double-precision and
+quadruple-precision formats depends on the C compiler implementing a 64-bit
+integer type.  If the largest integer type supported by the C compiler is
+32 bits, only single- and double-precision operations can be tested.
+
+
+-------------------------------------------------------------------------------
+Contents
+
+    Introduction
+    Limitations
+    Contents
+    Legal Notice
+    TestFloat Source Directory Structure
+    Target-Independent Modules
+    Target-Specific Modules
+    Target-Specific Header Files
+        processors/*.h
+        testfloat/*/milieu.h
+    Target-Specific Floating-Point Subroutines
+    Steps to Creating the TestFloat Executables
+    Improving the Random Number Generator
+    Contact Information
+
+
+
+-------------------------------------------------------------------------------
+Legal Notice
+
+TestFloat was written by John R. Hauser.
+
+THIS SOFTWARE IS DISTRIBUTED AS IS, FOR FREE.  Although reasonable effort
+has been made to avoid it, THIS SOFTWARE MAY CONTAIN FAULTS THAT WILL AT
+TIMES RESULT IN INCORRECT BEHAVIOR.  USE OF THIS SOFTWARE IS RESTRICTED TO
+PERSONS AND ORGANIZATIONS WHO CAN AND WILL TAKE FULL RESPONSIBILITY FOR ANY
+AND ALL LOSSES, COSTS, OR OTHER PROBLEMS ARISING FROM ITS USE.
+
+
+-------------------------------------------------------------------------------
+TestFloat Source Directory Structure
+
+Because TestFloat is targeted to multiple platforms, its source code
+is slightly scattered between target-specific and target-independent
+directories and files.  The directory structure is as follows:
+
+    processors
+    testfloat
+        templates
+        386-Win32-gcc
+        SPARC-Solaris-gcc
+
+The two topmost directories and their contents are:
+
+    testfloat    - Most of the source code needed for TestFloat.
+    processors   - Target-specific header files that are not specific to
+                       TestFloat.
+
+Within the `testfloat' directory are subdirectories for each of the
+targeted platforms.  The TestFloat source code is distributed with targets
+`386-Win32-gcc' and `SPARC-Solaris-gcc' (and perhaps others) already
+prepared.  These can be used as examples for porting to new targets.  Source
+files that are not within these target-specific subdirectories are intended
+to be target-independent.
+
+The naming convention used for the target-specific directories is
+`<processor>-<executable-type>-<compiler>'.  The names of the supplied
+target directories should be interpreted as follows:
+
+  <processor>:
+    386          - Intel 386-compatible processor.
+    SPARC        - SPARC processor (as used by Sun machines).
+  <executable-type>:
+    Win32        - Microsoft Win32 executable.
+    Solaris      - Sun Solaris executable.
+  <compiler>:
+    gcc          - GNU C Compiler.
+
+You do not need to maintain this convention if you do not want to.
+
+Alongside the supplied target-specific directories there is a `templates'
+directory containing a set of ``generic'' target-specific source files.
+A new target directory can be created by copying the `templates' directory
+and editing the files inside.  (Complete instructions for porting TestFloat
+to a new target are in the section _Steps_to_Creating_the_TestFloat_
+_Executables_.)  Note that the `templates' directory will not work as a
+target directory without some editing.  To avoid confusion, it would be wise
+to refrain from editing the files inside `templates' directly.
+
+In addition to the distributed sources, TestFloat depends on the existence
+of an appropriately-compiled SoftFloat binary and the corresponding header
+file `softfloat.h'.  SoftFloat is not included with the TestFloat sources.
+It can be obtained from the Web page `http://HTTP.CS.Berkeley.EDU/~jhauser/
+arithmetic/SoftFloat.html'.
+
+As distributed, the makefiles for TestFloat assume the existence of three
+sibling directories:
+
+    processors
+    softfloat
+    testfloat
+
+Only the `processors' and `testfloat' directories are included in the
+TestFloat package.  The `softfloat' directory is assumed to contain a
+target-specific subdirectory within which the SoftFloat header file and
+compiled binary can be found.  (See the source documentation accompanying
+SoftFloat.)  The `processors' directory distributed with TestFloat is
+intended to be identical to that included with the SoftFloat source.
+
+These are the defaults, but other organizations of the sources are possible.
+The TestFloat makefiles and `milieu.h' files (see below) are easily edited
+to accommodate other arrangements.
+
+
+-------------------------------------------------------------------------------
+Target-Independent Modules
+
+The TestFloat program is composed of a number of modules, some target-
+specific and some target-independent.  The target-independent modules are as
+follows:
+
+-- The `fail' module provides a common routine for writing an error message
+   and aborting.
+
+-- The `random' module generates random integer values.
+
+-- The `writeHex' module defines routines for writing the various types in
+   the hexadecimal form used by TestFloat.
+
+-- The `testCases' module generates test cases for the various types.
+
+-- The `testLoops' module contains various routines for exercising two
+   implementations of a function and reporting any differences observed.
+
+-- The `slowfloat' module provides the simple floating-point implementation
+   used by `testsoftfloat' for comparing against SoftFloat.  The heart
+   of `slowfloat' is found in either `slowfloat-32' or `slowfloat-64',
+   depending on whether the `BITS64' macro is defined.
+
+-- The `systfloat' module gives a SoftFloat-like interface to the machine's
+   floating-point.
+
+-- The `testFunction' module implements `testfloat's main loop for testing a
+   function for all of the relevant rounding modes and rounding precisions.
+   (The `testsoftfloat' program contains its own version of this code.)
+
+-- The `testfloat' and `testsoftfloat' modules are the main modules for the
+   `testfloat' and `testsoftfloat' programs.
+
+Except possibly for `systfloat', these modules should not need to be
+modified.
+
+The `systfloat' module uses the floating-point operations of the C language
+to access a machine's floating-point.  Unfortunately, some IEC/IEEE
+floating-point operations are not accessible within ISO/ANSI C.  The
+following machine functions cannot be tested unless an alternate `systfloat'
+module is provided:
+
+    <float>_to_int32 (rounded according to rounding mode)
+    <float>_to_int64 (rounded according to rounding mode)
+    <float>_round_to_int
+    <float>_rem
+    <float>_sqrt, except float64_sqrt
+    <float>_eq_signaling
+    <float>_le_quiet
+    <float>_lt_quiet
+
+The `-list' option to `testfloat' will show the operations the program is
+prepared to test.  The section _Target-Specific_Floating-Point_Subroutines_
+later in this document explains how to create a target-specific `systfloat'
+module to change the set of testable functions.
+
+
+-------------------------------------------------------------------------------
+Target-Specific Modules
+
+No target-specific modules are needed for `testsoftfloat'.
+
+The `testfloat' program uses two target-specific modules:
+
+-- The `systmodes' module defines functions for setting the modes
+   controlling the system's floating-point, including the rounding mode and
+   the rounding precision for extended double precision.
+
+-- The `systflags' module provides a function for clearing and examining the
+   system's floating-point exception flags.
+
+These modules must be supplied for each target.  They can be implemented in
+any way desired, so long as all is reflected in the target's makefile.  For
+the targets that come with the distributed source, each of these modules is
+implemented as a single assembly language or C language source file.
+
+
+-------------------------------------------------------------------------------
+Target-Specific Header Files
+
+The purpose of the two target-specific header files is detailed below.
+In the following, the `*' symbol is used in place of the name of a specific
+target, such as `386-Win32-gcc' or `SPARC-Solaris-gcc', or in place of some
+other text as explained below.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+processors/*.h
+
+The target-specific `processors' header file defines integer types
+of various sizes, and also defines certain C preprocessor macros that
+characterize the target.  The two examples supplied are `386-gcc.h' and
+`SPARC-gcc.h'.  The naming convention used for processor header files is
+`<processor>-<compiler>.h'.  The `processors' header file used to compile
+TestFloat should be the same as that used to compile SoftFloat.
+
+If 64-bit integers are supported by the compiler, the macro name `BITS64'
+should be defined here along with the corresponding 64-bit integer
+types.  In addition, the function-like macro `LIT64' must be defined for
+constructing 64-bit integer literals (constants).  The `LIT64' macro is used
+consistently in the TestFloat code to annotate 64-bit literals.
+
+If an inlining attribute (such as an `inline' keyword) is provided by the
+compiler, the macro `INLINE' should be defined to the appropriate keyword.
+If not, `INLINE' can be set to the keyword `static'.  The `INLINE' macro
+appears in the TestFloat source code before every function that should be
+inlined by the compiler.
+
+For maximum flexibility, the TestFloat source files do not include the
+`processors' header file directly; rather, this file is included by the
+target-specific `milieu.h' header, and `milieu.h' is included by the source
+files.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+testfloat/*/milieu.h
+
+The `milieu.h' header file provides declarations that are needed to
+compile TestFloat.  In particular, it is through this header file that
+the appropriate `processors' header is included to characterize the target
+processor.  In addition, deviations from ISO/ANSI C by the compiler (such as
+names not properly declared in system header files) are corrected in this
+header if possible.
+
+If the preprocessor macro `BITS64' is defined in the `processors' header
+file but only the 32-bit version of SoftFloat is actually used, the `BITS64'
+macro should be undefined here after the `processors' header has defined it.
+
+If the C compiler implements the `long double' floating-point type of C
+as extended double precision, then `LONG_DOUBLE_IS_FLOATX80' should be
+defined here.  Alternatively, if the C `long double' type is implemented as
+quadruple precision, `LONG_DOUBLE_IS_FLOAT128' should be defined.  At most
+one of these macros should be defined.  A C compiler is allowed to implement
+`long double' the same as `double', in which case neither of these macros
+should be defined.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+
+-------------------------------------------------------------------------------
+Target-Specific Floating-Point Subroutines
+
+This section applies only to `testfloat' and not to `testsoftfloat'.
+
+By default, TestFloat tests a machine's floating-point by testing the
+floating-point operations of the C language.  Unfortunately, some IEC/IEEE
+floating-point operations are not defined within ISO/ANSI C.  If a machine
+implements such ``non-C'' operations, target-specific subroutines for
+the operations can be supplied to allow TestFloat to test these machine
+features.  Typically, such subroutines will need to be written in assembly
+language, although equivalent functions can sometimes be found among the
+system's software libraries.
+
+The following machine functions cannot be tested by TestFloat unless target-
+specific subroutines are supplied for them:
+
+    <float>_to_int32 (rounded according to rounding mode)
+    <float>_to_int64 (rounded according to rounding mode)
+    <float>_round_to_int
+    <float>_rem
+    <float>_sqrt, except float64_sqrt
+    <float>_eq_signaling
+    <float>_le_quiet
+    <float>_lt_quiet
+
+In addition to these, none of the `floatx80' functions can be tested by
+default if the C `long double' type is something other than extended double
+precision; and likewise, none of the `float128' functions can be tested by
+default if `long double' is not quadruple precision.  Since `long double'
+cannot be both extended double precision and quadruple precision at the
+same time, at least one of these types cannot be tested by TestFloat without
+appropriate subroutines being supplied for that type.  (On the other hand,
+few systems implement _both_ extended double-precision and quadruple-
+precision floating-point; and unless a system does implement both, it does
+not need both tested.)
+
+Note that the `-list' option to `testfloat' will show the operations
+TestFloat is prepared to test.
+
+TestFloat's `systfloat' module supplies the system version of the functions
+to be tested.  The names of the `systfloat' subroutines are the same as the
+function names used as arguments to the `testfloat' command but with `syst_'
+prefixed--thus, for example, `syst_float32_add' and `syst_int32_to_float32'.
+The default `systfloat' module maps these system functions to the standard
+C operations; so `syst_float32_add', for example, is implemented using the
+C `+' operation for the single-precision `float' type.  For each system
+function supplied by `systfloat', a corresponding `SYST_<function>'
+preprocessor macro is defined in `systfloat.h' to indicate that the function
+exists to be tested (e.g., `SYST_FLOAT32_ADD').  The `systfloat.h' header
+file also declares function prototypes for the `systfloat' functions.
+
+(The `systfloat.h' file that comes with the TestFloat package declares
+prototypes for all of the possible `systfloat' functions, whether defined in
+`systfloat' or not.  There is no penalty for declaring a function prototype
+that is never used.)
+
+A target-specific version of the `systfloat' module can easily be created to
+replace the generic one.  This in fact has been done for the example targets
+`386-Win32-gcc' and `SPARC-Solaris-gcc'.  For each target, an assembly
+language `systfloat.S' has been created in the target directory along with
+a corresponding `systfloat.h' header file defining the `SYST_<function>'
+macros for the functions implemented.  The makefiles of the targets have
+been edited to use these target-specific versions of `systfloat' rather than
+the generic one.
+
+The `systfloat' modules of the example targets have been written entirely
+in assembly language in order to bypass any peculiarities of the C compiler.
+Although this is probably a good idea, it is certainly not required.
+
+
+-------------------------------------------------------------------------------
+Steps to Creating the TestFloat Executables
+
+Porting and/or compiling TestFloat involves the following steps:
+
+1. Port SoftFloat and create a SoftFloat binary.  (Refer to the
+   documentation accompanying SoftFloat.)
+
+2. If one does not already exist, create an appropriate target-specific
+   subdirectory under `testfloat' by copying the given `templates'
+   directory.  The remaining steps occur within the target-specific
+   subdirectory.
+
+3. Edit the files `milieu.h' and `Makefile' to reflect the current
+   environment.
+
+4. Make `testsoftfloat' by executing `make testsoftfloat' (or `make
+   testsoftfloat.exe', or whatever the `testsoftfloat' executable is
+   called).  Verify that SoftFloat is working correctly by testing it with
+   `testsoftfloat'.
+
+If you only wanted `testsoftfloat', you are done.  The steps for `testfloat'
+continue:
+
+5. In the target-specific subdirectory, implement the `systmodes' and
+   `systflags' modules.  (The `syst_float_set_rounding_precision' function
+   need not do anything if the system does not support extended double
+   precision.)
+
+6. If the target machine supports standard floating-point functions that are
+   not accessible within ISO/ANSI C, or if the C compiler cannot be trusted
+   to use the machine's floating-point directly, create a target-specific
+   `systfloat' module.
+
+7. In the target-specific subdirectory, execute `make'.
+
+
+-------------------------------------------------------------------------------
+Improving the Random Number Generator
+
+If you are serious about using TestFloat for testing floating-point, you
+should consider replacing the supplied `random.c' with a better target-
+specific one.  The standard C `rand' function is rather poor on some
+systems, and consequently `random.c' has been written to assume very little
+about the quality of `rand'.  As a result, the `rand' function is called
+more frequently than it might need to be, shortening the time before
+the random number generator repeats, and possibly wasting time as well.
+If `rand' is better on your system, or if another better random number
+generator is available (such as `rand48' on most Unix systems), TestFloat
+can be improved by overriding the given `random.c' with a target-specific
+one.
+
+
+-------------------------------------------------------------------------------
+Contact Information
+
+At the time of this writing, the most up-to-date information about
+TestFloat and the latest release can be found at the Web page `http://
+HTTP.CS.Berkeley.EDU/~jhauser/arithmetic/TestFloat.html'.
+
+

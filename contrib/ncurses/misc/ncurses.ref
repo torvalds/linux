@@ -1,0 +1,572 @@
+LIBRARY ncurses2 INITINSTANCE
+DESCRIPTION 'NCurses 1.9.9e-1 for OS/2 - base library'
+EXPORTS
+;************
+;* curses.h *
+;************
+
+	"stdscr"			@500	NONAME ; variable
+	"curscr"			@501	NONAME ; variable
+	"newscr"			@502	NONAME ; variable
+	"COLORS"			@503	NONAME ; variable
+	"COLOR_PAIRS"			@504	NONAME ; variable
+	"color_pairs"			@505	NONAME ; variable
+	"acs_map"	 		@506	NONAME ; variable
+	"LINES"				@510	NONAME ; variable
+	"COLS"				@511	NONAME ; variable
+	"TABSIZE"			@512	NONAME ; variable
+	"ESCDELAY"			@513	NONAME ; variable
+	"ttytype"			@514	NONAME ; variable
+	"cur_term"			@515	NONAME ; variable
+
+	"addch"   			@1	NONAME ; generated
+	"addchnstr"       		@2	NONAME ; generated
+	"addchstr"			@3	NONAME ; generated
+	"addnstr" 			@4	NONAME ; generated
+	"addstr"  			@5	NONAME ; generated
+;	"addnwstr"			@6	NONAME ; missing
+;	"addwstr" 			@7	NONAME ; missing
+;	"add_wch" 			@8	NONAME ; missing
+;	"add_wchnstr"     		@9	NONAME ; missing
+;	"add_wchstr"      		@10	NONAME ; missing
+	"attroff" 			@11	NONAME ; generated
+	"attron"  			@12	NONAME ; generated
+	"attrset" 			@13	NONAME ; generated
+	"attr_get"			@14	NONAME ; generated
+;	"attr_off"			@15	NONAME ; implemented << NO!!
+;	"attr_on" 			@16	NONAME ; implemented << NO!!
+	"attr_set"			@17	NONAME ; generated
+	"baudrate"			@18	NONAME ; implemented
+	"beep"    			@19	NONAME ; implemented
+	"bkgd"    			@20	NONAME ; generated
+	"bkgdset" 			@21	NONAME ; generated
+;	"bkgrndset"       		@22	NONAME ; missing
+;	"bkgrnd"  			@23	NONAME ; missing
+	"border"  			@24	NONAME ; generated
+;	"border_set"      		@25	NONAME ; missing
+	"box"     			@26	NONAME ; generated
+;	"box_set" 			@27	NONAME ; missing
+	"can_change_color"		@28	NONAME ; implemented
+	"cbreak"  			@29	NONAME ; implemented
+	"chgat"   			@30	NONAME ; generated
+	"clear"   			@31	NONAME ; generated
+	"clearok" 			@32	NONAME ; implemented
+	"clrtobot"			@33	NONAME ; generated
+	"clrtoeol"			@34	NONAME ; generated
+	"color_content"   		@35	NONAME ; implemented
+	"COLOR_PAIR"      		@36	NONAME ; generated
+	"copywin" 			@37	NONAME ; implemented
+	"curs_set"			@38	NONAME ; implemented
+	"def_prog_mode"   		@39	NONAME ; implemented
+	"def_shell_mode"  		@40	NONAME ; implemented
+	"delay_output"    		@41	NONAME ; implemented
+	"delch"   			@42	NONAME ; generated
+	"delscreen"       		@43	NONAME ; implemented
+	"delwin"  			@44	NONAME ; implemented
+	"deleteln"			@45	NONAME ; generated
+	"derwin"  			@46	NONAME ; implemented
+	"doupdate"			@47	NONAME ; implemented
+	"dupwin"  			@48	NONAME ; implemented
+	"echo"    			@49	NONAME ; implemented
+	"echochar"			@50	NONAME ; generated
+;	"echo_wchar"      		@51	NONAME ; missing
+	"endwin"  			@52	NONAME ; implemented
+	"erasechar"       		@53	NONAME ; implemented
+;	"erase_wchar"     		@54	NONAME ; missing
+	"filter"  			@55	NONAME ; implemented
+	"flash"   			@56	NONAME ; implemented
+	"flushinp"			@57	NONAME ; implemented
+;	"getbkgd" 			@58	NONAME ; missing
+;	"getbkgrnd"       		@59	NONAME ; missing
+;	"getcchar"			@60	NONAME ; missing
+	"getch"   			@61	NONAME ; generated
+	"getnstr" 			@62	NONAME ; generated
+;	"getn_wstr"       		@63	NONAME ; missing
+	"getstr"  			@64	NONAME ; generated
+;	"get_wch" 			@65	NONAME ; missing
+	"getwin"  			@66	NONAME ; not in XPG4
+;	"get_wstr"			@67	NONAME ; missing
+	"halfdelay"       		@68	NONAME ; implemented
+	"has_colors"      		@69	NONAME ; implemented
+	"has_ic"  			@70	NONAME ; implemented
+	"has_il"  			@71	NONAME ; implemented
+	"hline"   			@72	NONAME ; generated
+;	"hline_set"       		@73	NONAME ; missing
+	"idcok"   			@74	NONAME ; implemented
+	"idlok"   			@75	NONAME ; implemented
+	"immedok" 			@76	NONAME ; implemented
+	"inch"    			@77	NONAME ; generated
+	"inchnstr"			@78	NONAME ; generated
+	"inchstr" 			@79	NONAME ; generated
+	"initscr" 			@80	NONAME ; implemented
+	"init_color"      		@81	NONAME ; implemented
+	"init_pair"       		@82	NONAME ; implemented
+	"innstr"  			@83	NONAME ; generated
+;	"innwstr" 			@84	NONAME ; missing
+	"insch"   			@85	NONAME ; generated
+	"insdelln"			@86	NONAME ; generated
+	"insertln"			@87	NONAME ; generated
+	"insnstr" 			@88	NONAME ; generated
+	"insstr"  			@89	NONAME ; generated
+	"instr"   			@90	NONAME ; generated
+;	"ins_nwstr"       		@91	NONAME ; missing
+;	"ins_wch" 			@92	NONAME ; missing
+;	"ins_wstr"			@93	NONAME ; missing
+	"intrflush"       		@94	NONAME ; implemented
+;	"inwstr"  			@95	NONAME ; missing
+;	"in_wch"  			@96	NONAME ; missing
+;	"in_wchstr"       		@97	NONAME ; missing
+;	"in_wchntr"       		@98	NONAME ; missing
+	"isendwin"			@99	NONAME ; implemented
+	"is_linetouched"  		@100	NONAME ; implemented
+	"is_wintouched"   		@101	NONAME ; implemented
+	"keyname" 			@102	NONAME ; implemented
+;	"key_name"			@103	NONAME ; missing
+	"keypad"  			@104	NONAME ; implemented
+	"killchar"			@105	NONAME ; implemented
+;	"killwchar"       		@106	NONAME ; missing
+	"leaveok" 			@107	NONAME ; implemented
+	"longname"			@108	NONAME ; implemented
+	"meta"    			@109	NONAME ; implemented
+	"move"    			@110	NONAME ; generated
+	"mvaddch" 			@111	NONAME ; generated
+	"mvaddchnstr"     		@112	NONAME ; generated
+	"mvaddchstr"      		@113	NONAME ; generated
+	"mvaddnstr"       		@114	NONAME ; generated
+	"mvaddstr"			@115	NONAME ; generated
+;	"mvaddnwstr"      		@116	NONAME ; missing
+;	"mvaddwstr"       		@117	NONAME ; missing
+;	"mvadd_wch"       		@118	NONAME ; missing
+;	"mvadd_wchnstr"   		@119	NONAME ; missing
+;	"mvadd_wchstr"    		@120	NONAME ; missing
+	"mvchgat" 			@121	NONAME ; generated
+	"mvcur"   			@122	NONAME ; implemented
+	"mvdelch" 			@123	NONAME ; generated
+	"mvderwin"			@124	NONAME ; implemented
+	"mvgetch" 			@125	NONAME ; generated
+	"mvgetnstr"       		@126	NONAME ; generated
+;	"mvgetn_wstr"     		@127	NONAME ; missing
+	"mvgetstr"			@128	NONAME ; generated
+;	"mvget_wch"       		@129	NONAME ; missing
+;	"mvget_wstr"      		@130	NONAME ; missing
+	"mvhline" 			@131	NONAME ; generated
+;	"mvhline_set"     		@132	NONAME ; missing
+	"mvinch"  			@133	NONAME ; generated
+	"mvinchnstr"      		@134	NONAME ; generated
+	"mvinchstr"       		@135	NONAME ; generated
+	"mvinnstr"			@136	NONAME ; generated
+;	"mvinnwstr"       		@137	NONAME ; missing
+	"mvinsch" 			@138	NONAME ; generated
+	"mvinsnstr"       		@139	NONAME ; generated
+	"mvinsstr"			@140	NONAME ; generated
+	"mvinstr" 			@141	NONAME ; generated
+;	"mvins_nwstr"     		@142	NONAME ; missing
+;	"mvins_wch"       		@143	NONAME ; missing
+;	"mvins_wstr"      		@144	NONAME ; missing
+;	"mvinwstr"			@145	NONAME ; missing
+;	"mvin_wch"			@146	NONAME ; missing
+;	"mvin_wchstr"     		@147	NONAME ; missing
+;	"mvin_wchntr"     		@148	NONAME ; missing
+	"mvprintw"			@149	NONAME ; implemented
+	"mvscanw" 			@150	NONAME ; implemented
+	"mvvline" 			@151	NONAME ; generated
+;	"mvvline_set"     		@152	NONAME ; missing
+	"mvwaddch"			@153	NONAME ; generated
+	"mvwaddchnstr"    		@154	NONAME ; generated
+	"mvwaddchstr"     		@155	NONAME ; generated
+	"mvwaddnstr"      		@156	NONAME ; generated
+	"mvwaddstr"       		@157	NONAME ; generated
+;	"mvwaddnwstr"     		@158	NONAME ; missing
+;	"mvwaddwstr"      		@159	NONAME ; missing
+;	"mvwadd_wch"      		@160	NONAME ; missing
+;	"mvwadd_wchnstr"  		@161	NONAME ; missing
+;	"mvwadd_wchstr"   		@162	NONAME ; missing
+	"mvwchgat"			@163	NONAME ; generated
+	"mvwdelch"			@164	NONAME ; generated
+	"mvwgetch"			@165	NONAME ; generated
+	"mvwgetnstr"      		@166	NONAME ; generated
+;	"mvwgetn_wstr"    		@167	NONAME ; missing
+	"mvwgetstr"       		@168	NONAME ; generated
+;	"mvwget_wch"      		@169	NONAME ; missing
+;	"mvwget_wstr"     		@170	NONAME ; missing
+	"mvwhline"			@171	NONAME ; generated
+;	"mvwhline_set"    		@172	NONAME ; missing
+	"mvwin"   			@173	NONAME ; implemented
+	"mvwinch" 			@174	NONAME ; generated
+	"mvwinchnstr"     		@175	NONAME ; generated
+	"mvwinchstr"      		@176	NONAME ; generated
+	"mvwinnstr"       		@177	NONAME ; generated
+;	"mvwinnwstr"      		@178	NONAME ; missing
+	"mvwinsch"			@179	NONAME ; generated
+	"mvwinsnstr"      		@180	NONAME ; generated
+	"mvwinsstr"       		@181	NONAME ; generated
+	"mvwinstr"			@182	NONAME ; generated
+;	"mvwins_nwstr"    		@183	NONAME ; missing
+;	"mvwins_wch"      		@184	NONAME ; missing
+;	"mvwins_wstr"     		@185	NONAME ; missing
+;	"mvwinwstr"       		@186	NONAME ; missing
+;	"mvwin_wch"       		@187	NONAME ; missing
+;	"mvwin_wchnstr"   		@188	NONAME ; missing
+;	"mvwin_wchstr"    		@189	NONAME ; missing
+	"mvwprintw"       		@190	NONAME ; implemented
+	"mvwscanw"			@191	NONAME ; implemented
+	"mvwvline"			@192	NONAME ; generated
+;	"mvwvline_set"    		@193	NONAME ; missing
+	"napms"   			@194	NONAME ; implemented
+	"newpad"  			@195	NONAME ; implemented
+	"newterm" 			@196	NONAME ; implemented
+	"newwin"  			@197	NONAME ; implemented
+	"nl"      			@198	NONAME ; implemented
+	"nocbreak"			@199	NONAME ; implemented
+	"nodelay" 			@200	NONAME ; implemented
+	"noecho"  			@201	NONAME ; implemented
+	"nonl"    			@202	NONAME ; implemented
+	"noqiflush"       		@203	NONAME ; implemented
+	"noraw"   			@204	NONAME ; implemented
+	"notimeout"       		@205	NONAME ; implemented
+	"overlay" 			@206	NONAME ; implemented
+	"overwrite"       		@207	NONAME ; implemented
+	"pair_content"    		@208	NONAME ; implemented
+	"PAIR_NUMBER"     		@209	NONAME ; generated
+	"pechochar"       		@210	NONAME ; implemented
+;	"pecho_wchar"     		@211	NONAME ; missing
+	"pnoutrefresh"    		@212	NONAME ; implemented
+	"prefresh"			@213	NONAME ; implemented
+	"printw"  			@214	NONAME ; implemented
+	"putp"    			@215	NONAME ; implemented
+	"putwin"  			@216	NONAME ; implemented
+	"qiflush" 			@217	NONAME ; implemented
+	"raw"     			@218	NONAME ; implemented
+	"redrawwin"       		@219	NONAME ; generated
+	"refresh" 			@220	NONAME ; generated
+	"resetty" 			@221	NONAME ; implemented
+	"reset_prog_mode" 		@222	NONAME ; implemented
+	"reset_shell_mode"		@223	NONAME ; implemented
+	"ripoffline"      		@224	NONAME ; implemented
+	"savetty" 			@225	NONAME ; implemented
+	"scanw"   			@226	NONAME ; implemented
+	"scr_dump"			@227	NONAME ; implemented
+	"scr_init"			@228	NONAME ; implemented
+	"scrl"    			@229	NONAME ; generated
+	"scroll"  			@230	NONAME ; generated
+	"scrollok"			@231	NONAME ; implemented
+	"scr_restore"     		@232	NONAME ; implemented
+	"scr_set" 			@233	NONAME ; implemented
+;	"setcchar"			@234	NONAME ; missing
+	"setscrreg"       		@235	NONAME ; generated
+	"set_term"			@236	NONAME ; implemented
+	"slk_attroff"     		@237	NONAME ; implemented
+;	"slk_attr_off"    		@238	NONAME ; missing
+	"slk_attron"      		@239	NONAME ; implemented
+;	"slk_attr_on"     		@240	NONAME ; missing
+	"slk_attrset"     		@241	NONAME ; implemented
+;	"slk_attr_set"    		@242	NONAME ; missing
+	"slk_clear"       		@243	NONAME ; implemented
+	"slk_init"			@244	NONAME ; implemented
+	"slk_label"       		@245	NONAME ; implemented
+	"slk_noutrefresh" 		@246	NONAME ; implemented
+	"slk_refresh"     		@247	NONAME ; implemented
+	"slk_restore"     		@248	NONAME ; implemented
+	"slk_set" 			@249	NONAME ; implemented
+	"slk_touch"       		@250	NONAME ; implemented
+;	"slk_wset"			@251	NONAME ; missing
+	"standout"			@252	NONAME ; generated
+	"standend"			@253	NONAME ; generated
+	"start_color"     		@254	NONAME ; implemented
+	"subpad"  			@255	NONAME ; implemented
+	"subwin"  			@256	NONAME ; implemented
+	"syncok"  			@257	NONAME ; implemented
+	"termattrs"       		@258	NONAME ; implemented
+	"termname"			@259	NONAME ; implemented
+	"tigetflag"       		@260	NONAME ; implemented
+	"tigetnum"			@261	NONAME ; implemented
+	"tigetstr"			@262	NONAME ; implemented
+;	"timeout" 			@263	NONAME ; implemented << NO!!
+	"typeahead"       		@264	NONAME ; implemented
+	"ungetch" 			@265	NONAME ; implemented
+;	"unget_wch"       		@266	NONAME ; missing
+	"untouchwin"      		@267	NONAME ; generated
+	"use_env" 			@268	NONAME ; implemented
+	"vidattr" 			@269	NONAME ; implemented
+;	"vid_attr"			@270	NONAME ; missing
+	"vidputs" 			@271	NONAME ; implemented
+;	"vid_puts"			@272	NONAME ; missing
+	"vline"   			@273	NONAME ; generated
+;	"vline_set"       		@274	NONAME ; missing
+	"vwprintw"			@275	NONAME ; implemented
+;	"vw_printw"       		@276	NONAME ; implemented << NO!!
+	"vwscanw" 			@277	NONAME ; implemented
+;	"vw_scanw"			@278	NONAME ; implemented << NO!!
+	"waddch"  			@279	NONAME ; implemented
+	"waddchnstr"      		@280	NONAME ; implemented
+	"waddchstr"       		@281	NONAME ; generated
+	"waddnstr"			@282	NONAME ; implemented
+	"waddstr" 			@283	NONAME ; generated
+;	"waddwstr"			@284	NONAME ; missing
+;	"wadd_wch"			@285	NONAME ; missing
+;	"wadd_wchnstr"    		@286	NONAME ; missing
+;	"wadd_wchstr"     		@287	NONAME ; missing
+	"wattron" 			@288	NONAME ; generated
+	"wattroff"			@289	NONAME ; generated
+	"wattrset"			@290	NONAME ; generated
+	"wattr_get"       		@291	NONAME ; generated
+	"wattr_on"			@292	NONAME ; implemented
+	"wattr_off"       		@293	NONAME ; implemented
+;	"wattr_set"       		@294	NONAME ; implemented << NO!!
+	"wbkgd"   			@295	NONAME ; implemented
+	"wbkgdset"			@296	NONAME ; generated
+;	"wbkgrndset"      		@297	NONAME ; missing
+;	"wbkgrnd" 			@298	NONAME ; missing
+	"wborder" 			@299	NONAME ; implemented
+;	"wborder_set"     		@300	NONAME ; missing
+	"wchgat"  			@301	NONAME ; implemented
+	"wclear"  			@302	NONAME ; implemented
+	"wclrtobot"       		@303	NONAME ; implemented
+	"wclrtoeol"       		@304	NONAME ; implemented
+	"wcursyncup"      		@305	NONAME ; implemented
+	"wdelch"  			@306	NONAME ; implemented
+	"wdeleteln"       		@307	NONAME ; generated
+	"wechochar"       		@308	NONAME ; implemented
+;	"wecho_wchar"     		@309	NONAME ; missing
+	"werase"  			@310	NONAME ; implemented
+;	"wgetbkgrnd"      		@311	NONAME ; missing
+	"wgetch"  			@312	NONAME ; implemented
+	"wgetnstr"			@313	NONAME ; implemented
+;	"wgetn_wstr"      		@314	NONAME ; missing
+	"wgetstr" 			@315	NONAME ; generated
+;	"wget_wch"			@316	NONAME ; missing
+;	"wget_wstr"       		@317	NONAME ; missing
+	"whline"  			@318	NONAME ; implemented
+;	"whline_set"      		@319	NONAME ; missing
+	"winch"   			@320	NONAME ; generated
+	"winchnstr"       		@321	NONAME ; implemented
+	"winchstr"			@322	NONAME ; generated
+	"winnstr" 			@323	NONAME ; implemented
+;	"winnwstr"			@324	NONAME ; missing
+	"winsch"  			@325	NONAME ; implemented
+	"winsdelln"       		@326	NONAME ; implemented
+	"winsertln"       		@327	NONAME ; generated
+	"winsnstr"			@328	NONAME ; implemented
+	"winsstr" 			@329	NONAME ; generated
+	"winstr"  			@330	NONAME ; generated
+;	"wins_nwstr"      		@331	NONAME ; missing
+;	"wins_wch"			@332	NONAME ; missing
+;	"wins_wstr"       		@333	NONAME ; missing
+;	"winwstr" 			@334	NONAME ; missing
+;	"win_wch" 			@335	NONAME ; missing
+;	"win_wchnstr"     		@336	NONAME ; missing
+;	"win_wchstr"      		@337	NONAME ; missing
+	"wmove"   			@338	NONAME ; implemented
+	"wnoutrefresh"    		@339	NONAME ; implemented
+	"wprintw" 			@340	NONAME ; implemented
+	"wredrawln"       		@341	NONAME ; implemented
+	"wrefresh"			@342	NONAME ; implemented
+	"wresize" 			@343	NONAME ; implemented
+	"wscanw"  			@344	NONAME ; implemented
+	"wscrl"   			@345	NONAME ; implemented
+	"wsetscrreg"      		@346	NONAME ; implemented
+	"wstandout"       		@347	NONAME ; generated
+	"wstandend"       		@348	NONAME ; generated
+	"wsyncdown"       		@349	NONAME ; implemented
+	"wsyncup" 			@350	NONAME ; implemented
+	"wtimeout"			@351	NONAME ; implemented
+	"wtouchln"			@352	NONAME ; implemented
+;	"wunctrl" 			@353	NONAME ; missing
+	"wvline"  			@354	NONAME ; implemented
+;	"wvline_set"      		@355	NONAME ; missing
+
+	"getmouse"			@356	NONAME
+	"ungetmouse"			@357	NONAME
+	"mousemask"			@358	NONAME
+	"wenclose"			@359	NONAME
+	"mouseinterval"			@360	NONAME
+
+; from unctrl.h
+	"unctrl"			@361	NONAME
+
+; publics for tracing
+	"_tracef"			@400	NONAME
+	"_tracedump"			@401	NONAME
+	"_traceattr"			@402	NONAME
+	"_tracechar"			@403	NONAME
+	"_tracemouse"			@404	NONAME
+	"trace"				@405	NONAME
+
+;**********
+;* term.h *
+;**********
+	"boolnames"			@600	NONAME ; variable
+	"boolcodes"			@601	NONAME ; variable
+	"boolfnames"			@602	NONAME ; variable
+	"numnames"			@603	NONAME ; variable
+	"numcodes"			@604	NONAME ; variable
+	"numfnames"			@605	NONAME ; variable
+	"strnames"			@606	NONAME ; variable
+	"strcodes"			@608	NONAME ; variable
+	"strfnames"			@609	NONAME ; variable
+
+; internals
+	"_nc_read_entry"		@620	NONAME
+	"_nc_read_file_entry"		@621	NONAME
+	"_nc_first_name"		@622	NONAME
+	"_nc_name_match"		@623	NONAME
+	"_nc_read_termcap_entry"	@624	NONAME
+	"_nc_fallback"			@625	NONAME
+
+; entry points
+	"set_curterm"			@640	NONAME
+	"del_curterm"			@641	NONAME
+
+; entry points
+;	"putp"				@642	NONAME	; already defined
+	"restartterm"			@643	NONAME
+	"setupterm"			@644	NONAME
+	"tgetent"			@645	NONAME
+	"tgetflag"			@646	NONAME
+	"tgetnum"			@647	NONAME
+	"tgetstr"			@648	NONAME
+	"tgoto"				@649	NONAME
+;	"tigetflag"			@650	NONAME	; already defined
+;	"tigetnum"			@651	NONAME	; already defined
+;	"tigetstr"			@652	NONAME	; already defined
+	"tparm"				@653	NONAME
+	"tparam"			@654	NONAME
+	"tputs"				@655	NONAME
+
+;*************
+;* termcap.h *
+;*************
+; the functions are already defined in term.h
+	"PC"				@660	NONAME
+	"UP"				@661	NONAME
+	"BC"				@662	NONAME
+	"ospeed"			@663	NONAME
+
+;****************
+;* term_entry.h *
+;****************
+	"_nc_head"			@700	NONAME
+	"_nc_tail"			@701	NONAME
+
+; alloc_entry.c: elementary allocation code
+	"_nc_init_entry"		@702	NONAME
+	"_nc_save_str"			@703	NONAME
+	"_nc_merge_entry"		@704	NONAME
+	"_nc_wrap_entry"		@705	NONAME
+
+; parse_entry.c: entry-parsing code
+	"_nc_parse_entry"		@706	NONAME
+	"_nc_capcmp"			@707	NONAME
+
+; write_entry.c: writing an entry to the file system
+	"_nc_write_entry"		@708	NONAME
+
+; comp_parse.c: entry list handling
+	"_nc_read_entry_source"		@709	NONAME
+	"_nc_entry_match"		@710	NONAME
+	"_nc_resolve_uses"		@711	NONAME
+	"_nc_free_entries"		@712	NONAME
+
+;*********
+;* tic.h *
+;*********
+;	"_nc_tracing"			@800	NONAME	; defined below
+;	"_nc_tracef"			@801	NONAME	; missing
+;	"_nc_visbuf"			@802	NONAME	; defined below
+
+	"_nc_curr_token"		@803	NONAME
+
+	"_nc_info_hash_table"		@804	NONAME
+	"_nc_cap_hash_table"		@805	NONAME
+
+	"_nc_capalias_table"		@806	NONAME
+	"_nc_infoalias_table"		@807	NONAME
+	"_nc_get_table"			@808	NONAME
+
+; comp_hash.c: name lookup
+	"_nc_find_entry"		@809	NONAME
+	"_nc_find_type_entry"		@810	NONAME
+
+; comp_scan.c: lexical analysis
+	"_nc_get_token"			@811	NONAME
+	"_nc_push_token"		@812	NONAME
+	"_nc_reset_input"		@813	NONAME
+	"_nc_panic_mode"		@814	NONAME
+	"_nc_curr_line"			@815	NONAME
+	"_nc_curr_col"			@816	NONAME
+	"_nc_curr_file_pos"		@817	NONAME
+	"_nc_comment_start"		@818	NONAME
+	"_nc_comment_end"		@819	NONAME
+	"_nc_syntax"			@820	NONAME
+	"_nc_start_line"		@821	NONAME
+
+; comp_error.c: warning & abort messages
+	"_nc_set_source"		@822	NONAME
+	"_nc_get_type"			@823	NONAME
+	"_nc_set_type"			@824	NONAME
+	"_nc_syserr_abort"		@825	NONAME
+	"_nc_err_abort"			@826	NONAME
+	"_nc_warning"			@827	NONAME
+	"_nc_suppress_warnings"		@828	NONAME
+
+; captoinfo.c: capability conversion
+	"_nc_captoinfo"			@829	NONAME
+	"_nc_infotocap"			@830	NONAME
+
+; comp_main.c: compiler main
+;	"_nc_progname"			@831	NONAME	; no need to export it
+
+
+; *****************
+; NCurses internals -- just for progs/*.exe and the library itself.
+; *****************
+
+; For broken linkers
+;	"_nc_screen"			@1000	NONAME
+;	"_nc_alloc_screen"		@1001	NONAME
+;	"_nc_set_screen"		@1002	NONAME
+
+; For not so broken linkers
+	"SP"				@1003	NONAME
+
+; Who knows what this is for
+	"_slk_init"			@1004	NONAME
+	"slk_initialize"		@1005	NONAME
+
+; Tracing -- all functions used internally
+	"_nc_tracing"			@1010	NONAME
+	"_nc_tputs_trace"		@1011	NONAME
+	"_nc_visbuf"			@1012	NONAME
+
+; lib_acs.c
+	"init_acs"			@1013	NONAME
+
+; lib_mvcur.c
+	"_nc_mvcur_init"		@1014	NONAME
+	"_nc_mvcur_wrap"		@1015	NONAME
+	"_nc_mvcur_scrolln"		@1016	NONAME
+
+; lib_mouse.c
+	"_nc_mouse_init"		@1017	NONAME
+	"_nc_mouse_event"		@1018	NONAME
+	"_nc_mouse_inline"        	@1019	NONAME
+	"_nc_mouse_parse"		@1020	NONAME
+	"_nc_mouse_wrap"		@1021	NONAME
+	"_nc_mouse_resume"	        @1022	NONAME
+	"_nc_max_click_interval"	@1023	NONAME
+
+; elsewhere ...
+	"_nc_keypad" 			@1024	NONAME
+	"_nc_makenew"			@1025	NONAME
+	"_nc_outch"			@1026	NONAME
+	"_nc_render"			@1027	NONAME
+	"_nc_waddch_nosync"		@1028	NONAME
+	"_nc_scroll_optimize"		@1029	NONAME
+	"_nc_scroll_window"		@1030	NONAME
+	"_nc_setupscreen"		@1031	NONAME
+	"_nc_backspace"			@1032	NONAME
+	"_nc_outstr"			@1033	NONAME
+	"_nc_signal_handler"		@1034	NONAME
+	"_nc_synchook"			@1035	NONAME
+	"_nc_timed_wait"		@1036	NONAME
+	"_nc_do_color"			@1037	NONAME

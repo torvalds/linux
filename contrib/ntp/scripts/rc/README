@@ -1,0 +1,13 @@
+This directory contains some example rc scripts for ntpd.
+
+In general, ntpd should be started as soon as possible in the boot process. If
+any services require stable system clock, the ntpwait script should be run
+before them as late as possible.
+
+The rc.d contains scripts for systems using rc.d init system (originated in
+NetBSD). If a service requires stable system time, indicate it with TIMESYNC
+dependency and set ntpwait_enable to YES.
+
+For SysV init systems, you'll have to create links as /etc/rc2.d/S20ntpd and
+/etc/rc2.d/S80ntpwait yourself. (The numbers are just examples, try to give
+ntpd as much time as possible to synchronize before running ntpwait).

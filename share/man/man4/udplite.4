@@ -1,0 +1,96 @@
+.\" Copyright (c) 2014, Kevin Lo.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 1, 2014
+.Dt UDPLITE 4
+.Os
+.Sh NAME
+.Nm udplite
+.Nd Lightweight User Datagram Protocol
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netinet/udplite.h
+.Ft int
+.Fn socket AF_INET SOCK_DGRAM IPPROTO_UDPLITE
+.Sh DESCRIPTION
+The
+.Tn UDP-Lite
+protocol provides a partial checksum which allows
+corrupted packets to be transmitted to the receiving
+application.
+This has advantages for some types of multimedia
+transport that may be able to make use of slightly
+damaged datagrams, rather than having them discarded
+by lower-layer protocols.
+.Pp
+.Tn UDP-Lite
+supports a number of socket options which can be set with
+.Xr setsockopt 2
+and tested with
+.Xr getsockopt 2 :
+.Bl -tag -width ".Dv UDPLITE_SEND_CSCOV"
+.It Dv UDPLITE_SEND_CSCOV
+This option sets the sender checksum coverage.
+A value of zero indicates that all sent packets will have
+full checksum coverage.
+A value of 8 to 65535 limits the checksum coverage of all sent packets
+to the value given.
+.It Dv UDPLITE_RECV_CSCOV
+This option is the receiver-side analogue.
+A value of zero instructs the kernel to drop all received packets
+not having full checksum coverage.
+A value of 8 to 65535 instructs the kernel to drop all received
+packets with a partial checksum coverage smaller than the value specified.
+.El
+.Sh ERRORS
+A socket operation may fail with one of the following errors returned:
+.Bl -tag -width Er
+.It Bq Er EISCONN
+when trying to establish a connection on a socket which
+already has one, or when trying to send a datagram with the destination
+address specified and the socket is already connected;
+.It Bq Er ENOTCONN
+when trying to send a datagram, but
+no destination address is specified, and the socket has not been
+connected;
+.It Bq Er ENOBUFS
+when the system runs out of memory for
+an internal data structure;
+.It Bq Er EADDRINUSE
+when an attempt
+is made to create a socket with a port which has already been
+allocated;
+.It Bq Er EADDRNOTAVAIL
+when an attempt is made to create a
+socket with a network address for which no network interface
+exists.
+.El
+.Sh SEE ALSO
+.Xr getsockopt 2 ,
+.Xr recv 2 ,
+.Xr send 2 ,
+.Xr socket 2

@@ -1,0 +1,62 @@
+pass in proto icmp from localhost to localhost icmp-type timest
+block in proto icmp from any to any icmp-type unreach code 1
+pass in proto icmp all icmp-type unreach code cutoff-preced
+pass in proto icmp all icmp-type unreach code filter-prohib
+pass in proto icmp all icmp-type unreach code isolate
+pass in proto icmp all icmp-type unreach code needfrag
+pass in proto icmp all icmp-type unreach code net-prohib
+pass in proto icmp all icmp-type unreach code net-tos
+pass in proto icmp all icmp-type unreach code host-preced
+pass in proto icmp all icmp-type unreach code host-prohib
+pass in proto icmp all icmp-type unreach code host-tos
+pass in proto icmp all icmp-type unreach code host-unk
+pass in proto icmp all icmp-type unreach code host-unr
+pass in proto icmp all icmp-type unreach code {net-unk,net-unr}
+pass in proto icmp all icmp-type unreach code port-unr
+pass in proto icmp all icmp-type unreach code proto-unr
+pass in proto icmp all icmp-type unreach code srcfail
+pass in proto icmp all icmp-type {echo,echorep}
+pass in proto icmp all icmp-type inforeq
+pass in proto icmp all icmp-type inforep
+pass in proto icmp all icmp-type maskrep
+pass in proto icmp all icmp-type maskreq
+pass in proto icmp all icmp-type paramprob
+pass in proto icmp all icmp-type redir
+pass in proto icmp all icmp-type unreach
+pass in proto icmp all icmp-type routerad
+pass in proto icmp all icmp-type routersol
+pass in proto icmp all icmp-type squench
+pass in proto icmp all icmp-type timest
+pass in proto icmp all icmp-type timestrep
+pass in proto icmp all icmp-type timex
+pass in proto icmp all icmp-type 254
+pass in proto icmp all icmp-type 253 code 254
+pass in proto icmp all icmp-type unreach code cutoff-preced
+pass in proto icmp all icmp-type unreach code filter-prohib
+pass in proto icmp all icmp-type unreach code isolate
+pass in proto icmp all icmp-type unreach code needfrag
+pass in proto icmp all icmp-type unreach code net-prohib
+pass in proto icmp all icmp-type unreach code net-tos
+pass in proto icmp all icmp-type unreach code host-preced
+pass in proto icmp all icmp-type unreach code host-prohib
+pass in proto icmp all icmp-type unreach code host-tos
+pass in proto icmp all icmp-type unreach code host-unk
+pass in proto icmp all icmp-type unreach code host-unr
+pass in proto icmp all icmp-type unreach code {net-unk,net-unr}
+pass in proto icmp all icmp-type unreach code port-unr
+pass in proto icmp all icmp-type unreach code proto-unr
+pass in proto icmp all icmp-type unreach code srcfail
+pass in proto icmp all icmp-type {echo,echorep}
+pass in proto icmp all icmp-type inforeq
+pass in proto icmp all icmp-type inforep
+pass in proto icmp all icmp-type maskrep
+pass in proto icmp all icmp-type maskreq
+pass in proto icmp all icmp-type paramprob
+pass in proto icmp all icmp-type redir
+pass in proto icmp all icmp-type unreach
+pass in proto icmp all icmp-type routerad
+pass in proto icmp all icmp-type routersol
+pass in proto icmp all icmp-type squench
+pass in proto icmp all icmp-type timest
+pass in proto icmp all icmp-type timestrep
+pass in proto icmp all icmp-type timex

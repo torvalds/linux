@@ -1,0 +1,82 @@
+.\" Copyright (c) 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\"	@(#)sin.3	6.7 (Berkeley) 4/19/91
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)sin.3	6.7 (Berkeley) 4/19/91
+.\" $FreeBSD$
+.\"
+.Dd January 24, 2008
+.Dt SIN 3
+.Os
+.Sh NAME
+.Nm sin ,
+.Nm sinf ,
+.Nm sinl
+.Nd sine functions
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn sin "double x"
+.Ft float
+.Fn sinf "float x"
+.Ft long double
+.Fn sinl "long double x"
+.Sh DESCRIPTION
+The
+.Fn sin ,
+.Fn sinf ,
+and
+.Fn sinl
+functions compute the sine of
+.Fa x
+(measured in radians).
+A large magnitude argument may yield a result with little
+or no significance.
+.Sh RETURN VALUES
+The
+.Fn sin ,
+.Fn sinf ,
+and
+.Fn sinl
+functions return the sine value.
+.Sh SEE ALSO
+.Xr acos 3 ,
+.Xr asin 3 ,
+.Xr atan 3 ,
+.Xr atan2 3 ,
+.Xr cos 3 ,
+.Xr cosh 3 ,
+.Xr csin 3 ,
+.Xr math 3 ,
+.Xr sinh 3 ,
+.Xr tan 3 ,
+.Xr tanh 3
+.Sh STANDARDS
+These functions conform to
+.St -isoC-99 .

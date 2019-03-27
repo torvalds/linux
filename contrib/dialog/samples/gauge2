@@ -1,0 +1,28 @@
+#!/bin/sh
+# $Id: gauge2,v 1.8 2010/01/13 10:26:52 tom Exp $
+# The original dialog program assumed the first line after the first "XXX"
+# was a percentage value (compare with "gauge" script).
+
+. ./setup-vars
+
+(echo "10" ; sleep 2 ; 
+
+cat <<"EOF"
+XXX
+The new
+\n
+message
+XXX
+20
+EOF
+sleep 2; 
+
+echo "75" ; sleep 1
+echo "100") | \
+
+$DIALOG --title "GAUGE" "$@" --gauge "Hi, this is a gauge widget" 10 40 0
+
+if [ "$?" = $DIALOG_ESC ] ; then
+	echo ""
+	echo "Box closed !"
+fi

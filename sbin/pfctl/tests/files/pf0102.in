@@ -1,0 +1,9 @@
+# test rule expansion with mixed af
+
+pass from {1.1.1.1 2002::} to (self)
+
+pass from {2002:: 1.1.1.1} to (self)
+
+pass from {1.1.1.1 2002::} to (self)/40
+
+pass from {2002:: 1.1.1.1} to (self)/40

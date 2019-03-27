@@ -1,0 +1,30 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=\
+        cbc128.c ctr128.c cts128.c cfb128.c ofb128.c gcm128.c \
+        ccm128.c xts128.c wrap128.c ocb128.c \
+        {- $target{modes_asm_src} -}
+
+INCLUDE[gcm128.o]=..
+
+GENERATE[ghash-ia64.s]=asm/ghash-ia64.pl $(LIB_CFLAGS) $(LIB_CPPFLAGS)
+GENERATE[ghash-x86.s]=asm/ghash-x86.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+GENERATE[ghash-x86_64.s]=asm/ghash-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[aesni-gcm-x86_64.s]=asm/aesni-gcm-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[ghash-sparcv9.S]=asm/ghash-sparcv9.pl $(PERLASM_SCHEME)
+INCLUDE[ghash-sparcv9.o]=..
+GENERATE[ghash-alpha.S]=asm/ghash-alpha.pl $(PERLASM_SCHEME)
+GENERATE[ghash-parisc.s]=asm/ghash-parisc.pl $(PERLASM_SCHEME)
+GENERATE[ghashp8-ppc.s]=asm/ghashp8-ppc.pl $(PERLASM_SCHEME)
+GENERATE[ghash-armv4.S]=asm/ghash-armv4.pl $(PERLASM_SCHEME)
+INCLUDE[ghash-armv4.o]=..
+GENERATE[ghashv8-armx.S]=asm/ghashv8-armx.pl $(PERLASM_SCHEME)
+INCLUDE[ghashv8-armx.o]=..
+GENERATE[ghash-s390x.S]=asm/ghash-s390x.pl $(PERLASM_SCHEME)
+INCLUDE[ghash-s390x.o]=..
+
+BEGINRAW[Makefile]
+# GNU make "catch all"
+{- $builddir -}/ghash-%.S:	{- $sourcedir -}/asm/ghash-%.pl
+	CC="$(CC)" $(PERL) $< $(PERLASM_SCHEME) $@
+ENDRAW[Makefile]

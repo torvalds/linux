@@ -1,0 +1,127 @@
+.\"-
+.\" Copyright (c) 2007 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 28, 2017
+.Dt FLOPEN 3
+.Os
+.Sh NAME
+.Nm flopen ,
+.Nm flopenat
+.Nd "Reliably open and lock a file"
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In sys/fcntl.h
+.In libutil.h
+.Ft int
+.Fn flopen "const char *path" "int flags"
+.Ft int
+.Fn flopen "const char *path" "int flags" "mode_t mode"
+.Ft int
+.Fn flopenat "int fd" "const char *path" "int flags"
+.Ft int
+.Fn flopenat "int fd" "const char *path" "int flags" "mode_t mode"
+.Sh DESCRIPTION
+The
+.Fn flopen
+function opens or creates a file and acquires an exclusive lock on it.
+It is essentially equivalent with calling
+.Fn open
+with the same parameters followed by
+.Fn flock
+with an
+.Fa operation
+argument of
+.Dv LOCK_EX ,
+except that
+.Fn flopen
+will attempt to detect and handle races that may occur between opening
+/ creating the file and locking it.
+Thus, it is well suited for opening lock files, PID files, spool
+files, mailboxes and other kinds of files which are used for
+synchronization between processes.
+.Pp
+If
+.Fa flags
+includes
+.Dv O_NONBLOCK
+and the file is already locked,
+.Fn flopen
+will fail and set
+.Va errno
+to
+.Dv EWOULDBLOCK .
+.Pp
+As with
+.Fn open ,
+the additional
+.Fa mode
+argument is required if
+.Fa flags
+includes
+.Dv O_CREAT .
+.Pp
+The
+.Fn flopenat
+function is equivalent to the
+.Fn flopen
+function except in the case where the
+.Fa path
+specifies a relative path.
+In this case the file to be opened is determined relative to the directory
+associated with the file descriptor
+.Fa fd
+instead of the current working directory.
+If
+.Fn flopenat
+is passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter, the current working directory is used
+and the behavior is identical to a call to
+.Fn flopen .
+.Sh RETURN VALUES
+If successful,
+.Fn flopen
+returns a valid file descriptor.
+Otherwise, it returns -1, and sets
+.Va errno
+as described in
+.Xr flock 2
+and
+.Xr open 2 .
+.Sh SEE ALSO
+.Xr errno 2 ,
+.Xr flock 2 ,
+.Xr open 2
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+function and this manual page were written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

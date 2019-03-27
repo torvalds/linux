@@ -1,0 +1,23 @@
+#
+# Error messages for the wind library
+#
+# This might look like a com_err file, but is not
+#
+id "$Id$"
+
+error_table wind
+
+prefix WIND_ERR
+error_code NONE,		"No error"
+error_code NO_PROFILE,		"No such profile"
+error_code OVERRUN,		"Buffer overrun"
+error_code UNDERUN,		"Buffer underrun"
+error_code LENGTH_NOT_MOD2,	"Length not mod2"
+error_code LENGTH_NOT_MOD4,	"Length not mod4"
+error_code INVALID_UTF8,	"Invalid UTF-8 combination in string"
+error_code INVALID_UTF16,	"Invalid UTF-16 combination in string"
+error_code INVALID_UTF32,	"Invalid UTF-32 combination in string"
+error_code NO_BOM,		"No byte order mark (BOM) in string"
+error_code NOT_UTF16,		"Code can't be represented as UTF-16"
+
+end

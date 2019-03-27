@@ -1,0 +1,434 @@
+.\"	$NetBSD: le.4,v 1.22 2004/10/04 19:12:52 rumble Exp $
+.\"
+.\"-
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This software was developed by the Computer Systems Engineering group
+.\" at Lawrence Berkeley Laboratory under DARPA contract BG 91-66 and
+.\" contributed to Berkeley.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: Header: le.4,v 1.2 92/10/13 05:31:33 leres Exp
+.\"	from: @(#)le.4	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd February 15, 2017
+.Dt LE 4
+.Os
+.Sh NAME
+.Nm le
+.Nd "AMD Am7900 LANCE and Am79C9xx ILACC/PCnet Ethernet interface driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device le"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_le_load="YES"
+.Ed
+.Pp
+For ISA non-PnP adapters, the port address as well as the IRQ and the DRQ
+numbers have to be specified in
+.Pa /boot/device.hints :
+.Cd hint.le.0.at="isa"
+.Cd hint.le.0.port="0x280"
+.Cd hint.le.0.irq="10"
+.Cd hint.le.0.drq="0"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Ethernet adapters based on the
+.Tn AMD Am7990
+and
+.Tn Am79C90
+.Pq CMOS, pin-compatible
+Local Area Network Controller for Ethernet
+.Pq Tn LANCE
+chips.
+.Pp
+The
+.Nm
+driver also supports Ethernet adapters based on the
+.Tn AMD Am79C900
+Integrated Local Area Communications Controller
+.Pq Tn ILACC
+as well as the
+.Tn Am79C9xx PCnet
+family of chips, which are single-chip implementations of a
+.Tn LANCE
+chip and a DMA engine.
+This includes a superset of the
+.Tn PCI
+bus Ethernet chips supported by the
+.Xr pcn 4
+driver.
+The
+.Nm
+driver treats all of these
+.Tn PCI
+bus Ethernet chips as an
+.Tn AMD Am79C970 PCnet-PCI
+and does not support the additional features like the MII bus and burst mode of
+.Tn AMD Am79C971 PCnet-FAST
+and greater chips.
+Thus the
+.Xr pcn 4
+driver should be preferred for the latter.
+.Pp
+Generally, the
+.Nm
+driver aims at supporting as many different chips on as many different
+platforms as possible,
+partially at the cost of the best performance with some of these.
+.Pp
+The
+.Nm
+driver supports reception and transmission of extended frames for
+.Xr vlan 4 .
+Selective reception of multicast Ethernet frames is provided by a 64-bit mask;
+multicast destination addresses are hashed to a bit entry using the Ethernet
+CRC function.
+.Sh HARDWARE
+.Ss ISA
+The
+.Nm
+driver supports
+.Tn ISA
+bus Ethernet adapters which are based on the following chips:
+.Pp
+.Bl -bullet -compact
+.It
+.Tn AMD Am7990 and Am79C90 LANCE
+.It
+.Tn AMD Am79C960 PCnet-ISA
+.It
+.Tn AMD Am79C961 PCnet-ISA+
+.It
+.Tn AMD Am79C961A PCnet-ISA II
+.El
+.Pp
+This includes support for the following Ethernet adapters:
+.Pp
+ISA non-PnP:
+.Pp
+.Bl -bullet -compact
+.It
+.Tn BICC Isolan
+.\" .It
+.\" .Tn Digital DEPCA
+.It
+.Tn Novell NE2100
+.El
+.Pp
+ISA PnP:
+.Pp
+.Bl -bullet -compact
+.It
+.Tn AMD AM1500T/AM2100
+.It
+.Tn AMD PCnet-32
+.It
+.Tn AMD PCnet-ISA
+.It
+.Tn Allied Telesyn AT-1500
+.It
+.Tn Boca LANCard Combo
+.It
+.Tn Cabletron E2100 Series DNI
+.It
+.Tn Cabletron E2200 Single Chip
+.It
+.Tn Melco Inc. LGY-IV
+.It
+.Tn Novell NE2100
+.It
+.Tn Racal InterLan EtherBlaster
+.El
+.Pp
+The
+.Nm
+driver does not support the selection of media types and options via
+.Xr ifconfig 8
+with
+.Tn ISA
+bus Ethernet adapters.
+.Ss PCI
+The
+.Tn PCI
+bus Ethernet chips supported by the
+.Nm
+driver are:
+.Pp
+.Bl -bullet -compact
+.It
+.Tn AMD Am53C974/Am79C970/Am79C974 PCnet-PCI
+.It
+.Tn AMD Am79C970A PCnet-PCI II
+.It
+.Tn AMD Am79C971 PCnet-FAST
+.It
+.Tn AMD Am79C972 PCnet-FAST+
+.It
+.Tn AMD Am79C973/Am79C975 PCnet-FAST III
+.It
+.Tn AMD Am79C976 PCnet-PRO
+.It
+.Tn AMD Am79C978 PCnet-Home
+.El
+.Pp
+This includes support for the following Ethernet adapters:
+.Pp
+.Bl -bullet -compact
+.It
+.Tn AcerLAN NIC P20
+.It
+.Tn Allied Telesyn AT-2450 and AT-2700 series
+.It
+.Tn VMware emulated AMD Am79C970A PCnet-PCI II interface
+.El
+.Pp
+The
+.Nm
+driver supports the selection of the following media types via
+.Xr ifconfig 8
+with
+.Tn PCI
+bus Ethernet adapters:
+.Bl -tag -width ".Cm 10base5/AUI"
+.It Cm autoselect
+Enable autoselection of the media type.
+.It Cm 10baseT/UTP
+Select UTP media.
+.It Cm 10base5/AUI
+Select AUI/BNC media.
+.El
+.Pp
+The following media option is supported with these media types:
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
+Select full duplex operation.
+.El
+.Pp
+Note that unlike the
+.Xr pcn 4
+driver, the
+.Nm
+driver does not support selecting 100Mbps (Fast Ethernet) media types.
+.Ss sparc64
+The
+.Nm
+driver supports the on-board
+.Tn LANCE
+interfaces found in
+.Tn Sun Ultra 1
+machines.
+The
+.Nm
+driver allows the selection of the following media types via
+.Xr ifconfig 8
+with these on-board interfaces:
+.Bl -tag -width ".Cm 10base5/AUI"
+.It Cm autoselect
+Enable autoselection of the media type.
+.It Cm 10baseT/UTP
+Select UTP media.
+.It Cm 10base5/AUI
+Select AUI media.
+.El
+.Pp
+When using autoselection, a default media type is selected for use by
+examining all ports for carrier.
+The first media type with which a carrier is detected will be selected.
+Additionally, if carrier is dropped on a port, the driver will switch
+between the possible ports until one with carrier is found.
+.Pp
+The
+.Nm
+driver also supports the following
+.Tn Sun SBus
+Ethernet add-on adapters:
+.Pp
+.Bl -bullet -compact
+.It
+.Tn SCSI HBA and Buffered Ethernet
+.Pq SBE/S, P/N 501-1869
+.It
+.Tn Fast SCSI and Buffered Ethernet
+.Pq FSBE/S, P/N 501-2015 and 501-2981
+.El
+.Pp
+The
+.Nm
+driver does not support the selection of media types and options via
+.Xr ifconfig 8
+with
+.Tn SBus
+Ethernet add-on adapters.
+.Pp
+For further information on configuring media types and options, see
+.Xr ifconfig 8 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "le%d: overflow"
+More packets came in from the Ethernet than there was space in the
+.Tn LANCE
+receive buffers.
+Packets were missed.
+.It "le%d: receive buffer error"
+The
+.Tn LANCE
+ran out of buffer space, packet dropped.
+.It "le%d: lost carrier"
+The Ethernet carrier disappeared during an attempt to transmit.
+The
+.Tn LANCE
+will finish transmitting the current packet,
+but will not automatically retry transmission if there is a collision.
+.It "le%d: excessive collisions, tdr %d"
+The Ethernet was extremely busy or jammed,
+outbound packets were dropped after 16 attempts to retransmit.
+.Pp
+TDR
+is the abbreviation of
+.Qq Time Domain Reflectometry .
+The optionally reported TDR value is an internal counter of the interval
+between the start of a transmission and the occurrence of a collision.
+This value can be used to determine the distance from the Ethernet tap to
+the point on the Ethernet cable that is shorted or open (unterminated).
+.It "le%d: dropping chained buffer"
+A packet did not fit into a single receive buffer and was dropped.
+Since the
+.Nm
+driver allocates buffers large enough to receive maximum sized Ethernet
+packets, this means some other station on the LAN transmitted a packet
+larger than allowed by the Ethernet standard.
+.It "le%d: transmit buffer error"
+The
+.Tn LANCE
+ran out of buffer space before finishing the transmission of a packet.
+If this error occurs, the driver software has a bug.
+.It "le%d: underflow"
+The
+.Tn LANCE
+ran out of buffer space before finishing the transmission of a packet.
+If this error occurs, the driver software has a bug.
+.It "le%d: controller failed to initialize"
+Driver failed to start the
+.Tn LANCE .
+This is potentially a hardware failure.
+.It "le%d: memory error"
+RAM failed to respond within the timeout when the
+.Tn LANCE
+wanted to read or write it.
+This is potentially a hardware failure.
+.It "le%d: receiver disabled"
+The receiver of the
+.Tn LANCE
+was turned off due to an error.
+.It "le%d: transmitter disabled"
+The transmitter of the
+.Tn LANCE
+was turned off due to an error.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr pcn 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver was ported from
+.Nx
+and first appeared in
+.Fx 6.1 .
+The
+.Nx
+version in turn was derived from the
+.Nm
+driver which first appeared in
+.Bx 4.4 .
+.Sh AUTHORS
+The
+.Nm
+driver was ported by
+.An Marius Strobl Aq Mt marius@FreeBSD.org .
+.\" .Sh BUGS
+.\" The Am7990 Revision C chips have a bug which causes garbage to be inserted
+.\" in front of the received packet occasionally.
+.\" The work-around is to ignore packets with an invalid destination address
+.\" (garbage will usually not match), by double-checking the destination
+.\" address of every packet in the driver.
+.\" This work-around can be enabled with the
+.\" .Dv LANCE_REVC_BUG
+.\" kernel option.
+.\" .Pp
+.\" When
+.\" .Dv LANCE_REVC_BUG
+.\" is enabled, the
+.\" .Nm
+.\" driver executes one or two calls to an inline Ethernet address comparison
+.\" function for every received packet.
+.\" On the
+.\" .Tn MC68000
+.\" it is exactly eight instructions of 16 bits each.
+.\" There is one comparison for each unicast packet, and two comparisons for
+.\" each broadcast packet.
+.\" .Pp
+.\" In summary, the cost of the LANCE_REVC_BUG option is:
+.\" .Bl -enum -compact
+.\" .It
+.\" loss of multicast support, and
+.\" .It
+.\" eight extra
+.\" .Tn CPU
+.\" instructions per received packet, sometimes sixteen, depending on both the
+.\" processor, and the type of packet.
+.\" .El
+.\" .Pp
+.\" All sun3 systems are presumed to have this bad revision of the Am7990,
+.\" until proven otherwise.
+.\" Alas, the only way to prove what revision of the chip is in a particular
+.\" system is inspection of the date code on the chip package,
+.\" to compare against a list of what chip revisions were fabricated between
+.\" which dates.
+.\" .Pp
+.\" Alas, the Am7990 chip is so old that
+.\" .Tn AMD
+.\" has
+.\" .Qq de-archived
+.\" the production information about it; pending a search elsewhere, we do not
+.\" know how to identify the revision C chip from the date codes.

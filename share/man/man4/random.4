@@ -1,0 +1,343 @@
+.\" Copyright (c) 2001-2015	Mark R V Murray.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 26, 2018
+.Dt RANDOM 4
+.Os
+.Sh NAME
+.Nm random
+.Nd the entropy device
+.Sh SYNOPSIS
+.Cd "device random"
+.Cd "options RANDOM_LOADABLE"
+.Cd "options RANDOM_ENABLE_UMA"
+.Sh DESCRIPTION
+The
+.Nm
+device
+returns an endless supply of random bytes when read.
+It also accepts and reads data
+as any ordinary file.
+.Pp
+The generator will start in an
+.Em unseeded
+state, and will block reads until
+it is seeded for the first time.
+This may cause trouble at system boot
+when keys and the like
+are generated from
+.Nm
+so steps should be taken to ensure a
+seeding as soon as possible.
+.Pp
+It is also possible
+to read random bytes
+by using the KERN_ARND sysctl.
+On the command line
+this could be done by
+.Pp
+.Dl "sysctl -x -B 16 kern.arandom"
+.Pp
+This sysctl will not return
+random bytes unless
+the
+.Nm
+device is seeded.
+.Pp
+This initial seeding
+of random number generators
+is a bootstrapping problem
+that needs very careful attention.
+In some cases,
+it may be difficult
+to find enough randomness
+to seed a random number generator
+until a system is fully operational,
+but the system requires random numbers
+to become fully operational.
+It is (or more accurately should be)
+critically important that the
+.Nm
+device is seeded
+before the first time it is used.
+In the case where a dummy or "blocking-only"
+device is used,
+it is the responsibility
+of the system architect
+to ensure that no blocking reads
+hold up critical processes.
+.Pp
+To see the current settings of the software
+.Nm
+device, use the command line:
+.Pp
+.Dl "sysctl kern.random"
+.Pp
+which results in something like:
+.Bd -literal -offset indent
+kern.random.fortuna.minpoolsize: 64
+kern.random.harvest.mask_symbolic: [HIGH_PERFORMANCE], ... ,CACHED
+kern.random.harvest.mask_bin: 00111111111
+kern.random.harvest.mask: 511
+kern.random.random_sources: 'Intel Secure Key RNG'
+.Ed
+.Pp
+Other than
+.Dl kern.random.fortuna.minpoolsize
+and
+.Dl kern.random.harvest.mask
+all settings are read-only.
+.Pp
+The
+.Pa kern.random.fortuna.minpoolsize
+sysctl is used
+to set the seed threshold.
+A smaller number gives a faster seed,
+but a less secure one.
+In practice,
+values between 64 and 256
+are acceptable.
+.Pp
+The
+.Va kern.random.harvest.mask
+bitmask is used to select
+the possible entropy sources.
+A 0 (zero) value means
+the corresponding source
+is not considered
+as an entropy source.
+Set the bit to 1 (one)
+if you wish to use
+that source.
+The
+.Va kern.random.harvest.mask_bin
+and
+.Va kern.random.harvest.mask_symbolic
+sysctls
+can be used to confirm
+that the choices are correct.
+Note that disabled items
+in the latter item
+are listed in square brackets.
+See
+.Xr random_harvest 9
+for more on the harvesting of entropy.
+.Pp
+When
+.Cd "options RANDOM_LOADABLE"
+is used,
+the
+.Pa /dev/random
+device is not created
+until an "algorithm module"
+is loaded.
+The only module built by default is
+.Em random_fortuna .
+The
+.Em random_yarrow
+module was removed in
+.Fx 12 .
+Note that this loadable module
+is slightly less efficient
+than its compiled-in equivalent.
+This is because some functions
+must be locked against
+load and unload events,
+and also must be indirect calls
+to allow for removal.
+.Pp
+When
+.Cd "options RANDOM_ENABLE_UMA"
+is used,
+the
+.Pa /dev/random
+device will obtain entropy
+from the zone allocator.
+This is potentially very high rate,
+and if so will be of questionable use.
+If this is the case,
+use of this option
+is not recommended.
+Determining this is not trivial,
+so experimenting and measurement
+using tools such as
+.Xr dtrace 1
+will be required.
+.Sh RANDOMNESS
+The use of randomness in the field of computing
+is a rather subtle issue because randomness means
+different things to different people.
+Consider generating a password randomly,
+simulating a coin tossing experiment or
+choosing a random back-off period when a server does not respond.
+Each of these tasks requires random numbers,
+but the random numbers in each case have different requirements.
+.Pp
+Generation of passwords, session keys and the like
+requires cryptographic randomness.
+A cryptographic random number generator should be designed
+so that its output is difficult to guess,
+even if a lot of auxiliary information is known
+(such as when it was seeded, subsequent or previous output, and so on).
+On
+.Fx ,
+seeding for cryptographic random number generators is provided by the
+.Nm
+device,
+which provides real randomness.
+The
+.Xr arc4random 3
+library call provides a pseudo-random sequence
+which is generally reckoned to be suitable for
+simple cryptographic use.
+The OpenSSL library also provides functions for managing randomness
+via functions such as
+.Xr RAND_bytes 3
+and
+.Xr RAND_add 3 .
+Note that OpenSSL uses the
+.Nm
+device for seeding automatically.
+.Pp
+Randomness for simulation is required in engineering or
+scientific software and games.
+The first requirement of these applications is
+that the random numbers produced conform to some well-known,
+usually uniform, distribution.
+The sequence of numbers should also appear numerically uncorrelated,
+as simulation often assumes independence of its random inputs.
+Often it is desirable to reproduce
+the results of a simulation exactly,
+so that if the generator is seeded in the same way,
+it should produce the same results.
+A peripheral concern for simulation is
+the speed of a random number generator.
+.Pp
+Another issue in simulation is
+the size of the state associated with the random number generator, and
+how frequently it repeats itself.
+For example,
+a program which shuffles a pack of cards should have 52!\& possible outputs,
+which requires the random number generator to have 52!\& starting states.
+This means the seed should have at least log_2(52!) ~ 226 bits of state
+if the program is to stand a chance of outputting all possible sequences,
+and the program needs some unbiased way of generating these bits.
+Again,
+the
+.Nm
+device could be used for seeding here,
+but in practice, smaller seeds are usually considered acceptable.
+.Pp
+.Fx
+provides two families of functions which are considered
+suitable for simulation.
+The
+.Xr random 3
+family of functions provides a random integer
+between 0 to
+.if t 2\u\s731\s10\d\(mi1.
+.if n (2**31)\(mi1.
+The functions
+.Xr srandom 3 ,
+.Xr initstate 3
+and
+.Xr setstate 3
+are provided for deterministically setting
+the state of the generator and
+the function
+.Xr srandomdev 3
+is provided for setting the state via the
+.Nm
+device.
+The
+.Xr drand48 3
+family of functions are also provided,
+which provide random floating point numbers in various ranges.
+.Pp
+Randomness that is used for collision avoidance
+(for example, in certain network protocols)
+has slightly different semantics again.
+It is usually expected that the numbers will be uniform,
+as this produces the lowest chances of collision.
+Here again,
+the seeding of the generator is very important,
+as it is required that different instances of
+the generator produce independent sequences.
+However, the guessability or reproducibility of the sequence is unimportant,
+unlike the previous cases.
+.Pp
+.Fx
+does also provide the traditional
+.Xr rand 3
+library call,
+for compatibility purposes.
+However,
+it is known to be poor for simulation and
+absolutely unsuitable for cryptographic purposes,
+so its use is discouraged.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/random"
+.It Pa /dev/random
+.El
+.Sh SEE ALSO
+.Xr arc4random 3 ,
+.Xr drand48 3 ,
+.Xr rand 3 ,
+.Xr RAND_add 3 ,
+.Xr RAND_bytes 3 ,
+.Xr random 3 ,
+.Xr sysctl 8 ,
+.Xr random 9
+.Rs
+.%A Ferguson
+.%A Schneier
+.%A Kohno
+.%B Cryptography Engineering
+.%I Wiley
+.%O ISBN 978-0-470-47424-2
+.Re
+.Sh HISTORY
+A
+.Nm
+device appeared in
+.Fx 2.2 .
+The current software implementation,
+introduced in
+.Fx 10.0 ,
+is by
+.An Mark R V Murray ,
+and is an implementation of the
+.Em Fortuna
+algorithm by Ferguson
+.Em et al .
+It replaces the previous
+.Em Yarrow
+implementation,
+introduced in
+.Fx 5.0 .
+The Yarrow algorithm
+is no longer supported
+by its authors,
+and is therefore no longer available.

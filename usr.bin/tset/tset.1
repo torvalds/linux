@@ -1,0 +1,421 @@
+.\" Copyright (c) 1985, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)tset.1	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd June 6, 2015
+.Dt TSET 1
+.Os
+.Sh NAME
+.Nm tset ,
+.Nm reset
+.Nd terminal initialization
+.Sh SYNOPSIS
+.Nm
+.Op Fl IQrSs
+.Op Fl
+.Op Fl e Ar ch
+.Op Fl i Ar ch
+.Op Fl k Ar ch
+.Op Fl m Ar mapping
+.Op Ar terminal
+.Nm reset
+.Op Fl IQrSs
+.Op Fl
+.Op Fl e Ar ch
+.Op Fl i Ar ch
+.Op Fl k Ar ch
+.Op Fl m Ar mapping
+.Op Ar terminal
+.Sh DESCRIPTION
+The
+.Nm
+utility initializes terminals.
+It first determines the type of terminal that you are using.
+This determination is done as follows, using the first terminal type found.
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+The
+.Ar terminal
+argument specified on the command line.
+.It
+The value of the
+.Ev TERM
+environment variable.
+.It
+The terminal type associated with the standard error output device in the
+.Pa /etc/ttys
+file.
+.It
+The default terminal type, ``unknown''.
+.El
+.Pp
+If the terminal type was not specified on the command-line, the
+.Fl m
+option mappings are then applied (see below for more information).
+Then, if the terminal type begins with a question mark (``?''), the user is
+prompted for confirmation of the terminal type.
+An empty response confirms the type, or, another type can be entered to
+specify a new type.
+Once the terminal type has been determined, the termcap entry for the terminal
+is retrieved.
+If no termcap entry is found for the type, the user is prompted for another
+terminal type.
+.Pp
+Once the termcap entry is retrieved, the window size, backspace, interrupt
+and line kill characters (among many other things) are set and the terminal
+and tab initialization strings are sent to the standard error output.
+Finally, if the erase, interrupt and line kill characters have changed,
+or are not set to their default values, their values are displayed to the
+standard error output.
+.Pp
+When invoked as
+.Nm reset ,
+.Nm
+sets cooked and echo modes, turns off cbreak and raw modes, turns on
+newline translation and resets any unset special characters to their
+default values before doing the terminal initialization described above.
+This is useful after a program dies leaving a terminal in an abnormal state.
+Note, you may have to type
+.Dq Li <LF>reset<LF>
+(the line-feed character is normally control-J) to get the terminal
+to work, as carriage-return may no longer work in the abnormal state.
+Also, the terminal will often not echo the command.
+.Pp
+The options are as follows:
+.Bl -tag -width flag
+.It Fl
+The terminal type is displayed to the standard output, and the terminal is
+not initialized in any way.
+.It Fl e
+Set the erase character to
+.Ar ch .
+.It Fl I
+Do not send the terminal or tab initialization strings to the terminal.
+.It Fl i
+Set the interrupt character to
+.Ar ch .
+.It Fl k
+Set the line kill character to
+.Ar ch .
+.It Fl m
+Specify a mapping from a port type to a terminal.
+See below for more information.
+.It Fl Q
+Do not display any values for the erase, interrupt and line kill characters.
+.It Fl r
+Print the terminal type to the standard error output.
+.It Fl S
+Print the terminal type and the termcap entry to the standard output.
+See the section below on setting the environment for details.
+.It Fl s
+Print the sequence of shell commands to initialize the environment variables
+.Ev TERM
+and
+.Ev TERMCAP
+to the standard output.
+See the section below on setting the environment for details.
+.El
+.Pp
+The arguments for the
+.Fl e ,
+.Fl i
+and
+.Fl k
+options may either be entered as actual characters or by using the
+.Dq hat
+notation, i.e., control-h may be specified as
+.Dq Li ^H
+or
+.Dq Li ^h .
+.Sh SETTING THE ENVIRONMENT
+It is often desirable to enter the terminal type and information about
+the terminal's capabilities into the shell's environment.
+This is done using the
+.Fl S
+and
+.Fl s
+options.
+.Pp
+When the
+.Fl S
+option is specified, the terminal type and the termcap entry are written
+to the standard output, separated by a space and without a terminating
+newline.
+This can be assigned to an array by
+.Nm csh
+and
+.Nm ksh
+users and then used like any other shell array.
+.Pp
+When the
+.Fl s
+option is specified, the commands to enter the information into the
+shell's environment are written to the standard output.
+If the
+.Ev SHELL
+environment variable ends in ``csh'', the commands are for the
+.Nm csh ,
+otherwise, they are for
+.Xr sh 1 .
+Note, the
+.Nm csh
+commands set and unset the shell variable
+.Dq noglob ,
+leaving it unset.
+The following line in the
+.Pa .login
+or
+.Pa .profile
+files will initialize the environment correctly:
+.Bd -literal -offset indent
+eval \`tset -s options ... \`
+.Ed
+.Pp
+To demonstrate a simple use of the
+.Fl S
+option, the following lines in the
+.Pa .login
+file have an equivalent effect:
+.Bd -literal -offset indent
+set noglob
+set term=(`tset -S options ...`)
+setenv TERM $term[1]
+setenv TERMCAP "$term[2]"
+unset term
+unset noglob
+.Ed
+.Sh TERMINAL TYPE MAPPING
+When the terminal is not hardwired into the system (or the current system
+information is incorrect) the terminal type derived from the
+.Pa /etc/ttys
+file or the
+.Ev TERM
+environment variable is often something generic like
+.Dq network ,
+.Dq dialup ,
+or
+.Dq unknown .
+When
+.Nm
+is used in a startup script
+.Pf ( Pa .profile
+for
+.Xr sh 1
+users or
+.Pa .login
+for
+.Xr csh 1
+users) it is often desirable to provide information about the type of
+terminal used on such ports.
+The purpose of the
+.Fl m
+option is to
+.Dq map
+from some set of conditions to a terminal type, that is, to
+tell
+.Nm
+``If I'm on this port at a particular speed, guess that I'm on that
+kind of terminal''.
+.Pp
+The argument to the
+.Fl m
+option consists of an optional port type, an optional operator, an optional
+baud rate specification, an optional colon (``:'') character and a terminal
+type.
+The port type is a string (delimited by either the operator or the colon
+character).
+The operator may be any combination of:
+.Dq Li \&> ,
+.Dq Li \&< ,
+.Dq Li \&@ ,
+and
+.Dq Li \&! ;
+.Dq Li \&>
+means greater than,
+.Dq Li \&<
+means less than,
+.Dq Li \&@
+means equal to
+and
+.Dq Li !\&
+inverts the sense of the test.
+The baud rate is specified as a number and is compared with the speed
+of the standard error output (which should be the control terminal).
+The terminal type is a string.
+.Pp
+If the terminal type is not specified on the command line, the
+.Fl m
+mappings are applied to the terminal type.
+If the port type and baud rate match the mapping, the terminal type specified
+in the mapping replaces the current type.
+If more than one mapping is specified, the first applicable mapping is used.
+.Pp
+For example, consider the following mapping:
+.Dq Li dialup>9600:vt100 .
+The port type is
+.Dq Li dialup ,
+the operator is
+.Dq Li > ,
+the baud rate specification is
+.Dq Li 9600 ,
+and the terminal type is
+.Dq Li vt100 .
+The result of this mapping is to specify that if the terminal type is
+.Dq Li dialup ,
+and the baud rate is greater than 9600 baud, a terminal type of
+.Dq Li vt100
+will be used.
+.Pp
+If no port type is specified, the terminal type will match any port type,
+for example,
+.Dq Li -m dialup:vt100 -m :?xterm
+will cause any dialup port, regardless of baud rate, to match the terminal
+type
+.Dq Li vt100 ,
+and any non-dialup port type to match the terminal type
+.Dq Li ?xterm .
+Note, because of the leading question mark, the user will be
+queried on a default port as to whether they are actually using an
+.Ar xterm
+terminal.
+.Pp
+No whitespace characters are permitted in the
+.Fl m
+option argument.
+Also, to avoid problems with metacharacters, it is suggested that the entire
+.Fl m
+option argument be placed within single quote characters, and that
+.Nm csh
+users insert a backslash character (``\e'') before any exclamation
+marks (``!'').
+.Sh ENVIRONMENT
+The
+.Nm
+command utilizes the
+.Ev SHELL
+and
+.Ev TERM
+environment variables.
+.Sh FILES
+.Bl -tag -width /usr/share/misc/termcap -compact
+.It Pa /etc/ttys
+system port name to terminal type mapping database
+.It Pa /usr/share/misc/termcap
+terminal capability database
+.El
+.Sh COMPATIBILITY
+The
+.Fl A ,
+.Fl E ,
+.Fl h ,
+.Fl u
+and
+.Fl v
+options have been deleted from the
+.Nm
+utility.
+None of them were documented in
+.Bx 4.3
+and all are of limited utility at
+best.
+The
+.Fl a ,
+.Fl d
+and
+.Fl p
+options are similarly not documented or useful, but were retained as they
+appear to be in widespread use.
+It is strongly recommended that any usage of these three options be
+changed to use the
+.Fl m
+option instead.
+The
+.Fl n
+option remains, but has no effect.
+It is still permissible to specify the
+.Fl e ,
+.Fl i
+and
+.Fl k
+options without arguments, although it is strongly recommended that such
+usage be fixed to explicitly specify the character.
+.Pp
+Executing
+.Nm
+as
+.Nm reset
+no longer implies the
+.Fl Q
+option.
+Also, the interaction between the
+.Fl
+option and the
+.Ar terminal
+argument in some historic implementations of
+.Nm
+has been removed.
+.Pp
+Finally, the
+.Nm
+implementation has been completely redone (as part of the addition to the
+system of a
+.St -p1003.1-88
+compliant terminal interface) and will no longer compile on systems with
+older terminal interfaces.
+.Sh SEE ALSO
+.Xr csh 1 ,
+.Xr sh 1 ,
+.Xr stty 1 ,
+.Xr tty 4 ,
+.Xr termcap 5 ,
+.Xr ttys 5 ,
+.Xr environ 7
+.Sh HISTORY
+The
+.Nm
+and
+.Nm reset
+utilities first appeared in
+.Bx 1 .
+.Sh AUTHORS
+.An -nosplit
+The original version of
+.Nm tset
+was written by
+.An Eric P. Allman
+in October 1977, and
+.Nm reset
+was originally written by
+.An Kurt Shoens .
+The current version also contains code by
+.An Zeyd M. Ben-Halim ,
+.An Eric S. Raymond ,
+and
+.An Thomas E. Dickey .

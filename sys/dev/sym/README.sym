@@ -1,0 +1,78 @@
+/*-
+ *  Device driver optimized for the Symbios/LSI 53C896/53C895A/53C1010 
+ *  PCI-SCSI controllers.
+ *
+ *  Copyright (C) 1999-2001  Gerard Roudier <groudier@free.fr>
+ *
+ *  This driver also supports the following Symbios/LSI PCI-SCSI chips:
+ *	53C810A, 53C825A, 53C860, 53C875, 53C876, 53C885, 53C895,
+ *	53C810,  53C815,  53C825 and the 53C1510D is 53C8XX mode.
+ *
+ *  
+ *  This driver for FreeBSD-CAM is derived from the Linux sym53c8xx driver.
+ *  Copyright (C) 1998-1999  Gerard Roudier
+ *
+ *  The sym53c8xx driver is derived from the ncr53c8xx driver that had been 
+ *  a port of the FreeBSD ncr driver to Linux-1.2.13.
+ *
+ *  The original ncr driver has been written for 386bsd and FreeBSD by
+ *          Wolfgang Stanglmeier        <wolf@cologne.de>
+ *          Stefan Esser                <se@mi.Uni-Koeln.de>
+ *  Copyright (C) 1994  Wolfgang Stanglmeier
+ *
+ *  The initialisation code, and part of the code that addresses 
+ *  FreeBSD-CAM services is based on the aic7xxx driver for FreeBSD-CAM 
+ *  written by Justin T. Gibbs.
+ *
+ *  Other major contributions:
+ *
+ *  NVRAM detection and reading.
+ *  Copyright (C) 1997 Richard Waltham <dormouse@farsrobt.demon.co.uk>
+ *
+ *-----------------------------------------------------------------------------
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+README.sym
+----------
+This file was bundled with the `sym' driver source files, when 
+the driver was in development stage and not included yet into 
+the FreeBSD repository. It described how to install the driver, 
+gave informations on driver features and summerized important 
+changes between versions. These informations are now available 
+using `man sym' for driver usage and features description, and 
+`cvs log' for driver changes.
+
+I haven't removed this README file from the repository since 
+I may have to provide additional documentation to people 
+interested in understanding the driver sources and/or in helping 
+driver development and maintenance.
+
+As a result, this file is now under reconstruction. :-)
+
+--
+"Gerard Roudier"<groudier@free.fr>

@@ -1,0 +1,154 @@
+/*
+ * $FreeBSD$
+ */
+
+GCC_3.0 {
+global:
+	__absvdi2;
+	__absvsi2;
+	__addvdi3;
+	__addvsi3;
+	__ashldi3;
+	__ashlti3;
+	__ashrdi3;
+	__ashrti3;
+	__clear_cache;
+	__cmpdi2;
+	__cmpti2;
+	__deregister_frame;
+	__deregister_frame_info;
+	__deregister_frame_info_bases;
+	__divdi3;
+	__divti3;
+	__ffsdi2;
+	__ffsti2;
+	__fixdfdi;
+	__fixdfti;
+	__fixsfdi;
+	__fixsfti;
+	__fixunsdfdi;
+	__fixunsdfsi;
+	__fixunsdfti;
+	__fixunssfdi;
+	__fixunssfsi;
+	__fixunssfti;
+	__fixunsxfdi;
+	__fixunsxfsi;
+	__fixunsxfti;
+	__fixxfdi;
+	__fixxfti;
+	__floatdidf;
+	__floatdisf;
+	__floatdixf;
+	__floattidf;
+	__floattisf;
+	__floattixf;
+	__lshrdi3;
+	__lshrti3;
+	__moddi3;
+	__modti3;
+	__muldi3;
+	__multi3;
+	__mulvdi3;
+	__mulvsi3;
+	__negdi2;
+	__negti2;
+	__negvdi2;
+	__negvsi2;
+	__register_frame;
+	__register_frame_info;
+	__register_frame_info_bases;
+	__register_frame_info_table;
+	__register_frame_info_table_bases;
+	__register_frame_table;
+	__subvdi3;
+	__subvsi3;
+	__ucmpdi2;
+	__ucmpti2;
+	__udivdi3;
+	__udivmoddi4;
+	__udivmodti4;
+	__udivti3;
+	__umoddi3;
+	__umodti3;
+	_Unwind_DeleteException;
+	_Unwind_Find_FDE;
+	_Unwind_ForcedUnwind;
+	_Unwind_GetDataRelBase;
+	_Unwind_GetGR;
+	_Unwind_GetIP;
+	_Unwind_GetLanguageSpecificData;
+	_Unwind_GetRegionStart;
+	_Unwind_GetTextRelBase;
+	_Unwind_RaiseException;
+	_Unwind_Resume;
+	_Unwind_SetGR;
+	_Unwind_SetIP;
+local:
+	*;
+};
+
+GCC_3.3 {
+	_Unwind_Backtrace;
+	_Unwind_FindEnclosingFunction;
+	_Unwind_GetCFA;
+	_Unwind_Resume_or_Rethrow;
+} GCC_3.0;
+
+GCC_3.3.1 {
+	__gcc_personality_v0;
+} GCC_3.3;
+
+GCC_3.4 {
+	__clzdi2;
+	__clzsi2;
+	__clzti2;
+	__ctzdi2;
+	__ctzsi2;
+	__ctzti2;
+	__paritydi2;
+	__paritysi2;
+	__parityti2;
+	__popcountdi2;
+	__popcountsi2;
+	__popcountti2;
+} GCC_3.3.1;
+
+GCC_3.4.2 {
+	__enable_execute_stack;
+} GCC_3.4;
+
+GCC_3.4.4 {
+	__absvti2;
+	__addvti3;
+	__mulvti3;
+	__negvti2;
+	__subvti3;
+} GCC_3.4.2;
+
+GCC_4.0.0 {
+	__divdc3;
+	__divsc3;
+	__divxc3;
+	__muldc3;
+	__mulsc3;
+	__mulxc3;
+	__powidf2;
+	__powisf2;
+	__powixf2;
+} GCC_3.4.4;
+
+GCC_4.2.0 {
+	__floatundidf;
+	__floatundisf;
+	__floatundixf;
+	__floatuntidf;
+	__floatuntisf;
+	__floatuntixf;
+	_Unwind_GetIPInfo;
+} GCC_4.0.0;
+
+GCC_4.3.0 {
+	__bswapdi2;
+	__bswapsi2;
+} GCC_4.2.0;

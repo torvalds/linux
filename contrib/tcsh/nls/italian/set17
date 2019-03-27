@@ -1,0 +1,17 @@
+$ $tcsh: set17,v 1.4 2011/02/04 18:19:39 christos Exp $
+$ sh.proc.c
+$set 17 
+1 BACO: sto aspettando un lavoro in background!\n
+2 Uscito %d\n
+3 BACO: il processo è stato svuotato due volte
+4 In esecuzione 
+5 Segnale 
+6 Uscito %-25d
+7 Fatto
+8 BACO: stato=%-9o
+9 \040(creato file core)
+10 \040(directory di lavoro: 
+11 directory di lavoro corrente: 
+12 %S: già sospeso\n
+13 %S: già fermato\n
+14 %S: Badly formed number\n

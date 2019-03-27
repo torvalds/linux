@@ -1,0 +1,9 @@
+/* $FreeBSD$ */
+
+&pcie {
+	/*
+	 * Our driver is different that OpenWRT's, so we need slightly
+	 * different values for the reg property
+	 */
+	reg = <0x10140000 0x10000>;
+};

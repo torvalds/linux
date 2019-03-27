@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+# Refer to ppp.conf.span-isp for a description of what this file is for.
+# This file is only required on the Gateway machine.
+
+# The ISP links start our MP version of ppp as they come up
+isp1:
+  !bg pppctl /var/run/ppp/vpn link 1 close
+
+isp2:
+  !bg pppctl /var/run/ppp/vpn link 2 close
+
+ispN:
+  !bg pppctl /var/run/ppp/vpn link N close
+
+vpn:
+  set server none

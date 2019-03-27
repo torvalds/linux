@@ -1,0 +1,192 @@
+.\"
+.\" Copyright (c) 2004 Joseph Koshy
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 29, 2016
+.Dt HASHINIT 9
+.Os
+.Sh NAME
+.Nm hashinit , hashinit_flags ,  hashdestroy , phashinit , phashinit_flags
+.Nd manage kernel hash tables
+.Sh SYNOPSIS
+.In sys/malloc.h
+.In sys/systm.h
+.In sys/queue.h
+.Ft "void *"
+.Fn hashinit "int nelements" "struct malloc_type *type" "u_long *hashmask"
+.Ft void
+.Fo hashinit_flags
+.Fa "int nelements" "struct malloc_type *type" "u_long *hashmask" "int flags"
+.Fc
+.Ft void
+.Fn hashdestroy "void *hashtbl" "struct malloc_type *type" "u_long hashmask"
+.Ft "void *"
+.Fn phashinit "int nelements" "struct malloc_type *type" "u_long *nentries"
+.Fn phashinit_flags "int nelements" "struct malloc_type *type" "u_long *nentries" "int flags"
+.Sh DESCRIPTION
+The
+.Fn hashinit ,
+.Fn hashinit_flags ,
+.Fn phashinit
+and
+.Fn phashinit_flags
+functions allocate space for hash tables of size given by the argument
+.Fa nelements .
+.Pp
+The
+.Fn hashinit
+function allocates hash tables that are sized to largest power of two
+less than or equal to argument
+.Fa nelements .
+The
+.Fn phashinit
+function allocates hash tables that are sized to the largest prime
+number less than or equal to argument
+.Fa nelements .
+The
+.Fn hashinit_flags
+function operates like
+.Fn hashinit
+but also accepts an additional argument
+.Fa flags
+which control various options during allocation.
+.Fn phashinit_flags
+function operates like
+.Fn phashinit
+but also accepts an additional argument
+.Fa flags
+which control various options during allocation.
+Allocated hash tables are contiguous arrays of
+.Xr LIST_HEAD 3
+entries, allocated using
+.Xr malloc 9 ,
+and initialized using
+.Xr LIST_INIT 3 .
+The malloc arena to be used for allocation is pointed to by argument
+.Fa type .
+.Pp
+The
+.Fn hashdestroy
+function frees the space occupied by the hash table pointed to by argument
+.Fa hashtbl .
+Argument
+.Fa type
+determines the malloc arena to use when freeing space.
+The argument
+.Fa hashmask
+should be the bit mask returned by the call to
+.Fn hashinit
+that allocated the hash table.
+The argument
+.Fa flags
+must be used with one of the following values.
+.Pp
+.Bl -tag -width ".Dv HASH_NOWAIT" -offset indent -compact
+.It Dv HASH_NOWAIT
+Any malloc performed by the
+.Fn hashinit_flags
+and
+.Fn phashinit_flags
+function will not be allowed to wait, and therefore may fail.
+.It Dv HASH_WAITOK
+Any malloc performed by
+.Fn hashinit_flags
+and
+.Fn phashinit_flags
+function is allowed to wait for memory.
+This is also the behavior of
+.Fn hashinit
+and
+.Fn phashinit .
+.El
+.Sh IMPLEMENTATION NOTES
+The largest prime hash value chosen by
+.Fn phashinit
+is 32749.
+.Sh RETURN VALUES
+The
+.Fn hashinit
+function returns a pointer to an allocated hash table and sets the
+location pointed to by
+.Fa hashmask
+to the bit mask to be used for computing the correct slot in the
+hash table.
+.Pp
+The
+.Fn phashinit
+function returns a pointer to an allocated hash table and sets the
+location pointed to by
+.Fa nentries
+to the number of rows in the hash table.
+.Sh EXAMPLES
+A typical example is shown below:
+.Bd -literal -offset indent
+\&...
+static LIST_HEAD(foo, foo) *footable;
+static u_long foomask;
+\&...
+footable = hashinit(32, M_FOO, &foomask);
+.Ed
+.Pp
+Here we allocate a hash table with 32 entries from the malloc arena
+pointed to by
+.Dv M_FOO .
+The mask for the allocated hash table is returned in
+.Va foomask .
+A subsequent call to
+.Fn hashdestroy
+uses the value in
+.Va foomask :
+.Bd -literal -offset indent
+\&...
+hashdestroy(footable, M_FOO, foomask);
+.Ed
+.Sh DIAGNOSTICS
+The
+.Fn hashinit
+and
+.Fn phashinit
+functions will panic if argument
+.Fa nelements
+is less than or equal to zero.
+.Pp
+The
+.Fn hashdestroy
+function will panic if the hash table
+pointed to by
+.Fa hashtbl
+is not empty.
+.Sh SEE ALSO
+.Xr LIST_HEAD 3 ,
+.Xr malloc 9
+.Sh BUGS
+There is no
+.Fn phashdestroy
+function, and using
+.Fn hashdestroy
+to free a hash table allocated by
+.Fn phashinit
+usually has grave consequences.

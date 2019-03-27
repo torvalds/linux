@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+case x$(false) in
+x)	;&
+y)	[ $? != 0 ] ;;
+z)	false ;;
+esac

@@ -1,0 +1,175 @@
+.\"
+.\" Copyright (C) 2002 Chad David <davidc@FreeBSD.org>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 20, 2017
+.Dt KENV 2
+.Os
+.Sh NAME
+.Nm kenv
+.Nd kernel environment
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In kenv.h
+.Ft int
+.Fn kenv "int action" "const char *name" "char *value" "int len"
+.Sh DESCRIPTION
+The
+.Fn kenv
+system call manipulates kernel environment variables.
+It supports the well known userland actions of getting, setting and unsetting
+environment variables, as well as the ability to dump all of the entries in
+the kernel environment.
+.Pp
+The
+.Fa action
+argument can be one of the following:
+.Bl -tag -width ".Dv KENV_UNSET"
+.It Dv KENV_GET
+Get the
+.Fa value
+of the variable with the given
+.Fa name .
+The size of the
+.Fa value
+buffer is given by
+.Fa len ,
+which should be at least
+.Dv KENV_MVALLEN
++ 1 bytes to avoid truncation and to ensure NUL termination.
+.It Dv KENV_SET
+Set or add a variable.
+The
+.Fa name
+and
+.Fa value
+are limited to
+.Dv KENV_MNAMELEN
+and
+.Dv KENV_MVALLEN
+characters, respectively
+.Pq not including the NUL terminator.
+The
+.Fa len
+argument indicates the length of the
+.Fa value
+and must include the NUL terminator.
+This option is only available to the superuser.
+.It Dv KENV_UNSET
+Unset the variable with the given
+.Fa name .
+The
+.Fa value
+and
+.Fa len
+arguments are ignored.
+This option is only available to the superuser.
+.It Dv KENV_DUMP
+Dump as much of the kernel environment as will fit in
+.Fa value ,
+whose size is given in
+.Fa len .
+If
+.Fa value
+is
+.Dv NULL ,
+.Fn kenv
+will return the number of bytes required to copy out the entire environment.
+The
+.Fa name
+is ignored.
+.El
+.Sh RETURN VALUES
+The
+.Fn kenv
+system call returns 0 if successful in the case of
+.Dv KENV_SET
+and
+.Dv KENV_UNSET ,
+and the number of bytes copied into
+.Fa value
+in the case of
+.Dv KENV_DUMP
+and
+.Dv KENV_GET .
+If an error occurs, a value of \-1 is returned and
+the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn kenv
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa action
+argument
+is not a valid option, or the length of the
+.Fa value
+is less than 1 for a
+.Dv KENV_SET .
+.It Bq Er ENOENT
+No value could be found for
+.Fa name
+for a
+.Dv KENV_GET
+or
+.Dv KENV_UNSET .
+.It Bq Er EPERM
+A user other than the superuser attempted to set or unset a kernel
+environment variable.
+.It Bq Er EFAULT
+A bad address was encountered while attempting to copy in user arguments
+or copy out value(s).
+.It Bq Er ENAMETOOLONG
+The
+.Fa name
+or the
+.Fa value
+is longer than
+.Dv KENV_MNAMELEN
+or
+.Dv KENV_MVALLEN
+characters, respectively, or
+.Fa len
+did not include the NUL terminator for a
+.Dv KENV_SET .
+.El
+.Sh SEE ALSO
+.Xr kenv 1
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Chad David Aq Mt davidc@FreeBSD.org .
+.Pp
+The
+.Fn kenv
+system call was written by
+.An Maxime Henrion Aq Mt mux@FreeBSD.org .

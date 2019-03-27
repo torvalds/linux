@@ -1,0 +1,16 @@
+$FreeBSD$
+Tue Jun  8 15:02:02 PDT 2010
+
+This packages is a testbed for a number of purposes and consists
+of two pieces.
+
+The first piece is a simple SIM driver for FreeBSD. It provides
+*just enough* framework to be useful, plus some nominally common
+code responses for code sharing purposes.
+
+The second piece(s) are underlying implementations which make various
+virtual devices implemented under the VHBA itself. The current ones
+are pretty much used to stress and test the FreeBSD CAM framework
+itself- this is why this is in the tool directory.
+
+Clearly other connections and possibilities exist as well.

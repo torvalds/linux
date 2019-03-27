@@ -1,0 +1,11 @@
+include start
+call OK start_color
+call OK refresh
+comparend color_start.chk
+compare color_blank_draw.chk
+call OK init_pair 4 $COLOR_RED $COLOR_GREEN
+call OK color_set 4 0
+call OK printw "%s" "testing"
+call OK refresh
+compare color_set.chk
+

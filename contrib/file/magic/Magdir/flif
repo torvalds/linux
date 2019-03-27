@@ -1,0 +1,36 @@
+
+#------------------------------------------------------------------------------
+#	$File: flif,v 1.1 2015/11/23 22:04:36 christos Exp $
+#	flif:	Magic	data	for	file(1)	command.
+#	FLIF	(Free	Lossless	Image	Format)
+
+0	string	FLIF	FLIF
+>4	string	<H	image data
+>>6	beshort	x	\b, %u
+>>8	beshort	x	\bx%u
+>>5	string	1	\b, 8-bit/color,
+>>5	string	2	\b, 16-bit/color,
+>>4	string	1	\b, grayscale, non-interlaced
+>>4	string	3	\b, RGB, non-interlaced
+>>4	string	4	\b, RGBA, non-interlaced
+>>4	string	A	\b, grayscale
+>>4	string	C	\b, RGB, interlaced
+>>4	string	D	\b, RGBA, interlaced
+>4	string	>H	\b, animation data
+>>5	ubyte	<255	\b, %i frames
+>>>7	beshort	x	\b, %u
+>>>9	beshort	x	\bx%u
+>>>6	string	=1	\b, 8-bit/color
+>>>6	string	=2	\b, 16-bit/color
+>>5	ubyte	0xFF
+>>>6	beshort	x	\b, %i frames,
+>>>9	beshort	x	\b, %u
+>>>11	beshort	x	\bx%u
+>>>8	string	=1	\b, 8-bit/color
+>>>8	string	=2	\b, 16-bit/color
+>>4	string	=Q	\b, grayscale, non-interlaced
+>>4	string	=S	\b, RGB, non-interlaced
+>>4	string	=T	\b, RGBA, non-interlaced
+>>4	string	=a	\b, grayscale
+>>4	string	=c	\b, RGB, interlaced
+>>4	string	=d	\b, RGBA, interlaced

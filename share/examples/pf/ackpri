@@ -1,0 +1,31 @@
+# $FreeBSD$
+# $OpenBSD: ackpri,v 1.3 2006/10/07 04:48:01 mcbride Exp $
+
+# Use a simple priority queue to prioritize empty (no payload) TCP ACKs,
+# which dramatically improves throughput on (asymmetric) links when the
+# reverse direction is saturated. The empty ACKs use an insignificant
+# part of the bandwidth, but if they get delayed, downloads suffer
+# badly, so prioritize them.
+
+# Example: 512/128 kbps ADSL. Download is 50 kB/s. When a concurrent
+# upload saturates the uplink, download drops to 7 kB/s. With the
+# priority queue below, download drops only to 48 kB/s.
+
+# Replace lo0 with your real external interface
+
+ext_if="lo0"
+
+# For a 512/128 kbps ADSL with PPPoE link, using "bandwidth 100Kb"
+# is optimal. Some experimentation might be needed to find the best
+# value. If it's set too high, the priority queue is not effective, and
+# if it's set too low, the available bandwidth is not fully used.
+# A good starting point would be real_uplink_bandwidth * 90 / 100.
+
+altq on $ext_if priq bandwidth 100Kb queue { q_pri, q_def }
+queue q_pri priority 7
+queue q_def priority 1 priq(default)
+
+pass out on $ext_if proto tcp from $ext_if to any queue (q_def, q_pri)
+
+pass in  on $ext_if proto tcp from any to $ext_if queue (q_def, q_pri)
+

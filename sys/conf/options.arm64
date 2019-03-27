@@ -1,0 +1,25 @@
+# $FreeBSD$
+
+ARM64				opt_global.h
+INTRNG				opt_global.h
+SOCDEV_PA			opt_global.h
+SOCDEV_VA			opt_global.h
+THUNDERX_PASS_1_1_ERRATA	opt_global.h
+VFP				opt_global.h
+
+# Binary compatibility
+COMPAT_FREEBSD32		opt_global.h
+
+# EFI Runtime services support
+EFIRT				opt_efirt.h
+
+# SoC Support
+SOC_ALLWINNER_A64		opt_soc.h
+SOC_ALLWINNER_H5		opt_soc.h
+SOC_BRCM_BCM2837		opt_soc.h
+SOC_CAVM_THUNDERX		opt_soc.h
+SOC_HISI_HI6220			opt_soc.h
+SOC_MARVELL_8K			opt_soc.h
+SOC_ROCKCHIP_RK3328		opt_soc.h
+SOC_ROCKCHIP_RK3399		opt_soc.h
+SOC_XILINX_ZYNQ			opt_soc.h

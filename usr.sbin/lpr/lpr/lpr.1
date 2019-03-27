@@ -1,0 +1,321 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From @(#)lpr.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\" "
+.Dd June 6, 1993
+.Dt LPR 1
+.Os
+.Sh NAME
+.Nm lpr
+.Nd off line print
+.Sh SYNOPSIS
+.Nm
+.Op Fl P Ns Ar printer
+.Op Fl \&# Ns Ar num
+.Op Fl C Ar class
+.Op Fl J Ar job
+.Op Fl L Ar locale
+.Op Fl T Ar title
+.Op Fl U Ar user
+.Op Fl Z Ar daemon-options
+.Op Fl i Ar numcols
+.Op Fl 1234 Ar font
+.Op Fl w Ar num
+.Op Fl cdfghlnmprstv
+.Op Ar name ...
+.Sh DESCRIPTION
+The
+.Nm
+utility uses a spooling daemon to print the named files when facilities
+become available.
+If no names appear, the standard input is assumed.
+.Pp
+The following single letter options are used to notify the line printer
+spooler that the files are not standard text files.
+The spooling daemon will
+use the appropriate filters to print the data accordingly.
+Note that not all spoolers implement filters for all data types,
+and some sites may use these types for other purposes than the ones
+described here.
+.Bl -tag -width indent
+.It Fl d
+The files are assumed to contain data in
+.Tn DVI
+format from the
+.Tn TeX
+typesetting system.
+.It Fl f
+Use a filter which interprets the first character of each line as a
+standard
+.Tn FORTRAN
+carriage control character.
+.It Fl l
+Use a filter which allows control characters to be printed and suppresses
+page breaks.
+.It Fl p
+Use
+.Xr pr 1
+to format the files.
+.El
+.Pp
+The following options are historical and not directly supported by any
+software included in
+.Fx .
+.Bl -tag -width indent
+.It Fl c
+The files are assumed to contain data produced by
+.Xr cifplot 1 .
+.It Fl g
+The files are assumed to contain standard plot data as produced by the
+.Ux
+.Xr plot 3
+routines.
+.It Fl n
+The files are assumed to contain data from
+.Em ditroff
+(device independent troff).
+.It Fl t
+The files are assumed to contain
+.Tn C/A/T
+phototypesetter commands from ancient versions of
+.Ux
+.Xr troff 1 .
+.It Fl v
+The files are assumed to contain a raster image for devices like the
+Benson Varian.
+.El
+.Pp
+These options apply to the handling of
+the print job:
+.Bl -tag -width indent
+.It Fl P
+Force output to a specific printer.
+Normally,
+the default printer is used (site dependent), or the value of the
+environment variable
+.Ev PRINTER
+is used.
+.It Fl h
+Suppress the printing of the burst page.
+.It Fl m
+Send mail upon completion.
+.It Fl r
+Remove the file upon completion of spooling or upon completion of
+printing (with the
+.Fl s
+option).
+.It Fl s
+Use symbolic links.
+Usually files are copied to the spool directory.
+The
+.Fl s
+option will use
+.Xr symlink 2
+to link data files rather than trying to copy them so large files can be
+printed.
+This means the files should
+not be modified or removed until they have been printed.
+.El
+.Pp
+The remaining options apply to copies, the page display, and headers:
+.Bl -tag -width indent
+.It Fl \&# Ns Ar num
+The quantity
+.Ar num
+is the number of copies desired of each file named.
+For example,
+.Bd -literal -offset indent
+lpr \-#3 foo.c bar.c more.c
+.Ed
+would result in 3 copies of the file foo.c, followed by 3 copies
+of the file bar.c, etc.
+On the other hand,
+.Bd -literal -offset indent
+cat foo.c bar.c more.c \&| lpr \-#3
+.Ed
+.Pp
+will give three copies of the concatenation of the files.
+Often
+a site will disable this feature to encourage use of a photocopier
+instead.
+.It Xo
+.Fl Ns Op Cm 1234
+.Ar font
+.Xc
+Specifies a
+.Ar font
+to be mounted on font position
+.Ar i .
+The daemon
+will construct a
+.Li .railmag
+file referencing
+the font pathname.
+.It Fl C Ar class
+Job classification
+to use on the burst page.
+For example,
+.Bd -literal -offset indent
+lpr \-C EECS foo.c
+.Ed
+.Pp
+causes the system name (the name returned by
+.Xr hostname 1 )
+to be replaced on the burst page by
+.Tn EECS ,
+and the file foo.c to be printed.
+.It Fl J Ar job
+Job name to print on the burst page.
+Normally, the first file's name is used.
+.It Fl L Ar locale
+Use
+.Ar locale
+specified as argument instead of one found in environment.
+(Only effective when filtering through
+.Xr pr 1
+is requested using the
+.Fl p
+option.)
+.It Fl T Ar title
+Title name for
+.Xr pr 1 ,
+instead of the file name.
+.It Fl U Ar user
+User name to print on the burst page,
+also for accounting purposes.
+This option is only honored if the real user-id is daemon
+(or that specified in the printcap file instead of daemon),
+and is intended for those instances where print filters wish to requeue jobs.
+.It Fl Z Ar daemon-options
+Some spoolers, such as
+.Tn LPRng ,
+accept additional per-job options using a
+.Ql Z
+control line.
+When
+.Fl Z
+is specified, and
+.Fl p
+.Pq Xr pr 1
+is not requested, the specified
+.Ar daemon-options
+will be passed to the remote
+.Tn LPRng
+spooler.
+.It Fl i Ar numcols
+The output is indented by
+.Pq Ar numcols .
+.It Fl w Ar num
+Uses
+.Ar num
+as the page width for
+.Xr pr 1 .
+.El
+.Sh ENVIRONMENT
+If the following environment variable exists, it is used by
+.Nm :
+.Bl -tag -width PRINTER
+.It Ev PRINTER
+Specifies an alternate default printer.
+.El
+.Sh FILES
+.Bl -tag -width /var/spool/output/*/tf* -compact
+.It Pa /etc/passwd
+Personal identification.
+.It Pa /etc/printcap
+Printer capabilities data base.
+.It Pa /usr/sbin/lpd
+Line printer daemons.
+.It Pa /var/spool/output/*
+Directories used for spooling.
+.It Pa /var/spool/output/*/cf*
+Daemon control files.
+.It Pa /var/spool/output/*/df*
+Data files specified in "cf" files.
+.It Pa /var/spool/output/*/tf*
+Temporary copies of "cf" files.
+.El
+.Sh DIAGNOSTICS
+If you try to spool too large a file, it will be truncated.
+The
+.Nm
+utility will object to printing binary files.
+If a user other than root prints a file and spooling is disabled,
+.Nm
+will print a message saying so and will not put jobs in the queue.
+If a connection to
+.Xr lpd 8
+on the local machine cannot be made,
+.Nm
+will say that the daemon cannot be started.
+Diagnostics may be printed in the daemon's log file
+regarding missing spool files by
+.Xr lpd 8 .
+.Sh SEE ALSO
+.Xr lpq 1 ,
+.Xr lprm 1 ,
+.Xr pr 1 ,
+.Xr symlink 2 ,
+.Xr printcap 5 ,
+.Xr lpc 8 ,
+.Xr lpd 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 3 .
+.Sh BUGS
+Fonts for
+.Xr troff 1
+and
+.Tn TeX
+reside on the host with the printer.
+It is currently not possible to
+use local font libraries.
+.Pp
+The
+.Ql Z
+control file line is used for two different purposes; for
+standard
+.Fx
+.Xr lpd 8 ,
+it specifies a locale to be passed to
+.Xr pr 1 .
+For
+.Tn LPRng
+.Xr lpd 8 ,
+it specifies additional options to be interpreted by the spooler's
+input and output filters.
+When submitting jobs via
+.Nm ,
+.Fl p
+.Fl L Ar locale
+is used in the former context, and
+.Fl Z Ar daemon-options
+is used in the latter.

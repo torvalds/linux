@@ -1,0 +1,126 @@
+; Options for the SPARC port of the compiler
+;
+; Copyright (C) 2005 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 2, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT
+; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+; or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+; License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING.  If not, write to the Free
+; Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+; 02110-1301, USA.
+
+mfpu
+Target Report Mask(FPU)
+Use hardware FP
+
+mhard-float
+Target RejectNegative Mask(FPU) MaskExists
+Use hardware FP
+
+msoft-float
+Target RejectNegative InverseMask(FPU)
+Do not use hardware FP
+
+munaligned-doubles
+Target Report Mask(UNALIGNED_DOUBLES)
+Assume possible double misalignment
+
+mimpure-text
+Target Report
+Pass -assert pure-text to linker
+
+mapp-regs
+Target Report Mask(APP_REGS)
+Use ABI reserved registers
+
+mhard-quad-float
+Target Report RejectNegative Mask(HARD_QUAD)
+Use hardware quad FP instructions
+
+msoft-quad-float
+Target Report RejectNegative InverseMask(HARD_QUAD)
+Do not use hardware quad fp instructions
+
+mv8plus
+Target Report Mask(V8PLUS)
+Compile for V8+ ABI
+
+mvis
+Target Report Mask(VIS)
+Use UltraSPARC Visual Instruction Set extensions
+
+mptr64
+Target Report RejectNegative Mask(PTR64)
+Pointers are 64-bit
+
+mptr32
+Target Report RejectNegative InverseMask(PTR64)
+Pointers are 32-bit
+
+m64
+Target Report RejectNegative Mask(64BIT)
+Use 64-bit ABI
+
+m32
+Target Report RejectNegative InverseMask(64BIT)
+Use 32-bit ABI
+
+mstack-bias
+Target Report Mask(STACK_BIAS)
+Use stack bias
+
+mfaster-structs
+Target Report Mask(FASTER_STRUCTS)
+Use structs on stronger alignment for double-word copies
+
+mrelax
+Target
+Optimize tail call instructions in assembler and linker
+
+mcpu=
+Target RejectNegative Joined
+Use features of and schedule code for given CPU
+
+mtune=
+Target RejectNegative Joined
+Schedule code for given CPU
+
+mcmodel=
+Target RejectNegative Joined Var(sparc_cmodel_string)
+Use given SPARC-V9 code model
+
+mstd-struct-return
+Target Report RejectNegative Var(sparc_std_struct_return)
+Enable strict 32-bit psABI struct return checking.
+
+Mask(LITTLE_ENDIAN)
+;; Generate code for little-endian
+
+Mask(LONG_DOUBLE_128)
+;; Use 128-bit long double
+
+Mask(SPARCLITE)
+;; Generate code for SPARClite
+
+Mask(SPARCLET)
+;; Generate code for SPARClet
+
+Mask(V8)
+;; Generate code for SPARC-V8
+
+Mask(V9)
+;; Generate code for SPARC-V9
+
+Mask(DEPRECATED_V8_INSNS)
+;; Generate code that uses the V8 instructions deprecated
+;; in the V9 architecture.

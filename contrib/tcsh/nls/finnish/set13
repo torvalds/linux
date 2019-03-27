@@ -1,0 +1,13 @@
+$ $tcsh: set13,v 1.3 2011/02/04 18:19:34 christos Exp $
+$ sh.exec.c
+$set 13 
+1 hash=%-4d dir=%-2d prog=%s\n
+2 %d hajautusluokkaa, joista jokaisessa %d bittiä\n
+3 debug mask = 0x%08x\n
+4 %d osumia, %d harhoja, %d%%\n
+5 %S: Komentotulkin sisäinen komento.\n
+6 %S: Komentoa ei löydy.\n
+7 where: / käskyssä on mahdoton ajatus\n
+8 %S on alias komennolle 
+9 %S on komentotulkin sisäinen komento\n
+10 hajautusharha: 

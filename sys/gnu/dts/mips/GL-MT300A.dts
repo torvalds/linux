@@ -1,0 +1,162 @@
+/dts-v1/;
+
+#include "mt7620a.dtsi"
+
+/ {
+	compatible = "GL-MT300A", "ralink,mt7620a-soc";
+	model = "GL-MT300A";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		wan {
+			label = "gl-mt300a:wan";
+			gpios = <&gpio2 0 1>;
+		};
+
+		lan {
+			label = "gl-mt300a:lan";
+			gpios = <&gpio2 1 1>;
+		};
+
+		wlan {
+			label = "gl-mt300a:wlan";
+			gpios = <&gpio3 0 1>;
+		};
+
+		usb {
+			label = "gl-mt300a:usb";
+			gpios = <&gpio0 7 1>;
+		};
+
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+		reset {
+			label = "reset";
+			gpios = <&gpio0 13 1>;
+			linux,code = <0x198>;
+		};
+
+		BTN_0 {
+			label = "BTN_0";
+			gpios = <&gpio0 1 1>;
+			linux,code = <0x100>;
+		};
+
+  	    BTN_1 {
+			label = "BTN_1";
+			gpios = <&gpio0 2 1>;
+			linux,code = <0x101>;
+		};
+ 	};
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&gpio2 {
+	status = "okay";
+};
+		
+&gpio3 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "w25q128";
+		reg = <0>;
+		linux,modalias = "m25p80", "w25q128";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0xf80000>;
+		};
+
+		partition@ff0000 {
+			label = "art";
+			reg = <0xff0000 0x10000>;
+		};
+	};
+};
+
+&sdhci {
+	status = "okay";
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};
+
+&ethernet {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ephy_pins>;
+	mtd-mac-address = <&factory 0x4000>;
+	ralink,port-map = "wllll";
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&pcie {
+	status = "okay";
+
+	pcie-bridge {
+		mt76@0,0 {
+			reg = <0x0000 0 0 0 0>;
+			device_type = "pci";
+			mediatek,mtd-eeprom = <&factory 0x8000>;
+			mediatek,2ghz = <0>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "wled","ephy","uartf","i2c";
+			ralink,function = "gpio";
+		};
+	};
+};

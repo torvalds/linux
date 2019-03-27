@@ -1,0 +1,26 @@
+
+#------------------------------------------------------------------------------
+# $File: human68k,v 1.5 2009/09/19 16:28:09 christos Exp $
+# human68k:  file(1) magic for Human68k (X680x0 DOS) binary formats
+# Magic too short!
+#0		string	HU		Human68k
+#>68		string	LZX		LZX compressed
+#>>72		string	>\0		(version %s)
+#>(8.L+74)	string	LZX		LZX compressed
+#>>(8.L+78)	string	>\0		(version %s)
+#>60		belong	>0		binded
+#>(8.L+66)	string	#HUPAIR		hupair
+#>0		string	HU		X executable
+#>(8.L+74)	string	#LIBCV1		- linked PD LIBC ver 1
+#>4		belong	>0		- base address 0x%x
+#>28		belong	>0		not stripped
+#>32		belong	>0		with debug information
+#0		beshort	0x601a		Human68k Z executable
+#0		beshort	0x6000		Human68k object file
+#0		belong	0xd1000000	Human68k ar binary archive
+#0		belong	0xd1010000	Human68k ar ascii archive
+#0		beshort	0x0068		Human68k lib archive
+#4		string	LZX		Human68k LZX compressed
+#>8		string	>\0		(version %s)
+#>4		string	LZX		R executable
+#2		string	#HUPAIR		Human68k hupair R executable

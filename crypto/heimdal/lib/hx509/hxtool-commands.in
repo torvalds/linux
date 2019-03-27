@@ -1,0 +1,766 @@
+/*
+ * Copyright (c) 2005 - 2007 Kungliga Tekniska Högskolan
+ * (Royal Institute of Technology, Stockholm, Sweden). 
+ * All rights reserved. 
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met: 
+ *
+ * 1. Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer. 
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright 
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the distribution. 
+ *
+ * 3. Neither the name of the Institute nor the names of its contributors 
+ *    may be used to endorse or promote products derived from this software 
+ *    without specific prior written permission. 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+ * SUCH DAMAGE. 
+ */
+/* $Id$ */
+
+command = {
+	name = "cms-create-sd"
+	name = "cms-sign"
+	option = {
+		long = "certificate"
+		short = "c"
+		type = "strings"
+		argument = "certificate-store"
+		help = "certificate stores to pull certificates from"
+	}
+	option = {
+		long = "signer"
+		short = "s"
+		type = "string"
+		argument = "signer-friendly-name"
+		help = "certificate to sign with"
+	}
+	option = {
+		long = "anchors"
+		type = "strings"
+		argument = "certificate-store"
+		help = "trust anchors"
+	}
+	option = {
+		long = "pool"
+		type = "strings"
+		argument = "certificate-pool"
+		help = "certificate store to pull certificates from"
+	}
+	option = {
+		long = "pass"
+		type = "strings"
+		argument = "password"
+		help = "password, prompter, or environment"
+	}
+	option = {
+		long = "peer-alg"
+		type = "strings"
+		argument = "oid"
+		help = "oid that the peer support"
+	}
+	option = {
+		long = "content-type"
+		type = "string"
+		argument = "oid"
+		help = "content type oid"
+	}
+	option = {
+		long = "content-info"
+		type = "flag"
+		help = "wrapped out-data in a ContentInfo"
+	}
+	option = {
+		long = "pem"
+		type = "flag"
+		help = "wrap out-data in PEM armor"
+	}
+	option = {
+		long = "detached-signature"
+		type = "flag"
+		help = "create a detached signature"
+	}
+	option = {
+		long = "signer"
+		type = "-flag"
+		help = "do not sign"
+	}
+	option = {
+		long = "id-by-name"
+		type = "flag"
+		help = "use subject name for CMS Identifier"
+	}
+	option = {
+		long = "embedded-certs"
+		type = "-flag"
+		help = "dont embedded certficiates"
+	}
+	option = {
+		long = "embed-leaf-only"
+		type = "flag"
+		help = "only embed leaf certificate"
+	}
+	min_args="1"
+	max_args="2"
+	argument="in-file out-file"
+	help = "Wrap a file within a SignedData object"
+}
+command = {
+	name = "cms-verify-sd"
+	option = {
+		long = "anchors"
+		short = "D"
+		type = "strings"
+		argument = "certificate-store"
+		help = "trust anchors"
+	}
+	option = {
+		long = "certificate"
+		short = "c"
+		type = "strings"
+		argument = "certificate-store"
+		help = "certificate store to pull certificates from"
+	}
+	option = {
+		long = "pass"
+		type = "strings"
+		argument = "password"
+		help = "password, prompter, or environment"
+	}
+	option = {
+		long = "missing-revoke"
+		type = "flag"
+		help = "missing CRL/OCSP is ok"
+	}
+	option = {
+		long = "content-info"
+		type = "flag"
+		help = "unwrap in-data that's in a ContentInfo"
+	}
+	option = {
+		long = "pem"
+		type = "flag"
+		help = "unwrap in-data from PEM armor"
+	}
+	option = {
+		long = "signer-allowed"
+		type = "-flag"
+		help = "allow no signer"
+	}
+	option = {
+		long = "allow-wrong-oid"
+		type = "flag"
+		help = "allow wrong oid flag"
+	}
+	option = {
+		long = "signed-content"
+		type = "string"
+		help = "file containing content"
+	}
+	min_args="1"
+	max_args="2"
+	argument="in-file [out-file]"
+	help = "Verify a file within a SignedData object"
+}
+command = {
+	name = "cms-unenvelope"
+	option = {
+		long = "certificate"
+		short = "c"
+		type = "strings"
+		argument = "certificate-store"
+		help = "certificate used to decrypt the data"
+	}
+	option = {
+		long = "pass"
+		type = "strings"
+		argument = "password"
+		help = "password, prompter, or environment"
+	}
+	option = {
+		long = "content-info"
+		type = "flag"
+		help = "wrapped out-data in a ContentInfo"
+	}
+	option = {
+		long = "allow-weak-crypto"
+		type = "flag"
+		help = "allow weak crypto"
+	}
+	min_args="2"
+	argument="in-file out-file"
+	help = "Unenvelope a file containing a EnvelopedData object"
+}
+command = {
+	name = "cms-envelope"
+	function = "cms_create_enveloped"
+	option = {
+		long = "certificate"
+		short = "c"
+		type = "strings"
+		argument = "certificate-store"
+		help = "certificates used to receive the data"
+	}
+	option = {
+		long = "pass"
+		type = "strings"
+		argument = "password"
+		help = "password, prompter, or environment"
+	}
+	option = {
+		long = "encryption-type"
+		type = "string"
+		argument = "enctype"
+		help = "enctype"
+	}
+	option = {
+		long = "content-type"
+		type = "string"
+		argument = "oid"
+		help = "content type oid"
+	}
+	option = {
+		long = "content-info"
+		type = "flag"
+		help = "wrapped out-data in a ContentInfo"
+	}
+	option = {
+		long = "allow-weak-crypto"
+		type = "flag"
+		help = "allow weak crypto"
+	}
+	min_args="2"
+	argument="in-file out-file"
+	help = "Envelope a file containing a EnvelopedData object"
+}
+command = {
+	name = "verify"
+	function = "pcert_verify"
+	option = {
+		long = "pass"
+		type = "strings"
+		argument = "password"
+		help = "password, prompter, or environment"
+	}
+	option = {
+		long = "allow-proxy-certificate"
+		type = "flag"
+		help = "allow proxy certificates"
+	}
+	option = {
+		long = "missing-revoke"
+		type = "flag"
+		help = "missing CRL/OCSP is ok"
+	}
+	option = {
+		long = "time"
+		type = "string"
+		help = "time when to validate the chain"
+	}
+	option = {
+		long = "verbose"
+		short = "v"
+		type = "flag"
+		help = "verbose logging"
+	}
+	option = {
+		long = "max-depth"
+		type = "integer"
+		help = "maximum search length of certificate trust anchor"
+	}
+	option = {
+		long = "hostname"
+		type = "string"
+		help = "match hostname to certificate"
+	}
+	argument = "cert:foo chain:cert1 chain:cert2 anchor:anchor1 anchor:anchor2"
+	help = "Verify certificate chain"
+}
+command = {
+	name = "print"
+	function = "pcert_print"
+	option = {
+		long = "pass"
+		type = "strings"
+		argument = "password"
+		help = "password, prompter, or environment"
+	}
+	option = {
+		long = "content"
+		type = "flag"
+		help = "print the content of the certificates"
+	}
+	option = {
+		long = "never-fail"
+		type = "flag"
+		help = "never fail with an error code"
+	}
+	option = {
+		long = "info"
+		type = "flag"
+		help = "print the information about the certificate store"
+	}
+	min_args="1"
+	argument="certificate ..."
+	help = "Print certificates"
+}
+command = {
+	name = "validate"
+	function = "pcert_validate"
+	option = {
+		long = "pass"
+		type = "strings"
+		argument = "password"
+		help = "password, prompter, or environment"
+	}
+	min_args="1"
+	argument="certificate ..."
+	help = "Validate content of certificates"
+}
+command = {
+	name = "certificate-copy"
+	name = "cc"
+	option = {
+		long = "in-pass"
+		type = "strings"
+		argument = "password"
+		help = "password, prompter, or environment"
+	}
+	option = {
+		long = "out-pass"
+		type = "string"
+		argument = "password"
+		help = "password, prompter, or environment"
+	}
+	min_args="2"
+	argument="in-certificates-1 ... out-certificate"
+	help = "Copy in certificates stores into out certificate store"
+}
+command = {
+	name = "ocsp-fetch"
+	option = {
+		long = "pass"
+		type = "strings"
+		argument = "password"
+		help = "password, prompter, or environment"
+	}
+	option = {
+		long = "sign"
+		type = "string"
+		argument = "certificate"
+		help = "certificate use to sign the request"
+	}
+	option = {
+		long = "url-path"
+		type = "string"
+		argument = "url"
+		help = "part after host in url to put in the request"
+	}
+	option = {
+		long = "nonce"
+		type = "-flag"
+		default = "1"
+		help = "don't include nonce in request"
+	}
+	option = {
+		long = "pool"
+		type = "strings"
+		argument = "certificate-store"
+		help = "pool to find parent certificate in"
+	}
+	min_args="2"
+	argument="outfile certs ..."
+	help = "Fetch OCSP responses for the following certs"
+}
+command = {
+	option = {
+		long = "ocsp-file"
+		type = "string"
+		help = "OCSP file"
+	}
+	name = "ocsp-verify"
+	min_args="1"
+	argument="certificates ..."
+	help = "Check that certificates are in OCSP file and valid"
+}
+command = {
+	name = "ocsp-print"
+	option = {
+		long = "verbose"
+		type = "flag"
+		help = "verbose"
+	}
+	min_args="1"
+	argument="ocsp-response-file ..."
+	help = "Print the OCSP responses"
+}
+command = {
+	name = "request-create"
+	option = {
+		long = "subject"
+		type = "string"
+		help = "Subject DN"
+	}
+	option = {
+		long = "email"
+		type = "strings"
+		help = "Email address in SubjectAltName"
+	}
+	option = {
+		long = "dnsname"
+		type = "strings"
+		help = "Hostname or domainname in SubjectAltName"
+	}
+	option = {
+		long = "type"
+		type = "string"
+		help = "Type of request CRMF or PKCS10, defaults to PKCS10"
+	}
+	option = {
+		long = "key"
+		type = "string"
+		help = "Key-pair"
+	}
+	option = {
+		long = "generate-key"
+		type = "string"
+		help = "keytype"
+	}
+	option = {
+	        long = "key-bits"
+		type = "integer"
+		help = "number of bits in the generated key";
+	}
+	option = {
+		long = "verbose"
+		type = "flag"
+		help = "verbose status"
+	}
+	min_args="1"
+	max_args="1"
+	argument="output-file"
+	help = "Create a CRMF or PKCS10 request"
+}
+command = {
+	name = "request-print"
+	option = {
+		long = "verbose"
+		type = "flag"
+		help = "verbose printing"
+	}
+	min_args="1"
+	argument="requests ..."
+	help = "Print requests"
+}
+command = {
+	name = "query"
+	option = {
+		long = "exact"
+		type = "flag"
+		help = "exact match"
+	}
+	option = {
+		long = "private-key"
+		type = "flag"
+		help = "search for private key"
+	}
+	option = {
+		long = "friendlyname"
+		type = "string"
+		argument = "name"
+		help = "match on friendly name"
+	}
+	option = {
+		long = "eku"
+		type = "string"
+		argument = "oid-string"
+		help = "match on EKU"
+	}
+	option = {
+		long = "expr"
+		type = "string"
+		argument = "expression"
+		help = "match on expression"
+	}
+	option = {
+		long = "keyEncipherment"
+		type = "flag"
+		help = "match keyEncipherment certificates"
+	}
+	option = {
+		long = "digitalSignature"
+		type = "flag"
+		help = "match digitalSignature certificates"
+	}
+	option = {
+		long = "print"
+		type = "flag"
+		help = "print matches"
+	}
+	option = {
+		long = "pass"
+		type = "strings"
+		argument = "password"
+		help = "password, prompter, or environment"
+	}
+	min_args="1"
+	argument="certificates ..."
+	help = "Query the certificates for a match"
+}
+command = {
+	name = "info"
+}
+command = {
+	name = "random-data"
+	min_args="1"
+	argument="bytes"
+	help = "Generates random bytes and prints them to standard output"
+}
+command = {
+	option = {
+		long = "type"
+		type = "string"
+		help = "type of CMS algorithm"
+	}
+	name = "crypto-available"
+	min_args="0"
+	help = "Print available CMS crypto types"
+}
+command = {
+	option = {
+		long = "type"
+		type = "string"
+		help = "type of CMS algorithm"
+	}
+	option = {
+		long = "certificate"
+		type = "string"
+		help = "source certificate limiting the choices"
+	}
+	option = {
+		long = "peer-cmstype"
+		type = "strings"
+		help = "peer limiting cmstypes"
+	}
+	name = "crypto-select"
+	min_args="0"
+	help = "Print selected CMS type"
+}
+command = {
+	option = {
+		long = "decode"
+		short = "d"
+		type = "flag"
+		help = "decode instead of encode"
+	}
+	name = "hex"
+	function = "hxtool_hex"
+	min_args="0"
+	help = "Encode input to hex"
+}
+command = {
+	option = {
+		long = "issue-ca"
+		type = "flag"
+		help = "Issue a CA certificate"
+	}
+	option = {
+		long = "issue-proxy"
+		type = "flag"
+		help = "Issue a proxy certificate"
+	}
+	option = {
+		long = "domain-controller"
+		type = "flag"
+		help = "Issue a MS domaincontroller certificate"
+	}
+	option = {
+		long = "subject"
+		type = "string"
+		help = "Subject of issued certificate"
+	}
+	option = {
+		long = "ca-certificate"
+		type = "string"
+		help = "Issuing CA certificate"
+	}
+	option = {
+		long = "self-signed"
+		type = "flag"
+		help = "Issuing a self-signed certificate"
+	}
+	option = {
+		long = "ca-private-key"
+		type = "string"
+		help = "Private key for self-signed certificate"
+	}
+	option = {
+		long = "certificate"
+		type = "string"
+		help = "Issued certificate"
+	}
+	option = {
+		long = "type"
+		type = "strings"
+		help = "Types of certificate to issue (can be used more then once)"
+	}
+	option = {
+		long = "lifetime"
+		type = "string"
+		help = "Lifetime of certificate"
+	}
+	option = {
+		long = "serial-number"
+		type = "string"
+		help = "serial-number of certificate"
+	}
+	option = {
+		long = "path-length"
+		default = "-1"
+		type = "integer"
+		help = "Maximum path length (CA and proxy certificates), -1 no limit"
+	}
+	option = {
+		long = "hostname"
+		type = "strings"
+		help = "DNS names this certificate is allowed to serve"
+	}
+	option = {
+		long = "email"
+		type = "strings"
+		help = "email addresses assigned to this certificate"
+	}
+	option = {
+		long = "pk-init-principal"
+		type = "string"
+		help = "PK-INIT principal (for SAN)"
+	}
+	option = {
+		long = "ms-upn"
+		type = "string"
+		help = "Microsoft UPN (for SAN)"
+	}
+	option = {
+		long = "jid"
+		type = "string"
+		help = "XMPP jabber id (for SAN)"
+	}
+	option = {
+		long = "req"
+		type = "string"
+		help = "certificate request"
+	}
+	option = {
+		long = "certificate-private-key"
+		type = "string"
+		help = "private-key"
+	}
+	option = {
+		long = "generate-key"
+		type = "string"
+		help = "keytype"
+	}
+	option = {
+	        long = "key-bits"
+		type = "integer"
+		help = "number of bits in the generated key"
+	}
+	option = {
+	        long = "crl-uri"
+		type = "string"
+		help = "URI to CRL"
+	}
+	option = {
+		long = "template-certificate"
+		type = "string"
+		help = "certificate"
+	}
+	option = {
+		long = "template-fields"
+		type = "string"
+		help = "flag"
+	}
+	name = "certificate-sign"
+	name = "cert-sign"
+	name = "issue-certificate"
+	name = "ca"
+	function = "hxtool_ca"
+	min_args="0"
+	help = "Issue a certificate"
+}
+command = {
+	name = "test-crypto"
+	option = {
+		long = "pass"
+		type = "strings"
+		argument = "password"
+		help = "password, prompter, or environment"
+	}
+	option = {
+		long = "verbose"
+		type = "flag"
+		help = "verbose printing"
+	}
+	min_args="1"
+	argument="certificates..."
+	help = "Test crypto system related to the certificates"
+}
+command = {
+	option = {
+		long = "type"
+		type = "integer"
+		help = "type of statistics"
+	}
+	name = "statistic-print"
+	min_args="0"
+	help = "Print statistics"
+}
+command = {
+	option = {
+		long = "signer"
+		type = "string"
+		help = "signer certificate"
+	}
+	option = {
+		long = "pass"
+		type = "strings"
+		argument = "password"
+		help = "password, prompter, or environment"
+	}
+	option = {
+		long = "crl-file"
+		type = "string"
+		help = "CRL output file"
+	}
+	option = {
+		long = "lifetime"
+		type = "string"
+		help = "time the crl will be valid"
+	}
+	name = "crl-sign"
+	min_args="0"
+	argument="certificates..."
+	help = "Create a CRL"
+}
+command = {
+	name = "help"
+	name = "?"
+	argument = "[command]"
+	min_args = "0"
+	max_args = "1"
+	help = "Help! I need somebody"
+}

@@ -1,0 +1,100 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)nfsiod.8	8.2 (Berkeley) 2/22/94
+.\" $FreeBSD$
+.\"
+.Dd December 26, 2009
+.Dt NFSIOD 8
+.Os
+.Sh NAME
+.Nm nfsiod
+.Nd local
+.Tn NFS
+asynchronous I/O server
+.Sh SYNOPSIS
+.Nm
+.Op Fl n Ar num_servers
+.Sh DESCRIPTION
+The
+.Nm
+utility controls the maximum number of
+.Nm
+kernel processes which run on an
+.Tn NFS
+client machine to service asynchronous I/O requests to its server.
+Having
+.Nm
+kernel processes
+improves performance but is not required for correct operation.
+.Pp
+The option is as follows:
+.Bl -tag -width indent
+.It Fl n
+Specify how many processes are permitted to be started.
+.El
+.Pp
+Without an option,
+.Nm
+displays the current settings.
+A client should allow enough number of processes to handle its maximum
+level of concurrency, typically four to six.
+.Pp
+If
+.Nm
+detects that the running kernel does not include
+.Tn NFS
+support, it will attempt to load a kernel module containing
+.Tn NFS
+code, using
+.Xr kldload 2 .
+If this fails, or no
+.Tn NFS
+module was available,
+.Nm
+exits with an error.
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr nfsstat 1 ,
+.Xr kldload 2 ,
+.Xr nfssvc 2 ,
+.Xr mountd 8 ,
+.Xr nfsd 8 ,
+.Xr rpcbind 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.4 .
+.Pp
+Starting with
+.Fx 5.0 ,
+the utility no longer starts daemons, but only serves as a vfs
+loader and
+.Xr sysctl 3
+wrapper.

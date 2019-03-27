@@ -1,0 +1,99 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)tt13	8.1 (Berkeley) 6/8/93
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.NH
+Environments
+.PP
+As we mentioned, there is a potential problem
+when going across a page boundary:
+parameters like size and font
+for a page title may well be different from those
+in effect in the text when the page boundary occurs.
+.UL troff
+provides a very general way to deal with this and
+similar situations.
+There are three `environments',
+each of which has independently settable versions of
+many of the parameters associated with processing,
+including size, font, line and title lengths,
+fill/nofill mode, tab stops, and even partially collected lines.
+Thus the titling problem may be readily solved by processing the main text
+in one environment and titles in a separate one
+with its own suitable parameters.
+.PP
+The command
+.BD .ev\ n
+shifts to environment
+.BD n ;
+.BD n
+must be 0, 1 or 2.
+The command
+.BD .ev
+with no argument returns to the
+previous environment.
+Environment names are maintained in a stack, so calls
+for different environments may be nested and unwound consistently.
+.PP
+Suppose we say that the main text is processed in environment 0,
+which is where 
+.UL troff
+begins by default.
+Then we can modify the new page macro
+.BD .NP
+to process titles in environment 1 like this:
+.P1 2
+^de NP
+^ev 1	\e" shift to new environment
+^lt 6i	\e" set parameters here
+^ft R
+^ps 10
+\&... any other processing ...
+^ev	\e" return to previous environment
+^^
+.P2
+It is also possible to initialize the parameters for an environment
+outside the
+.BD .NP
+macro,
+but the version shown keeps all the processing in one place
+and is thus easier to understand and change.

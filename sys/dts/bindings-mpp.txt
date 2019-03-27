@@ -1,0 +1,50 @@
+$FreeBSD$
+
+* Multi purpose pin (MPP) configuration.
+
+Required properties:
+
+- pin-map : array of pin configurations. Each pin is defined by 2 cells,
+  respectively: <pin> <function>. Pins not specified in the pin-map property
+  are assumed to have default value of <function> = 0, which means GPIO.
+
+  - pin : pin number.
+
+  - function : function ID of the pin according to the assignment tables in
+    User Manual. Each pin can have many possible functions depending on the
+    MPP unit incarnation.
+
+- pin-count: number of the physical MPP connections on the SOC (depending on
+  the model it can be 24-50, or possibly else in future devices).
+
+Example:
+
+	mpp@10000 {
+		#pin-cells = <2>;
+		compatible = "mrvl,mpp";
+		reg = <0x10000 0x34>;
+		pin-count= <50>;
+		pin-map = <
+			0  1		/* MPP[0]:  NF_IO[2] */
+			1  1		/* MPP[1]:  NF_IO[3] */
+			2  1		/* MPP[2]:  NF_IO[4] */
+			3  1		/* MPP[3]:  NF_IO[5] */
+			4  1		/* MPP[4]:  NF_IO[6] */
+			5  1		/* MPP[5]:  NF_IO[7] */
+			6  1		/* MPP[6]:  SYSRST_OUTn */
+			7  2		/* MPP[7]:  SPI_SCn */
+			8  1		/* MPP[8]:  TW_SDA */
+			9  1		/* MPP[9]:  TW_SCK */
+			10 3		/* MPP[10]: UA0_TXD */
+			11 3		/* MPP[11]: UA0_RXD */
+			12 1		/* MPP[12]: SD_CLK */
+			13 1		/* MPP[13]: SD_CMD */
+			14 1		/* MPP[14]: SD_D[0] */
+			15 1		/* MPP[15]: SD_D[1] */
+			16 1		/* MPP[16]: SD_D[2] */
+			17 1		/* MPP[17]: SD_D[3] */
+			18 1		/* MPP[18]: NF_IO[0] */
+			19 1		/* MPP[19]: NF_IO[1] */
+			20 5		/* MPP[20]: SATA1_AC */
+			21 5 >;		/* MPP[21]: SATA0_AC */
+	};

@@ -1,0 +1,99 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_insstr.3x,v 1.21 2010/12/04 18:38:55 tom Exp $
+.TH curs_insstr 3X ""
+.SH NAME
+\fBinsstr\fR,
+\fBinsnstr\fR,
+\fBwinsstr\fR,
+\fBwinsnstr\fR,
+\fBmvinsstr\fR,
+\fBmvinsnstr\fR,
+\fBmvwinsstr\fR,
+\fBmvwinsnstr\fR \- insert string before cursor in a \fBcurses\fR window
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.br
+\fBint insstr(const char *str);\fR
+.br
+\fBint insnstr(const char *str, int n);\fR
+.br
+\fBint winsstr(WINDOW *win, const char *str);\fR
+.br
+\fBint winsnstr(WINDOW *win, const char *str, int n);\fR
+.br
+\fBint mvinsstr(int y, int x, const char *str);\fR
+.br
+\fBint mvinsnstr(int y, int x, const char *str, int n);\fR
+.br
+\fBint mvwinsstr(WINDOW *win, int y, int x, const char *str);\fR
+.br
+\fBint mvwinsnstr(WINDOW *win, int y, int x, const char *str, int n);\fR
+.br
+.SH DESCRIPTION
+These routines insert a character string
+(as many characters as will fit on the line)
+before the character under the cursor.
+All characters to the right of the cursor are shifted right
+with the possibility of the rightmost characters on the line being lost.
+The cursor position does not change
+(after moving to \fIy\fR, \fIx\fR, if specified).
+The functions with \fIn\fR as the last argument
+insert a leading substring of at most \fIn\fR characters.
+If \fIn\fR<=0, then the entire string is inserted.
+.PP
+Special characters are handled as in \fBaddch\fP.
+.SH RETURN VALUE
+All routines that return an integer return \fBERR\fR upon failure and OK (SVr4
+specifies only "an integer value other than \fBERR\fR") upon successful
+completion, unless otherwise noted in the preceding routine descriptions.
+.PP
+X/Open defines no error conditions.
+In this implementation,
+if the window parameter is null or the str parameter is null,
+an error is returned.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH NOTES
+Note that all but \fBwinsnstr\fR may be macros.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4, which adds
+const qualifiers to the arguments.
+.LP
+The Single Unix Specification, Version 2 states that 
+\fBinsnstr\fP and \fBwinsnstr\fP perform wrapping.
+This is probably an error, since it makes this group of functions inconsistent.
+Also, no implementation of curses documents this inconsistency.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_util\fR(3X),
+\fBcurs_clear\fR(3X),
+\fBcurs_inch\fR(3X).

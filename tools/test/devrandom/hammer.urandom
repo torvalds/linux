@@ -1,0 +1,27 @@
+#!/usr/bin/perl
+
+#
+# Test program for /dev/urandom
+# Read and display random numbers.
+# This also reads /dev/zero to make sure there is no brokenness there.
+#
+# $FreeBSD$
+#
+
+open(ZERO, "/dev/zero") || die "Cannot open /dev/zero - $!\n";
+
+for (;;) {
+	open(BIN, "/dev/urandom");
+	$len = sysread(BIN, $a, 20);
+	sysread(ZERO, $b, 20);
+	close(BIN);
+	if ($len > 0) {
+		for ($j = 0; $j < $len; $j += 2) {
+			$k = unpack("S", substr($a, $j, 2));
+			$z = unpack("S", substr($b, $j, 2));
+			$z == 0 || die "/dev/zero is returning non-zero!\n";
+			printf("%.4X ", $k);
+		}
+		printf "\n";
+	}
+}

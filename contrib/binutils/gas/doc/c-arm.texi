@@ -1,0 +1,735 @@
+@c Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+@c Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+
+@ifset GENERIC
+@page
+@node ARM-Dependent
+@chapter ARM Dependent Features
+@end ifset
+
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter ARM Dependent Features
+@end ifclear
+
+@cindex ARM support
+@cindex Thumb support
+@menu
+* ARM Options::              Options
+* ARM Syntax::               Syntax
+* ARM Floating Point::       Floating Point
+* ARM Directives::           ARM Machine Directives
+* ARM Opcodes::              Opcodes
+* ARM Mapping Symbols::      Mapping Symbols
+@end menu
+
+@node ARM Options
+@section Options
+@cindex ARM options (none)
+@cindex options for ARM (none)
+
+@table @code
+
+@cindex @code{-mcpu=} command line option, ARM
+@item -mcpu=@var{processor}[+@var{extension}@dots{}]
+This option specifies the target processor.  The assembler will issue an
+error message if an attempt is made to assemble an instruction which
+will not execute on the target processor.  The following processor names are
+recognized: 
+@code{arm1},
+@code{arm2},
+@code{arm250},
+@code{arm3},
+@code{arm6},
+@code{arm60},
+@code{arm600},
+@code{arm610},
+@code{arm620},
+@code{arm7},
+@code{arm7m},
+@code{arm7d},
+@code{arm7dm},
+@code{arm7di},
+@code{arm7dmi},
+@code{arm70},
+@code{arm700},
+@code{arm700i},
+@code{arm710},
+@code{arm710t},
+@code{arm720},
+@code{arm720t},
+@code{arm740t},
+@code{arm710c},
+@code{arm7100},
+@code{arm7500},
+@code{arm7500fe},
+@code{arm7t},
+@code{arm7tdmi},
+@code{arm7tdmi-s},
+@code{arm8},
+@code{arm810},
+@code{strongarm},
+@code{strongarm1},
+@code{strongarm110},
+@code{strongarm1100},
+@code{strongarm1110},
+@code{arm9},
+@code{arm920},
+@code{arm920t},
+@code{arm922t},
+@code{arm940t},
+@code{arm9tdmi},
+@code{arm9e},
+@code{arm926e},
+@code{arm926ej-s},
+@code{arm946e-r0},
+@code{arm946e},
+@code{arm946e-s},
+@code{arm966e-r0},
+@code{arm966e},
+@code{arm966e-s},
+@code{arm968e-s},
+@code{arm10t},
+@code{arm10tdmi},
+@code{arm10e},
+@code{arm1020},
+@code{arm1020t},
+@code{arm1020e},
+@code{arm1022e},
+@code{arm1026ej-s},
+@code{arm1136j-s},
+@code{arm1136jf-s},
+@code{arm1156t2-s},
+@code{arm1156t2f-s},
+@code{arm1176jz-s},
+@code{arm1176jzf-s},
+@code{mpcore},
+@code{mpcorenovfp},
+@code{cortex-a8},
+@code{cortex-r4},
+@code{cortex-m3},
+@code{ep9312} (ARM920 with Cirrus Maverick coprocessor),
+@code{i80200} (Intel XScale processor)
+@code{iwmmxt} (Intel(r) XScale processor with Wireless MMX(tm) technology coprocessor)
+and
+@code{xscale}.  
+The special name @code{all} may be used to allow the
+assembler to accept instructions valid for any ARM processor.
+
+In addition to the basic instruction set, the assembler can be told to 
+accept various extension mnemonics that extend the processor using the 
+co-processor instruction space.  For example, @code{-mcpu=arm920+maverick}
+is equivalent to specifying @code{-mcpu=ep9312}.  The following extensions
+are currently supported: 
+@code{+maverick}
+@code{+iwmmxt}
+and
+@code{+xscale}.
+
+@cindex @code{-march=} command line option, ARM
+@item -march=@var{architecture}[+@var{extension}@dots{}]
+This option specifies the target architecture.  The assembler will issue
+an error message if an attempt is made to assemble an instruction which
+will not execute on the target architecture.  The following architecture 
+names are recognized: 
+@code{armv1},
+@code{armv2},
+@code{armv2a},
+@code{armv2s},
+@code{armv3},
+@code{armv3m},
+@code{armv4},
+@code{armv4xm},
+@code{armv4t},
+@code{armv4txm},
+@code{armv5},
+@code{armv5t},
+@code{armv5txm},
+@code{armv5te},
+@code{armv5texp},
+@code{armv6},
+@code{armv6j},
+@code{armv6k},
+@code{armv6z},
+@code{armv6zk},
+@code{armv7},
+@code{armv7-a},
+@code{armv7-r},
+@code{armv7-m},
+@code{iwmmxt}
+and
+@code{xscale}.
+If both @code{-mcpu} and
+@code{-march} are specified, the assembler will use
+the setting for @code{-mcpu}.
+
+The architecture option can be extended with the same instruction set
+extension options as the @code{-mcpu} option.
+
+@cindex @code{-mfpu=} command line option, ARM
+@item -mfpu=@var{floating-point-format}
+
+This option specifies the floating point format to assemble for.  The
+assembler will issue an error message if an attempt is made to assemble
+an instruction which will not execute on the target floating point unit.  
+The following format options are recognized:
+@code{softfpa},
+@code{fpe},
+@code{fpe2},
+@code{fpe3},
+@code{fpa},
+@code{fpa10},
+@code{fpa11},
+@code{arm7500fe},
+@code{softvfp},
+@code{softvfp+vfp},
+@code{vfp},
+@code{vfp10},
+@code{vfp10-r0},
+@code{vfp9},
+@code{vfpxd},
+@code{arm1020t},
+@code{arm1020e},
+@code{arm1136jf-s}
+and
+@code{maverick}.
+
+In addition to determining which instructions are assembled, this option
+also affects the way in which the @code{.double} assembler directive behaves
+when assembling little-endian code.
+
+The default is dependent on the processor selected.  For Architecture 5 or 
+later, the default is to assembler for VFP instructions; for earlier 
+architectures the default is to assemble for FPA instructions.
+
+@cindex @code{-mthumb} command line option, ARM
+@item -mthumb
+This option specifies that the assembler should start assembling Thumb
+instructions; that is, it should behave as though the file starts with a 
+@code{.code 16} directive.
+
+@cindex @code{-mthumb-interwork} command line option, ARM
+@item -mthumb-interwork
+This option specifies that the output generated by the assembler should
+be marked as supporting interworking.
+
+@cindex @code{-mapcs} command line option, ARM
+@item -mapcs @code{[26|32]}
+This option specifies that the output generated by the assembler should
+be marked as supporting the indicated version of the Arm Procedure.
+Calling Standard.
+
+@cindex @code{-matpcs} command line option, ARM
+@item -matpcs
+This option specifies that the output generated by the assembler should 
+be marked as supporting the Arm/Thumb Procedure Calling Standard.  If
+enabled this option will cause the assembler to create an empty
+debugging section in the object file called .arm.atpcs.  Debuggers can
+use this to determine the ABI being used by.
+
+@cindex @code{-mapcs-float} command line option, ARM
+@item -mapcs-float
+This indicates the floating point variant of the APCS should be
+used.  In this variant floating point arguments are passed in FP
+registers rather than integer registers.
+
+@cindex @code{-mapcs-reentrant} command line option, ARM
+@item -mapcs-reentrant
+This indicates that the reentrant variant of the APCS should be used.
+This variant supports position independent code.
+
+@cindex @code{-mfloat-abi=} command line option, ARM
+@item -mfloat-abi=@var{abi}
+This option specifies that the output generated by the assembler should be
+marked as using specified floating point ABI.
+The following values are recognized:
+@code{soft},
+@code{softfp}
+and
+@code{hard}.
+
+@cindex @code{-eabi=} command line option, ARM
+@item -meabi=@var{ver}
+This option specifies which EABI version the produced object files should
+conform to.
+The following values are recognized:
+@code{gnu},
+@code{4}
+and
+@code{5}.
+
+@cindex @code{-EB} command line option, ARM
+@item -EB
+This option specifies that the output generated by the assembler should
+be marked as being encoded for a big-endian processor.
+
+@cindex @code{-EL} command line option, ARM
+@item -EL
+This option specifies that the output generated by the assembler should
+be marked as being encoded for a little-endian processor.
+
+@cindex @code{-k} command line option, ARM
+@cindex PIC code generation for ARM
+@item -k
+This option specifies that the output of the assembler should be marked
+as position-independent code (PIC).
+
+@end table
+
+
+@node ARM Syntax
+@section Syntax
+@menu
+* ARM-Chars::                Special Characters
+* ARM-Regs::                 Register Names
+* ARM-Relocations::	     Relocations
+@end menu
+
+@node ARM-Chars
+@subsection Special Characters
+
+@cindex line comment character, ARM
+@cindex ARM line comment character
+The presence of a @samp{@@} on a line indicates the start of a comment
+that extends to the end of the current line.  If a @samp{#} appears as
+the first character of a line, the whole line is treated as a comment.
+
+@cindex line separator, ARM
+@cindex statement separator, ARM
+@cindex ARM line separator
+The @samp{;} character can be used instead of a newline to separate
+statements.
+
+@cindex immediate character, ARM
+@cindex ARM immediate character
+Either @samp{#} or @samp{$} can be used to indicate immediate operands.
+
+@cindex identifiers, ARM
+@cindex ARM identifiers
+*TODO* Explain about /data modifier on symbols.
+
+@node ARM-Regs
+@subsection Register Names
+
+@cindex ARM register names
+@cindex register names, ARM
+*TODO* Explain about ARM register naming, and the predefined names.
+
+@node ARM-Relocations
+@subsection ARM relocation generation
+
+@cindex data relocations, ARM
+@cindex ARM data relocations
+Specific data relocations can be generated by putting the relocation name
+in parentheses after the symbol name.  For example:
+
+@smallexample
+        .word foo(TARGET1)
+@end smallexample
+
+This will generate an @samp{R_ARM_TARGET1} relocation against the symbol
+@var{foo}.
+The following relocations are supported:
+@code{GOT},
+@code{GOTOFF},
+@code{TARGET1},
+@code{TARGET2},
+@code{SBREL},
+@code{TLSGD},
+@code{TLSLDM},
+@code{TLSLDO},
+@code{GOTTPOFF}
+and
+@code{TPOFF}.
+
+For compatibility with older toolchains the assembler also accepts
+@code{(PLT)} after branch targets.  This will generate the deprecated
+@samp{R_ARM_PLT32} relocation.
+
+@cindex MOVW and MOVT relocations, ARM
+Relocations for @samp{MOVW} and @samp{MOVT} instructions can be generated
+by prefixing the value with @samp{#:lower16:} and @samp{#:upper16}
+respectively.  For example to load the 32-bit address of foo into r0:
+
+@smallexample
+        MOVW r0, #:lower16:foo
+        MOVT r0, #:upper16:foo
+@end smallexample
+
+@node ARM Floating Point
+@section Floating Point
+
+@cindex floating point, ARM (@sc{ieee})
+@cindex ARM floating point (@sc{ieee})
+The ARM family uses @sc{ieee} floating-point numbers.
+
+@node ARM Directives
+@section ARM Machine Directives
+
+@cindex machine directives, ARM
+@cindex ARM machine directives
+@table @code
+
+@cindex @code{align} directive, ARM
+@item .align @var{expression} [, @var{expression}]
+This is the generic @var{.align} directive.  For the ARM however if the
+first argument is zero (ie no alignment is needed) the assembler will
+behave as if the argument had been 2 (ie pad to the next four byte
+boundary).  This is for compatibility with ARM's own assembler.
+
+@cindex @code{req} directive, ARM
+@item @var{name} .req @var{register name}
+This creates an alias for @var{register name} called @var{name}.  For
+example:
+
+@smallexample
+        foo .req r0
+@end smallexample
+
+@cindex @code{unreq} directive, ARM
+@item .unreq @var{alias-name}
+This undefines a register alias which was previously defined using the
+@code{req}, @code{dn} or @code{qn} directives.  For example:
+
+@smallexample
+        foo .req r0
+        .unreq foo
+@end smallexample
+
+An error occurs if the name is undefined.  Note - this pseudo op can
+be used to delete builtin in register name aliases (eg 'r0').  This
+should only be done if it is really necessary.
+
+@cindex @code{dn} and @code{qn} directives, ARM
+@item @var{name} .dn @var{register name} [@var{.type}] [@var{[index]}]
+@item @var{name} .qn @var{register name} [@var{.type}] [@var{[index]}]
+
+The @code{dn} and @code{qn} directives are used to create typed
+and/or indexed register aliases for use in Advanced SIMD Extension
+(Neon) instructions.  The former should be used to create aliases
+of double-precision registers, and the latter to create aliases of
+quad-precision registers.
+
+If these directives are used to create typed aliases, those aliases can
+be used in Neon instructions instead of writing types after the mnemonic
+or after each operand.  For example:
+
+@smallexample
+        x .dn d2.f32
+        y .dn d3.f32
+        z .dn d4.f32[1]
+        vmul x,y,z
+@end smallexample
+
+This is equivalent to writing the following:
+
+@smallexample
+        vmul.f32 d2,d3,d4[1]
+@end smallexample
+
+Aliases created using @code{dn} or @code{qn} can be destroyed using
+@code{unreq}.
+
+@cindex @code{code} directive, ARM
+@item .code @code{[16|32]}
+This directive selects the instruction set being generated. The value 16
+selects Thumb, with the value 32 selecting ARM.
+
+@cindex @code{thumb} directive, ARM
+@item .thumb
+This performs the same action as @var{.code 16}.
+
+@cindex @code{arm} directive, ARM
+@item .arm
+This performs the same action as @var{.code 32}.
+
+@cindex @code{force_thumb} directive, ARM
+@item .force_thumb
+This directive forces the selection of Thumb instructions, even if the
+target processor does not support those instructions
+
+@cindex @code{thumb_func} directive, ARM
+@item .thumb_func
+This directive specifies that the following symbol is the name of a
+Thumb encoded function.  This information is necessary in order to allow
+the assembler and linker to generate correct code for interworking
+between Arm and Thumb instructions and should be used even if
+interworking is not going to be performed.  The presence of this
+directive also implies @code{.thumb}
+
+This directive is not neccessary when generating EABI objects.  On these
+targets the encoding is implicit when generating Thumb code.
+
+@cindex @code{thumb_set} directive, ARM
+@item .thumb_set
+This performs the equivalent of a @code{.set} directive in that it
+creates a symbol which is an alias for another symbol (possibly not yet
+defined).  This directive also has the added property in that it marks
+the aliased symbol as being a thumb function entry point, in the same
+way that the @code{.thumb_func} directive does.
+
+@cindex @code{.ltorg} directive, ARM
+@item .ltorg
+This directive causes the current contents of the literal pool to be
+dumped into the current section (which is assumed to be the .text
+section) at the current location (aligned to a word boundary).
+@code{GAS} maintains a separate literal pool for each section and each
+sub-section.  The @code{.ltorg} directive will only affect the literal
+pool of the current section and sub-section.  At the end of assembly
+all remaining, un-empty literal pools will automatically be dumped.
+
+Note - older versions of @code{GAS} would dump the current literal
+pool any time a section change occurred.  This is no longer done, since
+it prevents accurate control of the placement of literal pools.
+
+@cindex @code{.pool} directive, ARM
+@item .pool
+This is a synonym for .ltorg.
+
+@cindex @code{.fnstart} directive, ARM
+@item .unwind_fnstart
+Marks the start of a function with an unwind table entry.
+
+@cindex @code{.fnend} directive, ARM
+@item .unwind_fnend
+Marks the end of a function with an unwind table entry.  The unwind index
+table entry is created when this directive is processed.
+
+If no personality routine has been specified then standard personality
+routine 0 or 1 will be used, depending on the number of unwind opcodes
+required.
+
+@cindex @code{.cantunwind} directive, ARM
+@item .cantunwind
+Prevents unwinding through the current function.  No personality routine
+or exception table data is required or permitted.
+
+@cindex @code{.personality} directive, ARM
+@item .personality @var{name}
+Sets the personality routine for the current function to @var{name}.
+
+@cindex @code{.personalityindex} directive, ARM
+@item .personalityindex @var{index}
+Sets the personality routine for the current function to the EABI standard
+routine number @var{index}
+
+@cindex @code{.handlerdata} directive, ARM
+@item .handlerdata
+Marks the end of the current function, and the start of the exception table
+entry for that function.  Anything between this directive and the
+@code{.fnend} directive will be added to the exception table entry.
+
+Must be preceded by a @code{.personality} or @code{.personalityindex}
+directive.
+
+@cindex @code{.save} directive, ARM
+@item .save @var{reglist}
+Generate unwinder annotations to restore the registers in @var{reglist}.
+The format of @var{reglist} is the same as the corresponding store-multiple
+instruction.
+
+@smallexample
+@exdent @emph{core registers}
+  .save @{r4, r5, r6, lr@}
+  stmfd sp!, @{r4, r5, r6, lr@}
+@exdent @emph{FPA registers}
+  .save f4, 2
+  sfmfd f4, 2, [sp]!
+@exdent @emph{VFP registers}
+  .save @{d8, d9, d10@}
+  fstmdx sp!, @{d8, d9, d10@}
+@exdent @emph{iWMMXt registers}
+  .save @{wr10, wr11@}
+  wstrd wr11, [sp, #-8]!
+  wstrd wr10, [sp, #-8]!
+or
+  .save wr11
+  wstrd wr11, [sp, #-8]!
+  .save wr10
+  wstrd wr10, [sp, #-8]!
+@end smallexample
+
+@cindex @code{.vsave} directive, ARM
+@item .vsave @var{vfp-reglist}
+Generate unwinder annotations to restore the VFP registers in @var{vfp-reglist}
+using FLDMD.  Also works for VFPv3 registers
+that are to be restored using VLDM.
+The format of @var{vfp-reglist} is the same as the corresponding store-multiple
+instruction.
+
+@smallexample
+@exdent @emph{VFP registers}
+  .vsave @{d8, d9, d10@}
+  fstmdd sp!, @{d8, d9, d10@}
+@exdent @emph{VFPv3 registers}
+  .vsave @{d15, d16, d17@}
+  vstm sp!, @{d15, d16, d17@}
+@end smallexample
+
+Since FLDMX and FSTMX are now deprecated, this directive should be
+used in favour of @code{.save} for saving VFP registers for ARMv6 and above.
+
+@cindex @code{.pad} directive, ARM
+@item .pad #@var{count}
+Generate unwinder annotations for a stack adjustment of @var{count} bytes.
+A positive value indicates the function prologue allocated stack space by
+decrementing the stack pointer.
+
+@cindex @code{.movsp} directive, ARM
+@item .movsp @var{reg} [, #@var{offset}]
+Tell the unwinder that @var{reg} contains an offset from the current
+stack pointer.  If @var{offset} is not specified then it is assumed to be
+zero.
+
+@cindex @code{.setfp} directive, ARM
+@item .setfp @var{fpreg}, @var{spreg} [, #@var{offset}]
+Make all unwinder annotations relaive to a frame pointer.  Without this
+the unwinder will use offsets from the stack pointer.
+
+The syntax of this directive is the same as the @code{sub} or @code{mov}
+instruction used to set the frame pointer.  @var{spreg} must be either
+@code{sp} or mentioned in a previous @code{.movsp} directive.
+
+@smallexample
+.movsp ip
+mov ip, sp
+@dots{}
+.setfp fp, ip, #4
+sub fp, ip, #4
+@end smallexample
+
+@cindex @code{.unwind_raw} directive, ARM
+@item .raw @var{offset}, @var{byte1}, @dots{}
+Insert one of more arbitary unwind opcode bytes, which are known to adjust
+the stack pointer by @var{offset} bytes.
+
+For example @code{.unwind_raw 4, 0xb1, 0x01} is equivalent to
+@code{.save @{r0@}}
+
+@cindex @code{.cpu} directive, ARM
+@item .cpu @var{name}
+Select the target processor.  Valid values for @var{name} are the same as
+for the @option{-mcpu} commandline option.
+
+@cindex @code{.arch} directive, ARM
+@item .arch @var{name}
+Select the target architecture.  Valid values for @var{name} are the same as
+for the @option{-march} commandline option.
+
+@cindex @code{.object_arch} directive, ARM
+@item .object_arch @var{name}
+Override the architecture recorded in the EABI object attribute section.
+Valid values for @var{name} are the same as for the @code{.arch} directive.
+Typically this is useful when code uses runtime detection of CPU features.
+
+@cindex @code{.fpu} directive, ARM
+@item .fpu @var{name}
+Select the floating point unit to assemble for.  Valid values for @var{name}
+are the same as for the @option{-mfpu} commandline option.
+
+@cindex @code{.eabi_attribute} directive, ARM
+@item .eabi_attribute @var{tag}, @var{value}
+Set the EABI object attribute number @var{tag} to @var{value}.  The value
+is either a @code{number}, @code{"string"}, or @code{number, "string"}
+depending on the tag.
+
+@end table
+
+@node ARM Opcodes
+@section Opcodes
+
+@cindex ARM opcodes
+@cindex opcodes for ARM
+@code{@value{AS}} implements all the standard ARM opcodes.  It also
+implements several pseudo opcodes, including several synthetic load
+instructions. 
+
+@table @code
+
+@cindex @code{NOP} pseudo op, ARM
+@item NOP
+@smallexample
+  nop
+@end smallexample
+
+This pseudo op will always evaluate to a legal ARM instruction that does
+nothing.  Currently it will evaluate to MOV r0, r0.
+
+@cindex @code{LDR reg,=<label>} pseudo op, ARM
+@item LDR 
+@smallexample
+  ldr <register> , = <expression>
+@end smallexample
+
+If expression evaluates to a numeric constant then a MOV or MVN
+instruction will be used in place of the LDR instruction, if the
+constant can be generated by either of these instructions.  Otherwise
+the constant will be placed into the nearest literal pool (if it not
+already there) and a PC relative LDR instruction will be generated.
+
+@cindex @code{ADR reg,<label>} pseudo op, ARM
+@item ADR
+@smallexample
+  adr <register> <label>
+@end smallexample
+
+This instruction will load the address of @var{label} into the indicated
+register.  The instruction will evaluate to a PC relative ADD or SUB
+instruction depending upon where the label is located.  If the label is
+out of range, or if it is not defined in the same file (and section) as
+the ADR instruction, then an error will be generated.  This instruction
+will not make use of the literal pool.
+
+@cindex @code{ADRL reg,<label>} pseudo op, ARM
+@item ADRL 
+@smallexample
+  adrl <register> <label>
+@end smallexample
+
+This instruction will load the address of @var{label} into the indicated
+register.  The instruction will evaluate to one or two PC relative ADD
+or SUB instructions depending upon where the label is located.  If a
+second instruction is not needed a NOP instruction will be generated in
+its place, so that this instruction is always 8 bytes long.
+
+If the label is out of range, or if it is not defined in the same file
+(and section) as the ADRL instruction, then an error will be generated.
+This instruction will not make use of the literal pool.
+
+@end table
+
+For information on the ARM or Thumb instruction sets, see @cite{ARM
+Software Development Toolkit Reference Manual}, Advanced RISC Machines
+Ltd.
+
+@node ARM Mapping Symbols
+@section Mapping Symbols
+
+The ARM ELF specification requires that special symbols be inserted
+into object files to mark certain features:
+
+@table @code
+
+@cindex @code{$a}
+@item $a
+At the start of a region of code containing ARM instructions.
+
+@cindex @code{$t}
+@item $t
+At the start of a region of code containing THUMB instructions.
+
+@cindex @code{$d}
+@item $d
+At the start of a region of data.
+
+@end table
+
+The assembler will automatically insert these symbols for you - there
+is no need to code them yourself.  Support for tagging symbols ($b,
+$f, $p and $m) which is also mentioned in the current ARM ELF
+specification is not implemented.  This is because they have been
+dropped from the new EABI and so tools cannot rely upon their
+presence.
+

@@ -1,0 +1,134 @@
+.\"	$OpenBSD: hifn.4,v 1.32 2002/09/26 07:55:40 miod Exp $
+.\"
+.\" Copyright (c) 2000 Theo de Raadt
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 19, 2009
+.Dt HIFN 4
+.Os
+.Sh NAME
+.Nm hifn
+.Nd Hifn 7751/7951/7811/7955/7956 crypto accelerator
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device crypto"
+.Cd "device cryptodev"
+.Cd "device hifn"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hifn_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports various cards containing the Hifn 7751, 7951,
+7811, 7955, and 7956 chipsets.
+.Pp
+The
+.Nm
+driver registers itself to accelerate DES, Triple-DES,
+AES (7955 and 7956 only), ARC4, MD5,
+MD5-HMAC, SHA1, and SHA1-HMAC operations for
+.Xr ipsec 4
+and
+.Xr crypto 4 .
+.Pp
+The Hifn
+.Tn 7951 ,
+.Tn 7811 ,
+.Tn 7955 ,
+and
+.Tn 7956
+will also supply data to the kernel
+.Xr random 4
+subsystem.
+.Sh HARDWARE
+The
+.Nm
+driver supports various cards containing the Hifn 7751, 7951,
+7811, 7955, and 7956
+chipsets, such as:
+.Bl -tag -width namenamenamena -offset indent
+.It Invertex AEON
+No longer being made.
+Came as 128KB SRAM model, or 2MB DRAM model.
+.It Hifn 7751
+Reference board with 512KB SRAM.
+.It PowerCrypt
+Comes with 512KB SRAM.
+.It XL-Crypt
+Only board based on 7811 (which is faster than 7751 and has
+a random number generator).
+.It NetSec 7751
+Supports the most IPsec sessions, with 1MB SRAM.
+.It Soekris Engineering vpn1201 and vpn1211
+See
+.Pa http://www.soekris.com/ .
+Contains a 7951 and supports symmetric and random number operations.
+.It Soekris Engineering vpn1401 and vpn1411
+See
+.Pa http://www.soekris.com/ .
+Contains a 7955 and supports symmetric and random number operations.
+.El
+.Sh SEE ALSO
+.Xr crypt 3 ,
+.Xr crypto 4 ,
+.Xr intro 4 ,
+.Xr ipsec 4 ,
+.Xr random 4 ,
+.Xr crypto 9
+.Sh HISTORY
+The
+.Nm
+device driver appeared in
+.Ox 2.7 .
+The
+.Nm
+device driver was imported to
+.Fx 5.0 .
+.Sh CAVEATS
+The Hifn 9751 shares the same PCI ID.
+This chip is basically a 7751, but with the cryptographic functions missing.
+Instead, the 9751 is only capable of doing compression.
+Since we do not currently attempt to use any of these chips to do
+compression, the 9751-based cards are not useful.
+.Pp
+Support for the 7955 and 7956 is incomplete; the asymmetric crypto
+facilities are to be added and the performance is suboptimal.
+.Sh BUGS
+The 7751 chip starts out at initialization by only supporting compression.
+A proprietary algorithm, which has been reverse engineered, is required to
+unlock the cryptographic functionality of the chip.
+It is possible for vendors to make boards which have a lock ID not known
+to the driver, but all vendors currently just use the obvious ID which is
+13 bytes of 0.

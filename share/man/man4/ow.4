@@ -1,0 +1,60 @@
+.\"
+.\" Copyright (c) 2015 M. Warner Losh
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 20, 2015
+.Dt OW 4
+.Os
+.Sh NAME
+.Nm ow
+.Nd Dallas Semiconductor 1-Wire bus
+.Sh SYNOPSIS
+.Cd device ow
+.Sh DESCRIPTION
+The
+.Nm
+module implements the Dallas Semiconductor 1-Wire bus.
+It attaches to the
+.Xr owc 4
+driver, which implements the low-level signaling of the
+1-Wire bus.
+.Sh SEE ALSO
+.Xr ow_temp 4 ,
+.Xr owc 4 ,
+.Xr owll 9 ,
+.Xr own 9
+.Sh LEGAL
+.Tn 1-Wire
+is a registered trademark of Maxim Integrated Products, Inc.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+The
+.Nm
+device driver and this manual page were written by
+.An Warner Losh .

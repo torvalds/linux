@@ -1,0 +1,180 @@
+.\"	$OpenBSD: tcpdrop.8,v 1.5 2004/05/24 13:57:31 jmc Exp $
+.\"
+.\" Copyright (c) 2009 Juli Mallett <jmallett@FreeBSD.org>
+.\" Copyright (c) 2004 Markus Friedl <markus@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 15, 2017
+.Dt TCPDROP 8
+.Os
+.Sh NAME
+.Nm tcpdrop
+.Nd drop TCP connections
+.Sh SYNOPSIS
+.Nm tcpdrop
+.Ar local-address
+.Ar local-port
+.Ar foreign-address
+.Ar foreign-port
+.Nm tcpdrop
+.Op Fl l
+.Fl a
+.Nm tcpdrop
+.Op Fl l
+.Fl S Ar stack
+.Nm tcpdrop
+.Op Fl l
+.Fl s Ar state
+.Nm tcpdrop
+.Op Fl l
+.Fl S Ar stack
+.Fl s Ar state
+.Sh DESCRIPTION
+The
+.Nm
+command may be used to drop TCP connections from the command line.
+.Pp
+If
+.Fl a
+is specified then
+.Nm
+will attempt to drop all TCP connections.
+.Pp
+If
+.Fl S Ar stack
+is specified then
+.Nm
+will attempt to drop all connections using the TCP stack
+.Ar stack .
+.Pp
+If
+.Fl s Ar state
+is specified then
+.Nm
+will attempt to drop all TCP connections being in the state
+.Ar state .
+.Ar state
+is one of
+.Dv SYN_SENT ,
+.Dv SYN_RCVD ,
+.Dv ESTABLISHED ,
+.Dv CLOSE_WAIT ,
+.Dv FIN_WAIT_1 ,
+.Dv CLOSING ,
+.Dv LAST_ACK ,
+.Dv FIN_WAIT_2 , or
+.Dv TIME_WAIT .
+.Pp
+If
+.Fl S Ar stack
+and
+.Fl s Ar state
+are specified,
+.Nm
+will attempt to drop all TCP connections being in the state
+.Ar state
+and using the TCP stack
+.Ar stack .
+Since TCP connections in the
+.Dv TIME_WAIT
+state are not tied to any TCP stack, using the option
+.Fl s Dv TIME_WAIT
+in combination with the
+.Fl S Ar stack
+option results in
+.Nm
+not dropping any TCP connection.
+.Pp
+The
+.Fl l
+flag may be given in addition to the
+.Fl a ,
+.Fl S ,
+or
+.Fl s
+options to list the tcpdrop invocation to drop all corresponding TCP
+connections one at a time.
+.Pp
+If none of the
+.Fl a ,
+.Fl S ,
+or
+.Fl s
+options are specified then only the connection between the given local
+address
+.Ar local-address ,
+port
+.Ar local-port ,
+and the foreign address
+.Ar foreign-address ,
+port
+.Ar foreign-port ,
+will be dropped.
+.Pp
+Addresses and ports may be specified by name or numeric value.
+Both IPv4 and IPv6 address formats are supported.
+.Pp
+The addresses and ports may be separated by periods or colons
+instead of spaces.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+If a connection to
+.Xr httpd 8
+is causing congestion on a network link, one can drop the TCP session
+in charge:
+.Bd -literal -offset indent
+# sockstat -c | grep httpd
+www      httpd      16525 3  tcp4 \e
+	192.168.5.41:80      192.168.5.1:26747
+.Ed
+.Pp
+The following command will drop the connection:
+.Bd -literal -offset indent
+# tcpdrop 192.168.5.41 80 192.168.5.1 26747
+.Ed
+.Pp
+The following command will drop all connections but those to or from
+port 22, the port used by
+.Xr sshd 8 :
+.Bd -literal -offset indent
+# tcpdrop -l -a | grep -vw 22 | sh
+.Ed
+.Pp
+The following command will drop all connections using the TCP stack
+fastack:
+.Bd -literal -offset indent
+# tcpdrop -S fastack
+.Ed
+.Pp
+To drop all TCP connections in the LAST_ACK state use:
+.Bd -literal -offset indent
+# tcpdrop -s LAST_ACK
+.Ed
+.Pp
+To drop all TCP connections using the TCP stack fastack and being in the
+LAST_ACK state use:
+.Bd -literal -offset indent
+# tcpdrop -S fastack -s LAST_ACK
+.Ed
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr sockstat 1 ,
+.Xr tcp 4 ,
+.Xr tcp_functions 9
+.Sh AUTHORS
+.An Markus Friedl Aq Mt markus@openbsd.org
+.An Juli Mallett Aq Mt jmallett@FreeBSD.org

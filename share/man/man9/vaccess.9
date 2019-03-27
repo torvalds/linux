@@ -1,0 +1,128 @@
+.\"-
+.\" Copyright (c) 2001 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 18, 2009
+.Dt VACCESS 9
+.Os
+.Sh NAME
+.Nm vaccess
+.Nd generate an access control decision using vnode parameters
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fo vaccess
+.Fa "enum vtype type"
+.Fa "mode_t file_mode"
+.Fa "uid_t file_uid"
+.Fa "gid_t file_gid"
+.Fa "accmode_t accmode"
+.Fa "struct ucred *cred"
+.Fa "int *privused"
+.Fc
+.Sh DESCRIPTION
+This call implements the logic for the
+.Ux
+discretionary file security model
+common to many file systems in
+.Fx .
+It accepts the vnodes type
+.Fa type ,
+permissions via
+.Fa file_mode ,
+owning UID
+.Fa file_uid ,
+owning GID
+.Fa file_gid ,
+desired access mode
+.Fa accmode ,
+requesting credential
+.Fa cred ,
+and an optional call-by-reference
+.Vt int
+pointer returning whether or not
+privilege was required for successful evaluation of the call; the
+.Fa privused
+pointer may be set to
+.Dv NULL
+by the caller in order not to be informed of
+privilege information, or it may point to an integer that will be set to
+1 if privilege is used, and 0 otherwise.
+.Pp
+This call is intended to support implementations of
+.Xr VOP_ACCESS 9 ,
+which will use their own access methods to retrieve the vnode properties,
+and then invoke
+.Fn vaccess
+in order to perform the actual check.
+Implementations of
+.Xr VOP_ACCESS 9
+may choose to implement additional security mechanisms whose results will
+be composed with the return value.
+.Pp
+The algorithm used by
+.Fn vaccess
+selects a component of the file permission bits based on comparing the
+passed credential, file owner, and file group.
+If the credential's effective UID matches the file owner, then the
+owner component of the permission bits is selected.
+If the UID does not match, then the credential's effective GID, followed
+by additional groups, are compared with the file group\[em]if there is
+a match, then the group component of the permission bits is selected.
+If neither the credential UID or GIDs match the passed file owner and
+group, then the other component of the permission bits is selected.
+.Pp
+Once appropriate protections are selected for the current credential,
+the requested access mode, in combination with the vnode type, will be
+compared with the discretionary rights available for the credential.
+If the rights granted by discretionary protections are insufficient,
+then super-user privilege, if available for the credential, will also be
+considered.
+.Sh RETURN VALUES
+.Fn vaccess
+will return 0 on success, or a non-zero error value on failure.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EACCES
+Permission denied.
+An attempt was made to access a file in a way forbidden by its file access
+permissions.
+.It Bq Er EPERM
+Operation not permitted.
+An attempt was made to perform an operation limited to processes with
+appropriate privileges or to the owner of a file or other resource.
+.El
+.Sh SEE ALSO
+.Xr vaccess_acl_nfs4 9 ,
+.Xr vaccess_acl_posix1e 9 ,
+.Xr vnode 9 ,
+.Xr VOP_ACCESS 9
+.Sh AUTHORS
+This manual page and the current implementation of
+.Fn vaccess
+were written by
+.An Robert Watson .

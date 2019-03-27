@@ -1,0 +1,302 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)inet.4	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd August 14, 2018
+.Dt INET 4
+.Os
+.Sh NAME
+.Nm inet
+.Nd Internet protocol family
+.Sh SYNOPSIS
+.In sys/types.h
+.In netinet/in.h
+.Sh DESCRIPTION
+The Internet protocol family is a collection of protocols
+layered atop the
+.Em Internet Protocol
+.Pq Tn IP
+transport layer, and utilizing the Internet address format.
+The Internet family provides protocol support for the
+.Dv SOCK_STREAM , SOCK_DGRAM ,
+and
+.Dv SOCK_RAW
+socket types; the
+.Dv SOCK_RAW
+interface provides access to the
+.Tn IP
+protocol.
+.Sh ADDRESSING
+Internet addresses are four byte quantities, stored in
+network standard format (on little endian machines, such as the
+.Tn alpha ,
+.Tn amd64
+and
+.Tn i386
+these are word and byte reversed).
+The include file
+.In netinet/in.h
+defines this address
+as a discriminated union.
+.Pp
+Sockets bound to the Internet protocol family utilize
+the following addressing structure,
+.Bd -literal -offset indent
+struct sockaddr_in {
+	uint8_t		sin_len;
+	sa_family_t	sin_family;
+	in_port_t	sin_port;
+	struct in_addr	sin_addr;
+	char		sin_zero[8];
+};
+.Ed
+.Pp
+Sockets may be created with the local address
+.Dv INADDR_ANY
+to affect
+.Dq wildcard
+matching on incoming messages.
+The address in a
+.Xr connect 2
+or
+.Xr sendto 2
+call may be given as
+.Dv INADDR_ANY
+to mean
+.Dq this host .
+The distinguished address
+.Dv INADDR_BROADCAST
+is allowed as a shorthand for the broadcast address on the primary
+network if the first network configured supports broadcast.
+.Sh PROTOCOLS
+The Internet protocol family is comprised of
+the
+.Tn IP
+network protocol, Internet Control
+Message Protocol
+.Pq Tn ICMP ,
+Internet Group Management Protocol
+.Pq Tn IGMP ,
+Transmission Control
+Protocol
+.Pq Tn TCP ,
+and User Datagram Protocol
+.Pq Tn UDP .
+.Tn TCP
+is used to support the
+.Dv SOCK_STREAM
+abstraction while
+.Tn UDP
+is used to support the
+.Dv SOCK_DGRAM
+abstraction.
+A raw interface to
+.Tn IP
+is available
+by creating an Internet socket of type
+.Dv SOCK_RAW .
+The
+.Tn ICMP
+message protocol is accessible from a raw socket.
+.Pp
+The
+.Nm
+address on an interface consist of the address itself, the
+netmask, either broadcast address in case of a broadcast
+interface or peers address in case of point-to-point interface.
+The following
+.Xr ioctl 2
+commands are provided for a datagram socket in the Internet domain:
+.Pp
+.Bl -tag -width ".Dv SIOCGIFBRDADDR" -offset indent -compact
+.It Dv SIOCAIFADDR
+Add address to an interface.
+The command requires
+.Ft struct in_aliasreq
+as argument.
+.It Dv SIOCDIFADDR
+Delete address from an interface.
+The command requires
+.Ft struct ifreq
+as argument.
+.It Dv SIOCGIFADDR
+.It Dv SIOCGIFBRDADDR
+.It Dv SIOCGIFDSTADDR
+.It Dv SIOCGIFNETMASK
+Return address information from interface.
+The returned value is in
+.Ft struct ifreq .
+This way of address information retrieval is obsoleted, a
+preferred way is to use
+.Xr getifaddrs 3
+API.
+.El
+.Ss MIB Variables
+A number of variables are implemented in the net.inet branch of the
+.Xr sysctl 3
+MIB.
+In addition to the variables supported by the transport protocols
+(for which the respective manual pages may be consulted),
+the following general variables are defined:
+.Bl -tag -width IPCTL_ACCEPTSOURCEROUTE
+.It Dv IPCTL_FORWARDING
+.Pq ip.forwarding
+Boolean: enable/disable forwarding of IP packets.
+Defaults to off.
+.It Dv IPCTL_SENDREDIRECTS
+.Pq ip.redirect
+Boolean: enable/disable sending of ICMP redirects in response to
+.Tn IP
+packets for which a better, and for the sender directly reachable, route
+and next hop is known.
+Defaults to on.
+.It Dv IPCTL_DEFTTL
+.Pq ip.ttl
+Integer: default time-to-live
+.Pq Dq TTL
+to use for outgoing
+.Tn IP
+packets.
+.It Dv IPCTL_ACCEPTSOURCEROUTE
+.Pq ip.accept_sourceroute
+Boolean: enable/disable accepting of source-routed IP packets (default false).
+.It Dv IPCTL_SOURCEROUTE
+.Pq ip.sourceroute
+Boolean: enable/disable forwarding of source-routed IP packets (default false).
+.It Va ip.process_options
+Integer: control IP options processing.
+By setting this variable to 0, all IP options in the incoming packets
+will be ignored, and the packets will be passed unmodified.
+By setting to 1, IP options in the incoming packets will be processed
+accordingly.
+By setting to 2, an
+.Tn ICMP
+.Dq "prohibited by filter"
+message will be sent back in response to incoming packets with IP options.
+Default is 1.
+This
+.Xr sysctl 8
+variable affects packets destined for a local host as well as packets
+forwarded to some other host.
+.It Va ip.rfc6864
+Boolean: control IP IDs generation behaviour.
+True value enables RFC6864 support, which specifies that IP ID field of
+.Em atomic
+datagrams can be set to any value.
+The
+.Fx implementation sets it to zero.
+Enabled by default.
+.It Va ip.random_id
+Boolean: control IP IDs generation behaviour.
+Setting this
+.Xr sysctl 8
+to 1 causes the ID field in
+.Em non-atomic
+IP datagrams (or all IP datagrams, if
+.Va ip.rfc6864
+is disabled) to be randomized instead of incremented by 1 with each packet
+generated.
+This closes a minor information leak which allows remote observers to
+determine the rate of packet generation on the machine by watching the
+counter.
+At the same time, on high-speed links, it can decrease the ID reuse
+cycle greatly.
+Default is 0 (sequential IP IDs).
+IPv6 flow IDs and fragment IDs are always random.
+.It Va ip.maxfrags
+Integer: maximum number of fragments the host will accept and simultaneously
+hold across all reassembly queues in all VNETs.
+If set to 0, reassembly is disabled.
+If set to -1, this limit is not applied.
+This limit is recalculated when the number of mbuf clusters is changed.
+This is a global limit.
+.It Va ip.maxfragpackets
+Integer: maximum number of fragmented packets the host will accept and
+simultaneously hold in the reassembly queue for a particular VNET.
+0 means that the host will not accept any fragmented packets for that VNET.
+\-1 means that the host will not apply this limit for that VNET.
+This limit is recalculated when the number of mbuf clusters is changed.
+This is a per-VNET limit.
+.It Va ip.maxfragbucketsize
+Integer: maximum number of reassembly queues per bucket.
+Fragmented packets are hashed to buckets.
+Each bucket has a list of reassembly queues.
+The system must compare the incoming packets to the existing reassembly queues
+in the bucket to find a matching reassembly queue.
+To preserve system resources, the system limits the number of reassembly
+queues allowed in each bucket.
+This limit is recalculated when the number of mbuf clusters is changed or
+when the value of
+.Va ip.maxfragpackets
+changes.
+This is a per-VNET limit.
+.It Va ip.maxfragsperpacket
+Integer: maximum number of fragments the host will accept and hold
+in the reassembly queue for a packet.
+0 means that the host will not accept any fragmented packets for the VNET.
+This is a per-VNET limit.
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr socket 2 ,
+.Xr getifaddrs 3 ,
+.Xr sysctl 3 ,
+.Xr icmp 4 ,
+.Xr intro 4 ,
+.Xr ip 4 ,
+.Xr ipfirewall 4 ,
+.Xr route 4 ,
+.Xr tcp 4 ,
+.Xr udp 4 ,
+.Xr pfil 9
+.Rs
+.%T "An Introductory 4.3 BSD Interprocess Communication Tutorial"
+.%B PS1
+.%N 7
+.Re
+.Rs
+.%T "An Advanced 4.3 BSD Interprocess Communication Tutorial"
+.%B PS1
+.%N 8
+.Re
+.Sh HISTORY
+The
+.Nm
+protocol interface appeared in
+.Bx 4.2 .
+The
+.Dq protocol cloning
+code appeared in
+.Fx 2.1 .
+.Sh CAVEATS
+The Internet protocol support is subject to change as
+the Internet protocols develop.
+Users should not depend
+on details of the current implementation, but rather
+the services exported.

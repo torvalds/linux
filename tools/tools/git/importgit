@@ -1,0 +1,182 @@
+#!/bin/sh
+#
+# Copyright (c) 2015 Ryan Stone. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+usage()
+{
+	echo "Usage: importgit <-c commit | -r c1..c2> -g /path/to/git/repo [-n]" >&2
+}
+
+error()
+{
+	local print_usage
+
+	if [ "$1" = "-u" ]
+	then
+		shift
+		print_usage=1
+	else
+		print_usage=
+	fi
+
+	echo "$@" >&2
+	if [ -n "$print_usage" ]
+	then
+		usage
+	fi
+	exit 1
+}
+
+unset git_repo range commit dry_run
+
+while getopts ":c:g:nr:" o
+do
+	case "$o" in
+	c)
+		range="${OPTARG}~..${OPTARG}"
+		;;
+	g)
+		git_repo=$OPTARG
+		;;
+	n)
+		dry_run=1
+		;;
+	r)
+		range=$OPTARG
+		;;
+	*)
+		error -u "Unrecognized argument '-$OPTARG'"
+        esac
+done
+
+shift $((OPTIND - 1))
+OPTIND=1
+
+if [ -n "$1" ]
+then
+	error -u "Unrecognized argument $1"
+fi
+
+if [ -z "$range" ]
+then
+	error -u "-c or -r argument is mandatory"
+fi
+
+if ! echo "$range" | egrep -qs '^[^.]+\.\.[^.]*$'
+then
+	error -u "$range is not a range of commits.  Did you mean '-c $range'?"
+fi
+
+if [ -z "$git_repo" ]
+then
+	error -u "-g <repo> argument is mandatory"
+fi
+
+if ! type git > /dev/null 2> /dev/null
+then
+	error "Install devel/git first"
+fi
+
+GIT="git -C $git_repo"
+
+if ! $GIT rev-parse --git-dir 2> /dev/null > /dev/null
+then
+	error "$git_repo does not seem to be a git repo"
+fi
+
+if ! type svn > /dev/null 2> /dev/null
+then
+	error "Install devel/subversion first"
+fi
+
+if [ -n "$(svn status)" ]
+then
+	error "Working tree is not clean"
+fi
+
+if ! svn --non-interactive ls > /dev/null
+then
+	error "Could not communicate with svn server.  Is your ssh key loaded?"
+fi
+
+$GIT log --format=%H $range | tail -r | while read -r commit
+do
+	echo "Applying `$GIT show -s --oneline $commit`"
+
+	if [ -n "$($GIT show --diff-filter=CDRTUXB $commit)" ]
+	then
+		error "Commit performed unsupported change (e.g. delete/rename)"
+	fi
+
+	if [ "$($GIT show -s --format=%P $commit | wc -w)" -ne 1 ]
+	then
+		error "Cannot import merge commits"
+	fi
+
+	$GIT diff --diff-filter=A --name-only \
+	    ${commit}~..$commit | while read -r newfile
+	do
+		if [ -f "$newfile" ]
+		then
+			error "New file $newfile already exists in tree"
+		fi
+	done
+
+	# The previous while loop ran in a subshell, so we have to check if it
+	# exited with an error and bail out if so.
+	ret=$?
+	if [ "$ret" -ne 0 ]
+	then
+		exit $ret
+	fi
+
+	if [ -n "$dry_run" ]
+	then
+		continue
+	fi
+
+	$GIT show $commit | patch -p 1 -s || \
+	    error "Failed to apply patch"
+
+	$GIT diff --diff-filter=A --name-only \
+	    ${commit}~..$commit | while read -r newfile
+	do
+		svn add --parents --depth=infinity $newfile || \
+		    error "Failed to add new file"
+	done
+
+	# The previous while loop ran in a subshell, so we have to check if it
+	# exited with an error and bail out if so.
+	ret=$?
+	if [ "$ret" -ne 0 ]
+	then
+		exit $ret
+	fi
+
+	$GIT show -s --format='%B' $commit | svn commit -F - || \
+	    error "Failed to commit"
+done
+

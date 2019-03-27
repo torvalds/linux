@@ -1,0 +1,73 @@
+/* $FreeBSD$ */
+/* See r303570 */
+
+typedef void (*voidptr) (int *);
+
+static const struct {
+	double		x;
+	double		y, z;
+}		n[m + 1] =
+{
+	{
+		.0,
+		.9,
+		5
+	}
+};
+
+typedef struct Complex {
+	double		x;
+	double		y;
+}		Complex;
+
+void
+t1(char *a, int b,
+   void (*fn) (void))
+{
+}
+
+void
+t2(char *x, int y)
+{
+	int		a, b, c;
+	int
+		       *d, *e, *f;
+	int		(*g) (), (*h) (), (*i) ();
+	int		j, k, l;
+	int		m
+		       ,n
+		       ,o
+		       ;
+	int		chars[ /* push the comma beyond column 74 .... */ ],
+			x;
+}
+
+const int	int_minimum_size =
+MAXALIGN(offsetof(int, test)) + MAXIMUM_ALIGNOF;
+
+int	       *
+int_create(void)
+{
+
+}
+
+static
+_attribute_printf(1, 2)
+void
+print_error(const char *fmt,...)
+{
+
+}
+
+static LIST_HEAD(, alq) ald_active;
+static int	ald_shutingdown = 0;
+struct thread  *ald_thread;
+
+static int
+do_execve(td, args, mac_p)
+	struct thread  *td;
+	struct image_args *args;
+	struct mac     *mac_p;
+{
+
+}

@@ -1,0 +1,157 @@
+/dts-v1/;
+
+#include "mt7621.dtsi"
+
+/ {
+	compatible = "ralink,mt7621-eval-board", "ralink,mt7621-soc";
+	model = "Buffalo WSR-600DHP";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x4000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,57600";
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		power {
+			label = "wsr-600:green:power";
+			gpios = <&gpio0 12 1>;
+		};
+
+		wifi_o {
+			label = "wsr-600:orange:wifi";
+			gpios = <&gpio1 9 1>;
+		};
+
+		diag {
+			label = "wsr-600:orange:diag";
+			gpios = <&gpio1 10 1>;
+		};
+
+		wifi_g {
+			label = "wsr-600:green:wifi";
+			gpios = <&gpio1 12 1>;
+		};
+
+		router_o {
+			label = "wsr-600:orange:router";
+			gpios = <&gpio1 13 1>;
+		};
+
+		router_g {
+			label = "wsr-600:green:router";
+			gpios = <&gpio1 14 1>;
+		};
+
+		internet_o {
+			label = "wsr-600:orange:internet";
+			gpios = <&gpio1 15 1>;
+		};
+
+		internet_g {
+			label = "wsr-600:green:internet";
+			gpios = <&gpio1 16 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		power {
+			label = "power";
+			gpios = <&gpio0 8 1>;
+			linux,code = <0x74>;
+		};
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 11 1>;
+			linux,code = <0x198>;
+		};
+
+		aoss {
+			label = "aoss";
+			gpios = <&gpio0 18 1>;
+			linux,code = <0x211>;
+		};
+
+		auto {
+			label = "mode";
+			gpios = <&gpio0 7 0>;
+			linux,code = <0x100>;
+			linux,input-type = <5>; /* EV_SW */
+		};
+
+		ap {
+			label = "ap";
+			gpios = <&gpio0 6 0>;
+			linux,code = <0x100>;
+			linux,input-type = <5>; /* EV_SW */
+		};
+
+		router {
+			label = "router";
+			gpios = <&gpio0 10 0>;
+			linux,code = <0x100>;
+			linux,input-type = <5>; /* EV_SW */
+		};
+	};
+
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio1 11 1>;
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0xfb0000>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "uart2", "uart3", "rgmii2", "sdhci";
+			ralink,function = "gpio";
+		};
+	};
+};

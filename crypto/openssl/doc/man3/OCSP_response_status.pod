@@ -1,0 +1,117 @@
+=pod
+
+=head1 NAME
+
+OCSP_response_status, OCSP_response_get1_basic, OCSP_response_create,
+OCSP_RESPONSE_free, OCSP_RESPID_set_by_name,
+OCSP_RESPID_set_by_key, OCSP_RESPID_match,
+OCSP_basic_sign, OCSP_basic_sign_ctx - OCSP response functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/ocsp.h>
+
+ int OCSP_response_status(OCSP_RESPONSE *resp);
+ OCSP_BASICRESP *OCSP_response_get1_basic(OCSP_RESPONSE *resp);
+ OCSP_RESPONSE *OCSP_response_create(int status, OCSP_BASICRESP *bs);
+ void OCSP_RESPONSE_free(OCSP_RESPONSE *resp);
+
+ int OCSP_RESPID_set_by_name(OCSP_RESPID *respid, X509 *cert);
+ int OCSP_RESPID_set_by_key(OCSP_RESPID *respid, X509 *cert);
+ int OCSP_RESPID_match(OCSP_RESPID *respid, X509 *cert);
+
+ int OCSP_basic_sign(OCSP_BASICRESP *brsp, X509 *signer, EVP_PKEY *key,
+                     const EVP_MD *dgst, STACK_OF(X509) *certs,
+                     unsigned long flags);
+ int OCSP_basic_sign_ctx(OCSP_BASICRESP *brsp, X509 *signer, EVP_MD_CTX *ctx,
+                         STACK_OF(X509) *certs, unsigned long flags);
+
+=head1 DESCRIPTION
+
+OCSP_response_status() returns the OCSP response status of B<resp>. It returns
+one of the values: B<OCSP_RESPONSE_STATUS_SUCCESSFUL>,
+B<OCSP_RESPONSE_STATUS_MALFORMEDREQUEST>,
+B<OCSP_RESPONSE_STATUS_INTERNALERROR>, B<OCSP_RESPONSE_STATUS_TRYLATER>
+B<OCSP_RESPONSE_STATUS_SIGREQUIRED>, or B<OCSP_RESPONSE_STATUS_UNAUTHORIZED>.
+
+OCSP_response_get1_basic() decodes and returns the B<OCSP_BASICRESP> structure
+contained in B<resp>.
+
+OCSP_response_create() creates and returns an B<OCSP_RESPONSE> structure for
+B<status> and optionally including basic response B<bs>.
+
+OCSP_RESPONSE_free() frees up OCSP response B<resp>.
+
+OCSP_RESPID_set_by_name() sets the name of the OCSP_RESPID to be the same as the
+subject name in the supplied X509 certificate B<cert> for the OCSP responder.
+
+OCSP_RESPID_set_by_key() sets the key of the OCSP_RESPID to be the same as the
+key in the supplied X509 certificate B<cert> for the OCSP responder. The key is
+stored as a SHA1 hash.
+
+Note that an OCSP_RESPID can only have one of the name, or the key set. Calling
+OCSP_RESPID_set_by_name() or OCSP_RESPID_set_by_key() will clear any existing
+setting.
+
+OCSP_RESPID_match() tests whether the OCSP_RESPID given in B<respid> matches
+with the X509 certificate B<cert>.
+
+OCSP_basic_sign() signs OCSP response B<brsp> using certificate B<signer>, private key
+B<key>, digest B<dgst> and additional certificates B<certs>. If the B<flags> option
+B<OCSP_NOCERTS> is set then no certificates will be included in the request. If the
+B<flags> option B<OCSP_RESPID_KEY> is set then the responder is identified by key ID
+rather than by name. OCSP_basic_sign_ctx() also signs OCSP response B<brsp> but
+uses the parameters contained in digest context B<ctx>.
+
+=head1 RETURN VALUES
+
+OCSP_RESPONSE_status() returns a status value.
+
+OCSP_response_get1_basic() returns an B<OCSP_BASICRESP> structure pointer or
+B<NULL> if an error occurred.
+
+OCSP_response_create() returns an B<OCSP_RESPONSE> structure pointer or B<NULL>
+if an error occurred.
+
+OCSP_RESPONSE_free() does not return a value.
+
+OCSP_RESPID_set_by_name(), OCSP_RESPID_set_by_key(), OCSP_basic_sign(), and
+OCSP_basic_sign_ctx() return 1 on success or 0
+on failure.
+
+OCSP_RESPID_match() returns 1 if the OCSP_RESPID and the X509 certificate match
+or 0 otherwise.
+
+=head1 NOTES
+
+OCSP_response_get1_basic() is only called if the status of a response is
+B<OCSP_RESPONSE_STATUS_SUCCESSFUL>.
+
+=head1 SEE ALSO
+
+L<crypto(7)>
+L<OCSP_cert_to_id(3)>
+L<OCSP_request_add1_nonce(3)>
+L<OCSP_REQUEST_new(3)>
+L<OCSP_resp_find_status(3)>
+L<OCSP_sendreq_new(3)>
+L<OCSP_RESPID_new(3)>
+L<OCSP_RESPID_free(3)>
+
+=head1 HISTORY
+
+The OCSP_RESPID_set_by_name(), OCSP_RESPID_set_by_key() and OCSP_RESPID_match()
+functions were added in OpenSSL 1.1.0a.
+
+The OCSP_basic_sign_ctx() function was added in OpenSSL 1.1.1.
+
+=head1 COPYRIGHT
+
+Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

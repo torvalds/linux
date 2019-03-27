@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+# Although this is not specified by POSIX, some configure scripts (gawk 4.1.0)
+# appear to depend on it.
+# In some uncommitted code, the subshell environment corrupted the outer
+# shell environment's state.
+
+(for i in a b c; do
+	exit 3
+done)
+break
+exit 4

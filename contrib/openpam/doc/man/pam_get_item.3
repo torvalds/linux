@@ -1,0 +1,105 @@
+.\" Generated from pam_get_item.c by gendoc.pl
+.\" $OpenPAM: pam_get_item.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt PAM_GET_ITEM 3
+.Os
+.Sh NAME
+.Nm pam_get_item
+.Nd get PAM information
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.Ft "int"
+.Fn pam_get_item "const pam_handle_t *pamh" "int item_type" "const void **item"
+.Sh DESCRIPTION
+The
+.Fn pam_get_item
+function stores a pointer to the item specified by
+the
+.Fa item_type
+argument in the location pointed to by the
+.Fa item
+argument.
+The item is retrieved from the PAM context specified by the
+.Fa pamh
+argument.
+If
+.Fn pam_get_item
+fails, the
+.Fa item
+argument is untouched.
+.Pp
+The following item types are recognized:
+.Bl -tag -width 18n
+.It Dv PAM_SERVICE
+The name of the requesting service.
+.It Dv PAM_USER
+The name of the user the application is trying to
+authenticate.
+.It Dv PAM_TTY
+The name of the current terminal.
+.It Dv PAM_RHOST
+The name of the applicant's host.
+.It Dv PAM_CONV
+A
+.Vt struct pam_conv
+describing the current conversation
+function.
+.It Dv PAM_AUTHTOK
+The current authentication token.
+.It Dv PAM_OLDAUTHTOK
+The expired authentication token.
+.It Dv PAM_RUSER
+The name of the applicant.
+.It Dv PAM_USER_PROMPT
+The prompt to use when asking the applicant for a user
+name to authenticate as.
+.It Dv PAM_AUTHTOK_PROMPT
+The prompt to use when asking the applicant for an
+authentication token.
+.It Dv PAM_OLDAUTHTOK_PROMPT
+The prompt to use when asking the applicant for an
+expired authentication token prior to changing it.
+.It Dv PAM_HOST
+The name of the host the application runs on.
+.El
+.Pp
+See
+.Xr pam_start 3
+for a description of
+.Vt struct pam_conv .
+.Pp
+.Sh RETURN VALUES
+The
+.Fn pam_get_item
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BAD_ITEM
+Unrecognized or restricted item.
+.El
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam_set_item 3 ,
+.Xr pam_start 3 ,
+.Xr pam_strerror 3
+.Sh STANDARDS
+.Rs
+.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
+.%D "June 1997"
+.Re
+.Sh AUTHORS
+The
+.Fn pam_get_item
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

@@ -1,0 +1,274 @@
+
+
+	     K N O W N   B U G S   I N   S E N D M A I L
+
+
+The following are bugs or deficiencies in sendmail that we are aware of
+but which have not been fixed in the current release.  You probably
+want to get the most up to date version of this from ftp.sendmail.org
+in /pub/sendmail/KNOWNBUGS.  For descriptions of bugs that have been
+fixed, see the file RELEASE_NOTES (in the root directory of the sendmail
+distribution).
+
+This list is not guaranteed to be complete.
+
+* Header values which are too long may be truncated.
+
+  If a value of a structured header is longer than 256 (MAXNAME)
+  characters then it may be truncated during output. For example,
+  if a single address in the To: header is longer than 256 characters
+  then it will be truncated which may result in a syntactically
+  invalid address.
+
+* Delivery to programs that generate too much output may cause problems
+
+  If e-mail is delivered to a program which generates too much
+  output, then sendmail may issue an error:
+
+  timeout waiting for input from local during Draining Input
+
+  Make sure that the program does not generate output beyond a
+  status message (corresponding to the exit status).  This may
+  require a wrapper around the actual program to redirect output
+  to /dev/null.
+
+  Such a problem has been reported for bulk_mailer.
+
+* Null bytes are not handled properly in headers.
+
+  Sendmail should handle full binary data.  As it stands, it handles
+  all values in the body, but not 0x00 in the header.  Changing
+  this would require a major restructuring of the code -- for
+  example, almost no C library support could be used to handle
+  strings.
+
+* Header checks are not called if header value is too long or empty.
+
+  If the value of a header is longer than 1250 (MAXNAME + MAXATOM - 6)
+  characters or it contains a single word longer than 256 (MAXNAME)
+  characters then no header check is done even if one is configured for
+  the header.
+
+* Header lines which are too long will be split incorrectly.
+
+  Header lines which are longer than 2045 characters will be split
+  but some characters might be lost.  Fix: obey RFC (2)822 and do not
+  send lines that are longer than 1000 characters.
+
+* milter communication fails if a single header is larger than 64K.
+
+  If a single header is larger than 64KB (which is not possible in the
+  default configuration) then it cannot be transferred in one block to
+  libmilter and hence the communication fails.  This can be avoided by
+  increasing the constant MILTER_CHUNK_SIZE in
+  include/libmilter/mfdef.h and recompiling sendmail, libmilter, and
+  all (statically linked) milters (or by using undocumented compile
+  time options: _FFR_MAXDATASIZE/_FFR_MDS_NEGOTIATE; you have to
+  read the source code in order to use these properly).
+
+* Sender addresses whose domain part cause a temporary A record lookup
+  failure but have a valid MX record will be temporarily rejected in
+  the default configuration.  Solution: fix the DNS at the sender side.
+  If that's not easy to achieve, possible workarounds are:
+  - add an entry to the access map:
+	dom.ain	OK
+  - (only for advanced users) replace
+
+# Resolve map (to check if a host exists in check_mail)
+Kresolve host -a<OKR> -T<TEMP>
+
+   with
+
+# Resolve map (to check if a host exists in check_mail)
+Kcanon host -a<OKR> -T<TEMP>
+Kdnsmx dns -R MX -a<OKR> -T<TEMP>
+Kresolve sequence dnsmx canon
+
+
+* Duplicate error messages.
+
+  Sometimes identical, duplicate error messages can be generated.  As
+  near as I can tell, this is rare and relatively innocuous.
+
+* Misleading error messages.
+
+  If an illegal address is specified on the command line together
+  with at least one valid address and PostmasterCopy is set, the
+  DSN does not contain the illegal address, but only the valid
+  address(es).
+
+* \231 considered harmful.
+
+  Header addresses that have the \231 character (and possibly others
+  in the range \201 - \237) behave in odd and usually unexpected ways.
+
+* AuthRealm for Cyrus SASL may not work as expected. The man page
+  and the actual usage for sasl_server_new() seem to differ.
+  Feedback for the "correct" usage is welcome, a patch to match
+  the description of the man page is in contrib/AuthRealm.p0.
+
+* accept() problem on SVR4.
+
+  Apparently, the sendmail daemon loop (doing accept()s on the network)
+  can get into a weird state on SVR4; it starts logging ``SYSERR:
+  getrequests: accept: Protocol Error''.  The workaround is to kill
+  and restart the sendmail daemon.  We don't have an SVR4 system at
+  Berkeley that carries more than token mail load, so I can't validate
+  this.  It is likely to be a glitch in the sockets emulation, since
+  "Protocol Error" is not possible error code with Berkeley TCP/IP.
+
+  I've also had someone report the message ``sendmail: accept:
+  SIOCGPGRP failed errno 22'' on an SVR4 system.  This message is
+  not in the sendmail source code, so I assume it is also a bug
+  in the sockets emulation.  (Errno 22 is EINVAL "Invalid Argument"
+  on all the systems I have available, including Solaris 2.x.)
+  Apparently, this problem is due to linking -lc before -lsocket;
+  if you are having this problem, check your Makefile.
+
+* accept() problem on Linux.
+
+  The accept() in sendmail daemon loop can return ETIMEDOUT.  An
+  error is reported to syslog:
+
+  Jun  9 17:14:12 hostname sendmail[207]: NOQUEUE: SYSERR(root):
+			getrequests: accept: Connection timed out
+
+  "Connection timed out" is not documented as a valid return from
+  accept(2) and this was believed to be a bug in the Linux kernel.
+  Later information from the Linux kernel group states that Linux
+  2.0 kernels follow RFC1122 while sendmail follows the original BSD
+  (now POSIX 1003.1g draft) specification.  The 2.1.X and later kernels
+  will follow the POSIX draft.
+
+* Excessive mailing list nesting can run out of file descriptors.
+
+  If you have a mailing list that includes lots of other mailing
+  lists, each of which has a separate owner, you can run out of
+  file descriptors.  Each mailing list with a separate owner uses
+  one open file descriptor (prior to 8.6.6 it was three open
+  file descriptors per list).  This is particularly egregious if
+  you have your connection cache set to be large.
+
+* Connection caching breaks if you pass the port number as an argument.
+
+  If you have a definition such as:
+
+	  Mport,          P=[IPC], F=kmDFMuX, S=11/31, R=21,
+			  M=2100000, T=DNS/RFC822/SMTP,
+			  A=IPC [127.0.0.1] $h
+
+  (i.e., where $h is the port number instead of the host name) the
+  connection caching code will break because it won't notice that
+  two messages addressed to different ports should use different
+  connections.
+
+* ESMTP SIZE underestimates the size of a message
+
+  Sendmail makes no allowance for headers that it adds, nor does it
+  account for the SMTP on-the-wire \r\n expansion.  It probably doesn't
+  allow for 8->7 bit MIME conversions either.
+
+* Client ignores SIZE parameter.
+
+  When sendmail acts as client and the server specifies a limit
+  for the mail size, sendmail will ignore this and try to send the
+  mail anyway.  The server will usually reject the MAIL command
+  which specifies the size of the message and hence this problem
+  is not significant.
+
+* Paths to programs being executed and the mode of program files are
+  not checked.  Essentially, the RunProgramInUnsafeDirPath and
+  RunWritableProgram bits in the DontBlameSendmail option are always
+  set.  This is not a problem if your system is well managed (that is,
+  if binaries and system directories are mode 755 instead of something
+  foolish like 777).
+
+* 8-bit data in GECOS field
+
+  If the GECOS (personal name) information in the passwd file contains
+  8-bit characters, those characters can be included in the message
+  header, which can cause problems when sending SMTP to hosts that
+  only accept 7-bit characters.
+
+* 8->7 bit MIME conversion
+
+  When sendmail is doing 8->7 bit MIME conversions, and the message
+  contains certain MIME body types that cannot be converted to 7-bit,
+  sendmail will pass the message as 8-bit.
+
+* 7->8 bit MIME conversion
+
+  If a message that is encoded as 7-bit MIME is converted to 8-bit and
+  that message when decoded is illegal (e.g., because of long lines or
+  illegal characters), sendmail can produce an illegal message.
+
+* MIME encoded full name phrases in the From: header
+
+  If a full name phrase includes characters from MustQuoteChars, sendmail
+  will quote the entire full name phrase.  If MustQuoteChars includes
+  characters which are not special characters according to STD 11 (RFC
+  822), this quotation can interfere with MIME encoded full name phrases.
+  By default, sendmail includes the single quote character (') in
+  MustQuoteChars even though it is not listed as a special character in
+  STD 11.
+
+* bestmx map with -z flag truncates the list of MX hosts
+
+  A bestmx map configured with the -z flag will truncate the list
+  of MX hosts.  This prevents creation of strings which are too
+  long for ruleset parsing.  This can have an adverse effect on the
+  relay_based_on_MX feature.
+
+* Saving to ~sender/dead.letter fails if su'ed to root
+
+  If ErrorMode is set to print and an error in sending mail occurs,
+  the normal action is to print a message to the screen and append
+  the message to a dead.letter file in the sender's home directory.
+  In the case where the sender is using su to act as root, the file
+  safety checks prevent sendmail from saving the dead.letter file
+  because the sender's uid and the current real uid do not match.
+
+* Berkeley DB 2.X race condition with fcntl() locking
+
+  There is a race condition for Berkeley DB 2.X databases on
+  operating systems which use fcntl() style locking, such as
+  Solaris.  Sendmail locks the map before calling db_open() to
+  prevent others from modifying the map while it is being opened.
+  Unfortunately, Berkeley DB opens the map, closes it, and then
+  reopens it.  fcntl() locking drops the lock when any file
+  descriptor pointing to the file is closed, even if it is a
+  different file descriptor than the one used to initially lock
+  the file.  As a result there is a possibility that entries in a
+  map might not be found during a map rebuild.  As a workaround,
+  you can use makemap to build a map with a new name and then
+  "mv" the new db file to replace the old one.
+
+  Sleepycat Software has added code to avoid this race condition to
+  Berkeley DB versions after 2.7.5.
+
+* File open timeouts not available on hard mounted NFS file systems
+
+  Since SIGALRM does not interrupt an RPC call for hard mounted
+  NFS file systems, it is impossible to implement a timeout on a file
+  open operation.  Therefore, while the NFS server is not responding,
+  attempts to open a file on that server will hang.  Systems with
+  local mail delivery and NFS hard mounted home directories should be
+  avoided, as attempts to open the forward files could hang.
+
+* Race condition for delivery to set-user-ID files
+
+  Sendmail will deliver to a file if the file is owned by the DefaultUser
+  or has the set-user-ID bit set.  Unfortunately, some systems clear that bit
+  when a file is modified.  Sendmail compensates by resetting the file mode
+  back to it's original settings.  Unfortunately, there's still a
+  permission failure race as sendmail checks the permissions before locking
+  the file.  This is unavoidable as sendmail must verify the file is safe
+  to open before opening it.  A file can not be locked until it is open.
+
+* MAIL_HUB always takes precedence over LOCAL_RELAY
+
+  Despite the information in the documentation, MAIL_HUB ($H) will always
+  be used if set instead of LOCAL_RELAY ($R).  This will be fixed in a
+  future version.
+
+$Revision: 8.61 $, Last updated $Date: 2011-04-07 17:48:23 $

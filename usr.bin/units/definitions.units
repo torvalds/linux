@@ -1,0 +1,908 @@
+# $FreeBSD$
+
+# primitive units
+
+m			!a!
+kg			!b!
+sec			!c!
+coul			!d!
+candela			!e!
+usdollar		!f!
+euro			!g!
+bit			!h!
+erlang			!i!
+K			!j!
+
+# prefixes
+
+yotta-			1e24
+zetta-			1e21
+exa-			1e18
+peta-			1e15
+tera-			1e12
+giga-			1e9
+mega-			1e6
+myria-			1e4
+kilo-			1e3
+hecto-			1e2
+deka-			1e1
+deca-			deka
+deci-			1e-1
+centi-			1e-2
+milli-			1e-3
+micro-			1e-6
+nano-			1e-9
+pico-			1e-12
+femto-			1e-15
+atto-			1e-18
+zopto-			1e-21
+zepto-			zopto
+yocto-			1e-24
+
+quarter-		1|4
+semi-			.5
+demi-			.5
+hemi-			.5
+half-			.5
+double-			2
+triple-			3
+
+Y-			yotta
+Z-			zetta
+E-			exa
+P-			peta
+T-			tera
+G-			giga
+M-			mega
+k-			kilo
+h-			hecto
+da-			deka
+d-			deci
+c-			centi
+m-			milli
+u-			micro
+n-			nano
+p-			pico
+f-			femto
+a-			atto
+z-			zopto
+y-			yocto
+
+# binary prefixes introduced in 1999
+exbi-			1152921504606846976
+pebi-			1125899906842624
+tebi-			1099511627776
+gibi-			1073741824
+mebi-			1048576
+kibi-			1024
+
+Ei-			exbi
+Pi-			pebi
+Ti-			tebi
+Gi-			gibi
+Mi-			mebi
+Ki-			kibi
+
+# constants
+
+fuzz			1
+pi			3.14159265358979323846
+c			2.99792458e+8 m/sec
+g0			9.80665 m/sec2
+g			g0
+bigG			6.67428e-11 m3/kg/s2
+AU			1.49597870691e+11 m fuzz
+au			AU
+mole			6.0221417930e+23 fuzz
+e			1.6021917e-19 coul fuzz
+energy			c2
+force			g
+mercury			1.3332239e+5 kg/m2-sec2
+hg			mercury
+mmHg			0.001 m hg
+#mu			4.e-7 pi-N/A2
+epsilon			1.0 /mu/c2
+alpha			0.5 mu-c-e2/planck
+planck			6.6260755e-34 joule-sec
+hbar			0.5 planck/pi
+electronmass		9.1093821545-31 kg
+protonmass		1.6726217129-27 kg
+neutronmass		1.6749272928-27 kg
+
+# dimensionless
+
+radian			.5 / pi
+degree			1|180 pi-radian
+circle			2 pi-radian
+turn			2 pi-radian
+revolution		turn
+rev			turn
+grade			.9 degree
+arcdeg			1 degree
+arcmin			1|60 arcdeg
+ccs			1|36 erlang
+arcsec			1|60 arcmin
+
+steradian		radian2
+sphere			4 pi-steradian
+sr			steradian
+
+# Time
+
+second			sec
+s			sec
+minute			60 sec
+min			minute
+hour			60 min
+hr			hour
+day			24 hr
+da			day
+week			7 day
+year			365.24219879 day fuzz
+yr			year
+month			1|12 year
+us			microsec
+
+# Mass
+
+gram			millikg
+gm			gram
+metricton		kilokg
+
+# Avoirdupois
+
+lb			.45359237 kg
+pound			lb
+lbf			lb g
+ounce			1|16 lb
+oz			ounce
+dram			1|16 oz
+dr			dram
+grain			1|7000 lb
+gr			grain
+shortton		2000 lb
+ton			shortton
+longton			2240 lb
+
+# Apothecary
+
+scruple			20 grain
+apdram			60 grain
+apounce			480 grain
+appound			5760 grain
+troypound		appound
+
+# Mining
+
+troyounce		apounce
+troz			apounce
+pennyweight		1|20 troz
+pwt			pennyweight
+dwt			pennyweight
+
+# Length
+
+meter			m
+micron			micrometer
+angstrom		decinanometer
+ao			0.25 alpha/pi/rydbergconst
+
+inch			2.54 cm
+in			inch
+foot			12 in
+feet			foot
+ft			foot
+yard			3 ft
+yd			yard
+rod			5.5 yd
+rd			rod
+mile			5280 ft
+mi			mile
+
+british			1200|3937 m/ft
+nmile			1852 m
+
+acre			4840 yd2
+
+cc			cm3
+liter			kilocc
+ml			milliliter
+
+# US Liquid
+
+gallon			231 in3
+imperial		1.20095
+gal			gallon
+quart			1|4 gal
+qt			quart
+pint			1|2 qt
+pt			pint
+
+floz			1|16 pt
+fldr			1|8 floz
+shot			3|2 floz
+
+# US Dry
+
+dry			268.8025 in3/gallon fuzz
+peck			8 dry-quart
+pk			peck
+bushel			4 peck
+bu			bushel
+chaldron		36 bushel
+
+# British
+
+brgallon		277.420 in3 fuzz
+brquart			1|4 brgallon
+brpint			1|2 brquart
+brfloz			1|20 brpint
+brpeck			554.84 in3 fuzz
+brbushel		4 brpeck
+brhundredweight		112 lb
+
+# Bottles
+
+bottle			750 milliliter
+#bottle			fifth
+
+miniature		100 milliliter
+split			1|4 bottle
+half			1|2 bottle
+magnum			2 bottle
+jeroboam		4 bottle
+rehoboam		6 bottle
+methuselah		8 bottle
+salmanazar		12 bottle
+balthazar		16 bottle
+nebuchadnezzar		20 bottle
+sovereign		34 bottle
+
+# Bottles - alternate names and spellings
+
+pony			split
+fillette		half
+tappit-hen		3 imperial
+rheoboam		rehoboam
+shalmaneser		salmanazar
+
+# Russian
+berkovets		10 pood
+pood			40 funt
+funt			0.40951 kg
+lot			1|32 funt
+zolotnik		1|3 lot
+dolya			1|96 zolotnik
+rumile			7 verst
+mezhevayaverst		2 verst
+verst			1066.8 m
+sazhen			1|500 verst
+kosayasazhen		1|430.2 verst
+arshin			1|1500 verst
+# is not exactly defined
+ruell			16.54 in
+liniya			1|10 in
+vershok			1.75 in
+pyad			7 in
+vedro			12.3 liter
+shtoff			1|10 vedro
+vinebottle		1|16 vedro
+vodkabottle		1|20 vedro
+charka			1|100 vedro
+shkalik			1|200 vedro
+desyatina_state		109.3 are
+desyatina_farmery	0.75 desyatina_state
+sqverst			104.2 desyatina_state
+sqarshin		1|21600 desyatina_state
+sqfoot			1|117600 desyatina_state
+
+# Energy Work
+
+newton			kg-m/sec2
+nt			newton
+N			newton
+joule			nt-m
+J			joule
+cal			4.1868 joule
+ergon			erg
+
+# Electrical
+
+coulomb			coul
+C			coul
+ampere			coul/sec
+A			ampere
+amp			ampere
+watt			joule/sec
+W			watt
+volt			watt/amp
+ohm			volt/amp
+mho			/ohm
+farad			coul/volt
+F			farad
+henry			sec2/farad
+H			henry
+weber			volt-sec
+Wb			weber
+
+# Light
+
+cd			candela
+lumen			cd sr
+lux			cd sr/m2
+
+# EMU currencies have constant exchange rate against Euro since 1.1.1999.
+# See https://en.wikipedia.org/wiki/Euro for details.
+austriaschilling	1|13.7603 euro
+belgiumfranc		1|40.3399 euro
+finlandmarkka		1|5.94573 euro
+francefranc		1|6.55957 euro
+germanymark		1|1.95583 euro
+greecedrachma		1|340.750 euro
+irelandpunt		1|0.787564 euro
+italylira		1|1936.27 euro
+luxembourgfranc		1|40.3399 euro
+netherlandsguilder	1|2.20371 euro
+portugalescudo		1|200.482 euro
+spainpeseta		1|166.386 euro
+sloveniantolar		1|239.640 euro
+cypriotpound		1|0.585274 euro
+malteselira		1|0.429300 euro
+slovakkoruna		1|30.1260 euro
+
+# These ones are pegged to the Euro
+# See https://en.wikipedia.org/wiki/Euro for details.
+bosniaherzegovinamark	1|1.95583 euro
+bulgarianlev		1|1.95583 euro
+capeverdeanescudo	1|110.265 euro
+centralafricancfafranc	1|655.957 euro
+comorosfranc		1|491.96775 euro
+danishkrone		1|7.46038 euro
+estoniakroon		1|15.6466 euro
+lithuanianlitas		1|3.45280 euro
+pacificfrancexchange	1|0.00838 euro
+westafricancfafranc	1|655.957 euro
+
+# ISO Currency Codes
+
+AED                    uaedirham
+AFN                    afghanafghani
+ALL                    albanialek
+AMD                    armeniadram
+AOA                    angolakwanza
+ARS                    argentinapeso
+AUD                    australiadollar
+AWG                    arubaflorin
+AZN                    azerbaijanmanat
+BAM                    bosniaconvertiblemark
+BBD                    barbadosdollar
+BDT                    bangladeshtaka
+BGN                    bulgarialev
+BHD                    bahraindinar
+BIF                    burundifranc
+BMD                    bermudadollar
+BND                    bruneidollar
+BOB                    boliviaboliviano
+BRL                    brazilreal
+BSD                    bahamasdollar
+BTN                    bhutanngultrum
+BWP                    botswanapula
+BYR                    belarusruble
+BZD                    belizedollar
+CAD                    canadadollar
+CDF                    drcfranccongolais
+CHF                    swissfranc
+CLP                    chilepeso
+CMG                    sintmaartencaribbeanguilder
+CNY                    chinayuan
+COP                    colombiapeso
+CRC                    costaricacolon
+CUP                    cubapeso
+CVE                    capeverdeescudo
+CZK                    czechkoruna
+DJF                    djiboutifranc
+DKK                    denmarkkrona
+DOP                    dominicanrepublicpeso
+DZD                    algeriadinar
+EGP                    egyptpound
+ERN                    eritreanakfa
+ETB                    ethiopianbirr
+EUR                    euro
+FJD                    fijidollar
+FKP                    falklandislandspound
+GBP                    ukpound
+GEL                    georgialari
+GGP                    guernseypound
+GHS                    ghanacedi
+GIP                    gibraltarpound
+GMD                    gambiadalasi
+GNF                    guineafranc
+GTQ                    guatemalaquetzal
+GYD                    guyanadollar
+HKD                    hongkongdollar
+HNL                    honduraslempira
+HRK                    croatiakuna
+HTG                    haitigourde
+HUF                    hungariaforint
+IDR                    indonesiarupiah
+ILS                    israelnewshekel
+IMP                    manxpound
+INR                    indiarupee
+IQD                    iraqdinar
+IRR                    iranrial
+ISK                    icelandkrona
+JEP                    jerseypound
+JMD                    jamaicadollar
+JOD                    jordandinar
+JPY                    japanyen
+KES                    kenyaschilling
+KGS                    kyrgyzstansom
+KHR                    cambodiariel
+KMF                    comorosfranc
+KPW                    northkoreawon
+KRW                    southkoreawon
+KWD                    kuwaitdinar
+KYD                    caymanislandsdollar
+KZT                    kazakhstantenge
+LAK                    laokip
+LBP                    lebanonpound
+LKR                    srilankanrupee
+LRD                    liberiadollar
+LTL                    lithuanialita
+LVL                    latvialat
+LYD                    libyadinar
+MAD                    moroccodirham
+MDL                    moldovaleu
+MGA                    madagascarariary
+MKD                    macedoniadenar
+MMK                    myanmarkyat
+MNT                    mongoliatugrik
+MOP                    macaupataca
+MRO                    mauritaniaouguiya
+MUR                    mauritiusrupee
+MVR                    maldiverufiyaa
+MWK                    malawikwacha
+MXN                    mexicopeso
+MYR                    malaysiaringgit
+MZN                    mozambicanmetical
+NAD                    namibiadollar
+NGN                    nigerianaira
+NIO                    nicaraguacordobaoro
+NOK                    norwaykrone
+NPR                    nepalrupee
+NZD                    newzealanddollar
+OMR                    omanrial
+PAB                    panamabalboa
+PEN                    perunuevosol
+PGK                    papuanewguineakina
+PHP                    philippinepeso
+PKR                    pakistanrupee
+PLN                    polandzloty
+PYG                    paraguayguarani
+QAR                    qatarrial
+RON                    romanianewlei
+RSD                    serbiadinar
+RUB                    russiarouble
+RWF                    rwandafranc
+SAR                    saudiarabiariyal
+SBD                    solomonislandsdollar
+SCR                    seychellesrupee
+SDG                    sudanpound
+SEK                    swedenkrona
+SGD                    singaporedollar
+SHP                    sainthelenapound
+SLL                    sierraleoneleone
+SOS                    somaliaschilling
+SRD                    surinamedollar
+STD                    saotome&principedobra
+SVC                    elsalvadorcolon
+SYP                    syriapound
+SZL                    swazilandlilangeni
+THB                    thailandbaht
+TJS                    tajikistansomoni
+TMT                    turkmenistanmanat
+TND                    tunisiadinar
+TOP                    tongapa'anga
+TRY                    turkeylira
+TTD                    trinidadandtobagodollar
+TVD                    tuvaludollar
+TWD                    taiwandollar
+TZS                    tanzaniashilling
+UAH                    ukrainehryvnia
+UGX                    ugandaschilling
+USD                    usdollar
+UYU                    uruguaypeso
+UZS                    uzbekistansum
+VEF                    venezuelabolivar
+VND                    vietnamdong
+VUV                    vanuatuvatu
+WST                    samoatala
+XAF                    centralafricancfafranc
+XCD                    eastcaribbeandollar
+XDR                    specialdrawingrights
+XOF                    westafricanfranc
+XPF                    cfpfranc
+YER                    yemenrial
+ZAR                    southafricarand
+ZMW                    zambiakwacha
+ZWL                    zimbabwedollar
+
+# These ones are pegged on the US Dollar
+# See https://en.wikipedia.org/wiki/USD for details.
+dollar			usdollar
+arubanflorin		1|1.75 usdollar
+bahamiandollar		1|1 usdollar
+bahrainidinar		1|0.376 usdollar
+barbadiandollar		1|2 usdollar
+belizedollar		1|2 usdollar
+belarusianruble		1|2135 usdollar
+bermudiandollar		1|1 usdollar
+caymanislandsdollar	1.2 usdollar
+cubanconvertiblepeso	1.08 usdollar
+djiboutianfranc		1|177.721 usdollar
+eastcaribbeandollar	1|2.7 usdollar
+eritreannakfa		1|15 usdollar
+hongkongdollar		1|7.80 usdollar
+macanesepatacas		1|1.03 hongkongdollar
+jordaniandinar		1|0.709 usdollar
+lebanesepound		1|1507.5 usdollar
+maldivianrufiyaa	1|12.8 usdollar
+netherlandsantilleanguilder	1|1.79 usdollar
+omanirial		2.6008 usdollar
+qataririyal		1|3.64 usdollar
+saudiriyal		1|3.75 usdollar
+unitedarabemiratesdirham	1|3.6725 usdollar
+
+bosniamark		bosniaherzegovinamark
+cfafranc		centralafricancfafranc
+cfpfranc		pacificfrancexchange
+drachma			greecedrachma
+escudo			portugalescudo
+franc			francefranc
+guilder			netherlandsguilder
+herzegovinamark		bosniaherzegovinamark
+hollandguilder		netherlandsguilder
+lira			italylira
+mark			germanymark
+markka			finlandmarkka
+peseta			spainpeseta
+rand			southafricarand
+
+# computer
+
+baud			bit/sec
+nibble			4 bit
+nybble			nibble
+byte			8 bit
+word			2 byte
+block			512 byte
+kbyte			1024 byte
+megabyte		1024 kbyte
+gigabyte		1024 megabyte
+terabyte		1024 gigabyte
+petabyte		1024 terabyte
+exabyte			1024 petabyte
+zettabyte		1024 exabyte
+yottabyte		1024 zettabyte
+kilobyte		kbyte
+meg			megabyte
+
+
+# Trivia
+
+%			1|100
+abampere		10 ampere
+admiraltyknot		6080 ft/hr
+apostilb		cd/pi-m2
+are			1e+2 m2
+asb			apostilb
+arpentcan		27.52 mi
+arpentlin		191.835 ft
+astronomicalunit	au
+atmosphere		1.01325e+5 nt/m2
+atm			atmosphere
+atomicmassunit		1.66053878283e-27 kg fuzz
+# year			3.15569259747e7 sec fuzz
+amu			atomicmassunit
+bag			94 lb
+bakersdozen		13
+bar			1e+5 nt/m2
+barie			1e-1 nt/m2
+barleycorn		1|3 in
+beardsecond		5 nm
+barn			1e-28 m2
+oilbarrel		42 gal
+barrel			oilbarrel
+barye			1e-1 nt/m2
+baryl			microbar
+bev			1e+9 e-volt
+biot			10 amp
+blondel			cd/pi-m2
+boardfoot		144 in3
+bolt			40 yd
+bottommeasure		1|40 in
+britishthermalunit	1.05506e+3 joule fuzz
+btu			britishthermalunit
+refrigeration		12000 btu/ton-hour
+buck			usdollar
+cable			720 ft
+caliber			1e-2 in
+calorie			cal
+carat			205 milligram
+caratgold		1|24
+cent			centidollar
+cental			100 lb
+centesimalminute	1e-2 grade
+centesimalsecond	1e-4 grade
+century			100 year
+cfs			ft3/sec
+chain			66 ft
+circularinch		1|4 pi-in2
+circularmil		1e-6|4 pi-in2
+clusec			1e-8 mm-hg m3/s
+coomb			4 bu
+cord			128 ft3
+cordfoot		cord
+crith			9.06e-2 gm
+cubit			18 in
+cup			1|2 pt
+curie			3.7e+10 /sec
+dalton			amu
+decade			10 yr
+dioptre			/m
+displacementton		35 ft3
+doppelzentner		100 kg
+dozen			12
+drop			.03 cm3
+dyne			cm-gm/sec2
+electronvolt		e-volt
+ell			45 in
+engineerschain		100 ft
+engineerslink		100|100 ft
+equivalentfootcandle	lumen/pi-ft2
+equivalentlux		lumen/pi-m2
+equivalentphot		cd/pi-cm2
+erg			cm2-gm/sec2
+ev			e-volt
+faraday			9.6485309e+4 coul
+fathom			6 ft
+fermi			1e-15 m
+fifth			4|5 qt
+fin			5 usdollar
+finger			7|8 in
+firkin			9 gal
+footcandle		lumen/ft2
+footlambert		cd/pi-ft2
+fortnight		14 da
+franklin		3.33564e-10 coul
+frigorie		kilocal
+furlong			220 yd
+galileo			1e-2 m/sec2
+gamma			1e-9 weber/m2
+gauss			1e-4 weber/m2
+G			gauss
+geodeticfoot		british-ft
+geographicalmile	1852 m
+gilbert			2.5 amp/pi
+gill			1|4 pt
+gross			144
+gunterschain		22 yd
+hand			4 in
+hartree			2 rydberg
+head			water
+hectare			1e+4 m2
+hefnercandle		.92 cd
+hertz			/sec
+Hz			hertz
+hogshead		63 gallon
+hd			hogshead
+homestead		1|4 mi2
+horsepower		735.50 watt
+donkeypower		250 watt
+hp			horsepower
+hubble			1e9 ly
+hyl			gm force sec2/m
+hz			/sec
+imaginarycubicfoot	1.4 ft3
+jansky			1e-26 W/m2-Hz
+Jy			jansky
+karat			1|24
+kayser			/cm
+key			kg
+kilderkin		18 gal
+knot			nmile/hr
+kn			knot
+lambert			cd/pi-cm2
+Lb			lambert
+langley			cal/cm2
+last			80 bu
+league			3 mi
+lightyear		c-yr
+ly			lightyear
+line			1|12 in
+link			66|100 ft
+longhundredweight	112 lb
+longquarter		28 lb
+lusec			1e-6 mm-hg m3/s
+m_earth			5.97223e24 kg
+m_moon			7.34e22 kg
+m_sun			1.98843e30 kg
+mach			331.46 m/sec
+marineleague		3 nmile
+maxwell			1e-8 weber
+Mx			maxwell
+metriccarat		200 milligram
+mgd			megagal/day
+mh			millihenry
+mil			1e-3 in
+millennium		1000 year
+minersinch		1.5 ft3/min
+minim			1|60 fldr
+mo			month
+mpg			mile/gal
+mph			mile/hr
+nail			1|16 yd
+nauticalmile		nmile
+nit			cd/m2
+noggin			1|8 qt
+nox			1e-3 lux
+oersted			2.5e+2 amp/m/pi
+Oe			oersted
+pace			36 in
+pair			2
+palm			3 in
+parasang		3.5 mi
+parsec			AU-radian/arcsec
+pascal			nt/m2
+Pa			pascal
+pc			parsec
+percent			%
+perch			rd
+phot			lumen/cm2
+pica			1|6 in
+pieze			1e+3 nt/m2
+pipe			4 barrel
+point			1|72 in
+poise			gm/cm-sec
+P			poise
+pole			rd
+pond			9.80665e-3 nt
+potrzebie		2.263348517438173216473 mm
+poundal			ft-lb/sec2
+pdl			poundal
+proof			1|200
+psi			lb-g/in2
+quarter			9 in
+quartersection		1|4 mi2
+quintal			100 kg
+quire			25
+r_earth                 6.378e8 cm
+r_moon                  1.738e7 cm
+r_sun                   6.9599e10 cm
+rackunit		1.75 in
+rad			100 erg/gm
+ream			500
+registerton		100 ft3
+rem			0.01 J/kg
+rhe			10 m2/nt-sec
+rontgen			2.58e-4 curie/kg
+roentgen		rontgen
+rood			1.21e+3 yd
+rope			20 ft
+RU			rackunit
+rutherford		1e+6 /sec
+rydbergconst		0.5 elctronmass-c-alpha2/planck
+rydberg			rydbergconst-planck-c
+sabin			1 ft2
+sack			3 bu
+score			20
+seam			8 bu
+section			mi2
+shed			1e-24 barn
+shippington		40 ft3
+shorthundredweight	100 lb
+shortquarter		25 lb
+siemens			/ohm
+sigma			microsec
+skein			120 yd
+skot			1e-3 apostilb
+slug			lb-g-sec2/ft
+smoot			67 in
+span			9 in
+spat			4 pi sr
+spindle			14400 yd
+square			100 ft2
+stere			m3
+sthene			1e+3 nt
+stilb			cd/cm2
+sb			stilb
+stoke			1e-4 m2/sec
+stone			14 lb
+strike			2 bu
+surveyfoot		british-ft
+surveyyard		3 surveyfoot
+surveyorschain		66 ft
+surveyorslink		66|100 ft
+tablespoon		4 fldr
+tbl			tablespoon
+tbsp			tablespoon
+teaspoon		4|3 fldr
+tesla			weber/m2
+T			tesla
+therm			1e+5 btu
+thermie			1e+6 cal
+timberfoot		ft3
+tnt			4.6e+6 m2/sec2
+tonne			1e+6 gm
+torr			mm hg
+township		36 mi2
+tsp			teaspoon
+tun			8 barrel
+water			gram g / cc
+wey			40 bu
+weymass			252 lb
+Xunit			1.00206e-13 m
+k			1.38047e-16 erg/degC
+
+
+degC			1&+273.15 K
+kelvin			K
+brewster		1e-12 m2/newton
+degF			5|9&255.37222222222222222222 K
+degreesrankine		5|9 K
+degrankine		degreesrankine
+degreerankine		degreesrankine
+degreaumur		10|8&+273.15 K
+gasmark			25|1&250 degF
+Stufe			25|1&125 degC
+drachm			60 grain
+poncelet		100 kg m g / sec
+denier			.05|450 gram / m
+tex			.001 gram / m
+englishell		45 inch
+scottishell		37.2 inch
+flemishell		27 inch
+V			volt
+eV			e V
+bohrradius		hbar2-C2/8.988e9 N m2-e2-electronmass
+becquerel		1|3.7e10 curie
+fresnel			1e12 hertz
+statcoul		1|2.99792458e9 coul
+statamp			1|2.99792458e9 amp
+statvolt		2.99792458e2 volt
+statcoulomb		statcoul
+statampere		statamp
+debye			3.33564e-30 coul-m
+pulsatance		2 pi/sec
+rpm			rev/minute
+rps			rev/sec
+kilohm			kiloohm
+megohm			megaohm
+siderealyear		365.256360417 day
+siderealday		23.934469444 hour
+siderealhour		1|24 sidereal day
+lunarmonth		29.5305555 day
+synodicmonth		lunarmonth
+siderealmonth		27.32152777 day
+tropicalyear		year
+solaryear		year
+lunaryear		12 lunarmonth
+cran			37.5 brgallon
+kip			1000 lbf
+frenchfoot		16|15 ft
+frenchfeet		frenchfoot
+toise			6 frenchfeet
+sievert			8.4 rontgen
+candle			1.02 candela
+militarypace		2.5 feet
+metre			meter
+litre			liter
+gramme			gram
+iudiptheria		62.8 microgram
+iupenicillin		.6 microgram
+iuinsulin		41.67 microgram
+cottonyarncount		2520 ft/pound
+linenyarncount		900 ft/pound
+worstedyarncount	1680 ft/pound
+metricyarncount		meter/gram
+jewlerspoint		2 milligram

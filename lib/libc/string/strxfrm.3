@@ -1,0 +1,108 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)strxfrm.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd June 4, 1993
+.Dt STRXFRM 3
+.Os
+.Sh NAME
+.Nm strxfrm
+.Nd transform a string under locale
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In string.h
+.Ft size_t
+.Fn strxfrm "char * restrict dst" "const char * restrict src" "size_t n"
+.Ft size_t
+.Fn strxfrm_l "char * restrict dst" "const char *restrict src" "size_t n" "locale_t loc"
+.Sh DESCRIPTION
+The
+.Fn strxfrm
+function transforms a null-terminated string pointed to by
+.Fa src
+according to the current locale collation if any,
+then copies the transformed string
+into
+.Fa dst .
+Not more than
+.Fa n
+characters are copied into
+.Fa dst ,
+including the terminating null character added.
+If
+.Fa n
+is set to 0
+(it helps to determine an actual size needed
+for transformation),
+.Fa dst
+is permitted to be a NULL pointer.
+.Pp
+Comparing two strings using
+.Fn strcmp
+after
+.Fn strxfrm
+is equal to comparing
+two original strings with
+.Fn strcoll .
+.Pp
+.Fn strxfrm_l
+does the same, however takes an explicit locale rather than the global
+locale.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn strxfrm
+and
+.Fn strxfrm_l
+return the length of the transformed string not including
+the terminating null character.
+If this value is
+.Fa n
+or more, the contents of
+.Fa dst
+are indeterminate.
+.Sh SEE ALSO
+.Xr setlocale 3 ,
+.Xr strcmp 3 ,
+.Xr strcoll 3 ,
+.Xr wcsxfrm 3
+.Sh STANDARDS
+The
+.Fn strxfrm
+function
+conforms to
+.St -isoC .
+The
+.Fn strxfrm_l
+function conforms to
+.St -p1003.1-2008 .

@@ -1,0 +1,1 @@
+header,113,11,socket(2),0,Mon Jun 11 10:18:45 2018, + 380 msec,argument,1,0x1c,domain,argument,2,0x2,type,argument,3,0x0,protocol,subject,root,root,wheel,root,0,7053,4724,37636,10.0.2.2,return,success,3,trailer,113,

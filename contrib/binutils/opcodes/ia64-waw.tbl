@@ -1,0 +1,137 @@
+Resource Name;	Writers;	Writers;	Semantics of Dependency
+ALAT;	IC:mem-readers-alat, IC:mem-writers, chk.a.clr, IC:invala-all;	IC:mem-readers-alat, IC:mem-writers, chk.a.clr, IC:invala-all;	none
+AR[BSP];	br.call, brl.call, br.ret, cover, IC:mov-to-AR-BSPSTORE, rfi;	br.call, brl.call, br.ret, cover, IC:mov-to-AR-BSPSTORE, rfi;	impliedF
+AR[BSPSTORE];	alloc, loadrs, flushrs, IC:mov-to-AR-BSPSTORE;	alloc, loadrs, flushrs, IC:mov-to-AR-BSPSTORE;	impliedF
+AR[CCV];	IC:mov-to-AR-CCV;	IC:mov-to-AR-CCV;	impliedF
+AR[CFLG];	IC:mov-to-AR-CFLG;	IC:mov-to-AR-CFLG;	impliedF
+AR[CSD];	ld16, IC:mov-to-AR-CSD;	ld16, IC:mov-to-AR-CSD;	impliedF
+AR[EC];	br.ret, IC:mod-sched-brs, IC:mov-to-AR-EC;	br.ret, IC:mod-sched-brs, IC:mov-to-AR-EC;	impliedF
+AR[EFLAG];	IC:mov-to-AR-EFLAG;	IC:mov-to-AR-EFLAG;	impliedF
+AR[FCR];	IC:mov-to-AR-FCR;	IC:mov-to-AR-FCR;	impliedF
+AR[FDR];	IC:mov-to-AR-FDR;	IC:mov-to-AR-FDR;	impliedF
+AR[FIR];	IC:mov-to-AR-FIR;	IC:mov-to-AR-FIR;	impliedF
+AR[FPSR].sf0.controls;	IC:mov-to-AR-FPSR, fsetc.s0;	IC:mov-to-AR-FPSR, fsetc.s0;	impliedF
+AR[FPSR].sf1.controls;	IC:mov-to-AR-FPSR, fsetc.s1;	IC:mov-to-AR-FPSR, fsetc.s1;	impliedF
+AR[FPSR].sf2.controls;	IC:mov-to-AR-FPSR, fsetc.s2;	IC:mov-to-AR-FPSR, fsetc.s2;	impliedF
+AR[FPSR].sf3.controls;	IC:mov-to-AR-FPSR, fsetc.s3;	IC:mov-to-AR-FPSR, fsetc.s3;	impliedF
+AR[FPSR].sf0.flags;	IC:fp-arith-s0, IC:fcmp-s0, IC:fpcmp-s0;	IC:fp-arith-s0, IC:fcmp-s0, IC:fpcmp-s0;	none
+AR[FPSR].sf0.flags;	fclrf.s0, IC:fcmp-s0, IC:fp-arith-s0, IC:fpcmp-s0, IC:mov-to-AR-FPSR;	fclrf.s0, IC:mov-to-AR-FPSR;	impliedF
+AR[FPSR].sf1.flags;	IC:fp-arith-s1, IC:fcmp-s1, IC:fpcmp-s1;	IC:fp-arith-s1, IC:fcmp-s1, IC:fpcmp-s1;	none
+AR[FPSR].sf1.flags;	fclrf.s1, IC:fcmp-s1, IC:fp-arith-s1, IC:fpcmp-s1, IC:mov-to-AR-FPSR;	fclrf.s1, IC:mov-to-AR-FPSR;	impliedF
+AR[FPSR].sf2.flags;	IC:fp-arith-s2, IC:fcmp-s2, IC:fpcmp-s2;	IC:fp-arith-s2, IC:fcmp-s2, IC:fpcmp-s2;	none
+AR[FPSR].sf2.flags;	fclrf.s2, IC:fcmp-s2, IC:fp-arith-s2, IC:fpcmp-s2, IC:mov-to-AR-FPSR;	fclrf.s2, IC:mov-to-AR-FPSR;	impliedF
+AR[FPSR].sf3.flags;	IC:fp-arith-s3, IC:fcmp-s3, IC:fpcmp-s3;	IC:fp-arith-s3, IC:fcmp-s3, IC:fpcmp-s3;	none
+AR[FPSR].sf3.flags;	fclrf.s3, IC:fcmp-s3, IC:fp-arith-s3, IC:fpcmp-s3, IC:mov-to-AR-FPSR;	fclrf.s3, IC:mov-to-AR-FPSR;	impliedF
+AR[FPSR].rv;	IC:mov-to-AR-FPSR;	IC:mov-to-AR-FPSR;	impliedF
+AR[FPSR].traps;	IC:mov-to-AR-FPSR;	IC:mov-to-AR-FPSR;	impliedF
+AR[FSR];	IC:mov-to-AR-FSR;	IC:mov-to-AR-FSR;	impliedF
+AR[ITC];	IC:mov-to-AR-ITC;	IC:mov-to-AR-ITC;	impliedF
+AR[K%], % in 0 - 7;	IC:mov-to-AR-K+1;	IC:mov-to-AR-K+1;	impliedF
+AR[LC];	IC:mod-sched-brs-counted, IC:mov-to-AR-LC;	IC:mod-sched-brs-counted, IC:mov-to-AR-LC;	impliedF
+AR[PFS];	br.call, brl.call;	br.call, brl.call;	none
+AR[PFS];	br.call, brl.call;	IC:mov-to-AR-PFS;	impliedF
+AR[RNAT];	alloc, flushrs, loadrs, IC:mov-to-AR-RNAT, IC:mov-to-AR-BSPSTORE;	alloc, flushrs, loadrs, IC:mov-to-AR-RNAT, IC:mov-to-AR-BSPSTORE;	impliedF
+AR[RSC];	IC:mov-to-AR-RSC;	IC:mov-to-AR-RSC;	impliedF
+AR[SSD];	IC:mov-to-AR-SSD;	IC:mov-to-AR-SSD;	impliedF
+AR[UNAT]{%}, % in 0 - 63;	IC:mov-to-AR-UNAT, st8.spill;	IC:mov-to-AR-UNAT, st8.spill;	impliedF
+AR%, % in 8-15, 20, 22-23, 31, 33-35, 37-39, 41-43, 45-47, 67-111;	IC:none;	IC:none;	none
+AR%, % in 48 - 63, 112-127;	IC:mov-to-AR-ig+1;	IC:mov-to-AR-ig+1;	impliedF
+BR%, % in 0 - 7;	br.call+1, brl.call+1;	IC:mov-to-BR+1;	impliedF
+BR%, % in 0 - 7;	IC:mov-to-BR+1;	IC:mov-to-BR+1;	impliedF
+BR%, % in 0 - 7;	br.call+1, brl.call+1;	br.call+1, brl.call+1;	none
+CFM;	IC:mod-sched-brs, br.call, brl.call, br.ret, alloc, clrrrb, cover, rfi;	IC:mod-sched-brs, br.call, brl.call, br.ret, alloc, clrrrb, cover, rfi;	impliedF
+CPUID#;	IC:none;	IC:none;	none
+CR[CMCV];	IC:mov-to-CR-CMCV;	IC:mov-to-CR-CMCV;	impliedF
+CR[DCR];	IC:mov-to-CR-DCR;	IC:mov-to-CR-DCR;	impliedF
+CR[EOI];	IC:mov-to-CR-EOI;	IC:mov-to-CR-EOI;	SC Section 5.8.3.4, "End of External Interrupt Register (EOI Ð CR67)" on page 2:119
+CR[GPTA];	IC:mov-to-CR-GPTA;	IC:mov-to-CR-GPTA;	impliedF
+CR[IFA];	IC:mov-to-CR-IFA;	IC:mov-to-CR-IFA;	impliedF
+CR[IFS];	IC:mov-to-CR-IFS, cover;	IC:mov-to-CR-IFS, cover;	impliedF
+CR[IHA];	IC:mov-to-CR-IHA;	IC:mov-to-CR-IHA;	impliedF
+CR[IIM];	IC:mov-to-CR-IIM;	IC:mov-to-CR-IIM;	impliedF
+CR[IIP];	IC:mov-to-CR-IIP;	IC:mov-to-CR-IIP;	impliedF
+CR[IIPA];	IC:mov-to-CR-IIPA;	IC:mov-to-CR-IIPA;	impliedF
+CR[IPSR];	IC:mov-to-CR-IPSR;	IC:mov-to-CR-IPSR;	impliedF
+CR[IRR%], % in 0 - 3;	IC:mov-from-CR-IVR;	IC:mov-from-CR-IVR;	impliedF
+CR[ISR];	IC:mov-to-CR-ISR;	IC:mov-to-CR-ISR;	impliedF
+CR[ITIR];	IC:mov-to-CR-ITIR;	IC:mov-to-CR-ITIR;	impliedF
+CR[ITM];	IC:mov-to-CR-ITM;	IC:mov-to-CR-ITM;	impliedF
+CR[ITV];	IC:mov-to-CR-ITV;	IC:mov-to-CR-ITV;	impliedF
+CR[IVA];	IC:mov-to-CR-IVA;	IC:mov-to-CR-IVA;	impliedF
+CR[IVR];	IC:none;	IC:none;	SC
+CR[LID];	IC:mov-to-CR-LID;	IC:mov-to-CR-LID;	SC
+CR[LRR%], % in 0 - 1;	IC:mov-to-CR-LRR+1;	IC:mov-to-CR-LRR+1;	impliedF
+CR[PMV];	IC:mov-to-CR-PMV;	IC:mov-to-CR-PMV;	impliedF
+CR[PTA];	IC:mov-to-CR-PTA;	IC:mov-to-CR-PTA;	impliedF
+CR[TPR];	IC:mov-to-CR-TPR;	IC:mov-to-CR-TPR;	impliedF
+CR%, % in 3-7, 10-15, 18, 26-63, 75-79, 82-127;	IC:none;	IC:none;	none
+DBR#;	IC:mov-to-IND-DBR+3;	IC:mov-to-IND-DBR+3;	impliedF
+DTC;	ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d;	ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d;	none
+DTC;	ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d, itc.i, itc.d, itr.i, itr.d;	itc.i, itc.d, itr.i, itr.d;	impliedF
+DTC_LIMIT*;	ptc.g, ptc.ga;	ptc.g, ptc.ga;	impliedF
+DTR;	itr.d;	itr.d;	impliedF
+DTR;	itr.d;	ptr.d;	impliedF
+DTR;	ptr.d;	ptr.d;	none
+FR%, % in 0 - 1;	IC:none;	IC:none;	none
+FR%, % in 2 - 127;	IC:fr-writers+1, IC:ldf-c+1, IC:ldfp-c+1;	IC:fr-writers+1, IC:ldf-c+1, IC:ldfp-c+1;	impliedF
+GR0;	IC:none;	IC:none;	none
+GR%, % in 1 - 127;	IC:ld-c+1, IC:gr-writers+1;	IC:ld-c+1, IC:gr-writers+1;	impliedF
+IBR#;	IC:mov-to-IND-IBR+3;	IC:mov-to-IND-IBR+3;	impliedF
+InService*;	IC:mov-to-CR-EOI, IC:mov-from-CR-IVR;	IC:mov-to-CR-EOI, IC:mov-from-CR-IVR;	SC
+IP;	IC:all;	IC:all;	none
+ITC;	ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d;	ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d;	none
+ITC;	ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d, itc.i, itc.d, itr.i, itr.d;	itc.i, itc.d, itr.i, itr.d;	impliedF
+ITR;	itr.i;	itr.i, ptr.i;	impliedF
+ITR;	ptr.i;	ptr.i;	none
+memory;	IC:mem-writers;	IC:mem-writers;	none
+MSR#;	IC:mov-to-IND-MSR+5;	IC:mov-to-IND-MSR+5;	SC
+PKR#;	IC:mov-to-IND-PKR+3;	IC:mov-to-IND-PKR+4;	none
+PKR#;	IC:mov-to-IND-PKR+3;	IC:mov-to-IND-PKR+3;	impliedF
+PMC#;	IC:mov-to-IND-PMC+3;	IC:mov-to-IND-PMC+3;	impliedF
+PMD#;	IC:mov-to-IND-PMD+3;	IC:mov-to-IND-PMD+3;	impliedF
+PR0;	IC:pr-writers+1;	IC:pr-writers+1;	none
+PR%, % in 1 - 15;	IC:pr-and-writers+1;	IC:pr-and-writers+1;	none
+PR%, % in 1 - 15;	IC:pr-or-writers+1;	IC:pr-or-writers+1;	none
+PR%, % in 1 - 15;	IC:pr-unc-writers-fp+1, IC:pr-unc-writers-int+1, IC:pr-norm-writers-fp+1, IC:pr-norm-writers-int+1, IC:pr-and-writers+1, IC:mov-to-PR-allreg+7;	IC:pr-unc-writers-fp+1, IC:pr-unc-writers-int+1, IC:pr-norm-writers-fp+1, IC:pr-norm-writers-int+1, IC:pr-or-writers+1, IC:mov-to-PR-allreg+7;	impliedF
+PR%, % in 16 - 62;	IC:pr-and-writers+1;	IC:pr-and-writers+1;	none
+PR%, % in 16 - 62;	IC:pr-or-writers+1;	IC:pr-or-writers+1;	none
+PR%, % in 16 - 62;	IC:pr-unc-writers-fp+1, IC:pr-unc-writers-int+1, IC:pr-norm-writers-fp+1, IC:pr-norm-writers-int+1, IC:pr-and-writers+1, IC:mov-to-PR-allreg+7, IC:mov-to-PR-rotreg;	IC:pr-unc-writers-fp+1, IC:pr-unc-writers-int+1, IC:pr-norm-writers-fp+1, IC:pr-norm-writers-int+1, IC:pr-or-writers+1, IC:mov-to-PR-allreg+7, IC:mov-to-PR-rotreg;	impliedF
+PR63;	IC:pr-and-writers+1;	IC:pr-and-writers+1;	none
+PR63;	IC:pr-or-writers+1;	IC:pr-or-writers+1;	none
+PR63;	IC:mod-sched-brs, IC:pr-unc-writers-fp+1, IC:pr-unc-writers-int+1, IC:pr-norm-writers-fp+1, IC:pr-norm-writers-int+1, IC:pr-and-writers+1, IC:mov-to-PR-allreg+7, IC:mov-to-PR-rotreg;	IC:mod-sched-brs, IC:pr-unc-writers-fp+1, IC:pr-unc-writers-int+1, IC:pr-norm-writers-fp+1, IC:pr-norm-writers-int+1, IC:pr-or-writers+1, IC:mov-to-PR-allreg+7, IC:mov-to-PR-rotreg;	impliedF
+PSR.ac;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	impliedF
+PSR.be;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	impliedF
+PSR.bn;	bsw, rfi;	bsw, rfi;	impliedF
+PSR.cpl;	epc, br.ret, rfi;	epc, br.ret, rfi;	impliedF
+PSR.da;	rfi;	rfi;	impliedF
+PSR.db;	IC:mov-to-PSR-l, rfi;	IC:mov-to-PSR-l, rfi;	impliedF
+PSR.dd;	rfi;	rfi;	impliedF
+PSR.dfh;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	impliedF
+PSR.dfl;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	impliedF
+PSR.di;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	impliedF
+PSR.dt;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	impliedF
+PSR.ed;	rfi;	rfi;	impliedF
+PSR.i;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	impliedF
+PSR.ia;	rfi;	rfi;	impliedF
+PSR.ic;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	impliedF
+PSR.id;	rfi;	rfi;	impliedF
+PSR.is;	br.ia, rfi;	br.ia, rfi;	impliedF
+PSR.it;	rfi;	rfi;	impliedF
+PSR.lp;	IC:mov-to-PSR-l, rfi;	IC:mov-to-PSR-l, rfi;	impliedF
+PSR.mc;	rfi;	rfi;	impliedF
+PSR.mfh;	IC:fr-writers+9;	IC:fr-writers+9;	none
+PSR.mfh;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:fr-writers+9, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	impliedF
+PSR.mfl;	IC:fr-writers+9;	IC:fr-writers+9;	none
+PSR.mfl;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:fr-writers+9, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	impliedF
+PSR.pk;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	impliedF
+PSR.pp;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	impliedF
+PSR.ri;	rfi;	rfi;	impliedF
+PSR.rt;	IC:mov-to-PSR-l, rfi;	IC:mov-to-PSR-l, rfi;	impliedF
+PSR.si;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	impliedF
+PSR.sp;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	impliedF
+PSR.ss;	rfi;	rfi;	impliedF
+PSR.tb;	IC:mov-to-PSR-l, rfi;	IC:mov-to-PSR-l, rfi;	impliedF
+PSR.up;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	impliedF
+PSR.vm;	rfi, vmsw;	rfi, vmsw;	impliedF
+RR#;	IC:mov-to-IND-RR+6;	IC:mov-to-IND-RR+6;	impliedF
+RSE;	IC:rse-writers+14;	IC:rse-writers+14;	impliedF

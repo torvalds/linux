@@ -1,0 +1,326 @@
+.TH "Heimdal wind library" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalwindlibrary" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+Heimdal wind library \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "int \fBwind_punycode_label_toascii\fP (const uint32_t *in, size_t in_len, char *out, size_t *out_len)"
+.br
+.ti -1c
+.RI "int \fBwind_stringprep\fP (const uint32_t *in, size_t in_len, uint32_t *out, size_t *out_len, wind_profile_flags flags)"
+.br
+.ti -1c
+.RI "int \fBwind_profile\fP (const char *name, wind_profile_flags *flags)"
+.br
+.ti -1c
+.RI "int \fBwind_utf8ucs4\fP (const char *in, uint32_t *out, size_t *out_len)"
+.br
+.ti -1c
+.RI "int \fBwind_utf8ucs4_length\fP (const char *in, size_t *out_len)"
+.br
+.ti -1c
+.RI "int \fBwind_ucs4utf8\fP (const uint32_t *in, size_t in_len, char *out, size_t *out_len)"
+.br
+.ti -1c
+.RI "int \fBwind_ucs4utf8_length\fP (const uint32_t *in, size_t in_len, size_t *out_len)"
+.br
+.ti -1c
+.RI "int \fBwind_ucs2read\fP (const void *ptr, size_t len, unsigned int *flags, uint16_t *out, size_t *out_len)"
+.br
+.ti -1c
+.RI "int \fBwind_ucs2write\fP (const uint16_t *in, size_t in_len, unsigned int *flags, void *ptr, size_t *out_len)"
+.br
+.ti -1c
+.RI "int \fBwind_utf8ucs2\fP (const char *in, uint16_t *out, size_t *out_len)"
+.br
+.ti -1c
+.RI "int \fBwind_utf8ucs2_length\fP (const char *in, size_t *out_len)"
+.br
+.ti -1c
+.RI "int \fBwind_ucs2utf8\fP (const uint16_t *in, size_t in_len, char *out, size_t *out_len)"
+.br
+.ti -1c
+.RI "int \fBwind_ucs2utf8_length\fP (const uint16_t *in, size_t in_len, size_t *out_len)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "int wind_profile (const char * name, wind_profile_flags * flags)"
+.PP
+Try to find the profile given a name.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIname\fP name of the profile. 
+.br
+\fIflags\fP the resulting profile.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns 0 on success, an wind error code otherwise 
+.RE
+.PP
+
+.SS "int wind_punycode_label_toascii (const uint32_t * in, size_t in_len, char * out, size_t * out_len)"
+.PP
+Convert an UCS4 string to a puny-coded DNS label string suitable when combined with delimiters and other labels for DNS lookup.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIin\fP an UCS4 string to convert 
+.br
+\fIin_len\fP the length of in. 
+.br
+\fIout\fP the resulting puny-coded string. The string is not NUL terminatied. 
+.br
+\fIout_len\fP before processing out_len should be the length of the out variable, after processing it will be the length of the out string.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns 0 on success, an wind error code otherwise 
+.RE
+.PP
+
+.SS "int wind_stringprep (const uint32_t * in, size_t in_len, uint32_t * out, size_t * out_len, wind_profile_flags flags)"
+.PP
+Process a input UCS4 string according a string-prep profile.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIin\fP input UCS4 string to process 
+.br
+\fIin_len\fP length of the input string 
+.br
+\fIout\fP output UCS4 string 
+.br
+\fIout_len\fP length of the output string. 
+.br
+\fIflags\fP stringprep profile.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns 0 on success, an wind error code otherwise 
+.RE
+.PP
+
+.SS "int wind_ucs2read (const void * ptr, size_t len, unsigned int * flags, uint16_t * out, size_t * out_len)"
+.PP
+Read in an UCS2 from a buffer.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIptr\fP The input buffer to read from. 
+.br
+\fIlen\fP the length of the input buffer. 
+.br
+\fIflags\fP Flags to control the behavior of the function. 
+.br
+\fIout\fP the output UCS2, the array must be at least out/2 long. 
+.br
+\fIout_len\fP the output length
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns 0 on success, an wind error code otherwise. 
+.RE
+.PP
+
+.PP
+if len is zero, flags are unchanged
+.PP
+if len is odd, WIND_ERR_LENGTH_NOT_MOD2 is returned
+.PP
+If the flags WIND_RW_BOM is set, check for BOM. If not BOM is found, check is LE/BE flag is already and use that otherwise fail with WIND_ERR_NO_BOM. When done, clear WIND_RW_BOM and the LE/BE flag and set the resulting LE/BE flag. 
+.SS "int wind_ucs2utf8 (const uint16_t * in, size_t in_len, char * out, size_t * out_len)"
+.PP
+Convert an UCS2 string to a UTF-8 string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIin\fP an UCS2 string to convert. 
+.br
+\fIin_len\fP the length of the in UCS2 string. 
+.br
+\fIout\fP the resulting UTF-8 strint, must be at least \fBwind_ucs2utf8_length()\fP long. If out is NULL, the function will calculate the needed space for the out variable (just like \fBwind_ucs2utf8_length()\fP). 
+.br
+\fIout_len\fP before processing out_len should be the length of the out variable, after processing it will be the length of the out string.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns 0 on success, an wind error code otherwise 
+.RE
+.PP
+
+.SS "int wind_ucs2utf8_length (const uint16_t * in, size_t in_len, size_t * out_len)"
+.PP
+Calculate the length of from converting a UCS2 string to an UTF-8 string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIin\fP an UCS2 string to convert. 
+.br
+\fIin_len\fP an UCS2 string length to convert. 
+.br
+\fIout_len\fP the length of the resulting UTF-8 string.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns 0 on success, an wind error code otherwise 
+.RE
+.PP
+
+.SS "int wind_ucs2write (const uint16_t * in, size_t in_len, unsigned int * flags, void * ptr, size_t * out_len)"
+.PP
+Write an UCS2 string to a buffer.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIin\fP The input UCS2 string. 
+.br
+\fIin_len\fP the length of the input buffer. 
+.br
+\fIflags\fP Flags to control the behavior of the function. 
+.br
+\fIptr\fP The input buffer to write to, the array must be at least (in + 1) * 2 bytes long. 
+.br
+\fIout_len\fP the output length
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns 0 on success, an wind error code otherwise. 
+.RE
+.PP
+
+.PP
+If in buffer is not of length be mod 2, WIND_ERR_LENGTH_NOT_MOD2 is returned
+.PP
+On zero input length, flags are preserved
+.PP
+If flags have WIND_RW_BOM set, the byte order mark is written first to the output data
+.PP
+If the output wont fit into out_len, WIND_ERR_OVERRUN is returned 
+.SS "int wind_ucs4utf8 (const uint32_t * in, size_t in_len, char * out, size_t * out_len)"
+.PP
+Convert an UCS4 string to a UTF-8 string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIin\fP an UCS4 string to convert. 
+.br
+\fIin_len\fP the length input array.
+.br
+\fIout\fP the resulting UTF-8 strint, must be at least \fBwind_ucs4utf8_length()\fP + 1 long (the extra char for the NUL). If out is NULL, the function will calculate the needed space for the out variable (just like \fBwind_ucs4utf8_length()\fP).
+.br
+\fIout_len\fP before processing out_len should be the length of the out variable, after processing it will be the length of the out string.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns 0 on success, an wind error code otherwise 
+.RE
+.PP
+
+.SS "int wind_ucs4utf8_length (const uint32_t * in, size_t in_len, size_t * out_len)"
+.PP
+Calculate the length of from converting a UCS4 string to an UTF-8 string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIin\fP an UCS4 string to convert. 
+.br
+\fIin_len\fP the length of UCS4 string to convert. 
+.br
+\fIout_len\fP the length of the resulting UTF-8 string.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns 0 on success, an wind error code otherwise 
+.RE
+.PP
+
+.SS "int wind_utf8ucs2 (const char * in, uint16_t * out, size_t * out_len)"
+.PP
+Convert an UTF-8 string to an UCS2 string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIin\fP an UTF-8 string to convert. 
+.br
+\fIout\fP the resulting UCS2 strint, must be at least \fBwind_utf8ucs2_length()\fP long. If out is NULL, the function will calculate the needed space for the out variable (just like \fBwind_utf8ucs2_length()\fP). 
+.br
+\fIout_len\fP before processing out_len should be the length of the out variable, after processing it will be the length of the out string.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns 0 on success, an wind error code otherwise 
+.RE
+.PP
+
+.SS "int wind_utf8ucs2_length (const char * in, size_t * out_len)"
+.PP
+Calculate the length of from converting a UTF-8 string to a UCS2 string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIin\fP an UTF-8 string to convert. 
+.br
+\fIout_len\fP the length of the resulting UCS4 string.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns 0 on success, an wind error code otherwise 
+.RE
+.PP
+
+.SS "int wind_utf8ucs4 (const char * in, uint32_t * out, size_t * out_len)"
+.PP
+Convert an UTF-8 string to an UCS4 string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIin\fP an UTF-8 string to convert. 
+.br
+\fIout\fP the resulting UCS4 strint, must be at least \fBwind_utf8ucs4_length()\fP long. If out is NULL, the function will calculate the needed space for the out variable (just like \fBwind_utf8ucs4_length()\fP). 
+.br
+\fIout_len\fP before processing out_len should be the length of the out variable, after processing it will be the length of the out string.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns 0 on success, an wind error code otherwise 
+.RE
+.PP
+
+.SS "int wind_utf8ucs4_length (const char * in, size_t * out_len)"
+.PP
+Calculate the length of from converting a UTF-8 string to a UCS4 string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIin\fP an UTF-8 string to convert. 
+.br
+\fIout_len\fP the length of the resulting UCS4 string.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns 0 on success, an wind error code otherwise 
+.RE
+.PP
+

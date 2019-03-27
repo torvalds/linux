@@ -1,0 +1,234 @@
+.\" Copyright (c) 1986, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)resolver.5	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd August 16, 2018
+.Dt RESOLVER 5
+.Os
+.Sh NAME
+.Nm resolver
+.Nd resolver configuration file
+.Sh SYNOPSIS
+.Nm resolv.conf
+.Sh DESCRIPTION
+The
+.Xr resolver 3
+is a set of routines in the C library
+which provide access to the Internet Domain Name System.
+The resolver configuration file contains information that is read
+by the resolver routines the first time they are invoked by a process.
+The file is designed to be human readable and contains a list of
+keywords with values that provide various types of resolver information.
+.Pp
+On a normally configured system this file should not be necessary.
+The only name server to be queried will be on the local machine,
+the domain name is determined from the host name,
+and the domain search path is constructed from the domain name.
+.Pp
+The different configuration options are:
+.Bl -tag -width nameserver
+.It Sy nameserver
+Internet address (in dot notation) of a name server
+that the resolver should query.
+Up to
+.Dv MAXNS
+(currently 3) name servers may be listed,
+one per keyword.
+If there are multiple servers,
+the resolver library queries them in the order listed.
+If no
+.Sy nameserver
+entries are present,
+the default is to use the name server on the local machine.
+(The algorithm used is to try a name server, and if the query times out,
+try the next, until out of name servers,
+then repeat trying all the name servers
+until a maximum number of retries are made).
+.It Sy domain
+Local domain name.
+Most queries for names within this domain can use short names
+relative to the local domain.
+If no
+.Sy domain
+entry is present, the domain is determined
+from the local host name returned by
+.Xr gethostname 3 ;
+the domain part is taken to be everything after the first
+.Ql \&. .
+Finally, if the host name does not contain a domain part, the root
+domain is assumed.
+.It Sy search
+Search list for host-name lookup.
+The search list is normally determined from the local domain name;
+by default, it contains only the local domain name.
+This may be changed by listing the desired domain search path
+following the
+.Sy search
+keyword with spaces or tabs separating
+the names.
+Most resolver queries will be attempted using each component
+of the search path in turn until a match is found.
+Note that this process may be slow and will generate a lot of network
+traffic if the servers for the listed domains are not local,
+and that queries will time out if no server is available
+for one of the domains.
+.Pp
+The search list is currently limited to six domains
+with a total of 256 characters.
+.It Sy sortlist
+Sortlist allows addresses returned by gethostbyname to be sorted.
+A sortlist is specified by IP address netmask pairs.
+The netmask is
+optional and defaults to the natural netmask of the net.
+The IP address
+and optional network pairs are separated by slashes.
+Up to 10 pairs may
+be specified.
+E.g.,
+.Pp
+.Dl "sortlist 130.155.160.0/255.255.240.0 130.155.0.0"
+.It Sy options
+Options allows certain internal resolver variables to be modified.
+The syntax is
+.Pp
+\fBoptions\fP \fIoption\fP \fI...\fP
+.Pp
+where
+.Sy option
+is one of the following:
+.Bl -tag -width no_tld_query
+.It Sy debug
+sets
+.Dv RES_DEBUG
+in _res.options.
+.It Sy usevc
+sets
+.Dv RES_USEVC
+to use TCP instead of UDP for queries.
+.It Sy ndots: Ns Ar n
+sets a threshold for the number of dots which must appear in a name given to
+.Fn res_query
+(see
+.Xr resolver 3 )
+before an
+.Em initial absolute query
+will be made.
+The default for
+.Em n
+is
+.Dq 1 ,
+meaning that if there are any dots in a name, the name
+will be tried first as an absolute name before any
+.Em search list
+elements are appended to it.
+.It Sy timeout: Ns Ar n
+sets the initial amount of time the resolver will wait
+for a response from a remote
+name server before retrying the query via a different name server.
+The resolver may wait longer during subsequent retries
+of the current query since an exponential back-off is applied to
+the timeout value.
+Measured in seconds, the default is
+.Dv RES_TIMEOUT ,
+the allowed maximum is
+.Dv RES_MAXRETRANS
+(see
+.In resolv.h ) .
+.It Sy attempts: Ns Ar n
+sets the number of times the resolver will send a query to each of
+its name servers
+before giving up and returning an error to the calling application.
+The default is
+.Dv RES_DFLRETRY ,
+the allowed maximum is
+.Dv RES_MAXRETRY
+(see
+.In resolv.h ) .
+.It Sy no_tld_query
+tells the resolver not to attempt to resolve a top level domain name, that
+is, a name that contains no dots.
+Use of this option does not prevent
+the resolver from obeying the standard
+.Sy domain
+and
+.Sy search
+rules with the given name.
+.It Sy reload-period: Ns Ar n
+The resolver checks the modification time of
+.Pa /etc/resolv.conf
+every
+.Ar n
+seconds.
+If
+.Pa /etc/resolv.conf
+has changed, it is automatically reloaded.
+The default for
+.Ar n
+is two seconds.
+Setting it to zero disables the file check.
+.El
+.Pp
+Options may also be specified as a space or tab separated list using the
+.Dv RES_OPTIONS
+environment variable.
+.El
+.Pp
+The
+.Sy domain
+and
+.Sy search
+keywords are mutually exclusive.
+If more than one instance of these keywords is present,
+the last instance will override.
+.Pp
+The keyword and value must appear on a single line, and the keyword
+.Pq for example, Sy nameserver
+must start the line.
+The value follows the keyword, separated by white space.
+.Sh FILES
+.Bl -tag -width /etc/resolv.conf -compact
+.It Pa /etc/resolv.conf
+The file
+.Nm resolv.conf
+resides in
+.Pa /etc .
+.El
+.Sh SEE ALSO
+.Xr gethostbyname 3 ,
+.Xr resolver 3 ,
+.Xr hostname 7 ,
+.Xr resolvconf 8
+.Rs
+.%T "Name Server Operations Guide for BIND"
+.Re
+.Sh HISTORY
+The
+.Nm resolv.conf
+file format appeared in
+.Bx 4.3 .

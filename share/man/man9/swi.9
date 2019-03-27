@@ -1,0 +1,249 @@
+.\" Copyright (c) 2000-2001 John H. Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 19, 2012
+.Dt SWI 9
+.Os
+.Sh NAME
+.Nm swi_add ,
+.Nm swi_remove ,
+.Nm swi_sched
+.Nd register and schedule software interrupt handlers
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.In sys/interrupt.h
+.Vt "extern struct intr_event *tty_intr_event" ;
+.Vt "extern struct intr_event *clk_intr_event" ;
+.Vt "extern void *vm_ih" ;
+.Ft int
+.Fo swi_add
+.Fa "struct intr_event **eventp"
+.Fa "const char *name"
+.Fa "driver_intr_t handler"
+.Fa "void *arg"
+.Fa "int pri"
+.Fa "enum intr_type flags"
+.Fa "void **cookiep"
+.Fc
+.Ft int
+.Fn swi_remove "void *cookie"
+.Ft void
+.Fn swi_sched "void *cookie" "int flags"
+.Sh DESCRIPTION
+These functions are used to register and schedule software interrupt handlers.
+Software interrupt handlers are attached to a software interrupt thread, just
+as hardware interrupt handlers are attached to a hardware interrupt thread.
+Multiple handlers can be attached to the same thread.
+Software interrupt handlers can be used to queue up less critical processing
+inside of hardware interrupt handlers so that the work can be done at a later
+time.
+Software interrupt threads are different from other kernel threads in that they
+are treated as an interrupt thread.
+This means that time spent executing these threads is counted as interrupt
+time, and that they can be run via a lightweight context switch.
+.Pp
+The
+.Fn swi_add
+function is used to add a new software interrupt handler to a specified
+interrupt event.
+The
+.Fa eventp
+argument is an optional pointer to a
+.Vt struct intr_event
+pointer.
+If this argument points to an existing event that holds a list of
+interrupt handlers, then this handler will be attached to that event.
+Otherwise a new event will be created, and if
+.Fa eventp
+is not
+.Dv NULL ,
+then the pointer at that address to will be modified to point to the
+newly created event.
+The
+.Fa name
+argument is used to associate a name with a specific handler.
+This name is appended to the name of the software interrupt thread that this
+handler is attached to.
+The
+.Fa handler
+argument is the function that will be executed when the handler is scheduled
+to run.
+The
+.Fa arg
+parameter will be passed in as the only parameter to
+.Fa handler
+when the function is executed.
+The
+.Fa pri
+value specifies the priority of this interrupt handler relative to other
+software interrupt handlers.
+If an interrupt event is created, then this value is used as the vector,
+and the
+.Fa flags
+argument is used to specify the attributes of a handler such as
+.Dv INTR_MPSAFE .
+The
+.Fa cookiep
+argument points to a
+.Vt void *
+cookie.
+This cookie will be set to a value that uniquely identifies this handler,
+and is used to schedule the handler for execution later on.
+.Pp
+The
+.Fn swi_remove
+function is used to teardown an interrupt handler pointed to by the
+.Fa cookie
+argument.
+It detaches the interrupt handler from the associated interrupt event
+and frees its memory.
+.Pp
+The
+.Fn swi_sched
+function is used to schedule an interrupt handler and its associated thread to
+run.
+The
+.Fa cookie
+argument specifies which software interrupt handler should be scheduled to run.
+The
+.Fa flags
+argument specifies how and when the handler should be run and is a mask of one
+or more of the following flags:
+.Bl -tag -width SWI_DELAY
+.It Dv SWI_DELAY
+Specifies that the kernel should mark the specified handler as needing to run,
+but the kernel should not schedule the software interrupt thread to run.
+Instead,
+.Fa handler
+will be executed the next time that the software interrupt thread runs after
+being scheduled by another event.
+Attaching a handler to the clock software interrupt thread and using this flag
+when scheduling a software interrupt handler can be used to implement the
+functionality performed by
+.Fn setdelayed
+in earlier versions of
+.Fx .
+.El
+.Pp
+The
+.Va tty_intr_event
+and
+.Va clk_intr_event
+variables contain pointers to the software interrupt handlers for the tty and
+clock software interrupts, respectively.
+.Va tty_intr_event
+is used to hang tty software interrupt handlers off of the same thread.
+.Va clk_intr_event
+is used to hang delayed handlers off of the clock software interrupt thread so
+that the functionality of
+.Fn setdelayed
+can be obtained in conjunction with
+.Dv SWI_DELAY .
+The
+.Va vm_ih
+handler cookie is used to schedule software interrupt threads to run for the
+VM subsystem.
+.Sh RETURN VALUES
+The
+.Fn swi_add
+and
+.Fn swi_remove
+functions return zero on success and non-zero on failure.
+.Sh ERRORS
+The
+.Fn swi_add
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The system-imposed limit on the total
+number of processes under execution would be exceeded.
+The limit is given by the
+.Xr sysctl 3
+MIB variable
+.Dv KERN_MAXPROC .
+.It Bq Er EINVAL
+The
+.Fa flags
+argument specifies
+.Dv INTR_ENTROPY .
+.It Bq Er EINVAL
+The
+.Fa eventp
+argument points to a hardware interrupt thread.
+.It Bq Er EINVAL
+Either of the
+.Fa name
+or
+.Fa handler
+arguments are
+.Dv NULL .
+.It Bq Er EINVAL
+The
+.Dv INTR_EXCL
+flag is specified and the interrupt event pointed to by
+.Fa eventp
+already has at least one handler, or the interrupt event already has an
+exclusive handler.
+.El
+.Pp
+The
+.Fn swi_remove
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+A software interrupt handler pointed to by
+.Fa cookie
+is
+.Dv NULL .
+.El
+.Sh SEE ALSO
+.Xr ithread 9 ,
+.Xr taskqueue 9
+.Sh HISTORY
+The
+.Fn swi_add
+and
+.Fn swi_sched
+functions first appeared in
+.Fx 5.0 .
+They replaced the
+.Fn register_swi
+function which appeared in
+.Fx 3.0
+and the
+.Fn setsoft* ,
+and
+.Fn schedsoft*
+functions which date back to at least
+.Bx 4.4 .
+The
+.Fn swi_remove
+function first appeared in
+.Fx 6.1 .
+.Sh BUGS
+Most of the global variables described in this manual page should not be
+global, or at the very least should not be declared in
+.In sys/interrupt.h .

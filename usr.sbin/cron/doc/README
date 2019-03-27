@@ -1,0 +1,72 @@
+#/* Copyright 1988,1990,1993 by Paul Vixie
+# * All rights reserved
+# *
+# * Distribute freely, except: don't remove my name from the source or
+# * documentation (don't take credit for my work), mark your changes (don't
+# * get me blamed for your possible bugs), don't alter or remove this
+# * notice.  May be sold if buildable source is provided to buyer.  No
+# * warrantee of any kind, express or implied, is included with this
+# * software; use at your own risk, responsibility for damages (if any) to
+# * anyone resulting from the use of this software rests entirely with the
+# * user.
+# *
+# * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
+# * I'll try to keep a version up to date.  I can be reached as follows:
+# * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
+# */
+
+Vixie Cron V3.0
+December 27, 1993
+[V2.2 was some time in 1992]
+[V2.1 was May 29, 1991]
+[V2.0 was July 5, 1990]
+[V2.0-beta was December 9, 1988]
+[V1.0 was May 6, 1987]
+Paul Vixie
+
+This is a version of 'cron' that is known to run on BSD 4.[23] systems.  It
+is functionally based on the SysV cron, which means that each user can have
+their own crontab file (all crontab files are stored in a read-protected
+directory, usually /var/cron/tabs).  No direct support is provided for
+'at'; you can continue to run 'atrun' from the crontab as you have been
+doing.  If you don't have atrun (i.e., System V) you are in trouble.
+
+A messages is logged each time a command is executed; also, the files
+"allow" and "deny" in /var/cron can be used to control access to the
+"crontab" command (which installs crontabs).  It hasn't been tested on
+SysV, although some effort has gone into making the port an easy one.
+
+This is more or less the copyright that USENET contributed software usually
+has.  Since ATT couldn't use this version if they had to freely distribute
+source, and since I'd love to see them use it, I'll offer some rediculously
+low license fee just to have them take it.  In the unlikely event that they
+do this, I will continue to support and distribute the pseudo-PD version, so
+please, don't flame me for wanting my work to see a wider distribution.
+
+To use this: Sorry, folks, there is no cutesy 'Configure' script.  You'll
+have to go edit a couple of files... So, here's the checklist:
+
+	Read all the FEATURES, INSTALL, and CONVERSION files
+	Edit config.h
+	Edit Makefile
+		(both of these files have instructions inside; note that
+		 some things in config.h are definable in Makefile and are
+		 therefore surrounded by #ifndef...#endif)
+	'make'
+	'su' and 'make install'
+		(you may have to install the man pages by hand)
+	kill your existing cron process
+		(actually you can run your existing cron if you want, but why?)
+	build new crontabs using /usr/lib/{crontab,crontab.local}
+		(either put them all in "root"'s crontab, or divide it up
+		 and rip out all the 'su' commands, collapse the lengthy
+		 lists into ranges with steps -- basically, this step is
+		 as much work as you want to make it)
+	start up the new cron
+		(must be done as root)
+	watch it. test it with 'crontab -r' and watch the daemon track your
+		changes.
+	if you like it, change your /etc/{rc,rc.local} to use it instead of
+		the old one.
+
+$FreeBSD$

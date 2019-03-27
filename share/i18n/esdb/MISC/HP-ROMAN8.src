@@ -1,0 +1,8 @@
+# $FreeBSD$ 
+# $NetBSD: HP-ROMAN8.src,v 1.1 2006/10/19 14:45:02 tnozaki Exp $
+
+NAME		"HP-ROMAN8"
+ENCODING	"NONE"
+VARIABLE	"none"
+DEFCSID		"HP-ROMAN8"		0
+INVALID		0x3F # '?'

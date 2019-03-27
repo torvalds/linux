@@ -1,0 +1,36 @@
+#------------------------------------------------------------------------------
+# $File: make,v 1.4 2018/05/29 17:26:02 christos Exp $
+# make:  file(1) magic for makefiles
+#
+# URL: https://en.wikipedia.org/wiki/Make_(software)
+0	regex/100l	\^CFLAGS	makefile script text
+!:mime	text/x-makefile
+0	regex/100l	\^VPATH		makefile script text
+!:mime	text/x-makefile
+0	regex/100l	\^LDFLAGS	makefile script text
+!:mime	text/x-makefile
+0	regex/100l	\^all:		makefile script text
+!:mime	text/x-makefile
+0	regex/100l	\^\\.PRECIOUS	makefile script text
+!:mime	text/x-makefile
+# Update: Joerg Jenderek
+# Reference: https://www.freebsd.org/cgi/man.cgi?make(1)
+# exclude grub-core\lib\libgcrypt\mpi\Makefile.am with "#BEGIN_ASM_LIST"
+# by additional escaping point character
+0	regex/100l	\^\\.BEGIN	BSD makefile script text
+!:mime	text/x-makefile
+!:ext	/mk
+!:strength +10
+# exclude MS Windows help file CoNtenT with ":include FOOBAR.CNT"
+# and NSIS script with "!include" by additional escaping point character
+0	regex/100l	\^\\.include	BSD makefile script text
+!:mime	text/x-makefile
+!:ext	/mk
+!:strength +10
+0	regex/100l	\^\\.endif	BSD makefile script text
+!:mime	text/x-makefile
+!:ext	/mk
+!:strength +10
+0	regex/100l	\^SUBDIRS	automake makefile script text
+!:mime	text/x-makefile
+!:strength +10

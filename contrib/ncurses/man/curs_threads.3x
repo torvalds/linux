@@ -1,0 +1,601 @@
+.\"***************************************************************************
+.\" Copyright (c) 2008-2010,2012 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_threads.3x,v 1.19 2012/05/26 17:03:26 tom Exp $
+.TH curs_threads 3X ""
+.de bP
+.IP \(bu 4
+..
+.na
+.hy 0
+.SH NAME
+\fBuse_screen\fR,
+\fBuse_window\fR \- \fBcurses\fR thread support
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBtypedef int (*NCURSES_WINDOW_CB)(WINDOW *, void *);\fR
+.br
+\fBtypedef int (*NCURSES_SCREEN_CB)(SCREEN *, void *);\fR
+.br
+\fBint get_escdelay(void);\fR
+.br
+\fBint set_escdelay(int size);\fR
+.br
+\fBint set_tabsize(int size);\fR
+.br
+\fBint use_screen(SCREEN *scr, NCURSES_SCREEN_CB func, void *data);\fR
+.br
+\fBint use_window(WINDOW *win, NCURSES_WINDOW_CB func, void *data);\fR
+.br
+.SH DESCRIPTION
+This implementation can be configured to provide rudimentary support
+for multi-threaded applications.
+This makes a different set of libraries, e.g., \fIlibncursest\fP since
+the binary interfaces are different.
+.PP
+Rather than modify the interfaces to pass a thread specifier to
+each function, it adds a few functions which can be used in any
+configuration which hide the mutex's needed to prevent concurrent
+use of the global variables when configured for threading.
+.PP
+In addition to forcing access to members of the \fBWINDOW\fP structure
+to be via functions (see \fBcurs_opaque\fP(3x)),
+it makes functions of the common global variables,
+e.g.,
+COLORS,
+COLOR_PAIRS,
+COLS,
+ESCDELAY,
+LINES,
+TABSIZE
+curscr,
+newscr and
+ttytype.
+Those variables are maintained as read-only values, stored in the \fBSCREEN\fP
+structure.
+.PP
+Even this is not enough to make a thread-safe application using curses.
+A multi-threaded application would be expected to have threads updating
+separate windows (within the same device),
+or updating on separate screens (on different devices).
+Also, a few of the global variables are considered writable by some
+applications.
+The functions described here address these special situations.
+.PP
+The ESCDELAY and TABSIZE global variables are modified by some applications.
+To modify them in any configuration,
+use the \fBset_escdelay\fP or \fBset_tabsize\fP functions.
+Other global variables are not modifiable.
+.PP
+The \fBget_escdelay\fP function returns the value for ESCDELAY.
+.PP
+The \fBuse_window\fP and \fBuse_screen\fP functions provide coarse
+granularity mutexes for their respective \fBWINDOW\fP and \fBSCREEN\fP
+parameters, and call a user-supplied function,
+passing it a \fIdata\fP parameter,
+and returning the value from the user-supplied function to the application.
+.\" ***************************************************************************
+.SS USAGE
+All of the ncurses library functions assume that the locale is not
+altered during operation.
+In addition,
+they use data which is maintained within a hierarchy of scopes.
+.RS 3
+.bP
+global data, e.g., used in the low-level terminfo or termcap interfaces.
+.bP
+terminal data, e.g., associated with a call to \fIset_curterm\fP.
+The terminal data are initialized when screens are created.
+.bP
+screen data, e.g., associated with a call to \fInewterm\fP or \fIinitscr\fP.
+.bP
+window data, e.g., associated with a call to \fInewwin\fP or \fIsubwin\fP.
+Windows are associated with screens.
+Pads are not necessarily associated with a particular screen.
+.IP
+Most curses applications operate on one or more windows within a single screen.
+.bP
+reentrant, i.e., it uses only the data passed as parameters.
+.RE
+.PP
+This table lists the scope of data used for each symbol in the
+ncurses library when it is configured to support threading:
+.TS
+center tab(/);
+l l
+l l .
+Symbol/Scope
+=
+BC/global
+COLORS/screen (readonly)
+COLOR_PAIR/reentrant
+COLOR_PAIRS/screen (readonly)
+COLS/screen (readonly)
+ESCDELAY/screen (readonly, see \fIset_escdelay\fP)
+LINES/screen (readonly)
+PAIR_NUMBER/reentrant
+PC/global
+SP/global
+TABSIZE/screen (readonly)
+UP/global
+acs_map/screen (readonly)
+add_wch/window (stdscr)
+add_wchnstr/window (stdscr)
+add_wchstr/window (stdscr)
+addch/window (stdscr)
+addchnstr/window (stdscr)
+addchstr/window (stdscr)
+addnstr/window (stdscr)
+addnwstr/window (stdscr)
+addstr/window (stdscr)
+addwstr/window (stdscr)
+assume_default_colors/screen
+attr_get/window (stdscr)
+attr_off/window (stdscr)
+attr_on/window (stdscr)
+attr_set/window (stdscr)
+attroff/window (stdscr)
+attron/window (stdscr)
+attrset/window (stdscr)
+baudrate/screen
+beep/screen
+bkgd/window (stdscr)
+bkgdset/window (stdscr)
+bkgrnd/window (stdscr)
+bkgrndset/window (stdscr)
+boolcodes/global (readonly)
+boolfnames/global (readonly)
+boolnames/global (readonly)
+border/window (stdscr)
+border_set/window (stdscr)
+box/window (stdscr)
+box_set/window (stdscr)
+can_change_color/terminal
+cbreak/screen
+chgat/window (stdscr)
+clear/window (stdscr)
+clearok/window
+clrtobot/window (stdscr)
+clrtoeol/window (stdscr)
+color_content/screen
+color_set/window (stdscr)
+copywin/window locks(source, target)
+cur_term/terminal
+curs_set/screen
+curscr/screen (readonly)
+curses_version/global (readonly)
+def_prog_mode/terminal
+def_shell_mode/terminal
+define_key/screen
+del_curterm/screen
+delay_output/screen
+delch/window (stdscr)
+deleteln/window (stdscr)
+delscreen/global locks(screenlist, screen)
+delwin/global locks(windowlist)
+derwin/screen
+doupdate/screen
+dupwin/screen locks(window)
+echo/screen
+echo_wchar/window (stdscr)
+echochar/window (stdscr)
+endwin/screen
+erase/window (stdscr)
+erasechar/window (stdscr)
+erasewchar/window (stdscr)
+filter/global
+flash/terminal
+flushinp/screen
+get_wch/screen (input-operation)
+get_wstr/screen (input-operation)
+getattrs/window
+getbegx/window
+getbegy/window
+getbkgd/window
+getbkgrnd/window
+getcchar/reentrant
+getch/screen (input-operation)
+getcurx/window
+getcury/window
+getmaxx/window
+getmaxy/window
+getmouse/screen (input-operation)
+getn_wstr/screen (input-operation)
+getnstr/screen (input-operation)
+getparx/window
+getpary/window
+getstr/screen (input-operation)
+getwin/screen (input-operation)
+halfdelay/screen
+has_colors/terminal
+has_ic/terminal
+has_il/terminal
+has_key/screen
+hline/window (stdscr)
+hline_set/window (stdscr)
+idcok/window
+idlok/window
+immedok/window
+in_wch/window (stdscr)
+in_wchnstr/window (stdscr)
+in_wchstr/window (stdscr)
+inch/window (stdscr)
+inchnstr/window (stdscr)
+inchstr/window (stdscr)
+init_color/screen
+init_pair/screen
+initscr/global locks(screenlist)
+innstr/window (stdscr)
+innwstr/window (stdscr)
+ins_nwstr/window (stdscr)
+ins_wch/window (stdscr)
+ins_wstr/window (stdscr)
+insch/window (stdscr)
+insdelln/window (stdscr)
+insertln/window (stdscr)
+insnstr/window (stdscr)
+insstr/window (stdscr)
+instr/window (stdscr)
+intrflush/terminal
+inwstr/window (stdscr)
+is_cleared/window
+is_idcok/window
+is_idlok/window
+is_immedok/window
+is_keypad/window
+is_leaveok/window
+is_linetouched/window
+is_nodelay/window
+is_notimeout/window
+is_scrollok/window
+is_syncok/window
+is_term_resized/terminal
+is_wintouched/window
+isendwin/screen
+key_defined/screen
+key_name/global (static data)
+keybound/screen
+keyname/global (static data)
+keyok/screen
+keypad/window
+killchar/terminal
+killwchar/terminal
+leaveok/window
+longname/screen
+mcprint/terminal
+meta/screen
+mouse_trafo/window (stdscr)
+mouseinterval/screen
+mousemask/screen
+move/window (stdscr)
+mvadd_wch/window (stdscr)
+mvadd_wchnstr/window (stdscr)
+mvadd_wchstr/window (stdscr)
+mvaddch/window (stdscr)
+mvaddchnstr/window (stdscr)
+mvaddchstr/window (stdscr)
+mvaddnstr/window (stdscr)
+mvaddnwstr/window (stdscr)
+mvaddstr/window (stdscr)
+mvaddwstr/window (stdscr)
+mvchgat/window (stdscr)
+mvcur/screen
+mvdelch/window (stdscr)
+mvderwin/window (stdscr)
+mvget_wch/screen (input-operation)
+mvget_wstr/screen (input-operation)
+mvgetch/screen (input-operation)
+mvgetn_wstr/screen (input-operation)
+mvgetnstr/screen (input-operation)
+mvgetstr/screen (input-operation)
+mvhline/window (stdscr)
+mvhline_set/window (stdscr)
+mvin_wch/window (stdscr)
+mvin_wchnstr/window (stdscr)
+mvin_wchstr/window (stdscr)
+mvinch/window (stdscr)
+mvinchnstr/window (stdscr)
+mvinchstr/window (stdscr)
+mvinnstr/window (stdscr)
+mvinnwstr/window (stdscr)
+mvins_nwstr/window (stdscr)
+mvins_wch/window (stdscr)
+mvins_wstr/window (stdscr)
+mvinsch/window (stdscr)
+mvinsnstr/window (stdscr)
+mvinsstr/window (stdscr)
+mvinstr/window (stdscr)
+mvinwstr/window (stdscr)
+mvprintw/window (stdscr)
+mvscanw/screen
+mvvline/window (stdscr)
+mvvline_set/window (stdscr)
+mvwadd_wch/window
+mvwadd_wchnstr/window
+mvwadd_wchstr/window
+mvwaddch/window
+mvwaddchnstr/window
+mvwaddchstr/window
+mvwaddnstr/window
+mvwaddnwstr/window
+mvwaddstr/window
+mvwaddwstr/window
+mvwchgat/window
+mvwdelch/window
+mvwget_wch/screen (input-operation)
+mvwget_wstr/screen (input-operation)
+mvwgetch/screen (input-operation)
+mvwgetn_wstr/screen (input-operation)
+mvwgetnstr/screen (input-operation)
+mvwgetstr/screen (input-operation)
+mvwhline/window
+mvwhline_set/window
+mvwin/window
+mvwin_wch/window
+mvwin_wchnstr/window
+mvwin_wchstr/window
+mvwinch/window
+mvwinchnstr/window
+mvwinchstr/window
+mvwinnstr/window
+mvwinnwstr/window
+mvwins_nwstr/window
+mvwins_wch/window
+mvwins_wstr/window
+mvwinsch/window
+mvwinsnstr/window
+mvwinsstr/window
+mvwinstr/window
+mvwinwstr/window
+mvwprintw/window
+mvwscanw/screen
+mvwvline/window
+mvwvline_set/window
+napms/reentrant
+newpad/global locks(windowlist)
+newscr/screen (readonly)
+newterm/global locks(screenlist)
+newwin/global locks(windowlist)
+nl/screen
+nocbreak/screen
+nodelay/window
+noecho/screen
+nofilter/global
+nonl/screen
+noqiflush/terminal
+noraw/screen
+notimeout/window
+numcodes/global (readonly)
+numfnames/global (readonly)
+numnames/global (readonly)
+ospeed/global
+overlay/window locks(source, target)
+overwrite/window locks(source, target)
+pair_content/screen
+pecho_wchar/screen
+pechochar/screen
+pnoutrefresh/screen
+prefresh/screen
+printw/window
+putp/global
+putwin/window
+qiflush/terminal
+raw/screen
+redrawwin/window
+refresh/screen
+reset_prog_mode/screen
+reset_shell_mode/screen
+resetty/terminal
+resize_term/screen locks(windowlist)
+resizeterm/screen
+restartterm/screen
+ripoffline/global (static data)
+savetty/terminal
+scanw/screen
+scr_dump/screen
+scr_init/screen
+scr_restore/screen
+scr_set/screen
+scrl/window (stdscr)
+scroll/window
+scrollok/window
+set_curterm/screen
+set_escdelay/screen
+set_tabsize/screen
+set_term/global locks(screenlist, screen)
+setcchar/reentrant
+setscrreg/window (stdscr)
+setupterm/global
+slk_attr/screen
+slk_attr_off/screen
+slk_attr_on/screen
+slk_attr_set/screen
+slk_attroff/screen
+slk_attron/screen
+slk_attrset/screen
+slk_clear/screen
+slk_color/screen
+slk_init/screen
+slk_label/screen
+slk_noutrefresh/screen
+slk_refresh/screen
+slk_restore/screen
+slk_set/screen
+slk_touch/screen
+slk_wset/screen
+standend/window
+standout/window
+start_color/screen
+stdscr/screen (readonly)
+strcodes/global (readonly)
+strfnames/global (readonly)
+strnames/global (readonly)
+subpad/window
+subwin/window
+syncok/window
+term_attrs/screen
+termattrs/screen
+termname/terminal
+tgetent/global
+tgetflag/global
+tgetnum/global
+tgetstr/global
+tgoto/global
+tigetflag/terminal
+tigetnum/terminal
+tigetstr/terminal
+timeout/window (stdscr)
+touchline/window
+touchwin/window
+tparm/global (static data)
+tputs/screen
+trace/global (static data)
+ttytype/screen (readonly)
+typeahead/screen
+unctrl/screen
+unget_wch/screen (input-operation)
+ungetch/screen (input-operation)
+ungetmouse/screen (input-operation)
+untouchwin/window
+use_default_colors/screen
+use_env/global (static data)
+use_extended_names/global (static data)
+use_legacy_coding/screen
+use_screen/global locks(screenlist, screen)
+use_window/global locks(windowlist, window)
+vid_attr/screen
+vid_puts/screen
+vidattr/screen
+vidputs/screen
+vline/window (stdscr)
+vline_set/window (stdscr)
+vw_printw/window
+vw_scanw/screen
+vwprintw/window
+vwscanw/screen
+wadd_wch/window
+wadd_wchnstr/window
+wadd_wchstr/window
+waddch/window
+waddchnstr/window
+waddchstr/window
+waddnstr/window
+waddnwstr/window
+waddstr/window
+waddwstr/window
+wattr_get/window
+wattr_off/window
+wattr_on/window
+wattr_set/window
+wattroff/window
+wattron/window
+wattrset/window
+wbkgd/window
+wbkgdset/window
+wbkgrnd/window
+wbkgrndset/window
+wborder/window
+wborder_set/window
+wchgat/window
+wclear/window
+wclrtobot/window
+wclrtoeol/window
+wcolor_set/window
+wcursyncup/screen (affects window plus parents)
+wdelch/window
+wdeleteln/window
+wecho_wchar/window
+wechochar/window
+wenclose/window
+werase/window
+wget_wch/screen (input-operation)
+wget_wstr/screen (input-operation)
+wgetbkgrnd/window
+wgetch/screen (input-operation)
+wgetn_wstr/screen (input-operation)
+wgetnstr/screen (input-operation)
+wgetparent/window
+wgetscrreg/window
+wgetstr/screen (input-operation)
+whline/window
+whline_set/window
+win_wch/window
+win_wchnstr/window
+win_wchstr/window
+winch/window
+winchnstr/window
+winchstr/window
+winnstr/window
+winnwstr/window
+wins_nwstr/window
+wins_wch/window
+wins_wstr/window
+winsch/window
+winsdelln/window
+winsertln/window
+winsnstr/window
+winsstr/window
+winstr/window
+winwstr/window
+wmouse_trafo/window
+wmove/window
+wnoutrefresh/screen
+wprintw/window
+wredrawln/window
+wrefresh/screen
+wresize/window locks(windowlist)
+wscanw/screen
+wscrl/window
+wsetscrreg/window
+wstandend/window
+wstandout/window
+wsyncdown/screen (affects window plus parents)
+wsyncup/screen (affects window plus parents)
+wtimeout/window
+wtouchln/window
+wunctrl/global (static data)
+wvline/window
+wvline_set/window
+.TE
+.\" ***************************************************************************
+.SH RETURN VALUE
+These functions all return TRUE or FALSE, except as noted.
+.SH NOTES
+Both a macro and a function are provided for each name.
+.SH PORTABILITY
+These routines are specific to ncurses.
+They were not supported on Version 7, BSD or System V implementations.
+It is recommended that any code depending on ncurses extensions
+be conditioned using NCURSES_VERSION.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_opaque\fR(3X),
+\fBcurs_variables\fR(3X).

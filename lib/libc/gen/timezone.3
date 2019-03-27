@@ -1,0 +1,69 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)timezone.3	8.2 (Berkeley) 4/19/94
+.\" $FreeBSD$
+.\"
+.Dd April 19, 1994
+.Dt TIMEZONE 3
+.Os
+.Sh NAME
+.Nm timezone
+.Nd return the timezone abbreviation
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.Ft char *
+.Fn timezone "int zone" "int dst"
+.Sh DESCRIPTION
+.Bf Sy
+This interface is for compatibility only; it is impossible to reliably
+map timezone's arguments to a time zone abbreviation.
+See
+.Xr ctime 3 .
+.Ef
+.Pp
+The
+.Fn timezone
+function returns a pointer to a time zone abbreviation for the specified
+.Fa zone
+and
+.Fa dst
+values.
+The
+.Fa zone
+argument
+is the number of minutes west of GMT and
+.Fa dst
+is non-zero if daylight savings time is in effect.
+.Sh SEE ALSO
+.Xr ctime 3
+.Sh HISTORY
+A
+.Fn timezone
+function appeared in
+.At v7 .

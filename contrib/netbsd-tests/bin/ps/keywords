@@ -1,0 +1,123 @@
+# $NetBSD: keywords,v 1.2 2014/01/16 04:16:32 mlelstv Exp $
+#
+# Table of keywords for use with ps "-o" option.
+#
+# The first column (keyword) is the name of a keyword.
+#
+# The second column (header) is the default column header associated
+# with the keyword, except if the keyword is an alias, in which case the
+# second column is the name of another keyword.
+#
+# The third column (flag) may be blank, "LJUST", or "ALIAS".  "ALIAS"
+# means that the keyword is an alias.  "LJUST" means that the keyword
+# should be displayed in a left-justified column.  The default is that
+# the keyword should be displayed in a right-justified column.
+#
+# keyword	header		flag
+#
+ktracep		KTRACEP
+nwchan		WCHAN
+p_ru		P_RU
+paddr		PADDR
+rlink		RLINK
+%cpu		%CPU
+%mem		%MEM
+acflag		ACFLG
+acflg		acflag		ALIAS
+args		command		ALIAS
+blocked		sigmask		ALIAS
+caught		sigcatch	ALIAS
+comm		COMMAND		LJUST
+command		COMMAND		LJUST
+cpu		CPU
+cputime		time		ALIAS
+ctime		CTIME
+egid		EGID
+egroup		EGROUP		LJUST
+etime		ELAPSED
+euid		EUID
+euser		EUSER		LJUST
+f		F
+flags		f		ALIAS
+gid		GID
+group		GROUP		LJUST
+groupnames	GROUPNAMES	LJUST
+groups		GROUPS		LJUST
+holdcnt		HOLDCNT
+ignored		sigignore	ALIAS
+inblk		INBLK
+inblock		inblk		ALIAS
+jobc		JOBC
+ktrace		KTRACE
+laddr		LADDR
+lid		LID
+lim		LIM
+login		LOGIN		LJUST
+logname		login		ALIAS
+lstart		STARTED		LJUST
+lstate		STAT		LJUST
+ltime		LTIME
+majflt		MAJFLT
+minflt		MINFLT
+msgrcv		MSGRCV
+msgsnd		MSGSND
+ni		nice		ALIAS
+nice		NI
+nivcsw		NIVCSW
+nlwp		NLWP
+nsignals	nsigs		ALIAS
+nsigs		NSIGS
+nswap		NSWAP
+nvcsw		NVCSW
+oublk		OUBLK
+oublock		oublk		ALIAS
+pagein		PAGEIN
+pcpu		%cpu		ALIAS
+pending		sig		ALIAS
+pgid		PGID
+pid		PID
+pmem		%mem		ALIAS
+ppid		PPID
+pri		PRI
+re		RE
+rgid		RGID
+rgroup		RGROUP		LJUST
+rlwp		RLWP
+rss		RSS
+rssize		rsz		ALIAS
+rsz		RSZ
+ruid		RUID
+ruser		RUSER		LJUST
+sess		SESS
+sid		SID
+sig		PENDING
+sigcatch	CAUGHT
+sigignore	IGNORED
+sigmask		BLOCKED
+sl		SL
+start		STARTED
+stat		state		ALIAS
+state		STAT		LJUST
+stime		STIME
+svgid		SVGID
+svgroup		SVGROUP		LJUST
+svuid		SVUID
+svuser		SVUSER		LJUST
+tdev		TDEV
+time		TIME
+tpgid		TPGID
+tsess		TSESS
+tsiz		TSIZ
+tt		TTY		LJUST
+tty		TTY		LJUST
+uaddr		UADDR
+ucomm		UCOMM		LJUST
+uid		UID
+upr		UPR
+user		USER		LJUST
+usrpri		upr		ALIAS
+utime		UTIME
+vsize		vsz		ALIAS
+vsz		VSZ
+wchan		WCHAN		LJUST
+xstat		XSTAT

@@ -1,0 +1,131 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)sigprocmask.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd May 7, 2010
+.Dt SIGPROCMASK 2
+.Os
+.Sh NAME
+.Nm sigprocmask
+.Nd manipulate current signal mask
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In signal.h
+.Ft int
+.Fo sigprocmask
+.Fa "int how"
+.Fa "const sigset_t * restrict set"
+.Fa "sigset_t * restrict oset"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn sigprocmask
+system call examines and/or changes the current signal mask (those signals
+that are blocked from delivery).
+Signals are blocked if they are members of the current signal mask set.
+.Pp
+If
+.Fa set
+is not null, the action of
+.Fn sigprocmask
+depends on the value of the
+.Fa how
+argument.
+The signal mask is changed as a function of the specified
+.Fa set
+and the current mask.
+The function is specified by
+.Fa how
+using one of the following values from
+.In signal.h :
+.Bl -tag -width SIG_UNBLOCK
+.It Dv SIG_BLOCK
+The new mask is the union of the current mask and the specified
+.Fa set .
+.It Dv SIG_UNBLOCK
+The new mask is the intersection of the current mask
+and the complement of the specified
+.Fa set .
+.It Dv SIG_SETMASK
+The current mask is replaced by the specified
+.Fa set .
+.El
+.Pp
+If
+.Fa oset
+is not null, it is set to
+the previous value of the signal mask.
+When
+.Fa set
+is null,
+the value of
+.Fa how
+is insignificant and the mask remains unset
+providing a way to examine the signal mask without modification.
+.Pp
+The system
+quietly disallows
+.Dv SIGKILL
+or
+.Dv SIGSTOP
+to be blocked.
+.Pp
+In threaded applications,
+.Xr pthread_sigmask 3
+must be used instead of
+.Fn sigprocmask .
+.Sh RETURN VALUES
+.Rv -std sigprocmask
+.Sh ERRORS
+The
+.Fn sigprocmask
+system call will fail and the signal mask will be unchanged if one
+of the following occurs:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa how
+argument
+has a value other than those listed here.
+.El
+.Sh SEE ALSO
+.Xr kill 2 ,
+.Xr sigaction 2 ,
+.Xr sigpending 2 ,
+.Xr sigsuspend 2 ,
+.Xr fpsetmask 3 ,
+.Xr pthread_sigmask 3 ,
+.Xr sigsetops 3
+.Sh STANDARDS
+The
+.Fn sigprocmask
+system call is expected to
+conform to
+.St -p1003.1-90 .

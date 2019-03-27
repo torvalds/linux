@@ -1,0 +1,42 @@
+policy_module(unbound, 0.1.0)
+
+type unbound_t;
+type unbound_conf_t;
+type unbound_exec_t;
+type unbound_initrc_exec_t;
+type unbound_var_run_t;
+
+init_daemon_domain(unbound_t, unbound_exec_t)
+init_script_file(unbound_initrc_exec_t)
+
+role system_r types unbound_t;
+
+# XXX
+# unbound-{checkconf,control} are not protected. Do we need protect them?
+
+# Unbound daemon
+
+auth_use_nsswitch(unbound_t)
+dev_read_urand(unbound_t)
+corenet_all_recvfrom_unlabeled(unbound_t)
+corenet_tcp_bind_all_nodes(unbound_t)
+corenet_tcp_bind_dns_port(unbound_t)
+corenet_tcp_bind_rndc_port(unbound_t)
+corenet_udp_bind_all_nodes(unbound_t)
+corenet_udp_bind_all_unreserved_ports(unbound_t)
+corenet_udp_bind_dns_port(unbound_t)
+files_read_etc_files(unbound_t)
+files_pid_file(unbound_var_run_t)
+files_type(unbound_conf_t)
+libs_use_ld_so(unbound_t)
+libs_use_shared_libs(unbound_t)
+logging_send_syslog_msg(unbound_t)
+manage_files_pattern(unbound_t, unbound_var_run_t, unbound_var_run_t)
+miscfiles_read_localization(unbound_t)
+read_files_pattern(unbound_t, unbound_conf_t, unbound_conf_t)
+
+allow unbound_t self:capability { setuid chown net_bind_service setgid dac_override };
+allow unbound_t self:tcp_socket create_stream_socket_perms;
+allow unbound_t self:udp_socket create_socket_perms;
+
+###################################################

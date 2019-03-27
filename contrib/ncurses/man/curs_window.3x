@@ -1,0 +1,185 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_window.3x,v 1.17 2010/12/04 18:38:55 tom Exp $
+.TH curs_window 3X ""
+.na
+.hy 0
+.SH NAME
+\fBnewwin\fR,
+\fBdelwin\fR,
+\fBmvwin\fR,
+\fBsubwin\fR,
+\fBderwin\fR,
+\fBmvderwin\fR,
+\fBdupwin\fR,
+\fBwsyncup\fR,
+\fBsyncok\fR,
+\fBwcursyncup\fR,
+\fBwsyncdown\fR \- create \fBcurses\fR windows
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBWINDOW *newwin(int nlines, int ncols, int begin_y,\fR
+      \fBint begin_x);\fR
+.br
+\fBint delwin(WINDOW *win);\fR
+.br
+\fBint mvwin(WINDOW *win, int y, int x);\fR
+.br
+\fBWINDOW *subwin(WINDOW *orig, int nlines, int ncols,\fR
+      \fBint begin_y, int begin_x);\fR
+.br
+\fBWINDOW *derwin(WINDOW *orig, int nlines, int ncols,\fR
+      \fBint begin_y, int begin_x);\fR
+.br
+\fBint mvderwin(WINDOW *win, int par_y, int par_x);\fR
+.br
+\fBWINDOW *dupwin(WINDOW *win);\fR
+.br
+\fBvoid wsyncup(WINDOW *win);\fR
+.br
+\fBint syncok(WINDOW *win, bool bf);\fR
+.br
+\fBvoid wcursyncup(WINDOW *win);\fR
+.br
+\fBvoid wsyncdown(WINDOW *win);\fR
+.br
+.SH DESCRIPTION
+Calling \fBnewwin\fR creates and returns a pointer to a new window with the
+given number of lines and columns.  The upper left-hand corner of the window is
+at line \fIbegin\fR_\fIy\fR, column \fIbegin\fR_\fIx\fR.  If either
+\fInlines\fR or \fIncols\fR is zero, they default to \fBLINES \-\fR
+\fIbegin\fR_\fIy\fR and \fBCOLS \-\fR \fIbegin\fR_\fIx\fR.  A new full-screen
+window is created by calling \fBnewwin(0,0,0,0)\fR.
+.PP
+Calling \fBdelwin\fR deletes the named window, freeing all memory
+associated with it (it does not actually erase the window's screen
+image).  Subwindows must be deleted before the main window can be
+deleted.
+.PP
+Calling \fBmvwin\fR moves the window so that the upper left-hand
+corner is at position (\fIx\fR, \fIy\fR).  If the move would cause the
+window to be off the screen, it is an error and the window is not
+moved.  Moving subwindows is allowed, but should be avoided.
+.PP
+Calling \fBsubwin\fR creates and returns a pointer to a new window
+with the given number of lines, \fInlines\fR, and columns,
+\fIncols\fR.  The window is at position (\fIbegin\fR_\fIy\fR,
+\fIbegin\fR_\fIx\fR) on the screen.  (This position is relative to the
+screen, and not to the window \fIorig\fR.)  The window is made in the
+middle of the window \fIorig\fR, so that changes made to one window
+will affect both windows.  The subwindow shares memory with the window
+\fIorig\fR.  When using this routine, it is necessary to call
+\fBtouchwin\fR or \fBtouchline\fR on \fIorig\fR before calling
+\fBwrefresh\fR on the subwindow.
+.PP
+Calling \fBderwin\fR is the same as calling \fBsubwin,\fR except that
+\fIbegin\fR_\fIy\fR and \fIbegin\fR_\fIx\fR are relative to the origin
+of the window \fIorig\fR rather than the screen.  There is no
+difference between the subwindows and the derived windows.
+.PP
+Calling \fBmvderwin\fR moves a derived window (or subwindow)
+inside its parent window.  The screen-relative parameters of the
+window are not changed.  This routine is used to display different
+parts of the parent window at the same physical position on the
+screen.
+.PP
+Calling \fBdupwin\fR creates an exact duplicate of the window \fIwin\fR.
+.PP
+Calling \fBwsyncup\fR touches all locations in ancestors of \fIwin\fR that are
+changed in \fIwin\fR.  If \fBsyncok\fR is called with second argument
+\fBTRUE\fR then \fBwsyncup\fR is called automatically whenever there is a
+change in the window.
+.PP
+The \fBwsyncdown\fR routine touches each location in \fIwin\fR that has been
+touched in any of its ancestor windows.  This routine is called by
+\fBwrefresh\fR, so it should almost never be necessary to call it manually.
+.PP
+The routine \fBwcursyncup\fR updates the current cursor position of all the
+ancestors of the window to reflect the current cursor position of the
+window.
+.SH RETURN VALUE
+Routines that return an integer return the integer \fBERR\fR upon failure and
+\fBOK\fR (SVr4 only specifies "an integer value other than \fBERR\fR") upon
+successful completion.
+.PP
+Routines that return pointers return \fBNULL\fR on error.
+.PP
+X/Open defines no error conditions.
+In this implementation
+.RS
+.TP 5
+\fBdelwin\fR
+returns an error if the window pointer is null, or
+if the window is the parent of another window.
+.IP
+This implementation also maintains a list of windows,
+and checks that the pointer passed to \fBdelwin\fP is one that
+it created, returning an error if it was not..
+.TP 5
+\fBmvderwin\fP
+returns an error
+if the window pointer is null, or
+if some part of the window would be placed off-screen.
+.TP 5
+\fBmvwin\fP
+returns an error
+if the window pointer is null, or
+if the window is really a pad, or
+if some part of the window would be placed off-screen.
+.TP 5
+\fBsyncok\fP
+returns an error
+if the window pointer is null.
+.RE
+.SH NOTES
+If many small changes are made to the window, the \fBwsyncup\fR option could
+degrade performance.
+.PP
+Note that \fBsyncok\fR may be a macro.
+.SH BUGS
+The subwindow functions (\fIsubwin\fR, \fIderwin\fR, \fImvderwin\fR,
+\fBwsyncup\fR, \fBwsyncdown\fR, \fBwcursyncup\fR, \fBsyncok\fR) are flaky,
+incompletely implemented, and not well tested.
+.PP
+The System V curses documentation is very unclear about what \fBwsyncup\fR
+and \fBwsyncdown\fR actually do.  It seems to imply that they are only
+supposed to touch exactly those lines that are affected by ancestor changes.
+The language here, and the behavior of the \fBcurses\fR implementation,
+is patterned on the XPG4 curses standard.  The weaker XPG4 spec may result
+in slower updates.
+.SH PORTABILITY
+The XSI Curses standard, Issue 4 describes these functions.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_refresh\fR(3X),
+\fBcurs_touch\fR(3X),
+\fBcurs_variables\fR(3X)

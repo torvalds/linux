@@ -1,0 +1,155 @@
+.\"
+.\" Copyright (c) 2001-2003, Shunsuke Akiyama <akiyama@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 24, 2015
+.Dt RUE 4
+.Os
+.Sh NAME
+.Nm rue
+.Nd "RealTek RTL8150 USB to Fast Ethernet controller driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
+.Cd "device miibus"
+.Cd "device uether"
+.Cd "device rue"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_rue_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB Ethernet adapters based on the RealTek
+RTL8150 USB to Fast Ethernet controller chip.
+.Pp
+The RTL8150 contains an integrated Fast Ethernet MAC, which supports
+both 10 and 100Mbps speeds in either full or half duplex.
+Although designed to interface with
+100Mbps peripheral, the existing USB standard specifies a maximum
+transfer speed of 12Mbps.
+Users should therefore not expect to actually
+achieve 100Mbps speeds with this device.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
+Enable auto selection of the media type and options.
+The user can manually override
+the auto selected mode by adding media options to the
+.Pa /etc/rc.conf
+file.
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+The
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports RealTek RTL8150 based USB Ethernet
+adapters including:
+.Pp
+.Bl -bullet -compact
+.It
+Buffalo (Melco Inc.) LUA-KTX
+.It
+Green House GH-USB100B
+.It
+LinkSys USB100M
+.It
+Billionton 10/100 FastEthernet USBKR2
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "rue%d: watchdog timeout"
+A packet was queued for transmission and a transmit command was
+issued, however the device failed to acknowledge the transmission
+before a timeout expired.
+.It "rue%d: rx list init failed"
+The driver failed to allocate an mbuf for the transmitter ring.
+.It "rue%d: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Rs
+.%T "RealTek RTL8150 data sheet"
+.%U http://pdf.seekdatasheet.com/2008714/200807142333305235.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 5.1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Shunsuke Akiyama Aq Mt akiyama@FreeBSD.org .

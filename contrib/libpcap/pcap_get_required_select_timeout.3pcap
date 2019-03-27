@@ -1,0 +1,84 @@
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP_GET_REQUIRED_SELECT_TIMEOUT 3PCAP "19 January 2018"
+.SH NAME
+pcap_get_required_select_timeout \- get a file descriptor on which a
+select() can be done for a live capture
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap/pcap.h>
+.ft
+.LP
+.ft B
+struct timeval *pcap_get_required_select_timeout(pcap_t *p);
+.ft
+.fi
+.SH DESCRIPTION
+.B pcap_get_required_select_timeout()
+returns, on UNIX, a pointer to a
+.B struct timeval
+containing a value that must be used as the minimum timeout in
+.BR select() ,
+.BR poll() ,
+.BR epoll_wait() ,
+and
+.B kevent()
+calls if
+.B pcap_get_selectable_fd()
+returns \-1.
+.PP
+The timeout that should be used in those calls must be no larger than
+the smallest of all timeouts returned by
+.B pcap_get_required_select_timeout()
+for devices from which packets will be captured.
+.PP
+The device for which
+.B pcap_get_selectable_fd()
+returned \-1 must be put in non-blocking mode with
+.BR pcap_setnonblock() ,
+and an attempt must always be made to read packets from the device
+when the
+.BR select() ,
+.BR poll() ,
+.BR epoll_wait() ,
+or
+.B kevent()
+call returns.
+.PP
+Note that a device on which a read can be done without blocking may,
+on some platforms, not have any packets to read if the packet buffer
+timeout has expired.  A call to
+.B pcap_dispatch()
+or
+.B pcap_next_ex()
+will return 0 in this case, but will not block.
+.PP
+.B pcap_get_required_select_timeout()
+is not available on Windows.
+.SH RETURN VALUE
+A pointer to a
+.B struct timeval
+is returned if the timeout is required; otherwise
+.B NULL
+is returned.
+.SH SEE ALSO
+pcap(3PCAP), pcap_get_selectable_fd(3PCAP), select(2), poll(2),
+epoll_wait(2), kqueue(2)

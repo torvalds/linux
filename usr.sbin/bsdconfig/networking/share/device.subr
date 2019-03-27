@@ -1,0 +1,403 @@
+if [ ! "$_NETWORKING_DEVICE_SUBR" ]; then _NETWORKING_DEVICE_SUBR=1
+#
+# Copyright (c) 2006-2016 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." networking/device.subr
+f_include $BSDCFG_SHARE/device.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/media/tcpip.subr
+f_include $BSDCFG_SHARE/media/wlan.subr
+f_include $BSDCFG_SHARE/networking/common.subr
+f_include $BSDCFG_SHARE/networking/ipaddr.subr
+f_include $BSDCFG_SHARE/networking/media.subr
+f_include $BSDCFG_SHARE/networking/netmask.subr
+f_include $BSDCFG_SHARE/networking/resolv.subr
+f_include $BSDCFG_SHARE/networking/routing.subr
+f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+############################################################ GLOBALS
+
+#
+# Settings used while interacting with various dialog(1) menus
+#
+: ${DIALOG_MENU_NETDEV_KICK_INTERFACES=1}
+: ${DIALOG_MENU_NETDEV_SLEEP_AFTER_KICK=3}
+
+############################################################ FUNCTIONS
+
+# f_dialog_menu_netdev [$default]
+#
+# Display a list of network devices with descriptions. Optionally, if present
+# and non-NULL, initially highlight $default interface.
+#
+f_dialog_menu_netdev()
+{
+	local menu_list # Calculated below
+	local defaultitem="${1%\*}" # Trim trailing asterisk if present
+
+	#
+	# Display a message to let the user know we're working...
+	# (message will remain until we throw up the next dialog)
+	#
+	f_dialog_info "$msg_probing_network_interfaces"
+
+	#
+	# Get list of usable network interfaces
+	#
+	local dev devs if iflist= # Calculated below
+	f_device_rescan_network
+	f_device_find "" $DEVICE_TYPE_NETWORK devs
+	for dev in $devs; do
+		f_struct "$dev" get name if || continue
+		# Skip unsavory interfaces
+		case "$if" in
+		lo[0-9]*|ppp[0-9]*|sl[0-9]*) continue ;;
+		esac
+		iflist="$iflist $if"
+	done
+	iflist="${iflist# }"
+
+	#
+	# Optionally kick interfaces in the head to get them to accurately
+	# track the carrier status in realtime (required on FreeBSD).
+	#
+	if [ "$DIALOG_MENU_NETDEV_KICK_INTERFACES" ]; then
+		DIALOG_MENU_NETDEV_KICK_INTERFACES=
+
+		for if in $iflist; do
+			f_quietly ifconfig $if up
+		done
+
+		if [ "$DIALOG_MENU_NETDEV_SLEEP_AFTER_KICK" ]; then
+			# interfaces need time to update carrier status
+			sleep $DIALOG_MENU_NETDEV_SLEEP_AFTER_KICK
+		fi
+	fi
+
+	#
+	# Mark any "active" interfaces with an asterisk (*)
+	# to the right of the device name.
+	#
+	menu_list=$(
+		for if in $iflist; do
+			f_device_desc $if $DEVICE_TYPE_NETWORK desc
+			f_shell_escape "$desc" desc
+			if f_device_is_active $if; then
+				printf "'%s\*' '%s'\n" $if "$desc"
+			else
+				printf "'%s' '%s'\n" $if "$desc"
+			fi
+		done
+	)
+	if [ ! "$menu_list" ]; then
+		f_show_msg "$msg_no_network_interfaces"
+		return $DIALOG_CANCEL
+	fi
+
+	# Maybe the default item was marked as active
+	f_device_is_active "$defaultitem" && defaultitem="$defaultitem*"
+
+	#
+	# Ask user to select an interface
+	#
+	local prompt="$msg_select_network_interface"
+	local hline="$hline_arrows_tab_enter"
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_menutag_store -s "$menu_choice"
+	return $retval
+}
+
+# f_dialog_menu_netdev_edit $interface $ipaddr $netmask $options $dhcp
+#
+# Allow a user to edit network interface settings. Current values are not
+# probed but rather taken from the positional arguments.
+#
+f_dialog_menu_netdev_edit()
+{
+	local funcname=f_dialog_menu_netdev_edit
+	local interface="$1" ipaddr="$2" netmask="$3" options="$4" dhcp="$5"
+	local prompt menu_list height width rows
+
+	#
+	# Create a duplicate set of variables for change-tracking...
+	#
+	local ipaddr_orig="$2"  \
+	      netmask_orig="$3" \
+	      options_orig="$4" \
+	      dhcp_orig="$5"
+
+	local hline="$hline_arrows_tab_enter"
+	f_sprintf prompt "$msg_network_configuration" "$interface"
+
+	#
+	# Loop forever until the user has finished configuring the different
+	# components of the network interface.
+	#
+	# To apply the settings, we need to know each of the following:
+	# 	- IP Address
+	# 	- Network subnet mask
+	# 	- Additional ifconfig(8) options
+	#
+	# It is only when we have all of the above values that we can make the
+	# changes effective because all three options must be specified at-once
+	# to ifconfig(8).
+	#
+	local defaultitem=
+	local wlans wlan_status
+	while :; do
+		local dhcp_status="$msg_disabled"
+		[ "$dhcp" ] && dhcp_status="$msg_enabled"
+
+		if f_device_is_wireless "$interface"; then
+			wlans=$( f_sysrc_get "wlans_$interface" )
+			wlan_status="$msg_unconfigured"
+			[ -e "$( f_sysrc_get wpa_supplicant_conf_file )" ] &&
+				wlan_status="$msg_configured"
+		fi
+
+		#
+		# Display configuration-edit menu
+		#
+		menu_list="
+			'X $msg_save_exit' '$msg_return_to_previous_menu'
+		" # END-QUOTE
+		f_device_is_wireless "$interface" && menu_list="$menu_list
+			'W $msg_wireless_networks' '$wlan_status'
+			'1 $msg_wlans'             '$wlans'
+		" # END-QUOTE
+		menu_list="$menu_list
+			'2 $msg_dhcp'      '$dhcp_status'
+			'3 $msg_ipaddr4'   '$ipaddr'
+			'4 $msg_netmask'   '$netmask'
+			'5 $msg_options'   '$options'
+		" # END-QUOTE
+		eval f_dialog_menu_size height width rows \
+		                        \"\$DIALOG_TITLE\"     \
+		                        \"\$DIALOG_BACKTITLE\" \
+		                        \"\$prompt\"           \
+		                        \"\$hline\"            \
+		                        $menu_list
+		local tag
+		tag=$( eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--hline \"\$hline\"                \
+			--ok-label \"\$msg_ok\"            \
+			--cancel-label \"\$msg_cancel\"    \
+			--help-button                      \
+			--help-label \"\$msg_help\"        \
+			${USE_XDIALOG:+--help \"\"}        \
+			--default-item \"\$defaultitem\"   \
+			--menu \"\$prompt\"                \
+			$height $width $rows               \
+			$menu_list                         \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
+		local retval=$?
+		f_dialog_data_sanitize tag
+
+		if [ $retval -eq $DIALOG_HELP ]; then
+			f_show_help "$TCP_HELPFILE"
+			continue
+		elif [ $retval -ne $DIALOG_OK ]; then
+			return $retval
+		else
+			# Only update default-item on success
+			defaultitem="$tag"
+		fi
+
+		#
+		# Call the below ``modifier functions'' whose job it is to take
+		# input from the user and assign the newly-acquired values back
+		# to the ipaddr, netmask, and options variables for us to re-
+		# read and display in the summary dialog.
+		#
+		case "$tag" in
+		X\ *) break ;;
+		W\ *) f_dialog_menu_wireless_edit ;;
+		1\ *) f_dialog_menu_wlandev_edit \
+		      	"$interface" "${wlans%%[$IFS]*}" ;;
+		2\ *) #
+		      # Proceed cautiously (confirm with the user) if/when NFS-
+		      # mounts are active. If the network on which these mounts
+		      # are made is changed parts of the system may hang.
+		      #
+		      if f_nfs_mounted && ! f_jailed; then
+			local setting
+			f_sprintf setting "$msg_current_dhcp_status" \
+		      	                  "$interface" "$dhcp_status"
+			f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
+		      		continue
+		      fi
+
+		      #
+		      # Toggle DHCP status
+		      #
+		      if [ "$dhcp_status" = "$msg_enabled" ]; then
+		      	dhcp=
+		      else
+		      	trap - SIGINT
+		      	( # Execute within sub-shell to allow/catch Ctrl-C
+		      	  trap 'exit $FAILURE' SIGINT
+			  f_sprintf msg "$msg_scanning_for_dhcp" "$interface"
+		      	  if [ "$USE_XDIALOG" ]; then
+		      	  	(
+		      	  	  f_quietly ifconfig "$interface" delete
+		      	  	  f_quietly dhclient "$interface"
+		      	  	) |
+		      	  	  f_xdialog_info "$msg"
+		      	  else
+		      	  	f_dialog_info "$msg"
+		      	  	f_quietly ifconfig "$interface" delete
+		      	  	f_quietly dhclient "$interface"
+		      	  fi
+		      	)
+		      	retval=$?
+		      	trap 'interrupt' SIGINT
+		      	if [ $retval -eq $DIALOG_OK ]; then
+		      		dhcp=1
+		      		f_ifconfig_inet "$interface" ipaddr
+				f_ifconfig_inet6 "$interface" ipaddr6
+		      		f_ifconfig_netmask "$interface" netmask
+		      		options=
+
+		      		# Fixup search/domain in resolv.conf(5)
+		      		hostname=$( f_sysrc_get \
+				            	'hostname:-$(hostname)' )
+		      		f_dialog_resolv_conf_update "$hostname"
+		      	fi
+		      fi
+		      ;;
+		3\ *) f_dialog_input_ipaddr "$interface" "$ipaddr"
+		      [ $? -eq $DIALOG_OK ] && dhcp= ;;
+		4\ *) f_dialog_input_netmask "$interface" "$netmask"
+		      [ $? -eq $DIALOG_OK -a "$_netmask" ] && dhcp= ;;
+		5\ *) f_dialog_menu_media_options "$interface" "$options"
+		      [ $? -eq $DIALOG_OK ] && dhcp= ;;
+		esac
+	done
+
+	#
+	# Save only if the user changed at least one feature of the interface
+	#
+	if [ "$ipaddr"  != "$ipaddr_orig"  -o \
+	     "$netmask" != "$netmask_orig" -o \
+	     "$options" != "$options_orig" -o \
+	     "$dhcp"    != "$dhcp_orig" ]
+	then
+		f_show_info "$msg_saving_network_interface" "$interface"
+
+		local value=
+		if [ "$dhcp" ]; then
+			f_eval_catch $funcname f_sysrc_delete \
+				'f_sysrc_delete defaultrouter'
+			value=DHCP
+		else
+			value="inet $ipaddr netmask $netmask"
+			value="$value${options:+ }$options"
+		fi
+
+		f_eval_catch $funcname f_sysrc_set \
+			'f_sysrc_set "ifconfig_%s" "%s"' "$interface" "$value"
+	fi
+
+	#
+	# Re/Apply the settings if desired
+	#
+	if [ ! "$dhcp" ]; then
+		if f_yesno "$msg_bring_interface_up" "$interface"
+		then
+			f_show_info "$msg_bring_interface_up" "$interface"
+
+			local dr="$( f_sysrc_get defaultrouter )"
+			if [ "$dr" = "NO" -o ! "$dr" ]; then
+				f_route_get_default dr
+				[ "$dr" ] && f_eval_catch \
+					$funcname f_sysrc_set \
+					'f_sysrc_set defaultrouter "%s"' "$dr"
+			fi
+			#
+			# Make a backup of resolv.conf(5) before using
+			# ifconfig(8) and then restore it afterward. This
+			# allows preservation of nameservers acquired via
+			# DHCP on FreeBSD-8.x (normally lost as ifconfig(8)
+			# usage causes dhclient(8) to exit which scrubs
+			# resolv.conf(5) by-default upon termination).
+			#
+			f_quietly cp -fp "$RESOLV_CONF" "$RESOLV_CONF.$$"
+			if f_eval_catch $funcname ifconfig \
+				'ifconfig "%s" inet "%s" netmask "%s" %s' \
+				"$interface" "$ipaddr" "$netmask" "$options"
+			then
+				[ "$dr" -a "$dr" != "NO" ] &&
+					f_eval_catch $funcname route \
+						'route add default "%s"' "$dr"
+			fi
+			if cmp -s "$RESOLV_CONF" "$RESOLV_CONF.$$"; then
+				f_quietly rm -f "$RESOLV_CONF.$$"
+			else
+				f_quietly mv -f "$RESOLV_CONF.$$" "$RESOLV_CONF"
+			fi
+		fi
+	fi
+
+	return $DIALOG_OK
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." networking/device.subr
+
+fi # ! $_NETWORKING_DEVICE_SUBR

@@ -1,0 +1,114 @@
+.de1 NOP
+.  it 1 an-trap
+.  if \\n[.$] \,\\$*\/
+..
+.ie t \
+.ds B-Font [CB]
+.ds I-Font [CI]
+.ds R-Font [CR]
+.el \
+.ds B-Font B
+.ds I-Font I
+.ds R-Font R
+.TH ntptrace 1ntptraceman "20 Feb 2019" "ntp (4.2.8p13)" "User Commands"
+.\"
+.\" EDIT THIS FILE WITH CAUTION (in-mem file)
+.\"
+.\" It has been AutoGen-ed February 20, 2019 at 09:57:37 AM by AutoGen 5.18.5
+.\" From the definitions ntptrace-opts.def
+.\" and the template file agman-cmd.tpl
+.SH NAME
+\f\*[B-Font]ntptrace\fP
+\- Trace peers of an NTP server
+.SH SYNOPSIS
+\f\*[B-Font]ntptrace\fP
+.\" Mixture of short (flag) options and long options
+[\f\*[B-Font]\-flags\f[]]
+[\f\*[B-Font]\-flag\f[] [\f\*[I-Font]value\f[]]]
+[\f\*[B-Font]\-\-option-name\f[][[=| ]\f\*[I-Font]value\f[]]]
+[host]
+.sp \n(Ppu
+.ne 2
+
+.SH DESCRIPTION
+\fBntptrace\fP is a perl script that uses the ntpq utility program to follow
+the chain of NTP servers from a given host back to the primary time source. For
+ntptrace to work properly, each of these servers must implement the NTP Control
+and Monitoring Protocol specified in RFC 1305 and enable NTP Mode 6 packets.
+.sp
+If given no arguments, ntptrace starts with localhost. Here is an example of
+the output from ntptrace:
+.sp
+.br
+.in +4
+.nf
+% ntptrace localhost: stratum 4, offset 0.0019529, synch distance 0.144135
+server2ozo.com: stratum 2, offset 0.0124263, synch distance 0.115784 usndh.edu:
+stratum 1, offset 0.0019298, synch distance 0.011993, refid 'WWVB'
+.in -4
+.fi
+.sp
+On each line, the fields are (left to right): the host name, the host stratum,
+the time offset between that host and the local host (as measured by
+\fBntptrace\fP; this is why it is not always zero for "localhost"), the host
+synchronization distance, and (only for stratum\-1 servers) the reference clock
+ID. All times are given in seconds. Note that the stratum is the server hop
+count to the primary source, while the synchronization distance is the
+estimated error relative to the primary source. These terms are precisely
+defined in RFC\-1305.
+.SH "OPTIONS"
+.TP
+.NOP \f\*[B-Font]\-n\f[], \f\*[B-Font]\-\-numeric\f[]
+Print IP addresses instead of hostnames.
+.sp
+Output hosts as dotted-quad numeric format rather than converting to
+the canonical host names.
+.TP
+.NOP \f\*[B-Font]\-m\f[] \f\*[I-Font]number\f[], \f\*[B-Font]\-\-max\-hosts\f[]=\f\*[I-Font]number\f[]
+Maximum number of peers to trace.
+This option takes an integer number as its argument.
+The default
+\f\*[I-Font]number\f[]
+for this option is:
+.ti +4
+ 99
+.sp
+This option has not been fully documented.
+.TP
+.NOP \f\*[B-Font]\-r\f[] \f\*[I-Font]string\f[], \f\*[B-Font]\-\-host\f[]=\f\*[I-Font]string\f[]
+Single remote host.
+The default
+\f\*[I-Font]string\f[]
+for this option is:
+.ti +4
+ 127.0.0.1
+.sp
+This option has not been fully documented.
+.TP
+.NOP \f\*[B-Font]\-\&?\f[], \f\*[B-Font]\-\-help\f[]
+Display usage information and exit.
+.TP
+.NOP \f\*[B-Font]\-\&!\f[], \f\*[B-Font]\-\-more-help\f[]
+Pass the extended usage information through a pager.
+.TP
+.NOP \f\*[B-Font]\-v\f[] [{\f\*[I-Font]v|c|n\f[] \f\*[B-Font]\-\-version\f[] [{\f\*[I-Font]v|c|n\f[]}]}]
+Output version of program and exit.  The default mode is `v', a simple
+version.  The `c' mode will print copyright information and `n' will
+print the full copyright notice.
+.PP
+.SH "EXIT STATUS"
+One of the following exit values will be returned:
+.TP
+.NOP 0 " (EXIT_SUCCESS)"
+Successful program execution.
+.TP
+.NOP 1 " (EXIT_FAILURE)"
+The operation failed or the command syntax was not valid.
+.TP
+.NOP 70 " (EX_SOFTWARE)"
+libopts had an internal operational error.  Please report
+it to autogen-users@lists.sourceforge.net.  Thank you.
+.PP
+.SH "NOTES"
+This manual page was \fIAutoGen\fP-erated from the \fBntptrace\fP
+option definitions.

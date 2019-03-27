@@ -1,0 +1,130 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mincore.2	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd January 7, 2019
+.Dt MINCORE 2
+.Os
+.Sh NAME
+.Nm mincore
+.Nd determine residency of memory pages
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/mman.h
+.Ft int
+.Fn mincore "const void *addr" "size_t len" "char *vec"
+.Sh DESCRIPTION
+The
+.Fn mincore
+system call determines whether each of the pages in the region beginning at
+.Fa addr
+and continuing for
+.Fa len
+bytes is resident or mapped, depending on the value of sysctl
+.Va vm.mincore_mapped .
+.\"The beginning address,
+.\".Fa addr ,
+.\"is first rounded down to a multiple of the page size (see
+.\".Xr getpagesize 3 ) .
+.\"The end address,
+.\".Fa addr No + Fa len ,
+.\"is rounded up to a multiple of the page size.
+The status is returned in the
+.Fa vec
+array, one character per page.
+Each character is either 0 if the page is not resident, or a combination of
+the following flags (defined in
+.In sys/mman.h ) :
+.Bl -tag -width ".Dv MINCORE_REFERENCED_OTHER"
+.It Dv MINCORE_INCORE
+Page is in core (resident).
+.It Dv MINCORE_REFERENCED
+Page has been referenced by us.
+.It Dv MINCORE_MODIFIED
+Page has been modified by us.
+.It Dv MINCORE_REFERENCED_OTHER
+Page has been referenced.
+.It Dv MINCORE_MODIFIED_OTHER
+Page has been modified.
+.It Dv MINCORE_SUPER
+Page is part of a large
+.Pq Dq super
+page.
+.El
+.Pp
+The information returned by
+.Fn mincore
+may be out of date by the time the system call returns.
+The only way to ensure that a page is resident is to lock it into memory
+with the
+.Xr mlock 2
+system call.
+.Pp
+If the
+.Va vm.mincore_mapped
+sysctl is set to a non-zero value (default), only the current process'
+mappings of the pages in the specified virtual address range are examined.
+This does not preclude the system from returning
+.Dv MINCORE_REFERENCED_OTHER
+and
+.Dv MINCORE_MODIFIED_OTHER
+statuses.
+Otherwise, if the sysctl value is zero, all resident pages backing the
+specified address range are examined, regardless of the mapping state.
+.Sh RETURN VALUES
+.Rv -std mincore
+.Sh ERRORS
+The
+.Fn mincore
+system call will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+The virtual address range specified by the
+.Fa addr
+and
+.Fa len
+arguments is not fully mapped.
+.It Bq Er EFAULT
+The
+.Fa vec
+argument points to an illegal address.
+.El
+.Sh SEE ALSO
+.Xr madvise 2 ,
+.Xr mlock 2 ,
+.Xr mprotect 2 ,
+.Xr msync 2 ,
+.Xr munmap 2 ,
+.Xr getpagesize 3
+.Sh HISTORY
+The
+.Fn mincore
+system call first appeared in
+.Bx 4.4 .

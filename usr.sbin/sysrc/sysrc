@@ -1,0 +1,944 @@
+#!/bin/sh
+#-
+# Copyright (c) 2010-2018 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+# Prevent `-d' from being interpreted as a debug flag by common.subr
+DEBUG_SELF_INITIALIZE=
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+[ "$_COMMON_SUBR" ] || . $BSDCFG_SHARE/common.subr || exit 1
+[ "$_SYSRC_SUBR"  ] || f_include $BSDCFG_SHARE/sysrc.subr
+
+############################################################ GLOBALS
+
+#
+# Version information
+#
+SYSRC_VERSION="7.2 Jun-16,2018"
+
+#
+# Options
+#
+CHECK_ONLY=
+DEFAULT=
+DELETE=
+DESCRIBE=
+EXISTING_ONLY=
+IGNORE_UNKNOWNS=
+JAIL=
+LIST_SERVICE_CONFS=
+LIST_CONFS=
+QUIET=
+ROOTDIR=
+SERVICE=
+SHOW_ALL=
+SHOW_EQUALS=
+SHOW_FILE=
+SHOW_NAME=1
+SHOW_VALUE=1
+VERBOSE=
+
+############################################################ FUNCTIONS
+
+# die [$fmt [$opts ...]]
+#
+# Optionally print a message to stderr before exiting with failure status.
+#
+die()
+{
+	local fmt="$1"
+	[ $# -gt 0 ] && shift 1
+	[  "$fmt"  ] && f_err "$fmt\n" "$@"
+
+	exit $FAILURE
+}
+
+# usage
+#
+# Prints a short syntax statement and exits.
+#
+usage()
+{
+	f_err "Usage: %s [OPTIONS] %s\n" "$pgm" \
+		"{name[[+|-]=value] ... | -a | -A | -l | -L [name ...]}"
+	f_err "Try \`%s --help' for more information.\n" "$pgm"
+	die
+}
+
+# help
+#
+# Prints a full syntax statement and exits.
+#
+help()
+{
+	local optfmt="\t%-11s%s\n"
+	local envfmt="\t%-17s%s\n"
+
+	f_err "Usage: %s [OPTIONS] name[[+|-]=value] ...\n" "$pgm"
+	f_err "Usage: %s [OPTIONS] -a | -A\n" "$pgm"
+	f_err "Usage: %s [OPTIONS] -l | -L [name ...]\n" "$pgm"
+
+	f_err "OPTIONS:\n"
+	f_err "$optfmt" "-a" \
+	      "Dump a list of all non-default configuration variables."
+	f_err "$optfmt" "-A" \
+	      "Dump a list of all configuration variables (incl. defaults)."
+	f_err "$optfmt" "-c" \
+	      "Check. Return success if set or no changes, else error."
+	f_err "$optfmt" "-d" \
+	      "Print a description of the given variable."
+	f_err "$optfmt" "-D" \
+	      "Show default value(s) only (this is the same as setting"
+	f_err "$optfmt" "" \
+	      "RC_CONFS to NULL or passing \`-f' with a NULL file-argument)."
+	f_err "$optfmt" "-e" \
+	      "Print query results as \`var=value' (useful for producing"
+	f_err "$optfmt" "" \
+	      "output to be fed back in). Ignored if \`-n' is specified."
+	f_err "$optfmt" "-E" \
+	      "Existing files only with \`-[lL]' or when changing a setting."
+	f_err "$optfmt" "-f file" \
+	      "Operate on the specified file(s) instead of rc_conf_files."
+	f_err "$optfmt" "" \
+	      "Can be specified multiple times for additional files."
+	f_err "$optfmt" "-F" \
+	      "Show only the last rc.conf(5) file each directive is in."
+	f_err "$optfmt" "-h" \
+	      "Print a short usage statement to stderr and exit."
+	f_err "$optfmt" "--help" \
+	      "Print this message to stderr and exit."
+	f_err "$optfmt" "-i" \
+	      "Ignore unknown variables."
+	f_err "$optfmt" "-j jail" \
+	      "The jid or name of the jail to operate within (overrides"
+	f_err "$optfmt" "" \
+	      "\`-R dir'; requires jexec(8))."
+	f_err "$optfmt" "-l" \
+	      "List configuration files used at startup on stdout and exit."
+	f_err "$optfmt" "-L" \
+	      "List all configuration files including rc.conf.d entries."
+	f_err "$optfmt" "-n" \
+	      "Show only variable values, not their names."
+	f_err "$optfmt" "-N" \
+	      "Show only variable names, not their values."
+	f_err "$optfmt" "-q" \
+	      "Quiet. Disable verbose and hide certain errors."
+	f_err "$optfmt" "-s name" \
+	      "Process additional \`rc.conf.d' entries for service name."
+	f_err "$optfmt" "" \
+	      "Ignored if \`-f file' is given."
+	f_err "$optfmt" "-R dir" \
+	      "Operate within the root directory \`dir' rather than \`/'."
+	f_err "$optfmt" "-v" \
+	      "Verbose. Print the pathname of the specific rc.conf(5)"
+	f_err "$optfmt" "" \
+	      "file where the directive was found."
+	f_err "$optfmt" "--version" \
+	      "Print version information to stdout and exit."
+	f_err "$optfmt" "-x" \
+	      "Remove variable(s) from specified file(s)."
+	f_err "\n"
+
+	f_err "ENVIRONMENT:\n"
+	f_err "$envfmt" "RC_CONFS" \
+	      "Override default rc_conf_files (even if set to NULL)."
+	f_err "$envfmt" "RC_DEFAULTS" \
+	      "Location of \`/etc/defaults/rc.conf' file."
+
+	die
+}
+
+# jail_depend
+#
+# Dump dependencies such as language-file variables and include files to stdout
+# to be piped-into sh(1) running via jexec(8)/chroot(8). As a security measure,
+# this prevents existing language files and library files from being loaded in
+# the jail. This also relaxes the requirement to have these files in every jail
+# before sysrc can be used on said jail.
+#
+jail_depend()
+{
+	#
+	# Indicate that we are jailed
+	#
+	echo export _SYSRC_JAILED=1
+
+	#
+	# Print i18n language variables (their current values are sanitized
+	# and re-printed for interpretation so that the i18n language files
+	# do not need to exist within the jail).
+	#
+	local var val
+	for var in \
+		msg_cannot_create_permission_denied \
+		msg_permission_denied \
+		msg_previous_syntax_errors \
+	; do
+		val=$( eval echo \"\$$var\" |
+			awk '{ gsub(/'\''/, "'\''\\'\'\''"); print }' )
+		echo $var="'$val'"
+	done
+
+	#
+	# Print include dependencies
+	#
+	echo DEBUG_SELF_INITIALIZE=
+	cat $BSDCFG_SHARE/common.subr
+	cat $BSDCFG_SHARE/sysrc.subr
+}
+
+# escape $string [$var_to_set]
+#
+# Escape $string contents so that the contents can be properly encapsulated in
+# single-quotes (making for safe evaluation).
+#
+# NB: See `bsdconfig includes -dF escape' for relevant information/discussion.
+# NB: Abridged version of `f_shell_escape()' from bsdconfig(8) `strings.subr'.
+#
+escape()
+{
+	local __start="$1" __var_to_set="$2" __string=
+	while [ "$__start" ]; do
+		case "$__start" in *\'*)
+			__string="$__string${__start%%\'*}'\\''"
+			__start="${__start#*\'}" continue
+		esac
+		break
+	done
+	__string="$__string$__start"
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__string"
+	else
+		echo "$__string"
+	fi
+}
+
+############################################################ MAIN SOURCE
+
+#
+# Perform sanity checks
+#
+[ $# -gt 0 ] || usage # NOTREACHED
+
+#
+# Check for `--help' and `--version' command-line option
+#
+for arg in "$@"; do
+	case "$arg" in
+	--) break ;;
+	--help) help ;; # NOTREACHED
+	--version) # see GLOBALS
+		echo "$SYSRC_VERSION"
+		exit $FAILURE ;;
+	esac
+done
+unset arg
+
+#
+# Process command-line flags
+#
+while getopts aAcdDeEf:Fhij:lLnNqR:s:vxX flag; do
+	case "$flag" in
+	a) SHOW_ALL=${SHOW_ALL:-1} ;;
+	A) SHOW_ALL=2 ;;
+	c) CHECK_ONLY=1 ;;
+	d) DESCRIBE=1 ;;
+	D) DEFAULT=1 RC_CONFS= ;;
+	e) SHOW_EQUALS=1 ;;
+	E) EXISTING_ONLY=1 ;;
+	f) DEFAULT= RC_CONFS="$RC_CONFS${RC_CONFS:+ }$OPTARG" ;;
+	F) SHOW_FILE=1 ;;
+	h) usage ;; # NOTREACHED
+	i) IGNORE_UNKNOWNS=1 ;;
+	j) [ "$OPTARG" ] ||
+		die "%s: Missing or null argument to \`-j' flag" "$pgm"
+	   JAIL="$OPTARG" ;;
+	l) LIST_CONFS=1 ;;
+	L) LIST_SERVICE_CONFS=1 ;;
+	n) SHOW_NAME= ;;
+	N) SHOW_VALUE= ;;
+	q) QUIET=1 VERBOSE= ;;
+	R) [ "$OPTARG" ] ||
+		die "%s: Missing or null argument to \`-R' flag" "$pgm"
+	   ROOTDIR="$OPTARG" ;;
+	s) [ "$OPTARG" ] ||
+		die "%s: Missing or null argument to \`-s' flag" "$pgm"
+	   SERVICE="$OPTARG" ;;
+	v) VERBOSE=1 QUIET= ;;
+	x) DELETE=${DELETE:-1} ;;
+	X) DELETE=2 ;;
+	\?) usage ;; # NOTREACHED
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+#
+# Process `-L' flag
+#
+if [ "$LIST_SERVICE_CONFS" ]; then
+	list= 
+
+	#
+	# List rc_conf_files if no service names given
+	#
+	files=
+	[ $# -eq 0 ] && files=$( f_sysrc_get rc_conf_files )
+	for file in $files; do
+		if [ "$EXISTING_ONLY" ]; then
+			[ -e "$file" -a ! -d "$file" ] || continue
+		fi
+		case "$list" in
+		"$file"|*" $file"|"$file "*|*" $file "*) continue ;;
+		esac
+		list="$list $file"
+	done
+	list="${list# }"
+	if [ $# -eq 0 ]; then
+		if [ "$VERBOSE" ]; then
+			echo rc_conf_files: $list
+		elif [ "$SHOW_EQUALS" ]; then
+			echo "rc_conf_files=\"$list\""
+		fi
+	fi
+
+	#
+	# List rc.conf.d entries
+	#
+	retval=$SUCCESS
+	for service in ${*:-$( service -l )}; do
+		slist=
+		f_sysrc_service_configs $service files || retval=$? continue
+		for file in $files; do
+			if [ "$EXISTING_ONLY" ]; then
+				[ -e "$file" -a ! -d "$file" ] || continue
+			fi
+			if [ ! "$VERBOSE" -a ! "$SHOW_EQUALS" ]; then
+				case "$list" in
+				"$file"|*" $file"|"$file "*|*" $file "*)
+					continue ;;
+				esac
+			fi
+			slist="$slist $file"
+		done
+		slist="${slist# }"
+		if [ $# -gt 0 ]; then
+			[ "$slist" ] || retval=$?
+		fi
+		if [ "$VERBOSE" ]; then
+			[ "$slist" ] && echo "$service: $slist"
+			continue
+		elif [ "$SHOW_EQUALS" ]; then
+			[ "$slist" ] && echo "$service=\"$slist\""
+			continue
+		fi
+		list="$list${slist:+ }$slist"
+	done
+	if [ ! "$VERBOSE" -a ! "$SHOW_EQUALS" ]; then
+		if [ $# -eq 0 -o ! "$QUIET" ]; then
+			list="${list# }"
+			[ "$list" ] && echo $list
+		fi
+	fi
+
+	exit $retval
+fi
+
+#
+# Validate arguments
+#
+for name in "$@"; do
+	# NB: shell expansion syntax removed first
+	name="${name%%:[+=-]*}"
+	name="${name%%[%#+=-]*}"
+	[ "$name" = "${name#*[!$VALID_VARNAME_CHARS]}" ] || die \
+		"%s: %s: name contains characters not allowed in shell" \
+		"$pgm" "$name"
+done
+
+#
+# Process `-s name' argument
+#
+if [ "$SERVICE" -a ! "${RC_CONFS+set}" ]; then
+	if f_sysrc_service_configs "$SERVICE" RC_CONFS; then
+		rc_conf_files=$( f_sysrc_get rc_conf_files )
+		RC_CONFS="$rc_conf_files${RC_CONFS:+ }$RC_CONFS"
+		unset rc_conf_files
+	else
+		unset RC_CONFS
+	fi
+fi
+
+#
+# Process `-E' option flag
+#
+if [ "$EXISTING_ONLY" ]; then
+	#
+	# To get f_sysrc_*() to ignore missing rc_conf_files, we have to use
+	# RC_CONFS to override the unpreened value. If RC_CONFS already has a
+	# value (`-D', `-f file', `-s name', or inherited from parent), use it.
+	# Otherwise, include filtered contents of rc_conf_files.
+	# 
+	RC_CONFS=$(
+		if [ "${RC_CONFS+set}" ]; then
+			set -- $RC_CONFS
+		else
+			set -- $( f_sysrc_get rc_conf_files )
+		fi
+		while [ $# -gt 0 ]; do
+			[ -f "$1" ] && echo -n " $1"
+			shift
+		done
+	)
+	RC_CONFS="${RC_CONFS# }"
+fi
+
+#
+# Process `-l' option flag
+#
+if [ "$LIST_CONFS" ]; then
+	[ $# -eq 0 ] || usage
+	if [ "$DEFAULT" ]; then
+		echo "$RC_DEFAULTS"
+	elif [ "${RC_CONFS+set}" ]; then
+		echo "$RC_CONFS"
+	else
+		f_sysrc_get rc_conf_files
+	fi
+	exit $SUCCESS
+fi
+
+#
+# [More] Sanity checks (e.g., "sysrc --")
+#
+[ $# -eq 0 -a ! "$SHOW_ALL" ] && usage # NOTREACHED
+
+#
+# Taint-check all rc.conf(5) files
+#
+errmsg="$pgm: Exiting due to previous syntax errors"
+if [ "${RC_CONFS+set}" ]; then
+	( for i in $RC_CONFS; do
+	  	[ -e "$i" ] || continue
+	  	/bin/sh -n "$i" || exit $FAILURE
+	  done
+	  exit $SUCCESS
+	) || die "$errmsg"
+else
+	/bin/sh -n "$RC_DEFAULTS" || die "$errmsg"
+	( . "$RC_DEFAULTS"
+	  for i in $rc_conf_files; do
+	  	[ -e "$i" ] || continue
+	  	/bin/sh -n "$i" || exit $FAILURE
+	  done
+	  exit $SUCCESS
+	) || die "$errmsg"
+fi
+
+#
+# Process `-x' (and secret `-X') command-line options
+#
+errmsg="$pgm: \`-x' option incompatible with \`-a'/\`-A' options"
+errmsg="$errmsg (use \`-X' to override)"
+if [ "$DELETE" -a "$SHOW_ALL" ]; then
+	[ "$DELETE" = "2" ] || die "$errmsg"
+fi
+
+#
+# Pre-flight for `-c' command-line option
+#
+[ "$CHECK_ONLY" -a "$SHOW_ALL" ] &&
+	die "$pgm: \`-c' option incompatible with \`-a'/\`-A' options"
+
+#
+# Process `-e', `-n', and `-N' command-line options
+#
+SEP=': '
+[ "$SHOW_FILE" ] && SHOW_EQUALS=
+[ "$SHOW_NAME" ] || SHOW_EQUALS=
+[ "$VERBOSE" = "0" ] && VERBOSE=
+if [ ! "$SHOW_VALUE" ]; then
+	SHOW_NAME=1
+	SHOW_EQUALS=
+fi
+[ "$SHOW_EQUALS" ] && SEP='="'
+
+#
+# Process `-j jail' and `-R dir' command-line options
+#
+if [ "$JAIL" -o "$ROOTDIR" ]; then
+	#
+	# Reconstruct the arguments that we want to carry-over
+	#
+	args="
+		${VERBOSE:+-v}
+		${QUIET:+-q}
+		$( [ "$DELETE" = "1" ] && echo \ -x )
+		$( [ "$DELETE" = "2" ] && echo \ -X )
+		$( [ "$SHOW_ALL" = "1" ] && echo \ -a )
+		$( [ "$SHOW_ALL" = "2" ] && echo \ -A )
+		${CHECK_ONLY:+-c}
+		${DEFAULT:+-D}
+		${EXISTING_ONLY:+-E}
+		${LIST_CONFS:+-l}
+		${LIST_SERVICE_CONFS:+-L}
+		${DESCRIBE:+-d}
+		${SHOW_EQUALS:+-e}
+		${IGNORE_UNKNOWNS:+-i}
+		$( [ "$SHOW_NAME"  ] || echo \ -n )
+		$( [ "$SHOW_VALUE" ] || echo \ -N )
+		$( [ "$SHOW_FILE"  ] && echo \ -F )
+	"
+	if [ "$SERVICE" ]; then
+		escape "$SERVICE" _SERVICE
+		args="$args -s '$_SERVICE'"
+		unset _SERVICE
+	fi
+	if [ "${RC_CONFS+set}" ]; then
+		escape "$RC_CONFS" _RC_CONFS
+		args="$args -f '$_RC_CONFS'"
+		unset _RC_CONFS
+	fi
+	for arg in "$@"; do
+		escape "$arg" arg
+		args="$args '$arg'"
+	done
+
+	#
+	# If both are supplied, `-j jail' supercedes `-R dir'
+	#
+	if [ "$JAIL" ]; then
+		#
+		# Re-execute ourselves with sh(1) via jexec(8)
+		#
+		( echo set -- $args
+		  jail_depend
+		  cat $0
+		) | env - RC_DEFAULTS="$RC_DEFAULTS" \
+		    	/usr/sbin/jexec "$JAIL" /bin/sh
+		exit $?
+	elif [ "$ROOTDIR" ]; then
+		#
+		# Make sure that the root directory specified is not to any
+		# running jails.
+		#
+		# NOTE: To maintain backward compatibility with older jails on
+		# older systems, we will not perform this check if either the
+		# jls(1) or jexec(8) utilities are missing.
+		#
+		if f_have jexec && f_have jls; then
+			jid=$( jls jid path |
+				while read JID JROOT; do
+					[ "$JROOT" = "$ROOTDIR" ] || continue
+					echo $JID
+				done
+			)
+
+			#
+			# If multiple running jails match the specified root
+			# directory, exit with error.
+			#
+			if [ "$jid" -a "${jid%[$IFS]*}" != "$jid" ]; then
+				die "%s: %s: %s" "$pgm" "$ROOTDIR" \
+				    "$( echo "Multiple jails claim this" \
+				             "directory as their root." \
+				             "(use \`-j jail' instead)" )"
+			fi
+
+			#
+			# If only a single running jail matches the specified
+			# root directory, implicitly use `-j jail'.
+			#
+			if [ "$jid" ]; then
+				#
+				# Re-execute outselves with sh(1) via jexec(8)
+				#
+				( echo set -- $args
+				  jail_depend
+				  cat $0
+				) | env - RC_DEFAULTS="$RC_DEFAULTS" \
+					/usr/sbin/jexec "$jid" /bin/sh
+				exit $?
+			fi
+
+			# Otherwise, fall through and allow chroot(8)
+		fi
+
+		#
+		# Re-execute ourselves with sh(1) via chroot(8)
+		#
+		( echo set -- $args
+		  jail_depend
+		  cat $0
+		) | env - RC_DEFAULTS="$RC_DEFAULTS" \
+		    	/usr/sbin/chroot "$ROOTDIR" /bin/sh
+		exit $?
+	fi
+fi
+
+#
+# Process `-a' or `-A' command-line options
+#
+if [ "$SHOW_ALL" ]; then
+	#
+	# Get a list of variables that are currently set in the rc.conf(5)
+	# files (including `/etc/defaults/rc.conf') by performing a call to
+	# source_rc_confs() in a clean environment.
+	#
+	( # Operate in a sub-shell to protect the parent environment
+		#
+		# Set which variables we want to preserve in the environment.
+		# Append the pipe-character (|) to the list of internal field
+		# separation (IFS) characters, allowing us to use the below
+		# list both as an extended grep (-E) pattern and argument list
+		# (required to first get f_clean_env() to preserve these in the
+		# environment and then later to prune them from the list of
+		# variables produced by set(1)).
+		#
+		IFS="$IFS|"
+		EXCEPT="IFS|EXCEPT|PATH|RC_DEFAULTS|OPTIND|DESCRIBE|SEP"
+		EXCEPT="$EXCEPT|DELETE|SHOW_ALL|SHOW_EQUALS|SHOW_NAME|DEFAULT"
+		EXCEPT="$EXCEPT|SHOW_VALUE|SHOW_FILE|VERBOSE|RC_CONFS|SERVICE"
+		EXCEPT="$EXCEPT|pgm|SUCCESS|FAILURE|CHECK_ONLY|EXISTING_ONLY"
+		EXCEPT="$EXCEPT|LIST_CONFS|LIST_SERVICE_CONFS"
+		EXCEPT="$EXCEPT|f_sysrc_desc_awk|f_sysrc_delete_awk"
+
+		#
+		# Clean the environment (except for our required variables)
+		# and then source the required files.
+		#
+		f_clean_env --except $EXCEPT
+		if [ -f "$RC_DEFAULTS" -a -r "$RC_DEFAULTS" ]; then
+			. "$RC_DEFAULTS"
+
+			#
+			# If passed `-a' (rather than `-A'), re-purge the
+			# environment, removing the rc.conf(5) defaults.
+			#
+			[ "$SHOW_ALL" = "1" ] &&
+				f_clean_env --except rc_conf_files $EXCEPT
+
+			#
+			# If `-f file' was passed, set $rc_conf_files to an
+			# explicit value, modifying the default behavior of
+			# source_rc_confs().
+			#
+			if [ "${RC_CONFS+set}" ]; then
+				[ "$SHOW_ALL" = "1" -a "$SERVICE" -a \
+					! "$DEFAULT" ] || rc_conf_files=
+				rc_conf_files="$rc_conf_files $RC_CONFS"
+				rc_conf_files="${rc_conf_files# }"
+				rc_conf_files="${rc_conf_files% }"
+			fi
+
+			source_rc_confs
+
+			#
+			# If passed `-a' (rather than `-A'), remove
+			# `rc_conf_files' unless it was defined somewhere
+			# other than rc.conf(5) defaults.
+			#
+			[ "$SHOW_ALL" = "1" -a \
+			  "$( f_sysrc_find rc_conf_files )" = "$RC_DEFAULTS" \
+			] && unset rc_conf_files
+		fi
+
+		for NAME in $( set |
+			awk -F= '/^[[:alpha:]_][[:alnum:]_]*=/ {print $1}' |
+			grep -Ev "^($EXCEPT)$"
+		); do
+			#
+			# If enabled, describe rather than expand value
+			#
+			if [ "$DESCRIBE" ]; then
+				echo "$NAME: $( f_sysrc_desc "$NAME" )"
+				continue
+			fi
+
+			#
+			# If `-F' is passed, find it and move on
+			#
+			if [ "$SHOW_FILE" ]; then
+				[ "$SHOW_NAME" ] && echo -n "$NAME: "
+				f_sysrc_find "$NAME"
+				continue
+			fi
+
+			#
+			# If `-X' is passed, delete the variables
+			#
+			if [ "$DELETE" = "2" ]; then
+				f_sysrc_delete "$NAME"
+				continue
+			fi
+
+			[ "$VERBOSE" ] &&
+				echo -n "$( f_sysrc_find "$NAME" ): "
+
+			#
+			# If `-N' is passed, simplify the output
+			#
+			if [ ! "$SHOW_VALUE" ]; then
+				echo "$NAME"
+				continue
+			fi
+
+			echo "${SHOW_NAME:+$NAME$SEP}$(
+			      f_sysrc_get "$NAME" )${SHOW_EQUALS:+\"}"
+
+		done
+	)
+
+	#
+	# Ignore the remainder of positional arguments.
+	#
+	exit $SUCCESS
+fi
+
+#
+# Process command-line arguments
+#
+status=$SUCCESS
+while [ $# -gt 0 ]; do
+	NAME="${1%%=*}"
+
+	case "$NAME" in
+	*+) mode=APPEND NAME="${NAME%+}" ;;
+	*-) mode=REMOVE NAME="${NAME%-}" ;;
+	 *) mode=ASSIGN
+	esac
+
+	[ "$DESCRIBE" ] &&
+		echo "$NAME: $( f_sysrc_desc "$NAME" )"
+
+	case "$1" in
+	*=*)
+		#
+		# Like sysctl(8), if both `-d' AND "name=value" is passed,
+		# first describe (done above), then attempt to set
+		#
+
+		# If verbose, prefix line with where the directive lives
+		if [ "$VERBOSE" -a ! "$CHECK_ONLY" ]; then
+			file=$( f_sysrc_find "$NAME" )
+			[ "$file" = "$RC_DEFAULTS" -o ! "$file" ] &&
+				file=$( f_sysrc_get 'rc_conf_files%%[$IFS]*' )
+			if [ "$SHOW_EQUALS" ]; then
+				echo -n ": $file; "
+			else
+				echo -n "$file: "
+			fi
+		fi
+
+		#
+		# If `-x' or `-X' is passed, delete the variable and ignore the
+		# desire to set some value
+		#
+		if [ "$DELETE" ]; then
+			f_sysrc_delete "$NAME" || status=$FAILURE
+			shift 1
+			continue
+		fi
+
+		#
+		# If `-c' is passed, simply compare and move on
+		#
+		if [ "$CHECK_ONLY" ]; then
+			if ! IGNORED=$( f_sysrc_get "$NAME?" ); then
+				status=$FAILURE
+				[ "$VERBOSE" ] &&
+					echo "$NAME: not currently set"
+				shift 1
+				continue
+			fi
+			value=$( f_sysrc_get "$NAME" )
+			if [ "$value" != "${1#*=}" ]; then
+				status=$FAILURE
+				if [ "$VERBOSE" ]; then
+					echo -n "$( f_sysrc_find "$NAME" ): "
+					echo -n "$NAME: would change from "
+					echo "\`$value' to \`${1#*=}'"
+				fi
+			elif [ "$VERBOSE" ]; then
+				echo -n "$( f_sysrc_find "$NAME" ): "
+				echo "$NAME: already set to \`$value'"
+			fi
+			shift 1
+			continue
+		fi
+
+		#
+		# Determine both `before' value and appropriate `new' value
+		#
+		case "$mode" in
+		APPEND)
+			before=$( f_sysrc_get "$NAME" )
+			add="${1#*=}"
+			delim="${add%"${add#?}"}" # first character
+			oldIFS="$IFS"
+			case "$delim" in
+			""|[$IFS]|[a-zA-Z0-9./]) delim=" " ;;
+			*) IFS="$delim"
+			esac
+			new="$before"
+			for a in $add; do
+				[ "$a" ] || continue
+				skip=
+				for b in $before; do
+					[ "$b" = "$a" ] && skip=1 break
+				done
+				[ "$skip" ] || new="$new$delim$a"
+			done
+			new="${new#"$delim"}" IFS="$oldIFS"
+			unset add delim oldIFS a skip b
+			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
+			;;
+		REMOVE)
+			before=$( f_sysrc_get "$NAME" )
+			remove="${1#*=}"
+			delim="${remove%"${remove#?}"}" # first character
+			oldIFS="$IFS"
+			case "$delim" in
+			""|[$IFS]|[a-zA-Z0-9./]) delim=" " ;;
+			*) IFS="$delim"
+			esac
+			new=
+			for b in $before; do
+				[ "$b" ] || continue
+				add=1
+				for r in $remove; do
+					[ "$r" = "$b" ] && add= break
+				done
+				[ "$add" ] && new="$new$delim$b"
+			done
+			new="${new#"$delim"}" IFS="$oldIFS"
+			unset remove delim oldIFS b add r
+			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
+			;;
+		*) # ASSIGN
+			if [ "$SHOW_FILE" ]; then
+				before=$( f_sysrc_find "$NAME" )
+			else
+				before=$( f_sysrc_get "$NAME" )
+			fi
+			new="${1#*=}"
+		esac
+
+		#
+		# If `-N' is passed, simplify the output
+		#
+		if [ ! "$SHOW_VALUE" ]; then
+			echo "$NAME"
+			f_sysrc_set "$NAME" "$new" || status=$FAILURE
+		else
+			if f_sysrc_set "$NAME" "$new"; then
+				if [ "$SHOW_FILE" ]; then
+					after=$( f_sysrc_find "$NAME" )
+				else
+					after=$( f_sysrc_get "$NAME" )
+				fi
+				echo -n "${SHOW_NAME:+$NAME$SEP}"
+				echo -n "$before${SHOW_EQUALS:+\" #}"
+				echo -n " -> ${SHOW_EQUALS:+\"}$after"
+				echo "${SHOW_EQUALS:+\"}"
+			else
+				status=$FAILURE
+			fi
+		fi
+		;;
+	*)
+		if ! IGNORED=$( f_sysrc_get "$NAME?" ); then
+			[ "$IGNORE_UNKNOWNS" -o "$QUIET" ] ||
+				f_err "%s: unknown variable '%s'\n" \
+					"$pgm" "$NAME"
+			shift 1
+			status=$FAILURE
+			continue
+		fi
+
+		# The above check told us what we needed for `-c'
+		if [ "$CHECK_ONLY" ]; then
+			shift 1
+			continue
+		fi
+
+		#
+		# Like sysctl(8), when `-d' is passed, desribe it
+		# (already done above) rather than expanding it
+		#
+
+		if [ "$DESCRIBE" ]; then
+			shift 1
+			continue
+		fi
+
+		#
+		# If `-x' or `-X' is passed, delete the variable
+		#
+		if [ "$DELETE" ]; then
+			f_sysrc_delete "$NAME" || status=$FAILURE
+			shift 1
+			continue
+		fi
+
+		#
+		# If `-F' is passed, find it and move on
+		#
+		if [ "$SHOW_FILE" ]; then
+			[ "$SHOW_NAME" ] && echo -n "$NAME: "
+			f_sysrc_find "$NAME"
+			shift 1
+			continue
+		fi
+
+		if [ "$VERBOSE" ]; then
+			if [ "$SHOW_EQUALS" ]; then
+				echo -n ": $( f_sysrc_find "$NAME" ); "
+			else
+				echo -n "$( f_sysrc_find "$NAME" ): "
+			fi
+		fi
+
+		#
+		# If `-N' is passed, simplify the output
+		#
+		if [ ! "$SHOW_VALUE" ]; then
+			echo "$NAME"
+		else
+			echo "${SHOW_NAME:+$NAME$SEP}$(
+			      f_sysrc_get "$NAME" )${SHOW_EQUALS:+\"}"
+		fi
+	esac
+	shift 1
+done
+
+exit $status # $SUCCESS unless error occurred with either `-c' or `-x'
+
+################################################################################
+# END
+################################################################################

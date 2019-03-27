@@ -1,0 +1,37 @@
+cxx_test(
+    name='options_test',
+    srcs=['OptionsTest.cpp'],
+    deps=['//contrib/pzstd:options'],
+)
+
+cxx_test(
+    name='pzstd_test',
+    srcs=['PzstdTest.cpp'],
+    deps=[
+        ':round_trip',
+        '//contrib/pzstd:libpzstd',
+        '//contrib/pzstd/utils:scope_guard',
+        '//programs:datagen',
+    ],
+)
+
+cxx_binary(
+    name='round_trip_test',
+    srcs=['RoundTripTest.cpp'],
+    deps=[
+        ':round_trip',
+        '//contrib/pzstd/utils:scope_guard',
+        '//programs:datagen',
+    ]
+)
+
+cxx_library(
+    name='round_trip',
+    header_namespace='test',
+    exported_headers=['RoundTrip.h'],
+    deps=[
+        '//contrib/pzstd:libpzstd',
+        '//contrib/pzstd:options',
+        '//contrib/pzstd/utils:scope_guard',
+    ]
+)

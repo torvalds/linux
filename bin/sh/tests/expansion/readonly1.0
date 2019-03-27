@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+w='@ @'
+
+v=0 HOME=/known/value
+readonly v=~:~/:$w
+[ "$v" = "$HOME:$HOME/:$w" ] || echo "Expected $HOME/:$w got $v"

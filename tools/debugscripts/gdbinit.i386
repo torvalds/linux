@@ -1,0 +1,376 @@
+# $FreeBSD$
+# Assembler-level macros for i386
+# Disassemble the next 10 instructions.
+define xi
+x/10i $eip
+end
+
+# Top 12 words on stack
+define xs
+x/12x $esp
+end
+
+# Top 12 words from frame pointer
+define xb
+x/12x $ebp
+end
+
+# single step through calls and disassemble the next instruction
+define z
+ni
+x/1i $eip
+end
+
+# single step over calls and disassemble the next instruction
+define zs
+si
+x/1i $eip
+end
+
+# show current stack frame and first 4 parameters
+define xp
+printf "      esp: " 
+output/x $esp
+echo  (
+output (((int)$ebp)-(int)$esp)/4-4
+printf " words on stack)\n      ebp: " 
+output/x $ebp
+printf "\n      eip: " 
+x/1i $eip
+printf "Saved ebp: " 
+output/x *(int*)$ebp
+printf " (maximum of "  
+output ((*(int*)$ebp)-(int)$ebp)/4-4
+printf " parameters possible)\nSaved eip: " 
+x/1i *(int*)($ebp+4)
+printf "\nParm 1 at " 
+output/x (int) ($ebp+8)
+printf ":    " 
+output (char*) *(int*)($ebp+8)
+printf "\nParm 2 at " 
+output/x (int) ($ebp+12)
+printf ":    " 
+output (char*) *(int*)($ebp+12)
+printf "\nParm 3 at " 
+output/x (int) ($ebp+16)
+printf ":    " 
+output (char*) *(int*)($ebp+16)
+printf "\nParm 4 at " 
+output/x (int) ($ebp+20)
+printf ":    " 
+output (char*) *(int*)($ebp+20)
+echo \n
+end
+document xp
+Show the register contents and the first four parameter
+words of the current frame.
+end
+
+# show current stack frame and first 10 parameters
+define xxp
+printf "      esp: " 
+output/x $esp
+printf "\n      ebp: " 
+output/x $ebp
+printf "\n      eip: " 
+x/1i $eip
+printf "Saved ebp: " 
+output/x *(int*)$ebp
+printf " (maximum of "  
+output ((*(int*)$ebp)-(int)$ebp)/4-4
+printf " parameters possible)\nSaved eip: " 
+x/1i *(int*)($ebp+4)
+printf "\nParm  1 at " 
+output/x (int) ($ebp+8)
+printf ":    " 
+output (char*) *(int*)($ebp+8)
+printf "\nParm  2 at " 
+output/x (int) ($ebp+12)
+printf ":    " 
+output (char*) *(int*)($ebp+12)
+printf "\nParm  3 at " 
+output/x (int) ($ebp+16)
+printf ":    " 
+output (char*) *(int*)($ebp+16)
+printf "\nParm  4 at " 
+output/x (int) ($ebp+20)
+printf ":    " 
+output (char*) *(int*)($ebp+20)
+printf "\nParm  5 at " 
+output/x (int) ($ebp+24)
+printf ":    " 
+output (char*) *(int*)($ebp+24)
+printf "\nParm  6 at " 
+output/x (int) ($ebp+28)
+printf ":    " 
+output (char*) *(int*)($ebp+28)
+printf "\nParm  7 at " 
+output/x (int) ($ebp+32)
+printf ":    " 
+output (char*) *(int*)($ebp+32)
+printf "\nParm  8 at " 
+output/x (int) ($ebp+36)
+printf ":    " 
+output (char*) *(int*)($ebp+36)
+printf "\nParm  9 at " 
+output/x (int) ($ebp+40)
+printf ":    " 
+output (char*) *(int*)($ebp+40)
+printf "\nParm 10 at " 
+output/x (int) ($ebp+44)
+printf ":    " 
+output (char*) *(int*)($ebp+44)
+echo \n
+end
+document xxp
+Show the register contents and the first ten parameter
+words of the current frame.
+end
+
+# Show first to fifth parameters of current frame as int, int * and char *.
+define xp0
+x/12x *(int*)$esp
+p *(int*)$esp
+p (char*)*$esp
+end
+define xp1
+x/12x *(int*)($ebp+4)
+p *(int*)($ebp+4)
+p (char**)($ebp+4)
+end
+define xp2
+x/12x *(int*)($ebp+8)
+p *(int*)($ebp+8)
+p *(char**)($ebp+8)
+end
+define xp3
+x/12x *(int*)($ebp+12)
+p *(int*)($ebp+12)
+p (char**)($ebp+12)
+end
+define xp4
+x/12x *(int*)($ebp+16)
+p *(int*)($ebp+16)
+p (char**)($ebp+16)
+end
+document xp0
+Show the first parameter of current stack frame in various formats
+end
+document xp1
+Show the second parameter of current stack frame in various formats
+end
+document xp2
+Show the third parameter of current stack frame in various formats
+end
+document xp3
+Show the fourth parameter of current stack frame in various formats
+end
+document xp4
+Show the fifth parameter of current stack frame in various formats
+end
+
+# Select frame 0 to 5 and show stack information.
+define f0
+f 0
+xp
+end
+define f1
+f 1
+xp
+end
+define f2
+f 2
+xp
+end
+define f3
+f 3
+xp
+end
+define f4
+f 4
+xp
+end
+define f5
+f 5
+xp
+end
+document f0
+Select stack frame 0 and show assembler-level details
+end
+document f1
+Select stack frame 1 and show assembler-level details
+end
+document f2
+Select stack frame 2 and show assembler-level details
+end
+document f3
+Select stack frame 3 and show assembler-level details
+end
+document f4
+Select stack frame 4 and show assembler-level details
+end
+document f5
+Select stack frame 5 and show assembler-level details
+end
+document z
+Single step 1 instruction (over calls) and show next instruction.
+end
+document zs
+Single step 1 instruction (through calls) and show next instruction.
+end
+document xi
+List the next 10 instructions from the current IP value
+end
+document xs
+Show the last 12 words on stack in hex
+end
+document xb
+Show 12 words starting at current BP value in hex
+end
+
+# pcb <pid>
+# show contents of pcb, currently only i386.
+define pcb
+    set $nproc = nprocs
+    set $aproc = allproc.lh_first
+    set $proc = allproc.lh_first
+    while (--$nproc >= 0)
+        set $pptr = $proc.p_pptr
+        if ($proc->p_pid == $arg0)
+           set $pcba = $proc->p_threads.tqh_first->td_pcb
+	   printf "ip: %08x sp: %08x bp: %08x bx: %08x\n", $pcba->pcb_eip, $pcba->pcb_esp, $pcba->pcb_ebp, $pcba->pcb_ebx
+	   x/1i $pcba->pcb_eip
+	   set $nproc = 0
+        end
+        set $aproc = $proc.p_list.le_next
+        if ($aproc == 0 && $nproc > 0)
+            set $aproc = zombproc
+        end
+        set $proc = $aproc
+    end
+end
+document pcb
+Show some pcb contents of process whose pid is specified.
+end
+
+# btr <frame>
+# primitive backtrace.  frame is a memory address.
+define btr
+set $frame = $arg0
+set $fno = 0
+while (*(int *) $frame > 0xc0000000)
+  set $myebp = *(int *) $frame
+  set $myeip = *(int *) ($frame + 4)
+  printf " frame %d at %p: ebp %8x, eip ", $fno, $frame, $myebp
+  x/1i $myeip
+  set $frame = $myebp
+  set $fno = $fno + 1
+end
+end
+document btr
+Show a backtrace from the ebp address specified.  This can be used to get a backtrace from any stack resident in memory.  It's the user's responsibility to ensure that the address is meaningful.
+end
+
+# btp <pid>
+# backtrace for process <pid>.  Uses btr (machine dependent) to perform the backtrace.
+# may produce nonsense.
+define btp
+    set $nproc = nprocs
+    set $aproc = allproc.lh_first
+    set $proc = allproc.lh_first
+    while (--$nproc >= 0)
+        if ($proc->p_pid == $arg0)
+	   btr $proc->p_threads.tqh_first->td_pcb->pcb_ebp
+	   set $nproc = 0
+	else
+           set $aproc = $proc.p_list.le_next
+           if ($aproc == 0 && $nproc > 0)
+              set $aproc = zombproc
+           end
+           set $proc = $aproc
+        end
+   end
+end
+document btp
+Show a backtrace for the process whose pid is specified as a parameter.
+end
+
+# Do backtraces for all processes in the system.
+# Uses btr (machine dependent) to perform the backtrace.
+define btpa
+    set $nproc = nprocs
+    set $aproc = allproc.lh_first
+    set $proc = allproc.lh_first
+    printf "  pid    proc   uid  ppid  pgrp   flag stat comm         wchan\n"
+    while (--$nproc >= 0)
+        set $pptr = $proc.p_pptr
+        if ($pptr == 0)
+           set $pptr = $proc
+        end
+        if ($proc.p_stat)
+            printf "%5d %08x %4d %5d %5d  %06x %d  %-10s   ", \
+                   $proc.p_pid, $aproc, \
+                   $proc.p_cred->p_ruid, $pptr->p_pid, \
+                   $proc.p_pgrp->pg_id, $proc.p_flag, $proc.p_stat, \
+                   &$proc.p_comm[0]
+            if ($proc.p_wchan)
+                if ($proc.p_wmesg)
+                    printf "%s ", $proc.p_wmesg
+                end
+                printf "%x", $proc.p_wchan
+            end
+            printf "\n"
+	   if ($proc->p_flag & 4)
+	      btr $proc->p_threads.tqh_first->td_pcb->pcb_ebp
+	   else
+              echo (not loaded)\n
+	   end
+        end
+        set $aproc = $proc.p_list.le_next
+        if ($aproc == 0 && $nproc > 0)
+            set $aproc = zombproc
+        end
+        set $proc = $aproc
+    end
+end
+document btpa
+Show backtraces for all processes in the system.
+end
+
+# Show backtrace for process selected with "defproc"
+define btpp
+btr $myvectorproc->p_threads.tqh_first->td_pcb->pcb_ebp
+end
+document btpp
+Show a backtrace for the process previously selected with 'defproc'.
+end
+
+# Specific stack fram of process selected with "defproc".
+define fr
+set $fno = 0
+set $searching = 1
+set $frame = $myvectorproc->p_threads.tqh_first->td_pcb->pcb_ebp
+while (($searching == 1) && (*(int *) $frame > 0xc0000000))
+  set $myebp = *(int *) $frame
+  set $myeip = *(int *) ($frame + 4)
+  if ($fno == $arg0)
+    printf " frame %d at %p: ebp %8x, eip ", $fno, $frame, $myebp
+    x/1i $myeip
+    printf "Called from %8x, stack frame at %8x\n", *(int *) ($myebp+4), *(int *) $myebp
+    printf "last 20 local variables:\n"
+    x/20x ($myebp-80)
+    printf "call parameters:\n"
+    x/8x ($myebp+8)
+    set $searching = 0
+  else
+    set $frame = $myebp
+    set $fno = $fno + 1
+  end
+end
+if ($searching == 1)
+  echo frame not found\n
+end
+end
+document fr
+Show the frame of the stack of the process previously selected with 'defproc'.
+end

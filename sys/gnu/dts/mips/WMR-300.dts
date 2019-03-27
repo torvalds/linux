@@ -1,0 +1,104 @@
+/dts-v1/;
+
+#include "mt7620n.dtsi"
+
+/ {
+	compatible = "buffalo,wmr-300", "ralink,mt7620n-soc";
+	model = "Buffalo WMR-300";
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		aoss1 {
+			label = "wmr-300:red:aoss";
+			gpios = <&gpio2 1 1>;
+		};
+
+		aoss2 {
+			label = "wmr-300:green:aoss";
+			gpios = <&gpio2 2 1>;
+		};
+
+		power {
+			label = "wmr-300:green:status";
+			gpios = <&gpio2 4 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 1 1>;
+			linux,code = <0x198>;
+		};
+
+		aoss {
+			label = "aoss";
+			gpios = <&gpio0 2 1>;
+			linux,code = <0x211>;
+		};
+	};
+};
+
+&gpio2 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "en25q64";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x7b0000>;
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x4>;
+	mediatek,portmap = "wllll";
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		default {
+			ralink,group = "i2c", "ephy";
+			ralink,function = "gpio";
+		};
+	};
+};

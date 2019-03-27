@@ -1,0 +1,80 @@
+/dts-v1/;
+
+#include "rt3050.dtsi"
+
+/ {
+	compatible = "RT-N10-PLUS", "ralink,rt3050-soc";
+	model = "Asus RT-N10+";
+
+	cfi@1f000000 {
+		compatible = "cfi-flash";
+		reg = <0x1f000000 0x800000>;
+		bank-width = <2>;
+		device-width = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "devdata";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		devconf: partition@40000 {
+			label = "devconf";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x3b0000>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		wps {
+			label = "rt-n10-plus:green:wps";
+			gpios = <&gpio0 14 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 10 1>;
+			linux,code = <0x198>;
+		};
+
+		wps {
+			label = "wps";
+			gpios = <&gpio0 0 1>;
+			linux,code = <0x211>;
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&devconf 0x4>;
+};
+
+&esw {
+	mediatek,portmap = <0x3e>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&devconf 0>;
+};

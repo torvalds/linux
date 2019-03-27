@@ -1,0 +1,287 @@
+.\" @(#)rpc_secure.3n	2.1 88/08/08 4.0 RPCSRC; from 1.19 88/06/24 SMI
+.\" $FreeBSD$
+.\"
+.Dd February 16, 1988
+.Dt RPC 3
+.Os
+.Sh NAME
+.Nm rpc_secure
+.Nd library routines for secure remote procedure calls
+.Sh SYNOPSIS
+.In rpc/rpc.h
+.Ft AUTH *
+.Fo authdes_create
+.Fa "char *name"
+.Fa "unsigned window"
+.Fa "struct sockaddr *addr"
+.Fa "des_block *ckey"
+.Fc
+.Ft int
+.Fn authdes_getucred "struct authdes_cred *adc" "uid_t *uid" "gid_t *gid" "int *grouplen" "gid_t *groups"
+.Ft int
+.Fn getnetname "char *name"
+.Ft int
+.Fn host2netname "char *name" "const char *host" "const char *domain"
+.Ft int
+.Fn key_decryptsession "const char *remotename" "des_block *deskey"
+.Ft int
+.Fn key_encryptsession "const char *remotename" "des_block *deskey"
+.Ft int
+.Fn key_gendes "des_block *deskey"
+.Ft int
+.Fn key_setsecret "const char *key"
+.Ft int
+.Fn netname2host "char *name" "char *host" "int hostlen"
+.Ft int
+.Fn netname2user "char *name" "uid_t *uidp" "gid_t *gidp" "int *gidlenp" "gid_t *gidlist"
+.Ft int
+.Fn user2netname "char *name" "const uid_t uid" "const char *domain"
+.Sh DESCRIPTION
+These routines are part of the
+.Tn RPC
+library.
+They implement
+.Tn DES
+Authentication.
+See
+.Xr rpc 3
+for further details about
+.Tn RPC .
+.Pp
+The
+.Fn authdes_create
+is the first of two routines which interface to the
+.Tn RPC
+secure authentication system, known as
+.Tn DES
+authentication.
+The second is
+.Fn authdes_getucred ,
+below.
+.Pp
+Note: the keyserver daemon
+.Xr keyserv 8
+must be running for the
+.Tn DES
+authentication system to work.
+.Pp
+The
+.Fn authdes_create
+function,
+used on the client side, returns an authentication handle that
+will enable the use of the secure authentication system.
+The first argument
+.Fa name
+is the network name, or
+.Fa netname ,
+of the owner of the server process.
+This field usually
+represents a
+.Fa hostname
+derived from the utility routine
+.Fn host2netname ,
+but could also represent a user name using
+.Fn user2netname .
+The second field is window on the validity of
+the client credential, given in seconds.
+A small
+window is more secure than a large one, but choosing
+too small of a window will increase the frequency of
+resynchronizations because of clock drift.
+The third
+argument
+.Fa addr
+is optional.
+If it is
+.Dv NULL ,
+then the authentication system will assume
+that the local clock is always in sync with the server's
+clock, and will not attempt resynchronizations.
+If an address
+is supplied, however, then the system will use the address
+for consulting the remote time service whenever
+resynchronization
+is required.
+This argument is usually the
+address of the
+.Tn RPC
+server itself.
+The final argument
+.Fa ckey
+is also optional.
+If it is
+.Dv NULL ,
+then the authentication system will
+generate a random
+.Tn DES
+key to be used for the encryption of credentials.
+If it is supplied, however, then it will be used instead.
+.Pp
+The
+.Fn authdes_getucred
+function,
+the second of the two
+.Tn DES
+authentication routines,
+is used on the server side for converting a
+.Tn DES
+credential, which is
+operating system independent, into a
+.Ux
+credential.
+This routine differs from utility routine
+.Fn netname2user
+in that
+.Fn authdes_getucred
+pulls its information from a cache, and does not have to do a
+Yellow Pages lookup every time it is called to get its information.
+.Pp
+The
+.Fn getnetname
+function
+installs the unique, operating-system independent netname of
+the
+caller in the fixed-length array
+.Fa name .
+Returns
+.Dv TRUE
+if it succeeds and
+.Dv FALSE
+if it fails.
+.Pp
+The
+.Fn host2netname
+function
+converts from a domain-specific hostname to an
+operating-system independent netname.
+Returns
+.Dv TRUE
+if it succeeds and
+.Dv FALSE
+if it fails.
+Inverse of
+.Fn netname2host .
+.Pp
+The
+.Fn key_decryptsession
+function
+is an interface to the keyserver daemon, which is associated
+with
+.Tn RPC Ns 's
+secure authentication system
+.Tn ( DES
+authentication).
+User programs rarely need to call it, or its associated routines
+.Fn key_encryptsession ,
+.Fn key_gendes
+and
+.Fn key_setsecret .
+System commands such as
+.Xr login 1
+and the
+.Tn RPC
+library are the main clients of these four routines.
+.Pp
+The
+.Fn key_decryptsession
+function
+takes a server netname and a
+.Tn DES
+key, and decrypts the key by
+using the public key of the server and the secret key
+associated with the effective uid of the calling process.
+It
+is the inverse of
+.Fn key_encryptsession .
+.Pp
+The
+.Fn key_encryptsession
+function
+is a keyserver interface routine.
+It
+takes a server netname and a des key, and encrypts
+it using the public key of the server and the secret key
+associated with the effective uid of the calling process.
+It
+is the inverse of
+.Fn key_decryptsession .
+.Pp
+The
+.Fn key_gendes
+function
+is a keyserver interface routine.
+It
+is used to ask the keyserver for a secure conversation key.
+Choosing one
+.Qq random
+is usually not good enough,
+because
+the common ways of choosing random numbers, such as using the
+current time, are very easy to guess.
+.Pp
+The
+.Fn key_setsecret
+function
+is a keyserver interface routine.
+It is used to set the key for
+the effective
+.Fa uid
+of the calling process.
+.Pp
+The
+.Fn netname2host
+function
+converts from an operating-system independent netname to a
+domain-specific hostname.
+Returns
+.Dv TRUE
+if it succeeds and
+.Dv FALSE
+if it fails.
+Inverse of
+.Fn host2netname .
+.Pp
+The
+.Fn netname2user
+function
+converts from an operating-system independent netname to a
+domain-specific user ID.
+Returns
+.Dv TRUE
+if it succeeds and
+.Dv FALSE
+if it fails.
+Inverse of
+.Fn user2netname .
+.Pp
+The
+.Fn user2netname
+function
+converts from a domain-specific username to an operating-system
+independent netname.
+Returns
+.Dv TRUE
+if it succeeds and
+.Dv FALSE
+if it fails.
+Inverse of
+.Fn netname2user .
+.Sh SEE ALSO
+.Xr rpc 3 ,
+.Xr xdr 3 ,
+.Xr keyserv 8
+.Pp
+The following manuals:
+.Rs
+.%B Remote Procedure Calls: Protocol Specification
+.Re
+.Rs
+.%B Remote Procedure Call Programming Guide
+.Re
+.Rs
+.%B Rpcgen Programming Guide
+.Re
+.Rs
+.%B RPC: Remote Procedure Call Protocol Specification
+.%O RFC1050, Sun Microsystems Inc., USC-ISI
+.Re

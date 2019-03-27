@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+T=`mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXX`
+trap 'rm -rf $T' 0
+cd $T || exit 3
+mkfifo fifo1
+trapped=
+trap trapped=1 QUIT
+{ kill -QUIT $$; sleep 1; exit 4; } >fifo1 &
+wait <fifo1
+r=$?
+[ "$r" -gt 128 ] && [ -n "$trapped" ]

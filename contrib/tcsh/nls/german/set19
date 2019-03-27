@@ -1,0 +1,23 @@
+$ $tcsh: set19,v 1.7 2011/02/25 23:58:07 christos Exp $
+$ tc.alloc.c
+$set 19
+1 nbytes=%d: Out of memory\n
+2 free(%lx) aufgerufen vor irgendeiner Allokation.
+3 free(%lx) vor dem Start des Speichers.
+4 free(%lx) hinter dem Ende des Speichers.
+5 free(%lx) falschen Block.
+6 free(%lx) falscher Bereichs-Check.
+7 free(%lx) falscher Block-Index.
+8 Tcsh's augenblickliche Speicherbelegung:\nfrei:\t
+9 benutzt
+10 \n\tInsgesamt in Benutzung: %d, insgesamt frei: %d\n
+11 \tAllokierter Speicher von 0x%lx bis 0x%lx.  Wirklicher Anfang 0x%lx\n
+12 Allokierter Speicher von 0x%lx bis 0x%lx (%ld).\n
+13 Tcsh's augenblickliche Speicherbelegung:\n
+14 Gesamter vom System angeforderter Speicher: %d\n
+15 Anzahl nicht benutzter BlÃ¶cke:: %d\n
+16 Anzahl via mmap angeforderter Speicherbereiche: %d\n
+17 Via mmap angeforderter Speicher: %d\n
+18 Gesamter benutzer Speicher im Pool: %d\n
+19 Gesamter freier Speicher im Pool: %d\n
+20 Speicher der freigegeben werden kann: %d\n

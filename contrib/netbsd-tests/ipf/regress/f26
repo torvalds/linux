@@ -1,0 +1,6 @@
+pass in quick proto tcp from 1.1.1.0/24 to any port = 22 flags S keep state(max-srcs 3)
+pass in quick proto tcp from 1.1.1.0/24 to any port = 22 flags S keep state(max-srcs 3, max-per-src 1/32)
+pass in quick proto tcp from 1.1.1.0/24 to any port = 22 flags S keep state(max-srcs 3, max-per-src 1/16)
+pass in quick proto tcp all flags S keep state(max-srcs 3)
+pass in quick proto tcp all flags S keep state(max-srcs 3, max-per-src 1/32)
+pass in quick proto tcp all flags S keep state(max-srcs 3, max-per-src 1/16)

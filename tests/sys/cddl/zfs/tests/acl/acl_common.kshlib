@@ -1,0 +1,638 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)acl_common.kshlib	1.4	09/05/19 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+# FreeBSD doesn't support ZFS extended attributes.  It also doesn't support the
+# same ACL mechanisms Solaris does for testing.
+if [[ $os_name != "FreeBSD" ]]; then
+	export ZFS_XATTR="true"
+	export ZFS_ACL="true"
+else
+	log_note "On FreeBSD most xattr and ACL tests are disabled"
+fi
+
+#
+# Get the given file/directory access mode
+#
+# $1 object -- file or directroy
+#
+function get_mode #<obj>
+{
+	typeset obj=$1
+	if (( ${#obj} == 0 )); then
+		return 1
+	fi
+
+	$LS -ld $obj | $AWK '{print $1}'
+}
+
+#
+# Get the given file/directory ACL
+#
+# $1 object -- file or directroy
+#
+function get_acl #<obj>
+{
+        typeset obj=$1
+	if (( ${#obj} == 0 )); then
+		return 1
+	fi
+
+	$LS -vd $obj | $NAWK '(NR != 1) {print $0}'
+}
+
+#
+# Get the given file/directory ACL
+#
+# $1 object -- file or directroy
+#
+function get_compact_acl #<obj>
+{
+        typeset obj=$1
+	if (( ${#obj} == 0 )); then
+		return 1
+	fi
+
+	$LS -Vd $obj | $NAWK '(NR != 1) {print $0}'
+}
+
+#
+# Check the given two files/directories have the same ACLs
+#
+# Return 0, if source object acl is equal to target object acl.
+# 
+# $1 source object
+# $2 target object
+#
+function compare_acls #<src> <tgt>
+{
+        typeset src=$1
+        typeset tgt=$2
+
+	(( ${#src} == 0 || ${#tgt} == 0 )) && return 1
+	[[ $src == $tgt ]] && return 0
+
+	typeset tmpsrc=$TMPDIR/compare_acls.src.${TESTCASE_ID}
+	typeset tmptgt=$TMPDIR/compare_acls.tgt.${TESTCASE_ID}
+
+	get_acl $src > $tmpsrc
+	get_acl $tgt > $tmptgt
+	typeset -i ret=0
+	$DIFF $tmpsrc $tmptgt > /dev/null 2>&1
+	ret=$?	
+	$RM -f $tmpsrc $tmptgt
+
+	if (( ret != 0 )); then
+		return $ret
+	fi
+
+	get_compact_acl $src > $tmpsrc
+	get_compact_acl $tgt > $tmptgt
+	$DIFF $tmpsrc $tmptgt > /dev/null 2>&1
+	ret=$?	
+	$RM -f $tmpsrc $tmptgt
+
+	return $ret
+}
+
+#
+# Check that the given two objects have the same modes.
+# Return 0, if their modes are equal with each other. Otherwise, return 1.
+#
+# $1 source object
+# $2 target object
+#
+function compare_modes #<src> <tgt>
+{
+        typeset src=$1
+        typeset tgt=$2
+        typeset -i i=0
+        set -A mode
+
+	(( ${#src} == 0 || ${#tgt} == 0 )) && return 1
+	[[ $src == $tgt ]] && return 0
+
+	typeset obj
+        for obj in $src $tgt
+        do
+                mode[i]=$(get_mode $obj)
+
+                (( i = i + 1 ))
+        done
+
+        [[ ${mode[0]} != ${mode[1]} ]] && return 1
+
+        return 0
+}
+
+#
+# Check that the given two objects have the same xattrs.
+# Return 0, if their xattrs are equal with each other. Otherwise, return 1.
+#
+# $1 source object
+# $2 target object
+#
+function compare_xattrs #<src> <tgt>
+{
+        typeset src=$1
+        typeset tgt=$2
+
+	(( ${#src} == 0 || ${#tgt} == 0 )) && return 1
+	[[ $src == $tgt ]] && return 0
+
+	typeset tmpsrc=$TMPDIR/compare_xattrs.src.${TESTCASE_ID}
+	typeset tmptgt=$TMPDIR/compare_xattrs.tgt.${TESTCASE_ID}
+
+	get_xattr $src > $tmpsrc
+	get_xattr $tgt > $tmptgt
+	typeset -i ret=0
+	$DIFF $tmpsrc $tmptgt > /dev/null 2>&1
+	ret=$?	
+	$RM -f $tmpsrc $tmptgt
+
+        return $ret
+}
+
+#
+# Check '+' is set for a given file/directory with 'ls [-l]' command
+#
+# $1 object -- file or directory.
+#
+function plus_sign_check_l #<obj>
+{
+	typeset obj=$1
+	if (( ${#obj} == 0 )); then
+		return 1
+	fi
+
+	$LS -ld $obj | $AWK '{print $1}' | $GREP "+\>" > /dev/null
+
+        return $?
+}
+
+#
+# Check '+' is set for a given file/directory with 'ls [-v]' command
+#
+# $1 object -- file or directory.
+#
+function plus_sign_check_v #<obj>
+{
+	typeset obj=$1
+	if (( ${#obj} == 0 )); then
+		return 1
+	fi
+
+	$LS -vd $obj | $NAWK '(NR == 1) {print $1}' | $GREP "+\>" > /dev/null
+
+        return $?
+}
+
+#
+# A wrapper function of c program
+#
+# $1 legal login name
+# $2-n commands and options
+#
+function chgusr_exec #<login_name> <commands> [...]
+{
+	$CHG_USR_EXEC $@
+	return $?
+}
+
+#
+# Export the current user for the following usr_exec operating.
+#
+# $1 legal login name
+#
+function set_cur_usr #<login_name>
+{
+	export ZFS_ACL_CUR_USER=$1
+}
+
+#
+# Run commands by $ZFS_ACL_CUR_USER
+#
+# $1-n commands and options
+#
+function usr_exec #<commands> [...]
+{
+	$CHG_USR_EXEC "$ZFS_ACL_CUR_USER" $@
+	return $?
+}
+
+#
+# Count how many ACEs for the specified file or directory.
+#
+# $1 file or directroy name
+#
+function count_ACE #<file or dir name>
+{
+	if [[ ! -e $1 ]]; then
+		log_note "Need input file or directroy name."
+		return 1
+	fi
+
+	$LS -vd $1 | $NAWK 'BEGIN {count=0}
+			(NR != 1)&&(/[0-9]:/) {count++}
+			END {print count}'
+
+	return 0
+}
+
+#
+# Get specified number ACE content of specified file or directory.
+#
+# $1 file or directory name
+# $2 specified number
+#
+function get_ACE #<file or dir name> <specified number> <verbose|compact>
+{
+	if [[ ! -e $1 || $2 -ge $(count_ACE $1) ]]; then
+		return 1
+	fi
+
+	typeset file=$1
+	typeset -i num=$2
+	typeset format=${3:-verbose}
+	typeset -i next_num=-1
+
+        typeset tmpfile=$TMPDIR/tmp_get_ACE.${TESTCASE_ID}
+        typeset line=""
+	typeset args
+
+	case $format in
+		verbose) args="-vd"
+			;;
+		compact) args="-Vd"
+			;;
+		*) log_fail "Invalid parameter as ($format), " \
+			"only verbose|compact is supported."
+			;;
+	esac
+
+	$LS $args $file > $tmpfile
+	(( $? != 0 )) && log_fail "FAIL: $LS $args $file > $tmpfile"
+	while read line; do
+		[[ -z $line ]] && continue
+		if [[ $args == -vd ]]; then
+			if [[ $line == "$num":* ]]; then
+				(( next_num = num + 1 ))
+			fi
+			if [[ $line == "$next_num":* ]]; then
+				break
+			fi
+			if (( next_num != -1 )); then
+				print -n $line
+			fi
+		else
+			if (( next_num == num )); then
+				print -n $line
+			fi
+			(( next_num += 1 ))
+		fi
+	done < $tmpfile
+
+	$RM -f $tmpfile
+	(( $? != 0 )) && log_fail "FAIL: $RM -f $tmpfile"
+}
+
+#
+# Cleanup exist user/group.
+#
+function cleanup_user_group
+{
+	del_user $ZFS_ACL_ADMIN
+
+	del_user $ZFS_ACL_STAFF1
+	del_user $ZFS_ACL_STAFF2
+	del_group $ZFS_ACL_STAFF_GROUP
+
+	del_user $ZFS_ACL_OTHER1
+	del_user $ZFS_ACL_OTHER2
+	del_group $ZFS_ACL_OTHER_GROUP
+
+	return 0
+}
+
+#
+# Clean up testfile and test directory
+#
+function cleanup
+{
+	if [[ -d $TESTDIR ]]; then
+		cd $TESTDIR
+		$RM -rf $TESTDIR/*
+	fi
+}
+
+#
+# According to specified access or acl_spec, do relevant operating by using the
+# specified user.
+#
+# $1 specified user
+# $2 node
+# $3 acl_spec or access
+#
+function rwx_node #user node acl_spec|access
+{
+	typeset user=$1
+	typeset node=$2
+	typeset acl_spec=$3
+
+	if [[ $user == "" || $node == "" || $acl_spec == "" ]]; then
+		log_note "node or acl_spec are not defined."
+		return 1
+	fi
+
+	if [[ -d $node ]]; then
+		case $acl_spec in
+		*:read_data:*|read_data)
+			chgusr_exec $user $LS -l $node > /dev/null 2>&1
+			return $? ;;
+		*:write_data:*|write_data)
+			if [[ -f ${node}/tmpfile ]]; then
+				log_must $RM -f ${node}/tmpfile
+			fi
+			chgusr_exec $user $TOUCH ${node}/tmpfile > \
+				/dev/null 2>&1
+			return $? ;;
+		*"execute:"*|execute)
+			chgusr_exec $user $FIND $node > /dev/null 2>&1
+			return $? ;;
+		esac
+	else
+		case $acl_spec in
+		*:read_data:*|read_data)
+			chgusr_exec $user $CAT $node > /dev/null 2>&1
+			return $? ;;
+		*:write_data:*|write_data)
+			chgusr_exec $user $DD if=/bin/ls of=$node > \
+				/dev/null 2>&1
+			return $? ;;
+		*"execute:"*|execute)
+			ZFS_ACL_ERR_STR=$(chgusr_exec $user $node 2>&1) 
+			return $? ;;
+		esac
+	fi
+}
+
+#
+# Get the given file/directory xattr
+#
+# $1 object -- file or directroy
+#
+function get_xattr #<obj>
+{
+        typeset obj=$1
+	typeset xattr
+	if (( ${#obj} == 0 )); then
+		return 1
+	fi
+
+	for xattr in `$RUNAT $obj $LS | \
+		/usr/bin/egrep -v -e SUNWattr_ro -e SUNWattr_rw` ; do
+		$RUNAT $obj $SUM $xattr
+	done
+}
+
+#
+# Get the owner of a file/directory
+#
+function get_owner #node
+{
+	typeset node=$1
+	typeset value
+
+	if [[ -z $node ]]; then
+		log_fail "node are not defined."
+	fi
+
+	if [[ -d $node ]]; then
+		value=$($LS -dl $node | $AWK '{print $3}')
+	elif [[ -e $node ]]; then
+		value=$($LS -l $node | $AWK '{print $3}')
+	fi
+
+	$ECHO $value
+}
+
+#
+# Get the group of a file/directory
+#
+function get_group #node
+{
+	typeset node=$1
+	typeset value
+
+	if [[ -z $node ]]; then
+		log_fail "node are not defined."
+	fi
+
+	if [[ -d $node ]]; then
+		value=$($LS -dl $node | $AWK '{print $4}')
+	elif [[ -e $node ]]; then
+		value=$($LS -l $node | $AWK '{print $4}')
+	fi
+
+	$ECHO $value
+}
+
+
+#
+# Get the group name that a UID belongs to
+#
+function get_user_group #uid
+{
+	typeset uid=$1
+	typeset value
+
+	if [[ -z $uid ]]; then
+		log_fail "UID not defined."
+	fi
+
+	value=$(id $uid)
+
+	if [[ $? -eq 0 ]]; then
+		value=${value##*\(}
+		value=${value%%\)*}
+		$ECHO $value
+	else
+		log_fail "Invalid UID (uid)."
+	fi
+}
+
+#
+# Get the specified item of the specified string
+#
+# $1:	Item number, count from 0.
+# $2-n: strings
+#
+function getitem
+{
+	typeset -i n=$1
+	shift
+
+	(( n += 1 ))
+	eval print \${$n}
+}
+
+#
+# This function calculate the specified directory files checksum and write
+# to the specified array.
+#
+# $1 directory in which the files will be cksum.
+# $2 file array name which was used to store file cksum information.
+# $3 attribute array name which was used to store attribute information.
+#
+function cksum_files #<dir> <file_array_name> <attribute_array_name>
+{
+	typeset dir=$1
+	typeset farr_name=$2
+	typeset aarr_name=$3
+
+	[[ ! -d $dir ]] && return
+	typeset oldpwd=$PWD
+	cd $dir
+	typeset files=$($LS file*)
+
+	typeset -i i=0
+	typeset -i n=0
+	while (( i < NUM_FILE )); do
+		typeset f=$(getitem $i $files)
+		eval $farr_name[$i]=\$\(\$CKSUM $f\)
+
+		typeset -i j=0
+		while (( j < NUM_ATTR )); do
+			eval $aarr_name[$n]=\$\(\$RUNAT \$f \$CKSUM \
+				attribute.$j\)
+
+			(( j += 1 ))
+			(( n += 1 ))
+		done
+
+		(( i += 1 ))
+	done
+
+	cd $oldpwd
+}
+
+#
+# This function compare two cksum results array.
+#
+# $1 The array name which stored the cksum before operation.
+# $2 The array name which stored the cksum after operation.
+#
+function compare_cksum #<array1> <array2>
+{
+	typeset before=$1
+	typeset after=$2
+	eval typeset -i count=\${#$before[@]}
+
+	typeset -i i=0
+	while (( i < count )); do
+		eval typeset var1=\${$before[$i]}
+		eval typeset var2=\${$after[$i]}
+
+		if [[ $var1 != $var2 ]]; then
+			return 1
+		fi
+
+		(( i += 1 ))
+	done
+
+	return 0
+}
+
+#
+# This function calculate all the files cksum information in current directory 
+# and output them to the specified file.
+#
+# $1 directory from which the files will be cksum.
+# $2 cksum output file
+#
+function record_cksum #<outfile>
+{
+	typeset dir=$1
+	typeset outfile=$2
+
+	[[ ! -d ${outfile%/*} ]] && usr_exec $MKDIR -p ${outfile%/*}
+
+	usr_exec cd $dir ; $FIND . -depth -type f -exec cksum {} \\\; | $SORT > $outfile
+	usr_exec cd $dir ; $FIND . -depth -type f -xattr -exec runat {} \
+		cksum attribute* \\\; | $SORT >> $outfile
+}
+
+#
+# The function create_files creates the directories and files that the script 
+# will operate on to test extended attribute functionality.
+#
+# $1 The base directory in which to create directories and files.
+#
+function create_files #<directory>
+{
+	typeset basedir=$1
+
+	[[ ! -d $basedir ]] && usr_exec $MKDIR -m 777 $basedir
+	[[ ! -d $RES_DIR  ]] && usr_exec $MKDIR -m 777 $RES_DIR
+	[[ ! -d $INI_DIR ]] && usr_exec $MKDIR -m 777 $INI_DIR
+	[[ ! -d $TST_DIR ]] && usr_exec $MKDIR -m 777 $TST_DIR
+	[[ ! -d $TMP_DIR  ]] && usr_exec $MKDIR -m 777 $TMP_DIR
+
+	#
+	# Create the original file and its attribute files.
+	#
+	[[ ! -a $RES_DIR/file ]] && \
+		usr_exec $FILE_WRITE -o create -f $RES_DIR/file \
+			-b 1024 -d 0 -c 1
+	[[ ! -a $RES_DIR/attribute ]] && \
+		usr_exec $CP $RES_DIR/file $RES_DIR/attribute
+
+	typeset oldpwd=$PWD
+	cd $INI_DIR
+
+	typeset -i i=0
+	while (( i < NUM_FILE )); do
+		typeset dstfile=$INI_DIR/file.${TESTCASE_ID}.$i
+		usr_exec $CP $RES_DIR/file $dstfile
+
+		typeset -i j=0
+		while (( j < NUM_ATTR )); do
+			usr_exec $RUNAT $dstfile \
+				$CP $RES_DIR/attribute ./attribute.$j
+			(( j += 1 ))
+		done
+
+		(( i += 1 ))
+	done
+
+	cd $oldpwd
+}

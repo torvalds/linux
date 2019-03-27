@@ -1,0 +1,1840 @@
+.\" Copyright (c) 1994
+.\"     The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 1994, 1995, 1996
+.\"	Keith Bostic.  All rights reserved.
+.\"
+.\" This document may not be republished without written permission from
+.\" Keith Bostic. 
+.\"
+.\" See the LICENSE file for redistribution information.
+.\"
+.\"     @(#)vi.ref	8.88 (Berkeley) 10/19/96
+.\"
+.\" $FreeBSD$
+.\"
+.so ref.so
+.tp
+.(l C
+.ps 12
+.ft B
+Vi/Ex Reference Manual
+.ft
+.ps
+.sp
+.i "Keith Bostic"
+.sp
+Computer Science Division
+Department of Electrical Engineering and Computer Science
+University of California, Berkeley
+Berkeley, California  94720
+.sp 1
+.)l
+.sp 3
+.(l C
+.i Abstract
+.)l
+.(q
+.pp
+This document is the reference guide for the 4.4BSD
+implementations of
+.EV nex nvi ,
+which are implementations of the historic Berkeley
+.EV ex vi
+editors.
+.)q
+.sp 3
+.(l C
+.i Licensing
+.)l
+.sp
+.lp
+Copyright (c) 1991, 1992, 1993, 1994
+.ti +5
+The Regents of the University of California.  All Rights Reserved.
+.lp
+Copyright (c) 1991, 1992, 1993, 1994, 1995, 1996
+.ti +5
+Keith Bostic.  All Rights Reserved.
+.sp
+.pp
+The vi program is freely redistributable.  You are welcome to copy,
+modify and share it with others under the conditions listed in the
+LICENSE file.  If any company (not individual!) finds vi sufficiently
+useful that you would have purchased it, or if any company wishes to
+redistribute it, contributions to the authors would be appreciated.
+.bp 2
+.(l C
+.i Acknowledgements
+.)l
+.sp
+.(q
+.pp
+Bruce Englar encouraged the early development of the historic
+.EV ex vi
+editor.
+Peter Kessler helped bring sanity to version 2's command layout.
+Bill Joy wrote versions 1 and 2.0 through 2.7,
+and created the framework that users see in the present editor.
+Mark Horton added macros and other features and made
+.EV ex vi
+work on a large number of terminals and Unix systems.
+.pp
+.CO Nvi
+is originally derived from software contributed to the University of
+California, Berkeley by Steve Kirkendall, the author of the
+.CO vi
+clone
+.CO elvis .
+.pp
+IEEE Standard Portable Operating System Interface for Computer
+Environments (POSIX) 1003.2 style Regular Expression support was
+done by Henry Spencer.
+.pp
+The curses library was originally done by Ken Arnold.
+Scrolling and reworking for
+.CO nvi
+was done by Elan Amir.
+.pp
+George Neville-Neil added the Tcl interpreter,
+and Sven Verdoolaege added the Perl interpreter.
+.pp
+Rob Mayoff added Cscope support.
+.pp
+The Institute of Electrical and Electronics Engineers has
+given us permission to reprint portions of their documentation.
+Portions of this document are reprinted and reproduced from
+IEEE Std 1003.2-1992, IEEE Standard Portable Operating
+System Interface for Computer Environments (POSIX),
+copyright 1992 by the Institute of Electrical and Electronics
+Engineers, Inc.
+.pp
+The financial support of UUNET Communications Services is gratefully
+acknowledged.
+.)q
+.sy echo -n >index
+.oh 'Vi/Ex Reference''USD:13-%'
+.eh 'USD:13-%''Vi/Ex Reference'
+.bp 4
+.SH 1 Description
+.pp
+.CO Vi
+is a screen oriented text editor.
+.CO Ex
+is a line-oriented text editor.
+.CO Ex
+and
+.CO vi
+are different interfaces to the same program,
+and it is possible to switch back and forth during an edit session.
+.CO View
+is the equivalent of using the
+.b \-R
+(read-only) option of
+.CO vi .
+.pp
+This reference manual is the one provided with the
+.EV nex nvi
+versions of the
+.EV ex vi
+text editors.
+.EV Nex nvi
+are intended as bug-for-bug compatible replacements for the original
+Fourth Berkeley Software Distribution (4BSD)
+.EV ex vi
+programs.
+This reference manual is accompanied by a traditional-style manual page.
+That manual page describes the functionality found in
+.EV ex vi
+in far less detail than the description here.
+In addition, it describes the system interface to
+.EV ex vi ,
+e.g. command line options, session recovery, signals,
+environmental variables, and similar things.
+.pp
+This reference is intended for users already familiar with
+.EV ex vi .
+Anyone else should almost certainly read a good tutorial on the
+editor first.
+If you are in an unfamiliar environment,
+and you absolutely have to get work done immediately,
+see the section entitled
+.QB "Fast Startup"
+in the manual page.
+It is probably enough to get you started.
+.pp
+There are a few features in
+.EV nex nvi
+that are not found in historic versions of
+.EV ex vi .
+Some of the more interesting of those features are briefly described
+in the next section, entitled
+.QB "Additional Features" .
+For the rest of this document,
+.EV nex nvi
+is used only when it is necessary to distinguish it from the historic
+implementations of
+.EV ex vi .
+.pp
+Future versions of this software will be periodically made available
+by anonymous ftp, and can be retrieved from
+.LI ftp.cs.berkeley.edu ,
+in the directory
+.LI ucb/4bsd .
+.SH 1 "Additional Features in Nex/Nvi"
+.pp
+There are a few features in
+.EV nex nvi
+that are not found in historic versions of
+.EV ex vi .
+Some of the more interesting of these are as follows:
+.IP "8-bit clean data, large lines, files"
+.EV Nex nvi
+will edit any format file.
+Line lengths are limited by available memory,
+and file sizes are limited by available disk space.
+The
+.CO vi
+text input mode command
+.CO <control-X>
+can insert any possible character value into the text.
+.IP "Background and foreground screens"
+The
+.CO bg
+command backgrounds the current screen, and the
+.CO fg
+command foregrounds backgrounded screens.
+The
+.CO display
+command can be used to list the background screens.
+.IP "Command Editing"
+You can enter a normal editing window on the collected commands that
+you've entered on the
+.CO vi
+colon command-line,
+and then modify and/or execute the commands.
+See the
+.OP cedit
+edit option for more information.
+.IP "Displays"
+The
+.CO display
+command can be used to display the current buffers, the backgrounded
+screens, and the tags stack.
+.IP "Extended Regular Expressions"
+The
+.CO extended
+option causes Regular Expressions to be interpreted as as Extended
+Regular Expressions, (i.e. \fIegrep\fP(1) style Regular Expressions).
+.IP "File Name Completion"
+It is possible to do file name completion and file name displays when
+entering commands on the
+.CO vi
+colon command-line.
+See the
+.OP filec
+option for more information.
+.IP "Infinite undo"
+Changes made during an edit session may be rolled backward and forward.
+A
+.CO \&.
+command immediately after a
+.CO u
+command continues either forward or backward depending on whether the
+.CO u
+command was an undo or a redo.
+.IP "Left-right scrolling"
+The
+.CO leftright
+option causes
+.CO nvi
+to do left-right screen scrolling, instead of the traditional
+.CO vi
+line wrapping.
+.IP "Message Catalogs"
+It is possible to display informational and error messages in different
+languages by providing a catalog of messages.
+See the
+.OP msgcat
+option and the file
+.LI "catalog/README"
+for more information.
+.IP "Incrementing numbers"
+The
+.CO \&#
+command increments or decrements the number referenced by the cursor.
+.IP "Previous file"
+The
+.CO previous
+command edits the previous file from the argument list.
+.IP "Scripting languages"
+The
+.CO ":pe[rl] cmd" ,
+.CO ":perld[o] cmd"
+and
+.CO ":tc[l] cmd"
+commands execute Perl and Tcl/Tk commands, respectively,
+on lines from the edit buffer.
+See the
+.QB "Scripting Languages"
+section and the specific commands for more information.
+.\".IP "Shell screens"
+.\"The
+.\".CO ":sc[ript] [file ...]"
+.\"command runs a shell in the screen.
+.\"Editing is unchanged, with the exception that a \fC<carriage-return>\fP
+.\"enters the current line (stripped of any prompt) as input to the
+.\"shell.
+.IP "Split screens"
+The
+.CO Edit ,
+.CO Ex ,
+.CO Next ,
+.CO Previous ,
+.CO Tag
+and
+.CO Visual
+(in
+.CO vi
+mode) commands divide the screen into multiple editing regions and
+then perform their normal function in a new screen area.
+The
+.CO <control-W>
+command rotates between the foreground screens.
+The
+.CO resize
+command can be used to grow or shrink a particular screen.
+.IP "Tag stacks"
+Tags are now maintained in a stack.
+The
+.CO <control-T>
+command returns to the previous tag location.
+The
+.CO tagpop
+command returns to the most recent tag location by default, or,
+optionally to a specific tag number in the tag stack,
+or the most recent tag from a specified file.
+The
+.CO display
+command can be used to list the tags stack.
+The
+.CO tagtop
+command returns to the top of the tag stack.
+.IP "Usage information"
+The
+.CO exusage
+and
+.CO viusage
+commands provide usage information for all of the
+.CO ex
+and
+.CO vi
+commands by default, or, optionally, for a specific command or key.
+.IP "Word search"
+The
+.CO <control-A>
+command searches for the word referenced by the cursor.
+.SH 1 "Startup Information"
+.pp
+.EV Ex vi
+interprets one of two possible environmental variables and reads up to
+three of five possible files during startup.
+The variables and files are expected to contain
+.CO ex
+commands, not
+.CO vi
+commands.
+In addition, they are interpreted
+.i before
+the file to be edited is read, and therefore many
+.CO ex
+commands may not be used.
+Generally, any command that requires output to the screen or that
+needs a file upon which to operate, will cause an error if included
+in a startup file or environmental variable.
+.pp
+Because the
+.CO ex
+command set supported by
+.EV nex nvi
+is a superset of the command set supported by historical implementations of
+.CO ex ,
+.EV nex nvi
+can use the startup files created for the historical implementations,
+but the converse may not be true.
+.pp
+If the
+.b \-s
+(the historic \- option)
+is specified, or if standard input is redirected from a file,
+all environmental variables and startup files are ignored.
+.pp
+Otherwise, startup files and environmental variables are handled
+in the following order:
+.np
+The file
+.LI /etc/vi.exrc
+is read,
+as long as it is owned by root or the effective user ID of the user.
+.np
+The environmental variable
+.LI NEXINIT
+(or the variable
+.LI EXINIT ,
+if
+.LI NEXINIT
+is not set) is interpreted.
+.np
+If neither
+.LI NEXINIT
+or
+.LI EXINIT
+was set, and the
+.LI HOME
+environmental variable is set, the file
+.LI $HOME/.nexrc
+(or the file
+.LI $HOME/.exrc ,
+if
+.LI $HOME/.nexrc
+does not exist) is read,
+as long as the effective user ID of the user is root or is the same as
+the owner of the file.
+.sp
+When the $HOME directory is being used for both
+.EV nex nvi
+and an historic implementation of
+.EV ex vi ,
+a possible solution is to put
+.EV nex nvi
+specific commands in the
+.LI \&.nexrc
+file, along with a
+.CO ":source $HOME/.exrc"
+command to read in the commands common to both implementations.
+.np
+If the
+.OP exrc
+option was turned on by one of the previous startup information
+sources, the file
+.LI \&.nexrc
+(or the file
+.LI \&.exrc ,
+if
+.LI \&.nexrc
+does not exist) is read, as long as the effective user ID of the user
+is the same as the owner of the file.
+.pp
+No startup file is read if it is writable by anyone other than its owner.
+.pp
+It is not an error for any of the startup environmental variables or files
+not to exist.
+.pp
+Once all environmental variables are interpreted,
+and all startup files are read,
+the first file to be edited is read in (or a temporary file is created).
+Then, any commands specified using the
+.b \-c
+option are executed, in the context of that file.
+.SH 1 "Recovery"
+.pp
+There is no recovery program for
+.EV nex nvi ,
+nor does
+.EV nex nvi
+run setuid.
+Recovery files are created readable and writable by the owner only.
+Users may recover any file which they can read,
+and the superuser may recover any edit session.
+.pp
+Edit sessions are backed by files in the directory named by the
+.OP recdir
+option (the directory
+.LI /var/tmp/vi.recover
+by default), and are named
+.QC vi.XXXXXX ,
+where
+.QC XXXXXX
+is a number related to the process ID.
+When a file is first modified,
+a second recovery file containing an email message for the user is created,
+and is named
+.QC recover.XXXXXX ,
+where, again,
+.QC XXXXXX
+is associated with the process ID.
+Both files are removed at the end of a normal edit session,
+but will remain if the edit session is abnormally terminated
+or the user runs the
+.CO ex
+.CO preserve
+command.
+.pp
+The
+.OP recdir
+option may be set in either the user's or system's startup information,
+changing the recovery directory.
+(Note, however, that if a memory based file system is used as the backup
+directory, each system reboot will delete all of the recovery files!
+The same caution applies to directories such as
+.LI /tmp
+which are cleared of their contents by a system reboot, or
+.LI /usr/tmp
+which is periodically cleared of old files on many systems.)
+.pp
+The recovery directory should be owned by root, or at least by a pseudo-user.
+In addition, if directory
+.QQ sticky-bit
+semantics are available, the directory should have the sticky-bit
+set so that files may only be removed by their owners.
+The recovery directory must be read, write, and executable by any user,
+i.e. mode 1777.
+.pp
+If the recovery directory does not exist,
+.EV ex vi
+will attempt to create it.
+This can result in the recovery directory being owned by a normal user,
+which means that that user will be able to remove other user's recovery
+and backup files.
+This is annoying, but is not a security issue as the user cannot
+otherwise access or modify the files.
+.pp
+The recovery file has all of the necessary information in it to enable the
+user to recover the edit session.
+In addition, it has all of the necessary email headers for
+.XR sendmail 8 .
+When the system is rebooted, all of the files in
+.LI /var/tmp/vi.recover
+named
+.QC recover.XXXXXX
+should be sent to their owners, by email, using the
+.b \-t
+option of
+.CO sendmail
+(or a similar mechanism in other mailers).
+If
+.EV ex vi
+receives a hangup (SIGHUP) signal, or the user executes the
+.CO ex
+.CO preserve
+command,
+.EV ex vi
+will automatically email the recovery information to the user.
+.pp
+If your system does not have the
+.CO sendmail
+utility (or a mailer program which supports its interface)
+the source file
+.LI nvi/common/recover.c
+will have to be modified to use your local mail delivery programs.
+Note, if
+.EV nex nvi
+is changed to use another mailer,
+it is important to remember that the owner of the file given to
+the mailer is the
+.EV nex nvi
+user, so nothing in the file should be trusted as it may have been
+modified in an effort to compromise the system.
+.pp
+Finally, the owner execute bit is set on backup files when they are
+created, and unset when they are first modified, e.g. backup files
+that have no associated email recovery file will have this bit set.
+(There is also a small window where empty files can be created and
+not yet have this bit set.
+This is due to the method in which the files are created.)
+Such files should be deleted when the system reboots.
+.pp
+A simple way to do this cleanup is to run the Bourne shell script
+.CO recover ,
+from your
+.LI /etc/rc.local
+(or other system startup) file.
+The script should work with the historic Bourne shell,
+a POSIX 1003.2 shell or the Korn shell.
+The
+.CO recover
+script is installed as part of the
+.EV nex nvi
+installation process.
+.pp
+Consult the manual page for details on recovering preserved or
+aborted editing sessions.
+.SH 1 "Sizing the Screen"
+.pp
+The size of the screen can be set in a number of ways.
+.EV Ex vi
+takes the following steps until values are obtained for both the
+number of rows and number of columns in the screen.
+.np
+If the environmental variable
+.LI LINES
+exists,
+it is used to specify the number of rows in the screen.
+.np
+If the environmental variable
+.LI COLUMNS
+exists,
+it is used to specify the number of columns in the screen.
+.np
+The TIOCGWINSZ
+.XR ioctl 2
+is attempted on the standard error file descriptor.
+.np
+The termcap entry (or terminfo entry on System V machines)
+is checked for the
+.QQ li
+entry (rows) and the
+.QQ co
+entry (columns).
+.np
+The number of rows is set to 24, and the number of columns is set to 80.
+.pp
+If a window change size signal (SIGWINCH) is received,
+the new window size is retrieved using the TIOCGWINSZ
+.XR ioctl 2
+call, and all other information is ignored.
+.SH 1 "Character Display"
+.pp
+In both
+.CO ex
+and
+.CO vi
+printable characters as defined by
+.XR isprint 3
+are displayed using the local character set.
+.pp
+Non-printable characters, for which
+.XR iscntrl 3
+returns true, and which are less than octal \e040,
+are displayed as the string
+.QT ^<character> ,
+where
+.LI <character>
+is the character that is the original character's value offset from the
+.QT @
+character.
+For example, the octal character \e001 is displayed as
+.QT ^A .
+If
+.XR iscntrl 3
+returns true for the octal character \e177,
+it is displayed as the string
+.QT ^? .
+All other characters are displayed as either hexadecimal values,
+in the form
+.QT "0x<high-halfbyte> ... 0x<low-halfbyte>" ,
+or as octal values, in the form
+.QT "\e<high-one-or-two-bits> ... \e<low-three-bits>" .
+The display of unknown characters is based on the value of the
+.OP octal
+option.
+.pp
+In
+.CO vi
+command mode, the cursor is always positioned on the last column of
+characters which take up more than one column on the screen.
+In
+.CO vi
+text input mode, the cursor is positioned on the first column of
+characters which take up more than one column on the screen.
+.SH 1 "Multiple Screens"
+.pp
+.CO Nvi
+supports multiple screens by dividing the window into regions.
+It also supports stacks of screens by permitting the user to change
+the set of screens that are currently displayed.
+.pp
+The
+.CO Edit ,
+.CO Ex ,
+.CO Fg ,
+.CO Next ,
+.CO Previous ,
+.CO Tag
+and
+.CO Visual
+(in
+.CO vi
+mode)
+commands divide the current screen into two regions of approximately
+equal size and then perform their usual action in a new screen area.
+If the cursor is in the lower half of the screen, the screen will split
+up, i.e. the new screen will be above the old one.
+If the cursor is in the upper half of the screen, the new screen will be
+below the old one.
+.pp
+When more than one screen is editing a file, changes in any screen are
+reflected in all other screens editing the same file.
+Exiting a screen without saving any changes (or explicitly discarding
+them) is permitted until the last screen editing the file is exited,
+at which time the changes must be saved or discarded.
+.pp
+The
+.CO resize
+command permits resizing of individual screens.
+Screens may be grown, shrunk or set to an absolute number of rows.
+.pp
+The
+.CO ^W
+command is used to switch between screens.
+Each
+.CO ^W
+moves to the next lower screen in the window, or to the first screen
+in the window if there are no lower screens.
+.pp
+The
+.CO bg
+command
+.QQ backgrounds
+the current screen.
+The screen disappears from the window,
+and the rows it occupied are taken over by a neighboring screen.
+It is an error to attempt to background the only screen in the window.
+.pp
+The
+.CO "display screens"
+command displays the names of the files associated with the current
+backgrounded screens in the window.
+.pp
+The
+.CO "fg [file]"
+command moves the specified screen from the list of backgrounded screens
+to the foreground.
+If no file argument is specified, the first screen on the list is
+foregrounded.
+By default,
+foregrounding consists of backgrounding the current screen,
+and replacing its space in the window with the foregrounded screen.
+.pp
+Capitalizing the first letter of the command, i.e.
+.CO Fg ,
+will foreground the backgrounded screen in a new screen instead of
+swapping it with the current screen.
+.pp
+If the last foregrounded screen in the window is exited,
+and there are backgrounded screens,
+the first screen on the list of backgrounded screens takes over the window.
+.SH 1 "Tags, Tag Stacks, and Cscope"
+.pp
+.CO Nvi
+supports the historic
+.CO vi
+tag command
+.CO <control-]> ,
+and the historic
+.CO ex
+tag command
+.CO tag .
+These commands change the current file context to a new location,
+based on information found in the
+.LI tags
+files.
+If you are unfamiliar with these commands,
+you should review their description in the
+.CO ex
+and
+.CO vi
+commands section of this manual.
+For additional information on tags files,
+see the discussion of the
+.OP tags
+edit option and the system
+.XR ctags 1
+manual page.
+.pp
+In addition,
+.CO nvi
+supports the notion of
+.QQ "tags stacks" ,
+using the
+.CO <control-T>
+command.
+The
+.CO <control-T>
+command returns the user to the previous context, i.e.,
+the last place from which a
+.CO <control-]>
+or
+.CO "tag"
+command was entered.
+These three commands provide the basic functionality which allows you
+to use
+.CO vi
+to review source code in a structured manner.
+.pp
+.CO Nvi
+also provides two other basic
+.CO ex
+commands for tag support:
+.CO tagpop
+and
+.CO tagtop .
+The
+.CO tagpop
+command is identical to the
+.CO <control-T>
+command,
+with the additional functionality that you may specify that modifications
+to the current file are to be discarded.
+This cannot be done using the
+.CO <control-T>
+command.
+The
+.CO tagtop
+command discards all of the contexts that have been pushed onto the tag
+stack, returning to the context from which the first
+.CO <control-]>
+or
+.CO tag
+command was entered.
+.pp
+The historic
+.XR ctags 1
+tags file format supports only a single location per tag,
+normally the function declaration or structure or string definition.
+More sophisticated source code tools often provide multiple locations
+per tag, e.g.,
+a list of the places from which a function is called or a string
+definition is used.
+An example of this functionality is the System V source code tool,
+.CO cscope .
+.sp
+.CO Cscope
+creates a database of information on source code files,
+and supports a query language for that information as described in the
+.XR cscope 1
+manual page.
+.CO Nvi
+contains an interface to the
+.CO cscope
+query language which permits you to query
+.CO cscope
+and then sequentially step through the locations in the sources files which
+.CO cscope
+returns.
+There are two
+.CO nvi
+commands which support this ability to step through multiple locations.
+They are the
+.CO ex
+commands
+.CO tagnext
+and
+.CO tagprev .
+The
+.CO tagnext
+command moves to the next location for the current tag.
+The
+.CO tagprev
+command moves to the previous location for the current tag.
+(See the
+.CO tagnext
+and
+.CO tagprev
+command discussion in the
+.CO ex
+commands section of this manual for more information.)
+At any time during this sequential walk,
+you may use the
+.CO <control-]> ,
+.CO tag
+or
+.CO cscope
+commands to move to a new tag context, and then use the
+.CO <control-T>
+or
+.CO tagpop
+commands to return and continue stepping through the locations for this
+tag.
+This is similar to the previous model of a simple tag stack,
+except that each entry in the tag stack may have more than one file context
+that is of interest.
+.pp
+Although there is no widely distributed version of
+.XR ctags 1
+that creates tags files with multiple locations per tag,
+.CO nvi
+has been written to understand the obvious extension to the historic
+tags file format, i.e., more than a single line in the tags file with
+the same initial tag name.
+If you wish to extend your
+.CO ctags 
+implementation or other tool with which you build tags files,
+this extension should be simple and will require no changes to
+.CO nvi .
+.pp
+The
+.CO nvi
+and
+.CO cscope
+interface is based on the new
+.CO ex
+command
+.CO cscope ,
+which has five subcommands:
+.CO add ,
+.CO find ,
+.CO help ,
+.CO kill
+and
+.CO reset .
+The subcommand
+.CO find
+itself has eight subcommands:
+.CO \&c ,
+.CO \&d ,
+.CO \&e ,
+.CO \&f ,
+.CO \&g ,
+.CO \&i ,
+.CO \&s
+and
+.CO \&t .
+.pp
+.IP "cs[cope] a[dd] file"
+The
+.CO add
+command attaches to the specified
+.CO cscope
+database.
+The file name is expanded using the standard filename expansions.
+If
+.CO file
+is a directory, the file
+.QQ cscope.out
+in that directory is used as the database.
+.pp
+After
+.CO nvi
+attaches to a new database,
+all subsequent
+.CO cscope
+queries will be asked of that database.
+The result of any single query is the collection of response to the query
+from all of the attached databases.
+.sp
+If the
+.QQ CSCOPE_DIRS
+environmental variable is set when
+.CO nvi
+is run,
+it is expected to be a <colon> or <blank>-separated list of
+.CO cscope
+databases or directories containing
+.CO cscope
+databases, to which the user wishes to attach.
+.IP ":cs[cope] f[ind] c|d|e|f|g|i|s|t buffer|pattern"
+The
+.CO find
+command is the
+.CO cscope
+query command for
+.CO nvi .
+For this command,
+.CO nvi
+queries all attached
+.CO cscope
+databases for the pattern.
+If the pattern is a double-quote character followed by a valid buffer
+name (e.g.,
+.LI """<character>" ), 
+then the contents of the named buffer are used as the pattern.
+Otherwise, the pattern is a Regular Expression.
+.sp
+The
+.CO find
+command pushes the current location onto the tags stack,
+and switches to the first location resulting from the query,
+if the query returned at least one result.
+.sp
+File names returned by the
+.CO cscope
+query, if not absolute paths, are searched for relative to the directory
+where the
+.CO cscope
+database is located.
+In addition, if the file
+.QQ cscope.tpath
+appears in the same directory as the
+.CO cscope
+database,
+it is expected to contain a colon-separated list of directory names
+where files referenced by its associated
+.CO cscope
+database may be found.
+.sp
+The
+.CO find
+subcommand is one of the following:
+.SS
+.SP \&c
+Find callers of the name.
+.SP \&d
+Find all function calls made from name.
+.SP \&e
+Find pattern.
+.SP \&f
+Find files with name as substring.
+.SP \&g
+Find definition of name.
+.SP \&i
+Find files #including name.
+.SP \&s
+Find all uses of name.
+.SP \&t
+Find assignments to name.
+.SE
+.IP ":cs[cope] h[elp] [command]"
+List the
+.CO cscope
+commands,
+or optionally list usage help for any single
+.CO cscope
+command.
+.IP ":display c[onnections]"
+Display the list of
+.CO cscope
+databases to which
+.CO nvi
+is currently connected.
+.IP ":cs[cope] k[ill] #"
+Disconnect from a specific
+.CO cscope
+database.
+The connection number is the one displayed by the
+.CO ex
+.CO "display connections"
+command.
+.IP ":cs[cope] r[eset]"
+Disconnect from all attached
+.CO cscope
+databases.
+.pp
+Cscope is not freely redistributable software,
+but is fairly inexpensive and easily available.
+To purchase a copy of
+.CO cscope ,
+see http://www.att.com/ssg/products/toolchest.html.
+.SH 1 "Regular Expressions and Replacement Strings"
+.pp
+Regular expressions are used in line addresses,
+as the first part of the
+.CO ex
+.CO substitute ,
+.CO global ,
+and
+.CO v
+commands, and in search patterns.
+.pp
+The regular expressions supported by
+.EV ex vi
+are, by default, the Basic Regular Expressions (BRE's) described in the
+IEEE POSIX Standard 1003.2.
+The
+.OP extended
+option causes all regular expressions to be interpreted as the Extended
+Regular Expressions (ERE's) described by the same standard.
+(See
+.XR re_format 7
+for more information.)
+Generally speaking, BRE's are the Regular Expressions found in
+.XR ed 1
+and
+.XR grep 1 ,
+and ERE's are the Regular Expressions found in
+.XR egrep 1 .
+.pp
+The following is not intended to provide a description of Regular
+Expressions.
+The information here only describes strings and characters which
+have special meanings in the
+.EV ex vi
+version of RE's,
+or options which change the meanings of characters that normally
+have special meanings in RE's.
+.np
+An empty RE (e.g.
+.QT //
+or
+.QT ??
+is equivalent to the last RE used.
+.np
+The construct
+.QT \e<
+matches the beginning of a word.
+.np
+The construct
+.QT \e>
+matches the end of a word.
+.np
+The character
+.QT ~
+matches the replacement part of the last
+.CO substitute
+command.
+.pp
+When the
+.OP magic
+option is
+.i not
+set, the only characters with special meanings are a
+.QT ^
+character at the beginning of an RE, a
+.QT $
+character at the end of an RE, and the escaping character
+.QT \e .
+The characters
+.QT \&. ,
+.QT * ,
+.QT [
+and
+.QT ~
+are treated as ordinary characters unless preceded by a
+.QT \e ;
+when preceded by a
+.QT \e
+they regain their special meaning.
+.pp
+Replacement strings are the second part of a
+.CO substitute
+command.
+.pp
+The character
+.QT &
+(or
+.QT \e&
+if the
+.OP magic
+option is
+.i not
+set) in the replacement string stands for the text matched by the RE
+that is being replaced.
+The character
+.QT ~
+(or
+.QT \e~
+if the
+.OP magic
+option is
+.i not
+set) stands for the replacement part of the previous
+.CO substitute
+command.
+It is only valid after a
+.CO substitute
+command has been performed.
+.pp
+The string
+.QT \e# ,
+where
+.QT #
+is an integer value from 1 to 9, stands for the text matched by
+the portion of the RE enclosed in the
+.QT # 'th
+set of escaped parentheses, e.g.
+.QT \e(
+and
+.QT \e) .
+For example,
+.QT "s/abc\e(.*\e)def/\e1/"
+deletes the strings
+.QT abc
+and
+.QT def
+from the matched pattern.
+.pp
+The strings
+.QT \el ,
+.QT \eu ,
+.QT \eL
+and
+.QT \eU
+can be used to modify the case of elements in the replacement string.
+The string
+.QT \el
+causes the next character to be converted to lowercase;
+the string
+.QT \eu
+behaves similarly, but converts to uppercase
+(e.g.
+.LI s/abc/\eU&/
+replaces the string
+.LI abc
+with
+.LI ABC ).
+The string
+.QT \eL
+causes characters up to the end of the string or the next occurrence
+of the strings
+.QT \ee
+or
+.QT \eE
+to be converted to lowercase;
+the string
+.QT \eU
+behaves similarly, but converts to uppercase.
+.pp
+If the entire replacement pattern is
+.QT % ,
+then the last replacement pattern is used again.
+.pp
+In
+.CO vi ,
+inserting a
+.LI <control-M>
+into the replacement string will cause
+the matched line to be split into two lines at that point.
+(The
+.LI <control-M>
+will be discarded.)
+.SH 1 "Scripting Languages"
+.pp
+The
+.CO nvi
+editor currently supports two scripting languages, Tcl/Tk and Perl.
+(Note that Perl4 isn't sufficient, and that the Perl5 used must be
+version 5.002 or later.
+See the
+.QB "Building Nvi"
+section for more information.
+.pp
+The scripting language interface is still being worked on,
+therefore the following information is probably incomplete,
+probably wrong in cases, and likely to change.
+See the
+.LI perl_api
+and
+.LI tcl_api
+source directories for more information.
+As a quick reference, the following function calls are provided for
+both the Perl and Tcl interfaces.
+The Perl interface uses a slightly different naming convention,
+e.g. ``viFindScreen'' is named ``VI::FindScreen''.
+.IP "viFindScreen file"
+Return the
+.LI "screenId" associated with
+.LI file .
+.IP "viAppendLine screenId lineNumber text"
+Append
+.LI text
+as a new line after line number
+.LI lineNumber ,
+in the screen
+.LI screenId .
+.IP "viDelLine screenId lineNum"
+Delete the line
+.LI lineNumber
+from the screen
+.LI screenId .
+.IP "viGetLine screenId lineNumber"
+Return the line
+.LI lineNumber
+from the screen
+.LI screenId .
+.IP "viInsertLine screenId lineNumber text"
+Insert
+.LI text
+as a new line before line number
+.LI lineNumber
+in the screen
+.LI screenId .
+.IP "viLastLine screenId"
+Return the line number of the last line in the screen
+.LI screenId .
+.IP "viSetLine screenId lineNumber text"
+Change the line
+.LI lineNumber
+in the screen
+.LI screenId
+to match the specified
+.LI text .
+.IP "viGetMark screenId mark"
+Return the current line and column for the specified
+.LI mark
+from the screen
+.LI screenId .
+.IP "viSetMark screenId mark line column"
+Set the specified
+.LI mark
+to be at line
+.LI line ,
+column
+.LI column ,
+in the screen
+.LI screenId .
+.IP "viGetCursor screenId"
+Return the current line and column for the cursor in the screen
+.LI screenId .
+.IP "viSetCursor screenId line column"
+Set the cursor in the screen
+.LI screenId
+to the specified
+.LI line
+and
+.LI column .
+.IP "viMsg screenId text"
+Display the specified
+.LI text
+as a vi message in the screen
+.LI screenId .
+.IP "viNewScreen screenId [file]"
+Create a new screen.
+.IP "viEndScreen screenId"
+Exit the screen 
+.LI screenId .
+.IP "viSwitchScreen screenId screenId"
+Switch from the screen
+.LI screenId
+to the screen
+.LI screenId .
+.IP "viMapKey screenId key tclproc"
+Map the specified
+.LI key
+in the screen
+.LI screenId
+to the Tcl procedure
+.LI tclproc .
+.IP "viUnmMapKey screenId key"
+Unmap the specified
+.LI key
+in the screen
+.LI screenId
+.IP "viGetOpt screenId option"
+Return the value of the specified
+.LI option
+from the screen
+.LI screenId .
+.IP "viSetOpt screenId command"
+Set one or more options in the screen
+.LI screenId .
+.SH 1 "General Editor Description"
+.pp
+When
+.CO ex
+or
+.CO vi
+are executed,
+the text of a file is read (or a temporary file is created),
+and then all editing changes happen within the context of the
+copy of the file.
+.i "No changes affect the actual file until the file is written out" ,
+either using a write command or another command which is affected by the
+.OP autowrite
+option.
+.pp
+All files are locked (using the
+.XR flock 2
+or
+.XR fcntl 2
+interfaces) during the edit session,
+to avoid inadvertently making modifications to multiple copies of the file.
+If a lock cannot be obtained for a file because it is locked by another
+process, the edit session is read-only (as if the
+.OP readonly
+option or the
+.b \-R
+flag had been specified).
+If a lock cannot be obtained for other reasons, the edit session will
+continue, but the file status information
+(see the
+.CO <control-G>
+command) will reflect this fact.
+.pp
+Both
+.CO ex
+and
+.CO vi
+are modeful editors, i.e. they have two modes,
+.QQ command
+mode and
+.QQ "text input"
+mode.
+The former is intended to permit you to enter commands which modifies
+already existing text.
+The latter is intended to permit you to enter new text.
+When
+.CO ex
+first starts running, it is in command mode, and usually displays a prompt
+(see the
+.OP prompt
+option for more information).
+The prompt is a single colon
+.PQ :
+character.
+There are three commands that switch
+.CO ex
+into text input mode:
+.CO append ,
+.CO change
+and
+.CO insert .
+Once in input mode, entering a line containing only a single period
+.PQ \&.
+ends text input mode and returns to command mode,
+where the prompt is redisplayed.
+.pp
+When
+.CO vi
+first starts running, it is in command mode as well.
+There are eleven commands that switch
+.CO vi
+into text input mode:
+.CO A ,
+.CO a ,
+.CO C ,
+.CO c ,
+.CO I ,
+.CO i ,
+.CO O ,
+.CO o ,
+.CO R ,
+.CO S
+and
+.CO s .
+Once in input mode, entering an
+.LI <escape>
+character ends text input mode and returns to command mode.
+.pp
+.EV Ex vi
+present three different interfaces to editing a file.
+.CO Ex
+presents a line oriented interface.
+.CO Vi
+presents a full screen display oriented interface,
+also known as
+.QQ "visual mode" .
+In addition, there is a third mode,
+.QQ "open mode" ,
+which is line oriented,
+but supports cursor movement and editing within the displayed line,
+similarly to visual mode.
+Open mode is not yet implemented in
+.CO nvi .
+.pp
+The following words have special meanings in both the
+.CO ex
+and
+.CO vi
+command descriptions:
+.KY <interrupt>
+.IP <interrupt>
+The interrupt character is used to interrupt the current operation.
+Normally
+.LI <control-C> ,
+whatever character is set for the current terminal is used.
+.KY "<literal-next>"
+.IP "<literal-next>"
+The literal next character is used to escape the subsequent character
+from any special meaning.
+This character is always
+.LI <control-V> .
+If the terminal is not set up to do XON/XOFF flow control,
+then
+.LI <control-Q>
+is used to mean literal next as well.
+.KY "current pathname"
+.IP "current pathname"
+The pathname of the file currently being edited by vi.
+When the percent character
+.PQ %
+appears in a file name entered as part of an
+.CO ex
+command argument, it is replaced by the current pathname.
+(The
+.QT %
+character can be escaped by preceding it with a backslash.)
+.KY "alternate pathname"
+.IP "alternate pathname"
+The name of the last file name mentioned in an
+.CO ex
+command, or,
+the previous current pathname if the last file mentioned
+becomes the current file.
+When the hash mark character
+.PQ #
+appears in a file name entered as part of an
+.CO ex
+command argument, it is replaced by the alternate pathname.
+(The
+.QT #
+character can be escaped by preceding it with a backslash.)
+.KY buffer
+.IP buffer
+One of a number of named areas for saving copies of text.
+Commands that change or delete text can save the changed or deleted
+text into a specific buffer, for later use, if the command allows
+it (i.e. the
+.CO ex
+.CO change
+command cannot save the changed text in a named buffer).
+Buffers are named with a single character, preceded by a double quote,
+e.g.
+.LI """<character>"
+in
+.CO vi
+and
+without the double quote, e.g.
+.LI <character> ,
+in
+.CO ex .
+(The double quote isn't necessary for
+.CO ex
+because buffers names are denoted by their position in the command line.)
+Historic implementations of
+.EV ex vi
+limited
+.LI <character>
+to the alphanumeric characters;
+.EV nex nvi
+permits the use of any character without another meaning in the position
+where a buffer name is expected.
+.sp
+Buffers named by uppercase characters are the same as buffers
+named by lowercase characters, e.g. the buffer named by the
+English character
+.QT A
+is the same as the buffer named by the character
+.QT a ,
+with the exception that, if the buffer contents are being changed (as
+with a text deletion or
+.CO vi
+.CO change
+command), the text is
+.i appended
+to the buffer, instead of replacing the current contents.
+.sp
+The buffers named by the numeric characters (in English,
+.QT 1
+through
+.QT 9 ),
+are special.
+If a region of text including characters from more than one line,
+or a single line of text specified by using a line-oriented motion,
+is changed or deleted in the file using the
+.CO vi
+.CO change
+or
+.CO delete
+commands, a copy of the text is placed into the numeric buffer
+.QT 1 ,
+regardless of the user specifying another buffer in which to save it.
+In addition, there are a few commands which, when used as a
+.LI motion
+with the
+.CO vi
+.CO change
+and
+.CO delete
+commands,
+.i always
+copy the specified region of text into the numeric buffers regardless
+of the region including characters from more than one line.
+These commands are:
+.sp
+.ne 3v
+.ft C
+.TS
+r r r r.
+<control-A>	%	(	)
+`<character>	/	?	N
+n	{	}
+.TE
+.ft R
+.sp
+Before this copy is done, the previous contents of buffer
+.QT 1
+are moved into buffer
+.QT 2 ,
+.QT 2
+into buffer
+.QT 3 ,
+and so on.
+The contents of buffer
+.QT 9
+are discarded.
+In
+.CO vi ,
+text may be explicitly stored into the numeric buffers.
+In this case, the buffer rotation described above occurs before the
+replacement of the buffer's contents.
+The numeric buffers are only available in
+.LI visual
+and
+.LI open
+modes,
+and are not accessible by
+.CO ex
+in any way, although changed and deleted text is still stored there
+while in
+.CO ex
+mode.
+.sp
+When a
+.CO vi
+command synopsis shows both a
+.LI [buffer]
+and a
+.LI [count] ,
+they may be presented in any order.
+.sp
+Finally, all buffers are either
+.QQ line
+or
+.QQ character
+oriented.
+All
+.CO ex
+commands which store text into buffers are line oriented.
+Some
+.CO vi
+commands which store text into buffers are line oriented,
+and some are character oriented; the description for each applicable
+.CO vi
+command notes whether text copied into buffers using the command
+is line or character oriented.
+In addition, the
+.CO vi
+command
+.CO "display buffers"
+displays the current orientation for each buffer.
+Generally, the only importance attached to this orientation is that
+if the buffer is subsequently inserted into the text, line oriented
+buffers create new lines for each of the lines they contain, and
+character oriented buffers create new lines for any lines
+.i other
+than the first and last lines they contain.
+The first and last lines are inserted into the text at the current
+cursor position, becoming part of the current line.
+If there is more than one line in the buffer, however, the current
+line itself will be split.
+.KY "unnamed buffer"
+.IP "unnamed buffer"
+The unnamed buffer is a text storage area which is used by commands
+that use or operate on a buffer when no buffer is specified by the user.
+If the command stores text into a buffer,
+the text is stored into the unnamed buffer even if a buffer is also
+specified by the user.
+It is not possible to append text to the unnamed buffer.
+If text is appended to a named buffer,
+the named buffer contains both the old and new text,
+while the unnamed buffer contains only the new text.
+There is no way to explicitly reference the unnamed buffer.
+.sp
+Historically, the contents of the unnamed buffer were discarded by many
+different commands, even ones that didn't store text into it.
+.EV Nex nvi
+never discards the contents of the unnamed buffer until new text
+replaces them.
+.KY whitespace
+.IP whitespace
+The characters <tab> and <space>.
+.KY "<carriage-return>"
+.IP "<carriage-return>"
+The character represented by an ASCII
+.LI <control-M> .
+This character is almost always treated identically to a
+.LI <newline>
+character, but differs in that it can be escaped into the file text or
+into a command.
+.KY <newline>
+.IP <newline>
+The character represented by an ASCII
+.LI <control-J> .
+This character is almost always treated identically to a
+.LI <control-M>
+character, but differs in that it cannot be escaped into the file text or
+into a command.
+.oh 'Vi/Ex Reference (Vi Commands)''USD:13-%'
+.eh 'USD:13-%''Vi/Ex Reference (Vi Commands)'
+.so vi.cmd.roff
+.oh 'Vi/Ex Reference''USD:13-%'
+.eh 'USD:13-%''Vi/Ex Reference'
+.SH 1 "Ex Addressing"
+.pp
+Addressing in
+.CO ex
+(and when
+.CO ex
+commands are executed from
+.CO vi )
+relates to the current line.
+In general, the current line is the last line affected by a command.
+The exact effect on the current line is discussed under the description
+of each command.
+When the file contains no lines, the current line is zero.
+.pp
+Addresses are constructed by one or more of the following methods:
+.np
+The address
+.QT \&.
+refers to the current line.
+.np
+The address
+.QT $
+refers to the last line of the file.
+.np
+The address
+.QT N ,
+where
+.LI N
+is a positive number, refers to the N-th line of the file.
+.np
+The address
+.QT '<character>
+or
+.QT `<character>
+refers to the line marked with the name
+.LI <character> .
+(See the
+.CO k
+or
+.CO m
+commands for more information on how to mark lines.)
+.np
+A regular expression (RE) enclosed by slashes
+.PQ /
+is an address,
+and it refers to the first line found by searching forward from the line
+.i after
+the current line toward the end of the file, and stopping at the
+first line containing a string matching the RE.
+(The trailing slash can be omitted at the end of the command line.)
+.sp
+If no RE is specified, i.e. the pattern is
+.QT // ,
+the last RE used in any command is used in the search.
+.sp
+If the
+.OP extended
+option is set, the RE is handled as an extended RE, not a basic RE.
+If the
+.OP wrapscan
+option is set, the search wraps around to the beginning of the file
+and continues up to and including the current line, so that the entire
+file is searched.
+.sp
+The form
+.QT \e/
+is accepted for historic reasons,
+and is identical to
+.QT // .
+.np
+An RE enclosed in question marks
+.PQ ?
+addresses the first line found by searching backward from the line
+.i preceding
+the current line, toward the beginning of the file and stopping at the
+first line containing a string matching the RE.
+(The trailing question mark can be omitted at the end of a command line.)
+.sp
+If no RE is specified, i.e. the pattern is
+.QT ?? ,
+the last RE used in any command is used in the search.
+.sp
+If the
+.OP extended
+option is set, the RE is handled as an extended RE, not a basic RE.
+If the
+.OP wrapscan
+option is set, the search  wraps around from the beginning of the file to
+the end of the file and continues up to and including the current line,
+so that the entire file is searched.
+.sp
+The form
+.QT \e?
+is accepted for historic reasons, and is identical to
+.QT ?? .
+.np
+An address followed by a plus sign
+.PQ +
+or a minus sign
+.PQ -
+followed by a number is an offset address and refers to the address
+plus (or minus) the indicated number of lines.
+If the address is omitted, the addition or subtraction is done with
+respect to the current line.
+.np
+An address of
+.QT +
+or
+.QT \-
+followed by a number is an offset from the current line.
+For example,
+.QT \-5
+is the same as
+.QT \&.\-5 .
+.np
+An address ending with
+.QT +
+or
+.QT -
+has 1 added to or subtracted from the address, respectively.
+As a consequence of this rule and of the previous rule, the address
+.QT \-
+refers to the line preceding the current line.
+Moreover, trailing
+.QT +
+and
+.QT \-
+characters have a cumulative effect.
+For example,
+.QT ++\-++
+refers to the current line plus 3.
+.np
+A percent sign
+.PQ %
+is equivalent to the address range
+.QT 1,$ .
+.pp
+.CO Ex
+commands require zero, one, or two addresses.
+It is an error to specify an address to a command which requires zero
+addresses.
+.pp
+If the user provides more than the expected number of addresses to any
+.CO ex
+command, the first addresses specified are discarded.
+For example,
+.QT 1,2,3,5 print
+prints lines 3 through 5, because the
+.CO print
+command only takes two addresses.
+.pp
+The addresses in a range are separated from each other by a comma
+.PQ ,
+or a semicolon
+.PQ ; .
+In the latter case, the current line
+.PQ \&.
+is set to the first address, and only then is the second address calculated.
+This feature can be used to determine the starting line for forward and
+backward searches (see rules (5) and (6) above).
+The second address of any two-address sequence corresponds to a line that
+follows, in the file, the line corresponding to the first address.
+The first address must be less than or equal to the second address.
+The first address must be greater than or equal to the first line of the
+file, and the last address must be less than or equal to the last line
+of the file.
+.oh 'Vi/Ex Reference (Ex Commands)''USD:13-%'
+.eh 'USD:13-%''Vi/Ex Reference (Ex Commands)'
+.so ex.cmd.roff
+.oh 'Vi/Ex Reference (Options)''USD:13-%'
+.eh 'USD:13-%''Vi/Ex Reference (Options)'
+.so set.opt.roff
+.oh 'Vi/Ex Reference''USD:13-%'
+.eh 'USD:13-%''Vi/Ex Reference'
+.bp
+.SH 1 Index
+.lp
+.2c +0.5i 3
+.ta \n($luR
+.nf
+.so index.so
+.fi
+.\" Force the TOC to an odd page, in case it's a duplex printer.
+.if o .bp
+.bp 3
+.1c
+.ce 1
+\fB\s+2Table of Contents\s0\fP
+.sp
+.xp

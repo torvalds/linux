@@ -1,0 +1,121 @@
+.\" Copyright (c) 2018 Conrad Meyer <cem@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 24, 2018
+.Dt GETRANDOM 2
+.Os
+.Sh NAME
+.Nm getrandom
+.Nd get random data
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/random.h
+.Ft ssize_t
+.Fn getrandom "void *buf" "size_t buflen" "unsigned int flags"
+.Sh DESCRIPTION
+.Fn getrandom
+fills
+.Fa buf
+with up to
+.Fa buflen
+bytes of random data.
+.Pp
+The
+.Fa flags
+argument may include zero or more of the following:
+.Bl -tag -width _GRND_NONBLOCK_
+.It Ql GRND_NONBLOCK
+Return
+.Er EAGAIN
+instead of blocking, if the
+.Xr random 4
+device has not yet been seeded.
+By default,
+.Fn getrandom
+will block until the device is seeded.
+.It Ql GRND_RANDOM
+This flag does nothing on
+.Fx .
+.Pa /dev/random
+and
+.Pa /dev/urandom
+are identical.
+.El
+.Pp
+If the
+.Xr random 4
+device has been seeded, reads of up to 256 bytes will always return as many
+bytes as requested and will not be interrupted by signals.
+.Pp
+.Sh RETURN VALUES
+Upon successful completion, the number of bytes which were actually read is
+returned.
+For requests larger than 256 bytes, this can be fewer bytes than were
+requested.
+Otherwise, -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn getrandom
+operation returns the following errors:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The
+.Ql GRND_NONBLOCK
+flag was set and the
+.Xr random 4
+device was not yet seeded.
+.It Bq Er EFAULT
+The
+.Fa buf
+parameter points to an invalid address.
+.It Bq Er EINTR
+The sleep was interrupted by a signal.
+.It Bq Er EINVAL
+An invalid
+.Fa flags
+was specified.
+.It Bq Er EINVAL
+The requested
+.Fa buflen
+was larger than
+.Dv IOSIZE_MAX .
+.El
+.Sh SEE ALSO
+.Xr arc4random 3 ,
+.Xr getentropy 3 ,
+.Xr random 4
+.Sh STANDARDS
+.Fn getentropy
+is non-standard.
+It is present in Linux.
+.Sh HISTORY
+The
+.Fn getrandom
+system call first appeared in
+.Fx 12.0 .

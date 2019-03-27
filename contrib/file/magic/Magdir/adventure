@@ -1,0 +1,122 @@
+
+#------------------------------------------------------------------------------
+# $File: adventure,v 1.17 2017/07/03 16:03:40 christos Exp $
+# adventure: file(1) magic for Adventure game files
+#
+# from Allen Garvin <earendil@faeryland.tamu-commerce.edu>
+# Edited by Dave Chapeskie <dchapes@ddm.on.ca> Jun 28, 1998
+# Edited by Chris Chittleborough <cchittleborough@yahoo.com.au>, March 2002
+#
+# ALAN
+# I assume there are other, lower versions, but these are the only ones I
+# saw in the archive.
+0	beshort	0x0206	ALAN game data
+>2	byte	<10	version 2.6%d
+
+
+# Infocom (see z-machine)
+#------------------------------------------------------------------------------
+# Z-machine:  file(1) magic for Z-machine binaries.
+# Sanity checks by David Griffith <dave@661.org>
+# Updated by Adam Buchbinder <adam.buchbinder@gmail.com>
+#
+#http://www.gnelson.demon.co.uk/zspec/sect11.html
+#http://www.jczorkmid.net/~jpenney/ZSpec11-latest.txt
+#http://en.wikipedia.org/wiki/Z-machine
+# The first byte is the Z-machine revision; it is always between 1 and 8. We
+# had false matches (for instance, inbig5.ocp from the Omega TeX extension as
+# well as an occasional MP3 file), so we sanity-check the version number.
+#
+# It might be possible to sanity-check the release number as well, as it seems
+# (at least in classic Infocom games) to always be a relatively small number,
+# always under 150 or so, but as this isn't rigorous, we'll wait on that until
+# it becomes clear that it's needed.
+#
+0	ubyte			>0
+>0	ubyte			<9
+>>16	belong&0xfe00f0f0	0x3030
+>>>0	ubyte			< 10
+>>>>2	ubeshort		x
+>>>>>18	regex			[0-9][0-9][0-9][0-9][0-9][0-9]
+>>>>>>0	ubyte			< 10	Infocom (Z-machine %d
+>>>>>>>2	ubeshort	x 	\b, Release %d
+>>>>>>>>18	string		>\0	\b, Serial %.6s
+>>>>>>>>18	string		x	\b)
+!:strength + 40
+!:mime	application/x-zmachine
+
+#------------------------------------------------------------------------------
+# Glulx:  file(1) magic for Glulx binaries.
+#
+# David Griffith <dave@661.org>
+# I haven't checked for false matches yet.
+#
+0	string			Glul	Glulx game data
+>4	beshort			x	(Version %d
+>>6	byte			x	\b.%d
+>>8	byte			x	\b.%d)
+>36	string			Info	Compiled by Inform
+!:mime	application/x-glulx
+
+
+# For Quetzal and blorb magic see iff
+
+
+# TADS (Text Adventure Development System) version 2
+#  All files are machine-independent (games compile to byte-code) and are tagged
+#  with a version string of the form "V2.<digit>.<digit>\0".
+#  Game files start with "TADS2 bin\n\r\032\0" then the compiler version.
+0	string	TADS2\ bin	TADS
+>9	belong  !0x0A0D1A00	game data, CORRUPTED
+>9	belong	 0x0A0D1A00
+>>13	string	>\0		%s game data
+!:mime	application/x-tads
+#  Resource files start with "TADS2 rsc\n\r\032\0" then the compiler version.
+0	string	TADS2\ rsc	TADS
+>9	belong  !0x0A0D1A00	resource data, CORRUPTED
+>9	belong	 0x0A0D1A00
+>>13	string	>\0		%s resource data
+!:mime	application/x-tads
+#  Some saved game files start with "TADS2 save/g\n\r\032\0", a little-endian
+#  2-byte length N, the N-char name of the game file *without* a NUL (darn!),
+# "TADS2 save\n\r\032\0" and the interpreter version.
+0	string	TADS2\ save/g	TADS
+>12	belong	!0x0A0D1A00	saved game data, CORRUPTED
+>12	belong	 0x0A0D1A00
+>>(16.s+32) string >\0		%s saved game data
+!:mime	application/x-tads
+#  Other saved game files start with "TADS2 save\n\r\032\0" and the interpreter
+#  version.
+0	string	TADS2\ save	TADS
+>10	belong	!0x0A0D1A00	saved game data, CORRUPTED
+>10	belong	 0x0A0D1A00
+>>14	string	>\0		%s saved game data
+!:mime	application/x-tads
+
+# TADS (Text Adventure Development System) version 3
+#  Game files start with "T3-image\015\012\032"
+0	string	T3-image\015\012\032
+>11	leshort	x		TADS 3 game data (format version %d)
+#  Saved game files start with "T3-state-v####\015\012\032"
+#  where #### is a format version number
+0	string	T3-state-v
+>14	string	\015\012\032	TADS 3 saved game data (format version
+>>10	byte	x		%c
+>>11	byte	x		\b%c
+>>12	byte	x		\b%c
+>>13	byte	x		\b%c)
+!:mime	application/x-t3vm-image
+
+# edited by David Griffith <dave@661.org>
+# Danny Milosavljevic <danny.milo@gmx.net>
+# These are ADRIFT (adventure game standard) game files, extension .taf
+# Checked from source at (http://www.adrift.co/) and various taf files
+# found at the Interactive Fiction Archive (http://ifarchive.org/)
+0	belong  0x3C423FC9
+>4	belong  0x6A87C2CF	Adrift game file version
+>>8	belong  0x94453661	3.80
+>>8	belong  0x94453761	3.90
+>>8	belong  0x93453E61	4.0
+>>8	belong  0x92453E61	5.0
+>>8	default x		unknown
+!:mime	application/x-adrift

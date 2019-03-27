@@ -1,0 +1,130 @@
+.\" Copyright (c) 2016 The FreeBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 23, 2016
+.Dt THR_SUSPEND 2
+.Os
+.Sh NAME
+.Nm thr_suspend
+.Nd suspend the calling thread
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/thr.h
+.Ft int
+.Fn thr_suspend "struct timespec *timeout"
+.Sh DESCRIPTION
+.Bf -symbolic
+This function is intended for implementing threading.
+Normal applications should use
+.Xr pthread_cond_timedwait 3
+together with
+.Xr pthread_cond_broadcast 3
+for typical safe suspension with cooperation of the thread
+being suspended, or
+.Xr pthread_suspend_np 3
+and
+.Xr pthread_resume_np 3
+in some specific situations, instead.
+.Ef
+.Pp
+The
+.Fn thr_suspend
+system call puts the calling thread in a suspended state, where it is
+not eligible for CPU time.
+This state is exited by another thread calling
+.Xr thr_wake 2 ,
+when the time interval specified by
+.Fa timeout
+has elapsed,
+or by the delivery of a signal to the suspended thread.
+.Pp
+If the
+.Fa timeout
+argument is
+.Dv NULL ,
+the suspended state can be only terminated by explicit
+.Fn thr_wake
+or signal.
+.Pp
+If a wake from
+.Xr thr_wake 2
+was delivered before the
+.Nm
+call, the thread is not put into a suspended state.
+Instead, the call
+returns immediately without an error.
+.Pp
+If a thread previously called
+.Xr thr_wake 2
+with its own thread identifier, which resulted in setting the internal kernel
+flag to immediately abort interruptible sleeps with an
+.Er EINTR
+error
+.Po
+see
+.Xr thr_wake 2
+.Pc ,
+the flag is cleared.
+As with
+.Xr thr_wake 2
+called from another thread, the next
+.Nm
+call does not result in suspension.
+.Pp
+.Sh RETURN VALUES
+.Rv -std thr_suspend
+.Sh ERRORS
+The
+.Fn thr_suspend
+operation returns the following errors:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The memory pointed to by the
+.Fa timeout
+argument is not valid.
+.It Bq Er ETIMEDOUT
+The specified timeout expired.
+.It Bq Er ETIMEDOUT
+The
+.Fa timeout
+argument specified a zero time interval.
+.It Bq Er EINTR
+The sleep was interrupted by a signal.
+.El
+.Sh SEE ALSO
+.Xr ps 1 ,
+.Xr thr_wake 2 ,
+.Xr pthread_resume_np 3 ,
+.Xr pthread_suspend_np 3
+.Sh STANDARDS
+The
+.Fn thr_suspend
+system call is non-standard.

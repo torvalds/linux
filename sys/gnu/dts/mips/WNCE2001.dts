@@ -1,0 +1,137 @@
+/dts-v1/;
+
+#include "rt3050.dtsi"
+
+/ {
+	compatible = "WNCE2001", "ralink,rt3052-soc";
+	model = "Netgear WNCE2001";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		power-green {
+			label = "wnce2001:green:power";
+			gpios = <&gpio0 8 1>;
+		};
+
+		power-red {
+			label = "wnce2001:red:power";
+			gpios = <&gpio0 9 1>;
+		};
+
+		wlan-green {
+			label = "wnce2001:green:wlan";
+			gpios = <&gpio0 12 0>;
+		};
+
+		wlan-red {
+			label = "wnce2001:red:wlan";
+			gpios = <&gpio0 13 0>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 10 1>;
+			linux,code = <0x198>;
+		};
+
+		wps {
+			label = "wps";
+			gpios = <&gpio0 0 1>;
+			linux,code = <0x211>;
+		};
+
+		rt {
+			label = "rt";
+			gpios = <&gpio0 11 1>;
+			linux,code = <0x100>;
+		};
+
+		ap {
+			label = "ap";
+			gpios = <&gpio0 7 1>;
+			linux,code = <0x101>;
+		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "mx25l3205d";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		factory: partition@30000 {
+			label = "factory";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		partition@40000 {
+			label = "config";
+			reg = <0x40000 0x20000>;
+			read-only;
+		};
+
+		partition@60000 {
+			label = "language";
+			reg = <0x60000 0x30000>;
+			read-only;
+		};
+
+		partition@90000 {
+			label = "pot";
+			reg = <0x90000 0x10000>;
+			read-only;
+		};
+
+		partition@a0000 {
+			label = "checksum";
+			reg = <0xa0000 0x10000>;
+		};
+
+		partition@b0000 {
+			label = "firmware";
+			reg = <0xb0000 0x350000>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "jtag", "rgmii", "mdio", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x28>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};

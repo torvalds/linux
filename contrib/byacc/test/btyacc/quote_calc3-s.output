@@ -1,0 +1,593 @@
+   0  $accept : list $end
+
+   1  list :
+   2       | list stat '\n'
+   3       | list error '\n'
+
+   4  stat : expr
+   5       | LETTER '=' expr
+
+   6  expr : '(' expr ')'
+   7       | expr OP_ADD expr
+   8       | expr OP_SUB expr
+   9       | expr OP_MUL expr
+  10       | expr OP_DIV expr
+  11       | expr OP_MOD expr
+  12       | expr OP_AND expr
+  13       | expr '|' expr
+  14       | OP_SUB expr
+  15       | LETTER
+  16       | number
+
+  17  number : DIGIT
+  18         | number DIGIT
+
+state 0
+	$accept : . list $end  (0)
+	list : .  (1)
+
+	.  reduce 1
+
+	list  goto 1
+
+
+state 1
+	$accept : list . $end  (0)
+	list : list . stat '\n'  (2)
+	list : list . error '\n'  (3)
+
+	$end  accept
+	error  shift 2
+	OP_SUB  shift 3
+	DIGIT  shift 4
+	LETTER  shift 5
+	'('  shift 6
+	.  error
+
+	stat  goto 7
+	expr  goto 8
+	number  goto 9
+
+
+state 2
+	list : list error . '\n'  (3)
+
+	'\n'  shift 10
+	.  error
+
+
+state 3
+	expr : OP_SUB . expr  (14)
+
+	OP_SUB  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 12
+	number  goto 9
+
+
+state 4
+	number : DIGIT .  (17)
+
+	.  reduce 17
+
+
+state 5
+	stat : LETTER . '=' expr  (5)
+	expr : LETTER .  (15)
+
+	'='  shift 13
+	OP_ADD  reduce 15
+	OP_SUB  reduce 15
+	OP_MUL  reduce 15
+	OP_DIV  reduce 15
+	OP_MOD  reduce 15
+	OP_AND  reduce 15
+	'|'  reduce 15
+	'\n'  reduce 15
+
+
+state 6
+	expr : '(' . expr ')'  (6)
+
+	OP_SUB  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 14
+	number  goto 9
+
+
+state 7
+	list : list stat . '\n'  (2)
+
+	'\n'  shift 15
+	.  error
+
+
+state 8
+	stat : expr .  (4)
+	expr : expr . OP_ADD expr  (7)
+	expr : expr . OP_SUB expr  (8)
+	expr : expr . OP_MUL expr  (9)
+	expr : expr . OP_DIV expr  (10)
+	expr : expr . OP_MOD expr  (11)
+	expr : expr . OP_AND expr  (12)
+	expr : expr . '|' expr  (13)
+
+	OP_ADD  shift 16
+	OP_SUB  shift 17
+	OP_MUL  shift 18
+	OP_DIV  shift 19
+	OP_MOD  shift 20
+	OP_AND  shift 21
+	'|'  shift 22
+	'\n'  reduce 4
+
+
+state 9
+	expr : number .  (16)
+	number : number . DIGIT  (18)
+
+	DIGIT  shift 23
+	OP_ADD  reduce 16
+	OP_SUB  reduce 16
+	OP_MUL  reduce 16
+	OP_DIV  reduce 16
+	OP_MOD  reduce 16
+	OP_AND  reduce 16
+	'|'  reduce 16
+	'\n'  reduce 16
+	')'  reduce 16
+
+
+state 10
+	list : list error '\n' .  (3)
+
+	.  reduce 3
+
+
+state 11
+	expr : LETTER .  (15)
+
+	.  reduce 15
+
+
+12: shift/reduce conflict (shift 16, reduce 14) on OP_ADD
+12: shift/reduce conflict (shift 17, reduce 14) on OP_SUB
+12: shift/reduce conflict (shift 18, reduce 14) on OP_MUL
+12: shift/reduce conflict (shift 19, reduce 14) on OP_DIV
+12: shift/reduce conflict (shift 20, reduce 14) on OP_MOD
+12: shift/reduce conflict (shift 21, reduce 14) on OP_AND
+state 12
+	expr : expr . OP_ADD expr  (7)
+	expr : expr . OP_SUB expr  (8)
+	expr : expr . OP_MUL expr  (9)
+	expr : expr . OP_DIV expr  (10)
+	expr : expr . OP_MOD expr  (11)
+	expr : expr . OP_AND expr  (12)
+	expr : expr . '|' expr  (13)
+	expr : OP_SUB expr .  (14)
+
+	OP_ADD  shift 16
+	OP_SUB  shift 17
+	OP_MUL  shift 18
+	OP_DIV  shift 19
+	OP_MOD  shift 20
+	OP_AND  shift 21
+	'|'  reduce 14
+	'\n'  reduce 14
+	')'  reduce 14
+
+
+state 13
+	stat : LETTER '=' . expr  (5)
+
+	OP_SUB  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 24
+	number  goto 9
+
+
+state 14
+	expr : '(' expr . ')'  (6)
+	expr : expr . OP_ADD expr  (7)
+	expr : expr . OP_SUB expr  (8)
+	expr : expr . OP_MUL expr  (9)
+	expr : expr . OP_DIV expr  (10)
+	expr : expr . OP_MOD expr  (11)
+	expr : expr . OP_AND expr  (12)
+	expr : expr . '|' expr  (13)
+
+	OP_ADD  shift 16
+	OP_SUB  shift 17
+	OP_MUL  shift 18
+	OP_DIV  shift 19
+	OP_MOD  shift 20
+	OP_AND  shift 21
+	'|'  shift 22
+	')'  shift 25
+	.  error
+
+
+state 15
+	list : list stat '\n' .  (2)
+
+	.  reduce 2
+
+
+state 16
+	expr : expr OP_ADD . expr  (7)
+
+	OP_SUB  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 26
+	number  goto 9
+
+
+state 17
+	expr : expr OP_SUB . expr  (8)
+
+	OP_SUB  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 27
+	number  goto 9
+
+
+state 18
+	expr : expr OP_MUL . expr  (9)
+
+	OP_SUB  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 28
+	number  goto 9
+
+
+state 19
+	expr : expr OP_DIV . expr  (10)
+
+	OP_SUB  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 29
+	number  goto 9
+
+
+state 20
+	expr : expr OP_MOD . expr  (11)
+
+	OP_SUB  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 30
+	number  goto 9
+
+
+state 21
+	expr : expr OP_AND . expr  (12)
+
+	OP_SUB  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 31
+	number  goto 9
+
+
+state 22
+	expr : expr '|' . expr  (13)
+
+	OP_SUB  shift 3
+	DIGIT  shift 4
+	LETTER  shift 11
+	'('  shift 6
+	.  error
+
+	expr  goto 32
+	number  goto 9
+
+
+state 23
+	number : number DIGIT .  (18)
+
+	.  reduce 18
+
+
+state 24
+	stat : LETTER '=' expr .  (5)
+	expr : expr . OP_ADD expr  (7)
+	expr : expr . OP_SUB expr  (8)
+	expr : expr . OP_MUL expr  (9)
+	expr : expr . OP_DIV expr  (10)
+	expr : expr . OP_MOD expr  (11)
+	expr : expr . OP_AND expr  (12)
+	expr : expr . '|' expr  (13)
+
+	OP_ADD  shift 16
+	OP_SUB  shift 17
+	OP_MUL  shift 18
+	OP_DIV  shift 19
+	OP_MOD  shift 20
+	OP_AND  shift 21
+	'|'  shift 22
+	'\n'  reduce 5
+
+
+state 25
+	expr : '(' expr ')' .  (6)
+
+	.  reduce 6
+
+
+26: shift/reduce conflict (shift 16, reduce 7) on OP_ADD
+26: shift/reduce conflict (shift 17, reduce 7) on OP_SUB
+26: shift/reduce conflict (shift 18, reduce 7) on OP_MUL
+26: shift/reduce conflict (shift 19, reduce 7) on OP_DIV
+26: shift/reduce conflict (shift 20, reduce 7) on OP_MOD
+26: shift/reduce conflict (shift 21, reduce 7) on OP_AND
+26: shift/reduce conflict (shift 22, reduce 7) on '|'
+state 26
+	expr : expr . OP_ADD expr  (7)
+	expr : expr OP_ADD expr .  (7)
+	expr : expr . OP_SUB expr  (8)
+	expr : expr . OP_MUL expr  (9)
+	expr : expr . OP_DIV expr  (10)
+	expr : expr . OP_MOD expr  (11)
+	expr : expr . OP_AND expr  (12)
+	expr : expr . '|' expr  (13)
+
+	OP_ADD  shift 16
+	OP_SUB  shift 17
+	OP_MUL  shift 18
+	OP_DIV  shift 19
+	OP_MOD  shift 20
+	OP_AND  shift 21
+	'|'  shift 22
+	'\n'  reduce 7
+	')'  reduce 7
+
+
+27: shift/reduce conflict (shift 16, reduce 8) on OP_ADD
+27: shift/reduce conflict (shift 17, reduce 8) on OP_SUB
+27: shift/reduce conflict (shift 18, reduce 8) on OP_MUL
+27: shift/reduce conflict (shift 19, reduce 8) on OP_DIV
+27: shift/reduce conflict (shift 20, reduce 8) on OP_MOD
+27: shift/reduce conflict (shift 21, reduce 8) on OP_AND
+27: shift/reduce conflict (shift 22, reduce 8) on '|'
+state 27
+	expr : expr . OP_ADD expr  (7)
+	expr : expr . OP_SUB expr  (8)
+	expr : expr OP_SUB expr .  (8)
+	expr : expr . OP_MUL expr  (9)
+	expr : expr . OP_DIV expr  (10)
+	expr : expr . OP_MOD expr  (11)
+	expr : expr . OP_AND expr  (12)
+	expr : expr . '|' expr  (13)
+
+	OP_ADD  shift 16
+	OP_SUB  shift 17
+	OP_MUL  shift 18
+	OP_DIV  shift 19
+	OP_MOD  shift 20
+	OP_AND  shift 21
+	'|'  shift 22
+	'\n'  reduce 8
+	')'  reduce 8
+
+
+28: shift/reduce conflict (shift 16, reduce 9) on OP_ADD
+28: shift/reduce conflict (shift 17, reduce 9) on OP_SUB
+28: shift/reduce conflict (shift 18, reduce 9) on OP_MUL
+28: shift/reduce conflict (shift 19, reduce 9) on OP_DIV
+28: shift/reduce conflict (shift 20, reduce 9) on OP_MOD
+28: shift/reduce conflict (shift 21, reduce 9) on OP_AND
+28: shift/reduce conflict (shift 22, reduce 9) on '|'
+state 28
+	expr : expr . OP_ADD expr  (7)
+	expr : expr . OP_SUB expr  (8)
+	expr : expr . OP_MUL expr  (9)
+	expr : expr OP_MUL expr .  (9)
+	expr : expr . OP_DIV expr  (10)
+	expr : expr . OP_MOD expr  (11)
+	expr : expr . OP_AND expr  (12)
+	expr : expr . '|' expr  (13)
+
+	OP_ADD  shift 16
+	OP_SUB  shift 17
+	OP_MUL  shift 18
+	OP_DIV  shift 19
+	OP_MOD  shift 20
+	OP_AND  shift 21
+	'|'  shift 22
+	'\n'  reduce 9
+	')'  reduce 9
+
+
+29: shift/reduce conflict (shift 16, reduce 10) on OP_ADD
+29: shift/reduce conflict (shift 17, reduce 10) on OP_SUB
+29: shift/reduce conflict (shift 18, reduce 10) on OP_MUL
+29: shift/reduce conflict (shift 19, reduce 10) on OP_DIV
+29: shift/reduce conflict (shift 20, reduce 10) on OP_MOD
+29: shift/reduce conflict (shift 21, reduce 10) on OP_AND
+29: shift/reduce conflict (shift 22, reduce 10) on '|'
+state 29
+	expr : expr . OP_ADD expr  (7)
+	expr : expr . OP_SUB expr  (8)
+	expr : expr . OP_MUL expr  (9)
+	expr : expr . OP_DIV expr  (10)
+	expr : expr OP_DIV expr .  (10)
+	expr : expr . OP_MOD expr  (11)
+	expr : expr . OP_AND expr  (12)
+	expr : expr . '|' expr  (13)
+
+	OP_ADD  shift 16
+	OP_SUB  shift 17
+	OP_MUL  shift 18
+	OP_DIV  shift 19
+	OP_MOD  shift 20
+	OP_AND  shift 21
+	'|'  shift 22
+	'\n'  reduce 10
+	')'  reduce 10
+
+
+30: shift/reduce conflict (shift 16, reduce 11) on OP_ADD
+30: shift/reduce conflict (shift 17, reduce 11) on OP_SUB
+30: shift/reduce conflict (shift 18, reduce 11) on OP_MUL
+30: shift/reduce conflict (shift 19, reduce 11) on OP_DIV
+30: shift/reduce conflict (shift 20, reduce 11) on OP_MOD
+30: shift/reduce conflict (shift 21, reduce 11) on OP_AND
+30: shift/reduce conflict (shift 22, reduce 11) on '|'
+state 30
+	expr : expr . OP_ADD expr  (7)
+	expr : expr . OP_SUB expr  (8)
+	expr : expr . OP_MUL expr  (9)
+	expr : expr . OP_DIV expr  (10)
+	expr : expr . OP_MOD expr  (11)
+	expr : expr OP_MOD expr .  (11)
+	expr : expr . OP_AND expr  (12)
+	expr : expr . '|' expr  (13)
+
+	OP_ADD  shift 16
+	OP_SUB  shift 17
+	OP_MUL  shift 18
+	OP_DIV  shift 19
+	OP_MOD  shift 20
+	OP_AND  shift 21
+	'|'  shift 22
+	'\n'  reduce 11
+	')'  reduce 11
+
+
+31: shift/reduce conflict (shift 16, reduce 12) on OP_ADD
+31: shift/reduce conflict (shift 17, reduce 12) on OP_SUB
+31: shift/reduce conflict (shift 18, reduce 12) on OP_MUL
+31: shift/reduce conflict (shift 19, reduce 12) on OP_DIV
+31: shift/reduce conflict (shift 20, reduce 12) on OP_MOD
+31: shift/reduce conflict (shift 21, reduce 12) on OP_AND
+31: shift/reduce conflict (shift 22, reduce 12) on '|'
+state 31
+	expr : expr . OP_ADD expr  (7)
+	expr : expr . OP_SUB expr  (8)
+	expr : expr . OP_MUL expr  (9)
+	expr : expr . OP_DIV expr  (10)
+	expr : expr . OP_MOD expr  (11)
+	expr : expr . OP_AND expr  (12)
+	expr : expr OP_AND expr .  (12)
+	expr : expr . '|' expr  (13)
+
+	OP_ADD  shift 16
+	OP_SUB  shift 17
+	OP_MUL  shift 18
+	OP_DIV  shift 19
+	OP_MOD  shift 20
+	OP_AND  shift 21
+	'|'  shift 22
+	'\n'  reduce 12
+	')'  reduce 12
+
+
+32: shift/reduce conflict (shift 16, reduce 13) on OP_ADD
+32: shift/reduce conflict (shift 17, reduce 13) on OP_SUB
+32: shift/reduce conflict (shift 18, reduce 13) on OP_MUL
+32: shift/reduce conflict (shift 19, reduce 13) on OP_DIV
+32: shift/reduce conflict (shift 20, reduce 13) on OP_MOD
+32: shift/reduce conflict (shift 21, reduce 13) on OP_AND
+state 32
+	expr : expr . OP_ADD expr  (7)
+	expr : expr . OP_SUB expr  (8)
+	expr : expr . OP_MUL expr  (9)
+	expr : expr . OP_DIV expr  (10)
+	expr : expr . OP_MOD expr  (11)
+	expr : expr . OP_AND expr  (12)
+	expr : expr . '|' expr  (13)
+	expr : expr '|' expr .  (13)
+
+	OP_ADD  shift 16
+	OP_SUB  shift 17
+	OP_MUL  shift 18
+	OP_DIV  shift 19
+	OP_MOD  shift 20
+	OP_AND  shift 21
+	'|'  reduce 13
+	'\n'  reduce 13
+	')'  reduce 13
+
+
+State 12 contains 6 shift/reduce conflicts.
+State 26 contains 7 shift/reduce conflicts.
+State 27 contains 7 shift/reduce conflicts.
+State 28 contains 7 shift/reduce conflicts.
+State 29 contains 7 shift/reduce conflicts.
+State 30 contains 7 shift/reduce conflicts.
+State 31 contains 7 shift/reduce conflicts.
+State 32 contains 6 shift/reduce conflicts.
+
+
+28 terminals, 5 nonterminals
+19 grammar rules, 33 states
+
+grammar parser grammar
+symbol# value# symbol
+     0      0  $end
+     1    256  error
+     2    257  OP_ADD
+     3    258  "ADD-operator"
+     4    259  OP_SUB
+     5    260  "SUB-operator"
+     6    261  OP_MUL
+     7    262  "MUL-operator"
+     8    263  OP_DIV
+     9    264  "DIV-operator"
+    10    265  OP_MOD
+    11    266  "MOD-operator"
+    12    267  OP_AND
+    13    268  "AND-operator"
+    14    269  DIGIT
+    15    270  LETTER
+    16    124  '|'
+    17     38  '&'
+    18     43  '+'
+    19     45  '-'
+    20     42  '*'
+    21     47  '/'
+    22     37  '%'
+    23    271  UMINUS
+    24     10  '\n'
+    25     61  '='
+    26     40  '('
+    27     41  ')'
+    28    272  $accept
+    29    273  list
+    30    274  stat
+    31    275  expr
+    32    276  number

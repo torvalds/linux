@@ -1,0 +1,31 @@
+-- $Id$
+
+KX509 DEFINITIONS ::=
+BEGIN
+
+KX509-ERROR-CODE ::= INTEGER {
+	KX509-STATUS-GOOD(0),
+	KX509-STATUS-CLIENT-BAD(1),
+	KX509-STATUS-CLIENT-FIX(2),
+	KX509-STATUS-CLIENT-TEMP(3),
+	KX509-STATUS-SERVER-BAD(4),
+	KX509-STATUS-SERVER-TEMP(5),
+        -- 6 is used internally in the umich client, avoid that
+	KX509-STATUS-SERVER-KEY(7)
+}
+
+Kx509Request ::= SEQUENCE {
+	authenticator OCTET STRING,
+	pk-hash OCTET STRING,
+	pk-key OCTET STRING
+}
+
+Kx509Response ::= SEQUENCE {
+	error-code[0]	INTEGER (-2147483648..2147483647)
+	      OPTIONAL -- DEFAULT 0 --,
+	hash[1]		OCTET STRING OPTIONAL,
+	certificate[2]	OCTET STRING OPTIONAL,
+	e-text[3]	VisibleString OPTIONAL
+}
+
+END

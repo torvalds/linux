@@ -1,0 +1,53 @@
+=pod
+
+=head1 NAME
+
+OPENSSL_instrument_bus, OPENSSL_instrument_bus2 - instrument references to memory bus
+
+=head1 SYNOPSIS
+
+ #ifdef OPENSSL_CPUID_OBJ
+ size_t OPENSSL_instrument_bus(int *vector, size_t num);
+ size_t OPENSSL_instrument_bus2(int *vector, size_t num, size_t max);
+ #endif
+
+=head1 DESCRIPTION
+
+It was empirically found that timings of references to primary memory
+are subject to irregular, apparently non-deterministic variations. The
+subroutines in question instrument these references for purposes of
+gathering randomness for random number generator. In order to make it
+bus-bound a 'flush cache line' instruction is used between probes. In
+addition probes are added to B<vector> elements in atomic or
+interlocked manner, which should contribute additional noise on
+multi-processor systems. This also means that B<vector[num]> should be
+zeroed upon invocation (if you want to retrieve actual probe values).
+
+OPENSSL_instrument_bus() performs B<num> probes and records the number of
+oscillator cycles every probe took.
+
+OPENSSL_instrument_bus2() on the other hand B<accumulates> consecutive
+probes with the same value, i.e. in a way it records duration of
+periods when probe values appeared deterministic. The subroutine
+performs at most B<max> probes in attempt to fill the B<vector[num]>,
+with B<max> value of 0 meaning "as many as it takes."
+
+=head1 RETURN VALUES
+
+Return value of 0 indicates that CPU is not capable of performing the
+benchmark, either because oscillator counter or 'flush cache line' is
+not available on current platform. For reference, on x86 'flush cache
+line' was introduced with the SSE2 extensions.
+
+Otherwise number of recorded values is returned.
+
+=head1 COPYRIGHT
+
+Copyright 2011-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

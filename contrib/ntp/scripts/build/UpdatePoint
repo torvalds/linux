@@ -1,0 +1,357 @@
+#! /bin/sh
+
+# showusage is set to 1 on any command-line syntax error
+showusage=0
+# are we playing by stable or dev rules?
+repo=
+# test is set to 1 if -t/--test is given to prevent modifications
+test=0
+
+case "$#" in
+ 1) repo=$1
+    ;;
+ 2) repo=$2
+    case $1 in
+     -t|--test)
+	test=1
+	;;
+     *)
+	showusage=1
+	;;
+    esac
+    ;;
+ *) showusage=1
+    ;;
+esac
+
+case "$repo" in
+ dev|stable)
+    ;;
+ '')
+    showusage=1
+    ;;
+ *) echo "Unexpected repo type: <$repo>!"
+    showusage=1
+    ;;
+esac
+
+case "$showusage" in
+ 1) echo "Usage: $0 [-t] <stable|dev>"
+    echo "No changes are made to packageinfo.sh if -t is given."
+    exit 1
+    ;;
+esac
+
+
+set -e
+ 
+. ./packageinfo.sh
+
+case "$repotype" in
+ $repo)
+    ;;
+ *) echo "You indicated repo type <$repo> but packageinfo.sh"
+    echo "indicates <$repotype>."
+    exit 1
+    ;;
+esac
+
+ver_repo_mismatch=1
+
+case "$minor" in
+ 1|3|5|7|9)
+    case "$repo" in
+     dev)
+	ver_repo_mismatch=0
+	;;
+     stable)
+	;;
+    esac
+    ;;
+ 0|2|4|6|8)
+    case "$repo" in
+     dev)
+	;;
+     stable)
+	ver_repo_mismatch=0
+	;;
+    esac
+    ;;
+esac
+
+case "$ver_repo_mismatch" in
+ 1) echo "Minor version <$minor> mismatches repotype <$repo>."
+    exit 1
+    ;;
+esac
+
+# Do we want to bump the point?
+bp=1
+# Do we want to bump the beta point?
+bbp=0
+# Do we want to change the RC point? (n=no, z=empty rcpoint and zero
+# betapoint, i=incr)
+crcp=n
+# Do we want to change the prerelease value?
+setpr=0
+
+# for stable:
+# if we are not in a beta or RC state, enter beta unless point is NEW.
+# if we are in a beta state:
+# - bump the beta point
+# else if we are in an RC state:
+# - if rcpoint is GO:
+# - - set rcpoint= (empty)
+# - - set prerelease= (empty)
+# - - set betapoint=0
+# - else
+# - - if rcpoint==(empty)
+# - - - (bump-point) and set rcpoint to 0 (and fall thru, so -RC1 is first)
+# - - bump the RC point
+
+# for dev, we only want to bump-point and possibly clear prerelease, 
+# but we do not modify rcpoint nor betapoint.
+
+case "$repo" in
+ dev)
+    case "$point" in
+     [Nn][Ee][Ww])
+	crcp=z
+	;;
+     *)
+	# crcp=n
+	;;
+    esac
+    # bp=1
+    ;;
+ stable)
+    case "$prerelease" in
+     '')
+	# echo "Checking <$betapoint::$rcpoint::$point>"
+	case "$betapoint::$rcpoint::$point" in
+	 *::*::NEW)
+	    # new minor release (no p)
+	    crcp=z
+	    # bp=1
+	    ;;
+	 0::::*)
+	    # start of first beta cycle for the next point release
+	    setpr=1
+	    newpr=beta
+	    # bp=1
+	    bbp=1
+	    ;;
+	 0::[Gg][Oo]::*)
+	    # skip all -beta and -RC prereleases to the next point.
+	    crcp=z
+	    setpr=1
+	    newpr=
+	    # bp=1
+	    # bbp=0
+	    ;;
+	 ::[Gg][Oo]::*)
+	    # echo "Good - betapoint is empty.  Look in $0 and figure out what's going on here."
+	    crcp=z
+	    ;;
+	 *::[Gg][Oo]::*)
+	    echo "betapoint is NOT empty.  Look in $0 and figure out what's going on here."
+	    test=1
+	    ;;
+	 *) echo "betapoint is <$betapoint>, rcpoint is <$rcpoint>"
+	    echo "betapoint must be 0 and rcpoint must be empty to start the"
+	    echo "beta cycle."
+	    exit 1
+	    ;;
+	esac
+	;;
+     beta)
+	case "$betapoint::$rcpoint" in
+	 [1-9]*::*)
+	    bp=0
+	    bbp=1
+	    ;;
+	 0::) echo "betapoint is 0, rcpoint emtpy, and prerelease is beta."
+	    echo "You probably intended prerelease=  (that is, empty).  It"
+	    echo "will then be changed to beta by this script, starting the"
+	    echo "first beta for the next point release."
+	    exit 1
+	    ;;
+	 *)
+	    bp=0
+	    bbp=1
+	    ;;
+	esac
+	case "$rcpoint" in
+	 [Gg][Oo])
+	    echo "prerelease is beta, rcpoint is GO, disallowed."
+	    echo "rcpoint GO is allowed only when prerelease is RC or empty."
+	    exit 1
+	    ;;
+	esac
+	;;
+     rc|RC)
+	case "$rcpoint" in
+	 '')
+	    case "$betapoint" in
+	     0) # bp=1
+		;;
+	     *) bp=0
+		;;
+	    esac
+	    crcp=i
+	    ;;
+	 [1-9]*)
+	    bp=0
+	    crcp=i
+	    ;;
+	 [Gg][Oo])
+	    bp=0
+	    crcp=z
+	    setpr=1
+	    newpr=
+	    ;;
+	 *) echo "Unexpected value for 'rcpoint' <$rcpoint>!"
+	    exit 1
+	    ;;
+	esac
+	;;
+     *)
+	echo "prerelease <$prerelease> unexpected"
+	exit 1
+	;;
+    esac
+    ;;
+ *) echo "impossible: repo <$repo>!"
+    exit 1
+    ;;
+esac
+
+case "$repo::$bp::$point" in
+ *::0::*)
+    newpoint=$point
+    ;;
+ dev::1::0)
+    newpoint=`expr $point + 1`
+    ;;
+ *::1::[1-9]*)
+    newpoint=`expr $point + 1`
+    ;;
+ dev::1::)
+    newpoint=0
+    ;;
+ stable::1::)
+    newpoint=1
+    ;;
+ *::1::[Nn][Ee][Ww])
+    newpoint=
+    ;;
+ *) echo "Unexpected value for 'point' <$point>! (repo::bp::point is $repo::$bp::$point)"
+    exit 1
+    ;;
+esac
+
+case "$bbp::$betapoint" in
+ 0::*)
+    newbetapoint=$betapoint
+    ;;
+ 1::[0-9]*)
+    newbetapoint=`expr $betapoint + 1`
+    ;;
+ *) echo "Unexpected value for 'betapoint' <$betapoint>!"
+    exit 1
+    ;;
+esac
+
+case "$crcp::$rcpoint" in
+ n::*)
+    newrcpoint=$rcpoint
+    ;;
+ i::)
+    newrcpoint=1
+    ;;
+ i::[0-9]*)
+    newrcpoint=`expr $rcpoint + 1`
+    ;;
+ z::*)
+    newrcpoint=
+    case "$repo" in
+     dev)
+	newbetapoint=0
+	;;
+     stable)
+	newbetapoint=
+	;;
+     *)
+	echo "crcp::rcpoint - bogus repo <$repo>"
+	exit 1
+	;;
+    esac
+    ;;
+ *) echo "Unexpected value for 'crcp::rcpoint' <$crcp::$rcpoint>!"
+    exit 1
+    ;;
+esac
+
+case "$setpr" in
+ 0)
+    newpr=$prerelease
+esac
+
+# display results
+printf "prerelease		$prerelease"
+case "$newpr" in
+ $prerelease)
+    printf "\n"
+    ;;
+ *) printf " -> $newpr\n"
+    ;;
+esac
+printf "point			$point"
+case "$newpoint" in
+ $point)
+    printf "\n"
+    ;;
+ *) printf " -> $newpoint\n"
+    ;;
+esac
+printf "betapoint		$betapoint"
+case "$newbetapoint" in
+ $betapoint)
+    printf "\n"
+    ;;
+ *) printf " -> $newbetapoint\n"
+    ;;
+esac
+printf "rcpoint			$rcpoint"
+case "$newrcpoint" in
+ $rcpoint)
+    printf "\n"
+    ;;
+ *) printf " -> $newrcpoint\n"
+    ;;
+esac
+
+printf "Previous version: "
+scripts/build/VersionName
+
+# apply packageinfo.sh changes
+
+sed -e "s/^point=.*/point=$newpoint/"			\
+    -e "s/^betapoint=.*/betapoint=$newbetapoint/"	\
+    -e "s/^rcpoint=.*/rcpoint=$newrcpoint/"		\
+    -e "s/^prerelease=.*/prerelease=$newpr/"		\
+	< packageinfo.sh					\
+	> packageinfo.sh+
+
+case "$test" in
+ 0)
+    mv packageinfo.sh+ packageinfo.sh
+    printf "Updated version: "
+    scripts/build/VersionName
+    ;;
+ *)
+    printf "Next version would be: "
+    scripts/build/VersionName -p ./packageinfo.sh+
+    rm packageinfo.sh+
+    ;;
+esac

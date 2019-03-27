@@ -1,0 +1,181 @@
+.\" Copyright (c) 1997
+.\"	Mike Pritchard <mpp@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY MIKE PRITCHARD AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 2, 2014
+.Dt MIXER 8
+.Os
+.Sh NAME
+.Nm mixer
+.Nd set/display soundcard mixer values
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar device
+.Op Fl s | S
+.Oo
+.Ar dev
+.Sm off
+.Oo
+.Op Cm + | -
+.Ar lvol
+.Op : Oo Cm + | - Oc Ar rvol
+.Oc
+.Oc
+.Sm on
+.Ar ...
+.Nm
+.Op Fl f Ar device
+.Op Fl s | S
+.Cm recsrc
+.Ar ...
+.Nm
+.Op Fl f Ar device
+.Op Fl s | S
+.Sm off
+.Bro
+.Cm ^ | + | - | =
+.Brc
+.Cm rec
+.Sm on
+.Ar rdev ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to set and display soundcard mixer device levels.
+It may
+also be used to start and stop recording from the soundcard.
+The list
+of mixer devices that may be modified are:
+.Bd -ragged -offset indent
+vol, bass, treble, synth, pcm, speaker, line, mic, cd, mix,
+pcm2, rec, igain, ogain, line1, line2, line3, dig1, dig2, dig3,
+phin, phout, video, radio, and monitor.
+.Ed
+.Pp
+Not all mixer devices are available.
+.Pp
+Without any arguments,
+.Nm
+displays the current settings for all supported devices, followed by information
+about the current recording input devices.
+If the
+.Ar dev
+argument is specified,
+.Nm
+displays only the value for that
+.Ar dev .
+.Pp
+To modify the mixer value
+.Ar dev ,
+the optional left and right channel settings of
+.Ar lvol Ns Op : Ns Ar rvol
+may be specified.
+The
+.Ar lvol
+and
+.Ar rvol
+arguments may be from 0 - 100.
+Omitting
+.Ar dev
+and including only the channel settings will change the main volume level.
+.Pp
+If the left or right channel settings are prefixed with
+.Cm +
+or
+.Cm - ,
+the value following will be used as a relative adjustment, modifying the
+current settings by the amount specified.
+.Pp
+If the
+.Fl s
+flag is used, the current mixer values will be displayed in a format suitable
+for use as the command-line arguments to a future invocation of
+.Nm
+(as above).
+.Pp
+The
+.Fl S
+flag provides the above output without mixing field separators.
+.Pp
+To change the recording device you use one of:
+.Bl -tag -width =rec -offset indent
+.It Cm ^rec
+toggles
+.Ar rdev
+of possible recording devices
+.It Cm +rec
+adds
+.Ar rdev
+to possible recording devices
+.It Cm -rec
+removes
+.Ar rdev
+from possible recording devices
+.It Cm =rec
+sets the recording device to
+.Ar rdev
+.El
+.Pp
+The above commands work on an internal mask.
+After all the options
+have been parsed, it will set then read the mask from the sound card.
+This will let you see EXACTLY what the soundcard is using for the
+recording device(s).
+.Pp
+The option recsrc will display the current recording devices.
+.Pp
+The option
+.Fl f
+.Ar device
+will open
+.Ar device
+as the mixer device.
+.Sh FILES
+.Bl -tag -width /dev/mixer -compact
+.It Pa /dev/mixer
+the default mixer device
+.El
+.Sh SEE ALSO
+.Xr cdcontrol 1 ,
+.Xr sound 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 2.0.5 .
+.Sh AUTHORS
+.An -nosplit
+Original source by
+.An Craig Metz Aq Mt cmetz@thor.tjhsst.edu
+and
+.An Hannu Savolainen .
+Mostly rewritten by
+.An John-Mark Gurney Aq Mt jmg@FreeBSD.org .
+This
+manual page was written by
+.An Mike Pritchard Aq Mt mpp@FreeBSD.org .

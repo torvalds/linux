@@ -1,0 +1,175 @@
+.\" $FreeBSD$
+.TH IPF 8
+.SH NAME
+ipf \- alters packet filtering lists for IP packet input and output
+.SH SYNOPSIS
+.B ipf
+[
+.B \-6AcdDEInoPrsvVyzZ
+] [
+.B \-l
+<block|pass|nomatch>
+] [
+.B \-T
+<optionlist>
+] [
+.B \-F
+<i|o|a|s|S>
+]
+.B \-f
+<\fIfilename\fP>
+[
+.B \-f
+<\fIfilename\fP>
+[...]]
+.SH DESCRIPTION
+.PP
+\fBipf\fP opens the filenames listed (treating "\-" as stdin) and parses the
+file for a set of rules which are to be added or removed from the packet
+filter rule set.
+.PP
+Each rule processed by \fBipf\fP
+is added to the kernel's internal lists if there are no parsing problems.
+Rules are added to the end of the internal lists, matching the order in
+which they appear when given to \fBipf\fP.
+.SH OPTIONS
+.TP
+.B \-6
+IPv4 and IPv6 rules are stored in a single table and can be read from a
+single file. This option is no longer required to load IPv6 rules. This
+option is ignored when specified with the -F option and the -F option
+will flush IPv4 rules even if this option is specified.
+.TP
+.B \-A
+Set the list to make changes to the active list (default).
+.TP
+.B \-c <language>
+This option causes \fBipf\fP to generate output files for a compiler that
+supports \fBlanguage\fI.  At present, the only target language supported is
+\fBC\fB (-cc) for which two files - \fBip_rules.c\fP
+and \fBip_rules.h\fP are generated in the \fBCURRENT DIRECTORY\fP when
+\fBipf\fP is being run.  These files can be used with the
+\fBIPFILTER_COMPILED\fP kernel option to build filter rules staticlly into
+the kernel.
+.TP
+.B \-d
+Turn debug mode on.  Causes a hexdump of filter rules to be generated as
+it processes each one.
+.TP
+.B \-D
+Disable the filter (if enabled).  Not effective for loadable kernel versions.
+.TP
+.B \-E
+Enable the filter (if disabled).  Not effective for loadable kernel versions.
+.TP
+.BR \-F \0<i|o|a>
+This option specifies which filter list to flush.  The parameter should
+either be "i" (input), "o" (output) or "a" (remove all filter rules).
+Either a single letter or an entire word starting with the appropriate
+letter maybe used.  This option maybe before, or after, any other with
+the order on the command line being that used to execute options.
+.TP
+.BR \-F \0<s|S>
+To flush entries from the state table, the \fB-F\fP option is used in
+conjunction with either "s" (removes state information about any non-fully
+established connections) or "S" (deletes the entire state table).  Only
+one of the two options may be given.  A fully established connection
+will show up in \fBipfstat -s\fP output as 5/5, with deviations either
+way indicating it is not fully established any more.
+.TP
+.BR \-F <5|6|7|8|9|10|11>
+For the TCP states that represent the closing of a connection has begun,
+be it only one side or the complete connection, it is possible to flush
+those states directly using the number corresponding to that state.
+The numbers relate to the states as follows: 5 = close-wait, 6 = fin-wait-1,
+7 = closing, 8 = last-ack, 9 = fin-wait-2, 10 = time-wait, 11 = closed.
+.TP
+.BR \-F <number>
+If the argument supplied to \fB-F\fP is greater than 30, then state table
+entries that have been idle for more than this many seconds will be flushed.
+.TP
+.BR \-f \0<filename>
+This option specifies which files
+\fBipf\fP should use to get input from for modifying the packet filter rule
+lists.
+.TP
+.B \-I
+Set the list to make changes to the inactive list.
+.TP
+.B \-l \0<pass|block|nomatch>
+Use of the \fB-l\fP flag toggles default logging of packets.  Valid
+arguments to this option are \fBpass\fP, \fBblock\fP and \fBnomatch\fP.
+When an option is set, any packet which exits filtering and matches the
+set category is logged.  This is most useful for causing all packets
+which don't match any of the loaded rules to be logged.
+.TP
+.B \-n
+This flag (no-change) prevents \fBipf\fP from actually making any ioctl
+calls or doing anything which would alter the currently running kernel.
+.TP
+.B \-o
+Force rules by default to be added/deleted to/from the output list, rather
+than the (default) input list.
+.TP
+.B \-P
+Add rules as temporary entries in the authentication rule table.
+.TP
+.B \-r
+Remove matching filter rules rather than add them to the internal lists
+.TP
+.B \-s
+Swap the active filter list in use to be the "other" one.
+.TP
+.B \-T <optionlist>
+This option allows run-time changing of IPFilter kernel variables.  Some
+variables require IPFilter to be in a disabled state (\fB-D\fP) for changing,
+others do not.  The optionlist parameter is a comma separated list of tuning
+commands.  A tuning command is either "list" (retrieve a list of all variables
+in the kernel, their maximum, minimum and current value), a single variable
+name (retrieve its current value) and a variable name with a following
+assignment to set a new value.  Some examples follow.
+.nf
+# Print out all IPFilter kernel tunable parameters
+ipf -T list
+# Display the current TCP idle timeout and then set it to 3600
+ipf -D -T fr_tcpidletimeout,fr_tcpidletimeout=3600 -E
+# Display current values for fr_pass and fr_chksrc, then set fr_chksrc to 1.
+ipf -T fr_pass,fr_chksrc,fr_chksrc=1
+.fi
+.TP
+.B \-v
+Turn verbose mode on.  Displays information relating to rule processing.
+.TP
+.B \-V
+Show version information.  This will display the version information compiled
+into the ipf binary and retrieve it from the kernel code (if running/present).
+If it is present in the kernel, information about its current state will be
+displayed (whether logging is active, default filtering, etc).
+.TP
+.B \-y
+Manually resync the in-kernel interface list maintained by IP Filter with
+the current interface status list.
+.TP
+.B \-z
+For each rule in the input file, reset the statistics for it to zero and
+display the statistics prior to them being zeroed.
+.TP
+.B \-Z
+Zero global statistics held in the kernel for filtering only (this doesn't
+affect fragment or state statistics).
+.DT
+.SH FILES
+/dev/ipauth
+.br
+/dev/ipl
+.br
+/dev/ipstate
+.SH SEE ALSO
+ipftest(1), mkfilters(1), ipf(4), ipl(4), ipf(5), ipfstat(8), ipmon(8), ipnat(8)
+.SH DIAGNOSTICS
+.PP
+Needs to be run as root for the packet filtering lists to actually
+be affected inside the kernel.
+.SH BUGS
+.PP
+If you find any, please send email to me at darrenr@pobox.com

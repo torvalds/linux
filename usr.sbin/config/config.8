@@ -1,0 +1,283 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)config.8	8.2 (Berkeley) 4/19/94
+.\" $FreeBSD$
+.\"
+.Dd May 8, 2007
+.Dt CONFIG 8
+.Os
+.Sh NAME
+.Nm config
+.Nd build system configuration files
+.Sh SYNOPSIS
+.Nm
+.Op Fl CVgp
+.Op Fl I Ar path
+.Op Fl d Ar destdir
+.Op Fl s Ar srcdir
+.Ar SYSTEM_NAME
+.Nm
+.Op Fl x Ar kernel
+.Sh DESCRIPTION
+The
+.Nm
+utility builds a set of system configuration files from the file
+.Ar SYSTEM_NAME
+which describes
+the system to configure.
+A second file
+tells
+.Nm
+what files are needed to generate a system and
+can be augmented by configuration specific set of files
+that give alternate files for a specific machine
+(see the
+.Sx FILES
+section below).
+.Pp
+Available options and operands:
+.Bl -tag -width ".Ar SYSTEM_NAME"
+.It Fl V
+Print the
+.Nm
+version number.
+.It Fl C
+If the INCLUDE_CONFIG_FILE is present in a configuration file,
+kernel image will contain full configuration files included
+literally (preserving comments).
+This flag is kept for backward compatibility.
+.It Fl I Ar path
+Search in
+.Ar path
+for any file included by the
+.Ic include
+directive.  This option may be specified more than once.
+.It Fl d Ar destdir
+Use
+.Ar destdir
+as the output directory, instead of the default one.
+Note that
+.Nm
+does not append
+.Ar SYSTEM_NAME
+to the directory given.
+.It Fl s Ar srcdir
+Use
+.Ar srcdir
+as the source directory, instead of the default one.
+.It Fl m
+Print the MACHINE and MACHINE_ARCH values for this
+kernel and exit.
+.It Fl g
+Configure a system for debugging.
+.It Fl x Ar kernel
+Print kernel configuration file embedded into a kernel
+file.
+This option makes sense only if
+.Cd "options INCLUDE_CONFIG_FILE"
+entry was present in your configuration file.
+.It Fl p
+Configure a system for profiling; for example,
+.Xr kgmon 8
+and
+.Xr gprof 1 .
+If two or more
+.Fl p
+options are supplied,
+.Nm
+configures a system for high resolution profiling.
+.It Ar SYSTEM_NAME
+Specify the name of the system configuration file
+containing device specifications, configuration options
+and other system parameters for one system configuration.
+.El
+.Pp
+The
+.Nm
+utility should be run from the
+.Pa conf
+subdirectory of the system source (usually
+.Pa /sys/ Ns Va ARCH Ns Pa /conf ) ,
+where
+.Va ARCH
+represents one of the architectures supported by
+.Fx .
+The
+.Nm
+utility creates the directory
+.Pa ../compile/ Ns Ar SYSTEM_NAME
+or the one given with the
+.Fl d
+option
+as necessary and places all output files there.
+The output of
+.Nm
+consists of a number of files; for the
+.Tn i386 ,
+they are:
+.Pa Makefile ,
+used by
+.Xr make 1
+in building the system;
+header files,
+definitions of
+the number of various devices that will be compiled into the system.
+.Pp
+The
+.Nm
+utility looks for kernel sources in the directory
+.Pa ../..
+or the one given with the
+.Fl s
+option.
+.Pp
+After running
+.Nm ,
+it is necessary to run
+.Dq Li make depend
+in the directory where the new makefile
+was created.
+The
+.Nm
+utility prints a reminder of this when it completes.
+.Pp
+If any other error messages are produced by
+.Nm ,
+the problems in the configuration file should be corrected and
+.Nm
+should be run again.
+Attempts to compile a system that had configuration errors
+are likely to fail.
+.Sh DEBUG KERNELS
+Traditional
+.Bx
+kernels are compiled without symbols due to the heavy load on the
+system when compiling a
+.Dq debug
+kernel.
+A debug kernel contains complete symbols for all the source files, and
+enables an experienced kernel programmer to analyse the cause of a problem.
+The
+debuggers available prior to
+.Bx 4.4 Lite
+were able to find some information
+from a normal kernel;
+.Xr gdb 1
+provides very little support for normal kernels, and a debug kernel is needed
+for any meaningful analysis.
+.Pp
+For reasons of history, time and space, building a debug kernel is not the
+default with
+.Fx :
+a debug kernel takes up to 30% longer to build and
+requires about 30 MB of disk storage in the build directory, compared to about 6
+MB for a non-debug kernel.
+A debug kernel is about 11 MB in size, compared to
+about 2 MB for a non-debug kernel.
+This space is used both in the root file
+system and at run time in memory.
+Use the
+.Fl g
+option to build a debug kernel.
+With this option,
+.Nm
+causes two kernel files to be built in the kernel build directory:
+.Bl -bullet
+.It
+.Pa kernel.debug
+is the complete debug kernel.
+.It
+.Pa kernel
+is a copy of the kernel with the debug symbols stripped off.
+This is equivalent
+to the normal non-debug kernel.
+.El
+.Pp
+There is currently little sense in installing and booting from a debug kernel,
+since the only tools available which use the symbols do not run on-line.
+There
+are therefore two options for installing a debug kernel:
+.Bl -bullet
+.It
+.Dq Li "make install"
+installs
+.Pa kernel
+in the root file system.
+.It
+.Dq Li "make install.debug"
+installs
+.Pa kernel.debug
+in the root file system.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /sys/ Ns Va ARCH Ns Pa /compile/ Ns Ar SYSTEM_NAME" -compact
+.It Pa /sys/conf/files
+list of common files system is built from
+.It Pa /sys/conf/Makefile. Ns Va ARCH
+generic makefile for the
+.Va ARCH
+.It Pa /sys/conf/files. Ns Va ARCH
+list of
+.Va ARCH
+specific files
+.It Pa /sys/ Ns Va ARCH Ns Pa /compile/ Ns Ar SYSTEM_NAME
+default kernel build directory for system
+.Ar SYSTEM_NAME
+on
+.Va ARCH .
+.El
+.Sh SEE ALSO
+.Xr config 5
+.Pp
+The
+.Sx SYNOPSIS
+portion of each device in section 4.
+.Rs
+.%T "Building 4.3 BSD UNIX System with Config"
+.Re
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.1 .
+.Pp
+Before support for
+.Fl x
+was introduced,
+.Cd "options INCLUDE_CONFIG_FILE"
+included entire configuration file that used to be embedded in
+the new kernel.
+This meant that
+.Xr strings 1
+could be used to extract it from a kernel:
+to extract the configuration information, you had to use
+the command:
+.Pp
+.Dl "strings -n 3 kernel | sed -n 's/^___//p'"
+.Sh BUGS
+The line numbers reported in error messages are usually off by one.

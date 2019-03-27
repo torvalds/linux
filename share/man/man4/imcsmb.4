@@ -1,0 +1,132 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2018 Panasas
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 2, 2018
+.Dt IMCSMB 4
+.Os
+.Sh NAME
+.Nm imcsmb
+.Nd Intel integrated Memory Controller (iMC) SMBus controller driver
+.Sh SYNOPSIS
+.Cd device pci
+.Cd device smbus
+.Cd device imcsmb
+.Pp
+Alternatively, to load the driver as a module at boot time, place the following
+line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+imcsmb_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides
+.Xr smbus 4
+support for the SMBus controller functionality in the integrated Memory
+Controllers (iMCs) embedded in Intel Sandybridge-Xeon, Ivybridge-Xeon,
+Haswell-Xeon, and Broadwell-Xeon CPUs.
+Each CPU implements one or more iMCs, depending on the number of cores;
+each iMC implements two SMBus controllers (iMC-SMBs).
+The iMC-SMBs are used by the iMCs to read configuration information from the
+DIMMs during POST.
+They may also be used, by motherboard firmware or a BMC, to monitor the
+temperature of the DIMMs.
+.Pp
+The iMC-SMBs are
+.Sy not
+general-purpose SMBus controllers.
+By their nature, they are only ever attached to DIMMs, so they implement only
+the SMBus operations need for communicating with DIMMs.
+Specifically:
+.Pp
+.Bl -dash -offset indent -compact
+.It
+READB
+.It
+READW
+.It
+WRITEB
+.It
+WRITEW
+.El
+.Pp
+A more detailed discussion of the hardware and driver architecture can be found
+at the top of
+.Pa sys/dev/imcsmb/imcsmb_pci.c .
+.Sh WARNINGS
+As mentioned above, firmware might use the iMC-SMBs to read DIMM temperatures.
+The public iMC documentation does not describe any sort of coordination
+mechanism to prevent requests from different sources -- such as the motherboard
+firmware, a BMC, or the operating system -- from interfering with each other.
+.Pp
+.Bf Sy
+Therefore, it is highly recommended that developers contact the motherboard
+vendor for any board-specific instructions on how to disable and re-enable DIMM
+temperature monitoring.
+.Ef
+.Pp
+DIMM temperature monitoring should be disabled before returning from
+.Fn imcsmb_pci_request_bus ,
+and re-enabled before returning from
+.Fn imcsmb_pci_release_bus .
+The driver includes comments to that effect at the appropriate locations.
+The driver has been tested and shown to work, with only that type of
+modification, on certain motherboards from Intel.
+.Po
+Unfortunately, those modifications were based on material covered under a
+non-disclosure agreement, and therefore are not included in this driver.
+.Pc
+The driver has also been tested and shown to work as-is on various motherboards
+from SuperMicro.
+.Pp
+The
+.Xr smb 4
+driver will connect to the
+.Xr smbus 4
+instances created by
+.Nm .
+However, since the IMC-SMBs are not general-purpose SMBus controllers, using
+.Xr smbmsg 8
+with those
+.Xr smb 4
+devices is not supported.
+.Sh SEE ALSO
+.Xr jedec_dimm 4 ,
+.Xr smbus 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was originally written for Panasas by
+.An Joe Kloss .
+It was substantially refactored, and this manual page was written, by
+.An Ravi Pokala Aq Mt rpokala@freebsd.org

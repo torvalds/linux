@@ -1,0 +1,20 @@
+#!/bin/sh
+# Wrapper for gencat
+TMP=/tmp/catgen.$$
+trap "rm -f $TMP" 0 1 2 3 15
+
+sortit() {
+	awk '/^\$set/ {print $2, FILENAME}' "$@" | sort -n | cut -d ' ' -f 2
+}
+
+GENCAT="$1"
+shift
+OUT="$1"
+shift
+CHARSET="$1"
+shift
+cat "${CHARSET}" $(sortit "$@") > "$TMP"
+
+echo "$(basename "$OUT" .cat)"
+"${GENCAT}" "$OUT" "$TMP"
+exit 0

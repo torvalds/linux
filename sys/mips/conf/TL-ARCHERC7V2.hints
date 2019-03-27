@@ -1,0 +1,201 @@
+# The Archer C7 v2 is based on the AP135-020 board, with
+# TP-Link specific bits (eg flash layout, MAC address, etc.)
+
+# $FreeBSD$
+
+# QCA955X_ETH_CFG_RGMII_EN (1 << 0)
+hint.qca955x_gmac.0.gmac_cfg=0x1
+
+# Use base mac address for wifi; +1 and +2 for arge0/arge1.
+hint.ar71xx.0.eeprom_mac_addr=0x1f01fc00
+hint.ar71xx.0.eeprom_mac_isascii=0
+
+hint.ar71xx_mac_map.0.devid=ath
+hint.ar71xx_mac_map.0.unitid=0
+hint.ar71xx_mac_map.0.offset=0
+hint.ar71xx_mac_map.0.is_local=0
+
+hint.ar71xx_mac_map.1.devid=arge
+hint.ar71xx_mac_map.1.unitid=0
+hint.ar71xx_mac_map.1.offset=1
+hint.ar71xx_mac_map.1.is_local=0
+
+hint.ar71xx_mac_map.2.devid=arge
+hint.ar71xx_mac_map.2.unitid=1
+hint.ar71xx_mac_map.2.offset=2
+hint.ar71xx_mac_map.2.is_local=0
+
+# mdiobus0 on arge0
+hint.argemdio.0.at="nexus0"
+hint.argemdio.0.maddr=0x19000000
+hint.argemdio.0.msize=0x1000
+hint.argemdio.0.order=0
+
+# mdiobus1 on arge1 - required to bring up arge1?
+hint.argemdio.1.at="nexus0"
+hint.argemdio.1.maddr=0x1a000000
+hint.argemdio.1.msize=0x1000
+hint.argemdio.1.order=0
+
+# AR8327 - connected via mdiobus0 on arge0
+hint.arswitch.0.at="mdio0"
+hint.arswitch.0.is_7240=0	# definitely not the internal switch!
+hint.arswitch.0.is_9340=0	# not the internal switch!
+hint.arswitch.0.numphys=5	# all ports are PHYs
+hint.arswitch.0.phy4cpu=0
+hint.arswitch.0.is_rgmii=0	# not needed
+hint.arswitch.0.is_gmii=0	# not needed
+
+# This is where it gets a bit odd. port 0 and port 6 are CPU ports.
+# The current code only supports one CPU port.  So hm, what should
+# we do to hook PAD6 up to be RGMII but a PHY, not a MAC?
+
+# The other trick - how do we get arge1 (hooked up to GMAC0) to work?
+# That's currently supposed to be hooked up to CPU port 0.
+
+# Other AR8327 configuration parameters
+
+# AP136-020 parameters
+
+# GMAC0 AR8327 -> GMAC1 (arge1) SoC, SGMII
+
+# AR8327_PAD_MAC_SGMII
+hint.arswitch.0.pad.0.mode=3
+#hint.arswitch.0.pad.0.rxclk_delay_sel=0
+hint.arswitch.0.pad.0.sgmii_delay_en=1
+
+# GMAC6 AR8327 -> GMAC0 (arge0) SoC, RGMII
+
+# AR8327_PAD_MAC_RGMII
+# XXX I think this hooks it up to the internal MAC6
+hint.arswitch.0.pad.6.mode=6
+hint.arswitch.0.pad.6.txclk_delay_en=1
+hint.arswitch.0.pad.6.rxclk_delay_en=1
+# AR8327_CLK_DELAY_SEL1
+hint.arswitch.0.pad.6.txclk_delay_sel=1
+# AR8327_CLK_DELAY_SEL2
+hint.arswitch.0.pad.6.rxclk_delay_sel=2
+
+# XXX there's no LED management just yet!
+hint.arswitch.0.led.ctrl0=0xc737c737
+hint.arswitch.0.led.ctrl1=0x00000000
+hint.arswitch.0.led.ctrl2=0x00000000
+hint.arswitch.0.led.ctrl3=0x00c30c00
+hint.arswitch.0.led.open_drain=0
+
+# force_link=1 is required for the rest of the parameters
+# to be configured.
+hint.arswitch.0.port.0.force_link=1
+hint.arswitch.0.port.0.speed=1000
+hint.arswitch.0.port.0.duplex=1
+hint.arswitch.0.port.0.txpause=1
+hint.arswitch.0.port.0.rxpause=1
+
+# force_link=1 is required for the rest of the parameters
+# to be configured.
+hint.arswitch.0.port.6.force_link=1
+hint.arswitch.0.port.6.speed=1000
+hint.arswitch.0.port.6.duplex=1
+hint.arswitch.0.port.6.txpause=1
+hint.arswitch.0.port.6.rxpause=1
+
+# arge0 - hooked up to AR8327 GMAC6, RGMII
+# set at 1000/full to the switch.
+# so, lock both sides of this connect up to 1000/full;
+# if_arge thus wont change the PLL configuration
+# upon a link status change.
+hint.arge.0.phymask=0x0
+hint.arge.0.miimode=3           # RGMII
+hint.arge.0.media=1000
+hint.arge.0.fduplex=1
+hint.arge.0.pll_1000=0x56000000
+
+# MAC for arge0 is the first 6 bytes of the ART
+hint.arge.0.eeprommac=0x1fff0000
+
+# arge1 - lock up to 1000/full
+hint.arge.1.phymask=0x0
+hint.arge.1.media=1000
+hint.arge.1.fduplex=1
+hint.arge.1.miimode=5		# SGMII
+hint.arge.1.pll_1000=0x03000101
+
+# MAC for arge1 is the second 6 bytes of the ART
+hint.arge.1.eeprommac=0x1fff0006
+
+# ath0: Where the ART is - last 64k in the flash
+hint.ath.0.eepromaddr=0x1fff0000
+hint.ath.0.eepromsize=16384
+
+# ath1: it's different; it's a PCIe attached device, so
+# we instead need to teach the PCIe bridge code about it
+# (ie, the 'early pci fixup' stuff that programs the PCIe
+# host registers on the NIC) and then we teach ath where
+# to find it.
+
+# ath1 hint - pcie slot 0
+# hint.pcib.0.bus.0.0.0.ath_fixup_addr=0x1fff4000
+# hint.pcib.0.bus.0.0.0.ath_fixup_size=16384
+
+# ath0 - eeprom comes from here
+# hint.ath.1.eeprom_firmware="pcib.0.bus.0.0.0.eeprom_firmware"
+
+# Flash layout - the tplink layout differs to what's passed
+# in via the kernel environment.  What's passed in is based on
+# the AP135, but.. well, TP-Link.
+
+# 128 KiB u-boot
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x00020000	# 128k u-boot
+hint.map.0.name="u-boot"
+hint.map.0.readonly=1
+
+# Kernel
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00020000
+hint.map.1.end="search:0x00020000:0x10000:.!/bin/sh"
+hint.map.1.name="kernel"
+hint.map.1.readonly=1
+
+# Root
+hint.map.2.at="flash/spi0"
+hint.map.2.start="search:0x00020000:0x10000:.!/bin/sh"
+hint.map.2.end=0x007d0000
+hint.map.2.name="rootfs"
+hint.map.2.readonly=1
+
+# 64KiB cfg
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x00fe0000
+hint.map.4.end=0x00ff0000
+hint.map.4.name="cfg"
+hint.map.4.readonly=0
+
+# 64KiB ART
+hint.map.6.at="flash/spi0"
+hint.map.6.start=0x00ff0000
+hint.map.6.end=0x01000000	# 64k ART
+hint.map.6.name="ART"
+hint.map.6.readonly=1
+
+# TODO: GPIO config
+# These are the GPIO LEDs and buttons which can be software controlled.
+hint.gpio.0.pinmask=0x00600000
+
+# Enable GPIO21, GPIO22 output and high - for USB power
+hint.gpio.0.pinon=0x00600000
+
+# TODO: GPIO pin config:
+# LED_WLAN2G       12
+# BTN_RFKILL       13
+# LED_SYSTEM       14
+# LED_QSS          15
+# BTN_RESET        16
+# LED_WLAN5G       17
+# LED_USB1         18
+# LED_USB2         19
+# USB2_POWER       21
+# USB1_POWER       22
+
+# TODO: PCIe isn't showing link; maybe uboot isn't initialising

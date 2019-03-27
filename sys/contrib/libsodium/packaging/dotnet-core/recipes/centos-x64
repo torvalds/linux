@@ -1,0 +1,3 @@
+yum install -y binutils gcc make tar
+
+. $(dirname $0)/build

@@ -1,0 +1,147 @@
+#!/bin/sh -
+#
+# $FreeBSD$
+#
+# pccard_ether interfacename [start|stop|restart]
+#
+# example: pccard_ether fxp0 start
+#
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="pccard_ether"
+start_precmd="checkauto"
+start_cmd="pccard_ether_start"
+stop_precmd="checkauto"
+stop_cmd="pccard_ether_stop"
+restart_precmd="checkauto"
+restart_cmd="pccard_ether_restart"
+startchildren_cmd="pccard_ether_startchildren"
+stopchildren_cmd="pccard_ether_stopchildren"
+extra_commands="startchildren stopchildren"
+
+setup_routes()
+{
+	# Add default route into $static_routes
+	case ${defaultrouter} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		static_routes="default ${static_routes}"
+		route_default="default ${defaultrouter}"
+		;;
+	esac
+
+	# Add private route for this interface into $static_routes
+	eval ifx_routes=\$static_routes_${ifn}
+	if [ -n "${ifx_routes}" ]; then
+		static_routes="${ifx_routes} ${static_routes}"
+	fi
+
+	# Set up any static routes if specified
+	if [ -n "${static_routes}" ]; then
+		for i in ${static_routes}; do
+			eval route_args=\$route_${i}
+			route add ${route_args}
+		done
+	fi
+}
+
+remove_routes()
+{
+	# Delete static route if specified
+	eval ifx_routes=\$static_routes_${ifn}
+	if [ -n "${ifx_routes}" ]; then
+		for i in ${ifx_routes}; do
+			eval route_args=\$route_${i}
+			route delete ${route_args}
+		done
+	fi
+}
+
+checkauto()
+{
+	if [ -z "$rc_force" ]; then
+		# Ignore interfaces with the NOAUTO keyword
+		autoif $ifn || exit 0
+	fi
+}
+
+pccard_ether_start()
+{
+	ifexists $ifn || exit 1
+
+	if [ -z "$rc_force" ]; then
+		for uif in `ifconfig -ul`; do
+			if [ "${uif}" = "${ifn}" ]; then
+				# Interface is already up, so ignore it.
+				exit 0
+			fi
+		done
+	fi
+
+	/etc/rc.d/netif quietstart $ifn
+
+	# Do route configuration if needed.
+	# XXX: should probably do this by calling rc.d/routing.
+	if [ -n "`ifconfig_getargs $ifn`" ]; then
+		if ! dhcpif $ifn; then
+			setup_routes
+		fi
+	fi
+
+	# XXX: IPv6 setup should be done in some way.
+}
+
+pccard_ether_stop()
+{
+	if [ -n "`ifconfig_getargs $ifn`" ]; then
+		if ! dhcpif $ifn; then
+			remove_routes
+		fi
+	fi
+
+	/etc/rc.d/netif quietstop $ifn
+
+	# clean ARP table
+	ifexists $ifn && arp -d -i $ifn -a
+}
+
+pccard_ether_restart()
+{
+	# Hand implemented because the default implementation runs
+	# the equivalent of "$0 start; $0 stop" and this script
+	# doesn't support that syntax
+	pccard_ether_stop
+	pccard_ether_start
+}
+
+pccard_ether_startchildren()
+{
+	for child in `get_if_var $ifn wlans_IF`; do
+		if ifexists $child; then
+			continue
+		fi
+		/etc/rc.d/netif quietstart $child
+	done
+}
+
+pccard_ether_stopchildren()
+{
+	for child in `get_if_var $ifn wlans_IF`; do
+		/etc/rc.d/netif quietstop $child
+	done
+}
+
+ifn=$1
+shift
+if [ -z "$*" ]; then
+	args="start"
+else
+	args=$*
+fi
+
+load_rc_config pccard_ether
+load_rc_config network
+run_rc_command $args

@@ -1,0 +1,329 @@
+#!/usr/bin/perl -w -U
+
+# Copyright (c) 2007, 2008 Andreas Gruenbacher.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions, and the following disclaimer,
+#    without modification, immediately at the beginning of the file.
+# 2. The name of the author may not be used to endorse or promote products
+#    derived from this software without specific prior written permission.
+#
+# Alternatively, this software may be distributed under the terms of the
+# GNU Public License ("GPL").
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+#
+# Possible improvements:
+#
+# - distinguish stdout and stderr output
+# - add environment variable like assignments
+# - run up to a specific line
+# - resume at a specific line
+#
+
+use strict;
+use FileHandle;
+use Getopt::Std;
+use POSIX qw(isatty setuid getcwd);
+use vars qw($opt_l $opt_v);
+
+no warnings qw(taint);
+
+$opt_l = ~0;  # a really huge number
+getopts('l:v');
+
+my ($OK, $FAILED) = ("ok", "failed");
+if (isatty(fileno(STDOUT))) {
+	$OK = "\033[32m" . $OK . "\033[m";
+	$FAILED = "\033[31m\033[1m" . $FAILED . "\033[m";
+}
+
+sub exec_test($$);
+sub process_test($$$$);
+
+my ($prog, $in, $out) = ([], [], []);
+my $prog_line = 0;
+my ($tests, $failed) = (0,0);
+my $lineno;
+my $width = ($ENV{COLUMNS} || 80) >> 1;
+
+for (;;) {
+  my $line = <>; $lineno++;
+  if (defined $line) {
+    # Substitute %VAR and %{VAR} with environment variables.
+    $line =~ s[%(\w+)][$ENV{$1}]eg;
+    $line =~ s[%\{(\w+)\}][$ENV{$1}]eg;
+  }
+  if (defined $line) {
+    if ($line =~ s/^\s*< ?//) {
+      push @$in, $line;
+    } elsif ($line =~ s/^\s*> ?//) {
+      push @$out, $line;
+    } else {
+      process_test($prog, $prog_line, $in, $out);
+      last if $prog_line >= $opt_l;
+
+      $prog = [];
+      $prog_line = 0;
+    }
+    if ($line =~ s/^\s*\$ ?//) {
+      $prog = [ map { s/\\(.)/$1/g; $_ } split /(?<!\\)\s+/, $line ];
+      $prog_line = $lineno;
+      $in = [];
+      $out = [];
+    }
+  } else {
+    process_test($prog, $prog_line, $in, $out);
+    last;
+  }
+}
+
+my $status = sprintf("%d commands (%d passed, %d failed)",
+	$tests, $tests-$failed, $failed);
+if (isatty(fileno(STDOUT))) {
+	if ($failed) {
+		$status = "\033[31m\033[1m" . $status . "\033[m";
+	} else {
+		$status = "\033[32m" . $status . "\033[m";
+	}
+}
+print $status, "\n";
+exit $failed ? 1 : 0;
+
+
+sub process_test($$$$) {
+  my ($prog, $prog_line, $in, $out) = @_;
+
+  return unless @$prog;
+
+       my $p = [ @$prog ];
+       print "[$prog_line] \$ ", join(' ',
+             map { s/\s/\\$&/g; $_ } @$p), " -- ";
+       my $result = exec_test($prog, $in);
+       my @good = ();
+       my $nmax = (@$out > @$result) ? @$out : @$result;
+       for (my $n=0; $n < $nmax; $n++) {
+	   my $use_re;
+	   if (defined $out->[$n] && $out->[$n] =~ /^~ /) {
+		$use_re = 1;
+		$out->[$n] =~ s/^~ //g;
+	   }
+
+           if (!defined($out->[$n]) || !defined($result->[$n]) ||
+               (!$use_re && $result->[$n] ne $out->[$n]) ||
+               ( $use_re && $result->[$n] !~ /^$out->[$n]/)) {
+               push @good, ($use_re ? '!~' : '!=');
+	   }
+	   else {
+               push @good, ($use_re ? '=~' : '==');
+           }
+       }
+       my $good = !(grep /!/, @good);
+       $tests++;
+       $failed++ unless $good;
+       print $good ? $OK : $FAILED, "\n";
+       if (!$good || $opt_v) {
+         for (my $n=0; $n < $nmax; $n++) {
+	   my $l = defined($out->[$n]) ? $out->[$n] : "~";
+	   chomp $l;
+	   my $r = defined($result->[$n]) ? $result->[$n] : "~";
+	   chomp $r;
+	   print sprintf("%-" . ($width-3) . "s %s %s\n",
+			 $r, $good[$n], $l);
+         }
+       }
+}
+
+
+sub su($) {
+  my ($user) = @_;
+
+  $user ||= "root";
+
+  my ($login, $pass, $uid, $gid) = getpwnam($user)
+    or return [ "su: user $user does not exist\n" ];
+  my @groups = ();
+  my $fh = new FileHandle("/etc/group")
+    or return [ "opening /etc/group: $!\n" ];
+  while (<$fh>) {
+    chomp;
+    my ($group, $passwd, $gid, $users) = split /:/;
+    foreach my $u (split /,/, $users) {
+      push @groups, $gid
+	if ($user eq $u);
+    }
+  }
+  $fh->close;
+
+  my $groups = join(" ", ($gid, $gid, @groups));
+  #print STDERR "[[$groups]]\n";
+  $! = 0;  # reset errno
+  $> = 0;
+  $( = $gid;
+  $) = $groups;
+  if ($!) {
+    return [ "su: $!\n" ];
+  }
+  if ($uid != 0) {
+    $> = $uid;
+    #$< = $uid;
+    if ($!) {
+      return [ "su: $prog->[1]: $!\n" ];
+    }
+  }
+  #print STDERR "[($>,$<)($(,$))]";
+  return [];
+}
+
+
+sub sg($) {
+  my ($group) = @_;
+
+  my $gid = getgrnam($group)
+    or return [ "sg: group $group does not exist\n" ];
+  my %groups = map { $_ eq $gid ? () : ($_ => 1) } (split /\s/, $));
+  
+  #print STDERR "<<", join("/", keys %groups), ">>\n";
+  my $groups = join(" ", ($gid, $gid, keys %groups));
+  #print STDERR "[[$groups]]\n";
+  $! = 0;  # reset errno
+  if ($> != 0) {
+	  my $uid = $>;
+	  $> = 0;
+	  $( = $gid;
+	  $) = $groups;
+	  $> = $uid;
+  } else {
+	  $( = $gid;
+	  $) = $groups;
+  }
+  if ($!) {
+    return [ "sg: $!\n" ];
+  }
+  print STDERR "[($>,$<)($(,$))]";
+  return [];
+}
+
+
+sub exec_test($$) {
+  my ($prog, $in) = @_;
+  local (*IN, *IN_DUP, *IN2, *OUT_DUP, *OUT, *OUT2);
+  my $needs_shell = (join('', @$prog) =~ /[][|<>"'`\$\*\?]/);
+
+  if ($prog->[0] eq "umask") {
+    umask oct $prog->[1];
+    return [];
+  } elsif ($prog->[0] eq "cd") {
+    if (!chdir $prog->[1]) {
+      return [ "chdir: $prog->[1]: $!\n" ];
+    }
+    $ENV{PWD} = getcwd;
+    return [];
+  } elsif ($prog->[0] eq "su") {
+    return su($prog->[1]);
+  } elsif ($prog->[0] eq "sg") {
+    return sg($prog->[1]);
+  } elsif ($prog->[0] eq "export") {
+    my ($name, $value) = split /=/, $prog->[1];
+    # FIXME: need to evaluate $value, so that things like this will work:
+    # export dir=$PWD/dir
+    $ENV{$name} = $value;
+    return [];
+  } elsif ($prog->[0] eq "unset") {
+    delete $ENV{$prog->[1]};
+    return [];
+  }
+
+  pipe *IN2, *OUT
+    or die "Can't create pipe for reading: $!";
+  open *IN_DUP, "<&STDIN"
+    or *IN_DUP = undef;
+  open *STDIN, "<&IN2"
+    or die "Can't duplicate pipe for reading: $!";
+  close *IN2;
+
+  open *OUT_DUP, ">&STDOUT"
+    or die "Can't duplicate STDOUT: $!";
+  pipe *IN, *OUT2
+    or die "Can't create pipe for writing: $!";
+  open *STDOUT, ">&OUT2"
+    or die "Can't duplicate pipe for writing: $!";
+  close *OUT2;
+
+  *STDOUT->autoflush();
+  *OUT->autoflush();
+
+  $SIG{CHLD} = 'IGNORE';
+
+  if (fork()) {
+    # Server
+    if (*IN_DUP) {
+      open *STDIN, "<&IN_DUP"
+        or die "Can't duplicate STDIN: $!";
+      close *IN_DUP
+        or die "Can't close STDIN duplicate: $!";
+    }
+    open *STDOUT, ">&OUT_DUP"
+      or die "Can't duplicate STDOUT: $!";
+    close *OUT_DUP
+      or die "Can't close STDOUT duplicate: $!";
+
+    foreach my $line (@$in) {
+      #print "> $line";
+      print OUT $line;
+    }
+    close *OUT
+      or die "Can't close pipe for writing: $!";
+
+    my $result = [];
+    while (<IN>) {
+      #print "< $_";
+      if ($needs_shell) {
+	s#^/bin/sh: line \d+: ##;
+      }
+      push @$result, $_;
+    }
+    return $result;
+  } else {
+    # Client
+    $< = $>;
+    close IN
+      or die "Can't close read end for input pipe: $!";
+    close OUT
+      or die "Can't close write end for output pipe: $!";
+    close OUT_DUP
+      or die "Can't close STDOUT duplicate: $!";
+    local *ERR_DUP;
+    open ERR_DUP, ">&STDERR"
+      or die "Can't duplicate STDERR: $!";
+    open STDERR, ">&STDOUT"
+      or die "Can't join STDOUT and STDERR: $!";
+
+    if ($needs_shell) {
+      exec ('/bin/sh', '-c', join(" ", @$prog));
+    } else {
+      exec @$prog;
+    }
+    print STDERR $prog->[0], ": $!\n";
+    exit;
+  }
+}
+

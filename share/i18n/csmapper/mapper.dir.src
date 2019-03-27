@@ -1,0 +1,14 @@
+# $FreeBSD$ 
+# $NetBSD: mapper.dir.src,v 1.2 2007/03/05 16:57:06 tnozaki Exp $
+
+# Supplementary Multilingual Plane
+UCS:SMP/UCS	mapper_zone	0x0000-0xFFFF:+0x010000
+UCS/UCS:SMP	mapper_zone	0x010000-0x01FFFF:-0x010000
+
+# Supplementary Ideographic Plane
+UCS:SIP/UCS	mapper_zone	0x0000-0xFFFF:+0x020000
+UCS/UCS:SIP	mapper_zone	0x020000-0x02FFFF:-0x020000
+
+# Supplementary Special-purpose Plane
+UCS:SSP/UCS	mapper_zone	0x0000-0xFFFF:+0x0E0000
+UCS/UCS:SSP	mapper_zone	0x0E0000-0x0EFFFF:-0x0E0000

@@ -1,0 +1,116 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 23, 2009
+.Dt VFS_STATFS 9
+.Os
+.Sh NAME
+.Nm VFS_STATFS
+.Nd return file system status
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.In sys/vnode.h
+.Ft int
+.Fn VFS_STATFS "struct mount *mp" "struct statfs *sbp"
+.Sh DESCRIPTION
+The
+.Fn VFS_STATFS
+macro returns various pieces of information about the file system,
+including recommended I/O sizes, free space, free inodes, etc.
+.Pp
+The arguments it expects are:
+.Bl -tag -width sbp
+.It Fa mp
+The file system.
+.It Fa sbp
+A
+.Vt statfs
+structure, as defined by
+.In sys/mount.h ,
+into which information is placed about the file system.
+.El
+.Pp
+The fields of
+.Vt "struct statfs"
+related to the file system are as follows:
+.Bl -tag -width ".Va f_mntfromname"
+.It Va f_type
+Type of file system.
+.It Va f_flags
+A copy of mount exported flags.
+.It Va f_bsize
+Fragment size.
+.It Va f_iosize
+Optimal transfer block size.
+.It Va f_blocks
+The total number of data blocks in the file system.
+.It Va f_bfree
+The number of free blocks in the file system.
+.It Va f_bavail
+The number of free blocks available to non-superuser processes.
+.It Va f_files
+The total number of file nodes in the file system.
+.It Va f_ffree
+The number of free nodes available to non-superuser processes.
+.It Va f_syncwrites
+The number of synchronous writes since the file system was mounted.
+.It Va f_asyncwrites
+The number of asynchronous writes since the file system was mounted.
+.It Va f_syncreads
+The number of synchronous reads since the file system was mounted.
+.It Va f_asyncreads
+The number of asynchronous reads since the file system was mounted.
+.It Va f_namemax
+The maximum file name length for this file system.
+.It Va f_owner
+The user ID of the user that mounted the file system.
+.It Va f_fsid
+Unique file system ID.
+.It Va f_fstypename
+The file system type name; a string of at most
+.Dv MFSNAMELEN
+bytes.
+.It Va f_mntfromname
+The device name the file system was mounted from; a string of at most
+.Dv MNAMELEN
+bytes.
+.It Va f_mntonname
+The name of the directory on which the file system is mounted;
+a string of at most
+.Dv MNAMELEN
+bytes.
+.El
+.Sh SEE ALSO
+.Xr VFS 9 ,
+.Xr vnode 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

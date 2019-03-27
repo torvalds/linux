@@ -1,0 +1,119 @@
+#!/bin/sh
+#
+# unbound	This shell script takes care of starting and stopping
+#		unbound (DNS server).
+#
+# chkconfig:   - 14 86
+# description:	unbound is a Domain Name Server (DNS) \
+#		that is used to resolve host names to IP addresses.
+
+### BEGIN INIT INFO
+# Provides: unbound
+# Required-Start: $network $local_fs
+# Required-Stop: $network $local_fs
+# Should-Start: $syslog
+# Should-Stop: $syslog
+# Short-Description: unbound recursive Domain Name Server.
+# Description:  unbound is a Domain Name Server (DNS) 
+#		that is used to resolve host names to IP addresses.
+### END INIT INFO
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+exec="/usr/sbin/unbound"
+config="/var/lib/unbound/unbound.conf"
+rootdir="/var/lib/unbound"
+pidfile="/var/run/unbound/unbound.pid"
+
+[ -e /etc/sysconfig/unbound ] && . /etc/sysconfig/unbound
+
+lockfile=/var/lock/subsys/unbound
+
+start() {
+    [ -x $exec ] || exit 5
+    [ -f $config ] || exit 6
+    echo -n $"Starting unbound: "
+
+	if [ ! -e ${rootdir}/etc/resolv.conf ] || /usr/bin/cmp -s /etc/resolv.conf ${rootdir}/etc/resolv.conf; then
+	    cp -fp /etc/resolv.conf ${rootdir}/etc/resolv.conf
+	fi;
+	if [ ! -e ${rootdir}/etc/localtime ] || /usr/bin/cmp -s /etc/localtime ${rootdir}/etc/localtime; then
+	    cp -fp /etc/localtime ${rootdir}/etc/localtime
+	fi;
+	mount --bind -n /dev/log ${rootdir}/dev/log >/dev/null 2>&1;
+	mount --bind -n /dev/random ${rootdir}/dev/random >/dev/null 2>&1;
+	mount --bind -n /var/run/unbound ${rootdir}/var/run/unbound >/dev/null 2>&1;
+
+    # if not running, start it up here
+    daemon $exec
+    retval=$?
+    [ $retval -eq 0 ] && touch $lockfile
+    echo
+}
+
+stop() {
+    echo -n $"Stopping unbound: "
+    # stop it here, often "killproc unbound"
+    killproc -p $pidfile unbound
+    retval=$?
+    [ $retval -eq 0 ] && rm -f $lockfile
+    for mountfile in /dev/log /dev/random /etc/localtime /etc/resolv.conf /var/run/unbound
+    do
+    if egrep -q '^/[^[:space:]]+[[:space:]]+'${rootdir}''${mountfile}'' /proc/mounts; then
+	umount ${rootdir}$mountfile >/dev/null 2>&1
+    fi;
+    done
+    echo
+}
+
+restart() {
+    stop
+    start
+}
+
+reload() {
+    kill -HUP `cat $pidfile`
+}
+
+force_reload() {
+    restart
+}
+
+rh_status() {
+    # run checks to determine if the service is running or use generic status
+    status -p $pidfile unbound
+}
+
+rh_status_q() {
+    rh_status -p $pidfile >/dev/null 2>&1
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart)
+        restart
+        ;;
+    reload)
+        reload
+        ;;
+    force-reload)
+        force_reload
+        ;;
+    status)
+        rh_status
+        ;;
+    condrestart|try-restart)
+        rh_status_q || exit 0
+        restart
+        ;;
+    *)
+        echo $"Usage: $0 {start|stop|status|restart|condrestart|try-restart|reload|force-reload}"
+        exit 2
+esac
+exit $?

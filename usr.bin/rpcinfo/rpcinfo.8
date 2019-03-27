@@ -1,0 +1,341 @@
+.\" @(#)rpcinfo.1m 1.23 93/03/29 SMI; from SVr4
+.\" Copyright 1989 AT&T
+.\" Copyright 1991 Sun Microsystems, Inc.
+.\" $NetBSD: rpcinfo.8,v 1.6 2000/06/02 23:19:38 fvdl Exp $
+.\" $FreeBSD$
+.Dd August 18, 1992
+.Dt RPCINFO 8
+.Os
+.Sh NAME
+.Nm rpcinfo
+.Nd report RPC information
+.Sh SYNOPSIS
+.Nm
+.Op Fl m | s
+.Op Ar host
+.Nm
+.Op Ar host
+.Nm
+.Fl T Ar transport
+.Ar host prognum
+.Op Ar versnum
+.Nm
+.Fl l
+.Op Fl T Ar transport
+.Ar host prognum
+.Op Ar versnum
+.Nm
+.Op Fl n Ar portnum
+.Fl u
+.Ar host prognum
+.Op Ar versnum
+.Nm
+.Op Fl n Ar portnum
+.Op Fl t
+.Ar host prognum
+.Op Ar versnum
+.Nm
+.Fl a Ar serv_address
+.Fl T Ar transport
+.Ar prognum
+.Op Ar versnum
+.Nm
+.Fl b
+.Op Fl T Ar transport
+.Ar prognum versnum
+.Nm
+.Fl d
+.Op Fl T Ar transport
+.Ar prognum versnum
+.Sh DESCRIPTION
+The
+.Nm
+utility makes an RPC call to an RPC
+server and reports what it finds.
+.Pp
+In the first synopsis,
+.Nm
+lists all the registered RPC services with
+.Nm rpcbind
+on
+.Ar host .
+If
+.Ar host
+is not specified, the local host is the default.
+If
+.Fl s
+is used, the information is displayed in a concise format.
+.Pp
+In the second synopsis,
+.Nm
+lists all the RPC services registered with
+.Nm rpcbind ,
+version 2.
+Also note that the format of the information
+is different in the first and the second synopsis.
+This is because the second synopsis is an older protocol used to
+collect the information displayed (version 2 of the
+.Nm rpcbind
+protocol).
+.Pp
+The third synopsis makes an RPC call to procedure 0
+of
+.Ar prognum
+and
+.Ar versnum
+on the specified
+.Ar host
+and reports whether a response was received.
+.Ar transport
+is the transport which has to be used for contacting the
+given service.
+The remote address of the service is obtained by
+making a call to the remote
+.Nm rpcbind .
+.Pp
+The
+.Ar prognum
+argument is a number that represents an RPC program number
+If a
+.Ar versnum
+is specified,
+.Nm
+attempts to call that version of the specified
+.Ar prognum .
+Otherwise,
+.Nm
+attempts to find all the registered version
+numbers for the specified
+.Ar prognum
+by calling version 0,
+which is presumed not to exist;
+if it does exist,
+.Nm
+attempts to obtain this information by calling
+an extremely high version number instead,
+and attempts to call each registered version.
+Note:
+the version number is required for
+.Fl b
+and
+.Fl d
+options.
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl T Ar transport
+Specify the transport on which the service is required.
+If this option is not specified,
+.Nm
+uses the transport specified in the
+.Ev NETPATH
+environment variable, or if that is unset or empty, the transport
+in the
+.Xr netconfig 5
+database is used.
+This is a generic option,
+and can be used in conjunction with other options as
+shown in the
+.Sx SYNOPSIS .
+.It Fl a Ar serv_address
+Use
+.Ar serv_address
+as the (universal) address for the service on
+.Ar transport
+to ping procedure 0
+of the specified
+.Ar prognum
+and report whether a response was received.
+The
+.Fl T
+option is required with the
+.Fl a
+option.
+.Pp
+If
+.Ar versnum
+is not specified,
+.Nm
+tries to ping all
+available version numbers for that program number.
+This option avoids calls to remote
+.Nm rpcbind
+to find the address of the service.
+The
+.Ar serv_address
+is specified in universal address format of the given transport.
+.It Fl b
+Make an RPC broadcast to procedure 0
+of the specified
+.Ar prognum
+and
+.Ar versnum
+and report all hosts that respond.
+If
+.Ar transport
+is specified, it broadcasts its request only on the
+specified transport.
+If broadcasting is not supported by any
+transport,
+an error message is printed.
+Use of broadcasting should be limited because of the potential for adverse
+effect on other systems.
+.It Fl d
+Delete registration for the RPC service of the specified
+.Ar prognum
+and
+.Ar versnum .
+If
+.Ar transport
+is specified,
+unregister the service on only that transport,
+otherwise unregister the service on all
+the transports on which it was registered.
+Only the owner of a service can delete a registration, except the
+super-user who can delete any service.
+.It Fl l
+Display a list of entries with a given
+.Ar prognum
+and
+.Ar versnum
+on the specified
+.Ar host .
+Entries are returned for all transports
+in the same protocol family as that used to contact the remote
+.Nm rpcbind .
+.It Fl m
+Display a table of statistics of
+.Nm rpcbind
+operations on the given
+.Ar host .
+The table shows statistics for each version of
+.Nm rpcbind
+(versions 2, 3 and 4), giving the number of times each procedure was
+requested and successfully serviced, the number and type of remote call
+requests that were made, and information about RPC address lookups that were
+handled.
+This is useful for monitoring RPC activities on
+.Ar host .
+.It Fl n Ar portnum
+Use
+.Ar portnum
+as the port number for the
+.Fl t
+and
+.Fl u
+options instead of the port number given by
+.Nm rpcbind .
+Use of this option avoids a call to the remote
+.Nm rpcbind
+to find out the address of the service.
+This option is made
+obsolete by the
+.Fl a
+option.
+.It Fl p
+Probe
+.Nm rpcbind
+on
+.Ar host
+using version 2 of the
+.Nm rpcbind
+protocol,
+and display a list of all registered RPC programs.
+If
+.Ar host
+is not specified, it defaults to the local host.
+Note: Version 2 of the
+.Nm rpcbind
+protocol was previously known as the portmapper protocol.
+.It Fl s
+Display a concise list of all registered RPC programs on
+.Ar host .
+If
+.Ar host
+is not specified, it defaults to the local host.
+.It Fl t
+Make an RPC call to procedure 0 of
+.Ar prognum
+on the specified
+.Ar host
+using TCP,
+and report whether a response was received.
+This option is made
+obsolete by the
+.Fl T
+option as shown in the third synopsis.
+.It Fl u
+Make an RPC call to procedure 0 of
+.Ar prognum
+on the specified
+.Ar host
+using UDP,
+and report whether a response was received.
+This option is made
+obsolete by the
+.Fl T
+option as shown in the third synopsis.
+.El
+.Sh EXAMPLES
+To show all of the RPC services registered on the local machine use:
+.Pp
+.Dl "example% rpcinfo"
+.Pp
+To show all of the RPC
+services registered with
+.Nm rpcbind
+on the machine named
+.Dq klaxon
+use:
+.Pp
+.Dl "example% rpcinfo klaxon"
+.Pp
+The information displayed by the above commands can be quite lengthy.
+Use the
+.Fl s
+option to display a more concise list:
+.Pp
+.Dl "example$ rpcinfo -s klaxon"
+.Bl -column "program" "version(s)" "unix,tcp,udp,tcp6,udp6" "nlockmgr" "super-user"
+.It "program	version(s)	netid(s)	service	owner"
+.It "100000	2,3,4	unix,tcp,udp,tcp6,udp6	rpcbind	super-user"
+.It "100008	1	udp,tcp,udp6,tcp6	walld	super-user"
+.It "100002	2,1	udp,udp6	rusersd	super-user"
+.It "100001	2,3,4	udp,udp6	rstatd	super-user"
+.It "100012	1	udp,tcp	sprayd	super-user"
+.It "100007	3	udp,tcp	ypbind	super-user"
+.El
+.Pp
+To show whether the RPC
+service with program number
+.Ar prognum
+and version
+.Ar versnum
+is
+registered on the machine named
+.Dq klaxon
+for the transport TCP
+use:
+.Pp
+.Dl "example% rpcinfo -T tcp klaxon prognum versnum"
+.Pp
+To show all RPC
+services registered with version 2 of the
+.Nm rpcbind
+protocol on the local machine use:
+.Pp
+.Dl "example% rpcinfo -p"
+.Pp
+To delete the registration for version
+1 of the
+.Nm walld
+(program number 100008)
+service for all transports use:
+.Pp
+.Dl "example# rpcinfo -d 100008 1"
+or
+.Dl "example# rpcinfo -d walld 1"
+.Sh SEE ALSO
+.Xr rpc 3 ,
+.Xr netconfig 5 ,
+.Xr rpc 5 ,
+.Xr rpcbind 8

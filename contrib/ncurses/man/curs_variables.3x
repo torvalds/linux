@@ -1,0 +1,136 @@
+.\"***************************************************************************
+.\" Copyright (c) 2010,2013 Free Software Foundation, Inc.                   *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_variables.3x,v 1.6 2013/12/21 18:41:32 tom Exp $
+.TH curs_variables 3X ""
+.de bP
+.IP \(bu 4
+..
+.ds n 5
+.na
+.hy 0
+.SH NAME
+\fBCOLORS\fR,
+\fBCOLOR_PAIRS\fR,
+\fBCOLS\fR,
+\fBESCDELAY\fR,
+\fBLINES\fR,
+\fBTABSIZE\fR,
+\fBcurscr\fR,
+\fBnewscr\fR,
+\fBstdscr\fR
+\- \fBcurses\fR global variables
+.ad
+.hy
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>\fR
+.PP
+\fBint COLOR_PAIRS;\fR
+.br
+\fBint COLORS;\fR
+.br
+\fBint COLS;\fR
+.br
+\fBint ESCDELAY;\fR
+.br
+\fBint LINES;\fR
+.br
+\fBint TABSIZE;\fR
+.br
+\fBWINDOW * curscr;\fR
+.br
+\fBWINDOW * newscr;\fR
+.br
+\fBWINDOW * stdscr;\fR
+.fi
+.SH DESCRIPTION
+This page summarizes variables provided by the \fBcurses\fP library.
+A more complete description is given in the \fBcurses\fP(3X) manual page.
+.PP
+Depending on the configuration, these may be actual variables,
+or macros (see \fBcurs_threads\fR(3X) and \fBcurs_opaque\fR(3X))
+which provide read-only access to \fIcurses\fP's state.
+In either case, applications should treat them as read-only to avoid
+confusing the library.
+.SS COLOR_PAIRS
+After initializing curses, this variable contains the number of color pairs
+which the terminal can support.
+Usually the number of color pairs will be the product \fBCOLORS\fP*\fBCOLORS\fP,
+however this is not always true:
+.bP
+a few terminals use HLS colors, which do not follow this rule
+.bP
+terminals supporting a large number of colors are limited by the number
+of color pairs that can be represented in a \fIsigned short\fP value.
+.SS COLORS
+After initializing curses, this variable contains the number of colors
+which the terminal can support.
+.SS COLS
+After initializing curses, this variable contains the width of the screen,
+i.e., the number of columns.
+.SS ESCDELAY
+This variable holds the number of milliseconds to wait after reading an
+escape character,
+to distinguish between an individual escape character entered on the
+keyboard from escape sequences sent by cursor- and function-keys
+(see curses(3X).
+.SS LINES
+After initializing curses, this variable contains the height of the screen,
+i.e., the number of lines.
+.SS TABSIZE
+This variable holds the number of columns used by the \fIcurses\fP library
+when converting a tab character to spaces as it adds the tab to a window
+(see curs_addch(3X).
+.SS The Current Screen
+This implementation of curses uses a special window \fBcurscr\fP to
+record its updates to the terminal screen.
+.SS The New Screen
+This implementation of curses uses a special window \fBnewscr\fP to
+hold updates to the terminal screen before applying them to \fBcurscr\fP.
+.SS The Standard Screen
+Upon initializing curses,
+a default window called \fBstdscr\fP,
+which is the size of the terminal screen, is created.
+Many curses functions use this window.
+.SH NOTES
+The curses library is initialized using either \fBinitscr\fR(3X),
+or \fBnewterm\fR(3X).
+.PP
+If \fBcurses\fP is configured to use separate curses/terminfo libraries,
+most of these variables reside in the curses library.
+.SH PORTABILITY
+ESCDELAY and TABSIZE are extensions,
+not provided in most other implementations of curses.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_opaque\fR(3X),
+\fBcurs_terminfo\fR(3X),
+\fBcurs_threads\fR(3X),
+\fBterm_variables\fR(3X),
+\fBterminfo\fR(\*n).

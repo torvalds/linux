@@ -1,0 +1,9 @@
+section foo bar {
+	  key = value
+}
+section foo baz {
+	  key = value
+}
+section foo {
+	  bar = lol /* removing this line makes parsing successful */
+}

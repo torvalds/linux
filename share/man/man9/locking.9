@@ -1,0 +1,415 @@
+.\" Copyright (c) 2007 Julian Elischer  (julian -  freebsd org )
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 5, 2015
+.Dt LOCKING 9
+.Os
+.Sh NAME
+.Nm locking
+.Nd kernel synchronization primitives
+.Sh DESCRIPTION
+The
+.Em FreeBSD
+kernel is written to run across multiple CPUs and as such provides
+several different synchronization primitives to allow developers
+to safely access and manipulate many data types.
+.Ss Mutexes
+Mutexes (also called "blocking mutexes") are the most commonly used
+synchronization primitive in the kernel.
+A thread acquires (locks) a mutex before accessing data shared with other
+threads (including interrupt threads), and releases (unlocks) it afterwards.
+If the mutex cannot be acquired, the thread requesting it will wait.
+Mutexes are adaptive by default, meaning that
+if the owner of a contended mutex is currently running on another CPU,
+then a thread attempting to acquire the mutex will spin rather than yielding
+the processor.
+Mutexes fully support priority propagation.
+.Pp
+See
+.Xr mutex 9
+for details.
+.Ss Spin Mutexes
+Spin mutexes are a variation of basic mutexes; the main difference between
+the two is that spin mutexes never block.
+Instead, they spin while waiting for the lock to be released.
+To avoid deadlock, a thread that holds a spin mutex must never yield its CPU.
+Unlike ordinary mutexes, spin mutexes disable interrupts when acquired.
+Since disabling interrupts can be expensive, they are generally slower to
+acquire and release.
+Spin mutexes should be used only when absolutely necessary,
+e.g. to protect data shared
+with interrupt filter code (see
+.Xr bus_setup_intr 9
+for details),
+or for scheduler internals.
+.Ss Mutex Pools
+With most synchronization primitives, such as mutexes, the programmer must
+provide memory to hold the primitive.
+For example, a mutex may be embedded inside the structure it protects.
+Mutex pools provide a preallocated set of mutexes to avoid this
+requirement.
+Note that mutexes from a pool may only be used as leaf locks.
+.Pp
+See
+.Xr mtx_pool 9
+for details.
+.Ss Reader/Writer Locks
+Reader/writer locks allow shared access to protected data by multiple threads
+or exclusive access by a single thread.
+The threads with shared access are known as
+.Em readers
+since they should only read the protected data.
+A thread with exclusive access is known as a
+.Em writer
+since it may modify protected data.
+.Pp
+Reader/writer locks can be treated as mutexes (see above and
+.Xr mutex 9 )
+with shared/exclusive semantics.
+Reader/writer locks support priority propagation like mutexes,
+but priority is propagated only to an exclusive holder.
+This limitation comes from the fact that shared owners
+are anonymous.
+.Pp
+See
+.Xr rwlock 9
+for details.
+.Ss Read-Mostly Locks
+Read-mostly locks are similar to
+.Em reader/writer
+locks but optimized for very infrequent write locking.
+.Em Read-mostly
+locks implement full priority propagation by tracking shared owners
+using a caller-supplied
+.Em tracker
+data structure.
+.Pp
+See
+.Xr rmlock 9
+for details.
+.Ss Sleepable Read-Mostly Locks
+Sleepable read-mostly locks are a variation on read-mostly locks.
+Threads holding an exclusive lock may sleep,
+but threads holding a shared lock may not.
+Priority is propagated to shared owners but not to exclusive owners.
+.Ss Shared/exclusive locks
+Shared/exclusive locks are similar to reader/writer locks; the main difference
+between them is that shared/exclusive locks may be held during unbounded sleep.
+Acquiring a contested shared/exclusive lock can perform an unbounded sleep.
+These locks do not support priority propagation.
+.Pp
+See
+.Xr sx 9
+for details.
+.Ss Lockmanager locks
+Lockmanager locks are sleepable shared/exclusive locks used mostly in
+.Xr VFS 9
+.Po
+as a
+.Xr vnode 9
+lock
+.Pc
+and in the buffer cache
+.Po
+.Xr BUF_LOCK 9
+.Pc .
+They have features other lock types do not have such as sleep
+timeouts, blocking upgrades,
+writer starvation avoidance, draining, and an interlock mutex,
+but this makes them complicated both to use and to implement;
+for this reason, they should be avoided.
+.Pp
+See
+.Xr lock 9
+for details.
+.Ss Counting semaphores
+Counting semaphores provide a mechanism for synchronizing access
+to a pool of resources.
+Unlike mutexes, semaphores do not have the concept of an owner,
+so they can be useful in situations where one thread needs
+to acquire a resource, and another thread needs to release it.
+They are largely deprecated.
+.Pp
+See
+.Xr sema 9
+for details.
+.Ss Condition variables
+Condition variables are used in conjunction with locks to wait for
+a condition to become true.
+A thread must hold the associated lock before calling one of the
+.Fn cv_wait ,
+functions.
+When a thread waits on a condition, the lock
+is atomically released before the thread yields the processor
+and reacquired before the function call returns.
+Condition variables may be used with blocking mutexes,
+reader/writer locks, read-mostly locks, and shared/exclusive locks.
+.Pp
+See
+.Xr condvar 9
+for details.
+.Ss Sleep/Wakeup
+The functions
+.Fn tsleep ,
+.Fn msleep ,
+.Fn msleep_spin ,
+.Fn pause ,
+.Fn wakeup ,
+and
+.Fn wakeup_one
+also handle event-based thread blocking.
+Unlike condition variables,
+arbitrary addresses may be used as wait channels and a dedicated
+structure does not need to be allocated.
+However, care must be taken to ensure that wait channel addresses are
+unique to an event.
+If a thread must wait for an external event, it is put to sleep by
+.Fn tsleep ,
+.Fn msleep ,
+.Fn msleep_spin ,
+or
+.Fn pause .
+Threads may also wait using one of the locking primitive sleep routines
+.Xr mtx_sleep 9 ,
+.Xr rw_sleep 9 ,
+or
+.Xr sx_sleep 9 .
+.Pp
+The parameter
+.Fa chan
+is an arbitrary address that uniquely identifies the event on which
+the thread is being put to sleep.
+All threads sleeping on a single
+.Fa chan
+are woken up later by
+.Fn wakeup
+.Pq often called from inside an interrupt routine
+to indicate that the
+event the thread was blocking on has occurred.
+.Pp
+Several of the sleep functions including
+.Fn msleep ,
+.Fn msleep_spin ,
+and the locking primitive sleep routines specify an additional lock
+parameter.
+The lock will be released before sleeping and reacquired
+before the sleep routine returns.
+If
+.Fa priority
+includes the
+.Dv PDROP
+flag, then the lock will not be reacquired before returning.
+The lock is used to ensure that a condition can be checked atomically,
+and that the current thread can be suspended without missing a
+change to the condition or an associated wakeup.
+In addition, all of the sleep routines will fully drop the
+.Va Giant
+mutex
+.Pq even if recursed
+while the thread is suspended and will reacquire the
+.Va Giant
+mutex
+.Pq restoring any recursion
+before the function returns.
+.Pp
+The
+.Fn pause
+function is a special sleep function that waits for a specified
+amount of time to pass before the thread resumes execution.
+This sleep cannot be terminated early by either an explicit
+.Fn wakeup
+or a signal.
+.Pp
+See
+.Xr sleep 9
+for details.
+.Ss Giant
+Giant is a special mutex used to protect data structures that do not
+yet have their own locks.
+Since it provides semantics akin to the old
+.Xr spl 9
+interface,
+Giant has special characteristics:
+.Bl -enum
+.It
+It is recursive.
+.It
+Drivers can request that Giant be locked around them
+by not marking themselves MPSAFE.
+Note that infrastructure to do this is slowly going away as non-MPSAFE
+drivers either became properly locked or disappear.
+.It
+Giant must be locked before other non-sleepable locks.
+.It
+Giant is dropped during unbounded sleeps and reacquired after wakeup.
+.It
+There are places in the kernel that drop Giant and pick it back up
+again.
+Sleep locks will do this before sleeping.
+Parts of the network or VM code may do this as well.
+This means that you cannot count on Giant keeping other code from
+running if your code sleeps, even if you want it to.
+.El
+.Sh INTERACTIONS
+The primitives can interact and have a number of rules regarding how
+they can and can not be combined.
+Many of these rules are checked by
+.Xr witness 4 .
+.Ss Bounded vs. Unbounded Sleep
+In a bounded sleep
+.Po also referred to as
+.Dq blocking
+.Pc
+the only resource needed to resume execution of a thread
+is CPU time for the owner of a lock that the thread is waiting to acquire.
+In an unbounded sleep
+.Po
+often referred to as simply
+.Dq sleeping
+.Pc
+a thread waits for an external event or for a condition
+to become true.
+In particular,
+a dependency chain of threads in bounded sleeps should always make forward
+progress,
+since there is always CPU time available.
+This requires that no thread in a bounded sleep is waiting for a lock held
+by a thread in an unbounded sleep.
+To avoid priority inversions,
+a thread in a bounded sleep lends its priority to the owner of the lock
+that it is waiting for.
+.Pp
+The following primitives perform bounded sleeps:
+mutexes, reader/writer locks and read-mostly locks.
+.Pp
+The following primitives perform unbounded sleeps:
+sleepable read-mostly locks, shared/exclusive locks, lockmanager locks,
+counting semaphores, condition variables, and sleep/wakeup.
+.Ss General Principles
+.Bl -bullet
+.It
+It is an error to do any operation that could result in yielding the processor
+while holding a spin mutex.
+.It
+It is an error to do any operation that could result in unbounded sleep
+while holding any primitive from the 'bounded sleep' group.
+For example, it is an error to try to acquire a shared/exclusive lock while
+holding a mutex, or to try to allocate memory with M_WAITOK while holding a
+reader/writer lock.
+.Pp
+Note that the lock passed to one of the
+.Fn sleep
+or
+.Fn cv_wait
+functions is dropped before the thread enters the unbounded sleep and does
+not violate this rule.
+.It
+It is an error to do any operation that could result in yielding of
+the processor when running inside an interrupt filter.
+.It
+It is an error to do any operation that could result in unbounded sleep when
+running inside an interrupt thread.
+.El
+.Ss Interaction table
+The following table shows what you can and can not do while holding
+one of the locking primitives discussed.
+Note that
+.Dq sleep
+includes
+.Fn sema_wait ,
+.Fn sema_timedwait ,
+any of the
+.Fn cv_wait
+functions,
+and any of the
+.Fn sleep
+functions.
+.Bl -column ".Ic xxxxxxxxxxxxxxxx" ".Xr XXXXXXXXX" ".Xr XXXXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXXXX" ".Xr XXXXXX" -offset 3n
+.It Em "       You want:" Ta spin mtx Ta mutex/rw Ta rmlock Ta sleep rm Ta sx/lk Ta sleep
+.It Em "You have:     " Ta -------- Ta -------- Ta ------ Ta -------- Ta ------ Ta ------
+.It spin mtx  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no-1
+.It mutex/rw  Ta \&ok Ta \&ok Ta \&ok Ta \&no Ta \&no Ta \&no-1
+.It rmlock    Ta \&ok Ta \&ok Ta \&ok Ta \&no Ta \&no Ta \&no-1
+.It sleep rm  Ta \&ok Ta \&ok Ta \&ok Ta \&ok-2 Ta \&ok-2 Ta \&ok-2/3
+.It sx        Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok-3
+.It lockmgr   Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok
+.El
+.Pp
+.Em *1
+There are calls that atomically release this primitive when going to sleep
+and reacquire it on wakeup
+.Po
+.Fn mtx_sleep ,
+.Fn rw_sleep ,
+.Fn msleep_spin ,
+etc.
+.Pc .
+.Pp
+.Em *2
+These cases are only allowed while holding a write lock on a sleepable
+read-mostly lock.
+.Pp
+.Em *3
+Though one can sleep while holding this lock,
+one can also use a
+.Fn sleep
+function to atomically release this primitive when going to sleep and
+reacquire it on wakeup.
+.Pp
+Note that non-blocking try operations on locks are always permitted.
+.Ss Context mode table
+The next table shows what can be used in different contexts.
+At this time this is a rather easy to remember table.
+.Bl -column ".Ic Xxxxxxxxxxxxxxxxxxx" ".Xr XXXXXXXXX" ".Xr XXXXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXXXX" ".Xr XXXXXX" -offset 3n
+.It Em "Context:"  Ta spin mtx Ta mutex/rw Ta rmlock Ta sleep rm Ta sx/lk Ta sleep
+.It interrupt filter:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no
+.It interrupt thread:  Ta \&ok Ta \&ok Ta \&ok Ta \&no Ta \&no Ta \&no
+.It callout:    Ta \&ok Ta \&ok Ta \&ok Ta \&no Ta \&no Ta \&no
+.It direct callout:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no
+.It system call:    Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok
+.El
+.Sh SEE ALSO
+.Xr witness 4 ,
+.Xr BUS_SETUP_INTR 9 ,
+.Xr condvar 9 ,
+.Xr lock 9 ,
+.Xr LOCK_PROFILING 9 ,
+.Xr mtx_pool 9 ,
+.Xr mutex 9 ,
+.Xr rmlock 9 ,
+.Xr rwlock 9 ,
+.Xr sema 9 ,
+.Xr sleep 9 ,
+.Xr sx 9 ,
+.Xr timeout 9
+.Sh HISTORY
+These
+functions appeared in
+.Bsx 4.1
+through
+.Fx 7.0 .
+.Sh BUGS
+There are too many locking primitives to choose from.

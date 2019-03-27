@@ -1,0 +1,3781 @@
+Wed Jan  1 17:54:47 1998  J.J. van der Heijden <J.J.vanderHeijden@student.utwente.nl>
+
+	* pexecute.c (pexecute, [_WIN32]): Yes, mask termstat for mingw32.
+
+Mon Dec 22 18:59:34 1997  Pascal Obry  <pascal.obry@der.edfgdf.fr>
+
+	* pexecute.c (pexecute, [_WIN32]): For mingw32, don't mask termstat.
+
+Sat Dec 13 09:39:32 1997  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
+
+	* pexecute.c (fix_argv): Remove outer "const" from return type.
+	(pexecute): errmsg_arg is pointer to const.
+
+Sat Nov 29 08:06:34 1997  Jan-Jaap van der Heijden  <janjaap@student.utwente.nl>
+
+	* pexecute.c: Include signal.h for _WIN32.
+
+Wed Nov 26 17:31:44 1997  J.J. van der Heijden <J.J.vanderHeijden@student.utwente.nl>
+
+	* pexecute.c (pwait): For _WIN32, distinguish whether child process
+	caught fatal signal or reported nonzero exit code.
+
+Wed Nov 26 13:24:30 1997  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
+
+	* choose-temp.c (sys/file.h): Include if HAVE_SYS_FILE_H.
+
+Mon Nov 17 09:07:52 1997  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
+
+	* choose-temp.c (choose_temp_base): Remove incorrect code for VMS.
+
+Sun Oct 19 10:34:11 1997  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
+
+	* pexecute.c (fix_argv, pexecute): Cast result of xmalloc.
+
+Sat Oct 18 16:55:18 1997  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* obstack.h (obstack_empty_p): New macro.
+
+Mon Sep 29 12:27:59 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* pexecute.c: Use spawn if __CYGWIN32__.
+
+Wed Sep 10 15:14:20 1997  Jeffrey A Law  (law@cygnus.com)
+
+	* config.sub: Use "amigaos" instread of "amigados".  Still
+	recognize "amigados" for backward compatibility.
+
+Tue Sep  9 18:23:57 1997  Doug Evans  <dje@cygnus.com>
+
+	* config.sub: Recognize ARC cpu.
+
+1997-09-09  Richard Kenner  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
+
+	* config.guess (alpha): Replace CPU-determining program with one
+	that's more precise and also supports pca56 and ev6.
+	Handle those in returned name.
+
+1997-09-08  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
+
+	* config.guess (alpha:OSF1:*:*): For V4.0, get the letter suffix.
+
+1997-09-05  Jeffrey A Law  (law@cygnus.com)
+
+	* config.sub: Recognize v850-elf.
+
+1997-08-26  Richard Henderson  <rth@cygnus.com>
+
+	* config.guess (*:Linux:*:*): Recognize alpha-linux-gnulibc1.
+
+1997-08-17  Jeff Law  <law@cygnus.com>
+
+	* config.sub: Recognize tx39/r3900.
+
+1997-08-08  Paul Eggert  <eggert@twinsun.com>
+
+	* choose-temp.c, pexecute.c:
+	Include "config.h" first, as per autoconf manual.
+
+1997-08-01  Richard Stallman  <rms@psilocin.gnu.ai.mit.edu>
+
+	* config.sub: Translate -svr4 to -sysv4 and -unixware to -sysv4.2uw.
+
+1997-07-26  Per Bothner  <bothner@pogo.gnu.ai.mit.edu>
+
+	* config.guess:  Recognize SunOS 3.x.
+	From Tom Schmidt <tschmidt@micron.com>.
+
+1997-07-22  Richard Stallman  <rms@psilocin.gnu.ai.mit.edu>
+
+	* getloadavg.c: Test `__unix' along with `unix'.
+
+Sun Jul 20 20:58:43 1997  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
+
+	* config.guess (alpha*): Run program to see if ev4, ev5, or ev56.
+	* config.sub (alphaev5, alphaev56): New CPU types.
+
+Wed Jul 16 10:46:14 1997  Richard Earnshaw <rearnsha@cambridge.arm.com>
+
+	* config.guess (arm32:NetBSD:*:*): Canonicalize to normal format
+	for ARM systems.
+
+Tue Jul 15 09:13:05 1997  Jim Meyering  <meyering@psilocin.gnu.ai.mit.edu>
+
+	* getloadavg.c: Add comment describing HAVE_PSTAT_GETDYNAMIC.
+	
+1997-07-14  Richard Stallman  <rms@psilocin.gnu.ai.mit.edu>
+
+	* config.guess (pc:*:*:*): New entry, for DJGPP.
+
+1997-07-07  Richard Stallman  <rms@psilocin.gnu.ai.mit.edu>
+
+	* config.guess (i?86:UNIX_SV:4.2MP:2.*): Recognize unixware.
+
+1997-07-06  Richard Stallman  <rms@psilocin.gnu.ai.mit.edu>
+
+	* getloadavg.c [OSF_ALPHA]:
+	Include sys/mbuf.h, sys/socket.h, net/route.h.
+
+1997-06-30  Richard Stallman  <rms@psilocin.gnu.ai.mit.edu>
+
+	* getloadavg.c [__GNU__]: Test for not NeXT.
+
+Fri Jun 27 15:20:29 1997  Scott Christley <scottc@net-community.com>
+
+	* config.sub (-mingw32*): New OS.
+	* config.guess (i*:MINGW*:*): New case.
+	* pexecute.c (fix_argv): New function.
+	(pexecute): Win32 but not Cygwin32 needs its arguments fixed.
+	Add underscore to cwait function call.
+
+Mon Jun 23 10:51:53 1997  Jeffrey A Law  (law@cygnus.com)
+
+	* config.sub (mn10200): Recognize new basic machine.
+
+1997-06-22  Richard Stallman  <rms@psilocin.gnu.ai.mit.edu>
+
+	* config.guess: Add mips-sony-newsos6.
+
+1997-06-09  Richard Stallman  <rms@psilocin.gnu.ai.mit.edu>
+
+	* config.guess: Use i?86, not i.86.
+	Don't test /usr/lib/ldscripts; instead, test whether ld_help_string
+	does not contain "supported emulations".
+	Use a case statement to distinguish systems when there IS
+	"supported emulations".
+
+1997-06-07  H.J. Lu  (hjl@gnu.ai.mit.edu)
+
+	* config.guess (*:Linux:*:*): Always use ${VENDOR}.
+
+1997-06-05  Richard Stallman  <rms@psilocin.gnu.ai.mit.edu>
+
+	* config.guess (*:Linux:*:*): Don't test for elf_i.86 or m68kelf.
+	
+	* config.guess (*:Linux:*:*): Recognize sparclinux.
+	Don't recognize UNAME_MACHINE = sparc.
+	Make the sample program check for libc version
+	and handle various machine types.
+
+	* config.sub (mipsel*-linux* and mips*-linux*):
+	Set `os' to -linux-gnu directly, don't go via -linux.
+
+Mon May 26 12:46:25 1997  Paul Eggert  <eggert@twinsun.com>
+
+	* getopt.c, getopt.h, getopt1.c: Moved to libc-copy/copies.
+
+Wed May  7 15:17:59 1997  Thomas Bushnell, n/BSG  <thomas@gnu.ai.mit.edu>
+
+	* config.guess: Recognize either / or - as a machine/suptype
+	separator from uname -m to cope with older systems that have the
+	older uname.  Suggested by Michael Snyder (msnyder@cygnus.com).
+
+Mon May  5 18:05:35 1997  Per Bothner  <bothner@frobnitz.gnu.ai.mit.edu>
+
+	* config.guess: CLIX patch from Thomas Dickey via
+	urs@akk.uni-karlsruhe.de (Urs Janssen).
+	
+Thu Apr 17 13:59:13 1997  Per Fogelstrom  <pefo@openbsd.org>
+
+	* config.guess: Fixes for MIPS OpenBSD systems.
+
+Fri Apr 11 16:39:06 1997  Niklas Hallqvist  <niklas@appli.se>
+
+	* config.guess: Recognize OpenBSD systems correctly.
+
+Mon Mar 24 15:38:37 1997  Doug Evans  <dje@cygnus.com>
+
+	* config.sub: Recognize m32r and mn10300 cpus.
+
+Sat Feb 22 22:36:44 1997  Miles Bader  <miles@gnu.ai.mit.edu>
+
+	* getloadavg.c [__GNU__] (NeXT, host_self): New macros, to make
+	hurd systems use the NeXT code for getting load averages.
+
+Sat Feb 15 19:03:48 1997  Geoffrey Noer  (noer@cygnus.com)
+
+	* pexecute.c: Remove special cases for cygwin32.
+	(pwait): Remove local definition of `pid'.
+
+Wed Jan 15 22:36:59 1997  Jim Meyering  <meyering@kropotkin.gnu.ai.mit.edu>
+
+	* getloadavg.c [hpux && HAVE_PSTAT_GETDYNAMIC]: Use HPUX's
+	pstat_getdynamic function so we don't need any special privileges
+	to determine load averages.  Patch from Kaveh Ghazi, based on a
+	sample implementation from Richard J. Rauenzahn.
+	Indent cpp-directives to reflect nesting.
+
+Tue Jan  7 14:29:37 1997  David J. MacKenzie  <djm@geech.gnu.ai.mit.edu>
+
+	* config.guess: Add hppa1.1-hitachi-hiuxmpp support, passed along
+	by rms.
+
+Sat Jan  4 22:43:21 1997  Miles Bader  <miles@gnu.ai.mit.edu>
+
+	* config.guess (*:GNU:*:*): The machine/subtype separator printed
+	by uname -m is now `-', not '/'.
+
+Fri Jan  3 08:38:49 1997  Philippe De Muyter  (phdm@info.ucl.ac.be)
+
+	* config.guess (M68*:*:R3V[567]*:*): Use uppercase 'M'.
+
+Tue Dec 31 15:51:13 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config.guess, config.sub: Recognize mips-unknown-linux-gnu.
+
+Tue Dec 10 09:44:57 1996  Paul Eggert  <eggert@twinsun.com>
+
+	* choose-temp.c (choose_temp_base): Don't dump core if TMPDIR is empty.
+
+	* choose-temp.c (try): Insist that temp dir be searchable.
+
+Sat Dec  7 17:48:02 1996  Dave Love  <d.love@dl.ac.uk>
+
+	* config.guess (PENTIUM:CPunix:4.0*:*): New case.
+
+Sun Nov 24 19:41:31 1996  Per Bothner  <bothner@frobnitz.gnu.ai.mit.edu>
+
+	* config.guess:  Recognize machten.
+	From Eric W. Bates <ericx@vineyard.net>.
+
+Sun Nov 24 18:17:53 1996  Dave Love  <d.love@dl.ac.uk>
+
+	* config.guess (PENTIUM:CPunix:4.0*:*): New case.
+
+Fri Nov 22 11:44:13 1996  David J. MacKenzie  <djm@geech.gnu.ai.mit.edu>
+
+	* config.guess: Undo accidental lowercasing in
+	m68k-motorola-sysv regexp.
+
+Wed Nov 20 16:27:37 1996  David J. MacKenzie  <djm@churchy.gnu.ai.mit.edu>
+
+	* config.guess, config.sub: Additions for the Fujitsu UXP/V.
+	From joda@pdc.kth.se (Johan Danielsson).
+	
+Tue Nov 19 13:34:12 1996  David J. MacKenzie  <djm@churchy.gnu.ai.mit.edu>
+
+	* getpagesize.h: If no sys/param.h, default to 8k.
+	Indent for readability.
+
+Wed Nov 13 14:59:46 1996  Per Bothner  <bothner@deneb.cygnus.com>
+
+	* config.guess:  Patch for Dansk Data Elektronik servers,
+	from Niels Skou Olsen <nso@dde.dk>.
+
+	For ncr, use /bin/uname rather than uname, since GNU uname does not
+	support -p.  Suggested by Mark Mitchell <mmitchell@usa.net>.
+
+	Patch for MIPS R4000 running System V,
+	from Eric S. Raymond <esr@snark.thyrsus.com>.
+
+	Fix thinko for nextstep.
+
+	Patch for OSF1 in i?86, from Dan Murphy <dlm@osf.org> via Harlan Stenn.
+
+	Sat Jun 24 18:58:17 1995  Morten Welinder  <terra+@cs.cmu.edu>
+	* config.guess: Guess mips-dec-mach_bsd4.3.
+
+	Thu Oct 10 04:07:04 1996  Harlan Stenn <harlan@pfcs.com>
+	* config.guess (i?86-ncr-sysv*):  Emit just enough of the minor
+	release numbers.
+	* config.guess (mips-mips-riscos*):  Emit just enough of the
+	release number.
+
+	Tue Oct  8 10:37:22 1996  Frank Vance <fvance@waii.com>
+	* config.guess (sparc-auspex-sunos*):  Added.
+	(f300-fujitsu-*): Added.
+
+	Wed Sep 25 22:00:35 1996  Jeff Woolsey <woolsey@jlw.com>
+	* config.guess:  Recognize a Tadpole as a sparc.
+
+Wed Nov 13 00:53:09 1996  David J. MacKenzie  <djm@churchy.gnu.ai.mit.edu>
+
+	* config.guess: Don't assume that NextStep version is either 2 or
+	3.  NextStep 4 (aka OpenStep 4) has come out now.
+
+Tue Nov 12 18:26:15 1996  Doug Rupp  (rupp@gnat.com)
+
+	* pexecute.c (vfork): Supply new definition for VMS.
+	(pwait): Use waitpid instead of wait for VMS.
+
+Mon Nov 11 23:52:03 1996  David J. MacKenzie  <djm@churchy.gnu.ai.mit.edu>
+
+	* config.guess: Support Cray T90 that reports itself as "CRAY TS".
+	From Rik Faith <faith@cs.unc.edu>.
+
+Fri Nov  8 11:34:58 1996  David J. MacKenzie  <djm@geech.gnu.ai.mit.edu>
+
+	* config.sub: Contributions from bug-gnu-utils to:
+	Support plain "hppa" (no version given) architecture, reported by
+	OpenStep.
+	OpenBSD like NetBSD.
+	LynxOs is not a hardware supplier.
+
+	* config.guess: Contributions from bug-gnu-utils to add support for:
+	OpenBSD like NetBSD.
+	Stratus systems.
+	More Pyramid systems.
+	i[n>4]86 Intel chips.
+	M680[n>4]0 Motorola chips.
+	Use unknown instead of lynx for hardware manufacturer.
+
+Mon Oct 28 17:15:52 1996  Christian Limpach  <chris@nice.ch>
+
+	* config.sub: Recognize hppa-next as a valid CPU-COMPANY combination.
+
+Wed Oct 23 17:36:39 1996  Doug Rupp  (rupp@gnat.com)
+
+	* choose-temp.c (choose_temp_base): On VMS, use proper syntax
+	for current directory.
+
+Wed Oct  9 23:30:18 1996  Jim Meyering  <meyering@wombat.gnu.ai.mit.edu>
+
+	* getloadavg.c: [__hpux]: Define hpux.  From Eric Backus.
+	[__sun]: Define sun.  Reported by Kaveh Ghazi.
+
+Mon Sep 23 22:45:15 1996  Sean McNeil  <sean@mcneil.com>
+
+	* config.sub (-vxsim*): New operating system.
+
+	1996-09-12  Richard Stallman  <rms@ethanol.gnu.ai.mit.edu>
+
+	* config.guess: Use pc instead of unknown, for pc clone systems.
+	Change linux to linux-gnu.
+
+Thu Sep 12 20:12:26 1996  Richard Stallman  <rms@ethanol.gnu.ai.mit.edu>
+
+	* config.sub: Use pc instead of unknown, for pc clones.
+	Use -linux-gnu for Linux-based GNU systems.
+
+1996-09-04  Richard Stallman  <rms@ethanol.gnu.ai.mit.edu>
+
+	* getloadavg.c (getloadavg): Add new code for SUNOS_5 to use -lkstat.
+
+Sat Aug 17 15:23:39 1996  Geoffrey Noer  <noer@cygnus.com>
+
+	* choose-temp.c: Delete !defined(_WIN32) condition when including
+	sys/file.h (NO_SYS_FILE_H is still used).
+	* getopt.c: Change win32 test from WIN32 to _WIN32.
+	* pexecute.c: Update test for win32 (&& ! cygwin32).
+
+Mon Jul 15 23:51:11 1996  Karl Heuer  <kwzh@gnu.ai.mit.edu>
+
+	* config.guess: Avoid non-portable tr syntax.
+
+Mon Jul 15 11:53:00 1996  Jeffrey A Law  (law@cygnus.com)
+
+	* config.guess (HP 9000/811): Recognize this as a PA1.1
+	machine.
+
+Thu Jul 11 17:02:23 1996  David J. MacKenzie  <djm@geech.gnu.ai.mit.edu>
+
+	* install-sh: Add MIT copyright notice.  From gordoni@cygnus.com.
+
+Sun Jul  7 13:27:04 1996  Joel Sherrill  <joel@merlin.gcs.redstone.army.mil>
+
+	* config.sub: Recognize rtems as an o/s.
+
+Tue Jul  2 16:45:02 1996  Torbjorn Granlund  <tege@spiff.gnu.ai.mit.edu>
+
+	* config.guess: Generalize C90 alternative to all x90 machines.
+
+Fri Jun 28 13:29:05 1996  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
+
+	* config.guess (mips:*:*:UMIPS): Fix typo in last change.
+
+Tue Jun 25 22:43:48 1996  Doug Evans  <dje@cygnus.com>
+
+	* pexecute.c (PEXECUTE_VERBOSE): Define.
+	(MPW pexecute): Check flags & PEXECUTE_VERBOSE instead of verbose_flag.
+
+Mon Jun 24 14:32:22 1996  Jim Wilson  <wilson@cygnus.com>
+
+	* getopt.c (getpid): Don't redefine it if __CYGWIN32__ is defined.
+
+Thu Jun 20 12:20:33 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* config.guess (*:Linux:*:*): Add support for PowerPC Linux.
+
+Mon Jun 10 16:10:57 1996  Doug Evans  <dje@cygnus.com>
+
+	* pexecute.c: New file.
+
+Fri Jun  7 18:16:52 1996  Harlan Stenn <harlan@pfcs.com>
+
+	* config.guess (i?86-ncr-sysv*):  Emit minor release numbers.
+	Recognize the NCR 4850 machine and NCR Pentium-based platforms.
+
+Wed Jun  5 00:09:17 1996  Per Bothner  <bothner@wombat.gnu.ai.mit.edu>
+
+	* config.guess:  Combine mips-mips-riscos cases, and use cpp to
+	distinguish sysv/svr4/bsd variants.
+	Based on a patch from Harlan Stenn <harlan@pfcs.com>.
+
+Mon Jun  3 08:49:14 1996  Karl Heuer  <kwzh@gnu.ai.mit.edu>
+
+	* config.guess (*:Linux:*:*): Add guess for sparc-unknown-linux.
+
+Mon May 27 20:16:42 1996  Karl Heuer  <kwzh@gnu.ai.mit.edu>
+
+	* getloadavg.c [SOLARIS2]: Define SUNOS_5.
+
+Fri May 24 18:34:53 1996  Roland McGrath  <roland@delasyd.gnu.ai.mit.edu>
+
+	* config.guess (AViiON:dgux:*:*): Fix typo in recognizing mc88110.
+
+Wed May 22 17:20:59 1996  Roland McGrath  <roland@delasyd.gnu.ai.mit.edu>
+
+	* getloadavg.c [WIN32]: No-op as for [MSDOS].
+
+	* getopt.c [WIN32] (getpid): Define using GetCurrentProcessId.
+
+	* getopt.c [VMS]: Include unixlib.h, string.h.
+
+Tue May 21 18:55:59 1996  Roland McGrath  <roland@delasyd.gnu.ai.mit.edu>
+
+	* config.sub: Restore `hp9k2[0-9][0-9] | hp9k31[0-9])' case line
+	apparently accidentally removed in the last change.
+
+Mon May 20 11:58:15 1996  Jeffrey A. Law  <law@cygnus.com>
+
+	* config.sub: Recognize -proelf as a basic system type.
+
+Fri May  3 02:35:56 1996  Noah Friedman  <friedman@prep.ai.mit.edu>
+
+	* mkinstalldirs: Don't report an error if mkdir fails because
+	a directory was created by another process.
+
+Sun Apr 21 09:50:09 1996  Stephen L Moshier  (moshier@world.std.com)
+
+	* choose-temp.c: Include sys/types.h before sys/file.h for sco3.2v5.
+
+Tue Apr  9 14:37:31 1996  Ulrich Drepper  <drepper@cygnus.com>
+
+	* obstack.h [__STDC__] (obstack_init, obstack_begin,
+	obstack_specify_allocation, obstack_specify_allocation_with_arg,
+	obstack_chunkfun, obstack_freefun): Duplicate definition with complete
+	type cast.
+
+Wed Apr 17 14:28:43 1996  Doug Evans  <dje@cygnus.com>
+
+	* choose-temp.c: Don't include sys/file.h ifdef NO_SYS_FILE_H.
+	#include <stdio.h>.
+	(choose_temp_base): Make tmp,usrtmp, static locals.
+
+Mon Apr 15 14:08:12 1996  Doug Evans  <dje@canuck.cygnus.com>
+
+	* choose-temp.c: New file.
+
+Fri Apr 12 20:03:59 1996  Per Bothner  <bothner@spiff.gnu.ai.mit.edu>
+
+	* config.guess:  Combine two OSF1 rules.
+	Also recognize field test versions.  From mjr@zk3.dec.com.
+
+	* config.guess (dgux):  Use /usr/bin/uname rather than uname,
+	because GNU uname does not support -p.  From pmr@pajato.com.
+
+Mon Apr  8 16:16:20 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* config.guess (prep*:SunOS:5.*:*): Turn into
+	powerpele-unknown-solaris2.
+
+Thu Mar 28 02:06:03 1996  Roland McGrath  <roland@charlie-brown.gnu.ai.mit.edu>
+
+	* error.c (_): New macro, define iff undefined.
+	(private_strerror): Use it for message string.
+	(error_at_line): New function.
+	(error_one_per_line): New variable.
+	* error.h (error_at_line, error_one_per_line): Declare them.
+
+Thu Mar 21 14:42:26 1996  Doug Evans  <dje@cygnus.com>
+
+	* config.sub (os): sunos[3456] -> sunos[34],
+	sunos[56] have their own entries.
+
+Wed Mar 20 09:59:30 1996  Roland McGrath  <roland@charlie-brown.gnu.ai.mit.edu>
+
+	* signame.c [HAVE_STRING_H]: Include string.h.
+
+Tue Mar 19 20:07:39 1996  Roland McGrath  <roland@charlie-brown.gnu.ai.mit.edu>
+
+	* alloca.c (NULL): Define only if not already defined.
+
+	* alloca.c [HAVE_STRING_H]: Include string.h.
+	[HAVE_STDLIB_H]: Include stdlib.h.
+
+Thu Mar 14 19:12:52 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config.guess: Recognize mips-*-sysv*, with a specific case for
+	NEC (which has its own compiler and libraries).
+
+Sat Mar  9 23:52:33 1996  Jim Meyering  (meyering@na-net.ornl.gov)
+
+	* getdate.y (RelativeMonth): Add 1900 to the year so that relative
+	date specs that push the year through the end of the century work.
+	For example, `date -d "01/01/1998 3 years" +%Y' now prints 2001.
+	From Peter Dalgaard (pd@kubism.ku.dk).
+
+Tue Mar  5 18:43:43 1996  Richard Henderson  <rth@tamu.edu>
+
+	* config.sub: Add -apple and -aux.
+
+Tue Mar  5 03:02:53 1996  Erik Naggum  <erik@naggum.no>
+
+	* config.sub (moss): Fix previous change.
+
+Mon Mar  4 18:03:38 1996  Bryan Ford  (baford@cs.utah.edu)
+
+	* config.sub: Accept -moss* as op sys.
+
+Fri Mar  1 09:57:54 1996  Roland McGrath  <roland@charlie-brown.gnu.ai.mit.edu>
+
+	* config.sub: Recognize cpu-vendor [ctj]90-cray, default
+	c90-cray-unicos.  From tege.
+
+Wed Feb 28 19:55:05 1996  Miles Bader  <miles@gnu.ai.mit.edu>
+
+	* getopt.c (_getopt_internal): Always set OPTOPT to *something* if
+	returning '?', so it can be distinguished from an option.
+
+Thu Feb 22 15:51:09 1996  Karl Heuer  <kwzh@gnu.ai.mit.edu>
+
+	* getdate.y (Convert): Accept dates beyond 1999.
+
+Tue Feb 13 13:20:32 1996  Miles Bader  <miles@gnu.ai.mit.edu>
+
+	* getopt.c (_getopt_internal): Give FIRST_NONOPT & LAST_NONOPT
+	rational values if OPTIND has been moved back by the user.
+
+Mon Feb 12 18:23:35 1996  Doug Evans  <dje@cygnus.com>
+
+	* config.sub: Recognize sparclet cpu.
+	
+Sun Feb 11 18:40:11 1996  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* config.sub: Fix typo in previous change.
+
+Sat Feb 10 08:28:12 1996  Martin Anantharaman  <martin@goofy.imech.uni-duisburg.de>
+
+	* config.sub (-psos*): New case.
+	
+Thu Feb  8 15:37:52 1996  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* config.guess (UNAME_VERSION): Recognize X4.x as an OSF version.
+
+Sun Feb  4 16:51:11 1996  Steve Chamberlain  <sac@slash.cygnus.com>
+
+	* config.guess (*:CYGWIN*): New
+
+Mon Feb 12 15:33:59 1996  Christian Bauernfeind <chrisbfd@theorie3.physik.uni-erlangen.de>
+
+	* config.guess:  Support m68k-cbm-sysv4.
+
+Sat Feb 10 12:06:42 1996  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* config.guess (*:Linux:*:*): Guess m68k-unknown-linux and
+	m68k-unknown-linuxaout from linker help string.  Put quotes around
+	$ld_help_string.
+
+Wed Feb  7 15:31:09 1996  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* getopt.c [__GNU_LIBRARY__]: Include <unistd.h>.
+
+	* getopt.c (nonoption_flags, nonoption_flags_len): New variables.
+	(_getopt_initialize): If not POSIXLY_CORRECT, check for special
+	environment variable from Bash 2.0 and set those vars from it.
+	(_getopt_internal): Do not consider as options argv elts whose
+	nonoption_flags elt from the shell is '1'.
+
+Thu Feb  1 09:10:02 1996  Steve Chamberlain  <sac@slash.cygnus.com>
+
+	* config.sub (-cygwin32): New.
+	
+Wed Jan 31 14:13:25 1996  Richard Henderson  <rth@tamu.edu>
+
+	* config.sub: Add support for A/UX.
+	* config.guess: Recognize A/UX.
+
+Tue Jan 23 13:15:50 1996  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* obstack.h [__STDC__] (struct obstack, _obstack_begin,
+	_obstack_begin_1): Use prototypes in function decls.
+	* obstack.c (CALL_CHUNKFUN, CALL_FREEFUN): Cast function type for
+	call w/o extra_arg.
+
+	* error.c (error_print_progname) [__STDC__]: Declare with
+	prototype.
+	[_LIBC]: Include errno.h to declare program_invocation_name.
+
+	* getopt.c [__STDC__] (exchange, _getopt_initialize): Declare
+	prototypes for these.
+
+Mon Jan 22 08:53:45 1996  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* xmalloc.c [__STDC__] (fixup_null_alloc): Declare prototype.
+
+Sun Jan 21 01:08:09 1996  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* error.h: Declare error_print_progname.  Add comments.
+
+Wed Jan 17 17:39:51 1996  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* config.sub: Default OS to nextstep if machine vendor is Next.
+	-ns2 is an alias for -nextstep.
+
+Wed Jan 17 09:51:58 1996  Doug Evans  <dje@cygnus.com>
+
+	* config.sub: Recognize go32* as an os.
+
+Sun Jan  7 02:00:27 1996  Karl Heuer  <kwzh@gnu.ai.mit.edu>
+
+	* alloca.c (alloca): If malloc fails, just abort.
+
+Mon Jan 15 20:59:49 1996  J. Kean Johnston  <hug@netcom.com>
+
+	* config.sub (sco5): New case.
+	
+Tue Dec 19 15:56:15 1995  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* getloadavg.c (getloadavg) [MSDOS]: Return 0 load instead of
+	failing the call.
+
+Fri Dec 15 22:34:08 1995  Stan Coxs  <coxs@dg-rtp.dg.com>
+
+	* config.guess (AViiON): Add ix86-dg-dgux
+	* config.sub (i*86*) Change [345] to [3456]
+
+Thu Dec  7 09:03:24 1995  Tom Horsley  <Tom.Horsley@mail.hcsc.com>
+
+	* config.guess (powerpc-harris-powerunix): Add guess for port
+	to new target.
+
+Wed Dec  6 09:44:53 1995  Paul Eggert  <eggert@twinsun.com>
+
+	* install-sh (transformbasename): Fix misspelling in initialization.
+
+Wed Dec  6 06:58:23 1995  Richard Earnshaw (rearnsha@armltd.co.uk)
+
+	* config.sub: Recognize aof in the OS field.
+
+Tue Dec  5 18:36:41 1995  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* error.c [_LIBC]: Adapt for use in GNU libc.
+
+Mon Dec  4 13:21:51 1995  Jeffrey A. Law  <law@mole.gnu.ai.mit.edu>
+
+	* config.guess: Recognize HP model 816 machines as having
+	a PA1.1 processor.
+
+Thu Nov 30 16:57:33 1995  Per Bothner  <bothner@wombat.gnu.ai.mit.edu>
+
+	* config.guess:  Recognize Pentium under SCO.
+	From Robert Lipe <robertl@arnet.com>.
+
+Tue Nov 21 16:59:12 1995  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* getdate.y: If config.h defines FORCE_ALLOCA_H, include alloca.h.
+
+Mon Oct 16 11:34:00 1995  Jeffrey A. Law  <law@mole.gnu.ai.mit.edu>
+
+	* config.guess: Recognize HP model 819 machines as having
+	a PA 1.1 processor.
+
+Sat Sep 30 14:03:17 1995  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* getopt.c (_): New macro, define if not already defined.
+	(gettext): Never define as a macro.
+	(_getopt_internal): Use ``_("message")'' instead of
+	`gettext ("message")''.
+
+Mon Aug 14 19:27:56 1995  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* config.guess (*Linux*):  Add missing "exit"s.
+	Also, need specific check for alpha-unknown-linux (uses COFF).
+
+Fri Jul 28 00:16:31 1995  Jeffrey A. Law  <law@rtl.cygnus.com>
+
+	* config.guess: Recognize lynx-2.3.
+
+Thu Jul 27 13:31:05 1995  Fred Fish  (fnf@cygnus.com)
+
+	* config.guess (*:Linux:*:*): First try asking the linker what the
+	default object file format is (elf, aout, or coff).  Then if this
+	fails, try previous methods.
+
+Mon Aug  7 16:48:13 1995  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* getloadavg.c [ps2]: Use nlist instead of knlist #ifdef _AIX.
+
+Fri Aug  4 10:27:54 1995  Jim Meyering  (meyering@comco.com)
+
+	* getopt.c (_getopt_internal) [lint]: Initialize INDFOUND to
+	avoid warning from gcc.
+
+Tue Aug  1 14:29:43 1995  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* getloadavg.c (getloadavg): Set FD_CLOEXEC flag on /dev/kmem file
+	descriptor.
+
+Wed Jul 26 00:26:34 1995  David J. MacKenzie  <djm@geech.gnu.ai.mit.edu>
+
+	* mkinstalldirs: Remove weird unnecessary shell construction.
+
+Wed Jun 28 17:57:27 1995  David Edelsohn  <edelsohn@mhpcc.edu>
+
+	* config.guess (AIX4): More robust release numbering discovery.
+
+Thu Jun 22 19:01:24 1995  Kenneth Stailey  (kstailey@eagle.dol-esa.gov)
+
+	* config.guess (i386-sequent-ptx): Properly get version number.
+
+Thu Jun 22 18:36:42 1995  Uwe Seimet  (seimet@iris1.chemie.uni-kl.de)
+
+	* config.guess (mips:*:4*:UMIPS): New case.
+
+Tue Jun 20 02:41:41 1995  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* getloadavg.c [convex] (LOAD_AVE_TYPE, LDAV_CVT): Define to
+	double, no conversion.
+
+	* obstack.c (OBSTACK_INTERFACE_VERSION): New macro.  Rewrote
+	conditionals to use that macro to ensure that the installed GNU
+	libc supports the interface the obstack.h corresponding to this
+	obstack.c needs, and only then elide the code in this file.
+
+Sun May 28 18:53:29 1995  Richard Kenner  (kenner@vlsi1.ultra.nyu.edu)
+
+	* config.guess (21064:Windows_NT:50:3): New case.
+
+Fri May 19 16:52:50 1995  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* error.c (error_message_count): New variable.
+	(error): Increment it.
+	* error.h: Declare error_message_count.
+
+Mon May 15 17:47:55 1995  Per Bothner  (bothner@spiff.gnu.ai.mit.edu)
+
+	* config.guess:  Recognize Cray90 (from Pete TerMaat).
+
+Thu May 11 17:13:14 1995  Per Bothner  (bothner@wombat.gnu.ai.mit.edu)
+
+	* config.guess:  Recognize PCs running Solaris2.
+	(Patch from Bruno Haible <haible@ma2s2.mathematik.uni-karlsruhe.de>.)
+	* config.guess:  Merge two CRAY*Y-MP entries.
+	Ignore system field for Cray xmp and cray2 since "uname -s" on
+	a Cray gets you the hostname, which is useless.
+	(According to Pete TerMaat <pete@guava.cray.com>.)
+
+Wed May 10 11:03:56 1995  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* getloadavg.c: AIX support from Tim Bell <tbel@afsmail.cern.ch>:
+	[_AIX] (LOAD_AVE_TYPE, FSCALE, NLIST_STRUCT): Define these for AIX.
+	(getloadavg) [_AIX]: Use `knlist' instead of `nlist'.
+
+Fri May  5 05:50:56 1995  Allen Briggs  (briggs@puma.bevd.blacksburg.va.us)
+
+	* config.guess: Add more NetBSD cases: atari, sun3*, and mac68k.
+
+Wed May  3 16:22:31 1995  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* crt0.c: Add APOLLO alternative.
+
+Sat Apr 29 15:48:03 1995  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* signame.c: Move include of config.h before all others.
+
+Thu Apr 27 11:33:29 1995  Michael Meissner  (meissner@cygnus.com)
+
+	* config.guess (*:Linux:*:*): Check for whether the pre-BFD linker is
+	installed, and if so return linuxoldld as the system name.
+
+Thu Apr 27 13:11:11 1995  Jim Meyering  (meyering@comco.com)
+
+	* error.h: Use __-protected versions of `format' and `printf'
+	attributes only with gcc-2.7 and later.
+
+Thu Apr 27 09:22:33 1995  Peder Chr. Norgaard <pcn@tbit.dk>
+
+	* config.guess (i[34]86:*:3.2:*) test for /usr/options/cb.name
+	before calling uname.
+
+Wed Apr 26 17:19:34 1995  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* signame.c [HAVE_UNISTD_H]: Include unistd.h so it can declare
+	sys_siglist.
+
+Wed Apr 26 14:00:00 1995  Michael Meissner  (meissner@cygnus.com)
+
+	* config.guess (*:Linux:*:*): Determine whether the default compiler is
+	a.out or ELF based.
+	(parisc*:Lites*:*:*): New entry from Jeff Law.
+
+Wed Apr 26 11:48:21 1995  Jim Meyering  (meyering@comco.com)
+
+	* error.h: New file.
+
+Wed Apr 26 10:27:50 1995  Travis L Priest  (T.L.Priest@larc.nasa.gov)
+
+	* config.guess (CRAY*Y-MP:*:*:*): New entry.
+
+Wed Apr 26 12:54:26 1995  Jeffrey A. Law  <law@snake.cs.utah.edu>
+
+	* config.guess: Add hppa1.1-hp-lites support.
+
+Thu Apr  6 19:55:54 1995  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* crt0.c [__bsdi__]: Maybe declare __progname.
+
+Fri Mar 24 00:52:31 1995  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* getopt.c (_getopt_internal): When optind is zero, bump it to 1
+	after initializing; we don't want to scan ARGV[0], which is the
+	program name.
+
+Tue Mar 21 16:44:37 1995  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* signame.c (signame_init): Define SIGINFO.
+
+Tue Mar  7 01:41:09 1995  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* signame.c (strsignal): Cast sys_siglist elt to char *.
+
+Thu Feb 23 18:42:16 1995  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* signame.h [! __STDC__]: Don't use prototype for strsignal decl.
+
+Wed Feb 22 19:08:43 1995  Niklas Hallqvist  (niklas@appli.se)
+
+	* config.guess: Recognize NetBSD/Amiga as m68k-cbm-netbsd.
+
+Tue Feb 21 22:13:19 1995  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* signame.h (strsignal): Declare it.
+	* signame.c [! HAVE_STRSIGNAL] (strsignal): New function.
+
+Wed Feb  8 10:03:36 1995  David J. MacKenzie  <djm@geech.gnu.ai.mit.edu>
+
+	* install-sh config.guess mkinstalldirs: Add a blank in the #!
+	line for 4.2BSD, Dynix, etc.
+
+Sat Feb  4 12:59:59 1995  Jim Wilson  <wilson@cygnus.com>
+
+	* config.guess (IRIX): Sed - to _.
+
+Sat Jan 28 20:09:49 1995  Daniel Hagerty  <hag@duality.gnu.ai.mit.edu>
+
+	* error.c: Under older versions of SCO, strerror is a preprocessor
+	macro. Added a check for this.
+
+Fri Jan 27 09:55:28 1995  Jim Meyering  (meyering@comco.com)
+
+	* getdate.y: Remove obsolete comments.  Rewrite others.
+
+Mon Jan 23 19:41:57 1995  Karl Heuer  <kwzh@hal.gnu.ai.mit.edu>
+
+	* config.guess (i[34]86:*:3.2:*): Test for ISC before SCO; newer
+	ISC releases have uname -X.
+
+Tue Jan 10 09:26:41 1995  Jim Meyering  (meyering@comco.com)
+
+	* getdate.y (ToSeconds): Interpret 12am as 00:00 and 12pm as 12:00.
+	Before, `date -d 'Jan 1 12am'' printed `...12:00:00...'.
+	From Takeshi Sone <ts1@tsn.or.jp>.
+
+Sat Jan  7 11:57:40 1995  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* getloadavg.c: Include config.h first.
+
+Wed Jan  4 15:52:17 1995  Per Bothner  (bothner@spiff.gnu.ai.mit.edu)
+
+	* config.guess:  Recognize BSD/OS as bsdi.
+	Patch from Chris Torek <torek@BSDI.COM>.
+
+Wed Dec 21 15:51:08 1994  Warner Losh  (imp@boulder.openware.com)
+
+	* config.guess (sun4:SunOS:*:*): Handle Solbourne OS/MP systems.
+
+Tue Dec  6 02:29:42 1994  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* config.guess (dummy.c) [sony]: Include <sys/param.h> and emit
+	newsos4 #ifdef NEWSOS4.
+
+Tue Nov 29 17:01:29 1994  Mark Dapoz  (md@bsc.no)
+
+	* config.guess (ibmrt): Add more cases for various forms of BSD.
+
+Tue Nov 29 16:19:54 1994  Paul Eggert  <eggert@twinsun.com>
+
+	* getopt.c (_getopt_internal): Add gettext wrappers around
+	message strings.
+
+	* xmalloc.c (fixup_null_alloc): Add gettext wrapper.
+	Capitalize initial letter of error message, for consistency
+	with regex.c.
+
+Fri Nov 25 19:22:24 1994  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* crt0.c (start1): Add self reference.
+
+Wed Nov 23 16:51:11 1994  R. Bernstein  (rocky@panix.com)
+
+	* config.guess: Add cases for romp-ibm-aix and romp-ibm-bsd.
+
+Mon Nov 14 19:03:29 1994  Per Bothner  (bothner@spiff.gnu.ai.mit.edu)
+
+	* config.guess:  Support paragon as i860-intel-osf1.  (From RMS.)
+
+Fri Nov 11 14:04:58 1994  Andreas Luik  (luik@isa.de)
+
+	* obstack.h: Add one missing test on value of __STDC__.
+
+Sat Nov 05 08:08:52 1994  Jim Meyering  (meyering@comco.com)
+
+	* obstack.h: NextStep 2.0 cc is really gcc 1.93 but it defines
+	__GNUC__ = 2 and does not implement __extension__.  So add
+	`|| (__NeXT__ && !__GNUC_MINOR__)' to the test for whether to
+	define-away __extension__.  Reported by Kaveh Ghazi.
+
+Thu Nov 03 14:36:58 1994  Jim Meyering  (meyering@comco.com)
+
+	* filemode.c (rwx): Use S_IRUSR, S_IWUSR, S_IXUSR instead of
+	obsolete S_IREAD, S_IWRITE, S_IEXEC.
+	Make sure the former three are defined.
+
+Tue Nov  1 14:24:39 1994  Per Bothner  (bothner@spiff.gnu.ai.mit.edu)
+
+	* config.guess (*-unknown-freebsd):  Remove [-(] from
+	UNAME_RELEASE.  Patch from Warner Losh <imp@village.org>.
+
+Mon Oct 31 07:02:15 1994  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* getopt.h: Change #if __STDC__ to #if defined (__STDC__) &&
+	__STDC__.
+	* getopt.c: Change #ifndef __STDC__ to #if !defined (__STDC__) ||
+	!__STDC__.
+	* getopt1.c: Likewise.
+	* obstack.c: Change #ifdef __STDC__ to #if defined (__STDC__) &&
+	__STDC__.
+	* obstack.h: Likewise.
+
+Wed Oct 26 20:34:59 1994  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* getloadavg.c [alliant && i860] (FSCALE): Move defn before
+	#ifndef FSCALE.
+
+Tue Oct 25 19:10:41 1994  Paul Eggert  <eggert@twinsun.com>
+
+	* xmalloc.c (fixup_null_alloc): New function.
+	(xmalloc, xrealloc): Use it to fix up returned NULL values,
+	instead of preemptively adjusting a zero N to 1.
+
+Tue Oct 25 11:22:30 1994  David J. MacKenzie  <djm@duality.gnu.ai.mit.edu>
+
+	* xmalloc.c (xmalloc, xrealloc): If 0 bytes requested, pretend
+	it's 1, for diff.
+
+Thu Oct 20 18:47:53 1994  Per Bothner  (bothner@wombat.gnu.ai.mit.edu)
+
+	* config.guess:  Better support for NCR - covers more machines,
+	and prints sysv4.3 if uname says the OS is 4.3.
+	Patch from Tom McConnell <tmcconne@sedona.intel.com>.
+
+Wed Oct 19 15:55:38 1994  David J. MacKenzie  <djm@duality.gnu.ai.mit.edu>
+
+	* config.guess: Add licensing exception for Autoconf.
+
+Tue Oct 18 19:26:31 1994  David Edelsohn  (edelsohn@npac.syr.edu)
+
+	* config.guess: Revise support for AIX 4.1 on POWER and PowerPC.
+
+Mon Oct 17 19:16:38 1994  David Edelsohn  <edelsohn@npac.syr.edu>
+
+	* config.guess: Add support for AIX 4.1 and architecture.
+
+Wed Oct 12 16:51:35 1994  David J. MacKenzie  (djm@duality.gnu.ai.mit.edu)
+
+	* error.c: Add hook for alternate name printing function.
+	From Franc,ois Pinard.
+	Use varargs for _doprnt too.
+
+	* xmalloc.c: Add hook for alternate exit status.
+	From Franc,ois Pinard.
+
+Mon Oct 10 17:35:19 1994  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* getpagesize.h: If NBPC is not defined, try PAGESIZE.
+
+Fri Oct 07 18:53:28 1994  Jim Meyering  (meyering@comco.com)
+
+	* filemode.c: Remove #if 0'd block around mode_t definition.
+	From Andreas Luik (luik@marx.isa.de).
+
+Thu Oct 06 21:15:16 1994  Jim Meyering  (meyering@comco.com)
+
+	* pathmax.h: Fix typo: HAVE_SYS_PATH_MAX_H -> HAVE_SYS_PARAM_H.
+	From Andreas Schwab (schwab@issan.informatik.uni-dortmund.de).
+
+Thu Oct  6 18:02:32 1994  Per Bothner  (bothner@wombat.gnu.ai.mit.edu)
+
+	* config.guess:  Patch from Chris Smith <csmith@mozart.convex.com>
+	to handle old Convex systems without uname.
+
+Tue Oct  4 03:02:39 1994  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* getdate.y (main): Use MAX_BUFF_LEN consistently.
+	Clear the last element of buf.
+
+Mon Oct  3 01:48:48 1994  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* config.guess: Recognize GNU.
+
+Thu Sep 29 18:47:34 1994  Jerry Frain  (jerry@sneffels.tivoli.com)
+
+	* config.guess (i[34]86:UNIX_SV:4.*:*): Remove "UNIX_SV" for
+	Unixware; move DYNIX above this one now that this is wildcard.
+
+Wed Sep 28 17:00:12 1994  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* getloadavg.c [alliant && i860] (LOAD_AVE_TYPE, FSCALE,
+	NLIST_STRUCT): Define.
+
+Mon Sep 26 17:53:05 1994  David J. MacKenzie  (djm@churchy.gnu.ai.mit.edu)
+
+	* alloca.c error.c filemode.c getopt.c getopt1.c getdate.y
+	getloadavg.c getugroups.c getusershell.c signame.c:
+	Remove CONFIG_BROKETS ifdef.  No one should use "config.h".
+
+Sat Sep 24 21:20:12 1994  Jim Meyering  (meyering@comco.com)
+
+	* getdate.y [struct _TABLE]: Add `const' to NAME member dcl.
+
+Fri Sep 23 02:39:55 1994  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* crt0.c [__FreeBSD__] (__progname): Declared.
+
+Tue Sep 20 23:27:02 1994  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* getdate.y: Whitespace reformatted.
+	(MAX_BUFF_LEN): New macro.
+	(main): Use fgets, not gets.  Use MAX_BUFF_LEN to declare buff.
+
+Mon Sep 19 18:25:40 1994  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* config.guess (HP-UX):  Patch from Harlan Stenn
+	<harlan@landmark.com> to also emit release level.
+
+Wed Sep  7 13:15:25 1994  Jim Wilson  (wilson@sphagnum.cygnus.com)
+
+	* config.guess (sun4*:SunOS:*:*): Change '-JL' to '_JL'.
+
+Fri Sep 16 20:16:36 1994  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* getloadavg.c (getloadavg): Add OSF_ALPHA support.
+
+Fri Sep 16 18:34:22 1994  Paul Eggert  <eggert@twinsun.com>
+
+	* getdate.y (difftm): Don't store a long value into an int variable.
+
+Thu Sep 08 00:26:29 1994  Jim Meyering  (meyering@comco.com)
+
+	* getdate.y: Accept `MESZ' timezone.
+
+Sun Aug 28 18:13:45 1994  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* config.guess (*-unknown-freebsd*):  Get rid of possible
+	trailing "(Release)" in version string.
+	Patch from Paul Richards <paul@isl.cf.ac.uk>.
+
+Sat Aug 27 15:00:49 1994  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* config.guess:  Fix i486-ncr-sysv43 -> i486-ncr-sysv4.3.
+	Fix type: *-next-neststep -> *-next-nextstep.
+
+Sat Jun  4 17:23:54 1994  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* configure.in:  Use mh-ncrsvr43.  Patch from
+	Tom McConnell <tmcconne@sedona.intel.com>.
+
+Sat Aug 27 17:21:04 1994  Jim Meyering  (meyering@comco.com)
+
+	* filemode.c [STAT_MACRO_BROKEN]: Remove spurious #ifdef's.
+
+Fri Aug 26 19:17:22 1994  Per Bothner  (bothner@spiff.gnu.ai.mit.edu)
+
+	* config.guess (netbsd, freebsd, linux):  Accept any machine,
+	not just i[34]86.
+
+Fri Aug 26 18:45:25 1994  Philippe De Muyter (phdm@info.ucl.ac.be)
+
+	* config.guess: Recognize powerpc-ibm-aix3.2.5.
+
+Fri Aug 26 15:12:50 1994  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* config.guess:  Merges from Cygnus version.
+	(alpha-dec-osf*):  More general.
+	(*-hp-hpux*):  Combine cases.
+	(*-next-ns[23]):  Rename to *-next-neststep[23].
+	Make code fragment shorter.
+	(config.guess, i386-unknown-bsd):  Don't recognize __bsdi__ here;
+	it is handled using uname.
+
+	Sat Jul 16 12:03:08 1994  Stan Shebs  (shebs@andros.cygnus.com)
+
+	* config.guess: Recognize m88k-harris-csux7.
+
+	Tue Jun 28 13:43:25 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* config.guess: Recognize Mach.
+
+	Wed Apr  6 20:44:56 1994  Peter Schauer  (pes@regent.e-technik.tu-muenchen.de)
+
+	* config.guess:  Add SINIX support.
+
+	Sun Mar  6 23:13:38 1994  Hisashi MINAMINO  (minamino@sra.co.jp)
+
+	* config.guess: about target *-hitachi-hiuxwe2, fixed
+	machine guessing order.  [Hitachi's CPU_IS_HP_MC68K
+	macro is incorrect.]
+
+	Thu Feb 24 07:09:04 1994  Jeffrey A. Law  (law@snake.cs.utah.edu)
+
+	* config.guess: Handle OSF1 running on HPPA processors
+
+	Fri Feb 11 15:33:33 1994  Stu Grossman  (grossman at cygnus.com)
+
+	* config.guess:  Add Lynx/rs6000 config support.
+
+Thu Aug 25 20:28:51 1994  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* config.guess (Pyramid*:OSx*:*:*): New case.
+	(PATH): Add /.attbin at end for finding uname.
+	(dummy.c): Handle i860-alliant-bsd.  Follow whitespace conventions.
+
+Wed Aug 17 18:21:02 1994  Tor Egge  (tegge@pvv.unit.no)
+
+	* config.guess (M88*:DolphinOS:*:*): New case.
+
+Thu Aug 11 17:00:13 1994  Stan Cox  (coxs@dg-rtp.dg.com)
+
+	* config.guess (AViiON:dgux:*:*): Use TARGET_BINARY_INTERFACE
+	to select whether to use ELF or COFF.
+
+Thu Jul 28 19:16:24 1994  Uwe Seimet  (seimet@chemie.uni-kl.de)
+
+	* config.guess: Recognize m68k-atari-sysv4.
+
+Sun Jul 24 16:20:53 1994  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* config.guess: Recognize i860-stardent-sysv and i860-unknown-sysv.
+
+Sat Jul 23 02:15:01 1994  Karl Heuer  (karl@hal.gnu.ai.mit.edu)
+
+	* config.guess (isc): Distinguish isc from generic sysv32.
+
+Mon Jul 11 23:55:13 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getopt.c (posixly_correct): New variable.
+	(_getopt_initialize): Set posixly_correct from envvar.
+	(_getopt_internal): Don't use "illegal" in error message
+	unless posixly_correct.
+
+Sun Jul 03 08:46:58 1994  Jim Meyering  (meyering@comco.com)
+
+	* pathmax.h: Add HAVE_SYS_PARAM_H to and remove !MS_DOS from
+	preprocessor conditional guarding inclusion of sys/param.h.
+
+Mon Jun 20 23:45:34 1994  Jim Meyering  (meyering@comco.com)
+
+	* modechange.c (mode_compile) [lint]: Initialize CHANGE to suppress
+	used uninitialized compiler warning.
+
+Wed Jun 15 19:07:49 1994  Richard Kenner  (kenner@vlsi1.ultra.nyu.edu)
+
+	* config.guess (alpha): Supoort OSF/1 V2.0 and later.
+
+Tue Jun 14 17:50:05 1994  Richard Kenner  (kenner@vlsi1.ultra.nyu.edu)
+
+	* obstack.h (obstack_grow{,0}): Cast WHERE to char * before
+	passing to bcopy.
+
+Mon Jun  6 04:59:28 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* config.guess: Add support for bsdi.
+
+Sat Jun  4 01:24:59 1994  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* getloadavg.c: Put #include of errno.h and decl of errno before
+	#ifndef HAVE_GETLOADAVG.
+
+Thu Jun  2 13:42:39 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* alloca.c [emacs]: Block input around the garbage reclamation.
+	Include blockinput.h.
+
+Tue May 10 16:53:55 1994  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* config.guess: Add trap cmd to remove dummy.c and dummy when
+	interrupted.
+
+Sun May  1 10:23:10 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* config.guess: Guess the OS version for HPUX.
+
+Wed Apr 27 15:14:26 1994  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* install.sh: If $dstdir exists, don't check whether each
+	component does.
+
+Mon Apr 25 14:39:06 1994  Poul-Henning Kamp (phk@login.dkuug.dk)
+
+	* config.guess: Recognize FreeBSD.
+
+Sun Apr 24 17:56:58 1994  Jim Meyering  (meyering@comco.com)
+
+	* getdate.y (difftm, get_date): Revert my April 18 changes.
+	Paul Eggert pointed out that that hack probably wouldn't work
+	for places like Chile that had DST in effect on 31 Dec 1970.
+	* (get_date): Instead, add 60 minutes to timezone if DST is in
+	effect locally.  From andy@eng.kvaerner.no (Andrew Walker).
+	Remove static declaration of `RCS.'
+
+Fri Apr 22 22:15:28 1994  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* install.sh: Add -d, -t, -b options.  Make leading directories.
+	Don't partially install files.
+	From zoo@cygnus.com.
+
+Wed Apr 20 18:07:13 1994  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* config.guess (dummy.c): Redirect stderr for `hostinfo' command.
+	(dummy): Redirect stderr from compilation of dummy.c.
+
+Wed Apr 20 06:36:32 1994  Philippe De Muyter  (phdm@info.ucl.ac.be)
+
+	* config.guess: Recognize UnixWare 1.1 (UNAME_SYSTEM is SYSTEM_V
+	instead of UNIX_SV for UnixWare 1.0).
+
+Mon Apr 18 22:01:27 1994  Jim Meyering  (meyering@comco.com)
+
+	* getdate.y (difftm): Remove function.
+	(get_date): Get timezone *without DST bias* from localtime(&zero).
+	Modeled after the hack in localtime.pl from the perl distribution.
+	This fixes an error that had `date -d '4apr94'' producing
+	`Sun Apr  3 23:00:00 CDT 1994'.
+
+Fri Apr 15 22:46:59 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getdate.y: Delete special alloca code.
+
+Tue Apr 12 15:05:08 1994  Noah Friedman  (friedman@prep.ai.mit.edu)
+
+	* config.guess: Merge rms' new entry for i486-ncr-sysv4 with the
+	previously existing one.
+
+Mon Apr 11 00:54:33 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getopt.c [not __GNU_LIBRARY__] [__GCC__] [not __STDC__]:
+	Declare strlen to return int.  Don't include stddef.h.
+
+	* config.guess: Add 3[34]??,3[34]??:*:4.0:* for i486-ncr-sysv4.
+
+Sat Apr  9 14:59:28 1994  Christian Kranz  (kranz@sent5.uni-duisburg.de)
+
+	* config.guess: Distinguish between NeXTStep 2.1 and 3.x.
+
+Fri Apr  1 00:38:17 1994  Jim Wilson  (wilson@mole.gnu.ai.mit.edu)
+
+	* obstack.h, getopt.c: Delete use of IN_GCC to control whether
+	stddef.h or gstddef.h is included.
+
+Fri Mar 25 23:01:17 1994  David J. MacKenzie  (djm@geech.gnu.ai.mit.edu)
+
+	* mkinstalldirs: Preserve leading slash in file names.
+	From Jim Meyering.
+
+Sun Mar 20 01:29:20 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* alloca.s [emacs]: Use <...> to include config.h.
+
+Tue Mar  1 21:53:03 1994  Karl Heuer  (kwzh@hal.gnu.ai.mit.edu)
+
+	* config.guess (UNAME_VERSION): Recognize aix3.2.4 and aix3.2.5.
+
+Thu Feb 24 14:54:23 1994  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* getopt.c: Remove #ifdef GETOPT_COMPAT and #if 0 code.
+	(_getopt_initialize): New function, broken out of _getopt_internal.
+	(_getopt_internal):
+	If long_only and the ARGV-element has the form "-f", where f is
+	a valid short option, don't consider it an abbreviated form of
+	a long option that starts with f.  Otherwise there would be no
+	way to give the -f short option.
+
+Thu Feb 10 14:44:16 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getopt.c [not __GNU_LIBRARY__] [__GNUC__] [not IN_GCC]:
+	Test just __STDC__, not emacs.
+
+Wed Feb  9 17:46:31 1994  Karl Heuer  (kwzh@mole.gnu.ai.mit.edu)
+
+	* getdate.y (difftm): Simplify return expression.
+
+Wed Feb  9 00:14:00 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getopt.c [not __GNU_LIBRARY__] [__GNUC__] [not IN_GCC]
+	[emacs] [not __STDC__]: Don't include stddef.h.  Don't declare strlen.
+
+Tue Feb  8 14:14:31 1994  David J. MacKenzie  (djm at douglas.gnu.ai.mit.edu)
+
+	Handle obstack_chunk_alloc returning NULL.  This allows
+	obstacks to be used by libraries, without forcing them
+	to call exit or longjmp.
+	* obstack.c (_obstack_begin, _obstack_begin_1, _obstack_newchunk):
+	If CALL_CHUNKFUN returns NULL, set alloc_failed, else clear it.
+	(_obstack_begin, _obstack_begin_1): Return 1 if successful, 0 if not.
+	* obstack.h (struct obstack): Add alloc_failed flag.
+	_obstack_begin, _obstack_begin_1): Declare to return int, not void.
+	(obstack_finish): If alloc_failed, return NULL.
+	(obstack_base, obstack_next_free, objstack_object_size):
+	If alloc_failed, return 0.
+	(obstack_grow, obstack_grow0, obstack_1grow, obstack_ptr_grow,
+	obstack_int_grow, obstack_blank): If alloc_failed, do nothing that
+	could corrupt the obstack.
+	(obstack_chunkfun, obstack_freefun): New macros, used in GDB.
+
+Sun Jan 30 17:58:06 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* config.guess: Recognize vax hosts.
+
+Mon Jan 24 18:40:06 1994  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* config.guess:  Clean up NeXT support, to allow nextstep
+	on Intel machines.  Make OS be nextstep.
+
+Sun Jan 23 18:47:22 1994  Richard Kenner  (kenner@vlsi1.ultra.nyu.edu)
+
+	* config.guess: Add alternate forms for Convex.
+
+Thu Jan  6 14:00:23 1994  david d `zoo' zuhn  (zoo@cygnus.com)
+
+	* config.guess: add support for Tektronix 68k and 88k boxes;
+	better Apollo, Sony NEWS information
+
+Sun Dec 26 03:58:32 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* filemode.c (ftypelet): Don't use mode_t.  Take long arg.
+	(mode_t): Don't ever define it.
+	(mode_string): Cast ftypelet's arg to long.
+
+Fri Dec 24 19:43:00 1993  Noah Friedman  (friedman@nutrimat.gnu.ai.mit.edu)
+
+	* getopt.c (_NO_PROTO): Define before config.h is included.
+
+Wed Dec 22 17:01:19 1993  Jim Meyering  (meyering@comco.com)
+
+	* getdate.y (date): Parse dates like 17-JUN-1991.
+
+Tue Dec 07 14:52:39 1993  Jim Meyering  (meyering@comco.com)
+
+	Mon Dec  6 11:13:07 1993  Jason Merrill  (jason@deneb.cygnus.com)
+
+	* getdate.y (number): Change parsing of number > 10000 to
+	YYMMDD rather than YYHHmm.
+
+Sat Nov 20 17:47:50 1993  Noah Friedman  (friedman@gnu.ai.mit.edu)
+
+	* error.c (error): fflush stdout before writing to stderr.
+
+Tue Nov 09 10:05:48 1993  Jim Meyering  (meyering@comco.com)
+
+	* getdate.y (ToSeconds): Add a `default: abort ();' case.
+
+Thu Nov  4 12:59:19 1993  david d `zoo' zuhn  (zoo@rtl.cygnus.com)
+
+	* config.guess: add support for {i386,m68k,sparc} LynxOS; Hitachi
+	HPPA machines; Acorn Risc Machines; DG/UX; Motorola SVr3 on m88k
+
+Wed Nov  3 08:06:08 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c (getloadavg) [__NetBSD__]: Fix typo.
+
+Tue Nov 02 16:03:41 1993  Jim Meyering  (meyering@comco.com)
+
+	* getdate.y [!defined(USG) && defined(HAVE_FTIME)]: Don't test
+	these when deciding whether to include sys/timeb.h.  Test only
+	HAVE_SYS_TIMEB_H.
+
+Sat Oct 16 23:31:34 1993  Jim Meyering  (meyering@comco.com)
+
+	* getusershell.c (getusershell): Always return a string allocated
+	by malloc.
+
+Tue Oct 12 00:53:26 1993  Jim Meyering  (meyering@comco.com)
+
+	* getugroups.c [HAVE_CONFIG_H, CONFIG_BROKETS]: Include <config.h>
+	or "config.h".
+	* getusershell.c: Ditto.
+
+Thu Oct 07 19:08:00 1993  Jim Meyering  (meyering@comco.com)
+
+	* getdate.y [!__GNUC__ && !HAVE_ALLOCA_H]: Declare alloca as void*
+	rather than char*.  The latter conflicts with a dcl from bison.simple.
+
+Tue Oct 05 14:52:02 1993  Jim Meyering  (meyering@comco.com)
+
+	* error.c [CONFIG_BROKETS]: Include <config.h> only under
+	this condition, else "config.h".
+	* modechange.c: Likewise.
+
+	* filemode.c, modechange.c [STAT_MACROS_BROKEN]: Test this.
+
+Sun Oct  3 15:33:07 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c (getloadavg) [__NetBSD__]: New netbsd support using
+	/kern/loadavg.
+
+Mon Sep 20 15:59:03 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* alloca.c [emacs || CONFIG_BROKETS]: Include <config.h> only under
+	these, else "config.h".
+	* filemode.c: Likewise.
+	* signame.c, getloadavg.c, getopt.c, getopt1.c: Likewise.
+
+Wed Sep 15 00:03:40 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* config.guess: New version from Cygnus; has netbsd support.
+
+Mon Sep 13 19:25:24 1993  david d 'zoo' zuhn  (zoo@geech.gnu.ai.mit.edu)
+
+	* config.guess: add support for OSF/1 v1.3 and 4.4 and 4.3BSD
+	on hp300 machines
+
+Fri Sep 10 00:22:04 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* config.guess: Recognize netbsd on i[34]86 and hp300.
+
+	* alloca.c: Include <config.h> instead of "config.h".
+	* crt0.c: Likewise.
+	* filemode.c: Likewise.
+	* getdate.y: Likewise.
+
+Fri Aug 27 10:27:13 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* xmalloc.c: Include "config.h" if HAVE_CONFIG_H.  Use size_t,
+	not int, when needed.
+	(VOID): New macro.  Use it when needed.
+	(error): Declaration uses varargs if required.
+
+Fri Aug 27 09:59:26 1993  Paul Eggert  (eggert@wombat.gnu.ai.mit.edu)
+
+	* error.c: Include "config.h" if HAVE_CONFIG_H.
+
+Wed Aug 25 17:46:01 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* signame.c [! HAVE_SYS_SIGLIST] [! SYS_SIGLIST_DECLARED]: Declare
+	sys_siglist.
+
+Mon Aug 16 15:10:30 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* alloca.c: Reverse sense of GCC 2 #ifdef.
+
+Sat Aug 14 23:26:30 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* config.guess: Detect mips-mips-ricos...
+	Handle 9000/4??:HP-UX like 9000/3??:HP-UX.
+	Fix 9000/7??:4.3bsd...
+
+Thu Aug 12 16:18:12 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* getdate.y (get_date): To determine the time zone, compare localtime
+	to gmtime output, instead of trying to use buggy and unportable
+	OS timezone primitives.
+	(difftm): New function.
+	(HAVE_GETTIMEOFDAY): Remove.
+	(timezone): Undef it if defined (not if sgi).
+
+Thu Aug 12 18:16:49 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c, getopt.c, getopt1.c [HAVE_CONFIG_H]: Include
+	<config.h> instead of "config.h".
+
+Wed Aug 11 03:27:12 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* alloca.c: Do nothing if compiling with GCC version 2.
+
+Tue Aug 10 17:27:27 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* alloca.c: Always declare malloc, whether or not it is defined
+	as xmalloc.
+
+Sat Aug  7 16:55:06 1993  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* getopt1.c: Declare const the way getopt.c does.
+
+Mon Aug  2 16:48:14 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c [OSF_ALPHA]: #undef and redefine FSCALE.
+
+Sun Aug  1 16:39:00 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c [TEST] (main): If NAPTIME is zero, don't set it to 5.
+	Break out of loop at end if NAPTIME is zero.
+	[! HAVE_GETLOADAVG]: Protect all but [TEST] portion with this.
+
+Fri Jul 30 18:28:40 1993  David J. MacKenzie  (djm@wookumz.gnu.ai.mit.edu)
+
+	* getpagesize.h: Don't define HAVE_GETPAGESIZE; assume
+	configure has detected it.
+
+Thu Jul 29 23:20:52 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c [__linux__]: Test this instead of [LINUX].
+
+Mon Jul 26 13:36:55 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c (OSF_ALPHA): Test [__alpha] as well as [__alpha__].
+
+	* signame.h (psignal) [!HAVE_PSIGNAL]: Don't test [! HAVE_SYS_SIGLIST].
+	* signame.c (psignal) [!HAVE_PSIGNAL]: Test this instead of
+	[! HAVE_SYS_SIGLIST].
+
+	* getloadavg.c [sgi || sequent]: #undef FSCALE before defining it.
+
+Wed Jul 21 17:08:07 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* obstack.c [__STDC__]: Declare prototype for _obstack_allocated_p.
+
+Wed Jul 14 00:55:24 1993  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* config.guess: Add case for Bull dpx/2.
+
+Tue Jul 13 12:38:13 1993  Jim Meyering  (meyering@comco.com)
+
+	* alloca.c: Enable the Cray stack-segment unwinding code only
+	if configure defines CRAY_STACKSEG_END.  The C-90 doesn't need
+	(and can't use) any of the Cray-specific code.
+
+Mon Jul 12 18:13:16 1993  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* getloadavg.c (getloadavg) [NEXT]: It's ok if the user asks
+	for >1 numbers -- just return 1.
+
+Wed Jul  7 14:03:45 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getopt.c: Separate __STDC__ conditional from const conditional.
+
+Tue Jul  6 19:03:25 1993  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* getloadavg.c (getloadavg) [SUNOS_5]: Set `offset' from
+	kvm_nlist.  Don't do the nlist but do initialize the struct
+	nlist for use by kvm_nlist.
+
+Mon Jun 28 14:55:05 1993  David J. MacKenzie  (djm@wookumz.gnu.ai.mit.edu)
+
+	* pathmax.h: Use !__GNUC__ instead of USG to check for whether
+	to include limits.h on non-POSIX systems.
+
+Sat Jun 26 15:26:13 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getopt.c [not __GNU_LIBRARY__, but __GNUC__] (strlen):
+	Include stddef.h or gstddef.h, and declare strlen.
+
+Fri Jun 25 15:44:11 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getopt.c (exchange): Declare missing variables I.
+
+Tue Jun 22 00:03:11 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getopt.c (exchange): Use just one slot of temporary space.
+	(alloca, __alloca): All definitions deleted.
+	(my_bcopy): All definitions deleted.
+
+Wed Jun 16 17:09:47 1993  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* crt0.c: [hp9000s300, ! OLD_HP_ASSEMBLER] Add flag_68040 to
+	the list of flags already present.
+
+Thu Jun 10 16:28:34 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* config.guess: New version from Cygnus.
+
+Wed Jun  9 16:28:36 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c [! LOAD_AVE_TYPE]: Protect LOAD_AVE_TYPE definitions
+	with this.  Use "#if defined (ardent) && defined (titan)", instead
+	of the bogus "#ifdef ardent && titan".  Fix typo tex4300 -> tek4300.
+
+Wed Jun  9 05:19:56 1993  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* getopt.c: Remove "|| defined(__sgi)" from the conditions for
+	#including "alloca.h"; autoconf ought to be able to figure
+	this out accurately, and that change was supposedly made for
+	the sake of Emacs, which does use autoconf.
+
+	* getloadavg.c: Break up #if lines longer than 256 characters,
+	for VMS.
+
+Tue Jun  8 07:56:45 1993  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* config.guess: Add clause to the first big case statement to
+	detect Motorola Delta 68k, up to r3v7.
+
+Sun Jun  6 03:52:21 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* filemode.c: Include config.h if HAVE_CONFIG_H.
+	(mode_t): Define, if NO_MODE_T.
+
+Fri May 28 03:21:21 1993  Jim Blandy  (jimb@geech.gnu.ai.mit.edu)
+
+	* getopt.c: If __sgi is defined, #include <alloca.h> too.
+
+Mon May 24 20:43:38 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* alloca.c [!emacs]: Define malloc as xmalloc.  Declare xmalloc.
+
+Mon May 24 17:40:32 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c (getloadavg) [OSF_MIPS]: Don't define
+	LDAV_PRIVILEGED.  Cast LOAD_AVE.tl_lscale to double.
+
+Mon May 24 11:53:18 1993  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* alloca.c: Make this safe for Emacs.
+	[! emacs] Declare malloc.
+	(alloca): Call malloc, not xmalloc.
+
+Mon May 24 00:59:13 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getloadavg.c (getloadavg) [NO_GET_LOAD_AVG]: Just fail.
+
+Sun May 23 21:56:11 1993  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* getdate.y [__GNUC__] (alloca): #undef this before we give
+	our new definition.
+
+Sun May 23 13:53:12 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* alloca.c: Call xmalloc (once again).
+	[emacs]: Define xmalloc as malloc.
+	[!emacs]: Declare xmalloc.
+
+Sun May 23 05:47:31 1993  Noah Friedman  (friedman@nutrimat.gnu.ai.mit.edu)
+
+	* mkinstalldirs (errstatus): New variable.
+	Use inner `for' loop instead of `while test' on $#.
+
+Sat May 22 20:14:23 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* mkinstalldirs: Set IFS to % instead of / and use sed to translate
+	/s in the directory name into %s first.  Initialize PATHCOMP always
+	to empty.
+
+Fri May 21 19:32:43 1993  Jim Blandy  (jimb@geech.gnu.ai.mit.edu)
+
+	* alloca.c (free): Don't #define this to be xfree whenever
+	emacs is #defined.  That's only appropriate for some of the
+	files in Emacs which use alloca.
+	(xmalloc): Remove this declaration.  It's inappropriate.
+	(alloca): Call malloc, not xmalloc.
+
+Thu May 20 16:22:12 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c (getloadavg) [LINUX]: Close FD if read fails.
+	Check return value of sscanf.
+
+Wed May 19 21:16:24 1993  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* getloadavg.c (getloadavg): Add support for Linux, from
+	Michael K. Johnson.
+
+Wed May 19 13:47:02 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c [__osf__ && (mips || __mips__)]: Include
+	<sys/table.h> and #define OSF_MIPS.
+	(getloadavg) [OSF_MIPS]: Special code using `table'.
+
+Mon May 17 15:55:47 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c [butterfly]: Define NLIST_STRUCT; not LOAD_AVE_TYPE.
+
+Sun May 16 22:00:06 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* a.out.gnu.h [sequent && i386] (N_MAGIC, N_MACHTYPE, N_FLAGS,
+	N_SET_INFO, M_SET_MAGIC, N_SET_MACHTYPE, N_SET_FLAGS, [OZN]MAGIC,
+	N_BADMAG, N_ADDRADJ, N_DATOFF, N_TRELOFF, N_SYMOFF, N_TXTADDR,
+	N_COMM, N_FN, PAGE_SIZE, SEGMENT_SIZE): Define.
+
+Sat May 15 00:50:03 1993  Jim Meyering  (meyering@comco.com)
+
+	* getdate.y: Fix the time.h versus sys/time.h problem once and
+	for all.  Packages that use this file should use autoconf's
+	AC_TIME_WITH_SYS_TIME and AC_HAVE_HEADERS(sys/time.h) macros.
+
+Fri May 14 16:38:56 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c [butterfly] (LOAD_AVE_TYPE): Define as long.
+
+Thu May 13 01:49:31 1993  Jim Meyering  (meyering@comco.com)
+
+	* error.c: Move extern dcl of program_name out of error.
+
+Sun May  9 15:21:11 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c [HPUX && ! hpux]: Define hpux.
+
+Sat May  8 20:35:04 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getloadavg.c: Rename initialized to getloadavg_initialized.
+
+Sat May  8 13:32:15 1993  Jim Meyering  (meyering@comco.com)
+
+	* alloca.c: Indent and reformat comments.
+
+	* alloca.c (i00afunc): New functions for determining relative
+	stack frame ordering for Crays.  From Otto Tennant.
+
+Fri May  7 15:54:30 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c [NeXT]: Include <mach/mach.h> #ifdef
+	HAVE_MACH_MACH_H, else <mach.h>.
+
+Wed May  5 13:31:55 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c (LDAV_SYMBOL) [hpux && ! hp9000s300]: Use this
+	conditional, not just [hpux], to define as "avenrun".
+
+	* getloadavg.c [unix && m68k && mc68000 && mc68020 &&
+	_MACH_IND_SYS_TYPES]: Define tek4300.
+	[tek4300] (LOAD_AVE_TYPE): Define as long.
+	[tek4300] (FSCALE): Define as 100.0.
+
+Mon May  3 22:17:45 1993  Jim Meyering  (meyering@comco.com)
+
+	* getugroups.c: Don't define GETGROUPS_T.  Now configure does it.
+
+Mon May  3 17:12:41 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c (getloadavg) [VMS]: Don't define LDAV_DONE.
+
+	* getloadavg.c [ardent && titan]
+	(LOAD_AVE_TYPE): Define as long.
+	(FSCALE): Define as 65536.0.
+	(LDAV_SYMBOL): Define as "avenrun".
+
+Tue Apr 27 14:07:18 1993  Jim Blandy  (jimb@geech.gnu.ai.mit.edu)
+
+	* getdate.y: If HAVE_SYS_TIMEB_H is #defined, then include
+	<sys/timeb.h> instead of defining struct timeb ourselves.
+
+Thu Apr 22 17:23:42 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c (getloadavg) [!LDAV_DONE && LOAD_AVE_TYPE && !VMS]:
+	Don't #define LDAV_DONE here.
+	[!LDAV_DONE && LOAD_AVE_TYPE]: Define it here instead.
+
+Mon Apr 19 18:09:18 1993  Jim Meyering  (meyering@comco.com)
+
+	* getdate.y: Use TM_IN_SYS_TIME.
+
+Fri Apr 16 18:10:06 1993  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* getdate.y [emacs] (static): If the Emacs configuration files
+	have #defined static to be the empty string, then #undefine
+	it; this file doesn't need that hack.
+
+Fri Apr 16 12:13:37 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* obstack.c, getopt.c, getopt1.c: Surround code with
+	#if defined (_LIBC) || !defined (__GNU_LIBRARY__)
+
+Fri Apr 16 10:52:12 1993  Michael Meissner  (meissner@osf.org)
+
+	* getopt.h (getopt): Do not declare getopt with a prototype of
+	(void) for a non-ANSI compiler.  If not GNU library and a
+	standard compiler, do not declare a prototype for getopt, just
+	like the comments say, due to different libraries having
+	different signatures for getopt.
+
+Thu Apr 15 16:36:03 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c: Move #include <sys/types.h> to top and out of [USG].
+	[sgi, UMAX]: Don't include it again later.
+
+Wed Apr 14 13:06:50 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c: "#ifdef !define ..." -> "#if !defined ..."
+
+	* getopt.c (_NO_PROTO): Don't define if already defined.
+
+Tue Apr 13 14:56:33 1993  Jim Meyering  (meyering@comco.com)
+
+	* getdate.y [HAVE_MEMCPY && !HAVE_BCOPY]: Define bcopy in terms
+	of memcpy for old versions of bison that generate parsers that
+	use bcopy.
+
+Tue Apr 13 00:48:41 1993  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* getloadavg.c: Changes for Mach from Thorston Ohl
+	<ohl@chico.harvard.edu>:
+	#include <mach/mach.h>, instead of <mach.h>.
+	(getloadavg): Don't forget to test LDAV_DONE in the CPP
+	conditional protecting the last load average technique.
+
+Mon Apr 12 23:03:20 1993  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* getloadavg.c: Changes for VMS from Richard Levitte:
+	(LOAD_AVE_TYPE, NLIST_STRUCT): Collapse multi-line #if
+	directives into one line; VMS CPP can't handle that.
+	[VMS] (getloadavg): Add static `initialized' variable, and
+	set the dsc$w_length and dsc$a_pointer fields of descriptior
+	instead of the size and ptr fields.
+
+Mon Apr 12 13:55:34 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getopt.c (my_index): Rename arg STRING to STR.
+
+Sun Apr 11 17:37:19 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getopt.h: Declare optopt.
+
+	* getopt.c (my_index): First arg is `const char *'.
+	(my_bcopy): Likewise.
+
+Tue Apr  6 13:23:28 1993  Jim Meyering  (meyering@comco.com)
+
+	* getdate.y [hp9000 && !hpux]: Change erroneous #ifdef to #if.
+
+Mon Apr  5 17:28:35 1993  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* getdate.y: #include <sys/times.h> whenever HAVE_GETTIMEOFDAY
+	is #defined.  If it isn't defined, try to guess it.
+	(main): If HAVE_GETTIMEOFDAY is #defined, use it.
+
+Sun Apr  4 11:24:59 1993  Jim Meyering  (meyering@comco.com)
+
+	* getdate.y [sgi]: Undefine timezone before including <time.h>.
+
+	* getdate.y [time.h vs sys/time.h]: Fix boolean algebra typo from
+	Mar 31 consolidation.
+
+	* getdate.y: Move static dcls of yyerror and yylex to a point
+	following the definition of those symbols to getdate_{yyerror,yylex}.
+
+	* getdate.y [_AIX]: AIX needs time.h as well as sys/time.h.
+
+Fri Apr  2 13:30:03 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getopt.c: Define _NO_PROTO before including <stdio.h>.
+
+Wed Mar 31 18:38:05 1993  Jim Blandy  (jimb@geech.gnu.ai.mit.edu)
+
+	* getdate.y: Consolidate the expressions saying when to
+	#include <sys/time.h>, to avoid multiple inclusions.
+
+	* getdate.y (yylex, yyerror): Added forward static declarations.
+
+	* getdate.y: Note that David Mackenzie's change of March 16
+	1992 introduces another shift/reduce conflict.
+
+Wed Mar 31 17:30:29 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* alloca.c [emacs]: Define free as xfree.
+	(alloca): Use free, not xfree.
+
+Mon Mar 29 13:46:17 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* a.out.gnu.h [i386] (SEGMENT_SIZE): Don't use this defn on [sequent].
+	[sequent && i386]: #include "/usr/include/a.out.h" explicitly,
+	since in glibc this is installed as <a.out.h>.
+
+Mon Mar 15 17:34:53 1993  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* getopt.c (optopt): Initialize it.
+
+Sun Mar 14 16:39:57 1993  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* getpagesize.h: Add definition for VMS.
+
+Wed Mar 10 20:57:21 1993  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* getloadavg.c: If USG is defined, #include <sys/types.h>.
+	Move the test for HAVE_FCNTL_H and _POSIX_VERSION down after this.
+
+	* alloca.c: Use xfree instead of free.
+
+Wed Mar 10 15:22:56 1993  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* getloadavg.c [__osf__ && __alpha__] (OSF_ALPHA): Define this.
+	[OSF_ALPHA] (LOAD_AVE_TYPE): Define as long.
+	[OSF_ALPHA] (NLIST_STRUCT): Define this.
+
+Wed Feb 24 12:45:00 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c [NeXT]: #undef FSCALE to indicate that the nlist
+	method is not the desireable one.
+	(getloadavg) [NeXT]: Return with errno==EINVAL if called with NELEM>1,
+	since we can get only the one-minute load average on this system.
+
+Mon Feb 22 08:59:03 1993  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* getloadavg.c (LDAV_CVT): If LDAV_CVT has already been
+	defined above in terms of Emacs's LOAD_AVE_CVT, don't redefine
+	it just because we have FSCALE.
+
+Sun Feb 21 14:52:01 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getopt.c (optopt): New variable.
+	(_getopt_internal): On any failure for a single-letter option, set
+	`optopt' to the losing option character.
+	When a required arg is missing, return ':' instead of '?' if the
+	first char in OPTSTRING (possibly after the - or +) is a ':'.
+	Use 1003.2-standard formats for error messages (it specifies
+	precise formats for unrecognized option and for missing arg).
+
+	* signame.c: #include <sys/types.h> before <signal.h>.
+
+Thu Jan 28 17:10:08 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c (LOAD_AVE_TYPE) [sequent]: Define as long.
+	(FSCALE) [sequent]: Define as 1000.0, like sgi.
+	(LDAV_CVT) [FSCALE]: Move outside if #ifndef FSCALE.
+
+Fri Jan 22 14:51:36 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c (NLIST_STRUCT): Put defined(sony_news) inside the
+	parens so we don't redefine NLIST_STRUCT when it's already defined.
+
+	* signame.h [!__STDC__] (psignal): Surround decl with #ifndef
+	HAVE_SYS_SIGLIST || HAVE_PSIGNAL.
+	(sys_siglist): Surround decl with #ifndef HAVE_SYS_SIGLIST.
+
+Sun Jan 17 19:55:30 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getopt.c, getopt1.c: Do define const if IN_GCC.
+
+Thu Jan 14 15:35:33 1993  David J. MacKenzie  (djm@kropotkin.gnu.ai.mit.edu)
+
+	* getopt.c, getopt1.c: Don't redefine const; let callers do it.
+
+Wed Jan 13 15:38:40 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getopt.c [_AIX]: Put #pragma alloca before all else.
+
+Tue Jan 12 16:48:04 1993  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* getloadavg.c: Removed #ifdef TEST around #include of errno.h.
+
+Mon Jan 11 15:17:29 1993  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* getloadavg.c [ultrix]: Define BSD.
+
+	* signame.h [!HAVE_SYS_SIGLIST && !HAVE_PSIGNAL]: Put psignal decl
+	inside these #ifs.
+	[!HAVE_SYS_SIGLIST]: Put sys_siglist decl inside this #if.
+
+Fri Jan  8 17:36:41 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c [HAVE_CONFIG_H]: Test this only for actually
+	including "config.h".  Everything else that HAVE_CONFIG_H used to
+	turn off is now turned on always.
+	(KERNEL_FILE) [sequent, hpux], (LDAV_SYMBOL) [alliant]: Don't
+	define if already defined.
+	[!LDAV_DONE && LOAD_AVE_TYPE && !VMS]: Define LDAV_PRIVILEGED.
+
+	* getloadavg.c (getloadavg) [!LDAV_DONE]: Set errno to zero.
+
+Wed Jan  6 18:17:28 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* signame.c: #include "signame.h" after possibly defining `const',
+	so signame.h and signame.c consistently use it or don't use it.
+
+	* signame.h: Use "#if defined (__STDC__) && __STDC__", in place of
+	"#ifdef __STDC__".
+
+Sat Jan  2 18:32:01 1993  David J. MacKenzie  (djm@kropotkin.gnu.ai.mit.edu)
+
+	* getopt.c: Turn off GETOPT_COMPAT by default.
+
+Thu Dec 31 12:34:41 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* signame.c [HAVE_CONFIG_H]: #include "config.h".
+
+Tue Dec  8 21:10:29 1992  David J. MacKenzie  (djm@kropotkin.gnu.ai.mit.edu)
+
+	* getloadavg.c: Include fcntl.h if HAVE_FCNTL_H, not USG.
+
+	* getdate.y: Include alloca.h if HAVE_ALLOCA_H, not sparc.
+
+Tue Dec  1 13:27:40 1992  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* getopt.c, getopt1.c, getdate.y, alloca.c, getloadavg.c
+	[HAVE_CONFIG_H]: Include config.h.
+
+Tue Nov 24 09:42:29 1992  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* getugroups.c: Use HAVE_STRING_H, not USG.
+
+Mon Nov 23 14:36:33 1992  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* signame.c (init_sigs): Renamed to signame_init, made global.
+	(sig_abbrev, sig_number): Changed callers.
+	* signame.h (signame_init): Declare it.
+
+	* signame.c (init_sigs): Add SIGDANGER.
+
+Thu Nov 19 21:34:43 1992  Jim Blandy  (jimb@totoro.cs.oberlin.edu)
+
+	* getloadavg.c: #include <sys/param.h> whether or not the
+	"emacs" CPP symbol is defined.
+
+Mon Nov 16 13:35:30 1992  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* a.out.gnu.h (SEGMENT_SIZE): Define as PAGE_SIZE if undefined.
+	(PAGE_SIZE): Define as 16 if undefined; for i386-minix, which has
+	no predefine we can test.
+
+Thu Nov 12 23:31:53 1992  Jim Meyering  (meyering@hal.gnu.ai.mit.edu)
+
+	* getdate.y, getusershell.c: Give statically initialized arrays
+	const attribute.
+
+Sat Nov  7 13:50:27 1992  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* getopt1.c: Only include stdlib.h for __GNU_LIBRARY__.
+	[!__STDC__]: Don't define const if it was already defined.
+
+Sat Nov  7 03:28:08 1992  Jim Blandy  (jimb@apple-gunkies.gnu.ai.mit.edu)
+
+	* getdate.y [emacs]: Include <config.h>; under Emacs, we get
+	some additional configuration information from that.
+
+Sat Nov  7 00:53:35 1992  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* getopt.c [!__STDC__]: Don't define const if it was already defined.
+
+Tue Nov  3 20:12:01 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* getloadavg.c: Added `!defined (LDAV_DONE) &&' to all the #if's
+	for different system types.  We want to get one and only one of the
+	chunks of code which defines LDAV_DONE.
+
+Tue Oct 27 23:51:02 1992  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* getloadavg.c [sequent]: implies NLIST_STRUCT.
+	[SYSV || _POSIX_VERSION]: include fcntl.h, not sys/file.h.
+
+Mon Oct 26 22:43:25 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* install.sh: Move or copy first to temp file, then mv to real dest.
+
+Mon Oct 19 18:35:04 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* obstack.h (__need_ptrdiff_t): Don't define, if __NeXT__.
+
+Sat Oct 17 03:17:01 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getopt.c: Include string.h only with GNU library.
+
+Fri Oct 16 17:40:54 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* getopt.h (no_argument, required_argument, optional_argument):
+	Define as macros.
+	(enum _argtype): Removed.
+
+Fri Oct  2 18:18:35 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* signame.c (NSIG): #define if not #define'd.
+
+Thu Oct  1 23:33:55 1992  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* getpagesize.h: That should have been HAVE_UNISTD_H, Mike . . .
+	(no initial underscore).
+
+	* pathmax.h [__MSDOS__]: Don't include sys/param.h.
+
+Wed Sep 30 13:54:36 1992  Michael I Bushnell  (mib@geech.gnu.ai.mit.edu)
+
+	* getpagesize.h: Test for _HAVE_UNISTD_H, because
+	_POSIX_VERSION is defined by unistd.h, and thus can't be used
+	in deciding whether to include it.
+
+Tue Sep 29 07:36:29 1992  Noah Friedman  (friedman@nutrimat.gnu.ai.mit.edu)
+
+	* getloadavg.c: if symbol `sony_news' is defined, define
+	NLIST_STRUCT and declare LOAD_AVE_TYPE as long.
+
+Thu Sep 17 20:10:03 1992  Karl Berry  (karl@geech.gnu.ai.mit.edu)
+
+	* regex.[ch]: made links into ../regex/, per rms' suggestion.
+	Please put further ChangeLog entries there.
+
+Tue Sep 15 20:13:30 1992  Michael I Bushnell  (mib@geech.gnu.ai.mit.edu)
+
+	* getpagesize.h: Posix-ify.
+
+Mon Sep 14 23:48:55 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* getloadavg.c: Define SUNOS_5 if appropriate.
+
+Mon Sep 14 16:31:01 1992  Michael I Bushnell  (mib@geech.gnu.ai.mit.edu)
+
+	* getdate.y: AIX needs sys/time.h as well as time.h.
+
+Sun Sep 13 07:17:09 1992  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* getdate.y: Don't forget to include the file which defines
+	struct timeval and struct timezone, if we're using those.
+
+Fri Sep 11 10:42:24 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* getopt.h: Only prototype getopt for the GNU libc.
+
+Fri Sep 11 07:46:21 1992  Karl Berry  (karl@hal.gnu.ai.mit.edu)
+
+	* regex.h (_RE_ARGS) [!__STDC__]: expand to empty parens.
+
+Fri Sep 11 00:57:56 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* regex.c (SET_LIST_BIT): Always treat c as positive.
+
+Thu Sep 10 19:38:59 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* getugroups.c: Always declare getgrent.  getgroups fills in
+	an array of int on 386BSD, too.
+
+Thu Sep 10 16:35:10 1992  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* getdate.y: Generalize previous change; always use
+	gettimeofday to find the current time zone's Greenwich offset,
+	unless we're being compiled under USG or some other system
+	which already has CPP conditionals saying how to get the time
+	zone offset.
+
+	* getdate.y: Don't divide the Greenwich offset returned by
+	gettimeofday by 60; it's already expressed in minutes, so it
+	doesn't need to be converted.
+
+Wed Sep  9 21:49:20 1992  Karl Berry  (karl@apple-gunkies.gnu.ai.mit.edu)
+
+	* regex.[ch]: version 0.10, incorporating below changes and
+	more.  See /gd/gnu/lib/regex-*/ChangeLog.
+
+Wed Sep  9 03:09:55 1992  Noah Friedman  (friedman@nutrimat.gnu.ai.mit.edu)
+
+	* malloc.c: if USG, define macros for bcopy and bzero.
+	Don't redefine USG for hpux if already defined.
+
+Tue Sep  1 16:46:47 1992  Jim Blandy  (jimb@pogo.cs.oberlin.edu)
+
+	* getdate.y: If __ultrix__ is defined, then we don't have the
+	timezone array, but we do have ftime, so use that instead.
+
+Fri Aug 28 15:52:40 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* getloadavg.c [SUNOS_5]: New code from Epoch 4.2.
+
+Thu Aug 27 16:38:22 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* getloadavg.c: Don't check NLIST_STRUCT to decide whether to
+	define LOAD_AVE_TYPE.
+
+Wed Aug 26 16:45:54 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* getloadavg.c (FSCALE): Don't #define if already defined.
+
+Mon Aug 24 13:00:34 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* getopt.c: Include string.h if USG or STDC_HEADERS as well as
+	if __GNU_LIBRARY__.
+
+Sun Aug 23 02:51:31 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* regex.[ch] (re_comp): Remove const from return value, to
+	avoid conflict with 386BSD unistd.h.
+
+Sat Aug 22 18:30:58 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* getloadavg.c: Define FCALE, then LDAV_CVT in terms of that.
+
+Fri Aug 21 16:02:20 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* getloadavg.c (_SEQUENT_): Define NLIST_STRUCT.
+
+Wed Aug 19 16:35:33 1992  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c [NLIST_NAME_UNION]: Test this intead of convex.
+
+Tue Aug 18 23:06:47 1992  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* regex.c (DO_RANGE): Make end and this_char integers, and
+	fetch this_char's initial value using an 'unsigned char *', so that
+	character ranges including '\177' through '\377' will work.
+
+Tue Aug 18 17:32:40 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* getopt.c, getopt1.c, getopt.h: Change license back to GPL from LGPL.
+
+Fri Aug 14 07:38:34 1992  Torbjorn Granlund  (tege@jupiter.sics.se)
+
+	* obstack.h: Fix spelling errors.
+
+Sat Aug  1 18:12:07 1992  Michael Meissner  (meissner@osf.org)
+
+	* obstack.c (CALL_FREEFUN): Recode to use if/else instead of
+	?:, since the MIPS compiler does not like ?: expressions where
+	the two alternate values are both void.
+
+Sat Aug  1 00:11:25 1992  Fred Fish  (fnf at fishpond)
+
+	* obstack.h (obstack_specify_allocation):  Use malloc/free
+	compatible calling convention.
+	* obstack.h (obstack_specify_allocation_with_arg):  Use mmalloc/
+	mfree compatible calling convention.
+
+Wed Jul 29 18:53:13 1992  Karl Berry  (karl@hal)
+
+	* regex.c: version 0.9; fixes bug wrt always finding the longest
+	match.  See /gd/gnu/lib/regex-*/ChangeLog.
+
+Sun Jul 26 18:24:13 1992  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c [NeXT]: #undef BSD after <sys/param.h>.
+
+Sun Jul 26 17:04:20 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* obstack.h (struct obstack): extra_arg is now char *.
+	(obstack_alloc_arg): Deleted.
+	(obstack_specify_allocation): Take new arg, to specify extra_arg.
+	Call _obstack_begin_1.
+	* obstack.c (_obstack_begin_1): New function.
+
+Fri Jul 24 16:29:17 1992  Fred Fish  (fnf at fishpond)
+
+	* obstack.h (struct obstack):  Change maybe_empty_object to
+	bitfield.  Add use_extra_arg bitfield and extra_arg.
+	* obstack.h (obstack_init, obstack_begin):  Cast type of
+	obstack_chunk_free as well as obstack_chunk_alloc.
+	* obstack.h (obstack_specify_allocation, obstack_alloc_arg):
+	New macros.
+	* obstack.c (CALL_CHUNKFUN, CALL_FREEFUN):  New macros to hide
+	details of chunk allocator/deallocator calls.
+	* obstack.c (_obstack_begin, _obstack_newchunk): Use CALL_CHUNKFUN.
+	* obstack.c (_obstack_free, _obstack_newchunk): Use CALL_FREEFUN.
+
+Fri Jul 24 16:09:37 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* getugroups.c [_POSIX_SOURCE]: Define endgrent as empty.
+
+	* getloadavg.c [HAVE_UNISTD_H]: Include unistd.h.
+
+Sun Jul 19 23:29:27 1992  John Gilmore  (gnu@cygnus.com)
+
+	* stab.def: Order values numerically, and add some stabs
+	used by Solaris.
+
+Fri Jul 17 20:21:20 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* getopt.c: Only include stdlib.h for GNU C library, due to
+	conflicting getopt prototypes.
+
+Fri Jul 17 05:49:07 1992  Richard Kenner  (kenner@vlsi1.ultra.nyu.edu)
+
+	* obstack.c (DEFAULT_ALIGNMENT): Cast to widest integer type to
+	avoid possible warning if int is narrower than pointer.
+
+Fri Jul 17 03:47:16 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* getdate.y: Use HAVE_FTIME instead of FTIME_MISSING.
+	* signame.c: Use HAVE_SYS_SIGLIST instead of SYS_SIGLIST_MISSING.
+
+Tue Jul 14 18:53:46 1992  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getopt.c (exchange): Cast args to my_bcopy to (char *).
+
+Tue Jul 14 14:34:33 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* getopt.c: Include stdlib.h and string.h if STDC_HEADERS as
+	well as if __GNU_LIBRARY__.
+
+Sat Jul 11 13:24:12 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* obstack.h: Define __need_ptrdiff_t for gstddef.h.
+
+Fri Jul 10 15:01:25 1992  Karl Berry  (karl@hal)
+
+	* regex.[ch]: new version (0.8), incorporating the changes
+	below.  See /gd/gnu/regex/ChangeLog.
+
+Fri Jul 10 03:46:24 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* obstack.h: Get ptrdiff_t from gstddef.h when building GCC with GCC.
+
+Thu Jul  9 21:38:37 1992  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getloadavg.c [DGUX]: Cast first arg to dg_sys_info to (long int *).
+
+Wed Jul  8 19:43:26 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* error.c (private_strerror): Ok if errnum == sys_nerr.
+
+Wed Jul  8 12:38:37 1992  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* regex.c: Applied tentative patches from Karl Berry:
+	Miscellaneous doc fixes and reformatting.
+	(REGEX_REALLOCATE): Parenthesize call to realloc.
+	Test HAVE_ALLOCA_H, instead of testing for things like sparc,
+	etc.  Don't declare alloca under AIX, since that's done with
+	the pragma at the top of the file.
+	(IS_IN_FIRST_STRING): Renamed to FIRST_STRING_P.
+	(re_match_2): Uses of IS_IN_FIRST_STRING changed.
+	(TALLOC): Parenthesize call to malloc.
+	(REGEX_TALLOC): New macro.
+	(FREE_NONNULL): New macro.
+	(FREE_VARIABLES): Use FREE_NONNULL instead of always freeing.
+	(re_match_2): Don't use initializers in declarations of
+	regstart, regend, old_regstart, old_regend, reg_info,
+	best_regstart, best_regend, reg_dummy, and reg_info_dummy.
+	Initialize them only if we actually use the registers.
+	New variable match_end for use instead of best_regend[0], in
+	case we don't allocate the registers.  Don't fuss with
+	best_regend[0] directly.
+
+Sat Jul  4 07:53:45 1992  Karl Berry  (karl@hal)
+
+	* regex.c (re_compile_fastmap): init succeed_n_p (to false).
+
+Fri Jul  3 14:45:29 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* error.c: Change FOO_MISSING to HAVE_FOO.
+
+Thu Jul  2 15:47:20 1992  David J. MacKenzie  (djm@wookumz.gnu.ai.mit.edu)
+
+	* getloadavg.c: Tweak #defines for SVR4.
+	Include sys/param.h if unix, not if BSD.
+
+Wed Jul  1 11:48:37 1992  Karl Berry  (karl@hal)
+
+	* regex.[ch]: new version (0.7).  See /gd/gnu/regex/ChangeLog.
+
+Sun Jun 28 06:05:39 1992  Richard Kenner  (kenner@vlsi1.ultra.nyu.edu)
+
+	* obstack.h: Define a type for the result of __PTR_TO_INT.
+
+Sat Jun 27 10:50:59 1992  Jim Blandy  (jimb@pogo.cs.oberlin.edu)
+
+	* xregex.c (re_match_2): When we have accepted a match and
+	restored d from best_regend[0], we need to set dend
+	appropriately as well.  It may happen that dend == end_match_1
+	while the restored d is in string2, so we should be prepared
+	to set dend to end_match_2 in this case.
+
+Tue Jun 23 22:27:36 1992  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* getloadavg.c (getloadavg) [DGUX]: Don't initialize structure;
+	the error handling doesn't work that way now.
+
+Fri Jun 19 13:14:57 1992  David J. MacKenzie  (djm@wookumz.gnu.ai.mit.edu)
+
+	* install.sh: Use - instead of :- in variable assignments.
+
+Tue Jun 16 19:32:46 1992  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getopt.c [HAVE_ALLOCA_H]: Test to include <alloca.h>.
+
+Thu Jun 11 15:15:38 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* arscan.c: Removed.  It is now part of Make.
+
+Mon Jun  8 18:03:28 1992  Jim Blandy  (jimb@pogo.cs.oberlin.edu)
+
+	* regex.h (RE_NREGS): Doc fix.
+
+	* xregex.c (re_set_registers): New function.
+	* regex.h (re_set_registers): Declaration for new function.
+
+Wed Jun  3 16:59:49 1992  Karl Berry  (karl@geech.gnu.ai.mit.edu)
+
+	* regex.[ch]: new version (0.6).  See ~karl/regex/ChangeLog.
+
+Sat May 23 22:28:54 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* getopt.c [LIBC]: No longer need to #include <ansidecl.h>.
+
+	* getopt.h, getopt.c, getopt1.c: Changed copyright notice to LGPL.
+
+Fri May 22 14:50:25 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getopt.c: Change sparc conditional so that sun && sparc
+	causes use of alloca.h.
+
+Thu May 14 16:50:28 1992  Karl Berry  (karl@kropotkin.gnu.ai.mit.edu)
+
+	* regex.c, regex.h: new version (0.5).  See ~karl/regex/ChangeLog.
+
+Tue May 12 03:27:19 1992  David J. MacKenzie  (djm@churchy.gnu.ai.mit.edu)
+
+	* getopt.c (_getopt_internal): Don't allow it.
+
+Tue May 12 00:33:31 1992  Roland McGrath  (roland@albert.gnu.ai.mit.edu)
+
+	* getopt.c (_getopt_internal): Allow optional arg to be in ARGV elt
+	after switch.
+
+Thu May  7 11:46:18 1992  Jim Blandy  (jimb@pogo.cs.oberlin.edu)
+
+	* crt0.c (_start): When m68000 is #defined, don't use the
+	simple C version of _start that simply calls start1; GCC 2.1
+	without optimization has _start push a word of garbage on the
+	stack, which screws up the CRT0_DUMMIES hack.  Instead, use an
+	assembly-language version of _start.
+
+Mon May  4 16:26:49 1992  David J. MacKenzie  (djm@churchy.gnu.ai.mit.edu)
+
+	* getopt.h: #ifdef __STDC__ -> #if __STDC__.
+
+Thu Apr 30 18:53:52 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* a.out.gnu.h [NeXT]: Define PAGE_SIZE, and not SEGMENT_SIZE.
+
+Sun Apr 26 02:33:50 1992  Jim Blandy  (jimb@pogo.cs.oberlin.edu)
+
+	* crt0.c: Don't #include "config.h" unless emacs is #defined.
+
+Tue Apr 21 17:45:54 1992  Jim Blandy  (jimb@pogo.cs.oberlin.edu)
+
+	* regex.c (re_match_2): If we've already allocated memory for
+	the search buffers, don't allocate them again.
+
+Mon Apr 13 20:17:47 1992  David J. MacKenzie  (djm@wookumz.gnu.ai.mit.edu)
+
+	* getopt.h: Make the multiple inclusion protection look like
+	the rest of libc's.
+
+Wed Apr  1 06:10:15 1992  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* regex.c [emacs]: Include <sys/types.h>, since regex.h wants it.
+
+Tue Mar 31 12:01:32 1992  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* crt0.c: The changes below are the results of a merge with
+	the Emacs 19 sources:
+	(start1): Declare this static before all uses.
+	Add conditionals for ALLIANT_2800.
+
+	* (_start) for alliant: Set _curbrk and _minbrk from _setbrk,
+	to help with Emacs dumping.
+
+Mon Mar 30 18:00:41 1992  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* malloc.c [VMS]: Include vlimit.h.
+	(calloc): Add a quick implementation of this, in case
+	something from another library uses it.
+	(get_lim_data): There are several versions of this function,
+	tailored for different operating systems; the appropriate
+	version is chosen by checking for preprocessor symbols which
+	indicate which operating system Emacs is being compiled for.
+	Re-arrange the preprocessor conditionals so that the generic
+	"none of the above" version is last, in the final "else" clause.
+
+	* alloca.c: Do nothing if alloca is defined as a macro.
+
+Fri Mar 20 02:53:14 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* a.out.gnu.h: Added missing backslash in #if.
+
+Mon Mar 16 23:46:18 1992  David J. MacKenzie  (djm@apple-gunkies.gnu.ai.mit.edu)
+
+	* getdate.y: Support ISO 8601 format.  yyyy-mm-dd.
+
+Sun Mar 15 22:50:30 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* a.out.gnu.h [NeXT || mips] (SEGMENT_SIZE): Define as PAGE_SIZE.
+	[NeXT] (PAGE_SIZE): Define as 0x2000.
+	[mips] (PAGE_SIZE): Define as 4096.
+
+	* getopt.c [sparc && svr4]: No <alloca.h>.
+
+Thu Mar 12 14:26:48 1992  Karl Berry  (karl@apple-gunkies.gnu.ai.mit.edu)
+
+	* regex.[ch]: new version (0.4).  See ~karl/regex/ChangeLog.
+
+Tue Mar 10 22:26:14 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* a.out.gnu.h [sun && mc68000]: SEGMENT_SIZE == 0x2000.
+
+Thu Feb 27 21:37:53 1992  Michael I Bushnell  (mib@geech.gnu.ai.mit.edu)
+
+	* getdate.y: `#undef timezone' on SGI systems to avoid naming
+	clash.
+	(get_date): Use underscore version for SGI.
+	[This fix is from beebe@mach.utah.edu.]
+
+Tue Feb 25 21:23:50 1992  Roland McGrath  (roland@wookumz.gnu.ai.mit.edu)
+
+	* getopt.c [__GNU_LIBRARY__]: #include <string.h>.
+
+Thu Feb 20 13:04:57 1992  Karl Berry  (karl@wombat.gnu.ai.mit.edu)
+
+	* regex.[ch]: new version (0.3).  See ~karl/regex/ChangeLog for all
+	the details.
+
+Wed Feb 19 23:04:05 1992  Charles Hannum  (mycroft@gnu.ai.mit.edu)
+
+	* regex.c [_AIX]: Move #pragma alloca to top of file to accommodate
+	AIX C compiler.
+
+Mon Feb 17 03:44:03 1992  Roland McGrath  (roland@wookumz.gnu.ai.mit.edu)
+
+	* a.out.gnu.h [sparc] (_N_HDROFF): Define as (-sizeof (struct exec)).
+	That is as if SEGMENT_SIZE were 0, but that would be wrong.
+
+	* a.out.gnu.h [i386] (SEGMENT_SIZE): Define.
+
+Sun Feb 16 03:10:23 1992  Roland McGrath  (roland@wookumz.gnu.ai.mit.edu)
+
+	* a.out.gnu.h [sparc] (PAGE_SIZE, SEGMENT_SIZE): Define.
+	(PAGSIZ): Define as PAGE_SIZE.
+	(SEGSIZ): Define as SEGMENT_SIZE.
+
+Thu Jan 30 19:03:29 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* regex.c (re_search_2): Improve comments.
+
+Tue Jan 28 00:28:15 1992  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* getopt.h (struct option): Change has_arg back to an int.
+
+Mon Jan 27 23:03:33 1992  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* getopt.c (_getopt_internal): Don't use a relational operator (>)
+	on the has_arg field, which is now an enum.
+
+Fri Jan 17 21:34:02 1992  Roland McGrath  (roland@wookumz.gnu.ai.mit.edu)
+
+	* getopt.h: Don't declare envopt.
+
+	* envopt.c: Tweaks to compile under libc.
+
+Fri Jan 17 21:23:02 1992  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* getopt.c: Describe the new args to _getopt_internal.
+
+Fri Jan 17 19:26:54 1992  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* getopt.h: Remove decls of _getopt_* and option_index.
+	Make `name' elt of `struct option' const char *.
+	Make `has_arg' an enum (integer values same).
+	* getopt.c (_getopt_internal): Renamed from getopt, taking 3 new args
+	in place of global vars _getopt_long_options, _getopt_long_only,
+	and option_index (which are all now gone).
+	(getopt): New fn, front end to _getopt_internal.
+	* getopt1.c (getopt_long, getopt_long_only): Use _getopt_internal.
+
+Tue Jan  7 02:08:10 1992  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* regex.c (malloc, realloc): Don't specify arg types--can
+	cause error.
+
+Mon Jan  6 12:53:42 1992  Karl Berry  (karl at apple-gunkies.gnu.ai.mit.edu)
+
+	* regex.[ch]: new versions.  See ~karl/regex/ChangeLog for all
+	the details.
+
+Tue Dec 24 22:42:59 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* obstack.h: Indentation fix.
+
+Mon Dec 23 23:41:39 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* regex.c, putenv.c, getugroups.c: Change POSIX ifdefs to
+	HAVE_UNISTD_H and _POSIX_VERSION.
+
+Wed Dec 18 14:24:35 1991  Michael Meissner  (meissner at osf.org)
+
+	* getopt.h (whole file): Protect getopt.h from being included
+	twice.
+
+Fri Dec  6 13:00:42 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* getopt.c (getopt): Cast argv to (char **) (with no const)
+	when passing to exchange, to be explicit about what's happening.
+
+	* getopt.c: Change POSIX_ME_HARDER to POSIXLY_CORRECT.
+
+Thu Dec  5 12:12:18 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* getopt.c (my_bcopy, my_index): New functions.
+	Use instead of bcopy and index.
+	Avoid conditionals on USG, NeXT, hpux, __GNU_LIBRARY__, etc.
+
+	* getopt1.c, getopt.h (getopt_long*): Like yesterday's getopt change.
+
+Wed Dec  4 10:51:45 1991  Ron Guilmette (rfg at ncd.com)
+
+	* getopt.c, getopt.h (getopt):  Correct the type of the second
+	parameter so that it agrees with ANSI/POSIX standards.
+
+	* getopt.h:  Make all function declarations explicitly `extern'.
+
+Tue Dec  3 01:34:59 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* getopt.c: Fix some wrong comments.
+
+Mon Dec  2 17:49:50 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* getopt.c (getopt): Support `+' to introduce long-named
+	options, as well as `--', if GETOPT_COMPAT is defined.
+	It is defined by default.
+
+Sun Dec  1 21:12:32 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* getopt.c (getopt): Long-named options are introduced by `--'
+	instead of `+'.
+	Protect all fprintfs with checks of opterr.
+	Include getopt.h instead of redeclaring things, to stay in sync.
+	* getopt1.c (getopt_long): No longer disable long options if
+	POSIX_ME_HARDER is set.
+	(main): Handle -d.  Remove unused var.
+
+Mon Nov  4 23:06:54 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* regex.h [!__STDC__]: regerror was declared to return size_t *
+	instead of size_t.
+
+Sat Nov  2 21:26:42 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* error.c: Use STRERROR_MISSING instead of STDC_HEADERS to
+	control compiling strerror.
+
+Fri Oct 18 00:33:43 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* getugroups.c: GID_T -> GETGROUPS_T, for clarity.
+
+Wed Oct  9 14:14:31 1991  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getopt.c: Treat hpux like USG.
+
+Tue Oct  8 21:36:52 1991  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* alloca.c: Add some parens to make precedence clearer.
+
+Sat Oct  5 13:17:59 1991  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* getopt.c: Treat NeXT like USG.
+
+Sat Sep 28 02:01:45 1991  David J. MacKenzie  (djm at churchy.gnu.ai.mit.edu)
+
+	* regex.c: Include stdlib.h only if STDC_HEADERS, not if POSIX
+	(POSIX.1 doesn't require it to exist).
+
+Wed Sep  4 17:32:51 1991  Kathryn A. Hargreaves  (letters at apple-gunkies)
+
+	* regex.[ch]: Put current version (0.1) here, after backing up old
+	files.  For ChangeLog details, please refer to the ChangeLog
+	file in my regex directory.
+
+Sat Aug 24 04:22:01 1991  David J. MacKenzie  (djm at apple-gunkies)
+
+	* getopt1.c: Declare getenv.
+
+Mon Aug 19 01:35:48 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* regex.c, getopt.c: Indent '#pragma alloca' so non-ANSI
+	compilers won't choke on it.
+
+Mon Aug 12 16:43:17 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* getopt.c: _POSIX_OPTION_ORDER renamed to POSIX_ME_HARDER.
+	* getopt1.c: Support POSIX_ME_HARDER.
+
+Wed Aug  7 00:53:00 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* getdate.y: Add patch from perf@efd.lth.se to support
+	explicit "dst", for European timezones.
+
+Tue Jul 30 17:00:23 1991  David J. MacKenzie  (djm at apple-gunkies)
+
+	* getdate.y: Rename NEED_TZSET to FTIME_MISSING.
+
+Fri Jul 26 23:09:22 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* regex.h: Delete `#pragma once'.
+
+Fri Jul 26 17:07:39 1991  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* a.out.gnu.h [sparc]: #define SEGMENT_SIZE 0.  Is that right??
+
+Wed Jul 24 03:29:26 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* getopt.c, regex.c: Put alloca stuff first, where RS6000 requires it.
+	* getopt.c: Use const instead of CONST, and define it to
+	nothing if not __STDC__.
+
+	* xmalloc.c (xmalloc, xrealloc): Exit with value 2 on error,
+	not 1, so cmp can use it.
+
+Tue Jul 23 15:01:26 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* getugroups.c: GID_T is int if ultrix as well as if sun.
+
+Mon Jul 22 17:39:35 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* getugroups.c: If POSIX and not sun (bogus!), take an array
+	of gid_t instead of an array of int.
+
+Tue Jul 16 21:24:43 1991  Michael Meissner  (meissner at wookumz.gnu.ai.mit.edu)
+
+	* obstack.h (__extension__): If compiling with a 1.xx GCC
+	compiler define __extension__ as nothing.
+
+Tue Jul 16 20:25:22 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* obstack.h [not __GNUC__] (obstack_finish): Add extra parens for clarity.
+	(conditionals for __GNUC__): Do not test __STRICT_ANSI__.
+	[__GNUC__] (most macros): Use __extension__ to avoid -pedantic warning.
+
+Tue Jul 16 17:12:02 1991  Michael Meissner  (meissner at wookumz.gnu.ai.mit.edu)
+
+	* obstack.h (obstack_finish): If compiling with a non-GCC
+	compiler, use the argument (h) to point to the obstack
+	structure, rather than the __o1 pointer, which only exists in
+	the GNU side of the macros.
+	(#if __GNUC__ && __STDC__): If -pedantic is used do not use
+	the GNU CC ({}) optimizations, since these cause warnings to
+	be omitted.
+
+Tue Jul 16 01:59:58 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* getdate.y (TimezoneTable): #if 0 zones which would require
+	storing a float in a time_t.
+
+Fri Jul 12 17:01:58 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* obstack.h (struct obstack): New flag maybe_empty_object.
+	(obstack_finish, both versions): Set the flag if allocate empty object.
+	Don't make the object nonempty.  This replaces May 7 change.
+	* obstack.c (_obstack_begin, _obstack_newchunk): Clear the flag.
+	(_obstack_newchunk): Don't free "empty" chunk if flag is set.
+	(_obstack_free): Set the flag if we change chunks.
+
+Sat Jul  6 21:09:31 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* getdate.y [NEED_TZSET]: Declare `timezone'.
+
+Thu Jun 20 01:11:31 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* getopt.c: Separate decls of getenv and malloc from decls of
+	index and bcopy, to reduce duplicated code.
+
+Tue Jun 11 00:11:07 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* regex.c (re_match_2): In case wordbeg, check whether we are
+	at the start of the string before checking the previous
+	character, not after, just like in case wordend.
+
+	* getdate.y: Declare alloca for old bisons.
+
+Mon May 20 13:13:32 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* obstack.c (obstack_free, _obstack_free): Define both, the same way.
+
+Sun May 19 18:37:38 1991  David J. MacKenzie  (djm at churchy.gnu.ai.mit.edu)
+
+	* getdate.y: Rename getdate to get_date to avoid conflict with SVR4.
+
+Fri May 17 21:09:14 1991  David J. MacKenzie  (djm at churchy.gnu.ai.mit.edu)
+
+	* filemode.c (ftypelet): Only test for S_ISBLK if it's defined.
+
+Sat May 11 14:49:43 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* obstack.h (obstack_finish): Typo in last change (non-GNUC version).
+
+Tue May  7 15:38:51 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* obstack.h (obstack_finish): Make each object at least 1 byte.
+
+Tue Apr 30 13:58:16 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* getopt.c, regex.c [_AIX]: Do #pragma alloca.
+
+Wed Apr 10 19:08:02 1991  Per Bothner  (bothner at pogo.gnu.ai.mit.edu)
+
+	* signame.h: Make sys_siglist be const char[] if __STDC__
+	is defined (thus making it compatible with signame.c).
+
+Tue Apr  2 16:49:02 1991  Roland McGrath  (roland at churchy.gnu.ai.mit.edu)
+
+	* glob.c: Put #ifndef alloca around alloca goop.
+	(glob_vector): Put #ifdef SHELL around label used only there.
+
+Tue Apr  2 14:32:47 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* glob.c: Attempt to reconcile with bash and make versions of
+	#ifdefs and #includes.
+
+	* glob.c (glob_vector): If _POSIX_SOURCE, don't use
+	(non-POSIX) d_ino field of struct dirent. (from bfox)
+
+Sun Mar 17 16:25:23 1991  Richard Stallman  (rms@mole.ai.mit.edu)
+
+	* regex.c (PUSH_FAILURE_POINT): Was multiplying stack size by
+	a big number.  Multiply by 2 instead.
+
+	* signame.c (init_sigs): Define i.
+
+Fri Feb 22 12:38:22 1991  Mike Haertel  (mike at apple-gunkies)
+
+	* obstack.c (_obstack_allocated_p): Use >=, not >, when
+	comparing with the beginning of the chunk, for the exact
+	same reason as RMS' change below.
+
+Thu Feb 21 21:29:50 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* obstack.h [not __GNUC__] (obstack_free): Use >, not >=,
+	when comparing with beginning of chunk.
+
+	* getopt.c (bcopy): Never declare it.
+
+Thu Feb 21 09:18:47 1991  David J. MacKenzie  (djm at geech.ai.mit.edu)
+
+	* glob.c: Don't declare bcopy if it is a macro.
+	Use BSD strings for NeXT.  Don't include memory.h on POSIX.
+
+Mon Feb 18 23:41:20 1991  David J. MacKenzie  (djm at geech.ai.mit.edu)
+
+	* glob.c: Add special code for bash, #ifdef SHELL.
+	(glob_pattern_p): Only recognize `[' as a metacharacter if
+	there is a matching `]', for POSIX.2. (from bfox)
+
+Mon Jan 28 00:30:39 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* crt0.c [m68k]: Add conditionals for sun_68881, sun_fpa, sun_soft.
+
+Sun Jan 27 15:18:26 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* getopt.c (bcopy): Don't declare it if it's a macro.
+
+Thu Jan 24 22:16:14 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* regex.c (re_compile_pattern): Don't translate chars in char set
+	until the time the bits are set for them.
+
+Sat Dec 15 18:36:50 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* filemode.c: Define each S_ISFOO function if not defined by
+	sys/stat.h.
+
+Sat Dec 15 15:10:14 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* obstack.h (obstack_init): Cast the chunk alloc function.
+	(obstack_begin): Likewise.
+
+Thu Dec 13 17:58:07 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* obstack.h: At all calls to _obstack_newchunk,
+	enclose in (..., 0), so that both alternatives are ints.
+
+Thu Dec  6 11:39:11 EST 1990 Jay Fenlason (hack@ai.mit.edu)
+
+	* getdate.y:  Add support for 'date' style yymmddhhss dates.
+
+Mon Dec  3 14:09:40 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* obstack.h:
+	At all calls to _obstack_newchunk, cast the other alternative to void.
+
+Sat Dec  2 21:56:25 1990  Roland McGrath  (roland at albert.ai.mit.edu)
+
+	* a.out.gnu.h (N_COMM): Define this.
+
+Thu Nov 30 00:04:35 1990  Roland McGrath  (roland at geech.ai.mit.edu)
+
+	* a.out.gnu.h (_N_HDROFF): Use SEGMENT_SIZE rather than a hard-coded
+	1024.  What moron did this??
+
+Wed Nov 29 17:41:09 1990  Roland McGrath  (roland at albert.ai.mit.edu)
+
+	* a.out.gnu.h [vax, hp300, pyr] (SEGMENT_SIZE): Define as PAGE_SIZE,
+	not page_size.
+
+Wed Nov 14 00:35:16 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* regex.c (SIGN_EXTEND_CHAR): If UNSIGNED_CHAR is defined, use
+	an alternate definition (suggested in the GNU grep README).
+
+Thu Nov  8 12:08:52 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* filemode.c (ftypelet): Pass a mode_t instead of unsigned
+	short, so it works on Evans' Minix.  If _POSIX_SOURCE is not
+	defined, define mode_t as unsigned short.  Define S_ISTYPE
+	macros if needed.  Use them.
+
+	* modechange.c: Use S_ISDIR.  Define if needed.
+
+Fri Oct 26 16:50:01 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* obstack.c (_obstack_newchunk): If old_chunk becomes empty, free it.
+
+Mon Oct 15 13:50:17 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* obstack.h (obstack_free): In non-GNU C case, don't use
+	value of _obstack_free.
+
+Sun Oct 14 18:51:51 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* crt0.c (new hp assembler): Double flag_fpa and flag_68881 if %d2!=0.
+
+	* alloca.s [MOTOROLA_DELTA]: Avoid putting sp above stack top.
+
+Mon Oct  1 16:20:02 EDT 1990	Jay Fenlason (hack@ai.mit.edu)
+
+	* obstack.h  Declare _obstack_free and _obstack_begin as void instead
+	of int.  Otherwise, GCC won't let you compile obstack.c
+
+Fri Sep 28 23:53:28 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* obstack.h: Declare the functions we use from obstack.c.
+	(obstack_blank): In both definitions, rearrange pointer math to avoid
+	pointing past end of allocated memory.
+
+Wed Sep 19 21:09:26 1990  Richard Kenner  (kenner at vlsi1.ultra.nyu.edu)
+
+	* obstack.h (obstack_int_grow): In non-GCC case, don't try to
+	post-increment a cast.
+
+Mon Sep  3 22:18:38 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* error.c [DOPRNT_MISSING]: Pass args as a fixed number of
+	`char *'.
+
+Sun Sep  2 20:51:02 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* regex.c: Use standard string functions if STDC_HEADERS is
+	defined.
+
+Fri Aug 31 06:59:47 1990  Jim Kingdon  (kingdon at albert.ai.mit.edu)
+
+	* getopt1.c (getopt_long{,_only}): If opt_index is NULL, don't
+	try to store into *opt_index.
+
+Tue Aug 28 18:45:16 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* regex.c: Include some system header files if appropriate.
+
+Wed Aug 15 14:38:15 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* regex.c: Define isgraph if ctype.h doesn't (as on Sequents).
+
+Sun Aug 12 00:20:19 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* getopt.c (getopt): If optstring starts with '+', don't
+	permute; this is for utilities like time, nice, xargs, and
+	env, which don't want to mix up their options with those of
+	the programs they run, but don't want to turn off permuting
+	for those programs by setting _POSIX_OPTION_ORDER.
+
+Fri Aug  3 14:25:35 1990  David J. MacKenzie  (djm at pogo.ai.mit.edu)
+
+	* getopt.c (main), getopt1.c (main): Read option chars into an
+	int, not a char.
+
+	* getopt.c (getopt): Increment `optind' after finding
+	unrecognized or ambiguous long named option.
+
+Thu Jul  5 09:50:25 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* getopt.c: If long option's `flag' field is zero, return the
+	contents of the `val' field.
+
+Fri Jun 29 01:30:22 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* getopt.h: Mention in comment how to handle long options that
+	don't just store a constant in an int.
+
+Mon Jun 25 18:15:46 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* filemode.c (ftypelet): Distinguish between regular files and
+	unknown file types using '-' and '?'.
+
+Sat Jun 16 11:18:26 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* getopt.c: If STDC_HEADERS or __GNU_LIBRARY__ is defined,
+	include ANSI C header files.
+
+Thu Jun 14 13:21:42 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* glob.c (glob_match): Eliminate '^' as a character class
+	negator, leaving just the POSIX '!'.
+
+Thu Jun  7 01:01:40 1990  Roland McGrath  (mcgrath at paris.Berkeley.EDU)
+
+	* glob.c: __GNU_LIBRARY__ implies DIRENT and STDC_HEADERS.
+
+Thu Jun  7 03:45:33 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* glob.c: Use <dirent.h> if DIRENT is defined, not _POSIX_SOURCE.
+
+Wed Jun  6 00:05:03 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* glob.c (glob_filename): Remove tilde expansion code.
+
+Tue Jun  5 00:35:48 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* error.c: Use VPRINTF_MISSING instead of VPRINTF to control
+	use of _doprnt.
+	(error): Use strerror.
+	(strerror) [!STDC_HEADERS]: New function.
+
+	* glob.c: Optionally support POSIX and STDC headers.
+	(glob_filename): Make tilde expansion work for patterns
+	containing subdirectories.
+
+Mon Jun  4 16:31:40 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* glob.c (glob_match): Allow '!' as well as '^' to negate
+	character classes.  Check for end of filename when comparing
+	with char class.  Check for end of pattern after backslash in
+	character class.
+	(glob_vector): Only calculate D_NAMLEN once, for efficiency.
+	Don't allocate name_vector if a previous malloc failed.
+	(glob_dir_to_array): Make string copying more efficient.
+	(glob_filename): directory_size was off by 1.
+	Reallocation of result had '1' instead of 'l'.
+
+Thu May 31 01:45:16 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* glob.c: Reformat to resemble the bash version more.
+
+	* filemode.c: If _POSIX_SOURCE is defined, use POSIX macro
+	names for mode bits.
+
+Sat May 19 15:17:42 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* filemode.c (mode_string): New function.
+	(filemodestring): Reimplement in terms of mode_string.
+	(ftypelet): Take an unsigned short instead of a struct stat *.
+	Fix up comments.
+
+Thu May 10 12:57:11 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* error.c: If __STDC__, use stdarg instead of varargs.
+
+Tue May  1 16:07:32 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* alloca.s [hp9000s300]: Avoid using sp as temporary.
+
+Fri Apr 20 16:58:24 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* obstack.c, obstack.h (obstack_free): Use >, not >=, to compare
+	object with chunk address.
+
+Mon Apr  9 15:11:22 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* a.out.encap.h: Protect against multiple inclusion.
+
+Fri Apr  6 23:27:46 1990  Jim Kingdon  (kingdon at apple-gunkies.ai.mit.edu)
+
+	* a.out.gnu.h (enum machine_type): Put missing comma after M_SPARC.
+
+Mon Apr  2 04:49:18 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* malloc.c: Make get_lim_data always "static void" regardless
+	of #ifdefs.  Declare it before using it.
+
+Mon Mar 26 00:36:52 1990  David J. MacKenzie  (djm at spike.ai.mit.edu)
+
+	* getopt.c (getopt): For long-named options that take optional
+	args, never use the next argv-element as an arg; args for
+	these must be part of the same argv-element, separated from
+	the option name by a '='.  This makes them consistent with how
+	short-named options with optional args are handled.
+
+	* getopt.h, getopt.c, getopt1.c: Add some const declarations
+	if __STDC__.
+
+Sun Mar  4 12:11:31 1990  Kathy Hargreaves  (kathy at hayley)
+
+	* regex.h: Added syntax bit RE_NO_EMPTY_RANGES which is set if
+	an ending range point has to collate higher or equal to the
+	starting range point.
+	Added syntax bit RE_NO_HYPHEN_RANGE_END which is set if a hyphen
+	can't be an ending range point.
+	Set to two above bits in RE_SYNTAX_POSIX_BASIC and
+	RE_SYNTAX_POSIX_EXTENDED.
+
+	regex.c: (re_compile_pattern): Don't allow empty ranges if the
+	RE_NO_EMPTY_RANGES syntax bit is set.
+	Don't let a hyphen be a range end if the RE_NO_HYPHEN_RANGE_END
+	syntax bit is set.
+	(ESTACK_PUSH_2): renamed this PUSH_FAILURE_POINT and made it
+	push all the used registers on the stack, as well as the number
+	of the highest numbered register used, and (as before) the two
+	failure points.
+	(re_match_2): Fixed up comments.
+	Added arrays best_regstart[], best_regstart_seg1[], best_regend[],
+	and best_regend_seg1[] to keep track of the best match so far
+	whenever reach the end of the pattern but not the end of the
+	string, and there are still failure points on the stack with
+	which to backtrack; if so, do the saving and force a fail.
+	If reach the end of the pattern but not the end of the string,
+	but there are no more failure points to try, restore the best
+	match so far, set the registers and return.
+	Compacted some code.
+	In stop_memory case, if the subexpression we've just left is in
+	a loop, push onto the stack the loop's on_failure_jump failure
+	point along with the current pointer into the string (d).
+	In finalize_jump case, in addition to popping the failure
+	points, pop the saved registers.
+	In the fail case, restore the registers, as well as the failure
+	points.
+
+
+Sun Feb 18 15:08:10 1990  Kathy Hargreaves  (kathy at hayley)
+
+	* regex.c: (global): Defined a macro GET_BUFFER_SPACE which
+	makes sure you have a specified number of buffer bytes
+	allocated.
+	Redefined the macro BUFPUSH to use this.
+	Added comments.
+
+	(re_compile_pattern): Call GET_BUFFER_SPACE before storing or
+	inserting any jumps.
+
+	(re_match_2): Set d to string1 + pos and dend to end_match_1
+	only if string1 isn't null.
+	Force exit from a loop if it's around empty parentheses.
+	In stop_memory case, if found some jumps, increment p2 before
+	extracting address to which to jump. Also, don't need to know
+	how many more times can jump_n.
+	In begline case, d must equal string1 or string2, in that order,
+	only if they are not null.
+	In maybe_finalize_jump case, skip over start_memorys' and
+	stop_memorys' register numbers, too.
+
+Thu Feb 15 15:53:55 1990  Kathy Hargreaves  (kathy at hayley)
+
+	* regex.c (BUFPUSH): off by one goof in deciding whether to
+	EXTEND_BUFFER.
+
+Wed Jan 24 17:07:46 1990  Kathy Hargreaves  (kathy at hayley)
+
+	* regex.h: Moved definition of NULL to here.
+	Got rid of ``In other words...'' comment.
+	Added to some comments.
+
+	regex.c: (re_compile_pattern): Tried to bulletproof some code,
+	i.e., checked if backward references (e.g., p[-1]) were within
+	the range of pattern.
+
+	(re_compile_fastmap): Fixed a bug in succeed_n part where was
+	getting the amount to jump instead of how many times to jump.
+
+	(re_search_2): Changed the name of the variable ``total'' to
+	``total_size.''
+	Condensed some code.
+
+	(re_match_2): Moved the comment about duplicate from above the
+	start_memory case to above duplicate case.
+
+	(global): Rewrote some comments.
+	Added commandline arguments to testing.
+
+
+Wed Jan 17 11:47:27 1990  Kathy Hargreaves  (kathy at hayley)
+
+	* regex.c: (global): Defined a macro STORE_NUMBER which stores a
+	number into two contiguous bytes.  Also defined STORE_NUMBER_AND_INCR
+	which does the same thing and then increments the pointer to the
+	storage place to point after the number.
+	Defined a macro EXTRACT_NUMBER which extracts a number from two
+	continguous bytes.  Also defined EXTRACT_NUMBER_AND_INCR which
+	does the same thing and then increments the pointer to the
+	source to point to after where the number was.
+
+
+Tue Jan 16 12:09:19 1990  Kathy Hargreaves  (kathy at hayley)
+
+	* regex.h: Incorporated rms' changes.
+	Defined RE_NO_BK_REFS syntax bit which is set when want to
+	interpret back reference patterns as literals.
+	Defined RE_NO_EMPTY_BRACKETS syntax bit which is set when want
+	empty bracket expressions to be illegal.
+	Defined RE_CONTEXTUAL_ILLEGAL_OPS syntax bit which is set when want
+	it to be illegal for *, +, ? and { to be first in an re or come
+	immediately after a | or a (, and for ^ not to appear in a
+	nonleading position and $ in a nontrailing position (outside of
+	bracket expressions, that is).
+	Defined RE_LIMITED_OPS syntax bit which is set when want +, ?
+	and | to always be literals instead of ops.
+	Fixed up the Posix syntax.
+	Changed the syntax bit comments from saying, e.g., ``0 means...''
+	to ``If this bit is set, it means...''.
+	Changed the syntax bit defines to use shifts instead of integers.
+
+	* regex.c: (global): Incorporated rms' changes.
+
+	(re_compile_pattern): Incorporated rms' changes
+	Made it illegal for a $ to appear anywhere but inside a bracket
+	expression or at the end of an re when RE_CONTEXTUAL_ILLEGAL_OPS
+	is set. Made the same hold for $ except it has to be at the
+	beginning of an re instead of the end.
+	Made the re "[]" illegal if RE_NO_EMPTY_BRACKETS is set.
+	Made it illegal for | to be first or last in an re, or immediately
+	follow another | or a (.
+	Added and embellished some comments.
+	Allowed \{ to be interpreted as a literal if RE_NO_BK_CURLY_BRACES
+	is set.
+	Made it illegal for *, +, ?, and { to appear first in an re, or
+	immediately follow a | or a ( when RE_CONTEXTUAL_ILLEGAL_OPS is set.
+	Made back references interpreted as literals if RE_NO_BK_REFS is set.
+	Made recursive intervals either illegal (if RE_NO_BK_CURLY_BRACES
+	isn't set) or interpreted as literals (if is set), if RE_INTERVALS
+	is set.
+	Made it treat +, ? and | as literals if RE_LIMITED_OPS is set.
+	Cleaned up some code.
+
+
+Thu Dec 21 15:31:32 1989  Kathy Hargreaves  (kathy at hayley)
+
+	* regex.c: (global): Moved RE_DUP_MAX to regex.h and made it
+	equal 2^15 - 1 instead of 1000.
+	Defined NULL to be zero.
+	Moved the definition of BYTEWIDTH to regex.h.
+	Made the global  variable obscure_syntax nonstatic so the tests in
+	another file could use it.
+
+	(re_compile_pattern): Defined a maximum length (CHAR_CLASS_MAX_LENGTH)
+	for character class strings (i.e., what's between the [: and the
+	:]'s).
+	Defined a macro SET_LIST_BIT(c) which sets the bit for C in a
+	character set list.
+	Took out comments that EXTEND_BUFFER clobbers C.
+	Made the string "^" match itself, if not RE_CONTEXT_IND_OPS.
+	Added character classes to bracket expressions.
+	Change the laststart pointer saved with the start of each
+	subexpression to point to start_memory instead of after the
+	following register number.  This is because the subexpression
+	might be in a loop.
+	Added comments and compacted some code.
+	Made intervals only work if preceded by an re matching a single
+	character or a subexpression.
+	Made back references to nonexistent subexpressions illegal if
+	using POSIX syntax.
+	Made intervals work on the last preceding character of a
+	concatenation of characters, e.g., ab{0,} matches abbb, not abab.
+	Moved macro PREFETCH to outside the routine.
+
+	(re_compile_fastmap): Added succeed_n to work analogously to
+	on_failure_jump if n is zero and jump_n to work analogously to
+	the other backward jumps.
+
+	(re_match_2): Defined macro SET_REGS_MATCHED to set which
+	current subexpressions had matches within them.
+	Changed some comments.
+	Added reg_active and reg_matched_something arrays to keep track
+	of in which subexpressions currently have matched something.
+	Defined MATCHING_IN_FIRST_STRING and replaced ``dend == end_match_1''
+	with it to make code easier to understand.
+	Fixed so can apply * and intervals to arbitrarily nested
+	subexpressions.  (Lots of previous bugs here.)
+	Changed so won't match a newline if syntax bit RE_DOT_NOT_NULL is set.
+	Made the upcase array nonstatic so the testing file could use it also.
+
+	(main.c): Moved the tests out to another file.
+
+	(tests.c): Moved all the testing stuff here.
+
+
+Sat Nov 18 19:30:30 1989  Kathy Hargreaves  (kathy at hayley)
+
+	* regex.c: (re_compile_pattern): Defined RE_DUP_MAX, the maximum
+	number of times an interval can match a pattern.
+	Added macro GET_UNSIGNED_NUMBER (used to get below):
+	Added variables lower_bound and upper_bound for upper and lower
+	bounds of intervals.
+	Added variable num_fetches so intervals could do backtracking.
+	Added code to handle '{' and "\{" and intervals.
+	Added to comments.
+
+	(store_jump_n): (Added) Stores a jump with a number following the
+	relative address (for intervals).
+
+	(insert_jump_n): (Added) Inserts a jump_n.
+
+	(re_match_2): Defined a macro ESTACK_PUSH_2 for the error stack;
+	it checks for overflow and reallocates if necessary.
+
+	* regex.h: Added bits (RE_INTERVALS and RE_NO_BK_CURLY_BRACES)
+	to obscure syntax to indicate whether or not
+	a syntax handles intervals and recognizes either \{ and
+	\} or { and } as operators.  Also added two syntaxes
+	RE_SYNTAX_POSIX_BASIC and RE_POSIX_EXTENDED and two command codes
+	to the enumeration regexpcode; they are succeed_n and jump_n.
+
+
+Sat Nov 18 19:30:30 1989  Kathy Hargreaves  (kathy at hayley)
+
+	* regex.c: (re_compile_pattern): Defined INIT_BUFF_SIZE to get rid
+	of repeated constants in code.  Tested with value 1.
+	Renamed PATPUSH as BUFPUSH, since it pushes things onto the
+	buffer, not the pattern.  Also made this macro extend the buffer
+	if it's full (so could do the following):
+	Took out code at top of loop that checks to see if buffer is going
+	to be full after 10 additions (and reallocates if necessary).
+
+	(insert_jump): Rearranged declaration lines so comments would read
+	better.
+
+	(re_match_2): Compacted exactn code and added more comments.
+
+	(main): Defined macros TEST_MATCH and MATCH_SELF to do
+	testing; took out loop so could use these instead.
+
+
+Tue Oct 24 20:57:18 1989  Kathy Hargreaves  (kathy at hayley)
+
+	* regex.c (re_set_syntax): Gave argument `syntax' a type.
+	(store_jump, insert_jump): made them void functions.
+
+Tue Mar  6 23:29:26 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* signame.c (sig_number): Return -1 if not found.
+
+Fri Mar  2 16:32:20 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* signame.h [!__STDC__]: Remove comments cuz they're in [__STDC__].
+	signame.{c,h}: Make sig_abbrev return char *, not const char *.
+
+Thu Mar  1 14:10:32 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* getopt.c (getopt): If _getopt_long_only, for options that
+	start with '-' and are not a valid long-named option, only
+	interpret them as short options if the first letter is a valid
+	short option.  Otherwise the error message would be printed
+	naming the short option letter instead of the whole option, and
+	if, for example, there is a 'T' long option, '-Tfoo' would print
+	"prog: invalid option `-T'" (which is wrong).
+
+Wed Feb 28 19:38:49 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* signame.h: Use ANSI C prototypes ifdef __STDC__.
+	* signame.c: Add const declarations ifdef __STDC__.
+
+Wed Feb 28 19:06:36 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* signame.c (SIGPWR): Change name to "Power failure".
+
+Wed Feb 28 18:46:36 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* getopt.h: ifdef out decl of _getopt_option_name.
+
+Wed Feb 28 15:05:54 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* getopt.c (getopt): Change typo (optstr -> optstring).
+
+	* getopt.c: Remove all _getopt_option_name stuff.
+	If RETURN_IN_ORDER, return one, not zero, to distinguish between
+	this and a long option.
+
+	* signame.{c,h}: New files.
+
+Tue Feb 27 13:32:45 1990  David J. MacKenzie  (djm at rice-chex)
+
+	* getopt.c (getopt): In RETURN_IN_ORDER mode, set
+	_getopt_option_name to zero when returning a non-option arg in
+	optarg, to distinguish it from getting a long-named option
+	that takes an arg.
+	Print the correct option-introducing character (can be
+	either `+' or `-') in error messages for long-named options.
+	If _getopt_long_only is nonzero, no long options match an
+	option arg that starts with a dash, and there are valid short
+	options, try matching the arg against the short options.
+
+Thu Feb 22 19:50:49 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* obstack.c (_obstack_begin): Use slightly smaller default size
+	so that it still fits in one block if malloc range checking is
+	in use.
+
+Mon Feb 19 15:41:14 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* getopt1.c (getopt_long_only): New function.
+	getopt.h: Declare getopt_long_only and _getopt_long_only.
+	getopt.c: Define _getopt_long_only.
+	(getopt): If _getopt_long_only, accept '-' as well as '+' to start
+	long option.
+
+Sat Feb  3 16:28:00 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* alloca.s [MOTOROLA_DELTA]: New alternative for 68k.
+
+Sun Jan 28 22:29:17 1990  David J. MacKenzie  (djm at hobbes.ai.mit.edu)
+
+	* getopt1.c (main): Fix bug that prevented the first long
+	option from being recognized.
+
+	* getopt.c: Move comment on the return value for long-named
+	options to a more appropriate place.
+
+Wed Jan 24 19:11:27 1990  David J. MacKenzie  (djm at hobbes.ai.mit.edu)
+
+	* glob.c (glob_filename): Change '==' to '=' in what was
+	clearly supposed to be an assignment statement.
+
+Mon Jan 22 18:14:40 1990  David J. MacKenzie  (djm at rice-chex)
+
+	* regcmp.c (regcmp): Allocate whole return value with one call
+	to malloc, so freeing the buffer works the same way as it does
+	on System V.
+
+Tue Jan 16 22:17:03 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* a.out.gnu.h [hp300, pyr]: Define SEGMENT_SIZE to be page_size
+
+Wed Jan 10 06:57:10 1990  David J. MacKenzie  (djm at hobbes.ai.mit.edu)
+
+	* glob.c: Use <sys/ndir.h> if SYSNDIR is defined (some Xenix
+	systems need this).
+
+Mon Jan  8 12:33:55 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* regex.c (re_compile_pattern): Add missing break in prev change.
+
+Mon Jan  1 12:16:56 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* regex.c (re_compile_pattern): Ignore \<, etc., checking
+	context of $.
+
+Mon Dec 25 12:00:16 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* obstack.h (obstack_object_size, obstack_room): Eliminate _obstack.
+
+Sat Dec 23 16:20:13 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* regex.c (re_compile_fastmap): Put back deleted local k.
+
+Wed Dec 20 02:03:43 1989  David J. MacKenzie  (djm at hobbes.ai.mit.edu)
+
+	* getopt.h: Add function decls/prototypes for getopt and
+	getopt_long.
+
+	* getopt.c: Bring some comments up to date with the code.
+
+Tue Dec 19 03:12:48 1989  David J. MacKenzie  (djm at hobbes.ai.mit.edu)
+
+	* regex.h: Add function prototypes if __STDC__ is defined.
+
+	* regex.c: Declare some external functions if emacs is not
+	defined.  Add a few casts.
+	(re_compile_fastmap): Remove unused variable.
+
+Mon Dec 18 14:12:53 1989  David J. MacKenzie  (djm at hobbes.ai.mit.edu)
+
+	* getopt.c: Declare some external functions.
+
+Mon Nov 20 19:57:00 1989  Jim Kingdon  (kingdon at hobbes.ai.mit.edu)
+
+	* a.out.gnu.h: Wrap N_MAGIC in #ifndef...#endif.
+
+Fri Nov 17 03:12:28 1989  Jim Kingdon  (kingdon at hobbes.ai.mit.edu)
+
+	* a.out.gnu.h: Wrap many things in #ifndef...#endif so file
+	can be used in addition to a system-supplied a.out.h.
+
+Tue Oct 31 17:03:06 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* getopt1.c (getopt_long): Delete mistaken test for index == 0.
+
+Wed Oct 25 17:50:51 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* getopt.c (getopt): Set option_index properly for long options.
+
+Tue Oct 24 23:41:06 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* getopt1.c (main): Fix initializers.
+
+	* getopt.c (getopt): Was off by 1, checking for missing arg
+	for long option.
+
+Wed Oct 18 13:15:18 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* getopt.c: Improve comments and an error message.
+	Don't initialize most variables, for the sake of unexec.
+
+Tue Oct 17 03:06:14 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* getopt.c (getopt): Uniformly don't recognize `+' as option
+	if program doesn't use long options.
+
+	* getopt.c (getopt): Complain about ambiguous option abbreviations.
+	But accept any exact match even if ambiguous.
+
+	* getopt.c (getopt): Report error for unrecognized long options.
+
+Sat Sep 30 14:47:29 1989  Jim Kingdon  (kingdon at hobbes.ai.mit.edu)
+
+	* malloc.c: "#else rcheck" -> "#else /* rcheck */".
+
+Tue Sep 19 19:00:58 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* regex.h: Define RE_SYNTAX_POSIX_AWK.
+
+Sun Sep 17 15:20:46 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* regex.h: Last change in RE_SYNTAX_AWK broke RE_SYNTAX_EGREP.
+
+Sat Sep 16 01:53:53 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* regex.c (re_search_2): Stupid error propagating return code -2.
+
+Tue Sep 12 13:50:05 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* crt0.c [ISI68K]: Reinstall label __start.
+
+Tue Sep  5 15:43:24 1989  Jim Kingdon  (kingdon at hobbes.ai.mit.edu)
+
+	* malloc.c: Define USG if hpux defined.
+
+Mon Aug 28 17:50:27 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* regex.c (re_compile_pattern): With RE_AWK_CLASS_HACK, \ quotes
+	all characters inside [...].
+
+Sat Aug 26 00:20:26 1989  Richard Stallman  (rms at apple-gunkies.ai.mit.edu)
+
+	* regex.h: Define RE_AWK_CLASS_HACK and change RE_SYNTAX_AWK.
+	* regex.c (re_compile_pattern): Change syntax of \ inside [...]
+	when RE_AWK_CLASS_HACK is set.
+
+	* regex.c (re_match_2): Declare strings to search as char *,
+	and cast inside the function.
+
+Sat Aug 19 14:55:19 1989  Richard Stallman  (rms at apple-gunkies.ai.mit.edu)
+
+	* regex.c (EXTEND_BUFFER): Don't clobber c; do pointer arith
+	to update b in portable fashion.
+
+Thu Aug 17 15:56:36 1989  Joseph Arceneaux  (jla at spiff)
+
+	* regex.c (EXTEND_BUFFER): Set c to bufp->buffer - old_buffer.
+
+Sun Aug 13 15:21:02 1989  Richard Stallman  (rms at hobbes.ai.mit.edu)
+
+	* obstack.h: Typos in comments.
+
+Sun Jul 30 20:24:52 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* obstack.c (_obstack_newchunk): Never copy bytes past the end
+	of the object.  Copy by COPYING_UNIT only for complete units
+	that fit in the object; then copy remaining bytes singly.
+	If obstack has less than the default alignment,
+	copy all bytes singly.
+
+Thu Jul 20 01:51:56 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* crt0.c: Delete spaces at ends of lines.
+	[ISI68K]: Unconditionally enclose asms in function `_start'.
+	Delete assembler definition of that function.
+	Use a6, not fp, as register name.
+
+Sun Jul 16 16:32:52 1989  Jim Kingdon  (kingdon at hobbes.ai.mit.edu)
+
+	* a.out.encap.h: Remove #ifdef ALTOS code because according to
+	Jyrki Kuoppala <jkp@sauna.hut.fi> it doesn't do what he put it
+	in to do (which was work around a kernel bug).
+
+Thu Jun 29 19:59:16 1989  Randall Smith  (randy at apple-gunkies.ai.mit.edu)
+
+	* malloc.c (valloc): Changed to be conditionalized on ! hpux
+	instead of ! HPUX (hpux this is generated by the OS).
+
+Tue Jun 20 21:14:57 1989  Roland McGrath  (roland at hobbes.ai.mit.edu)
+
+	* Makefile: include ../Makerules.
+	Added .y->.tab.c implicit rule and rule to make unctime.tab.o.
+	Use $(archpfx) in front of object files.
+	Made some rules use $({LINK,COMPILE}.?) instead of $(CC), etc.
+
+Sat Jun 17 14:22:53 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* regex.h (struct re_pattern_buffer): Make ALLOCATED and USED long.
+	* regex.c (EXTEND_BUFFER): Use long constants to compare with them.
+	Move assignment outside if-condition.
+	Do pointer relocation arithmetic in strictly correct order.
+
+Sat Jun 10 00:26:01 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* glob.c [USG]: Define rindex; declare getpwent, etc.
+
+Wed Jun  7 22:36:51 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* alloca.s [hp9000s300]: Increase MAXREG for fpregs.
+
+	* crt0.c: For new hp assembler, define float_loc as fixed location.
+
+Wed May 31 17:51:41 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* a.out.gnu.h: Define SEGMENT_SIZE for Altos.
+
+Mon May 22 17:59:17 1989  Roland McGrath  (mcgrath at tully.Berkeley.EDU)
+
+	* glob.c: Several changes for USG compatibility, etc. that have been
+	in the version distributed with Make for a while.
+	Today added new variable glob_tilde which makes glob_filename expand
+	~ or ~USER, and made glob_filename, when given a directory with the
+	file name pattern, return the directory alone.
+
+Wed May 17 16:45:36 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* getopt.c (getopt): Add feature for long-named options;
+	starting with `+'.
+
+Mon May  8 17:21:40 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* crt0.c [sps7]: Handle mostly like orion, etc.
+
+Fri May  5 15:26:58 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* obstack.c (_obstack_free): If __STDC__, define this as well as
+	obstack_free.
+
+	* crt0.c [hp9000s300]: Give fixed address to fpa_loc, per cph.
+
+Tue May  2 14:42:26 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* crt0.c [hp9000s300]: Allocate fpa_loc and float_loc.
+
+Sun Apr 23 00:22:37 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* a.out.encap.h (COFF_MAGIC, SEGMENT_SIZE, N_DATADDR):
+	Alternate definitions if ALTOS or if m68k.
+
+	* getopt.c: If __GNUC__, use builtin alloca.
+	Define index if USG.
+
+Wed Apr 19 13:03:18 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* crt0.c [m68000]: Call finitfp_() if nec on Sun.
+
+Fri Apr  7 22:22:38 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* malloc.c: Rename BSD42 to BSD4_2, as in Emacs.
+	If `emacs', let config.h decide whether to define that.
+	(morecore): Change malloc_sbrk_used, etc., after error check.
+
+Thu Mar 23 18:21:56 1989  Randall Smith  (randy at apple-gunkies.ai.mit.edu)
+
+	* glob.c: Added new copyright notice.
+
+Thu Mar 16 16:56:54 1989  Randall Smith  (randy at gluteus.ai.mit.edu)
+
+	* malloc.c (malloc): Made sure that the MAGIC1 bytes written at
+	the end of the space were positioned with regard to the new
+	offset.
+
+Fri Mar 10 16:50:12 1989  Randall Smith  (randy at sugar-bombs.ai.mit.edu)
+
+	* malloc.c (realloc): Make sure that the start of the mhead is
+	found correctly even when sizeof (struct mhead) doesn't divide 8
+	properley.
+
+	* malloc.c (morecore): Added code to reset sigmask to correct
+	value on a "no-more-room" return.
+
+	* malloc.c (malloc, free, realloc): Leave 8 bytes of space, not 4,
+	before the actual data block.
+
+Fri Mar  3 10:52:14 1989  Randall Smith  (randy at apple-gunkies.ai.mit.edu)
+
+	* a.out.encap.h, stab.def: Modified to use new GNU General Public
+	License.
+
+Thu Mar  2 15:45:46 1989  Randall Smith  (randy at apple-gunkies.ai.mit.edu)
+
+	* a.out.gnu.h [nlist]: Made n_type an unsigned char (for compilers
+	where chars default to signed, which can screw up comparisons) and
+	made n_value an unsigned long.
+
+Wed Mar  1 13:04:25 1989  Randall Smith  (randy at apple-gunkies.ai.mit.edu)
+
+	* getopt.c: Changed copyright header to reflect new GNU General
+	public license.
+
+Fri Feb 24 13:00:21 1989  Randall Smith  (randy at gluteus.ai.mit.edu)
+
+	* regex.c, regex.h: Changed copyright header to reflect new GNU
+	General public license.
+
+Sun Feb 19 08:02:01 1989  Richard Stallman  (rms at apple-gunkies.ai.mit.edu)
+
+	* getopt.c: If option argument is missing, return `?'.
+
+Fri Feb 10 13:31:05 1989  Randall Smith  (randy at plantaris.ai.mit.edu)
+
+	* stab.def: Changed comment on LSYM; also used for type
+	descriptions.
+
+Wed Feb  1 23:15:39 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* filemode.c (setst): Give `T' if sticky but not executable.
+
+Mon Jan  9 10:31:20 1989  Pace Willisson  (pace at prep.ai.mit.edu)
+
+	* a.out.gnu.h:  Change a_magic to a_info, and define macros
+	to access it.  Programs that refer to the magic number should
+	access it with N_MAGIC (exec), and set it with N_SET_MAGIC (exec,
+	val).  This is a step to having a header that is unambiguous
+	between big and little endian machines.
+
+	* a.out.encap.h: Use macros to access a_info fields.
+
+Wed Dec 28 18:58:53 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* crt0.c (hp9000s300): Changes from Jinx: new flag `flag_fpa'
+	set with a subx.  d0 loaded from a0 and doubled before first subx.
+
+Tue Dec 20 22:13:49 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* a.out.gnu.h (N_DATADDR): Always define this if not already defined.
+	(SEGMENT_SIZE): Define this for the vax.
+
+Tue Dec 20 14:57:38 1988  Pace Willisson  (pace at prep.at.mit.edu)
+
+	* a.out.gnu.h: Changed exec header to have two bytes
+	(a_machtype and a_flags) instead of a_encap.  a_machtype
+	is the same as on modern sun systems; a_flags can have
+	machine specific flags.  (There may be some endian problems
+	here:  You would like to have the magic number be the
+	first two bytes in the file, and then the next two could
+	be these options.  It looks like the 68000 definitions
+	have to declare the options first to force this to happen.)
+	Defined M_386 for a_machtype.
+	Added definitions for N_DATOFF, N_TRELOFF, N_DRELOFF,
+	N_DATADDR, N_BSSADDR (which are present in sun release 4.0)
+
+	* a.out.encap.h: Defined A_ENCAP as an a_flags value.  Changed
+	uses of a_encap to a_flags & A_ENCAP
+
+Wed Dec  7 11:18:30 1988  Randall Smith  (randy at apple-gunkies.ai.mit.edu)
+
+	* malloc.c: Added functions malloc_mem_used and malloc_mem_free to
+	return total amount of space allocated to program, and total space
+	left in free pool before sbrk must be called.
+
+Tue Nov 22 13:05:25 1988  Randall Smith  (randy at cream-of-wheat.ai.mit.edu)
+
+	* glob.c: Incorporated some bug fixes and changes sent by Brian.
+	None of them look disasterous.
+
+Fri Oct 21 12:40:24 1988  Randall Smith  (randy at cream-of-wheat.ai.mit.edu)
+
+	* malloc.c (free): Added code (within #ifdef rcheck) to given
+	slightly more verbose warnings then an abort if free was called
+	with garbage.
+
+Local Variables:
+add-log-time-format: current-time-string
+mode: indented-text
+left-margin: 8
+version-control: never
+End:

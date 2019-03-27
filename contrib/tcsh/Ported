@@ -1,0 +1,1073 @@
+
+Hello,
+
+This file contains a list of machines used, libraries compiler etc. If you
+find it out-of-date, or you have additions or changes, please let me know.
+
+christos
+
+
+VENDOR	:	Sun
+MODELS	:	sun3, sun4, sun386i
+COMPILER:	cc, gcc, acc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	sunos 3.5, 4.0, 4.1, 4.1.1, 4.1.2, 4.1.3, 4.1.4
+CONFIG	:	sunos*
+ENVIRON	:	n/a
+NOTES	:	Don't compile with /usr/5bin/cc
+VERSION	:	6.08
+
+VENDOR	:	Sun
+MODELS	:	sun4, ultra
+COMPILER:	cc, gcc
+CFLAGS	:	normal
+LIBES	:	-lcurses -lsocket -lnsl
+OS	:	solaris 2.1, 2.2, 2.3, 2.4, 2.5, 2.5.1
+CONFIG	:	sol*
+ENVIRON	:	n/a
+NOTES	:	The sunpro compiler cannot compile tcsh with -O, it crashes
+	:	on some files. In any case do not use -O with any of the
+	:	tcsh files, because the optimized code assumes that the
+	:	floating point is already initialized and does not do the
+	:	necessary initializations. This results in weird floating
+	:	point failures of programs exec'ed from tcsh.
+VERSION	:	6.08
+
+VENDOR	:	Sun
+MODELS	:	ultra
+COMPILER:	WorkShop cc
+CFLAGS	:	normal
+LIBES	:	-lcurses -lsocket -lnsl
+OS	:	solaris 2.6, 2.7, 8
+CONFIG	:	sol26
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.08
+
+VENDOR	:	Sun
+MODELS	:	ultra, i686, x86_64
+COMPILER:	Sun Studio cc
+CFLAGS	:	normal
+LIBES	:	-lcurses -lsocket -lnsl
+OS	:	solaris 9, 10
+CONFIG	:	sol29
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.18
+
+VENDOR	:	Sun
+MODELS	:	i386
+COMPILER:	cc, gcc
+CFLAGS	:	-D__STDC__=0
+LIBES	:	-lcurses -lsocket -lnsl
+OS	:	solaris 2.1
+CONFIG	:	sol2
+ENVIRON	:	n/a
+NOTES	:	n/a
+VERSION	:	6.04.13
+
+VENDOR	:	Sun
+MODELS	:	sun4
+COMPILER:	gcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	linux 2.0.x, 2.1.x
+CONFIG	:	linux
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.07.03
+
+VENDOR	:	hp
+MODELS	:	apollo
+COMPILER:	cc
+CFLAGS	:	-U__STDC__ -I. -O
+LIBES	:	-ltermcap
+OS	:	domain 10.4.3
+CONFIG	:	bsd
+ENVIRON	:	bsd4.3
+NOTES	:	Don't use gcc; breaks tc.os.c
+VERSION	:	6.01.00
+
+VENDOR	:	hp
+MODELS	:	hp9000s300, hp9000s700, hp9000s800
+COMPILER:	cc, gcc
+CFLAGS	:	normal (-Aa -O3 hpux 8.0, 8.07, 9.05)
+LIBES	:	-ltermcap
+OS	:	hpux 6.5, 7.0.x, 8.0, 9.05
+CONFIG	:	hpux{7,8}
+ENVIRON	:	n/a
+NOTES	:	Don't use -lBSD; breaks getpgrp(). Config.hp-3.2 obsolete?
+	:	Some versions of the compiler are broken with -O3. Try 'ls *'
+	:	If it does not work, lower the optimization level...
+VERSION	:	6.05.06
+
+VENDOR	:	hp
+MODELS	:	hp9000s700
+COMPILER:	cc, c89, gcc
+CFLAGS	:	+O3 -Aa (cc), +O3 (c89), normal (gcc)
+LIBES	:	-ltermcap
+OS	:	hpux 10.00, 10.01
+CONFIG	:	hpux8
+ENVIRON	:	n/a
+NOTES	:	Carl-Olof Almbladh (coa@teorfys.lu.se)
+	:	To make a statically linked version: in config_f.h, #undef NLS
+	:	and use these LDFLAGS in the Makefile: LDFLAGS= -Wl,-a,archive
+	:	[orban@kato.den.csci.csc.com (Tom Orban)
+VERSION	:	6.08
+
+VENDOR	:	hp
+MODELS	:	SPP-1200 SPP-1600 S-2X00 X-2X00
+COMPILER:	cc
+CFLAGS	:	-Ae
+LIBES	:	-ltermcap
+OS	:	SPP-UX 5.X
+CONFIG	:	hpux8
+ENVIRON	:	n/a
+NOTES	:	n/a
+VERSION	:	6.07.02
+
+VENDOR	:	hp
+MODELS	:	hp9000s500
+COMPILER:	cc
+CFLAGS	:	-I. -O
+LIBES	:	-ltermcap
+OS	:	hpux 5.2
+CONFIG	:	hp-5.2
+ENVIRON	:	n/a
+NOTES	:	very slow in executing commands (I think the reason is
+NOTES	:	a very slow fork)
+VERSION	:	6.00.01
+
+VENDOR	:	digital
+MODELS	:	vax
+COMPILER:	cc, gcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	bsd4.3, bsd4.4
+CONFIG	:	bsd*
+ENVIRON	:	n/a
+NOTES	:	cc broken: typedef void sigret_t; typedef void pret_t;
+VERSION	:	6.00.03
+
+VENDOR	:	digital
+MODELS	:	vax
+COMPILER:	cc, gcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	mtXinu 4.3
+CONFIG	:	mtxinu 
+ENVIRON	:	n/a
+NOTES	:	cc broken: typedef void sigret_t; typedef void pret_t;
+VERSION	:	6.03.09
+
+VENDOR	:	digital
+MODELS	:	vax, DECstation
+COMPILER:	cc, gcc
+CFLAGS	:	-O -Olimit 2000 (cc), normal (gcc)
+LIBES	:	-ltermcap
+OS	:	ultrix 3.0 (vax), 4.0, 4.1, 4.2, 4.3, 4.4, 4.5
+CONFIG	:	ultrix 
+ENVIRON	:	n/a
+NOTES	:	pcc broken: typedef void sigret_t (vax); 
+NOTES	:	mips compiler on ultrix 3.5 needs -Dvoid=int
+NOTES	:	vax compiler on ultrix 3.0 needs -Dvoid=int
+NOTES	:	Does Ultrix 4.x still need YPBUGS?
+NOTES	:	Ultrix4.2 may need NAMEI_BUG
+VERSION	:	6.09.00
+
+VENDOR	:	Apple
+MODELS	:	macII
+COMPILER:	cc
+CFLAGS	:	normal		(-ZP)
+LIBES	:	-ltermcap 	(-lposix -ltermcap)
+OS	:	aux 2.0
+CONFIG	:	mac2	(-DPOSIX -DPOSIXJOBS)
+ENVIRON	:	n/a
+NOTES	:	Tcsh can compile both in non POSIX and POSIX mode. The
+NOTES	:	default configuration is non POSIX. The flags in parentheses
+NOTES	:	are the changes that are needed to compile in POSIX mode
+VERSION	:	6.00.01
+
+VENDOR	:	ibm
+MODELS	:	ps/2, rs6000, ibm370, ibmESA
+COMPILER:	cc
+CFLAGS	:	normal
+LIBES	:	-lcurses -lbsd [No -lbsd for 4.1]
+OS	:	aix 3.1,3.2,4.1 (rs6000) aix 1.1 (ps/2) aix G9.9 (ibm370)
+	:	aix (ibmESA)
+CONFIG	:	aix
+ENVIRON	:	n/a
+NOTES	:	aix G9.9 sfname() frees bad pointers. Use TCF with care!
+NOTES	:	aix 3.2 may need NAMEI_BUG
+NOTES	:	aix 3.2 may need _BSD_INCLUDES defined in h
+NOTES	:	aix 4.1 does not need -lbsd anymore.
+VERSION	:	6.06.00 (rs6000)
+
+VENDOR	:	ibm
+MODELS	:	ibm390
+COMPILER:	c89
+CFLAGS	:	normal
+LIBES	:	-lcurses
+OS	:	os390 R 2.7
+CONFIG	:	os390
+ENVIRON	:	USS (formerly OpenEdition, aka POSIX)
+NOTES	:	Used GNU make for OS/390.
+NOTES	:	Use `CFLAGS="" ./configure` to avoid -g and make binary
+NOTES	:	half as large.
+VERSION	:	6.09.00
+
+VENDOR	:	ibm
+MODELS	:	rt
+COMPILER:	hc, gcc
+CFLAGS	:	-I. -U__STDC__
+LIBES	:	-ltermcap
+OS	:	aos 4.3
+CONFIG	:	bsd
+ENVIRON	:	n/a
+NOTES	:	Old versions of the compiler break with -O. No ansi include
+NOTES	:	files so we have to undef __STDC__
+VERSION	:	6.05.06
+
+VENDOR	:	ibm
+MODELS	:	rt
+COMPILER:	pcc
+CFLAGS	:	-I. -U__STDC__ -DPCC
+LIBES	:	-ltermcap
+OS	:	aos 4.3
+CONFIG	:	bsd
+ENVIRON	:	n/a
+NOTES	:	Old versions of the compiler break with -O. No ansi include
+NOTES	:	files so we have to undef __STDC__
+NOTES	:	pcc broken: typedef void sigret_t; typedef void pret_t;
+VERSION	:	6.05.06
+
+VENDOR	:	ibm
+MODELS	:	rt
+COMPILER:	cc
+CFLAGS	:	-I. -Nd4000 -Nn3000
+LIBES	:	-lcurses
+OS	:	aix 2.2.1
+CONFIG	:	aix
+ENVIRON	:	n/a
+NOTES	:	Stacksize limit is 1K off?
+VERSION	:	6.00.03
+
+VENDOR	:	sequent
+MODELS	:	balance, symmetry
+COMPILER:	cc
+CFLAGS	:	normal
+LIBES	:	-ltermcap -lseq
+OS	:	Dynix 3.1, 3.2, ptx 1.2
+CONFIG	:	sequent
+ENVIRON	:	universe on Dynix 3.1, 3.2: ucb
+NOTES	:	none
+VERSION	:	6.04.00
+
+VENDOR	:	sequent
+MODELS	:	symmetry
+COMPILER:	gcc 2.6.2
+CFLAGS	:	-m486
+LIBES	:	-ltermcap -lseq -lsocket -linet -lnsl
+OS	:	DYNIX/ptx 2.1.0, 4.1.3
+CONFIG	:	sequent
+ENVIRON	:
+NOTES	:	Didn't work for me with Sequent's /bin/cc
+NOTES	: 	4.1.3 does not need libinet anymore.
+VERSION	:	6.05.00
+
+VENDOR	:	encore
+MODELS	:	multimax
+COMPILER:	gcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	umax 4.2
+CONFIG	:	bsd
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.00.00
+
+VENDOR	:	sony
+MODELS	:	news 1850, 1750
+COMPILER:	gcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	bsd 4.3, news-os 3.3,4.1C
+CONFIG	:	bsd
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.05.06
+
+VENDOR	:	ibm + compatibles
+MODELS	:	i386,i286
+COMPILER:	cc
+CFLAGS	:	normal
+LIBES	:	-ltermcap -ldir -lx
+OS	:	xenix
+CONFIG	:	xenix
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.00.01
+
+VENDOR	:	hp
+MODELS	:	hp300
+COMPILER:	cc, gcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	MORE/bsd 4.3+
+CONFIG	:	mtxinu
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.05.06
+
+VENDOR	:	hp, motorola
+MODELS	:	hp300, m68k
+COMPILER:	gcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap -lcrypt
+OS	:	NetBSD 1.0A
+CONFIG	:	bsd4.4
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.05.06
+
+VENDOR	:	digital
+MODELS	:	vax
+COMPILER:	gcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	bsd 4.3reno
+CONFIG	:	bsdreno
+NOTES	:	ttyname() is buggy. calls closedir() twice. See README
+ENVIRON	:	n/a
+VERSION	:	6.00.04
+
+VENDOR	:	Cray Research
+MODELS	:	Y-MP
+COMPILER:	cc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	Unicos 6.0
+CONFIG	:	cray
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.00.01
+
+VENDOR	:	Cray Research
+MODELS	:	C90
+COMPILER:	cc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	Unicos 9.0.2.1
+CONFIG	:	cray
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.08
+
+VENDOR  :       Cray Research
+MODELS  :       SV1, probably also SV2
+COMPILER:       cc
+CFLAGS  :       normal
+LIBES   :       -ltermlib
+OS      :       Unicos 10.0.1.0
+CONFIG  :       cray
+ENVIRON :       n/a
+NOTES   :       none
+VERSION :       6.11
+
+VENDOR	:	pyramid
+MODELS	:	MIS4/2T 
+COMPILER:	cc
+CFLAGS	:	-OG
+LIBES	:	-ltermcap
+OS	:	OSx5.1,6.4
+CONFIG	:	pyr
+ENVIRON	:	n/a
+NOTES	:	If there are problems with the global optimizer, use -OP
+NOTES	:	If you only have the AT&T universe, use the pyratt config
+NOTES	:	file and define -D_PID_T -Dpyr.
+VERSION	:	6.06.00
+
+VENDOR	:	next
+MODELS	:	any
+COMPILER:	gcc or cc -arch m68k -arch i386
+CFLAGS	:	-O2 -g
+LIBES	:	-ltermcap # [-lcs 2.0]
+OS	:	next os 2.x, 3.x
+CONFIG	:	mach
+ENVIRON	:	n/a
+NOTES	:	NeXTSTeP 3.3 on intel defines speed_t so compile with -D_SPEED_T
+NOTES	:	NeXT's cc -E adds spaces before and after array brackets!
+NOTES	:	You'll need to change the sed expression in the Makefile to
+NOTES	:	something like:
+NOTES	:	's/Char \([a-zA-Z0-9_]*\) *\[ *\].*/extern Char \1[];/'
+VERSION	:	6.04.00
+  
+VENDOR	:	Apple
+MODELS	:	any
+COMPILER:	cc
+CFLAGS	:	-O3 -pipe -g -arch ppc -arch i386 -UNeXT
+OS	:	Rhapsody 5
+CONFIG	:	rhapsody
+ENVIRON	:	n/a
+NOTES	:	CFLAGS="-O3 -pipe -g -UNeXT" configure && make
+VERSION	:	6.08.00
+
+VENDOR	:	Apple
+MODELS	:	any
+COMPILER:	cc
+CFLAGS	:	-O3 -pipe -g -arch ppc -arch i386
+OS	:	Darwin
+CONFIG	:	darwin
+ENVIRON	:	n/a
+NOTES	:	CFLAGS="-O3 -pipe -g -arch ppc -arch i386 -UNeXT" configure && make
+VERSION	:	6.11.05
+
+VENDOR	:	Heurikon
+MODELS	:	HK68
+COMPILER:	gcc (Green Hills C-68000)
+CFLAGS	:	-ga -X138 -X25 -I.
+LDFLAGS	:	-n
+LIBES	:	-lcurses -ltermcap -ldirent
+OS	:	UniPlus+ 5.0
+CONFIG	:	hk68
+ENVIRON	:	n/a
+NOTES	:	Need Doug Gwyn's POSIX directory library (libdirent.a)
+VERSION	:	6.00.01
+
+VENDOR	:	Amdahl
+MODELS	:	n/a
+COMPILER:	cc/gcc
+CFLAGS	:	normal
+LIBES	: 	-lcurses -lsocket -lbsd	
+CONFIG	:	amdahl
+ENVIRON	:	n/a
+VERSION	:	6.00.01
+
+VENDOR	:	prime
+MODELS	:	exl 300 series
+COMPILER:	cc
+CFLAGS	:	-O -s -I.
+LIBES	:	-lcurses -lstcp
+OS	:	system v.3.1.2
+CONFIG	:	sysv
+ENVIRON	:	sysv
+NOTES	:	Is libstcp.a on all exl 300s?
+VERSION	:	6.00.01
+
+VENDOR  :       convex
+MODELS  :       c220
+COMPILER:       cc
+CFLAGS  :       normal
+LIBES   :       -ltermcap
+OS      :       9.0.6 (bsd 4.3)
+CONFIG  :       convex
+ENVIRON :       n/a
+NOTES   :       Dont use the -pcc flag.
+	:	Use setty to fix the default tty settings.
+VERSION :       6.00.01
+
+VENDOR  :       Norsk Data
+MODELS  :       nd5000
+COMPILER:       cc
+CFLAGS  :       normal
+LIBES   :       -ltermcap
+OS      :       Ndix Version C
+CONFIG  :       bsd
+ENVIRON :       n/a
+NOTES   :       The -O option makes the compiler run for ages!
+VERSION :       6.00.03
+
+VENDOR	:	SGI
+MODELS	:	4D, 3000
+COMPILER:	cc
+CFLAGS	:	-D__STDC__
+LIBES	:	-lcurses -lsun -lbsd -lc_s
+OS	:	IRIX (3.?) 3.2 3.3 4.0
+CONFIG	:	sgi
+ENVIRON	:	n/a
+NOTES	:	AUTOLOGOUT is probably best undef'ed
+NOTES	:	For 4.0, the NLS define in h can be enabled.
+NOTES	:	4.0.5a cc does not have -O3 anymore.
+NOTES	:	If you don't like -lbsd, you can define POSIXJOBS in
+NOTES	:	config.h and omit it.
+VERSION	:	6.06.00
+
+VENDOR	:	SGI
+MODELS	:	R8000 PowerIndigo2
+COMPILER:	cc -n32
+CFLAGS	:	-D__STDC__
+LIBES	:	-lcurses -lsun -lbsd -lc_s
+OS	:	IRIX 6.2
+CONFIG	:	sgi
+ENVIRON	:	n/a
+NOTES	:	CCOPTIONS=-OPT:fold_arith_limit=4000
+NOTES	:	SHLIBDIR=/usr/lib32
+NOTES	:	LDPOSTLIB = -nostdlib -L$(ROOT)$(SHLIBDIR)/mips3 \
+NOTES	:	-L$(ROOT)$(SHLIBDIR)
+NOTES	:	In config.h #undef NLS and #undef NLS_CATALOGS
+VERSION	:	6.06.00
+
+VENDOR	:	SGI
+MODELS	:	Onyx R10000
+COMPILER:	gcc-2.7.2.1 configured for mips-sgi-irix5.3
+CFLAGS	:	none
+LIBES	:	-ltermcap -lbsd
+OS	:	IRIX 6.2
+CONFIG	:	sgi
+ENVIRON	:	n/a
+VERSION	:	6.07.02
+
+VENDOR	:	ibm + compatibles
+MODELS	:	i386,i486
+COMPILER:	/bin/cc
+CFLAGS	:	normal
+LIBES	:	-ltermlib -lsocket -lnsl (without BSDTIMES)
+LIBES	:	-ltermlib -lsocket -lnsl -lc /usr/ucblib/libucb.a (BSDTIMES)
+OS	:	SVR4 (DELL, ESIX, ISC, UHC)
+CONFIG	:	sysv4
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.05.06
+
+VENDOR	:	ibm + compatibles
+MODELS	:	i386,i486
+COMPILER:	gcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	linux 0.8x, 0.9x, 1.x
+CONFIG	:	linux
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.05.06
+
+VENDOR	:	ibm + compatibles
+MODELS	:	i386,i486
+COMPILER:	gcc
+CFLAGS	:	normal
+LIBES	:	-lcurses -lc_s [for crypt]
+OS	:	SVR3.2.2 [SCO]
+CONFIG	:	sco32v2
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.03.00
+
+VENDOR	:	stardent
+MODELS	:	gs2600
+COMPILER:	/bin/cc
+CFLAGS	:	-O
+LIBES	:	-lcurses
+OS	:	stellix
+CONFIG	:	stellar
+ENVIRON	:	n/a
+NOTES	:	works but not worth compiling with -O4...
+NOTES	:	setpgrp() and SIGCHLD work the BSD way, not the way documented.
+NOTES	:	we need to define BACKPIPE		
+VERSION	:	6.00.04
+
+VENDOR	:	stardent
+MODELS	:	titan 3000 series
+COMPILER:	/bin/cc
+CFLAGS	:	-O -43
+LIBES	:	-ltermcap
+OS	:	OS 3.0.3
+CONFIG	:	bsd
+ENVIRON	:	n/a
+NOTES	:	Kernel bug with SIGTTIN, Try vi, ^Z, bg, fg....
+VERSION	:	6.01.01
+
+VENDOR	:	stardent
+MODELS	:	titan 1500 series
+COMPILER:	cc
+CFLAGS	:	-O -43
+LIBES	:	-ltermcap
+OS	:	OS 2.5
+CONFIG	:	bsd
+ENVIRON	:	n/a
+NOTES	:	Kernel bug with SIGTTIN, Try vi, ^Z, bg, fg....
+NOTES	:	You can add -w to the CFLAGS to suppress the warnings.
+VERSION	:	6.02.07
+
+VENDOR  :       SGI
+MODELS  :       INDIGO
+COMPILER:       cc
+CFLAGS  :       -D__STDC__
+LIBES   :       -lcurses -lsun -lbsd -lc_s
+OS      :       IRIX (3.?) 3.2 3.3 4.0
+CONFIG  :       sgi
+ENVIRON :       n/a
+NOTES   :       AUTOLOGOUT is probably best undef'ed
+NOTES   :       For 4.0, the NLS define in h can be enabled.
+VERSION :       6.01
+
+VENDOR	:	SGI
+MODELS	:	INDY
+COMPILER:	cc
+CFLAGS	:
+LIBES	:	-lcurses -lbsd
+OS	:	IRIX 5.1
+CONFIG	:	sgi
+ENVIRON	:	n/a
+NOTES	:	it will build without -lbsd but then job control
+NOTES	:	won't actually work.
+VERSION	:	6.04.00
+
+VENDOR  :       alliant
+MODELS  :       FX/2800 series
+COMPILER:       scc
+CFLAGS  :       normal
+LIBES   :       -ltermcap
+OS      :       Alliant Concentrix 2800 2.2.00
+CONFIG  :       bsd
+ENVIRON :       n/a
+NOTES   :       For a newer version of the operating system try defining
+	:	NEW_OS in alliant [or better find a way to tell
+	:	them apart.
+VERSION :       6.03.00
+
+VENDOR  :       stardent
+MODELS  :	Vistra 800
+COMPILER:       /bin/cc
+CFLAGS  :       -O
+LIBES   :	-lcurses -lnsl -lsocket -lc /usr/ucblib/libucb.a
+OS      :	SYSVR4
+CONFIG  :	sysv4
+ENVIRON :       n/a
+NOTES   :	Works like a charm
+VERSION :	6.01
+
+VENDOR  :       Evans & Sutherland
+MODELS  :       ESV
+COMPILER:       cc
+CFLAGS  :       mips systems
+LIBES   :       -ltermcap
+OS      :       ES/os 2.2 (UMIPS mips ATT_V3_0)
+CONFIG  :       mips
+ENVIRON :       bsd4.3
+NOTES   :       would it be preferable to have HOSTTYPE of
+NOTES   :       "esv" instead of "mips"?
+VERSION :       6.01.00
+
+VENDOR  :       masscomp
+MODELS  :       Masscomp 6000
+COMPILER:       cc
+CFLAGS  :       production
+LIBES   :       -ltermcap
+OS      :       RTU 5.0
+CONFIG  :       masscomp
+ENVIRON :       Link in the "bsd" universe as opposed to "att".
+NOTES	:	For pre RTU 6.0, remember to remove the #define RTU6 in the
+NOTES	:	masscomp file.
+NOTES	:	As of tcsh v6.02.07, try putting "bindkey ^t stuff-char"
+NOTES	:	in your /etc/csh.cshrc for masscomp kernel (ctrl-t) status.
+VERSION :       6.02.07
+
+VENDOR  :       masscomp
+MODELS  :       Masscomp 5400
+COMPILER:       cc
+CFLAGS  :       normal
+LIBES   :       -ltermcap -lndir -lsocket -ljobs
+OS      :       RTU 6.0
+CONFIG  :       masscomp
+ENVIRON :       Link in the "bsd" universe as opposed to "att".
+NOTES	:	n/a
+VERSION :       6.01.00
+
+VENDOR	:	Cray Computer
+MODELS	:	CRAY-2 & CRAY-3
+COMPILER:	cc
+CFLAGS	:	normal
+LIBES	:	-lcurses -lnet
+OS	:	CSOS 1.0
+CONFIG	:	csos
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.02
+
+VENDOR	:	Motorola
+MODELS	:	Delta 3000/Delta 4000
+COMPILER:	cc
+CFLAGS	:	normal
+LIBES	:	-lcurses
+OS	:	System V/68 R3V6.2, R3V7
+CONFIG	:	sysV68
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.01.00, 6.02.00
+
+VENDOR	:	Motorola
+MODELS	:	MPC 3062
+COMPILER:	cc
+CFLAGS	:	Broken optimizers...
+LIBES	:	-lcurses -lsec
+OS	:	System V/88 R32V2
+CONFIG	:	sysV88
+ENVIRON	:	n/a
+NOTES   :       If you're using the bundled Greenhills compiler, don't use -O.
+NOTES   :       One error -O causes is failure to exec scripts with /bin/sh
+NOTES   :       if they don't have a #! header on top.
+VERSION	:	6.02.07
+
+VENDOR  :       alliant
+MODELS  :       FX/8X series
+COMPILER:       pcc
+CFLAGS  :       normal
+LIBES   :       -ltermcap
+OS      :       Concentrix 6.0.00 beta
+CONFIG  :       bsd
+ENVIRON :       n/a
+NOTES   :       Needs to define DIRENT in h
+VERSION :       6.02.00
+
+VENDOR	:	alliant
+MODELS	:	FX/8X series
+COMPILER:	pcc
+CFLAGS	:	normal
+LIBES	:	-ltermcap
+OS	:	Concentrix 5.7.00
+CONFIG	:	bsd
+ENVIRON	:	n/a
+NOTES	:	n/a
+VERSION	:	6.00.01
+
+VENDOR	:	gould (encore)
+MODELS	:	NP1
+COMPILER:	cc
+CFLAGS	:	production
+LIBES	:	-ltermcap
+OS	:	UTX/32 3.1A
+CONFIG	:	bsd
+ENVIRON	:	n/a
+NOTES	:	n/a
+VERSION	:	6.02.00
+
+VENDOR	:	gould (encore)
+MODELS	:	9050
+COMPILER:	cc
+CFLAGS	:	production
+LIBES	:	-ltermcap
+OS	:	UTX/32 2.1A
+CONFIG	:	bsd
+ENVIRON	:	n/a
+NOTES	:	n/a
+VERSION	:	6.02.00
+
+VENDOR	:	ibm & compatible
+MODELS	:	i386
+COMPILER:	cc
+CFLAGS	:	production
+LIBES	:	-lcurses -lcposix
+OS	:	3.2
+CONFIG	:	isc
+ENVIRON :	ISC386
+NOTES	:	n/a
+VERSION	:	6.02.00
+
+VENDOR	:	att
+MODELS	:	3b2-600GR (RISC)
+COMPILER:	cc
+CFLAGS	:	production
+LIBES	:	-lcurses
+OS	:	SystemV R4.0
+CONFIG	:	sysv4
+ENVIRON	:	n/a
+NOTES	:	n/a
+VERSION	:	6.02.00
+
+VENDOR	:	att
+MODELS	:	3b2-600G
+COMPILER:	cc
+CFLAGS	:	production
+LIBES	:	-lcurses
+OS	:	SystemV R3.2.3
+CONFIG	:	sysv3
+ENVIRON	:	n/a
+NOTES	:	n/a
+VERSION	:	6.02.00
+
+VENDOR	:	tektronix
+MODELS	:	XD88/10
+COMPILER:	cc
+CFLAGS	:	Broken optimizers...
+LIBES	:	-ltermcap -lsec
+OS	:	UTekV 3.2e
+CONFIG	:	tekXD88
+ENVIRON	:	n/a
+NOTES   :	If you're using the bundled Greenhills compiler, don't use -O.
+NOTES   :	One error -O causes is failure to exec scripts with /bin/sh
+NOTES   :	if they don't have a #! header on top.
+VERSION	:	6.02.07
+
+VENDOR	:	tektronix
+MODELS	:	4300
+COMPILER:	cc
+CFLAGS	:	production
+LIBES	:	-ltermcap
+OS	:	UTek 4.0 (BSD 4.2)
+CONFIG	:	bsd
+ENVIRON	:	n/a
+NOTES	:	set DFLAGS = -DUTek -DBSD in the Makefile
+VERSION	:	6.02.07
+
+VENDOR	:	BBN
+MODELS	:	butterfly gp1000
+COMPILER:	cc
+CFLAGS	:	production
+LIBES	:	-ltermcap
+OS	:	Mach 1000 version 2.5
+CONFIG	:	mach
+ENVIRON	:	n/a
+NOTES	:	n/a
+VERSION	:	6.02.07
+
+VENDOR	:       sony
+MODELS	:       news 3700
+COMPILER:	cc
+CFLAGS	:	-O -Wf,-XNp15000,-XNd15000,-XNh15000
+LIBES	:	-lcurses -lc /usr/ucblib/libucb.a
+OS	:	sysvr4, news-os 5.02
+CONFIG	:	sysv4
+ENVIRON	:	n/a
+NOTES	:	Use /usr/bin/cc, not /usr/ucb/cc.
+VERSION	:	6.00.03
+
+VENDOR	:	ibm & compatible
+MODELS	:	i386, i486
+COMPILER:	cc
+CFLAGS	:	production
+LIBES	:	-lterm
+OS	:	Coherent 4.0
+CONFIG	:	coh3
+ENVIRON	:	gnu tools (see below)
+NOTES	:	The standard make, /bin/sh and sed that come with Coherent are
+NOTES	:	not quite up to the makefile.  Either use gnu make or change 
+NOTES	:	occurances of '# to '\# since Coherent's make takes all '#'s to
+NOTES	:	be a comment, even when quoted, except when escaped by '\'.
+NOTES	:	Coherent's /bin/sh does not allow you to set VERSION, etc.
+NOTES	:	since they are hard-wired internal variables.  Either use 
+NOTES	:	/usr/bin/ksh, another sh or change the name of the offending
+NOTES	:	variables.  Coherent's sed, unfortunately, is broken beyond a
+NOTES	:	workaround.  Either get gnu sed or run that portion of the
+NOTES	:	makefile on a machine with a full sed and import the output.
+VERSION	:	6.02.08
+
+VENDOR	:	Control Data Systems
+MODELS	:	CD4680
+COMPILER:	cc, cc2.20 (mips)
+CFLAGS	:	mips systems, DFLAGS=-DCDC
+LIBES	:	-ltermcap
+OS	:	EP/IX 1.4.3 (RiscOS based)     
+CONFIG	:	mips
+ENVIRON :	bsd4.3 (if sysv, need "set path=(/usr/bsd43/bin $path)" )
+NOTES	:	n/a
+VERSION :	6.02.00
+
+VENDOR  :       alliant
+MODELS  :       FX/8X series
+COMPILER:       pcc
+CFLAGS  :       normal
+LIBES   :       -ltermcap -lresolv
+OS      :       Concentrix 6.0.00 beta
+CONFIG  :       alliant (see NOTES)
+ENVIRON :       n/a
+NOTES   :       Needs to define DIRENT and BSDLIMIT in h.  The
+NOTES	:	beta release of the Concentrix 6.0.00 has some errors
+NOTES	:	in the system header files, namely, /usr/include/sys/dir.h.
+VERSION :       6.03.00
+
+VENDOR	:	hp
+MODELS	:	hp9000s700
+COMPILER:	cc
+CFLAGS	:	No -O here!!! Breaks quoting! Try echo 'foo | bar'...
+LIBES	:	-ltermcap
+OS	:	HP OSF/1 1.0
+CONFIG	:	hposf1
+ENVIRON	:	n/a
+NOTES	:	n/a
+VERSION	:	6.03.00
+
+VENDOR  :	digital
+MODELS  :	DEC 3000/400 (alpha)
+COMPILER:	cc
+CFLAGS  :	-call_shared -I. -I.. -O -Olimit 2000 -std1
+LIBES   :	-lcurses
+OS      :	OSF1 1.2
+CONFIG  :	decosf1
+ENVIRON :       n/a
+NOTES	:	none
+VERSION :	6.03
+
+VENDOR  :	digital
+MODELS  :	DEC 3000/400 (alpha)
+COMPILER:	cc
+CFLAGS  :	-O2 -I. -I.. -Olimit 2000
+LIBES   :	-lcurses
+OS      :	OSF1 (Digital Unix) 1.3, 2.0, 3.0, 3.2, 4.0
+CONFIG  :	decosf1
+ENVIRON :       n/a
+NOTES	:	none
+VERSION :	6.07.11
+
+VENDOR  :	Intel
+MODELS  :	Paragon
+COMPILER:	icc
+CFLAGS  :	-O2
+LIBES   :	-ltermcap
+OS      :	Paragon OSF/1 Release 1.0.1 Server 1.0 R1.0
+CONFIG  :	parosf1
+ENVIRON :	n/a
+NOTES   :	I have gotten two different config files that both seem to
+	:	work!
+VERSION :	6.03.00
+
+VENDOR  :	Data General
+MODELS  :	AViiON mc88000
+COMPILER:	cc
+CFLAGS  :	-O2
+LIBES   :	-lcurses
+OS      :	DGUX 5.4R2.01
+CONFIG  :	dgux5.4
+ENVIRON :	n/a
+NOTES   :	n/a
+VERSION :	6.04.00
+
+VENDOR	:	Data General
+MODELS	:	Aviion
+COMPILER:	gcc 2.5.8
+CFLAGS	:	-g -O2 -msvr4
+LIBES	:	-ltermcap
+OS	:	DGUX 5.4.1
+CONFIG	:	dgux5.4
+ENVIRON	:	sde m88kdguxelf
+VERSION	:	6.05.00
+
+VENDOR	:	Harris
+MODELS	:	Tahoe
+COMPILER:	cc, gcc 1.42
+CFLAGS	:	-O
+LIBES	:	-ltermcap
+OS	:	CX/UX 5.1 CX/UX 7.1
+CONFIG	:	hcx
+ENVIRON :	universe bsd
+NOTES	:	n/a
+VERSION :	6.06.01
+
+VENDOR	:	Multiflow
+MODELS	:	multiflow
+COMPILER:	cc
+CFLAGS	:	-O5 -sb_trace 0 -DMULTIFLOW
+LIBES	:	-ltermcap -lcrypt
+OS	:	4.3 BSD TRACE/UNIX
+CONFIG	:	bsd
+ENVIRON :	n/a
+NOTES	:	Lower the optimization or you'll get a 5M binary!
+NOTES	:	cc broken: typedef void sigret_t; typedef void pret_t;
+VERSION :	6.04.00
+
+VENDOR	:	Unixware
+MODELS	:	all
+COMPILER:	cc
+CFLAGS	:	normal
+LIBES	:	-lcrypt -ltermlib -lsocket -lnsl -lgen
+OS	:	Unixware 2.03 (4.2MP)
+CONFIG	:	svr4
+ENVIRON :	n/a
+NOTES	:	Remove PW_SHADOW from config file, or add -lgen for getspnam
+VERSION :	6.07.00
+
+VENDOR	:	Intergraph
+MODELS	:	clipper
+COMPILER:	cc
+CFLAGS	:	n/a
+LIBES	:	-ltermcap -lbsd
+OS	:	clix 7.1.3
+CONFIG	:	clipper
+ENVIRON :	n/a
+NOTES	:	n/a
+VERSION :	6.05.00
+
+VENDOR  :       SNI (Siemens Nixdorf Information Systems)
+MODELS  :       rm400  (R4000 mips)
+COMPILER:       /usr/bin/cc
+CFLAGS  :       -kansi; xmkmf (=>  -DSVR4 -DSNI -DSMSINFO -DR3000)
+LIBES   :       -ltermcap -lc -L/usr/ucblib -lucb
+OS      :       SINIX 5.42
+CONFIG  :       sysv4
+ENVIRON :
+NOTES   :       This is a POSIX (XPG-4) system.
+NOTES   :       Make sure that -lucb is included _last_ (even after -lc)
+NOTES   :       so use: -ltermcap -lc -L/usr/ucblib -lucb
+NOTES   :       In config.h, set HAVEUTMPX und unset BSDSIGS and BSDTIMES
+NOTES   :
+VERSION :       6.06.03
+
+VENDOR  :       U/WIN
+MODELS  :       i386
+COMPILER:       cc
+CFLAGS  :       -O
+LIBES   :       -lcurses
+OS      :       Windows NT with U/WIN
+CONFIG  :       uwin
+ENVIRON :
+NOTES   :       Needs POSIX.DLL from U/WIN version later than 1.6
+NOTES   :       Did not function correctly when using #define SYSMALLOC
+VERSION :       6.07.02
+
+VENDOR  :       SNI (Siemens Nixdorf Information Systems)
+MODELS  :       rm600  (R4000 mips)
+COMPILER:       /usr/bin/cc
+CFLAGS  :       -kansi -DSVR4 -DSNI -DSMSINFO -DR3000
+LIBES   :       -ltermcap -lsocket -lxnet -lc -L/usr/ucblib -lucb
+OS      :       SINIX 5.43
+CONFIG  :       sysv4
+ENVIRON :
+NOTES   :       In config.h, set HAVEUTMPX und unset BSDSIGS,
+NOTES   :       BSDTIMES, and BSDLIMIT, since otherwise resource.h
+NOTES   :       is falsely searched in /usr/ucbinclude/sys/
+NOTES   :
+VERSION :       6.07.02
+
+VENDOR	:	FUJITSU
+MODELS	:	ds90
+COMPILER:	cc
+CFLAGS	:	-O -I. -DSVR4 -DANSICPP
+LIBES	:	-lsocket -lnsl -ltermcap
+OS	:	UXP/DS V20L10(SVR4.2)
+CONFIG	:	sysv4
+ENVIRON	:	n/a
+NOTES	:	n/a
+VERSION	:	6.07.02
+
+VENDOR	:	Fujitsu ICL
+MODELS	:	SuperServer Intel based
+COMPILER:	gcc 2.7.2
+CFLAGS	:	normal for gcc 2.1+  ....  -O2 $(INCLUDES)
+LIBES	:	-ltermlib -lsocket -lnsl -lcrypt -lgen
+OS	:	SCO UnixWare 2.1 SysVR4.2 i386 x86at
+CONFIG	:	sysv4
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.06.00
+
+VENDOR	:	NEC
+MODELS	:	SX-4, SX-5
+COMPILER:	cc
+CFLAGS	:	-h0,ansi,novector,float0 # for NEC SX-4
+LIBES	:	-Gsmall
+OS	:	NEC's
+CONFIG	:	superux8
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.08.01
+
+VENDOR	:	Unixware 7.1.0
+MODELS	:	all
+COMPILER:	gcc
+CFLAGS	:	normal
+LIBES	:	-ltermlib -lsocket -lgen
+OS	:	Unixware 7.1.0  
+CONFIG	:	svr5
+ENVIRON :	n/a
+NOTES	:	none
+VERSION :	6.09.00
+

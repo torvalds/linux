@@ -1,0 +1,69 @@
+
+#------------------------------------------------------------------------------
+# $File: msvc,v 1.9 2017/08/02 08:15:20 christos Exp $
+# msvc:  file(1) magic for msvc
+# "H. Nanosecond" <aldomel@ix.netcom.com>
+# Microsoft visual C
+#
+# I have version 1.0
+
+# .aps
+0	string	HWB\000\377\001\000\000\000	Microsoft Visual C .APS file
+
+# .ide
+#too long 0	string	\102\157\162\154\141\156\144\040\103\053\053\040\120\162\157\152\145\143\164\040\106\151\154\145\012\000\032\000\002\000\262\000\272\276\372\316	MSVC .ide
+0	string	\102\157\162\154\141\156\144\040\103\053\053\040\120\162\157	MSVC .ide
+
+# .res
+0	string	\000\000\000\000\040\000\000\000\377	MSVC .res
+0	string	\377\003\000\377\001\000\020\020\350	MSVC .res
+0	string	\377\003\000\377\001\000\060\020\350	MSVC .res
+
+#.lib
+0	string	\360\015\000\000	Microsoft Visual C library
+0	string	\360\075\000\000	Microsoft Visual C library
+0	string	\360\175\000\000	Microsoft Visual C library
+
+#.pch
+0	string	DTJPCH0\000\022\103\006\200	Microsoft Visual C .pch
+
+# Summary: Symbol Table / Debug info used by Microsoft compilers
+# URL: https://en.wikipedia.org/wiki/Program_database
+# Reference: https://code.google.com/p/pdbparser/wiki/MSF_Format
+# Update: Joerg Jenderek
+# Note:	test only for Windows XP+SP3 x86 , 8.1 x64 arm and 10.1 x86
+#	info does only applies partly for older files like msvbvm50.pdb about year 2001
+0	string	Microsoft\ C/C++\040
+# "Microsoft Program DataBase" by TrID
+>24	search/14	\r\n\x1A	MSVC program database
+!:mime	application/x-ms-pdb
+!:ext	pdb
+# "MSF 7.00" "program database 2.00" for msvbvm50.pdb
+>>16	regex	\([0-9.]+\)	ver %s
+#>>>0x38	search/128123456	/LinkInfo	\b with linkinfo
+# "MSF 7.00" variant
+>>0x1e	leshort	0
+# PageSize 400h 1000h
+>>>0x20	lelong	x	\b, %d
+# Page Count
+>>>0x28	lelong	x	\b*%d bytes
+# "program database 2.00"  variant
+>>0x1e	leshort	!0
+# PageSize 400h
+>>>0x2c	lelong	x	\b, %d
+# Page Count for msoo-dll.pdb 4379h
+>>>0x32	leshort	x	\b*%d bytes
+
+# Reference: https://github.com/Microsoft/vstest/pull/856/commits/fdc7a9f074ca5a8dfeec83b1be9162bf0cf4000d
+0       string/c bsjb\001\000\001\000\000\000\000\000\f\000\000\000pdb\ v1.0     Microsoft Rosyln C# debugging symbols version 1.0
+
+#.sbr
+0	string	\000\002\000\007\000	MSVC .sbr
+>5	string 	>\0	%s
+
+#.bsc
+0	string	\002\000\002\001	MSVC .bsc
+
+#.wsp
+0	string	1.00\ .0000.0000\000\003	MSVC .wsp version 1.0000.0000
+# these seem to start with the version and contain menus

@@ -1,0 +1,109 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Rick Macklem at The University of Guelph.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)showmount.8	8.3 (Berkeley) 3/29/95
+.\" $FreeBSD$
+.\"
+.Dd March 20, 2016
+.Dt SHOWMOUNT 8
+.Os
+.Sh NAME
+.Nm showmount
+.Nd show remote nfs mounts on host
+.Sh SYNOPSIS
+.Nm
+.Op Fl a | d
+.Op Fl E
+.Op Fl e
+.Op Fl 1
+.Op Fl 3
+.Op Ar host
+.Sh DESCRIPTION
+The
+.Nm
+utility shows status information about the
+.Tn NFS
+server on
+.Ar host .
+By default it prints the names of all hosts that have
+.Tn NFS
+file systems mounted
+on the host.
+See
+.%T "NFS: Network File System Protocol Specification" ,
+RFC 1094,
+Appendix A,
+and
+.%T "NFS: Network File System Version 3 Protocol Specification" ,
+Appendix I,
+for a detailed description of the protocol.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl a
+List all mount points in the form:
+.Bd -ragged -offset indent -compact
+.Ar host : Ns Ar dirpath .
+.Ed
+.It Fl d
+List directory paths of mount points instead of hosts.
+.It Fl E
+Show the
+.Ar host Ns 's
+exports list in a script-friendly format.
+Client addresses and the header are not shown, and special
+characters are escaped.
+.It Fl e
+Show the
+.Ar host Ns 's
+exports list.
+.It Fl 1
+Use mount protocol Version 1, compatible with legacy servers.
+.It Fl 3
+Ignored for backwards compatibility.
+.El
+.Sh SEE ALSO
+.Xr mount 8 ,
+.Xr mount_nfs 8 ,
+.Xr mountd 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.4 .
+.Sh BUGS
+The mount daemon running on the server only has an idea of the actual mounts,
+since the
+.Tn NFS
+server is stateless.
+The
+.Nm
+utility will only display the information
+as accurately as the mount daemon reports it.

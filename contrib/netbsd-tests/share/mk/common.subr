@@ -1,0 +1,132 @@
+# Copyright 2012 Google Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+# * Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+# * Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in the
+#   documentation and/or other materials provided with the distribution.
+# * Neither the name of Google Inc. nor the names of its contributors
+#   may be used to endorse or promote products derived from this software
+#   without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Dumps a file to the test's stdout for debugging purposes.
+dump_file() {
+	local file="${1}"; shift
+
+	echo "==== BEGIN ${file}"
+	cat "${file}"
+	echo "==== END   ${file}"
+}
+
+# Creates a C source file with a single symbol in it.
+#
+# The file parameter specifies the path to the file to create, WITHOUT the
+# C extension.  Both a source file and a header file are created.  Any
+# intermediate directories are created too.
+#
+# The symbol parameter specifies the name of the symbol to place in the
+# module, which is defined as a string holding the name of the module.
+create_c_module() {
+	local file="${1}"; shift
+	local symbol="${1}"; shift
+
+	mkdir -p "$(dirname ${file})"
+	echo "extern const char *${symbol};" >"${file}.h"
+	echo "const char *${symbol} = \"${file}\";" >"${file}.c"
+
+	dump_file "${file}.h"
+	dump_file "${file}.c"
+}
+
+# Creates a main C source file that references a set of modules.
+#
+# The modules to be referenced should have been created with
+# create_c_module.  The generated source file ensures that all the modules
+# are referenced in some way, which helps in testing that the generated
+# binary holds all the necessary objects.
+#
+# The file parameter specifies the name of the file to create.
+#
+# The rest of the parameters are module:symbol pairs that specify the
+# module to include and the symbol within them to reference.
+create_main_using_modules() {
+	local file="${1}"; shift
+
+	local modules=
+	local symbols=
+	for spec in "${@}"; do
+		modules="${modules} $(echo ${spec} | cut -d : -f 1)"
+		symbols="${symbols} $(echo ${spec} | cut -d : -f 2)"
+	done
+
+	echo '#include <stdio.h>' >"${file}"
+	for module in ${modules}; do
+		echo "#include \"${module}\"" >>"${file}"
+	done
+	echo 'int main(void) {' >>"${file}"
+	for symbol in ${symbols}; do
+		echo "printf(\"%s\n\", ${symbol});" >>"${file}"
+	done
+	echo 'return 0; }' >>"${file}"
+
+	dump_file "${file}"
+}
+
+# Creates a mk.conf file and points MAKECONF to it.
+#
+# The first argument specifies the name of the configuration file to
+# create.
+#
+# The rest of the arguments include a collection of modifiers for the
+# generated configuration file and/or a collection of explicit variable
+# names and their values to set.
+#
+# The qualifiers can be one of:
+# - owngrp: Override the *OWN and *GRP variables to point to the current
+#   user.
+create_make_conf() {
+	local file="${1}"; shift
+
+	echo "# Test configuration file" >"${file}"
+	for arg in "${@}"; do
+		case "${arg}" in
+		*=*)
+			echo "${arg}" >>"${file}"
+			;;
+		owngrp)
+			for class in BIN DOC LIB LINKS MAN; do
+				echo "${class}OWN=$(id -un)" >>"${file}"
+				echo "${class}GRP=$(id -gn)" >>"${file}"
+			done
+			;;
+		esac
+	done
+
+	case "${file}" in
+	/*)
+		MAKECONF="${file}"; export MAKECONF
+		;;
+	*)
+		MAKECONF="$(pwd)/${file}"; export MAKECONF
+		;;
+	esac
+
+	dump_file "${file}"
+}

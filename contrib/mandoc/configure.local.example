@@ -1,0 +1,316 @@
+# $Id: configure.local.example,v 1.34 2018/07/31 15:34:00 schwarze Exp $
+#
+# Copyright (c) 2014,2015,2016,2017,2018 Ingo Schwarze <schwarze@openbsd.org>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+# For all settings documented in this file, there are reasonable
+# defaults and/or the ./configure script attempts autodetection.
+# Consequently, you only need to create a file ./configure.local
+# and put any of these settings into it if ./configure autodetection
+# fails or if you want to make different choices for other reasons.
+
+# If autodetection fails, please tell <tech@mandoc.bsd.lv>.
+
+# We recommend that you write ./configure.local from scratch and
+# only put the lines there you need.  This file contains examples.
+# It is not intended as a template to be copied as a whole.
+
+# --- user settings relevant for all builds ----------------------------
+
+# For -Tutf8 and -Tlocale operation, mandoc(1) requires <locale.h>
+# providing setlocale(3) and <wchar.h> providing wcwidth(3) and
+# putwchar(3) with a wchar_t storing UCS-4 values.  Theoretically,
+# the latter should be tested with the __STDC_ISO_10646__ feature
+# macro.  In practice, many <wchar.h> headers do not provide that
+# macro even though they treat wchar_t as UCS-4.  So the automatic
+# test only checks that wchar_t is wide enough, that is, at least
+# four bytes.
+
+# The following line forces multi-byte support.
+# If your C library does not treat wchar_t as UCS-4, the UTF-8 output
+# mode will print garbage.
+
+HAVE_WCHAR=1
+
+# The following line disables multi-byte support.
+# The output modes -Tutf8 and -Tlocale will be the same as -Tascii.
+
+HAVE_WCHAR=0
+
+# For -Tutf8 mode, mandoc needs to set an arbitrary locale having
+# a UTF-8 character set.  If autodetection of a suitable locale
+# fails or selects an undesirable locale, you can manually choose
+# the locale for -Tutf8 mode:
+
+UTF8_LOCALE=en_US.UTF-8
+
+# When man(1) or apropos(1) is called without -m and -M options,
+# MANPATH is not set in the environment, and man.conf(5) is not
+# available, manuals are searched for in the following directory
+# trees by default.
+
+MANPATH_DEFAULT="/usr/share/man:/usr/X11R6/man:/usr/local/man"
+
+# Validation of cross references with mandoc -Tlint only looks
+# for manual pages in the following directories:
+
+MANPATH_BASE="/usr/share/man:/usr/X11R6/man"
+
+# In manual pages written in the mdoc(7) language, the operating system
+# version is displayed in the page footer line.  If an operating system
+# is specified as an argument to the .Os macro, that is always used.
+# If the .Os macro has no argument and an operation system is specified
+# with the mandoc(1) -Ios= command line option, that is used.
+# Otherwise, the uname(3) library function is called at runtime to find
+# the name of the operating system.
+# If you do not want uname(3) to be called but instead want a fixed
+# string to be used, use the following line:
+
+OSNAME="OpenBSD 6.3"
+
+# The following installation directories are used.
+# It is possible to set only one or a few of these variables,
+# there is no need to copy the whole block.
+# Even if you set PREFIX to something else, the other variables
+# pick it up without copying them all over.
+
+PREFIX="/usr/local"
+BINDIR="${PREFIX}/bin"
+SBINDIR="${PREFIX}/sbin"
+MANDIR="${PREFIX}/man"
+
+# If BINDIR and SBINDIR are not subdirectories of the same parent
+# directory or if the basename(1) of BINDIR differs from "bin",
+# the relative path from SBINDIR to BINDIR is also needed.
+# The default is:
+
+BIN_FROM_SBIN="../bin"
+
+# Some distributions may want to avoid naming conflicts
+# with the configuration files of other man(1) implementations.
+# This changes the name of the installed section 5 manual page as well.
+
+MANM_MANCONF="mandoc.conf"	# default is "man.conf"
+
+# Some distributions may want to avoid naming conflicts among manuals.
+# If you want to change the names of installed section 7 manual pages,
+# the following alternative names are suggested.
+# The suffix ".7" will automatically be appended.
+# It is possible to set only one or a few of these variables,
+# there is no need to copy the whole block.
+
+MANM_MAN="mandoc_man"		# default is "man"
+MANM_MDOC="mandoc_mdoc"		# default is "mdoc"
+MANM_ROFF="mandoc_roff"		# default is "roff"
+MANM_EQN="mandoc_eqn"		# default is "eqn"
+MANM_TBL="mandoc_tbl"		# default is "tbl"
+
+# Some distributions may want to avoid naming conflicts with
+# other man(1), apropos(1), makewhatis(8), or soelim(1) utilities.
+# If you want to change the names of binary programs,
+# the following alternative names are suggested.
+# Using different names is possible as well.
+# This changes the names of the installed section 1 and section 8
+# manual pages as well.
+# It is possible to set only one or two of these variables,
+# there is no need to copy the whole block.
+
+BINM_MAN=mman			# default is "man"
+BINM_APROPOS=mapropos		# default is "apropos"
+BINM_WHATIS=mwhatis		# default is "whatis"
+BINM_MAKEWHATIS=mandocdb	# default is "makewhatis"
+BINM_SOELIM=msoelim		# default is "soelim"
+
+# Some distributions do not want hardlinks
+# between installed binary programs.
+# Set the following variable to use symbolic links instead.
+# It is also used for links between manual pages.
+# It is only used by the install* targets.
+# When using this, DESTDIR must be empty or an absolute path.
+
+LN="ln -sf"			# default is "ln -f"
+
+# Before falling back to the bundled version of the ohash(3) hashing
+# library, autoconfiguration tries the following linker flag to
+# link against your system version.  If you do have ohash(3) on
+# your system but it needs different linker flags, set the following
+# variable to specify the required linker flags.
+
+LD_OHASH="-lutil"
+
+# Some platforms may need an additional linker flag for nanosleep(2).
+# If none is needed or it is -lrt, it is autodetected.
+# Otherwise, set the following variable.
+
+LD_NANOSLEEP="-lrt"
+
+# Some platforms may need an additional linker flag for recvmsg(2).
+# If none is needed or it is -lsocket, it is autodetected.
+# Otherwise, set the following variable.
+
+LD_RECVMSG="-lsocket"
+
+# Some platforms might need additional linker flags to link against
+# libmandoc that are not autodetected, though no such cases are
+# currently known.
+
+LDADD="-lm"
+
+# Some systems may want to set additional linker flags for all the
+# binaries, not only for those using libmandoc, for example for
+# hardening options.
+
+LDFLAGS="-Wl,-z,relro"
+
+# It is possible to change the utility program used for installation
+# and the modes files are installed with.  The defaults are:
+
+INSTALL="install"
+INSTALL_PROGRAM="${INSTALL} -m 0555"
+INSTALL_LIB="${INSTALL} -m 0444"
+INSTALL_MAN="${INSTALL} -m 0444"
+INSTALL_DATA="${INSTALL} -m 0444"
+
+# When using the "homebrew" package manager on Mac OS X, the actual
+# manuals are located in a so-called "cellar" and only symlinked
+# into the manual trees.  To allow mandoc to follow such symlinks,
+# you have to specify the physical location of the cellar as returned
+# by realpath(3), for example:
+
+PREFIX="/usr/local"
+HOMEBREWDIR="${PREFIX}/Cellar"
+
+# --- user settings for the mandoc(3) library --------------------------
+
+# By default, libmandoc.a is not installed.  It is almost never needed
+# because there is almost no non-mandoc software out there using this
+# library.  The one notable exception is NetBSD apropos(1).
+# So, when building for the NetBSD base system - but not for NetBSD
+# ports nor for pkgsrc! - you may want the following:
+
+INSTALL_LIBMANDOC=1
+
+# The following settings are only used when INSTALL_LIBMANDOC is set.
+
+INCLUDEDIR="${PREFIX}/include/mandoc"
+LIBDIR="${PREFIX}/lib/mandoc"
+
+# --- user settings related to man.cgi ---------------------------------
+
+# By default, building man.cgi(8) is disabled.  To enable it, copy
+# cgi.h.example to cgi.h, edit it, and use the following line.
+
+BUILD_CGI=1
+
+# The remaining settings in this section are only relevant if BUILD_CGI
+# is enabled.  Otherwise, they have no effect either way.
+
+# By default, man.cgi(8) is linked statically if the compiler supports
+# the -static option.  If automatic detection fails, you can force
+# static linking of man.cgi(8).
+
+STATIC="-static"
+
+# Some systems may require -pthread for static linking:
+
+STATIC="-static -pthread"
+
+# If static linking works in general but not with additional libraries
+# like -lrt or -lz, you can force dynamic linking.  This may for
+# example be required on SunOS 5.9.
+
+STATIC=" "
+
+# Some directories.
+# This works just like PREFIX, see above.
+
+WWWPREFIX="/var/www"
+HTDOCDIR="${WWWPREFIX}/htdocs"
+CGIBINDIR="${WWWPREFIX}/cgi-bin"
+
+# --- user settings related to catman ----------------------------------
+
+# By default, building mandocd(8) and catman(8) is disabled.
+# To enable it, use the following line.
+# It does not work on SunOS 5.10 because there is no mkdirat(2)
+# nor on SunOS 5.9 which also lacks CMSG_LEN(3) and CMSG_SPACE(3).
+
+BUILD_CATMAN=1
+
+# Install catman(8) with a different name.
+# See BINM_MAN above for details of how this works.
+
+BINM_CATMAN=mcatman		# default is "catman"
+
+# --- settings that rarely need to be touched --------------------------
+
+# Do not set these variables unless you really need to.
+
+# You can manually override the compiler to be used.
+# But that's rarely useful because ./configure asks your make(1)
+# which compiler to use, and that answer will hardly be wrong.
+
+CC=cc
+
+# Because the system compiler may not provide <stdint.h>,
+# SunOS 5.9 may need:
+
+CC=gcc
+
+# IBM AIX may need:
+
+CC=xlc
+
+# Normally, leave CFLAGS unset.  In that case, -g will automatically
+# be used, and various -W options will be added if the compiler
+# supports them.  If you define CFLAGS manually, it will be used
+# unchanged, and nothing will be added.
+
+CFLAGS="-g"
+
+# In rare cases, it may be required to skip individual automatic tests.
+# Each of the following variables can be set to 0 (test will not be run
+# and will be regarded as failed) or 1 (test will not be run and will
+# be regarded as successful).
+
+HAVE_DIRENT_NAMLEN=0
+HAVE_ENDIAN=0
+HAVE_EFTYPE=0
+HAVE_ERR=0
+HAVE_FTS=0  # Setting this implies HAVE_FTS_COMPARE_CONST=0.
+HAVE_FTS_COMPARE_CONST=0  # Setting this implies HAVE_FTS=1.
+HAVE_GETLINE=0
+HAVE_GETSUBOPT=0
+HAVE_ISBLANK=0
+HAVE_MKDTEMP=0
+HAVE_NTOHL=0
+HAVE_O_DIRECTORY=0
+HAVE_OHASH=0
+HAVE_PATH_MAX=0
+HAVE_PLEDGE=0
+HAVE_PROGNAME=0
+HAVE_REALLOCARRAY=0
+HAVE_RECALLOCARRAY=0
+HAVE_REWB_BSD=0
+HAVE_REWB_SYSV=0
+HAVE_STRCASESTR=0
+HAVE_STRINGLIST=0
+HAVE_STRLCAT=0
+HAVE_STRLCPY=0
+HAVE_STRPTIME=0
+HAVE_STRSEP=0
+HAVE_STRTONUM=0
+HAVE_SYS_ENDIAN=0
+HAVE_VASPRINTF=0
+HAVE_WCHAR=0

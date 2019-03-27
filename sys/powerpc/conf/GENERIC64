@@ -1,0 +1,254 @@
+#
+# GENERIC -- Generic kernel configuration file for FreeBSD/powerpc
+#
+# For more information on this file, please read the handbook section on
+# Kernel Configuration Files:
+#
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files. 
+# If you are in doubt as to the purpose or necessity of a line, check first 
+# in NOTES.
+#
+# $FreeBSD$
+
+cpu		AIM
+ident		GENERIC
+
+machine 	powerpc	powerpc64
+
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	WITH_CTF=1
+
+# Platform support
+options 	POWERMAC		#NewWorld Apple PowerMacs
+options 	PS3			#Sony Playstation 3
+options 	MAMBO			#IBM Mambo Full System Simulator
+options 	PSERIES			#PAPR-compliant systems (e.g. IBM p)
+options 	POWERNV			#Non-virtualized OpenPOWER systems
+
+options		FDT			#Flattened Device Tree
+options 	SCHED_ULE		#ULE scheduler
+options 	PREEMPTION		#Enable kernel thread preemption
+options 	VIMAGE			# Subsystem virtualization, e.g. VNET
+options 	INET			#InterNETworking
+options 	INET6			#IPv6 communications protocols
+options 	IPSEC			# IP (v4/v6) security
+options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
+options 	TCP_OFFLOAD		# TCP offload
+options 	TCP_BLACKBOX		# Enhanced TCP event logging
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+options 	TCP_RFC7413		# TCP Fast Open
+options 	SCTP			#Stream Control Transmission Protocol
+options 	FFS			#Berkeley Fast Filesystem
+options 	SOFTUPDATES		#Enable FFS soft updates support
+options 	UFS_ACL			#Support for access control lists
+options 	UFS_DIRHASH		#Improve performance on big directories
+options 	UFS_GJOURNAL		#Enable gjournal-based UFS journaling
+options 	QUOTA			#Enable disk quotas for UFS
+options 	MD_ROOT			#MD is a potential root device
+options 	NFSCL			#Network Filesystem Client
+options 	NFSD			#Network Filesystem Server
+options 	NFSLOCKD		#Network Lock Manager
+options 	NFS_ROOT		#NFS usable as root device
+options 	MSDOSFS			#MSDOS Filesystem
+options 	CD9660			#ISO 9660 Filesystem
+options 	PROCFS			#Process filesystem (requires PSEUDOFS)
+options 	PSEUDOFS		#Pseudo-filesystem framework
+options 	GEOM_PART_APM		#Apple Partition Maps.
+options 	GEOM_PART_GPT		#GUID Partition Tables.
+options 	GEOM_LABEL		#Provides labelization
+options 	COMPAT_FREEBSD32	#Compatible with FreeBSD/powerpc binaries
+options 	COMPAT_FREEBSD5		#Compatible with FreeBSD5
+options 	COMPAT_FREEBSD6		#Compatible with FreeBSD6
+options 	COMPAT_FREEBSD7		#Compatible with FreeBSD7
+options 	COMPAT_FREEBSD9		# Compatible with FreeBSD9
+options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
+options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
+options 	SCSI_DELAY=5000		#Delay (in ms) before probing SCSI 
+options 	KTRACE			#ktrace(1) syscall trace support
+options 	STACK			#stack(9) support
+options 	SYSVSHM			#SYSV-style shared memory
+options 	SYSVMSG			#SYSV-style message queues
+options 	SYSVSEM			#SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+options		PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
+options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
+options 	AUDIT			# Security event auditing
+options 	CAPABILITY_MODE		# Capsicum capability mode
+options 	CAPABILITIES		# Capsicum capabilities
+options 	MAC			# TrustedBSD MAC Framework
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	DDB_CTF			# Kernel ELF linker loads CTF data
+options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
+options 	RACCT			# Resource accounting framework
+options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
+options 	RCTL			# Resource limits
+
+# Debugging support.  Always need this:
+options 	KDB			# Enable kernel debugger support.
+options 	KDB_TRACE		# Print a stack trace for a panic.
+# For full debugger support use (turn off in stable branch):
+options 	DDB			#Support DDB
+#options 	DEADLKRES		#Enable the deadlock resolver
+options 	INVARIANTS		#Enable calls of extra sanity checking
+options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
+options 	WITNESS			#Enable checks to detect deadlocks and cycles
+options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
+options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
+options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
+
+# Kernel dump features.
+options 	EKCD			# Support for encrypted kernel dumps
+options 	GZIO			# gzip-compressed kernel and user dumps
+options 	ZSTDIO			# zstd-compressed kernel and user dumps
+options 	NETDUMP			# netdump(4) client support
+
+# Make an SMP-capable kernel by default
+options 	SMP			# Symmetric MultiProcessor Kernel
+
+# CPU frequency control
+device		cpufreq
+
+# Standard busses
+device		pci
+options 	PCI_HP			# PCI-Express native HotPlug
+device		agp
+
+# ATA controllers
+device		ahci		# AHCI-compatible SATA controllers
+device		ata		# Legacy ATA/SATA controllers
+device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
+device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
+
+# NVM Express (NVMe) support
+device		nvme		# base NVMe driver
+options		NVME_USE_NVD=0	# prefer the cam(4) based nda(4) driver
+device		nvd		# expose NVMe namespaces as disks, depends on nvme
+
+# SCSI Controllers
+device		ahc		# AHA2940 and onboard AIC7xxx devices
+options 	AHC_ALLOW_MEMIO	# Attempt to use memory mapped I/O
+device		isp		# Qlogic family
+device		ispfw		# Firmware module for Qlogic host adapters
+device		mpt		# LSI-Logic MPT-Fusion
+device		mps		# LSI-Logic MPT-Fusion 2
+device		sym		# NCR/Symbios/LSI Logic 53C8XX/53C1010/53C1510D
+
+# ATA/SCSI peripherals
+device		scbus		# SCSI bus (required for ATA/SCSI)
+device		ch		# SCSI media changers
+device		da		# Direct Access (disks)
+device		sa		# Sequential Access (tape etc)
+device		cd		# CD
+device		pass		# Passthrough device (direct ATA/SCSI access)
+device		ses		# Enclosure Service (SES and SAF-TE)
+
+# vt is the default console driver, resembling an SCO console
+device		vt		# Core console driver
+device		kbdmux
+
+# Serial (COM) ports
+device		scc
+device		uart
+device		uart_z8530
+
+device		iflib
+
+# Ethernet hardware
+device		em		# Intel PRO/1000 Gigabit Ethernet Family
+device		ix		# Intel PRO/10GbE PCIE PF Ethernet Family
+device		ixv		# Intel PRO/10GbE PCIE VF Ethernet Family
+device		glc		# Sony Playstation 3 Ethernet
+device		llan		# IBM pSeries Virtual Ethernet
+device		cxgbe		# Chelsio 10/25G NIC
+
+# PCI Ethernet NICs that use the common MII bus controller code.
+device		miibus		# MII bus support
+device		bge		# Broadcom BCM570xx Gigabit Ethernet
+device		gem		# Sun GEM/Sun ERI/Apple GMAC
+device		dc		# DEC/Intel 21143 and various workalikes
+device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+device		re		# RealTek 8139C+/8169/8169S/8110S
+device		rl		# RealTek 8129/8139
+
+# Pseudo devices.
+device		crypto		# core crypto support
+device		loop		# Network loopback
+device		random		# Entropy device
+device		ether		# Ethernet support
+device		vlan		# 802.1Q VLAN support
+device		tun		# Packet tunnel.
+device		md		# Memory "disks"
+device		ofwd		# Open Firmware disks
+device		gif		# IPv6 and IPv4 tunneling
+device		firmware	# firmware assist module
+
+# The `bpf' device enables the Berkeley Packet Filter.
+# Be aware of the administrative consequences of enabling this!
+# Note that 'bpf' is required for DHCP.
+device		bpf		#Berkeley packet filter
+
+# USB support
+options 	USB_DEBUG	# enable debug msgs
+device		uhci		# UHCI PCI->USB interface
+device		ohci		# OHCI PCI->USB interface
+device		ehci		# EHCI PCI->USB interface
+device		xhci		# XHCI PCI->USB interface
+device		usb		# USB Bus (required)
+device		uhid		# "Human Interface Devices"
+device		ukbd		# Keyboard
+options 	KBD_INSTALL_CDEV # install a CDEV entry in /dev
+device		umass		# Disks/Mass storage - Requires scbus and da0
+device		ums		# Mouse
+# USB Ethernet
+device		aue		# ADMtek USB Ethernet
+device		axe		# ASIX Electronics USB Ethernet
+device		cdce		# Generic USB over Ethernet
+device		cue		# CATC USB Ethernet
+device		kue		# Kawasaki LSI USB Ethernet
+
+# Wireless NIC cards
+options 	IEEE80211_SUPPORT_MESH
+
+# FireWire support
+device		firewire	# FireWire bus code
+device		sbp		# SCSI over FireWire (Requires scbus and da)
+device		fwe		# Ethernet over FireWire (non-standard!)
+
+# Misc
+device		iicbus		# I2C bus code
+device		iic
+device		kiic		# Keywest I2C
+device		ad7417		# PowerMac7,2 temperature sensor
+device		ds1631		# PowerMac11,2 temperature sensor
+device		ds1775		# PowerMac7,2 temperature sensor
+device		fcu		# Apple Fan Control Unit
+device		max6690		# PowerMac7,2 temperature sensor
+device		powermac_nvram	# Open Firmware configuration NVRAM
+device		smu		# Apple System Management Unit
+device		atibl		# ATI-based backlight driver for PowerBooks/iBooks
+device		nvbl		# nVidia-based backlight driver for PowerBooks/iBooks
+
+# ADB support
+device		adb
+device		pmu
+
+# Sound support
+device		sound		# Generic sound driver (required)
+device		snd_ai2s	# Apple I2S audio
+device		snd_uaudio	# USB Audio
+
+# Netmap provides direct access to TX/RX rings on supported NICs
+device		netmap		# netmap(4) support
+
+# evdev interface
+options 	EVDEV_SUPPORT		# evdev support in legacy drivers
+device		evdev			# input event device support
+device		uinput			# install /dev/uinput cdev

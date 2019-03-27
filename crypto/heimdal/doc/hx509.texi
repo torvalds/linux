@@ -1,0 +1,757 @@
+\input texinfo @c -*- texinfo -*-
+@c %**start of header
+@c $Id$
+@setfilename hx509.info
+@settitle HX509
+@iftex
+@afourpaper
+@end iftex
+@c some sensible characters, please?
+@tex
+\input latin1.tex
+@end tex
+@setchapternewpage on
+@syncodeindex pg cp
+@c %**end of header
+
+@include vars.texi
+
+@set VERSION @value{PACKAGE_VERSION}
+@set EDITION 1.0
+
+@ifinfo
+@dircategory Security
+@direntry
+* hx509: (hx509).               The X.509 distribution from KTH
+@end direntry
+@end ifinfo
+
+@c title page
+@titlepage
+@title HX509
+@subtitle X.509 distribution from KTH
+@subtitle Edition @value{EDITION}, for version @value{VERSION}
+@subtitle 2008
+@author Love Hörnquist Åstrand
+
+@def@copynext{@vskip 20pt plus 1fil}
+@def@copyrightstart{}
+@def@copyrightend{}
+@page
+@copyrightstart
+Copyright (c) 1994-2008 Kungliga Tekniska Högskolan
+(Royal Institute of Technology, Stockholm, Sweden).
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+3. Neither the name of the Institute nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+
+@copynext
+
+Copyright (c) 1988, 1990, 1993
+     The Regents of the University of California.  All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+3. Neither the name of the University nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+
+@copynext
+
+Copyright 1992 Simmule Turner and Rich Salz.  All rights reserved.
+
+This software is not subject to any license of the American Telephone
+and Telegraph Company or of the Regents of the University of California.
+
+Permission is granted to anyone to use this software for any purpose on
+any computer system, and to alter it and redistribute it freely, subject
+to the following restrictions:
+
+1. The authors are not responsible for the consequences of use of this
+   software, no matter how awful, even if they arise from flaws in it.
+
+2. The origin of this software must not be misrepresented, either by
+   explicit claim or by omission.  Since few users ever read sources,
+   credits must appear in the documentation.
+
+3. Altered versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.  Since few users
+   ever read sources, credits must appear in the documentation.
+
+4. This notice may not be removed or altered.
+
+@copynext
+
+IMath is Copyright 2002-2005 Michael J. Fromberger
+You may use it subject to the following Licensing Terms:
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+@copyrightend
+@end titlepage
+
+@macro manpage{man, section}
+@cite{\man\(\section\)}
+@end macro
+
+@c Less filling! Tastes great!
+@iftex
+@parindent=0pt
+@global@parskip 6pt plus 1pt
+@global@chapheadingskip = 15pt plus 4pt minus 2pt
+@global@secheadingskip = 12pt plus 3pt minus 2pt
+@global@subsecheadingskip = 9pt plus 2pt minus 2pt
+@end iftex
+@ifinfo
+@paragraphindent 0
+@end ifinfo
+
+@ifnottex
+@node Top, Introduction, (dir), (dir)
+@top Heimdal
+@end ifnottex
+
+This manual is for version @value{VERSION} of hx509.
+
+@menu
+* Introduction::
+* What is X.509 ?::
+* Setting up a CA::
+* CMS signing and encryption::
+* Certificate matching::
+* Software PKCS 11 module::
+
+@detailmenu
+ --- The Detailed Node Listing ---
+
+Setting up a CA
+
+@c * Issuing certificates::
+* Creating a CA certificate::
+* Issuing certificates::
+* Issuing CRLs::
+@c * Issuing a proxy certificate::
+@c * Creating a user certificate::
+@c * Validating a certificate::
+@c * Validating a certificate path::
+* Application requirements::
+
+CMS signing and encryption
+
+* CMS background::
+
+Certificate matching
+
+* Matching syntax::
+
+Software PKCS 11 module
+
+* How to use the PKCS11 module::
+
+@end detailmenu
+@end menu
+
+@node Introduction, What is X.509 ?, Top, Top
+@chapter Introduction
+
+The goals of a PKI infrastructure (as defined in 
+<a href="http://www.ietf.org/rfc/rfc3280.txt">RFC 3280</a>) is to meet 
+@emph{the needs of deterministic, automated identification, authentication, access control, and authorization}.
+
+
+The administrator should be aware of certain terminologies as explained by the aforementioned
+RFC before attemping to put in place a PKI infrastructure. Briefly, these are: 
+
+@itemize @bullet
+@item CA
+Certificate Authority
+@item RA
+Registration Authority, i.e., an optional system to which a CA delegates certain management functions.
+@item CRL Issuer
+An optional system to which a CA delegates the publication of certificate revocation lists.
+@item Repository
+A system or collection of distributed systems that stores certificates and CRLs 
+and serves as a means of distributing these certificates and CRLs to end entities
+@end itemize
+
+hx509 (Heimdal x509 support) is a near complete X.509 stack that can
+handle CMS messages (crypto system used in S/MIME and Kerberos PK-INIT)
+and basic certificate processing tasks, path construction, path
+validation, OCSP and CRL validation, PKCS10 message construction, CMS
+Encrypted (shared secret encrypted), CMS SignedData (certificate
+signed), and CMS EnvelopedData (certificate encrypted).
+
+hx509 can use PKCS11 tokens, PKCS12 files, PEM files, and/or DER encoded
+files.
+
+@node What is X.509 ?, Setting up a CA, Introduction, Top
+@chapter What is X.509, PKIX, PKCS7 and CMS ? 
+
+X.509 was created by CCITT (later ITU) for the X.500 directory
+service. Today, X.509 discussions and implementations commonly reference
+the IETF's PKIX Certificate and CRL Profile of the X.509 v3 certificate
+standard, as specified in RFC 3280.
+
+ITU continues to develop the X.509 standard together with the IETF in a 
+rather complicated dance.
+
+X.509 is a public key based security system that has associated data
+stored within a so called certificate. Initially, X.509 was a strict
+hierarchical system with one root. However, ever evolving requiments and
+technology advancements saw the inclusion of multiple policy roots,
+bridges and mesh solutions.
+
+x.509 can also be used as a peer to peer system, though often seen as a
+common scenario.
+
+@section Type of certificates
+
+There are several flavors of certificate in X.509.
+
+@itemize @bullet
+
+@item Trust anchors
+
+Trust anchors are strictly not certificates, but commonly stored in a
+certificate format as they become easier to manage. Trust anchors are
+the keys that an end entity would trust to validate other certificates.
+This is done by building a path from the certificate you want to
+validate to to any of the trust anchors you have.
+
+@item End Entity (EE) certificates
+
+End entity certificates are the most common types of certificates. End
+entity certificates cannot issue (sign) certificate themselves and are generally
+used to authenticate and authorize users and services.
+
+@item Certification Authority (CA) certificates
+
+Certificate authority certificates have the right to issue additional
+certificates (be it sub-ordinate CA certificates to build an trust anchors
+or end entity certificates). There is no limit to how many certificates a CA
+may issue, but there might other restrictions, like the maximum path
+depth.
+
+@item Proxy certificates
+
+Remember the statement "End Entity certificates cannot issue
+certificates"?  Well that statement is not entirely true. There is an
+extension called proxy certificates defined in RFC3820, that allows
+certificates to be issued by end entity certificates. The service that
+receives the proxy certificates must have explicitly turned on support
+for proxy certificates, so their use is somewhat limited.
+
+Proxy certificates can be limited by policies stored in the certificate to
+what they can be used for. This allows users to delegate the proxy
+certificate to services (by sending over the certificate and private
+key) so the service can access services on behalf of the user.
+
+One example of this would be a print service. The user wants to print a
+large job in the middle of the night when the printer isn't used that
+much, so the user creates a proxy certificate with the policy that it
+can only be used to access files related to this print job, creates the
+print job description and send both the description and proxy
+certificate with key over to print service. Later at night when the
+print service initializes (without any user intervention), access to the files 
+for the print job is granted via the proxy certificate. As a result of (in-place) 
+policy limitations, the certificate cannot be used for any other purposes.
+
+@end itemize
+
+@section Building a path
+
+Before validating a certificate path (or chain), the path needs to be
+constructed.  Given a certificate (EE, CA, Proxy, or any other type),
+the path construction algorithm will try to find a path to one of the
+trust anchors.
+
+The process starts by looking at the issuing CA of the certificate, by
+Name or Key Identifier, and tries to find that certificate while at the
+same time evaluting any policies in-place.
+
+@node Setting up a CA, Creating a CA certificate, What is X.509 ?, Top
+@chapter Setting up a CA
+
+Do not let information overload scare you off! If you are simply testing
+or getting started with a PKI infrastructure, skip all this and go to
+the next chapter (see: @pxref{Creating a CA certificate}).
+
+Creating a CA certificate should be more the just creating a
+certificate, CA's should define a policy. Again, if you are simply
+testing a PKI, policies do not matter so much. However, when it comes to
+trust in an organisation, it will probably matter more whom your users
+and sysadmins will find it acceptable to trust.
+
+At the same time, try to keep things simple, it's not very hard to run a
+Certificate authority and the process to get new certificates should be simple.
+
+You may find it helpful to answer the following policy questions for
+your organization at a later stage:
+
+@itemize @bullet
+@item How do you trust your CA.
+@item What is the CA responsibility.
+@item Review of CA activity.
+@item How much process should it be to issue certificate.
+@item Who is allowed to issue certificates.
+@item Who is allowed to requests certificates.
+@item How to handle certificate revocation, issuing CRLs and maintain OCSP services.
+@end itemize
+
+@node Creating a CA certificate, Issuing certificates, Setting up a CA, Top
+@section Creating a CA certificate
+
+This section describes how to create a CA certificate and what to think
+about.
+
+@subsection Lifetime CA certificate
+
+You probably want to create a CA certificate with a long lifetime, 10
+years at the very minimum. This is because you don't want to push out the
+certificate (as a trust anchor) to all you users again when the old
+CA certificate expires. Although a trust anchor can't really expire, not all
+software works in accordance with published standards.
+
+Keep in mind the security requirements might be different 10-20 years
+into the future. For example, SHA1 is going to be withdrawn in 2010, so
+make sure you have enough buffering in your choice of digest/hash
+algorithms, signature algorithms and key lengths.
+
+@subsection Create a CA certificate
+
+This command below can be used to generate a self-signed CA certificate.
+
+@example
+hxtool issue-certificate \
+    --self-signed \
+    --issue-ca \
+    --generate-key=rsa \
+    --subject="CN=CertificateAuthority,DC=test,DC=h5l,DC=se" \
+    --lifetime=10years \
+    --certificate="FILE:ca.pem"
+@end example
+
+@subsection Extending the lifetime of a CA certificate
+
+You just realised that your CA certificate is going to expire soon and
+that you need replace it with a new CA. The easiest way to do that
+is to extend the lifetime of your existing CA certificate.
+
+The example below will extend the CA certificate's lifetime by 10 years. 
+You should compare this new certificate if it contains all the
+special tweaks as the old certificate had.
+
+@example
+hxtool issue-certificate \
+    --self-signed \
+    --issue-ca \
+    --lifetime="10years" \
+    --template-certificate="FILE:ca.pem" \
+    --template-fields="serialNumber,notBefore,subject,SPKI" \
+    --ca-private-key=FILE:ca.pem \
+    --certificate="FILE:new-ca.pem"
+@end example
+
+@subsection Subordinate CA
+
+This example below creates a new subordinate certificate authority.
+
+@example
+hxtool issue-certificate \
+    --ca-certificate=FILE:ca.pem \
+    --issue-ca \
+    --generate-key=rsa \
+    --subject="CN=CertificateAuthority,DC=dev,DC=test,DC=h5l,DC=se" \
+    --certificate="FILE:dev-ca.pem"
+@end example
+
+
+@node Issuing certificates, Issuing CRLs, Creating a CA certificate, Top
+@section Issuing certificates
+
+First you'll create a CA certificate, after that you have to deal with
+your users and servers and issue certificates to them.
+
+@c I think this section needs a bit of clarity. Can I add a separate
+@c section which explains CSRs as well?
+
+
+@itemize @bullet
+
+@item Do all the work themself
+
+Generate the key for the user. This has the problme that the the CA
+knows the private key of the user. For a paranoid user this might leave
+feeling of disconfort.
+
+@item Have the user do part of the work
+
+Receive PKCS10 certificate requests fromusers. PKCS10 is a request for a
+certificate.  The user may specify what DN they want as well as provide
+a certificate signing request (CSR).  To prove the user have the key,
+the whole request is signed by the private key of the user.
+
+@end itemize
+
+@subsection Name space management
+
+@c The explanation given below is slightly unclear. I will re-read the
+@c RFC and document accordingly
+
+What people might want to see.
+
+Re-issue certificates just because people moved within the organization.
+
+Expose privacy information.
+
+Using Sub-component name (+ notation).
+
+@subsection Certificate Revocation, CRL and OCSP
+
+Certificates that a CA issues may need to be revoked at some stage. As
+an example, an employee leaves the organization and does not bother
+handing in his smart card (or even if the smart card is handed back --
+the certificate on it must no longer be acceptable to services; the
+employee has left).
+
+You may also want to revoke a certificate for a service which is no
+longer being offered on your network. Overlooking these scenarios can
+lead to security holes which will quickly become a nightmare to deal
+with.
+
+There are two primary protocols for dealing with certificate
+revokation. Namely:
+
+@itemize @bullet
+@item Certificate Revocation List (CRL)
+@item Online Certificate Status Protocol (OCSP)
+@end itemize
+
+If however the certificate in qeustion has been destroyed, there is no
+need to revoke the certificate because it can not be used by someone
+else. This matter since for each certificate you add to CRL, the
+download time and processing time for clients are longer.
+
+CRLs and OCSP responders however greatly help manage compatible services
+which may authenticate and authorize users (or services) on an on-going
+basis. As an example, VPN connectivity established via certificates for
+connecting clients would require your VPN software to make use of a CRL
+or an OCSP service to ensure revoked certificates belonging to former
+clients are not allowed access to (formerly subscribed) network
+services.
+
+
+@node Issuing CRLs, Application requirements, Issuing certificates, Top
+@section Issuing CRLs
+
+Create an empty CRL with no certificates revoked. Default expiration
+value is one year from now.
+
+@example
+hxtool crl-sign \
+	--crl-file=crl.der \
+	--signer=FILE:ca.pem
+@end example
+
+Create a CRL with all certificates in the directory
+@file{/path/to/revoked/dir} included in the CRL as revoked.  Also make
+it expire one month from now.
+
+@example
+hxtool crl-sign \
+	--crl-file=crl.der \
+        --signer=FILE:ca.pem \
+	--lifetime='1 month' \
+        DIR:/path/to/revoked/dir
+@end example
+
+@node Application requirements, CMS signing and encryption, Issuing CRLs, Top
+@section Application requirements
+
+Application place different requirements on certificates. This section
+tries to expand what they are and how to use hxtool to generate
+certificates for those services.
+
+@subsection HTTPS - server
+
+@example
+hxtool issue-certificate \
+	  --subject="CN=www.test.h5l.se,DC=test,DC=h5l,DC=se" \
+	  --type="https-server" \
+          --hostname="www.test.h5l.se" \
+          --hostname="www2.test.h5l.se" \
+          ...
+@end example
+
+@subsection HTTPS - client
+
+@example
+hxtool issue-certificate \
+	  --subject="UID=testus,DC=test,DC=h5l,DC=se" \
+	  --type="https-client" \
+          ...
+@end example
+
+@subsection S/MIME - email
+
+There are two things that should be set in S/MIME certificates, one or
+more email addresses and an extended eku usage (EKU), emailProtection.
+
+The email address format used in S/MIME certificates is defined in
+RFC2822, section 3.4.1 and it should be an ``addr-spec''.
+
+There are two ways to specifify email address in certificates. The old
+way is in the subject distinguished name, @emph{this should not be used}. The
+new way is using a Subject Alternative Name (SAN).
+
+Even though the email address is stored in certificates, they don't need
+to be, email reader programs are required to accept certificates that
+doesn't have either of the two methods of storing email in certificates
+-- in which case, the email client will try to protect the user by
+printing the name of the certificate instead.
+
+S/MIME certificate can be used in another special way. They can be
+issued with a NULL subject distinguished name plus the email in SAN,
+this is a valid certificate. This is used when you wont want to share
+more information then you need to.
+
+hx509 issue-certificate supports adding the email SAN to certificate by
+using the --email option, --email also gives an implicit emailProtection
+eku. If you want to create an certificate without an email address, the
+option --type=email will add the emailProtection EKU.
+
+@example
+hxtool issue-certificate \
+	  --subject="UID=testus-email,DC=test,DC=h5l,DC=se" \
+	  --type=email \
+	  --email="testus@@test.h5l.se" \
+          ...
+@end example
+
+An example of an certificate without and subject distinguished name with
+an email address in a SAN.
+
+@example
+hxtool issue-certificate \
+	  --subject="" \
+	  --type=email \
+	  --email="testus@@test.h5l.se" \
+          ...
+@end example
+
+@subsection PK-INIT
+
+A PK-INIT infrastructure allows users and services to pick up kerberos
+credentials (tickets) based on their certificate. This, for example,
+allows users to authenticate to their desktops using smartcards while
+acquiring kerberos tickets in the process.
+
+As an example, an office network which offers centrally controlled
+desktop logins, mail, messaging (xmpp) and openafs would give users
+single sign-on facilities via smartcard based logins.  Once the kerberos
+ticket has been acquired, all kerberized services would immediately
+become accessible based on deployed security policies.
+
+Let's go over the process of initializing a demo PK-INIT framework:
+
+@example
+hxtool issue-certificate \
+        --type="pkinit-kdc" \
+        --pk-init-principal="krbtgt/TEST.H5L.SE@@TEST.H5L.SE" \
+        --hostname=kerberos.test.h5l.se \
+        --ca-certificate="FILE:ca.pem,ca.key" \
+        --generate-key=rsa \
+        --certificate="FILE:kdc.pem" \
+        --subject="cn=kdc"
+@end example
+
+How to create a certificate for a user.
+
+@example
+hxtool issue-certificate \
+        --type="pkinit-client" \
+        --pk-init-principal="user@@TEST.H5L.SE" \
+        --ca-certificate="FILE:ca.pem,ca.key" \
+        --generate-key=rsa \
+        --subject="cn=Test User" \
+        --certificate="FILE:user.pem"
+@end example
+
+The --type field can be specified multiple times. The same certificate
+can hence house extensions for both pkinit-client as well as S/MIME.
+
+To use the PKCS11 module, please see the section:
+@pxref{How to use the PKCS11 module}.
+
+More about how to configure the KDC, see the documentation in the
+Heimdal manual to set up the KDC.
+
+@subsection XMPP/Jabber
+
+The jabber server certificate should have a dNSname that is the same as
+the user entered into the application, not the same as the host name of
+the machine.
+
+@example
+hxtool issue-certificate \
+	  --subject="CN=xmpp1.test.h5l.se,DC=test,DC=h5l,DC=se" \
+          --hostname="xmpp1.test.h5l.se" \
+          --hostname="test.h5l.se" \
+          ...
+@end example
+
+The certificate may also contain a jabber identifier (JID) that, if the
+receiver allows it, authorises the server or client to use that JID.
+
+When storing a JID inside the certificate, both for server and client,
+it's stored inside a UTF8String within an otherName entity inside the
+subjectAltName, using the OID id-on-xmppAddr (1.3.6.1.5.5.7.8.5).
+
+To read more about the requirements, see RFC3920, Extensible Messaging
+and Presence Protocol (XMPP): Core.
+
+hxtool issue-certificate have support to add jid to the certificate
+using the option @kbd{--jid}.
+
+@example
+hxtool issue-certificate \
+	  --subject="CN=Love,DC=test,DC=h5l,DC=se" \
+          --jid="lha@@test.h5l.se" \
+          ...
+@end example
+
+
+@node CMS signing and encryption, CMS background, Application requirements, Top
+@chapter CMS signing and encryption
+
+CMS is the Cryptographic Message System that among other, is used by
+S/MIME (secure email) and Kerberos PK-INIT. It's an extended version of
+the RSA, Inc standard PKCS7.
+
+@node CMS background, Certificate matching, CMS signing and encryption, Top
+@section CMS background
+
+
+@node Certificate matching, Matching syntax, CMS background, Top
+@chapter Certificate matching
+
+To match certificates hx509 have a special query language to match
+certifictes in queries and ACLs.
+
+@node Matching syntax, Software PKCS 11 module, Certificate matching, Top
+@section Matching syntax
+
+This is the language definitions somewhat slopply descriped:
+
+@example
+
+expr = TRUE, 
+     FALSE,
+     ! expr,
+     expr AND expr,
+     expr OR expr,
+     ( expr )
+     compare
+
+compare =
+     word == word,
+     word != word,
+     word IN ( word [, word ...])
+     word IN %@{variable.subvariable@}
+
+word =
+     STRING,
+     %@{variable@}
+
+@end example
+
+@node Software PKCS 11 module, How to use the PKCS11 module, Matching syntax, Top
+@chapter Software PKCS 11 module
+
+PKCS11 is a standard created by RSA, Inc to support hardware and
+software encryption modules. It can be used by smartcard to expose the
+crypto primitives inside without exposing the crypto keys.
+
+Hx509 includes a software implementation of PKCS11 that runs within the
+memory space of the process and thus exposes the keys to the
+application.
+
+@node How to use the PKCS11 module, , Software PKCS 11 module, Top
+@section How to use the PKCS11 module
+
+@example
+$ cat > ~/.soft-pkcs11.rc <<EOF
+mycert	cert	User certificate	FILE:/Users/lha/Private/pkinit.pem
+app-fatal	true
+EOF
+$ kinit -C PKCS11:/usr/heimdal/lib/hx509.so lha@@EXAMPLE.ORG
+@end example
+
+
+@c @shortcontents
+@contents
+
+@bye

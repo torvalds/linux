@@ -1,0 +1,613 @@
+.\" Copyright (c) 2002-2004 Roman Kurakin <rik@cronyx.ru>
+.\" Copyright (c) 2002-2004 Cronyx Engineering
+.\" All rights reserved.
+.\"
+.\" This software is distributed with NO WARRANTIES, not even the implied
+.\" warranties for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.\" Authors grant any other persons or organisations a permission to use,
+.\" modify and redistribute this software in source and binary forms,
+.\" as long as this message is kept with the software, all derivative
+.\" works or modified versions.
+.\"
+.\" $FreeBSD$
+.Dd October 3, 2016
+.Dt SCONFIG 8 i386
+.Os
+.Sh NAME
+.Nm sconfig
+.Nd "channel configuration utility for Cronyx adapters"
+.Sh SYNOPSIS
+.Nm
+.Op Fl aimsxeftuc
+.Op Ar device
+.Op Ar data_rate_options
+.Op Ar protocol_options ...
+.Op Ar interface_options ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is used for configuring the channel options of the Cronyx
+adapters.
+In asynchronous mode, all parameters should be set using the standard
+.Xr stty 1
+utility.
+With
+.Nm ,
+it is only possible to set some of them (see below).
+.Pp
+Some of the options can be set only on free channels,
+that is when the corresponding network interface is in the
+.Cm down
+state in the synchronous mode,
+and the terminal device
+.Pa /dev/tty*
+is closed in asynchronous mode.
+.Pp
+Other channel options can be changed
+.Dq "on the fly" .
+Generally, the channel options are set up during the operating system startup,
+for example, from the
+.Pa /etc/rc
+script.
+.Pp
+Note that not all options make sense in every particular case,
+and an attempt to set some of them may hung up the channel
+or the whole adapter.
+.\"--------------------------------------------------------------
+.Ss "Information Options"
+Only one of these options can be specified.
+If information option is specified,
+.Nm
+will show the corresponding information and will ignore all other options,
+except
+.Ar device .
+See also the description of the
+.Ar device
+argument.
+.Bl -tag -width indent
+.It <none>
+This will show settings of the channel.
+.It Fl a
+Print all settings of the channel.
+.It Fl i
+Print interface settings, equal to the output of the
+.Xr ifconfig 8
+utility.
+.It Fl m
+Print modem signal status.
+The description of all signals can be found in any modem documentation.
+Only LE signal should be described.
+If this signal is ON then the channel is busy.
+If it is OFF then the channel is free.
+.It Fl s
+Print brief channel statistics.
+This is the generic statistics,
+see also the
+.Fl x , e , f , t ,
+and
+.Fl u
+options.
+For a description of the output, see below.
+.Pp
+This statistics is very useful if something goes wrong.
+For example, if all interrupt counters are zero then the device
+was configured to use an interrupt that was not registered in the
+BIOS for use with the ISA bus.
+.It Fl x
+Print full channel statistics.
+This options prints additional counters,
+but with less precision than with the
+.Fl s
+option.
+.It Fl e
+Print brief E1/G703 statistics.
+If this option is selected, the
+statistics accumulated over the last 15 minutes is printed.
+For a description of the output, see below.
+.It Fl f
+Print full E1/G703 statistics.
+This option shows all E1/G703 statistics that the
+.Fl e
+option shows,
+plus total statistics for the whole period of time and statistics for
+last 24 hours (if available).
+For a description of the output, see below.
+.It Fl t
+Print brief E3/T3/STS-1 statistics.
+If this option is selected, the
+statistics accumulated over the last 15 minutes is printed.
+For a description of the output, see below.
+.It Fl u
+Print full E3/T3/STS-1 statistics.
+This option shows all E3/T3/STS-1 statistics that the
+.Fl t
+option shows,
+plus total statistics for the whole period of time and statistics for
+last 24 hours (if available).
+For a description of the output, see below.
+.It Fl c
+Cleans all kind of statistics.
+.El
+.\"--------------------------------------------------------------
+.Ss "Device Selection"
+The device is selected using the name of the network interface,
+as shown by
+.Xr ifconfig 8 .
+The channel number depends on the order the drivers were loaded into the system.
+Sometimes people confuse channel number and adapter number because of the
+same spelling.
+The adapter number appears in the kernel context, while the channel number
+is in the configuration context.
+.Bl -tag -width indent
+.It <none>
+If the device name is omitted,
+.Nm
+will print information about all channels of all Cronyx adapters
+available in the system.
+If some settings need to be made, the device name must be specified.
+.It Li cx Ns Ar ##
+This is the channel name for the Sigma family of Cronyx adapters.
+(ISA bus.)
+.It Li ct Ns Ar ##
+This is the channel name for the Tau family of Cronyx adapters.
+(ISA bus.)
+.It Li cp Ns Ar ##
+This is the channel name for the Tau-PCI family of Cronyx adapters.
+(PCI bus.)
+.It Li ce Ns Ar ##
+This is the channel name for the Tau32-PCI family of Cronyx adapters.
+(PCI bus.)
+.El
+.\"--------------------------------------------------------------
+.Ss "Data Rate Options"
+.Bl -tag -width indent
+.It Ar value
+A non-zero value will set the data rate to a given value
+in asynchronous mode,
+and will set the data rate and internal clock source of synchronization
+in synchronous mode.
+A zero value is equivalent to specifying the
+.Cm extclock
+option.
+The transmitted data (TxD) are synchronized using the internal on-board timing
+generator, the internally generated timing signal is driven on the TXCOUT pin,
+and the signal on the TXCIN pin is ignored.
+This mode is used for direct
+terminal-to-terminal communication, e.g., when connecting two computers together
+in synchronous mode with a relatively short cable.
+This method should also be
+used for testing channels with an external loopback connector.
+.It Cm extclock
+Set the external timing clock source for synchronous channels.
+External clock mode is the most commonly used method for connecting
+external modem hardware.
+In this mode,
+the external timing signal is received on the TXCIN pin of the connector,
+and it is used as a synchronization clock for transmitting data (TxD).
+.Pp
+Note: in
+.Cm extclock
+mode, the device cannot determine the value of the external timing clock
+since it does not have the built-in clock gauge.
+.El
+.\"--------------------------------------------------------------
+.Ss "Protocol Options"
+Note: these option can only be used on a free channel, and they require
+specifying the device name.
+.Bl -tag -width indent
+.It Cm async
+(Only for Sigma family.)
+Select the asynchronous protocol (or mode).
+In this mode, Cronyx adapters behave as normal serial devices,
+and standard serial communications utilities can be used to
+work with them.
+All asynchronous settings should be set using the standard
+serial communications configuration utilities, e.g.,
+.Xr stty 1 .
+With
+.Nm ,
+it is only possible to set some of them.
+.It Cm cisco
+Select the Cisco HDLC synchronous protocol.
+.It Cm fr
+Select the Frame Relay synchronous protocol
+.Tn ( ANSI
+T1.617 Annex D).
+.It Cm ppp
+Select the synchronous PPP protocol.
+PPP parameters can be configured using the
+.Xr spppcontrol 8
+utility.
+.It Sm Cm keepalive No = Bro Cm on , off Brc Sm
+Turn on/off transmission of keepalive messages.
+This option is used only for synchronous PPP.
+If this option is
+.Cm on ,
+PPP will periodically send ECHO-REQUEST messages.
+If it will not receive any ECHO-REPLY messages for
+some (definite) period of time it will break the connection.
+It is used for tracking the line state.
+.It Cm idle
+This mode is reported when using Netgraph.
+An actual protocol depends on the type of a connected Netgraph node,
+and it cannot be changed with
+.Nm .
+.El
+.\"--------------------------------------------------------------
+.Ss "Interface Options"
+Not all of these options can be set on a busy channel, and not all of them
+are applicable to all kinds of adapters/channels.
+For all dual-state options,
+.Cm off
+is the default value.
+None of these options can be used in the asynchronous mode,
+except for the
+.Cm debug
+option.
+.Bl -tag -width indent
+.It Sm Cm port No = Bro Cm rs232 , v35 , rs449 Brc Sm
+Set the port type for old Sigma models.
+.It Sm Cm cfg No = Bro Cm A , B , C Brc Sm
+Set the configuration for the adapter.
+This option can be used only with Tau/E1
+and Tau/G703 adapters, and only if all channels are free.
+.Bl -tag -width ".Cm cfg Ns = Ns Cm A"
+.It Cm cfg Ns = Ns Cm A
+Two independent E1/G703 channels.
+This is the default setting.
+.It Cm cfg Ns = Ns Cm B
+(Only for ISA models.)
+For Tau/G703 this means one G703 channel and one digital channel.
+For Tau/E1, the first physical channel is divided into two subchannels.
+One of them goes to the first logical channel, another one goes to the
+second physical channel.
+Second (logical) channel is the digital channel.
+.It Cm cfg Ns = Ns Cm C
+(Only for E1 models.)
+In this mode, first
+physical channel consists of three data flows.
+Two of them go to the two (logical) channels.
+The last one goes to the second physical channel.
+On newer models (Tau32-PCI, Tau-PCI/2E1 and Tau-PCI/4E1),
+this programs the hardware to use a single source of synchronization
+and pass all unused (in both channels) timeslots from
+one channel to another.
+.El
+.Pp
+For a detailed description of available configuration modes,
+see the adapter documentation.
+This option cannot be set on a busy channel.
+.It Sm Cm loop No = Bro Cm on , off Brc Sm
+Turn on/off internal loopback.
+This mode is useful for debugging.
+When this mode is
+.Cm on ,
+some data should be sent.
+If no interrupts are generated, chances are that
+the corresponding IRQ configuration entry in the BIOS
+was not switched from
+.Dq Li "PCI/ISA PNP"
+to
+.Dq Li "Legacy ISA" .
+.It Sm Cm rloop No = Bro Cm on , off Brc Sm
+(Only for Tau32-PCI and Tau-PCI/E3.)
+Turn on/off remote loopback feature.
+This mode is also useful for debugging.
+.It Sm Cm dpll No = Bro Cm on , off Brc Sm
+Turn on/off digital phase locked loop mode (DPLL).
+When enabled, the receiver
+timing clock signal is derived from the received data.
+Must be used with the NRZI
+encoding to avoid the synchronization loss.
+.It Sm Cm nrzi No = Bro Cm on , off Brc Sm
+Turn on/off NRZI encoding.
+If
+.Cm off ,
+NRZ encoding is used.
+.Bl -tag -width "NRZI"
+.It NRZ
+The zero bit is transmitted by the zero signal level,
+the one bit is transmitted by the positive signal level.
+.It NRZI
+The zero bit is transmitted by the change of the signal
+level, the one bit is by the constant signal level.
+Commonly used with the
+.Cm dpll Ns = Ns Cm on
+option.
+.El
+.It Sm Cm invclk No = Bro Cm on , off Brc Sm
+(Tau and Tau-PCI only.)
+Invert both the transmit and receive clock signals.
+.It Sm Cm invrclk No = Bro Cm on , off Brc Sm
+(Tau-PCI only.)
+Invert the receive clock signals.
+.It Sm Cm invtclk No = Bro Cm on , off Brc Sm
+(Tau-PCI only.)
+Invert the transmit clock signals.
+.It Sm Cm higain No = Bro Cm on , off Brc Sm
+(E1 only.)
+In off state the sensitivity is -12 dB.
+Turn on/off increasing the E1 receiver's non-linear sensitivity to -30dB.
+This allows increasing of the line distance.
+.It Sm Cm cablen No = Bro Cm on , off Brc Sm
+(Tau-PCI/T3 and Tau-PCI/STS-1 only.)
+Turn on/off adjusting of the transmit signal for a long cable T3/STS-1.
+.It Sm Cm monitor No = Bro Cm on , off Brc Sm
+(Tau32-PCI, Tau-PCI/2E1 and Tau-PCI/4E1 only.)
+Turn on/off increasing of the E1 receiver's linear sensitivity to -30dB.
+This can be used for the interception purposes.
+.It Sm Cm phony No = Bro Cm on , off Brc Sm
+(Tau32-PCI and Tau-PCI E1 family only.)
+Turn on/off the so-called
+.Dq phony
+mode.
+This mode allows
+receiving raw CEPT frames from the E1 line.
+Raw frames can be accessed, for example, with the raw protocol.
+Packets would come at a rate of 500 frames per second
+with length
+.No 16* Ns Ar N
+(for Tau-PCI/E1 model), where
+.Ar N
+is the number of timeslots.
+For
+Tau-PCI/2E1 and Tau-PCI/4E1,
+.Ar N
+should be equal to 32 regardless of the number of
+used timeslots.
+.It Sm Cm unfram No = Bro Cm on , off Brc Sm
+(Tau32-PCI, Tau-PCI/2E1 and Tau-PCI/4E1 only.)
+Turn on/off unframed mode.
+.Bl -tag -width ".Cm unfram Ns = Ns Cm off"
+.It Cm unfram Ns = Ns Cm on
+Switch channel to the unframed G.703 mode.
+.It Cm unfram Ns = Ns Cm off
+Switch channel to the framed E1 (G.704) mode.
+.El
+.It Sm Cm scrambler No = Bro Cm on , off Brc Sm
+(Tau32-PCI, Tau-PCI/G.703, Tau-PCI/2E1, and
+Tau-PCI/4E1 in unframed mode only.)
+Turn on/off scrambling of the G.703 data.
+.It Sm Cm use16 No = Bro Cm on , off Brc Sm
+(Tau32-PCI and Tau-PCI E1 family only.)
+Turn on/off the usage of the 16th timeslot for data transmission.
+Normally, the 16th timeslot is used for signalling information
+(multiframing CAS).
+.It Sm Cm crc4 No = Bro Cm on , off Brc Sm
+(E1 only.)
+Turn on/off CRC4 superframe mode.
+.It Sm Cm syn No = Bro Cm int , rcv , rcv0 , rcv1 , rcv2 , rcv3 Brc Sm
+.Bl -tag -width ".Cm rcv3"
+.It Cm int
+Use an internal clock generator for G703 transmitter
+(clock master).
+.It Cm rcv
+Use the G703 receiver data clock as the transmit clock
+(clock slave).
+.It Cm rcv0 , rcv1 , rcv2 , rcv3
+Use the G703 receiver clock of the other channel
+(E1 models only).
+.El
+.It Cm dir Ns = Ns Ar number
+(Tau32-PCI, Tau-PCI/2E1 and Tau-PCI/4E1 only.)
+Bind a logical channel to a physical channel.
+Using this parameter it is possible, for example, to split
+physical E1 channel into several logical channels.
+.It Cm ts Ns = Ns Ar interval
+(E1 only.)
+Set up the list of timeslots for use by the channel.
+The timeslots are numbered from 1 to 31,
+and are separated by a comma or a minus sign,
+giving an interval.
+Example:
+.Dq Li ts=1-3,5,17 .
+.It Cm pass Ns = Ns Ar interval
+(Tau/E1 only.)
+Set up the list of timeslots, translated to the E1 subchannel in
+.Cm cfg Ns = Ns Cm B
+and
+.Cm cfg Ns = Ns Cm C
+configurations.
+.It Sm Cm debug No = Bro Cm 0 , 1 , 2 Brc Sm
+Turn on/off debug messages.
+.Bl -tag -width 2n
+.It Cm 0
+Turn debug messages off.
+.It Cm 1
+Turn debug messages on, equivalent to the
+.Cm debug
+option of the
+.Xr ifconfig 8
+utility.
+.It Cm 2
+High intensive debug messages, for developers only.
+.El
+.El
+.\"--------------------------------------------------------------
+.Sh EXAMPLES
+Set up channel 1 for use with the HDSL modem or any other
+synchronous leased-line modem, and PPP/HDLC protocol (for Sigma):
+.Bd -literal -offset indent
+sconfig cx1 ppp extclock
+ifconfig cx1 158.250.244.2 158.250.244.1 up
+.Ed
+.Pp
+Set up channel 0 of Tau/E1 for use with the Cisco protocol
+over the E1 link, with a single virtual connection.
+The DLCI number is detected automatically.
+Use timeslots 1-10:
+.Bd -literal -offset indent
+sconfig ct0 cisco ts=1-10
+ifconfig ct0 158.250.244.2 158.250.244.1 up
+.Ed
+.Pp
+Set up channel 0 for the synchronous null-modem link to the nearby computer,
+internal clock source, 256000 bits/sec, protocol Cisco/HDLC (for Tau):
+.Bd -literal -offset indent
+sconfig ct0 cisco 256000
+ifconfig ct0 200.1.1.1 200.1.1.2 up
+.Ed
+.Pp
+Set up channel 1 for the leased line link using the data-only
+null-modem cable (or modems like Zelax+ M115).
+Synchronous DPLL mode, 128000
+bits/sec, protocol PPP/HDLC, NRZI encoding (for Sigma):
+.Bd -literal -offset indent
+sconfig cx1 ppp 128000 nrzi=on dpll=on
+ifconfig cx1 158.250.244.2 158.250.244.1 up
+.Ed
+.\"--------------------------------------------------------------
+.Sh DIAGNOSTICS
+This section contains a description of abbreviations used by
+.Nm
+while displaying various statistics.
+For a description of options related to
+statistics, please see above.
+.\"--------------------------------------------------------------
+.Ss Statistics
+When running, the driver gathers statistics about the channels, which
+can be accessed using the
+.Nm
+utility,
+or through the
+.Xr ioctl 2
+call
+.Dv SERIAL_GETSTAT .
+.Pp
+.Bl -tag -width indent -compact
+.It Va Rintr
+Total number of receive interrupts.
+.It Va Tintr
+Total number of transmit interrupts.
+.It Va Mintr
+Total number of modem interrupts.
+.It Va Ibytes
+Total bytes received.
+.It Va Ipkts
+Total packets received (for HDLC mode).
+.It Va Ierrs
+Number of receive errors.
+.It Va Obytes
+Total bytes transmitted.
+.It Va Opkts
+Total packets transmitted (for HDLC mode).
+.It Va Oerrs
+Number of transmit errors.
+.El
+.\"--------------------------------------------------------------
+.Ss E1/G.703 Statistics
+For E1 and G.703 channels, the SNMP-compatible statistics data are gathered
+(see RFC 1406).
+It can be accessed using the
+.Nm
+utility,
+or through the
+.Xr ioctl 2
+call
+.Dv SERIAL_GETESTAT .
+.Bl -tag -width ".Va RCRC Pq Va rcrce"
+.It Va Unav Pq Va uas
+Unavailable seconds: receiving all ones, loss of carrier, or loss of
+signal.
+.It Va Degr Pq Va dm
+Degraded minutes: having error rate more than 10E-6, not counting unavailable
+and severely errored seconds.
+.It Va Bpv Pq Va bpv
+HDB3 bipolar violation errors.
+.It Va Fsyn Pq Va fse
+Frame synchronization errors (E1 only).
+.It Va CRC Pq Va crce
+CRC4 errors (E1).
+.It Va RCRC Pq Va rcrce
+Remote CRC4 errors: E-bit counter (E1).
+.It Va Err Pq Va es
+Errored seconds: any framing errors, or out of frame sync, or any slip events.
+.It Va Lerr Pq Va les
+Line errored seconds: any BPV.
+.It Va Sev Pq Va ses
+Severely errored seconds: 832 or more framing errors, or 2048 or more bipolar
+violations.
+.It Va Bur Pq Va bes
+Bursty errored seconds: more than 1 framing error, but not severely errored.
+.It Va Oof Pq Va oofs
+Severely errored framing seconds: out of frame sync.
+.It Va Slp Pq Va css
+Controlled slip seconds: any slip buffer overflow or underflow.
+.El
+.\"--------------------------------------------------------------
+.Ss E1/G.703 Status
+The
+.Nm
+utility also prints the E1/G.703 channel status.
+The status can have the
+following values (non-exclusive):
+.Pp
+.Bl -tag -width ".Li FARLOMF" -compact
+.It Li Ok
+The channel is in a valid state, synchronized.
+.It Li LOS
+Loss of sync.
+.It Li AIS
+Receiving unframed all ones (E1 only).
+.It Li LOF
+Loss of framing (E1 only).
+.It Li LOMF
+Loss of multiframing (E1 only).
+.It Li FARLOF
+Receiving remote alarm (E1 only).
+.It Li AIS16
+Receiving all ones in the timeslot 16 (E1 only).
+.It Li FARLOMF
+Receiving distant multiframe alarm (E1 only).
+.It Li TSTREQ
+Receiving test request code (G.703 only).
+.It Li TSTERR
+Test error (G.703 only).
+.El
+.\"--------------------------------------------------------------
+.Sh SEE ALSO
+.Xr stty 1 ,
+.Xr ioctl 2 ,
+.Xr sppp 4 ,
+.Xr ifconfig 8 ,
+.Xr route 8 ,
+.Xr spppcontrol 8
+.\"--------------------------------------------------------------
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.2 .
+The
+.Nm
+utility is a replacement for the
+.Nm cxconfig
+and
+.Nm ctconfig
+utilities that were used in the past with
+.Fx
+drivers.
+Those two utilities and
+.Nm
+are not compatible,
+and therefore all scripts using them have to be rewritten.
+Moreover,
+.Tn Linux
+and
+.Fx
+versions of the
+.Nm
+utility are not fully compatible.
+.\"--------------------------------------------------------------
+.Sh AUTHORS
+.An Cronyx Engineering Aq Mt info@cronyx.ru
+.Pp
+.Pa http://www.cronyx.ru
+.\"--------------------------------------------------------------
+.Sh BUGS
+All software produced by Cronyx Engineering is thoroughly tested.
+But as created by a man, it can contain some bugs.
+If you have caught one, try to localize it and send an email with the
+description of the bug, and all operations that you have done.
+We will try to reproduce the error and fix it.

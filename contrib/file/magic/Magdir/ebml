@@ -1,0 +1,8 @@
+
+#------------------------------------------------------------------------------
+# $File: ebml,v 1.1 2010/07/02 00:07:03 christos Exp $
+# ebml:  file(1) magic for various Extensible Binary Meta Language
+# http://www.matroska.org/technical/specs/index.html#track
+0	belong	0x1a45dfa3	EBML file
+>4	search/b/100	\102\202
+>>&1	string	x		\b, creator %.8s

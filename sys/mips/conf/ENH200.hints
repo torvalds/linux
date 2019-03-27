@@ -1,0 +1,124 @@
+# $FreeBSD$
+
+# arge0 MDIO bus
+hint.argemdio.0.at="nexus0"
+hint.argemdio.0.maddr=0x19000000
+hint.argemdio.0.msize=0x1000
+hint.argemdio.0.order=0
+
+# arge1 MDIO bus doesn't exist on the AR7240
+
+# arge0: MII; dedicated PHY 4 on switch, connected via internal switch
+# MDIO bus.
+
+# hint.arge.0.eeprommac=0x83fe9ff0
+hint.arge.0.phymask=0x10	# PHY 4
+# hint.arge.0.miimode=2		# MII
+hint.arge.0.mdio=mdioproxy1	# Hanging off the arswitch MDIO bus
+
+# arge1: connected to the LAN switch MAC, at 1000BaseTX / GMII.
+hint.arge.1.phymask=0x0
+# hint.arge.1.miimode=1		# GMII
+hint.arge.1.media=1000		# Force to 1000BaseTX/full
+hint.arge.1.fduplex=1
+
+#
+# AR7240 switch config
+#
+hint.arswitch.0.at="mdio0"
+hint.arswitch.0.is_7240=1	# We need to be explicitly told this
+hint.arswitch.0.numphys=4	# 4 active switch PHYs (PHY 0 -> 3)
+hint.arswitch.0.phy4cpu=1	# Yes, PHY 4 == dedicated PHY
+hint.arswitch.0.is_rgmii=0	# No, not RGMII
+hint.arswitch.0.is_gmii=0	# No, not GMII
+
+# ath0 hint - pcie slot 0
+hint.pcib.0.bus.0.0.0.ath_fixup_addr=0x1fff1000
+hint.pcib.0.bus.0.0.0.ath_fixup_size=4096
+
+# ath0 - eeprom comes from here
+hint.ath.0.eeprom_firmware="pcib.0.bus.0.0.0.eeprom_firmware"
+
+# Signal leds
+hint.gpioled.0.at="gpiobus0"
+hint.gpioled.0.name="sig1"
+hint.gpioled.0.pins=0x0001	# pin 0
+hint.gpioled.1.at="gpiobus0"
+hint.gpioled.1.name="sig2"
+hint.gpioled.1.pins=0x0002	# pin 1
+hint.gpioled.2.at="gpiobus0"
+hint.gpioled.2.name="sig3"
+hint.gpioled.2.pins=0x0800	# pin 11
+hint.gpioled.3.at="gpiobus0"
+hint.gpioled.3.name="sig4"
+hint.gpioled.3.pins=0x0080	# pin 7
+
+# nvram mapping - XXX ?
+#hint.nvram.0.base=0x1f030000
+#hint.nvram.0.maxsize=0x2000
+#hint.nvram.0.flags=3 # 1 = No check, 2 = Format Generic
+#hint.nvram.1.base=0x1f032000
+#hint.nvram.1.maxsize=0x4000
+#hint.nvram.1.flags=3 # 1 = No check, 2 = Format Generic
+
+# GEOM_MAP
+#
+# The default bootargs:
+#
+# bootargs=console=ttyS0,115200 root=31:04 rootfstype=squashfs init=/etc/preinit mtdparts=ar7240-nor0:256k(u-boot),64k(u-boot-env),320k(custom),1024k(kernel),4928k(rootfs),1536k(failsafe),64k(ART) board=ENH200
+#
+# However there's not a lot of space in this image layout.
+#
+# Thus, an alternate layout will be used, complete with reconfiguring
+# uboot to use the new base address.
+#
+# 256k - uboot (0x000000 -> 0x040000)
+# 64k - uboot-env (0x040000 -> 0x050000)
+# 1728k - kernel (0x050000 -> 0x200000)
+# 6016k - rootfs (0x200000 -> 0x7e0000)
+# 64k - config (0x7e0000 -> 0x7f0000)
+# 64k - ART (0x7f0000 -> 0x800000)
+#
+# For this, the 'bootcmd' environment variable needs to be
+# changed to point to the new location:
+#
+# ar7240> setenv bootcmd 'bootm 0x9f050000'
+
+# uboot (256k)
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x00040000
+hint.map.0.name="uboot"
+hint.map.0.readonly=1
+
+# uboot-env (64k)
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00040000
+hint.map.1.end=0x00050000
+hint.map.1.name="uboot-env"
+hint.map.1.readonly=1
+
+# kernel (1728k)
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x00050000
+hint.map.2.end=0x00200000
+hint.map.2.name="kernel"
+
+# rootfs (6016k)
+hint.map.3.at="flash/spi0"
+hint.map.3.start=0x00200000
+hint.map.3.end=0x007e0000
+hint.map.3.name="rootfs"
+
+# config (64k)
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x007e0000
+hint.map.4.end=0x007f0000
+hint.map.4.name="cfg"
+
+# ART (64k)
+hint.map.5.at="flash/spi0"
+hint.map.5.start=0x007f0000
+hint.map.5.end=0x00800000
+hint.map.5.name="ART"
+hint.map.5.readonly=1

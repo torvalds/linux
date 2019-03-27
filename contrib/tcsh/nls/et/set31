@@ -1,0 +1,7 @@
+$ $tcsh: set31,v 1.2 2006/03/02 18:46:45 christos Exp $
+$ vms.termcap.c
+$set 31 
+1 TERMCAP ei saa avada: [%s]\n
+2 %s ei saa avada.\n
+3 Leidsin %s failis %s.\n
+4 %s pole failis %s\n

@@ -1,0 +1,40 @@
+version 1.5.0 (2/16/2009)
+- added display of line number, column, and lines from top to separator line 
+  for info window
+- minor changes to reduce number of warnings when using -pedantic option
+
+version 1.4.7 (2/10/2009)
+- changed how strings are terminated from the old usage of NULL to the current 
+  use of character zero, '\0'
+- changed the licensing since the Artistic License is now considered 
+  restrictive
+
+version 1.4.6
+- modified new_curse.c to handle different subdirectory naming in terminfo 
+  directory; first noted on Mac OS 10.2
+
+version 1.4.5a (12/23/2001)
+- modified get_options to be cleaner for arg handling
+
+version 1.4.5 (12/15/2001)
+- made changes to check usage of arguments provided so that if a file is
+  specified options are no longer accepted (that is, they are treated as file
+  names)
+- changed to use ee_version.h to allow changing version number without need
+  to change ee.c directly
+
+version 1.4.4 (8/17/2001)
+- added code to check if the parent process has died, and if so to exit 
+  gracefully
+
+version 1.4.3 (6/25/2001)
+- modified create.make and new_curse.c to allow defining TERMCAP file 
+  location (since some distributions move the file)
+- source directory now has version number attached to directory name
+
+version 1.4.2 (1/19/2001)
+- change to create.make script to add unistd.h to files to search for 
+  select() declaration
+- change to new_curse.c for proper raw mode operation
+
+

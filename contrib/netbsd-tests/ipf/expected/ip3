@@ -1,0 +1,14 @@
+pool ipf/dstlist (name fred; policy round-robin;)
+	{ 3.3.3.3; };
+pool ipf/dstlist (name jack; policy weighting connection;)
+	{ 4.4.4.4; bge0:5.5.5.5; };
+pool ipf/dstlist (name jill; policy random;)
+	{ 1.1.1.1; bge0:2.2.2.2; };
+table role=nat type=hash name=noproxy size=3
+	{ 1.1.1.1/32; 2.2.2.2/32; };
+table role=nat type=tree name=raw
+	{ 1.1.1.1/32; 2.2.2.2/32; };
+pool all/dstlist (name jill; policy random;)
+	{ 1.1.1.1; bge0:2.2.2.2; };
+table role=all type=hash name=noproxy size=3
+	{ 1.1.1.1/32; 2.2.2.2/32; };

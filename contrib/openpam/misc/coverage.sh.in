@@ -1,0 +1,33 @@
+#!/bin/sh
+
+usage() {
+	echo "usage: ${0##*/} [-jN]" >&2
+	exit 1
+}
+
+while getopts "j:" opt ; do
+	case $opt in
+	j)
+		j="-j$OPTARG"
+		;;
+	*)
+		usage
+		;;
+	esac
+done
+
+if ! which -s cov01 covhtml ; then
+	echo "coverage tools not found" >&2
+	exit 1
+fi
+srcdir="@abs_top_srcdir@"
+htmldir="${srcdir}/covhtml"
+export COVFILE="${srcdir}/test.cov"
+gmake -C "${srcdir}" clean
+find "${srcdir}" -type f -name "${COVFILE##*/}" -delete
+rm -rf "${htmldir}"
+cov01 -1
+gmake -C "${srcdir}" $j check || exit 1
+covhtml -d "${srcdir}" -f "${COVFILE}" "${htmldir}"
+cov01 -0
+gmake -C "${srcdir}" clean

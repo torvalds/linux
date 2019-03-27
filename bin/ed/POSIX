@@ -1,0 +1,92 @@
+$FreeBSD$
+
+This version of ed(1) is not strictly POSIX compliant, as described in
+the POSIX 1003.2 document.  The following is a summary of the omissions,
+extensions and possible deviations from POSIX 1003.2.
+
+OMISSIONS
+---------
+1) For backwards compatibility, the POSIX rule that says a range of
+   addresses cannot be used where only a single address is expected has
+   been relaxed.
+
+2) To support the BSD `s' command (see extension [1] below),
+   substitution patterns cannot be delimited by numbers or the characters
+   `r', `g' and `p'.  In contrast, POSIX specifies any character expect
+   space or newline can used as a delimiter.
+
+EXTENSIONS
+----------
+1) BSD commands have been implemented wherever they do not conflict with
+   the POSIX standard.  The BSD-ism's included are:
+	i) `s' (i.e., s[n][rgp]*) to repeat a previous substitution,
+	ii) `W' for appending text to an existing file,
+	iii) `wq' for exiting after a write,
+	iv) `z' for scrolling through the buffer, and
+	v) BSD line addressing syntax (i.e., `^' and `%')  is recognized.
+
+2) The POSIX interactive global commands `G' and `V' are extended to 
+   support multiple commands, including `a', `i' and `c'.  The command
+   format is the same as for the global commands `g' and `v', i.e., one
+   command per line with each line, except for the last, ending in a
+   backslash (\).
+
+3) An extension to the POSIX file commands `E', `e', `r', `W' and `w' is
+   that <file> arguments are processed for backslash escapes, i.e.,  any
+   character preceded by a backslash is interpreted literally.  If the
+   first unescaped character of a <file> argument is a bang (!), then the
+   rest of the line is interpreted as a shell command, and no escape
+   processing is performed by ed.
+
+4) For SunOS ed(1) compatibility, ed runs in restricted mode if invoked
+   as red.  This limits editing of files in the local directory only and
+   prohibits shell commands.
+
+DEVIATIONS
+----------
+1) Though ed is not a stream editor, it can be used to edit binary files.
+   To assist in binary editing, when a file containing at least one ASCII
+   NUL character is written, a newline is not appended if it did not
+   already contain one upon reading.  In particular, reading /dev/null
+   prior to writing prevents appending a newline to a binary file.
+
+   For example, to create a file with ed containing a single NUL character:
+      $ ed file
+      a
+      ^@
+      .
+      r /dev/null
+      wq
+
+    Similarly, to remove a newline from the end of binary `file':
+      $ ed file
+      r /dev/null
+      wq
+
+2) Since the behavior of `u' (undo) within a `g' (global) command list is
+   not specified by POSIX, it follows the behavior of the SunOS ed:
+   undo forces a global command list to be executed only once, rather than
+   for each line matching a global pattern.  In addition, each instance of
+   `u' within a global command undoes all previous commands (including
+   undo's) in the command list.  This seems the best way, since the
+   alternatives are either too complicated to implement or too confusing
+   to use.  
+
+   The global/undo combination is useful for masking errors that
+   would otherwise cause a script to fail.  For instance, an ed script
+   to remove any occurrences of either `censor1' or `censor2' might be
+   written as:
+   	ed - file <<EOF
+	1g/.*/u\
+	,s/censor1//g\
+	,s/censor2//g
+	...
+
+3) The `m' (move) command within a `g' command list also follows the SunOS
+   ed implementation: any moved lines are removed from the global command's
+   `active' list.
+
+4) If ed is invoked with a name argument prefixed by a bang (!), then the
+   remainder of the argument is interpreted as a shell command.  To invoke
+   ed on a file whose name starts with bang, prefix the name with a
+   backslash.

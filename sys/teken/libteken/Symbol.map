@@ -1,0 +1,21 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.2 {
+	teken_256to8;
+	teken_get_curattr;
+	teken_get_cursor;
+	teken_get_defattr;
+	teken_get_defattr_cons25;
+	teken_get_sequence;
+	teken_get_winsize;
+	teken_init;
+	teken_input;
+	teken_set_8bit;
+	teken_set_cons25;
+	teken_set_curattr;
+	teken_set_cursor;
+	teken_set_defattr;
+	teken_set_winsize;
+};

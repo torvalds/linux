@@ -1,0 +1,42 @@
+As I dug my own way through the documentation of libusb 2.0 that ships
+with FreeBSD 8+ as the OS'es own USB library API, I noticed there are
+only few code examples around under /usr/src (namely, usbconfig
+itself).
+
+The libusb20(3) man page is a starting point, but it's a reference
+manual, nothing less, nothing more.  Using just a reference, it's not
+very easy to start writing your own code based on that.
+
+So I started writing my own examples, to "get a feeling" about how to
+use the library.  I covered two typical scenarios which are common for
+a number of devices.
+
+The first one is called "bulk", and uses bulk output (host to device)
+and input transfers to talk to an USB device.
+
+The second one is called "control", and can use both control output
+and input transfers, as well as so-called interrupt transfers.  The
+latter are used for data that are being reported frequently or
+repeatedly, like position updates from a pointing device (mouse).
+Despite of its name, the host has to poll devices for their interrupt
+transfers on each USB frame (i.e., each 1 ms).
+
+Recommended reading is the USB 3.0 specification (the older 2.0 one
+would do as well), to be found under
+
+http://www.usb.org/developers/docs/
+
+as well as documents for individual USB device classes where
+appropriate.
+
+Feel free to be liberal in the licensing of these examples: while the
+beer-ware license mandates to keep the license notice, this only
+applies to modifications of the original examples itself.  For
+copy&pasting (even a larger) piece of an example into your own work, I
+won't imply you have to reproduce the beer-ware license text there.
+Feel free to credit my name in your derived work if you want.
+
+Dresden, July 2012
+Joerg Wunsch <joerg@FreeBSD.org>
+
+# $FreeBSD$

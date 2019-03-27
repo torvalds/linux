@@ -1,0 +1,115 @@
+.\" Copyright (c) 2003 Sergey Osokin <osa@FreeBSD.org.ru>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd April 11, 2003
+.Dt PTHREAD_GETCONCURRENCY 3
+.Os
+.Sh NAME
+.Nm pthread_getconcurrency ,
+.Nm pthread_setconcurrency
+.Nd get or set level of concurrency
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_getconcurrency void
+.Ft int
+.Fn pthread_setconcurrency "int new_level"
+.Sh DESCRIPTION
+The
+.Fn pthread_setconcurrency
+function allows an application to inform the threads implementation
+of its desired concurrency level,
+.Fa new_level .
+The actual level of concurrency provided by the implementation
+as a result of this function call is unspecified.
+If
+.Fa new_level
+is zero, it causes the implementation to maintain the concurrency
+level at its discretion as if
+.Fn pthread_setconcurrency
+was never called.
+The
+.Fn pthread_getconcurrency
+function returns the value set by a previous call to the
+.Fn pthread_setconcurrency
+function.
+If the
+.Fn pthread_setconcurrency
+function was not previously called, this function returns zero to
+indicate that the implementation is maintaining the concurrency
+level.
+When an application calls
+.Fn pthread_setconcurrency ,
+it is informing the implementation of its desired concurrency
+level.
+The implementation uses this as a hint, not a requirement.
+.Sh RETURN VALUES
+If successful, the
+.Fn pthread_setconcurrency
+function returns zero.
+Otherwise, an error number is returned
+to indicate the error.
+The
+.Fn pthread_getconcurrency
+function always returns the concurrency level set by a previous
+call to
+.Fn pthread_setconcurrency .
+If the
+.Fn pthread_setconcurrency
+function has never been called,
+.Fn pthread_getconcurrency
+returns zero.
+.Sh ERRORS
+The
+.Fn pthread_setconcurrency
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa new_level
+is negative.
+.It Bq Er EAGAIN
+The value specified by
+.Fa new_level
+would cause a system resource to be exceeded.
+.El
+.Sh APPLICATION USAGE
+Use of these functions changes the state of the underlying
+concurrency upon which the application depends.
+Library developers are advised to not use the
+.Fn pthread_getconcurrency
+and
+.Fn pthread_setconcurrency
+functions since their use may conflict with an application's
+use of these functions.
+.Sh STANDARDS
+The
+.Fn pthread_getconcurrency
+and
+.Fn pthread_setconcurrency
+functions conform to
+.St -susv2 .

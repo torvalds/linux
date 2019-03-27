@@ -1,0 +1,90 @@
+#
+# std.mtk -- Base kernel configuration file for FreeBSD/MIPS Mediatek/Ralink
+# SoCs.
+#
+# This includes all the required drivers for the SoCs.
+#
+# $FreeBSD$
+#
+
+# Include the standard file list for Mediatek SoCs.
+files 		"../mediatek/files.mediatek"
+
+# Building a mips/mipsel kernel
+machine 	mips mipsel
+
+# Little-endian machine
+makeoptions 	MIPS_LITTLE_ENDIAN=defined
+
+# Default kernel load address
+makeoptions 	KERNLOADADDR=0x80001000
+
+# Mediatek/Ralink SoC support depends on FDT (with static DTB for the moment)
+options 	FDT
+options 	FDT_DTB_STATIC
+
+# We rely on INTRNG code
+options 	INTRNG
+options 	MIPS_NIRQ=256
+
+# We rely on NEW_PCIB code
+options 	NEW_PCIB
+
+# Build kernel with gdb(1) debug symbols
+makeoptions 	DEBUG=-g
+
+# Support for DDB and KDB
+options 	DDB
+options 	KDB
+
+# Debugging for use in -current
+options 	INVARIANTS
+options 	INVARIANT_SUPPORT
+options 	WITNESS
+options 	WITNESS_SKIPSPIN
+options 	DEBUG_REDZONE
+options 	DEBUG_MEMGUARD
+
+# For small memory footprints
+options 	VM_KMEM_SIZE_SCALE=1
+
+# General options, including scheduler, etc.
+options 	SCHED_ULE	# ULE scheduler
+options 	INET		# InterNETworking
+#options 	INET6		# IPv6
+options 	PSEUDOFS	# Pseude-filesystem framework
+options 	FFS		# Berkeley Fast Filesystem
+#options 	SOFTUPDATES	# Enable FFS soft updates support
+#options 	UFS_ACL		# Support for access control lists
+#options 	UFS_DIRHASH	# Improve big directory performance
+#options 	MSDOSFS		# Enable support for MSDOS filesystems
+options 	_KPOSIX_PRIORITY_SCHEDULING	# Posix P1003_1B real-time ext.
+
+#
+# Standard drivers section
+#
+# The drivers in the following section are required in order to successfully
+# compile the kernel.
+#
+
+# FDT clock and pinctrl framework
+device 		fdt_clock
+device 		fdt_pinctrl
+
+# UART support
+device 		uart
+
+# random support
+device 		random
+
+# loop device support
+device 		loop
+
+# ether device support
+device 		ether
+
+# ether switch support
+device 		etherswitch
+device 		miibus
+device 		mtkswitch
+device 		mdio

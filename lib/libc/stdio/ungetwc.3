@@ -1,0 +1,95 @@
+.\"	$NetBSD: ungetwc.3,v 1.3 2002/02/07 07:00:27 ross Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ungetc.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd March 3, 2004
+.Dt UNGETWC 3
+.Os
+.Sh NAME
+.Nm ungetwc
+.Nd un-get wide character from input stream
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.In wchar.h
+.Ft wint_t
+.Fn ungetwc "wint_t wc" "FILE *stream"
+.Sh DESCRIPTION
+The
+.Fn ungetwc
+function pushes the wide character
+.Fa wc
+(converted to an
+.Vt wchar_t )
+back onto the input stream pointed to by
+.Fa stream .
+The pushed-backed wide characters will be returned by subsequent reads on the
+stream (in reverse order).
+A successful intervening call, using the same stream, to one of the file
+positioning functions
+.Xr fseek 3 ,
+.Xr fsetpos 3 ,
+or
+.Xr rewind 3
+will discard the pushed back wide characters.
+.Pp
+One wide character of push-back is guaranteed,
+but as long as there is
+sufficient memory, an effectively infinite amount of pushback is allowed.
+.Pp
+If a character is successfully pushed-back,
+the end-of-file indicator for the stream is cleared.
+.Sh RETURN VALUES
+The
+.Fn ungetwc
+function
+returns
+the wide character pushed-back after the conversion, or
+.Dv WEOF
+if the operation fails.
+If the value of the argument
+.Fa c
+character equals
+.Dv WEOF ,
+the operation will fail and the stream will remain unchanged.
+.Sh SEE ALSO
+.Xr fseek 3 ,
+.Xr getwc 3
+.Sh STANDARDS
+The
+.Fn ungetwc
+function conforms to
+.St -isoC-99 .

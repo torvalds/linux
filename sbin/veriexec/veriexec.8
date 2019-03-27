@@ -1,0 +1,146 @@
+.\"-
+.\" Copyright (c) 2018, Juniper Networks, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 4, 2018
+.Dt VERIEXEC 8
+.Os
+.Sh NAME
+.Nm veriexec
+.Nd manipulate state of mac_veriexec
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Op Fl C Ar directory
+.Pa manifest
+.Nm
+.Fl z Ar state
+.Nm
+.Fl i Ar state
+.Nm
+.Fl x
+.Ar file ...
+.Sh DESCRIPTION
+.Nm
+is a utility to query or manipulate the state of
+.Xr mac_veriexec 4 .
+.Pp
+The first form is for loading a
+.Pa manifest .
+.Nm
+first verifies a digital signature of the
+.Ar manifest
+and if successful, parses it and feeds its content to kernel.
+.Pp
+The second form with
+.Fl z
+is used to modify the
+.Ar state ,
+and with
+.Fl i
+to query the current
+.Ar state .
+.Pp
+The final form with
+.Fl x
+is used to test whether
+.Ar file
+is verified or not.
+This requires
+.Xr mac_veriexec 4
+to be in the
+.Ql active
+or
+.Ql enforce
+state.
+.Pp
+The possible states
+are:
+.Bl -tag -width enforce
+.It Ar loaded
+set automatically when first
+.Pa manifest
+has been loaded.
+.It Ar active
+.Xr mac_veriexec 4
+will begin checking files.
+This state can only be entered from the
+.Ar loaded
+state.
+.It Ar enforce
+.Xr mac_veriexec 4
+will fail attempts to
+.Xr exec 2
+or
+.Xr open 2
+files with
+.Dv O_VERIFY
+unless verified.
+.It Ar locked
+prevent loading of any more manifests.
+.El
+.Sh MANIFESTS
+The manifest contains a mapping of relative pathnames to fingerprints
+with optional flags.
+For example:
+.Bd -literal -offset indent
+sbin/veriexec sha256=f22136...c0ff71 no_ptrace
+usr/bin/python sha256=5944d9...876525 indirect
+sbin/somedaemon sha256=77fc2f...63f5687 label=mod1/val1,mod2/val2
+.Ed
+The supported flags are:
+.Bl -tag -width indirect
+.It Ql indirect
+the executable cannot be run directly,
+but can be used as an interpreter for example via:
+.Bd -literal -offset indent
+#!/usr/bin/python
+.Ed
+.It Ql no_ptrace
+do not allow running executable under a debugger.
+Useful for any application critical to the security state of system.
+.El
+.Pp
+The
+.Ql label
+argument allows associating a
+.Xr maclabel 7
+with the executable.
+Neither
+.Nm
+nor
+.Xr mac_veriexec 4
+(if it supports labels)
+pay any attention to the content of the label
+they are provided for the use of other
+.Xr mac 4
+modules.
+.Sh HISTORY
+The Verified Exec system first appeared in NetBSD.
+This utility derrives from the one found in Junos.
+The key difference is the requirement that manifest files
+be digitally signed.
+
+

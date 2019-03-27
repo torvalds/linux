@@ -1,0 +1,128 @@
+.\" Copyright (c) 2011-2013 Devin Teske
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 6, 2013
+.Dt VERSION.4TH 8
+.Os
+.Sh NAME
+.Nm version.4th
+.Nd FreeBSD version string boot module
+.Sh DESCRIPTION
+The file that goes by the name of
+.Nm
+is a set of commands designed to draw the boot loader
+version at the bottom-right of the screen.
+The commands of
+.Nm
+by themselves are not enough for most uses.
+Please refer to the
+examples below for the most common situations, and to
+.Xr loader 8
+for additional commands.
+.Pp
+Before using any of the commands provided in
+.Nm ,
+it must be included
+through the command:
+.Pp
+.Dl include version.4th
+.Pp
+This line is present in the default
+.Pa /boot/menu.rc
+file, so it is not needed (and should not be re-issued) in a normal setup.
+.Pp
+The commands provided by it are:
+.Pp
+.Bl -tag -width disable-module_module -compact -offset indent
+.It Ic print_version
+Prints the contents of the
+.Va loader_version
+environment variable right-justified at the column
+.Va loader_version_x
+and row
+.Va loader_version_y .
+.El
+.Pp
+The environment variables that effect its behavior are:
+.Bl -tag -width bootfile -offset indent
+.It Va loader_version
+Set automatically by
+.Xr loader 8 ,
+but you can override it by setting in
+.Xr loader.conf 5 .
+This should be the version of boot loader used.
+.It Va loader_version_x
+Sets the desired ending column position of
+.Va loader_version .
+Default is 80.
+.It Va loader_version_y
+Sets the desired ending row position of
+.Va loader_version .
+Default is 24.
+.It Va loader_color
+If set to
+.Dq Li NO
+(case-insensitive) or
+.Dq Li 0 ,
+causes the version to be printed without color
+.Pq default is ANSI Cyan .
+.El
+.Sh FILES
+.Bl -tag -width /boot/version.4th -compact
+.It Pa /boot/loader
+The
+.Xr loader 8 .
+.It Pa /boot/version.4th
+.Nm
+itself.
+.It Pa /boot/loader.rc
+.Xr loader 8
+bootstrapping script.
+.El
+.Sh EXAMPLES
+Override
+.Xr loader 8
+version in
+.Xr loader.conf 5 :
+.Pp
+.Bd -literal -offset indent -compact
+loader_version="loader 1.1"
+.Ed
+.Sh SEE ALSO
+.Xr loader.conf 5 ,
+.Xr color.4th 8 ,
+.Xr loader 8
+.Sh HISTORY
+The
+.Nm
+set of commands first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+The
+.Nm
+set of commands was written by
+.An -nosplit
+.An Devin Teske Aq dteske@FreeBSD.org .

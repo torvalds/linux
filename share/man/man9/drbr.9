@@ -1,0 +1,140 @@
+.\" Copyright (c) 2009 Bitgravity Inc
+.\" Written by: Kip Macy <kmacy@@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 27, 2012
+.Dt DRBR 9
+.Os
+.Sh NAME
+.Nm drbr ,
+.Nm drbr_free ,
+.Nm drbr_enqueue ,
+.Nm drbr_dequeue ,
+.Nm drbr_dequeue_cond ,
+.Nm drbr_flush ,
+.Nm drbr_empty ,
+.Nm drbr_inuse ,
+.Nd network driver interface to buf_ring
+.Sh SYNOPSIS
+.In sys/param.h
+.In net/if.h
+.In net/if_var.h
+.Ft void
+.Fn drbr_free "struct buf_ring *br" "struct malloc_type *type"
+.Ft int
+.Fn drbr_enqueue "struct ifnet *ifp" "struct buf_ring *br" "struct mbuf *m"
+.Ft struct mbuf *
+.Fn drbr_dequeue "struct ifnet *ifp" "struct buf_ring *br"
+.Ft struct mbuf *
+.Fn drbr_dequeue_cond "struct ifnet *ifp" "struct buf_ring *br" "int (*func) (struct mbuf *, void *)" "void *arg"
+.Ft void
+.Fn drbr_flush "struct ifnet *ifp" "struct buf_ring *br"
+.Ft int
+.Fn drbr_empty "struct ifnet *ifp" "struct buf_ring *br"
+.Ft int
+.Fn drbr_inuse "struct ifnet *ifp" "struct buf_ring *br"
+.Sh DESCRIPTION
+The
+.Nm
+functions provide an API to network drivers for using
+.Xr buf_ring 9
+for enqueueing and dequeueing packets.
+This is meant as a replacement for the IFQ interface for packet queuing.
+It allows a packet to be enqueued with a single atomic and packet
+dequeue to be done without any per-packet atomics as it is protected
+by the driver's tx queue lock.
+If
+.Dv INVARIANTS
+is enabled,
+.Fn drbr_dequeue
+will assert that the tx queue lock is held when it is called.
+.Pp
+The
+.Fn drbr_free
+function frees all the enqueued mbufs and then frees the buf_ring.
+.Pp
+The
+.Fn drbr_enqueue
+function is used to enqueue an mbuf to a buf_ring, falling back to the
+ifnet's IFQ if
+.Xr ALTQ 4
+is enabled.
+.Pp
+The
+.Fn drbr_dequeue
+function is used to dequeue an mbuf from a buf_ring or, if
+.Xr ALTQ 4
+is enabled, from the ifnet's IFQ.
+.Pp
+The
+.Fn drbr_dequeue_cond
+function is used to conditionally dequeue an mbuf from a buf_ring based
+on whether
+.Fa func
+returns
+.Dv TRUE
+or
+.Dv FALSE .
+.Pp
+The
+.Fn drbr_flush
+function frees all mbufs enqueued in the buf_ring and the ifnet's IFQ.
+.Pp
+The
+.Fn drbr_empty
+function returns
+.Dv TRUE
+if there are no mbufs enqueued,
+.Dv FALSE
+otherwise.
+.Pp
+The
+.Fn drbr_inuse
+function returns the number of mbufs enqueued.
+Note to users that this is intrinsically racy as there is no guarantee that
+there will not be more mbufs when
+.Fn drbr_dequeue
+is actually called.
+Provided the tx queue lock is held there will not be less.
+.Sh RETURN VALUES
+The
+.Fn drbr_enqueue
+function returns
+.Er ENOBUFS
+if there are no slots available in the buf_ring and
+.Dv 0
+on success.
+.Pp
+The
+.Fn drbr_dequeue
+and
+.Fn drbr_dequeue_cond
+functions return an mbuf on success and
+.Dv NULL
+if the buf_ring is empty.
+.Sh HISTORY
+These functions were introduced in
+.Fx 8.0 .

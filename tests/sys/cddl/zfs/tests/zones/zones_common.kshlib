@@ -1,0 +1,70 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)zones_common.kshlib	1.3	07/03/14 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/zones/zones.cfg
+
+# a simple zone creation function
+function create_zone { # $ZONENAME $ZONEPATH $BRAND (optional)	
+	ZNAME=$1
+	ZPATH=$2
+	BRAND=$3
+
+	if [ ! -z $BRAND ]
+	then
+		# The SUNWsn1 brand only works on debug kernels for sparc, so we
+		# check for a known symbol to see if that's there.
+		$ECHO "logmap_logscan_debug/p" | $MDB -k > /dev/null 2>&1
+		if [ $? -eq 1 ]
+		then
+			BRAND=""
+		else
+			BRAND="-t $BRAND "
+		fi
+	fi
+	
+	# create a zone config file
+	$CAT > $TMPDIR/zone.${TESTCASE_ID}.cfg <<EOF
+create $BRAND
+set zonepath=$ZPATH/$ZNAME
+set autoboot=true
+exit
+EOF
+	log_note "Creating ${BRAND}zone $ZNAME on $ZPATH/$ZNAME."
+	log_must $ZONECFG -z $ZNAME -f $TMPDIR/zone.${TESTCASE_ID}.cfg > /dev/null
+	$RM $TMPDIR/zone.${TESTCASE_ID}.cfg
+}
+
+function install_zone { # $ZONENAME
+	ZNAME=$1
+	log_note "Installing $ZNAME. This may take some time."
+	log_must $ZONEADM -z $ZNAME install > /dev/null
+}

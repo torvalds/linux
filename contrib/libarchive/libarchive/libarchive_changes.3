@@ -1,0 +1,342 @@
+.\" Copyright (c) 2011 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 23, 2011
+.Dt LIBARCHIVE_CHANGES 3
+.Os
+.Sh NAME
+.Nm libarchive_changes
+.Nd changes in libarchive interface
+.\"
+.Sh CHANGES IN LIBARCHIVE 3
+This page describes user-visible changes in libarchive3, and lists
+public functions and other symbols changed, deprecated or removed
+in libarchive3, along with their replacements if any.
+.Pp
+.\"
+.Ss Multiple Filters
+.\"
+Libarchive2 permitted a single (input or output) filter active
+on an archive.
+Libarchive3 extends this into a variable-length stack.
+Where
+.Fn archive_write_set_compression_XXX
+would replace any existing filter,
+.Fn archive_write_add_filter_XXX
+extends the write pipeline with another filter.
+.\"
+.Ss Character Set Handling
+.\"
+Libarchive2 assumed that the local platform uses
+.Tn Unicode
+as the native
+.Tn wchar_t
+encoding, which is true on
+.Tn Windows ,
+modern
+.Tn Linux ,
+and a few other systems, but is certainly not universal.
+As a result, pax format archives were written incorrectly on some
+systems, since pax format requires
+.Tn UTF-8
+and libarchive 2 incorrectly
+assumed that
+.Tn wchar_t
+strings can be easily converted to
+.Tn UTF-8 .
+.Pp
+Libarchive3 uses the standard iconv library to convert between character
+sets and is introducing the notion of a
+.Dq default character set for the archive .
+To support this,
+.Tn archive_entry
+objects can now be bound to a particular archive when they are created.
+The automatic character set conversions performed by
+.Tn archive_entry
+objects when reading and writing filenames, usernames, and other strings
+will now use an appropriate default character set:
+.Pp
+If the
+.Tn archive_entry
+object is bound to an archive, it will use the
+default character set for that archive.
+.Pp
+The platform default character encoding (as returned by
+.Fn nl_langinfo CHARSET )
+will be used if nothing else is specified.
+.Pp
+Libarchive3 also introduces charset options to many of the archive
+readers and writers to control the character set that will be used for
+filenames written in those archives.
+When possible, this will be set automatically based on information in
+the archive itself.
+Combining this with the notion of a default character set for the
+archive should allow you to configure libarchive to read archives from
+other platforms and have the filenames and other information
+transparently converted to the character encoding suitable for your
+application.
+.\"
+.Ss Prototype Changes
+.\"
+These changes break binary compatibility; libarchive3 has a new shared
+library version to reflect these changes.
+The library now uses portable wide types such as
+.Tn int64_t
+instead of less-portable types such as
+.Tn off_t ,
+.Tn gid_t ,
+.Tn uid_t ,
+and
+.Tn ino_t .
+.Pp
+There are a few cases where these changes will affect your source code:
+.Bl -bullet -width ind
+.It
+In some cases, libarchive's wider types will introduce the possibility
+of truncation: for example, on a system with a 16-bit
+.Tn uid_t , you risk having uid
+.Li 65536
+be truncated to uid
+.Li 0 ,
+which can cause serious security problems.
+.It
+Typedef function pointer types will be incompatible.
+For example, if you define custom skip callbacks, you may have to use
+code similar to the following if you want to support building against
+libarchive2 and libarchive3:
+.Bd -literal
+#if ARCHIVE_VERSION_NUMBER < 3000000
+typedef off_t myoff_t;
+#else
+typedef int64_t myoff_t;
+#endif
+
+myoff_t
+my_skip_function(struct archive *a, void *v, myoff_t o)
+{
+    ... implementation ...
+}
+.Ed
+.El
+.Pp
+Affected functions:
+.Pp
+.Bl -bullet -compact
+.It
+.Xo
+.Fn archive_entry_gid ,
+.Fn archive_entry_set_gid
+.Xc
+.It
+.Xo
+.Fn archive_entry_uid ,
+.Fn archive_entry_set_uid
+.Xc
+.It
+.Xo
+.Fn archive_entry_ino ,
+.Fn archive_entry_set_ino
+.Xc
+.It
+.Xo
+.Fn archive_read_data_block ,
+.Fn archive_write_data_block
+.Xc
+.It
+.Xo
+.Fn archive_read_disk_gname ,
+.Fn archive_read_disk_uname
+.Xc
+.It
+.Xo
+.Fn archive_read_disk_set_gname_lookup ,
+.Fn archive_read_disk_set_group_lookup ,
+.Fn archive_read_disk_set_uname_lookup ,
+.Fn archive_read_disk_set_user_lookup
+.Xc
+.It
+.Fn archive_skip_callback
+.It
+.Xo
+.Fn archive_read_extract_set_skip_file ,
+.Fn archive_write_disk_set_skip_file ,
+.Fn archive_write_set_skip_file
+.Xc
+.It
+.Xo
+.Fn archive_write_disk_set_group_lookup ,
+.Fn archive_write_disk_set_user_lookup
+.Xc
+.El
+.Pp
+Where these functions or their arguments took or returned
+.Tn gid_t ,
+.Tn ino_t ,
+.Tn off_t ,
+or
+.Tn uid_t
+they now take or return
+.Tn int64_t
+or equivalent.
+.\"
+.Ss Deprecated Symbols
+.\"
+Symbols deprecated in libarchive3 will be removed in libarchive4.
+These symbols, along with their replacements if any, are listed below:
+.\"
+.Bl -tag -width ind
+.It Fn archive_position_compressed , Fn archive_position_uncompressed
+.Fn archive_filter_bytes
+.It Fn archive_compression
+.Fn archive_filter_code
+.It Fn archive_compression_name
+.Fn archive_filter_name
+.It Fn archive_read_finish , Fn archive_write_finish
+.Fn archive_read_free ,
+.Fn archive_write_free
+.It Fn archive_read_open_file , Fn archive_write_open_file
+.Fn archive_read_open_filename ,
+.Fn archive_write_open_filename
+.It Fn archive_read_support_compression_all
+.\" archive_read_support_compression_* -> archive_read_support_filter_*
+.Fn archive_read_support_filter_all
+.It Fn archive_read_support_compression_bzip2
+.Fn archive_read_support_filter_bzip2
+.It Fn archive_read_support_compression_compress
+.Fn archive_read_support_filter_compress
+.It Fn archive_read_support_compression_gzip
+.Fn archive_read_support_filter_gzip
+.It Fn archive_read_support_compression_lzip
+.Fn archive_read_support_filter_lzip
+.It Fn archive_read_support_compression_lzma
+.Fn archive_read_support_filter_lzma
+.It Fn archive_read_support_compression_none
+.Fn archive_read_support_filter_none
+.It Fn archive_read_support_compression_program
+.Fn archive_read_support_filter_program
+.It Fn archive_read_support_compression_program_signature
+.Fn archive_read_support_filter_program_signature
+.It Fn archive_read_support_compression_rpm
+.Fn archive_read_support_filter_rpm
+.It Fn archive_read_support_compression_uu
+.Fn archive_read_support_filter_uu
+.It Fn archive_read_support_compression_xz
+.Fn archive_read_support_filter_xz
+.\" archive_write_set_compression_* -> archive_write_add_filter_*
+.It Fn archive_write_set_compression_bzip2
+.Fn archive_write_add_filter_bzip2
+.It Fn archive_write_set_compression_compress
+.Fn archive_write_add_filter_compress
+.It Fn archive_write_set_compression_gzip
+.Fn archive_write_add_filter_gzip
+.It Fn archive_write_set_compression_lzip
+.Fn archive_write_add_filter_lzip
+.It Fn archive_write_set_compression_lzma
+.Fn archive_write_add_filter_lzma
+.It Fn archive_write_set_compression_none
+.Fn archive_write_add_filter_none
+.It Fn archive_write_set_compression_program
+.Fn archive_write_add_filter_program
+.It Fn archive_write_set_compression_filter
+.Fn archive_write_add_filter_filter
+.El
+.\"
+.Ss Removed Symbols
+.\"
+These symbols, listed below along with their replacements if any,
+were deprecated in libarchive2, and are not part of libarchive3.
+.\"
+.Bl -tag -width ind
+.It Fn archive_api_feature
+.Fn archive_version_number
+.It Fn archive_api_version
+.Fn archive_version_number
+.It Fn archive_version
+.Fn archive_version_string
+.It Fn archive_version_stamp
+.Fn archive_version_number
+.It Fn archive_read_set_filter_options
+.Fn archive_read_set_options
+or
+.Fn archive_read_set_filter_option
+.It Fn archive_read_set_format_options
+.Fn archive_read_set_options
+or
+.Fn archive_read_set_format_option
+.It Fn archive_write_set_filter_options
+.Fn archive_write_set_options
+or
+.Fn archive_write_set_filter_option
+.It Fn archive_write_set_format_options
+.Fn archive_write_set_options
+or
+.Fn archive_write_set_format_option
+.It Dv ARCHIVE_API_FEATURE
+.Dv ARCHIVE_VERSION_NUMBER
+.It Dv ARCHIVE_API_VERSION
+.Dv ARCHIVE_VERSION_NUMBER
+.It Dv ARCHIVE_VERSION_STAMP
+.Dv ARCHIVE_VERSION_NUMBER
+.It Dv ARCHIVE_LIBRARY_VERSION
+.Dv ARCHIVE_VERSION_STRING
+.\"
+.It Dv ARCHIVE_COMPRESSION_NONE
+.Dv ARCHIVE_FILTER_NONE
+.It Dv ARCHIVE_COMPRESSION_GZIP
+.Dv ARCHIVE_FILTER_GZIP
+.It Dv ARCHIVE_COMPRESSION_BZIP2
+.Dv ARCHIVE_FILTER_BZIP2
+.It Dv ARCHIVE_COMPRESSION_COMPRESS
+.Dv ARCHIVE_FILTER_COMPRESS
+.It Dv ARCHIVE_COMPRESSION_PROGRAM
+.Dv ARCHIVE_FILTER_PROGRAM
+.It Dv ARCHIVE_COMPRESSION_LZMA
+.Dv ARCHIVE_FILTER_LZMA
+.It Dv ARCHIVE_COMPRESSION_XZ
+.Dv ARCHIVE_FILTER_XZ
+.It Dv ARCHIVE_COMPRESSION_UU
+.Dv ARCHIVE_FILTER_UU
+.It Dv ARCHIVE_COMPRESSION_RPM
+.Dv ARCHIVE_FILTER_RPM
+.It Dv ARCHIVE_COMPRESSION_LZIP
+.Dv ARCHIVE_FILTER_LZIP
+.\"
+.It Dv ARCHIVE_BYTES_PER_RECORD
+.Li 512
+.It Dv ARCHIVE_DEFAULT_BYTES_PER_BLOCK
+.Li 10240
+.El
+.Sh SEE ALSO
+.Xr libarchive 3 ,
+.Xr archive_read 3 ,
+.Xr archive_read_filter 3 ,
+.Xr archive_read_format 3 ,
+.Xr archive_read_set_options 3 ,
+.Xr archive_write 3 ,
+.Xr archive_write_filter 3 ,
+.Xr archive_write_format 3 ,
+.Xr archive_write_set_options 3 ,
+.Xr archive_util 3

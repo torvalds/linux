@@ -1,0 +1,52 @@
+# $FreeBSD$
+
+unset LC_ALL
+LC_CTYPE=de_DE.ISO8859-1
+export LC_CTYPE
+
+c1=e
+# o umlaut
+c2=$(printf '\366')
+# non-break space
+c3=$(printf '\240')
+c4=$(printf '\240')
+# $c2$c3$c4 form one utf-8 character
+
+ok=0
+case $c1$c2$c3$c4 in
+*) ok=1 ;;
+esac
+if [ $ok = 0 ]; then
+	echo wrong at $LINENO
+	exit 3
+fi
+
+case $c1$c2$c3$c4 in
+$c1$c2$c3$c4) ;;
+*) echo wrong at $LINENO ;;
+esac
+
+case $c1$c2$c3$c4 in
+"$c1$c2$c3$c4") ;;
+*) echo wrong at $LINENO ;;
+esac
+
+case $c1$c2$c3$c4 in
+????) ;;
+*) echo wrong at $LINENO ;;
+esac
+
+case $c1$c2$c3$c4 in
+[!$c2][!b][!c][!d]) ;;
+*) echo wrong at $LINENO ;;
+esac
+
+case $c1$c2$c3$c4 in
+[$c1][$c2][$c3][$c4]) ;;
+*) echo wrong at $LINENO ;;
+esac
+
+case $c1$c2$c3$c4 in
+["$c1"]["$c2"]["$c3"]["$c4"]) ;;
+*) echo wrong at $LINENO ;;
+esac

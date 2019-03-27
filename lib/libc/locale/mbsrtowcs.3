@@ -1,0 +1,135 @@
+.\" Copyright (c) 2002-2004 Tim J. Robbins
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd July 21, 2004
+.Dt MBSRTOWCS 3
+.Os
+.Sh NAME
+.Nm mbsrtowcs ,
+.Nm mbsnrtowcs
+.Nd "convert a character string to a wide-character string (restartable)"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In wchar.h
+.Ft size_t
+.Fo mbsrtowcs
+.Fa "wchar_t * restrict dst" "const char ** restrict src" "size_t len"
+.Fa "mbstate_t * restrict ps"
+.Fc
+.Ft size_t
+.Fo mbsnrtowcs
+.Fa "wchar_t * restrict dst" "const char ** restrict src" "size_t nms"
+.Fa "size_t len" "mbstate_t * restrict ps"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn mbsrtowcs
+function converts a sequence of multibyte characters pointed to indirectly by
+.Fa src
+into a sequence of corresponding wide characters and stores at most
+.Fa len
+of them in the
+.Vt wchar_t
+array pointed to by
+.Fa dst ,
+until it encounters a terminating null character
+.Pq Li '\e0' .
+.Pp
+If
+.Fa dst
+is
+.Dv NULL ,
+no characters are stored.
+.Pp
+If
+.Fa dst
+is not
+.Dv NULL ,
+the pointer pointed to by
+.Fa src
+is updated to point to the character after the one that conversion stopped at.
+If conversion stops because a null character is encountered,
+.Fa *src
+is set to
+.Dv NULL .
+.Pp
+The
+.Vt mbstate_t
+argument,
+.Fa ps ,
+is used to keep track of the shift state.
+If it is
+.Dv NULL ,
+.Fn mbsrtowcs
+uses an internal, static
+.Vt mbstate_t
+object, which is initialized to the initial conversion state
+at program startup.
+.Pp
+The
+.Fn mbsnrtowcs
+function behaves identically to
+.Fn mbsrtowcs ,
+except that conversion stops after reading at most
+.Fa nms
+bytes from the buffer pointed to by
+.Fa src .
+.Sh RETURN VALUES
+The
+.Fn mbsrtowcs
+and
+.Fn mbsnrtowcs
+functions return the number of wide characters stored in
+the array pointed to by
+.Fa dst
+if successful, otherwise it returns
+.Po Vt size_t Pc Ns \-1 .
+.Sh ERRORS
+The
+.Fn mbsrtowcs
+and
+.Fn mbsnrtowcs
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EILSEQ
+An invalid multibyte character sequence was encountered.
+.It Bq Er EINVAL
+The conversion state is invalid.
+.El
+.Sh SEE ALSO
+.Xr mbrtowc 3 ,
+.Xr mbstowcs 3 ,
+.Xr multibyte 3 ,
+.Xr wcsrtombs 3
+.Sh STANDARDS
+The
+.Fn mbsrtowcs
+function conforms to
+.St -isoC-99 .
+.Pp
+The
+.Fn mbsnrtowcs
+function is an extension to the standard.

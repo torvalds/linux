@@ -1,0 +1,90 @@
+.\"
+.\" lptcontrol - a utility for manipulating the lpt driver
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" $FreeBSD$
+.Dd October 1, 2004
+.Dt LPTCONTROL 8
+.Os
+.Sh NAME
+.Nm lptcontrol
+.Nd a utility for manipulating the lpt printer driver
+.Sh SYNOPSIS
+.Nm
+.Fl e | i | p | s
+.Op Fl d Ar control_device
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to set either the interrupt-driven, extended, standard,
+or polling mode of individual
+.Xr lpt 4
+devices.
+When a printer is switched from
+a mode to another, this change will only take effect
+the next time the device is opened.
+.Pp
+Extended mode is anything the parallel port interface can support.
+For an
+ECP/ISA parallel port, it may be FIFO+DMA or ECP.
+.Pp
+The following command line options are supported:
+.Bl -tag -width indent
+.It Fl e
+Turn on extended mode.
+.It Fl i
+Turn on interrupt-driven mode.
+.It Fl p
+Turn on polled mode.
+.It Fl s
+Turn on standard mode, i.e., turn off extended mode.
+.It Fl d Ar control_device
+Set the mode of the printer control device specified by
+.Ar control_device .
+The default value for
+.Ar control_device
+is
+.Pa /dev/lpt0.ctl .
+.El
+.Pp
+One of
+.Fl e , i , p
+or
+.Fl s
+must be specified.
+.Sh FILES
+.Bl -tag -width /sys/i386/conf/GENERIC -compact
+.It Pa /dev/lpt?
+printer devices
+.It Pa /dev/lpt?.ctl
+printer control devices
+.It Pa /sys/i386/conf/GENERIC
+kernel configuration file
+.It Pa /boot/device.hints
+device hints for the parallel port chipset driver,
+.Xr ppc 4
+.El
+.Sh SEE ALSO
+.Xr lpt 4 ,
+.Xr ppc 4 ,
+.Xr device.hints 5
+.Sh HISTORY
+The
+.Nm
+utility
+first appeared in
+.Fx 1.1.5
+.Sh AUTHORS
+.An Geoffrey M. Rehmet
+.Sh BUGS
+The control device name should never have been an option,
+but should have been an optional argument.
+Because of this, a single argument is treated as a device name.

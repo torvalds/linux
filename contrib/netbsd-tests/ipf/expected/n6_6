@@ -1,0 +1,173 @@
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:0:0:0:0:2:2:1,10023
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:2,23
+< zx0 ip6/0 20 0 6 10:3:0:0:0:0:0:1,12345 > 10:1:2:0:0:0:0:2,23
+< zx0 ip6/0 20 0 6 10:3:0:0:0:0:0:1,12345 > 10:0:0:0:0:2:2:2,23
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:0:0:0:0:2:2:1,10023
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:1,53
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:1:1:0:0:0:0:1,53
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:0:0:0:0:0:0,23
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:1:0:0:0:0:0:0,23
+< zx0 ip6/0 8 0 17 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:0,53
+< zx0 ip6/0 8 0 17 10:3:3:0:0:0:0:3,12345 > 10:1:1:0:0:0:0:0,53
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:0,53
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:1:1:0:0:0:0:0,53
+List of active MAP/Redirect filters:
+rdr zx0 inet6 10:1:1::1/128 port 23 -> 10::2:2:1/128 port 10023 tcp
+
+List of active sessions:
+RDR 10::2:2:1 10023 <- -> 10:1:1::1 23    [10:3:3::3 12345]
+RDR 10::2:2:1 10023 <- -> 10:1:1::1 23    [10::2:2:2 12345]
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:0:0:0:0:2:2:1,10023
+16
+< zx0 ip6/0 20 0 6 10:3:0:0:0:0:0:1,12345 > 10:1:2:0:0:0:0:2,23
+< zx0 ip6/0 20 0 6 10:3:0:0:0:0:0:1,12345 > 10:0:0:0:0:2:2:2,23
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:0:0:0:0:2:2:1,10023
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:1,53
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:1:1:0:0:0:0:1,53
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:0:0:0:0:0:0,23
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:1:0:0:0:0:0:0,23
+< zx0 ip6/0 8 0 17 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:0,53
+< zx0 ip6/0 8 0 17 10:3:3:0:0:0:0:3,12345 > 10:1:1:0:0:0:0:0,53
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:0,53
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:1:1:0:0:0:0:0,53
+List of active MAP/Redirect filters:
+rdr zx0 inet6 from any to 10:1:1::/112 port = 23 -> 10::2:2:1/128 port 10023 tcp
+
+List of active sessions:
+RDR 10::2:2:1 10023 <- -> 10:1:1::1 23    [10:3:3::3 12345]
+RDR 10::2:2:1 10023 <- -> 10:1:1::1 23    [10::2:2:2 12345]
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:0:0:0:0:2:2:1,10023
+16
+< zx0 ip6/0 20 0 6 10:3:0:0:0:0:0:1,12345 > 10:1:2:0:0:0:0:2,23
+< zx0 ip6/0 20 0 6 10:3:0:0:0:0:0:1,12345 > 10:0:0:0:0:2:2:2,23
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:1:1:0:0:0:0:1,23
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:1,53
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:1:1:0:0:0:0:1,53
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:0:0:0:0:0:0,23
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:1:0:0:0:0:0:0,23
+< zx0 ip6/0 8 0 17 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:0,53
+< zx0 ip6/0 8 0 17 10:3:3:0:0:0:0:3,12345 > 10:1:1:0:0:0:0:0,53
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:0,53
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:1:1:0:0:0:0:0,53
+List of active MAP/Redirect filters:
+rdr zx0 inet6 from 10::/32 to 10:1:1::/112 port = 23 -> 10::2:2:1/128 port 10023 tcp
+
+List of active sessions:
+RDR 10::2:2:1 10023 <- -> 10:1:1::1 23    [10::2:2:2 12345]
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:1,23
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:2,23
+< zx0 ip6/0 20 0 6 10:3:0:0:0:0:0:1,12345 > 10:0:0:0:0:2:2:1,10023
+< zx0 ip6/0 20 0 6 10:3:0:0:0:0:0:1,12345 > 10:0:0:0:0:2:2:2,23
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:0:0:0:0:2:2:1,10023
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:1,53
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:1:1:0:0:0:0:1,53
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:0:0:0:0:0:0,23
+16
+< zx0 ip6/0 8 0 17 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:0,53
+< zx0 ip6/0 8 0 17 10:3:3:0:0:0:0:3,12345 > 10:1:1:0:0:0:0:0,53
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:0,53
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:1:1:0:0:0:0:0,53
+List of active MAP/Redirect filters:
+rdr zx0 inet6 from 10:3::/32 to 10:1::/32 port = 23 -> 10::2:2:1/128 port 10023 tcp
+
+List of active sessions:
+RDR 10::2:2:1 10023 <- -> 10:1:1::1 23    [10:3:3::3 12345]
+RDR 10::2:2:1 10023 <- -> 10:1:2::2 23    [10:3::1 12345]
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:1,23
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:2,23
+< zx0 ip6/0 20 0 6 10:3:0:0:0:0:0:1,12345 > 10:1:2:0:0:0:0:2,23
+< zx0 ip6/0 20 0 6 10:3:0:0:0:0:0:1,12345 > 10:0:0:0:0:2:2:2,23
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:1:1:0:0:0:0:1,23
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:1,53
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:1:1:0:0:0:0:1,53
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:0:0:0:0:0:0,23
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:1:0:0:0:0:0:0,23
+< zx0 ip6/0 8 0 17 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:0,53
+< zx0 ip6/0 8 0 17 10:3:3:0:0:0:0:3,12345 > 10:0:0:0:0:2:2:1,10053
+< zx0 ip6/0 20 0 6 10:0:0:0:0:2:2:2,12345 > 10:1:1:0:0:0:0:0,53
+< zx0 ip6/0 20 0 6 10:3:3:0:0:0:0:3,12345 > 10:1:1:0:0:0:0:0,53
+List of active MAP/Redirect filters:
+rdr zx0 inet6 ! from 10::/32 to 10:1:1::/112 port = 53 -> 10::2:2:1/128 port 10053 udp
+
+List of active sessions:
+RDR 10::2:2:1 10053 <- -> 10:1:1:: 53    [10:3:3::3 12345]
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------

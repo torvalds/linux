@@ -1,0 +1,50 @@
+# Copyright (c) 2012 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+hline_arrows_tab_enter="Press arrows, TAB or ENTER"
+hline_select_securelevel_to_operate_at="Select a securelevel to operate at"
+msg_cancel="Cancel"
+msg_disable_securelevels="Disable securelevels"
+msg_disabled="Disabled"
+msg_exit="Exit"
+msg_exit_this_menu="Exit this menu"
+msg_highly_secure="Highly Secure"
+msg_highly_secure_mode="Highly secure mode"
+msg_menu_text="This menu allows you to configure aspects of the operating system security\npolicy.  Please read the system documentation carefully before modifying\nthese settings, as they may cause service disruption if used improperly.\n\nMost settings will take affect only following a system reboot."
+msg_network_secure="Network Secure"
+msg_network_secure_mode="Network secure mode"
+msg_nfs_port="NFS port"
+msg_nfs_port_desc="Require that the NFS clients use reserved ports"
+msg_ok="OK"
+msg_secure="Secure"
+msg_secure_mode="Secure mode"
+msg_securelevel="Securelevel"
+msg_securelevel_desc="Configure securelevels for the system"
+msg_securelevels_menu_text="This menu allows you to select the securelevel your system runs with.\nWhen operating at a securelevel, certain root privileges are disabled,\nwhich may increase resistance to exploits and protect system integrity.\nIn secure mode system flags may not be overridden by the root user,\naccess to direct kernel memory is limited, and kernel modules may not\nbe changed.  In highly secure mode, mounted file systems may not be\nmodified on-disk, tampering with the system clock is prohibited.  In\nnetwork secure mode configuration changes to firewalling are prohibited.\n "
+msg_securelevels_menu_title="Securelevel Configuration Menu"
+msg_system_security_options_menu="System Security Options Menu"
+msg_unknown_kern_securelevel_selection="Unknown kern.securelevel selection"
+msg_unknown_security_menu_selection="Unknown security menu selection"

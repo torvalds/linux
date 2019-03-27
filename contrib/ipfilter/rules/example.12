@@ -1,0 +1,17 @@
+#
+# get rid of all short IP fragments (too small for valid comparison)
+#
+block in proto tcp all with short
+#
+# drop and log any IP packets with options set in them.
+#
+block in log all with ipopts
+#
+# log packets with BOTH ssrr and lsrr set
+#
+log in all with opt lsrr,ssrr
+#
+# drop any source routing options
+#
+block in quick all with opt lsrr
+block in quick all with opt ssrr

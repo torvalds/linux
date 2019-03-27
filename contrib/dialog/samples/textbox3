@@ -1,0 +1,20 @@
+#!/bin/sh
+# $Id: textbox3,v 1.6 2010/01/13 10:37:01 tom Exp $
+
+. ./setup-vars
+
+. ./setup-tempfile
+
+TEXT=/usr/share/common-licenses/GPL
+test -f $TEXT || TEXT=../COPYING
+
+cat textbox.txt | expand > $tempfile
+cat $TEXT | expand >> $tempfile
+
+$DIALOG --clear --title "TEXT BOX" \
+	--extra-button "$@" \
+	--textbox "$tempfile" 22 77
+
+retval=$?
+
+. ./report-button

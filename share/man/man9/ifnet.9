@@ -1,0 +1,1520 @@
+.\" -*- Nroff -*-
+.\" Copyright 1996, 1997 Massachusetts Institute of Technology
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby
+.\" granted, provided that both the above copyright notice and this
+.\" permission notice appear in all copies, that both the above
+.\" copyright notice and this permission notice appear in all
+.\" supporting documentation, and that the name of M.I.T. not be used
+.\" in advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.  M.I.T. makes
+.\" no representations about the suitability of this software for any
+.\" purpose.  It is provided "as is" without express or implied
+.\" warranty.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
+.\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT
+.\" SHALL M.I.T. BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 14, 2018
+.Dt IFNET 9
+.Os
+.Sh NAME
+.Nm ifnet ,
+.Nm ifaddr ,
+.Nm ifqueue ,
+.Nm if_data
+.Nd kernel interfaces for manipulating network interfaces
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/time.h
+.In sys/socket.h
+.In net/if.h
+.In net/if_var.h
+.In net/if_types.h
+.\"
+.Ss "Interface Manipulation Functions"
+.Ft "struct ifnet *"
+.Fn if_alloc "u_char type"
+.Ft void
+.Fn if_attach "struct ifnet *ifp"
+.Ft void
+.Fn if_detach "struct ifnet *ifp"
+.Ft void
+.Fn if_free "struct ifnet *ifp"
+.Ft void
+.Fn if_free_type "struct ifnet *ifp" "u_char type"
+.Ft void
+.Fn if_down "struct ifnet *ifp"
+.Ft int
+.Fn ifioctl "struct socket *so" "u_long cmd" "caddr_t data" "struct thread *td"
+.Ft int
+.Fn ifpromisc "struct ifnet *ifp" "int pswitch"
+.Ft int
+.Fn if_allmulti "struct ifnet *ifp" "int amswitch"
+.Ft "struct ifnet *"
+.Fn ifunit "const char *name"
+.Ft "struct ifnet *"
+.Fn ifunit_ref "const char *name"
+.Ft void
+.Fn if_up "struct ifnet *ifp"
+.\"
+.Ss "Interface Address Functions"
+.Ft "struct ifaddr *"
+.Fn ifaddr_byindex "u_short idx"
+.Ft "struct ifaddr *"
+.Fn ifa_ifwithaddr "struct sockaddr *addr"
+.Ft "struct ifaddr *"
+.Fn ifa_ifwithdstaddr "struct sockaddr *addr" "int fib"
+.Ft "struct ifaddr *"
+.Fn ifa_ifwithnet "struct sockaddr *addr" "int ignore_ptp" "int fib"
+.Ft "struct ifaddr *"
+.Fn ifaof_ifpforaddr "struct sockaddr *addr" "struct ifnet *ifp"
+.Ft void
+.Fn ifa_ref "struct ifaddr *ifa"
+.Ft void
+.Fn ifa_free "struct ifaddr *ifa"
+.\"
+.Ss "Interface Multicast Address Functions"
+.Ft int
+.Fn if_addmulti "struct ifnet *ifp" "struct sockaddr *sa" "struct ifmultiaddr **ifmap"
+.Ft int
+.Fn if_delmulti "struct ifnet *ifp" "struct sockaddr *sa"
+.Ft "struct ifmultiaddr *"
+.Fn if_findmulti "struct ifnet *ifp" "struct sockaddr *sa"
+.Ss "Output queue macros"
+.Fn IF_DEQUEUE "struct ifqueue *ifq" "struct mbuf *m"
+.\"
+.Ss "struct ifnet Member Functions"
+.Ft void
+.Fn \*(lp*if_input\*(rp "struct ifnet *ifp" "struct mbuf *m"
+.Ft int
+.Fo \*(lp*if_output\*(rp
+.Fa "struct ifnet *ifp" "struct mbuf *m"
+.Fa "const struct sockaddr *dst" "struct route *ro"
+.Fc
+.Ft void
+.Fn \*(lp*if_start\*(rp "struct ifnet *ifp"
+.Ft int
+.Fn \*(lp*if_transmit\*(rp "struct ifnet *ifp" "struct mbuf *m"
+.Ft void
+.Fn \*(lp*if_qflush\*(rp "struct ifnet *ifp"
+.Ft int
+.Fn \*(lp*if_ioctl\*(rp "struct ifnet *ifp" "u_long cmd" "caddr_t data"
+.Ft void
+.Fn \*(lp*if_init\*(rp "void *if_softc"
+.Ft int
+.Fo \*(lp*if_resolvemulti\*(rp
+.Fa "struct ifnet *ifp" "struct sockaddr **retsa" "struct sockaddr *addr"
+.Fc
+.Ss "struct ifaddr member function"
+.Ft void
+.Fo \*(lp*ifa_rtrequest\*(rp
+.Fa "int cmd" "struct rtentry *rt" "struct rt_addrinfo *info"
+.Fc
+.\"
+.Ss "Global Variables"
+.Vt extern struct ifnethead ifnet ;
+.\" extern struct ifindex_entry *ifindex_table ;
+.Vt extern int if_index ;
+.Vt extern int ifqmaxlen ;
+.Sh DATA STRUCTURES
+The kernel mechanisms for handling network interfaces reside primarily
+in the
+.Vt ifnet , if_data , ifaddr ,
+and
+.Vt ifmultiaddr
+structures in
+.In net/if.h
+and
+.In net/if_var.h
+and the functions named above and defined in
+.Pa /sys/net/if.c .
+Those interfaces which are intended to be used by user programs
+are defined in
+.In net/if.h ;
+these include the interface flags, the
+.Vt if_data
+structure, and the structures defining the appearance of
+interface-related messages on the
+.Xr route 4
+routing socket and in
+.Xr sysctl 3 .
+The header file
+.In net/if_var.h
+defines the kernel-internal interfaces, including the
+.Vt ifnet , ifaddr ,
+and
+.Vt ifmultiaddr
+structures and the functions which manipulate them.
+(A few user programs will need
+.In net/if_var.h
+because it is the prerequisite of some other header file like
+.In netinet/if_ether.h .
+Most references to those two files in particular can be replaced by
+.In net/ethernet.h . )
+.Pp
+The system keeps a linked list of interfaces using the
+.Li TAILQ
+macros defined in
+.Xr queue 3 ;
+this list is headed by a
+.Vt "struct ifnethead"
+called
+.Va ifnet .
+The elements of this list are of type
+.Vt "struct ifnet" ,
+and most kernel routines which manipulate interface as such accept or
+return pointers to these structures.
+Each interface structure
+contains an
+.Vt if_data
+structure used for statistics and information.
+Each interface also has a
+.Li TAILQ
+of interface addresses, described by
+.Vt ifaddr
+structures.
+An
+.Dv AF_LINK
+address
+(see
+.Xr link_addr 3 )
+describing the link layer implemented by the interface (if any)
+is accessed by the
+.Fn ifaddr_byindex
+function or
+.Va if_addr
+structure.
+(Some trivial interfaces do not provide any link layer addresses;
+this structure, while still present, serves only to identify the
+interface name and index.)
+.Pp
+Finally, those interfaces supporting reception of multicast datagrams
+have a
+.Li TAILQ
+of multicast group memberships, described by
+.Vt ifmultiaddr
+structures.
+These memberships are reference-counted.
+.Pp
+Interfaces are also associated with an output queue, defined as a
+.Vt "struct ifqueue" ;
+this structure is used to hold packets while the interface is in the
+process of sending another.
+.Pp
+.Ss The ifnet Structure
+The fields of
+.Vt "struct ifnet"
+are as follows:
+.Bl -tag -width ".Va if_capabilities" -offset indent
+.It Va if_softc
+.Pq Vt "void *"
+A pointer to the driver's private state block.
+(Initialized by driver.)
+.It Va if_l2com
+.Pq Vt "void *"
+A pointer to the common data for the interface's layer 2 protocol.
+(Initialized by
+.Fn if_alloc . )
+.It Va if_vnet
+.Pq Vt "struct vnet *"
+A pointer to the virtual network stack instance.
+(Initialized by
+.Fn if_attach . )
+.It Va if_home_vnet
+.Pq Vt "struct vnet *"
+A pointer to the parent virtual network stack, where this
+.Vt "struct ifnet"
+originates from.
+(Initialized by
+.Fn if_attach . )
+.It Va if_link
+.Pq Fn TAILQ_ENTRY ifnet
+.Xr queue 3
+macro glue.
+.It Va if_xname
+.Pq Vt "char *"
+The name of the interface,
+(e.g.,
+.Dq Li fxp0
+or
+.Dq Li lo0 ) .
+(Initialized by driver
+(usually via
+.Fn if_initname ) . )
+.It Va if_dname
+.Pq Vt "const char *"
+The name of the driver.
+(Initialized by driver
+(usually via
+.Fn if_initname ) . )
+.It Va if_dunit
+.Pq Vt int
+A unique number assigned to each interface managed by a particular
+driver.
+Drivers may choose to set this to
+.Dv IF_DUNIT_NONE
+if a unit number is not associated with the device.
+(Initialized by driver
+(usually via
+.Fn if_initname ) . )
+.It Va if_refcount
+.Pq Vt u_int
+The reference count.
+(Initialized by
+.Fn if_alloc . )
+.It Va if_addrhead
+.Pq Vt "struct ifaddrhead"
+The head of the
+.Xr queue 3
+.Li TAILQ
+containing the list of addresses assigned to this interface.
+.It Va if_pcount
+.Pq Vt int
+A count of promiscuous listeners on this interface, used to
+reference-count the
+.Dv IFF_PROMISC
+flag.
+.It Va if_carp
+.Pq Vt "struct carp_if *"
+A pointer to the CARP interface structure,
+.Xr carp 4 .
+(Initialized by the driver-specific
+.Fn if_ioctl
+routine.)
+.It Va if_bpf
+.Pq Vt "struct bpf_if *"
+Opaque per-interface data for the packet filter,
+.Xr bpf 4 .
+(Initialized by
+.Fn bpf_attach . )
+.It Va if_index
+.Pq Vt u_short
+A unique number assigned to each interface in sequence as it is
+attached.
+This number can be used in a
+.Vt "struct sockaddr_dl"
+to refer to a particular interface by index
+(see
+.Xr link_addr 3 ) .
+(Initialized by
+.Fn if_alloc . )
+.It Va if_vlantrunk
+.Pq Vt struct ifvlantrunk *
+A pointer to 802.1Q trunk structure,
+.Xr vlan 4 .
+(Initialized by the driver-specific
+.Fn if_ioctl
+routine.)
+.It Va if_flags
+.Pq Vt int
+Flags describing operational parameters of this interface (see below).
+(Manipulated by generic code.)
+.It Va if_drv_flags
+.Pq Vt int
+Flags describing operational status of this interface (see below).
+(Manipulated by driver.)
+.It Va if_capabilities
+.Pq Vt int
+Flags describing the capabilities the interface supports (see below).
+.It Va if_capenable
+.Pq Vt int
+Flags describing the enabled capabilities of the interface (see below).
+.It Va if_linkmib
+.Pq Vt "void *"
+A pointer to an interface-specific MIB structure exported by
+.Xr ifmib 4 .
+(Initialized by driver.)
+.It Va if_linkmiblen
+.Pq Vt size_t
+The size of said structure.
+(Initialized by driver.)
+.It Va if_data
+.Pq Vt "struct if_data"
+More statistics and information; see
+.Sx "The if_data structure" ,
+below.
+(Initialized by driver, manipulated by both driver and generic
+code.)
+.It Va if_multiaddrs
+.Pq Vt struct ifmultihead
+The head of the
+.Xr queue 3
+.Li TAILQ
+containing the list of multicast addresses assigned to this interface.
+.It Va if_amcount
+.Pq Vt int
+A number of multicast requests on this interface, used to
+reference-count the
+.Dv IFF_ALLMULTI
+flag.
+.It Va if_addr
+.Pq Vt "struct ifaddr *"
+A pointer to the link-level interface address.
+(Initialized by
+.Fn if_alloc . )
+.\" .It Va if_llsoftc
+.\" .Pq Vt "void *"
+.\" The purpose of the field is unclear.
+.It Va if_snd
+.Pq Vt "struct ifaltq"
+The output queue.
+(Manipulated by driver.)
+.It Va if_broadcastaddr
+.Pq Vt "const u_int8_t *"
+A link-level broadcast bytestring for protocols with variable address
+length.
+.It Va if_bridge
+.Pq Vt "void *"
+A pointer to the bridge interface structure,
+.Xr if_bridge 4 .
+(Initialized by the driver-specific
+.Fn if_ioctl
+routine.)
+.It Va if_label
+.Pq Vt "struct label *"
+A pointer to the MAC Framework label structure,
+.Xr mac 4 .
+(Initialized by
+.Fn if_alloc . )
+.It Va if_afdata
+.Pq Vt "void *"
+An address family dependent data region.
+.It Va if_afdata_initialized
+.Pq Vt int
+Used to track the current state of address family initialization.
+.It Va if_afdata_lock
+.Pq Vt "struct rwlock"
+An
+.Xr rwlock 9
+lock used to protect
+.Va if_afdata
+internals.
+.It Va if_linktask
+.Pq Vt "struct task"
+A
+.Xr taskqueue 9
+task scheduled for link state change events of the interface.
+.It Va if_addr_lock
+.Pq Vt "struct rwlock"
+An
+.Xr rwlock 9
+lock used to protect interface-related address lists.
+.It Va if_clones
+.Pq Fn LIST_ENTRY ifnet
+.Xr queue 3
+macro glue for the list of clonable network interfaces.
+.It Va if_groups
+.Pq Fn TAILQ_HEAD "" "ifg_list"
+The head of the
+.Xr queue 3
+.Li TAILQ
+containing the list of groups per interface.
+.It Va if_pf_kif
+.Pq Vt "void *"
+A pointer to the structure used for interface abstraction by
+.Xr pf 4 .
+.It Va if_lagg
+.Pq Vt "void *"
+A pointer to the
+.Xr lagg 4
+interface structure.
+.It Va if_alloctype
+.Pq Vt u_char
+The type of the interface as it was at the time of its allocation.
+It is used to cache the type passed to
+.Fn if_alloc ,
+but unlike
+.Va if_type ,
+it would not be changed by drivers.
+.El
+.Pp
+References to
+.Vt ifnet
+structures are gained by calling the
+.Fn if_ref
+function and released by calling the
+.Fn if_rele
+function.
+They are used to allow kernel code walking global interface lists
+to release the
+.Vt ifnet
+lock yet keep the
+.Vt ifnet
+structure stable.
+.Pp
+There are in addition a number of function pointers which the driver
+must initialize to complete its interface with the generic interface
+layer:
+.Bl -ohang -offset indent
+.It Fn if_input
+Pass a packet to an appropriate upper layer as determined
+from the link-layer header of the packet.
+This routine is to be called from an interrupt handler or
+used to emulate reception of a packet on this interface.
+A single function implementing
+.Fn if_input
+can be shared among multiple drivers utilizing the same link-layer
+framing, e.g., Ethernet.
+.It Fn if_output
+Output a packet on interface
+.Fa ifp ,
+or queue it on the output queue if the interface is already active.
+.It Fn if_transmit
+Transmit a packet on an interface or queue it if the interface is
+in use.
+This function will return
+.Dv ENOBUFS
+if the devices software and hardware queues are both full.
+This function must be installed after
+.Fn if_attach
+to override the default implementation.
+This function is exposed in order to allow drivers to manage their own queues
+and to reduce the latency caused by a frequently gratuitous enqueue / dequeue
+pair to ifq.
+The suggested internal software queuing mechanism is buf_ring.
+.It Fn if_qflush
+Free mbufs in internally managed queues when the interface is marked down.
+This function must be installed after
+.Fn if_attach
+to override the default implementation.
+This function is exposed in order to allow drivers to manage their own queues
+and to reduce the latency caused by a frequently gratuitous enqueue / dequeue
+pair to ifq.
+The suggested internal software queuing mechanism is buf_ring.
+.It Fn if_start
+Start queued output on an interface.
+This function is exposed in
+order to provide for some interface classes to share a
+.Fn if_output
+among all drivers.
+.Fn if_start
+may only be called when the
+.Dv IFF_DRV_OACTIVE
+flag is not set.
+(Thus,
+.Dv IFF_DRV_OACTIVE
+does not literally mean that output is active, but rather that the
+device's internal output queue is full.) Please note that this function
+will soon be deprecated.
+.It Fn if_ioctl
+Process interface-related
+.Xr ioctl 2
+requests
+(defined in
+.In sys/sockio.h ) .
+Preliminary processing is done by the generic routine
+.Fn ifioctl
+to check for appropriate privileges, locate the interface being
+manipulated, and perform certain generic operations like twiddling
+flags and flushing queues.
+See the description of
+.Fn ifioctl
+below for more information.
+.It Fn if_init
+Initialize and bring up the hardware,
+e.g., reset the chip and enable the receiver unit.
+Should mark the interface running,
+but not active
+.Dv ( IFF_DRV_RUNNING , ~IIF_DRV_OACTIVE ) .
+.It Fn if_resolvemulti
+Check the requested multicast group membership,
+.Fa addr ,
+for validity, and if necessary compute a link-layer group which
+corresponds to that address which is returned in
+.Fa *retsa .
+Returns zero on success, or an error code on failure.
+.El
+.Ss "Interface Flags"
+Interface flags are used for a number of different purposes.
+Some
+flags simply indicate information about the type of interface and its
+capabilities; others are dynamically manipulated to reflect the
+current state of the interface.
+Flags of the former kind are marked
+.Aq S
+in this table; the latter are marked
+.Aq D .
+Flags which begin with
+.Dq IFF_DRV_
+are stored in
+.Va if_drv_flags ;
+all other flags are stored in
+.Va if_flags .
+.Pp
+The macro
+.Dv IFF_CANTCHANGE
+defines the bits which cannot be set by a user program using the
+.Dv SIOCSIFFLAGS
+command to
+.Xr ioctl 2 ;
+these are indicated by an asterisk
+.Pq Ql *
+in the following listing.
+.Pp
+.Bl -tag -width ".Dv IFF_POINTOPOINT" -offset indent -compact
+.It Dv IFF_UP
+.Aq D
+The interface has been configured up by the user-level code.
+.It Dv IFF_BROADCAST
+.Aq S*
+The interface supports broadcast.
+.It Dv IFF_DEBUG
+.Aq D
+Used to enable/disable driver debugging code.
+.It Dv IFF_LOOPBACK
+.Aq S
+The interface is a loopback device.
+.It Dv IFF_POINTOPOINT
+.Aq S*
+The interface is point-to-point;
+.Dq broadcast
+address is actually the address of the other end.
+.It Dv IFF_DRV_RUNNING
+.Aq D*
+The interface has been configured and dynamic resources were
+successfully allocated.
+Probably only useful internal to the
+interface.
+.It Dv IFF_NOARP
+.Aq D
+Disable network address resolution on this interface.
+.It Dv IFF_PROMISC
+.Aq D*
+This interface is in promiscuous mode.
+.It Dv IFF_PPROMISC
+.Aq D
+This interface is in the permanently promiscuous mode (implies
+.Dv IFF_PROMISC ) .
+.It Dv IFF_ALLMULTI
+.Aq D*
+This interface is in all-multicasts mode (used by multicast routers).
+.It Dv IFF_DRV_OACTIVE
+.Aq D*
+The interface's hardware output queue (if any) is full; output packets
+are to be queued.
+.It Dv IFF_SIMPLEX
+.Aq S*
+The interface cannot hear its own transmissions.
+.It Dv IFF_LINK0
+.It Dv IFF_LINK1
+.It Dv IFF_LINK2
+.Aq D
+Control flags for the link layer.
+(Currently abused to select among
+multiple physical layers on some devices.)
+.It Dv IFF_MULTICAST
+.Aq S*
+This interface supports multicast.
+.It Dv IFF_CANTCONFIG
+.Aq S*
+The interface is not configurable in a meaningful way.
+Primarily useful for
+.Dv IFT_USB
+interfaces registered at the interface list.
+.It Dv IFF_MONITOR
+.Aq D
+This interface blocks transmission of packets and discards incoming
+packets after BPF processing.
+Used to monitor network traffic but not interact
+with the network in question.
+.It Dv IFF_STATICARP
+.Aq D
+Used to enable/disable ARP requests on this interface.
+.It Dv IFF_DYING
+.Aq D*
+Set when the
+.Vt ifnet
+structure of this interface is being released and still has
+.Va if_refcount
+references.
+.It Dv IFF_RENAMING
+.Aq D
+Set when this interface is being renamed.
+.El
+.Ss "Interface Capabilities Flags"
+Interface capabilities are specialized features an interface may
+or may not support.
+These capabilities are very hardware-specific
+and allow, when enabled,
+to offload specific network processing to the interface
+or to offer a particular feature for use by other kernel parts.
+.Pp
+It should be stressed that a capability can be completely
+uncontrolled (i.e., stay always enabled with no way to disable it)
+or allow limited control over itself (e.g., depend on another
+capability's state.)
+Such peculiarities are determined solely by the hardware and driver
+of a particular interface.
+Only the driver possesses
+the knowledge on whether and how the interface capabilities
+can be controlled.
+Consequently, capabilities flags in
+.Va if_capenable
+should never be modified directly by kernel code other than
+the interface driver.
+The command
+.Dv SIOCSIFCAP
+to
+.Fn ifioctl
+is the dedicated means to attempt altering
+.Va if_capenable
+on an interface.
+Userland code shall use
+.Xr ioctl 2 .
+.Pp
+The following capabilities are currently supported by the system:
+.Bl -tag -width ".Dv IFCAP_VLAN_HWTAGGING" -offset indent
+.It Dv IFCAP_RXCSUM
+This interface can do checksum validation on receiving data.
+Some interfaces do not have sufficient buffer storage to store frames
+above a certain MTU-size completely.
+The driver for the interface might disable hardware checksum validation
+if the MTU is set above the hardcoded limit.
+.It Dv IFCAP_TXCSUM
+This interface can do checksum calculation on transmitting data.
+.It Dv IFCAP_HWCSUM
+A shorthand for
+.Pq Dv IFCAP_RXCSUM | IFCAP_TXCSUM .
+.It Dv IFCAP_NETCONS
+This interface can be a network console.
+.It Dv IFCAP_VLAN_MTU
+The
+.Xr vlan 4
+driver can operate over this interface in software tagging mode
+without having to decrease MTU on
+.Xr vlan 4
+interfaces below 1500 bytes.
+This implies the ability of this interface to cope with frames somewhat
+longer than permitted by the Ethernet specification.
+.It Dv IFCAP_VLAN_HWTAGGING
+This interface can do VLAN tagging on output and
+demultiplex frames by their VLAN tag on input.
+.It Dv IFCAP_JUMBO_MTU
+This Ethernet interface can transmit and receive frames up to
+9000 bytes long.
+.It Dv IFCAP_POLLING
+This interface supports
+.Xr polling 4 .
+See below for details.
+.It Dv IFCAP_VLAN_HWCSUM
+This interface can do checksum calculation on both transmitting
+and receiving data on
+.Xr vlan 4
+interfaces (implies
+.Dv IFCAP_HWCSUM ) .
+.It Dv IFCAP_TSO4
+This Ethernet interface supports TCP4 Segmentation offloading.
+.It Dv IFCAP_TSO6
+This Ethernet interface supports TCP6 Segmentation offloading.
+.It Dv IFCAP_TSO
+A shorthand for
+.Pq Dv IFCAP_TSO4 | IFCAP_TSO6 .
+.It Dv IFCAP_TOE4
+This Ethernet interface supports TCP offloading.
+.It Dv IFCAP_TOE6
+This Ethernet interface supports TCP6 offloading.
+.It Dv IFCAP_TOE
+A shorthand for
+.Pq Dv IFCAP_TOE4 | IFCAP_TOE6 .
+.It Dv IFCAP_WOL_UCAST
+This Ethernet interface supports waking up on any Unicast packet.
+.It Dv IFCAP_WOL_MCAST
+This Ethernet interface supports waking up on any Multicast packet.
+.It Dv IFCAP_WOL_MAGIC
+This Ethernet interface supports waking up on any Magic packet such
+as those sent by
+.Xr wake 8 .
+.It Dv IFCAP_WOL
+A shorthand for
+.Pq Dv IFCAP_WOL_UCAST | IFCAP_WOL_MCAST | IFCAP_WOL_MAGIC .
+.It Dv IFCAP_TOE4
+This Ethernet interface supports TCP4 Offload Engine.
+.It Dv IFCAP_TOE6
+This Ethernet interface supports TCP6 Offload Engine.
+.It Dv IFCAP_TOE
+A shorthand for
+.Pq Dv IFCAP_TOE4 | IFCAP_TOE6 .
+.It Dv IFCAP_VLAN_HWFILTER
+This interface supports frame filtering in hardware on
+.Xr vlan 4
+interfaces.
+.It Dv IFCAP_VLAN_HWTSO
+This interface supports TCP Segmentation offloading on
+.Xr vlan 4
+interfaces (implies
+.Dv IFCAP_TSO ) .
+.It Dv IFCAP_LINKSTATE
+This Ethernet interface supports dynamic link state changes.
+.It Dv IFCAP_NETMAP
+This Ethernet interface supports
+.Xr netmap  4 .
+.El
+.Pp
+The ability of advanced network interfaces to offload certain
+computational tasks from the host CPU to the board is limited
+mostly to TCP/IP.
+Therefore a separate field associated with an interface
+(see
+.Va ifnet.if_data.ifi_hwassist
+below)
+keeps a detailed description of its enabled capabilities
+specific to TCP/IP processing.
+The TCP/IP module consults the field to see which tasks
+can be done on an
+.Em outgoing
+packet by the interface.
+The flags defined for that field are a superset of those for
+.Va mbuf.m_pkthdr.csum_flags ,
+namely:
+.Bl -tag -width ".Dv CSUM_FRAGMENT" -offset indent
+.It Dv CSUM_IP
+The interface will compute IP checksums.
+.It Dv CSUM_TCP
+The interface will compute TCP checksums.
+.It Dv CSUM_UDP
+The interface will compute UDP checksums.
+.El
+.Pp
+An interface notifies the TCP/IP module about the tasks
+the former has performed on an
+.Em incoming
+packet by setting the corresponding flags in the field
+.Va mbuf.m_pkthdr.csum_flags
+of the
+.Vt mbuf chain
+containing the packet.
+See
+.Xr mbuf 9
+for details.
+.Pp
+The capability of a network interface to operate in
+.Xr polling 4
+mode involves several flags in different
+global variables and per-interface fields.
+The capability flag
+.Dv IFCAP_POLLING
+set in interface's
+.Va if_capabilities
+indicates support for
+.Xr polling 4
+on the particular interface.
+If set in
+.Va if_capabilities ,
+the same flag can be marked or cleared in the interface's
+.Va if_capenable
+within
+.Fn ifioctl ,
+thus initiating switch of the interface to
+.Xr polling 4
+mode or interrupt
+mode, respectively.
+The actual mode change is managed by the driver-specific
+.Fn if_ioctl
+routine.
+The
+.Xr polling 4
+handler returns the number of packets processed.
+.Ss The if_data Structure
+The
+.Vt if_data
+structure contains statistics and identifying information used
+by management programs, and which is exported to user programs by way
+of the
+.Xr ifmib 4
+branch of the
+.Xr sysctl 3
+MIB.
+The following elements of the
+.Vt if_data
+structure are initialized by the interface and are not expected to change
+significantly over the course of normal operation:
+.Bl -tag -width ".Va ifi_lastchange" -offset indent
+.It Va ifi_type
+.Pq Vt u_char
+The type of the interface, as defined in
+.In net/if_types.h
+and described below in the
+.Sx "Interface Types"
+section.
+.It Va ifi_physical
+.Pq Vt u_char
+Intended to represent a selection of physical layers on devices which
+support more than one; never implemented.
+.It Va ifi_addrlen
+.Pq Vt u_char
+Length of a link-layer address on this device, or zero if there are
+none.
+Used to initialized the address length field in
+.Vt sockaddr_dl
+structures referring to this interface.
+.It Va ifi_hdrlen
+.Pq Vt u_char
+Maximum length of any link-layer header which might be prepended by
+the driver to a packet before transmission.
+The generic code computes
+the maximum over all interfaces and uses that value to influence the
+placement of data in
+.Vt mbuf Ns s
+to attempt to ensure that there is always
+sufficient space to prepend a link-layer header without allocating an
+additional
+.Vt mbuf .
+.It Va ifi_datalen
+.Pq Vt u_char
+Length of the
+.Vt if_data
+structure.
+Allows some stabilization of the routing socket ABI in the face of
+increases in the length of
+.Vt struct ifdata .
+.It Va ifi_mtu
+.Pq Vt u_long
+The maximum transmission unit of the medium, exclusive of any
+link-layer overhead.
+.It Va ifi_metric
+.Pq Vt u_long
+A dimensionless metric interpreted by a user-mode routing process.
+.It Va ifi_baudrate
+.Pq Vt u_long
+The line rate of the interface, in bits per second.
+.It Va ifi_hwassist
+.Pq Vt u_long
+A detailed interpretation of the capabilities
+to offload computational tasks for
+.Em outgoing
+packets.
+The interface driver must keep this field in accord with
+the current value of
+.Va if_capenable .
+.It Va ifi_epoch
+.Pq Vt time_t
+The system uptime when interface was attached or the statistics
+below were reset.
+This is intended to be used to set the SNMP variable
+.Va ifCounterDiscontinuityTime .
+It may also be used to determine if two successive queries for an
+interface of the same index have returned results for the same
+interface.
+.El
+.Pp
+The structure additionally contains generic statistics applicable to a
+variety of different interface types (except as noted, all members are
+of type
+.Vt u_long ) :
+.Bl -tag -width ".Va ifi_lastchange" -offset indent
+.It Va ifi_link_state
+.Pq Vt u_char
+The current link state of Ethernet interfaces.
+See the
+.Sx Interface Link States
+section for possible values.
+.It Va ifi_ipackets
+Number of packets received.
+.It Va ifi_ierrors
+Number of receive errors detected (e.g., FCS errors, DMA overruns,
+etc.).
+More detailed breakdowns can often be had by way of a
+link-specific MIB.
+.It Va ifi_opackets
+Number of packets transmitted.
+.It Va ifi_oerrors
+Number of output errors detected (e.g., late collisions, DMA overruns,
+etc.).
+More detailed breakdowns can often be had by way of a
+link-specific MIB.
+.It Va ifi_collisions
+Total number of collisions detected on output for CSMA interfaces.
+(This member is sometimes [ab]used by other types of interfaces for
+other output error counts.)
+.It Va ifi_ibytes
+Total traffic received, in bytes.
+.It Va ifi_obytes
+Total traffic transmitted, in bytes.
+.It Va ifi_imcasts
+Number of packets received which were sent by link-layer multicast.
+.It Va ifi_omcasts
+Number of packets sent by link-layer multicast.
+.It Va ifi_iqdrops
+Number of packets dropped on input.
+Rarely implemented.
+.It Va ifi_oqdrops
+Number of packets dropped on output.
+.It Va ifi_noproto
+Number of packets received for unknown network-layer protocol.
+.It Va ifi_lastchange
+.Pq Vt "struct timeval"
+The time of the last administrative change to the interface (as required
+for
+.Tn SNMP ) .
+.El
+.Ss Interface Types
+The header file
+.In net/if_types.h
+defines symbolic constants for a number of different types of
+interfaces.
+The most common are:
+.Pp
+.Bl -tag -offset indent -width ".Dv IFT_PROPVIRTUAL" -compact
+.It Dv IFT_OTHER
+none of the following
+.It Dv IFT_ETHER
+Ethernet
+.It Dv IFT_ISO88023
+ISO 8802-3 CSMA/CD
+.It Dv IFT_ISO88024
+ISO 8802-4 Token Bus
+.It Dv IFT_ISO88025
+ISO 8802-5 Token Ring
+.It Dv IFT_ISO88026
+ISO 8802-6 DQDB MAN
+.It Dv IFT_FDDI
+FDDI
+.It Dv IFT_PPP
+Internet Point-to-Point Protocol
+.Pq Xr ppp 8
+.It Dv IFT_LOOP
+The loopback
+.Pq Xr lo 4
+interface
+.It Dv IFT_SLIP
+Serial Line IP
+.It Dv IFT_PARA
+Parallel-port IP
+.Pq Dq Tn PLIP
+.It Dv IFT_ATM
+Asynchronous Transfer Mode
+.It Dv IFT_USB
+USB Interface
+.El
+.Ss Interface Link States
+The following link states are currently defined:
+.Pp
+.Bl -tag -offset indent -width ".Dv LINK_STATE_UNKNOWN" -compact
+.It Dv LINK_STATE_UNKNOWN
+The link is in an invalid or unknown state.
+.It Dv LINK_STATE_DOWN
+The link is down.
+.It Dv LINK_STATE_UP
+The link is up.
+.El
+.Ss The ifaddr Structure
+Every interface is associated with a list
+(or, rather, a
+.Li TAILQ )
+of addresses, rooted at the interface structure's
+.Va if_addrhead
+member.
+The first element in this list is always an
+.Dv AF_LINK
+address representing the interface itself; multi-access network
+drivers should complete this structure by filling in their link-layer
+addresses after calling
+.Fn if_attach .
+Other members of the structure represent network-layer addresses which
+have been configured by means of the
+.Dv SIOCAIFADDR
+command to
+.Xr ioctl 2 ,
+called on a socket of the appropriate protocol family.
+The elements of this list consist of
+.Vt ifaddr
+structures.
+Most protocols will declare their own protocol-specific
+interface address structures, but all begin with a
+.Vt "struct ifaddr"
+which provides the most-commonly-needed functionality across all
+protocols.
+Interface addresses are reference-counted.
+.Pp
+The members of
+.Vt "struct ifaddr"
+are as follows:
+.Bl -tag -width ".Va ifa_rtrequest" -offset indent
+.It Va ifa_addr
+.Pq Vt "struct sockaddr *"
+The local address of the interface.
+.It Va ifa_dstaddr
+.Pq Vt "struct sockaddr *"
+The remote address of point-to-point interfaces, and the broadcast
+address of broadcast interfaces.
+.Va ( ifa_broadaddr
+is a macro for
+.Va ifa_dstaddr . )
+.It Va ifa_netmask
+.Pq Vt "struct sockaddr *"
+The network mask for multi-access interfaces, and the confusion
+generator for point-to-point interfaces.
+.It Va ifa_ifp
+.Pq Vt "struct ifnet *"
+A link back to the interface structure.
+.It Va ifa_link
+.Pq Fn TAILQ_ENTRY ifaddr
+.Xr queue 3
+glue for list of addresses on each interface.
+.It Va ifa_rtrequest
+See below.
+.It Va ifa_flags
+.Pq Vt u_short
+Some of the flags which would be used for a route representing this
+address in the route table.
+.It Va ifa_refcnt
+.Pq Vt short
+The reference count.
+.El
+.Pp
+References to
+.Vt ifaddr
+structures are gained by calling the
+.Fn ifa_ref
+function and released by calling the
+.Fn ifa_free
+function.
+.Pp
+.Fn ifa_rtrequest
+is a pointer to a function which receives callouts from the routing
+code
+.Pq Fn rtrequest
+to perform link-layer-specific actions upon requests to add,
+or delete routes.
+The
+.Fa cmd
+argument indicates the request in question:
+.Dv RTM_ADD ,
+or
+.Dv RTM_DELETE .
+The
+.Fa rt
+argument is the route in question; the
+.Fa info
+argument contains the specific destination being manipulated.
+.Sh FUNCTIONS
+The functions provided by the generic interface code can be divided
+into two groups: those which manipulate interfaces, and those which
+manipulate interface addresses.
+In addition to these functions, there
+may also be link-layer support routines which are used by a number of
+drivers implementing a specific link layer over different hardware;
+see the documentation for that link layer for more details.
+.Ss The ifmultiaddr Structure
+Every multicast-capable interface is associated with a list of
+multicast group memberships, which indicate at a low level which
+link-layer multicast addresses (if any) should be accepted, and at a
+high level, in which network-layer multicast groups a user process has
+expressed interest.
+.Pp
+The elements of the structure are as follows:
+.Bl -tag -width ".Va ifma_refcount" -offset indent
+.It Va ifma_link
+.Pq Fn LIST_ENTRY ifmultiaddr
+.Xr queue 3
+macro glue.
+.It Va ifma_addr
+.Pq Vt "struct sockaddr *"
+A pointer to the address which this record represents.
+The
+memberships for various address families are stored in arbitrary
+order.
+.It Va ifma_lladdr
+.Pq Vt "struct sockaddr *"
+A pointer to the link-layer multicast address, if any, to which the
+network-layer multicast address in
+.Va ifma_addr
+is mapped, else a null pointer.
+If this element is non-nil, this
+membership also holds an invisible reference to another membership for
+that link-layer address.
+.It Va ifma_refcount
+.Pq Vt u_int
+A reference count of requests for this particular membership.
+.El
+.Ss Interface Manipulation Functions
+.Bl -ohang -offset indent
+.It Fn if_alloc
+Allocate and initialize
+.Vt "struct ifnet" .
+Initialization includes the allocation of an interface index and may
+include the allocation of a
+.Fa type
+specific structure in
+.Va if_l2com .
+.It Fn if_attach
+Link the specified interface
+.Fa ifp
+into the list of network interfaces.
+Also initialize the list of
+addresses on that interface, and create a link-layer
+.Vt ifaddr
+structure to be the first element in that list.
+(A pointer to
+this address structure is saved in the
+.Vt ifnet
+structure and is accessed by the
+.Fn ifaddr_byindex
+function.)
+The
+.Fa ifp
+must have been allocated by
+.Fn if_alloc .
+.It Fn if_detach
+Shut down and unlink the specified
+.Fa ifp
+from the interface list.
+.It Fn if_free
+Free the given
+.Fa ifp
+back to the system.
+The interface must have been previously detached if it was ever attached.
+.It Fn if_free_type
+Identical to
+.Fn if_free
+except that the given
+.Fa type
+is used to free
+.Va if_l2com
+instead of the type in
+.Va if_type .
+This is intended for use with drivers that change their interface type.
+.It Fn if_down
+Mark the interface
+.Fa ifp
+as down (i.e.,
+.Dv IFF_UP
+is not set),
+flush its output queue, notify protocols of the transition,
+and generate a message from the
+.Xr route 4
+routing socket.
+.It Fn if_up
+Mark the interface
+.Fa ifp
+as up, notify protocols of the transition,
+and generate a message from the
+.Xr route 4
+routing socket.
+.It Fn ifpromisc
+Add or remove a promiscuous reference to
+.Fa ifp .
+If
+.Fa pswitch
+is true, add a reference;
+if it is false, remove a reference.
+On reference count transitions
+from zero to one and one to zero, set the
+.Dv IFF_PROMISC
+flag appropriately and call
+.Fn if_ioctl
+to set up the interface in the desired mode.
+.It Fn if_allmulti
+As
+.Fn ifpromisc ,
+but for the all-multicasts
+.Pq Dv IFF_ALLMULTI
+flag instead of the promiscuous flag.
+.It Fn ifunit
+Return an
+.Vt ifnet
+pointer for the interface named
+.Fa name .
+.It Fn ifunit_ref
+Return a reference-counted (via
+.Fn ifa_ref )
+.Vt ifnet
+pointer for the interface named
+.Fa name .
+This is the preferred function over
+.Fn ifunit .
+The caller is responsible for releasing the reference with
+.Fn if_rele
+when it is finished with the ifnet.
+.It Fn ifioctl
+Process the ioctl request
+.Fa cmd ,
+issued on socket
+.Fa so
+by thread
+.Fa td ,
+with data parameter
+.Fa data .
+This is the main routine for handling all interface configuration
+requests from user mode.
+It is ordinarily only called from the socket-layer
+.Xr ioctl 2
+handler, and only for commands with class
+.Sq Li i .
+Any unrecognized commands will be passed down to socket
+.Fa so Ns 's
+protocol for
+further interpretation.
+The following commands are handled by
+.Fn ifioctl :
+.Pp
+.Bl -tag -width ".Dv SIOCGIFNETMASK" -offset indent -compact
+.It Dv SIOCGIFCONF
+Get interface configuration.
+(No call-down to driver.)
+.Pp
+.It Dv SIOCSIFNAME
+Set the interface name.
+.Dv RTM_IFANNOUNCE
+departure and arrival messages are sent so that
+routing code that relies on the interface name will update its interface
+list.
+Caller must have appropriate privilege.
+(No call-down to driver.)
+.It Dv SIOCGIFCAP
+.It Dv SIOCGIFFIB
+.It Dv SIOCGIFFLAGS
+.It Dv SIOCGIFMETRIC
+.It Dv SIOCGIFMTU
+.It Dv SIOCGIFPHYS
+Get interface capabilities, FIB, flags, metric, MTU, medium selection.
+(No call-down to driver.)
+.Pp
+.It Dv SIOCSIFCAP
+Enable or disable interface capabilities.
+Caller must have appropriate privilege.
+Before a call to the driver-specific
+.Fn if_ioctl
+routine, the requested mask for enabled capabilities is checked
+against the mask of capabilities supported by the interface,
+.Va if_capabilities .
+Requesting to enable an unsupported capability is invalid.
+The rest is supposed to be done by the driver,
+which includes updating
+.Va if_capenable
+and
+.Va if_data.ifi_hwassist
+appropriately.
+.Pp
+.It Dv SIOCSIFFIB
+Sets interface FIB.
+Caller must have appropriate privilege.
+FIB values start at 0 and values greater or equals than
+.Va net.fibs
+are considered invalid.
+.It Dv SIOCSIFFLAGS
+Change interface flags.
+Caller must have appropriate privilege.
+If a change to the
+.Dv IFF_UP
+flag is requested,
+.Fn if_up
+or
+.Fn if_down
+is called as appropriate.
+Flags listed in
+.Dv IFF_CANTCHANGE
+are masked off, and the field
+.Va if_flags
+in the interface structure is updated.
+Finally, the driver
+.Fn if_ioctl
+routine is called to perform any setup
+requested.
+.Pp
+.It Dv SIOCSIFMETRIC
+.It Dv SIOCSIFPHYS
+Change interface metric or medium.
+Caller must have appropriate privilege.
+.Pp
+.It Dv SIOCSIFMTU
+Change interface MTU.
+Caller must have appropriate privilege.
+MTU
+values less than 72 or greater than 65535 are considered invalid.
+The driver
+.Fn if_ioctl
+routine is called to implement the change; it is responsible for any
+additional sanity checking and for actually modifying the MTU in the
+interface structure.
+.Pp
+.It Dv SIOCADDMULTI
+.It Dv SIOCDELMULTI
+Add or delete permanent multicast group memberships on the interface.
+Caller must have appropriate privilege.
+The
+.Fn if_addmulti
+or
+.Fn if_delmulti
+function is called to perform the operation; qq.v.
+.Pp
+.It Dv SIOCAIFADDR
+.It Dv SIOCDIFADDR
+The socket's protocol control routine is called to implement the
+requested action.
+.El
+.El
+.Pp
+.Fn if_down ,
+.Fn ifioctl ,
+.Fn ifpromisc ,
+and
+.Fn if_up
+must be called at
+.Fn splnet
+or higher.
+.Ss "Interface Address Functions"
+Several functions exist to look up an interface address structure
+given an address.
+.Fn ifa_ifwithaddr
+returns an interface address with either a local address or a
+broadcast address precisely matching the parameter
+.Fa addr .
+.Fn ifa_ifwithdstaddr
+returns an interface address for a point-to-point interface whose
+remote
+.Pq Dq destination
+address is
+.Fa addr
+and a fib is
+.Fa fib .
+If
+.Fa fib
+is
+.Dv RT_ALL_FIBS ,
+then the first interface address matching
+.Fa addr
+will be returned.
+.Pp
+.Fn ifa_ifwithnet
+returns the most specific interface address which matches the
+specified address,
+.Fa addr ,
+subject to its configured netmask, or a point-to-point interface
+address whose remote address is
+.Fa addr
+if one is found.
+If
+.Fa ignore_ptp
+is true, skip point-to-point interface addresses.
+The
+.Fa fib
+parameter is handled the same way as by
+.Fn ifa_ifwithdstaddr .
+.Pp
+.Fn ifaof_ifpforaddr
+returns the most specific address configured on interface
+.Fa ifp
+which matches address
+.Fa addr ,
+subject to its configured netmask.
+If the interface is
+point-to-point, only an interface address whose remote address is
+precisely
+.Fa addr
+will be returned.
+.Pp
+.Fn ifaddr_byindex
+returns the link-level address of the interface with the given index
+.Fa idx .
+.Pp
+All of these functions return a null pointer if no such address can be
+found.
+.Ss "Interface Multicast Address Functions"
+The
+.Fn if_addmulti ,
+.Fn if_delmulti ,
+and
+.Fn if_findmulti
+functions provide support for requesting and relinquishing multicast
+group memberships, and for querying an interface's membership list,
+respectively.
+The
+.Fn if_addmulti
+function takes a pointer to an interface,
+.Fa ifp ,
+and a generic address,
+.Fa sa .
+It also takes a pointer to a
+.Vt "struct ifmultiaddr *"
+which is filled in on successful return with the address of the
+group membership control block.
+The
+.Fn if_addmulti
+function performs the following four-step process:
+.Bl -enum -offset indent
+.It
+Call the interface's
+.Fn if_resolvemulti
+entry point to determine the link-layer address, if any, corresponding
+to this membership request, and also to give the link layer an
+opportunity to veto this membership request should it so desire.
+.It
+Check the interface's group membership list for a pre-existing
+membership for this group.
+If one is not found, allocate a new one;
+if one is, increment its reference count.
+.It
+If the
+.Fn if_resolvemulti
+routine returned a link-layer address corresponding to the group,
+repeat the previous step for that address as well.
+.It
+If the interface's multicast address filter needs to be changed
+because a new membership was added, call the interface's
+.Fn if_ioctl
+routine
+(with a
+.Fa cmd
+argument of
+.Dv SIOCADDMULTI )
+to request that it do so.
+.El
+.Pp
+The
+.Fn if_delmulti
+function, given an interface
+.Fa ifp
+and an address,
+.Fa sa ,
+reverses this process.
+Both functions return zero on success, or a
+standard error number on failure.
+.Pp
+The
+.Fn if_findmulti
+function examines the membership list of interface
+.Fa ifp
+for an address matching
+.Fa sa ,
+and returns a pointer to that
+.Vt "struct ifmultiaddr"
+if one is found, else it returns a null pointer.
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr link_addr 3 ,
+.Xr queue 3 ,
+.Xr sysctl 3 ,
+.Xr bpf 4 ,
+.Xr ifmib 4 ,
+.Xr lo 4 ,
+.Xr netintro 4 ,
+.Xr polling 4 ,
+.Xr config 8 ,
+.Xr ppp 8 ,
+.Xr mbuf 9 ,
+.Xr rtentry 9
+.Rs
+.%A Gary R. Wright
+.%A W. Richard Stevens
+.%B TCP/IP Illustrated
+.%V Vol. 2
+.%O Addison-Wesley, ISBN 0-201-63354-X
+.Re
+.Sh AUTHORS
+This manual page was written by
+.An Garrett A. Wollman .

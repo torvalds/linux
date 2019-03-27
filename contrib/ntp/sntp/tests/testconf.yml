@@ -1,0 +1,9 @@
+# configure the test runner generator to properly set up the tests
+# - avoid cluttering the syslogs
+
+--- 
+:unity:
+  :suite_setup:
+    - extern int change_logfile(const char*, int);
+    - change_logfile("stderr", 0);
+

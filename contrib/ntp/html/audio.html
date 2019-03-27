@@ -1,0 +1,180 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Reference Clock Audio Drivers</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>Reference Clock Audio Drivers</h3>
+<img src="pic/radio2.jpg" alt="jpg" align="left">ICOM R-72 shortwave receiver and Sure audio mixer
+<p>Last update:
+  <!-- #BeginDate format:En2m -->11-Sep-2010  05:55<!-- #EndDate -->
+  UTC</p>
+<br clear="left">
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/refclock.txt"></script>
+<script type="text/javascript" language="javascript" src="scripts/audio.txt"></script>
+<h4>Table of Contents</h4>
+<ul>
+  <li class="inline"><a href="#sound">Sound Card Drivers</a></li>
+  <li class="inline"><a href="#short">Shortwave Radio Drivers</a></li>
+  <li class="inline"><a href="#setup">Setup and Debugging Aids</a></li>
+</ul>
+<hr>
+<h4 id="sound">Sound Card Drivers</h4>
+<p>There are some applications in which the computer time can be disciplined to an audio signal, rather than a serial timecode and communications port or special purpose bus peripheral. This is useful in such cases where the audio signal is sent over a telephone circuit, for example, or received directly from a shortwave receiver. In such cases the audio signal can be connected via an ordinary sound card or baseboard audio codec. The suite of NTP reference clock drivers currently includes three drivers suitable for these applications. They include a driver for the Inter Range Instrumentation Group (IRIG) signals produced by many radio clocks and timing devices, another for the Canadian time/frequency radio station CHU and a third for the NIST time/frequency radio stations WWV and WWVH. The radio drivers are designed to work with ordinary inexpensive shortwave radios and may be one of the least expensive ways to build a good primary time server.</p>
+<p>All three drivers make ample use of sophisticated digital signal processing
+  algorithms designed to efficiently extract timing signals from noise and interference.
+  The radio station drivers in particular implement optimum linear demodulation
+  and decoding techniques, including maximum-likelihood and soft-decision methods.
+  The documentation page for each driver contains an in-depth discussion on
+  the algorithms and performance expectations. In some cases the algorithms
+  are further analyzed, modeled and evaluated in a technical report.</p>
+<p>Currently, the audio drivers work with with Sun operating systems and audio codecs, including SunOS 4.1.3 and Solaris from 2.6 and probably all others in between. They also work with FreeBSD from 4.1 with compatible sound card. In fact, the interface is quite generic and support for other systems, in particular the various Unix generics, should not be difficult. Volunteers are solicited.</p>
+<p>The audio drivers include a number of common features designed to groom input signals, suppress spikes and normalize signal levels. An automatic gain control (AGC) feature provides protection against overdriven or underdriven input signals. It is designed to maintain adequate demodulator signal amplitude while avoiding occasional noise spikes. In order to assure reliable operation, the signal level must be in the range where the audio gain control is effective. In general, this means the input signal level must be such as to cause the AGC to set the gain somewhere in the middle of the range from 0 to 255, as indicated in the timecode displayed by the <tt>ntpq</tt> program.</p>
+<p>The IRIG&nbsp;and WWV drivers operate by disciplining a logical clock based on the codec sample clock to the audio signal as received. This is done by stuffing or slipping samples as required to maintain exact frequency to the order of 0.1 PPM. In order for the driver to reliably lock on the audio signal, the sample clock frequency tolerance must be less than 250 PPM (.025 percent) for the IRIG driver and half that for the WWV driver. The largest error observed so far is about 60 PPM, but it is possible some sound cards or codecs may exceed that value. In any case, the configuration file command <tt>tinker codec</tt> command can be used to change the systematic offset in units of 125 PPM.</p>
+<p>The drivers include provisions to select the input port and to monitor the input signal. The <tt>fudge flag 2</tt> command selects the microphone port if set to zero or the line-in port if set to one. It does not seem useful to specify the compact disc player port. The <tt>fudge flag 3</tt> command enables the input signal monitor using the previously selected output port and output gain. Both of these flags can be set in the configuration file or remotely using the <tt>ntpdc</tt> utility program.</p>
+<h4 id="short">Shortwave Radio Drivers</h4>
+<p>The WWV/H and CHU audio drivers require an external shortwave radio with the radio output - speaker or headphone jack - connected to either the microphone or line-in port on the computer. There is some degree of art in setting up the radio and antenna and getting the setup to work. While the drivers are highly sophisticated and efficient in extracting timing signals from noise and interference, it always helps to have as clear a signal as possible.</p>
+<p>The most important factor affecting the radio signal is the antenna. It need not be long - even 15 feet is enough if it is located outside of a metal frame building, preferably on the roof, and away from metallic objects. An ordinary CB whip mounted on a PVC pipe and wooden X-frame on the roof should work well with most portable radios, as they are optimized for small antennas.</p>
+<p>The radio need not be located near the computer; in fact, it generally works better if the radio is outside the near field of computers and other electromagnetic noisemakers. It can be in the elevator penthouse connected by house wiring, which can also be used to power the radio. A couple of center-tapped audio transformers will minimize noise pickup and provide phantom power to the radio with return via the building ground.</p>
+<p>The WWV/H and CHU transmitters operate on several frequencies simultaneously, so that in most parts of North America at least one frequency supports propagation to the receiver location at any given hour. While both drivers support the ICOM CI-V radio interface and can tune the radio automatically, computer-tunable radios are expensive and probably not cost effective compared to a GPS receiver. So, the radio frequency must usually be fixed and chosen by compromise.</p>
+<p>Shortwave (3-30 MHz) radio propagation phenomena are well known to shortwave enthusiasts. The phenomena generally obey the following rules:</p>
+<ul>
+  <li>The optimum frequency is higher in daytime than nighttime, stays high longer on summer days and low longer on winter nights.</li>
+  <li>Transitions between daytime and nighttime conditions generally occur somewhat
+    after sunrise and sunset at the midpoint of the path from transmitter to
+    receiver.</li>
+  <li>Ambient noise (static) on the lower frequencies follows the thunderstorm season, so is higher on summer afternoons and evenings.</li>
+  <li>The lower frequency bands are best for shorter distances, while the higher bands are best for longer distances.</li>
+  <li>The optimum frequencies are higher at the peak of the 11-year sunspot cycle and lower at the trough. The current sunspot cycle began at the minimum in late 2006 and should reach its peak in 2012.</li>
+</ul>
+<p>The best way to choose a frequency is to listen at various times over the day and determine the highest (daytime) and lowest (nighttime) frequencies that work well. Choose the frequency that works for the most number of hours in the day, usually the highest frequency. For instance, on the east coast the best compromise CHU frequency is 7335 kHz and the best WWV frequency is 15 MHz.</p>
+<h4>Autotune Modes</h4>
+<p>The shortwave drivers include support for an optional autotune function compatible with ICOM&nbsp;receivers and transceivers. The <tt>mode</tt> keyword of the <tt>server</tt> configuration command specifies the ICOM ID select code in decimal. A missing or zero argument disables the CI-V interface. Since all ICOM select codes are less than 128, the high order bit of the code is used by the driver to specify the baud rate. If this bit is not set, the rate is 9600 bps for the newer radios; if set, the rate is 1200 bps for the older radios. Following are the ID select codes for the known radios.</p>
+<table width="100%" cols="6">
+  <tr>
+    <td>Radio</td>
+    <td>Hex</td>
+    <td>Decimal</td>
+    <td>Radio</td>
+    <td>Hex</td>
+    <td>Decimal</td>
+  </tr>
+  <tr>
+    <td>706</td>
+    <td>0x4e</td>
+    <td>78</td>
+    <td>775</td>
+    <td>0x46</td>
+    <td>70</td>
+  </tr>
+  <tr>
+    <td>706MKIIG</td>
+    <td>0x58</td>
+    <td>88</td>
+    <td>781</td>
+    <td>0x26</td>
+    <td>38</td>
+  </tr>
+  <tr>
+    <td>725</td>
+    <td>0x28</td>
+    <td>40</td>
+    <td>970</td>
+    <td>0x2e</td>
+    <td>46</td>
+  </tr>
+  <tr>
+    <td>726</td>
+    <td>0x30</td>
+    <td>48</td>
+    <td>7000</td>
+    <td>0x70</td>
+    <td>113</td>
+  </tr>
+  <tr>
+    <td>735</td>
+    <td>0x04</td>
+    <td>4</td>
+    <td>R71</td>
+    <td>0x1A</td>
+    <td>26</td>
+  </tr>
+  <tr>
+    <td>746</td>
+    <td>0x66</td>
+    <td>102</td>
+    <td>R72</td>
+    <td>0x32</td>
+    <td>50</td>
+  </tr>
+  <tr>
+    <td>751</td>
+    <td>0x1c</td>
+    <td>28</td>
+    <td>R75</td>
+    <td>0x5a</td>
+    <td>90</td>
+  </tr>
+  <tr>
+    <td>756PROII</td>
+    <td>0x64</td>
+    <td>100</td>
+    <td>R7000</td>
+    <td>0x08</td>
+    <td>8</td>
+  </tr>
+  <tr>
+    <td>761</td>
+    <td>0x1e</td>
+    <td>30</td>
+    <td>R7100</td>
+    <td>0x34</td>
+    <td>52</td>
+  </tr>
+  <tr>
+    <td>765</td>
+    <td>0x2c</td>
+    <td>44</td>
+    <td>R8500</td>
+    <td>0x4a</td>
+    <td>74</td>
+  </tr>
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td>R9000</td>
+    <td>0x2a</td>
+    <td>42</td>
+  </tr>
+</table>
+<h4 id="setup">Setup and Debugging Aids</h4>
+<p>The audio drivers include extensive setup and debugging support to help hook up the audio signals and monitor the driver operations. The documentation page for each driver describes the various messages that can be produced either in real time or written to the <tt>clockstats</tt> file for later analysis. Of particular help in verifying signal connections and compatibility is a provision to monitor the signal via headphones or speaker.</p>
+<p>Connecting radios and IRIG devices to the computer and verifying correct
+  configuration is somewhat of a black art. The signals have to be connected
+  to the correct ports and the signal level maintained within tolerances. Some
+  radios have recorder outputs which produce a microphone-level signal not affected
+  by the volume control. These signals can be connected to the microphone port
+  on the computer. If the radio does not have a recorder output, connect the
+  headphone or speaker output to the line-in port and adjust the volume control
+  so the driver indicates comfortably above the minimum specified and the AGC
+  level somewhere in the middle of the range 0-255. IRIG signals are usually
+  much larger than radio outputs, usually in the range to several volts and
+  may even overload the line-in port. In such cases the signal is designed to
+  drive a cable terminated with a 50-ohm resistor, which results in a level
+  the line-in port can handle..</p>
+<p>It is very easy to underdriven or overdrive the audio codec, in which case
+  the drivers will not synchronize to the signal. The drivers use <tt>fudge
+  flag2</tt> to enable audio monitoring of the input signal. This is useful
+  during setup to confirm the signal is actually reaching the audio
+  codec and generally free of noise and interference. Note that the monitor
+  volume must be set before the driver is started.</p>
+<p>The drivers write a synthesized timecode to the <tt>clockstats</tt> file each time the clock is set or verified and at other times if verbose monitoring is enabled. The format includes several fixed-length fields defining the UTC time to the millisecond, together with additional variable-length fields specific to each driver. The data include the intervals since the clock was last set or verified, the audio gain and various state variables and counters specific to each driver.</p>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+regular expression test set
+Lines are at least three fields, separated by one or more tabs.  "" stands
+for an empty field.  First field is an RE.  Second field is flags.  If
+C flag given, regcomp() is expected to fail, and the third field is the
+error name (minus the leading REG_).
+
+Otherwise it is expected to succeed, and the third field is the string to
+try matching it against.  If there is no fourth field, the match is
+expected to fail.  If there is a fourth field, it is the substring that
+the RE is expected to match.  If there is a fifth field, it is a comma-
+separated list of what the subexpressions should match, with - indicating
+no match for that one.  In both the fourth and fifth fields, a (sub)field
+starting with @ indicates that the (sub)expression is expected to match
+a null string followed by the stuff after the @; this provides a way to
+test where null strings match.  The character `N' in REs and strings
+is newline, `S' is space, `T' is tab, `Z' is NUL.
+
+The full list of flags:
+  -	placeholder, does nothing
+  b	RE is a BRE, not an ERE
+  &	try it as both an ERE and a BRE
+  C	regcomp() error expected, third field is error name
+  i	REG_ICASE
+  m	("mundane") REG_NOSPEC
+  s	REG_NOSUB (not really testable)
+  n	REG_NEWLINE
+  ^	REG_NOTBOL
+  $	REG_NOTEOL
+  #	REG_STARTEND (see below)
+  p	REG_PEND
+
+For REG_STARTEND, the start/end offsets are those of the substring
+enclosed in ().

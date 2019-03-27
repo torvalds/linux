@@ -1,0 +1,168 @@
+.\" Copyright (c) 2012 Isabell Long <issyl0@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 25, 2012
+.Dt ISWALNUM_L 3
+.Os
+.Sh NAME
+.Nm iswalnum_l ,
+.Nm iswalpha_l ,
+.Nm iswcntrl_l ,
+.Nm iswctype_l ,
+.Nm iswdigit_l ,
+.Nm iswgraph_l ,
+.Nm iswlower_l ,
+.Nm iswprint_l ,
+.Nm iswpunct_l ,
+.Nm iswspace_l ,
+.Nm iswupper_l ,
+.Nm iswxdigit_l ,
+.Nm towlower_l ,
+.Nm towupper_l ,
+.Nm wctype_l ,
+.Nm iswblank_l ,
+.Nm iswhexnumber_l ,
+.Nm iswideogram_l ,
+.Nm iswnumber_l ,
+.Nm iswphonogram_l ,
+.Nm iswrune_l ,
+.Nm iswspecial_l ,
+.Nm nextwctype_l ,
+.Nm towctrans_l ,
+.Nm wctrans_l
+.Nd wide character classification utilities
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In wctype.h
+.Ft int
+.Fn iswalnum_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswalpha_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswcntrl_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswctype_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswdigit_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswgraph_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswlower_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswprint_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswpunct_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswspace_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswupper_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswxdigit_l "wint_t wc" "locale_t loc"
+.Ft wint_t
+.Fn towlower_l "wint_t wc" "locale_t loc"
+.Ft wint_t
+.Fn towupper_l "wint_t wc" "locale_t loc"
+.Ft wctype_t
+.Fn wctype_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswblank_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswhexnumber_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswideogram_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswnumber_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswphonogram_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswrune_l "wint_t wc" "locale_t loc"
+.Ft int
+.Fn iswspecial_l "wint_t wc" "locale_t loc"
+.Ft wint_t
+.Fn nextwctype_l "wint_t wc" "locale_t loc"
+.Ft wint_t
+.Fn towctrans_l "wint_t wc" "wctrans_t" "locale_t loc"
+.Ft wctrans_t
+.Fn wctrans_l "const char *" "locale_t loc"
+.Sh DESCRIPTION
+The above functions are character classification utility functions,
+for use with wide characters
+.Vt ( wchar_t
+or
+.Vt wint_t )
+in the locale
+.Fa loc .
+They behave in the same way as the versions without the _l suffix, but use
+the specified locale rather than the global or per-thread locale.
+These functions may be implemented as inline functions in
+.In wctype.h
+and as functions in the C library.
+See the specific manual pages for more information.
+.Sh RETURN VALUES
+These functions return the same things as their non-locale versions.
+If the locale is invalid, their behaviors are undefined.
+.Sh SEE ALSO
+.Xr iswalnum 3 ,
+.Xr iswalpha 3 ,
+.Xr iswblank 3 ,
+.Xr iswcntrl 3 ,
+.Xr iswctype 3 ,
+.Xr iswdigit 3 ,
+.Xr iswgraph 3 ,
+.Xr iswhexnumber 3 ,
+.Xr iswideogram 3 ,
+.Xr iswlower 3 ,
+.Xr iswnumber 3 ,
+.Xr iswphonogram 3 ,
+.Xr iswprint 3 ,
+.Xr iswpunct 3 ,
+.Xr iswrune 3 ,
+.Xr iswspace 3 ,
+.Xr iswspecial 3 ,
+.Xr iswupper 3 ,
+.Xr iswxdigit 3 ,
+.Xr nextwctype 3 ,
+.Xr towctrans 3 ,
+.Xr towlower 3 ,
+.Xr towupper 3 ,
+.Xr wctrans 3 ,
+.Xr wctype 3
+.Sh STANDARDS
+These functions conform to
+.St -p1003.1-2008 ,
+except for
+.Fn iswascii_l ,
+.Fn iswhexnumber_l ,
+.Fn iswideogram_l ,
+.Fn iswphonogram_l ,
+.Fn iswrune_l ,
+.Fn iswspecial_l
+and
+.Fn nextwctype_l
+which are
+.Fx
+extensions.

@@ -1,0 +1,88 @@
+.\" Copyright (c) 2016 Microsoft Corp.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd October 12, 2016
+.Dt HV_VSS_DAEMON 8
+.Os
+.Sh NAME
+.Nm hv_vss_daemon
+.Nd Hyper-V Volume Shadow Copy Service Daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl dn
+.Sh DESCRIPTION
+The
+.Nm
+daemon provides the ability to freeze and thaw the file system for
+.Fx
+guest partitions running on Hyper-V.
+.Pp
+Hyper-V allows administrators to backup or restore the 
+.Fx
+guest partition.
+Administrators can
+use Windows Powershell scripts to backup or restore the
+.Fx
+VM.
+.Pp
+The
+.Nm
+accepts file system freeze and thaw requests from the
+.Xr hv_utils 4
+driver and performs the actual file-system operation.
+.Pp
+The file system freeze and thaw functionality is
+useful when the Hyper-V host wants to do live backup of
+.Fx
+guest. Hyper-V host sends file system freezing request to
+.Nm
+which conducts the real operation. After successfully freezing file
+system, Hyper-V host takes a snapshot of the VM. In the future,
+Hyper-V host can restore the
+.Fx
+VM through that snapshot.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl d
+Run as regular process instead of a daemon for debugging purpose.
+.It Fl n
+Generate debugging output.
+.El
+.Sh SEE ALSO
+.Xr hv_vmbus 4 ,
+.Xr hv_utils 4 ,
+.Xr hv_netvsc 4 ,
+.Xr hv_storvsc 4 ,
+.Xr hv_kvp 4
+.Sh HISTORY
+The daemon was introduced in October 2016 and developed by Microsoft Corp.
+.Sh AUTHORS
+.An -nosplit
+.Fx
+support for
+.Nm
+was first added by
+.An Microsoft BSD Integration Services Team Aq Mt bsdic@microsoft.com .

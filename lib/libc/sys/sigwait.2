@@ -1,0 +1,124 @@
+.\" Copyright (C) 2000 Jason Evans <jasone@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 6, 2013
+.Dt SIGWAIT 2
+.Os
+.Sh NAME
+.Nm sigwait
+.Nd select a set of signals
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In signal.h
+.Ft int
+.Fn sigwait "const sigset_t * restrict set" "int * restrict sig"
+.Sh DESCRIPTION
+The
+.Fn sigwait
+system call selects a set of signals, specified by
+.Fa set .
+If none of the selected signals are pending,
+.Fn sigwait
+waits until one or more of the selected signals has been generated.
+Then
+.Fn sigwait
+atomically clears one of the selected signals from the set of pending signals
+(for the process or for the current thread) and sets the location pointed to by
+.Fa sig
+to the signal number that was cleared.
+.Pp
+The signals specified by
+.Fa set
+should be blocked at the time of the call to
+.Fn sigwait .
+.Pp
+If more than one thread is using
+.Fn sigwait
+to wait for the same signal, no more than one of these threads will return from
+.Fn sigwait
+with the signal number.
+If more than a single thread is blocked in
+.Fn sigwait
+for a signal when that signal is generated for the process, it is unspecified
+which of the waiting threads returns from
+.Fn sigwait .
+If the signal is generated for a specific thread, as by
+.Fn pthread_kill ,
+only that thread will return.
+.Pp
+Should any of the multiple pending signals in the range
+.Dv SIGRTMIN
+to
+.Dv SIGRTMAX
+be
+selected, it will be the lowest numbered one.
+The selection order between realtime
+and non-realtime signals, or between multiple pending non-realtime signals,
+is unspecified.
+.Sh IMPLEMENTATION NOTES
+The
+.Fn sigwait
+function is implemented as a wrapper around the
+.Fn __sys_sigwait
+system call, which retries the call on
+.Er EINTR
+error.
+.Sh RETURN VALUES
+If successful,
+.Fn sigwait
+returns 0 and sets the location pointed to by
+.Fa sig
+to the cleared signal number.
+Otherwise, an error number is returned.
+.Sh ERRORS
+The
+.Fn sigwait
+system call will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa set
+argument
+specifies one or more invalid signal numbers.
+.El
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr sigpending 2 ,
+.Xr sigqueue 2 ,
+.Xr sigsuspend 2 ,
+.Xr sigtimedwait 2 ,
+.Xr sigwaitinfo 2 ,
+.Xr pause 3 ,
+.Xr pthread_sigmask 3
+.Sh STANDARDS
+The
+.Fn sigwait
+function conforms to
+.St -p1003.1-96 .

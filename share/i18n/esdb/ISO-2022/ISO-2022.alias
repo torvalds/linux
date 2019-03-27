@@ -1,0 +1,22 @@
+# $FreeBSD$ 
+# $NetBSD: ISO-2022.alias,v 1.6 2007/03/05 16:58:35 tnozaki Exp $
+
+CN	csiso2022cn
+CN	iso2022-cn
+
+CN-EXT	iso2022-cnext
+
+JP	csiso2022jp
+JP	iso2022-jp
+
+JP-1	iso2022-jp1
+
+JP-2	csiso2022jp2
+JP-2	iso2022-jp2
+
+JP-2004	iso-2022-jp-3
+JP-2004	iso2022-jp3
+JP-2004	iso2022-jp2004
+
+KR	csiso2022kr
+KR	iso2022-kr

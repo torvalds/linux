@@ -1,0 +1,924 @@
+.\" 	$NetBSD: rc.subr.8,v 1.12 2004/01/06 00:52:24 lukem Exp $
+.\"
+.\" Copyright (c) 2002-2004 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Luke Mewburn.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 5, 2019
+.Dt RC.SUBR 8
+.Os
+.Sh NAME
+.Nm rc.subr
+.Nd functions used by system shell scripts
+.Sh SYNOPSIS
+.Bl -item -compact
+.It
+.Ic .\& Pa /etc/rc.subr
+.Pp
+.It
+.Ic backup_file Ar action Ar file Ar current Ar backup
+.It
+.Ic checkyesno Ar var
+.It
+.Ic check_pidfile Ar pidfile Ar procname Op Ar interpreter
+.It
+.Ic check_process Ar procname Op Ar interpreter
+.It
+.Ic debug Ar message
+.It
+.Ic err Ar exitval Ar message
+.It
+.Ic force_depend Ar name
+.It
+.Ic info Ar message
+.It
+.Ic load_kld Oo Fl e Ar regex Oc Oo Fl m Ar module Oc Ar file
+.It
+.Ic load_rc_config Ar name
+.It
+.Ic load_rc_config_var Ar name Ar var
+.It
+.Ic mount_critical_filesystems Ar type
+.It
+.Ic rc_usage Ar command ...
+.It
+.Ic reverse_list Ar item ...
+.It
+.Ic run_rc_command Ar argument
+.It
+.Ic run_rc_script Ar file Ar argument
+.It
+.Ic wait_for_pids Op Ar pid ...
+.It
+.Ic warn Ar message
+.El
+.Sh DESCRIPTION
+The
+.Nm
+script
+contains commonly used shell script functions and variable
+definitions which are used by various scripts such as
+.Xr rc 8 .
+Scripts required by ports in
+.Pa /usr/local/etc/rc.d
+will also eventually
+be rewritten to make use of it.
+.Pp
+The
+.Nm
+functions were mostly imported from
+.Nx .
+.Pp
+They are accessed by sourcing
+.Pa /etc/rc.subr
+into the current shell.
+.Pp
+The following shell functions are available:
+.Bl -tag -width 4n
+.It Ic backup_file Ar action file current backup
+Make a backup copy of
+.Ar file
+into
+.Ar current .
+Save the previous version of
+.Ar current
+as
+.Ar backup .
+.Pp
+The
+.Ar action
+argument
+may be one of the following:
+.Bl -tag -width ".Cm remove"
+.It Cm add
+.Ar file
+is now being backed up by or possibly re-entered into this backup mechanism.
+.Ar current
+is created.
+.It Cm update
+.Ar file
+has changed and needs to be backed up.
+If
+.Ar current
+exists, it is copied to
+.Ar backup
+and then
+.Ar file
+is copied to
+.Ar current .
+.It Cm remove
+.Ar file
+is no longer being tracked by this backup mechanism.
+.Ar current
+is moved to
+.Ar backup .
+.El
+.It Ic checkyesno Ar var
+Return 0 if
+.Ar var
+is defined to
+.Dq Li YES ,
+.Dq Li TRUE ,
+.Dq Li ON ,
+or
+.Ql 1 .
+Return 1 if
+.Ar var
+is defined to
+.Dq Li NO ,
+.Dq Li FALSE ,
+.Dq Li OFF ,
+or
+.Ql 0 .
+Otherwise, warn that
+.Ar var
+is not set correctly.
+The values are case insensitive.
+.Sy Note :
+.Ar var
+should be a variable name, not its value;
+.Ic checkyesno
+will expand the variable by itself.
+.It Ic check_pidfile Ar pidfile procname Op Ar interpreter
+Parses the first word of the first line of
+.Ar pidfile
+for a PID, and ensures that the process with that PID
+is running and its first argument matches
+.Ar procname .
+Prints the matching PID if successful, otherwise nothing.
+If
+.Ar interpreter
+is provided, parse the first line of
+.Ar procname ,
+ensure that the line is of the form:
+.Pp
+.Dl "#! interpreter [...]"
+.Pp
+and use
+.Ar interpreter
+with its optional arguments and
+.Ar procname
+appended as the process string to search for.
+.It Ic check_process Ar procname Op Ar interpreter
+Prints the PIDs of any processes that are running with a first
+argument that matches
+.Ar procname .
+.Ar interpreter
+is handled as per
+.Ic check_pidfile .
+.It Ic debug Ar message
+Display a debugging message to
+.Va stderr ,
+log it to the system log using
+.Xr logger 1 ,
+and
+return to the caller.
+The error message consists of the script name
+(from
+.Va $0 ) ,
+followed by
+.Dq Li ": DEBUG: " ,
+and then
+.Ar message .
+This function is intended to be used by developers
+as an aid to debugging scripts.
+It can be turned on or off
+by the
+.Xr rc.conf 5
+variable
+.Va rc_debug .
+.It Ic err Ar exitval message
+Display an error message to
+.Va stderr ,
+log it to the system log
+using
+.Xr logger 1 ,
+and
+.Ic exit
+with an exit value of
+.Ar exitval .
+The error message consists of the script name
+(from
+.Va $0 ) ,
+followed by
+.Dq Li ": ERROR: " ,
+and then
+.Ar message .
+.It Ic force_depend Ar name
+Output an advisory message and force the
+.Ar name
+service to start.
+The
+.Ar name
+argument is the
+.Xr basename 1
+component of the path to the script, usually
+.Pa /etc/rc.d/name .
+If the script fails for any reason it will output a warning
+and return with a return value of 1.
+If it was successful
+it will return 0.
+.It Ic info Ar message
+Display an informational message to
+.Va stdout ,
+and log it to the system log using
+.Xr logger 1 .
+The message consists of the script name
+(from
+.Va $0 ) ,
+followed by
+.Dq Li ": INFO: " ,
+and then
+.Ar message .
+The display of this informational output can be
+turned on or off by the
+.Xr rc.conf 5
+variable
+.Va rc_info .
+.It Ic load_kld Oo Fl e Ar regex Oc Oo Fl m Ar module Oc Ar file
+Load
+.Ar file
+as a kernel module unless it is already loaded.
+For the purpose of checking the module status,
+either the exact module name can be specified using
+.Fl m ,
+or an
+.Xr egrep 1
+regular expression matching the module name can be supplied via
+.Fl e .
+By default, the module is assumed to have the same name as
+.Ar file ,
+which is not always the case.
+.It Ic load_rc_config Ar name
+Source in the configuration files for
+.Ar name .
+First,
+.Pa /etc/rc.conf
+is sourced if it has not yet been read in.
+Then,
+.Pa /etc/rc.conf.d/ Ns Ar name
+is sourced if it is an existing file.
+The latter may also contain other variable assignments to override
+.Ic run_rc_command
+arguments defined by the calling script, to provide an easy
+mechanism for an administrator to override the behaviour of a given
+.Xr rc.d 8
+script without requiring the editing of that script.
+.It Ic load_rc_config_var Ar name Ar var
+Read the
+.Xr rc.conf 5
+variable
+.Ar var
+for
+.Ar name
+and set in the current shell, using
+.Ic load_rc_config
+in a sub-shell to prevent unwanted side effects from other variable
+assignments.
+.It Ic mount_critical_filesystems Ar type
+Go through a list of critical file systems,
+as found in the
+.Xr rc.conf 5
+variable
+.Va critical_filesystems_ Ns Ar type ,
+mounting each one that
+is not currently mounted.
+.It Ic rc_usage Ar command ...
+Print a usage message for
+.Va $0 ,
+with
+.Ar commands
+being the list of valid arguments
+prefixed by
+.Sm off
+.Dq Bq Li fast | force | one | quiet .
+.Sm on
+.It Ic reverse_list Ar item ...
+Print the list of
+.Ar items
+in reverse order.
+.It Ic run_rc_command Ar argument
+Run the
+.Ar argument
+method for the current
+.Xr rc.d 8
+script, based on the settings of various shell variables.
+.Ic run_rc_command
+is extremely flexible, and allows fully functional
+.Xr rc.d 8
+scripts to be implemented in a small amount of shell code.
+.Pp
+.Ar argument
+is searched for in the list of supported commands, which may be one
+of:
+.Bl -tag -width ".Cm restart" -offset indent
+.It Cm start
+Start the service.
+This should check that the service is to be started as specified by
+.Xr rc.conf 5 .
+Also checks if the service is already running and refuses to start if
+it is.
+This latter check is not performed by standard
+.Fx
+scripts if the system is starting directly to multi-user mode, to
+speed up the boot process.
+.It Cm stop
+If the service is to be started as specified by
+.Xr rc.conf 5 ,
+stop the service.
+This should check that the service is running and complain if it is not.
+.It Cm restart
+Perform a
+.Cm stop
+then a
+.Cm start .
+Defaults to displaying the process ID of the program (if running).
+.It Cm enabled
+Return 0 if the service is enabled and 1 if it is not.
+This command does not print anything.
+.It Cm rcvar
+Display which
+.Xr rc.conf 5
+variables are used to control the startup of the service (if any).
+.El
+.Pp
+If
+.Va pidfile
+or
+.Va procname
+is set, also support:
+.Bl -tag -width ".Cm restart" -offset indent
+.It Cm poll
+Wait for the command to exit.
+.It Cm status
+Show the status of the process.
+.El
+.Pp
+Other supported commands are listed in the optional variable
+.Va extra_commands .
+.Pp
+.Ar argument
+may have one of the following prefixes which alters its operation:
+.Bl -tag -width ".Li force" -offset indent
+.It Li fast
+Skip the check for an existing running process,
+and sets
+.Va rc_fast Ns = Ns Li YES .
+.It Li force
+Skip the checks for
+.Va rcvar
+being set to
+.Dq Li YES ,
+and sets
+.Va rc_force Ns = Ns Li YES .
+This ignores
+.Ar argument Ns Va _precmd
+returning non-zero, and ignores any of the
+.Va required_*
+tests failing, and always returns a zero exit status.
+.It Li one
+Skip the checks for
+.Va rcvar
+being set to
+.Dq Li YES ,
+but performs all the other prerequisite tests.
+.It Li quiet
+Inhibits some verbose diagnostics.
+Currently, this includes messages
+.Qq Starting ${name}
+(as checked by
+.Ic check_startmsgs
+inside
+.Nm )
+and errors about usage of services that are not enabled in
+.Xr rc.conf 5 .
+This prefix also sets
+.Va rc_quiet Ns = Ns Li YES .
+.Em Please, note\&:
+.Va rc_quiet
+is not intended to completely mask all debug and warning messages,
+but only certain small classes of them.
+.El
+.Pp
+.Ic run_rc_command
+uses the following shell variables to control its behaviour.
+Unless otherwise stated, these are optional.
+.Bl -tag -width ".Va procname" -offset indent
+.It Va name
+The name of this script.
+This is not optional.
+.It Va rcvar
+The value of
+.Va rcvar
+is checked with
+.Ic checkyesno
+to determine if this method should be run.
+.It Va command
+Full path to the command.
+Not required if
+.Ar argument Ns Va _cmd
+is defined for each supported keyword.
+Can be overridden by
+.Va ${name}_program .
+.It Va command_args
+Optional arguments and/or shell directives for
+.Va command .
+.It Va command_interpreter
+.Va command
+is started with:
+.Pp
+.Dl "#! command_interpreter [...]"
+.Pp
+which results in its
+.Xr ps 1
+command being:
+.Pp
+.Dl "command_interpreter [...] command"
+.Pp
+so use that string to find the PID(s) of the running command
+rather than
+.Va command .
+.It Va extra_commands
+Extra commands/keywords/arguments supported.
+.It Va pidfile
+Path to PID file.
+Used to determine the PID(s) of the running command.
+If
+.Va pidfile
+is set, use:
+.Pp
+.Dl "check_pidfile $pidfile $procname"
+.Pp
+to find the PID.
+Otherwise, if
+.Va command
+is set, use:
+.Pp
+.Dl "check_process $procname"
+.Pp
+to find the PID.
+.It Va procname
+Process name to check for.
+Defaults to the value of
+.Va command .
+.It Va required_dirs
+Check for the existence of the listed directories
+before running the
+.Cm start
+method.
+The list is checked before running
+.Va start_precmd .
+.It Va required_files
+Check for the readability of the listed files
+before running the
+.Cm start
+method.
+The list is checked before running
+.Va start_precmd .
+.It Va required_modules
+Ensure that the listed kernel modules are loaded
+before running the
+.Cm start
+method.
+The list is checked after running
+.Va start_precmd .
+This is done after invoking the commands from
+.Va start_precmd
+so that the missing modules are not loaded in vain
+if the preliminary commands indicate a error condition.
+A word in the list can have an optional
+.Dq Li \&: Ns Ar modname
+or
+.Dq Li ~ Ns Ar pattern
+suffix.
+The
+.Ar modname
+or
+.Ar pattern
+parameter is passed to
+.Ic load_kld
+through a
+.Fl m
+or
+.Fl e
+option, respectively.
+See the description of
+.Ic load_kld
+in this document for details.
+.It Va required_vars
+Perform
+.Ic checkyesno
+on each of the list variables
+before running the
+.Cm start
+method.
+The list is checked after running
+.Va start_precmd .
+.It Va ${name}_chdir
+Directory to
+.Ic cd
+to before running
+.Va command ,
+if
+.Va ${name}_chroot
+is not provided.
+.It Va ${name}_chroot
+Directory to
+.Xr chroot 8
+to before running
+.Va command .
+Only supported after
+.Pa /usr
+is mounted.
+.It Va ${name}_env
+A list of environment variables to run
+.Va command
+with.
+This will be passed as arguments to the
+.Xr env 1
+utility.
+.It Va ${name}_env_file
+A file to source for environmental variables to run
+.Va command
+with.
+Note that all the variables which are being assigned in this file are going
+to be exported into the environment of
+.Va command .
+.It Va ${name}_fib
+FIB
+.Pa Routing Table
+number to run
+.Va command
+with.
+See
+.Xr setfib 1
+for more details.
+.It Va ${name}_flags
+Arguments to call
+.Va command
+with.
+This is usually set in
+.Xr rc.conf 5 ,
+and not in the
+.Xr rc.d 8
+script.
+The environment variable
+.Sq Ev flags
+can be used to override this.
+.It Va ${name}_nice
+.Xr nice 1
+level to run
+.Va command
+as.
+Only supported after
+.Pa /usr
+is mounted.
+.It Va ${name}_limits
+Resource limits to apply to
+.Va command .
+This will be passed as arguments to the
+.Xr limits 1
+utility.
+By default, the resource limits are based on the login class defined in
+.Va ${name}_login_class .
+.It Va ${name}_login_class
+Login class to use with
+.Va ${name}_limits .
+Defaults to
+.Dq Li daemon .
+.It Va ${name}_oomprotect
+.Xr protect 1
+.Va command
+from being killed when swap space is exhausted.
+If
+.Dq Li YES
+is used, no child processes are protected.
+If
+.Dq Li ALL ,
+protect all child processes.
+.It Va ${name}_program
+Full path to the command.
+Overrides
+.Va command
+if both are set, but has no effect if
+.Va command
+is unset.
+As a rule,
+.Va command
+should be set in the script while
+.Va ${name}_program
+should be set in
+.Xr rc.conf 5 .
+.It Va ${name}_user
+User to run
+.Va command
+as, using
+.Xr chroot 8
+if
+.Va ${name}_chroot
+is set, otherwise
+uses
+.Xr su 1 .
+Only supported after
+.Pa /usr
+is mounted.
+.It Va ${name}_group
+Group to run the chrooted
+.Va command
+as.
+.It Va ${name}_groups
+Comma separated list of supplementary groups to run the chrooted
+.Va command
+with.
+.It Va ${name}_prepend
+Commands to be prepended to
+.Va command .
+This is a generic version of
+.Va ${name}_env ,
+.Va ${name}_fib ,
+or
+.Va ${name}_nice .
+.It Ar argument Ns Va _cmd
+Shell commands which override the default method for
+.Ar argument .
+.It Ar argument Ns Va _precmd
+Shell commands to run just before running
+.Ar argument Ns Va _cmd
+or the default method for
+.Ar argument .
+If this returns a non-zero exit code, the main method is not performed.
+If the default method is being executed, this check is performed after
+the
+.Va required_*
+checks and process (non-)existence checks.
+.It Ar argument Ns Va _postcmd
+Shell commands to run if running
+.Ar argument Ns Va _cmd
+or the default method for
+.Ar argument
+returned a zero exit code.
+.It Va sig_stop
+Signal to send the processes to stop in the default
+.Cm stop
+method.
+Defaults to
+.Dv SIGTERM .
+.It Va sig_reload
+Signal to send the processes to reload in the default
+.Cm reload
+method.
+Defaults to
+.Dv SIGHUP .
+.El
+.Pp
+For a given method
+.Ar argument ,
+if
+.Ar argument Ns Va _cmd
+is not defined, then a default method is provided by
+.Ic run_rc_command :
+.Bl -tag -width ".Sy Argument" -offset indent
+.It Sy Argument
+.Sy Default method
+.It Cm start
+If
+.Va command
+is not running and
+.Ic checkyesno Va rcvar
+succeeds, start
+.Va command .
+.It Cm stop
+Determine the PIDs of
+.Va command
+with
+.Ic check_pidfile
+or
+.Ic check_process
+(as appropriate),
+.Ic kill Va sig_stop
+those PIDs, and run
+.Ic wait_for_pids
+on those PIDs.
+.It Cm reload
+Similar to
+.Cm stop ,
+except that it uses
+.Va sig_reload
+instead, and does not run
+.Ic wait_for_pids .
+Another difference from
+.Cm stop
+is that
+.Cm reload
+is not provided by default.
+It can be enabled via
+.Va extra_commands
+if appropriate:
+.Pp
+.Dl "extra_commands=reload"
+.It Cm restart
+Runs the
+.Cm stop
+method, then the
+.Cm start
+method.
+.It Cm status
+Show the PID of
+.Va command ,
+or some other script specific status operation.
+.It Cm poll
+Wait for
+.Va command
+to exit.
+.It Cm rcvar
+Display which
+.Xr rc.conf 5
+variable is used (if any).
+This method always works, even if the appropriate
+.Xr rc.conf 5
+variable is set to
+.Dq Li NO .
+.El
+.Pp
+The following variables are available to the methods
+(such as
+.Ar argument Ns Va _cmd )
+as well as after
+.Ic run_rc_command
+has completed:
+.Bl -tag -width ".Va rc_service" -offset indent
+.It Va rc_arg
+Argument provided to
+.Ic run_rc_command ,
+after fast and force processing has been performed.
+.It Va rc_flags
+Flags to start the default command with.
+Defaults to
+.Va ${name}_flags ,
+unless overridden by the environment variable
+.Sq Ev flags .
+This variable may be changed by the
+.Ar argument Ns Va _precmd
+method.
+.It Va rc_service
+Path to the service script being executed, in case it needs to re-invoke itself.
+.It Va rc_pid
+PID of
+.Va command
+(if appropriate).
+.It Va rc_fast
+Not empty if
+.Dq Li fast
+prefix was used.
+.It Va rc_force
+Not empty if
+.Dq Li force
+prefix was used.
+.El
+.It Ic run_rc_script Ar file argument
+Start the script
+.Ar file
+with an argument of
+.Ar argument ,
+and handle the return value from the script.
+.Pp
+Various shell variables are unset before
+.Ar file
+is started:
+.Bd -ragged -offset indent
+.Va name ,
+.Va command ,
+.Va command_args ,
+.Va command_interpreter ,
+.Va extra_commands ,
+.Va pidfile ,
+.Va rcvar ,
+.Va required_dirs ,
+.Va required_files ,
+.Va required_vars ,
+.Ar argument Ns Va _cmd ,
+.Ar argument Ns Va _precmd .
+.Ar argument Ns Va _postcmd .
+.Ed
+.Pp
+The startup behaviour of
+.Ar file
+depends upon the following checks:
+.Bl -enum
+.It
+If
+.Ar file
+ends in
+.Pa .sh ,
+it is sourced into the current shell.
+.It
+If
+.Ar file
+appears to be a backup or scratch file
+(e.g., with a suffix of
+.Pa ~ , # , .OLD ,
+or
+.Pa .orig ) ,
+ignore it.
+.It
+If
+.Ar file
+is not executable, ignore it.
+.It
+If the
+.Xr rc.conf 5
+variable
+.Va rc_fast_and_loose
+is empty,
+source
+.Ar file
+in a sub shell,
+otherwise source
+.Ar file
+into the current shell.
+.El
+.It Ic stop_boot Op Ar always
+Prevent booting to multiuser mode.
+If the
+.Va autoboot
+variable is set to
+.Ql yes ,
+or
+.Ic checkyesno Ar always
+indicates a truth value, then a
+.Dv SIGTERM
+signal is sent to the parent
+process, which is assumed to be
+.Xr rc 8 .
+Otherwise, the shell exits with a non-zero status.
+.It Ic wait_for_pids Op Ar pid ...
+Wait until all of the provided
+.Ar pids
+do not exist any more, printing the list of outstanding
+.Ar pids
+every two seconds.
+.It Ic warn Ar message
+Display a warning message to
+.Va stderr
+and log it to the system log
+using
+.Xr logger 1 .
+The warning message consists of the script name
+(from
+.Va $0 ) ,
+followed by
+.Dq Li ": WARNING: " ,
+and then
+.Ar message .
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/rc.subr" -compact
+.It Pa /etc/rc.subr
+The
+.Nm
+file resides in
+.Pa /etc .
+.El
+.Sh SEE ALSO
+.Xr rc.conf 5 ,
+.Xr rc 8
+.Sh HISTORY
+The
+.Nm
+script
+appeared in
+.Nx 1.3 .
+The
+.Xr rc.d 8
+support functions appeared in
+.Nx 1.5 .
+The
+.Nm
+script
+first appeared in
+.Fx 5.0 .

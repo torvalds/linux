@@ -1,0 +1,14 @@
+$FreeBSD$
+
+NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
+file is important.  Make sure the current version number is on line 6.
+
+1.1:	New calling conventions for fopen.
+1.0:	New semantics for finding the kernel, new boot.
+0.8:	Set/getenv & cia, copyin/out.
+0.7:	Supports large KVM
+0.6:	Increased dictionary size -- supports loader.4th
+0.5:	First release version
+0.2:	Initial integration with BTX
+0.1:	Initial i386 version, inspiration and some structure from the
+	NetBSD version.

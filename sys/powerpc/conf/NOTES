@@ -1,0 +1,113 @@
+# $FreeBSD$
+#
+# This file contains machine dependent kernel configuration notes.  For
+# machine independent notes, look in /sys/conf/NOTES.
+
+#
+# Enable the kernel DTrace hooks which are required to load the DTrace
+# kernel modules.
+#
+options 	KDTRACE_HOOKS
+
+# DTrace core
+# NOTE: introduces CDDL-licensed components into the kernel
+#device		dtrace
+
+# DTrace modules
+#device		dtrace_profile
+#device		dtrace_sdt
+#device		dtrace_fbt
+#device		dtrace_systrace
+#device		dtrace_prototype
+#device		dtnfscl
+#device		dtmalloc
+
+# Alternatively include all the DTrace modules
+#device		dtraceall
+
+
+#####################################################################
+# CPU OPTIONS
+
+# You must specify a machine directive to choose powerpc or powerpc64
+#machine		powerpc powerpc[64]
+
+#
+# You must specify at least one CPU (the one you intend to run on).
+cpu		AIM
+#cpu		BOOKE_E500
+#cpu		BOOKE_PPC440
+
+options 	FPU_EMU
+
+#options 	MPC85XX
+options 	POWERMAC		#NewWorld Apple PowerMacs
+#options	PS3			#Sony Playstation 3
+options 	PSIM			#GDB PSIM ppc simulator
+options 	MAMBO			#IBM Mambo Full System Simulator
+
+options 	SC_OFWFB		# OFW frame buffer
+
+# The cpufreq(4) driver provides support for CPU frequency control
+device		cpufreq
+
+# Standard busses
+device		agp
+
+device		bm		# Apple BMAC (Big Mac Ethernet)
+device		glc		# Sony Playstation 3 Ethernet
+device		kiic		# Apple Keywest I2C Controller
+device		ofwd		# Open Firmware disks
+device		adb		# Apple Desktop Bus
+device		cuda		# VIA-CUDA ADB interface
+device          ad7417          # PowerMac7,2 temperature sensor
+device		ds1631		# PowerMac11,2 temperature sensor
+device		ds1775		# PowerMac7,2 temperature sensor
+device		fcu		# Apple Fan Control Unit
+device		max6690		# PowerMac7,2 temperature sensor
+device		pmu		# Apple Power Management Unit
+device		smu		# Apple System Management Unit
+device		snd_ai2s	# Apple I2S Audio
+device		snd_davbus	# Apple Davbus Audio
+device		adm1030		# Apple G4 MDD fan controller
+
+
+#####################################################################
+# Devices we don't want to deal with
+
+nodevice	bktr
+nodevice	ccr
+nodevice	cxgbe		# XXX: builds on powerpc64 only.
+nodevice	cxgbev
+nodevice	fdc
+nodevice	ppc
+nodevice	splash
+# when splash works enable *_saver
+nodevice	blank_saver
+nodevice	daemon_saver
+nodevice	dragon_saver
+nodevice	fade_saver
+nodevice	fire_saver
+nodevice	green_saver
+nodevice	logo_saver
+nodevice	rain_saver
+nodevice	snake_saver
+nodevice	star_saver
+nodevice	warp_saver
+nodevice	daemon_saver
+nodevice	star_saver
+nodevice	snake_saver
+# sound
+nodevice	snd_cmi
+# wants gdb_cur
+nodevice	dcons
+nodevice	dcons_crom
+
+
+#####################################################################
+# Options we don't want to deal with
+
+nooption	PPC_DEBUG
+nooption	PPC_PROBE_CHIPSET
+nooption 	SC_NO_MODE_CHANGE
+nooption 	UKBD_DFLT_KEYMAP

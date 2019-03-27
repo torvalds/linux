@@ -1,0 +1,309 @@
+.\" $FreeBSD$
+.\" $NetBSD: iconv.3,v 1.12 2004/08/02 13:38:21 tshiozak Exp $
+.\"
+.\" Copyright (c) 2003 Citrus Project,
+.\" Copyright (c) 2009, 2010 Gabor Kovesdan <gabor@FreeBSD.org>,
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd August 4, 2014
+.Dt ICONV 3
+.Os
+.Sh NAME
+.Nm iconv_open ,
+.Nm iconv_open_into ,
+.Nm iconv_close ,
+.Nm iconv
+.Nd codeset conversion functions
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In iconv.h
+.Ft iconv_t
+.Fn iconv_open "const char *dstname" "const char *srcname"
+.Ft int
+.Fn iconv_open_into "const char *dstname" "const char *srcname" "iconv_allocation_t *ptr"
+.Ft int
+.Fn iconv_close "iconv_t cd"
+.Ft size_t
+.Fn iconv "iconv_t cd" "char ** restrict src" "size_t * restrict srcleft" "char ** restrict dst" "size_t * restrict dstleft"
+.Ft size_t
+.Fn __iconv "iconv_t cd" "char ** restrict src" "size_t * restrict srcleft" "char ** restrict dst" "size_t * restrict dstleft" "uint32_t flags" "size_t * invalids"
+.Sh DESCRIPTION
+The
+.Fn iconv_open
+function opens a converter from the codeset
+.Fa srcname
+to the codeset
+.Fa dstname
+and returns its descriptor.
+The arguments
+.Fa srcname
+and
+.Fa dstname
+accept "" and "char", which refer to the current locale encoding.
+.Pp
+The
+.Fn iconv_open_into
+creates a conversion descriptor on a preallocated space.
+The
+.Ft iconv_allocation_t
+is used as a spaceholder type when allocating such space.
+The
+.Fa dstname
+and
+.Fa srcname
+arguments are the same as in the case of
+.Fn iconv_open .
+The
+.Fa ptr
+argument is a pointer of
+.Ft iconv_allocation_t
+to the preallocated space.
+.Pp
+The
+.Fn iconv_close
+function closes the specified converter
+.Fa cd .
+.Pp
+The
+.Fn iconv
+function converts the string in the buffer
+.Fa *src
+of length
+.Fa *srcleft
+bytes and stores the converted string in the buffer
+.Fa *dst
+of size
+.Fa *dstleft
+bytes.
+After calling
+.Fn iconv ,
+the values pointed to by
+.Fa src ,
+.Fa srcleft ,
+.Fa dst ,
+and
+.Fa dstleft
+are updated as follows:
+.Bl -tag -width 01234567
+.It *src
+Pointer to the byte just after the last character fetched.
+.It *srcleft
+Number of remaining bytes in the source buffer.
+.It *dst
+Pointer to the byte just after the last character stored.
+.It *dstleft
+Number of remainder bytes in the destination buffer.
+.El
+.Pp
+If the string pointed to by
+.Fa *src
+contains a byte sequence which is not a valid character in the source
+codeset, the conversion stops just after the last successful conversion.
+If the output buffer is too small to store the converted
+character, the conversion also stops in the same way.
+In these cases, the values pointed to by
+.Fa src ,
+.Fa srcleft ,
+.Fa dst ,
+and
+.Fa dstleft
+are updated to the state just after the last successful conversion.
+.Pp
+If the string pointed to by
+.Fa *src
+contains a character which is valid under the source codeset but
+can not be converted to the destination codeset,
+the character is replaced by an
+.Dq invalid character
+which depends on the destination codeset, e.g.,
+.Sq \&? ,
+and the conversion is continued.
+.Fn iconv
+returns the number of such
+.Dq invalid conversions .
+.Pp
+There are two special cases of
+.Fn iconv :
+.Bl -tag -width 0123
+.It "src == NULL || *src == NULL"
+If the source and/or destination codesets are stateful,
+.Fn iconv
+places these into their initial state.
+.Pp
+If both
+.Fa dst
+and
+.Fa *dst
+are
+.No non- Ns Dv NULL ,
+.Fn iconv
+stores the shift sequence for the destination switching to the initial state
+in the buffer pointed to by
+.Fa *dst .
+The buffer size is specified by the value pointed to by
+.Fa dstleft
+as above.
+.Fn iconv
+will fail if the buffer is too small to store the shift sequence.
+.Pp
+On the other hand,
+.Fa dst
+or
+.Fa *dst
+may be
+.Dv NULL .
+In this case, the shift sequence for the destination switching
+to the initial state is discarded.
+.El
+.Pp
+The
+.Fn __iconv
+function works just like
+.Fn iconv
+but if
+.Fn iconv
+fails, the invalid character count is lost there.
+This is a not bug rather a limitation of
+.St -p1003.1-2008 ,
+so
+.Fn __iconv
+is provided as an alternative but non-standard interface.
+It also has a flags argument, where currently the following
+flags can be passed:
+.Bl -tag -width 0123
+.It __ICONV_F_HIDE_INVALID
+Skip invalid characters, instead of returning with an error.
+.El
+.Sh RETURN VALUES
+Upon successful completion of
+.Fn iconv_open ,
+it returns a conversion descriptor.
+Otherwise,
+.Fn iconv_open
+returns (iconv_t)\-1 and sets errno to indicate the error.
+.Pp
+Upon successful completion of
+.Fn iconv_open_into ,
+it returns 0.
+Otherwise,
+.Fn iconv_open_into
+returns \-1, and sets errno to indicate the error.
+.Pp
+Upon successful completion of
+.Fn iconv_close ,
+it returns 0.
+Otherwise,
+.Fn iconv_close
+returns \-1 and sets errno to indicate the error.
+.Pp
+Upon successful completion of
+.Fn iconv ,
+it returns the number of
+.Dq invalid
+conversions.
+Otherwise,
+.Fn iconv
+returns (size_t)\-1 and sets errno to indicate the error.
+.Sh ERRORS
+The
+.Fn iconv_open
+function may cause an error in the following cases:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Memory is exhausted.
+.It Bq Er EINVAL
+There is no converter specified by
+.Fa srcname
+and
+.Fa dstname .
+.El
+The
+.Fn iconv_open_into
+function may cause an error in the following cases:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+There is no converter specified by
+.Fa srcname
+and
+.Fa dstname .
+.El
+.Pp
+The
+.Fn iconv_close
+function may cause an error in the following case:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The conversion descriptor specified by
+.Fa cd
+is invalid.
+.El
+.Pp
+The
+.Fn iconv
+function may cause an error in the following cases:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The conversion descriptor specified by
+.Fa cd
+is invalid.
+.It Bq Er EILSEQ
+The string pointed to by
+.Fa *src
+contains a byte sequence which does not describe a valid character of
+the source codeset.
+.It Bq Er E2BIG
+The output buffer pointed to by
+.Fa *dst
+is too small to store the result string.
+.It Bq Er EINVAL
+The string pointed to by
+.Fa *src
+terminates with an incomplete character or shift sequence.
+.El
+.Sh SEE ALSO
+.Xr iconv 1 ,
+.Xr mkcsmapper 1 ,
+.Xr mkesdb 1 ,
+.Xr __iconv_get_list 3 ,
+.Xr iconv_canonicalize 3 ,
+.Xr iconvctl 3 ,
+.Xr iconvlist 3
+.Sh STANDARDS
+The
+.Fn iconv_open ,
+.Fn iconv_close ,
+and
+.Fn iconv
+functions conform to
+.St -p1003.1-2008 .
+.Pp
+The
+.Fn iconv_open_into
+function is a GNU-specific extension and it is not part of any standard,
+thus its use may break portability.
+The
+.Fn __iconv
+function is an own extension and it is not part of any standard,
+thus its use may break portability.

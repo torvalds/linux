@@ -1,0 +1,118 @@
+=pod
+
+=head1 NAME
+
+OCSP_REQUEST_new, OCSP_REQUEST_free, OCSP_request_add0_id, OCSP_request_sign,
+OCSP_request_add1_cert, OCSP_request_onereq_count,
+OCSP_request_onereq_get0 - OCSP request functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/ocsp.h>
+
+ OCSP_REQUEST *OCSP_REQUEST_new(void);
+ void OCSP_REQUEST_free(OCSP_REQUEST *req);
+
+ OCSP_ONEREQ *OCSP_request_add0_id(OCSP_REQUEST *req, OCSP_CERTID *cid);
+
+ int OCSP_request_sign(OCSP_REQUEST *req,
+                       X509 *signer, EVP_PKEY *key, const EVP_MD *dgst,
+                       STACK_OF(X509) *certs, unsigned long flags);
+
+ int OCSP_request_add1_cert(OCSP_REQUEST *req, X509 *cert);
+
+ int OCSP_request_onereq_count(OCSP_REQUEST *req);
+ OCSP_ONEREQ *OCSP_request_onereq_get0(OCSP_REQUEST *req, int i);
+
+=head1 DESCRIPTION
+
+OCSP_REQUEST_new() allocates and returns an empty B<OCSP_REQUEST> structure.
+
+OCSP_REQUEST_free() frees up the request structure B<req>.
+
+OCSP_request_add0_id() adds certificate ID B<cid> to B<req>. It returns
+the B<OCSP_ONEREQ> structure added so an application can add additional
+extensions to the request. The B<id> parameter B<MUST NOT> be freed up after
+the operation.
+
+OCSP_request_sign() signs OCSP request B<req> using certificate
+B<signer>, private key B<key>, digest B<dgst> and additional certificates
+B<certs>. If the B<flags> option B<OCSP_NOCERTS> is set then no certificates
+will be included in the request.
+
+OCSP_request_add1_cert() adds certificate B<cert> to request B<req>. The
+application is responsible for freeing up B<cert> after use.
+
+OCSP_request_onereq_count() returns the total number of B<OCSP_ONEREQ>
+structures in B<req>.
+
+OCSP_request_onereq_get0() returns an internal pointer to the B<OCSP_ONEREQ>
+contained in B<req> of index B<i>. The index value B<i> runs from 0 to
+OCSP_request_onereq_count(req) - 1.
+
+=head1 RETURN VALUES
+
+OCSP_REQUEST_new() returns an empty B<OCSP_REQUEST> structure or B<NULL> if
+an error occurred.
+
+OCSP_request_add0_id() returns the B<OCSP_ONEREQ> structure containing B<cid>
+or B<NULL> if an error occurred.
+
+OCSP_request_sign() and OCSP_request_add1_cert() return 1 for success and 0
+for failure.
+
+OCSP_request_onereq_count() returns the total number of B<OCSP_ONEREQ>
+structures in B<req>.
+
+OCSP_request_onereq_get0() returns a pointer to an B<OCSP_ONEREQ> structure
+or B<NULL> if the index value is out or range.
+
+=head1 NOTES
+
+An OCSP request structure contains one or more B<OCSP_ONEREQ> structures
+corresponding to each certificate.
+
+OCSP_request_onereq_count() and OCSP_request_onereq_get0() are mainly used by
+OCSP responders.
+
+=head1 EXAMPLE
+
+Create an B<OCSP_REQUEST> structure for certificate B<cert> with issuer
+B<issuer>:
+
+ OCSP_REQUEST *req;
+ OCSP_ID *cid;
+
+ req = OCSP_REQUEST_new();
+ if (req == NULL)
+    /* error */
+ cid = OCSP_cert_to_id(EVP_sha1(), cert, issuer);
+ if (cid == NULL)
+    /* error */
+
+ if (OCSP_REQUEST_add0_id(req, cid) == NULL)
+    /* error */
+
+ /* Do something with req, e.g. query responder */
+
+ OCSP_REQUEST_free(req);
+
+=head1 SEE ALSO
+
+L<crypto(7)>,
+L<OCSP_cert_to_id(3)>,
+L<OCSP_request_add1_nonce(3)>,
+L<OCSP_resp_find_status(3)>,
+L<OCSP_response_status(3)>,
+L<OCSP_sendreq_new(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

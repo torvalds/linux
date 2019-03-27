@@ -1,0 +1,190 @@
+.\" Copyright (c) 1997
+.\"	Steve Passe <fsmp@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the developer may NOT be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 4, 2019
+.Dt SMP 4
+.Os
+.Sh NAME
+.Nm SMP
+.Nd description of the FreeBSD Symmetric Multi-Processor kernel
+.Sh SYNOPSIS
+.Cd options SMP
+.Sh DESCRIPTION
+The
+.Nm
+kernel implements symmetric multi-processor support.
+.Pp
+.Nm
+support can be disabled by setting the loader tunable
+.Va kern.smp.disabled
+to 1.
+.Pp
+The number of CPUs detected by the system is available in
+the read-only sysctl variable
+.Va hw.ncpu .
+.Pp
+The number of online threads per CPU core is available in the read-only sysctl
+variable
+.Va kern.smp.threads_per_core .
+The number of physical CPU cores detected by the system is available in the
+read-only sysctl variable
+.Va kern.smp.cores .
+.Pp
+.Fx
+allows specific CPUs on a multi-processor system to be disabled.
+This can be done using the
+.Va hint.lapic.X.disabled
+tunable, where X is the APIC ID of a CPU.
+Setting this tunable to 1 will result in the corresponding CPU being
+disabled.
+.Pp
+.Fx
+supports simultaneous multithreading on x86 and powerpc platforms.
+On x86, the logical CPUs can be disabled by setting the
+.Va machdep.hyperthreading_allowed
+tunable to zero.
+.Pp
+The
+.Xr sched_ule 4
+scheduler implements CPU topology detection and adjusts the scheduling
+algorithms to make better use of modern multi-core CPUs.
+The sysctl variable
+.Va kern.sched.topology_spec
+reflects the detected CPU hardware in a parsable XML format.
+The top level XML tag is <groups>, which encloses one or more <group> tags
+containing data about individual CPU groups.
+A CPU group contains CPUs that are detected to be "close" together, usually
+by being cores in a single multi-core processor.
+Attributes available in a <group> tag are "level", corresponding to the
+nesting level of the CPU group and "cache-level", corresponding to the
+level of CPU caches shared by the CPUs in the group.
+The <group> tag contains the <cpu> and <flags> tags.
+The <cpu> tag describes CPUs in the group.
+Its attributes are "count", corresponding to the number of CPUs in the
+group and "mask", corresponding to the integer binary mask in which
+each bit position set to 1 signifies a CPU belonging to the group.
+The contents (CDATA) of the <cpu> tag is the comma-delimited list
+of CPU indexes (derived from the "mask" attribute).
+The <flags> tag contains special tags (if any) describing the relation
+of the CPUs in the group.
+The possible flags are currently "HTT" and "SMT", corresponding to
+the various implementations of hardware multithreading.
+An example topology_spec output for a system consisting of
+two quad-core processors is:
+.Bd -literal
+<groups>
+  <group level="1" cache-level="0">
+    <cpu count="8" mask="0xff">0, 1, 2, 3, 4, 5, 6, 7</cpu>
+    <flags></flags>
+    <children>
+      <group level="2" cache-level="0">
+        <cpu count="4" mask="0xf">0, 1, 2, 3</cpu>
+        <flags></flags>
+      </group>
+      <group level="2" cache-level="0">
+        <cpu count="4" mask="0xf0">4, 5, 6, 7</cpu>
+        <flags></flags>
+      </group>
+    </children>
+  </group>
+</groups>
+.Ed
+.Pp
+This information is used internally by the kernel to schedule related
+tasks on CPUs that are closely grouped together.
+.Sh COMPATIBILITY
+Support for multi-processor systems is present for all Tier-1 and Tier-2
+architectures on
+.Fx .
+Currently, this includes x86, powerpc, arm, and sparc64.
+Support is enabled using
+.Cd options SMP .
+It is permissible to use the SMP kernel configuration on non-SMP hardware.
+.Sh I386 NOTES
+For i386 systems, the
+.Nm
+kernel supports motherboards that follow the Intel MP specification,
+version 1.4.
+In addition to
+.Cd options SMP ,
+i386 also requires
+.Cd device apic .
+The
+.Xr mptable 1
+command may be used to view the status of multi-processor support.
+.Sh SEE ALSO
+.Xr cpuset 1 ,
+.Xr mptable 1 ,
+.Xr sched_4bsd 4 ,
+.Xr sched_ule 4 ,
+.Xr loader 8 ,
+.Xr sysctl 8 ,
+.Xr condvar 9 ,
+.Xr msleep 9 ,
+.Xr mtx_pool 9 ,
+.Xr mutex 9 ,
+.Xr rwlock 9 ,
+.Xr sema 9 ,
+.Xr sx 9
+.Sh HISTORY
+The
+.Nm
+kernel's early history is not (properly) recorded.
+It was developed
+in a separate CVS branch until April 26, 1997, at which point it was
+merged into 3.0-current.
+By this date 3.0-current had already been
+merged with Lite2 kernel code.
+.Pp
+.Fx 5.0
+introduced support for a host of new synchronization primitives, and
+a move towards fine-grained kernel locking rather than reliance on
+a Giant kernel lock.
+The SMPng Project relied heavily on the support of BSDi, who provided
+reference source code from the fine-grained SMP implementation found
+in
+.Bsx .
+.Pp
+.Fx 5.0
+also introduced support for SMP on the sparc64 architecture.
+.Sh AUTHORS
+.An Steve Passe Aq Mt fsmp@FreeBSD.org
+.Sh CAVEATS
+The
+.Va kern.smp.threads_per_core
+and
+.Va kern.smp.cores
+sysctl variables are provided as a best-effort guess.
+If an architecture or platform adds SMT and
+.Fx
+has not yet implemented detection, the reported values may be inaccurate.
+In this case,
+.Va kern.smp.threads_per_core
+will report
+.Dv 1
+and
+.Va kern.smp.cores
+will report the same value as
+.Va hw.ncpu .

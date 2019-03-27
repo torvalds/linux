@@ -1,0 +1,214 @@
+.\" Written by Jared Yanovich <jaredy@openbsd.org>
+.\" Public domain, July 3, 2005
+.\"
+.\" $FreeBSD$
+.Dd November 1, 2018
+.Dt CMSG_DATA 3
+.Os
+.Sh NAME
+.Nm CMSG_DATA ,
+.Nm CMSG_FIRSTHDR ,
+.Nm CMSG_LEN ,
+.Nm CMSG_NXTHDR ,
+.Nm CMSG_SPACE
+.Nd socket control message routines for ancillary data access
+.Sh SYNOPSIS
+.In sys/socket.h
+.Ft unsigned char *
+.Fn CMSG_DATA "struct cmsghdr *"
+.Ft struct cmsghdr *
+.Fn CMSG_FIRSTHDR "struct msghdr *"
+.Ft size_t
+.Fn CMSG_LEN "size_t"
+.Ft struct cmsghdr *
+.Fn CMSG_NXTHDR "struct msghdr *" "struct cmsghdr *"
+.Ft size_t
+.Fn CMSG_SPACE "size_t"
+.Sh DESCRIPTION
+The control message API is used to construct ancillary data objects for
+use in control messages sent and received across sockets.
+.Pp
+Control messages are passed around by the
+.Xr recvmsg 2
+and
+.Xr sendmsg 2
+system calls.
+The
+.Vt cmsghdr
+structure, described in
+.Xr recvmsg 2 ,
+is used to specify a chain of control messages.
+.Pp
+These routines should be used instead of directly accessing the control
+message header members and data buffers as they ensure that necessary
+alignment constraints are met.
+.Pp
+The following routines are provided:
+.Bl -tag -width Ds
+.It Fn CMSG_DATA cmsg
+This routine accesses the data portion of the control message header
+.Fa cmsg .
+It ensures proper alignment constraints on the beginning of ancillary
+data are met.
+.It Fn CMSG_FIRSTHDR msghdr
+This routine accesses the first control message attached to the
+message
+.Fa msghdr .
+If no control messages are attached to the message, this routine
+returns
+.Dv NULL .
+.It Fn CMSG_LEN len
+This routine determines the size in bytes of a control message,
+which includes the control message header.
+.Fa len
+specifies the length of the data held by the control message.
+This value is what is normally stored in the
+.Fa cmsg_len
+of each control message.
+This routine accounts for any alignment constraints on the beginning of
+ancillary data.
+.It Fn CMSG_NXTHDR msghdr cmsg
+This routine returns the location of the control message following
+.Fa cmsg
+in the message
+.Fa msghdr .
+If
+.Fa cmsg
+is the last control message in the chain, this routine returns
+.Dv NULL .
+.It Fn CMSG_SPACE len
+This routine determines the size in bytes needed to hold a control
+message and its contents of length
+.Fa len ,
+which includes the control message header.
+This value is what is normally stored in
+.Fa msg_msgcontrollen .
+This routine accounts for any alignment constraints on the beginning of
+ancillary data as well as any needed to pad the next control message.
+.El
+.Sh EXAMPLES
+The following example constructs a control message containing a file descriptor
+in the parent process and passes it over a pre-shared socket over the child
+process.
+Then the child process sends a "hello" string to the parent process using the
+received file descriptor.
+.Bd -literal
+#include <sys/socket.h>
+
+#include <err.h>
+#include <stdio.h>
+#include <string.h>
+#include <sysexits.h>
+#include <unistd.h>
+
+#define	HELLOLEN    sizeof("hello")
+
+int
+main()
+{
+	struct msghdr msg;
+	union {
+		struct cmsghdr hdr;
+		unsigned char	 buf[CMSG_SPACE(sizeof(int))];
+	} cmsgbuf;
+	char buf[HELLOLEN];
+	int hellofd[2];
+	int presharedfd[2];
+	struct cmsghdr *cmsg;
+
+	if (socketpair(PF_LOCAL, SOCK_STREAM, 0, presharedfd) == -1)
+		err(EX_OSERR, "failed to create a pre-shared socket pair");
+
+	memset(&msg, 0, sizeof(msg));
+	msg.msg_control = &cmsgbuf.buf;
+	msg.msg_controllen = sizeof(cmsgbuf.buf);
+	msg.msg_iov = NULL;
+	msg.msg_iovlen = 0;
+
+	switch (fork()) {
+	case -1:
+		err(EX_OSERR, "fork");
+	case 0:
+		close(presharedfd[0]);
+		strlcpy(buf, "hello", HELLOLEN);
+
+		if (recvmsg(presharedfd[1], &msg, 0) == -1)
+			err(EX_IOERR, "failed to receive a message");
+		if (msg.msg_flags & (MSG_CTRUNC | MSG_TRUNC))
+			errx(EX_IOERR, "control message truncated");
+		for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
+		    cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+			if (cmsg->cmsg_len == CMSG_LEN(sizeof(int)) &&
+			    cmsg->cmsg_level == SOL_SOCKET &&
+			    cmsg->cmsg_type == SCM_RIGHTS) {
+				hellofd[1] = *(int *)CMSG_DATA(cmsg);
+				printf("child: sending '%s'\n", buf);
+				if (write(hellofd[1], buf, HELLOLEN) == -1)
+				    err(EX_IOERR, "failed to send 'hello'");
+			}
+		}
+		break;
+	default:
+		close(presharedfd[1]);
+
+		if (socketpair(PF_LOCAL, SOCK_STREAM, 0, hellofd) == -1)
+			err(EX_OSERR, "failed to create a 'hello' socket pair");
+
+		cmsg = CMSG_FIRSTHDR(&msg);
+		cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+		cmsg->cmsg_level = SOL_SOCKET;
+		cmsg->cmsg_type = SCM_RIGHTS;
+		*(int *)CMSG_DATA(cmsg) = hellofd[1];
+
+		if (sendmsg(presharedfd[0], &msg, 0) == -1)
+			err(EX_IOERR, "sendmsg");
+		close(hellofd[1]);
+
+		if (read(hellofd[0], buf, HELLOLEN) == -1)
+			err(EX_IOERR, "faild to receive 'hello'");
+		printf("parent: received '%s'\n", buf);
+		break;
+	}
+
+	return (0);
+}
+.Ed
+.Sh SEE ALSO
+.Xr recvmsg 2 ,
+.Xr sendmsg 2 ,
+.Xr socket 2 ,
+.Xr ip 4 ,
+.Xr ip6 4 ,
+.Xr unix 4
+.Sh STANDARDS
+.Bl -item
+.It
+.Rs
+.%A W. Stevens
+.%A M. Thomas
+.%T "Advanced Sockets API for IPv6"
+.%R RFC 2292
+.%D February 1998
+.Re
+.It
+.Rs
+.%A W. Stevens
+.%A M. Thomas
+.%A E. Nordmark
+.%A T. Jinmei
+.%T "Advanced Sockets Application Program Interface (API) for IPv6"
+.%R RFC 3542
+.%D May 2003
+.Re
+.El
+.Sh HISTORY
+The control message API first appeared in
+.Bx 4.2 .
+This manual page was originally written by
+.An Jared Yanovich Aq Mt jaredy@OpenBSD.org
+for
+.Ox 3.8
+and eventually brought to
+.Fx 12.0
+by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .

@@ -1,0 +1,344 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_getch.3x,v 1.37 2012/07/07 20:04:56 tom Exp $
+.TH curs_getch 3X ""
+.na
+.hy 0
+.de bP
+.IP \(bu 4
+..
+.SH NAME
+\fBgetch\fR,
+\fBwgetch\fR,
+\fBmvgetch\fR,
+\fBmvwgetch\fR,
+\fBungetch\fR,
+\fBhas_key\fR \- get (or push back) characters from \fBcurses\fR terminal keyboard
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.PP
+\fBint getch(void);\fR
+.br
+\fBint wgetch(WINDOW *win);\fR
+.br
+\fBint mvgetch(int y, int x);\fR
+.br
+\fBint mvwgetch(WINDOW *win, int y, int x);\fR
+.br
+\fBint ungetch(int ch);\fR
+.br
+\fBint has_key(int ch);\fR
+.br
+.SH DESCRIPTION
+The \fBgetch\fR, \fBwgetch\fR, \fBmvgetch\fR and \fBmvwgetch\fR, routines read
+a character from the window.
+In no-delay mode, if no input is waiting, the value \fBERR\fR is returned.
+In delay mode, the program waits until the system
+passes text through to the program.
+Depending on the setting of \fBcbreak\fR,
+this is after one character (cbreak mode),
+or after the first newline (nocbreak mode).
+In half-delay mode,
+the program waits until a character is typed or the
+specified timeout has been reached.
+.PP
+Unless \fBnoecho\fR has been set,
+then the character will also be echoed into the
+designated window according to the following rules:
+if the character is the current erase character, left arrow, or backspace,
+the cursor is moved one space to the left and that screen position is erased
+as if \fBdelch\fR had been called.
+If the character value is any other \fBKEY_\fR define, the user is alerted
+with a \fBbeep\fR call.
+Otherwise the character is simply output to the screen.
+.PP
+If the window is not a pad, and it has been moved or modified since the last
+call to \fBwrefresh\fR, \fBwrefresh\fR will be called before another character
+is read.
+.PP
+If \fBkeypad\fR is \fBTRUE\fR, and a function key is pressed, the token for
+that function key is returned instead of the raw characters.
+Possible function
+keys are defined in \fB<curses.h>\fR as macros with values outside the range
+of 8-bit characters whose names begin with \fBKEY_\fR. Thus, a variable
+intended to hold the return value of a function key must be of short size or
+larger.
+.PP
+When a character that could be the beginning of a function key is received
+(which, on modern terminals, means an escape character),
+\fBcurses\fR sets a timer.
+If the remainder of the sequence does not come in within the designated
+time, the character is passed through;
+otherwise, the function key value is returned.
+For this reason, many terminals experience a delay between the time
+a user presses the escape key and the escape is returned to the program.
+.PP
+The \fBungetch\fR routine places \fIch\fR back onto the input queue to be
+returned by the next call to \fBwgetch\fR.
+There is just one input queue for all windows.
+.PP
+.SS Function Keys
+The following function keys, defined in \fB<curses.h>\fR, might be returned by
+\fBgetch\fR if \fBkeypad\fR has been enabled.
+Note that not all of these are
+necessarily supported on any particular terminal.
+.sp
+.TS
+center tab(/) ;
+l l
+l l .
+\fIName\fR/\fIKey\fR \fIname\fR
+KEY_BREAK/Break key
+KEY_DOWN/The four arrow keys ...
+KEY_UP
+KEY_LEFT
+KEY_RIGHT
+KEY_HOME/Home key (upward+left arrow)
+KEY_BACKSPACE/Backspace
+KEY_F0/T{
+Function keys; space for 64 keys is reserved.
+T}
+KEY_F(\fIn\fR)/T{
+For 0 \(<= \fIn\fR \(<= 63
+T}
+KEY_DL/Delete line
+KEY_IL/Insert line
+KEY_DC/Delete character
+KEY_IC/Insert char or enter insert mode
+KEY_EIC/Exit insert char mode
+KEY_CLEAR/Clear screen
+KEY_EOS/Clear to end of screen
+KEY_EOL/Clear to end of line
+KEY_SF/Scroll 1 line forward
+KEY_SR/Scroll 1 line backward (reverse)
+KEY_NPAGE/Next page
+KEY_PPAGE/Previous page
+KEY_STAB/Set tab
+KEY_CTAB/Clear tab
+KEY_CATAB/Clear all tabs
+KEY_ENTER/Enter or send
+KEY_SRESET/Soft (partial) reset
+KEY_RESET/Reset or hard reset
+KEY_PRINT/Print or copy
+KEY_LL/Home down or bottom (lower left)
+KEY_A1/Upper left of keypad
+KEY_A3/Upper right of keypad
+KEY_B2/Center of keypad
+KEY_C1/Lower left of keypad
+KEY_C3/Lower right of keypad
+KEY_BTAB/Back tab key
+KEY_BEG/Beg(inning) key
+KEY_CANCEL/Cancel key
+KEY_CLOSE/Close key
+KEY_COMMAND/Cmd (command) key
+KEY_COPY/Copy key
+KEY_CREATE/Create key
+KEY_END/End key
+KEY_EXIT/Exit key
+KEY_FIND/Find key
+KEY_HELP/Help key
+KEY_MARK/Mark key
+KEY_MESSAGE/Message key
+KEY_MOUSE/Mouse event read
+KEY_MOVE/Move key
+KEY_NEXT/Next object key
+KEY_OPEN/Open key
+KEY_OPTIONS/Options key
+KEY_PREVIOUS/Previous object key
+KEY_REDO/Redo key
+KEY_REFERENCE/Ref(erence) key
+KEY_REFRESH/Refresh key
+KEY_REPLACE/Replace key
+KEY_RESIZE/Screen resized
+KEY_RESTART/Restart key
+KEY_RESUME/Resume key
+KEY_SAVE/Save key
+KEY_SBEG/Shifted beginning key
+KEY_SCANCEL/Shifted cancel key
+KEY_SCOMMAND/Shifted command key
+KEY_SCOPY/Shifted copy key
+KEY_SCREATE/Shifted create key
+KEY_SDC/Shifted delete char key
+KEY_SDL/Shifted delete line key
+KEY_SELECT/Select key
+KEY_SEND/Shifted end key
+KEY_SEOL/Shifted clear line key
+KEY_SEXIT/Shifted exit key
+KEY_SFIND/Shifted find key
+KEY_SHELP/Shifted help key
+KEY_SHOME/Shifted home key
+KEY_SIC/Shifted input key
+KEY_SLEFT/Shifted left arrow key
+KEY_SMESSAGE/Shifted message key
+KEY_SMOVE/Shifted move key
+KEY_SNEXT/Shifted next key
+KEY_SOPTIONS/Shifted options key
+KEY_SPREVIOUS/Shifted prev key
+KEY_SPRINT/Shifted print key
+KEY_SREDO/Shifted redo key
+KEY_SREPLACE/Shifted replace key
+KEY_SRIGHT/Shifted right arrow
+KEY_SRSUME/Shifted resume key
+KEY_SSAVE/Shifted save key
+KEY_SSUSPEND/Shifted suspend key
+KEY_SUNDO/Shifted undo key
+KEY_SUSPEND/Suspend key
+KEY_UNDO/Undo key
+.TE
+.PP
+Keypad is arranged like this:
+.sp
+.TS
+center allbox tab(/) ;
+c c c .
+\fBA1\fR/\fBup\fR/\fBA3\fR
+\fBleft\fR/\fBB2\fR/\fBright\fR
+\fBC1\fR/\fBdown\fR/\fBC3\fR
+.TE
+.sp
+The \fBhas_key\fR routine takes a key value from the above list, and
+returns TRUE or FALSE according to whether
+the current terminal type recognizes a key with that value.
+Note that a few values do not correspond to a real key,
+e.g., \fBKEY_RESIZE\fP and \fBKEY_MOUSE\fP.
+See \fBresizeterm\fR(3X) for more details about \fBKEY_RESIZE\fP, and
+\fBcurs_mouse\fR(3X) for a discussion of \fBKEY_MOUSE\fP.
+.PP
+.SH RETURN VALUE
+All routines return the integer \fBERR\fR upon failure and an integer value
+other than \fBERR\fR (\fBOK\fR in the case of ungetch()) upon successful
+completion.
+.RS 3
+.TP 5
+\fBungetch\fP
+returns ERR
+if there is no more room in the FIFO.
+.TP
+\fBwgetch\fP
+returns ERR
+if the window pointer is null, or
+if its timeout expires without having any data.
+.RE
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH NOTES
+Use of the escape key by a programmer for a single character function is
+discouraged, as it will cause a delay of up to one second while the
+keypad code looks for a following function-key sequence.
+.PP
+Note that some keys may be the same as commonly used control
+keys, e.g., \fBKEY_ENTER\fP versus control/M, \fBKEY_BACKSPACE\fP versus control/H.
+Some curses implementations may differ according to whether they
+treat these control keys specially (and ignore the terminfo), or
+use the terminfo definitions.
+\fBNcurses\fR uses the terminfo definition.
+If it says that \fBKEY_ENTER\fP is control/M,
+\fBgetch\fR will return \fBKEY_ENTER\fP
+when you press control/M.
+.PP
+Generally, \fBKEY_ENTER\fP denotes the character(s) sent by the \fIEnter\fP
+key on the numeric keypad:
+.bP
+the terminal description lists the most useful keys,
+.bP
+the \fIEnter\fP key on the regular keyboard is already handled by
+the standard ASCII characters for carriage-return and line-feed,
+.bP
+depending on whether \fBnl\fP or \fBnonl\fP was called,
+pressing "Enter" on the regular keyboard may return either a carriage-return
+or line-feed, and finally
+.bP
+"Enter or send" is the standard description for this key.
+.PP
+When using \fBgetch\fR, \fBwgetch\fR, \fBmvgetch\fR, or
+\fBmvwgetch\fR, nocbreak mode (\fBnocbreak\fR) and echo mode
+(\fBecho\fR) should not be used at the same time.
+Depending on the
+state of the tty driver when each character is typed, the program may
+produce undesirable results.
+.PP
+Note that \fBgetch\fR, \fBmvgetch\fR, and \fBmvwgetch\fR may be macros.
+.PP
+Historically, the set of keypad macros was largely defined by the extremely
+function-key-rich keyboard of the AT&T 7300, aka 3B1, aka Safari 4.
+Modern
+personal computers usually have only a small subset of these.
+IBM PC-style
+consoles typically support little more than \fBKEY_UP\fR, \fBKEY_DOWN\fR,
+\fBKEY_LEFT\fR, \fBKEY_RIGHT\fR, \fBKEY_HOME\fR, \fBKEY_END\fR,
+\fBKEY_NPAGE\fR, \fBKEY_PPAGE\fR, and function keys 1 through 12.
+The Ins key
+is usually mapped to \fBKEY_IC\fR.
+.SH PORTABILITY
+The *get* functions are described in the XSI Curses standard, Issue 4.
+They
+read single-byte characters only.
+The standard specifies that they return
+\fBERR\fR on failure, but specifies no error conditions.
+.PP
+The echo behavior of these functions on input of \fBKEY_\fR or backspace
+characters was not specified in the SVr4 documentation.
+This description is
+adopted from the XSI Curses standard.
+.PP
+The behavior of \fBgetch\fR and friends in the presence of handled signals is
+unspecified in the SVr4 and XSI Curses documentation.
+Under historical curses
+implementations, it varied depending on whether the operating system's
+implementation of handled signal receipt interrupts a \fBread\fR(2) call in
+progress or not, and also (in some implementations) depending on whether an
+input timeout or non-blocking mode has been set.
+.PP
+Programmers concerned about portability should be prepared for either of two
+cases: (a) signal receipt does not interrupt \fBgetch\fR; (b) signal receipt
+interrupts \fBgetch\fR and causes it to return ERR with \fBerrno\fR set to
+\fBEINTR\fR.
+Under the \fBncurses\fR implementation, handled signals never
+interrupt \fBgetch\fR.
+.PP
+The \fBhas_key\fR function is unique to \fBncurses\fR.
+We recommend that
+any code using it be conditionalized on the \fBNCURSES_VERSION\fR feature macro.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_inopts\fR(3X),
+\fBcurs_outopts\fR(3X),
+\fBcurs_mouse\fR(3X),
+\fBcurs_move\fR(3X),
+\fBcurs_refresh\fR(3X),
+\fBresizeterm\fR(3X).
+.PP
+Comparable functions in the wide-character (ncursesw) library are
+described in
+\fBcurs_get_wch\fR(3X).

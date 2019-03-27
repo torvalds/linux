@@ -1,0 +1,135 @@
+=pod
+
+=head1 NAME
+
+RSA_padding_add_PKCS1_type_1, RSA_padding_check_PKCS1_type_1,
+RSA_padding_add_PKCS1_type_2, RSA_padding_check_PKCS1_type_2,
+RSA_padding_add_PKCS1_OAEP, RSA_padding_check_PKCS1_OAEP,
+RSA_padding_add_SSLv23, RSA_padding_check_SSLv23,
+RSA_padding_add_none, RSA_padding_check_none - asymmetric encryption
+padding
+
+=head1 SYNOPSIS
+
+ #include <openssl/rsa.h>
+
+ int RSA_padding_add_PKCS1_type_1(unsigned char *to, int tlen,
+                                  unsigned char *f, int fl);
+
+ int RSA_padding_check_PKCS1_type_1(unsigned char *to, int tlen,
+                                    unsigned char *f, int fl, int rsa_len);
+
+ int RSA_padding_add_PKCS1_type_2(unsigned char *to, int tlen,
+                                  unsigned char *f, int fl);
+
+ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
+                                    unsigned char *f, int fl, int rsa_len);
+
+ int RSA_padding_add_PKCS1_OAEP(unsigned char *to, int tlen,
+                                unsigned char *f, int fl, unsigned char *p, int pl);
+
+ int RSA_padding_check_PKCS1_OAEP(unsigned char *to, int tlen,
+                                  unsigned char *f, int fl, int rsa_len,
+                                  unsigned char *p, int pl);
+
+ int RSA_padding_add_SSLv23(unsigned char *to, int tlen,
+                            unsigned char *f, int fl);
+
+ int RSA_padding_check_SSLv23(unsigned char *to, int tlen,
+                              unsigned char *f, int fl, int rsa_len);
+
+ int RSA_padding_add_none(unsigned char *to, int tlen,
+                          unsigned char *f, int fl);
+
+ int RSA_padding_check_none(unsigned char *to, int tlen,
+                            unsigned char *f, int fl, int rsa_len);
+
+=head1 DESCRIPTION
+
+The RSA_padding_xxx_xxx() functions are called from the RSA encrypt,
+decrypt, sign and verify functions. Normally they should not be called
+from application programs.
+
+However, they can also be called directly to implement padding for other
+asymmetric ciphers. RSA_padding_add_PKCS1_OAEP() and
+RSA_padding_check_PKCS1_OAEP() may be used in an application combined
+with B<RSA_NO_PADDING> in order to implement OAEP with an encoding
+parameter.
+
+RSA_padding_add_xxx() encodes B<fl> bytes from B<f> so as to fit into
+B<tlen> bytes and stores the result at B<to>. An error occurs if B<fl>
+does not meet the size requirements of the encoding method.
+
+The following encoding methods are implemented:
+
+=over 4
+
+=item PKCS1_type_1
+
+PKCS #1 v2.0 EMSA-PKCS1-v1_5 (PKCS #1 v1.5 block type 1); used for signatures
+
+=item PKCS1_type_2
+
+PKCS #1 v2.0 EME-PKCS1-v1_5 (PKCS #1 v1.5 block type 2)
+
+=item PKCS1_OAEP
+
+PKCS #1 v2.0 EME-OAEP
+
+=item SSLv23
+
+PKCS #1 EME-PKCS1-v1_5 with SSL-specific modification
+
+=item none
+
+simply copy the data
+
+=back
+
+The random number generator must be seeded prior to calling
+RSA_padding_add_xxx().
+
+RSA_padding_check_xxx() verifies that the B<fl> bytes at B<f> contain
+a valid encoding for a B<rsa_len> byte RSA key in the respective
+encoding method and stores the recovered data of at most B<tlen> bytes
+(for B<RSA_NO_PADDING>: of size B<tlen>)
+at B<to>.
+
+For RSA_padding_xxx_OAEP(), B<p> points to the encoding parameter
+of length B<pl>. B<p> may be B<NULL> if B<pl> is 0.
+
+=head1 RETURN VALUES
+
+The RSA_padding_add_xxx() functions return 1 on success, 0 on error.
+The RSA_padding_check_xxx() functions return the length of the
+recovered data, -1 on error. Error codes can be obtained by calling
+L<ERR_get_error(3)>.
+
+=head1 WARNING
+
+The RSA_padding_check_PKCS1_type_2() padding check leaks timing
+information which can potentially be used to mount a Bleichenbacher
+padding oracle attack. This is an inherent weakness in the PKCS #1
+v1.5 padding design. Prefer PKCS1_OAEP padding. Otherwise it can
+be recommended to pass zero-padded B<f>, so that B<fl> equals to
+B<rsa_len>, and if fixed by protocol, B<tlen> being set to the
+expected length. In such case leakage would be minimal, it would
+take attacker's ability to observe memory access pattern with byte
+granilarity as it occurs, post-factum timing analysis won't do.
+
+=head1 SEE ALSO
+
+L<RSA_public_encrypt(3)>,
+L<RSA_private_decrypt(3)>,
+L<RSA_sign(3)>, L<RSA_verify(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

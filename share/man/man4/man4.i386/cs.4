@@ -1,0 +1,160 @@
+.\"
+.\" Copyright (c) 1998 Michael Smith
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 24 2018
+.Dt CS 4 i386
+.Os
+.Sh NAME
+.Nm cs
+.Nd "Ethernet device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device cs"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_cs_load="YES"
+.Ed
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.cs.0.at="isa"
+.Cd hint.cs.0.port="0x300"
+.Cd hint.cs.0.irq="10"
+.Cd hint.cs.0.maddr="0xd000"
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 13.0
+and later.
+See https://github.com/freebsd/fcp/blob/master/fcp-0101.md for more
+information.
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for ISA Ethernet adapters based on the
+.Tn Crystal Semiconductor CS8900
+and
+.Tn CS8920
+NICs.
+These devices are used on the
+.Tn IBM EtherJet ISA
+adapters and in many embedded applications where the high integration, small
+size and low cost of the CS89x0 family compensate for their drawbacks.
+.Pp
+The
+.Nm
+driver will obtain configuration parameters either from
+.Pa /boot/device.hints
+or from the card.
+At least the I/O port number must be specified.
+Other parameters specified in
+.Pa /boot/device.hints
+will be used if present;
+the card may be soft-configured so these may be any valid
+value.
+Adapters based on the CS8920 normally offer PnP configuration and the driver
+will detect the
+.Tn IBM EtherJet
+and the
+.Tn CSC6040
+adapters automatically.
+.Pp
+Note that the CS8900 is limited to 4 IRQ values; these are normally implemented
+as 5, 10, 11 and 12.
+The CS8920 has no such limitation.
+.Pp
+Memory-mapped and DMA operation are not supported at this time.
+.Pp
+In addition to the ISA devices, the PC Card devices based on the CS889x0
+family are also supported.
+The IBM EtherJet PCMCIA Card is the only known device based on this
+chip.
+The PC Card support does not need the above specific ISA hints to work.
+The PC Card support may not work for 10base2 (thinnet) connections and may
+bogusly claim to support 10base5 (there are no known cards that have an
+AUI necessary for 10base5 support on their dongles).
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "cs%d: full/half duplex negotiation timeout"
+The attempt to negotiate duplex settings with the hub timed out.
+This may
+indicate a cabling problem or a faulty or incompatible hub.
+.It "cs%d: failed to enable <media>"
+The CS89x0 failed to select the nominated media, either because it is not
+present or not operating correctly.
+.It "cs%d: No EEPROM, assuming defaults"
+The CS89x0 does not have an EEPROM, or the EEPROM is hopelessly damaged.
+Operation
+will only be successful if the configuration entry lists suitable values for
+the adapter.
+.It "cs%d: Invalid irq"
+The IRQ specified in the configuration entry is not valid for the adapter.
+.It "cs%d: Could not allocate memory for NIC"
+There is a critical memory shortage.
+The adapter will not function.
+.It "cs%d: Adapter has no media"
+The adapter is not configured for a specific media type.
+The media type will have
+to be manually set.
+.It "This is a %s, but LDN %d is disabled"
+The PnP probe code found a recognised adapter, but the adapter is disabled.
+.It "failed to read pnp parms"
+A PnP adapter was found, but configuration parameters for it could not be read.
+.It "failed to pnp card parameters"
+The parameters obtained via PnP were not accepted by the driver.
+The adapter
+may not function.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was written by
+.An Maxim Bolotin
+and
+.An Oleg Sharoiko .
+This manpage was written by
+.An Michael Smith .
+.Sh CAVEATS
+The CS89x0 family of adapters have a very small RAM buffer (4K).
+This may
+cause problems with extremely high network loads or bursty network traffic.
+In particular, NFS operations should be limited to 1k read/write transactions
+in order to avoid overruns.

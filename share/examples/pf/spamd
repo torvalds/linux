@@ -1,0 +1,8 @@
+# $FreeBSD$
+# $OpenBSD: spamd,v 1.2 2005/08/06 19:52:37 jmc Exp $
+
+# spamd-setup puts addresses to be redirected into table <spamd>.
+
+table <spamd> persist
+no rdr on { lo0, lo1 } from any to any
+rdr inet proto tcp from <spamd> to any port smtp -> 127.0.0.1 port spamd

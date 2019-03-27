@@ -1,0 +1,66 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_status_mailq_enable" in
+    [Yy][Ee][Ss])
+	if [ ! -x /usr/bin/mailq ]
+	then
+	    echo '$daily_status_mailq_enable is set but /usr/bin/mailq' \
+		"isn't executable"
+	    rc=2
+	else
+	    echo ""
+	    echo "Mail in local queue:"
+
+	    rc=$(case "$daily_status_mailq_shorten" in
+		[Yy][Ee][Ss])
+		    mailq |
+			egrep -e '^[[:space:]]+[^[:space:]]+@' |
+			sort |
+			uniq -c |
+			sort -nr |
+			awk '$1 >= 1 {print $1, $2}';;
+		*)
+		    mailq;;
+	    esac | tee /dev/stderr |
+	    egrep -v '((Mail |m)queue is empty|Total requests)' | wc -l)
+	    [ $rc -gt 0 ] && rc=1 || rc=0
+
+	    case "$daily_status_include_submit_mailq" in
+	    [Yy][Ee][Ss])
+		if [ -f /etc/mail/submit.cf ]
+		then
+		    echo ""
+		    echo "Mail in submit queue:"
+
+		    rc_submit=$(case "$daily_status_mailq_shorten" in
+			[Yy][Ee][Ss])
+			    mailq -Ac |
+				egrep -e '^[[:space:]]+[^[:space:]]+@' |
+				sort |
+				uniq -c |
+				sort -nr |
+				awk '$1 >= 1 {print $1, $2}';;
+			*)
+			    mailq -Ac;;
+		    esac | tee /dev/stderr |
+		    egrep -v '(mqueue is empty|Total requests)' | wc -l)
+		    [ $rc_submit -gt 0 ] && rc=1
+		fi;;
+	    esac
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

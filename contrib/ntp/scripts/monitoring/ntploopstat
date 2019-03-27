@@ -1,0 +1,458 @@
+#!/usr/bin/perl -w
+# --*-perl-*-
+;#
+;# ntploopstat,v 3.1 1993/07/06 01:09:11 jbj Exp
+;# 
+;# Poll NTP server using NTP mode 7 loopinfo request.
+;# Log info and timestamp to file for processing by ntploopwatch.
+;#
+;#
+;# Copyright (c) 1992
+;# Rainer Pruy Friedrich-Alexander Universitaet Erlangen-Nuernberg
+;#
+;#################################################################
+;#
+;# The format written to the logfile is the same as used by xntpd
+;# for the loopstats file.
+;# This script however allows to gather loop filter statistics from
+;# remote servers where you do not have access to the loopstats logfile.
+;#
+;# Please note: Communication delays affect the accuracy of the
+;#              timestamps recorded. Effects from these delays will probably
+;#              not show up, as timestamps are recorded to the second only.
+;#              (Should have implemented &gettimeofday()..)
+;#
+
+$0 =~ s!^.*/([^/]+)$!$1!;		# beautify script name
+
+$ntpserver = 'localhost';		# default host to poll
+$delay = 60;				# default sampling rate
+				       ;# keep it shorter than minpoll (=64)
+				       ;# to get all values
+
+require "ctime.pl";
+;# handle bug in early ctime distributions
+$ENV{'TZ'} = 'MET' unless defined($ENV{'TZ'}) || $] > 4.010;
+
+if (defined(@ctime'MoY))
+{
+    *MonthName = *ctime'MoY;
+}
+else
+{
+    @MonthName = ('Jan','Feb','Mar','Apr','May','Jun',
+		  'Jul','Aug','Sep','Oct','Nov','Dec');
+}
+
+;# this routine can be redefined to point to syslog if necessary
+sub msg
+{
+    return unless $verbose;
+
+    print  STDERR "$0: ";
+    printf STDERR @_;
+}
+
+;#############################################################
+;#
+;# process command line
+$usage = <<"E-O-S";
+
+usage:
+  $0 [-d<delay>] [-t<timeout>] [-l <logfile>] [-v] [ntpserver]
+E-O-S
+
+while($_ = shift)
+{
+    /^-v(\d*)$/ && ($verbose=($1 eq '') ? 1 : $1,1) && next;
+    /^-d(\d*)$/ &&
+	do {
+	    ($1 ne '') && ($delay = $1,1) && next;
+	    @ARGV || die("$0: delay value missing after -d\n$usage");
+	    $delay = shift;
+	    ($delay  >= 0) || die("$0: bad delay value \"$delay\"\n$usage");
+	    next;
+	};
+    /^-l$/ &&
+	do {
+	    @ARGV || die("$0: logfile missing after -l\n$usage");
+	    $logfile = shift;
+	    next;
+	};
+    /^-t(\d*(\.\d*)?)$/ &&
+	do {
+	    ($1 ne '') && ($timeout = $1,1) && next;
+	    @ARGV || die("$0: timeout value missing after -t\n$usage\n");
+	    $timeout = shift;
+	    ($timeout > 0) ||
+		die("$0: bad timeout value \"$timeout\"\n$usage");
+	    next;
+	};
+    
+    /^-/ && die("$0: unknown option \"$_\"\n$usage");
+
+    ;# any other argument is server to poll
+    $ntpserver = $_;
+    last;
+}
+
+if (@ARGV)
+{
+    warn("unexpected arguments: ".join(" ",@ARGV).".\n");
+    die("$0: too many servers specified\n$usage");
+}
+
+;# logfile defaults to include server name
+;# The name of the current month is appended and
+;# the file is opened and closed for each sample.
+;#
+$logfile = "loopstats:$ntpserver." unless defined($logfile);
+$timeout = 12.0 unless defined($timeout); # wait $timeout seconds for reply
+
+$MAX_FAIL = 60;				# give up after $MAX_FAIL failed polls
+
+
+$MJD_1970 = 40587;
+
+if (eval 'require "syscall.ph";')
+{
+    if (defined(&SYS_gettimeofday))
+    {
+	;# assume standard
+ 	;# gettimeofday(struct timeval *tp,struct timezone *tzp)
+	;# syntax for gettimeofday syscall
+ 	;# tzp = NULL -> undef
+	;# tp = (long,long)
+	eval 'sub time { local($tz) = pack("LL",0,0);
+              (&msg("gettimeofday failed: $!\n"),
+	      return (time))
+	      unless syscall(&SYS_gettimeofday,$tz,undef) == 0;
+              local($s,$us) = unpack("LL",$tz);
+              return $s + $us/1000000; }';
+	local($t1,$t2,$t3);
+	$t1 = time;
+	eval '$t2 = &time;';
+	$t3 = time;
+	die("$0: gettimeofday failed: $@.\n") if defined($@) && $@;
+	die("$0: gettimeofday inconsistency time=$t1,gettimeofday=$t2,time=$t2\n")
+	    if (int($t1) != int($t2) && int($t3) != int($t2));
+	&msg("Using gettimeofday for timestamps\n");
+    }
+    else
+    {
+	warn("No gettimeofday syscall found - using time builtin for timestamps\n");
+        eval 'sub time { return time; }';
+    }
+}
+else
+{
+    warn("No syscall.ph file found - using time builtin for timestamps\n");
+    eval 'sub time { return time; }';
+}
+
+
+;#------------------+
+;# from ntp_request.h
+;#------------------+
+
+;# NTP mode 7 packet format:
+;#	Byte 1:     ResponseBit MoreBit Version(3bit) Mode(3bit)==7
+;#      Byte 2:     AuthBit Sequence #   - 0 - 127 see MoreBit
+;#      Byte 3:     Implementation #
+;#      Byte 4:     Request Code
+;#
+;#      Short 1:    Err(3bit) NumItems(12bit)
+;#      Short 2:    MBZ(3bit)=0 DataItemSize(12bit)
+;#      0 - 500 byte Data 
+;#  if AuthBit is set:
+;#      Long:       KeyId
+;#      2xLong:     AuthCode
+
+;# 
+$IMPL_XNTPD  = 2;
+$REQ_LOOP_INFO = 8;
+
+
+;# request packet for REQ_LOOP_INFO:
+;#     B1:  RB=0 MB=0 V=2 M=7 
+;#     B2:  S# = 0
+;#     B3:  I# = IMPL_XNTPD
+;#     B4:  RC = REQ_LOOP_INFO
+;#     S1:  E=0 NI=0
+;#     S2:  MBZ=0 DIS=0
+;#     data:  32 byte 0 padding
+;#            8byte timestamp if encryption, 0 padding otherwise
+$loopinfo_reqpkt = 
+    pack("CCCC nn x32 x8", 0x17, 0, $IMPL_XNTPD, $REQ_LOOP_INFO, 0, 0);
+
+;# ignore any auth data in packets
+$loopinfo_response_size =
+    1+1+1+1+2+2			# header size like request pkt
+    + 8				# l_fp last_offset
+    + 8				# l_fp drift_comp
+    + 4				# u_long compliance
+    + 4				# u_long watchdog_timer
+    ;
+$loopinfo_response_fmt    = "C4n2N2N2NN"; 
+$loopinfo_response_fmt_v2 = "C4n2N2N2N2N"; 
+
+;#
+;# prepare connection to server
+;# 
+
+;# workaround for broken socket.ph on dynix_ptx
+eval 'sub INTEL {1;}' unless defined(&INTEL);
+eval 'sub ATT {1;}'  unless defined(&ATT);
+
+require "sys/socket.ph";
+
+require 'netinet/in.ph';
+
+;# if you do not have netinet/in.ph enable the following lines
+;#eval 'sub INADDR_ANY { 0x00000000; }' unless defined(&INADDR_ANY);
+;#eval 'sub IPPRORO_UDP { 17; }' unless defined(&IPPROTO_UDP);
+
+if ($ntpserver =~ /^((0x?)?\w+)\.((0x?)?\w+)\.((0x?)?\w+)\.((0x?)?\w+)$/)
+{
+    local($a,$b,$c,$d) = ($1,$3,$5,$7);
+    $a = oct($a) if defined($2);
+    $b = oct($b) if defined($4);
+    $c = oct($c) if defined($6);
+    $d = oct($d) if defined($8);
+    $server_addr = pack("C4", $a,$b,$c,$d);
+
+    $server_mainname
+	= (gethostbyaddr($server_addr,&AF_INET))[$[] || $ntpserver;
+}
+else
+{
+    ($server_mainname,$server_addr)
+	= (gethostbyname($ntpserver))[$[,$[+4];
+
+    die("$0: host \"$ntpserver\" is unknown\n")
+	unless defined($server_addr);
+}
+&msg ("Address of server \"$ntpserver\" is \"%d.%d.%d.%d\"\n",
+      unpack("C4",$server_addr));
+
+$proto_udp = (getprotobyname('udp'))[$[+2] || &IPPROTO_UDP;
+ 
+$ntp_port =
+    (getservbyname('ntp','udp'))[$[+2] ||
+    (warn "Could not get port number for service \"ntp/udp\" using 123\n"),
+    ($ntp_port=123);
+ 
+;# 
+0 && &SOCK_DGRAM;		# satisfy perl -w ...
+socket(S, &AF_INET, &SOCK_DGRAM, $proto_udp) ||
+    die("Cannot open socket: $!\n");
+
+bind(S, pack("S n N x8", &AF_INET, 0, &INADDR_ANY)) ||
+    die("Cannot bind: $!\n");
+ 
+($my_port, $my_addr) = (unpack("S n a4 x8",getsockname(S)))[$[+1,$[+2];
+
+&msg("Listening at address %d.%d.%d.%d port %d\n",
+     unpack("C4",$my_addr), $my_port);
+
+$server_inaddr = pack("Sna4x8", &AF_INET, $ntp_port, $server_addr);
+
+;############################################################
+;#
+;# the main loop:
+;#	send request
+;#      get reply
+;#      wait til next sample time
+
+undef($lasttime);
+$lostpacket = 0;
+
+while(1)
+{
+    $stime = &time;
+
+    &msg("Sending request $stime...\n");
+
+    $ret = send(S,$loopinfo_reqpkt,0,$server_inaddr);
+
+    if (! defined($ret) || $ret < length($loopinfo_reqpkt))
+    {
+	warn("$0: send failed ret=($ret): $!\n");
+	$fail++;
+	next;
+    }
+
+    &msg("Waiting for reply...\n");
+
+    $mask = ""; vec($mask,fileno(S),1) = 1;
+    $ret = select($mask,undef,undef,$timeout);
+
+    if (! defined($ret))
+    {
+	warn("$0: select failed: $!\n");
+	$fail++;
+	next;
+    }
+    elsif ($ret == 0)
+    {
+	warn("$0: request to $ntpserver timed out ($timeout seconds)\n");
+	;# do not count this event as failure
+	;# it usually this happens due to dropped udp packets on noisy and
+	;# havily loaded lines, so just try again;
+	$lostpacket = 1;
+	next;
+    }
+
+    &msg("Receiving reply...\n");
+
+    $len = 520;				# max size of a mode 7 packet
+    $reply = "";			# just make it defined for -w
+    $ret = recv(S,$reply,$len,0);
+
+    if (!defined($ret))
+    {
+	warn("$0: recv failed: $!\n");
+	$fail++;
+	next;
+    }
+
+    $etime = &time;
+    &msg("Received at\t$etime\n");
+
+    ;#$time = ($stime + $etime) / 2; # symmetric delay assumed
+    $time = $etime;		# the above assumption breaks for X25
+			       ;# so taking etime makes timestamps be a
+			       ;# little late, but keeps them increasing
+			       ;# monotonously
+
+    &msg(sprintf("Reply from %d.%d.%d.%d took %f seconds\n",
+		 (unpack("SnC4",$ret))[$[+2 .. $[+5], ($etime - $stime)));
+
+    if ($len < $loopinfo_response_size)
+    {
+	warn("$0: short packet ($len bytes) received ($loopinfo_response_size bytes expected\n");
+	$fail++;
+	next;
+    }
+    
+    ($b1,$b2,$b3,$b4,$s1,$s2,
+     $offset_i,$offset_f,$drift_i,$drift_f,$compl,$watchdog)
+	= unpack($loopinfo_response_fmt,$reply);
+
+    ;# check reply
+    if (($s1 >> 12) != 0)	      # error !
+    {
+	die("$0: got error reply ".($s1>>12)."\n");
+    }
+    if (($b1 != 0x97 && $b1 != 0x9f) || # Reply NotMore V=2 M=7
+	($b2 != 0 && $b2 != 0x80) ||	# S=0 Auth no/yes
+	$b3 != $IMPL_XNTPD ||		# ! IMPL_XNTPD
+	$b4 != $REQ_LOOP_INFO ||	# Ehh.. not loopinfo reply ?
+	$s1 != 1 ||			# ????
+	($s2 != 24 && $s2 != 28)	# 
+	)
+    {
+	warn("$0: Bad/unexpected reply from server:\n");
+	warn("  \"".unpack("H*",$reply)."\"\n");
+	warn("   ".sprintf("b1=%x b2=%x b3=%x b4=%x s1=%d s2=%d\n",
+			   $b1,$b2,$b3,$b4,$s1,$s2));
+	$fail++;
+	next;
+    }
+    elsif ($s2 == 28)
+    {
+      ;# seems to be a version 2 xntpd
+      ($b1,$b2,$b3,$b4,$s1,$s2,
+       $offset_i,$offset_f,$drift_i,$drift_f,$compl_i,$compl_f,$watchdog)
+	  = unpack($loopinfo_response_fmt_v2,$reply);
+      $compl = &lfptoa($compl_i, $compl_f);
+    }
+
+    $time -= $watchdog;
+
+    $offset = &lfptoa($offset_i, $offset_f);
+    $drift  = &lfptoa($drift_i, $drift_f);
+
+    &log($time,$offset,$drift,$compl) && ($fail = 0);;
+}
+continue
+{
+    die("$0: Too many failures - terminating\n") if $fail > $MAX_FAIL;
+    &msg("Sleeping " . ($lostpacket ? ($delay / 2) : $delay) . " seconds...\n");
+
+    sleep($lostpacket ? ($delay / 2) : $delay);
+    $lostpacket = 0;
+}
+
+sub log
+{
+    local($time,$offs,$freq,$cmpl) = @_;
+    local($y,$m,$d);
+    local($fname,$suff) = ($logfile);
+
+
+    ;# silently drop sample if distance to last sample is too low
+    if (defined($lasttime) && ($lasttime + 2) >= $time)
+    {
+      &msg("Dropped packet - old sample\n");
+      return 1;
+    }
+
+    ;# $suff determines which samples end up in the same file
+    ;# could have used $year (;-) or WeekOfYear, DayOfYear,....
+    ;# Change it to your suit...
+
+    ($d,$m,$y) = (localtime($time))[$[+3 .. $[+5];
+    $suff = sprintf("%04d%02d%02d",$y+1900,$m+1,$d);
+    $fname .= $suff;
+    if (!open(LOG,">>$fname"))
+    {
+	warn("$0: open($fname) failed: $!\n");
+	$fail++;
+	return 0;
+    }
+    else
+    {
+	;# file format
+	;#          MJD seconds offset drift compliance
+	printf LOG ("%d %.3lf %.8lf %.7lf %d\n",
+		    int($time/86400)+$MJD_1970,
+		    $time - int($time/86400) * 86400,
+		    $offs,$freq,$cmpl);
+	close(LOG);
+	$lasttime = $time;
+    }
+    return 1;
+}
+
+;# see ntp_fp.h to understand this
+sub lfptoa
+{
+    local($i,$f) = @_;
+    local($sign) = 1;
+
+    
+    if ($i & 0x80000000)
+    {
+	if ($f == 0)
+	{
+	    $i = -$i;
+	}
+	else
+	{
+	    $f = -$f;
+	    $i = ~$i;
+	    $i += 1;			# 2s complement
+	}
+	$sign = -1;
+	;#print "NEG: $i $f\n";
+    }
+    else
+    {
+	;#print "POS: $i $f\n";
+    }
+    ;# unlike xntpd I have perl do the dirty work.
+    ;# Using floats here may affect precision, but
+    ;# currently these bits aren't significant anyway
+    return $sign * ($i + $f/2**32);    
+}

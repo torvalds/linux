@@ -1,0 +1,231 @@
+.\"-
+.\" Copyright (c) 1999-2002 Robert N. M. Watson
+.\" Copyright (c) 2002-2004 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed by Robert Watson for the TrustedBSD Project.
+.\"
+.\" This software was developed for the FreeBSD Project in part by Network
+.\" Associates Laboratories, the Security Research Division of Network
+.\" Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.\" ("CBOSS"), as part of the DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 25, 2015
+.Dt MAC 9
+.Os
+.Sh NAME
+.Nm mac
+.Nd TrustedBSD Mandatory Access Control framework
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/mac.h
+.Pp
+In the kernel configuration file:
+.Cd "options MAC"
+.Cd "options MAC_DEBUG"
+.Sh DESCRIPTION
+.Ss Introduction
+The
+.Tn TrustedBSD
+mandatory access control framework permits dynamically
+introduced system security modules to modify system security functionality.
+This can be used to support a variety of new security services, including
+traditional labeled mandatory access control models.
+The framework provides a series of entry points which must be called by
+code supporting various kernel services, especially with respects to access
+control points and object creation.
+The framework then calls out to security modules to offer them the
+opportunity to modify security behavior at those MAC API entry points.
+Both consumers of the API (normal kernel services) and security modules
+must be aware of the semantics of the API calls, particularly with respect
+to synchronization primitives (such as locking).
+.Ss Kernel Objects Supported by the Framework
+The MAC framework manages labels on a variety of types of in-kernel
+objects, including process credentials, vnodes, devfs_dirents, mount
+points, sockets, mbufs, bpf descriptors, network interfaces, IP fragment
+queues, and pipes.
+Label data on kernel objects, represented by
+.Vt "struct label" ,
+is policy-unaware, and may be used in the manner seen fit by policy modules.
+.Ss API for Consumers
+The MAC API provides a large set of entry points, too broad to specifically
+document here.
+In general, these entry points represent an access control check or other
+MAC-relevant operations, accept one or more subjects (credentials)
+authorizing the activity, a set of objects on which the operation
+is to be performed, and a set of operation arguments providing information
+about the type of operation being requested.
+.Ss Locking for Consumers
+Consumers of the MAC API must be aware of the locking requirements for
+each API entry point: generally, appropriate locks must be held over each
+subject or object being passed into the call, so that MAC modules may
+make use of various aspects of the object for access control purposes.
+For example, vnode locks are frequently required in order that the MAC
+framework and modules may retrieve security labels and attributes from the
+vnodes for the purposes of access control.
+Similarly, the caller must be aware of the reference counting semantics
+of any subject or object passed into the MAC API: all calls require that
+a valid reference to the object be held for the duration of the
+(potentially lengthy) MAC API call.
+Under some circumstances, objects must be held in either a shared or
+exclusive manner.
+.Ss API for Module Writers
+Each module exports a structure describing the MAC API operations that
+the module chooses to implement, including initialization and destruction
+API entry points, a variety of object creation and destruction calls,
+and a large set of access control check points.
+In the future, additional audit entry points will also be present.
+Module authors may choose to only implement a subset of the entry points,
+setting API function pointers in the description structure to
+.Dv NULL ,
+permitting the framework to avoid calling into the module.
+.Ss Locking for Module Writers
+Module writers must be aware of the locking semantics of entry points
+that they implement: MAC API entry points will have specific locking
+or reference counting semantics for each argument, and modules must follow
+the locking and reference counting protocol or risk a variety of failure
+modes (including race conditions, inappropriate pointer dereferences,
+etc).
+.Pp
+MAC module writers must also be aware that MAC API entry points will
+frequently be invoked from deep in a kernel stack, and as such must be
+careful to avoid violating more global locking requirements, such as
+global lock order requirements.
+For example, it may be inappropriate to lock additional objects not
+specifically maintained and ordered by the policy module, or the
+policy module might violate a global ordering requirement relating
+to those additional objects.
+.Pp
+Finally, MAC API module implementors must be careful to avoid
+inappropriately calling back into the MAC framework: the framework
+makes use of locking to prevent inconsistencies during policy module
+attachment and detachment.
+MAC API modules should avoid producing scenarios in which deadlocks
+or inconsistencies might occur.
+.Ss Adding New MAC Entry Points
+The MAC API is intended to be easily expandable as new services are
+added to the kernel.
+In order that policies may be guaranteed the opportunity to ubiquitously
+protect system subjects and objects, it is important that kernel
+developers maintain awareness of when security checks or relevant
+subject or object operations occur in newly written or modified kernel
+code.
+New entry points must be carefully documented so as to prevent any
+confusion regarding lock orders and semantics.
+Introducing new entry points requires four distinct pieces of work:
+introducing new MAC API entries reflecting the operation arguments,
+scattering these MAC API entry points throughout the new or modified
+kernel service, extending the front-end implementation of the MAC API
+framework, and modifying appropriate modules to take advantage of
+the new entry points so that they may consistently enforce their
+policies.
+.Sh ENTRY POINTS
+System service and module authors should reference the
+.%T "FreeBSD Architecture Handbook"
+for information on the MAC Framework APIs.
+.Sh SEE ALSO
+.Xr acl 3 ,
+.Xr mac 3 ,
+.Xr posix1e 3 ,
+.Xr mac_biba 4 ,
+.Xr mac_bsdextended 4 ,
+.Xr mac_ifoff 4 ,
+.Xr mac_lomac 4 ,
+.Xr mac_mls 4 ,
+.Xr mac_none 4 ,
+.Xr mac_partition 4 ,
+.Xr mac_seeotheruids 4 ,
+.Xr mac_test 4 ,
+.Xr ucred 9 ,
+.Xr vaccess 9 ,
+.Xr vaccess_acl_posix1e 9 ,
+.Xr VFS 9
+.Rs
+.%T "The FreeBSD Architecture Handbook"
+.%U "https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/arch-handbook/"
+.Re
+.Sh HISTORY
+The
+.Tn TrustedBSD
+MAC Framework first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+This manual page was written by
+.An Robert Watson .
+This software was contributed to the
+.Fx
+Project by Network Associates Laboratories, the Security Research
+Division of Network Associates Inc.\& under DARPA/SPAWAR contract
+N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+.An -nosplit
+The
+.Tn TrustedBSD
+MAC Framework was designed by
+.An Robert Watson ,
+and implemented by the Network Associates Laboratories Network Security
+(NETSEC), Secure Execution Environment (SEE), and Adaptive
+Network Defense research groups.
+Network Associates Laboratory staff contributing to the CBOSS Project
+include (in alphabetical order):
+.An Lee Badger ,
+.An Brian Feldman ,
+.An Hrishikesh Dandekar ,
+.An Tim Fraser ,
+.An Doug Kilpatrick ,
+.An Suresh Krishnaswamy ,
+.An Adam Migus ,
+.An Wayne Morrison ,
+.An Andrew Reisse ,
+.An Chris Vance ,
+and
+.An Robert Watson .
+.Pp
+Sub-contracted staff include:
+.An Chris Costello ,
+.An Poul-Henning Kamp ,
+.An Jonathan Lemon ,
+.An Kirk McKusick ,
+.An Dag-Erling Sm\(/orgrav .
+.Pp
+Additional contributors include:
+.An Pawel Dawidek ,
+.An Chris Faulhaber ,
+.An Ilmar Habibulin ,
+.An Mike Halderman ,
+.An Bosko Milekic ,
+.An Thomas Moestl ,
+.An Andrew Reiter ,
+and
+.An Tim Robbins .
+.Sh BUGS
+While the MAC Framework design is intended to support the containment of
+the root user, not all attack channels are currently protected by entry
+point checks.
+As such, MAC Framework policies should not be relied on, in isolation,
+to protect against a malicious privileged user.

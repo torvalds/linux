@@ -1,0 +1,66 @@
+.\"
+.\" Copyright (c) 2005 Mark Santcroos <marks@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 20, 2005
+.Dt SNAPINFO 8
+.Os
+.Sh NAME
+.Nm snapinfo
+.Nd "show snapshot location on UFS file systems"
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Fl a
+.Nm
+.Op Fl v
+.Ar mountpoint
+.Sh DESCRIPTION
+The
+.Nm
+utility searches and displays the location of snapshots on UFS file systems.
+.Pp
+Currently it works only on mounted file systems.
+It can either search one file system or all of them.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl a
+Search for snapshots on all mounted UFS file systems.
+.It Fl v
+Verbose mode.
+.It Ar mountpoint
+Search the file system mounted on this mountpoint.
+.El
+.Sh SEE ALSO
+.Xr ffs 7 ,
+.Xr mksnap_ffs 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 6.1 .
+.Sh AUTHORS
+.An Mark Santcroos Aq Mt marks@FreeBSD.org

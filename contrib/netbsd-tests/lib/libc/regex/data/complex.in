@@ -1,0 +1,23 @@
+# complexities
+a(((b)))c	-	abc	abc
+a(b|(c))d	-	abd	abd
+a(b*|c)d	-	abbd	abbd
+# just gotta have one DFA-buster, of course
+a[ab]{20}	-	aaaaabaaaabaaaabaaaab	aaaaabaaaabaaaabaaaab
+# and an inline expansion in case somebody gets tricky
+a[ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab]	-	aaaaabaaaabaaaabaaaab	aaaaabaaaabaaaabaaaab
+# and in case somebody just slips in an NFA...
+a[ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab](wee|week)(knights|night)	-	aaaaabaaaabaaaabaaaabweeknights	aaaaabaaaabaaaabaaaabweeknights
+# fish for anomalies as the number of states passes 32
+12345678901234567890123456789	-	a12345678901234567890123456789b	12345678901234567890123456789
+123456789012345678901234567890	-	a123456789012345678901234567890b	123456789012345678901234567890
+1234567890123456789012345678901	-	a1234567890123456789012345678901b	1234567890123456789012345678901
+12345678901234567890123456789012	-	a12345678901234567890123456789012b	12345678901234567890123456789012
+123456789012345678901234567890123	-	a123456789012345678901234567890123b	123456789012345678901234567890123
+# and one really big one, beyond any plausible word width
+1234567890123456789012345678901234567890123456789012345678901234567890	-	a1234567890123456789012345678901234567890123456789012345678901234567890b	1234567890123456789012345678901234567890123456789012345678901234567890
+# fish for problems as brackets go past 8
+[ab][cd][ef][gh][ij][kl][mn]	-	xacegikmoq	acegikm
+[ab][cd][ef][gh][ij][kl][mn][op]	-	xacegikmoq	acegikmo
+[ab][cd][ef][gh][ij][kl][mn][op][qr]	-	xacegikmoqy	acegikmoq
+[ab][cd][ef][gh][ij][kl][mn][op][q]	-	xacegikmoqy	acegikmoq

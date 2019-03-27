@@ -1,0 +1,28 @@
+# $FreeBSD$
+
+ARCHS+=	rs6000
+
+DEFAULT_VECTOR=	bfd_elf64_powerpc_vec
+NO_WERROR.clang= 
+
+SRCS+=	cpu-powerpc.c	\
+	cpu-rs6000.c	\
+	elf32.c		\
+	elf32-gen.c	\
+	elf32-ppc.c	\
+	elf32-target.h	\
+	elflink.c	\
+	elf64.c		\
+	elf64-gen.c	\
+	elf64-ppc.c	\
+	elf64-target.h	\
+	elflink.c	\
+	ppcboot.c	\
+	xcofflink.c
+
+VECS+=	${DEFAULT_VECTOR} \
+	bfd_elf64_powerpcle_vec	\
+	bfd_elf32_powerpc_vec \
+	bfd_elf32_powerpcle_vec \
+	ppcboot_vec
+

@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+case ^ in
+[\^^]) ;;
+*) echo Failed at $LINENO ;;
+esac
+
+case s in
+[\^^]) echo Failed at $LINENO ;;
+[s\]]) ;;
+*) echo Failed at $LINENO ;;
+esac

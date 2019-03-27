@@ -1,0 +1,172 @@
+.\"
+.\" Copyright (c) 2003 Bruce M Simpson <bms@spc.org>
+.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 16, 2018
+.Dt PMAP_ENTER 9
+.Os
+.Sh NAME
+.Nm pmap_enter
+.Nd insert a virtual page into a physical map
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/pmap.h
+.Ft int
+.Fo pmap_enter
+.Fa "pmap_t pmap" "vm_offset_t va" "vm_page_t m" "vm_prot_t prot"
+.Fa "u_int flags" "int8_t psind"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn pmap_enter
+function creates a mapping in the physical map
+.Fa pmap
+from the virtual address
+.Fa va
+to the physical page
+.Fa m
+with the protection
+.Fa prot .
+Any previous mapping at the virtual address
+.Fa va
+is destroyed.
+.Pp
+The
+.Fa flags
+argument may have the following values:
+.Bl -tag -width ".Dv PMAP_ENTER_NOSLEEP"
+.It Dv VM_PROT_READ
+A read access to the given virtual address triggered the call.
+.It Dv VM_PROT_WRITE
+A write access to the given virtual address triggered the call.
+.It Dv VM_PROT_EXECUTE
+An execute access to the given virtual address triggered the call.
+.It Dv PMAP_ENTER_WIRED
+The mapping should be marked as wired.
+.It Dv PMAP_ENTER_NOSLEEP
+This function may not sleep during creation of the mapping.
+If the mapping cannot be created without sleeping, an appropriate
+Mach VM error is returned.
+.El
+If the
+.Dv PMAP_ENTER_NOSLEEP
+flag is not specified, this function must create the requested mapping
+before returning.
+It may not fail.
+In order to create the requested mapping, this function may destroy
+any non-wired mapping in any pmap.
+.Pp
+The
+.Fa psind
+parameter specifies the page size that should be used by the mapping.
+The supported page sizes are described by the global array
+.Dv pagesizes[] .
+The desired page size is specified by passing the index of the array
+element that equals the desired page size.
+.Pp
+When the
+.Fn pmap_enter
+function destroys or updates a managed mapping, including an existing
+mapping at virtual address
+.Fa va ,
+it updates the
+.Ft vm_page
+structure corresponding to the previously mapped physical page.
+If the physical page was accessed through the managed mapping,
+then the
+.Ft vm_page
+structure's
+.Dv PGA_REFERENCED
+aflag is set.
+If the physical page was modified through the managed mapping, then the
+.Fn vm_page_dirty
+function is called on the
+.Ft vm_page
+structure.
+.Pp
+The
+.Dv PGA_WRITEABLE
+aflag must be set for the page
+.Fa m
+if the new mapping is managed and writeable.
+It is advised to clear
+.Dv PGA_WRITEABLE
+for destroyed mappings if the implementation can ensure
+that no other writeable managed mappings for the previously
+mapped pages exist.
+.Pp
+If the request modifies an existing mapping to use a different physical
+page, an implementation of
+.Nm
+must invalidate the previous mapping before installing the new one.
+This ensures that all threads sharing the pmap keep a consistent
+view of the mapping, which is necessary for the correct handling
+of CoW (copy on write) faults.
+.Pp
+If the page
+.Fa m
+is managed, the page must be busied by the caller
+or the owning object must be locked.
+In the later case, the
+.Dv PMAP_ENTER_NOSLEEP
+must be specified by the caller.
+.Pp
+The
+.Fn pmap_enter
+function must handle the multiprocessor TLB consistency for the
+given address.
+.Sh NOTES
+On arm and i386 architectures the existing implementation
+of the
+.Nm
+function is incomplete, only value 0 for
+.Fa psind
+is supported.
+Other supported architectures, except amd64, have
+.Dv pagesizes[]
+array of size 1.
+.Sh RETURN VALUES
+If successful, the
+.Fn pmap_enter
+function returns
+.Er KERN_SUCCESS .
+If the
+.Dv PMAP_ENTER_NOSLEEP
+flag was specified and the resources required for the mapping cannot
+be acquired without sleeping,
+.Dv KERN_RESOURCE_SHORTAGE
+is returned.
+.Sh SEE ALSO
+.Xr pmap 9
+.Sh AUTHORS
+This manual page was first written by
+.An Bruce M Simpson Aq Mt bms@spc.org
+and then rewritten by
+.An Alan Cox Aq Mt alc@FreeBSD.org
+and
+.An Konstantin Belousov Aq Mt kib@FreeBSD.org .

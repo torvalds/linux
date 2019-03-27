@@ -1,0 +1,105 @@
+#
+# This file adds to the values in AR933X_BASE.hints
+#
+# $FreeBSD$
+
+# mdiobus on arge1
+hint.argemdio.0.at="nexus0"
+hint.argemdio.0.maddr=0x1a000000
+hint.argemdio.0.msize=0x1000
+hint.argemdio.0.order=0
+
+# There's no need to set the ar933x GMAC configuration bits.
+# This just creates a switch instance and correctly uses it.
+
+# Embedded Atheros Switch
+hint.arswitch.0.at="mdio0"
+
+# XXX this should really say it's an AR933x switch, as there
+# are some vlan specific differences here!
+hint.arswitch.0.is_7240=1
+hint.arswitch.0.numphys=4
+hint.arswitch.0.phy4cpu=1	# phy 4 is a "CPU" separate PHY
+hint.arswitch.0.is_rgmii=0
+hint.arswitch.0.is_gmii=1	# arge1 <-> switch PHY is GMII
+
+# arge0 - MII, autoneg, phy(4)
+hint.arge.0.phymask=0x10	# PHY4
+hint.arge.0.mdio=mdioproxy1	# .. off of the switch mdiobus
+
+# arge1 - GMII, 1000/full
+hint.arge.1.phymask=0x0		# No directly mapped PHYs
+hint.arge.1.media=1000
+hint.arge.1.fduplex=1
+
+# Where the ART is - last 64k in the flash
+# 0x9fff1000 ?
+hint.ath.0.eepromaddr=0x1fff0000
+hint.ath.0.eepromsize=16384
+
+# The board 16MiB flash layout in uboot env:
+#
+# 256k (uboot), 64k (uboot-env), 14336k (rootfs), 1600k (kernel), 64k (NVRAM), 64k (ART)
+
+# However, it boots from 0x9f050000, which is the front of the flsah!
+# Thus the kernel/rootfs are switched around.
+
+# 256KB
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x000040000
+hint.map.0.name="uboot"
+hint.map.0.readonly=1
+
+# 64KB
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00040000
+hint.map.1.end=0x00050000
+hint.map.1.name="uboot-env"
+hint.map.1.readonly=0
+
+# 1600KB
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x00050000
+hint.map.2.end=0x001e0000
+hint.map.2.name="kernel"
+hint.map.2.readonly=0
+
+# 14336KB
+hint.map.3.at="flash/spi0"
+hint.map.3.start=0x001e0000
+hint.map.3.end=0x00fe0000
+hint.map.3.name="rootfs"
+hint.map.3.readonly=0
+
+# NVRAM
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x00fe0000
+hint.map.4.end=0x00ff0000
+hint.map.4.name="cfg"
+hint.map.4.readonly=0
+
+# This is radio calibration section.  It is (or should be!) unique
+# for each board, to take into account thermal and electrical differences
+# as well as the regulatory compliance data.
+#
+hint.map.5.at="flash/spi0"
+hint.map.5.start=0x00ff0000
+hint.map.5.end=0x01000000
+hint.map.5.name="art"
+hint.map.5.readonly=1
+
+# GPIO specific configuration block
+
+# Don't flip on anything that isn't already enabled.
+# This includes leaving the SPI CS1/CS2 pins as GPIO pins as they're
+# not used here.
+hint.gpio.0.function_set=0x00000000
+hint.gpio.0.function_clear=0x00000000
+
+# These are the GPIO LEDs and buttons which can be software controlled.
+#hint.gpio.0.pinmask=0x001c02ae
+#hint.gpio.0.pinmask=0x00001803
+
+# XXX TODO: the button and LEDs!
+

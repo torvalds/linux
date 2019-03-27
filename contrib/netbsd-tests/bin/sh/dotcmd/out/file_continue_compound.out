@@ -1,0 +1,6 @@
+before dotcmd
+compound start
+before continue
+after continue, return value: 0
+compound end
+after dotcmd, return value: 0

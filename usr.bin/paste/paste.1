@@ -1,0 +1,146 @@
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Adam S. Moskowitz and the Institute of Electrical and Electronics
+.\" Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)paste.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd June 25, 2004
+.Dt PASTE 1
+.Os
+.Sh NAME
+.Nm paste
+.Nd merge corresponding or subsequent lines of files
+.Sh SYNOPSIS
+.Nm
+.Op Fl s
+.Op Fl d Ar list
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility concatenates the corresponding lines of the given input files,
+replacing all but the last file's newline characters with a single tab
+character, and writes the resulting lines to standard output.
+If end-of-file is reached on an input file while other input files
+still contain data, the file is treated as if it were an endless source
+of empty lines.
+.Pp
+The options are as follows:
+.Bl -tag -width Fl
+.It Fl d Ar list
+Use one or more of the provided characters to replace the newline
+characters instead of the default tab.
+The characters in
+.Ar list
+are used circularly, i.e., when
+.Ar list
+is exhausted the first character from
+.Ar list
+is reused.
+This continues until a line from the last input file (in default operation)
+or the last line in each file (using the
+.Fl s
+option) is displayed, at which
+time
+.Nm
+begins selecting characters from the beginning of
+.Ar list
+again.
+.Pp
+The following special characters can also be used in list:
+.Pp
+.Bl -tag -width flag -compact
+.It Li \en
+newline character
+.It Li \et
+tab character
+.It Li \e\e
+backslash character
+.It Li \e0
+Empty string (not a null character).
+.El
+.Pp
+Any other character preceded by a backslash is equivalent to the
+character itself.
+.It Fl s
+Concatenate all of the lines of each separate input file in command line
+order.
+The newline character of every line except the last line in each input
+file is replaced with the tab character, unless otherwise specified by
+the
+.Fl d
+option.
+.El
+.Pp
+If
+.Sq Fl
+is specified for one or more of the input files, the standard
+input is used; standard input is read one line at a time, circularly,
+for each instance of
+.Sq Fl .
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+List the files in the current directory in three columns:
+.Pp
+.Dl "ls | paste - - -"
+.Pp
+Combine pairs of lines from a file into single lines:
+.Pp
+.Dl "paste -s -d '\et\en' myfile"
+.Pp
+Number the lines in a file, similar to
+.Xr nl 1 :
+.Pp
+.Dl "sed = myfile | paste -s -d '\et\en' - -"
+.Pp
+Create a colon-separated list of directories named
+.Pa bin ,
+suitable
+for use in the
+.Ev PATH
+environment variable:
+.Pp
+.Dl "find / -name bin -type d | paste -s -d : -"
+.Sh SEE ALSO
+.Xr cut 1 ,
+.Xr lam 1
+.Sh STANDARDS
+The
+.Nm
+utility is expected to be
+.St -p1003.2
+compatible.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At 32v .

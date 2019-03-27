@@ -1,0 +1,135 @@
+.\"
+.\" Copyright (c) 2004 3ware, Inc.
+.\" Copyright (c) 2000 BSDi
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 9, 2007
+.Dt TWA 4
+.Os
+.Sh NAME
+.Nm twa
+.Nd 3ware 9000/9500/9550/9650 series SATA RAID controllers driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device twa"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+twa_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for AMCC's 3ware 9000/9500/9550/9650 series
+SATA controllers.
+.Pp
+These controllers are available in 4, 8, 12 or 16-port configurations,
+and support the following RAID levels: 0, 1, 10, 5, 50.
+The device nodes for the controllers are of the form
+.Pa /dev/twa Ns Ar X ,
+where
+.Ar X
+is the controller number.
+The driver is implemented as a SCSI SIM
+under CAM, and, as such, the logical units that it controls are accessible
+via the device nodes,
+.Pa /dev/da Ns Ar Y ,
+where
+.Ar Y
+is the logical unit number.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following SATA RAID controllers:
+.Pp
+.Bl -bullet -compact
+.It
+AMCC's 3ware 9500S-4LP
+.It
+AMCC's 3ware 9500S-8
+.It
+AMCC's 3ware 9500S-8MI
+.It
+AMCC's 3ware 9500S-12
+.It
+AMCC's 3ware 9500S-12MI
+.It
+AMCC's 3ware 9500SX-4LP
+.It
+AMCC's 3ware 9500SX-8LP
+.It
+AMCC's 3ware 9500SX-12
+.It
+AMCC's 3ware 9500SX-12MI
+.It
+AMCC's 3ware 9500SX-16ML
+.It
+AMCC's 3ware 9550SX-4LP
+.It
+AMCC's 3ware 9550SX-8LP
+.It
+AMCC's 3ware 9550SX-12
+.It
+AMCC's 3ware 9550SX-12MI
+.It
+AMCC's 3ware 9550SX-16ML
+.It
+AMCC's 3ware 9650SE-2LP
+.It
+AMCC's 3ware 9650SE-4LPML
+.It
+AMCC's 3ware 9650SE-8LPML
+.It
+AMCC's 3ware 9650SE-12ML
+.It
+AMCC's 3ware 9650SE-16ML
+.It
+AMCC's 3ware 9650SE-24M8
+.El
+.Sh DIAGNOSTICS
+Whenever the driver encounters a command failure, it prints out an error code in
+the format:
+.Qq Li "ERROR: (<error source>: <error code>):" ,
+followed by a text description of the error.
+There are other error messages and warnings that the
+driver prints out, depending on the kinds of errors that it encounters.
+If the driver is compiled with
+.Dv TWA_DEBUG
+defined, it prints out a whole bunch of debug
+messages, the quantity of which varies depending on the value assigned to
+.Dv TWA_DEBUG
+(0 to 10).
+.Sh AUTHORS
+The
+.Nm
+driver and manpage were written by
+.An Vinod Kashyap Aq Mt vkashyap@FreeBSD.org .

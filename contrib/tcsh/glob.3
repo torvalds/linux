@@ -1,0 +1,482 @@
+.\"	$NetBSD: glob.3,v 1.17 2001/03/16 21:09:05 christos Exp $
+.\"
+.\" Copyright (c) 1989, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Guido van Rossum.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)glob.3	8.3 (Berkeley) 4/16/94
+.\"
+.Dd March 31, 1998
+.Dt GLOB 3
+.Os
+.Sh NAME
+.Nm glob ,
+.Nm globfree
+.Nd generate pathnames matching a pattern
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.Fd #include <glob.h>
+.Ft int
+.Fn glob "const char *pattern" "int flags" "const int (*errfunc)(const char *, int)" "glob_t *pglob"
+.Ft void
+.Fn globfree "glob_t *pglob"
+.Sh DESCRIPTION
+The
+.Fn glob
+function
+is a pathname generator that implements the rules for file name pattern
+matching used by the shell.
+.Pp
+The include file
+.Pa glob.h
+defines the structure type
+.Fa glob_t ,
+which contains at least the following fields:
+.Bd -literal
+typedef struct {
+	int gl_pathc;		/* count of total paths so far */
+	int gl_matchc;		/* count of paths matching pattern */
+	int gl_offs;		/* reserved at beginning of gl_pathv */
+	int gl_flags;		/* returned flags */
+	char **gl_pathv;	/* list of paths matching pattern */
+} glob_t;
+.Ed
+.Pp
+The argument
+.Fa pattern
+is a pointer to a pathname pattern to be expanded.
+The
+.Fn glob
+argument
+matches all accessible pathnames against the pattern and creates
+a list of the pathnames that match.
+In order to have access to a pathname,
+.Fn glob
+requires search permission on every component of a path except the last
+and read permission on each directory of any filename component of
+.Fa pattern
+that contains any of the special characters
+.Ql * ,
+.Ql ?
+or
+.Ql [ .
+.Pp
+The
+.Fn glob
+argument
+stores the number of matched pathnames into the
+.Fa gl_pathc
+field, and a pointer to a list of pointers to pathnames into the
+.Fa gl_pathv
+field.
+The first pointer after the last pathname is
+.Dv NULL .
+If the pattern does not match any pathnames, the returned number of
+matched paths is set to zero.
+.Pp
+It is the caller's responsibility to create the structure pointed to by
+.Fa pglob .
+The
+.Fn glob
+function allocates other space as needed, including the memory pointed
+to by
+.Fa gl_pathv .
+.Pp
+The argument
+.Fa flags
+is used to modify the behavior of
+.Fn glob .
+The value of
+.Fa flags
+is the bitwise inclusive
+.Tn OR
+of any of the following
+values defined in
+.Pa glob.h :
+.Bl -tag -width GLOB_ALTDIRFUNC
+.It Dv GLOB_APPEND
+Append pathnames generated to the ones from a previous call (or calls)
+to
+.Fn glob .
+The value of
+.Fa gl_pathc
+will be the total matches found by this call and the previous call(s).
+The pathnames are appended to, not merged with the pathnames returned by
+the previous call(s).
+Between calls, the caller must not change the setting of the
+.Dv GLOB_DOOFFS
+flag, nor change the value of
+.Fa gl_offs
+when
+.Dv GLOB_DOOFFS
+is set, nor (obviously) call
+.Fn globfree
+for
+.Fa pglob .
+.It Dv GLOB_DOOFFS
+Make use of the
+.Fa gl_offs
+field.
+If this flag is set,
+.Fa gl_offs
+is used to specify how many
+.Dv NULL
+pointers to prepend to the beginning
+of the
+.Fa gl_pathv
+field.
+In other words,
+.Fa gl_pathv
+will point to
+.Fa gl_offs
+.Dv NULL
+pointers,
+followed by
+.Fa gl_pathc
+pathname pointers, followed by a
+.Dv NULL
+pointer.
+.It Dv GLOB_ERR
+Causes
+.Fn glob
+to return when it encounters a directory that it cannot open or read.
+Ordinarily,
+.Fn glob
+continues to find matches.
+.It Dv GLOB_MARK
+Each pathname that is a directory that matches
+.Fa pattern
+has a slash
+appended.
+.It Dv GLOB_NOCHECK
+If
+.Fa pattern
+does not match any pathname, then
+.Fn glob
+returns a list
+consisting of only
+.Fa pattern ,
+with the number of total pathnames is set to 1, and the number of matched
+pathnames set to 0.
+.It Dv GLOB_NOSORT
+By default, the pathnames are sorted in ascending
+.Tn ASCII
+order;
+this flag prevents that sorting (speeding up
+.Fn glob ) .
+.El
+.Pp
+The following values may also be included in
+.Fa flags ,
+however, they are non-standard extensions to
+.St -p1003.2 .
+.Bl -tag -width GLOB_ALTDIRFUNC
+.It Dv GLOB_ALTDIRFUNC
+The following additional fields in the pglob structure have been
+initialized with alternate functions for glob to use to open, read,
+and close directories and to get stat information on names found
+in those directories.
+.Bd -literal
+	void *(*gl_opendir)(const char * name);
+	struct dirent *(*gl_readdir)(void *);
+	void (*gl_closedir)(void *);
+	int (*gl_lstat)(const char *name, struct stat *st);
+	int (*gl_stat)(const char *name, struct stat *st);
+.Ed
+.Pp
+This extension is provided to allow programs such as
+.Xr restore 8
+to provide globbing from directories stored on tape.
+.It Dv GLOB_BRACE
+Pre-process the pattern string to expand
+.Ql {pat,pat,...}
+strings like
+.Xr csh 1 .
+The pattern
+.Ql {}
+is left unexpanded for historical reasons
+.Po
+.Xr csh 1
+does the same thing to ease typing of
+.Xr find 1
+patterns
+.Pc .
+.It Dv GLOB_MAGCHAR
+Set by the
+.Fn glob
+function if the pattern included globbing characters.
+See the description of the usage of the
+.Fa gl_matchc
+structure member for more details.
+.It Dv GLOB_NOMAGIC
+Is the same as
+.Dv GLOB_NOCHECK
+but it only appends the
+.Fa pattern
+if it does not contain any of the special characters ``*'', ``?'' or ``[''.
+.Dv GLOB_NOMAGIC
+is provided to simplify implementing the historic
+.Xr csh 1
+globbing behavior and should probably not be used anywhere else.
+.It Dv GLOB_NOESCAPE
+Disable the use of the backslash
+.Pq Ql \e
+character for quoting.
+.It Dv GLOB_TILDE
+Expand patterns that start with
+.Ql ~
+to user name home directories.
+.It Dv GLOB_LIMIT
+Limit the amount of memory used by matches to
+.Li ARG_MAX
+This option should be set for programs that can be coerced to a denial of
+service attack via patterns that expand to a very large number of matches,
+such as a long string of 
+.Li */../*/..
+.El
+.Pp
+If, during the search, a directory is encountered that cannot be opened
+or read and
+.Fa errfunc
+is
+.Pf non- Dv NULL ,
+.Fn glob
+calls
+.Fa (*errfunc)(path, errno) .
+This may be unintuitive: a pattern like
+.Ql */Makefile
+will try to
+.Xr stat 2
+.Ql foo/Makefile
+even if
+.Ql foo
+is not a directory, resulting in a
+call to
+.Fa errfunc .
+The error routine can suppress this action by testing for
+.Dv ENOENT
+and
+.Dv ENOTDIR ;
+however, the
+.Dv GLOB_ERR
+flag will still cause an immediate
+return when this happens.
+.Pp
+If
+.Fa errfunc
+returns non-zero,
+.Fn glob
+stops the scan and returns
+.Dv GLOB_ABORTED
+after setting
+.Fa gl_pathc
+and
+.Fa gl_pathv
+to reflect any paths already matched.
+This also happens if an error is encountered and
+.Dv GLOB_ERR
+is set in
+.Fa flags ,
+regardless of the return value of
+.Fa errfunc ,
+if called.
+If
+.Dv GLOB_ERR
+is not set and either
+.Fa errfunc
+is
+.Dv NULL
+or
+.Fa errfunc
+returns zero, the error is ignored.
+.Pp
+The
+.Fn globfree
+function frees any space associated with
+.Fa pglob
+from a previous call(s) to
+.Fn glob .
+.Pp
+The historical
+.Dv GLOB_QUOTE
+flag is no longer supported.
+Per
+.St -p1003.2-92 ,
+backslash escaping of special characters is the default behaviour;
+it may be disabled by specifying the
+.Dv GLOB_NOESCAPE
+flag.
+.Sh RETURN VALUES
+On successful completion,
+.Fn glob
+returns zero.
+In addition the fields of
+.Fa pglob
+contain the values described below:
+.Bl -tag -width GLOB_NOCHECK
+.It Fa gl_pathc
+contains the total number of matched pathnames so far.
+This includes other matches from previous invocations of
+.Fn glob
+if
+.Dv GLOB_APPEND
+was specified.
+.It Fa gl_matchc
+contains the number of matched pathnames in the current invocation of
+.Fn glob .
+.It Fa gl_flags
+contains a copy of the
+.Fa flags
+parameter with the bit
+.Dv GLOB_MAGCHAR
+set if
+.Fa pattern
+contained any of the special characters ``*'', ``?'' or ``['', cleared
+if not.
+.It Fa gl_pathv
+contains a pointer to a
+.Dv NULL Ns -terminated
+list of matched pathnames.
+However, if
+.Fa gl_pathc
+is zero, the contents of
+.Fa gl_pathv
+are undefined.
+.El
+.Pp
+If
+.Fn glob
+terminates due to an error, it sets
+.Va errno
+and returns one of the following non-zero constants, which are defined
+in the include file
+.Aq Pa glob.h :
+.Bl -tag -width GLOB_ABORTEDXXX
+.It Dv GLOB_ABORTED
+The scan was stopped because an error was encountered and either
+.Dv GLOB_ERR
+was set or
+.Fa (*errfunc)()
+returned non-zero.
+.It Dv GLOB_NOMATCH
+The pattern does not match any existing pathname, and
+.Dv GLOB_NOCHECK
+was not set int
+.Dv flags .
+.It Dv GLOB_NOSPACE
+An attempt to allocate memory failed, or if
+.Va errno 
+was 0
+.Li GLOB_LIMIT
+was specified in the flags and
+.Li ARG_MAX
+patterns were matched.
+.El
+.Pp
+The historical
+.Dv GLOB_ABEND
+return constant is no longer supported.  Portable applications should use the
+.Dv GLOB_ABORTED
+constant instead.
+.Pp
+The arguments
+.Fa pglob\->gl_pathc
+and
+.Fa pglob\->gl_pathv
+are still set as specified above.
+.Sh ENVIRONMENT
+.Bl -tag -width HOME -compact
+.It Ev HOME
+If defined, used as the home directory of the current user in
+tilde expansions.
+.El
+.Sh EXAMPLE
+A rough equivalent of
+.Ql "ls -l *.c *.h"
+can be obtained with the
+following code:
+.Bd -literal -offset indent
+glob_t g;
+
+g.gl_offs = 2;
+glob("*.c", GLOB_DOOFFS, NULL, &g);
+glob("*.h", GLOB_DOOFFS | GLOB_APPEND, NULL, &g);
+g.gl_pathv[0] = "ls";
+g.gl_pathv[1] = "-l";
+execvp("ls", g.gl_pathv);
+.Ed
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr fnmatch 3 ,
+.Xr regexp 3
+.Sh STANDARDS
+The
+.Fn glob
+function is expected to be
+.St -p1003.2
+compatible with the exception
+that the flags
+.Dv GLOB_ALTDIRFUNC,
+.Dv GLOB_BRACE
+.Dv GLOB_MAGCHAR,
+.Dv GLOB_NOMAGIC,
+.Dv GLOB_TILDE,
+and
+.Dv GLOB_LIMIT
+and the fields
+.Fa gl_matchc
+and
+.Fa gl_flags
+should not be used by applications striving for strict
+.Tn POSIX
+conformance.
+.Sh HISTORY
+The
+.Fn glob
+and
+.Fn globfree
+functions first appeared in
+.Bx 4.4 .
+.Sh BUGS
+Patterns longer than
+.Dv MAXPATHLEN
+may cause unchecked errors.
+.Pp
+The
+.Fn glob
+function may fail and set
+.Va errno
+for any of the errors specified for the library routines
+.Xr stat 2 ,
+.Xr closedir 3 ,
+.Xr opendir 3 ,
+.Xr readdir 3 ,
+.Xr malloc 3 ,
+and
+.Xr free 3 .

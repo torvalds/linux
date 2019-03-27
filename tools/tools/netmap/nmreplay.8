@@ -1,0 +1,128 @@
+.\" Copyright (c) 2016 Luigi Rizzo, Universita` di Pisa
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 21, 2018
+.Dt NMREPLAY 8
+.Os
+.Sh NAME
+.Nm nmreplay
+.Nd playback a pcap file through a netmap interface
+.Sh SYNOPSIS
+.Bk -words
+.Bl -tag -width "nmreplay"
+.It Nm
+.Op Fl f Ar pcap-file
+.Op Fl i Ar netmap-interface
+.Op Fl B Ar bandwidth
+.Op Fl D Ar delay
+.Op Fl L Ar loss
+.Op Fl b Ar batch size
+.Op Fl w Ar wait-link
+.Op Fl v
+.Op Fl C Ar cpu-placement
+.El
+.Ek
+.Sh DESCRIPTION
+.Nm
+works like
+.Nm tcpreplay
+to replay a pcap file through a netmap interface,
+with programmable rates and possibly delays, losses
+and packet alterations.
+.Nm
+is designed to run at high speed, so the transmit schedule
+is computed ahead of time, and the thread in charge of transmission
+only has to pump data through the interface.
+.Nm
+can connect to any type of netmap port.
+.Pp
+Command line options are as follows
+.Bl -tag -width Ds
+.It Fl f Ar pcap-file
+Name of the pcap file to replay.
+.It Fl i Ar interface
+Name of the netmap interface to use as output.
+See
+.Xr netmap 4
+for interface name format.
+.It Fl v
+Enable verbose mode
+.It Fl b Ar batch-size
+Maximum batch size to use during transmissions.
+.Nm
+normally transmits packets one at a time, but it may use
+larger batches, up to the value specified with this option,
+when running at high rates.
+.It Fl B Ar bps | Cm constant , Ns Ar bps | Cm ether , Ns Ar bps | Cm real Ns Op , Ns Ar speedup
+Bandwidth to be used for transmission.
+.Ar bps
+is a floating point number optionally follow by a character
+(k, K, m, M, g, G) that multiplies the value by 10^3, 10^6 and 10^9
+respectively.
+.Cm constant
+(can be omitted) means that the bandwidth will be computed
+with reference to the actual packet size (excluding CRC and framing).
+.Cm ether
+indicates that the ethernet framing (160 bits) and CRC (32 bits)
+will be included in the computation of the packet size.
+.Cm real
+means transmission will occur according to the timestamps
+recorded in the trace.
+The optional
+.Ar speedup
+multiplier (defaults to 1) indicates how much faster
+or slower than real time the trace should be replayed.
+.It Fl D Ar dt | Cm constant , Ns Ar dt | Cm uniform , Ns Ar dmin,dmax | Cm exp , Ar dmin,davg
+Adds additional delay to the packet transmission, whose distribution
+can be constant, uniform or exponential.
+.Ar dt, dmin, dmax, avt
+are times expressed as floating point numbers optionally followed
+by a character (s, m, u, n) to indicate seconds, milliseconds,
+microseconds, nanoseconds.
+The delay is added to the transmit time and adjusted so that there is
+never packet reordering.
+.It Fl L Ar x | Cm plr , Ns Ar x | Cm ber , Ns Ar x
+Simulates packet or bit errors, causing offending packets to be dropped.
+.Ar x
+is a floating point number indicating the packet or bit error rate.
+.It Fl w Ar wait-link
+indicates the number of seconds to wait before transmitting.
+It defaults to 2, and may be useful when talking to physical
+ports to let link negotiation complete before starting transmission.
+.El
+.Sh OPERATION
+.Nm
+creates an in-memory schedule with all packets to be transmitted,
+and then launches a separate thread to take care of transmissions
+while the main thread reports statistics every second.
+.Sh SEE ALSO
+.Xr netmap 4
+.Sh AUTHORS
+.An -nosplit
+.Nm
+has been written by
+.An Luigi Rizzo, Andrea Beconcini, Francesco Mola and Lorenzo Biagini
+at the Universita` di Pisa, Italy.

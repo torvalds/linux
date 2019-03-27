@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>cmd_data</key>
+        <array/>
+        <key>command</key>
+        <string>targets</string>
+        <key>event_nr</key>
+        <integer>0x0</integer>
+        <key>flags</key>
+        <integer>0x4</integer>
+        <key>version</key>
+        <array>
+                <integer>0x4</integer>
+                <integer>0x1</integer>
+                <integer>0x0</integer>
+        </array>
+</dict>
+</plist>

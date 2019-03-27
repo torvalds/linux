@@ -1,0 +1,65 @@
+.\" Copyright (c) 2017
+.\"	Tom Jones <tj@enoti.me>  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 17, 2017
+.Dt CHVGPIO 4
+.Os
+.Sh NAME
+.Nm chvgpio
+.Nd Intel Cherry View SoC GPIO controller
+.Sh SYNOPSIS
+.Cd "device gpio"
+.Cd "device chvgpio"
+.Sh DESCRIPTION
+.Nm
+supports the GPIO controller that can be found in Intel's Cherry View SoC
+family.
+.Pp
+The Cherry View SoC has 5 banks of GPIO pins, NORTH, EAST, SOUTHEAST, SOUTHWEST
+and VIRTUAL.
+All but VIRTUAL are exposed to userland as
+.Pa /dev/gpiocN ,
+where N is 0-3.
+Pins in each bank are pre-named to match names in the Intel® Atom™ Z8000
+Processor Series Vol 2
+.Sh SEE ALSO
+.Xr gpio 3 ,
+.Xr gpio 4 ,
+.Xr gpioctl 8
+.Rs
+.%T Intel® Atom™ Z8000 Processor Series Vol 1
+.Re
+.Rs
+.%T Intel® Atom™ Z8000 Processor Series Vol 2
+.Re
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 12 .
+.Sh AUTHORS
+This driver and man page were written by
+.An Tom Jones Aq Mt tj@enoti.me .

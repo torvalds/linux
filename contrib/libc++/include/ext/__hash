@@ -1,0 +1,135 @@
+// -*- C++ -*-
+//===------------------------- hash_set ------------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_EXT_HASH
+#define _LIBCPP_EXT_HASH
+
+#pragma GCC system_header
+
+#include <string>
+#include <cstring>
+
+namespace __gnu_cxx {
+using namespace std;
+
+template <typename _Tp> struct _LIBCPP_TEMPLATE_VIS hash { };
+
+template <> struct _LIBCPP_TEMPLATE_VIS hash<const char*>
+    : public unary_function<const char*, size_t>
+{
+    _LIBCPP_INLINE_VISIBILITY
+    size_t operator()(const char *__c) const _NOEXCEPT
+    {
+        return __do_string_hash(__c, __c + strlen(__c));
+    }
+};
+
+template <> struct _LIBCPP_TEMPLATE_VIS hash<char *>
+    : public unary_function<char*, size_t>
+{
+    _LIBCPP_INLINE_VISIBILITY
+    size_t operator()(char *__c) const _NOEXCEPT
+    {
+        return __do_string_hash<const char *>(__c, __c + strlen(__c));
+    }
+};
+
+template <> struct _LIBCPP_TEMPLATE_VIS hash<char>
+    : public unary_function<char, size_t>
+{
+    _LIBCPP_INLINE_VISIBILITY
+    size_t operator()(char __c) const _NOEXCEPT
+    {
+        return __c;
+    }
+};
+
+template <> struct _LIBCPP_TEMPLATE_VIS hash<signed char>
+    : public unary_function<signed char, size_t>
+{
+    _LIBCPP_INLINE_VISIBILITY
+    size_t operator()(signed char __c) const _NOEXCEPT
+    {
+        return __c;
+    }
+};
+
+template <> struct _LIBCPP_TEMPLATE_VIS hash<unsigned char>
+    : public unary_function<unsigned char, size_t>
+{
+    _LIBCPP_INLINE_VISIBILITY
+    size_t operator()(unsigned char __c) const _NOEXCEPT
+    {
+        return __c;
+    }
+};
+
+template <> struct _LIBCPP_TEMPLATE_VIS hash<short>
+    : public unary_function<short, size_t>
+{
+    _LIBCPP_INLINE_VISIBILITY
+    size_t operator()(short __c) const _NOEXCEPT
+    {
+        return __c;
+    }
+};
+
+template <> struct _LIBCPP_TEMPLATE_VIS hash<unsigned short>
+    : public unary_function<unsigned short, size_t>
+{
+    _LIBCPP_INLINE_VISIBILITY
+    size_t operator()(unsigned short __c) const _NOEXCEPT
+    {
+        return __c;
+    }
+};
+
+template <> struct _LIBCPP_TEMPLATE_VIS hash<int>
+    : public unary_function<int, size_t>
+{
+    _LIBCPP_INLINE_VISIBILITY
+    size_t operator()(int __c) const _NOEXCEPT
+    {
+        return __c;
+    }
+};
+
+template <> struct _LIBCPP_TEMPLATE_VIS hash<unsigned int>
+    : public unary_function<unsigned int, size_t>
+{
+    _LIBCPP_INLINE_VISIBILITY
+    size_t operator()(unsigned int __c) const _NOEXCEPT
+    {
+        return __c;
+    }
+};
+
+template <> struct _LIBCPP_TEMPLATE_VIS hash<long>
+    : public unary_function<long, size_t>
+{
+    _LIBCPP_INLINE_VISIBILITY
+    size_t operator()(long __c) const _NOEXCEPT
+    {
+        return __c;
+    }
+};
+
+template <> struct _LIBCPP_TEMPLATE_VIS hash<unsigned long>
+    : public unary_function<unsigned long, size_t>
+{
+    _LIBCPP_INLINE_VISIBILITY
+    size_t operator()(unsigned long __c) const _NOEXCEPT
+    {
+        return __c;
+    }
+};
+}
+
+#endif  // _LIBCPP_EXT_HASH

@@ -1,0 +1,9 @@
+log in all
+count in tos 0x80 from any to any
+pass in on ed0(!) inet tos 0x40 from 127.0.0.1/32 to 127.0.0.1/32
+block in log on lo0(!) ttl 0 from any to any
+pass in quick ttl 1 from any to any
+skip 3 out inet from 127.0.0.1/32 to any
+auth out on foo0(!) proto tcp from any to any port = 80
+preauth out on foo0(!) proto tcp from any to any port = 22
+nomatch out on foo0(!) proto tcp from any port < 1024 to any

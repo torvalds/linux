@@ -1,0 +1,242 @@
+.\" Copyright (c) 1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 9, 2012
+.Dt NG_KSOCKET 4
+.Os
+.Sh NAME
+.Nm ng_ksocket
+.Nd kernel socket netgraph node type
+.Sh SYNOPSIS
+.In sys/types.h
+.In netgraph/ng_ksocket.h
+.Sh DESCRIPTION
+A
+.Nm ksocket
+node is both a netgraph node and a
+.Bx
+socket.
+The
+.Nm
+node type allows one to open a socket inside the kernel and have
+it appear as a Netgraph node.
+The
+.Nm
+node type is the reverse of the socket node type (see
+.Xr ng_socket 4 ) :
+whereas the socket node type enables the user-level manipulation (via
+a socket) of what is normally a kernel-level entity (the associated
+Netgraph node), the
+.Nm
+node type enables the kernel-level manipulation (via a Netgraph node) of
+what is normally a user-level entity (the associated socket).
+.Pp
+A
+.Nm
+node allows at most one hook connection.
+Connecting to the node is
+equivalent to opening the associated socket.
+The name given to the hook
+determines what kind of socket the node will open (see below).
+When the hook is disconnected and/or the node is shutdown, the
+associated socket is closed.
+.Sh HOOKS
+This node type supports a single hook connection at a time.
+The name of the hook must be of the form
+.Em <family>/<type>/<proto> ,
+where the
+.Em family ,
+.Em type ,
+and
+.Em proto
+are the decimal equivalent of the same arguments to
+.Xr socket 2 .
+Alternately, aliases for the commonly used values are accepted as
+well.
+For example
+.Dv inet/dgram/udp
+is a more readable but equivalent version of
+.Dv 2/2/17 .
+.Pp
+Data received into socket is sent out via hook.
+Data received on hook is sent out from socket, if the latter is
+connected (an
+.Dv NGM_KSOCKET_CONNECT
+was sent to node before).
+If socket is not connected, destination
+.Vt "struct sockaddr"
+must be supplied in an mbuf tag with cookie
+.Dv NGM_KSOCKET_COOKIE
+and type
+.Dv NG_KSOCKET_TAG_SOCKADDR
+attached to data.
+Otherwise
+.Nm
+will return
+.Er ENOTCONN
+to sender.
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_KSOCKET_BIND Pq Ic bind
+This functions exactly like the
+.Xr bind 2
+system call.
+The
+.Vt "struct sockaddr"
+socket address parameter should be supplied as an argument.
+.It Dv NGM_KSOCKET_LISTEN Pq Ic listen
+This functions exactly like the
+.Xr listen 2
+system call.
+The backlog parameter (a single 32 bit
+.Dv int )
+should be supplied as an argument.
+.It Dv NGM_KSOCKET_CONNECT Pq Ic connect
+This functions exactly like the
+.Xr connect 2
+system call.
+The
+.Vt "struct sockaddr"
+destination address parameter should be supplied as an argument.
+.It Dv NGM_KSOCKET_ACCEPT Pq Ic accept
+Equivalent to the
+.Xr accept 2
+system call on a non-blocking socket.
+If there is a pending connection on the queue,
+a new socket and a corresponding cloned node are created.
+Returned are the cloned node's ID and a peer name (as
+.Vt "struct sockaddr" ) .
+If there are no pending connections,
+this control message returns nothing,
+and a connected node will receive the above message asynchronously,
+when a connection is established.
+.Pp
+A cloned node supports a single hook with an arbitrary name.
+If not connected, a node disappears when its parent node is destroyed.
+Once connected, it becomes an independent node.
+.It Dv NGM_KSOCKET_GETNAME Pq Ic getname
+Equivalent to the
+.Xr getsockname 2
+system call.
+The name is returned as a
+.Vt "struct sockaddr"
+in the arguments field of the reply.
+.It Dv NGM_KSOCKET_GETPEERNAME Pq Ic getpeername
+Equivalent to the
+.Xr getpeername 2
+system call.
+The name is returned as a
+.Vt "struct sockaddr"
+in the arguments field of the reply.
+.It Dv NGM_KSOCKET_SETOPT Pq Ic setopt
+Equivalent to the
+.Xr setsockopt 2
+system call, except that the option name, level, and value are passed in a
+.Vt "struct ng_ksocket_sockopt" .
+.It Dv NGM_KSOCKET_GETOPT Pq Ic getopt
+Equivalent to the
+.Xr getsockopt 2
+system call, except that the option is passed in a
+.Vt "struct ng_ksocket_sockopt" .
+When sending this command, the
+.Dv value
+field should be empty; upon return, it will contain the
+retrieved value.
+.El
+.Sh ASCII FORM CONTROL MESSAGES
+For control messages that pass a
+.Vt "struct sockaddr"
+in the argument field, the normal
+.Tn ASCII
+equivalent of the C structure
+is an acceptable form.
+For the
+.Dv PF_INET
+and
+.Dv PF_LOCAL
+address families, a more convenient form is also used, which is
+the protocol family name, followed by a slash, followed by the actual
+address.
+For
+.Dv PF_INET ,
+the address is an IP address followed by an optional colon and port number.
+For
+.Dv PF_LOCAL ,
+the address is the pathname as a doubly quoted string.
+.Pp
+Examples:
+.Bl -tag -width "PF_LOCAL"
+.It Dv PF_LOCAL
+local/"/tmp/foo.socket"
+.It Dv PF_INET
+inet/192.168.1.1:1234
+.It Other
+.Dv "\&{ family=16 len=16 data=[0x70 0x00 0x01 0x23] \&}"
+.El
+.Pp
+For control messages that pass a
+.Vt "struct ng_ksocket_sockopt" ,
+the normal
+.Tn ASCII
+form for that structure is used.
+In the future, more
+convenient encoding of the more common socket options may be supported.
+.Pp
+Setting socket options example:
+.Bl -tag -width "PF_LOCAL"
+.It Set FIB 2 for a socket (SOL_SOCKET, SO_SETFIB):
+.Dv "setopt \&{ level=0xffff name=0x1014 data=[ 2 ] \&}"
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when the hook is disconnected.
+Shutdown of the node closes the associated socket.
+.Sh SEE ALSO
+.Xr socket 2 ,
+.Xr netgraph 4 ,
+.Xr ng_socket 4 ,
+.Xr ngctl 8 ,
+.Xr mbuf_tags 9 ,
+.Xr socket 9
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Archie Cobbs Aq Mt archie@FreeBSD.org

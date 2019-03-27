@@ -1,0 +1,17 @@
+# $FreeBSD$
+# This file contains ip <-> hostname mapping.
+# It is also used for autoconfiguration based on Ethernet address
+# and other things. The initial part is just a standard /etc/hosts
+# for local hosts that share this file.
+127.0.0.1		localhost localhost.mydomain.edu
+127.0.0.1		pico.mydomain.edu
+10.0.0.1	default
+192.168.254.1	vmrouter
+192.168.254.2	vm
+
+#ethertable	This line starts the ethernet->hostname mapping
+# main_ether		hostname
+# 00:12:34:56:78:9a	myaddress
+# 00:bd:*		vm
+# default		default
+

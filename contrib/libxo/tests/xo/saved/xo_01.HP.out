@@ -1,0 +1,76 @@
+<div class="line">
+  <div class="text">Item </div>
+  <div class="data" data-tag="name">one</div>
+  <div class="text"> is </div>
+  <div class="label">number</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="value">001</div>
+  <div class="text">, </div>
+  <div class="label">color</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="color">red</div>
+</div>
+<div class="line">
+  <div class="text">Item </div>
+  <div class="data" data-tag="name">two</div>
+  <div class="text"> is </div>
+  <div class="label">number</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="value">002</div>
+  <div class="text">, </div>
+  <div class="label">color</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="color">blue</div>
+</div>
+<div class="line">
+  <div class="text">Item </div>
+  <div class="data" data-tag="name">three</div>
+  <div class="text"> is </div>
+  <div class="label">number</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="value">003</div>
+  <div class="text">, </div>
+  <div class="label">color</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="color">green</div>
+</div>
+<div class="line">
+  <div class="text">Item </div>
+  <div class="data" data-tag="name">four</div>
+  <div class="text"> is </div>
+  <div class="label">number</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="value">004</div>
+  <div class="text">, </div>
+  <div class="label">color</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="color">yellow</div>
+</div>
+  <div class="padding">     </div>
+<div class="line">
+  <div class="data" data-tag="address">0xdeadbeef</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="foo">1</div>
+</div>
+  <div class="padding">     </div>
+<div class="line">
+  <div class="data" data-tag="address">0xdeadbeef</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="foo">1</div>
+</div>
+  <div class="padding">     </div>
+<div class="line">
+  <div class="data" data-tag="address">0xdeadbeef</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="foo">1</div>
+</div>
+  <div class="padding">     </div>
+<div class="line">
+  <div class="data" data-tag="address">0xdeadbeef</div>
+  <div class="text">..</div>
+  <div class="data" data-tag="foo">1</div>
+</div>

@@ -1,0 +1,48 @@
+// -*- C++ -*-
+//===--------------------------- cstdarg ----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CSTDARG
+#define _LIBCPP_CSTDARG
+
+/*
+    cstdarg synopsis
+
+Macros:
+
+    type va_arg(va_list ap, type);
+    void va_copy(va_list dest, va_list src);  // C99
+    void va_end(va_list ap);
+    void va_start(va_list ap, parmN);
+
+namespace std
+{
+
+Types:
+
+    va_list
+
+}  // std
+
+*/
+
+#include <__config>
+#include <stdarg.h>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+using ::va_list;
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif  // _LIBCPP_CSTDARG

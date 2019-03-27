@@ -1,0 +1,21 @@
+#
+# These are soft float functions which can be 
+# aliased to the *vfp functions on arm processors
+# that support floating point instructions.
+#
+___adddf3vfp		___adddf3
+___addsf3vfp		___addsf3
+___divdf3vfp		___divdf3
+___divsf3vfp		___divsf3
+___extendsfdf2vfp	___extendsfdf2
+___fixdfsivfp		___fixdfsi
+___fixsfsivfp		___fixsfsi
+___floatsidfvfp		___floatsidf
+___floatsisfvfp		___floatsisf
+___muldf3vfp		___muldf3
+___mulsf3vfp		___mulsf3
+___subdf3vfp		___subdf3
+___subsf3vfp		___subsf3
+___truncdfsf2vfp	___truncdfsf2
+___floatunssidfvfp	___floatunsidf
+___floatunssisfvfp	___floatunsisf

@@ -1,0 +1,79 @@
+.\" Copyright (c) 2016 The FreeBSD Foundation.  All rights reserved.
+.\"
+.\" This documentation was written by Ed Maste under sponsorship of
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by the author and contributors ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  In no event shall the author or contributors be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id$
+.\"
+.Dd August 24, 2016
+.Dt ELFTC_TIMESTAMP 3
+.Os
+.Sh NAME
+.Nm elftc_timestamp
+.Nd return the current or environment-provided timestamp
+.Sh LIBRARY
+.Lb libelftc
+.Sh SYNOPSIS
+.In libelftc.h
+.Ft int
+.Fo elftc_timestamp
+.Fa "time_t *timestamp"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn elftc_timestamp
+function returns a timestamp supplied by the
+.Ev SOURCE_DATE_EPOCH
+environment variable, or the current time provided by
+.Xr time 3
+if the environment variable is not set.
+.Pp
+The
+.Ar timestamp
+argument specifies a pointer to the location where the timestamp will be
+stored.
+.Sh RETURN VALUES
+Function
+.Fn elftc_timestamp
+returns 0 on success, and -1 in the event of an error.
+.Sh ERRORS
+The
+.Fn elftc_timestamp
+function may fail with the following errors:
+.Bl -tag -width ".Bq Er ERANGE"
+.It Bq Er EINVAL
+.Ev SOURCE_DATE_EPOCH
+contains invalid characters.
+.It Bq Er ERANGE
+.Ev SOURCE_DATE_EPOCH
+specifies a negative value or a value that cannot be stored in a
+time_t.
+.El
+The
+.Fn elftc_timestamp
+function may also fail for any of the reasons described in
+.Xr strtoll 3 .
+.Sh SEE ALSO
+.Xr strtoll 3 ,
+.Xr time 3

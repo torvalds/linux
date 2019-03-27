@@ -1,0 +1,12 @@
+QUICK INSTALL GUIDE
+
+drill is a subdirectory in ldns.
+
+To compile drill you need:
+autoreconf && ./configure && make
+
+If ldns is installed in a different location, use --with-ldns=directory
+See also ./configure --help
+
+In the first case you must run drill as:
+LD_LIBRARY_PATH=../.libs ./drill <options>

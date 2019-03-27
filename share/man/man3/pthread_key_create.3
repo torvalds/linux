@@ -1,0 +1,109 @@
+.\" Copyright (c) 1996 John Birrell <jb@cimlogic.com.au>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by John Birrell.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 4, 1996
+.Dt PTHREAD_KEY_CREATE 3
+.Os
+.Sh NAME
+.Nm pthread_key_create
+.Nd thread-specific data key creation
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_key_create "pthread_key_t *key" "void (*destructor)(void *)"
+.Sh DESCRIPTION
+The
+.Fn pthread_key_create
+function creates a thread-specific data key visible to all threads in the
+process.
+Key values provided by
+.Fn pthread_key_create
+are opaque objects used to locate thread-specific data.
+Although the same
+key value may be used by different threads, the values bound to the key
+by
+.Fn pthread_setspecific
+are maintained on a per-thread basis and persist for the life of the calling
+thread.
+.Pp
+Upon key creation, the value NULL is associated with the new key in all
+active threads.
+Upon thread creation, the value NULL is associated with all
+defined keys in the new thread.
+.Pp
+An optional destructor function may be associated with each key value.
+At
+thread exit, if a key value has a non-NULL destructor pointer, and the
+thread has a non-NULL value associated with the key, the function pointed
+to is called with the current associated value as its sole argument.
+The
+order of destructor calls is unspecified if more than one destructor exists
+for a thread when it exits.
+.Pp
+If, after all the destructors have been called for all non-NULL values
+with associated destructors, there are still some non-NULL values with
+associated destructors, then the process is repeated.
+If, after at least
+[PTHREAD_DESTRUCTOR_ITERATIONS] iterations of destructor calls for
+outstanding non-NULL values, there are still some non-NULL values with
+associated destructors, the implementation stops calling destructors.
+.Sh RETURN VALUES
+If successful, the
+.Fn pthread_key_create
+function will store the newly created key value at the location specified by
+.Fa key
+and returns zero.
+Otherwise an error number will be returned to indicate
+the error.
+.Sh ERRORS
+The
+.Fn pthread_key_create
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The system lacked the necessary resources to create another thread-specific
+data key, or the system-imposed limit on the total number of keys per process
+[PTHREAD_KEYS_MAX] would be exceeded.
+.It Bq Er ENOMEM
+Insufficient memory exists to create the key.
+.El
+.Sh SEE ALSO
+.Xr pthread_getspecific 3 ,
+.Xr pthread_key_delete 3 ,
+.Xr pthread_setspecific 3
+.Sh STANDARDS
+The
+.Fn pthread_key_create
+function conforms to
+.St -p1003.1-96 .

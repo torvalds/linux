@@ -1,0 +1,73 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: rtadvd
+# REQUIRE: DAEMON
+# BEFORE:  LOGIN
+# KEYWORD: nojailvnet shutdown
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="rtadvd"
+desc="Router advertisement daemon"
+rcvar="rtadvd_enable"
+command="/usr/sbin/${name}"
+extra_commands="reload"
+reload_cmd="rtadvd_reload"
+start_precmd="rtadvd_precmd"
+
+rtadvd_precmd()
+{
+	# This should be enabled with a great care.
+	# You may want to fine-tune /etc/rtadvd.conf.
+	#
+	# And if you wish your rtadvd to receive and process
+	# router renumbering messages, specify your Router Renumbering
+	# security policy by -R option.
+	#
+	# See `man 3 ipsec_set_policy` for IPsec policy specification
+	# details.
+	# (CAUTION: This enables your routers prefix renumbering
+	# from another machine, so if you enable this, do it with
+	# enough care.)
+	#
+	# If specific interfaces haven't been specified,
+	# get a list of interfaces and enable it on them
+	#
+	case ${rtadvd_interfaces} in
+	[Aa][Uu][Tt][Oo]|'')
+		command_args=
+		for i in `list_net_interfaces`; do
+			case $i in
+			lo0)	continue ;;
+			esac
+			if ipv6if $i; then
+				command_args="${command_args} ${i}"
+			fi
+		done
+		;;
+	[Nn][Oo][Nn][Ee])
+		;;
+	*)
+		command_args="${rtadvd_interfaces}"
+		;;
+	esac
+
+	# Enable Router Renumbering, unicast case
+	# (use correct src/dst addr)
+	# rtadvd -R "in ipsec ah/transport/fec0:0:0:1::1-fec0:0:0:10::1/require" ${ipv6_network_interfaces}
+	# Enable Router Renumbering, multicast case
+	# (use correct src addr)
+	# rtadvd -R "in ipsec ah/transport/ff05::2-fec0:0:0:10::1/require" ${ipv6_network_interfaces}
+	return 0
+}
+
+rtadvd_reload() {
+	/usr/sbin/rtadvctl reload
+}
+
+load_rc_config $name
+run_rc_command "$1"

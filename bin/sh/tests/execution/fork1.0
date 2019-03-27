@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+shname=${SH%% *}
+shname=${shname##*/}
+
+result=$(${SH} -c 'ps -p $$ -o comm=')
+test "$result" = "ps" || exit 1
+
+result=$(${SH} -c 'ps -p $$ -o comm=; :')
+test "$result" = "$shname" || exit 1

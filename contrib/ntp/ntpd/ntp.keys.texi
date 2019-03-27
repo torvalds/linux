@@ -1,0 +1,49 @@
+\input texinfo    @c -*-texinfo-*-
+@c %**start of header
+@setfilename ntp.keys.info
+@settitle NTP Symmetric Key
+@include ../sntp/include/version.texi
+@paragraphindent 2
+@c %**end of header
+
+@ifinfo
+This file documents the NTP Project's NTP Symmetric Key file,
+version @value{VERSION}, @value{UPDATED}.
+@end ifinfo
+
+@direntry
+* ntp.keys: (ntp.keys).                      NTP's Symmetric Key file
+@end direntry
+
+@titlepage
+@title NTP's Symmetric Key File User's Manual
+@subtitle ntp.keys, version @value{VERSION}, @value{UPDATED}
+@c @author Max @email{foo@ntp.org}
+@end titlepage
+
+@c @page
+@c @vskip 0pt plus 1filll
+
+@node Top, ntp.keys Description, (dir), (dir)
+@top NTP's Symmetric Key File User Manual
+
+This document describes the symmetric key file for the NTP Project's
+@code{ntpd} program.
+
+This document applies to version @value{VERSION} of @code{ntp.keys}.
+
+@shortcontents
+
+@menu
+* ntp.keys Description::        
+* ntp.keys Notes::        
+@end menu
+
+@node ntp.keys Description,  , Top, Top
+@comment  node-name,  next,  previous,  up
+@section Description
+
+The name and location of the symmetric key file for @code{ntpd} can
+be specified in a configuration file, by default @code{/etc/ntp.keys}.
+
+@include invoke-ntp.keys.texi

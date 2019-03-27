@@ -1,0 +1,304 @@
+
+                                  [Home] FAQ
+
+   Home | RecentChanges | Preferences
+     _________________________________________________________________
+
+   This is for people who do not read the manual!
+
+   So  far  people who don't read manuals don't read this either... I may
+   call  it README.*PLEASE* in the future, but then the same people won't
+   be able to get ftp it... :-)
+     _________________________________________________________________
+
+   1. Where can I find tcsh sources?
+
+   See http://www.tcsh.org/MostRecentRelease for download locations.
+     _________________________________________________________________
+
+   2. Why is the meta key broken in tcsh-5.20 and up?
+
+   On  some  machines  the  tty is not set up to pass 8 bit characters by
+   default.  Tcsh 5.19 used to try to determine if pass8 should be set by
+   looking at the terminal's meta key. Unfortunately there is no good way
+   of  determining  if  the terminal can really pass 8 characters or not.
+   Consider  if  you  are  logged in through a modem line with 7 bits and
+   parity  and  your  terminal  has  a meta key. Then tcsh 5.19 would set
+   wrongly set pass8.
+
+   If  you  did like the previous behavior you can add in /etc/csh.login,
+   or in .login:
+
+    if ( $?tcsh && $?prompt ) then
+        if ( "`echotc meta`" == "yes" ) then
+             stty pass8
+        endif
+    endif
+
+   If you don't have pass8, maybe one of these would work..
+
+    stty -parity -evenp -oddp cs8 -istrip   (rs6000)
+    stty -parenb -istrip cs8
+
+   Finally,  tcsh  will  bind  all  printable meta characters to the self
+   insert  command.  If  you  don't  want  that  to  happen (i.e. use the
+   printable meta characters for commands) setenv NOREBIND.
+     _________________________________________________________________
+
+   3.  I  ran 'dbxtool &' and 'shelltool &' from tcsh, and they end up in
+   cbreak and no echo mode?
+
+   These  programs  are broken. Background jobs should not try to look at
+   the  tty.  What happens is that dbxtool looks in stderr to inherit the
+   tty  setups,  but  tcsh  sets up the tty in cbreak and -echo modes, so
+   that  it can do line editing. This cannot be fixed because tcsh cannot
+   give away the tty. Pick one of the following as a workaround:
+
+    dbxtool < /dev/null >& /dev/null &
+    /usr/etc/setsid dbxtool &
+
+   If that does not work, for dbxtool at least you can add "sh stty sane"
+   in your .dbxinit
+     _________________________________________________________________
+
+   4. I tried to compile tcsh and it cannot find <locale.h>?
+
+   Your  system  does  not support NLS. Undefine NLS in config_f.h and it
+   should work fine.
+     _________________________________________________________________
+
+   5. Where can I get csh sources?
+
+   Csh   sources   are   now   available   with   the  4.4BSD  networking
+   distributions. You don't need csh sources to compile tcsh-6.0x.
+     _________________________________________________________________
+
+   6. I just made tcsh my login shell, and I cannot ftp any more?
+
+   Newer  versions of the ftp daemon check for the validity of the user's
+   shell  before  they  allow  logins.  The list of valid login shells is
+   either  hardcoded or it is usually in a file called /etc/shells. If it
+   is  hard-coded, then you are out of luck and your best bet is to get a
+   newer  version of ftpd. Otherwise add tcsh to the list of shells. [For
+   AIX  this  file  is called /etc/security/login.cfg.] Remember that the
+   full  path  is  required.  If  there  is  no  /etc/shells, and you are
+   creating  one,  remember to add /bin/csh, /bin/sh, and any other valid
+   shells for your system, so that other people can ftp too :-)
+     _________________________________________________________________
+
+   7.  I  am  using  SunView or OpenWindows and editing is screwed up. In
+   particular  my  arrow  keys  and backspace don't work right. What am I
+   doing wrong?
+
+   Well,  cmdtool tries to do its own command line editing and the effect
+   you  get  is  one  of  using  an  editor inside an editor. Both try to
+   interpret  the arrow key sequences and cmdtool wins since it gets them
+   first. The solutions are in my order of preference:
+
+    1. Don't use suntools
+    2. Use shelltool instead of cmdtool.
+    3. Unset edit in tcsh.
+     _________________________________________________________________
+
+   8. On a SPARCstation running Solaris 2.x and OpenWindows 3.1, inside a
+   cmdtool,  the  short-cut  key  sequence  to  clear log (i.e. Meta-e or
+   Diamond-e) doesn't work: it just echos 'e'; or 
+
+   Unset edit in tcsh.
+     _________________________________________________________________
+
+   9. On a SPARCstation running Solaris 2.x and OpenWindows 3.1, maketool
+   (within  SPARCworks)  doesn't work: it just does a `cd' to the working
+   directory then stops.
+
+   Unset  edit  in  tcsh. Using shelltool instead of cmdtool does not fix
+   this.
+     _________________________________________________________________
+
+   10. I rlogin to another machine, and then no matter what I tell 'stty'
+   I cannot get it to pass 8 bit characters?
+
+   Maybe  you  need  to  use  'rlogin  -8'  to  tell rlogin to pass 8 bit
+   characters.
+     _________________________________________________________________
+
+   11. Where do I get the public domain directory library?
+
+   Anonymous ftp to prep.ai.mit.edu:/pub/gnu/dirent.tar.Z
+     _________________________________________________________________
+
+   12.  I  compiled  tcsh  using  gcc, and when I start up it says: tcsh:
+   Warning  no  access  to tty (Invalid Argument). Thus no job control in
+   this shell
+
+   Your  <sys/ioctl.h>  file  is  not  ansi  compliant. You have one of 3
+   choices:
+
+    1. Run fixincludes from the gcc distribution.
+    2. Add -traditional to the gcc flags.
+    3. Compile with cc.
+     _________________________________________________________________
+
+   13.  I  compiled tcsh with the SunOS unbundled compiler and now things
+   get echo'ed twice.
+
+   It is a bug in the unbundled optimizer. Lower the optimization level.
+     _________________________________________________________________
+
+   14. How can I use the arrow keys with hpterm?
+
+   Hp terminals use the arrow keys internally. You can tell hpterm not to
+   do that, by sending it the termcap sequence smkx. Since this has to be
+   done  all  the  time,  the  easiest thing is to put it as an alias for
+   precmd, or inside the prompt:
+
+    if ($term == "hp") then
+        set prompt="%{`echotc smkx`%}$prompt"
+    endif
+
+   Note that by doing that you cannot use pgup and pgdn to scroll... Also
+   if you are using termcap, replace "smkx" with "ks"...
+     _________________________________________________________________
+
+   15.  On POSIX machines ^C and ^Z will do not work when tcsh is a login
+   shell?
+
+   Make sure that the interrupt character is set to ^C and suspend is set
+   to  ^Z;  'stty -a' will show you the current stty settings; 'stty intr
+   ^C susp ^Z' will set them to ^C and ^Z respectively.
+     _________________________________________________________________
+
+   16.  I  am trying to compile tcsh and I am getting compile errors that
+   look like:
+
+    >sh.c:???: `STR???' undeclared, outside of functions [gcc]
+    >"sh.c", line ???: STR??? undefined [cc]
+
+   You  interrupted make, while it was making the automatically generated
+   headers. Type 'make clean; make'
+     _________________________________________________________________
+
+   17. On the cray, sometimes the CR/LF mapping gets screwed up.
+
+   You  are  probably  logged  in  to the cray via telnet. Cray's telnetd
+   implements  line  mode  selection the telnet client you are using does
+   not  implement  telnet line mode. This cause the Cray's telnetd to try
+   to use KLUDGELINEMODE. You can turn off telnet line mode from the cray
+   side  by doing a "stty -extproc", or you can get the Cray AIC to build
+   a  telnetd  without  KLUDGELINEMODE,  or  you can compile a new telnet
+   client  (from  the  BSD net2 tape), or at least on the suns use: 'mode
+   character'.
+     _________________________________________________________________
+
+   18.  On AU/X, I made tcsh my startup shell, but the mac desktop is not
+   starting up (no X11 or Finder), and I only get console emulation.
+
+   This is another manifestation of item 5. Just add the pathname to tcsh
+   in /etc/shells and everything should work fine.
+     _________________________________________________________________
+
+   19.  On  machines  that  use  YP (NIS) tilde expansion might end up in
+   /dev/null
+
+   If  this happens complain to your vendor, to get a new version of NIS.
+   You can fix that in tcsh by defining YPBUGS in config.h
+     _________________________________________________________________
+
+   20.  Script on SGI 4.0.5 does not give us a tty, so we cannot have job
+   control.
+
+   Their csh does not have job control either. Try:
+
+        % script
+        % cat > /dev/tty
+     _________________________________________________________________
+
+   21. I start tcsh and it takes a couple of minutes to get the prompt.
+
+   You  have  defined  REMOTEHOST  and your DNS is not responding. Either
+   undefine REMOTEHOST and recompile or fix your DNS.
+     _________________________________________________________________
+
+   22. If you need help generating your .cshrc file, check out:
+
+        http://www.imada.sdu.dk/~blackie/dotfile/
+
+   or
+        http://www.dotfiles.com
+     _________________________________________________________________
+
+   23.  On  POSIX  systems  the  kernel  will send hup signals to all the
+   processes in the foreground process group if 'stty hupcl' is set.
+
+   For example
+
+    ./tcsh
+    echo $$
+    591
+    ./tcsh
+    kill -6 591
+
+   Will kill everything, since hup will be sent to all tcsh processes. To
+   avoid that you can set stty -hupcl, but it is not recommended.
+     _________________________________________________________________
+
+   24. When I rsh the meta key stops working on the remote machine.
+
+   Try  using rsh -8; this option is undocumented on some systems, but it
+   works.  If  that does not work, get and use ssh/sshd. You'll be better
+   off from a security point of view anyway.
+     _________________________________________________________________
+
+   25.  Tcsh  compiled  under  hp/ux-10.x  does  not pass resource limits
+   correctly when ran on hp/ux-11.x systems.
+
+   This  is  a  problem  with  lack  of ABI compatibility between the two
+   systems. The only solution is to recompile.
+     _________________________________________________________________
+
+   26. Refreshing in command line editing can appear broken on some OS's
+
+   This  is  because  the  termcap/terminfo  description  lies  about the
+   ability  of  the  terminal  to  use tabs. At least on Compaq/DEC Alpha
+   OSF/1 3.x and 4.x systems, stty -tabs will cause problems.
+     _________________________________________________________________
+
+   27. Where can I learn the merits of tcsh vs. bash vs. csh vs. sh etc?
+
+   You  can  read  the  manual page section titled [NEW FEATURES] listing
+   features that tcsh adds to csh.
+
+   You  can read Tom Christiansen's [Csh Programming Considered Harmful],
+   a  document advocating that csh (and by extension, tcsh) should not be
+   used for writing shell scripts.
+
+   XXX:  Need  to  find something about [bash], but bash is sh-compatible
+   and  has  many  of  the  same  interactive  features  of tcsh (command
+   completion does not appear to be as flexible, though).
+
+   [Curtains  up:  introducing  the Z shell] has a pretty good rundown on
+   zsh.  Aside  from  the arguments about csh being evil, tcsh appears to
+   compare  well  with zsh [zsh]. Zsh is sh and ksh compatible, with many
+   of the interactive features of tcsh.
+     _________________________________________________________________
+
+   28.  Why  does  FreeBSD's  tcsh do history browsing differently than I
+   expect?
+
+   On    FreeBSD,    by    default,    the    up    arrow   is   set   to
+   "history-search-backward",  rather than the default "up-history". As a
+   result,  if  you  type (part of) a word and press up arrow, you'll see
+   previous  commands  that  match  the  prefix. Pretty useful, actually,
+   although  it  takes  some  getting used to. You can use bindkey to see
+   your settings, and to rebind up & down differently if desired.
+     _________________________________________________________________
+
+   Everything else is a bug :-(
+
+   Christos
+     _________________________________________________________________
+
+   Home | RecentChanges | Preferences
+   Edit text of this page | View other revisions
+   Last edited April 29, 2004 15:02 (diff)
+   Search: ____________________

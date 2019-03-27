@@ -1,0 +1,6 @@
+pass in quick on lo0 inet6 from fe80::1 to fe80::1 flags S/SA keep state
+pass in quick on lo0 inet6 from fe80::1 to fe80::1 flags S/SA keep state
+pass in quick on lo0 inet6 from fe80::1 to any flags S/SA keep state
+pass in quick on lo0 inet6 from any to fe80::1 flags S/SA keep state
+pass in quick on lo0 inet6 from fe80::1 to any flags S/SA keep state
+pass in quick on lo0 inet6 from any to fe80::1 flags S/SA keep state

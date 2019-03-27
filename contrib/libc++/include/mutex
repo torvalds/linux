@@ -1,0 +1,703 @@
+// -*- C++ -*-
+//===--------------------------- mutex ------------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_MUTEX
+#define _LIBCPP_MUTEX
+
+/*
+    mutex synopsis
+
+namespace std
+{
+
+class mutex
+{
+public:
+     constexpr mutex() noexcept;
+     ~mutex();
+
+    mutex(const mutex&) = delete;
+    mutex& operator=(const mutex&) = delete;
+
+    void lock();
+    bool try_lock();
+    void unlock();
+
+    typedef pthread_mutex_t* native_handle_type;
+    native_handle_type native_handle();
+};
+
+class recursive_mutex
+{
+public:
+     recursive_mutex();
+     ~recursive_mutex();
+
+    recursive_mutex(const recursive_mutex&) = delete;
+    recursive_mutex& operator=(const recursive_mutex&) = delete;
+
+    void lock();
+    bool try_lock() noexcept;
+    void unlock();
+
+    typedef pthread_mutex_t* native_handle_type;
+    native_handle_type native_handle();
+};
+
+class timed_mutex
+{
+public:
+     timed_mutex();
+     ~timed_mutex();
+
+    timed_mutex(const timed_mutex&) = delete;
+    timed_mutex& operator=(const timed_mutex&) = delete;
+
+    void lock();
+    bool try_lock();
+    template <class Rep, class Period>
+        bool try_lock_for(const chrono::duration<Rep, Period>& rel_time);
+    template <class Clock, class Duration>
+        bool try_lock_until(const chrono::time_point<Clock, Duration>& abs_time);
+    void unlock();
+};
+
+class recursive_timed_mutex
+{
+public:
+     recursive_timed_mutex();
+     ~recursive_timed_mutex();
+
+    recursive_timed_mutex(const recursive_timed_mutex&) = delete;
+    recursive_timed_mutex& operator=(const recursive_timed_mutex&) = delete;
+
+    void lock();
+    bool try_lock() noexcept;
+    template <class Rep, class Period>
+        bool try_lock_for(const chrono::duration<Rep, Period>& rel_time);
+    template <class Clock, class Duration>
+        bool try_lock_until(const chrono::time_point<Clock, Duration>& abs_time);
+    void unlock();
+};
+
+struct defer_lock_t {};
+struct try_to_lock_t {};
+struct adopt_lock_t {};
+
+inline constexpr defer_lock_t  defer_lock{};
+inline constexpr try_to_lock_t try_to_lock{};
+inline constexpr adopt_lock_t  adopt_lock{};
+
+template <class Mutex>
+class lock_guard
+{
+public:
+    typedef Mutex mutex_type;
+
+    explicit lock_guard(mutex_type& m);
+    lock_guard(mutex_type& m, adopt_lock_t);
+    ~lock_guard();
+
+    lock_guard(lock_guard const&) = delete;
+    lock_guard& operator=(lock_guard const&) = delete;
+};
+
+template <class... MutexTypes>
+class scoped_lock // C++17
+{
+public:
+    using mutex_type = Mutex;  // If MutexTypes... consists of the single type Mutex
+
+    explicit scoped_lock(MutexTypes&... m);
+    scoped_lock(adopt_lock_t, MutexTypes&... m);
+    ~scoped_lock();
+    scoped_lock(scoped_lock const&) = delete;
+    scoped_lock& operator=(scoped_lock const&) = delete;
+private:
+    tuple<MutexTypes&...> pm; // exposition only
+};
+
+template <class Mutex>
+class unique_lock
+{
+public:
+    typedef Mutex mutex_type;
+    unique_lock() noexcept;
+    explicit unique_lock(mutex_type& m);
+    unique_lock(mutex_type& m, defer_lock_t) noexcept;
+    unique_lock(mutex_type& m, try_to_lock_t);
+    unique_lock(mutex_type& m, adopt_lock_t);
+    template <class Clock, class Duration>
+        unique_lock(mutex_type& m, const chrono::time_point<Clock, Duration>& abs_time);
+    template <class Rep, class Period>
+        unique_lock(mutex_type& m, const chrono::duration<Rep, Period>& rel_time);
+    ~unique_lock();
+
+    unique_lock(unique_lock const&) = delete;
+    unique_lock& operator=(unique_lock const&) = delete;
+
+    unique_lock(unique_lock&& u) noexcept;
+    unique_lock& operator=(unique_lock&& u) noexcept;
+
+    void lock();
+    bool try_lock();
+
+    template <class Rep, class Period>
+        bool try_lock_for(const chrono::duration<Rep, Period>& rel_time);
+    template <class Clock, class Duration>
+        bool try_lock_until(const chrono::time_point<Clock, Duration>& abs_time);
+
+    void unlock();
+
+    void swap(unique_lock& u) noexcept;
+    mutex_type* release() noexcept;
+
+    bool owns_lock() const noexcept;
+    explicit operator bool () const noexcept;
+    mutex_type* mutex() const noexcept;
+};
+
+template <class Mutex>
+  void swap(unique_lock<Mutex>& x, unique_lock<Mutex>& y) noexcept;
+
+template <class L1, class L2, class... L3>
+  int try_lock(L1&, L2&, L3&...);
+template <class L1, class L2, class... L3>
+  void lock(L1&, L2&, L3&...);
+
+struct once_flag
+{
+    constexpr once_flag() noexcept;
+
+    once_flag(const once_flag&) = delete;
+    once_flag& operator=(const once_flag&) = delete;
+};
+
+template<class Callable, class ...Args>
+  void call_once(once_flag& flag, Callable&& func, Args&&... args);
+
+}  // std
+
+*/
+
+#include <__config>
+#include <__mutex_base>
+#include <functional>
+#include <memory>
+#ifndef _LIBCPP_CXX03_LANG
+#include <tuple>
+#endif
+#include <version>
+#include <__threading_support>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#ifndef _LIBCPP_HAS_NO_THREADS
+
+class _LIBCPP_TYPE_VIS recursive_mutex
+{
+    __libcpp_recursive_mutex_t __m_;
+
+public:
+     recursive_mutex();
+     ~recursive_mutex();
+
+private:
+    recursive_mutex(const recursive_mutex&); // = delete;
+    recursive_mutex& operator=(const recursive_mutex&); // = delete;
+
+public:
+    void lock();
+    bool try_lock() _NOEXCEPT;
+    void unlock()  _NOEXCEPT;
+
+    typedef __libcpp_recursive_mutex_t* native_handle_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    native_handle_type native_handle() {return &__m_;}
+};
+
+class _LIBCPP_TYPE_VIS timed_mutex
+{
+    mutex              __m_;
+    condition_variable __cv_;
+    bool               __locked_;
+public:
+     timed_mutex();
+     ~timed_mutex();
+
+private:
+    timed_mutex(const timed_mutex&); // = delete;
+    timed_mutex& operator=(const timed_mutex&); // = delete;
+
+public:
+    void lock();
+    bool try_lock() _NOEXCEPT;
+    template <class _Rep, class _Period>
+        _LIBCPP_INLINE_VISIBILITY
+        bool try_lock_for(const chrono::duration<_Rep, _Period>& __d)
+            {return try_lock_until(chrono::steady_clock::now() + __d);}
+    template <class _Clock, class _Duration>
+        _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
+        bool try_lock_until(const chrono::time_point<_Clock, _Duration>& __t);
+    void unlock() _NOEXCEPT;
+};
+
+template <class _Clock, class _Duration>
+bool
+timed_mutex::try_lock_until(const chrono::time_point<_Clock, _Duration>& __t)
+{
+    using namespace chrono;
+    unique_lock<mutex> __lk(__m_);
+    bool no_timeout = _Clock::now() < __t;
+    while (no_timeout && __locked_)
+        no_timeout = __cv_.wait_until(__lk, __t) == cv_status::no_timeout;
+    if (!__locked_)
+    {
+        __locked_ = true;
+        return true;
+    }
+    return false;
+}
+
+class _LIBCPP_TYPE_VIS recursive_timed_mutex
+{
+    mutex              __m_;
+    condition_variable __cv_;
+    size_t             __count_;
+    __libcpp_thread_id __id_;
+public:
+     recursive_timed_mutex();
+     ~recursive_timed_mutex();
+
+private:
+    recursive_timed_mutex(const recursive_timed_mutex&); // = delete;
+    recursive_timed_mutex& operator=(const recursive_timed_mutex&); // = delete;
+
+public:
+    void lock();
+    bool try_lock() _NOEXCEPT;
+    template <class _Rep, class _Period>
+        _LIBCPP_INLINE_VISIBILITY
+        bool try_lock_for(const chrono::duration<_Rep, _Period>& __d)
+            {return try_lock_until(chrono::steady_clock::now() + __d);}
+    template <class _Clock, class _Duration>
+        _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
+        bool try_lock_until(const chrono::time_point<_Clock, _Duration>& __t);
+    void unlock() _NOEXCEPT;
+};
+
+template <class _Clock, class _Duration>
+bool
+recursive_timed_mutex::try_lock_until(const chrono::time_point<_Clock, _Duration>& __t)
+{
+    using namespace chrono;
+    __libcpp_thread_id __id = __libcpp_thread_get_current_id();
+    unique_lock<mutex> lk(__m_);
+    if (__libcpp_thread_id_equal(__id, __id_))
+    {
+        if (__count_ == numeric_limits<size_t>::max())
+            return false;
+        ++__count_;
+        return true;
+    }
+    bool no_timeout = _Clock::now() < __t;
+    while (no_timeout && __count_ != 0)
+        no_timeout = __cv_.wait_until(lk, __t) == cv_status::no_timeout;
+    if (__count_ == 0)
+    {
+        __count_ = 1;
+        __id_ = __id;
+        return true;
+    }
+    return false;
+}
+
+template <class _L0, class _L1>
+int
+try_lock(_L0& __l0, _L1& __l1)
+{
+    unique_lock<_L0> __u0(__l0, try_to_lock);
+    if (__u0.owns_lock())
+    {
+        if (__l1.try_lock())
+        {
+            __u0.release();
+            return -1;
+        }
+        else
+            return 1;
+    }
+    return 0;
+}
+
+#ifndef _LIBCPP_CXX03_LANG
+
+template <class _L0, class _L1, class _L2, class... _L3>
+int
+try_lock(_L0& __l0, _L1& __l1, _L2& __l2, _L3&... __l3)
+{
+    int __r = 0;
+    unique_lock<_L0> __u0(__l0, try_to_lock);
+    if (__u0.owns_lock())
+    {
+        __r = try_lock(__l1, __l2, __l3...);
+        if (__r == -1)
+            __u0.release();
+        else
+            ++__r;
+    }
+    return __r;
+}
+
+#endif  // _LIBCPP_CXX03_LANG
+
+template <class _L0, class _L1>
+void
+lock(_L0& __l0, _L1& __l1)
+{
+    while (true)
+    {
+        {
+            unique_lock<_L0> __u0(__l0);
+            if (__l1.try_lock())
+            {
+                __u0.release();
+                break;
+            }
+        }
+        __libcpp_thread_yield();
+        {
+            unique_lock<_L1> __u1(__l1);
+            if (__l0.try_lock())
+            {
+                __u1.release();
+                break;
+            }
+        }
+        __libcpp_thread_yield();
+    }
+}
+
+#ifndef _LIBCPP_CXX03_LANG
+
+template <class _L0, class _L1, class _L2, class ..._L3>
+void
+__lock_first(int __i, _L0& __l0, _L1& __l1, _L2& __l2, _L3& ...__l3)
+{
+    while (true)
+    {
+        switch (__i)
+        {
+        case 0:
+            {
+                unique_lock<_L0> __u0(__l0);
+                __i = try_lock(__l1, __l2, __l3...);
+                if (__i == -1)
+                {
+                    __u0.release();
+                    return;
+                }
+            }
+            ++__i;
+            __libcpp_thread_yield();
+            break;
+        case 1:
+            {
+                unique_lock<_L1> __u1(__l1);
+                __i = try_lock(__l2, __l3..., __l0);
+                if (__i == -1)
+                {
+                    __u1.release();
+                    return;
+                }
+            }
+            if (__i == sizeof...(_L3) + 1)
+                __i = 0;
+            else
+                __i += 2;
+            __libcpp_thread_yield();
+            break;
+        default:
+            __lock_first(__i - 2, __l2, __l3..., __l0, __l1);
+            return;
+        }
+    }
+}
+
+template <class _L0, class _L1, class _L2, class ..._L3>
+inline _LIBCPP_INLINE_VISIBILITY
+void
+lock(_L0& __l0, _L1& __l1, _L2& __l2, _L3& ...__l3)
+{
+    __lock_first(0, __l0, __l1, __l2, __l3...);
+}
+
+template <class _L0>
+inline _LIBCPP_INLINE_VISIBILITY
+void __unlock(_L0& __l0) {
+    __l0.unlock();
+}
+
+template <class _L0, class _L1>
+inline _LIBCPP_INLINE_VISIBILITY
+void __unlock(_L0& __l0, _L1& __l1) {
+    __l0.unlock();
+    __l1.unlock();
+}
+
+template <class _L0, class _L1, class _L2, class ..._L3>
+inline _LIBCPP_INLINE_VISIBILITY
+void __unlock(_L0& __l0, _L1& __l1, _L2& __l2, _L3&... __l3) {
+    __l0.unlock();
+    __l1.unlock();
+    _VSTD::__unlock(__l2, __l3...);
+}
+
+#endif  // _LIBCPP_CXX03_LANG
+
+#if _LIBCPP_STD_VER > 14
+template <class ..._Mutexes>
+class _LIBCPP_TEMPLATE_VIS scoped_lock;
+
+template <>
+class _LIBCPP_TEMPLATE_VIS scoped_lock<> {
+public:
+    explicit scoped_lock() {}
+    ~scoped_lock() = default;
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit scoped_lock(adopt_lock_t) {}
+
+    scoped_lock(scoped_lock const&) = delete;
+    scoped_lock& operator=(scoped_lock const&) = delete;
+};
+
+template <class _Mutex>
+class _LIBCPP_TEMPLATE_VIS _LIBCPP_THREAD_SAFETY_ANNOTATION(scoped_lockable) scoped_lock<_Mutex> {
+public:
+    typedef _Mutex  mutex_type;
+private:
+    mutex_type& __m_;
+public:
+    explicit scoped_lock(mutex_type & __m) _LIBCPP_THREAD_SAFETY_ANNOTATION(acquire_capability(__m))
+        : __m_(__m) {__m_.lock();}
+
+    ~scoped_lock() _LIBCPP_THREAD_SAFETY_ANNOTATION(release_capability()) {__m_.unlock();}
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit scoped_lock(adopt_lock_t, mutex_type& __m) _LIBCPP_THREAD_SAFETY_ANNOTATION(requires_capability(__m))
+        : __m_(__m) {}
+
+    scoped_lock(scoped_lock const&) = delete;
+    scoped_lock& operator=(scoped_lock const&) = delete;
+};
+
+template <class ..._MArgs>
+class _LIBCPP_TEMPLATE_VIS scoped_lock
+{
+    static_assert(sizeof...(_MArgs) > 1, "At least 2 lock types required");
+    typedef tuple<_MArgs&...> _MutexTuple;
+
+public:
+    _LIBCPP_INLINE_VISIBILITY
+    explicit scoped_lock(_MArgs&... __margs)
+      : __t_(__margs...)
+    {
+        _VSTD::lock(__margs...);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    scoped_lock(adopt_lock_t, _MArgs&... __margs)
+        : __t_(__margs...)
+    {
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    ~scoped_lock() {
+        typedef typename __make_tuple_indices<sizeof...(_MArgs)>::type _Indices;
+        __unlock_unpack(_Indices{}, __t_);
+    }
+
+    scoped_lock(scoped_lock const&) = delete;
+    scoped_lock& operator=(scoped_lock const&) = delete;
+
+private:
+    template <size_t ..._Indx>
+    _LIBCPP_INLINE_VISIBILITY
+    static void __unlock_unpack(__tuple_indices<_Indx...>, _MutexTuple& __mt) {
+        _VSTD::__unlock(_VSTD::get<_Indx>(__mt)...);
+    }
+
+    _MutexTuple __t_;
+};
+
+#endif // _LIBCPP_STD_VER > 14
+#endif // !_LIBCPP_HAS_NO_THREADS
+
+struct _LIBCPP_TEMPLATE_VIS once_flag;
+
+#ifndef _LIBCPP_CXX03_LANG
+
+template<class _Callable, class... _Args>
+_LIBCPP_INLINE_VISIBILITY
+void call_once(once_flag&, _Callable&&, _Args&&...);
+
+#else  // _LIBCPP_CXX03_LANG
+
+template<class _Callable>
+_LIBCPP_INLINE_VISIBILITY
+void call_once(once_flag&, _Callable&);
+
+template<class _Callable>
+_LIBCPP_INLINE_VISIBILITY
+void call_once(once_flag&, const _Callable&);
+
+#endif  // _LIBCPP_CXX03_LANG
+
+struct _LIBCPP_TEMPLATE_VIS once_flag
+{
+    _LIBCPP_INLINE_VISIBILITY
+    _LIBCPP_CONSTEXPR
+        once_flag() _NOEXCEPT : __state_(0) {}
+
+private:
+    once_flag(const once_flag&); // = delete;
+    once_flag& operator=(const once_flag&); // = delete;
+
+    unsigned long __state_;
+
+#ifndef _LIBCPP_CXX03_LANG
+    template<class _Callable, class... _Args>
+    friend
+    void call_once(once_flag&, _Callable&&, _Args&&...);
+#else  // _LIBCPP_CXX03_LANG
+    template<class _Callable>
+    friend
+    void call_once(once_flag&, _Callable&);
+
+    template<class _Callable>
+    friend
+    void call_once(once_flag&, const _Callable&);
+#endif  // _LIBCPP_CXX03_LANG
+};
+
+#ifndef _LIBCPP_CXX03_LANG
+
+template <class _Fp>
+class __call_once_param
+{
+    _Fp& __f_;
+public:
+    _LIBCPP_INLINE_VISIBILITY
+    explicit __call_once_param(_Fp& __f) : __f_(__f) {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    void operator()()
+    {
+        typedef typename __make_tuple_indices<tuple_size<_Fp>::value, 1>::type _Index;
+        __execute(_Index());
+    }
+
+private:
+    template <size_t ..._Indices>
+    _LIBCPP_INLINE_VISIBILITY
+    void __execute(__tuple_indices<_Indices...>)
+    {
+        __invoke(_VSTD::get<0>(_VSTD::move(__f_)), _VSTD::get<_Indices>(_VSTD::move(__f_))...);
+    }
+};
+
+#else
+
+template <class _Fp>
+class __call_once_param
+{
+    _Fp& __f_;
+public:
+    _LIBCPP_INLINE_VISIBILITY
+    explicit __call_once_param(_Fp& __f) : __f_(__f) {}
+
+    _LIBCPP_INLINE_VISIBILITY
+    void operator()()
+    {
+        __f_();
+    }
+};
+
+#endif
+
+template <class _Fp>
+void
+__call_once_proxy(void* __vp)
+{
+    __call_once_param<_Fp>* __p = static_cast<__call_once_param<_Fp>*>(__vp);
+    (*__p)();
+}
+
+_LIBCPP_FUNC_VIS void __call_once(volatile unsigned long&, void*, void(*)(void*));
+
+#ifndef _LIBCPP_CXX03_LANG
+
+template<class _Callable, class... _Args>
+inline _LIBCPP_INLINE_VISIBILITY
+void
+call_once(once_flag& __flag, _Callable&& __func, _Args&&... __args)
+{
+    if (__libcpp_acquire_load(&__flag.__state_) != ~0ul)
+    {
+        typedef tuple<_Callable&&, _Args&&...> _Gp;
+        _Gp __f(_VSTD::forward<_Callable>(__func), _VSTD::forward<_Args>(__args)...);
+        __call_once_param<_Gp> __p(__f);
+        __call_once(__flag.__state_, &__p, &__call_once_proxy<_Gp>);
+    }
+}
+
+#else  // _LIBCPP_CXX03_LANG
+
+template<class _Callable>
+inline _LIBCPP_INLINE_VISIBILITY
+void
+call_once(once_flag& __flag, _Callable& __func)
+{
+    if (__libcpp_acquire_load(&__flag.__state_) != ~0ul)
+    {
+        __call_once_param<_Callable> __p(__func);
+        __call_once(__flag.__state_, &__p, &__call_once_proxy<_Callable>);
+    }
+}
+
+template<class _Callable>
+inline _LIBCPP_INLINE_VISIBILITY
+void
+call_once(once_flag& __flag, const _Callable& __func)
+{
+    if (__libcpp_acquire_load(&__flag.__state_) != ~0ul)
+    {
+        __call_once_param<const _Callable> __p(__func);
+        __call_once(__flag.__state_, &__p, &__call_once_proxy<const _Callable>);
+    }
+}
+
+#endif  // _LIBCPP_CXX03_LANG
+
+_LIBCPP_END_NAMESPACE_STD
+
+_LIBCPP_POP_MACROS
+
+#endif  // _LIBCPP_MUTEX

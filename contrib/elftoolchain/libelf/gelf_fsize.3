@@ -1,0 +1,96 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: gelf_fsize.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd February 5, 2008
+.Dt GELF_FSIZE 3
+.Os
+.Sh NAME
+.Nm gelf_fsize ,
+.Nm elf32_fsize ,
+.Nm elf64_fsize
+.Nd return the size of a file type
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft size_t
+.Fn elf32_fsize "Elf_Type type" "size_t count" "unsigned int version"
+.Ft size_t
+.Fn elf64_fsize "Elf_Type type" "size_t count" "unsigned int version"
+.In gelf.h
+.Ft size_t
+.Fn gelf_fsize "Elf *elf" "Elf_Type type" "size_t count" "unsigned int version"
+.Sh DESCRIPTION
+These functions return the size in bytes of the file representation of
+.Ar count
+numbers of objects of ELF type
+.Ar type .
+For ELF types that are of variable length, these functions return a
+size of one byte.
+.Pp
+Functions
+.Fn elf32_fsize
+and
+.Fn elf64_fsize
+return sizes for files of class
+.Dv ELFCLASS32
+and
+.Dv ELFCLASS64
+respectively.
+Function
+.Fn gelf_fsize
+returns the size for the class of ELF descriptor
+.Ar elf .
+.Sh RETURN VALUES
+These functions return a non-zero value in case of success, or zero in
+case of an error.
+.Sh ERRORS
+These functions may fail with:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+was NULL in a call to
+.Fn gelf_fsize .
+.It Bq Er ELF_E_ARGUMENT
+ELF descriptor
+.Ar elf
+had an unknown ELF class.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar type
+contained an illegal value.
+.It Bq Er ELF_E_UNIMPL
+Support for ELF type
+.Ar type
+has not been implemented.
+.It Bq Er ELF_E_VERSION
+Argument
+.Ar version
+is not a supported version.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr gelf 3

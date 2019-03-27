@@ -1,0 +1,38 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	td_init;
+	td_ta_clear_event;
+	td_ta_delete;
+	td_ta_event_addr;
+	td_ta_event_getmsg;
+	td_ta_map_id2thr;
+	td_ta_map_lwp2thr;
+	td_ta_new;
+	td_ta_set_event;
+	td_ta_thr_iter;
+	td_ta_tsd_iter;
+	td_thr_clear_event;
+	td_thr_dbresume;
+	td_thr_dbsuspend;
+	td_thr_event_enable;
+	td_thr_event_getmsg;
+	td_thr_getfpregs;
+	td_thr_getgregs;
+#if defined(i386)
+	td_thr_getxmmregs;
+	td_thr_setxmmregs;
+#endif
+	td_thr_set_event;
+	td_thr_setfpregs;
+	td_thr_setgregs;
+	td_thr_sstep;	/* FreeBSD extension to GDB<->thread interface */
+	td_thr_tls_get_addr;
+	td_thr_validate;
+};
+
+FBSD_1.2 {
+	td_thr_get_info;
+};

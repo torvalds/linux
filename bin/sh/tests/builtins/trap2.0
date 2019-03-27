@@ -1,0 +1,52 @@
+# $FreeBSD$
+# This is really a test for outqstr(), which is readily accessible via trap.
+
+runtest()
+{
+	teststring=$1
+	trap -- "$teststring" USR1
+	traps=$(trap)
+	if [ "$teststring" != "-" ] && [ -z "$traps" ]; then
+		# One possible reading of POSIX requires the above to return an
+		# empty string because backquote commands are executed in a
+		# subshell and subshells shall reset traps. However, an example
+		# in the normative description of the trap builtin shows the
+		# same usage as here, it is useful and our /bin/sh allows it.
+		echo '$(trap) is broken'
+		exit 1
+	fi
+	trap - USR1
+	eval "$traps"
+	traps2=$(trap)
+	if [ "$traps" != "$traps2" ]; then
+		echo "Mismatch for '$teststring'"
+		exit 1
+	fi
+}
+
+runtest 'echo'
+runtest 'echo hi'
+runtest "'echo' 'hi'"
+runtest '"echo" $PATH'
+runtest '\echo "$PATH"'
+runtest ' 0'
+runtest '0 '
+runtest ' 1'
+runtest '1 '
+i=1
+while [ $i -le 127 ]; do
+	c=$(printf \\"$(printf %o $i)")
+	if [ $i -lt 48 ] || [ $i -gt 57 ]; then
+		runtest "$c"
+	fi
+	runtest " $c$c"
+	runtest "a$c"
+	i=$((i+1))
+done
+IFS=,
+runtest ' '
+runtest ','
+unset IFS
+runtest ' '
+
+exit 0

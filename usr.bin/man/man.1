@@ -1,0 +1,375 @@
+.\"-
+.\"  Copyright (c) 2010 Gordon Tetlow
+.\"  All rights reserved.
+.\"
+.\"  Redistribution and use in source and binary forms, with or without
+.\"  modification, are permitted provided that the following conditions
+.\"  are met:
+.\"  1. Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\"  2. Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\"
+.\"  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\"  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\"  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\"  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\"  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\"  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\"  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\"  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\"  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\"  SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 8, 2018
+.Dt MAN 1
+.Os
+.Sh NAME
+.Nm man
+.Nd display online manual documentation pages
+.Sh SYNOPSIS
+.Nm
+.Op Fl adho
+.Op Fl t | w
+.Op Fl M Ar manpath
+.Op Fl P Ar pager
+.Op Fl S Ar mansect
+.Op Fl m Ar arch Ns Op : Ns Ar machine
+.Op Fl p Op Ar eprtv
+.Op Ar mansect
+.Ar page ...
+.Nm
+.Fl f
+.Ar keyword ...
+.Nm
+.Fl k
+.Ar keyword ...
+.Sh DESCRIPTION
+The
+.Nm
+utility finds and displays online manual documentation pages.
+If
+.Ar mansect
+is provided,
+.Nm
+restricts the search to the specific section of the manual.
+.Pp
+The sections of the manual are:
+.Bl -enum -offset indent -compact
+.It
+.Fx
+General Commands Manual
+.It
+.Fx
+System Calls Manual
+.It
+.Fx
+Library Functions Manual
+.It
+.Fx
+Kernel Interfaces Manual
+.It
+.Fx
+File Formats Manual
+.It
+.Fx
+Games Manual
+.It
+.Fx
+Miscellaneous Information Manual
+.It
+.Fx
+System Manager's Manual
+.It
+.Fx
+Kernel Developer's Manual
+.El
+.Pp
+Options that
+.Nm
+understands:
+.Bl -tag -width indent
+.It Fl M Ar manpath
+Forces a specific colon separated manual path instead of the default
+search path.
+See
+.Xr manpath 1 .
+Overrides the
+.Ev MANPATH
+environment variable.
+.It Fl P Ar pager
+Use specified pager.
+Defaults to
+.Dq Li "less -sR"
+if color support is enabled, or
+.Dq Li "less -s" .
+Overrides the
+.Ev MANPAGER
+environment variable, which in turn overrides the
+.Ev PAGER
+environment variable.
+.It Fl S Ar mansect
+Restricts manual sections searched to the specified colon delimited list.
+Defaults to
+.Dq Li 1:8:2:3:n:4:5:6:7:9:l .
+Overrides the
+.Ev MANSECT
+environment variable.
+.It Fl a
+Display all manual pages instead of just the first found for each
+.Ar page
+argument.
+.It Fl d
+Print extra debugging information.
+Repeat for increased verbosity.
+Does not display the manual page.
+.It Fl f
+Emulate
+.Xr whatis 1 .
+.It Fl h
+Display short help message and exit.
+.It Fl k
+Emulate
+.Xr apropos 1 .
+.It Fl m Ar arch Ns Op : Ns Ar machine
+Override the default architecture and machine settings allowing lookup of
+other platform specific manual pages.
+See
+.Sx IMPLEMENTATION NOTES
+for how this option changes the default behavior.
+Overrides the
+.Ev MACHINE_ARCH
+and
+.Ev MACHINE
+environment variables.
+.It Fl o
+Force use of non-localized manual pages.
+See
+.Sx IMPLEMENTATION NOTES
+for how locale specific searches work.
+Overrides the
+.Ev LC_ALL , LC_CTYPE ,
+and
+.Ev LANG
+environment variables.
+.It Fl p Op Cm eprtv
+Use the list of given preprocessors before running
+.Xr nroff 1
+or
+.Xr troff 1 .
+Valid preprocessors arguments:
+.Pp
+.Bl -tag -width indent -compact
+.It Cm e
+.Xr eqn 1
+.It Cm p
+.Xr pic 1
+.It Cm r
+.Xr refer 1
+.It Cm t
+.Xr tbl 1
+.It Cm v
+.Xr vgrind 1
+.El
+.Pp
+Overrides the
+.Ev MANROFFSEQ
+environment variable.
+.It Fl t
+Send manual page source through
+.Xr troff 1
+allowing transformation of the manual pages to other formats.
+.It Fl w
+Display the location of the manual page instead of the contents of
+the manual page.
+.El
+.Sh IMPLEMENTATION NOTES
+.Ss Locale Specific Searches
+The
+.Nm
+utility supports manual pages in different locales.
+The search behavior is dictated by the first of three
+environment variables with a nonempty string:
+.Ev LC_ALL , LC_CTYPE ,
+or
+.Ev LANG .
+If set,
+.Nm
+will search for locale specific manual pages using the following logic:
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Va lang Ns _ Ns Va country Ns . Ns Va charset
+.It
+.Va lang Ns . Ns Va charset
+.It
+.Li en Ns . Ns Va charset
+.El
+.Pp
+For example, if
+.Ev LC_ALL
+is set to
+.Dq Li ja_JP.eucJP ,
+.Nm
+will search the following paths when considering section 1 manual pages in
+.Pa /usr/share/man :
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Pa /usr/share/man/ja_JP.eucJP/man1
+.It
+.Pa /usr/share/man/ja.eucJP/man1
+.It
+.Pa /usr/share/man/en.eucJP/man1
+.It
+.Pa /usr/share/man/man1
+.El
+.Ss Platform Specific Searches
+The
+.Nm
+utility supports platform specific manual pages.
+The search behavior is dictated by the
+.Fl m
+option or the
+.Ev MACHINE_ARCH
+and
+.Ev MACHINE
+environment variables.
+For example, if
+.Ev MACHINE_ARCH
+is set to
+.Dq Li aarch64
+and
+.Ev MACHINE
+is set to
+.Dq Li arm64 ,
+.Nm
+will search the following paths when considering section 4 manual pages in
+.Pa /usr/share/man :
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Pa /usr/share/man/man4/aarch64
+.It
+.Pa /usr/share/man/man4/arm64
+.It
+.Pa /usr/share/man/man4
+.El
+.Ss Displaying Specific Manual Files
+The
+.Nm
+utility also supports displaying a specific manual page if passed a path
+to the file as long as it contains a
+.Ql /
+character.
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev MANROFFSEQ"
+.It Ev LC_ALL , LC_CTYPE , LANG
+Used to find locale specific manual pages.
+Valid values can be found by running the
+.Xr locale 1
+command.
+See
+.Sx IMPLEMENTATION NOTES
+for details.
+Influenced by the
+.Fl o
+option.
+.It Ev MACHINE_ARCH , MACHINE
+Used to find platform specific manual pages.
+If unset, the output of
+.Dq Li "sysctl hw.machine_arch"
+and
+.Dq Li "sysctl hw.machine"
+is used respectively.
+See
+.Sx IMPLEMENTATION NOTES
+for details.
+Corresponds to the
+.Fl m
+option.
+.It Ev MANPATH
+The standard search path used by
+.Xr man 1
+may be changed by specifying a path in the
+.Ev MANPATH
+environment variable.
+Invalid paths, or paths without manual databases, are ignored.
+Overridden by
+.Fl M .
+If
+.Ev MANPATH
+begins with a colon, it is appended to the default list;
+if it ends with a colon, it is prepended to the default list;
+or if it contains two adjacent colons,
+the standard search path is inserted between the colons.
+If none of these conditions are met, it overrides the
+standard search path.
+.It Ev MANROFFSEQ
+Used to determine the preprocessors for the manual source before running
+.Xr nroff 1
+or
+.Xr troff 1 .
+If unset, defaults to
+.Xr tbl 1 .
+Corresponds to the
+.Fl p
+option.
+.It Ev MANSECT
+Restricts manual sections searched to the specified colon delimited list.
+Corresponds to the
+.Fl S
+option.
+.It Ev MANWIDTH
+If set to a numeric value, used as the width manpages should be displayed.
+Otherwise, if set to a special value
+.Dq Li tty ,
+and output is to a terminal,
+the pages may be displayed over the whole width of the screen.
+.It Ev MANCOLOR
+If set, enables color support.
+.It Ev MANPAGER
+Program used to display files.
+.Pp
+If unset, and color support is enabled,
+.Dq Li "less -sR"
+is used.
+.Pp
+If unset, and color support is disabled, then
+.Ev PAGER
+is used.
+If that has no value either,
+.Dq Li "less -s"
+is used.
+.El
+.Sh FILES
+.Bl -tag -width indent -compact
+.It Pa /etc/man.conf
+System configuration file.
+.It Pa /usr/local/etc/man.d/*.conf
+Local configuration files.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr apropos 1 ,
+.Xr intro 1 ,
+.Xr mandoc 1 ,
+.Xr manpath 1 ,
+.Xr whatis 1 ,
+.Xr intro 2 ,
+.Xr intro 3 ,
+.Xr intro 4 ,
+.Xr intro 5 ,
+.Xr man.conf 5 ,
+.Xr intro 6 ,
+.Xr intro 7 ,
+.Xr mdoc 7 ,
+.Xr intro 8 ,
+.Xr intro 9

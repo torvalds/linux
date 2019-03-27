@@ -1,0 +1,106 @@
+.\" Copyright (c) 2016 Nuxi, https://nuxi.nl/
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd December 18, 2016
+.Dt PROMETHEUS_SYSCTL_EXPORTER 8
+.Os
+.Sh NAME
+.Nm prometheus_sysctl_exporter
+.Nd print kernel state as Prometheus metrics
+.Sh SYNOPSIS
+.Nm prometheus_sysctl_exporter
+.Op Fl dgh
+.Op Ar prefix ...
+.Sh DESCRIPTION
+Prometheus is a monitoring system that gathers metrics from its targets
+by fetching them through HTTP GET requests.
+Metrics are identified by a name and an optional set of labels.
+Sample values are required to be numerical.
+.Pp
+The
+.Nm
+utility prints the values of sysctl nodes to standard output,
+formatted such that they can be scraped by Prometheus directly.
+By default,
+it prints metrics for all numerically representable nodes in the sysctl
+namespace.
+It is also possible to limit output to a smaller number of metrics by
+specifying one or more prefixes as arguments.
+.Pp
+Metrics printed by this utility are named
+.Ql sysctl_ ,
+followed by the name of the sysctl node having its
+.Ql .\&
+separators replaced by
+.Ql _ .
+Components on which it is desirable to aggregate (e.g.,
+names of devices) are omitted from the metric's name,
+but are appended as labels instead.
+.Pp
+There are two different methods for exporting the output of
+.Nm
+to Prometheus.
+The first method is to periodically invoke this utility through
+.Xr cron 8
+and store its output in a textfile.
+The metrics in this textfile can then be served over HTTP using the
+Prometheus node exporter's textfile collector.
+The second method is to run this utility through
+.Xr inetd 8 .
+TCP port 9124 has been allocated for this purpose.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl d
+Print descriptions of metrics when available.
+.It Fl g
+Gzip compresses the HTTP response body.
+.It Fl h
+Precede the output with a HTTP response header.
+This flag is required when running this utility through
+.Xr inetd 8 .
+.El
+.Sh SEE ALSO
+.Xr cron 8 ,
+.Xr inetd 8 ,
+.Xr sysctl 8 ,
+.Xr SYSCTL_ADD_NODE_WITH_LABEL 9
+.Pp
+Prometheus project:
+.Pa https://prometheus.io/ .
+.Pp
+Prometheus exposition formats:
+.Pa https://prometheus.io/docs/instrumenting/exposition_formats/ .
+.Pp
+Prometheus node exporter:
+.Pa https://github.com/prometheus/node_exporter .
+.Pp
+Prometheus default port allocations:
+.Pa https://github.com/prometheus/prometheus/wiki/Default-port-allocations .
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+.An Nuxi : Pa https://nuxi.nl/ .

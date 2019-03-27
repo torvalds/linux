@@ -1,0 +1,485 @@
+.\" Copyright (c) 1988, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)chpass.1	8.2 (Berkeley) 12/30/93
+.\" $FreeBSD$
+.\"
+.Dd December 30, 1993
+.Dt CHPASS 1
+.Os
+.Sh NAME
+.Nm chpass ,
+.Nm chfn ,
+.Nm chsh ,
+.Nm ypchpass ,
+.Nm ypchfn ,
+.Nm ypchsh
+.Nd add or change user database information
+.Sh SYNOPSIS
+.Nm
+.Op Fl a Ar list
+.Op Fl p Ar encpass
+.Op Fl e Ar expiretime
+.Op Fl s Ar newshell
+.Op user
+.Nm
+.Op Fl oly
+.Op Fl a Ar list
+.Op Fl p Ar encpass
+.Op Fl e Ar expiretime
+.Op Fl s Ar newshell
+.Op Fl d Ar domain
+.Op Fl h Ar host
+.Op user
+.Sh DESCRIPTION
+The
+.Nm
+utility
+allows editing of the user database information associated
+with
+.Ar user
+or, by default, the current user.
+.Pp
+The
+.Nm chfn ,
+.Nm chsh ,
+.Nm ypchpass ,
+.Nm ypchfn
+and
+.Nm ypchsh
+utilities behave identically to
+.Nm .
+(There is only one program.)
+.Pp
+The information is formatted and supplied to an editor for changes.
+.Pp
+Only the information that the user is allowed to change is displayed.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a
+The super-user is allowed to directly supply a user database
+entry, in the format specified by
+.Xr passwd 5 ,
+as an argument.
+This argument must be a colon
+.Pq Dq \&:
+separated list of all the
+user database fields, although they may be empty.
+.It Fl p
+The super-user is allowed to directly supply an encrypted password field,
+in the format used by
+.Xr crypt 3 ,
+as an argument.
+.It Fl e Ar expiretime
+Change the account expire time.
+This option is used to set the expire time
+from a script as if it was done in the interactive editor.
+.It Fl s Ar newshell
+Attempt to change the user's shell to
+.Ar newshell .
+.El
+.Pp
+Possible display items are as follows:
+.Pp
+.Bl -tag -width "Other Information:" -compact -offset indent
+.It Login:
+user's login name
+.It Password:
+user's encrypted password
+.It Uid:
+user's login
+.It Gid:
+user's login group
+.It Class:
+user's general classification
+.It Change:
+password change time
+.It Expire:
+account expiration time
+.It Full Name:
+user's real name
+.It Office Location:
+user's office location (1)
+.It Office Phone:
+user's office phone (1)
+.It Home Phone:
+user's home phone (1)
+.It Other Information:
+any locally defined parameters for user (1)
+.It Home Directory:
+user's home directory
+.It Shell:
+user's login shell
+.Pp
+.It NOTE(1) -
+In the actual master.passwd file, these fields are comma-delimited
+fields embedded in the FullName field.
+.El
+.Pp
+The
+.Ar login
+field is the user name used to access the computer account.
+.Pp
+The
+.Ar password
+field contains the encrypted form of the user's password.
+.Pp
+The
+.Ar uid
+field is the number associated with the
+.Ar login
+field.
+Both of these fields should be unique across the system (and often
+across a group of systems) as they control file access.
+.Pp
+While it is possible to have multiple entries with identical login names
+and/or identical user id's, it is usually a mistake to do so.
+Routines
+that manipulate these files will often return only one of the multiple
+entries, and that one by random selection.
+.Pp
+The
+.Ar gid
+field is the group that the user will be placed in at login.
+Since
+.Bx
+supports multiple groups (see
+.Xr groups 1 )
+this field currently has little special meaning.
+This field may be filled in with either a number or a group name (see
+.Xr group 5 ) .
+.Pp
+The
+.Ar class
+field references class descriptions in
+.Pa /etc/login.conf
+and is typically used to initialize the user's system resource limits
+when they login.
+.Pp
+The
+.Ar change
+field is the date by which the password must be changed.
+.Pp
+The
+.Ar expire
+field is the date on which the account expires.
+.Pp
+Both the
+.Ar change
+and
+.Ar expire
+fields should be entered in the form
+.Dq month day year
+where
+.Ar month
+is the month name (the first three characters are sufficient),
+.Ar day
+is the day of the month, and
+.Ar year
+is the year.
+.Pp
+Five fields are available for storing the user's
+.Ar full name , office location ,
+.Ar work
+and
+.Ar home telephone
+numbers and finally
+.Ar other information
+which is a single comma delimited string to represent any additional
+gecos fields (typically used for site specific user information).
+Note that
+.Xr finger 1
+will display the office location and office phone together under the
+heading
+.Ar Office: .
+.Pp
+The user's
+.Ar home directory
+is the full
+.Ux
+path name where the user
+will be placed at login.
+.Pp
+The
+.Ar shell
+field is the command interpreter the user prefers.
+If the
+.Ar shell
+field is empty, the Bourne shell,
+.Pa /bin/sh ,
+is assumed.
+When altering a login shell, and not the super-user, the user
+may not change from a non-standard shell or to a non-standard
+shell.
+Non-standard is defined as a shell not found in
+.Pa /etc/shells .
+.Pp
+Once the information has been verified,
+.Nm
+uses
+.Xr pwd_mkdb 8
+to update the user database.
+.Sh ENVIRONMENT
+The
+.Xr vi 1
+editor will be used unless the environment variable
+.Ev EDITOR
+is set to
+an alternate editor.
+When the editor terminates, the information is re-read and used to
+update the user database itself.
+Only the user, or the super-user, may edit the information associated
+with the user.
+.Pp
+See
+.Xr pwd_mkdb 8
+for an explanation of the impact of setting the
+.Ev PW_SCAN_BIG_IDS
+environment variable.
+.Sh NIS INTERACTION
+The
+.Nm
+utility can also be used in conjunction with NIS, however some restrictions
+apply.
+Currently,
+.Nm
+can only make changes to the NIS passwd maps through
+.Xr rpc.yppasswdd 8 ,
+which normally only permits changes to a user's password, shell and GECOS
+fields.
+Except when invoked by the super-user on the NIS master server,
+.Nm
+(and, similarly,
+.Xr passwd 1 )
+cannot use the
+.Xr rpc.yppasswdd 8
+server to change other user information or
+add new records to the NIS passwd maps.
+Furthermore,
+.Xr rpc.yppasswdd 8
+requires password authentication before it will make any
+changes.
+The only user allowed to submit changes without supplying
+a password is the super-user on the NIS master server; all other users,
+including those with root privileges on NIS clients (and NIS slave
+servers) must enter a password.
+(The super-user on the NIS master is allowed to bypass these restrictions
+largely for convenience: a user with root access
+to the NIS master server already has the privileges required to make
+updates to the NIS maps, but editing the map source files by hand can
+be cumbersome.
+.Pp
+Note: these exceptions only apply when the NIS master server is a
+.Fx
+system).
+.Pp
+Consequently, except where noted, the following restrictions apply when
+.Nm
+is used with NIS:
+.Bl -enum -offset indent
+.It
+.Em "Only the shell and GECOS information may be changed" .
+All other
+fields are restricted, even when
+.Nm
+is invoked by the super-user.
+While support for
+changing other fields could be added, this would lead to
+compatibility problems with other NIS-capable systems.
+Even though the super-user may supply data for other fields
+while editing an entry, the extra information (other than the
+password -- see below) will be silently discarded.
+.Pp
+Exception: the super-user on the NIS master server is permitted to
+change any field.
+.It
+.Em "Password authentication is required" .
+The
+.Nm
+utility will prompt for the user's NIS password before effecting
+any changes.
+If the password is invalid, all changes will be
+discarded.
+.Pp
+Exception: the super-user on the NIS master server is allowed to
+submit changes without supplying a password.
+(The super-user may
+choose to turn off this feature using the
+.Fl o
+flag, described below.)
+.It
+.Em "Adding new records to the local password database is discouraged" .
+The
+.Nm
+utility will allow the administrator to add new records to the
+local password database while NIS is enabled, but this can lead to
+some confusion since the new records are appended to the end of
+the master password file, usually after the special NIS '+' entries.
+The administrator should use
+.Xr vipw 8
+to modify the local password
+file when NIS is running.
+.Pp
+The super-user on the NIS master server is permitted to add new records
+to the NIS password maps, provided the
+.Xr rpc.yppasswdd 8
+server has been started with the
+.Fl a
+flag to permitted additions (it refuses them by default).
+The
+.Nm
+utility tries to update the local password database by default; to update the
+NIS maps instead, invoke chpass with the
+.Fl y
+flag.
+.It
+.Em "Password changes are not permitted".
+Users should use
+.Xr passwd 1
+or
+.Xr yppasswd 1
+to change their NIS passwords.
+The super-user is allowed to specify
+a new password (even though the
+.Dq Password:
+field does not show
+up in the editor template, the super-user may add it back by hand),
+but even the super-user must supply the user's original password
+otherwise
+.Xr rpc.yppasswdd 8
+will refuse to update the NIS maps.
+.Pp
+Exception: the super-user on the NIS master server is permitted to
+change a user's NIS password with
+.Nm .
+.El
+.Pp
+There are also a few extra option flags that are available when
+.Nm
+is compiled with NIS support:
+.Bl -tag -width indent
+.It Fl l
+Force
+.Nm
+to modify the local copy of a user's password
+information in the event that a user exists in both
+the local and NIS databases.
+.It Fl y
+Opposite effect of
+.Fl l .
+This flag is largely redundant since
+.Nm
+operates on NIS entries by default if NIS is enabled.
+.It Fl d Ar domain
+Specify a particular NIS domain.
+The
+.Nm
+utility uses the system domain name by default, as set by the
+.Xr domainname 1
+utility.
+The
+.Fl d
+option can be used to override a default, or to specify a domain
+when the system domain name is not set.
+.It Fl h Ar host
+Specify the name or address of an NIS server to query.
+Normally,
+.Nm
+will communicate with the NIS master host specified in the
+.Pa master.passwd
+or
+.Pa passwd
+maps.
+On hosts that have not been configured as NIS clients, there is
+no way for the program to determine this information unless the user
+provides the hostname of a server.
+Note that the specified hostname need
+not be that of the NIS master server; the name of any server, master or
+slave, in a given NIS domain will do.
+.Pp
+When using the
+.Fl d
+option, the hostname defaults to
+.Dq localhost .
+The
+.Fl h
+option can be used in conjunction with the
+.Fl d
+option, in which case the user-specified hostname will override
+the default.
+.It Fl o
+Force the use of RPC-based updates when communicating with
+.Xr rpc.yppasswdd 8
+.Pq Dq old-mode .
+When invoked by the super-user on the NIS master server,
+.Nm
+allows unrestricted changes to the NIS passwd maps using dedicated,
+non-RPC-based mechanism (in this case, a
+.Ux
+domain socket).
+The
+.Fl o
+flag can be used to force
+.Nm
+to use the standard update mechanism instead.
+This option is provided
+mainly for testing purposes.
+.El
+.Sh FILES
+.Bl -tag -width /etc/master.passwd -compact
+.It Pa /etc/master.passwd
+the user database
+.It Pa /etc/passwd
+a Version 7 format password file
+.It Pa /etc/chpass.XXXXXX
+temporary copy of the password file
+.It Pa /etc/shells
+the list of approved shells
+.El
+.Sh SEE ALSO
+.Xr finger 1 ,
+.Xr login 1 ,
+.Xr passwd 1 ,
+.Xr getusershell 3 ,
+.Xr login.conf 5 ,
+.Xr passwd 5 ,
+.Xr pw 8 ,
+.Xr pwd_mkdb 8 ,
+.Xr vipw 8
+.Rs
+.%A Robert Morris
+.%A Ken Thompson
+.%T "UNIX Password security"
+.Re
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.3 Reno .
+.Sh BUGS
+User information should (and eventually will) be stored elsewhere.

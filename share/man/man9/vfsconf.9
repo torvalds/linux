@@ -1,0 +1,151 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 16, 2013
+.Dt VFSCONF 9
+.Os
+.Sh NAME
+.Nm vfsconf
+.Nd "vfs configuration information"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.Ft int
+.Fn vfs_register "struct vfsconf *vfc"
+.Ft int
+.Fn vfs_unregister "struct vfsconf *vfc"
+.Ft int
+.Fn vfs_modevent "module_t mod" "int type" "void *data"
+.Sh DESCRIPTION
+Each file system type known to the kernel has a
+.Vt vfsconf
+structure that contains the
+information required to create a new mount of that file systems type.
+.Bd -literal
+struct vfsconf {
+	struct	vfsops *vfc_vfsops;	/* file system operations vector */
+	char	vfc_name[MFSNAMELEN];	/* file system type name */
+	int	vfc_typenum;		/* historic file system type number */
+	int	vfc_refcount;		/* number mounted of this type */
+	int	vfc_flags;		/* permanent flags */
+	struct	vfsconf *vfc_next;	/* next in list */
+};
+.Ed
+.Pp
+When a new file system is mounted,
+.Xr mount 2
+does a lookup of the
+.Vt vfsconf
+structure by its name, and if it is not already registered,
+attempts to load a kernel module for it.
+The file system operations for the new mount point are taken from
+.Va vfc_vfsops ,
+and
+.Va mnt_vfc
+in the
+.Vt mount
+structure is made to point directly at the
+.Vt vfsconf
+structure for the
+file system type.
+The file system type number is taken from
+.Va vfc_typenum
+which was assigned in
+.Fn vfs_register ,
+and the mount flags are taken from a mask of
+.Va vfc_flags .
+Each time a file system of a given type is mounted,
+.Va vfc_refcount
+is incremented.
+.Pp
+.Fn vfs_register
+takes a new
+.Vt vfsconf
+structure and adds it to the list of existing file systems.
+If the type has not already been registered, it is initialized by calling the
+.Fn vfs_init
+function in the file system operations vector.
+.Fn vfs_register
+also updates the oid's of any sysctl nodes for this file system type
+to be the same as the newly assigned type number.
+.Pp
+.Fn vfs_unregister
+unlinks
+.Fa vfc
+from the list of registered file system types if there are currently no mounted instances.
+If the
+.Fn vfs_uninit
+function in the file systems initialization vector is defined, it is called.
+.Pp
+.Fn vfs_modevent
+is registered by
+.Fn VFS_SET
+to handle the loading and unloading of file system kernel modules.
+In the case of
+.Dv MOD_LOAD ,
+.Fn vfs_register
+is called.
+In the case of
+.Dv MOD_UNLOAD ,
+.Fn vfs_unregister
+is called.
+.Sh RETURN VALUES
+.Fn vfs_register
+returns 0 if successful; otherwise,
+.Er EEXIST
+is returned indicating that the file system type has already been registered.
+.Pp
+.Fn vfs_unregister
+returns 0 if successful.
+If no
+.Vt vfsconf
+entry can be found matching the name in
+.Fa vfc ,
+.Er EINVAL
+is returned.
+If the reference count of mounted instances of the file system type is not zero,
+.Er EBUSY
+is returned.
+If
+.Fn vfs_uninit
+is called, any errors it returns will be returned by
+.Fn vfs_unregister .
+.Pp
+.Fn vfs_modevent
+returns the result of the call to
+.Fn vfs_register
+or
+.Fn vfs_unregister ,
+whatever the case.
+.Sh SEE ALSO
+.Xr mount 2 ,
+.Xr vfs_rootmountalloc 9 ,
+.Xr VFS_SET 9
+.Sh AUTHORS
+This manual page was written by
+.An Chad David Aq Mt davidc@acns.ab.ca .

@@ -1,0 +1,54 @@
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP_MAJOR_VERSION 3PCAP "7 April 2014"
+.SH NAME
+pcap_major_version, pcap_minor_version \- get the version number of a savefile
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap/pcap.h>
+.ft
+.LP
+.ft B
+int pcap_major_version(pcap_t *p);
+int pcap_minor_version(pcap_t *p);
+.ft
+.fi
+.SH DESCRIPTION
+If
+.I p
+refers to a ``savefile'',
+.B pcap_major_version()
+returns the major number of the file format of the ``savefile'' and
+.B pcap_minor_version()
+returns the minor number of the file format of the ``savefile''.  The
+version number is stored in the ``savefile''; note that the meaning of
+its values depends on the type of ``savefile'' (for example, pcap or
+pcapng).
+.PP
+If
+.I p
+refers to a live capture, the values returned by
+.B pcap_major_version()
+and
+.B pcap_minor_version()
+are not meaningful.
+.SH SEE ALSO
+pcap(3PCAP)

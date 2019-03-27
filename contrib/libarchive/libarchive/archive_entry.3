@@ -1,0 +1,150 @@
+.\" Copyright (c) 2003-2007 Tim Kientzle
+.\" Copyright (c) 2010 Joerg Sonnenberger
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 2, 2012
+.Dt ARCHIVE_ENTRY 3
+.Os
+.Sh NAME
+.Nm archive_entry_clear ,
+.Nm archive_entry_clone ,
+.Nm archive_entry_free ,
+.Nm archive_entry_new ,
+.Nd functions for managing archive entry descriptions
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.In archive_entry.h
+.Ft "struct archive_entry *"
+.Fn archive_entry_clear "struct archive_entry *"
+.Ft struct archive_entry *
+.Fn archive_entry_clone "struct archive_entry *"
+.Ft void
+.Fn archive_entry_free "struct archive_entry *"
+.Ft struct archive_entry *
+.Fn archive_entry_new "void"
+.Sh DESCRIPTION
+These functions create and manipulate data objects that
+represent entries within an archive.
+You can think of a
+.Tn struct archive_entry
+as a heavy-duty version of
+.Tn struct stat :
+it includes everything from
+.Tn struct stat
+plus associated pathname, textual group and user names, etc.
+These objects are used by
+.Xr libarchive 3
+to represent the metadata associated with a particular
+entry in an archive.
+.Ss Create and Destroy
+There are functions to allocate, destroy, clear, and copy
+.Va archive_entry
+objects:
+.Bl -tag -compact -width indent
+.It Fn archive_entry_clear
+Erases the object, resetting all internal fields to the
+same state as a newly-created object.
+This is provided to allow you to quickly recycle objects
+without thrashing the heap.
+.It Fn archive_entry_clone
+A deep copy operation; all text fields are duplicated.
+.It Fn archive_entry_free
+Releases the
+.Tn struct archive_entry
+object.
+.It Fn archive_entry_new
+Allocate and return a blank
+.Tn struct archive_entry
+object.
+.El
+.Ss Function groups
+Due to high number of functions, the accessor functions can be found in
+man pages grouped by the purpose.
+.Bl -tag -width ".Xr archive_entry_perms 3"
+.It Xr archive_entry_acl 3
+Access Control List manipulation
+.It Xr archive_entry_paths 3
+Path name manipulation
+.It Xr archive_entry_perms 3
+User, group and mode manipulation
+.It Xr archive_entry_stat 3
+Functions not in the other groups and copying to/from
+.Vt struct stat .
+.It Xr archive_entry_time 3
+Time field manipulation
+.El
+.Pp
+Most of the functions set or read entries in an object.
+Such functions have one of the following forms:
+.Bl -tag -compact -width indent
+.It Fn archive_entry_set_XXXX
+Stores the provided data in the object.
+In particular, for strings, the pointer is stored,
+not the referenced string.
+.It Fn archive_entry_copy_XXXX
+As above, except that the referenced data is copied
+into the object.
+.It Fn archive_entry_XXXX
+Returns the specified data.
+In the case of strings, a const-qualified pointer to
+the string is returned.
+.El
+String data can be set or accessed as wide character strings
+or normal
+.Va char
+strings.
+The functions that use wide character strings are suffixed with
+.Cm _w .
+Note that these are different representations of the same data:
+For example, if you store a narrow string and read the corresponding
+wide string, the object will transparently convert formats
+using the current locale.
+Similarly, if you store a wide string and then store a
+narrow string for the same data, the previously-set wide string will
+be discarded in favor of the new data.
+.Pp
+.\" .Sh EXAMPLE
+.\" .Sh RETURN VALUES
+.\" .Sh ERRORS
+.Sh SEE ALSO
+.Xr archive_entry_acl 3 ,
+.Xr archive_entry_paths 3 ,
+.Xr archive_entry_perms 3 ,
+.Xr archive_entry_time 3
+.Xr libarchive 3 ,
+.Sh HISTORY
+The
+.Nm libarchive
+library first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm libarchive
+library was written by
+.An Tim Kientzle Aq kientzle@acm.org .
+.\" .Sh BUGS

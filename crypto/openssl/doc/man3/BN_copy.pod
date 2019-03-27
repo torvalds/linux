@@ -1,0 +1,69 @@
+=pod
+
+=head1 NAME
+
+BN_copy, BN_dup, BN_with_flags - copy BIGNUMs
+
+=head1 SYNOPSIS
+
+ #include <openssl/bn.h>
+
+ BIGNUM *BN_copy(BIGNUM *to, const BIGNUM *from);
+
+ BIGNUM *BN_dup(const BIGNUM *from);
+
+ void BN_with_flags(BIGNUM *dest, const BIGNUM *b, int flags);
+
+=head1 DESCRIPTION
+
+BN_copy() copies B<from> to B<to>. BN_dup() creates a new B<BIGNUM>
+containing the value B<from>.
+
+BN_with_flags creates a B<temporary> shallow copy of B<b> in B<dest>. It places
+significant restrictions on the copied data. Applications that do no adhere to
+these restrictions may encounter unexpected side effects or crashes. For that
+reason use of this function is discouraged. Any flags provided in B<flags> will
+be set in B<dest> in addition to any flags already set in B<b>. For example this
+might commonly be used to create a temporary copy of a BIGNUM with the
+B<BN_FLG_CONSTTIME> flag set for constant time operations. The temporary copy in
+B<dest> will share some internal state with B<b>. For this reason the following
+restrictions apply to the use of B<dest>:
+
+=over 2
+
+=item *
+
+B<dest> should be a newly allocated BIGNUM obtained via a call to BN_new(). It
+should not have been used for other purposes or initialised in any way.
+
+=item *
+
+B<dest> must only be used in "read-only" operations, i.e. typically those
+functions where the relevant parameter is declared "const".
+
+=item *
+
+B<dest> must be used and freed before any further subsequent use of B<b>
+
+=back
+
+=head1 RETURN VALUES
+
+BN_copy() returns B<to> on success, NULL on error. BN_dup() returns
+the new B<BIGNUM>, and NULL on error. The error codes can be obtained
+by L<ERR_get_error(3)>.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

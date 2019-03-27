@@ -1,0 +1,9 @@
+document.write("\
+<table><tr>\
+<td width='33%' align='center'><img src='icons/home.gif' align='middle'>\
+<a href='index.html'>Home Page</a></td>\
+<td width='33%' align='center'><img src='icons/sitemap.png' align='middle'>\
+<a href='sitemap.html'>Site Map</a></td>\
+<td width='33%' align='center'><img src='icons/mail2.gif' align='middle'>\
+<a href='http://www.ntp.org/contact'>Contacts</a></td>\
+</tr></table>")

@@ -1,0 +1,44 @@
+=pod
+
+=head1 NAME
+
+RAND_cleanup - erase the PRNG state
+
+=head1 SYNOPSIS
+
+ #include <openssl/rand.h>
+
+ #if OPENSSL_API_COMPAT < 0x10100000L
+ void RAND_cleanup(void)
+ #endif
+
+=head1 DESCRIPTION
+
+Prior to OpenSSL 1.1.0, RAND_cleanup() released all resources used by
+the PRNG.  As of version 1.1.0, it does nothing and should not be called,
+since no explicit initialisation or de-initialisation is necessary. See
+L<OPENSSL_init_crypto(3)>.
+
+=head1 RETURN VALUES
+
+RAND_cleanup() returns no value.
+
+=head1 HISTORY
+
+RAND_cleanup() was deprecated in OpenSSL 1.1.0; do not use it.
+See L<OPENSSL_init_crypto(3)>
+
+=head1 SEE ALSO
+
+L<RAND(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

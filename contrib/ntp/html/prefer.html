@@ -1,0 +1,93 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<title>Mitigation Rules and the prefer Keyword</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>Mitigation Rules and the <tt>prefer</tt> Keyword</h3>
+<img src="pic/alice11.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/%7emills/pictures.html"> from <i>Alice's Adventures in Wonderland</i>, Lewis Carroll</a>
+<p>Listen carefully to what I say; it is very complicated.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->10-Mar-2014  05:18<!-- #EndDate -->
+    UTC</p>
+<br clear="left">
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/misc.txt"></script>
+<h4>Table of Contents</h4>
+<ul>
+  <li class="inline"><a href="#intro">1. Introduction and  Overview</a></li>
+  <li class="inline"><a href="#combine">2. Combine Algorithm</a></li>
+  <li class="inline"><a href="#clockhop">3. Anti-Clockhop Algorithm</a></li>
+  <li class="inline"><a href="#peer">4. Peer Classification</a></li>
+  <li class="inline"><a href="#prefer">5. 5. The <tt>prefer</tt> Peer</a></li>
+  <li class="inline"><a href="#miti">6. Mitigation Rules</a></li>
+  <li class="inline"><a href="#mins">7. The <tt>minsane</tt> Option</a></li>
+</ul>
+<hr>
+<h4 id="intro">1. Introduction and  Overview</h4>
+<p>This page summarizes the criteria for choosing from among the survivors of the clock cluster algorithm  a set of  contributors to the clock discipline algorithm. The criteria are very meticulous, since they have to handle many different scenarios that may be optimized for special circumstances, including some scenarios designed to support planetary and deep space missions. For additional information on statistical principles and performance metrics, see the <a href="stats.html">Performance Metrics</a> page.</p>
+<p>Recall the suite of NTP data acquisition and grooming algorithms. These algorithms proceed in five phases. Phase one discovers the available <em>sources</em> and mobilizes an association for each source found. These sources can result from explicit configuration, broadcast discovery or the pool and manycast autonomous configuration schemes. See the <a href="discover.html">Automatic Server Discovery Schemes</a> page for further information.</p>
+<p> Phase two selects the <em> candidates</em> from among the sources  by  excluding those sources showing one or more of the  errors summarized on the <a href="select.html">Clock Select Algorithm</a> page and to determine the <em>truechimers</em> from among the  candidates, leaving behind the <em>falsetickers</em>. A server or peer configured with the <tt>true</tt> option is declared a truechimer independent of this algorithm. Phase four uses the algorithm described on the <a href="cluster.html">Clock Cluster Algorithm</a> page to prune the statistical outliers from the  truechimers, leaving the <em>survivor list</em><em></em> as result. </p>
+<p> Phase five uses a set of algorithms and mitigation rules to   combined the survivor statistics and discipline the system clock. The mitigation rules select from among the survivors a <em>system peer</em> from which a set of system statistics can be inherited and passed along to  dependent clients, if any.  The mitigation algorithms and rules are the main topic of this page. The clock offset developed from these algorithms can discipline the system clock, either using the <a href="discipline.html">clock discipline algorithm</a> or using  the kernel to discipline the system clock directly, as described on the <a href="kern.html">A Kernel Model for Precision Timekeeping</a> page. </p>
+<h4 id="combine">2. Combine Algorithm</h4>
+<p> The clock combine algorithm uses the survivor list to produce a weighted average of both offset and jitter. Absent other considerations discussed later, the <em>combined offset</em> is used to discipline the system clock, while the <em>combined jitter</em> is augmented with other components to produce the system jitter statistic inherited by dependent clients, if any.</p>
+<p> The clock combine algorithm uses a weight factor for each survivor equal to the reciprocal of the root distance. This is normalized so that the sum of the reciprocals is equal to unity. This design  favors the survivors at the smallest root distance and thus the smallest  maximum  error.</p>
+<h4 id="clockhop">3. Anti-Clockhop Algorithm</h4>
+<p>The anti-clockhop algorithm is intended for cases where multiple  servers are available on a fast LAN with modern computers. Typical offset differences between servers in such cases are less than 0.5 ms. However,  changes between servers can result in unnecessary system jitter. The object of the anti-clockhop algorithm is to avoid changing  the current system peer, unless  it becomes stale or has significant offset relative to other candidates on the survivor list.</p>
+<p>For the purposes of the following description, call the last selected system peer the <em>old peer</em>, and the currently selected source the <em>candidate peer</em>.    At each update, the candidate peer is selected as the first peer on the survivor list sorted by increasing root distance.  The algorithm  initializes the -<em>clockhop threshold</em> with the value of <tt>mindist</tt>, by default 1 ms. </p>
+<p>The anti-clockhop algorithm is called immediately after the combine algorithm. If there was no old peer or the old and candidate peers are the same,   the candidate peer becomes the system peer. If the old peer and the candidate peer are different,   the algorithm measures the difference between the offset of the old peer and the candidate peer. If the difference exceeds the clockhop threshold, the candidate peer becomes the system peer and the clockhop threshold is restored to its original value. If the difference is less than the clockhop threshold,  the old peer continues as the system peer. However, at each subsequent update, the algorithm reduces the clockhop threshold by half. Should operation continue in this way, the candidate peer will eventually become the system peer.</p>
+<h4 id="peer">4. Peer Classification</h4>
+<p>The behavior of the various algorithms and mitigation rules involved depends on how the various synchronization sources are classified. This depends on whether the source is local or remote and if local, the type of source. The following classes are defined:</p>
+<ol>
+  <li>A selectable association configured for a remote server or peer is classified  as a <i>client association</i>. All other selectable associations are classified as  <i>device driver associations</i> of one kind or another. In general, one or more sources of either  type will be available in each installation.</li>
+  <li>If all sources have been lost and one or more hosts on a  common DMZ network have  specified the orphan stratum in the <tt>orphan</tt> option of the <a href="miscopt.html#tos"><tt>tos</tt></a> command, each of them can become an <i>orphan parent</i>. Dependent orphan children on the same DMZ network will see the orphan parents as if synchronized to a  server at the orphan stratum.  Note that, as described on the <a href="orphan.html">Orphan Mode</a> page,  all  orphan children will select    the same orphan parent for synchronization.</li>
+  <li>When a device driver has been configured for pulse-per-second (PPS) signals and PPS signals are being received, it is designated the <i>PPS driver.</i> Note that the Pulse-per-Second driver (type 22) is often used as a PPS driver, but any driver can be configure as a PPS driver if the hardware facilities are available. The PPS driver provides precision clock discipline only within &plusmn;0.4 s, so it is always associated with another source or sources that provide the seconds numbering function.</li>
+  <li>When the Undisciplined Local Clock driver (type 1) is configured, it is designated the <i>local driver</i>. It can be used either as a backup source (stratum greater than zero) should all sources fail, or as the primary source (stratum zero) whether or not other sources are available if the <tt>prefer</tt> option is present. The local driver can be used when the kernel time is disciplined by some other means of synchronization, such as the NIST <tt>lock clock</tt> scheme, or another synchronization protocol such as the IEEE 1588 Precision Time Protocol (PTP) or Digital Time Synchronization Service (DTSS).</li>
+  <li>When the Automated Computer Time Service driver (type 18) is configured, it is designated the <i>modem driver</i>. It is used either as a backup source, should all other sources fail, or as the  primary source if the <tt>prefer</tt> option is present.</li>
+</ol>
+<h4 id="prefer">5. The <tt>prefer</tt> Peer</h4>
+<p>The mitigation rules are designed to provide an intelligent selection of the system peer from among the selectable sources of different types. When used with the <tt>server</tt> or <tt>peer</tt> commands, the <tt>prefer</tt> option designates one or more sources as preferred over all others. While the rules do not forbid it, it is usually not useful to designate more than one source as preferred; however, if more than one source is so designated, they are used in the order specified in the configuration file. If the first one becomes un selectable, the second one is considered and so forth. This order of priority is also applicable to multiple PPS drivers, multiple modem drivers and even multiple local drivers, although that would not normally be useful.</p>
+<p>The cluster algorithm works on the set of truechimers produced by the select algorithm. At each round the  algorithm casts off the survivor least likely to influence the choice of system peer.    If selectable,  the prefer peer is never discarded; on the contrary, its potential removal becomes a termination condition. However, the prefer peer can still be discarded by the select algorithm as a falseticker; otherwise, the prefer peer becomes the system peer.</p>
+<p>Ordinarily, the combine algorithm computes a weighted average of the survivor
+  offset and jitter  to produce the final values. However, if a prefer
+  peer is among the survivors, the combine algorithm is not used. Instead,
+  the offset and jitter of the prefer peer are used exclusively as the final values. In the common case involving a radio clock and a flock of remote backup
+  servers, and with the radio clock designated a prefer peer, the 
+  the radio clock disciplines the system clock as long as the radio itself
+  remains operational. However, if the radio fails or becomes a falseticker,
+  the combined backup sources continue to discipline the system clock.</p>
+<h4 id="miti">6. Mitigation Rules</h4>
+<p>As the select algorithm scans the associations for selectable candidates, the modem driver and local driver are segregated for later, but only if not designated a prefer peer. If so designated, the driver is included among the candidate population. In addition, if orphan parents are found, the parent with the lowest  metric  is segregated for later; the others are discarded. For this purpose the metric is defined as the four-octet IPv4 address or the first four octets of the hashed IPv6 address. The resulting candidates, including any prefer peers found, are processed by the select  algorithm to produce a possibly empty set of truechimers.</p>
+<p> As previously noted, the cluster algorithm casts out outliers, leaving the survivor list for later processing. The survivor list is then sorted by increasing root distance   and the first entry   temporarily designated the   system peer. At this point  the following contributors to the system clock discipline may be available:</p>
+<ul>
+  <li>(potential) system peer, if there are survivors;</li>
+  <li>orphan parent, if present;</li>
+  <li>local driver, if present;</li>
+  <li>modem driver, if present;</li>
+  <li>prefer peer, if present;</li>
+  <li>PPS driver, if present.</li>
+</ul>
+<p>The mitigation algorithm proceeds in three steps in turn.</p>
+<ol>
+  <li>If there are no survivors, the modem driver becomes the only survivor if there is one. If not, the local driver becomes the only survivor if there is one. If not, the orphan parent becomes the only survivor if there is one. If the number of survivors at this point is less than the <tt>minsane</tt> option of the <a href="miscopt.html#tos"><tt>tos</tt></a> command, the algorithm is terminated and the system variables remain unchanged. Note that <tt>minsane</tt> is by default 1, but can be set at any value including 0.</li>
+  <li>If the prefer peer is among the survivors, it becomes the system peer and its  offset and jitter are inherited by the corresponding system variables. Otherwise, the combine algorithm computes these variables from the survivor population.</li>
+  <li>If there is a PPS driver and the system clock offset at this point is less than 0.4 s, and if there is a prefer peer among the survivors or if the PPS peer is designated as a prefer peer, the PPS driver becomes the system peer and its offset and jitter are inherited by the system variables, thus overriding any variables already computed. Note that a PPS driver is present only if PPS signals are actually being received and enabled by the associated driver.</li>
+</ol>
+<p>If none of the above is the case, the data are disregarded and the system variables remain as they are.</p>
+<h4 id="mins">7. The <tt>minsane</tt> Option</H4>
+<p> The <tt>minsane</tt> option of the <a href="miscopt.html#tos"><tt>tos</tt></a> command, the <tt>prefer</tt> option of the <tt>server</tt> and <tt>peer</tt> commands and the <tt>flag</tt> option of the <tt>fudge</tt> command for a selected  driver can be used with the mitigation rules to provide many useful configurations. The <tt>minsane</tt> option specifies the minimum number of survivors required to synchronize the system clock.  The <tt>prefer</tt> option operates as described in previous sections. The <tt>flag</tt> option enables the PPS signal for the selected driver.</p>
+<p>A common scenario is a GPS driver with a serial timecode and PPS signal. The
+  PPS signal is disabled until the system clock has been set by some means, not
+  necessarily the GPS driver. If the serial timecode is within 0.4 s of the PPS
+  signal, the GPS driver is designated the PPS driver and the PPS signal disciplines
+  the system clock. If the serial timecode becomes unreliable, or if the PPS signal is
+  disconnected, the GPS driver stops updating the system clock and so eventually
+  becomes unreachable and is replaced by other sources.</p>
+<p>Whether or not the GPS driver disables the PPS signal when the timecode becomes unreliable is
+  at the discretion of the driver. Ordinarily, the PPS signal is disabled in this case; however, when the GPS receiver has a precision holdover oscillator, the driver may elect to continue PPS discipline . In this case, <tt>minsane</tt> can be set to zero so the  PPS signal continues to discipline the system clock.</p>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

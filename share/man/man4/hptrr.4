@@ -1,0 +1,142 @@
+.\"
+.\" Copyright (c) 2007 Me
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 6, 2012
+.Dt HPTRR 4
+.Os
+.Sh NAME
+.Nm hptrr
+.Nd "HighPoint RocketRAID device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device hptrr"
+.Cd "device scbus"
+.Cd "device da"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hptrr_load="YES"
+.Ed
+.Pp
+The following tunables are settable from the loader:
+.Bl -ohang
+.It Va hw.hptrr.attach_generic
+set to 1 to permit driver attach to chips with generic Marvell (non-HighPoint)
+PCI identification.
+These chips are also supported by
+.Xr ata 4
+and
+.Xr mvs 4 .
+Some vendors are using same chips, but without providing RAID BIOS.
+.El
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for HighPoint's RocketRAID based RAID controllers.
+.Pp
+These devices support SATA/ATA disk drives
+and provide RAID0 (striping), RAID1 (mirroring), and RAID5 functionality.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following RAID
+controllers:
+.Pp
+.Bl -bullet -compact
+.It
+RocketRAID 172x series
+.It
+RocketRAID 174x series
+.It
+RocketRAID 2210
+.It
+RocketRAID 222x series
+.It
+RocketRAID 2240
+.It
+RocketRAID 230x series
+.It
+RocketRAID 231x series
+.It
+RocketRAID 232x series
+.It
+RocketRAID 2340
+.It
+RocketRAID 2522
+.El
+.Sh NOTES
+The
+.Nm
+driver only works on the i386 and amd64 platforms as it requires a binary
+blob object from the manufacturer which they only supply for these platforms.
+The
+.Nm
+driver does
+.Em not
+work on i386 with
+.Xr pae 4
+enabled.
+.Pp
+This driver does not support the RR182x series controller.
+See the
+.Xr hptmv 4
+manual page for details on support.
+.Pp
+This driver supersedes the older rr232x driver.
+.Sh SEE ALSO
+.Xr ata 4 ,
+.Xr cam 4 ,
+.Xr hptmv 4 ,
+.Xr mvs 4 ,
+.Xr loader 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 6.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was written by
+.An HighPoint Technologies, Inc. ,
+and ported to
+.Fx
+by
+.An Scott Long .
+This manual page was written by
+.An David E. O'Brien .
+.Sh BUGS
+The
+.Nm
+driver does not support manipulating the RAID from the OS, RAIDs need
+to be set up from the on-board BIOS.

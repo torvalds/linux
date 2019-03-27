@@ -1,0 +1,41 @@
+//
+//  General.xcconfig
+//
+//  These are General configuration settings for the gtest framework and
+//  examples.
+//  This file is based on the Xcode Configuration files in:
+//  https://github.com/google/google-toolbox-for-mac
+// 
+
+// Build for PPC and Intel, 32- and 64-bit
+ARCHS = i386 x86_64 ppc ppc64
+
+// Zerolink prevents link warnings so turn it off
+ZERO_LINK = NO
+
+// Prebinding considered unhelpful in 10.3 and later
+PREBINDING = NO
+
+// Strictest warning policy
+WARNING_CFLAGS = -Wall -Werror -Wendif-labels -Wnewline-eof -Wno-sign-compare -Wshadow
+
+// Work around Xcode bugs by using external strip. See:
+// http://lists.apple.com/archives/Xcode-users/2006/Feb/msg00050.html
+SEPARATE_STRIP = YES
+
+// Force C99 dialect
+GCC_C_LANGUAGE_STANDARD = c99
+
+// not sure why apple defaults this on, but it's pretty risky
+ALWAYS_SEARCH_USER_PATHS = NO
+
+// Turn on position dependent code for most cases (overridden where appropriate)
+GCC_DYNAMIC_NO_PIC = YES
+
+// Default SDK and minimum OS version is 10.4
+SDKROOT = $(DEVELOPER_SDK_DIR)/MacOSX10.4u.sdk
+MACOSX_DEPLOYMENT_TARGET = 10.4
+GCC_VERSION = 4.0
+
+// VERSIONING BUILD SETTINGS (used in Info.plist)
+GTEST_VERSIONINFO_ABOUT =  © 2008 Google Inc.

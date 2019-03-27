@@ -1,0 +1,162 @@
+if [ ! "$_NETWORKING_HOSTNAME_SUBR" ]; then _NETWORKING_HOSTNAME_SUBR=1
+#
+# Copyright (c) 2006-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." networking/hostname.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/networking/common.subr
+f_include $BSDCFG_SHARE/networking/resolv.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+############################################################ FUNCTIONS
+
+# f_dialog_hnerror $error $hostname
+#
+# Display a msgbox with the appropriate error message for an error returned by
+# the f_validate_hostname function.
+#
+f_dialog_hnerror()
+{
+	local error="$1" fqhn="$2"
+
+	[ ${error:-0} -ne 0 ] || return $SUCCESS
+
+	case "$error" in
+	1) f_show_msg "$msg_hostname_label_contains_invalid_chars" "$fqhn" ;;
+	2) f_show_msg \
+		"$msg_hostname_label_starts_or_ends_with_hyphen" "$fqhn" ;;
+	3) f_show_msg "$msg_hostname_label_is_null" "$fqhn" ;;
+	63) f_show_msg "$msg_hostname_label_exceeds_max_length" "$fqhn" ;;
+	255) f_show_msg "$msg_hostname_exceeds_max_length" "$fqhn" ;;
+	esac
+}
+
+# f_dialog_validate_hostname $hostname
+#
+# Returns zero if the given argument (a fully-qualified hostname) is compliant
+# with standards set-forth in RFC's 952 and 1123 of the Network Working Group:
+#
+# RFC 952 - DoD Internet host table specification
+# https://tools.ietf.org/html/rfc952
+#
+# RFC 1123 - Requirements for Internet Hosts - Application and Support
+# https://tools.ietf.org/html/rfc1123
+#
+# If the hostname is determined to be invalid, the appropriate error will be
+# displayed using the f_dialog_hnerror function above.
+#
+f_dialog_validate_hostname()
+{
+	local fqhn="$1"
+
+	f_validate_hostname "$fqhn"
+	local retval=$?
+
+	# Produce an appropriate error message if necessary.
+	[ $retval -eq $SUCCESS ] || f_dialog_hnerror $retval "$fqhn"
+
+	return $retval
+}
+
+# f_dialog_input_hostname
+#
+# Edits the current hostname.
+#
+f_dialog_input_hostname()
+{
+	local funcname=f_dialog_input_hostname
+	local hostname="$( f_sysrc_get 'hostname:-$(hostname)' )"
+	local hostname_orig="$hostname" # for change-tracking
+
+	local msg
+	if [ "$USE_XDIALOG" ]; then
+		msg="$xmsg_please_enter_fqhn"
+	else
+		msg="$msg_please_enter_fqhn"
+	fi
+
+	#
+	# Loop until the user provides taint-free input.
+	#
+	while :; do
+		f_dialog_input hostname "$msg" "$hostname" \
+		               "$hline_alnum_punc_tab_enter" || return $?
+		# Taint-check the user's input
+		f_dialog_validate_hostname "$hostname" && break
+	done
+
+	#
+	# Save hostname only if the user changed the hostname.
+	#
+	if [ "$hostname" != "$hostname_orig" ]; then
+		f_dialog_info "$msg_saving_hostname"
+		f_eval_catch $funcname f_sysrc_set \
+			'f_sysrc_set hostname "%s"' "$hostname"
+	fi
+
+	#
+	# Update resolv.conf(5) search/domain directives
+	#
+	f_dialog_resolv_conf_update "$hostname"
+
+	#
+	# Only ask to apply setting if the current hostname is different than
+	# the stored configuration (in rc.conf(5)).
+	#
+	if [ "$( hostname )" != "$( f_sysrc_get hostname )" ]; then
+		[ ! "$USE_XDIALOG" ] && f_dialog_clear
+
+		#
+		# If connected via ssh(1) and performing X11-Forwarding, don't
+		# allow the hostname to be changed to prevent the fatal error
+		# "X11 connection rejected because of wrong authentication."
+		#
+		if [ "$USE_XDIALOG" -a "$SSH_CONNECTION" ]; then
+			f_show_msg "$msg_activate_hostname_x11warning" \
+			           "$( hostname )" "$hostname"
+		else
+			f_yesno "$msg_activate_hostname" \
+			        "$( hostname )" "$hostname" \
+			&& hostname "$hostname"
+		fi
+	fi
+
+	return $DIALOG_OK
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." networking/hostname.subr
+
+fi # ! $_NETWORKING_HOSTNAME_SUBR

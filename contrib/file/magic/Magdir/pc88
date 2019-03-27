@@ -1,0 +1,24 @@
+#------------------------------------------------------------------------------
+# pc88:  file(1) magic for the NEC Home Computer
+# v1.0
+# Fabio R. Schmidlin <sd-snatcher@users.sourceforge.net>
+
+# PC88 2D disk image
+0x20		ulelong&0xFFFFFEFF	0x2A0
+>0x10		string		\0\0\0\0\0\0\0\0\0\0
+>>0x280		string		\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+>>>0x1A		ubyte&0xEF	0
+>>>>0x1B	ubyte&0x8F	0
+>>>>>0x1B	ubyte&70	<0x40
+>>>>>>0x1C	ulelong	>0x21
+>>>>>>>0		regex	[[:print:]]*	NEC PC-88 disk image, name=%s
+>>>>>>>>0x1B	ubyte	0	\b, media=2D
+>>>>>>>>0x1B	ubyte	0x10	\b, media=2DD
+>>>>>>>>0x1B	ubyte	0x20	\b, media=2HD
+>>>>>>>>0x1B	ubyte	0x30	\b, media=1D
+>>>>>>>>0x1B	ubyte	0x40	\b, media=1DD
+>>>>>>>>0x1A	ubyte	0x10	\b, write-protected
+
+
+
+

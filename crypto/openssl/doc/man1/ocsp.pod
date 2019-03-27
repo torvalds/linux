@@ -1,0 +1,500 @@
+=pod
+
+=head1 NAME
+
+openssl-ocsp,
+ocsp - Online Certificate Status Protocol utility
+
+=head1 SYNOPSIS
+
+B<openssl> B<ocsp>
+[B<-help>]
+[B<-out file>]
+[B<-issuer file>]
+[B<-cert file>]
+[B<-serial n>]
+[B<-signer file>]
+[B<-signkey file>]
+[B<-sign_other file>]
+[B<-no_certs>]
+[B<-req_text>]
+[B<-resp_text>]
+[B<-text>]
+[B<-reqout file>]
+[B<-respout file>]
+[B<-reqin file>]
+[B<-respin file>]
+[B<-nonce>]
+[B<-no_nonce>]
+[B<-url URL>]
+[B<-host host:port>]
+[B<-multi process-count>]
+[B<-header>]
+[B<-path>]
+[B<-CApath dir>]
+[B<-CAfile file>]
+[B<-no-CAfile>]
+[B<-no-CApath>]
+[B<-attime timestamp>]
+[B<-check_ss_sig>]
+[B<-crl_check>]
+[B<-crl_check_all>]
+[B<-explicit_policy>]
+[B<-extended_crl>]
+[B<-ignore_critical>]
+[B<-inhibit_any>]
+[B<-inhibit_map>]
+[B<-no_check_time>]
+[B<-partial_chain>]
+[B<-policy arg>]
+[B<-policy_check>]
+[B<-policy_print>]
+[B<-purpose purpose>]
+[B<-suiteB_128>]
+[B<-suiteB_128_only>]
+[B<-suiteB_192>]
+[B<-trusted_first>]
+[B<-no_alt_chains>]
+[B<-use_deltas>]
+[B<-auth_level num>]
+[B<-verify_depth num>]
+[B<-verify_email email>]
+[B<-verify_hostname hostname>]
+[B<-verify_ip ip>]
+[B<-verify_name name>]
+[B<-x509_strict>]
+[B<-VAfile file>]
+[B<-validity_period n>]
+[B<-status_age n>]
+[B<-noverify>]
+[B<-verify_other file>]
+[B<-trust_other>]
+[B<-no_intern>]
+[B<-no_signature_verify>]
+[B<-no_cert_verify>]
+[B<-no_chain>]
+[B<-no_cert_checks>]
+[B<-no_explicit>]
+[B<-port num>]
+[B<-ignore_err>]
+[B<-index file>]
+[B<-CA file>]
+[B<-rsigner file>]
+[B<-rkey file>]
+[B<-rother file>]
+[B<-rsigopt nm:v>]
+[B<-resp_no_certs>]
+[B<-nmin n>]
+[B<-ndays n>]
+[B<-resp_key_id>]
+[B<-nrequest n>]
+[B<-I<digest>>]
+
+=head1 DESCRIPTION
+
+The Online Certificate Status Protocol (OCSP) enables applications to
+determine the (revocation) state of an identified certificate (RFC 2560).
+
+The B<ocsp> command performs many common OCSP tasks. It can be used
+to print out requests and responses, create requests and send queries
+to an OCSP responder and behave like a mini OCSP server itself.
+
+=head1 OPTIONS
+
+This command operates as either a client or a server.
+The options are described below, divided into those two modes.
+
+=head2 OCSP Client Options
+
+=over 4
+
+=item B<-help>
+
+Print out a usage message.
+
+=item B<-out filename>
+
+specify output filename, default is standard output.
+
+=item B<-issuer filename>
+
+This specifies the current issuer certificate. This option can be used
+multiple times. The certificate specified in B<filename> must be in
+PEM format. This option B<MUST> come before any B<-cert> options.
+
+=item B<-cert filename>
+
+Add the certificate B<filename> to the request. The issuer certificate
+is taken from the previous B<issuer> option, or an error occurs if no
+issuer certificate is specified.
+
+=item B<-serial num>
+
+Same as the B<cert> option except the certificate with serial number
+B<num> is added to the request. The serial number is interpreted as a
+decimal integer unless preceded by B<0x>. Negative integers can also
+be specified by preceding the value by a B<-> sign.
+
+=item B<-signer filename>, B<-signkey filename>
+
+Sign the OCSP request using the certificate specified in the B<signer>
+option and the private key specified by the B<signkey> option. If
+the B<signkey> option is not present then the private key is read
+from the same file as the certificate. If neither option is specified then
+the OCSP request is not signed.
+
+=item B<-sign_other filename>
+
+Additional certificates to include in the signed request.
+
+=item B<-nonce>, B<-no_nonce>
+
+Add an OCSP nonce extension to a request or disable OCSP nonce addition.
+Normally if an OCSP request is input using the B<reqin> option no
+nonce is added: using the B<nonce> option will force addition of a nonce.
+If an OCSP request is being created (using B<cert> and B<serial> options)
+a nonce is automatically added specifying B<no_nonce> overrides this.
+
+=item B<-req_text>, B<-resp_text>, B<-text>
+
+Print out the text form of the OCSP request, response or both respectively.
+
+=item B<-reqout file>, B<-respout file>
+
+Write out the DER encoded certificate request or response to B<file>.
+
+=item B<-reqin file>, B<-respin file>
+
+Read OCSP request or response file from B<file>. These option are ignored
+if OCSP request or response creation is implied by other options (for example
+with B<serial>, B<cert> and B<host> options).
+
+=item B<-url responder_url>
+
+Specify the responder URL. Both HTTP and HTTPS (SSL/TLS) URLs can be specified.
+
+=item B<-host hostname:port>, B<-path pathname>
+
+If the B<host> option is present then the OCSP request is sent to the host
+B<hostname> on port B<port>. B<path> specifies the HTTP path name to use
+or "/" by default.  This is equivalent to specifying B<-url> with scheme
+http:// and the given hostname, port, and pathname.
+
+=item B<-header name=value>
+
+Adds the header B<name> with the specified B<value> to the OCSP request
+that is sent to the responder.
+This may be repeated.
+
+=item B<-timeout seconds>
+
+Connection timeout to the OCSP responder in seconds.
+On POSIX systems, when running as an OCSP responder, this option also limits
+the time that the responder is willing to wait for the client request.
+This time is measured from the time the responder accepts the connection until
+the complete request is received.
+
+=item B<-multi process-count>
+
+Run the specified number of OCSP responder child processes, with the parent
+process respawning child processes as needed.
+Child processes will detect changes in the CA index file and automatically
+reload it.
+When running as a responder B<-timeout> option is recommended to limit the time
+each child is willing to wait for the client's OCSP response.
+This option is available on POSIX systems (that support the fork() and other
+required unix system-calls).
+
+=item B<-CAfile file>, B<-CApath pathname>
+
+File or pathname containing trusted CA certificates. These are used to verify
+the signature on the OCSP response.
+
+=item B<-no-CAfile>
+
+Do not load the trusted CA certificates from the default file location
+
+=item B<-no-CApath>
+
+Do not load the trusted CA certificates from the default directory location
+
+=item B<-attime>, B<-check_ss_sig>, B<-crl_check>, B<-crl_check_all>,
+B<-explicit_policy>, B<-extended_crl>, B<-ignore_critical>, B<-inhibit_any>,
+B<-inhibit_map>, B<-no_alt_chains>, B<-no_check_time>, B<-partial_chain>, B<-policy>,
+B<-policy_check>, B<-policy_print>, B<-purpose>, B<-suiteB_128>,
+B<-suiteB_128_only>, B<-suiteB_192>, B<-trusted_first>, B<-use_deltas>,
+B<-auth_level>, B<-verify_depth>, B<-verify_email>, B<-verify_hostname>,
+B<-verify_ip>, B<-verify_name>, B<-x509_strict>
+
+Set different certificate verification options.
+See L<verify(1)> manual page for details.
+
+=item B<-verify_other file>
+
+File containing additional certificates to search when attempting to locate
+the OCSP response signing certificate. Some responders omit the actual signer's
+certificate from the response: this option can be used to supply the necessary
+certificate in such cases.
+
+=item B<-trust_other>
+
+The certificates specified by the B<-verify_other> option should be explicitly
+trusted and no additional checks will be performed on them. This is useful
+when the complete responder certificate chain is not available or trusting a
+root CA is not appropriate.
+
+=item B<-VAfile file>
+
+File containing explicitly trusted responder certificates. Equivalent to the
+B<-verify_other> and B<-trust_other> options.
+
+=item B<-noverify>
+
+Don't attempt to verify the OCSP response signature or the nonce
+values. This option will normally only be used for debugging since it
+disables all verification of the responders certificate.
+
+=item B<-no_intern>
+
+Ignore certificates contained in the OCSP response when searching for the
+signers certificate. With this option the signers certificate must be specified
+with either the B<-verify_other> or B<-VAfile> options.
+
+=item B<-no_signature_verify>
+
+Don't check the signature on the OCSP response. Since this option
+tolerates invalid signatures on OCSP responses it will normally only be
+used for testing purposes.
+
+=item B<-no_cert_verify>
+
+Don't verify the OCSP response signers certificate at all. Since this
+option allows the OCSP response to be signed by any certificate it should
+only be used for testing purposes.
+
+=item B<-no_chain>
+
+Do not use certificates in the response as additional untrusted CA
+certificates.
+
+=item B<-no_explicit>
+
+Do not explicitly trust the root CA if it is set to be trusted for OCSP signing.
+
+=item B<-no_cert_checks>
+
+Don't perform any additional checks on the OCSP response signers certificate.
+That is do not make any checks to see if the signers certificate is authorised
+to provide the necessary status information: as a result this option should
+only be used for testing purposes.
+
+=item B<-validity_period nsec>, B<-status_age age>
+
+These options specify the range of times, in seconds, which will be tolerated
+in an OCSP response. Each certificate status response includes a B<notBefore>
+time and an optional B<notAfter> time. The current time should fall between
+these two values, but the interval between the two times may be only a few
+seconds. In practice the OCSP responder and clients clocks may not be precisely
+synchronised and so such a check may fail. To avoid this the
+B<-validity_period> option can be used to specify an acceptable error range in
+seconds, the default value is 5 minutes.
+
+If the B<notAfter> time is omitted from a response then this means that new
+status information is immediately available. In this case the age of the
+B<notBefore> field is checked to see it is not older than B<age> seconds old.
+By default this additional check is not performed.
+
+=item B<-I<digest>>
+
+This option sets digest algorithm to use for certificate identification in the
+OCSP request. Any digest supported by the OpenSSL B<dgst> command can be used.
+The default is SHA-1. This option may be used multiple times to specify the
+digest used by subsequent certificate identifiers.
+
+=back
+
+=head2 OCSP Server Options
+
+=over 4
+
+=item B<-index indexfile>
+
+The B<indexfile> parameter is the name of a text index file in B<ca>
+format containing certificate revocation information.
+
+If the B<index> option is specified the B<ocsp> utility is in responder
+mode, otherwise it is in client mode. The request(s) the responder
+processes can be either specified on the command line (using B<issuer>
+and B<serial> options), supplied in a file (using the B<reqin> option)
+or via external OCSP clients (if B<port> or B<url> is specified).
+
+If the B<index> option is present then the B<CA> and B<rsigner> options
+must also be present.
+
+=item B<-CA file>
+
+CA certificate corresponding to the revocation information in B<indexfile>.
+
+=item B<-rsigner file>
+
+The certificate to sign OCSP responses with.
+
+=item B<-rother file>
+
+Additional certificates to include in the OCSP response.
+
+=item B<-resp_no_certs>
+
+Don't include any certificates in the OCSP response.
+
+=item B<-resp_key_id>
+
+Identify the signer certificate using the key ID, default is to use the
+subject name.
+
+=item B<-rkey file>
+
+The private key to sign OCSP responses with: if not present the file
+specified in the B<rsigner> option is used.
+
+=item B<-rsigopt nm:v>
+
+Pass options to the signature algorithm when signing OCSP responses.
+Names and values of these options are algorithm-specific.
+
+=item B<-port portnum>
+
+Port to listen for OCSP requests on. The port may also be specified
+using the B<url> option.
+
+=item B<-ignore_err>
+
+Ignore malformed requests or responses: When acting as an OCSP client, retry if
+a malformed response is received. When acting as an OCSP responder, continue
+running instead of terminating upon receiving a malformed request.
+
+=item B<-nrequest number>
+
+The OCSP server will exit after receiving B<number> requests, default unlimited.
+
+=item B<-nmin minutes>, B<-ndays days>
+
+Number of minutes or days when fresh revocation information is available:
+used in the B<nextUpdate> field. If neither option is present then the
+B<nextUpdate> field is omitted meaning fresh revocation information is
+immediately available.
+
+=back
+
+=head1 OCSP Response verification.
+
+OCSP Response follows the rules specified in RFC2560.
+
+Initially the OCSP responder certificate is located and the signature on
+the OCSP request checked using the responder certificate's public key.
+
+Then a normal certificate verify is performed on the OCSP responder certificate
+building up a certificate chain in the process. The locations of the trusted
+certificates used to build the chain can be specified by the B<CAfile>
+and B<CApath> options or they will be looked for in the standard OpenSSL
+certificates directory.
+
+If the initial verify fails then the OCSP verify process halts with an
+error.
+
+Otherwise the issuing CA certificate in the request is compared to the OCSP
+responder certificate: if there is a match then the OCSP verify succeeds.
+
+Otherwise the OCSP responder certificate's CA is checked against the issuing
+CA certificate in the request. If there is a match and the OCSPSigning
+extended key usage is present in the OCSP responder certificate then the
+OCSP verify succeeds.
+
+Otherwise, if B<-no_explicit> is B<not> set the root CA of the OCSP responders
+CA is checked to see if it is trusted for OCSP signing. If it is the OCSP
+verify succeeds.
+
+If none of these checks is successful then the OCSP verify fails.
+
+What this effectively means if that if the OCSP responder certificate is
+authorised directly by the CA it is issuing revocation information about
+(and it is correctly configured) then verification will succeed.
+
+If the OCSP responder is a "global responder" which can give details about
+multiple CAs and has its own separate certificate chain then its root
+CA can be trusted for OCSP signing. For example:
+
+ openssl x509 -in ocspCA.pem -addtrust OCSPSigning -out trustedCA.pem
+
+Alternatively the responder certificate itself can be explicitly trusted
+with the B<-VAfile> option.
+
+=head1 NOTES
+
+As noted, most of the verify options are for testing or debugging purposes.
+Normally only the B<-CApath>, B<-CAfile> and (if the responder is a 'global
+VA') B<-VAfile> options need to be used.
+
+The OCSP server is only useful for test and demonstration purposes: it is
+not really usable as a full OCSP responder. It contains only a very
+simple HTTP request handling and can only handle the POST form of OCSP
+queries. It also handles requests serially meaning it cannot respond to
+new requests until it has processed the current one. The text index file
+format of revocation is also inefficient for large quantities of revocation
+data.
+
+It is possible to run the B<ocsp> application in responder mode via a CGI
+script using the B<reqin> and B<respout> options.
+
+=head1 EXAMPLES
+
+Create an OCSP request and write it to a file:
+
+ openssl ocsp -issuer issuer.pem -cert c1.pem -cert c2.pem -reqout req.der
+
+Send a query to an OCSP responder with URL http://ocsp.myhost.com/ save the
+response to a file, print it out in text form, and verify the response:
+
+ openssl ocsp -issuer issuer.pem -cert c1.pem -cert c2.pem \
+     -url http://ocsp.myhost.com/ -resp_text -respout resp.der
+
+Read in an OCSP response and print out text form:
+
+ openssl ocsp -respin resp.der -text -noverify
+
+OCSP server on port 8888 using a standard B<ca> configuration, and a separate
+responder certificate. All requests and responses are printed to a file.
+
+ openssl ocsp -index demoCA/index.txt -port 8888 -rsigner rcert.pem -CA demoCA/cacert.pem
+        -text -out log.txt
+
+As above but exit after processing one request:
+
+ openssl ocsp -index demoCA/index.txt -port 8888 -rsigner rcert.pem -CA demoCA/cacert.pem
+     -nrequest 1
+
+Query status information using an internally generated request:
+
+ openssl ocsp -index demoCA/index.txt -rsigner rcert.pem -CA demoCA/cacert.pem
+     -issuer demoCA/cacert.pem -serial 1
+
+Query status information using request read from a file, and write the response
+to a second file.
+
+ openssl ocsp -index demoCA/index.txt -rsigner rcert.pem -CA demoCA/cacert.pem
+     -reqin req.der -respout resp.der
+
+=head1 HISTORY
+
+The -no_alt_chains option was added in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

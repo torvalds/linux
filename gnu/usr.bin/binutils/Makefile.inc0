@@ -1,0 +1,52 @@
+# $FreeBSD$
+#
+# This is included explicitly at the top of each sub-Makefile.  We can't
+# use the normal "Makefile.inc" mechanism, because we need some of these
+# definitions before the sub-Makefile is processed.
+
+VERSION=	"2.17.50 [FreeBSD] 2007-07-03"
+
+.if defined(TARGET_ARCH)
+TARGET_CPUARCH=${TARGET_ARCH:${__TO_CPUARCH}}
+.else
+TARGET_CPUARCH=${MACHINE_CPUARCH}
+.endif
+TARGET_ARCH?=	${MACHINE_ARCH}
+TARGET_VENDOR?=	unknown
+TARGET_OS?=	freebsd
+BINUTILS_ARCH=${TARGET_ARCH:C/amd64/x86_64/}
+TARGET_TUPLE?=	${BINUTILS_ARCH}-${TARGET_VENDOR}-${TARGET_OS}
+.if ${TARGET_ARCH:Marm*eb} != "" || \
+	(${TARGET_CPUARCH} == "mips" && ${TARGET_ARCH:Mmips*el*} == "")
+TARGET_BIG_ENDIAN=t
+.endif
+
+# GNURELTOP is the relative path to this point in the source or object
+# tree, from any subdirectory of same.  It gets extra "../" prefixes
+# added to it as we descend into subdirectories.
+GNURELTOP:= ..
+
+RELSRC=	${GNURELTOP}/../../../contrib/binutils
+SRCDIR=	${.CURDIR}/${RELSRC}
+
+.if ${TARGET_CPUARCH} == "arm" || ${TARGET_CPUARCH} == "i386" || \
+	${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "powerpcspe" || \
+	(${TARGET_CPUARCH} == "mips" && ${TARGET_ARCH:Mmips64*} == "")
+CFLAGS+= -DBFD_DEFAULT_TARGET_SIZE=32
+.else
+CFLAGS+= -DBFD_DEFAULT_TARGET_SIZE=64
+.endif
+
+CFLAGS+= -I.
+CFLAGS+= -I${.CURDIR}
+CFLAGS+= -I${.CURDIR}/${GNURELTOP}/libbfd
+CFLAGS+= -I${.OBJDIR}/${GNURELTOP}/libbfd
+CFLAGS+= -I${SRCDIR}/include
+
+ARCHS=	${TARGET_CPUARCH}
+
+.if exists(${.CURDIR}/Makefile.${TARGET_ARCH})
+.include "${.CURDIR}/Makefile.${TARGET_ARCH}"
+.elif exists(${.CURDIR}/Makefile.${TARGET_CPUARCH})
+.include "${.CURDIR}/Makefile.${TARGET_CPUARCH}"
+.endif

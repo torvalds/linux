@@ -1,0 +1,200 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: gelf.3 3643 2018-10-14 21:09:24Z jkoshy $
+.\"
+.Dd September 1, 2006
+.Dt GELF 3
+.Os
+.Sh NAME
+.Nm GElf
+.Nd class-independent API for ELF manipulation
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In gelf.h
+.Sh DESCRIPTION
+This manual page describes a class independent API for manipulating
+ELF objects.
+This API allows an application to operate on ELF descriptors without
+needing to the know the ELF class of the descriptor.
+.Pp
+The GElf API may be used alongside the ELF API without restriction.
+.Ss GElf Data Structures
+The GElf API defines the following class-independent data structures:
+.Bl -tag -width GElf_Sxword
+.It Vt GElf_Addr
+A representation of ELF addresses.
+.It Vt GElf_Dyn
+A class-independent representation of ELF
+.Sy .dynamic
+section entries.
+.It Vt GElf_Ehdr
+A class-independent representation of an ELF Executable Header.
+.It Vt GElf_Half
+An unsigned 16 bit quantity.
+.It Vt GElf_Off
+A class-independent representation of a ELF offset.
+.It Vt GElf_Phdr
+A class-independent representation of an ELF Program Header Table
+entry.
+.It Vt GElf_Rel
+A class-independent representation of an ELF relocation entry.
+.It Vt GElf_Rela
+A class-independent representation of an ELF relocation entry with
+addend.
+.It Vt GElf_Shdr
+A class-independent representation of an ELF Section Header Table
+entry.
+.It Vt GElf_Sword
+A signed 32 bit quantity.
+.It Vt GElf_Sxword
+A signed 64 bit quantity.
+.It Vt GElf_Sym
+A class-independent representation of an ELF symbol table entry.
+.It Vt GElf_Word
+An unsigned 32 bit quantity.
+.It Vt GElf_Xword
+An unsigned 64 bit quantity.
+.El
+.Pp
+These data structures are sized to be compatible with the
+corresponding 64 bit ELF structures, and have the same internal
+structure as their 64 bit class-dependent counterparts.
+Class-dependent ELF structures are described in
+.Xr elf 5 .
+.Ss GElf Programming Model
+GElf functions always return a
+.Em copy
+of the underlying (class-dependent) ELF data structure.
+The programming model with GElf is as follows:
+.Bl -enum
+.It
+An application will retrieve data from an ELF descriptor using a
+.Fn gelf_get_*
+function.
+This will copy out data into a private
+.Vt GElf_*
+data structure.
+.It
+The application will work with its private copy of the GElf
+structure.
+.It
+Once done, the application copies the new values back to the
+underlying ELF data structure using the
+.Fn gelf_update_*
+functions.
+.It
+The application will then use the
+.Fn elf_flag*
+APIs to indicate to the ELF library that an ELF data structure is dirty.
+.El
+.Pp
+When updating an underlying 32 bit ELF data structure, the GElf
+routines will signal an error if a GElf value is out of range
+for the underlying ELF data type.
+.Ss Namespace use
+The GElf interface uses the following symbols:
+.Bl -tag -width indent
+.It GElf_*
+Class-independent data types.
+.It gelf_*
+For functions defined in the API set.
+.El
+.Ss GElf Programming APIs
+This section provides an overview of the GElf programming APIs.
+Further information is provided in the manual page of each function
+listed here.
+.Bl -tag -width indent
+.It "Allocating ELF Data Structures"
+.Bl -tag -compact -width indent
+.It Fn gelf_newehdr
+Allocate a new ELF Executable Header.
+.It Fn gelf_newphdr
+Allocate a new ELF Program Header Table.
+.El
+.It "Data Translation"
+.Bl -tag -compact -width indent
+.It Fn gelf_xlatetof
+Translate the native representation of an ELF data structure to its
+file representation.
+.It Fn gelf_xlatetom
+Translate from the file representation of an ELF data structure to a
+native representation.
+.El
+.It "Retrieving ELF Data"
+.Bl -tag -compact -width indent
+.It Fn gelf_getdyn
+Retrieve an ELF
+.Sy .dynamic
+table entry.
+.It Fn gelf_getehdr
+Retrieve an ELF Executable Header from the underlying ELF descriptor.
+.It Fn gelf_getphdr
+Retrieve an ELF Program Header Table entry from the underlying ELF descriptor.
+.It Fn gelf_getrel
+Retrieve an ELF relocation entry.
+.It Fn gelf_getrela
+Retrieve an ELF relocation entry with addend.
+.It Fn gelf_getshdr
+Retrieve an ELF Section Header Table entry from the underlying ELF descriptor.
+.It Fn gelf_getsym
+Retrieve an ELF symbol table entry.
+.El
+.It Queries
+.Bl -tag -compact -width indent
+.It Fn gelf_checksum
+Retrieves the ELF checksum for an ELF descriptor.
+.It Fn gelf_fsize
+Retrieves the size of the file representation of an ELF type.
+.It Fn gelf_getclass
+Retrieves the ELF class of an ELF descriptor.
+.El
+.It "Updating ELF Data"
+.Bl -tag -compact -width ".Fn gelf_update_shdr"
+.It Fn gelf_update_dyn
+Copy back an ELF
+.Sy .dynamic
+Table entry.
+.It Fn gelf_update_phdr
+Copy back an ELF Program Header Table entry.
+.It Fn gelf_update_rel
+Copy back an ELF relocation entry.
+.It Fn gelf_update_rela
+Copy back an ELF relocation with addend entry.
+.It Fn gelf_update_shdr
+Copy back an ELF Section Header Table entry.
+.It Fn gelf_update_sym
+Copy back an ELF symbol table entry.
+.El
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf 5
+.Sh HISTORY
+The GELF(3) API first appeared in System V Release 4.
+This implementation of the API first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+The GElf API was implemented by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .

@@ -1,0 +1,45 @@
+#!/bin/sh
+# wait for amd to start up and then execute program
+# usage: wait4amd <hostname> [<command> [args ...]]
+# If only hostname is supplied, command defaults to rsh $hostname
+#
+# Package:	am-utils-6.x
+# Author:	Erez Zadok <ezk@cs.columbia.edu>
+
+#set -x
+
+if [ "X$1" = "X" ]; then
+	echo "Usage: wait4amd <hostname> [<command> [args ...]]"
+	exit 1
+else
+	hostname=$1
+	shift
+fi
+
+# set path
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+PATH=@sbindir@:@bindir@:${PATH}
+export PATH
+
+while true
+do
+	amq -h $hostname > /dev/null 2>&1
+	if [ $? != 0 ]
+	then
+		# failed
+		echo "Amd not up. Sleeping..."
+		sleep 5;
+	else
+		echo "Amd is active on host $hostname!"
+		cmd=$*
+		if [ -z "${cmd}" ]
+		then
+			cmd="rlogin $hostname"
+		fi
+		echo "Running: $cmd"
+		$cmd
+		echo "Sleep 1 second"
+		sleep 1
+	fi
+done

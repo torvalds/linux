@@ -1,0 +1,180 @@
+.\"
+.\" Copyright (c) 2006 Ceri Davies
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 26, 2019
+.Dt GEOM_UZIP 4
+.Os
+.Sh NAME
+.Nm geom_uzip
+.Nd "GEOM based compressed disk images and partitions"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device xz"
+.Cd "options GEOM_UZIP"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+geom_uzip_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+framework provides support for compressed read-only
+disk images.
+This allows significant storage savings at the expense of
+a some CPU time on each read.
+Data written in the GEOM label area allows
+.Nm
+to detect compressed images which have been created with
+.Xr mkuzip 8
+and presented to the kernel as a logical disk device via
+.Xr md 4 .
+.Nm
+creates a unique
+.Pa md#.uzip
+device for each image.
+.Pp
+.Nm
+is not limited to supporting only
+.Xr md 4
+images.
+The image can also reside on a block device.
+.Pq For example, a disk, USB flash drive,  DVD-ROM, etc.
+The appropriate device node will appear with the
+.Pa .uzip
+suffix.
+.Bd -literal -offset indent
+# gpart show da0
+=>      0  7833600  da0  BSD  (3.7G)
+        0  2097152    1  freebsd-ufs  (1.0G)
+  2097152  5736448       - free -  (2.7G)
+# gpart add -t freebsd-ufs -s 1G da0
+da0b added
+# dd if=/tmp/20160217_dcomp_zcomp.uzip bs=256k of=/dev/da0b
+3190+1 records in
+3190+1 records out
+836331008 bytes transferred in 111.021489 secs (7533055 bytes/sec)
+# fsck -t ffs /dev/da0b.uzip
+** /dev/da0b.uzip (NO WRITE)
+** Last Mounted on /mnt
+** Phase 1 - Check Blocks and Sizes
+** Phase 2 - Check Pathnames
+** Phase 3 - Check Connectivity
+** Phase 4 - Check Reference Counts
+** Phase 5 - Check Cyl groups
+97455 files, 604242 used, 184741 free (2349 frags, 22799 blocks,
+   0.3% fragmentation)
+# mount -o ro /dev/da0b.uzip /mnt
+# df /dev/da0b.uzip
+Filesystem     1K-blocks    Used  Avail Capacity  Mounted on
+/dev/da0b.uzip   3155932 2416968 738964    77%    /mnt
+.Ed
+.Pp
+The
+.Nm
+device is subsequently used by
+.Fx
+kernel to access the uncompressed data.
+The
+.Nm
+driver does not allow write operations to the underlying disk image.
+To check which
+.Dq providers
+match a given
+.Nm
+device:
+.Bd -literal -offset indent
+# geom uzip list
+Geom name: md1.uzip
+Providers:
+1. Name: md1.uzip
+   Mediasize: 22003712 (21M)
+   Sectorsize: 512
+Consumers:
+1. Name: md1
+   Mediasize: 9563648 (9.1M)
+   Sectorsize: 512
+
+Geom name: da0b.uzip
+Providers:
+1. Name: da0b.uzip
+   Mediasize: 3355443200 (3.1G)
+   Sectorsize: 512
+Consumers:
+1. Name: da0b
+   Mediasize: 1073741824 (1.0G)
+   Sectorsize: 512
+.Ed
+.Pp
+.Nm
+allows mounting the root file system from a compressed disk partition by
+setting the
+.Dv vfs.root.mountfrom
+tunable.
+See
+.Xr loader.conf 5
+for details.
+.Sh DIAGNOSTICS
+Several flags are provided for tracing
+.Nm
+I/O operations and TOC parsing via the following sysctls.
+.Bl -tag -width indent
+.It Va kern.geom.uzip.debug
+Log level.
+Zero disables logging.
+Higher values enable more verbose debug logging for
+.Nm .
+Supported levels are from 0 (no logging) to 4 (maximum amount of logging).
+.It Va kern.geom.uzip.debug_block
+Log operations involving compressed cluster number.
+.El
+.Sh SEE ALSO
+.Xr GEOM 4 ,
+.Xr md 4 ,
+.Xr geom 8 ,
+.Xr mkuzip 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Max Khon Aq Mt fjoe@FreeBSD.org .
+The block de-duplication code as well as some
+.Nm
+driver optimizations have been contributed by
+.An Maxim Sobolev Aq Mt sobomax@FreeBSD.org .
+The LZMA decompression support and CLOOP 3.0 support have been added by
+.An Aleksandr Rybalko Aq Mt ray@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Ceri Davies Aq Mt ceri@FreeBSD.org .

@@ -1,0 +1,78 @@
+#!/bin/sh
+#
+# $NetBSD: t_mount,v 1.8 2007/07/24 11:29:16 jmmv Exp $
+#
+# Copyright (c) 2005, 2006, 2007 The NetBSD Foundation, Inc.
+# All rights reserved.
+#
+# This code is derived from software contributed to The NetBSD Foundation
+# by Julio M. Merino Vidal, developed as part of Google's Summer of Code
+# 2005 program.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+#
+# Verifies that an execution of mount and umount works correctly without
+# causing errors and that the root node gets correct attributes.
+# Also verifies command line parsing from mount_tmpfs.
+#
+
+test_run() {
+	test_name "File-system can be mounted"
+	test_mount
+	test_name "Root directory has two links"
+	eval $(stat -s ${Work_Dir})
+	[ ${st_nlink} = 2 ] || die
+	test_name "File-system can be unmounted"
+	test_unmount
+
+	test_name "File-system mount options work"
+	test_mount -o ro
+	mount | grep ${Work_Dir} | grep -q read-only || die
+	test_unmount
+
+	test_name "Root directory attributes are set correctly"
+	test_mount -o "uid=1000,gid=100,mode=755"
+	eval $(stat -s ${Work_Dir})
+	[ ${st_uid} = 1000 ] || die
+	[ ${st_gid} = 100 ] || die
+	[ ${st_mode} = 040755 ] || die
+	test_unmount
+
+	test_name "Negative values are correctly handled"
+	test_mount -o "size=-10"
+	test_unmount
+
+	test_name "Extremely large values are correctly handled"
+	test_mount -o size=9223372036854775807
+	test_unmount
+	mount -t tmpfs -o size=9223372036854775808 tmpfs ${Work_Dir} \
+	    2>/dev/null && die
+	mount -t tmpfs -o size=9223372036854775808g tmpfs ${Work_Dir} \
+	    2>/dev/null && die
+	rmdir ${Work_Dir}
+}
+
+. ${SUBRDIR}/h_funcs.subr

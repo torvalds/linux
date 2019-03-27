@@ -1,0 +1,90 @@
+.\"
+.\" Copyright (c) 2012 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 2, 2012
+.Dt ACPI_ASUS_WMI 4
+.Os
+.Sh NAME
+.Nm acpi_asus_wmi
+.Nd Asus Laptop WMI Extras
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device acpi_asus_wmi"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+acpi_asus_wmi_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the extra WMI-controlled gadgets, such as hotkeys
+and leds, found on Asus laptops.
+It allows one to use the
+.Xr sysctl 8
+interface to manipulate the brightness of the LCD panel and keyboard backlight,
+power on/off different internal components, such as WiFi, Bluetooth, camera,
+cardreader, etc, read some sensors.
+Hotkey events are passed to
+.Xr devd 8
+for easy handling in userspace with the default configuration in
+.Pa /etc/devd/asus.conf .
+Some hotkey events, such as keyboard backlight and touchpad control, are
+handled inside the driver.
+.Sh SYSCTL VARIABLES
+The following sysctls are currently implemented:
+.Bl -tag -width indent
+.It Va dev.acpi_asus_wmi.0.handle_keys
+Specifies whether driver should handle some harwdare keys, such as keyboard
+backlight, internally.
+.El
+.Pp
+Number of other variables under the same sysctl branch are model-specific.
+.Pp
+Defaults for these variables can be set in
+.Xr sysctl.conf 5 ,
+which is parsed at boot-time.
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr acpi_asus 4 ,
+.Xr acpi_video 4 ,
+.Xr sysctl.conf 5 ,
+.Xr devd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An Alexander Motin Aq Mt mav@FreeBSD.org

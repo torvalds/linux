@@ -1,0 +1,135 @@
+.\"
+.\" Copyright (c) 2007 Poul-Henning Kamp
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 10, 2012
+.Dt MINISTAT 1
+.Os
+.Sh NAME
+.Nm ministat
+.Nd statistics utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl Ans
+.Op Fl C Ar column
+.Op Fl c Ar confidence_level
+.Op Fl d Ar delimiter
+.Op Fl w Op width
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+command calculates fundamental statistical properties of numeric data
+in the specified files or, if no file is specified, standard input.
+.Pp
+The options are as follows:
+.Bl -tag -width Fl
+.It Fl A
+Just report the statistics of the input and relative comparisons,
+suppress the ASCII-art plot.
+.It Fl n
+Just report the raw statistics of the input, suppress the ASCII-art plot
+and the relative comparisons.
+.It Fl s
+Print the average/median/stddev bars on separate lines in the ASCII-art
+plot, to avoid overlap.
+.It Fl C Ar column
+Specify which column of data to use.
+By default the first column in the input file(s) are used.
+.It Fl c Ar confidence_level
+Specify desired confidence level for Student's T analysis.
+Possible values are 80, 90, 95, 98, 99 and 99.5 %
+.It Fl d Ar delimiter
+Specifies the column delimiter characters, default is SPACE and TAB.
+See
+.Xr strtok 3
+for details.
+.It Fl w Ar width
+Width of ASCII-art plot in characters.
+The default is the terminal width, or 74 if standard output is not a
+terminal.
+.El
+.Pp
+A sample output could look like this:
+.Bd -literal -offset indent
+  $ ministat -s -w 60 iguana chameleon
+  x iguana
+  + chameleon
+  +------------------------------------------------------------+
+  |x      *  x            *      +              + x           +|
+  | |________M______A_______________|                          |
+  |             |________________M__A___________________|      |
+  +------------------------------------------------------------+
+      N        Min        Max     Median        Avg       Stddev
+  x   7         50        750        200        300    238.04761
+  +   5        150        930        500        540    299.08193
+  No difference proven at 95.0% confidence
+.Ed
+.Pp
+If
+.Nm
+tells you, as in the example above, that there is no difference
+proven at 95% confidence, the two data sets you gave it are for
+all statistical purposes identical.
+.Pp
+You have the option of lowering your standards by specifying a
+lower confidence level:
+.Bd -literal -offset indent
+  $ ministat -s -w 60 -c 80 iguana chameleon
+  x iguana
+  + chameleon
+  +------------------------------------------------------------+
+  |x      *  x            *      +              + x           +|
+  | |________M______A_______________|                          |
+  |             |________________M__A___________________|      |
+  +------------------------------------------------------------+
+      N        Min        Max     Median        Avg       Stddev
+  x   7         50        750        200        300    238.04761
+  +   5        150        930        500        540    299.08193
+  Difference at 80.0% confidence
+        240 +/- 212.215
+        80% +/- 70.7384%
+        (Student's t, pooled s = 264.159)
+.Ed
+.Pp
+But a lower standard does not make your data any better, and the
+example is only included here to show the format of the output when
+a statistical difference is proven according to Student's T method.
+.Sh SEE ALSO
+Any mathematics text on basic statistics, for instances Larry Gonicks
+excellent "Cartoon Guide to Statistics" which supplied the above example.
+.Sh HISTORY
+The
+.Nm
+command was written by Poul-Henning Kamp out of frustration
+over all the bogus benchmark claims made by people with no
+understanding of the importance of uncertainty and statistics.
+.Pp
+From
+.Fx 5.2
+it has lived in the source tree as a developer tool, graduating
+to the installed system from
+.Fx 8.0 .

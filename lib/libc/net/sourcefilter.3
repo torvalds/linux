@@ -1,0 +1,239 @@
+.\" Copyright (c) 2007-2009 Bruce Simpson.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 13, 2009
+.Dt SOURCEFILTER 3
+.Os
+.Sh NAME
+.Nm sourcefilter
+.Nd advanced multicast group membership API
+.Sh SYNOPSIS
+.In sys/socket.h
+.In netinet/in.h
+.Ft int
+.Fo getipv4sourcefilter
+.Fa "int s"
+.Fa "struct in_addr interface"
+.Fa "struct in_addr group"
+.Fa "uint32_t *fmode"
+.Fa "uint32_t *numsrc"
+.Fa "struct in_addr *slist"
+.Fc
+.Ft int
+.Fo getsourcefilter
+.Fa "int s"
+.Fa "uint32_t interface"
+.Fa "struct sockaddr *group"
+.Fa "socklen_t grouplen"
+.Fa "uint32_t *fmode"
+.Fa "uint32_t *numsrc"
+.Fa "struct sockaddr_storage *slist"
+.Fc
+.Ft int
+.Fo setipv4sourcefilter
+.Fa "int s"
+.Fa "struct in_addr interface"
+.Fa "struct in_addr group"
+.Fa "uint32_t fmode"
+.Fa "uint32_t numsrc"
+.Fa "struct in_addr *slist"
+.Fc
+.Ft int
+.Fo setsourcefilter
+.Fa "int s"
+.Fa "uint32_t interface"
+.Fa "struct sockaddr *group"
+.Fa "socklen_t grouplen"
+.Fa "uint32_t fmode"
+.Fa "uint32_t numsrc"
+.Fa "struct sockaddr_storage *slist"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm
+functions implement the advanced, full-state multicast API
+defined in RFC 3678.
+An application may use these functions to atomically set and
+retrieve the multicast source address filters associated with a socket
+.Fa s
+and a multicast
+.Fa group .
+.Pp
+The functions
+.Fn getipv4sourcefilter
+and
+.Fn getsourcefilter
+allow an application to discover the filter mode, and
+source filter entries,
+for an existing group membership.
+.Pp
+The kernel will always return the number of source filter
+entries on the socket for that group in
+.Fa *numsrc .
+If the
+.Fa *numsrc
+argument is non-zero, the kernel will attempt to return up to
+.Fa *numsrc
+filter entries in the array pointed to by
+.Fa slist .
+The
+.Fa *numsrc
+argument may be set to 0, in which case the
+.Fa slist
+argument will be ignored.
+.Pp
+For the
+.Fn setipv4sourcefilter
+and
+.Fn setsourcefilter
+functions,
+the
+.Fa fmode
+argument may be used to place the socket into inclusive or exclusive
+group membership modes, by using the
+.Dv MCAST_INCLUDE
+or
+.Dv MCAST_EXCLUDE
+constants respectively.
+The
+.Fa numsrc
+argument specifies the number of source entries in the
+.Fa slist
+array.
+If the
+.Fa numsrc
+argument has a value of 0,
+all source filters will be removed from the socket.
+Removing all source filters from a membership which is in the
+.Dv MCAST_INCLUDE
+filter mode will cause the group to be left on that socket.
+.Pp
+The protocol-independent function
+.Fn setsourcefilter
+allows an application to join a multicast group on an interface
+which may not have an assigned protocol address,
+by passing its index for the
+.Fa interface
+argument.
+.Pp
+Any changes made by these functions
+will be communicated to IGMPv3 and/or MLDv2 routers
+on the local network as appropriate.
+If no IGMPv3 or MLDv2 routers are present, changes in the source filter
+lists made by these functions will not cause
+state changes to be transmitted, with the exception of any
+change which causes a group to be joined or left.
+The kernel will continue to maintain the source filter state
+regardless of the IGMP or MLD version in use on the link.
+.Sh IMPLEMENTATION NOTES
+The IPv4 specific versions of these functions are implemented in terms
+of the protocol-independent functions.
+Application writers are encouraged to use the protocol-independent functions
+for efficiency, and forwards compatibility with IPv6 networks.
+.Pp
+For the protocol-independent functions
+.Fn getsourcefilter
+and
+.Fn setsourcefilter ,
+the
+.Fa grouplen
+argument specifies the size of the structure pointed to by
+.Fa group .
+This is required in order to differentiate between different
+address families.
+.Pp
+Currently
+.Fx
+does not support source address selection for the IPv4
+protocol family, therefore the use of multicast APIs with
+an unnumbered IPv4 interface is
+.Em not recommended.
+In all cases, the first assigned IPv4 address on the interface
+will be used as the source address of IGMP control traffic.
+If this address is removed or changed, the results are undefined.
+.Sh RETURN VALUES
+.Rv -std getsourcefilter getipv4sourcefilter setsourcefilter setipv4sourcefilter
+.Sh ERRORS
+The
+.Nm
+functions may fail because of:
+.Bl -tag -width Er
+.It Bq Er EADDRNOTAVAIL
+The network interface which the
+.Dv interface
+argument refers to was not configured in the system,
+or the system is not a member of the
+.Dv group .
+.It Bq Er EAFNOSUPPORT
+The
+.Dv group
+and/or one or more of the
+.Dv slist
+arguments were of an address family unsupported by the system,
+or the address family of the
+.Dv group
+and
+.Dv slist
+arguments were not identical.
+.It Bq Er EINVAL
+The
+.Dv group
+argument does not contain a multicast address.
+The
+.Dv fmode
+argument is invalid; it must be set to either
+.Dv MCAST_INCLUDE
+or
+.Dv MCAST_EXCLUDE .
+The
+.Dv numsrc
+or
+.Dv slist
+arguments do not specify a source list.
+.It Bq Er ENOMEM
+Insufficient memory was available to carry out the requested
+operation.
+.El
+.Sh SEE ALSO
+.Xr ip 4 ,
+.Xr ip6 4 ,
+.Xr multicast 4 ,
+.Xr ifmcstat 8
+.Rs
+.%A D. Thaler
+.%A B. Fenner
+.%A B. Quinn
+.%T "Socket Interface Extensions for Multicast Source Filters"
+.%N RFC 3678
+.%D Jan 2004
+.Re
+.Sh HISTORY
+The
+.Nm
+functions first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An Bruce M. Simpson Aq Mt bms@FreeBSD.org

@@ -1,0 +1,15 @@
+# $FreeBSD$
+
+This directory contains various files related to ipfilter.
+
+For information on building ipf based firewalls, read the ipf-howto.txt.
+
+a more up to date version of this file may be found at:
+
+	http://www.obfuscation.org/ipf/
+
+Additional help may be found at the ipf home page:
+
+	http://coombs.anu.edu.au/~avalon/
+
+examples.txt and rules.txt come from this site.

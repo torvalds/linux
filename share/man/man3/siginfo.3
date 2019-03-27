@@ -1,0 +1,342 @@
+.\" Copyright (c) 2005 David Xu <davidxu@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 24, 2018
+.Dt SIGINFO 3
+.Os
+.Sh NAME
+.Nm siginfo
+.Nd "signal generation information"
+.Sh SYNOPSIS
+.In signal.h
+.Sh DESCRIPTION
+A process may request signal information when it is catching a signal.
+The information specifies why the system generated that signal.
+To request signal information in a signal handler, the user can set
+.Dv SA_SIGINFO
+in
+.Va sa_flags
+before
+.Xr sigaction 2
+is called,
+otherwise the user can use
+.Xr sigwaitinfo 2
+and
+.Xr sigtimedwait 2
+to get signal information.
+In either case, the system returns the information in a structure of type
+.Vt siginfo_t ,
+which includes the following information:
+.Bl -column ".Vt union signal" ".Va si_overrun"
+.It Sy Type Ta Sy Member Ta Sy Description
+.It Vt int Ta Va si_signo Ta
+signal number
+.It Vt int Ta Va si_errno Ta
+error number
+.It Vt int Ta Va si_code Ta
+signal code
+.It Vt union sigval Ta Va si_value Ta
+signal value
+.It Vt pid_t Ta Va si_pid Ta
+sending process ID
+.It Vt uid_t Ta Va si_uid Ta
+sending process's real user ID
+.It Vt void Ta Va *si_addr Ta
+address of faulting instruction
+.It Vt int Ta Va si_status Ta
+exit value or signal
+.It Vt long Ta Va si_band Ta
+band event for
+.Dv SIGPOLL
+.It Vt int Ta Va si_trapno Ta
+machine trap code
+.It Vt int Ta Va si_timerid Ta
+.Tn POSIX
+timer ID
+.It Vt int Ta Va si_overrun Ta
+.Tn POSIX
+timer overrun count
+.It Vt int Ta Va si_mqd Ta
+.Tn POSIX
+message queue ID
+.El
+.Pp
+The
+.Va si_signo
+member contains the signal number.
+.Pp
+The
+.Va si_errno
+member contains an error number defined in the file
+.In errno.h .
+.Pp
+The
+.Va si_code
+member contains a code which describes the cause of the signal.
+The macros specified in the
+.Sy Code
+column of the following table are defined
+for use as values of
+.Va si_code
+that are signal-specific or non-signal-specific reasons why the signal was
+generated:
+.Bl -column ".Dv SIGPOLL" ".Dv CLD_CONTINUED"
+.It Sy Signal Ta Sy Code Ta Sy Reason
+.It Dv SIGILL Ta Dv ILL_ILLOPC Ta
+illegal opcode
+.It Ta Dv ILL_ILLOPN Ta
+illegal operand
+.It Ta Dv ILL_ILLADR Ta
+illegal addressing mode
+.It Ta Dv ILL_ILLTRP Ta
+illegal trap
+.It Ta Dv ILL_PRVOPC Ta
+illegal privileged opcode
+.It Ta Dv ILL_PRVREG Ta
+illegal privileged register
+.It Ta Dv ILL_COPROC Ta
+coprocessor error
+.It Ta Dv ILL_BADSTK Ta
+internal stack error
+.It Dv SIGFPE Ta Dv FPE_INTDIV Ta
+integer divide by zero
+.It Ta Dv FPE_INTOVF Ta
+integer overflow
+.It Ta Dv FPE_FLTDIV Ta
+floating-point divide by zero
+.It Ta Dv FPE_FLTOVF Ta
+floating-point overflow
+.It Ta Dv FPE_FLTUND Ta
+floating-point underflow
+.It Ta Dv FPE_FLTRES Ta
+floating-point inexact result
+.It Ta Dv FPE_FLTINV Ta
+invalid floating-point operation
+.It Ta Dv FPE_FLTSUB Ta
+subscript out of range
+.It Dv SIGSEGV Ta Dv SEGV_MAPERR Ta
+address not mapped to object
+.It Ta Dv SEGV_ACCERR Ta
+invalid permissions for mapped object
+.It Dv SIGBUS Ta Dv BUS_ADRALN Ta
+invalid address alignment
+.It Ta Dv BUS_ADRERR Ta
+nonexistent physical address
+.It Ta Dv BUS_OBJERR Ta
+object-specific hardware error
+.It Dv SIGTRAP Ta Dv TRAP_BRKPT Ta
+process breakpoint
+.It Ta Dv TRAP_TRACE Ta
+process trace trap
+.It Ta Dv TRAP_DTRACE Ta
+DTrace induced trap
+.It Ta Dv TRAP_CAP Ta
+capabilities protective trap
+.It Dv SIGCHLD Ta Dv CLD_EXITED Ta
+child has exited
+.It Ta Dv CLD_KILLED Ta
+child has terminated abnormally and did not create a core file
+.It Ta Dv CLD_DUMPED Ta
+child has terminated abnormally and created a core file
+.It Ta Dv CLD_TRAPPED Ta
+traced child has trapped
+.It Ta Dv CLD_STOPPED Ta
+child has stopped
+.It Ta Dv CLD_CONTINUED Ta
+stopped child has continued
+.It Dv SIGPOLL Ta Dv POLL_IN Ta
+data input available
+.It Ta Dv POLL_OUT Ta
+output buffers available
+.It Ta Dv POLL_MSG Ta
+input message available
+.It Ta Dv POLL_ERR Ta
+I/O error
+.It Ta Dv POLL_PRI Ta
+high priority input available
+.It Ta Dv POLL_HUP Ta
+device disconnected
+.It Any Ta Dv SI_NOINFO Ta
+Only the
+.Va si_signo
+member is meaningful; the value of all other members is unspecified.
+.It Ta Dv SI_USER Ta
+signal sent by
+.Xr kill 2
+.It Ta Dv SI_QUEUE Ta
+signal sent by
+.Xr sigqueue 2
+.It Ta Dv SI_TIMER Ta
+signal generated by expiration of a timer set by
+.Xr timer_settime 2
+.It Ta Dv SI_ASYNCIO Ta
+signal generated by completion of an asynchronous I/O request
+.It Ta Dv SI_MESGQ Ta
+signal generated by arrival of a message on an empty message queue
+.It Ta Dv SI_KERNEL Ta
+signal generated by miscellaneous parts of the kernel
+.It Ta Dv SI_LWP Ta
+signal sent by
+.Xr pthread_kill 3
+.El
+.Pp
+In addition, the following signal-specific information is available:
+.Bl -column ".Dv SIGPOLL" ".Dv CLD_CONTINUED"
+.It Sy Signal Ta Sy Member Ta Sy Value
+.It Dv SIGILL Ta Va si_addr Ta
+address of faulting instruction
+.It Ta Va si_trapno Ta
+machine dependent of trap code
+.It Dv SIGFPE Ta Va si_addr Ta
+address of faulting instruction
+.It Ta Va si_trapno Ta
+machine dependent of trap code
+.It Dv SIGSEGV Ta Va si_addr Ta
+address of faulting memory reference
+.It Ta Va si_trapno Ta
+machine dependent of trap code
+.It Dv SIGBUS Ta Va si_addr Ta
+address of faulting instruction
+.It Ta Va si_trapno Ta
+machine dependent of trap code
+.It Dv SIGCHLD Ta Va si_pid Ta
+child process ID
+.It Ta Va si_status Ta
+exit value or signal; if
+.Va si_code
+is equal to
+.Dv CLD_EXITED ,
+then it is equal to the exit value of the child process, otherwise,
+it is equal to a signal that caused the child process to change state.
+.It Ta Va si_uid Ta "real user ID of the process that sent the signal"
+.It Dv SIGPOLL Ta Va si_band Ta "band event for"
+.Dv POLL_IN , POLL_OUT ,
+or
+.Dv POLL_MSG
+.El
+.Pp
+Finally, the following code-specific information is available:
+.Bl -column ".Dv SI_ASYNCIO" ".Va si_overrun"
+.It Sy Code Ta Sy Member Ta Sy Value
+.It Dv SI_USER Ta Va si_pid Ta
+the process ID that sent the signal
+.It Ta Va si_uid Ta
+real user ID of the process that sent the signal
+.It Dv SI_QUEUE Ta Va si_value Ta
+the value passed to
+.Xr sigqueue 2
+system call
+.It Ta Va si_pid Ta
+the process ID that sent the signal
+.It Ta Va si_uid Ta
+real user ID of the process that sent the signal
+.It Dv SI_TIMER Ta Va si_value Ta
+the value passed to
+.Xr timer_create 2
+system call
+.It Ta Va si_timerid Ta
+the timer ID returned by
+.Xr timer_create 2
+system call
+.It Ta Va si_overrun Ta
+timer overrun count corresponding to the signal
+.It Ta Va si_errno Ta
+If timer overrun will be
+.Brq Dv DELAYTIMER_MAX ,
+an error code defined in
+.In errno.h
+is set
+.It Dv SI_ASYNCIO Ta Va si_value Ta
+the value passed to aio system calls
+.It Dv SI_MESGQ Ta Va si_value Ta
+the value passed to
+.Xr mq_notify 2
+system call
+.It Ta Va si_mqd Ta
+the ID of the message queue which generated the signal
+.It Dv SI_LWP Ta Va si_pid Ta
+the process ID that sent the signal
+.It Ta Va si_uid Ta
+real user ID of the process that sent the signal
+.El
+.Sh NOTES
+Currently, the kernel never generates the
+.Dv SIGPOLL
+signal.
+.Dv SIGCHLD
+signal is queued when a process changed its status or exited.
+.Tn POSIX
+Realtime Extensions like aio, timer, and message queue also queue
+signals.
+Signals with code
+.Dv SI_USER ,
+.Dv SI_KERNEL
+or
+.Dv SI_LWP
+are only queued if there are sufficient resources;
+otherwise,
+.Dv SI_NOINFO
+results.
+For some hardware architectures, the exact value of
+.Va si_addr
+might not be available.
+.Sh SEE ALSO
+.Xr aio_read 2 ,
+.Xr kill 2 ,
+.Xr mq_notify 2 ,
+.Xr sigaction 2 ,
+.Xr sigqueue 2 ,
+.Xr sigwaitinfo 2 ,
+.Xr timer_create 2 ,
+.Xr timer_settime 2 ,
+.Xr waitpid 2 ,
+.Xr pthread_kill 3
+.Sh STANDARDS
+The
+.Vt siginfo_t
+type conforms to
+.St -p1003.1-2004 .
+.Sh HISTORY
+Full support for
+.Tn POSIX
+signal information first appeared in
+.Fx 7.0 .
+The codes
+.Dv SI_USER
+and
+.Dv SI_KERNEL
+can be generated as of
+.Fx 8.1 .
+The code
+.Dv SI_LWP
+can be generated as of
+.Fx 9.0 .
+.Sh AUTHORS
+This manual page was written by
+.An David Xu Aq Mt davidxu@FreeBSD.org .

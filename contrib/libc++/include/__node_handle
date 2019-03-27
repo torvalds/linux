@@ -1,0 +1,210 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP___NODE_HANDLE
+#define _LIBCPP___NODE_HANDLE
+
+#include <__config>
+#include <memory>
+#include <optional>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#if _LIBCPP_STD_VER > 14
+
+// Specialized in __tree & __hash_table for their _NodeType.
+template <class _NodeType, class _Alloc>
+struct __generic_container_node_destructor;
+
+template <class _NodeType, class _Alloc,
+          template <class, class> class _MapOrSetSpecifics>
+class _LIBCPP_TEMPLATE_VIS __basic_node_handle
+    : public _MapOrSetSpecifics<
+          _NodeType,
+          __basic_node_handle<_NodeType, _Alloc, _MapOrSetSpecifics>>
+{
+    template <class _Tp, class _Compare, class _Allocator>
+        friend class __tree;
+    template <class _Tp, class _Hash, class _Equal, class _Allocator>
+        friend class __hash_table;
+    friend struct _MapOrSetSpecifics<
+        _NodeType, __basic_node_handle<_NodeType, _Alloc, _MapOrSetSpecifics>>;
+
+    typedef allocator_traits<_Alloc> __alloc_traits;
+    typedef typename __rebind_pointer<typename __alloc_traits::void_pointer,
+                                      _NodeType>::type
+        __node_pointer_type;
+
+public:
+    typedef _Alloc allocator_type;
+
+private:
+    __node_pointer_type __ptr_ = nullptr;
+    optional<allocator_type> __alloc_;
+
+    _LIBCPP_INLINE_VISIBILITY
+    void __release()
+    {
+        __ptr_ = nullptr;
+        __alloc_ = _VSTD::nullopt;
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    void __destroy_node_pointer()
+    {
+        if (__ptr_ != nullptr)
+        {
+            typedef typename __allocator_traits_rebind<
+                allocator_type, _NodeType>::type __node_alloc_type;
+            __node_alloc_type __alloc(*__alloc_);
+            __generic_container_node_destructor<_NodeType, __node_alloc_type>(
+                __alloc, true)(__ptr_);
+            __ptr_ = nullptr;
+        }
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    __basic_node_handle(__node_pointer_type __ptr,
+                        allocator_type const& __alloc)
+            : __ptr_(__ptr), __alloc_(__alloc)
+    {
+    }
+
+public:
+    _LIBCPP_INLINE_VISIBILITY
+    __basic_node_handle() = default;
+
+    _LIBCPP_INLINE_VISIBILITY
+    __basic_node_handle(__basic_node_handle&& __other) noexcept
+            : __ptr_(__other.__ptr_),
+              __alloc_(_VSTD::move(__other.__alloc_))
+    {
+        __other.__ptr_ = nullptr;
+        __other.__alloc_ = _VSTD::nullopt;
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    __basic_node_handle& operator=(__basic_node_handle&& __other)
+    {
+        _LIBCPP_ASSERT(
+            __alloc_ == _VSTD::nullopt ||
+            __alloc_traits::propagate_on_container_move_assignment::value ||
+            __alloc_ == __other.__alloc_,
+            "node_type with incompatible allocator passed to "
+            "node_type::operator=(node_type&&)");
+
+        __destroy_node_pointer();
+        __ptr_ = __other.__ptr_;
+
+        if (__alloc_traits::propagate_on_container_move_assignment::value ||
+            __alloc_ == _VSTD::nullopt)
+            __alloc_ = _VSTD::move(__other.__alloc_);
+
+        __other.__ptr_ = nullptr;
+        __other.__alloc_ = _VSTD::nullopt;
+
+        return *this;
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    allocator_type get_allocator() const { return *__alloc_; }
+
+    _LIBCPP_INLINE_VISIBILITY
+    explicit operator bool() const { return __ptr_ != nullptr; }
+
+    _LIBCPP_NODISCARD_AFTER_CXX17 _LIBCPP_INLINE_VISIBILITY
+    bool empty() const { return __ptr_ == nullptr; }
+
+    _LIBCPP_INLINE_VISIBILITY
+    void swap(__basic_node_handle& __other) noexcept(
+        __alloc_traits::propagate_on_container_swap::value ||
+        __alloc_traits::is_always_equal::value)
+    {
+        using _VSTD::swap;
+        swap(__ptr_, __other.__ptr_);
+        if (__alloc_traits::propagate_on_container_swap::value ||
+            __alloc_ == _VSTD::nullopt || __other.__alloc_ == _VSTD::nullopt)
+            swap(__alloc_, __other.__alloc_);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    friend void swap(__basic_node_handle& __a, __basic_node_handle& __b)
+        noexcept(noexcept(__a.swap(__b))) { __a.swap(__b); }
+
+    _LIBCPP_INLINE_VISIBILITY
+    ~__basic_node_handle()
+    {
+        __destroy_node_pointer();
+    }
+};
+
+template <class _NodeType, class _Derived>
+struct __set_node_handle_specifics
+{
+    typedef typename _NodeType::__node_value_type value_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    value_type& value() const
+    {
+        return static_cast<_Derived const*>(this)->__ptr_->__value_;
+    }
+};
+
+template <class _NodeType, class _Derived>
+struct __map_node_handle_specifics
+{
+    typedef typename _NodeType::__node_value_type::key_type key_type;
+    typedef typename _NodeType::__node_value_type::mapped_type mapped_type;
+
+    _LIBCPP_INLINE_VISIBILITY
+    key_type& key() const
+    {
+        return static_cast<_Derived const*>(this)->
+            __ptr_->__value_.__ref().first;
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    mapped_type& mapped() const
+    {
+        return static_cast<_Derived const*>(this)->
+            __ptr_->__value_.__ref().second;
+    }
+};
+
+template <class _NodeType, class _Alloc>
+using __set_node_handle =
+    __basic_node_handle< _NodeType, _Alloc, __set_node_handle_specifics>;
+
+template <class _NodeType, class _Alloc>
+using __map_node_handle =
+    __basic_node_handle< _NodeType, _Alloc, __map_node_handle_specifics>;
+
+template <class _Iterator, class _NodeType>
+_LIBCPP_TEMPLATE_VIS
+struct __insert_return_type
+{
+    _Iterator position;
+    bool inserted;
+    _NodeType node;
+};
+
+#endif // _LIBCPP_STD_VER > 14
+
+_LIBCPP_END_NAMESPACE_STD
+_LIBCPP_POP_MACROS
+
+#endif

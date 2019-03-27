@@ -1,0 +1,108 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)bstring.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd June 4, 1993
+.Dt BSTRING 3
+.Os
+.Sh NAME
+.Nm bcmp ,
+.Nm bcopy ,
+.Nm bzero ,
+.Nm memccpy ,
+.Nm memchr ,
+.Nm memcmp ,
+.Nm memcpy ,
+.Nm memmove ,
+.Nm memset
+.Nd byte string operations
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In string.h
+.Ft int
+.Fn bcmp "const void *b1" "const void *b2" "size_t len"
+.Ft void
+.Fn bcopy "const void *src" "void *dst" "size_t len"
+.Ft void
+.Fn bzero "void *b" "size_t len"
+.Ft void *
+.Fn memchr "const void *b" "int c" "size_t len"
+.Ft int
+.Fn memcmp "const void *b1" "const void *b2" "size_t len"
+.Ft void *
+.Fn memccpy "void *dst" "const void *src" "int c" "size_t len"
+.Ft void *
+.Fn memcpy "void *dst" "const void *src" "size_t len"
+.Ft void *
+.Fn memmove "void *dst" "const void *src" "size_t len"
+.Ft void *
+.Fn memset "void *b" "int c" "size_t len"
+.Sh DESCRIPTION
+These functions operate on variable length strings of bytes.
+They do not check for terminating null bytes as the routines
+listed in
+.Xr string 3
+do.
+.Pp
+See the specific manual pages for more information.
+.Sh SEE ALSO
+.Xr bcmp 3 ,
+.Xr bcopy 3 ,
+.Xr bzero 3 ,
+.Xr memccpy 3 ,
+.Xr memchr 3 ,
+.Xr memcmp 3 ,
+.Xr memcpy 3 ,
+.Xr memmove 3 ,
+.Xr memset 3
+.Sh STANDARDS
+The functions
+.Fn memchr ,
+.Fn memcmp ,
+.Fn memcpy ,
+.Fn memmove ,
+and
+.Fn memset
+conform to
+.St -isoC .
+.Sh HISTORY
+The functions
+.Fn bzero
+and
+.Fn memccpy
+appeared in
+.Bx 4.3 ;
+the functions
+.Fn bcmp ,
+.Fn bcopy ,
+appeared in
+.Bx 4.2 .

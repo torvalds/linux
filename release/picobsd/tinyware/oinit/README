@@ -1,0 +1,123 @@
+Warsaw, 1998.07.07
+
+This README shortly describes the features of "oinit" - a very simplistic
+version of init(8) combined with a shell.
+
+Features
+--------
+
+* oinit is able to run system in multi- and single-user modes,
+* it can be started on system with DEVFS/SLICE (i.e. empty /dev),
+* provides minimalistic user interface, called "shell()",
+* it can run the system startup script (/etc/rc),
+* it can be compiled with -DOINIT_RC to use its own startup script
+  (*very* primitive, but doesn't require any real shell to run it!),
+* doesn't require the whole chain of init->getty->login->shell to be run,
+* it is extremely small, and is ideally suited for situations when
+  there is little memory.
+
+As an additional bonus you receive some obvious and some hidden bugs... :-))
+This code is at most alpha quality yet.
+
+
+How it works
+------------
+
+Unlike normal init(8), it forks itself on given number of vty's immediately
+providing shell() interface. Currently it doesn't require (and is unable to
+perform) any authentication, but this is easy to add if needed.
+
+Standard version of FreeBSD kernel looks for /sbin/init first, and then
+tries to execute it. If it fails, it tries to find:
+	/sbin/oinit
+	/sbin/init.bak
+	/stand/sysinstall
+
+So it is easy to make use of it even on standard system - just put it in
+/sbin/oinit and rename /sbin/init to something else, e.g. /sbin/init.bak.
+
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+!!! WARNING !!! WARNING !!! WARNING !!! WARNING !!! WARNING !!! WARNING !!!
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+Init (or oinit) plays crucial role in the system. If you plan to do any
+changes to your system's init, make sure you have a boot floppy with working
+version of statically compiled init(8) on it - you can very easily put your
+system in unusable state when fiddling with it.
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+Shell() interface
+-----------------
+
+It allows you to issue built-in and external commands. Built-in commands
+are listed below. For each command there is short help available, with
+example of usage.
+
+	cd	change working directory
+	pwd	print working directory
+	set	set environment variable (no expansion)
+	unset	unset environment variable
+	env	print all environment variables
+	echo	echo arguments on stdout
+	exit	exit from shell (oinit will start a new one after some delay)
+	.	source-in a file with commands
+	?	help
+
+Any other command is passed to execvp(3) as it is.
+
+EXCEPTION: if you end the command line with a '&', the command is started
+as daemon. This is NOT the same as in normal shell, where the '&' puts a
+process in background. Here the newly started process is totally dissociated
+from terminal.
+
+Prompt tells you:
+* your `pwd`
+* your PID
+* and that you are root ('#').
+
+WARNING: this pseudo-shell doesn't do any expansion whatsoever.
+
+To do list
+----------
+
+- oinit proper:
+	* fix signal handling and transitions,
+	* invent a one-file configuration database (combining as many files
+	  from /etc as possible into one) able to properly handle inter-
+	  dependencies in running various daemons,
+	* allow for interpreting of such database, and running various
+	  programs ourselves (this would eventually allow to make /bin/sh
+	  an option, not necessity),
+	* better hooks for incorporating other modules into oinit (see e.g.
+	  the telnet() below),
+	* add optional authentication,
+
+- shell():
+	* more built-ins: perhaps 'kill' and 'ps',
+	* variable expansion,
+	* globbing,
+	* conditionals,
+	* history? (it depends on how much memory it needs).
+	* programmatic hooks for easy customisation of user interface (like
+	  hierarchy of commands and contexts),
+	* ...
+
+- implement as a routine (like shell()) a small remote login daemon telnet(),
+  as a built-in module to oinit. It would implement the simplest options of
+  normal telnet, and would itself handle authentication, passing control to
+  shell() on success. The authentication routine would be the same as for
+  checking console access.
+
+And allow me for a moment of day-dreaming: I'd like to rewrite oinit one day
+to be a monolithic one-in-all application, non-forking but multithreaded... It
+would contain all the modules, such as shell(), telnet(), ifconfig() etc...
+started as threads, not separate processes.
+
+Credits
+-------
+
+The overall framework was taken from FreeBSD /sbin/init.
+
+Andrzej Bialecki
+<abial@freebsd.org>
+
+$FreeBSD$

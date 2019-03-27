@@ -1,0 +1,66 @@
+.\"-
+.\" Copyright (c) 1983, 1988, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	From: @(#)hostname.1	8.1 (Berkeley) 5/31/93
+.\" $FreeBSD$
+.\"
+.Dd April 22, 2013
+.Dt DOMAINNAME 1
+.Os
+.Sh NAME
+.Nm domainname
+.Nd set or print name of current YP/NIS domain
+.Sh SYNOPSIS
+.Nm
+.Op Ar ypdomain
+.Sh DESCRIPTION
+The
+.Nm
+utility prints the name of the current YP/NIS domain.
+The super-user can
+set the domain name by supplying an argument; this is usually done with the
+.Va nisdomainname
+variable in the
+.Pa /etc/rc.conf
+file, normally run at boot
+time.
+.Sh NOTES
+The YP/NIS (formerly ``Yellow Pages'' but renamed for legal reasons)
+domain name does not necessarily have anything to do with the Domain
+Name System domain name, although they are often set equal for administrative
+convenience.
+.Sh SEE ALSO
+.Xr getdomainname 3 ,
+.Xr rc.conf 5
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 1.1 ,
+based on a similar command in
+.Tn SunOS .

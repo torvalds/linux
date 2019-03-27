@@ -1,0 +1,647 @@
+%%%%%%%%%%%%%%%% gdb-refcard.tex %%%%%%%%%%%%%%%%
+
+%This file is TeX source for a reference card describing GDB, the GNU debugger.
+%Copyright 1991, 1992, 1993, 1996, 1998, 1999, 2000
+%Free Software Foundation, Inc.
+%Permission is granted to make and distribute verbatim copies of
+%this reference provided the copyright notices and permission notices
+%are preserved on all copies.
+%
+%TeX markup is a programming language; accordingly this file is source
+%for a program to generate a reference.
+%
+%This program is free software; you can redistribute it and/or modify
+%it under the terms of the GNU General Public License as published by
+%the Free Software Foundation; either version 2, or (at your option)
+%any later version.
+%
+%This program is distributed in the hope that it will be useful, but
+%WITHOUT ANY WARRANTY; without even the implied warranty of
+%MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%General Public License for more details.
+%
+%You can find a copy of the GNU General Public License at the URL
+%http://www.gnu.org/copyleft/gpl.html; or write to the Free Software
+%Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+%
+%You can contact the maintainer at:  doc@cygnus.com
+%
+%                                Documentation Department
+%                                Cygnus Solutions
+%                                1325 Chesapeake Terrace
+%                                Sunnyvale, CA 94089  USA
+%
+%                                +1 800 CYGNUS-1
+%
+%
+%
+% 22-AUG-1993 Andreas Vogel
+%
+%   Modifications made in order to handle different papersizes correctly.
+%   You only have to set the total width and height of the paper, the
+%   horizontal and vertical margin space measured from *paper edge*
+%   and the interline and interspec spacing.
+%   In order to support a new papersize, you have to fiddle with the
+%   latter four dimensions. Just try out a few values.
+%   All other values will be computed at process time so it should be
+%   quite easy to support different paper sizes - only four values to
+%   guess :-)
+%
+%   To find the configuration places, just search for the string
+%   "CONFIGURATION".
+%
+%   Andreas Vogel (av@ssw.de)
+%
+%
+%
+% Uncomment the following `magnification' command if you want to print
+% out in a larger font.  Caution!  You may need larger paper.  You had
+% best avoid using 3-column output if you try this.  See the ``Three
+% column format'' section below if you want to print in three column
+% format.
+%
+%\magnification=\magstep 1
+%
+% NOTE ON INTENTIONAL OMISSIONS: This reference card includes most GDB
+% commands, but due to space constraints there are some things I chose
+% to omit.  In general, not all synonyms for commands are covered, nor
+% all variations of a command.
+% The GDB-under-Emacs section omits gdb-mode functions without default
+% keybindings.  GDB startup options are not described.
+% set print sevenbit-strings, set symbol-reloading omitted.
+% printsyms, printpsyms, omitted since they're for GDB maintenance primarily
+% share omitted due to obsolescence
+% set check range/type omitted at least til code is in GDB.
+%
+%-------------------- Three column format -----------------------
+
+%%%% --- To disable three column format, comment out this entire section
+
+% Three-column format for landscape printing
+
+%-------- Papersize defs:
+
+\newdimen\totalwidth \newdimen\totalheight
+\newdimen\hmargin    \newdimen\vmargin
+\newdimen\secskip    \newdimen\lskip
+\newdimen\barwidth   \newdimen\barheight
+\newdimen\intersecwidth
+
+%%
+%%  START CONFIGURATION - PAPERSIZE DEFINITIONS
+%------- Papersize params:
+%%  US letter paper (8.5x11in)
+%%
+\totalwidth=11in    % total width of paper
+\totalheight=8.5in  % total height of paper
+\hmargin=.25in      % horizontal margin width
+\vmargin=.25in      % vertical margin width
+\secskip=1pc        % space between refcard secs
+\lskip=2pt          % extra skip between \sec entries
+%------- end papersize params
+%%
+%%  change according to personal taste, not papersize dependent
+%%
+\barwidth=.1pt       % width of the cropmark bar
+\barheight=2pt       % height of the cropmark bar
+\intersecwidth=0.5em % width between \itmwid and \dfnwid
+%%
+%%  END CONFIGURATION - PAPERSIZE DEFINITIONS
+%%
+
+%%
+%%  values to be computed - nothing to configure
+%%
+\newdimen\fullhsize     % width of area without margins
+\newdimen\itmwid        % width of item column
+\newdimen\dfnwid        % width of definition column
+\newdimen\temp          % only for temporary use
+
+%%
+%%  adjust the offsets so the margins are measured *from paper edge*
+%%
+\hoffset=-1in \advance \hoffset by \hmargin
+\voffset=-1in \advance \voffset by \vmargin
+
+%%
+%%  fullhsize = totalwidth - (2 * hmargin)
+%%
+\fullhsize=\totalwidth
+\temp=\hmargin \multiply \temp by 2 \advance \fullhsize by -\temp
+
+%%
+%%  hsize = (fullhsize - (4 * hmargin) - (2 * barwidth)) / 3
+%%
+\hsize=\fullhsize
+\temp=\hmargin \multiply \temp by 4 \advance \hsize by -\temp
+\temp=\barwidth \multiply \temp by 2 \advance \hsize by -\temp
+\divide \hsize by 3
+
+%%
+%%  vsize = totalheight - (2 * vmargin)
+%%
+\vsize=\totalheight
+\temp=\vmargin \multiply \temp by 2 \advance \vsize by -\temp
+
+%%
+%%  itmwid = (hsize - intersecwidth) * 1/3
+%%  dfnwid = (hsize - intersecwidth) * 2/3
+%%
+\temp=\hsize \advance \temp by -\intersecwidth \divide \temp by 3
+\itmwid=\temp
+\dfnwid=\hsize \advance \dfnwid by -\itmwid
+
+%-------- end papersize defs
+
+
+\def\fulline{\hbox to \fullhsize}
+\let\lcr=L \newbox\leftcolumn\newbox\centercolumn
+\output={\if L\lcr
+            \global\setbox\leftcolumn=\columnbox \global\let\lcr=C
+	 \else
+            \if C\lcr
+               \global\setbox\centercolumn=\columnbox \global\let\lcr=R
+            \else \tripleformat \global\let\lcr=L
+            \fi
+         \fi
+%         \ifnum\outputpenalty>-20000 \else\dosupereject\fi
+      }
+
+%%
+%%  START CONFIGURATION - ALTERNATIVE FOLDING GUIDES
+%%
+%%  For NO printed folding guide,
+%%  comment out other \def\vdecor's and uncomment:
+
+%\def\vdecor{\hskip\hmargin plus1fil\hskip\barwidth plus1fil\hskip\hmargin plus1fil}
+
+%%  For SOLID LINE folding guide,
+%%  comment out other \def\vdecor's and uncomment:
+
+%\def\vdecor{\hskip\hmargin plus1fil \vrule width \barwidth \hskip\hmargin plus1fil}
+
+%%  For SMALL MARKS NEAR TOP AND BOTTOM as folding guide,
+%%  comment out other \def\vdecor's and uncomment:
+
+\def\vdecor{\hskip\hmargin plus1fil
+\vbox to \vsize{\hbox to \barwidth{\vrule height\barheight width\barwidth}\vfill
+\hbox to \barwidth{\vrule height\barheight width\barwidth}}%THIS PERCENT SIGN IS ESSENTIAL
+\hskip\hmargin plus1fil}
+
+%%
+%%  END CONFIGURATION - ALTERNATIVES FOR FOLDING GUIDES
+%%
+
+\def\tripleformat{\shipout\vbox{\fulline{\box\leftcolumn\vdecor
+					 \box\centercolumn\vdecor
+					 \columnbox}
+			       }
+                 \advancepageno}
+\def\columnbox{\leftline{\pagebody}}
+\def\bye{\par\vfill
+         \supereject
+         \if R\lcr \null\vfill\eject\fi
+         \end}
+
+%-------------------- end three column format -----------------------
+
+%-------------------- Computer Modern font defs: --------------------
+\font\bbf=cmbx10
+\font\vbbf=cmbx12
+\font\smrm=cmr6
+\font\brm=cmr10
+\font\rm=cmr7
+\font\it=cmti7
+\font\tt=cmtt8
+%-------------------- end font defs ---------------------------------
+
+%
+\hyphenpenalty=5000\tolerance=2000\raggedright\raggedbottom
+\normalbaselineskip=9pt\baselineskip=9pt
+%
+\parindent=0pt
+\parskip=0pt
+\footline={\vbox to0pt{\hss}}
+%
+\def\ctl#1{{\tt C-#1}}
+\def\opt#1{{\brm[{\rm #1}]}}
+\def\xtra#1{\noalign{\smallskip{\tt#1}}}
+%
+\long\def\sec#1;#2\endsec{\vskip \secskip
+\halign{%
+%COL 1 (of halign):
+\vtop{\hsize=\itmwid\tt
+##\par\vskip \lskip }\hfil
+%COL 2 (of halign):
+&\vtop{\hsize=\dfnwid\hangafter=1\hangindent=\intersecwidth
+\rm ##\par\vskip \lskip}\cr
+%Tail of \long\def fills in halign body with \sec args:
+\noalign{{\bbf #1}\vskip \lskip}
+#2
+}
+}
+
+{\vbbf GDB QUICK REFERENCE}\hfil{\smrm GDB Version 5}\qquad
+
+\sec Essential Commands;
+gdb {\it program} \opt{{\it core}}&debug {\it program} \opt{using
+coredump {\it core}}\cr
+b \opt{\it file\tt:}{\it function}&set breakpoint at {\it function} \opt{in \it file}\cr
+run \opt{{\it arglist}}&start your program \opt{with {\it arglist}}\cr
+bt& backtrace: display program stack\cr
+p {\it expr}&display the value of an expression\cr
+c &continue running your program\cr
+n &next line, stepping over function calls\cr
+s &next line, stepping into function calls\cr
+\endsec
+
+\sec Starting GDB;
+gdb&start GDB, with no debugging files\cr
+gdb {\it program}&begin debugging {\it program}\cr
+gdb {\it program core}&debug coredump {\it core} produced by {\it
+program}\cr
+gdb --help&describe command line options\cr
+\endsec
+
+\sec Stopping GDB;
+quit&exit GDB; also {\tt q} or {\tt EOF} (eg \ctl{d})\cr
+INTERRUPT&(eg \ctl{c}) terminate current command, or send to running process\cr
+\endsec
+
+\sec Getting Help;
+help&list classes of commands\cr
+help {\it class}&one-line descriptions for commands in {\it class}\cr
+help {\it command}&describe {\it command}\cr
+\endsec
+
+\sec Executing your Program;
+run {\it arglist}&start your program with {\it arglist}\cr
+run&start your program with current argument list\cr
+run $\ldots$ <{\it inf} >{\it outf}&start your program with input, output
+redirected\cr
+\cr
+kill&kill running program\cr
+\cr
+tty {\it dev}&use {\it dev} as stdin and stdout for next {\tt run}\cr
+set args {\it arglist}&specify {\it arglist} for next
+{\tt run}\cr
+set args&specify empty argument list\cr
+show args&display argument list\cr
+\cr
+show env&show all environment variables\cr
+show env {\it var}&show value of environment variable {\it var}\cr
+set env {\it var} {\it string}&set environment variable {\it var}\cr
+unset env {\it var}&remove {\it var} from environment\cr
+\endsec
+
+\sec Shell Commands;
+cd {\it dir}&change working directory to {\it dir}\cr
+pwd&Print working directory\cr
+make $\ldots$&call ``{\tt make}''\cr
+shell {\it cmd}&execute arbitrary shell command string\cr
+\endsec
+
+\vfill
+\line{\smrm \opt{ } surround optional arguments \hfill $\ldots$ show
+one or more arguments}
+\vskip\baselineskip
+\centerline{\smrm \copyright 1998,2000 Free Software Foundation, Inc.\qquad Permissions on back}
+\eject
+\sec Breakpoints and Watchpoints;
+break \opt{\it file\tt:}{\it line}\par
+b \opt{\it file\tt:}{\it line}&set breakpoint at {\it line} number \opt{in \it file}\par 
+eg:\quad{\tt break main.c:37}\quad\cr
+break \opt{\it file\tt:}{\it func}&set breakpoint at {\it
+func} \opt{in \it file}\cr
+break +{\it offset}\par
+break -{\it offset}&set break at {\it offset} lines from current stop\cr
+break *{\it addr}&set breakpoint at address {\it addr}\cr
+break&set breakpoint at next instruction\cr
+break $\ldots$ if {\it expr}&break conditionally on nonzero {\it expr}\cr
+cond {\it n} \opt{\it expr}&new conditional expression on breakpoint
+{\it n}; make unconditional if no {\it expr}\cr
+tbreak $\ldots$&temporary break; disable when reached\cr
+rbreak {\it regex}&break on all functions matching {\it regex}\cr
+watch {\it expr}&set a watchpoint for expression {\it expr}\cr
+catch {\it event}&break at {\it event}, which may be {\tt catch}, {\tt throw},
+{\tt exec}, {\tt fork}, {\tt vfork}, {\tt load}, or {\tt unload}.\cr
+\cr
+info break&show defined breakpoints\cr
+info watch&show defined watchpoints\cr
+\cr
+clear&delete breakpoints at next instruction\cr
+clear \opt{\it file\tt:}{\it fun}&delete breakpoints at entry to {\it fun}()\cr
+clear \opt{\it file\tt:}{\it line}&delete breakpoints on source line \cr
+delete \opt{{\it n}}&delete breakpoints
+\opt{or breakpoint {\it n}}\cr
+\cr
+disable \opt{{\it n}}&disable breakpoints
+\opt{or breakpoint {\it n}}
+\cr
+enable \opt{{\it n}}&enable breakpoints 
+\opt{or breakpoint {\it n}}
+\cr
+enable once \opt{{\it n}}&enable breakpoints \opt{or breakpoint {\it n}}; 
+disable again when reached
+\cr
+enable del \opt{{\it n}}&enable breakpoints \opt{or breakpoint {\it n}}; 
+delete when reached
+\cr
+\cr
+ignore {\it n} {\it count}&ignore breakpoint {\it n}, {\it count}
+times\cr
+\cr
+commands {\it n}\par
+\qquad \opt{\tt silent}\par
+\qquad {\it command-list}&execute GDB {\it command-list} every time breakpoint {\it n} is reached. \opt{{\tt silent} suppresses default
+display}\cr
+end&end of {\it command-list}\cr
+\endsec
+
+\sec Program Stack;
+backtrace \opt{\it n}\par
+bt \opt{\it n}&print trace of all frames in stack; or of {\it n}
+frames---innermost if {\it n}{\tt >0}, outermost if {\it n}{\tt <0}\cr
+frame \opt{\it n}&select frame number {\it n} or frame at address {\it
+n}; if no {\it n}, display current frame\cr
+up {\it n}&select frame {\it n} frames up\cr
+down {\it n}&select frame {\it n} frames down\cr
+info frame \opt{\it addr}&describe selected frame, or frame at
+{\it addr}\cr
+info args&arguments of selected frame\cr
+info locals&local variables of selected frame\cr
+info reg \opt{\it rn}$\ldots$\par
+info all-reg \opt{\it rn}&register values \opt{for regs {\it rn\/}} in
+selected frame; {\tt all-reg} includes floating point\cr
+\endsec
+
+\vfill\eject
+\sec Execution Control;
+continue \opt{\it count}\par
+c \opt{\it count}&continue running; if {\it count} specified, ignore
+this breakpoint next {\it count} times\cr
+\cr
+step \opt{\it count}\par
+s \opt{\it count}&execute until another line reached; repeat {\it count} times if
+specified\cr
+stepi \opt{\it count}\par
+si \opt{\it count}&step by machine instructions rather than source
+lines\cr
+\cr
+next \opt{\it count}\par
+n \opt{\it count}&execute next line, including any function calls\cr
+nexti \opt{\it count}\par
+ni \opt{\it count}&next machine instruction rather than source
+line\cr
+\cr
+until \opt{\it location}&run until next instruction (or {\it
+location})\cr
+finish&run until selected stack frame returns\cr
+return \opt{\it expr}&pop selected stack frame without executing
+\opt{setting return value}\cr
+signal {\it num}&resume execution with signal {\it s} (none if {\tt 0})\cr
+jump {\it line}\par
+jump *{\it address}&resume execution at specified {\it line} number or
+{\it address}\cr
+set var={\it expr}&evaluate {\it expr} without displaying it; use for
+altering program variables\cr
+\endsec
+
+\sec Display;
+print \opt{\tt/{\it f}\/} \opt{\it expr}\par
+p \opt{\tt/{\it f}\/} \opt{\it expr}&show value of {\it expr} \opt{or
+last value \tt \$} according to format {\it f}:\cr
+\qquad x&hexadecimal\cr
+\qquad d&signed decimal\cr
+\qquad u&unsigned decimal\cr
+\qquad o&octal\cr
+\qquad t&binary\cr
+\qquad a&address, absolute and relative\cr
+\qquad c&character\cr
+\qquad f&floating point\cr
+call \opt{\tt /{\it f}\/} {\it expr}&like {\tt print} but does not display
+{\tt void}\cr
+x \opt{\tt/{\it Nuf}\/} {\it expr}&examine memory at address {\it expr};
+optional format spec follows slash\cr
+\quad {\it N}&count of how many units to display\cr
+\quad {\it u}&unit size; one of\cr
+&{\tt\qquad b}\ individual bytes\cr
+&{\tt\qquad h}\ halfwords (two bytes)\cr
+&{\tt\qquad w}\ words (four bytes)\cr
+&{\tt\qquad g}\ giant words (eight bytes)\cr
+\quad {\it f}&printing format.  Any {\tt print} format, or\cr
+&{\tt\qquad s}\ null-terminated string\cr
+&{\tt\qquad i}\ machine instructions\cr
+disassem \opt{\it addr}&display memory as machine instructions\cr
+\endsec
+
+\sec Automatic Display;
+display \opt{\tt/\it f\/} {\it expr}&show value of {\it expr} each time
+program stops \opt{according to format {\it f}\/}\cr
+display&display all enabled expressions on list\cr
+undisplay {\it n}&remove number(s) {\it n} from list of
+automatically displayed expressions\cr
+disable disp {\it n}&disable display for expression(s) number {\it
+n}\cr
+enable disp {\it n}&enable display for expression(s) number {\it
+n}\cr
+info display&numbered list of display expressions\cr
+\endsec
+
+\vfill\eject
+
+\sec Expressions;
+{\it expr}&an expression in C, C++, or Modula-2 (including function calls), or:\cr
+{\it addr\/}@{\it len}&an array of {\it len} elements beginning at {\it
+addr}\cr
+{\it file}::{\it nm}&a variable or function {\it nm} defined in {\it
+file}\cr
+$\tt\{${\it type}$\tt\}${\it addr}&read memory at {\it addr} as specified
+{\it type}\cr
+\$&most recent displayed value\cr
+\${\it n}&{\it n}th displayed value\cr
+\$\$&displayed value previous to \$\cr
+\$\${\it n}&{\it n}th displayed value back from \$\cr
+\$\_&last address examined with {\tt x}\cr
+\$\_\_&value at address \$\_\cr
+\${\it var}&convenience variable; assign any value\cr
+\cr
+show values \opt{{\it n}}&show last 10 values \opt{or surrounding
+\${\it n}}\cr
+show conv&display all convenience variables\cr
+\endsec
+
+\sec Symbol Table;
+info address {\it s}&show where symbol {\it s} is stored\cr
+info func \opt{\it regex}&show names, types of defined functions
+(all, or matching {\it regex})\cr
+info var \opt{\it regex}&show names, types of global variables (all,
+or matching {\it regex})\cr
+whatis \opt{\it expr}\par
+ptype \opt{\it expr}&show data type of {\it expr} \opt{or \tt \$}
+without evaluating; {\tt ptype} gives more detail\cr
+ptype {\it type}&describe type, struct, union, or enum\cr
+\endsec
+
+\sec GDB Scripts;
+source {\it script}&read, execute GDB commands from file {\it
+script}\cr
+\cr
+define {\it cmd}\par
+\qquad {\it command-list}&create new GDB command {\it cmd}; 
+execute script defined by {\it command-list}\cr
+end&end of {\it command-list}\cr
+document {\it cmd}\par
+\qquad {\it help-text}&create online documentation 
+for new GDB command {\it cmd}\cr
+end&end of {\it help-text}\cr
+\endsec
+
+\sec Signals;
+handle {\it signal} {\it act}&specify GDB actions for {\it signal}:\cr
+\quad print&announce signal\cr
+\quad noprint&be silent for signal\cr
+\quad stop&halt execution on signal\cr
+\quad nostop&do not halt execution\cr
+\quad pass&allow your program to handle signal\cr
+\quad nopass&do not allow your program to see signal\cr
+info signals&show table of signals, GDB action for each\cr
+\endsec
+
+\sec Debugging Targets;
+target {\it type} {\it param}&connect to target machine, process, or file\cr
+help target&display available targets\cr
+attach {\it param}&connect to another process\cr
+detach&release target from GDB control\cr
+\endsec
+
+\vfill\eject
+\sec Controlling GDB;
+set {\it param} {\it value}&set one of GDB's internal parameters\cr
+show {\it param}&display current setting of parameter\cr
+\xtra{\rm Parameters understood by {\tt set} and {\tt show}:}
+\quad complaint {\it limit}&number of messages on unusual symbols\cr
+\quad confirm {\it on/off}&enable or disable cautionary queries\cr
+\quad editing {\it on/off}&control {\tt readline} command-line editing\cr
+\quad height {\it lpp}&number of lines before pause in display\cr
+\quad language {\it lang}&Language for GDB expressions ({\tt auto}, {\tt c} or
+{\tt modula-2})\cr
+\quad listsize {\it n}&number of lines shown by {\tt list}\cr
+\quad prompt {\it str}&use {\it str} as GDB prompt\cr
+\quad radix {\it base}&octal, decimal, or hex number representation\cr
+\quad verbose {\it on/off}&control messages when loading
+symbols\cr
+\quad width {\it cpl}&number of characters before line folded\cr
+\quad write {\it on/off}&Allow or forbid patching binary, core files
+(when reopened with {\tt exec} or {\tt core})
+\cr
+\quad history $\ldots$\par
+\quad h $\ldots$&groups with the following options:\cr
+\quad h exp {\it off/on}&disable/enable {\tt readline} history expansion\cr
+\quad h file {\it filename}&file for recording GDB command history\cr
+\quad h size {\it size}&number of commands kept in history list\cr
+\quad h save {\it off/on}&control use of external file for
+command history\cr
+\cr
+\quad print $\ldots$\par
+\quad p $\ldots$&groups with the following options:\cr
+\quad p address {\it on/off}&print memory addresses in stacks,
+values\cr
+\quad p  array {\it off/on}&compact or attractive format for
+arrays\cr
+\quad p demangl {\it on/off}&source (demangled) or internal form for C++
+symbols\cr
+\quad p asm-dem {\it on/off}&demangle C++ symbols in
+machine-instruction output\cr
+\quad p elements {\it limit}&number of array elements to display\cr
+\quad p object {\it on/off}&print C++ derived types for objects\cr
+\quad p pretty {\it off/on}&struct display: compact or indented\cr
+\quad p union {\it on/off}&display of union members\cr
+\quad p vtbl {\it off/on}&display of C++ virtual function
+tables\cr
+\cr
+show commands&show last 10 commands\cr
+show commands {\it n}&show 10 commands around number {\it n}\cr
+show commands +&show next 10 commands\cr
+\endsec
+
+\sec Working Files;
+file \opt{\it file}&use {\it file} for both symbols and executable;
+with no arg, discard both\cr
+core \opt{\it file}&read {\it file} as coredump; or discard\cr
+exec \opt{\it file}&use {\it file} as executable only; or discard\cr
+symbol \opt{\it file}&use symbol table from {\it file}; or discard\cr
+load {\it file}&dynamically link {\it file\/} and add its symbols\cr
+add-sym {\it file} {\it addr}&read additional symbols from {\it file},
+dynamically loaded at {\it addr}\cr
+info files&display working files and targets in use\cr
+path {\it dirs}&add {\it dirs} to front of path searched for
+executable and symbol files\cr
+show path&display executable and symbol file path\cr
+info share&list names of shared libraries currently loaded\cr
+\endsec
+
+\vfill\eject
+\sec Source Files;
+dir {\it names}&add directory {\it names} to front of source path\cr
+dir&clear source path\cr
+show dir&show current source path\cr
+\cr
+list&show next ten lines of source\cr
+list -&show previous ten lines\cr
+list {\it lines}&display source surrounding {\it lines}, 
+specified as:\cr
+\quad{\opt{\it file\tt:}\it num}&line number \opt{in named file}\cr
+\quad{\opt{\it file\tt:}\it function}&beginning of function \opt{in
+named file}\cr
+\quad{\tt +\it off}&{\it off} lines after last printed\cr
+\quad{\tt -\it off}&{\it off} lines previous to last printed\cr
+\quad{\tt*\it address}&line containing {\it address}\cr
+list {\it f},{\it l}&from line {\it f} to line {\it l}\cr
+info line {\it num}&show starting, ending addresses of compiled code for
+source line {\it num}\cr
+info source&show name of current source file\cr
+info sources&list all source files in use\cr
+forw {\it regex}&search following source lines for {\it regex}\cr
+rev {\it regex}&search preceding source lines for {\it regex}\cr
+\endsec
+
+\sec GDB under GNU Emacs;
+M-x gdb&run GDB under Emacs\cr
+\ctl{h} m&describe GDB mode\cr
+M-s&step one line ({\tt step})\cr
+M-n&next line ({\tt next})\cr
+M-i&step one instruction ({\tt stepi})\cr
+\ctl{c} \ctl{f}&finish current stack frame ({\tt finish})\cr
+M-c&continue ({\tt cont})\cr
+M-u&up {\it arg} frames ({\tt up})\cr
+M-d&down {\it arg} frames ({\tt down})\cr
+\ctl{x} \&&copy number from point, insert at end\cr
+\ctl{x} SPC&(in source file) set break at point\cr
+\endsec
+
+\sec GDB License;
+show copying&Display GNU General Public License\cr
+show warranty&There is NO WARRANTY for GDB.  Display full no-warranty
+statement.\cr 
+\endsec
+
+
+\vfill
+{\smrm\parskip=6pt
+Copyright \copyright 1991,'92,'93,'98,2000 Free Software Foundation, Inc. 
+Author: Roland H. Pesch
+
+The author assumes no responsibility for any errors on this card.
+
+This card may be freely distributed under the terms of the GNU
+General Public License.
+
+Please contribute to development of this card by
+annotating it.  Improvements can be sent to bug-gdb@gnu.org.
+
+GDB itself is free software; you are welcome to distribute copies of
+it under the terms of the GNU General Public License.  There is
+absolutely no warranty for GDB.
+}
+\end

@@ -1,0 +1,181 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mlock.2	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd March 20, 2018
+.Dt MLOCK 2
+.Os
+.Sh NAME
+.Nm mlock ,
+.Nm munlock
+.Nd lock (unlock) physical pages in memory
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/mman.h
+.Ft int
+.Fn mlock "const void *addr" "size_t len"
+.Ft int
+.Fn munlock "const void *addr" "size_t len"
+.Sh DESCRIPTION
+The
+.Fn mlock
+system call
+locks into memory the physical pages associated with the virtual address
+range starting at
+.Fa addr
+for
+.Fa len
+bytes.
+The
+.Fn munlock
+system call unlocks pages previously locked by one or more
+.Fn mlock
+calls.
+For both, the
+.Fa addr
+argument should be aligned to a multiple of the page size.
+If the
+.Fa len
+argument is not a multiple of the page size, it will be rounded up
+to be so.
+The entire range must be allocated.
+.Pp
+After an
+.Fn mlock
+system call, the indicated pages will cause neither a non-resident page
+nor address-translation fault until they are unlocked.
+They may still cause protection-violation faults or TLB-miss faults on
+architectures with software-managed TLBs.
+The physical pages remain in memory until all locked mappings for the pages
+are removed.
+Multiple processes may have the same physical pages locked via their own
+virtual address mappings.
+A single process may likewise have pages multiply-locked via different virtual
+mappings of the same physical pages.
+Unlocking is performed explicitly by
+.Fn munlock
+or implicitly by a call to
+.Fn munmap
+which deallocates the unmapped address range.
+Locked mappings are not inherited by the child process after a
+.Xr fork 2 .
+.Pp
+Since physical memory is a potentially scarce resource, processes are
+limited in how much they can lock down.
+The amount of memory that a single process can
+.Fn mlock
+is limited by both the per-process
+.Dv RLIMIT_MEMLOCK
+resource limit and the
+system-wide
+.Dq wired pages
+limit
+.Va vm.max_wired .
+.Va vm.max_wired
+applies to the system as a whole, so the amount available to a single
+process at any given time is the difference between
+.Va vm.max_wired
+and
+.Va vm.stats.vm.v_wire_count .
+.Pp
+If
+.Va security.bsd.unprivileged_mlock
+is set to 0 these calls are only available to the super-user.
+.Sh RETURN VALUES
+.Rv -std
+.Pp
+If the call succeeds, all pages in the range become locked (unlocked);
+otherwise the locked status of all pages in the range remains unchanged.
+.Sh ERRORS
+The
+.Fn mlock
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+.Va security.bsd.unprivileged_mlock
+is set to 0 and the caller is not the super-user.
+.It Bq Er EINVAL
+The address range given wraps around zero.
+.It Bq Er EAGAIN
+Locking the indicated range would exceed the system limit for locked memory.
+.It Bq Er ENOMEM
+Some portion of the indicated address range is not allocated.
+There was an error faulting/mapping a page.
+Locking the indicated range would exceed the per-process limit for locked
+memory.
+.El
+The
+.Fn munlock
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+.Va security.bsd.unprivileged_mlock
+is set to 0 and the caller is not the super-user.
+.It Bq Er EINVAL
+The address range given wraps around zero.
+.It Bq Er ENOMEM
+Some or all of the address range specified by the addr and len
+arguments does not correspond to valid mapped pages in the address space
+of the process.
+.It Bq Er ENOMEM
+Locking the pages mapped by the specified range would exceed a limit on
+the amount of memory that the process may lock.
+.El
+.Sh "SEE ALSO"
+.Xr fork 2 ,
+.Xr mincore 2 ,
+.Xr minherit 2 ,
+.Xr mlockall 2 ,
+.Xr mmap 2 ,
+.Xr munlockall 2 ,
+.Xr munmap 2 ,
+.Xr setrlimit 2 ,
+.Xr getpagesize 3
+.Sh HISTORY
+The
+.Fn mlock
+and
+.Fn munlock
+system calls first appeared in
+.Bx 4.4 .
+.Sh BUGS
+Allocating too much wired memory can lead to a memory-allocation deadlock
+which requires a reboot to recover from.
+.Pp
+The per-process resource limit is a limit on the amount of virtual
+memory locked, while the system-wide limit is for the number of locked
+physical pages.
+Hence a process with two distinct locked mappings of the same physical page
+counts as 2 pages against the per-process limit and as only a single page
+in the system limit.
+.Pp
+The per-process resource limit is not currently supported.

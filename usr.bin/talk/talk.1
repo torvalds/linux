@@ -1,0 +1,159 @@
+.\" Copyright (c) 1983, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)talk.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd January 21, 2010
+.Dt TALK 1
+.Os
+.Sh NAME
+.Nm talk
+.Nd talk to another user
+.Sh SYNOPSIS
+.Nm
+.Ar person
+.Op Ar ttyname
+.Sh DESCRIPTION
+The
+.Nm
+utility is a visual communication program which copies lines from your
+terminal to that of another user.
+.Pp
+Options available:
+.Bl -tag -width ttyname
+.It Ar person
+If you wish to talk to someone on your own machine, then
+.Ar person
+is just the person's login name.
+If you wish to talk to a user on
+another host, then
+.Ar person
+is of the form
+.Ql user@host
+or
+.Ql host!user
+or
+.Ql host:user .
+.It Ar ttyname
+If you wish to talk to a user who is logged in more than once, the
+.Ar ttyname
+argument may be used to indicate the appropriate terminal
+name, where
+.Ar ttyname
+is of the form
+.Ql ttyXX .
+.El
+.Pp
+When first called,
+.Nm
+sends the message
+.Bd -literal -offset indent -compact
+Message from TalkDaemon@his_machine...
+talk: connection requested by your_name@your_machine.
+talk: respond with: talk your_name@your_machine
+.Ed
+.Pp
+to the user you wish to talk to.
+At this point, the recipient
+of the message should reply by typing
+.Pp
+.Dl talk \ your_name@your_machine
+.Pp
+It does not matter from which machine the recipient replies, as
+long as his login-name is the same.
+Once communication is established,
+the two parties may type simultaneously, with their output appearing
+in separate windows.
+Typing control-L
+.Ql ^L
+will cause the screen to
+be reprinted.
+Typing control-D
+.Ql ^D
+will clear both parts of your screen to be cleared, while
+the control-D character will be sent to the remote side
+(and just displayed by this
+.Nm
+client).
+Your erase, kill, and word kill characters will
+behave normally.
+To exit, just type your interrupt character;
+.Nm
+then moves the cursor to the bottom of the screen and restores the
+terminal to its previous state.
+.Pp
+Permission to talk may be denied or granted by use of the
+.Xr mesg 1
+command.
+At the outset talking is allowed.
+.Sh FILES
+.Bl -tag -width /var/run/utx.active -compact
+.It Pa /etc/hosts
+to find the recipient's machine
+.It Pa /var/run/utx.active
+to find the recipient's tty
+.El
+.Sh SEE ALSO
+.Xr mail 1 ,
+.Xr mesg 1 ,
+.Xr wall 1 ,
+.Xr who 1 ,
+.Xr write 1 ,
+.Xr talkd 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .
+.Pp
+In
+.Fx 5.3 ,
+the default behaviour of
+.Nm
+was changed to treat local-to-local talk requests as originating
+and terminating at
+.Em localhost .
+Before this change, it was required that the hostname (as per
+.Xr gethostname 3 )
+resolved to a valid IPv4 address (via
+.Xr gethostbyname 3 ) ,
+making
+.Nm
+unsuitable for use in configurations where
+.Xr talkd 8
+was bound to the loopback interface (normally for security reasons).
+.Sh BUGS
+The version of
+.Nm
+released with
+.Bx 4.3
+uses a protocol that
+is incompatible with the protocol used in the version released with
+.Bx 4.2 .
+.Pp
+Multibyte characters are not recognized.

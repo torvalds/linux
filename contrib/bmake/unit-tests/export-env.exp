@@ -1,0 +1,11 @@
+make:
+UT_TEST=export-env.mk
+UT_ENV=not-exported
+UT_EXP=not-exported
+UT_LIT=literal export-env.mk
+env:
+UT_TEST=export-env.mk
+UT_ENV=exported
+UT_EXP=exported
+UT_LIT=literal ${UT_TEST}
+exit status 0

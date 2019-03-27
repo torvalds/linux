@@ -1,0 +1,123 @@
+/dts-v1/;
+
+#include "rt5350.dtsi"
+
+/ {
+	compatible = "HLKRM04", "ralink,rt5350-soc";
+	model = "HILINK HLK-RM04";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x1000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS1,57600";
+	};
+
+	gpio-export {
+		compatible = "gpio-export";
+		#size-cells = <0>;
+
+		/* I2C */
+		gpio1 {
+			/* I2C_I2C_SD */
+			gpio-export,name = "hlk-rm04:gpio0";
+			gpio-export,direction_may_change = <1>;
+			gpios = <&gpio0 1 0>;
+		};
+		gpio2 {
+			/* I2C_I2C_SCLK */
+			gpio-export,name = "hlk-rm04:gpio1";
+			gpio-export,direction_may_change = <1>;
+			gpios = <&gpio0 2 0>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+		reset {
+			label = "reset";
+			gpios = <&gpio0 0 1>;
+			linux,code = <0x198>;
+		};
+		wps {
+			label = "wps";
+			gpios = <&gpio0 14 1>;
+			linux,code = <0x211>;
+		};
+	};
+};
+
+&uart {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "s25fl064k";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x3b0000>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "jtag";
+			ralink,function = "gpio";
+		};
+
+		uartf_gpio {
+			ralink,group = "uartf";
+			ralink,function = "gpio uartf";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x4>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};

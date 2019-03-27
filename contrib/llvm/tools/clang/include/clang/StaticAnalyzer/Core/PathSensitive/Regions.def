@@ -1,0 +1,90 @@
+//===-- Regions.def - Metadata about MemRegion kinds ------------*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// The list of regions (MemRegion sub-classes) used in the Static Analyzer.
+// In order to use this information, users of this file must define one or more
+// of the three macros:
+//
+// REGION(Id, Parent) - for specific MemRegion sub-classes, reserving
+// enum value IdKind for their kind.
+//
+// ABSTRACT_REGION(Id, Parent) - for abstract region classes,
+//
+// REGION_RANGE(Id, First, Last) - for ranges of kind-enums,
+// allowing to determine abstract class of a region
+// based on the kind-enum value.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef REGION
+#define REGION(Id, Parent)
+#endif
+
+#ifndef ABSTRACT_REGION
+#define ABSTRACT_REGION(Id, Parent)
+#endif
+
+#ifndef REGION_RANGE
+#define REGION_RANGE(Id, First, Last)
+#endif
+
+ABSTRACT_REGION(MemSpaceRegion, MemRegion)
+  REGION(CodeSpaceRegion, MemSpaceRegion)
+  ABSTRACT_REGION(GlobalsSpaceRegion, MemSpaceRegion)
+    ABSTRACT_REGION(NonStaticGlobalSpaceRegion, GlobalsSpaceRegion)
+      REGION(GlobalImmutableSpaceRegion, NonStaticGlobalSpaceRegion)
+      REGION(GlobalInternalSpaceRegion, NonStaticGlobalSpaceRegion)
+      REGION(GlobalSystemSpaceRegion, NonStaticGlobalSpaceRegion)
+      REGION_RANGE(NON_STATIC_GLOBAL_MEMSPACES, GlobalImmutableSpaceRegionKind,
+                                                GlobalSystemSpaceRegionKind)
+    REGION(StaticGlobalSpaceRegion, MemSpaceRegion)
+    REGION_RANGE(GLOBAL_MEMSPACES, GlobalImmutableSpaceRegionKind,
+                                   StaticGlobalSpaceRegionKind)
+  REGION(HeapSpaceRegion, MemSpaceRegion)
+  ABSTRACT_REGION(StackSpaceRegion, MemSpaceRegion)
+    REGION(StackArgumentsSpaceRegion, StackSpaceRegion)
+    REGION(StackLocalsSpaceRegion, StackSpaceRegion)
+    REGION_RANGE(STACK_MEMSPACES, StackArgumentsSpaceRegionKind,
+                                  StackLocalsSpaceRegionKind)
+  REGION(UnknownSpaceRegion, MemSpaceRegion)
+  REGION_RANGE(MEMSPACES, CodeSpaceRegionKind,
+                          UnknownSpaceRegionKind)
+ABSTRACT_REGION(SubRegion, MemRegion)
+  REGION(AllocaRegion, SubRegion)
+  REGION(SymbolicRegion, SubRegion)
+  ABSTRACT_REGION(TypedRegion, SubRegion)
+    REGION(BlockDataRegion, TypedRegion)
+    ABSTRACT_REGION(CodeTextRegion, TypedRegion)
+      REGION(BlockCodeRegion, CodeTextRegion)
+      REGION(FunctionCodeRegion, CodeTextRegion)
+      REGION_RANGE(CODE_TEXT_REGIONS, BlockCodeRegionKind,
+                                      FunctionCodeRegionKind)
+    ABSTRACT_REGION(TypedValueRegion, TypedRegion)
+      REGION(CompoundLiteralRegion, TypedValueRegion)
+      REGION(CXXBaseObjectRegion, TypedValueRegion)
+      REGION(CXXDerivedObjectRegion, TypedValueRegion)
+      REGION(CXXTempObjectRegion, TypedValueRegion)
+      REGION(CXXThisRegion, TypedValueRegion)
+      ABSTRACT_REGION(DeclRegion, TypedValueRegion)
+        REGION(FieldRegion, DeclRegion)
+        REGION(ObjCIvarRegion, DeclRegion)
+        REGION(VarRegion, DeclRegion)
+        REGION_RANGE(DECL_REGIONS, FieldRegionKind,
+                                   VarRegionKind)
+      REGION(ElementRegion, TypedValueRegion)
+      REGION(ObjCStringRegion, TypedValueRegion)
+      REGION(StringRegion, TypedValueRegion)
+      REGION_RANGE(TYPED_VALUE_REGIONS, CompoundLiteralRegionKind,
+                                        StringRegionKind)
+    REGION_RANGE(TYPED_REGIONS, BlockDataRegionKind,
+                                StringRegionKind)
+
+#undef REGION_RANGE
+#undef ABSTRACT_REGION
+#undef REGION

@@ -1,0 +1,84 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) profile for top-like syscall $
+# $Copyright: 2014-2018 Devin Teske. All rights reserved. $
+# $FreeBSD$
+#
+############################################################ DESCRIPTION
+#
+# Every 3 seconds update the screen with syscall consumers.
+#
+############################################################ PRAGMAS
+
+# Optional: You can override the default pragmas (shown below)
+
+DTRACE_PRAGMA="
+	option quiet
+	option aggsortrev
+" # END-QUOTE
+
+############################################################ PROBE
+
+: ${PROBE:=profile:::tick-3s}
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+BEGIN { printf("Sampling ...") } /* probe ID $ID */
+
+syscall:::entry /* probe ID $(( $ID + 1 )) */
+{
+	@num[probefunc,execname] = count();
+}
+
+END { trunc(@num) } /* probe ID $(( $ID + 2 )) */
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 3 ))
+
+############################################################ EVENT TAG
+
+# The EVENT_TAG is run inside the print action after the timestamp has been
+# printed. By default, `UID.GID CMD[PID]: ' of the process is printed.
+#
+# Here we override the default EVENT_TAG to include ANSI cursor-homing and
+# screen-clearing codes.
+
+size=$( stty size 2> /dev/null )
+rows="${size%% *}"
+cols="${size#* }"
+
+exec 9<<EOF
+	printf("\033[H"); /* Position the cursor at top-left */
+	printf("\033[J"); /* Clear display from cursor to end */
+
+	/* Header line containing probe (left) and date (right) */
+	printf("%-*s%s%Y%s\n",
+		$(( ${cols:-80} - 20 )), "$PROBE",
+		console ? "\033[32m" : "",
+		walltimestamp,
+		console ? "\033[39m" : "");
+
+	/* Column headers */
+	printf("%s%8s %-20s %s%s\n",
+		console ? "\033[1m" : "",
+		"COUNT",
+		"SYSCALL",
+		"EXECNAME",
+		console ? "\033[22m" : "");
+EOF
+EVENT_TAG=$( cat <&9 )
+
+############################################################ EVENT DETAILS
+
+exec 9<<EOF
+	printa("%@8u %-20s %s\n", @num);
+	trunc(@num);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+
+################################################################################
+# END
+################################################################################

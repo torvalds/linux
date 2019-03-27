@@ -1,0 +1,195 @@
+@c Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1999, 2002
+@c Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@ifset GENERIC
+@page
+@node Sparc-Dependent
+@chapter SPARC Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter SPARC Dependent Features
+@end ifclear
+
+@cindex SPARC support
+@menu
+* Sparc-Opts::                  Options
+* Sparc-Aligned-Data::		Option to enforce aligned data
+* Sparc-Float::                 Floating Point
+* Sparc-Directives::            Sparc Machine Directives
+@end menu
+
+@node Sparc-Opts
+@section Options
+
+@cindex options for SPARC
+@cindex SPARC options
+@cindex architectures, SPARC
+@cindex SPARC architectures
+The SPARC chip family includes several successive levels, using the same
+core instruction set, but including a few additional instructions at
+each level.  There are exceptions to this however.  For details on what
+instructions each variant supports, please see the chip's architecture
+reference manual.
+
+By default, @code{@value{AS}} assumes the core instruction set (SPARC
+v6), but ``bumps'' the architecture level as needed: it switches to
+successively higher architectures as it encounters instructions that
+only exist in the higher levels.
+
+If not configured for SPARC v9 (@code{sparc64-*-*}) GAS will not bump
+passed sparclite by default, an option must be passed to enable the
+v9 instructions.
+
+GAS treats sparclite as being compatible with v8, unless an architecture
+is explicitly requested.  SPARC v9 is always incompatible with sparclite.
+
+@c The order here is the same as the order of enum sparc_opcode_arch_val
+@c to give the user a sense of the order of the "bumping".
+
+@table @code
+@kindex -Av6
+@kindex Av7
+@kindex -Av8
+@kindex -Asparclet
+@kindex -Asparclite
+@kindex -Av9
+@kindex -Av9a
+@item -Av6 | -Av7 | -Av8 | -Asparclet | -Asparclite
+@itemx -Av8plus | -Av8plusa | -Av9 | -Av9a
+Use one of the @samp{-A} options to select one of the SPARC
+architectures explicitly.  If you select an architecture explicitly,
+@code{@value{AS}} reports a fatal error if it encounters an instruction
+or feature requiring an incompatible or higher level.
+
+@samp{-Av8plus} and @samp{-Av8plusa} select a 32 bit environment.
+
+@samp{-Av9} and @samp{-Av9a} select a 64 bit environment and are not
+available unless GAS is explicitly configured with 64 bit environment
+support.
+
+@samp{-Av8plusa} and @samp{-Av9a} enable the SPARC V9 instruction set with
+UltraSPARC extensions.
+
+@item -xarch=v8plus | -xarch=v8plusa
+For compatibility with the Solaris v9 assembler.  These options are
+equivalent to -Av8plus and -Av8plusa, respectively.
+
+@item -bump
+Warn whenever it is necessary to switch to another level.
+If an architecture level is explicitly requested, GAS will not issue
+warnings until that level is reached, and will then bump the level
+as required (except between incompatible levels).
+
+@item -32 | -64
+Select the word size, either 32 bits or 64 bits.
+These options are only available with the ELF object file format,
+and require that the necessary BFD support has been included.
+@end table
+
+@node Sparc-Aligned-Data
+@section Enforcing aligned data
+
+@cindex data alignment on SPARC
+@cindex SPARC data alignment
+SPARC GAS normally permits data to be misaligned.  For example, it
+permits the @code{.long} pseudo-op to be used on a byte boundary.
+However, the native SunOS and Solaris assemblers issue an error when
+they see misaligned data.
+
+@kindex --enforce-aligned-data
+You can use the @code{--enforce-aligned-data} option to make SPARC GAS
+also issue an error about misaligned data, just as the SunOS and Solaris
+assemblers do.
+
+The @code{--enforce-aligned-data} option is not the default because gcc
+issues misaligned data pseudo-ops when it initializes certain packed
+data structures (structures defined using the @code{packed} attribute).
+You may have to assemble with GAS in order to initialize packed data
+structures in your own code.
+
+@ignore
+@c FIXME: (sparc) Fill in "syntax" section!
+@c subsection syntax
+I don't know anything about Sparc syntax.  Someone who does
+will have to write this section.
+@end ignore
+
+@node Sparc-Float
+@section Floating Point
+
+@cindex floating point, SPARC (@sc{ieee})
+@cindex SPARC floating point (@sc{ieee})
+The Sparc uses @sc{ieee} floating-point numbers.
+
+@node Sparc-Directives
+@section Sparc Machine Directives
+
+@cindex SPARC machine directives
+@cindex machine directives, SPARC
+The Sparc version of @code{@value{AS}} supports the following additional
+machine directives:
+
+@table @code
+@cindex @code{align} directive, SPARC
+@item .align
+This must be followed by the desired alignment in bytes.
+
+@cindex @code{common} directive, SPARC
+@item .common
+This must be followed by a symbol name, a positive number, and
+@code{"bss"}.  This behaves somewhat like @code{.comm}, but the
+syntax is different.
+
+@cindex @code{half} directive, SPARC
+@item .half
+This is functionally identical to @code{.short}.
+
+@cindex @code{nword} directive, SPARC
+@item .nword
+On the Sparc, the @code{.nword} directive produces native word sized value,
+ie. if assembling with -32 it is equivalent to @code{.word}, if assembling
+with -64 it is equivalent to @code{.xword}.
+
+@cindex @code{proc} directive, SPARC
+@item .proc
+This directive is ignored.  Any text following it on the same
+line is also ignored.
+
+@cindex @code{register} directive, SPARC
+@item .register
+This directive declares use of a global application or system register.
+It must be followed by a register name %g2, %g3, %g6 or %g7, comma and
+the symbol name for that register.  If symbol name is @code{#scratch},
+it is a scratch register, if it is @code{#ignore}, it just suppresses any
+errors about using undeclared global register, but does not emit any
+information about it into the object file.  This can be useful e.g. if you
+save the register before use and restore it after.
+
+@cindex @code{reserve} directive, SPARC
+@item .reserve
+This must be followed by a symbol name, a positive number, and
+@code{"bss"}.  This behaves somewhat like @code{.lcomm}, but the
+syntax is different.
+
+@cindex @code{seg} directive, SPARC
+@item .seg
+This must be followed by @code{"text"}, @code{"data"}, or
+@code{"data1"}.  It behaves like @code{.text}, @code{.data}, or
+@code{.data 1}.
+
+@cindex @code{skip} directive, SPARC
+@item .skip
+This is functionally identical to the @code{.space} directive.
+
+@cindex @code{word} directive, SPARC
+@item .word
+On the Sparc, the @code{.word} directive produces 32 bit values,
+instead of the 16 bit values it produces on many other machines.
+
+@cindex @code{xword} directive, SPARC
+@item .xword
+On the Sparc V9 processor, the @code{.xword} directive produces
+64 bit values.
+@end table

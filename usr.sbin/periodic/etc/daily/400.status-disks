@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_status_disks_enable" in
+    [Yy][Ee][Ss])
+	echo ""
+	echo "Disk status:"
+
+	if [ -n "${daily_status_disks_ignore}" ] ; then
+		ignore="egrep -v ${daily_status_disks_ignore}"
+	else
+		ignore="cat"
+	fi
+	(df $daily_status_disks_df_flags | ${ignore}) && rc=1 || rc=3
+
+	# display which filesystems need backing up
+	if [ -s /etc/dumpdates ]; then
+		if ! [ -f /etc/fstab ]; then
+			export PATH_FSTAB=/dev/null
+		fi
+
+		echo ""
+		dump W || rc=3
+	fi
+	;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

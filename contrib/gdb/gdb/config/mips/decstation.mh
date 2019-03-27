@@ -1,0 +1,4 @@
+# OBSOLETE # Host: Little-endian MIPS machine such as DECstation.
+# OBSOLETE XM_FILE= xm-mips.h
+# OBSOLETE NAT_FILE= nm-mips.h
+# OBSOLETE NATDEPFILES= infptrace.o inftarg.o corelow.o mips-nat.o fork-child.o

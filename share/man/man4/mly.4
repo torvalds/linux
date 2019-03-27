@@ -1,0 +1,270 @@
+.\"
+.\" Copyright (c) 2000 Michael Smith
+.\" Copyright (c) 2000 BSDi
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 10, 2004
+.Dt MLY 4
+.Os
+.Sh NAME
+.Nm mly
+.Nd Mylex AcceleRAID/eXtremeRAID family driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
+.Cd "device da"
+.Cd "device mly"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mly_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Mylex AcceleRAID and eXtremeRAID-family
+PCI to SCSI RAID controllers with version 6.00 and later
+firmware.
+.Pp
+Logical devices (array drives) attached to the controller are presented
+to the SCSI subsystem as though they were direct-access devices on a
+virtual SCSI bus.
+Physical devices which are not claimed by a logical
+device are presented on SCSI channels which match the physical channels
+on the controller.
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Mylex AcceleRAID 160
+.It
+Mylex AcceleRAID 170
+.It
+Mylex AcceleRAID 352
+.It
+Mylex eXtremeRAID 2000
+.It
+Mylex eXtremeRAID 3000
+.El
+.Pp
+Compatible Mylex controllers not listed should work, but have not been
+verified.
+.Sh DIAGNOSTICS
+.Ss Controller initialisation phase
+.Bl -diag
+.It "mly%d: controller initialisation started"
+.It "mly%d: initialisation complete"
+.Pp
+The controller firmware has started initialisation.
+Normally this process is performed by the controller BIOS,
+but the driver may need
+to do this in cases where the BIOS has failed, or is not compatible
+(e.g.\& on non-x86 systems).
+.It "mly%d: drive spinup in progress"
+.Pp
+Drive startup is in progress; this may take several minutes.
+.It "mly%d: mirror race recovery failed, one or more drives offline"
+.It "mly%d: mirror race recovery in progress"
+.It "mly%d: mirror race recovery on a critical drive"
+.Pp
+These error codes are undocumented.
+.It "mly%d: FATAL MEMORY PARITY ERROR"
+.Pp
+Firmware detected a fatal memory error; the driver will not attempt to
+attach to this controller.
+.It "mly%d: unknown initialisation code %x"
+.Pp
+An unknown error occurred during initialisation; it will be ignored.
+.El
+.Ss Driver initialisation/shutdown phase
+.Bl -diag
+.It "mly%d: can't enable busmaster feature"
+.It "mly%d: memory window not available"
+.It "mly%d: can't allocate register window"
+.It "mly%d: can't allocate interrupt"
+.It "mly%d: can't set up interrupt"
+.Pp
+The system's PCI BIOS has not correctly configured the controller's
+PCI interface; initialisation has failed and the driver will not
+attach to this controller.
+.It "mly%d: can't allocate parent DMA tag"
+.It "mly%d: can't allocate buffer DMA tag"
+.It "mly%d: can't allocate command packet DMA tag"
+.It "mly%d: can't allocate scatter/gather DMA tag"
+.It "mly%d: can't allocate s/g table"
+.It "mly%d: can't allocate memory mailbox DMA tag"
+.It "mly%d: can't allocate memory mailbox"
+.Pp
+A resource allocation error occurred while initialising the driver;
+initialisation has failed and the driver will not attach to this
+controller.
+.It "mly%d: BTL rescan result corrupted"
+.Pp
+The results of a scan for an attached device were corrupted.
+One or more devices may not be correctly reported.
+.It "mly%d: flushing cache..."
+.Pp
+The controller cache is being flushed prior to detach or shutdown.
+.El
+.Ss Operational diagnostics
+.Bl -diag
+.It "mly%d: physical device %d:%d online"
+.It "mly%d: physical device %d:%d standby"
+.It "mly%d: physical device %d:%d automatic rebuild started"
+.It "mly%d: physical device %d:%d manual rebuild started"
+.It "mly%d: physical device %d:%d rebuild completed"
+.It "mly%d: physical device %d:%d rebuild cancelled"
+.It "mly%d: physical device %d:%d rebuild failed for unknown reasons"
+.It "mly%d: physical device %d:%d rebuild failed due to new physical device"
+.It "mly%d: physical device %d:%d rebuild failed due to logical drive failure"
+.It "mly%d: physical device %d:%d found"
+.It "mly%d: physical device %d:%d gone"
+.It "mly%d: physical device %d:%d unconfigured"
+.It "mly%d: physical device %d:%d expand capacity started"
+.It "mly%d: physical device %d:%d expand capacity completed"
+.It "mly%d: physical device %d:%d expand capacity failed"
+.It "mly%d: physical device %d:%d parity error"
+.It "mly%d: physical device %d:%d soft error"
+.It "mly%d: physical device %d:%d miscellaneous error"
+.It "mly%d: physical device %d:%d reset"
+.It "mly%d: physical device %d:%d active spare found"
+.It "mly%d: physical device %d:%d warm spare found"
+.It "mly%d: physical device %d:%d initialization started"
+.It "mly%d: physical device %d:%d initialization completed"
+.It "mly%d: physical device %d:%d initialization failed"
+.It "mly%d: physical device %d:%d initialization cancelled"
+.It "mly%d: physical device %d:%d write recovery failed"
+.It "mly%d: physical device %d:%d scsi bus reset failed"
+.It "mly%d: physical device %d:%d double check condition"
+.It "mly%d: physical device %d:%d device cannot be accessed"
+.It "mly%d: physical device %d:%d gross error on scsi processor"
+.It "mly%d: physical device %d:%d bad tag from device"
+.It "mly%d: physical device %d:%d command timeout"
+.It "mly%d: physical device %d:%d system reset"
+.It "mly%d: physical device %d:%d busy status or parity error"
+.It "mly%d: physical device %d:%d host set device to failed state"
+.It "mly%d: physical device %d:%d selection timeout"
+.It "mly%d: physical device %d:%d scsi bus phase error"
+.It "mly%d: physical device %d:%d device returned unknown status"
+.It "mly%d: physical device %d:%d device not ready"
+.It "mly%d: physical device %d:%d device not found at startup"
+.It "mly%d: physical device %d:%d COD write operation failed"
+.It "mly%d: physical device %d:%d BDT write operation failed"
+.It "mly%d: physical device %d:%d missing at startup"
+.It "mly%d: physical device %d:%d start rebuild failed due to physical drive too small"
+.It "mly%d: physical device %d:%d sense data received"
+.It "mly%d:   sense key %d  asc %02x  ascq %02x"
+.It "mly%d:   info %4D  csi %4D"
+.It "mly%d: physical device %d:%d offline"
+.It "mly%d:   sense key %d  asc %02x  ascq %02x"
+.It "mly%d:   info %4D  csi %4D"
+.Pp
+The reported event refers to the physical device at the given channel:target
+address.
+.It "mly%d: logical device %d (%s) consistency check started"
+.It "mly%d: logical device %d (%s) consistency check completed"
+.It "mly%d: logical device %d (%s) consistency check cancelled"
+.It "mly%d: logical device %d (%s) consistency check completed with errors"
+.It "mly%d: logical device %d (%s) consistency check failed due to logical drive failure"
+.It "mly%d: logical device %d (%s) consistency check failed due to physical device failure"
+.It "mly%d: logical device %d (%s) automatic rebuild started"
+.It "mly%d: logical device %d (%s) manual rebuild started"
+.It "mly%d: logical device %d (%s) rebuild completed"
+.It "mly%d: logical device %d (%s) rebuild cancelled"
+.It "mly%d: logical device %d (%s) rebuild failed for unknown reasons"
+.It "mly%d: logical device %d (%s) rebuild failed due to new physical device"
+.It "mly%d: logical device %d (%s) rebuild failed due to logical drive failure"
+.It "mly%d: logical device %d (%s) offline"
+.It "mly%d: logical device %d (%s) critical"
+.It "mly%d: logical device %d (%s) online"
+.It "mly%d: logical device %d (%s) initialization started"
+.It "mly%d: logical device %d (%s) initialization completed"
+.It "mly%d: logical device %d (%s) initialization cancelled"
+.It "mly%d: logical device %d (%s) initialization failed"
+.It "mly%d: logical device %d (%s) found"
+.It "mly%d: logical device %d (%s) gone"
+.It "mly%d: logical device %d (%s) expand capacity started"
+.It "mly%d: logical device %d (%s) expand capacity completed"
+.It "mly%d: logical device %d (%s) expand capacity failed"
+.It "mly%d: logical device %d (%s) bad block found"
+.It "mly%d: logical device %d (%s) size changed"
+.It "mly%d: logical device %d (%s) type changed"
+.It "mly%d: logical device %d (%s) bad data block found"
+.It "mly%d: logical device %d (%s) read of data block in bdt"
+.It "mly%d: logical device %d (%s) write back data for disk block lost"
+.Pp
+The event report will include the name of the SCSI device which has
+attached to the device if possible.
+.It "mly%d: enclosure %d fan %d failed"
+.It "mly%d: enclosure %d fan %d ok"
+.It "mly%d: enclosure %d fan %d not present"
+.It "mly%d: enclosure %d power supply %d failed"
+.It "mly%d: enclosure %d power supply %d ok"
+.It "mly%d: enclosure %d power supply %d not present"
+.It "mly%d: enclosure %d temperature sensor %d failed"
+.It "mly%d: enclosure %d temperature sensor %d critical"
+.It "mly%d: enclosure %d temperature sensor %d ok"
+.It "mly%d: enclosure %d temperature sensor %d not present"
+.It "mly%d: enclosure %d unit %d access critical"
+.It "mly%d: enclosure %d unit %d access ok"
+.It "mly%d: enclosure %d unit %d access offline"
+.Pp
+These events refer to external enclosures by number.
+The driver does not attempt to name the enclosures.
+.It "mly%d: controller cache write back error"
+.It "mly%d: controller battery backup unit found"
+.It "mly%d: controller battery backup unit charge level low"
+.It "mly%d: controller battery backup unit charge level ok"
+.It "mly%d: controller installation aborted"
+.It "mly%d: controller mirror race recovery in progress"
+.It "mly%d: controller mirror race on critical drive"
+.It "mly%d: controller memory soft ecc error"
+.It "mly%d: controller memory hard ecc error"
+.It "mly%d: controller battery backup unit failed"
+.Pp
+These events report controller status changes.
+.El
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Michael Smith Aq Mt msmith@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Michael Smith Aq Mt msmith@FreeBSD.org .
+.Sh BUGS
+The driver does not yet provide an external management interface.
+.Pp
+Enclosures are not named or otherwise identified in event messages.

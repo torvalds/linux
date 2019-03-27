@@ -1,0 +1,150 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_get_cie_info.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd May 29, 2011
+.Dt DWARF_GET_CIE_INFO 3
+.Os
+.Sh NAME
+.Nm dwarf_get_cie_info
+.Nd retrieve information associated with a CIE descriptor
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_get_cie_info
+.Fa "Dwarf_Cie cie"
+.Fa "Dwarf_Unsigned *cie_byte_len"
+.Fa "Dwarf_Small *version"
+.Fa "char **augmentation"
+.Fa "Dwarf_Unsigned *caf"
+.Fa "Dwarf_Unsigned *daf"
+.Fa "Dwarf_Half *ra"
+.Fa "Dwarf_Ptr *init_inst"
+.Fa "Dwarf_Unsigned *inst_len"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_get_cie_info
+retrieves the information associated with a given CIE descriptor.
+.Pp
+Argument
+.Ar cie
+should reference a valid DWARF CIE descriptor, such as would be
+returned by function
+.Xr dwarf_get_cie_of_fde 3 .
+.Pp
+Argument
+.Ar cie_byte_len
+should point to a location that will hold the length in bytes of
+the CIE descriptor itself.
+.Pp
+Argument
+.Ar version
+should point to a location that will hold the version number of
+the CIE descriptor.
+.Pp
+Arugment
+.Ar augmentation
+should point to a location that will be set to a pointer to a
+NUL-terminated string containing augmentation data encoded as UTF-8.
+.Pp
+Argument
+.Ar caf
+should point to a location that will hold the code alignment
+factor recorded in the CIE descriptor.
+.Pp
+Arugment
+.Ar daf
+should point to a location that will hold the data alignment
+factor recorded in the CIE descriptor.
+.Pp
+Argument
+.Ar ra
+should point to a location that will hold the return address
+recorded in the CIE descriptor.
+.Pp
+Argument
+.Ar init_inst
+should point to a location that will be set to a pointer to an array
+of bytes containing the initial instructions associated with the CIE
+descriptor.
+.Pp
+Argument
+.Ar inst_len
+should point to a location that will hold the length in bytes
+of the initial instructions returned in argument
+.Ar init_inst .
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case of an
+error.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_get_cie_info
+returns
+.Dv DW_DLV_OK
+when it succeeds.
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets the argument
+.Ar err .
+.Sh ERRORS
+Function
+.Fn dwarf_get_cie_info
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar cie ,
+.Ar cie_byte_len ,
+.Ar version ,
+.Ar augmentation ,
+.Ar caf ,
+.Ar daf ,
+.Ar ra ,
+.Ar init_inst
+or
+.Ar inst_len
+was NULL.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_get_cie_index 3 ,
+.Xr dwarf_get_cie_of_fde 3 ,
+.Xr dwarf_get_fde_at_pc 3 ,
+.Xr dwarf_get_fde_info_for_all_regs 3 ,
+.Xr dwarf_get_fde_info_for_all_regs3 3 ,
+.Xr dwarf_get_fde_info_for_cfa_reg3 3 ,
+.Xr dwarf_get_fde_info_for_reg 3 ,
+.Xr dwarf_get_fde_info_for_reg3 3 ,
+.Xr dwarf_get_fde_instr_bytes 3 ,
+.Xr dwarf_get_fde_list 3 ,
+.Xr dwarf_get_fde_list_eh 3 ,
+.Xr dwarf_get_fde_n 3 ,
+.Xr dwarf_get_fde_range 3

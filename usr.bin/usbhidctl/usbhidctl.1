@@ -1,0 +1,151 @@
+.\" $NetBSD: usbhidctl.1,v 1.8 1999/05/11 21:03:58 augustss Exp $
+.\" $FreeBSD$
+.\"
+.\" Copyright (c) 1998 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd August 1, 2011
+.Dt USBHIDCTL 1
+.Os
+.Sh NAME
+.Nm usbhidctl
+.Nd manipulate USB HID devices
+.Sh SYNOPSIS
+.Nm
+.Fl f Ar device
+.Op Fl t Ar table
+.Op Fl v
+.Op Fl x
+.Fl r
+.Nm
+.Fl f Ar device
+.Op Fl t Ar table
+.Op Fl l
+.Op Fl v
+.Op Fl x
+.Op Fl z
+.Fl a
+.Nm
+.Fl f Ar device
+.Op Fl t Ar table
+.Op Fl l
+.Op Fl n
+.Op Fl v
+.Op Fl x
+.Op Fl z
+.Ar item ...
+.Nm
+.Fl f Ar device
+.Op Fl t Ar table
+.Op Fl v
+.Op Fl z
+.Fl w
+.Ar item=value ...
+.Sh DESCRIPTION
+The
+.Nm
+utility can be used to dump and modify the state of a USB HID (Human
+Interface Device).
+Each named
+.Ar item
+is printed.
+If the
+.Fl w
+flag is specified
+.Nm
+attempts to set the specified items to the given values.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+Show all items and their current values if device returns.
+.It Fl f Ar device
+Specify a path name for the device to operate on.
+.It Fl l
+Loop and dump the device data every time it changes.
+.It Fl n
+Suppress printing of the item name.
+.It Fl r
+Dump the report descriptor.
+.It Fl t Ar table
+Specify a path name for the HID usage table file.
+.It Fl v
+Be verbose.
+.It Fl w
+Change item values.
+Only 'output' and 'feature' kinds can be set with this option.
+.It Fl x
+Dump data in hexadecimal as well as decimal.
+.It Fl z
+Reset reports to zero before processing other arguments.
+If not specified, current values will be requested from device.
+.El
+.Sh SYNTAX
+.Nm
+compares the names of items specified on the command line against the human
+interface items reported by the USB device.
+Each human interface item is mapped from its native form to a human readable
+name, using the HID usage table file.
+Command line items are compared with the generated item names,
+and the USB HID device is operated on when a match is found.
+.Pp
+Each human interface item is named by the
+.Qq page
+it appears in, the
+.Qq usage
+within that page, and the list of
+.Qq collections
+containing the item.
+Each collection in turn is also identified by page, and
+the usage within that page.
+.Pp
+On the
+.Nm
+command line the page name is separated from the usage name with the character
+.Sq Cm \&: .
+The collections are separated by the character
+.Sq Cm \&. .
+.Pp
+Some devices give the same name to more than one item.
+.Nm
+supports isolating each item by appending a
+.Sq Cm \&# .
+character and a decimal item instance number, starting at zero.
+.Sh FILES
+.Bl -tag -width 30n
+.It Pa /usr/share/misc/usb_hid_usages
+The default HID usage table.
+.El
+.Sh SEE ALSO
+.Xr usbhid 3 ,
+.Xr uhid 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Nx 1.4 .

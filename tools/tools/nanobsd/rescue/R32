@@ -1,0 +1,14 @@
+#
+# R32 -- Generic kernel configuration file with modifications for rescue.
+#
+# $FreeBSD$
+
+include GENERIC
+
+ident	R32
+
+nooptions	INVARIANTS
+nooptions	INVARIANT_SUPPORT
+nooptions	WITNESS
+nooptions	WITNESS_SKIPSPIN
+nooptions	MALLOC_DEBUG_MAXZONES

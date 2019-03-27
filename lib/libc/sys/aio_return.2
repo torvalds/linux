@@ -1,0 +1,102 @@
+.\" Copyright (c) 1999 Softweyr LLC.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Softweyr LLC AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Softweyr LLC OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 21, 2016
+.Dt AIO_RETURN 2
+.Os
+.Sh NAME
+.Nm aio_return
+.Nd retrieve return status of asynchronous I/O operation (REALTIME)
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In aio.h
+.Ft ssize_t
+.Fn aio_return "struct aiocb *iocb"
+.Sh DESCRIPTION
+The
+.Fn aio_return
+system call returns the final status of the asynchronous I/O request
+associated with the structure pointed to by
+.Fa iocb .
+.Pp
+The
+.Fn aio_return
+system call
+should only be called once, to obtain the final status of an asynchronous
+I/O operation once it has completed
+.Xr ( aio_error 2
+returns something other than
+.Er EINPROGRESS ) .
+.Sh RETURN VALUES
+If the asynchronous I/O request has completed, the status is returned
+as described in
+.Xr read 2 ,
+.Xr write 2 ,
+or
+.Xr fsync 2 .
+Otherwise,
+.Fn aio_return
+returns \-1 and sets
+.Va errno
+to indicate the error condition.
+.Sh ERRORS
+The
+.Fn aio_return
+system call will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa iocb
+argument
+does not reference a completed asynchronous I/O request.
+.El
+.Sh SEE ALSO
+.Xr aio_cancel 2 ,
+.Xr aio_error 2 ,
+.Xr aio_suspend 2 ,
+.Xr aio_waitcomplete 2 ,
+.Xr aio_write 2 ,
+.Xr fsync 2 ,
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr aio 4
+.Sh STANDARDS
+The
+.Fn aio_return
+system call
+is expected to conform to the
+.St -p1003.1
+standard.
+.Sh HISTORY
+The
+.Fn aio_return
+system call first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Wes Peters Aq Mt wes@softweyr.com .

@@ -1,0 +1,42 @@
+/* $FreeBSD$ */
+/* See r303484 and r309342 */
+void t(void) {
+	/* The two if statements below excercise two different code paths. */
+
+	if (1) /* a */ int a; else /* b */ int b;
+
+	if (1) /* a */
+		int a;
+	else /* b */
+		int b;
+
+	if (1) {
+
+	}
+
+
+
+	/* Old indent would remove the 3 blank lines above, awaiting "else". */
+
+	if (1) {
+		int a;
+	}
+
+
+	else if (0) {
+		int b;
+	}
+	/* test */
+	else
+		;
+
+	if (1)
+		;
+	else /* Old indent would get very confused here */
+	/* We also mustn't assume that there's only one comment */
+	/* before the left brace. */
+	{
+
+
+	}
+}

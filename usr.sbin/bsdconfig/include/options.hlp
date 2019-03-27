@@ -1,0 +1,115 @@
+The following options may be set from this screen.
+
+NFS Secure:   NFS server talks only on a secure port
+
+    This is most commonly used when talking to Sun workstations, which
+    will not talk NFS over "non privileged" ports.
+
+
+NFS Slow:     User is using a slow PC or Ethernet card
+
+    Use this option if you have a slow PC (386) or an Ethernet card
+    with poor performance being "fed" by NFS on a higher-performance
+    workstation.  This will throttle the workstation back to prevent
+    the PC from becoming swamped with data.
+
+
+NFS TCP:      Use TCP for the NFS mount
+
+    This option can be used if your NFS server supports TCP
+    connections; not all do!  This may be useful if your NFS server
+    is at a remote site in which case it may offer some additional
+    stability.
+
+
+NFS version 3:   Use NFS version 3
+
+    This option forces the use of NFS version 3 and is on by default.
+    If your NFS server only supports NFS version 2, disable this option.
+
+
+Debugging:    Turn on the extra debugging flag
+
+    This turns on a lot of extra noise in between dialogs (unless
+    debugFile has been set, sending the data to a logfile instead).
+    Optionally, if debugFile begins with a plus sign (`+'), output will
+    occur both on standard output and to debugFile (minus leading plus).
+    If your installation should fail for any reason, PLEASE turn this
+    flag on when attempting to reproduce the problem.  It will provide a
+    lot of extra debugging at the failure point and may be very helpful
+    to the developers in tracking such problems down!
+
+
+Yes To All:   Assume "Yes" answers to all non-critical dialogs
+
+    This flag should be used with caution.  It will essentially
+    decide NOT to ask the user about any "boundary" conditions that
+    might not constitute actual errors but may be warnings indicative
+    of other problems.  It's most useful to those who are doing unattended
+    installs.
+
+
+DHCP:         Enable DHCP configuration of interfaces
+
+    This option specifies whether DHCP configuration of interfaces
+    may be attempted.  The default setting is to interactively ask
+    the user.
+
+
+IPv6:         Enable IPv6 router solicitation configuration
+
+    This option specifies whether automatic configuration of IPv6
+    interfaces may be attempted.  This uses the router solicitation
+    method of automatic configuration.  The default setting is to
+    interactively ask the user.
+
+
+FTP username:  Specify username and password instead of anonymous.
+
+    By default, the installation attempts to log in as the
+    anonymous user.  If you wish to log in as someone else,
+    specify the username and password with this option.
+
+
+Editor:  Specify which screen editor to use.
+
+   At various points during the installation it may be necessary
+   to customize some text file, at which point the user will be
+   thrown unceremoniously into a screen editor.  A relatively
+   simplistic editor which shows its command set on-screen is
+   selected by default, but UNIX purists may wish to change this
+   setting to `/usr/bin/vi'.
+
+
+Release Name:  Which release to attempt to load from installation media.
+
+    You should only change this option if you're really sure you know
+    what you are doing!  This will change the release name used by
+    bsdconfig when fetching components of any distributions, and
+    is a useful way of using a more recent installation boot floppy
+    with an older release (say, on CDROM).
+
+
+Media Type:   Which media type is being used.
+
+    This is mostly informational and indicates which media type (if any)
+    was last selected in the Media menu.  It's also a convenient short-cut
+    to the media menu itself.
+
+
+Package Temp:  Where package temporary files should go
+
+   Some packages, like emacs, can use a LOT of temporary space - up to
+   20 or 30MB.  If you are going to configure a small / directory and no
+   separate /var (and hence a small /var/tmp), then you may wish to set
+   this to point at another location (say, /usr/tmp).
+
+
+Re-scan Devices:  
+
+   Reprobe the system for devices.
+
+
+Use Defaults:  Use default values.
+
+    Reset all options back to their default values.

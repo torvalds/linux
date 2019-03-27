@@ -1,0 +1,20 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	dladdr;
+	dlclose;
+	dlerror;
+	dlfunc;
+	dlopen;
+	dlsym;
+	dlvsym;
+	dlinfo;
+	dl_iterate_phdr;
+};
+
+
+FBSD_1.3 {
+	fdlopen;
+};

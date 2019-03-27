@@ -1,0 +1,101 @@
+.\" Copyright (c) 1997 Brian Cully <shmit@kublai.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 9, 2010
+.Dt PTHREAD_COND_TIMEDWAIT 3
+.Os
+.Sh NAME
+.Nm pthread_cond_timedwait
+.Nd "wait on a condition variable for a specific amount of time"
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_cond_timedwait "pthread_cond_t *cond" "pthread_mutex_t *mutex" "const struct timespec *abstime"
+.Sh DESCRIPTION
+The
+.Fn pthread_cond_timedwait
+function atomically blocks the current thread waiting on the condition
+variable specified by
+.Fa cond ,
+and releases the mutex specified by
+.Fa mutex .
+The waiting thread unblocks only after another thread calls
+.Xr pthread_cond_signal 3 ,
+or
+.Xr pthread_cond_broadcast 3
+with the same condition variable, or if the system time reaches the
+time specified in
+.Fa abstime ,
+and the current thread reacquires the lock on
+.Fa mutex .
+.Pp
+The clock used to measure
+.Fa abstime
+can be specified during creation of the condition variable using
+.Xr pthread_condattr_setclock 3 .
+.Sh RETURN VALUES
+If successful, the
+.Fn pthread_cond_timedwait
+function will return zero.
+Otherwise an error number will be returned to
+indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_cond_timedwait
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa cond ,
+.Fa mutex
+or
+.Fa abstime
+is invalid.
+.It Bq Er ETIMEDOUT
+The system time has reached or exceeded the time specified in
+.Fa abstime .
+.It Bq Er EPERM
+The specified
+.Fa mutex
+was not locked by the calling thread.
+.El
+.Sh SEE ALSO
+.Xr pthread_cond_broadcast 3 ,
+.Xr pthread_cond_destroy 3 ,
+.Xr pthread_cond_init 3 ,
+.Xr pthread_cond_signal 3 ,
+.Xr pthread_cond_wait 3 ,
+.Xr pthread_condattr_setclock 3
+.Sh STANDARDS
+The
+.Fn pthread_cond_timedwait
+function conforms to
+.St -p1003.1-96 .

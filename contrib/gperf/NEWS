@@ -1,0 +1,91 @@
+New in 3.0.3:
+
+* The generated C code is compatible with gcc-4.3.x in c99 or gnu99 mode.
+
+New in 3.0.2:
+
+* Compiles with g++-4.0.x.
+* Added option --length-table-name.
+* Added declaration %define length-table-name.
+* Fixed  #line directives for filenames containing backslashes.
+
+New in 3.0.1:
+
+* Bug fix.
+
+New in 3.0:
+
+* Added option --output that allows to specify the output file name.
+* Some options have been renamed:
+    --hash-fn-name=NAME     -->   --hash-function-name=NAME
+    --lookup-fn-name=NAME   -->   --lookup-function-name=NAME
+    --compare-strlen        -->   --compare-lengths
+    --global                -->   --global-table
+  The older variants are still supported for backward compatibility.
+* The following options can now be specified inside the input file:
+    %delimiters=DELIMITER-LIST
+    %struct-type
+    %ignore-case
+    %language=LANGUAGE-NAME
+    %define slot-name NAME
+    %define initializer-suffix INITIALIZERS
+    %define hash-function-name NAME
+    %define lookup-function-name NAME
+    %define class-name NAME
+    %7bit
+    %compare-lengths
+    %compare-strncmp
+    %readonly-tables
+    %enum
+    %includes
+    %global-table
+    %pic
+    %define string-pool-name NAME
+    %null-strings
+    %define word-array-name NAME
+    %switch=COUNT
+    %omit-struct-type
+* When the option -k is not given, the default key positions are now
+  computed depending on the set of keywords.
+* If the input file is given by name, the output file will now contain
+  #line directives referring to the input file.
+* Some keyword sets containing permutations, like { "xy", "yx", "xz", "zx" }
+  or { "abc", "acb", "bca", "cab" }, are now handled by gperf without
+  requiring the option -D.
+* The generated table is usually much smaller than it was with earlier
+  versions of gperf.
+* Added option -m/--multiple-iterations that allows to further reduce the
+  size of the generated table.
+* When the search for a good hash function is not immediately successful,
+  the table's size will grow as needed. Earlier versions of gperf bailed
+  out with an "Internal error, duplicate hash code value".
+* The options -f/--fast and -o/--occurrence-sort have no effect any more.
+* Added options -P/--pic and --null-strings that optimize the generated code
+  for use in shared libraries. -P/--pic does a perfect optimization but may
+  require some small code changes (see the documentation for details), whereas
+  --null-strings does only a half-hearted optimization but works without
+  needing any change to surrounding code.
+* Added option --ignore-case that produces a case independent lookup function.
+* Bug fixes.
+
+New in 2.7.2:
+
+* Keywords may now be enclosed in double quotes; this permits the use of
+  '#', ',', space or NUL inside keywords.
+* Bug fixes.
+
+New in 2.7.1:
+
+* Added option "-F" for gcc.
+
+New in 2.7:
+
+* gperf is now a stand-alone package, untied from libg++.
+* Autoconfiguring.
+* Removed the "-a" and "-g" options, extended the "-L" option instead.
+* Removed the "-p" option, it is the default.
+* Added long options ("--help", "--version" etc.).
+* 8-bit cleanliness is now the default; use "-7" to get the old behaviour.
+* Compiles with any C++ compiler.
+* Numerous small improvements.
+

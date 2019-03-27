@@ -1,0 +1,232 @@
+.\" $FreeBSD$
+.Dd June 26, 1997
+.Dt PPPCTL 8
+.Os
+.Sh NAME
+.Nm pppctl
+.Nd PPP control program
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Op Fl t Ar n
+.Op Fl p Ar passwd
+.Xo Oo Ar host : Oc Ns
+.Ar Port | LocalSocket
+.Xc
+.Oo
+.Sm off
+.Ar command Oo ; Ar command Oc Ar ...
+.Sm on
+.Oc
+.Sh DESCRIPTION
+This utility provides command line control of the
+.Xr ppp 8
+daemon.
+Its primary use is to facilitate simple scripts that
+control a running daemon.
+.Pp
+The
+.Nm
+utility is passed at least one argument, specifying the socket on which
+.Nm ppp
+is listening.
+Refer to the
+.Sq set server
+command of
+.Nm ppp
+for details.
+If the socket contains a leading '/', it
+is taken as an
+.Dv AF_LOCAL
+socket.
+If it contains a colon, it is treated as a
+.Ar host : Ns Ar port
+pair, otherwise it is treated as a TCP port specification on the
+local machine (127.0.0.1).
+Both the
+.Ar host
+and
+.Ar port
+may be specified numerically if you wish to avoid a DNS lookup
+or do not have an entry for the given port in
+.Pa /etc/services .
+.Pp
+All remaining arguments are concatenated to form the
+.Ar command Ns (s)
+that will be sent to the
+.Nm ppp
+daemon.
+If any semi-colon characters are found, they are treated as
+.Ar command
+delimiters, allowing more than one
+.Ar command
+in a given
+.Sq session .
+For example:
+.Bd -literal -offset indent
+pppctl 3000 set timeout 300\\; show timeout
+.Ed
+.Pp
+Do not forget to escape or quote the ';' as it is a special character
+for most shells.
+.Pp
+If no
+.Ar command
+arguments are given,
+.Nm
+enters interactive mode, where commands are read from standard input.
+When reading commands, the
+.Xr editline 3
+library is used, allowing command-line editing (with
+.Xr editrc 5
+defining editing behaviour).
+The history size
+defaults to
+.Em 20 lines .
+.Pp
+The following command line options are available:
+.Bl -tag -width Ds
+.It Fl v
+Display all data sent to and received from the
+.Nm ppp
+daemon.
+Normally,
+.Nm
+displays only non-prompt lines received.
+This option is ignored in
+interactive mode.
+.It Fl t Ar n
+Use a timeout of
+.Ar n
+instead of the default 2 seconds when connecting.
+This may be required
+if you wish to control a daemon over a slow (or even a dialup) link.
+.It Fl p Ar passwd
+Specify the password required by the
+.Nm ppp
+daemon.
+If this switch is not used,
+.Nm
+will prompt for a password once it has successfully connected to
+.Nm ppp .
+.El
+.Sh ENVIRONMENT
+The following environment variables are understood by
+.Nm
+when in interactive mode:
+.Bl -tag -width XXXXXXXXXX
+.It Dv EL_SIZE
+The number of history lines.
+The default is 20.
+.It Dv EL_EDITOR
+The edit mode.
+Only values of "emacs" and "vi" are accepted.
+Other values
+are silently ignored.
+This environment variable will override the
+.Ar bind -v
+and
+.Ar bind -e
+commands in
+.Pa ~/.editrc .
+.El
+.Sh EXAMPLES
+If you run
+.Nm ppp
+in
+.Fl auto
+mode,
+.Nm
+can be used to automate many frequent tasks (you can actually control
+.Nm ppp
+in any mode except interactive mode).
+Use of the
+.Fl p
+option is discouraged (even in scripts that are not readable by others)
+as a
+.Xr ps 1
+listing may reveal your secret.
+.Pp
+The best way to allow easy, secure
+.Nm
+access is to create a local server socket in
+.Pa /etc/ppp/ppp.conf
+(in the correct section) like this:
+.Bd -literal -offset indent
+set server /var/run/internet "" 0177
+.Ed
+.Pp
+This will instruct
+.Nm ppp
+to create a local domain socket, with srw------- permissions and no
+password, allowing access only to the user that invoked
+.Nm ppp .
+Refer to the
+.Xr ppp 8
+man page for further details.
+.Pp
+You can now create some easy-access scripts.
+To connect to the internet:
+.Bd -literal -offset indent
+#! /bin/sh
+test $# -eq 0 && time=300 || time=$1
+exec pppctl /var/run/internet set timeout $time\\; dial
+.Ed
+.Pp
+To disconnect:
+.Bd -literal -offset indent
+#! /bin/sh
+exec pppctl /var/run/internet set timeout 300\\; close
+.Ed
+.Pp
+To check if the line is up:
+.Bd -literal -offset indent
+#! /bin/sh
+pppctl -p '' -v /var/run/internet quit | grep ^PPP >/dev/null
+if [ $? -eq 0 ]; then
+  echo Link is up
+else
+  echo Link is down
+fi
+.Ed
+.Pp
+You can even make a generic script:
+.Bd -literal -offset indent
+#! /bin/sh
+exec pppctl /var/run/internet "$@"
+.Ed
+.Pp
+You could also use
+.Nm
+to control when dial-on-demand works.
+Suppose you want
+.Nm ppp
+to run all the time, but you want to prevent dial-out between 8pm and 8am
+each day.
+However, any connections active at 8pm should continue to remain
+active until they are closed or naturally time out.
+.Pp
+A
+.Xr cron 8
+entry for 8pm which runs
+.Bd -literal -offset indent
+pppctl /var/run/internet set filter dial 0 deny 0 0
+.Ed
+.Pp
+will block all further dial requests, and the corresponding 8am entry
+.Bd -literal -offset indent
+pppctl /var/run/internet set filter dial -1
+.Ed
+.Pp
+will allow them again.
+.Sh SEE ALSO
+.Xr ps 1 ,
+.Xr editline 3 ,
+.Xr editrc 5 ,
+.Xr services 5 ,
+.Xr ppp 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 2.2.5 .

@@ -1,0 +1,131 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)acct.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd April 17, 2004
+.Dt ACCT 2
+.Os
+.Sh NAME
+.Nm acct
+.Nd enable or disable process accounting
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn acct "const char *file"
+.Sh DESCRIPTION
+The
+.Fn acct
+system call enables or disables the collection of system accounting
+records.
+If the argument
+.Fa file
+is a null pointer, accounting is disabled.
+If
+.Fa file
+is an
+.Em existing
+pathname (null-terminated), record collection is enabled and for
+every process initiated which terminates under normal
+conditions an accounting record is appended to
+.Fa file .
+Abnormal conditions of termination are reboots
+or other fatal system problems.
+Records for processes which never terminate cannot be
+produced by
+.Fn acct .
+.Pp
+For more information on the record structure used by
+.Fn acct ,
+see
+.In sys/acct.h
+and
+.Xr acct 5 .
+.Pp
+This call is permitted only to the super-user.
+.Sh NOTES
+Accounting is automatically disabled when the file system the
+accounting file resides on runs out of space; it is enabled when
+space once again becomes available.
+The values controlling this behaviour can be modified using the following
+.Xr sysctl 8
+variables:
+.Bl -tag -width ".Va kern.acct_chkfreq"
+.It Va kern.acct_chkfreq
+Specifies the frequency (in seconds) with which free disk
+space should be checked.
+.It Va kern.acct_resume
+The percentage of free disk space above which process
+accounting will resume.
+.It Va kern.acct_suspend
+The percentage of free disk space below which process
+accounting will suspend.
+.El
+.Sh RETURN VALUES
+On error -1 is returned.
+The file must exist and the call may be exercised only by the super-user.
+.Sh ERRORS
+The
+.Fn acct
+system call will fail if one of the following is true:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The caller is not the super-user.
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded 255 characters,
+or an entire path name exceeded 1023 characters.
+.It Bq Er ENOENT
+The named file does not exist.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix,
+or the path name is not a regular file.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EROFS
+The named file resides on a read-only file system.
+.It Bq Er EFAULT
+The
+.Fa file
+argument
+points outside the process's allocated address space.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to the file system.
+.El
+.Sh SEE ALSO
+.Xr acct 5 ,
+.Xr accton 8 ,
+.Xr sa 8
+.Sh HISTORY
+The
+.Fn acct
+function appeared in
+.At v7 .

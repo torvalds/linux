@@ -1,0 +1,209 @@
+.\"
+.\" Copyright (c) 1994 Herb Peyerl
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Herb Peyerl
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 24, 2018
+.Dt EP 4 i386
+.Os
+.Sh NAME
+.Nm ep
+.Nd "Ethernet driver for 3Com Etherlink III (3c5x9) interfaces"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ep"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ep_load="YES"
+.Ed
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 13.0
+and later.
+See https://github.com/freebsd/fcp/blob/master/fcp-0101.md for more
+information.
+.Sh DESCRIPTION
+The
+.Nm
+device driver supports network adapters based on the 3Com 3C5x9 Etherlink III
+Parallel Tasking chipset.
+.Pp
+Various models of these cards come with a different assortment of
+connectors:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It AUI/DIX
+Standard 15 pin connector, also known as 10base5 (thick-net)
+.It 10Base2
+BNC, also known as thin-net
+.It 10BaseT
+UTP, also known as twisted pair
+.El
+.Pp
+The default port to use is the port that has been selected with the
+setup utility.
+To override this, use the following media options with
+.Xr ifconfig 8
+or in your
+.Pa /etc/rc.conf
+file.
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It 10base5/AUI
+Use the AUI port.
+.It 10base2/BNC
+Use the BNC port.
+.It 10baseT/UTP
+Use the UTP port.
+.El
+.Sh HARDWARE
+The
+.Nm
+driver supports Ethernet adapters based on the
+3Com 3C5x9 Etherlink III Parallel Tasking chipset, including:
+.Pp
+.Bl -bullet -compact
+.It
+3Com 3C1 CF
+.It
+3Com 3C509-TP, 3C509-BNC, 3C509-Combo, 3C509-TPO, 3C509-TPC ISA
+.It
+3Com 3C509B-TP, 3C509B-BNC, 3C509B-Combo, 3C509B-TPO, 3C509B-TPC ISA
+.It
+3Com 3C562/3C563 PCMCIA
+.It
+3Com 3C574, 3C574TX, 3C574-TX, 3CCFE574BT, 3CXFE574BT, 3C3FE574BT PCMCIA
+.It
+3Com 3C589, 3C589B, 3C589C, 3C589D, 3CXE589DT PCMCIA
+.It
+3Com 3CCFEM556B, 3CCFEM556BI PCMCIA
+.It
+3Com 3CXE589EC, 3CCE589EC, 3CXE589ET, 3CCE589ET PCMCIA
+.It
+3Com Megahertz 3CCEM556, 3CXEM556, 3CCEM556B, 3CXEM556B, 3C3FEM556C PCMCIA
+.It
+3Com OfficeConnect 3CXSH572BT, 3CCSH572BT PCMCIA
+.It
+Farallon EtherWave and EtherMac PC Card (P/n 595/895 with BLUE arrow)
+.El
+.Sh NOTES
+The 3c509 card has no jumpers to set the address.
+3Com supplies software to set the address of the card in software.
+To find the card on the ISA bus, the kernel performs a complex
+scan operation at IO address 0x110.
+Beware!
+Avoid placing other cards at that address!
+.Pp
+Furthermore, the 3c509 should not be configured in EISA mode.
+.Pp
+Cards in PnP mode may conflict with other resources in the system.
+Ensure your BIOS is configured correctly to exclude resources used by
+the 3c509, especially IRQs, to avoid unpredictable behavior.
+.Pp
+Many different companies sold the 3Com PC Cards under their own private
+label.
+These cards also work.
+.Pp
+The Farallon EtherWave and EtherMac card came in two varieties.
+The
+.Nm
+driver supports the 595 and 895 cards.
+These cards have the blue arrow on the front along with a 3Com logo.
+The Farallon 595a cards, which have a red arrow on the front,
+are also called EtherWave and EtherMac.
+They are supported by the
+.Xr sn 4
+driver.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ep0: reset (status: %x)"
+The driver has encountered a FIFO underrun or overrun.
+The driver will reset the card and the packet will be lost.
+This is not fatal.
+.It "ep0: eeprom failed to come ready"
+The eeprom failed to come ready.
+This probably means the card is wedged.
+.It "ep0: 3c509 in test mode. Erase pencil mark!"
+This means that someone has scribbled with pencil
+in the test area on the card.
+Erase the pencil mark and reboot.
+(This is not a joke).
+.It "ep0: No I/O space?!"
+The driver was unable to allocate the I/O space that it thinks
+should be there.
+Look for conflicts with other devices.
+.It "ep0: No irq?!"
+The driver could not allocate the interrupt it wanted.
+Look for conflicts, although sharing interrupts for PC Card is normal.
+.It "ep0: No connectors!"
+The driver queried the hardware for what ethernet attachment were
+present, but the hardware reported none that the driver recognized.
+.It "ep0: Unable to get Ethernet address!"
+The driver was unable to read the ethernet address from the EEPROM.
+This is likely the result of the card being wedged.
+.It "ep0: if_alloc() failed"
+The driver was unable to allocate a ifnet structure.
+This may happen in extremely low memory conditions.
+.It "ep0: strange connector type in EEPROM: assuming AUI"
+The driver does not know what to do with the information the EEPROM
+has about connectors, so it is assuming the worst.
+.It "ep0: unknown ID 0xXXXXXXXX"
+The driver has found an ID that it believes it supports, but does not
+have a specific identification string to present to the user.
+.It "ep0: <%s> at port 0x%03x in EISA mode, ignored."
+The 3C509 ISA card is in EISA mode.
+The card will be ignored until it is taken out of EISA mode.
+.It "ep0: <%s> at x0%03x in PnP mode"
+This card appears to be in Plug and Play mode.
+It should be probed as part of the plug and play phase of the ISA
+probes.
+.It "ep0: Invalid EEPROM checksum!"
+The EEPROM has a bad checksum, so the driver is ignoring the card.
+.It "ep0: bus_setup_intr() failed!"
+The driver was unable to setup the interrupt handler.
+This should never happen.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr ed 4 ,
+.Xr intro 4 ,
+.Xr ng_ether 4 ,
+.Xr sn 4 ,
+.Xr vx 4 ,
+.Xr ifconfig 8
+.Sh STANDARDS
+are great.
+There is so many to choose from.

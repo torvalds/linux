@@ -1,0 +1,196 @@
+.\"-
+.\" Copyright (c) 1999 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer
+.\"    in this position and unchanged.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 3, 2018
+.Dt SOCKSTAT 1
+.Os
+.Sh NAME
+.Nm sockstat
+.Nd list open sockets
+.Sh SYNOPSIS
+.Nm
+.Op Fl 46cLlSsUuvw
+.Op Fl j Ar jid
+.Op Fl p Ar ports
+.Op Fl P Ar protocols
+.Sh DESCRIPTION
+The
+.Nm
+command lists open Internet or
+.Ux
+domain sockets.
+.Pp
+The following options are available:
+.Bl -tag -width Fl
+.It Fl 4
+Show
+.Dv AF_INET
+(IPv4) sockets.
+.It Fl 6
+Show
+.Dv AF_INET6
+(IPv6) sockets.
+.It Fl c
+Show connected sockets.
+.It Fl j Ar jail
+Show only sockets belonging to the specified jail ID or name.
+.It Fl L
+Only show Internet sockets if the local and foreign addresses are not
+in the loopback network prefix
+.Li 127.0.0.0/8 ,
+or do not contain the IPv6 loopback address
+.Li ::1 .
+.It Fl l
+Show listening sockets.
+.It Fl p Ar ports
+Only show Internet sockets if the local or foreign port number
+is on the specified list.
+The
+.Ar ports
+argument is a comma-separated list of port numbers and ranges
+specified as first and last port separated by a dash.
+.It Fl P Ar protocols
+Only show sockets of the specified
+.Ar protocols .
+The
+.Ar protocols
+argument is a comma-separated list of protocol names,
+as they are defined in
+.Xr protocols 5 .
+.It Fl q
+Quiet mode, do not print the header line.
+.It Fl S
+Display the protocol stack, if applicable.
+This is currently only implemented for TCP.
+.It Fl s
+Display the protocol state, if applicable.
+This is currently only implemented for SCTP and TCP.
+.It Fl U
+Display the remote UDP encapsulation port number, if applicable.
+This is currently only implemented for SCTP.
+.It Fl u
+Show
+.Dv AF_LOCAL
+.Pq Ux
+sockets.
+.It Fl v
+Verbose mode.
+.It Fl w
+Use wider field size for displaying addresses.
+.El
+.Pp
+If neither
+.Fl 4 , 6
+or
+.Fl u
+is specified,
+.Nm
+will list sockets in all three domains.
+.Pp
+If neither
+.Fl c
+or
+.Fl l
+is specified,
+.Nm
+will list both listening and connected sockets.
+.Pp
+The information listed for each
+socket is:
+.Bl -tag -width "FOREIGN ADDRESS"
+.It Li USER
+The user who owns the socket.
+.It Li COMMAND
+The command which holds the socket.
+.It Li PID
+The process ID of the command which holds the socket.
+.It Li FD
+The file descriptor number of the socket.
+.It Li PROTO
+The transport protocol associated with the socket for Internet
+sockets, or the type of socket
+.Pq stream, datagram, or seqpacket
+for
+.Ux
+sockets.
+.It Li LOCAL ADDRESS
+For Internet sockets, this is the address the local end of the socket
+is bound to (see
+.Xr getsockname 2 ) .
+For bound
+.Ux
+sockets, it is the socket's filename.
+For other
+.Ux
+sockets, it is a right arrow followed by the endpoint's filename, or
+.Dq Li ??
+if the endpoint could not be determined.
+.It Li FOREIGN ADDRESS
+(Internet sockets only)
+The address the foreign end of the socket is bound to (see
+.Xr getpeername 2 ) .
+.It Li ENCAPS
+The remote UDP encapsulation port number if
+.Fl U
+is specified (only for SCTP).
+.It Li PATH STATE
+The path state if
+.Fl s
+is specified (only for SCTP).
+.It Li CONN STATE
+The connection state if
+.Fl s
+is specified (only for SCTP or TCP).
+.It Li STACK
+The protocol stack if
+.Fl S
+is specified (only for TCP).
+.El
+.Pp
+If a socket is associated with more than one file descriptor,
+it is shown multiple times.
+If a socket is not associated with any file descriptor,
+the first four columns have no meaning.
+.Sh SEE ALSO
+.Xr fstat 1 ,
+.Xr netstat 1 ,
+.Xr procstat 1 ,
+.Xr inet 4 ,
+.Xr inet6 4 ,
+.Xr protocols 5
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 3.1 .
+.Sh AUTHORS
+The
+.Nm
+command and this manual page were written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

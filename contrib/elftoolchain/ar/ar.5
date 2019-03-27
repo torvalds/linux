@@ -1,0 +1,329 @@
+.\" Copyright (c) 2010 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: ar.5 3642 2018-10-14 14:24:28Z jkoshy $
+.\"
+.Dd September 30, 2018
+.Dt AR 5
+.Os
+.Sh NAME
+.Nm ar
+.Nd archive file format for
+.Xr ar 1
+and
+.Xr ranlib 1
+.Sh SYNOPSIS
+.In ar.h
+.Sh DESCRIPTION
+.Xr ar 1
+archives are created and managed by the
+.Xr ar 1
+and
+.Xr ranlib 1
+utilities.
+These archives are typically used during program development to
+hold libraries of program objects.
+An
+.Xr ar 1
+archive is contained in a single operating system file.
+.Pp
+This manual page documents two variants of the
+.Xr ar 1
+archive format: the BSD archive format, and the SVR4/GNU archive
+format.
+.Pp
+In both variants the archive file starts with an identifying byte
+sequence of the seven ASCII characters
+.Sq Li "!<arch>"
+followed by a ASCII linefeed character
+.Po
+see the constant
+.Dq ARMAG
+in the header file
+.In ar.h
+.Pc .
+.Pp
+Archive members follow the initial identifying byte sequence.
+Each archive member is prefixed by a fixed size header describing the
+file attributes associated with the member.
+.Ss "Archive Headers"
+An archive header describes the file attributes for the archive member that
+follows it.
+The
+.Xr ar 5
+format only supports a limited number of attributes: the file name,
+the file creation time stamp, the uid and gid of the creator, the file
+mode and the file size.
+.Pp
+Archive headers are placed at an even byte offset in the archive file.
+If the data for an archive member ends at an odd byte offset, then a
+padding byte with value 0x0A is used to position the next archive
+header on an even byte offset.
+.Pp
+An archive header comprises the following fixed sized fields:
+.Bl -tag -width "Li ar_name"
+.It Ar ar_name
+(16 bytes) The file name of the archive member.
+This field names a leaf file; absolute paths and relative paths containing
+directory names are not supported.
+The format of this field varies between the BSD and SVR4/GNU formats and
+is described in more detail in the section
+.Sx "Representing File Names"
+below.
+.It Ar ar_date
+(12 bytes) The file modification time for the member in seconds since the
+epoch, encoded as a decimal number.
+.It Ar ar_uid
+(6 bytes) The uid associated with the archive member, encoded as a
+decimal number.
+.It Ar ar_gid
+(6 bytes) The gid associated with the archive member, encoded as a
+decimal number.
+.It Ar ar_mode
+(8 bytes) The file mode for the archive member, encoded as an octal
+number.
+.It Ar ar_size
+(10 bytes) In the SVR4/GNU archive format this field holds the size in
+bytes of the archive member, encoded as a decimal number.
+In the BSD archive format, for short file names, this field
+holds the size in bytes of the archive member, encoded as a decimal
+number.
+For long file names
+.Po
+see
+.Sx "Representing File Names"
+below
+.Pc ,
+the field contains the combined size of the
+archive member and its file name, encoded as a decimal number.
+.It Ar ar_fmag
+(2 bytes) This field holds 2 bytes with values 0x96 and 0x0A
+respectively, marking the end of the header.
+.El
+.Pp
+Unused bytes in the fields of an archive header are set to the value
+0x20.
+.Ss "Representing File Names"
+The BSD and SVR4/GNU variants use different schemes for encoding file
+names for members.
+.Bl -tag -width "SVR4/GNU"
+.It "BSD"
+File names that are up to 16 bytes long and which do not contain
+embedded spaces are stored directly in the
+.Ar ar_name
+field of the archive header.
+File names that are either longer than 16 bytes or which contain
+embedded spaces are stored immediately after the archive header
+and the
+.Ar ar_name
+field of the archive header is set to the string
+.Dq "#1/"
+followed by a decimal representation of the number of bytes needed for
+the file name.
+In addition, the
+.Ar ar_size
+field of the archive header is set to the decimal representation of
+the combined sizes of the archive member and the file name.
+The file contents of the member follows the file name without further
+padding.
+.Pp
+As an example, if the file name for a member was
+.Dq "A B"
+and its contents was the string
+.Dq "C D" ,
+then the
+.Ar ar_name
+field of the header would contain
+.Dq Li "#1/3" ,
+the
+.Ar ar_size
+field of the header would contain
+.Dq Li 6 ,
+and the bytes immediately following the header would be 0x41, 0x20,
+0x42, 0x43, 0x20 and 0x44
+.Po
+ASCII
+.Dq "A BC D"
+.Pc .
+.It "SVR4/GNU"
+File names that are up to 15 characters long are stored directly in the
+.Ar ar_name
+field of the header, terminated by a
+.Dq Li /
+character.
+.Pp
+If the file name is larger than would fit in space for the
+.Ar ar_name
+field, then the actual file name is kept in the archive
+string table
+.Po
+see
+.Sx "Archive String Tables"
+below
+.Pc ,
+and the decimal offset of the file name in the string table is stored
+in the
+.Ar ar_name
+field, prefixed by a
+.Dq Li /
+character.
+.Pp
+As an example, if the real file name has been stored at offset 768 in
+the archive string table, the
+.Ar ar_name
+field of the header will contain the string
+.Dq /768 .
+.El
+.Ss "Special Archive Members"
+The following archive members are special.
+.Bl -tag -width indent
+.It Dq Li /
+In the SVR4/GNU variant of the archive format, the archive member with
+name
+.Dq Li /
+denotes an archive symbol table.
+If present, this member will be the very first member in the
+archive.
+.It Dq Li //
+In the SVR4/GNU variant of the archive format, the archive member with
+name
+.Dq Li //
+denotes the archive string table.
+This special member is used to hold filenames that do not fit in the
+file name field of the header
+.Po
+see
+.Sx "Representing File Names"
+above
+.Pc .
+If present, this member immediately follows the archive symbol table
+if an archive symbol table is present, or is the first member otherwise.
+.It Dq Li "__.SYMDEF"
+This special member contains the archive symbol table in the BSD
+variant of the archive format.
+If present, this member will be the very first member in the
+archive.
+.El
+.Ss "Archive String Tables"
+An archive string table is used in the SVR4/GNU archive format to hold
+file names that are too large to fit into the constraints of the
+.Ar ar_name
+field of the archive header.
+An archive string table contains a sequence of file names.
+Each file name in the archive string table is terminated by the
+byte sequence 0x2F, 0x0A
+.Po
+the ASCII string
+.Dq "/\en"
+.Pc .
+No padding is used to separate adjacent file names.
+.Ss "Archive Symbol Tables"
+Archive symbol tables are used to speed up link editing by providing a
+mapping between the program symbols defined in the archive
+and the corresponding archive members.
+Archive symbol tables are managed by the
+.Xr ranlib 1
+utility.
+.Pp
+The format of archive symbol tables is as follows:
+.Bl -tag -width "SVR4/GNU"
+.It BSD
+In the BSD archive format, the archive symbol table comprises
+of two parts: a part containing an array of
+.Vt "struct ranlib"
+descriptors, followed by a part containing a symbol string table.
+The sizes and layout of the structures that make up a BSD format
+archive symbol table are machine dependent.
+.Pp
+The part containing
+.Vt "struct ranlib"
+descriptors begins with a field containing the size in bytes of the
+array of
+.Vt "struct ranlib"
+descriptors encoded as a C
+.Vt long
+value.
+.Pp
+The array of
+.Vt "struct ranlib"
+descriptors follows the size field.
+Each
+.Vt "struct ranlib"
+descriptor describes one symbol.
+.Pp
+A
+.Vt "struct ranlib"
+descriptor comprises two fields:
+.Bl -tag -width "Ar ran_strx" -compact
+.It Ar ran_strx
+.Pq C Vt long
+This field contains the zero-based offset of the symbol name in the
+symbol string table.
+.It Ar ran_off
+.Pq C Vt long
+This field is the file offset to the archive header for the archive
+member defining the symbol.
+.El
+.Pp
+The part containing the symbol string table begins with a field
+containing the size in bytes of the string table, encoded as a C
+.Vt long
+value.
+This string table follows the size field, and contains
+NUL-terminated strings for the symbols in the symbol table.
+.It SVR4/GNU
+In the SVR4/GNU archive format, the archive symbol table starts with a
+4-byte binary value containing the number of entries contained in the
+archive symbol table.
+This count of entries is stored most significant byte first.
+.Pp
+Next, there are
+.Ar count
+4-byte numbers, each stored most significant byte first.
+Each number is a binary offset to the archive header for the member in
+the archive file for the corresponding symbol table entry.
+.Pp
+After the binary offset values, there are
+.Ar count
+NUL-terminated strings in sequence, holding the symbol names for
+the corresponding symbol table entries.
+.El
+.Sh STANDARDS COMPLIANCE
+The
+.Xr ar 1
+archive format is not currently specified by a standard.
+.Pp
+This manual page documents the
+.Xr ar 1
+archive formats used by the
+.Bx 4.4
+and
+.Ux SVR4
+operating system releases.
+.Sh SEE ALSO
+.Xr ar 1 ,
+.Xr ld 1 ,
+.Xr ranlib 1 ,
+.Xr elf 3 ,
+.Xr elf_getarsym 3 ,
+.Xr elf_rand 3

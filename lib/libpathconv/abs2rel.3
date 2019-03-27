@@ -1,0 +1,136 @@
+.\"
+.\" Copyright (c) 1997 Shigio Yamaguchi. All rights reserved.
+.\" Copyright (c) 1999 Tama Communications Corporation. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"  $FreeBSD$
+.\"
+.Dd Dec 15, 1997"
+.Dt ABS2REL 3
+.Os
+.Sh NAME
+.Nm abs2rel
+.Nd make a relative path name from an absolute path name
+.Sh SYNOPSIS
+.Ft "char *"
+.Fn abs2rel "const char *path" "const char *base" "char *result" "size_t size"
+.Sh DESCRIPTION
+The
+.Fn abs2rel
+function makes a relative path name from an absolute path name
+.Fa path
+based on a directory
+.Fa base
+and copies the resulting path name into the memory referenced by
+.Fa result .
+The
+.Fa result
+argument must refer to a buffer capable of storing at least
+.Fa size
+characters.
+
+The resulting path name may include symbolic links.
+The
+.Fn abs2rel
+function doesn't check whether or not any path exists.
+.Sh "RETURN VALUES"
+The
+.Fn abs2rel
+function returns relative path name on success.
+If an error occurs,
+it returns
+.Dv NULL .
+.Sh ERRORS
+The
+.Fn abs2rel
+function may fail and set the external variable
+.Va errno
+to indicate the error.
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa base
+directory isn't an absolute path name or the
+.Fa size
+argument is zero.
+.It Bq Er ERANGE
+The
+.Fa size
+argument is greater than zero but smaller than the length of the pathname plus 1.
+.Sh EXAMPLE
+    char result[MAXPATHLEN];
+    char *path = abs2rel("/usr/src/sys", "/usr/local/lib", result, MAXPATHLEN);
+
+yields:
+
+    path == "../../src/sys"
+
+Similarly,
+
+    path1 = abs2rel("/usr/src/sys", "/usr", result, MAXPATHLEN);
+    path2 = abs2rel("/usr/src/sys", "/usr/src/sys", result, MAXPATHLEN);
+
+yields:
+
+    path1 == "src/sys"
+    path2 == "."
+
+.Sh BUGS
+If the
+.Fa base
+directory includes symbolic links,
+the
+.Fn abs2rel
+function produces the wrong path.
+For example, if '/sys' is a symbolic link to '/usr/src/sys',
+
+    char *path = abs2rel("/usr/local/lib", "/sys", result, MAXPATHLEN);
+
+yields:
+
+    path == "../usr/local/lib"         /* It's wrong!! */
+
+You should convert the base directory into a real path in advance.
+.Pp
+
+    path = abs2rel("/sys/kern", realpath("/sys", resolvedname), result, MAXPATHLEN);
+
+yields:
+
+    path == "../../../sys/kern"        /* It's correct but ... */
+
+That is correct, but a little redundant. If you wish get the simple
+answer 'kern', do the following.
+
+    path = abs2rel(realpath("/sys/kern", r1), realpath("/sys", r2),
+								result, MAXPATHLEN);
+
+The
+.Fn realpath
+function assures correct result, but don't forget that
+.Fn realpath
+requires that all but the last component of the path exist.
+.Sh "SEE ALSO"
+.Xr rel2abs 3
+.Sh AUTHORS
+Shigio Yamaguchi (shigio@tamacom.com)

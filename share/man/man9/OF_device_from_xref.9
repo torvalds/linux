@@ -1,0 +1,91 @@
+.\"
+.\" Copyright (c) 2018 Oleksandr Tymoshenko <gonzo@FreeBSD.org>
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 9, 2018
+.Dt OF_DEVICE_FROM_XREF 9
+.Os
+.Sh NAME
+.Nm OF_device_from_xref ,
+.Nm OF_xref_from_device ,
+.Nm OF_device_register_xref
+.Nd "manage mappings between xrefs and devices"
+.Sh SYNOPSIS
+.In dev/ofw/ofw_bus.h
+.In dev/ofw/ofw_bus_subr.h
+.Ft int
+.Fn OF_device_register_xref "phandle_t xref" "device_t dev"
+.Ft device_t
+.Fn OF_device_from_xref "phandle_t xref"
+.Ft phandle_t
+.Fn OF_xref_from_device "device_t dev"
+.Sh DESCRIPTION
+.Pp
+When a device tree node references another node, the driver may
+need to get a device_t instance associated with the referenced node.
+For instance, an Ethernet driver accessing a PHY device.
+To make this possible, the kernel maintains a table that
+maps effective handles to device_t instances.
+.Pp
+.Fn OF_device_register_xref
+adds a map entry from the effective phandle
+.Fa xref
+to device
+.Fa dev .
+If a mapping entry for
+.Fa xref
+already exists, it is replaced with the new one.
+The function always returns 0.
+.Pp
+.Fn OF_device_from_xref
+returns a device_t instance associated with the effective phandle
+.Fa xref .
+If no such mapping exists, the function returns NULL.
+.Pp
+.Fn OF_xref_from_device
+returns the effective phandle associated with the device
+.Fa dev .
+If no such mapping exists, the function returns 0.
+.Sh EXAMPLES
+.Bd -literal
+    static int
+    acmephy_attach(device_t dev)
+    {
+        phandle_t node;
+
+	/* PHY node is referenced from eth device, register it */
+        node = ofw_bus_get_node(dev);
+        OF_device_register_xref(OF_xref_from_node(node), dev);
+
+        return (0);
+    }
+.Ed
+.Sh SEE ALSO
+.Xr OF_node_to_xref 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Oleksandr Tymoshenko Aq Mt gonzo@FreeBSD.org .

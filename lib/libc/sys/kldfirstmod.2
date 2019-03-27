@@ -1,0 +1,76 @@
+.\"
+.\" Copyright (c) 1999 Chris Costello
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 3, 1999
+.Dt KLDFIRSTMOD 2
+.Os
+.Sh NAME
+.Nm kldfirstmod
+.Nd "return first module id from the kld file specified"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/linker.h
+.Ft int
+.Fn kldfirstmod "int fileid"
+.Sh DESCRIPTION
+The
+.Fn kldfirstmod
+system call returns the module id pertaining to the first module referenced by
+.Fa fileid .
+.Sh RETURN VALUES
+The
+.Fn kldfirstmod
+will return the id of the first module referenced by
+.Fa fileid
+or 0 if there are no references.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ENOENT
+The kld file referenced by
+.Fa fileid
+was not found.
+.El
+.Sh SEE ALSO
+.Xr kldfind 2 ,
+.Xr kldload 2 ,
+.Xr kldnext 2 ,
+.Xr kldstat 2 ,
+.Xr kldsym 2 ,
+.Xr kldunload 2 ,
+.Xr modfind 2 ,
+.Xr modfnext 2 ,
+.Xr modnext 2 ,
+.Xr modstat 2 ,
+.Xr kld 4 ,
+.Xr kldstat 8
+.Sh HISTORY
+The
+.Nm kld
+interface first appeared in
+.Fx 3.0 .

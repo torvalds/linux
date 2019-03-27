@@ -1,0 +1,68 @@
+# Transport programs for mail and news, used by iftoss
+sendmail /usr/lib/sendmail -f $F $T
+rnews  /usr/lib/news/rnews
+
+# Unpackers, used by ifunpack. 
+# $F expands to archieve file name
+unzip  /usr/bin/unzip -oq $F
+unarj  /usr/bin/unarj e $F
+#unarc  /usr/bin/unpack $F
+unzoo  /usr/bin/zoo -extract $F
+unlzh  /usr/bin/lharc -x $F
+
+# Packer program, used by ifpack
+# $F expands to archieve file name, $P - to list of packet names
+packer  /usr/bin/zip $F $P
+
+# Maximum arcmail file size, will start new arcmail file if exceeds
+maxfsize 65000
+
+# Maximum packet size, ifmail/ifnews will start new packet if exeeds.
+# .out files are NOT created if nonzero specified, you must run ifpack
+# to make packets out. (unimplemented)
+maxpsize    65000
+
+# cnews log file and (temporary) database for seen-bys
+newslog  /usr/lib/news/log
+msgidbm  /tmp/ifmsgids
+
+# From this line on, values may be prefixed by a logical expression in
+# round brackets. Operators are: '!', '&', '|', 'Xor'.
+# Possible elements are:
+# - Nodelist flags (like "CM", "MNP", "V32" etc.)
+# - speed <operator> <numeric>
+#         where <operator> is '=', '!=', '<', '>', '<=', '>='
+# - address <wildcard>
+#         where <wildcard> is an (possibly incomplete) fidonet address, 
+#         e.g. "5020/*"
+# - time <interval>[,<interval>,...]
+#         where <interval> is a day spec. with optional time spec., e.g.
+#         Wk2000-0900,Sat1800-0000,Sun
+# - phone <prefix>
+#         e.g. "phone 7-095-"
+
+# Dialing parameters
+# of multiple "ModemPort", "ModemReset", "ModemDial", "ModemHangup" lines, 
+# first matching is used.
+# of multiple "PhoneTrans", "ModemConnect", "ModemError" lines, all matching 
+# are used.
+# In send and expect strings, following substitutions are made:
+# \\ '\' character
+# \r carriage return (0x0d)
+# \n new line (0x0a)
+# \t tab (0x09)
+# \b backspace (0x08)
+# \s space (0x20)
+# \NNN (where N is an octal digit) - character with octal code NNN
+# \d 1 second delay (send strings only)
+# \p 1/4 second pause (send strings only)
+# \T translated telephone no. (send strings only)
+# \D untranslated telephone no. (send strings only)
+
+# ModemPort present a blank-separated list of ports with possible speed
+# extention (separated by colon); if speed is prefixed with 'L', it is
+# a "locked" port speed, otherwise it is a maximum speed to be set, while
+# actual speed is taken from the nodelist.  If speed is omitted (or set
+# to zero), previous port speed is not changed.
+#ModemPort (time Any0000-0900,Sat,Sun) ttyS0
+#ModemPort cua0:L38400

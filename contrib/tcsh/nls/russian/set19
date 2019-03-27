@@ -1,0 +1,23 @@
+$ $tcsh: set19,v 1.6 2011/02/25 23:58:08 christos Exp $
+$ tc.alloc.c
+$set 19 
+1 nbytes=%d: Нет памяти\n
+2 free(%lx) called before any allocations.
+3 free(%lx) above top of memory.
+4 free(%lx) below bottom of memory.
+5 free(%lx) bad block.
+6 free(%lx) bad range check.
+7 free(%lx) bad block index.
+8 %s current memory allocation:\nfree:\t
+9 used
+10 \n\tВсего используется: %d, всего свободно: %d\n
+11 \tAllocated memory from 0x%lx to 0x%lx.  Real top at 0x%lx\n
+12 Allocated memory from 0x%lx to 0x%lx (%ld).\n
+13 %s current memory allocation:\n
+14 Total space allocated from system: %d\n
+15 Number of non-inuse chunks: %d\n
+16 Number of mmapped regions: %d\n
+17 Total space in mmapped regions: %d\n
+18 Total allocated space: %d\n
+19 Total non-inuse space: %d\n
+20 Top-most, releasable space: %d\n

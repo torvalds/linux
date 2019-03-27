@@ -1,0 +1,4 @@
+$ $tcsh: set18,v 1.3 2006/03/02 18:46:45 christos Exp $
+$ sh.set.c
+$set 18 
+1 Warning: ridiculously long PATH truncated\n

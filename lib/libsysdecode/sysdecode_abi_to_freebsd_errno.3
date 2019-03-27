@@ -1,0 +1,96 @@
+.\"
+.\" Copyright (c) 2016 John Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 17, 2016
+.Dt sysdecode_abi_to_freebsd_errno 3
+.Os
+.Sh NAME
+.Nm sysdecode_abi_to_freebsd_errno ,
+.Nm sysdecode_freebsd_to_abi_errno
+.Nd translate error numbers between process ABIs
+.Sh LIBRARY
+.Lb libsysdecode
+.Sh SYNOPSIS
+.In sys/types.h
+.In stdbool.h
+.In sysdecode.h
+.Ft int
+.Fn sysdecode_abi_to_freebsd_errno "enum sysdecode_abi abi" "int error"
+.Ft int
+.Fn sysdecode_freebsd_to_abi_errno "enum sysdecode_abi abi" "int error"
+.Sh DESCRIPTION
+The
+.Fn sysdecode_abi_to_freebsd_errno
+function returns the native
+.Xr errno 2
+value that corresponds to the error indicated by
+.Fa error
+for the process ABI
+.Fa abi .
+If
+.Fa error
+does not identify a valid error for
+.Fa abi ,
+.Dv INT_MAX
+is returned.
+.Pp
+The
+.Fn sysdecode_freebsd_to_abi_errno
+function the error value for the process ABI
+.Fa abi
+that corresponds to the native
+.Xr errno 2
+value
+.Fa error .
+If
+.Fa error
+does not identify a valid
+.Xr errno 2
+error,
+.Dv INT_MAX
+is returned.
+.Pp
+Note that the mappings between native
+.Xr errno 2
+values and errors for other ABIs are not exhaustive.
+If a mapping does not exist,
+these functions return
+.Dv INT_MAX .
+In addition, multiple error values in one ABI may map to a single
+error in another ABI.
+.Sh RETURN VALUES
+These functions return an error value on success or
+.Dv INT_MAX
+if
+.Fa error
+is not valid.
+.Pp
+For the list of supported ABIs,
+see
+.Xr sysdecode 3 .
+.Sh SEE ALSO
+.Xr sysdecode 3 ,
+.Xr sysdecode_syscallnames 3

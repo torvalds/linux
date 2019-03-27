@@ -1,0 +1,158 @@
+Easy Editor ("ee") provides the ability to translate the messages 
+displayed to the user and the commands entered.  This is done via message 
+catalogs, following X/Open standards.  ee supports eight bit characters, 
+as well as 16-bit characters.  The Chinese Big 5 code set is the 16-bit 
+code set that ee was modified to handle, as it is relatively easy to 
+support since two byte characters also take up two columns on the screen, 
+thereby simplifying the screen position calculations.  Other multibyte 
+code sets may function, but have not been tested. 
+
+(The name ee.i18n.guide is for "ee internationalization guide".  The i18n 
+abbreviation is used because there are 18 characters between the first 
+letter ("i") and last ("n") of "internationalization".) 
+
+All of the messages, warnings, information, and commands, are contained 
+in the message catalog.  Each numbered entry represents an individual 
+string used by ee.  Some strings contain formatting information for 
+formatted print statements, which are of the form "%s", or "%d", these 
+must be preserved in the translation, or the correct information will not 
+be displayed.  For those strings containing multiple formatting codes, 
+the order of each item must be preserved as well. 
+
+Message		content 
+1 		title for modes, or settings menu
+2 - 8		entries for modes menu, each line should be the same length 
+		 (padded with spaces)
+9 - 34		other menu titles and entries
+35 - 56 	help screen 
+57 - 61 	actions assigned to control keys 
+62 - 66 	commands information 
+67 		message displayed when info window turned off
+68 		indication that no file name was entered when invoking ee
+69		prompt for decimal value of character to be entered
+70		message displaying the print command being invoked
+71 		prompt for command 
+72		prompt for name of file to be written 
+73		prompt for name of file to be read 
+74		string used to display the decimal value of the character 
+		 the cursor is on 
+75		string displaying an unrecognized command 
+76 		string indicating that the command entered is not a unique 
+		 substring of a valid command
+77		string indicating the current line number 
+78		string for displaying the length of the line 
+79		string for displaying the name of the file 
+80 - 83		strings showing how to invoke ee, and its options
+84		message indicating that the file entered is a directory, not a 
+		 text file
+85		message informing that the entered file does not yet exist 
+86		message informing that the file can't be opened (because of 
+		 permission problems)
+87		message after file has been read with the file name and number 
+		 of lines read
+88		message indicating that the file has been read
+89		message indicating that the file is being read
+90		message indicating that permissions only allow the file to be 
+		 read, not written
+91		message after file has been read with the file name and number 
+		 of lines read
+92		prompt for name of file to be saved (used when no name was 
+		 entered for a file to edit)
+93		message indicating that the file was not written, since no 
+		 name was entered at the prompt
+94		prompt asking user if changes should not be saved ("yes_char" 
+		 will be expected for affirmative response)
+95		"yes" character, single character expected to confirm action 
+		 (can be upper or lower case, will be converted to upper-case 
+		 during test)
+96		prompt
+97		error message
+98		message indicating that the named file is being written
+99		message indicating the name of the file written, the number of 
+		 lines, and the number of characters (order of items must be 
+		 maintained)
+100		search in progress message
+101		message that the string was not found
+102		prompt for search
+103		message that string could not be executed
+104		self-explanatory
+105		message for menus, indicating that the Escape character will 
+		 allow the user to exit the menu
+106		error message indicating the menu won't fit on the screen
+107		self-explanatory
+108		prompt for shell command
+109		message displayed while formatting a paragraph
+110		string which places message for spell checking at top of 
+		 buffer (the portions 'list of unrecognized words' and 
+		 '-=-=-=-=-=-' may be replaced, but the rest must remain the 
+		 same)
+111		message informing that spell checking is in progress
+112		prompt for right margin
+113		error informing user that operation is not permitted in ree
+114		string indicating mode is turned 'on' in modes menu
+115		string indicating mode is turned 'off' in modes menu
+116 - 131	strings used for commands (some also used for initialization)
+132 - 144	strings used for initialization
+145		entry for settings menu for emacs key bindings settings
+146 - 153	help screen entries for emacs key bindings info
+154 - 158	info window entries for emacs key bindings info
+159		string for turning on emacs key bindings in the init file
+160		string for turning off emacs key bindings in the init file
+161		fifth line of usage statement
+162		error message when unable to save configuration file
+163		positive feedback about saving the configuration file
+164 - 167	menu items for saving editor configuration
+168		error message when unable to save configuration file
+169		error message for ree when not specifying the file
+180		self-explanatory
+181 - 182	indicators of more information in menu (for when scrolling 
+		 menus because menu contents won't fit vertically on screen)
+183		menu entry for modes menu for 16 bit characters
+184 - 185	strings for initialization to turn on or off 16 bit 
+		character handling
+
+Care should be taken when translating commands and initialization keywords 
+because the algorithm used for detecting uniqueness of entered commands 
+will not be able to distinguish words that are not unique before the end 
+of the shorter word, for example, it would not be able to distinguish the 
+command 'abcd' from 'abcde'.
+
+After translating the messages, use the 'gencat' command to create the compiled 
+catalog used when running the software.  The standard syntax would be:
+
+	gencat ee.cat ee.msg
+
+Where ee.msg is the file containing the translations, and ee.cat is the 
+compiled catalog.  If the file ee.cat does not exist, it will be created.  
+Check the documentation for your system for proper syntax.  
+
+Message catalog placement varies from system to system.  A common location 
+for message catalogs is in /usr/lib/nls.  In this directory are 
+directories with the names of other languages.  The default language is 
+'C'.  There is also an environment variable, named NLSPATH used to 
+determine where message catalogs can be found.  This variable is similar 
+to the PATH variable used for commands, but with some differences.  The 
+NLSPATH variable must have the ability to handle different names for 
+languages and the catalog files, so it has field descriptors for these.  A 
+typical setting for NLSPATH could be:
+
+	NLSPATH=/usr/lib/nls/%L/%N.cat:/usr/local/lib/nls/%L/%N.cat
+
+Where "%L" is the field descriptor for the language (obtained from the 
+LANG environment variable) and "%N" is the name of the file (with the 
+".cat" appended by the path variable, it is not passed from the requesting 
+program).  The colon (:) is used to separate paths, so in the above 
+example there are two paths possible for message catalogs.  You may wish 
+to maintain catalogs for applications that are not supported by your 
+system vendor in a location unique for you, and this is facilitated by the 
+NLSPATH variable.  Remember to set and export both the LANG and NLSPATH 
+variables for each user that expects to use localization either in a 
+system-wide profile or in each user's profile.  See your system 
+documentation for more information.
+
+The message catalog supplied with ee also uses the '$quote' directive to 
+specify a quote around strings to ensure proper padding.  This directive 
+may not be supported on all systems, and lead to quotes being included in 
+the string used in ee, which will cause incorrect behavior.  If the 
+'$quote' directive is not supported by your system's gencat command, edit 
+the msg file to remove the leading and trailing quotation marks.

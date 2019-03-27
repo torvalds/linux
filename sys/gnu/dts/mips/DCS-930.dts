@@ -1,0 +1,113 @@
+/dts-v1/;
+
+#include "rt3050.dtsi"
+
+/ {
+	compatible = "DCS-930", "ralink,rt3050-soc";
+	model = "D-Link DCS-930";
+
+	cfi@1f000000 {
+		compatible = "cfi-flash";
+		reg = <0x1f000000 0x400000>;
+		bank-width = <2>;
+		device-width = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "kernel";
+			reg = <0x50000 0x150000>;
+		};
+
+		partition@150000 {
+			label = "rootfs";
+			reg = <0x150000 0x2b0000>;
+		};
+
+		partition {
+			label = "firmware";
+			reg = <0x50000 0x3b0000>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		wifi {
+			label = "dcs-930:red:alert";
+			gpios = <&gpio0 8 1>;
+		};
+
+		power {
+			label = "dcs-930:green:status";
+			gpios = <&gpio0 9 1>;
+		};
+
+		wps {
+			label = "dcs-930:blue:wps";
+			gpios = <&gpio0 13 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		wps {
+			label = "wps";
+			gpios = <&gpio0 0 1>;
+			linux,code = <0x101>;
+		};
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 10 1>;
+			linux,code = <0x198>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "spi", "jtag", "mdio", "rgmii", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x4>;
+};
+
+&esw {
+	mediatek,portmap = <0x2f>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&otg {
+	status = "okay";
+};

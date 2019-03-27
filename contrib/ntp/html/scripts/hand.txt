@@ -1,0 +1,11 @@
+document.write("<p>Handbook Pages</p><ul>\
+<li class='inline'><a href='release.html'>NTP Version 4 Release Notes</a></li>\
+<li class='inline'><a href='comdex.html'>Command Index</a></li>\
+<li class='inline'><a href='access.html'>Access Control Support</a></li>\
+<li class='inline'><a href='assoc.html'>Association Management</a></li>\
+<li class='inline'><a href='authentic.html'>Authentication Support</a></li>\
+<li class='inline'><a href='discover.html'>Automatic Server Discovery Schemes Timekeeping</a></li>\
+<li class='inline'><a href='rate.html'>Rate Management</a></li>\
+<li class='inline'><a href='refclock.html'>Reference Clock Support</a></li>\
+<li class='inline'><a href='sitemap.html'>Site Map</a></li>\
+</ul>")

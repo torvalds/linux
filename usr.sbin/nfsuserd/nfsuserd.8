@@ -1,0 +1,139 @@
+.\" Copyright (c) 2009 Rick Macklem, University of Guelph
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 22, 2018
+.Dt NFSUSERD 8
+.Os
+.Sh NAME
+.Nm nfsuserd
+.Nd load user and group information into the kernel for
+.Tn NFSv4
+services plus support manage-gids for all NFS versions
+.Sh SYNOPSIS
+.Nm nfsuserd
+.Op Fl domain Ar domain_name
+.Op Fl usertimeout Ar minutes
+.Op Fl usermax Ar max_cache_size
+.Op Fl verbose
+.Op Fl force
+.Op Fl manage-gids
+.Op Ar num_servers
+.Sh DESCRIPTION
+.Nm
+loads user and group information into the kernel for NFSv4.
+For Kerberized NFSv4 mounts, it must be running on both client(s) and
+server for correct operation.
+For non-Kerberized NFSv4 mounts, this daemon must be running unless all
+client(s) plus the server are configured to put uid/gid numbers in the
+owner and owner_group strings.
+.Pp
+It also provides support for manage-gids and must be running on the server if
+this is being used for any version of NFS.
+.Pp
+Upon startup, it loads the machines DNS domain name, plus timeout and
+cache size limit into the kernel. It then preloads the cache with group
+and user information, up to the cache size limit and forks off N children
+(default 4), that service requests from the kernel for cache misses. The
+master server is there for the sole purpose of killing off the slaves.
+To stop the nfsuserd, send a SIGUSR1 to the master server.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl domain Ar domain_name
+This option allows you to override the default DNS domain name, which
+is acquired by taking either the suffix on the machine's hostname or,
+if that name is not a fully qualified host name, the canonical name as
+reported by
+.Xr getaddrinfo 3 .
+.It Fl usertimeout Ar minutes
+Overrides the default timeout for cache entries, in minutes.
+The longer the
+time out, the better the performance, but the longer it takes for replaced
+entries to be seen. If your user/group database management system almost
+never re-uses the same names or id numbers, a large timeout is recommended.
+The default is 1 minute.
+.It Fl usermax Ar max_cache_size
+Overrides the default upper bound on the cache size. The larger the cache,
+the more kernel memory is used, but the better the performance. If your
+system can afford the memory use, make this the sum of the number of
+entries in your group and password databases.
+The default is 200 entries.
+.It Fl verbose
+When set, the server logs a bunch of information to syslog.
+.It Fl force
+This flag option must be set to restart the daemon after it has gone away
+abnormally and refuses to start, because it thinks nfsuserd is already
+running.
+.It Fl manage-gids
+This flag enables manage-gids for the NFS server
+.Xr nfsd 8 .
+When this is enabled, all NFS requests using
+AUTH_SYS authentication take the uid from the RPC request
+and uses the group list for that uid provided by
+.Xr getgrouplist 3
+on the server instead of the list of groups provided in the RPC authenticator.
+This can be used to avoid the 16 group limit for AUTH_SYS.
+.It Ar num_servers
+Specifies how many servers to create (max 20).
+The default of 4 may be sufficient. You should run enough servers, so that
+.Xr ps 1
+shows almost no running time for one or two of the slaves after the system
+has been running for a long period. Running too few will have a major
+performance impact, whereas running too many will only tie up some resources,
+such as a process table entry and swap space.
+.El
+.Sh SEE ALSO
+.Xr getgrent 3 ,
+.Xr getgrouplist 3 ,
+.Xr getpwent 3 ,
+.Xr nfsv4 4 ,
+.Xr group 5 ,
+.Xr passwd 5 ,
+.Xr nfsd 8
+.Sh HISTORY
+The
+.Nm
+utility was introduced with the NFSv4 experimental subsystem in 2009.
+.Sh BUGS
+The
+.Nm
+use
+.Xr getgrent 3 ,
+.Xr getgrouplist 3
+and
+.Xr getpwent 3
+library calls to resolve requests and will hang if the servers handling
+those requests fail and the library functions don't return. See
+.Xr group 5
+and
+.Xr passwd 5
+for more information on how the databases are accessed.
+.Pp
+Since the kernel communicates with the
+.Nm
+daemon via an upcall that uses the IP address 127.0.0.1, it does not work correctly when
+.Xr jail 8
+are used and can crash the system.

@@ -1,0 +1,172 @@
+IMPORTANT NOTE:
+
+As of Feb. 11, 2002 (and indeed, for quite some time before that),
+the /etc/rc.diskless{1,2} scripts support a slightly different
+diskless boot process than the one documented in the rest of
+this file (which is 3 years old).
+
+I am not deleting the information below because it contains some
+useful background information on diskless operation, but for the
+actual details you should look at /etc/rc.diskless1, /etc/rc.diskless2,
+and the /usr/share/examples/diskless/clone_root script which can
+be useful to set up clients and server for diskless boot.
+
+--- $FreeBSD$ ---
+------------------------------------------------------------------------
+
+		        BOOTP configuration mechanism
+
+			    Matthew Dillon
+			    dillon@backplane.com
+
+    BOOTP kernels automatically configure the machine's IP address, netmask,
+    optional NFS based swap, and NFS based root mount.  The NFS server will
+    typically export a shared read-only /, /usr, and /var to any number of
+    workstations.  The shared read-only root is typically either the server's
+    own root or, if you are more security conscious, a contrived root.
+
+    The key issue with starting up a BOOTP kernel is that you typically want
+    to export read-only NFS partitions from the server, yet still be able to
+    customize each workstation ( or not ).
+
+    /etc/rc.diskless1 is responsible for doing core mounts and for retargeting
+    /conf/ME ( part of the read-only root NFS mount ) to /conf/$IP_OF_CLIENT.
+    /etc/rc.conf.local and /etc/rc.local, along with other machine-specific
+    configuration files, are typically softlinks to /conf/ME/<filename>.
+
+    In the BOOTP workstation /conf/$IP/rc.conf.local, you must typically
+    turn *OFF* most of the system option defaults in /etc/rc.conf as well
+    as do additional custom configuration of your environment
+
+    The /usr/src/share/examples/diskless directory contains a typical
+    X session / sshd based workstation configuration.  The directories
+    involved are HT.DISKLESS/ and 192.157.86.12/. 
+
+    Essentially, the $IP/ directory ( which rc.diskless looks for in
+    /conf/$IP/ ) contains all the junk.  The HT.DISKLESS directory exists
+    to hold common elements of your custom configuration so you do not have
+    to repeat those elements for each workstation.  The example /conf 
+    structure included here shows how to create a working sshd setup ( so
+    you can sshd into the diskless workstation ), retarget xdm's pid and error
+    files to R+W directories if /usr is mounted read-only, and retarget
+    syslogd and other programs.  This example is not designed to run out of
+    the box and some modifications are required.
+
+    >> NOTE <<  HT.DISKLESS/ttys contains the typical configuration required
+    to bring X up at boot time.  Essentially, it runs xdm in the foreground
+    with the appropriate arguments rather then a getty on ttyv0.  You must
+    run xdm on ttyv0 in order to prevent xdm racing with getty on a virtual
+    terminal.  Such a race can cause your keyboard to be directed away from
+    the X session, essentially making the session unusable.
+
+    Typically you should start with a clean slate by tar-copying this example
+    directory to /conf and then hack on it in /conf rather then in 
+    /usr/share/examples/diskless.
+
+				BOOTP CLIENT SETUP
+
+    Here is a typical kernel configuration.  If you have only one ethernet
+    interface you do not need to wire BOOTP to a specific interface name.
+    BOOTP requires NFS and NFS_ROOT, and our boot scripts require MFS.  If
+    your /tmp is *not* a softlink to /var/tmp, the scripts also require NULLFS
+
+# BootP
+#
+options         BOOTP           # Use BOOTP to obtain IP address/hostname
+options         BOOTP_NFSROOT   # NFS mount root filesystem using BOOTP info
+options         "BOOTP_NFSV3"   # Use NFS v3 to NFS mount rootoptions
+options         BOOTP_COMPAT    # Workaround for broken bootp daemons.
+#options         "BOOTP_WIRED_TO=de0"
+
+options         MFS                     # Memory File System
+options         NFS                     # Network Filesystem
+options         NFS_ROOT		# Nfs can be root
+options		NULLFS			# nullfs to map /var/tmp to /tmp
+
+				BOOTP SERVER SETUP
+
+    The BOOTP server must be running on the same logical LAN as the
+    BOOTP client(s).  You need to setup two things:
+
+    (1) You need to NFS-export /, /usr, and /var.
+
+    (2) You need to run a BOOTP server.  DHCPD can do this.
+
+
+    NFS Export:
+
+	Here is an example "/etc/exports" file.
+
+/ -ro -maproot=root: -network 192.157.86.0 -mask 255.255.255.192
+/usr -ro -maproot=root: -network 192.157.86.0 -mask 255.255.255.192
+/var -ro -maproot=root: -network 192.157.86.0 -mask 255.255.255.192
+
+    In order to be an NFS server, the server must run portmap, mountd,
+    nfsd, and rpc.statd.  The standard NFS server options in /etc/rc.conf
+    will work ( you should put your overrides in /etc/rc.conf.local on the
+    server and not edit the distribution /etc/rc.conf, though ).
+
+    BOOTP Server:
+
+	This configuration file "/etc/dhcpd.conf" example is for 
+	the '/usr/ports/net/isc-dhcp' dhcpd port.
+
+	    subnet 192.157.86.0 netmask 255.255.255.192 {
+		# range if you want to run the core dhcpd service of
+		# dynamic IP assignment, but it is not used with BOOTP 
+		# workstations
+		range 192.157.86.32 192.157.86.62;
+
+		# misc configuration.
+		#
+		option routers 192.157.86.2;
+		option domain-name-servers 192.157.86.2;
+
+		server-name "apollo.fubar.com";
+		option subnet-mask 255.255.255.192;
+		option domain-name-servers 192.157.86.2;
+		option domain-name "fubar.com";
+		option broadcast-address 192.157.86.63;
+		option routers 192.157.86.2;
+	    }
+
+	    host test1 {
+		hardware ethernet 00:a0:c9:d3:38:25;
+		fixed-address 192.157.86.11;
+		option root-path "192.157.86.2:/";
+		option option-128 "192.157.86.2:/images/swap";
+	    }
+
+	    host test2 {
+	    #    hardware ethernet 00:e0:29:1d:16:09;
+		hardware ethernet 00:10:5a:a8:94:0e;
+		fixed-address 192.157.86.12;
+		option root-path "192.157.86.2:/";
+		option option-128 "192.157.86.2:/images/swap";
+	    }
+
+    SWAP.  This example includes options to automatically BOOTP configure
+    NFS swap on each workstation.  In order to use this capabilities you
+    need to NFS-export a swap directory READ+WRITE to the workstations.
+
+    You must then create a swap directory for each workstation you wish to
+    assign swap to.  In this example I created a dummy user 'lander' and
+    did an NFS export of /images/swap enforcing a UID of 'lander' for
+    all accesses.
+
+	apollo:/usr/ports/net# ls -la /images/swap
+	total 491786
+	drwxr-xr-x  2 root    wheel        512 Dec 28 07:00 .
+	drwxr-xr-x  8 root    wheel        512 Jan 20 10:54 ..
+	-rw-r--r--  1 lander  wheel   33554432 Dec 23 14:35 swap.192.157.86.11
+	-rw-r--r--  1 lander  wheel  335544320 Jan 24 16:55 swap.192.157.86.12
+	-rw-r--r--  1 lander  wheel  134217728 Jan 21 17:19 swap.192.157.86.6
+
+    A swap file is best created with dd:
+
+	# create a 32MB swap file for a BOOTP workstation
+	dd if=/dev/zero of=swap.IPADDRESS bs=1m count=32
+
+    It is generally a good idea to give your workstations some swap space,
+    but not a requirement if they have a lot of memory.
+

@@ -1,0 +1,72 @@
+
+#------------------------------------------------------------------------------
+# $File: cafebabe,v 1.23 2017/05/25 20:07:23 christos Exp $
+# Cafe Babes unite!
+#
+# Since Java bytecode and Mach-O universal binaries have the same magic number,
+# the test must be performed in the same "magic" sequence to get both right.
+# The long at offset 4 in a Mach-O universal binary tells the number of
+# architectures; the short at offset 4 in a Java bytecode file is the JVM minor
+# version and the short at offset 6 is the JVM major version.  Since there are only
+# only 18 labeled Mach-O architectures at current, and the first released
+# Java class format was version 43.0, we can safely choose any number
+# between 18 and 39 to test the number of architectures against
+# (and use as a hack). Let's not use 18, because the Mach-O people
+# might add another one or two as time goes by...
+#
+### JAVA START ###
+0	belong		0xcafebabe
+>4	belong		>30		compiled Java class data,
+!:mime	application/x-java-applet
+>>6	beshort		x	        version %d.
+>>4	beshort		x       	\b%d
+# Which is which?
+#>>4	belong		0x032d		(Java 1.0)
+#>>4	belong		0x032d		(Java 1.1)
+>>4	belong		0x002e		(Java 1.2)
+>>4	belong		0x002f		(Java 1.3)
+>>4	belong		0x0030		(Java 1.4)
+>>4	belong		0x0031		(Java 1.5)
+>>4	belong		0x0032		(Java 1.6)
+>>4	belong		0x0033		(Java 1.7)
+>>4	belong		0x0034		(Java 1.8)
+
+0	belong		0xcafed00d	JAR compressed with pack200,
+>5	byte		x		version %d.
+>4	byte		x		\b%d
+!:mime	application/x-java-pack200
+
+
+0	belong		0xcafed00d	JAR compressed with pack200,
+>5	byte		x		version %d.
+>4	byte		x		\b%d
+!:mime	application/x-java-pack200
+
+### JAVA END ###
+### MACH-O START ###
+
+0	name		mach-o		\b [
+>0	use		mach-o-cpu	\b
+>(8.L)	indirect	x		\b:
+>0	belong		x		\b]
+
+0	belong		0xcafebabe
+>4	belong		1		Mach-O universal binary with 1 architecture:
+!:mime application/x-mach-binary
+>>8	use		mach-o		\b
+>4	belong		>1
+>>4	belong		<20		Mach-O universal binary with %d architectures:
+!:mime application/x-mach-binary
+>>>8	use		mach-o		\b
+>>4	belong		2
+>>>28	use		mach-o		\b
+>>4	belong		3
+>>>48	use		mach-o		\b
+>>4	belong		4
+>>>68	use		mach-o		\b
+>>4	belong		5
+>>>88	use		mach-o		\b
+>>4	belong		6
+>>>108	use		mach-o		\b
+
+### MACH-O END ###

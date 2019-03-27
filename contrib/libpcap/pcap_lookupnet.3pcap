@@ -1,0 +1,63 @@
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP_LOOKUPNET 3PCAP "3 January 2014"
+.SH NAME
+pcap_lookupnet \- find the IPv4 network number and netmask for a device
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap/pcap.h>
+.ft
+.LP
+.nf
+.ft B
+char errbuf[PCAP_ERRBUF_SIZE];
+.ft
+.LP
+.ft B
+int pcap_lookupnet(const char *device, bpf_u_int32 *netp,
+.ti +8
+bpf_u_int32 *maskp, char *errbuf);
+.ft
+.fi
+.SH DESCRIPTION
+.B pcap_lookupnet()
+is used to determine the IPv4 network number and mask
+associated with the network device
+.IR device .
+Both
+.I netp
+and
+.I maskp
+are
+.I bpf_u_int32
+pointers.
+.SH RETURN VALUE
+.B pcap_lookupnet()
+returns 0 on success and \-1 on failure.
+If \-1 is returned,
+.I errbuf
+is filled in with an appropriate error message.
+.I errbuf
+is assumed to be able to hold at least
+.B PCAP_ERRBUF_SIZE
+chars.
+.SH SEE ALSO
+pcap(3PCAP)

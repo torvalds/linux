@@ -1,0 +1,66 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: virecover
+# REQUIRE: mountcritremote ldconfig
+# BEFORE:  DAEMON
+#
+# XXX: should require `mail'!
+
+. /etc/rc.subr
+
+name="virecover"
+desc="Recover crashed vi sessions"
+rcvar="virecover_enable"
+stop_cmd=":"
+start_cmd="virecover_start"
+
+virecover_start()
+{
+	[ -d /var/tmp/vi.recover ] || return
+	find /var/tmp/vi.recover ! -type f -a ! -type d -delete
+	vibackup=`echo /var/tmp/vi.recover/vi.*`
+	if [ "${vibackup}" != '/var/tmp/vi.recover/vi.*' ]; then
+		echo -n 'Recovering vi editor sessions:'
+		for i in /var/tmp/vi.recover/vi.*; do
+			# Only test files that are readable.
+			if [ ! -r "${i}" ]; then
+				continue
+			fi
+
+			# Unmodified nvi editor backup files either have the
+			# execute bit set or are zero length.  Delete them.
+			if [ -x "${i}" -o ! -s "${i}" ]; then
+				rm -f "${i}"
+			fi
+		done
+
+		# It is possible to get incomplete recovery files, if the editor
+		# crashes at the right time.
+		virecovery=`echo /var/tmp/vi.recover/recover.*`
+		if [ "${virecovery}" != "/var/tmp/vi.recover/recover.*" ]; then
+			for i in /var/tmp/vi.recover/recover.*; do
+				# Only test files that are readable.
+				if [ ! -r "${i}" ]; then
+					continue
+				fi
+
+				# Delete any recovery files that are zero length,
+				# corrupted, or that have no corresponding backup file.
+				# Else send mail to the user.
+				recfile=`awk '/^X-vi-recover-path:/{print $2}' < "${i}"`
+				if [ -n "${recfile}" -a -s "${recfile}" ]; then
+					sendmail -t < "${i}"
+				else
+					rm -f "${i}"
+				fi
+			done
+		fi
+		echo '.'
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

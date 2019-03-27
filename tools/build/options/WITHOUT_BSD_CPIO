@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set to not build the BSD licensed version of cpio based on
+.Xr libarchive 3 .

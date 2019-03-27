@@ -1,0 +1,11 @@
+# $FreeBSD$ 
+# $NetBSD: esdb.alias.TCVN.src,v 1.1 2006/11/13 15:16:30 tnozaki Exp $
+
+TCVN5712-1		tcvn
+TCVN5712-1		tcvn-5712
+TCVN5712-1		tcvn-5712-1:1993
+TCVN5712-1		vn-1
+
+VISCII			csviscii
+VISCII			viscii1.1-1
+VISCII			vscii

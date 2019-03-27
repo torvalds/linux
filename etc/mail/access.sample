@@ -1,0 +1,17 @@
+# $FreeBSD$
+#
+# Mail relay access control list.  Default is to reject mail unless the
+# destination is local, or listed in /etc/mail/local-host-names
+#
+
+## Examples (commented out for safety)
+#From:cyberspammer.com		ERROR:"550 We don't accept mail from spammers"
+#From:okay.cyberspammer.com	OK
+#Connect:sendmail.org		RELAY
+#To:sendmail.org		RELAY
+#Connect:128.32			RELAY
+#Connect:128.32.2		SKIP
+#Connect:IPv6:1:2:3:4:5:6:7	RELAY
+#Connect:suspicious.example.com	QUARANTINE:Mail from suspicious host
+#Connect:[127.0.0.3]		OK
+#Connect:[IPv6:1:2:3:4:5:6:7:8]	OK

@@ -1,0 +1,115 @@
+# This file tells config what files go into building a kernel,
+# files marked standard are always included.
+#
+# $FreeBSD$
+#
+
+# Arch dependent files
+mips/mips/autoconf.c			standard
+mips/mips/bus_space_generic.c		standard
+mips/mips/busdma_machdep.c		standard
+mips/mips/cache.c			standard
+mips/mips/cache_mipsNN.c		standard
+mips/mips/cpu.c				standard
+mips/mips/db_disasm.c			optional	ddb
+mips/mips/db_interface.c		optional	ddb
+mips/mips/db_trace.c			optional	ddb
+mips/mips/dump_machdep.c		standard
+mips/mips/elf_machdep.c			standard
+mips/mips/exception.S			standard
+mips/mips/fp.S				standard
+mips/mips/freebsd32_machdep.c		optional	compat_freebsd32
+mips/mips/gdb_machdep.c			standard
+mips/mips/in_cksum.c			optional	inet
+mips/mips/libkern_machdep.c		standard
+mips/mips/locore.S			standard	no-obj
+mips/mips/machdep.c			standard
+mips/mips/mem.c				optional	mem
+mips/mips/minidump_machdep.c		standard
+mips/mips/mp_machdep.c			optional	smp
+mips/mips/mpboot.S			optional	smp
+mips/mips/nexus.c			standard
+mips/mips/ofw_machdep.c			optional	fdt
+mips/mips/pm_machdep.c			standard
+mips/mips/pmap.c			standard
+mips/mips/ptrace_machdep.c		standard
+mips/mips/sc_machdep.c			standard
+mips/mips/stack_machdep.c		optional	ddb | stack
+mips/mips/stdatomic.c			standard \
+	compile-with "${NORMAL_C:N-Wmissing-prototypes}"
+mips/mips/support.S			standard
+mips/mips/bcopy.S			standard
+mips/mips/swtch.S			standard
+mips/mips/sys_machdep.c			standard
+mips/mips/tlb.c				standard
+mips/mips/trap.c			standard
+mips/mips/uio_machdep.c			standard
+mips/mips/uma_machdep.c			standard
+mips/mips/vm_machdep.c			standard
+
+# misc opt-in bits
+kern/kern_clocksource.c			standard
+kern/link_elf_obj.c			standard
+kern/subr_busdma_bufalloc.c		standard
+kern/subr_dummy_vdso_tc.c		standard
+kern/subr_sfbuf.c			optional	mips | mipsel | mipsn32
+kern/subr_sfbuf.c			optional	mipshf | mipselhf
+
+# gcc/clang runtime
+libkern/ffsl.c				standard
+libkern/ffsll.c				standard
+libkern/fls.c				standard
+libkern/flsl.c				standard
+libkern/flsll.c				standard
+libkern/cmpdi2.c			optional	mips | mipshf | mipsel | mipselhf
+libkern/ucmpdi2.c			optional	mips | mipshf | mipsel | mipselhf
+libkern/ashldi3.c			standard
+libkern/ashrdi3.c			standard
+libkern/memcmp.c			standard
+
+# cfe support
+dev/cfe/cfe_api.c			optional	cfe
+dev/cfe/cfe_console.c			optional	cfe_console
+dev/cfe/cfe_env.c			optional	cfe_env
+
+# syscons support
+dev/fb/fb.c				optional	sc
+dev/syscons/scgfbrndr.c			optional	sc
+mips/mips/sc_machdep.c			optional	sc
+
+# FDT support
+dev/uart/uart_cpu_fdt.c			optional	uart fdt
+
+# crypto support -- use generic
+crypto/blowfish/bf_enc.c		optional	crypto | ipsec | \
+	ipsec_support
+crypto/des/des_enc.c			optional	crypto | ipsec | \
+	ipsec_support | netsmb
+
+# AP common nvram interface MIPS specific, but maybe should be more generic
+dev/nvram2env/nvram2env_mips.c		optional	nvram2env
+dev/nvram2env/nvram2env.c		optional	nvram2env
+
+# hwpmc support
+dev/hwpmc/hwpmc_mips.c			optional	hwpmc
+dev/hwpmc/hwpmc_mips24k.c		optional	hwpmc_mips24k
+dev/hwpmc/hwpmc_mips74k.c		optional	hwpmc_mips74k
+
+# ofw support
+dev/ofw/ofwpci.c			optional	fdt pci
+
+# INTRNG support code
+kern/msi_if.m				optional	intrng
+kern/pic_if.m				optional	intrng
+kern/subr_intr.c			optional	intrng
+# INTRNG compatible MIPS32 interrupt controller
+mips/mips/mips_pic.c			optional	intrng
+
+# DTrace
+cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional zfs | dtrace compile-with "${CDDL_C}"
+cddl/dev/dtrace/mips/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
+cddl/dev/dtrace/mips/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
+cddl/dev/fbt/mips/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
+
+# Zstd
+contrib/zstd/lib/freebsd/zstd_kfreebsd.c		optional zstdio compile-with ${ZSTD_C}

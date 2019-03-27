@@ -1,0 +1,364 @@
+.\" Copyright (c) 2012 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Pawel Jakub Dawidek under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 1, 2015
+.Dt AUDITDISTD.CONF 5
+.Os
+.Sh NAME
+.Nm auditdistd.conf
+.Nd configuration file for the
+.Xr auditdistd 8
+daemon.
+.Sh DESCRIPTION
+Note: the configuration file may contain passwords.
+Care should be taken to configure proper permissions for this file
+.Li ( e.g., 0600 ) .
+.Pp
+Every line starting with
+.Li #
+gets treated as a comment and is ignored.
+.Sh CONFIGURATION FILE SYNTAX
+The general syntax of the
+.Nm
+file is as follows:
+.Bd -literal
+## Global section.
+
+# Our name.
+# The default is the first part of the hostname.
+name "<name>"
+
+# Connection timeout.
+# The default is 5.
+timeout <seconds>
+
+# Path to pidfile.
+# The default is "/var/run/auditdistd.pid".
+pidfile "<path>"
+
+sender {
+	## Sender section.
+
+	# Source address for connections.
+	# Optional.
+	source "<addr>"
+
+	# Directory with audit trail files managed by auditdistd.
+	# The default is /var/audit/dist.
+	directory "<dir>"
+.\"
+.\"	# Checksum algorithm for data sent over the wire.
+.\"	# The default is none.
+.\"	checksum "<algorithm>"
+.\"
+.\"	# Compression algorithm for data sent over the wire.
+.\"	# The default is none.
+.\"	compression "<algorithm>"
+
+	# Configuration for the target system we want to send audit trail
+	# files to.
+	host "<name>" {
+		# Source address for connections.
+		# Optional.
+		source "<addr>"
+
+		# Address of the auditdistd receiver.
+		# No default. Obligatory.
+		remote "<addr>"
+
+		# Directory with audit trail files managed by auditdistd.
+		# The default is /var/audit/dist.
+		directory "<dir>"
+
+		# Fingerprint of the receiver's public key when using TLS
+		# for connections.
+		# Example fingerprint:
+		# SHA256=8F:0A:FC:8A:3D:09:80:AF:D9:AA:38:CC:8A:86:53:E6:8F:B6:1C:55:30:14:D7:F9:AA:8B:3E:73:CD:F5:76:2B
+		fingerprint "<algorithm=hash>"
+
+		# Password used to authenticate in front of the receiver.
+		password "<password>"
+.\"
+.\"		# Checksum algorithm for data sent over the wire.
+.\"		# The default is none.
+.\"		checksum "<algorithm>"
+.\"
+.\"		# Compression algorithm for data sent over the wire.
+.\"		# The default is none.
+.\"		compression "<algorithm>"
+	}
+
+	# Currently local audit trail files can be sent only to one remote
+	# auditdistd receiver, but this can change in the future.
+}
+
+receiver {
+	## Receiver section.
+
+	# Address to listen on. Multiple listen addresses may be specified.
+	# The defaults are "tcp4://0.0.0.0:7878" and "tcp6://[::]:7878".
+	listen "<addr>"
+
+	# Base directory.
+	# If the directory in the host section is not absolute, it will be
+        # concatenated with this base directory.
+	# The default is "/var/audit/remote".
+	directory "<basedir>"
+
+	# Path to the receiver's certificate file.
+	# The default is "/etc/security/auditdistd.cert.pem".
+	certfile "<path>"
+
+	# Path to the receiver's private key file.
+	# The default is "/etc/security/auditdistd.key.pem".
+	keyfile "<path>"
+
+	# Configuration for a source system we want to receive audit trail
+	# files from.
+	host "<name>" {
+		# Sender address.
+		# No default. Obligatory.
+		remote "<addr>"
+
+		# Directory where to store audit trail files received
+		# from system <name>.
+		# The default is "<basedir>/<name>".
+		directory "<dir>"
+
+		# Password used by the sender to authenticate.
+		password "<password>"
+	}
+
+	# Multiple hosts to receive from can be configured.
+}
+.Ed
+.Pp
+Most of the various available configuration parameters are optional.
+If a parameter is not defined in the particular section, it will be
+inherited from the parent section if possible.
+For example, if the
+.Ic source
+parameter is not defined in the
+.Ic host
+section, it will be inherited from the
+.Ic sender
+section.
+In case the
+.Ic global
+section does not define the
+.Ic source
+parameter at all, the default value will be used.
+.Sh CONFIGURATION OPTION DESCRIPTION
+The following statements are available:
+.Bl -tag -width ".Ic xxxx"
+.It Ic name Aq name
+.Pp
+This host's name.
+It is sent to the receiver, so it can properly recognize us if there are
+multiple senders coming from the same IP address.
+.It Ic timeout Aq seconds
+.Pp
+Connection timeout in seconds.
+The default value is
+.Va 5 .
+.It Ic pidfile Aq path
+.Pp
+File in which to store the process ID of the main
+.Xr auditdistd 8
+process.
+.Pp
+The default value is
+.Pa /var/run/auditdistd.pid .
+.It Ic source Aq addr
+.Pp
+Local address to bind to before connecting to the remote
+.Nm auditdistd
+daemon.
+The format is the same as for the
+.Ic listen
+statement.
+.It Ic directory Aq path
+.Pp
+The directory where to look for audit trail files in case of sender mode, or
+the directory where to store received audit trail files.
+The provided path has to be an absolute path.
+The only exception is when the directory is provided in the
+.Ic receiver
+section; then the path provided in the
+.Ic host
+subsections can be relative to the directory in the
+.Ic receiver
+section.
+The default value is
+.Pa /var/audit/dist
+for the entire
+.Ic sender
+section,
+.Pa /var/audit/remote
+for the non-host
+.Ic receiver
+section and
+.Pa /var/audit/remote/<name>
+for the
+.Ic host
+subsections in the
+.Ic receiver
+section where
+.Aq name
+is the host's name.
+.\".It Ic checksum Aq algorithm
+.\".Pp
+.\"Checksum algorithm should be one of the following:
+.\".Bl -tag -width ".Ic sha256"
+.\".It Ic none
+.\"No checksum will be calculated for the data being sent over the network.
+.\"This is the default setting.
+.\".It Ic crc32
+.\"CRC32 checksum will be calculated.
+.\".It Ic sha256
+.\"SHA256 checksum will be calculated.
+.\".El
+.\".It Ic compression Aq algorithm
+.\".Pp
+.\"Compression algorithm should be one of the following:
+.\".Bl -tag -width ".Ic none"
+.\".It Ic none
+.\"Data sent over the network will not be compressed.
+.\"This is the default setting.
+.\".It Ic lzf
+.\"The
+.\".Nm LZF
+.\"algorithm by
+.\".An Marc Alexander Lehmann
+.\"will be used to compress the data sent over the network.
+.\".Nm LZF
+.\"is a very fast, general purpose compression algorithm.
+.\".El
+.It Ic remote Aq addr
+.Pp
+Address of the remote
+.Nm auditdistd
+daemon.
+The format is the same as for the
+.Ic listen
+statement.
+When operating in
+.Ic sender
+mode this address will be used to connect to the
+.Ic receiver .
+When operating in
+.Ic receiver
+mode only connections from this address will be accepted.
+.It Ic listen Aq addr
+.Pp
+Address to listen on in form of:
+.Bd -literal -offset indent
+protocol://protocol-specific-address
+.Ed
+.Pp
+Each of the following examples defines the same listen address:
+.Bd -literal -offset indent
+0.0.0.0
+0.0.0.0:7878
+tcp://0.0.0.0
+tcp://0.0.0.0:7878
+tcp4://0.0.0.0
+tcp4://0.0.0.0:7878
+.Ed
+.Pp
+Multiple listen addresses can be specified.
+By default
+.Nm auditdistd
+listens on
+.Pa tcp4://0.0.0.0:7878
+and
+.Pa tcp6://[::]:7878 ,
+if the kernel supports IPv4 and IPv6 respectively.
+.It Ic keyfile Aq path
+.Pp
+Path to a file that contains the private key for TLS communication.
+.It Ic certfile Aq path
+.Pp
+Path to a file that contains the certificate for TLS communication.
+.It Ic fingerprint Aq algo=hash
+.Pp
+Fingerprint of the receiver's public key.
+Currently only the SHA256 algorithm is supported.
+The certificate public key's fingerprint ready to be pasted into the
+.Nm auditdistd
+configuration file can be obtained by running:
+.Bd -literal
+# openssl x509 -in /etc/security/auditdistd.cert.pem -noout -fingerprint -sha256 | awk -F '[ =]' '{printf("%s=%s\\n", $1, $3)}'
+.Ed
+.It Ic password Aq password
+.Pp
+Password used to authenticate the sender in front of the receiver.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/security/auditdistd.conf" -compact
+.It Pa /etc/security/auditdistd.conf
+The default
+.Nm auditdistd
+configuration file.
+.El
+.Sh EXAMPLES
+The example configuration files can look as follows.
+.Pp
+Web server:
+.Bd -literal -offset indent
+sender {
+	host backup {
+		remote 10.0.0.4
+	}
+}
+.Ed
+.Pp
+Audit backup server:
+.Bd -literal -offset indent
+receiver {
+	host webserv {
+		remote 10.0.0.1
+	}
+	host mailserv {
+		remote 10.0.0.2
+	}
+	host dnsserv {
+		remote 10.0.0.3
+	}
+}
+.Ed
+.Sh SEE ALSO
+.Xr audit 4 ,
+.Xr auditdistd 8
+.Sh AUTHORS
+The
+.Nm auditdistd
+daemon was developed by
+.An Pawel Jakub Dawidek Aq pawel@dawidek.net
+under sponsorship of the FreeBSD Foundation.

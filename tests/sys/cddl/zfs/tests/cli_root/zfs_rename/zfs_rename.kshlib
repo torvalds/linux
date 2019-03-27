@@ -1,0 +1,117 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)zfs_rename.kshlib	1.5	07/10/09 SMI"
+#
+
+function additional_setup
+{
+	# Create testfile
+	log_must $CP $DATA $TESTDIR/$TESTFILE0
+	log_must $CP $DATA $TESTDIR1/$TESTFILE0
+
+	# Create snapshot
+	if ! snapexists $TESTPOOL/$TESTFS@snapshot; then
+		log_must $ZFS snapshot $TESTPOOL/$TESTFS@snapshot
+		log_must $ZFS clone $TESTPOOL/$TESTFS@snapshot \
+		    $TESTPOOL/$TESTFS-clone
+	fi
+
+	# Create file system
+	datasetexists $TESTPOOL/$TESTFS1 || \
+		log_must $ZFS create $TESTPOOL/$TESTFS1
+
+	# Create testfile
+	log_must $CP $DATA $(get_prop mountpoint $TESTPOOL/$TESTFS1)/$TESTFILE0
+
+	# Create container
+	datasetexists $TESTPOOL/$TESTCTR1 || \
+		log_must $ZFS create $TESTPOOL/$TESTCTR1
+	log_must $CP $DATA $(get_prop mountpoint $TESTPOOL/$TESTCTR1)/$TESTFILE0
+
+	# Create data in zvol
+	if is_global_zone; then
+		log_must eval "$DD if=$DATA of=$VOL_R_PATH bs=$BS count=$CNT \
+				>/dev/null 2>&1"
+	else
+		log_must $CP $DATA $(get_prop mountpoint $TESTPOOL/$TESTVOL)/$TESTFILE0
+	fi
+		
+}
+
+function rename_dataset # src dest
+{
+	typeset src=$1
+	typeset dest=$2
+
+	log_must $ZFS rename $src $dest
+
+	#
+	# Verify src name no longer in use
+	#
+	log_mustnot datasetexists $src
+	log_must datasetexists $dest
+}
+
+function cleanup
+{
+	typeset -i i=0
+	while ((i < ${#dataset[*]} )); do
+        	if ! datasetexists ${dataset[i]}-new ; then
+			((i = i + 1))
+                	continue
+		fi              
+
+                if [[ ${dataset[i]}-new != *@* ]] ; then
+                        $ZFS rename ${dataset[i]}-new ${dataset[i]}
+                        if [[ $? -ne 0 ]]; then
+                                typeset newfs=${dataset[i]}-new
+                                typeset oldfs=${dataset[i]}
+                                typeset mntp=$(get_prop mountpoint  $newfs)
+                                log_must $ZFS destroy -f $newfs
+                                log_must $ZFS create -p $oldfs
+                                log_must $ZFS set mountpoint=$mntp $oldfs
+                        fi
+                else
+                        log_must $ZFS destroy -fR ${dataset[i]}-new
+                fi
+		
+                ((i = i + 1))
+	done
+}
+
+function cmp_data #<$1 src data, $2 tgt data>
+{
+        typeset src=$1
+        typeset tgt=$2
+
+        $CMP $src $tgt >/dev/null 2>&1
+
+        return $?
+}
+

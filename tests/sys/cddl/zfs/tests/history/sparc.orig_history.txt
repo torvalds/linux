@@ -1,0 +1,13 @@
+History for 'history_pool':
+2006-10-27.03:13:47 zpool create history_pool /var/tmp/sparc.migratedpool.DAT
+2006-10-27.03:13:48 zfs create history_pool/fs
+2006-10-27.03:13:48 zfs set compression=on history_pool/fs
+2006-10-27.03:13:48 zfs set checksum=on history_pool
+2006-10-27.03:13:48 zfs snapshot history_pool/fs@snap
+2006-10-27.03:13:48 zfs clone history_pool/fs@snap history_pool/clone
+2006-10-27.03:13:49 zfs promote history_pool/clone
+2006-10-27.03:13:49 zfs promote history_pool/fs
+2006-10-27.03:13:49 zfs destroy -r -R history_pool/fs
+2006-10-27.03:13:49 zpool export history_pool
+2007-04-05.00:41:55 zpool upgrade history_pool
+

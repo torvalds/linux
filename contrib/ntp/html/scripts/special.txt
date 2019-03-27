@@ -1,0 +1,17 @@
+document.write("<p>Special Topics</p><ul>\
+<li class='inline'><a href='warp.html'>How NTP Works</a></li>\
+<li class='inline'><a href='prefer.html'>Mitigation Rules and the <tt>prefer</tt> Keyword</a></li>\
+<li class='inline'><a href='autokey.html'>Autokey Public-Key Authentication</a></li>\
+<li class='inline'><a href='orphan.html'>Orphan Mode</a></li>\
+<li class='inline'><a href='xleave.html'>NTP Interleaved Modes</a></li>\
+<li class='inline'><a href='huffpuff.html'>Huff-n'-Puff Filter</a></li>\
+<li class='inline'><a href='filter.html'>Clock Filter Algorithm</a></li>\
+<li class='inline'><a href='select.html'>Clock Select Algorithm</a></li>\
+<li class='inline'><a href='cluster.html'>Clock Cluster Algorithm</a></li>\
+<li class='inline'><a href='prefer.html'>Mitigation Rules and the <tt>prefer</tt> Keyword</a></li>\
+<li class='inline'><a href='discipline.html'>Clock Discipline Algorithm</a></li>\
+<li class='inline'><a href='poll.html'>Poll Process</a></li>\
+<li class='inline'><a href='clock.html'>Clock State Machine</a></li>\
+<li class='inline'><a href='leap.html'>Leap Second Processing</a></li>\
+<li class='inline'><a href='sitemap.html'>Site Map</a></li>\
+</ul>")

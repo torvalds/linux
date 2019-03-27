@@ -1,0 +1,216 @@
+.\"-
+.\" Copyright (c) 2016 Allan Jude
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 28, 2016
+.Dt SKEIN 3
+.Os
+.Sh NAME
+.Nm SKEIN256_Init ,
+.Nm SKEIN256_Update ,
+.Nm SKEIN256_Final ,
+.Nm SKEIN256_End ,
+.Nm SKEIN256_File ,
+.Nm SKEIN256_FileChunk ,
+.Nm SKEIN256_Data ,
+.Nm SKEIN512_Init ,
+.Nm SKEIN512_Update ,
+.Nm SKEIN512_Final ,
+.Nm SKEIN512_End ,
+.Nm SKEIN512_File ,
+.Nm SKEIN512_FileChunk ,
+.Nm SKEIN512_Data ,
+.Nm SKEIN1024_Init ,
+.Nm SKEIN1024_Update ,
+.Nm SKEIN1024_Final ,
+.Nm SKEIN1024_End ,
+.Nm SKEIN1024_File ,
+.Nm SKEIN1024_FileChunk ,
+.Nm SKEIN1024_Data
+.Nd calculate the ``SKEIN'' family of message digests
+.Sh LIBRARY
+.Lb libmd
+.Sh SYNOPSIS
+.In sys/types.h
+.In skein.h
+.Ft void
+.Fn SKEIN256_Init "SKEIN256_CTX *context"
+.Ft void
+.Fn SKEIN256_Update "SKEIN256_CTX *context" "const unsigned char *data" "size_t len"
+.Ft void
+.Fn SKEIN256_Final "unsigned char digest[32]" "SKEIN256_CTX *context"
+.Ft "char *"
+.Fn SKEIN256_End "SKEIN256_CTX *context" "char *buf"
+.Ft "char *"
+.Fn SKEIN256_File "const char *filename" "char *buf"
+.Ft "char *"
+.Fn SKEIN256_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft "char *"
+.Fn SKEIN256_Data "const unsigned char *data" "unsigned int len" "char *buf"
+.Ft void
+.Fn SKEIN512_Init "SKEIN512_CTX *context"
+.Ft void
+.Fn SKEIN512_Update "SKEIN512_CTX *context" "const unsigned char *data" "size_t len"
+.Ft void
+.Fn SKEIN512_Final "unsigned char digest[64]" "SKEIN512_CTX *context"
+.Ft "char *"
+.Fn SKEIN512_End "SKEIN512_CTX *context" "char *buf"
+.Ft "char *"
+.Fn SKEIN512_File "const char *filename" "char *buf"
+.Ft "char *"
+.Fn SKEIN512_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft "char *"
+.Fn SKEIN512_Data "const unsigned char *data" "unsigned int len" "char *buf"
+.Ft void
+.Fn SKEIN1024_Init "SKEIN1024_CTX *context"
+.Ft void
+.Fn SKEIN1024_Update "SKEIN1024_CTX *context" "const unsigned char *data" "size_t len"
+.Ft void
+.Fn SKEIN1024_Final "unsigned char digest[128]" "SKEIN1024_CTX *context"
+.Ft "char *"
+.Fn SKEIN1024_End "SKEIN1024_CTX *context" "char *buf"
+.Ft "char *"
+.Fn SKEIN1024_File "const char *filename" "char *buf"
+.Ft "char *"
+.Fn SKEIN1024_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft "char *"
+.Fn SKEIN1024_Data "const unsigned char *data" "unsigned int len" "char *buf"
+.Sh DESCRIPTION
+.Li Skein
+is a new family of cryptographic hash functions based on the
+.Li Threefish
+large-block cipher.
+Its design combines speed, security, simplicity, and a great deal of
+flexibility in a modular package that is easy to analyze.
+.Li Skein
+is defined for three different internal state sizes\(em256 bits, 512 bits, and
+1024 bits\(emand any output size.
+This allows Skein to be a drop-in replacement for the entire SHA family
+of hash functions.
+.Pp
+The
+.Fn SKEIN256_Init ,
+.Fn SKEIN256_Update ,
+and
+.Fn SKEIN256_Final
+functions are the core functions.
+Allocate an
+.Vt SKEIN256_CTX ,
+initialize it with
+.Fn SKEIN256_Init ,
+run over the data with
+.Fn SKEIN256_Update ,
+and finally extract the result using
+.Fn SKEIN256_Final ,
+which will also erase the
+.Vt SKEIN256_CTX .
+.Pp
+.Fn SKEIN256_End
+is a wrapper for
+.Fn SKEIN256_Final
+which converts the return value to a 33-character
+(including the terminating '\e0')
+.Tn ASCII
+string which represents the 256 bits in hexadecimal.
+.Pp
+.Fn SKEIN256_File
+calculates the digest of a file, and uses
+.Fn SKEIN256_End
+to return the result.
+If the file cannot be opened, a null pointer is returned.
+.Fn SKEIN256_FileChunk
+is similar to
+.Fn SKEIN256_File ,
+but it only calculates the digest over a byte-range of the file specified,
+starting at
+.Fa offset
+and spanning
+.Fa length
+bytes.
+If the
+.Fa length
+parameter is specified as 0, or more than the length of the remaining part
+of the file,
+.Fn SKEIN256_FileChunk
+calculates the digest from
+.Fa offset
+to the end of file.
+.Fn SKEIN256_Data
+calculates the digest of a chunk of data in memory, and uses
+.Fn SKEIN256_End
+to return the result.
+.Pp
+When using
+.Fn SKEIN256_End ,
+.Fn SKEIN256_File ,
+or
+.Fn SKEIN256_Data ,
+the
+.Fa buf
+argument can be a null pointer, in which case the returned string
+is allocated with
+.Xr malloc 3
+and subsequently must be explicitly deallocated using
+.Xr free 3
+after use.
+If the
+.Fa buf
+argument is non-null it must point to at least 33 characters of buffer space.
+.Pp
+The
+.Li SKEIN512_
+and
+.Li SKEIN1024_
+functions are similar to the
+.Li SKEIN256_
+functions except they produce a 512-bit, 65 character,
+or 1024-bit, 129 character, output.
+.Sh SEE ALSO
+.Xr md4 3 ,
+.Xr md5 3 ,
+.Xr ripemd 3 ,
+.Xr sha 3 ,
+.Xr sha256 3 ,
+.Xr sha512 3
+.Sh HISTORY
+These functions appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An -nosplit
+The core hash routines were imported from version 1.3 of the optimized 
+Skein reference implementation written by
+.An Doug Whiting
+as submitted to the NSA SHA-3 contest.
+The algorithms were developed by
+.An Niels Ferguson , 
+.An Stefan Lucks ,
+.An Bruce Schneier , 
+.An Doug Whiting , 
+.An Mihir Bellare ,
+.An Tadayoshi Kohno ,
+.An Jon Callas,
+and
+.An Jesse Walker .

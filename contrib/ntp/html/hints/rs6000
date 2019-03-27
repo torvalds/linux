@@ -1,0 +1,56 @@
+15.7.1993
+xntp3 compiles now again on AIX. I have disabled prototyping and added
+the switch -D_NO_PROTO which disables prototyping in the system include
+files.
+
+Matthias Ernst  maer@nmr.lpc.ethz.ch
+--------------------------------------------------------------------------------
+Xntp version 3 now support the cc compiler for AIX.
+The Config.aix will now use cc by default.  You can still compile xntp
+with the bsd compiler by changing "COMP= cc" to "COMP= bsdcc" and
+and removing the "-DSTUPID_SIGNAL" option from the "DEFS" option.
+
+xntp and tickadj was also modified  so that the value of tickadj is read
+form the kernel and can be set by tickadj.  For now I would not set 
+tickadj below 40 us.   
+
+Bill Jones 
+jones@chpc.utexas.edu
+-------------------------------------------------------------------------------
+
+This is a modified version of xntp version 3 for the RS6000. It works for
+AIX 3.2 and these are the same changes as have been applied tothe version 2
+implementation of xntp. It works fine for us but I have not tested all of
+the features, especially the local clock support for the RS6000 is not tested
+at all.
+
+Matthias Ernst, ETH-Zuerich, Switzerland  -  maer@nmr.lpc.ethz.ch
+
+--------------------------------------------------------------------------------
+
+Here the original README.rs6000 for the version 2 implementation:
+
+A hacked version of xntp for the IBM RS/6000 under AIX 3.1 can be found
+in xntp.rs6000.tar.Z. [ if still available at all - Frank Kardel 93/12/3 ]
+
+This will not work on older versions of AIX due to a kernel bug;  to find
+out whether you have the kernel bug, compile and run testrs6000.c (see
+comments in the code for instructions).
+
+xntp and testrs6000 require "bsdcc" to compile.  This is simply another
+entry point into the xlc compiler with various options set for BSD
+compatibility.  If your system does not have bsdcc, do the following:
+
+link /bin/bsdcc to /bin/xlc
+
+put the following into /etc/xlc.cfg:
+
+* BSD compatibility
+bsdcc:  use        = DEFLT
+        crt        = /lib/crt0.o
+        mcrt       = /lib/mcrt0.o
+        gcrt       = /lib/gcrt0.o
+        libraries  = -lbsd, -lc
+        proflibs   = -L/lib/profiled,-L/usr/lib/profiled
+        options    = -H512,-T512, -qlanglvl=extended, -qnoro, -D_BSD, -D_NONSTD_TYPES, -D_NO_PROTO, -tp,-B/lib/
+

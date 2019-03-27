@@ -1,0 +1,32 @@
+# $FreeBSD$
+#
+# Sector size is the smallest unit of data which can be read or written.
+# Making it too small decreases performance and decreases available space.
+# Making it too large may prevent filesystems from working.  512 is the
+# minimum and always safe.  For UFS, use the fragment size
+#
+sector_size	=	512
+
+#
+# Start and end of the encrypted section of the partition.  Specify in
+# sector numbers.  If none specified, "all" will be assumed, to the
+# extent the value of this can be established.
+#
+#first_sector	=	0
+#last_sector	=	2879
+#total_sectors	=	2880
+
+#
+# An encrypted partition can have more than one key.  It may be a good idea
+# to make at least two keys, and save one of them for "just in case" use.
+# The minimum is obviously one and the maximum is 4.
+#
+number_of_keys	=	4
+
+#
+# Flushing the partition with random bytes prevents a brute-force attack
+# from skipping sectors which obviously contains un-encrypted data.
+# NB: This variable is boolean, if it is present it means "yes" even if 
+# you set it to the value "no"
+#
+#random_flush	=	

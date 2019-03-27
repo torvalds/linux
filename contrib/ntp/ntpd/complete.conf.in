@@ -1,0 +1,69 @@
+saveconfigdir "/etc/ntp/conf"
+driftfile "/etc/ntp.drift" 1e-7
+logfile "/var/log/ntp.log"
+leapfile "/etc/ntp.leapseconds"
+@HAVE_LEAPSMEARINTERVAL@
+nonvolatile 1e-7
+ident "udent"
+dscp 46
+logconfig =allall -allinfo -allevents -allstatistics -allstatus +allall -clockinfo -clockevents -clockstatistics -clockstatus +clockall -syncinfo -syncevents -syncstatistics -syncstatus +syncall -sysinfo -sysevents -sysstatistics -sysstatus +sysall
+statsdir "/etc/ntp/stats"
+statistics clockstats cryptostats loopstats peerstats protostats rawstats sysstats timingstats
+filegen clockstats file clockstats type none enable
+filegen cryptostats file cryptostats type pid link disable
+filegen loopstats file loopstats type day nolink enable
+filegen peerstats file peerstats type week enable
+filegen protostats file stats type month enable
+filegen rawstats file rawstats type year nolink enable
+filegen sysstats file sysstats type age enable
+filegen timingstats file timingstats type none disable
+crypto digest md5 host myhostname ident wedent pw cryptopass randfile /.rnd
+revoke 10
+keysdir "/etc/ntp/keys"
+keys "/etc/ntp.keys"
+trustedkey 1 2 3 4 5 6 7 8 9 10 11 12 (14 ... 16) 18 (32768 ... 65535)
+controlkey 12
+requestkey 12
+enable auth ntp monitor stats
+disable bclient calibrate kernel mode7 peer_clear_digest_early unpeer_crypto_early unpeer_crypto_nak_early unpeer_digest_early
+tos beacon 3600 ceiling 16 cohort 0 floor 1 maxclock 10 maxdist 1.5 minclock 3 mindist 0.001 minsane 1 orphan 16 orphanwait 300 bcpollbstep 3
+rlimit@HAVE_RLIMIT_MEMLOCK@@HAVE_RLIMIT_STACK@
+tinker allan 1500 dispersion 15 freq 0 huffpuff 7200 panic 1000 step 0.128 stepout 900 tick 0.01
+broadcastclient
+server 127.127.1.0 mode 4294967295 prefer true
+fudge 127.127.1.0 time1 0 time2 1.1 stratum 7 refid Abcd
+pool 0.north-america.pool.ntp.org. iburst preempt
+server 1.north-america.pool.ntp.org. iburst
+server -4 2.north-america.pool.ntp.org. minpoll 6 maxpoll 10 iburst
+server -6 ntp.davehart.net. minpoll 6 maxpoll 10 version 5 burst iburst
+peer -6 davehart.broker.freenet6.net. ident "autokey-group" xleave autokey
+peer -4 192.168.192.168 key 1 noselect
+server [fe80::123%1]
+broadcast 192.168.192.255
+manycastclient 224.0.1.1
+manycastclient ff05::101
+manycastserver 224.0.1.1 ff05::101
+multicastclient 224.0.1.1 ff05::101
+mru maxage 64 mindepth 600 initalloc 600 initmem 16 incalloc 99 incmem 4 maxdepth 1024 maxmem 4096
+discard minimum 1 average 3 monitor 3000
+restrict default ippeerlimit -1
+restrict default ippeerlimit 0 nomodify limited kod noserve nomrulist
+restrict source ippeerlimit 1
+restrict source ippeerlimit 2 nomodify limited kod
+restrict trusted.host.name.example.com. ippeerlimit -1 nomodify
+restrict [fe80::1] mask [ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff] ippeerlimit -1
+restrict 127.0.0.1 mask 255.255.255.255 ippeerlimit -1
+restrict ::1 ippeerlimit -1
+interface drop ipv6
+interface ignore ipv4
+interface drop wildcard
+interface listen eth0
+interface listen ipv6
+interface listen 192.168.192.0/24
+interface listen 192.168.193.1
+phone "ATDT13034944774" "ATDT12027621594"
+setvar varnondef = "this variable does not have default after the value"
+setvar vanity = "name plate" default
+trap 127.0.0.1 interface 127.0.0.1 port 1234
+trap 127.0.0.2
+reset allpeers auth ctl io mem sys timer

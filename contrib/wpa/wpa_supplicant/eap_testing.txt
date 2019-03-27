@@ -1,0 +1,392 @@
+Automatic regression and interoperability testing of wpa_supplicant's
+IEEE 802.1X/EAPOL authentication
+
+Test program:
+- Linked some parts of IEEE 802.1X Authenticator implementation from
+  hostapd (RADIUS client and RADIUS processing, EAP<->RADIUS
+  encapsulation/decapsulation) into wpa_supplicant.
+- Replaced wpa_supplicant.c and wpa.c with test code that trigger
+  IEEE 802.1X authentication automatically without need for wireless
+  client card or AP.
+- For EAP methods that generate keying material, the key derived by the
+  Supplicant is verified to match with the one received by the (now
+  integrated) Authenticator.
+
+The full automated test suite can now be run in couple of seconds, but
+I'm more than willing to add new RADIUS authentication servers to make
+this take a bit more time.. ;-) As an extra bonus, this can also be
+seen as automatic regression/interoperability testing for the RADIUS
+server, too.
+
+In order for me to be able to use a new authentication server, the
+server need to be available from Internet (at least from one static IP
+address) and I will need to get suitable user name/password pairs,
+certificates, and private keys for testing use. Other alternative
+would be to get an evaluation version of the server so that I can
+install it on my own test setup. If you are interested in providing
+either server access or evaluation version, please contact me
+(j@w1.fi).
+
+
+Test matrix
+
++) tested successfully
+F) failed
+-) server did not support
+?) not tested
+
+Cisco ACS ----------------------------------------------------------.
+hostapd --------------------------------------------------------.   |
+Cisco Aironet 1200 AP (local RADIUS server) ----------------.   |   |
+Periodik Labs Elektron ---------------------------------.   |   |   |
+Lucent NavisRadius ---------------------------------.   |   |   |   |
+Interlink RAD-Series ---------------------------.   |   |   |   |   |
+Radiator -----------------------------------.   |   |   |   |   |   |
+Meetinghouse Aegis ---------------------.   |   |   |   |   |   |   |
+Funk Steel-Belted ------------------.   |   |   |   |   |   |   |   |
+Funk Odyssey -------------------.   |   |   |   |   |   |   |   |   |
+Microsoft IAS --------------.   |   |   |   |   |   |   |   |   |   |
+FreeRADIUS -------------.   |   |   |   |   |   |   |   |   |   |   |
+			|   |   |   |   |   |   |   |   |   |   |   |
+
+EAP-MD5			+   -   -   +   +   +   +   +   -   -   +   +
+EAP-GTC			+   -   -   ?   +   +   +   +   -   -   +   -
+EAP-OTP			-   -   -   -   -   +   -   -   -   -   -   -
+EAP-MSCHAPv2		+   -   -   +   +   +   +   +   -   -   +   -
+EAP-TLS			+   +   +   +   +   +   +   +   -   -   +   +
+EAP-PEAPv0/MSCHAPv2	+   +   +   +   +   +   +   +   +   -   +   +
+EAP-PEAPv0/GTC		+   -   +   -   +   +   +   +   -   -   +   +
+EAP-PEAPv0/OTP		-   -   -   -   -   +   -   -   -   -   -   -
+EAP-PEAPv0/MD5		+   -   -   +   +   +   +   +   -   -   +   -
+EAP-PEAPv0/TLS		+   +   -   +   +   +   F   +   -   -   +   +
+EAP-PEAPv0/SIM		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-PEAPv0/AKA		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-PEAPv0/PSK		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-PEAPv0/PAX		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-PEAPv0/SAKE		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-PEAPv0/GPSK		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-PEAPv1/MSCHAPv2	-   -   +   +   +   +1  +   +5  +8  -   +   +
+EAP-PEAPv1/GTC		-   -   +   +   +   +1  +   +5  +8  -   +   +
+EAP-PEAPv1/OTP		-   -   -   -   -   +1  -   -   -   -   -   -
+EAP-PEAPv1/MD5		-   -   -   +   +   +1  +   +5  -   -   +   -
+EAP-PEAPv1/TLS		-   -   -   +   +   +1  F   +5  -   -   +   +
+EAP-PEAPv1/SIM		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-PEAPv1/AKA		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-PEAPv1/PSK		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-PEAPv1/PAX		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-PEAPv1/SAKE		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-PEAPv1/GPSK		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-TTLS/CHAP		+   -   +2  +   +   +   +   +   +   -   +   -
+EAP-TTLS/MSCHAP		+   -   +   +   +   +   +   +   +   -   +   -
+EAP-TTLS/MSCHAPv2	+   -   +   +   +   +   +   +   +   -   +   -
+EAP-TTLS/PAP		+   -   +   +   +   +   +   +   +   -   +   -
+EAP-TTLS/EAP-MD5	+   -   +2  +   +   +   +   +   +   -   +   -
+EAP-TTLS/EAP-GTC	+   -   +2  ?   +   +   +   +   -   -   +   -
+EAP-TTLS/EAP-OTP	-   -   -   -   -   +   -   -   -   -   -   -
+EAP-TTLS/EAP-MSCHAPv2	+   -   +2  +   +   +   +   +   +   -   +   -
+EAP-TTLS/EAP-TLS	+   -   +2  +   F   +   +   +   -   -   +   -
+EAP-TTLS/EAP-SIM	-   -   -   -   -   -   -   -   -   -   +   -
+EAP-TTLS/EAP-AKA	-   -   -   -   -   -   -   -   -   -   +   -
+EAP-TTLS/EAP-PSK	-   -   -   -   -   -   -   -   -   -   +   -
+EAP-TTLS/EAP-PAX	-   -   -   -   -   -   -   -   -   -   +   -
+EAP-TTLS/EAP-SAKE	-   -   -   -   -   -   -   -   -   -   +   -
+EAP-TTLS/EAP-GPSK	-   -   -   -   -   -   -   -   -   -   +   -
+EAP-TTLS + TNC		-   -   -   -   -   +   -   -   -   -   +   -
+EAP-SIM			+   -   -   ?   -   +   -   ?   -   -   +   -
+EAP-AKA			-   -   -   -   -   +   -   -   -   -   +   -
+EAP-AKA'		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-PSK			+7  -   -   -   -   +   -   -   -   -   +   -
+EAP-PAX			-   -   -   -   -   +   -   -   -   -   +   -
+EAP-SAKE		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-GPSK		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-FAST/MSCHAPv2(prov)	-   -   -   +   -   +   -   -   -   +   +   +
+EAP-FAST/GTC(auth)	-   -   -   +   -   +   -   -   -   +   +   +
+EAP-FAST/MSCHAPv2(aprov)-   -   -   -   -   +   -   -   -   -   +   +
+EAP-FAST/GTC(aprov)	-   -   -   -   -   +   -   -   -   -   +   +
+EAP-FAST/MD5(aprov)	-   -   -   -   -   +   -   -   -   -   +   -
+EAP-FAST/TLS(aprov)	-   -   -   -   -   -   -   -   -   -   +   +
+EAP-FAST/SIM(aprov)	-   -   -   -   -   -   -   -   -   -   +   -
+EAP-FAST/AKA(aprov)	-   -   -   -   -   -   -   -   -   -   +   -
+EAP-FAST/MSCHAPv2(auth)	-   -   -   -   -   +   -   -   -   -   +   +
+EAP-FAST/MD5(auth)	-   -   -   -   -   +   -   -   -   -   +   -
+EAP-FAST/TLS(auth)	-   -   -   -   -   -   -   -   -   -   +   +
+EAP-FAST/SIM(auth)	-   -   -   -   -   -   -   -   -   -   +   -
+EAP-FAST/AKA(auth)	-   -   -   -   -   -   -   -   -   -   +   -
+EAP-FAST + TNC		-   -   -   -   -   -   -   -   -   -   +   -
+LEAP			+   -   +   +   +   +   F   +6  -   +   -   +
+EAP-TNC			+9  -   -   -   -   +   -   -   -   -   +   -
+EAP-IKEv2		+10 -   -   -   -   -   -   -   -   -   +   -
+
+1) PEAPv1 required new label, "client PEAP encryption" instead of "client EAP
+   encryption", during key derivation (requires phase1="peaplabel=1" in the
+   network configuration in wpa_supplicant.conf)
+2) used FreeRADIUS as inner auth server
+5) PEAPv1 required termination of negotiation on tunneled EAP-Success and new
+   label in key deriviation
+   (phase1="peap_outer_success=0 peaplabel=1") (in "IETF Draft 5" mode)
+6) Authenticator simulator required patching for handling Access-Accept within
+   negotiation (for the first EAP-Success of LEAP)
+7) tested only with an older (incompatible) draft of EAP-PSK; FreeRADIUS does
+   not support the current EAP-PSK (RFC) specification
+8) PEAPv1 used non-standard version negotiation (client had to force v1 even
+   though server reported v0 as the highest supported version)
+9) only EAP-TTLS/EAP-TNC tested, i.e., test did not include proper sequence of
+   client authentication followed by TNC inside the tunnel
+10) worked only with special compatibility code to match the IKEv2 server
+    implementation
+
+
+Automated tests:
+
+FreeRADIUS (2.0-beta/CVS snapshot)
+- EAP-MD5-Challenge
+- EAP-GTC
+- EAP-MSCHAPv2
+- EAP-TLS
+- EAP-PEAPv0 / MSCHAPv2
+- EAP-PEAPv0 / GTC
+- EAP-PEAPv0 / MD5-Challenge
+- EAP-PEAPv0 / TLS
+- EAP-TTLS / EAP-MD5-Challenge
+- EAP-TTLS / EAP-GTC
+- EAP-TTLS / EAP-MSCHAPv2
+- EAP-TTLS / EAP-TLS
+- EAP-TTLS / CHAP
+- EAP-TTLS / PAP
+- EAP-TTLS / MSCHAP
+- EAP-TTLS / MSCHAPv2
+- EAP-TTLS / EAP-TNC (partial support; no authentication sequence)
+- EAP-SIM
+- LEAP
+
+Microsoft Windows Server 2003 / IAS
+- EAP-TLS
+- EAP-PEAPv0 / MSCHAPv2
+- EAP-PEAPv0 / TLS
+- EAP-MD5
+* IAS does not seem to support other EAP methods
+
+Funk Odyssey 2.01.00.653
+- EAP-TLS
+- EAP-PEAPv0 / MSCHAPv2
+- EAP-PEAPv0 / GTC
+- EAP-PEAPv1 / MSCHAPv2
+- EAP-PEAPv1 / GTC
+  Note: PEAPv1 requires TLS key derivation to use label "client EAP encryption"
+- EAP-TTLS / CHAP (using FreeRADIUS as inner auth srv)
+- EAP-TTLS / MSCHAP
+- EAP-TTLS / MSCHAPv2
+- EAP-TTLS / PAP
+- EAP-TTLS / EAP-MD5-Challenge (using FreeRADIUS as inner auth srv)
+- EAP-TTLS / EAP-GTC (using FreeRADIUS as inner auth srv)
+- EAP-TTLS / EAP-MSCHAPv2 (using FreeRADIUS as inner auth srv)
+- EAP-TTLS / EAP-TLS (using FreeRADIUS as inner auth srv)
+* not supported in Odyssey:
+  - EAP-MD5-Challenge
+  - EAP-GTC
+  - EAP-MSCHAPv2
+  - EAP-PEAP / MD5-Challenge
+  - EAP-PEAP / TLS
+
+Funk Steel-Belted Radius Enterprise Edition v4.71.739
+- EAP-MD5-Challenge
+- EAP-MSCHAPv2
+- EAP-TLS
+- EAP-PEAPv0 / MSCHAPv2
+- EAP-PEAPv0 / MD5
+- EAP-PEAPv0 / TLS
+- EAP-PEAPv1 / MSCHAPv2
+- EAP-PEAPv1 / MD5
+- EAP-PEAPv1 / GTC
+- EAP-PEAPv1 / TLS
+  Note: PEAPv1 requires TLS key derivation to use label "client EAP encryption"
+- EAP-TTLS / CHAP
+- EAP-TTLS / MSCHAP
+- EAP-TTLS / MSCHAPv2
+- EAP-TTLS / PAP
+- EAP-TTLS / EAP-MD5-Challenge
+- EAP-TTLS / EAP-MSCHAPv2
+- EAP-TTLS / EAP-TLS
+
+Meetinghouse Aegis 1.1.4
+- EAP-MD5-Challenge
+- EAP-GTC
+- EAP-MSCHAPv2
+- EAP-TLS
+- EAP-PEAPv0 / MSCHAPv2
+- EAP-PEAPv0 / TLS
+- EAP-PEAPv0 / GTC
+- EAP-PEAPv0 / MD5-Challenge
+- EAP-PEAPv1 / MSCHAPv2
+- EAP-PEAPv1 / TLS
+- EAP-PEAPv1 / GTC
+- EAP-PEAPv1 / MD5-Challenge
+  Note: PEAPv1 requires TLS key derivation to use label "client EAP encryption"
+- EAP-TTLS / CHAP
+- EAP-TTLS / MSCHAP
+- EAP-TTLS / MSCHAPv2
+- EAP-TTLS / PAP
+- EAP-TTLS / EAP-MD5-Challenge
+- EAP-TTLS / EAP-GTC
+- EAP-TTLS / EAP-MSCHAPv2
+* did not work
+  - EAP-TTLS / EAP-TLS
+    (Server rejects authentication without any reason in debug log. It
+     looks like the inner TLS negotiation starts properly and the last
+     packet from Supplicant looks like the one sent in the Phase 1. The
+     server generates a valid looking reply in the same way as in Phase
+     1, but then ends up sending Access-Reject. Maybe an issue with TTLS
+     fragmentation in the Aegis server(?) The packet seems to include
+     1328 bytes of EAP-Message and this may go beyond the fragmentation
+     limit with AVP encapsulation and TLS tunneling. Note: EAP-PEAP/TLS
+     did work, so this issue seems to be with something TTLS specific.)
+
+Radiator 3.17.1 (eval, with all patches up to and including 2007-05-25)
+- EAP-MD5-Challenge
+- EAP-GTC
+- EAP-OTP
+- EAP-MSCHAPv2
+- EAP-TLS
+- EAP-PEAPv0 / MSCHAPv2
+- EAP-PEAPv0 / GTC
+- EAP-PEAPv0 / OTP
+- EAP-PEAPv0 / MD5-Challenge
+- EAP-PEAPv0 / TLS
+  Note: Needed to use unknown identity in outer auth and some times the server
+	seems to get confused and fails to send proper Phase 2 data.
+- EAP-PEAPv1 / MSCHAPv2
+- EAP-PEAPv1 / GTC
+- EAP-PEAPv1 / OTP
+- EAP-PEAPv1 / MD5-Challenge
+- EAP-PEAPv1 / TLS
+  Note: This has some additional requirements for EAPTLS_MaxFragmentSize.
+        Using 1300 for outer auth and 500 for inner auth seemed to work.
+  Note: Needed to use unknown identity in outer auth and some times the server
+	seems to get confused and fails to send proper Phase 2 data.
+- EAP-TTLS / CHAP
+- EAP-TTLS / MSCHAP
+- EAP-TTLS / MSCHAPv2
+- EAP-TTLS / PAP
+- EAP-TTLS / EAP-MD5-Challenge
+- EAP-TTLS / EAP-GTC
+- EAP-TTLS / EAP-OTP
+- EAP-TTLS / EAP-MSCHAPv2
+- EAP-TTLS / EAP-TLS
+  Note: This has some additional requirements for EAPTLS_MaxFragmentSize.
+        Using 1300 for outer auth and 500 for inner auth seemed to work.
+- EAP-SIM
+- EAP-AKA
+- EAP-PSK
+- EAP-PAX
+- EAP-TNC
+
+Interlink Networks RAD-Series 6.1.2.7
+- EAP-MD5-Challenge
+- EAP-GTC
+- EAP-MSCHAPv2
+- EAP-TLS
+- EAP-PEAPv0 / MSCHAPv2
+- EAP-PEAPv0 / GTC
+- EAP-PEAPv0 / MD5-Challenge
+- EAP-PEAPv1 / MSCHAPv2
+- EAP-PEAPv1 / GTC
+- EAP-PEAPv1 / MD5-Challenge
+  Note: PEAPv1 requires TLS key derivation to use label "client EAP encryption"
+- EAP-TTLS / CHAP
+- EAP-TTLS / MSCHAP
+- EAP-TTLS / MSCHAPv2
+- EAP-TTLS / PAP
+- EAP-TTLS / EAP-MD5-Challenge
+- EAP-TTLS / EAP-GTC
+- EAP-TTLS / EAP-MSCHAPv2
+- EAP-TTLS / EAP-TLS
+* did not work
+  - EAP-PEAPv0 / TLS
+  - EAP-PEAPv1 / TLS
+    (Failed to decrypt Phase 2 data)
+
+Lucent NavisRadius 4.4.0
+- EAP-MD5-Challenge
+- EAP-GTC
+- EAP-MSCHAPv2
+- EAP-TLS
+- EAP-PEAPv0 / MD5-Challenge
+- EAP-PEAPv0 / MSCHAPv2
+- EAP-PEAPv0 / GTC
+- EAP-PEAPv0 / TLS
+- EAP-PEAPv1 / MD5-Challenge
+- EAP-PEAPv1 / MSCHAPv2
+- EAP-PEAPv1 / GTC
+- EAP-PEAPv1 / TLS
+  "IETF Draft 5" mode requires phase1="peap_outer_success=0 peaplabel=1"
+  'Cisco ACU 5.05' mode works without phase1 configuration
+- EAP-TTLS / CHAP
+- EAP-TTLS / MSCHAP
+- EAP-TTLS / MSCHAPv2
+- EAP-TTLS / PAP
+- EAP-TTLS / EAP-MD5-Challenge
+- EAP-TTLS / EAP-MSCHAPv2
+- EAP-TTLS / EAP-GTC
+- EAP-TTLS / EAP-TLS
+
+Note: user certificate from NavisRadius had private key in a format
+that wpa_supplicant could not use. Converting this to PKCS#12 and then
+back to PEM allowed wpa_supplicant to use the key.
+
+
+hostapd v0.3.3
+- EAP-MD5-Challenge
+- EAP-GTC
+- EAP-MSCHAPv2
+- EAP-TLS
+- EAP-PEAPv0 / MSCHAPv2
+- EAP-PEAPv0 / GTC
+- EAP-PEAPv0 / MD5-Challenge
+- EAP-PEAPv1 / MSCHAPv2
+- EAP-PEAPv1 / GTC
+- EAP-PEAPv1 / MD5-Challenge
+- EAP-TTLS / CHAP
+- EAP-TTLS / MSCHAP
+- EAP-TTLS / MSCHAPv2
+- EAP-TTLS / PAP
+- EAP-TTLS / EAP-MD5-Challenge
+- EAP-TTLS / EAP-GTC
+- EAP-TTLS / EAP-MSCHAPv2
+- EAP-SIM
+- EAP-PAX
+
+PEAPv1:
+
+Funk Odyssey 2.01.00.653:
+- uses tunneled EAP-Success, expects reply in tunnel or TLS ACK, sends MPPE
+  keys with outer EAP-Success message after this
+- uses label "client EAP encryption"
+- (peap_outer_success 1 and 2 work)
+
+Funk Steel-Belted Radius Enterprise Edition v4.71.739
+- uses tunneled EAP-Success, expects reply in tunnel or TLS ACK, sends MPPE
+  keys with outer EAP-Success message after this
+- uses label "client EAP encryption"
+- (peap_outer_success 1 and 2 work)
+
+Radiator 3.9:
+- uses TLV Success and Reply, sends MPPE keys with outer EAP-Success message
+  after this
+- uses label "client PEAP encryption"
+
+Lucent NavisRadius 4.4.0 (in "IETF Draft 5" mode):
+- sends tunneled EAP-Success with MPPE keys and expects the authentication to
+  terminate at this point (gets somewhat confused with reply to this)
+- uses label "client PEAP encryption"
+- phase1="peap_outer_success=0 peaplabel=1"
+
+Lucent NavisRadius 4.4.0 (in "Cisco ACU 5.05" mode):
+- sends tunneled EAP-Success with MPPE keys and expects to receive TLS ACK
+  as a reply
+- uses label "client EAP encryption"
+
+Meetinghouse Aegis 1.1.4
+- uses tunneled EAP-Success, expects reply in tunnel or TLS ACK, sends MPPE
+  keys with outer EAP-Success message after this
+- uses label "client EAP encryption"
+- peap_outer_success 1 and 2 work

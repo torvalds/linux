@@ -1,0 +1,112 @@
+# dialog Japanese po file.
+# Copyright 2000, Thomas Dickey
+# This file is distributed under the same license as the dialog package.
+# Hirofumi Takeda <takepin@turbolinux.co.jp>, 2000.
+# Takeshi Hamasaki <hmatrjp@users.sourceforge.jp>, 2008.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20070704\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2011-01-16 17:57-0500\n"
+"PO-Revision-Date: 2008-07-24 00:12+0900\n"
+"Last-Translator: Takeshi Hamasaki <hmatrjp@users.sourceforge.jp>\n"
+"Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=EUC-JP\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: buttons.c:387
+msgid "Yes"
+msgstr "はい"
+
+#: buttons.c:395
+msgid "No"
+msgstr "いいえ"
+
+#: buttons.c:403
+msgid "OK"
+msgstr "了解"
+
+#: buttons.c:411
+msgid "Cancel"
+msgstr "取消"
+
+#: buttons.c:419
+msgid "EXIT"
+msgstr "終了"
+
+#: buttons.c:427
+msgid "Extra"
+msgstr "拡張"
+
+#: buttons.c:435
+msgid "Help"
+msgstr "ヘルプ"
+
+#. Headline "Month"
+#: calendar.c:298
+msgid "Month"
+msgstr "月"
+
+#. Headline "Year"
+#: calendar.c:318
+msgid "Year"
+msgstr "年"
+
+#: dialog.c:756
+msgid "Rename"
+msgstr "名前変更"
+
+#: fselect.c:571
+msgid "Directories"
+msgstr "ディレクトリ"
+
+#: fselect.c:572
+msgid "Files"
+msgstr "ファイル"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "成功"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "失敗"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "パス"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "完了"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "確認終了"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "終了"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "スキップ"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "処理中"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "無効"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "全体の進行状況"
+
+#: textbox.c:468
+msgid "Search"
+msgstr "調査"

@@ -1,0 +1,187 @@
+.\"-
+.\" Copyright (c) 2004 Dag-Erling Coïdan Smørgrav
+.\" Copyright (c) 2005 Robert N. M. Watson
+.\" Copyright (c) 2006 Kip Macy
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 7, 2012
+.Dt LOCK_PROFILING 9
+.Os
+.Sh NAME
+.Nm LOCK_PROFILING
+.Nd kernel lock profiling support
+.Sh SYNOPSIS
+.Cd "options LOCK_PROFILING"
+.Sh DESCRIPTION
+The
+.Dv LOCK_PROFILING
+kernel option adds support for measuring and reporting lock use and
+contention statistics.
+These statistics are collated by
+.Dq acquisition point .
+Acquisition points are
+distinct places in the kernel source code (identified by source file
+name and line number) where a lock is acquired.
+.Pp
+For each acquisition point, the following statistics are accumulated:
+.Bl -bullet
+.It
+The longest time the lock was ever continuously held after being
+acquired at this point.
+.It
+The total time the lock was held after being acquired at this point.
+.It
+The total time that threads have spent waiting to acquire the lock.
+.It
+The total number of non-recursive acquisitions.
+.It
+The total number of times the lock was already held by another thread
+when this point was reached, requiring a spin or a sleep.
+.It
+The total number of times another thread tried to acquire the lock
+while it was held after having been acquired at this point.
+.El
+.Pp
+In addition, the average hold time and average wait time are derived
+from the total hold time
+and total wait time respectively and the number of acquisitions.
+.Pp
+The
+.Dv LOCK_PROFILING
+kernel option also adds the following
+.Xr sysctl 8
+variables to control and monitor the profiling code:
+.Bl -tag -width indent
+.It Va debug.lock.prof.enable
+Enable or disable the lock profiling code.
+This defaults to 0 (off).
+.It Va debug.lock.prof.reset
+Reset the current lock profiling buffers.
+.It Va debug.lock.prof.stats
+The actual profiling statistics in plain text.
+The columns are as follows, from left to right:
+.Bl -tag -width ".Va cnt_hold"
+.It Va max
+The longest continuous hold time in microseconds.
+.It Va wait_max
+The longest continuous wait time in microseconds.
+.It Va total
+The total (accumulated) hold time in microseconds.
+.It Va wait_total
+The total (accumulated) wait time in microseconds.
+.It Va count
+The total number of acquisitions.
+.It Va avg
+The average hold time in microseconds, derived from the total hold time
+and the number of acquisitions.
+.It Va wait_avg
+The average wait time in microseconds, derived from the total wait time
+and the number of acquisitions.
+.It Va cnt_hold
+The number of times the lock was held and another thread attempted to
+acquire the lock.
+.It Va cnt_lock
+The number of times the lock was already held when this point was
+reached.
+.It Va name
+The name of the acquisition point, derived from the source file name
+and line number, followed by the name of the lock in parentheses.
+.El
+.It Va debug.lock.prof.rejected
+The number of acquisition points that were ignored after the table
+filled up.
+.It Va debug.lock.prof.skipspin
+Disable or enable the lock profiling code for the spin locks.
+This defaults to 0 (do profiling for the spin locks).
+.It Va debug.lock.prof.skipcount
+Do sampling approximately every N lock acquisitions.
+.El
+.Sh SEE ALSO
+.Xr sysctl 8 ,
+.Xr mutex 9
+.Sh HISTORY
+Mutex profiling support appeared in
+.Fx 5.0 .
+Generalized lock profiling support appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm MUTEX_PROFILING
+code was written by
+.An Eivind Eklund Aq Mt eivind@FreeBSD.org ,
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org
+and
+.An Robert Watson Aq Mt rwatson@FreeBSD.org .
+The
+.Nm
+code was written by
+.An Kip Macy Aq Mt kmacy@FreeBSD.org .
+This manual page was written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .
+.Sh NOTES
+The
+.Dv LOCK_PROFILING
+option increases the size of
+.Vt "struct lock_object" ,
+so a kernel built with that option will not work with modules built
+without it.
+.Pp
+The
+.Dv LOCK_PROFILING
+option also prevents inlining of the mutex code, which can result in a
+fairly severe performance penalty.
+This is, however, not always the case.
+.Dv LOCK_PROFILING
+can introduce a substantial performance overhead that is easily
+monitorable using other profiling tools, so combining profiling tools
+with
+.Dv LOCK_PROFILING
+is not recommended.
+.Pp
+Measurements are made and stored in nanoseconds using
+.Xr nanotime 9 ,
+(on architectures without a synchronized TSC) but are presented in microseconds.
+This should still be sufficient for the locks one would be most
+interested in profiling (those that are held long and/or acquired
+often).
+.Pp
+.Dv LOCK_PROFILING
+should generally not be used in combination with other debugging options, as
+the results may be strongly affected by interactions between the features.
+In particular,
+.Dv LOCK_PROFILING
+will report higher than normal
+.Xr uma 9
+lock contention when run with
+.Dv INVARIANTS
+due to extra locking that occurs when
+.Dv INVARIANTS
+is present; likewise, using it in combination with
+.Dv WITNESS
+will lead to much higher lock hold times and contention in profiling output.

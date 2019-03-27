@@ -1,0 +1,242 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_slk.3x,v 1.22 2010/12/04 18:38:55 tom Exp $
+.TH curs_slk 3X ""
+.na
+.hy 0
+.SH NAME
+\fBslk_init\fR,
+\fBslk_set\fR,
+\fBslk_wset\fR,
+\fBslk_refresh\fR,
+\fBslk_noutrefresh\fR,
+\fBslk_label\fR,
+\fBslk_clear\fR,
+\fBslk_restore\fR,
+\fBslk_touch\fR,
+\fBslk_attron\fR,
+\fBslk_attrset\fR,
+\fBslk_attroff\fR,
+\fBslk_attr_on\fR,
+\fBslk_attr_set\fR,
+\fBslk_attr_off\fR,
+\fBslk_attr\fR,
+\fBslk_color\fR \- \fBcurses\fR soft label routines
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBint slk_init(int fmt);\fR
+.br
+\fBint slk_set(int labnum, const char *label, int fmt);\fR
+.br
+\fBint slk_refresh(void);\fR
+.br
+\fBint slk_noutrefresh(void);\fR
+.br
+\fBchar *slk_label(int labnum);\fR
+.br
+\fBint slk_clear(void);\fR
+.br
+\fBint slk_restore(void);\fR
+.br
+\fBint slk_touch(void);\fR
+.br
+\fBint slk_attron(const chtype attrs);\fR
+.br
+\fBint slk_attroff(const chtype attrs);\fR
+.br
+\fBint slk_attrset(const chtype attrs);\fR
+.br
+\fBint slk_attr_on(attr_t attrs, void* opts);\fR
+.br
+\fBint slk_attr_off(const attr_t attrs, void * opts);\fR
+.br
+\fBint slk_attr_set(const attr_t attrs, short color_pair, void* opts);\fR
+.br
+\fBattr_t slk_attr(void);\fR
+.br
+\fBint slk_color(short color_pair);\fR
+.br
+\fBint slk_wset(int labnum, const wchar_t *label, int fmt);\fR
+.br
+.SH DESCRIPTION
+The slk* functions manipulate the set of soft function-key labels that exist on
+many terminals.
+For those terminals that do not have soft labels,
+\fBcurses\fR takes over the bottom line of \fBstdscr\fR, reducing the size of
+\fBstdscr\fR and the variable \fBLINES\fR.
+\fBcurses\fR standardizes on eight
+labels of up to eight characters each.
+In addition to this, the ncurses
+implementation supports a mode where it simulates 12 labels of up to five
+characters each.
+This is useful for today's PC-like enduser devices.
+ncurses simulates this mode by taking over up to two lines at
+the bottom of the screen;
+it does not try to use any hardware support for this
+mode.
+.PP
+The \fBslk_init\fR routine must be called before \fBinitscr\fR or \fBnewterm\fR
+is called.
+If \fBinitscr\fR eventually uses a line from \fBstdscr\fR to
+emulate the soft labels,
+then \fIfmt\fR determines how the labels are arranged on the screen:
+.RS
+.TP 3
+.B 0
+indicates a 3\-2\-3 arrangement of
+the labels.
+.TP 3
+.B 1
+indicates a 4\-4 arrangement
+.TP 3
+.B 2
+indicates the PC-like 4\-4\-4 mode.
+.TP 3
+.B 3
+is again the PC-like 4\-4\-4 mode,
+but in addition an index line is generated, helping the user to
+identify the key numbers easily.
+.RE
+.PP
+The \fBslk_set\fR routine
+(and the \fBslk_wset\fR routine for the wide-character library)
+has three parameters:
+.RS
+.TP 5
+.I labnum
+is the label number, from \fB1\fR to \fB8\fR
+(12 for \fIfmt\fP in \fBslk_init\fP is \fB2\fP or \fB3\fP);
+.TP
+.I label
+is be the string to put on the label,
+up to eight
+(five for \fIfmt\fP in \fBslk_init\fP is \fB2\fP or \fB3\fP)
+characters in length.
+A null string or a null pointer sets up a blank label.
+.TP
+.I fmt
+is either
+\fB0\fR, \fB1\fR, or \fB2\fR, indicating whether the label is to be
+left-justified, centered, or right-justified, respectively, within the
+label.
+.RE
+.PP
+The \fBslk_refresh\fR and \fBslk_noutrefresh\fR routines correspond to
+the \fBwrefresh\fR and \fBwnoutrefresh\fR routines.
+.PP
+The \fBslk_label\fR routine returns the current label for label number
+\fIlabnum\fR, with leading and trailing blanks stripped.
+.PP
+The \fBslk_clear\fR routine clears the soft labels from the screen.
+.PP
+The \fBslk_restore\fR routine restores the soft labels to the screen
+after a \fBslk_clear\fR has been performed.
+.PP
+The \fBslk_touch\fR routine forces all the soft labels to be output
+the next time a \fBslk_noutrefresh\fR is performed.
+.PP
+The \fBslk_attron\fR, \fBslk_attrset\fR, \fBslk_attroff\fR and \fBslk_attr\fR
+routines correspond to \fBattron\fR, \fBattrset\fR, \fBattroff\fR and \fBattr_get\fR.
+They have an effect only if soft labels are simulated on the bottom line of
+the screen.
+The default highlight for soft keys is A_STANDOUT (as in
+System V curses, which does not document this fact).
+.PP
+The \fBslk_color\fR routine corresponds to \fBcolor_set\fR.
+It has an effect only
+if soft labels are simulated on the bottom line of the screen.
+.
+.SH RETURN VALUE
+These routines return \fBERR\fR upon failure and OK (SVr4 specifies only "an
+integer value other than \fBERR\fR") upon successful completion.
+.PP
+X/Open defines no error conditions.
+In this implementation
+.RS
+.TP 5
+\fBslk_attr\fR
+returns the attribute used for the soft keys.
+.TP 5
+.na
+.hy 0
+\fBslk_attroff\fP, \fBslk_attron\fP, \fBslk_clear\fP, \fBslk_noutrefresh\fP, \fBslk_refresh\fP, \fBslk_touch\fP
+.ad
+.hy
+return an error
+if the terminal or the softkeys were not initialized.
+.TP 5
+\fBslk_attrset\fP
+returns an error
+if the terminal or the softkeys were not initialized.
+.TP 5
+\fBslk_attr_set\fP
+returns an error
+if the terminal or the softkeys were not initialized, or
+the color pair is outside the range 0..COLOR_PAIRS\-1,
+or opts is not null.
+.TP 5
+\fBslk_color\fP
+returns an error
+if the terminal or the softkeys were not initialized, or
+the color pair is outside the range 0..COLOR_PAIRS\-1.
+.TP 5
+\fBslk_init\fR
+returns an error
+if the format parameter is outside the range 0..3.
+.TP 5
+\fBslk_label\fR
+returns \fBNULL\fR on error.
+.TP 5
+\fBslk_set\fP
+returns an error
+if the terminal or the softkeys were not initialized, or
+the \fIlabnum\fP parameter is outside the range of label counts, or
+if the format parameter is outside the range 0..2, or if
+memory for the labels cannot be allocated.
+.RE
+.SH NOTES
+Most applications would use \fBslk_noutrefresh\fR because a
+\fBwrefresh\fR is likely to follow soon.
+.SH PORTABILITY
+The XSI Curses standard, Issue 4, describes these functions.
+It changes the
+argument type of the attribute-manipulation functions \fBslk_attron\fR,
+\fBslk_attroff\fR, \fBslk_attrset\fR to be \fBattr_t\fR, and adds \fBconst\fR
+qualifiers.
+The format codes \fB2\fR and \fB3\fR for \fBslk_init()\fR and the
+function \fBslk_attr\fR are specific to ncurses.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_attr\fR(3X),
+\fBcurs_initscr\fR(3X),
+\fBcurs_refresh\fR(3X),
+\fBcurs_variables\fR(3X).

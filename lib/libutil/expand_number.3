@@ -1,0 +1,87 @@
+.\" Copyright (c) 2007 Eric Anderson <anderson@FreeBSD.org>
+.\" Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 15, 2010
+.Dt EXPAND_NUMBER 3
+.Os
+.Sh NAME
+.Nm expand_number
+.Nd format a number from human readable form
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In libutil.h
+.Ft int
+.Fo expand_number
+.Fa "const char *buf" "uint64_t *num"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn expand_number
+function unformats the
+.Fa buf
+string and stores a unsigned 64-bit quantity at address pointed out by the
+.Fa num
+argument.
+.Pp
+The
+.Fn expand_number
+function
+is case-insensitive and
+follows the SI power of two convention.
+.Pp
+The prefixes are:
+.Bl -column "Prefix" "Description" "1000000000000000000" -offset indent
+.It Sy "Prefix" Ta Sy "Description" Ta Sy "Multiplier"
+.It Li K Ta No kilo Ta 1024
+.It Li M Ta No mega Ta 1048576
+.It Li G Ta No giga Ta 1073741824
+.It Li T Ta No tera Ta 1099511627776
+.It Li P Ta No peta Ta 1125899906842624
+.It Li E Ta No exa  Ta 1152921504606846976
+.El
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn expand_number
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The given string contains no digits.
+.It Bq Er EINVAL
+An unrecognized prefix was given.
+.It Bq Er ERANGE
+Result doesn't fit into 64 bits.
+.El
+.Sh SEE ALSO
+.Xr humanize_number 3
+.Sh HISTORY
+The
+.Fn expand_number
+function first appeared in
+.Fx 6.3 .

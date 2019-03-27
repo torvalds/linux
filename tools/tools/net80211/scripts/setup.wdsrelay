@@ -1,0 +1,35 @@
+#! /bin/sh
+#
+# Setup a wireless extender/relay: extend a wireless network using
+# dwds.  We create an ap vap and a station vap; then enable
+# dwds on the sta.  The sta vap associates to another ap and passes
+# traffic from stations associated to the (local) ap.  The sta
+# will follow it's peer ap, dragging the ap vap with it.
+#
+# $FreeBSD$
+#
+PATH=.:$PATH
+. config
+
+AP_SSID='freebsd+wdsrelay'
+WDS_SSID='freebsd+wdsmain'
+#WDS_SSID='WDS1'
+
+#mwldebug state+node+reset+xmit+recv+beacon+hal+hal2
+WLAN_AP=`ifconfig wlan create wlanmode hostap wlandev $WIRELESS`
+ifconfig $WLAN_AP ssid "$AP_SSID" mtu 1500 -apbridge
+wlandebug -i $WLAN_AP state+assoc+wds+11n
+
+WLAN_STA=`ifconfig wlan create wlanmode sta wlandev $WIRELESS -beacons`
+ifconfig $WLAN_STA ssid "$WDS_SSID" dwds -bgscan
+wlandebug -i $WLAN_STA state+assoc+auth+wds+scan+11n
+# no TSO in the bridge, no AMPDU until fw works right
+ifconfig $WLAN_STA -tso -ampdu
+
+BRIDGE=`ifconfig bridge create`
+ifconfig $BRIDGE addm $WLAN_AP addm $WLAN_STA up
+# NB: bring sta up first so it can locate it's AP
+ifconfig $WLAN_STA up
+ifconfig $WLAN_AP up
+
+#ifconfig $WIRED down delete

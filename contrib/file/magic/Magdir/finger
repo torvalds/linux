@@ -1,0 +1,16 @@
+
+#------------------------------------------------------------------------------
+# $File: finger,v 1.2 2015/10/07 02:37:57 christos Exp $
+# fingerprint:  file(1) magic for fingerprint data
+# XPM bitmaps)
+#
+
+# http://cgit.freedesktop.org/libfprint/libfprint/tree/libfprint/data.c
+
+0	string	FP1		libfprint fingerprint data V1
+>3	beshort	x		\b, driver_id %x
+>5	belong	x		\b, devtype %x
+
+0	string	FP2		libfprint fingerprint data V2
+>3	beshort	x		\b, driver_id %x
+>5	belong	x		\b, devtype %x

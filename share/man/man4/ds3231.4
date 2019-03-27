@@ -1,0 +1,148 @@
+.\"
+.\" Copyright (c) 2014 Luiz Otavio O Souza <loos@freebsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 12, 2016
+.Dt DS3231 4
+.Os
+.Sh NAME
+.Nm ds3231
+.Nd Extremely Accurate i2c-integrated RTC/TCXO/Crystal
+.Sh SYNOPSIS
+.Cd "device iic"
+.Cd "device iicbus"
+.Cd "device ds3231"
+.Sh DESCRIPTION
+The
+.Nm
+is a low-cost, extremely accurate I2C realtime clock (RTC) with an
+integrated temperature-compensated crystal oscillator (TCXO) and crystal.
+.Pp
+The device incorporates a battery input and maintains accurate timekeeping
+when main power to the device is interrupted.
+.Pp
+Access to
+.Nm
+data is made with the
+.Xr sysctl 8
+interface:
+.Bd -literal
+dev.ds3231.0.%desc: Maxim DS3231 RTC
+dev.ds3231.0.%driver: ds3231
+dev.ds3231.0.%location: addr=0xd0
+dev.ds3231.0.%pnpinfo: name=rtc compat=maxim,ds3231
+dev.ds3231.0.%parent: iicbus1
+dev.ds3231.0.temperature: 23.2C
+dev.ds3231.0.temp_conv: 0
+dev.ds3231.0.bbsqw: 0
+dev.ds3231.0.sqw_freq: 8192
+dev.ds3231.0.sqw_mode: interrupt
+dev.ds3231.0.32khz_enable: 1
+.Ed
+.Bl -tag -width ".Va dev.ds3231.%d.temperature"
+.It Va dev.ds3231.%d.temperature
+The read-only value of the current temperature read by the RTC.
+.It Va dev.ds3231.%d.temp_conv
+Start a new temperature conversion.
+When read as 1, a temperature conversion is in progress.
+When read as 0 and then set to 1, a temperature conversion is started.
+The temperature conversion runs automatically on power up and once every 64
+seconds afterward.
+.It Va dev.ds3231.%d.bbsqw
+If set to 1 and
+.Va dev.ds3231.%d.sqw_mode
+is set to square-wave, battery-backed square-wave output is enabled.
+If set to 0, the SQW pin will be set to high impendance when the RTC is
+being powered by battery.
+.It Va dev.ds3231.%d.sqw_freq
+Select the frequency of the SQW pin when the square-wave output is enabled on
+.Va dev.ds3231.%d.sqw_mode .
+It can be set to 1, 1024, 4096, and 8192.
+.It Va dev.ds3231.%d.sqw_mode
+Set the operation mode for the SQW pin.
+It can be set to 'interrupt' (default) or 'square-wave'.
+In interrupt mode, the SQW pin is used to generate interrupts for the RTC
+alarms.
+In square-wave mode, the SQW pin drives a square-wave of
+.Va dev.ds3231.%d.sqw_freq
+frequency.
+.It Va dev.ds3231.%d.32khz_enable
+Enable the 32kHz output.
+.El
+.Pp
+Please check the
+.Nm
+datasheet for more details.
+.Pp
+On a
+.Xr device.hints 5
+based system, such as
+.Li MIPS ,
+these values are configurable for
+.Nm :
+.Bl -tag -width ".Va hint.ds3231.%d.addr"
+.It Va hint.ds3231.%d.at
+The
+.Xr iicbus 4
+that the
+.Nm
+is connected to.
+.It Va hint.ds3231.%d.addr
+The 8-bit i2c address of
+.Nm .
+The default 8-bit address for
+.Nm
+is 0xd0.
+.El
+.Pp
+On a
+.Xr FDT 4
+based system the following properties must be set:
+.Bl -tag -width ".Va compatible"
+.It Va compatible
+Must always be set to "maxim,ds3231".
+.It Va reg
+The 7-bit i2c address of
+.Nm .
+The default 7-bit address for
+.Nm
+is 0x68.
+.El
+.Sh SEE ALSO
+.Xr fdt 4 ,
+.Xr iic 4 ,
+.Xr iicbus 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver and this manual page were written by
+.An Luiz Otavio O Souza Aq Mt loos@FreeBSD.org .

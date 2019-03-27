@@ -1,0 +1,12 @@
+pass in on lo0(!) fastroute from any to any
+pass in on lo0(!) to qe0(!) inet from 127.0.0.1/32 to 127.0.0.1/32
+pass in on le0(!) to qe0:127.0.0.1 inet from 127.0.0.1/32 to 127.0.0.1/32
+pass in on lo0(!) dup-to qe0(!) inet from 127.0.0.1/32 to 127.0.0.1/32
+pass in on le0(!) dup-to qe0:127.0.0.1 inet from 127.0.0.1/32 to 127.0.0.1/32
+pass in on le0(!) to hme0:10.1.1.1 dup-to qe0:127.0.0.1 inet from 127.0.0.1/32 to 127.0.0.1/32
+block in quick on qe0(!) to qe1(!) from any to any
+block in quick to qe1(!) from any to any
+pass out quick dup-to hme0(!) from any to any
+pass out quick on hme0(!) reply-to hme1(!) from any to any
+pass in on le0(!) dup-to qe0:127.0.0.1 reply-to hme1:10.10.10.10 inet all
+pass in quick fastroute all

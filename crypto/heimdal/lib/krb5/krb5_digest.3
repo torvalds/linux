@@ -1,0 +1,260 @@
+.\" Copyright (c) 2006 - 2007 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd February  18, 2007
+.Dt KRB5_DIGEST 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_digest ,
+.Nm krb5_digest_alloc ,
+.Nm krb5_digest_free ,
+.Nm krb5_digest_set_server_cb ,
+.Nm krb5_digest_set_type ,
+.Nm krb5_digest_set_hostname ,
+.Nm krb5_digest_get_server_nonce ,
+.Nm krb5_digest_set_server_nonce ,
+.Nm krb5_digest_get_opaque ,
+.Nm krb5_digest_set_opaque ,
+.Nm krb5_digest_get_identifier ,
+.Nm krb5_digest_set_identifier ,
+.Nm krb5_digest_init_request ,
+.Nm krb5_digest_set_client_nonce ,
+.Nm krb5_digest_set_digest ,
+.Nm krb5_digest_set_username ,
+.Nm krb5_digest_set_authid ,
+.Nm krb5_digest_set_authentication_user ,
+.Nm krb5_digest_set_realm ,
+.Nm krb5_digest_set_method ,
+.Nm krb5_digest_set_uri ,
+.Nm krb5_digest_set_nonceCount ,
+.Nm krb5_digest_set_qop ,
+.Nm krb5_digest_request ,
+.Nm krb5_digest_get_responseData ,
+.Nm krb5_digest_get_rsp ,
+.Nm krb5_digest_get_tickets ,
+.Nm krb5_digest_get_client_binding ,
+.Nm krb5_digest_get_a1_hash
+.Nd remote digest (HTTP-DIGEST, SASL, CHAP) suppport
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Pp
+.Li "typedef struct krb5_digest *krb5_digest;"
+.Pp
+.Ft krb5_error_code
+.Fo krb5_digest_alloc
+.Fa "krb5_context context"
+.Fa "krb5_digest *digest"
+.Fc
+.Ft void
+.Fo krb5_digest_free
+.Fa "krb5_digest digest"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_set_type
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "const char *type"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_set_server_cb
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "const char *type"
+.Fa "const char *binding"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_set_hostname
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "const char *hostname"
+.Fc
+.Ft "const char *"
+.Fo krb5_digest_get_server_nonce
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_set_server_nonce
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "const char *nonce"
+.Fc
+.Ft "const char *"
+.Fo krb5_digest_get_opaque
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_set_opaque
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "const char *opaque"
+.Fc
+.Ft "const char *"
+.Fo krb5_digest_get_identifier
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_set_identifier
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "const char *id"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_init_request
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "krb5_realm realm"
+.Fa "krb5_ccache ccache"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_set_client_nonce
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "const char *nonce"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_set_digest
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "const char *dgst"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_set_username
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "const char *username"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_set_authid
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "const char *authid"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_set_authentication_user
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "krb5_principal authentication_user"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_set_realm
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "const char *realm"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_set_method
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "const char *method"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_set_uri
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "const char *uri"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_set_nonceCount
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "const char *nonce_count"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_set_qop
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "const char *qop"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_request
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "krb5_realm realm"
+.Fa "krb5_ccache ccache"
+.Fc
+.Ft "const char *"
+.Fo krb5_digest_get_responseData
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fc
+.Ft "const char *"
+.Fo krb5_digest_get_rsp
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_get_tickets
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "Ticket **tickets"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_get_client_binding
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "char **type"
+.Fa "char **binding"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_digest_get_a1_hash
+.Fa "krb5_context context"
+.Fa "krb5_digest digest"
+.Fa "krb5_data *data"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn krb5_digest_alloc
+function allocatates the
+.Fa digest
+structure.  The structure should be freed with
+.Fn krb5_digest_free
+when it is no longer being used.
+.Pp
+.Fn krb5_digest_alloc
+returns 0 to indicate success.
+Otherwise an kerberos code is returned and the pointer that
+.Fa digest
+points to is set to
+.Dv NULL .
+.Pp
+.Fn krb5_digest_free
+free the structure
+.Fa digest .
+.Sh SEE ALSO
+.Xr krb5 3 ,
+.Xr kerberos 8

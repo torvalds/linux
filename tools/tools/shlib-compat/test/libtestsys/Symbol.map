@@ -1,0 +1,9 @@
+/*
+ * $FreeBSD$
+ */
+
+TEST_1.0 {
+	mknod;
+	chmod;
+	stat;
+};

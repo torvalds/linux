@@ -1,0 +1,123 @@
+.\"
+.\" Copyright (c) 2010 Silicon Graphics International Corp.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    substantially similar to the "NO WARRANTY" disclaimer below
+.\"    ("Disclaimer") and any redistribution must be conditioned upon
+.\"    including a substantially similar Disclaimer requirement for further
+.\"    binary redistribution.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\" ctlstat utility man page.
+.\"
+.\" Author: Ken Merry <ken@FreeBSD.org>
+.\"
+.\" $Id: //depot/users/kenm/FreeBSD-test2/usr.bin/ctlstat/ctlstat.8#2 $
+.\" $FreeBSD$
+.\"
+.Dd January 9, 2017
+.Dt CTLSTAT 8
+.Os
+.Sh NAME
+.Nm ctlstat
+.Nd CAM Target Layer statistics utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl t
+.Op Fl c Ar count
+.Op Fl C
+.Op Fl d
+.Op Fl D
+.Op Fl j
+.Op Fl l Ar lun
+.Op Fl n Ar numdevs
+.Op Fl p Ar port
+.Op Fl w Ar wait
+.Sh DESCRIPTION
+The
+.Nm
+utility provides statistics information for the CAM Target Layer.
+The first display (except for dump and JSON modes) shows average statistics
+since system startup.
+Subsequent displays show average statistics during the measurement
+interval.
+.Pp
+The options are as follows:
+.Bl -tag -width 10n
+.It Fl t
+Total mode.
+This displays separate columns with the total read and write output,
+and a combined total column that also includes non I/O operations.
+.It Fl c Ar count
+Display statistics this many times.
+.It Fl C
+Disable CPU statistics display.
+.It Fl d
+Display DMA operation time (latency) instead of overall I/O time (latency).
+.It Fl D
+Text dump mode.
+Dump statistics every 30 seconds in a text format suitable for parsing.
+No statistics are computed in this mode, only raw numbers are displayed.
+.It Fl h
+Suppress display of the header.
+.It Fl j
+JSON dump mode.
+Dump statistics every 30 seconds in JavaScript Object Notation (JSON) format.
+No statistics are computed in this mode, only raw numbers are displayed.
+.It Fl l Ar lun
+Request statistics for the specified LUN.
+.It Fl n Ar numdevs
+Display statistics for this many devices.
+.It Fl p Ar port
+Request statistics for the specified port.
+.It Fl w Ar wait
+Wait this many seconds in between displays.
+If this option is not specified,
+.Nm
+defaults to a 1 second interval.
+.El
+.Sh EXAMPLES
+.Dl ctlstat -t
+.Pp
+Display total statistics for the system with a one second interval.
+.Pp
+.Dl ctlstat -d -l 5 -C
+.Pp
+Display average DMA time for LUN 5 and omit CPU utilization.
+.Pp
+.Dl ctlstat -n 7 -w 10
+.Pp
+Display statistics for the first 7 LUNs, and display average statistics
+every 10 seconds.
+.Sh SEE ALSO
+.Xr cam 3 ,
+.Xr cam 4 ,
+.Xr ctl 4 ,
+.Xr xpt 4 ,
+.Xr camcontrol 8 ,
+.Xr ctladm 8 ,
+.Xr ctld 8 ,
+.Xr iostat 8
+.Sh AUTHORS
+.An Ken Merry Aq Mt ken@FreeBSD.org
+.An Will Andrews Aq Mt will@FreeBSD.org
+.An Alexander Motin Aq Mt mav@FreeBSD.org

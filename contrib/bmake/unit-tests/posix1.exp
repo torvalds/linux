@@ -1,0 +1,185 @@
+${VAR} = "foo  bar baz"
+a
+b
+c
+foo baR baz,  bar baz, foo bar baz, fooadd baradd bazadd
+mkdir -p 'dir'
+touch 'dir/obj_1.h'
+mkdir -p 'dir'
+printf '#include "obj_1.h"\nconst char* obj_1 = "dir/obj_1.c";\n' \
+    >'dir/obj_1.c'
+Local variables
+ ${@}="dir/obj_1.o" ${<}="dir/obj_1.c"
+ ${*}="dir/obj_1" ${?}="dir/obj_1.h dir/obj_1.c"
+ ${%}=""
+
+Directory and filename parts of local variables
+ ${@D}="dir" ${@F}="obj_1.o"
+ ${<D}="dir" ${<F}="obj_1.c"
+ ${*D}="dir" ${*F}="obj_1"
+ ${?D}="dir dir" ${?F}="obj_1.h obj_1.c"
+ ${%D}="" ${%F}=""
+
+Local variable substitutions
+ ${@:.o=}="dir/obj_1" ${<:.c=.C}="dir/obj_1.C"
+ ${*:=.h}="dir/obj_1.h" ${?:.h=.H}="dir/obj_1.H dir/obj_1.c"
+ ${%:=}=""
+
+Target with suffix transformations
+ ${@D:=append}="dirappend"
+ ${@F:.o=.O}="obj_1.O"
+ 
+ Implied source with suffix transformations
+ ${<D:r=rr}="dirr"
+ ${<F:.c=.C}="obj_1.C"
+ 
+ Suffixless target with suffix transformations
+ ${*D:.=dot}="dir"
+ ${*F:.a=}="obj_1"
+ 
+ Out-of-date dependencies with suffix transformations
+ ${?D:ir=}="d d"
+ ${?F:.h=.H}="obj_1.H obj_1.c"
+ 
+ Member with suffix transformations
+ ${%D:.=}=""
+ ${%F:${VAR2}=${VAR}}=""
+
+cc -c -o 'dir/obj_1.o' 'dir/obj_1.c'
+mkdir -p '.'
+touch 'dummy'
+Local variables
+ ${@}="lib.a" ${<}="dir/obj_1.o"
+ ${*}="obj1" ${?}="dir/obj_1.o dummy"
+ ${%}="obj1.o"
+
+Directory and filename parts of local variables
+ ${@D}="." ${@F}="lib.a"
+ ${<D}="dir" ${<F}="obj_1.o"
+ ${*D}="." ${*F}="obj1"
+ ${?D}="dir ." ${?F}="obj_1.o dummy"
+ ${%D}="." ${%F}="obj1.o"
+
+Local variable substitutions
+ ${@:.o=}="lib.a" ${<:.c=.C}="dir/obj_1.o"
+ ${*:=.h}="obj1.h" ${?:.h=.H}="dir/obj_1.o dummy"
+ ${%:=}="obj1.o"
+
+Target with suffix transformations
+ ${@D:=append}=".append"
+ ${@F:.o=.O}="lib.a"
+ 
+ Implied source with suffix transformations
+ ${<D:r=rr}="dirr"
+ ${<F:.c=.C}="obj_1.o"
+ 
+ Suffixless target with suffix transformations
+ ${*D:.=dot}="dot"
+ ${*F:.a=}="obj1"
+ 
+ Out-of-date dependencies with suffix transformations
+ ${?D:ir=}="d ."
+ ${?F:.h=.H}="obj_1.o dummy"
+ 
+ Member with suffix transformations
+ ${%D:.=}=""
+ ${%F:${VAR2}=${VAR}}="obj1foo  bar baz"
+
+cp 'dir/obj_1.o' 'obj1.o'
+ar -rcv 'lib.a' 'obj1.o'
+a - obj1.o
+rm -f 'obj1.o'
+mkdir -p '.'
+printf '#include "obj_2.h"\nconst char* obj_2 = "obj_2.c";\n' \
+    >'obj_2.c'
+mkdir -p '.'
+touch 'obj_2.h'
+Local variables
+ ${@}="obj2.o" ${<}="obj_2.c"
+ ${*}="obj2" ${?}="obj_2.c obj_2.h dir/obj_1.h"
+ ${%}=""
+
+Directory and filename parts of local variables
+ ${@D}="." ${@F}="obj2.o"
+ ${<D}="." ${<F}="obj_2.c"
+ ${*D}="." ${*F}="obj2"
+ ${?D}=". . dir" ${?F}="obj_2.c obj_2.h obj_1.h"
+ ${%D}="" ${%F}=""
+
+Local variable substitutions
+ ${@:.o=}="obj2" ${<:.c=.C}="obj_2.C"
+ ${*:=.h}="obj2.h" ${?:.h=.H}="obj_2.c obj_2.H dir/obj_1.H"
+ ${%:=}=""
+
+Target with suffix transformations
+ ${@D:=append}=".append"
+ ${@F:.o=.O}="obj2.O"
+ 
+ Implied source with suffix transformations
+ ${<D:r=rr}="."
+ ${<F:.c=.C}="obj_2.C"
+ 
+ Suffixless target with suffix transformations
+ ${*D:.=dot}="dot"
+ ${*F:.a=}="obj2"
+ 
+ Out-of-date dependencies with suffix transformations
+ ${?D:ir=}=". . d"
+ ${?F:.h=.H}="obj_2.c obj_2.H obj_1.H"
+ 
+ Member with suffix transformations
+ ${%D:.=}=""
+ ${%F:${VAR2}=${VAR}}=""
+
+cc -c -o 'obj2.o' 'obj_2.c'
+ar -rcv 'lib.a' 'obj2.o'
+a - obj2.o
+mkdir -p '.'
+touch 'obj3.h'
+mkdir -p 'dir'
+touch 'dir/dummy'
+mkdir -p '.'
+printf '#include "obj3.h"\nconst char* obj3 = "obj3.c";\n' \
+    >'obj3.c'
+Local variables
+ ${@}="lib.a" ${<}="obj3.c"
+ ${*}="obj3" ${?}="obj3.h dir/dummy obj3.c"
+ ${%}="obj3.o"
+
+Directory and filename parts of local variables
+ ${@D}="." ${@F}="lib.a"
+ ${<D}="." ${<F}="obj3.c"
+ ${*D}="." ${*F}="obj3"
+ ${?D}=". dir ." ${?F}="obj3.h dummy obj3.c"
+ ${%D}="." ${%F}="obj3.o"
+
+Local variable substitutions
+ ${@:.o=}="lib.a" ${<:.c=.C}="obj3.C"
+ ${*:=.h}="obj3.h" ${?:.h=.H}="obj3.H dir/dummy obj3.c"
+ ${%:=}="obj3.o"
+
+Target with suffix transformations
+ ${@D:=append}=".append"
+ ${@F:.o=.O}="lib.a"
+ 
+ Implied source with suffix transformations
+ ${<D:r=rr}="."
+ ${<F:.c=.C}="obj3.C"
+ 
+ Suffixless target with suffix transformations
+ ${*D:.=dot}="dot"
+ ${*F:.a=}="obj3"
+ 
+ Out-of-date dependencies with suffix transformations
+ ${?D:ir=}=". d ."
+ ${?F:.h=.H}="obj3.H dummy obj3.c"
+ 
+ Member with suffix transformations
+ ${%D:.=}=""
+ ${%F:${VAR2}=${VAR}}="obj3foo  bar baz"
+
+cc -c -o 'obj3.o' 'obj3.c'
+ar -rcv 'lib.a' 'obj3.o'
+a - obj3.o
+rm -f 'obj3.o'
+exit status 0

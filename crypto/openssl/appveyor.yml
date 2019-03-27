@@ -1,0 +1,66 @@
+platform:
+    - x64
+    - x86
+
+environment:
+    fast_finish: true
+    matrix:
+        - VSVER: 14
+
+configuration:
+    - shared
+    - plain
+
+before_build:
+    - ps: >-
+        If ($env:Platform -Match "x86") {
+            $env:VCVARS_PLATFORM="x86"
+            $env:TARGET="VC-WIN32 no-asm"
+        } Else {
+            $env:VCVARS_PLATFORM="amd64"
+            $env:TARGET="VC-WIN64A-masm"
+        }
+    - ps: >-
+        If ($env:Configuration -Match "shared") {
+            $env:SHARED="no-makedepend"
+        } Else {
+            $env:SHARED="no-shared no-makedepend"
+        }
+    - ps: $env:VSCOMNTOOLS=(Get-Content ("env:VS" + "$env:VSVER" + "0COMNTOOLS"))
+    - call "%VSCOMNTOOLS%\..\..\VC\vcvarsall.bat" %VCVARS_PLATFORM%
+    - mkdir _build
+    - cd _build
+    - perl ..\Configure %TARGET% %SHARED%
+    - perl configdata.pm --dump
+    - cd ..
+    - ps: >-
+        if (-not $env:APPVEYOR_PULL_REQUEST_NUMBER`
+            -or (&git log -2 | Select-String "\[extended tests\]") ) {
+            $env:EXTENDED_TESTS="yes"
+        }
+
+build_script:
+    - cd _build
+    - ps: >-
+        If ($env:Configuration -Match "shared" -or $env:EXTENDED_TESTS) {
+            cmd /c "nmake build_all_generated 2>&1"
+            cmd /c "nmake PERL=no-perl 2>&1"
+        }
+    - cd ..
+
+test_script:
+    - cd _build
+    - ps: >-
+        If ($env:Configuration -Match "shared" -or $env:EXTENDED_TESTS) {
+            if ($env:EXTENDED_TESTS) {
+                cmd /c "nmake test V=1 2>&1"
+            } Else {
+                cmd /c "nmake test V=1 TESTS=-test_fuzz 2>&1"
+            }
+        }
+    - ps: >-
+        if ($env:EXTENDED_TESTS) {
+            mkdir ..\_install
+            cmd /c "nmake install DESTDIR=..\_install 2>&1"
+        }
+    - cd ..

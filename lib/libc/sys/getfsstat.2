@@ -1,0 +1,130 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)getfsstat.2	8.3 (Berkeley) 5/25/95
+.\" $FreeBSD$
+.\"
+.Dd December 27, 2016
+.Dt GETFSSTAT 2
+.Os
+.Sh NAME
+.Nm getfsstat
+.Nd get list of all mounted file systems
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/ucred.h
+.In sys/mount.h
+.Ft int
+.Fn getfsstat "struct statfs *buf" "long bufsize" "int mode"
+.Sh DESCRIPTION
+The
+.Fn getfsstat
+system call
+returns information about all mounted file systems.
+The
+.Fa buf
+argument
+is a pointer to
+.Vt statfs
+structures, as described in
+.Xr statfs 2 .
+.Pp
+Fields that are undefined for a particular file system are set to -1.
+The buffer is filled with an array of
+.Fa statfs
+structures, one for each mounted file system
+up to the byte count specified by
+.Fa bufsize .
+Note, the
+.Fa bufsize
+argument is the number of bytes that
+.Fa buf
+can hold, not the count of statfs structures it will hold.
+.Pp
+If
+.Fa buf
+is given as NULL,
+.Fn getfsstat
+returns just the number of mounted file systems.
+.Pp
+Normally
+.Fa mode
+should be specified as
+.Dv MNT_WAIT .
+If
+.Fa mode
+is set to
+.Dv MNT_NOWAIT ,
+.Fn getfsstat
+will return the information it has available without requesting
+an update from each file system.
+Thus, some of the information will be out of date, but
+.Fn getfsstat
+will not block waiting for information from a file system that is
+unable to respond.
+It will also skip any file system that is in the process of being
+unmounted, even if the unmount would eventually fail.
+.Sh RETURN VALUES
+Upon successful completion, the number of
+.Fa statfs
+structures is returned.
+Otherwise, -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn getfsstat
+system call
+fails if one or more of the following are true:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The
+.Fa buf
+argument
+points to an invalid address.
+.It Bq Er EINVAL
+.Fa mode
+is set to a value other than
+.Dv MNT_WAIT
+or
+.Dv MNT_NOWAIT .
+.It Bq Er EIO
+An
+.Tn I/O
+error occurred while reading from or writing to the file system.
+.El
+.Sh SEE ALSO
+.Xr statfs 2 ,
+.Xr fstab 5 ,
+.Xr mount 8
+.Sh HISTORY
+The
+.Fn getfsstat
+system call first appeared in
+.Bx 4.4 .

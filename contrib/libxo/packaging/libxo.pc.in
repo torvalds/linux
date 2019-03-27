@@ -1,0 +1,11 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+
+Name: libxo
+Version: @LIBXO_VERSION@
+Description: The XML Output Library
+Libs: -L@XO_LIBDIR@ @XO_LIBS@
+Cflags: -I@XO_INCLUDEDIR@

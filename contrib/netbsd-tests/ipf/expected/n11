@@ -1,0 +1,124 @@
+> zx0 ip #0 20(20) 255 10.1.1.0 > 10.1.1.2
+> zx0 ip #0 20(20) 255 1.6.7.8 > 10.1.1.2
+> zx0 ip #0 20(20) 255 10.1.1.2 > 10.1.1.1
+> zx0 ip #0 20(20) 255 10.2.2.1 > 10.1.2.1
+> zx0 ip #0 20(20) 255 10.2.2.2 > 10.1.2.1
+< zx0 ip #0 20(20) 255 10.1.1.1 > 10.1.1.2
+< zx0 ip #0 20(20) 255 10.1.1.2 > 10.1.1.1
+< zx0 ip #0 20(20) 255 10.2.2.1 > 10.2.1.1
+< zx0 ip #0 20(20) 255 10.2.2.2 > 10.2.1.1
+< zx0 ip #0 20(20) 255 10.2.2.3 > 10.1.1.1
+< zx0 ip #0 20(20) 255 10.2.3.4 > 10.2.2.2
+< zx0 ip #0 20(20) 255 10.1.1.1 > 10.2.2.2
+< zx0 ip #0 20(20) 255 10.1.1.2 > 10.2.2.2
+< zx0 ip #0 20(20) 255 10.1.1.0 > 10.3.4.5
+< zx0 ip #0 20(20) 255 10.1.1.1 > 10.3.4.5
+< zx0 ip #0 20(20) 255 10.1.1.2 > 10.3.4.5
+List of active MAP/Redirect filters:
+bimap zx0 10.1.1.1/32 -> 1.6.7.8/32
+
+List of active sessions:
+BIMAP 10.1.1.1        <- -> 1.6.7.8         [10.1.1.2]
+
+Hostmap table:
+10.1.1.1,10.1.1.2 -> 1.6.7.8,0.0.0.0 (use = 1)
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------
+> zx0 ip #0 20(20) 255 10.2.2.2 > 10.1.1.2
+15
+> zx0 ip #0 20(20) 255 10.2.2.2 > 10.1.1.1
+> zx0 ip #0 20(20) 255 10.2.2.1 > 10.1.2.1
+> zx0 ip #0 20(20) 255 10.2.2.2 > 10.1.2.1
+< zx0 ip #0 20(20) 255 10.1.1.1 > 10.1.1.2
+< zx0 ip #0 20(20) 255 10.1.1.2 > 10.1.1.1
+< zx0 ip #0 20(20) 255 10.2.2.1 > 10.2.1.1
+< zx0 ip #0 20(20) 255 10.2.2.2 > 10.2.1.1
+< zx0 ip #0 20(20) 255 10.2.2.3 > 10.1.1.1
+< zx0 ip #0 20(20) 255 10.2.3.4 > 10.1.1.0
+< zx0 ip #0 20(20) 255 10.1.1.1 > 10.1.1.2
+< zx0 ip #0 20(20) 255 10.1.1.2 > 10.1.1.0
+< zx0 ip #0 20(20) 255 10.1.1.0 > 10.3.4.5
+< zx0 ip #0 20(20) 255 10.1.1.1 > 10.3.4.5
+< zx0 ip #0 20(20) 255 10.1.1.2 > 10.3.4.5
+List of active MAP/Redirect filters:
+bimap zx0 10.1.1.0/24 -> 10.2.2.2/32
+
+List of active sessions:
+BIMAP 10.1.1.0        <- -> 10.2.2.2        [10.2.3.4]
+BIMAP 10.1.1.2        <- -> 10.2.2.2        [10.1.1.1]
+BIMAP 10.1.1.0        <- -> 10.2.2.2        [10.1.1.2]
+
+Hostmap table:
+10.1.1.2,10.1.1.1 -> 10.2.2.2,0.0.0.0 (use = 1)
+10.1.1.0,10.1.1.2 -> 10.2.2.2,0.0.0.0 (use = 1)
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------
+> zx0 ip #0 20(20) 255 10.3.4.0 > 10.1.1.2
+> zx0 ip #0 20(20) 255 10.3.4.1 > 10.1.1.2
+> zx0 ip #0 20(20) 255 10.3.4.2 > 10.1.1.1
+> zx0 ip #0 20(20) 255 10.2.2.1 > 10.1.2.1
+> zx0 ip #0 20(20) 255 10.2.2.2 > 10.1.2.1
+< zx0 ip #0 20(20) 255 10.1.1.1 > 10.1.1.2
+< zx0 ip #0 20(20) 255 10.1.1.2 > 10.1.1.1
+< zx0 ip #0 20(20) 255 10.2.2.1 > 10.2.1.1
+< zx0 ip #0 20(20) 255 10.2.2.2 > 10.2.1.1
+< zx0 ip #0 20(20) 255 10.2.2.3 > 10.1.1.1
+< zx0 ip #0 20(20) 255 10.2.3.4 > 10.2.2.2
+< zx0 ip #0 20(20) 255 10.1.1.1 > 10.2.2.2
+< zx0 ip #0 20(20) 255 10.1.1.2 > 10.2.2.2
+< zx0 ip #0 20(20) 255 10.1.1.0 > 10.1.1.5
+< zx0 ip #0 20(20) 255 10.1.1.1 > 10.1.1.5
+< zx0 ip #0 20(20) 255 10.1.1.2 > 10.1.1.5
+List of active MAP/Redirect filters:
+bimap zx0 10.1.1.0/24 -> 10.3.4.0/24
+
+List of active sessions:
+BIMAP 10.1.1.5        <- -> 10.3.4.5        [10.1.1.2]
+BIMAP 10.1.1.5        <- -> 10.3.4.5        [10.1.1.1]
+BIMAP 10.1.1.5        <- -> 10.3.4.5        [10.1.1.0]
+BIMAP 10.1.1.2        <- -> 10.3.4.2        [10.1.1.1]
+BIMAP 10.1.1.1        <- -> 10.3.4.1        [10.1.1.2]
+BIMAP 10.1.1.0        <- -> 10.3.4.0        [10.1.1.2]
+
+Hostmap table:
+10.1.1.2,10.1.1.1 -> 10.3.4.1,0.0.0.0 (use = 1)
+10.1.1.1,10.1.1.2 -> 10.3.4.1,0.0.0.0 (use = 1)
+10.1.1.0,10.1.1.2 -> 10.3.4.1,0.0.0.0 (use = 1)
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------

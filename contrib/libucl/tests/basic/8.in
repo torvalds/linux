@@ -1,0 +1,23 @@
+section blah { # test
+	param = "value"
+}
+section test {
+	key = test;
+	subsection testsub {
+		flag on;
+		subsubsection testsubsub1 testsubsub2 {
+			key = [1, 2, 3];
+		}
+	}
+}
+
+section test {
+	/* Empty */
+}
+
+
+section foo { # test
+	param = 123.2;
+}
+
+array = []

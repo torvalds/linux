@@ -1,0 +1,164 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)tt12	8.1 (Berkeley) 6/8/93
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.NH
+Conditionals
+.PP
+Suppose we want the
+.BD .SH
+macro to leave two extra inches of space just before section 1,
+but nowhere else.
+The cleanest way to do that is to test inside the
+.BD .SH
+macro
+whether
+the section number is 1,
+and add some space if it is.
+The
+.BD .if
+command provides the conditional test
+that we can add
+just before the heading line is output:
+.P1 4
+^if \e\en(SH=1 ^sp 2i	\e" first section only
+.P2
+.PP
+The condition after the
+.BD .if
+can be any arithmetic or logical expression.
+If the condition is logically true, or arithmetically greater than zero,
+the rest of the line is treated as if
+it were text _
+here a command.
+If the condition is false, or zero or negative,
+the rest of the line is skipped.
+.PP
+It is possible to do more than one command if a condition is true.
+Suppose several operations are to be done before section 1.
+One possibility is to define a macro 
+.BD .S1
+and invoke it
+if we are about to do section 1
+(as determined by an
+.BD .if ).
+.P1
+^de S1
+---  processing for section 1 ---
+^^
+^de SH
+^^^
+^if \e\en(SH=1 ^S1
+^^^
+^^
+.P2
+.PP
+An alternate way is to use the
+extended form of the
+.BD .if ,
+like this:
+.P1
+^if \e\en(SH=1 \e{--- processing
+for section 1 ----\e}
+.P2
+The braces
+.BD \e{
+and
+.BD \e}
+must occur in the positions shown
+or you will get unexpected extra lines in your output.
+.UL troff
+also provides
+an `if-else' construction,
+which we will not go into here.
+.PP
+A condition can be negated by preceding it with
+.BD ! ;
+we get the same effect as above (but less clearly) by using
+.P1
+^if !\e\en(SH>1 ^S1
+.P2
+.PP
+There are a handful of 
+other conditions that can be tested with
+.BD .if .
+For example, is the current page even or odd?
+.P1
+^if o ^tl 'odd page title''- % -'
+^if e ^tl '- % -''even page title'
+.P2
+gives facing pages different titles and page numbers on the
+outside edge when used inside an appropriate new page macro.
+.PP
+Two other conditions
+are
+.BD t
+and
+.BD n ,
+which tell you whether the formatter is
+.UL troff
+or
+.UL nroff . 
+.P1
+^if t troff stuff ...
+^if n nroff stuff ...
+.P2
+.PP
+Finally, string comparisons may be made in an
+.BD .if :
+.P1
+^if  'string1'string2'  stuff
+.P2
+does `stuff' if
+.ul
+string1
+is the same as
+.ul
+string2.
+The character separating the strings can be anything
+reasonable that is
+not contained in either string.
+The strings themselves can reference strings with
+.BD \e* ,
+arguments with 
+.BD \e$ ,
+and so on.

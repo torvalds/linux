@@ -1,0 +1,119 @@
+# Standard installation pathnames
+# See the file LICENSE for the license
+SHELL = @SHELL@
+VERSION = @PACKAGE_VERSION@
+basesrcdir = $(shell basename `pwd`)
+srcdir = @srcdir@
+prefix  = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+mandir = @mandir@
+includedir = @includedir@
+datarootdir = @datarootdir@
+
+CC = @CC@
+CFLAGS = -I. @CFLAGS@
+CPPFLAGS = @CPPFLAGS@ 
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+INSTALL = $(srcdir)/install-sh -c
+INSTALL_PROGRAM = $(INSTALL)
+LDNSDIR = @LDNSDIR@
+LIBS_STC = @LIBS_STC@
+
+COMPILE         = $(CC) $(CPPFLAGS) $(CFLAGS) -I. -I$(srcdir)
+LINK            = $(CC) $(CFLAGS) $(LDFLAGS) 
+
+LINT            = splint
+LINTFLAGS=+quiet -weak -warnposix -unrecog -Din_addr_t=uint32_t -Du_int=unsigned -Du_char=uint8_t -preproc -Drlimit=rlimit64 -D__gnuc_va_list=va_list
+#-Dglob64=glob -Dglobfree64=globfree
+# compat with openssl linux edition.
+LINTFLAGS+="-DBN_ULONG=unsigned long" -Dkrb5_int32=int "-Dkrb5_ui_4=unsigned int" -DPQ_64BIT=uint64_t -DRC4_INT=unsigned -fixedformalarray -D"ENGINE=unsigned" -D"RSA=unsigned" -D"DSA=unsigned" -D"EVP_PKEY=unsigned" -D"EVP_MD=unsigned" -D"SSL=unsigned" -D"SSL_CTX=unsigned" -D"X509=unsigned" -D"RC4_KEY=unsigned" -D"EVP_MD_CTX=unsigned"
+# compat with NetBSD
+ifeq "$(shell uname)" "NetBSD"
+LINTFLAGS+="-D__RENAME(x)=" -D_NETINET_IN_H_
+endif
+# compat with OpenBSD
+LINTFLAGS+="-Dsigset_t=long"
+# FreeBSD8
+LINTFLAGS+="-D__uint16_t=uint16_t"
+LINTFLAGS+=-D__signed__=signed "-D__packed=" "-D__aligned(x)="
+# Ubuntu Linux 11.04
+LINTFLAGS+="-D__u16=struct __u16" "-D__u32=struct __u32" "-D__u64=struct __u64"
+
+OBJ=drill.o drill_util.o error.o root.o work.o chasetrace.o dnssec.o securetrace.o
+SRC=$(OBJ:.o=.c)
+
+HEADER=drill.h $(srcdir)/drill_util.h
+
+.PHONY:	all clean realclean docclean doc release tags install all-static
+
+all:	drill 
+all-static:	drill-stc 
+
+tags:	
+	ctags *.[ch]
+
+drill:	$(OBJ) 
+	$(LINK) -o drill $(OBJ) $(LIBS)
+
+drill-stc:	$(OBJ) 
+	$(LINK) -o drill $(OBJ) $(LIBS_STC)
+
+## implicit rule
+%.o:	$(srcdir)/%.c
+	$(COMPILE) -c $<
+
+clean:
+	rm -f ${OBJ}
+	rm -f drill
+	rm -f *core
+	rm -f config.h.in~
+	rm -f config.log
+	rm -f config.guess
+	rm -f config.status
+
+docclean:
+	rm -rf doxydoc
+
+distclean: clean docclean
+	rm -f config.h
+
+realclean: clean docclean
+	rm -f tags
+	rm -f config.log
+	rm -f config.sub
+	rm -f ltmain.sh
+	rm -f config.status
+	rm -rf autom4te.cache
+	rm -f config.h
+	rm -f config.h.in
+	rm -f configure
+	rm -f Makefile	
+	rm -f drill.1
+	rm -f aclocal.m4
+
+doc:	
+	doxygen drill.doxygen
+
+install: all
+	$(INSTALL) -d $(DESTDIR)$(bindir)
+	$(INSTALL) drill $(DESTDIR)$(bindir)/drill
+	$(INSTALL) -m 644 drill.1 $(DESTDIR)$(mandir)/man1/drill.1
+
+uninstall:
+	@echo
+	rm -f -- $(DESTDIR)$(bindir)/drill
+	rm -f -- $(DESTDIR)$(mandir)/man1/drill.1
+	rmdir -p $(DESTDIR)$(bindir)
+	rmdir -p $(DESTDIR)$(mandir)/man1
+	@echo
+
+lint:
+	@for i in $(SRC) ; do \
+                $(LINT) $(LINTFLAGS) $(CPPFLAGS) -I$(srcdir) $(srcdir)/$$i ; \
+                if [ $$? -ne 0 ] ; then exit 1 ; fi ; \
+        done
+
+confclean: clean
+	rm -rf config.log config.status config.h Makefile drill.1

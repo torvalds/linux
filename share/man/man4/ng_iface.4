@@ -1,0 +1,172 @@
+.\" Copyright (c) 1996-1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\" $Whistle: ng_iface.8,v 1.5 1999/01/25 23:46:26 archie Exp $
+.\"
+.Dd February 6, 2019
+.Dt NG_IFACE 4
+.Os
+.Sh NAME
+.Nm ng_iface
+.Nd interface netgraph node type
+.Sh SYNOPSIS
+.In netgraph/ng_iface.h
+.Sh DESCRIPTION
+An
+.Nm iface
+node is both a netgraph node and a system networking interface.
+When an
+.Nm iface
+node is created, a new interface appears which is accessible via
+.Xr ifconfig 8 .
+.Nm Iface
+node interfaces are named
+.Dv ng0 ,
+.Dv ng1 ,
+etc.
+When a node is shutdown, the corresponding interface is removed
+and the interface name becomes available for reuse by future
+.Nm iface
+nodes; new nodes always take the first unused interface.
+The node itself is assigned the same name as its interface, unless the name
+already exists, in which case the node remains unnamed.
+.Pp
+An
+.Nm iface
+node has a single hook corresponding to each supported protocol.
+Packets transmitted via the interface flow out the corresponding
+protocol-specific hook.
+Similarly, packets received on a hook appear on the interface as
+packets received into the corresponding protocol stack.
+The currently supported protocols are IP, IPv6, ATM, NATM, and NS.
+.Pp
+An
+.Nm iface
+node can be configured as a point-to-point interface or a broadcast interface.
+The configuration can only be changed when the interface is down.
+The default mode is point-to-point.
+.Pp
+.Nm Iface
+nodes support the Berkeley Packet Filter (BPF).
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va inet6"
+.It Va inet
+Transmission and reception of IP packets.
+.It Va inet6
+Transmission and reception of IPv6 packets.
+.It Va atm
+Transmission and reception of ATM packets.
+.It Va natm
+Transmission and reception of NATM packets.
+.It Va ns
+Transmission and reception of NS packets.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_IFACE_GET_IFNAME Pq Ic getifname
+Returns the name of the associated interface as a
+.Dv NUL Ns -terminated
+.Tn ASCII
+string.
+Normally this is the same as the name of the node.
+.It Dv NGM_IFACE_GET_IFINDEX Pq Ic getifindex
+Returns the global index of the associated interface as a 32 bit integer.
+.It Dv NGM_IFACE_POINT2POINT Pq Ic point2point
+Set the interface to point-to-point mode.
+The interface must not currently be up.
+.It Dv NGM_IFACE_BROADCAST Pq Ic broadcast
+Set the interface to broadcast mode.
+The interface must not currently be up.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message.
+The associated interface is removed and becomes available
+for use by future
+.Nm iface
+nodes.
+.Pp
+Unlike most other node types, an
+.Nm iface
+node does
+.Em not
+go away when all hooks have been disconnected; rather, and explicit
+.Dv NGM_SHUTDOWN
+control message is required.
+.Sh ALTQ Support
+The
+.Nm
+interface supports ALTQ bandwidth management feature.
+However,
+.Nm
+is a special case, since it is not a physical interface with limited bandwidth.
+One should not turn ALTQ on
+.Nm
+if the latter corresponds to some tunneled connection, e.g.\& PPPoE or PPTP.
+In this case, ALTQ should be configured on the interface that is used to
+transmit the encapsulated packets.
+In case when your graph ends up with some kind of serial line, either
+synchronous or modem, the
+.Nm
+is the right place to turn ALTQ on.
+.Sh Nesting
+.Nm
+supports nesting, a configuration when traffic of one
+.Nm
+interface flows through the other.
+The default maximum allowed nesting level is 2.
+It can be changed at runtime setting
+.Xr sysctl 8
+variable
+.Va net.graph.iface.max_nesting
+to the desired level of nesting.
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr bpf 4 ,
+.Xr netgraph 4 ,
+.Xr ng_cisco 4 ,
+.Xr ifconfig 8 ,
+.Xr ngctl 8
+.Xr sysctl
+.Sh HISTORY
+The
+.Nm iface
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Archie Cobbs Aq Mt archie@FreeBSD.org

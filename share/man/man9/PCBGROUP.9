@@ -1,0 +1,221 @@
+.\" Copyright (c) 2014 Adrian Chadd
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 23, 2014
+.Dt PCBGROUP 9
+.Os
+.Sh NAME
+.Nm PCBGROUP
+.Nd Distributed Protocol Control Block Groups
+.Sh SYNOPSIS
+.Cd "options PCBGROUP"
+.Pp
+.In sys/param.h
+.In netinet/in.h
+.In netinet/in_pcb.h
+.Ft void
+.Fo in_pcbgroup_init
+.Fa "struct inpcbinfo *pcbinfo" "u_int hashfields" "int hash_nelements"
+.Fc
+.Ft void
+.Fn in_pcbgroup_destroy "struct inpcbinfo *pcbinfo"
+.Ft struct inpcbgroup *
+.Fo in_pcbgroup_byhash
+.Fa "struct inpcbinfo *pcbinfo" "u_int hashtype" "uint32_t hash"
+.Fc
+.Ft struct inpcbgroup *
+.Fn in_pcbgroup_byinpcb "struct inpcb *inp"
+.Ft void
+.Fn in_pcbgroup_update "struct inpcb *inp"
+.Ft void
+.Fn in_pcbgroup_update_mbuf "struct inpcb *inp" "struct mbuf *m"
+.Ft void
+.Fn in_pcbgroup_remove "struct inpcb *inp"
+.Ft int
+.Fn in_pcbgroup_enabled "struct inpcbinfo *pcbinfo"
+.In netinet6/in6_pcb.h
+.Ft struct inpcbgroup *
+.Fo in6_pcbgroup_byhash
+.Fa "struct inpcbinfo *pcbinfo" "u_int hashtype" "uint32_t hash"
+.Fc
+.Sh DESCRIPTION
+This implementation introduces notions of affinity
+for connections and distribute work so as to reduce lock contention,
+with hardware work distribution strategies
+such as RSS.
+In this construction, connection groups supplement, rather than replace,
+existing reservation tables for protocol 4-tuples, offering CPU-affine
+lookup tables with minimal cache line migration and lock contention
+during steady state operation.
+.Pp
+Internet protocols like UDP and TCP register to use connection groups
+by providing an ipi_hashfields value other than IPI_HASHFIELDS_NONE.
+This indicates to the connection group code whether a 2-tuple or
+4-tuple is used as an argument to hashes that assign a connection to
+a particular group.
+This must be aligned with any hardware-offloaded distribution model,
+such as RSS or similar approaches taken in embedded network boards.
+Wildcard sockets require special handling, as in Willmann 2006, and
+are shared between connection groups while being protected by
+group-local locks.
+Connection establishment and teardown can be signficantly more
+expensive than without connection groups, but that steady-state
+processing can be significantly faster.
+.Pp
+Enabling PCBGROUP in the kernel only provides the infrastructure
+required to create and manage multiple PCB groups.
+An implementation needs to fill in a few functions to provide PCB
+group hash information in order for PCBs to be placed in a PCB group.
+.Ss Operation
+By default, each PCB info block (struct pcbinfo) has a single hash for
+all PCB entries for the given protocol with a single lock protecting it.
+This can be a significant source of lock contention on SMP hardware.
+When a PCBGROUP is created, an array of separate hash tables are
+created, each with its own lock.
+A separate table for wildcard PCBs is provided.
+By default, a PCBGROUP table is created for each available CPU.
+The PCBGROUP code attempts to calculate a hash value from the given
+PCB or mbuf when looking up a PCBGROUP.
+While processing a received frame,
+.Fn in_pcbgroup_byhash
+can be used in conjunction with either a hardware-provided hash
+value
+.Po
+eg the
+.Xr RSS 9
+calculated hash value provided by some NICs
+.Pc
+or a software-provided hash value in order to choose a PCBGROUP
+table to query.
+A single table lock is held while performing a wildcard match.
+However, all of the table locks are acquired before modifying the
+wildcard table.
+The PCBGROUP tables operate in conjunction with the normal single PCB list
+in a PCB info block.
+Thus, inserting and removing a PCB will still incur the same costs
+as without PCBGROUP.
+A protocol which uses PCBGROUP should fall back to the normal PCB list
+lookup if a call to the PCBGROUP layer does not yield a lookup hit.
+.Ss Usage
+Initialize a PCBGROUP in a PCB info block
+.Pq Vt "struct pcbinfo"
+by calling
+.Fn in_pcbgroup_init .
+.Pp
+Add a connection to a PCBGROUP with
+.Fn in_pcbgroup_update .
+Connections are removed by with
+.Fn in_pcbgroup_remove .
+These in turn will determine which PCBGROUP bucket the given PCB
+is placed into and calculate the hash value appropriately.
+.Pp
+Wildcard PCBs are hashed differently and placed in a single wildcard
+PCB list.
+If
+.Xr RSS 9
+is enabled and in use, RSS-aware wildcard PCBs are placed in a single
+PCBGROUP based on RSS information.
+Protocols may look up the PCB entry in a PCBGROUP by using the lookup
+functions
+.Fn in_pcbgroup_byhash
+and
+.Fn in_pcbgroup_byinpcb .
+.Sh IMPLEMENTATION NOTES
+The PCB code in
+.Pa sys/netinet
+and
+.Pa sys/netinet6
+is aware of PCBGROUP and will call into the PCBGROUP code to do
+PCBGROUP assignment and lookup, preferring a PCBGROUP lookup to the
+default global PCB info table.
+.Pp
+An implementor wishing to experiment or modify the PCBGROUP assignment
+should modify this set of functions:
+.Bl -tag -width "12345678" -offset indent
+.It Fn in_pcbgroup_getbucket No and Fn in6_pcbgroup_getbucket
+Map a given 32 bit hash value to a PCBGROUP.
+By default this is hash % number_of_pcbgroups.
+However, this distribution may not align with NIC receive queues or
+the
+.Xr netisr 9
+configuration.
+.It Fn in_pcbgroup_byhash No and Fn in6_pcbgroup_byhash
+Map a 32 bit hash value and a hash type identifier to a PCBGROUP.
+By default, this simply returns NULL.
+This function is used by the
+.Xr mbuf 9
+receive path in
+.Pa sys/netinet/in_pcb.c
+to map an mbuf to a PCBGROUP.
+.It Fn in_pcbgroup_bytuple No and Fn in6_pcbgroup_bytuple
+Map the source and destination address and port details to a PCBGROUP.
+By default, this does a very simple XOR hash.
+This function is used by both the PCB lookup code and as a fallback in
+the
+.Xr mbuf 9
+receive path in
+.Pa sys/netinet/in_pcb.c .
+.El
+.Sh SEE ALSO
+.Xr mbuf 9 ,
+.Xr netisr 9 ,
+.Xr RSS 9
+.Rs
+.%A Paul Willmann
+.%A Scott Rixner
+.%A Alan L. Cox
+.%T "An Evaluation of Network Stack Parallelization Strategies in Modern Operating Systems"
+.%J "2006 USENIX Annual Technical Conference"
+.%D 2006
+.%U http://www.ece.rice.edu/~willmann/pubs/paranet_usenix.pdf
+.Re
+.Sh HISTORY
+PCBGROUP first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An -nosplit
+The PCBGROUP implementation was written by
+.An Robert N. M. Watson Aq Mt rwatson@FreeBSD.org
+under contract to Juniper Networks, Inc.
+.Pp
+This manual page written by
+.An Adrian Chadd Aq Mt adrian@FreeBSD.org .
+.Sh NOTES
+The
+.Xr RSS 9
+implementation currently uses
+.Ic #ifdef
+blocks to tie into PCBGROUP.
+This is a sign that a more abstract programming API is needed.
+.Pp
+There is currently no support for re-balancing the PCBGROUP assignment,
+nor is there any support for overriding which PCBGROUP a socket/PCB
+should be in.
+.Pp
+No statistics are kept to indicate how often PCBGROUP lookups
+succeed or fail.

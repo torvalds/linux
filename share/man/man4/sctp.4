@@ -1,0 +1,606 @@
+.\" Copyright (c) 2006, Randall Stewart.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 10, 2018
+.Dt SCTP 4
+.Os
+.Sh NAME
+.Nm sctp
+.Nd Internet Stream Control Transmission Protocol
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netinet/sctp.h
+.Ft int
+.Fn socket AF_INET SOCK_STREAM IPPROTO_SCTP
+.Ft int
+.Fn socket AF_INET SOCK_SEQPACKET IPPROTO_SCTP
+.Sh DESCRIPTION
+The
+.Tn SCTP
+protocol provides reliable, flow-controlled, two-way
+transmission of data.
+It is a message oriented protocol and can
+support the
+.Dv SOCK_STREAM
+and
+.Dv SOCK_SEQPACKET
+abstractions.
+.Tn SCTP
+uses the standard
+Internet address format and, in addition, provides a per-host
+collection of
+.Dq "port addresses" .
+Thus, each address is composed of an Internet address specifying
+the host and network, with a specific
+.Tn SCTP
+port on the host identifying the peer entity.
+.Pp
+There are two models of programming in SCTP.
+The first uses the
+.Dv SOCK_STREAM
+abstraction.
+In this abstraction sockets utilizing the
+.Tn SCTP
+protocol are either
+.Dq active
+or
+.Dq passive .
+Active sockets initiate connections to passive
+sockets.
+By default,
+.Tn SCTP
+sockets are created active; to create a
+passive socket, the
+.Xr listen 2
+system call must be used after binding the socket with the
+.Xr bind 2
+or
+.Xr sctp_bindx 3
+system calls.
+Only passive sockets may use the
+.Xr accept 2
+call to accept incoming connections.
+Only active sockets may use the
+.Xr connect 2
+call to initiate connections.
+.Pp
+The other abstraction
+.Dv SOCK_SEQPACKET
+provides a
+.Dq connectionless
+mode of operation in that the user may send to an address
+(using any of the valid send calls that carry a
+socket address) and an association will be setup
+implicitly by the underlying
+.Tn SCTP
+transport stack.
+This abstraction is the only one capable of sending data on the
+third leg of the four-way handshake.
+A user must still call
+.Xr listen 2
+to allow the socket to accept connections.
+Calling
+.Xr listen 2
+however does not restrict the user from still initiating
+implicit connections to other peers.
+.Pp
+The
+.Tn SCTP
+protocol directly supports multi-homing.
+So when binding a socket with the
+.Dq wildcard
+address
+.Dv INADDR_ANY ,
+the
+.Tn SCTP
+stack will inform the peer about all of the local addresses
+that are deemed in scope of the peer.
+The peer will then possibly have multiple paths to reach the local host.
+.Pp
+The
+.Tn SCTP
+transport protocol is also multi-streamed.
+Multi-streaming refers to the ability to send sub-ordered flows of
+messages.
+A user performs this by specifying a specific stream in one of the
+extended send calls such as the
+.Xr sctp_send 3
+function call.
+Sending messages on different streams will allow parallel delivery
+of data i.e., a message loss in stream 1 will not block the delivery
+of messages sent in stream 2.
+.Pp
+The
+.Tn SCTP
+transport protocol also provides a unordered service as well.
+The unordered service allows a message to be sent and delivered
+with no regard to the ordering of any other message.
+.Ss Extensions
+The FreeBSD implementation of
+.Tn SCTP
+also supports the following extensions:
+.Bl -tag -width "sctp partial reliability"
+.It "sctp partial reliability"
+This extension allows one to have message be skipped and
+not delivered based on some user specified parameters.
+.It "sctp dynamic addressing"
+This extension allows addresses to be added and deleted
+dynamically from an existing association.
+.It "sctp authentication"
+This extension allows the user to authenticate specific
+peer chunks (including data) to validate that the peer
+who sent the message is in fact the peer who setup the
+association.
+A shared key option is also provided for
+so that two stacks can pre-share keys.
+.It "packet drop"
+Some routers support a special satellite protocol that
+will report losses due to corruption.
+This allows retransmissions without subsequent loss in bandwidth
+utilization.
+.It "stream reset"
+This extension allows a user on either side to reset the
+stream sequence numbers used by any or all streams.
+.El
+.Ss Socket Options
+.Tn SCTP
+supports a number of socket options which can be set with
+.Xr setsockopt 2
+and tested with
+.Xr getsockopt 2
+or
+.Xr sctp_opt_info 3 :
+.Bl -tag -width indent
+.It Dv SCTP_NODELAY
+Under most circumstances,
+.Tn SCTP
+sends data when it is presented; when outstanding data has not
+yet been acknowledged, it gathers small amounts of output to be
+sent in a single packet once an acknowledgement is received.
+For some clients, such as window systems that send a stream of
+mouse events which receive no replies, this packetization may
+cause significant delays.
+The boolean option
+.Dv SCTP_NODELAY
+defeats this algorithm.
+.It Dv SCTP_RTOINFO
+This option returns specific information about an associations
+.Dq "Retransmission Time Out" .
+It can also be used to change the default values.
+.It Dv SCTP_ASSOCINFO
+This option returns specific information about the requested
+association.
+.It Dv SCTP_INITMSG
+This option allows you to get or set the default sending
+parameters when an association is implicitly setup.
+It allows you to change such things as the maximum number of
+streams allowed inbound and the number of streams requested
+of the peer.
+.It Dv SCTP_AUTOCLOSE
+For the one-to-many model
+.Dv ( SOCK_SEQPACKET )
+associations are setup implicitly.
+This option allows the user to specify a default number of idle
+seconds to allow the association be maintained.
+After the idle timer (where no user message have been sent or have
+been received from the peer) the association will be gracefully
+closed.
+The default for this value is 0, or unlimited (i.e., no automatic
+close).
+.It Dv SCTP_SET_PEER_PRIMARY_ADDR
+The dynamic address extension allows a peer to also request a
+particular address of its be made into the primary address.
+This option allows the caller to make such a request to a peer.
+Note that if the peer does not also support the dynamic address
+extension, this call will fail.
+Note the caller must provide a valid local address that the peer has
+been told about during association setup or dynamically.
+.It Dv SCTP_PRIMARY_ADDR
+This option allows the setting of the primary address
+that the caller wishes to send to.
+The caller provides the address of a peer that is to be made primary.
+.It Dv SCTP_ADAPTATION_LAYER
+The dynamic address extension also allows a user to
+pass a 32 bit opaque value upon association setup.
+This option allows a user to set or get this value.
+.It Dv SCTP_DISABLE_FRAGMENTS
+By default
+.Tn SCTP
+will fragment user messages into multiple pieces that
+will fit on the network and then later, upon reception, reassemble
+the pieces into a single user message.
+If this option is enabled instead, any send that exceeds the path
+maximum transfer unit (P-MTU) will fail and the message will NOT be
+sent.
+.It Dv SCTP_PEER_ADDR_PARAMS
+This option will allow a user to set or get specific
+peer address parameters.
+.It Dv SCTP_DEFAULT_SEND_PARAM
+When a user does not use one of the extended send
+calls (e.g.,
+.Xr sctp_sendmsg 3 )
+a set of default values apply to each send.
+These values include things like the stream number to send
+to as well as the per-protocol id.
+This option lets a caller both get and set these values.
+If the user changes these default values, then these new values will
+be used as the default whenever no information is provided by the
+sender (i.e., the non-extended API is used).
+.It Dv SCTP_EVENTS
+.Tn SCTP
+has non-data events that it can communicate
+to its application.
+By default these are all disabled since they arrive in the data path
+with a special flag
+.Dv MSG_NOTIFICATION
+set upon the received message.
+This option lets a caller
+both get what events are current being received
+as well as set different events that they may be interested
+in receiving.
+.It Dv SCTP_I_WANT_MAPPED_V4_ADDR
+.Tn SCTP
+supports both IPV4 and IPV6.
+An association may span both IPV4 and IPV6 addresses since
+.Tn SCTP
+is multi-homed.
+By default, when opening an IPV6 socket, when
+data arrives on the socket from a peer's
+V4 address the V4 address  will be presented with an address family
+of AF_INET.
+If this is undesirable, then this option
+can be enabled which will then convert all V4 addresses
+into mapped V6 representations.
+.It Dv SCTP_MAXSEG
+By default
+.Tn SCTP
+chooses its message fragmentation point
+based upon the smallest P-MTU of the peer.
+This option lets the caller set it to a smaller value.
+Note that while the user can change this value, if the P-MTU
+is smaller than the value set by the user, then the P-MTU
+value will override any user setting.
+.It Dv SCTP_DELAYED_ACK_TIME
+This option lets the user both set and get the
+delayed ack time (in milliseconds) that
+.Tn SCTP
+is using.
+The default is 200 milliseconds.
+.It Dv SCTP_PARTIAL_DELIVERY_POINT
+.Tn SCTP
+at times may need to start delivery of a
+very large message before the entire message has
+arrived.
+By default SCTP waits until the incoming
+message is larger than one fourth of the receive
+buffer.
+This option allows the stacks value
+to be overridden with a smaller value.
+.It Dv SCTP_FRAGMENT_INTERLEAVE
+.Tn SCTP
+at times will start partial delivery (as mentioned above).
+In the normal case successive reads will continue to return
+the rest of the message, blocking if needed, until all of
+that message is read.
+However this means other messages may have arrived and be ready
+for delivery and be blocked behind the message being partially
+delivered.
+If this option is enabled, when a partial delivery
+message has no more data to be received, then a subsequent
+read may return a different message that is ready for delivery.
+By default this option is off since the user must be using the
+extended API's to be able to tell the difference between
+messages (via the stream and stream sequence number).
+.It Dv SCTP_AUTH_CHUNK
+By default only the dynamic addressing chunks are
+authenticated.
+This option lets a user request an
+additional chunk be authenticated as well.
+Note that successive calls to this option will work and continue
+to add more chunks that require authentication.
+Note that this option only effects future associations and
+not existing ones.
+.It Dv SCTP_AUTH_KEY
+This option allows a user to specify a shared
+key that can be later used to authenticate
+a peer.
+.It Dv SCTP_HMAC_IDENT
+This option will let you get or set the list of
+HMAC algorithms used to authenticate peers.
+Note that the HMAC values are in priority order where
+the first HMAC identifier is the most preferred
+and the last is the least preferred.
+.It Dv SCTP_AUTH_ACTIVE_KEY
+This option allows you to make a key active for
+the generation of authentication information.
+Note that the peer must have the same key or else the
+data will be discarded.
+.It Dv SCTP_AUTH_DELETE_KEY
+This option allows you to delete an old key.
+.It Dv SCTP_USE_EXT_RECVINFO
+The sockets api document allows an extended
+send/receive information structure to be used.
+The extended structure includes additional fields
+related to the next message to be received (after the
+current receive completes) if such information is known.
+By default the system will not pass this information.
+This option allows the user to request this information.
+.It Dv SCTP_AUTO_ASCONF
+By default when bound to all address and the system administrator has
+enables automatic dynamic addresses, the
+.Tn SCTP
+stack will automatically generate address changes into add and
+delete requests to any peers by setting this option to
+true.
+This option allows an endpoint to disable that behavior.
+.It Dv SCTP_MAXBURST
+By default
+.Tn SCTP
+implements micro-burst control so that as the congestion window
+opens up no large burst of packets can be generated.
+The default burst limit is four.
+This option lets the user change this value.
+.It Dv SCTP_CONTEXT
+Many sctp extended calls have a context field.
+The context field is a 32 bit opaque value that will be returned in
+send failures.
+This option lets the caller set the default
+context value to use when none is provided by the user.
+.It Dv SCTP_EXPLICIT_EOR
+By default, a single send is a complete message.
+.Tn SCTP
+generates an implied record boundary.
+If this option is enabled, then all sends are part of the same message
+until the user indicates an end of record with the
+special flag
+.Dv SCTP_EOR
+passed in the sctp_sndrcvinfo flags field.
+This effectively makes all sends part of the same message
+until the user specifies differently.
+This means that a caller must NOT change the stream number until
+after the
+.Dv SCTP_EOR
+is passed to
+.Tn SCTP
+else an error will be returned.
+.It Dv SCTP_STATUS
+This option is a read-only option that returns
+various status information about the specified association.
+.It Dv SCTP_GET_PEER_ADDR_INFO
+This read-only option returns information about a peer
+address.
+.It Dv SCTP_PEER_AUTH_CHUNKS
+This read-only option returns a list of the chunks
+the peer requires to be authenticated.
+.It Dv SCTP_LOCAL_AUTH_CHUNKS
+This read-only option returns a list of the locally
+required chunks that must be authenticated.
+.It Dv SCTP_RESET_STREAMS
+This socket option is used to cause a stream sequence
+number or all stream sequence numbers to be reset.
+Note that the peer
+.Tn SCTP
+endpoint must also support the stream reset extension
+as well.
+.El
+.Ss MIB Variables
+The
+.Tn SCTP
+protocol implements a number of variables in the
+.Va net.inet.sctp
+branch of the
+.Xr sysctl 3
+MIB.
+.Bl -ohang
+.It Sy Congestion Control
+.Bl -tag -width indent
+.It Va default_cc_module
+Default congestion control module.
+Default value is 0.
+The minimum is 0, and the maximum is 3.
+A value of 0 enables the default congestion control algorithm.
+A value of 1 enables the High Speed congestion control algorithm.
+A value of 2 enables the HTCP congestion control algorithm.
+A value of 3 enables the data center congestion control (DCCC) algorithm.
+.It Va initial_cwnd
+Defines the initial congestion window size in MTUs.
+.It Va cwnd_maxburst
+Use congestion control instead of 'blind' logic to limit maximum burst when sending.
+Default value is 1. May be set to 0 or 1.
+.It Va ecn_enable
+Enable Explicit Congestion Notification (ECN).
+Default value is 1. May be set to 0 or 1.
+.It Va rttvar_steady_step
+Number of identical bandwidth measurements DCCC takes to try step down the congestion window.
+Default value is 20.
+The minimum is 0, and the maximum is 65535.
+.It Va rttvar_eqret
+Whether DCCC reduces the congestion window size when round-trip time and bandwidth remain unchanged.
+Default value is 0.
+May be set to 0 or 1.
+.It Va rttvar_bw
+Shift amount DCCC uses for bandwidth smoothing on round-trip-time calculation.
+Default value is 4.
+The minimum is 0, and the maximum is 32.
+.It Va rttvar_rtt
+Shift amount DCCC uses for round-trip-time smoothing on round-trip-time calculation.
+Default value is 5.
+The minimum is 0, and the maximum is 32.
+.It Va use_dcccecn
+Enable ECN when using DCCC.
+Default value is 1.
+May be set to 0 or 1.
+.El
+.It Sy Misc
+.Bl -tag -width indent
+.It Va getcred
+Get the ucred of a SCTP connection.
+.It Va assoclist
+List of active SCTP associations.
+.It Va stats
+SCTP statistics (struct sctp_stat).
+.It Va diag_info_code
+Diagnostic information error cause code.
+.It Va blackhole
+Enable SCTP blackholing.
+See
+.Xr blackhole 4
+for more details.
+.It Va buffer_splitting
+Enable send/receive buffer splitting.
+.It Va vtag_time_wait
+Vtag wait time in seconds, 0 to disable.
+.It Va nat_friendly_init
+Enable sending of the NAT-friendly SCTP option on INITs.
+.It Va enable_sack_immediately
+Enable sending of the SACK-IMMEDIATELY bit.
+.It Va udp_tunneling_port
+Set the SCTP/UDP tunneling port.
+.It Va mobility_fasthandoff
+Enable SCTP fast handoff.
+.It Va mobility_base
+Enable SCTP base mobility
+.It Va default_frag_interleave
+Default fragment interleave level.
+.It Va default_ss_module
+Default stream scheduling module.
+.It Va log_level
+Ltrace/KTR trace logging level.
+.It Va max_retran_chunk
+Number of retransmissions of a DATA chunk before an association is aborted.
+.It Va min_residual
+Minimum residual data chunk in second part of split.
+.It Va strict_data_order
+Enforce strict data ordering, abort if control inside data.
+.It Va abort_at_limit
+Abort when one-to-one hits qlimit.
+.It Va hb_max_burst
+Confirmation heartbeat max burst.
+.It Va do_sctp_drain
+Flush chunks in receive queues with TSN higher than the cumulative TSN if the
+system is low on mbufs.
+.It Va max_chained_mbufs
+Default max number of small mbufs on a chain.
+.It Va abc_l_var
+SCTP ABC max increase per SACK (L).
+.It Va nat_friendly
+SCTP NAT friendly operation.
+.It Va cmt_use_dac
+CMT DAC on/off flag.
+.It Va cmt_on_off
+CMT settings.
+.It Va outgoing_streams
+Default number of outgoing streams.
+.It Va incoming_streams
+Default number of incoming streams.
+.It Va add_more_on_output
+When space-wise is it worthwhile to try to add more to a socket send buffer.
+.It Va path_pf_threshold
+Default potentially failed threshold.
+.It Va path_rtx_max
+Default maximum of retransmissions per path.
+.It Va assoc_rtx_max
+Default maximum number of retransmissions per association.
+.It Va init_rtx_max
+Default maximum number of retransmissions for INIT chunks.
+.It Va valid_cookie_life
+Default cookie lifetime in seconds.
+.It Va init_rto_max
+Default maximum retransmission timeout during association setup in ms.
+.It Va rto_initial
+Default initial retransmission timeout in ms.
+.It Va rto_min
+Default minimum retransmission timeout in ms.
+.It Va rto_max
+Default maximum retransmission timeout in ms.
+.It Va secret_lifetime
+Default secret lifetime in seconds.
+.It Va shutdown_guard_time
+Shutdown guard timer in seconds (0 means 5 times RTO.Max).
+.It Va pmtu_raise_time
+Default PMTU raise timer in seconds.
+.It Va heartbeat_interval
+Default heartbeat interval in ms.
+.It Va asoc_resource
+Max number of cached resources in an association.
+.It Va sys_resource
+Max number of cached resources in the system.
+.It Va sack_freq
+Default SACK frequency.
+.It Va delayed_sack_time
+Default delayed SACK timer in ms.
+.It Va chunkscale
+Tunable for scaling of number of chunks and messages.
+.It Va min_split_point
+Minimum size when splitting a chunk.
+.It Va pcbhashsize
+Tunable for PCB hash table sizes.
+.It Va tcbhashsize
+Tunable for TCB hash table sizes.
+.It Va maxchunks
+Default max chunks on queue per association.
+.It Va fr_maxburst
+Default max burst for SCTP endpoints when fast retransmitting.
+.It Va maxburst
+Default max burst for SCTP endpoints.
+.It Va peer_chkoh
+Amount to debit peers rwnd per chunk sent.
+.It Va strict_sacks
+Enable SCTP Strict SACK checking.
+.It Va pktdrop_enable
+Enable SCTP PKTDROP.
+.It Va nrsack_enable
+Enable SCTP NR-SACK.
+.It Va reconfig_enable
+Enable SCTP RE-CONFIG.
+.It Va asconf_enable
+Enable SCTP ASCONF.
+.It Va auth_enable
+Enable SCTP AUTH.
+.It Va pr_enable
+Enable PR-SCTP.
+.It Va auto_asconf
+Enable SCTP Auto-ASCONF.
+.It Va recvspace
+Maximum incoming SCTP buffer size.
+.It Va sendspace
+Maximum outgoing SCTP buffer size.
+.El
+.El
+.Sh SEE ALSO
+.Xr accept 2 ,
+.Xr bind 2 ,
+.Xr connect 2 ,
+.Xr listen 2 ,
+.Xr sctp_bindx 3 ,
+.Xr sctp_connectx 3 ,
+.Xr sctp_opt_info 3 ,
+.Xr sctp_recvmsg 3 ,
+.Xr sctp_sendmsg 3 ,
+.Xr blackhole 4

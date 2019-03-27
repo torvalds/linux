@@ -1,0 +1,68 @@
+
+#------------------------------------------------------------------------------
+# $File: fsav,v 1.15 2018/07/16 12:30:41 christos Exp $
+# fsav:  file(1) magic for datafellows fsav virus definition files
+# Anthon van der Neut (anthon@mnt.org)
+
+# ftp://ftp.f-prot.com/pub/{macrdef2.zip,nomacro.def}
+0	beshort		0x1575		fsav macro virus signatures
+>8	leshort		>0		(%d-
+>11	byte		>0		\b%02d-
+>10	byte		>0		\b%02d)
+# ftp://ftp.f-prot.com/pub/sign.zip
+#10	ubyte		<12
+#>9	ubyte		<32
+#>>8	ubyte		0x0a
+#>>>12	ubyte		0x07
+#>>>>11	uleshort	>0		fsav DOS/Windows virus signatures (%d-
+#>>>>10	byte		0		\b01-
+#>>>>10	byte		1		\b02-
+#>>>>10	byte		2		\b03-
+#>>>>10	byte		3		\b04-
+#>>>>10	byte		4		\b05-
+#>>>>10	byte		5		\b06-
+#>>>>10	byte		6		\b07-
+#>>>>10	byte		7		\b08-
+#>>>>10	byte		8		\b09-
+#>>>>10	byte		9		\b10-
+#>>>>10	byte		10		\b11-
+#>>>>10	byte		11		\b12-
+#>>>>9	ubyte		>0		\b%02d)
+# ftp://ftp.f-prot.com/pub/sign2.zip
+#0	ubyte		0x62
+#>1	ubyte		0xF5
+#>>2	ubyte		0x1
+#>>>3	ubyte		0x1
+#>>>>4	ubyte		0x0e
+#>>>>>13		ubyte	>0		fsav virus signatures
+#>>>>>>11	ubyte	x		size 0x%02x
+#>>>>>>12	ubyte	x		\b%02x
+#>>>>>>13	ubyte	x		\b%02x bytes
+
+# Joerg Jenderek: joerg dot jenderek at web dot de
+# http://www.clamav.net/doc/latest/html/node45.html
+# .cvd files start with a 512 bytes colon separated header
+# ClamAV-VDB:buildDate:version:signaturesNumbers:functionalityLevelRequired:MD5:Signature:builder:buildTime
+# + gzipped tarball files
+0	string		ClamAV-VDB:
+>11	string		>\0		Clam AntiVirus database %-.23s
+>>34	string		:
+>>>35		string		!:	\b, version
+>>>>35		string		x 	\b %-.1s
+>>>>>36		string		!:
+>>>>>>36	string		x 	\b%-.1s
+>>>>>>>37	string		!:
+>>>>>>>>37	string		x 	\b%-.1s
+>>>>>>>>>38	string		!:
+>>>>>>>>>>38	string		x 	\b%-.1s
+>>>>>>>>>>>39	string		!:
+>>>>>>>>>>>>39	string		x 	\b%-.1s
+>512	string		\037\213	\b, gzipped
+>769	string		ustar\0		\b, tarred
+
+# Type: Grisoft AVG AntiVirus
+# From: David Newgas <david@newgas.net>
+0	string	AVG7_ANTIVIRUS_VAULT_FILE	AVG 7 Antivirus vault file data
+
+0	string	X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR
+>33	string	-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*	EICAR virus test files

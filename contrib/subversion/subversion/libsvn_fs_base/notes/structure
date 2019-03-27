@@ -1,0 +1,1086 @@
+Subversion on Berkeley DB                                    -*- text -*-
+
+There are many different ways to implement the Subversion filesystem
+interface.  You could implement it directly using ordinary POSIX
+filesystem operations; you could build it using an SQL server as a
+back end; you could build it on RCS; and so on.
+
+This implementation of the Subversion filesystem interface is built on
+top of Berkeley DB (http://www.sleepycat.com).  Berkeley DB supports
+transactions and recoverability, making it well-suited for Subversion.
+
+
+
+Nodes and Node Revisions
+
+In a Subversion filesystem, a `node' corresponds roughly to an
+`inode' in a Unix filesystem:
+
+   * A node is either a file or a directory.
+
+   * A node's contents change over time.
+
+   * When you change a node's contents, it's still the same node; it's
+     just been changed.  So a node's identity isn't bound to a specific
+     set of contents.
+
+   * If you rename a node, it's still the same node, just under a
+     different name.  So a node's identity isn't bound to a particular
+     filename.
+
+A `node revision' refers to a node's contents at a specific point in
+time.  Changing a node's contents always creates a new revision of that
+node.  Once created, a node revision's contents never change.
+
+When we create a node, its initial contents are the initial revision of
+the node.  As users make changes to the node over time, we create new
+revisions of that same node.  When a user commits a change that deletes
+a file from the filesystem, we don't delete the node, or any revision
+of it --- those stick around to allow us to recreate prior revisions of
+the filesystem.  Instead, we just remove the reference to the node
+from the directory.
+
+
+
+ID's
+
+Within the database, we refer to nodes and node revisions using a
+string of three unique identifiers (the "node ID", the "copy ID", and
+the "txn ID"), separated by periods.
+
+    node_revision_id ::= node_id '.' copy_id '.' txn_id
+
+The node ID is unique to a particular node in the filesystem across
+all of revision history.  That is, two node revisions who share
+revision history (perhaps because they are different revisions of the
+same node, or because one is a copy of the other, e.g.) have the same
+node ID, whereas two node revisions who have no common revision
+history will not have the same node ID.
+
+The copy ID is a key into the `copies' table (see `Copies' below), and
+identifies that a given node revision, or one of its ancestors,
+resulted from a unique filesystem copy operation.
+
+The txn ID is just an identifier that is unique to a single filesystem
+commit.  All node revisions created as part of a commit share this txn
+ID (which, incidentally, gets its name from the fact that this id is
+the same id used as the primary key of Subversion transactions; see
+`Transactions' below).
+
+A directory entry identifies the file or subdirectory it refers to
+using a node revision ID --- not a node ID.  This means that a change
+to a file far down in a directory hierarchy requires the parent
+directory of the changed node to be updated, to hold the new node
+revision ID.  Now, since that parent directory has changed, its parent
+needs to be updated, and so on to the root.  We call this process
+"bubble-up".
+
+If a particular subtree was unaffected by a given commit, the node
+revision ID that appears in its parent will be unchanged.  When
+doing an update, we can notice this, and ignore that entire
+subtree.  This makes it efficient to find localized changes in
+large trees.
+
+
+
+A Word About Keys
+
+Some of the Subversion database tables use base-36 numbers as their
+keys.  Some debate exists about whether the use of base-36 (as opposed
+to, say, regular decimal values) is either necessary or good.  It is
+outside the scope of this document to make a claim for or against this
+usage.  As such, the reader will please note that for the majority of
+the document, the use of the term "number" when referring to keys of
+database tables should be interpreted to mean "a monotonically
+increasing unique key whose order with respect to other keys in the
+table is irrelevant".  :-)
+
+To determine the actual type currently in use for the keys of a given
+table, you are invited to check out the "Appendix: Filesystem
+structure summary" section of this document.
+
+
+
+NODE-REVISION: how we represent a node revision
+
+We represent a given revision of a file or directory node using a list
+skel (see include/private/svn_skel.h for an explanation of skels).
+A node revision skel has the form:
+
+    (HEADER PROP-KEY KIND-SPECIFIC ...)
+
+where HEADER is a header skel, whose structure is common to all nodes,
+PROP-KEY is the key of the representation that contains this node's
+properties list, and the KIND-SPECIFIC elements carry data dependent
+on what kind of node this is --- file, directory, etc.
+
+HEADER has the form:
+
+    (KIND CREATED-PATH [PRED-ID [PRED-COUNT [HAS-MERGEINFO MERGEINFO-COUNT]]])
+
+where:
+
+   * KIND indicates what sort of node this is.  It must be one of the
+     following:
+       - "file", indicating that the node is a file (see FILE below).
+       - "dir", indicating that the node is a directory (see DIR below).
+
+   * CREATED-PATH is the canonicalized absolute filesystem path at
+     which this node was created.
+
+   * PRED-ID, if present, indicates the node revision which is the
+     immediate ancestor of this node.
+
+   * PRED-COUNT, if present, indicates the number of predecessors the
+     node revision has (recursively).
+
+   * HAS-MERGEINFO and MERGEINFO-COUNT, if present, indicate ...
+     ### TODO
+
+Note that a node cannot change its kind from one revision to the next.
+A directory node is always a directory; a file node is always a file;
+etc.  The fact that the node's kind is stored in each node revision,
+rather than in some revision-independent place, might suggest that
+it's possible for a node to change kinds from revision to revision, but
+Subversion does not allow this.
+
+PROP-KEY is a key into the `representations' table (see REPRESENTATIONS 
+below), whose value is a representation pointing to a string 
+(see `strings' table) that is a PROPLIST skel.
+
+The KIND-SPECIFIC portions are discussed below.
+
+
+
+PROPLIST: a property list is a list skel of the form:
+
+    (NAME1 VALUE1 NAME2 VALUE2 ...)
+
+where each NAMEi is the name of a property, and VALUEi is the value of
+the property named NAMEi.  Every valid property list has an even
+number of elements.
+
+
+
+FILE: how files are represented.
+
+If a NODE-REVISION's header's KIND is "file", then the node-revision
+skel represents a file, and has the form:
+
+    (HEADER PROP-KEY DATA-INFO [EDIT-DATA-KEY])
+
+where
+
+    DATA-INFO ::= DATA-KEY | (DATA-KEY DATA-KEY-UNIQID)
+
+and DATA-KEY identifies the representation for the file's current
+contents, and EDIT-DATA-KEY identifies the representation currently
+available for receiving new contents for the file.
+
+DATA-KEY-UNIQID ...
+### TODO
+
+See discussion of representations later.
+
+
+
+DIR: how directories are represented.
+
+If the header's KIND is "dir", then the node-revision skel
+represents a directory, and has the form:
+
+    (HEADER PROP-KEY ENTRIES-KEY)
+
+where ENTRIES-KEY identifies the representation for the directory's
+entries list (see discussion of representations later).  An entries
+list has the form
+
+    (ENTRY ...)
+
+where each entry is
+
+    (NAME ID)
+
+where:
+
+   * NAME is the name of the directory entry, in UTF-8, and
+
+   * ID is the ID of the node revision to which this entry refers
+
+
+
+REPRESENTATIONS: where and how Subversion stores your data.
+
+Some parts of a node revision are essentially constant-length: for
+example, the KIND field and the REV.  Other parts can have
+arbitrarily varying length: property lists, file contents, and
+directory entry lists.  This variable-length data is often similar
+from one revision to the next, so Subversion stores just the deltas
+between them, instead of successive fulltexts.
+
+The HEADER portion of a node revision holds the constant-length stuff,
+which is never deltified.  The rest of a node revision just points to
+data stored outside the node revision proper.  This design makes the
+repository code easier to maintain, because deltification and
+undeltification are confined to a layer separate from node revisions,
+and makes the code more efficient, because Subversion can retrieve
+just the parts of a node it needs for a given operation.
+
+Deltifiable data is stored in the `strings' table, as mediated by the
+`representations' table.  Here's how it works:
+
+The `strings' table stores only raw bytes.  A given string could be
+any one of these:
+
+   - a file's contents
+   - a delta that reconstructs file contents, or part of a file's contents
+   - a directory entry list skel
+   - a delta that reconstructs a dir entry list skel, or part of same
+   - a property list skel
+   - a delta that reconstructs a property list skel, or part of same
+
+There is no way to tell, from looking at a string, what kind of data
+it is.  A directory entry list skel is indistinguishable from file
+contents that just happen to look exactly like the unparsed form of a
+directory entry list skel.  File contents that just happen to look
+like svndiff data are indistinguishable from delta data.
+
+The code is able to interpret a given string because Subversion
+
+   a) knows whether to be looking for a property list or some
+      kind-specific data,
+
+   b) knows the `kind' of the node revision in question,
+
+   c) always goes through the `representations' table to discover if
+      any undeltification or other transformation is needed.
+
+The `representations' table is an intermediary between node revisions
+and strings.  Node revisions never refer directly into the `strings'
+table; instead, they always refer into the `representations' table,
+which knows whether a given string is a fulltext or a delta, and if it
+is a delta, what it is a delta against.  That, combined with the
+knowledge in (a) and (b) above, allows Subversion to retrieve the data
+and parse it appropriately.  A representation has the form:
+
+   (HEADER KIND-SPECIFIC)
+
+where HEADER is
+
+   (KIND TXN [MD5 [SHA1]])
+
+The KIND is "fulltext" or "delta".  TXN is the txn ID for the txn in
+which this representation was created.  MD5 is a checksum of the
+representation's contents, that is, what the representation produces,
+regardless of whether it is stored deltified or as fulltext.  (For
+compatibility with older versions of Subversion, MD5 may be
+absent, in which case the filesystem behaves as though the checksum is
+there and is correct.) An additional kind of checksum, SHA1, is present
+in newer formats, starting with version ...
+### TODO
+
+The TXN also serves as a kind of mutability flag: if txn T tries to
+change a representation's contents, but the rep's TXN is not T, then
+something has gone horribly wrong and T should leave the rep alone
+(and probably error).  Of course, "change a representation" here means
+changing what the rep's consumer sees.  Switching a representation's
+storage strategy, for example from fulltext to deltified, wouldn't
+count as a change, since that wouldn't affect what the rep produces.
+
+KIND-SPECIFIC varies considerably depending on the kind of
+representation.  Here are the two forms currently recognized:
+
+   (("fulltext" TXN [MD5 [SHA1]]) STRING-KEY)
+       The data is at STRING-KEY in the `strings' table.
+
+   (("delta" TXN [MD5 [SHA1]]) (OFFSET WINDOW) ...)
+       Each OFFSET indicates the point in the fulltext that this
+       element reconstructs, and WINDOW says how to reconstruct it:
+
+       WINDOW ::= (DIFF SIZE REP-KEY [REP-OFFSET]) ;
+       DIFF   ::= ("svndiff" VERSION STRING-KEY)
+
+       Notice that a WINDOW holds only metadata.  REP-KEY says what
+       the window should be applied against, or none if this is a
+       self-compressed delta; SIZE says how much data this window
+       reconstructs; VERSION says what version of the svndiff format
+       is being used (currently only version 0 is supported); and
+       STRING-KEY says which string contains the actual svndiff data
+       (there is no diff data held directly in the representations
+       table, of course).
+
+       Note also that REP-KEY might refer to a representation that
+       itself requires undeltification.  We use a delta combiner to
+       combine all the deltas needed to reproduce the fulltext from
+       some stored plaintext.
+
+       Branko says this is what REP-OFFSET is for:
+       > The offsets embedded in the svndiff are stored in a string;
+       > these offsets would be in the representation. The point is that
+       > you get all the information you need to select the appropriate
+       > windows from the rep skel -- without touching a single
+       > string. This means a bit more space used in the repository, but
+       > lots less memory used on the server.
+
+       We'll see if it turns out to be necessary.
+
+In the future, there may be other representations, for example
+indicating that the text is stored elsewhere in the database, or
+perhaps in an ordinary Unix file.
+
+Let's work through an example node revision:
+
+   (("file" REV COUNT) PROP-KEY "2345")
+
+The entry for key "2345" in `representations' is:
+
+   (("delta" TXN CHECKSUM) (0 (("svndiff" 0 "1729") 65 "2343")))
+
+and the entry for key "2343" in `representations' is:
+
+   (("fulltext" TXN CHECKSUM) "1001")
+
+while the entry for key "1729" in `strings' is:
+
+   <some unprintable glob of svndiff data>
+
+which, when applied to the fulltext at key "1001" in strings, results
+in this new fulltext:
+
+   "((some text) (that looks) (deceptively like) (directory entries))"
+
+Et voila!  Subversion knew enough, via the `representations' and
+`strings' tables, to undeltify and get that fulltext; and knew enough,
+because of the node revision's "file" type, to interpret the result as
+file contents, not as a directory entry list.
+
+(Note that the `strings' table stores multiple DB values per key.
+That is, although it's accurate to say there is one string per key,
+the string may be divided into multiple consecutive blocks, all
+sharing that key.  You use a Berkeley DB cursor to find the desired
+value[s], when retrieving a particular offset+len in a string.)
+
+Representations know nothing about ancestry -- the `representations'
+table never refers to node revision id's, only to strings or to other
+representations.  In other words, while the `nodes' table allows
+recovery of ancestry information, the `representations' and `strings'
+tables together handle deltification and undeltification
+*independently* of ancestry.  At present, Subversion generally stores
+the youngest strings in "fulltext" form, and older strings as "delta"s
+against them (unless the delta would save no space compared to the
+fulltext).  However, there's nothing magic about that particular
+arrangement.  Other interesting alternatives:
+
+   * We could store the N most recently accessed strings as fulltexts,
+     letting access patterns determine the most appropriate
+     representation for each revision.
+
+   * We could occasionally store deltas against the N'th younger
+     revision, storing larger jumps with a frequency inverse to the
+     distance covered, yielding a tree-structured history.
+
+Since the filesystem interface doesn't expose these details, we can
+change the representation pretty much as we please to optimize
+whatever parameter we care about --- storage size, speed, robustness,
+etc.
+
+Representations never share strings - every string is referred to by
+exactly one representation.  This is so that when we change a
+representation to a different form (e.g. during deltification), we can
+delete the strings containing the old form, and know that we're not
+messing up any other reps by doing so.
+
+
+Further Notes On Deltifying:
+----------------------------
+
+When a representation is deltified, it is changed in place.
+New strings are created containing the new delta, the representation
+is changed to refer to the new strings, and the original (usually
+fulltext) string or strings are deleted.
+
+The node revisions referring to that representation will not be
+changed; instead, the same rep key will now be associated with
+different value.  That way, we get reader locking for free: if someone
+is reading a file while Subversion is deltifying that file, one of the
+two sides will get a DB_DEADLOCK and svn_fs__retry_txn() will retry.
+
+### todo: add a note about cycle-checking here, too.
+
+
+
+The Berkeley DB "nodes" table
+
+The database contains a table called "nodes", which is a btree indexed
+by node revision ID's, mapping them onto REPRESENTATION skels.  Node 0
+is always the root directory, and node revision ID 0.0.0 is always the
+empty directory.  We use the value of the key 'next-key' to indicate
+the next unused node ID.
+
+Assuming that we store the most recent revision on every branch as
+fulltext, and all other revisions as deltas, we can retrieve any node
+revision by searching for the last revision of the node, and then
+walking backwards to specific revision we desire, applying deltas as
+we go.
+
+
+
+REVISION: filesystem revisions, and the Berkeley DB "revisions" table
+
+We represent a filesystem revision using a skel of the form:
+
+    ("revision" TXN)
+
+where TXN is the key into the `transactions' table (see 'Transactions' below)
+whose value is the transaction that was committed to create this revision.
+
+The database contains a table called "revisions", which is a
+record-number table mapping revision numbers onto REVISION skels.
+Since Berkeley DB record numbers start with 1, whereas Subversion
+filesystem revision numbers start at zero, revision V is stored as
+record number V+1 in the `revisions' table.  Filesystem revision zero
+always has node revision 0.0.0 as its root directory; that node
+revision is guaranteed to be an empty directory.
+
+
+
+Transactions
+
+Every transaction ends when it is either successfully committed, or
+aborted.  We call a transaction which has been either committed or
+aborted "finished", and one which hasn't "unfinished".  
+
+Transactions are identified by unique numbers, called transaction
+ID's.  Currently, transaction ID's are never reused, though this is
+not mandated by the schema.  In the database, we always represent a
+transaction ID in its shortest ASCII form.
+
+The Berkeley DB `transactions' table records both unfinished and
+committed transactions.  Every key in this table is a transaction ID.
+Unfinished transactions have values that are skels of one of the
+following forms:
+
+   ("transaction" ROOT-ID BASE-ID PROPLIST COPIES)
+   ("dead" ROOT-ID BASE-ID PROPLIST COPIES)
+
+where:
+
+   * ROOT-ID is the node revision ID of the transaction's root
+     directory.  This is of the form 0.0.THIS-TXN-ID.
+
+   * BASE-ID is the node revision ID of the root of the transaction's
+     base revision.  This is of the form 0.0.BASE-TXN-ID - the base
+     transaction is, of course, the transaction of the base revision.
+
+   * PROPLIST is a skel giving the revision properties for the
+     transaction.
+
+   * COPIES contains a list of keys into the `copies' table,
+     referencing all the filesystem copies created inside of this
+     transaction.  If the transaction is aborted, these copies get
+     removed from the `copies' table.
+
+   * A "dead" transaction is one that has been requested to be
+     destroyed, and should never, ever, be committed.
+
+Committed transaction, however, have values that are skels of the form:
+
+   ("committed" ROOT-ID REV PROPLIST COPIES)
+
+where:
+
+   * ROOT-ID is the node revision ID of the committed transaction's (or
+     revision's) root node.
+
+   * REV represents the revision that was created when the
+     transaction was committed.
+
+   * PROPLIST is a skel giving the revision properties for the
+     committed transaction.
+
+   * COPIES contains a list of keys into the `copies' table,
+     referencing all the filesystem copies created by this committed
+     transaction.  Nothing currently uses this information for
+     committed transactions, but it could be useful in the future.
+
+As the sole exception to the rule above, the `transactions' table
+always has one entry whose key is `next-key', and whose value is the
+lowest transaction ID that has never yet been used.  We use this entry
+to allocate ID's for new transactions.
+
+The `transactions' table is a btree, with no particular sort order.
+
+
+
+Changes
+
+As modifications are made (files and dirs added or removed, text and
+properties changed, etc.) on Subversion transaction trees, the
+filesystem tracks the basic change made in the Berkeley DB `changes'
+table.  
+
+The `changes' table is a btree with Berkeley's "duplicate keys"
+functionality (and with no particular sort order), and maps the
+one-to-many relationship of a transaction ID to a "change" item.
+Change items are skels of the form:
+
+   ("change" PATH ID CHANGE-KIND TEXT-MOD PROP-MOD)
+
+where:
+
+   * PATH is the path that was operated on to enact this change.
+
+   * ID is the node revision ID of the node changed.  The precise
+     meaning varies based on the kind of the change:
+      - "add" or "modify": a new node revision created in the current
+        txn.
+      - "delete": a node revision from a previous txn.
+      - "replace": a replace operation actually acts on two node
+        revisions, one being deleted, one being added.  Only the added
+        node-revision ID is recorded in the `changes' table - this is
+        a design flaw.
+      - "reset": no node revision applies.  A zero atom is used as a
+        placeholder.
+
+   * CHANGE-KIND is one of the following:
+
+     - "add"     : PATH/ID was added to the filesystem.
+     - "delete"  : PATH/ID was removed from the filesystem.
+     - "replace" : PATH/ID was removed, then re-added to the filesystem.
+     - "modify"  : PATH/ID was otherwise modified.
+     - "reset"   : Ignore any previous changes for PATH/ID in this txn.
+                   This kind is no longer created by Subversion 1.3.0
+                   and later, and can probably be removed at the next
+                   schema bump.
+
+   * TEXT-MOD is a bit specifying whether or not the contents of
+     this node was modified.
+
+   * PROP-MOD is a bit specifying whether or not the properties of
+     this node where modified.
+
+In order to fully describe the changes made to any given path as part
+of a single transaction, one must read all the change items associated
+with the transaction's ID, and "collapse" multiple entries that refer
+to that path. 
+
+
+
+Copies
+
+Each time a filesystem copy operation is performed, Subversion records
+meta-data about that copy.  
+
+Copies are identified by unique numbers called copy ID's.  Currently,
+copy ID's are never reused, though this is not mandated by the schema.
+In the database, we always represent a copy ID in its shortest ASCII
+form.
+
+The Berkeley DB `copies' table records all filesystem copies.  Every
+key in this table is copy ID, and every value is a skel of one of the
+following forms:
+
+   ("copy" SRC-PATH SRC-TXN DST-NODE-ID)
+   ("soft-copy" SRC-PATH SRC-TXN DST-NODE-ID)
+
+where:
+
+   * "copy" indicates an explicitly requested copy, and "soft-copy"
+     indicates a node that was cloned internally as part of an
+     explicitly requested copy of some parent directory. See the
+     section "Copies and Copy IDs" in the file <fs-history> for
+     details.
+
+   * SRC-PATH and SRC-TXN are the canonicalized absolute path and
+     transaction ID, respectively, of the source of the copy.
+
+   * DST-NODE-ID represents the new node revision created as a result
+     of the copy.
+
+As the sole exception to the rule above, the `copies' table always has
+one entry whose key is `next-key', and whose value is the lowest copy ID
+that has never yet been used.  We use this entry to allocate new
+copy ID's.
+
+The `copies' table is a btree, with no particular sort order.
+
+
+
+Locks
+
+When a caller locks a file -- reserving an exclusive right to modify
+or delete it -- an lock object is created in a `locks' table.
+
+The `locks' table is a btree whose key is a UUID string known as
+a "lock-token", and whose value is a skel representing a lock.  The
+fields in the skel mirror those of an svn_lock__t (see svn_types.h):
+
+    ("lock" PATH TOKEN OWNER COMMENT XML-P CREATION-DATE EXPIRATION-DATE)
+
+where:
+
+   * PATH is the absolute filesystem path reserved by the lock.
+
+   * TOKEN is the universally unique identifier of the lock, known
+     as the lock-token.  This is the same as the row's key.
+
+   * OWNER is the authenticated username that "owns" the lock.
+
+   * COMMENT is a string describing the lock.  It may be empty, or it
+     might describe the rationale for locking.
+
+   * XML-P is a boolean (either 0 or 1) indicating whether the COMMENT
+     field is wrapped in an XML tag.  (This is something only used by
+     the DAV layer, for webdav interoperabliity.)
+
+   * CREATION-DATE is a string representation of the date/time when
+     the lock was created.  (see svn_time_to_cstring())
+
+   * EXPIRATION-DATE is a string representation of the date/time when
+     the lock will cease to be valid.  (see svn_time_to_cstring())
+
+In addition to creating a lock in the `locks' table, a new row is
+created in a `lock-tokens' table.  The `lock-tokens' table is a btree
+whose key is an absolute path in the filesystem.  The value of each
+key is a lock-token (which is a key into the `locks' table.)
+
+To test if a path is locked, simply check if the path is a key in the
+`lock-tokens' table.  To see if a certain directory has any locked
+children below, we ask BerkeleyDB to do a "greater or equal match" on
+the directory path, and see if any results come back.  If they do,
+then at least one of the directory's children is locked, and thus the
+directory cannot be deleted without further investigation.
+
+Locks are ephemeral things, not historied in any way.  They are
+potentially created and deleted quite often.  When a lock is
+destroyed, the appropriate row is removed from the `locks' table.
+Additionally, the locked-path is removed from the `lock-tokens' table.
+
+
+
+
+
+Merge rules
+
+The Subversion filesystem must provide the following characteristics:
+
+- clients can submit arbitrary rearrangements of the tree, to be
+  performed as atomic changes to the filesystem tree
+- multiple clients can submit non-overlapping changes at the same time,
+  without blocking
+- readers must never block other readers or writers
+- writers must never block readers
+- writers may block writers
+
+Merging rules:
+
+   The general principle: a series of changes can be merged iff the
+   final outcome is independent of the order you apply them in.
+
+Merging algorithm:
+
+   For each entry NAME in the directory ANCESTOR:
+  
+     Let ANCESTOR-ENTRY, SOURCE-ENTRY, and TARGET-ENTRY be the IDs of
+     the name within ANCESTOR, SOURCE, and TARGET respectively.
+     (Possibly null if NAME does not exist in SOURCE or TARGET.)
+  
+     If ANCESTOR-ENTRY == SOURCE-ENTRY, then:
+       No changes were made to this entry while the transaction was in
+       progress, so do nothing to the target.
+  
+     Else if ANCESTOR-ENTRY == TARGET-ENTRY, then:
+       A change was made to this entry while the transaction was in
+       process, but the transaction did not touch this entry.  Replace
+       TARGET-ENTRY with SOURCE-ENTRY.
+  
+     Else:
+       Changes were made to this entry both within the transaction and
+       to the repository while the transaction was in progress.  They
+       must be merged or declared to be in conflict.
+  
+       If SOURCE-ENTRY and TARGET-ENTRY are both null, that's a
+       double delete; if one of them is null, that's a delete versus
+       a modification. In any of these cases, flag a conflict.
+  
+       If any of the three entries is of type file, declare a conflict.
+  
+       If either SOURCE-ENTRY or TARGET-ENTRY is not a direct
+       modification of ANCESTOR-ENTRY (determine by comparing the
+       node-id fields), declare a conflict.  A replacement is
+       incompatible with a modification or other replacement--even
+       an identical replacement.
+  
+       Direct modifications were made to the directory ANCESTOR-ENTRY
+       in both SOURCE and TARGET.  Recursively merge these
+       modifications.
+  
+   For each leftover entry NAME in the directory SOURCE:
+  
+     If NAME exists in TARGET, declare a conflict.  Even if SOURCE and
+     TARGET are adding exactly the same thing, two additions are not
+     auto-mergeable with each other.
+  
+     Add NAME to TARGET with the entry from SOURCE.
+  
+   Now that we are done merging the changes from SOURCE into the
+   directory TARGET, update TARGET's predecessor to be SOURCE.
+
+The following algorithm was used when the Subversion filesystem was
+initially written, but has been replaced with the simpler and more
+performant algorithm above:
+
+   Merging two nodes, A and B, with respect to a common ancestor
+   ANCESTOR:
+   
+   - First, the merge fails unless A, B, and ANCESTOR are all the same
+     kind of node.
+   - If A and B are text files:
+     - If A is an ancestor of B, then B is the merged result.
+     - If A is identical to B, then B (arbitrarily) is the merged
+       result.
+     - Otherwise, the merge fails.
+   - If A and B are both directories:
+     - For every directory entry E in either A, B, or ANCESTOR, here
+       are the cases:
+         - E exists in neither ANCESTOR nor A.
+         - E doesn't exist in ANCESTOR, and has been added to A.
+         - E exists in ANCESTOR, but has been deleted from A.
+         - E exists in both ANCESTOR and A ...
+           - but refers to different nodes.
+           - but refers to different revisions of the same node.
+           - and refers to the same node revision.
+   
+       The same set of possible relationships with ANCESTOR holds for B,
+       so there are thirty-six combinations.  The matrix is symmetrical
+       with A and B reversed, so we only have to describe one triangular
+       half, including the diagonal --- 21 combinations.
+   
+       - (6) E exists in neither ANCESTOR nor A:
+         - (1) E exists in neither ANCESTOR nor B.  Can't occur, by
+           assumption that E exists in either A, B, or ancestor.
+         - (1) E has been added to B.  Add E in the merged result. ***
+         - (1) E has been deleted from B.  Can't occur, by assumption
+           that E doesn't exist in ANCESTOR.
+         - (3) E exists in both ANCESTOR and B.  Can't occur, by
+           assumption that E doesn't exist in ancestor.
+       - (5) E doesn't exist in ANCESTOR, and has been added to A.
+         - (1) E doesn't exist in ANCESTOR, and has been added to B.
+           Conflict.
+         - (1) E exists in ANCESTOR, but has been deleted from B.
+           Can't occur, by assumption that E doesn't exist in
+           ANCESTOR.
+         - (3) E exists in both ANCESTOR and B.  Can't occur, by
+           assumption that E doesn't exist in ANCESTOR.
+       - (4) E exists in ANCESTOR, but has been deleted from A.
+         - (1) E exists in ANCESTOR, but has been deleted from B.  If
+           neither delete was a result of a rename, then omit E from
+           the merged tree.  *** Otherwise, conflict.
+         - E exists in both ANCESTOR and B ...
+           - (1) but refers to different nodes.  Conflict.
+           - (1) but refers to different revisions of the same node.
+             Conflict.
+           - (1) and refers to the same node revision.  Omit E from
+             the merged tree. ***
+       - (3) E exists in both ANCESTOR and A, but refers to different
+         nodes.
+         - (1) E exists in both ANCESTOR and B, but refers to
+           different nodes.  Conflict.
+         - (1) E exists in both ANCESTOR and B, but refers to
+           different revisions of the same node.  Conflict.
+         - (1) E exists in both ANCESTOR and B, and refers to the same
+           node revision.  Replace E with A's node revision.  ***
+       - (2) E exists in both ANCESTOR and A, but refers to different
+         revisions of the same node.
+         - (1) E exists in both ANCESTOR and B, but refers to
+           different revisions of the same node.  Try to merge A/E and
+           B/E, recursively.  ***
+         - (1) E exists in both ANCESTOR and B, and refers to the same
+           node revision.  Replace E with A's node revision.  ***
+       - (1) E exists in both ANCESTOR and A, and refers to the same
+         node revision.
+         - (1) E exists in both ANCESTOR and B, and refers to the same
+           node revision.  Nothing has happened to ANCESTOR/E, so no
+           change is necessary.
+   
+   *** == something actually happens
+
+
+Non-Historical Properties
+
+[[Yes, do tell.]]
+
+
+UUIDs: Universally Unique Identifiers
+
+Every filesystem has a UUID.  This is represented as record #1 in the
+`uuids' table.
+
+
+Layers
+
+In previous structurings of the code, I had trouble keeping track of
+exactly who has implemented which promises, based on which other
+promises from whom.
+
+I hope the arrangement below will help me keep things straight, and
+make the code more reliable.  The files are arranged in order from
+low-level to high-level: each file depends only on services provided
+by the files before it.
+
+skel.c, id.c, dbt.c, convert-size.c
+
+                Low-level utility functions.
+
+fs_skels.c      Routines for marshaling between skels and native FS types.
+
+fs.c            Creating and destroying filesystem objects.
+
+err.c           Error handling.
+
+nodes-table.c, txn-table.c, rev-table.c, reps-table.c, strings-table.c
+
+                Create and open particular database tables.
+                Responsible for intra-record consistency.
+
+node-rev.c      Creating, reading, and writing node revisions.
+                Responsible for deciding what gets deltified when.
+
+reps-strings.c
+                Retrieval and storage of represented strings.
+                This will handle delta-based storage,
+
+dag.c           Operations on the DAG filesystem.  "DAG" because the
+                interface exposes the filesystem's sharing structure.
+                Enforce inter-record consistency.
+
+tree.c          Operations on the tree filesystem.  This layer is
+                built on top of dag.c, but transparently distinguishes
+                virtual copies, making the underlying DAG look like a
+                real tree.  This makes incomplete transactions behave
+                like ordinary mutable filesystems.
+
+delta.c         Computing deltas.
+
+
+
+Appendix: Filesystem structure summary
+======================================
+
+Berkeley DB tables
+------------------
+
+                "nodes" : btree(ID -> NODE-REVISION, "next-key" -> NODE-ID)
+            "revisions" : recno(REVISION)
+         "transactions" : btree(TXN -> TRANSACTION, "next-key" -> TXN)
+              "changes" : btree(TXN -> CHANGE)
+               "copies" : btree(CPY -> COPY, "next-key" -> CPY)
+              "strings" : btree(STR -> STRING, "next-key" -> STR)
+      "representations" : btree(REP -> REPRESENTATION, "next-key" -> REP)
+                "uuids" : recno(UUID)
+                "locks" : btree(TOKEN -> LOCK)
+          "lock-tokens" : btree(PATH -> TOKEN)
+         "node-origins" : btree(NODE-ID -> ID)
+        "checksum-reps" : btree(SHA1SUM -> REP, "next-key" -> number-36)
+        "miscellaneous" : btree(STRING -> STRING)
+
+Syntactic elements
+------------------
+
+Table keys:
+
+                     ID ::= NODE-REV-ID ;
+                    TXN ::= number-36 ;
+                    CPY ::= number-36 ;
+                    STR ::= number-36 ;
+                    REP ::= number-36 ;
+                  TOKEN ::= uuid ;
+
+Property lists:
+
+               PROPLIST ::= (PROP ...) ;
+                   PROP ::= atom atom ;
+
+
+Filesystem revisions:
+
+               REVISION ::= ("revision" TXN) ;
+
+
+Transactions:
+
+            TRANSACTION ::= UNFINISHED-TXN | COMMITTED-TXN | DEAD-TXN
+         UNFINISHED-TXN ::= ("transaction" ROOT-ID BASE-ID PROPLIST COPIES) ;
+          COMMITTED-TXN ::= ("committed" ROOT-ID REV PROPLIST COPIES) ;
+               DEAD-TXN ::= ("dead" ROOT-ID BASE-ID PROPLIST COPIES) ;
+                ROOT-ID ::= NODE-REV-ID ;
+                BASE-ID ::= NODE-REV-ID ;
+                 COPIES ::= (CPY ...) ;
+                    REV ::= number ;
+
+
+Changes:
+
+                 CHANGE ::= ("change" PATH ID CHANGE-KIND TEXT-MOD PROP-MOD) ;
+            CHANGE-KIND ::= "add" | "delete" | "replace" | "modify" | "reset";
+               TEXT-MOD ::= atom ;
+               PROP-MOD ::= atom ;
+
+
+Copies:
+
+                   COPY ::= REAL-COPY | SOFT-COPY
+              REAL-COPY ::= ("copy" SRC-PATH SRC-TXN DST-NODE-ID)
+              SOFT-COPY ::= ("soft-copy" SRC-PATH SRC-TXN DST-NODE-ID)
+               SRC-PATH ::= atom ;
+                SRC-TXN ::= TXN ;
+            DST-NODE-ID ::= NODE-REV-ID ;
+
+
+Entries lists:
+
+                ENTRIES ::= (ENTRY ...) ;
+                  ENTRY ::= (NAME ID) ;
+                   NAME ::= atom ;
+
+
+Node revisions:
+
+          NODE-REVISION ::= FILE | DIR ;
+                   FILE ::= (HEADER PROP-KEY DATA-INFO [EDIT-DATA-KEY]) ;
+                    DIR ::= (HEADER PROP-KEY ENTRIES-KEY) ; 
+                 HEADER ::= (KIND CREATED-PATH 
+                             [PRED-ID [PRED-COUNT 
+                              [HAS-MERGEINFO MERGEINFO-COUNT]]]) ;
+                   KIND ::= "file" | "dir" ;
+                PRED-ID ::= NODE-REV-ID | "";
+             PRED-COUNT ::= number | "" ;
+           CREATED-PATH ::= atom ;
+               PROP-KEY ::= atom ;
+              DATA-INFO ::= DATA-KEY | (DATA-KEY DATA-KEY-UNIQID)
+               DATA-KEY ::= atom ;
+        DATA-KEY-UNIQID ::= atom ;
+          EDIT-DATA-KEY ::= atom ;
+          HAS-MERGEINFO ::= "0" | "1" ;
+        MERGEINFO-COUNT ::= number ;
+
+
+Representations:
+
+         REPRESENTATION ::= FULLTEXT | DELTA ;
+               FULLTEXT ::= (HEADER STRING-KEY) ;
+                  DELTA ::= (HEADER (OFFSET WINDOW) ...) ;
+                 WINDOW ::= (DIFF SIZE REP-KEY [REP-OFFSET]) ;
+                   DIFF ::= ("svndiff" VERSION STRING-KEY) ;
+                VERSION ::= number ;
+                REP-KEY ::= atom ;
+             STRING-KEY ::= atom ;
+                 OFFSET ::= number ;
+             REP-OFFSET ::= number ;
+
+                 HEADER ::= (KIND TXN [MD5 [SHA1]]) ;
+                   KIND ::= "fulltext" | "delta" ;
+             
+                   SIZE ::= number ;
+                    MD5 ::= ("md5" MD5SUM) ;
+                   SHA1 ::= ("sha1" SHA1SUM) ;
+                 MD5SUM ::= atom ;
+                SHA1SUM ::= atom ;
+
+
+Strings:
+
+                 STRING ::= RAWTEXT | LISTTEXT | DIFFTEXT
+                RAWTEXT ::= /{anything.class}*/ ;
+               LISTTEXT ::= list ;
+               DIFFTEXT ::= /{anything.class}*/ ;
+
+
+Node revision IDs:
+
+            NODE-REV-ID ::= NODE-ID '.' CPY '.' TXN ;
+                NODE-ID ::= number ;
+
+UUIDs:
+                   UUID ::= uuid ;
+
+
+Locks:
+
+                   LOCK ::= ("lock" PATH TOKEN OWNER 
+                                    COMMENT XML-P CR-DATE [X-DATE]);
+                   PATH ::= atom ;
+                  OWNER ::= atom ;
+                COMMENT ::= atom ;
+                  XML-P ::= "0" | "1" ;
+                CR-DATE ::= atom ;
+                 X-DATE ::= atom ;
+
+Lock tokens:
+
+               (the value is just a lock-token, which is a uuid)
+
+
+Node origins:
+
+                NODE-ID ::= NODE-REV-ID ;
+
+
+Lexical elements
+----------------
+
+UUIDs:
+
+                   uuid ::= hexits-32 '-' hexits-16 '-' hexits-16 '-'
+                            hexits-16 '-' hexits-48 ;
+ 
+Numbers:
+
+                 number ::= /{digit.class}+/ ;
+              number-36 ::= /{base36.class}+/ ;
+              hexits-32 ::= /{base16.class}{8}/ ;
+              hexits-16 ::= /{base16.class}{4}/ ;
+              hexits-48 ::= /{base16.class}{12}/ ;
+
+(Note: the following are described in skel.h)
+Skels:
+
+                   skel ::= atom | list;
+                   list ::= list.head list.body.opt list.tail ;
+                   atom ::= atom.imp-len | atom.exp-len ;
+
+              list.head ::= '(' spaces.opt ;
+              list.tail ::= spaces.opt ')' ;
+          list.body.opt ::=  | list.body ;
+              list.body ::= skel | list.body spaces.opt skel ;
+
+           atom.imp-len ::= /{name.class}[^\(\){ws.class}]*/ ;
+           atom.exp-len ::= /({digit.class}+){ws.class}.{\1}/ ;
+
+             spaces.opt ::= /{ws.class}*/ ;
+
+
+Character classes:
+
+               ws.class ::= [\t\n\f\r\ ] ;
+            digit.class ::= [0-9] ;
+             name.class ::= [A-Za-z] ;
+           base16.class ::= [0-9a-f]
+           base36.class ::= [a-z0-9]
+         anything.class ::= anything at all ;
+
+
+
+Appendix: 'miscellaneous' table contents
+======================================
+
+The 'miscellaneous' table contains string keys mapped to string
+values.  Here is a table of the supported keys, the descriptions of
+their values, and the filesystem format version in which they were
+introduced.
+
+   Fmt   Key                  Value
+   ---   ------------------   ------------------------------------
+    4    forward-delta-rev    Youngest revision in the repository as of
+                              the moment when it was upgraded to support
+                              forward deltas.

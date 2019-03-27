@@ -1,0 +1,6 @@
+block in proto tcp from any to any
+pass in proto tcp from any to any
+block in proto udp from any to any
+pass in proto udp from any to any
+block in proto icmp from any to any
+pass in proto icmp from any to any

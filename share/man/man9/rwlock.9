@@ -1,0 +1,337 @@
+.\" Copyright (c) 2006 Gleb Smirnoff <glebius@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 11, 2017
+.Dt RWLOCK 9
+.Os
+.Sh NAME
+.Nm rwlock ,
+.Nm rw_init ,
+.Nm rw_init_flags ,
+.Nm rw_destroy ,
+.Nm rw_rlock ,
+.Nm rw_wlock ,
+.Nm rw_runlock ,
+.Nm rw_wunlock ,
+.Nm rw_unlock ,
+.Nm rw_try_rlock ,
+.Nm rw_try_upgrade ,
+.Nm rw_try_wlock ,
+.Nm rw_downgrade ,
+.Nm rw_sleep ,
+.Nm rw_initialized ,
+.Nm rw_wowned ,
+.Nm rw_assert ,
+.Nm RW_SYSINIT ,
+.Nm RW_SYSINIT_FLAGS
+.Nd kernel reader/writer lock
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/lock.h
+.In sys/rwlock.h
+.Ft void
+.Fn rw_init "struct rwlock *rw" "const char *name"
+.Ft void
+.Fn rw_init_flags "struct rwlock *rw" "const char *name" "int opts"
+.Ft void
+.Fn rw_destroy "struct rwlock *rw"
+.Ft void
+.Fn rw_rlock "struct rwlock *rw"
+.Ft void
+.Fn rw_wlock "struct rwlock *rw"
+.Ft int
+.Fn rw_try_rlock "struct rwlock *rw"
+.Ft int
+.Fn rw_try_wlock "struct rwlock *rw"
+.Ft void
+.Fn rw_runlock "struct rwlock *rw"
+.Ft void
+.Fn rw_wunlock "struct rwlock *rw"
+.Ft void
+.Fn rw_unlock "struct rwlock *rw"
+.Ft int
+.Fn rw_try_upgrade "struct rwlock *rw"
+.Ft void
+.Fn rw_downgrade "struct rwlock *rw"
+.Ft int
+.Fn rw_sleep "void *chan" "struct rwlock *rw" "int priority" "const char *wmesg" "int timo"
+.Ft int
+.Fn rw_initialized "const struct rwlock *rw"
+.Ft int
+.Fn rw_wowned "const struct rwlock *rw"
+.Pp
+.Cd "options INVARIANTS"
+.Cd "options INVARIANT_SUPPORT"
+.Ft void
+.Fn rw_assert "const struct rwlock *rw" "int what"
+.In sys/kernel.h
+.Fn RW_SYSINIT "name" "struct rwlock *rw" "const char *desc"
+.Fn RW_SYSINIT_FLAGS "name" "struct rwlock *rw" "const char *desc" "int flags"
+.Sh DESCRIPTION
+Reader/writer locks allow shared access to protected data by multiple threads,
+or exclusive access by a single thread.
+The threads with shared access are known as
+.Em readers
+since they only read the protected data.
+A thread with exclusive access is known as a
+.Em writer
+since it can modify protected data.
+.Pp
+Although reader/writer locks look very similar to
+.Xr sx 9
+locks, their usage pattern is different.
+Reader/writer locks can be treated as mutexes (see
+.Xr mutex 9 )
+with shared/exclusive semantics.
+Unlike
+.Xr sx 9 ,
+an
+.Nm
+can be locked while holding a non-spin mutex, and an
+.Nm
+cannot be held while sleeping.
+The
+.Nm
+locks have priority propagation like mutexes, but priority
+can be propagated only to writers.
+This limitation comes from the fact that readers
+are anonymous.
+Another important property is that readers can always recurse,
+and exclusive locks can be made recursive selectively.
+.Ss Macros and Functions
+.Bl -tag -width indent
+.It Fn rw_init "struct rwlock *rw" "const char *name"
+Initialize structure located at
+.Fa rw
+as reader/writer lock, described by name
+.Fa name .
+The description is used solely for debugging purposes.
+This function must be called before any other operations
+on the lock.
+.It Fn rw_init_flags "struct rwlock *rw" "const char *name" "int opts"
+Initialize the rw lock just like the
+.Fn rw_init
+function, but specifying a set of optional flags to alter the
+behaviour of
+.Fa rw ,
+through the
+.Fa opts
+argument.
+It contains one or more of the following flags:
+.Bl -tag -width ".Dv RW_NOPROFILE"
+.It Dv RW_DUPOK
+Witness should not log messages about duplicate locks being acquired.
+.It Dv RW_NOPROFILE
+Do not profile this lock.
+.It Dv RW_NOWITNESS
+Instruct
+.Xr witness 4
+to ignore this lock.
+.It Dv RW_QUIET
+Do not log any operations for this lock via
+.Xr ktr 4 .
+.It Dv RW_RECURSE
+Allow threads to recursively acquire exclusive locks for
+.Fa rw .
+.It Dv RW_NEW
+If the kernel has been compiled with
+.Cd "option INVARIANTS" ,
+.Fn rw_init_flags
+will assert that the
+.Fa rw
+has not been initialized multiple times without intervening calls to
+.Fn rw_destroy
+unless this option is specified.
+.El
+.It Fn rw_rlock "struct rwlock *rw"
+Lock
+.Fa rw
+as a reader.
+If any thread holds this lock exclusively, the current thread blocks,
+and its priority is propagated to the exclusive holder.
+The
+.Fn rw_rlock
+function can be called when the thread has already acquired reader
+access on
+.Fa rw .
+This is called
+.Dq "recursing on a lock" .
+.It Fn rw_wlock "struct rwlock *rw"
+Lock
+.Fa rw
+as a writer.
+If there are any shared owners of the lock, the current thread blocks.
+The
+.Fn rw_wlock
+function can be called recursively only if
+.Fa rw
+has been initialized with the
+.Dv RW_RECURSE
+option enabled.
+.It Fn rw_try_rlock "struct rwlock *rw"
+Try to lock
+.Fa rw
+as a reader.
+This function will return true if the operation succeeds, otherwise 0
+will be returned.
+.It Fn rw_try_wlock "struct rwlock *rw"
+Try to lock
+.Fa rw
+as a writer.
+This function will return true if the operation succeeds, otherwise 0
+will be returned.
+.It Fn rw_runlock "struct rwlock *rw"
+This function releases a shared lock previously acquired by
+.Fn rw_rlock .
+.It Fn rw_wunlock "struct rwlock *rw"
+This function releases an exclusive lock previously acquired by
+.Fn rw_wlock .
+.It Fn rw_unlock "struct rwlock *rw"
+This function releases a shared lock previously acquired by
+.Fn rw_rlock
+or an exclusive lock previously acquired by
+.Fn rw_wlock .
+.It Fn rw_try_upgrade "struct rwlock *rw"
+Attempt to upgrade a single shared lock to an exclusive lock.
+The current thread must hold a shared lock of
+.Fa rw .
+This will only succeed if the current thread holds the only shared lock on
+.Fa rw ,
+and it only holds a single shared lock.
+If the attempt succeeds
+.Fn rw_try_upgrade
+will return a non-zero value,
+and the current thread will hold an exclusive lock.
+If the attempt fails
+.Fn rw_try_upgrade
+will return zero,
+and the current thread will still hold a shared lock.
+.It Fn rw_downgrade "struct rwlock *rw"
+Convert an exclusive lock into a single shared lock.
+The current thread must hold an exclusive lock of
+.Fa rw .
+.It Fn rw_sleep "void *chan" "struct rwlock *rw" "int priority" "const char *wmesg" "int timo"
+Atomically release
+.Fa rw
+while waiting for an event.
+For more details on the parameters to this function,
+see
+.Xr sleep 9 .
+.It Fn rw_initialized "const struct rwlock *rw"
+This function returns non-zero if
+.Fa rw
+has been initialized, and zero otherwise.
+.It Fn rw_destroy "struct rwlock *rw"
+This functions destroys a lock previously initialized with
+.Fn rw_init .
+The
+.Fa rw
+lock must be unlocked.
+.It Fn rw_wowned "const struct rwlock *rw"
+This function returns a non-zero value if the current thread owns an
+exclusive lock on
+.Fa rw .
+.It Fn rw_assert "const struct rwlock *rw" "int what"
+This function allows assertions specified in
+.Fa what
+to be made about
+.Fa rw .
+If the assertions are not true and the kernel is compiled
+with
+.Cd "options INVARIANTS"
+and
+.Cd "options INVARIANT_SUPPORT" ,
+the kernel will panic.
+Currently the following base assertions are supported:
+.Bl -tag -width ".Dv RA_UNLOCKED"
+.It Dv RA_LOCKED
+Assert that current thread holds either a shared or exclusive lock
+of
+.Fa rw .
+.It Dv RA_RLOCKED
+Assert that current thread holds a shared lock of
+.Fa rw .
+.It Dv RA_WLOCKED
+Assert that current thread holds an exclusive lock of
+.Fa rw .
+.It Dv RA_UNLOCKED
+Assert that current thread holds neither a shared nor exclusive lock of
+.Fa rw .
+.El
+.Pp
+In addition, one of the following optional flags may be specified with
+.Dv RA_LOCKED ,
+.Dv RA_RLOCKED ,
+or
+.Dv RA_WLOCKED :
+.Bl -tag -width ".Dv RA_NOTRECURSED"
+.It Dv RA_RECURSED
+Assert that the current thread holds a recursive lock of
+.Fa rw .
+.It Dv RA_NOTRECURSED
+Assert that the current thread does not hold a recursive lock of
+.Fa rw .
+.El
+.El
+.Sh SEE ALSO
+.Xr locking 9 ,
+.Xr mutex 9 ,
+.Xr panic 9 ,
+.Xr sema 9 ,
+.Xr sx 9
+.Sh HISTORY
+These
+functions appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+facility was written by
+.An "John Baldwin" .
+This manual page was written by
+.An "Gleb Smirnoff" .
+.Sh BUGS
+A kernel without
+.Dv WITNESS
+cannot assert whether the current thread does or does not hold a read lock.
+.Dv RA_LOCKED
+and
+.Dv RA_RLOCKED
+can only assert that
+.Em any
+thread holds a read lock.
+They cannot ensure that the current thread holds a read lock.
+Further,
+.Dv RA_UNLOCKED
+can only assert that the current thread does not hold a write lock.
+.Pp
+Reader/writer is a bit of an awkward name.
+An
+.Nm
+can also be called a
+.Dq Robert Watson
+lock if desired.

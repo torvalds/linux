@@ -1,0 +1,121 @@
+.\"-
+.\" Copyright (c) 2012 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 18, 2012
+.Dt ALTERA_JTAG_UART 4
+.Os
+.Sh NAME
+.Nm altera_jtag_uart
+.Nd driver for the Altera JTAG UART Core
+.Sh SYNOPSIS
+.Cd "device altera_jtag_uart"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.altera_jtag_uart.0.at="nexus0"
+.Cd hint.altera_jtag_uart.0.maddr=0x7f000000
+.Cd hint.altera_jtag_uart.0.msize=0x40
+.Cd hint.altera_jtag_uart.0.irq=0
+.Cd hint.altera_jtag_uart.1.at="nexus0"
+.Cd hint.altera_jtag_uart.1.maddr=0x7f001000
+.Cd hint.altera_jtag_uart.1.msize=0x40
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides support for the Altera JTAG UART core, which allows
+multiple UART-like streams to be carried over JTAG.
+.Nm
+allows JTAG UART streams to be attached to both the low-level console
+interface, used for direct kernel input and output, and the
+.Xr tty 4
+layer, to be used with
+.Xr ttys 5
+and
+.Xr login 1 .
+Sequential Altera JTAG UART devices will appear as
+.Li ttyu0 ,
+.Li ttyu1 ,
+etc.
+.Sh HARDWARE
+Altera JTAG UART devices can be connected to using Altera's
+.Pa nios2-terminal
+program, with the instance selected using the
+.Li --instance
+argument on the management host.
+.Nm
+supports JTAG UART cores with or without interrupt lines connected; if the
+.Li irq
+portion of the
+.Pa device.hints
+entry is omitted, the driver will poll rather than configure interrupts.
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr tty 4 ,
+.Xr ttys 5
+.Rs
+.%T Altera Embedded Peripherals IP User Guide
+.%D June 2011
+.%I Altera Corporation
+.%U http://www.altera.com/literature/ug/ug_embedded_ip.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+device driver and this manual page were
+developed by SRI International and the University of Cambridge Computer
+Laboratory under DARPA/AFRL contract
+.Pq FA8750-10-C-0237
+.Pq Do CTSRD Dc ,
+as part of the DARPA CRASH research programme.
+This device driver was written by
+.An Robert N. M. Watson .
+.Sh BUGS
+.Nm
+must dynamically poll to detect when JTAG is present, in order to disable flow
+control in the event that there is no receiving endpoint.
+Otherwise, the boot may hang waiting for the JTAG client to be attached, and
+user processes attached to JTAG UART devices might block indefinitely.
+However, there is no way to flush the output buffer once JTAG is detected to
+have disappeared; this means that a small amount of stale output data will
+remain in the output buffer, being displayed by
+.Li nios2-terminal
+when it is connected.
+Loss of JTAG will not generate a hang-up event, as that is rarely the desired
+behaviour.
+.Pp
+.Li nios2-terminal
+does not place the client-side TTY in raw mode, and so by default will not
+pass all control characters through to the UART.

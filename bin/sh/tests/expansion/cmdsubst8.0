@@ -1,0 +1,17 @@
+# $FreeBSD$
+# Not required by POSIX (although referenced in a non-normative section),
+# but possibly useful.
+
+: hi there &
+p=$!
+q=$(jobs -l $p)
+
+# Change tabs to spaces.
+set -f
+set -- $q
+r="$*"
+
+case $r in
+*" $p "*) ;;
+*) echo Pid missing; exit 3 ;;
+esac

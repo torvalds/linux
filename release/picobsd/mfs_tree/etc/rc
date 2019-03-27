@@ -1,0 +1,27 @@
+#!/bin/sh
+# $FreeBSD$
+
+stty status '^T'
+trap : 2
+trap : 3
+
+HOME=/; export HOME
+PATH=/bin; export PATH
+dev=`sysctl -n machdep.guessed_bootdev`
+[ -c "${dev}" ] || dev="/dev/fd0"
+
+trap "echo 'Reboot interrupted'; exit 1" 3
+set `df /`; mount -u $8 / # upgrade mount to rw
+echo "Loading /etc from MFS:/fd ..."
+cp -Rp /fd/* /
+echo "Updating /etc from ${dev}..."
+mount -o rdonly ${dev} /fd && \
+{ cd /fd; cp -Rp etc root / ; cd / ; umount /fd ; }
+cd /etc
+#rm files to stop overwrite warning
+for i in *; do
+    [ -f $i.gz ] && rm $i
+done
+gzip -d *.gz
+. /etc/rc1
+exit 0

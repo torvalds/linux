@@ -1,0 +1,643 @@
+2007-07-03  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* m68k-dis.c (fetch_arg): Add E.  Replace length switch with
+	direct masking.
+	(print_ins_arg): Add j & K operand types.
+	(match_insn_m68k): Check and skip initial '.' arg character.
+	(m68k_scan_mask): Likewise.
+	* m68k-opc.c (m68k_opcodes): Add coprocessor instructions.
+
+2007-07-02  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* config.in: Regenerate.
+	* po/POTFILES.in: Regenerate.
+	* po/opcodes.pot: Regenerate.
+
+2007-06-30  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* aclocal.m4: Regenerated.
+	* Makefile.in: Likewise.
+
+2007-06-29  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-reg.tbl: Remove spaces before comments.
+
+2007-06-29  M R Swami Reddy  <MR.Swami.Reddy@nsc.com>
+
+	* cr16-opc.c: New file.
+	* cr16-dis.c: New file.
+	* Makefile.am: Entries for cr16.
+	* Makefile.in: Regenerate.
+	* cofigure.in: Add cr16 target information.
+	* configure  : Regenerate.
+	* disassemble.c: Add cr16 target information.
+
+2007-06-28  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* Makefile.am (HFILES): Add i386-opc.h and i386-tbl.h.
+	(CFILES): Add i386-gen.c.
+	(i386-gen): New rule.
+	(i386-gen.o): Likewise.
+	(i386-tbl.h): Likewise.
+	Run "make dep-am".
+	* Makefile.in: Regenerated.
+
+	* i386-gen.c: New file.
+	* i386-opc.tbl: Likewise.
+	* i386-reg.tbl: Likewise.
+	* i386-tbl.h: Likewise.
+
+	* i386-opc.c: Include "i386-tbl.h".
+	(i386_optab): Removed.
+	(i386_regtab): Likewise.
+	(i386_regtab_size): Likewise.
+
+2007-06-26  Paul Brook  <paul@codesourcery.com>
+
+	* arm-dis.c (coprocessor_opcodes): Add fmxr/fmrx mvfr0/mvfr1.
+
+2007-06-25  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-opc.h (regKludge): Renamed to ...
+	(RegKludge): This.
+
+	* i386-opc.c (i386_optab): Replace regKludge with RegKludge.
+
+2007-06-23  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/4667
+	* i386-dis.c (EX): Removed.
+	(EMd): New.
+	(EMq): Likewise.
+	(EXd): Likewise.
+	(EXq): Likewise.
+	(EXx): Likewise.
+	(PREGRP93...PREGRP97): Likewise.
+	(dis386_twobyte): Updated.
+	(prefix_user_table): Updated. Add PREGRP93...PREGRP97.
+	(OP_EX): Remove Intel syntax handling.
+
+2007-06-18  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* m68k-opc.c (m68k_opcodes): Add wdebugl variants.
+
+2007-06-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* Makefile.am (ACLOCAL_AMFLAGS): Add -I ../config -I ../bfd.
+
+	* acinclude.m4: Removed.
+
+	* Makefile.in: Regenerated.
+	* doc/Makefile.in: Likewise.
+	* aclocal.m4: Likewise.
+	* configure: Likewise.
+
+2007-06-05  Paul Brook  <paul@codesourcery.com>
+
+	* arm-dis.c (thumb32_opcodes): Display writeback ldrd/strd addresses.
+
+2007-05-24  Steve Ellcey  <sje@cup.hp.com>
+
+	* Makefile.in: Regnerate.
+	* configure: Regenerate.
+	* aclocal.m4: Regenerate.
+
+2007-05-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc-dis.c (print_insn_powerpc): Don't skip all operands
+	after setting skip_optional.
+
+2007-05-16  Peter Bergner  <bergner@vnet.ibm.com>
+
+	* ppc-dis.c (operand_value_powerpc, skip_optional_operands): New.
+	(print_insn_powerpc): Use the new operand_value_powerpc and
+	skip_optional_operands functions to omit or print all optional
+	operands as a group.
+	* ppc-opc.c (BFF, W, XFL_L, XWRA_MASK): New.
+	(XFL_MASK): Delete L and W bits from the mask.
+	(mtfsfi, mtfsfi.): Replace use of BF with BFF.  Relpace use of XRA_MASK
+	with XWRA_MASK.  Use W.
+	(mtfsf, mtfsf.): Use XFL_L and W.
+
+2007-05-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/4502
+	* i386-dis.c (Suffix3DNow): Replace "pfmulhrw" with "pmulhrw".
+
+2007-05-10  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-opc.h (ShortForm): Redefined.
+	(Jump): Likewise.
+	(JumpDword): Likewise.
+	(JumpByte): Likewise.
+	(JumpInterSegment): Likewise.
+	(FloatMF): Likewise.
+	(FloatR): Likewise.
+	(FloatD): Likewise.
+	(Size16): Likewise.
+	(Size32): Likewise.
+	(Size64): Likewise.
+	(IgnoreSize): Likewise.
+	(DefaultSize): Likewise.
+	(No_bSuf): Likewise.
+	(No_wSuf): Likewise.
+	(No_lSuf): Likewise.
+	(No_sSuf): Likewise.
+	(No_qSuf): Likewise.
+	(No_xSuf): Likewise.
+	(FWait): Likewise.
+	(IsString): Likewise.
+	(regKludge): Likewise.
+	(IsPrefix): Likewise.
+	(ImmExt): Likewise.
+	(NoRex64): Likewise.
+	(Rex64): Likewise.
+	(Ugh): Likewise.
+
+2007-05-07  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (threebyte_0x38_uses_DATA_prefix): Correct entries
+	for some SSE4 instructions.
+	(threebyte_0x3a_uses_DATA_prefix): Likewise.
+
+2007-05-03  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (CRC32_Fixup): Don't print suffix in Intel mode.
+
+	* i386-opc.c (i386_optab): Remove IgnoreSize and correct operand
+	type for crc32.
+
+2007-05-01  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (CRC32_Fixup): Properly handle Intel mode and
+	check data size prefix in 16bit mode.
+
+	* i386-opc.c (i386_optab): Default crc32 to non-8bit and
+	support Intel mode.
+
+2007-04-30  Mark Salter  <msalter@redhat.com>
+
+	* frv-desc.c: Regenerate.
+	* frv-desc.h: Regenerate.
+
+2007-04-30  Alan Modra  <amodra@bigpond.net.au>
+
+	PR 4436
+	* ppc-opc.c (powerpc_operands): Correct bitm for second entry of MBE.
+
+2007-04-27  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (modrm): Put reg before rm.
+
+2007-04-26  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/4430
+	* i386-dis.c (print_displacement): New.
+	(OP_E): Call print_displacement instead of print_operand_value
+	to output displacement when either base or index exist.  Print
+	the explicit zero displacement in 16bit mode.
+
+2007-04-26  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/4429
+	* i386-dis.c (print_insn): Also swap the order of op_riprel
+	when swapping op_index.  Break when the RIP relative address
+	is printed.
+	(OP_E): Properly handle RIP relative addressing and print the
+	explicit zero displacement for Intel mode.
+
+2007-04-27  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+	* ns32k-dis.c: Include sysdep.h first.
+
+2007-04-24  Andreas Krebbel  <krebbel1@de.ibm.com>
+
+	* opcodes/s390-opc.c (MASK_SSF_RRDRD): Fourth nybble belongs to the
+	opcode.
+	* opcodes/s390-opc.txt (pfpo, ectg, csst): Add new z9-ec instructions.
+
+2007-04-24  Nick Clifton  <nickc@redhat.com>
+
+	* arm-dis.c (print_insn): Initialise type.
+
+2007-04-24  Alan Modra  <amodra@bigpond.net.au>
+
+	* cgen-types.h: Include bfd_stdint.h, not stdint.h.
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+2007-04-23  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* m68k-opc.c: Mark mcfisa_c instructions.
+
+2007-04-21  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-dis.c (arm_opcodes): Disassemble to unified syntax.
+	(thumb_opcodes): Add missing white space in adr.
+	(arm_decode_shift): New parameter, print_shift.  Only decode the
+	shift parameter if set.  Adjust callers.
+	(print_insn_arm): Support for operand type q with no shift decode.
+
+2007-04-21  Alan Modra  <amodra@bigpond.net.au>
+
+	* i386-opc.c (i386_float_regtab, i386_float_regtab_size): Delete.
+	Move contents to..
+	(i386_regtab): ..here.
+	* i386-opc.h (i386_float_regtab, i386_float_regtab_size): Delete.
+
+	* ppc-opc.c (powerpc_operands): Delete duplicate entries.
+	(BA_MASK, FXM_MASK, STRM_MASK, VA_MASK, VB_MASK, VC_MASK): Delete.
+	(VD_MASK, WS_MASK, MTMSRD_L, XRT_L): Delete.
+	(powerpc_opcodes): Replace uses of MTMSRD_L and XRT_L.
+
+2007-04-20  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* m68k-dis.c (print_insn_arg): Show c04 as rambar0 and c05 as
+	rambar1.
+
+2007-04-20  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc-dis.c (print_insn_powerpc): Adjust for struct powerpc_operand
+	change.
+	* ppc-opc.c (powerpc_operands): Replace bit count with bit mask
+	in all entries.  Add PPC_OPERAND_SIGNED to DE entry.  Remove
+	references to following deleted functions.
+	(insert_bd, extract_bd, insert_dq, extract_dq): Delete.
+	(insert_ds, extract_ds, insert_de, extract_de): Delete.
+	(insert_des, extract_des, insert_li, extract_li): Delete.
+	(insert_nb, insert_rsq, insert_rtq, insert_ev2, extract_ev2): Delete.
+	(insert_ev4, extract_ev4, insert_ev8, extract_ev8): Delete.
+	(num_powerpc_operands): New constant.
+	(XSPRG_MASK): Remove entire SPRG field.
+	(powerpc_opcodes <bcctre, bcctrel>): Use XLBB_MASK not XLYBB_MASK.
+
+2007-04-20  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc-opc.c (DCM, DGM, TE, RMC, R, SP, S): Correct shift.
+	(Z2_MASK): Define.
+	(powerpc_opcodes): Use Z2_MASK in all insns taking RMC operand.
+
+2007-04-20  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm-dis.c (print_insn): Only look for a mapping symbol in the section
+	being disassembled.
+
+2007-04-19  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+	* po/POTFILES.in: Regenerate.
+
+2007-04-19  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc-opc.c (powerpc_opcodes): Add cctpl, cctpm, cctph, db8cyc,
+	db10cyc, db12cyc, db16cyc.
+
+2007-04-19  Nathan Froyd <froydnj@codesourcery.com>
+
+	* ppc-opc.c (powerpc_opcodes): Recognize three-operand tlbsxe.
+
+2007-04-18  H.J. Lu <hongjiu.lu@intel.com>
+
+	* i386-dis.c (CRC32_Fixup): New.
+	(PREGRP85, PREGRP86, PREGRP87, PREGRP88, PREGRP89, PREGRP90,
+	 PREGRP91): New.
+	(threebyte_0x38_uses_DATA_prefix): Updated for SSE4.2.
+	(threebyte_0x3a_uses_DATA_prefix): Likewise.
+	(prefix_user_table): Add PREGRP85, PREGRP86, PREGRP87,
+	PREGRP88, PREGRP89, PREGRP90 and PREGRP91.
+	(three_byte_table): Likewise.
+
+	* i386-opc.c (i386_optab): Add SSE4.2 opcodes.
+
+	* i386-opc.h (CpuSSE4_2): New.
+	(CpuSSE4): Likewise.
+	(CpuUnknownFlags): Add CpuSSE4_2.
+
+2007-04-18  H.J. Lu <hongjiu.lu@intel.com>
+
+	* i386-dis.c (XMM_Fixup): New.
+	(Edqb): New.
+	(Edqd): New.
+	(XMM0): New.
+	(dqb_mode): New.
+	(dqd_mode): New.
+	(PREGRP39 ... PREGRP85): New.
+	(threebyte_0x38_uses_DATA_prefix): Updated for SSE4.
+	(threebyte_0x3a_uses_DATA_prefix): Likewise.
+	(prefix_user_table): Add PREGRP39 ... PREGRP85.
+	(three_byte_table): Likewise.
+	(putop): Handle 'K'.
+	(intel_operand_size): Handle dqb_mode, dqd_mode):
+	(OP_E): Likewise.
+	(OP_G): Likewise.
+
+	* i386-opc.c (i386_optab): Add SSE4.1 opcodes.
+
+	* i386-opc.h (CpuSSE4_1): New.
+	(CpuUnknownFlags): Add CpuSSE4_1.
+	(regKludge): Update comment.
+
+2007-04-18  Matthias Klose  <doko@ubuntu.com>
+
+	* Makefile.am (libopcodes_la_LDFLAGS): Use bfd soversion.
+	* Makefile.in: Regenerate.
+
+2007-04-14  Steve Ellcey  <sje@cup.hp.com>
+
+	* Makefile.am: Add ACLOCAL_AMFLAGS.
+	* Makefile.in: Regenerate.
+
+2007-04-13  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c: Remove trailing white spaces.
+	* i386-opc.c: Likewise.
+	* i386-opc.h: Likewise.
+
+2007-04-11  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/4333
+	* i386-dis.c (GRP1a): New.
+	(GRP1b ... GRPPADLCK2): Update index.
+	(dis386): Use GRP1a for entry 0x8f.
+	(mod, rm, reg): Removed. Replaced by ...
+	(modrm): This.
+	(grps): Add GRP1a.
+
+2007-04-09  Kazu Hirata  <kazu@codesourcery.com>
+
+	* m68k-dis.c (print_insn_m68k): Restore info->fprintf_func and
+	info->print_address_func if longjmp is called.
+
+2007-03-29  DJ Delorie  <dj@redhat.com>
+
+	* m32c-desc.c: Regenerate.
+	* m32c-dis.c: Regenerate.
+	* m32c-opc.c: Regenerate.
+
+2007-03-28  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-opc.c (i386_optab): Change InvMem to RegMem for mov and
+	movq.  Remove InvMem from sldt, smsw and str.
+
+	* i386-opc.h (InvMem): Renamed to ...
+	(RegMem): Update comments.
+	(AnyMem): Remove InvMem.
+
+2007-03-27  Paul Brook  <paul@codesourcery.com>
+
+	* arm-dis.c (thumb_opcodes): Add entry for undefined insns (0xbe??).
+
+2007-03-24  Paul Brook  <paul@codesourcery.com>
+
+	* arm-dis.c (coprocessor_opcodes): Remove superfluous 0x.
+	(print_insn_coprocessor): Handle %<bitfield>x.
+
+2007-03-24  Paul Brook  <paul@codesourcery.com>
+	    Mark Shinwell  <shinwell@codesourcery.com>
+
+	* arm-dis.c (arm_opcodes): Print SRS base register.
+
+2007-03-23  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (prefix_name): Replace rex64XYZ with rex.WRXB.
+
+	* i386-opc.c (i386_optab): Add rex.wrxb.
+
+2007-03-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (REX_MODE64): Remove definition.
+	(REX_EXTX): Likewise.
+	(REX_EXTY): Likewise.
+	(REX_EXTZ): Likewise.
+	(USED_REX): Use REX_OPCODE instead of 0x40.
+	Replace REX_MODE64, REX_EXTX, REX_EXTY and REX_EXTZ with REX_W,
+	REX_R, REX_X and REX_B respectively.
+
+2007-03-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/4218
+	* i386-dis.c (PREGRP38): New.
+	(dis386): Use PREGRP38 for 0x90.
+	(prefix_user_table): Add PREGRP38.
+	(print_insn): Set uses_REPZ_prefix to 1 for pause.
+	(NOP_Fixup1): Properly handle REX bits.
+	(NOP_Fixup2): Likewise.
+
+	* i386-opc.c (i386_optab): Allow %eax with xchg in 64bit.
+	Allow register with nop.
+
+2007-03-20  DJ Delorie  <dj@redhat.com>
+
+	* m32c-asm.c: Regenerate.
+	* m32c-desc.c: Regenerate.
+	* m32c-desc.h: Regenerate.
+	* m32c-dis.h: Regenerate.
+	* m32c-ibld.c: Regenerate.
+	* m32c-opc.c: Regenerate.
+	* m32c-opc.h: Regenerate.
+
+2007-03-15  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-opc.c: Include "libiberty.h".
+	(i386_regtab): Remove the last entry.
+	(i386_regtab_size): New.
+	(i386_float_regtab_size): Likewise.
+
+	* i386-opc.h (i386_regtab_size): New.
+	(i386_float_regtab_size): Likewise.
+
+2007-03-15  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* Makefile.am (CFILES): Add i386-opc.c.
+	(ALL_MACHINES): Add i386-opc.lo.
+	Run "make dep-am".
+	* Makefile.in: Regenerated.
+
+	* configure.in: Add i386-opc.lo for bfd_i386_arch.
+	* configure: Regenerated.
+
+	* i386-dis.c: Include "opcode/i386.h".
+	(MAXLEN): Renamed to MAX_MNEM_SIZE. Remove definition.
+	(FWAIT_OPCODE): Remove definition.
+	(UNIXWARE_COMPAT): Renamed to SYSV386_COMPAT. Remove definition.
+	(MAX_OPERANDS): Remove definition.
+
+	* i386-opc.c: New file.
+	* i386-opc.h: Likewise.
+
+2007-03-15  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* Makefile.in: Regenerated.
+
+2007-03-09  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (OP_Rd): Renamed to ...
+	(OP_R): This.
+	(Rd): Updated.
+	(Rm): Likewise.
+
+2007-03-08  Alan Modra  <amodra@bigpond.net.au>
+
+	* fr30-asm.c: Regenerate.
+	* frv-asm.c: Regenerate.
+	* ip2k-asm.c: Regenerate.
+	* iq2000-asm.c: Regenerate.
+	* m32c-asm.c: Regenerate.
+	* m32r-asm.c: Regenerate.
+	* m32r-dis.c: Regenerate.
+	* mt-asm.c: Regenerate.
+	* mt-ibld.c: Regenerate.
+	* mt-opc.c: Regenerate.
+	* openrisc-asm.c: Regenerate.
+	* xc16x-asm.c: Regenerate.
+	* xstormy16-asm.c: Regenerate.
+
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+	* po/POTFILES.in: Regenerate.
+
+2007-03-06  Andreas Krebbel  <krebbel1@de.ibm.com>
+
+	* opcodes/s390-opc.c (INSTR_RRE_FR, INSTR_RRF_F0FF2, INSTR_RRF_F0FR,
+	INSTR_RRF_UUFF, INSTR_RRF_0UFF, INSTR_RRF_FFFU,	INSTR_RRR_F0FF): New
+	instruction formats added.
+	(MASK_RRE_FR, MASK_RRF_F0FF2, MASK_RRF_F0FR, MASK_RRF_UUFF,
+	MASK_RRF_0UFF, MASK_RRF_FFFU, MASK_RRR_F0FF): New instruction format
+	masks added.
+	* opcodes/s390-opc.txt (lpdfr - tgxt): Decimal floating point
+	instructions added.
+	* opcodes/s390-mkopc.c (s390_opcode_cpu_val): S390_OPCODE_Z9_EC added.
+	(main): z9-ec cpu type option added.
+	* include/opcode/s390.h (s390_opcode_cpu_val): S390_OPCODE_Z9_EC added.
+
+2007-02-22  DJ Delorie  <dj@redhat.com>
+
+	* s390-opc.c (INSTR_SS_L2RDRD): New.
+	(MASK_SS_L2RDRD): New.
+	* s390-opc.txt (pka): Use it.
+
+2007-02-20  Thiemo Seufer  <ths@mips.com>
+            Chao-Ying Fu  <fu@mips.com>
+
+	* mips-dis.c (mips_arch_choices): Add DSP R2 support.
+	(print_insn_args): Add support for balign instruction.
+	* mips-opc.c (D33): New shortcut for DSP R2 instructions.
+	(mips_builtin_opcodes): Add DSP R2 instructions.
+
+2007-02-19  Andreas Krebbel  <krebbel1@de.ibm.com>
+
+	* s390-opc.c (INSTR_RRF_U0FR, MASK_RRF_U0FR): Removed.
+	(INSTR_RRF_U0RF, MASK_RRF_U0RF): Added.
+	* s390-opc.txt (cfxbr, cfdbr, cfebr, cgebr, cgdbr, cgxbr, cger, cgdr,
+	cgxr, cfxr, cfdr, cfer): Instruction type set to INSTR_RRF_U0RF.
+
+2007-02-19  Andreas Krebbel  <krebbel1@de.ibm.com>
+
+	* s390-opc.txt ("efpc", "sfpc"): Set to RRE_RR_OPT instruction type.
+	* s390-opc.c (s390_operands): Add RO_28 as optional gpr.
+	(INSTR_RRE_RR_OPT, MASK_RRE_RR_OPT): New instruction type for efpc
+	and sfpc.
+
+2007-02-16  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/4045
+	* avr-dis.c (comment_start): New variable, contains the prefix to
+	use when printing addresses in comments.
+	(print_insn_avr): Set comment_start to an empty space if there is
+	no symbol table available as the generic address printing code
+	will prefix the numeric value of the address with 0x.
+
+2007-02-13  H.J. Lu  <hongjiu.lu@intel.com>
+
+	 * i386-dis.c: Updated to use an array of MAX_OPERANDS operands
+	 in struct dis386.
+
+2007-02-05  Dave Brolley  <brolley@redhat.com>
+	    Richard Sandiford  <rsandifo@redhat.com>
+	    DJ Delorie  <dj@redhat.com>
+	    Graydon Hoare  <graydon@redhat.com>
+	    Frank Ch. Eigler  <fche@redhat.com>
+	    Ben Elliston  <bje@redhat.com>
+
+	* Makefile.am (HFILES): Add mep-desc.h mep-opc.h.
+	(CFILES): Add mep-*.c
+	(ALL_MACHINES): Add mep-*.lo.
+	(CLEANFILES): Add stamp-mep.
+	(CGEN_CPUS): Add mep.
+	(MEP_DEPS): New variable.
+	(mep-*): New targets.
+	* configure.in: Handle bfd_mep_arch.
+	* disassemble.c (ARCH_mep): New macro.
+	(disassembler): Handle bfd_arch_mep.
+	(disassemble_init_for_target): Likewise.
+	* mep-*: New files for Toshiba Media Processor (MeP).
+	* Makefile.in: Regenerated.
+	* configure: Regenerated.
+
+2007-02-05  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (OP_J): Undo the last change. Properly handle 64K
+	wrap around within the same segment in 16bit mode.
+
+2007-02-02  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (OP_J): Mask to 16bit only if there is a data16
+	prefix.
+
+2007-02-02  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* avr-dis.c (avr_operand): Correct PR number in comment.
+
+2007-02-02  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* disassemble.c (disassembler_usage): Call
+	print_i386_disassembler_options for i386 disassembler.
+
+	* i386-dis.c (print_i386_disassembler_options): New.
+	(print_insn): Support the new addr64 option.
+
+2007-02-02  Hiroki Kaminaga  <kaminaga@sm.sony.co.jp>
+
+	* ppc-dis.c (powerpc_dialect): Handle ppc440.
+	* ppc-dis.c (print_ppc_disassembler_options): Note the -M440 can
+	be used.
+
+2007-02-02  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc-opc.c (insert_bdm): -Many comment.
+	(valid_bo): Add "extract" param.  Accept both powerpc and power4
+	BO fields when disassembling with -Many.
+	(insert_bo, extract_bo, insert_boe, extract_boe): Adjust valid_bo call.
+
+2007-01-08  Kazu Hirata  <kazu@codesourcery.com>
+
+	* m68k-opc.c (m68k_opcodes): Replace cpu32 with
+	cpu32 | fido_a except on tbl instructions.
+
+2007-01-04  Paul Brook  <paul@codesourcery.com>
+
+	* arm-dis.c (arm_opcodes): Fix cpsie and cpsid entries.
+
+2007-01-04  Andreas Schwab  <schwab@suse.de>
+
+	* m68k-opc.c: Fix encoding of signed bit in the cpu32 tbls insns.
+
+2007-01-04  Julian Brown  <julian@codesourcery.com>
+
+	* arm-dis.c (neon_opcode): Fix disassembly for vshl, vqshl, vrshl,
+	vqrshl instructions.
+
+For older changes see ChangeLog-2006
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

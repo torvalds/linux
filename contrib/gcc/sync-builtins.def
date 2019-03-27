@@ -1,0 +1,253 @@
+/* This file contains the definitions and documentation for the
+   synchronization builtins used in the GNU compiler.
+   Copyright (C) 2005 Free Software Foundation, Inc.
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
+
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+02110-1301, USA.  */
+
+/* Before including this file, you should define a macro:
+
+     DEF_SYNC_BUILTIN (ENUM, NAME, TYPE, ATTRS)
+
+   See builtins.def for details.  */
+   
+/* Synchronization Primitives.  The "_N" version is the one that the user
+   is supposed to be using.  It's overloaded, and is resolved to one of the
+   "_1" through "_16" versions, plus some extra casts.  */
+
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_ADD_N, "__sync_fetch_and_add",
+		  BT_FN_VOID_VAR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_ADD_1, "__sync_fetch_and_add_1",
+		  BT_FN_I1_VPTR_I1, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_ADD_2, "__sync_fetch_and_add_2",
+		  BT_FN_I2_VPTR_I2, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_ADD_4, "__sync_fetch_and_add_4",
+		  BT_FN_I4_VPTR_I4, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_ADD_8, "__sync_fetch_and_add_8",
+		  BT_FN_I8_VPTR_I8, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_ADD_16, "__sync_fetch_and_add_16",
+		  BT_FN_I16_VPTR_I16, ATTR_NOTHROW_LIST)
+
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_SUB_N, "__sync_fetch_and_sub",
+		  BT_FN_VOID_VAR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_SUB_1, "__sync_fetch_and_sub_1",
+		  BT_FN_I1_VPTR_I1, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_SUB_2, "__sync_fetch_and_sub_2",
+		  BT_FN_I2_VPTR_I2, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_SUB_4, "__sync_fetch_and_sub_4",
+		  BT_FN_I4_VPTR_I4, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_SUB_8, "__sync_fetch_and_sub_8",
+		  BT_FN_I8_VPTR_I8, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_SUB_16, "__sync_fetch_and_sub_16",
+		  BT_FN_I16_VPTR_I16, ATTR_NOTHROW_LIST)
+
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_OR_N, "__sync_fetch_and_or",
+		  BT_FN_VOID_VAR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_OR_1, "__sync_fetch_and_or_1",
+		  BT_FN_I1_VPTR_I1, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_OR_2, "__sync_fetch_and_or_2",
+		  BT_FN_I2_VPTR_I2, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_OR_4, "__sync_fetch_and_or_4",
+		  BT_FN_I4_VPTR_I4, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_OR_8, "__sync_fetch_and_or_8",
+		  BT_FN_I8_VPTR_I8, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_OR_16, "__sync_fetch_and_or_16",
+		  BT_FN_I16_VPTR_I16, ATTR_NOTHROW_LIST)
+
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_AND_N, "__sync_fetch_and_and",
+		  BT_FN_VOID_VAR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_AND_1, "__sync_fetch_and_and_1",
+		  BT_FN_I1_VPTR_I1, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_AND_2, "__sync_fetch_and_and_2",
+		  BT_FN_I2_VPTR_I2, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_AND_4, "__sync_fetch_and_and_4",
+		  BT_FN_I4_VPTR_I4, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_AND_8, "__sync_fetch_and_and_8",
+		  BT_FN_I8_VPTR_I8, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_AND_16, "__sync_fetch_and_and_16",
+		  BT_FN_I16_VPTR_I16, ATTR_NOTHROW_LIST)
+
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_XOR_N, "__sync_fetch_and_xor",
+		  BT_FN_VOID_VAR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_XOR_1, "__sync_fetch_and_xor_1",
+		  BT_FN_I1_VPTR_I1, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_XOR_2, "__sync_fetch_and_xor_2",
+		  BT_FN_I2_VPTR_I2, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_XOR_4, "__sync_fetch_and_xor_4",
+		  BT_FN_I4_VPTR_I4, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_XOR_8, "__sync_fetch_and_xor_8",
+		  BT_FN_I8_VPTR_I8, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_XOR_16, "__sync_fetch_and_xor_16",
+		  BT_FN_I16_VPTR_I16, ATTR_NOTHROW_LIST)
+
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_NAND_N, "__sync_fetch_and_nand",
+		  BT_FN_VOID_VAR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_NAND_1, "__sync_fetch_and_nand_1",
+		  BT_FN_I1_VPTR_I1, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_NAND_2, "__sync_fetch_and_nand_2",
+		  BT_FN_I2_VPTR_I2, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_NAND_4, "__sync_fetch_and_nand_4",
+		  BT_FN_I4_VPTR_I4, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_NAND_8, "__sync_fetch_and_nand_8",
+		  BT_FN_I8_VPTR_I8, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_FETCH_AND_NAND_16, "__sync_fetch_and_nand_16",
+		  BT_FN_I16_VPTR_I16, ATTR_NOTHROW_LIST)
+
+DEF_SYNC_BUILTIN (BUILT_IN_ADD_AND_FETCH_N, "__sync_add_and_fetch",
+		  BT_FN_VOID_VAR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_ADD_AND_FETCH_1, "__sync_add_and_fetch_1",
+		  BT_FN_I1_VPTR_I1, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_ADD_AND_FETCH_2, "__sync_add_and_fetch_2",
+		  BT_FN_I2_VPTR_I2, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_ADD_AND_FETCH_4, "__sync_add_and_fetch_4",
+		  BT_FN_I4_VPTR_I4, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_ADD_AND_FETCH_8, "__sync_add_and_fetch_8",
+		  BT_FN_I8_VPTR_I8, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_ADD_AND_FETCH_16, "__sync_add_and_fetch_16",
+		  BT_FN_I16_VPTR_I16, ATTR_NOTHROW_LIST)
+
+DEF_SYNC_BUILTIN (BUILT_IN_SUB_AND_FETCH_N, "__sync_sub_and_fetch",
+		  BT_FN_VOID_VAR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_SUB_AND_FETCH_1, "__sync_sub_and_fetch_1",
+		  BT_FN_I1_VPTR_I1, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_SUB_AND_FETCH_2, "__sync_sub_and_fetch_2",
+		  BT_FN_I2_VPTR_I2, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_SUB_AND_FETCH_4, "__sync_sub_and_fetch_4",
+		  BT_FN_I4_VPTR_I4, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_SUB_AND_FETCH_8, "__sync_sub_and_fetch_8",
+		  BT_FN_I8_VPTR_I8, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_SUB_AND_FETCH_16, "__sync_sub_and_fetch_16",
+		  BT_FN_I16_VPTR_I16, ATTR_NOTHROW_LIST)
+
+DEF_SYNC_BUILTIN (BUILT_IN_OR_AND_FETCH_N, "__sync_or_and_fetch",
+		  BT_FN_VOID_VAR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_OR_AND_FETCH_1, "__sync_or_and_fetch_1",
+		  BT_FN_I1_VPTR_I1, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_OR_AND_FETCH_2, "__sync_or_and_fetch_2",
+		  BT_FN_I2_VPTR_I2, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_OR_AND_FETCH_4, "__sync_or_and_fetch_4",
+		  BT_FN_I4_VPTR_I4, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_OR_AND_FETCH_8, "__sync_or_and_fetch_8",
+		  BT_FN_I8_VPTR_I8, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_OR_AND_FETCH_16, "__sync_or_and_fetch_16",
+		  BT_FN_I16_VPTR_I16, ATTR_NOTHROW_LIST)
+
+DEF_SYNC_BUILTIN (BUILT_IN_AND_AND_FETCH_N, "__sync_and_and_fetch",
+		  BT_FN_VOID_VAR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_AND_AND_FETCH_1, "__sync_and_and_fetch_1",
+		  BT_FN_I1_VPTR_I1, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_AND_AND_FETCH_2, "__sync_and_and_fetch_2",
+		  BT_FN_I2_VPTR_I2, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_AND_AND_FETCH_4, "__sync_and_and_fetch_4",
+		  BT_FN_I4_VPTR_I4, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_AND_AND_FETCH_8, "__sync_and_and_fetch_8",
+		  BT_FN_I8_VPTR_I8, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_AND_AND_FETCH_16, "__sync_and_and_fetch_16",
+		  BT_FN_I16_VPTR_I16, ATTR_NOTHROW_LIST)
+
+DEF_SYNC_BUILTIN (BUILT_IN_XOR_AND_FETCH_N, "__sync_xor_and_fetch",
+		  BT_FN_VOID_VAR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_XOR_AND_FETCH_1, "__sync_xor_and_fetch_1",
+		  BT_FN_I1_VPTR_I1, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_XOR_AND_FETCH_2, "__sync_xor_and_fetch_2",
+		  BT_FN_I2_VPTR_I2, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_XOR_AND_FETCH_4, "__sync_xor_and_fetch_4",
+		  BT_FN_I4_VPTR_I4, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_XOR_AND_FETCH_8, "__sync_xor_and_fetch_8",
+		  BT_FN_I8_VPTR_I8, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_XOR_AND_FETCH_16, "__sync_xor_and_fetch_16",
+		  BT_FN_I16_VPTR_I16, ATTR_NOTHROW_LIST)
+
+DEF_SYNC_BUILTIN (BUILT_IN_NAND_AND_FETCH_N, "__sync_nand_and_fetch",
+		  BT_FN_VOID_VAR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_NAND_AND_FETCH_1, "__sync_nand_and_fetch_1",
+		  BT_FN_I1_VPTR_I1, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_NAND_AND_FETCH_2, "__sync_nand_and_fetch_2",
+		  BT_FN_I2_VPTR_I2, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_NAND_AND_FETCH_4, "__sync_nand_and_fetch_4",
+		  BT_FN_I4_VPTR_I4, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_NAND_AND_FETCH_8, "__sync_nand_and_fetch_8",
+		  BT_FN_I8_VPTR_I8, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_NAND_AND_FETCH_16, "__sync_nand_and_fetch_16",
+		  BT_FN_I16_VPTR_I16, ATTR_NOTHROW_LIST)
+
+DEF_SYNC_BUILTIN (BUILT_IN_BOOL_COMPARE_AND_SWAP_N,
+		  "__sync_bool_compare_and_swap",
+		  BT_FN_VOID_VAR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_BOOL_COMPARE_AND_SWAP_1,
+		  "__sync_bool_compare_and_swap_1",
+		  BT_FN_BOOL_VPTR_I1_I1, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_BOOL_COMPARE_AND_SWAP_2,
+		  "__sync_bool_compare_and_swap_2",
+		  BT_FN_BOOL_VPTR_I2_I2, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_BOOL_COMPARE_AND_SWAP_4,
+		  "__sync_bool_compare_and_swap_4",
+		  BT_FN_BOOL_VPTR_I4_I4, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_BOOL_COMPARE_AND_SWAP_8,
+		  "__sync_bool_compare_and_swap_8",
+		  BT_FN_BOOL_VPTR_I8_I8, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_BOOL_COMPARE_AND_SWAP_16,
+		  "__sync_bool_compare_and_swap_16",
+		  BT_FN_BOOL_VPTR_I16_I16, ATTR_NOTHROW_LIST)
+
+DEF_SYNC_BUILTIN (BUILT_IN_VAL_COMPARE_AND_SWAP_N,
+		  "__sync_val_compare_and_swap",
+		  BT_FN_VOID_VAR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_VAL_COMPARE_AND_SWAP_1,
+		  "__sync_val_compare_and_swap_1",
+		  BT_FN_I1_VPTR_I1_I1, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_VAL_COMPARE_AND_SWAP_2,
+		  "__sync_val_compare_and_swap_2",
+		  BT_FN_I2_VPTR_I2_I2, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_VAL_COMPARE_AND_SWAP_4,
+		  "__sync_val_compare_and_swap_4",
+		  BT_FN_I4_VPTR_I4_I4, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_VAL_COMPARE_AND_SWAP_8,
+		  "__sync_val_compare_and_swap_8",
+		  BT_FN_I8_VPTR_I8_I8, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_VAL_COMPARE_AND_SWAP_16,
+		  "__sync_val_compare_and_swap_16",
+		  BT_FN_I16_VPTR_I16_I16, ATTR_NOTHROW_LIST)
+
+DEF_SYNC_BUILTIN (BUILT_IN_LOCK_TEST_AND_SET_N, "__sync_lock_test_and_set",
+		  BT_FN_VOID_VAR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_LOCK_TEST_AND_SET_1, "__sync_lock_test_and_set_1",
+		  BT_FN_I1_VPTR_I1, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_LOCK_TEST_AND_SET_2, "__sync_lock_test_and_set_2",
+		  BT_FN_I2_VPTR_I2, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_LOCK_TEST_AND_SET_4, "__sync_lock_test_and_set_4",
+		  BT_FN_I4_VPTR_I4, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_LOCK_TEST_AND_SET_8, "__sync_lock_test_and_set_8",
+		  BT_FN_I8_VPTR_I8, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_LOCK_TEST_AND_SET_16, "__sync_lock_test_and_set_16",
+		  BT_FN_I16_VPTR_I16, ATTR_NOTHROW_LIST)
+
+DEF_SYNC_BUILTIN (BUILT_IN_LOCK_RELEASE_N, "__sync_lock_release",
+		  BT_FN_VOID_VAR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_LOCK_RELEASE_1, "__sync_lock_release_1",
+		  BT_FN_VOID_VPTR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_LOCK_RELEASE_2, "__sync_lock_release_2",
+		  BT_FN_VOID_VPTR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_LOCK_RELEASE_4, "__sync_lock_release_4",
+		  BT_FN_VOID_VPTR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_LOCK_RELEASE_8, "__sync_lock_release_8",
+		  BT_FN_VOID_VPTR, ATTR_NOTHROW_LIST)
+DEF_SYNC_BUILTIN (BUILT_IN_LOCK_RELEASE_16, "__sync_lock_release_16",
+		  BT_FN_VOID_VPTR, ATTR_NOTHROW_LIST)
+
+DEF_SYNC_BUILTIN (BUILT_IN_SYNCHRONIZE, "__sync_synchronize",
+		  BT_FN_VOID, ATTR_NOTHROW_LIST)

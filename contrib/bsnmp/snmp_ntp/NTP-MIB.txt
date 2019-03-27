@@ -1,0 +1,627 @@
+--
+-- NTP MIB, Revision 0.2, 7/25/97
+--
+
+NTP-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    Integer32, IpAddress, MODULE-IDENTITY, OBJECT-TYPE, Unsigned32,
+    enterprises
+        FROM SNMPv2-SMI
+
+    TEXTUAL-CONVENTION, TruthValue
+        FROM SNMPv2-TC;
+
+ntpMIB MODULE-IDENTITY
+    LAST-UPDATED "199707251530Z"
+    ORGANIZATION
+        "University of Delaware"
+    CONTACT-INFO
+        "Adarsh Sethi
+         Department of Computer & Information Sciences
+         University of Delaware
+         Newark, DE 19716
+         Tel: +1 302 831 1945
+         E-mail: sethi@cis.udel.edu
+
+         David Mills
+         Department of Electrical Engineering
+         University of Delaware
+         Newark, DE 19716
+         Tel: +1 302 831 ????
+         E-mail: mills@ee.udel.edu"
+    DESCRIPTION
+        "This MIB module defines a MIB which provides mechanisms to
+         monitor and control an NTP server."
+    ::= { udel 3 }
+
+--
+-- Position within the OID hierarchy of this MIB:
+--
+udel OBJECT IDENTIFIER
+    ::= { enterprises 1277 }
+
+--
+-- The various groups defined within this MIB definition:
+--
+ntpSystem OBJECT IDENTIFIER
+    ::= { ntpMIB 1 }
+
+ntpPeers OBJECT IDENTIFIER
+    ::= { ntpMIB 2 }
+
+ntpFilter OBJECT IDENTIFIER
+    ::= { ntpMIB 3 }
+
+--
+-- Textual conventions:
+--
+
+NTPTimeStamp ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "4x.4x"
+    STATUS      current
+    DESCRIPTION
+        ""
+    SYNTAX      OCTET STRING (SIZE(8))
+
+NTPLeapIndicator ::= TEXTUAL-CONVENTION
+    STATUS      current
+    DESCRIPTION
+        ""
+    SYNTAX      INTEGER {
+		    noWarning(0),
+		    addSecond(1),
+		    subtractSecond(2),
+                    alarm(3) }
+
+--
+-- System Group
+--
+
+ntpSysLeap OBJECT-TYPE
+    SYNTAX      NTPLeapIndicator
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " two-bit code warning of an impending leap
+         second to be inserted in the NTP timescale."
+    ::= { ntpSystem 1 }
+
+ntpSysStratum OBJECT-TYPE
+    SYNTAX      Integer32 (0..255)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " indicating the stratum of the local clock.
+         0, unspecified
+         1, primary reference (e.g.,, calibrated atomic clock,
+            radio clock)
+         2-255, secondary reference (via NTP)"
+    ::= { ntpSystem 2 }
+
+ntpSysPrecision OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "signed integer indicating the precision
+         of the various clocks, in seconds to the nearest power
+         of two."
+    ::= { ntpSystem 3 }
+
+ntpSysRootDelay OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the total roundtrip delay to the primary
+         reference source at the root of the synchronization
+         subnet, in seconds"
+    ::= { ntpSystem 4 }
+
+ntpSysRootDispersion OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the maximum error relative to the primary
+         reference source at the root of the synchronization
+         subnet, in seconds. Only positive values greater
+         than zero are possible"
+    ::= { ntpSystem 5 }
+
+ntpSysRefId OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " the particular reference clock. In the case of
+         stratum 0 (unspecified) or stratum 1 (primary reference
+         source), this is a four-octet, left-justified,zero-padded
+         ASCII string.In the case of stratum 2 and greater (secondary
+         reference) this is the four-octet Internet address of the
+         peer selected for synchronization."
+    ::= { ntpSystem 6 }
+
+ntpSysRefTime OBJECT-TYPE
+    SYNTAX      NTPTimeStamp
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " the local time when the local clock was last
+         updated. If the local clock has neverbeen synchronized,
+         the value is zero."
+    ::= { ntpSystem 7 }
+
+ntpSysPoll OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " the minimum interval between transmitted
+         messages, in seconds as a power of two. For instance,
+         a value of six indicates a minimum interval of 64 seconds."
+    ::= { ntpSystem 8 }
+
+ntpSysPeer OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " the current synchronization source. Usually
+         this will be a pointer to a structure containing the peer
+         variables. The special value NULL indicates there is no
+         currently valid synchronization source."
+    ::= { ntpSystem 9 }
+
+ntpSysPhase OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpSystem 10 }
+
+ntpSysFreq OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpSystem 11 }
+
+ntpSysError OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpSystem 12 }
+
+ntpSysClock OBJECT-TYPE
+    SYNTAX      NTPTimeStamp
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the current local time. Local time is derived
+         from the hardware clock of the particular machine and
+         increments at intervals depending on the design used."
+    ::= { ntpSystem 13 }
+
+ntpSysSystem OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " the type of the local Operating System"
+    ::= { ntpSystem 14 }
+
+ntpSysProcessor OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " the type of the local Processor"
+    ::= { ntpSystem 15 }
+
+--
+-- Peers Group
+--
+
+--
+-- Peer Variables Table
+--
+
+ntpPeersVarTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF NtpPeersVarEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpPeers 1 }
+
+ntpPeersVarEntry OBJECT-TYPE
+    SYNTAX      NtpPeersVarEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    INDEX       { ntpPeersAssocId }
+    ::= { ntpPeersVarTable 1 }
+
+NtpPeersVarEntry ::= SEQUENCE {
+    ntpPeersAssocId         Unsigned32,
+    ntpPeersConfigured      TruthValue,
+    ntpPeersPeerAddress     IpAddress,
+    ntpPeersPeerPort        Unsigned32,
+    ntpPeersHostAddress     IpAddress,
+    ntpPeersHostPort        Unsigned32,
+    ntpPeersLeap            NTPLeapIndicator,
+    ntpPeersMode            INTEGER,
+    ntpPeersStratum         Integer32,
+    ntpPeersPeerPoll        Integer32,
+    ntpPeersHostPoll        Integer32,
+    ntpPeersPrecision       Integer32,
+    ntpPeersRootDelay       OCTET STRING,
+    ntpPeersRootDispersion  OCTET STRING,
+    ntpPeersRefId           OCTET STRING,
+    ntpPeersRefTime         NTPTimeStamp,
+    ntpPeersOrgTime         NTPTimeStamp,
+    ntpPeersReceiveTime     NTPTimeStamp,
+    ntpPeersTransmitTime    NTPTimeStamp,
+    ntpPeersUpdateTime      NTPTimeStamp,
+    ntpPeersReach           Unsigned32,
+    ntpPeersTimer           Integer32,
+    ntpPeersOffset          OCTET STRING,
+    ntpPeersDelay           OCTET STRING,
+    ntpPeersDispersion      OCTET STRING
+}
+
+ntpPeersAssocId OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpPeersVarEntry 1 }
+
+ntpPeersConfigured OBJECT-TYPE
+    SYNTAX      TruthValue
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " This is a bit indicating that the association
+         was created from configuration information and should not
+         be demobilized if the peer becomes unreachable."
+    ::= { ntpPeersVarEntry 2 }
+
+ntpPeersPeerAddress OBJECT-TYPE
+    SYNTAX      IpAddress
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " the Internet address of the peer"
+    ::= { ntpPeersVarEntry 3 }
+
+ntpPeersPeerPort OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " 16-bit port number of the peer."
+    ::= { ntpPeersVarEntry 4 }
+
+ntpPeersHostAddress OBJECT-TYPE
+    SYNTAX      IpAddress
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " the Internet address of the host"
+    ::= { ntpPeersVarEntry 5 }
+
+ntpPeersHostPort OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " 16-bit port number of the host"
+    ::= { ntpPeersVarEntry 6 }
+
+ntpPeersLeap OBJECT-TYPE
+    SYNTAX      NTPLeapIndicator
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " two-bit code warning of an impending leap
+         second to be inserted in the NTP timescale."
+    ::= { ntpPeersVarEntry 7 }
+
+ntpPeersMode OBJECT-TYPE
+    SYNTAX      INTEGER {
+		   unspecified(0),
+		   symmetricActive(1),
+                   symmetricPassive(2),
+		   client(3),
+		   server(4),
+                   broadcast(5),
+		   reservedControl(6),
+		   reservedPrivate(7)
+		}
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " the association mode,with values coded as
+         follows:
+         0, unspecified
+         1, symmetric active
+         2, symmetric passive
+         3, client
+         4, server
+         5, broadcast
+         6, reserved for NTP control messages
+         7, reserved for private use
+         "
+    ::= { ntpPeersVarEntry 8 }
+
+ntpPeersStratum OBJECT-TYPE
+    SYNTAX      Integer32 (0..255)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " indicating the stratum of the peer clock.
+         0, unspecified
+         1, primary reference (e.g.,, calibrated atomic clock,
+         radio clock)
+         2-255, secondary reference (via NTP)"
+    ::= { ntpPeersVarEntry 9 }
+
+ntpPeersPeerPoll OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "poll interval of the peer"
+    ::= { ntpPeersVarEntry 10 }
+
+ntpPeersHostPoll OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "poll interval of the host"
+    ::= { ntpPeersVarEntry 11 }
+
+ntpPeersPrecision OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the same as the systemPrecision except this is
+         for the peer"
+    ::= { ntpPeersVarEntry 12 }
+
+ntpPeersRootDelay OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the same as the systemRootDealy except this is for
+         the peer"
+    ::= { ntpPeersVarEntry 13 }
+
+ntpPeersRootDispersion OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the same as the systemDispersion except this is for
+         the peer"
+    ::= { ntpPeersVarEntry 14 }
+
+ntpPeersRefId OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the same as the systemRefid except this is for
+         the peer"
+    ::= { ntpPeersVarEntry 15 }
+
+ntpPeersRefTime OBJECT-TYPE
+    SYNTAX      NTPTimeStamp
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the same as the systemRefTime except this is for
+         the peer"
+    ::= { ntpPeersVarEntry 16 }
+
+ntpPeersOrgTime OBJECT-TYPE
+    SYNTAX      NTPTimeStamp
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " the local time at the peer when its latest
+         NTP message was sent. If the peer becomes unreachable the
+         value is set to zero."
+    ::= { ntpPeersVarEntry 17 }
+
+ntpPeersReceiveTime OBJECT-TYPE
+    SYNTAX      NTPTimeStamp
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the local time when the latest NTP message
+         from the peer arrived. If the peer becomes unreachable the
+         value is set to zero."
+    ::= { ntpPeersVarEntry 18 }
+
+ntpPeersTransmitTime OBJECT-TYPE
+    SYNTAX      NTPTimeStamp
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the local time at which the NTP message
+         departed the sender."
+    ::= { ntpPeersVarEntry 19 }
+
+ntpPeersUpdateTime OBJECT-TYPE
+    SYNTAX      NTPTimeStamp
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        " "
+    ::= { ntpPeersVarEntry 20 }
+
+ntpPeersReach OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "a shift register of NTP.WINDOW bits used to determine
+         the reachability status of the peer, with bits entering
+         from the least significant (rightmost) end. A peer is
+         considered reachable if at least one bit in this register is
+         set to one."
+    ::= { ntpPeersVarEntry 21 }
+
+ntpPeersTimer OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpPeersVarEntry 22 }
+
+ntpPeersOffset OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpPeersVarEntry 23 }
+
+ntpPeersDelay OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpPeersVarEntry 24 }
+
+ntpPeersDispersion OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpPeersVarEntry 25 }
+
+--
+-- Filter Group
+--
+-- Implementation of this group is optional. It must be implemented
+-- when the filter and selection algorithms described in Section 4
+-- of RFC 1305 are used.
+--
+
+--
+-- Filter Group Peer Variables Table
+--
+ntpFilterPeersVarTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF NtpFilterPeersVarEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        "This table is an extension of the Peer Variables Table
+         in the Peer Group."
+    ::= { ntpFilter 1 }
+
+ntpFilterPeersVarEntry OBJECT-TYPE
+    SYNTAX      NtpFilterPeersVarEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    AUGMENTS    { ntpPeersVarEntry }
+    ::= { ntpFilterPeersVarTable 1 }
+
+NtpFilterPeersVarEntry ::= SEQUENCE {
+    ntpFilterValidEntries   Integer32
+}
+
+ntpFilterValidEntries OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "The number of valid entries for a peer in the Filter Register Table."
+    ::= { ntpFilterPeersVarEntry 1 }
+
+--
+-- Filter Register Table
+--
+
+ntpFilterRegisterTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF NtpFilterRegisterEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpFilter 2 }
+
+ntpFilterRegisterEntry OBJECT-TYPE
+    SYNTAX      NtpFilterRegisterEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    INDEX       { ntpPeersAssocId, ntpFilterIndex }
+    ::= { ntpFilterRegisterTable 1 }
+
+NtpFilterRegisterEntry ::= SEQUENCE {
+    ntpFilterIndex              Unsigned32,
+    ntpFilterPeersOffset        OCTET STRING,
+    ntpFilterPeersDelay         OCTET STRING,
+    ntpFilterPeersDispersion    OCTET STRING
+}
+
+ntpFilterIndex OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpFilterRegisterEntry 1 }
+
+ntpFilterPeersOffset OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the offset of the peer clock relative to the
+         local clock in seconds"
+    ::= { ntpFilterRegisterEntry 2 }
+
+ntpFilterPeersDelay OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "roundtrip delay of the peer clock relative to the
+         local clock over the network path between them, in seconds.
+         this variable can take on both positive and negative values,
+         depending on clock precision and skew-error accumulation."
+    ::= { ntpFilterRegisterEntry 3 }
+
+ntpFilterPeersDispersion OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the maximum error of the peer clock relative to the
+         local clock over the network path between them, in seconds.
+         Only positive values greater than zero are possible."
+    ::= { ntpFilterRegisterEntry 4 }
+
+END

@@ -1,0 +1,109 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)ispunct.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd July 30, 2012
+.Dt ISPUNCT 3
+.Os
+.Sh NAME
+.Nm ispunct
+.Nd punctuation character test
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In ctype.h
+.Ft int
+.Fn ispunct "int c"
+.Ft int
+.Fn ispunct_l "int c" "locale_t loc"
+.Sh DESCRIPTION
+The
+.Fn ispunct
+function tests for any printing character except for space
+.Pq Ql "\ "
+or a
+character for which
+.Xr isalnum 3
+is true.
+The value of the argument must be representable as an
+.Vt "unsigned char"
+or the value of
+.Dv EOF .
+.Pp
+In the ASCII character set, this includes the following characters
+(with their numeric values shown in octal):
+.Bl -column \&000_``0''__ \&000_``0''__ \&000_``0''__ \&000_``0''__ \&000_``0''__
+.It "\&041\ ``!''" Ta "042\ ``""''" Ta "043\ ``#''" Ta "044\ ``$''" Ta "045\ ``%''"
+.It "\&046\ ``&''" Ta "047\ ``'''" Ta "050\ ``(''" Ta "051\ ``)''" Ta "052\ ``*''"
+.It "\&053\ ``+''" Ta "054\ ``,''" Ta "055\ ``-''" Ta "056\ ``.''" Ta "057\ ``/''"
+.It "\&072\ ``:''" Ta "073\ ``;''" Ta "074\ ``<''" Ta "075\ ``=''" Ta "076\ ``>''"
+.It "\&077\ ``?''" Ta "100\ ``@''" Ta "133\ ``[''" Ta "134\ ``\e\|''" Ta "135\ ``]''"
+.It "\&136\ ``^''" Ta "137\ ``_''" Ta "140\ ```''" Ta "173\ ``{''" Ta "174\ ``|''"
+.It "\&175\ ``}''" Ta "176\ ``~''" Ta \& Ta \& Ta \&
+.El
+.Pp
+The
+.Fn ispunct_l
+function takes an explicit locale argument, whereas the
+.Fn ispunct
+function uses the current global or per-thread locale.
+.Sh RETURN VALUES
+The
+.Fn ispunct
+and
+.Fn ispunct_l
+functions return zero if the character tests false and
+return non-zero if the character tests true.
+.Sh COMPATIBILITY
+The
+.Bx 4.4
+extension of accepting arguments outside of the range of the
+.Vt "unsigned char"
+type in locales with large character sets is considered obsolete
+and may not be supported in future releases.
+The
+.Fn iswpunct
+function should be used instead.
+.Sh SEE ALSO
+.Xr ctype 3 ,
+.Xr iswpunct 3 ,
+.Xr ascii 7
+.Sh STANDARDS
+The
+.Fn ispunct
+function conforms to
+.St -isoC .
+The
+.Fn ispunct_l
+function conforms to
+.St -p1003.1-2008 .

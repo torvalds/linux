@@ -1,0 +1,61 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: cleartmp
+# REQUIRE: mountcritremote tmp
+# BEFORE: DAEMON
+
+. /etc/rc.subr
+
+name="cleartmp"
+desc="Purge /tmp directory"
+# Disguise rcvar for the start method to run irrespective of its setting.
+rcvar1="clear_tmp_enable"
+start_cmd="${name}_start"
+stop_cmd=":"
+
+cleartmp_start()
+{
+	# Make /tmp location variable for easier debugging.
+	local tmp="/tmp"
+
+	# X related directories to create in /tmp.
+	local x11_socket_dirs="${tmp}/.X11-unix ${tmp}/.XIM-unix \
+			       ${tmp}/.ICE-unix ${tmp}/.font-unix"
+
+	if checkyesno ${rcvar1}; then
+		check_startmsgs && echo "Clearing ${tmp}."
+
+		# This is not needed for mfs, but doesn't hurt anything.
+		# Things to note:
+		# + The dot in ${tmp}/. is important.
+		# + Put -prune before -exec so find never descends
+		#   into a directory that was already passed to rm -rf.
+		# + "--" in rm arguments isn't strictly necessary, but
+		#   it can prevent foot-shooting in future.
+		# + /tmp/lost+found is preserved, but its contents are removed.
+		# + lost+found and quota.* in subdirectories are removed.
+		# + .sujournal and .snap are preserved.
+		find -x ${tmp}/. ! -name . \
+		    ! \( -name .sujournal -type f -user root \) \
+		    ! \( -name .snap -type d -user root \) \
+		    ! \( -name lost+found -type d -user root \) \
+		    ! \( \( -name quota.user -or -name quota.group \) \
+			-type f -user root \) \
+		    -prune -exec rm -rf -- {} +
+	elif checkyesno clear_tmp_X; then
+		# Remove X lock files, since they will prevent you from
+		# restarting X.  Remove other X related directories.
+		check_startmsgs && echo "Clearing ${tmp} (X related)."
+		rm -rf ${tmp}/.X[0-9]-lock ${x11_socket_dirs}
+	fi
+	if checkyesno clear_tmp_X; then
+		# Create X related directories with proper permissions.
+		mkdir -m 1777 ${x11_socket_dirs}
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

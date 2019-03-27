@@ -1,0 +1,192 @@
+.\"-
+.\" Copyright (c) 2010 Edward Tomasz Napierala
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 3, 2010
+.Dt GCACHE 8
+.Os
+.Sh NAME
+.Nm gcache
+.Nd "control utility for CACHE GEOM class"
+.Sh SYNOPSIS
+.Nm
+.Cm create
+.Op Fl v
+.Op Fl b Ar blocksize
+.Op Fl s Ar size
+.Ar name
+.Ar prov
+.Nm
+.Cm configure
+.Op Fl v
+.Op Fl b Ar blocksize
+.Op Fl s Ar size
+.Ar name
+.Nm
+.Cm destroy
+.Op Fl fv
+.Ar name
+.Nm
+.Cm label
+.Op Fl v
+.Op Fl b Ar blocksize
+.Op Fl s Ar size
+.Ar name
+.Ar prov
+.Nm
+.Cm stop
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm clear
+.Op Fl v
+.Ar prov ...
+.Nm
+.Cm dump
+.Ar prov ...
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Op Fl s Ar name
+.Nm
+.Cm load
+.Op Fl v
+.Nm
+.Cm unload
+.Op Fl v
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to control GEOM cache, which can
+speed up read performance by sending fixed size
+read requests to its consumer.  It has been developed to address
+the problem of a horrible read performance of a 64k blocksize FS
+residing on a RAID3 array with 8 data components, where a single
+disk component would only get 8k read requests, thus effectively
+killing disk performance under high load.
+.Pp
+Caching can be configured using two different methods:
+.Dq manual
+or
+.Dq automatic .
+When using the
+.Dq manual
+method, no metadata are stored on the devices, so the cached
+device has to be configured by hand every time it is needed.
+The
+.Dq automatic
+method uses on-disk metadata to detect devices.
+Once devices are labeled, they will be automatically detected and
+configured.
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm destroy"
+.It Cm create
+Cache the given devices with specified
+.Ar name .
+This is the
+.Dq manual
+method.
+The kernel module
+.Pa geom_cache.ko
+will be loaded if it is not loaded already.
+.It Cm label
+Cache the given devices with the specified
+.Ar name .
+This is the
+.Dq automatic
+method, where metadata are stored in every device's last sector.
+The kernel module
+.Pa geom_cache.ko
+will be loaded if it is not loaded already.
+.It Cm stop
+Turn off existing cache device by its
+.Ar name .
+This command does not touch on-disk metadata!
+.It Cm destroy
+Same as
+.Cm stop .
+.It Cm clear
+Clear metadata on the given devices.
+.It Cm dump
+Dump metadata stored on the given devices.
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Pp
+Additional options:
+.Bl -tag -width indent
+.It Fl f
+Force the removal of the specified cache device.
+.It Fl v
+Be more verbose.
+.El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to control the behavior of the
+.Nm CACHE
+GEOM class.
+The default value is shown next to each variable.
+.Bl -tag -width indent
+.It Va kern.geom.cache.used_hi : No 20
+.It Va kern.geom.cache.used_lo : No 5
+.It Va kern.geom.cache.idletime : No 5
+.It Va kern.geom.cache.timeout : No 10
+.It Va kern.geom.cache.enable : No 1
+.It Va kern.geom.cache.debug : No 0
+Debug level of the
+.Nm CACHE
+GEOM class.
+This can be set to a number between 0 and 3 inclusive.
+If set to 0 minimal debug information is printed, and if set to 3 the
+maximum amount of debug information is printed.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr geom 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An Ruslan Ermilov Aq Mt ru@FreeBSD.org

@@ -1,0 +1,27 @@
+$FreeBSD$
+
+###############################################################################
+# Tubenv DShow or import U-Boot environment variables
+
+	ubenv <import | show> [varname ...]
+
+	Display U-Boot environment variables, or import them into the
+	loader environment (which makes them available in the kernel).
+
+###############################################################################
+# Tubenv Simport DImport U-Boot env vars
+
+	ubenv import [varname ...]
+
+	If no variable names are specified, all U-Boot environment
+	variables are imported.  Each variable is prefixed with "uboot."
+	to avoid any possible conflicts with loader or kernel variables.
+
+###############################################################################
+# Tubenv Sshow DShow U-Boot env vars
+
+	ubenv show [varname ...]
+
+	If no variable names are specified, all U-Boot environment
+	variables are shown.
+

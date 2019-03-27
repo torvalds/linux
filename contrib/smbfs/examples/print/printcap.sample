@@ -1,0 +1,7 @@
+# $Id: printcap.sample,v 1.1 2000/06/11 08:13:28 bp Exp $
+
+# Sample printcap entry for NetWare printer
+fserverlj|LJ6L on the fserver:\
+	:sh:lp=/dev/null:\
+	:if=/usr/local/libexec/ljspool: \
+	:sd=/var/spool/output/nwhost:lf=/var/log/lpd-errs:

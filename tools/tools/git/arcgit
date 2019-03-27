@@ -1,0 +1,214 @@
+#!/bin/sh
+#
+# Copyright (c) 2015 Ryan Stone. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+# This script is used to submit a series of git commits to Differential.  Each
+# commit is submitted as a separate review.  For each review, this script will
+# create a branch called review_DXXXX (e.g. review_D2185 for Differential
+# revision D2185).  When you need to make a change to a review, checkout the
+# review_D2185 branch, commit your change with "git commit --fixup HEAD".  To\
+# upload the change to Differential, use the command:
+#   $ arc diff --update D2185 review_D2185_base
+#
+# When your reviews are complete, merge all of the review_DXXXX branches
+# together, and then do a git rebase -ik to meld the code review fixes into the
+# commit that they fixed.  Now you have a clean series of patches to commit to
+# svn.
+
+usage()
+{
+	echo "Usage: arcgit <-c commit | -r commit1~..commit2> [-R reviewer] " >&2
+	echo "       [-C subscriber] [-T testplan] [-n]" >&2
+}
+
+error()
+{
+	echo "$@" >&2
+	usage
+	rm -f $phab_before $phab_after $arc_msg
+	exit 1
+}
+
+create_review()
+{
+	local commit phab_id arc_dir
+	unset phab_before phab_after arc_msg
+	commit=$1
+
+	phab_before=`mktemp -t arcoutput`
+	phab_after=`mktemp -t arcoutput`
+	echo "Create review for '`git show $commit -s --oneline`'"
+
+	if [ -n "$dry_run" ]
+	then
+		return
+	fi
+
+	git checkout $commit > /dev/null || error "Could not checkout $commit"
+
+	arc_dir="$(git rev-parse --git-dir)/arc"
+	arc_msg="$arc_dir/create-message"
+	mkdir -p $arc_dir
+	git show -s --format='%B' HEAD > $arc_msg
+	echo >> $arc_msg
+	echo "Test Plan:" >> $arc_msg
+	cat $test_plan >> $arc_msg
+	echo >> $arc_msg
+	echo "Reviewers:" >> $arc_msg
+	echo "$reviewers" >> $arc_msg
+	echo >> $arc_msg
+	echo "Subscribers:" >> $arc_msg
+	echo "$cc_list" >> $arc_msg
+	echo >> $arc_msg
+
+	arc list > $phab_before
+	yes | env EDITOR=true arc diff --create --allow-untracked HEAD~
+	arc list > $phab_after
+
+	headline="$(git show $commit -s --format=%s)"
+	phab_id=`comm -13 "$phab_before" "$phab_after" | fgrep "$headline" \
+	    | egrep -o 'D[0-9]+:' | tr -d ':'`
+
+	if [ -z "$phab_id" ]
+	then
+		error "Could not get review ID"
+	fi
+
+	git branch review_${phab_id}_base HEAD~
+
+	git checkout -b review_$phab_id
+	cat - <<EOF | git commit --allow-empty -F -
+squash! $headline
+
+Differential Revision:	https://reviews.freebsd.org/$phab_id
+Reviewed by:
+EOF
+}
+
+unset range test_plan reviewers cc_list dry_run
+
+while getopts ":c:C:nr:R:T:" o
+do
+	case "$o" in
+	c)
+		range="${OPTARG}~..${OPTARG}"
+		;;
+	C)
+		if [ -z "$cc_list" ]
+		then
+			cc_list="$OPTARG"
+		else
+			cc_list="$cc_list, $OPTARG"
+		fi
+		;;
+	n)
+		dry_run=1
+		;;
+	r)
+		range=$OPTARG
+		;;
+	R)
+		if [ -z "$reviewers" ]
+		then
+			reviewers="$OPTARG"
+		else
+			reviewers="$reviewers, $OPTARG"
+		fi
+		;;
+	T)
+		test_plan=$OPTARG
+		;;
+	*)
+		error "Unrecognized argument '-$OPTARG'"
+	esac
+done
+
+shift $((OPTIND - 1))
+OPTIND=1
+
+if [ -n "$1" ]
+then
+        error "Unrecognized argument $1"
+fi
+
+if [ -z "$range" ]
+then
+	error "-c or -r argument is mandatory"
+fi
+
+if [ -n "$test_plan" -a ! -r "$test_plan" ]
+then
+	error "$test_plan is not readable"
+fi
+
+if ! type git > /dev/null 2> /dev/null
+then
+	error "Install devel/git first"
+fi
+
+if ! type arc > /dev/null 2> /dev/null
+then
+	error "Install devel/arcanist first"
+fi
+
+git update-index -q --refresh
+if ! git diff-index --quiet --cached HEAD
+then
+	error "index is unclean"
+fi
+
+if ! git diff-files --quiet
+then
+	error "Working directory is unclean"
+fi
+
+if git ls-files --other --error-unmatch . > /dev/null 2> /dev/null
+then
+	error "Working directory contains untracked files"
+fi
+
+# We have to do a git checkout in order to run arc, so save the original branch
+# so that we can check it out again once we're done.
+if ! orig_branch=$(git symbolic-ref --short -q HEAD)
+then
+	orig_branch=$(git show -s --pretty='%H' HEAD)
+fi
+
+git log --format=%H $range | tail -r | while read -r commit
+do
+	create_review $commit < /dev/null
+done
+
+# Note that due to the use of the pipeline above, the body of the while loop
+# above runs in a subshell.  If it exits with an error, execution resumes
+# here rather than exiting the script, so we have to cache the right exit code
+# and return it when we're done cleaning up.
+code=$?
+
+git checkout $orig_branch
+
+exit $code
+

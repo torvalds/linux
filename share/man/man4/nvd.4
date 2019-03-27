@@ -1,0 +1,107 @@
+.\"
+.\" Copyright (c) 2012-2016 Intel Corporation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    substantially similar to the "NO WARRANTY" disclaimer below
+.\"    ("Disclaimer") and any redistribution must be conditioned upon
+.\"    including a substantially similar Disclaimer requirement for further
+.\"    binary redistribution.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\" nvd driver man page.
+.\"
+.\" Author: Jim Harris <jimharris@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 28, 2016
+.Dt NVD 4
+.Os
+.Sh NAME
+.Nm nvd
+.Nd NVM Express disk driver
+.Sh SYNOPSIS
+To compile this driver into your kernel,
+place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device nvme"
+.Cd "device nvd"
+.Ed
+.Pp
+Or, to load the driver as a module at boot, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+nvme_load="YES"
+nvd_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver exposes NVM Express (NVMe) namespaces as disks to the kernel disk
+storage API.
+It depends on the
+.Xr nvme 4
+driver for notification of existing NVMe namespaces and submission of NVM
+I/O commands.
+.Pp
+Device nodes from the
+.Nm
+driver will have the format /dev/nvdX and are
+.Xr GEOM 4
+disks which can be partitioned by
+.Xr geom 8 .
+Note that device nodes from the
+.Xr nvme 4
+driver are not
+.Xr GEOM 4
+disks and cannot be partitioned.
+.Sh CONFIGURATION
+The
+.Nm
+driver defines a system-wide maximum delete size for NVMe devices.
+The default is 1GB.
+To select a different value, set the following tunable in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.nvd.delete_max=<delete size in bytes>
+.Ed
+.Sh SEE ALSO
+.Xr GEOM 4 ,
+.Xr nvme 4 ,
+.Xr geom 8 ,
+.Xr nvmecontrol 8 ,
+.Xr disk 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 9.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was developed by Intel and originally written by
+.An Jim Harris Aq Mt jimharris@FreeBSD.org ,
+with contributions from Joe Golio at EMC.
+.Pp
+This man page was written by
+.An Jim Harris Aq Mt jimharris@FreeBSD.org .

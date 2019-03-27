@@ -1,0 +1,111 @@
+# Interlingua translation of Dialog
+# Copyright (C) 2012 Free Software Foundation, Inc.
+# This file is distributed under the same license as the dialog package.
+# Nik Kalach <nik.kalach@inbox.ru>, 2012.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20080819\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2012-12-04 00:56+0400\n"
+"Last-Translator: Nik Kalach <nik.kalach@inbox.ru>\n"
+"Language-Team: Interlingua <translation-team-ia@lists.sourceforge.net>\n"
+"Language: ia\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: buttons.c:385
+msgid "Yes"
+msgstr "Si"
+
+#: buttons.c:393
+msgid "No"
+msgstr "No"
+
+#: buttons.c:401
+msgid "OK"
+msgstr "OK"
+
+#: buttons.c:409
+msgid "Cancel"
+msgstr "Annullar"
+
+#: buttons.c:417
+msgid "EXIT"
+msgstr "SORTIR"
+
+#: buttons.c:425
+msgid "Extra"
+msgstr "Extra"
+
+#: buttons.c:433
+msgid "Help"
+msgstr "Adjuta"
+
+#. Headline "Month"
+#: calendar.c:273
+msgid "Month"
+msgstr "Mense"
+
+#. Headline "Year"
+#: calendar.c:293
+msgid "Year"
+msgstr "Anno"
+
+#: dialog.c:741
+msgid "Rename"
+msgstr "Renominar"
+
+#: fselect.c:550
+msgid "Directories"
+msgstr "Directorios"
+
+#: fselect.c:551
+msgid "Files"
+msgstr "Files"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "Succedite"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "Fallite"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "Passate"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "Completate"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "Controlate"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "Facite"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "Saltate"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "In curso"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "N/A"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "Progresso general"
+
+#: textbox.c:489
+msgid "Search"
+msgstr "Cerca"

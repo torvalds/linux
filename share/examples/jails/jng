@@ -1,0 +1,509 @@
+#!/bin/sh
+#-
+# Copyright (c) 2016 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ IDENT(1)
+#
+# $Title: netgraph(4) management script for vnet jails $
+#
+############################################################ INFORMATION
+#
+# Use this tool with jail.conf(5) (or rc.conf(5) ``legacy'' configuration) to
+# manage `vnet' interfaces for jails. Designed to automate the creation of vnet
+# interface(s) during jail `prestart' and destroy said interface(s) during jail
+# `poststop'.
+#
+# In jail.conf(5) format:
+#
+# ### BEGIN EXCERPT ###
+#
+# xxx {
+# 	host.hostname = "xxx.yyy";
+# 	path = "/vm/xxx";
+# 
+# 	#
+# 	# NB: Below 2-lines required
+# 	# NB: The number of ngN_xxx interfaces should match the number of
+# 	#     arguments given to `jng bridge xxx' in exec.prestart value.
+# 	#
+# 	vnet;
+# 	vnet.interface = ng0_xxx, ng1_xxx, ...;
+# 
+# 	exec.clean;
+# 	exec.system_user = "root";
+# 	exec.jail_user = "root";
+# 
+# 	#
+# 	# NB: Below 2-lines required
+# 	# NB: The number of arguments after `jng bridge xxx' should match
+# 	#     the number of ngN_xxx arguments in vnet.interface value.
+# 	#
+# 	exec.prestart += "jng bridge xxx em0 em1 ...";
+# 	exec.poststop += "jng shutdown xxx";
+# 
+# 	# Standard recipe
+# 	exec.start += "/bin/sh /etc/rc";
+# 	exec.stop = "/bin/sh /etc/rc.shutdown";
+# 	exec.consolelog = "/var/log/jail_xxx_console.log";
+# 	mount.devfs;
+#
+# 	# Optional (default off)
+# 	#allow.mount;
+# 	#allow.set_hostname = 1;
+# 	#allow.sysvipc = 1;
+# 	#devfs_ruleset = "11"; # rule to unhide bpf for DHCP
+# }
+#
+# ### END EXCERPT ###
+#
+# In rc.conf(5) ``legacy'' format (used when /etc/jail.conf does not exist):
+#
+# ### BEGIN EXCERPT ###
+#
+# jail_enable="YES"
+# jail_list="xxx"
+#
+# #
+# # Global presets for all jails
+# #
+# jail_devfs_enable="YES"	# mount devfs
+#
+# #
+# # Global options (default off)
+# #
+# #jail_mount_enable="YES"		# mount /etc/fstab.{name}
+# #jail_set_hostname_allow="YES"	# Allow hostname to change
+# #jail_sysvipc_allow="YES"		# Allow SysV Interprocess Comm.
+# 
+# # xxx
+# jail_xxx_hostname="xxx.shxd.cx"		# hostname
+# jail_xxx_rootdir="/vm/xxx"			# root directory
+# jail_xxx_vnet_interfaces="ng0_xxx ng1xxx ..."	# vnet interface(s)
+# jail_xxx_exec_prestart0="jng bridge xxx em0 em1 ..."	# bridge interface(s)
+# jail_xxx_exec_poststop0="jng shutdown xxx"	# destroy interface(s)
+# #jail_xxx_mount_enable="YES"			# mount /etc/fstab.xxx
+# #jail_xxx_devfs_ruleset="11"			# rule to unhide bpf for DHCP
+#
+# ### END EXCERPT ###
+#
+# Note that the legacy rc.conf(5) format is converted to
+# /var/run/jail.{name}.conf by /etc/rc.d/jail if jail.conf(5) is missing.
+#
+# ASIDE: dhclient(8) inside a vnet jail...
+#
+# To allow dhclient(8) to work inside a vnet jail, make sure the following
+# appears in /etc/devfs.rules (which should be created if it doesn't exist):
+#
+# 	[devfsrules_jail=11]
+# 	add include $devfsrules_hide_all
+# 	add include $devfsrules_unhide_basic
+# 	add include $devfsrules_unhide_login
+# 	add path 'bpf*' unhide
+#
+# And set ether devfs.ruleset="11" (jail.conf(5)) or
+# jail_{name}_devfs_ruleset="11" (rc.conf(5)).
+#
+# NB: While this tool can't create every type of desirable topology, it should
+# handle most setups, minus some which considered exotic or purpose-built.
+#
+############################################################ GLOBALS
+
+pgm="${0##*/}" # Program basename
+
+#
+# Global exit status
+#
+SUCCESS=0
+FAILURE=1
+
+############################################################ FUNCTIONS
+
+usage()
+{
+	local action usage descr
+	exec >&2
+	echo "Usage: $pgm action [arguments]"
+	echo "Actions:"
+	for action in \
+		bridge		\
+		graph		\
+		show		\
+		show1		\
+		shutdown	\
+		stats		\
+	; do
+		eval usage=\"\$jng_${action}_usage\"
+		[ "$usage" ] || continue
+		eval descr=\"\$jng_${action}_descr\"
+		printf "\t%s\n\t\t%s\n" "$usage" "$descr"
+	done
+	exit $FAILURE
+}
+
+action_usage()
+{
+	local usage descr action="$1"
+	eval usage=\"\$jng_${action}_usage\"
+	echo "Usage: $pgm $usage" >&2
+	eval descr=\"\$jng_${action}_descr\"
+	printf "\t%s\n" "$descr"
+	exit $FAILURE
+}
+
+derive_mac()
+{
+	local OPTIND=1 OPTARG __flag
+	local __mac_num= __make_pair=
+	while getopts 2n: __flag; do
+		case "$__flag" in
+		2) __make_pair=1 ;;
+		n) __mac_num=${OPTARG%%[^0-9]*} ;;
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+
+	if [ ! "$__mac_num" ]; then
+		eval __mac_num=\${_${iface}_num:--1}
+		__mac_num=$(( $__mac_num + 1 ))
+		eval _${iface}_num=\$__mac_num
+	fi
+
+	local __iface="$1" __name="$2" __var_to_set="$3" __var_to_set_b="$4"
+	local __iface_devid __new_devid __num __new_devid_b
+	#
+	# Calculate MAC address derived from given iface.
+	#
+	# The formula I'm using is ``NP:SS:SS:II:II:II'' where:
+	# + N denotes 4 bits used as a counter to support branching
+	#   each parent interface up to 15 times under the same jail
+	#   name (see S below).
+	# + P denotes the special nibble whose value, if one of
+	#   2, 6, A, or E (but usually 2) denotes a privately
+	#   administered MAC address (while remaining routable).
+	# + S denotes 16 bits, the sum(1) value of the jail name.
+	# + I denotes bits that are inherited from parent interface.
+	#
+	# The S bits are a CRC-16 checksum of NAME, allowing the jail
+	# to change link numbers in ng_bridge(4) without affecting the
+	# MAC address. Meanwhile, if...
+	#   + the jail NAME changes (e.g., it was duplicated and given
+	#     a new name with no other changes)
+	#   + the underlying network interface changes
+	#   + the jail is moved to another host
+	# the MAC address will be recalculated to a new, similarly
+	# unique value preventing conflict.
+	#
+	__iface_devid=$( ifconfig $__iface ether | awk '/ether/,$0=$2' )
+	# ??:??:??:II:II:II
+	__new_devid=${__iface_devid#??:??:??} # => :II:II:II
+	# => :SS:SS:II:II:II
+	__num=$( set -- `echo -n "$__name" | sum` && echo $1 )
+	__new_devid=$( printf :%02x:%02x \
+		$(( $__num >> 8 & 255 )) $(( $__num & 255 )) )$__new_devid
+	# => P:SS:SS:II:II:II
+	case "$__iface_devid" in
+	   ?2:*) __new_devid=a$__new_devid __new_devid_b=e$__new_devid ;;
+	?[Ee]:*) __new_devid=2$__new_devid __new_devid_b=6$__new_devid ;;
+	      *) __new_devid=2$__new_devid __new_devid_b=e$__new_devid
+	esac
+	# => NP:SS:SS:II:II:II
+	__new_devid=$( printf %x $(( $__mac_num & 15 )) )$__new_devid
+	__new_devid_b=$( printf %x $(( $__mac_num & 15 )) )$__new_devid_b
+
+	#
+	# Return derivative MAC address(es)
+	#
+	if [ "$__make_pair" ]; then
+		if [ "$__var_to_set" -a "$__var_to_set_b" ]; then
+			eval $__var_to_set=\$__new_devid
+			eval $__var_to_set_b=\$__new_devid_b
+		else
+			echo $__new_devid $__new_devid_b
+		fi
+	else
+		if [ "$__var_to_set" ]; then
+			eval $__var_to_set=\$__new_devid
+		else
+			echo $__new_devid
+		fi
+	fi
+}
+
+mustberoot_to_continue()
+{
+	if [ "$( id -u )" -ne 0 ]; then
+		echo "Must run as root!" >&2
+		exit $FAILURE
+	fi
+}
+
+jng_bridge_usage="bridge [-b BRIDGE_NAME] NAME [!|=]iface0 [[!|=]iface1 ...]"
+jng_bridge_descr="Create ng0_NAME [ng1_NAME ...]"
+jng_bridge()
+{
+	local OPTIND=1 OPTARG flag bridge=bridge
+	while getopts b: flag; do
+		case "$flag" in
+		b) bridge="$OPTARG"
+		   [ "$bridge" ] || action_usage bridge ;; # NOTREACHED
+		*) action_usage bridge # NOTREACHED
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+
+	local name="$1"
+	[ "${name:-x}" = "${name#*[!0-9a-zA-Z_]}" -a $# -gt 1 ] ||
+		action_usage bridge # NOTREACHED
+	shift 1 # name
+
+	mustberoot_to_continue
+
+	local iface parent eiface eiface_devid
+	local new clone_mac no_derive num quad i=0
+	for iface in $*; do
+
+		clone_mac=
+		no_derive=
+		case "$iface" in
+		=*) iface=${iface#=} clone_mac=1 ;;
+		!*) iface=${iface#!} no_derive=1 ;;
+		esac
+
+		# Make sure the interface doesn't exist already
+		eiface=ng${i}_$name
+		if ngctl msg "$eiface:" getifname > /dev/null 2>&1; then
+			i=$(( $i + 1 ))
+			continue
+		fi
+
+		# Bring the interface up
+		ifconfig $iface up || return
+
+		# Set promiscuous mode and don't overwrite src addr
+		ngctl msg $iface: setpromisc 1 || return
+		ngctl msg $iface: setautosrc 0 || return
+
+		# Make sure the interface has been bridged
+		if ! ngctl info ${iface}bridge: > /dev/null 2>&1; then
+			ngctl mkpeer $iface: bridge lower link0 || return
+			ngctl connect $iface: $iface:lower upper link1 ||
+				return
+			ngctl name $iface:lower ${iface}bridge || return
+		fi
+
+		# Optionally create a secondary bridge
+		if [ "$bridge" != "bridge" ] &&
+		   ! ngctl info "$iface$bridge:" > /dev/null 2>&1
+		then
+			num=2
+			while ngctl msg ${iface}bridge: getstats $num \
+				> /dev/null 2>&1
+			do
+				num=$(( $num + 1 ))
+			done
+			ngctl mkpeer $iface:lower bridge link$num link1 ||
+				return
+			ngctl name ${iface}bridge:link$num "$iface$bridge" ||
+				return
+		fi
+
+		# Create a new interface to the bridge
+		num=2
+		while ngctl msg "$iface$bridge:" getstats $num > /dev/null 2>&1
+		do
+			num=$(( $num + 1 ))
+		done
+		ngctl mkpeer "$iface$bridge:" eiface link$num ether || return
+
+		# Rename the new interface
+		while [ ${#eiface} -gt 15 ]; do # OS limitation
+			eiface=${eiface%?}
+		done
+		new=$( set -- `ngctl show -n "$iface$bridge:link$num"` &&
+			echo $2 ) || return
+		ngctl name "$iface$bridge:link$num" $eiface || return
+		ifconfig $new name $eiface || return
+		ifconfig $eiface up || return
+
+		#
+		# Set the MAC address of the new interface using a sensible
+		# algorithm to prevent conflicts on the network.
+		#
+		eiface_devid=
+		if [ "$clone_mac" ]; then
+			eiface_devid=$( ifconfig $iface ether |
+				awk '/ether/,$0=$2' )
+		elif [ ! "$no_derive" ]; then
+			derive_mac $iface "$name" eiface_devid
+		fi
+		[ "$eiface_devid" ] &&
+			ifconfig $eiface ether $eiface_devid > /dev/null 2>&1
+
+		i=$(( $i + 1 ))
+	done # for iface
+}
+
+jng_graph_usage="graph [-f] [-T type] [-o output]"
+jng_graph_descr="Generate network graph (default output is \`jng.svg')"
+jng_graph()
+{
+	local OPTIND=1 OPTARG flag
+	local output=jng.svg output_type= force=
+	while getopts fo:T: flag; do
+		case "$flag" in
+		f) force=1 ;;
+		o) output="$OPTARG" ;;
+		T) output_type="$OPTARG" ;;
+		*) action_usage graph # NOTREACHED
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+	[ $# -eq 0 -a "$output" ] || action_usage graph # NOTREACHED
+	mustberoot_to_continue
+	if [ -e "$output" -a ! "$force" ]; then
+		echo "$output: Already exists (use \`-f' to overwrite)" >&2
+		return $FAILURE
+	fi
+	if [ ! "$output_type" ]; then
+		local valid suffix
+		valid=$( dot -Txxx 2>&1 )
+		for suffix in ${valid##*:}; do
+			[ "$output" != "${output%.$suffix}" ] || continue
+			output_type=$suffix
+			break
+		done
+	fi
+	ngctl dot | dot ${output_type:+-T "$output_type"} -o "$output"
+}
+
+jng_show_usage="show"
+jng_show_descr="List possible NAME values for \`show NAME'"
+jng_show1_usage="show NAME"
+jng_show1_descr="Lists ng0_NAME [ng1_NAME ...]"
+jng_show2_usage="show [NAME]"
+jng_show()
+{
+	local OPTIND=1 OPTARG flag
+	while getopts "" flag; do
+		case "$flag" in
+		*) action_usage show2 # NOTREACHED
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+	mustberoot_to_continue
+	if [ $# -eq 0 ]; then
+		ngctl ls | awk '$4=="bridge",$0=$2' |
+			xargs -rn1 -Ibridge ngctl show bridge: |
+			awk 'sub(/^ng[[:digit:]]+_/, "", $2), $0 = $2' |
+			sort -u
+		return
+	fi
+	ngctl ls | awk -v name="$1" '
+		match($2, /^ng[[:digit:]]+_/) &&
+			substr($2, RSTART + RLENGTH) == name &&
+			$4 == "eiface", $0 = $2
+	' | sort
+}
+
+jng_shutdown_usage="shutdown NAME"
+jng_shutdown_descr="Shutdown ng0_NAME [ng1_NAME ...]"
+jng_shutdown()
+{
+	local OPTIND=1 OPTARG flag
+	while getopts "" flag; do
+		case "$flag" in
+		*) action_usage shutdown # NOTREACHED
+		esac
+	done
+	shift $(( $OPTIND -1 ))
+	local name="$1"
+	[ "${name:-x}" = "${name#*[!0-9a-zA-Z_]}" -a $# -eq 1 ] ||
+		action_usage shutdown # NOTREACHED
+	mustberoot_to_continue
+	jng_show "$name" | xargs -rn1 -I eiface ngctl shutdown eiface:
+}
+
+jng_stats_usage="stats NAME"
+jng_stats_descr="Show ng_bridge link statistics for NAME interfaces"
+jng_stats()
+{
+	local OPTIND=1 OPTARG flag
+	while getopts "" flag; do
+		case "$flag" in
+		*) action_usage stats # NOTREACHED
+		esac
+	done
+	shift $(( $OPTIND -1 ))
+	local name="$1"
+	[ "${name:-x}" = "${name#*[!0-9a-zA-Z_]}" -a $# -eq 1 ] ||
+		action_usage stats # NOTREACHED
+	mustberoot_to_continue
+	for eiface in $( jng_show "$name" ); do
+		echo "$eiface:"
+		ngctl show $eiface: | awk '
+		$3 == "bridge" && $5 ~ /^link/ {
+			bridge = $2
+			link = substr($5, 5)
+			system(sprintf("ngctl msg %s: getstats %u",
+				bridge, link))
+		}' | fmt 2 | awk '
+			/=/ && fl = index($0, "=") {
+				printf "%20s = %s\n",
+					substr($0, 0, fl-1),
+					substr($0, 0, fl+1)
+			}
+		' # END-QUOTE
+	done
+}
+
+############################################################ MAIN
+
+#
+# Command-line arguments
+#
+action="$1"
+[ "$action" ] || usage # NOTREACHED
+
+#
+# Validate action argument
+#
+if [ "$BASH_VERSION" ]; then
+	type="$( type -t "jng_$action" )" || usage # NOTREACHED
+else
+	type="$( type "jng_$action" 2> /dev/null )" || usage # NOTREACHED
+fi
+case "$type" in
+*function)
+	shift 1 # action
+	eval "jng_$action" \"\$@\"
+	;;
+*) usage # NOTREACHED
+esac
+
+################################################################################
+# END
+################################################################################

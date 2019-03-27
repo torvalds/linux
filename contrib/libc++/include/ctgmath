@@ -1,0 +1,29 @@
+// -*- C++ -*-
+//===-------------------------- ctgmath -----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CTGMATH
+#define _LIBCPP_CTGMATH
+
+/*
+    ctgmath synopsis
+
+#include <ccomplex>
+#include <cmath>
+
+*/
+
+#include <ccomplex>
+#include <cmath>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+#endif  // _LIBCPP_CTGMATH

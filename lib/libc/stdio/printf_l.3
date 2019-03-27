@@ -1,0 +1,81 @@
+.\" Copyright (c) 2012 Isabell Long <issyl0@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 7, 2012
+.Dt PRINTF_L 3
+.Os
+.Sh NAME
+.Nm printf_l ,
+.Nm asprintf_l ,
+.Nm fprintf_l ,
+.Nm snprintf_l ,
+.Nm sprintf_l ,
+.Nm vasprintf_l ,
+.Nm vfprintf_l ,
+.Nm vprintf_l ,
+.Nm vsnprintf_l ,
+.Nm vsprintf_l
+.Nd formatted output conversion
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.In xlocale.h
+.Ft int
+.Fn printf_l "locale_t loc" "const char * restrict format" "..."
+.Ft int
+.Fn asprintf_l "char **ret" "locale_t loc" "const char * format" "..."
+.Ft int
+.Fn fprintf_l "FILE * restrict stream" "locale_t loc" "const char * restrict format" "..."
+.Ft int
+.Fn snprintf_l "char * restrict str" "size_t size" "locale_t loc" "const char * restrict format" "..."
+.Ft int
+.Fn sprintf_l "char * restrict str" "locale_t loc" "const char * restrict format" "..."
+.Ft int
+.Fn vasprintf_l "char **ret" "locale_t loc" "const char *format" "va_list ap"
+.Ft int
+.Fn vfprintf_l "FILE * restrict stream" "locale_t loc" "const char * restrict format" "va_list ap"
+.Ft int
+.Fn vprintf_l "locale_t loc" "const char * restrict format" "va_list ap"
+.Ft int
+.Fn vsnprintf_l "char * restrict str" "size_t size" "locale_t loc" "const char * restrict format" "va_list ap"
+.Ft int
+.Fn vsprintf_l "char * restrict str" "locale_t loc" "const char * restrict format" "va_list ap"
+.Sh DESCRIPTION
+The above functions are used to convert formatted output in the locale
+.Fa loc .
+They behave in the same way as the versions without the _l suffix, but use
+the specified locale rather than the global or per-thread locale.
+See the specific manual pages for more information.
+.Sh SEE ALSO
+.Xr printf 3 ,
+.Xr xlocale 3
+.Sh STANDARDS
+These functions do not conform to any specific standard so they should be
+considered as non-portable local extensions.
+.Sh HISTORY
+These functions first appeared in Darwin and were first implemented in
+.Fx 9.1 .

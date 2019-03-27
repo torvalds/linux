@@ -1,0 +1,17 @@
+If you look at the files here you should be able to figure out what is
+being done.
+
+../scripts/genLocInfo handles the parsing of these files.
+
+If no "more specific" file has been found and cvo.sh says the OS is
+redhat* or fedora*, we will look for loc/redhat .
+
+If no "mode specific" file has been found and the "uname" command returns
+"Linux", we will look for loc/linux .
+
+Note that automake has interesting behavior - we build the man pages using
+the man_MANS target, but they are actually installed using the empty
+manX_MANS= target, which "does the right thing".  This means that we
+need to have empty manX_MANS= targets for each possible X, based on
+the data in the loc/ files.  For executables, this generally means
+sections 1 and 8.

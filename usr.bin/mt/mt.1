@@ -1,0 +1,693 @@
+.\" Copyright (c) 1981, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mt.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd March 4, 2019
+.Dt MT 1
+.Os
+.Sh NAME
+.Nm mt
+.Nd magnetic tape manipulating program
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar tapename
+.Ar command
+.Op Ar count
+.Nm
+.Op Fl f Ar tapename
+.Ar command
+.Ar argument
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to command a magnetic tape drive for operations
+other than reading or writing data.
+.Pp
+The
+.Fl f
+option's
+.Ar tapename
+overrides the
+.Ev TAPE
+environment variable described below.
+.Pp
+The available commands are listed below.
+Only as many
+characters as are required to uniquely identify a command
+need be specified.
+.Pp
+The following commands optionally take a
+.Ar count ,
+which defaults to 1.
+.Bl -tag -width ".Cm erase"
+.It Cm weof
+Write
+.Ar count
+end-of-file (EOF) marks at the current position.
+This returns when the file mark has been written to the media.
+.It Cm weofi
+Write
+.Ar count
+end-of-file (EOF) marks at the current position.
+This returns as soon as the command has been validated by the tape drive.
+.It Cm smk
+Write
+.Ar count
+setmarks at the current position (DDS drives only).
+.It Cm fsf
+Forward space
+.Ar count
+files.
+.It Cm fsr
+Forward space
+.Ar count
+records.
+.It Cm fss
+Forward space
+.Ar count
+setmarks (DDS drives only).
+.It Cm bsf
+Backward space
+.Ar count
+files.
+.It Cm bsr
+Backward space
+.Ar count
+records.
+.It Cm bss
+Backward space
+.Ar count
+setmarks (DDS drives only).
+.It Cm erase
+Erase the tape using a long (often very long) method.
+With a
+.Ar count
+of 0, it will erase the tape using a quick method.
+Operation is not guaranteed if the tape is not at its beginning.
+The tape will be at its beginning upon completion.
+.El
+.Pp
+The following commands ignore
+.Ar count .
+.Bl -tag -width ".Cm geteotmodel"
+.It Cm rdhpos
+Read the hardware block position.
+The block
+number reported is specific for that hardware only.
+With drive data compression especially,
+this position may have more to do with the amount of data
+sent to the drive than the amount of data written to tape.
+Some drives do not support this.
+.It Cm rdspos
+Read the SCSI logical block position.
+This typically is greater than the hardware position
+by the number of end-of-file marks.
+Some drives do not support this.
+.It Cm rewind
+Rewind the tape.
+.It Cm offline , rewoffl
+Rewind the tape and place the drive off line.
+Some drives are never off line.
+.It Cm load
+Load the tape into the drive.
+.It Cm retension
+Re-tension the tape.
+This winds the tape from the current position to the end
+and then to the beginning.
+This sometimes improves subsequent reading and writing,
+particularly for streaming drives.
+Some drives do not support this.
+.It Cm ostatus
+Output status information about the drive.
+For SCSI magnetic tape devices,
+the current operating modes of density, blocksize, and whether compression
+is enabled is reported.
+The current state of the driver (what it thinks that
+it is doing with the device) is reported.
+If the driver knows the relative
+position from BOT (in terms of filemarks and records), it outputs that.
+Note
+that this information is not definitive (only BOT, End of Recorded Media, and
+hardware or SCSI logical block position (if the drive supports such) are
+considered definitive tape positions).
+.Pp
+Also note that this is the old status command, and will be eliminated in
+favor of the new status command (see below) in a future release.
+.It Cm errstat
+Output (and clear) error status information about this device.
+For every normal
+operation (e.g., a read or a write) and every control operation (e.g,, a
+rewind), the driver stores up the last command executed and it is associated
+status and any residual counts (if any).
+This command retrieves and outputs this
+information.
+If possible, this also clears any latched error information.
+.It Cm geteotmodel
+Output the current EOT filemark model.
+The model states how
+many filemarks will be written at close if a tape was being written.
+.It Cm eod , eom
+Wind the tape to the end of the recorded data,
+typically after an EOF mark where another file may be written.
+.It Cm rblim
+Report the block limits of the tape drive, including the minimum and
+maximum block size, and the block granularity if any.
+.El
+.Pp
+The following commands may require an
+.Ar argument .
+.Bl -tag -width ".Cm seteotmodel"
+.It Cm sethpos
+Set the hardware block position.
+The
+.Ar argument
+is a hardware block number to which to position the tape.
+Some drives do not support this.
+.It Cm setspos
+Set the SCSI logical block position.
+The
+.Ar argument
+is a SCSI logical block number to which to position the tape.
+Some drives do not support this.
+.It Cm blocksize
+Set the block size for the drive.
+The
+.Ar argument
+is the number of bytes per block,
+except 0 commands the drive to use variable-length blocks.
+.It Cm seteotmodel
+Set the EOT filemark model to
+.Ar argument
+and output the old and new models.
+Typically this will be 2
+filemarks, but some devices (typically QIC cartridge drives) can
+only write 1 filemark.
+You may only choose a value of
+.Ar 1
+or
+.Ar 2 .
+.It Cm status
+Output status information about the drive.
+For SCSI magnetic tape devices,
+the current operating modes of density, blocksize, and whether compression
+is enabled is reported.
+The current state of the driver (what it thinks that
+it is doing with the device) is reported.
+.Pp
+If the driver knows the relative
+position from BOT (in terms of filemarks and records), it outputs that.
+If the tape drive supports the long form report of the
+.Tn SCSI
+READ POSITION command, the Reported File Number and Reported Record Number
+will be numbers other than -1, and there may be Flags reported as well.
+.Pp
+The BOP flag means that the logical position of the drive is at the
+beginning of the partition.
+.Pp
+The EOP flag means that the logical position of the drive is between Early
+Warning and End of Partition.
+.Pp
+The BPEW flag means that the logical position of the drive is in a
+Programmable Early Warning Zone or on the EOP side of Early Warning.
+.Pp
+Note that the Reported Record Number is the tape block or object number
+relative to the beginning of the partition.
+The Calculated Record Number is the tape block or object number relative
+to the previous file mark.
+.Pp
+Note
+that the Calculated File and Record Numbers are not definitive.
+The Reported File and Record Numbers are definitive, if they are numbers
+other than -1.
+.Bl -tag -width 6n
+.It Fl v
+Print additional status information, such as the maximum supported I/O
+size.
+.It Fl x
+Print all available status data to stdout in XML format.
+.El
+.It Cm getdensity
+Report density support information for the tape drive and any media that is
+loaded.
+Most drives will report at least basic density information similar to that
+reported by
+.Nm status
+command.
+Newer tape drives that conform to the T-10 SSC and newer tape
+specifications may report more detailed information about the types of
+tapes they support and the tape currently in the drive.
+.Bl -tag -width 6n
+.It Fl x
+Print all available density data to stdout in XML format.
+Because density information is currently included in the general status XML
+report used for
+.Nm
+status command, this will be the same XML output via
+.Do
+.Nm
+status
+.Fl x
+.Dc
+.El
+.It Cm param
+Display or set parameters.
+One of
+.Fl l ,
+.Fl s ,
+or
+.Fl x
+must be specified to indicate which operation to perform.
+See
+.Xr sa 4
+for more detailed information on the parameters.
+.Bl -tag -width 8n
+.It Fl l
+List parameters, values and descriptions.
+By default all parameters will be displayed.
+To display a specific parameter, specify the parameter with
+.Fl p .
+.It Fl p Ar name
+Specify the parameter name to list (with
+.Fl l )
+or set (with
+.Fl s ) .
+.It Fl q
+Enable quiet mode for parameter listing.
+This will suppress printing of parameter descriptions.
+.It Fl s Ar value
+Specify the parameter value to set.
+The general type of this argument (integer, unsigned integer, string) is
+determined by the type of the variable indicated by the
+.Xr sa 4
+driver.
+More detailed argument checking is done by the
+.Xr sa 4
+driver.
+.It Fl x
+Print out all parameter information in XML format.
+.El
+.It Cm protect
+Display or set drive protection parameters.
+This is used to control checking and reporting a per-block checksum for
+tape drives that support it.
+Some drives may only support some parameters.
+.Bl -tag -width 8n
+.It Fl b Ar 0|1
+Set the Recover Buffered Data Protected bit.
+If set, this indicates that checksums are transferred with the logical
+blocks transferred by the RECOVERED BUFFERED DATA
+.Tn SCSI
+command.
+.It Fl d
+Disable all protection information settings.
+.It Fl e
+Enable all protection information settings.
+The default protection method used is Reed-Solomon CRC (protection method
+1), as specified in ECMA-319.
+The default protection information length used with Reed-Solomon CRC is
+4 bytes.
+To enable all settings except one more setting, specify the
+.Fl e
+argument and then explicitly disable settings that you do not wish to
+enable.
+For example, specifying
+.Fl e
+.Fl w Ar 0
+will enable all settings except for LBP_W.
+.It Fl l
+List available protection parmeters and their current settings.
+.It Fl L Ar len
+Set the length of the protection information in bytes.
+For Reed-Solomon CRC, the protection information length should be 4 bytes.
+.It Fl m Ar num
+Specify the numeric value for the protection method.
+The numeric value for Reed-Solomon CRC is 1.
+.It Fl r Ar 0|1
+Set the LBP_R parameter.
+When set, this indicates that each block read from the tape drive will
+have a checksum at the end.
+.It Fl v
+Enable verbose mode for parameter listing.
+This will include descriptions of each parameter.
+.It Fl w Ar 0|1
+Set the LBP_W parameter.
+When set, this indicates that each block written to the tape drive will have
+a checksum at the end.
+The drive will verify the checksum before writing the block to tape.
+.El
+.It Cm locate
+Set the tape drive's logical position.
+One of
+.Fl b ,
+.Fl e ,
+.Fl f ,
+or
+.Fl s
+must be specified to indicate the type of position.
+If the partition number is specified, the drive will first relocate to the
+given partition (if it exists) and then to the position indicated within
+that partition.
+If the partition number is not specified, the drive will relocate to the
+given position within the current partition.
+.Bl -tag -width 14n
+.It Fl b Ar block_addr
+Relocate to the given tape block or logical object identifier.
+Note that the block number is the Reported Record Number that is relative
+to the beginning of the partition (or beginning of tape).
+.It Fl e
+Relocate to the end of data.
+.It Fl f Ar fileno
+Relocate to the given file number.
+.It Fl p Ar partition
+Specify the partition to change to.
+.It Fl s Ar setmark
+Relocate to the given set mark.
+.El
+.It Cm comp
+Set the drive's compression mode.
+The non-numeric values of
+.Ar argument
+are:
+.Pp
+.Bl -tag -width 9n -compact
+.It off
+Turn compression off.
+.It on
+Turn compression on.
+.It none
+Same as
+.Ar off .
+.It enable
+Same as
+.Ar on .
+.It IDRC
+IBM Improved Data Recording Capability compression (0x10).
+.It DCLZ
+DCLZ compression algorithm (0x20).
+.El
+.Pp
+In addition to the above recognized compression keywords, the user can
+supply a numeric compression algorithm for the drive to use.
+In most
+cases, simply turning the compression
+.Sq on
+will have the desired effect of enabling the default compression algorithm
+supported by the drive.
+If this is not the case (see the
+.Cm status
+display to see which compression algorithm is currently in use), the user
+can manually specify one of the supported compression keywords (above), or
+supply a numeric compression value from the drive's specifications.
+.Pp
+Note that for some older tape drives (for example the Exabyte 8200 and 8500
+series drives) it is necessary to switch to a different density to tell the
+drive to record data in its compressed format.
+If the user attempts to turn compression on while the uncompressed density
+is selected, the drive will return an error.
+This is generally not an issue for modern tape drives.
+.It Cm density
+Set the density for the drive.
+For the density codes, see below.
+The density value could be given either numerically, or as a string,
+corresponding to the
+.Dq Reference
+field.
+If the string is abbreviated, it will be resolved in the order
+shown in the table, and the first matching entry will be used.
+If the
+given string and the resulting canonical density name do not match
+exactly, an informational message is output about what the given
+string has been taken for.
+.El
+.Pp
+The initial version of the density table below was taken from the
+.Sq Historical sequential access density codes
+table (A-1) in Revision 11 of the SCSI-3 Stream Device Commands (SSC)
+working draft, dated November 11, 1997.
+Subsequent additions have come from a number of sources.
+.Pp
+The density codes are:
+.Bd -literal -offset 2n
+0x0    default for device
+0xE    reserved for ECMA
+
+Value  Width        Tracks    Density         Code Type Reference   Note
+        mm    in              bpmm       bpi
+0x01   12.7  (0.5)    9         32     (800)  NRZI  R   X3.22-1983   2
+0x02   12.7  (0.5)    9         63   (1,600)  PE    R   X3.39-1986   2
+0x03   12.7  (0.5)    9        246   (6,250)  GCR   R   X3.54-1986   2
+0x05    6.3  (0.25)  4/9       315   (8,000)  GCR   C   X3.136-1986  1,3
+0x06   12.7  (0.5)    9        126   (3,200)  PE    R   X3.157-1987  2
+0x07    6.3  (0.25)   4        252   (6,400)  IMFM  C   X3.116-1986  1
+0x08    3.81 (0.15)   4        315   (8,000)  GCR   CS  X3.158-1987  1
+0x09   12.7  (0.5)   18      1,491  (37,871)  GCR   C   X3.180       2
+0x0A   12.7  (0.5)   22        262   (6,667)  MFM   C   X3B5/86-199  1
+0x0B    6.3  (0.25)   4         63   (1,600)  PE    C   X3.56-1986   1
+0x0C   12.7  (0.5)   24        500  (12,690)  GCR   C   HI-TC1       1,6
+0x0D   12.7  (0.5)   24        999  (25,380)  GCR   C   HI-TC2       1,6
+0x0F    6.3  (0.25)  15        394  (10,000)  GCR   C   QIC-120      1,6
+0x10    6.3  (0.25)  18        394  (10,000)  GCR   C   QIC-150      1,6
+0x11    6.3  (0.25)  26        630  (16,000)  GCR   C   QIC-320      1,6
+0x12    6.3  (0.25)  30      2,034  (51,667)  RLL   C   QIC-1350     1,6
+0x13    3.81 (0.15)   1      2,400  (61,000)  DDS   CS  X3B5/88-185A 5
+0x14    8.0  (0.315)  1      1,703  (43,245)  RLL   CS  X3.202-1991  5,11
+0x15    8.0  (0.315)  1      1,789  (45,434)  RLL   CS  ECMA TC17    5,12
+0x16   12.7  (0.5)   48        394  (10,000)  MFM   C   X3.193-1990  1
+0x17   12.7  (0.5)   48      1,673  (42,500)  MFM   C   X3B5/91-174  1
+0x18   12.7  (0.5)  112      1,673  (42,500)  MFM   C   X3B5/92-50   1
+0x19   12.7  (0.5)  128      2,460  (62,500)  RLL   C   DLTapeIII    6,7
+0x1A   12.7  (0.5)  128      3,214  (81,633)  RLL   C   DLTapeIV(20) 6,7
+0x1B   12.7  (0.5)  208      3,383  (85,937)  RLL   C   DLTapeIV(35) 6,7
+0x1C    6.3  (0.25)  34      1,654  (42,000)  MFM   C   QIC-385M     1,6
+0x1D    6.3  (0.25)  32      1,512  (38,400)  GCR   C   QIC-410M     1,6
+0x1E    6.3  (0.25)  30      1,385  (36,000)  GCR   C   QIC-1000C    1,6
+0x1F    6.3  (0.25)  30      2,666  (67,733)  RLL   C   QIC-2100C    1,6
+0x20    6.3  (0.25) 144      2,666  (67,733)  RLL   C   QIC-6GB(M)   1,6
+0x21    6.3  (0.25) 144      2,666  (67,733)  RLL   C   QIC-20GB(C)  1,6
+0x22    6.3  (0.25)  42      1,600  (40,640)  GCR   C   QIC-2GB(C)   ?
+0x23    6.3  (0.25)  38      2,666  (67,733)  RLL   C   QIC-875M     ?
+0x24    3.81 (0.15)   1      2,400  (61,000)        CS  DDS-2        5
+0x25    3.81 (0.15)   1      3,816  (97,000)        CS  DDS-3        5
+0x26    3.81 (0.15)   1      3,816  (97,000)        CS  DDS-4        5
+0x27    8.0  (0.315)  1      3,056  (77,611)  RLL   CS  Mammoth      5
+0x28   12.7  (0.5)   36      1,491  (37,871)  GCR   C   X3.224       1
+0x29   12.7  (0.5)
+0x2A
+0x2B   12.7  (0.5)    3          ?        ?     ?   C   X3.267       5
+0x40   12.7  (0.5)  384      4,800  (123,952)       C   LTO-1
+0x41   12.7  (0.5)  208      3,868  (98,250)  RLL   C   DLTapeIV(40) 6,7
+0x42   12.7  (0.5)  512      7,398  (187,909)       C   LTO-2
+0x44   12.7  (0.5)  704      9,638  (244,805)       C   LTO-3
+0x46   12.7  (0.5)  896      12,725 (323,215)       C   LTO-4
+0x47    3.81 (0.25)   ?      6,417  (163,000)       CS  DAT-72
+0x48   12.7  (0.5)  448      5,236  (133,000) PRML  C   SDLTapeI(110) 6,8,13
+0x49   12.7  (0.5)  448      7,598  (193,000) PRML  C   SDLTapeI(160) 6,8
+0x4A   12.7  (0.5)  768          ?            PRML  C   T10000A      10
+0x4B   12.7  (0.5) 1152          ?            PRML  C   T10000B      10
+0x4C   12.7  (0.5) 3584          ?            PRML  C   T10000C      10
+0x4D   12.7  (0.5) 4608          ?            PRML  C   T10000D      10
+0x51   12.7  (0.5)  512      11,800 (299,720)       C   3592A1 (unencrypted)
+0x52   12.7  (0.5)  896      11,800 (299,720)       C   3592A2 (unencrypted)
+0x53   12.7  (0.5) 1152      13,452 (341,681)       C   3592A3 (unencrypted)
+0x54   12.7  (0.5) 2560      19,686 (500,024)       C   3592A4 (unencrypted)
+0x55   12.7  (0.5) 5120      20,670 (525,018)       C   3592A5 (unencrypted)
+0x56   12.7  (0.5) 7680      20,670 (525,018)       C   3592B5 (unencrypted)
+0x57   12.7  (0.5) 8704      21,850 (554,990)       C   3592A6 (unencrypted)
+0x58   12.7  (0.5) 1280      15,142 (384,607)       C   LTO-5
+0x5A   12.7  (0.5) 2176      15,142 (384,607)       C   LTO-6
+0x5C   12.7  (0.5) 3584      19,107 (485,318)       C   LTO-7
+0x5D   12.7  (0.5) 5376      19,107 (485,318)       C   LTO-M8       14
+0x5E   12.7  (0.5) 6656      20,669 (524,993)       C   LTO-8
+0x71   12.7  (0.5)  512      11,800 (299,720)       C   3592A1 (encrypted)
+0x72   12.7  (0.5)  896      11,800 (299,720)       C   3592A2 (encrypted)
+0x73   12.7  (0.5) 1152      13,452 (341,681)       C   3592A3 (encrypted)
+0x74   12.7  (0.5) 2560      19,686 (500,024)       C   3592A4 (encrypted)
+0x75   12.7  (0.5) 5120      20,670 (525,018)       C   3592A5 (encrypted)
+0x76   12.7  (0.5) 7680      20,670 (525,018)       C   3592B5 (encrypted)
+0x77   12.7  (0.5) 8704      21,850 (554,990)       C   3592A6 (encrypted)
+0x8c    8.0  (0.315)  1      1,789  (45,434)  RLL   CS  EXB-8500c    5,9
+0x90    8.0  (0.315)  1      1,703  (43,245)  RLL   CS  EXB-8200c    5,9
+.Ed
+.Bd -literal -offset 2n
+Code    Description                                Type Description
+----    --------------------------------------     ---- -----------
+NRZI    Non return to zero, change on ones         R    Reel-to-reel
+GCR     Group code recording                       C    Cartridge
+PE      Phase encoded                              CS   Cassette
+IMFM    Inverted modified frequency modulation
+MFM     Modified frequency modulation
+DDS     DAT data storage
+RLL     Run length limited
+PRML    Partial Response Maximum Likelihood
+.Ed
+.Bd -literal -offset 2n
+NOTES
+1.  Serial recorded.
+2.  Parallel recorded.
+3.  Old format known as QIC-11.
+5.  Helical scan.
+6.  This is not an American National Standard.  The reference is based
+    on an industry standard definition of the media format.
+7.  DLT recording: serially recorded track pairs (DLTapeIII and
+    DLTapeIV(20)), or track quads (DLTapeIV(35) and DLTapeIV(40)).
+8.  Super DLT (SDLT) recording: 56 serially recorded logical tracks
+    with 8 physical tracks each.
+9.  Vendor-specific Exabyte density code for compressed format.
+10. bpi/bpmm values for the Oracle/StorageTek T10000 tape drives are
+    not listed in the manual.  Someone with access to a drive can
+    supply the necessary values by running 'mt getdensity'.
+11. This is Exabyte 8200 uncompressed format.  The compressed format
+    density code is 0x90.
+12. This is Exabyte 8500 uncompressed format.  The compressed format
+    density code is 0x8c.
+13. This density code (0x48) was also used for DAT-160.
+14. Officially known as LTO-8 Type M, abbreviated M8.  This is a pristine
+    LTO-7 cartridge initialized with a higher density format by an LTO-8
+    drive.  It cannot be read by an LTO-7 drive.  Uncompressed capacity
+    is 9TB, compared to 6TB for LTO-7 and 12TB for LTO-8.
+.Ed
+.Bd -literal -offset 2n
+NOTE ON QIC STREAMERS
+
+The following is a table of Data Cartridge types as used in the 1/4 inch
+tape drives such as the Archive Viper 150, Wangtek 5525ES, and Tandberg
+TDC4220 tape drives:
+
+Value Reference     Format    Cartridge Type  Capacity   Tracks  Length
+----- ---------     ------    --------------  --------   ------  ------
+
+0x05                QIC-11    DC300           15MB       4        300ft
+0x05                QIC-11    DC300XL/P       20MB       4        450ft
+0x05                QIC-11    DC600           27MB       4        600ft
+0x05  X3.136-1986   QIC-24    DC615A          15MB       9        150ft
+0x05  X3.136-1986   QIC-24    DC300XL/P       45MB       9        450ft
+0x05  X3.136-1986   QIC-24    DC600A          60MB       9        600ft
+0x0F  QIC-120       QIC-120   DC600A/DC6150   120MB      15       620ft
+0x10  QIC-150       QIC-150   DC600XTD/DC6150 150MB      18       620ft
+0x10  QIC-150       QIC-150   DC6250          250MB      18     1,020ft
+0x11  QIC-320       QIC-525   DC6320          320MB      26       620ft
+0x11  QIC-320       QIC-525   DC6525          525MB      26     1,020ft
+0x1E  QIC-1000C     QIC-1000  DC9100/DL9135   1.0GB      30       760ft
+0x1E  QIC-1000C     QIC-1000  DC9150          1.2GB      30       950ft
+0x22  QIC-2GB(C)    QIC-2GB   DC9200          2.0GB      42       950ft
+0x22  QIC-2GB(C)    QIC-2GB   DC9250          2.5GB      42     1,200ft
+.Ed
+.Pp
+Notes:
+.Pp
+QIC-24, QIC-120, QIC-150 use fixed blocksize of 512 bytes, QIC-525, QIC-1000
+and QIC-2GB can use blocksize of 1,024 bytes.
+DDS (DAT) drives generally use variable blocks.
+.Pp
+QIC-02 and QIC-36 are interface standards for tape drives.
+The QIC-02 and QIC-36 streamers such as the Wangtek 5250EQ are otherwise
+identical to their SCSI versions (i.e.: Wangtek 5250ES).
+.Pp
+It seems that the 150MB and larger streamers cannot write QIC-24 9 track
+formats, only read them.
+.Pp
+DC600A cartridges marked "10,000ftpi" can only be used as QIC-11, QIC-24,
+and QIC-120 format.
+DC600A cartridges marked 12,500ftpi can be used as both QIC-120 and QIC-150
+format.
+.Pp
+Some manufacturers do not use "DC" on their cartridges.
+Verbatim uses DL, Maxell uses MC, Sony uses QD, Quill uses DQ.
+.Pp
+3M/Imation & Fuji use DC.
+Thus a DL6250, MC-6250, QD6250, DQ6250 are all identical media to a DC6250.
+.Pp
+QIC tape media is not "connected" to the take up reels and will de-spool
+if the tape drive has dust covering the light sensor that looks for the end
+of tape holes in the media.
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev TAPE"
+.It Ev TAPE
+This is the pathname of the tape drive.
+The default (if the variable is unset, but not if it is null) is
+.Pa /dev/nsa0 .
+It may be overridden with the
+.Fl f
+option.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/*sa[0-9]*" -compact
+.It Pa /dev/*sa[0-9]*
+SCSI magnetic tape interface
+.El
+.Sh DIAGNOSTICS
+The exit status will be 0 when the drive operations were successful,
+2 when the drive operations were unsuccessful, and 1 for other
+problems like an unrecognized command or a missing drive device.
+.Sh COMPATIBILITY
+Some undocumented commands support old software.
+.Sh SEE ALSO
+.Xr dd 1 ,
+.Xr ioctl 2 ,
+.Xr mtio 4 ,
+.Xr sa 4 ,
+.Xr environ 7
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 .
+.Pp
+Extensions regarding the
+.Xr st 4
+driver appeared in
+.Bx 386 0.1
+as a separate
+.Nm st
+command, and have been merged into the
+.Nm
+command in
+.Fx 2.1 .
+.Pp
+The former
+.Cm eof
+command that used to be a synonym for
+.Cm weof
+has been abandoned in
+.Fx 2.1
+since it was often confused with
+.Cm eom ,
+which is fairly dangerous.
+.Sh BUGS
+The utility cannot be interrupted or killed during a long erase
+(which can be longer than an hour), and it is easy to forget
+that the default erase is long.
+.Pp
+Hardware block numbers do not always correspond to blocks on the tape
+when the drive uses internal compression.
+.Pp
+Erasure is not guaranteed if the tape is not at its beginning.
+.Pp
+Tape-related documentation is poor, here and elsewhere.

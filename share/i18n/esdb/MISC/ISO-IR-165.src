@@ -1,0 +1,7 @@
+# $FreeBSD$ 
+# $NetBSD: ISO-2022-CN-EXT.src,v 1.1 2006/10/26 15:06:18 tnozaki Exp $
+
+NAME		"ISO-IR-165"
+ENCODING	"NONE"
+DEFCSID		"ISO-IR-165"		1
+INVALID		0x3F

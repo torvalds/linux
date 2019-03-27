@@ -1,0 +1,6 @@
+$ $tcsh: set25,v 1.3 2006/03/02 18:46:45 christos Exp $
+$ tc.sig.c
+$set 25 
+1 our wait %d\n
+2 error: bsd_signal(%d) signal out of range\n
+3 error: bsd_signal(%d) - sigaction failed, errno %d\n

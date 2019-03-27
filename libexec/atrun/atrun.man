@@ -1,0 +1,84 @@
+.\" $FreeBSD$
+.Dd June 22, 2015
+.Dt ATRUN 8
+.Os
+.Sh NAME
+.Nm atrun
+.Nd run jobs queued for later execution
+.Sh SYNOPSIS
+.Nm atrun
+.Op Fl l Ar load_avg
+.Op Fl d
+.Sh DESCRIPTION
+.Nm Atrun
+runs jobs queued by
+.Xr at 1 .
+.Pp
+The system
+.Xr crontab 5
+file
+.Pa /etc/crontab
+must contain the line
+.Bd -literal
+*/5     *       *       *       *       root    /usr/libexec/atrun
+.Ed
+.Pp
+so
+.Nm
+is invoked every five minutes.
+.Pp
+At every invocation,
+.Nm
+starts all the jobs in the lowercase queues whose start
+time has elapsed.
+In addition, if the load average over the last minute was less than
+the specified limit, then a maximum of one batch job (denoted by the
+uppercase queues) is started.
+.Pp
+Before starting a job,
+.Nm
+checks the status of its owner's account with
+.Xr pam 3
+and refuses to run the job if the account is unavailable,
+e.g., locked out or expired.
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl l Ar load_avg
+Specify a limiting load factor, over which batch jobs should
+not be run, instead of the default of 1.5 * number of active CPUs.
+.It Fl d
+Debug; print error messages to standard error instead of using
+.Xr syslog 3 .
+.El
+.Sh WARNINGS
+For
+.Nm
+to work, a
+.Xr cron 8
+daemon must be running
+.Nm
+periodically.
+.Sh FILES
+.Bl -tag -width /etc/pam.d/atrun -compact
+.It Pa /etc/pam.d/atrun
+.Xr pam.conf 5
+configuration file for
+.Nm
+.It Pa /var/at/jobs
+Directory containing job files
+.It Pa /var/at/spool
+Directory containing output spool files
+.El
+.Sh SEE ALSO
+.Xr at 1 ,
+.Xr crontab 1 ,
+.Xr pam 3 ,
+.Xr syslog 3 ,
+.Xr crontab 5 ,
+.Xr pam.conf 5 ,
+.Xr cron 8
+.Sh BUGS
+The functionality of
+.Nm
+should be merged into
+.Xr cron 8 .

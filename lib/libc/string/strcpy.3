@@ -1,0 +1,233 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)strcpy.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd June 6, 2018
+.Dt STRCPY 3
+.Os
+.Sh NAME
+.Nm stpcpy ,
+.Nm stpncpy ,
+.Nm strcpy ,
+.Nm strncpy
+.Nd copy strings
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In string.h
+.Ft char *
+.Fn stpcpy "char * restrict dst" "const char * restrict src"
+.Ft char *
+.Fn stpncpy "char * restrict dst" "const char * restrict src" "size_t len"
+.Ft char *
+.Fn strcpy "char * restrict dst" "const char * restrict src"
+.Ft char *
+.Fn strncpy "char * restrict dst" "const char * restrict src" "size_t len"
+.Sh DESCRIPTION
+The
+.Fn strcpy
+and
+.Fn stpcpy
+functions
+copy the string
+.Fa src
+to
+.Fa dst
+(including the terminating
+.Ql \e0
+character.)
+.Pp
+The
+.Fn strncpy
+and
+.Fn stpncpy
+functions copy at most
+.Fa len
+characters from
+.Fa src
+into
+.Fa dst .
+.Bf Sy
+If
+.Fa src
+is less than
+.Fa len
+characters long,
+the remainder of
+.Fa dst
+is filled with
+.Ql \e0
+characters.
+.Ef
+Otherwise,
+.Fa dst
+is
+.Em not
+terminated.
+.Pp
+For all of
+.Fn strcpy ,
+.Fn strncpy ,
+.Fn stpcpy ,
+and
+.Fn stpncpy ,
+the result is undefined
+if
+.Fa src
+and
+.Fa dst
+overlap.
+.Sh RETURN VALUES
+The
+.Fn strcpy
+and
+.Fn strncpy
+functions
+return
+.Fa dst .
+The
+.Fn stpcpy
+and
+.Fn stpncpy
+functions return a pointer to the terminating
+.Ql \e0
+character of
+.Fa dst .
+If
+.Fn stpncpy
+does not terminate
+.Fa dst
+with a
+.Dv NUL
+character, it instead returns a pointer to
+.Li dst[n]
+(which does not necessarily refer to a valid memory location.)
+.Sh EXAMPLES
+The following sets
+.Va chararray
+to
+.Dq Li abc\e0\e0\e0 :
+.Bd -literal -offset indent
+char chararray[6];
+
+(void)strncpy(chararray, "abc", sizeof(chararray));
+.Ed
+.Pp
+The following sets
+.Va chararray
+to
+.Dq Li abcdef :
+.Bd -literal -offset indent
+char chararray[6];
+
+(void)strncpy(chararray, "abcdefgh", sizeof(chararray));
+.Ed
+.Pp
+Note that it does
+.Em not
+.Tn NUL
+terminate
+.Va chararray
+because the length of the source string is greater than or equal
+to the length argument.
+.Pp
+The following copies as many characters from
+.Va input
+to
+.Va buf
+as will fit and
+.Tn NUL
+terminates the result.
+Because
+.Fn strncpy
+does
+.Em not
+guarantee to
+.Tn NUL
+terminate the string itself, this must be done explicitly.
+.Bd -literal -offset indent
+char buf[1024];
+
+(void)strncpy(buf, input, sizeof(buf) - 1);
+buf[sizeof(buf) - 1] = '\e0';
+.Ed
+.Pp
+This could be better achieved using
+.Xr strlcpy 3 ,
+as shown in the following example:
+.Pp
+.Dl "(void)strlcpy(buf, input, sizeof(buf));"
+.Sh SEE ALSO
+.Xr bcopy 3 ,
+.Xr memccpy 3 ,
+.Xr memcpy 3 ,
+.Xr memmove 3 ,
+.Xr strlcpy 3 ,
+.Xr wcscpy 3
+.Sh STANDARDS
+The
+.Fn strcpy
+and
+.Fn strncpy
+functions
+conform to
+.St -isoC .
+The
+.Fn stpcpy
+and
+.Fn stpncpy
+functions conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn stpcpy
+function first appeared in
+.Fx 4.4 ,
+and
+.Fn stpncpy
+was added in
+.Fx 8.0 .
+.Sh SECURITY CONSIDERATIONS
+All of the functions documented in this manual page are easily misused in a
+manner which enables malicious users to arbitrarily change a running program's
+functionality through a buffer overflow attack.
+.Pp
+It is strongly suggested that the
+.Fn strlcpy
+function be used in almost all cases.
+.Pp
+For some, but not all, fixed-length records, non-terminated strings may be both
+valid and desirable.
+In that specific case, the
+.Fn strncpy
+function may be most sensible.

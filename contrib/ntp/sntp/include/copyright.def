@@ -1,0 +1,30 @@
+/* -*- Mode: Text -*- */
+
+copyright = {
+    date  = "1992-2017";
+    owner = "The University of Delaware and Network Time Foundation";
+    eaddr = "http://bugs.ntp.org, bugs@ntp.org";
+    type  = ntp;
+};
+
+long-opts;
+config-header  = config.h;
+environrc;
+no-misuse-usage;
+version-proc = ntpOptionPrintVersion;
+
+version         = `
+eval VERSION=\`sed -e 's/.*,\\[//' -e 's/\\].*//' < ../sntp/m4/version.m4\`
+[ -z "${VERSION}" ] && echo "Cannot determine VERSION" && kill -TERM $AG_pid
+echo $VERSION`;
+
+version-value = '';	/* Don't use -v as a shortcut for --version */
+
+/*
+ * HMS: man pages already have this, and texi pages can use the
+ * values in sntp/include/version.texi .
+ */
+// doc-sub = {
+//     sub-name = version;
+//     sub-text = 's/#VERSION#/<<version>>/g';
+// };

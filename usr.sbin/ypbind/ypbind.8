@@ -1,0 +1,202 @@
+.\" Copyright (c) 1991, 1993, 1995
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 9, 1995
+.Dt YPBIND 8
+.Os
+.Sh NAME
+.Nm ypbind
+.Nd "NIS domain binding daemon"
+.Sh SYNOPSIS
+.Nm
+.Op Fl ypset
+.Op Fl ypsetme
+.Op Fl s
+.Op Fl m
+.Oo
+.Fl S
+.Sm off
+.Ar domainname , server1 , server2 , ...
+.Sm on
+.Oc
+.Sh DESCRIPTION
+The
+.Nm
+utility is the process that maintains NIS binding information.
+At startup,
+it searches for an NIS server responsible for serving the system's
+default domain (as set by the
+.Xr domainname 1
+command) using network broadcasts.
+Once it receives a reply,
+it will store the address of the server and other
+information in a special file located in
+.Pa /var/yp/binding .
+The NIS routines in the standard C library can then use this file
+when processing NIS requests.
+There may be several such files
+since it is possible for an NIS client to be bound to more than
+one domain.
+.Pp
+After a binding has been established,
+.Nm
+will send DOMAIN_NONACK requests to the NIS server at one minute
+intervals.
+If it fails to receive a reply to one of these requests,
+.Nm
+assumes that the server is no longer running and resumes its network
+broadcasts until another binding is established.
+The
+.Nm
+utility will also log warning messages using the
+.Xr syslog 3
+facility each time it detects that a server has stopped responding,
+as well as when it has bound to a new server.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl ypset
+It is possible to force
+.Nm
+to bind to a particular NIS server host for a given domain by using the
+.Xr ypset 8
+command.
+However,
+.Nm
+refuses YPBINDPROC_SETDOM requests by default since it has no way of
+knowing exactly who is sending them.
+Using the
+.Fl ypset
+flag causes
+.Nm
+to accept YPBINDPROC_SETDOM requests from any host.
+This option should only
+be used for diagnostic purposes and only for limited periods since allowing
+arbitrary users to reset the binding of an NIS client poses a severe
+security risk.
+.It Fl ypsetme
+This is similar to the
+.Fl ypset
+flag, except that it only permits YPBINDPROC_SETDOM requests to be processed
+if they originated from the local host.
+.It Fl s
+Cause
+.Nm
+to run in secure mode: it will refuse to bind to any NIS server
+that is not running as root (i.e., that is not using privileged
+TCP ports).
+.It Fl S Xo
+.Sm off
+.Ar domainname , server1 , server2 , server3 , ...
+.Sm on
+.Xc
+Allow the system administrator to lock
+.Nm
+to a particular
+domain and group of NIS servers.
+Up to ten servers can be specified.
+There must not be any spaces between the commas in the domain/server
+specification.
+This option is used to ensure that the system binds
+only to one domain and only to one of the specified servers, which
+is useful for systems that are both NIS servers and NIS
+clients: it provides a way to restrict what machines the system can
+bind to without the need for specifying the
+.Fl ypset
+or
+.Fl ypsetme
+options, which are often considered to be security holes.
+The specified
+servers must have valid entries in the local
+.Pa /etc/hosts
+file.
+IP addresses may be specified in place of hostnames.
+If
+.Nm
+cannot make sense out of the arguments, it will ignore
+the
+.Fl S
+flag and continue running normally.
+.Pp
+Note that
+.Nm
+will consider the domainname specified with the
+.Fl S
+flag to be the system default domain.
+.It Fl m
+Cause
+.Nm
+to use a 'many-cast' rather than a broadcast for choosing a server
+from the restricted mode server list.
+In many-cast mode,
+.Nm
+will transmit directly to the YPPROC_DOMAIN_NONACK procedure of the
+servers specified in the restricted list and bind to the server that
+responds the fastest.
+This mode of operation is useful for NIS clients on remote subnets
+where no local NIS servers are available.
+The
+.Fl m
+flag can only be used in conjunction with the
+.Fl S
+flag above (if used without the
+.Fl S
+flag, it has no effect).
+.El
+.Sh NOTES
+The
+.Nm
+utility will not make continuous attempts to keep secondary domains bound.
+If a server for a secondary domain fails to respond to a ping,
+.Nm
+will broadcast for a new server only once before giving up.
+If a
+client program attempts to reference the unbound domain,
+.Nm
+will try broadcasting again.
+By contrast,
+.Nm
+will automatically maintain a binding for the default domain whether
+client programs reference it ot not.
+.Sh FILES
+.Bl -tag -width /etc/rc.conf -compact
+.It Pa /var/yp/binding/[domainname].[version]
+the files used to hold binding information for each NIS domain
+.It Pa /etc/rc.conf
+system configuration file where the system default domain and
+ypbind startup options are specified
+.El
+.Sh SEE ALSO
+.Xr domainname 1 ,
+.Xr syslog 3 ,
+.Xr yp 8 ,
+.Xr ypserv 8 ,
+.Xr ypset 8
+.Sh AUTHORS
+.An Theo de Raadt Aq Mt deraadt@fsa.ca

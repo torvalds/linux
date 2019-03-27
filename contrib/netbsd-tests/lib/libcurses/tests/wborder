@@ -1,0 +1,6 @@
+include window
+call OK wborder $win1 0 0 0 0 0 0 0 0
+call OK wrefresh $win1
+compare wborder.chk
+call OK refresh
+compare wborder_refresh.chk

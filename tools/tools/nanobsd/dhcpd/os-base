@@ -1,0 +1,194 @@
+# $FreeBSD$
+
+#-
+# Copyright (c) 2014 M. Warner Losh.
+# Copyright (c) 2010-2011 iXsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL iXsystems, Inc. OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# This file is heavily derived from both Sam Leffler's Avilia config,
+# as well as the BSDRP project's config file.  Neither of these have
+# an explicit copyright/license statement, but are implicitly BSDL. This
+# example has been taken from the FreeNAS project and simplified to meet
+# the needs of the example.
+#
+
+# Pull in common definitions.
+. common
+
+NANO_BOOT0CFG="-o packet -s 1 -m 3 -t 18"
+
+# /var -> ~10MB (look through rc.initdiskless for the formula of how this
+# number is calculated out). Since we hope to run 
+NANO_RAM_TMPVARSIZE=10240
+
+NANO_IMAGES=2
+FlashDevice generic 2g
+
+if [ "$DEBUG" = 1 ]; then
+	DEBUG_BUILD="
+DEBUG_FLAGS=		-g
+"
+else
+	DEBUG_INSTALL="
+INSTALL_NODEBUG=	t
+"
+fi
+
+CONF_INSTALL="$CONF_BUILD
+${DEBUG_BUILD}
+"
+CONF_INSTALL="$CONF_INSTALL
+${DEBUG_INSTALL}
+"
+
+add_port security/sudo
+add_port ftp/curl
+
+if [ "${NANO_PACKAGE_ONLY}" -eq 1 ]; then
+ 	CONF_INSTALL="${CONF_INSTALL}
+${PKG_ONLY_MAKE_CONF}
+"
+	echo "Automatically building a thin image with packages"
+else
+	echo "Automatically building a * * F A T * * image so we can build ports"
+fi
+
+VARS="MASTER_SITE_BACKUP MASTER_SITE_OVERRIDE PACKAGEROOT PACKAGESITE"
+
+for var in $VARS; do
+	val=$(eval echo "\$$var")
+	if [ -n "$val" ]; then
+		CONF_INSTALL="${CONF_INSTALL}
+$var=$val"
+	fi
+done
+
+if [ "$PACKAGE_PREP_BUILD" = 1 ]; then
+	echo "Skipping post-package customize steps"
+	do_image=false
+else
+
+hack_nsswitch_conf ( )
+{
+	# Remove all references to NIS in the nsswitch.conf file
+	# Not sure this is still needed, but FreeNAS has it...
+	sed -i.bak -es/nis/files/g ${NANO_WORLDDIR}/etc/nsswitch.conf
+	rm -f ${NANO_WORLDDIR}/etc/nsswitch.conf.bak
+}
+customize_cmd hack_nsswitch_conf
+
+save_build ( )
+{
+	VERSION_FILE=${NANO_WORLDDIR}/etc/version
+	if [ "${SVNREVISION}" = "${REVISION}" ]; then
+		echo "${NANO_NAME}" > "${VERSION_FILE}"
+	else
+		echo "${NANO_NAME} (${SVNREVISION})" > "${VERSION_FILE}"
+	fi
+}
+customize_cmd save_build
+
+remove_patch_divots ( )
+{
+	find ${NANO_WORLDDIR} -name \*.orig -or -name \*.rej -delete
+}
+customize_cmd remove_patch_divots
+
+configure_mnt_md ( )
+{
+	mkdir -m 755 -p ${NANO_WORLDDIR}/conf/base/mnt
+	echo 2048 > ${NANO_WORLDDIR}/conf/base/mnt/md_size
+}
+customize_cmd configure_mnt_md
+
+shrink_md_fbsize()
+{
+	# We have a lot of little files on our memory disks. Let's decrease
+	# the block and frag size to fit more little files on them (this
+	# halves our space requirement by ~50% on /etc and /var on 8.x --
+	# and gives us more back on 9.x as the default block and frag size
+	# are 4 times larger).
+	sed -i '' -e 's,-S -i 4096,-S -i 4096 -b 4096 -f 512,' \
+		${NANO_WORLDDIR}/etc/rc.initdiskless
+}
+customize_cmd shrink_md_fbsize
+
+if [ "${DEBUG}" = 1 ]; then
+
+unmute_console_logging()
+{
+	# /var is small. Don't fill it up with messages from console.log
+	# because it's a chatty log.
+	sed -i '' -e 's/#console.info/console.info/' \
+			"${NANO_WORLDDIR}/etc/syslog.conf"
+}
+customize_cmd unmute_console_logging
+
+fi
+
+product_custom()
+{
+	gzip -v9 ${NANO_WORLDDIR}/boot/kernel/kernel
+
+	# kill includes (saves 14MB)
+	find ${NANO_WORLDDIR}/usr/local/include \! -name 'pyconfig.h' -type f | xargs rm -f
+
+	# kill docs (saves 22MB)
+	rm -rf ${NANO_WORLDDIR}/usr/local/share/doc
+	rm -rf ${NANO_WORLDDIR}/usr/local/share/gtk-doc
+
+	# and info (2MB)
+	rm -rf ${NANO_WORLDDIR}/usr/local/info
+
+	# and man pages (4.4MB)
+	rm -rf ${NANO_WORLDDIR}/usr/local/man
+
+	# and examples (1.7M)
+	rm -rf ${NANO_WORLDDIR}/usr/local/share/examples
+
+	# and groff_fonts junk (3MB)
+	rm -rf ${NANO_WORLDDIR}/usr/share/groff_font
+	rm -rf ${NANO_WORLDDIR}/usr/share/tmac
+	rm -rf ${NANO_WORLDDIR}/usr/share/me
+
+	# Kill all .a's and .la's that are installed (20MB+)
+	find ${NANO_WORLDDIR} -name \*.a -or -name \*.la -delete
+
+	# magic.mgc is just a speed optimization.  Kill it for 1.7MB
+	rm -f ${NANO_WORLDDIR}/usr/share/misc/magic.mgc
+
+	# Last second tweaks
+	chown -R root:wheel ${NANO_WORLDDIR}/root
+	chmod 0755 ${NANO_WORLDDIR}/root/*
+	chmod 0755 ${NANO_WORLDDIR}/*
+	chown -R root:wheel ${NANO_WORLDDIR}/etc
+	chown -R root:wheel ${NANO_WORLDDIR}/boot
+	chown root:wheel ${NANO_WORLDDIR}/
+	chown root:wheel ${NANO_WORLDDIR}/usr
+	find ${NANO_WORLDDIR} -type f -name "*~" -delete
+	find ${NANO_WORLDDIR}/usr/local -type f -name "*.po" -delete
+	find ${NANO_WORLDDIR} -type f -name "*.service" -delete
+}
+late_customize_cmd product_custom
+
+fi # [ $PACKAGE_PREP_BUILD = 1 ]

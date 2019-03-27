@@ -1,0 +1,445 @@
+.\" $FreeBSD$
+.Dd October 2, 2018
+.Dt TOP 1
+.Os
+.Sh NAME
+.Nm top
+.Nd display and update information about the top cpu processes
+.Sh SYNOPSIS
+.Nm
+.Op Fl CHIPSTabijnpqtuvxz
+.Op Fl J Ar jail
+.Op Fl U Ar uid
+.Op Fl d Ar count
+.Op Fl m Ar cpu|io
+.Op Fl s Ar time
+.Op Fl o Ar field
+.Op Fl p Ar pid
+.Op Ar count
+.Sh DESCRIPTION
+.Nm
+displays the top
+processes on the system and periodically updates this information.
+If standard output is an intelligent terminal (see below) then
+as many processes as will fit on the terminal screen are displayed
+by default.
+Otherwise, a good number of them are shown (around 20).
+Raw cpu percentage is used to rank the processes.
+If
+.Ar number
+is given, then the top
+.Ar number
+processes will be displayed instead of the default.
+.Pp
+.Nm
+makes a distinction between terminals that support advanced capabilities
+and those that do not.
+This distinction affects the choice of defaults for certain options.
+In the remainder of this document, an \*(lqintelligent\*(rq terminal is one that
+supports cursor addressing, clear screen, and clear to end of line.
+Conversely, a \*(lqdumb\*(rq terminal is one that does not support such
+features.
+If the output of
+.Nm
+is redirected to a file, it acts as if it were being run on a dumb
+terminal.
+.Bl -tag -width indent -compact
+.It Fl C
+Toggle CPU display mode.
+By default top displays the weighted CPU percentage in the WCPU column
+(this is the same value that
+.Xr ps 1
+displays as CPU).
+Each time
+.It Fl C
+flag is passed it toggles between \*(lqraw cpu\*(rq mode
+and \*(lqweighted cpu\*(rq mode, showing the \*(lqCPU\*(rq or
+the \*(lqWCPU\*(rq column respectively.
+.It Fl S
+Show system processes in the display.
+Normally, system processes such as the pager and the swapper are not shown.
+This option makes them visible.
+.It Fl a
+Display command names derived from the argv[] vector, rather than real
+executable name.
+It it useful when you want to watch applications, that
+puts their status information there.
+If the real name differs from argv[0],
+it will be displayed in parenthesis.
+.It Fl b
+Use \*(lqbatch\*(rq mode.
+In this mode, all input from the terminal is
+ignored.
+Interrupt characters (such as ^C and ^\e) still have an effect.
+This is the default on a dumb terminal, or when the output is not a terminal.
+.It Fl H
+Display each thread for a multithreaded process individually.
+By default a single summary line is displayed for each process.
+.It Fl i
+Use \*(lqinteractive\*(rq mode.
+In this mode, any input is immediately
+read for processing.
+See the section on \*(lqInteractive Mode\*(rq
+for an explanation of
+which keys perform what functions.
+After the command is processed, the
+screen will immediately be updated, even if the command was not
+understood.
+This mode is the default when standard output is an
+intelligent terminal.
+.It Fl I
+Do not display idle processes.
+By default, top displays both active and idle processes.
+.It Fl j
+Display the
+.Xr jail 8
+ID.
+.It Fl T
+Toggle displaying thread ID (tid) instead of process id (pid).
+.It Fl t
+Do not display the
+.Nm
+process itself.
+.It Fl display
+Display either 'cpu' or 'io' statistics.
+Default is 'cpu'.
+.It Fl n
+Use \*(lqnon-interactive\*(rq mode.
+This is identical to \*(lqbatch\*(rq
+mode.
+.It Fl P
+Display per-cpu CPU usage statistics.
+.It Fl q
+Renice
+.Nm
+to -20 so that it will run faster.
+This can be used when the system is
+being very sluggish to improve the possibility of discovering the problem.
+This option can only be used by root.
+.It Fl u
+Do not map uid numbers to usernames.
+Normally,
+.Nm
+will read as much of the file \*(lq/etc/passwd\*(rq as is necessary to map
+all the user id numbers it encounters into login names.
+This option disables all that, while possibly decreasing execution time.
+The uid numbers are displayed instead of the names.
+.It Fl v
+Write version number information to stderr then exit immediately.
+.It Fl w
+Display approximate swap usage for each process.
+.It Fl z
+Do not display the system idle process.
+.It Fl d Ar count
+Show only
+.Ar count
+displays, then exit.
+A display is considered to be one update of the
+screen.
+The default is 1 for dumb terminals.
+Note that for
+.Ar count
+= 1
+no information is available about the percentage of time spent by the CPU in every state.
+.It Fl s Ar time
+Set the delay between screen updates to
+.Ar time
+seconds.
+The default delay between updates is 1 second.
+.It Fl o Ar field
+Sort the process display area on the specified field.
+The field name
+is the name of the column as seen in the output, but in lower case:
+\*(lqcpu\*(lq, \*(rqsize\*(lq, \*(rqres\*(lq, \*(rqtime\*(lq,
+\*(rqpri\*(lq, \*(rqthreads\*(lq, \*(lqtotal\*(lq, \*(rqread\*(lq,
+\*(rqwrite\*(lq, \*(rqfault\*(lq, \*(rqvcsw\*(lq, \*(rqivcsw\*(lq,
+\*(lqjid\*(lq, \*(rqswap\*(lq or \*(rqpid\*(lq.
+.It Fl p Ar pid
+Show only the process
+.Ar pid .
+.It Fl J Ar jail
+Show only those processes owned by
+.Ar jail .
+This may be either the
+.Ar jid
+or
+.Ar name
+of the jail.
+Use
+0
+to limit to host processes.
+Using this option implies
+.Fl j .
+.Pp
+.It Fl U Ar username
+Show only those processes owned by
+.Ar username .
+This option currently only accepts usernames and will not understand
+uid numbers.
+.El
+.Pp
+Both
+.Ar count
+and
+.Ar number
+fields can be specified as \*(lqinfinite\*(rq, indicating that they can
+stretch as far as possible.
+This is accomplished by using any proper
+prefix of the keywords
+\*(lqinfinity\*(rq,
+\*(lqmaximum\*(rq,
+or
+\*(lqall\*(rq.
+Boolean flags are toggles.
+A second specification of any of these options will negate the first.
+.Sh "INTERACTIVE MODE"
+When
+.Nm
+is running in \*(lqinteractive mode\*(rq, it reads commands from the
+terminal and acts upon them accordingly.
+In this mode, the terminal is
+put in \*(lqCBREAK\*(rq, so that a character will be
+processed as soon as it is typed.
+Almost always, a key will be
+pressed when
+.Nm
+is between displays; that is, while it is waiting for
+.Ar time
+seconds to elapse.
+If this is the case, the command will be
+processed and the display will be updated immediately thereafter
+(reflecting any changes that the command may have specified).
+This
+happens even if the command was incorrect.
+If a key is pressed while
+.Nm
+is in the middle of updating the display, it will finish the update and
+then process the command.
+Some commands require additional information,
+and the user will be prompted accordingly.
+While typing this information
+in, the user's erase and kill keys (as set up by the command
+.Xr stty 1 )
+are recognized, and a newline terminates the input.
+.Pp
+These commands are currently recognized (^L refers to control-L):
+.Bl -tag -width indent
+.It ^L
+Redraw the screen.
+.It h
+Display a summary of the commands (help screen).
+Version information
+is included in this display.
+.It q
+Quit
+.Nm
+.It d
+Change the number of displays to show (prompt for new number).
+Remember that the next display counts as one, so typing
+.It d1
+will make
+.Nm
+show one final display and then immediately exit.
+.It m
+Toggle the display between 'cpu' and 'io' modes.
+.It n or #
+Change the number of processes to display (prompt for new number).
+.It s
+Change the number of seconds to delay between displays
+(prompt for new number).
+.It S
+Toggle the display of system processes.
+.It a
+Toggle the display of process titles.
+.It k
+Send a signal (\*(lqkill\*(rq by default) to a list of processes.
+This acts similarly to the command
+.Xr kill 1 .
+.It r
+Change the priority (the \*(lqnice\*(rq) of a list of processes.
+This acts similarly to
+.Xr renice 8 .
+.It u
+Display only processes owned by a specific set of usernames (prompt for
+username).
+If the username specified is simply \*(lq+\*(rq or \*(lq-\*(rq,
+then processes belonging to all users will be displayed.
+Usernames can be added
+to and removed from the set by prepending them with \*(lq+\*(rq and
+\*(lq-\*(rq, respectively.
+.It o
+Change the order in which the display is sorted.
+The sort key names include
+\*(lqcpu\*(rq, \*(lqres\*(rq, \*(lqsize\*(rq,
+\*(lqtime\*(rq.
+The default is cpu.
+.It p
+Display a specific process (prompt for pid).
+If the pid specified is simply \*(lq+\*(rq, then show all processes.
+.It e
+Display a list of system errors (if any) generated by the last
+command.
+.It B H
+Toggle the display of threads.
+.It i or I
+Toggle the display of idle processes.
+.It j
+Toggle the display of
+.Xr jail 8
+ID.
+.It J
+Display only processes owned by a specific jail (prompt for jail).
+If the jail specified is simply \*(lq+\*(rq, then processes belonging
+to all jails and the host will be displayed.
+This will also enable the display of JID.
+.It P
+Toggle the display of per-CPU statistics.
+.It T
+Toggle display of TID and PID
+.It t
+Toggle the display of the
+.Nm
+process.
+.It w
+Toggle the display of swap usage.
+.It z
+Toggle the display of the system idle process.
+.El
+.Sh "THE DISPLAY"
+The top few lines of the display show general information
+about the state of the system, including
+the last process id assigned to a process (on most systems),
+the three load averages,
+the current time,
+the number of existing processes,
+the number of processes in each state
+(sleeping, running, starting, zombies, and stopped),
+and a percentage of time spent in each of the processor states
+(user, nice, system, and idle).
+It also includes information about physical and virtual memory allocation.
+.Pp
+The remainder of the screen displays information about individual
+processes.
+This display is similar in spirit to
+.Xr ps 1
+but it is not exactly the same.
+PID is the process id,
+JID, when displayed, is the
+.Xr jail 8
+ID corresponding to the process,
+USERNAME is the name of the process's owner (if
+.Fl u
+is specified, a UID column will be substituted for USERNAME),
+PRI is the current priority of the process,
+NICE is the
+.Xr nice 1
+amount,
+SIZE is the total size of the process (text, data, and stack),
+RES is the current amount of resident memory,
+SWAP is the approximate amount of swap, if enabled
+(SIZE, RES and SWAP are given in kilobytes),
+STATE is the current state (one of \*(lqSTART\*(rq, \*(lqRUN\*(rq
+(shown as \*(lqCPUn\*(rq on SMP systems), \*(lqSLEEP\*(rq, \*(lqSTOP\*(rq,
+\*(lqZOMB\*(rq, \*(lqWAIT\*(rq, \*(lqLOCK\*(rq or the event on which the
+process waits),
+C is the processor number on which the process is executing
+(visible only on SMP systems),
+TIME is the number of system and user cpu seconds that the process has used,
+WCPU, when displayed, is the weighted cpu percentage (this is the same
+value that
+.Xr ps 1
+displays as CPU),
+CPU is the raw percentage and is the field that is sorted to determine
+the order of the processes, and
+COMMAND is the name of the command that the process is currently running
+(if the process is swapped out, this column is marked \*(lq<swapped>\*(rq).
+.Pp
+If a process is in the \*(lqSLEEP\*(rq or \*(lqLOCK\*(rq state,
+the state column will report the name of the event or lock on which the
+process is waiting.
+Lock names are prefixed with an asterisk \*(lq*\*(rq while sleep events
+are not.
+.Sh DESCRIPTION OF MEMORY
+.Bd -literal
+Mem: 61M Active, 86M Inact, 368K Laundry, 22G Wired, 102G Free
+ARC: 15G Total, 9303M MFU, 6155M MRU, 1464K Anon, 98M Header, 35M Other
+     15G Compressed, 27G Uncompressed, 1.75:1 Ratio, 174M Overhead
+Swap: 4096M Total, 532M Free, 13% Inuse, 80K In, 104K Out
+.Ed
+.Ss Physical Memory Stats
+.Bl -tag -width "Uncompressed" -compact
+.It Em Active
+number of bytes active
+.It Em Inact
+number of clean bytes inactive
+.It Em Laundry
+number of dirty bytes queued for laundering
+.It Em Wired
+number of bytes wired down, including IO-level cached file data pages
+.It Em Buf
+number of bytes used for IO-level disk caching
+.It Em Free
+number of bytes free
+.El
+.Ss ZFS ARC Stats
+These stats are only displayed when the ARC is in use.
+.Pp
+.Bl -tag -width "Uncompressed" -compact
+.It Em Total
+number of wired bytes used for the ZFS ARC
+.It Em MRU
+number of ARC bytes holding most recently used data
+.It Em MFU
+number of ARC bytes holding most frequently used data
+.It Em Anon
+number of ARC bytes holding in flight data
+.It Em Header
+number of ARC bytes holding headers
+.It Em Other
+miscellaneous ARC bytes
+.It Em Compressed
+bytes of memory used by ARC caches
+.It Em Uncompressed
+bytes of data stored in ARC caches before compression
+.It Em Ratio
+compression ratio of data cached in the ARC
+.El
+.Ss Swap Stats
+.Bl -tag -width "Uncompressed" -compact
+.It Em Total
+total available swap usage
+.It Em Free
+total free swap usage
+.It Em Inuse
+swap usage
+.It Em \&In
+bytes paged in from swap devices (last interval)
+.It Em Out
+bytes paged out to swap devices (last interval)
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width "Uncompressed"
+.It Ev TOP
+Default set of arguments to
+.Nm .
+.El
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr ps 1 ,
+.Xr stty 1 ,
+.Xr getrusage 2 ,
+.Xr humanize_number 3 ,
+.Xr mem 4 ,
+.Xr renice 8
+.Sh AUTHORS
+.An William LeFebvre, EECS Department, Northwestern University
+.Sh BUGS
+The command name for swapped processes should be tracked down, but this
+would make the program run slower.
+.Pp
+As with
+.Xr ps 1 ,
+things can change while
+.Nm
+is collecting information for an update.
+The picture it gives is only a close approximation to reality.

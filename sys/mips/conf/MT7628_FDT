@@ -1,0 +1,76 @@
+#
+# MT7628_FDT -- Kernel configuration file for FreeBSD/MIPS MT7628 and MT7688
+# SoCs
+#
+# This includes all the configurable parts of the kernel.
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+#
+# FDT_DTS_FILE should be modified to suit the target board type.
+#
+#makeoptions 	FDT_DTS_FILE=LINKIT7688.dts
+
+# Start with a base configuration
+include 	"../mediatek/std.mediatek"
+
+ident 		MT7628
+cpu 		CPU_MIPS24K
+
+# Don't build any modules by default
+makeoptions 	MODULES_OVERRIDE=""
+
+# Default rootfs device configuration, should be changed to suit target board
+options 	ROOTDEVNAME=\"ufs:md0.uzip\"
+
+# Support geom_uzip(4) compressed disk images
+device		xz
+options 	GEOM_UZIP
+
+# Support md(4) and md-based rootfs
+device 		md
+options 	MD_ROOT
+
+# Interrupt controller support
+device 		mtk_intr_v2
+
+# UART device support is compiled in when uart_ns8250 is selected (default)
+
+# SPI and SPI flash support
+device 		mtk_spi_v2
+device 		spibus
+device 		mx25l
+
+# GPIO and gpioled support
+device 		mtk_gpio_v2
+device 		gpio
+device 		gpioled
+
+# PCI support
+device 		pci
+
+# USB (ehci, ohci) support
+device 		usb
+device 		mtk_usb_phy
+device 		ehci
+device 		ohci
+
+# USB umass(4) storage and da(4) support
+device 		umass
+device 		da
+
+# CAM support, required if umass(4) is enabled above
+device 		pass
+device 		scbus
+
+# Ethernet, BPF and bridge support
+device 		rt
+device 		bpf
+device 		if_bridge
+
+# Extres
+options		EXT_RESOURCES
+device 		clk

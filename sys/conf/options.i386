@@ -1,0 +1,116 @@
+# $FreeBSD$
+# Options specific to the i386 platform kernels
+
+AUTO_EOI_1		opt_auto_eoi.h
+AUTO_EOI_2		opt_auto_eoi.h
+BROKEN_KEYBOARD_RESET	opt_reset.h
+COUNT_XINVLTLB_HITS	opt_smp.h
+COUNT_IPIS		opt_smp.h
+DISABLE_PG_G		opt_pmap.h
+DISABLE_PSE		opt_pmap.h
+I586_PMC_GUPROF		opt_i586_guprof.h
+MAXMEM
+MPTABLE_FORCE_HTT
+MP_WATCHDOG
+NKPT			opt_pmap.h
+PERFMON
+PMAP_SHPGPERPROC	opt_pmap.h
+POWERFAIL_NMI		opt_trap.h
+PV_STATS		opt_pmap.h
+
+# Options for emulators.  These should only be used at config time, so
+# they are handled like options for static filesystems
+# (see src/sys/conf/options), except for broken debugging options.
+COMPAT_AOUT		opt_dontuse.h
+COMPAT_LINUX		opt_dontuse.h
+LINPROCFS		opt_dontuse.h
+LINSYSFS		opt_dontuse.h
+NDISAPI			opt_dontuse.h
+
+# Change KVM size.  Changes things all over the kernel.
+KVA_PAGES		opt_global.h
+
+# Physical address extensions and support for >4G ram.  As above.
+PAE			opt_global.h
+
+TIMER_FREQ			opt_clock.h
+
+CPU_ATHLON_SSE_HACK		opt_cpu.h
+CPU_BLUELIGHTNING_3X		opt_cpu.h
+CPU_BLUELIGHTNING_FPU_OP_CACHE	opt_cpu.h
+CPU_BTB_EN			opt_cpu.h
+CPU_CYRIX_NO_LOCK		opt_cpu.h
+CPU_DIRECT_MAPPED_CACHE		opt_cpu.h
+CPU_DISABLE_5X86_LSSER		opt_cpu.h
+CPU_ELAN			opt_cpu.h
+CPU_ELAN_PPS			opt_cpu.h
+CPU_ELAN_XTAL			opt_cpu.h
+CPU_ENABLE_LONGRUN		opt_cpu.h
+CPU_FASTER_5X86_FPU		opt_cpu.h
+CPU_GEODE			opt_cpu.h
+CPU_I486_ON_386			opt_cpu.h
+CPU_IORT			opt_cpu.h
+CPU_L2_LATENCY			opt_cpu.h
+CPU_LOOP_EN			opt_cpu.h
+CPU_PPRO2CELERON		opt_cpu.h
+CPU_RSTK_EN			opt_cpu.h
+CPU_SOEKRIS			opt_cpu.h
+CPU_SUSP_HLT			opt_cpu.h
+CPU_UPGRADE_HW_CACHE		opt_cpu.h
+CPU_WT_ALLOC			opt_cpu.h
+CYRIX_CACHE_REALLY_WORKS	opt_cpu.h
+CYRIX_CACHE_WORKS		opt_cpu.h
+NO_F00F_HACK			opt_cpu.h
+NO_MEMORY_HOLE			opt_cpu.h
+
+# The CPU type affects the endian conversion functions all over the kernel.
+I486_CPU		opt_global.h
+I586_CPU		opt_global.h
+I686_CPU		opt_global.h
+
+# options for serial support
+COM_ESP			opt_sio.h
+COM_MULTIPORT		opt_sio.h
+CONSPEED		opt_sio.h
+GDBSPEED		opt_sio.h
+COM_NO_ACPI		opt_sio.h
+
+VGA_ALT_SEQACCESS	opt_vga.h
+VGA_DEBUG		opt_vga.h
+VGA_NO_FONT_LOADING	opt_vga.h
+VGA_NO_MODE_CHANGE	opt_vga.h
+VGA_SLOW_IOACCESS	opt_vga.h
+VGA_WIDTH90		opt_vga.h
+
+VESA
+VESA_DEBUG		opt_vesa.h
+
+# AGP debugging support
+AGP_DEBUG		opt_agp.h
+
+PSM_DEBUG		opt_psm.h
+PSM_HOOKRESUME		opt_psm.h
+PSM_RESETAFTERSUSPEND	opt_psm.h
+
+ATKBD_DFLT_KEYMAP	opt_atkbd.h
+
+# Video spigot
+SPIGOT_UNSECURE		opt_spigot.h
+
+# Enables NETGRAPH support for Cronyx adapters
+NETGRAPH_CRONYX		opt_ng_cronyx.h
+
+# Device options
+DEV_APIC		opt_apic.h
+DEV_ATPIC		opt_atpic.h
+
+# Debugging
+NPX_DEBUG		opt_npx.h
+
+# BPF just-in-time compiler
+BPF_JITTER		opt_bpf.h
+
+XENHVM			opt_global.h
+
+# options for the Intel C600 SAS driver (isci)
+ISCI_LOGGING	opt_isci.h

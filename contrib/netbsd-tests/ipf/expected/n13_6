@@ -1,0 +1,32 @@
+> le0 ip6/0 1 0 41 203:0:1:0:0:0:1:23 > 150.1.1.1
+> le0 ip6/0 1 0 41 203:0:1:0:0:0:1:23 > 150.1.1.2
+> le0 ip6/0 1 0 41 203:0:1:0:0:0:1:24 > 150.1.1.2
+> le0 ip6/0 1 0 41 203:0:1:0:0:0:1:25 > 150.1.1.1
+List of active MAP/Redirect filters:
+map le0 inet6 192:168:0::0/48 -> range 203:0:1::1:23-203:0:1::3:45
+
+List of active sessions:
+MAP 192.168.1.3 <- -> 203:0:1::1:25 [150.1.1.1]
+MAP 192.168.1.2 <- -> 203:0:1::1:24 [150.1.1.2]
+MAP 192.168.1.1 <- -> 203:0:1::1:23 [150.1.1.2]
+MAP 192.168.1.1 <- -> 203:0:1::1:23 [150.1.1.1]
+
+Hostmap table:
+192.168.1.3,150.1.1.1 -> 203:0:1:0:0:0:1:25,any (use = 1)
+192.168.1.2,150.1.1.2 -> 203:0:1:0:0:0:1:24,any (use = 1)
+192.168.1.1,150.1.1.2 -> 203:0:1:0:0:0:1:23,any (use = 1)
+192.168.1.1,150.1.1.1 -> 203:0:1:0:0:0:1:23,any (use = 1)
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------

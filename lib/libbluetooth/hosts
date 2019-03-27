@@ -1,0 +1,10 @@
+# $Id: hosts,v 1.1 2003/05/21 17:48:40 max Exp $
+# $FreeBSD$
+#
+# Bluetooth Host Database
+#
+# This file should contain the Bluetooth addresses and aliases for hosts.
+#
+# BD_ADDR               Name [ alias0 alias1 ... ]
+
+# 00:11:22:33:44:55	phone

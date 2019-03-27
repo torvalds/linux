@@ -1,0 +1,43 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: root
+# REQUIRE: fsck
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="root"
+desc="Mount root filesystem read/write"
+start_cmd="root_start"
+stop_cmd=":"
+
+root_start()
+{
+	# root normally must be read/write, but if this is a BOOTP NFS
+	# diskless boot it does not have to be.
+	#
+	case ${root_rw_mount} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		if ! mount -uw /; then
+			echo 'Mounting root filesystem rw failed, startup aborted'
+			stop_boot true
+		fi
+		;;
+	esac
+
+	umount -a >/dev/null 2>&1
+
+	# If we booted a special kernel remove the record
+	# so we will boot the default kernel next time.
+	if [ -x /sbin/nextboot ]; then
+		/sbin/nextboot -D > /dev/null 2>&1
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,131 @@
+.\"	$NetBSD: physio.9,v 1.2 1996/11/11 00:05:12 lukem Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 19, 2012
+.Dt PHYSIO 9
+.Os
+.Sh NAME
+.Nm physio
+.Nd initiate I/O on raw devices
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/systm.h
+.In sys/bio.h
+.In sys/buf.h
+.Ft int
+.Fn physio "struct cdev *dev" "struct uio *uio" "int ioflag"
+.Sh DESCRIPTION
+The
+.Fn physio
+is a helper function typically called from character device
+.Fn read
+and
+.Fn write
+routines to start I/O on a user process buffer.
+The maximum amount of data to transfer with each call
+is determined by
+.Fa dev->si_iosize_max .
+The
+.Fn physio
+call converts the I/O request into a
+.Fn strategy
+request and passes the new request to the driver's
+.Fn strategy
+routine for processing.
+.Pp
+Since
+.Fa uio
+normally describes user space addresses,
+.Fn physio
+needs to lock those pages into memory.
+This is done by calling
+.Fn vmapbuf
+for the appropriate pages.
+.Fn physio
+always awaits the completion of the entire requested transfer before
+returning, unless an error condition is detected earlier.
+.Pp
+A break-down of the arguments follows:
+.Bl -tag -width indent
+.It Fa dev
+The device number identifying the device to interact with.
+.It Fa uio
+The description of the entire transfer as requested by the user process.
+Currently, the results of passing a
+.Fa uio
+structure with the
+.Va uio_segflg
+set to anything other than
+.Dv UIO_USERSPACE
+are undefined.
+.It Fa ioflag
+The ioflag argument from the
+.Fn read
+or
+.Fn write
+function calling
+.Fn physio .
+.El
+.Sh RETURN VALUES
+If successful
+.Fn physio
+returns 0.
+.Er EFAULT
+is returned if the address range described by
+.Fa uio
+is not accessible by the requesting process.
+.Fn physio
+will return any error resulting from calls to the device strategy routine,
+by examining the
+.Dv B_ERROR
+buffer flag and the
+.Va b_error
+field.
+Note that the actual transfer size may be less than requested by
+.Fa uio
+if the device signals an
+.Dq "end of file"
+condition.
+.Sh SEE ALSO
+.Xr read 2 ,
+.Xr write 2
+.Sh HISTORY
+The
+.Nm
+manual page is originally from
+.Nx
+with minor changes for applicability with
+.Fx .
+.Pp
+The
+.Nm
+call has been completely re-written for providing higher
+I/O and paging performance.

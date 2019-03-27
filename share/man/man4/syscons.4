@@ -1,0 +1,633 @@
+.\"
+.\" Copyright (c) 1999
+.\" Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 2, 2018
+.Dt SYSCONS 4
+.Os
+.Sh NAME
+.Nm syscons ,
+.Nm sc
+.Nd the console driver
+.Sh SYNOPSIS
+.Cd "options MAXCONS=N"
+.Cd "options SC_ALT_MOUSE_IMAGE"
+.Cd "options SC_CUT_SEPCHARS=_characters_"
+.Cd "options SC_CUT_SPACES2TABS"
+.Cd "options SC_DFLT_TERM"
+.Cd "options SC_DISABLE_KDBKEY"
+.Cd "options SC_DISABLE_REBOOT"
+.Cd "options SC_HISTORY_SIZE=N"
+.Cd "options SC_MOUSE_CHAR=C"
+.Cd "options SC_NO_CUTPASTE"
+.Cd "options SC_NO_FONT_LOADING"
+.Cd "options SC_NO_HISTORY"
+.Cd "options SC_NO_PALETTE_LOADING"
+.Cd "options SC_NO_SUSPEND_VTYSWITCH"
+.Cd "options SC_NO_SYSMOUSE"
+.Cd "options SC_NO_TERM_DUMB"
+.Cd "options SC_NO_TERM_SC"
+.Cd "options SC_NO_TERM_SCTEKEN"
+.Cd "options SC_PIXEL_MODE"
+.Cd "options SC_TWOBUTTON_MOUSE"
+.Cd "options SC_NORM_ATTR=_attribute_"
+.Cd "options SC_NORM_REV_ATTR=_attribute_"
+.Cd "options SC_KERNEL_CONS_ATTR=_attribute_"
+.Cd "options SC_KERNEL_CONS_ATTRS=_attributes_"
+.Cd "options SC_KERNEL_CONS_REV_ATTR=_attribute_"
+.Cd "options SC_DFLT_FONT"
+.Cd "makeoptions SC_DFLT_FONT=_font_name_"
+.Cd "device sc"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.sc.0.at="isa"
+.Cd hint.sc.0.vesa_mode=0x103
+.Pp
+In
+.Pa /boot/loader.conf :
+.Cd kern.vty=sc
+.Sh DESCRIPTION
+The
+.Nm
+driver provides multiple virtual terminals.
+It resembles the SCO color console driver.
+.Pp
+The
+.Nm
+driver is implemented on top of the keyboard driver
+.Pq Xr atkbd 4
+and the video card driver
+.Pq Xr vga 4
+and so requires both of them to be configured in the system.
+.Pp
+There can be only one
+.Nm
+device defined in the system.
+.Ss Virtual Terminals
+The
+.Nm
+driver provides multiple virtual terminals which appear as if they were
+separate terminals.
+One virtual terminal is considered current and exclusively
+occupies the screen and the keyboard; the other virtual terminals
+are placed in the background.
+.Pp
+In order to use virtual terminals, they must be individually
+marked ``on'' in
+.Pa /etc/ttys
+so that
+.Xr getty 8
+will recognize them to be active and run
+.Xr login 1
+to let the user log in to the system.
+By default, only the first eight virtual terminals are activated in
+.Pa /etc/ttys .
+.Pp
+You press the
+.Dv Alt
+key and a switch key to switch between
+virtual terminals.
+The following table summarizes the correspondence between the switch
+key and the virtual terminal.
+.Bd -literal -offset indent
+Alt-F1   ttyv0      Alt-F7   ttyv6      Shift-Alt-F1   ttyva
+Alt-F2   ttyv1      Alt-F8   ttyv7      Shift-Alt-F2   ttyvb
+Alt-F3   ttyv2      Alt-F9   ttyv8      Shift-Alt-F3   ttyvc
+Alt-F4   ttyv3      Alt-F10  ttyv9      Shift-Alt-F4   ttyvd
+Alt-F5   ttyv4      Alt-F11  ttyva      Shift-Alt-F5   ttyve
+Alt-F6   ttyv5      Alt-F12  ttyvb      Shift-Alt-F6   ttyvf
+.Ed
+.Pp
+You can also use the ``nscr'' key (usually the
+.Dv PrintScreen
+key on the AT Enhanced keyboard) to cycle available virtual terminals.
+.Pp
+The default number of available virtual terminals is 16.
+This can be changed with the kernel configuration option
+.Dv MAXCONS
+(see below).
+.Pp
+Note that the X server usually requires a virtual terminal for display
+purposes, so at least one terminal must be left unused by
+.Xr getty 8
+so that it can be used by the X server.
+.Ss Key Definitions and Function Key Strings
+The
+.Nm
+driver, in conjunction with the keyboard driver, allows the user
+to change key definitions and function key strings.
+The
+.Xr kbdcontrol 1
+command will load a key definition file (known as ``keymap'' file),
+dump the current keymap, and assign a string to a function key.
+See
+.Xr keyboard 4
+and
+.Xr kbdmap 5
+for the keymap file.
+.Pp
+You may want to set the
+.Ar keymap
+variable in
+.Pa /etc/rc.conf.local
+to the desired keymap file so that it will be automatically loaded
+when the system starts up.
+.Ss Software Font
+For most modern video cards, e.g., VGA, the
+.Nm
+driver and the video card driver allow the user to change
+the font used on the screen.
+The
+.Xr vidcontrol 1
+command can be used to load a font file from
+.Pa /usr/share/syscons/fonts .
+.Pp
+The font comes in various sizes: 8x8, 8x14 and 8x16.
+The 8x16 font is typically used for the VGA card in the
+80-column-by-25-line mode.
+Other video modes may require different font sizes.
+It is better to always load all three sizes of the same font.
+.Pp
+You may set
+.Ar font8x8 ,
+.Ar font8x14
+and
+.Ar font8x16
+variables in
+.Pa /etc/rc.conf
+to the desired font files so that they will be automatically loaded
+when the system starts up.
+.Pp
+Optionally you can specify a particular font file as the default.
+See the
+.Dv SC_DFLT_FONT
+option below.
+.Ss Screen Map
+If your video card does not support software fonts, you may still be able
+to achieve a similar effect by re-mapping the font built into your video card.
+Use
+.Xr vidcontrol 1
+to load a screen map file which defines the mapping between character codes.
+.Ss Mouse Support and Copy-and-Paste
+You can use your mouse to copy text on the screen and paste it as if
+it was typed by hand.
+You must be running the mouse daemon
+.Xr moused 8
+and enable the mouse cursor in the virtual terminal via
+.Xr vidcontrol 1 .
+.Pp
+Pressing mouse button 1 (usually the left button) will start selection.
+Releasing button 1 will end the selection process.
+The selected text will be marked by inverting foreground and
+background colors.
+You can press button 3 (usually the right button) to extend
+the selected region.
+The selected text is placed in the copy buffer and can be pasted
+at the cursor position by pressing button 2 (usually the
+middle button) as many times as you like.
+.Pp
+If your mouse has only two buttons, you may want to use the
+.Dv SC_TWOBUTTON_MOUSE
+option below to make the right button to paste the text.
+Alternatively you can make the mouse daemon
+emulate the middle button.
+See the man page for
+.Xr moused 8
+for more details.
+.Ss Back Scrolling
+The
+.Nm
+driver allows the user to browse the output which has ``scrolled off''
+the top of the screen.
+.Pp
+Press the ``slock'' key (usually
+.Dv ScrllLock
+/
+.Dv Scroll Lock
+or
+.Dv Pause
+on many keyboards) and the terminal is
+in the ``scrollback'' mode.
+It is indicated by the
+.Dv Scroll Lock
+LED.
+Use the arrow keys, the
+.Dv Page Up/Down
+keys and the
+.Dv Home/End
+keys to scroll buffered terminal output.
+Press the ``slock'' key again to get back to the normal terminal mode.
+.Pp
+The size of the scrollback buffer can be set by the
+.Dv SC_HISTORY_SIZE
+option described below.
+.Ss Screen Saver
+The
+.Nm
+driver can be made to put up the screen saver if the current
+virtual terminal is idle, that is, the user is not typing
+on the keyboard nor moving the mouse.
+See
+.Xr splash 4
+and
+.Xr vidcontrol 1
+for more details.
+.Sh DRIVER CONFIGURATION
+.Ss Kernel Configuration Options
+The following kernel configuration options control the
+.Nm
+driver.
+.Bl -tag -width MOUSE
+.It Dv MAXCONS=N
+This option sets the number of virtual terminals to
+.Fa N .
+The default value is 16.
+.It Dv SC_ALT_MOUSE_IMAGE
+This option selects the alternative way of displaying the mouse cursor
+in the virtual terminal.
+It may be expensive for some video cards to draw the arrow-shaped
+cursor, and you may want to try this option.
+However, the appearance of the alternative mouse cursor may not be
+very appealing.
+Note that if you use the
+.Dv SC_NO_FONT_LOADING
+option then you must also use this option if you wish to be able to use
+the mouse.
+.It Dv SC_CUT_SEPCHARS=_characters_
+This options specifies characters that will be looked for when the
+driver searches for words boundaries when doing cut operation.
+By default, its value is
+.Qq Li \ex20
+\(em a space character.
+.It Dv SC_CUT_SPACES2TABS
+This options instructs the driver to convert leading spaces into tabs
+when copying data into cut buffer.
+This might be useful to preserve
+indentation when copying tab-indented text.
+.It Dv SC_DFLT_TERM=_name_
+This option specifies the name of the preferred terminal emulator.
+.It Dv SC_DISABLE_KDBKEY
+This option disables the ``debug'' key combination (by default, it is
+.Dv Alt-Esc ,
+or
+.Dv Ctl-PrintScreen ) .
+It will prevent users from
+entering the kernel debugger (KDB) by pressing the key combination.
+KDB will still be invoked when the kernel panics or hits a break point
+if it is included in the kernel.
+If this option is not defined, this behavior may be controlled at runtime
+by the
+.Xr sysctl 8
+variable
+.Va hw.syscons.kbd_debug .
+.It Dv SC_DISABLE_REBOOT
+This option disables the ``reboot'' key (by default, it is
+.Dv Ctl-Alt-Del ) ,
+so that the casual user may not accidentally reboot the system.
+If this option is not defined, this behavior may be controlled at runtime
+by the
+.Xr sysctl 8
+variable
+.Va hw.syscons.kbd_reboot .
+.It Dv SC_HISTORY_SIZE=N
+Sets the size of back scroll buffer to
+.Fa N
+lines.
+The default value is 100.
+.It Dv SC_MOUSE_CHAR=C
+Unless the
+.Dv SC_ALT_MOUSE_IMAGE
+option above is specified, the
+.Nm
+driver reserves four consecutive character codes in order to display the
+mouse cursor in the virtual terminals in some systems.
+This option specifies the first character code to
+.Fa C
+to be used for this purpose.
+The default value is 0xd0.
+A good candidate is 0x03.
+.It Dv SC_PIXEL_MODE
+Adds support for pixel (raster) mode console.
+This mode is useful on some laptop computers, but less so on
+most other systems, and it adds substantial amount of code to syscons.
+If this option is NOT defined, you can reduce the kernel size a lot.
+See the
+.Dv VESAMODE
+flag below.
+.It Dv SC_TWOBUTTON_MOUSE
+If you have a two button mouse, you may want to add this option
+to use the right button of the mouse to paste text.
+See
+.Sx Mouse Support and Copy-and-Paste
+above.
+.It Dv SC_NORM_ATTR=_attribute_
+.It Dv SC_NORM_REV_ATTR=_attribute_
+.It Dv SC_KERNEL_CONS_ATTR=_attribute_
+.It Dv SC_KERNEL_CONS_ATTRS=_attributes_
+.It Dv SC_KERNEL_CONS_REV_ATTR=_attribute_
+These options will set the default colors.
+Available colors are defined in
+.In machine/pc/display.h .
+See
+.Sx EXAMPLES
+below.
+.Dv SC_KERNEL_CONS_ATTRS
+is a character string giving a sequence of attributes in binary format.
+The sequence will be repeated up to the number of CPUs.
+Beware that the string must not be null,
+since the kernel divides by its length.
+.It Dv SC_DFLT_FONT
+This option will specify the default font.
+Available fonts are: iso, iso2, koi8-r, koi8-u, cp437, cp850, cp865,
+cp866 and cp866u.
+16-line, 14-line and 8-line font data will be compiled in.
+Without this option, the
+.Nm
+driver will use whatever font is already loaded in the video card,
+unless you explicitly load a software font at startup.
+See
+.Sx EXAMPLES
+below.
+.It Dv SC_NO_SUSPEND_VTYSWITCH
+This option, which is also available as
+.Xr loader 8
+tunable and
+.Xr sysctl 8
+variable
+.Va hw.syscons.sc_no_suspend_vtswitch ,
+disables switching between virtual terminals (graphics <-> text) during
+suspend/resume (ACPI and APM).
+Use this option if your system is freezing
+when you are running X and trying to suspend.
+.El
+.Pp
+The following options will remove some features from the
+.Nm
+driver and save kernel memory.
+.Bl -tag -width MOUSE
+.It Dv SC_NO_CUTPASTE
+This option disables ``copy and paste'' operation in virtual
+terminals.
+.It Dv SC_NO_FONT_LOADING
+The
+.Nm
+driver can load software fonts on some video cards.
+This option removes this feature.
+Note that if you still wish to use
+the mouse with this option then you must also use the
+.Dv SC_ALT_MOUSE_IMAGE
+option.
+.It Dv SC_NO_HISTORY
+This option disables back-scrolling in virtual terminals.
+.\".It Dv SC_NO_PALETTE_LOADING
+.It Dv SC_NO_SYSMOUSE
+This option removes mouse support in the
+.Nm
+driver.
+The mouse daemon
+.Xr moused 8
+will fail if this option is defined.
+This option implies the
+.Dv SC_NO_CUTPASTE
+option too.
+.It Dv SC_NO_TERM_DUMB
+.It Dv SC_NO_TERM_SC
+.It Dv SC_NO_TERM_SCTEKEN
+These options remove the
+.Qq dumb ,
+.Qq sc ,
+and
+.Qq scteken 
+terminal emulators, respectively.
+.El
+.Ss Driver Flags
+The following driver flags can be used to control the
+.Nm
+driver.
+Driver flags can be set with the
+.Cd hint.sc.0.flags
+tunable, either in
+.Pa /boot/device.hints ,
+or else at the loader prompt (see
+.Xr loader 8 ) .
+.Bl -tag -width bit_0
+.\".It bit 0 (VISUAL_BELL)
+.\"Uses the ``visual'' bell.
+.\"The screen will blink instead of generating audible sound.
+.\".It bit 1,2 (CURSOR_TYPE)
+.\"This option specifies the cursor appearance.
+.\"Possible values are:
+.\".Bl -tag -width TYPE -compact
+.\".It Dv 0
+.\"normal block cursor
+.\".It Dv 2
+.\"blinking block cursor
+.\".It Dv 4
+.\"underline cursor
+.\".It Dv 6
+.\"blinking underline (aka destructive) cursor
+.\".El
+.\".It bit 6 (QUIET_BELL)
+.\"This option suppresses the bell, whether audible or visual,
+.\"if it is rung in a background virtual terminal.
+.It 0x0080 (VESAMODE)
+This option puts the video card in the VESA mode specified by
+.Pa /boot/device.hints
+variable
+.Va vesa_mode
+during kernel initialization.
+Note that in order for this flag to work, the kernel must be
+compiled with the
+.Dv SC_PIXEL_MODE
+option explained above.
+A list of the available mode can be obtained via
+.Xr vidcontrol 1 .
+.\"Note also that the ``copy-and-paste'' function is not currently supported
+.\"in this mode and the mouse pointer will not be displayed.
+.It 0x0100 (AUTODETECT_KBD)
+This option instructs the syscons driver to periodically scan
+for a keyboard device if it is not currently attached to one.
+Otherwise, the driver only probes for a keyboard once during bootup.
+.El
+.Ss Loader Tunables
+These settings can be entered at the
+.Xr loader 8
+prompt or in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va kern.vty
+When both
+.Nm
+and
+.Xr vt 4
+have been compiled into the kernel, the one to use for the system console can
+be selected by setting this variable to
+.Ql sc
+or
+.Ql vt .
+The
+.Pa GENERIC
+kernel uses
+.Xr vt 4
+when this value is not set.
+.El
+.Sh FILES
+.Bl -tag -width /usr/share/syscons/xxxxyyyyzzz -compact
+.It Pa /dev/console
+.It Pa /dev/consolectl
+.It Pa /dev/ttyv?
+virtual terminals
+.It Pa /etc/ttys
+terminal initialization information
+.It Pa /usr/share/syscons/fonts/*
+font files
+.It Pa /usr/share/syscons/keymaps/*
+key map files
+.It Pa /usr/share/syscons/scrmaps/*
+screen map files
+.El
+.Sh EXAMPLES
+As the
+.Nm
+driver requires the keyboard driver and the video card driver,
+the kernel configuration file should contain the following lines.
+.Bd -literal -offset indent
+device atkbdc
+device atkbd
+device vga
+device sc
+device splash
+.Ed
+.Pp
+You also need the following lines in
+.Pa /boot/device.hints
+for these drivers.
+.Bd -literal -offset indent
+hint.atkbdc.0.at="isa"
+hint.atkbdc.0.port="0x060"
+hint.atkbd.0.at="atkbdc"
+hint.atkbd.0.irq="1"
+hint.vga.0.at="isa"
+hint.sc.0.at="isa"
+.Ed
+.Pp
+If you do not intend to load the splash image or use the screen saver,
+the last line is not necessary, and can be omitted.
+.Pp
+Note that the keyboard controller driver
+.Nm atkbdc
+is required by the keyboard driver
+.Nm atkbd .
+.Pp
+The following lines will set the default colors.
+The normal text will be green on black background.
+The reversed text will be yellow on green background.
+Note that you cannot put any white space inside the quoted string,
+because of the current implementation of
+.Xr config 8 .
+.Pp
+.Dl "options SC_NORM_ATTR=(FG_GREEN|BG_BLACK)"
+.Dl "options SC_NORM_REV_ATTR=(FG_YELLOW|BG_GREEN)"
+.Pp
+The following lines will set the default colors of the kernel message.
+The kernel message will be printed bright red on black background.
+The reversed message will be black on red background.
+.Pp
+.Dl "options SC_KERNEL_CONS_ATTR=(FG_LIGHTRED|BG_BLACK)"
+.Dl "options SC_KERNEL_CONS_REV_ATTR=(FG_BLACK|BG_RED)"
+.Pp
+Provided
+.Dv SC_KERNEL_CONS_ATTR
+is not set, or is set to its default of bright white on black,
+the following line will set 4 red-ish colors
+for printing kernel messages in colors depending on the CPU.
+.Pp
+.Dl options SC_KERNEL_CONS_ATTRS=\e"\ex0c\ex04\ex40\ex0e\e"
+.Pp
+The default scheme is probably better for up to 8 CPUs.
+Use a long string to get unique colors for more than 8 CPUs.
+.Pp
+To turn off all per-CPU coloring of kernel messages,
+set SC_KERNEL_CONS_ATTR to a non-default value,
+or use the default in a pattern of length 1.
+.Pp
+.Dl options SC_KERNEL_CONS_ATTRS=\e"\ex0f\e"
+.Pp
+The following example adds the font files
+.Pa cp850-8x16.fnt ,
+.Pa cp850-8x14.font
+and
+.Pa cp850-8x8.font
+to the kernel.
+.Pp
+.Dl "options SC_DFLT_FONT"
+.Dl "makeoptions SC_DFLT_FONT=cp850"
+.Dl "device sc"
+.\".Sh DIAGNOSTICS
+.Sh SEE ALSO
+.Xr kbdcontrol 1 ,
+.Xr login 1 ,
+.Xr vidcontrol 1 ,
+.Xr atkbd 4 ,
+.Xr atkbdc 4 ,
+.Xr keyboard 4 ,
+.Xr screen 4 ,
+.Xr splash 4 ,
+.Xr ukbd 4 ,
+.Xr vga 4 ,
+.Xr vt 4 ,
+.Xr kbdmap 5 ,
+.Xr rc.conf 5 ,
+.Xr ttys 5 ,
+.Xr config 8 ,
+.Xr getty 8 ,
+.Xr kldload 8 ,
+.Xr moused 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 1.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An S\(/oren Schmidt Aq Mt sos@FreeBSD.org .
+This manual page was written by
+.An Kazutaka Yokota Aq Mt yokota@FreeBSD.org .
+.Sh CAVEATS
+The amount of data that is possible to insert from the cut buffer is limited
+by the
+.Brq Dv MAX_INPUT ,
+a system limit on the number of bytes that may be stored in the terminal
+input queue - usually 1024 bytes
+(see
+.Xr termios 4 ) .
+.Sh BUGS
+This manual page is incomplete and urgently needs revision.

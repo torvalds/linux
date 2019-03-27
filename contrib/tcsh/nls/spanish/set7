@@ -1,0 +1,30 @@
+$ $tcsh: set7,v 1.3 2011/02/04 18:19:43 christos Exp $
+$ ed.screen.c
+$set 7
+1 \n\tTcsh cree que su terminal tiene las\n
+2 \tsiguientes características:\n\n
+3 \tTiene %d columnas y %d líneas\n
+4 \t%s tecla `Alt'\n
+5 Tiene
+6 No tiene
+7 \t%spuede usar tabuladores\n
+8 No
+9 \t%s márgenes automáticos\n
+10 Tiene
+11 No tiene
+12 \t%s márgenes mágicos\n
+13 (vacío)
+14 sí
+15 no
+16 ERROR: no se puede suprimir\r\n
+17 DeleteChars: num es ridículo: %d\r\n
+18 ERROR: no se puede insertar\r\n
+19 StartInsert: num es ridículo: %d\r\n
+20 %s: No se puede abrir /etc/termcap.\n
+21 %s: No hay ninguna entrada correspondiente a la terminal tipo "%s"\n
+22 %s: usando los valores de una terminal tonta.\n
+23 %s: Aviso: Su terminal no puede moverse hacia arriba.\n
+24 La edición de líneas largas puede resultar extraña.\n
+25 no se puede borrar hasta el final de línea.\n
+26 no se puede borrar el siguiente carácter.\n
+27 no se puede insertar un carácter.\n

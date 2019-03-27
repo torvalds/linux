@@ -1,0 +1,197 @@
+.\" This file is distributed under the University of Illinois Open Source
+.\" License.
+.\"
+.Dd November 27, 2018
+.Dt LLVM-OBJDUMP 1
+.Os
+.Sh NAME
+.Nm llvm-objdump
+.Nd LLVM object file dumper
+.Sh SYNOPSIS
+.Nm llvm-objdump
+.Op Ar options
+.Ar objfile ...
+.Sh DESCRIPTION
+.Nm
+prints the contents of object files and final linked images named on the
+command line.
+If no file name is specified,
+.Nm
+will attempt to read from
+.Pa a.out .
+If
+.Pa -
+is used as a file name,
+.Nm
+will process a file on its standard input stream.
+.Nm
+accepts many of the same command line arguments as GNU objdump.
+.Sh OPTIONS
+.Ss General Options
+.Bl -tag -width indent
+.It Fl -aarch64-neon-syntax Ns = Ns Ar value
+Choose style of NEON code to emit from AArch64 backend.
+.Ar value
+may be one of:
+.Bl -tag -width indent
+.It generic
+Generic NEON assembly
+.It apple
+Apple-style NEON assembly
+.El
+.It Fl -arch Ns = Ns Ar value
+Choose architecture(s) from a Mach-O file to dump
+.It Fl -arch-name Ns = Ns ar arch
+Target arch to disassemble for.
+See
+.Fl -version
+for available targets.
+.It Fl -bind
+Display mach-o binding info.
+.It Fl -color
+Use colored syntax highlighting.
+Default autodetect.
+.It Fl -disassemble
+Display assembler mnemonics for machine instructions.
+.It Fl -disassemble-all
+Display assembler mnemonics for the machine instruction in all sections.
+.It Fl -dsym Ns = Ns Ar file
+Use
+.Ar file
+for debug info.
+.It Fl -dwarf Ns = Ns Ar sections
+Dump of dwarf debug sections.
+.Bl -tag -width indent
+.It frames
+.Dv .debug_frame
+.El
+.It Fl -exports-trie
+Display mach-o exported symbols.
+.It Fl -fault-map-section
+Display contents of faultmap section.
+.It Fl -filter-print-funcs Ns = Ns Ar functions
+Only print IR for functions whose name match
+.Ar functions
+for all print-[before|after][-all] options.
+.It Fl -full-leading-addr
+Print full leading address.
+.It Fl g
+Print line information from debug info if available.
+.It Fl h , -headers , -section-headers
+Display summaries of the headers for each section.
+.It Fl -help
+Display available options.
+Use
+.Fl -help-hidden
+for more.
+.It Fl -lazy-bind
+Display mach-o lazy binding info.
+.It Fl -line-numbers
+Display source line numbers with disassembly.
+Implies disassemble object.
+.It Fl -macho
+Use MachO specific object file parser.
+.It Fl -mattr Ns = Ns Ar attribute ...
+Target specific attributes.
+.It Fl -mcpu Ns = Ns Ar CPU
+Target a specific cpu type.
+Use
+.Fl mcpu Ns = Ns help
+for details.
+.It Fl -no-leading-addr
+Print no leading address.
+.It Fl -no-leading-headers
+Print no leading headers.
+.It Fl -no-show-raw-insn
+When disassembling instructions, do not print the instruction bytes.
+.It Fl -print-imm-hex
+Use hex format for immediate values.
+.It Fl -private-header
+Display only the first format specific file header.
+.It Fl -private-headers
+Display format specific file headers.
+.It Fl r
+Display the relocation entries in the file.
+.It Fl -raw-clang-ast
+Dump the raw binary contents of the clang AST section.
+.It Fl -rebase
+Display mach-o rebasing info.
+.It Fl -reverse-iterate
+Reverse iterate.
+.It Fl s
+Display the content of each section.
+.It Fl -section Ns = Ns Ar section
+Operate on the specified sections only.
+With
+.Fl -macho
+dump segment,section.
+.It Fl -source
+Display source inline with disassembly.
+Implies disassmble object.
+.It Fl -start-address Ns = Ns Ar address
+Disassemble beginning at
+.Ar address .
+.It Fl -stop-address Ns = Ns Ar address
+Stop disassembly at
+.Ar address .
+.It Fl t
+Display the symbol table.
+.It Fl -triple Ns = Ns Ar triple
+Target triple to disassemble for.
+See
+.Fl -version
+for available targets.
+.It Fl -unwind-info
+Display unwind information.
+.It Fl -version
+Display the version of this program.
+.It Fl -weak-bind
+Display mach-o weak binding info.
+.It Fl -x86-asm-syntax Ns = Ns Ar syntax
+Choose style of code to emit from X86 backend.
+.Bl -tag -width indent
+.It att
+Emit AT&T-style assembly.
+.It intel
+Emit Intel-style assembly.
+.El
+.El
+.Ss Mach-O Options
+There are a number of options specific to the Mach-O format.
+These are used in combination with the
+.Fl -macho
+option.
+.Bl -tag -width indent
+.It Fl -archive-headers
+Print archive headers for Mach-O archives.
+.It Fl -archive-member-offsets
+Print the offset to each archive member for Mach-O archives.
+Requires
+.Fl -macho
+and
+.Fl -archive-headers .
+.It Fl -data-in-code
+Print the data in code table for Mach-O objects.
+.It Fl -dis-symname Ns = Ns Ar symbol
+Disassemble just
+.Ar symbol 's
+instructions.
+.It Fl -dylib-id
+Print the shared library's id for the dylib Mach-O file.
+.It Fl -dylibs-used
+Print the shared libraries used for linked Mach-O files.
+.It Fl -indirect-symbols
+Print indirect symbol table for Mach-O objects.
+.It Fl -info-plist
+Print the info plist section as strings for Mach-O objects.
+.It Fl -link-opt-hints
+Print the linker optimization hints for Mach-O objects.
+.It Fl -no-symbolic-operands
+do not symbolic operands when disassembling.
+.It Fl -non-verbose
+Print the info for Mach-O objects in non-verbose or numeric form.
+.It Fl -objc-meta-data
+Print the Objective-C runtime meta data for Mach-O files.
+.It Fl -universal-headers
+Print Mach-O universal headers.
+.El

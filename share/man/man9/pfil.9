@@ -1,0 +1,164 @@
+.\"	$NetBSD: pfil.9,v 1.22 2003/07/01 13:04:06 wiz Exp $
+.\"
+.\" Copyright (c) 2019 Gleb Smirnoff <glebius@FreeBSD.org>
+.\" Copyright (c) 1996 Matthew R. Green
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 28, 2019
+.Dt PFIL 9
+.Os
+.Sh NAME
+.Nm pfil ,
+.Nm pfil_head_register ,
+.Nm pfil_head_unregister ,
+.Nm pfil_link ,
+.Nm pfil_run_hooks
+.Nd packet filter interface
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mbuf.h
+.In net/pfil.h
+.Ft pfil_head_t
+.Fn pfil_head_register "struct pfil_head_args *args"
+.Ft void
+.Fn pfil_head_unregister "struct pfil_head_t *head"
+.Ft pfil_hook_t
+.Fn pfil_add_hook "struct pfil_hook_args *"
+.Ft void
+.Fn pfil_remove_hook "pfil_hook_t"
+.Ft int
+.Fn pfil_link "struct pfil_link_args *args"
+.Ft int
+.Fn pfil_run_hooks "phil_head_t *" "pfil_packet_t" "struct ifnet *" "int" "struct inpcb *"
+.Sh DESCRIPTION
+The
+.Nm
+framework allows for a specified function or a list of functions
+to be invoked for every incoming or outgoing packet for a particular
+network I/O stream.
+These hooks may be used to implement a firewall or perform packet
+transformations.
+.Pp
+Packet filtering points, for historical reasons named
+.Em heads ,
+are registered with
+.Fn pfil_head_register .
+The function is supplied with special versioned
+.Vt struct pfil_head_args
+structure that specifies type and features of the head as well as
+human readable name.
+If the filtering point to be ever destroyed, the subsystem that
+created it must unregister it with call to
+.Fn pfil_head_unregister .
+.Pp
+Packet filtering systems may register arbitrary number of filters,
+for historical reasons named
+.Em hooks .
+To register a new hook
+.Fn pfil_add_hook
+with special versioned
+.Vt struct pfil_hook_args
+structure is called.
+The structure specifies type and features of the hook, pointer to
+the actual filtering function and user readable name of the filtering
+module and ruleset name.
+Later hooks can be removed with
+.Fn pfil_remove_hook
+functions.
+.Pp
+To connect existing
+.Em hook
+to an existing
+.Em head
+function
+.Fn pfil_link
+shall be used.
+The function is supplied with versioned
+.Vt struct pfil_link_args
+structure that specifies either literal names of hook and head or
+pointers to them.
+Typically
+.Fn pfil_link
+is called by filtering modules to autoregister their default ruleset
+and default filtering points.
+It also serves on the kernel side of
+.Xr ioctl 2
+when user changes
+.Nm
+configuration with help of
+.Xr pfilctl 8
+utility.
+.Pp
+For every packet traveling through a
+.Em head
+the latter shall invoke
+.Fn pfil_run_hooks .
+The function can accept either
+.Vt struct mbuf *
+pointer or a
+.Vt void *
+pointer and length.
+In case if a hooked filtering module cannot understand
+.Vt void *
+pointer
+.Nm
+will provide it with a fake one.
+All calls to
+.Fn pfil_run_hooks
+are performed in network
+.Xr epoch 9 .
+.Sh HEADS (filtering points)
+By default kernel creates the following heads:
+.Bl -tag -width "ethernet"
+.It inet
+IPv4 packets.
+.It inet6
+IPv6 packets.
+.It ethernet
+Link-layer packets.
+.El
+.Pp
+Default rulesets are automatically linked to these heads to preserve
+historical behavavior.
+.Sh SEE ALSO
+.Xr ipfilter 4 ,
+.Xr ipfw 4 ,
+.Xr pf 4 ,
+.Xr pfilctl 8
+.Sh HISTORY
+The
+.Nm
+interface first appeared in
+.Nx 1.3 .
+The
+.Nm
+interface was imported into
+.Fx 5.2 .
+In
+.Fx 13.0
+the interface was significantly rewritten.

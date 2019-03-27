@@ -1,0 +1,116 @@
+.\" Copyright (c) 2012 Jeremie Le Hen <jlh@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code and documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 28, 2012
+.Dt STDBUF 1
+.Os
+.Sh NAME
+.Nm stdbuf
+.Nd change standard streams initial buffering
+.Sh SYNOPSIS
+.Nm
+.Op Fl e Ar bufdef
+.Op Fl i Ar bufdef
+.Op Fl o Ar bufdef
+.Op Ar command Op ...
+.Sh DESCRIPTION
+.Nm
+is used to change the initial buffering of standard input,
+standard output and/or standard error streams for
+.Ar command .
+It relies on
+.Xr libstdbuf 3
+which is loaded and configured by
+.Nm
+through environment variables.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl e Ar bufdef
+Set initial buffering of the standard error stream for
+.Ar command
+as defined by
+.Ar bufdef
+.Pq see Sx BUFFER DEFINITION .
+.It Fl i Ar bufdef
+Set initial buffering of the standard input stream for
+.Ar command
+as defined by
+.Ar bufdef
+.Pq see Sx BUFFER DEFINITION .
+.It Fl o Ar bufdef
+Set initial buffering of the standard output stream for
+.Ar command
+as defined by
+.Ar bufdef
+.Pq see Sx BUFFER DEFINITION .
+.El
+.Sh BUFFER DEFINITION
+Buffer definition is the same as in
+.Xr libstdbuf 3 :
+.Bl -tag -width size -offset indent
+.It Qq 0
+unbuffered
+.It Qq L
+line buffered
+.It Qq B
+fully buffered with the default buffer size
+.It Ar size
+fully buffered with a buffer of
+.Ar size
+bytes (suffixes 'k', 'M' and 'G' are accepted)
+.El
+.Sh EXAMPLES
+In the following example, the stdout stream of the
+.Xr awk 1
+command
+will be fully buffered by default because it does not refer
+to a terminal.
+.Nm
+is used to force it to be line-buffered so
+.Xr vmstat 8 Ns 's
+output will not stall until the full buffer fills.
+.Bd -literal -offset indent
+# vmstat 1 | stdbuf -o L awk '$2 > 1 || $3 > 1' | cat -n
+.Ed
+.Sh SEE ALSO
+.Xr libstdbuf 3 ,
+.Xr setvbuf 3
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 8.4 .
+.Sh AUTHORS
+.An -nosplit
+The original idea of the
+.Nm
+command comes from
+.An Padraig Brady
+who implemented it in the GNU coreutils.
+.An Jeremie Le Hen
+implemented it on
+.Fx .

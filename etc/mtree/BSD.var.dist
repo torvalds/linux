@@ -1,0 +1,114 @@
+# $FreeBSD$
+#
+# Please see the file src/etc/mtree/README before making changes to this file.
+#
+
+/set type=dir uname=root gname=wheel mode=0755
+.
+    account
+    ..
+    at
+/set uname=daemon
+        jobs            tags=package=at
+        ..
+        spool           tags=package=at
+        ..
+/set uname=root
+    ..
+/set mode=0750
+/set gname=audit
+    audit
+        dist            uname=auditdistd gname=audit mode=0770
+        ..
+        remote          uname=auditdistd gname=wheel mode=0700
+        ..
+    ..
+    authpf              uname=root gname=authpf mode=0770
+    ..
+/set gname=wheel
+    backups
+    ..
+    cache               mode=0755
+    ..
+    crash
+    ..
+    cron
+        tabs            mode=0700
+        ..
+    ..
+/set mode=0755
+    db
+        entropy         uname=operator gname=operator mode=0700
+        ..
+        freebsd-update  mode=0700
+        ..
+        hyperv          mode=0700
+        ..
+        ipf             mode=0700
+        ..
+        ntp             uname=ntpd gname=ntpd
+        ..
+        pkg
+        ..
+        ports
+        ..
+        portsnap
+        ..
+        zfsd
+            cases
+            ..
+        ..
+    ..
+    empty           mode=0555 flags=schg
+    ..
+    games           gname=games mode=0775
+    ..
+    heimdal         mode=0700
+    ..
+    log
+    ..
+    mail            gname=mail mode=0775
+    ..
+    msgs            uname=daemon
+    ..
+    preserve
+    ..
+    run
+        dhclient
+        ..
+        ppp             gname=network mode=0770
+        ..
+        wpa_supplicant
+        ..
+    ..
+    rwho            gname=daemon mode=0775
+    ..
+    spool
+        dma             uname=root gname=mail mode=0770
+        ..
+        lock            uname=uucp gname=dialer mode=0775
+        ..
+/set gname=daemon
+        lpd
+        ..
+        mqueue
+        ..
+        opielocks       mode=0700
+        ..
+        output
+            lpd
+            ..
+        ..
+/set gname=wheel
+    ..
+    tmp             mode=01777
+        vi.recover      mode=01777
+        ..
+    ..
+    unbound         uname=unbound gname=unbound mode=0755 tags=package=unbound
+        conf.d          uname=unbound gname=unbound mode=0755 tags=package=unbound
+        ..
+    ..
+    yp
+    ..
+..

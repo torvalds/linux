@@ -1,0 +1,340 @@
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "ralink,rt5350-soc";
+
+	cpus {
+		cpu@0 {
+			compatible = "mips,mips24KEc";
+		};
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,57600";
+	};
+
+	cpuintc: cpuintc@0 {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		compatible = "mti,cpu-interrupt-controller";
+	};
+
+	aliases {
+		spi0 = &spi0;
+		spi1 = &spi1;
+		serial0 = &uartlite;
+	};
+
+	palmbus: palmbus@10000000 {
+		compatible = "palmbus";
+		reg = <0x10000000 0x200000>;
+		ranges = <0x0 0x10000000 0x1FFFFF>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		sysc: sysc@0 {
+			compatible = "ralink,rt5350-sysc", "ralink,rt3050-sysc";
+			reg = <0x0 0x100>;
+		};
+
+		timer: timer@100 {
+			compatible = "ralink,rt5350-timer", "ralink,rt2880-timer";
+			reg = <0x100 0x20>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <1>;
+		};
+
+		watchdog: watchdog@120 {
+			compatible = "ralink,rt5350-wdt", "ralink,rt2880-wdt";
+			reg = <0x120 0x10>;
+
+			resets = <&rstctrl 8>;
+			reset-names = "wdt";
+
+			interrupt-parent = <&intc>;
+			interrupts = <1>;
+		};
+
+		intc: intc@200 {
+			compatible = "ralink,rt5350-intc", "ralink,rt2880-intc";
+			reg = <0x200 0x100>;
+
+			resets = <&rstctrl 19>;
+			reset-names = "intc";
+
+			interrupt-controller;
+			#interrupt-cells = <1>;
+
+			interrupt-parent = <&cpuintc>;
+			interrupts = <2>;
+		};
+
+		memc: memc@300 {
+			compatible = "ralink,rt5350-memc", "ralink,rt3050-memc";
+			reg = <0x300 0x100>;
+
+			resets = <&rstctrl 20>;
+			reset-names = "mc";
+
+			interrupt-parent = <&intc>;
+			interrupts = <3>;
+		};
+
+		uart: uart@500 {
+			compatible = "ralink,rt5350-uart", "ralink,rt2880-uart", "ns16550a";
+			reg = <0x500 0x100>;
+
+			resets = <&rstctrl 12>;
+			reset-names = "uart";
+
+			interrupt-parent = <&intc>;
+			interrupts = <5>;
+
+			reg-shift = <2>;
+
+			status = "disabled";
+		};
+
+		gpio0: gpio@600 {
+			compatible = "ralink,rt5350-gpio", "ralink,rt2880-gpio";
+			reg = <0x600 0x34>;
+
+			resets = <&rstctrl 13>;
+			reset-names = "pio";
+
+			interrupt-parent = <&intc>;
+			interrupts = <6>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			ralink,gpio-base = <0>;
+			ralink,num-gpios = <22>;
+			ralink,register-map = [ 00 04 08 0c
+						20 24 28 2c
+						30 34 ];
+		};
+
+		gpio1: gpio@660 {
+			compatible = "ralink,rt5350-gpio", "ralink,rt2880-gpio";
+			reg = <0x660 0x24>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <6>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			ralink,gpio-base = <22>;
+			ralink,num-gpios = <6>;
+			ralink,register-map = [ 00 04 08 0c
+						10 14 18 1c
+						20 24 ];
+
+			status = "disabled";
+		};
+
+		i2c: i2c@900 {
+			compatible = "link,rt5350-i2c", "ralink,rt2880-i2c";
+			reg = <0x900 0x100>;
+
+			resets = <&rstctrl 16>;
+			reset-names = "i2c";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c_pins>;
+
+			status = "disabled";
+		};
+
+		spi0: spi@b00 {
+			compatible = "ralink,rt5350-spi", "ralink,rt2880-spi";
+			reg = <0xb00 0x40>;
+
+			resets = <&rstctrl 18>;
+			reset-names = "spi";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi_pins>;
+
+			status = "disabled";
+		};
+
+		spi1: spi@b40 {
+			compatible = "ralink,rt5350-spi", "ralink,rt2880-spi";
+			reg = <0xb40 0x60>;
+
+			resets = <&rstctrl 18>;
+			reset-names = "spi";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi_cs1>;
+
+			status = "disabled";
+		};
+
+		uartlite: uartlite@c00 {
+			compatible = "ralink,rt5350-uart", "ralink,rt2880-uart", "ns16550a";
+			reg = <0xc00 0x100>;
+
+			resets = <&rstctrl 19>;
+			reset-names = "uartl";
+
+			interrupt-parent = <&intc>;
+			interrupts = <12>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&uartlite_pins>;
+
+			reg-shift = <2>;
+		};
+
+		systick: systick@d00 {
+			compatible = "ralink,rt5350-systick", "ralink,cevt-systick";
+			reg = <0xd00 0x10>;
+
+			interrupt-parent = <&cpuintc>;
+			interrupts = <7>;
+		};
+	};
+
+	pinctrl: pinctrl {
+		compatible = "ralink,rt2880-pinmux";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&state_default>;
+
+		state_default: pinctrl0 {
+		};
+
+		spi_pins: spi {
+			spi {
+				ralink,group = "spi";
+				ralink,function = "spi";
+			};
+		};
+
+		i2c_pins: i2c {
+			i2c {
+				ralink,group = "i2c";
+				ralink,function = "i2c";
+			};
+		};
+
+		phy_led_pins: phy_led {
+			phy_led {
+				ralink,group = "led";
+				ralink,function = "led";
+			};
+		};
+
+		uartlite_pins: uartlite {
+			uart {
+				ralink,group = "uartlite";
+				ralink,function = "uartlite";
+			};
+		};
+
+		uartf_pins: uartf {
+			uartf {
+				ralink,group = "uartf";
+				ralink,function = "uartf";
+			};
+		};
+
+		spi_cs1: spi1 {
+			spi1 {
+				ralink,group = "spi_cs1";
+				ralink,function = "spi_cs1";
+			};
+		};
+	};
+
+	rstctrl: rstctrl {
+		compatible = "ralink,rt5350-reset", "ralink,rt2880-reset";
+		#reset-cells = <1>;
+	};
+
+	clkctrl: clkctrl {
+		compatible = "ralink,rt2880-clock";
+		#clock-cells = <1>;
+	};
+
+	usbphy: usbphy {
+		compatible = "ralink,rt3352-usbphy";
+		#phy-cells = <1>;
+
+		resets = <&rstctrl 22 &rstctrl 25>;
+		reset-names = "host", "device";
+		clocks = <&clkctrl 18>;
+		clock-names = "host";
+	};
+
+	ethernet: ethernet@10100000 {
+		compatible = "ralink,rt5350-eth";
+		reg = <0x10100000 0x10000>;
+
+		resets = <&rstctrl 21 &rstctrl 23>;
+		reset-names = "fe", "esw";
+
+		interrupt-parent = <&cpuintc>;
+		interrupts = <5>;
+
+		mediatek,switch = <&esw>;
+	};
+
+	esw: esw@10110000 {
+		compatible = "ralink,rt5350-esw", "ralink,rt3050-esw";
+		reg = <0x10110000 0x8000>;
+
+		resets = <&rstctrl 23>;
+		reset-names = "esw";
+
+		interrupt-parent = <&intc>;
+		interrupts = <17>;
+	};
+
+	wmac: wmac@10180000 {
+		compatible = "ralink,rt5350-wmac", "ralink,rt2880-wmac";
+		reg = <0x10180000 0x40000>;
+
+		interrupt-parent = <&cpuintc>;
+		interrupts = <6>;
+
+		ralink,eeprom = "soc_wmac.eeprom";
+	};
+
+	ehci: ehci@101c0000 {
+		compatible = "generic-ehci";
+		reg = <0x101c0000 0x1000>;
+
+		phys = <&usbphy 1>;
+		phy-names = "usb";
+
+		interrupt-parent = <&intc>;
+		interrupts = <18>;
+	};
+
+	ohci: ohci@101c1000 {
+		compatible = "generic-ohci";
+		reg = <0x101c1000 0x1000>;
+
+		phys = <&usbphy 1>;
+		phy-names = "usb";
+
+		interrupt-parent = <&intc>;
+		interrupts = <18>;
+	};
+};

@@ -1,0 +1,48 @@
+# $FreeBSD$
+
+This is a little C-program that can be used to print out the list
+of blocks used by a requested list of inodes.
+
+For example, to list the blocks referenced by your kernel:
+
+guest_12 % df /
+Filesystem      1K-blocks     Used   Avail Capacity  Mounted on
+/dev/gpt/rootfs  20307196 10707336 7975288    57%    /
+
+guest_12 % ls -i /boot/kernel/kernel
+160603 /boot/kernel/kernel
+
+guest_12 % ./prtblknos /dev/gpt/rootfs 160603
+160603:	lbn 0-7 blkno 3217584-3217647
+	lbn 8-11 blkno 3217864-3217895 distance 216
+First-level indirect, blkno 3217896-3217903 distance 0
+	lbn 12-19 blkno 3217904-3217967 distance 8
+	lbn 20-75 blkno 3251816-3252263 distance 33848
+	lbn 76-83 blkno 3252368-3252431 distance 104
+	lbn 84-91 blkno 3252464-3252527 distance 32
+	lbn 92-852 blkno 3252896-3258983 distance 368
+
+Each contiguous range of blocks is printed on a line.
+The distance metric is the size of the gap from the end of the
+previous set of blocks to the beginning of the next set of blocks.
+Short distances are desirable.
+
+The logical block numbers (lbn above) describe filesystem-block
+size blocks which by today's default is 32Kb.
+
+The physical block numbers (blkno above) describe the smallest piece
+of disk space that an inode can reference which is a filesystem
+fragment. Since the default size for fragments today is 4Kb, the
+physical block numbers reference 4Kb blocks. The distances listed
+above are also in physical block size units. Thus a distance of 8
+means a separation of just one 32Kb block. For example lbn 11, ends
+at 3217895, the 32Kb first level indirect immediately follows it at
+3217896-3217903, and lbn 12 starts distance 8 after lbn 11 immediately
+after the indirect block at 3217904.
+
+If you were to create a filesystem with the fragment size equal to
+half the block size (say 32Kb blocks with 16Kb fragments) then the
+physical block numbers listed would be 16Kb in size.
+
+	Marshall Kirk McKusick
+	January 19, 2018

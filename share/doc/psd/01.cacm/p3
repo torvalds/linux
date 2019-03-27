@@ -1,0 +1,190 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)p3	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+V. PROCESSES AND IMAGES
+.PP
+An
+.IT image
+is a computer execution environment.
+It includes a memory image,
+general register values,
+status of open files,
+current directory and the like.
+An image is the current state of a pseudo-computer.
+.PP
+A
+.IT process
+is the execution of an image.
+While the processor is executing on behalf of a process,
+the image must reside in main memory;
+during the execution of other processes it remains in main memory
+unless the appearance of an active, higher-priority
+process
+forces it to be swapped out to the disk.
+.PP
+The user-memory part of an image is divided into three logical segments.
+The program text segment begins at location 0 in the virtual address space.
+During execution, this segment is write-protected
+and a single copy of it is shared among
+all processes executing the same program.
+At the first hardware protection byte boundary above the program text segment in the
+virtual address space begins a non-shared, writable data segment,
+the size of which may be extended by a system call.
+Starting at the highest
+address in the virtual address space is a stack segment,
+which automatically grows downward
+as the stack pointer fluctuates.
+.SH
+5.1 Processes
+.PP
+Except while
+the system
+is bootstrapping itself into operation, a new
+process can come into existence only
+by use of the
+.UL fork
+system call:
+.P1
+processid = fork\|(\|\|)\|
+.P2
+When
+.UL fork
+is executed, the process
+splits into two independently executing processes.
+The two processes have independent
+copies of the original memory image,
+and share all open files.
+The new processes differ only in that one is considered
+the parent process:
+in the parent,
+the returned
+.UL processid
+actually identifies the child process
+and is never 0,
+while in the child,
+the returned value is always 0.
+.PP
+Because the values returned by
+.UL fork
+in the parent and child process are distinguishable,
+each process may determine whether
+it is the parent or child.
+.SH
+5.2 Pipes
+.PP
+Processes may communicate
+with related processes using the same system
+.UL read
+and
+.UL write
+calls that are used for file-system I/O.
+The call:
+.P1
+filep = pipe\|(\|\|)\|
+.P2
+returns a file descriptor
+.UL filep
+and
+creates an inter-process channel called a
+.IT pipe .
+This channel, like other open files, is passed from parent to child process in
+the image by the
+.UL fork
+call.
+A
+.UL read
+using a pipe file descriptor
+waits until another process writes using the
+file descriptor for the same pipe.
+At this point, data are passed between the images of the
+two processes.
+Neither process need know that a pipe,
+rather than an ordinary file,
+is involved.
+.PP
+Although
+inter-process communication
+via pipes is a quite valuable tool
+(see Section 6.2),
+it is not a completely general
+mechanism,
+because the pipe must be set up by a common ancestor
+of the processes involved.
+.SH
+5.3 Execution of programs
+.PP
+Another major system primitive
+is invoked by
+.P1
+execute\|(\|file, arg\*s\d1\u\*n, arg\*s\d2\u\*n, .\|.\|. , arg\*s\dn\u\*n\|)\|
+.P2
+which requests the system to read in and execute the program
+named by
+.UL file ,
+passing it string arguments
+.UL arg\v'.3'\*s1\*n\v'-.3'\| ,
+.UL arg\v'.3'\*s2\*n\v'-.3'\| ,
+.UL .\|.\|.\|\| ,
+.UL arg\v'.3'\*sn\*n\v'-.3' .
+All the code and data in the process invoking
+.UL execute
+is replaced from the
+.UL file ,
+but
+open files, current directory, and
+inter-process relationships are unaltered.
+Only if the call fails, for example
+because
+.UL file
+could not be found or because
+its execute-permission bit was not set, does a return
+take place from the
+.UL execute
+primitive;
+it resembles a ``jump'' machine instruction
+rather than a subroutine call.
+.SH
+5.4 Process synchronization
+.PP
+Another process control system call:
+.P1
+processid = wait\|(\|status\|)\|
+.P2
+causes its caller to suspend
+execution until one of its children has completed execution.
+Then
+.UL wait
+returns the
+.UL processid
+of the terminated process.
+An error return is taken if the calling process has no
+descendants.
+Certain status from the child process
+is also available.
+.SH
+5.5 Termination
+.PP
+Lastly:
+.P1
+exit\|(\|status\|)\|
+.P2
+terminates a process,
+destroys its image,
+closes its open files,
+and generally obliterates it.
+The parent is notified through
+the
+.UL wait
+primitive,
+and
+.UL status
+is made available
+to it.
+Processes may also terminate as a result of
+various illegal actions or user-generated signals
+(Section VII below).

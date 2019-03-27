@@ -1,0 +1,99 @@
+.\" Copyright 1997 Massachusetts Institute of Technology
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby
+.\" granted, provided that both the above copyright notice and this
+.\" permission notice appear in all copies, that both the above
+.\" copyright notice and this permission notice appear in all
+.\" supporting documentation, and that the name of M.I.T. not be used
+.\" in advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.  M.I.T. makes
+.\" no representations about the suitability of this software for any
+.\" purpose.  It is provided "as is" without express or implied
+.\" warranty.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
+.\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT
+.\" SHALL M.I.T. BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd November 30, 1997
+.Dt CHKPRINTCAP 8
+.Os
+.Sh NAME
+.Nm chkprintcap
+.Nd check validity of entries in the print spooler database
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Op Fl f Ar printcap
+.Sh DESCRIPTION
+The
+.Nm
+utility scans a
+.Xr printcap 5
+database
+(named by the
+.Ar printcap
+argument, or by default
+.Pa /etc/printcap ) ,
+looking for entries which are invalid in one way or another.
+The following checks are currently implemented:
+.Bl -enum -offset indent
+.It
+.Sq Li tc=
+references were properly expanded
+.It
+.Sq Li tc=
+references did not form a loop
+.It
+No two printers share the same spool directory
+.Sq ( Li sd=
+capability).
+.El
+.Pp
+The
+.Nm
+utility exits with a status equal to the number of errors encountered before
+processing stopped.
+(In some cases, processing can stop before the
+entire file is scanned.)
+.Pp
+If the
+.Fl d
+flag is given,
+.Nm
+will attempt to create any missing spool directories, giving them
+.Sq Li u=rwx,go=rx
+(0755) mode, group
+.Sq Li daemon ,
+and the owner specified by the
+.Sq Li du=
+capability in the database (default 1, which corresponds to user
+.Sq Li daemon ) .
+.Sh SEE ALSO
+.Xr lpr 1 ,
+.Xr printcap 5 ,
+.Xr lpd 8
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Garrett A. Wollman Aq Mt wollman@lcs.mit.edu .
+.Sh BUGS
+Not enough sanity-checking is done.
+At a minimum, the ownership and
+mode of the spool directories should also be checked.
+Other
+parameters whose value could cause
+.Xr lpd 8
+to fail should be diagnosed.

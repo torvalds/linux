@@ -1,0 +1,60 @@
+$(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
+	@[ -f $@ ] ||							\
+		cp $(top_srcdir)/deps-ver $@
+	@[ -w $@ ] ||							\
+		chmod ug+w $@
+	@cmp $(top_srcdir)/deps-ver $@ > /dev/null || (			\
+		$(MAKE) $(AM_MAKEFLAGS) clean &&					\
+		echo -n "Prior $(subdir)/$(DEPDIR) version " &&		\
+		cat $@ &&						\
+		rm -rf $(DEPDIR) &&					\
+		mkdir $(DEPDIR) && 					\
+		case "$(top_builddir)" in				\
+		 .)							\
+		    ./config.status Makefile depfiles			\
+		    ;;							\
+		 *)							\
+		    cd "$(top_builddir)" &&				\
+		    ./config.status $(subdir)/Makefile depfiles &&	\
+		    cd $(subdir)					\
+		    ;;							\
+		esac &&							\
+		echo -n "Cleaned $(subdir)/$(DEPDIR) version " &&	\
+		cat $(top_srcdir)/deps-ver				\
+	)
+	cp $(top_srcdir)/deps-ver $@
+
+.deps-ver: $(top_srcdir)/deps-ver
+	@[ ! -d $(DEPDIR) ] || $(MAKE) $(AM_MAKEFLAGS) $(DEPDIR)/deps-ver
+	@touch $@
+
+BUILT_SOURCES += .deps-ver
+CLEANFILES += .deps-ver
+
+#
+# depsver.mf	included in Makefile.am for directories with .deps
+#
+# When building in the same directory with sources that change over
+# time, such as when tracking using bk, the .deps files can become
+# stale with respect to moved, deleted, or superceded headers.  Most
+# commonly, this would exhibit as make reporting a failure to make a
+# header file which is no longer in the location given.  To address
+# this issue, we use a deps-ver file which is updated with each change
+# that breaks old .deps files.  A copy of deps-ver is made into
+# $(DEPDIR) if not already present.  If $(DEPDIR)/deps-ver is present
+# with different contents than deps-ver, we make clean to ensure all
+# .o files built before the incompatible change are rebuilt along with
+# their updated .deps files, then remove $(DEPDIR) and recreate it as
+# empty stubs.
+#
+# It is normal when configured with --disable-dependency-tracking for
+# the DEPDIR to not have been created.  For this reason, we use the
+# intermediate target .deps-ver, which invokes make recursively if
+# DEPDIR exists.
+#
+# If you modify depsver.mf, please make the changes to the master
+# copy, the one in sntp is copied by the bootstrap script from it.
+#
+# This comment block follows rather than leads the related code so that
+# it stays with it in the generated Makefile.in and Makefile.
+#

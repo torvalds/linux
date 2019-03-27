@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+settings1=$(set +o) && set -o nolog && settings2=$(set +o) &&
+[ "$settings1" != "$settings2" ]

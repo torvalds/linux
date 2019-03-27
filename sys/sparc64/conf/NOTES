@@ -1,0 +1,149 @@
+# $FreeBSD$
+#
+# This file contains machine dependent kernel configuration notes.  For
+# machine independent notes, look in /sys/conf/NOTES.
+
+
+#####################################################################
+# CPU OPTIONS
+
+#
+# You must specify at least one CPU (the one you intend to run on);
+# deleting the specification for CPUs you don't need to use may make
+# parts of the system run faster.
+# XXX: On the Sparc64, there is only one CPU type
+cpu		SUN4U
+
+
+#####################################################################
+# HARDWARE BUS CONFIGURATION
+
+device		ebus
+device		isa
+device		sbus
+device		central
+device		fhc
+
+
+#####################################################################
+# HARDWARE DEVICE CONFIGURATION
+
+#
+# Mandatory devices:
+#
+
+device		eeprom		# eeprom (really a front-end for the MK48Txx)
+device		mk48txx		# Mostek MK48Txx clocks
+device		rtc		# rtc (really a front-end for the MC146818)
+device		mc146818	# Motorola MC146818 and compatible clocks
+device		sbbc		# Sun BootBus controller
+
+#
+# Optional devices:
+#
+
+device		auxio		# auxiliary I/O device
+device		epic		# Sun Fire V215/V245 LEDs
+device		creator		# Creator, Creator3D and Elite3D framebuffers
+device		machfb		# ATI Mach64 framebuffers
+
+device		ofw_console	# Open Firmware console device
+option 		OFWCONS_POLL_HZ=4 # 20 or more works best on Ultra2
+
+# PS/2 mouse
+device		psm
+
+# Options for psm:
+options 	PSM_HOOKRESUME		#hook the system resume event, useful
+					#for some laptops
+options 	PSM_RESETAFTERSUSPEND	#reset the device at the resume event
+
+# The keyboard controller; it controls the keyboard and the PS/2 mouse.
+device		atkbdc
+
+# The AT keyboard
+device		atkbd
+
+# Options for atkbd:
+options 	ATKBD_DFLT_KEYMAP	# specify the built-in keymap
+makeoptions	ATKBD_DFLT_KEYMAP=fr.dvorak
+
+# `flags' for atkbd:
+#       0x01    Force detection of keyboard, else we always assume a keyboard
+#       0x02    Don't reset keyboard, useful for some newer ThinkPads
+#	0x03	Force detection and avoid reset, might help with certain
+#		dockingstations
+#       0x04    Old-style (XT) keyboard support, useful for older ThinkPads
+
+# Sun type 4/5/6 RS-232@TTL keyboard
+#device		sunkbd
+
+# Options for sunkbd:
+options 	SUNKBD_EMULATE_ATKBD	# allows to use the AT keyboard maps
+					# in share/syscons/keymaps, required
+					# for SUNKBD_DFLT_KEYMAP and kbdmux
+options 	SUNKBD_DFLT_KEYMAP	# specify the built-in keymap
+makeoptions	SUNKBD_DFLT_KEYMAP=fr.dvorak
+
+
+#####################################################################
+# Devices we don't want to deal with
+
+nodevice	daemon_saver
+nodevice	snake_saver
+nodevice	star_saver
+nodevice	bktr
+nodevice	fdc
+nodevice	ppc
+nodevice	snd_ad1816
+nodevice	snd_als4000
+nodevice	snd_cmi
+nodevice	snd_cs4281
+nodevice	snd_csa
+nodevice	snd_ds1
+nodevice	snd_emu10k1
+nodevice	snd_ess
+nodevice	snd_fm801
+nodevice	snd_gusc
+nodevice	snd_ich
+nodevice	snd_maestro
+nodevice	snd_maestro3
+nodevice	snd_mss
+nodevice	snd_neomagic
+nodevice	snd_sb16
+nodevice	snd_sb8
+nodevice	snd_sbc
+nodevice	snd_solo
+nodevice	snd_t4dwave
+nodevice	snd_via8233
+nodevice	snd_via82c686
+nodevice	snd_vibes
+nodevice	snd_uaudio
+nodevice	ep
+nodevice	ex
+
+
+#####################################################################
+# Options we don't want to deal with
+
+nooption	FDC_DEBUG
+nooption	COMPAT_FREEBSD4
+nooption	SC_RENDER_DEBUG
+nooption	SC_DEBUG_LEVEL
+nooption	PPC_DEBUG
+nooption	PPC_PROBE_CHIPSET
+nooption	SC_NO_SUSPEND_VTYSWITCH
+nooption	SC_NO_FONT_LOADING
+nooption	SC_KERNEL_CONS_REV_ATTR
+nooption	SC_KERNEL_CONS_ATTR
+nooption	SC_NORM_REV_ATTR
+nooption	SC_NORM_ATTR
+nooption	SC_DFLT_FONT
+nooption	SC_ALT_MOUSE_IMAGE
+nooption	EXT2FS
+
+
+#####################################################################
+# Make options we don't want to deal with
+
+nomakeoption	SC_DFLT_FONT

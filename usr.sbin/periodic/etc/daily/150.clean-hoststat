@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+# Remove stale persistent host status files
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]; then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_clean_hoststat_enable" in
+    [Yy][Ee][Ss])
+	if [ -z "$(hoststat 2>&1)" ]; then
+	    rc=2
+	else
+	    echo ""
+	    echo "Removing stale entries from sendmail host status cache:"
+	    rc=0
+	    purgestat || rc=1
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

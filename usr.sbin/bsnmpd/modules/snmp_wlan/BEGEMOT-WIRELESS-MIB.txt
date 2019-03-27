@@ -1,0 +1,3898 @@
+--
+-- Copyright (C) 2010 The FreeBSD Foundation
+-- All rights reserved.
+--
+-- This documentation was written by Shteryana Sotirova Shopova under
+-- sponsorship from the FreeBSD Foundation.
+--
+-- Redistribution and use in source and binary forms, with or without
+-- modification, are permitted provided that the following conditions
+-- are met:
+-- 1. Redistributions of source code must retain the above copyright
+--    notice, this list of conditions and the following disclaimer.
+-- 2. Redistributions in binary form must reproduce the above copyright
+--    notice, this list of conditions and the following disclaimer in the
+--    documentation and/or other materials provided with the distribution.
+--
+-- THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+-- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+-- ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+-- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+-- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+-- OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+-- HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+-- LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+-- OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+-- SUCH DAMAGE.
+--
+-- $FreeBSD$
+--
+
+BEGEMOT-WIRELESS-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, NOTIFICATION-TYPE,
+    Counter32, Integer32, TimeTicks, Unsigned32, mib-2
+	FROM SNMPv2-SMI
+    TEXTUAL-CONVENTION, MacAddress, TruthValue, RowStatus,
+    DisplayString
+	FROM SNMPv2-TC
+    InterfaceIndex, ifIndex FROM IF-MIB
+    begemot
+	FROM BEGEMOT-MIB;
+
+begemotWlan MODULE-IDENTITY
+    LAST-UPDATED "201005170000Z"
+    ORGANIZATION "The FreeBSD Foundation"
+    CONTACT-INFO
+	    "		Shteryana Shopova
+
+	     Postal:	12 Andrey Lyapchev Blvd.
+			block 2, ap.19
+			1797 Sofia
+			Bulgaria
+
+	     Fax:	N/A
+
+	     E-Mail:	syrinx@FreeBSD.org"
+    DESCRIPTION
+	    "The Begemot MIB for managing IEEE802.11 interfaces."
+    REVISION     "201005170000Z"
+    DESCRIPTION
+	    "Initial revision."
+    ::= { begemot 210 }
+
+-- ---------------------------------------------------------- --
+-- Textual conventions
+-- ---------------------------------------------------------- --
+WlanMgmtReasonCode ::= TEXTUAL-CONVENTION
+    STATUS	current
+    DESCRIPTION
+	"Enumeration of reason and codes used in IEEE802.11
+	management frames to indicate why an action took place."
+    SYNTAX	INTEGER {
+		    unspecified(1),
+		    authenticationExpire(2),
+		    authenticationLeave(3),
+		    associationExpire(4),
+		    associationTooMany(5),
+		    notAuthenticated(6),
+		    notAssociated(7),
+		    associationLeave(8),
+		    associationNotAuthenticated(9),
+-- XXX: TODO - FIXME
+		    dissassocPwrcapBad(10),
+		    dissassocSuperchanBad(11),
+		    ieInvalid(13),
+		    micFailure(14),
+		    fourWayHandshakeTimeout(15),
+		    groupKeyUpdateTimeout(16),
+		    ieIn4FourWayDiffers(17),
+		    groupCipherInvalid(18),
+		    pairwiseCiherInvalid(19),
+		    akmpInvalid(20),
+		    unsupportedRsnIeVersion(21),
+		    invalidRsnIeCap(22),
+		    dot1xAuthFailed(23),
+		    cipherSuiteRejected(24),
+		    unspeciffiedQos(32),
+		    insufficientBw(33),
+		    tooManyFrames(34),
+		    outsideTxOp(35),
+		    leavingQbss(36),
+		    badMechanism(37),
+		    setupNeeded(38),
+		    timeout(39)
+		}
+
+WlanMgmtMeshReasonCode ::= TEXTUAL-CONVENTION
+    STATUS	current
+    DESCRIPTION
+	"Enumeration of reason and codes used in IEEE802.11
+	mesh routing management frames to indicate why an
+	action took place."
+    SYNTAX	INTEGER {
+-- XXX: TODO - FIXME
+		    peerLinkCancelled(2),
+		    maxPeers(3),
+		    cpViolation(4),
+		    closeRcvd(5),
+		    maxRetries(6),
+		    confirmTimeout(7),
+		    invalidGtk(8),
+		    inconsistentParams(9),
+		    invalidSecurity(10),
+		    perrUnspecified(11),
+		    perrNoFI(12),
+		    perrDestUnreach(13)
+		}
+
+WlanMgmtStatusCode ::= TEXTUAL-CONVENTION
+    STATUS	current
+    DESCRIPTION
+	"Enumeration of reason and codes used in IEEE802.11
+	management frames to indicate what the result of an
+	operation is."
+    SYNTAX	INTEGER {
+-- XXX: TODO - FIXME
+		    success(0),
+		    unspecified(1),
+		    capabilitiesInfo(10),
+		    notAssociated(11),
+		    other(12),
+		    algorithm(13),
+		    sequence(14),
+		    challenge(15),
+		    timeout(16),
+		    tooMany(17),
+		    basicRate(18),
+		    spRequired(19),
+		    pbccRequired(20),
+		    caRequired(21),
+		    specMgmtRequired(22),
+		    pwrcapRequire(23),
+		    superchanRequired(24),
+		    shortSlotRequired(25),
+		    dssofdmRequired(26),
+		    missingHTCaps(27),
+		    invalidIE(40),
+		    groupCipherInvalid(41),
+		    pairwiseCipherInvalid(42),
+		    akmpInvalid(43),
+		    unsupportedRsnIEVersion(44),
+		    invalidRsnIECap(45),
+		    cipherSuiteRejected(46)
+		}
+
+WlanRegDomainCode ::= TEXTUAL-CONVENTION
+    STATUS	current
+    DESCRIPTION
+	"Enumeration of regdomain codes."
+    SYNTAX	INTEGER {
+			fcc(1),
+			ca(2),
+			etsi(3),
+			etsi2(4),
+			etsi3(5),
+			fcc3(6),
+			japan(7),
+			korea(8),
+			apac(9),
+			apac2(10),
+			apac3(11),
+			row(12),
+			none(13),
+			debug(14),
+			sr9(15),
+			xr9(16),
+			gz901(17)
+		}
+
+WlanIfaceDot11nPduType ::= TEXTUAL-CONVENTION
+    STATUS	current
+    DESCRIPTION
+	"Enumeration of values for PDU transmit/receive enabled."
+    SYNTAX	INTEGER {
+			disabled(0),
+			rxOnly(1),
+			txOnly(2),
+			txAndRx(3)
+		}
+
+WlanPeerCapabilityFlags ::= TEXTUAL-CONVENTION
+    STATUS	current
+    DESCRIPTION
+	"A list of capability bits that may be advertised by a peer."
+    SYNTAX	BITS {
+			ess(1),
+			ibss(2),
+			cfPollable(3),
+			cfPollRequest(4),
+			privacy(5),
+			shortPreamble(6),
+			pbcc(7),
+			channelAgility(8),
+			shortSlotTime(9),
+			rsn(10),
+			dsssofdm(11)
+		}
+
+WlanIfPhyMode ::= TEXTUAL-CONVENTION
+    STATUS	current
+    DESCRIPTION
+	"A list of wireless PHY operating modes."
+    SYNTAX	INTEGER {
+			auto(1),
+			dot11a(2),
+			dot11b(3),
+			dot11g(4),
+			fh(5),
+			turboA(6),
+			turboG(7),
+			sturboA(8),
+			dot11na(9),
+			dot11ng(10),
+			ofdmHalf(11),
+			ofdmQuarter(12)
+		}
+
+-- ---------------------------------------------------------- --
+-- Subtrees in the Begemot Wireless MIB
+-- ---------------------------------------------------------- --
+begemotWlanNotifications	OBJECT IDENTIFIER ::= { begemotWlan 0 }
+
+begemotWlanInterface		OBJECT IDENTIFIER ::= { begemotWlan 1 }
+
+begemotWlanScanning		OBJECT IDENTIFIER ::= { begemotWlan 2 }
+
+begemotWlanStatistics		OBJECT IDENTIFIER ::= { begemotWlan 3 }
+
+begemotWlanWep			OBJECT IDENTIFIER ::= { begemotWlan 4 }
+
+begemotWlanMACAccessControl	OBJECT IDENTIFIER ::= { begemotWlan 5 }
+
+begemotWlanMeshRouting		OBJECT IDENTIFIER ::= { begemotWlan 6 }
+
+-- ---------------------------------------------------------- --
+-- begemotWlanMultimedia	OBJECT IDENTIFIER ::= { begemotWlan 7 }
+-- ---------------------------------------------------------- --
+
+-- ---------------------------------------------------------- --
+-- Cloned wireless interfaces' database
+-- ---------------------------------------------------------- --
+wlanInterfaceTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanInterfaceEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains the list of cloned wireless
+	interfaces created on the system."
+    ::= { begemotWlanInterface 1 }
+
+wlanInterfaceEntry OBJECT-TYPE
+    SYNTAX	WlanInterfaceEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Information for a cloned wireless interface."
+    INDEX { wlanIfaceName }
+    ::= { wlanInterfaceTable 1 }
+
+WlanInterfaceEntry ::= SEQUENCE {
+    wlanIfaceIndex				InterfaceIndex,
+    wlanIfaceName				DisplayString,
+    wlanParentIfName				DisplayString,
+    wlanIfaceOperatingMode			INTEGER,
+    wlanIfaceFlags				BITS,
+    wlanIfaceBssid				MacAddress,
+    wlanIfaceLocalAddress			MacAddress,
+    wlanIfaceStatus				RowStatus,
+    wlanIfaceState				INTEGER
+}
+
+wlanIfaceIndex OBJECT-TYPE
+    SYNTAX	InterfaceIndex
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The ifIndex of this cloned wireless interface."
+    ::= { wlanInterfaceEntry 1 }
+
+wlanIfaceName OBJECT-TYPE
+    SYNTAX	DisplayString (SIZE(1..32))
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	"The name of this cloned wireless interface."
+    ::= { wlanInterfaceEntry 2 }
+
+wlanParentIfName OBJECT-TYPE
+    SYNTAX	DisplayString (SIZE(1..32))
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	"The name of this cloned wireless interface's parent hardware
+	interface."
+    ::= { wlanInterfaceEntry 3 }
+
+wlanIfaceOperatingMode OBJECT-TYPE
+    SYNTAX	INTEGER {
+			ibss(0),
+			station(1),
+			wds(2),
+			adhocDemo(3),
+			hostAp(4),
+			monitor(5),
+			meshPoint(6),
+			tdma(7)
+    		}
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	"The desired operating mode of the cloned wireless interface."
+    DEFVAL	{ station }
+    ::= { wlanInterfaceEntry 4 }
+
+wlanIfaceFlags OBJECT-TYPE
+    SYNTAX	BITS {
+			uniqueBssid(1),
+			noBeacons(2),
+			wdsLegacy(3)
+		}
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	"Flags per cloned wireless interface used during creation."
+    ::= { wlanInterfaceEntry 5 }
+
+wlanIfaceBssid OBJECT-TYPE
+    SYNTAX	MacAddress
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	"The BSSID assigned to a cloned wireless interface operating in
+	WDS mode."
+    ::= { wlanInterfaceEntry 6 }
+
+wlanIfaceLocalAddress OBJECT-TYPE
+    SYNTAX	MacAddress
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	"The unique local MAC address assigned to the cloned wireless
+	interface during creation."
+    ::= { wlanInterfaceEntry 7 }
+
+wlanIfaceStatus OBJECT-TYPE
+    SYNTAX	RowStatus
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	"This column allows creation or deletion of cloned wireless
+	interfaces."
+    ::= { wlanInterfaceEntry 8 }
+
+wlanIfaceState OBJECT-TYPE
+    SYNTAX	INTEGER {
+			up(1),
+			down(2)
+		}
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	"The operating state of the interface."
+    ::= { wlanInterfaceEntry 9 }
+
+wlanIfParentTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanIfParentEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains information about the parent hardware
+	interface of every cloned wireless interface in the system."
+    ::= { begemotWlanInterface 2 }
+
+wlanIfParentEntry OBJECT-TYPE
+    SYNTAX	WlanIfParentEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Information for the parent hardware interface of a cloned
+	wireless interface."
+    AUGMENTS { wlanInterfaceEntry }
+    ::= { wlanIfParentTable 1 }
+
+WlanIfParentEntry ::= SEQUENCE {
+    wlanIfParentDriverCapabilities		BITS,
+    wlanIfParentCryptoCapabilities		BITS,
+    wlanIfParentHTCapabilities			BITS
+}
+
+wlanIfParentDriverCapabilities OBJECT-TYPE
+    SYNTAX	BITS {
+			station(1),
+			ieee8023encap(2),
+			athFastFrames(3),
+			athTurbo(4),
+			ibss(5),
+			pmgt(6),
+			hostAp(7),
+			ahDemo(8),
+			swRetry(9),
+			txPmgt(10),
+			shortSlot(11),
+			shortPreamble(12),
+			monitor(13),
+			dfs(14),
+			mbss(15),
+			wpa1(16),
+			wpa2(17),
+			burst(18),
+			wme(19),
+			wds(20),
+			bgScan(21),
+			txFrag(22),
+			tdma(23)
+		}
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The driver capabilities of this cloned interface's parent."
+    ::= { wlanIfParentEntry 1 }
+
+wlanIfParentCryptoCapabilities OBJECT-TYPE
+    SYNTAX	BITS {
+			wep(1),
+			tkip(2),
+			aes(3),
+			aesCcm(4),
+			tkipMic(5),
+			ckip(6)
+		}
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The hardware cryptographic capabilities of this cloned
+	interface's parent."
+    ::= { wlanIfParentEntry 2 }
+
+wlanIfParentHTCapabilities OBJECT-TYPE
+    SYNTAX	BITS {
+			ldpc(1),
+			chwidth40(2),
+			greenField(3),
+			shortGi20(4),
+			shortGi40(5),
+			txStbc(6),
+			delba(7),
+			amsdu7935(8),
+			dssscck40(9),
+			psmp(10),
+			fortyMHzIntolerant(11),
+			lsigTxOpProt(12),
+			htcAmpdu(13),
+			htcAmsdu(14),
+			htcHt(15),
+			htcSmps(16),
+			htcRifs(17)
+		}
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The hardware High Throughput capabilities of this cloned
+	interface's parent."
+    ::= { wlanIfParentEntry 3 }
+
+wlanIfaceConfigTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanIfaceConfigEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains a list of configuration parameters per
+	cloned wireless interface. Some of the parameters may not be
+	applicable depending on the underlying device's hardware
+	capabilities and operating mode of the virtual interface."
+    ::= { begemotWlanInterface 3 }
+
+wlanIfaceConfigEntry OBJECT-TYPE
+    SYNTAX	WlanIfaceConfigEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A list of configuration parameters for a cloned wireless interface."
+    AUGMENTS { wlanInterfaceEntry }
+    ::= { wlanIfaceConfigTable 1 }
+
+WlanIfaceConfigEntry ::= SEQUENCE {
+    wlanIfacePacketBurst			TruthValue,
+    wlanIfaceCountryCode			OCTET STRING,
+    wlanIfaceRegDomain				INTEGER,
+    wlanIfaceDesiredSsid			OCTET STRING,
+    wlanIfaceDesiredChannel			INTEGER,
+    wlanIfaceDynamicFreqSelection		TruthValue,
+    wlanIfaceFastFrames				TruthValue,
+    wlanIfaceDturbo				TruthValue,
+    wlanIfaceTxPower				INTEGER,
+    wlanIfaceFragmentThreshold			INTEGER,
+    wlanIfaceRTSThreshold			INTEGER,
+    wlanIfaceWlanPrivacySubscribe		TruthValue,
+-- Parameters for station mode
+    wlanIfaceBgScan				TruthValue,
+    wlanIfaceBgScanIdle				INTEGER,
+    wlanIfaceBgScanInterval			INTEGER,
+    wlanIfaceBeaconMissedThreshold		INTEGER,
+    wlanIfaceDesiredBssid			MacAddress,
+    wlanIfaceRoamingMode			INTEGER,
+-- Additional parameters when operating in host-ap/ad-hoc mode
+    wlanIfaceDot11d				TruthValue,
+    wlanIfaceDot11h				TruthValue,
+    wlanIfaceDynamicWds				TruthValue,
+    wlanIfacePowerSave				TruthValue,
+    wlanIfaceApBridge				TruthValue,
+    wlanIfaceBeaconInterval			INTEGER,
+    wlanIfaceDtimPeriod				INTEGER,
+    wlanIfaceHideSsid				TruthValue,
+    wlanIfaceInactivityProccess			TruthValue,
+    wlanIfaceDot11gProtMode			INTEGER,
+    wlanIfaceDot11gPureMode			TruthValue,
+    wlanIfaceDot11nPureMode			TruthValue,
+    wlanIfaceDot11nAmpdu			INTEGER,
+    wlanIfaceDot11nAmpduDensity			INTEGER,
+    wlanIfaceDot11nAmpduLimit			INTEGER,
+    wlanIfaceDot11nAmsdu			INTEGER,
+    wlanIfaceDot11nAmsduLimit			INTEGER,
+    wlanIfaceDot11nHighThroughput		TruthValue,
+    wlanIfaceDot11nHTCompatible			TruthValue,
+    wlanIfaceDot11nHTProtMode			INTEGER,
+    wlanIfaceDot11nRIFS				TruthValue,
+    wlanIfaceDot11nShortGI			TruthValue,
+    wlanIfaceDot11nSMPSMode			INTEGER,
+-- Parameters when operating in tdma mode
+    wlanIfaceTdmaSlot				INTEGER,
+    wlanIfaceTdmaSlotCount			INTEGER,
+    wlanIfaceTdmaSlotLength			INTEGER,
+    wlanIfaceTdmaBeaconInterval			INTEGER
+}
+
+wlanIfacePacketBurst OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object controls whether packet bursting is
+	enabled on the interface."
+    ::= { wlanIfaceConfigEntry 1 }
+
+wlanIfaceCountryCode OBJECT-TYPE
+    SYNTAX	OCTET STRING (SIZE(3))
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object controls the country regulatory
+	constraints for operation of this wireless interface. The first
+	two octets of this string is the two character country code as
+	described in ISO/IEC 3166-1. The third octet shall contain one
+	of the following:
+
+	1. an ASCII space character, if the regulations under which the
+	interface is operating include all environments in the specified
+	country.
+
+	2. an ASCII 'O' character, if the country's regulations are for
+	Outdoor environment only.
+
+	3. an ASCII 'I' character, if the country's regulations are for
+	Indoor environment only."
+    ::= { wlanIfaceConfigEntry 2 }
+
+wlanIfaceRegDomain OBJECT-TYPE
+    SYNTAX	WlanRegDomainCode
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"This object specifies the regulatory domain to use when calculating
+	the regulatory constraints for operation of the interface."
+    ::= { wlanIfaceConfigEntry 3 }
+
+wlanIfaceDesiredSsid OBJECT-TYPE
+    SYNTAX	OCTET STRING (SIZE(0..32))
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The desired SSID for the interface as an ASCII  string.
+	Specifying an empty string shall remove the current configured
+	SSID."
+    ::= { wlanIfaceConfigEntry 4 }
+
+wlanIfaceDesiredChannel OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The desired operating channel for this interface. The value of this
+	column is the channel index (wlanIfaceChannelId) of the corresponding
+	entry from the wlanIfaceChannelTable. The interface status must be
+	down so that the current operating channel may be set properly."
+    ::= { wlanIfaceConfigEntry 5 }
+
+wlanIfaceDynamicFreqSelection OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether Dynamic Frequency
+	Selection (DFS) as specified in 802.11h is enabled on an
+	interface that supports 802.11h and DFS."
+    DEFVAL	{ false }
+    ::= { wlanIfaceConfigEntry 6 }
+
+wlanIfaceFastFrames OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object controls whether use of Atheros Fast
+	Frames is enabled when when communicating with another Fast
+	Frames-capable station. The value is only meaningful for
+	interfaces that support Atheros Fast Frames."
+    ::= { wlanIfaceConfigEntry 7 }
+
+wlanIfaceDturbo OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object controls whether use of Atheros Dynamic
+	Turbo mode is enabled when when communicating with another Dynamic
+	Turbo-capable station. The value is only meaningful for interfaces
+	that support Atheros Dynamic Turbo mode."
+    ::= { wlanIfaceConfigEntry 8 }
+
+wlanIfaceTxPower OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object controls the power used to transmit
+	frames. Accepted values are in units of one tenths of a dBm in
+	steps of .5 dBm, e.g setting the value of this object to 155
+	results in 15.5 dBm transmit power configured on the interface."
+    ::= { wlanIfaceConfigEntry 9 }
+
+wlanIfaceFragmentThreshold OBJECT-TYPE
+    SYNTAX	INTEGER (256..2346)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object controls the threshold for which
+	transmitted frames are broken into fragments. Setting the value
+	of this object to 2346 will disable transmit fragmentation."
+    DEFVAL	{ 2346 }
+    ::= { wlanIfaceConfigEntry 10 }
+
+wlanIfaceRTSThreshold OBJECT-TYPE
+    SYNTAX	INTEGER (1..2346)
+    UNITS	"bytes"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object controls the threshold for which
+	transmitted frames are preceded by transmission of an RTS
+	control frame. Setting the value of this object to 2346 will
+	disable transmission of RTS frames."
+     DEFVAL	{ 2346 }
+   ::= { wlanIfaceConfigEntry 11 }
+
+wlanIfaceWlanPrivacySubscribe OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether Wireless Privacy
+	Subscriber support is enabled on the interface."
+    ::= { wlanIfaceConfigEntry 12 }
+
+wlanIfaceBgScan OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether background scanning
+	is enabled for an interface operating in station mode."
+    ::= { wlanIfaceConfigEntry 13 }
+
+wlanIfaceBgScanIdle OBJECT-TYPE
+    SYNTAX	INTEGER
+    UNITS	"milliseconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies the minimum time a station must
+	be idle before a background scan is initiated on an interface
+	operating in station mode."
+    DEFVAL	{ 250 }
+    ::= { wlanIfaceConfigEntry 14 }
+
+wlanIfaceBgScanInterval OBJECT-TYPE
+    SYNTAX	INTEGER
+    UNITS	"seconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies the interval at which background
+	scanning is attempted when operating in station mode."
+    DEFVAL	{ 300 }
+    ::= { wlanIfaceConfigEntry 15 }
+
+wlanIfaceBeaconMissedThreshold OBJECT-TYPE
+    SYNTAX	INTEGER (1..255)
+    UNITS	"frames"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies the number of consecutive missed
+	beacons before an interface operating in station mode will attempt
+	to search for a new access point."
+    DEFVAL	{ 7 }
+    ::= { wlanIfaceConfigEntry 16 }
+
+wlanIfaceDesiredBssid OBJECT-TYPE
+    SYNTAX	MacAddress
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies the MAC address of the desired
+	access point to use when an interface is operating as a station."
+    ::= { wlanIfaceConfigEntry 17 }
+
+wlanIfaceRoamingMode OBJECT-TYPE
+    SYNTAX	INTEGER {
+			device(1),
+			auto(2),
+			manual(3)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies the desired system behavior
+	when the interface is operating as a station and the communication
+	with the current access point is broken."
+    DEFVAL	{ auto }
+    ::= { wlanIfaceConfigEntry 18 }
+
+wlanIfaceDot11d OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether 802.11d specification
+	support is enabled."
+    DEFVAL	{ false }
+    ::= { wlanIfaceConfigEntry 19 }
+
+wlanIfaceDot11h OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether 802.11h support
+	including spectrum management is enabled. The value is only
+	meaningfull for interfaces that support 802.11h specification."
+    DEFVAL	{ false }
+    ::= { wlanIfaceConfigEntry 20 }
+
+wlanIfaceDynamicWds OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether Dynamic WDS (DWDS)
+	support is enabled. The value is only meaningful for interfaces
+	that support Dynamic WDS."
+    ::= { wlanIfaceConfigEntry 21 }
+
+wlanIfacePowerSave OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether powersave operation
+	is enabled. The value is only meaningful for interfaces that
+	support powersave operation."
+    ::= { wlanIfaceConfigEntry 22 }
+
+wlanIfaceApBridge OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether packets between
+	wireless clients will be passed directly by an interface
+	operating in host ap mode. Disabling it may be useful in
+	situations when traffic between wireless clients needs to be
+	processed with packet filtering."
+    DEFVAL	{ true }
+    ::= { wlanIfaceConfigEntry 23 }
+
+wlanIfaceBeaconInterval OBJECT-TYPE
+    SYNTAX	INTEGER (25..1000)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies the interval at with beacon
+	frames are sent when an interface is operating in ad-hoc or ap
+	mode. The beacon interval is specified in TU's (1024 usecs)."
+    DEFVAL	{ 100 }
+    ::= { wlanIfaceConfigEntry 24 }
+
+wlanIfaceDtimPeriod OBJECT-TYPE
+    SYNTAX	INTEGER (1..15)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies the DTIM period at which
+	buffered multicast data frames are transmitted by an interface
+	operating in host ap mode. Its value indicates the number of
+	beacon intervals between DTIM."
+    DEFVAL	{ 1 }
+    ::= { wlanIfaceConfigEntry 25 }
+
+wlanIfaceHideSsid OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether broadcasting of the
+	SSID in beacon frames and responding to undirected probe request
+	frames is enabled for an interface operating in ap mode."
+    DEFVAL	{ false }
+    ::= { wlanIfaceConfigEntry 26 }
+
+wlanIfaceInactivityProccess OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether inactivity processing
+	for associated station on an interface operating in ap mode is
+	enabled."
+    DEFVAL	{ true }
+    ::= { wlanIfaceConfigEntry 27 }
+
+wlanIfaceDot11gProtMode OBJECT-TYPE
+    SYNTAX	INTEGER {
+			off(1),
+			cts(2),
+			rtscts(3)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies the technique used for
+	protecting OFDM frames in a mixed 11b/11g network."
+    ::= { wlanIfaceConfigEntry 28 }
+
+wlanIfaceDot11gPureMode OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether only 802.11g-capable
+	stations will be allowed to associate to an interface operating
+	as access point in 802.11g mode."
+    ::= { wlanIfaceConfigEntry 29 }
+
+wlanIfaceDot11nPureMode OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether only HT-capable
+	stations will be allowed to associate to an interface operating
+	as access point in 802.11n mode."
+    ::= { wlanIfaceConfigEntry 30 }
+
+wlanIfaceDot11nAmpdu OBJECT-TYPE
+    SYNTAX	WlanIfaceDot11nPduType
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether sending and
+	receiving of AMPDU frames is enabled on an interface
+	operating in 802.11n mode."
+    DEFVAL	{ txAndRx }
+    ::= { wlanIfaceConfigEntry 31 }
+
+wlanIfaceDot11nAmpduDensity OBJECT-TYPE
+    SYNTAX	INTEGER (0|25|50|100|200|400|800|1600)
+    UNITS	"1/100ths-of-microsecond"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies the AMPDU density parameter
+	for an interface operating in 802.11n mode."
+    ::= { wlanIfaceConfigEntry 32 }
+
+wlanIfaceDot11nAmpduLimit OBJECT-TYPE
+    SYNTAX	INTEGER (8192|16384|32768|65536)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies a limit on the AMPDU packet
+	size for receiving AMPDU frames for an interface operating in
+	802.11n mode."
+    ::= { wlanIfaceConfigEntry 33 }
+
+wlanIfaceDot11nAmsdu OBJECT-TYPE
+    SYNTAX	WlanIfaceDot11nPduType
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether sending and receiving
+	of AMSDU frames is enabled on an interface operating in 802.11n
+	mode."
+    DEFVAL	{ rxOnly }
+    ::= { wlanIfaceConfigEntry 34 }
+
+wlanIfaceDot11nAmsduLimit OBJECT-TYPE
+    SYNTAX	INTEGER (3839|7935)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies a limit on the AMSDU packet
+	size when sending and receiving AMSDU frames for an interface
+	operating in 802.11n mode."
+    ::= { wlanIfaceConfigEntry 35 }
+
+wlanIfaceDot11nHighThroughput OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether use of High Throughput
+	(HT) is enabled for an interface operating in 802.11n mode."
+    DEFVAL	{ true }
+    ::= { wlanIfaceConfigEntry 36 }
+
+wlanIfaceDot11nHTCompatible OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether use of compatibility
+	support for pre-802.11n devices is enabled for an interface
+	operating in 802.11n mode."
+    DEFVAL	{ true }
+    ::= { wlanIfaceConfigEntry 37 }
+
+wlanIfaceDot11nHTProtMode OBJECT-TYPE
+    SYNTAX	INTEGER {
+			off(1),
+			rts(2)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies the technique used for
+	protecting HT frames in a mixed legacy/HT network for interfaces
+	operating in 802.11n mode."
+    DEFVAL	{ rts }
+    ::= { wlanIfaceConfigEntry 38 }
+
+wlanIfaceDot11nRIFS OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether Reduced InterFrame
+	Spacing (RIFS) is enabled for an interface operating in 802.11n
+	mode on an HT channel."
+    ::= { wlanIfaceConfigEntry 39 }
+
+wlanIfaceDot11nShortGI OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether use of Short Guard
+	Interval is enabled on an interface operating in 802.11n mode
+	on an HT channel."
+    ::= { wlanIfaceConfigEntry 40 }
+
+wlanIfaceDot11nSMPSMode OBJECT-TYPE
+    SYNTAX	INTEGER {
+			disabled(1),
+			static(2),
+			dynamic(3)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies whether use of Spatial Multiplexing
+	Power Save (SMPS) is enabled on an interface operating in 802.11n mode
+	and whether SMPS mode is set to Static or Dynamic. The value is only
+	meaningfull for interfaces that support SMPS."
+    ::= { wlanIfaceConfigEntry 41 }
+
+wlanIfaceTdmaSlot OBJECT-TYPE
+    SYNTAX	INTEGER (0..2)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies the slot configuration to use
+	when operating in TDMA mode."
+    ::= { wlanIfaceConfigEntry 42 }
+
+wlanIfaceTdmaSlotCount OBJECT-TYPE
+    SYNTAX	INTEGER (0..2)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies the number of slots to use to
+	setup a BSS for an interface operating in TDMA mode."
+    ::= { wlanIfaceConfigEntry 43 }
+
+wlanIfaceTdmaSlotLength OBJECT-TYPE
+    SYNTAX	INTEGER (150..65000)
+    UNITS	"microseconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies a slot length that each station
+	has when a BSS is setup by an interface operating in TDMA mode."
+    DEFVAL	{ 10000 }
+    ::= { wlanIfaceConfigEntry 44 }
+
+wlanIfaceTdmaBeaconInterval OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies the number of superframes at
+	which a beacon frame is sent to synchronize the TDMA slot timing
+	for interfaces operating in TDMA mode."
+    DEFVAL	{ 5 }
+    ::= { wlanIfaceConfigEntry 45 }
+
+wlanIfacePeerTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanIfacePeerEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains information about the associated stations
+	for an interface operating as an access point, or the stations
+	identified as neighbors in the IBSS for an interface operating in
+	adhoc mode."
+    ::= { begemotWlanInterface 4 }
+
+wlanIfacePeerEntry OBJECT-TYPE
+    SYNTAX	WlanIfacePeerEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"An entry that contains information for the associated stations
+	for an interface operating as an access point, or the neighboring
+	stations of an interface in adhoc mode."
+    INDEX { wlanIfaceName, wlanIfacePeerAddress }
+    ::= { wlanIfacePeerTable 1 }
+
+WlanIfacePeerEntry ::= SEQUENCE {
+    wlanIfacePeerAddress			MacAddress,
+    wlanIfacePeerAssociationId			INTEGER,
+    wlanIfacePeerVlanTag			INTEGER,
+    wlanIfacePeerFrequency			INTEGER,
+    wlanIfacePeerCurrentTXRate			INTEGER,
+    wlanIfacePeerRxSignalStrength		INTEGER,
+    wlanIfacePeerIdleTimer			INTEGER,
+    wlanIfacePeerTxSequenceNo			INTEGER,
+    wlanIfacePeerRxSequenceNo			INTEGER,
+    wlanIfacePeerTxPower			INTEGER,
+    wlanIfacePeerCapabilities			BITS,
+    wlanIfacePeerFlags				BITS
+}
+
+wlanIfacePeerAddress OBJECT-TYPE
+    SYNTAX	MacAddress
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The MAC address of this peer."
+    ::= { wlanIfacePeerEntry 1 }
+
+wlanIfacePeerAssociationId OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The ID of the associacition with this peer."
+    ::= { wlanIfacePeerEntry 2 }
+
+wlanIfacePeerVlanTag OBJECT-TYPE
+    SYNTAX	INTEGER (0..4096)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The Vlan Tag for traffic to/from this peer."
+    ::= { wlanIfacePeerEntry 3 }
+
+wlanIfacePeerFrequency OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The operating frequency for the link with this peer."
+    ::= { wlanIfacePeerEntry 4 }
+
+wlanIfacePeerCurrentTXRate OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The current transmit rate for this peer."
+    ::= { wlanIfacePeerEntry 5 }
+
+wlanIfacePeerRxSignalStrength OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The average receive signal strength for this peer."
+    ::= { wlanIfacePeerEntry 6 }
+
+wlanIfacePeerIdleTimer OBJECT-TYPE
+    SYNTAX	INTEGER
+    UNITS	"seconds"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The value of this peer's inactivity timer."
+    ::= { wlanIfacePeerEntry 7 }
+
+wlanIfacePeerTxSequenceNo OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The last sequence number transmitted to this peer."
+    ::= { wlanIfacePeerEntry 8 }
+
+wlanIfacePeerRxSequenceNo OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The last sequence number received from this peer."
+    ::= { wlanIfacePeerEntry 9 }
+
+wlanIfacePeerTxPower OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The transmit power limit for this peer."
+    ::= { wlanIfacePeerEntry 10 }
+
+wlanIfacePeerCapabilities OBJECT-TYPE
+    SYNTAX	WlanPeerCapabilityFlags
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The capabilities advertised by this peer."
+    ::= { wlanIfacePeerEntry 11 }
+
+wlanIfacePeerFlags OBJECT-TYPE
+    SYNTAX	BITS {
+			authorizedForData(1),
+			qosEnabled(2),
+			erpEnabled(3),
+			powerSaveMode(4),
+			authRefHeld(5),
+			htEnabled(6),
+			htCompat(7),
+			wpsAssoc(8),
+			tsnAssoc(9),
+			ampduRx(10),
+			ampduTx(11),
+			mimoPowerSave(12),
+			sendRts(13),
+			rifs(14),
+			shortGiHT20(15),
+			shortGiHT40(16),
+			amsduRx(17),
+			amsduTx(18)
+		}
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The peer state flags."
+    ::= { wlanIfacePeerEntry 12 }
+
+wlanIfaceChannelTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanIfaceChannelEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains information about the active channels for
+	the cloned wireless interfaces in the system."
+    ::= { begemotWlanInterface 5 }
+
+wlanIfaceChannelEntry OBJECT-TYPE
+    SYNTAX	WlanIfaceChannelEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"An entry that contains active channel information for the wireless
+	interface."
+    INDEX { wlanIfaceName, wlanIfaceChannelId }
+    ::= { wlanIfaceChannelTable 1 }
+
+WlanIfaceChannelEntry ::= SEQUENCE {
+    wlanIfaceChannelId				INTEGER,
+    wlanIfaceChannelIeeeId			INTEGER,
+    wlanIfaceChannelType			INTEGER,
+    wlanIfaceChannelFlags			BITS,
+    wlanIfaceChannelFrequency			INTEGER,
+    wlanIfaceChannelMaxRegPower			INTEGER,
+    wlanIfaceChannelMaxTxPower			INTEGER,
+    wlanIfaceChannelMinTxPower			INTEGER,
+    wlanIfaceChannelState			BITS,
+    wlanIfaceChannelHTExtension			INTEGER,
+    wlanIfaceChannelMaxAntennaGain		INTEGER
+}
+
+wlanIfaceChannelId OBJECT-TYPE
+    SYNTAX	INTEGER (1..1536)
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"The index of this channel entry."
+    ::= { wlanIfaceChannelEntry 1 }
+
+wlanIfaceChannelIeeeId OBJECT-TYPE
+    SYNTAX	INTEGER (1..256)
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The channel IEEE ID."
+    ::= { wlanIfaceChannelEntry 2 }
+
+wlanIfaceChannelType OBJECT-TYPE
+    SYNTAX	INTEGER {
+			fhss(1),
+			dot11a(2),
+			dot11b(3),
+			dot11g(4),
+			tenMHz(5),
+			fiveMHz(6),
+			turbo(7),
+			ht(8)
+		}
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The operating channel type for this entry."
+    ::= { wlanIfaceChannelEntry 3 }
+
+wlanIfaceChannelFlags OBJECT-TYPE
+    SYNTAX	BITS {
+			turbo(1),
+			cck(2),
+			ofdm(3),
+			spectrum2Ghz(4),
+			spectrum5Ghz(5),
+			passiveScan(6),
+			dynamicCckOfdm(7),
+			gfsk(8),
+			spectrum900Mhz(9),
+			dot11aStaticTurbo(10),
+			halfRate(11),
+			quarterRate(12),
+			ht20(13),
+			ht40u(14),
+			ht40d(15),
+			dfs(16),
+			xmit4ms(17),
+			noAdhoc(18),
+			noHostAp(19),
+			dot11d(20)
+		}
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The channel flags."
+    ::= { wlanIfaceChannelEntry 4 }
+
+wlanIfaceChannelFrequency OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The channel frequency setting in MHz."
+    ::= { wlanIfaceChannelEntry 5 }
+
+wlanIfaceChannelMaxRegPower OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The maximum regulatory tx power in dBm for this channel."
+    ::= { wlanIfaceChannelEntry 6 }
+
+wlanIfaceChannelMaxTxPower OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The maximum tx power in units of .5 dBm for this channel."
+    ::= { wlanIfaceChannelEntry 7 }
+
+wlanIfaceChannelMinTxPower OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The minimum tx power in units of .5 dBm for this channel."
+    ::= { wlanIfaceChannelEntry 8 }
+
+wlanIfaceChannelState OBJECT-TYPE
+    SYNTAX	BITS {
+			radar(1),
+			cacDone(2),
+			interferenceDetected(3),
+			radarClear(4)
+		}
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The channel dynamic state."
+    ::= { wlanIfaceChannelEntry 9 }
+
+wlanIfaceChannelHTExtension OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The HT40 extension channel number."
+    ::= { wlanIfaceChannelEntry 10 }
+
+wlanIfaceChannelMaxAntennaGain OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The maximum antenna gain in units of .5 dBm."
+    ::= { wlanIfaceChannelEntry 11 }
+
+-- ---------------------------------------------------------- --
+--  The Scan requests/results for cloned wireless interfaces
+-- ---------------------------------------------------------- --
+
+wlanScanConfigTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanScanConfigEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains a configuration for channel scanning
+	initiated via SNMP."
+    ::= { begemotWlanScanning 1 }
+
+wlanScanConfigEntry OBJECT-TYPE
+    SYNTAX	WlanScanConfigEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Per cloned wireless interface channel scan configuration data.
+	The entry will be empty if no scans were initiated via SNMP."
+    INDEX { wlanIfaceName }
+    ::= { wlanScanConfigTable 1 }
+
+WlanScanConfigEntry ::= SEQUENCE {
+    wlanScanFlags				BITS,
+    wlanScanDuration				INTEGER,
+    wlanScanMinChannelDwellTime			INTEGER,
+    wlanScanMaxChannelDwellTime			INTEGER,
+    wlanScanConfigStatus			INTEGER
+}
+
+wlanScanFlags OBJECT-TYPE
+    SYNTAX	BITS {
+			noSelection(1),
+			activeScan(2),
+			pickFirst(3),
+			backgroundScan(4),
+			once(5),
+			noBroadcast(6),
+			noAutoSequencing(7),
+			flushCashe(8),
+			chechCashe(9)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"Desired flags for the channel scan."
+    ::= { wlanScanConfigEntry 1 }
+
+wlanScanDuration OBJECT-TYPE
+    SYNTAX	INTEGER (1..2147483647)
+    UNITS	"milliseconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The desired duration of the scan. Setting the value of this object
+	to the highest allowed value will initiate an infinite scan."
+    ::= { wlanScanConfigEntry 2 }
+
+wlanScanMinChannelDwellTime OBJECT-TYPE
+    SYNTAX	INTEGER
+    UNITS	"milliseconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The minimum channel dwelltime for this scan."
+    ::= { wlanScanConfigEntry 3 }
+
+wlanScanMaxChannelDwellTime OBJECT-TYPE
+    SYNTAX	INTEGER
+    UNITS	"milliseconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The maximum channel dwelltime for this scan."
+    ::= { wlanScanConfigEntry 4 }
+
+wlanScanConfigStatus OBJECT-TYPE
+    SYNTAX	INTEGER {
+			unknown(0),
+			notStarted(1),
+			running(2),
+			finished(3),
+			cancel(4)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"This object is used to initiate or cancel channel scanning on the cloned
+	interface via SNMP. Setting its value to running(2) will initiate channel
+	scanning on the cloned interface, while setting the value to cancel will
+	cancel the current ongoing scan. All other values should be returned in
+	GET operations only."
+    ::= { wlanScanConfigEntry 5 }
+
+wlanScanResultsTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanScanResultsEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains scan results for a virtual wireless interface."
+    ::= { begemotWlanScanning 2 }
+
+wlanScanResultsEntry OBJECT-TYPE
+    SYNTAX	WlanScanResultsEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Per virtual wireless interface channel scan results data."
+    INDEX { wlanIfaceName, wlanScanResultID, wlanScanResultBssid }
+    ::= { wlanScanResultsTable 1 }
+
+WlanScanResultsEntry ::= SEQUENCE {
+    wlanScanResultID				OCTET STRING,
+    wlanScanResultBssid				MacAddress,
+    wlanScanResultChannel			INTEGER,
+    wlanScanResultRate				INTEGER,
+    wlanScanResultNoise				INTEGER,
+    wlanScanResultBeaconInterval		INTEGER,
+    wlanScanResultCapabilities			BITS
+}
+
+wlanScanResultID OBJECT-TYPE
+    SYNTAX	OCTET STRING (SIZE(0..32))
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The SSID/MESH ID for this scan result entry."
+    ::= { wlanScanResultsEntry 1 }
+
+wlanScanResultBssid OBJECT-TYPE
+    SYNTAX	MacAddress
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The BSSID for this scan result entry."
+    ::= { wlanScanResultsEntry 2 }
+
+wlanScanResultChannel OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The operating channel for this scan result entry."
+    ::= { wlanScanResultsEntry 3 }
+
+wlanScanResultRate OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The operating rate of this scan result entry."
+    ::= { wlanScanResultsEntry 4 }
+
+wlanScanResultNoise OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The channel noise for this scan result entry."
+    ::= { wlanScanResultsEntry 5 }
+
+wlanScanResultBeaconInterval OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The beacon interval reported for this scan result entry."
+    ::= { wlanScanResultsEntry 6 }
+
+wlanScanResultCapabilities OBJECT-TYPE
+    SYNTAX	WlanPeerCapabilityFlags
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The capabilities advertised for this scan result entry."
+    ::= { wlanScanResultsEntry 7 }
+
+wlanIfRoamParamsTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanIfRoamParamsEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains the parameters that govern the roaming
+	operation on a wireless interface."
+    ::= { begemotWlanInterface 6 }
+
+wlanIfRoamParamsEntry OBJECT-TYPE
+    SYNTAX	WlanIfRoamParamsEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"An entry that contains the roaming parameters of a wireless
+	interface."
+    INDEX { wlanIfaceName, wlanIfRoamPhyMode }
+    ::= { wlanIfRoamParamsTable 1 }
+
+WlanIfRoamParamsEntry ::= SEQUENCE {
+    wlanIfRoamPhyMode				INTEGER,
+    wlanIfRoamRxSignalStrength			INTEGER,
+    wlanIfRoamTxRateThreshold			INTEGER
+}
+
+wlanIfRoamPhyMode OBJECT-TYPE
+    SYNTAX	WlanIfPhyMode
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"The PHY mode for this roaming parameters entry."
+    ::= { wlanIfRoamParamsEntry 1 }
+
+wlanIfRoamRxSignalStrength OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The Receive Signal Strength for this roaming parameters entry."
+    ::= { wlanIfRoamParamsEntry 2 }
+
+wlanIfRoamTxRateThreshold OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The transmit rate threshold value for this roaming parameters
+	 entry in Mb/s or MCS."
+    ::= { wlanIfRoamParamsEntry 3 }
+
+wlanIfTxParamsTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanIfTxParamsEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains the parameters that govern the transmit
+	operation on a wireless interface."
+    ::= { begemotWlanInterface 7 }
+
+wlanIfTxParamsEntry OBJECT-TYPE
+    SYNTAX	WlanIfTxParamsEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"An entry that contains the transmit parameters of a wireless
+	interface."
+    INDEX { wlanIfaceName, wlanIfTxPhyMode }
+    ::= { wlanIfTxParamsTable 1 }
+
+WlanIfTxParamsEntry ::= SEQUENCE {
+    wlanIfTxPhyMode				INTEGER,
+    wlanIfTxUnicastRate				INTEGER,
+    wlanIfTxMcastRate				INTEGER,
+    wlanIfTxMgmtRate				INTEGER,
+    wlanIfTxMaxRetryCount			INTEGER
+}
+
+wlanIfTxPhyMode OBJECT-TYPE
+    SYNTAX	WlanIfPhyMode
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"The PHY mode for this entry."
+    ::= { wlanIfTxParamsEntry 1 }
+
+wlanIfTxUnicastRate OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies a fixed rate for transmitting
+	unicast frames in this phy mode."
+    ::= { wlanIfTxParamsEntry 2 }
+
+wlanIfTxMcastRate OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies a fixed rate for transmitting
+	broadcast and multicast frames in this phy mode."
+    ::= { wlanIfTxParamsEntry 3 }
+
+wlanIfTxMgmtRate OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies a fixed rate for transmitting
+	management and/or control frames in this phy mode."
+    ::= { wlanIfTxParamsEntry 4 }
+
+wlanIfTxMaxRetryCount OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The maximum number of tries to use when sending unicast frames
+	in this phy mode."
+    ::= { wlanIfTxParamsEntry 5 }
+
+-- ---------------------------------------------------------- --
+--  The Statistics Database for Wireless interfaces
+-- ---------------------------------------------------------- --
+
+wlanIfaceStatisticsTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanIfaceStatisticsEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains summary statistics for each virtual wireless
+	interface on the managed device."
+    ::= { begemotWlanStatistics 1 }
+
+wlanIfaceStatisticsEntry OBJECT-TYPE
+    SYNTAX	WlanIfaceStatisticsEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A list of statistics for each virtual wireless interface."
+    AUGMENTS { wlanInterfaceEntry }
+    ::= { wlanIfaceStatisticsTable 1 }
+
+WlanIfaceStatisticsEntry ::= SEQUENCE {
+    wlanStatsRxBadVersion			Counter32,
+    wlanStatsRxTooShort				Counter32,
+    wlanStatsRxWrongBssid			Counter32,
+    wlanStatsRxDiscardedDups			Counter32,
+    wlanStatsRxWrongDir				Counter32,
+    wlanStatsRxDiscardMcastEcho			Counter32,
+    wlanStatsRxDiscardNoAssoc			Counter32,
+    wlanStatsRxWepNoPrivacy			Counter32,
+    wlanStatsRxWepUnencrypted			Counter32,
+    wlanStatsRxWepFailed			Counter32,
+    wlanStatsRxDecapsulationFailed		Counter32,
+    wlanStatsRxDiscardMgmt			Counter32,
+    wlanStatsRxControl				Counter32,
+    wlanStatsRxBeacon				Counter32,
+    wlanStatsRxRateSetTooBig			Counter32,
+    wlanStatsRxElemMissing			Counter32,
+    wlanStatsRxElemTooBig			Counter32,
+    wlanStatsRxElemTooSmall			Counter32,
+    wlanStatsRxElemUnknown			Counter32,
+    wlanStatsRxChannelMismatch			Counter32,
+    wlanStatsRxDropped				Counter32,
+    wlanStatsRxSsidMismatch			Counter32,
+    wlanStatsRxAuthNotSupported			Counter32,
+    wlanStatsRxAuthFailed			Counter32,
+    wlanStatsRxAuthCM				Counter32,
+    wlanStatsRxAssocWrongBssid			Counter32,
+    wlanStatsRxAssocNoAuth			Counter32,
+    wlanStatsRxAssocCapMismatch			Counter32,
+    wlanStatsRxAssocNoRateMatch			Counter32,
+    wlanStatsRxBadWpaIE				Counter32,
+    wlanStatsRxDeauthenticate			Counter32,
+    wlanStatsRxDisassociate			Counter32,
+    wlanStatsRxUnknownSubtype			Counter32,
+    wlanStatsRxFailedNoBuf			Counter32,
+    wlanStatsRxBadAuthRequest			Counter32,
+    wlanStatsRxUnAuthorized			Counter32,
+    wlanStatsRxBadKeyId				Counter32,
+    wlanStatsRxCCMPSeqViolation			Counter32,
+    wlanStatsRxCCMPBadFormat			Counter32,
+    wlanStatsRxCCMPFailedMIC			Counter32,
+    wlanStatsRxTKIPSeqViolation			Counter32,
+    wlanStatsRxTKIPBadFormat			Counter32,
+    wlanStatsRxTKIPFailedMIC			Counter32,
+    wlanStatsRxTKIPFailedICV			Counter32,
+    wlanStatsRxDiscardACL			Counter32,
+    wlanStatsTxFailedNoBuf			Counter32,
+    wlanStatsTxFailedNoNode			Counter32,
+    wlanStatsTxUnknownMgmt			Counter32,
+    wlanStatsTxBadCipher			Counter32,
+    wlanStatsTxNoDefKey				Counter32,
+    wlanStatsTxFragmented			Counter32,
+    wlanStatsTxFragmentsCreated			Counter32,
+    wlanStatsActiveScans			Counter32,
+    wlanStatsPassiveScans			Counter32,
+    wlanStatsTimeoutInactivity			Counter32,
+    wlanStatsCryptoNoMem			Counter32,
+    wlanStatsSwCryptoTKIP			Counter32,
+    wlanStatsSwCryptoTKIPEnMIC			Counter32,
+    wlanStatsSwCryptoTKIPDeMIC			Counter32,
+    wlanStatsCryptoTKIPCM			Counter32,
+    wlanStatsSwCryptoCCMP			Counter32,
+    wlanStatsSwCryptoWEP			Counter32,
+    wlanStatsCryptoCipherKeyRejected		Counter32,
+    wlanStatsCryptoNoKey			Counter32,
+    wlanStatsCryptoDeleteKeyFailed		Counter32,
+    wlanStatsCryptoUnknownCipher		Counter32,
+    wlanStatsCryptoAttachFailed			Counter32,
+    wlanStatsCryptoKeyFailed			Counter32,
+    wlanStatsCryptoEnMICFailed			Counter32,
+    wlanStatsIBSSCapMismatch			Counter32,
+    wlanStatsUnassocStaPSPoll			Counter32,
+    wlanStatsBadAidPSPoll			Counter32,
+    wlanStatsEmptyPSPoll			Counter32,
+    wlanStatsRxFFBadHdr				Counter32,
+    wlanStatsRxFFTooShort			Counter32,
+    wlanStatsRxFFSplitError			Counter32,
+    wlanStatsRxFFDecap				Counter32,
+    wlanStatsTxFFEncap				Counter32,
+    wlanStatsRxBadBintval			Counter32,
+    wlanStatsRxDemicFailed			Counter32,
+    wlanStatsRxDefragFailed			Counter32,
+    wlanStatsRxMgmt				Counter32,
+    wlanStatsRxActionMgmt			Counter32,
+    wlanStatsRxAMSDUTooShort			Counter32,
+    wlanStatsRxAMSDUSplitError			Counter32,
+    wlanStatsRxAMSDUDecap			Counter32,
+    wlanStatsTxAMSDUEncap			Counter32,
+    wlanStatsAMPDUBadBAR			Counter32,
+    wlanStatsAMPDUOowBar			Counter32,
+    wlanStatsAMPDUMovedBAR			Counter32,
+    wlanStatsAMPDURxBAR				Counter32,
+    wlanStatsAMPDURxOor				Counter32,
+    wlanStatsAMPDURxCopied			Counter32,
+    wlanStatsAMPDURxDropped			Counter32,
+    wlanStatsTxDiscardBadState			Counter32,
+    wlanStatsTxFailedNoAssoc			Counter32,
+    wlanStatsTxClassifyFailed			Counter32,
+    wlanStatsDwdsMcastDiscard			Counter32,
+    wlanStatsHTAssocRejectNoHT			Counter32,
+    wlanStatsHTAssocDowngrade			Counter32,
+    wlanStatsHTAssocRateMismatch		Counter32,
+    wlanStatsAMPDURxAge				Counter32,
+    wlanStatsAMPDUMoved				Counter32,
+    wlanStatsADDBADisabledReject		Counter32,
+    wlanStatsADDBANoRequest			Counter32,
+    wlanStatsADDBABadToken			Counter32,
+    wlanStatsADDBABadPolicy			Counter32,
+    wlanStatsAMPDUStopped			Counter32,
+    wlanStatsAMPDUStopFailed			Counter32,
+    wlanStatsAMPDURxReorder			Counter32,
+    wlanStatsScansBackground			Counter32,
+    wlanLastDeauthReason			INTEGER,
+    wlanLastDissasocReason			INTEGER,
+    wlanLastAuthFailReason			INTEGER,
+    wlanStatsBeaconMissedEvents			Counter32,
+    wlanStatsRxDiscardBadStates			Counter32,
+    wlanStatsFFFlushed				Counter32,
+    wlanStatsTxControlFrames			Counter32,
+    wlanStatsAMPDURexmt				Counter32,
+    wlanStatsAMPDURexmtFailed			Counter32,
+    wlanStatsReset				INTEGER
+}
+
+wlanStatsRxBadVersion OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that had bad version."
+    ::= { wlanIfaceStatisticsEntry 1 }
+
+wlanStatsRxTooShort OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that were too short."
+    ::= { wlanIfaceStatisticsEntry 2 }
+
+wlanStatsRxWrongBssid OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface with wrong BSSID."
+    ::= { wlanIfaceStatisticsEntry 3 }
+
+wlanStatsRxDiscardedDups OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of received discarded duplicate frames by this interface."
+    ::= { wlanIfaceStatisticsEntry 4 }
+
+wlanStatsRxWrongDir OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of received frames by this interface that were dropped
+	due to wrong direction."
+    ::= { wlanIfaceStatisticsEntry 5 }
+
+wlanStatsRxDiscardMcastEcho OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of received multicast echo frames discarded by this
+	interface."
+    ::= { wlanIfaceStatisticsEntry 6 }
+
+wlanStatsRxDiscardNoAssoc OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that were dropped
+	since no association existed with the sending station."
+    ::= { wlanIfaceStatisticsEntry 7 }
+
+wlanStatsRxWepNoPrivacy OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that were dropped
+	since they contained WEP information and WEP privacy was off."
+    ::= { wlanIfaceStatisticsEntry 8 }
+
+wlanStatsRxWepUnencrypted OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that were dropped
+	since they contained no WEP information and WEP privacy was on."
+    ::= { wlanIfaceStatisticsEntry 9 }
+
+wlanStatsRxWepFailed OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that were dropped
+	since processing of the WEP information contained in them failed."
+    ::= { wlanIfaceStatisticsEntry 10 }
+
+wlanStatsRxDecapsulationFailed OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of received frames that were discarded by this interface
+	due to decapsulation failure."
+    ::= { wlanIfaceStatisticsEntry 11 }
+
+wlanStatsRxDiscardMgmt OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of received management frames discarded by this interface."
+    ::= { wlanIfaceStatisticsEntry 12 }
+
+wlanStatsRxControl OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of control frames received by this interface."
+    ::= { wlanIfaceStatisticsEntry 13 }
+
+wlanStatsRxBeacon OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of beacon frames received by this interface."
+    ::= { wlanIfaceStatisticsEntry 14 }
+
+wlanStatsRxRateSetTooBig OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface with extended
+	supported rate element."
+    ::= { wlanIfaceStatisticsEntry 15 }
+
+wlanStatsRxElemMissing OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that were missing
+	a required element."
+    ::= { wlanIfaceStatisticsEntry 16 }
+
+wlanStatsRxElemTooBig OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that contained an
+	information element whose size was too big."
+    ::= { wlanIfaceStatisticsEntry 17 }
+
+wlanStatsRxElemTooSmall OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that contained an
+	information element whose size was too small."
+    ::= { wlanIfaceStatisticsEntry 18 }
+
+wlanStatsRxElemUnknown OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that contained an
+	unknown information element."
+    ::= { wlanIfaceStatisticsEntry 19 }
+
+wlanStatsRxChannelMismatch OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface, that were discarded
+	since they were received on a channel different from the one indicated
+	in the DS params element id."
+    ::= { wlanIfaceStatisticsEntry 20 }
+
+wlanStatsRxDropped OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that were dropped due
+	to unknown reason."
+    ::= { wlanIfaceStatisticsEntry 21 }
+
+wlanStatsRxSsidMismatch OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that had a bad SSID."
+    ::= { wlanIfaceStatisticsEntry 22 }
+
+wlanStatsRxAuthNotSupported OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that contained an
+	unknown authentication algorithm."
+    ::= { wlanIfaceStatisticsEntry 23 }
+
+wlanStatsRxAuthFailed OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface for which the
+	authentication failed."
+    ::= { wlanIfaceStatisticsEntry 24 }
+
+wlanStatsRxAuthCM OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface for which the
+	authentication failed due to TKIP countermeasures enabled."
+    ::= { wlanIfaceStatisticsEntry 25 }
+
+wlanStatsRxAssocWrongBssid OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface with association
+	request that had a bad BSSID."
+    ::= { wlanIfaceStatisticsEntry 26 }
+
+wlanStatsRxAssocNoAuth OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface with association
+	request that came from unauthentication node."
+    ::= { wlanIfaceStatisticsEntry 27 }
+
+wlanStatsRxAssocCapMismatch OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface with association
+	request that had bad capabilities set."
+    ::= { wlanIfaceStatisticsEntry 28 }
+
+wlanStatsRxAssocNoRateMatch OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface with association
+	request that had unsupported rate set."
+    ::= { wlanIfaceStatisticsEntry 29 }
+
+wlanStatsRxBadWpaIE OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface with association
+	request that had no or invalid WPA information element."
+    ::= { wlanIfaceStatisticsEntry 30 }
+
+wlanStatsRxDeauthenticate OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of deauthentication requests received by this interface."
+    ::= { wlanIfaceStatisticsEntry 31 }
+
+wlanStatsRxDisassociate OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of deassociation requests received by this interface."
+    ::= { wlanIfaceStatisticsEntry 32 }
+
+wlanStatsRxUnknownSubtype OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that had unknown
+	subtype."
+    ::= { wlanIfaceStatisticsEntry 33 }
+
+wlanStatsRxFailedNoBuf OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that were dropped
+	due to lack of free buffers."
+    ::= { wlanIfaceStatisticsEntry 34 }
+
+wlanStatsRxBadAuthRequest OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface for which
+	authentication failed."
+    ::= { wlanIfaceStatisticsEntry 35 }
+
+wlanStatsRxUnAuthorized OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of non-PAE frames received by this interface prior to
+	authorization."
+    ::= { wlanIfaceStatisticsEntry 36 }
+
+wlanStatsRxBadKeyId OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface with bad key."
+    ::= { wlanIfaceStatisticsEntry 37 }
+
+wlanStatsRxCCMPSeqViolation OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that caused CCMP
+	sequence violation."
+    ::= { wlanIfaceStatisticsEntry 38 }
+
+wlanStatsRxCCMPBadFormat OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that had bad CCMP
+	format."
+    ::= { wlanIfaceStatisticsEntry 39 }
+
+wlanStatsRxCCMPFailedMIC OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames receivbed by this interface for which CCMP
+	decryption failed due to MIC mismatch."
+    ::= { wlanIfaceStatisticsEntry 40 }
+
+wlanStatsRxTKIPSeqViolation OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that caused TKIP
+	sequence violation.."
+    ::= { wlanIfaceStatisticsEntry 41 }
+
+wlanStatsRxTKIPBadFormat OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that were missing
+	TKIP ExtIV."
+    ::= { wlanIfaceStatisticsEntry 42 }
+
+wlanStatsRxTKIPFailedMIC OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface for which TKIP
+	decryption failed due to MIC mismatch."
+    ::= { wlanIfaceStatisticsEntry 43 }
+
+wlanStatsRxTKIPFailedICV OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface for which TKIP
+	decryption failed due to ICV mismatch."
+    ::= { wlanIfaceStatisticsEntry 44 }
+
+wlanStatsRxDiscardACL OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface that were
+	disallowed by ACL."
+    ::= { wlanIfaceStatisticsEntry 45 }
+
+wlanStatsTxFailedNoBuf OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames that were not transmitted by this interface
+	due to lack of free buffers."
+    ::= { wlanIfaceStatisticsEntry 46 }
+
+wlanStatsTxFailedNoNode OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames that were queued for transmit on this interface
+	but were not sent since appropriate node for sending was not found."
+    ::= { wlanIfaceStatisticsEntry 47 }
+
+wlanStatsTxUnknownMgmt OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of unknown management frames transmitted by this interface."
+    ::= { wlanIfaceStatisticsEntry 48 }
+
+wlanStatsTxBadCipher OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames that were queued for transmit on this interface
+	but were not send since the specified key was not setup."
+    ::= { wlanIfaceStatisticsEntry 49 }
+
+wlanStatsTxNoDefKey OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames that were queued for transmit on this interface
+	but were not send since an appropriate key was not found."
+    ::= { wlanIfaceStatisticsEntry 50 }
+
+wlanStatsTxFragmented OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of fragmented frames transmitted by this interface."
+    ::= { wlanIfaceStatisticsEntry 51 }
+
+wlanStatsTxFragmentsCreated OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of created fragments transmitted by this interface."
+    ::= { wlanIfaceStatisticsEntry 52 }
+
+wlanStatsActiveScans OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of active scans performed by this interface."
+    ::= { wlanIfaceStatisticsEntry 53 }
+
+wlanStatsPassiveScans OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of passive scans performed by this interface."
+    ::= { wlanIfaceStatisticsEntry 54 }
+
+wlanStatsTimeoutInactivity OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times a station/node was dropped by this interface
+	due to inactivity timeout."
+    ::= { wlanIfaceStatisticsEntry 55 }
+
+wlanStatsCryptoNoMem OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number times attaching a crypto protocol to this interface
+	failed due to lack of memory."
+    ::= { wlanIfaceStatisticsEntry 56 }
+
+wlanStatsSwCryptoTKIP OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times TKIP encryption/decryption was handled in
+	 software for frames received/transmitted by this interface."
+    ::= { wlanIfaceStatisticsEntry 57 }
+
+wlanStatsSwCryptoTKIPEnMIC OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times TKIP MIC was added in software to frames
+	transmitted by this interface."
+    ::= { wlanIfaceStatisticsEntry 58 }
+
+wlanStatsSwCryptoTKIPDeMIC OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times TKIP MIC was stripped in software from frames
+	received by this interface."
+    ::= { wlanIfaceStatisticsEntry 59 }
+
+wlanStatsCryptoTKIPCM OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames discarded by this interface due to TKIP
+	counter measures."
+    ::= { wlanIfaceStatisticsEntry 60 }
+
+wlanStatsSwCryptoCCMP OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times CCMP encryption/decryption was handled in
+	 software for frames received/transmitted by this interface."
+    ::= { wlanIfaceStatisticsEntry 61 }
+
+wlanStatsSwCryptoWEP OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times WEP encryption/decryption was handled in
+	 software for frames received/transmitted by this interface."
+    ::= { wlanIfaceStatisticsEntry 62 }
+
+wlanStatsCryptoCipherKeyRejected OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times a key was rejected for this interface."
+    ::= { wlanIfaceStatisticsEntry 63 }
+
+wlanStatsCryptoNoKey OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times key setup for this interface failed."
+    ::= { wlanIfaceStatisticsEntry 64 }
+
+wlanStatsCryptoDeleteKeyFailed OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times key deletion from driver for this interface
+	failed."
+    ::= { wlanIfaceStatisticsEntry 65 }
+
+wlanStatsCryptoUnknownCipher OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times key setup for this interface failed due to
+	invalid cipher."
+    ::= { wlanIfaceStatisticsEntry 66 }
+
+wlanStatsCryptoAttachFailed OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times attaching a cipher for this interface failed."
+    ::= { wlanIfaceStatisticsEntry 67 }
+
+wlanStatsCryptoKeyFailed OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times setting a cipher in the driver for this
+	interface failed."
+    ::= { wlanIfaceStatisticsEntry 68 }
+
+wlanStatsCryptoEnMICFailed OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames that were discarded by by this interface
+	due to failed enmic."
+    ::= { wlanIfaceStatisticsEntry 69 }
+
+wlanStatsIBSSCapMismatch OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times a BSSID change failed for an interface operating
+	in ad hoc mode due to capabilities mismatch."
+    ::= { wlanIfaceStatisticsEntry 70 }
+
+wlanStatsUnassocStaPSPoll OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of ps-poll frames from unassociated station received
+	by this interface."
+    ::= { wlanIfaceStatisticsEntry 71 }
+
+wlanStatsBadAidPSPoll OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of ps-poll frames with incorrect aid received by this
+	interface."
+    ::= { wlanIfaceStatisticsEntry 72 }
+
+wlanStatsEmptyPSPoll OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of empty ps-poll frames received by this interface."
+    ::= { wlanIfaceStatisticsEntry 73 }
+
+wlanStatsRxFFBadHdr OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of fast frames with bad header received by this interface."
+    ::= { wlanIfaceStatisticsEntry 74 }
+
+wlanStatsRxFFTooShort OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of fast frames received by this interface, for which
+	decapsulation failed."
+    ::= { wlanIfaceStatisticsEntry 75 }
+
+wlanStatsRxFFSplitError OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of fast frames received by this interface, for which
+	decapsulation failed during split."
+    ::= { wlanIfaceStatisticsEntry 76 }
+
+wlanStatsRxFFDecap OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of fast frames received by this interface, that were
+	successfully  decapsulated."
+    ::= { wlanIfaceStatisticsEntry 77 }
+
+wlanStatsTxFFEncap OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of encapsulated fast frames transmitted by this interface."
+    ::= { wlanIfaceStatisticsEntry 78 }
+
+wlanStatsRxBadBintval OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames with bogus beacon interval received by this
+	interface."
+    ::= { wlanIfaceStatisticsEntry 79 }
+
+wlanStatsRxDemicFailed OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface for which
+	stripping of the MIC failed."
+    ::= { wlanIfaceStatisticsEntry 80 }
+
+wlanStatsRxDefragFailed OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received by this interface for which
+	defragmentation failed."
+    ::= { wlanIfaceStatisticsEntry 81 }
+
+wlanStatsRxMgmt OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of management frames received by this interface."
+    ::= { wlanIfaceStatisticsEntry 82 }
+
+wlanStatsRxActionMgmt OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of action management frames received by this interface."
+    ::= { wlanIfaceStatisticsEntry 83 }
+
+wlanStatsRxAMSDUTooShort OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of A-MSDU frames received by this interface for which
+	decapsulaiton failed."
+    ::= { wlanIfaceStatisticsEntry 84 }
+
+wlanStatsRxAMSDUSplitError OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of A-MSDU frames received by this interface for which
+	split failed."
+    ::= { wlanIfaceStatisticsEntry 85 }
+
+wlanStatsRxAMSDUDecap OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of A-MSDU frames received by this interface which
+	were successfully decapsulaited."
+    ::= { wlanIfaceStatisticsEntry 86 }
+
+wlanStatsTxAMSDUEncap OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of encapsulated  A-MSDU frames transmitted by this
+	interface."
+    ::= { wlanIfaceStatisticsEntry 87 }
+
+wlanStatsAMPDUBadBAR OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of A-MPDU  frames that were dropped by this interface
+	source BAR frame processing was disabled."
+    ::= { wlanIfaceStatisticsEntry 88 }
+
+wlanStatsAMPDUOowBar OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of A-MPDU BAR before ADDBA frames received by this
+	interface."
+    ::= { wlanIfaceStatisticsEntry 89 }
+
+wlanStatsAMPDUMovedBAR OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times a BAR moved window occurred."
+    ::= { wlanIfaceStatisticsEntry 90 }
+
+wlanStatsAMPDURxBAR OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of A-MPDU BAR frames received by this interface."
+    ::= { wlanIfaceStatisticsEntry 91 }
+
+wlanStatsAMPDURxOor OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of out-of-order A-MPDU frames by received this interface."
+    ::= { wlanIfaceStatisticsEntry 92 }
+
+wlanStatsAMPDURxCopied OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of A-MPDU frames by copied down this interface."
+    ::= { wlanIfaceStatisticsEntry 93 }
+
+wlanStatsAMPDURxDropped OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of A-MPDU frames by dropped this interface."
+    ::= { wlanIfaceStatisticsEntry 94 }
+
+wlanStatsTxDiscardBadState OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames queued for transmit on this interface that
+	were discarded due to interface state not ready for transmit."
+    ::= { wlanIfaceStatisticsEntry 95 }
+
+wlanStatsTxFailedNoAssoc OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames queued for transmit on this interface that
+	were discarded since the receiving station was not associated."
+    ::= { wlanIfaceStatisticsEntry 96 }
+
+wlanStatsTxClassifyFailed OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames queued for transmit on this interface that
+	were discarded since their priority was not determined."
+    ::= { wlanIfaceStatisticsEntry 97 }
+
+wlanStatsDwdsMcastDiscard OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of multicast over DWDS frames discarded by this interface."
+    ::= { wlanIfaceStatisticsEntry 98 }
+
+wlanStatsHTAssocRejectNoHT OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of management frames received from a non-HT stations
+	that were rejected by this interface."
+    ::= { wlanIfaceStatisticsEntry 99 }
+
+wlanStatsHTAssocDowngrade OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times HT was disallowed for an association on
+	this interface due to WEP or TKIP requested."
+    ::= { wlanIfaceStatisticsEntry 100 }
+
+wlanStatsHTAssocRateMismatch OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times rate mismatch occurred during HT rate set
+	handling on this interface."
+    ::= { wlanIfaceStatisticsEntry 101 }
+
+wlanStatsAMPDURxAge OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of A-MPDU frames sent by this interface due to aging out."
+    ::= { wlanIfaceStatisticsEntry 102 }
+
+wlanStatsAMPDUMoved OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of time A-MPDU MSDU moved window occurred for this
+	interface."
+    ::= { wlanIfaceStatisticsEntry 103 }
+
+wlanStatsADDBADisabledReject OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of received ADDBA frames that were discarded by this
+	interface since ADDBA was disabled."
+    ::= { wlanIfaceStatisticsEntry 104 }
+
+wlanStatsADDBANoRequest OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of received ADDBA responses frames that were discarded
+	by this interface due to no pending ADDBA."
+    ::= { wlanIfaceStatisticsEntry 105 }
+
+wlanStatsADDBABadToken OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of received ADDBA response frames that were discarded
+	by this interface since ADDBA response caused dialogtoken mismatch."
+    ::= { wlanIfaceStatisticsEntry 106 }
+
+wlanStatsADDBABadPolicy OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of received ADDBA response frames that were discarded
+	by this interface since ADDBA response caused policy mismatch."
+    ::= { wlanIfaceStatisticsEntry 107 }
+
+wlanStatsAMPDUStopped OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times a A-MPDU stream stopped on this interface."
+    ::= { wlanIfaceStatisticsEntry 108 }
+
+wlanStatsAMPDUStopFailed OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times a A-MPDU stream stop failed on this interface."
+    ::= { wlanIfaceStatisticsEntry 109 }
+
+wlanStatsAMPDURxReorder OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of received reordered A-MPDU frames on this interface."
+    ::= { wlanIfaceStatisticsEntry 110 }
+
+wlanStatsScansBackground OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of background scans started on this interface."
+    ::= { wlanIfaceStatisticsEntry 111 }
+
+wlanLastDeauthReason OBJECT-TYPE
+    SYNTAX	WlanMgmtReasonCode
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The last received deauthenticate reason on this interface."
+    ::= { wlanIfaceStatisticsEntry 112 }
+
+wlanLastDissasocReason OBJECT-TYPE
+    SYNTAX	WlanMgmtReasonCode
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The last received disassociate reason on this interface."
+    ::= { wlanIfaceStatisticsEntry 113 }
+
+wlanLastAuthFailReason OBJECT-TYPE
+    SYNTAX	WlanMgmtReasonCode
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The last received authentication failed reason on this interface."
+    ::= { wlanIfaceStatisticsEntry 114 }
+
+wlanStatsBeaconMissedEvents OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of beacon miss notification events on this interface."
+    ::= { wlanIfaceStatisticsEntry 115 }
+
+wlanStatsRxDiscardBadStates OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames received on this interface that were discarded
+	due to interface state not ready for receive."
+    ::= { wlanIfaceStatisticsEntry 116 }
+
+wlanStatsFFFlushed OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of fast frames flushed from the stage queue on this
+	interface."
+    ::= { wlanIfaceStatisticsEntry 117 }
+
+wlanStatsTxControlFrames OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of control frames transmitted by this interface."
+    ::= { wlanIfaceStatisticsEntry 118 }
+
+wlanStatsAMPDURexmt OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of A-MPDU frames successfully retransmitted by this
+	interface."
+    ::= { wlanIfaceStatisticsEntry 119 }
+
+wlanStatsAMPDURexmtFailed OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of A-MPDU frames for which retransmission failed on
+	this interface."
+    ::= { wlanIfaceStatisticsEntry 120 }
+
+wlanStatsReset OBJECT-TYPE
+    SYNTAX	INTEGER {
+			no-op(1),
+			clear(2)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object is used to reset the statistics on this
+	interface."
+    ::= { wlanIfaceStatisticsEntry 121 }
+
+-- ---------------------------------------------------------- --
+--  The WEP Configuration Database for Wireless interfaces
+-- ---------------------------------------------------------- --
+
+wlanWepInterfaceTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanWepInterfaceEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains WEP configuration for the wireless interfaces
+	on the managed system."
+    ::= { begemotWlanWep 1 }
+
+wlanWepInterfaceEntry OBJECT-TYPE
+    SYNTAX	WlanWepInterfaceEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"WEP Configuration for wireless interface."
+    INDEX { wlanIfaceName}
+    ::= { wlanWepInterfaceTable 1 }
+
+WlanWepInterfaceEntry ::= SEQUENCE {
+    wlanWepMode					INTEGER,
+    wlanWepDefTxKey				INTEGER
+}
+
+wlanWepMode OBJECT-TYPE
+    SYNTAX	INTEGER {
+		    off(0),
+		    on(1),
+		    mixed(2)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The WEP mode set on the interface."
+    DEFVAL	{ off }
+    ::= { wlanWepInterfaceEntry 1 }
+
+wlanWepDefTxKey OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The index of the default WEP key for the interface."
+    ::= { wlanWepInterfaceEntry 2 }
+
+wlanWepKeyTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanWepKeyEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains the configured WEP keys for a virtual
+	wireless interface."
+    ::= { begemotWlanWep 2 }
+
+wlanWepKeyEntry OBJECT-TYPE
+    SYNTAX	WlanWepKeyEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A configured WEP Key entry."
+    INDEX { wlanIfaceName, wlanWepKeyID }
+    ::= { wlanWepKeyTable 1 }
+
+WlanWepKeyEntry ::= SEQUENCE {
+    wlanWepKeyID				INTEGER,
+    wlanWepKeyLength				INTEGER,
+    wlanWepKeySet				OCTET STRING,
+    wlanWepKeyHash				OCTET STRING,
+    wlanWepKeyStatus				RowStatus
+}
+
+wlanWepKeyID OBJECT-TYPE
+    SYNTAX	INTEGER (1..4)
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The WEP Key ID."
+    ::= { wlanWepKeyEntry 1 }
+
+wlanWepKeyLength OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The WEP Key length."
+    ::= { wlanWepKeyEntry 2 }
+
+wlanWepKeySet OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The WEP Key String to configure for this key. When GET is attempted
+	for this column, an empty Octet String is returned."
+    ::= { wlanWepKeyEntry 3 }
+
+wlanWepKeyHash OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The SHA256 hash produced of the WEP Key String."
+    ::= { wlanWepKeyEntry 4 }
+
+wlanWepKeyStatus OBJECT-TYPE
+    SYNTAX	RowStatus
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"This object is used for creating/deleting WEP keys."
+    ::= { wlanWepKeyEntry 5 }
+
+-- ---------------------------------------------------------- --
+--  The MAC Access Control Database for Wireless interfaces
+-- ---------------------------------------------------------- --
+
+wlanMACAccessControlTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanMACAccessControlEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains Access Control configuration for wireless
+	interfaces operating as an access point."
+    ::= { begemotWlanMACAccessControl 1 }
+
+wlanMACAccessControlEntry OBJECT-TYPE
+    SYNTAX	WlanMACAccessControlEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"The MAC Access Control configuration for a wireless interface
+	operating as an access point."
+    INDEX { wlanIfaceName}
+    ::= { wlanMACAccessControlTable 1 }
+
+WlanMACAccessControlEntry ::= SEQUENCE {
+    wlanMACAccessControlPolicy			INTEGER,
+    wlanMACAccessControlNacl			Counter32,
+    wlanMACAccessControlFlush			INTEGER
+}
+
+wlanMACAccessControlPolicy OBJECT-TYPE
+    SYNTAX	INTEGER {
+		    open(0),
+		    allow(1),
+		    deny(2),
+		    radius(7)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies the MAC Access Control policy
+	for this Host AP interface."
+    DEFVAL	{ open }
+    ::= { wlanMACAccessControlEntry 1 }
+
+wlanMACAccessControlNacl OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of active MAC Access Control Entries in the Database
+	for this Host AP interface."
+    ::= { wlanMACAccessControlEntry 2 }
+
+wlanMACAccessControlFlush OBJECT-TYPE
+    SYNTAX	INTEGER {
+		    no-op(0),
+		    flush(1)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"This object is used to flush all entries from the MAC Access
+	Control Database for the specified virtual wireless interface."
+    ::= { wlanMACAccessControlEntry 3 }
+
+wlanMACAccessControlMACTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanMACAccessControlMACEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains Access Control MAC for virtual wireless
+	interfaces operating in Host AP mode."
+    ::= { begemotWlanMACAccessControl 2 }
+
+wlanMACAccessControlMACEntry OBJECT-TYPE
+    SYNTAX	WlanMACAccessControlMACEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"The MAC Access Control configuration database with MAC addresses
+	for a virtual wireless interface."
+    INDEX { wlanIfaceName, wlanMACAccessControlMAC }
+    ::= { wlanMACAccessControlMACTable 1 }
+
+WlanMACAccessControlMACEntry ::= SEQUENCE {
+    wlanMACAccessControlMAC			MacAddress,
+    wlanMACAccessControlMACStatus		RowStatus
+}
+
+wlanMACAccessControlMAC OBJECT-TYPE
+    SYNTAX	MacAddress
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The value of this object specifies the station's MAC to which
+	the Access Control policy will be applied."
+    ::= { wlanMACAccessControlMACEntry 1 }
+
+wlanMACAccessControlMACStatus OBJECT-TYPE
+    SYNTAX	RowStatus
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The object is used to add or delete MAC entries from the Access
+	Control Database for this interface operating in Host AP mode.
+	To add an entry the value of this object should be set to createAndGo,
+	a value of destroy will remove an existing entry. A GET on this object
+	will always return value active."
+    ::= { wlanMACAccessControlMACEntry 2 }
+
+-- ---------------------------------------------------------- --
+--  The Mesh Routing Database for interfaces operating in mesh mode
+-- ---------------------------------------------------------- --
+
+wlanMeshRoutingConfig		OBJECT IDENTIFIER ::= { begemotWlanMeshRouting 1 }
+
+wlanMeshInterface		OBJECT IDENTIFIER ::= { begemotWlanMeshRouting 2 }
+
+wlanMeshRoute			OBJECT IDENTIFIER ::= { begemotWlanMeshRouting 3 }
+
+wlanMeshStatistics		OBJECT IDENTIFIER ::= { begemotWlanMeshRouting 4 }
+
+wlanMeshRouteProtocols		OBJECT IDENTIFIER ::= { begemotWlanMeshRouting 5 }
+
+wlanMeshMaxRetries OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"Maximum retries during peer link establishment for wireless mesh
+	routing operation."
+    DEFVAL	{ 2 }
+    ::= { wlanMeshRoutingConfig 1 }
+
+wlanMeshConfirmTimeout OBJECT-TYPE
+    SYNTAX	INTEGER
+    UNITS	"milliseconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"Confirm state timeout for wireless mesh routing operation."
+    DEFVAL	{ 40 }
+    ::= { wlanMeshRoutingConfig 2 }
+
+wlanMeshHoldingTimeout OBJECT-TYPE
+    SYNTAX	INTEGER
+    UNITS	"milliseconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"Holding state timeout for wireless mesh routing operation."
+    DEFVAL	{ 40 }
+    ::= { wlanMeshRoutingConfig 3 }
+
+wlanMeshRetryTimeout OBJECT-TYPE
+    SYNTAX	INTEGER
+    UNITS	"milliseconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"Retry timeout for wireless mesh routing operation."
+    DEFVAL	{ 40 }
+    ::= { wlanMeshRoutingConfig 4 }
+
+wlanMeshInterfaceTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanMeshInterfaceEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains information for wireless interfaces operating
+	as wireless mesh points."
+    ::= { wlanMeshInterface 1 }
+
+wlanMeshInterfaceEntry OBJECT-TYPE
+    SYNTAX	WlanMeshInterfaceEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Wireless Mesh Routing information for an interface operating as
+	mesh point."
+    INDEX { wlanIfaceName }
+    ::= { wlanMeshInterfaceTable 1 }
+
+WlanMeshInterfaceEntry ::= SEQUENCE {
+    wlanMeshId					OCTET STRING,
+    wlanMeshTTL					INTEGER,
+    wlanMeshPeeringEnabled			TruthValue,
+    wlanMeshForwardingEnabled			TruthValue,
+    wlanMeshMetric				INTEGER,
+    wlanMeshPath				INTEGER,
+    wlanMeshRoutesFlush				INTEGER
+}
+
+wlanMeshId OBJECT-TYPE
+    SYNTAX	OCTET STRING (SIZE(1..32))
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The desired Mesh Identifier for the interface."
+    ::= { wlanMeshInterfaceEntry 1 }
+
+wlanMeshTTL OBJECT-TYPE
+    SYNTAX	INTEGER
+    UNITS	"hops"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The number of hops a packet may be forwarded before it is discarded."
+    DEFVAL	{ 31 }
+    ::= { wlanMeshInterfaceEntry 2 }
+
+wlanMeshPeeringEnabled OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"Enable or disable peering with neighbor mesh stations for this
+	interface."
+    DEFVAL	{ true }
+    ::= { wlanMeshInterfaceEntry 3 }
+
+wlanMeshForwardingEnabled OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"Enable or disable forwarding packets by this interface."
+    DEFVAL	{ true }
+    ::= { wlanMeshInterfaceEntry 4 }
+
+wlanMeshMetric OBJECT-TYPE
+    SYNTAX	INTEGER {
+			unknown(0),
+			airtime(1)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The link metric protocol used by the interface."
+    DEFVAL	{ airtime }
+    ::= { wlanMeshInterfaceEntry 5 }
+
+wlanMeshPath OBJECT-TYPE
+    SYNTAX	INTEGER {
+			unknown(0),
+			hwmp(1)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The path selection protocol used by the interface."
+    DEFVAL	{ hwmp }
+    ::= { wlanMeshInterfaceEntry 6 }
+
+wlanMeshRoutesFlush OBJECT-TYPE
+    SYNTAX	INTEGER {
+		    no-op(0),
+		    flush(1)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"This object is used to flush all mesh route entries from the mesh
+	routing table for the specified interface."
+    ::= { wlanMeshInterfaceEntry 7 }
+
+wlanMeshNeighborTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanMeshNeighborEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains information for the neighbors of wireless
+	interfaces operating in mesh mode."
+    ::= { wlanMeshInterface 2 }
+
+wlanMeshNeighborEntry OBJECT-TYPE
+    SYNTAX	WlanMeshNeighborEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Information for all neighbors of a wireless interface operating as
+	a mesh point."
+    INDEX { wlanIfaceName, wlanMeshNeighborAddress }
+    ::= { wlanMeshNeighborTable 1 }
+
+WlanMeshNeighborEntry ::= SEQUENCE {
+    wlanMeshNeighborAddress			MacAddress,
+    wlanMeshNeighborFrequency			INTEGER,
+    wlanMeshNeighborLocalId			INTEGER,
+    wlanMeshNeighborPeerId			INTEGER,
+    wlanMeshNeighborPeerState			INTEGER,
+    wlanMeshNeighborCurrentTXRate		INTEGER,
+    wlanMeshNeighborRxSignalStrength		INTEGER,
+    wlanMeshNeighborIdleTimer			INTEGER,
+    wlanMeshNeighborTxSequenceNo		INTEGER,
+    wlanMeshNeighborRxSequenceNo		INTEGER
+}
+
+wlanMeshNeighborAddress OBJECT-TYPE
+    SYNTAX	MacAddress
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The Ethernet address of this neighbor."
+    ::= { wlanMeshNeighborEntry 1 }
+
+wlanMeshNeighborFrequency OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The operating frequency for the link with this neighbor."
+    ::= { wlanMeshNeighborEntry 2 }
+
+wlanMeshNeighborLocalId OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The local mesh id for this neighbor."
+    ::= { wlanMeshNeighborEntry 3 }
+
+wlanMeshNeighborPeerId OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The mesh peer id of this neighbor."
+    ::= { wlanMeshNeighborEntry 4 }
+
+wlanMeshNeighborPeerState OBJECT-TYPE
+    SYNTAX	INTEGER {
+			idle(0),
+			openTx(1),
+			openRx(2),
+			confirmRx(3),
+			established(4),
+			closing(5)
+		}
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The current link state for this neighbor."
+    ::= { wlanMeshNeighborEntry 5 }
+
+wlanMeshNeighborCurrentTXRate OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The current transmit rate for this neighbor."
+    ::= { wlanMeshNeighborEntry 6 }
+
+wlanMeshNeighborRxSignalStrength OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The average receive signal strength for this neighbor."
+    ::= { wlanMeshNeighborEntry 7 }
+
+wlanMeshNeighborIdleTimer OBJECT-TYPE
+    SYNTAX	INTEGER
+    UNITS	"seconds"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The value of this neighbor's inactivity timer."
+    ::= { wlanMeshNeighborEntry 8 }
+
+wlanMeshNeighborTxSequenceNo OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The last sequence number transmitted to this neighbor."
+    ::= { wlanMeshNeighborEntry 9 }
+
+wlanMeshNeighborRxSequenceNo OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The last sequence number received from this neighbor."
+    ::= { wlanMeshNeighborEntry 10 }
+
+wlanMeshRouteTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanMeshRouteEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains the mesh routing table for interfaces operating
+	as mesh points, used for forwarding packets on a mesh network."
+    ::= { wlanMeshRoute 1 }
+
+wlanMeshRouteEntry OBJECT-TYPE
+    SYNTAX	WlanMeshRouteEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Wireless Mesh Routing Table entries for virtual wireless interfaces."
+    INDEX { wlanIfaceName, wlanMeshRouteDestination }
+    ::= { wlanMeshRouteTable 1 }
+
+WlanMeshRouteEntry ::= SEQUENCE {
+    wlanMeshRouteDestination			MacAddress,
+    wlanMeshRouteNextHop			MacAddress,
+    wlanMeshRouteHops				INTEGER,
+    wlanMeshRouteMetric				Unsigned32,
+    wlanMeshRouteLifeTime			Unsigned32,
+    wlanMeshRouteLastMseq			Unsigned32,
+    wlanMeshRouteFlags				BITS,
+    wlanMeshRouteStatus				RowStatus
+}
+
+wlanMeshRouteDestination OBJECT-TYPE
+    SYNTAX	MacAddress
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	"The mesh route entry's destination address."
+    ::= { wlanMeshRouteEntry 1 }
+
+wlanMeshRouteNextHop OBJECT-TYPE
+    SYNTAX	MacAddress
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The mesh route entry's next hop address."
+    ::= { wlanMeshRouteEntry 2 }
+
+wlanMeshRouteHops OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of hops for this mesh route entry."
+    ::= { wlanMeshRouteEntry 3 }
+
+wlanMeshRouteMetric OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The metric of this mesh route entry."
+    ::= { wlanMeshRouteEntry 4 }
+
+wlanMeshRouteLifeTime OBJECT-TYPE
+    SYNTAX	Unsigned32
+    UNITS	"seconds"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The life time of this mesh route entry."
+    ::= { wlanMeshRouteEntry 5 }
+
+wlanMeshRouteLastMseq OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The last sequence number seen from this destination."
+    ::= { wlanMeshRouteEntry 6 }
+
+wlanMeshRouteFlags OBJECT-TYPE
+    SYNTAX	BITS {
+			valid(1),
+			proxy(2)
+		}
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The Mesh Route entry's flags."
+    ::= { wlanMeshRouteEntry 7 }
+
+wlanMeshRouteStatus OBJECT-TYPE
+    SYNTAX	RowStatus
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The object is used to add or delete entries from the mesh routing
+	table for the virtual wireless interface."
+    ::= { wlanMeshRouteEntry 8 }
+
+wlanMeshStatsTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanMeshStatsEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains summary statistics for each virtual wireless
+	interface operating as mesh point."
+    ::= { wlanMeshStatistics 1 }
+
+wlanMeshStatsEntry OBJECT-TYPE
+    SYNTAX	WlanMeshStatsEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A list of statistics for each virtual wireless interface operating
+	as mesh point."
+    INDEX { wlanIfaceName }
+    ::= { wlanMeshStatsTable 1 }
+
+WlanMeshStatsEntry ::= SEQUENCE {
+    wlanMeshDroppedBadSta			Counter32,
+    wlanMeshDroppedNoLink			Counter32,
+    wlanMeshNoFwdTtl				Counter32,
+    wlanMeshNoFwdBuf				Counter32,
+    wlanMeshNoFwdTooShort			Counter32,
+    wlanMeshNoFwdDisabled			Counter32,
+    wlanMeshNoFwdPathUnknown			Counter32,
+    wlanMeshDroppedBadAE			Counter32,
+    wlanMeshRouteAddFailed			Counter32,
+    wlanMeshDroppedNoProxy			Counter32,
+    wlanMeshDroppedMisaligned			Counter32
+}
+
+wlanMeshDroppedBadSta OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames dropped by this interface since they were
+	received from a non-mesh station."
+    ::= { wlanMeshStatsEntry 1 }
+
+wlanMeshDroppedNoLink OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames dropped by this interface since no link had
+	been established."
+    ::= { wlanMeshStatsEntry 2 }
+
+wlanMeshNoFwdTtl OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames that were not forwarded by this interface
+	because of a zero TTL."
+    ::= { wlanMeshStatsEntry 3 }
+
+wlanMeshNoFwdBuf OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames that were not forwarded by this interface
+	due to lack of free buffers."
+    ::= { wlanMeshStatsEntry 4 }
+
+wlanMeshNoFwdTooShort OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames that were not forwarded by this interface
+	due to missing headers."
+    ::= { wlanMeshStatsEntry 5 }
+
+wlanMeshNoFwdDisabled OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames that were not forwarded by this interface
+	since forwarding was disabled."
+    ::= { wlanMeshStatsEntry 6 }
+
+wlanMeshNoFwdPathUnknown OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames that were not forwarded by this interface
+	since the path was unknown."
+    ::= { wlanMeshStatsEntry 7 }
+
+wlanMeshDroppedBadAE OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames that were dropped by this interface since
+	the AE was invalid."
+    ::= { wlanMeshStatsEntry 8 }
+
+wlanMeshRouteAddFailed OBJECT-TYPE
+    SYNTAX	Counter32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of times an addition of a route to the mesh routing
+	table for this interface failed."
+    ::= { wlanMeshStatsEntry 9 }
+
+wlanMeshDroppedNoProxy OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames that were dropped by this interface since
+	proxying was not enabled on the interface."
+    ::= { wlanMeshStatsEntry 10 }
+
+wlanMeshDroppedMisaligned OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of frames that were dropped by this interface due to
+	bad alignment."
+    ::= { wlanMeshStatsEntry 11 }
+
+-- ---------------------------------------------------------- --
+--  Subtrees containing data for each supported mesh routing protocol.
+-- ---------------------------------------------------------- --
+
+wlanMeshProtoHWMP		OBJECT IDENTIFIER ::= { wlanMeshRouteProtocols 1 }
+
+-- ---------------------------------------------------------- --
+--  Hybrid Wireless Mesh Protocol database.
+-- ---------------------------------------------------------- --
+wlanMeshHWMPConfig		OBJECT IDENTIFIER ::= { wlanMeshProtoHWMP 1 }
+
+wlanMeshHWMPInterface		OBJECT IDENTIFIER ::= { wlanMeshProtoHWMP 2 }
+
+wlanMeshHWMPStatistics		OBJECT IDENTIFIER ::= { wlanMeshProtoHWMP 3 }
+
+wlanHWMPRouteInactiveTimeout OBJECT-TYPE
+    SYNTAX	INTEGER
+    UNITS	"milliseconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The HWMP Route inactivity timeout."
+    DEFVAL	{ 5000 }
+    ::= { wlanMeshHWMPConfig 1 }
+
+wlanHWMPRootAnnounceInterval OBJECT-TYPE
+    SYNTAX	INTEGER
+    UNITS	"milliseconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The HWMP Root Announcement interval."
+    DEFVAL	{ 1000 }
+    ::= { wlanMeshHWMPConfig 2 }
+
+wlanHWMPRootInterval OBJECT-TYPE
+    SYNTAX	INTEGER
+    UNITS	"milliseconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The HWMP Root interval."
+    DEFVAL	{ 2000 }
+    ::= { wlanMeshHWMPConfig 3 }
+
+wlanHWMPRootTimeout  OBJECT-TYPE
+    SYNTAX	INTEGER
+    UNITS	"milliseconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The root PREQ timeout."
+    DEFVAL	{ 5000 }
+    ::= { wlanMeshHWMPConfig 4 }
+
+wlanHWMPPathLifetime OBJECT-TYPE
+    SYNTAX	INTEGER
+    UNITS	"milliseconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The HWMP path entry lifetime."
+    DEFVAL	{ 500 }
+    ::= { wlanMeshHWMPConfig 5 }
+
+wlanHWMPReplyForwardBit OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"A non-zero value for this object specifies that RF bit shall be
+	set on generated PREQs."
+    DEFVAL	{ 1 }
+    ::= { wlanMeshHWMPConfig 6 }
+
+wlanHWMPTargetOnlyBit OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"A non-zero value for this object specifies that TO bit shall be
+	set on generated PREQs."
+    DEFVAL	{ 0 }
+    ::= { wlanMeshHWMPConfig 7 }
+
+wlanHWMPInterfaceTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanHWMPInterfaceEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains information for wireless interfaces
+	operating in mesh mode."
+    ::= { wlanMeshHWMPInterface 1 }
+
+wlanHWMPInterfaceEntry OBJECT-TYPE
+    SYNTAX	WlanHWMPInterfaceEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Wireless Mesh Routing HWMP information for a wireless interface."
+    INDEX { wlanIfaceName }
+    ::= { wlanHWMPInterfaceTable 1 }
+
+WlanHWMPInterfaceEntry ::= SEQUENCE {
+    wlanHWMPRootMode				INTEGER,
+    wlanHWMPMaxHops				INTEGER
+}
+
+wlanHWMPRootMode OBJECT-TYPE
+    SYNTAX	INTEGER {
+			disabled(1),
+			normal(2),
+			proactive(3),
+			rann(4)
+		}
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"This object is used to configure whether the interface will operate
+	as root node and specify root node mode."
+    DEFVAL	{ disabled }
+    ::= { wlanHWMPInterfaceEntry 1 }
+
+wlanHWMPMaxHops OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	"The maximum number of hops allowed on an HMWP path for this interface."
+    DEFVAL	{ 31 }
+    ::= { wlanHWMPInterfaceEntry 2 }
+
+wlanMeshHWMPStatsTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF WlanMeshHWMPStatsEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A table that contains summary statistics for HWMP operation on an
+	interface operating as mesh point."
+    ::= { wlanMeshHWMPStatistics 1 }
+
+wlanMeshHWMPStatsEntry OBJECT-TYPE
+    SYNTAX	WlanMeshHWMPStatsEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A list of HWMP statistics for each wlan interface operating as HWMP
+	mesh point."
+    INDEX { wlanIfaceName }
+    ::= { wlanMeshHWMPStatsTable 1 }
+
+WlanMeshHWMPStatsEntry ::= SEQUENCE {
+    wlanMeshHWMPWrongSeqNo			Counter32,
+    wlanMeshHWMPTxRootPREQ			Counter32,
+    wlanMeshHWMPTxRootRANN			Counter32,
+    wlanMeshHWMPProxy				Counter32
+}
+
+wlanMeshHWMPWrongSeqNo OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of HWMP frames with wrong sequence number received by
+	this interface."
+    ::= { wlanMeshHWMPStatsEntry 1 }
+
+wlanMeshHWMPTxRootPREQ OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of HWMP Root PREQ frames sent by this interface."
+    ::= { wlanMeshHWMPStatsEntry 2 }
+
+wlanMeshHWMPTxRootRANN OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of HWMP Root RANN frames sent by this interface."
+    ::= { wlanMeshHWMPStatsEntry 3 }
+
+wlanMeshHWMPProxy OBJECT-TYPE
+    SYNTAX	Counter32
+    UNITS	"frames"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of HWMP PREP frames discarded by this interface due to
+	the HWMP route being marked as proxy."
+    ::= { wlanMeshHWMPStatsEntry 4 }
+
+END

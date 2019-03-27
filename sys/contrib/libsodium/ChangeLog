@@ -1,0 +1,505 @@
+
+* Version 1.0.16
+ - Signatures computations and verifications are now way faster on
+64-bit platforms with compilers supporting 128-bit arithmetic (gcc,
+clang, icc). This includes the WebAssembly target.
+ - New low-level APIs for computations over edwards25519:
+`crypto_scalarmult_ed25519()`, `crypto_scalarmult_ed25519_base()`,
+`crypto_core_ed25519_is_valid_point()`, `crypto_core_ed25519_add()`,
+`crypto_core_ed25519_sub()` and `crypto_core_ed25519_from_uniform()`
+(elligator representative to point).
+ - `crypto_sign_open()`, `crypto_sign_verify_detached() and
+`crypto_sign_edwards25519sha512batch_open` now reject public keys in
+non-canonical form in addition to low-order points.
+ - The library can be built with `ED25519_NONDETERMINISTIC` defined in
+order to use synthetic nonces for EdDSA. This is disabled by default.
+ - Webassembly: `crypto_pwhash_*()` functions are now included in
+non-sumo builds.
+ - `sodium_stackzero()` was added to wipe content off the stack.
+ - Android: support new SDKs where unified headers have become the
+default.
+ - The Salsa20-based PRNG example is now thread-safe on platforms with
+support for thread-local storage, optionally mixes bits from RDRAND.
+ - CMAKE: static library detection on Unix systems has been improved
+(thanks to @BurningEnlightenment, @nibua-r, @mellery451)
+ - Argon2 and scrypt are slightly faster on Linux.
+
+* Version 1.0.15
+ - The default password hashing algorithm is now Argon2id. The
+`pwhash_str_verify()` function can still verify Argon2i hashes
+without any changes, and `pwhash()` can still compute Argon2i hashes
+as well.
+ - The aes128ctr primitive was removed. It was slow, non-standard, not
+authenticated, and didn't seem to be used by any opensource project.
+ - Argon2id required at least 3 passes like Argon2i, despite a minimum
+of `1` as defined by the `OPSLIMIT_MIN` constant. This has been fixed.
+ - The secretstream construction was slightly changed to be consistent
+with forthcoming variants.
+ - The Javascript and Webassembly versions have been merged, and the
+module now returns a `.ready` promise that will resolve after the
+Webassembly code is loaded and compiled.
+ - Note that due to these incompatible changes, the library version
+major was bumped up.
+
+* Version 1.0.14
+ - iOS binaries should now be compatible with WatchOS and TVOS.
+ - WebAssembly is now officially supported. Special thanks to
+@facekapow and @pepyakin who helped to make it happen.
+ - Internal consistency checks failing and primitives used with
+dangerous/out-of-bounds/invalid parameters used to call abort(3).
+Now, a custom handler *that doesn't return* can be set with the
+`set_sodium_misuse()` function. It still aborts by default or if the
+handler ever returns. This is not a replacement for non-fatal,
+expected runtime errors. This handler will be only called in
+unexpected situations due to potential bugs in the library or in
+language bindings.
+ - `*_MESSAGEBYTES_MAX` macros (and the corresponding
+`_messagebytes_max()` symbols) have been added to represent the
+maximum message size that can be safely handled by a primitive.
+Language bindings are encouraged to check user inputs against these
+maximum lengths.
+ - The test suite has been extended to cover more edge cases.
+ - crypto_sign_ed25519_pk_to_curve25519() now rejects points that are
+not on the curve, or not in the main subgroup.
+ - Further changes have been made to ensure that smart compilers will
+not optimize out code that we don't want to be optimized.
+ - Visual Studio solutions are now included in distribution tarballs.
+ - The `sodium_runtime_has_*` symbols for CPU features detection are
+now defined as weak symbols, i.e. they can be replaced with an
+application-defined implementation. This can be useful to disable
+AVX* when temperature/power consumption is a concern.
+ - `crypto_kx_*()` now aborts if called with no non-NULL pointers to
+store keys to.
+ - SSE2 implementations of `crypto_verify_*()` have been added.
+ - Passwords can be hashed using a specific algorithm with the new
+`crypto_pwhash_str_alg()` function.
+ - Due to popular demand, base64 encoding (`sodium_bin2base64()`) and
+decoding (`sodium_base642bin()`) have been implemented.
+ - A new `crypto_secretstream_*()` API was added to safely encrypt files
+and multi-part messages.
+ - The `sodium_pad()` and `sodium_unpad()` helper functions have been
+added in order to add & remove padding.
+ - An AVX512 optimized implementation of Argon2 has been added (written
+by Ondrej Mosnáček, thanks!)
+ - The `crypto_pwhash_str_needs_rehash()` function was added to check if
+a password hash string matches the given parameters, or if it needs an
+update.
+ - The library can now be compiled with recent versions of
+emscripten/binaryen that don't allow multiple variables declarations
+using a single `var` statement.
+
+* Version 1.0.13
+ - Javascript: the sumo builds now include all symbols. They were
+previously limited to symbols defined in minimal builds.
+ - The public `crypto_pwhash_argon2i_MEMLIMIT_MAX` constant was
+incorrectly defined on 32-bit platforms. This has been fixed.
+ - Version 1.0.12 didn't compile on OpenBSD/i386 using the base gcc
+compiler. This has been fixed.
+ - The Android compilation scripts have been updated for NDK r14b.
+ - armv7s-optimized code was re-added to iOS builds.
+ - An AVX2 optimized implementation of the Argon2 round function was
+added.
+ - The Argon2id variant of Argon2 has been implemented. The
+high-level `crypto_pwhash_str_verify()` function automatically detects
+the algorithm and can verify both Argon2i and Argon2id hashed passwords.
+The default algorithm for newly hashed passwords remains Argon2i in
+this version to avoid breaking compatibility with verifiers running
+libsodium <= 1.0.12.
+ - A `crypto_box_curve25519xchacha20poly1305_seal*()` function set was
+implemented.
+ - scrypt was removed from minimal builds.
+ - libsodium is now available on NuGet.
+
+* Version 1.0.12
+ - Ed25519ph was implemented, adding a multi-part signature API
+(`crypto_sign_init()`, `crypto_sign_update()`, `crypto_sign_final_*()`).
+ - New constants and related accessors have been added for Scrypt and
+Argon2.
+ - XChaCha20 has been implemented. Like XSalsa20, this construction
+extends the ChaCha20 cipher to accept a 192-bit nonce. This makes it safe
+to use ChaCha20 with random nonces.
+ - `crypto_secretbox`, `crypto_box` and `crypto_aead` now offer
+variants leveraging XChaCha20.
+ - SHA-2 is about 20% faster, which also gives a speed boost to
+signature and signature verification.
+ - AVX2 implementations of Salsa20 and ChaCha20 have been added. They
+are twice as fast as the SSE2 implementations. The speed gain is
+even more significant on Windows, that previously didn't use
+vectorized implementations.
+ - New high-level API: `crypto_kdf`, to easily derive one or more
+subkeys from a master key.
+ - Siphash with a 128-bit output has been implemented, and is
+available as `crypto_shorthash_siphashx_*`.
+ - New `*_keygen()` helpers functions have been added to create secret
+keys for all constructions. This improves code clarity and can prevent keys
+from being partially initialized.
+ - A new `randombytes_buf_deterministic()` function was added to
+deterministically fill a memory region with pseudorandom data. This
+function can especially be useful to write reproducible tests.
+ - A preliminary `crypto_kx_*()` API was added to compute shared session
+keys.
+ - AVX2 detection is more reliable.
+ - The pthreads library is not required any more when using MingW.
+ - `contrib/Findsodium.cmake` was added as an example to include
+libsodium in a project using cmake.
+ - Compatibility with gcc 2.x has been restored.
+ - Minimal builds can be checked using `sodium_library_minimal()`.
+ - The `--enable-opt` compilation switch has become compatible with more
+platforms.
+ - Android builds are now using clang on platforms where it is
+available.
+
+* Version 1.0.11
+ - `sodium_init()` is now thread-safe, and can be safely called multiple
+times.
+ - Android binaries now properly support 64-bit Android, targeting
+platform 24, but without breaking compatibility with platforms 16 and
+21.
+ - Better support for old gcc versions.
+ - On FreeBSD, core dumps are disabled on regions allocated with
+sodium allocation functions.
+ - AVX2 detection was fixed, resulting in faster Blake2b hashing on
+platforms where it was not properly detected.
+ - The Sandy2x Curve25519 implementation was not as fast as expected
+on some platforms. This has been fixed.
+ - The NativeClient target was improved. Most notably, it now supports
+optimized implementations, and uses pepper_49 by default.
+ - The library can be compiled with recent Emscripten versions.
+Changes have been made to produce smaller code, and the default heap
+size was reduced in the standard version.
+ - The code can now be compiled on SLES11 service pack 4.
+ - Decryption functions can now accept a NULL pointer for the output.
+This checks the MAC without writing the decrypted message.
+ - crypto_generichash_final() now returns -1 if called twice.
+ - Support for Visual Studio 2008 was improved.
+
+* Version 1.0.10
+ - This release only fixes a compilation issue reported with some older
+gcc versions. There are no functional changes over the previous release.
+
+* Version 1.0.9
+ - The Javascript target now includes a `--sumo` option to include all
+the symbols of the original C library.
+ - A detached API was added to the ChaCha20-Poly1305 and AES256-GCM
+implementations.
+ - The Argon2i password hashing function was added, and is accessible
+directly and through a new, high-level `crypto_pwhash` API. The scrypt
+function remains available as well.
+ - A speed-record AVX2 implementation of BLAKE2b was added (thanks to
+Samuel Neves).
+ - The library can now be compiled using C++Builder (thanks to @jcolli44)
+ - Countermeasures for Ed25519 signatures malleability have been added
+to match the irtf-cfrg-eddsa draft (note that malleability is irrelevant to
+the standard definition of signature security). Signatures with a small-order
+`R` point are now also rejected.
+ - Some implementations are now slightly faster when using the Clang
+compiler.
+ - The HChaCha20 core function was implemented (`crypto_core_hchacha20()`).
+ - No-op stubs were added for all AES256-GCM public functions even when
+compiled on non-Intel platforms.
+ - `crypt_generichash_blake2b_statebytes()` was added.
+ - New macros were added for the IETF variant of the ChaCha20-Poly1305
+construction.
+ - The library can now be compiled on Minix.
+ - HEASLR is now enabled on MinGW builds.
+
+* Version 1.0.8
+ - Handle the case where the CPU supports AVX, but we are running
+on an hypervisor with AVX disabled/not supported.
+ - Faster (2x) scalarmult_base() when using the ref10 implementation.
+
+* Version 1.0.7
+ - More functions whose return value should be checked have been
+tagged with `__attribute__ ((warn_unused_result))`: `crypto_box_easy()`,
+`crypto_box_detached()`, `crypto_box_beforenm()`, `crypto_box()`, and
+`crypto_scalarmult()`.
+ - Sandy2x, the fastest Curve25519 implementation ever, has been
+merged in, and is automatically used on CPUs supporting the AVX
+instructions set.
+ - An SSE2 optimized implementation of Poly1305 was added, and is
+twice as fast as the portable one.
+ - An SSSE3 optimized implementation of ChaCha20 was added, and is
+twice as fast as the portable one.
+ - Faster `sodium_increment()` for common nonce sizes.
+ - New helper functions have been added: `sodium_is_zero()` and
+ `sodium_add()`.
+ - `sodium_runtime_has_aesni()` now properly detects the CPU flag when
+ compiled using Visual Studio.
+
+* Version 1.0.6
+ - Optimized implementations of Blake2 have been added for modern
+Intel platforms. `crypto_generichash()` is now faster than MD5 and SHA1
+implementations while being far more secure.
+ - Functions for which the return value should be checked have been
+tagged with `__attribute__ ((warn_unused_result))`. This will
+intentionally break code compiled with `-Werror` that didn't bother
+checking critical return values.
+ - The `crypto_sign_edwards25519sha512batch_*()` functions have been
+tagged as deprecated.
+ - Undocumented symbols that were exported, but were only useful for
+internal purposes have been removed or made private:
+`sodium_runtime_get_cpu_features()`, the implementation-specific
+`crypto_onetimeauth_poly1305_donna()` symbols,
+`crypto_onetimeauth_poly1305_set_implementation()`,
+`crypto_onetimeauth_poly1305_implementation_name()` and
+`crypto_onetimeauth_pick_best_implementation()`.
+ - `sodium_compare()` now works as documented, and compares numbers
+in little-endian format instead of behaving like `memcmp()`.
+ - The previous changes should not break actual applications, but to be
+safe, the library version major was incremented.
+ - `sodium_runtime_has_ssse3()` and `sodium_runtime_has_sse41()` have
+been added.
+ - The library can now be compiled with the CompCert compiler.
+
+* Version 1.0.5
+ - Compilation issues on some platforms were fixed: missing alignment
+directives were added (required at least on RHEL-6/i386), a workaround
+for a VRP bug on gcc/armv7 was added, and the library can now be compiled
+with the SunPro compiler.
+ - Javascript target: io.js is not supported any more. Use nodejs.
+
+* Version 1.0.4
+ - Support for AES256-GCM has been added. This requires
+a CPU with the aesni and pclmul extensions, and is accessible via the
+crypto_aead_aes256gcm_*() functions.
+ - The Javascript target doesn't use eval() any more, so that the
+library can be used in Chrome packaged applications.
+ - QNX and CloudABI are now supported.
+ - Support for NaCl has finally been added.
+ - ChaCha20 with an extended (96 bit) nonce and a 32-bit counter has
+been implemented as crypto_stream_chacha20_ietf(),
+crypto_stream_chacha20_ietf_xor() and crypto_stream_chacha20_ietf_xor_ic().
+An IETF-compatible version of ChaCha20Poly1305 is available as
+crypto_aead_chacha20poly1305_ietf_npubbytes(),
+crypto_aead_chacha20poly1305_ietf_encrypt() and
+crypto_aead_chacha20poly1305_ietf_decrypt().
+ - The sodium_increment() helper function has been added, to increment
+an arbitrary large number (such as a nonce).
+ - The sodium_compare() helper function has been added, to compare
+arbitrary large numbers (such as nonces, in order to prevent replay
+attacks).
+
+* Version 1.0.3
+ - In addition to sodium_bin2hex(), sodium_hex2bin() is now a
+constant-time function.
+ - crypto_stream_xsalsa20_ic() has been added.
+ - crypto_generichash_statebytes(), crypto_auth_*_statebytes() and
+crypto_hash_*_statebytes() have been added in order to retrieve the
+size of structures keeping states from foreign languages.
+ - The JavaScript target doesn't require /dev/urandom or an external
+randombytes() implementation any more. Other minor Emscripten-related
+improvements have been made in order to support libsodium.js
+ - Custom randombytes implementations do not need to provide their own
+implementation of randombytes_uniform() any more. randombytes_stir()
+and randombytes_close() can also be NULL pointers if they are not
+required.
+ - On Linux, getrandom(2) is being used instead of directly accessing
+/dev/urandom, if the kernel supports this system call.
+ - crypto_box_seal() and crypto_box_seal_open() have been added.
+ - Visual Studio 2015 is now supported.
+
+* Version 1.0.2
+ - The _easy and _detached APIs now support precalculated keys;
+crypto_box_easy_afternm(), crypto_box_open_easy_afternm(),
+crypto_box_detached_afternm() and crypto_box_open_detached_afternm()
+have been added as an alternative to the NaCl interface.
+ - Memory allocation functions can now be used on operating systems with
+no memory protection.
+ - crypto_sign_open() and crypto_sign_edwards25519sha512batch_open()
+now accept a NULL pointer instead of a pointer to the message size, if
+storing this information is not required.
+ - The close-on-exec flag is now set on the descriptor returned when
+opening /dev/urandom.
+ - A libsodium-uninstalled.pc file to use pkg-config even when
+libsodium is not installed, has been added.
+ - The iOS target now includes armv7s and arm64 optimized code, as well
+as i386 and x86_64 code for the iOS simulator.
+ - sodium_free() can now be called on regions with PROT_NONE protection.
+ - The Javascript tests can run on Ubuntu, where the node binary was
+renamed nodejs. io.js can also be used instead of node.
+
+* Version 1.0.1
+ - DLL_EXPORT was renamed SODIUM_DLL_EXPORT in order to avoid
+collisions with similar macros defined by other libraries.
+ - sodium_bin2hex() is now constant-time.
+ - crypto_secretbox_detached() now supports overlapping input and output
+regions.
+ - NaCl's donna_c64 implementation of curve25519 was reading an extra byte
+past the end of the buffer containing the base point. This has been
+fixed.
+
+* Version 1.0.0
+ - The API and ABI are now stable. New features will be added, but
+backward-compatibility is guaranteed through all the 1.x.y releases.
+ - crypto_sign() properly works with overlapping regions again. Thanks
+to @pysiak for reporting this regression introduced in version 0.6.1.
+ - The test suite has been extended.
+
+* Version 0.7.1 (1.0 RC2)
+ - This is the second release candidate of Sodium 1.0. Minor
+compilation, readability and portability changes have been made and the
+test suite was improved, but the API is the same as the previous release
+candidate.
+
+* Version 0.7.0 (1.0 RC1)
+ - Allocating memory to store sensitive data can now be done using
+sodium_malloc() and sodium_allocarray(). These functions add guard
+pages around the protected data to make it less likely to be
+accessible in a heartbleed-like scenario. In addition, the protection
+for memory regions allocated that way can be changed using
+sodium_mprotect_noaccess(), sodium_mprotect_readonly() and
+sodium_mprotect_readwrite().
+ - ed25519 keys can be converted to curve25519 keys with
+crypto_sign_ed25519_pk_to_curve25519() and
+crypto_sign_ed25519_sk_to_curve25519(). This allows using the same
+keys for signature and encryption.
+ - The seed and the public key can be extracted from an ed25519 key
+using crypto_sign_ed25519_sk_to_seed() and crypto_sign_ed25519_sk_to_pk().
+ - aes256 was removed. A timing-attack resistant implementation might
+be added later, but not before version 1.0 is tagged.
+ - The crypto_pwhash_scryptxsalsa208sha256_* compatibility layer was
+removed. Use crypto_pwhash_scryptsalsa208sha256_*.
+ - The compatibility layer for implementation-specific functions was
+removed.
+ - Compilation issues with Mingw64 on MSYS (not MSYS2) were fixed.
+ - crypto_pwhash_scryptsalsa208sha256_STRPREFIX was added: it contains
+the prefix produced by crypto_pwhash_scryptsalsa208sha256_str()
+
+* Version 0.6.1
+ - Important bug fix: when crypto_sign_open() was given a signed
+message too short to even contain a signature, it was putting an
+unlimited amount of zeros into the target buffer instead of
+immediately returning -1. The bug was introduced in version 0.5.0.
+ - New API: crypto_sign_detached() and crypto_sign_verify_detached()
+to produce and verify ed25519 signatures without having to duplicate
+the message.
+ - New ./configure switch: --enable-minimal, to create a smaller
+library, with only the functions required for the high-level API.
+Mainly useful for the JavaScript target and embedded systems.
+ - All the symbols are now exported by the Emscripten build script.
+ - The pkg-config .pc file is now always installed even if the
+pkg-config tool is not available during the installation.
+
+* Version 0.6.0
+ - The ChaCha20 stream cipher has been added, as crypto_stream_chacha20_*
+ - The ChaCha20Poly1305 AEAD construction has been implemented, as
+crypto_aead_chacha20poly1305_*
+ - The _easy API does not require any heap allocations any more and
+does not have any overhead over the NaCl API. With the password
+hashing function being an obvious exception, the library doesn't
+allocate and will not allocate heap memory ever.
+ - crypto_box and crypto_secretbox have a new _detached API to store
+the authentication tag and the encrypted message separately.
+ - crypto_pwhash_scryptxsalsa208sha256*() functions have been renamed
+crypto_pwhash_scryptsalsa208sha256*().
+ - The low-level crypto_pwhash_scryptsalsa208sha256_ll() function
+allows setting individual parameters of the scrypt function.
+ - New macros and functions for recommended crypto_pwhash_* parameters
+have been added.
+ - Similarly to crypto_sign_seed_keypair(), crypto_box_seed_keypair()
+has been introduced to deterministically generate a key pair from a seed.
+ - crypto_onetimeauth() now provides a streaming interface.
+ - crypto_stream_chacha20_xor_ic() and crypto_stream_salsa20_xor_ic()
+have been added to use a non-zero initial block counter.
+ - On Windows, CryptGenRandom() was replaced by RtlGenRandom(), which
+doesn't require the Crypt API.
+ - The high bit in curve25519 is masked instead of processing the key as
+a 256-bit value.
+ - The curve25519 ref implementation was replaced by the latest ref10
+implementation from Supercop.
+ - sodium_mlock() now prevents memory from being included in coredumps
+on Linux 3.4+
+
+* Version 0.5.0
+ - sodium_mlock()/sodium_munlock() have been introduced to lock pages
+in memory before storing sensitive data, and to zero them before
+unlocking them.
+ - High-level wrappers for crypto_box and crypto_secretbox
+(crypto_box_easy and crypto_secretbox_easy) can be used to avoid
+dealing with the specific memory layout regular functions depend on.
+ - crypto_pwhash_scryptsalsa208sha256* functions have been added
+to derive a key from a password, and for password storage.
+ - Salsa20 and ed25519 implementations now support overlapping
+inputs/keys/outputs (changes imported from supercop-20140505).
+ - New build scripts for Visual Studio, Emscripten, different Android
+architectures and msys2 are available.
+ - The poly1305-53 implementation has been replaced with Floodyberry's
+poly1305-donna32 and poly1305-donna64 implementations.
+ - sodium_hex2bin() has been added to complement sodium_bin2hex().
+ - On OpenBSD and Bitrig, arc4random() is used instead of reading
+/dev/urandom.
+ - crypto_auth_hmac_sha512() has been implemented.
+ - sha256 and sha512 now have a streaming interface.
+ - hmacsha256, hmacsha512 and hmacsha512256 now support keys of
+arbitrary length, and have a streaming interface.
+ - crypto_verify_64() has been implemented.
+ - first-class Visual Studio build system, thanks to @evoskuil
+ - CPU features are now detected at runtime.
+
+* Version 0.4.5
+ - Restore compatibility with OSX <= 10.6
+
+* Version 0.4.4
+ - Visual Studio is officially supported (VC 2010 & VC 2013)
+ - mingw64 is now supported
+ - big-endian architectures are now supported as well
+ - The donna_c64 implementation of curve25519_donna_c64 now handles
+non-canonical points like the ref implementation
+ - Missing scalarmult_curve25519 and stream_salsa20 constants are now exported
+ - A crypto_onetimeauth_poly1305_ref() wrapper has been added
+
+* Version 0.4.3
+ - crypto_sign_seedbytes() and crypto_sign_SEEDBYTES were added.
+ - crypto_onetimeauth_poly1305_implementation_name() was added.
+ - poly1305-ref has been replaced by a faster implementation,
+Floodyberry's poly1305-donna-unrolled.
+ - Stackmarkings have been added to assembly code, for Hardened Gentoo.
+ - pkg-config can now be used in order to retrieve compilations flags for
+using libsodium.
+ - crypto_stream_aes256estream_*() can now deal with unaligned input
+on platforms that require word alignment.
+ - portability improvements.
+
+* Version 0.4.2
+ - All NaCl constants are now also exposed as functions.
+ - The Android and iOS cross-compilation script have been improved.
+ - libsodium can now be cross-compiled to Windows from Linux.
+ - libsodium can now be compiled with emscripten.
+ - New convenience function (prototyped in utils.h): sodium_bin2hex().
+
+* Version 0.4.1
+ - sodium_version_*() functions were not exported in version 0.4. They
+are now visible as intended.
+ - sodium_init() now calls randombytes_stir().
+ - optimized assembly version of salsa20 is now used on amd64.
+ - further cleanups and enhanced compatibility with non-C99 compilers.
+
+* Version 0.4
+ - Most constants and operations are now available as actual functions
+instead of macros, making it easier to use from other languages.
+ - New operation: crypto_generichash, featuring a variable key size, a
+variable output size, and a streaming API. Currently implemented using
+Blake2b.
+ - The package can be compiled in a separate directory.
+ - aes128ctr functions are exported.
+ - Optimized versions of curve25519 (curve25519_donna_c64), poly1305
+(poly1305_53) and ed25519 (ed25519_ref10) are available. Optionally calling
+sodium_init() once before using the library makes it pick the fastest
+implementation.
+ - New convenience function: sodium_memzero() in order to securely
+wipe a memory area.
+ - A whole bunch of cleanups and portability enhancements.
+ - On Windows, a .REF file is generated along with the shared library,
+for use with Visual Studio. The installation path for these has become
+$prefix/bin as expected by MingW.
+
+* Version 0.3
+ - The crypto_shorthash operation has been added, implemented using
+SipHash-2-4.
+
+* Version 0.2
+ - crypto_sign_seed_keypair() has been added
+
+* Version 0.1
+ - Initial release.
+

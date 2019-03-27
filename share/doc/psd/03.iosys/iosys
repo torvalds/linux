@@ -1,0 +1,1086 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\"	@(#)iosys	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.EH 'PSD:3-%''The UNIX I/O System'
+.OH 'The UNIX I/O System''PSD:3-%'
+.TL
+The UNIX I/O System
+.AU
+Dennis M. Ritchie
+.AI
+AT&T Bell Laboratories
+Murray Hill, NJ
+.PP
+This paper gives an overview of the workings of the UNIX\(dg
+.FS
+\(dgUNIX is a Trademark of Bell Laboratories.
+.FE
+I/O system.
+It was written with an eye toward providing
+guidance to writers of device driver routines,
+and is oriented more toward describing the environment
+and nature of device drivers than the implementation
+of that part of the file system which deals with
+ordinary files.
+.PP
+It is assumed that the reader has a good knowledge
+of the overall structure of the file system as discussed
+in the paper ``The UNIX Time-sharing System.''
+A more detailed discussion
+appears in
+``UNIX Implementation;''
+the current document restates parts of that one,
+but is still more detailed.
+It is most useful in
+conjunction with a copy of the system code,
+since it is basically an exegesis of that code.
+.SH
+Device Classes
+.PP
+There are two classes of device:
+.I block
+and
+.I character.
+The block interface is suitable for devices
+like disks, tapes, and DECtape
+which work, or can work, with addressible 512-byte blocks.
+Ordinary magnetic tape just barely fits in this category,
+since by use of forward
+and
+backward spacing any block can be read, even though
+blocks can be written only at the end of the tape.
+Block devices can at least potentially contain a mounted
+file system.
+The interface to block devices is very highly structured;
+the drivers for these devices share a great many routines
+as well as a pool of buffers.
+.PP
+Character-type devices have a much
+more straightforward interface, although
+more work must be done by the driver itself.
+.PP
+Devices of both types are named by a
+.I major
+and a
+.I minor
+device number.
+These numbers are generally stored as an integer
+with the minor device number
+in the low-order 8 bits and the major device number
+in the next-higher 8 bits;
+macros
+.I major
+and
+.I minor
+are available to access these numbers.
+The major device number selects which driver will deal with
+the device; the minor device number is not used
+by the rest of the system but is passed to the
+driver at appropriate times.
+Typically the minor number
+selects a subdevice attached to
+a given controller, or one of
+several similar hardware interfaces.
+.PP
+The major device numbers for block and character devices
+are used as indices in separate tables;
+they both start at 0 and therefore overlap.
+.SH
+Overview of I/O
+.PP
+The purpose of
+the
+.I open
+and
+.I creat
+system calls is to set up entries in three separate
+system tables.
+The first of these is the
+.I u_ofile
+table,
+which is stored in the system's per-process
+data area
+.I u.
+This table is indexed by
+the file descriptor returned by the
+.I open
+or
+.I creat,
+and is accessed during
+a
+.I read,
+.I write,
+or other operation on the open file.
+An entry contains only
+a pointer to the corresponding
+entry of the
+.I file
+table,
+which is a per-system data base.
+There is one entry in the
+.I file
+table for each
+instance of
+.I open
+or
+.I creat.
+This table is per-system because the same instance
+of an open file must be shared among the several processes
+which can result from
+.I forks
+after the file is opened.
+A
+.I file
+table entry contains
+flags which indicate whether the file
+was open for reading or writing or is a pipe, and
+a count which is used to decide when all processes
+using the entry have terminated or closed the file
+(so the entry can be abandoned).
+There is also a 32-bit file offset
+which is used to indicate where in the file the next read
+or write will take place.
+Finally, there is a pointer to the
+entry for the file in the
+.I inode
+table,
+which contains a copy of the file's i-node.
+.PP
+Certain open files can be designated ``multiplexed''
+files, and several other flags apply to such
+channels.
+In such a case, instead of an offset,
+there is a pointer to an associated multiplex channel table.
+Multiplex channels will not be discussed here.
+.PP
+An entry in the
+.I file
+table corresponds precisely to an instance of
+.I open
+or
+.I creat;
+if the same file is opened several times,
+it will have several
+entries in this table.
+However,
+there is at most one entry
+in the
+.I inode
+table for a given file.
+Also, a file may enter the
+.I inode
+table not only because it is open,
+but also because it is the current directory
+of some process or because it
+is a special file containing a currently-mounted
+file system.
+.PP
+An entry in the
+.I inode
+table differs somewhat from the
+corresponding i-node as stored on the disk;
+the modified and accessed times are not stored,
+and the entry is augmented
+by a flag word containing information about the entry,
+a count used to determine when it may be
+allowed to disappear,
+and the device and i-number
+whence the entry came.
+Also, the several block numbers that give addressing
+information for the file are expanded from
+the 3-byte, compressed format used on the disk to full
+.I long
+quantities.
+.PP
+During the processing of an
+.I open
+or
+.I creat
+call for a special file,
+the system always calls the device's
+.I open
+routine to allow for any special processing
+required (rewinding a tape, turning on
+the data-terminal-ready lead of a modem, etc.).
+However,
+the
+.I close
+routine is called only when the last
+process closes a file,
+that is, when the i-node table entry
+is being deallocated.
+Thus it is not feasible
+for a device to maintain, or depend on,
+a count of its users, although it is quite
+possible to
+implement an exclusive-use device which cannot
+be reopened until it has been closed.
+.PP
+When a
+.I read
+or
+.I write
+takes place,
+the user's arguments
+and the
+.I file
+table entry are used to set up the
+variables
+.I u.u_base,
+.I u.u_count,
+and
+.I u.u_offset
+which respectively contain the (user) address
+of the I/O target area, the byte-count for the transfer,
+and the current location in the file.
+If the file referred to is
+a character-type special file, the appropriate read
+or write routine is called; it is responsible
+for transferring data and updating the
+count and current location appropriately
+as discussed below.
+Otherwise, the current location is used to calculate
+a logical block number in the file.
+If the file is an ordinary file the logical block
+number must be mapped (possibly using indirect blocks)
+to a physical block number; a block-type
+special file need not be mapped.
+This mapping is performed by the
+.I bmap
+routine.
+In any event, the resulting physical block number
+is used, as discussed below, to
+read or write the appropriate device.
+.SH
+Character Device Drivers
+.PP
+The
+.I cdevsw
+table specifies the interface routines present for
+character devices.
+Each device provides five routines:
+open, close, read, write, and special-function
+(to implement the
+.I ioctl
+system call).
+Any of these may be missing.
+If a call on the routine
+should be ignored,
+(e.g.
+.I open
+on non-exclusive devices that require no setup)
+the
+.I cdevsw
+entry can be given as
+.I nulldev;
+if it should be considered an error,
+(e.g.
+.I write
+on read-only devices)
+.I nodev
+is used.
+For terminals,
+the
+.I cdevsw
+structure also contains a pointer to the
+.I tty
+structure associated with the terminal.
+.PP
+The
+.I open
+routine is called each time the file
+is opened with the full device number as argument.
+The second argument is a flag which is
+non-zero only if the device is to be written upon.
+.PP
+The
+.I close
+routine is called only when the file
+is closed for the last time,
+that is when the very last process in
+which the file is open closes it.
+This means it is not possible for the driver to
+maintain its own count of its users.
+The first argument is the device number;
+the second is a flag which is non-zero
+if the file was open for writing in the process which
+performs the final
+.I close.
+.PP
+When
+.I write
+is called, it is supplied the device
+as argument.
+The per-user variable
+.I u.u_count
+has been set to
+the number of characters indicated by the user;
+for character devices, this number may be 0
+initially.
+.I u.u_base
+is the address supplied by the user from which to start
+taking characters.
+The system may call the
+routine internally, so the
+flag
+.I u.u_segflg
+is supplied that indicates,
+if
+.I on,
+that
+.I u.u_base
+refers to the system address space instead of
+the user's.
+.PP
+The
+.I write
+routine
+should copy up to
+.I u.u_count
+characters from the user's buffer to the device,
+decrementing
+.I u.u_count
+for each character passed.
+For most drivers, which work one character at a time,
+the routine
+.I "cpass( )"
+is used to pick up characters
+from the user's buffer.
+Successive calls on it return
+the characters to be written until
+.I u.u_count
+goes to 0 or an error occurs,
+when it returns \(mi1.
+.I Cpass
+takes care of interrogating
+.I u.u_segflg
+and updating
+.I u.u_count.
+.PP
+Write routines which want to transfer
+a probably large number of characters into an internal
+buffer may also use the routine
+.I "iomove(buffer, offset, count, flag)"
+which is faster when many characters must be moved.
+.I Iomove
+transfers up to
+.I count
+characters into the
+.I buffer
+starting
+.I offset
+bytes from the start of the buffer;
+.I flag
+should be
+.I B_WRITE
+(which is 0) in the write case.
+Caution:
+the caller is responsible for making sure
+the count is not too large and is non-zero.
+As an efficiency note,
+.I iomove
+is much slower if any of
+.I "buffer+offset, count"
+or
+.I u.u_base
+is odd.
+.PP
+The device's
+.I read
+routine is called under conditions similar to
+.I write,
+except that
+.I u.u_count
+is guaranteed to be non-zero.
+To return characters to the user, the routine
+.I "passc(c)"
+is available; it takes care of housekeeping
+like
+.I cpass
+and returns \(mi1 as the last character
+specified by
+.I u.u_count
+is returned to the user;
+before that time, 0 is returned.
+.I Iomove
+is also usable as with
+.I write;
+the flag should be
+.I B_READ
+but the same cautions apply.
+.PP
+The ``special-functions'' routine
+is invoked by the
+.I stty
+and
+.I gtty
+system calls as follows:
+.I "(*p) (dev, v)"
+where
+.I p
+is a pointer to the device's routine,
+.I dev
+is the device number,
+and
+.I v
+is a vector.
+In the
+.I gtty
+case,
+the device is supposed to place up to 3 words of status information
+into the vector; this will be returned to the caller.
+In the
+.I stty
+case,
+.I v
+is 0;
+the device should take up to 3 words of
+control information from
+the array
+.I "u.u_arg[0...2]."
+.PP
+Finally, each device should have appropriate interrupt-time
+routines.
+When an interrupt occurs, it is turned into a C-compatible call
+on the devices's interrupt routine.
+The interrupt-catching mechanism makes
+the low-order four bits of the ``new PS'' word in the
+trap vector for the interrupt available
+to the interrupt handler.
+This is conventionally used by drivers
+which deal with multiple similar devices
+to encode the minor device number.
+After the interrupt has been processed,
+a return from the interrupt handler will
+return from the interrupt itself.
+.PP
+A number of subroutines are available which are useful
+to character device drivers.
+Most of these handlers, for example, need a place
+to buffer characters in the internal interface
+between their ``top half'' (read/write)
+and ``bottom half'' (interrupt) routines.
+For relatively low data-rate devices, the best mechanism
+is the character queue maintained by the
+routines
+.I getc
+and
+.I putc.
+A queue header has the structure
+.DS
+struct {
+	int	c_cc;	/* character count */
+	char	*c_cf;	/* first character */
+	char	*c_cl;	/* last character */
+} queue;
+.DE
+A character is placed on the end of a queue by
+.I "putc(c, &queue)"
+where
+.I c
+is the character and
+.I queue
+is the queue header.
+The routine returns \(mi1 if there is no space
+to put the character, 0 otherwise.
+The first character on the queue may be retrieved
+by
+.I "getc(&queue)"
+which returns either the (non-negative) character
+or \(mi1 if the queue is empty.
+.PP
+Notice that the space for characters in queues is
+shared among all devices in the system
+and in the standard system there are only some 600
+character slots available.
+Thus device handlers,
+especially write routines, must take
+care to avoid gobbling up excessive numbers of characters.
+.PP
+The other major help available
+to device handlers is the sleep-wakeup mechanism.
+The call
+.I "sleep(event, priority)"
+causes the process to wait (allowing other processes to run)
+until the
+.I event
+occurs;
+at that time, the process is marked ready-to-run
+and the call will return when there is no
+process with higher
+.I priority.
+.PP
+The call
+.I "wakeup(event)"
+indicates that the
+.I event
+has happened, that is, causes processes sleeping
+on the event to be awakened.
+The
+.I event
+is an arbitrary quantity agreed upon
+by the sleeper and the waker-up.
+By convention, it is the address of some data area used
+by the driver, which guarantees that events
+are unique.
+.PP
+Processes sleeping on an event should not assume
+that the event has really happened;
+they should check that the conditions which
+caused them to sleep no longer hold.
+.PP
+Priorities can range from 0 to 127;
+a higher numerical value indicates a less-favored
+scheduling situation.
+A distinction is made between processes sleeping
+at priority less than the parameter
+.I PZERO
+and those at numerically larger priorities.
+The former cannot
+be interrupted by signals, although it
+is conceivable that it may be swapped out.
+Thus it is a bad idea to sleep with
+priority less than PZERO on an event which might never occur.
+On the other hand, calls to
+.I sleep
+with larger priority
+may never return if the process is terminated by
+some signal in the meantime.
+Incidentally, it is a gross error to call
+.I sleep
+in a routine called at interrupt time, since the process
+which is running is almost certainly not the
+process which should go to sleep.
+Likewise, none of the variables in the user area
+``\fIu\fB.\fR''
+should be touched, let alone changed, by an interrupt routine.
+.PP
+If a device driver
+wishes to wait for some event for which it is inconvenient
+or impossible to supply a
+.I wakeup,
+(for example, a device going on-line, which does not
+generally cause an interrupt),
+the call
+.I "sleep(&lbolt, priority)
+may be given.
+.I Lbolt
+is an external cell whose address is awakened once every 4 seconds
+by the clock interrupt routine.
+.PP
+The routines
+.I "spl4( ), spl5( ), spl6( ), spl7( )"
+are available to
+set the processor priority level as indicated to avoid
+inconvenient interrupts from the device.
+.PP
+If a device needs to know about real-time intervals,
+then
+.I "timeout(func, arg, interval)
+will be useful.
+This routine arranges that after
+.I interval
+sixtieths of a second, the
+.I func
+will be called with
+.I arg
+as argument, in the style
+.I "(*func)(arg).
+Timeouts are used, for example,
+to provide real-time delays after function characters
+like new-line and tab in typewriter output,
+and to terminate an attempt to
+read the 201 Dataphone
+.I dp
+if there is no response within a specified number
+of seconds.
+Notice that the number of sixtieths of a second is limited to 32767,
+since it must appear to be positive,
+and that only a bounded number of timeouts
+can be going on at once.
+Also, the specified
+.I func
+is called at clock-interrupt time, so it should
+conform to the requirements of interrupt routines
+in general.
+.SH
+The Block-device Interface
+.PP
+Handling of block devices is mediated by a collection
+of routines that manage a set of buffers containing
+the images of blocks of data on the various devices.
+The most important purpose of these routines is to assure
+that several processes that access the same block of the same
+device in multiprogrammed fashion maintain a consistent
+view of the data in the block.
+A secondary but still important purpose is to increase
+the efficiency of the system by
+keeping in-core copies of blocks that are being
+accessed frequently.
+The main data base for this mechanism is the
+table of buffers
+.I buf.
+Each buffer header contains a pair of pointers
+.I "(b_forw, b_back)"
+which maintain a doubly-linked list
+of the buffers associated with a particular
+block device, and a
+pair of pointers
+.I "(av_forw, av_back)"
+which generally maintain a doubly-linked list of blocks
+which are ``free,'' that is,
+eligible to be reallocated for another transaction.
+Buffers that have I/O in progress
+or are busy for other purposes do not appear in this list.
+The buffer header
+also contains the device and block number to which the
+buffer refers, and a pointer to the actual storage associated with
+the buffer.
+There is a word count
+which is the negative of the number of words
+to be transferred to or from the buffer;
+there is also an error byte and a residual word
+count used to communicate information
+from an I/O routine to its caller.
+Finally, there is a flag word
+with bits indicating the status of the buffer.
+These flags will be discussed below.
+.PP
+Seven routines constitute
+the most important part of the interface with the
+rest of the system.
+Given a device and block number,
+both
+.I bread
+and
+.I getblk
+return a pointer to a buffer header for the block;
+the difference is that
+.I bread
+is guaranteed to return a buffer actually containing the
+current data for the block,
+while
+.I getblk
+returns a buffer which contains the data in the
+block only if it is already in core (whether it is
+or not is indicated by the
+.I B_DONE
+bit; see below).
+In either case the buffer, and the corresponding
+device block, is made ``busy,''
+so that other processes referring to it
+are obliged to wait until it becomes free.
+.I Getblk
+is used, for example,
+when a block is about to be totally rewritten,
+so that its previous contents are
+not useful;
+still, no other process can be allowed to refer to the block
+until the new data is placed into it.
+.PP
+The
+.I breada
+routine is used to implement read-ahead.
+it is logically similar to
+.I bread,
+but takes as an additional argument the number of
+a block (on the same device) to be read asynchronously
+after the specifically requested block is available.
+.PP
+Given a pointer to a buffer,
+the
+.I brelse
+routine
+makes the buffer again available to other processes.
+It is called, for example, after
+data has been extracted following a
+.I bread.
+There are three subtly-different write routines,
+all of which take a buffer pointer as argument,
+and all of which logically release the buffer for
+use by others and place it on the free list.
+.I Bwrite
+puts the
+buffer on the appropriate device queue,
+waits for the write to be done,
+and sets the user's error flag if required.
+.I Bawrite
+places the buffer on the device's queue, but does not wait
+for completion, so that errors cannot be reflected directly to
+the user.
+.I Bdwrite
+does not start any I/O operation at all,
+but merely marks
+the buffer so that if it happens
+to be grabbed from the free list to contain
+data from some other block, the data in it will
+first be written
+out.
+.PP
+.I Bwrite
+is used when one wants to be sure that
+I/O takes place correctly, and that
+errors are reflected to the proper user;
+it is used, for example, when updating i-nodes.
+.I Bawrite
+is useful when more overlap is desired
+(because no wait is required for I/O to finish)
+but when it is reasonably certain that the
+write is really required.
+.I Bdwrite
+is used when there is doubt that the write is
+needed at the moment.
+For example,
+.I bdwrite
+is called when the last byte of a
+.I write
+system call falls short of the end of a
+block, on the assumption that
+another
+.I write
+will be given soon which will re-use the same block.
+On the other hand,
+as the end of a block is passed,
+.I bawrite
+is called, since probably the block will
+not be accessed again soon and one might as
+well start the writing process as soon as possible.
+.PP
+In any event, notice that the routines
+.I "getblk"
+and
+.I bread
+dedicate the given block exclusively to the
+use of the caller, and make others wait,
+while one of
+.I "brelse, bwrite, bawrite,"
+or
+.I bdwrite
+must eventually be called to free the block for use by others.
+.PP
+As mentioned, each buffer header contains a flag
+word which indicates the status of the buffer.
+Since they provide
+one important channel for information between the drivers and the
+block I/O system, it is important to understand these flags.
+The following names are manifest constants which
+select the associated flag bits.
+.IP B_READ 10
+This bit is set when the buffer is handed to the device strategy routine
+(see below) to indicate a read operation.
+The symbol
+.I B_WRITE
+is defined as 0 and does not define a flag; it is provided
+as a mnemonic convenience to callers of routines like
+.I swap
+which have a separate argument
+which indicates read or write.
+.IP B_DONE 10
+This bit is set
+to 0 when a block is handed to the device strategy
+routine and is turned on when the operation completes,
+whether normally as the result of an error.
+It is also used as part of the return argument of
+.I getblk
+to indicate if 1 that the returned
+buffer actually contains the data in the requested block.
+.IP B_ERROR 10
+This bit may be set to 1 when
+.I B_DONE
+is set to indicate that an I/O or other error occurred.
+If it is set the
+.I b_error
+byte of the buffer header may contain an error code
+if it is non-zero.
+If
+.I b_error
+is 0 the nature of the error is not specified.
+Actually no driver at present sets
+.I b_error;
+the latter is provided for a future improvement
+whereby a more detailed error-reporting
+scheme may be implemented.
+.IP B_BUSY 10
+This bit indicates that the buffer header is not on
+the free list, i.e. is
+dedicated to someone's exclusive use.
+The buffer still remains attached to the list of
+blocks associated with its device, however.
+When
+.I getblk
+(or
+.I bread,
+which calls it) searches the buffer list
+for a given device and finds the requested
+block with this bit on, it sleeps until the bit
+clears.
+.IP B_PHYS 10
+This bit is set for raw I/O transactions that
+need to allocate the Unibus map on an 11/70.
+.IP B_MAP 10
+This bit is set on buffers that have the Unibus map allocated,
+so that the
+.I iodone
+routine knows to deallocate the map.
+.IP B_WANTED 10
+This flag is used in conjunction with the
+.I B_BUSY
+bit.
+Before sleeping as described
+just above,
+.I getblk
+sets this flag.
+Conversely, when the block is freed and the busy bit
+goes down (in
+.I brelse)
+a
+.I wakeup
+is given for the block header whenever
+.I B_WANTED
+is on.
+This strategem avoids the overhead
+of having to call
+.I wakeup
+every time a buffer is freed on the chance that someone
+might want it.
+.IP B_AGE
+This bit may be set on buffers just before releasing them; if it
+is on,
+the buffer is placed at the head of the free list, rather than at the
+tail.
+It is a performance heuristic
+used when the caller judges that the same block will not soon be used again.
+.IP B_ASYNC 10
+This bit is set by
+.I bawrite
+to indicate to the appropriate device driver
+that the buffer should be released when the
+write has been finished, usually at interrupt time.
+The difference between
+.I bwrite
+and
+.I bawrite
+is that the former starts I/O, waits until it is done, and
+frees the buffer.
+The latter merely sets this bit and starts I/O.
+The bit indicates that
+.I relse
+should be called for the buffer on completion.
+.IP B_DELWRI 10
+This bit is set by
+.I bdwrite
+before releasing the buffer.
+When
+.I getblk,
+while searching for a free block,
+discovers the bit is 1 in a buffer it would otherwise grab,
+it causes the block to be written out before reusing it.
+.SH
+Block Device Drivers
+.PP
+The
+.I bdevsw
+table contains the names of the interface routines
+and that of a table for each block device.
+.PP
+Just as for character devices, block device drivers may supply
+an
+.I open
+and a
+.I close
+routine
+called respectively on each open and on the final close
+of the device.
+Instead of separate read and write routines,
+each block device driver has a
+.I strategy
+routine which is called with a pointer to a buffer
+header as argument.
+As discussed, the buffer header contains
+a read/write flag, the core address,
+the block number, a (negative) word count,
+and the major and minor device number.
+The role of the strategy routine
+is to carry out the operation as requested by the
+information in the buffer header.
+When the transaction is complete the
+.I B_DONE
+(and possibly the
+.I B_ERROR)
+bits should be set.
+Then if the
+.I B_ASYNC
+bit is set,
+.I brelse
+should be called;
+otherwise,
+.I wakeup.
+In cases where the device
+is capable, under error-free operation,
+of transferring fewer words than requested,
+the device's word-count register should be placed
+in the residual count slot of
+the buffer header;
+otherwise, the residual count should be set to 0.
+This particular mechanism is really for the benefit
+of the magtape driver;
+when reading this device
+records shorter than requested are quite normal,
+and the user should be told the actual length of the record.
+.PP
+Although the most usual argument
+to the strategy routines
+is a genuine buffer header allocated as discussed above,
+all that is actually required
+is that the argument be a pointer to a place containing the
+appropriate information.
+For example the
+.I swap
+routine, which manages movement
+of core images to and from the swapping device,
+uses the strategy routine
+for this device.
+Care has to be taken that
+no extraneous bits get turned on in the
+flag word.
+.PP
+The device's table specified by
+.I bdevsw
+has a
+byte to contain an active flag and an error count,
+a pair of links which constitute the
+head of the chain of buffers for the device
+.I "(b_forw, b_back),"
+and a first and last pointer for a device queue.
+Of these things, all are used solely by the device driver
+itself
+except for the buffer-chain pointers.
+Typically the flag encodes the state of the
+device, and is used at a minimum to
+indicate that the device is currently engaged in
+transferring information and no new command should be issued.
+The error count is useful for counting retries
+when errors occur.
+The device queue is used to remember stacked requests;
+in the simplest case it may be maintained as a first-in
+first-out list.
+Since buffers which have been handed over to
+the strategy routines are never
+on the list of free buffers,
+the pointers in the buffer which maintain the free list
+.I "(av_forw, av_back)"
+are also used to contain the pointers
+which maintain the device queues.
+.PP
+A couple of routines
+are provided which are useful to block device drivers.
+.I "iodone(bp)"
+arranges that the buffer to which
+.I bp
+points be released or awakened,
+as appropriate,
+when the
+strategy module has finished with the buffer,
+either normally or after an error.
+(In the latter case the
+.I B_ERROR
+bit has presumably been set.)
+.PP
+The routine
+.I "geterror(bp)"
+can be used to examine the error bit in a buffer header
+and arrange that any error indication found therein is
+reflected to the user.
+It may be called only in the non-interrupt
+part of a driver when I/O has completed
+.I (B_DONE
+has been set).
+.SH
+Raw Block-device I/O
+.PP
+A scheme has been set up whereby block device drivers may
+provide the ability to transfer information
+directly between the user's core image and the device
+without the use of buffers and in blocks as large as
+the caller requests.
+The method involves setting up a character-type special file
+corresponding to the raw device
+and providing
+.I read
+and
+.I write
+routines which set up what is usually a private,
+non-shared buffer header with the appropriate information
+and call the device's strategy routine.
+If desired, separate
+.I open
+and
+.I close
+routines may be provided but this is usually unnecessary.
+A special-function routine might come in handy, especially for
+magtape.
+.PP
+A great deal of work has to be done to generate the
+``appropriate information''
+to put in the argument buffer for
+the strategy module;
+the worst part is to map relocated user addresses to physical addresses.
+Most of this work is done by
+.I "physio(strat, bp, dev, rw)
+whose arguments are the name of the
+strategy routine
+.I strat,
+the buffer pointer
+.I bp,
+the device number
+.I dev,
+and a read-write flag
+.I rw
+whose value is either
+.I B_READ
+or
+.I B_WRITE.
+.I Physio
+makes sure that the user's base address and count are
+even (because most devices work in words)
+and that the core area affected is contiguous
+in physical space;
+it delays until the buffer is not busy, and makes it
+busy while the operation is in progress;
+and it sets up user error return information.

@@ -1,0 +1,129 @@
+		 NFS Attribute Caching OS Problems and Amd
+		      Last updated September 18, 2005
+
+* Summary:
+
+Some OSs don't seem to have a way to turn off the NFS attribute cache, which
+breaks the Amd automounter so badly that it is not recommend using Amd on
+such OS for heavy use, not until this is fixed.
+
+
+* Details:
+
+Amd is a user-level NFSv2 server that manages automounts of all other file
+systems.  The kernel contacts Amd via RPCs, and Amd in turn performs the
+actual mounts, and then responds back to the kernel's RPCs.  Every kernel
+caches attributes of files, in a cache called the Directory Name Lookup
+Cache (DNLC), or a Directory Cache (dcache).
+
+Amd manages its namespace in the user level, but the kernel caches names
+itself.  So the two must coordinate to ensure that both namespaces are in
+sync.  If the kernel uses a cached entry from the DNLC, without consulting
+Amd, users may see corruption of the automounter namespace (symlinks
+pointing to the wrong places, ESTALE errors, and more).  For example,
+suppose Amd timed out an entry and removed the entry from Amd's namespace.
+Amd has to tell the kernel to purge its corresponding DNLC entry too.  The
+way Amd often does that is by incrementing the last modification time
+(mtime) of the parent directory.  This is the most common method for kernels
+to check if their DNLC entries are stale: if the parent directory mtime is
+newer, the kernel will discard all cached entries for that directory, and
+will re-issue lookup methods.  Those lookups will result in
+NFS_GETATTR/NFS_LOOKUP calls sent from the kernel down to Amd, and Amd can
+then properly inform the kernel of the new state of automounted entries.
+
+In order to ensure that Amd is "in charge" of its namespace without
+interference from the kernel, Amd will try to turn off the NFS attribute
+cache.  It does so by using the NFSMNT_NOAC flag, if it exists, or by
+setting various "cache timeout" fields in struct nfs_args to 0 (acregmin,
+acregmax, acdirmin, or acdirmax).
+
+We have released a major new version of am-utils, version 6.1, in June 2005.
+Since then, a lot of people have experimented with Amd, in anticipation of
+migrating from the very old am-utils 6.0 to the new 6.1.  For a couple of
+months since the release of 6.1, we have received reports of problems with
+Amd, especially under heavy use.  Users reported getting ESTALE errors from
+time to time, or seeing automounted entries whose symlinks don't point to
+where it should be.  After much debugging, we traced it to a few places in
+Amd where it wasn't updating the parent directory mtime as it should have;
+in some places where Amd was indeed updating the mtime, it was using a
+resolution of only 1 second, which was not fine enough under heavy load.  We
+fixed this problem and switched to using a microsecond resolution mtime.
+
+After fixing this in Amd, we went on to verify that things work for other
+OSs.  When we got to test certain BSDs, we found out that they always cache
+directory entries, and there is no way to turn it off completely.
+Specifically, if we set the ac{reg,dir}{min,max} fields in struct nfs_args
+all to zero, the kernel seems to cache the entries for a default number of
+seconds (something like 5-30 seconds).  On some OSs, setting these four
+fields to 0 turns off the attribute cache, but not on some BSDs.  We were
+able to verify this using Amd and a script that exercises the interaction of
+the kernel's attrcache and Amd.  (If you're interested, the script can be
+made available.)
+
+We then experimented by setting the ac{reg,dir}{min,max} fields in struct
+nfs_args all to 1, the smallest non-zero value we could.  When we ran the
+Amd exercising script, we found that the value of 1 reduced the race between
+the DNLC and Amd, and the script took a little longer to run before it
+detected an incoherency.  That makes sense: the smaller the DNLC cache
+interval is, the shorter the window of vulnerability is.  (BTW, the man
+pages on some OSs say that the ac{reg,dir}{min,max} fields use a 1 second
+resolution, but experimentation indicated it was in 0.1 second units.)
+
+Clearly, setting the ac{reg,dir}{min,max} fields to 0 is worse than setting
+it to 1 on those OSs that don't have a way to turn off the attribute cache.
+So the current workaround I've implemented in am-utils is to create a
+configuration parameter called "broken_attrcache" which, if turned on, will
+set these nfs_args fields to 1 instead of 0.  I wish I didn't have to create
+such ugly workaround features in Amd, but I've got no choice.
+
+The near term solution is for every OS to support a true 'noac' flag, which
+can be added fairly easily.  This'd make Amd work reliably.
+
+The long term solution is to implement Autofs support for all OSs and to
+support it in Amd.  Currently, Amd supports autofs on Solaris and Linux;
+FreeBSD is next.  Still, we found that even with autofs support, many
+sysadmins still prefer to use the good 'ol non-autofs mode.
+
+
+* Confirmed Status
+
+This is the confirmed status of various OSs' vulnerability to this attribute
+cache bug.  We are slowly checking the status of other OSs.  The status of
+any OS not listed is unknown as of the date at the top of this file.
+
+** Not Vulnerable (support a proper "noac" flag):
+
+Sun Solaris 8 and 9 (10 probably works fine)
+Linux: 2.6.11 kernel (2.4.latest probably works fine)
+FreeBSD 5.4 and 6.0-SNAP001 (older versions probably work fine)
+OpenBSD 3.7 (older versions probably work fine)
+
+** Vulnerable (don't support a proper "noac" flag natively):
+
+NetBSD 2.0.2 (older versions are also probably affected)
+
+Note: NetBSD has promised to support a noac flag hopefully after 2.1.0 is
+released (maybe in 3.0 or 2.2).  In the mean time, you can apply one of
+these two kernel patchs to support a 'noac' flag in NetBSD 2.x or 3.x:
+	ftp://ftp.netbsd.org/pub/NetBSD/misc/christos/2x.nfs.noac.diff
+	ftp://ftp.netbsd.org/pub/NetBSD/misc/christos/3x.nfs.noac.diff
+After applying this patch and rebuilding your kernel, reboot with the new
+kernel.  Then copy the new nfs.h and nfsmount.h from /sys/nfs/ to
+/usr/include/nfs/, and finally rebuild am-utils from scratch.
+
+** Testing
+
+When you build am-utils, a script named scripts/test-attrcache is built,
+which can be used to test the NFS attribute cache behavior of the current
+OS.  You can run this script as root as follows:
+
+# make install
+# cd scripts
+# sh test-attrcache
+
+If you run this script on an OS whose status is known (and not listed
+above), please report it to us via Bugzilla or the am-utils mailing list
+(see www.am-utils.org), so we can record it in this file.
+
+Sincerely,
+Erez.

@@ -1,0 +1,234 @@
+.\" $OpenBSD: ssh-agent.1,v 1.64 2016/11/30 06:54:26 jmc Exp $
+.\" $FreeBSD$
+.\"
+.\" Author: Tatu Ylonen <ylo@cs.hut.fi>
+.\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
+.\"                    All rights reserved
+.\"
+.\" As far as I am concerned, the code I have written for this software
+.\" can be used freely for any purpose.  Any derived versions of this
+.\" software must be clearly marked as such, and if the derived work is
+.\" incompatible with the protocol description in the RFC file, it must be
+.\" called by a name other than "ssh" or "Secure Shell".
+.\"
+.\" Copyright (c) 1999,2000 Markus Friedl.  All rights reserved.
+.\" Copyright (c) 1999 Aaron Campbell.  All rights reserved.
+.\" Copyright (c) 1999 Theo de Raadt.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: November 30 2016 $
+.Dt SSH-AGENT 1
+.Os
+.Sh NAME
+.Nm ssh-agent
+.Nd authentication agent
+.Sh SYNOPSIS
+.Nm ssh-agent
+.Op Fl c | s
+.Op Fl \&Ddx
+.Op Fl a Ar bind_address
+.Op Fl E Ar fingerprint_hash
+.Op Fl P Ar pkcs11_whitelist
+.Op Fl t Ar life
+.Op Ar command Op Ar arg ...
+.Nm ssh-agent
+.Op Fl c | s
+.Fl k
+.Sh DESCRIPTION
+.Nm
+is a program to hold private keys used for public key authentication
+(RSA, DSA, ECDSA, Ed25519).
+.Nm
+is usually started in the beginning of an X-session or a login session, and
+all other windows or programs are started as clients to the ssh-agent
+program.
+Through use of environment variables the agent can be located
+and automatically used for authentication when logging in to other
+machines using
+.Xr ssh 1 .
+.Pp
+The agent initially does not have any private keys.
+Keys are added using
+.Xr ssh 1
+(see
+.Cm AddKeysToAgent
+in
+.Xr ssh_config 5
+for details)
+or
+.Xr ssh-add 1 .
+Multiple identities may be stored in
+.Nm
+concurrently and
+.Xr ssh 1
+will automatically use them if present.
+.Xr ssh-add 1
+is also used to remove keys from
+.Nm
+and to query the keys that are held in one.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a Ar bind_address
+Bind the agent to the
+.Ux Ns -domain
+socket
+.Ar bind_address .
+The default is
+.Pa $TMPDIR/ssh-XXXXXXXXXX/agent.\*(Ltppid\*(Gt .
+.It Fl c
+Generate C-shell commands on
+.Dv stdout .
+This is the default if
+.Ev SHELL
+looks like it's a csh style of shell.
+.It Fl D
+Foreground mode.
+When this option is specified
+.Nm
+will not fork.
+.It Fl d
+Debug mode.
+When this option is specified
+.Nm
+will not fork and will write debug information to standard error.
+.It Fl E Ar fingerprint_hash
+Specifies the hash algorithm used when displaying key fingerprints.
+Valid options are:
+.Dq md5
+and
+.Dq sha256 .
+The default is
+.Dq sha256 .
+.It Fl k
+Kill the current agent (given by the
+.Ev SSH_AGENT_PID
+environment variable).
+.It Fl P Ar pkcs11_whitelist
+Specify a pattern-list of acceptable paths for PKCS#11 shared libraries
+that may be added using the
+.Fl s
+option to
+.Xr ssh-add 1 .
+The default is to allow loading PKCS#11 libraries from
+.Dq /usr/lib/*,/usr/local/lib/* .
+PKCS#11 libraries that do not match the whitelist will be refused.
+See PATTERNS in
+.Xr ssh_config 5
+for a description of pattern-list syntax.
+.It Fl s
+Generate Bourne shell commands on
+.Dv stdout .
+This is the default if
+.Ev SHELL
+does not look like it's a csh style of shell.
+.It Fl t Ar life
+Set a default value for the maximum lifetime of identities added to the agent.
+The lifetime may be specified in seconds or in a time format specified in
+.Xr sshd_config 5 .
+A lifetime specified for an identity with
+.Xr ssh-add 1
+overrides this value.
+Without this option the default maximum lifetime is forever.
+.It Fl x
+Exit after the last client has disconnected.
+.El
+.Pp
+If a command line is given, this is executed as a subprocess of the agent.
+When the command dies, so does the agent.
+.Pp
+The idea is that the agent is run in the user's local PC, laptop, or
+terminal.
+Authentication data need not be stored on any other
+machine, and authentication passphrases never go over the network.
+However, the connection to the agent is forwarded over SSH
+remote logins, and the user can thus use the privileges given by the
+identities anywhere in the network in a secure way.
+.Pp
+There are two main ways to get an agent set up:
+The first is that the agent starts a new subcommand into which some environment
+variables are exported, eg
+.Cm ssh-agent xterm & .
+The second is that the agent prints the needed shell commands (either
+.Xr sh 1
+or
+.Xr csh 1
+syntax can be generated) which can be evaluated in the calling shell, eg
+.Cm eval `ssh-agent -s`
+for Bourne-type shells such as
+.Xr sh 1
+or
+.Xr ksh 1
+and
+.Cm eval `ssh-agent -c`
+for
+.Xr csh 1
+and derivatives.
+.Pp
+Later
+.Xr ssh 1
+looks at these variables and uses them to establish a connection to the agent.
+.Pp
+The agent will never send a private key over its request channel.
+Instead, operations that require a private key will be performed
+by the agent, and the result will be returned to the requester.
+This way, private keys are not exposed to clients using the agent.
+.Pp
+A
+.Ux Ns -domain
+socket is created and the name of this socket is stored in the
+.Ev SSH_AUTH_SOCK
+environment
+variable.
+The socket is made accessible only to the current user.
+This method is easily abused by root or another instance of the same
+user.
+.Pp
+The
+.Ev SSH_AGENT_PID
+environment variable holds the agent's process ID.
+.Pp
+The agent exits automatically when the command given on the command
+line terminates.
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa $TMPDIR/ssh-XXXXXXXXXX/agent.<ppid>
+.Ux Ns -domain
+sockets used to contain the connection to the authentication agent.
+These sockets should only be readable by the owner.
+The sockets should get automatically removed when the agent exits.
+.El
+.Sh SEE ALSO
+.Xr ssh 1 ,
+.Xr ssh-add 1 ,
+.Xr ssh-keygen 1 ,
+.Xr sshd 8
+.Sh AUTHORS
+.An -nosplit
+OpenSSH is a derivative of the original and free ssh 1.2.12 release by
+.An Tatu Ylonen .
+.An Aaron Campbell , Bob Beck , Markus Friedl , Niels Provos , Theo de Raadt
+and
+.An Dug Song
+removed many bugs, re-added newer features and created OpenSSH.
+.An Markus Friedl
+contributed the support for SSH protocol versions 1.5 and 2.0.

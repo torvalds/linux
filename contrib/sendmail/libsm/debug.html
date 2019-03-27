@@ -1,0 +1,272 @@
+<html>
+<head>
+    <title>libsm : Debugging and Tracing</title>
+</head>
+<body>
+
+<a href="index.html">Back to libsm overview</a>
+
+<center>
+    <h1> libsm : Debugging and Tracing </h1>
+    <br> $Id: debug.html,v 1.9 2002-02-02 16:50:56 ca Exp $
+</center>
+
+<h2> Introduction </h2>
+
+The debug and trace package provides abstractions for writing trace
+messages, and abstractions for enabling and disabling debug and
+trace code at run time.
+
+<p>
+Sendmail 8.11 and earlier has a <tt>-d</tt> option which 
+lets you turn on debug and trace code.
+Debug categories are integers from 0 to 99, with the sole exception
+of "ANSI", which is a named debug category.
+
+<p>
+The libsm debug package supports named debug categories.
+Debug category names have the form of C identifiers.
+For example, <tt>sm_trace_heap</tt> controls the output of trace
+messages from the sm heap package, while <tt>sm_check_heap</tt>
+controls the argument validity checking and memory leak detection
+features of the sm heap package.
+
+<p>
+In sendmail 8.12, the <tt>-d</tt> flag is generalized
+to support both the original style numeric categories, for backwards
+compatibility, and the new style named categories implemented by libsm.
+With this change,
+"-dANSI" is implemented using a libsm named debug category.
+You will be able to set a collection of named debug categories to
+the same activation level by specifying a glob pattern.
+For example,
+<dl>
+<dt>
+    <tt> -dANSI </tt>
+<dd>
+    sets the named category "ANSI" to level 1,
+<dt>
+    <tt> -dfoo_*.3 </tt>
+<dd>
+    sets all named categories matching the glob pattern "foo_*" to level 3,
+<dt>
+    <tt> -d0-99.1 </tt>
+<dd>
+    sets the numeric categories 0 through 99 to level 1, and
+<dt>
+    <tt> -dANSI,foo_*.3,0-99.1 </tt>
+<dd>
+    does all of the above.
+</dl>
+
+<h2> Synopsis </h2>
+
+<pre>
+#include &lt;sm/debug.h&gt;
+
+/*
+**  abstractions for printing trace messages
+*/
+void sm_dprintf(char *fmt, ...)
+void sm_dflush()
+void sm_debug_setfile(SM_FILE_T *)
+
+/*
+**  abstractions for setting and testing debug activation levels
+*/
+void sm_debug_addsettings(char *settings)
+void sm_debug_addsetting(char *pattern, int level)
+
+typedef struct sm_debug SM_DEBUG_T;
+SM_DEBUG_T dbg = SM_DEBUG_INITIALIZER("name", "@(#)$Debug: name - description $");
+
+bool sm_debug_active(SM_DEBUG_T *debug, int level)
+int  sm_debug_level(SM_DEBUG_T *debug)
+bool sm_debug_unknown(SM_DEBUG_T *debug)
+</pre>
+
+<h2> Naming Conventions </h2>
+
+All debug categories defined by libsm have names of the form <tt>sm_*</tt>.
+Debug categories that turn on trace output have names of the form
+<tt>*_trace_*</tt>.
+Debug categories that turn on run time checks have names of the form
+<tt>*_check_*</tt>.
+Here are all of the libsm debug categories as of March 2000:
+
+<table>
+  <tr>
+    <td>Variable name</td>
+    <td>Category name</td>
+    <td>Meaning</td>
+  </tr>
+  <tr>
+    <td>SmExpensiveAssert</td>
+    <td>sm_check_assert</td>
+    <td>enable expensive SM_ASSERT checking</td>
+  </tr>
+  <tr>
+    <td>SmExpensiveRequire</td>
+    <td>sm_check_require</td>
+    <td>enable expensive SM_REQUIRE checking</td>
+  </tr>
+  <tr>
+    <td>SmExpensiveEnsure</td>
+    <td>sm_check_ensure</td>
+    <td>enable expensive SM_ENSURE checking</td>
+  </tr>
+  <tr>
+    <td>SmHeapTrace</td>
+    <td>sm_trace_heap</td>
+    <td>trace sm_{malloc,realloc,free} calls</td>
+  </tr>
+  <tr>
+    <td>SmHeapCheck</td>
+    <td>sm_check_heap</td>
+    <td>enable checking and memory leak detection in sm_{malloc,realloc,free}</td>
+  </tr>
+</table>
+
+<h2> Function Reference </h2>
+
+<dl>
+<dt>
+<tt> SM_DEBUG_INITIALIZER </tt>
+<dd>
+    To create a new debug category, use the SM_DEBUG_INITIALIZER macro
+    to initialize a static variable of type SM_DEBUG_T.  For example,
+<blockquote><pre>
+SM_DEBUG_T ANSI_debug = SM_DEBUG_INITIALIZER("ANSI",
+	    "@(#)$Debug: ANSI - enable reverse video in debug output $");
+</pre></blockquote>
+    There is no centralized table of category names that needs to
+    be edited in order to add a new debug category.
+    The sole purpose of the second argument to SM_DEBUG_INITIALIZER
+    is to provide an easy way to find out what named debug categories
+    are present in a sendmail binary.  You can use:
+<blockquote><pre>
+ident /usr/sbin/sendmail | grep Debug
+</pre></blockquote>
+    or:
+<blockquote><pre>
+what /usr/sbin/sendmail | grep Debug
+</pre></blockquote>
+
+
+<dt>
+<tt> void sm_debug_addsetting(char *pattern, int level) </tt>
+<dd>
+    All debug categories default to activation level 0, which means
+    no activity.
+    This function updates an internal database of debug settings,
+    setting all categories whose name matches the specified glob
+    pattern to the specified activation level.  The level argument
+    must be &gt;= 0.
+    <p>
+
+
+<dt>
+<tt> void sm_debug_addsettings(char *settings) </tt>
+<dd>
+    This function is used to process the <tt>-d</tt> command line
+    option of Sendmail 9.x, and of other programs that support the
+    setting of named debug categories.  The settings argument is a
+    comma-separated list of settings; each setting is a glob pattern,
+    optionally followed by a '.' and a decimal numeral.
+    <p>
+
+
+<dt>
+<tt> bool sm_debug_active(SM_DEBUG_T *debug, int level) </tt>
+<dd>
+    This macro returns <tt>true</tt> if the activation level of
+    the statically initialized debug structure <tt>debug</tt>
+    is &gt;= the specified level.
+    The test is performed very efficiently: in the most common case,
+    when the result is <tt>false</tt>, only a single comparison
+    operation is performed.
+    <p>
+    This macro performs a function call only if the debug structure has
+    an unknown activation level.  All debug structures are in this state
+    at the beginning of program execution, and after a call to
+    <tt>sm_debug_addsetting</tt>.
+    <p>
+
+
+<dt>
+<tt> int sm_debug_level(SM_DEBUG_T *debug) </tt>
+<dd>
+    This macro returns the activation level of the specified debug structure.
+    The comparison
+<blockquote><pre>
+sm_debug_level(debug) &gt;= level
+</pre></blockquote>
+    is slightly less efficient than, but otherwise semantically
+    equivalent to
+<blockquote><pre>
+sm_debug_active(debug, level)
+</pre></blockquote>
+    <p>
+
+
+<dt>
+<tt> bool sm_debug_unknown(SM_DEBUG_T *debug) </tt>
+<dd>
+    This macro returns true if the activation level of the specified
+    debug structure is unknown.
+    Here is an example of how the macro might be used:
+<blockquote><pre>
+if (sm_debug_unknown(&FooDebug))
+{
+	if (sm_debug_active(&FooDebug, 1))
+	{
+		... perform some expensive data structure initializations
+		... in order to enable the "foo" debugging mechanism
+	}
+	else
+	{
+		... disable the "foo" debugging mechanism
+	}
+}
+</pre></blockquote>
+    The purpose of using <tt>sm_debug_unknown</tt> in the above example
+    is to avoid performing the expensive initializations each time through
+    the code.  So it's a performance hack.
+    A debug structure is in the "unknown" state at the beginning of
+    program execution, and after a call to <tt>sm_debug_addsetting</tt>.
+    A side effect of calling <tt>sm_debug_active</tt> is that the
+    activation level becomes known.
+    <p>
+
+
+<dt>
+<tt> void sm_dprintf(char *fmt, ...) </tt>
+<dd>
+    This function is used to print a debug message.
+    The standard idiom is
+<blockquote><pre>
+if (sm_debug_active(&BarDebug, 1))
+	sm_dprintf("bar: about to test tensile strength of bar %d\n", i);
+</pre></blockquote>
+    <p>
+
+<dt>
+<tt> void sm_dflush() </tt>
+<dd>
+    Flush the debug output stream.
+    <p>
+
+<dt>
+<tt> void sm_debug_setfile(SM_FILE_T *file) </tt>
+<dd>
+    This function lets you specify where debug output is printed.
+    By default, debug output is written to standard output.
+    <p>
+    We want to allow you to direct debug output to syslog.
+    The current plan is to provide a standard interface for
+    creating an SM_FILE_T object that writes to syslog.
+
+</dl>
+
+</body>
+</html>

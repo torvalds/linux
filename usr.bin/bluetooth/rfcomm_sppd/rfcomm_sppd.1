@@ -1,0 +1,186 @@
+.\" Copyright (c) 2001-2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: rfcomm_sppd.1,v 1.3 2003/09/07 18:15:55 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd April 21, 2008
+.Dt RFCOMM_SPPD 1
+.Os
+.Sh NAME
+.Nm rfcomm_sppd
+.Nd RFCOMM Serial Port Profile daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl bhtS
+.Fl a Ar address
+.Fl c Ar channel
+.Sh DESCRIPTION
+The
+.Nm
+utility is a Serial Port Profile daemon.
+It can operate in two modes: client and server.
+.Pp
+In client mode,
+.Nm
+opens RFCOMM connection to the specified
+.Ar address
+server and
+.Ar channel .
+Once connection is established, the
+.Nm
+utility provides access to the server's remote serial port via stdin/stdout
+or via
+.Xr pts 4
+interface if
+.Fl t
+option was specified.
+.Pp
+If the
+.Fl S
+option is specified,
+.Nm
+will operate in server mode and act as RFCOMM server,
+listening on
+.Dv ANY
+address and advertising a virtual serial port
+via the
+.Xr sdpd 8
+daemon.
+If
+.Fl t
+options was specified,
+the server side of the virtual serial port is attached to a pseudo-terminal.
+Otherwise the virtual serial port is attached to the stdin/stdout.
+.Nm
+should be run as root in order to communicate with
+.Xr sdpd 8
+in this case.
+.Pp
+The
+.Nm
+utility opens both master and slave pseudo terminals.
+This is done to ensure that RFCOMM connection stays open until
+.Nm
+is terminated.
+The data received from the master pseudo terminal are sent over
+the RFCOMM connection.
+The data received from the RFCOMM connection are written
+into master pseudo terminal.
+The application in its turn opens the slave pseudo
+terminal and operates on it just like it would operate over the standard serial
+port.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a Ar address
+In client mode,
+this required option specifies the address of the remote RFCOMM server.
+If this option is specified in server mode,
+.Nm
+will only accept connections from the
+.Tn Bluetooth
+device with address
+.Ar address .
+The address can be specified as BD_ADDR or name.
+If name was specified then
+.Nm
+utility will attempt to resolve the name via
+.Xr bt_gethostbyname 3 .
+.It Fl b
+Detach from the controlling terminal, i.e., run in background.
+.It Fl c Ar channel
+In both client and server mode,
+this option specifies the RFCOMM channel to connect to or listen on.
+In server mode,
+the channel should be a number between 1 and 30.
+If not specified,
+.Nm
+will try to bind to
+.Dq wildcard
+RFCOMM channel number.
+The actual RFCOMM channel will be obtained via
+.Xr getsockname 2
+call and will be used to register Serial Port service with
+.Xr sdpd 8 .
+In client mode,
+the channel could either be a number between 1 and 30 or a service name.
+Supported service names are:
+.Cm DUN
+(for DialUp Networking service),
+.Cm FAX
+(for Fax service),
+.Cm LAN
+(for LAN Access Using PPP service) and
+.Cm SP
+(for Serial Port service).
+If channel was not specified then
+.Nm
+utility will try to obtain RFCOMM channel for Serial Port service via Service
+Discovery Protocol from the server.
+.It Fl h
+Display usage message and exit.
+.It Fl S
+Server mode; see
+.Sx DESCRIPTION .
+.It Fl t
+Use slave pseudo tty.
+If not set stdin/stdout will be used.
+This option is required if
+.Fl b
+option was specified.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/pts/[num]" -compact
+.It Pa /dev/pts/[num]
+slave pseudo terminals
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+.Dl "rfcomm_sppd -a 00:01:02:03:04:05 -c 1 -t"
+.Pp
+Will start the
+.Nm
+utility and open RFCOMM connection to the server at
+.Li 00:01:02:03:04:05
+and channel
+.Li 1 .
+Once the connection has been established, a
+.Xr pts 4
+can be used to talk to the remote serial port on the server.
+.Nm
+prints the name of the
+.Xr pts 4
+to use on stdout.
+.Sh SEE ALSO
+.Xr bluetooth 3 ,
+.Xr ng_btsocket 4 ,
+.Xr pts 4 ,
+.Xr rfcomm_pppd 8 ,
+.Xr sdpd 8
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
+.Sh BUGS
+Please report if found.

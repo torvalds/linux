@@ -1,6 +1,0 @@
-__pycache__/
-*.pyc
-plugins/
-*.xml
-*.tap
-tdc_config_local.py

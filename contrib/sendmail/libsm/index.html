@@ -1,0 +1,174 @@
+<html>
+<head>
+    <title>libsm Overview</title>
+</head>
+<body>
+
+<center>
+    <h1> libsm Overview </h1>
+    <br> $Id: index.html,v 1.14 2001-02-13 21:21:25 gshapiro Exp $
+</center>
+
+<h2> Introduction </h2>
+
+Libsm is a library of generally useful C abstractions.
+Libsm stands alone; it depends on no other sendmail libraries,
+and the only sendmail header files it depends on are its own,
+which reside in <tt>../include/sm</tt>.
+
+<h2> Contents </h2>
+
+Here is the current set of packages:
+<blockquote>
+    <a href="gen.html"> gen: general definitions </a><br>
+    <a href="debug.html"> debug: debugging and tracing </a><br>
+    <a href="assert.html"> assert: assertion handling and aborts </a><br>
+    <a href="heap.html"> heap: memory allocation </a><br>
+    <a href="exc.html"> exc: exception handling </a><br>
+    <a href="rpool.html"> rpool: resource pools </a><br>
+    <a href="cdefs.html"> cdefs: C language portability macros </a><br>
+    <a href="io.html"> io: buffered i/o </a><br>
+</blockquote>
+
+<h2> Naming Conventions </h2>
+
+    Some of the symbols defined by libsm
+    come from widely used defacto or dejure standards.
+    Examples include <tt>size_t</tt> (from the C 89 standard),
+    <tt>bool</tt> (from the C 99 standard),
+    <tt>strerror</tt> (from Posix),
+    and <tt>__P</tt> (from BSD and Linux).
+    In these cases, we use the standard name rather than
+    inventing a new name.
+    We import the name from the appropriate header file when possible,
+    or define it ourselves when necessary.
+    When you are using one of these abstractions, you must include
+    the appropriate libsm header file.
+    For example, when you are using <tt>strerror</tt>, you must
+    include <tt>&lt;sm/string.h&gt;</tt> instead of <tt>&lt;string.h&gt;</tt>.
+
+    <p>
+    When we aren't implementing a standard interface,
+    we use a naming convention that attempts to maximize portability
+    across platforms, and minimize conflicts with other libraries.
+    Except for a few seemingly benign exceptions,
+    all names begin with <tt>SM_</tt>, <tt>Sm</tt> or <tt>sm_</tt>.
+
+    <p>
+    The ISO C, Posix and Unix standards forbid applications
+    from using names beginning with <tt>__</tt> or <tt>_[A-Z]</tt>,
+    and place restrictions on what sorts of names can begin
+    with <tt>_[a-z]</tt>.  Such names are reserved for the compiler and
+    the standard libraries.
+    For this reason, we avoid defining any names that begin
+    with <tt>_</tt>.
+    For example, all libsm header file idempotency macros have the form
+    <tt>SM_FOO_H</tt> (no leading <tt>_</tt>).
+
+    <p>
+    Type names begin with <tt>SM_</tt> and end with <tt>_T</tt>.
+    Note that the Posix standard reserves all identifiers ending
+    with <tt>_t</tt>.
+
+    <p>
+    All functions that are capable of raising an exception
+    have names ending in <tt>_x</tt>, and developers are
+    encouraged to use this convention when writing new code.
+    This naming convention may seem unnecessary at first,
+    but it becomes extremely useful during maintenance,
+    when you are attempting to reason about the correctness
+    of a block of code,
+    and when you are trying to track down exception-related bugs
+    in existing code.
+
+<h2> Coding Conventions </h2>
+
+The official style for function prototypes in libsm header files is
+
+<blockquote><pre>
+extern int
+foo __P((
+	int _firstarg,
+	int _secondarg));
+</pre></blockquote>
+
+The <tt>extern</tt> is useless, but required for stylistic reasons.
+The parameter names are optional; if present they are lowercase
+and begin with _ to avoid namespace conflicts.
+Each parameter is written on its own line to avoid very long lines.
+
+<p>
+For each structure <tt>struct sm_foo</tt> defined by libsm,
+there is a typedef:
+
+<blockquote><pre>
+typedef struct sm_foo SM_FOO_T;
+</pre></blockquote>
+
+and there is a global variable which is defined as follows:
+
+<blockquote><pre>
+const char SmFooMagic[] = "sm_foo";
+</pre></blockquote>
+
+The first member of each structure defined by libsm is
+
+<blockquote><pre>
+const char *sm_magic;
+</pre></blockquote>
+
+For all instances of <tt>struct sm_foo</tt>,
+<tt>sm_magic</tt> contains <tt>SmFooMagic</tt>,
+which points to a unique character string naming the type.
+It is used for debugging and run time type checking.
+
+<p>
+Each function with a parameter declared <tt>SM_FOO_T *foo</tt>
+contains the following assertion:
+
+<blockquote><pre>
+SM_REQUIRE_ISA(foo, SmFooMagic);
+</pre></blockquote>
+
+which is equivalent to
+
+<blockquote><pre>
+SM_REQUIRE(foo != NULL && foo-&gt;sm_magic == SmFooMagic);
+</pre></blockquote>
+
+When an object of type <tt>SM_FOO_T</tt> is deallocated,
+the member <tt>sm_magic</tt> is set to <tt>NULL</tt>.
+That will cause the above assertion to fail if a dangling pointer is used.
+
+<h2> Additional Design Goals </h2>
+
+Here are some of my design goals:
+<ul>
+    <p>
+<li>The sm library is self contained; it does not depend on any other
+    sendmail libraries or header files.
+    <p>
+<li>The sm library must be compatible with shared libraries,
+    even on platforms with weird implementation restrictions.
+    I assume that a shared library can export global variables;
+    the debug package relies on this assumption.
+    I do not assume that if an application redefines a function defined
+    in a shared library, the shared library will use the version of the
+    function defined in the application in preference to the version
+    that it defines.
+    For this reason, I provide interfaces for registering handler functions
+    in cases where an application might need to override standard behaviour.
+    <p>
+<li>The sm library must be compatible with threads.
+    The debug package presents a small problem: I don't want
+    sm_debug_active to acquire and release a lock.
+    So I assume that
+    there exists an integral type <tt>SM_ATOMIC_INT_T</tt>
+    (see <a href="gen.html"><tt>&lt;sm/gen.h&gt;</tt></a>)
+    that can be accessed and updated atomically.
+    I assume that locking must be used to guard updates and accesses to
+    any other type, and I have designed the interfaces accordingly.
+</ul>
+
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Clock Select Algorithm</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<em></em>
+<h3>Clock Select Algorithm</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->10-Mar-2014  05:22<!-- #EndDate -->
+    UTC</p>
+<hr>
+<p>The clock select algorithm determines from a set of sources , which are correct (<em>truechimers</em>) and which are not (<em>falsetickers</em>) according to a set of formal correctness assertions. The principles are based on the observation that the maximum error in determining the offset of a candidate cannot exceed one-half the roundtrip delay to the primary reference clock at the time of measurement. This must be increased by the maximum error that can accumulate since then.  The selection metric, called the <em>root  distance,</em>, is one-half the roundtrip root delay plus the root dispersion plus minor error contributions not considered here.</p>
+<p>First, a number of sanity checks is performed to sift the selectable candidate from among the source population. The sanity checks are sumarized as follows:.</p>
+<ol>
+  <li>A <em>stratum error</em> occurs if (1) the source had never been synchronized or (2) the stratum of the source is below the <tt>floor</tt> option or not below the <tt>ceiling</tt> option of the <a href="miscopt.html#tos"><tt>tos</tt></a> command. The default values for these options are 0 and 15, respectively. Note that  15 is a valid stratum, but a server operating at that stratum  cannot synchronize  clients.</li>
+  <li>A <em>distance error</em> occurs for a  source if the root distance (also known ad synchronization distance) of the source is not below the distance threshold <tt>maxdist</tt> option of the <a href="miscopt.html#tos"><tt>tos</tt></a> command. The default value for this option is 1.5 s for networks including only the Earth, but this should be increased to 2.5 s for networks including the Moon.</li>
+  <li>A <em>loop</em> <em>error</em> occurs if the source is synchronized to the client. This can occur if two peers are configured with each other in symmetric modes.</li>
+  <li>An <em>unreachable</em> <em>error</em> occurs if the source is unreachable or if the <tt>server</tt> or <tt>peer</tt> command for the source includes the <tt>noselect</tt> option.</li>
+</ol>
+Sources showing one or more of these errors are  considered nonselectable; only  the selectable candidates are considered in the following algorithm. Given the measured offset &theta;<sub>0</sub> and root distance &lambda;, this defines a <em>correctness  interval</em> [&theta;<sub>0</sub> &minus;  &lambda;, &theta;<sub>0</sub> + &lambda;] of points where the true value of &theta; lies somewhere on the interval.  The given problem is to determine from a set of correctness intervals, which represent truechimers and which represent falsetickers. The principles must be given a precise definition. The <em>intersection  interval</em> is the <em>smallest interval containing points from the largest  number of correctness intervals.</em> An algorithm that finds the intersection interval   was devised by Keith Marzullo in his doctoral dissertation. It was first implemented in the  Digital Time Synchronization Service (DTSS) for the VMS operating system for the VAX.
+<p> While the NTP algorithm is based on DTSS, it remains to establish which point  in the correctness interval represents the best estimate of the offset for each candidate.  The best point is at the midpoint &theta;<sub>0</sub> of the correctness interval; however, the midpoint might not be within the intersection interval. A candidate with a correctness interval  that contains points in the intersection interval is a truechimer and the best offset estimate  is the midpoint of its correctness interval. A candidate with a correctness interval that contains no points in the intersection interval is a falseticker.</p>
+<div align="center"><img src="pic/flt3.gif" alt="gif">
+  <p>Figure 1. Intersection Interval</p>
+</div>
+<p>Figure 1 shows  correctness intervals for each of four candidates A, B, C and D. We need to find the maximum number of candidates that contain points in common. The result is the interval labeled  DTSS.  In the figure there are three truechimers  A, B and C, and one falseticker D. In DTSS any point in the intersection interval can represent the true time; however, as shown below, this may throw away valuable statistical information.  In any case, the  clock is considered correct if the number of truechimers found in this way are greater than half the total number of candidates.</p>
+<p>The question remains, which is the best point  to represent the true time of each correctness interval? Fortunately, we already have the maximum likelihood estimate at the midpoint of each correctness interval. But, while the midpoint of candidate C is outside the intersection interval, its correctness interval contains points in common with the intersection interval, so the candidate is a truechimer and the midpoint is chosen to represent its time.</p>
+<p>The DTSS correctness assertions do not consider how best to represent the truechimer time. To support the midpoint choice, consider the selection algorithm as a method to reject  correctness intervals that cannot contribute to the final outcome; that is, they are falsetickers. The remaining correctness intervals can contribute to the final outcome; that is, they are truechimers. Samples in the intersection interval are usually of very low probability and thus poor estimates for  truechimer time. On the other hand, the midpoint sample produced by the clock filter algorithm  is the maximum likelihood estimate  and thus  best represents   the truechimer time.</p>
+<div align="center"><img src="pic/flt6.gif" alt="gif">
+  <p>Figure 2. Clock Select Algorithm</p>
+</div>
+<p> The algorithm operates as shown in Figure 2. Let <em>m</em> be the number of candidates and <em>f</em> the number of falsetickers, initially zero. Move a pointer from  the leftmost endpoint towards the rightmost endpoint in Figure 1 and count the number of candidates, stopping when that number reaches <em>m</em> &minus;  <em>f</em>; this is the left endpoint of the intersection interval. Then, do the same, but moving from the rightmost endpoint towards the leftmost endpoint; this is the right endpoint of the intersection interval. If the left endpoint is less than the right endpoint, the intersection interval has been found. Otherwise,     increase <em>f</em> by 1. If <em>f</em> is less than <em>n</em> / 2, try again; otherwise, the algorithm fails and no truechimers could be found.</p>
+<p>The clock select algorithm again scans the correctness intervals. If the right endpoint of the correctness interval for a candidate is greater than the left endpoint of the intersection interval, or if the left endpoint of the correctness interval is less than the right endpoint of the intersection interval, the candidate is a truechimer; otherwise, it is a falseticker.</p>
+<p>In practice, with fast LANs and modern computers, the correctness interval can be quite small, especially when the candidates are multiple reference clocks. In such cases the intersection interval might be empty, due to insignificant differences in the  reference clock offsets. To avoid this, the   size of the  correctness interval is padded to the value of <tt>mindist</tt>, with default  1 ms. This value can be changed using the <tt>mindist</tt> option of the <a href="miscopt.html#tos"><tt>tos</tt></a> command.</p>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

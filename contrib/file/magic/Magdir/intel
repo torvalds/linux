@@ -1,0 +1,65 @@
+
+#------------------------------------------------------------------------------
+# $File: intel,v 1.16 2017/11/14 15:48:36 christos Exp $
+# intel:  file(1) magic for x86 Unix
+#
+# Various flavors of x86 UNIX executable/object (other than Xenix, which
+# is in "microsoft").  DOS is in "msdos"; the ambitious soul can do
+# Windows as well.
+#
+# Windows NT belongs elsewhere, as you need x86 and MIPS and Alpha and
+# whatever comes next (HP-PA Hummingbird?).  OS/2 may also go elsewhere
+# as well, if, as, and when IBM makes it portable.
+#
+# The `versions' should be un-commented if they work for you.
+# (Was the problem just one of endianness?)
+#
+0	leshort		0502		basic-16 executable
+>12	lelong		>0		not stripped
+#>22	leshort		>0		- version %d
+0	leshort		0503		basic-16 executable (TV)
+>12	lelong		>0		not stripped
+#>22	leshort		>0		- version %d
+0	leshort		0510		x86 executable
+>12	lelong		>0		not stripped
+0	leshort		0511		x86 executable (TV)
+>12	lelong		>0		not stripped
+0	leshort		=0512		iAPX 286 executable small model (COFF)
+>12	lelong		>0		not stripped
+#>22	leshort		>0		- version %d
+0	leshort		=0522		iAPX 286 executable large model (COFF)
+>12	lelong		>0		not stripped
+#>22	leshort		>0		- version %d
+# updated by Joerg Jenderek at Oct 2015
+# https://de.wikipedia.org/wiki/Common_Object_File_Format
+# http://www.delorie.com/djgpp/doc/coff/filhdr.html
+# ./msdos (version 5.25) labeled the next entry as "MS Windows COFF Intel 80386 object file"
+# ./intel (version 5.25) label labeled the next entry as "80386 COFF executable"
+# SGI labeled the next entry as "iAPX 386 executable" --Dan Quinlan
+0	leshort		=0514
+# use subroutine to display name+flags+variables for common object formated files
+>0	use				display-coff
+#>12	lelong		>0		not stripped
+# no hint found, that at offset 22 is version
+#>22	leshort		>0		- version %d
+
+# rom: file(1) magic for BIOS ROM Extensions found in intel machines
+#      mapped into memory between 0xC0000 and 0xFFFFF
+# From: Alex Myczko <alex@aiei.ch>
+# updated by Joerg Jenderek
+# https://en.wikipedia.org/wiki/Option_ROM
+0        beshort         0x55AA       BIOS (ia32) ROM Ext.
+!:mime	application/octet-stream
+!:ext	rom/bin
+>5       string          USB          USB
+>7       string          LDR          UNDI image
+>30      string          IBM          IBM comp. Video
+>26      string          Adaptec      Adaptec
+>28      string          Adaptec      Adaptec
+>42      string          PROMISE      Promise
+>2       byte            x            (%d*512)
+
+# Flash descriptors for Intel SPI flash roms.
+# From Dr. Jesus <j@hug.gs>
+0	lelong		0x0ff0a55a	Intel serial flash for ICH/PCH ROM <= 5 or 3400 series A-step
+16	lelong		0x0ff0a55a	Intel serial flash for PCH ROM

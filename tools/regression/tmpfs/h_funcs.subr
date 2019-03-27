@@ -1,0 +1,184 @@
+#!/bin/sh
+#
+# $NetBSD: h_funcs.subr,v 1.5 2006/11/09 16:20:06 jmmv Exp $
+#
+# Copyright (c) 2005, 2006 The NetBSD Foundation, Inc.
+# All rights reserved.
+#
+# This code is derived from software contributed to The NetBSD Foundation
+# by Julio M. Merino Vidal, developed as part of Google's Summer of Code
+# 2005 program.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+#
+# Helper functions for tests written in shell script.
+#
+
+Prog_Name=${0##*/}
+Src_Dir=$(pwd)
+Unprived_User=
+Verbose=2
+Work_Dir=$(pwd)/tmp
+
+# -------------------------------------------------------------------------
+
+# die
+#
+#	Called by tests when a command fails unexpectedly.  Terminates
+#	execution and tries to clean up the mount point.
+#
+die() {
+	if [ -d ${Work_Dir} ]; then
+		cd ${Src_Dir}
+		umount ${Work_Dir}
+		rmdir ${Work_Dir}
+	fi
+	[ ${Verbose} -eq 2 ] && err "Test ended unexpectedly"
+	[ ${Verbose} -eq 1 ] && echo " failed."
+	exit 1
+}
+
+# -------------------------------------------------------------------------
+
+# err message
+#
+#	Shows the given error message and terminates the program.
+#
+err() {
+	echo "${Prog_Name}: $*" 1>&2
+	exit 1
+}
+
+# -------------------------------------------------------------------------
+
+# test_mount [args]
+#
+#	Mounts tmpfs over ${Work_Dir} and changes the current directory
+#	to the mount point.  Optional arguments may be passed to the
+#	mount command.
+#
+test_mount() {
+	mkdir ${Work_Dir} || die
+	if [ $# -gt 0 ]; then
+		mount -t tmpfs "$@" tmpfs ${Work_Dir} || die
+	else
+		mount -t tmpfs tmpfs ${Work_Dir} || die
+	fi
+	cd ${Work_Dir}
+}
+
+# -------------------------------------------------------------------------
+
+# test_name message
+#
+#	Prints a message about what a test is going to do.
+#
+test_name() {
+	[ ${Verbose} -gt 1 ] && echo "    $*..."
+}
+
+# -------------------------------------------------------------------------
+
+# test_unmount
+#
+#	Unmounts the file system mounted by test_mount.
+#
+test_unmount() {
+	cd -
+	umount ${Work_Dir} || die
+	rmdir ${Work_Dir} || die
+}
+
+# -------------------------------------------------------------------------
+
+# kqueue_monitor expected_nevents file1 [.. fileN]
+#
+#	Monitors the commands given through stdin (one per line) using
+#	kqueue and stores the events raised in a log that can be later
+#	verified with kqueue_check.
+#
+kqueue_monitor() {
+	nev=${1}; shift
+	test_name "Running kqueue-monitored commands and expecting" \
+	    "${nev} events"
+	${Src_Dir}/h_tools kqueue ${*} >kqueue.log || return 1
+	got=$(wc -l kqueue.log | awk '{ print $1 }')
+	test ${got} -eq ${nev}
+}
+
+# -------------------------------------------------------------------------
+
+# kqueue_check file event
+#
+#	Checks if kqueue raised the given event when monitoring the
+#	given file.
+#
+kqueue_check() {
+	grep "^${1} - ${2}$" kqueue.log >/dev/null
+}
+
+# -------------------------------------------------------------------------
+
+main() {
+	local args
+
+	[ $(id -un) = root ] || err "Must be run as root"
+
+	args=$(getopt u:v:w: $*)
+	if [ $? -ne 0 ]; then
+		echo "Usage: ${Prog_Name} [-u unprived_user] [-v level] " \
+		    "[-w root_dir]" 1>&2
+		return 1
+	fi
+	set -- ${args}
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			-u)
+				Unprived_User="$2"; shift
+				;;
+			-v)
+				Verbose="$2"; shift
+				;;
+			-w)
+				Work_Dir="$2"; shift
+				;;
+			--)
+				shift; break
+				;;
+		esac
+		shift
+	done
+
+	[ ${Verbose} -eq 1 ] && echo -n "${Prog_Name}:"
+	[ ${Verbose} -eq 2 ] && echo "${Prog_Name}: Running tests"
+	test_run
+	[ ${Verbose} -eq 1 ] && echo " ok."
+	[ ${Verbose} -eq 2 ] && echo "${Prog_Name}: All tests were successful"
+
+	return 0
+}
+
+main "$@"

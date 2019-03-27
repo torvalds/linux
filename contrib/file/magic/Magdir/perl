@@ -1,0 +1,100 @@
+#------------------------------------------------------------------------------
+# $File: perl,v 1.26 2017/02/21 18:34:55 christos Exp $
+# perl:  file(1) magic for Larry Wall's perl language.
+#
+# The `eval' lines recognizes an outrageously clever hack.
+# Keith Waclena <keith@cerberus.uchicago.edu>
+# Send additions to <perl5-porters@perl.org>
+0	search/1024	eval\ "exec\ perl		Perl script text
+!:mime	text/x-perl
+0	search/1024	eval\ "exec\ /bin/perl		Perl script text
+!:mime	text/x-perl
+0	search/1024	eval\ "exec\ /usr/bin/perl	Perl script text
+!:mime	text/x-perl
+0	search/1024	eval\ "exec\ /usr/local/bin/perl	Perl script text
+!:mime	text/x-perl
+0	search/1024	eval\ 'exec\ perl		Perl script text
+!:mime	text/x-perl
+0	search/1024	eval\ 'exec\ /bin/perl		Perl script text
+!:mime	text/x-perl
+0	search/1024	eval\ 'exec\ /usr/bin/perl	Perl script text
+!:mime	text/x-perl
+0	search/1024	eval\ 'exec\ /usr/local/bin/perl	Perl script text
+!:mime	text/x-perl
+0	search/1024	eval\ '(exit\ $?0)'\ &&\ eval\ 'exec	Perl script text
+!:mime	text/x-perl
+0	string	#!/usr/bin/env\ perl	Perl script text executable
+!:mime	text/x-perl
+0	string	#!\ /usr/bin/env\ perl	Perl script text executable
+!:mime	text/x-perl
+0	string	#!
+>0	regex	\^#!.*/bin/perl([[:space:]].*)*$	Perl script text executable
+!:mime	text/x-perl
+
+# by Dmitry V. Levin and Alexey Tourbin
+# check the first line
+0	search/8192	package
+>0	regex		\^package[\ \t]+[0-9A-Za-z_:]+\ *;	Perl5 module source text
+!:strength + 40
+# not 'p', check other lines
+0	search/8192	!p
+>0	regex		\^package[\ \t]+[0-9A-Za-z_:]+\ *;
+>>0	regex		\^1\ *;|\^(use|sub|my)\ .*[(;{=]	Perl5 module source text
+!:strength + 75
+
+# Perl POD documents
+# From: Tom Hukins <tom@eborcom.com>
+0	search/1024/W	\=pod\n		Perl POD document text
+0	search/1024/W	\n\=pod\n	Perl POD document text
+0	search/1024/W	\=head1\ 	Perl POD document text
+0	search/1024/W	\n\=head1\ 	Perl POD document text
+0	search/1024/W	\=head2\ 	Perl POD document text
+0	search/1024/W	\n\=head2\ 	Perl POD document text
+0	search/1024/W	\=encoding\ 	Perl POD document text
+0	search/1024/W	\n\=encoding\ 	Perl POD document text
+
+
+# Perl Storable data files.
+0	string	perl-store	perl Storable (v0.6) data
+>4	byte	>0	(net-order %d)
+>>4	byte	&01	(network-ordered)
+>>4	byte	=3	(major 1)
+>>4	byte	=2	(major 1)
+
+0	string	pst0	perl Storable (v0.7) data
+>4	byte	>0
+>>4	byte	&01	(network-ordered)
+>>4	byte	=5	(major 2)
+>>4	byte	=4	(major 2)
+>>5	byte	>0	(minor %d)
+
+# This is Debian #742949 by Zefram <zefram@fysh.org>:
+# -----------------------------------------------------------
+# The Perl module Hash::SharedMem
+# <https://metacpan.org/release/Hash-SharedMem> defines a file format
+# for a key/value store.  Details of the file format are in the "DESIGN"
+# file in the module distribution.  Magic:
+0	bequad	=0xa58afd185cbf5af7	Hash::SharedMem master file, big-endian
+>8	bequad	<0x1000000
+>>15	byte	>2	\b, line size 2^%d byte
+>>14	byte	>2	\b, page size 2^%d byte
+>>13	byte	&1
+>>>13	byte	>1	\b, max fanout %d
+0	lequad	=0xa58afd185cbf5af7	Hash::SharedMem master file, little-endian
+>8	lequad	<0x1000000
+>>8	byte	>2	\b, line size 2^%d byte
+>>9	byte	>2	\b, page size 2^%d byte
+>>10	byte	&1
+>>>10	byte	>1	\b, max fanout %d
+0	bequad	=0xc693dac5ed5e47c2	Hash::SharedMem data file, big-endian
+>8	bequad	<0x1000000
+>>15	byte	>2	\b, line size 2^%d byte
+>>14	byte	>2	\b, page size 2^%d byte
+>>13	byte	&1
+>>>13	byte	>1	\b, max fanout %d
+0	lequad	=0xc693dac5ed5e47c2	Hash::SharedMem data file, little-endian
+>8	lequad	<0x1000000
+>>8	byte	>2	\b, line size 2^%d byte
+>>9	byte	>2	\b, page size 2^%d byte
+>>10	byte	&1
+>>>10	byte	>1	\b, max fanout %d

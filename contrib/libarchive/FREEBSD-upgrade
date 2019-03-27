@@ -1,0 +1,25 @@
+$FreeBSD$
+
+libarchive
+
+The source code is pulled with git:
+
+	git clone git://github.com/libarchive/libarchive.git
+
+For the contrib directory files and directories were pruned by:
+	
+sh -c 'for F in `cat FREEBSD-Xlist | grep -v FreeBSD`; do rm -rf ./$F ; done'
+
+You may check if there are any new files that we don't need and add them to
+FREEBSD-Xlist.
+
+The instructions for importing new release and merging to HEAD can be found
+at FreeBSD wiki:
+
+	http://wiki.freebsd.org/SubversionPrimer/VendorImports
+
+To make local changes to libarchive, simply patch and commit to the trunk
+branch (aka HEAD).  Never make local changes on the vendor branch.
+
+mm@FreeBSD.org
+27-July-2012

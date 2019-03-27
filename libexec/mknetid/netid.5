@@ -1,0 +1,91 @@
+.\" Copyright (c) 1996 Mats O Jansson <moj@stacken.kth.se>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Mats O Jansson
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 13, 1996
+.Dt NETID 5
+.Os
+.Sh NAME
+.Nm netid
+.Nd
+.Tn YP
+network credential file
+.Sh DESCRIPTION
+Files in
+.Nm
+format are rare.
+One lives in the
+.Tn YP
+map
+.Pa netid.byname .
+The format is rather simple.
+Each row consists of two items: a key and a value.
+When created by
+.Xr mknetid 8
+there are three types of records.
+.Pp
+The first type is information about which GIDs a UID has:
+.Pp
+.Sm off
+.Li unix . Ao Ar uid Ac @ Aq Ar yp-domain
+.Sm on
+.Sm off
+.Ao Ar uid Ac : Ao Ar gid Ac , Aq Ar gid
+.Sm on
+.Pp
+The second type contains information about hosts:
+.Pp
+.Sm off
+.Li unix . Ao Ar hostname Ac @ Aq Ar yp-domain
+.Sm on
+.Sm off
+.Li 0 : Aq Ar hostname
+.Sm on
+.Pp
+The third type refers to records from a
+.Nm
+file other than the two types above.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/netid" -compact
+.It Pa /etc/netid
+for lines not generated automatically by
+.Xr mknetid 8
+.El
+.Sh EXAMPLES
+A configuration file might look like the following:
+.Bd -literal
+unix.10714@kaka 10714:400,10
+unix.jodie@kaka 0:jodie
+.Ed
+.Sh SEE ALSO
+.Xr mknetid 8 ,
+.Xr yp 8
+.Sh AUTHORS
+.An Mats O Jansson Aq Mt moj@stacken.kth.se

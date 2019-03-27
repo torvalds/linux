@@ -1,0 +1,100 @@
+.\" Copyright (c) 1996 John Birrell <jb@cimlogic.com.au>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by John Birrell.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 4, 1996
+.Dt PTHREAD_KEY_DELETE 3
+.Os
+.Sh NAME
+.Nm pthread_key_delete
+.Nd delete a thread-specific data key
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_key_delete "pthread_key_t key"
+.Sh DESCRIPTION
+The
+.Fn pthread_key_delete
+function deletes a thread-specific data key previously returned by
+.Fn pthread_key_create .
+The thread-specific data values associated with
+.Fa key
+need not be NULL at the time that
+.Fn pthread_key_delete
+is called.
+It is the responsibility of the application to free any
+application storage or perform any cleanup actions for data structures
+related to the deleted key or associated thread-specific data in any threads;
+this cleanup can be done either before or after
+.Fn pthread_key_delete
+is called.
+Any attempt to use
+.Fa key
+following the call to
+.Fn pthread_key_delete
+results in undefined behavior.
+.Pp
+The
+.Fn pthread_key_delete
+function is callable from within destructor functions.
+Destructor functions
+are not invoked by
+.Fn pthread_key_delete .
+Any destructor function that may have been associated with
+.Fa key
+will no longer be called upon thread exit.
+.Sh RETURN VALUES
+If successful, the
+.Fn pthread_key_delete
+function will return zero.
+Otherwise an error number will be returned to
+indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_key_delete
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa key
+value is invalid.
+.El
+.Sh SEE ALSO
+.Xr pthread_getspecific 3 ,
+.Xr pthread_key_create 3 ,
+.Xr pthread_setspecific 3
+.Sh STANDARDS
+The
+.Fn pthread_key_delete
+function conforms to
+.St -p1003.1-96 .

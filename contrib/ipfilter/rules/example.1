@@ -1,0 +1,4 @@
+#
+# block all incoming TCP packets on le0 from host 10.1.1.1 to any destination.
+#
+block in on le0 proto tcp from 10.1.1.1/32 to any

@@ -1,0 +1,47 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: mountd
+# REQUIRE: NETWORKING rpcbind quota
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="mountd"
+desc="Service remote NFS mount requests"
+rcvar="mountd_enable"
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+required_files="/etc/exports"
+start_precmd="mountd_precmd"
+extra_commands="reload"
+
+mountd_precmd()
+{
+	force_depend rpcbind || return 1
+
+	# mountd flags will differ depending on rc.conf settings
+	#
+	if checkyesno nfs_server_enable ; then
+		if checkyesno weak_mountd_authentication; then
+			rc_flags="${mountd_flags} -n"
+		fi
+	else
+		if checkyesno mountd_enable; then
+			checkyesno weak_mountd_authentication && rc_flags="-n"
+		fi
+	fi
+
+	if checkyesno zfs_enable; then
+		rc_flags="${rc_flags} /etc/exports /etc/zfs/exports"
+	fi
+
+	rm -f /var/db/mountdtab
+	( umask 022 ; > /var/db/mountdtab ) ||
+	    err 1 'Cannot create /var/db/mountdtab'
+}
+
+load_rc_config $name
+run_rc_command "$1"

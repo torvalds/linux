@@ -1,0 +1,17 @@
+
+#------------------------------------------------------------------------------
+# $File: matroska,v 1.8 2013/02/08 17:25:16 christos Exp $
+# matroska:  file(1) magic for Matroska files
+#
+# See http://www.matroska.org/
+#
+
+# EBML id:
+0		belong		0x1a45dfa3
+# DocType id:
+>4		search/4096 	\x42\x82
+# DocType contents:
+>>&1		string		webm		WebM
+!:mime  video/webm
+>>&1		string		matroska	Matroska data
+!:mime  video/x-matroska

@@ -1,0 +1,468 @@
+.\" Copyright (c) 1980, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)vi.summary	8.3 (Berkeley) 8/18/96
+.\"
+.ds CH
+.ds CF
+.de TS
+.br
+.if !\\n(1T .RT
+.ul 0
+.ti \\n(.iu
+.if t .sp 0.25
+.if n .sp
+.if \\$1H .TQ
+.nr IX 1
+..
+.nr PS 9
+.ps 9
+.nr VS 11
+.vs 11
+.nr HM .50i
+.nr FM .25i
+.nr PO 1.0i
+.po 1.0i
+.nr LL 4.5i
+.ll 4.5i
+.de nc
+.bp
+..
+.de h
+.LG
+.B
+\\$1
+.R
+.NL
+..
+.LG
+.LG
+.B
+.ce
+Ex Quick Reference
+.R
+.NL
+.LP
+.LP
+.h "Entering/leaving ex"
+.TS
+aw(1.4i)b aw(1.8i).
+% ex \fIname\fP	edit \fIname\fP, start at end
+% ex +\fIn\fP \fIname\fP	... at line \fIn\fP
+% ex \-t \fItag\fP	start at \fItag\fP
+% ex \-r	list saved files
+% ex \-r \fIname\fP	recover file \fIname\fP
+% ex \fIname\fP ...	edit first; rest via \fB:n\fP
+% ex \-R \fIname\fP 	read only mode
+: x	exit, saving changes
+: q!	exit, discarding changes
+.TE
+.h "Ex states"
+.TS
+lw(1i) lw(2.0i).
+Command	T{
+Normal and initial state.  Input prompted for by \fB:\fP.
+Your kill character cancels partial command.
+T}
+Insert	T{
+Entered by \fBa\fP \fBi\fP and \fBc\fP.
+Arbitrary text then terminates with line having only \fB.\fP
+character on it or abnormally with interrupt.
+T}
+Open/visual	T{
+Entered by \fBopen\fP or \fBvi\fP, terminates with \fBQ\fP
+or ^\e.
+T}
+.TE
+.h "Ex commands"
+.TS
+lw(.45i) lw(.08i)b lw(.45i) lw(.08i)b lw(.45i) lw(.08i)b.
+abbrev	ab	next	n	unabbrev	una
+append	a	number	nu	undo	u
+args	ar	open	o	unmap	unm
+change	c	preserve	pre	version	ve
+copy	co	print	p	visual	vi
+delete	d	put	pu	write	w
+edit	e	quit	q	xit	x
+file	f	read	re	yank	ya
+global	g	recover	rec	\fIwindow\fP	z
+insert	i	rewind	rew	\fIescape\fP	!
+join	j	set	se	\fIlshift\fP	<
+list	l	shell	sh	\fIprint next\fP	\fRCR\fP
+map		source	so	\fIresubst\fP	&
+mark	ma	stop	st	\fIrshift\fP	>
+move	m	substitute	s	\fIscroll\fP	^D
+.TE
+.h "Ex command addresses"
+.TS
+lw(.3i)b lw(0.8i) lw(.3i)b lw(0.8i).
+\fIn\fP	line \fIn\fP	/\fIpat\fP	next with \fIpat\fP
+\&.	current	?\fIpat\fP	previous with \fIpat\fP
+$	last	\fIx\fP-\fIn\fP	\fIn\fP before \fIx\fP
++	next	\fIx\fP,\fIy\fP	\fIx\fP through \fIy\fP
+\-	previous	\(aa\fIx\fP	marked with \fIx\fP
++\fIn\fP	\fIn\fP forward	\(aa\(aa	previous context
+%	1,$
+.TE
+.nc
+.h "Specifying terminal type"
+.TS
+aw(1.7i)b aw(1.5i).
+% setenv TERM \fItype\fP	\fIcsh\fP and all version 6
+$ TERM=\fItype\fP; export TERM	\fIsh\fP in Version 7
+See also \fItset\fR(1)
+.TE
+.h "Some terminal types"
+.TS
+lw(.4i) lw(.4i) lw(.4i) lw(.4i) lw(.4i).
+2621	43	adm31	dw1	h19
+2645	733	adm3a	dw2	i100
+300s	745	c100	gt40	mime
+33	act4	dm1520	gt42	owl
+37	act5	dm2500	h1500	t1061
+4014	adm3	dm3025	h1510	vt52
+.TE
+.h "Initializing options"
+.TS
+lw(.9i)b aw(1.5i).
+EXINIT	place \fBset\fP's here in environment var.
+set \fIx\fP	enable option
+set no\fIx\fP	disable option
+set \fIx\fP=\fIval\fP	give value \fIval\fP
+set	show changed options
+set all	show all options
+set \fIx\fP?	show value of option \fIx\fP
+.TE
+.h "Useful options"
+.TS
+lw(.9i)b lw(.3i) lw(1.0i).
+autoindent	ai	supply indent
+autowrite	aw	write before changing files
+ignorecase	ic	in scanning
+lisp		\fB( ) { }\fP are s-exp's
+list		print ^I for tab, $ at end
+magic		\fB. [ *\fP special in patterns
+number	nu	number lines
+paragraphs	para	macro names which start ...
+redraw		simulate smart terminal
+scroll		command mode lines
+sections	sect	macro names ...
+shiftwidth	sw	for \fB< >\fP, and input \fB^D\fP
+showmatch	sm	to \fB)\fP and \fB}\fP as typed
+slowopen	slow	choke updates during insert
+window		visual mode lines
+wrapscan	ws	around end of buffer?
+wrapmargin	wm	automatic line splitting
+.TE
+.LP
+.h "Scanning pattern formation"
+.TS
+aw(.9i)b aw(1.0i).
+\(ua	beginning of line
+$	end of line
+\fB.\fR	any character
+\e<	beginning of word
+\e>	end of word
+[\fIstr\fP]	any char in \fIstr\fP
+[\(ua\fIstr\fP]	... not in \fIstr\fP
+[\fIx\-y\fP]	... between \fIx\fP and \fIy\fP
+*	any number of preceding
+.TE
+.nc
+.LP
+.LG
+.LG
+.B
+.ce
+Vi Quick Reference
+.NL
+.R
+.LP
+.LP
+.h "Entering/leaving vi"
+.TS
+aw(1.4i)b aw(1.8i).
+% vi \fIname\fP	edit \fIname\fP at top
+% vi +\fIn\fP \fIname\fP	... at line \fIn\fP
+% vi + \fIname\fP	... at end
+% vi \-r	list saved files
+% vi \-r \fIname\fP	recover file \fIname\fP
+% vi \fIname\fP ...	edit first; rest via \fB:n\fP
+% vi \-t \fItag\fP	start at \fItag\fP
+% vi +/\fIpat\fP \fIname\fP	search for \fIpat\fP
+% view \fIname\fP	read only mode
+ZZ	exit from vi, saving changes
+^Z	stop vi for later resumption
+.TE
+.h "The display"
+.TS
+lw(.75i) lw(2.2i).
+Last line	T{
+Error messages, echoing input to \fB: / ?\fP and \fB!\fR,
+feedback about i/o and large changes.
+T}
+@ lines	On screen only, not in file.
+~ lines	Lines past end of file.
+^\fIx\fP	Control characters, ^? is delete.
+tabs	Expand to spaces, cursor at last.
+.TE
+.LP
+.h "Vi states"
+.TS
+lw(.75i) lw(2.2i).
+Command	T{
+Normal and initial state.  Others return here.
+ESC (escape) cancels partial command.
+T}
+Insert	T{
+Entered by \fBa i A I o O c C s S\fP \fBR\fP.
+Arbitrary text then terminates with ESC character,
+or abnormally with interrupt.
+T}
+Last line	T{
+Reading input for \fB: / ?\fP or \fB!\fP; terminate
+with ESC or CR to execute, interrupt to cancel.
+T}
+.TE
+.h "Counts before vi commands"
+.TS
+lw(1.5i) lw(1.7i)b.
+line/column number	z  G  |	
+scroll amount	^D  ^U
+replicate insert	a  i  A  I
+repeat effect	\fRmost rest\fP
+.TE
+.h "Simple commands"
+.TS
+lw(1.5i)b lw(1.7i).
+dw	delete a word
+de	... leaving punctuation
+dd	delete a line
+3dd	... 3 lines
+i\fItext\fP\fRESC\fP	insert text \fIabc\fP
+cw\fInew\fP\fRESC\fP	change word to \fInew\fP
+ea\fIs\fP\fRESC\fP	pluralize word
+xp	transpose characters
+.TE
+.nc
+.h "Interrupting, cancelling"
+.TS
+aw(0.75i)b aw(1.6i).
+ESC	end insert or incomplete cmd
+^?	(delete or rubout) interrupts
+^L	reprint screen if \fB^?\fR scrambles it
+.TE
+.h "File manipulation"
+.TS
+aw(0.75i)b aw(1.6i).
+:w	write back changes
+:wq	write and quit
+:q	quit
+:q!	quit, discard changes
+:e \fIname\fP	edit file \fIname\fP
+:e!	reedit, discard changes
+:e + \fIname\fP	edit, starting at end
+:e +\fIn\fR	edit starting at line \fIn\fR
+:e #	edit alternate file
+^\(ua	synonym for \fB:e #\fP
+:w \fIname\fP	write file \fIname\fP
+:w! \fIname\fP	overwrite file \fIname\fP
+:sh	run shell, then return
+:!\fIcmd\fP	run \fIcmd\fR, then return
+:n	edit next file in arglist
+:n \fIargs\fP	specify new arglist
+:f	show current file and line
+^G	synonym for \fB:f\fP
+:ta \fItag\fP	to tag file entry \fItag\fP
+^]	\fB:ta\fP, following word is \fItag\fP
+.TE
+.h "Positioning within file"
+.TS
+aw(0.75i)b aw(1.6i).
+^F	forward screenfull
+^B	backward screenfull
+^D	scroll down half screen
+^U	scroll up half screen
+G	goto line (end default)
+/\fIpat\fR	next line matching \fIpat\fR
+?\fIpat\fR	prev line matching \fIpat\fR
+n	repeat last \fB/\fR or \fB?\fR
+N	reverse last \fB/\fR or \fB?\fR
+/\fIpat\fP/+\fIn\fP	n'th line after \fIpat\fR
+?\fIpat\fP?\-\fIn\fP	n'th line before \fIpat\fR
+]]	next section/function
+[[	previous section/function
+%	find matching \fB( ) {\fP or \fB}\fP
+.TE
+.h "Adjusting the screen"
+.TS
+aw(0.75i)b aw(1.6i).
+^L	clear and redraw
+^R	retype, eliminate @ lines
+z\fRCR\fP	redraw, current at window top
+z\-	... at bottom
+z\|.	... at center
+/\fIpat\fP/z\-	\fIpat\fP line at bottom
+z\fIn\fP\|.	use \fIn\fP line window
+^E	scroll window down 1 line
+^Y	scroll window up 1 line
+.TE
+.nc
+.h "Marking and returning
+.TS
+aw(0.5i)b aw(2.0i).
+\(ga\(ga	previous context
+\(aa\(aa	... at first non-white in line
+m\fIx\fP	mark position with letter \fIx\fP
+\(ga\fIx\fP	to mark \fIx\fP
+\(aa\fIx\fP	... at first non-white in line
+.TE
+.h "Line positioning"
+.TS
+aw(0.5i)b aw(2.0i).
+H	home window line
+L	last window line
+M	middle window line
++	next line, at first non-white
+\-	previous line, at first non-white
+\fRCR\fP	return, same as +
+\(da \fRor\fP j	next line, same column
+\(ua \fRor\fP k	previous line, same column
+.TE
+.h "Character positioning"
+.TS
+aw(0.5i)b aw(2.0i).
+\(ua	first non white
+0	beginning of line
+$	end of line
+h \fRor\fP \(->	forward
+l \fRor\fP \(<-	backwards
+^H	same as \fB\(<-\fP
+\fRspace\fP	same as \fB\(->\fP
+f\fIx\fP	find \fIx\fP forward
+F\fIx\fP	\fBf\fR backward
+t\fIx\fP	upto \fIx\fP forward
+T\fIx\fP	back upto \fIx\fP
+;	repeat last \fBf F t\fP or \fBT\fP
+,	inverse of \fB;\fP
+|	to specified column
+%	find matching \fB( { )\fP or \fB}\fR
+.TE
+.h "Words, sentences, paragraphs"
+.TS
+aw(0.5i)b aw(2.0i).
+w	word forward
+b	back word
+e	end of word
+)	to next sentence
+}	to next paragraph
+(	back sentence
+{	back paragraph
+W	blank delimited word
+B	back \fBW\fP
+E	to end of \fBW\fP
+.TE
+.h "Commands for \s-2LISP\s0"
+.TS
+aw(0.5i)b aw(2.0i).
+)	Forward s-expression
+}	... but don't stop at atoms
+(	Back s-expression
+{	... but don't stop at atoms
+.TE
+.nc
+.h "Corrections during insert"
+.TS
+aw(.5i)b aw(2.0i).
+^H	erase last character
+^W	erases last word
+\fRerase\fP	your erase, same as \fB^H\fP
+\fRkill\fP	your kill, erase input this line
+\e	escapes \fB^H\fR, your erase and kill
+\fRESC\fP	ends insertion, back to command
+^?	interrupt, terminates insert
+^D	backtab over \fIautoindent\fP
+\(ua^D	kill \fIautoindent\fP, save for next
+0^D	... but at margin next also
+^V	quote non-printing character
+.TE
+.h "Insert and replace"
+.TS
+aw(.5i)b aw(2.0i).
+a	append after cursor
+i	insert before
+A	append at end of line
+I	insert before first non-blank
+o	open line below
+O	open above
+r\fIx\fP	replace single char with \fIx\fP
+R	replace characters
+.TE
+.h "Operators (double to affect lines)"
+.TS
+aw(0.5i)b aw(2.0i).
+d	delete
+c	change
+<	left shift
+>	right shift
+!	filter through command
+\&=	indent for \s-2LISP\s0
+y	yank lines to buffer
+.TE
+.h "Miscellaneous operations"
+.TS
+aw(0.5i)b aw(2.0i).
+C	change rest of line
+D	delete rest of line
+s	substitute chars
+S	substitute lines
+J	join lines
+x	delete characters
+X	... before cursor
+Y	yank lines
+.TE
+.h "Yank and put"
+.TS
+aw(0.5i)b aw(2.0i).
+p	put back lines
+P	put before
+"\fIx\fPp	put from buffer \fIx\fP
+"\fIx\fPy	yank to buffer \fIx\fP
+"\fIx\fPd	delete into buffer \fIx\fP
+.TE
+.h "Undo, redo, retrieve"
+.TS
+aw(0.5i)b aw(2.0i).
+u	undo last change
+U	restore current line
+\fB.\fP	repeat last change
+"\fId\fP\|p	retrieve \fId\fP'th last delete
+.TE

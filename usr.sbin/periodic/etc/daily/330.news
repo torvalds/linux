@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+# Expire news articles
+# (This is present only for backwards compatibility, usually the news
+# system handles this on its own).
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_news_expire_enable" in
+    [Yy][Ee][Ss])
+	if [ ! -f /etc/news.expire ]
+	then
+	    echo '$daily_news_expire_enable is set but /etc/news.expire' \
+		"doesn't exist"
+	    rc=2
+	else
+	    echo ""
+	    echo "Running news.expire:"
+
+	    /etc/news.expire && rc=0 || rc=3
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

@@ -1,7 +1,0 @@
-#
-# Broadcom BCM63XX boards
-#
-platform-$(CONFIG_BCM63XX)	+= bcm63xx/
-cflags-$(CONFIG_BCM63XX)	+=					\
-		-I$(srctree)/arch/mips/include/asm/mach-bcm63xx/
-load-$(CONFIG_BCM63XX)		:= 0xffffffff80010000

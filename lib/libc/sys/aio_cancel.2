@@ -1,0 +1,117 @@
+.\" Copyright (c) 1999 Softweyr LLC.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Softweyr LLC AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Softweyr LLC OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 19, 2000
+.Dt AIO_CANCEL 2
+.Os
+.Sh NAME
+.Nm aio_cancel
+.Nd cancel an outstanding asynchronous I/O operation (REALTIME)
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In aio.h
+.Ft int
+.Fn aio_cancel "int fildes" "struct aiocb *iocb"
+.Sh DESCRIPTION
+The
+.Fn aio_cancel
+system call cancels the outstanding asynchronous
+I/O request for the file descriptor specified in
+.Fa fildes .
+If
+.Fa iocb
+is specified, only that specific asynchronous I/O request is cancelled.
+.Pp
+Normal asynchronous notification occurs for cancelled requests.
+Requests complete with an error result of
+.Er ECANCELED .
+.Sh RESTRICTIONS
+The
+.Fn aio_cancel
+system call does not cancel asynchronous I/O requests for raw disk devices.
+The
+.Fn aio_cancel
+system call will always return
+.Dv AIO_NOTCANCELED
+for file descriptors associated with raw disk devices.
+.Sh RETURN VALUES
+The
+.Fn aio_cancel
+system call returns -1 to indicate an error, or one of the following:
+.Bl -tag -width Dv
+.It Bq Dv AIO_CANCELED
+All outstanding requests meeting the criteria specified were cancelled.
+.It Bq Dv AIO_NOTCANCELED
+Some requests were not cancelled, status for the requests should be
+checked with
+.Xr aio_error 2 .
+.It Bq Dv AIO_ALLDONE
+All of the requests meeting the criteria have finished.
+.El
+.Sh ERRORS
+An error return from
+.Fn aio_cancel
+indicates:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fildes
+argument
+is an invalid file descriptor.
+.El
+.Sh SEE ALSO
+.Xr aio_error 2 ,
+.Xr aio_read 2 ,
+.Xr aio_return 2 ,
+.Xr aio_suspend 2 ,
+.Xr aio_write 2 ,
+.Xr aio 4
+.Sh STANDARDS
+The
+.Fn aio_cancel
+system call is expected to conform to the
+.St -p1003.1
+standard.
+.Sh HISTORY
+The
+.Fn aio_cancel
+system call first appeared in
+.Fx 3.0 .
+The first functional implementation of
+.Fn aio_cancel
+appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+.An -nosplit
+This
+manual page was originally written by
+.An Wes Peters Aq Mt wes@softweyr.com .
+.An Christopher M Sedore Aq Mt cmsedore@maxwell.syr.edu
+updated it when
+.Fn aio_cancel
+was implemented for
+.Fx 4.0 .

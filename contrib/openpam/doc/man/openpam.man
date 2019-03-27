@@ -1,0 +1,13 @@
+.\"
+.\" $OpenPAM: openpam.man 938 2017-04-30 21:34:42Z des $
+.\"
+.Sh DESCRIPTION
+These functions are OpenPAM extensions to the PAM API.
+Those named
+.Fn pam_*
+are, in the author's opinion, logical and necessary extensions to the
+standard API, while those named
+.Fn openpam_*
+are either simple convenience functions, or functions intimately tied
+to OpenPAM implementation details, and therefore not well suited to
+standardization.

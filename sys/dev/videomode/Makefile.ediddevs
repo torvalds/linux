@@ -1,0 +1,16 @@
+#	$NetBSD: Makefile.ediddevs,v 1.1 2006/05/11 01:49:53 gdamore Exp $
+#	$FreeBSD$
+#
+# As per tron@NetBSD.org, the proper procedure is
+#
+# 1.) Change "src/sys/dev/videomode/ediddevs".
+# 2.) Commit "src/sys/dev/videomode/ediddevs".
+# 3.) Execute "make -f Makefile.ediddevs" in "src/sys/dev/videomode".
+# 4.) Commit "src/sys/dev/videomode/ediddevs.h" and
+#     "src/sys/dev/videomode/ediddevs_data.h".
+
+.include <bsd.own.mk>
+
+ediddevs.h ediddevs_data.h: ediddevs devlist2h.awk
+	/bin/rm -f ediddevs.h ediddevs_data.h
+	${TOOL_AWK} -f devlist2h.awk ediddevs

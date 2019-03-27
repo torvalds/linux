@@ -1,0 +1,18 @@
+.TH "page_cms" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+page_cms \- CMS/PKCS7 message functions. 
+CMS is defined in RFC 3369 and is an continuation of the RSA Labs standard PKCS7. The basic messages in CMS is
+.PP
+.IP "\(bu" 2
+SignedData Data signed with private key (RSA, DSA, ECDSA) or secret (symmetric) key
+.IP "\(bu" 2
+EnvelopedData Data encrypted with private key (RSA)
+.IP "\(bu" 2
+EncryptedData Data encrypted with secret (symmetric) key.
+.IP "\(bu" 2
+ContentInfo Wrapper structure including type and data.
+.PP
+.PP
+See the library functions here: \fBhx509 CMS/pkcs7 functions\fP 

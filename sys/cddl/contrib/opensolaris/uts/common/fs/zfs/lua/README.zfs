@@ -1,0 +1,80 @@
+#
+# CDDL HEADER START
+#
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
+#
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# http://www.illumos.org/license/CDDL.
+#
+# CDDL HEADER END
+#
+
+#
+# Copyright (c) 2017 by Delphix. All rights reserved.
+#
+
+Introduction
+------------
+
+This README describes the Lua interpreter source code that lives in the ZFS
+source tree to enable execution of ZFS channel programs, including its
+maintenance policy, the modifications that have been made to it, and how it
+should (and should not) be used.
+
+For a description of the Lua language and features exposed by ZFS channel
+programs, please refer to the zfs-program(1m) man page instead.
+
+
+Maintenance policy
+------------------
+
+The Lua runtime is considered stable software. Channel programs don't need much
+complicated logic, so updates to the Lua runtime from upstream are viewed as
+nice-to-have, but not required for channel programs to be well-supported. As
+such, the Lua runtime in ZFS should be updated on an as-needed basis for
+security vulnerabilities, but not much else.
+
+
+Modifications to Lua
+--------------------
+
+The version of the Lua runtime we're using in ZFS has been modified in a variety
+of ways to make it more useful for the specific purpose of running channel
+programs. These changes include:
+
+1. "Normal" Lua uses floating point for all numbers it stores, but those aren't
+   useful inside ZFS / the kernel. We have changed the runtime to use int64_t
+   throughout for all numbers.
+2. Some of the Lua standard libraries do file I/O or spawn processes, but
+   neither of these make sense from inside channel programs. We have removed
+   those libraries rather than reimplementing them using kernel APIs.
+3. The "normal" Lua runtime handles errors by failing fatally, but since this
+   version of Lua runs inside the kernel we must handle these failures and
+   return meaningful error codes to userland. We have customized the Lua
+   failure paths so that they aren't fatal.
+4. Running poorly-vetted code inside the kernel is always a risk; even if the
+   ability to do so is restricted to the root user, it's still possible to write
+   an incorrect program that results in an infinite loop or massive memory use.
+   We've added new protections into the Lua interpreter to limit the runtime
+   (measured in number of Lua instructions run) and memory overhead of running
+   a channel program.
+5. The Lua bytecode is not designed to be secure / safe, so it would be easy to
+   pass invalid bytecode which can panic the kernel. By comparison, the parser
+   is hardened and fails gracefully on invalid input. Therefore, we only accept
+   Lua source code at the ioctl level and then interpret it inside the kernel.
+
+Each of these modifications have been tested in the zfs-test suite. If / when
+new modifications are made, new tests should be added to the suite located in
+zfs-tests/tests/functional/channel_program/lua_core.
+
+
+How to use this Lua interpreter
+-------------------------------
+
+From the above, it should be clear that this is not a general-purpose Lua
+interpreter. Additional work would be required to extricate this custom version
+of Lua from ZFS and make it usable by other areas of the kernel.

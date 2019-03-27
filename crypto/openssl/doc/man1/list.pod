@@ -1,0 +1,94 @@
+=pod
+
+=head1 NAME
+
+openssl-list,
+list - list algorithms and features
+
+=head1 SYNOPSIS
+
+B<openssl list>
+[B<-help>]
+[B<-1>]
+[B<-commands>]
+[B<-digest-commands>]
+[B<-digest-algorithms>]
+[B<-cipher-commands>]
+[B<-cipher-algorithms>]
+[B<-public-key-algorithms>]
+[B<-public-key-methods>]
+[B<-disabled>]
+
+=head1 DESCRIPTION
+
+This command is used to generate list of algorithms or disabled
+features.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-help>
+
+Display a usage message.
+
+=item B<-1>
+
+List the commands, digest-commands, or cipher-commands in a single column.
+If used, this option must be given first.
+
+=item B<-commands>
+
+Display a list of standard commands.
+
+=item B<-digest-commands>
+
+Display a list of message digest commands, which are typically used
+as input to the L<dgst(1)> or L<speed(1)> commands.
+
+=item B<-digest-algorithms>
+
+Display a list of message digest algorithms.
+If a line is of the form
+  foo => bar
+then B<foo> is an alias for the official algorithm name, B<bar>.
+
+=item B<-cipher-commands>
+
+Display a list of cipher commands, which are typically used as input
+to the L<dgst(1)> or L<speed(1)> commands.
+
+=item B<-cipher-algorithms>
+
+Display a list of cipher algorithms.
+If a line is of the form
+  foo => bar
+then B<foo> is an alias for the official algorithm name, B<bar>.
+
+=item B<-public-key-algorithms>
+
+Display a list of public key algorithms, with each algorithm as
+a block of multiple lines, all but the first are indented.
+
+=item B<-public-key-methods>
+
+Display a list of public key method OIDs: this also includes public key methods
+without an associated ASN.1 method, for example, KDF algorithms.
+
+=item B<-disabled>
+
+Display a list of disabled features, those that were compiled out
+of the installation.
+
+=back
+
+=head1 COPYRIGHT
+
+Copyright 2016-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,44 @@
+# This is the developer's makefile, not the user's makefile.
+# Don't use it unless you know exactly what you do!
+
+SHELL = /bin/sh
+MAKE = make
+
+all : configures src/config.h.in src/config.h.msvc src/config.h_vms doc/gperf.1
+
+CONFIGURES = configure lib/configure src/configure tests/configure doc/configure
+
+configures : $(CONFIGURES)
+
+configure : configure.ac aclocal.m4
+	autoconf -I .
+
+lib/configure : lib/configure.ac aclocal.m4
+	cd lib && autoconf -I ..
+
+src/configure : src/configure.ac aclocal.m4
+	cd src && autoconf -I ..
+
+tests/configure : tests/configure.ac aclocal.m4
+	cd tests && autoconf -I ..
+
+doc/configure : doc/configure.ac aclocal.m4
+	cd doc && autoconf -I ..
+
+check-configures : $(CONFIGURES)
+	set -e; for f in $(CONFIGURES); do bash -x -n $$f; done
+
+src/config.h.in : src/configure.ac aclocal.m4
+	cd src && autoheader -I ..
+
+src/config.h.msvc : src/config.h.in
+	cp src/config.h.in src/config.h.msvc
+
+src/config.h_vms : src/config.h.in
+	cp src/config.h.in src/config.h_vms
+
+doc/gperf.1 : force
+	prog=`PATH=build/src:src:$$PATH which gperf`; if test -n "$$prog"; then doc/help2man --name='generate a perfect hash function from a key set' --section=1 $$prog > doc/gperf.1; fi
+
+force :
+

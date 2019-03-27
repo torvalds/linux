@@ -1,0 +1,100 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 5, 2008
+.Dt SNP 4
+.Os
+.Sh NAME
+.Nm snp
+.Nd tty snoop interface
+.Sh SYNOPSIS
+.In sys/snoop.h
+.Ft int
+.Fn ioctl fd SNPSTTY &dev
+.Ft int
+.Fn ioctl fd SNPGTTY &dev
+.Ft int
+.Fn ioctl fd FIONREAD &result
+.Sh DESCRIPTION
+.Pa /dev/snp
+is a snoop device which allows users to attach to any tty
+and watch activities on it.
+The kernel must be compiled with
+.Cd "device snp" ,
+or the
+.Nm
+module must be loaded,
+for these devices to be available.
+.Pp
+To associate a given
+.Nm
+device with a tty to be observed, open the
+.Nm
+device and a tty device, and then issue the
+.Dv SNPSTTY
+ioctl on
+.Nm
+device.
+The argument passed to the
+.Xr ioctl 2
+is the address of a variable of type
+.Vt int ,
+holding the file descriptor of a tty device.
+To detach the
+.Nm
+device from a tty use a pointer to a value of
+\-1.
+.Pp
+The
+.Dv SNPGTTY
+ioctl returns information about the current tty attached to
+the open
+.Nm
+device.
+.Pp
+The
+.Dv FIONREAD
+ioctl returns a positive value equal to the number of characters
+in a read buffer.
+Special values defined are:
+.Bl -tag -width ".Dv SNP_TTYCLOSE"
+.It Dv SNP_OFLOW
+device overflow occurred, device detached.
+.It Dv SNP_TTYCLOSE
+tty not attached.
+.It Dv SNP_DETACH
+.Nm
+device has been detached by user or tty device has been closed
+and detached.
+.El
+.Sh SEE ALSO
+.Xr pty 4 ,
+.Xr sio 4 ,
+.Xr kldload 8 ,
+.Xr watch 8
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Fx 2.1 .
+In
+.Fx 8.0
+the
+.Nm
+driver was rewritten to work with the replaced TTY subsystem.
+.Sh AUTHORS
+.An -nosplit
+The author of the current implementation is
+.An \&Ed Schouten Aq Mt ed@FreeBSD.org .
+Previous versions of
+.Nm
+were based on code written by
+.An Ugen J.S. Antsilevich Aq Mt ugen@NetVision.net.il .
+.Sh BUGS
+This version of
+.Nm
+does not return proper error codes when calling
+.Dv FIONREAD .
+It also does not allow
+.Dv SNPSTTY
+to detach itself from the TTY.

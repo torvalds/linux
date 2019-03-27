@@ -1,0 +1,128 @@
+=pod
+
+=head1 NAME
+
+openssl-genrsa,
+genrsa - generate an RSA private key
+
+=head1 SYNOPSIS
+
+B<openssl> B<genrsa>
+[B<-help>]
+[B<-out filename>]
+[B<-passout arg>]
+[B<-aes128>]
+[B<-aes192>]
+[B<-aes256>]
+[B<-aria128>]
+[B<-aria192>]
+[B<-aria256>]
+[B<-camellia128>]
+[B<-camellia192>]
+[B<-camellia256>]
+[B<-des>]
+[B<-des3>]
+[B<-idea>]
+[B<-f4>]
+[B<-3>]
+[B<-rand file...>]
+[B<-writerand file>]
+[B<-engine id>]
+[B<-primes num>]
+[B<numbits>]
+
+=head1 DESCRIPTION
+
+The B<genrsa> command generates an RSA private key.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-help>
+
+Print out a usage message.
+
+=item B<-out filename>
+
+Output the key to the specified file. If this argument is not specified then
+standard output is used.
+
+=item B<-passout arg>
+
+The output file password source. For more information about the format
+of B<arg> see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
+
+=item B<-aes128>, B<-aes192>, B<-aes256>, B<-aria128>, B<-aria192>, B<-aria256>, B<-camellia128>, B<-camellia192>, B<-camellia256>, B<-des>, B<-des3>, B<-idea>
+
+These options encrypt the private key with specified
+cipher before outputting it. If none of these options is
+specified no encryption is used. If encryption is used a pass phrase is prompted
+for if it is not supplied via the B<-passout> argument.
+
+=item B<-F4|-3>
+
+The public exponent to use, either 65537 or 3. The default is 65537.
+
+=item B<-rand file...>
+
+A file or files containing random data used to seed the random number
+generator.
+Multiple files can be specified separated by an OS-dependent character.
+The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
+all others.
+
+=item [B<-writerand file>]
+
+Writes random data to the specified I<file> upon exit.
+This can be used with a subsequent B<-rand> flag.
+
+=item B<-engine id>
+
+Specifying an engine (by its unique B<id> string) will cause B<genrsa>
+to attempt to obtain a functional reference to the specified engine,
+thus initialising it if needed. The engine will then be set as the default
+for all available algorithms.
+
+=item B<-primes num>
+
+Specify the number of primes to use while generating the RSA key. The B<num>
+parameter must be a positive integer that is greater than 1 and less than 16.
+If B<num> is greater than 2, then the generated key is called a 'multi-prime'
+RSA key, which is defined in RFC 8017.
+
+=item B<numbits>
+
+The size of the private key to generate in bits. This must be the last option
+specified. The default is 2048 and values less than 512 are not allowed.
+
+=back
+
+=head1 NOTES
+
+RSA private key generation essentially involves the generation of two or more
+prime numbers. When generating a private key various symbols will be output to
+indicate the progress of the generation. A B<.> represents each number which
+has passed an initial sieve test, B<+> means a number has passed a single
+round of the Miller-Rabin primality test, B<*> means the current prime starts
+a regenerating progress due to some failed tests. A newline means that the number
+has passed all the prime tests (the actual number depends on the key size).
+
+Because key generation is a random process the time taken to generate a key
+may vary somewhat. But in general, more primes lead to less generation time
+of a key.
+
+=head1 SEE ALSO
+
+L<gendsa(1)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,137 @@
+/dts-v1/;
+
+#include "mt7621.dtsi"
+
+/ {
+	compatible = "mediatek,mt7621-eval-board","ralink,mt7621-soc";
+	model = "Netgear WNDR3700v5";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,57600 maxcpus=2";
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		wps {
+			label = "wndr3700v5:green:wps";
+			gpios = <&gpio0 12 1>;
+		};
+
+		power {
+			label = "wndr3700v5:green:power";
+			gpios = <&gpio0 18 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		wps {
+			label = "wndr3700v5:wps";
+			gpios = <&gpio0 7 0>;
+			linux,code = <0x211>;
+		};
+
+		wifi {
+			label = "wndr3700v5:wifi";
+			gpios = <&gpio0 8 0>;
+			linux,code = <0xf7>;
+		};
+
+		reset {
+			label = "wndr3700v5:reset";
+			gpios = <&gpio0 14 0>;
+			linux,code = <0x198>;
+		};
+	};
+
+	gpio_export {
+		compatible = "gpio-export";
+		#size-cells = <0>;
+
+		usbpower {
+			gpio-export,name = "usbpower";
+			gpio-export,output = <1>;
+			gpios = <&gpio0 10 1>;
+		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "mx25l12805d";
+		reg = <0>;
+		linux,modalias = "m25p80", "w25q128";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@f30000 {
+			label = "factory";
+			reg = <0xf30000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0xfb0000>;
+		};
+	};
+};
+
+&pcie {
+	status = "okay";
+
+	pcie0 {
+		mt76@0,0 {
+			reg = <0x0000 0 0 0 0>;
+			device_type = "pci";
+			mediatek,mtd-eeprom = <&factory 0x0004>;
+			mediatek,2ghz = <0>;
+		};
+	};
+
+	pcie2 {
+		mt76@2,0 {
+			reg = <0x1000 0 0 0 0>;
+			device_type = "pci";
+			mediatek,mtd-eeprom = <&factory 0x8004>;
+			mediatek,5ghz = <0>;
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x0000000c>;
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group =  "rgmii2", "mdio", "wdt";
+			ralink,function = "gpio";
+		};
+	};
+};

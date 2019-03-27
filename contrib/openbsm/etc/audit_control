@@ -1,0 +1,11 @@
+#
+# $FreeBSD$
+#
+dir:/var/audit
+dist:off
+flags:lo,aa
+minfree:5
+naflags:lo,aa
+policy:cnt,argv
+filesz:2M
+expire-after:10M

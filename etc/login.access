@@ -1,0 +1,46 @@
+# $FreeBSD$
+#
+# Login access control table.
+#
+# When someone logs in, the table is scanned for the first entry that
+# matches the (user, host) combination, or, in case of non-networked
+# logins, the first entry that matches the (user, tty) combination.  The
+# permissions field of that table entry determines whether the login will
+# be accepted or refused.
+#
+# Format of the login access control table is three fields separated by a
+# ":" character:
+#
+# 	permission : users : origins
+#
+# The first field should be a "+" (access granted) or "-" (access denied)
+# character. The second field should be a list of one or more login names,
+# group names, or ALL (always matches).  The third field should be a list
+# of one or more tty names (for non-networked logins), host names, domain
+# names (begin with "."), host addresses, internet network numbers (end
+# with "."), ALL (always matches) or LOCAL (matches any string that does
+# not contain a "." character). If you run NIS you can use @netgroupname
+# in host or user patterns.
+#
+# The EXCEPT operator makes it possible to write very compact rules.
+#
+# The group file is searched only when a name does not match that of the
+# logged-in user. Only groups are matched in which users are explicitly
+# listed: the program does not look at a user's primary group id value.
+#
+##############################################################################
+#
+# Disallow console logins to all but a few accounts.
+#
+#-:ALL EXCEPT wheel shutdown sync:console
+#
+# Disallow non-local logins to privileged accounts (group wheel).
+#
+#-:wheel:ALL EXCEPT LOCAL .win.tue.nl
+#
+# Some accounts are not allowed to login from anywhere:
+#
+#-:wsbscaro wsbsecr wsbspac wsbsym wscosor wstaiwde:ALL
+#
+# All other accounts are allowed to login from anywhere.
+#

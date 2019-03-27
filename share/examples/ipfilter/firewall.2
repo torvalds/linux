@@ -1,0 +1,70 @@
+# $FreeBSD$
+#
+#  This is an example of a fairly heavy firewall used to keep everyone
+#  out of a particular network while still allowing people within that
+#  network to get outside.
+#
+#  The example assumes it is running on a gateway with interface ppp0
+#  attached to the outside world, and interface ed0 attached to
+#  network 192.168.4.0 which needs to be protected.
+#
+#
+#  Pass any packets not explicitly mentioned by subsequent rules
+#
+pass out from any to any
+pass in from any to any
+#
+#  Block any inherently bad packets coming in from the outside world.
+#  These include ICMP redirect packets, IP fragments so short the
+#  filtering rules won't be able to examine the whole UDP/TCP header,
+#  and anything with IP options.
+#
+block in log quick on ppp0 proto icmp from any to any icmp-type redir
+block in log quick on ppp0 proto tcp/udp all with short
+block in log quick on ppp0 from any to any with ipopts
+#
+#  Block any IP spoofing attempts.  (Packets "from" our network
+#  shouldn't be coming in from outside).
+#
+block in log quick on ppp0 from 192.168.4.0/24 to any
+block in log quick on ppp0 from localhost to any
+block in log quick on ppp0 from 0.0.0.0/32 to any
+block in log quick on ppp0 from 255.255.255.255/32 to any
+#
+#  Block all incoming UDP traffic except talk and DNS traffic.  NFS
+#  and portmap are special-cased and logged.
+#
+block in on ppp0 proto udp from any to any
+block in log on ppp0 proto udp from any to any port = sunrpc
+block in log on ppp0 proto udp from any to any port = 2049
+pass in on ppp0 proto udp from any to any port = domain
+pass in on ppp0 proto udp from any to any port = talk
+pass in on ppp0 proto udp from any to any port = ntalk
+#
+#  Block all incoming TCP traffic connections to known services,
+#  returning a connection reset so things like ident don't take
+#  forever timing out.  Don't log ident (auth port) as it's so common.
+#
+block return-rst in log on ppp0 proto tcp from any to any flags S/SA
+block return-rst in on ppp0 proto tcp from any to any port = auth flags S/SA
+#
+#  Allow incoming TCP connections to ports between 1024 and 5000, as
+#  these don't have daemons listening but are used by outgoing
+#  services like ftp and talk.  For slightly more obscurity (though
+#  not much more security), the second commented out rule can chosen
+#  instead.
+#
+pass in on ppp0 proto tcp from any to any port 1024 >< 5000
+#pass in on ppp0 proto tcp from any port = ftp-data to any port 1024 >< 5000
+#
+#  Now allow various incoming TCP connections to particular hosts, TCP
+#  to the main nameserver so secondaries can do zone transfers, SMTP
+#  to the mail host, www to the web server (which really should be
+#  outside the firewall if you care about security), and ssh to a
+#  hypothetical machine caled 'gatekeeper' that can be used to gain
+#  access to the protected network from the outside world.
+#
+pass in on ppp0 proto tcp from any to ns1 port = domain
+pass in on ppp0 proto tcp from any to mail port = smtp
+pass in on ppp0 proto tcp from any to www port = www
+pass in on ppp0 proto tcp from any to gatekeeper port = ssh

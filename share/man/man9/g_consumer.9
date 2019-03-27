@@ -1,0 +1,137 @@
+.\"
+.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 16, 2004
+.Dt G_CONSUMER 9
+.Os
+.Sh NAME
+.Nm g_new_consumer ,
+.Nm g_destroy_consumer
+.Nd "GEOM consumers management"
+.Sh SYNOPSIS
+.In geom/geom.h
+.Ft "struct g_consumer *"
+.Fn g_new_consumer "struct g_geom *gp"
+.Ft void
+.Fn g_destroy_consumer "struct g_consumer *cp"
+.Sh DESCRIPTION
+A GEOM consumer is the backdoor through which a geom connects to
+another GEOM provider and through which I/O requests are sent.
+.Pp
+The
+.Fn g_new_consumer
+function creates a new consumer on geom
+.Fa gp .
+Before using the new consumer, it has to be attached to a provider with
+.Xr g_attach 9
+and opened with
+.Xr g_access 9 .
+.Pp
+The
+.Fn g_destroy_consumer
+function destroys the given consumer and cancels all related pending events.
+This function is the last stage of killing an unwanted consumer.
+.Sh RESTRICTIONS/CONDITIONS
+.Fn g_new_consumer :
+.Bl -item -offset indent
+.It
+The geom
+.Fa gp
+has to have an
+.Va orphan
+method defined.
+.It
+The topology lock has to be held.
+.El
+.Pp
+.Fn g_destroy_consumer :
+.Bl -item -offset indent
+.It
+The consumer must not be attached to a provider.
+.It
+The access count has to be 0.
+.It
+The topology lock has to be held.
+.El
+.Sh RETURN VALUES
+The
+.Fn g_new_consumer
+function
+returns a pointer to the newly created consumer.
+.Sh EXAMPLES
+Create consumer, attach it to given provider, gain read access and clean up.
+.Bd -literal -offset indent
+void
+some_function(struct g_geom *mygeom, struct g_provider *pp)
+{
+	struct g_consumer *cp;
+
+	g_topology_assert();
+
+	/* Create new consumer on 'mygeom' geom. */
+	cp = g_new_consumer(mygeom);
+	/* Attach newly created consumer to given provider. */
+	if (g_attach(cp, pp) != 0) {
+		g_destroy_consumer(cp);
+		return;
+	}
+	/* Open provider for reading through our consumer. */
+	if (g_access(cp, 1, 0, 0) != 0) {
+		g_detach(cp);
+		g_destroy_consumer(cp);
+		return;
+	}
+
+	g_topology_unlock();
+	/*
+	 * Read data from provider.
+	 */
+	g_topology_lock();
+
+	/* Disconnect from provider (release access count). */
+	g_access(cp, -1, 0, 0);
+	/* Detach from provider. */
+	g_detach(cp);
+	/* Destroy consumer. */
+	g_destroy_consumer(cp);
+}
+.Ed
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr DECLARE_GEOM_CLASS 9 ,
+.Xr g_access 9 ,
+.Xr g_attach 9 ,
+.Xr g_bio 9 ,
+.Xr g_data 9 ,
+.Xr g_event 9 ,
+.Xr g_geom 9 ,
+.Xr g_provider 9 ,
+.Xr g_provider_by_name 9 ,
+.Xr g_wither_geom 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .

@@ -1,0 +1,21 @@
+
+		  Release notes for OpenPAM Tabebuia
+		  ==================================
+
+OpenPAM is developed primarily on FreeBSD, but is expected to work on
+almost any POSIX-like platform that has GNU autotools, GNU make and
+the GNU compiler suite installed.
+
+The OpenPAM distribution consists of the following components:
+
+ - The PAM library itself, with complete API documentation.
+
+ - Sample modules (pam_permit, pam_deny and pam_unix) and a sample
+   application (su) which demonstrate how to use the PAM library.
+
+ - A test application (pamtest) which can be used to test policies and
+   modules.
+
+ - Unit tests for limited portions of the library.
+
+Please direct bug reports and inquiries to <des@des.no>.

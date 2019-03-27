@@ -1,0 +1,80 @@
+.\" Copyright (c) 1998, Nicolas Souchu
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 10, 1998
+.Dt SMBUS 4
+.Os
+.Sh NAME
+.Nm smbus
+.Nd System Management Bus
+.Sh SYNOPSIS
+.Cd "device smbus"
+.Pp
+.Cd "device iicsmb"
+.Cd "device bktr"
+.Sh DESCRIPTION
+The
+.Em smbus
+system provides a uniform, modular and architecture-independent
+system for the implementation of drivers to control various SMB devices
+and to utilize different SMB controllers (I2C, PIIX4, Brooktree848, vm86...).
+.Sh System Management Bus
+The
+.Em System Management Bus
+is a two-wire interface through which simple power-related chips can communicate
+with rest of the system.
+It uses I2C as its backbone (see
+.Xr iicbus 4 ) .
+.Pp
+A system using SMB passes messages to and from devices instead of tripping
+individual control lines.
+.Pp
+With the SMBus, a device can provide manufacturer information, tell the
+system what its model/part number is, save its state for a suspend event,
+report different types of errors, accept control parameters, and return its
+status.
+.Pp
+The SMBus may share the same host device and physical bus as ACCESS bus
+components provided that an appropriate electrical bridge is provided
+between the internal SMB devices and external ACCESS bus devices.
+.Sh SEE ALSO
+.Xr bktr 4 ,
+.Xr iicbus 4 ,
+.Xr iicsmb 4 ,
+.Xr smb 4
+.Rs
+.%T The SMBus specification
+.%U http://www.smbus.org/specs/
+.Re
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Nicolas Souchu .

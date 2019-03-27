@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+S.yes+=		userboot
+S.yes+=		i386

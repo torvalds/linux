@@ -1,0 +1,185 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.                        *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_kernel.3x,v 1.19 2010/12/04 18:38:55 tom Exp $
+.TH curs_kernel 3X ""
+.na
+.hy 0
+.SH NAME
+\fBdef_prog_mode\fR,
+\fBdef_shell_mode\fR,
+\fBreset_prog_mode\fR,
+\fBreset_shell_mode\fR,
+\fBresetty\fR,
+\fBsavetty\fR,
+\fBgetsyx\fR,
+\fBsetsyx\fR,
+\fBripoffline\fR,
+\fBcurs_set\fR,
+\fBnapms\fR \- low-level \fBcurses\fR routines
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBint def_prog_mode(void);\fR
+.br
+\fBint def_shell_mode(void);\fR
+.br
+\fBint reset_prog_mode(void);\fR
+.br
+\fBint reset_shell_mode(void);\fR
+.br
+\fBint resetty(void);\fR
+.br
+\fBint savetty(void);\fR
+.br
+\fBvoid getsyx(int y, int x);\fR
+.br
+\fBvoid setsyx(int y, int x);\fR
+.br
+\fBint ripoffline(int line, int (*init)(WINDOW *, int));\fR
+.br
+\fBint curs_set(int visibility);\fR
+.br
+\fBint napms(int ms);\fR
+.br
+.SH DESCRIPTION
+The following routines give low-level access to various \fBcurses\fR
+capabilities.  These routines typically are used inside library
+routines.
+.PP
+The \fBdef_prog_mode\fR and \fBdef_shell_mode\fR routines save the
+current terminal modes as the "program" (in \fBcurses\fR) or "shell"
+(not in \fBcurses\fR) state for use by the \fBreset_prog_mode\fR and
+\fBreset_shell_mode\fR routines.  This is done automatically by
+\fBinitscr\fR.  There is one such save area for each screen context
+allocated by \fBnewterm()\fR.
+.PP
+The \fBreset_prog_mode\fR and \fBreset_shell_mode\fR routines restore
+the terminal to "program" (in \fBcurses\fR) or "shell" (out of
+\fBcurses\fR) state.  These are done automatically by \fBendwin\fR
+and, after an \fBendwin\fR, by \fBdoupdate\fR, so they normally are
+not called.
+.PP
+The \fBresetty\fR and \fBsavetty\fR routines save and restore the
+state of the terminal modes.  \fBsavetty\fR saves the current state in
+a buffer and \fBresetty\fR restores the state to what it was at the
+last call to \fBsavetty\fR.
+.PP
+The \fBgetsyx\fR routine returns the current coordinates of the virtual screen
+cursor in \fIy\fR and \fIx\fR.  If \fBleaveok\fR is currently \fBTRUE\fR, then
+\fB\-1\fR,\fB\-1\fR is returned.  If lines have been removed from the top of the
+screen, using \fBripoffline\fR, \fIy\fR and \fIx\fR include these lines;
+therefore, \fIy\fR and \fIx\fR should be used only as arguments for
+\fBsetsyx\fR.
+.PP
+The \fBsetsyx\fR routine sets the virtual screen cursor to
+\fIy\fR, \fIx\fR.  If \fIy\fR and \fIx\fR are both \fB\-1\fR, then
+\fBleaveok\fR is set.  The two routines \fBgetsyx\fR and \fBsetsyx\fR
+are designed to be used by a library routine, which manipulates
+\fBcurses\fR windows but does not want to change the current position
+of the program's cursor.  The library routine would call \fBgetsyx\fR
+at the beginning, do its manipulation of its own windows, do a
+\fBwnoutrefresh\fR on its windows, call \fBsetsyx\fR, and then call
+\fBdoupdate\fR.
+.PP
+The \fBripoffline\fR routine provides access to the same facility that
+\fBslk_init\fR [see \fBcurs_slk\fR(3X)] uses to reduce the size of the
+screen.  \fBripoffline\fR must be called before \fBinitscr\fR or
+\fBnewterm\fR is called.  If \fIline\fR is positive, a line is removed
+from the top of \fBstdscr\fR; if \fIline\fR is negative, a line is
+removed from the bottom.  When this is done inside \fBinitscr\fR, the
+routine \fBinit\fR (supplied by the user) is called with two
+arguments: a window pointer to the one-line window that has been
+allocated and an integer with the number of columns in the window.
+Inside this initialization routine, the integer variables \fBLINES\fR
+and \fBCOLS\fR (defined in \fB<curses.h>\fR) are not guaranteed to be
+accurate and \fBwrefresh\fR or \fBdoupdate\fR must not be called.  It
+is allowable to call \fBwnoutrefresh\fR during the initialization
+routine.
+.PP
+\fBripoffline\fR can be called up to five times before calling \fBinitscr\fR or
+\fBnewterm\fR.
+.PP
+The \fBcurs_set\fR routine sets the cursor state to invisible,
+normal, or very visible for \fBvisibility\fR equal to \fB0\fR,
+\fB1\fR, or \fB2\fR respectively.  If the terminal supports the
+\fIvisibility\fR requested, the previous \fIcursor\fR state is
+returned; otherwise, \fBERR\fR is returned.
+.PP
+The \fBnapms\fR routine is used to sleep for \fIms\fR milliseconds.
+.SH RETURN VALUE
+Except for \fBcurs_set\fR, these routines always return \fBOK\fR.
+.PP
+\fBcurs_set\fR
+returns the previous cursor state, or \fBERR\fR if the
+requested \fIvisibility\fR is not supported.
+.PP
+X/Open defines no error conditions.
+In this implementation
+.RS
+.TP 5
+\fBdef_prog_mode\fR, \fBdef_shell_mode\fR, \fBreset_prog_mode\fR, \fBreset_shell_mode\fR
+return an error
+if the terminal was not initialized, or
+if the I/O call to obtain the terminal settings fails.
+.TP 5
+\fBripoffline\fP
+returns an error if the maximum number of ripped-off lines
+exceeds the maximum (NRIPS = 5).
+.RE
+.SH NOTES
+Note that \fBgetsyx\fR is a macro, so \fB&\fR is not necessary before
+the variables \fIy\fR and \fIx\fR.
+.PP
+Older SVr4 man pages warn that the return value of \fBcurs_set\fR "is currently
+incorrect".  This implementation gets it right, but it may be unwise to count
+on the correctness of the return value anywhere else.
+.PP
+Both ncurses and SVr4 will call \fBcurs_set\fR in \fBendwin\fR
+if \fBcurs_set\fR
+has been called to make the cursor other than normal, i.e., either
+invisible or very visible.
+There is no way for ncurses to determine the initial cursor state to
+restore that.
+.SH PORTABILITY
+The functions \fBsetsyx\fR and \fBgetsyx\fR are not described in the XSI
+Curses standard, Issue 4.  All other functions are as described in XSI Curses.
+.PP
+The SVr4 documentation describes \fBsetsyx\fR and \fBgetsyx\fR as having return
+type int. This is misleading, as they are macros with no documented semantics
+for the return value.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_initscr\fR(3X),
+\fBcurs_outopts\fR(3X),
+\fBcurs_refresh\fR(3X),
+\fBcurs_scr_dump\fR(3X),
+\fBcurs_slk\fR(3X),
+\fBcurs_variables\fR(3X).

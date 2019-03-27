@@ -1,0 +1,69 @@
+.\" Generated from pam_get_data.c by gendoc.pl
+.\" $OpenPAM: pam_get_data.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt PAM_GET_DATA 3
+.Os
+.Sh NAME
+.Nm pam_get_data
+.Nd get module information
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.Ft "int"
+.Fn pam_get_data "const pam_handle_t *pamh" "const char *module_data_name" "const void **data"
+.Sh DESCRIPTION
+The
+.Fn pam_get_data
+function looks up the opaque object associated with
+the string specified by the
+.Fa module_data_name
+argument, in the PAM
+context specified by the
+.Fa pamh
+argument.
+A pointer to the object is stored in the location pointed to by the
+.Fa data
+argument.
+If
+.Fn pam_get_data
+fails, the
+.Fa data
+argument is untouched.
+.Pp
+This function and its counterpart
+.Xr pam_set_data 3
+are useful for managing
+data that are meaningful only to a particular service module.
+.Sh RETURN VALUES
+The
+.Fn pam_get_data
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_NO_MODULE_DATA
+Module data not found.
+.El
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam_set_data 3 ,
+.Xr pam_strerror 3
+.Sh STANDARDS
+.Rs
+.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
+.%D "June 1997"
+.Re
+.Sh AUTHORS
+The
+.Fn pam_get_data
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

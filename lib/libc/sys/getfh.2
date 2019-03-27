@@ -1,0 +1,237 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2018 Gandi
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)getfh.2	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd December 11, 2018
+.Dt GETFH 2
+.Os
+.Sh NAME
+.Nm getfh ,
+.Nm lgetfh ,
+.Nm getfhat
+.Nd get file handle
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.Ft int
+.Fn getfh "const char *path" "fhandle_t *fhp"
+.Ft int
+.Fn lgetfh "const char *path" "fhandle_t *fhp"
+.Ft int
+.Fn getfhat "int fd" "const char *path" "fhandle_t *fhp" "int flag"
+.Sh DESCRIPTION
+The
+.Fn getfh
+system call
+returns a file handle for the specified file or directory
+in the file handle pointed to by
+.Fa fhp .
+.Pp
+The
+.Fn lgetfh
+system call is like
+.Fn getfh
+except in the case where the named file is a symbolic link,
+in which case
+.Fn lgetfh
+returns information about the link,
+while
+.Fn getfh
+returns information about the file the link references.
+.Pp
+The
+.Fn getfhat
+system call is equivalent to
+.Fn getfh
+and
+.Fn lgetfh
+except when the
+.Fa path
+specifies a relative path, or the
+.Dv AT_BENEATH
+flag is provided.
+For
+.Fn getfhat
+and relative
+.Fa path ,
+the status is retrieved from a file relative to
+the directory associated with the file descriptor
+.Fa fd
+instead of the current working directory.
+For
+.Dv AT_BENEATH
+and absolute
+.Fa path ,
+the status is retrieved from a file specified by the
+.Fa path ,
+but additional permission checks are performed, see below.
+.Pp
+The values for the
+.Fa flag
+are constructed by a bitwise-inclusive OR of flags from this list,
+defined in
+.In fcntl.h :
+.Bl -tag -width indent
+.It Dv AT_SYMLINK_NOFOLLOW
+If
+.Fa path
+names a symbolic link, the status of the symbolic link is returned.
+.It Dv AT_BENEATH
+Only stat files and directories below the topping directory.
+See the description of the
+.Dv O_BENEATH
+flag in the
+.Xr open 2
+manual page.
+.El
+.Pp
+If
+.Fn getfhat
+is passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter, the current working directory is used and the behavior is
+identical to a call to
+.Fn getfth
+or
+.Fn lgetfh
+respectively, depending on whether or not the
+.Dv AT_SYMLINK_NOFOLLOW
+bit is set in
+.Fa flag .
+.Pp
+When
+.Fn getfhat
+is called with an absolute
+.Fa path
+without the
+.Dv AT_BENEATH
+flag, it ignores the
+.Fa fd
+argument.
+When
+.Dv AT_BENEATH
+is specified with an absolute
+.Fa path ,
+a directory passed by the
+.Fa fd
+argument is used as the topping point for the resolution.
+These system calls are restricted to the superuser.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn getfh
+and
+.Fn lgetfh
+system calls
+fail if one or more of the following are true:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the path prefix of
+.Fa path
+is not a directory.
+.It Bq Er ENAMETOOLONG
+The length of a component of
+.Fa path
+exceeds 255 characters,
+or the length of
+.Fa path
+exceeds 1023 characters.
+.It Bq Er ENOENT
+The file referred to by
+.Fa path
+does not exist.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix of
+.Fa path .
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating
+.Fa path .
+.It Bq Er EFAULT
+The
+.Fa fhp
+argument
+points to an invalid address.
+.It Bq Er EFAULT
+The
+.Fa path
+argument
+points to an invalid address.
+.It Bq Er EIO
+An
+.Tn I/O
+error occurred while reading from or writing to the file system.
+.It Bq Er ESTALE
+The file handle
+.Fa fhp
+is no longer valid.
+.El
+.Pp
+In addition to the errors returned by
+.Fn getfh ,
+and
+.Fn lgetfh ,
+the
+.Fn getfhat
+system call may fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa path
+argument does not specify an absolute path and the
+.Fa fd
+argument, is neither
+.Dv AT_FDCWD
+nor a valid file descriptor open for searching.
+.It Bq Er EINVAL
+The value of the
+.Fa flag
+argument is not valid.
+.It Bq Er ENOTDIR
+The
+.Fa path
+argument is not an absolute path and
+.Fa fd
+is neither
+.Dv AT_FDCWD
+nor a file descriptor associated with a directory.
+.Sh SEE ALSO
+.Xr fhopen 2 ,
+.Xr open 2 ,
+.Xr stat 2
+.Sh HISTORY
+The
+.Fn getfh
+system call first appeared in
+.Bx 4.4 .

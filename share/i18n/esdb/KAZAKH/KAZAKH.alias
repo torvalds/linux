@@ -1,0 +1,14 @@
+# $FreeBSD$ 
+# $NetBSD: esdb.alias.KAZAKH.src,v 1.1 2007/03/13 16:34:39 tnozaki Exp $
+
+KZ1048			cskz1048
+KZ1048			kz-1048
+KZ1048			strk1048-2022
+KZ1048			rk1048
+
+PTCP154			csptcp154
+PTCP154			pt154
+PTCP154			cp154
+PTCP154			cyrillic-asian
+PTCP154			pt-154
+PTCP154			paratype-154

@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: sdpd
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="sdpd"
+desc="Bluetooth Service Discovery Protocol daemon "
+command="/usr/sbin/${name}"
+rcvar="sdpd_enable"
+required_modules="ng_btsocket"
+
+load_rc_config $name
+control="${sdpd_control:-/var/run/sdp}"
+group="${sdpd_groupname:-nobody}"
+user="${sdpd_username:-nobody}"
+command_args="-c ${control} -g ${group} -u ${user}"
+
+run_rc_command "$1"

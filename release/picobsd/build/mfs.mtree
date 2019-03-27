@@ -1,0 +1,72 @@
+#
+# $FreeBSD$
+#
+/set type=dir uname=root gname=wheel mode=0755
+.              
+    cdrom
+    ..
+    dev            
+    ..
+    dos            
+    ..
+    etc            
+    ..
+    fd
+    ..
+    home           
+        user           
+        ..
+    ..
+    mnt            
+    ..
+    mnt1           
+    ..
+    mnt2           
+    ..
+    proc           
+    ..
+    root           
+    ..
+    stand          
+    ..
+    start_floppy   
+    ..
+    tftpboot       
+    ..
+    tmp            mode=01777
+    ..
+    usr            
+        local
+	    etc
+	    ..
+            lib            
+                snmp           
+                ..
+            ..
+        ..
+        share          
+            misc           
+            ..
+            locale           
+            ..
+            syscons           
+            ..
+            nls           
+            ..
+        ..
+    ..
+    var            
+        db             
+        ..
+        empty
+        ..
+        run            
+        ..
+        spool          
+            lock           
+            ..
+        ..
+    ..
+    wd
+    ..
+..

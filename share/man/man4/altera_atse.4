@@ -1,0 +1,119 @@
+.\"-
+.\" Copyright (c) 2013-2014 SRI International
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 21, 2014
+.Dt ALTERA_ATSE 4
+.Os
+.Sh NAME
+.Nm atse
+.Nd driver for the Altera Triple-Speed Ethernet MegaCore
+.Sh SYNOPSIS
+.Cd "device atse"
+.Cd "options ATSE_CFI_HACK"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.atse.0.at="nexus0"
+.Cd hint.atse.0.maddr=0x7f007000
+.Cd hint.atse.0.msize=0x540
+.Cd hint.atse.0.rc_irq=1
+.Cd hint.atse.0.rx_maddr=0x7f007500
+.Cd hint.atse.0.rx_msize=0x8
+.Cd hint.atse.0.rxc_maddr=0x7f007520
+.Cd hint.atse.0.rxc_msize=0x20
+.Cd hint.atse.0.tx_irq=2
+.Cd hint.atse.0.tx_maddr=0x7f007400
+.Cd hint.atse.0.tx_msize=0x8
+.Cd hint.atse.0.txc_maddr=0x7f007420
+.Cd hint.atse.0.txc_msize=0x20
+.Cd hint.e1000phy.0.at="miibus0"
+.Cd hint.e1000phy.0.phyno=0
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides support for the Altera Triple-Speed Ethernet
+MegaCore.
+.Sh HARDWARE
+The current version of the
+.Nm
+driver supports the Ethernet MegaCore as described in version 11.1 of
+Altera's documentation when the device is configured with internal FIFOs.
+.Sh MAC SELECTION
+The default MAC address for each
+.Nm
+interface is derived from a value stored in
+.Xr cfi 4
+flash.
+The value is managed by the
+.Xr atsectl 8
+utility.
+.Pp
+Only a single MAC address may be stored in flash.
+If the address begins with the Altera prefix 00:07:ed and ends in 00 then
+up to 16 addresses will be derived from it by adding the unit number of
+the interface to the stored address.
+For other prefixes, the address will be assigned to atse0 and random
+addresses will be used for other interfaces.
+If the stored address is invalid, for example all zero's, multicast, or the
+default address shipped on all DE4 boards (00:07:ed:ff:ed:15) then a random
+address is generated when the device is attached.
+.Sh SEE ALSO
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8
+.Rs
+.%T Triple-Speed Ethernet MegaCore Function User Guide
+.%D November 2011
+.%I Altera Corporation
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+device driver and this manual page were
+developed by SRI International and the University of Cambridge Computer
+Laboratory under DARPA/AFRL contract
+.Pq FA8750-10-C-0237
+.Pq Do CTSRD Dc ,
+as part of the DARPA CRASH research programme.
+This device driver was written by
+.An Bjoern A. Zeeb .
+.Sh BUGS
+The
+.Nm
+driver only supports a single configuration of the MegaCore as installed
+on the Terasic Technologies Altera DE4 Development and Education Board.
+.Pp
+Only gigabit Ethernet speeds are currently supported.

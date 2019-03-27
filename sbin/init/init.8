@@ -1,0 +1,449 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Donn Seeley at Berkeley Software Design, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)init.8	8.3 (Berkeley) 4/18/94
+.\" $FreeBSD$
+.\"
+.Dd August 15, 2018
+.Dt INIT 8
+.Os
+.Sh NAME
+.Nm init
+.Nd process control initialization
+.Sh SYNOPSIS
+.Nm
+.Nm
+.Oo
+.Cm 0 | 1 | 6 |
+.Cm c | q
+.Oc
+.Sh DESCRIPTION
+The
+.Nm
+utility
+is the last stage of the boot process.
+It normally runs the automatic reboot sequence as described in
+.Xr rc 8 ,
+and if this succeeds, begins multi-user operation.
+If the reboot scripts fail,
+.Nm
+commences single-user operation by giving
+the super-user a shell on the console.
+The
+.Nm
+utility may be passed parameters
+from the boot program to
+prevent the system from going multi-user and to instead execute
+a single-user shell without starting the normal daemons.
+The system is then quiescent for maintenance work and may
+later be made to go to multi-user by exiting the
+single-user shell (with ^D).
+This
+causes
+.Nm
+to run the
+.Pa /etc/rc
+start up command file in fastboot mode (skipping disk checks).
+.Pp
+If the
+.Em console
+entry in the
+.Xr ttys 5
+file is marked
+.Dq insecure ,
+then
+.Nm
+will require that the super-user password be
+entered before the system will start a single-user shell.
+The password check is skipped if the
+.Em console
+is marked as
+.Dq secure .
+Note that the password check does not protect from variables
+such as
+.Va init_script
+being set from the
+.Xr loader 8
+command line; see the
+.Sx SECURITY
+section of
+.Xr loader 8 .
+.Pp
+If the system security level (see
+.Xr security 7 )
+is initially nonzero, then
+.Nm
+leaves it unchanged.
+Otherwise,
+.Nm
+raises the level to 1 before going multi-user for the first time.
+Since the level cannot be reduced, it will be at least 1 for
+subsequent operation, even on return to single-user.
+If a level higher than 1 is desired while running multi-user,
+it can be set before going multi-user, e.g., by the startup script
+.Xr rc 8 ,
+using
+.Xr sysctl 8
+to set the
+.Va kern.securelevel
+variable to the required security level.
+.Pp
+If
+.Nm
+is run in a jail, the security level of the
+.Dq host system
+will not be affected.
+Part of the information set up in the kernel to support a jail
+is a per-jail security level.
+This allows running a higher security level inside of a jail
+than that of the host system.
+See
+.Xr jail 8
+for more information about jails.
+.Pp
+In multi-user operation,
+.Nm
+maintains
+processes for the terminal ports found in the file
+.Xr ttys 5 .
+The
+.Nm
+utility reads this file and executes the command found in the second field,
+unless the first field refers to a device in
+.Pa /dev
+which is not configured.
+The first field is supplied as the final argument to the command.
+This command is usually
+.Xr getty 8 ;
+.Nm getty
+opens and initializes the tty line
+and
+executes the
+.Xr login 1
+program.
+The
+.Nm login
+program, when a valid user logs in,
+executes a shell for that user.
+When this shell
+dies, either because the user logged out
+or an abnormal termination occurred (a signal),
+the cycle is restarted by
+executing a new
+.Nm getty
+for the line.
+.Pp
+The
+.Nm
+utility can also be used to keep arbitrary daemons running,
+automatically restarting them if they die.
+In this case, the first field in the
+.Xr ttys 5
+file must not reference the path to a configured device node
+and will be passed to the daemon
+as the final argument on its command line.
+This is similar to the facility offered in the
+.At V
+.Pa /etc/inittab .
+.Pp
+Line status (on, off, secure, getty, or window information)
+may be changed in the
+.Xr ttys 5
+file without a reboot by sending the signal
+.Dv SIGHUP
+to
+.Nm
+with the command
+.Dq Li "kill -HUP 1" .
+On receipt of this signal,
+.Nm
+re-reads the
+.Xr ttys 5
+file.
+When a line is turned off in
+.Xr ttys 5 ,
+.Nm
+will send a SIGHUP signal to the controlling process
+for the session associated with the line.
+For any lines that were previously turned off in the
+.Xr ttys 5
+file and are now on,
+.Nm
+executes the command specified in the second field.
+If the command or window field for a line is changed,
+the change takes effect at the end of the current
+login session (e.g., the next time
+.Nm
+starts a process on the line).
+If a line is commented out or deleted from
+.Xr ttys 5 ,
+.Nm
+will not do anything at all to that line.
+.Pp
+The
+.Nm
+utility will terminate multi-user operations and resume single-user mode
+if sent a terminate
+.Pq Dv TERM
+signal, for example,
+.Dq Li "kill \-TERM 1" .
+If there are processes outstanding that are deadlocked (because of
+hardware or software failure),
+.Nm
+will not wait for them all to die (which might take forever), but
+will time out after 30 seconds and print a warning message.
+.Pp
+The
+.Nm
+utility will cease creating new processes
+and allow the system to slowly die away, if it is sent a terminal stop
+.Pq Dv TSTP
+signal, i.e.\&
+.Dq Li "kill \-TSTP 1" .
+A later hangup will resume full
+multi-user operations, or a terminate will start a single-user shell.
+This hook is used by
+.Xr reboot 8
+and
+.Xr halt 8 .
+.Pp
+The
+.Nm
+utility will terminate all possible processes (again, it will not wait
+for deadlocked processes) and reboot the machine if sent the interrupt
+.Pq Dv INT
+signal, i.e.\&
+.Dq Li "kill \-INT 1".
+This is useful for shutting the machine down cleanly from inside the kernel
+or from X when the machine appears to be hung.
+.Pp
+The
+.Nm
+utility will do the same, except it will halt the machine if sent
+the user defined signal 1
+.Pq Dv USR1 ,
+or will halt and turn the power off (if hardware permits) if sent
+the user defined signal 2
+.Pq Dv USR2 .
+.Pp
+When shutting down the machine,
+.Nm
+will try to run the
+.Pa /etc/rc.shutdown
+script.
+This script can be used to cleanly terminate specific programs such
+as
+.Nm innd
+(the InterNetNews server).
+If this script does not terminate within 120 seconds,
+.Nm
+will terminate it.
+The timeout can be configured via the
+.Xr sysctl 8
+variable
+.Va kern.init_shutdown_timeout .
+.Pp
+The role of
+.Nm
+is so critical that if it dies, the system will reboot itself
+automatically.
+If, at bootstrap time, the
+.Nm
+process cannot be located, the system will panic with the message
+.Dq "panic: init died (signal %d, exit %d)" .
+.Pp
+If run as a user process as shown in the second synopsis line,
+.Nm
+will emulate
+.At V
+behavior, i.e., super-user can specify the desired
+.Em run-level
+on a command line, and
+.Nm
+will signal the original
+(PID 1)
+.Nm
+as follows:
+.Bl -column Run-level SIGTERM
+.It Sy "Run-level	Signal	Action"
+.It Cm 0 Ta Dv SIGUSR1 Ta "Halt"
+.It Cm 0 Ta Dv SIGUSR2 Ta "Halt and turn the power off"
+.It Cm 0 Ta Dv SIGWINCH Ta "Halt and turn the power off and then back on"
+.It Cm 1 Ta Dv SIGTERM Ta "Go to single-user mode"
+.It Cm 6 Ta Dv SIGINT Ta "Reboot the machine"
+.It Cm c Ta Dv SIGTSTP Ta "Block further logins"
+.It Cm q Ta Dv SIGHUP Ta Rescan the
+.Xr ttys 5
+file
+.El
+.Sh KERNEL ENVIRONMENT VARIABLES
+The following
+.Xr kenv 2
+variables are available as
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va init_chroot
+If set to a valid directory in the root file system, it causes
+.Nm
+to perform a
+.Xr chroot 2
+operation on that directory, making it the new root directory.
+That happens before entering single-user mode or multi-user
+mode (but after executing the
+.Va init_script
+if enabled).
+This functionality has generally been eclipsed by rerooting.
+See
+.Xr reboot 8
+.Fl r
+for details.
+.It Va init_exec
+If set to a valid file name in the root file system,
+instructs
+.Nm
+to directly execute that file as the very first action,
+replacing
+.Nm
+as PID 1.
+.It Va init_script
+If set to a valid file name in the root file system,
+instructs
+.Nm
+to run that script as the very first action,
+before doing anything else.
+Signal handling and exit code interpretation is similar to
+running the
+.Pa /etc/rc
+script.
+In particular, single-user operation is enforced
+if the script terminates with a non-zero exit code,
+or if a SIGTERM is delivered to the
+.Nm
+process (PID 1).
+This functionality has generally been eclipsed by rerooting.
+See
+.Xr reboot 8
+.Fl r
+for details.
+.It Va init_shell
+Defines the shell binary to be used for executing the various shell scripts.
+The default is
+.Dq Li /bin/sh .
+It is used for running the
+.Va init_exec
+or
+.Va init_script
+if set, as well as for the
+.Pa /etc/rc
+and
+.Pa /etc/rc.shutdown
+scripts.
+The value of the corresponding
+.Xr kenv 2
+variable is evaluated every time
+.Nm
+calls a shell script, so it can be changed later on using the
+.Xr kenv 1
+utility.
+In particular, if a non-default shell is used for running an
+.Va init_script ,
+it might be desirable to have that script reset the value of
+.Va init_shell
+back to the default, so that the
+.Pa /etc/rc
+script is executed with the standard shell
+.Pa /bin/sh .
+.Sh FILES
+.Bl -tag -width /var/log/init.log -compact
+.It Pa /dev/console
+system console device
+.It Pa /dev/tty*
+terminal ports found in
+.Xr ttys 5
+.It Pa /etc/ttys
+the terminal initialization information file
+.It Pa /etc/rc
+system startup commands
+.It Pa /etc/rc.shutdown
+system shutdown commands
+.It Pa /var/log/init.log
+log of
+.Xr rc 8
+output if the system console device is not available
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "getty repeating too quickly on port %s, sleeping."
+A process being started to service a line is exiting quickly
+each time it is started.
+This is often caused by a ringing or noisy terminal line.
+.Bf -emphasis
+Init will sleep for 30 seconds,
+then continue trying to start the process.
+.Ef
+.It "some processes would not die; ps axl advised."
+A process
+is hung and could not be killed when the system was shutting down.
+This condition is usually caused by a process
+that is stuck in a device driver because of
+a persistent device error condition.
+.El
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr login 1 ,
+.Xr sh 1 ,
+.Xr ttys 5 ,
+.Xr security 7 ,
+.Xr getty 8 ,
+.Xr halt 8 ,
+.Xr jail 8 ,
+.Xr rc 8 ,
+.Xr reboot 8 ,
+.Xr shutdown 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+An
+.Nm
+utility appeared in
+.At v1 .
+.Sh CAVEATS
+Systems without
+.Xr sysctl 8
+behave as though they have security level \-1.
+.Pp
+Setting the security level above 1 too early in the boot sequence can
+prevent
+.Xr fsck 8
+from repairing inconsistent file systems.
+The
+preferred location to set the security level is at the end of
+.Pa /etc/rc
+after all multi-user startup actions are complete.

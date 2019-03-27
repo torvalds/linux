@@ -1,0 +1,148 @@
+.\" Copyright (c) 2000 Sheldon Hearn
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 1, 2017
+.Dt LINUX 4
+.Os
+.Sh NAME
+.Nm linux
+.Nd Linux ABI support
+.Sh SYNOPSIS
+To compile support for this ABI into an i386 kernel
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options COMPAT_LINUX"
+.Ed
+.Pp
+for an amd64 kernel use:
+.Bd -ragged -offset indent
+.Cd "options COMPAT_LINUX32"
+.Ed
+.Pp
+Alternatively, to load the ABI as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+linux_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+module provides limited
+Linux ABI (application binary interface) compatibility
+for userland applications.
+The module provides the following significant facilities:
+.Bl -bullet
+.It
+An image activator
+for correctly branded
+.Xr elf 5
+executable images
+.It
+Special signal handling for activated images
+.It
+Linux to native system call translation
+.El
+.Pp
+It is important to note that the Linux ABI support
+it not provided through an emulator.
+Rather, a true (albeit limited) ABI implementation is provided.
+.Pp
+The following
+.Xr sysctl 8
+tunable variables are available:
+.Bl -tag -width compat.linux.oss_version
+.It compat.linux.osname
+Linux kernel operating system name.
+.It compat.linux.osrelease
+Linux kernel operating system release.
+Changing this to something else is discouraged on non-development systems,
+because it may change the way Linux programs work.
+Recent versions of GNU libc are known to use different syscalls depending
+on the value of this sysctl.
+.It compat.linux.oss_version
+Linux Open Sound System version.
+.El
+.Pp
+The
+.Nm
+module can be linked into the kernel statically with the
+.Dv COMPAT_LINUX
+kernel configuration option
+or loaded as required.
+The following command will load the module
+if it is neither linked into the kernel
+nor already loaded as a module:
+.Bd -literal -offset indent
+if ! kldstat -v | grep -E 'linux(aout|elf)' > /dev/null; then
+	kldload linux > /dev/null 2>&1
+fi
+.Ed
+.Pp
+Note that dynamically linked Linux executables
+will require a suitable environment in
+.Pa /compat/linux .
+Specifically, the Linux run-time linker's hints files
+should be correctly initialized.
+For this reason, it is common to execute the following commands
+to prepare the system to correctly run Linux executables:
+.Bd -literal -offset indent
+if [ -x /compat/linux/sbin/ldconfig ]; then
+	/compat/linux/sbin/ldconfig -r /compat/linux
+fi
+.Ed
+.Pp
+For information on loading the
+.Nm
+kernel loadable module automatically on system startup,
+see
+.Xr rc.conf 5 .
+This information applies
+regardless of whether the
+.Nm
+module is statically linked into the kernel
+or loaded as a module.
+.Sh FILES
+.Bl -tag -width /compat/linux/dev/fd -compact
+.It Pa /compat/linux
+minimal Linux run-time environment
+.It Pa /compat/linux/dev/fd
+limited Linux file-descriptor file system
+.It Pa /compat/linux/proc
+limited Linux process file system
+.It Pa /compat/linux/sys
+limited Linux system file system
+.El
+.Sh SEE ALSO
+.Xr brandelf 1 ,
+.Xr elf 5 ,
+.Xr fdescfs 5 ,
+.Xr linprocfs 5 ,
+.Xr linsysfs 5
+.Sh HISTORY
+Linux ABI support first appeared in
+.Fx 2.1 .

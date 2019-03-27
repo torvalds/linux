@@ -1,0 +1,47 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Pulse-Per-Second (PPS) Signal Interfacing</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>Pulse-Per-Second (PPS) Signal Interfacing</h3>
+<img src="pic/alice32.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/%7emills/pictures.html">from <i>Alice's Adventures in Wonderland</i>, Lewis Carroll</a>
+<p>Alice is trying to find the PPS signal connector.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->10-Mar-2014  05:17<!-- #EndDate -->
+    UTC</p>
+<br clear="left">
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/misc.txt"></script>
+<h4>Table of Contents</h4>
+<ul>
+  <li class="inline"><a href="#intro">Introduction</a></li>
+  <li class="inline"><a href="#gadget">Gadget Box</a></li>
+  <li class="inline"><a href="#opsys">Operating System Support</a></li>
+  <li class="inline"><a href="#use">Using the Pulse-per-Second (PPS) Signal</a></li>
+</ul>
+<hr>
+<h4 id="intro">Introduction</h4>
+<p>Most radio clocks are connected using a serial port operating at speeds of 9600 bps. The accuracy using typical timecode formats, where the on-time epoch is indicated by a designated ASCII character such as carriage-return <tt>&lt;cr&gt;</tt>, is normally limited to 100 &mu;s. Using carefully crafted averaging techniques, the NTP&nbsp;algorithms can whittle this down to a few tens of microseconds. However, some radios produce a pulse-per-second (PPS) signal which can be used to improve the accuracy to a few microseconds. This page describes the hardware and software necessary for NTP to use the PPS signal.</p>
+<p> The PPS signal can be connected in either of two ways. On FreeBSD systems (with the PPS_SYNC and pps kernel options)  it can  be connected directly to the ACK pin of a parallel port. This is the preferred way, as it requires no additional hardware. Alternatively, it can be connected  via the DCD pin of a serial port. However, the PPS signal  levels are usually incompatible with the serial port interface signals. Note that NTP no longer supports connection via the RD pin of a serial port.</p>
+<div align="center">
+  <p><img src="pic/gadget.jpg" alt="gif"></p>
+  <p>A Gadget Box built by Chuck Hanavin</p>
+</div>
+<h4 id="gadget">Gadget Box</h4>
+<p>The gadget box shown above is assembled in a 5&quot;x3&quot;x2&quot; aluminum minibox containing the the  circuitry, serial connector and optional 12-V power connector. A complete set of schematics, PCB artwork, drill templates can be obtained via the web from ftp.udel.edu as <a href="ftp://ftp.udel.edu/pub/ntp/hardware/gadget.tar.Z">gadget.tar.Z</a>.</p>
+<p> The gadget box  includes two subcircuits. One of these converts a TTL positive edge into a fixed-width pulse at EIA levels and is for use with a timecode receiver or precision oscillator with a TTL PPS output. The other converts the timecode modulation broadcast by Canadian time/frequency standard station CHU into a 300-bps serial character stream at EIA levels and is for use with the <a href="drivers/driver7.html">Radio CHU Audio Demodulator/Decoder</a> driver.</p>
+<h4 id="opsys">Operating System Support</h4>
+<p>Both the serial and parallel port connection require operating system support, which is available in  a few operating systems, including FreeBSD, Linux (with PPSkit patch) and Solaris. Support on an experimental basis is available for several other systems, including SunOS and HP/Compaq/Digital Tru64. The kernel interface described on the <a href="kernpps.html">PPSAPI Interface for Precision Time Signals</a> page is the only interface currently supported. Older PPS interfaces based on the <tt>ppsclock</tt> and <tt>tty_clk</tt> streams modules are no longer supported. The interface consists of the <tt>timepps.h</tt> header file which is specific to each system. It is included automatically when the distribution is built.</p>
+<h4>PPS Driver</h4>
+<p>PPS support requires is built into some drivers, in particular the WWVB and NMEA drivers, and may be added to other drivers in future. Alternatively, the PPS driver described on the <a href="drivers/driver22.html">Type 22 PPS Clock Discipline</a> page can be used. It operates in conjunction with another source that provides seconds numbering. The selected source is designate a prefer peer, as using the <tt>prefer</tt> option, as described on the <a href="prefer.html">Mitigation Rules and the <tt>prefer</tt> Keyword</a> page. The prefer peer is ordinarily the radio clock that provides the PPS signal, but in principle another radio clock or even a remote Internet server could be designated preferred   Note that the <tt>pps</tt> configuration command has been obsoleted by this driver.</p>
+<h4 id="use">Using the Pulse-per-Second (PPS) Signal</h4>
+<p>The PPS signal  can be used in either of two ways, one using the NTP grooming and mitigation algorithms and the other using the kernel PPS  signal support   described in the <a href="kern.html">Kernel Model for Precision Timekeeping</a> page. The presence of &nbsp;kernel support is automatically detected during the NTP build process and supporting code automatically compiled. In either case, the PPS&nbsp;signal must be present and within nominal jitter and wander tolerances. In addition, the  prefer peer must be a truechimer; that is,  survive the sanity checks and intersection algorithm. Finally, the offset of the system clock relative to the prefer peer must be within  &plusmn;0.5 s. The kernel maintains a watchdog timer for the PPS signal; if the signal has not been heard or is out of tolerance for more than some interval, currently two minutes, the kernel discipline is disabled and operation continues as if it were not present. </p>
+<p>   An option flag in the driver determines whether the NTP algorithms  or  kernel support is enabled (if available). For historical reasons, the  NTP algorithms are selected by by default, since performance is generally better using older, slower systems. However, performance is generally better with  kernl support using newer, faster systems.</p>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

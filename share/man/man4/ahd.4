@@ -1,0 +1,180 @@
+.\"
+.\" Copyright (c) 1995, 1996, 1997, 1998, 2000
+.\" 	Justin T. Gibbs.  All rights reserved.
+.\" Copyright (c) 2002
+.\"	Scott Long.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 4, 2004
+.Dt AHD 4
+.Os
+.Sh NAME
+.Nm ahd
+.Nd Adaptec PCI/PCI-X Ultra320 SCSI host adapter driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
+.Cd "device ahd"
+.Pp
+To compile in debugging code:
+.Cd options AHD_DEBUG
+.Cd options AHD_DEBUG_OPTS=<bitmask of options>
+.Cd options AHD_REG_PRETTY_PRINT
+.Pp
+To configure one or more controllers to assume the target role:
+.Cd options AHD_TMODE_ENABLE=<bitmask of units>
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ahd_load="YES"
+.Ed
+.Sh DESCRIPTION
+This driver provides access to the
+.Tn SCSI
+bus(es) connected to Adaptec
+.Tn AIC79xx
+host adapter chips.
+.Pp
+Driver features include support for narrow and wide busses,
+fast, ultra, ultra2, ultra160, and ultra320 synchronous transfers,
+packetized transfers, tagged queueing, 512 SCB's, and target mode.
+.Pp
+The
+.Dv AHD_DEBUG_OPTS
+option is used to control which diagnostic messages are printed to the
+console when
+.Dv AHD_DEBUG
+is enabled.
+Logically OR the following bits together:
+.Bl -column -offset indent Value Function
+.Em "Value	Function"
+0x0001	Show miscellaneous information
+0x0002	Show sense data
+0x0004	Show Serial EEPROM contents
+0x0008	Show bus termination settings
+0x0010	Show host memory usage
+0x0020	Show SCSI protocol messages
+0x0040	Show mode pointer of the chip register window
+0x0080	Show selection timeouts
+0x0100	Show FIFO usage messages
+0x0200	Show Queue Full status
+0x0400	Show SCB queue status
+0x0800	Show inbound packet information
+0x1000	Show S/G list information
+0x2000	Enable extra diagnostic code in the firmware
+.El
+.Pp
+The
+.Dv AHD_REG_PRETTY_PRINT
+option compiles in support for human-readable bit definitions for each register
+that is printed by the debugging code.
+However, it also bloats the compiled
+size of the driver by approximately 215KB.
+.Pp
+Individual controllers may be configured to operate in the target role
+through the
+.Dv AHD_TMODE_ENABLE
+configuration option.
+The value assigned to this option should be a bitmap
+of all units where target mode is desired.
+For example, a value of 0x25 would enable target mode on units 0, 2, and 5.
+Note that target mode is only supported for ultra160 speeds and below.
+.Pp
+Per target configuration performed in the
+.Tn SCSI-Select
+menu, accessible at boot,
+is honored by this driver.
+This includes synchronous/asynchronous transfers,
+maximum synchronous negotiation rate,
+wide transfers,
+disconnection,
+and the host adapter's
+.Tn SCSI
+ID.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following:
+.Pp
+.Bl -bullet -compact
+.It
+Adaptec
+.Tn AIC7901
+host adapter chip
+.It
+Adaptec
+.Tn AIC7901A
+host adapter chip
+.It
+Adaptec
+.Tn AIC7902
+host adapter chip
+.It
+Adaptec
+.Tn 29320
+host adapter
+.It
+Adaptec
+.Tn 39320
+host adapter
+.It
+Many motherboards with on-board
+.Tn SCSI
+support
+.El
+.Sh SEE ALSO
+.Xr ahc 4 ,
+.Xr cd 4 ,
+.Xr da 4 ,
+.Xr sa 4 ,
+.Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.7 .
+.Sh AUTHORS
+The
+.Nm
+driver, the
+.Tn AIC7xxx
+sequencer-code assembler,
+and the firmware running on the aic79xx chips was written by
+.An Justin T. Gibbs .
+This manual page is based on the
+.Xr ahc 4
+manual page.
+.Sh BUGS
+The current generation of 79xx chips do not support target mode in Ultra320
+mode.
+Target mode in general has not been well tested in this driver.

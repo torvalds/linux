@@ -1,0 +1,96 @@
+.\" Copyright (c) 2003-2011 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 2, 2012
+.Dt ARCHIVE_WRITE_FREE 3
+.Os
+.Sh NAME
+.Nm archive_write_fail ,
+.Nm archive_write_close ,
+.Nm archive_write_finish ,
+.Nm archive_write_free
+.Nd functions for creating archives
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.In archive.h
+.Ft int
+.Fn archive_write_fail "struct archive *"
+.Ft int
+.Fn archive_write_close "struct archive *"
+.Ft int
+.Fn archive_write_finish "struct archive *"
+.Ft int
+.Fn archive_write_free "struct archive *"
+.Sh DESCRIPTION
+.Bl -tag -width indent
+.It Fn archive_write_fail
+Always returns
+.Cm ARCHIVE_FATAL .
+This marks the archive object as being unusable;
+after calling this function, the only call that can succeed is
+.Fn archive_write_free
+to release the resources.
+This can be used to speed recovery when the archive creation
+must be aborted.
+Note that the created archive is likely to be malformed in this case; 
+.It Fn archive_write_close
+Complete the archive and invoke the close callback.
+.It Fn archive_write_finish
+This is a deprecated synonym for
+.Fn archive_write_free .
+.It Fn archive_write_free
+Invokes
+.Fn archive_write_close
+if necessary, then releases all resources.
+If you need detailed information about
+.Fn archive_write_close
+failures, you should be careful to call it separately, as
+you cannot obtain error information after
+.Fn archive_write_free
+returns.
+.El
+.\" .Sh EXAMPLE
+.Sh RETURN VALUES
+These functions return
+.Cm ARCHIVE_OK
+on success, or
+.Cm ARCHIVE_FATAL .
+.\"
+.Sh ERRORS
+Detailed error codes and textual descriptions are available from the
+.Fn archive_errno
+and
+.Fn archive_error_string
+functions.
+.\"
+.Sh SEE ALSO
+.Xr tar 1 ,
+.Xr libarchive 3 ,
+.Xr archive_write_set_options 3 ,
+.Xr cpio 5 ,
+.Xr mtree 5 ,
+.Xr tar 5

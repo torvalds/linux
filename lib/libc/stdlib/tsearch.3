@@ -1,0 +1,209 @@
+.\" $NetBSD$
+.\" Copyright (c) 1997 Todd C. Miller <Todd.Miller@courtesan.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+.\" THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+.\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	OpenBSD: tsearch.3,v 1.2 1998/06/21 22:13:49 millert Exp
+.\" $FreeBSD$
+.\"
+.Dd June 4, 2017
+.Dt TSEARCH 3
+.Os
+.Sh NAME
+.Nm tsearch , tfind , tdelete , twalk
+.Nd manipulate binary search trees
+.Sh SYNOPSIS
+.In search.h
+.Ft void *
+.Fn tdelete "const void * restrict key" "posix_tnode ** restrict rootp" "int (*compar) (const void *, const void *)"
+.Ft posix_tnode *
+.Fn tfind "const void *key" "posix_tnode * const *rootp" "int (*compar) (const void *, const void *)"
+.Ft posix_tnode *
+.Fn tsearch "const void *key" "posix_tnode **rootp" "int (*compar) (const void *, const void *)"
+.Ft void
+.Fn twalk "const posix_tnode *root" "void (*action) (const posix_tnode *, VISIT, int)"
+.Sh DESCRIPTION
+The
+.Fn tdelete ,
+.Fn tfind ,
+.Fn tsearch ,
+and
+.Fn twalk
+functions manage binary search trees.
+This implementation uses a balanced AVL tree,
+which due to its strong theoretical limit on the height of the tree has
+the advantage of calling the comparison function relatively
+infrequently.
+.Pp
+The comparison function passed in by
+the user has the same style of return values as
+.Xr strcmp 3 .
+.Pp
+The
+.Fn tfind
+function
+searches for the datum matched by the argument
+.Fa key
+in the binary tree rooted at
+.Fa rootp ,
+returning a pointer to the datum if it is found and NULL
+if it is not.
+.Pp
+The
+.Fn tsearch
+function
+is identical to
+.Fn tfind
+except that if no match is found,
+.Fa key
+is inserted into the tree and a pointer to it is returned.
+If
+.Fa rootp
+points to a NULL value a new binary search tree is created.
+.Pp
+The
+.Fn tdelete
+function
+deletes a node from the specified binary search tree and returns
+a pointer to the parent of the node to be deleted.
+It takes the same arguments as
+.Fn tfind
+and
+.Fn tsearch .
+If the node to be deleted is the root of the binary search tree,
+.Fa rootp
+will be adjusted.
+.Pp
+The
+.Fn twalk
+function
+walks the binary search tree rooted in
+.Fa root
+and calls the function
+.Fa action
+on each node.
+The
+.Fa action
+function
+is called with three arguments: a pointer to the current node,
+a value from the enum
+.Sy "typedef enum { preorder, postorder, endorder, leaf } VISIT;"
+specifying the traversal type, and a node level (where level
+zero is the root of the tree).
+.Sh RETURN VALUES
+The
+.Fn tsearch
+function returns NULL if allocation of a new node fails (usually
+due to a lack of free memory).
+.Pp
+The
+.Fn tfind ,
+.Fn tsearch ,
+and
+.Fn tdelete
+functions
+return NULL if
+.Fa rootp
+is NULL or the datum cannot be found.
+.Pp
+The
+.Fn twalk
+function returns no value.
+.Sh EXAMPLES
+This example uses
+.Fn tsearch
+to search for four strings in
+.Dv root .
+Because the strings are not already present, they are added.
+.Fn tsearch
+is called twice on the fourth string to demonstrate that a string is not added when it is already present.
+.Fn tfind
+is used to find the single instance of the fourth string, and
+.Fn tdelete
+removes it.
+Finally,
+.Fn twalk
+is used to return and display the resulting binary search tree.
+.Bd -literal
+#include <stdio.h>
+#include <search.h>
+#include <string.h>
+
+int
+comp(const void *a, const void *b)
+{
+
+	return strcmp(a, b);
+}
+
+void
+printwalk(const posix_tnode * node, VISIT v, int __unused0)
+{
+
+	if (v == postorder || v == leaf) {
+		printf("node: %s\en", *(char **)node);
+	}
+}
+
+int
+main(void)
+{
+	posix_tnode *root = NULL;
+
+	char one[] = "blah1";
+	char two[] = "blah-2";
+	char three[] = "blah-3";
+	char four[] = "blah-4";
+
+	tsearch(one, &root, comp);
+	tsearch(two, &root, comp);
+	tsearch(three, &root, comp);
+	tsearch(four, &root, comp);
+	tsearch(four, &root, comp);
+	printf("four: %s\en", *(char **)tfind(four, &root, comp));
+	tdelete(four, &root, comp);
+
+	twalk(root, printwalk);
+	return 0;
+}
+.Ed
+.Sh SEE ALSO
+.Xr bsearch 3 ,
+.Xr hsearch 3 ,
+.Xr lsearch 3
+.Sh STANDARDS
+These functions conform to
+.St -p1003.1-2008 .
+.Pp
+The
+.Fa posix_tnode
+type is not part of
+.St -p1003.1-2008 ,
+but is expected to be standardized by future versions of the standard.
+It is defined as
+.Fa void
+for source-level compatibility.
+Using
+.Fa posix_tnode
+makes distinguishing between nodes and keys easier.

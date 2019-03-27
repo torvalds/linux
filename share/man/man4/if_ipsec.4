@@ -1,0 +1,141 @@
+.\" Copyright (c) 2017 Andrey V. Elsukov <ae@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 6, 2017
+.Dt if_ipsec 4
+.Os
+.Sh NAME
+.Nm if_ipsec
+.Nd IPsec virtual tunneling interface
+.Sh SYNOPSIS
+The
+.Cm if_ipsec
+network interface is a part of the
+.Fx
+IPsec implementation.
+To compile it into the kernel, place this line in the kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd "options IPSEC"
+.Ed
+.Pp
+It can also be loaded as part of the
+.Cm ipsec
+kernel module if the kernel was compiled with
+.Bd -ragged -offset indent
+.Cd "options IPSEC_SUPPORT"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+network interface is targeted for creating route-based VPNs.
+It can tunnel IPv4 and IPv6 traffic over either IPv4 or IPv6 and secure
+it with ESP.
+.Pp
+.Nm
+interfaces are dynamically created and destroyed with the
+.Xr ifconfig 8
+.Cm create
+and
+.Cm destroy
+subcommands.
+The administrator must configure IPsec
+.Cm tunnel
+endpoint addresses.
+These addresses will be used for the outer IP header of ESP packets.
+The administrator can also configure the protocol and addresses for the inner
+IP header with
+.Xr ifconfig 8 ,
+and modify the routing table to route the packets through the
+.Nm
+interface.
+.Pp
+When the
+.Nm
+interface is configured, it automatically creates special security policies.
+These policies can be used to acquire security associations from the IKE daemon,
+which are needed for establishing an IPsec tunnel.
+It is also possible to create needed security associations manually with the
+.Xr setkey 8
+utility.
+.Pp
+Each
+.Nm
+interface has an additional numeric configuration option
+.Cm reqid Ar id .
+This
+.Ar id
+is used to distinguish traffic and security policies between several
+.Nm
+interfaces.
+The
+.Cm reqid
+can be specified on interface creation and changed later.
+If not specified, it is automatically assigned.
+Note that changing
+.Cm reqid
+will lead to generation of new security policies, and this
+may require creating new security associations.
+.Sh EXAMPLES
+The example below shows manual configuration of an IPsec tunnel
+between two FreeBSD hosts.
+Host A has the IP address 192.168.0.3, and host B has the IP address
+192.168.0.5.
+.Pp
+On host A:
+.Bd -literal -offset indent
+ifconfig ipsec0 create reqid 100
+ifconfig ipsec0 inet tunnel 192.168.0.3 192.168.0.5
+ifconfig ipsec0 inet 172.16.0.3/16 172.16.0.5
+setkey -c
+add 192.168.0.3 192.168.0.5 esp 10000 -m tunnel -u 100 -E rijndael-cbc "VerySecureKey!!1";
+add 192.168.0.5 192.168.0.3 esp 10001 -m tunnel -u 100 -E rijndael-cbc "VerySecureKey!!2";
+^D
+.Ed
+.Pp
+On host B:
+.Bd -literal -offset indent
+ifconfig ipsec0 create reqid 200
+ifconfig ipsec0 inet tunnel 192.168.0.5 192.168.0.3
+ifconfig ipsec0 inet 172.16.0.5/16 172.16.0.3
+setkey -c
+add 192.168.0.3 192.168.0.5 esp 10000 -m tunnel -u 200 -E rijndael-cbc "VerySecureKey!!1";
+add 192.168.0.5 192.168.0.3 esp 10001 -m tunnel -u 200 -E rijndael-cbc "VerySecureKey!!2";
+^D
+.Ed
+.Pp
+Note the value 100 on host A and value 200 on host B are used as reqid.
+The same value must be used as identifier of the policy entry in the
+.Xr setkey 8
+command.
+.Sh SEE ALSO
+.Xr gif 4 ,
+.Xr gre 4 ,
+.Xr ipsec 4 ,
+.Xr ifconfig 8 ,
+.Xr setkey 8
+.Sh AUTHORS
+.An Andrey V. Elsukov Aq Mt ae@FreeBSD.org

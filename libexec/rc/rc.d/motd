@@ -1,0 +1,50 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: motd
+# REQUIRE: mountcritremote
+# BEFORE:  LOGIN
+
+. /etc/rc.subr
+
+name="motd"
+desc="Update /etc/motd"
+rcvar="update_motd"
+start_cmd="motd_start"
+stop_cmd=":"
+
+PERMS="644"
+
+motd_start()
+{
+	#	Update kernel info in /etc/motd
+	#	Must be done *before* interactive logins are possible
+	#	to prevent possible race conditions.
+	#
+	check_startmsgs && echo -n 'Updating motd:'
+	if [ ! -f /etc/motd ]; then
+		install -c -o root -g wheel -m ${PERMS} /dev/null /etc/motd
+	fi
+
+	if [ ! -w /etc/motd ]; then
+		echo ' /etc/motd is not writable, update failed.'
+		return
+	fi
+
+	T=`mktemp -t motd`
+	uname -v | sed -e 's,^\([^#]*\) #\(.* [1-2][0-9][0-9][0-9]\).*/\([^\]*\) $,\1 (\3) #\2,' > ${T}
+	awk '{if (NR == 1) {if ($1 == "FreeBSD") {next} else {print "\n"$0}} else {print}}' < /etc/motd >> ${T}
+
+	cmp -s $T /etc/motd || {
+		cp $T /etc/motd
+		chmod ${PERMS} /etc/motd
+	}
+	rm -f $T
+
+	check_startmsgs && echo '.'
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,139 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)madvise.2	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd October 3, 2015
+.Dt POSIX_FADVISE 2
+.Os
+.Sh NAME
+.Nm posix_fadvise
+.Nd give advice about use of file data
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In fcntl.h
+.Ft int
+.Fn posix_fadvise "int fd" "off_t offset" "off_t len" "int advice"
+.Sh DESCRIPTION
+The
+.Fn posix_fadvise
+system call
+allows a process to describe to the system its data access behavior for an
+open file descriptor
+.Fa fd .
+The advice covers the data starting at offset
+.Fa offset
+and continuing for
+.Fa len
+bytes.
+If
+.Fa len
+is zero,
+all data from
+.Fa offset
+to the end of the file is covered.
+.Pp
+The behavior is specified by the
+.Fa advice
+parameter and may be one of:
+.Bl -tag -width POSIX_FADV_SEQUENTIAL
+.It Dv POSIX_FADV_NORMAL
+Tells the system to revert to the default data access behavior.
+.It Dv POSIX_FADV_RANDOM
+Is a hint that file data will be accessed randomly,
+and prefetching is likely not advantageous.
+.It Dv POSIX_FADV_SEQUENTIAL
+Tells the system that file data will be accessed sequentially.
+This currently does nothing as the default behavior uses heuristics to
+detect sequential behavior.
+.It Dv POSIX_FADV_WILLNEED
+Tells the system that the specified data will be accessed in the near future.
+The system may initiate an asynchronous read of the data if it is not already
+present in memory.
+.It Dv POSIX_FADV_DONTNEED
+Tells the system that the specified data will not be accessed in the near
+future.
+The system may decrease the in-memory priority of clean data within the
+specified range and future access to this data may require a read operation.
+.It Dv POSIX_FADV_NOREUSE
+Tells the system that the specified data will only be accessed once and
+then not reused.
+The system may decrease the in-memory priority of data once it has been
+read or written.
+Future access to this data may require a read operation.
+.El
+.Sh RETURN VALUES
+If successful,
+.Fn posix_fadvise
+returns zero.
+It returns an error on failure, without setting
+.Va errno .
+.Sh ERRORS
+Possible failure conditions:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument is not a valid file descriptor.
+.It Bq Er EINVAL
+The
+.Fa advice
+argument is not valid.
+.It Bq Er EINVAL
+The
+.Fa offset
+or
+.Fa len
+arguments are negative,
+or
+.Fa offset
++
+.Fa len
+is greater than the maximum file size.
+.It Bq Er ENODEV
+The
+.Fa fd
+argument does not refer to a regular file.
+.It Bq Er ESPIPE
+The
+.Fa fd
+argument is associated with a pipe or FIFO.
+.El
+.Sh SEE ALSO
+.Xr madvise 2
+.Sh STANDARDS
+The
+.Fn posix_fadvise
+interface conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn posix_fadvise
+system call first appeared in
+.Fx 9.1 .

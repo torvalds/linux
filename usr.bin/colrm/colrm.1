@@ -1,0 +1,92 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)colrm.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd June 6, 2015
+.Dt COLRM 1
+.Os
+.Sh NAME
+.Nm colrm
+.Nd remove columns from a file
+.Sh SYNOPSIS
+.Nm
+.Op Ar start Op Ar stop
+.Sh DESCRIPTION
+The
+.Nm
+utility removes selected columns from the lines of a file.
+A column is defined as a single character in a line.
+Input is read from the standard input.
+Output is written to the standard output.
+.Pp
+If only the
+.Ar start
+column is specified, columns numbered less than the
+.Ar start
+column will be written.
+If both
+.Ar start
+and
+.Ar stop
+columns are specified, columns numbered less than the
+.Ar start
+column
+or greater than the
+.Ar stop
+column will be written.
+Column numbering starts with one, not zero.
+.Pp
+Tab characters increment the column count to the next multiple of eight.
+Backspace characters decrement the column count by one.
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr awk 1 ,
+.Xr column 1 ,
+.Xr cut 1 ,
+.Xr paste 1
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 1 .
+.Sh AUTHORS
+.An Jeff Schriebman
+wrote the original version of
+.Nm
+in November 1974.

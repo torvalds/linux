@@ -1,0 +1,15 @@
+1998.09.14, Warsaw
+
+This program replaces 'dmesg' utility, aand allows you to retrieve the
+system's message buffer without resorting to such dirty tricks as normal
+'dmesg' uses (using libkvm and /dev/kmem to directly read kernel
+memory.. *shudder*).
+
+This utility uses sysctl(3) interface. The mib variable it uses was
+recently added to the kernel sources, so if you don't mind patching your
+kernel tree, contact me directly - the patches are very small and simple.
+
+Andrzej Bialecki
+<abial@freebsd.org>
+
+$FreeBSD$

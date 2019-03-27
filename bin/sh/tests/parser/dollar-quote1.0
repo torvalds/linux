@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+set -e
+
+[ $'hi' = hi ]
+[ $'hi
+there' = 'hi
+there' ]
+[ $'\"\'\\\a\b\f\t\v' = "\"'\\$(printf "\a\b\f\t\v")" ]
+[ $'hi\nthere' = 'hi
+there' ]
+[ $'a\rb' = "$(printf "a\rb")" ]

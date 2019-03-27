@@ -1,0 +1,109 @@
+.\" Copyright (c) 2008 Nokia Corporation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Attilio Rao for the IPSO project under
+.\" contract to Nokia Corporation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by the authors ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall the authors be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 20, 2008
+.Dt PMCANNOTATE 8
+.Os
+.Sh NAME
+.Nm pmcannotate
+.Nd "sources printout with inlined profiling"
+.Sh SYNOPSIS
+.Nm
+.Op Fl a
+.Op Fl h
+.Op Fl k Ar pathname
+.Op Fl l Ar level
+.Ar pmcout.out binaryobj
+.Sh DESCRIPTION
+The
+.Nm
+utility can produce both C sources or assembly sources of a program with
+a line-by-line based profiling.
+The profiling information is retrieved through a
+.Xr pmcstat 8
+raw output while the program operations are retrieved through the
+.Xr objdump 1
+tool.
+.Pp
+When calling
+.Nm
+the raw output is passed through the
+.Ar pmcout.out
+argument, while the program is passed through the
+.Ar binaryobj
+argument.
+.Pp
+As long as
+.Nm
+relies on
+.Xr objdump 1
+and
+.Xr pmcstat 8
+to work, it will fail if one of them is not available.
+.Sh OPTIONS
+The following options are available:
+.Bl -tag -width indent
+.It Fl a
+Shows the program profiling inlined in the assembly code only.
+No C information involving C sources is provided.
+.It Fl h
+Prints out information about the usage of the tool.
+.It Fl l Ar level
+Changes the lower bound (expressed in percentage) for traced functions
+that will be printed out in the report.
+The default value is 0.5%.
+.It Fl k Ar kerneldir
+Set the pathname of the kernel directory to argument
+.Ar kerneldir .
+This directory specifies where
+.Nm
+should look for the kernel and its modules.
+The default is
+.Pa /boot/kernel .
+.El
+.Sh LIMITATIONS
+As long as
+.Nm
+relies on the
+.Xr objdump 1
+utility to retrieve the C code, the program needs to be compiled with
+debugging options.
+Sometimes, in particular with heavy optimization levels, the
+.Xr objdump 1
+utility embeds the code of inlining functions directly in the callers,
+making an output difficult to read.
+The x86 version reports the sampling from pmcstat collecting the following
+instruction in regard of the interrupted one.
+This means that the samples may be attributed to the line below the one
+of interest.
+.Sh SEE ALSO
+.Xr objdump 1 ,
+.Xr pmcstat 8
+.Sh AUTHORS
+.An Attilio Rao Aq Mt attilio@FreeBSD.org

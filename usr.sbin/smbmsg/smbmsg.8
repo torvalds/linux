@@ -1,0 +1,286 @@
+.\" Copyright (c) 2004 Joerg Wunsch
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 16, 2004
+.Dt SMBMSG 8
+.Os
+.Sh NAME
+.Nm smbmsg
+.Nd "send or receive messages over an SMBus"
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar dev
+.Fl p
+.Pp
+.Nm
+.Op Fl f Ar dev
+.Fl s Ar slave
+.Op Fl F Ar fmt
+.Op Fl c Ar cmd
+.Op Fl w
+.Op Fl i Ar incnt
+.Op Fl o Ar outcnt
+.Op Ar outdata ...
+.Sh DESCRIPTION
+The
+.Nm
+utility can be used to send or receive messages over an
+SMBus, see
+.Xr smbus 4 .
+.Pp
+The
+.Nm
+utility has two different modi of operation.
+The first form shown in the synopsis can be used to
+.Dq probe
+the devices on the SMBus.
+This is done by sending each valid device address one
+receive byte, and one quick read message, respectively.
+Devices that respond to these requests will be displayed
+by their device address, followed by the strings
+.Ql r ,
+.Ql w ,
+or
+.Ql rw ,
+for devices that are readable, writeable, or both, readable
+and writeable, respectively.
+The only valid additional option for this modus of operation (besides
+the
+.Fl p
+option that chooses the modus) is
+.Fl f Ar dev .
+See below for a description.
+.Pp
+Note that probing the bus is risky, since individual devices could
+perform unwanted actions upon receiving one of the mentioned messages.
+For example, if a particular SMBus device considers
+.Em any
+write operation issued to it as a request to power off the system,
+the probing would trigger this action.
+.Pp
+The second form shown in the synopsis can be used to send or receive
+arbitrary messages to or from individual devices.
+This might be useful to explore individual devices on the SMBus, or
+maybe even to write short shell scripts performing maintenance
+operations on the bus.
+.Pp
+Any data values on the command-line are integer values in the
+range 0 through 255 for byte values, or 0 through 65535 for
+word values.
+They can be specified using standard
+.Ql C
+notation (prefix 0 for octal interpretation, or 0x for
+hexadecimal interpretation).
+.Pp
+Since the low-order bit of the device address of SMBus devices
+selects between read and write operations, only even-numbered
+slave addresses can exist on the bus.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl o Ar outcnt"
+.It Fl F Ar fmt
+Specify the
+.Xr printf 3
+format to be used for displaying input data.
+This option is ignored in messages that do not read any input
+from the SMBus device.
+The format defaults to
+.Ql 0x%02x
+for byte input operations, and to
+.Ql 0x%04x
+for word input operations.
+For multi-byte input (block read), the same format is used for
+each individual byte read from the SMBus.
+.It Fl c Ar cmd
+This is the value of the
+.Em command
+byte to be issued as part of the SMBus message.
+.It Fl f Ar dev
+This specifies that
+.Ar dev
+should be used as the connection to the SMBus, rather than the
+default of
+.Pa /dev/smb0 .
+.It Fl i Ar incnt
+An SMBus message should be generated to read
+.Ar incnt
+bytes from the device.
+.It Fl o Ar outcnt
+An SMBus message should be generated to write
+.Ar outcnt
+bytes to the device.
+The data values to write are expected to follow all of the options
+(and their arguments) on the command-line, where the number of data
+bytes must match the
+.Ar outcnt
+value.
+.It Fl p
+This selects the
+.Em probe bus
+modus of operation.
+.It Fl s Ar slave
+The
+.Ar slave
+parameter specifies which SMBus device to connect to.
+This option also selects the
+.Em transfer messages from/to device
+modus of operation, where a slave address is mandatory.
+.It Fl w
+This option specifies that IO operations are word operations,
+rather than byte operations.
+Either
+.Ar incnt ,
+or
+.Ar outcnt
+(or both) must be equal 2 in this case.
+Note that the SMBus byte order is defined to be little-endian
+(low byte first, high byte follows).
+.El
+.Pp
+Not all argument combinations make sense in order to form valid SMBus
+messages.
+If no
+.Fl c Ar cmd
+option has been provided, the following messages can be
+issued:
+.Bd -unfilled -offset indent
+.TS
+l r r.
+\fBmessage	incnt	outcnt\fR
+quick read	0	\&-
+quick write	\&-	0
+receive byte	1	\&-
+send byte	\&-	1
+.TE
+.Ed
+.Pp
+Note in particular that specifying 0 as a count value
+has a different meaning than omitting the respective
+option entirely.
+.Pp
+If a command value has been given using the
+.Fl c Ar cmd
+option, the following messages can be generated:
+.Bd -unfilled -offset indent
+.TS
+l l r r.
+\fBmessage	\&-w	incnt	outcnt\fR
+read byte	no	1	\&-
+write byte	no	\&-	1
+read word	yes	2	\&-
+write word	yes	\&-	2
+process call	yes	2	2
+block read	no	\*(Ge 2	\&-
+block write	no	\&-	\*(Ge 2
+.TE
+.Ed
+.Sh FILES
+.Bl -tag -width ".Pa /dev/smb0" -compact
+.It Pa /dev/smb0
+The default device to connect to, unless
+.Fl f Ar dev
+has been provided.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, or according to
+.Xr sysexits 3
+in case of failure.
+.Sh EXAMPLES
+Typical usage examples of the
+.Nm
+command include:
+.Pp
+.Dl "smbmsg -f /dev/smb1 -p"
+.Pp
+Probe all devices on the SMBus attached to
+.Pa /dev/smb1 .
+.Pp
+.Dl "smbmsg -s 0x70 -i 1"
+.Pp
+Issue a
+.Em receive byte
+message to the device at address 0x70, and display
+the received byte using the default format.
+.Pp
+.Dl "smbmsg -s 0x70 -c 0xff -i 1 -F %d"
+.Pp
+Issue a
+.Em read byte
+message to the device at slave address 0x70, using
+255 (0xff) as the command-byte to send to the device,
+and display the result using the custom format
+.Ql %d .
+.Pp
+.Dl "smbmsg -s 0xa0 -c 0 -o 1 0x80"
+.Pp
+Send a
+.Em write byte
+message to the slave device at address 0xa0, using
+0 as the command-byte value, and 0x80 as the byte to
+send (after the command).
+Assuming this might be a Philips PCF8583 real-time clock,
+this would stop the clock.
+.Pp
+.Dl "smbmsg -s 0xa0 -c 1 -i 6 -F %02x"
+.Pp
+Send a
+.Em block read
+command to device at address 0xa0, and read 6 bytes from
+it, using hexadecimal display.
+Again, assuming a PCF8583 RTC, this would display the
+fractions of second, seconds, minutes, hours, year/date,
+and weekday/month values.
+Since this RTC uses BCD notation, the actual values displayed
+were decimal then.
+.Pp
+.Dl "smbmsg -s 0xa0 -c 2 -o 5 0x00 0x07 0x22 0x16 0x05"
+.Pp
+Send a
+.Em block write
+command to device at address 0xa0.
+For the PCF8583 RTC, this would set the clock to Sunday (2004%4)-05-16
+22:07:00.
+.Sh DIAGNOSTICS
+Diagnostic messages issued are supposed to be self-explanatory.
+.Sh SEE ALSO
+.Xr printf 3 ,
+.Xr sysexits 3 ,
+.Xr smb 4 ,
+.Xr smbus 4
+.Rs
+.%T "The SMBus specification"
+.%U http://www.smbus.org/specs/
+.Re
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+The
+.Nm
+utility and this manual page were written by
+.An J\(:org Wunsch .

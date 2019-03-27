@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: rctl
+# BEFORE: LOGIN
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="rctl"
+desc="Manage resource limits"
+rcvar="rctl_enable"
+start_cmd="rctl_start"
+stop_cmd="rctl_stop"
+
+rctl_start()
+{
+	if [ -f ${rctl_rules} ]; then
+		while read var comments
+		do
+			case ${var} in
+			\#*|'')
+				;;
+			*)
+				echo "${var}"
+				;;
+			esac
+		done < ${rctl_rules} | xargs rctl -a
+	fi
+}
+
+rctl_stop()
+{
+
+	rctl -r :
+}
+
+load_rc_config $name
+run_rc_command "$1"

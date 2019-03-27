@@ -1,0 +1,37 @@
+
+#------------------------------------------------------------------------------
+# $File: sendmail,v 1.10 2017/08/13 00:21:47 christos Exp $
+# sendmail:  file(1) magic for sendmail config files
+#
+# XXX - byte order?
+#
+# Update: Joerg Jenderek
+# GRR: this test is too general as it catches also
+# READ.ME.FIRST.AWP Sendmail frozen configuration
+# - version ====|====|====|====|====|====|====|====|====|====|====|====|===
+# Email_23_f217153422.ts Sendmail frozen configuration
+# - version \330jK\354
+0	byte	046
+# http://www.sendmail.com/sm/open_source/docs/older_release_notes/
+# freezed configuration file (dbm format?) created from sendmal.cf with -bz
+# by older sendmail. til version 8.6 support for frozen configuration files is removed
+# valid version numbers look like "7.14.4" and should be similar to output of commands
+# "sendmail -d0 -bt < /dev/null |grep -i Version" or "egrep '^DZ' /etc/sendmail.cf"
+>16	regex/s	=^[0-78][0-9.]{4}	Sendmail frozen configuration
+# normally only /etc/sendmail.fc or /var/adm/sendmail/sendmail.fc
+!:ext fc
+>>16	string	>\0			- version %s
+0	short	0x271c
+# look for valid version number
+>16	regex/s	=^[0-78][0-9.]{4}	Sendmail frozen configuration
+!:ext fc
+>>16	string	>\0			- version %s
+
+#------------------------------------------------------------------------------
+# sendmail:  file(1) magic for sendmail m4(1) files
+#
+# From Hendrik Scholz <hendrik@scholz.net>
+# i.e. files in /usr/share/sendmail/cf/
+#
+0   string  divert(-1)\n    sendmail m4 text file
+

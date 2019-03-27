@@ -1,0 +1,1 @@
+rewrite out on zx0 proto tcp from 0/0 to 2.2.0.0/16 -> src 4.4.4.4/32,1000:2000 dst 6.6.0.0/16;

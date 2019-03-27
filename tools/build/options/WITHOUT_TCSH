@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to not build and install
+.Pa /bin/csh
+(which is
+.Xr tcsh 1 ) .

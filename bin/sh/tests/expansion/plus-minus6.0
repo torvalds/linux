@@ -1,0 +1,34 @@
+# $FreeBSD$
+
+failures=0
+unset LC_ALL
+export LC_CTYPE=en_US.ISO8859-1
+nl='
+'
+i=1
+set -f
+while [ "$i" -le 255 ]; do
+	# A different byte still in the range 1..255.
+	i2=$((i^2+(i==2)))
+	# Add a character to work around command substitution's removal of
+	# final newlines, then remove it again.
+	c=$(printf \\"$(printf %o@ "$i")")
+	c=${c%@}
+	c2=$(printf \\"$(printf %o@ "$i2")")
+	c2=${c2%@}
+	case $c in
+		[\'$nl'$}();&|\"`']) c=M
+	esac
+	case $c2 in
+		[\'$nl'$}();&|\"`']) c2=N
+	esac
+	IFS=$c
+	command eval "set -- \${\$+$c2$c$c2$c$c2}"
+	if [ "$#" -ne 3 ] || [ "$1" != "$c2" ] || [ "$2" != "$c2" ] ||
+	    [ "$3" != "$c2" ]; then
+		echo "Bad results for separator $i (word $i2)" >&2
+		: $((failures += 1))
+	fi
+	i=$((i+1))
+done
+exit $((failures > 0))

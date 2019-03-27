@@ -1,0 +1,3 @@
+#match out on lo0 inet all tag regress nat-to lo0
+pass out quick on lo0 keep state tagged regress
+

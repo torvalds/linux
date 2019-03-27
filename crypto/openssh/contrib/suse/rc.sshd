@@ -1,0 +1,121 @@
+#! /bin/sh
+# Copyright (c) 1995-2000 SuSE GmbH Nuernberg, Germany.
+#
+# Author: Jiri Smid <feedback@suse.de>
+#
+# /etc/init.d/sshd
+#
+#   and symbolic its link
+#
+# /usr/sbin/rcsshd
+#
+### BEGIN INIT INFO
+# Provides: sshd
+# Required-Start: $network $remote_fs
+# Required-Stop: $network $remote_fs
+# Default-Start: 3 5
+# Default-Stop: 0 1 2 6
+# Description: Start the sshd daemon
+### END INIT INFO
+
+SSHD_BIN=/usr/sbin/sshd
+test -x $SSHD_BIN || exit 5
+
+SSHD_SYSCONFIG=/etc/sysconfig/ssh
+test -r $SSHD_SYSCONFIG || exit 6
+. $SSHD_SYSCONFIG
+
+SSHD_PIDFILE=/var/run/sshd.init.pid
+
+. /etc/rc.status
+
+# Shell functions sourced from /etc/rc.status:
+#      rc_check         check and set local and overall rc status
+#      rc_status        check and set local and overall rc status
+#      rc_status -v     ditto but be verbose in local rc status
+#      rc_status -v -r  ditto and clear the local rc status
+#      rc_failed        set local and overall rc status to failed
+#      rc_reset         clear local rc status (overall remains)
+#      rc_exit          exit appropriate to overall rc status
+
+# First reset status of this service
+rc_reset
+
+case "$1" in
+    start)
+	# Generate any missing host keys
+	ssh-keygen -A
+	echo -n "Starting SSH daemon"
+	## Start daemon with startproc(8). If this fails
+	## the echo return value is set appropriate.
+
+	startproc -f -p $SSHD_PIDFILE $SSHD_BIN $SSHD_OPTS -o "PidFile=$SSHD_PIDFILE" 
+
+	# Remember status and be verbose
+	rc_status -v
+	;;
+    stop)
+	echo -n "Shutting down SSH daemon"
+	## Stop daemon with killproc(8) and if this fails
+	## set echo the echo return value.
+
+	killproc -p $SSHD_PIDFILE -TERM $SSHD_BIN
+
+	# Remember status and be verbose
+	rc_status -v
+	;;
+    try-restart)
+        ## Stop the service and if this succeeds (i.e. the 
+        ## service was running before), start it again.
+        $0 status >/dev/null &&  $0 restart
+
+        # Remember status and be quiet
+        rc_status
+        ;;
+    restart)
+        ## Stop the service and regardless of whether it was
+        ## running or not, start it again.
+        $0 stop
+        $0 start
+
+        # Remember status and be quiet
+        rc_status
+        ;;
+    force-reload|reload)
+	## Signal the daemon to reload its config. Most daemons
+	## do this on signal 1 (SIGHUP).
+
+	echo -n "Reload service sshd"
+
+	killproc -p $SSHD_PIDFILE -HUP $SSHD_BIN
+
+        rc_status -v
+
+        ;;
+    status)
+	echo -n "Checking for service sshd "
+        ## Check status with checkproc(8), if process is running
+        ## checkproc will return with exit status 0.
+
+        # Status has a slightly different for the status command:
+        # 0 - service running
+        # 1 - service dead, but /var/run/  pid  file exists
+        # 2 - service dead, but /var/lock/ lock file exists
+        # 3 - service not running
+
+	checkproc -p $SSHD_PIDFILE $SSHD_BIN
+
+	rc_status -v
+	;;
+    probe)
+	## Optional: Probe for the necessity of a reload,
+	## give out the argument which is required for a reload.
+
+        test /etc/ssh/sshd_config -nt $SSHD_PIDFILE && echo reload
+	;;
+    *)
+	echo "Usage: $0 {start|stop|status|try-restart|restart|force-reload|reload|probe}"
+	exit 1
+	;;
+esac
+rc_exit

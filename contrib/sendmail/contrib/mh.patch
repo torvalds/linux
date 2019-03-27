@@ -1,0 +1,193 @@
+Message-Id: <199309031900.OAA19417@ignatz.acs.depaul.edu>
+To: bug-mh@ics.uci.edu
+cc: mh-users@ics.uci.edu, eric@cs.berkeley.edu
+Subject: MH-6.8.1/Sendmail 8.X (MH patch) updated
+Date: Fri, 03 Sep 1993 14:00:46 -0500
+From: Dave Nelson <dcn@ignatz.acs.depaul.edu>
+
+
+	This patch will fix the "X-auth..." warnings from the newer
+Sendmails (8.X) while continuing to work with the old sendmails.
+
+	I think the following patch will make everyone happy.
+
+	1)  Anybody with MH-6.8.1 can install this.  It doesn't matter
+	    what version of sendmail you're running.  It doesn't matter
+	    if you're not running sendmail (but it won't fix anything
+	    for you).
+
+	2)  No configuration file hacks. If the -client switch is
+	    absent (the default), the new sendmails will get an EHLO 
+	    using what LocalName() returns as the hostname.  On my systems, 
+	    this returns the FQDN.  If the EHLO fails with a result between 
+	    500 and 599  and the -client switch is not set, we give up on 
+	    sending EHLO/HELO and just go deliver the mail.
+
+	3)  No new configuration options.
+
+	4)  Retains the undocumented -client switch.  One warning:  it
+	    is possible using the -client switch to cause the old sendmails
+	    to return "I refuse to talk to myself".  You could do this under
+	    the old code as well.  This will happen if you claim to be the
+	    same system as the sendmail you're sending to is running on.  
+	    That's pointless, but possible.  If you do this, just like under
+	    the old code, you will get an error.
+
+	5)  If you're running a site with both old and new sendmails, you only
+	    have to build MH once.  The code's the same; works with them
+	    both.
+
+	If you decide to install this, make sure that you look the patch
+over and that you agree with what it is doing.  It works for me, but I
+can't test it on every possible combination.  Make sure that it works
+before you really install it for your users, if any.  No promises.
+
+	To install this, save this to a file in the mts/sendmail directory.
+Feed it to patch.  Patch will ignore the non-patch stuff.  You should have
+"mts sendmail/smtp" in your configuration file.  This works with old and
+new sendmails.  Using "mts sendmail"  will cause the new sendmails to
+print an "X-auth..." warning about who owns the process piping the mail 
+message.  I don't know of anyway of getting rid of these.
+
+	mh-config (if necessary), make, make inst-all.
+
+
+I hope this helps people.
+	
+/dcn
+
+Dave Nelson
+Academic Computer Services
+DePaul University, Chicago
+
+*** smail.c	Fri Sep  3 11:58:05 1993
+--- smail.c	Fri Sep  3 11:57:27 1993
+***************
+*** 239,261 ****
+  		    return RP_RPLY;
+  	    }
+  
+! 	    if (client && *client) {
+! 		doingEHLO = 1;
+! 		result = smtalk (SM_HELO, "EHLO %s", client);
+! 		doingEHLO = 0;
+  
+! 		if (500 <= result && result <= 599)
+  		    result = smtalk (SM_HELO, "HELO %s", client);
+! 
+! 		switch (result) {
+  		    case 250:
+! 		        break;
+  
+  		    default:
+  			(void) sm_end (NOTOK);
+  			return RP_RPLY;
+  		}
+  	    }
+  
+  #ifndef	ZMAILER
+  	    if (onex)
+--- 239,276 ----
+  		    return RP_RPLY;
+  	    }
+  
+! 	    doingEHLO = 1;
+! 	    result = smtalk (SM_HELO, "EHLO %s", 
+! 			     (client && *client) ? client : LocalName());
+! 	    doingEHLO = 0;
+! 
+! 	    switch (result)
+! 	    {
+! 	    case 250:
+! 		break;
+  
+! 	    default:
+! 		if (!(500 <= result && result <= 599))
+! 		{
+! 		    (void) sm_end (NOTOK);
+! 		    return RP_RPLY;
+! 		}
+! 		
+! 		if (client && *client)
+! 		{
+  		    result = smtalk (SM_HELO, "HELO %s", client);
+! 		    switch (result)
+! 		    {
+  		    case 250:
+! 			break;
+  
+  		    default:
+  			(void) sm_end (NOTOK);
+  			return RP_RPLY;
++ 		    }
+  		}
+  	    }
++ 	    
+  
+  #ifndef	ZMAILER
+  	    if (onex)
+***************
+*** 357,380 ****
+  	    return RP_RPLY;
+      }
+  
+!     if (client && *client) {
+! 	doingEHLO = 1;
+! 	result = smtalk (SM_HELO, "EHLO %s", client);
+! 	doingEHLO = 0;
+  
+! 	if (500 <= result && result <= 599)
+  	    result = smtalk (SM_HELO, "HELO %s", client);
+! 
+! 	switch (result) {
+! 	    case 250: 
+  		break;
+  
+! 	    default: 
+  		(void) sm_end (NOTOK);
+  		return RP_RPLY;
+  	}
+      }
+! 
+  send_options: ;
+      if (watch && EHLOset ("XVRB"))
+  	(void) smtalk (SM_HELO, "VERB on");
+--- 372,409 ----
+  	    return RP_RPLY;
+      }
+  
+!     doingEHLO = 1;
+!     result = smtalk (SM_HELO, "EHLO %s", 
+! 		     (client && *client) ? client : LocalName());
+!     doingEHLO = 0;
+! 
+!     switch (result)
+!     {
+!     case 250:
+! 	break;
+! 
+!     default:
+! 	if (!(500 <= result && result <= 599))
+! 	{
+! 	    (void) sm_end (NOTOK);
+! 	    return RP_RPLY;
+! 	}
+  
+! 	if (client && *client)
+! 	{
+  	    result = smtalk (SM_HELO, "HELO %s", client);
+! 	    switch (result)
+! 	    {
+! 	    case 250:
+  		break;
+  
+! 	    default:
+  		(void) sm_end (NOTOK);
+  		return RP_RPLY;
++ 	    }
+  	}
+      }
+!     
+  send_options: ;
+      if (watch && EHLOset ("XVRB"))
+  	(void) smtalk (SM_HELO, "VERB on");

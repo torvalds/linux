@@ -1,0 +1,193 @@
+-- $Id$
+
+SETCHGPW2 DEFINITIONS ::=
+BEGIN
+
+IMPORTS PrincipalName, Realm, ENCTYPE FROM krb5;
+
+ProtocolErrorCode ::= ENUMERATED {
+	generic-error(0),
+	unsupported-major-version(1),
+	unsupported-minor-version(2),
+	unsupported-operation(3),
+	authorization-failed(4),
+	initial-ticket-required(5),
+	target-principal-unknown(6),
+	...
+}
+
+Key	::= SEQUENCE {
+	enc-type[0]	INTEGER,
+	key[1]		OCTET STRING,
+	...
+}
+
+Language-Tag	::= UTF8String    -- Constrained by RFC3066
+
+LangTaggedText	::= SEQUENCE {
+	language[0]	Language-Tag OPTIONAL,
+	text[1]		UTF8String,
+	...
+}
+
+-- NULL Op
+
+Req-null ::= NULL
+Rep-null ::= NULL
+Err-null ::= NULL
+
+-- Change password
+Req-change-pw ::= SEQUENCE {
+	old-pw[0]	UTF8String,
+	new-pw[1]	UTF8String OPTIONAL,
+	etypes[2]	SEQUENCE OF ENCTYPE OPTIONAL,
+	...
+}
+
+Rep-change-pw ::= SEQUENCE {
+	info-text[0]	UTF8String OPTIONAL,
+	new-pw[1]	UTF8String OPTIONAL,
+	etypes[2]	SEQUENCE OF ENCTYPE OPTIONAL
+}
+
+Err-change-pw ::= SEQUENCE {
+	help-text[0]		UTF8String OPTIONAL,
+	code[1]			ENUMERATED {
+		generic(0),
+		wont-generate-new-pw(1),
+		old-pw-incorrect(2),
+		new-pw-rejected-geneneric(3),
+		pw-change-too-short(4),
+		...
+	},
+	suggested-new-pw[2]	UTF8String OPTIONAL,
+	...
+}
+
+-- Change/Set keys
+Req-set-keys ::= SEQUENCE {
+	etypes[0]	SEQUENCE OF ENCTYPE,
+	entropy[1]	OCTET STRING,
+	...
+}
+
+Rep-set-keys ::= SEQUENCE {
+	info-text[0]		UTF8String OPTIONAL,
+	kvno[1]			INTEGER,
+	keys[2]			SEQUENCE OF Key,
+	aliases[3]	SEQUENCE OF SEQUENCE {
+		name[0] PrincipalName,
+		realm[1] Realm OPTIONAL,
+		...
+	},
+	...
+}
+
+Err-set-keys ::= SEQUENCE {
+	help-text[0]		UTF8String OPTIONAL,
+	enctypes[1]		SEQUENCE OF ENCTYPE OPTIONAL,
+	code[1]		ENUMERATED {
+		etype-no-support(0),
+		...
+	},
+	...
+}
+
+-- Get password policy
+Req-get-pw-policy ::= NULL
+
+Rep-get-pw-policy ::= SEQUENCE {
+	help-text[0]		UTF8String OPTIONAL,
+	policy-name[1]		UTF8String OPTIONAL,
+	description[2]		UTF8String OPTIONAL,
+	...
+}
+
+Err-get-pw-policy ::= NULL
+
+-- Get principal aliases
+Req-get-princ-aliases ::= NULL
+
+Rep-get-princ-aliases ::= SEQUENCE {
+	help-text[0]		UTF8String OPTIONAL,
+	aliases[1]	SEQUENCE OF SEQUENCE {
+		name[0]		PrincipalName,
+		realm[1]	Realm OPTIONAL,
+		...
+	} OPTIONAL,
+	...
+}
+
+Err-get-princ-aliases ::= NULL
+
+-- Get list of encryption types supported by KDC for new types
+Req-get-supported-etypes ::= NULL
+
+Rep-get-supported-etypes ::= SEQUENCE OF ENCTYPE
+
+Err-get-supported-etypes ::= NULL
+
+-- Choice switch
+
+Op-req ::= CHOICE {
+	null[0]			Req-null,
+	change-pw[1]		Req-change-pw,
+	set-keys[2]		Req-set-keys,
+	get-pw-policy[3]	Req-get-pw-policy,
+	get-princ-aliases[4]	Req-get-princ-aliases,
+	get-supported-etypes[5]	Req-get-supported-etypes,
+	...
+}
+
+Op-rep ::= CHOICE {
+	null[0]			Rep-null,
+	change-pw[1]		Rep-change-pw,
+	set-keys[2]		Rep-set-keys,
+	get-pw-policy[3]	Rep-get-pw-policy,
+	get-princ-aliases[4]	Rep-get-princ-aliases,
+	get-supported-etypes[5]	Rep-get-supported-etypes,
+	...
+}
+
+Op-error ::= CHOICE {
+	null[0]			Err-null,
+	change-pw[1]		Err-change-pw,
+	set-keys[2]		Err-set-keys,
+	get-pw-policy[3]	Err-get-pw-policy,
+	get-princ-aliases[4]	Err-get-princ-aliases,
+	get-supported-etypes[5]	Err-get-supported-etypes,
+	...
+}
+
+
+Request ::= [ APPLICATION 0 ] SEQUENCE {
+	pvno-major[0]	INTEGER DEFAULT 2,
+	pvno-minor[1]	INTEGER DEFAULT 0,
+	languages[2]	SEQUENCE OF Language-Tag OPTIONAL,
+	targ-name[3]	PrincipalName OPTIONAL,
+	targ-realm[4]	Realm OPTIONAL,
+	operation[5]	Op-Req,
+	...
+}
+
+Response ::= [ APPLICATION 1 ] SEQUENCE {
+	pvno-major[0]	INTEGER DEFAULT 2,
+	pvno-minor[1]	INTEGER DEFAULT 0,
+	language[2]	Language-Tag DEFAULT "i-default",
+	result[3]	Op-rep OPTIONAL,
+	...
+}
+
+Error-Response ::= [ APPLICATION 2 ] SEQUENCE {
+	pvno-major[0]	INTEGER DEFAULT 2,
+	pvno-minor[1]	INTEGER DEFAULT 0,
+	language[2]	Language-Tag DEFAULT "i-default",
+	error-code[3]	ProtocolErrorCode,
+	help-text[4]	UTF8String OPTIONAL,
+	op-error[5]	Op-error OP-ERROR,
+	...
+}
+
+END
+
+-- etags -r '/\([A-Za-z][-A-Za-z0-9]*\).*::=/\1/' setchgpw2.asn1

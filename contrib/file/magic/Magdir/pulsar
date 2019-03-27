@@ -1,0 +1,13 @@
+
+#------------------------------------------------------------------------------
+# $File: pulsar,v 1.5 2009/09/19 16:28:12 christos Exp $
+# pulsar:  file(1) magic for Pulsar POP3 daemon binary files
+#
+# http://pulsar.sourceforge.net
+# mailto:rok.papez@lugos.si
+#
+
+0	belong	0x1ee7f11e	Pulsar POP3 daemon mailbox cache file.
+>4	ubelong	x		Version: %d.
+>8	ubelong	x		\b%d
+

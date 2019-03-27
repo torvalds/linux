@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+# The construct ${#?} is ambiguous in POSIX.1-2008: it could be the length
+# of $? or it could be $# giving an error in the (impossible) case that it
+# is not set.
+# We use the former interpretation; it seems more useful.
+
+:
+[ "${#?}" = 1 ] || echo '${#?} wrong'
+(exit 42)
+[ "${#?}" = 2 ] || echo '${#?} wrong'

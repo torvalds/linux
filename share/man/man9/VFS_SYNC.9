@@ -1,0 +1,81 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 23, 2009
+.Dt VFS_SYNC 9
+.Os
+.Sh NAME
+.Nm VFS_SYNC
+.Nd flush unwritten data
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.In sys/vnode.h
+.Ft int
+.Fn VFS_SYNC "struct mount *mp" "int waitfor"
+.Sh DESCRIPTION
+The
+.Fn VFS_SYNC
+macro writes out all unwritten data in the file system mounted as
+.Fa mp .
+.Pp
+The arguments it expects are:
+.Bl -tag -width ".Fa waitfor"
+.It Fa mp
+The file system.
+.It Fa waitfor
+Whether the function should wait for I/O to complete.
+Possible values are:
+.Bl -tag -width MNT_NOWAIT
+.It Dv MNT_WAIT
+synchronously wait for I/O to complete
+.It Dv MNT_NOWAIT
+start all I/O, but do not wait for it
+.It Dv MNT_LAZY
+push data not written by file system syncer
+.El
+.El
+.Pp
+The
+.Fn VFS_SYNC
+macro calls the
+.Va vfs_sync
+method of the file system, which normally calls
+.Xr VOP_FSYNC 9
+for all the vnodes in the file system.
+.Sh SEE ALSO
+.Xr fsync 2 ,
+.Xr sync 2 ,
+.Xr VFS 9 ,
+.Xr vnode 9 ,
+.Xr VOP_FSYNC 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

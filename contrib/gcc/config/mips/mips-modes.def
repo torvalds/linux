@@ -1,0 +1,43 @@
+/* MIPS extra machine modes. 
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+GCC is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING.  If not, write to
+the Free Software Foundation, 51 Franklin Street, Fifth Floor,
+Boston, MA 02110-1301, USA.  */
+
+/* MIPS has a quirky almost-IEEE format for all its
+   floating point.  */
+RESET_FLOAT_FORMAT (SF, mips_single_format);
+RESET_FLOAT_FORMAT (DF, mips_double_format);
+
+/* Irix6 will override this via MIPS_TFMODE_FORMAT.  */
+FLOAT_MODE (TF, 16, mips_quad_format);
+
+/* Vector modes.  */
+VECTOR_MODES (FLOAT, 8);      /*            V4HF V2SF */
+VECTOR_MODES (INT, 4);        /*            V4QI V2HI */
+
+/* Paired single comparison instructions use 2 or 4 CC.  */
+CC_MODE (CCV2);
+ADJUST_BYTESIZE (CCV2, 8);
+ADJUST_ALIGNMENT (CCV2, 8);
+
+CC_MODE (CCV4);
+ADJUST_BYTESIZE (CCV4, 16);
+ADJUST_ALIGNMENT (CCV4, 16);
+
+/* For MIPS DSP control registers.  */
+CC_MODE (CCDSP);

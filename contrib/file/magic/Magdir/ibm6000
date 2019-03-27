@@ -1,0 +1,31 @@
+
+#------------------------------------------------------------------------------
+# $File: ibm6000,v 1.13 2017/03/17 21:35:28 christos Exp $
+# ibm6000:  file(1) magic for RS/6000 and the RT PC.
+#
+0	beshort		0x01df		executable (RISC System/6000 V3.1) or obj module
+>12	belong		>0		not stripped
+# Breaks sun4 statically linked execs.
+#0      beshort		0x0103		executable (RT Version 2) or obj module
+#>2	byte		0x50		pure
+#>28	belong		>0		not stripped
+#>6	beshort		>0		- version %ld
+0	beshort		0x0104		shared library
+0	beshort		0x0105		ctab data
+0	beshort		0xfe04		structured file
+0	string		0xabcdef	AIX message catalog
+0	belong		0x000001f9	AIX compiled message catalog
+0	string		\<aiaff>	archive
+0	string		\<bigaf>	archive (big format)
+
+0	beshort		0x01f7		64-bit XCOFF executable or object module
+>20	belong		0		not stripped
+# GRR: this test is still too general as it catches also many FATs of DOS filesystems
+4	belong		&0x0feeddb0
+# real core dump could not be 32-bit and 64-bit together
+>7	byte&0x03	!3		AIX core file
+>>1	byte		&0x01		fulldump
+>>7	byte		&0x01		32-bit
+>>>0x6e0	string	>\0		\b, %s
+>>7	byte		&0x02		64-bit
+>>>0x524	string	>\0		\b, %s

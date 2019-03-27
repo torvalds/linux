@@ -1,0 +1,23 @@
+YACC: w - line 64 of "./err_inherit3.y", number of arguments of namelist doesn't agree with previous declaration
+YACC: w - line 64 of "./err_inherit3.y", wrong number of arguments for namelist
+namelist: namelist($c) NAME
+                       ^
+YACC: w - line 64 of "./err_inherit3.y", unknown argument $c
+YACC: w - line 64 of "./err_inherit3.y", untyped argument $c
+YACC: w - line 65 of "./err_inherit3.y", unknown argument $t
+	    { $$->s = mksymbol($<tval>t, $<cval>c, $2);
+	                       ^
+YACC: w - line 65 of "./err_inherit3.y", unknown argument $c
+	    { $$->s = mksymbol($<tval>t, $<cval>c, $2);
+	                                 ^
+YACC: w - line 69 of "./err_inherit3.y", unknown argument $t
+	    { $$->s = mksymbol($t, $c, $1);
+	                         ^
+YACC: w - line 69 of "./err_inherit3.y", untyped argument $t
+YACC: w - line 69 of "./err_inherit3.y", unknown argument $c
+	    { $$->s = mksymbol($t, $c, $1);
+	                             ^
+YACC: w - line 69 of "./err_inherit3.y", untyped argument $c
+YACC: w - line 0 of "./err_inherit3.y", start symbol declaration requires arguments
+YACC: 1 rule never reduced
+YACC: 3 shift/reduce conflicts.

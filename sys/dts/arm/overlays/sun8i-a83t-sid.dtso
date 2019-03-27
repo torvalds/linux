@@ -1,0 +1,14 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "allwinner,sun8i-a83t";
+};
+
+&{/soc} {
+	sid: eeprom@1c14000 {
+		compatible = "allwinner,sun8i-a83t-sid";
+		reg = <0x1c14000 0x400>;
+		status = "okay";
+	};
+};

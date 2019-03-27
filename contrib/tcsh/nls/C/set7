@@ -1,0 +1,30 @@
+$ $tcsh: set7,v 1.4 2006/03/02 18:46:45 christos Exp $
+$ ed.screen.c
+$set 7
+1 \n\tTcsh thinks your terminal has the\n
+2 \tfollowing characteristics:\n\n
+3 \tIt has %d columns and %d lines\n
+4 \tIt has %s meta key\n
+5 a
+6 no
+7 \tIt can%s use tabs\n
+8 not
+9 \tIt %s automatic margins\n
+10 has
+11 does not have
+12 \tIt %s magic margins\n
+13 (empty)
+14 yes
+15 no
+16 ERROR: cannot delete\r\n
+17 DeleteChars: num is riduculous: %d\r\n
+18 ERROR: cannot insert\r\n
+19 StartInsert: num is riduculous: %d\r\n
+20 %s: Cannot open /etc/termcap.\n
+21 %s: No entry for terminal type "%s"\n
+22 %s: using dumb terminal settings.\n
+23 %s: WARNING: Your terminal cannot move up.\n
+24 Editing may be odd for long lines.\n
+25 no clear EOL capability.\n
+26 no delete char capability.\n
+27 no insert char capability.\n

@@ -1,0 +1,465 @@
+#!/local/bin/perl --*-perl-*-
+;#
+;# ntptrap,v 3.1 1993/07/06 01:09:15 jbj Exp
+;#
+;# a client for the xntp mode 6 trap mechanism
+;#
+;# Copyright (c) 1992 
+;#  Rainer Pruy Friedrich-Alexander Universitaet Erlangen-Nuernberg
+;#
+;#
+;#############################################################
+$0 =~ s!^.*/([^/]+)$!$1!;		# strip to filename
+;# enforce STDOUT and STDERR to be line buffered
+$| = 1;
+select((select(STDERR),$|=1)[$[]);
+
+;#######################################
+;# load utility routines and definitions
+;#
+require('ntp.pl');			# implementation of the NTP protocol
+use Socket;
+
+#eval { require('sys/socket.ph'); require('netinet/in.ph') unless defined(&INADDR_ANY); } ||
+#do {
+  #die("$0: $@") unless $[ == index($@, "Can't locate ");
+  #warn "$0: $@";
+  #warn "$0: supplying some default definitions\n";
+  #eval 'sub INADDR_ANY { 0; } sub AF_INET {2;} sub SOCK_DGRAM {2;} 1;' || die "$0: $@";
+#};
+require('getopts.pl');			# option parsing
+require('ctime.pl');			# date/time formatting
+
+;######################################
+;# define some global constants
+;#
+$BASE_TIMEOUT=10;
+$FRAG_TIMEOUT=10;
+$MAX_TRY = 5;
+$REFRESH_TIME=60*15;		# 15 minutes (server uses 1 hour)
+$ntp'timeout = $FRAG_TIMEOUT; #';
+$ntp'timeout if 0;
+
+;######################################
+;# now process options
+;#
+sub usage
+{
+    die("usage: $0 [-p <port>] [-l <logfile>] [host] ...\n");
+}
+
+&usage unless &Getopts('l:p:');
+&Getopts if 0;	# make -w happy
+
+$opt_l = "/dev/null"	# where to write debug messages to
+    if (!$opt_l);
+$opt_p = 0		# port to use locally - (0 does mean: will be chosen by kernel)
+    if (!$opt_p);
+
+@Hosts = ($#ARGV < $[) ? ("localhost") : @ARGV;
+
+;# setup for debug output
+$DEBUGFILE=$opt_l;
+$DEBUGFILE="&STDERR" if $DEBUGFILE eq '-';
+
+open(DEBUG,">>$DEBUGFILE") || die("Cannot open \"$DEBUGFILE\": $!\n");
+select((select(DEBUG),$|=1)[$[]);
+
+;# &log prints a single trap record (adding a (local) time stamp)
+sub log
+{
+    chop($date=&ctime(time));
+    print "$date ",@_,"\n";
+}
+
+sub debug
+{
+    print DEBUG @_,"\n";
+}
+;# 
+$proto_udp = (getprotobyname('udp'))[$[+2] ||
+		(warn("$0: Could not get protocoll number for 'udp' using 17"), 17);
+
+$ntp_port = (getservbyname('ntp','udp'))[$[+2] ||
+	      (warn("$0: Could not get port number for service ntp/udp using 123"), 123);
+
+;# 
+socket(S, &AF_INET, &SOCK_DGRAM, $proto_udp) || die("Cannot open socket: $!\n");
+
+;# 
+bind(S, pack("S n a4 x8", &AF_INET, $opt_p, &INADDR_ANY)) ||
+    die("Cannot bind: $!\n");
+
+($my_port, $my_addr) = (unpack("S n a4 x8",getsockname(S)))[$[+1,$[+2];
+&log(sprintf("Listening at address %d.%d.%d.%d port %d",
+	     unpack("C4",$my_addr), $my_port));
+
+;# disregister with all servers in case of termination
+sub cleanup
+{
+    &log("Aborted by signal \"$_[$[]\"") if defined($_[$[]);
+
+    foreach (@Hosts)
+    {
+	if ( ! defined($Host{$_}) )
+	{
+		print "no info for host '$_'\n";
+		next;
+	}
+	&ntp'send(S,31,0,"",pack("Sna4x8",&AF_INET,$ntp_port,$Host{$_})); #';
+    }
+    close(S);
+    exit(2);
+}
+
+$SIG{'HUP'} = 'cleanup';
+$SIG{'INT'} = 'cleanup';
+$SIG{'QUIT'} = 'cleanup';
+$SIG{'TERM'} = 'cleanup';
+
+0 && $a && $b;
+sub timeouts			# sort timeout id array
+{
+    $TIMEOUTS{$a} <=> $TIMEOUTS{$b};
+}
+
+;# a Request element looks like: pack("a4SC",addr,associd,op)
+@Requests= ();
+
+;# compute requests for set trap control msgs to each host given
+{
+    local($name,$addr);
+    
+    foreach (@Hosts)
+    {
+	if (/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/)
+	{
+	    ($name,$addr) =
+		(gethostbyaddr(pack("C4",$1,$2,$3,$4),&AF_INET))[$[,$[+4];
+	    unless (defined($name))
+	    {
+		$name = sprintf("[[%d.%d.%d.%d]]",$1,$2,$3,$4);
+		$addr = pack("C4",$1,$2,$3,$4);
+	    }
+	}
+	else
+	{
+	    ($name,$addr) = (gethostbyname($_))[$[,$[+4];
+	    unless (defined($name))
+	    {
+		warn "$0: unknown host \"$_\" - ignored\n";
+		next;
+	    }
+	}
+	next if defined($Host{$name});
+	$Host{$name} = $addr;
+	$Host{$_} = $addr;
+	push(@Requests,pack("a4SC",$addr,0,6));	# schedule a set trap request for $name
+    }
+}
+
+sub hostname
+{
+    local($addr) = @_;
+    return $HostName{$addr} if defined($HostName{$addr});
+    local($name) = gethostbyaddr($addr,&AF_INET);
+    &debug(sprintf("hostname(%d.%d.%d.%d) = \"%s\"",unpack("C4",$addr),$name))
+	if defined($name);
+    defined($name) && ($HostName{$addr} = $name) && (return $name);
+    &debug(sprintf("Failed to get name for %d.%d.%d.%d",unpack("C4",$addr)));
+    return sprintf("[%d.%d.%d.%d]",unpack("C4",$addr));
+}
+
+;# when no hosts were given on the commandline no requests have been scheduled
+&usage unless (@Requests);
+
+&debug(sprintf("%d request(s) scheduled",scalar(@Requests)));
+grep(&debug("    - ".$_),keys(%Host));
+
+;# allocate variables;
+$addr="";
+$assoc=0;
+$op = 0;
+$timeout = 0;
+$ret="";
+%TIMEOUTS = ();
+%TIMEOUT_PROCS = ();
+@TIMEOUTS = ();		
+
+$len = 512;
+$buf = " " x $len;
+
+while (1)
+{
+    if (@Requests || @TIMEOUTS)		# if there is some work pending
+    {
+	if (@Requests)
+	{
+	    ($addr,$assoc,$op) = unpack("a4SC",($req = shift(@Requests)));
+	    &debug(sprintf("Request: %s: %s(%d)",&hostname($addr), &ntp'cntrlop_name($op), $assoc)); #';))
+	    $ret = &ntp'send(S,$op,$assoc,"", #'(
+                             pack("Sna4x8",&AF_INET,$ntp_port,$addr));
+	    &set_timeout("retry-".unpack("H*",$req),time+$BASE_TIMEOUT,
+			 sprintf("&retry(\"%s\");",unpack("H*",$req)));
+
+	    last unless (defined($ret)); # warn called by ntp'send();
+
+	    ;# if there are more requests just have a quick look for new messages
+	    ;# otherwise grant server time for a response
+	    $timeout = @Requests ? 0 : $BASE_TIMEOUT;
+	}
+	if ($timeout && @TIMEOUTS)
+	{
+	    ;# ensure not to miss a timeout
+	    if ($timeout + time > $TIMEOUTS{$TIMEOUTS[$[]})
+	    {
+		$timeout = $TIMEOUTS{$TIMEOUTS[$[]} - time;
+		$timeout = 0 if $timeout < 0;
+	    }
+	}
+    }
+    else
+    {
+	;# no work yet - wait for some messages dropping in
+	;# usually this will not hapen as the refresh semantic will
+	;# always have a pending timeout
+	undef($timeout);
+    }
+
+    vec($mask="",fileno(S),1) = 1;
+    $ret = select($mask,undef,undef,$timeout);
+
+    warn("$0: select: $!\n"),last if $ret < 0;	# give up on error return from select
+
+    if ($ret == 0)
+    {
+	;# timeout
+	if (@TIMEOUTS && time > $TIMEOUTS{$TIMEOUTS[$[]})
+	{
+	    ;# handle timeout
+	    $timeout_proc =
+		(delete $TIMEOUT_PROCS{$TIMEOUTS[$[]},
+		 delete $TIMEOUTS{shift(@TIMEOUTS)})[$[];
+	    eval $timeout_proc;
+	    die "timeout eval (\"$timeout_proc\"): $@\n" if $@;
+	}
+	;# else: there may be something to be sent
+    }
+    else
+    {
+	;# data avail
+	$from = recv(S,$buf,$len,0);
+	;# give up on error return from recv
+	warn("$0: recv: $!\n"), last unless (defined($from));
+
+	$from = (unpack("Sna4",$from))[$[+2]; # keep host addr only
+	;# could check for ntp_port - but who cares
+	&debug("-Packet from ",&hostname($from));
+
+	;# stuff packet into ntp mode 6 receive machinery
+	($ret,$data,$status,$associd,$op,$seq,$auth_keyid) =
+	    &ntp'handle_packet($buf,$from); # ';
+	&debug(sprintf("%s uses auth_keyid %d",&hostname($from),$auth_keyid)) if defined($auth_keyid);
+	next unless defined($ret);
+
+	if ($ret eq "")
+	{
+	    ;# handle packet
+	    ;# simple trap response messages have neither timeout nor retries
+	    &clear_timeout("retry-".unpack("H*",pack("a4SC",$from,$associd,$op))) unless $op == 7;
+	    delete $RETRY{pack("a4SC",$from,$associd,$op)} unless $op == 7;
+
+	    &process_response($from,$ret,$data,$status,$associd,$op,$seq,$auth_keyid);
+	}
+	else
+	{
+	    ;# some kind of error
+	    &log(sprintf("%50s: %s: %s",(gethostbyaddr($from,&AF_INET))[$[],$ret,$data));
+	    if ($ret ne "TIMEOUT" && $ret ne "ERROR")
+	    {
+		&clear_timeout("retry-".unpack("H*",pack("a4SC",$from,$associd,$op)));
+	    }
+	}
+    }
+    
+}
+
+warn("$0: terminating\n");
+&cleanup;
+exit 0;
+
+;##################################################
+;# timeout support
+;#
+sub set_timeout
+{
+    local($id,$time,$proc) = @_;
+    
+    $TIMEOUTS{$id} = $time;
+    $TIMEOUT_PROCS{$id} = $proc;
+    @TIMEOUTS = sort timeouts keys(%TIMEOUTS);
+    chop($date=&ctime($time));
+    &debug(sprintf("Schedule timeout \"%s\" for %s", $id, $date));
+}
+
+sub clear_timeout
+{
+    local($id) = @_;
+    delete $TIMEOUTS{$id};
+    delete $TIMEOUT_PROCS{$id};
+    @TIMEOUTS = sort timeouts keys(%TIMEOUTS);
+    &debug("Clear  timeout \"$id\"");
+}
+
+0 && &refresh;
+sub refresh
+{
+    local($addr) = @_[$[];
+    $addr = pack("H*",$addr);
+    &debug(sprintf("Refreshing trap for %s", &hostname($addr)));
+    push(@Requests,pack("a4SC",$addr,0,6));
+}
+
+0 && &retry;
+sub retry
+{
+    local($tag) = @_;
+    $tag = pack("H*",$tag);
+    $RETRY{$tag} = 0 if (!defined($RETRY{$tag}));
+
+    if (++$RETRY{$tag} > $MAX_TRY)
+    {
+	&debug(sprintf("Retry failed: %s assoc %5d op %d",
+		       &hostname(substr($tag,$[,4)),
+		       unpack("x4SC",$tag)));
+	return;
+    }
+    &debug(sprintf("Retrying: %s assoc %5d op %d",
+		       &hostname(substr($tag,$[,4)),
+		       unpack("x4SC",$tag)));
+    push(@Requests,$tag);
+}
+
+sub process_response
+{
+    local($from,$ret,$data,$status,$associd,$op,$seq,$auth_keyid) = @_;
+    
+    $msg="";
+    if ($op == 7)		# trap response
+    {
+	$msg .= sprintf("%40s trap#%-5d",
+			&hostname($from),$seq);
+	&debug (sprintf("\nTrap %d associd %d:\n%s\n===============\n",$seq,$associd,$data));
+	if ($associd == 0)	# system event
+	{
+	    $msg .= "  SYSTEM   ";
+	    $evnt = &ntp'SystemEvent($status); #';
+	    $msg .= "$evnt ";
+	    ;# for special cases add additional info
+	    ($stratum) = ($data =~ /stratum=(\d+)/);
+	    ($refid) = ($data =~ /refid=([\w\.]+)/);
+	    $msg .= "stratum=$stratum refid=$refid";
+	    if ($refid =~ /\[?(\d+)\.(\d+)\.(\d+)\.(\d+)/)
+	    {
+		local($x) = (gethostbyaddr(pack("C4",$1,$2,$3,$4),&AF_INET));
+		$msg .= " " . $x if defined($x)
+	    }
+	    if ($evnt eq "event_sync_chg")
+	    {
+		$msg .= sprintf("%s %s ",
+				&ntp'LI($status), #',
+				&ntp'ClockSource($status) #'
+				);
+	    }
+	    elsif ($evnt eq "event_sync/strat_chg")
+	    {
+		($peer) = ($data =~ /peer=([0-9]+)/);
+		$msg .= " peer=$peer";
+	    }
+	    elsif ($evnt eq "event_clock_excptn")
+	    {
+		if (($device) = ($data =~ /device=\"([^\"]+)\"/))
+		{
+		    ($cstatus) = ($data =~ /refclockstatus=0?x?([\da-fA-F]+)/);
+		    $Cstatus = hex($cstatus);
+		    $msg .= sprintf("- %-32s",&ntp'clock_status($Cstatus)); #');
+		    ($timecode) = ($data =~ /timecode=\"([^\"]+)\"/);
+		    $msg .= " \"$device\" \"$timecode\"";
+		}
+		else
+		{
+		    push(@Requests,pack("a4SC",$from, $associd, 4));
+		}
+	    }
+	}
+	else			# peer event
+	{
+	    $msg .= sprintf("peer %5d ",$associd);
+	    ($srcadr) = ($data =~ /srcadr=\[?([\d\.]+)/);
+	    $msg .= sprintf("%-18s %40s ", "[$srcadr]",
+			    &hostname(pack("C4",split(/\./,$srcadr))));
+	    $evnt = &ntp'PeerEvent($status); #';
+	    $msg .= "$evnt ";
+	    ;# for special cases include additional info
+	    if ($evnt eq "event_clock_excptn")
+	    {
+		if (($device) = ($data =~ /device=\"([^\"]+)\"/))
+		{
+		    ;#&debug("----\n$data\n====\n");
+		    ($cstatus) = ($data =~ /refclockstatus=0?x?([\da-fA-F]+)/);
+		    $Cstatus = hex($cstatus);
+		    $msg .= sprintf("- %-32s",&ntp'clock_status($Cstatus)); #');
+		    ($timecode) = ($data =~ /timecode=\"([^\"]+)\"/);
+		    $msg .= " \"$device\" \"$timecode\"";
+		}
+		else
+		{
+		    ;# no clockvars included - post a cv request
+		    push(@Requests,pack("a4SC",$from, $associd, 4));
+		}
+	    }
+	    elsif ($evnt eq "event_stratum_chg")
+	    {
+		($stratum) = ($data =~ /stratum=(\d+)/);
+		$msg .= "new stratum $stratum";
+	    }
+	}
+    }
+    elsif ($op == 6)		# set trap resonse
+    {
+	&debug("Set trap ok from ",&hostname($from));
+	&set_timeout("refresh-".unpack("H*",$from),time+$REFRESH_TIME,
+		     sprintf("&refresh(\"%s\");",unpack("H*",$from)));
+	return;
+    }
+    elsif ($op == 4)		# read clock variables response
+    {
+	;# status of clock
+	$msg .= sprintf(" %40s ", &hostname($from));
+	if ($associd == 0)
+	{
+	    $msg .= "system clock status: ";
+	}
+	else
+	{
+	    $msg .= sprintf("peer %5d clock",$associd);
+	}
+	$msg .= sprintf("%-32s",&ntp'clock_status($status)); #');
+	($device) = ($data =~ /device=\"([^\"]+)\"/);
+	($timecode) = ($data =~ /timecode=\"([^\"]+)\"/);
+	$msg .= " \"$device\" \"$timecode\"";
+    }
+    elsif ($op == 31)		# unset trap response (UNOFFICIAL op)
+    {
+	;# clear timeout
+	&debug("Clear Trap ok from ",&hostname($from));
+	&clear_timeout("refresh-".unpack("H*",$from));
+	return;
+    }
+    else			# unexpected response
+    {
+	$msg .= "unexpected response to op $op assoc=$associd";
+	$msg .= sprintf(" status=%04x",$status);
+    }
+    &log($msg);
+}

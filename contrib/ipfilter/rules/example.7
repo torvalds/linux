@@ -1,0 +1,12 @@
+# block all ICMP packets.
+#
+block in proto icmp all
+#
+# allow in ICMP echos and echo-replies.
+#
+pass in on le1 proto icmp from any to any icmp-type echo
+pass in on le1 proto icmp from any to any icmp-type echorep
+#
+# block all ICMP destination unreachable packets which are port-unreachables
+#
+block in on le1 proto icmp from any to any icmp-type unreach code 3

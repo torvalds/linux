@@ -1,0 +1,200 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: captoinfo.1m,v 1.25 2010/12/04 18:36:44 tom Exp $
+.TH @CAPTOINFO@ 1M ""
+.ds n 5
+.ds d @TERMINFO@
+.SH NAME
+\fB@CAPTOINFO@\fR \- convert a \fItermcap\fR description into a \fIterminfo\fR description
+.SH SYNOPSIS
+\fB@CAPTOINFO@\fR [\fB\-v\fR\fIn\fR \fIwidth\fR]  [\fB\-V\fR] [\fB\-1\fR] [\fB\-w\fR \fIwidth\fR] \fIfile\fR . . .
+.SH DESCRIPTION
+\fB@CAPTOINFO@\fR looks in each given text
+\fIfile\fR for \fBtermcap\fR descriptions.
+For each
+one found, an equivalent \fBterminfo\fR description is written to standard
+output.
+Termcap \fBtc\fR capabilities are translated directly to terminfo
+\fBuse\fR capabilities.
+.PP
+If no \fIfile\fR is given, then the environment variable \fBTERMCAP\fR is used
+for the filename or entry.
+If \fBTERMCAP\fR is a full pathname to a file, only
+the terminal whose name is specified in the environment variable \fBTERM\fR is
+extracted from that file.
+If the environment variable \fBTERMCAP\fR is not
+set, then the file \fB\*d\fR is read.
+.TP 5
+\fB\-v\fR
+print out tracing information on standard error as the program runs.
+.TP 5
+\fB\-V\fR
+print out the version of the program in use on standard error and exit.
+.TP 5
+\fB\-1\fR
+cause the fields to print out one to a line.
+Otherwise, the fields
+will be printed several to a line to a maximum width of 60
+characters.
+.TP 5
+\fB\-w\fR
+change the output to \fIwidth\fR characters.
+.SH FILES
+.TP 20
+\*d
+Compiled terminal description database.
+.SH TRANSLATIONS FROM NONSTANDARD CAPABILITIES
+.PP
+Some obsolete nonstandard capabilities will automatically be translated
+into standard (SVr4/XSI Curses) terminfo capabilities by \fB@CAPTOINFO@\fR.
+Whenever one of these automatic translations is done, the program
+will issue an notification to stderr, inviting the user to check that
+it has not mistakenly translated a completely unknown and random
+capability and/or syntax error.
+.PP
+.TS H
+c c c c
+c c c c
+l l l l.
+Nonstd	Std	From	Terminfo
+name	name		capability
+_
+BO	mr	AT&T	enter_reverse_mode
+CI	vi	AT&T	cursor_invisible
+CV	ve	AT&T	cursor_normal
+DS	mh	AT&T	enter_dim_mode
+EE	me	AT&T	exit_attribute_mode
+FE	LF	AT&T	label_on
+FL	LO	AT&T	label_off
+XS	mk	AT&T	enter_secure_mode
+EN	@7	XENIX	key_end
+GE	ae	XENIX	exit_alt_charset_mode
+GS	as	XENIX	enter_alt_charset_mode
+HM	kh	XENIX	key_home
+LD	kL	XENIX	key_dl
+PD	kN	XENIX	key_npage
+PN	po	XENIX	prtr_off
+PS	pf	XENIX	prtr_on
+PU	kP	XENIX	key_ppage
+RT	@8	XENIX	kent
+UP	ku	XENIX	kcuu1
+KA	k;	Tek	key_f10
+KB	F1	Tek	key_f11
+KC	F2	Tek	key_f12
+KD	F3	Tek	key_f13
+KE	F4	Tek	key_f14
+KF	F5	Tek	key_f15
+BC	Sb	Tek	set_background
+FC	Sf	Tek	set_foreground
+HS	mh	Iris	enter_dim_mode
+.TE
+.PP
+XENIX termcap also used to have a set of extension capabilities
+for forms drawing, designed to take advantage of the IBM PC
+high-half graphics.
+They were as follows:
+.PP
+.TS H
+c c
+l l.
+Cap	Graphic
+_
+G2	upper left
+G3	lower left
+G1	upper right
+G4	lower right
+GR	pointing right
+GL	pointing left
+GU	pointing up
+GD	pointing down
+GH	horizontal line
+GV	vertical line
+GC	intersection
+G6	upper left
+G7	lower left
+G5	upper right
+G8	lower right
+Gr	tee pointing right
+Gr	tee pointing left
+Gu	tee pointing up
+Gd	tee pointing down
+Gh	horizontal line
+Gv	vertical line
+Gc	intersection
+GG	acs magic cookie count
+.TE
+.PP
+If the single-line capabilities occur in an entry, they will automatically
+be composed into an \fIacsc\fR string.
+The double-line capabilities and
+\fBGG\fR are discarded with a warning message.
+.PP
+IBM's AIX has a terminfo facility descended from SVr1 terminfo but incompatible
+with the SVr4 format.
+The following AIX extensions are automatically
+translated:
+.TS
+c c
+l l.
+IBM	XSI
+_
+ksel	kslt
+kbtab	kcbt
+font0	s0ds
+font1	s1ds
+font2	s2ds
+font3	s3ds
+.TE
+.PP
+Additionally, the AIX \fIbox1\fR capability will be automatically translated to
+an \fIacsc\fR string.
+.PP
+Hewlett-Packard's terminfo library supports two nonstandard terminfo
+capabilities \fImeml\fR (memory lock) and \fImemu\fR (memory unlock).
+These will be discarded with a warning message.
+.SH NOTES
+This utility is actually a link to \fB@TIC@\fR(1M), running in \fI\-I\fR mode.
+You can use other \fB@TIC@\fR options such as \fB\-f\fR and  \fB\-x\fR.
+.PP
+The trace option is not identical to SVr4's.
+Under SVr4, instead of following
+the \fB\-v\fR with a trace level n, you repeat it n times.
+.SH SEE ALSO
+\fB@INFOCMP@\fR(1M),
+\fBcurses\fR(3X),
+\fBterminfo\fR(\*n)
+.PP
+This describes \fBncurses\fR
+version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).
+.SH AUTHOR
+Eric S. Raymond <esr@snark.thyrsus.com>
+and
+.br
+Thomas E. Dickey <dickey@invisible-island.net>

@@ -1,0 +1,127 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 16, 2016
+.Dt VM_PAGE_ALLOC 9
+.Os
+.Sh NAME
+.Nm vm_page_alloc
+.Nd "allocate a page for a"
+.Vt vm_object
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_page.h
+.Ft vm_page_t
+.Fn vm_page_alloc "vm_object_t object" "vm_pindex_t pindex" "int req"
+.Sh DESCRIPTION
+The
+.Fn vm_page_alloc
+function allocates a page at
+.Fa pindex
+within
+.Fa object .
+It is assumed that a page has not already been allocated at
+.Fa pindex .
+The page returned is inserted into the object, unless
+.Dv VM_ALLOC_NOOBJ
+is specified in the
+.Fa req .
+.Pp
+.Fn vm_page_alloc
+will not sleep.
+.Pp
+Its arguments are:
+.Bl -tag -width ".Fa object"
+.It Fa object
+The VM object to allocate the page for.
+The
+.Fa object
+must be locked if
+.Dv VM_ALLOC_NOOBJ
+is not specified.
+.It Fa pindex
+The index into the object at which the page should be inserted.
+.It Fa req
+The bitwise-inclusive OR of a class and any optional flags indicating
+how the page should be allocated.
+.Pp
+Exactly one of the following classes must be specified:
+.Bl -tag -width ".Dv VM_ALLOC_INTERRUPT"
+.It Dv VM_ALLOC_NORMAL
+The page should be allocated with no special treatment.
+.It Dv VM_ALLOC_SYSTEM
+The page can be allocated if the cache is empty and the free
+page count is above the interrupt reserved water mark.
+This flag should be used only when the system really needs the page.
+.It Dv VM_ALLOC_INTERRUPT
+.Fn vm_page_alloc
+is being called during an interrupt.
+A page will be returned successfully if the free page count is greater
+than zero.
+.El
+.Pp
+The optional flags are:
+.Bl -tag -width ".Dv VM_ALLOC_NOBUSY"
+.It Dv VM_ALLOC_NOBUSY
+The returned page will not be exclusive busy.
+.It Dv VM_ALLOC_NODUMP
+The returned page will not be included in any kernel core dumps
+regardless of whether or not it is mapped in to KVA.
+.It Dv VM_ALLOC_NOOBJ
+Do not associate the allocated page with a vm object.
+The
+.Fa object
+argument is ignored.
+.It Dv VM_ALLOC_SBUSY
+The returned page will be shared busy.
+.It Dv VM_ALLOC_WIRED
+The returned page will be wired.
+.It Dv VM_ALLOC_ZERO
+Indicate a preference for a pre-zeroed page.
+There is no guarantee that the returned page will be zeroed, but it
+will have the
+.Dv PG_ZERO
+flag set if it is zeroed.
+.El
+.El
+.Sh RETURN VALUES
+The
+.Vt vm_page_t
+that was allocated is returned if successful; otherwise,
+.Dv NULL
+is returned.
+.Sh NOTES
+The pager process is always upgraded to
+.Dv VM_ALLOC_SYSTEM
+unless
+.Dv VM_ALLOC_INTERRUPT
+is set.
+.Sh AUTHORS
+This manual page was written by
+.An Chad David Aq Mt davidc@acns.ab.ca .

@@ -1,0 +1,63 @@
+
+#------------------------------------------------------------------------------
+# $File: ispell,v 1.8 2009/09/19 16:28:10 christos Exp $
+# ispell:  file(1) magic for ispell
+#
+# Ispell 3.0 has a magic of 0x9601 and ispell 3.1 has 0x9602.  This magic
+# will match 0x9600 through 0x9603 in *both* little endian and big endian.
+# (No other current magic entries collide.)
+#
+# Updated by Daniel Quinlan (quinlan@yggdrasil.com)
+#
+0	leshort&0xFFFC	0x9600		little endian ispell
+>0	byte		0		hash file (?),
+>0	byte		1		3.0 hash file,
+>0	byte		2		3.1 hash file,
+>0	byte		3		hash file (?),
+>2	leshort		0x00		8-bit, no capitalization, 26 flags
+>2	leshort		0x01		7-bit, no capitalization, 26 flags
+>2	leshort		0x02		8-bit, capitalization, 26 flags
+>2	leshort		0x03		7-bit, capitalization, 26 flags
+>2	leshort		0x04		8-bit, no capitalization, 52 flags
+>2	leshort		0x05		7-bit, no capitalization, 52 flags
+>2	leshort		0x06		8-bit, capitalization, 52 flags
+>2	leshort		0x07		7-bit, capitalization, 52 flags
+>2	leshort		0x08		8-bit, no capitalization, 128 flags
+>2	leshort		0x09		7-bit, no capitalization, 128 flags
+>2	leshort		0x0A		8-bit, capitalization, 128 flags
+>2	leshort		0x0B		7-bit, capitalization, 128 flags
+>2	leshort		0x0C		8-bit, no capitalization, 256 flags
+>2	leshort		0x0D		7-bit, no capitalization, 256 flags
+>2	leshort		0x0E		8-bit, capitalization, 256 flags
+>2	leshort		0x0F		7-bit, capitalization, 256 flags
+>4	leshort		>0		and %d string characters
+0	beshort&0xFFFC	0x9600		big endian ispell
+>1	byte		0		hash file (?),
+>1	byte		1		3.0 hash file,
+>1	byte		2		3.1 hash file,
+>1	byte		3		hash file (?),
+>2	beshort		0x00		8-bit, no capitalization, 26 flags
+>2	beshort		0x01		7-bit, no capitalization, 26 flags
+>2	beshort		0x02		8-bit, capitalization, 26 flags
+>2	beshort		0x03		7-bit, capitalization, 26 flags
+>2	beshort		0x04		8-bit, no capitalization, 52 flags
+>2	beshort		0x05		7-bit, no capitalization, 52 flags
+>2	beshort		0x06		8-bit, capitalization, 52 flags
+>2	beshort		0x07		7-bit, capitalization, 52 flags
+>2	beshort		0x08		8-bit, no capitalization, 128 flags
+>2	beshort		0x09		7-bit, no capitalization, 128 flags
+>2	beshort		0x0A		8-bit, capitalization, 128 flags
+>2	beshort		0x0B		7-bit, capitalization, 128 flags
+>2	beshort		0x0C		8-bit, no capitalization, 256 flags
+>2	beshort		0x0D		7-bit, no capitalization, 256 flags
+>2	beshort		0x0E		8-bit, capitalization, 256 flags
+>2	beshort		0x0F		7-bit, capitalization, 256 flags
+>4	beshort		>0		and %d string characters
+# ispell 4.0 hash files  kromJx <kromJx@crosswinds.net>
+# Ispell 4.0
+0       string          ISPL            ispell
+>4      long            x               hash file version %d,
+>8      long            x               lexletters %d,
+>12     long            x               lexsize %d,
+>16     long            x               hashsize %d,
+>20     long            x               stblsize %d

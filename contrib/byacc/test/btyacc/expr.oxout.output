@@ -1,0 +1,227 @@
+   0  $accept : yyyAugNonterm $end
+
+   1  $$1 :
+
+   2  yyyAugNonterm : $$1 s
+
+   3  s : expr
+
+   4  expr : expr '*' expr
+   5       | expr '+' expr
+   6       | expr '/' expr
+   7       | expr '-' expr
+   8       | '(' expr ')'
+   9       | ID
+  10       | CONST
+
+state 0
+	$accept : . yyyAugNonterm $end  (0)
+	$$1 : .  (1)
+
+	.  reduce 1
+
+	yyyAugNonterm  goto 1
+	$$1  goto 2
+
+
+state 1
+	$accept : yyyAugNonterm . $end  (0)
+
+	$end  accept
+
+
+state 2
+	yyyAugNonterm : $$1 . s  (2)
+
+	ID  shift 3
+	CONST  shift 4
+	'('  shift 5
+	.  error
+
+	s  goto 6
+	expr  goto 7
+
+
+state 3
+	expr : ID .  (9)
+
+	.  reduce 9
+
+
+state 4
+	expr : CONST .  (10)
+
+	.  reduce 10
+
+
+state 5
+	expr : '(' . expr ')'  (8)
+
+	ID  shift 3
+	CONST  shift 4
+	'('  shift 5
+	.  error
+
+	expr  goto 8
+
+
+state 6
+	yyyAugNonterm : $$1 s .  (2)
+
+	.  reduce 2
+
+
+state 7
+	s : expr .  (3)
+	expr : expr . '*' expr  (4)
+	expr : expr . '+' expr  (5)
+	expr : expr . '/' expr  (6)
+	expr : expr . '-' expr  (7)
+
+	'+'  shift 9
+	'-'  shift 10
+	'*'  shift 11
+	'/'  shift 12
+	$end  reduce 3
+
+
+state 8
+	expr : expr . '*' expr  (4)
+	expr : expr . '+' expr  (5)
+	expr : expr . '/' expr  (6)
+	expr : expr . '-' expr  (7)
+	expr : '(' expr . ')'  (8)
+
+	'+'  shift 9
+	'-'  shift 10
+	'*'  shift 11
+	'/'  shift 12
+	')'  shift 13
+	.  error
+
+
+state 9
+	expr : expr '+' . expr  (5)
+
+	ID  shift 3
+	CONST  shift 4
+	'('  shift 5
+	.  error
+
+	expr  goto 14
+
+
+state 10
+	expr : expr '-' . expr  (7)
+
+	ID  shift 3
+	CONST  shift 4
+	'('  shift 5
+	.  error
+
+	expr  goto 15
+
+
+state 11
+	expr : expr '*' . expr  (4)
+
+	ID  shift 3
+	CONST  shift 4
+	'('  shift 5
+	.  error
+
+	expr  goto 16
+
+
+state 12
+	expr : expr '/' . expr  (6)
+
+	ID  shift 3
+	CONST  shift 4
+	'('  shift 5
+	.  error
+
+	expr  goto 17
+
+
+state 13
+	expr : '(' expr ')' .  (8)
+
+	.  reduce 8
+
+
+state 14
+	expr : expr . '*' expr  (4)
+	expr : expr . '+' expr  (5)
+	expr : expr '+' expr .  (5)
+	expr : expr . '/' expr  (6)
+	expr : expr . '-' expr  (7)
+
+	'*'  shift 11
+	'/'  shift 12
+	$end  reduce 5
+	'+'  reduce 5
+	'-'  reduce 5
+	')'  reduce 5
+
+
+state 15
+	expr : expr . '*' expr  (4)
+	expr : expr . '+' expr  (5)
+	expr : expr . '/' expr  (6)
+	expr : expr . '-' expr  (7)
+	expr : expr '-' expr .  (7)
+
+	'*'  shift 11
+	'/'  shift 12
+	$end  reduce 7
+	'+'  reduce 7
+	'-'  reduce 7
+	')'  reduce 7
+
+
+state 16
+	expr : expr . '*' expr  (4)
+	expr : expr '*' expr .  (4)
+	expr : expr . '+' expr  (5)
+	expr : expr . '/' expr  (6)
+	expr : expr . '-' expr  (7)
+
+	.  reduce 4
+
+
+state 17
+	expr : expr . '*' expr  (4)
+	expr : expr . '+' expr  (5)
+	expr : expr . '/' expr  (6)
+	expr : expr '/' expr .  (6)
+	expr : expr . '-' expr  (7)
+
+	'*'  shift 11
+	$end  reduce 6
+	'+'  reduce 6
+	'-'  reduce 6
+	'/'  reduce 6
+	')'  reduce 6
+
+
+10 terminals, 5 nonterminals
+11 grammar rules, 18 states
+
+grammar parser grammar
+symbol# value# symbol
+     0      0  $end
+     1    256  error
+     2    257  ID
+     3    258  CONST
+     4     43  '+'
+     5     45  '-'
+     6     42  '*'
+     7     47  '/'
+     8     40  '('
+     9     41  ')'
+    10    259  $accept
+    11    260  yyyAugNonterm
+    12    261  s
+    13    262  $$1
+    14    263  expr

@@ -1,0 +1,198 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_open_container , xo_open_container_h , xo_open_container_hd , xo_open_container_d
+.Nm xo_close_container , xo_close_container_h , xo_close_container_hd , xo_close_container_d
+.Nd open (and close) container constructs
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft int
+.Fn xo_open_container "const char *name"
+.Ft int
+.Fn xo_open_container_h "xo_handle_t *handle" "const char *name"
+.Ft int
+.Fn xo_open_container_hd "xo_handle_t *handle" "const char *name"
+.Ft int
+.Fn xo_open_container_d "const char *name"
+.Ft int
+.Fn xo_close_container "const char *name"
+.Ft int
+.Fn  xo_close_container_h "xo_handle_t *handle" "const char *name"
+.Ft int
+.Fn xo_close_container_hd "xo_handle_t *handle"
+.Ft int
+.Fn xo_close_container_d "void"
+.Sh DESCRIPTION
+.Nm libxo
+represents two types of hierarchy:
+.Dq containers
+and
+.Dq lists .
+A container appears once under a given parent where a list contains
+instances that can appear multiple times.
+A container is used to hold
+related fields and to give the data organization and scope.
+The container has no value, but serves to
+contain other nodes.
+.Pp
+To open a container, call
+.Fn xo_open_container
+or
+.Fn xo_open_container_h .
+The former uses the default handle and
+the latter accepts a specific handle.
+.Pp
+To close a level, use the
+.Fn xo_close_container
+or
+.Fn xo_close_container_h
+functions.
+.Pp
+Each open call should have a matching close call.
+If the
+.Dv XOF_WARN
+flag is set and the name given does not match the name of 
+the currently open
+container, a warning will be generated.
+.Bd -literal -offset indent -compact
+    Example:
+
+        xo_open_container("top");
+        xo_open_container("system");
+        xo_emit("{:host-name/%s%s%s", hostname,
+                domainname ? "." : "", domainname ?: "");
+        xo_close_container("system");
+        xo_close_container("top");
+
+    Sample Output:
+      Text:
+        my-host.example.org
+      XML:
+        <top>
+          <system>
+              <host-name>my-host.example.org</host-name>
+          </system>
+        </top>
+      JSON:
+        "top" : {
+          "system" : {
+              "host-name": "my-host.example.org"
+          }
+        }
+      HTML:
+        <div class="data"
+             data-tag="host-name">my-host.example.org</div>
+.Ed
+.Sh EMITTING HIERARCHY
+To create a container, use the
+.Fn xo_open_container
+and
+.Fn xo_close_container
+set of functions.
+The
+.Fa handle
+parameter contains a handle such as returned by
+.Xr xo_create 3
+or
+.Dv NULL
+to use the default handle.
+The
+.Fa name
+parameter gives the name of the container, encoded in
+.Em UTF-8 .
+Since
+.Em ASCII
+is a proper subset of
+.Em UTF-8 ,
+traditional C strings can be used directly.
+.Pp
+The close functions with the
+.Dq _d
+suffix are used in
+.Dq "Do The Right Thing"
+mode, where the name of the open containers, lists, and
+instances are maintained internally by
+.Nm libxo
+to allow the caller to
+avoid keeping track of the open container name.
+.Pp
+Use the
+.Dv XOF_WARN
+flag to generate a warning if the name given on the
+close does not match the current open container.
+.Pp
+For TEXT and HTML output, containers are not rendered into output
+text, though for HTML they are used when the
+.Dv XOF_XPATH
+flag is set.
+.Pp
+.Bd -literal -offset indent -compact
+    EXAMPLE:
+       xo_open_container("system");
+       xo_emit("The host name is {:host-name}\n", hn);
+       xo_close_container("system");
+    XML:
+       <system><host-name>foo</host-name></system>
+.Ed
+.Sh DTRT MODE
+Some users may find tracking the names of open containers, lists, and
+instances inconvenient.
+.Nm libxo
+offers a
+.Dq "Do The Right Thing"
+mode, where
+.Nm libxo
+will track the names of open containers, lists, and instances so
+the close function can be called without a name.
+To enable
+.Em DTRT
+mode,
+turn on the
+.Dv XOF_DTRT
+flag prior to making any other
+.Nm libxo
+output.
+.Bd -literal -offset indent -compact
+    xo_set_flags(NULL, XOF_DTRT);
+.Ed
+Each open and close function has a version with the suffix
+.Dq _d ,
+which will close the open container, list, or instance:
+.Bd -literal -offset indent -compact
+    xo_open_container("top");
+    ...
+    xo_close_container_d();
+.Ed
+Note that the
+.Dv XOF_WARN
+flag will also cause
+.Nm libxo
+to track open
+containers, lists, and instances.
+A warning is generated when the name given to the close function
+and the name recorded do not match.
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

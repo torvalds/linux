@@ -1,0 +1,60 @@
+INSTALLATION INTRODUCTION
+-------------------------
+
+This file describes how to compile and install tnftp on your system.
+
+	============================================
+	=					   =
+	=  NOTE: You will need an ANSI C compiler. =
+	=					   =
+	============================================
+
+
+For most systems, execute the following to compile and install tnftp:
+	./configure
+	make
+	make install
+
+A preformatted manual page (src/ftp.cat1) is also installed.
+If you wish to install the source (src/ftp.1), ensure that your system
+has up-to-date mandoc macros, such as those that are shipped with groff.
+
+
+CONFIGURATION OPTIONS
+---------------------
+
+tnftp is configured using an `autoconf' generated `configure'
+script.  `configure' supports the following options:
+
+* The standard `autoconf configure' options, including:
+  --prefix=PREFIX         install architecture-independent files in PREFIX
+                          [/usr/local]
+  --exec-prefix=EPREFIX   install architecture-dependent files in EPREFIX
+                          [same as prefix]
+  --srcdir=DIR            find the sources in DIR [configure dir or ..]
+                          BSD or GNU make may be required for this to work.
+
+* Specific options:
+  --enable-editcomplete   Turn on command line editing and completion.
+                          (default: enabled)
+  --enable-ipv6           Enable IPv6 support (if your OS supports it).
+                          (default: enabled)
+  --disable-largefile     omit support for large files
+  --with-socks            enable support for (Dante) SOCKS5 proxy
+
+The following environment variables can be set to override various
+compiler related settings.
+  CC=compiler		specify name of the C compiler (default: gcc or cc)
+  CFLAGS=flags		specify flags to C compiler (default: -O -g or just -O)
+  LDFLAGS=flags		specify flags to linker (default: none)
+
+This can be achieved with:
+	env CC="compiler" CFLAGS="flags" LDFLAGS="flags" ./configure
+
+
+	============================================
+	=					   =
+	=  NOTE: You will need an ANSI C compiler. =
+	=					   =
+	============================================
+

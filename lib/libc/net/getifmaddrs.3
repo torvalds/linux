@@ -1,0 +1,114 @@
+.\" Copyright (c) 2003 Bruce M. Simpson. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bruce M. Simpson ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bruce M. Simpson BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 21, 2013
+.Dt GETIFMADDRS 3
+.Os
+.Sh NAME
+.Nm getifmaddrs
+.Nd get multicast group memberships
+.Sh SYNOPSIS
+.In ifaddrs.h
+.Ft int
+.Fn getifmaddrs "struct ifmaddrs **ifmap"
+.Ft void
+.Fn freeifmaddrs "struct ifmaddrs *ifmp"
+.Sh DESCRIPTION
+The
+.Fn getifmaddrs
+function stores a reference to a linked list of the multicast memberships
+on the local machine in the memory referenced by
+.Fa ifmap .
+The list consists of
+.Vt ifmaddrs
+structures, as defined in the include file
+.In ifaddrs.h .
+The
+.Vt ifmaddrs
+structure contains at least the following entries:
+.Bd -literal
+    struct ifmaddrs   *ifma_next;     /* Pointer to next struct */
+    struct sockaddr   *ifma_name;     /* Interface name (AF_LINK) */
+    struct sockaddr   *ifma_addr;     /* Multicast address */
+    struct sockaddr   *ifma_lladdr;   /* Link-layer translation, if any */
+.Ed
+.Pp
+The
+.Va ifma_next
+field contains a pointer to the next structure on the list.
+This field is
+.Dv NULL
+in last structure on the list.
+.Pp
+The
+.Va ifma_name
+field references an
+.Dv AF_LINK
+address structure, containing the name of the
+interface where the membership exists.
+.Pp
+The
+.Va ifma_addr
+references the address that this membership is for.
+.Pp
+The
+.Va ifma_lladdr
+field references a link-layer translation for the protocol-level address in
+.Va ifma_addr ,
+if one is set, otherwise it is
+.Dv NULL .
+.Pp
+The data returned by
+.Fn getifmaddrs
+is dynamically allocated and should be freed using
+.Fn freeifmaddrs
+when no longer needed.
+.Sh RETURN VALUES
+.Rv -std getifmaddrs
+.Sh ERRORS
+The
+.Fn getifmaddrs
+may fail and set
+.Va errno
+for any of the errors specified for the library routines
+.Xr malloc 3
+or
+.Xr sysctl 3 .
+.Sh SEE ALSO
+.Xr sysctl 3 ,
+.Xr networking 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Fn getifmaddrs
+function first appeared in
+.Fx 5.2 .
+.Sh BUGS
+If both
+.In net/if.h
+and
+.In ifaddrs.h
+are being included,
+.In net/if.h
+.Em must
+be included before
+.In ifaddrs.h .

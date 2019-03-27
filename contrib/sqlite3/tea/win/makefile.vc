@@ -1,0 +1,414 @@
+# makefile.vc --                                               -*- Makefile -*-
+#
+# Microsoft Visual C++ makefile for use with nmake.exe v1.62+ (VC++ 5.0+)
+#
+# This makefile is based upon the Tcl 8.4 Makefile.vc and modified to 
+# make it suitable as a general package makefile. Look for the word EDIT
+# which marks sections that may need modification. As a minumum you will
+# need to change the PROJECT, DOTVERSION and DLLOBJS variables to values
+# relevant to your package.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+# 
+# Copyright (c) 1995-1996 Sun Microsystems, Inc.
+# Copyright (c) 1998-2000 Ajuba Solutions.
+# Copyright (c) 2001 ActiveState Corporation.
+# Copyright (c) 2001-2002 David Gravereaux.
+# Copyright (c) 2003 Pat Thoyts
+#
+#-------------------------------------------------------------------------
+# RCS: @(#)$Id: makefile.vc,v 1.4 2004/07/26 08:22:05 patthoyts Exp $
+#-------------------------------------------------------------------------
+
+!if !defined(MSDEVDIR) && !defined(MSVCDIR) && !defined(VCINSTALLDIR) && !defined(MSSDK) && !defined(WINDOWSSDKDIR)
+MSG = ^
+You will need to run vcvars32.bat from Developer Studio, first, to setup^
+the environment.  Jump to this line to read the new instructions.
+!error $(MSG)
+!endif
+
+#------------------------------------------------------------------------------
+# HOW TO USE this makefile:
+#
+# 1)  It is now necessary to have %MSVCDir% set in the environment.  This is
+#     used  as a check to see if vcvars32.bat had been run prior to running
+#     nmake or during the installation of Microsoft Visual C++, MSVCDir had
+#     been set globally and the PATH adjusted.  Either way is valid.
+#
+#     You'll need to run vcvars32.bat contained in the MsDev's vc(98)/bin
+#     directory to setup the proper environment, if needed, for your current
+#     setup.  This is a needed bootstrap requirement and allows the swapping of
+#     different environments to be easier.
+#
+# 2)  To use the Platform SDK (not expressly needed), run setenv.bat after
+#     vcvars32.bat according to the instructions for it.  This can also turn on
+#     the 64-bit compiler, if your SDK has it.
+#
+# 3)  Targets are:
+#	all       -- Builds everything.
+#       <project> -- Builds the project (eg: nmake sample)
+#	test      -- Builds and runs the test suite.
+#	install   -- Installs the built binaries and libraries to $(INSTALLDIR)
+#		     in an appropriate subdirectory.
+#	clean/realclean/distclean -- varying levels of cleaning.
+#
+# 4)  Macros usable on the commandline:
+#	INSTALLDIR=<path>
+#		Sets where to install Tcl from the built binaries.
+#		C:\Progra~1\Tcl is assumed when not specified.
+#
+#	OPTS=static,msvcrt,staticpkg,threads,symbols,profile,loimpact,none
+#		Sets special options for the core.  The default is for none.
+#		Any combination of the above may be used (comma separated).
+#		'none' will over-ride everything to nothing.
+#
+#		static  =  Builds a static library of the core instead of a
+#			   dll.  The shell will be static (and large), as well.
+#		msvcrt  =  Effects the static option only to switch it from
+#			   using libcmt(d) as the C runtime [by default] to
+#			   msvcrt(d). This is useful for static embedding
+#			   support.
+#		staticpkg = Effects the static option only to switch
+#			   tclshXX.exe to have the dde and reg extension linked
+#			   inside it.
+#		threads =  Turns on full multithreading support.
+#		thrdalloc = Use the thread allocator (shared global free pool).
+#		symbols =  Adds symbols for step debugging.
+#		profile =  Adds profiling hooks.  Map file is assumed.
+#		loimpact =  Adds a flag for how NT treats the heap to keep memory
+#			   in use, low.  This is said to impact alloc performance.
+#
+#	STATS=memdbg,compdbg,none
+#		Sets optional memory and bytecode compiler debugging code added
+#		to the core.  The default is for none.  Any combination of the
+#		above may be used (comma separated).  'none' will over-ride
+#		everything to nothing.
+#
+#		memdbg   = Enables the debugging memory allocator.
+#		compdbg  = Enables byte compilation logging.
+#
+#	MACHINE=(IX86|IA64|ALPHA)
+#		Set the machine type used for the compiler, linker, and
+#		resource compiler.  This hook is needed to tell the tools
+#		when alternate platforms are requested.  IX86 is the default
+#		when not specified.
+#
+#	TMP_DIR=<path>
+#	OUT_DIR=<path>
+#		Hooks to allow the intermediate and output directories to be
+#		changed.  $(OUT_DIR) is assumed to be 
+#		$(BINROOT)\(Release|Debug) based on if symbols are requested.
+#		$(TMP_DIR) will de $(OUT_DIR)\<buildtype> by default.
+#
+#	TESTPAT=<file>
+#		Reads the tests requested to be run from this file.
+#
+#	CFG_ENCODING=encoding
+#		name of encoding for configuration information. Defaults
+#		to cp1252
+#
+# 5)  Examples:
+#
+#	Basic syntax of calling nmake looks like this:
+#	nmake [-nologo] -f makefile.vc [target|macrodef [target|macrodef] [...]]
+#
+#                        Standard (no frills)
+#       c:\tcl_src\win\>c:\progra~1\micros~1\vc98\bin\vcvars32.bat
+#       Setting environment for using Microsoft Visual C++ tools.
+#       c:\tcl_src\win\>nmake -f makefile.vc all
+#       c:\tcl_src\win\>nmake -f makefile.vc install INSTALLDIR=c:\progra~1\tcl
+#
+#                         Building for Win64
+#       c:\tcl_src\win\>c:\progra~1\micros~1\vc98\bin\vcvars32.bat
+#       Setting environment for using Microsoft Visual C++ tools.
+#       c:\tcl_src\win\>c:\progra~1\platfo~1\setenv.bat /pre64 /RETAIL
+#       Targeting Windows pre64 RETAIL
+#       c:\tcl_src\win\>nmake -f makefile.vc MACHINE=IA64
+#
+#------------------------------------------------------------------------------
+#==============================================================================
+###############################################################################
+#------------------------------------------------------------------------------
+
+!if !exist("makefile.vc")
+MSG = ^
+You must run this makefile only from the directory it is in.^
+Please `cd` to its location first.
+!error $(MSG)
+!endif
+
+#-------------------------------------------------------------------------
+# Project specific information (EDIT)
+#
+# You should edit this with the name and version of your project. This
+# information is used to generate the name of the package library and
+# it's install location.
+#
+# For example, the sample extension is  going to build sample04.dll and
+# would install it into $(INSTALLDIR)\lib\sample04
+#
+# You need to specify the object files that need to be linked into your
+# binary here.
+#
+#-------------------------------------------------------------------------
+
+PROJECT = sqlite3
+!include "rules.vc"
+
+# nmakehelp -V <file> <tag> will search the file for tag, skips until a
+#	number and returns all character until a character not in [0-9.ab]
+#	is read.
+
+!if [echo REM = This file is generated from Makefile.vc > versions.vc]
+!endif
+# get project version from row "AC_INIT([sqlite], [3.7.14])"
+!if [echo DOTVERSION = \>> versions.vc] \
+   && [nmakehlp -V ..\configure.in AC_INIT >> versions.vc]
+!endif
+!include "versions.vc"
+
+VERSION         = $(DOTVERSION:.=)
+STUBPREFIX      = $(PROJECT)stub
+
+DLLOBJS = \
+	$(TMP_DIR)\tclsqlite3.obj
+
+#-------------------------------------------------------------------------
+# Target names and paths ( shouldn't need changing )
+#-------------------------------------------------------------------------
+
+BINROOT		= .
+ROOT            = ..
+
+PRJIMPLIB	= $(OUT_DIR)\$(PROJECT)$(VERSION)$(SUFX).lib
+PRJLIBNAME	= $(PROJECT)$(VERSION)$(SUFX).$(EXT)
+PRJLIB		= $(OUT_DIR)\$(PRJLIBNAME)
+
+PRJSTUBLIBNAME	= $(STUBPREFIX)$(VERSION).lib
+PRJSTUBLIB	= $(OUT_DIR)\$(PRJSTUBLIBNAME)
+
+### Make sure we use backslash only.
+PRJ_INSTALL_DIR         = $(_INSTALLDIR)\$(PROJECT)$(DOTVERSION)
+LIB_INSTALL_DIR		= $(PRJ_INSTALL_DIR)
+BIN_INSTALL_DIR		= $(PRJ_INSTALL_DIR)
+DOC_INSTALL_DIR		= $(PRJ_INSTALL_DIR)
+SCRIPT_INSTALL_DIR	= $(PRJ_INSTALL_DIR)
+INCLUDE_INSTALL_DIR	= $(_TCLDIR)\include
+
+### The following paths CANNOT have spaces in them.
+GENERICDIR	= $(ROOT)\generic
+WINDIR		= $(ROOT)\win
+LIBDIR          = $(ROOT)\library
+DOCDIR		= $(ROOT)\doc
+TOOLSDIR	= $(ROOT)\tools
+COMPATDIR	= $(ROOT)\compat
+
+#---------------------------------------------------------------------
+# Compile flags
+#---------------------------------------------------------------------
+
+!if !$(DEBUG)
+!if $(OPTIMIZING)
+### This cranks the optimization level to maximize speed
+cdebug	= -O2 -Op -Gs
+!else
+cdebug	=
+!endif
+!else if "$(MACHINE)" == "IA64"
+### Warnings are too many, can't support warnings into errors.
+cdebug	= -Z7 -Od -GZ
+!else
+cdebug	= -Z7 -WX -Od -GZ
+!endif
+
+### Declarations common to all compiler options
+cflags = -nologo -c -W3 -YX -Fp$(TMP_DIR)^\
+
+!if $(MSVCRT)
+!if $(DEBUG)
+crt = -MDd
+!else
+crt = -MD
+!endif
+!else
+!if $(DEBUG)
+crt = -MTd
+!else
+crt = -MT
+!endif
+!endif
+
+INCLUDES	= $(TCL_INCLUDES) -I"$(WINDIR)" -I"$(GENERICDIR)" \
+                  -I"$(ROOT)\.."
+BASE_CLFAGS	= $(cflags) $(cdebug) $(crt) $(INCLUDES) \
+                  -DSQLITE_3_SUFFIX_ONLY=1 -DSQLITE_ENABLE_RTREE=1 \
+                  -DSQLITE_ENABLE_FTS3=1 -DSQLITE_OMIT_DEPRECATED=1
+CON_CFLAGS	= $(cflags) $(cdebug) $(crt) -DCONSOLE -DSQLITE_ENABLE_FTS3=1
+TCL_CFLAGS	= -DBUILD_sqlite -DUSE_TCL_STUBS \
+                  -DPACKAGE_VERSION="\"$(DOTVERSION)\"" $(BASE_CLFAGS) \
+                  $(OPTDEFINES)
+
+#---------------------------------------------------------------------
+# Link flags
+#---------------------------------------------------------------------
+
+!if $(DEBUG)
+ldebug	= -debug:full -debugtype:cv
+!else
+ldebug	= -release -opt:ref -opt:icf,3
+!endif
+
+### Declarations common to all linker options
+lflags	= -nologo -machine:$(MACHINE) $(ldebug)
+
+!if $(PROFILE)
+lflags	= $(lflags) -profile
+!endif
+
+!if $(ALIGN98_HACK) && !$(STATIC_BUILD)
+### Align sections for PE size savings.
+lflags	= $(lflags) -opt:nowin98
+!else if !$(ALIGN98_HACK) && $(STATIC_BUILD)
+### Align sections for speed in loading by choosing the virtual page size.
+lflags	= $(lflags) -align:4096
+!endif
+
+!if $(LOIMPACT)
+lflags	= $(lflags) -ws:aggressive
+!endif
+
+dlllflags = $(lflags) -dll
+conlflags = $(lflags) -subsystem:console
+guilflags = $(lflags) -subsystem:windows
+baselibs   = $(TCLSTUBLIB)
+
+#---------------------------------------------------------------------
+# TclTest flags
+#---------------------------------------------------------------------
+
+!IF "$(TESTPAT)" != ""
+TESTFLAGS = $(TESTFLAGS) -file $(TESTPAT)
+!ENDIF
+
+#---------------------------------------------------------------------
+# Project specific targets (EDIT)
+#---------------------------------------------------------------------
+
+all:	    setup $(PROJECT)
+$(PROJECT): setup $(PRJLIB)
+install:    install-binaries install-libraries install-docs
+
+# Tests need to ensure we load the right dll file we
+# have to handle the output differently on Win9x.
+#
+!if "$(OS)" == "Windows_NT"  || "$(MSVCDIR)" == "IDE"
+test: setup $(PROJECT)
+        set TCL_LIBRARY=$(ROOT)/library
+        $(TCLSH) <<
+load $(PRJLIB:\=/)
+cd "$(ROOT)/tests"
+set argv "$(TESTFLAGS)"
+source all.tcl
+<<
+!else
+test: setup $(PROJECT)
+        echo Please wait while the test results are collected
+        set TCL_LIBRARY=$(ROOT)/library
+        $(TCLSH) << >tests.log
+load $(PRJLIB:\=/)
+cd "$(ROOT)/tests"
+set argv "$(TESTFLAGS)"
+source all.tcl
+<<
+        type tests.log | more
+!endif
+
+setup:
+	@if not exist $(OUT_DIR)\nul mkdir $(OUT_DIR)
+	@if not exist $(TMP_DIR)\nul mkdir $(TMP_DIR)
+
+$(PRJLIB): $(DLLOBJS)
+	$(link32) $(dlllflags) -out:$@ $(baselibs) @<<
+$**
+<<
+	-@del $*.exp
+
+$(PRJSTUBLIB): $(PRJSTUBOBJS)
+	$(lib32) -nologo -out:$@ $(PRJSTUBOBJS)
+
+#---------------------------------------------------------------------
+# Implicit rules
+#---------------------------------------------------------------------
+
+{$(WINDIR)}.c{$(TMP_DIR)}.obj::
+    $(cc32) $(TCL_CFLAGS) -DBUILD_$(PROJECT) -Fo$(TMP_DIR)\ @<<
+$<
+<<
+
+{$(GENERICDIR)}.c{$(TMP_DIR)}.obj::
+    $(cc32) $(TCL_CFLAGS) -DBUILD_$(PROJECT) -Fo$(TMP_DIR)\ @<<
+$<
+<<
+
+{$(COMPATDIR)}.c{$(TMP_DIR)}.obj::
+    $(cc32) $(TCL_CFLAGS) -DBUILD_$(PROJECT) -Fo$(TMP_DIR)\ @<<
+$<
+<<
+
+{$(WINDIR)}.rc{$(TMP_DIR)}.res:
+	$(rc32) -fo $@ -r -i "$(GENERICDIR)" -D__WIN32__ \
+!if $(DEBUG)
+	-d DEBUG \
+!endif
+!if $(TCL_THREADS)
+	-d TCL_THREADS \
+!endif
+!if $(STATIC_BUILD)
+	-d STATIC_BUILD \
+!endif
+	$<
+
+.SUFFIXES:
+.SUFFIXES:.c .rc
+
+#---------------------------------------------------------------------
+# Installation. (EDIT)
+#
+# You may need to modify this section to reflect the final distribution
+# of your files and possibly to generate documentation.
+#
+#---------------------------------------------------------------------
+
+install-binaries:
+	@echo Installing binaries to '$(SCRIPT_INSTALL_DIR)'
+	@if not exist "$(SCRIPT_INSTALL_DIR)" mkdir "$(SCRIPT_INSTALL_DIR)"
+	@$(CPY) $(PRJLIB) "$(SCRIPT_INSTALL_DIR)" >NUL
+
+install-libraries:
+        @echo Installing libraries to '$(SCRIPT_INSTALL_DIR)'
+        @if exist $(LIBDIR) $(CPY) $(LIBDIR)\*.tcl "$(SCRIPT_INSTALL_DIR)"
+        @echo Installing package index in '$(SCRIPT_INSTALL_DIR)'
+        @type << >"$(SCRIPT_INSTALL_DIR)\pkgIndex.tcl"
+package ifneeded $(PROJECT) $(DOTVERSION) \
+    [list load [file join $$dir $(PRJLIBNAME)] sqlite3]
+<<
+
+install-docs:
+	@echo Installing documentation files to '$(DOC_INSTALL_DIR)'
+	@if exist $(DOCDIR) $(CPY) $(DOCDIR)\*.n "$(DOC_INSTALL_DIR)"
+
+#---------------------------------------------------------------------
+# Clean up
+#---------------------------------------------------------------------
+
+clean:
+	@if exist $(TMP_DIR)\nul $(RMDIR) $(TMP_DIR)
+	@if exist $(WINDIR)\version.vc del $(WINDIR)\version.vc
+
+realclean: clean
+	@if exist $(OUT_DIR)\nul $(RMDIR) $(OUT_DIR)
+
+distclean: realclean
+	@if exist $(WINDIR)\nmakehlp.exe del $(WINDIR)\nmakehlp.exe
+	@if exist $(WINDIR)\nmakehlp.obj del $(WINDIR)\nmakehlp.obj

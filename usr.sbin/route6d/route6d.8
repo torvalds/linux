@@ -1,0 +1,297 @@
+.\"	$KAME: route6d.8,v 1.10 2000/11/24 11:57:18 itojun Exp $
+.\"
+.\" Copyright (c) 1996 WIDE Project. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modifications, are permitted provided that the above copyright notice
+.\" and this paragraph are duplicated in all such forms and that any
+.\" documentation, advertising materials, and other materials related to
+.\" such distribution and use acknowledge that the software was developed
+.\" by the WIDE Project, Japan. The name of the Project may not be used to
+.\" endorse or promote products derived from this software without
+.\" specific prior written permission. THIS SOFTWARE IS PROVIDED ``AS IS''
+.\" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT
+.\" LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 18, 2012
+.Dt ROUTE6D 8
+.Os
+.Sh NAME
+.Nm route6d
+.Nd RIP6 Routing Daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl adDhlnqsS
+.Bk -words
+.Op Fl R Ar routelog
+.Ek
+.Bk -words
+.Op Fl A Ar prefix/preflen,if1[,if2...\&]
+.Ek
+.Bk -words
+.Op Fl L Ar prefix/preflen,if1[,if2...\&]
+.Ek
+.Bk -words
+.Op Fl N Ar if1[,if2...\&]
+.Ek
+.Bk -words
+.Op Fl O Ar prefix/preflen,if1[,if2...\&]
+.Ek
+.Bk -words
+.Op Fl P Ar number
+.Ek
+.Bk -words
+.Op Fl p Ar pidfile
+.Ek
+.Bk -words
+.Op Fl Q Ar number
+.Ek
+.Bk -words
+.Op Fl T Ar if1[,if2...\&]
+.Ek
+.Bk -words
+.Op Fl t Ar tag
+.Ek
+.\"
+.Sh DESCRIPTION
+The
+.Nm
+utility is a routing daemon which supports RIP over IPv6.
+.Pp
+Options are:
+.Bl -tag -width indent
+.\"
+.It Fl a
+Enables aging of the statically defined routes.
+With this option, any
+statically defined routes will be removed unless corresponding updates
+arrive as if the routes are received at the startup of
+.Nm .
+.\"
+.It Fl R Ar routelog
+This option makes the
+.Nm
+to log the route change (add/delete) to the file
+.Ar routelog .
+.\"
+.It Fl A Ar prefix/preflen,if1[,if2...]
+This option is used for aggregating routes.
+.Ar prefix/preflen
+specifies the prefix and the prefix length of the
+aggregated route.
+When advertising routes,
+.Nm
+filters specific routes covered by the aggregate,
+and advertises the aggregated route
+.Ar prefix/preflen ,
+to the interfaces specified in the comma-separated interface list,
+.Ar if1[,if2...] .
+The characters
+.Qq Li * ,
+.Qq Li \&? ,
+and
+.Qq Li \&[
+in the interface list will be interpreted as shell-style pattern.
+The
+.Nm
+utility creates a static route to
+.Ar prefix/preflen
+with
+.Dv RTF_REJECT
+flag, into the kernel routing table.
+.\"
+.It Fl d
+Enables output of debugging message.
+This option also instructs
+.Nm
+to run in foreground mode
+(does not become daemon).
+.\"
+.It Fl D
+Enables extensive output of debugging message.
+This option also instructs
+.Nm
+to run in foreground mode
+(does not become daemon).
+.\"
+.It Fl h
+Disables the split horizon processing.
+.\"
+.It Fl l
+By default,
+.Nm
+will not exchange site local routes for safety reasons.
+This is because semantics of site local address space is rather vague
+(specification is still in being worked),
+and there is no good way to define site local boundary.
+With
+.Fl l
+option,
+.Nm
+will exchange site local routes as well.
+It must not be used on site boundary routers,
+since
+.Fl l
+option assumes that all interfaces are in the same site.
+.\"
+.It Fl L Ar prefix/preflen,if1[,if2...]
+Filter incoming routes from interfaces
+.Ar if1,[if2...] .
+The
+.Nm
+utility will accept incoming routes that are in
+.Ar prefix/preflen .
+If multiple
+.Fl L
+options are specified, any routes that match one of the options is accepted.
+.Li ::/0
+is treated specially as default route, not
+.Do
+any route that has longer prefix length than, or equal to 0
+.Dc .
+If you would like to accept any route, specify no
+.Fl L
+option.
+For example, with
+.Do
+.Fl L
+.Li 2001:db8::/16,if1
+.Fl L
+.Li ::/0,if1
+.Dc
+.Nm
+will accept default route and routes in 6bone test address, but no others.
+.\"
+.It Fl n
+Do not update the kernel routing table.
+.\"
+.It Fl N Ar if1[,if2...]
+Do not listen to, or advertise, route from/to interfaces specified by
+.Ar if1,[if2...] .
+.\"
+.It Fl O Ar prefix/preflen,if1[,if2...]
+Restrict route advertisement toward interfaces specified by
+.Ar if1,[if2...] .
+With this option
+.Nm
+will only advertise routes that matches
+.Ar prefix/preflen .
+.It Fl P Ar number
+Specifies routes to be ignored in calculation of expiration timer.
+The
+.Ar number
+must be
+.Li 1 ,
+.Li 2 ,
+or
+.Li 3
+and it means route flags of
+.Li RTF_PROTO1 ,
+.Li RTF_PROTO2 ,
+or
+.Li RTF_PROTO3 .
+When
+.Li 1
+is specified, routes with
+.Li RTF_PROTO1
+will never expire.
+.It Fl p Ar pidfile
+Specifies an alternative file in which to store the process ID.
+The default is
+.Pa /var/run/route6d.pid .
+.It Fl Q Ar number
+Specifies flag which will be used for routes added by RIP protocol.
+The default is
+.Li 2 Pq Li RTF_PROTO2 .
+.\"
+.It Fl q
+Makes
+.Nm
+in listen-only mode.
+No advertisement is sent.
+.\"
+.It Fl s
+Makes
+.Nm
+to advertise the statically defined routes which exist in the kernel routing
+table when
+.Nm
+invoked.
+Announcements obey the regular split horizon rule.
+.\"
+.It Fl S
+This option is the same as
+.Fl s
+option except that no split horizon rule does apply.
+.\"
+.It Fl T Ar if1[,if2...]
+Advertise only default route, toward
+.Ar if1,[if2...] .
+.\"
+.It Fl t Ar tag
+Attach route tag
+.Ar tag
+to originated route entries.
+.Ar tag
+can be decimal, octal prefixed by
+.Li 0 ,
+or hexadecimal prefixed by
+.Li 0x .
+.\"
+.El
+.Pp
+Upon receipt of signal
+.Dv SIGINT
+or
+.Dv SIGUSR1 ,
+.Nm
+will dump the current internal state into
+.Pa /var/run/route6d_dump .
+.\"
+.Sh FILES
+.Bl -tag -width /var/run/route6d_dump -compact
+.It Pa /var/run/route6d_dump
+dumps internal state on
+.Dv SIGINT
+or
+.Dv SIGUSR1
+.El
+.\"
+.Sh SEE ALSO
+.Rs
+.%A G. Malkin
+.%A R. Minnear
+.%T RIPng for IPv6
+.%R RFC2080
+.%D January 1997
+.Re
+.\"
+.Sh NOTE
+The
+.Nm
+utility uses IPv6 advanced API,
+defined in RFC2292,
+for communicating with peers using link-local addresses.
+.Pp
+Internally
+.Nm
+embeds interface identifier into bit 32 to 63 of link-local addresses
+.Li ( fe80::xx
+and
+.Li ff02::xx )
+so they will be visible on internal state dump file
+.Pq Pa /var/run/route6d_dump .
+.Pp
+Routing table manipulation differs from IPv6 implementation to implementation.
+Currently
+.Nm
+obeys WIDE Hydrangea/KAME IPv6 kernel,
+and will not be able to run on other platforms.
+.Pp
+Current
+.Nm
+does not reduce the rate of the triggered updates when consecutive updates
+arrive.

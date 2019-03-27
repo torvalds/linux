@@ -1,0 +1,68 @@
+#------------------------------------------------------------------------------
+# $File: mail.news,v 1.23 2015/06/29 14:44:26 christos Exp $
+# mail.news:  file(1) magic for mail and news
+#
+# Unfortunately, saved netnews also has From line added in some news software.
+#0	string		From 		mail text
+0	string/t		Relay-Version: 	old news text
+!:mime	message/rfc822
+0	string/t		#!\ rnews	batched news text
+!:mime	message/rfc822
+0	string/t		N#!\ rnews	mailed, batched news text
+!:mime	message/rfc822
+0	string/t		Forward\ to 	mail forwarding text
+!:mime	message/rfc822
+0	string/t		Pipe\ to 	mail piping text
+!:mime	message/rfc822
+0	string/tc		delivered-to:	SMTP mail text
+!:mime	message/rfc822
+0	string/tc		return-path:	SMTP mail text
+!:mime	message/rfc822
+0	string/t		Path:		news text
+!:mime	message/news
+0	string/t		Xref:		news text
+!:mime	message/news
+0	string/t		From:		news or mail text
+!:mime	message/rfc822
+0	string/t		Article 	saved news text
+!:mime	message/news
+0	string/t		BABYL		Emacs RMAIL text
+0	string/t		Received:	RFC 822 mail text
+!:mime	message/rfc822
+0	string/t		MIME-Version:	MIME entity text
+#0	string/t		Content-	MIME entity text
+
+# TNEF files...
+0	lelong		0x223E9F78	Transport Neutral Encapsulation Format
+!:mime	application/vnd.ms-tnef
+
+# From: Kevin Sullivan <ksulliva@psc.edu>
+0	string		*mbx*		MBX mail folder
+
+# From: Simon Matter <simon.matter@invoca.ch>
+0	string		\241\002\213\015skiplist\ file\0\0\0	Cyrus skiplist DB
+0	string		\241\002\213\015twoskip\ file\0\0\0\0	Cyrus twoskip DB
+
+# JAM(mbp) Fidonet message area databases
+# JHR file
+0	string	JAM\0			JAM message area header file
+>12	leshort >0			(%d messages)
+
+# Squish Fidonet message area databases
+# SQD file (requires at least one message in the area)
+# XXX: Weak magic
+#256	leshort	0xAFAE4453		Squish message area data file
+#>4	leshort	>0			(%d messages)
+
+#0	string		\<!--\ MHonArc		text/html; x-type=mhonarc
+
+# Cyrus: file(1) magic for compiled Cyrus sieve scripts
+# URL: http://www.cyrusimap.org/docs/cyrus-imapd/2.4.6/internal/bytecode.php
+# URL: http://git.cyrusimap.org/cyrus-imapd/tree/sieve/bytecode.h?h=master
+# From: Philipp Hahn <hahn@univention.de>
+
+# Compiled Cyrus sieve script
+0       string CyrSBytecode     Cyrus sieve bytecode data,
+>12     belong =1       version 1, big-endian
+>12     lelong =1       version 1, little-endian
+>12     belong x        version %d, network-endian

@@ -1,0 +1,17 @@
+# $NetBSD: test_usb_hid_usages,v 1.1 2016/01/01 21:38:54 jakllsch Exp $
+#
+# USB HID usage table (for t_usbhid)
+# Syntax:
+#  - lines that do not start with a white space give the number and name of
+#    a usage page.
+#  - lines that start with a white space give the number and name of
+#    a usage with the last given page.
+#    If the number is * then the line matches all usages and the name
+#    is a printf formatting string that will be given the usage number.
+#
+0xff1b	t_usbhid page
+	0xff2a	t_usbhid usage
+
+0xff2a	Quick zephyrs blow vexing daft Jim.
+	0	Usage ID Zero %
+	*	Usage ID %u %%

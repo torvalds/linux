@@ -1,0 +1,149 @@
+.\" Copyright (c) 2009 Christian Brueffer
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 7, 2015
+.Dt BWI 4
+.Os
+.Sh NAME
+.Nm bwi
+.Nd Broadcom BCM43xx IEEE 802.11b/g wireless network driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device bwi"
+.Cd "device wlan"
+.Cd "device wlan_amrr"
+.Cd "device firmware"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_bwi_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Broadcom BCM43xx based
+PCI/CardBus network adapters.
+.Pp
+It supports
+.Cm station
+and
+.Cm monitor
+mode operation.
+Only one virtual interface may be configured at any time.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Pp
+This driver requires firmware to be loaded before it will work.
+The
+.Pa ports/net/bwi-firmware-kmod
+port needs to be installed before
+.Xr ifconfig 8
+will work.
+.Sh HARDWARE
+The
+.Nm
+driver supports Broadcom BCM43xx based wireless devices, including:
+.Bl -column "Apple Airport Extreme" "BCM4306" "Mini PCI" "a/b/g" -offset 6n
+.It Em "Card" Ta Em "Chip" Ta Em "Bus" Ta Em "Standard"
+.It "Apple Airport Extreme	BCM4306	PCI	b/g"
+.It "Apple Airport Extreme	BCM4318	PCI	b/g"
+.It "ASUS WL-100g	BCM4306	CardBus	b/g"
+.It "ASUS WL-138g	BCM4318	PCI	b/g"
+.It "Buffalo WLI-CB-G54S	BCM4318	CardBus	b/g"
+.It "Buffalo WLI-PCI-G54S	BCM4306	PCI	b/g"
+.It "Compaq R4035 onboard	BCM4306	PCI	b/g"
+.It "Dell Wireless 1390	BCM4311	Mini PCI	b/g"
+.It "Dell Wireless 1470	BCM4318	Mini PCI	b/g"
+.It "Dell Truemobile 1300 r2	BCM4306	Mini PCI	b/g"
+.It "Dell Truemobile 1400	BCM4309	Mini PCI	b/g"
+.It "HP nx6125	BCM4319	PCI	b/g"
+.It "Linksys WPC54G Ver 3	BCM4318	CardBus	b/g"
+.It "Linksys WPC54GS Ver 2	BCM4318	CardBus	b/g"
+.It "TRENDnet TEW-401PCplus	BCM4306	CardBus	b/g"
+.It "US Robotics 5411	BCM4318	CardBus	b/g"
+.El
+.Pp
+The
+.Nm
+driver uses the older v3 version of Broadcom's firmware.
+While this older firmware does support most BCM43xx parts, the
+.Xr bwn 4
+driver works better for the newer chips it supports.
+You must use the
+.Nm
+driver if you are using older Broadcom chipsets (BCM4301, BCM4303 and
+BCM4306 rev 2).
+The v4 version of the firmware that
+.Xr bwn 4
+uses does not support these chips.
+.Sh EXAMPLES
+Join an existing BSS network (i.e., connect to an access point):
+.Bd -literal -offset indent
+ifconfig wlan create wlandev bwi0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig wlan create wlandev bwi0 ssid my_net up"
+.Pp
+Join a specific BSS network with 64-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev bwi0 ssid my_net \e
+        wepmode on wepkey 0x1234567890 weptxkey 1 up
+.Ed
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr cardbus 4 ,
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr wlan 4 ,
+.Xr wlan_amrr 4 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written for DragonFly BSD by
+.An Sepherosa Ziehau
+and subsequently ported to
+.Fx .
+.Sh BUGS
+Some card based on the BCM4306 and BCM4309 chips do not work properly
+on channel 1, 2 and 3.

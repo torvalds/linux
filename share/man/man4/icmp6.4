@@ -1,0 +1,283 @@
+.\"	$KAME: icmp6.4,v 1.6 2004/12/27 05:30:56 itojun Exp $
+.\"	$OpenBSD: icmp6.4,v 1.19 2004/12/23 20:33:03 jaredy Exp $
+.\"
+.\" Copyright (c) 1986, 1991, 1993
+.\"     The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 1, 2018
+.Dt ICMP6 4
+.Os
+.Sh NAME
+.Nm icmp6
+.Nd Internet Control Message Protocol for IPv6
+.Sh SYNOPSIS
+.In sys/socket.h
+.In netinet/in.h
+.In netinet/icmp6.h
+.Ft int
+.Fn socket AF_INET6 SOCK_RAW IPPROTO_ICMPV6
+.Sh DESCRIPTION
+ICMPv6 is the error and control message protocol used by IPv6 and the
+IPv6 protocol family (see
+.Xr ip6 4
+and
+.Xr inet6 4 ) .
+It may be accessed through a
+.Dq raw socket
+for network monitoring and diagnostic functions.
+.Pp
+The
+.Fa proto
+parameter to the
+.Xr socket 2
+call to create an ICMPv6 socket may be obtained from
+.Xr getprotobyname 3 .
+ICMPv6 sockets are connectionless, and are normally used with the
+.Xr sendto 2
+and
+.Xr recvfrom 2
+calls, though the
+.Xr connect 2
+call may also be used to fix the destination for future packets
+(in which case
+.Xr read 2
+or
+.Xr recv 2
+and
+.Xr write 2
+or
+.Xr send 2
+system calls may be used).
+.Pp
+Outgoing packets automatically have an IPv6 header prepended to them
+(based on the destination address).
+Incoming packets on the socket are received with the IPv6 header and any
+extension headers removed.
+.Ss Types
+ICMPv6 messages are classified according to the type and code fields
+present in the ICMPv6 header.
+The abbreviations for the types and codes may be used in rules in
+.Xr pf.conf 5 .
+The following types are defined:
+.Bl -column x xxxxxxxxxxxx -offset indent
+.It Sy Num Ta Sy Abbrev. Ta Sy Description
+.It 1 Ta unreach Ta "Destination unreachable"
+.It 2 Ta toobig Ta "Packet too big"
+.It 3 Ta timex Ta "Time exceeded"
+.It 4 Ta paramprob Ta "Invalid IPv6 header"
+.It 128 Ta echoreq Ta "Echo service request"
+.It 129 Ta echorep Ta "Echo service reply"
+.It 130 Ta groupqry Ta "Group membership query"
+.It 130 Ta listqry Ta "Multicast listener query"
+.It 131 Ta grouprep Ta "Group membership report"
+.It 131 Ta listenrep Ta "Multicast listener report"
+.It 132 Ta groupterm Ta "Group membership termination"
+.It 132 Ta listendone Ta "Multicast listener done"
+.It 133 Ta routersol Ta "Router solicitation"
+.It 134 Ta routeradv Ta "Router advertisement"
+.It 135 Ta neighbrsol Ta "Neighbor solicitation"
+.It 136 Ta neighbradv Ta "Neighbor advertisement"
+.It 137 Ta redir Ta "Shorter route exists"
+.It 138 Ta routrrenum Ta "Route renumbering"
+.It 139 Ta fqdnreq Ta "FQDN query"
+.It 139 Ta niqry Ta "Node information query"
+.It 139 Ta wrureq Ta "Who-are-you request"
+.It 140 Ta fqdnrep Ta "FQDN reply"
+.It 140 Ta nirep Ta "Node information reply"
+.It 140 Ta wrurep Ta "Who-are-you reply"
+.It 200 Ta mtraceresp Ta "mtrace response"
+.It 201 Ta mtrace Ta "mtrace messages"
+.El
+.Pp
+The following codes are defined:
+.Bl -column x xxxxxxxxxxxx xxxxxxxx -offset indent
+.It Sy Num Ta Sy Abbrev. Ta Sy Type Ta
+.Sy Description
+.It 0 Ta noroute-unr Ta unreach Ta "No route to destination"
+.It 1 Ta admin-unr Ta unreach Ta "Administratively prohibited"
+.It 2 Ta beyond-unr Ta unreach Ta "Beyond scope of source address"
+.It 2 Ta notnbr-unr Ta unreach Ta "Not a neighbor (obsolete)"
+.It 3 Ta addr-unr Ta unreach Ta "Address unreachable"
+.It 4 Ta port-unr Ta unreach Ta "Port unreachable"
+.It 0 Ta transit Ta timex Ta "Time exceeded in transit"
+.It 1 Ta reassemb Ta timex Ta "Time exceeded in reassembly"
+.It 0 Ta badhead Ta paramprob Ta "Erroneous header field"
+.It 1 Ta nxthdr Ta paramprob Ta "Unrecognized next header"
+.It 2 Ta "" Ta redir Ta "Unrecognized option"
+.It 0 Ta redironlink Ta redir Ta "Redirection to on-link node"
+.It 1 Ta redirrouter Ta redir Ta "Redirection to better router"
+.El
+.Ss Headers
+All ICMPv6 messages are prefixed with an ICMPv6 header.
+This header corresponds to the
+.Vt icmp6_hdr
+structure and has the following definition:
+.Bd -literal -offset indent
+struct icmp6_hdr {
+	uint8_t  icmp6_type;	/* type field */
+	uint8_t  icmp6_code;	/* code field */
+	uint16_t icmp6_cksum;	/* checksum field */
+	union {
+		uint32_t icmp6_un_data32[1]; /* type-specific */
+		uint16_t icmp6_un_data16[2]; /* type-specific */
+		uint8_t  icmp6_un_data8[4];  /* type-specific */
+	} icmp6_dataun;
+} __packed;
+
+#define icmp6_data32	icmp6_dataun.icmp6_un_data32
+#define icmp6_data16	icmp6_dataun.icmp6_un_data16
+#define icmp6_data8	icmp6_dataun.icmp6_un_data8
+#define icmp6_pptr	icmp6_data32[0]	/* parameter prob */
+#define icmp6_mtu	icmp6_data32[0]	/* packet too big */
+#define icmp6_id	icmp6_data16[0]	/* echo request/reply */
+#define icmp6_seq	icmp6_data16[1]	/* echo request/reply */
+#define icmp6_maxdelay	icmp6_data16[0]	/* mcast group membership*/
+.Ed
+.Pp
+.Va icmp6_type
+describes the type of the message.
+Suitable values are defined in
+.Aq Pa netinet/icmp6.h .
+.Va icmp6_code
+describes the sub-type of the message and depends on
+.Va icmp6_type .
+.Va icmp6_cksum
+contains the checksum for the message and is filled in by the
+kernel on outgoing messages.
+The other fields are used for type-specific purposes.
+.Ss Filters
+Because of the extra functionality of ICMPv6 in comparison to ICMPv4,
+a larger number of messages may be potentially received on an ICMPv6
+socket.
+Input filters may therefore be used to restrict input to a subset of the
+incoming ICMPv6 messages so only interesting messages are returned by the
+.Xr recv 2
+family of calls to an application.
+.Pp
+The
+.Vt icmp6_filter
+structure may be used to refine the input message set according to the
+ICMPv6 type.
+By default, all messages types are allowed on newly created raw ICMPv6
+sockets.
+The following macros may be used to refine the input set:
+.Bl -tag -width Ds
+.It Ft void Fn ICMP6_FILTER_SETPASSALL "struct icmp6_filter *filterp"
+Allow all incoming messages.
+.Va filterp
+is modified to allow all message types.
+.It Ft void Fn ICMP6_FILTER_SETBLOCKALL "struct icmp6_filter *filterp"
+Ignore all incoming messages.
+.Va filterp
+is modified to ignore all message types.
+.It Xo
+.Ft void
+.Fn ICMP6_FILTER_SETPASS "int type" "struct icmp6_filter *filterp"
+.Xc
+Allow ICMPv6 messages with the given
+.Fa type .
+.Va filterp
+is modified to allow such messages.
+.It Xo
+.Ft void
+.Fn ICMP6_FILTER_SETBLOCK "int type" "struct icmp6_filter *filterp"
+.Xc
+Ignore ICMPv6 messages with the given
+.Fa type .
+.Va filterp
+is modified to ignore such messages.
+.It Xo
+.Ft int
+.Fn ICMP6_FILTER_WILLPASS "int type" "const struct icmp6_filter *filterp"
+.Xc
+Determine if the given filter will allow an ICMPv6 message of the given
+type.
+.It Xo
+.Ft int
+.Fn ICMP6_FILTER_WILLBLOCK "int type" "const struct icmp6_filter *filterp"
+.Xc
+Determine if the given filter will ignore an ICMPv6 message of the given
+type.
+.El
+.Pp
+The
+.Xr getsockopt 2
+and
+.Xr setsockopt 2
+calls may be used to obtain and install the filter on ICMPv6 sockets at
+option level
+.Dv IPPROTO_ICMPV6
+and name
+.Dv ICMP6_FILTER
+with a pointer to the
+.Vt icmp6_filter
+structure as the option value.
+.Sh SEE ALSO
+.Xr getsockopt 2 ,
+.Xr recv 2 ,
+.Xr send 2 ,
+.Xr setsockopt 2 ,
+.Xr socket 2 ,
+.Xr getprotobyname 3 ,
+.Xr inet6 4 ,
+.Xr ip6 4 ,
+.Xr netintro 4
+.Rs
+.%A W. Stevens
+.%A M. Thomas
+.%T Advanced Sockets API for IPv6
+.%N RFC 2292
+.%D February 1998
+.Re
+.Rs
+.%A A. Conta
+.%A S. Deering
+.%T "Internet Control Message Protocol (ICMPv6) for the Internet" \
+    "Protocol Version 6 (IPv6) Specification"
+.%N RFC 2463
+.%D December 1998
+.Re
+.Rs
+.%A W. Stevens
+.%A M. Thomas
+.%A E. Nordmark
+.%A T. Jinmei
+.%T "Advanced Sockets Application Program Interface (API) for IPv6"
+.%R RFC 3542
+.%D May 2003
+.Re
+.Rs
+.%A A. Conta
+.%A S. Deering
+.%A M. Gupta
+.%T "Internet Control Message Protocol (ICMPv6) for the Internet" \
+    "Protocol Version 6 (IPv6) Specification"
+.%R RFC 4443
+.%D March 2006
+.Re

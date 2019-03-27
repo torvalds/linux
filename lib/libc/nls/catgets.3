@@ -1,0 +1,82 @@
+.\" Copyright (c) 1994 Winning Strategies, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Winning Strategies, Inc.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd February 12, 2005
+.Dt CATGETS 3
+.Os
+.Sh NAME
+.Nm catgets
+.Nd retrieve string from message catalog
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In nl_types.h
+.Ft char *
+.Fn catgets "nl_catd catd" "int set_id" "int msg_id" "const char *s"
+.Sh DESCRIPTION
+The
+.Fn catgets
+function attempts to retrieve message
+.Fa msg_id
+of set
+.Fa set_id
+from the message catalog referenced by the descriptor
+.Fa catd .
+The argument
+.Fa s
+points to a default message which is returned if the function
+is unable to retrieve the specified message.
+.Sh RETURN VALUES
+If the specified message was retrieved successfully,
+.Fn catgets
+returns a pointer to an internal buffer containing the message string;
+otherwise it returns
+.Fa s .
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa catd
+argument is not a valid message catalog descriptor.
+.It Bq Er EBADMSG
+The message identified by
+.Fa set_id
+and
+.Fa msg_id
+is not in the message catalog.
+.El
+.Sh SEE ALSO
+.Xr gencat 1 ,
+.Xr catclose 3 ,
+.Xr catopen 3
+.Sh STANDARDS
+The
+.Fn catgets
+function conforms to
+.St -p1003.1-2001 .

@@ -1,0 +1,323 @@
+
+Known Floating-point Bugs Detected by TestFloat
+
+John R. Hauser
+1997 December 15
+
+
+-------------------------------------------------------------------------------
+Introduction
+
+Several popular systems have bugs that TestFloat is very likely to run
+across.  The ones I know of are documented here.  First off, TestFloat finds
+no errors in the following processors/machines:
+
+    AMD 486 DX4's
+    Sun UltraSPARC 1's and 2's
+
+On the other hand, bugs are found in these processors/machines:
+
+    Older Intel Pentiums (with the divide bug)
+    Intel Pentium Pros
+    Sun SPARCstation 1's and IPX's
+    Sun SPARCstation 10's
+    HP Precision Architecture processors, with HP-UX prior to version 10.10
+
+For some reason, most of the bugs found involve conversions from floating-
+point to integer formats.
+
+The bugs are shown as actual TestFloat error lines, along with a brief
+explanation.  The error lines given are not necessarily exhaustive and were
+not necessarily output in the order shown.
+
+This document does not pretend to be an authoritative bug listing for all
+commercial processors.  The vast majority of processors are absent from this
+list because I have never run TestFloat on such machines and I thus have no
+knowledge of what bugs TestFloat might find in them.
+
+The latest version of this file can be found at the Web page `http://
+http.cs.berkeley.edu/~jhauser/arithmetic/testfloat.html'.
+
+
+-------------------------------------------------------------------------------
+Older Intel Pentiums (with the divide bug)
+
+The following conversion problems are found on Pentiums that also suffer
+from the infamous floating-point divide bug.  These bugs have been fixed on
+newer Pentiums.  (TestFloat does not find the divide bug.)
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+floatx80_to_int32
+
+-- A few small fractions are treated as though they were zero.
+
+	Errors found in floatx80_to_int32, rounding nearest_even:
+	3FFB.8000000000000000  soft: 00000000 ....x  syst: 00000000 .....
+	3FFC.8000000000000000  soft: 00000000 ....x  syst: 00000000 .....
+	3FFC.C000000000000000  soft: 00000000 ....x  syst: 00000000 .....
+	BFFB.8000000000000000  soft: 00000000 ....x  syst: 00000000 .....
+	BFFC.8000000000000000  soft: 00000000 ....x  syst: 00000000 .....
+	Errors found in floatx80_to_int32, rounding to_zero:
+	3FFB.8000000000000000  soft: 00000000 ....x  syst: 00000000 .....
+	3FFC.8000000000000000  soft: 00000000 ....x  syst: 00000000 .....
+	3FFC.C000000000000000  soft: 00000000 ....x  syst: 00000000 .....
+	BFFB.8000000000000000  soft: 00000000 ....x  syst: 00000000 .....
+	BFFC.8000000000000000  soft: 00000000 ....x  syst: 00000000 .....
+	BFFC.C000000000000000  soft: 00000000 ....x  syst: 00000000 .....
+	Errors found in floatx80_to_int32, rounding down:
+	3FFB.8000000000000000  soft: 00000000 ....x  syst: 00000000 .....
+	3FFC.8000000000000000  soft: 00000000 ....x  syst: 00000000 .....
+	3FFC.C000000000000000  soft: 00000000 ....x  syst: 00000000 .....
+	BFFB.8000000000000000  soft: FFFFFFFF ....x  syst: 00000000 .....
+	BFFC.8000000000000000  soft: FFFFFFFF ....x  syst: 00000000 .....
+	BFFC.C000000000000000  soft: FFFFFFFF ....x  syst: 00000000 .....
+	Errors found in floatx80_to_int32, rounding up:
+	3FFB.8000000000000000  soft: 00000001 ....x  syst: 00000000 .....
+	3FFC.8000000000000000  soft: 00000001 ....x  syst: 00000000 .....
+	3FFC.C000000000000000  soft: 00000001 ....x  syst: 00000000 .....
+	BFFB.8000000000000000  soft: 00000000 ....x  syst: 00000000 .....
+	BFFC.8000000000000000  soft: 00000000 ....x  syst: 00000000 .....
+
+   3FFB.8000000000000000 is the fraction 1/16; 3FFC.8000000000000000 is 1/8;
+   and 3FFC.C000000000000000 is 3/16.  Both positive and negative inputs are
+   affected.
+
+-- Some (all?) positive floating-point values between 2^32 - 1/2
+   (401E.FFFFFFFF00000000) and 2^32 (401F.0000000000000000) are rounded to
+   zero when the rounding mode is nearest/even or up.
+
+	Errors found in floatx80_to_int32, rounding nearest_even:
+	401E.FFFFFFFF80000000  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFC00001FE  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFF8000000  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFFEC00000  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFFF002000  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFFFC00000  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFFFE00000  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFFFFD7FFE  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFFFFFFFFE  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFFFFFFFFF  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	Errors found in floatx80_to_int32, rounding up:
+	401E.FFFFFFFF00800000  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFF80000000  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFEFFFC000  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFFC000000  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFFE7FFFFF  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFFFF00000  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFFFFE0800  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFFFFF7FFB  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFFFFFFFFE  soft: 7FFFFFFF v....  syst: 00000000 ....x
+	401E.FFFFFFFFFFFFFFFF  soft: 7FFFFFFF v....  syst: 00000000 ....x
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+
+-------------------------------------------------------------------------------
+Intel Pentium Pros
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+floatx80_to_int32
+
+-- The inexact flag is sometimes raised instead of the invalid flag for
+   floating-point inputs under -(2^32) (C01F.0000000000000000).  This bug is
+   sporadic.  It appears to be deterministic but dependent on the sequence
+   of operations executed.
+
+	Errors found in floatx80_to_int32, rounding nearest_even:
+	C01F.C000000000000002  soft: 80000000 v....  syst: 80000000 ....x
+	C021.F00000000000003F  soft: 80000000 v....  syst: 80000000 ....x
+	Errors found in floatx80_to_int32, rounding to_zero:
+	C021.F00000000000003F  soft: 80000000 v....  syst: 80000000 ....x
+	Errors found in floatx80_to_int32, rounding up:
+	C01F.C000000000000007  soft: 80000000 v....  syst: 80000000 ....x
+	C01F.C000000000001000  soft: 80000000 v....  syst: 80000000 ....x
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+
+-------------------------------------------------------------------------------
+Sun SPARCstation 1's and IPX's
+
+Some older SPARCstations appear confused about whether underflow tininess is
+detected before or after rounding.  For conversions from double precision
+to single precision, tininess is detected after rounding, while for all
+quadruple-precision operations it is detected before rounding.  Single- and
+double-precision multipies go both ways:
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+float32_mul, float64_mul
+
+-- For multiplies, underflow tininess is detected _before_ rounding if one
+   of the inputs is subnormal, and _after_ rounding otherwise.  If tininess
+   is assumed to be detected before rounding, the following errors are
+   generated:
+
+	Errors found in float32_mul, rounding nearest_even:
+	001.000001  07E.7FFFFE  soft: 001.000000 ...ux  syst: 001.000000 ....x
+	001.000001  87E.7FFFFE  soft: 801.000000 ...ux  syst: 801.000000 ....x
+	001.000002  07E.7FFFFC  soft: 001.000000 ...ux  syst: 001.000000 ....x
+	001.000002  87E.7FFFFC  soft: 801.000000 ...ux  syst: 801.000000 ....x
+	001.000004  07E.7FFFF8  soft: 001.000000 ...ux  syst: 001.000000 ....x
+	Errors found in float32_mul, rounding down:
+	001.000001  87E.7FFFFE  soft: 801.000000 ...ux  syst: 801.000000 ....x
+	001.000002  87E.7FFFFC  soft: 801.000000 ...ux  syst: 801.000000 ....x
+	001.000004  87E.7FFFF8  soft: 801.000000 ...ux  syst: 801.000000 ....x
+	001.000008  87E.7FFFF0  soft: 801.000000 ...ux  syst: 801.000000 ....x
+	001.000010  87E.7FFFE0  soft: 801.000000 ...ux  syst: 801.000000 ....x
+	Errors found in float32_mul, rounding up:
+	001.000001  07E.7FFFFE  soft: 001.000000 ...ux  syst: 001.000000 ....x
+	001.000002  07E.7FFFFC  soft: 001.000000 ...ux  syst: 001.000000 ....x
+	001.000004  07E.7FFFF8  soft: 001.000000 ...ux  syst: 001.000000 ....x
+	001.000008  07E.7FFFF0  soft: 001.000000 ...ux  syst: 001.000000 ....x
+	001.000010  07E.7FFFE0  soft: 001.000000 ...ux  syst: 001.000000 ....x
+	Errors found in float64_mul, rounding nearest_even:
+	001.0000000000001  3FE.FFFFFFFFFFFFE
+		soft: 001.0000000000000 ...ux  syst: 001.0000000000000 ....x
+	001.0000000000001  BFE.FFFFFFFFFFFFE
+		soft: 801.0000000000000 ...ux  syst: 801.0000000000000 ....x
+	001.0000000000002  3FE.FFFFFFFFFFFFC
+		soft: 001.0000000000000 ...ux  syst: 001.0000000000000 ....x
+	001.0000000000002  BFE.FFFFFFFFFFFFC
+		soft: 801.0000000000000 ...ux  syst: 801.0000000000000 ....x
+	001.0000000000004  3FE.FFFFFFFFFFFF8
+		soft: 001.0000000000000 ...ux  syst: 001.0000000000000 ....x
+	Errors found in float64_mul, rounding down:
+	001.0000000000001  BFE.FFFFFFFFFFFFE
+		soft: 801.0000000000000 ...ux  syst: 801.0000000000000 ....x
+	001.0000000000002  BFE.FFFFFFFFFFFFC
+		soft: 801.0000000000000 ...ux  syst: 801.0000000000000 ....x
+	001.0000000000004  BFE.FFFFFFFFFFFF8
+		soft: 801.0000000000000 ...ux  syst: 801.0000000000000 ....x
+	001.0000000000008  BFE.FFFFFFFFFFFF0
+		soft: 801.0000000000000 ...ux  syst: 801.0000000000000 ....x
+	001.0000000000010  BFE.FFFFFFFFFFFE0
+		soft: 801.0000000000000 ...ux  syst: 801.0000000000000 ....x
+	Errors found in float64_mul, rounding up:
+	001.0000000000001  3FE.FFFFFFFFFFFFE
+		soft: 001.0000000000000 ...ux  syst: 001.0000000000000 ....x
+	001.0000000000002  3FE.FFFFFFFFFFFFC
+		soft: 001.0000000000000 ...ux  syst: 001.0000000000000 ....x
+	001.0000000000004  3FE.FFFFFFFFFFFF8
+		soft: 001.0000000000000 ...ux  syst: 001.0000000000000 ....x
+	001.0000000000008  3FE.FFFFFFFFFFFF0
+		soft: 001.0000000000000 ...ux  syst: 001.0000000000000 ....x
+	001.0000000000010  3FE.FFFFFFFFFFFE0
+		soft: 001.0000000000000 ...ux  syst: 001.0000000000000 ....x
+
+   If we assume tininess should be detected after rounding, we get the
+   following errors:
+
+	Errors found in float32_mul, rounding nearest_even:
+	000.7FFC00  07F.000400  soft: 001.000000 ....x  syst: 001.000000 ...ux
+	000.7FFC00  87F.000400  soft: 801.000000 ....x  syst: 801.000000 ...ux
+	000.7FFE00  07F.000200  soft: 001.000000 ....x  syst: 001.000000 ...ux
+	000.7FFE00  87F.000200  soft: 801.000000 ....x  syst: 801.000000 ...ux
+	000.7FFF00  07F.000100  soft: 001.000000 ....x  syst: 001.000000 ...ux
+	Errors found in float32_mul, rounding down:
+	000.7FFC00  87F.000400  soft: 801.000000 ....x  syst: 801.000000 ...ux
+	000.7FFE00  87F.000200  soft: 801.000000 ....x  syst: 801.000000 ...ux
+	000.7FFF00  87F.000100  soft: 801.000000 ....x  syst: 801.000000 ...ux
+	000.7FFF80  87F.000080  soft: 801.000000 ....x  syst: 801.000000 ...ux
+	000.7FFFC0  87F.000040  soft: 801.000000 ....x  syst: 801.000000 ...ux
+	Errors found in float32_mul, rounding up:
+	000.7FFC00  07F.000400  soft: 001.000000 ....x  syst: 001.000000 ...ux
+	000.7FFE00  07F.000200  soft: 001.000000 ....x  syst: 001.000000 ...ux
+	000.7FFF00  07F.000100  soft: 001.000000 ....x  syst: 001.000000 ...ux
+	000.7FFF80  07F.000080  soft: 001.000000 ....x  syst: 001.000000 ...ux
+	000.7FFFC0  07F.000040  soft: 001.000000 ....x  syst: 001.000000 ...ux
+	Errors found in float64_mul, rounding nearest_even:
+	000.FFFFFFE000000  3FF.0000002000000
+		soft: 001.0000000000000 ....x  syst: 001.0000000000000 ...ux
+	000.FFFFFFE000000  BFF.0000002000000
+		soft: 801.0000000000000 ....x  syst: 801.0000000000000 ...ux
+	000.FFFFFFF000000  3FF.0000001000000
+		soft: 001.0000000000000 ....x  syst: 001.0000000000000 ...ux
+	000.FFFFFFF000000  BFF.0000001000000
+		soft: 801.0000000000000 ....x  syst: 801.0000000000000 ...ux
+	000.FFFFFFF800000  3FF.0000000800000
+		soft: 001.0000000000000 ....x  syst: 001.0000000000000 ...ux
+	Errors found in float64_mul, rounding down:
+	000.FFFFFFE000000  BFF.0000002000000
+		soft: 801.0000000000000 ....x  syst: 801.0000000000000 ...ux
+	000.FFFFFFF000000  BFF.0000001000000
+		soft: 801.0000000000000 ....x  syst: 801.0000000000000 ...ux
+	000.FFFFFFF800000  BFF.0000000800000
+		soft: 801.0000000000000 ....x  syst: 801.0000000000000 ...ux
+	000.FFFFFFFC00000  BFF.0000000400000
+		soft: 801.0000000000000 ....x  syst: 801.0000000000000 ...ux
+	000.FFFFFFFE00000  BFF.0000000200000
+		soft: 801.0000000000000 ....x  syst: 801.0000000000000 ...ux
+	Errors found in float64_mul, rounding up:
+	000.FFFFFFE000000  3FF.0000002000000
+		soft: 001.0000000000000 ....x  syst: 001.0000000000000 ...ux
+	000.FFFFFFF000000  3FF.0000001000000
+		soft: 001.0000000000000 ....x  syst: 001.0000000000000 ...ux
+	000.FFFFFFF800000  3FF.0000000800000
+		soft: 001.0000000000000 ....x  syst: 001.0000000000000 ...ux
+	000.FFFFFFFC00000  3FF.0000000400000
+		soft: 001.0000000000000 ....x  syst: 001.0000000000000 ...ux
+	000.FFFFFFFE00000  3FF.0000000200000
+		soft: 001.0000000000000 ....x  syst: 001.0000000000000 ...ux
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+
+-------------------------------------------------------------------------------
+Sun SPARCstation 10's
+
+Like other SPARCstations, some SPARCstation 10's are inconsistent regarding
+underflow tininess, detecting it after rounding for single- and double-
+precision operations and before rounding for quadruple-precision operations.
+The following bug has also been observed.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+float32_to_int32_round_to_zero, float64_to_int32_round_to_zero
+
+-- Single- and double-precision NaNs are converted to the integer zero.
+   (The invalid exception flag is raised correctly.)
+
+	Errors found in float32_to_int32_round_to_zero:
+	8FF.5D36AC  soft: 7FFFFFFF v....  syst: 00000000 v....
+	0FF.7FFFC0  soft: 7FFFFFFF v....  syst: 00000000 v....
+	8FF.7C0000  soft: 7FFFFFFF v....  syst: 00000000 v....
+	0FF.2AB7ED  soft: 7FFFFFFF v....  syst: 00000000 v....
+	0FF.03FFFF  soft: 7FFFFFFF v....  syst: 00000000 v....
+	Errors found in float64_to_int32_round_to_zero:
+	7FF.45AD84DB2524A  soft: 7FFFFFFF v....  syst: 00000000 v....
+	7FF.CFEE063EE0512  soft: 7FFFFFFF v....  syst: 00000000 v....
+	7FF.89FF03AB7DBA2  soft: 7FFFFFFF v....  syst: 00000000 v....
+	7FF.FFFFFFFFFF800  soft: 7FFFFFFF v....  syst: 00000000 v....
+	FFF.68A6410E91BF6  soft: 7FFFFFFF v....  syst: 00000000 v....
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+
+-------------------------------------------------------------------------------
+HP Precision Architecture processors, with HP-UX prior to version 10.10
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+float32_to_int32_round_to_zero, float64_to_int32_round_to_zero
+
+-- When the floating-point value is too large, the overflow and inexact
+   exception flags are raised instead of the invalid flag.
+
+	Errors found in float32_to_int32_round_to_zero:
+	89E.000007  soft: 80000000 v....  syst: 80000000 ..o.x
+	0A2.000020  soft: 7FFFFFFF v....  syst: 7FFFFFFF ..o.x
+	8FA.7C0000  soft: 80000000 v....  syst: 80000000 ..o.x
+	Errors found in float64_to_int32_round_to_zero:
+	7FD.0448700002F1C  soft: 7FFFFFFF v....  syst: 7FFFFFFF ..o.x
+	DAA.F000000000000  soft: 80000000 v....  syst: 80000000 ..o.x
+	41E.063DA00005E65  soft: 7FFFFFFF v....  syst: 7FFFFFFF ..o.x
+	47E.FFFF800000000  soft: 7FFFFFFF v....  syst: 7FFFFFFF ..o.x
+	51F.0000000000004  soft: 7FFFFFFF v....  syst: 7FFFFFFF ..o.x
+	DDA.0000001FFFFFF  soft: 80000000 v....  syst: 80000000 ..o.x
+	D70.00000000003FF  soft: 80000000 v....  syst: 80000000 ..o.x
+	C7E.0000100000000  soft: 80000000 v....  syst: 80000000 ..o.x
+	47E.000000000007F  soft: 7FFFFFFF v....  syst: 7FFFFFFF ..o.x
+	D57.000000000FFFF  soft: 80000000 v....  syst: 80000000 ..o.x
+
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+

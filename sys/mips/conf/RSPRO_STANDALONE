@@ -1,0 +1,24 @@
+#
+# Ubiquiti Routerstation Pro: boot from first DOS-partitioned, BSD
+# sliced flash disk.
+#
+# $FreeBSD$
+#
+
+include		"AR71XX_BASE"
+ident		"RSPRO_STANDALONE"
+hints		"RSPRO.hints"
+
+# RTC - requires hackery in the spibus code to work
+device		pcf2123_rtc
+
+# GEOM modules
+device		geom_redboot	# to get access to the SPI flash partitions
+device		xz
+options 	GEOM_UZIP
+
+# For DOS
+options 	MSDOSFS
+
+# .. first DOS-partitioned, BSD sliced flash disk
+options 	ROOTDEVNAME=\"ufs:da0s1a\"

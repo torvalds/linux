@@ -1,0 +1,177 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)funopen.3	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd May 9, 2016
+.Dt FUNOPEN 3
+.Os
+.Sh NAME
+.Nm funopen ,
+.Nm fropen ,
+.Nm fwopen
+.Nd open a stream
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.Ft FILE *
+.Fn funopen "const void *cookie" "int (*readfn)(void *, char *, int)" "int (*writefn)(void *, const char *, int)" "fpos_t (*seekfn)(void *, fpos_t, int)" "int (*closefn)(void *)"
+.Ft FILE *
+.Fn fropen "void *cookie" "int (*readfn)(void *, char *, int)"
+.Ft FILE *
+.Fn fwopen "void *cookie" "int (*writefn)(void *, const char *, int)"
+.Sh DESCRIPTION
+The
+.Fn funopen
+function
+associates a stream with up to four
+.Dq Tn I/O No functions .
+Either
+.Fa readfn
+or
+.Fa writefn
+must be specified;
+the others can be given as an appropriately-typed
+.Dv NULL
+pointer.
+These
+.Tn I/O
+functions will be used to read, write, seek and
+close the new stream.
+.Pp
+In general, omitting a function means that any attempt to perform the
+associated operation on the resulting stream will fail.
+If the close function is omitted, closing the stream will flush
+any buffered output and then succeed.
+.Pp
+The calling conventions of
+.Fa readfn ,
+.Fa writefn ,
+.Fa seekfn
+and
+.Fa closefn
+must match those, respectively, of
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr lseek 2 ,
+and
+.Xr close 2
+with the single exception that they are passed the
+.Fa cookie
+argument specified to
+.Fn funopen
+in place of the traditional file descriptor argument.
+.Pp
+Read and write
+.Tn I/O
+functions are allowed to change the underlying buffer
+on fully buffered or line buffered streams by calling
+.Xr setvbuf 3 .
+They are also not required to completely fill or empty the buffer.
+They are not, however, allowed to change streams from unbuffered to buffered
+or to change the state of the line buffering flag.
+They must also be prepared to have read or write calls occur on buffers other
+than the one most recently specified.
+.Pp
+All user
+.Tn I/O
+functions can report an error by returning \-1.
+Additionally, all of the functions should set the external variable
+.Va errno
+appropriately if an error occurs.
+.Pp
+An error on
+.Fn closefn
+does not keep the stream open.
+.Pp
+As a convenience, the include file
+.In stdio.h
+defines the macros
+.Fn fropen
+and
+.Fn fwopen
+as calls to
+.Fn funopen
+with only a read or write function specified.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn funopen
+returns a
+.Dv FILE
+pointer.
+Otherwise,
+.Dv NULL
+is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fn funopen
+function
+was called without either a read or write function.
+The
+.Fn funopen
+function
+may also fail and set
+.Va errno
+for any of the errors
+specified for the routine
+.Xr malloc 3 .
+.El
+.Sh SEE ALSO
+.Xr fcntl 2 ,
+.Xr open 2 ,
+.Xr fclose 3 ,
+.Xr fopen 3 ,
+.Xr fopencookie 3 ,
+.Xr fseek 3 ,
+.Xr setbuf 3
+.Sh HISTORY
+The
+.Fn funopen
+functions first appeared in
+.Bx 4.4 .
+.Sh BUGS
+The
+.Fn funopen
+function
+may not be portable to systems other than
+.Bx .
+.Pp
+The
+.Fn funopen
+interface erroneously assumes that
+.Vt fpos_t
+is an integral type; see
+.Xr fseek 3
+for a discussion of this issue.

@@ -1,0 +1,104 @@
+.\" Copyright (c) 2013 Peter Grehan
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 19, 2013
+.Dt VMM 4
+.Os
+.Sh NAME
+.Nm vmm.ko
+.Nd "bhyve virtual machine monitor"
+.Sh SYNOPSIS
+To load the driver as a module at boot, add this line to
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+.Cd vmm_load="YES"
+.Ed
+.Pp
+The module can also be loaded manually with
+.Xr kldload 8 :
+.Bd -literal -offset indent
+kldload vmm
+.Ed
+.Sh DESCRIPTION
+.Nm
+provides the kernel portion of the
+.Xr bhyve 4
+hypervisor.
+.Pp
+An Intel CPU with VT-x/EPT or AMD CPU with SVM support is required.
+.Pp
+PCI device passthrough to a virtual machine requires
+hardware with VT-d support.
+.Sh PCI PASSTHROUGH
+When the hardware supports VT-d, and
+.Nm
+has been loaded at boot time,
+PCI devices can be reserved for use by the hypervisor.
+Entries consisting of the PCI
+.Ar bus Ns / Ns Ar slot Ns / Ns Ar function
+are added to the
+.Va pptdevs
+.Xr loader.conf 5
+variable.
+Additional entries are separated by spaces.
+Host PCI devices that match an entry will be assigned to the hypervisor
+and will not be probed by
+.Fx
+device drivers.
+See the
+.Sx EXAMPLES
+section below for sample usage.
+.Pp
+A large number of PCI device entries may require a string longer than the
+128-character limit of
+.Xr loader.conf 5
+variables.
+The
+.Va pptdevs2
+and
+.Va pptdevs3
+variables can be used for additional entries.
+.Sh EXAMPLES
+Reserve three PCI devices for use by the hypervisor: bus 10 slot 0 function 0,
+bus 6 slot 5 function 0, and bus 6 slot 5 function 1.
+.Bd -literal -offset indent
+pptdevs="10/0/0 6/5/0 6/5/1"
+.Ed
+.Sh SEE ALSO
+.Xr bhyve 4 ,
+.Xr loader.conf 5 ,
+.Xr bhyve 8 ,
+.Xr bhyveload 8 ,
+.Xr kldload 8
+.Sh HISTORY
+.Nm vmm.ko
+first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An Neel Natu Aq neel@freebsd.org
+.An Peter Grehan Aq grehan@freebsd.org
+
+

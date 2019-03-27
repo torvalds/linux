@@ -1,0 +1,119 @@
+.\" Copyright (c) 2002 Tim J. Robbins
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 27, 2004
+.Dt WCTYPE 3
+.Os
+.Sh NAME
+.Nm iswctype , wctype
+.Nd "wide character class functions"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In wctype.h
+.Ft int
+.Fn iswctype "wint_t wc" "wctype_t charclass"
+.Ft wctype_t
+.Fn wctype "const char *property"
+.Sh DESCRIPTION
+The
+.Fn wctype
+function returns a value of type
+.Vt wctype_t
+which represents the requested wide character class and
+may be used as the second argument for calls to
+.Fn iswctype .
+.Pp
+The following character class names are recognised:
+.Bl -column -offset indent ".Li alnum" ".Li cntrl" ".Li ideogram" ".Li print" ".Li space"
+.It Li "alnum	cntrl	ideogram	print	space	xdigit"
+.It Li "alpha	digit	lower	punct	special"
+.It Li "blank	graph	phonogram	rune	upper"
+.El
+.Pp
+The
+.Fn iswctype
+function checks whether the wide character
+.Fa wc
+is in the character class
+.Fa charclass .
+.Sh RETURN VALUES
+The
+.Fn iswctype
+function returns non-zero if and only if
+.Fa wc
+has the property described by
+.Fa charclass ,
+or
+.Fa charclass
+is zero.
+.Pp
+The
+.Fn wctype
+function returns 0 if
+.Fa property
+is invalid, otherwise it returns a value of type
+.Vt wctype_t
+that can be used in subsequent calls to
+.Fn iswctype .
+.Sh EXAMPLES
+Reimplement
+.Xr iswalpha 3
+in terms of
+.Fn iswctype
+and
+.Fn wctype :
+.Bd -literal -offset indent
+int
+myiswalpha(wint_t wc)
+{
+	return (iswctype(wc, wctype("alpha")));
+}
+.Ed
+.Sh SEE ALSO
+.Xr ctype 3 ,
+.Xr nextwctype 3
+.Sh STANDARDS
+The
+.Fn iswctype
+and
+.Fn wctype
+functions conform to
+.St -p1003.1-2001 .
+The
+.Dq Li ideogram ,
+.Dq Li phonogram ,
+.Dq Li special ,
+and
+.Dq Li rune
+character classes are extensions.
+.Sh HISTORY
+The
+.Fn iswctype
+and
+.Fn wctype
+functions first appeared in
+.Fx 5.0 .

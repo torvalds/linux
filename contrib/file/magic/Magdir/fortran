@@ -1,0 +1,9 @@
+
+#------------------------------------------------------------------------------
+# $File: fortran,v 1.10 2015/11/05 18:47:16 christos Exp $
+# FORTRAN source
+# Check that the first 100 lines start with C or whitespace first.
+0       regex/100l      !\^[^Cc\ \t].*$
+>0	regex/100l	\^[Cc][\ \t]	FORTRAN program text
+!:mime	text/x-fortran
+!:strength - 5

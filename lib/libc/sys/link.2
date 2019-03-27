@@ -1,0 +1,315 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)link.2	8.3 (Berkeley) 1/12/94
+.\" $FreeBSD$
+.\"
+.Dd November 11, 2018
+.Dt LINK 2
+.Os
+.Sh NAME
+.Nm link ,
+.Nm linkat
+.Nd make a hard file link
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn link "const char *name1" "const char *name2"
+.Ft int
+.Fo linkat
+.Fa "int fd1" "const char *name1" "int fd2" "const char *name2" "int flag"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn link
+system call
+atomically creates the specified directory entry (hard link)
+.Fa name2
+with the attributes of the underlying object pointed at by
+.Fa name1 .
+If the link is successful: the link count of the underlying object
+is incremented;
+.Fa name1
+and
+.Fa name2
+share equal access and rights
+to the
+underlying object.
+.Pp
+If
+.Fa name1
+is removed, the file
+.Fa name2
+is not deleted and the link count of the
+underlying object is
+decremented.
+.Pp
+The object pointed at by the
+.Fa name1
+argument
+must exist for the hard link to
+succeed and
+both
+.Fa name1
+and
+.Fa name2
+must be in the same file system.
+The
+.Fa name1
+argument
+may not be a directory.
+.Pp
+The
+.Fn linkat
+system call is equivalent to
+.Fa link
+except in the case where either
+.Fa name1
+or
+.Fa name2
+or both are relative paths.
+In this case a relative path
+.Fa name1
+is interpreted relative to
+the directory associated with the file descriptor
+.Fa fd1
+instead of the current working directory and similarly for
+.Fa name2
+and the file descriptor
+.Fa fd2 .
+.Pp
+Values for
+.Fa flag
+are constructed by a bitwise-inclusive OR of flags from the following
+list, defined in
+.In fcntl.h :
+.Bl -tag -width indent
+.It Dv AT_SYMLINK_FOLLOW
+If
+.Fa name1
+names a symbolic link, a new link for the target of the symbolic link is
+created.
+.It Dv AT_BENEATH
+Only allow to link to a file which is beneath of the topping directory.
+See the description of the
+.Dv O_BENEATH
+flag in the
+.Xr open 2
+manual page.
+.El
+.Pp
+If
+.Fn linkat
+is passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd1
+or
+.Fa fd2
+parameter, the current working directory is used for the respective
+.Fa name
+argument.
+If both
+.Fa fd1
+and
+.Fa fd2
+have value
+.Dv AT_FDCWD ,
+the behavior is identical to a call to
+.Fn link .
+Unless
+.Fa flag
+contains the
+.Dv AT_SYMLINK_FOLLOW
+flag, if
+.Fa name1
+names a symbolic link, a new link is created for the symbolic link
+.Fa name1
+and not its target.
+.Sh RETURN VALUES
+.Rv -std link
+.Sh ERRORS
+The
+.Fn link
+system call
+will fail and no link will be created if:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of either path prefix is not a directory.
+.It Bq Er ENAMETOOLONG
+A component of either pathname exceeded 255 characters,
+or entire length of either path name exceeded 1023 characters.
+.It Bq Er ENOENT
+A component of either path prefix does not exist.
+.It Bq Er EOPNOTSUPP
+The file system containing the file named by
+.Fa name1
+does not support links.
+.It Bq Er EMLINK
+The link count of the file named by
+.Fa name1
+would exceed 32767.
+.It Bq Er EACCES
+A component of either path prefix denies search permission.
+.It Bq Er EACCES
+The requested link requires writing in a directory with a mode
+that denies write permission.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating one of the pathnames.
+.It Bq Er ENOENT
+The file named by
+.Fa name1
+does not exist.
+.It Bq Er EEXIST
+The link named by
+.Fa name2
+does exist.
+.It Bq Er EPERM
+The file named by
+.Fa name1
+is a directory.
+.It Bq Er EPERM
+The file named by
+.Fa name1
+has its immutable or append-only flag set, see the
+.Xr chflags 2
+manual page for more information.
+.It Bq Er EPERM
+The parent directory of the file named by
+.Fa name2
+has its immutable flag set.
+.It Bq Er EXDEV
+The link named by
+.Fa name2
+and the file named by
+.Fa name1
+are on different file systems.
+.It Bq Er ENOSPC
+The directory in which the entry for the new link is being placed
+cannot be extended because there is no space left on the file
+system containing the directory.
+.It Bq Er EDQUOT
+The directory in which the entry for the new link
+is being placed cannot be extended because the
+user's quota of disk blocks on the file system
+containing the directory has been exhausted.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to
+the file system to make the directory entry.
+.It Bq Er EROFS
+The requested link requires writing in a directory on a read-only file
+system.
+.It Bq Er EFAULT
+One of the pathnames specified
+is outside the process's allocated address space.
+.El
+.Pp
+In addition to the errors returned by the
+.Fn link ,
+the
+.Fn linkat
+system call may fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa name1
+or
+.Fa name2
+argument does not specify an absolute path and the
+.Fa fd1
+or
+.Fa fd2
+argument, respectively, is neither
+.Dv AT_FDCWD
+nor a valid file descriptor open for searching.
+.It Bq Er EINVAL
+The value of the
+.Fa flag
+argument is not valid.
+.It Bq Er ENOTDIR
+The
+.Fa name1
+or
+.Fa name2
+argument is not an absolute path and
+.Fa fd1
+or
+.Fa fd2 ,
+respectively, is neither
+.Dv AT_FDCWD
+nor a file descriptor associated with a directory.
+.It Bq Er ENOTCAPABLE
+.Fa name1
+is not strictly relative to the starting directory.
+For example,
+.Fa name1
+is absolute or includes a ".." component that escapes
+the directory hierarchy specified by
+.Fa fd ,
+and the process is in capability mode.
+.It Bq Er ENOTCAPABLE
+The
+.Dv AT_BENEATH
+flag was provided to
+.Fa linkat
+and the absolute path
+.Fa name1
+does not have its tail fully contained under the topping directory,
+or the relative path
+.Fa name1
+escapes it.
+.El
+.Sh SEE ALSO
+.Xr chflags 2 ,
+.Xr readlink 2 ,
+.Xr symlink 2 ,
+.Xr unlink 2
+.Sh STANDARDS
+The
+.Fn link
+system call is expected to conform to
+.St -p1003.1-90 .
+The
+.Fn linkat
+system call follows The Open Group Extended API Set 2 specification.
+.Sh HISTORY
+The
+.Fn link
+function appeared in
+.At v1 .
+The
+.Fn linkat
+system call appeared in
+.Fx 8.0 .
+.Pp
+The
+.Fn link
+system call traditionally allows the super-user to link directories which
+corrupts the file system coherency.
+This implementation no longer permits it.

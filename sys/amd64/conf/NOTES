@@ -1,0 +1,672 @@
+#
+# NOTES -- Lines that can be cut/pasted into kernel and hints configs.
+#
+# This file contains machine dependent kernel configuration notes.  For
+# machine independent notes, look in /sys/conf/NOTES.
+#
+# $FreeBSD$
+#
+
+#
+# We want LINT to cover profiling as well.
+profile         2
+
+#
+# Enable the kernel DTrace hooks which are required to load the DTrace
+# kernel modules.
+#
+options 	KDTRACE_HOOKS
+
+# DTrace core
+# NOTE: introduces CDDL-licensed components into the kernel
+#device		dtrace
+
+# DTrace modules
+#device		dtrace_profile
+#device		dtrace_sdt
+#device		dtrace_fbt
+#device		dtrace_systrace
+#device		dtrace_prototype
+#device		dtnfscl
+#device		dtmalloc
+
+# Alternatively include all the DTrace modules
+#device		dtraceall
+
+
+#####################################################################
+# SMP OPTIONS:
+#
+# Notes:
+#
+# IPI_PREEMPTION instructs the kernel to preempt threads running on other
+#	  CPUS if needed.  Relies on the PREEMPTION option
+
+# Optional:
+options 	IPI_PREEMPTION
+device		atpic			# Optional legacy pic support
+device		mptable			# Optional MPSPEC mptable support
+
+#
+# Watchdog routines.
+#
+options 	MP_WATCHDOG
+
+# Debugging options.
+#
+options 	COUNT_XINVLTLB_HITS	# Counters for TLB events
+options 	COUNT_IPIS		# Per-CPU IPI interrupt counters
+
+
+
+#####################################################################
+# CPU OPTIONS
+
+#
+# You must specify at least one CPU (the one you intend to run on);
+# deleting the specification for CPUs you don't need to use may make
+# parts of the system run faster.
+#
+cpu		HAMMER			# aka K8, aka Opteron & Athlon64
+
+#
+# Options for CPU features.
+#
+
+
+#####################################################################
+# NETWORKING OPTIONS
+
+#
+# DEVICE_POLLING adds support for mixed interrupt-polling handling
+# of network device drivers, which has significant benefits in terms
+# of robustness to overloads and responsivity, as well as permitting
+# accurate scheduling of the CPU time between kernel network processing
+# and other activities.  The drawback is a moderate (up to 1/HZ seconds)
+# potential increase in response times.
+# It is strongly recommended to use HZ=1000 or 2000 with DEVICE_POLLING
+# to achieve smoother behaviour.
+# Additionally, you can enable/disable polling at runtime with help of
+# the ifconfig(8) utility, and select the CPU fraction reserved to
+# userland with the sysctl variable kern.polling.user_frac
+# (default 50, range 0..100).
+#
+# Not all device drivers support this mode of operation at the time of
+# this writing.  See polling(4) for more details.
+
+options 	DEVICE_POLLING
+
+# BPF_JITTER adds support for BPF just-in-time compiler.
+
+options 	BPF_JITTER
+
+# OpenFabrics Enterprise Distribution (Infiniband).
+options 	OFED
+options 	OFED_DEBUG_INIT
+
+# Sockets Direct Protocol
+options 	SDP
+options 	SDP_DEBUG
+
+# IP over Infiniband
+options 	IPOIB
+options 	IPOIB_DEBUG
+options 	IPOIB_CM
+
+
+#####################################################################
+# CLOCK OPTIONS
+
+# Provide read/write access to the memory in the clock chip.
+device		nvram		# Access to rtc cmos via /dev/nvram
+
+
+#####################################################################
+# MISCELLANEOUS DEVICES AND OPTIONS
+
+device		speaker		#Play IBM BASIC-style noises out your speaker
+hint.speaker.0.at="isa"
+hint.speaker.0.port="0x61"
+device		gzip		#Exec gzipped a.out's.  REQUIRES COMPAT_AOUT!
+
+
+#####################################################################
+# HARDWARE BUS CONFIGURATION
+
+#
+# ISA bus
+#
+device		isa
+
+#
+# Options for `isa':
+#
+# AUTO_EOI_1 enables the `automatic EOI' feature for the master 8259A
+# interrupt controller.  This saves about 0.7-1.25 usec for each interrupt.
+# This option breaks suspend/resume on some portables.
+#
+# AUTO_EOI_2 enables the `automatic EOI' feature for the slave 8259A
+# interrupt controller.  This saves about 0.7-1.25 usec for each interrupt.
+# Automatic EOI is documented not to work for for the slave with the
+# original i8259A, but it works for some clones and some integrated
+# versions.
+#
+# MAXMEM specifies the amount of RAM on the machine; if this is not
+# specified, FreeBSD will first read the amount of memory from the CMOS
+# RAM, so the amount of memory will initially be limited to 64MB or 16MB
+# depending on the BIOS.  If the BIOS reports 64MB, a memory probe will
+# then attempt to detect the installed amount of RAM.  If this probe
+# fails to detect >64MB RAM you will have to use the MAXMEM option.
+# The amount is in kilobytes, so for a machine with 128MB of RAM, it would
+# be 131072 (128 * 1024).
+#
+# BROKEN_KEYBOARD_RESET disables the use of the keyboard controller to
+# reset the CPU for reboot.  This is needed on some systems with broken
+# keyboard controllers.
+
+options 	AUTO_EOI_1
+#options 	AUTO_EOI_2
+
+options 	MAXMEM=(128*1024)
+#options 	BROKEN_KEYBOARD_RESET
+
+#
+# AGP GART support
+device		agp
+
+#
+# AGP debugging.
+#
+options 	AGP_DEBUG
+
+
+#####################################################################
+# HARDWARE DEVICE CONFIGURATION
+
+# To include support for VGA VESA video modes
+options 	VESA
+
+# Turn on extra debugging checks and output for VESA support.
+options 	VESA_DEBUG
+
+device		dpms		# DPMS suspend & resume via VESA BIOS
+
+# x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
+options 	X86BIOS
+
+#
+# Optional devices:
+#
+
+# PS/2 mouse
+device		psm
+hint.psm.0.at="atkbdc"
+hint.psm.0.irq="12"
+
+# Options for psm:
+options 	PSM_HOOKRESUME		#hook the system resume event, useful
+					#for some laptops
+options 	PSM_RESETAFTERSUSPEND	#reset the device at the resume event
+
+# The keyboard controller; it controls the keyboard and the PS/2 mouse.
+device		atkbdc
+hint.atkbdc.0.at="isa"
+hint.atkbdc.0.port="0x060"
+
+# The AT keyboard
+device		atkbd
+hint.atkbd.0.at="atkbdc"
+hint.atkbd.0.irq="1"
+
+# Options for atkbd:
+options 	ATKBD_DFLT_KEYMAP	# specify the built-in keymap
+makeoptions	ATKBD_DFLT_KEYMAP=fr.dvorak
+
+# `flags' for atkbd:
+#       0x01    Force detection of keyboard, else we always assume a keyboard
+#       0x02    Don't reset keyboard, useful for some newer ThinkPads
+#	0x03	Force detection and avoid reset, might help with certain
+#		dockingstations
+#       0x04    Old-style (XT) keyboard support, useful for older ThinkPads
+
+# Video card driver for VGA adapters.
+device		vga
+hint.vga.0.at="isa"
+
+# Options for vga:
+# Try the following option if the mouse pointer is not drawn correctly
+# or font does not seem to be loaded properly.  May cause flicker on
+# some systems.
+options 	VGA_ALT_SEQACCESS
+
+# If you can dispense with some vga driver features, you may want to
+# use the following options to save some memory.
+#options 	VGA_NO_FONT_LOADING	# don't save/load font
+#options 	VGA_NO_MODE_CHANGE	# don't change video modes
+
+# Older video cards may require this option for proper operation.
+options 	VGA_SLOW_IOACCESS	# do byte-wide i/o's to TS and GDC regs
+
+# The following option probably won't work with the LCD displays.
+options 	VGA_WIDTH90		# support 90 column modes
+
+# Debugging.
+options 	VGA_DEBUG
+
+# vt(4) drivers.
+device		vt_vga		# VGA
+device		vt_efifb	# EFI framebuffer
+
+# Linear framebuffer driver for S3 VESA 1.2 cards. Works on top of VESA.
+device		s3pci
+
+# 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support.  This will create
+# the /dev/3dfx0 device to work with glide implementations.  This should get
+# linked to /dev/3dfx and /dev/voodoo.  Note that this is not the same as
+# the tdfx DRI module from XFree86 and is completely unrelated.
+#
+# To enable Linuxulator support, one must also include COMPAT_LINUX in the
+# config as well.  The other option is to load both as modules.
+
+device		tdfx			# Enable 3Dfx Voodoo support
+#XXX#device 	tdfx_linux		# Enable Linuxulator support
+
+#
+# ACPI support using the Intel ACPI Component Architecture reference
+# implementation.
+#
+# ACPI_DEBUG enables the use of the debug.acpi.level and debug.acpi.layer
+# kernel environment variables to select initial debugging levels for the
+# Intel ACPICA code.  (Note that the Intel code must also have USE_DEBUGGER
+# defined when it is built).
+
+device		acpi
+options 	ACPI_DEBUG
+
+# The cpufreq(4) driver provides support for non-ACPI CPU frequency control
+device		cpufreq
+
+#
+# Network interfaces:
+#
+
+# bxe:  Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
+#       adapters.
+# ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
+#       HP PC Lan+, various PC Card devices
+#       (requires miibus)
+# ipw:	Intel PRO/Wireless 2100 IEEE 802.11 adapter
+#	Requires the ipw firmware module
+# iwi:	Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 adapters
+#	Requires the iwi firmware module
+# iwn:	Intel Wireless WiFi Link 1000/105/135/2000/4965/5000/6000/6050 abgn
+#	802.11 network adapters
+#	Requires the iwn firmware module
+# mthca: Mellanox HCA InfiniBand
+# mlx4ib: Mellanox ConnectX HCA InfiniBand
+# mlx4en: Mellanox ConnectX HCA Ethernet
+# nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
+# sfxge: Solarflare SFC9000 family 10Gb Ethernet adapters
+# vmx:	VMware VMXNET3 Ethernet (BSD open source)
+# wpi:	Intel 3945ABG Wireless LAN controller
+#	Requires the wpi firmware module
+
+device		bxe		# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
+device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
+options 	ED_3C503
+options 	ED_HPP
+options 	ED_SIC
+device		ipw		# Intel 2100 wireless NICs.
+device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
+device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
+device		ixl		# Intel 700 Series Physical Function
+device		iavf		# Intel Adaptive Virtual Function
+device  	mthca		# Mellanox HCA InfiniBand
+device  	mlx4		# Shared code module between IB and Ethernet
+device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
+device  	mlx4en		# Mellanox ConnectX HCA Ethernet
+device		nfe		# nVidia nForce MCP on-board Ethernet
+device		sfxge		# Solarflare SFC9000 10Gb Ethernet
+device		vmx		# VMware VMXNET3 Ethernet
+device		wpi		# Intel 3945ABG wireless NICs.
+
+# IEEE 802.11 adapter firmware modules
+
+# Intel PRO/Wireless 2100 firmware:
+#   ipwfw:		BSS/IBSS/monitor mode firmware
+#   ipwbssfw:		BSS mode firmware
+#   ipwibssfw:		IBSS mode firmware
+#   ipwmonitorfw:	Monitor mode firmware
+# Intel PRO/Wireless 2200BG/2225BG/2915ABG firmware:
+#   iwifw:		BSS/IBSS/monitor mode firmware
+#   iwibssfw:		BSS mode firmware
+#   iwiibssfw:		IBSS mode firmware
+#   iwimonitorfw:	Monitor mode firmware
+# Intel Wireless WiFi Link 4965/1000/5000/6000 series firmware:
+#   iwnfw:		Single module to support all devices
+#   iwn1000fw:		Specific module for the 1000 only
+#   iwn105fw:		Specific module for the 105 only
+#   iwn135fw:		Specific module for the 135 only
+#   iwn2000fw:		Specific module for the 2000 only
+#   iwn2030fw:		Specific module for the 2030 only
+#   iwn4965fw:		Specific module for the 4965 only
+#   iwn5000fw:		Specific module for the 5000 only
+#   iwn5150fw:		Specific module for the 5150 only
+#   iwn6000fw:		Specific module for the 6000 only
+#   iwn6000g2afw:	Specific module for the 6000g2a only
+#   iwn6000g2bfw:	Specific module for the 6000g2b only
+#   iwn6050fw:		Specific module for the 6050 only
+# wpifw:	Intel 3945ABG Wireless LAN Controller firmware
+
+device		iwifw
+device		iwibssfw
+device		iwiibssfw
+device		iwimonitorfw
+device		ipwfw
+device		ipwbssfw
+device		ipwibssfw
+device		ipwmonitorfw
+device		iwnfw
+device		iwn1000fw
+device		iwn105fw
+device		iwn135fw
+device		iwn2000fw
+device		iwn2030fw
+device		iwn4965fw
+device		iwn5000fw
+device		iwn5150fw
+device		iwn6000fw
+device		iwn6000g2afw
+device		iwn6000g2bfw
+device		iwn6050fw
+device		wpifw
+
+#
+# Non-Transparent Bridge (NTB) drivers
+#
+device		if_ntb		# Virtual NTB network interface
+device		ntb_transport	# NTB packet transport driver
+device		ntb		# NTB hardware interface
+device		ntb_hw_intel	# Intel NTB hardware driver
+device		ntb_hw_plx	# PLX NTB hardware driver
+
+#
+#XXX this stores pointers in a 32bit field that is defined by the hardware
+#device	pst
+
+#
+# Areca 11xx and 12xx series of SATA II RAID controllers.
+# CAM is required.
+#
+device		arcmsr		# Areca SATA II RAID
+
+#
+# Microsemi smartpqi controllers.
+# These controllers have a SCSI-like interface, and require the
+# CAM infrastructure.
+#
+device		smartpqi
+
+#
+# 3ware 9000 series PATA/SATA RAID controller driver and options.
+# The driver is implemented as a SIM, and so, needs the CAM infrastructure.
+#
+options 	TWA_DEBUG		# 0-10; 10 prints the most messages.
+device		twa			# 3ware 9000 series PATA/SATA RAID
+
+#
+# Adaptec FSA RAID controllers, including integrated DELL controllers,
+# the Dell PERC 2/QC and the HP NetRAID-4M
+device		aac
+device		aacp	# SCSI Passthrough interface (optional, CAM required)
+
+#
+# Adaptec by PMC RAID controllers, Series 6/7/8 and upcoming families
+device		aacraid		# Container interface, CAM required
+
+#
+# Highpoint RocketRAID 27xx.
+device		hpt27xx
+
+#
+# Highpoint RocketRAID 182x.
+device		hptmv
+
+#
+# Highpoint DC7280 and R750.
+device		hptnr
+
+#
+# Highpoint RocketRAID.  Supports RR172x, RR222x, RR2240, RR232x, RR2340,
+# RR2210, RR174x, RR2522, RR231x, RR230x.
+device		hptrr
+
+#
+# Highpoint RocketRaid 3xxx series SATA RAID
+device		hptiop
+
+#
+# IBM (now Adaptec) ServeRAID controllers
+device		ips
+
+#
+# Intel integrated Memory Controller (iMC) SMBus controller
+#	Sandybridge-Xeon, Ivybridge-Xeon, Haswell-Xeon, Broadwell-Xeon
+device		imcsmb
+
+#
+# Intel C600 (Patsburg) integrated SAS controller
+device		isci
+options 	ISCI_LOGGING	# enable debugging in isci HAL
+
+#
+# NVM Express (NVMe) support
+device         nvme    # base NVMe driver
+device         nvd     # expose NVMe namespaces as disks, depends on nvme
+
+#
+# PMC-Sierra SAS/SATA controller
+device		pmspcv
+
+#
+# SafeNet crypto driver: can be moved to the MI NOTES as soon as
+# it's tested on a big-endian machine
+#
+device		safe		# SafeNet 1141
+options 	SAFE_DEBUG	# enable debugging support: hw.safe.debug
+options 	SAFE_RNDTEST	# enable rndtest support
+
+#
+# VirtIO support
+#
+# The virtio entry provides a generic bus for use by the device drivers.
+# It must be combined with an interface that communicates with the host.
+# Multiple such interfaces are defined by the VirtIO specification. FreeBSD
+# only has support for PCI. Therefore, virtio_pci must be statically
+# compiled in or loaded as a module for the device drivers to function.
+#
+device		virtio		# Generic VirtIO bus (required)
+device		virtio_pci	# VirtIO PCI Interface
+device		vtnet		# VirtIO Ethernet device
+device		virtio_blk	# VirtIO Block device
+device		virtio_scsi	# VirtIO SCSI device
+device		virtio_balloon	# VirtIO Memory Balloon device
+device		virtio_random	# VirtIO Entropy device
+device		virtio_console	# VirtIO Console device
+
+# Microsoft Hyper-V enhancement support
+device 		hyperv		# HyperV drivers
+
+# Xen HVM Guest Optimizations
+options 	XENHVM		# Xen HVM kernel infrastructure
+device 		xenpci		# Xen HVM Hypervisor services driver
+
+#####################################################################
+
+#
+# Miscellaneous hardware:
+#
+# ipmi: Intelligent Platform Management Interface
+# pbio: Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
+# smbios: DMI/SMBIOS entry point
+# vpd: Vital Product Data kernel interface
+# asmc: Apple System Management Controller
+# si: Specialix International SI/XIO or SX intelligent serial card
+# tpm: Trusted Platform Module
+
+# Notes on the Specialix SI/XIO driver:
+#  The host card is memory, not IO mapped.
+#  The Rev 1 host cards use a 64K chunk, on a 32K boundary.
+#  The Rev 2 host cards use a 32K chunk, on a 32K boundary.
+#  The cards can use an IRQ of 11, 12 or 15.
+
+device		ipmi
+device		pbio
+hint.pbio.0.at="isa"
+hint.pbio.0.port="0x360"
+device		smbios
+device		vpd
+device		asmc
+device		tpm
+device		padlock_rng	# VIA Padlock RNG
+device		rdrand_rng	# Intel Bull Mountain RNG
+device		aesni		# AES-NI OpenCrypto module
+device		ioat		# Intel I/OAT DMA engine
+
+#
+# Laptop/Notebook options:
+#
+
+
+#
+# I2C Bus
+#
+
+#
+# Hardware watchdog timers:
+#
+# ichwd: Intel ICH watchdog timer
+# amdsbwd: AMD SB7xx watchdog timer
+# viawd: VIA south bridge watchdog timer
+# wbwd: Winbond watchdog timer
+#
+device		ichwd
+device		amdsbwd
+device		viawd
+device		wbwd
+
+#
+# Temperature sensors:
+#
+# coretemp: on-die sensor on Intel Core and newer CPUs
+# amdtemp: on-die sensor on AMD K8/K10/K11 CPUs
+#
+device		coretemp
+device		amdtemp
+
+#
+# CPU control pseudo-device. Provides access to MSRs, CPUID info and
+# microcode update feature.
+#
+device		cpuctl
+
+#
+# System Management Bus (SMB)
+#
+options 	ENABLE_ALART		# Control alarm on Intel intpm driver
+
+#
+# AMD System Management Network (SMN)
+#
+device		amdsmn
+
+#
+# Number of initial kernel page table pages used for early bootstrap.
+# This number should include enough pages to map the kernel and any
+# modules or other data loaded with the kernel by the loader.  Each
+# page table page maps 2MB.
+#
+options 	NKPT=31
+
+# EFI Runtime Services support
+options 	EFIRT
+
+
+#####################################################################
+# ABI Emulation
+
+#XXX keep these here for now and reactivate when support for emulating
+#XXX these 32 bit binaries is added.
+
+# Enable 32-bit runtime support for FreeBSD/i386 binaries.
+options 	COMPAT_FREEBSD32
+
+# Enable (32-bit) a.out binary support
+options 	COMPAT_AOUT
+
+# Enable 32-bit runtime support for CloudABI binaries.
+options 	COMPAT_CLOUDABI32
+
+# Enable 64-bit runtime support for CloudABI binaries.
+options 	COMPAT_CLOUDABI64
+
+# Enable Linux ABI emulation
+#XXX#options 	COMPAT_LINUX
+
+# Enable 32-bit Linux ABI emulation (requires COMPAT_FREEBSD32).
+options 	COMPAT_LINUX32
+
+# Enable the linux-like proc filesystem support (requires COMPAT_LINUX32
+# and PSEUDOFS)
+options 	LINPROCFS
+
+#Enable the linux-like sys filesystem support (requires COMPAT_LINUX32
+# and PSEUDOFS)
+options 	LINSYSFS
+
+#####################################################################
+# ZFS support
+
+options		ZFS
+
+#####################################################################
+# VM OPTIONS
+
+# KSTACK_PAGES is the number of memory pages to assign to the kernel
+# stack of each thread.
+
+options 	KSTACK_PAGES=5
+
+# Enable detailed accounting by the PV entry allocator.
+
+options 	PV_STATS
+
+#####################################################################
+
+# More undocumented options for linting.
+# Note that documenting these are not considered an affront.
+
+options 	FB_INSTALL_CDEV		# install a CDEV entry in /dev
+
+options 	KBDIO_DEBUG=2
+options 	KBD_MAXRETRY=4
+options 	KBD_MAXWAIT=6
+options 	KBD_RESETDELAY=201
+
+options 	PSM_DEBUG=1
+
+options 	TIMER_FREQ=((14318182+6)/12)
+
+options 	VM_KMEM_SIZE
+options 	VM_KMEM_SIZE_MAX
+options 	VM_KMEM_SIZE_SCALE
+
+# Enable NDIS binary driver support
+options 	NDISAPI
+device		ndis
+
+
+# GCOV (code coverage) support
+
+options		LINDEBUGFS
+options		GCOV

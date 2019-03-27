@@ -1,0 +1,2 @@
+pool ipf/dstlist (name spread; policy round-robin;)
+	{ nic0:1.1.0.2; nic1:1.1.1.2; nic2:1.1.2.2; nic3:1.1.3.2; };

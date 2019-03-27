@@ -1,0 +1,346 @@
+.\" Copyright (c) 2013-2015 Mark Johnston <markj@freebsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 18, 2015
+.Dt SDT 9
+.Os
+.Sh NAME
+.Nm SDT
+.Nd a DTrace framework for adding statically-defined tracing probes
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/queue.h
+.In sys/sdt.h
+.Fn SDT_PROVIDER_DECLARE prov
+.Fn SDT_PROVIDER_DEFINE prov
+.Fn SDT_PROBE_DECLARE prov mod func name
+.Fn SDT_PROBE_DEFINE prov mod func name
+.Fn SDT_PROBE_DEFINE0 prov mod func name
+.Fn SDT_PROBE_DEFINE1 prov mod func name arg0
+.Fn SDT_PROBE_DEFINE2 prov mod func name arg0 arg1
+.Fn SDT_PROBE_DEFINE3 prov mod func name arg0 arg1 arg2
+.Fn SDT_PROBE_DEFINE4 prov mod func name arg0 arg1 arg2 arg3
+.Fn SDT_PROBE_DEFINE5 prov mod func name arg0 arg1 arg2 arg3 arg4
+.Fn SDT_PROBE_DEFINE6 prov mod func name arg0 arg1 arg2 arg3 arg4 arg5
+.Fn SDT_PROBE_DEFINE7 prov mod func name arg0 arg1 arg2 arg3 arg4 arg5   \
+    arg6
+.Fn SDT_PROBE_DEFINE0_XLATE prov mod func name
+.Fn SDT_PROBE_DEFINE1_XLATE prov mod func name arg0 xarg0
+.Fn SDT_PROBE_DEFINE2_XLATE prov mod func name arg0 xarg0 arg1 xarg1
+.Fn SDT_PROBE_DEFINE3_XLATE prov mod func name arg0 xarg0 arg1 xarg1 \
+    arg2 xarg2
+.Fn SDT_PROBE_DEFINE4_XLATE prov mod func name arg0 xarg0 arg1 xarg1 \
+    arg2 xarg2 arg3 xarg3
+.Fn SDT_PROBE_DEFINE5_XLATE prov mod func name arg0 xarg0 arg1 xarg1 \
+    arg2 xarg2 arg3 xarg3 arg4 xarg4
+.Fn SDT_PROBE_DEFINE6_XLATE prov mod func name arg0 xarg0 arg1 xarg1 \
+    arg2 xarg2 arg3 xarg3 arg4 xarg4 arg5 xarg5
+.Fn SDT_PROBE_DEFINE7_XLATE prov mod func name arg0 xarg0 arg1 xarg1 \
+    arg2 xarg2 arg3 xarg3 arg4 xarg4 arg5 xarg5 arg6 xarg6
+.Fn SDT_PROBE0 prov mod func name
+.Fn SDT_PROBE1 prov mod func name arg0
+.Fn SDT_PROBE2 prov mod func name arg0 arg1
+.Fn SDT_PROBE3 prov mod func name arg0 arg1 arg2
+.Fn SDT_PROBE4 prov mod func name arg0 arg1 arg2 arg3
+.Fn SDT_PROBE5 prov mod func name arg0 arg1 arg2 arg3 arg4
+.Fn SDT_PROBE6 prov mod func name arg0 arg1 arg2 arg3 arg4 arg5
+.Fn SDT_PROBE7 prov mod func name arg0 arg1 arg2 arg3 arg4 arg5 arg6
+.Sh DESCRIPTION
+The
+.Nm
+macros allow programmers to define static trace points in kernel code.
+These trace points are used by the
+.Nm
+framework to create DTrace probes, allowing the code to be instrumented
+using
+.Xr dtrace 1 .
+By default,
+.Nm
+trace points are disabled and have no effect on the surrounding code.
+When a DTrace probe corresponding to a given trace point is enabled, threads
+that execute the trace point will call a handler and cause the probe to fire.
+Moreover, trace points can take arguments, making it possible to pass data
+to the DTrace framework when an enabled probe fires.
+.Pp
+Multiple trace points may correspond to a single DTrace probe, allowing
+programmers to create DTrace probes that correspond to logical system events
+rather than tying probes to specific code execution paths.
+For instance, a DTrace probe corresponding to the arrival of an IP packet into
+the network stack may be defined using two
+.Nm
+trace points: one for IPv4 packets and one for IPv6 packets.
+.Pp
+In addition to defining DTrace probes, the
+.Nm
+macros allow programmers to define new DTrace providers, making it possible to
+namespace logically-related probes.
+An example is FreeBSD's sctp provider, which contains
+.Nm
+probes for FreeBSD's
+.Xr sctp 4
+implementation.
+.Pp
+The
+.Fn SDT_PROVIDER_DECLARE
+and
+.Fn SDT_PROVIDER_DEFINE
+macros are used respectively to declare and define a DTrace provider named
+.Ar prov
+with the
+.Nm
+framework.
+A provider need only be defined once; however, the provider must be declared
+before defining any
+.Nm
+probes belonging to that provider.
+.Pp
+Similarly, the
+.Fn SDT_PROBE_DECLARE
+and
+.Fn SDT_PROBE_DEFINE*
+macros are used to declare and define DTrace probes using the
+.Nm
+framework.
+Once a probe has been defined, trace points for that probe may be added to
+kernel code.
+DTrace probe identifiers consist of a provider, module, function and name, all
+of which may be specified in the
+.Nm
+probe definition.
+Note that probes should not specify a module name: the module name of a probe is
+used to determine whether or not it should be destroyed when a kernel module is
+unloaded.
+See the
+.Sx BUGS
+section.
+Note in particular that probes must not be defined across multiple kernel
+modules.
+.Pp
+If
+.Ql -
+character (dash) is wanted in a probe name,
+then it should be represented as
+.Ql __
+(double underscore) in the probe
+.Ar name
+parameter passed to various
+.Fn SDT_*
+macros,
+because of technical reasons
+(a dash is not valid in C identifiers).
+.Pp
+The
+.Fn SDT_PROBE_DEFINE*
+macros also allow programmers to declare the types of the arguments that are
+passed to probes.
+This is optional; if the argument types are omitted (through use of the
+.Fn SDT_PROBE_DEFINE
+macro), users wishing to make use of the arguments will have to manually cast
+them to the correct types in their D scripts.
+It is strongly recommended that probe definitions include a declaration of their
+argument types.
+.Pp
+The
+.Fn SDT_PROBE_DEFINE*_XLATE
+macros are used for probes whose argument types are to be dynamically translated
+to the types specified by the corresponding
+.Ar xarg
+arguments.
+This is mainly useful when porting probe definitions from other operating
+systems.
+As seen by
+.Xr dtrace 1 ,
+the arguments of a probe defined using these macros will have types which match
+the
+.Ar xarg
+types in the probe definition.
+However, the arguments passed in at the trace point will have types matching the
+native argument types in the probe definition, and thus the native type is
+dynamically translated to the translated type.
+So long as an appropriate translator is defined in
+.Pa /usr/lib/dtrace ,
+scripts making use of the probe need not concern themselves with the underlying
+type of a given
+.Nm
+probe argument.
+.Pp
+The
+.Fn SDT_PROBE*
+macros are used to create
+.Nm
+trace points.
+They are meant to be added to executable code and can be used to instrument the
+code in which they are called.
+.Sh PROVIDERS
+A number of kernel DTrace providers are available.
+In general, these providers define stable interfaces and should be treated as
+such: existing D scripts may be broken if a probe is renamed or its arguments
+are modified.
+However, it is often useful to define ad-hoc
+.Nm
+probes for debugging a subsystem or driver.
+Similarly, a developer may wish to provide a group of
+.Nm
+probes without committing to their future stability.
+Such probes should be added to the
+.Ql sdt
+provider instead of defining a new provider.
+.Sh EXAMPLES
+The DTrace providers available on the current system can be listed with
+.Bd -literal -offset indent
+dtrace -l | sed 1d | awk '{print $2}' | sort -u
+.Ed
+.Pp
+A detailed list of the probes offered by a given provider can be obtained by
+specifying the provider using the
+.Fl P
+flag.
+For example, to view the probes and argument types for the
+.Ql sched
+provider, run
+.Bd -literal -offset indent
+dtrace -lv -P sched
+.Ed
+.Pp
+The following probe definition will create a DTrace probe called
+.Ql icmp:::receive-unreachable ,
+which would hypothetically be triggered when the kernel receives an ICMP packet
+of type Destination Unreachable:
+.Bd -literal -offset indent
+SDT_PROVIDER_DECLARE(icmp);
+
+SDT_PROBE_DEFINE1(icmp, , , receive__unreachable,
+    "struct icmp *");
+
+.Ed
+This particular probe would take a single argument: a pointer to the struct
+containing the ICMP header for the packet.
+Note that the module name of this probe is not specified.
+.Pp
+Consider a DTrace probe which fires when the network stack receives an IP
+packet.
+Such a probe would be defined by multiple tracepoints:
+.Bd -literal -offset indent
+SDT_PROBE_DEFINE3(ip, , , receive, "struct ifnet *",
+    "struct ip *", "struct ip6_hdr *");
+
+int
+ip_input(struct mbuf *m)
+{
+	struct ip *ip;
+	...
+	ip = mtod(m, struct ip *);
+	SDT_PROBE3(ip, , , receive, m->m_pkthdr.rcvif, ip, NULL);
+	...
+}
+
+int
+ip6_input(struct mbuf *m)
+{
+	struct ip6_hdr *ip6;
+	...
+	ip6 = mtod(m, struct ip6_hdr *);
+	SDT_PROBE3(ip, , , receive, m->m_pkthdr.rcvif, NULL, ip6);
+	...
+}
+
+.Ed
+In particular, the probe should fire when the kernel receives either an IPv4
+packet or an IPv6 packet.
+.Pp
+Consider the ICMP probe discussed above.
+We note that its second argument is of type
+.Ar struct icmp ,
+which is a type defined in the FreeBSD kernel to represent the ICMP header of
+an ICMP packet, defined in RFC 792.
+Linux has a corresponding type,
+.Ar struct icmphdr ,
+for the same purpose, but its field names differ from FreeBSD's
+.Ar struct icmp .
+Similarly, illumos defines the
+.Ar icmph_t
+type, again with different field names.
+Even with the
+.Ql icmp:::pkt-receive
+probes defined in all three operating systems,
+one would still have to write OS-specific scripts to extract a given field out
+of the ICMP header argument.
+Dynamically-translated types solve this problem: one can define an
+OS-independent
+.Xr c 7
+struct to represent an ICMP header, say
+.Ar struct icmp_hdr_dt ,
+and define translators from each of the three OS-specific types to
+.Ar struct icmp_hdr_dt ,
+all in the
+.Xr dtrace 1
+library path.
+Then the FreeBSD probe above can be defined with:
+.Bd -literal -offset indent
+SDT_PROBE_DEFINE1_XLATE(ip, , , receive, "struct icmp *",
+    "struct icmp_hdr_dt *");
+.Ed
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr dtrace_io 4 ,
+.Xr dtrace_ip 4 ,
+.Xr dtrace_proc 4 ,
+.Xr dtrace_sched 4 ,
+.Xr dtrace_tcp 4 ,
+.Xr dtrace_udp 4
+.Sh AUTHORS
+.An -nosplit
+DTrace and the
+.Nm
+framework were originally ported to FreeBSD from Solaris by
+.An John Birrell Aq Mt jb@FreeBSD.org .
+This manual page was written by
+.An Mark Johnston Aq Mt markj@FreeBSD.org .
+.Sh BUGS
+The
+.Nm
+macros allow the module and function names of a probe to be specified as part of
+a probe definition.
+The DTrace framework uses the module name of probes to determine which probes
+should be destroyed when a kernel module is unloaded, so the module
+name of a probe should match the name of the module in which its defined.
+.Nm
+will set the module name properly if it is left unspecified in the probe
+definition; see the
+.Sx EXAMPLES
+section.
+.Pp
+One of the goals of the original
+.Nm
+implementation (and by extension, of FreeBSD's port) is that inactive
+.Nm
+probes should have no performance impact.
+This is unfortunately not the case;
+.Nm
+trace points will add a small but non-zero amount of latency to the code
+in which they are defined.
+A more sophisticated implementation of the probes will help alleviate this
+problem.

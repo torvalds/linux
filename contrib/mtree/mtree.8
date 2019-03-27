@@ -1,0 +1,808 @@
+.\"	$NetBSD: mtree.8,v 1.69 2013/02/03 19:16:06 christos Exp $
+.\"
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Copyright (c) 2001-2004 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Luke Mewburn of Wasabi Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"     @(#)mtree.8	8.2 (Berkeley) 12/11/93
+.\"
+.Dd February 3, 2013
+.Dt MTREE 8
+.Os
+.Sh NAME
+.Nm mtree
+.Nd map a directory hierarchy
+.Sh SYNOPSIS
+.Nm
+.Op Fl bCcDdejLlMnPqrStUuWx
+.Op Fl i | Fl m
+.Op Fl E Ar tags
+.Op Fl F Ar flavor
+.Op Fl f Ar spec
+.Op Fl I Ar tags
+.Op Fl K Ar keywords
+.Op Fl k Ar keywords
+.Op Fl N Ar dbdir
+.Op Fl O Ar onlyfile
+.Op Fl p Ar path
+.Op Fl R Ar keywords
+.Op Fl s Ar seed
+.Op Fl X Ar exclude-file
+.Sh DESCRIPTION
+The
+.Nm
+utility compares a file hierarchy against a specification,
+creates a specification for a file hierarchy, or modifies
+a specification.
+.Pp
+The default action, if not overridden by command line options,
+is to compare the file hierarchy rooted in the current directory
+against a specification read from the standard input.
+Messages are written to the standard output for any files whose
+characteristics do not match the specification, or which are
+missing from either the file hierarchy or the specification.
+.Pp
+The options are as follows:
+.Bl -tag -width Xxxexcludexfilexx
+.It Fl b
+Suppress blank lines before entering and after exiting directories.
+.It Fl C
+Convert a specification into
+a format that's easier to parse with various tools.
+The input specification is read from standard input or
+from the file given by
+.Fl f Ar spec .
+In the output, each file or directory is represented using a single line
+(which might be very long).
+The full path name
+(beginning with
+.Dq \&./ )
+is always printed as the first field;
+.Fl K ,
+.Fl k ,
+and
+.Fl R
+can be used to control which other keywords are printed;
+.Fl E
+and
+.Fl I
+can be used to control which files are printed;
+and the
+.Fl S
+option can be used to sort the output.
+.It Fl c
+Print a specification for the file hierarchy originating at
+the current working directory (or the directory provided by
+.Fl p Ar path )
+to the standard output.
+The output is in a style using relative path names.
+.It Fl D
+As per
+.Fl C ,
+except that the path name is always printed as the last field instead of
+the first.
+.It Fl d
+Ignore everything except directory type files.
+.It Fl E Ar tags
+Add the comma separated tags to the
+.Dq exclusion
+list.
+Non-directories with tags which are in the exclusion list are not printed with
+.Fl C
+and
+.Fl D .
+.It Fl e
+Don't complain about files that are in the file hierarchy, but not in the
+specification.
+.It Fl F Ar flavor
+Set the compatibility flavor of the
+.Nm
+utility.
+The
+.Ar flavor
+can be one of
+.Sy mtree ,
+.Sy freebsd9 ,
+or
+.Sy netbsd6 .
+The default is
+.Sy mtree .
+The
+.Sy freebsd9
+and
+.Sy netbsd6
+flavors attempt to preserve output compatiblity and command line option
+backward compatibility with
+.Fx 9.0
+and
+.Nx 6.0
+respectively.
+.It Fl f Ar spec
+Read the specification from
+.Ar file  ,
+instead of from the standard input.
+.Pp
+If this option is specified twice, the two specifications are compared
+to each other rather than to the file hierarchy.
+The specifications will be sorted like output generated using
+.Fl c .
+The output format in this case is somewhat reminiscent of
+.Xr comm 1 ,
+having "in first spec only", "in second spec only", and "different"
+columns, prefixed by zero, one and two TAB characters respectively.
+Each entry in the "different" column occupies two lines, one from each
+specification.
+.It Fl I Ar tags
+Add the comma separated tags to the
+.Dq inclusion
+list.
+Non-directories with tags which are in the inclusion list are printed with
+.Fl C
+and
+.Fl D .
+If no inclusion list is provided, the default is to display all files.
+.It Fl i
+If specified, set the schg and/or sappnd flags.
+.It Fl j
+Indent the output 4 spaces each time a directory level is descended when
+creating a specification with the
+.Fl c
+option.
+This does not affect either the /set statements or the comment before each
+directory.
+It does however affect the comment before the close of each directory.
+This is the equivalent of the
+.Fl i
+option in the
+.Fx
+version of
+.Nm .
+.It Fl K Ar keywords
+Add the specified (whitespace or comma separated) keywords to the current
+set of keywords.
+If
+.Ql all
+is specified, add all of the other keywords.
+.It Fl k Ar keywords
+Use the
+.Sy type
+keyword plus the specified (whitespace or comma separated)
+keywords instead of the current set of keywords.
+If
+.Ql all
+is specified, use all of the other keywords.
+If the
+.Sy type
+keyword is not desired, suppress it with
+.Fl R Ar type .
+.It Fl L
+Follow all symbolic links in the file hierarchy.
+.It Fl l
+Do
+.Dq loose
+permissions checks, in which more stringent permissions
+will match less stringent ones.
+For example, a file marked mode 0444
+will pass a check for mode 0644.
+.Dq Loose
+checks apply only to read, write and execute permissions -- in
+particular, if other bits like the sticky bit or suid/sgid bits are
+set either in the specification or the file, exact checking will be
+performed.
+This option may not be set at the same time as the
+.Fl U
+or
+.Fl u
+option.
+.It Fl M
+Permit merging of specification entries with different types,
+with the last entry taking precedence.
+.It Fl m
+If the schg and/or sappnd flags are specified, reset these flags.
+Note that this is only possible with securelevel less than 1 (i.e.,
+in single user mode or while the system is running in insecure
+mode).
+See
+.Xr init 8
+for information on security levels.
+.It Fl n
+Do not emit pathname comments when creating a specification.
+Normally
+a comment is emitted before each directory and before the close of that
+directory when using the
+.Fl c
+option.
+.It Fl N Ar dbdir
+Use the user database text file
+.Pa master.passwd
+and group database text file
+.Pa group
+from
+.Ar dbdir ,
+rather than using the results from the system's
+.Xr getpwnam 3
+and
+.Xr getgrnam 3
+(and related) library calls.
+.It Fl O Ar onlypaths
+Only include files included in this list of pathnames.
+.It Fl P
+Don't follow symbolic links in the file hierarchy, instead consider
+the symbolic link itself in any comparisons.
+This is the default.
+.It Fl p Ar path
+Use the file hierarchy rooted in
+.Ar path  ,
+instead of the current directory.
+.It Fl q
+Quiet mode.
+Do not complain when a
+.Dq missing
+directory cannot be created because it already exists.
+This occurs when the directory is a symbolic link.
+.It Fl R Ar keywords
+Remove the specified (whitespace or comma separated) keywords from the current
+set of keywords.
+If
+.Ql all
+is specified, remove all of the other keywords.
+.It Fl r
+Remove any files in the file hierarchy that are not described in the
+specification.
+.It Fl S
+When reading a specification into an internal data structure,
+sort the entries.
+Sorting will affect the order of the output produced by the
+.Fl C
+or
+.Fl D
+options, and will also affect the order in which
+missing entries are created or reported when a directory tree is checked
+against a specification.
+.Pp
+The sort order is the same as that used by the
+.Fl c
+option, which is that entries within the same directory are
+sorted in the order used by
+.Xr strcmp 3 ,
+except that entries for subdirectories sort after other entries.
+By default, if the
+.Fl S
+option is not used, entries within the same directory are collected
+together (separated from entries for other directories), but not sorted.
+.It Fl s Ar seed
+Display a single checksum to the standard error output that represents all
+of the files for which the keyword
+.Sy cksum
+was specified.
+The checksum is seeded with the specified value.
+.It Fl t
+Modify the modified time of existing files, the device type of devices, and
+symbolic link targets, to match the specification.
+.It Fl U
+Same as
+.Fl u
+except that a mismatch is not considered to be an error if it was corrected.
+.It Fl u
+Modify the owner, group, permissions, and flags of existing files,
+the device type of devices, and symbolic link targets,
+to match the specification.
+Create any missing directories, devices or symbolic links.
+User, group, and permissions must all be specified for missing directories
+to be created.
+Note that unless the
+.Fl i
+option is given, the schg and sappnd flags will not be set, even if
+specified.
+If
+.Fl m
+is given, these flags will be reset.
+Exit with a status of 0 on success,
+2 if the file hierarchy did not match the specification, and
+1 if any other error occurred.
+.It Fl W
+Don't attempt to set various file attributes such as the
+ownership, mode, flags, or time
+when creating new directories or changing existing entries.
+This option will be most useful when used in conjunction with
+.Fl U
+or
+.Fl u .
+.It Fl X Ar exclude-file
+The specified file contains
+.Xr fnmatch 3
+patterns matching files to be excluded from
+the specification, one to a line.
+If the pattern contains a
+.Ql \&/
+character, it will be matched against entire pathnames (relative to
+the starting directory); otherwise,
+it will be matched against basenames only.
+Comments are permitted in
+the
+.Ar exclude-list
+file.
+.It Fl x
+Don't descend below mount points in the file hierarchy.
+.El
+.Pp
+Specifications are mostly composed of
+.Dq keywords ,
+i.e. strings that
+that specify values relating to files.
+No keywords have default values, and if a keyword has no value set, no
+checks based on it are performed.
+.Pp
+Currently supported keywords are as follows:
+.Bl -tag -width sha384digestxx
+.It Sy cksum
+The checksum of the file using the default algorithm specified by
+the
+.Xr cksum 1
+utility.
+.It Sy device
+The device number to use for
+.Sy block
+or
+.Sy char
+file types.
+The argument must be one of the following forms:
+.Bl -tag -width 4n
+.It Ar format , Ns Ar major , Ns Ar minor
+A device with
+.Ar major
+and
+.Ar minor
+fields, for an operating system specified with
+.Ar format .
+See below for valid formats.
+.It Ar format , Ns Ar major , Ns Ar unit , Ns Ar subunit
+A device with
+.Ar major ,
+.Ar unit ,
+and
+.Ar subunit
+fields, for an operating system specified with
+.Ar format .
+(Currently this is only supported by the
+.Sy bsdos
+format.)
+.It Ar number
+Opaque number (as stored on the file system).
+.El
+.Pp
+The following values for
+.Ar format
+are recognized:
+.Sy native ,
+.Sy 386bsd ,
+.Sy 4bsd ,
+.Sy bsdos ,
+.Sy freebsd ,
+.Sy hpux ,
+.Sy isc ,
+.Sy linux ,
+.Sy netbsd ,
+.Sy osf1 ,
+.Sy sco ,
+.Sy solaris ,
+.Sy sunos ,
+.Sy svr3 ,
+.Sy svr4 ,
+and
+.Sy ultrix .
+.Pp
+See
+.Xr mknod 8
+for more details.
+.It Sy flags
+The file flags as a symbolic name.
+See
+.Xr chflags 1
+for information on these names.
+If no flags are to be set the string
+.Ql none
+may be used to override the current default.
+Note that the schg and sappnd flags are treated specially (see the
+.Fl i
+and
+.Fl m
+options).
+.It Sy ignore
+Ignore any file hierarchy below this file.
+.It Sy gid
+The file group as a numeric value.
+.It Sy gname
+The file group as a symbolic name.
+.It Sy link
+The file the symbolic link is expected to reference.
+.It Sy md5
+The
+.Tn MD5
+cryptographic message digest of the file.
+.It Sy md5digest
+Synonym for
+.Sy md5 .
+.It Sy mode
+The current file's permissions as a numeric (octal) or symbolic
+value.
+.It Sy nlink
+The number of hard links the file is expected to have.
+.It Sy nochange
+Make sure this file or directory exists but otherwise ignore all attributes.
+.It Sy optional
+The file is optional; don't complain about the file if it's
+not in the file hierarchy.
+.It Sy ripemd160digest
+Synonym for
+.Sy rmd160 .
+.It Sy rmd160
+The
+.Tn RMD-160
+cryptographic message digest of the file.
+.It Sy rmd160digest
+Synonym for
+.Sy rmd160 .
+.It Sy sha1
+The
+.Tn SHA-1
+cryptographic message digest of the file.
+.It Sy sha1digest
+Synonym for
+.Sy sha1 .
+.It Sy sha256
+The 256-bits
+.Tn SHA-2
+cryptographic message digest of the file.
+.It Sy sha256digest
+Synonym for
+.Sy sha256 .
+.It Sy sha384
+The 384-bits
+.Tn SHA-2
+cryptographic message digest of the file.
+.It Sy sha384digest
+Synonym for
+.Sy sha384 .
+.It Sy sha512
+The 512-bits
+.Tn SHA-2
+cryptographic message digest of the file.
+.It Sy sha512digest
+Synonym for
+.Sy sha512 .
+.It Sy size
+The size, in bytes, of the file.
+.It Sy tags
+Comma delimited tags to be matched with
+.Fl E
+and
+.Fl I .
+These may be specified without leading or trailing commas, but will be
+stored internally with them.
+.It Sy time
+The last modification time of the file,
+in second and nanoseconds.
+The value should include a period character and exactly nine digits after
+the period.
+.It Sy type
+The type of the file; may be set to any one of the following:
+.Pp
+.Bl -tag -width Sy -compact
+.It Sy block
+block special device
+.It Sy char
+character special device
+.It Sy dir
+directory
+.It Sy fifo
+fifo
+.It Sy file
+regular file
+.It Sy link
+symbolic link
+.It Sy socket
+socket
+.El
+.It Sy uid
+The file owner as a numeric value.
+.It Sy uname
+The file owner as a symbolic name.
+.El
+.Pp
+The default set of keywords are
+.Sy flags ,
+.Sy gid ,
+.Sy link ,
+.Sy mode ,
+.Sy nlink ,
+.Sy size ,
+.Sy time ,
+.Sy type ,
+and
+.Sy uid .
+.Pp
+There are four types of lines in a specification:
+.Bl -enum
+.It
+Set global values for a keyword.
+This consists of the string
+.Ql /set
+followed by whitespace, followed by sets of keyword/value
+pairs, separated by whitespace.
+Keyword/value pairs consist of a keyword, followed by an equals sign
+.Pq Ql = ,
+followed by a value, without whitespace characters.
+Once a keyword has been set, its value remains unchanged until either
+reset or unset.
+.It
+Unset global values for a keyword.
+This consists of the string
+.Ql /unset ,
+followed by whitespace, followed by one or more keywords,
+separated by whitespace.
+If
+.Ql all
+is specified, unset all of the keywords.
+.It
+A file specification, consisting of a path name, followed by whitespace,
+followed by zero or more whitespace separated keyword/value pairs.
+.Pp
+The path name may be preceded by whitespace characters.
+The path name may contain any of the standard path name matching
+characters
+.Po
+.Ql \&[ ,
+.Ql \&] ,
+.Ql \&?
+or
+.Ql *
+.Pc ,
+in which case files
+in the hierarchy will be associated with the first pattern that
+they match.
+.Nm
+uses
+.Xr strsvis 3
+(in VIS_CSTYLE format) to encode path names containing
+non-printable characters.
+Whitespace characters are encoded as
+.Ql \es
+(space),
+.Ql \et
+(tab), and
+.Ql \en
+(new line).
+.Ql #
+characters in path names are escaped by a preceding backslash
+.Ql \e
+to distinguish them from comments.
+.Pp
+Each of the keyword/value pairs consist of a keyword, followed by an
+equals sign
+.Pq Ql = ,
+followed by the keyword's value, without
+whitespace characters.
+These values override, without changing, the global value of the
+corresponding keyword.
+.Pp
+The first path name entry listed must be a directory named
+.Ql \&. ,
+as this ensures that intermixing full and relative path names will
+work consistently and correctly.
+Multiple entries for a directory named
+.Ql \&.
+are permitted; the settings for the last such entry override those
+of the existing entry.
+.Pp
+A path name that contains a slash
+.Pq Ql /
+that is not the first character will be treated as a full path
+(relative to the root of the tree).
+All parent directories referenced in the path name must exist.
+The current directory path used by relative path names will be updated
+appropriately.
+Multiple entries for the same full path are permitted if the types
+are the same (unless
+.Fl M
+is given, in which case the types may differ);
+in this case the settings for the last entry take precedence.
+.Pp
+A path name that does not contain a slash will be treated as a relative path.
+Specifying a directory will cause subsequent files to be searched
+for in that directory hierarchy.
+.It
+A line containing only the string
+.Ql \&..
+which causes the current directory path (used by relative paths)
+to ascend one level.
+.El
+.Pp
+Empty lines and lines whose first non-whitespace character is a hash
+mark
+.Pq Ql #
+are ignored.
+.Pp
+The
+.Nm
+utility exits with a status of 0 on success, 1 if any error occurred,
+and 2 if the file hierarchy did not match the specification.
+.Sh FILES
+.Bl -tag -width /etc/mtree -compact
+.It Pa /etc/mtree
+system specification directory
+.El
+.Sh EXAMPLES
+To detect system binaries that have been
+.Dq trojan horsed ,
+it is recommended that
+.Nm
+be run on the file systems, and a copy of the results stored on a different
+machine, or, at least, in encrypted form.
+The seed for the
+.Fl s
+option should not be an obvious value and the final checksum should not be
+stored on-line under any circumstances!
+Then, periodically,
+.Nm
+should be run against the on-line specifications and the final checksum
+compared with the previous value.
+While it is possible for the bad guys to change the on-line specifications
+to conform to their modified binaries, it shouldn't be possible for them
+to make it produce the same final checksum value.
+If the final checksum value changes, the off-line copies of the specification
+can be used to detect which of the binaries have actually been modified.
+.Pp
+The
+.Fl d
+option can be used in combination with
+.Fl U
+or
+.Fl u
+to create directory hierarchies for, for example, distributions.
+.Sh COMPATIBILITY
+The compatibility shims provided by the
+.Fl F
+option are incomplete by design.
+Known limitations are described below.
+.Pp
+The
+.Sy freebsd9
+flavor retains the default handling of lookup failures for the
+.Sy uname
+and
+.Sy group
+keywords by replacing them with appropriate
+.Sy uid
+and
+.Sy gid
+keywords rather than failing and reporting an error.
+The related
+.Fl w
+flag is a no-op rather than causing a warning to be printed and no
+keyword to be emitted.
+The latter behavior is not emulated as it is potentially dangerous in
+the face of /set statements.
+.Pp
+The
+.Sy netbsd6
+flavor does not replicate the historical bug that reported time as
+seconds.nanoseconds without zero padding nanosecond values less than
+100000000.
+.Sh SEE ALSO
+.Xr chflags 1 ,
+.Xr chgrp 1 ,
+.Xr chmod 1 ,
+.Xr cksum 1 ,
+.Xr stat 2 ,
+.Xr fnmatch 3 ,
+.Xr fts 3 ,
+.Xr strsvis 3 ,
+.Xr chown 8 ,
+.Xr mknod 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.3 Reno .
+The
+.Sy optional
+keyword appeared in
+.Nx 1.2 .
+The
+.Fl U
+option appeared in
+.Nx 1.3 .
+The
+.Sy flags
+and
+.Sy md5
+keywords, and
+.Fl i
+and
+.Fl m
+options
+appeared in
+.Nx 1.4 .
+The
+.Sy device ,
+.Sy rmd160 ,
+.Sy sha1 ,
+.Sy tags ,
+and
+.Sy all
+keywords,
+.Fl D ,
+.Fl E ,
+.Fl I ,
+.Fl L ,
+.Fl l ,
+.Fl N ,
+.Fl P ,
+.Fl R ,
+.Fl W ,
+and
+.Fl X
+options, and support for full paths appeared in
+.Nx 1.6 .
+The
+.Sy sha256 ,
+.Sy sha384 ,
+and
+.Sy sha512
+keywords appeared in
+.Nx 3.0 .
+The
+.Fl S
+option appeared in
+.Nx 6.0 .

@@ -1,0 +1,115 @@
+# Dialog
+# Copyright 2003-2007,2008 # Thomas Dickey
+#
+# This file is distributed under the same license as the dialog package.
+#
+# Rihards Prieditis <RPrieditis@inbox.lv>, 2009.
+# Rūdolfs Mazurs <rudolfs.mazurs@gmail.com>, 2014.
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20080819\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2014-04-20 14:12+0300\n"
+"Last-Translator: Rihards Prieditis <rprieditis@gmail.com>\n"
+"Language-Team: Latvian <translation-team-lv@lists.sourceforge.net>\n"
+"Language: lv\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Lokalize 1.5\n"
+"Plural-Forms:  nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n != 0 ? 1 : 2);\n"
+
+#: buttons.c:385
+msgid "Yes"
+msgstr "Jā"
+
+#: buttons.c:393
+msgid "No"
+msgstr "Nē"
+
+#: buttons.c:401
+msgid "OK"
+msgstr "Labi"
+
+#: buttons.c:409
+msgid "Cancel"
+msgstr "Atcelt"
+
+#: buttons.c:417
+msgid "EXIT"
+msgstr "IZIET"
+
+#: buttons.c:425
+msgid "Extra"
+msgstr "Papildus"
+
+#: buttons.c:433
+msgid "Help"
+msgstr "Palīdzība"
+
+#. Headline "Month"
+#: calendar.c:273
+msgid "Month"
+msgstr "Mēnesis"
+
+#. Headline "Year"
+#: calendar.c:293
+msgid "Year"
+msgstr "Gads"
+
+#: dialog.c:741
+msgid "Rename"
+msgstr "Pārdēvēt"
+
+#: fselect.c:550
+msgid "Directories"
+msgstr "Direktorijas"
+
+#: fselect.c:551
+msgid "Files"
+msgstr "Datnes"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "Izdevies"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "Neizdevies"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "Iziets"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "Pabeigts"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "Pārbaudīts"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "Pabeigts"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "Izlaists"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "Tiek apstrādāts"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "n/z"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "Vispārējais progress"
+
+#: textbox.c:489
+msgid "Search"
+msgstr "Meklēt"

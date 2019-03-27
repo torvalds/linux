@@ -1,0 +1,51 @@
+.\" $FreeBSD$
+Create
+.Xr make 1
+meta files when building, which can provide a reliable incremental build when
+using
+.Xr filemon 4 .
+The meta file is created in OBJDIR as
+.Pa target.meta .
+These meta files track the command that was executed, its output, and the
+current directory.
+The
+.Xr filemon 4
+module is required unless
+.Va NO_FILEMON
+is defined.
+When the module is loaded, any files used by the commands executed are
+tracked as dependencies for the target in its meta file.
+The target is considered out-of-date and rebuilt if any of these
+conditions are true compared to the last build:
+.Bl -bullet -compact
+.It
+The command to execute changes.
+.It
+The current working directory changes.
+.It
+The target's meta file is missing.
+.It
+The target's meta file is missing filemon data when filemon is loaded
+and a previous run did not have it loaded.
+.It
+[requires
+.Xr filemon 4 ]
+Files read, executed or linked to are newer than the target.
+.It
+[requires
+.Xr filemon 4 ]
+Files read, written, executed or linked are missing.
+.El
+The meta files can also be useful for debugging.
+.Pp
+The build hides commands that are executed unless
+.Va NO_SILENT
+is defined.
+Errors cause
+.Xr make 1
+to show some of its environment for further debugging.
+.Pp
+The build operates as it normally would otherwise.
+This option originally invoked a different build system but that was renamed
+to
+.Va WITH_DIRDEPS_BUILD .

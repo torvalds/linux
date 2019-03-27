@@ -1,0 +1,33 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_BIND_ADDR" 3 "2007-05-15" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_bind_addr \- Bind an RDMA identifier to a source address.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "int" rdma_bind_addr
+.BI "(struct rdma_cm_id *" id ","
+.BI "struct sockaddr *" addr ");"
+.SH ARGUMENTS
+.IP "id" 12
+RDMA identifier.
+.IP "addr" 12
+Local address information.  Wildcard values are permitted.
+.SH "DESCRIPTION"
+Associates a source address with an rdma_cm_id.  The address may be
+wildcarded.  If binding to a specific local address, the rdma_cm_id
+will also be bound to a local RDMA device.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
+.SH "NOTES"
+Typically, this routine is called before calling rdma_listen to bind
+to a specific port number, but it may also be called on the active side
+of a connection before calling rdma_resolve_addr to bind to a specific
+address.
+.P
+If used to bind to port 0, the rdma_cm will select an available port,
+which can be retrieved with rdma_get_src_port(3).
+.SH "SEE ALSO"
+rdma_create_id(3), rdma_listen(3), rdma_resolve_addr(3), rdma_create_qp(3),
+rdma_get_local_addr(3), rdma_get_src_port(3)

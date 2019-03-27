@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+(${SH} -c 'term(){ exit 5;}; trap term TERM; kill -TERM $$') &
+wait >/dev/null 2>&1 $!
+[ $? -eq 5 ]

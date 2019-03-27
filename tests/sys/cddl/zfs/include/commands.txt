@@ -1,0 +1,194 @@
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#!/usr/local/bin/ksh93 -p
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+#ident	"@(#)commands.txt	1.8	09/01/13 SMI"
+#
+# All the commands in this file are converted into environment variables
+# with the same name as the command e.g.
+#
+# /bin/df becomes export DF="/bin/df"
+# finally an export CMDS="aggregation of all the environment variables"
+# is created for checking in the execution environment.
+#
+# comments are ignored in this file, as are whitespace lines
+
+# General Solaris Commands
+/usr/bin/awk
+/usr/sbin/arp
+/usr/bin/basename
+/usr/bin/bzcat
+/bin/cat
+/usr/bin/cd
+/usr/bin/chgrp
+/bin/chmod
+/usr/sbin/chown
+/usr/bin/cksum
+/sbin/clri
+/usr/bin/cmp
+/usr/bin/compress
+/usr/bin/uncompress
+#/usr/bin/coreadm
+/bin/cp
+/usr/bin/cpio
+/usr/bin/cut
+/bin/date
+/bin/dd
+#/usr/sbin/devfsadm
+%%STFSUITEDIR%%/bin/df
+/usr/bin/diff
+%%STFSUITEDIR%%/bin/dircmp
+/usr/bin/dirname
+/usr/bin/du
+#%%STFSUITEDIR%%/bin/dumpadm
+/bin/echo
+/usr/bin/egrep
+/usr/bin/env
+#%%STFSUITEDIR%%/bin/ff
+/usr/bin/fgrep
+/usr/bin/file
+/usr/bin/find
+#%%STFSUITEDIR%%/bin/fmadm
+#%%STFSUITEDIR%%/bin/fmdump
+#%%STFSUITEDIR%%/bin/format
+/sbin/fsck
+/sbin/fsdb
+/sbin/fsirand
+/usr/bin/fsync
+/usr/sbin/fstyp
+/usr/bin/id
+#/usr/bin/isainfo
+#/usr/sbin/iscsiadm
+#/usr/sbin/iscsitadm
+/usr/bin/getent
+/bin/getfacl
+/usr/bin/getconf
+/sbin/sha1
+/sbin/gpart
+/usr/bin/grep
+/usr/bin/groups
+%%STFSUITEDIR%%/bin/groupadd
+%%STFSUITEDIR%%/bin/groupdel
+%%STFSUITEDIR%%/bin/groupmod
+%%STFSUITEDIR%%/bin/groupshow
+/usr/bin/head
+/bin/hostname
+/bin/kill
+/usr/local/bin/ksh93
+#/usr/sbin/labelit
+#/usr/sbin/lockfs
+#/usr/sbin/lofiadm
+/bin/ls
+/usr/bin/logname
+#/usr/bin/mdb
+/sbin/mdconfig
+#/usr/sbin/metaclear
+#/usr/sbin/metadb
+#/usr/sbin/metainit
+#/usr/sbin/metastat
+/bin/mkdir
+/sbin/mknod
+#/usr/sbin/modinfo
+#/usr/sbin/modunload
+/sbin/mount
+/bin/mv
+#/usr/sbin/ncheck
+/sbin/newfs
+/usr/bin/nawk
+#/usr/bin/pack
+/usr/bin/pagesize
+/bin/pax
+/sbin/ping
+/usr/bin/printf
+#/usr/sbin/prtvtoc
+#/usr/bin/pfexec
+/bin/pgrep
+#/usr/bin/pkginfo
+/bin/pkill
+/bin/ps
+#/usr/sbin/psrinfo
+/bin/pwd
+/usr/sbin/quotaon
+/bin/rcp
+/sbin/reboot
+/bin/rm
+/bin/rmdir
+/usr/bin/rsh
+#/usr/bin/runat
+/usr/bin/sed
+#/usr/sbin/share
+/bin/sleep
+/usr/bin/su
+/usr/bin/sum
+#%%STFSUITEDIR%%/bin/svcs
+#/usr/sbin/svcadm
+#%%STFSUITEDIR%%/bin/swap
+#/sbin/swapadd
+/usr/bin/sort
+/usr/bin/stat
+/usr/bin/strings
+/bin/sync
+/usr/bin/tar
+/usr/bin/tail
+/usr/bin/timeout
+/usr/bin/touch
+/usr/bin/tr
+/usr/bin/true
+/usr/bin/truncate
+/sbin/tunefs
+#/usr/sbin/ufsdump
+#/usr/sbin/ufsrestore
+/usr/bin/umask
+/sbin/umount
+/usr/bin/uname
+/usr/bin/uniq
+#/usr/sbin/unshare
+#/usr/bin/unpack
+%%STFSUITEDIR%%/bin/useradd
+%%STFSUITEDIR%%/bin/userdel
+%%STFSUITEDIR%%/bin/usermod
+/usr/bin/wait
+/usr/bin/wc
+#%%STFSUITEDIR%%/bin/zoneadm
+#%%STFSUITEDIR%%/bin/zonecfg
+#%%STFSUITEDIR%%/bin/zlogin
+#/usr/bin/zonename
+/sbin/swapon
+/sbin/swapoff
+/sbin/swapctl
+/usr/bin/xargs
+/usr/sbin/zfsd
+ 
+# ZFS Commands
+/usr/sbin/zdb
+/sbin/zfs
+/sbin/zpool
+/usr/bin/zinject
+
+# Test framework commands
+#/opt/SUNWstc-runwattr/bin/runwattr
+%%STFSUITEDIR%%/bin/bsddisks

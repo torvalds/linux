@@ -1,0 +1,24 @@
+# $FreeBSD$
+
+kern/kern_clocksource.c				standard
+
+arm/freescale/vybrid/vf_machdep.c		standard
+arm/freescale/vybrid/vf_ccm.c			standard
+arm/freescale/vybrid/vf_anadig.c		standard
+arm/freescale/vybrid/vf_iomuxc.c		standard
+arm/freescale/vybrid/vf_mscm.c			standard
+arm/freescale/vybrid/vf_src.c			standard
+arm/freescale/vybrid/vf_edma.c			standard
+arm/freescale/vybrid/vf_dmamux.c		standard
+arm/freescale/vybrid/vf_port.c			standard
+arm/freescale/vybrid/vf_adc.c			standard
+arm/freescale/vybrid/vf_i2c.c			optional	iicbus
+arm/freescale/vybrid/vf_tcon.c			optional	vt
+arm/freescale/vybrid/vf_dcu4.c			optional	vt
+arm/freescale/vybrid/vf_nfc.c			optional	nand
+arm/freescale/vybrid/vf_ehci.c			optional	ehci
+arm/freescale/vybrid/vf_gpio.c			optional	gpio
+arm/freescale/vybrid/vf_uart.c			optional	uart
+arm/freescale/vybrid/vf_sai.c			optional	sound
+arm/freescale/vybrid/vf_spi.c			optional	vf_spi
+dev/ffec/if_ffec.c				optional	ffec

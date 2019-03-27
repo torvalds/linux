@@ -1,0 +1,139 @@
+.\" Copyright (c) 2013-2018, Intel Corporation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\"  1. Redistributions of source code must retain the above copyright notice,
+.\"     this list of conditions and the following disclaimer.
+.\"
+.\"  2. Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\"
+.\"  3. Neither the name of the Intel Corporation nor the names of its
+.\"     contributors may be used to endorse or promote products derived from
+.\"     this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 30, 2019
+.Dt IAVF 4
+.Os
+.Sh NAME
+.Nm iavf
+.Nd "Intel Adaptive Virtual Function driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iflib"
+.Cd "device iavf"
+.Ed
+.Pp
+To load the driver as a module at boot time, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_iavf_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the PCI Virtual Functions from the 700 Series of
+ethernet devices and newer product families.
+The driver supports Jumbo Frames, TX/RX checksum offload,
+TCP segmentation offload (TSO), Large Receive Offload (LRO), VLAN
+tag insertion/extraction, VLAN checksum offload, VLAN TSO, and
+Receive Side Steering (RSS), all for both IPv4 and IPv6.
+For further hardware information and questions related to hardware
+requirements, see
+.Pa http://support.intel.com/ .
+.Pp
+Support for Jumbo Frames is provided via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit Jumbo Frames.
+The maximum MTU size for Jumbo Frames is 9706.
+.Pp
+Offloads are also controlled via the interface, for instance,
+checksumming for both IPv4 and IPv6 can be set and unset, TSO4
+and/or TSO6, and finally LRO can be set and unset.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Pp
+.Em NOTE :
+This
+.Nm
+driver is only for Virtual Functions.
+For 700 series Physical Functions, use the
+.Xr ixl 4
+driver.
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.iavf.rx_itr
+The RX interrupt rate value, set to 62 (124 usec) by default.
+.It Va hw.iavf.tx_itr
+The TX interrupt rate value, set to 122 (244 usec) by default.
+.It Va hw.iavf.enable_head_writeback
+When the driver is finding the last TX descriptor processed by the hardware,
+use a value written to memory by the hardware instead of scanning the
+descriptor ring for completed descriptors.
+Disabled by default; this mimics the "legacy" TX behavior found in
+.Xr ixgbe 4 .
+to ensure compatibility with future, non-700 series VF devices.
+.El
+.Sh SUPPORT
+For general information and support,
+go to the Intel support website at:
+.Pa http://support.intel.com/ .
+.Pp
+If an issue is identified with this driver with a supported adapter,
+email all the specific information related to the issue to
+.Mt freebsd@intel.com .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ixl 4 ,
+.Xr netintro 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8 ,
+.Xr iflib 9
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 10.1 .
+under the name "ixlv"
+It was converted to use
+.Xr iflib 9
+and changed to its current name in
+.Fx 12 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Jack Vogel Aq Mt jfv@freebsd.org
+and
+.An Eric Joyner Aq Mt erj@freebsd.org .
+.Sh CAVEATS
+This driver is supposed to function on VFs spawned from future network devices by Intel,
+but at the time of this writing, has only been tested on the 700 series VFs.

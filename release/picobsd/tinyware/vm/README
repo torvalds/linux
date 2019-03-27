@@ -1,0 +1,10 @@
+1998.02.12
+
+This is a small replacement for vmstat(8) program. It allows you to measure
+current memory utilisation. The same info is available via sysctl(8) program,
+but unfortunately this particular variable doesn't have its handler, and
+consequently it is not displayed in stock version of sysctl(8).
+
+<abial@freebsd.org>
+
+$FreeBSD$

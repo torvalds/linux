@@ -1,0 +1,780 @@
+.\" Copyright (c) 2003-2009 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: bluetooth.3,v 1.5 2003/05/20 23:04:30 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd May 1, 2018
+.Dt BLUETOOTH 3
+.Os
+.Sh NAME
+.Nm bt_gethostbyname ,
+.Nm bt_gethostbyaddr ,
+.Nm bt_gethostent ,
+.Nm bt_sethostent ,
+.Nm bt_endhostent ,
+.Nm bt_getprotobyname ,
+.Nm bt_getprotobynumber ,
+.Nm bt_getprotoent ,
+.Nm bt_setprotoent ,
+.Nm bt_endprotoent ,
+.Nm bt_aton ,
+.Nm bt_ntoa ,
+.Nm bt_devaddr ,
+.Nm bt_devname ,
+.Nm bt_devinfo ,
+.Nm bt_devenum ,
+.Nm bt_devopen ,
+.Nm bt_devclose ,
+.Nm bt_devsend ,
+.Nm bt_devrecv ,
+.Nm bt_devreq ,
+.Nm bt_devfilter ,
+.Nm bt_devfilter_pkt_set ,
+.Nm bt_devfilter_pkt_clr ,
+.Nm bt_devfilter_pkt_tst ,
+.Nm bt_devfilter_evt_set ,
+.Nm bt_devfilter_evt_clr ,
+.Nm bt_devfilter_evt_tst ,
+.Nm bt_devinquiry ,
+.Nm bt_devremote_name ,
+.Nm bt_devremote_name_gen ,
+.Nm bdaddr_same ,
+.Nm bdaddr_any ,
+.Nm bdaddr_copy
+.Nd Bluetooth routines
+.Sh LIBRARY
+.Lb libbluetooth
+.Sh SYNOPSIS
+.In bluetooth.h
+.Ft struct hostent *
+.Fn bt_gethostbyname "const char *name"
+.Ft struct hostent *
+.Fn bt_gethostbyaddr "const char *addr" "int len" "int type"
+.Ft struct hostent *
+.Fn bt_gethostent void
+.Ft void
+.Fn bt_sethostent "int stayopen"
+.Ft void
+.Fn bt_endhostent void
+.Ft struct protoent *
+.Fn bt_getprotobyname "const char *name"
+.Ft struct protoent *
+.Fn bt_getprotobynumber "int proto"
+.Ft struct protoent *
+.Fn bt_getprotoent void
+.Ft void
+.Fn bt_setprotoent "int stayopen"
+.Ft void
+.Fn bt_endprotoent void
+.Ft int
+.Fn bt_aton "const char *str" "bdaddr_t *ba"
+.Ft const char *
+.Fn bt_ntoa "const bdaddr_t *ba" "char *str"
+.Ft int
+.Fn bt_devaddr "const char *devname" "bdaddr_t *addr"
+.Ft int
+.Fn bt_devname "char *devname" "const bdaddr_t *addr"
+.Ft int
+.Fn (bt_devenum_cb_t) "int s" "struct bt_devinfo const *di" "void *arg"
+.Ft int
+.Fn bt_devinfo "struct bt_devinfo *di"
+.Ft int
+.Fn bt_devenum "bt_devenum_cb_t *cb" "void *arg"
+.Ft int
+.Fn bt_devopen "char const *devname"
+.Ft int
+.Fn bt_devclose "int s"
+.Ft int
+.Fn bt_devsend "int s" "uint16_t opcode" "void *param" "size_t plen"
+.Ft ssize_t
+.Fn bt_devrecv "int s" "void *buf" "size_t size" "time_t to"
+.Ft int
+.Fn bt_devreq "int s" "struct bt_devreq *r" "time_t to"
+.Ft int
+.Fn bt_devfilter "int s" "struct bt_devfilter const *new" "struct bt_devfilter *old"
+.Ft void
+.Fn bt_devfilter_pkt_set "struct bt_devfilter *filter" "uint8_t type"
+.Ft void
+.Fn bt_devfilter_pkt_clt "struct bt_devfilter *filter" "uint8_t type"
+.Ft int
+.Fn bt_devfilter_pkt_tst "struct bt_devfilter const *filter" "uint8_t type"
+.Ft void
+.Fn bt_devfilter_evt_set "struct bt_devfilter *filter" "uint8_t event"
+.Ft void
+.Fn bt_devfilter_evt_clt "struct bt_devfilter *filter" "uint8_t event"
+.Ft int
+.Fn bt_devfilter_evt_tst "struct bt_devfilter const *filter" "uint8_t event"
+.Ft int
+.Fn bt_devinquiry "char const *devname" "time_t length" "int num_rsp" "struct bt_devinquiry **ii"
+.Ft char *
+.Fn bt_devremote_name "char const *devname" "const bdaddr_t *remote" \
+"time_t to" "uint16_t clk_off" "uint8_t ps_rep_mode" "uint8_t ps_mode"
+.Ft char *
+.Fn bt_devremote_name_gen "char const *btooth_devname" "const bdaddr_t *remote"
+.Ft int
+.Fn bdaddr_same "const bdaddr_t *a" "const bdaddr_t *b"
+.Ft int
+.Fn bdaddr_any "const bdaddr_t *a"
+.Ft int
+.Fn bdaddr_copy "const bdaddr_t *dst" "const bdaddr_t *src"
+.Sh DESCRIPTION
+The
+.Fn bt_gethostent ,
+.Fn bt_gethostbyname
+and
+.Fn bt_gethostbyaddr
+functions
+each return a pointer to an object with the
+.Vt hostent
+structure describing a Bluetooth host
+referenced by name or by address, respectively.
+.Pp
+The
+.Fa name
+argument passed to
+.Fn bt_gethostbyname
+should point to a
+.Dv NUL Ns -terminated
+hostname.
+The
+.Fa addr
+argument passed to
+.Fn bt_gethostbyaddr
+should point to an address which is
+.Fa len
+bytes long,
+in binary form
+(i.e., not a Bluetooth BD_ADDR in human readable
+.Tn ASCII
+form).
+The
+.Fa type
+argument specifies the address family of this address and must be set to
+.Dv AF_BLUETOOTH .
+.Pp
+The structure returned contains the information obtained from a line in
+.Pa /etc/bluetooth/hosts
+file.
+.Pp
+The
+.Fn bt_sethostent
+function controls whether
+.Pa /etc/bluetooth/hosts
+file should stay open after each call to
+.Fn bt_gethostbyname
+or
+.Fn bt_gethostbyaddr .
+If the
+.Fa stayopen
+flag is non-zero, the file will not be closed.
+.Pp
+The
+.Fn bt_endhostent
+function closes the
+.Pa /etc/bluetooth/hosts
+file.
+.Pp
+The
+.Fn bt_getprotoent ,
+.Fn bt_getprotobyname
+and
+.Fn bt_getprotobynumber
+functions each return a pointer to an object with the
+.Vt protoent
+structure describing a Bluetooth Protocol Service Multiplexor referenced
+by name or number, respectively.
+.Pp
+The
+.Fa name
+argument passed to
+.Fn bt_getprotobyname
+should point to a
+.Dv NUL Ns -terminated
+Bluetooth Protocol Service Multiplexor name.
+The
+.Fa proto
+argument passed to
+.Fn bt_getprotobynumber
+should have numeric value of the desired Bluetooth Protocol Service Multiplexor.
+.Pp
+The structure returned contains the information obtained from a line in
+.Pa /etc/bluetooth/protocols
+file.
+.Pp
+The
+.Fn bt_setprotoent
+function controls whether
+.Pa /etc/bluetooth/protocols
+file should stay open after each call to
+.Fn bt_getprotobyname
+or
+.Fn bt_getprotobynumber .
+If the
+.Fa stayopen
+flag is non-zero, the file will not be closed.
+.Pp
+The
+.Fn bt_endprotoent
+function closes the
+.Pa /etc/bluetooth/protocols
+file.
+.Pp
+The
+.Fn bt_aton
+routine interprets the specified character string as a Bluetooth address,
+placing the address into the structure provided.
+It returns 1 if the string was successfully interpreted,
+or 0 if the string is invalid.
+.Pp
+The routine
+.Fn bt_ntoa
+takes a Bluetooth address and places an
+.Tn ASCII
+string representing the address into the buffer provided.
+It is up to the caller to ensure that provided buffer has enough space.
+If no buffer was provided then internal static buffer will be used.
+.Pp
+The
+.Fn bt_devaddr
+function interprets the specified
+.Fa devname
+string as the address or device name of a Bluetooth device on the local system,
+and places the device address in the provided
+.Fa bdaddr ,
+if any.
+The function returns 1 if the string was successfully interpreted,
+or 0 if the string did not match any local device.
+The
+.Fn bt_devname
+function takes a Bluetooth device address and copies the local device
+name associated with that address into the buffer provided,
+if any.
+Caller must ensure that provided buffer is at least
+.Dv HCI_DEVNAME_SIZE
+characters in size.
+The function returns 1 when the device was found,
+otherwise 0.
+.Pp
+The
+.Fn bt_devinfo
+function populates provided
+.Vt bt_devinfo
+structure with the information about given Bluetooth device.
+The caller is expected to pass Bluetooth device name in the
+.Fa devname
+field of the passed
+.Vt bt_devinfo
+structure.
+The function returns 0 when successful,
+otherwise -1.
+The
+.Vt bt_devinfo
+structure is defined as follows
+.Bd -literal -offset indent
+struct bt_devinfo
+{
+        char            devname[HCI_DEVNAME_SIZE];
+
+        uint32_t        state;
+
+        bdaddr_t        bdaddr;
+        uint16_t        _reserved0;
+
+        uint8_t         features[HCI_DEVFEATURES_SIZE];
+
+        /* buffer info */
+        uint16_t        _reserved1;
+        uint16_t        cmd_free;
+        uint16_t        sco_size;
+        uint16_t        sco_pkts;
+        uint16_t        sco_free;
+        uint16_t        acl_size;
+        uint16_t        acl_pkts;
+        uint16_t        acl_free;
+
+        /* stats */
+        uint32_t        cmd_sent;
+        uint32_t        evnt_recv;
+        uint32_t        acl_recv;
+        uint32_t        acl_sent;
+        uint32_t        sco_recv;
+        uint32_t        sco_sent;
+        uint32_t        bytes_recv;
+        uint32_t        bytes_sent;
+
+        /* misc/specific */
+        uint16_t        link_policy_info;
+        uint16_t        packet_type_info;
+        uint16_t        role_switch_info;
+        uint16_t        debug;
+
+        uint8_t         _padding[20];
+};
+.Ed
+.Pp
+The
+.Fn bt_devenum
+function enumerates Bluetooth devices present in the system.
+For every device found,
+the function will call provided
+.Fa cb
+callback function which should be of
+.Vt bt_devenum_cb_t
+type.
+The callback function is passed a
+.Dv HCI
+socket
+.Fa s ,
+fully populated
+.Vt bt_devinfo
+structure
+.Fa di
+and
+.Fa arg
+argument provided to the
+.Fn bt_devenum .
+The callback function can stop enumeration by returning a value
+that is greater than zero.
+The function returns number of successfully enumerated devices,
+or -1 if an error occurred.
+.Pp
+The
+.Fn bt_devopen
+function opens a Bluetooth device with the given
+.Fa devname
+and returns a connected and bound
+.Dv HCI
+socket handle.
+The function returns -1 if an error has occurred.
+.Pp
+The
+.Fn bt_devclose
+closes the passed
+.Dv HCI
+socket handle
+.Fa s ,
+previously obtained with
+.Xr bt_devopen 3 .
+.Pp
+The
+.Fn bt_devsend
+function sends a Bluetooth
+.Dv HCI
+command with the given
+.Fa opcode
+to the provided socket
+.Fa s ,
+previously obtained with
+.Xr bt_devopen 3 .
+The
+.Fa opcode
+parameter is expected to be in the host byte order.
+The
+.Fa param
+and
+.Fa plen
+parameters specify command parameters.
+The
+.Fn bt_devsend
+function does not modify the
+.Dv HCI
+filter on the provided socket
+.Fa s .
+The function returns 0 on success,
+or -1 if an error occurred.
+.Pp
+The
+.Fn bt_devrecv
+function receives one Bluetooth
+.Dv HCI
+packet from the socket
+.Fa s ,
+previously obtained with
+.Xr bt_devopen 3 .
+The packet is placed into the provided buffer
+.Fa buf
+of size
+.Fa size .
+The
+.Fa to
+parameter specifies receive timeout in seconds.
+Infinite timeout can be specified by passing negative value in the
+.Fa to
+parameter.
+The
+.Fn bt_devrecv
+function does not modify the
+.Dv HCI
+filter on the provided socket
+.Fa s .
+The function returns total number of bytes received,
+or -1 if an error occurred.
+.Pp
+The
+.Fn bt_devreq
+function makes a Bluetooth
+.Dv HCI
+request to the socket
+.Fa s ,
+previously obtained with
+.Xr bt_devopen 3 .
+The function will send the specified command and will wait for the specified
+event,
+or timeout
+.Fa to
+seconds to occur.
+The
+.Vt bt_devreq
+structure is defined as follows
+.Bd -literal -offset indent
+struct bt_devreq
+{
+        uint16_t        opcode;
+        uint8_t         event;
+        void            *cparam;
+        size_t          clen;
+        void            *rparam;
+        size_t          rlen;
+};
+.Ed
+.Pp
+The
+.Fa opcode
+field specifies the command and is expected to be in the host byte order.
+The
+.Fa cparam
+and
+.Fa clen
+fields specify command parameters data and command parameters data size
+respectively.
+The
+.Fa event
+field specifies which Bluetooth
+.Dv HCI
+event ID the function should wait for, otherwise it should be set to zero.
+The
+.Dv HCI
+Command Complete and Command Status events are enabled by default.
+The
+.Fa rparam
+and
+.Fa rlen
+parameters specify buffer and buffer size respectively where return
+parameters should be placed.
+The
+.Fn bt_devreq
+function temporarily modifies filter on the provided
+.Dv HCI
+socket
+.Fa s .
+The function returns 0 on success, or -1 if an error occurred.
+.Pp
+The
+.Fn bt_devfilter
+controls the local
+.Dv HCI
+filter associated with the socket
+.Fa s ,
+previously obtained with
+.Xr bt_devopen 3 .
+Filtering can be done on packet types, i.e.
+.Dv ACL ,
+.Dv SCO
+or
+.Dv HCI ,
+command and event packets, and, in addition, on
+.Dv HCI
+event IDs.
+Before applying the
+.Fa new
+filter (if provided) the function will try to obtain the current filter
+from the socket
+.Fa s
+and place it into the
+.Fa old
+parameter (if provided).
+The function returns 0 on success, or -1 if an error occurred.
+.Pp
+The
+.Fn bt_devfilter_pkt_set ,
+.Fn bt_devfilter_pkt_clr
+and
+.Fn bt_devfilter_pkt_tst
+functions can be used to modify and test the
+.Dv HCI
+filter
+.Fa filter .
+The
+.Fa type
+parameter specifies
+.Dv HCI
+packet type.
+.Pp
+The
+.Fn bt_devfilter_evt_set ,
+.Fn bt_devfilter_evt_clr
+and
+.Fn bt_devfilter_evt_tst
+functions can be used to modify and test the
+.Dv HCI
+event filter
+.Fa filter .
+The
+.Fa event
+parameter specifies
+.Dv HCI
+event ID.
+.Pp
+The
+.Fn bt_devinquiry
+function performs Bluetooth inquiry.
+The
+.Fa devname
+parameter specifies which local Bluetooth device should perform an inquiry.
+If not specified, i.e.
+.Dv NULL ,
+then first available device will be used.
+The
+.Fa length
+parameters specifies the total length of an inquiry in seconds.
+If not specified, i.e. 0, default value will be used.
+The
+.Fa num_rsp
+parameter specifies the number of responses that can be received before
+the inquiry is halted.
+If not specified, i.e. 0, default value will be used.
+The
+.Fa ii
+parameter specifies where to place inquiry results.
+On success, the function will return total number of inquiry results,
+will allocate,
+using
+.Xr calloc 3 ,
+buffer to store all the inquiry results and
+will return pointer to the allocated buffer in the
+.Fa ii
+parameter.
+It is up to the caller of the function to dispose of the buffer using
+.Xr free 3
+call.
+The function returns -1 if an error has occurred.
+The
+.Vt bt_devinquiry
+structure is defined as follows
+.Bd -literal -offset indent
+struct bt_devinquiry {
+        bdaddr_t        bdaddr;
+        uint8_t         pscan_rep_mode;
+        uint8_t         pscan_period_mode;
+        uint8_t         dev_class[3];
+        uint16_t        clock_offset;
+        int8_t          rssi;
+        uint8_t         data[240];
+};
+.Ed
+.Pp
+The
+.Fn bt_devremote_name
+function performs Bluetooth Remote Name Request procedure to obtain the
+user-friendly name of another Bluetooth unit.
+The
+.Fa devname
+parameter specifies which local Bluetooth device should perform the request.
+If not specified
+.Dv ( NULL ) ,
+the first available device is used.
+The
+.Fa remote
+parameter specifies the Bluetooth BD_ADDR of the remote device to query.
+The
+.Fa to
+parameter specifies response timeout in seconds.
+If not specified (0), the default value is taken from the
+net.bluetooth.hci.command_timeout
+.Xr sysctl 8
+value.
+The
+.Fa clk_off ,
+.Fa ps_rep_mode ,
+and
+.Fa ps_mode
+parameters specify Clock_Offset, Page_Scan_Repetition_Mode, and Page_Scan_Mode
+fields of HCI_Remote_Name_Request respectively.
+On success, the function returns a pointer to dynamically allocated
+NUL-terminated string or
+.Dv NULL
+if an error occurred.
+It is up to the caller to release returned string using
+.Xr free 3 .
+.Pp
+The
+.Fn bt_devremote_name_gen
+function is a shortcut to
+.Fn bt_devremote_name
+that passes generic defaults for
+.Fa to ,
+.Fa clk_off ,
+.Fa ps_rep_mode ,
+and
+.Fa ps_mode
+parameters.
+.Pp
+The
+.Fn bdaddr_same ,
+.Fn bdaddr_any ,
+and
+.Fn bdaddr_copy
+are handy shorthand Bluetooth address utility functions.
+The
+.Fn bdaddr_same
+function will test if two provided BD_ADDRs are the same.
+The
+.Fn bdaddr_any
+function will test if provided BD_ADDR is
+.Dv ANY
+BD_ADDR.
+The
+.Fn bdaddr_copy
+function will copy provided
+.Fa src
+BD_ADDR into provided
+.Fa dst
+BD_ADDR.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/bluetooth/hosts" -compact
+.It Pa /etc/bluetooth/hosts
+.It Pa /etc/bluetooth/protocols
+.El
+.Sh EXAMPLES
+Print out the hostname associated with a specific BD_ADDR:
+.Bd -literal -offset indent
+const char *bdstr = "00:01:02:03:04:05";
+bdaddr_t bd;
+struct hostent *hp;
+
+if (!bt_aton(bdstr, &bd))
+	errx(1, "can't parse BD_ADDR %s", bdstr);
+
+if ((hp = bt_gethostbyaddr((const char *)&bd,
+    sizeof(bd), AF_BLUETOOTH)) == NULL)
+	errx(1, "no name associated with %s", bdstr);
+
+printf("name associated with %s is %s\en", bdstr, hp->h_name);
+.Ed
+.Sh DIAGNOSTICS
+Error return status from
+.Fn bt_gethostent ,
+.Fn bt_gethostbyname
+and
+.Fn bt_gethostbyaddr
+is indicated by return of a
+.Dv NULL
+pointer.
+The external integer
+.Va h_errno
+may then be checked to see whether this is a temporary failure
+or an invalid or unknown host.
+The routine
+.Xr herror 3
+can be used to print an error message describing the failure.
+If its argument
+.Fa string
+is
+.Pf non- Dv NULL ,
+it is printed, followed by a colon and a space.
+The error message is printed with a trailing newline.
+.Pp
+The variable
+.Va h_errno
+can have the following values:
+.Bl -tag -width ".Dv HOST_NOT_FOUND"
+.It Dv HOST_NOT_FOUND
+No such host is known.
+.It Dv NO_RECOVERY
+Some unexpected server failure was encountered.
+This is a non-recoverable error.
+.El
+.Pp
+The
+.Fn bt_getprotoent ,
+.Fn bt_getprotobyname
+and
+.Fn bt_getprotobynumber
+return
+.Dv NULL
+on EOF or error.
+.Sh SEE ALSO
+.Xr gethostbyaddr 3 ,
+.Xr gethostbyname 3 ,
+.Xr getprotobyname 3 ,
+.Xr getprotobynumber 3 ,
+.Xr herror 3 ,
+.Xr inet_aton 3 ,
+.Xr inet_ntoa 3 ,
+.Xr ng_hci 4
+.Sh CAVEAT
+The
+.Fn bt_gethostent
+function reads the next line of
+.Pa /etc/bluetooth/hosts ,
+opening the file if necessary.
+.Pp
+The
+.Fn bt_sethostent
+function opens and/or rewinds the
+.Pa /etc/bluetooth/hosts
+file.
+.Pp
+The
+.Fn bt_getprotoent
+function reads the next line of
+.Pa /etc/bluetooth/protocols ,
+opening the file if necessary.
+.Pp
+The
+.Fn bt_setprotoent
+function opens and/or rewinds the
+.Pa /etc/bluetooth/protocols
+file.
+.Pp
+The
+.Fn bt_devenum
+function enumerates up to
+.Dv HCI_DEVMAX
+Bluetooth devices.
+During enumeration the
+.Fn bt_devenum
+function uses the same
+.Dv HCI
+socket.
+The function guarantees that the socket,
+passed to the callback function,
+will be bound and connected to the Bluetooth device being enumerated.
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
+.Sh BUGS
+Some of those functions use static data storage;
+if the data is needed for future use, it should be
+copied before any subsequent calls overwrite it.

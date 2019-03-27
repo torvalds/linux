@@ -1,0 +1,197 @@
+.\" Copyright (c) 2009,2011 Joseph Koshy <jkoshy@users.sourceforge.net>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer
+.\"    in this position and unchanged.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $Id: readelf.1 3642 2018-10-14 14:24:28Z jkoshy $
+.\"
+.Dd September 13, 2012
+.Dt READELF 1
+.Os
+.Sh NAME
+.Nm readelf
+.Nd display information about ELF objects
+.Sh SYNOPSIS
+.Nm
+.Op Fl a | Fl -all
+.Op Fl c | Fl -archive-index
+.Op Fl d | Fl -dynamic
+.Op Fl e | Fl -headers
+.Op Fl g | Fl -section-groups
+.Op Fl h | Fl -file-header
+.Op Fl l | Fl -program-headers
+.Op Fl n | Fl -notes
+.Op Fl p Ar section | Fl -string-dump Ns = Ns Ar section
+.Op Fl r | Fl -relocs
+.Op Fl t | Fl -section-details
+.Op Fl v | Fl -version
+.Oo
+.Fl w Ns Oo Ns Ar afilmoprsFLR Ns Oc |
+.Fl -debug-dump Ns Op Ns = Ns Ar long-option-name , Ns ...
+.Oc
+.Op Fl x Ar section | Fl -hex-dump Ns = Ns Ar section
+.Op Fl A | Fl -arch-specific
+.Op Fl D | Fl -use-dynamic
+.Op Fl H | Fl -help
+.Op Fl I | Fl -histogram
+.Op Fl N | -full-section-name
+.Op Fl S | Fl -sections | Fl -section-headers
+.Op Fl V | Fl -version-info
+.Op Fl W | Fl -wide
+.Ar file...
+.Sh DESCRIPTION
+The
+.Nm
+utility displays information about ELF objects and
+.Xr ar 1
+archives.
+.Pp
+The
+.Nm
+utility recognizes the following options:
+.Bl -tag -width indent
+.It Fl a | Fl -all
+Turn on the following flags:
+.Fl d ,
+.Fl h ,
+.Fl I ,
+.Fl l ,
+.Fl r ,
+.Fl s ,
+.Fl A ,
+.Fl S
+and
+.Fl V .
+.It Fl c | Fl -archive-index
+Print the archive symbol table for archives.
+.It Fl d | Fl -dynamic
+Print the contents of the
+.Li SHT_DYNAMIC
+sections in the ELF object.
+.It Fl e | Fl -headers
+Print all program, file and section headers in the ELF object.
+.It Fl g | Fl -section-groups
+Print the contents of the section groups in the ELF object.
+.It Fl h | Fl -file-header
+Print the file header of the ELF object.
+.It Fl l | Fl -program-headers
+Print the content of the program header table for the object.
+.It Fl n | Fl -notes
+Print the contents of
+.Li PT_NOTE
+segments or
+.Li SHT_NOTE
+sections present in the ELF object.
+.It Fl p Ar section | Fl -string-dump Ns = Ns Ar section
+Print the contents of the specified section as printable strings.
+The argument
+.Ar section
+should be the name of a section or a numeric section index.
+.It Fl r | Fl -relocs
+Print relocation information.
+.It Fl s | Fl -syms | Fl -symbols
+Print symbol tables.
+.It Fl t | Fl -section-details
+Print additional information about sections, such as the flags
+fields in section headers.
+.It Fl v | Fl -version
+Prints a version identifier for
+.Nm
+and exits.
+.It Fl w Ns Oo afilmoprsFLR Oc | Xo
+.Fl -debug-dump Ns Op Ns = Ns Ar long-option-name , Ns ...
+.Xc
+Display DWARF information.
+The
+.Fl w
+option is used with the short options in the following
+table; the
+.Fl -debug-dump
+option is used with a comma-separated list of the corresponding long
+option names:
+.Bl -column ".Em Short Option" "aranges|ranges"
+.It Em Short Option Ta Em Long Option Ta Em Description
+.It a Ta abbrev Ta Show abbreviation information.
+.It f Ta frames Ta Show frame information, displaying frame instructions.
+.It i Ta info Ta Show debugging information entries.
+.It l Ta rawline Ta Show line information in raw form.
+.It m Ta macro Ta Show macro information.
+.It o Ta loc Ta Show location list information.
+.It p Ta pubnames Ta Show global names.
+.It r Ta aranges|ranges Ta Show address range information.
+.It s Ta str Ta Show the debug string table.
+.It F Ta frames-interp Ta Show frame information, displaying register rules.
+.It L Ta decodedline Ta Show line information in decoded form.
+.It R Ta Ranges Ta Show range lists.
+.El
+.Pp
+If no sub-options are specified, the default is to show information
+corresponding to the
+.Ar a , f , i, l , o , p , r , s
+and
+.Ar R
+short options.
+.It Fl x Ar section | Fl -hex-dump Ns = Ns Ar section
+Display the contents of the specified section in hexadecimal.
+The argument
+.Ar section
+should be the name of a section or a numeric section index.
+.It Fl A | Fl -arch-specific
+This option is accepted but is currently unimplemented.
+.It Fl D | Fl -use-dynamic
+Print the symbol table specified by the
+.Li DT_SYMTAB
+entry in the
+.Dq Li .dynamic
+section.
+.It Fl H | Fl -help
+Print a help message.
+.It Fl I | Fl -histogram
+Print information on bucket list lengths for sections of type
+.Li SHT_HASH
+and
+.Li SHT_GNU_HASH .
+.It Fl N | Fl -full-section-name
+This option is accepted but is currently unimplemented.
+.It Fl S | Fl -sections | Fl -section-headers
+Print information in the section headers for each ELF object.
+.It Fl V | Fl -version-info
+Print symbol versioning information.
+.It Fl W | Fl -wide
+Print information about ELF structures using one long line per
+structure.
+If this option is not specified,
+.Nm
+will list information in the headers of 64 bit ELF objects on two
+separate lines.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr nm 1 ,
+.Xr addr2line 1 ,
+.Xr elfcopy 1 ,
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Kai Wang Aq Mt kaiwang27@users.sourceforge.net .

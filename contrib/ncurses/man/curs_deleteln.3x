@@ -1,0 +1,85 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_deleteln.3x,v 1.13 2010/12/04 18:36:44 tom Exp $
+.TH curs_deleteln 3X ""
+.SH NAME
+\fBdeleteln\fR,
+\fBwdeleteln\fR,
+\fBinsdelln\fR,
+\fBwinsdelln\fR,
+\fBinsertln\fR,
+\fBwinsertln\fR \- delete and insert lines in a \fBcurses\fR window
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBint deleteln(void);\fR
+.br
+\fBint wdeleteln(WINDOW *win);\fR
+.br
+\fBint insdelln(int n);\fR
+.br
+\fBint winsdelln(WINDOW *win, int n);\fR
+.br
+\fBint insertln(void);\fR
+.br
+\fBint winsertln(WINDOW *win);\fR
+.br
+.SH DESCRIPTION
+The \fBdeleteln\fR and \fBwdeleteln\fR routines delete the line under the
+cursor in the window; all lines below the current line are moved up one line.
+The bottom line of the window is cleared.  The cursor position does not change.
+.PP
+The \fBinsdelln\fR and \fBwinsdelln\fR routines, for positive \fIn\fR, insert
+\fIn\fR lines into the specified window above the current line.  The \fIn\fR
+bottom lines are lost.  For negative \fIn\fR, delete \fIn\fR lines (starting
+with the one under the cursor), and move the remaining lines up.  The bottom
+\fIn\fR lines are cleared.  The current cursor position remains the same.
+.PP
+The \fBinsertln\fR and \fBwinsertln\fR routines insert a blank line above the
+current line and the bottom line is lost.
+.SH RETURN VALUE
+All routines return the integer \fBERR\fR upon failure and an \fBOK\fR (SVr4
+specifies only "an integer value other than \fBERR\fR") upon successful
+completion.
+.PP
+X/Open defines no error conditions.
+In this implementation,
+if the window parameter is null, an error is returned.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.  The
+standard specifies that they return \fBERR\fR on failure, but specifies no
+error conditions.
+.SH NOTES
+Note that all but \fBwinsdelln\fR may be macros.
+.PP
+These routines do not require a hardware line delete or insert feature in the
+terminal.  In fact, they will not use hardware line delete/insert unless
+\fBidlok(..., TRUE)\fR has been set on the current window.
+.SH SEE ALSO
+\fBcurses\fR(3X)

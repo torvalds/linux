@@ -1,0 +1,87 @@
+.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris
+.\" Costello at Safeport Network Services and NAI Labs, the Security
+.\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
+.\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
+.\" research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 7, 2006
+.Dt MAC_IS_PRESENT 3
+.Os
+.Sh NAME
+.Nm mac_is_present
+.Nd report whether the running system has MAC support
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/mac.h
+.Ft int
+.Fn mac_is_present "const char *policyname"
+.Sh DESCRIPTION
+The
+.Fn mac_is_present
+function determines whether the currently-running kernel supports MAC for
+a given policy or not.
+If
+.Fa policyname
+is
+.Pf non- Dv NULL ,
+the presence of the named policy
+(e.g.\&
+.Dq Li biba ,
+.Dq Li mls ,
+.Dq Li te )
+is checked, otherwise the presence of any MAC policies at all is checked.
+.Sh RETURN VALUES
+If the system supports the given MAC policy, the value 1 is returned.
+If the specified MAC policy is not supported, the value 0 is returned.
+If an error occurs, the value \-1 is returned.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value of
+.Fa policyname
+is not valid.
+.It Bq Er ENOMEM
+Insufficient memory was available to allocate internal storage.
+.El
+.Sh SEE ALSO
+.Xr mac 3 ,
+.Xr mac_free 3 ,
+.Xr mac_get 3 ,
+.Xr mac_prepare 3 ,
+.Xr mac_set 3 ,
+.Xr mac_text 3 ,
+.Xr mac 4 ,
+.Xr mac 9
+.Sh HISTORY
+Support for Mandatory Access Control was introduced in
+.Fx 5.0
+as part of the
+.Tn TrustedBSD
+Project.

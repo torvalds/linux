@@ -1,0 +1,211 @@
+.TH "hx509 printing functions" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+hx509 printing functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "void \fBhx509_print_stdout\fP (void *ctx, const char *fmt, va_list va)"
+.br
+.ti -1c
+.RI "int \fBhx509_oid_sprint\fP (const heim_oid *oid, char **str)"
+.br
+.ti -1c
+.RI "void \fBhx509_oid_print\fP (const heim_oid *oid, hx509_vprint_func func, void *ctx)"
+.br
+.ti -1c
+.RI "void \fBhx509_bitstring_print\fP (const heim_bit_string *b, hx509_vprint_func func, void *ctx)"
+.br
+.ti -1c
+.RI "int \fBhx509_cert_keyusage_print\fP (hx509_context context, hx509_cert c, char **s)"
+.br
+.ti -1c
+.RI "int \fBhx509_validate_ctx_init\fP (hx509_context context, hx509_validate_ctx *ctx)"
+.br
+.ti -1c
+.RI "void \fBhx509_validate_ctx_set_print\fP (hx509_validate_ctx ctx, hx509_vprint_func func, void *c)"
+.br
+.ti -1c
+.RI "void \fBhx509_validate_ctx_add_flags\fP (hx509_validate_ctx ctx, int flags)"
+.br
+.ti -1c
+.RI "void \fBhx509_validate_ctx_free\fP (hx509_validate_ctx ctx)"
+.br
+.ti -1c
+.RI "int \fBhx509_validate_cert\fP (hx509_context context, hx509_validate_ctx ctx, hx509_cert cert)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "void hx509_bitstring_print (const heim_bit_string * b, hx509_vprint_func func, void * ctx)"
+.PP
+Print a bitstring using a hx509_vprint_func function. To print to stdout use \fBhx509_print_stdout()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIb\fP bit string to print. 
+.br
+\fIfunc\fP hx509_vprint_func to print with. 
+.br
+\fIctx\fP context variable to hx509_vprint_func function. 
+.RE
+.PP
+
+.SS "int hx509_cert_keyusage_print (hx509_context context, hx509_cert c, char ** s)"
+.PP
+Print certificate usage for a certificate to a string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIc\fP a certificate print the keyusage for. 
+.br
+\fIs\fP the return string with the keysage printed in to, free with \fBhx509_xfree()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "void hx509_oid_print (const heim_oid * oid, hx509_vprint_func func, void * ctx)"
+.PP
+Print a oid using a hx509_vprint_func function. To print to stdout use \fBhx509_print_stdout()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIoid\fP oid to print 
+.br
+\fIfunc\fP hx509_vprint_func to print with. 
+.br
+\fIctx\fP context variable to hx509_vprint_func function. 
+.RE
+.PP
+
+.SS "int hx509_oid_sprint (const heim_oid * oid, char ** str)"
+.PP
+Print a oid to a string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIoid\fP oid to print 
+.br
+\fIstr\fP allocated string, free with \fBhx509_xfree()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "void hx509_print_stdout (void * ctx, const char * fmt, va_list va)"
+.PP
+Helper function to print on stdout for:
+.IP "\(bu" 2
+\fBhx509_oid_print()\fP,
+.IP "\(bu" 2
+\fBhx509_bitstring_print()\fP,
+.IP "\(bu" 2
+\fBhx509_validate_ctx_set_print()\fP.
+.PP
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP the context to the print function. If the ctx is NULL, stdout is used. 
+.br
+\fIfmt\fP the printing format. 
+.br
+\fIva\fP the argumet list. 
+.RE
+.PP
+
+.SS "int hx509_validate_cert (hx509_context context, hx509_validate_ctx ctx, hx509_cert cert)"
+.PP
+Validate/Print the status of the certificate.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIctx\fP A hx509 validation context. 
+.br
+\fIcert\fP the cerificate to validate/print.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "void hx509_validate_ctx_add_flags (hx509_validate_ctx ctx, int flags)"
+.PP
+Add flags to control the behaivor of the \fBhx509_validate_cert()\fP function.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP A hx509 validation context. 
+.br
+\fIflags\fP flags to add to the validation context.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "void hx509_validate_ctx_free (hx509_validate_ctx ctx)"
+.PP
+Free an hx509 validate context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP the hx509 validate context to free. 
+.RE
+.PP
+
+.SS "int hx509_validate_ctx_init (hx509_context context, hx509_validate_ctx * ctx)"
+.PP
+Allocate a hx509 validation/printing context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIctx\fP a new allocated hx509 validation context, free with \fBhx509_validate_ctx_free()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "void hx509_validate_ctx_set_print (hx509_validate_ctx ctx, hx509_vprint_func func, void * c)"
+.PP
+Set the printing functions for the validation context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP a hx509 valication context. 
+.br
+\fIfunc\fP the printing function to usea. 
+.br
+\fIc\fP the context variable to the printing function.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+

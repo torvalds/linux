@@ -1,0 +1,72 @@
+Editor functions (ed.*c)
+ed.chared.c:	Editor basic function implementation. (Motion/Search etc.)
+ed.defns.c:	Editor command tables.
+ed.init.c:	Editor initialization. Tty/signal setup.
+ed.term.c:	Tty driver dependent initialization portion.
+ed.inputl.c:	Editor input, editor command parser, and dispatcher.
+ed.refresh.c:	Editor refreshing. How to change the old line to the current.
+ed.screen.c:	Termcap related functions.
+ed.xmap.c:	Key macro handling.
+
+glob.c:		The 4.4BSD globbing library function.
+
+Shell functions (sh*.c). All these files are from csh.
+sh.c:		Initialization, command loop and script handling.
+sh.char.c:	Character classification tables.
+sh.dir.c:	Directory handling (cd, pushd, popd, dirs). Initialization
+		and symbolic link resolution.
+sh.dol.c:	Input line processor. Dollar/History expansion.
+sh.err.c:	Error handling routines and table.
+sh.exec.c:	Command execution (searching and executing commands)
+		also which builtin.
+sh.exp.c:	Expression evaluation.
+sh.file.c:	Old csh file completion. Not used in tcsh.
+sh.func.c:	Csh builtin functions.
+sh.glob.c:	Wildcard matching. Also backquote, brace and tilde evaluation.
+sh.hist.c:	History book-keeping.
+sh.init.c:	Signal and builtin tables.
+sh.lex.c:	Lexical analyzer.
+sh.misc.c:	General purpose utilities.
+sh.parse.c:	Parser. Not really a parser. Recognizes sequences of tokens
+		as builtins.
+sh.print.c:	Primitive output (basic character output).
+sh.proc.c:	Job handling. Adds new children to the job list.
+		Catches dead children and removes them from the job list.
+		Builtins for stopping/killing/ and moving jobs to the background
+		foreground.
+sh.sem.c:	Job spawning (nice and time are handled here too) and I/O
+		redirection.
+sh.set.c:	Variable setting.
+sh.time.c:	Time keeping and reporting.
+
+Tcsh additions (tc*.c)
+tc.alloc.c:	Malloc/Free
+tc.bind.c:	Key binding user access functions.
+tc.const.c:	Short String constants.
+tc.disc.c:	Line discipline set/clear.
+tc.func.c:	Tcsh additional builtins.
+tc.os.c:	OS dependencies/system call emulations.
+tc.printf.c:	Stdio like printf using the routines in sh.print.c
+tc.prompt.c:	Prompt expansion.
+tc.sched.c:	Scheduling commands handling.
+tc.sig.c:	Signal emulation for SVR2, SVR1 and V5.
+tc.str.c:	<string.h> for short strings.
+tc.vers.c:	HOSTTYPE and $version
+tc.who.c:	Watch variable handling.
+
+Spelling, listing, and completion (tw*.c)
+tw.help.c:	Display help for a command by catting a file.
+tw.init.c:	Initialization and some utilities.
+tw.parse.c:	All the listing and completion. Tries to tokenize the line
+		and figure out where the word(s) started and if they were
+		commands or not. Then it applies the requested function to
+		the word fragment.
+tw.spell.c:	String spelling correction.
+tw.comp.c:	File completion builtin
+
+OS/Dependent files
+mi.termios.c:	Minix termios emulation
+mi.varargs.h:	Minix varargs
+mi.wait.h:	Minix wait.
+ma.setp.c:	MACH's setpath() library function
+atp.termcap.c:  Termcap routines for vmsposix 

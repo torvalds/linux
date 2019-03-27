@@ -1,0 +1,88 @@
+$FreeBSD$
+
+This directory is for regression test programs.
+
+A regression test program is one that will exercise a particular bit of the
+system to check that we have not reintroduced an old bug.
+
+Tests should be implemented in files with a .t extension.  Each .t file
+can contain more than one test, and can be implemented in any scripting
+language -- /bin/sh, Perl...
+
+The test protocol is quite simple.  At its most basic, each .t file should, 
+when run, print a line in this format:
+
+   1..m
+
+where m is the number of tests that will be run.
+
+Each test should produce a single line of output.  This line should start
+with one of
+
+   ok n
+   not ok n
+
+to indicate whether or not the test succeeded.  'n' is the test's number.
+Anything after this on the line (up to the first '#' if present) is 
+considered to be the name of the test.  Naming tests is optional, but 
+encouraged.
+
+A test may be written which is conditional, and may need to be skipped.
+For example, the netinet tests require 'options INET' in the kernel.
+A test may be skipped by printing '# skip Reason for skipping' after the
+test name.  For example,
+
+    ok 1 - netinet # skip 'options INET' not compiled in
+
+A test may be flagged as 'todo'.  This indicates that you expect the test
+to fail (perhaps because the necessary functionality hasn't been written
+yet).  'todo' tests are expected to fail, so when they start working the
+test framework can alert you to this happy occurrence.  Flag these tests 
+with a '# TODO' comment after the test name
+
+    not ok 1 - infiniteloop # TODO write test for an infinite loop
+
+This is modelled on the protocol followed by the Test::Harness Perl
+module (and therefore much of the automated testing carried out by the 
+Perl community).  More documentation can be found at:
+
+    http://search.cpan.org/~petdance/Test-Harness-2.42/lib/Test/Harness.pm
+
+To run the tests and parse their output install the devel/p5-Test-Harness
+port.  This includes the prove(1) command which is used to run the tests
+and collate the output.
+
+    prove geom_concat		# run all the tests in geom_concat
+    prove -r lib		# run all tests in lib/, and subdirectories
+    prove -r -v lib		# as above, with verbose output
+    prove -r			# run *all* the tests
+
+Tests that are for parts of the base system should go into a directory here
+which is the same as their path relative to src/, for example the uuencode(1)
+utility resides in src/usr.bin/uuencode so its regression test resides in
+src/tools/regression/usr.bin/uuencode.
+
+To avoid the pre-commit check program complaining about the lack of
+CVS keywords in test data files, use a .in suffix for input files and
+a .out suffix for output files.
+
+To execute individual regression tests for binaries that you are
+developing, add their directory in the path before running the tests.
+Example:
+cd /usr/src/tools/regression/usr.bin
+(PATH=/home/user/src/experimental/jot:$PATH ; make SUBDIR=jot)
+
+Please make a subdir per other regression test, and add a brief description to
+this file.
+
+acct		Exercise the integer to float conversion used in acct(5)
+geom		Some tests and an out-of-kernel simulator for the GEOM code
+nfsmmap		Some tests to exercise some tricky cases in NFS and mmap
+p1003_1b	Exercise 1003.1B scheduler
+pipe		Pipe code regression test
+fsx		General filesystem exerciser
+sysvmsg 	SysV IPC Message Queue Regression Utility
+sysvsem 	SysV IPC Semaphore Regression Utility
+sysvshm 	SysV IPC Shared Memory Regression Utility
+gaithrstress	General threaded getaddrinfo(3) exerciser
+date		Date(1) + format string regression test

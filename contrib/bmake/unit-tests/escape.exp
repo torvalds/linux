@@ -1,0 +1,104 @@
+var-1bs
+printf "%s=:%s:\n" VAR1BS 111\\111;   printf "%s=:%s:\n" VAR1BSa 111\\aaa;   printf "%s=:%s:\n" VAR1BSA 111\\aaa;   printf "%s=:%s:\n" VAR1BSda 111\\\$\{a\};   printf "%s=:%s:\n" VAR1BSdA 111\\\$\{A\};   printf "%s=:%s:\n" VAR1BSc 111\#\ backslash\ escapes\ comment\ char,\ so\ this\ is\ part\ of\ the\ value;   printf "%s=:%s:\n" VAR1BSsc 111\\\ ; 
+VAR1BS=:111\111:
+VAR1BSa=:111\aaa:
+VAR1BSA=:111\aaa:
+VAR1BSda=:111\${a}:
+VAR1BSdA=:111\${A}:
+VAR1BSc=:111# backslash escapes comment char, so this is part of the value:
+VAR1BSsc=:111\ :
+var-2bs
+printf "%s=:%s:\n" VAR2BS 222\\\\222;   printf "%s=:%s:\n" VAR2BSa 222\\\\aaa;   printf "%s=:%s:\n" VAR2BSA 222\\\\aaa;   printf "%s=:%s:\n" VAR2BSda 222\\\\\$\{a\};   printf "%s=:%s:\n" VAR2BSdA 222\\\\\$\{A\};   printf "%s=:%s:\n" VAR2BSc 222\\\\;   printf "%s=:%s:\n" VAR2BSsc 222\\\\; 
+VAR2BS=:222\\222:
+VAR2BSa=:222\\aaa:
+VAR2BSA=:222\\aaa:
+VAR2BSda=:222\\${a}:
+VAR2BSdA=:222\\${A}:
+VAR2BSc=:222\\:
+VAR2BSsc=:222\\:
+var-1bsnl
+printf "%s=:%s:\n" VAR1BSNL 111\ 111;   printf "%s=:%s:\n" VAR1BSNLa 111\ aaa;   printf "%s=:%s:\n" VAR1BSNLA 111\ aaa;   printf "%s=:%s:\n" VAR1BSNLda 111\ \$\{a\};   printf "%s=:%s:\n" VAR1BSNLdA 111\ \$\{A\};   printf "%s=:%s:\n" VAR1BSNLc 111;   printf "%s=:%s:\n" VAR1BSNLsc 111; 
+VAR1BSNL=:111 111:
+VAR1BSNLa=:111 aaa:
+VAR1BSNLA=:111 aaa:
+VAR1BSNLda=:111 ${a}:
+VAR1BSNLdA=:111 ${A}:
+VAR1BSNLc=:111:
+VAR1BSNLsc=:111:
+var-2bsnl
+printf "%s=:%s:\n" VAR2BSNL 222\\\\;   printf "%s=:%s:\n" VAR2BSNLa 222\\\\;   printf "%s=:%s:\n" VAR2BSNLA 222\\\\;   printf "%s=:%s:\n" VAR2BSNLda 222\\\\;   printf "%s=:%s:\n" VAR2BSNLdA 222\\\\;   printf "%s=:%s:\n" VAR2BSNLc 222\\\\;   printf "%s=:%s:\n" VAR2BSNLsc 222\\\\; 
+VAR2BSNL=:222\\:
+VAR2BSNLa=:222\\:
+VAR2BSNLA=:222\\:
+VAR2BSNLda=:222\\:
+VAR2BSNLdA=:222\\:
+VAR2BSNLc=:222\\:
+VAR2BSNLsc=:222\\:
+var-3bsnl
+printf "%s=:%s:\n" VAR3BSNL 333\\\\\ 333=;   printf "%s=:%s:\n" VAR3BSNLa 333\\\\\ aaa=;   printf "%s=:%s:\n" VAR3BSNLA 333\\\\\ aaa=;   printf "%s=:%s:\n" VAR3BSNLda 333\\\\\ \$\{a\}=;   printf "%s=:%s:\n" VAR3BSNLdA 333\\\\\ \$\{A\}=;   printf "%s=:%s:\n" VAR3BSNLc 333\\\\;   printf "%s=:%s:\n" VAR3BSNLsc 333\\\\; 
+VAR3BSNL=:333\\ 333=:
+VAR3BSNLa=:333\\ aaa=:
+VAR3BSNLA=:333\\ aaa=:
+VAR3BSNLda=:333\\ ${a}=:
+VAR3BSNLdA=:333\\ ${A}=:
+VAR3BSNLc=:333\\:
+VAR3BSNLsc=:333\\:
+var-1bsnl-space
+printf "%s=:%s:\n" VAR1BSNL00 first\ line;   printf "%s=:%s:\n" VAR1BSNL0 first\ line\ no\ space\ on\ second\ line;   printf "%s=:%s:\n" VAR1BSNLs first\ line\ one\ space\ on\ second\ line;   printf "%s=:%s:\n" VAR1BSNLss first\ line\ two\ spaces\ on\ second\ line;   printf "%s=:%s:\n" VAR1BSNLt first\ line\ one\ tab\ on\ second\ line;   printf "%s=:%s:\n" VAR1BSNLtt first\ line\ two\ tabs\ on\ second\ line;   printf "%s=:%s:\n" VAR1BSNLxx first\ line\ many\ spaces\ and\ tabs\ \[\ \ \	\ \]\ on\ second\ line; 
+VAR1BSNL00=:first line:
+VAR1BSNL0=:first line no space on second line:
+VAR1BSNLs=:first line one space on second line:
+VAR1BSNLss=:first line two spaces on second line:
+VAR1BSNLt=:first line one tab on second line:
+VAR1BSNLtt=:first line two tabs on second line:
+VAR1BSNLxx=:first line many spaces and tabs [  	 ] on second line:
+cmd-1bsnl
+echo :'first line\
+#second line without space\
+third line':
+:first line\
+#second line without space\
+third line:
+echo :'first line\
+     second line spaces should be retained':
+:first line\
+     second line spaces should be retained:
+echo :'first line\
+second line tab should be elided':
+:first line\
+second line tab should be elided:
+echo :'first line\
+	only one tab should be elided, second tab remains'
+:first line\
+	only one tab should be elided, second tab remains
+cmd-1bsnl-eof
+echo :'command ending with backslash-newline'; \
+
+:command ending with backslash-newline
+cmd-2bsnl
+echo take one\\
+take one\
+echo take two\\
+take two\
+echo take three\\
+take three\
+cmd-3bsnl
+echo :'first line\\\
+#second line without space\\\
+third line':
+:first line\\\
+#second line without space\\\
+third line:
+echo :'first line\\\
+     second line spaces should be retained':
+:first line\\\
+     second line spaces should be retained:
+echo :'first line\\\
+second line tab should be elided':
+:first line\\\
+second line tab should be elided:
+echo :'first line\\\
+	only one tab should be elided, second tab remains'
+:first line\\\
+	only one tab should be elided, second tab remains
+exit status 0

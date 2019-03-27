@@ -1,0 +1,256 @@
+.\" Copyright (c) 2008 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd September 25, 2008
+.Dt KDIGEST 8
+.Os HEIMDAL
+.Sh NAME
+.Nm kdigest
+.Nd userland tool to access digest interface in the KDC
+.Sh SYNOPSIS
+.Nm
+.Op Fl Fl ccache= Ns Ar string
+.Op Fl Fl version
+.Op Fl Fl help
+command
+.Op arguments
+.Sh DESCRIPTION
+Supported options:
+.Bl -tag -width Ds
+.It Xo
+.Fl Fl ccache= Ns Ar string
+.Xc
+credential cache
+.It Xo
+.Fl Fl version
+.Xc
+print version
+.It Xo
+.Fl Fl help
+.Xc
+.El
+.Pp
+Available commands are:
+.Bl -tag -width Ds
+.It Xo digest-probe
+.Op Fl Fl realm= Ns Ar string
+.Op Fl h | Fl Fl help
+.Xc
+.Bl -tag -width Ds
+.It Xo
+.Fl Fl realm= Ns Ar string
+.Xc
+Kerberos realm to communicate with
+.El
+.It Xo digest-server-init
+.Op Fl Fl type= Ns Ar string
+.Op Fl Fl kerberos-realm= Ns Ar realm
+.Op Fl Fl digest= Ns Ar digest-type
+.Op Fl Fl cb-type= Ns Ar type
+.Op Fl Fl cb-value= Ns Ar value
+.Op Fl Fl hostname= Ns Ar hostname
+.Op Fl Fl realm= Ns Ar string
+.Xc
+.Bl -tag -width Ds
+.It Xo
+.Fl Fl type= Ns Ar string
+.Xc
+digest type
+.It Xo
+.Fl Fl kerberos-realm= Ns Ar realm
+.Xc
+.It Xo
+.Fl Fl digest= Ns Ar digest-type
+.Xc
+digest type to use in the algorithm
+.It Xo
+.Fl Fl cb-type= Ns Ar type
+.Xc
+type of channel bindings
+.It Xo
+.Fl Fl cb-value= Ns Ar value
+.Xc
+value of channel bindings
+.It Xo
+.Fl Fl hostname= Ns Ar hostname
+.Xc
+hostname of the server
+.It Xo
+.Fl Fl realm= Ns Ar string
+.Xc
+Kerberos realm to communicate with
+.El
+.It Xo digest-server-request
+.Op Fl Fl type= Ns Ar string
+.Op Fl Fl kerberos-realm= Ns Ar realm
+.Op Fl Fl username= Ns Ar name
+.Op Fl Fl server-nonce= Ns Ar nonce
+.Op Fl Fl server-identifier= Ns Ar nonce
+.Op Fl Fl client-nonce= Ns Ar nonce
+.Op Fl Fl client-response= Ns Ar response
+.Op Fl Fl opaque= Ns Ar string
+.Op Fl Fl authentication-name= Ns Ar name
+.Op Fl Fl realm= Ns Ar realm
+.Op Fl Fl method= Ns Ar method
+.Op Fl Fl uri= Ns Ar uri
+.Op Fl Fl nounce-count= Ns Ar count
+.Op Fl Fl qop= Ns Ar qop
+.Op Fl Fl ccache= Ns Ar ccache
+.Xc
+.Bl -tag -width Ds
+.It Xo
+.Fl Fl type= Ns Ar string
+.Xc
+digest type
+.It Xo
+.Fl Fl kerberos-realm= Ns Ar realm
+.Xc
+.It Xo
+.Fl Fl username= Ns Ar name
+.Xc
+digest type
+.It Xo
+.Fl Fl server-nonce= Ns Ar nonce
+.Xc
+.It Xo
+.Fl Fl server-identifier= Ns Ar nonce
+.Xc
+.It Xo
+.Fl Fl client-nonce= Ns Ar nonce
+.Xc
+.It Xo
+.Fl Fl client-response= Ns Ar response
+.Xc
+.It Xo
+.Fl Fl opaque= Ns Ar string
+.Xc
+.It Xo
+.Fl Fl authentication-name= Ns Ar name
+.Xc
+.It Xo
+.Fl Fl realm= Ns Ar realm
+.Xc
+.It Xo
+.Fl Fl method= Ns Ar method
+.Xc
+.It Xo
+.Fl Fl uri= Ns Ar uri
+.Xc
+.It Xo
+.Fl Fl nounce-count= Ns Ar count
+.Xc
+.It Xo
+.Fl Fl qop= Ns Ar qop
+.Xc
+.It Xo
+.Fl Fl ccache= Ns Ar ccache
+.Xc
+Where the the credential cache is created when the KDC returns tickets
+.El
+.It Xo digest-client-request
+.Op Fl Fl type= Ns Ar string
+.Op Fl Fl username= Ns Ar name
+.Op Fl Fl password= Ns Ar password
+.Op Fl Fl server-nonce= Ns Ar nonce
+.Op Fl Fl server-identifier= Ns Ar nonce
+.Op Fl Fl client-nonce= Ns Ar nonce
+.Op Fl Fl opaque= Ns Ar string
+.Op Fl Fl realm= Ns Ar realm
+.Op Fl Fl method= Ns Ar method
+.Op Fl Fl uri= Ns Ar uri
+.Op Fl Fl nounce-count= Ns Ar count
+.Op Fl Fl qop= Ns Ar qop
+.Xc
+.Bl -tag -width Ds
+.It Xo
+.Fl Fl type= Ns Ar string
+.Xc
+digest type
+.It Xo
+.Fl Fl username= Ns Ar name
+.Xc
+digest type
+.It Xo
+.Fl Fl password= Ns Ar password
+.Xc
+.It Xo
+.Fl Fl server-nonce= Ns Ar nonce
+.Xc
+.It Xo
+.Fl Fl server-identifier= Ns Ar nonce
+.Xc
+.It Xo
+.Fl Fl client-nonce= Ns Ar nonce
+.Xc
+.It Xo
+.Fl Fl opaque= Ns Ar string
+.Xc
+.It Xo
+.Fl Fl realm= Ns Ar realm
+.Xc
+.It Xo
+.Fl Fl method= Ns Ar method
+.Xc
+.It Xo
+.Fl Fl uri= Ns Ar uri
+.Xc
+.It Xo
+.Fl Fl nounce-count= Ns Ar count
+.Xc
+.It Xo
+.Fl Fl qop= Ns Ar qop
+.Xc
+.El
+.It Xo ntlm-server-init
+.Op Fl Fl version= Ns Ar integer
+.Op Fl Fl kerberos-realm= Ns Ar string
+.Xc
+.Bl -tag -width Ds
+.It Xo
+.Fl Fl version= Ns Ar integer
+.Xc
+ntlm version
+.It Xo
+.Fl Fl kerberos-realm= Ns Ar string
+.Xc
+Kerberos realm to communicate with
+.El
+.\".Sh ENVIRONMENT
+.\".Sh FILES
+.\".Sh EXAMPLES
+.\".Sh DIAGNOSTICS
+.\".Sh SEE ALSO
+.\".Sh STANDARDS
+.\".Sh HISTORY
+.\".Sh AUTHORS
+.\".Sh BUGS

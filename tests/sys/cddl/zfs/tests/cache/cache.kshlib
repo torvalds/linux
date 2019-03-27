@@ -1,0 +1,180 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)cache.kshlib	1.4	09/05/19 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+function cleanup
+{
+	log_note "Final pool configurations:"
+	poolexists $TESTPOOL && log_must $ZPOOL status -v $TESTPOOL
+	poolexists $TESTPOOL2 && log_must $ZPOOL status -v $TESTPOOL2
+	destroy_pool $TESTPOOL
+	destroy_pool $TESTPOOL2
+}
+
+#
+# Try zpool status/iostat for given pool
+#
+# $1 pool
+#
+function display_status
+{
+	typeset pool=$1
+
+	typeset -i ret=0
+	$ZPOOL status -xv $pool > /dev/null 2>&1
+	ret=$?
+
+	$ZPOOL iostat > /dev/null 2>&1
+	((ret |= $?))
+
+	typeset mntpnt=$(get_prop mountpoint $pool)
+	$DD if=/dev/random of=$mntpnt/testfile.${TESTCASE_ID} &
+	typeset pid=$!
+
+	$ZPOOL iostat -v 1 3 > /dev/null
+	((ret |= $?))
+
+	kill -9 $pid
+
+	return $ret
+}
+
+#
+# Verify the give cache device have correct type and status
+#
+# $1 pool name
+# $2 device name
+# $3 device status
+# $4 device type
+#
+function verify_cache_device
+{
+	typeset pool=$1
+	typeset device=$2
+	typeset status=$3
+	typeset type=$4
+
+	if [[ -z $pool || -z $device || -z $status ]]; then
+		log_fail "Usage: verify_cache_device <pool> <device> " \
+			"<status> [type]"
+	fi
+
+	# Zpool status returns on the device name sans the /dev, so
+	# if the device contains /dev/ remove it.
+	device=${device#"/dev/"}
+
+	if [[ $WRAPPER == *"smi"* ]]; then
+		$ECHO $device | $EGREP "^c[0-F]+([td][0-F]+)+$" > /dev/null 2>&1
+		if (( $? == 0 )); then
+			device=${device}s2
+		fi
+	fi
+
+	#
+	# Get all the cache devices and status table like below
+	#
+	# mirror:/disks/d ONLINE mirror:/disks/e ONLINE stripe:/disks/f ONLINE
+	#
+	set -A dev_stat_tab $($ZPOOL status -v $pool | $NAWK '
+				function parse_name(status)
+				{
+					if (status == "OFFLINE")
+						return substr($7,6)
+					else if (status == "UNAVAIL")
+						return substr($7,6)
+					else
+						return $1
+				}
+
+				BEGIN {in_cache=0}
+				/\tcache/ {in_cache=1}
+				/\tlog/ || /\tspares/ || /^$/ {in_cache=0}
+
+				# Skip if not in a cache section
+				(in_cache==0) { next; }
+
+				/\t  (\/|[0-9a-zA-Z])/ {
+					print "stripe:" parse_name($2) " " $2;
+				}
+
+				/\t    (\/|[a-zA-Z])/ {
+					print "mirror:" parse_name($2) " " $2;
+				}
+
+				# When hotspare is replacing
+				/\t      (\/|[a-zA-Z])/ {
+					print "mirror:" parse_name($2) " " $2;
+				}
+	')
+
+	typeset -i i=0
+	typeset find=0
+	while (( i < ${#dev_stat_tab[@]} )); do
+		typeset dev=${dev_stat_tab[$i]}
+		typeset stat=${dev_stat_tab[((i+1))]}
+
+		case $dev in
+			stripe:$device)	
+				if [[ "$type" == 'mirror' ]]; then
+					log_note "Unexpected type: mirror"
+					return 1
+				else
+					if [[ $stat != $status ]]; then
+						log_note "Status($stat) " \
+							"!= Expected stat($status)"
+						return 1
+					fi
+					return 0
+				fi
+				;;
+			mirror:$device)
+				if [[ -z "$type" || $type == 'stripe' ]]; then
+					log_note "Unexpected type: stripe"
+					return 1
+				else
+					if [[ $stat != $status ]]; then
+						log_note "Status($stat) " \
+							"!= Expected stat($status)"
+						return 1
+					fi
+					return 0
+				fi
+				;;
+		esac
+
+		((i += 2))
+	done
+
+	log_note "Can not find device: $device"
+
+	return 1
+}

@@ -1,0 +1,133 @@
+#
+# BEAGLEBONE -- Custom configuration for the BeagleBone ARM development
+# platforms, check out http://www.beagleboard.org/bone and
+# http://www.beagleboard.org/black. This kernel config file is used for the
+# original BeagleBone and the BeagleBone Black.
+#
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
+#
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+# $FreeBSD$
+
+ident		BEAGLEBONE
+
+include 	"std.armv7"
+include 	"../ti/am335x/std.am335x"
+
+makeoptions	MODULES_EXTRA="dtb/am335x am335x_dmtpps"
+
+options 	SCHED_4BSD		# 4BSD scheduler
+options 	PLATFORM
+
+# NFS server support
+#options 	NFSD
+
+# NFS root from boopt/dhcp
+#options 	BOOTP
+#options 	BOOTP_NFSROOT
+#options 	BOOTP_COMPAT
+#options 	BOOTP_NFSV3
+#options 	BOOTP_WIRED_TO=cpsw0
+
+# Boot device is 2nd slice on MMC/SD card
+options 	ROOTDEVNAME=\"ufs:mmcsd0s2\"
+
+# MMC/SD/SDIO Card slot support
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+device		sdhci			# mmc/sd host controller
+
+# I2C support
+device		iicbus
+device		iic
+device		ti_i2c
+device		am335x_pmic		# AM335x Power Management IC (TPC65217)
+
+device		am335x_rtc		# RTC support (power management only)
+#define 	am335x_dmtpps		# Pulse Per Second capture driver
+
+# Console and misc
+device		uart
+device		uart_ns8250
+device		pty
+device		snp
+device		md
+device		random			# Entropy device
+
+# GPIO
+device		gpio
+device		gpioled
+device		gpiobacklight
+
+# SPI
+device		ti_spi
+device		spibus
+
+# ADC support
+device		ti_adc
+
+# Watchdog support
+# If we don't enable the watchdog driver, the system could potentially
+# reboot automatically because the boot loader might have enabled the
+# watchdog.
+device		ti_wdt
+
+# TI Programmable Realtime Unit support
+device		ti_pruss
+
+# Mailbox support
+device		ti_mbox
+
+# PMU support (for CCNT).
+device		pmu
+
+# USB support
+device		usb
+options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
+device		musb
+device		umass
+device		scbus			# SCSI bus (required for ATA/SCSI)
+device		da			# Direct Access (disks)
+
+# Ethernet
+device		loop
+device		ether
+device		mii
+device		smscphy
+device		cpsw
+device		bpf
+
+# USB Ethernet support, requires miibus
+device		miibus
+
+# Device mode support
+device		usb_template    	# Control of the gadget
+
+# Pinmux
+device		fdt_pinctrl
+
+# Flattened Device Tree
+options 	FDT			# Configure using FDT/DTB data
+
+# Comment following lines for boot console on serial port
+device		vt
+device		videomode
+device		hdmi
+device		ums
+device		ukbd
+device		kbdmux
+
+# Uncomment to enable evdev support for ti_adc
+# options		EVDEV_SUPPORT

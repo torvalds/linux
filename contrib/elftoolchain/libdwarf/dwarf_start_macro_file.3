@@ -1,0 +1,105 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_start_macro_file.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd September 25, 2011
+.Dt DWARF_START_MACRO_FILE 3
+.Os
+.Sh NAME
+.Nm dwarf_start_macro_file
+.Nd mark the start of a source file inclusion
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft "int"
+.Fo dwarf_start_macro_file
+.Fa "Dwarf_P_Debug dbg"
+.Fa "Dwarf_Unsigned lineno"
+.Fa "Dwarf_Unsigned fileindex"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_start_macro_file
+marks the start of a new source file inclusion.
+.Pp
+Argument
+.Ar dbg
+should reference a DWARF producer instance allocated using
+.Xr dwarf_producer_init 3
+or
+.Xr dwarf_producer_init_b 3 .
+.Pp
+Argument
+.Ar lineno
+specifies the line number of the source line where the source
+file inclusion occurs.
+A value of zero is used to indicate the file for the compilation unit
+source itself.
+.Pp
+Argument
+.Ar fileindex
+specifies the index of the source file that is being included.
+Valid source file indices are those returned by
+.Xr dwarf_add_file_decl 3 .
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case of an
+error.
+.Sh RETURN VALUES
+On success, function
+.Fn dwarf_start_macro_file
+returns
+.Dv DW_DLV_OK .
+In case of an error, function
+.Fn dwarf_start_macro_file
+returns
+.Dv DW_DLV_ERROR
+and sets the argument
+.Ar err .
+.Sh ERRORS
+Function
+.Fn dwarf_start_macro_file
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Ar dbg
+was NULL.
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered during the execution of the
+function.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_add_file_decl 3 ,
+.Xr dwarf_def_macro 3 ,
+.Xr dwarf_end_macro_file 3 ,
+.Xr dwarf_producer_init 3 ,
+.Xr dwarf_producer_init_b 3 ,
+.Xr dwarf_undef_macro 3 ,
+.Xr dwarf_vendor_ext 3

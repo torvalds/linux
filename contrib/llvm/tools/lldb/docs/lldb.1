@@ -1,0 +1,154 @@
+.Dd December 16, 2015   \" DATE
+.Dt LLDB 1           \" Program name and manual section number
+.Os
+.Sh NAME             \" Section Header - required - do not modify
+.Nm lldb
+.Nd The debugger
+.Sh SYNOPSIS         \" Section Header - required - do not modify
+.Nm lldb
+.Op Fl hvdexw
+.Op Fl a Ar arch
+.Op Fl c Ar core-file
+.Op Fl l Ar script-language
+.Op Fl s Ar lldb-commands
+.Op Fl n Ar process-name
+.Op Fl p Ar pid
+.Ar [[--] <PROGRAM-ARG1> <PROGRAM-ARG2> ...]
+.Sh DESCRIPTION      \" Section Header - required - do not modify
+.Nm
+is the command line interface for the LLDB debugger library.
+.Nm
+can debug C, C++, Objective-C, and Objective-C++ programs.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl h, -help
+Prints out the usage information for the
+.Nm
+debugger.
+The
+.Fl -help
+text may be more up-to-date and
+authoritative than the command line options described in this man
+page.
+.It Fl v, -version
+Prints out the version number of the
+.Nm
+debugger.
+.It Fl a, -arch Ar arch
+Specifies which architecture
+.Nm
+will use when launching the specified program (assuming the provided
+executable is built for multiple architectures.)
+.It Fl f, -file Ar filename
+Specifies the executable file that
+.Nm
+will be launching / attaching to.
+.It Fl n, -attach-name Ar process-name
+Specifies the name of a currently-running process to attach to.
+(or the name of a process to wait for if
+.Fl w
+is used.)
+.It Fl w, -wait-for
+When used in concert with
+.Fl n Ar process-name ,
+indicates that
+.Nm
+should wait for a new process of that name to be started -- and attach
+to it as early in the process-launch as possible.
+.It Fl p, -attach-pid Ar pid
+Specifies a currently running process that
+.Nm
+should attach to.
+.It Fl c, -core Ar core-file
+Specifies the core file to examine.
+.It Fl l, -script-language Ar language
+Tells the debugger to use the specified scripting language for
+user-defined scripts, rather than the default.
+Valid scripting
+languages that can be specified include Python, Perl, Ruby and Tcl.
+Currently only the Python extensions have been implemented.
+.It Fl d, -debug
+Tells the debugger to print out extra information for debugging itself.
+.It Fl s, -source Ar filename
+Tells
+.Nm
+to read in and execute the file
+.Qq Ar filename ,
+which should contain
+.Nm
+commands.
+.It Fl e, -editor
+Instructs
+.Nm
+to open source files using the host's "external editor" mechanism.
+.It Fl x, -no-lldbinit
+Do not automatically parse any '.lldbinit' files.
+.Pp
+(If you do not provide -f then the first argument will be the file to
+be debugged
+so 'lldb -- <filename> [<ARG1> [<ARG2>]]' also works.
+Remember to end the options with "--" if any of your arguments have
+a "-" in them.)
+.El
+.Sh USING LLDB
+In
+.Nm
+there is a
+.Cm help
+command which can be used to find descriptions and examples of all
+.Nm
+commands.
+To get help on
+.Qq Cm breakpoint set
+you would type
+.Qq Cm help breakpoint set .
+.Pp
+There is also an
+.Cm apropos
+command which will search the help text of all commands
+for a given term -- this is useful for locating a command by topic.
+For instance,
+.Qq Cm apropos breakpoint
+will list any command that has the word
+.Qq Cm breakpoint
+in its help text.
+.Sh FILES
+.Nm
+will read settings/aliases/commands from three files at startup, if they exist.
+.Pp
+First, it will read a
+.Pa ~/.lldbinit-debugger
+command file.
+If you are using the
+.Nm
+command line interface, this is
+.Pa ~/.lldbinit-lldb .
+If you are using
+.Nm
+inside a GUI debugger like
+.Nm Xcode
+this will be
+.Pa ~/.lldbinit-Xcode .
+This is a useful place to put settings that you want to apply only when a given
+.Nm
+command interpreter is used.
+.Pp
+Second,
+.Pa ~/.lldbinit
+is read.
+.Pp
+Third, an
+.Pa .lldbinit
+file in the current working directory (where
+.Nm
+is started) will be read.
+.Sh SEE ALSO
+The LLDB project page http://lldb.llvm.org/ has many different resources for
+.Nm
+users -- the gdb/lldb command equivalence page http://lldb.llvm.org/lldb-gdb.html can
+be especially helpful for users coming from gdb.
+.Sh BUGS
+To report bugs, please visit http://llvm.org/bugs/
+.Sh AUTHOR
+Maintained by the LLDB Team, http://lldb.llvm.org/

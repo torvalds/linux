@@ -1,0 +1,181 @@
+=pod
+
+=head1 NAME
+
+X509_get0_subject_key_id,
+X509_get0_authority_key_id,
+X509_get_pathlen,
+X509_get_extension_flags,
+X509_get_key_usage,
+X509_get_extended_key_usage,
+X509_set_proxy_flag,
+X509_set_proxy_pathlen,
+X509_get_proxy_pathlen - retrieve certificate extension data
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509v3.h>
+
+ long X509_get_pathlen(X509 *x);
+ uint32_t X509_get_extension_flags(X509 *x);
+ uint32_t X509_get_key_usage(X509 *x);
+ uint32_t X509_get_extended_key_usage(X509 *x);
+ const ASN1_OCTET_STRING *X509_get0_subject_key_id(X509 *x);
+ const ASN1_OCTET_STRING *X509_get0_authority_key_id(X509 *x);
+ void X509_set_proxy_flag(X509 *x);
+ void X509_set_proxy_pathlen(int l);
+ long X509_get_proxy_pathlen(X509 *x);
+
+=head1 DESCRIPTION
+
+These functions retrieve information related to commonly used certificate extensions.
+
+X509_get_pathlen() retrieves the path length extension from a certificate.
+This extension is used to limit the length of a cert chain that may be
+issued from that CA.
+
+X509_get_extension_flags() retrieves general information about a certificate,
+it will return one or more of the following flags ored together.
+
+=over 4
+
+=item B<EXFLAG_V1>
+
+The certificate is an obsolete version 1 certificate.
+
+=item B<EXFLAG_BCONS>
+
+The certificate contains a basic constraints extension.
+
+=item B<EXFLAG_CA>
+
+The certificate contains basic constraints and asserts the CA flag.
+
+=item B<EXFLAG_PROXY>
+
+The certificate is a valid proxy certificate.
+
+=item B<EXFLAG_SI>
+
+The certificate is self issued (that is subject and issuer names match).
+
+=item B<EXFLAG_SS>
+
+The subject and issuer names match and extension values imply it is self
+signed.
+
+=item B<EXFLAG_FRESHEST>
+
+The freshest CRL extension is present in the certificate.
+
+=item B<EXFLAG_CRITICAL>
+
+The certificate contains an unhandled critical extension.
+
+=item B<EXFLAG_INVALID>
+
+Some certificate extension values are invalid or inconsistent. The
+certificate should be rejected.
+
+=item B<EXFLAG_KUSAGE>
+
+The certificate contains a key usage extension. The value can be retrieved
+using X509_get_key_usage().
+
+=item B<EXFLAG_XKUSAGE>
+
+The certificate contains an extended key usage extension. The value can be
+retrieved using X509_get_extended_key_usage().
+
+=back
+
+X509_get_key_usage() returns the value of the key usage extension.  If key
+usage is present will return zero or more of the flags:
+B<KU_DIGITAL_SIGNATURE>, B<KU_NON_REPUDIATION>, B<KU_KEY_ENCIPHERMENT>,
+B<KU_DATA_ENCIPHERMENT>, B<KU_KEY_AGREEMENT>, B<KU_KEY_CERT_SIGN>,
+B<KU_CRL_SIGN>, B<KU_ENCIPHER_ONLY> or B<KU_DECIPHER_ONLY> corresponding to
+individual key usage bits. If key usage is absent then B<UINT32_MAX> is
+returned.
+
+X509_get_extended_key_usage() returns the value of the extended key usage
+extension. If extended key usage is present it will return zero or more of the
+flags: B<XKU_SSL_SERVER>, B<XKU_SSL_CLIENT>, B<XKU_SMIME>, B<XKU_CODE_SIGN>
+B<XKU_OCSP_SIGN>, B<XKU_TIMESTAMP>, B<XKU_DVCS> or B<XKU_ANYEKU>. These
+correspond to the OIDs B<id-kp-serverAuth>, B<id-kp-clientAuth>,
+B<id-kp-emailProtection>, B<id-kp-codeSigning>, B<id-kp-OCSPSigning>,
+B<id-kp-timeStamping>, B<id-kp-dvcs> and B<anyExtendedKeyUsage> respectively.
+Additionally B<XKU_SGC> is set if either Netscape or Microsoft SGC OIDs are
+present.
+
+X509_get0_subject_key_id() returns an internal pointer to the subject key
+identifier of B<x> as an B<ASN1_OCTET_STRING> or B<NULL> if the extension
+is not present or cannot be parsed.
+
+X509_get0_authority_key_id() returns an internal pointer to the authority key
+identifier of B<x> as an B<ASN1_OCTET_STRING> or B<NULL> if the extension
+is not present or cannot be parsed.
+
+X509_set_proxy_flag() marks the certificate with the B<EXFLAG_PROXY> flag.
+This is for the users who need to mark non-RFC3820 proxy certificates as
+such, as OpenSSL only detects RFC3820 compliant ones.
+
+X509_set_proxy_pathlen() sets the proxy certificate path length for the given
+certificate B<x>.  This is for the users who need to mark non-RFC3820 proxy
+certificates as such, as OpenSSL only detects RFC3820 compliant ones.
+
+X509_get_proxy_pathlen() returns the proxy certificate path length for the
+given certificate B<x> if it is a proxy certificate.
+
+=head1 NOTES
+
+The value of the flags correspond to extension values which are cached
+in the B<X509> structure. If the flags returned do not provide sufficient
+information an application should examine extension values directly
+for example using X509_get_ext_d2i().
+
+If the key usage or extended key usage extension is absent then typically usage
+is unrestricted. For this reason X509_get_key_usage() and
+X509_get_extended_key_usage() return B<UINT32_MAX> when the corresponding
+extension is absent. Applications can additionally check the return value of
+X509_get_extension_flags() and take appropriate action is an extension is
+absent.
+
+If X509_get0_subject_key_id() returns B<NULL> then the extension may be
+absent or malformed. Applications can determine the precise reason using
+X509_get_ext_d2i().
+
+=head1 RETURN VALUES
+
+X509_get_pathlen() returns the path length value, or -1 if the extension
+is not present.
+
+X509_get_extension_flags(), X509_get_key_usage() and
+X509_get_extended_key_usage() return sets of flags corresponding to the
+certificate extension values.
+
+X509_get0_subject_key_id() returns the subject key identifier as a
+pointer to an B<ASN1_OCTET_STRING> structure or B<NULL> if the extension
+is absent or an error occurred during parsing.
+
+X509_get_proxy_pathlen() returns the path length value if the given
+certificate is a proxy one and has a path length set, and -1 otherwise.
+
+=head1 SEE ALSO
+
+L<X509_check_purpose(3)>
+
+=head1 HISTORY
+
+X509_get_pathlen(), X509_set_proxy_flag(), X509_set_proxy_pathlen() and
+X509_get_proxy_pathlen() were added in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

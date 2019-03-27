@@ -1,0 +1,1223 @@
+.\" Copyright (c) 2003-2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 4, 2008
+.Dt PMC.P4 3
+.Os
+.Sh NAME
+.Nm pmc.p4
+.Nd measurement events for
+.Tn "Intel Pentium 4"
+and other
+.Tn Netburst
+architecture CPUs
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+Intel P4 PMCs are present in Intel
+.Tn "Pentium 4"
+and
+.Tn Xeon
+processors that use the
+.Tn Netburst
+CPU architecture.
+.Pp
+These PMCs are documented in
+.Rs
+.%B "IA-32 Intel(R) Architecture Software Developer's Manual"
+.%T "Volume 3: System Programming Guide"
+.%N "Order Number 245472-012"
+.%D 2003
+.%Q "Intel Corporation"
+.Re
+Further information about using these PMCs may be found in
+.Rs
+.%B "IA-32 Intel(R) Architecture Optimization Guide"
+.%D 2003
+.%N "Order Number 248966-009"
+.%Q "Intel Corporation"
+.Re
+Some of these events are affected by processor errata described in
+.Rs
+.%B "Intel(R) Pentium(R) 4 Processor Specification Update"
+.%N "Document Number: 249199-059"
+.%D "April 2005"
+.%Q "Intel Corporation"
+.Re
+.Ss PMC Features
+Intel Pentium 4 PMCs are 40 bits wide.
+Each CPU contains 18 PMCs, divided into 4 groups with 4, 4, 4 and 6
+PMCs respectively.
+On processors with hyperthreading support, PMC resources are shared
+between logical processors.
+These PMCs support the following capabilities:
+.Bl -column "PMC_CAP_INTERRUPT" "Support"
+.It Em Capability Ta Em Support
+.It PMC_CAP_CASCADE Ta Yes
+.It PMC_CAP_EDGE Ta Yes
+.It PMC_CAP_INTERRUPT Ta Yes
+.It PMC_CAP_INVERT Ta Yes
+.It PMC_CAP_READ Ta Yes
+.It PMC_CAP_PRECISE Ta Unimplemented
+.It PMC_CAP_SYSTEM Ta Yes
+.It PMC_CAP_TAGGING Ta Yes
+.It PMC_CAP_THRESHOLD Ta Yes
+.It PMC_CAP_USER Ta Yes
+.It PMC_CAP_WRITE Ta Yes
+.El
+.Ss Event Qualifiers
+Event specifiers for Intel P4 PMCs can have the following common
+qualifiers:
+.Bl -tag -width indent
+.It Li active= Ns Ar choice
+(On P4 HTT CPUs) Filter event counting based on which logical
+processors are active.
+The allowed values of
+.Ar choice
+are:
+.Pp
+.Bl -tag -width indent -compact
+.It Li any
+Count when either logical processor is active.
+.It Li both
+Count when both logical processors are active.
+.It Li none
+Count only when neither logical processor is active.
+.It Li single
+Count only when one logical processor is active.
+.El
+.Pp
+The default is
+.Dq Li both .
+.It Li cascade
+Configure the PMC to cascade onto its partner.
+See
+.Sx "Cascading P4 PMCs"
+below for more information.
+.It Li edge
+Configure the counter to count false to true transitions of the threshold
+comparison output.
+This qualifier only takes effect if a threshold qualifier has also been
+specified.
+.It Li complement
+Configure the counter to increment only when the event count seen is
+less than the threshold qualifier value specified.
+.It Li mask= Ns Ar qualifier
+Many event specifiers for Intel P4 PMCs need to be additionally
+qualified using a mask qualifier.
+The allowed syntax for these qualifiers is event specific and is
+described along with the events.
+.It Li os
+Configure the PMC to count when the CPL of the processor is 0.
+.It Li precise
+Select precise event based sampling.
+Precise sampling is supported by the hardware for a limited set of
+events.
+.It Li tag= Ns Ar value
+Configure the PMC to tag the internal uop selected by the other
+fields in this event specifier with value
+.Ar value .
+This feature is used when cascading PMCs.
+.It Li threshold= Ns Ar value
+Configure the PMC to increment only when the event counts seen are
+greater than the specified threshold value
+.Ar value .
+.It Li usr
+Configure the PMC to count when the CPL of the processor is 1, 2 or 3.
+.El
+.Pp
+If neither of the
+.Dq Li os
+or
+.Dq Li usr
+qualifiers are specified, the default is to enable both.
+.Pp
+On Intel Pentium 4 processors with HTT, events are
+divided into two classes:
+.Pp
+.Bl -tag -width indent -compact
+.It "TS Events"
+are those where hardware can differentiate between events
+generated on one logical processor from those generated on the
+other.
+.It "TI Events"
+are those where hardware cannot differentiate between events
+generated by multiple logical processors in a package.
+.El
+.Pp
+Only TS events are allowed for use with process-mode PMCs on
+Pentium-4/HTT CPUs.
+.Pp
+The event specifiers supported by Intel P4 PMCs are:
+.Bl -tag -width indent
+.It Li p4-128bit-mmx-uop Op Li ,mask= Ns Ar flags
+.Pq "TI event"
+Count integer SIMD SSE2 instructions that operate on 128 bit SIMD
+operands.
+Qualifier
+.Ar flags
+can take the following value (which is also the default):
+.Pp
+.Bl -tag -width indent -compact
+.It Li all
+Count all uops operating on 128 bit SIMD integer operands in memory or
+XMM register.
+.El
+.Pp
+If an instruction contains more than one 128 bit MMX uop, then each
+uop will be counted.
+.It Li p4-64bit-mmx-uop Op Li ,mask= Ns Ar flags
+.Pq "TI event"
+Count MMX instructions that operate on 64 bit SIMD operands.
+Qualifier
+.Ar flags
+can take the following value (which is also the default):
+.Pp
+.Bl -tag -width indent -compact
+.It Li all
+Count all uops operating on 64 bit SIMD integer operands in memory or
+in MMX registers.
+.El
+.Pp
+If an instruction contains more than one 64 bit MMX uop, then each
+uop will be counted.
+.It Li p4-b2b-cycles
+.Pq "TI event"
+Count back-to-back bus cycles.
+Further documentation for this event is unavailable.
+.It Li p4-bnr
+.Pq "TI event"
+Count bus-not-ready conditions.
+Further documentation for this event is unavailable.
+.It Li p4-bpu-fetch-request Op Li ,mask= Ns Ar qualifier
+.Pq "TS event"
+Count instruction fetch requests qualified by additional
+flags specified in
+.Ar qualifier .
+At this point only one flag is supported:
+.Pp
+.Bl -tag -width indent -compact
+.It Li tcmiss
+Count trace cache lookup misses.
+.El
+.Pp
+The default qualifier is also
+.Dq Li mask=tcmiss .
+.It Li p4-branch-retired Op Li ,mask= Ns Ar flags
+.Pq "TS event"
+Counts retired branches.
+Qualifier
+.Ar flags
+is a list of the following
+.Ql +
+separated strings:
+.Pp
+.Bl -tag -width indent -compact
+.It Li mmnp
+Count branches not-taken and predicted.
+.It Li mmnm
+Count branches not-taken and mis-predicted.
+.It Li mmtp
+Count branches taken and predicted.
+.It Li mmtm
+Count branches taken and mis-predicted.
+.El
+.Pp
+The default qualifier counts all four kinds of branches.
+.It Li p4-bsq-active-entries Op Li ,mask= Ns Ar qualifier
+.Pq "TS event"
+Count the number of entries (clipped at 15) currently active in the
+BSQ.
+Qualifier
+.Ar qualifier
+is a
+.Ql +
+separated set of the following flags:
+.Pp
+.Bl -tag -width indent -compact
+.It Li req-type0 , Li req-type1
+Forms a 2-bit number used to select the request type encoding:
+.Pp
+.Bl -tag -width indent -compact
+.It Li 0
+reads excluding read invalidate
+.It Li 1
+read invalidates
+.It Li 2
+writes other than writebacks
+.It Li 3
+writebacks
+.El
+.Pp
+Bit
+.Dq Li req-type1
+is the MSB for this two bit number.
+.It Li req-len0 , Li req-len1
+Forms a two-bit number that specifies the request length encoding:
+.Pp
+.Bl -tag -width indent -compact
+.It Li 0
+0 chunks
+.It Li 1
+1 chunk
+.It Li 3
+8 chunks
+.El
+.Pp
+Bit
+.Dq Li req-len1
+is the MSB for this two bit number.
+.It Li req-io-type
+Count requests that are input or output requests.
+.It Li req-lock-type
+Count requests that lock the bus.
+.It Li req-lock-cache
+Count requests that lock the cache.
+.It Li req-split-type
+Count requests that is a bus 8-byte chunk that is split across an
+8-byte boundary.
+.It Li req-dem-type
+Count requests that are demand (not prefetches) if set.
+Count requests that are prefetches if not set.
+.It Li req-ord-type
+Count requests that are ordered.
+.It Li mem-type0 , Li mem-type1 , Li mem-type2
+Forms a 3-bit number that specifies a memory type encoding:
+.Pp
+.Bl -tag -width indent -compact
+.It Li 0
+UC
+.It Li 1
+USWC
+.It Li 4
+WT
+.It Li 5
+WP
+.It Li 6
+WB
+.El
+.Pp
+Bit
+.Dq Li mem-type2
+is the MSB of this 3-bit number.
+.El
+.Pp
+The default qualifier has all the above bits set.
+.Pp
+Edge triggering using the
+.Dq Li edge
+qualifier should not be used with this event when counting cycles.
+.It Li p4-bsq-allocation Op Li ,mask= Ns Ar qualifier
+.Pq "TS event"
+Count allocations in the bus sequence unit according to the flags
+specified in
+.Ar qualifier ,
+which is a
+.Ql +
+separated set of the following flags:
+.Pp
+.Bl -tag -width indent -compact
+.It Li req-type0 , Li req-type1
+Forms a 2-bit number used to select the request type encoding:
+.Pp
+.Bl -tag -width indent -compact
+.It Li 0
+reads excluding read invalidate
+.It Li 1
+read invalidates
+.It Li 2
+writes other than writebacks
+.It Li 3
+writebacks
+.El
+.Pp
+Bit
+.Dq Li req-type1
+is the MSB for this two bit number.
+.It Li req-len0 , Li req-len1
+Forms a two-bit number that specifies the request length encoding:
+.Pp
+.Bl -tag -width indent -compact
+.It Li 0
+0 chunks
+.It Li 1
+1 chunk
+.It Li 3
+8 chunks
+.El
+.Pp
+Bit
+.Dq Li req-len1
+is the MSB for this two bit number.
+.It Li req-io-type
+Count requests that are input or output requests.
+.It Li req-lock-type
+Count requests that lock the bus.
+.It Li req-lock-cache
+Count requests that lock the cache.
+.It Li req-split-type
+Count requests that is a bus 8-byte chunk that is split across an
+8-byte boundary.
+.It Li req-dem-type
+Count requests that are demand (not prefetches) if set.
+Count requests that are prefetches if not set.
+.It Li req-ord-type
+Count requests that are ordered.
+.It Li mem-type0 , Li mem-type1 , Li mem-type2
+Forms a 3-bit number that specifies a memory type encoding:
+.Pp
+.Bl -tag -width indent -compact
+.It Li 0
+UC
+.It Li 1
+USWC
+.It Li 4
+WT
+.It Li 5
+WP
+.It Li 6
+WB
+.El
+.Pp
+Bit
+.Dq Li mem-type2
+is the MSB of this 3-bit number.
+.El
+.Pp
+The default qualifier has all the above bits set.
+.Pp
+This event is usually used along with the
+.Dq Li edge
+qualifier to avoid multiple counting.
+.It Li p4-bsq-cache-reference Op Li ,mask= Ns Ar qualifier
+.Pq "TS event"
+Count cache references as seen by the bus unit (2nd or 3rd level
+cache references).
+Qualifier
+.Ar qualifier
+is a
+.Ql +
+separated list of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li rd-2ndl-hits
+Count 2nd level cache hits in the shared state.
+.It Li rd-2ndl-hite
+Count 2nd level cache hits in the exclusive state.
+.It Li rd-2ndl-hitm
+Count 2nd level cache hits in the modified state.
+.It Li rd-3rdl-hits
+Count 3rd level cache hits in the shared state.
+.It Li rd-3rdl-hite
+Count 3rd level cache hits in the exclusive state.
+.It Li rd-3rdl-hitm
+Count 3rd level cache hits in the modified state.
+.It Li rd-2ndl-miss
+Count 2nd level cache misses.
+.It Li rd-3rdl-miss
+Count 3rd level cache misses.
+.It Li wr-2ndl-miss
+Count write-back lookups from the data access cache that miss the 2nd
+level cache.
+.El
+.Pp
+The default is to count all the above events.
+.It Li p4-execution-event Op Li ,mask= Ns Ar flags
+.Pq "TS event"
+Count the retirement of tagged uops selected through the execution
+tagging mechanism.
+Qualifier
+.Ar flags
+can contain the following strings separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li nbogus0 , Li nbogus1 , Li nbogus2 , Li nbogus3
+The marked uops are not bogus.
+.It Li bogus0 , Li bogus1 , Li bogus2 , Li bogus3
+The marked uops are bogus.
+.El
+.Pp
+This event requires additional (upstream) events to be allocated to
+perform the desired uop tagging.
+The default is to set all the above flags.
+This event can be used for precise event based sampling.
+.It Li p4-front-end-event Op Li ,mask= Ns Ar flags
+.Pq "TS event"
+Count the retirement of tagged uops selected through the front-end
+tagging mechanism.
+Qualifier
+.Ar flags
+can contain the following strings separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li nbogus
+The marked uops are not bogus.
+.It Li bogus
+The marked uops are bogus.
+.El
+.Pp
+This event requires additional (upstream) events to be allocated to
+perform the desired uop tagging.
+The default is to select both kinds of events.
+This event can be used for precise event based sampling.
+.It Li p4-fsb-data-activity Op Li ,mask= Ns Ar flags
+.Pq "TI event"
+Count each DBSY or DRDY event selected by qualifier
+.Ar flags .
+Qualifier
+.Ar flags
+is a
+.Ql +
+separated set of the following flags:
+.Pp
+.Bl -tag -width indent -compact
+.It Li drdy-drv
+Count when this processor is driving data onto the bus.
+.It Li drdy-own
+Count when this processor is reading data from the bus.
+.It Li drdy-other
+Count when data is on the bus but not being sampled by this processor.
+.It Li dbsy-drv
+Count when this processor reserves the bus for use in the next cycle
+in order to drive data.
+.It Li dbsy-own
+Count when some agent reserves the bus for use in the next bus cycle
+to drive data that this processor will sample.
+.It Li dbsy-other
+Count when some agent reserves the bus for use in the next bus cycle
+to drive data that this processor will not sample.
+.El
+.Pp
+Flags
+.Dq Li drdy-own
+and
+.Dq Li drdy-other
+are mutually exclusive.
+Flags
+.Dq Li dbsy-own
+and
+.Dq Li dbsy-other
+are mutually exclusive.
+The default value for
+.Ar qualifier
+is
+.Dq Li drdy-drv+drdy-own+dbsy-drv+dbsy-own .
+.It Li p4-global-power-events Op Li ,mask= Ns Ar flags
+.Pq "TS event"
+Count cycles during which the processor is not stopped.
+Qualifier
+.Ar flags
+can take the following value (which is also the default):
+.Pp
+.Bl -tag -width indent -compact
+.It Li running
+Count cycles when the processor is active.
+.El
+.It Li p4-instr-retired Op Li ,mask= Ns Ar flags
+.Pq "TS event"
+Count instructions retired during a clock cycle.
+Qualifier
+.Ar flags
+comprises of the following strings separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li nbogusntag
+Count non-bogus instructions that are not tagged.
+.It Li nbogustag
+Count non-bogus instructions that are tagged.
+.It Li bogusntag
+Count bogus instructions that are not tagged.
+.It Li bogustag
+Count bogus instructions that are tagged.
+.El
+.Pp
+The default qualifier counts all the above kinds of instructions.
+.It Li p4-ioq-active-entries Xo
+.Op Li ,mask= Ns Ar qualifier
+.Op Li ,busreqtype= Ns Ar req-type
+.Xc
+.Pq "TS event"
+Count the number of entries (clipped at 15) in the IOQ that are
+active.
+The event masks are specified by qualifier
+.Ar qualifier
+and
+.Ar req-type .
+.Pp
+Qualifier
+.Ar qualifier
+is a
+.Ql +
+separated set of the following flags:
+.Pp
+.Bl -tag -width indent -compact
+.It Li all-read
+Count read entries.
+.It Li all-write
+Count write entries.
+.It Li mem-uc
+Count entries accessing un-cacheable memory.
+.It Li mem-wc
+Count entries accessing write-combining memory.
+.It Li mem-wt
+Count entries accessing write-through memory.
+.It Li mem-wp
+Count entries accessing write-protected memory
+.It Li mem-wb
+Count entries accessing write-back memory.
+.It Li own
+Count store requests driven by the processor (i.e., not by other
+processors or by DMA).
+.It Li other
+Count store requests driven by other processors or by DMA.
+.It Li prefetch
+Include hardware and software prefetch requests in the count.
+.El
+.Pp
+The default value for
+.Ar qualifier
+is to enable all the above flags.
+.Pp
+The
+.Ar req-type
+qualifier is a 5-bit number can be additionally used to select a
+specific bus request type.
+The default is 0.
+.Pp
+The
+.Dq Li edge
+qualifier should not be used when counting cycles with this event.
+The exact behavior of this event depends on the processor revision.
+.It Li p4-ioq-allocation Xo
+.Op Li ,mask= Ns Ar qualifier
+.Op Li ,busreqtype= Ns Ar req-type
+.Xc
+.Pq "TS event"
+Count various types of transactions on the bus matching the flags set
+in
+.Ar qualifier
+and
+.Ar req-type .
+.Pp
+Qualifier
+.Ar qualifier
+is a
+.Ql +
+separated set of the following flags:
+.Pp
+.Bl -tag -width indent -compact
+.It Li all-read
+Count read entries.
+.It Li all-write
+Count write entries.
+.It Li mem-uc
+Count entries accessing un-cacheable memory.
+.It Li mem-wc
+Count entries accessing write-combining memory.
+.It Li mem-wt
+Count entries accessing write-through memory.
+.It Li mem-wp
+Count entries accessing write-protected memory
+.It Li mem-wb
+Count entries accessing write-back memory.
+.It Li own
+Count store requests driven by the processor (i.e., not by other
+processors or by DMA).
+.It Li other
+Count store requests driven by other processors or by DMA.
+.It Li prefetch
+Include hardware and software prefetch requests in the count.
+.El
+.Pp
+The default value for
+.Ar qualifier
+is to enable all the above flags.
+.Pp
+The
+.Ar req-type
+qualifier is a 5-bit number can be additionally used to select a
+specific bus request type.
+The default is 0.
+.Pp
+The
+.Dq Li edge
+qualifier is normally used with this event to prevent multiple
+counting.
+The exact behavior of this event depends on the processor revision.
+.It Li p4-itlb-reference Op mask= Ns Ar qualifier
+.Pq "TS event"
+Count translations using the instruction translation look-aside
+buffer.
+The
+.Ar qualifier
+argument is a list of the following strings separated by
+.Ql +
+characters.
+.Pp
+.Bl -tag -width indent -compact
+.It Li hit
+Count ITLB hits.
+.It Li miss
+Count ITLB misses.
+.It Li hit-uc
+Count un-cacheable ITLB hits.
+.El
+.Pp
+If no
+.Ar qualifier
+is specified the default is to count all the three kinds of ITLB
+translations.
+.It Li p4-load-port-replay Op Li ,mask= Ns Ar qualifier
+.Pq "TS event"
+Count replayed events at the load port.
+Qualifier
+.Ar qualifier
+can take on one value:
+.Pp
+.Bl -tag -width indent -compact
+.It Li split-ld
+Count split loads.
+.El
+.Pp
+The default value for
+.Ar qualifier
+is
+.Dq Li split-ld .
+.It Li p4-mispred-branch-retired Op Li ,mask= Ns Ar flags
+.Pq "TS event"
+Count mispredicted IA-32 branch instructions.
+Qualifier
+.Ar flags
+can take the following value (which is also the default):
+.Pp
+.Bl -tag -width indent -compact
+.It Li nbogus
+Count non-bogus retired branch instructions.
+.El
+.It Li p4-machine-clear Op Li ,mask= Ns Ar flags
+.Pq "TS event"
+Count the number of pipeline clears seen by the processor.
+Qualifier
+.Ar flags
+is a list of the following strings separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li clear
+Count for a portion of the many cycles when the machine is being
+cleared for any reason.
+.It Li moclear
+Count machine clears due to memory ordering issues.
+.It Li smclear
+Count machine clears due to self-modifying code.
+.El
+.Pp
+Use qualifier
+.Dq Li edge
+to get a count of occurrences of machine clears.
+The default qualifier is
+.Dq Li clear .
+.It Li p4-memory-cancel Op Li ,mask= Ns Ar event-list
+.Pq "TS event"
+Count the canceling of various kinds of requests in the data cache
+address control unit of the CPU.
+The qualifier
+.Ar event-list
+is a list of the following strings separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li st-rb-full
+Requests cancelled because no store request buffer was available.
+.It Li 64k-conf
+Requests that conflict due to 64K aliasing.
+.El
+.Pp
+If
+.Ar event-list
+is not specified, then the default is to count both kinds of events.
+.It Li p4-memory-complete Op Li ,mask= Ns Ar event-list
+.Pq "TS event"
+Count the completion of load split, store split, un-cacheable split and
+un-cacheable load operations selected by qualifier
+.Ar event-list .
+The qualifier
+.Ar event-list
+is a
+.Ql +
+separated list of the following flags:
+.Pp
+.Bl -tag -width indent -compact
+.It Li lsc
+Count load splits completed, excluding loads from un-cacheable or
+write-combining areas.
+.It Li ssc
+Count any split stores completed.
+.El
+.Pp
+The default is to count both kinds of operations.
+.It Li p4-mob-load-replay Op Li ,mask= Ns Ar qualifier
+.Pq "TS event"
+Count load replays triggered by the memory order buffer.
+Qualifier
+.Ar qualifier
+can be a
+.Ql +
+separated list of the following flags:
+.Pp
+.Bl -tag -width indent -compact
+.It Li no-sta
+Count replays because of unknown store addresses.
+.It Li no-std
+Count replays because of unknown store data.
+.It Li partial-data
+Count replays because of partially overlapped data accesses between
+load and store operations.
+.It Li unalgn-addr
+Count replays because of mismatches in the lower 4 bits of load and
+store operations.
+.El
+.Pp
+The default qualifier is
+.Ar no-sta+no-std+partial-data+unalgn-addr .
+.It Li p4-packed-dp-uop Op Li ,mask= Ns Ar flags
+.Pq "TI event"
+Count packed double-precision uops.
+Qualifier
+.Ar flags
+can take the following value (which is also the default):
+.Pp
+.Bl -tag -width indent -compact
+.It Li all
+Count all uops operating on packed double-precision operands.
+.El
+.It Li p4-packed-sp-uop Op Li ,mask= Ns Ar flags
+.Pq "TI event"
+Count packed single-precision uops.
+Qualifier
+.Ar flags
+can take the following value (which is also the default):
+.Pp
+.Bl -tag -width indent -compact
+.It Li all
+Count all uops operating on packed single-precision operands.
+.El
+.It Li p4-page-walk-type Op Li ,mask= Ns Ar qualifier
+.Pq "TI event"
+Count page walks performed by the page miss handler.
+Qualifier
+.Ar qualifier
+can be a
+.Ql +
+separated list of the following keywords:
+.Pp
+.Bl -tag -width indent -compact
+.It Li dtmiss
+Count page walks for data TLB misses.
+.It Li itmiss
+Count page walks for instruction TLB misses.
+.El
+.Pp
+The default value for
+.Ar qualifier
+is
+.Dq Li dtmiss+itmiss .
+.It Li p4-replay-event Op Li ,mask= Ns Ar flags
+.Pq "TS event"
+Count the retirement of tagged uops selected through the replay
+tagging mechanism.
+Qualifier
+.Ar flags
+contains a
+.Ql +
+separated set of the following strings:
+.Pp
+.Bl -tag -width indent -compact
+.It Li nbogus
+The marked uops are not bogus.
+.It Li bogus
+The marked uops are bogus.
+.El
+.Pp
+This event requires additional (upstream) events to be allocated to
+perform the desired uop tagging.
+The default qualifier counts both kinds of uops.
+This event can be used for precise event based sampling.
+.It Li p4-resource-stall Op Li ,mask= Ns Ar flags
+.Pq "TS event"
+Count the occurrence or latency of stalls in the allocator.
+Qualifier
+.Ar flags
+can take the following value (which is also the default):
+.Pp
+.Bl -tag -width indent -compact
+.It Li sbfull
+A stall due to the lack of store buffers.
+.El
+.It Li p4-response
+.Pq "TI event"
+Count different types of responses.
+Further documentation on this event is not available.
+.It Li p4-retired-branch-type Op Li ,mask= Ns Ar flags
+.Pq "TS event"
+Count branches retired.
+Qualifier
+.Ar flags
+contains a
+.Ql +
+separated list of strings:
+.Pp
+.Bl -tag -width indent -compact
+.It Li conditional
+Count conditional jumps.
+.It Li call
+Count direct and indirect call branches.
+.It Li return
+Count return branches.
+.It Li indirect
+Count returns, indirect calls or indirect jumps.
+.El
+.Pp
+The default qualifier counts all the above branch types.
+.It Li p4-retired-mispred-branch-type Op Li ,mask= Ns Ar flags
+.Pq "TS event"
+Count mispredicted branches retired.
+Qualifier
+.Ar flags
+contains a
+.Ql +
+separated list of strings:
+.Pp
+.Bl -tag -width indent -compact
+.It Li conditional
+Count conditional jumps.
+.It Li call
+Count indirect call branches.
+.It Li return
+Count return branches.
+.It Li indirect
+Count returns, indirect calls or indirect jumps.
+.El
+.Pp
+The default qualifier counts all the above branch types.
+.It Li p4-scalar-dp-uop Op Li ,mask= Ns Ar flags
+.Pq "TI event"
+Count the number of scalar double-precision uops.
+Qualifier
+.Ar flags
+can take the following value (which is also the default):
+.Pp
+.Bl -tag -width indent -compact
+.It Li all
+Count the number of scalar double-precision uops.
+.El
+.It Li p4-scalar-sp-uop Op Li ,mask= Ns Ar flags
+.Pq "TI event"
+Count the number of scalar single-precision uops.
+Qualifier
+.Ar flags
+can take the following value (which is also the default):
+.Pp
+.Bl -tag -width indent -compact
+.It Li all
+Count all uops operating on scalar single-precision operands.
+.El
+.It Li p4-snoop
+.Pq "TI event"
+Count snoop traffic.
+Further documentation on this event is not available.
+.It Li p4-sse-input-assist Op Li ,mask= Ns Ar flags
+.Pq "TI event"
+Count the number of times an assist is required to handle problems
+with the operands for SSE and SSE2 operations.
+Qualifier
+.Ar flags
+can take the following value (which is also the default):
+.Pp
+.Bl -tag -width indent -compact
+.It Li all
+Count assists for all SSE and SSE2 uops.
+.El
+.It Li p4-store-port-replay Op Li ,mask= Ns Ar qualifier
+.Pq "TS event"
+Count events replayed at the store port.
+Qualifier
+.Ar qualifier
+can take on one value:
+.Pp
+.Bl -tag -width indent -compact
+.It Li split-st
+Count split stores.
+.El
+.Pp
+The default value for
+.Ar qualifier
+is
+.Dq Li split-st .
+.It Li p4-tc-deliver-mode Op Li ,mask= Ns Ar qualifier
+.Pq "TI event"
+Count the duration in cycles of operating modes of the trace cache and
+decode engine.
+The desired operating mode is selected by
+.Ar qualifier ,
+which is a list of the following strings separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li DD
+Both logical processors are in deliver mode.
+.It Li DB
+Logical processor 0 is in deliver mode while logical processor 1 is in
+build mode.
+.It Li DI
+Logical processor 0 is in deliver mode while logical processor 1 is
+halted, or in machine clear, or transitioning to a long microcode
+flow.
+.It Li BD
+Logical processor 0 is in build mode while logical processor 1 is in
+deliver mode.
+.It Li BB
+Both logical processors are in build mode.
+.It Li BI
+Logical processor 0 is in build mode while logical processor 1 is
+halted, or in machine clear or transitioning to a long microcode
+flow.
+.It Li ID
+Logical processor 0 is halted, or in machine clear or transitioning to
+a long microcode flow while logical processor 1 is in deliver mode.
+.It Li IB
+Logical processor 0 is halted, or in machine clear or transitioning to
+a long microcode flow while logical processor 1 is in build mode.
+.El
+.Pp
+If there is only one logical processor in the processor package then
+the qualifier for logical processor 1 is ignored.
+If no qualifier is specified, the default qualifier is
+.Dq Li DD+DB+DI+BD+BB+BI+ID+IB .
+.It Li p4-tc-ms-xfer Op Li ,mask= Ns Ar flags
+.Pq "TI event"
+Count the number of times uop delivery changed from the trace cache to
+MS ROM.
+Qualifier
+.Ar flags
+can take the following value (which is also the default):
+.Pp
+.Bl -tag -width indent -compact
+.It Li cisc
+Count TC to MS transfers.
+.El
+.It Li p4-uop-queue-writes Op Li ,mask= Ns Ar flags
+.Pq "TS event"
+Count the number of valid uops written to the uop queue.
+Qualifier
+.Ar flags
+is a list of the following strings, separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li from-tc-build
+Count uops being written from the trace cache in build mode.
+.It Li from-tc-deliver
+Count uops being written from the trace cache in deliver mode.
+.It Li from-rom
+Count uops being written from microcode ROM.
+.El
+.Pp
+The default qualifier counts all the above kinds of uops.
+.It Li p4-uop-type Op Li ,mask= Ns Ar flags
+.Pq "TS event"
+This event is used in conjunction with the front-end at-retirement
+mechanism to tag load and store uops.
+Qualifier
+.Ar flags
+comprises the following strings separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li tagloads
+Mark uops that are load operations.
+.It Li tagstores
+Mark uops that are store operations.
+.El
+.Pp
+The default qualifier counts both kinds of uops.
+.It Li p4-uops-retired Op Li ,mask= Ns Ar flags
+.Pq "TS event"
+Count uops retired during a clock cycle.
+Qualifier
+.Ar flags
+comprises the following strings separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li nbogus
+Count marked uops that are not bogus.
+.It Li bogus
+Count marked uops that are bogus.
+.El
+.Pp
+The default qualifier counts both kinds of uops.
+.It Li p4-wc-buffer Op Li ,mask= Ns Ar flags
+.Pq "TI event"
+Count write-combining buffer operations.
+Qualifier
+.Ar flags
+contains the following strings separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li wcb-evicts
+WC buffer evictions due to any cause.
+.It Li wcb-full-evict
+WC buffer evictions due to no WC buffer being available.
+.El
+.Pp
+The default qualifier counts both kinds of evictions.
+.It Li p4-x87-assist Op Li ,mask= Ns Ar flags
+.Pq "TS event"
+Count the retirement of x87 instructions that required special
+handling.
+Qualifier
+.Ar flags
+contains the following strings separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li fpsu
+Count instructions that saw an FP stack underflow.
+.It Li fpso
+Count instructions that saw an FP stack overflow.
+.It Li poao
+Count instructions that saw an x87 output overflow.
+.It Li poau
+Count instructions that saw an x87 output underflow.
+.It Li prea
+Count instructions that needed an x87 input assist.
+.El
+.Pp
+The default qualifier counts all the above types of instruction
+retirements.
+.It Li p4-x87-fp-uop Op Li ,mask= Ns Ar flags
+.Pq "TI event"
+Count x87 floating-point uops.
+Qualifier
+.Ar flags
+can take the following value (which is also the default):
+.Pp
+.Bl -tag -width indent -compact
+.It Li all
+Count all x87 floating-point uops.
+.El
+.Pp
+If an instruction contains more than one x87 floating-point uops, then
+all x87 floating-point uops will be counted.
+This event does not count x87 floating-point data movement operations.
+.It Li p4-x87-simd-moves-uop Op Li ,mask= Ns Ar flags
+.Pq "TI event"
+Count each x87 FPU, MMX, SSE, or SSE2 uops that load data or store
+data or perform register-to-register moves.
+This event does not count integer move uops.
+Qualifier
+.Ar flags
+may contain the following keywords separated by
+.Ql +
+characters:
+.Pp
+.Bl -tag -width indent -compact
+.It Li allp0
+Count all x87 and SIMD store and move uops.
+.It Li allp2
+Count all x87 and SIMD load uops.
+.El
+.Pp
+The default is to count all uops.
+.Pq Errata
+This event may be affected by processor errata N43.
+.El
+.Ss "Cascading P4 PMCs"
+PMC cascading support is currently poorly implemented.
+While individual event counters may be allocated with a
+.Dq Li cascade
+qualifier, the current API does not offer the ability
+to name and allocate all the resources needed for a
+cascaded event counter pair in a single operation.
+.Ss "Precise Event Based Sampling"
+Support for precise event based sampling is currently
+unimplemented.
+.Ss Event Name Aliases
+The following table shows the mapping between the PMC-independent
+aliases supported by
+.Lb libpmc
+and the underlying hardware events used.
+.Bl -column "branch-mispredicts" "Description"
+.It Em Alias Ta Em Event
+.It Li branches Ta Li p4-branch-retired,mask=mmtp+mmtm
+.It Li branch-mispredicts Ta Li p4-mispred-branch-retired
+.It Li dc-misses Ta (unsupported)
+.It Li ic-misses Ta (unsupported)
+.It Li instructions Ta Li p4-instr-retired,mask=nbogusntag+nbogustag
+.It Li interrupts Ta Li (unsupported)
+.It Li unhalted-cycles Ta Li p4-global-power-events
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.atom 3 ,
+.Xr pmc.core 3 ,
+.Xr pmc.core2 3 ,
+.Xr pmc.iaf 3 ,
+.Xr pmc.k7 3 ,
+.Xr pmc.k8 3 ,
+.Xr pmc.p5 3 ,
+.Xr pmc.p6 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4
+.Sh HISTORY
+The
+.Nm pmc
+library first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+The
+.Lb libpmc
+library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .

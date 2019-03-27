@@ -1,0 +1,15 @@
+#! /bin/sh
+#
+# Script for testing simple station mode operation.
+#
+# $FreeBSD$
+#
+PATH=.:$PATH
+. config
+
+SSID=${1:-MarvellAP8x}
+
+WLAN=`ifconfig wlan create wlandev $WIRELESS`
+ifconfig $WLAN -ampdutx
+ifconfig $WLAN ssid $SSID up
+ifconfig $WIRED down delete

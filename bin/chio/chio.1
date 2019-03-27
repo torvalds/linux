@@ -1,0 +1,310 @@
+.\"	$NetBSD: chio.1,v 1.4 1997/10/02 00:41:25 hubertf Exp $
+.\"-
+.\" Copyright (c) 1996 Jason R. Thorpe <thorpej@and.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgements:
+.\"	This product includes software developed by Jason R. Thorpe
+.\"	for And Communications, http://www.and.com/
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 5, 2016
+.Dt CHIO 1
+.Os
+.Sh NAME
+.Nm chio
+.Nd medium changer control utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar changer
+.Ar command
+.Op Fl <flags>
+.Ar arg1
+.Ar arg2
+.Op Ar arg3 Op ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to control the operation of medium changers, such as those
+found in tape and optical disk jukeboxes.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl f Ar changer
+Use the device
+.Ar changer
+rather than the default device
+.Pa /dev/ch0 .
+.El
+.Pp
+A medium changer apparatus is made up of
+.Em elements .
+There are five element types:
+.Em picker
+(medium transport),
+.Em slot
+(storage),
+.Em portal
+(import/export),
+.Em drive
+(data transfer), and
+.Em voltag
+(select by volume identifier).
+The
+.Em voltag
+pseudo-element type allows the selection of tapes by their volume tag
+(typically a barcode on the tape).
+.Pp
+In this command description, the shorthand
+.Em ET
+will be used to represent an element type, and
+.Em EU
+will be used to represent an element unit.
+For example, to represent the first robotic arm in the changer, the
+.Em ET
+would be
+.Dq picker
+and the
+.Em EU
+would be
+.Dq 0 .
+.Sh SUPPORTED COMMANDS
+.Bl -tag -width indent
+.It Ic move Xo
+.Ar <from ET> <from EU> <to ET> <to EU>
+.Op Cm inv
+.Xc
+Move the media unit from
+.Ar <from ET/EU>
+to
+.Ar <to ET/EU> .
+If the optional modifier
+.Cm inv
+is specified, the media unit will be inverted before insertion.
+.It Ic exchange Xo
+.Ar <src ET> <src EU> <dst1 ET> <dst1 EU>
+.Op Ar <dst2 ET> <dst2 ET>
+.Op Cm inv1
+.Op Cm inv2
+.Xc
+Perform a media unit exchange operation.
+The media unit in
+.Ar <src ET/EU>
+is moved to
+.Ar <dst1 ET/EU>
+and the media unit previously in
+.Ar <dst1 ET/EU>
+is moved to
+.Ar <dst2 ET/EU> .
+In the case of a simple exchange,
+.Ar <dst2 ET/EU>
+is omitted and the values
+.Ar <src ET/EU>
+are used in their place.
+The optional modifiers
+.Cm inv1
+and
+.Cm inv2
+specify whether the media units are to be inverted before insertion into
+.Ar <dst1 ET/EU>
+and
+.Ar <dst2 ET/EU>
+respectively.
+.Pp
+Note that not all medium changers support the
+.Ic exchange
+operation; the changer must have multiple free pickers or emulate
+multiple free pickers with transient storage.
+.It Ic return Xo
+.Ar <from ET> <from EU>
+.Xc
+Return the media unit to its source element.
+This command will query the status of the specified media unit, and
+will move it to the element specified in its source attribute.
+This is a convenient way to return media from a drive or portal
+to its previous element in the changer.
+.It Ic position Xo
+.Ar <to ET> <to EU>
+.Op Cm inv
+.Xc
+Position the picker in front of the element described by
+.Ar <to ET/EU> .
+If the optional modifier
+.Cm inv
+is specified, the media unit will be inverted before insertion.
+.Pp
+Note that not all changers behave as expected when issued this command.
+.It Ic params
+Report the number of slots, drives, pickers, and portals in the changer,
+and which picker unit the changer is currently configured to use.
+.It Ic getpicker
+Report which picker unit the changer is currently configured to use.
+.It Ic setpicker Xo
+.Ar <unit>
+.Xc
+Configure the changer to use picker
+.Ar <unit> .
+.It Ic ielem Xo
+.Op Ar <timeout>
+.Xc
+Perform an
+.Em INITIALIZE ELEMENT STATUS
+operation on the changer.
+The optional
+.Ar <timeout>
+parameter may be given to specify a timeout in seconds for the
+operations.
+This may be used if the operation takes unusually long
+because of buggy firmware or the like.
+.It Ic voltag Xo
+.Op Fl fca
+.Ar <ET>
+.Ar <EU>
+.Op Ar <label>
+.Op Ar <serial>
+.Xc
+Change volume tag for an element in the media changer.
+This command
+is only supported by few media changers.
+If it is not supported by a
+device, using this command will usually result in an "Invalid Field in
+CDB" error message on the console.
+.Pp
+If the
+.Fl c
+flag is specified, the volume tag of the specified element is
+cleared.
+If the
+.Fl f
+flag is specified, the volume tag is superseded with the specified
+volume tag even if a volume tag is already defined for the element.
+It is an error to not specify the
+.Fl f
+flag when trying to set a label for an element which already has
+volume tag information defined.
+.Pp
+The command works with the primary volume tag or, if the
+.Fl a
+flag is given, with the alternate volume tag.
+.It Ic status Xo
+.Op Fl vVsSbIa
+.Op Ar <type>
+.Xc
+Report the status of all elements in the changer.
+If
+.Ar <type>
+is specified, report the status of all elements of type
+.Ar <type> .
+.It Fl v
+Print the primary volume tag for each loaded medium, if any.
+The volume
+tag is printed as
+.Dq <LABEL:SERIAL> .
+.It Fl V
+Print the alternate volume tag for each loaded medium, if any.
+.It Fl s
+Print the additional sense code and additional sense code qualifier for
+each element.
+.It Fl S
+Print the element source address for each element.
+.It Fl b
+Print SCSI bus information for each element.
+Note that this information
+is valid only for drives.
+.It Fl I
+Print the internal element addresses for each element.
+The internal
+element address is not normally used with this driver.
+It is reported
+for diagnostic purposes only.
+.It Fl a
+Print all additional information (as in
+.Fl vVsSba ) .
+.El
+.Pp
+The status bits are defined as follows:
+.Bl -tag -width indent
+.It FULL
+Element contains a media unit.
+.It IMPEXP
+Media was deposited into element by an outside human operator.
+.It EXCEPT
+Element is in an abnormal state.
+.It ACCESS
+Media in this element is accessible by a picker.
+.It EXENAB
+Element supports passing media (exporting) to an outside human operator.
+.It INENAB
+Element supports receiving media (importing) from an outside human operator.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width CHANGER
+.It Ev CHANGER
+The default changer may be overridden by setting this environmental
+variable to the desired changer device.
+.El
+.Sh FILES
+.Bl -tag -width /dev/ch0 -compact
+.It Pa /dev/ch0
+default changer device
+.El
+.Sh EXAMPLES
+.Bl -tag -width indent
+.It Li chio move slot 3 drive 0
+Move the media in slot 3 (fourth slot) to drive 0 (first drive).
+.It Li chio move voltag VOLUME01 drive 0
+Move the media with the barcode VOLUME01 to drive 0 (first drive).
+.It Li chio return drive 0
+Remove the tape from drive 0 (first drive) and return it to its original
+location in the rack.
+.It Li chio setpicker 2
+Configure the changer to use picker 2 (third picker) for operations.
+.El
+.Sh SEE ALSO
+.Xr mt 1 ,
+.Xr mount 8
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.Nx 1.3 .
+.Nm
+first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+program and SCSI changer driver were written by
+.An Jason R. Thorpe Aq Mt thorpej@and.com
+for And Communications,
+.Pa http://www.and.com/ .
+.Pp
+Additional work by
+.An Hans Huebner Aq Mt hans@artcom.de
+and
+.An Steve Gunn Aq Mt csg@waterspout.com .

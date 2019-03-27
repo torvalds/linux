@@ -1,0 +1,695 @@
+#
+# Makefile for the NIS databases
+#
+# $FreeBSD$
+#
+# This Makefile should only be run on the NIS master server of a domain.
+# All updated maps will be pushed to all NIS slave servers listed in the
+# /var/yp/ypservers file. Please make sure that the hostnames of all
+# NIS servers in your domain are listed in /var/yp/ypservers.
+#
+# This Makefile can be modified to support more NIS maps if desired.
+#
+
+# If this machine is an NIS master, reset this variable (NOPUSH=)
+# in Makefile.local so that changes to the NIS maps can be propagated to
+# the slave servers.  (By default we assume that we are only serving a
+# small domain with only one server.)
+#
+NOPUSH = "True"
+
+# If this machine does not wish to generate a linux-style shadow map
+# from the master.passwd file, reset this variable (SHADOW=) in
+# Makefile.local.
+SHADOW = "True"
+
+# If you want to use a FreeBSD NIS server to serve non-FreeBSD clients
+# (i.e. clients who expect the password field in the passwd maps to be
+# valid) then set this variable (UNSECURE="True") in Makefile.local.
+# This will cause $YPDIR/passwd to be generated with valid password
+# fields.  This is insecure: FreeBSD normally only serves the
+# master.passwd and shadow maps (which have real encrypted passwords
+# in them) to the superuser on other FreeBSD machines, but non-FreeBSD
+# clients (e.g. SunOS, Solaris (without NIS+), IRIX, HP-UX, etc...)
+# will only work properly in 'unsecure' mode.
+# 
+#UNSECURE = "True"
+
+# The following line encodes the YP_INTERDOMAIN key into the hosts.byname
+# and hosts.byaddr maps so that ypserv(8) will do DNS lookups to resolve
+# hosts not in the current domain.  Resetting this variable in
+# Makefile.local (B=) will disable the DNS lookups.
+B=-b
+
+# Normally, the master.passwd.* and shadow.* maps are guarded against access
+# from non-privileged users.  By resetting S in Makefile.local (S=), the
+# YP_SECURE key will be removed from these maps, allowing anyone to access
+# them.
+S=-s
+
+# These are commands which this Makefile needs to properly rebuild the
+# NIS databases. Don't change these unless you have a good reason. Also
+# be sure not to place an @ in front of /usr/bin/awk: it isn't necessary
+# and it'll break everything in sight.
+#
+AWK = /usr/bin/awk
+RM  = @/bin/rm -f
+MV  = @/bin/mv -f
+RMV  = /bin/mv -f
+
+MKDB = /usr/sbin/yp_mkdb
+DBLOAD = $(MKDB) -m `hostname`
+MKNETID = /usr/libexec/mknetid
+NEWALIASES = /usr/bin/newaliases
+YPPUSH = /usr/sbin/yppush
+.if !defined(UPDATE_DOMAIN)
+DOMAIN = `/bin/domainname`
+.else
+DOMAIN = $(UPDATE_DOMAIN)
+.endif
+REVNETGROUP = /usr/libexec/revnetgroup
+TMP = `echo $@.$$$$`
+
+# It is advisable to create a separate directory to contain the
+# source files used to generate your NIS maps. If you intend to
+# support multiple domains, something like /src/dir/$DOMAIN
+# would work well.
+YPSRCDIR = /etc
+.if !defined(YP_DIR)
+YPDIR = /var/yp
+.else
+YPDIR = $(YP_DIR)
+.endif
+YPMAPDIR = $(YPDIR)/$(DOMAIN)
+
+# These are the files from which the NIS databases are built. You may edit
+# these to taste in the event that you wish to keep your NIS source files
+# separate from your NIS server's actual configuration files. Note that the
+# NIS passwd and master.passwd files are stored in /var/yp: the server's
+# real password database is not used by default. However, you may use
+# the real /etc/passwd and /etc/master.passwd files by:
+#
+#
+# - invoking yppasswdd with `-t /etc/master.passwd' (yppasswdd will do a
+#   'pwd_mkdb' as needed if /etc/master.passwd is thus specified).
+# - Specifying the location of the master.passwd file using the
+#   MASTER_PASSWD variable, i.e.:
+#
+#   # make MASTER_PASSWD=/path/to/some/other/master.passwd
+#
+# - (optionally): editing this Makefile to change the default location.
+#
+# To add a user, edit $(YPDIR)/master.passwd and type 'make'. The raw
+# passwd file will be generated from the master.passwd file automagically.
+#
+ETHERS    = $(YPSRCDIR)/ethers	   # ethernet addresses (for rarpd)
+EUI64     = $(YPSRCDIR)/eui64	   # eui64 addresses (for firewire)
+BOOTPARAMS= $(YPSRCDIR)/bootparams # for booting Sun boxes (bootparamd)
+HOSTS     = $(YPSRCDIR)/hosts
+IPNODES   = $(YPDIR)/ipnodes
+NETWORKS  = $(YPSRCDIR)/networks
+PROTOCOLS = $(YPSRCDIR)/protocols
+RPC 	  = $(YPSRCDIR)/rpc
+SERVICES  = $(YPSRCDIR)/services
+SHELLS    = $(YPSRCDIR)/shells
+GROUP     = $(YPSRCDIR)/group
+ALIASES   = $(YPSRCDIR)/mail/aliases
+NETGROUP  = $(YPDIR)/netgroup
+PASSWD    = $(YPDIR)/passwd
+.if !defined(MASTER_PASSWD)
+MASTER    = $(YPDIR)/master.passwd
+.else
+MASTER	  = $(MASTER_PASSWD)
+.endif
+YPSERVERS = $(YPDIR)/ypservers	# List of all NIS servers for a domain
+PUBLICKEY = $(YPSRCDIR)/publickey
+NETID     = $(YPSRCDIR)/netid
+AMDHOST   = $(YPSRCDIR)/amd.map
+
+target: 
+	@if [ ! -d $(DOMAIN) ]; then mkdir $(DOMAIN); fi; \
+	cd $(DOMAIN) ; echo "NIS Map update started on `date` for domain $(DOMAIN)" ; \
+	make -f ../Makefile all; echo "NIS Map update completed."
+
+# Read overrides.  Note, the current directory will be /var/yp/<domain>
+# when 'all' is built.
+.if exists(${YPDIR}/Makefile.local)
+.include "${YPDIR}/Makefile.local"
+.endif
+
+# List of maps that are always built.
+# If you want to omit some of them, feel free to comment
+# them out from this list.
+TARGETS= servers hosts networks protocols rpc services shells group
+TARGETS+= ipnodes
+#TARGETS+= aliases
+
+# Sanity checks: filter out targets we can't build
+# Note that we don't build the ethers, eui64, or boorparams maps by default
+# since /etc/ethers, /etc/eui64 and /etc/bootparams are not likely to be present
+# on all systems.
+.if exists($(ETHERS))
+TARGETS+= ethers
+.else
+ETHERS= /dev/null
+.endif
+
+.if exists($(EUI64))
+TARGETS+= eui64
+.else
+EUI64= /dev/null
+.endif
+
+.if exists($(BOOTPARAMS))
+TARGETS+= bootparams
+.else
+BOOTPARAMS= /dev/null
+.endif
+
+.if exists($(NETGROUP))
+TARGETS+= netgrp
+.else
+NETGROUP= /dev/null
+.endif
+
+.if exists($(MASTER))
+TARGETS+= passwd master.passwd netid
+.if ${SHADOW} == "\"True\""
+TARGETS+= shadow
+.endif
+.else
+MASTER= /dev/null
+TARGETS+= nopass
+.endif
+
+.if exists($(PUBLICKEY))
+TARGETS+= publickey
+.else
+PUBLICKEY= /dev/null
+.endif
+
+.if exists($(AMDHOST))
+TARGETS+= amd.map
+.else
+AMDHOST= /dev/null
+.endif
+
+.if !exists($(IPNODES))
+IPNODES= $(HOSTS)
+.endif
+
+all: $(TARGETS)
+
+ethers:	   ethers.byname ethers.byaddr
+eui64:	   eui64.byname eui64.byid
+bootparam: bootparams
+hosts:	   hosts.byname hosts.byaddr
+ipnodes:   ipnodes.byname ipnodes.byaddr
+networks:  networks.byaddr networks.byname
+protocols: protocols.bynumber protocols.byname
+rpc:	   rpc.byname rpc.bynumber
+services:  services.byname
+passwd:    passwd.byname passwd.byuid
+shadow:    shadow.byname shadow.byuid
+group:     group.byname group.bygid
+netgrp:    netgroup
+netid:	   netid.byname
+servers:   ypservers
+publickey: publickey.byname
+aliases:   mail.aliases
+
+master.passwd:	master.passwd.byname master.passwd.byuid
+
+#
+# This is a special target used only when doing in-place updates with
+# rpc.yppasswdd. In this case, the maps will be updated by the rpc.yppasswdd
+# server and won't need to be remade. They will have to be pushed to the
+# slaves however. Calling this target implicitly insures that this will
+# happen.
+#
+pushpw:
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) master.passwd.byname ; fi
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) master.passwd.byuid ; fi
+.if ${SHADOW} == "\"True\""
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) shadow.byname ; fi
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) shadow.byuid ; fi
+.endif
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) passwd.byname ; fi
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) passwd.byuid ; fi
+
+pushmap:
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $(PUSHMAP) ; fi
+
+nopass:
+	@echo ""
+	@echo "                ********WARNING********"
+	@echo "  Couldn't find the master.passwd source file. This file"
+	@echo "  is needed to generate the master.passwd and passwd maps."
+	@echo "  The default location is /var/yp/master.passwd. You should"
+	@echo "  edit /var/yp/Makefile and set the MASTER variable to point"
+	@echo "  to the source file you wish to use for building the passwd"
+	@echo "  maps, or else invoke make(1) in the following manner:"
+	@echo ""
+	@echo "        make MASTER_PASSWD=/path/to/master.passwd"
+	@echo ""
+
+mail.aliases: $(ALIASES)
+	@echo "Updating $@..."
+	@$(NEWALIASES) -oA$(ALIASES)
+	@$(MKDB) -u $(ALIASES).db \
+		| $(DBLOAD) -i $(ALIASES) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+ypservers: $(YPSERVERS)
+	@echo "Updating $@..."
+	@$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*") print $$0"\t"$$0 }' \
+		$(YPSERVERS) \
+		| $(DBLOAD) -i $(YPSERVERS) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+ethers.byname: $(ETHERS)
+	@echo "Updating $@..."
+.if ${ETHERS} == "/dev/null"
+	@echo "Ethers source file not found -- skipping"
+.else
+	@$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$2"\t"$$0 }' $(ETHERS) | $(DBLOAD) -i $(ETHERS) \
+		-o $(YPMAPDIR)/$@ - $(TMP); $(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
+
+ethers.byaddr: $(ETHERS)
+	@echo "Updating $@..."
+.if ${ETHERS} == "/dev/null"
+	@echo "Ethers source file not found -- skipping"
+.else
+	@$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$1"\t"$$0 }' $(ETHERS) | $(DBLOAD) -i $(ETHERS) \
+		-o $(YPMAPDIR)/$@ - $(TMP); $(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
+
+eui64.byname: $(EUI64)
+	@echo "Updating $@..."
+.if ${EUI64} == "/dev/null"
+	@echo "EUI64 source file not found -- skipping"
+.else
+	@$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$2"\t"$$0 }' $(EUI64) | $(DBLOAD) -i $(EUI64) \
+		-o $(YPMAPDIR)/$@ - $(TMP); $(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
+
+eui64.byid: $(EUI64)
+	@echo "Updating $@..."
+.if ${EUI64} == "/dev/null"
+	@echo "EUI64 source file not found -- skipping"
+.else
+	@$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$1"\t"$$0 }' $(EUI64) | $(DBLOAD) -i $(EUI64) \
+		-o $(YPMAPDIR)/$@ - $(TMP); $(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
+
+
+bootparams: $(BOOTPARAMS)
+	@echo "Updating $@..."
+.if ${BOOTPARAMS} == "/dev/null"
+	@echo "Bootparams source file not found -- skipping"
+.else
+	@$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$0 }' $(BOOTPARAMS) | $(DBLOAD) -i $(BOOTPARAMS) \
+		-o $(YPMAPDIR)/$@ - $(TMP); $(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
+
+
+netgroup: $(NETGROUP) netgroup.byhost netgroup.byuser
+	@echo "Updating $@..."
+.if ${NETGROUP} == "/dev/null"
+	@echo "Netgroup source file not found -- skipping"
+.else
+	@$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$0 }' $(NETGROUP) | $(DBLOAD) -i $(NETGROUP) \
+		-o $(YPMAPDIR)/$@ - $(TMP); $(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
+
+
+netgroup.byhost: $(NETGROUP)
+	@echo "Updating $@..."
+.if ${NETGROUP} == "/dev/null"
+	@echo "Netgroup source file not found -- skipping"
+.else
+	@$(REVNETGROUP) -h -f $(NETGROUP) | \
+	$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$0 }' | $(DBLOAD) -i $(NETGROUP) \
+		-o $(YPMAPDIR)/$@ - $(TMP); $(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
+
+
+netgroup.byuser: $(NETGROUP)
+	@echo "Updating $@..."
+.if ${NETGROUP} == "/dev/null"
+	@echo "Netgroup source file not found -- skipping"
+.else
+	@$(REVNETGROUP) -u -f $(NETGROUP) | \
+	$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$0 }' | $(DBLOAD) -i $(NETGROUP) \
+		-o $(YPMAPDIR)/$@ - $(TMP); $(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
+
+
+# Solaris 8 does the following:
+# - /etc/hosts and hosts.{byname,byaddr} are IPv4 only.
+# - /etc/inet/ipnodes and ipnodes.{byname,byaddr} are used for protocol
+#   independent name-to-address mapping.
+#
+# For local name resolution, we made /etc/hosts protocol independent.
+# For NIS name resolution, we obey Solaris 8 practice.
+# - We keep hosts.{byname,byaddr} IPv4 only, to be friendly with Solaris 8
+#   clients.
+# - ipnodes.{byname,byaddr} is used for protocol independent mapping.
+# We generate all the mappings from /etc/hosts unless /var/yp/ipnodes
+# exists, for compatibility with FreeBSD local name resolution.
+#
+hosts.byname: $(HOSTS)
+	@echo "Updating $@..."
+	@$(AWK) '/^[0-9.]+[\t ]/ { for (n=2; n<=NF && $$n !~ "^#.*"; n++) \
+		print $$n"\t"$$0 }' $(HOSTS) | $(DBLOAD) ${B} -i $(HOSTS)  \
+		-o $(YPMAPDIR)/$@ - $(TMP); $(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+hosts.byaddr: $(HOSTS)
+	@echo "Updating $@..."
+	@$(AWK) '/^[0-9.]+[\t ]/ { print $$1"\t"$$0 }' $(HOSTS) \
+		| $(DBLOAD) ${B} -i $(HOSTS) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+ipnodes.byname: $(IPNODES)
+	@echo "Updating $@..."
+	@$(AWK) '/^[0-9a-fA-F:]/ { for (n=2; n<=NF && $$n !~ "^#.*"; n++) \
+		print $$n"\t"$$0 }' $(IPNODES) | $(DBLOAD) ${B} -i $(IPNODES)  \
+		-o $(YPMAPDIR)/$@ - $(TMP); $(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+ipnodes.byaddr: $(IPNODES)
+	@echo "Updating $@..."
+	@$(AWK) '$$1 !~ "^#.*" { print $$1"\t"$$0 }' $(IPNODES) \
+		| $(DBLOAD) ${B} -i $(IPNODES) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+networks.byname: $(NETWORKS)
+	@echo "Updating $@..."
+	@$(AWK) \
+	   '$$1 !~ "^#.*"  { print $$1"\t"$$0; \
+			  for (n=3; n<=NF && $$n !~ "^#.*"; n++) \
+			      print $$n"\t"$$0 \
+		}' $(NETWORKS) \
+		| $(DBLOAD) -i $(NETWORKS) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+networks.byaddr: $(NETWORKS)
+	@echo "Updating $@..."
+	@$(AWK) '$$1 !~ "^#.*" { print $$2"\t"$$0 }' $(NETWORKS) \
+		| $(DBLOAD) -i $(NETWORKS) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+protocols.byname: $(PROTOCOLS)
+	@echo "Updating $@..."
+	@$(AWK) \
+	   '$$1 !~ "^#.*"	{ print $$1"\t"$$0; \
+			  for (n=3; n<=NF && $$n !~ "^#.*"; n++) \
+			      print $$n"\t"$$0 \
+			}' $(PROTOCOLS) | $(DBLOAD) -i $(PROTOCOLS) \
+		-o $(YPMAPDIR)/$@ - $(TMP); $(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+protocols.bynumber: $(PROTOCOLS)
+	@echo "Updating $@..."
+	@$(AWK) '$$1 !~ "^#.*" { print $$2"\t"$$0 }' $(PROTOCOLS) \
+		| $(DBLOAD) -i $(PROTOCOLS) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+rpc.byname: $(RPC)
+	@echo "Updating $@..."
+	@$(AWK) \
+	   '$$1 !~ "^#.*"  { print $$1"\t"$$0; \
+			  for (n=3; n<=NF && $$n !~ "^#.*"; n++) \
+			      print $$n"\t"$$0 \
+		}' $(RPC) | $(DBLOAD) -i $(RPC) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+rpc.bynumber: $(RPC)
+	@echo "Updating $@..."
+	@$(AWK) '$$1 !~ "^#.*" { print $$2"\t"$$0 }' $(RPC) \
+		| $(DBLOAD)  -i $(RPC) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+services.byname: $(SERVICES)
+	@echo "Updating $@..."
+	@$(AWK) \
+	   '$$1 !~ "^#.*"  { for (n=1; n<=NF && $$n !~ "^#.*"; n++) { \
+				if (split($$2, t, "/")) { \
+					printf("%s/%s", $$n, t[2]) }; \
+					print "\t"$$0;	\
+					if (n == 1) n = 2; \
+			   } ; print $$2"\t"$$0 ; \
+		}' $(SERVICES) \
+		| $(DBLOAD) -i $(SERVICES) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+shells: $(SHELLS)
+	@echo "Updating $@..."
+	@$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*") print $$0"\t"$$0 }' \
+		$(SHELLS) \
+		| $(DBLOAD) -i $(SHELLS) -o $(YPMAPDIR)/$@ - $(TMP); \
+	 $(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+publickey.byname: $(PUBLICKEY)
+	@echo "Updating $@..."
+.if ${PUBLICKEY} == "/dev/null"
+	@echo "Publickey source file not found -- skipping"
+.else
+	@$(AWK) '$$1 !~ "^#.*" { print $$1"\t"$$2 }' $(PUBLICKEY) \
+		| $(DBLOAD)  -i $(PUBLICKEY) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
+
+
+$(PASSWD): $(MASTER)
+	@echo "Creating new $@ file from $(MASTER)..."
+	@if [ ! $(UNSECURE) ]; then \
+	$(AWK) -F: '{if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$1":*:"$$3":"$$4":"$$8":"$$9":"$$10}' $(MASTER) \
+		> $(PASSWD) ; \
+	else \
+	$(AWK) -F: '{if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$1":"$$2":"$$3":"$$4":"$$8":"$$9":"$$10}' $(MASTER) \
+		> $(PASSWD) ; fi
+
+
+passwd.byname: $(PASSWD)
+	@echo "Updating $@..."
+	@$(AWK) -F: '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$1"\t"$$0 }' $(PASSWD) \
+		| $(DBLOAD) -f -i $(PASSWD) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+passwd.byuid: $(PASSWD)
+	@echo "Updating $@..."
+	@$(AWK) -F: '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$3"\t"$$0 }' $(PASSWD) \
+		| $(DBLOAD) -f -i $(PASSWD) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+group.byname: $(GROUP)
+	@echo "Updating $@..."
+	@$(AWK) -F: '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$1"\t"$$0 }' $(GROUP) \
+		| $(DBLOAD) -f -i $(GROUP) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+group.bygid: $(GROUP)
+	@echo "Updating $@..."
+	@$(AWK) -F: '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$3"\t"$$0 }' $(GROUP) \
+		| $(DBLOAD) -f -i $(GROUP) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+netid.byname: $(GROUP) $(PASSWD) $(HOSTS)
+	@echo "Updating $@..."
+	@$(MKNETID) -q -p $(PASSWD) -g $(GROUP) -h $(HOSTS) -n $(NETID) \
+		-d $(DOMAIN) | $(DBLOAD) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+master.passwd.byname: $(MASTER)
+	@echo "Updating $@..."
+.if ${MASTER} == "/dev/null"
+	@echo "Master.passwd source file not found -- skipping"
+.else
+	@$(AWK) -F: '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$1"\t"$$0 }' $(MASTER) \
+		| $(DBLOAD) ${S} -f -i $(MASTER) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
+
+
+master.passwd.byuid: $(MASTER)
+	@echo "Updating $@..."
+.if ${MASTER} == "/dev/null"
+	@echo "Master.passwd source file not found -- skipping"
+.else
+	@$(AWK) -F: '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$3"\t"$$0 }' $(MASTER) \
+		| $(DBLOAD) ${S} -f -i $(MASTER) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
+
+
+shadow.byname: $(MASTER)
+	@echo "Updating $@..."
+.if ${MASTER} == "/dev/null"
+	@echo "Master.passwd source file not found -- skipping"
+.else
+	@$(AWK) -F: '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$1"\t"$$1":"$$2":12000:0:99999:7:::" }' $(MASTER) \
+		| sed 's/\(	[^:]*:\)\*:/\1!:/' \
+		| $(DBLOAD) ${S} -f -i $(PASSWD) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
+
+shadow.byuid: $(MASTER)
+	@echo "Updating $@..."
+.if ${MASTER} == "/dev/null"
+	@echo "Master.passwd source file not found -- skipping"
+.else
+	@$(AWK) -F: '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$3"\t"$$1":"$$2":12000:0:99999:7:::" }' $(MASTER) \
+		| sed 's/\(	[^:]*:\)\*:/\1!:/' \
+		| $(DBLOAD) ${S} -f -i $(PASSWD) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
+
+amd.map: $(AMDHOST)
+	@echo "Updating $@..."
+	@$(AWK) '$$1 !~ "^#.*"  { \
+	  for (i = 1; i <= NF; i++) \
+	  if (i == NF) { \
+	    if (substr($$i, length($$i), 1) == "\\") \
+	      printf("%s", substr($$i, 1, length($$i) - 1)); \
+	    else \
+	      printf("%s\n", $$i); \
+	  } \
+	  else \
+	    printf("%s ", $$i); \
+	}' $(AMDHOST) | \
+	$(DBLOAD) -i $(AMDHOST) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi

@@ -1,0 +1,23 @@
+#!/bin/sh
+# $Id: rotated-data,v 1.1 2004/12/19 16:43:47 tom Exp $
+# Rotate the second parameter's data by the given shift count.
+if test $# != 0
+then
+	case $1 in
+	[1-9]*)
+		left=$1
+		next=`expr $left + 1`
+		shift 1
+		;;
+	*)
+		left=1
+		next=2
+		;;
+	esac
+	char=`echo "$@" | cut -b -${left}`
+	data=`echo "$@" | cut -b ${next}-`
+
+	printf "%s%s\n" $data $char
+else
+	echo
+fi

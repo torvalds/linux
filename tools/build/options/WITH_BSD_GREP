@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Install BSD-licensed grep as '[ef]grep' instead of GNU grep.

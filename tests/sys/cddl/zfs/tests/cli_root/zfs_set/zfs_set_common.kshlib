@@ -1,0 +1,253 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)zfs_set_common.kshlib	1.7	09/05/19 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+set -A VALID_NAME_CHAR a b c d e f g h i j k l m n o p q r s t u v w x y z \
+     		       0 1 2 3 4 5 6 7 8 9 ':' '-' '.' '_'
+set -A INVALID_NAME_CHAR A B C D E F G H I J K L M N O P Q R S T U V W X Y Z \
+		         '`' '~' '!' '@' '#' '$' '%' '^' '&' '(' ')' '+' '=' \
+			 '|' '{' '[' ']' '}' ';' '"' '<' ',' '>' '?' '/' \
+			 ' '
+set -A ALL_CHAR ${VALID_NAME_CHAR[*]} ${INVALID_NAME_CHAR[*]}
+
+#
+# Firstly, set the property value to dataset. Then checking if the property 
+# value is equal with the expected value, according to the expected result.
+#
+# $1 property value
+# $2 property name
+# $3 dataset 
+# $4 expected result
+#
+function set_n_check_prop
+{
+	typeset expect_value=$1
+	typeset prop=$2
+	typeset dataset=$3
+	typeset expect_result=${4:-true}
+	typeset old_value=""
+	typeset cur_value=""
+
+	[ -n "$prop" ] && old_value=$(get_prop $prop $dataset)
+	if [ "$expect_result" = "true" ]; then
+		log_must $ZFS set $prop=$expect_value $dataset
+	else
+		log_mustnot $ZFS set $prop=$expect_value $dataset
+	fi
+	[ -n "$prop" ] && cur_value=$(get_prop $prop $dataset)
+
+	err="ERROR: Dataset '$dataset': '$prop' value '$cur_value'"
+	if [ "$expect_result" = "true" ]; then
+		[ "$expect_value" = "gzip-6" ] && expect_value="gzip"
+		case "$prop" in
+		reservation|reserv|quota)
+			if [ "$expect_value" = "none" -a "$cur_value" != "0" ]; then
+				err="$err should not be set!"
+				log_fail "$err"
+				return
+			fi
+			;;
+		esac
+		if [ "$cur_value" != "$expect_value" ]; then
+			err="$err should have changed to '$expect_value'!"
+			log_fail "$err"
+		fi
+	else
+		if [ "$expect_value" != "" -a "$cur_value" != "$old_value" ]; then
+			err="$err should be unchanged at '$old_value'!"
+			log_fail "$err"
+		fi
+	fi
+}
+
+#
+# Cleanup all the user properties of the pool and the dataset reside it.
+#
+# $1 pool name
+#
+function cleanup_user_prop
+{
+	typeset pool=$1
+	typeset dtst=$($ZFS list -H -r -o name -t filesystem,volume $pool)
+
+	typeset user_prop
+	for dt in $dtst; do
+		user_prop=$($ZFS get -H -o property all $dtst | grep ":")
+
+		typeset prop
+		for prop in $user_prop; do
+			$ZFS inherit $prop $dt
+			(($? != 0)) && log_must $ZFS inherit $prop $dt
+		done
+	done
+}
+
+#
+# Random select charactor from the specified charactor set and combine into a
+# random string
+#
+# $1 character set name
+# $2 String length
+#
+function random_string
+{
+	typeset char_set=${1:-VALID_NAME_CHAR}
+	typeset -i len=${2:-5}
+
+	eval typeset -i count=\${#$char_set[@]}
+
+	typeset str
+	typeset -i i=0
+	while ((i < len)); do
+		typeset -i ind
+		((ind = RANDOM % count))
+		eval str=\${str}\${$char_set[\$ind]}
+
+		((i += 1))
+	done
+
+	$ECHO "$str"
+}
+
+#
+# Get vaild user defined property name
+#
+# $1 user defined property name length
+#
+function valid_user_property
+{
+	typeset -i sumlen=${1:-10}
+	((sumlen < 2 )) && sumlen=2
+	typeset -i len
+	((len = RANDOM % sumlen))
+	typeset part1 part2
+
+	while true; do
+		part1="$(random_string VALID_NAME_CHAR $len)"
+		if [[ "$part1" == "-"* ]]; then
+			continue
+		fi
+		break
+	done
+	((len = sumlen - (len + 1)))
+
+	while true; do
+		part2="$(random_string VALID_NAME_CHAR $len)"
+		if [[ -z $part1 && -z $part2 ]]; then
+			continue
+		fi
+		break
+	done
+
+	$ECHO "${part1}:${part2}"
+}
+
+#
+# Get invaild user defined property name
+#
+# $1 user defined property name length
+#
+function invalid_user_property
+{
+	typeset -i sumlen=${1:-10}
+	((sumlen == 0)) && sumlen=1
+	typeset -i len
+	((len = RANDOM % sumlen))
+
+	typeset part1 part2
+	while true; do
+		part1="$(random_string VALID_NAME_CHAR $len)"
+		((len = sumlen - len))
+		part2="$(random_string INVALID_NAME_CHAR $len)"
+
+		# Avoid $part1 is *:* and $part2 is "=*"
+		if [[ "$part1" == *":"* && "$part2" == "="* ]]; then
+			continue
+		fi
+		break
+	done
+
+	$ECHO "${part1}${part2}"
+}
+
+#
+# Get user property value
+#
+# $1 user defined property name length
+#
+function user_property_value
+{
+	typeset -i len=${1:-100}
+	((len < 1 )) && len=1
+
+	typeset value=$(random_string ALL_CHAR $len)
+
+	$ECHO "$value"
+}
+
+#
+# Check if the user property is identical to the expected value.
+#
+# $1 dataset
+# $2 user property
+# $3 expected value
+#
+function check_user_prop
+{
+	typeset dtst=$1
+	typeset user_prop="$2"
+	typeset expect_value="$3"
+	typeset value=$($ZFS get -p -H -o value "$user_prop" $dtst 2>&1)
+
+	if [[ "$expect_value" == "$value" ]]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+#
+# Get source of the dataset
+#
+function get_source
+{
+	typeset prop=$1
+	typeset dataset=$2
+	typeset source
+
+	source=$($ZFS get -H -o source $prop $dataset)
+        if (($? != 0)); then
+                log_fail "Unable to get $prop source for dataset $dataset"
+        fi
+
+	$ECHO "$source"
+}

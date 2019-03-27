@@ -1,0 +1,129 @@
+.\"	$NetBSD: getent.1,v 1.13 2005/09/11 23:16:15 wiz Exp $
+.\"
+.\" Copyright (c) 2004 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Luke Mewburn.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 4, 2016
+.Dt GETENT 1
+.Os
+.Sh NAME
+.Nm getent
+.Nd get entries from administrative database
+.Sh SYNOPSIS
+.Nm
+.Ar database
+.Op Ar key ...
+.Sh DESCRIPTION
+The
+.Nm
+utility retrieves and displays entries from the administrative
+database specified by
+.Ar database ,
+using the lookup order specified in
+.Xr nsswitch.conf 5 .
+The display format for a given
+.Ar database
+is as per the
+.Dq traditional
+file format for that database.
+.Pp
+The
+.Ar database
+argument may be one of:
+.Pp
+.Bl -column ".Li netgroup" -offset indent -compact
+.Sy Database Ta Sy Display format
+.It Li ethers Ta address name
+.It Li group Ta group:passwd:gid:[member[,member]...]
+.It Li hosts Ta address name [alias ...]
+.It Li netgroup Ta (host,user,domain) [...]
+.It Li networks Ta name network [alias ...]
+.It Li passwd Ta user:passwd:uid:gid:gecos:home_dir:shell
+.It Li protocols Ta name protocol [alias ...]
+.It Li rpc Ta name number [alias ...]
+.It Li services Ta name port/protocol [alias ...]
+.It Li shells Ta /path/to/shell
+.It Li utmpx Ta [time] type: properties
+.El
+.Pp
+If one or more
+.Ar key
+arguments are provided, they will be looked up in
+.Ar database
+using the appropriate function.
+For example,
+.Dq Li passwd
+supports a numeric UID or user name;
+.Dq Li hosts
+supports an IPv4 address, IPv6 address, or host name;
+and
+.Dq Li services
+supports a service name, service name/protocol name, numeric port, or
+numeric port/protocol name.
+.Pp
+If no
+.Ar key
+is provided and
+.Ar database
+supports enumeration, all entries for
+.Ar database
+will be retrieved using the appropriate enumeration function and printed.
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 on success,
+1 if there was an error in the command syntax,
+2 if one of the specified key names was not found in
+.Ar database ,
+or 3 if there is no support for enumeration on
+.Ar database .
+.Sh SEE ALSO
+.Xr getutxent 3 ,
+.Xr ethers 5 ,
+.Xr group 5 ,
+.Xr hosts 5 ,
+.Xr netgroup 5 ,
+.Xr networks 5 ,
+.Xr nsswitch.conf 5 ,
+.Xr passwd 5 ,
+.Xr protocols 5 ,
+.Xr rpc 5 ,
+.Xr services 5 ,
+.Xr shells 5
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.Nx 3.0 ,
+and was imported into
+.Fx 7.0 .
+It was based on the command of the same name in
+.Tn Solaris
+and
+.Tn Linux .

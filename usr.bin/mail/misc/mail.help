@@ -1,0 +1,23 @@
+    Mail   Commands
+t <message list>		type messages
+n				goto and type next message
+e <message list>		edit messages
+f <message list>		give head lines of messages
+d <message list>		delete messages
+s <message list> file		append messages to file
+u <message list>		undelete messages
+R <message list>		reply to message senders
+r <message list>		reply to message senders and all recipients
+pre <message list>		make messages go back to /var/mail
+m <user list>			mail to specific users
+q				quit, saving unresolved messages in mbox
+x				quit, do not remove system mailbox
+h				print out active message headers
+!				shell escape
+cd [directory]			chdir to directory or home if none given
+
+A <message list> consists of integers, ranges of same, or user names separated
+by spaces.  If omitted, Mail uses the last message typed.
+
+A <user list> consists of user names or aliases separated by spaces.
+Aliases are defined in .mailrc in your home directory.

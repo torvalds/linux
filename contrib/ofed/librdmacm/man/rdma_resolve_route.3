@@ -1,0 +1,29 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_RESOLVE_ROUTE" 3 "2007-10-31" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_resolve_route \- Resolve the route information needed to establish a connection.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "int" rdma_resolve_route
+.BI "(struct rdma_cm_id *" id ","
+.BI "int " timeout_ms ");"
+.SH ARGUMENTS
+.IP "id" 12
+RDMA identifier.
+.IP "timeout_ms" 12
+Time to wait for resolution to complete.
+.SH "DESCRIPTION"
+Resolves an RDMA route to the destination address in order to establish
+a connection.  The destination address must have already been resolved
+by calling rdma_resolve_addr.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
+.SH "NOTES"
+This is called on the client side of a connection after calling
+rdma_resolve_addr, but before calling rdma_connect.
+.SH "INFINIBAND SPECIFIC"
+This call obtains a path record that is used by the connection.
+.SH "SEE ALSO"
+rdma_resolve_addr(3), rdma_connect(3), rdma_get_cm_event(3)

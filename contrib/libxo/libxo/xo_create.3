@@ -1,0 +1,77 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_create , xo_create_to_file , xo_destroy
+.Nd create and destroy libxo output handles
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft xo_handle_t *
+.Fn xo_create "unsigned style" "unsigned flags"
+.Ft xo_handle_t *
+.Fn xo_create_to_file "FILE *fp" "unsigned style" "unsigned flags"
+.Ft void
+.Fn xo_destroy "xo_handle_t *handle"
+.Sh DESCRIPTION
+A
+.Nm libxo
+handle can be allocated using the
+.Fn xo_create
+function.
+.Bd -literal -offset indent
+  Example:
+    xo_handle_t *xop = xo_create(XO_STYLE_JSON, XOF_WARN);
+    ....
+    xo_emit_h(xop, "testing\n");
+.Ed
+.Pp
+By default,
+.Nm libxo
+writes output to standard output.
+A convenience
+function is provided for situations when output should be written to a
+different file.
+.Pp
+Use the
+.Dv XOF_CLOSE_FP
+flag to trigger a call to
+.Xr fclose 3
+for the
+.Dv FILE
+pointer when the handle is destroyed.
+.Pp
+The
+.Fn xo_destroy
+function releases a handle and any resources it is
+using.
+Calling
+.Fn xo_destroy
+with a
+.Dv NULL
+handle will release any
+resources associated with the default handle.
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr xo_set_options 3 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

@@ -1,0 +1,29 @@
+#
+# DEFAULTS -- Default kernel configuration file for FreeBSD/i386
+#
+# $FreeBSD$
+
+machine		i386
+
+# Bus support.
+device		isa
+options 	ISAPNP
+
+# Pseudo devices.
+device		mem		# Memory and kernel memory devices
+device		io		# I/O device
+
+# UART chips on this platform
+device		uart_ns8250
+
+# Default partitioning schemes
+options 	GEOM_PART_BSD
+options 	GEOM_PART_EBR
+options 	GEOM_PART_EBR_COMPAT
+options 	GEOM_PART_MBR
+options 	GEOM_PART_GPT
+
+# enable support for native hardware
+device		atpic
+
+options 	NEW_PCIB

@@ -1,0 +1,123 @@
+.\"	$OpenBSD: ubsec.4,v 1.25 2003/08/12 19:42:46 jason Exp $
+.\"
+.\" Copyright (c) 2000 Jason L. Wright (jason@thought.net)
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 16, 2009
+.Dt UBSEC 4
+.Os
+.Sh NAME
+.Nm ubsec
+.Nd Broadcom and BlueSteel uBsec 5x0x crypto accelerator
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device crypto"
+.Cd "device cryptodev"
+.Cd "device ubsec"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ubsec_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports cards containing Broadcom and BlueSteel uBsec 5x0x
+crypto accelerator chips.
+.Pp
+The
+.Nm
+driver registers itself to accelerate DES, Triple-DES, MD5-HMAC,
+and SHA1-HMAC operations for
+.Xr ipsec 4
+and
+.Xr crypto 4 .
+.Pp
+On those models which contain a public key engine (almost all of the
+more recent ones), this feature is registered with the
+.Xr crypto 4
+subsystem.
+.Pp
+On all models except the Bluesteel 5501 and Broadcom 5801, the driver
+registers itself to provide random data to the
+.Xr random 4
+subsystem.
+.Sh HARDWARE
+The
+.Nm
+driver supports cards containing any of the following chips:
+.Bl -tag -width "Broadcom BCM5822" -offset indent
+.It Bluesteel 5501
+The original chipset, no longer made.
+This extremely rare unit
+was not very fast, lacked an RNG, and had a number of other bugs.
+.It Bluesteel 5601
+A faster and fixed version of the original, with a random number
+unit and large number engine added.
+.It Broadcom BCM5801
+A BCM5805 without public key engine or random number generator.
+.It Broadcom BCM5802
+A slower version of the BCM5805.
+.It Broadcom BCM5805
+Faster version of Bluesteel 5601.
+.It Broadcom BCM5820
+64 bit version of the chip, and significantly more advanced.
+.It Broadcom BCM5821
+Faster version of the BCM5820.
+This is the chip found on the Sun Crypto Accelerator 1000.
+.It Broadcom BCM5822
+Faster version of the BCM5820.
+.It Broadcom BCM5823
+A BCM5822 with AES capability.
+.It Broadcom BCM5825
+Faster version of the BCM5823.
+.El
+.Sh SEE ALSO
+.Xr crypt 3 ,
+.Xr crypto 4 ,
+.Xr intro 4 ,
+.Xr ipsec 4 ,
+.Xr random 4 ,
+.Xr crypto 9
+.Sh HISTORY
+The
+.Nm
+device driver appeared in
+.Ox 2.8 .
+The
+.Nm
+device driver was imported to
+.Fx 5.0 .
+.Sh BUGS
+The BCM5801 and BCM5802 have not actually been tested.
+The AES capability of the BCM5823 is not yet supported; it is awaiting
+public disclosure of programming information from Broadcom.

@@ -1,0 +1,63 @@
+#
+# Error messages for the krb4 library
+#
+# This might look like a com_err file, but is not
+#
+id "$Id: krb_err.et,v 1.7 1998/03/29 14:19:52 bg Exp $"
+
+error_table krb
+
+prefix KRB4ET
+ec KSUCCESS,		"Kerberos 4 successful"
+ec KDC_NAME_EXP,	"Kerberos 4 principal expired"
+ec KDC_SERVICE_EXP,	"Kerberos 4 service expired"
+ec KDC_AUTH_EXP,	"Kerberos 4 auth expired"
+ec KDC_PKT_VER,		"Incorrect Kerberos 4 master key version"
+ec KDC_P_MKEY_VER,	"Incorrect Kerberos 4 master key version"
+ec KDC_S_MKEY_VER,	"Incorrect Kerberos 4 master key version"
+ec KDC_BYTE_ORDER,	"Kerberos 4 byte order unknown"
+ec KDC_PR_UNKNOWN,	"Kerberos 4 principal unknown"
+ec KDC_PR_N_UNIQUE,	"Kerberos 4 principal not unique"
+ec KDC_NULL_KEY,	"Kerberos 4 principal has null key"
+index 20
+ec KDC_GEN_ERR,		"Generic error from KDC (Kerberos 4)"
+ec GC_TKFIL,		"Can't read Kerberos 4 ticket file"
+ec GC_NOTKT,		"Can't find Kerberos 4 ticket or TGT"
+index 26
+ec MK_AP_TGTEXP,	"Kerberos 4 TGT Expired"
+index 31
+ec RD_AP_UNDEC,		"Kerberos 4: Can't decode authenticator"
+ec RD_AP_EXP,		"Kerberos 4 ticket expired"
+ec RD_AP_NYV,		"Kerberos 4 ticket not yet valid"
+ec RD_AP_REPEAT,	"Kerberos 4: Repeated request"
+ec RD_AP_NOT_US,	"The Kerberos 4 ticket isn't for us"
+ec RD_AP_INCON,		"Kerberos 4 request inconsistent"
+ec RD_AP_TIME,		"Kerberos 4: delta_t too big"
+ec RD_AP_BADD,		"Kerberos 4: incorrect net address"
+ec RD_AP_VERSION,	"Kerberos protocol not version 4"
+ec RD_AP_MSG_TYPE,	"Kerberos 4: invalid msg type"
+ec RD_AP_MODIFIED,	"Kerberos 4: message stream modified"
+ec RD_AP_ORDER,		"Kerberos 4: message out of order"
+ec RD_AP_UNAUTHOR,	"Kerberos 4: unauthorized request"
+index 51
+ec GT_PW_NULL,		"Kerberos 4: current PW is null"
+ec GT_PW_BADPW,		"Kerberos 4: Incorrect current password"
+ec GT_PW_PROT,		"Kerberos 4 protocol error"
+ec GT_PW_KDCERR,	"Error returned by KDC (Kerberos 4)"
+ec GT_PW_NULLTKT,	"Null Kerberos 4 ticket returned by KDC"
+ec SKDC_RETRY,		"Kerberos 4: Retry count exceeded"
+ec SKDC_CANT,		"Kerberos 4: Can't send request"
+index 61
+ec INTK_W_NOTALL,	"Kerberos 4: not all tickets returned"
+ec INTK_BADPW,		"Kerberos 4: incorrect password"
+ec INTK_PROT,		"Kerberos 4: Protocol Error"
+index 70
+ec INTK_ERR,		"Other error in Kerberos 4"
+ec AD_NOTGT,		"Don't have Kerberos 4 ticket-granting ticket"
+index 76
+ec NO_TKT_FIL,		"No Kerberos 4 ticket file found"
+ec TKT_FIL_ACC,		"Couldn't access Kerberos 4 ticket file"
+ec TKT_FIL_LCK,		"Couldn't lock Kerberos 4 ticket file"
+ec TKT_FIL_FMT,		"Bad Kerberos 4 ticket file format"
+ec TKT_FIL_INI,		"Kerberos 4: tf_init not called first"
+ec KNAME_FMT,		"Bad Kerberos 4 name format"

@@ -1,0 +1,918 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd December 6, 2018
+.Dt HIER 7
+.Os
+.Sh NAME
+.Nm hier
+.Nd layout of file systems
+.Sh DESCRIPTION
+A sketch of the file system hierarchy.
+.Bl -tag -width "/libexec/"
+.It Pa /
+root directory of the file system
+.It Pa /bin/
+user utilities fundamental to both single-user and multi-user environments
+.It Pa /boot/
+programs and configuration files used during operating system bootstrap
+.Pp
+.Bl -tag -width "defaults/" -compact
+.It Pa defaults/
+default bootstrapping configuration files; see
+.Xr loader.conf 5
+.It Pa dtb/
+Compiled flattened device tree (FDT) files; see
+.Xr fdt 4
+and
+.Xr dtc 1
+.It Pa firmware/
+loadable kernel modules containing binary firmware for hardware that needs
+firmware downloaded to it to function
+.It Pa kernel/
+pure kernel executable (the operating system loaded into memory
+at boot time) and kernel modules
+.It Pa modules/
+third-party loadable kernel modules;
+see
+.Xr kldstat 8
+.It Pa overlays/
+Compiled flattened device tree (FDT) overlays; see
+.Xr fdt 4
+and
+.Xr dtc 1
+.It Pa zfs/
+.Xr zfs 8
+zpool cache files
+.El
+.It Pa /cdrom/
+default mount point for CD-ROM drives
+.It Pa /compat/
+normally a link to
+.Pa /usr/compat .
+If not, then the
+.Pa /usr/compat
+comments apply
+.It Pa /dev/
+device special files managed by
+.Xr devfs 5
+.Pp
+.Bl -tag -width "defaults/" -compact
+.It Pa fd/
+file descriptor files;
+see
+.Xr \&fd 4
+.El
+.It Pa /etc/
+system configuration files and scripts
+.Pp
+.Bl -tag -width "defaults/" -compact
+.It Pa defaults/
+default system configuration files;
+see
+.Xr rc 8
+.It Pa bluetooth/
+bluetooth configuration files
+.It Pa localtime
+local timezone information;
+see
+.Xr ctime 3
+.It Pa mail/
+Sendmail control files
+.It Pa mtree/
+mtree configuration files;
+see
+.Xr mtree 8
+.It Pa pam.d/
+configuration files for the Pluggable Authentication Modules (PAM)
+library
+.It Pa periodic/
+scripts that are run daily, weekly, and monthly, via
+.Xr cron 8 ;
+see
+.Xr periodic 8
+.It Pa rc.d/
+system and daemon startup/control scripts;
+see
+.Xr rc 8
+.It Pa security/
+OpenBSM audit configuration files;
+see
+.Xr audit 8
+.It Pa ppp/
+ppp configuration files;
+see
+.Xr ppp 8
+.It Pa ssh/
+OpenSSH configuration files;
+see
+.Xr ssh 1
+.It Pa ssl/
+OpenSSL configuration files
+.El
+.It Pa /lib/
+critical system libraries needed for binaries in
+.Pa /bin
+and
+.Pa /sbin
+.Pp
+.Bl -tag -width "defaults/" -compact
+.It Pa casper/
+service-specific
+.Xr libcasper 3
+Capsicum support libraries
+.It Pa geom/
+class-specific libraries for the
+.Xr geom 8
+utility
+.It Pa nvmecontrol/
+vendor-specific libraries to extend the
+.Xr nvmecontrol 8
+utility
+.El
+.It Pa /libexec/
+critical system utilities needed for binaries in
+.Pa /bin
+and
+.Pa /sbin
+.It Pa /media/
+contains subdirectories to be used as mount points
+for removable media such as CDs, USB drives, and
+floppy disks
+.It Pa /mnt/
+empty directory commonly used by
+system administrators as a temporary mount point
+.It Pa /net/
+automounted NFS shares;
+see
+.Xr auto_master 5
+.It Pa /proc/
+process file system;
+see
+.Xr procfs 5
+.It Pa /rescue/
+statically linked programs for emergency recovery;
+see
+.Xr rescue 8
+.It Pa /root/
+root's HOME directory
+.It Pa /sbin/
+system programs and administration utilities
+fundamental to both single-user and multi-user environments
+.It Pa /tmp/
+temporary files that are not guaranteed to persist across system reboots
+.It Pa /usr/
+contains the majority of user utilities and applications
+.Pp
+.Bl -tag -width "defaults/" -compact
+.It Pa bin/
+common utilities, programming tools, and applications
+.It Pa compat/
+files needed to support binary compatibility with other operating systems,
+such as Linux
+.It Pa include/
+standard C include files
+.Pp
+.Bl -tag -width "kerberos5/" -compact
+.It Pa arpa/
+C include files for Internet service protocols
+.It Pa bsnmp/
+C include files for the SNMP daemon
+.It Pa c++/
+C++ include files
+.It Pa cam/
+C include files for the Common Access Methods Layer
+.Bl -tag -width "kerberos5/" -compact
+.It Pa scsi/
+SCSI device on top of CAM
+.El
+.It Pa dev/
+C include files for programming various
+.Fx
+devices
+.Bl -tag -width "kerberos5/" -compact
+.It Pa ic/
+various header files describing driver- and bus-independent
+hardware circuits
+.It Pa ofw/
+Open Firmware support
+.It Pa pbio/
+8255 PPI cards;
+see
+.Xr pbio 4
+.It Pa ppbus/
+parallel port bus;
+see
+.Xr ppbus 4
+.It Pa usb/
+USB subsystem
+.It Pa wi/
+.Xr wi 4
+WaveLAN driver
+.El
+.It Pa fs/
+.Bl -tag -width "kerberos5/" -compact
+.It Pa fdescfs/
+per-process file descriptors file system
+.It Pa msdosfs/
+MS-DOS file system
+.It Pa nfs/
+C include files for NFS (Network File System) version 2, 3 and 4
+.It Pa nullfs/
+loopback file system
+.It Pa procfs/
+process file system
+.It Pa smbfs/
+SMB/CIFS file system
+.It Pa udf/
+UDF file system
+.It Pa unionfs
+union file system
+.El
+.It Pa geom/
+GEOM framework
+.Bl -tag -width "kerberos5/" -compact
+.It Pa concat/
+CONCAT GEOM class
+.It Pa gate/
+GATE GEOM class
+.It Pa mirror/
+MIRROR GEOM class
+.It Pa nop/
+NOP GEOM class
+.It Pa raid3/
+RAID3 GEOM class
+.It Pa stripe/
+STRIPE GEOM class
+.El
+.It Pa libmilter/
+C include files for libmilter,
+the
+.Xr sendmail 8
+mail filter API
+.It Pa machine/
+machine-specific C include files
+.It Pa net/
+miscellaneous network C include files
+.Bl -tag -width Fl -compact
+.It Pa altq/
+C include files for alternate queueing
+.El
+.It Pa net80211/
+C include files for 802.11 wireless networking;
+see
+.Xr net80211 4
+.It Pa netinet/
+C include files for Internet standard protocols;
+see
+.Xr inet 4
+.It Pa netinet6/
+C include files for Internet protocol version 6;
+see
+.Xr inet6 4
+.It Pa netipsec/
+kernel key-management service;
+see
+.Xr ipsec 4
+.It Pa netsmb/
+SMB/CIFS requester
+.It Pa nfs/
+C include files for NFS (Network File System) version 2 and 3 (legacy)
+.It Pa openssl/
+OpenSSL (Cryptography/SSL toolkit) headers
+.It Pa protocols/
+C include files for Berkeley service protocols
+.It Pa rpc/
+remote procedure calls;
+see
+.Xr rpc 3
+.It Pa rpcsvc/
+definition of RPC service structures; see
+.Xr rpc 3
+.It Pa security/
+PAM; see
+.Xr pam 8
+.It Pa sys/
+system C include files (kernel data structures)
+.\" .It Pa tcl/
+.\" Tcl language;
+.\" see
+.\" .Xr Tcl n
+.\" .Bl -tag -width "kerberos5/" -compact
+.\" .It Pa generic/
+.\" ???
+.\" .It Pa unix/
+.\" ???
+.\" .El
+.It Pa ufs/
+C include files for UFS (The U-word File System)
+.Bl -tag -width "kerberos5/" -compact
+.It Pa ffs/
+Fast file system
+.It Pa ufs/
+UFS file system
+.El
+.It Pa vm/
+virtual memory;
+see
+.Xr vmstat 8
+.El
+.Pp
+.It Pa lib/
+shared and archive
+.Xr ar 1 Ns -type
+libraries
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa aout/
+a.out archive libraries
+.It Pa compat/
+shared libraries for compatibility
+.Bl -tag -width Fl -compact
+.It Pa aout/
+a.out backward compatibility libraries
+.El
+.It Pa debug/
+standalone debug data for the kernel and base system libraries and binaries
+.It Pa dtrace/
+DTrace library scripts
+.It Pa engines/
+OpenSSL (Cryptography/SSL toolkit) dynamically loadable engines
+.El
+.Pp
+.It Pa libdata/
+miscellaneous utility data files
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa gcc/
+.Xr gcc 1
+configuration data
+.It Pa ldscripts/
+linker scripts;
+see
+.Xr ld 1
+.El
+.Pp
+.It Pa libexec/
+system daemons & system utilities (executed by other programs)
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa aout/
+utilities to manipulate a.out executables
+.It Pa elf/
+utilities to manipulate ELF executables
+.It Pa lpr/
+utilities and filters for LP print system;
+see
+.Xr lpr 1
+.It Pa sendmail/
+the
+.Xr sendmail 8
+binary;
+see
+.Xr mailwrapper 8
+.It Pa sm.bin/
+restricted shell for
+.Xr sendmail 8 ;
+see
+.Xr smrsh 8
+.El
+.Pp
+.It Pa local/
+local executables, libraries, etc.
+Also used as the default destination for the
+.Xr ports 7
+framework.
+Within
+.Pa local/ ,
+the general layout sketched out by
+.Nm
+for
+.Pa /usr
+should be used.
+Exceptions are the
+.Pa man
+directory
+.Po directly under
+.Pa local/
+rather than under
+.Pa local/share/ Ns Pc ,
+ports documentation
+.Po in
+.Pa share/doc/<port>/ Ns Pc ,
+and
+.Pa /usr/local/etc
+.Po mimics
+.Pa /etc Ns Pc .
+.It Pa obj/
+architecture-specific target tree produced by building the
+.Pa /usr/src
+tree
+.It Pa ports/
+.Xr ports 7 ,
+the
+.Fx
+ports collection.
+.It Pa sbin/
+system daemons & system utilities (executed by users)
+.It Pa share/
+architecture-independent files
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa calendar/
+a variety of pre-fab calendar files;
+see
+.Xr calendar 1
+.It Pa dict/
+word lists;
+see
+.Xr look 1
+.Bl -tag -width Fl -compact
+.It Pa freebsd
+.Fx Ns -specific
+terms, proper names, and jargon
+.It Pa web2
+words from Webster's 2nd International
+.El
+.It Pa doc/
+miscellaneous documentation;
+source for most of the printed
+.Bx
+manuals (available
+from the
+.Tn USENIX
+association)
+.Bl -tag -width Fl -compact
+.It Pa FAQ/
+Frequently Asked Questions
+.It Pa IPv6/
+implementation notes for IPv6
+.It Pa es/
+Spanish translations of documents in /usr/share/doc
+.It Pa handbook/
+.Fx
+Handbook
+.It Pa ja/
+Japanese translations of documents in /usr/share/doc
+.It Pa legal/
+License files for vendor supplied firmware files
+.It Pa ncurses/
+HTML documents pertaining to ncurses;
+see
+.Xr ncurses 3
+.It Pa ntp/
+HTML documents pertaining to the Network Time Protocol
+.It Pa ru/
+Russian translations of documents in /usr/share/doc
+.It Pa tutorials/
+.Fx
+tutorials
+.It Pa zh/
+Chinese translations of documents in /usr/share/doc
+.El
+.It Pa examples/
+various examples for users and programmers
+.It Pa firmware/
+firmware images loaded by userland programs
+.It Pa games/
+ASCII text files used by various games
+.It Pa keys/
+known trusted and revoked keys.
+.Bl -tag -width Fl -compact
+.It Pa pkg/
+fingerprints for
+.Xr pkg 7
+and
+.Xr pkg 8
+.El
+.It Pa locale/
+localization files;
+see
+.Xr setlocale 3
+.It Pa man/
+manual pages
+.It Pa misc/
+miscellaneous system-wide ASCII text files
+.Bl -tag -width Fl -compact
+.It Pa fonts/
+???
+.It Pa termcap
+terminal characteristics database;
+see
+.Xr termcap 5
+.El
+.It Pa mk/
+templates for make;
+see
+.Xr make 1
+.It Pa nls/
+national language support files;
+see
+.Xr mklocale 1
+.It Pa security/
+data files for security policies such as
+.Xr mac_lomac 4
+.It Pa sendmail/
+.Xr sendmail 8
+configuration files
+.It Pa skel/
+example
+.Pa .\&
+(dot) files for new accounts
+.It Pa snmp/
+MIBs, example files and tree definitions for the SNMP daemon.
+.Bl -tag -width Fl -compact
+.It Pa defs/
+tree definition files for use with
+.Xr gensnmptree 1
+.It Pa mibs/
+MIB files
+.El
+.It Pa syscons/
+files used by syscons;
+see
+.Xr syscons 4
+.Bl -tag -width Fl -compact
+.It Pa fonts/
+console fonts;
+see
+.Xr vidcontrol 1
+and
+.Xr vidfont 1
+.It Pa keymaps/
+console keyboard maps;
+see
+.Xr kbdcontrol 1
+and
+.Xr kbdmap 1
+.It Pa scrnmaps/
+console screen maps
+.El
+.It Pa tabset/
+tab description files for a variety of terminals; used in
+the termcap file;
+see
+.Xr termcap 5
+.It Pa vi/
+localization support and utilities for
+.Xr vi 1
+.It Pa vt/
+files used by vt;
+see
+.Xr vt 4
+.Bl -tag -width Fl -compact
+.It Pa fonts/
+console fonts;
+see
+.Xr vidcontrol 1
+and
+.Xr vidfont 1
+.It Pa keymaps/
+console keyboard maps;
+see
+.Xr kbdcontrol 1
+and
+.Xr kbdmap 1
+.\" .It Pa scrnmaps/
+.\" console screen maps
+.El
+.It Pa zoneinfo/
+timezone configuration information;
+see
+.Xr tzfile 5
+.El
+.Pp
+.It Pa src/
+.Bx ,
+third-party, and/or local source files
+.Pp
+.Bl -tag -width "kerberos5/" -compact
+.It Pa bin/
+source code for files in /bin
+.It Pa cddl/
+utilities covered by the Common Development and Distribution License
+.It Pa contrib/
+source code for contributed software
+.It Pa crypto/
+source code for contributed cryptography software
+.It Pa etc/
+source code for files in
+.Pa /etc
+.It Pa gnu/
+utilities covered by the GNU General Public License
+.It Pa include/
+source code for files in
+.Pa /usr/include
+.It Pa kerberos5/
+build infrastructure for Kerberos version 5
+.It Pa lib/
+source code for files in
+.Pa /lib
+and
+.Pa /usr/lib
+.It Pa libexec/
+source code for files in
+.Pa /usr/libexec
+.It Pa release/
+files required to produce a
+.Fx
+release
+.It Pa rescue/
+source code for files in
+.Pa /rescue
+.It Pa sbin/
+source code for files in
+.Pa /sbin
+.It Pa secure/
+build directory for files in
+.Pa /usr/src/crypto
+.It Pa share/
+source for files in
+.Pa /usr/share
+.It Pa stand/
+boot loader source code
+.It Pa sys/
+kernel source code
+.Bl -tag -width Fl -compact
+.It Pa amd64/
+AMD64 architecture support
+.It Pa arm/
+ARM architecture support
+.It Pa arm64/
+ARMv8 architecture support
+.It Pa cam/
+.Xr cam 4
+and
+.Xr ctl 4
+.It Pa cddl/
+CDDL-licensed optional sources, including ZFS
+and DTrace
+.It Pa ddb/
+.Xr ddb 4
+.It Pa fs/
+most filesystems
+.It Pa dev/
+device drivers
+.It Pa geom/
+.Xr geom 4
+.It Pa i386/
+i386 (32 bit) architecture support
+.It Pa kern/
+main part of the kernel
+.It Pa mips/
+MIPS architecture support
+.It Pa net80211/
+.Xr net80211 4
+.It Pa netgraph/
+.Xr netgraph 4
+.It Pa netinet/
+.Xr inet 4
+.It Pa netinet6/
+.Xr inet6 4
+.It Pa netipsec/
+.Xr ipsec 4
+.It Pa netpfil/
+.Xr ipfw 4
+and
+.Xr pf 4
+.It Pa opencrypto/
+.Xr crypto 7
+.It Pa powerpc/
+PowerPC/POWER architecture support
+.It Pa riscv/
+RISC-V architecture support
+.It Pa security/
+.Xr audit 4
+and
+.Xr mac 4
+.It Pa sparc64/
+SPARC64 architecture support
+.It Pa sys/
+kernel headers
+.It Pa ufs/
+Unix File System
+.It Pa x86/
+code shared by AMD64 and i386 architectures
+.El
+.It Pa targets/
+support for experimental DIRDEPS_BUILD
+.It Pa tests/
+source code for files in
+.Pa /usr/tests
+.It Pa tools/
+tools used for maintenance and testing of
+.Fx
+.It Pa usr.bin/
+source code for files in
+.Pa /usr/bin
+.It Pa usr.sbin/
+source code for files in
+.Pa /usr/sbin
+.El
+.Pp
+.It Pa tests/
+The
+.Fx
+test suite.
+See
+.Xr tests 7
+for more details.
+.El
+.It Pa /var/
+multi-purpose log, temporary, transient, and spool files
+.Pp
+.Bl -tag -width "defaults/" -compact
+.It Pa account/
+system accounting files
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa acct
+execution accounting file;
+see
+.Xr acct 5
+.El
+.Pp
+.It Pa at/
+timed command scheduling files;
+see
+.Xr \&at 1
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa jobs/
+directory containing job files
+.It Pa spool/
+directory containing output spool files
+.El
+.Pp
+.It Pa backups/
+miscellaneous backup files
+.It Pa cache/
+miscellaneous cached files
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa pkg/
+cached packages for
+.Xr pkg 8
+.El
+.Pp
+.It Pa crash/
+default directory to store kernel crash dumps; see
+.Xr crash 8
+and
+.Xr savecore 8
+.It Pa cron/
+files used by cron;
+see
+.Xr cron 8
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa tabs/
+crontab files;
+see
+.Xr crontab 5
+.El
+.Pp
+.It Pa db/
+miscellaneous automatically generated system-specific database files
+.It Pa empty/
+empty directory for use by programs that need a specifically empty directory.
+Used for instance by
+.Xr sshd 8
+for privilege separation.
+.It Pa games/
+miscellaneous game status and score files
+.It Pa heimdal/
+Kerberos server databases; see
+.Xr kdc 8
+.It Pa log/
+miscellaneous system log files
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa utx.lastlogin
+last login log;
+see
+.Xr getutxent 3
+.It Pa utx.log
+login/logout log;
+see
+.Xr getutxent 3
+.El
+.Pp
+.It Pa mail/
+user mailbox files
+.It Pa msgs/
+system messages database;
+see
+.Xr msgs 1
+.It Pa preserve/
+temporary home of files preserved after an accidental death
+of an editor;
+see
+.Xr \&ex 1
+.It Pa quotas/
+file system quota information files
+.It Pa run/
+system information files describing various info about
+system since it was booted
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa ppp/
+writable by the
+.Dq network
+group for command connection sockets; see
+.Xr ppp 8
+.It Pa utx.active
+database of current users;
+see
+.Xr getutxent 3
+.El
+.Pp
+.It Pa rwho/
+rwho data files;
+see
+.Xr rwhod 8 ,
+.Xr rwho 1 ,
+and
+.Xr ruptime 1
+.It Pa spool/
+miscellaneous printer and mail system spooling directories
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa clientmqueue/
+undelivered submission mail queue;
+see
+.Xr sendmail 8
+.It Pa ftp/
+commonly ~ftp; the anonymous ftp root directory
+.It Pa mqueue/
+undelivered mail queue;
+see
+.Xr sendmail 8
+.It Pa output/
+line printer spooling directories
+.El
+.Pp
+.It Pa tmp/
+temporary files that are kept between system reboots
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa vi.recover/
+the directory where recovery files are stored
+.El
+.Pp
+.It Pa yp/
+the NIS maps
+.El
+.El
+.Sh NOTES
+This manual page documents the default
+.Fx
+file system layout, but
+the actual hierarchy on a given system is defined at the system
+administrator's discretion.
+A well-maintained installation will include a customized version of
+this document.
+.Sh SEE ALSO
+.Xr apropos 1 ,
+.Xr find 1 ,
+.Xr finger 1 ,
+.Xr grep 1 ,
+.Xr ls 1 ,
+.Xr whatis 1 ,
+.Xr whereis 1 ,
+.Xr which 1 ,
+.Xr fd 4 ,
+.Xr devfs 5 ,
+.Xr fsck 8
+.Sh HISTORY
+A
+.Nm
+manual page appeared in
+.At v7 .

@@ -1,0 +1,100 @@
+=pod
+
+=head1 NAME
+
+X509_STORE_add_cert, X509_STORE_add_crl, X509_STORE_set_depth,
+X509_STORE_set_flags, X509_STORE_set_purpose, X509_STORE_set_trust,
+X509_STORE_load_locations,
+X509_STORE_set_default_paths
+- X509_STORE manipulation
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509_vfy.h>
+
+ int X509_STORE_add_cert(X509_STORE *ctx, X509 *x);
+ int X509_STORE_add_crl(X509_STORE *ctx, X509_CRL *x);
+ int X509_STORE_set_depth(X509_STORE *store, int depth);
+ int X509_STORE_set_flags(X509_STORE *ctx, unsigned long flags);
+ int X509_STORE_set_purpose(X509_STORE *ctx, int purpose);
+ int X509_STORE_set_trust(X509_STORE *ctx, int trust);
+
+ int X509_STORE_load_locations(X509_STORE *ctx,
+                               const char *file, const char *dir);
+ int X509_STORE_set_default_paths(X509_STORE *ctx);
+
+=head1 DESCRIPTION
+
+The B<X509_STORE> structure is intended to be a consolidated mechanism for
+holding information about X.509 certificates and CRLs, and constructing
+and validating chains of certificates terminating in trusted roots.
+It admits multiple lookup mechanisms and efficient scaling performance
+with large numbers of certificates, and a great deal of flexibility in
+how validation and policy checks are performed.
+
+L<X509_STORE_new(3)> creates an empty B<X509_STORE> structure, which contains
+no information about trusted certificates or where such certificates
+are located on disk, and is generally not usable.  Normally, trusted
+certificates will be added to the B<X509_STORE> to prepare it for use,
+via mechanisms such as X509_STORE_add_lookup() and X509_LOOKUP_file(), or
+PEM_read_bio_X509_AUX() and X509_STORE_add_cert().  CRLs can also be added,
+and many behaviors configured as desired.
+
+Once the B<X509_STORE> is suitably configured, X509_STORE_CTX_new() is
+used to instantiate a single-use B<X509_STORE_CTX> for each chain-building
+and verification operation.  That process includes providing the end-entity
+certificate to be verified and an additional set of untrusted certificates
+that may be used in chain-building.  As such, it is expected that the
+certificates included in the B<X509_STORE> are certificates that represent
+trusted entities such as root certificate authorities (CAs).
+OpenSSL represents these trusted certificates internally as B<X509> objects
+with an associated B<X509_CERT_AUX>, as are produced by
+PEM_read_bio_X509_AUX() and similar routines that refer to X509_AUX.
+The public interfaces that operate on such trusted certificates still
+operate on pointers to B<X509> objects, though.
+
+X509_STORE_add_cert() and X509_STORE_add_crl() add the respective object
+to the B<X509_STORE>'s local storage.  Untrusted objects should not be
+added in this way.
+
+X509_STORE_set_depth(), X509_STORE_set_flags(), X509_STORE_set_purpose(),
+X509_STORE_set_trust(), and X509_STORE_set1_param() set the default values
+for the corresponding values used in certificate chain validation.  Their
+behavior is documented in the corresponding B<X509_VERIFY_PARAM> manual
+pages, e.g., L<X509_VERIFY_PARAM_set_depth(3)>.
+
+X509_STORE_load_locations() loads trusted certificate(s) into an
+B<X509_STORE> from a given file and/or directory path.  It is permitted
+to specify just a file, just a directory, or both paths.  The certificates
+in the directory must be in hashed form, as documented in
+L<X509_LOOKUP_hash_dir(3)>.
+
+X509_STORE_set_default_paths() is somewhat misnamed, in that it does not
+set what default paths should be used for loading certificates.  Instead,
+it loads certificates into the B<X509_STORE> from the hardcoded default
+paths.
+
+=head1 RETURN VALUES
+
+X509_STORE_add_cert(), X509_STORE_add_crl(), X509_STORE_set_depth(),
+X509_STORE_set_flags(), X509_STORE_set_purpose(),
+X509_STORE_set_trust(), X509_STORE_load_locations(), and
+X509_STORE_set_default_paths() return 1 on success or 0 on failure.
+
+=head1 SEE ALSO
+
+L<X509_LOOKUP_hash_dir(3)>.
+L<X509_VERIFY_PARAM_set_depth(3)>.
+L<X509_STORE_new(3)>,
+L<X509_STORE_get0_param(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

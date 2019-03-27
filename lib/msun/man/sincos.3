@@ -1,0 +1,82 @@
+.\" Copyright (c) 2011 Steven G. Kargl.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 12, 2011
+.Dt SINCOS 3
+.Os
+.Sh NAME
+.Nm sincos ,
+.Nm sincosf ,
+.Nm sincosl
+.Nd sine and cosine functions
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft void
+.Fn sincos "double x" "double *s" "double *c"
+.Ft void
+.Fn sincosf "float x" "float *s" "float *c"
+.Ft void
+.Fn sincosl "long double x" "long double *s" "long double *c"
+.Sh DESCRIPTION
+The
+.Fn sincos ,
+.Fn sincosf ,
+and
+.Fn sincosl
+functions compute the sine and cosine of
+.Fa x .
+Using these functions allows argument reduction to occur only
+once instead of twice with individual invocations of 
+.Fn sin
+and 
+.Fn cos .
+Like 
+.Fn sin
+and 
+.Fn cos ,
+a large magnitude argument may yield a result with little
+or no significance.
+.Sh RETURN VALUES
+Upon returning from 
+.Fn sincos ,
+.Fn sincosf ,
+and
+.Fn sincosl ,
+the memory pointed to by 
+.Ar "*s" 
+and
+.Ar "*c" 
+are assigned the values of sine and cosine, respectively.
+.Sh SEE ALSO
+.Xr cos 3 ,
+.Xr sin 3 ,
+.Sh HISTORY
+These functions were added to 
+.Fx 9.0
+to aid in writing various complex function contained in 
+.St -isoC-99 .
+

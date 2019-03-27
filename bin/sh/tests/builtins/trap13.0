@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+{
+	trap 'exit 0' INT
+	${SH} -c 'kill -INT $PPID'
+	exit 3
+} &
+wait $!

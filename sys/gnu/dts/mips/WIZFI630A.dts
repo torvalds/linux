@@ -1,0 +1,184 @@
+/dts-v1/;
+
+#include "rt5350.dtsi"
+
+/ {
+	compatible = "wizfi630a", "ralink,rt5350-soc";
+	model = "WIZnet WizFi630A";
+
+	chosen {
+		bootargs = "console=ttyS1,115200";
+	};
+
+	gpio-export {
+		compatible = "gpio-export";
+		#size-cells = <0>;
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		run {
+			label = "wizfi630a::run";
+			gpios = <&gpio0 1 1>;
+		};
+
+		wps {
+			label = "wizfi630a::wps";
+			gpios = <&gpio0 20 1>;
+		};
+
+		uart1 {
+			label = "wizfi630a::uart1";
+			gpios = <&gpio0 18 1>;
+		};
+
+		uart2 {
+			label = "wizfi630a::uart2";
+			gpios = <&gpio0 21 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 17 1>;
+			linux,code = <0x198>;
+		};
+
+		wps {
+			label = "wps";
+			gpios = <&gpio0 0 1>;
+			linux,code = <0x211>;
+		};
+		
+		scm1 {
+			label = "SCM1";
+			gpios = <&gpio0 19 1>;
+			linux,code = <0x100>;
+		};
+
+		scm2 {
+			label = "SCM2";
+			gpios = <&gpio0 2 1>;
+			linux,code = <0x101>;
+		};
+	};
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "w25q128";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			#size-cells = <1>;
+			label = "uboot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			#size-cells = <1>;
+			label = "uboot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			#size-cells = <1>;
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			#size-cells = <1>;
+			label = "firmware";
+			reg = <0x50000 0xfb0000>;
+		};
+	};
+};
+
+&uart {
+	compatible = "ralink,mt7620a-uart", "ralink,rt2880-uart", "ns16550a";
+	reg = <0x500 0x100>;
+	resets = <&rstctrl 12>;
+	reset-names = "uart";
+	interrupt-parent = <&intc>;
+	interrupts = <5>;
+	reg-shift = <2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uartf_pins>;
+	status = "okay";
+};
+
+&uartlite {
+	compatible = "ralink,mt7620a-uart", "ralink,rt2880-uart", "ns16550a";
+	reg = <0xc00 0x100>;
+	resets = <&rstctrl 19>;
+	reset-names = "uartl";
+	interrupt-parent = <&intc>;
+	interrupts = <12>;
+	reg-shift = <2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uartlite_pins>;
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "jtag" ;
+			ralink,function = "gpio";
+		};
+	};
+
+	uartf_gpio_pins: uartf_gpio {
+		uartf_gpio {
+			ralink,group = "uartf";
+			ralink,function = "uartf";
+		};
+	};
+
+	uartlite_pins: uartlite {
+		uart {
+			ralink,group = "uartlite";
+			ralink,function = "uartlite";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x4>;
+};
+
+&esw {
+	mediatek,portmap = <0x17>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};

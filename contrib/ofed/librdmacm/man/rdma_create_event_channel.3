@@ -1,0 +1,32 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_CREATE_EVENT_CHANNEL" 3 "2007-05-15" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_create_event_channel \- Open a channel used to report communication events.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "struct rdma_event_channel *" rdma_create_event_channel
+.BI "(" void ");"
+.SH ARGUMENTS
+.IP "void" 12
+no arguments
+.SH "DESCRIPTION"
+Asynchronous events are reported to users through event channels.
+.SH "RETURN VALUE"
+Returns a pointer to the created event channel, or NULL if the request
+fails.  On failure, errno will be set to indicate the failure reason.
+.SH "NOTES"
+Event channels are used to direct all events on an rdma_cm_id.  For many
+clients, a single event channel may be sufficient, however, when managing
+a large number of connections or cm_id's, users may find it useful to direct
+events for different cm_id's to different channels for processing.
+.P
+All created event channels must be destroyed by calling
+rdma_destroy_event_channel.  Users should call rdma_get_cm_event to
+retrieve events on an event channel.
+.P
+Each event channel is mapped to a file descriptor.  The associated file
+descriptor can be used and manipulated like any other fd to change its
+behavior.  Users may make the fd non-blocking, poll or select the fd, etc.
+.SH "SEE ALSO"
+rdma_cm(7), rdma_get_cm_event(3), rdma_destroy_event_channel(3)

@@ -1,0 +1,65 @@
+=pod
+
+=head1 NAME
+
+EVP_md5,
+EVP_md5_sha1
+- MD5 For EVP
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ const EVP_MD *EVP_md5(void);
+ const EVP_MD *EVP_md5_sha1(void);
+
+=head1 DESCRIPTION
+
+MD5 is a cryptographic hash function standardized in RFC 1321 and designed by
+Ronald Rivest.
+
+The CMU Software Engineering Institute considers MD5 unsuitable for further
+use since its security has been severely compromised.
+
+=over 4
+
+=item EVP_md5()
+
+The MD5 algorithm which produces a 128-bit output from a given input.
+
+=item EVP_md5_sha1()
+
+A hash algorithm of SSL v3 that combines MD5 with SHA-1 as decirbed in RFC
+6101.
+
+WARNING: this algorithm is not intended for non-SSL usage.
+
+=back
+
+
+=head1 RETURN VALUES
+
+These functions return a B<EVP_MD> structure that contains the
+implementation of the symmetric cipher. See L<EVP_MD_meth_new(3)> for
+details of the B<EVP_MD> structure.
+
+=head1 CONFORMING TO
+
+IETF RFC 1321.
+
+=head1 SEE ALSO
+
+L<evp(7)>,
+L<EVP_DigestInit(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut
+

@@ -1,0 +1,29 @@
+
+Installation instructions for SunOS
+
+Compile the executable:
+For SunOS 4.X:
+	make sunos4
+For SunOS 5.X:  (Solaris)
+	make sunos5
+
+Install the executables:
+
+	make install
+
+Edit (or create) the bootptab:
+(See bootptab.sample and bootptab.5 manual entry)
+	edit /etc/bootptab
+
+Edit /etc/services to add these two lines:
+bootps		67/udp		bootp		# BOOTP Server
+bootpc		68/udp				# BOOTP Client
+
+Edit /etc/inetd.conf to add the line:
+bootp	dgram	udp	wait	root	/usr/etc/bootpd bootpd -i
+
+If you compiled report.c with LOG_LOCAL2 (defined in the Makefile)
+then you may want to capture syslog messages from BOOTP by changing
+your syslog.conf file.  (See the sample syslog.conf file here).
+Test the change with:  logger -t test -p local2.info "message"
+

@@ -1,0 +1,30 @@
+//
+//  DebugProject.xcconfig
+//
+//  These are Debug Configuration project settings for the gtest framework and
+//  examples. It is set in the "Based On:" dropdown in the "Project" info
+//  dialog.
+//  This file is based on the Xcode Configuration files in:
+//  https://github.com/google/google-toolbox-for-mac
+// 
+
+#include "General.xcconfig"
+
+// No optimization
+GCC_OPTIMIZATION_LEVEL = 0
+
+// Deployment postprocessing is what triggers Xcode to strip, turn it off
+DEPLOYMENT_POSTPROCESSING = NO
+
+// Dead code stripping off
+DEAD_CODE_STRIPPING = NO
+
+// Debug symbols should be on obviously
+GCC_GENERATE_DEBUGGING_SYMBOLS = YES
+
+// Define the DEBUG macro in all debug builds
+OTHER_CFLAGS = $(OTHER_CFLAGS) -DDEBUG=1
+
+// These are turned off to avoid STL incompatibilities with client code
+// // Turns on special C++ STL checks to "encourage" good STL use
+// GCC_PREPROCESSOR_DEFINITIONS = $(GCC_PREPROCESSOR_DEFINITIONS) _GLIBCXX_DEBUG_PEDANTIC _GLIBCXX_DEBUG _GLIBCPP_CONCEPT_CHECKS

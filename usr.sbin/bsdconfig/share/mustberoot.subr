@@ -1,0 +1,424 @@
+if [ ! "$_MUSTBEROOT_SUBR" ]; then _MUSTBEROOT_SUBR=1
+#
+# Copyright (c) 2006-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." mustberoot.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+############################################################ CONFIGURATION
+# NOTE: These are not able to be overridden/inherited for security purposes.
+
+#
+# Number of tries a user gets to enter his/her password before we log the
+# sudo(8) failure and exit.
+#
+PASSWD_TRIES=3
+
+#
+# While in SECURE mode, should authentication as `root' be allowed? Set to
+# non-NULL to enable authentication as `root', otherwise disabled.
+#
+# WARNING: 
+# Unless using a custom sudo(8) configuration, user `root' should not be
+# allowed because no password is required to become `root' when already `root'
+# and therefore, any value entered as password will work.
+#
+SECURE_ALLOW_ROOT=
+
+#
+# While in SECURE mode, should we divulge (through error message) when the
+# requested authentication user does not exist? Set to non-NULL to enable,
+# otherwise a non-existent user is treated like an invalid password.
+#
+SECURE_DIVULGE_UNKNOWN_USER=
+
+############################################################ FUNCTIONS
+
+# f_become_root_via_sudo
+#
+# If not running as root, prompt for sudo(8) credentials to become root.
+# Re-execution of the current program via sudo is automatically handled.
+#
+# The following environment variables effect functionality:
+#
+# 	USE_XDIALOG   Either NULL or Non-NULL. If given a value will indicate
+# 	              that Xdialog(1) should be used instead of dialog(1).
+#
+f_become_root_via_sudo()
+{
+	local funcname=f_become_root_via_sudo
+	local prompt hline height width rows msg
+
+	[ "$( id -u )" = "0" ] && return $SUCCESS
+
+	f_have sudo || f_die 1 "$msg_must_be_root_to_execute" "$pgm"
+
+	#
+	# Ask the user if it's OK to become root via sudo(8) and give them
+	# the option to save this preference (by touch(1)ing a file in the
+	# user's $HOME directory).
+	#
+	local checkpath="${HOME%/}/.bsdconfig_uses_sudo"
+	if [ ! -e "$checkpath" ]; then
+		f_sprintf prompt "$msg_you_are_not_root_but" bsdconfig
+		f_sprintf msg "$msg_always_try_sudo_when_run_as" "$USER"
+		local menu_list="
+			'X' '$msg_cancel_exit'
+			'1' '$msg'
+			'2' '$msg_try_sudo_only_this_once'
+		" # END-QUOTE
+		hline="$hline_arrows_tab_enter"
+
+		eval f_dialog_menu_size height width rows \
+		                        \"\$DIALOG_TITLE\"     \
+		                        \"\$DIALOG_BACKTITLE\" \
+		                        \"\$prompt\"           \
+		                        \"\$hline\"            \
+		                        $menu_list
+
+		local mtag
+		mtag=$( eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--hline \"\$hline\"                \
+			--ok-label \"\$msg_ok\"            \
+			--cancel-label \"\$msg_cancel\"    \
+			--menu \"\$prompt\"                \
+			$height $width $rows               \
+			$menu_list                         \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		) || f_die
+		f_dialog_data_sanitize mtag
+
+		case "$mtag" in
+		X) # Cancel/Exit
+		   f_die ;;
+		1) # Always try sudo(8) when run as $user
+			f_eval_catch $funcname touch \
+				'touch "%s"' "$checkpath" &&
+				f_show_msg "$msg_created_path" "$checkpath"
+		esac
+	else
+		#
+		# This user has created the path signing-off on sudo(8)-use
+		# but let's still give them a short/quick/unobtrusive reminder
+		#
+		f_dialog_info "$msg_becoming_root_via_sudo"
+		[ "$USE_XDIALOG" ] || sleep 0.6
+	fi
+
+	#
+	# Check sudo(8) access before prompting for password.
+	#
+	:| sudo -S -v 2> /dev/null
+	if [ $? -ne $SUCCESS ]; then
+		#
+		# sudo(8) access denied. Prompt for their password.
+		#
+		prompt="$msg_please_enter_password"
+		hline="$hline_alnum_punc_tab_enter"
+		f_dialog_inputbox_size height width \
+		                       "$DIALOG_TITLE"     \
+		                       "$DIALOG_BACKTITLE" \
+		                       "$prompt"           \
+		                       "$hline"
+
+		#
+		# Continue prompting until they either Cancel, succeed
+		# or exceed the number of allowed failures.
+		#
+		local password nfailures=0 retval
+		while [ $nfailures -lt $PASSWD_TRIES ]; do
+			if [ "$USE_XDIALOG" ]; then
+				password=$( $DIALOG \
+					--title "$DIALOG_TITLE"         \
+					--backtitle "$DIALOG_BACKTITLE" \
+					--hline "$hline"                \
+					--ok-label "$msg_ok"            \
+					--cancel-label "$msg_cancel"    \
+					--password --inputbox "$prompt" \
+					$height $width                  \
+					2>&1 > /dev/null
+				)
+				retval=$?
+
+				# Catch X11-related errors
+				if [ $retval -eq $DIALOG_ESC ]; then
+					f_die $retval "$password"
+				elif [ $retval -ne $DIALOG_OK ]; then
+					# User cancelled
+					exit $retval
+				fi
+			else
+				password=$( $DIALOG \
+					--title "$DIALOG_TITLE"         \
+					--backtitle "$DIALOG_BACKTITLE" \
+					--hline "$hline"                \
+					--ok-label "$msg_ok"            \
+					--cancel-label "$msg_cancel"    \
+					--insecure                      \
+					--passwordbox "$prompt"         \
+					$height $width                  \
+					2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+				) || exit $?
+			fi
+			debug= f_dialog_line_sanitize password
+
+			#
+			# Validate sudo(8) credentials
+			#
+			sudo -S -v 2> /dev/null <<-EOF
+			$password
+			EOF
+			retval=$?
+			unset password # scrub memory
+			if [ $retval -eq $SUCCESS ]; then
+				# Access granted...
+				break
+			else
+				# Access denied...
+				nfailures=$(( $nfailures + 1 ))
+
+				# introduce a short delay
+				if [ $nfailures -lt $PASSWD_TRIES ]; then
+					f_dialog_info "$msg_sorry_try_again"
+					sleep 1
+				fi
+			fi
+		done
+
+		#
+		# If user exhausted number of allowed password tries, log
+		# the security event and exit immediately.
+		#
+		if [ $nfailures -ge $PASSWD_TRIES ]; then
+			f_sprintf msg "$msg_nfailed_attempts" "$nfailures"
+			logger -p auth.notice -t sudo " " \
+				"$USER : $msg" \
+				"; TTY=$(tty)" \
+				"; PWD=$PWD"   \
+				"; USER=root"  \
+				"; COMMAND=$0"
+			f_die 1 "sudo: $msg"
+		fi
+	fi
+
+	# Use xauth(1) to grant root the ability to use this X11/SSH session
+	if [ "$USE_XDIALOG" -a "$SSH_CONNECTION" -a "$DISPLAY" ]; then
+		f_have xauth || f_die 1 \
+			"$msg_no_such_file_or_directory" "$pgm" "xauth"
+		local HOSTNAME displaynum
+		HOSTNAME=$(hostname)
+		displaynum="${DISPLAY#*:}"
+		xauth -f ~/.Xauthority extract - $HOSTNAME/unix:$displaynum \
+			$HOSTNAME:$displaynum | sudo sh -c 'xauth -ivf \
+			~root/.Xauthority merge - > /dev/null 2>&1'
+	fi
+
+	# Re-execute ourselves with sudo(8)
+	f_dprintf "%s: Becoming root via sudo(8)..." mustberoot.subr
+	if [ $ARGC -gt 0 ]; then
+		exec sudo "$0" $ARGV
+	else
+		exec sudo "$0"
+	fi
+	exit $? # Never reached unless error
+}
+
+# f_authenticate_some_user
+#
+# Only used if running as root and requires X11 (see USE_XDIALOG below).
+# Prompts the user to enter a username and password to be authenticated via
+# sudo(8) to proceed.
+#
+# The following environment variables effect functionality:
+#
+# 	USE_XDIALOG   Either NULL or Non-NULL. If given a value will indicate
+# 	              that Xdialog(1) should be used instead of dialog(1).
+#
+f_authenticate_some_user()
+{
+	local msg hline height width
+
+	f_have sudo || f_die 1 "$msg_must_be_root_to_execute" "$pgm"
+
+	#
+	# Secure-mode has been requested.
+	#
+
+	[ "$USE_XDIALOG" ] || f_die 1 "$msg_secure_mode_requires_x11"
+	[ "$(id -u)" = "0" ] || f_die 1 "$msg_secure_mode_requires_root"
+
+	#
+	# Prompt for sudo(8) credentials.
+	#
+
+	msg="$msg_please_enter_username_password"
+	hline="$hline_alnum_punc_tab_enter"
+	f_xdialog_2inputsbox_size height width \
+	                          "$DIALOG_TITLE"      \
+	                          "$DIALOG_BACKTITLE"  \
+	                          "$msg"               \
+	                          "$field_username" "" \
+	                          "$field_password" ""
+	height=$(( $height + 2 )) # Add height for --password
+
+	#
+	# Continue prompting until they either Cancel, succeed or exceed the
+	# number of allowed failures.
+	#
+	local user_pass nfailures=0 retval
+	while [ $nfailures -lt $PASSWD_TRIES ]; do
+		user_pass=$( $DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--hline "$hline"                \
+			--ok-label "$msg_ok"            \
+			--cancel-label "$msg_cancel"    \
+			--password --2inputsbox "$msg"  \
+			$height $width                  \
+			"$field_username" ""            \
+			"$field_password" ""            \
+			2>&1 > /dev/null )
+		retval=$?
+
+		# Catch X11-related errors
+		[ $retval -eq $DIALOG_ESC ] && f_die $retval "$user_pass"
+
+		# Exit if the user cancelled.
+		[ $retval -eq $DIALOG_OK ] || exit $retval
+
+		#
+		# Make sure the user exists and is non-root
+		#
+		local user password
+		user="${user_pass%%/*}"
+		password="${user_pass#*/}"
+		unset user_pass # scrub memory
+		if [ ! "$user" ]; then
+			nfailures=$(( $nfailures + 1 ))
+			f_show_msg "$msg_no_username"
+			continue
+		fi
+		if [ ! "$SECURE_ALLOW_ROOT" ]; then
+			case "$user" in
+			root|toor)
+				nfailures=$(( $nfailures + 1 ))
+				f_show_msg "$msg_user_disallowed" "$user"
+				continue
+			esac
+		fi
+		if ! f_quietly id "$user"; then
+			nfailures=$(( $nfailures + 1 ))
+			if [ "$SECURE_DIVULGE_UNKNOWN_USER" ]; then
+				f_show_msg "$msg_unknown_user" "$user"
+			elif [ $nfailures -lt $PASSWD_TRIES ]; then
+				f_dialog_info "$msg_sorry_try_again"
+				sleep 1
+			fi
+			continue
+		fi
+
+		#
+		# Validate sudo(8) credentials for given user
+		#
+		su -m "$user" <<-EOF
+			sh <<EOS
+				sudo -k
+				sudo -S -v 2> /dev/null <<EOP
+				$password
+				EOP
+			EOS
+		EOF
+		retval=$?
+		unset user
+		unset password # scrub memory
+
+		if [ $retval -eq $SUCCESS ]; then
+			# Access granted...
+			break
+		else
+			# Access denied...
+			nfailures=$(( $nfailures + 1 ))
+
+			# introduce a short delay
+			if [ $nfailures -lt $PASSWD_TRIES ]; then
+				f_dialog_info "$msg_sorry_try_again"
+				sleep 1
+			fi
+		fi
+	done
+
+	#
+	# If user exhausted number of allowed password tries, log
+	# the security event and exit immediately.
+	#
+	if [ $nfailures -ge $PASSWD_TRIES ]; then
+		f_sprintf msg "$msg_nfailed_attempts" "$nfailures"
+		logger -p auth.notice -t sudo " " \
+			"${SUDO_USER:-$USER} : $msg" \
+			"; TTY=$(tty)"               \
+			"; PWD=$PWD"                 \
+			"; USER=root"                \
+			"; COMMAND=$0"
+		f_die 1 "sudo: $message"
+	fi
+}
+
+# f_mustberoot_init
+#
+# If not already root, make the switch to root by re-executing ourselves via
+# sudo(8) using user-supplied credentials.
+#
+# The following environment variables effect functionality:
+#
+# 	SECURE        Either NULL or Non-NULL. If given a value will indicate
+# 	              that (while running as root) sudo(8) authentication is
+# 	              required to proceed.
+#
+f_mustberoot_init()
+{
+	if [ "$(id -u)" != "0" -a ! "$SECURE" ]; then
+		f_become_root_via_sudo
+	elif [ "$SECURE" ]; then
+		f_authenticate_some_user
+	fi
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." mustberoot.subr
+
+fi # ! $_MUSTBEROOT_SUBR

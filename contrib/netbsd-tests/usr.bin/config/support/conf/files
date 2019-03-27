@@ -1,0 +1,41 @@
+deffs   REGRESSFS
+
+device	master { }
+attach	master at root
+
+define	hook { }
+
+device	parentii:	hook
+attach	parentii at master
+device	parenti:	hook
+attach	parenti at master
+
+device	child
+attach	child at hook
+
+device	looper { }
+attach	looper at master with looper_master
+attach	looper at looper with looper_looper 
+ 
+device	loopchild { } 
+attach	loopchild at looper
+ 
+device	loopbaby
+attach	loopbaby at loopchild
+
+defpseudo	pseudodev: hook
+
+define	a
+file	a.c	a
+
+define	b: a
+file	b.c	b
+
+define	c: b
+file	c.c	c
+
+define	i {}
+
+device	d: i
+attach	d at root
+file	d.c	d

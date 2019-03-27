@@ -1,0 +1,65 @@
+=pod
+
+=head1 NAME
+
+RSA_sign, RSA_verify - RSA signatures
+
+=head1 SYNOPSIS
+
+ #include <openssl/rsa.h>
+
+ int RSA_sign(int type, const unsigned char *m, unsigned int m_len,
+              unsigned char *sigret, unsigned int *siglen, RSA *rsa);
+
+ int RSA_verify(int type, const unsigned char *m, unsigned int m_len,
+                unsigned char *sigbuf, unsigned int siglen, RSA *rsa);
+
+=head1 DESCRIPTION
+
+RSA_sign() signs the message digest B<m> of size B<m_len> using the
+private key B<rsa> using RSASSA-PKCS1-v1_5 as specified in RFC 3447. It
+stores the signature in B<sigret> and the signature size in B<siglen>.
+B<sigret> must point to RSA_size(B<rsa>) bytes of memory.
+Note that PKCS #1 adds meta-data, placing limits on the size of the
+key that can be used.
+See L<RSA_private_encrypt(3)> for lower-level
+operations.
+
+B<type> denotes the message digest algorithm that was used to generate
+B<m>.
+If B<type> is B<NID_md5_sha1>,
+an SSL signature (MD5 and SHA1 message digests with PKCS #1 padding
+and no algorithm identifier) is created.
+
+RSA_verify() verifies that the signature B<sigbuf> of size B<siglen>
+matches a given message digest B<m> of size B<m_len>. B<type> denotes
+the message digest algorithm that was used to generate the signature.
+B<rsa> is the signer's public key.
+
+=head1 RETURN VALUES
+
+RSA_sign() returns 1 on success.
+RSA_verify() returns 1 on successful verification.
+
+The error codes can be obtained by L<ERR_get_error(3)>.
+
+=head1 CONFORMING TO
+
+SSL, PKCS #1 v2.0
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>,
+L<RSA_private_encrypt(3)>,
+L<RSA_public_decrypt(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

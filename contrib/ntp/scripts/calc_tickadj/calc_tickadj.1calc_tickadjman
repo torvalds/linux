@@ -1,0 +1,108 @@
+.de1 NOP
+.  it 1 an-trap
+.  if \\n[.$] \,\\$*\/
+..
+.ie t \
+.ds B-Font [CB]
+.ds I-Font [CI]
+.ds R-Font [CR]
+.el \
+.ds B-Font B
+.ds I-Font I
+.ds R-Font R
+.TH calc_tickadj 1calc_tickadjman "20 Feb 2019" "ntp (4.2.8p13)" "User Commands"
+.\"
+.\" EDIT THIS FILE WITH CAUTION (in-mem file)
+.\"
+.\" It has been AutoGen-ed February 20, 2019 at 09:57:23 AM by AutoGen 5.18.5
+.\" From the definitions calc_tickadj-opts.def
+.\" and the template file agman-cmd.tpl
+.SH NAME
+\f\*[B-Font]calc_tickadj\fP
+\- Calculates optimal value for tick given ntp drift file.
+.SH SYNOPSIS
+\f\*[B-Font]calc_tickadj\fP
+.\" Mixture of short (flag) options and long options
+[\f\*[B-Font]\-flags\f[]]
+[\f\*[B-Font]\-flag\f[] [\f\*[I-Font]value\f[]]]
+[\f\*[B-Font]\-\-option-name\f[][[=| ]\f\*[I-Font]value\f[]]]
+.sp \n(Ppu
+.ne 2
+
+All arguments must be options.
+.sp \n(Ppu
+.ne 2
+
+.SH DESCRIPTION
+The \fBcalc_tickadj\fP script uses provided ntp drift file to generate optimal
+tick value. Generally, ntpd can do better job if the drift value is the
+smallest possible number. 
+.sp
+The example output of 
+.br
+.in +4
+.nf
+$ ./calc_tickadj
+81.699 (drift)
+9999 usec; 9999779 nsec
+$ cat /etc/ntp/drift
+-23.159
+.in -4
+.fi
+.sp
+means the following. If tick on that box is 10,000, by making the value 9999
+we'll shift the box from its current drift of \-23.159 to a drift of 81.699, and
+in doing so we'll speed the clock up a little every second instead of slowing
+the clock down a little.
+.sp
+If 'tick' on that box is 10,000,000 then by setting it to 9999779 the drift
+value will be somewhere around 0.0.
+.sp
+\fBcalc_tickadj\fP tries to determine the the tick value by using
+\fBtickadj\fP program from ntp package. If this doesn't work you can specify
+current tick manually on command line.
+.SH "OPTIONS"
+.TP
+.NOP \f\*[B-Font]\-d\f[] \f\*[I-Font]string\f[], \f\*[B-Font]\-\-drift\-file\f[]=\f\*[I-Font]string\f[]
+Ntp drift file to use.
+The default
+\f\*[I-Font]string\f[]
+for this option is:
+.ti +4
+ /etc/ntp/drift
+.sp
+Use the specified drift file for calculations
+.TP
+.NOP \f\*[B-Font]\-t\f[] \f\*[I-Font]number\f[], \f\*[B-Font]\-\-tick\f[]=\f\*[I-Font]number\f[]
+Tick value of this host.
+This option takes an integer number as its argument.
+.sp
+The current tick which to adjustment will be calculated
+.TP
+.NOP \f\*[B-Font]\-\&?\f[], \f\*[B-Font]\-\-help\f[]
+Display usage information and exit.
+.TP
+.NOP \f\*[B-Font]\-\&!\f[], \f\*[B-Font]\-\-more-help\f[]
+Pass the extended usage information through a pager.
+.TP
+.NOP \f\*[B-Font]\-v\f[] [{\f\*[I-Font]v|c|n\f[] \f\*[B-Font]\-\-version\f[] [{\f\*[I-Font]v|c|n\f[]}]}]
+Output version of program and exit.  The default mode is `v', a simple
+version.  The `c' mode will print copyright information and `n' will
+print the full copyright notice.
+.PP
+.SH "EXIT STATUS"
+One of the following exit values will be returned:
+.TP
+.NOP 0 " (EXIT_SUCCESS)"
+Successful program execution.
+.TP
+.NOP 1 " (EXIT_FAILURE)"
+The operation failed or the command syntax was not valid.
+.TP
+.NOP 70 " (EX_SOFTWARE)"
+libopts had an internal operational error.  Please report
+it to autogen-users@lists.sourceforge.net.  Thank you.
+.PP
+.SH "NOTES"
+This manual page was \fIAutoGen\fP-erated from the \fBcalc_tickadj\fP
+option definitions.

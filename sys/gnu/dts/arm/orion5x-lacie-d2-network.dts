@@ -1,0 +1,236 @@
+/*
+ * Copyright (C) 2014 Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ * Copyright (C) 2009 Simon Guinot <sguinot@lacie.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2. This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "orion5x-mv88f5182.dtsi"
+
+/ {
+	model = "LaCie d2 Network";
+	compatible = "lacie,d2-network", "marvell,orion5x-88f5182", "marvell,orion5x";
+
+	memory {
+		reg = <0x00000000 0x4000000>; /* 64 MB */
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>,
+			 <MBUS_ID(0x09, 0x00) 0 0xf2200000 0x800>,
+			 <MBUS_ID(0x01, 0x0f) 0 0xfff80000 0x80000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&pmx_buttons>;
+		pinctrl-names = "default";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		front_button {
+			label = "Front Push Button";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
+		};
+
+		power_rocker_sw_on {
+			label = "Power rocker switch (on|auto)";
+			linux,input-type = <5>; /* EV_SW */
+			linux,code = <1>; /* D2NET_SWITCH_POWER_ON */
+			gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>;
+		};
+
+		power_rocker_sw_off {
+			label = "Power rocker switch (auto|off)";
+			linux,input-type = <5>; /* EV_SW */
+			linux,code = <2>; /* D2NET_SWITCH_POWER_OFF */
+			gpios = <&gpio0 9 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_sata0_power &pmx_sata1_power>;
+		pinctrl-names = "default";
+
+		sata0_power: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "SATA0 Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		sata1_power: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "SATA1 Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&devbus_bootcs {
+	status = "okay";
+
+	devbus,keep-config;
+
+	/*
+	 * Currently the MTD code does not recognize the MX29LV400CBCT
+	 * as a bottom-type device. This could cause risks of
+	 * accidentally erasing critical flash sectors. We thus define
+	 * a single, write-protected partition covering the whole
+	 * flash.  TODO: once the flash part TOP/BOTTOM detection
+	 * issue is sorted out in the MTD code, break this into at
+	 * least three partitions: 'u-boot code', 'u-boot environment'
+	 * and 'whatever is left'.
+	 */
+	flash@0 {
+		compatible = "cfi-flash";
+		reg = <0 0x80000>;
+		bank-width = <1>;
+                #address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "Full512Kb";
+			reg = <0 0x80000>;
+			read-only;
+		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy: ethernet-phy {
+		reg = <8>;
+	};
+};
+
+&ehci0 {
+	status = "okay";
+};
+
+&eth {
+	status = "okay";
+
+	ethernet-port@0 {
+		phy-handle = <&ethphy>;
+	};
+};
+
+&i2c {
+	status = "okay";
+	clock-frequency = <100000>;
+	#address-cells = <1>;
+
+	rtc@32 {
+		compatible = "ricoh,rs5c372b";
+		reg = <0x32>;
+	};
+
+	fan@3e {
+		compatible = "gmt,g762";
+		reg = <0x3e>;
+
+		/* Not enough HW info */
+		status = "disabled";
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c08";
+		reg = <0x50>;
+	};
+};
+
+&pinctrl {
+	pinctrl-0 = <&pmx_leds &pmx_board_id &pmx_fan_fail>;
+	pinctrl-names = "default";
+
+	pmx_board_id: pmx-board-id {
+		marvell,pins = "mpp0", "mpp1", "mpp2";
+		marvell,function = "gpio";
+	};
+
+	pmx_buttons: pmx-buttons {
+		marvell,pins = "mpp8", "mpp9", "mpp18";
+		marvell,function = "gpio";
+	};
+
+	pmx_fan_fail: pmx-fan-fail {
+		marvell,pins = "mpp5";
+		marvell,function = "gpio";
+	};
+
+	/*
+	 * MPP6: Red front LED
+	 * MPP16: Blue front LED blink control
+	 */
+	pmx_leds: pmx-leds {
+		marvell,pins = "mpp6", "mpp16";
+		marvell,function = "gpio";
+	};
+
+	pmx_sata0_led_active: pmx-sata0-led-active {
+		marvell,pins = "mpp14";
+		marvell,function = "sata0";
+	};
+
+	pmx_sata0_power: pmx-sata0-power {
+		marvell,pins = "mpp3";
+		marvell,function = "gpio";
+	};
+
+	pmx_sata1_led_active: pmx-sata1-led-active {
+		marvell,pins = "mpp15";
+		marvell,function = "sata1";
+	};
+
+	pmx_sata1_power: pmx-sata1-power {
+		marvell,pins = "mpp12";
+		marvell,function = "gpio";
+	};
+
+	/*
+	 * Non MPP GPIOs:
+	 *  GPIO 22: USB port 1 fuse (0 = Fail, 1 = Ok)
+	 *  GPIO 23: Blue front LED off
+	 *  GPIO 24: Inhibit board power off (0 = Disabled, 1 = Enabled)
+	 */
+};
+
+&sata {
+	pinctrl-0 = <&pmx_sata0_led_active
+		     &pmx_sata1_led_active>;
+	pinctrl-names = "default";
+	status = "okay";
+	nr-ports = <2>;
+};
+
+&uart0 {
+	status = "okay";
+};

@@ -1,0 +1,306 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)tftpd.8	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd June 22, 2011
+.Dt TFTPD 8
+.Os
+.Sh NAME
+.Nm tftpd
+.Nd Internet Trivial File Transfer Protocol server
+.Sh SYNOPSIS
+.Nm tftpd
+.Op Fl cdClnow
+.Op Fl F Ar strftime-format
+.Op Fl s Ar directory
+.Op Fl u Ar user
+.Op Fl U Ar umask
+.Op Ar directory ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is a server which supports the
+Internet Trivial File Transfer
+Protocol
+.Pq Tn RFC 1350 .
+The
+.Tn TFTP
+server operates
+at the port indicated in the
+.Ql tftp
+service description;
+see
+.Xr services 5 .
+The server is normally started by
+.Xr inetd 8 .
+.Pp
+The use of
+.Xr tftp 1
+does not require an account or password on the remote system.
+Due to the lack of authentication information,
+.Nm
+will allow only publicly readable files to be
+accessed.
+Files containing the string
+.Dq Li "/../"
+or starting with
+.Dq Li "../"
+are not allowed.
+Files may be written only if they already exist and are publicly writable.
+Note that this extends the concept of
+.Dq public
+to include
+all users on all hosts that can be reached through the network;
+this may not be appropriate on all systems, and its implications
+should be considered before enabling tftp service.
+The server should have the user ID with the lowest possible privilege.
+.Pp
+Access to files may be restricted by invoking
+.Nm
+with a list of directories by including up to 20 pathnames
+as server program arguments in
+.Xr inetd.conf 5 .
+In this case access is restricted to files whose
+names are prefixed by the one of the given directories.
+The given directories are also treated as a search path for
+relative filename requests.
+.Pp
+The
+.Fl s
+option provides additional security by changing
+the root directory of
+.Nm ,
+thereby prohibiting accesses to outside of the specified
+.Ar directory .
+Because
+.Xr chroot 2
+requires super-user privileges,
+.Nm
+must be run as
+.Li root .
+However, after performing the
+.Xr chroot 2
+call,
+.Nm
+will set its user ID to that of the specified
+.Ar user ,
+or
+.Dq Li nobody
+if no
+.Fl u
+option is specified.
+.Pp
+The options are:
+.Bl -tag -width Ds
+.It Fl c
+Changes the default root directory of a connecting host via
+.Xr chroot 2
+based on the connecting IP address.
+This prevents multiple clients from writing to the same file at the same time.
+If the directory does not exist, the client connection is refused.
+The
+.Fl s
+option is required for
+.Fl c
+and the specified
+.Ar directory
+is used as a base.
+.It Fl C
+Operates the same as
+.Fl c
+except it falls back to
+.Ar directory
+specified via
+.Fl s
+if a directory does not exist for the client's IP.
+.It Fl F
+Use this
+.Xr strftime 3
+compatible format string for the creation of the suffix if
+.Fl W
+is specified.
+By default the string "%Y%m%d" is used.
+.It Fl d, d Ar [value]
+Enables debug output.
+If
+.Ar value
+is not specified, then the debug level is increased by one
+for each instance of
+.Fl d
+which is specified.
+.Pp
+If
+.Ar value
+is specified, then the debug level is set to
+.Ar value .
+The debug level is a bitmask implemented in
+.Pa src/libexec/tftpd/tftp-utils.h .
+Valid values are 0 (DEBUG_NONE), 1 (DEBUG_PACKETS), 2, (DEBUG_SIMPLE),
+4 (DEBUG_OPTIONS), and 8 (DEBUG_ACCESS).  Multiple debug values can be combined
+in the bitmask by logically OR'ing the values.  For example, specifying
+.Fl d
+.Ar 15
+will enable all the debug values.
+.It Fl l
+Log all requests using
+.Xr syslog 3
+with the facility of
+.Dv LOG_FTP .
+.Sy Note :
+Logging of
+.Dv LOG_FTP
+messages
+must also be enabled in the syslog configuration file,
+.Xr syslog.conf 5 .
+.It Fl n
+Suppress negative acknowledgement of requests for nonexistent
+relative filenames.
+.It Fl o
+Disable support for RFC2347 style TFTP Options.
+.It Fl s Ar directory
+Cause
+.Nm
+to change its root directory to
+.Ar directory .
+After doing that but before accepting commands,
+.Nm
+will switch credentials to an unprivileged user.
+.It Fl u Ar user
+Switch credentials to
+.Ar user
+(default
+.Dq Li nobody )
+when the
+.Fl s
+option is used.
+The user must be specified by name, not a numeric UID.
+.It Fl U Ar umask
+Set the
+.Ar umask
+for newly created files.
+The default is 022
+.Pq Dv S_IWGRP | S_IWOTH .
+.It Fl w
+Allow write requests to create new files.
+By default
+.Nm
+requires that the file specified in a write request exist.
+Note that this only works in directories writable by the user
+specified with
+.Fl u
+option
+.It Fl W
+As
+.Fl w
+but append a YYYYMMDD.nn sequence number to the end of the filename.
+Note that the string YYYYMMDD can be changed with the
+.Fl F
+option.
+.El
+.Sh SEE ALSO
+.Xr tftp 1 ,
+.Xr chroot 2 ,
+.Xr syslog 3 ,
+.Xr inetd.conf 5 ,
+.Xr services 5 ,
+.Xr syslog.conf 5 ,
+.Xr inetd 8
+.Pp
+The following RFC's are supported:
+.Rs
+.%T RFC 1350: The TFTP Protocol (Revision 2)
+.Re
+.Rs
+.%T RFC 2347: TFTP Option Extension
+.Re
+.Rs
+.%T RFC 2348: TFTP Blocksize Option
+.Re
+.Rs
+.%T RFC 2349: TFTP Timeout Interval and Transfer Size Options
+.Re
+.Pp
+The non-standard
+.Cm rollover
+and
+.Cm blksize2
+TFTP options are mentioned here:
+.Rs
+.%T Extending TFTP
+.%U http://www.compuphase.com/tftp.htm
+.Re
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.2 ;
+the
+.Fl s
+option was introduced in
+.Fx 2.2 ,
+the
+.Fl u
+option was introduced in
+.Fx 4.2 ,
+the
+.Fl c
+option was introduced in
+.Fx 4.3 ,
+and the
+.Fl F
+and
+.Fl W
+options were introduced in
+.Fx 7.4 .
+.Pp
+Support for Timeout Interval and Transfer Size Options (RFC2349)
+was introduced in
+.Fx 5.0 ,
+support for the TFTP Blocksize Option (RFC2348) and the blksize2 option
+was introduced in
+.Fx 7.4 .
+.Pp
+Edwin Groothuis <edwin@FreeBSD.org> performed a major rewrite of the
+.Nm
+and
+.Xr tftp 1
+code to support RFC2348.
+.Sh NOTES
+Files larger than 33,553,919 octets (65535 blocks, last one <512
+octets) cannot be correctly transferred without client and server
+supporting blocksize negotiation (RFCs 2347 and 2348),
+or the non-standard TFTP rollover option.
+As a kludge,
+.Nm
+accepts a sequence of block number which wrap to zero after 65535,
+even if the rollover option is not specified.
+.Pp
+Many tftp clients will not transfer files over 16,776,703 octets
+(32767 blocks), as they incorrectly count the block number using
+a signed rather than unsigned 16-bit integer.

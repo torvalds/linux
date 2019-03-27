@@ -1,0 +1,478 @@
+.\" Copyright (c) 2010 Ed Schouten <ed@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 27, 2011
+.Dt GETUTXENT 3
+.Os
+.Sh NAME
+.Nm endutxent ,
+.Nm getutxent ,
+.Nm getutxid ,
+.Nm getutxline ,
+.Nm getutxuser ,
+.Nm pututxline ,
+.Nm setutxdb ,
+.Nm setutxent
+.Nd user accounting database functions
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In utmpx.h
+.Ft void
+.Fn endutxent "void"
+.Ft struct utmpx *
+.Fn getutxent "void"
+.Ft struct utmpx *
+.Fn getutxid "const struct utmpx *id"
+.Ft struct utmpx *
+.Fn getutxline "const struct utmpx *line"
+.Ft struct utmpx *
+.Fn getutxuser "const char *user"
+.Ft struct utmpx *
+.Fn pututxline "const struct utmpx *utmpx"
+.Ft int
+.Fn setutxdb "int type" "const char *file"
+.Ft void
+.Fn setutxent "void"
+.Sh DESCRIPTION
+These functions operate on the user accounting database which stores
+records of various system activities, such as user login and logouts,
+but also system startups and shutdowns and modifications to the system's
+clock.
+The system stores these records in three databases, each having a
+different purpose:
+.Bl -tag -width indent
+.It Pa /var/run/utx.active
+Log of currently active user login sessions.
+This file is similar to the traditional
+.Pa utmp
+file.
+This file only contains process related entries, such as user login and
+logout records.
+.It Pa /var/log/utx.lastlogin
+Log of last user login entries per user.
+This file is similar to the traditional
+.Pa lastlog
+file.
+This file only contains user login records for users who have at least
+logged in once.
+.It Pa /var/log/utx.log
+Log of all entries, sorted by date of addition.
+This file is similar to the traditional
+.Pa wtmp
+file.
+This file may contain any type of record described below.
+.El
+.Pp
+Each entry in these databases is defined by the structure
+.Vt utmpx
+found in the include file
+.In utmpx.h :
+.Bd -literal -offset indent
+struct utmpx {
+	short           ut_type;    /* Type of entry. */
+	struct timeval  ut_tv;      /* Time entry was made. */
+	char            ut_id[];    /* Record identifier. */
+	pid_t           ut_pid;     /* Process ID. */
+	char            ut_user[];  /* User login name. */
+	char            ut_line[];  /* Device name. */
+	char            ut_host[];  /* Remote hostname. */
+};
+.Ed
+.Pp
+The
+.Fa ut_type
+field indicates the type of the log entry, which can have one of the
+following values:
+.Bl -tag -width LOGIN_PROCESS
+.It Dv EMPTY
+No valid user accounting information.
+.It Dv BOOT_TIME
+Identifies time of system boot.
+.It Dv SHUTDOWN_TIME
+Identifies time of system shutdown.
+.It Dv OLD_TIME
+Identifies time when system clock changed.
+.It Dv NEW_TIME
+Identifies time after system clock changed.
+.It Dv USER_PROCESS
+Identifies a process.
+.It Dv INIT_PROCESS
+Identifies a process spawned by the init process.
+.It Dv LOGIN_PROCESS
+Identifies the session leader of a logged-in user.
+.It Dv DEAD_PROCESS
+Identifies a session leader who has exited.
+.El
+.Pp
+Entries of type
+.Dv INIT_PROCESS
+and
+.Dv LOGIN_PROCESS
+are not processed by this implementation.
+.Pp
+Other fields inside the structure are:
+.Bl -tag -width ut_user
+.It Fa ut_tv
+The time the event occurred.
+This field is used for all types of entries, except
+.Dv EMPTY .
+.It Fa ut_id
+An identifier that is used to refer to the entry.
+This identifier can be used to remove or replace a login entry by
+writing a new entry to the database containing the same value for
+.Fa ut_id .
+This field is only applicable to entries of type
+.Dv USER_PROCESS ,
+.Dv INIT_PROCESS ,
+.Dv LOGIN_PROCESS
+and
+.Dv DEAD_PROCESS .
+.It Fa ut_pid
+The process identifier of the session leader of the login session.
+This field is only applicable to entries of type
+.Dv USER_PROCESS ,
+.Dv INIT_PROCESS ,
+.Dv LOGIN_PROCESS
+and
+.Dv DEAD_PROCESS .
+.It Fa ut_user
+The user login name corresponding with the login session.
+This field is only applicable to entries of type
+.Dv USER_PROCESS
+and
+.Dv INIT_PROCESS .
+For
+.Dv INIT_PROCESS
+entries this entry typically contains the name of the login process.
+.It Fa ut_line
+The name of the TTY character device, without the leading
+.Pa /dev/
+prefix, corresponding with the device used to facilitate the user login
+session.
+If no TTY character device is used, this field is left blank.
+This field is only applicable to entries of type
+.Dv USER_PROCESS
+and
+.Dv LOGIN_PROCESS .
+.It Fa ut_host
+The network hostname of the remote system, connecting to perform a user
+login.
+If the user login session is not performed across a network, this field
+is left blank.
+This field is only applicable to entries of type
+.Dv USER_PROCESS .
+.El
+.Pp
+This implementation guarantees all inapplicable fields are discarded.
+The
+.Fa ut_user ,
+.Fa ut_line
+and
+.Fa ut_host
+fields of the structure returned by the library functions are also
+guaranteed to be null-terminated in this implementation.
+.Pp
+The
+.Fn getutxent
+function can be used to read the next entry from the user accounting
+database.
+.Pp
+The
+.Fn getutxid
+function searches for the next entry in the database of which the
+behaviour is based on the
+.Fa ut_type
+field of
+.Fa id .
+If
+.Fa ut_type
+has a value of
+.Dv BOOT_TIME ,
+.Dv SHUTDOWN_TIME ,
+.Dv OLD_TIME
+or
+.Dv NEW_TIME ,
+it will return the next entry whose
+.Fa ut_type
+has an equal value.
+If
+.Fa ut_type
+has a value of
+.Dv USER_PROCESS ,
+.Dv INIT_PROCESS ,
+.Dv LOGIN_PROCESS
+or
+.Dv DEAD_PROCESS ,
+it will return the next entry whose
+.Fa ut_type
+has one of the previously mentioned values and whose
+.Fa ut_id
+is equal.
+.Pp
+The
+.Fn getutxline
+function searches for the next entry in the database whose
+.Fa ut_type
+has a value of
+.Dv USER_PROCESS
+or
+.Dv LOGIN_PROCESS
+and whose
+.Fa ut_line
+is equal to the same field in
+.Fa line .
+.Pp
+The
+.Fn getutxuser
+function searches for the next entry in the database whose
+.Fa ut_type
+has a value of
+.Dv USER_PROCESS
+and whose
+.Fa ut_user
+is equal to
+.Fa user .
+.Pp
+The previously mentioned functions will automatically try to open the
+user accounting database if not already done so.
+The
+.Fn setutxdb
+and
+.Fn setutxent
+functions allow the database to be opened manually, causing the offset
+within the user accounting database to be rewound.
+The
+.Fn endutxent
+function closes the database.
+.Pp
+The
+.Fn setutxent
+database always opens the active sessions database.
+The
+.Fn setutxdb
+function opens the database identified by
+.Fa type ,
+whose value is either
+.Dv UTXDB_ACTIVE ,
+.Dv UTXDB_LASTLOGIN
+or
+.Dv UTXDB_LOG .
+It will open a custom file with filename
+.Fa file
+instead of the system-default if
+.Fa file
+is not null.
+Care must be taken that when using a custom filename,
+.Fa type
+still has to match with the actual format, since each database may use
+its own file format.
+.Pp
+The
+.Fn pututxline
+function writes record
+.Fa utmpx
+to the system-default user accounting databases.
+The value of
+.Fa ut_type
+determines which databases are modified.
+.Pp
+Entries of type
+.Dv SHUTDOWN_TIME ,
+.Dv OLD_TIME
+and
+.Dv NEW_TIME
+will only be written to
+.Pa /var/log/utx.log .
+.Pp
+Entries of type
+.Dv USER_PROCESS
+will also be written to
+.Pa /var/run/utx.active
+and
+.Pa /var/log/utx.lastlogin .
+.Pp
+Entries of type
+.Dv DEAD_PROCESS
+will only be written to
+.Pa /var/log/utx.log
+and
+.Pa /var/run/utx.active
+if a corresponding
+.Dv USER_PROCESS ,
+.Dv INIT_PROCESS
+or
+.Dv LOGIN_PROCESS
+entry whose
+.Fa ut_id
+is equal has been found in the latter.
+.Pp
+In addition, entries of type
+.Dv BOOT_TIME
+and
+.Dv SHUTDOWN_TIME
+will cause all existing entries in
+.Pa /var/run/utx.active
+to be discarded.
+.Pp
+All entries whose type has not been mentioned previously, are discarded
+by this implementation of
+.Fn pututxline .
+This implementation also ignores the value of
+.Fa ut_tv .
+.Sh RETURN VALUES
+The
+.Fn getutxent ,
+.Fn getutxid ,
+.Fn getutxline ,
+and
+.Fn getutxuser
+functions return a pointer to an
+.Vt utmpx
+structure that matches the mentioned constraints on success or
+.Dv NULL
+when reaching the end-of-file or when an error occurs.
+.Pp
+The
+.Fn pututxline
+function returns a pointer to an
+.Vt utmpx
+structure containing a copy of the structure written to disk upon
+success.
+It returns
+.Dv NULL
+when the provided
+.Vt utmpx
+is invalid, or
+.Fa ut_type
+has a value of
+.Dv DEAD_PROCESS
+and an entry with an identifier with a value equal to the field
+.Fa ut_id
+was not found; the global variable
+.Va errno
+is set to indicate the error.
+.Pp
+The
+.Fn setutxdb
+function returns 0 if the user accounting database was opened
+successfully.
+Otherwise, -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+In addition to the error conditions described in
+.Xr open 2 ,
+.Xr fdopen 3 ,
+.Xr fopen 3 ,
+.Xr fseek 3 ,
+the
+.Fn pututxline
+function can generate the following errors:
+.Bl -tag -width Er
+.It Bq Er ESRCH
+The value of
+.Fa ut_type
+is DEAD_PROCESS, and the process entry could not be found.
+.It Bq Er EINVAL
+The value of
+.Fa ut_type
+is not supported by this implementation.
+.El
+In addition to the error conditions described in
+.Xr fopen 3 ,
+the
+.Fn setutxdb
+function can generate the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa type
+argument contains a value not supported by this implementation.
+.It Bq Er EFTYPE
+The file format is invalid.
+.El
+.Sh SEE ALSO
+.Xr last 1 ,
+.Xr write 1 ,
+.Xr getpid 2 ,
+.Xr gettimeofday 2 ,
+.Xr tty 4 ,
+.Xr ac 8 ,
+.Xr newsyslog 8 ,
+.Xr utx 8
+.Sh STANDARDS
+The
+.Fn endutxent ,
+.Fn getutxent ,
+.Fn getutxid ,
+.Fn getutxline
+and
+.Fn setutxent
+functions are expected to conform to
+.St -p1003.1-2008 .
+.Pp
+The
+.Fn pututxline
+function deviates from the standard by writing its records to multiple
+database files, depending on its
+.Fa ut_type .
+This prevents the need for special utility functions to update the other
+databases, such as the
+.Fn updlastlogx
+and
+.Fn updwtmpx
+functions which are available in other implementations.
+It also tries to replace
+.Dv DEAD_PROCESS
+entries in the active sessions database when storing
+.Dv USER_PROCESS
+entries and no entry with the same value for
+.Fa ut_id
+has been found.
+The standard always requires a new entry to be allocated, which could
+cause an unbounded growth of the database.
+.Pp
+The
+.Fn getutxuser
+and
+.Fn setutxdb
+functions,
+the
+.Fa ut_host
+field of the
+.Vt utmpx
+structure and
+.Dv SHUTDOWN_TIME
+are extensions.
+.Sh HISTORY
+These functions appeared in
+.Fx 9.0 .
+They replaced the
+.In utmp.h
+interface.
+.Sh AUTHORS
+.An \&Ed Schouten Aq Mt ed@FreeBSD.org

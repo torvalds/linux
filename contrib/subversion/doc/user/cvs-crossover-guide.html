@@ -1,0 +1,906 @@
+<!--
+
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"
+   "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+<title>CVS to SVN Crossover Guide</title>
+<style type="text/css">
+body {
+  font-family: sans-serif;
+}
+h1 {
+  text-align: center;
+}
+h2 {
+  background: #b0c0f0;
+  margin: 0;
+}
+.h2 {
+  border-left: 4px #b0c0f0 solid;
+  margin-bottom: 2em;
+}
+hr {
+  height: 1px;
+  width: 80%;
+}
+p, h3, dl {
+  padding-left: 1em;
+}
+dd {
+  margin-left: 2em;
+}
+.sidebyside {
+  padding: 0 2em;
+  width: 100%;
+  font-size: 80%;
+}
+.sidebyside th, .sidebyside td {
+  width: 50%;
+  border-width: 0 1px 2px 0;
+  border-style: solid;
+  border-color: black;
+  background: #b0c0f0;
+  vertical-align: top;
+}
+.sidebyside th {
+  text-align: center;
+  background: #90a0d0;
+}
+.bookref {
+  font-size: 80%;
+}
+</style>
+</head>
+
+<body>
+
+<h1>CVS to SVN Crossover Guide</h1>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2>Purpose</h2>
+
+<p>This document provides an alternate method of learning Subversion.
+   Many users dislike learning new technology via a theoretical "top
+   down" approach, as provided by the <a
+   href="http://svnbook.red-bean.com">Subversion Book</a>.  Instead,
+   this document presents Subversion from the "bottom up": it shows a
+   CVS command or task, and then shows the equivalent task in
+   Subversion (along with relevant book links.) It's essentially a
+   re-indexing of topics covered by the book, keyed on CVS tasks.</p>
+
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2>Table of Contents</h2>
+
+<h3>Setup</h3>
+<ul>
+  <li><a href="#repos_creation">Repository creation</a></li>
+  <li><a href="#import">Importing data</a></li>
+  <li><a href="#installing">Installing a server</a></li>
+  <li><a href="#authenticating">Authenticating to a server</a></li>
+  <li><a href="#browsing">Browsing a repository</a></li>
+  <li><a href="#checkingout">Checking out a working copy</a></li>
+</ul>
+
+<h3>Basic Work Cycle</h3>
+<ul>
+  <li><a href="#changeditems">Seeing locally changed items</a></li>
+  <li><a href="#outofdate">Seeing out-of-date items</a></li>
+  <li><a href="#scheduling">Scheduling additions or deletions</a></li>
+  <li><a href="#copying">Copying and moving</a></li>
+  <li>Undoing local changes</li>
+  <li>Updating and committing</li>
+  <li>Resolving conflicts</li>
+  <li>Adding a binary file</li>
+  <li>Using native line-endings</li>
+</ul>
+
+<h3>Examining history</h3>
+<ul>
+  <li>Seeing history of an item</li>
+  <li>Comparing two versions of an item</li>
+</ul>
+
+<h3>Branching/Tagging/Merging</h3>
+<ul>
+  <li>Creating a branch</li>
+  <li>Moving a working copy to a branch</li>
+  <li>Finding the beginning of a branch</li>
+  <li>Porting a single change</li>
+  <li>Merging a whole branch</li>
+  <li>Reverting a committed change</li>
+  <li>Resurrecting deleted items</li>
+  <li>Creating a tag</li>
+  <li>Tweaking a tag</li>
+  <li>Seeing all tags</li>
+  <li>Comparing two tags</li>
+  <li>Seeing logs between two tags</li>
+</ul>
+
+<h3>Other tasks</h3>
+<ul>
+  <li>Using modules</li>
+  <li>Line endings and keywords</li>
+</ul>
+
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2 id="repos_creation">Repository creation</h2>
+
+<p>Create a new repository for holding versioned data.</p>
+
+<table class="sidebyside">
+<tr>
+  <th>CVS</th>
+  <th>Subversion</th>
+</tr>
+<tr>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd><tt>$&nbsp;cvs&nbsp;-d&nbsp;/usr/local/repos&nbsp;init</tt></dd>
+
+      <dt>Explanation:</dt>
+      <dd>Creates a new directory <tt>repos</tt> ready to hold RCS
+          files and config scripts.</dd>
+    </dl>
+  </td>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd><tt>$&nbsp;svnadmin&nbsp;create&nbsp;/usr/local/repos</tt></dd>
+
+      <dt>Explanation:</dt>
+      <dd>Creates a new directory <tt>repos</tt> containing BerkeleyDB
+          files and config scripts.</dd>
+    </dl>
+  </td>
+</tr>
+</table>
+
+<dl class="bookref">
+  <dt>Book References:</dt>
+  <dd><a href="http://svnbook.red-bean.com/svnbook/ch05s02.html">Repository Creation and Configuration</a></dd>
+</dl>
+
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2 id="import">Importing data</h2>
+
+<p>Populate a new repository with initial data.  Assuming that you
+   have a tree of code in the local directory <tt>myproj/</tt>, and
+   you want to move this tree into the repository.</p>
+
+<table class="sidebyside">
+<tr>
+  <th>CVS</th>
+  <th>Subversion</th>
+</tr>
+<tr>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd><tt>$&nbsp;cd&nbsp;myproj</tt></dd>
+      <dd><tt>$&nbsp;cvs&nbsp;-d&nbsp;/usr/local/repos&nbsp;import&nbsp;myproj/&nbsp;none&nbsp;start</tt></dd>
+
+      <dt>Explanation:</dt>
+
+      <dd>This copies the contents of the current working directory to
+      a new directory (<tt>myproj</tt>) in the CVS repository.  The
+      CVS repository now contains a directory <tt>/myproj/</tt> at the
+      top level.</dd>
+
+    </dl>
+  </td>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd><tt>$&nbsp;svn&nbsp;mkdir&nbsp;file:///usr/local/repos/tags</tt></dd>       
+      <dd><tt>$&nbsp;svn&nbsp;mkdir&nbsp;file:///usr/local/repos/branches</tt></dd>       
+      <dd><tt>$&nbsp;svn&nbsp;import&nbsp;myproj/&nbsp;file:///usr/local/repos/trunk</tt></dd>
+
+      <dt>Explanation:</dt>
+
+      <dd>Though not strictly required, we deliberately create
+      <tt>/tags</tt> and <tt>/branches</tt> top-level directories in
+      the repository, to hold tags and branches later on.  Then we
+      import the contents of the local <tt>myproj/</tt> directory into
+      a newly created <tt>/trunk</tt> directory in the
+      repository.</dd>
+    </dl>
+  </td>
+</tr>
+</table>
+
+<dl class="bookref">
+  <dt>Book References:</dt>
+  <dd><a href="http://svnbook.red-bean.com/svnbook/ch05s04.html#svn-ch-5-sect-6.1">Choosing a repository layout</a></dd>
+  <dd><a href="http://svnbook.red-bean.com/svnbook/re12.html">svn import</a></dd>
+</dl>
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2 id="installing">Installing a server</h2>
+
+<p>Make the repository available to clients via a network.</p>
+
+<table class="sidebyside">
+<tr>
+  <th>CVS</th>
+  <th>Subversion</th>
+</tr>
+<tr>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd>(too complex to demonstrate here)</dd>
+
+      <dt>Explanation:</dt>
+      <dd>Export the repository via the cvs <em>pserver</em> program.
+      It can be launched by either <strong>inetd</strong> or a
+      client's <strong>ssh</strong> remote request.</dd>
+
+    </dl>
+  </td>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd>(too complex to demonstrate here)</dd>
+
+      <dt>Explanation:</dt>
+      <dd>Export the repository with the <em>Apache 2.0.x</em> server,
+      or via the <em>svnserve</em> program.  The latter can run as a
+      standalone daemon, can be launched by <strong>inetd</strong>, or
+      invoked by a client's <strong>ssh</strong> remote request.</dd>
+
+    </dl>
+  </td>
+</tr>
+</table>
+
+<dl class="bookref">
+  <dt>Book References:</dt>
+  <dd><a href="http://svnbook.red-bean.com/svnbook/ch06.html">Server configuration</a></dd>
+</dl>
+
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2 id="authenticating">Authenticating to a server</h2>
+
+<p>Have a network client prove its identity to a version
+      control server.</p>
+
+<table class="sidebyside">
+<tr>
+  <th>CVS</th>
+  <th>Subversion</th>
+</tr>
+<tr>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd><tt>$&nbsp;cvs&nbsp;-d&nbsp;:pserver:user@host:/repos&nbsp;<em>command</em>&hellip;</tt></dd>
+
+      <dt>Explanation:</dt>
+
+      <dd>When contacting a repository, the client pre-emptively
+      "pushes" its authentication credentials at the server.</dd>
+
+    </dl>
+  </td>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd><tt>$&nbsp;svn&nbsp;<em>command</em>&nbsp;<em>URL</em>&hellip;</tt></dd>
+      <dd><tt>Password&nbsp;for&nbsp;'user':&nbsp;&nbsp;XXXXXXX</tt></dd>
+
+      <dt>Explanation:</dt>
+
+      <dd>The client's authentication credentials are "pulled" from
+      the user interactively, and only when the server deems that a
+      challenge needs to be made.  (And contrary to popular belief,
+      the <tt>--username</tt> and <tt>--password</tt> options are
+      merely values to be used <em>if</em> the server issues a
+      challenge; they do not "push" the credentials at the
+      server.)</dd>
+
+    </dl>
+  </td>
+</tr>
+</table>
+
+<dl class="bookref">
+  <dt>Book References:</dt>
+  <dd><a href="http://svnbook.red-bean.com/svnbook/ch06s02.html">Network Model</a></dd>
+</dl>
+
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2 id="browsing">Browsing a repository</h2>
+
+<p>Browse the repository as a filesystem, perusing file
+      contents and history as well (older versions of files or
+      trees.)</p>
+
+<table class="sidebyside">
+<tr>
+  <th>CVS</th>
+  <th>Subversion</th>
+</tr>
+<tr>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd>(not possible with commandline client)</dd>
+
+      <dt>Explanation:</dt>
+
+      <dd>Not possible with commandline client.  A third-party web
+      server tool such as ViewCVS must be used.</dd>
+
+    </dl>
+  </td>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd><tt>$&nbsp;svn&nbsp;list&nbsp;<em>URL</em>&nbsp;[-r&nbsp;<em>rev</em>]&nbsp;[-v]</tt></dd>
+      <dd><tt>$&nbsp;svn&nbsp;cat&nbsp;<em>URL</em>&nbsp;[-r&nbsp;<em>rev</em>]</tt></dd>
+
+      <dt>Explanation:</dt>
+
+      <dd>The <tt>svn list</tt> and <tt>svn cat</tt> commands allow
+      interactive browsing of a repository (and all previous states of
+      a repository) from the commandline.  (The <tt>--verbose [-v]</tt>
+      switch displays full listing information.)  If Apache is being
+      used as a Subversion server process (i.e. clients access via
+      <strong>http://</strong>), then the latest version of the
+      repository can be directly browsed by entering <em>URL</em> into
+      any web browser.  Additionally, a third-party web server tool
+      (such as ViewCVS) can be used with Subversion.</dd>
+
+    </dl>
+  </td>
+</tr>
+</table>
+
+<dl class="bookref">
+  <dt>Book References:</dt>
+  <dd><a href="http://svnbook.red-bean.com/svnbook/re14.html">svn list</a></dd>
+</dl>
+
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2 id="checkingout">Checking out a working copy</h2>
+
+<p>Create a workspace on local disk which mirrors a directory
+      in the repository.</p>
+
+<table class="sidebyside">
+<tr>
+  <th>CVS</th>
+  <th>Subversion</th>
+</tr>
+<tr>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd><tt>$&nbsp;cvs&nbsp;-d&nbsp;/usr/local/repos&nbsp;checkout&nbsp;myproj</tt></dd>
+      <dd><tt>U&nbsp;myproj/foo.c</tt></dd>
+      <dd><tt>U&nbsp;myproj/bar.c</tt></dd>
+      <dd><tt>&hellip;</tt></dd>
+
+      <dt>Explanation:</dt>
+
+      <dd>Creates a local directory <tt>myproj</tt> which is a mirror
+      of the repository directory <tt>/myproj</tt>.</dd>
+
+    </dl>
+  </td>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd><tt>$&nbsp;svn&nbsp;checkout&nbsp;file:///usr/local/repos/trunk&nbsp;myproj</tt></dd>
+      <dd><tt>A&nbsp;&nbsp;myproj/foo.c</tt></dd>
+      <dd><tt>A&nbsp;&nbsp;myproj/bar.c</tt></dd>
+      <dd><tt>&hellip;</tt></dd>
+
+      <dt>Explanation:</dt>
+
+      <dd>Assuming that the original project data was imported into
+      the repository <tt>/trunk</tt> directory, this creates a local
+      directory <tt>myproj</tt> which is a mirror of the repository
+      directory <tt>/trunk</tt>.  Standard Subversion convention is to
+      do "mainline" development in <tt>/trunk</tt>.  See branching and
+      tagging sections for more details.</dd>
+
+    </dl>
+  </td>
+</tr>
+</table>
+
+<dl class="bookref">
+  <dt>Book References:</dt>
+  <dd><a href="http://svnbook.red-bean.com/svnbook/ch03s04.html">Initial Checkout</a></dd>
+  <dd><a href="http://svnbook.red-bean.com/svnbook/re04.html">svn checkout</a></dd>
+</dl>
+
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2 id="changeditems">Seeing locally changed items</h2>
+
+<p>Discover which items in the working copy have local
+      modifications or are scheduled for addition/deletion.</p>
+
+<table class="sidebyside">
+<tr>
+  <th>CVS</th>
+  <th>Subversion</th>
+</tr>
+<tr>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd><tt>$&nbsp;cvs&nbsp;status</tt></dd>
+      <dd><tt>&hellip;</tt></dd>
+      <dd><tt>File: baz.c&nbsp;&nbsp;&nbsp;Status:&nbsp;Up-to-date</tt></dd>
+      <dd><tt>&hellip;</tt></dd>
+      <dd><tt>$&nbsp;cvs&nbsp;update</tt></dd>
+      <dd><tt>M foo.c</tt></dd>
+      <dd><tt>U bar.c</tt></dd>
+      <dd><tt>&hellip;</tt></dd>
+
+      <dt>Explanation:</dt>
+
+      <dd>The <tt>cvs status</tt> command shows whether a file is
+      locally modified or out of date, including information about
+      working revision and branch info.  Unfortunately, because the
+      output is so verbose and hard to read, many users run <tt>cvs
+      update</tt> instead, which shows a more compact listing of
+      modified files (and of course, it also causes the server to
+      merge changes into your working copy.)</dd>
+
+    </dl>
+  </td>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd><tt>$&nbsp;svn&nbsp;status</tt></dd>
+      <dd><tt>M&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;foo.c</tt></dd>
+      <dd><tt>&hellip;</tt></dd>
+
+      <dt>Explanation:</dt>
+
+      <dd>Shows modified files only.  Very fast, as it does not use
+      the network.  Does not update your working copy, yet still shows
+      a single-line display, much like <tt>svn update</tt>.  To see
+      working revision and branch information, run <tt>svn info</tt>.</dd>
+
+    </dl>
+  </td>
+</tr>
+</table>
+
+<dl class="bookref">
+  <dt>Book References:</dt>
+  <dd><a href="http://svnbook.red-bean.com/svnbook/ch03s05.html#svn-ch-3-sect-4.3.1">Examine Your Changes</a></dd>
+  <dd><a href="http://svnbook.red-bean.com/svnbook/re26.html">svn status</a></dd>
+</dl>
+
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2 id="outofdate">Seeing out-of-date items</h2>
+
+<p>Discover which items in the working copy are out-of-date
+      (i.e. newer versions exist in the repository.)</p>
+
+<table class="sidebyside">
+<tr>
+  <th>CVS</th>
+  <th>Subversion</th>
+</tr>
+<tr>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd><tt>$&nbsp;cvs&nbsp;status</tt></dd>
+      <dd><tt>&hellip;</tt></dd>
+      <dd><tt>File: baz.c&nbsp;&nbsp;&nbsp;Status:&nbsp;Needs&nbsp;Patch</tt></dd>
+      <dd><tt>&hellip;</tt></dd>
+      <dd><tt>$&nbsp;cvs&nbsp;-n&nbsp;update</tt></dd>
+      <dd><tt>M foo.c</tt></dd>
+      <dd><tt>U bar.c</tt></dd>
+      <dd><tt>&hellip;</tt></dd>
+
+      <dt>Explanation:</dt>
+
+      <dd>The <tt>cvs status</tt> command shows whether a file is
+      locally modified or out of date, including information about
+      working revision and branch info.  A less verbose option is to
+      run <tt>cvs -n update</tt> instead, which shows a compact
+      listing of both out-of-date and locally modified files, without
+      actually updating the working copy.</dd>
+
+    </dl>
+  </td>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd><tt>$&nbsp;svn&nbsp;status&nbsp;-u</tt></dd>
+      <dd><tt>M&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;46&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;foo.c</tt></dd>
+      <dd><tt>M&nbsp;&nbsp;*&nbsp;&nbsp;46&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bar.c</tt></dd>
+      <dd><tt>&nbsp;&nbsp;&nbsp;*&nbsp;&nbsp;46&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;baz.c</tt></dd>
+      <dd><tt>&hellip;</tt></dd>
+
+      <dt>Explanation:</dt>
+
+      <dd>Shows modified files (<tt>M</tt>) as well as out-of-date
+      files (<tt>*</tt>).  Contacts repository, but doesn't modify the
+      working copy.  To see working revision and branch information,
+      run <tt>svn info</tt>.</dd>
+
+    </dl>
+  </td>
+</tr>
+</table>
+
+<dl class="bookref">
+  <dt>Book References:</dt>
+  <dd><a href="http://svnbook.red-bean.com/svnbook/ch03s05.html#svn-ch-3-sect-4.3.1">Examine Your Changes</a></dd>
+  <dd><a href="http://svnbook.red-bean.com/svnbook/re26.html">svn status</a></dd>
+</dl>
+
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2 id="scheduling">Scheduling additions or deletions</h2>
+
+<p>Schedule a working-copy file or directory to be added or
+      removed from the repository.</p>
+
+<table class="sidebyside">
+<tr>
+  <th>CVS</th>
+  <th>Subversion</th>
+</tr>
+<tr>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd><tt>$&nbsp;touch&nbsp;foo.c</tt></dd>
+      <dd><tt>$&nbsp;cvs&nbsp;add&nbsp;foo.c</tt></dd>
+      <dd><tt>cvs&nbsp;server:&nbsp;scheduling&nbsp;file&nbsp;`blah'&nbsp;for&nbsp;addition</tt></dd>
+      <dd><tt>cvs&nbsp;server:&nbsp;use&nbsp;'cvs&nbsp;commit'&nbsp;to&nbsp;add&nbsp;this&nbsp;file&nbsp;permanently</tt></dd>
+      <dd><tt>&nbsp;</tt></dd>
+      <dd><tt>$&nbsp;mkdir&nbsp;new-dir</tt></dd>
+      <dd><tt>$&nbsp;cvs&nbsp;add&nbsp;new-dir</tt></dd>
+      <dd><tt>Directory&nbsp;new-dir&nbsp;added&nbsp;to&nbsp;the&nbsp;repository</tt></dd>
+      <dd><tt>&nbsp;</tt></dd>
+      <dd><tt>$&nbsp;rm&nbsp;bar.c</tt></dd>
+      <dd><tt>$&nbsp;cvs&nbsp;rm&nbsp;bar.c</tt></dd>
+      <dd><tt>cvs&nbsp;remove:&nbsp;scheduling&nbsp;`bar.c'&nbsp;for&nbsp;removal</tt></dd>
+      <dd><tt>cvs&nbsp;remove:&nbsp;use&nbsp;'cvs&nbsp;commit'&nbsp;to&nbsp;remove&nbsp;this&nbsp;file&nbsp;permanently</tt></dd>
+      <dd><tt>&nbsp;</tt></dd>
+      <dd><tt>$&nbsp;rm&nbsp;-rf&nbsp;old-dir/*</tt></dd>
+      <dd><tt>$&nbsp;cvs&nbsp;rm&nbsp;old-dir</tt></dd>
+      <dd><tt>cvs&nbsp;remove:&nbsp;Removing&nbsp;3bits</tt></dd>
+      <dd><tt>&hellip;</tt></dd>
+
+
+      <dt>Explanation:</dt>
+
+      <dd>Schedules a file or directory for addition or removal
+      to/from the repository.  The repository will not be changed
+      until the user runs <tt>cvs commit</tt>, except for the case of
+      adding a directory, which immediately changes the repository.
+      Also, directories cannot be truly removed from the repository,
+      just emptied out.  (<tt>cvs update -P</tt> will prune empty
+      directories from your working copy.)</dd>
+
+    </dl>
+  </td>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd><tt>$&nbsp;touch&nbsp;foo.c</tt></dd>
+      <dd><tt>$&nbsp;svn&nbsp;add&nbsp;foo.c</tt></dd>
+      <dd><tt>A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;foo.c</tt></dd>
+      <dd><tt>&nbsp;</tt></dd>
+      <dd><tt>$&nbsp;mkdir&nbsp;new-dir</tt></dd>
+      <dd><tt>$&nbsp;svn&nbsp;add&nbsp;new-dir</tt></dd>
+      <dd><tt>A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;new-dir</tt></dd>
+      <dd><tt>&nbsp;</tt></dd>
+      <dd><tt>$&nbsp;svn&nbsp;rm&nbsp;bar.c</tt></dd>
+      <dd><tt>D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bar.c</tt></dd>
+      <dd><tt>&nbsp;</tt></dd>
+      <dd><tt>$&nbsp;svn&nbsp;rm&nbsp;old-dir</tt></dd>
+      <dd><tt>D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;old-dir/file1</tt></dd>
+      <dd><tt>D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;old-dir/file2</tt></dd>
+      <dd><tt>&hellip;</tt></dd>
+
+      <dt>Explanation:</dt>
+
+      <dd>Schedules a file or directory for addition or removal
+      to/from the repository.  The repository will not be changed
+      until the user runs <tt>svn commit</tt>.  The scheduled
+      operations are shown as <tt>A</tt> or <tt>D</tt> by <tt>svn
+      status</tt>, and <tt>svn revert</tt> can un-do the scheduling.
+      Directories really can be deleted (though as with all deleted
+      items, continues to exist in history.)</dd>
+
+    </dl>
+  </td>
+</tr>
+</table>
+
+<dl class="bookref">
+  <dt>Book References:</dt> 
+  <dd><a href="http://svnbook.red-bean.com/svnbook/ch03s05.html#svn-ch-3-sect-4.2">Make Changes to Your Working Copy</a></dd>
+  <dd><a href="http://svnbook.red-bean.com/svnbook/re01.html">svn add</a></dd>
+  <dd><a href="http://svnbook.red-bean.com/svnbook/re08.html">svn delete</a></dd>
+</dl>
+
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2 id="copying">Copying and moving</h2>
+
+<p>Copy or move/rename a file or directory.</p>
+
+<table class="sidebyside">
+<tr>
+  <th>CVS</th>
+  <th>Subversion</th>
+</tr>
+<tr>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd>(not possible.)</dd>
+
+
+      <dt>Explanation:</dt>
+
+      <dd>Not possible, unless an administrator directly mucks with
+      RCS files in the repository.  (And in that case, no history
+      records the act of copying or renaming.)</dd>
+
+    </dl>
+  </td>
+  <td>
+    <dl>
+      <dt>Commands:</dt>
+      <dd><tt>$&nbsp;svn&nbsp;copy&nbsp;foo.c&nbsp;foo2.c</tt></dd>
+      <dd><tt>A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;foo2.c</tt></dd>
+      <dd><tt>&nbsp;</tt></dd>
+      <dd><tt>$&nbsp;svn&nbsp;copy&nbsp;dir&nbsp;dir2</tt></dd>
+      <dd><tt>A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dir2</tt></dd>
+      <dd><tt>&nbsp;</tt></dd>
+      <dd><tt>$&nbsp;svn&nbsp;move&nbsp;bar.c&nbsp;baz.c</tt></dd>
+      <dd><tt>A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;baz.c</tt></dd>
+      <dd><tt>D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bar.c</tt></dd>
+      <dd><tt>&nbsp;</tt></dd>
+      <dd><tt>$&nbsp;svn&nbsp;move&nbsp;dirA&nbsp;dirB</tt></dd>
+      <dd><tt>A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dirB</tt></dd>
+      <dd><tt>D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dirA/file1</tt></dd>
+      <dd><tt>D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dirA/file2</tt></dd>
+      <dd><tt>&hellip;</tt></dd>
+
+      <dt>Explanation:</dt>
+
+      <dd>The <tt>svn copy</tt> command schedules a file or directory
+      for addition to the repository, recording the "source" of the
+      copy.  After committing, <tt>svn log</tt> on the copied item
+      will trace history back through the original copy-source.  The
+      <tt>svn move</tt> command is exactly equivalent to running
+      <tt>svn copy</tt>, followed by an <tt>svn delete</tt> on the
+      copy-source: the result is a new item scheduled for addition
+      (with copy-history attached) and the original item scheduled for
+      deletion.</dd>
+
+    </dl>
+  </td>
+</tr>
+</table>
+
+<dl class="bookref">
+  <dt>Book References:</dt> 
+  <dd><a href="http://svnbook.red-bean.com/svnbook/ch03s05.html#svn-ch-3-sect-4.2">Make Changes to Your Working Copy</a></dd>
+  <dd><a href="http://svnbook.red-bean.com/svnbook/re07.html">svn copy</a></dd>
+  <dd><a href="http://svnbook.red-bean.com/svnbook/re18.html">svn move</a></dd>
+</dl>
+
+
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2>Finding the beginning of a branch</h2>
+
+<p>If you're attempting to merge an entire branch into another, you
+need to compare the "root" and "tip" of the source branch, and then
+merge those differences into a working copy of the target branch.
+Obviously the "tip" of the branch can be represented by using the
+<tt>HEAD</tt> keyword.  But how do you find the "birth" revision of
+the source branch?</p>
+
+<p>The easiest solution is to run</p>
+
+<pre>
+   $ svn log -v --stop-on-copy source-branch-URL
+   &hellip;
+</pre>
+
+<p>This command will display every change ever made to the branch, but
+<tt>--stop-on-copy</tt> option will cause the output to stop as soon
+as detects a copy operation in the branch's history.  By definition,
+then, the very last log entry printed will show the copy being made.
+It will look something like:</p>
+
+<pre>
+r9189 | joe | 2004-03-22 10:10:47 -0600 (Mon, 22 Mar 2004) | 1 line
+Changed paths:
+   A /branches/mybranch (from /trunk:9188)
+</pre>
+
+<p>In this case, you would then know to compare revisions 9189 and
+HEAD of the branch in order to perform the merge:</p>
+
+<pre>
+   $ svn merge -r9189:HEAD source-branch-URL target-branch-WC
+   &hellip;
+</pre>
+
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2>Seeing all of a project's tags</h2>
+
+<p>Assuming you've been following a consistent policy for creating
+tag-copies, then this is just a matter of running <tt>svn ls</tt> on a
+directory containing your tags.  Typically you would run it on the
+<tt>/tags</tt> directory in your repository, although you're certainly
+free to organize this directory in a more complex way, or invent a
+different convention altogether.</p>
+
+<p>As an example, you can see all of Subversion's tags by running:</p>
+
+<pre>
+   $ svn ls --verbose http://svn.apache.org/repos/asf/subversion/tags
+     &hellip;
+       7739 kfogel              Nov 13 22:05 0.33.0/
+       7796 josander            Nov 18 12:15 0.33.1/
+       7932 josander            Dec 03 17:54 0.34.0/
+       8045 josander            Dec 19 15:13 0.35.0/
+       8063 josander            Dec 20 11:20 0.35.1/
+       8282 josander            Jan 13 14:15 0.36.0/
+       8512 josander            Jan 24 17:31 0.37.0/
+       8810 kfogel              Feb 23 03:44 1.0.0/
+     &hellip;
+</pre>
+
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2>Seeing the differences between two tags</h2>
+
+<p>Just use <tt>svn diff</tt> in its fully expanded form, which
+compares any two URLs:</p>
+
+<pre>
+   $ svn diff tagURL1 tagURL2
+   &hellip;
+</pre>
+
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2>Seeing logs between two tags</h2>
+
+<p>This is a somewhat common practice in CVS, and is doable in Subversion,
+but requires a little bit more work.  Assuming that you've made two
+tags of <tt>/trunk</tt> at different points in time, the ultimate goal
+here is to run </p>
+
+<pre>
+   $ svn log -rX:Y trunkURL
+</pre>
+
+<p>&hellip;where X and Y are the revisions from which the two tags were
+copied.  To discover X and Y, you can use the same technique
+described in the previous section ("finding the beginning of a
+branch".)  Just use the <tt>--stop-on-copy</tt> option when logging the
+history of each tag.  No commits happen on tag directories, so the
+following commands should each produce exactly <em>one</em> log
+entry:</p>
+
+<pre>
+   $ svn log -v --stop-on-copy tag1-URL
+
+   r3520 | joe | 2004-03-12 15:28:43 -0600 (Fri, 12 Mar 2004) | 1 line
+   &hellip;
+
+   $ svn log -v --stop-on-copy tag2-URL
+   a
+   r4177 | joe | 2004-03-12 15:28:43 -0600 (Fri, 12 Mar 2004) | 1 line
+   &hellip;
+</pre>
+
+<p>So in this example, the values of X and Y are 3520 and 4177.  Now
+you can view all <tt>/trunk</tt> changes between those two points in time:</p>
+
+<pre>
+   $ svn log -r3520:4177 trunkURL
+   &hellip;
+</pre>
+
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2>Fixing an incorrect tag</h2>
+
+<p>If your tag is a bit off, you can "adjust" it just as people often
+do in CVS.  Simply check out a working copy of the tag directory, make
+any changes you wish, and commit.</p>
+
+<p>Remember, because branches and tags are directories, they can also
+be deleted when they're no longer of any use to your project.  They'll
+continue to exist in the repository's history.</p>
+
+
+</div>
+
+<!-- ==================================================================== -->
+<div class="h2">
+<h2>Creating/using "modules"</h2>
+
+<p>Compare CVS Modules vs. svn:externals.</p>
+
+</div>
+
+<!-- ==================================================================== -->
+</body>
+</html>

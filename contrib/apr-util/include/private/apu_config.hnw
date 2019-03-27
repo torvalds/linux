@@ -1,0 +1,53 @@
+/* Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* 
+ * Note: This is a NetWare specific version of apu_config.hnw. It is copied
+ * as apu_config.h at the start of a NetWare build.
+ */
+
+#ifdef NETWARE
+
+#ifndef APU_CONFIG_H
+#define APU_CONFIG_H
+
+/* Always compile Netware with DSO support for .nlm builds */
+#define APU_DSO_BUILD           0
+
+/*
+ * NetWare does not have GDBM, and we always use the bundled (new) Expat
+ */
+
+/* Define if you have the gdbm library (-lgdbm). */
+/* #undef HAVE_LIBGDBM */
+
+/* define if Expat 1.0 or 1.1 was found */
+/* #undef APR_HAVE_OLD_EXPAT */
+
+/* NetWare uses its own ICONV implementation. */
+#define HAVE_ICONV_H 1
+
+/*
+ * check for newer NDKs which use now correctly 'const char*' with iconv.
+ */
+#include <ndkvers.h>
+#if (CURRENT_NDK_THRESHOLD >= 705110000)
+#define APU_ICONV_INBUF_CONST
+#endif
+
+#endif /* APU_CONFIG_H */
+#endif /* NETWARE */
+

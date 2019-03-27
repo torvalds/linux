@@ -1,0 +1,140 @@
+/*
+ * Playstation 3 LV1 hypercall interface
+ *
+ * $FreeBSD$
+ */
+
+#include <sys/types.h>
+
+enum lpar_id {
+	PS3_LPAR_ID_CURRENT	= 0x00,
+	PS3_LPAR_ID_PME		= 0x01,
+};
+
+/* Return codes from hypercalls */
+#define LV1_SUCCESS			0
+#define LV1_RESOURCE_SHORTAGE		-2
+#define LV1_NO_PRIVILEGE		-3
+#define LV1_DENIED_BY_POLICY		-4
+#define LV1_ACCESS_VIOLATION		-5
+#define LV1_NO_ENTRY			-6
+#define LV1_DUPLICATE_ENTRY		-7
+#define LV1_TYPE_MISMATCH		-8
+#define LV1_BUSY			-9
+#define LV1_EMPTY			-10
+#define LV1_WRONG_STATE			-11
+#define LV1_NO_MATCH			-13
+#define LV1_ALREADY_CONNECTED		-14
+#define LV1_UNSUPPORTED_PARAMETER_VALUE	-15
+#define LV1_CONDITION_NOT_SATISFIED	-16
+#define LV1_ILLEGAL_PARAMETER_VALUE	-17
+#define LV1_BAD_OPTION			-18
+#define LV1_IMPLEMENTATION_LIMITATION	-19
+#define LV1_NOT_IMPLEMENTED		-20
+#define LV1_INVALID_CLASS_ID		-21
+#define LV1_CONSTRAINT_NOT_SATISFIED	-22
+#define LV1_ALIGNMENT_ERROR		-23
+#define LV1_HARDWARE_ERROR		-24
+#define LV1_INVALID_DATA_FORMAT		-25
+#define LV1_INVALID_OPERATION		-26
+#define LV1_INTERNAL_ERROR		-32768
+
+static inline uint64_t
+lv1_repository_string(const char *str)
+{
+	uint64_t ret = 0;
+	strncpy((char *)&ret, str, sizeof(ret));
+	return (ret);
+}
+
+#	Code	Name					Inputs				Outputs
+HVCALL	0	lv1_allocate_memory			size,log_page_size,zero,flags	base_addr,muid
+HVCALL	1	lv1_write_htab_entry			vas_id,slot,pte_hi,pte_lo
+HVCALL	2	lv1_construct_virtual_address_space	log_pteg_count,n_sizes,page_sizes vas_id,hv_pteg_count
+HVCALL	4	lv1_get_virtual_address_space_id_of_ppe	ppe_id				vas_id
+HVCALL	6	lv1_query_logical_partition_address_region_info	lpar_id			base_addr,size,access_right,max_page_size,flags
+HVCALL	7	lv1_select_virtual_address_space	vas_id
+HVCALL	9	lv1_pause				mode
+HVCALL	10	lv1_destruct_virtual_address_space	vas_id
+HVCALL	11	lv1_configure_irq_state_bitmap		ppe_id,cpu_id,bitmap_addr
+HVCALL	12	lv1_connect_irq_plug_ext		ppe_id,cpu_id,virq,outlet,zero
+HVCALL	13	lv1_release_memory			base_addr
+HVCALL	15	lv1_put_iopte				ioas_id,ioif_addr,lpar_addr,io_id,flags
+HVCALL	17	lv1_disconnect_irq_plug_ext		ppe_id,cpu_id,virq
+HVCALL	18	lv1_construct_event_receive_port	UNUSED				outlet
+HVCALL	19	lv1_destruct_event_receive_port		outlet
+HVCALL	24	lv1_send_event_locally			outlet
+HVCALL	27	lv1_end_of_interrupt			irq
+HVCALL	28	lv1_connect_irq_plug			virq,irq
+HVCALL	29	lv1_disconnect_irq_plus			virq
+HVCALL	30	lv1_end_of_interrupt_ext		ppe_id,cpu_id,virq
+HVCALL	31	lv1_did_update_interrupt_mask		ppe_id,cpu_id
+HVCALL	44	lv1_shutdown_logical_partition		cmd
+HVCALL	54	lv1_destruct_logical_spe		spe_id
+HVCALL	57	lv1_construct_logical_spe		pshift1,pshift2,pshift3,pshift4,pshift5,vas_id,spe_type	priv2_addr,problem_phys,local_store_phys,unused,shadow_addr,spe_id
+HVCALL	61	lv1_set_spe_interrupt_mask		spe_id,class,mask
+HVCALL	65	lv1_disable_logical_spe			spe_id,zero
+HVCALL	66	lv1_clear_spe_interrupt_status		spe_id,class,stat,zero
+HVCALL	67	lv1_get_spe_interrupt_status		spe_id,class			stat
+HVCALL	69	lv1_get_logical_ppe_id			UNUSED				ppe_id
+HVCALL	74	lv1_get_logical_partition_id		UNUSED				lpar_id
+HVCALL	78	lv1_get_spe_irq_outlet			spe_id,class			outlet
+HVCALL	79	lv1_set_spe_privilege_state_area_1_register	spe_id,offset,value
+HVCALL	91	lv1_get_repository_node_value		lpar_id,n1,n2,n3,n4		v1,v2
+HVCALL	95	lv1_read_htab_entries			vas_id,slot	hi1,hi2,hi3,hi4,rcbits
+HVCALL	96	lv1_set_dabr				dabr,flags
+HVCALL	116	lv1_allocate_io_segment			ioas_id,seg_size,io_pagesize	ioif_addr
+HVCALL	117	lv1_release_io_segment			ioas_id,ioif_addr
+HVCALL	120	lv1_construct_io_irq_outlet		interrupt_id			outlet
+HVCALL	121	lv1_destruct_io_irq_outlet		outlet
+HVCALL	122	lv1_map_htab				lpar_id				htab_addr
+HVCALL	123	lv1_unmap_htab				htab_addr
+HVCALL	127	lv1_get_version_info			UNUSED				firm_vers
+HVCALL	158	lv1_insert_htab_entry			vas_id,pteg,pte_hi,pte_lo,lockflags,flags	index,evicted_hi,evicted_lo
+HVCALL	162	lv1_read_virtual_uart			port,buffer,bytes		bytes_read
+HVCALL	163	lv1_write_virtual_uart			port,buffer,bytes		bytes_written
+HVCALL	164	lv1_set_virtual_uart_param		port,param,value
+HVCALL	165	lv1_get_virtual_uart_param		port,param			value
+HVCALL	166	lv1_configure_virtual_uart		lpar_addr			outlet
+HVCALL	170	lv1_open_device				bus,dev,zero
+HVCALL	171	lv1_close_device			bus,dev
+HVCALL	172	lv1_map_device_mmio_region		bus,dev,bus_addr,size,page_size	lpar_addr
+HVCALL	173	lv1_unmap_device_mmio_region		bus,dev,lpar_addr
+HVCALL	174	lv1_allocate_device_dma_region		bus,dev,io_size,io_pagesize,flag	dma_region
+HVCALL	175	lv1_free_device_dma_region		bus,dev,dma_region
+HVCALL	176	lv1_map_device_dma_region		bus,dev,lpar_addr,dma_region,size,flags
+HVCALL	177	lv1_unmap_device_dma_region		bus,dev,dma_region,size
+HVCALL	178	lv1_read_pci_config			ps3bus,bus,dev,func,offset,size	result
+HVCALL	179	lv1_write_pci_config			ps3bus,bus,dev,func,offset,size,data
+HVCALL	185	lv1_net_add_multicast_address		bus,dev,addr,flags
+HVCALL	186	lv1_net_remove_multicast_address	bus,dev,zero,one
+HVCALL	187	lv1_net_start_tx_dma			bus,dev,bus_addr,zero
+HVCALL	188	lv1_net_stop_tx_dma			bus,dev,zero
+HVCALL	189	lv1_net_start_rx_dma			bus,dev,bus_addr,zero
+HVCALL	190	lv1_net_stop_rx_dma			bus,dev,zero
+HVCALL	191	lv1_net_set_interrupt_status_indicator	bus,dev,irq_status_addr,zero
+HVCALL	193	lv1_net_set_interrupt_mask		bus,dev,mask,zero
+HVCALL	194	lv1_net_control				bus,dev,p1,p2,p3,p4		v1,v2
+HVCALL	197	lv1_connect_interrupt_event_receive_port	bus,dev,outlet,irq
+HVCALL	198	lv1_disconnect_interrupt_event_receive_port	bus,dev,outlet,irq
+HVCALL	202	lv1_deconfigure_virtual_uart_irq
+HVCALL	207	lv1_enable_logical_spe			spe_id,resource_id
+HVCALL	210	lv1_gpu_open				zero
+HVCALL	211	lv1_gpu_close
+HVCALL	212	lv1_gpu_device_map			dev				lpar_addr,lpar_size
+HVCALL	213	lv1_gpu_device_unmap			dev
+HVCALL	214	lv1_gpu_memory_allocate			ddr_size,zero1,zero2,zero3,zero4	handle,ddr_lpar
+HVCALL	216	lv1_gpu_memory_free			handle
+HVCALL	217	lv1_gpu_context_allocate		handle,flags			chandle,lpar_dma_control,lpar_driver_info,lpar_reports,lpar_reports_size
+HVCALL	218	lv1_gpu_context_free			chandle
+HVCALL	221	lv1_gpu_context_iomap			changle,gpu_ioif,xdr_lpar,fbsize,ioflags
+HVCALL	225	lv1_gpu_context_attribute		chandle,op,p1,p2,p3,p4
+HVCALL	227	lv1_gpu_context_intr			chandle				v1
+HVCALL	228	lv1_gpu_attribute			p1,p2,p3,p4,p5
+HVCALL	232	lv1_get_rtc				UNUSED				rtc_val,timebase
+HVCALL	245	lv1_storage_read			dev,region,sector,nsectors,flags,buf	dma_tag
+HVCALL	246	lv1_storage_write			dev,region,sector,nsectors,flags,buf	dma_tag
+HVCALL	248	lv1_storage_send_device_command		dev,cmd_id,cmd_block,cmd_size,data_buf,blocks	dma_tag
+HVCALL	249	lv1_storage_get_async_status		dev				dma_tag,status
+HVCALL	254	lv1_storage_check_async_status		dev,dma_tag			status
+HVCALL	255	lv1_panic				howto

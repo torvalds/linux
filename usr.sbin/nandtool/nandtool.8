@@ -1,0 +1,184 @@
+.\" Copyright (c) 2010 Semihalf
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 10, 2012
+.Dt NANDTOOL 8
+.Os
+.Sh NAME
+.Nm nandtool
+.Nd NAND devices swiss army knife
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Ar operands ...
+.Sh DESCRIPTION
+The
+.Nm
+utility can be used to perform various operations on
+.Xr gnand 4
+devices (read, write, erase,
+read and write OOB area and to get info about NAND flash chip).
+.Pp
+The following commands are available:
+.Bl -tag -width ".Cm of Ns = Ns Ar file"
+.It Cm read Ns
+Read pages from NAND device.
+.It Cm write Ns
+Write pages to NAND device.
+.It Cm erase Ns
+Erase blocks.
+Requires offset aligned to block granularity.
+.It Cm info Ns
+Get information about NAND chip (page size, block size, OOB area size, chip size
+and media size)
+.It Cm readoob Ns
+Read OOB area from specified page.
+.It Cm writeoob Ns
+Write OOB area bound to specified page.
+.It Cm help Ns
+Get usage info.
+.El
+.Sh COMMAND read
+The following operands are available for
+.Nm
+.Cm read
+command:
+.Bl -tag -width ".Cm of Ns = Ns Ar file"
+.It Cm dev Ns = Ns Ar <path>
+Path to a
+.Xr gnand 4
+device node, required for all operations.
+.It Cm out Ns = Ns Ar <file>
+Output file path. If not specified, page contents
+will be dumped to stdout in format similar to
+.Xr hexdump 1
+.It Cm page Ns = Ns Ar <n>
+Offset on device, expressed as page number.
+.It Cm block Ns = Ns Ar <n>
+Offset on device, expressed as block number.
+.It Cm pos Ns = Ns Ar <n>
+Offset on device, expressed in bytes (however, must be aligned
+to page granularity).
+.It Cm count Ns = Ns Ar <n>
+Count of objects (pages, blocks, bytes).
+.El
+.Sh COMMAND readoob
+The following operands are available for
+.Nm
+.Cm readoob
+command:
+.Bl -tag -width ".Cm of Ns = Ns Ar file"
+.It Cm dev Ns = Ns Ar <path>
+Path to NAND device node.
+.It Cm page Ns = Ns Ar <n>
+Offset on device, expressed as page number.
+.It Cm out Ns = Ns Ar <file>
+Output file path, optional.
+.El
+.Sh COMMAND write
+The following operands are available for
+.Nm
+.Cm write
+command:
+.Bl -tag -width ".Cm of Ns = Ns Ar file"
+.It Cm dev Ns = Ns Ar <path>
+Path to NAND device node.
+.It Cm page Ns = Ns Ar <n>
+Offset on device, expressed as page number.
+.It Cm block Ns = Ns Ar <n>
+Offset on device, expressed as block number.
+.It Cm pos Ns = Ns Ar <n>
+Offset on device, expressed in bytes (however, must be aligned
+to page granularity).
+.It Cm in Ns = Ns Ar <file>
+Input file path.
+.El
+.Sh COMMAND writeoob
+The following operands are available for
+.Nm
+.Cm writeoob
+command:
+.Bl -tag -width ".Cm of Ns = Ns Ar file"
+.It Cm dev Ns = Ns Ar <path>
+Path to NAND device node.
+.It Cm page Ns = Ns Ar <n>
+Offset on device, expressed as page number.
+.It Cm in Ns = Ns Ar <file>
+Input file path.
+.El
+.Sh COMMAND erase
+The following operands are available for
+.Nm
+.Cm erase
+command:
+.Bl -tag -width ".Cm of Ns = Ns Ar file"
+.It Cm dev Ns = Ns Ar <path>
+Path to NAND device node.
+.It Cm page Ns = Ns Ar <n>
+Offset on device, expressed as page number.
+.It Cm block Ns = Ns Ar <n>
+Offset on device, expressed as block number.
+.It Cm pos Ns = Ns Ar <n>
+Offset on device, epressed in bytes (however, must be aligned
+to block granularity).
+.It Cm count Ns = Ns Ar <n>
+Count of objects (pages, blocks, bytes).
+.El
+.Pp
+WARNING: The only required parameter for the \fBerase\fP command is
+.Ar dev .
+When no other arguments are provided the whole device is erased!
+.Sh COMMAND info
+There is only one operand available for
+.Nm
+.Cm info
+command:
+.Bl -tag -width ".Cm of Ns = Ns Ar file"
+.It Cm dev Ns = Ns Ar <path>
+Path to NAND device node.
+.El
+.Sh COMMAND help
+There is only one operand available for
+.Nm
+.Cm help
+command:
+.Bl -tag -width ".Cm of Ns = Ns Ar file"
+.It Cm topic Ns = Ns Ar <name>
+Help topic.
+.El
+.Sh EXIT STATUS
+.Ex -std
+If the supplied argument
+.Ar dev
+points to a device node other than gnand<num> or gnand.raw<num> both
+.Nm
+.Cm readoob
+and
+.Nm
+.Cm writeoob
+return error.
+.Sh SEE ALSO
+.Xr gnand 4

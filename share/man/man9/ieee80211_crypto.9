@@ -1,0 +1,260 @@
+.\"
+.\" Copyright (c) 2004 Bruce M. Simpson <bms@spc.org>
+.\" Copyright (c) 2004 Darron Broad <darron@kewl.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" $Id: ieee80211_crypto.9,v 1.3 2004/03/04 10:42:56 bruce Exp $
+.\"
+.Dd March 29, 2010
+.Dt IEEE80211_CRYPTO 9
+.Os
+.Sh NAME
+.Nm ieee80211_crypto
+.Nd 802.11 cryptographic support
+.Sh SYNOPSIS
+.In net80211/ieee80211_var.h
+.\"
+.Pp
+.Ft void
+.Fn ieee80211_crypto_register "const struct ieee80211_cipher *"
+.\"
+.Ft void
+.Fn ieee80211_crypto_unregister "const struct ieee80211_cipher *"
+.\"
+.Ft int
+.Fn ieee80211_crypto_available "int cipher"
+.\"
+.Pp
+.Ft void
+.Fo ieee80211_notify_replay_failure
+.Fa "struct ieee80211vap *"
+.Fa "const struct ieee80211_frame *"
+.Fa "const struct ieee80211_key *"
+.Fa "uint64_t rsc"
+.Fa "int tid"
+.Fc
+.\"
+.Ft void
+.Fo ieee80211_notify_michael_failure
+.Fa "struct ieee80211vap *"
+.Fa "const struct ieee80211_frame *"
+.Fa "u_int keyix"
+.Fc
+.\"
+.Ft int
+.Fo ieee80211_crypto_newkey
+.Fa "struct ieee80211vap *"
+.Fa "int cipher"
+.Fa "int flags"
+.Fa "struct ieee80211_key *"
+.Fc
+.\"
+.Ft int
+.Fn ieee80211_crypto_setkey "struct ieee80211vap *" "struct ieee80211_key *"
+.\"
+.Ft int
+.Fn ieee80211_crypto_delkey "struct ieee80211vap *" "struct ieee80211_key *"
+.\"
+.Ft void
+.Fn ieee80211_key_update_begin "struct ieee80211vap *"
+.\"
+.Ft void
+.Fn ieee80211_key_update_end "struct ieee80211vap *"
+.\"
+.Ft void
+.Fn ieee80211_crypto_delglobalkeys "struct ieee80211vap *"
+.\"
+.Ft void
+.Fn ieee80211_crypto_reload_keys "struct ieee80211com *"
+.\"
+.Pp
+.Ft struct ieee80211_key *
+.Fn ieee80211_crypto_encap "struct ieee80211_node *" "struct mbuf *"
+.\"
+.Ft struct ieee80211_key *
+.Fn ieee80211_crypto_decap "struct ieee80211_node *" "struct mbuf *" "int flags"
+.\"
+.Ft int
+.Fo ieee80211_crypto_demic
+.Fa "struct ieee80211vap *"
+.Fa "struct ieee80211_key *"
+.Fa "struct mbuf *"
+.Fa "int force"
+.Fc
+.\"
+.Ft int
+.Fo ieee80211_crypto_enmic
+.Fa "struct ieee80211vap *"
+.Fa "struct ieee80211_key *"
+.Fa "struct mbuf *"
+.Fa "int force"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm net80211
+layer includes comprehensive cryptographic support for 802.11 protocols.
+Software implementations of ciphers required by
+WPA and 802.11i are provided as well as encap/decap processing of 802.11 frames.
+Software ciphers are written as kernel modules and
+register with the core crypto support.
+The cryptographic framework supports hardware acceleration of ciphers
+by drivers with automatic fall-back to software implementations when a
+driver is unable to provide necessary hardware services.
+.Sh CRYPTO CIPHER MODULES
+.Nm net80211
+cipher modules register their services using
+.Fn ieee80211_crypto_register
+and supply a template that describes their operation.
+This
+.Vt ieee80211_cipher
+structure defines protocol-related state such as the number of bytes
+of space in the 802.11 header to reserve/remove during encap/decap
+and entry points for setting up keys and doing cryptographic operations.
+.Pp
+Cipher modules can associate private state to each key through the
+.Vt wk_private
+structure member.
+If state is setup by the module it will be called before a key is destroyed
+so it can reclaim resources.
+.Pp
+Crypto modules can notify the system of two events.
+When a packet replay event is recognized
+.Fn ieee80211_notify_replay_failure
+can be used to signal the event.
+When a
+.Dv TKIP
+Michael failure is detected
+.Fn ieee80211_notify_michael_failure
+can be invoked.
+Drivers may also use these routines to signal events detected by the
+hardware.
+.Sh CRYPTO KEY MANAGEMENT
+The
+.Nm net80211
+layer implements a per-vap 4-element
+.Dq global key table
+and a per-station
+.Dq unicast key
+for protocols such as WPA, 802.1x, and 802.11i.
+The global key table is designed to support legacy WEP operation
+and Multicast/Group keys,
+though some applications also use it to implement WPA in station mode.
+Keys in the global table are identified by a key index in the range 0-3.
+Per-station keys are identified by the MAC address of the station and
+are typically used for unicast PTK bindings.
+.Pp
+.Nm net80211
+provides
+.Xr ioctl 2
+operations for managing both global and per-station keys.
+Drivers typically do not participate in software key management;
+they are involved only when providing hardware acceleration of
+cryptographic operations.
+.Pp
+.Fn ieee80211_crypto_newkey
+is used to allocate a new
+.Nm net80211
+key or reconfigure an existing key.
+The cipher must be specified along with any fixed key index.
+The
+.Nm net80211
+layer will handle allocating cipher and driver resources to support the key.
+.Pp
+Once a key is allocated it's contents can be set using
+.Fn ieee80211_crypto_setkey
+and deleted with
+.Fn ieee80211_crypto_delkey
+(with any cipher and driver resources reclaimed).
+.Pp
+.Fn ieee80211_crypto_delglobalkeys
+is used to reclaim all keys in the global key table for a vap; it
+typically is used only within the
+.Nm net80211
+layer.
+.Pp
+.Fn ieee80211_crypto_reload_keys
+handles hardware key state reloading from software key state, such
+as required after a suspend/resume cycle.
+.Sh DRIVER CRYPTO SUPPORT
+Drivers identify ciphers they have hardware support for through the
+.Vt ic_cryptocaps
+field of the
+.Vt ieee80211com
+structure.
+If hardware support is available then a driver should also fill in the
+.Dv iv_key_alloc ,
+.Dv iv_key_set ,
+and
+.Dv iv_key_delete
+methods of each
+.Vt ieee80211vap
+created for use with the device.
+In addition the methods
+.Dv iv_key_update_begin
+and
+.Dv iv_key_update_end
+can be setup to handle synchronization requirements
+for updating hardware key state.
+.Pp
+When
+.Nm net80211
+allocates a software key and the driver can accelerate the
+cipher operations the
+.Dv iv_key_alloc
+method will be invoked.
+Drivers may return a token that is associated with outbound traffic
+(for use in encrypting frames).
+Otherwise, e.g. if hardware resources are not available, the driver will
+not return a token and
+.Nm net80211
+will arrange to do the work in software and pass frames
+to the driver that are already prepared for transmission.
+.Pp
+For receive, drivers mark frames with the
+.Dv M_WEP
+mbuf flag to indicate the hardware has decrypted the payload.
+If frames have the
+.Dv IEEE80211_FC1_PROTECTED
+bit marked in their 802.11 header and are not tagged with
+.Dv M_WEP
+then decryption is done in software.
+For more complicated scenarios the software key state is consulted; e.g.
+to decide if Michael verification needs to be done in software after
+the hardware has handled TKIP decryption.
+.Pp
+Drivers that manage complicated key data structures, e.g. faulting
+software keys into a hardware key cache, can safely manipulate software
+key state by bracketing their work with calls to
+.Fn ieee80211_key_update_begin
+and
+.Fn ieee80211_key_update_end .
+These calls also synchronize hardware key state update
+when receive traffic is active.
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr ieee80211 9

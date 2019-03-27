@@ -1,0 +1,101 @@
+IP Filter - What's this about ?
+============================
+Web site: http://coombs.anu.edu.au/~avalon/ip-filter.html
+How-to: http://www.obfuscation.org/ipf/ipf-howto.txt
+
+  The idea behind this package is allow those who use Unix workstations as
+routers (a common occurance in Universities it appears) to apply packet
+filtering to packets going in and out of them.  This package has been
+tested on all versions of SunOS 4.1 and Solaris 2.4/2.5, running on Sparcs.
+It is also quite possible for this small kernel extension to be installed
+and used effectively on Sun workstations which don't route IP, just for
+added security.  It can also be integrated with the multicast patches.
+It has also been tested successfully on all of the modern free BSDs as
+well as BSDI, and SGI's IRIX 6.2.
+
+   The filter keeps a rule list for both inbound and outbound sides of
+the IP packet queue and a check is made as early as possible, aiming to
+stop the packet before it even gets as far as being checked for source
+route options.  In the file "BNF", a set of rules for constructing filter
+rules understood by this package is given.  The files in the directory
+"rules", "example.1" ... "example.sr" show example rules you might apply.
+
+   In practise, I've successfully isolated a workstation from all
+machines except the NFS file servers on its local subnets (yeah, ok, so
+this doesn't really increase security, because of NFS, but you get the
+drift on how it can be applied and used).  I've also successfully
+setup and maintained my own firewalls using it with TIS's Firewall Toolkit,
+including using it on an mbone router.
+
+   When using it with multicast IP, the calls to fr_check() should be
+before the packet is unwrapped and after it is encapsulated.  So the
+filter routines will see the packet as a UDP packet, protocol XYZ.
+Whether this is better or worse than having it filter on class D addresses
+is debateable, but the idea behind this package is to be able to
+discriminate between packets as they are on the 'wire', before they
+get routed anywhere, etc.
+
+   It is worth noting, that it is possible, using a small MTU and
+generating tiny fragmented IP packets to generate a TCP packet which
+doesn't contain enough information to filter on the "flags".  Filtering
+on these types of packets is possible, but under the more general case
+of the packets being "short".  ICMP and UDP packets which are too small
+(they don't contain a complete header) are dropped and logged, no questions
+asked.  When filtering on fragmented packets, the last fragment will get
+through for TCP/UDP/ICMP packets.
+
+Bugs/Problems
+-------------
+If you have a problem with IP Filter on your operating system, please email
+a copy of the file "BugReport" with the details of your setup as required
+and email to darrenr@pobox.com.
+
+Some general notes.
+-------------------
+   To add/delete a rule from memory, access to the device in /dev is needed,
+allowing non-root maintenaince.  The filter list in kernel memory is built
+from the kernel's heap.  Each packet coming *in* or *out* is checked against
+the appropriate list, rejects dropped, others passed through.  Thus this will
+work on an individual host, not just gateways.  Presently there is only one
+list for all interfaces, the changes required to make it a per-interface list
+require more .o replacements for the kernel.  When checking a packet, the
+packet is compared to the entire list from top to bottom, the last matching
+line being effective.
+
+
+What does what ?
+----------------
+if_fil.o  (Loadable kernel module)
+	- additional kernel routines to check an access list as to whether
+	  or not to drop or pass a packet.  It currently defaults to pass
+	  on all packets.
+
+ipfstat
+	- digs through your kernel (need to check #define VMUNIX in fils.c)
+	  and /dev/kmem for the access filter list and mini stats table.
+	  Obviously needs to be run priviledged if required.
+
+ipf
+	- reads the files passed as parameters as input files containing new
+	  filter rules to add/delete to the kernel list.  The lines are
+	  inserted in order; the first line is inserted first, and ends up
+	  first on the list.  Subsequent invocations append to the list
+	  unless specified otherwise.
+
+ipftest
+	- test the ruleset given by filename.  Reads in the ruleset and then
+	  waits for stdin.
+
+	  See the man pages (ipf.1, ipftest.1, ipfstat.8) for more detailed
+	  information on what the above do.
+
+mkfilters
+	- suggests a set of filter rules to employ and suggests how to add
+	  routes to back these up.
+
+BNF
+	- BNF rule set for the filter rules
+
+Darren Reed
+darrenr@pobox.com
+http://coombs.anu.edu.au/~avalon/ip-filter.html

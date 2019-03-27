@@ -1,0 +1,41 @@
+
+
+#------------------------------------------------------------------------------
+# $File: map,v 1.4 2015/08/10 05:18:27 christos Exp $
+# map:  file(1) magic for Map data
+#
+
+# Garmin .FIT files http://pub.ks-and-ks.ne.jp/cycling/edge500_fit.shtml
+8	string	.FIT		FIT Map data
+>15	byte	0
+>>35	belong	x		\b, unit id %d
+>>39	lelong	x		\b, serial %u
+# http://pub.ks-and-ks.ne.jp/cycling/edge500_fit.shtml
+# 20 years after unix epoch
+# TZ=GMT date -d '1989-12-31 0:00' +%s
+>>43	leldate+631065600	x	\b, %s
+
+>>47	leshort x		\b, manufacturer %d
+>>47	leshort	1		\b (garmin)
+>>49	leshort x		\b, product %d
+>>53	byte	x		\b, type %d
+>>53	byte	1		\b (Device)
+>>53	byte	2		\b (Settings)
+>>53	byte	3		\b (Sports/Cycling)
+>>53	byte	4		\b (Activity)
+>>53	byte	8		\b (Elevations)
+>>53	byte	10		\b (Totals)
+
+# TOM TOM GPS watches ttbin files:
+# http://github.com/ryanbinns/ttwatch/tree/master/ttbin
+# From: Daniel Lenski
+0	byte	0x20
+>1	leshort	0x0007
+>>0x76	byte	0x20
+>>>0x77	leshort	0x0075		TomTom activity file, v7
+>>>>8	leldate	x		(%s,
+>>>>3	byte    x		device firmware %d.
+>>>>4	byte	x		\b%d.
+>>>>5	byte	x		\b%d,
+>>>>6	leshort	x		product ID %04d)
+

@@ -1,0 +1,100 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 31, 2011
+.Dt VM_PAGE_AFLAG 9
+.Os
+.Sh NAME
+.Nm vm_page_aflag_clear , vm_page_aflag_set , vm_page_reference
+.Nd "change page atomic flags"
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_page.h
+.Ft void
+.Fn vm_page_aflag_clear "vm_page_t m" "uint8_t bits"
+.Ft void
+.Fn vm_page_aflag_set "vm_page_t m" "uint8_t bits"
+.Ft void
+.Fn vm_page_reference "vm_page_t m"
+.Sh DESCRIPTION
+The
+.Fn vm_page_aflag_clear
+atomically clears the specified bits on the page's
+.Va aflags .
+.Pp
+The
+.Fn vm_page_aflag_set
+atomically sets the specified bits on the page's
+.Va aflags .
+.Pp
+The
+.Fn vm_page_reference m
+call is the same as
+.Bd -literal -offset indent
+vm_page_aflag_set(m, PGA_REFERENCED);
+.Ed
+.Lp
+and is the recommended way to mark the page as referenced from
+third-party kernel modules.
+.Pp
+These functions neither block nor require any locks to be held
+around the calls for correctness.
+.Pp
+The functions arguments are:
+.Bl -tag -width ".Fa bits"
+.It Fa m
+The page whose
+.Va aflags
+are updated.
+.It Fa bits
+The bits that are set or cleared on the page's flags.
+.El
+.Pp
+The following
+.Va aflags
+can be set or cleared:
+.Bl -tag -width ".Fa PGA_REFERENCED"
+.It Fa PGA_REFERENCED
+The bit may be set to indicate that the page has been recently accessed.
+For instance,
+.Xr pmap 9
+sets this bit to reflect the accessed attribute of the page mapping
+typically updated by processor's memory management unit on the page access.
+.It Fa PGA_WRITEABLE
+A writeable mapping for the page may exist.
+.El
+.Pp
+Both
+.Dv PGA_REFERENCED
+and
+.Dv PGA_WRITEABLE
+bits are only valid for the managed pages.
+.Sh AUTHORS
+This manual page was written by
+.An Chad David Aq Mt davidc@acns.ab.ca .

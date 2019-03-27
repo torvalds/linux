@@ -1,0 +1,203 @@
+.\"
+.\" Copyright (c) 1995 David Hovemeyer <daveho@infocom.com>
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 23, 2018
+.Dt SEMCTL 2
+.Os
+.Sh NAME
+.Nm semctl
+.Nd control operations on a semaphore set
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/ipc.h
+.In sys/sem.h
+.Ft int
+.Fn semctl "int semid" "int semnum" "int cmd" ...
+.Sh DESCRIPTION
+The
+.Fn semctl
+system call
+performs the operation indicated by
+.Fa cmd
+on the semaphore set indicated by
+.Fa semid .
+A fourth argument, a
+.Fa "union semun arg" ,
+is required for certain values of
+.Fa cmd .
+For the commands that use the
+.Fa arg
+argument,
+.Fa "union semun"
+must be defined as follows:
+.Bd -literal
+union semun {
+        int     val;            /* value for SETVAL */
+        struct  semid_ds *buf;  /* buffer for IPC_STAT & IPC_SET */
+        u_short *array;         /* array for GETALL & SETALL */
+};
+.Ed
+Non-portable software may define
+.Dv _WANT_SEMUN
+before including
+.Pa sys/sem.h
+to use the system definition of
+.Fa "union semun" .
+.Pp
+Commands are performed as follows:
+.\"
+.\" This section based on Stevens, _Advanced Programming in the UNIX
+.\" Environment_.
+.\"
+.Bl -tag -width IPC_RMIDXXX
+.It Dv IPC_STAT
+Fetch the semaphore set's
+.Fa "struct semid_ds" ,
+storing it in the memory pointed to by
+.Fa arg.buf .
+.It Dv IPC_SET
+Changes the
+.Fa sem_perm.uid ,
+.Fa sem_perm.gid ,
+and
+.Fa sem_perm.mode
+members of the semaphore set's
+.Fa "struct semid_ds"
+to match those of the struct pointed to by
+.Fa arg.buf .
+The calling process's effective uid must
+match either
+.Fa sem_perm.uid
+or
+.Fa sem_perm.cuid ,
+or it must have superuser privileges.
+.It IPC_RMID
+Immediately removes the semaphore set from the system.
+The calling
+process's effective uid must equal the semaphore set's
+.Fa sem_perm.uid
+or
+.Fa sem_perm.cuid ,
+or the process must have superuser privileges.
+.It Dv GETVAL
+Return the value of semaphore number
+.Fa semnum .
+.It Dv SETVAL
+Set the value of semaphore number
+.Fa semnum
+to
+.Fa arg.val .
+Outstanding adjust on exit values for this semaphore in any process
+are cleared.
+.It Dv GETPID
+Return the pid of the last process to perform an operation on
+semaphore number
+.Fa semnum .
+.It Dv GETNCNT
+Return the number of processes waiting for semaphore number
+.Fa semnum Ns 's
+value to become greater than its current value.
+.It Dv GETZCNT
+Return the number of processes waiting for semaphore number
+.Fa semnum Ns 's
+value to become 0.
+.It Dv GETALL
+Fetch the value of all of the semaphores in the set into the
+array pointed to by
+.Fa arg.array .
+.It Dv SETALL
+Set the values of all of the semaphores in the set to the values
+in the array pointed to by
+.Fa arg.array .
+Outstanding adjust on exit values for all semaphores in this set,
+in any process are cleared.
+.El
+.Pp
+The
+.Vt "struct semid_ds"
+is defined as follows:
+.\"
+.\" Taken straight from <sys/sem.h>.
+.\"
+.Bd -literal
+struct semid_ds {
+        struct  ipc_perm sem_perm;      /* operation permission struct */
+        struct  sem *__sem_base;  /* kernel data, don't use */
+        u_short sem_nsems;      /* number of sems in set */
+        time_t  sem_otime;      /* last operation time */
+        time_t  sem_ctime;      /* last change time */
+                                /* Times measured in secs since */
+                                /* 00:00:00 GMT, Jan. 1, 1970 */
+};
+.Ed
+.Sh RETURN VALUES
+On success, when
+.Fa cmd
+is one of
+.Dv GETVAL , GETPID , GETNCNT
+or
+.Dv GETZCNT ,
+.Fn semctl
+returns the corresponding value; otherwise, 0 is returned.
+On failure, -1 is returned, and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn semctl
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+No semaphore set corresponds to
+.Fa semid .
+.It Bq Er EINVAL
+The
+.Fa semnum
+argument
+is not in the range of valid semaphores for given semaphore set.
+.It Bq Er EPERM
+The calling process's effective uid does not match the uid of
+the semaphore set's owner or creator.
+.It Bq Er EACCES
+Permission denied due to mismatch between operation and mode of
+semaphore set.
+.It Bq Er ERANGE
+.Dv SETVAL
+or
+.Dv SETALL
+attempted to set a semaphore outside the allowable range
+.Bq 0 .. Dv SEMVMX .
+.El
+.Sh SEE ALSO
+.Xr semget 2 ,
+.Xr semop 2
+.Sh BUGS
+.Dv SETALL
+may update some semaphore elements before returning an error.

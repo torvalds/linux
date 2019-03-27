@@ -1,0 +1,27 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/sun50i-a64-ccu.h>
+#include <dt-bindings/reset/sun50i-a64-ccu.h>
+
+/ {
+	compatible = "allwinner,sun50i-a64";
+};
+
+&{/soc} {
+	ths: thermal_sensor@1c25000 {
+		compatible = "allwinner,sun50i-a64-ths";
+		reg = <0x01c25000 0x100>;
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&ccu CLK_BUS_THS>, <&ccu CLK_THS>;
+		clock-names = "apb", "ths";
+		resets = <&ccu RST_BUS_THS>;
+		reset-names = "apb";
+		#thermal-sensor-cells = <2>;
+		status = "okay";
+
+		nvmem-cells = <&ths_calib>;
+		nvmem-cell-names = "ths-calib";
+	};
+};

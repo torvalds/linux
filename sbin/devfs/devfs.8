@@ -1,0 +1,384 @@
+.\"
+.\" Copyright (c) 2002 Dima Dorfman.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 5, 2016
+.Dt DEVFS 8
+.Os
+.Sh NAME
+.Nm devfs
+.Nd "DEVFS control"
+.Sh SYNOPSIS
+.Nm
+.Op Fl m Ar mount-point
+.Ar keyword
+.Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+utility provides an interface to manipulate properties of
+.Xr devfs 5
+mounts.
+.Pp
+The
+.Ar keyword
+argument determines the context for
+the rest of the arguments.
+For example,
+most of the commands related to the rule subsystem must be preceded by the
+.Cm rule
+keyword.
+The following flags are common to all keywords:
+.Bl -tag -width 15n
+.It Fl m Ar mount-point
+Operate on
+.Ar mount-point ,
+which is expected to be a
+.Xr devfs 5
+mount.
+If this option is not specified,
+.Nm
+operates on
+.Pa /dev .
+.El
+.Ss Rule Subsystem
+The
+.Xr devfs 5
+rule subsystem provides a way for the administrator of a system to control
+the attributes of DEVFS nodes.
+.\" XXX devfs node?  entry?  what?
+Each DEVFS mount-point has a
+.Dq ruleset ,
+or a list of rules,
+associated with it.
+When a device driver creates a new node,
+all the rules in the ruleset associated with each mount-point are applied
+(see below) before the node becomes visible to the userland.
+This permits the administrator to change the properties,
+including the visibility,
+of certain nodes.
+For example, one might want to hide all disk nodes in a
+.Xr jail 2 Ns 's
+.Pa /dev .
+.Ss Rule Manipulation
+Rule manipulation commands follow the
+.Cm rule
+keyword.
+The following flags are common to all of the rule manipulation commands:
+.Bl -tag -width 15n
+.It Fl s Ar ruleset
+Operate on the ruleset with the number
+.Ar ruleset .
+If this is not specified,
+the commands operate on the ruleset currently associated with the
+specified mount-point.
+.El
+.Pp
+The following commands are recognized:
+.Bl -tag -width 15n
+.It Cm rule add Oo Ar rulenum Oc Ar rulespec
+Add the rule described by
+.Ar rulespec
+(defined below)
+to the ruleset.
+The rule has the number
+.Ar rulenum
+if it is explicitly specified;
+otherwise, the rule number is automatically determined by the kernel.
+.It Cm rule apply Ar rulenum | rulespec
+Apply rule number
+.Ar rulenum
+or the rule described by
+.Ar rulespec
+to the mount-point.
+Rules that are
+.Dq applied
+have their conditions checked against all nodes
+in the mount-point and the actions taken if they match.
+.It Cm rule applyset
+Apply all the rules in the ruleset to the mount-point
+(see above for the definition of
+.Dq apply ) .
+.It Cm rule del Ar rulenum
+Delete rule number
+.Ar rulenum
+from the ruleset.
+.It Cm rule delset
+Delete all rules from the ruleset.
+.It Cm rule show Op Ar rulenum
+Display the rule number
+.Ar rulenum ,
+or all the rules in the ruleset.
+The output lines (one line per rule) are expected to be valid
+.Ar rulespec Ns s .
+.It Cm rule showsets
+Report the numbers of existing rulesets.
+.It Cm ruleset Ar ruleset
+Set ruleset number
+.Ar ruleset
+as the current ruleset for the mount-point.
+.El
+.Ss Rule Specification
+Rules have two parts: the conditions and the actions.
+The conditions determine which DEVFS nodes the rule matches
+and the actions determine what should be done when a rule matches a node.
+For example, a rule can be written that sets the GID to
+.Dq Li operator
+for all devices of type tape.
+If the first token of a rule specification is a single dash
+.Pq Sq Fl ,
+rules are read from the standard input and the rest of the specification
+is ignored.
+.Pp
+The following conditions are recognized.
+Conditions are ANDed together when matching a device;
+if OR is desired, multiple rules can be written.
+.Bl -tag -width 15n
+.It Cm path Ar pattern
+Matches any node with a path that matches
+.Ar pattern ,
+which is interpreted as a
+.Xr glob 3 Ns -style
+pattern.
+.It Cm type Ar devtype
+Matches any node that is of type
+.Ar devtype .
+Valid types are
+.Cm disk , mem , tape
+and
+.Cm tty .
+.El
+.Pp
+The following actions are recognized.
+Although there is no explicit delimiter between conditions and actions,
+they may not be intermixed.
+.Bl -tag -width 15n
+.It Cm group Ar gid
+Set the GID of the node to
+.Ar gid ,
+which may be a group name
+(looked up in
+.Pa /etc/group )
+or number.
+.It Cm hide
+Hide the node.
+Nodes may later be revived manually with
+.Xr mknod 8
+or with the
+.Cm unhide
+action.
+Hiding a directory node effectively hides all of its child nodes.
+.It Cm include Ar ruleset
+Apply all the rules in ruleset number
+.Ar ruleset
+to the node.
+This does not necessarily result in any changes to the node
+(e.g., if none of the rules in the included ruleset match).
+Include commands in the referenced
+.Ar ruleset
+are not resolved.
+.It Cm mode Ar filemode
+Set the file mode to
+.Ar filemode ,
+which is interpreted as in
+.Xr chmod 1 .
+.It Cm user Ar uid
+Set the UID to
+.Ar uid ,
+which may be a user name
+(looked up in
+.Pa /etc/passwd )
+or number.
+.It Cm unhide
+Unhide the node.
+If the node resides in a subdirectory,
+all parent directory nodes must be visible to be able to access the node.
+.El
+.Sh IMPLEMENTATION NOTES
+Rulesets are created by the kernel at the first reference
+and destroyed when the last reference disappears.
+E.g., a ruleset is created when a rule is added to it or when it is set
+as the current ruleset for a mount-point, and
+a ruleset is destroyed when the last rule in it is deleted
+and no other references to it exist
+(i.e., it is not included by any rules and it is not the current ruleset
+for any mount-point).
+.Pp
+Ruleset number 0 is the default ruleset for all new mount-points.
+It is always empty, cannot be modified or deleted, and does not show up
+in the output of
+.Cm showsets .
+.Pp
+Rules and rulesets are unique to the entire system,
+not a particular mount-point.
+I.e., a
+.Cm showsets
+will return the same information regardless of the mount-point specified with
+.Fl m .
+The mount-point is only relevant when changing what its current ruleset is
+or when using one of the apply commands.
+.Sh FILES
+.Bl -tag -width "Pa /usr/share/examples/etc/devfs.conf" -compact
+.It Pa /etc/defaults/devfs.rules
+Default
+.Nm
+configuration file.
+.It Pa /etc/devfs.rules
+Local
+.Nm
+configuration file.
+Rulesets in here override those in
+.Pa /etc/defaults/devfs.rules
+with the same ruleset number, otherwise the two files are effectively merged.
+.It Pa /etc/devfs.conf
+Boot-time
+.Nm
+configuration file.
+.It Pa /usr/share/examples/etc/devfs.conf
+Example boot-time
+.Nm
+configuration file.
+.El
+.Sh EXAMPLES
+When the system boots,
+the only ruleset that exists is ruleset number 0;
+since the latter may not be modified, we have to create another ruleset
+before adding rules.
+Note that since most of the following examples do not specify
+.Fl m ,
+the operations are performed on
+.Pa /dev
+(this only matters for things that might change the properties of nodes).
+.Pp
+Specify that ruleset 10 should be the current ruleset for
+.Pa /dev
+(if it does not already exist, it is created):
+.Pp
+.Dl "devfs ruleset 10"
+.Pp
+Add a rule that causes all nodes that have a path that matches
+.Dq Li speaker
+(this is only
+.Pa /dev/speaker )
+to have the file mode 666 (read and write for all).
+Note that if any such nodes already exist, their mode will not be changed
+unless this rule (or ruleset) is explicitly applied (see below).
+The mode
+.Em will
+be changed if the node is created
+.Em after
+the rule is added
+(e.g., the
+.Pa atspeaker
+module is loaded after the above rule is added):
+.Pp
+.Dl "devfs rule add path speaker mode 666"
+.Pp
+Apply all the rules in the current ruleset to all the existing nodes.
+E.g., if the below rule was added after
+.Pa /dev/speaker
+was created,
+this command will cause its file mode to be changed to 666
+as prescribed by the rule:
+.Pp
+.Dl "devfs rule applyset"
+.Pp
+For all devices with a path that matches
+.Dq Li snp* ,
+set the file mode to 660 and the GID to
+.Dq Li snoopers .
+This permits users in the
+.Dq Li snoopers
+group to use the
+.Xr snp 4
+devices
+(quoting the argument to
+.Cm path
+is often necessary to disable the shell's globbing features):
+.Pp
+.Dl devfs rule add path "snp*" mode 660 group snoopers
+.Pp
+Add a rule to ruleset number 20.
+Since this ruleset is not the current ruleset for any mount-points,
+this rule is never applied automatically (unless ruleset 20 becomes
+a current ruleset for some mount-point at a later time):
+.Pp
+.Dl "devfs rule -s 20 add type disk group wheel"
+.Pp
+Explicitly apply all rules in ruleset number 20 to the DEVFS mount on
+.Pa /my/jail/dev .
+It does not matter that ruleset 20 is not the current ruleset for that
+mount-point; the rules are still applied:
+.Pp
+.Dl "devfs -m /my/jail/dev rule -s 20 applyset"
+.Pp
+Since the following rule has no conditions, the action
+.Pq Cm hide
+will be applied to all nodes:
+.Pp
+.Dl "devfs rule apply hide"
+.Pp
+Since hiding all nodes is not very useful, we can undo it.
+The following applies
+.Cm unhide
+to all the nodes,
+causing them to reappear:
+.Pp
+.Dl "devfs rule apply unhide"
+.Pp
+Add all the rules from the file
+.Pa my_rules
+to ruleset 10:
+.Pp
+.Dl "devfs rule -s 10 add - < my_rules"
+.Pp
+The below copies all the rules from ruleset 20 into ruleset 10.
+The rule numbers are preserved,
+but ruleset 10 may already have rules with non-conflicting numbers
+(these will be preserved).
+Since
+.Cm show
+outputs valid rules,
+this feature can be used to copy rulesets:
+.Pp
+.Dl "devfs rule -s 20 show | devfs rule -s 10 add -"
+.Sh SEE ALSO
+.Xr chmod 1 ,
+.Xr jail 2 ,
+.Xr glob 3 ,
+.Xr devfs 5 ,
+.Xr devfs.conf 5 ,
+.Xr devfs.rules 5 ,
+.Xr chown 8 ,
+.Xr jail 8 ,
+.Xr mknod 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Dima Dorfman

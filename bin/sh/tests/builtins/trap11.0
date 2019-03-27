@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+# Check that the return statement will not break the USR1 trap, ie. all
+# trap commands are executed before the script resumes.
+
+result=$(${SH} -c 'trap "printf trap; echo ped" USR1; f() { return $(kill -USR1 $$); }; f')
+test $? -eq 0 || exit 1
+test "$result" = trapped || exit 1

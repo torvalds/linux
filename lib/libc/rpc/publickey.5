@@ -1,0 +1,42 @@
+.\" $FreeBSD$
+.\" @(#)publickey.5	2.1 88/08/07 4.0 RPCSRC; from 1.6 88/02/29 SMI;
+.Dd October 19, 1987
+.Dt PUBLICKEY 5
+.Os
+.Sh NAME
+.Nm publickey
+.Nd "public key database"
+.Sh SYNOPSIS
+.Pa /etc/publickey
+.Sh DESCRIPTION
+.Pa /etc/publickey
+is the public key database used for secure
+RPC (Remote Procedure Calls).
+Each entry in
+the database consists of a network user
+name (which may either refer to
+a user or a hostname), followed by the user's
+public key (in hex
+notation), a colon, and then the user's
+secret key encrypted with
+its login password (also in hex notation).
+.Pp
+This file is altered either by the user through the
+.Xr chkey 1
+command or by the system administrator through the
+.Xr newkey 8
+command.
+The file
+.Pa /etc/publickey
+should only contain data on the
+.Tn NIS
+master machine, where it
+is converted into the
+.Tn NIS
+database
+.Pa publickey.byname .
+.Sh SEE ALSO
+.Xr chkey 1 ,
+.Xr publickey 3 ,
+.Xr newkey 8 ,
+.Xr ypupdated 8

@@ -1,0 +1,23 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.1 {
+	mp_gcd;
+	mp_itom;
+	mp_madd;
+	mp_mcmp;
+	mp_mdiv;
+	mp_mfree;
+	mp_min;
+	mp_mout;
+	mp_move;
+	mp_msqrt;
+	mp_msub;
+	mp_mtox;
+	mp_mult;
+	mp_pow;
+	mp_rpow;
+	mp_sdiv;
+	mp_xtom;
+};

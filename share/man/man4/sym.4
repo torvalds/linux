@@ -1,0 +1,330 @@
+.\"
+.\"  Device driver optimized for the Symbios/LSI 53C896/53C895A/53C1010
+.\"  PCI SCSI controllers.
+.\"
+.\"  Copyright (C) 1999-2000  Gerard Roudier <groudier@club-internet.fr>
+.\"
+.\"  This driver also supports the following Symbios/LSI PCI SCSI chips:
+.\"	53C810A, 53C825A, 53C860, 53C875, 53C876, 53C885, 53C895,
+.\"	53C810,  53C815,  53C825 and the 53C1510D is 53C8XX mode.
+.\"
+.\"
+.\"  This driver for FreeBSD-CAM is derived from the Linux sym53c8xx driver.
+.\"  Copyright (C) 1998-1999  Gerard Roudier
+.\"
+.\"  The sym53c8xx driver is derived from the ncr53c8xx driver that had been
+.\"  a port of the FreeBSD ncr driver to Linux-1.2.13.
+.\"
+.\"  The original ncr driver has been written for 386bsd and FreeBSD by
+.\"          Wolfgang Stanglmeier        <wolf@cologne.de>
+.\"          Stefan Esser                <se@mi.Uni-Koeln.de>
+.\"  Copyright (C) 1994  Wolfgang Stanglmeier
+.\"
+.\"  The initialization code, and part of the code that addresses
+.\"  FreeBSD-CAM services is based on the aic7xxx driver for FreeBSD-CAM
+.\"  written by Justin T. Gibbs.
+.\"
+.\"  Other major contributions:
+.\"
+.\"  NVRAM detection and reading.
+.\"  Copyright (C) 1997 Richard Waltham <dormouse@farsrobt.demon.co.uk>
+.\"
+.\" ----------------------------------------------------------------------------
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 19, 2004
+.Dt SYM 4
+.Os
+.Sh NAME
+.Nm sym
+.Nd NCR/Symbios/LSI Logic 53C8XX PCI SCSI host adapter driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
+.Cd "device sym"
+.Pp
+To disable PCI parity checking (needed for broken bridges):
+.Cd "options SYM_SETUP_PCI_PARITY=<boolean>"
+.Pp
+To control driver probing against HVD buses:
+.Cd "options SYM_SETUP_SCSI_DIFF=<bit combination>"
+.Pp
+To control chip attachment balancing between the ncr driver and this driver:
+.Cd "options SYM_SETUP_LP_PROBE_MAP=<bit combination>"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+sym_load="YES"
+.Ed
+.Sh DESCRIPTION
+This driver provides support for the Symbios/LSI Logic 53C8XX
+PCI SCSI controllers.
+.Pp
+Driver features include support for wide SCSI busses and fast10, fast20,
+fast40 and fast80-dt synchronous data transfers depending on controller
+capabilities.
+It also provides generic SCSI features such as tagged command
+queueing and auto-request sense.
+This driver is configured by default
+for a maximum of 446 outstanding commands per bus, 8 LUNs per target
+and 64 tagged tasks per LUN.
+These numbers are not so much limited by design
+as they are considered reasonable values for current SCSI technology.
+These values can be increased by changing appropriate
+constants in driver header files (not recommended).
+.Pp
+This driver supports the entire Symbios 53C8XX family of PCI SCSI
+controllers.
+It also offers the advantage of architectural improvements available
+only with newer chips.
+.Pp
+.Nm
+notably handles phase mismatch from SCRIPTS for the 53C896, 53C895A,
+and 53C1010 cores.
+As a result, it guarantees that no more than 1 interrupt
+per IO completion is delivered to the CPU, and that the SCRIPTS processor
+is never stalled waiting for CPU attention in normal situations.
+.Pp
+.Nm
+also uses LOAD/STORE SCRIPTS instructions for chips that support it.
+Only the early 810, 815 and 825 NCR chips do not support LOAD/STORE.
+Use of LOAD/STORE instead of MEMORY MOVE allows SCRIPTS to access IO
+registers internal to the chip (no external PCI cycles).
+As a result, the driver guarantees that no PCI self-mastering will occur
+for chips that support LOAD/STORE.
+.Pp
+LOAD/STORE instructions are also faster than MEMORY MOVE because
+they do not involve the chip DMA FIFO and are coded on 2 DWORDs
+instead of 3.
+.Pp
+For the early NCR 810, 815 and 825 chips, the driver uses a separate
+SCRIPTS set that uses MEMORY MOVE instructions for data movements.
+This is because LOAD/STORE are not supported by these chips.
+.Pp
+HVD/LVD capable controllers (895, 895A, 896, and 897) report
+the actual bus mode in the STEST4 chip IO registers.
+This feature
+allows the driver to safely probe against bus mode and to set up the chip
+accordingly.
+By default the driver only supports HVD for these chips.
+For other chips that can support HVD but not LVD, the driver has to probe
+implementation dependent registers (GPIO) in order to detect HVD bus mode.
+Only HVD implementations that conform with Symbios Logic recommendations can
+be detected by the driver.
+When the
+.Ar SYM_SETUP_SCSI_DIFF
+kernel option is assigned
+a value of 1, the driver will also probe against HVD for 825a, 875, 876 and
+885 chips, assuming Symbios Logic compatible implementation of HVD.
+.Pp
+When the
+.Ar SYM_SETUP_PCI_PARITY
+is assigned a value of 0, the
+driver will not enable PCI parity checking for 53C8XX devices.
+PCI parity
+checking should not be an option for PCI SCSI controllers, but some
+systems have been reported to fail using 53C8XX chips, due to spurious or
+permanent PCI parity errors detected.
+This option is supplied for
+convenience but it is neither recommended nor supported.
+.Pp
+This driver offers other options
+that are not currently exported to the user.
+They are defined and documented in the
+.Pa sym_conf.h
+driver file.
+Changing these options is not recommended unless absolutely necessary.
+Some of these
+options are planned to be exported through
+.Xr sysctl 3
+or an equivalent mechanism
+in a future driver releases and therefore,
+no compatibility is guaranteed.
+.Pp
+At initialization, the driver tries to detect and read user settings from
+controller NVRAM.
+The Symbios/Logic NVRAM layout and the Tekram NVRAM
+layout are currently supported.
+If the reading of the NVRAM succeeds, the
+following settings are taken into account and reported to CAM:
+.Bl -column "SCSI parity checking" "Symbios"
+.It Em "Host settings	Symbios	Tekram"
+.It "SCSI parity checking	Y	N"
+.It "Host SCSI ident 	Y	Y"
+.It "Verbose messages	Y	N"
+.It "Scan targets hi-lo	Y	N"
+.It "Avoid SCSI bus reset	Y	N"
+.El
+.Bl -column "Synchronous period" "Symbios"
+.It Em "Device settings	Symbios	Tekram"
+.It "Synchronous period	Y	Y"
+.It "SCSI bus width	Y	Y"
+.It "Queue tag enable	Y	Y"
+.It "Number of tags	NA	Y"
+.It "Disconnect enable	Y	Y"
+.It "Scan at boot time	Y	N"
+.It "Scan LUN	Y	N"
+.El
+.Pp
+Devices that are configured as disabled for 'scan' in the NVRAM are not
+reported to CAM at system start-up.
+They can be discovered later using
+the
+.Ql camcontrol rescan
+command.
+.Pp
+The table below summarizes the main features and capabilities of the
+NCR/Symbios/LSI Logic 53C8XX family of PCI SCSI controllers.
+.Bl -column sym53c1510d "80MHz" "Width" "SRAM" "PCI64"
+.It Em "Chip	Sync	Width	SRAM	PCI64	Supported"
+.It "sym53c810	10MHz	8Bit	N	N	Y"
+.It "sym53c810a	10MHz	8Bit	N	N	Y"
+.It "sym53c815	10MHz	8Bit	N	N	Y"
+.It "sym53c825	10MHz	16Bit	N	N	Y"
+.It "sym53c825a	10MHz	16Bit	4KB	N	Y"
+.It "sym53c860	20MHz	8Bit	N	N	Y"
+.It "sym53c875	20MHz	16Bit	4KB	N	Y"
+.It "sym53c876	20MHz	16Bit	4KB	N	Y"
+.It "sym53c885	20MHz	16Bit	4KB	N	Y"
+.It "sym53c895	40MHz	16Bit	4KB	N	Y"
+.It "sym53c895A	40MHz	16Bit	8KB	N	Y"
+.It "sym53c896	40MHz	16Bit	8KB	Y	Y"
+.It "sym53c897	40MHz	16Bit	8KB	Y	Y"
+.It "sym53c1510D	40MHz	16Bit	4KB	Y	Y"
+.It "sym53c1010	80MHz	16Bit	8KB	Y	Y"
+.El
+.Sh HARDWARE
+The
+.Nm
+driver provides support for the following Symbios/LSI Logic PCI SCSI
+controllers:
+.Pp
+.Bl -bullet -compact
+.It
+.Tn 53C810
+.It
+.Tn 53C810A
+.It
+.Tn 53C815
+.It
+.Tn 53C825
+.It
+.Tn 53C825A
+.It
+.Tn 53C860
+.It
+.Tn 53C875
+.It
+.Tn 53C876
+.It
+.Tn 53C895
+.It
+.Tn 53C895A
+.It
+.Tn 53C896
+.It
+.Tn 53C897
+.It
+.Tn 53C1000
+.It
+.Tn 53C1000R
+.It
+.Tn 53C1010-33
+.It
+.Tn 53C1010-66
+.It
+.Tn 53C1510D
+.El
+.Pp
+The SCSI controllers supported by
+.Nm
+can be either embedded on a motherboard, or on
+one of the following add-on boards:
+.Pp
+.Bl -bullet -compact
+.It
+ASUS SC-200, SC-896
+.It
+Data Technology DTC3130 (all variants)
+.It
+DawiControl DC2976UW
+.It
+Diamond FirePort (all)
+.It
+NCR cards (all)
+.It
+Symbios cards (all)
+.It
+Tekram DC390W, 390U, 390F, 390U2B, 390U2W, 390U3D, and 390U3W
+.It
+Tyan S1365
+.El
+.Sh MISC
+The DEC KZPCA-AA is a rebadged SYM8952U.
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr da 4 ,
+.Xr sa 4 ,
+.Xr scsi 4 ,
+.Xr camcontrol 8
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Gerard Roudier
+and is derived from the
+Linux sym53c8xx driver from the same author.
+The sym53c8xx driver is derived from the ncr53c8xx driver,
+which was ported from the
+.Fx
+.Xr ncr 4
+driver to Linux-1.2.13.
+The original
+.Xr ncr 4
+driver was written for
+.Bx 386
+and
+.Fx
+by
+.An Wolfgang Stanglmeier
+and
+.An Stefan Esser .
+.Sh BUGS
+No known bugs.

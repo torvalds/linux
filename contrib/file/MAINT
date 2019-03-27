@@ -1,0 +1,44 @@
+$File: MAINT,v 1.10 2008/02/05 19:08:11 christos Exp $
+
+Maintenance notes:
+
+I am continuing to maintain the file command. I welcome your help,
+but to make my life easier I'd like to request the following:
+
+- Do not distribute changed versions.
+
+People trying to be helpful occasionally put up their hacked versions
+of the file command for anonymous FTP, and people all over the
+world get copies of the hacked versions.  Within a day or two I am
+getting email from around the world asking me why "my" file command
+won't compile!!! Needless to say this detracts from the limited
+time I have available to work on the actual software. Therefore I
+ask you again to please NOT distribute your changed version. If
+you need to make changes, please add a patch file next to the
+distribution tar, and a README file that clearly explains what you
+are trying to fix.
+
+Thank you for your assistance and cooperation.
+
+Code Overview
+
+This is a rough idea of the control flow from the main program:
+
+file.c	main()
+file.c	process (called for each file)
+		printf file name
+magic.c		magic_file()
+fsmagic.c		file_fsmagic()
+				(handles statbuf modes for DEV)
+			(handles statbuf modes for executable &c.
+			reads data from file.
+funcs.c:		file_buffer()
+compress.c			file_zmagic()
+is_tar.c			file_is_tar()
+softmagic.c			file_softmagic()
+						match() - looks for match against main magic database
+ascmagic.c			file_ascmagic()
+readelf.c		file_tryelf()
+				"unknown"
+
+Christos Zoulas (see README for email address)

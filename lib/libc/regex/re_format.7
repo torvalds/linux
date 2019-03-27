@@ -1,0 +1,492 @@
+.\" Copyright (c) 1992, 1993, 1994 Henry Spencer.
+.\" Copyright (c) 1992, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Henry Spencer.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)re_format.7	8.3 (Berkeley) 3/20/94
+.\" $FreeBSD$
+.\"
+.Dd June 30, 2014
+.Dt RE_FORMAT 7
+.Os
+.Sh NAME
+.Nm re_format
+.Nd POSIX 1003.2 regular expressions
+.Sh DESCRIPTION
+Regular expressions
+.Pq Dq RE Ns s ,
+as defined in
+.St -p1003.2 ,
+come in two forms:
+modern REs (roughly those of
+.Xr egrep 1 ;
+1003.2 calls these
+.Dq extended
+REs)
+and obsolete REs (roughly those of
+.Xr ed 1 ;
+1003.2
+.Dq basic
+REs).
+Obsolete REs mostly exist for backward compatibility in some old programs;
+they will be discussed at the end.
+.St -p1003.2
+leaves some aspects of RE syntax and semantics open;
+`\(dd' marks decisions on these aspects that
+may not be fully portable to other
+.St -p1003.2
+implementations.
+.Pp
+A (modern) RE is one\(dd or more non-empty\(dd
+.Em branches ,
+separated by
+.Ql \&| .
+It matches anything that matches one of the branches.
+.Pp
+A branch is one\(dd or more
+.Em pieces ,
+concatenated.
+It matches a match for the first, followed by a match for the second, etc.
+.Pp
+A piece is an
+.Em atom
+possibly followed
+by a single\(dd
+.Ql \&* ,
+.Ql \&+ ,
+.Ql \&? ,
+or
+.Em bound .
+An atom followed by
+.Ql \&*
+matches a sequence of 0 or more matches of the atom.
+An atom followed by
+.Ql \&+
+matches a sequence of 1 or more matches of the atom.
+An atom followed by
+.Ql ?\&
+matches a sequence of 0 or 1 matches of the atom.
+.Pp
+A
+.Em bound
+is
+.Ql \&{
+followed by an unsigned decimal integer,
+possibly followed by
+.Ql \&,
+possibly followed by another unsigned decimal integer,
+always followed by
+.Ql \&} .
+The integers must lie between 0 and
+.Dv RE_DUP_MAX
+(255\(dd) inclusive,
+and if there are two of them, the first may not exceed the second.
+An atom followed by a bound containing one integer
+.Em i
+and no comma matches
+a sequence of exactly
+.Em i
+matches of the atom.
+An atom followed by a bound
+containing one integer
+.Em i
+and a comma matches
+a sequence of
+.Em i
+or more matches of the atom.
+An atom followed by a bound
+containing two integers
+.Em i
+and
+.Em j
+matches
+a sequence of
+.Em i
+through
+.Em j
+(inclusive) matches of the atom.
+.Pp
+An atom is a regular expression enclosed in
+.Ql ()
+(matching a match for the
+regular expression),
+an empty set of
+.Ql ()
+(matching the null string)\(dd,
+a
+.Em bracket expression
+(see below),
+.Ql .\&
+(matching any single character),
+.Ql \&^
+(matching the null string at the beginning of a line),
+.Ql \&$
+(matching the null string at the end of a line), a
+.Ql \e
+followed by one of the characters
+.Ql ^.[$()|*+?{\e
+(matching that character taken as an ordinary character),
+a
+.Ql \e
+followed by any other character\(dd
+(matching that character taken as an ordinary character,
+as if the
+.Ql \e
+had not been present\(dd),
+or a single character with no other significance (matching that character).
+A
+.Ql \&{
+followed by a character other than a digit is an ordinary
+character, not the beginning of a bound\(dd.
+It is illegal to end an RE with
+.Ql \e .
+.Pp
+A
+.Em bracket expression
+is a list of characters enclosed in
+.Ql [] .
+It normally matches any single character from the list (but see below).
+If the list begins with
+.Ql \&^ ,
+it matches any single character
+(but see below)
+.Em not
+from the rest of the list.
+If two characters in the list are separated by
+.Ql \&- ,
+this is shorthand
+for the full
+.Em range
+of characters between those two (inclusive) in the
+collating sequence,
+.No e.g. Ql [0-9]
+in ASCII matches any decimal digit.
+It is illegal\(dd for two ranges to share an
+endpoint,
+.No e.g. Ql a-c-e .
+Ranges are very collating-sequence-dependent,
+and portable programs should avoid relying on them.
+.Pp
+To include a literal
+.Ql \&]
+in the list, make it the first character
+(following a possible
+.Ql \&^ ) .
+To include a literal
+.Ql \&- ,
+make it the first or last character,
+or the second endpoint of a range.
+To use a literal
+.Ql \&-
+as the first endpoint of a range,
+enclose it in
+.Ql [.\&
+and
+.Ql .]\&
+to make it a collating element (see below).
+With the exception of these and some combinations using
+.Ql \&[
+(see next paragraphs), all other special characters, including
+.Ql \e ,
+lose their special significance within a bracket expression.
+.Pp
+Within a bracket expression, a collating element (a character,
+a multi-character sequence that collates as if it were a single character,
+or a collating-sequence name for either)
+enclosed in
+.Ql [.\&
+and
+.Ql .]\&
+stands for the
+sequence of characters of that collating element.
+The sequence is a single element of the bracket expression's list.
+A bracket expression containing a multi-character collating element
+can thus match more than one character,
+e.g.\& if the collating sequence includes a
+.Ql ch
+collating element,
+then the RE
+.Ql [[.ch.]]*c
+matches the first five characters
+of
+.Ql chchcc .
+.Pp
+Within a bracket expression, a collating element enclosed in
+.Ql [=
+and
+.Ql =]
+is an equivalence class, standing for the sequences of characters
+of all collating elements equivalent to that one, including itself.
+(If there are no other equivalent collating elements,
+the treatment is as if the enclosing delimiters were
+.Ql [.\&
+and
+.Ql .] . )
+For example, if
+.Ql x
+and
+.Ql y
+are the members of an equivalence class,
+then
+.Ql [[=x=]] ,
+.Ql [[=y=]] ,
+and
+.Ql [xy]
+are all synonymous.
+An equivalence class may not\(dd be an endpoint
+of a range.
+.Pp
+Within a bracket expression, the name of a
+.Em character class
+enclosed in
+.Ql [:
+and
+.Ql :]
+stands for the list of all characters belonging to that
+class.
+Standard character class names are:
+.Bl -column "alnum" "digit" "xdigit" -offset indent
+.It Em "alnum	digit	punct"
+.It Em "alpha	graph	space"
+.It Em "blank	lower	upper"
+.It Em "cntrl	print	xdigit"
+.El
+.Pp
+These stand for the character classes defined in
+.Xr ctype 3 .
+A locale may provide others.
+A character class may not be used as an endpoint of a range.
+.Pp
+A bracketed expression like
+.Ql [[:class:]]
+can be used to match a single character that belongs to a character
+class.
+The reverse, matching any character that does not belong to a specific
+class, the negation operator of bracket expressions may be used:
+.Ql [^[:class:]] .
+.Pp
+There are two special cases\(dd of bracket expressions:
+the bracket expressions
+.Ql [[:<:]]
+and
+.Ql [[:>:]]
+match the null string at the beginning and end of a word respectively.
+A word is defined as a sequence of word characters
+which is neither preceded nor followed by
+word characters.
+A word character is an
+.Em alnum
+character (as defined by
+.Xr ctype 3 )
+or an underscore.
+This is an extension,
+compatible with but not specified by
+.St -p1003.2 ,
+and should be used with
+caution in software intended to be portable to other systems.
+The additional word delimiters
+.Ql \e<
+and
+.Ql \e>
+are provided to ease compatibility with traditional
+SVR4
+systems but are not portable and should be avoided.
+.Pp
+In the event that an RE could match more than one substring of a given
+string,
+the RE matches the one starting earliest in the string.
+If the RE could match more than one substring starting at that point,
+it matches the longest.
+Subexpressions also match the longest possible substrings, subject to
+the constraint that the whole match be as long as possible,
+with subexpressions starting earlier in the RE taking priority over
+ones starting later.
+Note that higher-level subexpressions thus take priority over
+their lower-level component subexpressions.
+.Pp
+Match lengths are measured in characters, not collating elements.
+A null string is considered longer than no match at all.
+For example,
+.Ql bb*
+matches the three middle characters of
+.Ql abbbc ,
+.Ql (wee|week)(knights|nights)
+matches all ten characters of
+.Ql weeknights ,
+when
+.Ql (.*).*\&
+is matched against
+.Ql abc
+the parenthesized subexpression
+matches all three characters, and
+when
+.Ql (a*)*
+is matched against
+.Ql bc
+both the whole RE and the parenthesized
+subexpression match the null string.
+.Pp
+If case-independent matching is specified,
+the effect is much as if all case distinctions had vanished from the
+alphabet.
+When an alphabetic that exists in multiple cases appears as an
+ordinary character outside a bracket expression, it is effectively
+transformed into a bracket expression containing both cases,
+.No e.g. Ql x
+becomes
+.Ql [xX] .
+When it appears inside a bracket expression, all case counterparts
+of it are added to the bracket expression, so that (e.g.)
+.Ql [x]
+becomes
+.Ql [xX]
+and
+.Ql [^x]
+becomes
+.Ql [^xX] .
+.Pp
+No particular limit is imposed on the length of REs\(dd.
+Programs intended to be portable should not employ REs longer
+than 256 bytes,
+as an implementation can refuse to accept such REs and remain
+POSIX-compliant.
+.Pp
+Obsolete
+.Pq Dq basic
+regular expressions differ in several respects.
+.Ql \&|
+is an ordinary character and there is no equivalent
+for its functionality.
+.Ql \&+
+and
+.Ql ?\&
+are ordinary characters, and their functionality
+can be expressed using bounds
+.Po
+.Ql {1,}
+or
+.Ql {0,1}
+respectively
+.Pc .
+Also note that
+.Ql x+
+in modern REs is equivalent to
+.Ql xx* .
+The delimiters for bounds are
+.Ql \e{
+and
+.Ql \e} ,
+with
+.Ql \&{
+and
+.Ql \&}
+by themselves ordinary characters.
+The parentheses for nested subexpressions are
+.Ql \e(
+and
+.Ql \e) ,
+with
+.Ql \&(
+and
+.Ql \&)
+by themselves ordinary characters.
+.Ql \&^
+is an ordinary character except at the beginning of the
+RE or\(dd the beginning of a parenthesized subexpression,
+.Ql \&$
+is an ordinary character except at the end of the
+RE or\(dd the end of a parenthesized subexpression,
+and
+.Ql \&*
+is an ordinary character if it appears at the beginning of the
+RE or the beginning of a parenthesized subexpression
+(after a possible leading
+.Ql \&^ ) .
+Finally, there is one new type of atom, a
+.Em back reference :
+.Ql \e
+followed by a non-zero decimal digit
+.Em d
+matches the same sequence of characters
+matched by the
+.Em d Ns th
+parenthesized subexpression
+(numbering subexpressions by the positions of their opening parentheses,
+left to right),
+so that (e.g.)
+.Ql \e([bc]\e)\e1
+matches
+.Ql bb
+or
+.Ql cc
+but not
+.Ql bc .
+.Sh SEE ALSO
+.Xr regex 3
+.Rs
+.%T Regular Expression Notation
+.%R IEEE Std
+.%N 1003.2
+.%P section 2.8
+.Re
+.Sh BUGS
+Having two kinds of REs is a botch.
+.Pp
+The current
+.St -p1003.2
+spec says that
+.Ql \&)
+is an ordinary character in
+the absence of an unmatched
+.Ql \&( ;
+this was an unintentional result of a wording error,
+and change is likely.
+Avoid relying on it.
+.Pp
+Back references are a dreadful botch,
+posing major problems for efficient implementations.
+They are also somewhat vaguely defined
+(does
+.Ql a\e(\e(b\e)*\e2\e)*d
+match
+.Ql abbbd ? ) .
+Avoid using them.
+.Pp
+.St -p1003.2
+specification of case-independent matching is vague.
+The
+.Dq one case implies all cases
+definition given above
+is current consensus among implementors as to the right interpretation.
+.Pp
+The syntax for word boundaries is incredibly ugly.

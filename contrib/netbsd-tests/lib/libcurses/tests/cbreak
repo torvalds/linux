@@ -1,0 +1,18 @@
+include start
+# setting noecho stops getch setting cbreak itself so we should need
+# a newline before getch returns, check this works first.
+call OK noecho
+input "abcd\n"
+call 0x61 getch
+noinput
+call 0x62 getch
+noinput
+call 0x63 getch
+noinput
+call 0x64 getch
+noinput
+call 0x0a getch
+# set cbreak, getch should return without needing a newline
+input "ef"
+call OK cbreak
+call 0x65 getch

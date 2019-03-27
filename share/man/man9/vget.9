@@ -1,0 +1,71 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 24, 1996
+.Dt VGET 9
+.Os
+.Sh NAME
+.Nm vget
+.Nd get a vnode from the free list
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn vget "struct vnode *vp" "int lockflag" "struct thread *td"
+.Sh DESCRIPTION
+Get a vnode from the free list and increment its reference count.
+.Bl -tag -width lockflag
+.It Fa vp
+The vnode to remove from the free list.
+.It Fa lockflag
+If non-zero, the vnode will also be locked.
+.El
+.Pp
+When not in use, vnodes are kept on a free list.
+The vnodes still
+reference valid files but may be reused to refer to a new file at any
+time.
+Often, these vnodes are also held in caches in the system, such
+as the name cache.
+.Pp
+When a vnode which is on the free list is used again, for instance if
+the vnode was found in the name cache as a result of a call to
+.Xr VOP_LOOKUP 9
+then the new user must call
+.Fn vget
+to increment the reference count and remove it from the free list.
+.Sh SEE ALSO
+.Xr vnode 9 ,
+.Xr vput 9 ,
+.Xr vref 9 ,
+.Xr vrele 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

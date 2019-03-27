@@ -1,0 +1,432 @@
+.\" Copyright (c) 2004
+.\"	David E. O'Brien.  All rights reserved.
+.\" Copyright (c) 2004, 2005
+.\"	Joerg Wunsch.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 30, 2005
+.Dt SUNLABEL 8
+.Os
+.Sh NAME
+.Nm sunlabel
+.Nd read and write disk pack label suitable for Sun's OpenBoot PROM
+.Sh SYNOPSIS
+.Nm
+.Op Fl r
+.Op Fl c No \&| Fl h
+.Ar disk
+.Nm
+.Fl B
+.Op Fl b Ar boot1
+.Op Fl n
+.Ar disk
+.Nm
+.Fl R
+.Op Fl B Op Fl b Ar boot1
+.Op Fl r
+.Op Fl n
+.Op Fl c
+.Ar disk protofile
+.Nm
+.Fl e
+.Op Fl B Op Fl b Ar boot1
+.Op Fl r
+.Op Fl n
+.Op Fl c
+.Ar disk
+.Nm
+.Fl w
+.Op Fl B Op Fl b Ar boot1
+.Op Fl r
+.Op Fl n
+.Op Fl c
+.Ar disk type
+.Sh DESCRIPTION
+The
+.Nm
+utility
+installs, examines or modifies the
+.Em Sun OpenBoot PROM
+label on a disk.
+In addition,
+.Nm
+can install bootstrap code.
+.Ss Introduction
+The label occupies the first sector (i.e., 512 bytes) of each disk.
+It starts with a textual description which by convention also mentions
+the disk geometry in textual form (number of cylinders, alternate
+cylinders, heads, and sectors per track), optionally followed by a
+table of SVR4-compatible VTOC tags and flags per partition, followed
+by the partition table itself.
+Finally, a checksum is recorded to ensure the label has not been
+tampered with.
+.Pp
+The
+.Em Sun OpenBoot PROM
+label allows for 8 disk partitions.
+The partition table lists the starting cylinder of the partition,
+plus the size of the partition in 512-byte sectors.
+Thus, partitions in the
+.Em Sun OpenBoot PROM
+must always start at a cylinder boundary (for whatever geometry
+emulation has been chosen).
+.Pp
+The optional SVR4-compatible VTOC tag and flags table is not used
+by the
+.Fx
+kernel.
+It is maintained solely for compatibility with the
+.Tn Solaris
+operating system that might share disks with
+.Fx
+on the same hardware platform.
+.Pp
+The
+.Em Sun OpenBoot PROM
+label is natively understood by the underlying hardware, which can
+bootstrap from a single partition entry, as opposed to the very first
+block(s) of the entire disk as on many other hardware platforms.
+.Pp
+Note that the hardware platform mandates that two cylinders are set
+aside as
+.Em alternate cylinders
+which are not available to user programs (and not even through the
+.Dq Li backup
+partition).
+.Ss Options
+Options are listed in alphabetical order here.
+Note that only those option combinations listed under
+.Sx SYNOPSIS
+are allowable.
+.Bl -tag -width ".Fl b Ar bootpath"
+.It Fl b Ar bootpath
+Specify that
+.Ar bootpath
+is to be used as the boot image, rather than the default of
+.Pa /boot/boot1 .
+.It Fl B
+Install bootstrap code onto the disk.
+Note that since the underlying hardware platform bootstraps from
+partitions, not disks, this operation is only useful if there is
+a partition starting at offset 0.
+.It Fl c
+Use cylinders for partition size display rather than
+(512-byte) sectors.
+This also changes the default interpretation of the partition
+size entries when editing the label, or reading from a prototype
+file.
+Thus, prototype files are only compatible when both, obtaining
+the file and re-installing it is done using the same
+.Fl c
+option setting.
+.It Fl e
+Enter edit mode.
+See
+.Sx Edit mode
+below for a more detailed explanation.
+.It Fl h
+When displaying the label, make the partition size and offset
+values
+.Dq human readable .
+The displayed numbers will get a suffix of
+.Ql B
+for bytes,
+.Ql K
+for 1024 bytes each,
+.Ql M
+for 1048576 bytes each, or
+.Ql G
+for 1073741824 bytes each appended.
+Note that due to possible rounding errors, prototype files
+obtained using the
+.Fl h
+option are not suited for re-installing using the
+.Fl R
+option.
+.It Fl n
+No changes.
+All operations, checks etc., are performed normally, but nothing
+is written to disk.
+.It Fl r
+Obsolete option that used to indicate that the operation should
+be done directly on disk, as opposed through the respective kernel
+services.
+Ignored.
+.It Fl R
+Restore label from the prototype in
+.Ar protofile .
+A prototype file is simply the textual representation of the
+label as printed using the first form of the
+.Nm
+utility shown in the
+.Sx SYNOPSIS .
+Note that the
+.Fl c
+option used to obtain the prototype must match the option used
+when restoring the label (both present, or both absent).
+.It Fl w
+Write mode.
+Suitable to write an initial label to disk.
+The
+.Ar type
+argument used to be an entry into a table of predefined labels,
+but this functionality is not supported by
+.Nm .
+Instead, the only allowable
+.Ar type
+argument is the string
+.Dq Li auto ,
+indicating that an automatically created label should be written
+to disk.
+This automatism will try to create an initial label that fits as
+best as possible into the available disk capacity.
+.El
+.Pp
+If neither of the
+.Fl e , R ,
+or
+.Fl w
+options are present, the existing label for
+.Ar disk
+will be printed to standard output.
+.Pp
+The
+.Ar disk
+argument
+must be given as a plain disk name, without any leading
+.Pa /dev/ .
+.Ss Edit mode
+In edit mode, the existing label from
+.Ar disk
+will be read, and put into a template file.
+The command referenced by the
+.Ev EDITOR
+environmental variable will be started to allow the user
+to edit the label.
+The label is then checked and examined for any errors.
+If no errors have been found, the new label is written to disk.
+If there were any errors, a message is printed to standard
+error output, and the user is given the opportunity to edit
+the template file again.
+If accepted, editing starts over.
+If declined, no changes will
+be written to disk.
+.Pp
+The label presented for editing is the same as the standard
+printout, with some added hints about the possible options to
+specify the sector size and starting cylinder.
+The following areas in the template can be edited:
+.Bl -tag -width indent
+.It Sy Textual label, geometry emulation
+The line
+.D1 Li text: Ar XXXX Li cyl Ar CC Li alt 2 hd Ar HH Li sec Ar SS
+represents the label text.
+It must be retained exactly in the form shown.
+The editable text
+.Ar XXXX
+is a simple (non-whitespace) text describing the disk.
+By convention, this text mentions the approximate size of the
+disk, as in
+.Dq Li SUN9.0G
+for a 9 GB disk shipped by Sun.
+.Pp
+The values
+.Ar CC ,
+.Ar HH ,
+and
+.Ar SS
+describe the number of cylinders, heads (tracks per
+cylinder), and sectors per track respectively.
+They might be modified to change the geometry emulation.
+Each number must be between 1 and 65535.
+The product
+.D1 Em (CC + 2) * HH * SS
+must be less than or equal to the total number of sectors of the
+disk (which is given as a hint in a comment field).
+.It Sy Volume name
+The volume name (if present) is introduced by the string
+.Dq "volume name:" .
+It can be up to 8 characters long, and might be useful to distinguish
+different disks in a system.
+Note that volume names require the VTOC elements to be present, so
+any of the VTOC constraints described below need to be obeyed as well
+if a volume name is to be set.
+Setting an empty volume name will delete it from the label.
+.It Sy Partition entries
+Partition entries start with a letter from
+.Ql a
+through
+.Ql h ,
+immediately followed by a colon, followed by the size of this
+partition, and the starting cylinder of the partition.
+The unit of the size field defaults to sectors, or to cylinders
+if the
+.Fl c
+option is in effect.
+Alternatively, a different unit may be specified by appending
+.Ql s
+for (512-byte) sectors,
+.Ql c
+for cylinders,
+.Ql k
+for kilobytes,
+.Ql m
+for megabytes, or
+.Ql g
+for gigabytes.
+The last partition entry may specify the size as
+.Ql *
+to indicate that this entry should consume the rest of disk not
+consumed by any other partition so far.
+.Pp
+The start of partition is always taken as a cylinder number (starting
+at 0) since this is what the underlying hardware uses.
+Alternatively, specifying it as
+.Ql *
+will make the computation automatically chose the nearest possible
+cylinder boundary.
+.Pp
+Partition
+.Ql c
+must always be present, must start at 0, and must cover the entire
+disk (without considering the alternate cylinders though).
+.Pp
+Optionally, each partition entry may be followed by an SVR4-compatible
+VTOC tag name, and a flag description.
+The following VTOC tag names are known:
+.Bl -column -offset indent ".Li unassigned" ".Sy value" ".Sy comment"
+.It Sy name Ta Sy value Ta Sy comment
+.It Li unassigned Ta No 0x00 Ta \&
+.It Li boot Ta No 0x01 Ta \&
+.It Li root Ta No 0x02 Ta \&
+.It Li swap Ta No 0x03 Ta \&
+.It Li usr Ta No 0x04 Ta \&
+.It Li backup Ta No 0x05 Ta c partition, entire disk
+.It Li stand Ta No 0x06 Ta \&
+.It Li var Ta No 0x07 Ta \&
+.It Li home Ta No 0x08 Ta \&
+.It Li altsctr Ta No 0x09 Ta alternate sector partition
+.It Li cache Ta No 0x0a Ta Solaris cachefs partition
+.It Li VxVM_pub Ta No 0x0e Ta VxVM public region
+.It Li VxVM_priv Ta No 0x0f Ta VxVM private region
+.El
+.Pp
+The following VTOC flags are known:
+.Bl -column -offset indent ".Sy name" ".Sy value" ".Sy comment"
+.It Sy name Ta Sy value Ta Sy comment
+.It Li wm Ta No 0x00 Ta read/write, mountable
+.It Li wu Ta No 0x01 Ta read/write, unmountable
+.It Li rm Ta No 0x10 Ta read/only, mountable
+.It Li ru Ta No 0x11 Ta read/only, unmountable
+.El
+.Pp
+Optionally, both the tag and/or the flag name may be specified
+numerically, using standard
+.Ql C
+numerical notation (prefix
+.Ql 0x
+for hexadecimal numbers,
+.Ql 0
+for octal numbers).
+If the flag field is omitted, it defaults to
+.Ql wm .
+If the tag field is also omitted, it defaults to
+.Dq Li unassigned .
+If none of the partitions lists any VTOC tag/flags, no
+SVR4-compatible VTOC elements will be written to disk.
+If VTOC-style elements are present, partition
+.Ql c
+must be marked as
+.Dq Li backup
+(and should be marked
+.Ql wu ) .
+.El
+.Pp
+When checking the label, partition
+.Ql c
+is checked for presence, and for the mentioned restrictions.
+All other partitions are checked for possible overlaps, as
+well as for not extending past the end of unit.
+If VTOC-style elements are present, overlaps of unmountable
+partitions against other partitions will be warned still but
+do not cause a rejection of the label.
+That way,
+.Em encapsulated disks
+of volume management software are acceptable as long as the
+volume management partitions are clearly marked as unmountable.
+.Pp
+Any other fields in the label template are informational only,
+and will not be parsed when reading the label.
+.Pp
+Note that when changing the geometry emulation by editing the
+textual description line, all partition entries will be
+considered based on the new geometry emulation.
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev EDITOR" -compact
+.It Ev EDITOR
+Name of the command to edit the template file in edit-mode.
+Defaults to
+.Xr vi 1 .
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /boot/boot1" -compact
+.It Pa /boot/boot1
+Default boot image.
+.El
+.Sh SEE ALSO
+.Xr vi 1 ,
+.Xr geom 4 ,
+.Xr bsdlabel 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.1 .
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Jake Burkholder ,
+modeling it after the
+.Xr bsdlabel 8
+command available on other architectures.
+.Pp
+.An -nosplit
+This man page was initially written by
+.An David O'Brien ,
+and later substantially updated by
+.An J\(:org Wunsch .
+.Sh BUGS
+Installing bootstrap code onto an entire disk is merely pointless.
+.Nm
+should rather support installing bootstrap code into a partition
+instead.
+.Pp
+The
+.Dq auto
+layout algorithm could be smarter.
+By now, it tends to emulate fairly large cylinders which due to
+the two reserved alternate cylinders causes a fair amount of
+wasted disk space.

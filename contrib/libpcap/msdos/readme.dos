@@ -1,0 +1,166 @@
+libpcap for DOS
+---------------
+
+This file contains some notes on building and using libpcap for MS-DOS.
+Look in `README' and `pcap.man' for usage and details. These targets are
+supported:
+
+ - Borland C 4.0+ small or large model.
+ - Metaware HighC 3.1+ with PharLap DOS-extender
+ - GNU C 2.7+ with djgpp 2.01+ DOS extender
+ - Watcom C 11.x with DOS4GW extender
+
+Note: the files in the libpcap.zip contains short truncated filenames.
+  So for djgpp to work with these, disable the use of long file names by
+  setting "LFN=n" in the environment. On the other hand, if you get libpcap
+  from Github or the official libpcap.tar.gz, some filenames are beyond 8+3.
+  In this case set "LFN=y".
+
+Files specific to DOS are pcap-dos.[ch] and the assembly and C files in
+the MSDOS sub-directory. Remember to built the libpcap library from the top
+install directory. And not from the MSDOS sub-directory.
+
+Note for djgpp users:
+  If you got the libpcap from the official site www.tcpdump, then that
+  distribution does NOT contain any sources for building 32-bit drivers.
+  Instead get the full version at
+     http://www.watt-32.net/pcap/libpcap.zip
+
+  and set "USE_32BIT_DRIVERS = 1" in msdos\common.dj.
+
+
+
+Requirements
+------------
+
+DOS-libpcap currently only works reliably with a real-mode Ethernet packet-
+driver. This driver must be installed prior to using any program (e.g.
+tcpdump) compiled with libpcap. Work is underway to implement protected-
+mode drivers for 32-bit targets (djgpp only). The 3Com 3c509 driver is
+working almost perfectly. Due to lack of LAN-cards, I've not had the
+opportunity to test other drivers. These 32-bit drivers are modified
+Linux drivers.
+
+
+Required packages
+-----------------
+
+The following packages and tools must be present for all targets.
+
+1. Watt-32 tcp/ip library. This library is *not* used to send or
+   receive network data. It's mostly used to access the 'hosts'
+   file and other <netdb.h> features. Get 'watt32s*.zip' at:
+
+     http://www.watt-32.net
+
+2. Exception handler and disassember library (libexc.a) is needed if
+   "USE_EXCEPT = 1" in common.dj. Available at:
+
+     http://www.watt-32.net/misc/exc_dx07.zip
+
+3. Flex & Bison is used to generate parser for the filter handler
+   pcap_compile:
+     ftp://ftp.delorie.com/pub/djgpp/current/v2gnu/flx254b.zip
+     ftp://ftp.delorie.com/pub/djgpp/current/v2gnu/bsn241b.zip
+
+4. NASM assembler v 0.98 or later is required when building djgpp and
+   Watcom targets:
+     http://www.nasm.us/
+
+5. sed (Stream Editor) is required for doing `make depend'.
+   It's available at:
+     ftp://ftp.delorie.com/pub/djgpp/current/v2gnu/sed422b.zip
+
+   A touch tool to update the time-stamp of a file. E.g.:
+     ftp://ftp.delorie.com/pub/djgpp/current/v2gnu/grep29b.zip
+
+6. For djgpp rm.exe and cp.exe are required. These should already be
+   part of your djgpp installation. Also required (experimental at the
+   time) for djgpp is DLX 2.91 or later. This tool is for the generation
+   of dynamically loadable modules.
+
+
+Compiling libpcap
+-----------------
+
+Follow these steps in building libpcap:
+
+1. Make sure you've installed Watt-32 properly (see it's `INSTALL' file).
+   During that installation a environment variable `WATT_ROOT' is set.
+   This variable is used for building libpcap also (`WATT_INC' is
+   deducted from `WATT_ROOT'). djgpp users should also define environment
+   variables `C_INCLUDE_PATH' and `LIBRARY_PATH' to point to the include
+   directory and library directory respectively.  E.g. put this in your
+   AUTOEXEC.BAT:
+     set C_INCLUDE_PATH=c:/net/watt/inc
+     set LIBRARY_PATH=c:/net/watt/lib
+
+2. Revise the msdos/common.dj file for your djgpp/gcc installation;
+   - change the value of `GCCLIB' to match location of libgcc.a.
+   - set `USE_32BIT_DRIVERS = 1' to build 32-bit driver objects.
+
+
+3. Build pcap by using appropriate makefile. For djgpp, use:
+     `make -f msdos/makefile.dj'  (i.e. GNU `make')
+
+   For a Watcom target say:
+     `wmake -f msdos\makefile.wc'
+
+   For a Borland target say:
+     `maker -f msdos\Makefile pcap_bc.lib'  (Borland's `maker.exe')
+
+   And for a HighC/Pharlap target say:
+     `maker -f msdos\Makefile pcap_hc.lib'  (Borland's `maker.exe')
+
+   You might like to change some `CFLAGS' -- only `DEBUG' define currently
+   have any effect. It shows a rotating "fan" in upper right corner of
+   screen.  Remove `DEBUG' if you don't like it. You could add
+   `-fomit-frame-pointer' to `CFLAGS' to speed up the generated code.
+   But note, this makes debugging and crash-traceback difficult. Only
+   add it if you're fully confident your application is 100% stable.
+
+   Note: Code in `USE_NDIS2' does not work at the moment.
+
+4. The resulting library is put in current directory. There's some
+   test-program for `libpcap': `filtertest.exe', `findalldevstest.exe',
+     `nonblocktest.exe' and `opentest.exe'.
+
+   But linking the library with `tcpdump' is the ultimate test. DOS/djgpp
+   should now hopefully be a supported target. Get the sources at:
+     http://www.tcpdump.org/
+   or
+     https://github.com/the-tcpdump-group/tcpdump/
+
+   (click on the 'Download ZIP' on the right side of that page.)
+
+
+Extensions to libpcap
+---------------------
+
+I've included some extra functions to DOS-libpcap:
+
+  `pcap_config_hook (const char *keyword, const char *value)' :
+
+    Allows an application to set values of internal libpcap variables.
+    `keyword' and an associated `value' should be present in the `debug_tab[]'
+    array in pcap-dos.c (currently only used to set debug-levels and parameters
+    for the 32-bit network drivers.) Thus an application using DOS-libpcap can
+    override the default value during it's configure process (see tcpdump's
+    msdos/config.c file for an extended example).
+
+  `pcap_set_wait (pcap_t *, void (*)(void), int)' :
+
+    Only effective when reading offline traffic from dump-files.
+    Function `pcap_offline_read()' will wait (and optionally yield)
+    before printing next packet. This will simulate the pace the packets
+    where actually recorded.
+
+
+
+Happy sniffing !
+
+
+Gisle Vanem <gvanem@yahoo.no>
+
+October 1999, 2004, 2006, 2013
+

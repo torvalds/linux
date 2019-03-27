@@ -1,0 +1,391 @@
+.\"
+.\" Copyright (c) 2016 Jonathan Looney <jtl@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 10, 2017
+.Dt TCP_FUNCTIONS 9
+.Os
+.Sh NAME
+.Nm tcp_functions
+.Nd Alternate TCP Stack Framework
+.Sh SYNOPSIS
+.In netinet/tcp.h
+.In netinet/tcp_var.h
+.Ft int
+.Fn register_tcp_functions "struct tcp_function_block *blk" "int wait"
+.Ft int
+.Fn register_tcp_functions_as_name "struct tcp_function_block *blk" \
+"const char *name" "int wait"
+.Fn register_tcp_functions_as_names "struct tcp_function_block *blk" \
+"int wait" "const char *names[]" "int *num_names"
+.Ft int
+.Fn deregister_tcp_functions "struct tcp_function_block *blk"
+.Sh DESCRIPTION
+The
+.Nm
+framework allows a kernel developer to implement alternate TCP stacks.
+The alternate stacks can be compiled in the kernel or can be implemented in
+loadable kernel modules.
+This functionality is intended to encourage experimentation with the TCP stack
+and to allow alternate behaviors to be deployed for different TCP connections
+on a single system.
+.Pp
+A system administrator can set a system default stack.
+By default, all TCP connections will use the system default stack.
+Additionally, users can specify a particular stack to use on a per-connection
+basis.
+(See
+.Xr tcp 4
+for details on setting the system default stack, or selecting a specific stack
+for a given connection.)
+.Pp
+This man page treats "TCP stacks" as synonymous with "function blocks".
+This is intentional.
+A "TCP stack" is a collection of functions that implement a set of behavior.
+Therefore, an alternate "function block" defines an alternate "TCP stack".
+.Pp
+The
+.Fn register_tcp_functions ,
+.Fn register_tcp_functions_as_name ,
+and
+.Fn register_tcp_functions_as_names
+functions request that the system add a specified function block
+and register it for use with a given name.
+Modules may register the same function block multiple times with different
+names.
+However, names must be globally unique among all registered function blocks.
+Also, modules may not ever modify the contents of the function block (including
+the name) after it has been registered, unless the module first successfully
+de-registers the function block.
+.Pp
+The
+.Fn register_tcp_functions
+function requests that the system register the function block with the name
+defined in the function block's
+.Va tfb_tcp_block_name
+field.
+Note that this is the only one of the three registration functions that
+automatically registers the function block using the name defined in the
+function block's
+.Va tfb_tcp_block_name
+field.
+If a module uses one of the other registration functions, it may request that
+the system register the function block using the name defined in the
+function block's
+.Va tfb_tcp_block_name
+field by explicitly providing that name.
+.Pp
+The
+.Fn register_tcp_functions_as_name
+function requests that the system register the function block with the name
+provided in the
+.Fa name
+argument.
+.Pp
+The
+.Fn register_tcp_functions_as_names
+function requests that the system register the function block with all the
+names provided in the
+.Fa names
+argument.
+The
+.Fa num_names
+argument provides a pointer to the number of names.
+This function will either succeed in registering all of the names in the array,
+or none of the names in the array.
+On failure, the
+.Fa num_names
+argument is updated with the index number of the entry in the
+.Fa names
+array which the system was processing when it encountered the error.
+.Pp
+The
+.Fn deregister_tcp_functions
+function requests that the system remove a specified function block from the
+system.
+If this call succeeds, it will completely deregister the function block,
+regardless of the number of names used to register the function block.
+If the call fails because sockets are still using the specified function block,
+the system will mark the function block as being in the process of being
+removed.
+This will prevent additional sockets from using the specified function block.
+However, it will not impact sockets that are already using the function block.
+.Pp
+.Nm
+modules must call one or more of the registration functions during
+initialization and successfully call the
+.Fn deregister_tcp_functions
+function prior to allowing the module to be unloaded.
+.Pp
+The
+.Fa blk
+argument is a pointer to a
+.Vt "struct tcp_function_block" ,
+which is explained below (see
+.Sx Function Block Structure ) .
+The
+.Fa wait
+argument is used as the
+.Fa flags
+argument to
+.Xr malloc 9 ,
+and must be set to one of the valid values defined in that man page.
+.Ss Function Block Structure
+The
+.Fa blk argument is a pointer to a
+.Vt "struct tcp_function_block" ,
+which has the following members:
+.Bd -literal -offset indent
+struct tcp_function_block {
+	char	tfb_tcp_block_name[TCP_FUNCTION_NAME_LEN_MAX];
+	int	(*tfb_tcp_output)(struct tcpcb *);
+	void	(*tfb_tcp_do_segment)(struct mbuf *, struct tcphdr *,
+			    struct socket *, struct tcpcb *,
+			    int, int, uint8_t,
+			    int);
+	int     (*tfb_tcp_ctloutput)(struct socket *so,
+			    struct sockopt *sopt,
+			    struct inpcb *inp, struct tcpcb *tp);
+	/* Optional memory allocation/free routine */
+	void	(*tfb_tcp_fb_init)(struct tcpcb *);
+	void	(*tfb_tcp_fb_fini)(struct tcpcb *, int);
+	/* Optional timers, must define all if you define one */
+	int	(*tfb_tcp_timer_stop_all)(struct tcpcb *);
+	void	(*tfb_tcp_timer_activate)(struct tcpcb *,
+			    uint32_t, u_int);
+	int	(*tfb_tcp_timer_active)(struct tcpcb *, uint32_t);
+	void	(*tfb_tcp_timer_stop)(struct tcpcb *, uint32_t);
+	/* Optional functions */
+	void	(*tfb_tcp_rexmit_tmr)(struct tcpcb *);
+	void	(*tfb_tcp_handoff_ok)(struct tcpcb *);
+	/* System use */
+	volatile uint32_t tfb_refcnt;
+	uint32_t  tfb_flags;
+};
+.Ed
+.Pp
+The
+.Va tfb_tcp_block_name
+field identifies the unique name of the TCP stack, and should be no longer than
+TCP_FUNCTION_NAME_LEN_MAX-1 characters in length.
+.Pp
+The
+.Va tfb_tcp_output ,
+.Va tfb_tcp_do_segment ,
+and
+.Va tfb_tcp_ctloutput
+fields are pointers to functions that perform the equivalent actions
+as the default
+.Fn tcp_output ,
+.Fn tcp_do_segment ,
+and
+.Fn tcp_default_ctloutput
+functions, respectively.
+Each of these function pointers must be non-NULL.
+.Pp
+If a TCP stack needs to initialize data when a socket first selects the TCP
+stack (or, when the socket is first opened), it should set a non-NULL
+pointer in the
+.Va tfb_tcp_fb_init
+field.
+Likewise, if a TCP stack needs to cleanup data when a socket stops using the
+TCP stack (or, when the socket is closed), it should set a non-NULL pointer
+in the
+.Va tfb_tcp_fb_fini
+field.
+.Pp
+If the
+.Va tfb_tcp_fb_fini
+argument is non-NULL, the function to which it points is called when the
+kernel is destroying the TCP control block or when the socket is transitioning
+to use a different TCP stack.
+The function is called with arguments of the TCP control block and an integer
+flag.
+The flag will be zero if the socket is transitioning to use another TCP stack
+or one if the TCP control block is being destroyed.
+.Pp
+If the TCP stack implements additional timers, the TCP stack should set a
+non-NULL pointer in the
+.Va tfb_tcp_timer_stop_all ,
+.Va tfb_tcp_timer_activate ,
+.Va tfb_tcp_timer_active ,
+and
+.Va tfb_tcp_timer_stop
+fields.
+These fields should all be
+.Dv NULL
+or should all contain pointers to functions.
+The
+.Va tfb_tcp_timer_activate ,
+.Va tfb_tcp_timer_active ,
+and
+.Va tfb_tcp_timer_stop
+functions will be called when the
+.Fn tcp_timer_activate ,
+.Fn tcp_timer_active ,
+and
+.Fn tcp_timer_stop
+functions, respectively, are called with a timer type other than the standard
+types.
+The functions defined by the TCP stack have the same semantics (both for
+arguments and return values) as the normal timer functions they supplement.
+.Pp
+Additionally, a stack may define its own actions to take when the retransmit
+timer fires by setting a non-NULL function pointer in the
+.Va tfb_tcp_rexmit_tmr
+field.
+This function is called very early in the process of handling a retransmit
+timer.
+However, care must be taken to ensure the retransmit timer leaves the
+TCP control block in a valid state for the remainder of the retransmit
+timer logic.
+.Pp
+A user may select a new TCP stack before calling
+.Xr connect 2
+or
+.Xr listen 2 .
+Optionally, a TCP stack may also allow a user to begin using the TCP stack for
+a connection that is in a later state by setting a non-NULL function pointer in
+the
+.Va tfb_tcp_handoff_ok
+field.
+If this field is non-NULL and a user attempts to select that TCP stack after
+calling
+.Xr connect 2
+or
+.Xr listen 2
+for that socket, the kernel will call the function pointed to by the
+.Va tfb_tcp_handoff_ok
+field.
+The function should return 0 if the user is allowed to switch the socket to use
+the TCP stack. Otherwise, the function should return an error code, which will
+be returned to the user.
+If the
+.Va tfb_tcp_handoff_ok
+field is
+.Dv NULL
+and a user attempts to select the TCP stack after calling
+.Xr connect 2
+or
+.Xr listen 2
+for that socket, the operation will fail and the kernel will return
+.Er EINVAL .
+.Pp
+The
+.Va tfb_refcnt
+and
+.Va tfb_flags
+fields are used by the kernel's TCP code and will be initialized when the
+TCP stack is registered.
+.Ss Requirements for Alternate TCP Stacks
+If the TCP stack needs to store data beyond what is stored in the default
+TCP control block, the TCP stack can initialize its own per-connection storage.
+The
+.Va t_fb_ptr
+field in the
+.Vt "struct tcpcb"
+control block structure has been reserved to hold a pointer to this
+per-connection storage.
+If the TCP stack uses this alternate storage, it should understand that the
+value of the
+.Va t_fb_ptr
+pointer may not be initialized to
+.Dv NULL .
+Therefore, it should use a
+.Va tfb_tcp_fb_init
+function to initialize this field.
+Additionally, it should use a
+.Va tfb_tcp_fb_fini
+function to deallocate storage when the socket is closed.
+.Pp
+It is understood that alternate TCP stacks may keep different sets of data.
+However, in order to ensure that data is available to both the user and the
+rest of the system in a standardized format, alternate TCP stacks must
+update all fields in the TCP control block to the greatest extent practical.
+.Sh RETURN VALUES
+The
+.Fn register_tcp_functions ,
+.Fn register_tcp_functions_as_name ,
+.Fn register_tcp_functions_as_names ,
+and
+.Fn deregister_tcp_functions
+functions return zero on success and non-zero on failure.
+In particular, the
+.Fn deregister_tcp_functions
+will return
+.Er EBUSY
+until no more connections are using the specified TCP stack.
+A module calling
+.Fn deregister_tcp_functions
+must be prepared to wait until all connections have stopped using the
+specified TCP stack.
+.Sh ERRORS
+The
+.Fn register_tcp_functions
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Any of the members of the
+.Fa blk
+argument are set incorrectly.
+.It Bq Er ENOMEM
+The function could not allocate memory for its internal data.
+.It Bq Er EALREADY
+A function block is already registered with the same name.
+.El
+The
+.Fn deregister_tcp_functions
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The
+.Fa blk
+argument references the kernel's compiled-in default function block.
+.It Bq Er EBUSY
+The function block is still in use by one or more sockets, or is defined as
+the current default function block.
+.It Bq Er ENOENT
+The
+.Fa blk
+argument references a function block that is not currently registered.
+.El
+.Sh SEE ALSO
+.Xr connect 2 ,
+.Xr listen 2 ,
+.Xr tcp 4 ,
+.Xr malloc 9
+.Sh HISTORY
+This framework first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+framework was written by
+.An Randall Stewart Aq Mt rrs@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Jonathan Looney Aq Mt jtl@FreeBSD.org .

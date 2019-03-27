@@ -1,0 +1,69 @@
+#include "apu_version.h"
+
+#define APU_LICENSE \
+  "Licensed to the Apache Software Foundation (ASF) under one or more " \
+  "contributor license agreements.  See the NOTICE file distributed with " \
+  "this work for additional information regarding copyright ownership.  " \
+  "The ASF licenses this file to You under the Apache License, Version 2.0 " \
+  "(the ""License""); you may not use this file except in compliance with " \
+  "the License.  You may obtain a copy of the License at\r\n\r\n" \
+  "http://www.apache.org/licenses/LICENSE-2.0\r\n\r\n" \
+  "Unless required by applicable law or agreed to in writing, software " \
+  "distributed under the License is distributed on an ""AS IS"" BASIS, " \
+  "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  " \
+  "See the License for the specific language governing permissions and " \
+  "limitations under the License."
+
+#ifdef DLL_NAME
+#define APU_DLL_BASENAME APU_STRINGIFY(DLL_NAME) "-" APU_STRINGIFY(APU_MAJOR_VERSION)
+#define APU_DLL_DESCRIPTION "Apache Portable Runtime " APU_STRINGIFY(DLL_NAME) " Module"
+#else
+#define APU_DLL_BASENAME "libaprutil-" APU_STRINGIFY(APU_MAJOR_VERSION)
+#define APU_DLL_DESCRIPTION "Apache Portable Runtime Utility Library"
+#endif
+
+1 VERSIONINFO
+ FILEVERSION APU_VERSION_STRING_CSV,0
+ PRODUCTVERSION APU_VERSION_STRING_CSV,0
+ FILEFLAGSMASK 0x3fL
+#if defined(APU_IS_DEV_VERSION)
+#if defined(_DEBUG)
+ FILEFLAGS 0x03L
+#else
+ FILEFLAGS 0x02L
+#endif
+#else
+#if defined(_DEBUG)
+ FILEFLAGS 0x01L
+#else
+ FILEFLAGS 0x00L
+#endif
+#endif
+#if defined(WINNT) || defined(WIN64)
+ FILEOS 0x40004L
+#else
+ FILEOS 0x4L
+#endif
+ FILETYPE 0x2L
+ FILESUBTYPE 0x0L
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904b0"
+    BEGIN
+      VALUE "Comments", APU_LICENSE "\0"
+      VALUE "CompanyName", "Apache Software Foundation\0"
+      VALUE "FileDescription", APU_DLL_DESCRIPTION "\0"
+      VALUE "FileVersion", APU_VERSION_STRING "\0"
+      VALUE "InternalName", APU_DLL_BASENAME "\0"
+      VALUE "LegalCopyright", APU_COPYRIGHT "\0"
+      VALUE "OriginalFilename", APU_DLL_BASENAME ".dll\0"
+      VALUE "ProductName", "Apache Portable Runtime Project\0"
+      VALUE "ProductVersion", APU_VERSION_STRING "\0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END

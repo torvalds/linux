@@ -1,0 +1,26 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: archdep
+# REQUIRE: mountcritremote
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="archdep"
+start_cmd="archdep_start"
+stop_cmd=":"
+
+archdep_start()
+{
+	local _arch
+
+	_arch=`${SYSCTL_N} hw.machine_arch`
+	case $_arch in
+	esac
+}
+
+load_rc_config $name
+run_rc_command "$1"

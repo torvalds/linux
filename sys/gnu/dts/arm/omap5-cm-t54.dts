@@ -1,0 +1,687 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Support for CompuLab CM-T54
+ */
+/dts-v1/;
+
+#include "omap5.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	model = "CompuLab CM-T54";
+	compatible = "compulab,omap5-cm-t54", "ti,omap5";
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0 0x80000000 0 0x7f000000>; /* 2048 MB */
+	};
+
+	aliases {
+		display0 = &hdmi0;
+		display1 = &dvi0;
+		display2 = &lcd0;
+	};
+
+	vmmcsd_fixed: fixed-regulator-mmcsd {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmcsd_fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	vwlan_pdn_fixed: fixed-regulator-vwlan-pdn {
+		compatible = "regulator-fixed";
+		regulator-name = "vwlan_pdn_fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&ldo2_reg>;
+		gpio = <&gpio4 13 GPIO_ACTIVE_HIGH>;   /* gpio4_109 */
+		startup-delay-us = <1000>;
+		enable-active-high;
+	};
+
+	vwlan_fixed: fixed-regulator-vwlan {
+		compatible = "regulator-fixed";
+		regulator-name = "vwlan_fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vwlan_pdn_fixed>;
+		gpio = <&gpio4 14 GPIO_ACTIVE_HIGH>;   /* gpio4_110 */
+		startup-delay-us = <1000>;
+		enable-active-high;
+	};
+
+	ads7846reg: ads7846-reg {
+		compatible = "regulator-fixed";
+		regulator-name = "ads7846-reg";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	/* HS USB Host PHY on PORT 2 */
+	hsusb2_phy: hsusb2_phy {
+		compatible = "usb-nop-xceiv";
+		reset-gpios = <&gpio3 12 GPIO_ACTIVE_LOW>; /* gpio3_76 HUB_RESET */
+		#phy-cells = <0>;
+	};
+
+	/* HS USB Host PHY on PORT 3 */
+	hsusb3_phy: hsusb3_phy {
+		compatible = "usb-nop-xceiv";
+		reset-gpios = <&gpio3 19 GPIO_ACTIVE_LOW>; /* gpio3_83 ETH_RESET */
+		#phy-cells = <0>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led1 {
+			label = "Heartbeat";
+			gpios = <&gpio3 16 GPIO_ACTIVE_HIGH>; /* gpio3_80 ACT_LED */
+			linux,default-trigger = "heartbeat";
+			default-state = "off";
+		};
+	};
+
+	lcd0: display {
+                compatible = "startek,startek-kd050c", "panel-dpi";
+                label = "lcd";
+
+                pinctrl-names = "default";
+                pinctrl-0 = <&lcd_pins>;
+
+                enable-gpios = <&gpio8 3 GPIO_ACTIVE_HIGH>;
+
+                panel-timing {
+                        clock-frequency = <33000000>;
+                        hactive = <800>;
+                        vactive = <480>;
+                        hfront-porch = <40>;
+                        hback-porch = <40>;
+                        hsync-len = <43>;
+                        vback-porch = <29>;
+                        vfront-porch = <13>;
+                        vsync-len = <3>;
+                        hsync-active = <0>;
+                        vsync-active = <0>;
+                        de-active = <1>;
+                        pixelclk-active = <1>;
+                };
+
+                port {
+                        lcd_in: endpoint {
+                                remote-endpoint = <&dpi_lcd_out>;
+                        };
+                };
+        };
+
+	hdmi0: connector0 {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+
+		type = "a";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmi_conn_pins>;
+
+		hpd-gpios = <&gpio7 1 GPIO_ACTIVE_HIGH>; /* GPIO 193, HPD */
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_out>;
+			};
+		};
+	};
+
+	tfp410: encoder0 {
+		compatible = "ti,tfp410";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tfp410_in: endpoint {
+					remote-endpoint = <&dpi_dvi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tfp410_out: endpoint {
+					remote-endpoint = <&dvi_connector_in>;
+				};
+			};
+		};
+	};
+
+	dvi0: connector1 {
+		compatible = "dvi-connector";
+		label = "dvi";
+
+		digital;
+
+		ddc-i2c-bus = <&i2c2>;
+
+		port {
+			dvi_connector_in: endpoint {
+				remote-endpoint = <&tfp410_out>;
+			};
+		};
+	};
+};
+
+&omap5_pmx_wkup {
+
+	ads7846_pins: pinmux_ads7846_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x0042, PIN_INPUT_PULLDOWN | MUX_MODE6)  /* llib_wakereqin.gpio1_wk15 */
+		>;
+	};
+};
+
+&omap5_pmx_core {
+	pinctrl-names = "default";
+	pinctrl-0 = <
+			&led_gpio_pins
+			&usbhost_pins
+	>;
+
+	led_gpio_pins: pinmux_led_gpio_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x00b0, PIN_OUTPUT | MUX_MODE6) /* hsi2_caflag.gpio3_80 */
+		>;
+	};
+
+	i2c1_pins: pinmux_i2c1_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x01f2, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c1_pmic_scl */
+			OMAP5_IOPAD(0x01f4, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c1_pmic_sda */
+		>;
+	};
+
+	i2c2_pins: pinmux_i2c2_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x01b8, PIN_INPUT | MUX_MODE0) /* i2c2_scl */
+			OMAP5_IOPAD(0x01ba, PIN_INPUT | MUX_MODE0) /* i2c2_sda */
+		>;
+	};
+
+	mmc1_pins: pinmux_mmc1_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x01e2, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_clk */
+			OMAP5_IOPAD(0x01e4, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_cmd */
+			OMAP5_IOPAD(0x01e6, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_data2 */
+			OMAP5_IOPAD(0x01e8, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_data3 */
+			OMAP5_IOPAD(0x01ea, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_data0 */
+			OMAP5_IOPAD(0x01ec, PIN_INPUT_PULLUP | MUX_MODE0) /* sdcard_data1 */
+		>;
+	};
+
+	mmc2_pins: pinmux_mmc2_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x0040, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_clk */
+			OMAP5_IOPAD(0x0042, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_cmd */
+			OMAP5_IOPAD(0x0044, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data0 */
+			OMAP5_IOPAD(0x0046, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data1 */
+			OMAP5_IOPAD(0x0048, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data2 */
+			OMAP5_IOPAD(0x004a, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data3 */
+			OMAP5_IOPAD(0x004c, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data4 */
+			OMAP5_IOPAD(0x004e, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data5 */
+			OMAP5_IOPAD(0x0050, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data6 */
+			OMAP5_IOPAD(0x0052, PIN_INPUT_PULLUP | MUX_MODE0) /* emmc_data7 */
+		>;
+	};
+
+	mmc3_pins: pinmux_mmc3_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x01a4, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_clk */
+			OMAP5_IOPAD(0x01a6, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_cmd */
+			OMAP5_IOPAD(0x01a8, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data0 */
+			OMAP5_IOPAD(0x01aa, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data1 */
+			OMAP5_IOPAD(0x01ac, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data2 */
+			OMAP5_IOPAD(0x01ae, PIN_INPUT_PULLUP | MUX_MODE0) /* wlsdio_data3 */
+		>;
+	};
+
+	wlan_gpios_pins: pinmux_wlan_gpios_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x019c, PIN_OUTPUT_PULLDOWN | MUX_MODE6) /* abemcpdm_ul_data.gpio4_109 */
+			OMAP5_IOPAD(0x019e, PIN_OUTPUT_PULLDOWN | MUX_MODE6) /* abemcpdm_dl_data.gpio4_110 */
+		>;
+	};
+
+	usbhost_pins: pinmux_usbhost_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x00c4, PIN_INPUT | MUX_MODE0)  /* usbb2_hsic_strobe */
+			OMAP5_IOPAD(0x00c6, PIN_INPUT | MUX_MODE0)  /* usbb2_hsic_data */
+
+			OMAP5_IOPAD(0x01dc, PIN_INPUT | MUX_MODE0)  /* usbb3_hsic_strobe */
+			OMAP5_IOPAD(0x01de, PIN_INPUT | MUX_MODE0)  /* usbb3_hsic_data */
+
+			OMAP5_IOPAD(0x00a8, PIN_OUTPUT | MUX_MODE6) /* hsi2_caready.gpio3_76 */
+			OMAP5_IOPAD(0x00b6, PIN_OUTPUT | MUX_MODE6) /* hsi2_acdata.gpio3_83 */
+		>;
+	};
+
+	dss_hdmi_pins: pinmux_dss_hdmi_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x013c, PIN_INPUT | MUX_MODE0) /* hdmi_cec */
+			OMAP5_IOPAD(0x0140, PIN_INPUT | MUX_MODE0) /* hdmi_ddc_scl */
+			OMAP5_IOPAD(0x0142, PIN_INPUT | MUX_MODE0) /* hdmi_ddc_sda */
+		>;
+	};
+
+	lcd_pins: pinmux_lcd_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x0172, PIN_OUTPUT_PULLDOWN | MUX_MODE6) /* timer11_pwm_evt.gpio8_227 */
+		>;
+	};
+
+	hdmi_conn_pins: pinmux_hdmi_conn_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x013e, PIN_INPUT | MUX_MODE6) /* hdmi_hpd.gpio7_193 */
+		>;
+	};
+
+	dss_dpi_pins: pinmux_dss_dpi_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x0104, PIN_OUTPUT | MUX_MODE3) /* rfbi_data15.dispc_data15 */
+			OMAP5_IOPAD(0x0106, PIN_OUTPUT | MUX_MODE3) /* rfbi_data14.dispc_data14 */
+			OMAP5_IOPAD(0x0108, PIN_OUTPUT | MUX_MODE3) /* rfbi_data13.dispc_data13 */
+			OMAP5_IOPAD(0x010a, PIN_OUTPUT | MUX_MODE3) /* rfbi_data12.dispc_data12 */
+			OMAP5_IOPAD(0x010c, PIN_OUTPUT | MUX_MODE3) /* rfbi_data11.dispc_data11 */
+			OMAP5_IOPAD(0x010e, PIN_OUTPUT | MUX_MODE3) /* rfbi_data10.dispc_data10 */
+			OMAP5_IOPAD(0x0110, PIN_OUTPUT | MUX_MODE3) /* rfbi_data9.dispc_data9 */
+			OMAP5_IOPAD(0x0112, PIN_OUTPUT | MUX_MODE3) /* rfbi_data8.dispc_data8 */
+			OMAP5_IOPAD(0x0114, PIN_OUTPUT | MUX_MODE3) /* rfbi_data7.dispc_data7 */
+			OMAP5_IOPAD(0x0116, PIN_OUTPUT | MUX_MODE3) /* rfbi_data6.dispc_data6 */
+			OMAP5_IOPAD(0x0118, PIN_OUTPUT | MUX_MODE3) /* rfbi_data5.dispc_data5 */
+			OMAP5_IOPAD(0x011a, PIN_OUTPUT | MUX_MODE3) /* rfbi_data4.dispc_data4 */
+			OMAP5_IOPAD(0x011c, PIN_OUTPUT | MUX_MODE3) /* rfbi_data3.dispc_data3 */
+			OMAP5_IOPAD(0x011e, PIN_OUTPUT | MUX_MODE3) /* rfbi_data2.dispc_data2 */
+			OMAP5_IOPAD(0x0120, PIN_OUTPUT | MUX_MODE3) /* rfbi_data1.dispc_data1 */
+			OMAP5_IOPAD(0x0122, PIN_OUTPUT | MUX_MODE3) /* rfbi_data0.dispc_data0 */
+			OMAP5_IOPAD(0x0124, PIN_OUTPUT | MUX_MODE3) /* rfbi_we.dispc_vsync */
+			OMAP5_IOPAD(0x0126, PIN_OUTPUT | MUX_MODE3) /* rfbi_cs0.dispc_hsync */
+			OMAP5_IOPAD(0x0128, PIN_OUTPUT | MUX_MODE3) /* rfbi_a0.dispc_de */
+			OMAP5_IOPAD(0x012a, PIN_OUTPUT | MUX_MODE3) /* rfbi_re.dispc_pclk */
+			OMAP5_IOPAD(0x012c, PIN_OUTPUT | MUX_MODE3) /* rfbi_hsync0.dispc_data17 */
+			OMAP5_IOPAD(0x012e, PIN_OUTPUT | MUX_MODE3) /* rfbi_te_vsync0.dispc_data16 */
+			OMAP5_IOPAD(0x0130, PIN_OUTPUT | MUX_MODE3) /* gpio6_182.dispc_data18 */
+			OMAP5_IOPAD(0x0132, PIN_OUTPUT | MUX_MODE3) /* gpio6_183.dispc_data19 */
+			OMAP5_IOPAD(0x0134, PIN_OUTPUT | MUX_MODE3) /* gpio6_184.dispc_data20 */
+			OMAP5_IOPAD(0x0136, PIN_OUTPUT | MUX_MODE3) /* gpio6_185.dispc_data21 */
+			OMAP5_IOPAD(0x0138, PIN_OUTPUT | MUX_MODE3) /* gpio6_186.dispc_data22 */
+			OMAP5_IOPAD(0x013a, PIN_OUTPUT | MUX_MODE3) /* gpio6_187.dispc_data23 */
+		>;
+	};
+
+	mcspi2_pins: pinmux_mcspi1_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x00fc, PIN_INPUT | MUX_MODE0) /* mcspi2_clk */
+			OMAP5_IOPAD(0x00fe, PIN_INPUT | MUX_MODE0) /* mcspi2_simo */
+			OMAP5_IOPAD(0x0100, PIN_INPUT | MUX_MODE0) /* mcspi2_somi */
+			OMAP5_IOPAD(0x0102, PIN_INPUT | MUX_MODE0) /* mcspi2_cs0 */
+		>;
+	};
+};
+
+&mcspi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcspi2_pins>;
+
+	/* touch controller */
+	ads7846@0 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&ads7846_pins>;
+
+		compatible = "ti,ads7846";
+		vcc-supply = <&ads7846reg>;
+
+		reg = <0>;				/* CS0 */
+		spi-max-frequency = <1500000>;
+
+		interrupt-parent = <&gpio1>;
+		interrupts = <15 0>;			/* gpio1_wk15 */
+		pendown-gpio = <&gpio1 15 GPIO_ACTIVE_HIGH>;
+
+
+		ti,x-min = /bits/ 16 <0x0>;
+		ti,x-max = /bits/ 16 <0x0fff>;
+		ti,y-min = /bits/ 16 <0x0>;
+		ti,y-max = /bits/ 16 <0x0fff>;
+
+		ti,x-plate-ohms = /bits/ 16 <180>;
+		ti,pressure-max = /bits/ 16 <255>;
+
+		ti,debounce-max = /bits/ 16 <30>;
+		ti,debounce-tol = /bits/ 16 <10>;
+		ti,debounce-rep = /bits/ 16 <1>;
+
+		wakeup-source;
+	};
+};
+
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+	vmmc-supply = <&ldo9_reg>;
+	bus-width = <4>;
+};
+
+&mmc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_pins>;
+	vmmc-supply = <&vmmcsd_fixed>;
+	bus-width = <8>;
+	ti,non-removable;
+};
+
+&mmc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <
+		&mmc3_pins
+		&wlan_gpios_pins
+	>;
+	vmmc-supply = <&vwlan_fixed>;
+	bus-width = <4>;
+	ti,non-removable;
+};
+
+&mmc4 {
+	status = "disabled";
+};
+
+&mmc5 {
+	status = "disabled";
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+
+	clock-frequency = <400000>;
+
+	at24@50 {
+		compatible = "atmel,24c02";
+		pagesize = <16>;
+		reg = <0x50>;
+	};
+
+	palmas: palmas@48 {
+		compatible = "ti,palmas";
+		interrupts = <GIC_SPI 7 IRQ_TYPE_NONE>; /* IRQ_SYS_1N */
+		reg = <0x48>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		ti,system-power-controller;
+
+		extcon_usb3: palmas_usb {
+			compatible = "ti,palmas-usb-vid";
+			ti,enable-vbus-detection;
+			ti,enable-id-detection;
+			ti,wakeup;
+		};
+
+		rtc {
+			compatible = "ti,palmas-rtc";
+			interrupt-parent = <&palmas>;
+			interrupts = <8 IRQ_TYPE_NONE>;
+		};
+
+		palmas_pmic {
+			compatible = "ti,palmas-pmic";
+			interrupt-parent = <&palmas>;
+			interrupts = <14 IRQ_TYPE_NONE>;
+			interrupt-names = "short-irq";
+
+			ti,ldo6-vibrator;
+
+			regulators {
+				smps123_reg: smps123 {
+					/* VDD_OPP_MPU */
+					regulator-name = "smps123";
+					regulator-min-microvolt = < 600000>;
+					regulator-max-microvolt = <1500000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				smps45_reg: smps45 {
+					/* VDD_OPP_MM */
+					regulator-name = "smps45";
+					regulator-min-microvolt = < 600000>;
+					regulator-max-microvolt = <1310000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				smps6_reg: smps6 {
+					/* VDD_DDR3 - over VDD_SMPS6 */
+					regulator-name = "smps6";
+					regulator-min-microvolt = <1500000>;
+					regulator-max-microvolt = <1500000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				smps7_reg: smps7 {
+					/* VDDS_1v8_OMAP over VDDS_1v8_MAIN */
+					regulator-name = "smps7";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				smps8_reg: smps8 {
+					/* VDD_OPP_CORE */
+					regulator-name = "smps8";
+					regulator-min-microvolt = < 600000>;
+					regulator-max-microvolt = <1310000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				smps9_reg: smps9 {
+					/* VDDA_2v1_AUD over VDD_2v1 */
+					regulator-name = "smps9";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+					ti,smps-range = <0x80>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				smps10_out2_reg: smps10_out2 {
+					/* VBUS_5V_OTG */
+					regulator-name = "smps10_out2";
+					regulator-min-microvolt = <5000000>;
+					regulator-max-microvolt = <5000000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				smps10_out1_reg: smps10_out1 {
+					/* VBUS_5V_OTG */
+					regulator-name = "smps10_out1";
+					regulator-min-microvolt = <5000000>;
+					regulator-max-microvolt = <5000000>;
+				};
+
+				ldo1_reg: ldo1 {
+					/* VDDAPHY_CAM: vdda_csiport */
+					regulator-name = "ldo1";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				ldo2_reg: ldo2 {
+					/* VDD_3V3_WLAN */
+					regulator-name = "ldo2";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+					startup-delay-us = <1000>;
+				};
+
+				ldo3_reg: ldo3 {
+					/* VCC_1V5_AUD */
+					regulator-name = "ldo3";
+					regulator-min-microvolt = <1500000>;
+					regulator-max-microvolt = <1500000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				ldo4_reg: ldo4 {
+					/* VDDAPHY_DISP: vdda_dsiport/hdmi */
+					regulator-name = "ldo4";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				ldo5_reg: ldo5 {
+					/* VDDA_1V8_PHY: usb/sata/hdmi.. */
+					regulator-name = "ldo5";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				ldo6_reg: ldo6 {
+					/* VDDS_1V2_WKUP: hsic/ldo_emu_wkup */
+					regulator-name = "ldo6";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				ldo7_reg: ldo7 {
+					/* VDD_VPP: vpp1 */
+					regulator-name = "ldo7";
+					regulator-min-microvolt = <2000000>;
+					regulator-max-microvolt = <2000000>;
+					/* Only for efuse reprograming! */
+					status = "disabled";
+				};
+
+				ldo8_reg: ldo8 {
+					/* VDD_3V_GP: act led/serial console */
+					regulator-name = "ldo8";
+					regulator-min-microvolt = <3000000>;
+					regulator-max-microvolt = <3000000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				ldo9_reg: ldo9 {
+					/* VCC_DV_SDIO: vdds_sdcard */
+					regulator-name = "ldo9";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <3000000>;
+					regulator-boot-on;
+				};
+
+				ldoln_reg: ldoln {
+					/* VDDA_1v8_REF: vdds_osc/mm_l4per.. */
+					regulator-name = "ldoln";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				ldousb_reg: ldousb {
+					/* VDDA_3V_USB: VDDA_USBHS33 */
+					regulator-name = "ldousb";
+					regulator-min-microvolt = <3250000>;
+					regulator-max-microvolt = <3250000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				regen3_reg: regen3 {
+					/* REGEN3 controls LDO9 supply to card */
+					regulator-name = "regen3";
+					regulator-always-on;
+					regulator-boot-on;
+				};
+			};
+		};
+	};
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins>;
+
+	clock-frequency = <100000>;
+};
+
+&usbhshost {
+	port2-mode = "ehci-hsic";
+	port3-mode = "ehci-hsic";
+};
+
+&usbhsehci {
+	phys = <0 &hsusb2_phy &hsusb3_phy>;
+};
+
+&usb3 {
+       extcon = <&extcon_usb3>;
+       vbus-supply = <&smps10_out1_reg>;
+};
+
+&cpu0 {
+	cpu0-supply = <&smps123_reg>;
+};
+
+&dss {
+	status = "ok";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&dss_dpi_pins>;
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpi_dvi_out: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&tfp410_in>;
+			data-lines = <24>;
+		};
+
+		dpi_lcd_out: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&lcd_in>;
+			data-lines = <24>;
+		};
+	};
+};
+
+&dsi2 {
+	status = "ok";
+	vdd-supply = <&ldo4_reg>;
+};
+
+&hdmi {
+	status = "ok";
+	vdda-supply = <&ldo4_reg>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&dss_hdmi_pins>;
+
+	port {
+		hdmi_out: endpoint {
+			remote-endpoint = <&hdmi_connector_in>;
+			lanes = <1 0 3 2 5 4 7 6>;
+		};
+	};
+};

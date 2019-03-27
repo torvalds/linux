@@ -1,0 +1,211 @@
+.\"	$NetBSD: rcorder.8,v 1.3 2000/07/17 14:16:22 mrg Exp $
+.\"
+.\" Copyright (c) 1998
+.\"	Perry E. Metzger.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\"	This product includes software developed for the NetBSD Project
+.\"	by Perry E. Metzger.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 27, 2018
+.Dt RCORDER 8
+.Os
+.Sh NAME
+.Nm rcorder
+.Nd print a dependency ordering of interdependent files
+.Sh SYNOPSIS
+.Nm
+.Op Fl k Ar keep
+.Op Fl s Ar skip
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility is designed to print out a dependency ordering of a set of
+interdependent files.
+Typically it is used to find an execution
+sequence for a set of shell scripts in which certain files must be
+executed before others.
+.Pp
+Each file passed to
+.Nm
+must be annotated with special lines (which look like comments to the
+shell) which indicate the dependencies the files have upon certain
+points in the sequence, known as
+.Dq conditions ,
+and which indicate, for each file, which
+.Dq conditions
+may be expected to be filled by that file.
+.Pp
+Within each file, a block containing a series of
+.Dq Li REQUIRE ,
+.Dq Li PROVIDE ,
+.Dq Li BEFORE
+and
+.Dq Li KEYWORD
+lines must appear.
+The format of the lines is rigid.
+Each line must begin with a single
+.Ql # ,
+followed by a single space, followed by
+.Dq Li PROVIDE: ,
+.Dq Li REQUIRE: ,
+.Dq Li BEFORE: ,
+or
+.Dq Li KEYWORD: .
+No deviation is permitted.
+Each dependency line is then followed by a series of conditions,
+separated by whitespace.
+Multiple
+.Dq Li PROVIDE ,
+.Dq Li REQUIRE ,
+.Dq Li BEFORE
+and
+.Dq Li KEYWORD
+lines may appear, but all such lines must appear in a sequence without
+any intervening lines, as once a line that does not follow the format
+is reached, parsing stops.
+.\" Note that for historical reasons REQUIRES, PROVIDES, and KEYWORDS
+.\" are also accepted in addition to the above, but not documented so
+.\" that they can be deprecated at some point in the future.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl k
+Add the specified keyword to the
+.Dq "keep list" .
+If any
+.Fl k
+option is given, only those files containing the matching keyword are listed.
+.It Fl s
+Add the specified keyword to the
+.Dq "skip list" .
+If any
+.Fl s
+option is given, files containing the matching keyword are not listed.
+.El
+.Pp
+An example block follows:
+.Bd -literal -offset indent
+# REQUIRE: networking syslog
+# REQUIRE: usr
+# PROVIDE: dns nscd
+.Ed
+.Pp
+This block states that the file in which it appears depends upon the
+.Dq Li networking ,
+.Dq Li syslog ,
+and
+.Dq Li usr
+conditions, and provides the
+.Dq Li dns
+and
+.Dq Li nscd
+conditions.
+.Pp
+A file may contain zero
+.Dq Li PROVIDE
+lines, in which case it provides no conditions, and may contain zero
+.Dq Li REQUIRE
+lines, in which case it has no dependencies.
+There must be at least one file with no dependencies in the set of
+arguments passed to
+.Nm
+in order for it to find a starting place in the dependency ordering.
+.Sh KEYWORDS
+There are several
+.Em KEYWORDs
+in use:
+.Bl -tag -width ".Cm shutdown" -offset indent
+.It Cm firstboot, nojail, nojailvnet, nostart
+Used by
+.Xr rc 8 .
+.It Cm resume
+Used by
+.Nm /etc/rc.resume
+(see
+.Xr acpiconf 8 )
+.It Cm shutdown
+Used by
+.Xr rc.shutdown 8 .
+.El
+.Sh DIAGNOSTICS
+The
+.Nm
+utility may print one of the following error messages and exit with a non-zero
+status if it encounters an error while processing the file list.
+.Bl -diag
+.It "Requirement %s has no providers, aborting."
+No file has a
+.Dq Li PROVIDE
+line corresponding to a condition present in a
+.Dq Li REQUIRE
+line in another file.
+.It "Circular dependency on provision %s, aborting."
+A set of files has a circular dependency which was detected while
+processing the stated condition.
+.It "Circular dependency on file %s, aborting."
+A set of files has a circular dependency which was detected while
+processing the stated file.
+.El
+.Sh SEE ALSO
+.Xr acpiconf 8 ,
+.Xr rc 8 ,
+.Xr rc.shutdown 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Nx 1.5 .
+.Nm
+utility first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An -nosplit
+Written by
+.An Perry E. Metzger Aq Mt perry@piermont.com
+and
+.An Matthew R. Green Aq Mt mrg@eterna.com.au .
+.Sh BUGS
+The
+.Dq Li REQUIRE
+keyword is misleading:
+It does not describe which daemons have to be running before a script
+will be started.
+It describes which scripts must be placed before it in
+the dependency ordering.
+For example,
+if your script has a
+.Dq Li REQUIRE
+on
+.Dq Li named ,
+it means the script must be placed after the
+.Dq Li named
+script in the dependency ordering,
+not necessarily that it requires
+.Xr named 8
+to be started or enabled.

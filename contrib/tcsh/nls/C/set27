@@ -1,0 +1,8 @@
+$ $tcsh: set27,v 1.3 2006/03/02 18:46:45 christos Exp $
+$ tw.comp.c
+$set 27 
+1 command
+2 separator
+3 pattern
+4 range
+5 completion

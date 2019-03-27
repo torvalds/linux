@@ -1,0 +1,824 @@
+2007-08-08  Andrew Haley  <aph@redhat.com> (r128087)
+
+	* config/arm/libunwind.S (UNWIND_WRAPPER _Unwind_Backtrace): New.
+	* config/arm/unwind-arm.h (__gnu_Unwind_Backtrace): New.
+	* config/arm/unwind-arm.c (__gnu_Unwind_Backtrace): New.
+
+2007-07-12  Geoffrey Keating  <geoffk@apple.com> (r126588)
+
+	* builtins.c (get_pointer_alignment): Honor DECL_ALIGN on a
+	FUNCTION_DECL.
+	* tree.c (build_decl_stat): Move code from here...
+	(make_node_stat): ... to here.  Don't uselessly clear DECL_USER_ALIGN.
+	(expr_align): Honor DECL_ALIGN on a FUNCTION_DECL.  Add comment
+	about using DECL_ALIGN of LABEL_DECL and CONST_DECL.
+	* tree.h (DECL_USER_ALIGN): Fix misplaced comment.
+	* varasm.c (assemble_start_function): Use DECL_ALIGN instead of
+	FUNCTION_BOUNDARY.
+
+2007-07-09  Geoffrey Keating  <geoffk@apple.com> (r126529)
+
+	PR 32617
+	* c-common.c (c_alignof_expr): Look at DECL_ALIGN of
+	FUNCTION_DECLs.
+	(handle_aligned_attribute): Allow use on FUNCTION_DECLs.
+	* varasm.c (assemble_start_function): Honor DECL_ALIGN
+	for FUNCTION_DECLs.  Don't use align_functions_log if
+	DECL_USER_ALIGN.
+	* print-tree.c (print_node): Print DECL_ALIGN and DECL_USER_ALIGN
+	even for FUNCTION_DECLs.
+	* c-decl.c (merge_decls): Propagate DECL_ALIGN even for
+	FUNCTION_DECLs.
+	* tree.h (DECL_ALIGN): Update for new location of 'align'.
+	(DECL_FUNCTION_CODE): Update for new location and name of
+	'function_code'.
+	(DECL_OFFSET_ALIGN): Update for new location of 'off_align'.
+	(struct tree_decl_common): Move 'align' and 'off_align' out
+	of union, ensure they're still on a 32-bit boundary.  Remove
+	other fields in union 'u1'.
+	(struct tree_function_decl): Add field 'function_code' replacing
+	'u1.f' in tree_decl_common.
+	* tree.c (build_decl_stat): Set initial value of DECL_ALIGN.
+	* doc/extend.texi (Function Attributes): Add 'aligned' attribute.
+	(Variable Attributes): Cross-reference 'aligned' attribute
+	to Function Attributes.
+	* flags.h (force_align_functions_log): Delete.
+	* toplev.c (force_align_functions_log): Delete.
+
+2007-07-06  Josh Conner  <jconner@apple.com> (r126422)
+
+	PR middle-end/32602
+	PR middle-end/32603
+	* calls.c (store_one_arg): Handle arguments which are partially
+	on the stack when detecting argument overlap.
+
+2007-07-03  Eric Christopher  <echristo@apple.com> (r126278)
+
+	* doc/cppopts.texi: Add conflicting option note to -dM.
+	* doc/invoke.texi: Add note about possible conflicts with
+	-E for -dCHARS and note that -dM will not produce
+	any results if there is no machine dependent reorg.
+	
+2007-06-28  Geoffrey Keating  <geoffk@apple.com> (r126088)
+
+	* doc/invoke.texi (C++ Dialect Options): Document
+	fvisibility-ms-compat.
+	* c.opt (fvisibility-ms-compat): New.
+
+2007-06-23  Richard Earnshaw  <rearnsha@arm.com> (r125973)
+
+	PR target/31152
+	* arm.md (negscc): Match the correct operand for optimized LT0 test.
+	Remove optimization for GT.
+
+2007-06-05  Joerg Wunsch  <j.gnu@uriah.heep.sax.de> (r125346)
+
+	PR preprocessor/23479
+	* doc/extend.texi: Document the 0b-prefixed binary integer
+	constant extension.
+	
+2007-05-31  Eric Christopher  <echristo@apple.com> (r125246)
+
+	* expr.c (convert_move): Assert that we don't have a BLKmode
+	operand.
+	(store_expr): Handle BLKmode moves by calling emit_block_move.
+
+2007-05-31  Daniel Berlin  <dberlin@dberlin.org> (r125239)
+
+	* c-typeck.c (build_indirect_ref): Include type in error message.
+	(build_binary_op): Pass types to binary_op_error.
+	* c-common.c (binary_op_error): Take two type arguments, print out
+	types with error.
+	* c-common.h (binary_op_error): Update prototype.
+
+2007-05-27  Eric Christopher  <echristo@apple.com> (r125116)
+
+	* config/rs6000/rs6000.c (rs6000_emit_prologue): Update
+	sp_offset depending on stack size. Save r12 depending
+	on registers we're saving later.
+	(rs6000_emit_epilogue): Update sp_offset depending only
+	on stack size.
+
+2007-05-24  Richard Sandiford  <rsandifo@nildram.co.uk> (r125037)
+
+	* postreload-gcse.c (reg_changed_after_insn_p): New function.
+	(oprs_unchanged_p): Use it to check all registers in a REG.
+	(record_opr_changes): Look for clobbers in CALL_INSN_FUNCTION_USAGE.
+	(reg_set_between_after_reload_p): Delete.
+	(reg_used_between_after_reload_p): Likewise.
+	(reg_set_or_used_since_bb_start): Likewise.
+	(eliminate_partially_redundant_load): Use reg_changed_after_insn_p
+	and reg_used_between_p instead of reg_set_or_used_since_bb_start.
+	Use reg_set_between_p instead of reg_set_between_after_reload_p.
+	* rtlanal.c (reg_set_p): Check whether REG overlaps
+	regs_invalidated_by_call, rather than just checking the
+	membership of REGNO (REG).
+
+2007-05-18  Geoffrey Keating  <geoffk@apple.com> (r124839)
+ 
+	* dwarf2out.c (print_die): Use '%ld' not '%lu' to print a 'long'.
+	(output_die): Use 'unsigned long' with %x.
+	* sched-vis.c (print_value): Use 'unsigned HOST_WIDE_INT' and
+	HOST_WIDE_INT_PRINT_HEX to print HOST_WIDE_INT.
+	* tree-dump.c (dump_pointer): Use 'unsigned long' for %lx.
+
+2007-05-16  Eric Christopher  <echristo@apple.com> (r124763)
+
+       * config/rs6000/rs6000.c (rs6000_emit_prologue): Move altivec register
+        saving after stack push. Set sp_offset whenever we push.
+        (rs6000_emit_epilogue): Move altivec register restore before stack push.
+
+2007-05-03  Ian Lance Taylor  <iant@google.com> (r124381)
+
+	* config/rs6000/rs6000.c (rs6000_override_options): Don't set
+	MASK_PPC_GFXOPT for 8540 or 8548.
+
+2007-05-01  Dwarakanath Rajagopal <dwarak.rajagopal@amd.com> (r124341)
+
+	* doc/invoke.texi: Fix typo, 'AMD Family 10h core' instead of 
+	'AMD Family 10 core'.
+
+2007-05-01  Dwarakanath Rajagopal <dwarak.rajagopal@amd.com> (r124339)
+ 
+	* config/i386/i386.c (override_options): Accept k8-sse3, opteron-sse3 
+	and athlon64-sse3 as improved versions of k8, opteron and athlon64 
+	with SSE3 instruction set support.
+	* doc/invoke.texi: Likewise.
+
+2007-05-01  Dwarakanath Rajagopal <dwarak.rajagopal@amd.com> (r124330)
+
+	* config/i386/i386.c (override_options): Tuning 32-byte loop
+	alignment for amdfam10 architecture. Increasing the max loop
+	alignment to 24 bytes.
+
+2007-04-24  Hui-May Chang <hm.chang@apple.com> (r124115)
+
+	* reload1.c (merge_assigned_reloads) : Do not merge a RELOAD_OTHER
+	instruction with a RELOAD_FOR_OPERAND_ADDRESS instruction.
+
+2007-04-16  Lawrence Crowl  <crowl@google.com> (r123909)
+
+	* doc/invoke.texi (Debugging Options): Add documentation for the
+	-femit-struct-debug options -femit-struct-debug-baseonly,
+	-femit-struct-debug-reduced, and
+	-femit-struct-debug-detailed[=...].
+
+	* c-opts.c (c_common_handle_option): Add
+	OPT_femit_struct_debug_baseonly, OPT_femit_struct_debug_reduced,
+	and OPT_femit_struct_debug_detailed_.
+	* c.opt: Add specifications for
+	-femit-struct-debug-baseonly, -femit-struct-debug-reduced,
+	and -femit-struct-debug-detailed[=...].
+	* opts.c (set_struct_debug_option): Parse the
+	-femit-struct-debug-... options.
+	* opts.c (matches_main_base, main_input_basename,
+	main_input_baselength, base_of_path, matches_main_base): Add
+	variables and functions to compare header base name to compilation
+	unit base name.
+	* opts.c (should_emit_struct_debug): Add to determine to emit a
+	structure based on the option.
+	(dump_struct_debug) Also disabled function to debug this
+	function.
+	* opts.c (handle_options): Save the base name of the
+	compilation unit.
+
+	* langhooks-def.h (LANG_HOOKS_GENERIC_TYPE_P): Define.
+        (LANG_HOOKS_FOR_TYPES_INITIALIZER): Add.
+	This hook indicates if a type is generic.  Set it by default
+	to "never generic".
+	* langhooks.h (struct lang_hooks_for_types): Add a new hook
+	to determine if a struct type is generic or not.
+	* cp/cp-tree.h (class_tmpl_impl_spec_p): Declare a C++ hook.
+	* cp/tree.c (class_tmpl_impl_spec_p): Implement the C++ hook.
+	* cp/cp-lang.c (LANG_HOOKS_GENERIC_TYPE_P): Override null C hook
+	with live C++ hook.
+
+	* flags.h (enum debug_info_usage): Add an enumeration to describe
+	a program's use of a structure type.
+	* dwarf2out.c (gen_struct_or_union_type_die): Add a new parameter
+	to indicate the program's usage of the type.  Filter structs based
+	on the -femit-struct-debug-... specification.
+	(gen_type_die): Split into two routines, gen_type_die and
+	gen_type_die_with_usage.  gen_type_die is now a wrapper
+	that assumes direct usage.
+	(gen_type_die_with_usage): Replace calls to gen_type_die
+	with gen_type_die_with_usage adding the program usage of
+	the referenced type.
+	(dwarf2out_imported_module_or_decl): Suppress struct debug
+	information using should_emit_struct_debug when appropriate.
+
+2007-04-16  Ian Lance Taylor  <iant@google.com> (r123906)
+
+	* tree-ssa-propagate.c (cfg_blocks_add): Insert blocks with fewer
+	predecessors at head rather than tail.
+
+
+2007-04-12  Richard Guenther  <rguenther@suse.de> (r123736)
+
+	PR tree-optimization/24689
+	PR tree-optimization/31307
+	* fold-const.c (operand_equal_p): Compare INTEGER_CST array
+	indices by value.
+	* gimplify.c (canonicalize_addr_expr): To be consistent with
+	gimplify_compound_lval only set operands two and three of
+	ARRAY_REFs if they are not gimple_min_invariant.  This makes
+	it never at this place.
+	* tree-ssa-ccp.c (maybe_fold_offset_to_array_ref): Likewise.
+
+2007-04-07  H.J. Lu  <hongjiu.lu@intel.com> (r123639)
+
+	* config/i386/i386.c (ix86_handle_option): Handle SSSE3.
+
+2007-03-28  Dwarakanath Rajagopal  <dwarak.rajagopal@amd.com> (r123313)
+
+	* config.gcc: Accept barcelona as a variant of amdfam10.
+	* config/i386/i386.c (override_options): Likewise.
+	* doc/invoke.texi: Likewise.
+
+2007-03-12  Seongbae Park <seongbae.park@gmail.com> (r122851)
+
+	* c-decl.c (warn_variable_length_array): New function.
+	Refactored from grokdeclarator to handle warn_vla
+	and handle unnamed array case.
+	(grokdeclarator): Refactored VLA warning case.
+	* c.opt (Wvla): New flag.
+
+2007-03-11  Ian Lance Taylor  <iant@google.com> (r122831 - partial)
+
+	* tree-vrp.c (vrp_int_const_binop): Handle PLUS_EXPR and
+	the *_DIV_EXPR codes correctly with overflow infinities.
+
+2007-02-09  Dwarakanath Rajagopal <dwarak.rajagopal@amd.com> (r121763)
+
+	* config/i386/driver-i386.c: Turn on -mtune=native for AMDFAM10.
+	(bit_SSE4a): New.
+
+2007-02-08  Harsha Jagasia  <harsha.jagasia@amd.com> (r121726)
+
+	* config/i386/xmmintrin.h: Make inclusion of emmintrin.h
+	conditional to __SSE2__.
+	(Entries below should have been added to first ChangeLog
+	entry for amdfam10 dated 2007-02-05)
+	* config/i386/emmintrin.h: Generate #error if __SSE2__ is not
+	defined.
+	* config/i386/pmmintrin.h: Generate #error if __SSE3__ is not
+	defined.
+	* config/i386/tmmintrin.h: Generate #error if __SSSE3__ is not
+	defined.
+
+2007-02-07  Jakub Jelinek  <jakub@redhat.com> (r121687)
+
+	* config/i386/i386.c (override_options): Set PTA_SSSE3 for core2.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com> (r121625)
+
+	* config/i386/athlon.md (athlon_fldxf_k8, athlon_fld_k8,
+	athlon_fstxf_k8, athlon_fst_k8, athlon_fist, athlon_fmov,
+	athlon_fadd_load, athlon_fadd_load_k8, athlon_fadd, athlon_fmul,
+	athlon_fmul_load, athlon_fmul_load_k8, athlon_fsgn,
+	athlon_fdiv_load, athlon_fdiv_load_k8, athlon_fdiv_k8,
+	athlon_fpspc_load, athlon_fpspc, athlon_fcmov_load,
+	athlon_fcmov_load_k8, athlon_fcmov_k8, athlon_fcomi_load_k8,
+	athlon_fcomi, athlon_fcom_load_k8, athlon_fcom): Added amdfam10.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com> (r121625)
+
+	* config/i386/i386.md (x86_sahf_1, cmpfp_i_mixed, cmpfp_i_sse,
+	cmpfp_i_i387, cmpfp_iu_mixed, cmpfp_iu_sse, cmpfp_iu_387,
+	swapsi, swaphi_1, swapqi_1, swapdi_rex64, fix_truncsfdi_sse,
+	fix_truncdfdi_sse, fix_truncsfsi_sse, fix_truncdfsi_sse,
+	x86_fldcw_1, floatsisf2_mixed, floatsisf2_sse, floatdisf2_mixed,
+	floatdisf2_sse, floatsidf2_mixed, floatsidf2_sse,
+	floatdidf2_mixed, floatdidf2_sse, muldi3_1_rex64, mulsi3_1,
+	mulsi3_1_zext, mulhi3_1, mulqi3_1, umulqihi3_1, mulqihi3_insn,
+	umulditi3_insn, umulsidi3_insn, mulditi3_insn, mulsidi3_insn,
+	umuldi3_highpart_rex64, umulsi3_highpart_insn,
+	umulsi3_highpart_zext, smuldi3_highpart_rex64,
+	smulsi3_highpart_insn, smulsi3_highpart_zext, x86_64_shld,
+	x86_shld_1, x86_64_shrd, sqrtsf2_mixed, sqrtsf2_sse,
+	sqrtsf2_i387, sqrtdf2_mixed, sqrtdf2_sse, sqrtdf2_i387,
+	sqrtextendsfdf2_i387, sqrtxf2, sqrtextendsfxf2_i387,
+	sqrtextenddfxf2_i387): Added amdfam10_decode.
+	
+	* config/i386/athlon.md (athlon_idirect_amdfam10,
+	athlon_ivector_amdfam10, athlon_idirect_load_amdfam10,
+	athlon_ivector_load_amdfam10, athlon_idirect_both_amdfam10,
+	athlon_ivector_both_amdfam10, athlon_idirect_store_amdfam10,
+	athlon_ivector_store_amdfam10): New define_insn_reservation.
+	(athlon_idirect_loadmov, athlon_idirect_movstore): Added
+	amdfam10.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com> (r121625)
+
+	* config/i386/athlon.md (athlon_call_amdfam10,
+	athlon_pop_amdfam10, athlon_lea_amdfam10): New
+	define_insn_reservation.
+	(athlon_branch, athlon_push, athlon_leave_k8, athlon_imul_k8,
+	athlon_imul_k8_DI, athlon_imul_mem_k8, athlon_imul_mem_k8_DI,
+	athlon_idiv, athlon_idiv_mem, athlon_str): Added amdfam10.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com> (r121625)
+
+	* config/i386/athlon.md (athlon_sseld_amdfam10,
+	athlon_mmxld_amdfam10, athlon_ssest_amdfam10,
+	athlon_mmxssest_short_amdfam10): New define_insn_reservation.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com> (r121625)
+
+	* config/i386/athlon.md (athlon_sseins_amdfam10): New
+	define_insn_reservation.
+	* config/i386/i386.md (sseins): Added sseins to define_attr type
+	and define_attr unit.
+	* config/i386/sse.md: Set type attribute to sseins for insertq
+	and insertqi.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com> (r121625)
+
+	* config/i386/athlon.md (sselog_load_amdfam10, sselog_amdfam10,
+	ssecmpvector_load_amdfam10, ssecmpvector_amdfam10,
+	ssecomi_load_amdfam10, ssecomi_amdfam10,
+	sseaddvector_load_amdfam10, sseaddvector_amdfam10): New
+	define_insn_reservation.
+	(ssecmp_load_k8, ssecmp, sseadd_load_k8, seadd): Added amdfam10.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com> (r121625)
+
+	* config/i386/athlon.md (cvtss2sd_load_amdfam10,
+	cvtss2sd_amdfam10, cvtps2pd_load_amdfam10, cvtps2pd_amdfam10,
+	cvtsi2sd_load_amdfam10, cvtsi2ss_load_amdfam10,
+	cvtsi2sd_amdfam10, cvtsi2ss_amdfam10, cvtsd2ss_load_amdfam10,
+	cvtsd2ss_amdfam10, cvtpd2ps_load_amdfam10, cvtpd2ps_amdfam10,
+	cvtsX2si_load_amdfam10, cvtsX2si_amdfam10): New 
+	define_insn_reservation.
+
+	* config/i386/sse.md (cvtsi2ss, cvtsi2ssq, cvtss2si,
+	cvtss2siq, cvttss2si, cvttss2siq, cvtsi2sd, cvtsi2sdq,
+	cvtsd2si, cvtsd2siq, cvttsd2si, cvttsd2siq,
+	cvtpd2dq, cvttpd2dq, cvtsd2ss, cvtss2sd,
+	cvtpd2ps, cvtps2pd): Added amdfam10_decode attribute.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com> (r121625)
+
+	* config/i386/athlon.md (athlon_ssedivvector_amdfam10,
+	athlon_ssedivvector_load_amdfam10, athlon_ssemulvector_amdfam10,
+	athlon_ssemulvector_load_amdfam10): New define_insn_reservation.
+	(athlon_ssediv, athlon_ssediv_load_k8, athlon_ssemul,
+	athlon_ssemul_load_k8): Added amdfam10.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com> (r121625)
+
+	* config/i386/i386.h (TARGET_SSE_UNALIGNED_MOVE_OPTIMAL): New macro.
+	(x86_sse_unaligned_move_optimal): New variable.
+	
+	* config/i386/i386.c (x86_sse_unaligned_move_optimal): Enable for  
+	m_AMDFAM10.
+	(ix86_expand_vector_move_misalign): Add code to generate movupd/movups
+	for unaligned vector SSE double/single precision loads for AMDFAM10.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com> (r121625)
+
+	* config/i386/i386.h (TARGET_AMDFAM10): New macro.
+	(TARGET_CPU_CPP_BUILTINS): Add code for amdfam10.
+	Define TARGET_CPU_DEFAULT_amdfam10.
+	(TARGET_CPU_DEFAULT_NAMES): Add amdfam10.
+	(processor_type): Add PROCESSOR_AMDFAM10.	
+	
+	* config/i386/i386.md: Add amdfam10 as a new cpu attribute to match
+	processor_type in config/i386/i386.h.
+	Enable imul peepholes for TARGET_AMDFAM10.
+	
+	* config.gcc: Add support for --with-cpu option for amdfam10.
+	
+	* config/i386/i386.c (amdfam10_cost): New variable.
+	(m_AMDFAM10): New macro.
+	(m_ATHLON_K8_AMDFAM10): New macro.
+	(x86_use_leave, x86_push_memory, x86_movx, x86_unroll_strlen,
+	x86_cmove, x86_3dnow_a, x86_deep_branch, x86_use_simode_fiop,
+	x86_promote_QImode, x86_integer_DFmode_moves,
+	x86_partial_reg_dependency, x86_memory_mismatch_stall, 
+	x86_accumulate_outgoing_args, x86_arch_always_fancy_math_387,
+	x86_sse_partial_reg_dependency, x86_sse_typeless_stores,
+	x86_use_ffreep, x86_use_incdec, x86_four_jump_limit,
+	x86_schedule, x86_use_bt, x86_cmpxchg16b, x86_pad_returns):
+	Enable/disable for amdfam10.
+	(override_options): Add amdfam10_cost to processor_target_table.
+	Set up PROCESSOR_AMDFAM10 for amdfam10 entry in 
+	processor_alias_table.
+	(ix86_issue_rate): Add PROCESSOR_AMDFAM10.
+	(ix86_adjust_cost): Add code for amdfam10.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com> (r121625)
+	
+	* config/i386/i386.opt: Add new Advanced Bit Manipulation (-mabm)
+	instruction set feature flag. Add new (-mpopcnt) flag for popcnt 
+	instruction. Add new SSE4A (-msse4a) instruction set feature flag.
+	* config/i386/i386.h: Add builtin definition for SSE4A.
+	* config/i386/i386.md: Add support for ABM instructions 
+	(popcnt and lzcnt).
+	* config/i386/sse.md: Add support for SSE4A instructions
+	(movntss, movntsd, extrq, insertq).
+	* config/i386/i386.c: Add support for ABM and SSE4A builtins.
+	Add -march=amdfam10 flag.
+	* config/i386/ammintrin.h: Add support for SSE4A intrinsics.
+	* doc/invoke.texi: Add documentation on flags for sse4a, abm, popcnt
+	and amdfam10.
+	* doc/extend.texi: Add documentation for SSE4A builtins.
+
+2007-01-24  Jakub Jelinek  <jakub@redhat.com> (r121140)
+
+	* config/i386/i386.h (x86_cmpxchg16b): Remove const.
+	(TARGET_CMPXCHG16B): Define to x86_cmpxchg16b.
+	* config/i386/i386.c (x86_cmpxchg16b): Remove const.
+	(override_options): Add PTA_CX16 flag.  Set x86_cmpxchg16b
+	for CPUs that have PTA_CX16 set.
+
+2007-01-18  Josh Conner  <jconner@apple.com> (r120902)
+
+	PR target/30485
+	* config/rs6000/rs6000.c (rs6000_emit_vector_compare): Add
+	support for UNLE, UNLT, UNGE, and UNGT.
+
+2007-01-17  Eric Christopher  <echristo@apple.com> (r120846)
+
+	* config.gcc: Support core2 processor.
+
+2007-01-11  Joseph Myers  <joseph@codesourcery.com> (r120688)
+
+	* c-common.c (vector_types_convertible_p): Treat opaque types as
+	always convertible if they have the same size, but not otherwise.
+
+2007-01-08  Geoffrey Keating  <geoffk@apple.com> (r120611)
+ 
+	* target.h (struct gcc_target): New field library_rtti_comdat.
+	* target-def.h (TARGET_CXX_LIBRARY_RTTI_COMDAT): New.
+	(TARGET_CXX): Add TARGET_CXX_LIBRARY_RTTI_COMDAT.
+	* doc/tm.texi (C++ ABI): Document TARGET_CXX_LIBRARY_RTTI_COMDAT.
+	* config/darwin.h (TARGET_CXX_LIBRARY_RTTI_COMDAT): Define.
+
+2007-01-08  Mark Shinwell  <shinwell@codesourcery.com> (r120572)
+
+	* c.opt: Add -flax-vector-conversions.
+	* c-typeck.c (convert_for_assignment): Pass flag to
+	vector_types_convertible_p to allow emission of note.
+	(digest_init): Likewise.
+	* c-opts.c: Handle -flax-vector-conversions.
+	* c-common.c (flag_lax_vector_conversions): New.
+	(vector_types_convertible_p): Unless -flax-vector conversions
+	has been passed, disallow conversions between vectors with
+	differing numbers of subparts and/or element types.  If such
+	a conversion is disallowed, possibly emit a note on the first
+	occasion only to inform the user of -flax-vector-conversions.
+	The new last argument specifies this.
+	* c-common.h (flag_lax_vector_conversions): New.
+	(vector_types_convertible_p): Add extra argument.
+	* config/i386/i386.c (ix86_init_mmx_sse_builtins): Use
+	char_type_node for V*QI type vectors.
+	* config/rs6000/rs6000-c.c (altivec_overloaded_builtins):
+	Update to satisfy new typechecking rules.
+	* config/rs6000/altivec.h (vec_cmple): Use vec_cmpge, for both
+	C and C++ variants.
+	* doc/invoke.texi (C Dialect Options): Document
+	-flax-vector-conversions.
+
+2007-01-05  Manuel Lopez-Ibanez  <manu@gcc.gnu.org> (r120505)
+
+	PR c/19978
+	* tree.h (TREE_OVERFLOW_P): New.
+	* c-typeck.c (parser_build_unary_op): Warn only if result
+	overflowed and operands did not.
+	(parser_build_binary_op): Likewise.
+	(convert_for_assignment): Remove redundant overflow_warning.
+	* c-common.c (overflow_warning): Don't check or set TREE_OVERFLOW.
+
+2006-12-13  Ian Lance Taylor  <iant@google.com> (r119855)
+
+	PR c++/19564
+	PR c++/19756
+	* c-typeck.c (parser_build_binary_op): Move parentheses warnings
+	to warn_about_parentheses in c-common.c.
+	* c-common.c (warn_about_parentheses): New function.
+	* c-common.h (warn_about_parentheses): Declare.
+	* doc/invoke.texi (Warning Options): Update -Wparentheses
+	description.
+
+2006-12-12  Geoffrey Keating  <geoffk@apple.com> (r119820)
+ 
+	* mips-tdump.c: Replace CROSS_COMPILE with
+	CROSS_DIRECTORY_STRUCTURE.
+	* mips-tfile.c: Likewise.
+	* gcc.c: Likewise.
+	* configure.ac: Likewise.
+	* cppdefault.c: Likewise.
+	* Makefile.in: Likewise.
+	* config/alpha/osf.h: Likewise.
+	* config/i386/cygwin.h: Likewise.
+	* config/i386/beos-elf.h: Likewise.
+	* config/i386/nto.h: Likewise.
+	* config/svr4.h: Likewise.
+	* config/rs6000/aix.h: Likewise.
+	* config/rs6000/sysv4.h: Likewise.
+	* collect2.c: Likewise.
+	* configure: Regenerate.
+
+ 	* doc/tm.texi (Alignment Output): Document that ASM_OUTPUT_SKIP
+ 	actually takes an unsigned HOST_WIDE_INT for its second parameter.
+
+2006-12-02  H.J. Lu  <hongjiu.lu@intel.com> (r119454 - partial)
+
+	PR target/30040
+	* config/i386/driver-i386.c (bit_SSSE3): New.
+
+2006-11-27  Uros Bizjak  <ubizjak@gmail.com> (r119260)
+
+	* config/i386/i386.c (x86_ext_80387_constants): Add m_K8, m_CORE2
+	and m_GENERIC64.
+
+2006-11-18  Vladimir Makarov  <vmakarov@redhat.com> (r118973)
+
+	* doc/invoke.texi (core2): Add item.
+
+	* config/i386/i386.h (TARGET_CORE2, TARGET_CPU_DEFAULT_core2): New
+	macros.
+	(TARGET_CPU_CPP_BUILTINS): Add code for core2.
+	(TARGET_CPU_DEFAULT_generic): Change value.
+	(TARGET_CPU_DEFAULT_NAMES): Add core2.
+	(processor_type): Add new constant PROCESSOR_CORE2.
+
+	* config/i386/i386.md (cpu): Add core2.
+
+	* config/i386/i386.c (core2_cost): New initialized variable.
+	(m_CORE2): New macro.
+	(x86_use_leave, x86_push_memory, x86_movx, x86_unroll_strlen,
+	x86_deep_branch, x86_partial_reg_stall, x86_use_simode_fiop,
+	x86_use_cltd, x86_promote_QImode, x86_sub_esp_4, x86_sub_esp_8,
+	x86_add_esp_4, x86_add_esp_8, x86_integer_DFmode_moves,
+	x86_partial_reg_dependency, x86_memory_mismatch_stall,
+	x86_accumulate_outgoing_args, x86_prologue_using_move,
+	x86_epilogue_using_move, x86_arch_always_fancy_math_387,
+	x86_sse_partial_reg_dependency, x86_rep_movl_optimal,
+	x86_use_incdec, x86_four_jump_limit, x86_schedule,
+	x86_pad_returns): Add m_CORE2.
+	(override_options): Add entries for Core2.
+	(ix86_issue_rate): Add case for Core2.
+	
+2006-11-14  Caroline Tice  <ctice@apple.com> (r118826)
+		
+	* dwarf2out.c (debug_pubtypes_section): New static global variable.
+	(pubname_entry):  Add DEF_VEC_O and DEF_VEC_ALLOC_O statements for
+	this type.
+	(pubname_table):  Redefine as a vector.
+	(pubtype_table):  New static global variable, defined as a vector.
+	(pubname_table_allocated): Remove static global variable.
+	(pubname_table_in_use): Remove static global variable.
+	(PUBNAME_TABLE_INCREMENT): Remove constant.
+	(size_of_pubnames): Add parameter to deal with either pubnames or 
+	pubtypes, and change code to deal with table being a vector.
+	(add_pubname):  Change to deal with table being a vector.
+	(add_pubtype):  New function.
+	(output_pubnames): Add parameter to deal with either pubnames or 
+	pubtypes, and change code to deal with table being a vector.
+	(gen_array_type_die):  Add call to add_pubtype.
+	(gen_enumeration_type_die): Add call to add_pubtype.
+	(gen_struct_or_union_type_die): Add call to add_pubtype.
+	(gen_subroutine_type_die): Add call to add_pubtype.
+	(gen_typedef_die):  Add call to add_pubtype.
+	(dwarf2out_init): Add code to initialize pubname_table and 
+	pubtype_table vectors; also initialize debug_pubtypes_section.
+	(prune_unused_types):  Change to deal with pubnames being a vector.
+	(dwarf2out_finish): Change to deal with pubnames being a vector; add 
+	pubnames table to call to output_pubnames;  Add code to output pubtypes 
+	table if DEBUG_PUBTYPES_SECTION is defined.
+	* config/darwin.c (darwin_file_start):  Add DEBUG_PUBTYPES_SECTION to 
+	debugnames.
+	* config/darwin.h (DEBUG_PUBTYPES_SECTION): Define new global variable.
+
+2006-11-07  Eric Christopher  <echristo@apple.com> (r118576)
+
+	* libgcc2.c (__bswapdi2): Rename from bswapDI2.
+	(__bswapsi2): Ditto.
+	* libgcc2.h: Remove transformation of bswap routines.
+	* config/i386/i386.md (bswapsi2): New.
+	(bswapdi2): Ditto.
+
+2006-11-03  Paul Brook  <paul@codesourcery.com> (r118461)
+
+	gcc/
+	* config/arm/arm.c (arm_file_start): New function.
+	(TARGET_ASM_FILE_START): Define.
+	(arm_default_cpu): New variable.
+	(arm_override_options): Set arm_default_cpu.
+
+2006-10-31  Geoffrey Keating  <geoffk@apple.com> (r118360)
+ 
+	* coverage.c (coverage_checksum_string): Update comment.
+	* dwarf2out.c (switch_to_eh_frame_section): Update for removal
+	of get_file_function_name.
+	* cgraphunit.c (cgraph_build_static_cdtor): Update for rename
+	of get_file_function_name_long.
+	* tree.c (get_file_function_name): Rename from
+	get_file_function_name_long; improve comment; handle 'I' and 'D'
+	specially when the target has ctor/dtor support; remove special
+	handling for 'F'.
+	(get_file_function_name): Remove.
+	* tree.h (get_file_function_name): Rename from
+        get_file_function_name_long.
+	(get_file_function_name): Remove prototype.
+
+2006-10-31  Geoffrey Keating  <geoffk@apple.com> (r118356)
+
+	* c-decl.c (grokdeclarator): Don't set DECL_EXTERNAL on
+	inline static functions in c99 mode.
+
+	PR 16622
+	* doc/extend.texi (Inline): Update.
+	* c-tree.h (struct language_function): Remove field 'extern_inline'.
+	* c-decl.c (current_extern_inline): Delete.
+	(pop_scope): Adjust test for an undefined nested function.
+	Add warning about undeclared inline function.
+	(diagnose_mismatched_decls): Update comments.  Disallow overriding
+	of inline functions in a translation unit in C99.  Allow inline
+	declarations in C99 at any time.
+	(merge_decls): Boolize variables.  Handle C99 'extern inline'
+	semantics.
+	(grokdeclarator): Set DECL_EXTERNAL here for functions.  Handle
+	C99 inline semantics.
+	(start_function): Don't clear current_extern_inline.  Don't set
+	DECL_EXTERNAL.
+	(c_push_function_context): Don't push current_extern_inline.
+	(c_pop_function_context): Don't restore current_extern_inline.
+
+	PR 11377
+	* c-typeck.c (build_external_ref): Warn about static variables
+	used in extern inline functions.
+	* c-decl.c (start_decl): Warn about static variables declared
+	in extern inline functions.
+
+2006-10-27  Vladimir Makarov  <vmakarov@redhat.com> (r118090)
+
+	* config/i386/i386.h (TARGET_GEODE):
+	(TARGET_CPU_CPP_BUILTINS): Add code for geode.
+	(TARGET_CPU_DEFAULT_geode): New macro.
+	(TARGET_CPU_DEFAULT_k6, TARGET_CPU_DEFAULT_k6_2,
+	TARGET_CPU_DEFAULT_k6_3, TARGET_CPU_DEFAULT_athlon,
+	TARGET_CPU_DEFAULT_athlon_sse, TARGET_CPU_DEFAULT_k8,
+	TARGET_CPU_DEFAULT_pentium_m, TARGET_CPU_DEFAULT_prescott,
+	TARGET_CPU_DEFAULT_nocona, TARGET_CPU_DEFAULT_generic): Increase
+	the macro values.
+	(TARGET_CPU_DEFAULT_NAMES): Add geode.
+	(processor_type): Add PROCESSOR_GEODE.
+
+	* config/i386/i386.md: Include geode.md.
+	(cpu): Add geode.
+
+	* config/i386/i386.c (geode_cost): New initialized global
+	variable.
+	(m_GEODE, m_K6_GEODE): New macros.
+	(x86_use_leave, x86_push_memory, x86_deep_branch, x86_use_sahf,
+	x86_use_himode_fiop, x86_promote_QImode, x86_add_esp_4,
+	x86_add_esp_8, x86_rep_movl_optimal, x86_ext_80387_constants,
+	x86_schedule): Use m_K6_GEODE instead of m_K6.
+	(x86_movx, x86_cmove): Set up m_GEODE.
+	(x86_integer_DFmode_moves): Clear m_GEODE.
+	(processor_target_table): Add entry for geode.
+	(processor_alias_table): Ditto.
+
+	* config/i386/geode.md: New file.
+
+	* doc/invoke.texi: Add entry about geode processor.
+    
+2006-10-24  Richard Guenther  <rguenther@suse.de> (r118001)
+
+	PR middle-end/28796
+	* builtins.c (fold_builtin_classify): Use HONOR_INFINITIES
+	and HONOR_NANS instead of MODE_HAS_INFINITIES and MODE_HAS_NANS
+	for deciding optimizations in consistency with fold-const.c
+	(fold_builtin_unordered_cmp): Likewise.
+
+2006-10-22  H.J. Lu  <hongjiu.lu@intel.com> (r117958)
+
+	* config.gcc (i[34567]86-*-*): Add tmmintrin.h to extra_headers.
+	(x86_64-*-*): Likewise.
+
+	* config/i386/i386.c (pta_flags): Add PTA_SSSE3.
+	(override_options): Check SSSE3.
+	(ix86_builtins): Add IX86_BUILTIN_PHADDW, IX86_BUILTIN_PHADDD,
+	IX86_BUILTIN_PHADDSW, IX86_BUILTIN_PHSUBW, IX86_BUILTIN_PHSUBD,
+	IX86_BUILTIN_PHSUBSW, IX86_BUILTIN_PMADDUBSW,
+	IX86_BUILTIN_PMULHRSW, IX86_BUILTIN_PSHUFB,
+	IX86_BUILTIN_PSIGNB, IX86_BUILTIN_PSIGNW, IX86_BUILTIN_PSIGND,
+	IX86_BUILTIN_PALIGNR, IX86_BUILTIN_PABSB, IX86_BUILTIN_PABSW,
+	IX86_BUILTIN_PABSD, IX86_BUILTIN_PHADDW128,
+	IX86_BUILTIN_PHADDD128, IX86_BUILTIN_PHADDSW128,
+	IX86_BUILTIN_PHSUBW128, IX86_BUILTIN_PHSUBD128,
+	IX86_BUILTIN_PHSUBSW128, IX86_BUILTIN_PMADDUBSW128,
+	IX86_BUILTIN_PMULHRSW128, IX86_BUILTIN_PSHUFB128,
+	IX86_BUILTIN_PSIGNB128, IX86_BUILTIN_PSIGNW128,
+	IX86_BUILTIN_PSIGND128, IX86_BUILTIN_PALIGNR128,
+	IX86_BUILTIN_PABSB128, IX86_BUILTIN_PABSW128 and
+	IX86_BUILTIN_PABSD128.
+	(bdesc_2arg): Add SSSE3.
+	(bdesc_1arg): Likewise.
+	(ix86_init_mmx_sse_builtins): Support SSSE3.
+	(ix86_expand_builtin): Likewise.
+	* config/i386/i386.h (TARGET_CPU_CPP_BUILTINS): Likewise.
+
+	* config/i386/i386.md (UNSPEC_PSHUFB): New.
+	(UNSPEC_PSIGN): Likewise.
+	(UNSPEC_PALIGNR): Likewise.
+	Include mmx.md before sse.md.
+
+	* config/i386/i386.opt: Add -mssse3.
+
+	* config/i386/sse.md (ssse3_phaddwv8hi3): New pattern for SSSE3.
+	(ssse3_phaddwv4hi3): Likewise.
+	(ssse3_phadddv4si3): Likewise.
+	(ssse3_phadddv2si3): Likewise.
+	(ssse3_phaddswv8hi3): Likewise.
+	(ssse3_phaddswv4hi3): Likewise.
+	(ssse3_phsubwv8hi3): Likewise.
+	(ssse3_phsubwv4hi3): Likewise.
+	(ssse3_phsubdv4si3): Likewise.
+	(ssse3_phsubdv2si3): Likewise.
+	(ssse3_phsubswv8hi3): Likewise.
+	(ssse3_phsubswv4hi3): Likewise.
+	(ssse3_pmaddubswv8hi3): Likewise.
+	(ssse3_pmaddubswv4hi3): Likewise.
+	(ssse3_pmulhrswv8hi3): Likewise.
+	(ssse3_pmulhrswv4hi3): Likewise.
+	(ssse3_pshufbv16qi3): Likewise.
+	(ssse3_pshufbv8qi3): Likewise.
+	(ssse3_psign<mode>3): Likewise.
+	(ssse3_psign<mode>3): Likewise.
+	(ssse3_palignrti): Likewise.
+	(ssse3_palignrdi): Likewise.
+	(abs<mode>2): Likewise.
+	(abs<mode>2): Likewise.
+
+	* config/i386/tmmintrin.h: New file.
+
+	* doc/extend.texi: Document SSSE3 built-in functions.
+
+	* doc/invoke.texi: Document -mssse3/-mno-ssse3 switches.
+
+2006-10-22  H.J. Lu  <hongjiu.lu@intel.com> (r117959)
+  	 
+	* config/i386/tmmintrin.h: Remove the duplicated content.
+
+2006-10-21  Richard Guenther  <rguenther@suse.de> (r117932)
+
+	PR tree-optimization/3511
+	* tree-ssa-pre.c (phi_translate): Fold CALL_EXPRs that
+	got new invariant arguments during PHI translation.
+
+2006-10-21  Richard Guenther  <rguenther@suse.de> (r117929)
+
+	* builtins.c (fold_builtin_classify): Fix typo.
+
+2006-09-07  Eric Christopher  <echristo@apple.com> (r118361)
+	    Falk Hueffner  <falk@debian.org>
+
+	* doc/extend.texi (__builtin_bswap32): Document.
+	(__builtin_bswap64): Ditto.
+	* doc/libgcc.texi (bswapsi2): Document.
+	(bswapdi2): Ditto.
+	* doc/rtl.texi (bswap): Document.
+	* optabs.c (expand_unop): Don't widen a bswap.
+	(init_optabs): Init bswap. Set libfuncs explicitly
+	for bswapsi2 and bswapdi2.
+	* optabs.h (OTI_bswap): New.
+	(bswap_optab): Ditto.
+	* genopinit.c (optabs): Handle bswap_optab.
+	* tree.h (tree_index): Add TI_UINT32_TYPE and
+	TI_UINT64_TYPE.
+	(uint32_type_node): New.
+	(uint64_type_node): Ditto.
+	* tree.c (build_common_tree_nodes_2): Initialize
+	uint32_type_node and uint64_type_node.
+	* builtins.c (expand_builtin_bswap): New.
+	(expand_builtin): Call.
+	(fold_builtin_bswap): New.
+	(fold_builtin_1): Call.
+	* fold-const.c (tree_expr_nonnegative_p): Return true
+	for bswap.
+	* builtin-types.def (BT_UINT32): New.
+	(BT_UINT64): Ditto.
+	(BT_FN_UINT32_UINT32): Ditto.
+	(BT_FN_UINT64_UINT64): Ditto.
+	* builtins.def (BUILT_IN_BSWAP32): New.
+	(BUILT_IN_BSWAP64): Ditto.
+	* rtl.def (BSWAP): New.
+	* genattrtab.c (check_attr_value): New.
+	* libgcc2.c (__bswapSI2): New.
+	(__bswapDI2): Ditto.
+	* libgcc2.h (__bswapSI2): Declare.
+	(__bswapDI2): Ditto.
+	* mklibgcc.in (lib2funcs): Add _bswapsi2 and _bswapdi2.
+	* simplify-rtx.c (simplify_const_unary_operation): Return
+	0 for BSWAP.
+	* libgcc-std.ver (__bwapsi2): Add.
+	(__bswapdi2): Ditto.
+	* reload1.c (eliminate_regs_1): Add bswap.
+	(elimination_effects): Ditto.
+	* config/i386/i386.h (x86_bswap): New.
+	(TARGET_BSWAP): Use.
+	* config/i386/i386.c (x86_bswap): Set.

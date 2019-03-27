@@ -1,0 +1,37 @@
+
+#------------------------------------------------------------------------------
+# $File: softquad,v 1.13 2009/09/19 16:28:12 christos Exp $
+# softquad:  file(1) magic for SoftQuad Publishing Software
+#
+# Author/Editor and RulesBuilder
+#
+# XXX - byte order?
+#
+0	string		\<!SQ\ DTD>	Compiled SGML rules file
+>9	string		>\0		 Type %s
+0	string		\<!SQ\ A/E>	A/E SGML Document binary
+>9	string		>\0		 Type %s
+0	string		\<!SQ\ STS>	A/E SGML binary styles file
+>9	string		>\0		 Type %s
+0	short		0xc0de		Compiled PSI (v1) data
+0	short		0xc0da		Compiled PSI (v2) data
+>3	string		>\0		(%s)
+# Binary sqtroff font/desc files...
+0	short		0125252		SoftQuad DESC or font file binary
+>2	short		>0		- version %d
+# Bitmaps...
+0	search/1	SQ\ BITMAP1	SoftQuad Raster Format text
+#0	string		SQ\ BITMAP2	SoftQuad Raster Format data
+# sqtroff intermediate language (replacement for ditroff int. lang.)
+0	string		X\ 		SoftQuad troff Context intermediate
+>2	string		495		for AT&T 495 laser printer
+>2	string		hp		for Hewlett-Packard LaserJet
+>2	string		impr		for IMAGEN imPRESS
+>2	string		ps		for PostScript
+
+# From: Michael Piefel <piefel@debian.org>
+# sqtroff intermediate language (replacement for ditroff int. lang.)
+0	string		X\ 495		SoftQuad troff Context intermediate for AT&T 495 laser printer
+0	string		X\ hp		SoftQuad troff Context intermediate for HP LaserJet
+0	string		X\ impr		SoftQuad troff Context intermediate for IMAGEN imPRESS
+0	string		X\ ps		SoftQuad troff Context intermediate for PostScript

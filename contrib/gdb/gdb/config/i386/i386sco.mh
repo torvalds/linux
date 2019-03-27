@@ -1,0 +1,12 @@
+# Host: Intel 386 running SCO Unix (pre-SVR4)
+
+XM_FILE= xm-i386sco.h
+XM_CLIBS= -lPW
+
+NAT_FILE= nm-i386sco.h
+NATDEPFILES= infptrace.o inftarg.o fork-child.o corelow.o core-aout.o i386v-nat.o
+
+#msg The SCO C compiler cannot parse symtab.h when value.h has been included.
+#msg This is a bug in the compiler; the code is valid.
+#msg Therefore, you must use GCC to compile GDB on SCO machines.
+CC=gcc -D_POSIX_SOURCE=1

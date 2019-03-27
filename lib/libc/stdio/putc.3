@@ -1,0 +1,165 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)putc.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd January 10, 2003
+.Dt PUTC 3
+.Os
+.Sh NAME
+.Nm fputc ,
+.Nm putc ,
+.Nm putc_unlocked ,
+.Nm putchar ,
+.Nm putchar_unlocked ,
+.Nm putw
+.Nd output a character or word to a stream
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.Ft int
+.Fn fputc "int c" "FILE *stream"
+.Ft int
+.Fn putc "int c" "FILE *stream"
+.Ft int
+.Fn putc_unlocked "int c" "FILE *stream"
+.Ft int
+.Fn putchar "int c"
+.Ft int
+.Fn putchar_unlocked "int c"
+.Ft int
+.Fn putw "int w" "FILE *stream"
+.Sh DESCRIPTION
+The
+.Fn fputc
+function
+writes the character
+.Fa c
+(converted to an ``unsigned char'')
+to the output stream pointed to by
+.Fa stream .
+.Pp
+The
+.Fn putc
+macro acts essentially identically to
+.Fn fputc ,
+but is a macro that expands in-line.
+It may evaluate
+.Fa stream
+more than once, so arguments given to
+.Fn putc
+should not be expressions with potential side effects.
+.Pp
+The
+.Fn putchar
+function
+is identical to
+.Fn putc
+with an output stream of
+.Dv stdout .
+.Pp
+The
+.Fn putw
+function
+writes the specified
+.Vt int
+to the named output
+.Fa stream .
+.Pp
+The
+.Fn putc_unlocked
+and
+.Fn putchar_unlocked
+functions are equivalent to
+.Fn putc
+and
+.Fn putchar
+respectively,
+except that the caller is responsible for locking the stream
+with
+.Xr flockfile 3
+before calling them.
+These functions may be used to avoid the overhead of locking the stream
+for each character, and to avoid output being interspersed from multiple
+threads writing to the same stream.
+.Sh RETURN VALUES
+The functions,
+.Fn fputc ,
+.Fn putc ,
+.Fn putchar ,
+.Fn putc_unlocked
+and
+.Fn putchar_unlocked
+return the character written.
+If an error occurs, the value
+.Dv EOF
+is returned.
+The
+.Fn putw
+function
+returns 0 on success;
+.Dv EOF
+is returned if
+a write error occurs,
+or if an attempt is made to write a read-only stream.
+.Sh SEE ALSO
+.Xr ferror 3 ,
+.Xr flockfile 3 ,
+.Xr fopen 3 ,
+.Xr getc 3 ,
+.Xr putwc 3 ,
+.Xr stdio 3
+.Sh STANDARDS
+The functions
+.Fn fputc ,
+.Fn putc ,
+and
+.Fn putchar ,
+conform to
+.St -isoC .
+The
+.Fn putc_unlocked
+and
+.Fn putchar_unlocked
+functions conform to
+.St -p1003.1-2001 .
+A function
+.Fn putw
+function appeared in
+.At v6 .
+.Sh BUGS
+The size and byte order of an
+.Vt int
+varies from one machine to another, and
+.Fn putw
+is not recommended for portable applications.

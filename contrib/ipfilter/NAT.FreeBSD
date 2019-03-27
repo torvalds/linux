@@ -1,0 +1,104 @@
+These are Instructions for Configuring A FreeBSD Box For NAT
+After you have installed IpFilter.
+
+You will need to change three files:
+
+/etc/rc.local
+/etc/rc.conf
+/etc/natrules
+
+You will have to:
+
+1) Load the kernel module
+2) Make the ipnat rules
+3) Load the ipnat rules
+4) Enable routing between interfaces
+5) Add static routes for the subnet ranges
+6) Configure your network interfaces
+7) reboot the computer for the changes to take effect.
+
+The FAQ was written by Chris Coleman <chris@@bbcc.ctc.edu>
+This was tested using ipfilter 3.1.4 and FreeBSD 2.1.6-RELEASE
+_________________________________________________________
+1) Loading the Kernel Module
+
+If you are using a Kernal Loadable Module you need to edit your
+/etc/rc.local file and load the module at boot time.
+use the line:
+
+        modload /lkm/if_ipl.o
+
+If you are not loading a kernel module, skip this step.
+_________________________________________________________
+2) Setting up the NAT Rules
+
+Make a file called /etc/natrules
+put in the rules that you need for your system.
+
+If you want to use the whole 10 Network. Try:
+
+map fpx0 10.0.0.0/8 -> 208.8.0.1/32 portmap tcp/udp 10000:65000
+
+_________________________________________________________
+Here is an explaination of each part of the command:
+
+map starts the command.
+
+fpx0 is the interface with the real internet address.
+
+10.0.0.0 is the subnet you want to use.
+
+/8 is the subnet mask.  ie 255.0.0.0
+
+208.8.0.1 is the real ip address that you use.
+
+/32 is the subnet mask 255.255.255.255, ie only use this ip address.
+
+portmap tcp/udp 10000:65000
+        tells it to use the ports to redirect the tcp/udp calls through
+
+
+The one line should work for the whole network.
+_________________________________________________________
+3) Loading the NAT Rules:
+
+The NAT Rules will need to be loaded every time the computer
+reboots.
+
+In your /etc/rc.local put the line:
+
+ipnat -f /etc/natrules
+
+To check and see if it is loaded, as root type
+    ipnat -ls
+_________________________________________________________
+4) Enable Routing between interfaces.
+
+Tell the kernel to route these addresses.
+
+in the rc.local file put the line:
+
+sysctl -w net.inet.ip.forwarding=1
+
+_________________________________________________________
+5) Static Routes to Subnet Ranges
+
+Now you have to add a static routes for the subnet ranges.
+Edit your /etc/sysconfig to add them at bootup.
+
+static_routes="foo"
+route_foo="10.0.0.0 -netmask 0xf0000000 -interface 10.0.0.1"
+
+
+_________________________________________________________
+6) Make sure that you have your interfaces configured.
+
+I have two Intel Ether Express Pro B cards.
+One is on 208.8.0.1 The other is on 10.0.0.1
+
+You need to configure these in the /etc/sysconfig
+
+network_interfaces="fxp0 fxp1"
+ifconfig_fxp0="inet 208.8.0.1 netmask 255.255.255.0"
+ifconfig_fxp1="inet 10.0.0.1 netmask 255.0.0.0"
+_________________________________________________________

@@ -1,0 +1,78 @@
+#:%s/ \(number = [0-9]*\) \(type = [a-z]*\)/ \2 \1/g
+
+table role = ipf type = tree number = 1
+	{; };
+table role = ipf type = tree number = 100
+	{ 1.2.3.4/32; !2.2.0.0/16; 2.2.2.0/24; };
+table role = nat type = tree number = 110
+	{ 1.2.3.4/32; !2.2.0.0/16; 2.2.2.0/24; };
+table role = auth type = tree number = 120
+	{ 1.2.3.4/32; !2.2.0.0/16; 2.2.2.0/24; };
+table role = count type = tree number = 130
+	{ 1.2.3.4; !2.2.0.0/16; 2.2.2.0/24; };
+
+table role = ipf type = hash number = 2
+	{; };
+table role = ipf type = hash number = 200
+	{ 0/0; 1/32; 1.2.3.4/32; };
+table role = nat type = hash number = 210
+	{ 0/0; 2/32; 1.2.3.4/32; };
+table role = auth type = hash number = 220
+	{ 0/0; 3/32; 1.2.3.4/32; };
+table role = count type = hash number = 230
+	{ 0/0; 4/32; 1.2.3.4/32; };
+
+table role = ipf type = hash number = 240 seed = 101
+	{ 0/0; 1/32; 1.2.3.4/32; };
+table role = nat type = hash number = 250 seed = 101
+	{ 0/0; 2/32; 1.2.3.4/32; };
+table role = auth type = hash number = 260 seed = 101
+	{ 0/0; 3/32; 1.2.3.4/32; };
+table role = count type = hash number = 270 seed = 101
+	{ 0/0; 4/32; 1.2.3.4/32; };
+
+table role = ipf type = hash number = 2000 size = 1001
+	{ 0/0; 1/32; 1.2.3.4/32; };
+table role = nat type = hash number = 2000 size = 1001
+	{ 0/0; 2/32; 1.2.3.4/32; };
+table role = auth type = hash number = 2000 size = 1001
+	{ 0/0; 3/32; 1.2.3.4/32; };
+table role = count type = hash number = 2000 size = 1001
+	{ 0/0; 4/32; 1.2.3.4/32; };
+
+table role = ipf type = hash number = 100 size = 1001 seed = 101
+	{ 0/0; 1/32; 1.2.3.4/32; };
+table role = nat type = hash number = 100 size = 1001 seed = 101
+	{ 0/0; 2/32; 1.2.3.4/32; };
+table role = auth type = hash number = 100 size = 1001 seed = 101
+	{ 0/0; 3/32; 1.2.3.4/32; };
+table role = count type = hash number = 100 size = 1001 seed = 101
+	{ 0/0; 4/32; 1.2.3.4/32; };
+
+group-map in role = ipf number = 300 group = 303
+	{ 0/0; 5/32; 1.2.3.4/32; };
+group-map in role = nat number = 300 group = 303
+	{ 0/0; 6/32; 1.2.3.4/32; };
+group-map in role = auth number = 300 group = 303
+	{ 0/0; 7/32; 1.2.3.4/32; };
+group-map in role = count number = 300 group = 303
+	{ 0/0; 8/32; 1.2.3.4/32; };
+
+group-map out role = ipf number = 400 group = 303
+	{ 0/0; 5/32; 1.2.3.4/32, group = 606; };
+group-map out role = nat number = 400 group = 303
+	{ 0/0; 6/32; 1.2.3.4/32, group = 606; };
+group-map out role = auth number = 400 group = 303
+	{ 0/0; 7/32; 1.2.3.4/32, group = 606; };
+group-map out role = count number = 400 group = 303
+	{ 0/0; 8/32; 1.2.3.4/32, group = 606; };
+
+group-map in role = ipf number = 500
+	{ 0/0, group = 10; 5/32, group = 800; 1.2.3.4/32, group = 606; };
+group-map in role = nat number = 500
+	{ 0/0, group = 10; 6/32, group = 800; 1.2.3.4/32, group = 606; };
+group-map in role = auth number = 500
+	{ 0/0, group = 10; 7/32, group = 800; 1.2.3.4/32, group = 606; };
+group-map in role = count number = 500
+	{ 0/0, group = 10; 8/32, group = 800; 1.2.3.4/32, group = 606; };
+

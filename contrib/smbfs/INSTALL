@@ -1,0 +1,68 @@
+    1. Building
+    ===========
+
+    Copy config.in file to the config.local and edit it for your needs. Build
+process requires kernel sources in order to compile KLD module. If you want
+to use encrypted passwords you'll need an src/sys/crypto directory (sys-crypto
+cvsup collection) because encryption process involves DES algorithm.
+
+    Note for FreeBSD-current: it have kernel module sources in the base
+tree and requires options LIBMCHAIN and LIBICONV included in the kernel
+config file. smbfs can be either compiled in the kernel or loaded as module.
+
+    If FreeBSD machine and SMB server uses different character sets you
+may consider install ports/converters/iconv package (version 2.0 required).
+
+    Type 'make' to compile.
+	
+    If you're running any previous version of smbfs, unmount all mounted
+shares and unload an old module via 'kldunload smbfs' command.
+
+
+    2. Installing
+    =============
+
+    'make install' command will copy compiled binaries to /usr/local/bin
+directory and KLD module into /modules directory.
+
+    If you're running smbfs for the first time, it is also necessary to
+run 'make makedev' command in order to create /dev/nsmb0 device.
+
+    3. Configuring
+    ==============
+
+    KLD module can be loaded either manually:
+    
+    kldload smbfs.ko
+
+ or via loader.conf(5) file:
+
+    smbfs_load="YES"
+
+    However it is not strictly necessary because mount_smbfs(8) command
+will load it automatically.
+
+    Copy ./examples/dot.nsmbrc file into your home directory with ./.nsmbrc
+name and edit it for your needs.
+
+
+    4. Running
+    ==========
+
+    Please read mount_smbfs man page to get overview of command options.
+
+    Here is a quick example:
+
+	mount_smbfs -I hostname //bp@myserver/myshare /mnt
+
+    If something goes wrong, please try to find a problem and, if it is a bug
+ send me detailed description or patch. Before complaining about a bug, please
+ check the same operations with smbclient program included in the Samba package.
+ 
+
+
+    5. Deinstalling
+    ===============
+
+    All files can be completly removed by typing 'make deinstall' in the 
+working directory.

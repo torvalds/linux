@@ -1,0 +1,34 @@
+# $FreeBSD$
+
+failures=0
+
+check() {
+	if ! eval "[ $* ]"; then
+		echo "Failed: $*"
+		: $((failures += 1))
+	fi
+}
+
+check '"$(PATH=/libexec command -V ld-elf.so.1)" = "ld-elf.so.1 is /libexec/ld-elf.so.1"'
+check '"$(PATH=/libexec command -V ld-elf.so.1; :)" = "ld-elf.so.1 is /libexec/ld-elf.so.1"'
+check '"$(PATH=/libexec command -pv ld-elf.so.1)" = ""'
+check '"$(PATH=/libexec command -pv ld-elf.so.1; :)" = ""'
+
+PATH=/libexec:$PATH
+
+check '"$(command -V ld-elf.so.1)" = "ld-elf.so.1 is /libexec/ld-elf.so.1"'
+check '"$(command -V ld-elf.so.1; :)" = "ld-elf.so.1 is /libexec/ld-elf.so.1"'
+check '"$(command -pv ld-elf.so.1)" = ""'
+check '"$(command -pv ld-elf.so.1; :)" = ""'
+
+PATH=/libexec
+
+check '"$(command -v ls)" = ""'
+case $(command -pv ls) in
+/*/ls) ;;
+*)
+	echo "Failed: \$(command -pv ls) match /*/ls"
+	: $((failures += 1)) ;;
+esac
+
+exit $((failures > 0))

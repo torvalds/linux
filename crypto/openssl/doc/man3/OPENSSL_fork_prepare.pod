@@ -1,0 +1,63 @@
+=pod
+
+=head1 NAME
+
+OPENSSL_fork_prepare,
+OPENSSL_fork_parent,
+OPENSSL_fork_child
+- OpenSSL fork handlers
+
+=head1 SYNOPSIS
+
+ #include <openssl/crypto.h>
+
+ void OPENSSL_fork_prepare(void);
+ void OPENSSL_fork_parent(void);
+ void OPENSSL_fork_child(void);
+
+=head1 DESCRIPTION
+
+OpenSSL has state that should be reset when a process forks. For example,
+the entropy pool used to generate random numbers (and therefore encryption
+keys) should not be shared across multiple programs.
+The OPENSSL_fork_prepare(), OPENSSL_fork_parent(), and OPENSSL_fork_child()
+functions are used to reset this internal state.
+
+Platforms without fork(2) will probably not need to use these functions.
+Platforms with fork(2) but without pthreads_atfork(3) will probably need
+to call them manually, as described in the following paragraph.  Platforms
+such as Linux that have both functions will normally not need to call these
+functions as the OpenSSL library will do so automatically.
+
+L<OPENSSL_init_crypto(3)> will register these functions with the appropriate
+handler, when the B<OPENSSL_INIT_ATFORK> flag is used. For other
+applications, these functions can be called directly. They should be used
+according to the calling sequence described by the pthreads_atfork(3)
+documentation, which is summarized here.  OPENSSL_fork_prepare() should
+be called before a fork() is done.  After the fork() returns, the parent
+process should call OPENSSL_fork_parent() and the child process should
+call OPENSSL_fork_child().
+
+=head1 RETURN VALUES
+
+OPENSSL_fork_prepare(), OPENSSL_fork_parent() and OPENSSL_fork_child() do not
+return values.
+
+=head1 SEE ALSO
+
+L<OPENSSL_init_crypto(3)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 1.1.1.
+
+=head1 COPYRIGHT
+
+Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

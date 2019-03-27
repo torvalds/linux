@@ -1,0 +1,45 @@
+
+#------------------------------------------------------------------------------
+# $File: kerberos,v 1.2 2017/03/17 21:35:28 christos Exp $
+# kerberos: MIT kerberos file binary formats
+#
+
+# This magic entry is for demonstration purposes and could be improved
+# if the following features were implemented in file:
+#
+# Strings inside [[ .. ]] in the descriptions have special meanings and
+# are not printed.
+#
+# 	- Provide some form of iteration in number of components
+#		[[${counter}=%d]] in the description
+#		then append
+#		[${counter}--] in the offset of the entries
+#	- Provide a way to round the next offset
+#		Add [R:4] after the offset?
+#	- Provide a way to have optional entries
+#		XXX: Syntax:
+#	- Provide a way to "save" entries to print them later.
+#		if the description is [[${name}=%s]], then nothing is
+#		printed and a subsequent entry in the same magic file
+#		can refer to ${name}
+#	- Provide a way to format strings as hex values
+#
+# http://www.gnu.org/software/shishi/manual/html_node/\
+#	The-Keytab-Binary-File-Format.html
+#
+
+0		name		keytab_entry
+#>0		beshort		x		\b, size=%d
+#>2		beshort		x		\b, components=%d
+>4		pstring/H	x		\b, realm=%s
+>>&0		pstring/H	x		\b, principal=%s/
+>>>&0		pstring/H	x		\b%s
+>>>>&0		belong		x		\b, type=%d
+>>>>>&0		bedate		x		\b, date=%s
+>>>>>>&0	byte		x		\b, kvno=%u
+#>>>>>>>&0	pstring/H	x
+#>>>>>>>>&0	belong		x
+#>>>>>>>>>>&0	use		keytab_entry
+
+0		belong		0x05020000	Kerberos Keytab file
+>4		use		keytab_entry

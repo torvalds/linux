@@ -1,0 +1,151 @@
+#
+# $FreeBSD$
+#
+#
+# Makefile for building virtual machine and cloud provider disk images.
+#
+
+VMTARGETS=	vm-image
+VMFORMATS?=	vhd vmdk qcow2 raw
+VMSIZE?=	30G
+SWAPSIZE?=	1G
+VMBASE?=	vm
+
+VHD_DESC=	Azure, VirtualPC, Hyper-V, Xen disk image
+VMDK_DESC=	VMWare, VirtualBox disk image
+QCOW2_DESC=	Qemu, KVM disk image
+RAW_DESC=	Unformatted raw disk image
+
+CLOUDWARE?=	EC2 \
+		GCE \
+		VAGRANT-VIRTUALBOX \
+		VAGRANT-VMWARE
+AZURE_FORMAT=	vhdf
+AZURE_DESC=	Microsoft Azure platform image
+AZURE_DISK=	${OSRELEASE}.${AZURE_FORMAT}
+EC2_FORMAT=	raw
+EC2_DESC=	Amazon EC2 image
+EC2_DISK=	${OSRELEASE}.${EC2_FORMAT}
+GCE_FORMAT=	raw
+GCE_DESC=	Google Compute Engine image
+GCE_DISK=	disk.${GCE_FORMAT}
+OPENSTACK_FORMAT=qcow2
+OPENSTACK_DESC=	OpenStack platform image
+OPENSTACK_DISK=	${OSRELEASE}.${OPENSTACK_FORMAT}
+VAGRANT-VIRTUALBOX_FORMAT=	vmdk
+VAGRANT-VIRTUALBOX_DESC=	Vagrant Image for VirtualBox
+VAGRANT-VIRTUALBOX_DISK=	${OSRELEASE}.vbox.${VAGRANT_FORMAT}
+VAGRANT-VMWARE_FORMAT=	vmdk
+VAGRANT-VMWARE_DESC=	Vagrant Image for VMWare
+VAGRANT-VMWARE_DISK=	${OSRELEASE}.vmware.${VAGRANT_FORMAT}
+
+.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
+. for _CW in ${CLOUDWARE}
+CLOUDTARGETS+=	cw-${_CW:tl}
+CLEANDIRS+=	cw-${_CW:tl}
+CLEANFILES+=	${_CW:tl}.img \
+		${_CW:tl}.${${_CW:tu}_FORMAT} \
+		${_CW:tl}.${${_CW:tu}_FORMAT}.raw \
+		cw${_CW:tl}-package
+CLOUDPACKAGE+=	cw${_CW:tl}-package
+${_CW:tu}IMAGE=	${_CW:tl}.${${_CW:tu}_FORMAT}
+.  if exists(${.CURDIR}/tools/${_CW:tl}.conf) && !defined(${_CW:tu}CONF)
+${_CW:tu}CONF?=	${.CURDIR}/tools/${_CW:tl}.conf
+.  endif
+
+cw-${_CW:tl}:
+	mkdir -p ${.OBJDIR}/${.TARGET}
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
+		${.CURDIR}/scripts/mk-vmimage.sh \
+		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
+		-i ${.OBJDIR}/${_CW:tl}.img -s ${VMSIZE} -f ${${_CW:tu}_FORMAT} \
+		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW:tu}IMAGE} -c ${${_CW:tu}CONF}
+	touch ${.TARGET}
+
+cw${_CW:tl}-package:
+	@# Special target to handle packaging cloud images in the formats
+	@# specific to each hosting provider.
+.if exists(${.CURDIR}/tools/${_CW:tl}-package.sh)
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		${.CURDIR}/tools/${_CW:tl}-package.sh \
+		-D ${DESTDIR} -I ${${_CW}_DISK} -S ${WORLDDIR}
+.endif
+	touch ${.TARGET}
+
+. endfor
+.endif
+
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+CLEANDIRS+=	${VMTARGETS}
+. for FORMAT in ${VMFORMATS}
+CLEANFILES+=	${FORMAT}.img
+CLEANFILES+=	${VMBASE}.${FORMAT}
+. endfor
+.endif
+
+vm-base:	vm-image
+
+vm-image:
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+. for FORMAT in ${VMFORMATS}
+	mkdir -p ${.OBJDIR}/${.TARGET}
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
+		${.CURDIR}/scripts/mk-vmimage.sh \
+		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
+		-i ${.OBJDIR}/${FORMAT}.img -s ${VMSIZE} -f ${FORMAT} \
+		-S ${WORLDDIR} -o ${.OBJDIR}/${VMBASE}.${FORMAT}
+. endfor
+.endif
+	touch ${.TARGET}
+
+vm-cloudware:	${CLOUDTARGETS}
+
+list-vmtargets:	list-cloudware
+	@${ECHO}
+	@${ECHO} "Supported virtual machine disk image formats:"
+.for FORMAT in ${VMFORMATS:tu}
+	@${ECHO} "  ${FORMAT:tl}: ${${FORMAT}_DESC}"
+.endfor
+
+list-cloudware:
+.if !empty(CLOUDWARE)
+	@${ECHO}
+	@${ECHO} "Supported cloud hosting provider images:"
+. for _CW in ${CLOUDWARE}
+	@${ECHO} "  ${_CW:tu}: ${${_CW:tu}_DESC}"
+. endfor
+.endif
+
+vm-install:
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+	mkdir -p ${DESTDIR}/vmimages
+. for FORMAT in ${VMFORMATS}
+	cp -p ${VMBASE}.${FORMAT} \
+		${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+. endfor
+. if defined(WITH_COMPRESSED_VMIMAGES) && !empty(WITH_COMPRESSED_VMIMAGES)
+.  for FORMAT in ${VMFORMATS}
+	# Don't keep the originals.  There is a copy in ${.OBJDIR} if needed.
+	${XZ_CMD} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+.  endfor
+. endif
+	cd ${DESTDIR}/vmimages && sha512 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.SHA512
+	cd ${DESTDIR}/vmimages && sha256 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.SHA256
+.endif
+
+vm-release:
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${VMTARGETS}
+.endif
+
+cloudware-release:
+.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
+	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${CLOUDTARGETS}
+.endif
+
+.include "${.CURDIR}/Makefile.ec2"
+.include "${.CURDIR}/Makefile.azure"
+.include "${.CURDIR}/Makefile.gce"
+.include "${.CURDIR}/Makefile.vagrant"

@@ -1,0 +1,35 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_MIGRATE_ID" 3 "2007-11-13" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_migrate_id \- Move a communication identifier to a different event channel.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "int" rdma_migrate_id
+.BI "(struct rdma_cm_id *" id ","
+.BI "struct rdma_event_channel *" channel ");"
+.SH ARGUMENTS
+.IP "id" 12
+An existing communication identifier to migrate.
+.IP "channel" 12
+The communication channel that events associated with the
+allocated rdma_cm_id will be reported on.  May be NULL.
+.SH "DESCRIPTION"
+Migrates a communication identifier to a different event channel.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
+.SH "NOTES"
+This routine migrates a communication identifier to the specified event
+channel and moves any pending events associated with the rdma_cm_id
+to the new channel.  Users should not poll for events on the
+rdma_cm_id's current event channel or invoke other routines on the
+rdma_cm_id while migrating between channels.  This call will block while
+there are any unacknowledged events on the current event channel.
+.P
+If the channel parameter is NULL, the specified rdma_cm_id will be
+placed into synchronous operation mode.  All calls on the id
+will block until the operation completes.
+.SH "SEE ALSO"
+rdma_cm(7), rdma_create_event_channel(3), rdma_create_id(3),
+rdma_get_cm_event(3)

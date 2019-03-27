@@ -1,0 +1,150 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2005 Doug Rabson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.\"
+.\" The following commands are required for all man pages.
+.Dd January 26, 2010
+.Dt GSS_DISPLAY_NAME 3 PRM
+.Os
+.Sh NAME
+.Nm gss_display_name
+.Nd Convert internal-form name to text
+.\" This next command is for sections 2 and 3 only.
+.\" .Sh LIBRARY
+.Sh SYNOPSIS
+.In "gssapi/gssapi.h"
+.Ft OM_uint32
+.Fo gss_display_name
+.Fa "OM_uint32 *minor_status"
+.Fa "const gss_name_t input_name"
+.Fa "gss_buffer_t output_name_buffer"
+.Fa "gss_OID *output_name_type"
+.Fc
+.Sh DESCRIPTION
+Allows an application to obtain a textual representation of an opaque
+internal-form name for display purposes.
+The syntax of a printable name is defined by the GSS-API implementation.
+.Pp
+If
+.Fa input_name
+denotes an anonymous principal,
+the implementation should return the
+.Fa gss_OID
+value
+.Dv GSS_C_NT_ANONYMOUS
+as the
+.Fa output_name_type ,
+and a textual name that is syntactically distinct from all valid
+supported printable names in
+.Fa output_name_buffer .
+.Pp
+If
+.Fa input_name
+was created by a call to
+.Fn gss_import_name ,
+specifying
+.Dv GSS_C_NO_OID
+as the name-type,
+implementations that employ lazy conversion between name types may
+return
+.Dv GSS_C_NO_OID
+via the
+.Fa output_name_type
+parameter.
+.Sh PARAMETERS
+.Bl -tag -width ".It output_name_buffer"
+.It minor_status
+Mechanism specific status code.
+.It input_name
+Name to be displayed.
+.It output_name_buffer
+Buffer to receive textual name string.
+The application must free storage associated with this name after use
+with a call to
+.Fn gss_release_buffer .
+.It output_name_type
+The type of the returned name.
+The returned
+.Fa gss_OID
+will be a pointer into static storage,
+and should be treated as read-only by the caller
+(in particular, the application should not attempt to free it).
+Specify
+.Dv NULL
+if not required.
+.El
+.Sh RETURN VALUES
+.Bl -tag -width ".It GSS_S_COMPLETE"
+.It GSS_S_COMPLETE
+Successful completion
+.It GSS_S_BAD_NAME
+.Fa input_name
+was ill-formed
+.El
+.Sh SEE ALSO
+.Xr gss_import_name 3 ,
+.Xr gss_release_buffer 3
+.Sh STANDARDS
+.Bl -tag -width ".It RFC 2743"
+.It RFC 2743
+Generic Security Service Application Program Interface Version 2, Update 1
+.It RFC 2744
+Generic Security Service API Version 2 : C-bindings
+.El
+.Sh HISTORY
+The
+.Nm
+function first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+John Wray, Iris Associates
+.Sh COPYRIGHT
+Copyright (C) The Internet Society (2000).  All Rights Reserved.
+.Pp
+This document and translations of it may be copied and furnished to
+others, and derivative works that comment on or otherwise explain it
+or assist in its implementation may be prepared, copied, published
+and distributed, in whole or in part, without restriction of any
+kind, provided that the above copyright notice and this paragraph are
+included on all such copies and derivative works.  However, this
+document itself may not be modified in any way, such as by removing
+the copyright notice or references to the Internet Society or other
+Internet organizations, except as needed for the purpose of
+developing Internet standards in which case the procedures for
+copyrights defined in the Internet Standards process must be
+followed, or as required to translate it into languages other than
+English.
+.Pp
+The limited permissions granted above are perpetual and will not be
+revoked by the Internet Society or its successors or assigns.
+.Pp
+This document and the information contained herein is provided on an
+"AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING
+TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING
+BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION
+HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF
+MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.

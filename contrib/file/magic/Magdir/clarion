@@ -1,0 +1,27 @@
+
+#------------------------------------------------------------------------------
+# $File: clarion,v 1.5 2014/04/30 21:41:02 christos Exp $
+# clarion:  file(1) magic for # Clarion Personal/Professional Developer
+# (v2 and above)
+# From: Julien Blache <jb@jblache.org>
+
+# Database files
+# signature
+0	leshort	0x3343	Clarion Developer (v2 and above) data file
+# attributes
+>2	leshort	&0x0001	\b, locked
+>2	leshort	&0x0004	\b, encrypted
+>2	leshort	&0x0008	\b, memo file exists
+>2	leshort	&0x0010	\b, compressed
+>2	leshort	&0x0040	\b, read only
+# number of records
+>5	lelong	x	\b, %d records
+
+# Memo files
+0	leshort	0x334d	Clarion Developer (v2 and above) memo data
+
+# Key/Index files
+# No magic? :(
+
+# Help files
+0	leshort	0x49e0	Clarion Developer (v2 and above) help data

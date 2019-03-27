@@ -1,0 +1,36 @@
+# $FreeBSD$
+#
+#  This is an example of a very light firewall used to guard against
+#  some of the most easily exploited common security holes.
+#
+#  The example assumes it is running on a gateway with interface ppp0
+#  attached to the outside world, and interface ed0 attached to
+#  network 192.168.4.0 which needs to be protected.
+#
+#
+#  Pass any packets not explicitly mentioned by subsequent rules
+#
+pass out from any to any
+pass in from any to any
+#
+#  Block any inherently bad packets coming in from the outside world.
+#  These include ICMP redirect packets and IP fragments so short the
+#  filtering rules won't be able to examine the whole UDP/TCP header.
+#
+block in log quick on ppp0 proto icmp from any to any icmp-type redir
+block in log quick on ppp0 proto tcp/udp all with short
+#
+#  Block any IP spoofing attempts.  (Packets "from" our network
+#  shouldn't be coming in from outside).
+#
+block in log quick on ppp0 from 192.168.4.0/24 to any
+block in log quick on ppp0 from localhost to any
+block in log quick on ppp0 from 0.0.0.0/32 to any
+block in log quick on ppp0 from 255.255.255.255/32 to any
+#
+#  Block any incoming traffic to NFS ports, to the RPC portmapper, and
+#  to X servers.
+#
+block in log on ppp0 proto tcp/udp from any to any port = sunrpc
+block in log on ppp0 proto tcp/udp from any to any port = 2049
+block in log on ppp0 proto tcp from any to any port = 6000

@@ -1,0 +1,171 @@
+.\" Copyright (c) 2009 Christian Brueffer
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 16, 2017
+.Dt BWN 4
+.Os
+.Sh NAME
+.Nm bwn
+.Nd Broadcom BCM43xx SoftMAC IEEE 802.11 wireless network driver
+.Sh SYNOPSIS
+To compile this driver into the kernel, add the following lines to the kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd "device bwn"
+.Cd "device bhnd"
+.Cd "device bhndb"
+.Cd "device bhndb_pci"
+.Cd "device bcma"
+.Cd "device siba"
+.Cd "device gpio"
+.Cd "device wlan"
+.Cd "device wlan_amrr"
+.Cd "device firmware"
+.Ed
+.Pp
+To load the driver as a module at boot, add the following lines to
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_bwn_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Broadcom BCM43xx based
+PCI/CardBus network adapters.
+.Pp
+It supports
+.Cm station
+and
+.Cm monitor
+mode operation.
+Only one virtual interface may be configured at any time.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Pp
+This driver requires firmware to be loaded before it will work.
+The
+.Pa ports/net/bwn-firmware-kmod
+port needs to be installed before
+.Xr ifconfig 8
+will work.
+In most cases the
+.Pa bwn_v4_ucode
+kernel module from the port should be used.
+However, if an LP (low power) PHY is being used, the
+.Pa bwn_v4_lp_ucode
+module should be used.
+.Sh HARDWARE
+The
+.Nm
+driver supports Broadcom BCM43xx based wireless devices, including:
+.Bl -column "Apple Airport Extreme" "BCM4306" "Mini PCI" "a/b/g"
+.It Em "Card" Ta Em "Chip" Ta Em "Bus" Ta Em "Standard"
+.It "Apple Airport Extreme	BCM4318	PCI	b/g"
+.It "ASUS WL-138g	BCM4318	PCI	b/g"
+.It "Buffalo WLI-CB-G54S	BCM4318	CardBus	b/g"
+.It "Dell Wireless 1390	BCM4311	Mini PCI	b/g"
+.It "Dell Wireless 1470	BCM4318	Mini PCI	b/g"
+.It "Dell Truemobile 1400	BCM4309	Mini PCI	b/g"
+.It "HP Compaq 6715b	BCM4312	PCI	b/g"
+.It "HP nx6125	BCM4319	PCI	b/g"
+.It "Linksys WPC54G Ver 3	BCM4318	CardBus	b/g"
+.It "Linksys WPC54GS Ver 2	BCM4318	CardBus	b/g"
+.It "US Robotics 5411	BCM4318	CardBus	b/g"
+.El
+.Pp
+Users of older Broadcom chipsets (BCM4301, BCM4303 and BCM4306 rev 2)
+must use
+.Xr bwi 4
+because the v4 version of the firmware does not support these chips.
+The newer firmware is too big to fit into these old chips.
+.Sh EXAMPLES
+Join an existing BSS network (i.e., connect to an access point):
+.Bd -literal -offset indent
+ifconfig wlan create wlandev bwn0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig wlan create wlandev bwn0 ssid my_net up"
+.Pp
+Join a specific BSS network with 64-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev bwn0 ssid my_net \e
+        wepmode on wepkey 0x1234567890 weptxkey 1 up
+.Ed
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.bwn.usedma
+This tunable enables DMA operations on the hardware.
+If the value is 0, PIO mode would be used.
+The default value is 1.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr bcma 4 ,
+.Xr bhnd 4 ,
+.Xr bhndb 4 ,
+.Xr bwi 4 ,
+.Xr cardbus 4 ,
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr siba 4 ,
+.Xr wlan 4 ,
+.Xr wlan_amrr 4 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 8.1 .
+The driver was updated to support the common Broadcom
+.Xr bhnd 4
+bus interface in
+.Fx 12.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Weongyo Jeong Aq Mt weongyo@FreeBSD.org .
+Support for
+.Xr bhnd 4
+was added by
+.An Landon Fuller Aq Mt landonf@FreeBSD.org .
+.\".Sh BUGS
+.\"Some card based on the BCM4306 and BCM4309 chips do not work properly
+.\"on channel 1, 2 and 3.
+.Sh CAVEATS
+Some LP PHY devices have DMA operation problems that in that case try to
+use PIO mode.

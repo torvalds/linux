@@ -1,0 +1,521 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\"	@(#)m3	8.1 (Berkeley) 8/14/93
+.\"
+.\" $FreeBSD$
+.tr |
+.rm mx
+.mh
+Tabs, Leaders, and Fields
+.sc
+Tabs and leaders.
+The \s-1ASCII\s+1 horizontal tab character and the \s-1ASCII\s+1
+\s-1SOH\s+1 (hereafter known as the \fIleader\fR character)
+can both be used to generate either horizontal motion or
+a string of repeated characters.
+The length of the generated entity is governed
+by internal \fItab stops\fR specifiable
+with \fBta\fR.
+The default difference is that tabs generate motion and leaders generate
+a string of periods;
+\fBtc\fR and \fBlc\fR
+offer the choice of repeated character or motion.
+There are three types of internal tab stops\(em\
+\fIleft\fR adjusting, \fIright\fR adjusting,
+and \fIcentering\fR.
+In the following table:
+\fID\fR is the distance from the current position on the \fIinput\fR line
+(where a tab or leader was found)
+to the next tab stop;
+\fInext-string\fR consists
+of the input characters following the tab (or leader) up to the next tab (or leader) or end of line;
+and
+\fIW\fR is the width of \fInext-string\fR.
+.TS
+center box;
+c2|c2|c
+c2|c2|c
+c2|c2|l.
+Tab	Length of motion or	Location of
+type	repeated characters	\fInext-string\fR
+_
+Left	\fID\fR	Following \fID\fR
+Right	\fID\-W\fR	Right adjusted within \fID\fR
+Centered	\fID\-W\(sl\fR2	Centered on right end of \fID\fR
+.TE
+The length of generated motion is allowed to be negative, but
+that of a repeated character string cannot be.
+Repeated character strings contain an integer number of characters, and
+any residual distance is prepended as motion.
+Tabs or leaders found after the last tab stop are ignored, but may be used
+as \fInext-string\fR terminators.
+.pg
+Tabs and leaders are not interpreted in \fIcopy mode\fR.
+\fB\et\fR and \fB\ea\fR always generate a non-interpreted
+tab and leader respectively, and
+are equivalent to actual tabs and leaders in \fIcopy mode\fR.
+.sc
+Fields.
+A \fIfield\fR is contained between
+a \fIpair\fR of \fIfield delimiter\fR characters,
+and consists of sub-strings
+separated by \fIpadding\fR indicator characters.
+The field length is the distance on the
+\fIinput\fR line from the position where the field begins to the next tab stop.
+The difference between the total length of all the sub-strings
+and the field length is incorporated as horizontal
+padding space that is divided among the indicated
+padding places.
+The incorporated padding is allowed to be negative.
+For example,
+if the field delimiter is \fB#\fR and the padding indicator is \fB^\fR,
+\fB#^\fIxxx\fB^\fIright\|\fB#\fR
+specifies a right-adjusted string with the string \fIxxx\fR centered
+in the remaining space.
+.h1
+.bt
+\fB&ta\fI|Nt|...\fR	8n;|0.5in	none	E,\fBm\fR	\
+Set tab stops and types.
+\fIt=\fBR\fR, right adjusting;
+\fIt=\fBC\fR, centering;
+\fIt\fR absent, left adjusting.
+\*(TR tab stops are preset every 0.5in.;
+\*(NR every 8 character widths.
+The stop values are separated by spaces, and
+a value preceded by \fB+\fR
+is treated as an increment to the previous stop value.
+.bt
+\fB&tc\fI|c\fR	none	none	E	\
+The tab repetition character becomes \fIc\fR,
+or is removed specifying motion.
+.bt
+\fB&lc\fI|c\fR	\fB.\fR	none	E	\
+The leader repetition character becomes \fIc\fR,
+or is removed specifying motion.
+.bt
+\fB&fc\fI|a|b\fR	off	off	-	\
+The field delimiter is set to \fIa\fR;
+the padding indicator is set to the \fIspace\fR character or to
+\fIb\fR, if given.
+In the absence of arguments the field mechanism is turned off.
+.mh
+Input and Output Conventions and Character Translations
+.sc
+Input character translations.
+Ways of inputting the graphic character set were
+discussed in \(sc2.1.
+The \s-1ASCII\s+1 control characters horizontal tab (\(sc9.1),
+\s-1SOH\s+1 (\(sc9.1), and backspace (\(sc10.3) are discussed elsewhere.
+The newline delimits input lines.
+In addition,
+\s-1STX\s+1, \s-1ETX\s+1, \s-1ENQ\s+1, \s-1ACK\s+1, and \s-1BEL\s+1
+are accepted,
+and may be used as delimiters or translated into a graphic with \fBtr\fR (\(sc10.5).
+\fIAll\fR others are ignored.
+.pg
+The \fIescape\fR character \fB\e\fR
+introduces \fIescape sequences\fR\(em\
+causes the following character to mean
+another character, or to indicate
+some function.
+A complete list of such sequences is given in the Summary and Index on page 6.
+\fB\e\fR
+should not be confused with the \s-1ASCII\s+1 control character \s-1ESC\s+1 of the
+same name.
+The escape character \fB\e\fR can be input with the sequence \fB\e\e\fR.
+The escape character can be changed with \fBec\fR,
+and all that has been said about the default \fB\e\fR becomes true
+for the new escape character.
+\fB\ee\fR can be used to print whatever the current escape character is.
+If necessary or convenient, the escape mechanism may be turned off with \fBeo\fR,
+and restored with \fBec\fR.
+.h1
+.bt
+\fB&ec\fI|c\fR	\fB\e\fR	\fB\e\fR	-	\
+Set escape character to \fB\e\fR, or to \fIc\fR, if given.
+.bt
+\fB&eo\fR	on	-	-	Turn escape mechanism off.
+.sc
+Ligatures.
+.lg 0
+Five ligatures are available
+in the current \*(TR character set \(em
+\fB\(fi\fR, \fB\(fl\fR, \fB\(ff\fR, \fB\(Fi\fR, and \fB\(Fl\fR.
+They may be input (even in \*(NR) by
+\fB\e(fi\fR, \fB\e(fl\fR, \fB\e(ff\fR, \fB\e(Fi\fR, and \fB\e(Fl\fR respectively.
+.lg
+The ligature mode is normally on in \*(TR, and \fIautomatically\fR invokes 
+ligatures during input.
+.h1
+.bt
+\fB&lg\fI|N\fR	off;|on	on	-	Ligature mode
+is turned on if \fIN\fR is absent or non-zero,
+and turned off if \fIN\(eq\^\fR0.
+If \fIN\fR\(eq\^2, only the two-character ligatures are automatically invoked.
+Ligature mode is inhibited for
+request, macro, string, register, or file names,
+and in \fIcopy mode\fR.
+No effect in \*(NR.
+.sc
+Backspacing, underlining, overstriking, etc.
+Unless in \fIcopy mode\fR, the \s-1ASCII\s+1 backspace character is replaced
+by a backward horizontal motion having the width of the
+space character.
+Underlining as a form of line-drawing is discussed in \(sc12.4.
+A generalized overstriking function is described in \(sc12.1.
+.pg
+\*(NR automatically underlines
+characters in the \fIunderline\fR font,
+specifiable with \fBuf\fR,
+normally Times Italic on font position 2 (see \(sc2.2).
+In addition to \fBft\fR and \fB\ef\fIF\fR,
+the underline font may be selected by \fBul\fR and \fBcu\fR.
+Underlining is restricted to an output-device-dependent
+subset of \fIreasonable\fR characters.
+.h1
+.bt
+\fB&ul\fI|N\fR	off	\fIN\(eq\fR1	E	\
+Underline in \*(NR (italicize in \*(TR) the next \fIN\fR
+input text lines.
+Actually, switch to \fIunderline\fR font, saving the
+current font for later restoration;
+\fIother\fR font changes within the span of a \fBul\fR
+will take effect,
+but the restoration will undo the last change.
+Output generated by \fBtl\fR (\(sc14) \fIis\fR affected by the
+font change, but does \fInot\fR decrement \fIN\fR.
+If \fIN\fR\^>\^1, there is the risk that
+a trap interpolated macro may provide text
+lines within the span;
+environment switching can prevent this.
+.bt
+\fB&cu\fI|N\fR	off	\fIN\(eq\fR1	E	\
+A variant of \fBul\fR that causes \fIevery\fR character to be underlined in \*(NR.
+Identical to \fBul\fR in \*(TR.
+.bt
+\fB&uf\fI|F\fR	Italic	Italic	-	\
+Underline font set to \fIF\fR.
+In \*(NR,
+\fIF\fR may \fInot\fR be on position 1 (initially Times Roman).
+.sc
+Control characters.
+Both the control character \fB.\fR and the \fIno-break\fR
+control character \fB\'\fR may be changed, if desired.
+Such a change must be compatible with the design
+of any macros used in the span of the change,
+and
+particularly of any trap-invoked macros.
+.h1
+.bt
+\fB&cc\fI|c\fR	\fB.\fR	\fB.\fR	E	\
+The basic control character is set to \fIc\fR,
+or reset to "\fB.\fR".
+.bt
+\fB&c2\fI|c\fR	\fB\'	\'\fR	E	The \fInobreak\fR control character is set
+to \fIc\fR, or reset to "\fB\'\fR".
+.sc
+Output translation.
+One character can be made a stand-in for another character using \fBtr\fR.
+All text processing (e. g. character comparisons) takes place
+with the input (stand-in) character which appears to have the width of the final
+character.
+The graphic translation occurs at the moment of output
+(including diversion).
+.h1
+.bt
+\fB&tr\fI|abcd....\fR	none	-	O	Translate \
+\fIa\fR into \fIb\fR, \fIc\fR into \fId\fR, etc.
+If an odd number of characters is given,
+the last one will be mapped into the space character.
+To be consistent, a particular translation
+must stay in effect from \fIinput\fR to \fIoutput\fR time.
+.sc
+Transparent throughput.
+An input line beginning with a \fB\e!\fR is read in \fIcopy mode\fR and \fItransparently\fR output
+(without the initial \fB\e!\fR);
+the text processor is otherwise unaware of the line's presence.
+This mechanism may be used to pass control information to a post-processor
+or to imbed control lines in a macro created by a diversion.
+.sc
+Comments and concealed newlines.
+An uncomfortably long input line that must stay
+one line (e. g. a string definition, or nofilled text)
+can be split into many physical lines by ending all but
+the last one with the escape \fB\e\fR.
+The sequence \fB\e\fR(newline) is \fIalways\fR ignored\(em\
+except in a comment.
+Comments may be imbedded at the \fIend\fR of any line by
+prefacing them with \fB\e"\fR.
+The newline at the end of a comment cannot be concealed.
+A line beginning with \fB\e"\fR will appear as a blank line and
+behave like \fB.sp|1\fR;
+a comment can be on a line by itself by beginning the line with \fB.\e"\fR.
+.mh
+Local Horizontal and Vertical Motions, and the Width Function
+.sc
+Local Motions.
+The functions \fB\ev\'\fIN\fB\|\'\fR and
+\fB\eh\'\fIN\fB\|\'\fR
+can be used for \fIlocal\fR vertical and horizontal motion respectively.
+The distance \fIN\fR may be negative; the \fIpositive\fR directions
+are \fIrightward\fR and \fIdownward\fR.
+A \fIlocal\fR motion is one contained \fIwithin\fR a line.
+To avoid unexpected vertical dislocations, it is necessary that
+the \fInet\fR vertical local motion within a word in filled text
+and otherwise within a line balance to zero.
+The above and certain other escape sequences providing local motion are
+summarized in the following table.
+.tr ||
+.ds X \0\0\0
+.TS
+center box;
+c2|cs2||c2|cs
+c1|c2c2||c2|c2c.
+Vertical	Effect in	Horizontal	Effect in
+Local Motion	\*(TR	\*(NR	Local Motion	\*(TR	\*(NR
+_
+.sp .4
+.T&
+l2|ls2||l2|ls.
+\fB\*X\ev\'\fIN\|\^\fB\'\fR	Move distance \fIN\fR	\
+\fB\*X\eh\'\fIN\|\^\fB\'\fR	Move distance \fIN\fR
+.T&
+_2|_2_2||l2|ls.
+			\fB\*X\e\fR(space)	Unpaddable space-size space
+.T&
+l2|l2|l2||l2|ls.
+\fB\*X\eu\fR	\(12 em up	\(12 line up	\fB\*X\e0\fR	Digit-size space
+.T&
+l2|l2|l2||_2|_2_.
+\fB\*X\ed\fR	\(12 em down	\(12 line down			
+.T&
+l2|l2|l2||l2|l2|l.
+\fB\*X\er\fR	1 em up	1 line up	\fB\*X\e\||\fR	1\(sl6 em space	ignored
+			\fB\*X\e^\fR	1\(sl12 em space	ignored
+.sp .4
+.TE
+.rm X
+.tr |
+As an example,
+\fBE\s-2\v'-.4m'2\v'.4m'\s+2\fR
+could be generated by the sequence
+\fBE\es\-2\ev\'\-0.4m\'2\ev\'0.4m\'\es+2\fR;
+it should be noted in this example that
+the 0.4|em vertical motions are at the smaller size.
+.sc
+Width Function.
+The \fIwidth\fR function \fB\ew\'\fIstring\fB\|\'\fR
+generates the numerical width of \fIstring\fR (in basic units).
+Size and font changes may be safely imbedded in \fIstring\fR,
+and will not affect the current environment.
+For example,
+\&\fB.ti|\-\\w\'1.|\'u\fR could be used to
+temporarily indent leftward a distance equal to the
+size of the string "\fB1.|\fR".
+.pg
+The width function also sets three number registers.
+The registers \fBst\fR and \fBsb\fR are set respectively to the highest and
+lowest extent of \fIstring\fR relative to the baseline;
+then, for example,
+the total \fIheight\fR of the string is \fB\en(stu\-\en(sbu\fR.
+In \*(TR the number register \fBct\fR is set to a value
+between 0|and|3:
+0 means that all of the characters in \fIstring\fR were short lower
+case characters without descenders (like \fBe\fR);
+1 means that at least one character has a descender (like \fBy\fR);
+2 means that at least one character is tall (like \fBH\fR);
+and 3 means that both tall characters and characters with
+descenders are present.
+.sc
+Mark horizontal place.
+The escape sequence \fB\ek\fIx\fR will cause the \fIcurrent\fR horizontal
+position in the \fIinput line\fR to be stored in register \fIx\fR.
+As an example,
+the construction \fB\ekx\fIword\|\fB\eh\'\|~\|\enxu+2u\'\fIword\fB\fR
+will embolden \fIword\fR by backing up to almost its beginning and overprinting it,
+resulting in \kz\fIword\fR\h'|\nzu+2u'\fIword\fR.
+.mh
+Overstrike, Bracket, Line-drawing, and Zero-width Functions
+.sc
+Overstriking.
+Automatically centered overstriking of up to nine characters
+is provided by the \fIoverstrike\fR function
+\fB\eo\'\fIstring\fB\|\'\fR.
+The characters in \fIstring\fR are overprinted with centers aligned; the total width
+is that of the widest character.
+\fIstring\fR should \fInot\fR contain local vertical motion.
+As examples,
+\fB\eo\'e\e\'\'\fR produces \fB\o'e\''\fR, and
+\fB\eo\'\e(mo\e(sl\'\fR produces \fB\o'\(mo\(sl'\fR.
+.sc
+Zero-width characters.
+The function \fB\ez\fIc\fR will output \fIc\fR without spacing over
+it, and can be used to produce left-aligned overstruck
+combinations.
+As examples,
+\fB\ez\e(ci\e(pl\fR will produce \fB\z\(ci\(pl\fR, and
+\fB\e(br\ez\e(rn\e(ul\e(br\fR will produce the smallest possible
+constructed box \fB\(br\z\(rn\(ul\(br\fR\|.
+.sc
+Large Brackets.
+The Special Mathematical Font contains a number of bracket construction pieces
+(\|\|\|\(lt\|\|\|\(lb\|\|\|\(rt\|\|\|\(rb\|\|\|\(lk\|\|\|\(rk\|\|\|\(bv\|\|\|\(lf\|\|\|\(rf\|\|\|\(lc\|\|\|\(rc\|\|)
+that can be combined into various bracket styles.
+The function \fB\eb\'\fIstring\fB\|\'\fR may be used to pile
+up vertically the characters in \fIstring\fR
+(the first character on top and the last at the bottom);
+the characters are vertically separated by 1|em and the total
+pile is centered 1\(sl2\|em above the current baseline
+(\(12 line in \*(NR).
+For example,
+\fB\eb\'\|\e(lc\e(lf\|\'E\e\|~\|\eb\'\|\e(rc\e(rf\|\'\|\ex\'\|\-0.5m\'\|\ex\'0.5m\'\|\fR
+produces
+\x'-.5m'\x'.5m'\fB\b'\(lc\(lf'E\|\b'\(rc\(rf'\fR.
+.sc
+Line drawing.
+.tr &&
+The function \fB\e\|l\|\'\fINc\fB\|\'\fR will draw a string of repeated \fIc\fR\|'s towards the right for a distance \fIN\fR.
+(\|\fB\el\fR is \fB\e\fR(lower case L).
+If \fIc\fR looks like a continuation of
+an expression for \fIN\fR, it may insulated from \fIN\fR with a \fB\e&\fR.
+If \fIc\fR is not specified, the \fB\(ru\fR (baseline rule) is used
+(underline character in \*(NR).
+If \fIN\fR is negative, a backward horizontal motion
+of size \fIN\fR is made \fIbefore\fR drawing the string.
+Any space resulting from \fIN\fR\|\(sl(size of \fIc\fR) having a remainder is put at the beginning (left end)
+of the string.
+In the case of characters
+that are designed to be connected such as
+baseline-rule\ \fB\(ru\fR\|,
+underrule\ \fB\(ul\fR\|,
+and
+root-en\ \fB\(rn\fR\|,
+the remainder space is covered by over-lapping.
+If \fIN\fR is \fIless\fR than the width of \fIc\fR,
+a single \fIc\fR is centered on a distance \fIN\fR.
+As an example, a macro to underscore a string can be written
+.br
+.tr &.
+.x1
+.ft B
+.ne 2.1
+&de us
+\e\e$1\e\|l\|\'\|~\|0\e(ul\'
+&&
+.ft R
+.x2
+.ne 2.1
+.de xu
+\\$1\l'|0\(ul'
+..
+or one to draw a box around a string
+.x1
+.ft B
+&de bx
+\e(br\e\|~\|\e\e$1\e\|~\|\e(br\e\|l\|\'\|~\|0\e(rn\'\e\|l\|\'\|~\|0\e(ul\'
+&&
+.ft R
+.x2
+.de bx
+\(br\|\\$1\|\(br\l'|0\(rn'\l'|0\(ul'
+..
+such that
+.x1
+.ft B
+&us "underlined words"
+.ft R
+.x2
+and
+.x1
+.ft B
+&bx "words in a box"
+.ft R
+.x2
+yield
+.xu "underlined words"
+and
+.bx "words in a box"
+\h'-\w'.'u'.
+.pg
+The function \fB\eL\'\|\fINc\fB\|\'\fR will draw a vertical line consisting
+of the (optional) character \fIc\fR stacked vertically apart 1\|em
+(1 line in \*(NR),
+with the first two characters overlapped,
+if necessary, to form a continuous line.
+The default character is the \fIbox rule\fR |\(br| (\fB\|\e(br\fR);
+the other suitable character is the \fIbold vertical\fR \|\(bv\| (\fB\|\e(bv\fR).
+The line is begun without any initial motion relative to the
+current base line.
+A positive \fIN\fR specifies a line drawn downward and
+a negative \fIN\fR specifies a line drawn upward.
+After the line is drawn \fIno\fR compensating
+motions are made;
+the instantaneous baseline is at the \fIend\fR of the line.
+.pg
+.de eb
+.sp -1
+.nf
+\h'-.5n'\L'|\\nzu-1'\l'\\n(.lu+1n\(ul'\L'-|\\nzu+1'\l'|0u-.5n\(ul'
+.fi
+..
+.ne 2i
+.mk z
+The horizontal and vertical line drawing functions may be used
+in combination to produce large boxes.
+The zero-width \fIbox-rule\fR and the \(12-em wide \fIunderrule\fR
+were \fIdesigned\fR to form corners when using 1-em vertical
+spacings.
+For example the macro
+.x1
+.ft B
+\&.de eb
+\&.sp \-1	\e"compensate for next automatic base-line spacing
+\&.nf	\e"avoid possibly overflowing word buffer
+.tr ||
+\&\eh\'\-.5n\'\eL\'\||\|\e\enau\-1\'\el\'\e\en(.lu+1n\e(ul\'\eL\'\-\||\|\e\enau+1\'\el\'\||\|0u\-.5n\e(ul\'    \e"draw box
+.tr |
+.lg 0
+\&.fi
+.lg
+\&..
+.ft R
+.x2
+will draw a box around some text whose beginning vertical place was
+saved in number register \fIa\fR
+(e. g. using \fB.mk|a\fR)
+as done for this paragraph.
+.eb

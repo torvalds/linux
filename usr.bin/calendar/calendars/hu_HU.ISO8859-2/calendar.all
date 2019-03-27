@@ -1,0 +1,13 @@
+/*
+ * Magyar kalendárium
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _hu_HU_ISO8859_2_all_
+#define _hu_HU_ISO8859_2_all_
+
+#include <hu_HU.ISO8859-2/calendar.unnepek>
+#include <hu_HU.ISO8859-2/calendar.nevnapok>
+
+#endif /* !_hu_HU.ISO8859-2_all_ */

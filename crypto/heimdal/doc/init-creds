@@ -1,0 +1,374 @@
+Currently, getting an initial ticket for a user involves many function
+calls, especially when a full set of features including password
+expiration and challenge preauthentication is desired.  In order to
+solve this problem, a new api is proposed.
+
+typedef struct _krb5_prompt {
+    char *prompt;
+    int hidden;
+    krb5_data *reply;
+} krb5_prompt;
+
+typedef int (*krb5_prompter_fct)(krb5_context context,
+				 void *data,
+				 const char *banner,
+				 int num_prompts,
+				 krb5_prompt prompts[]);
+
+typedef struct _krb5_get_init_creds_opt {
+    krb5_flags flags;
+    krb5_deltat tkt_life;
+    krb5_deltat renew_life;
+    int forwardable;
+    int proxiable;
+    krb5_enctype *etype_list;
+    int etype_list_length;
+    krb5_address **address_list;
+	/* XXX the next three should not be used, as they may be
+	removed later */
+    krb5_preauthtype *preauth_list;
+    int preauth_list_length;
+    krb5_data *salt;
+} krb5_get_init_creds_opt;
+
+#define KRB5_GET_INIT_CREDS_OPT_TKT_LIFE	0x0001
+#define KRB5_GET_INIT_CREDS_OPT_RENEW_LIFE	0x0002
+#define KRB5_GET_INIT_CREDS_OPT_FORWARDABLE	0x0004
+#define KRB5_GET_INIT_CREDS_OPT_PROXIABLE	0x0008
+#define KRB5_GET_INIT_CREDS_OPT_ETYPE_LIST	0x0010
+#define KRB5_GET_INIT_CREDS_OPT_ADDRESS_LIST	0x0020
+#define KRB5_GET_INIT_CREDS_OPT_PREAUTH_LIST	0x0040
+#define KRB5_GET_INIT_CREDS_OPT_SALT		0x0080
+
+void krb5_get_init_creds_opt_init(krb5_get_init_creds_opt *opt);
+
+void krb5_get_init_creds_opt_set_tkt_life(krb5_get_init_creds_opt *opt,
+					  krb5_deltat tkt_life);
+void krb5_get_init_creds_opt_set_renew_life(krb5_get_init_creds_opt *opt,
+					    krb5_deltat renew_life);
+void krb5_get_init_creds_opt_set_forwardable(krb5_get_init_creds_opt *opt,
+					     int forwardable);
+void krb5_get_init_creds_opt_set_proxiable(krb5_get_init_creds_opt *opt,
+					   int proxiable);
+void krb5_get_init_creds_opt_set_etype_list(krb5_get_init_creds_opt *opt,
+					    krb5_enctype *etype_list,
+					    int etype_list_length);
+void krb5_get_init_creds_opt_set_address_list(krb5_get_init_creds_opt *opt,
+					      krb5_address **addresses);
+void krb5_get_init_creds_opt_set_preauth_list(krb5_get_init_creds_opt *opt,
+					      krb5_preauthtype *preauth_list,
+					      int preauth_list_length);
+void krb5_get_init_creds_opt_set_salt(krb5_get_init_creds_opt *opt,
+				      krb5_data *salt);
+
+krb5_error_code
+krb5_get_init_creds_password(krb5_context context,
+			     krb5_creds *creds,
+			     krb5_principal client,
+			     char *password,
+			     krb5_prompter_fct prompter,
+			     void *data,
+			     krb5_deltat start_time,
+			     char *in_tkt_service,
+			     krb5_get_init_creds_opt *options);
+
+This function will attempt to acquire an initial ticket.  The function
+will perform whatever tasks are necessary to do so.  This may include
+changing an expired password, preauthentication.
+
+The arguments divide into two types.  Some arguments are basically
+invariant and arbitrary across all initial tickets, and if not
+specified are determined by configuration or library defaults.  Some
+arguments are different for each execution or application, and if not
+specified can be determined correctly from system configuration or
+environment.  The former arguments are contained in a structure whose
+pointer is passed to the function.  A bitmask specifies which elements
+of the structure should be used.  In most cases, a NULL pointer can be
+used.  The latter arguments are specified as individual arguments to
+the function.
+
+If a pointer to a credential is specified, the initial credential is
+filled in.  If the caller only wishes to do a simple password check
+and will not be doing any other kerberos functions, then a NULL
+pointer may be specified, and the credential will be destroyed.
+
+If the client name is non-NULL, the initial ticket requested will be
+for that principal.  Otherwise, the principal will be the username
+specified by the USER environment variable, or if the USER environment
+variable is not set, the username corresponding to the real user id of
+the caller.
+
+If the password is non-NULL, then this string is used as the password.
+Otherwise, the prompter function will be used to prompt the user for
+the password.
+
+If a prompter function is non-NULL, it will be used if additional user
+input is required, such as if the user's password has expired and
+needs to be changed, or if input preauthentication is necessary.  If
+no function is specified and input is required, then the login will
+fail.
+
+	The context argument is the same as that passed to krb5_login.
+	The data argument is passed unmodified to the prompter
+	function and is intended to be used to pass application data
+	(such as a display handle) to the prompter function.
+
+	The banner argument, if non-NULL, will indicate what sort of
+	input is expected from the user (for example, "Password has
+	expired and must be changed" or "Enter Activcard response for
+	challenge 012345678"), and should be displayed accordingly.
+	
+	The num_prompts argument indicates the number of values which
+	should be prompted for.  If num_prompts == 0, then the banner
+	contains an informational message which should be displayed to
+	the user.
+
+	The prompts argument contains an array describing the values
+	for which the user should be prompted.  The prompt member
+	indicates the prompt for each value ("Enter new
+	password"/"Enter it again", or "Challenge response").  The
+	hidden member is nonzero if the response should not be
+	displayed back to the user.  The reply member is a pointer to
+	krb5_data structure which has already been allocated.  The
+	prompter should fill in the structure with the NUL-terminated
+	response from the user.
+
+	If the response data does not fit, or if any other error
+	occurs, then the prompter function should return a non-zero
+	value which will be returned by the krb5_get_init_creds
+	function. Otherwise, zero should be returned.
+
+	The library function krb5_prompter_posix() implements
+	a prompter using a posix terminal for user in.  This function
+	does not use the data argument.
+
+If the start_time is zero, then the requested ticket will be valid
+beginning immediately.  Otherwise, the start_time indicates how far in
+the future the ticket should be postdated.
+
+If the in_tkt_service name is non-NULL, that principal name will be
+used as the server name for the initial ticket request.  The realm of
+the name specified will be ignored and will be set to the realm of the
+client name.  If no in_tkt_service name is specified,
+krbtgt/CLIENT-REALM@CLIENT-REALM will be used.
+
+For the rest of arguments, a configuration or library default will be
+used if no value is specified in the options structure.
+
+If a tkt_life is specified, that will be the lifetime of the ticket.
+The library default is 10 hours; there is no configuration variable
+(there should be, but it's not there now).
+
+If a renew_life is specified and non-zero, then the RENEWABLE option
+on the ticket will be set, and the value of the argument will be the
+the renewable lifetime.  The configuration variable [libdefaults]
+"renew_lifetime" is the renewable lifetime if none is passed in.  The
+library default is not to set the RENEWABLE option.
+
+If forwardable is specified, the FORWARDABLE option on the ticket will
+be set if and only if forwardable is non-zero.  The configuration
+variable [libdefaults] "forwardable" is used if no value is passed in.
+The option will be set if and only if the variable is "y", "yes",
+"true", "t", "1", or "on", case insensitive.  The library default is
+not to set the FORWARDABLE option.
+
+If proxiable is specified, the PROXIABLE option on the ticket will be
+set if and only if proxiable is non-zero.  The configuration variable
+[libdefaults] "proxiable" is used if no value is passed in.  The
+option will be set if and only if the variable is "y", "yes", "true",
+"t", "1", or "on", case insensitive.  The library default is not to
+set the PROXIABLE option.
+
+If etype_list is specified, it will be used as the list of desired
+encryption algorithms in the request.  The configuration variable
+[libdefaults] "default_tkt_enctypes" is used if no value is passed in.
+The library default is "des-cbc-md5 des-cbc-crc".
+
+If address_list is specified, it will be used as the list of addresses
+for which the ticket will be valid.  The library default is to use all
+local non-loopback addresses.  There is no configuration variable.
+
+If preauth_list is specified, it names preauth data types which will
+be included in the request.  The library default is to interact with
+the kdc to determine the required preauth types.  There is no
+configuration variable.
+
+If salt is specified, it specifies the salt which will be used when
+converting the password to a key.  The library default is to interact
+with the kdc to determine the correct salt.  There is no configuration
+variable.
+
+================================================================
+
+typedef struct _krb5_verify_init_creds_opt {
+    krb5_flags flags;
+    int ap_req_nofail;
+} krb5_verify_init_creds_opt;
+
+#define KRB5_VERIFY_INIT_CREDS_OPT_AP_REQ_NOFAIL	0x0001
+
+void krb5_verify_init_creds_opt_init(krb5_init_creds_opt *options);
+void krb5_verify_init_creds_opt_set_ap_req_nofail(krb5_init_creds_opt *options,
+						  int ap_req_nofail);
+
+krb5_error_code
+krb5_verify_init_creds(krb5_context context,
+		       krb5_creds *creds,
+		       krb5_principal ap_req_server,
+		       krb5_keytab ap_req_keytab,
+		       krb5_ccache *ccache,
+		       krb5_verify_init_creds_opt *options);
+
+This function will use the initial ticket in creds to make an AP_REQ
+and verify it to insure that the AS_REP has not been spoofed.
+
+If the ap_req_server name is non-NULL, then this service name will be
+used for the AP_REQ; otherwise, the default host key
+(host/hostname.domain@LOCAL-REALM) will be used.
+
+If ap_req_keytab is non-NULL, the service key for the verification
+will be read from that keytab; otherwise, the service key will be read
+from the default keytab. 
+
+If the service of the ticket in creds is the same as the service name
+for the AP_REQ, then this ticket will be used directly.  If the ticket
+is a tgt, then it will be used to obtain credentials for the service.
+Otherwise, the verification will fail, and return an error.
+
+Other failures of the AP_REQ verification may or may not be considered
+errors, as described below.
+
+If a pointer to a credential cache handle is specified, and the handle
+is NULL, a credential cache handle referring to all credentials
+obtained in the course of verifying the user will be returned.  In
+order to avoid potential setuid race conditions and other problems
+related to file system access, this handle will refer to a memory
+credential cache.  If the handle is non-NULL, then the credentials
+will be added to the existing ccache.  If the caller only wishes to
+verify the password and will not be doing any other kerberos
+functions, then a NULL pointer may be specified, and the credentials
+will be deleted before the function returns.
+
+If ap_req_nofail is specified, then failures of the AP_REQ
+verification are considered errors if and only if ap_req_nofail is
+non-zero.
+
+Whether or not AP_REQ validation is performed and what failures mean
+depends on these inputs:
+
+ A) The appropriate keytab exists and contains the named key.
+
+ B) An AP_REQ request to the kdc succeeds, and the resulting AP_REQ
+can be decrypted and verified.
+
+ C) The administrator has specified in a configuration file that
+AP_REQ validation must succeed.  This is basically a paranoid bit, and
+can be overridden by the application based on a command line flag or
+other application-specific info.  This flag is especially useful if
+the admin is concerned that DNS might be spoofed while determining the
+host/FQDN name.  The configuration variable [libdefaults]
+"verify_ap_req_nofail" is used if no value is passed in.  The library
+default is not to set this option.
+
+Initial ticket verification will succeed if and only if:
+
+ - A && B    or
+ - !A && !C
+
+================================================================
+
+For illustrative purposes, here's the invocations I expect some
+programs will use.  Of course, error checking needs to be added.
+
+kinit:
+
+    /* Fill in client from the command line || existing ccache, and,
+       start_time, and options.{tkt_life,renew_life,forwardable,proxiable}
+       from the command line.  Some or all may remain unset. */
+
+    krb5_get_init_creds(context, &creds, client,
+			krb5_initial_prompter_posix, NULL,
+			start_time, NULL, &options);
+    krb5_cc_store_cred(context, ccache, &creds);
+    krb5_free_cred_contents(context, &creds);
+
+login:
+
+    krb5_get_init_creds(context, &creds, client,
+			krb5_initial_prompter_posix, NULL,
+			0, NULL, NULL);
+    krb5_verify_init_creds(context, &creds, NULL, NULL, &vcc, NULL);
+    /* setuid */
+    krb5_cc_store_cred(context, ccache, &creds);
+    krb5_cc_copy(context, vcc, ccache);
+    krb5_free_cred_contents(context, &creds);
+    krb5_cc_destroy(context, vcc);
+
+xdm:
+
+    krb5_get_initial_creds(context, &creds, client,
+			   krb5_initial_prompter_xt, (void *) &xtstuff,
+			   0, NULL, NULL);
+    krb5_verify_init_creds(context, &creds, NULL, NULL, &vcc, NULL);
+    /* setuid */
+    krb5_cc_store_cred(context, ccache, &creds);
+    krb5_free_cred_contents(context, &creds);
+    krb5_cc_copy(context, vcc, ccache);
+    krb5_cc_destroy(context, vcc);
+
+passwd:
+
+    krb5_init_creds_opt_init(&options);
+    krb5_init_creds_opt_set_tkt_life = 300;
+    krb5_get_initial_creds(context, &creds, client,
+			   krb5_initial_prompter_posix, NULL,
+			   0, "kadmin/changepw", &options);
+    /* change password */
+    krb5_free_cred_contents(context, &creds);
+
+pop3d (simple password validator when no user interation possible):
+
+    krb5_get_initial_creds(context, &creds, client,
+			   NULL, NULL, 0, NULL, NULL);
+    krb5_verify_init_creds(context, &creds, NULL, NULL, &vcc, NULL);
+    krb5_cc_destroy(context, vcc);
+
+================================================================
+
+password expiration has a subtlety.  When a password expires and is
+changed, there is a delay between when the master gets the new key
+(immediately), and the slaves (propogation interval).  So, when
+getting an in_tkt, if the password is expired, the request should be
+reissued to the master (this kind of sucks if you have SAM, oh well).
+If this says expired, too, then the password should be changed, and
+then the initial ticket request should be issued to the master again.
+If the master times out, then a message that the password has expired
+and cannot be changed due to the master being unreachable should be
+displayed.
+
+================================================================
+
+get_init_creds reads config stuff from:
+
+[libdefaults]
+	varname1 = defvalue
+	REALM = {
+		varname1 = value
+		varname2 = value
+	}
+
+typedef struct _krb5_get_init_creds_opt {
+    krb5_flags flags;
+    krb5_deltat tkt_life;	/* varname = "ticket_lifetime" */
+    krb5_deltat renew_life;	/* varname = "renew_lifetime" */
+    int forwardable;		/* varname = "forwardable" */
+    int proxiable;		/* varname = "proxiable" */
+    krb5_enctype *etype_list;	/* varname = "default_tkt_enctypes" */
+    int etype_list_length;
+    krb5_address **address_list; /* no varname */
+    krb5_preauthtype *preauth_list; /* no varname */
+    int preauth_list_length;
+    krb5_data *salt;
+} krb5_get_init_creds_opt;
+
+

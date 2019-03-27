@@ -1,6 +1,0 @@
-* add clock framework support (platform device with CCF needs special care)
-* break out board-specific VBUS GPIO to work with multiplatform
-* convert VBUS GPIO to use GPIO descriptors from <linux/gpio/consumer.h>
-  and stop using the old GPIO API
-* DT bindings
-* move driver into drivers/usb/gadget/

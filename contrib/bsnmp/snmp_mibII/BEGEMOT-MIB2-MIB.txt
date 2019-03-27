@@ -1,0 +1,106 @@
+--
+-- Copyright (c) 2006
+--	Hartmut Brandt
+--	All rights reserved.
+--
+-- Author: Harti Brandt <harti@freebsd.org>
+--
+-- Redistribution and use in source and binary forms, with or without
+-- modification, are permitted provided that the following conditions
+-- are met:
+-- 1. Redistributions of source code must retain the above copyright
+--    notice, this list of conditions and the following disclaimer.
+-- 2. Redistributions in binary form must reproduce the above copyright
+--    notice, this list of conditions and the following disclaimer in the
+--    documentation and/or other materials provided with the distribution.
+--
+-- THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+-- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+-- ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+-- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+-- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+-- OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+-- HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+-- LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+-- OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+-- SUCH DAMAGE.
+--
+-- $Begemot: bsnmp/snmp_mibII/BEGEMOT-MIB2-MIB.txt,v 1.1 2006/02/14 09:04:18 brandt_h Exp $
+--
+-- Private MIB for MIB2.
+--
+BEGEMOT-MIB2-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, TimeTicks, Counter64
+	FROM SNMPv2-SMI
+    begemotIp
+	FROM BEGEMOT-IP-MIB;
+
+begemotMib2 MODULE-IDENTITY
+    LAST-UPDATED "200908030000Z"
+    ORGANIZATION "German Aerospace Center"
+    CONTACT-INFO
+	    "		Hartmut Brandt
+
+	     Postal:	German Aerospace Center
+			Oberpfaffenhofen
+			82234 Wessling
+			Germany
+
+	     Fax:	+49 8153 28 2843
+
+	     E-mail:	harti@freebsd.org"
+    DESCRIPTION
+	    "The MIB for private mib2 stuff."
+    REVISION	"200908030000Z"
+    DESCRIPTION
+		"Second edition adds begemotIfDataPoll object."
+    REVISION	"200602130000Z"
+    DESCRIPTION
+		"Initial revision."
+    ::= { begemotIp 1 }
+
+begemotIfMaxspeed OBJECT-TYPE
+    SYNTAX	Counter64
+    UNITS	"bps"
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The speed of the fastest interface in ifTable in bps."
+    ::= { begemotMib2 1 }
+
+begemotIfPoll OBJECT-TYPE
+    SYNTAX	TimeTicks
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The current polling rate for the HC 64-bit counters."
+    ::= { begemotMib2 2 }
+
+begemotIfForcePoll OBJECT-TYPE
+    SYNTAX	TimeTicks
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The polling rate to be enforced for the HC 64-bit counters.
+	     If this value is 0 the mib2 module computes a polling rate
+	     depending on the value of begemotIfMaxspeed. If this value
+	     turns out to be wrong, the polling rate can be force to an
+	     arbitrary value by setting begemotIfForcePoll to a non-0
+	     value. This may be necessary if an interface announces a wrong
+	     bit rate in its MIB."
+    ::= { begemotMib2 3 }
+
+begemotIfDataPoll OBJECT-TYPE
+    SYNTAX	TimeTicks
+    UNITS	"deciseconds"
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The rate at which the mib2 module will poll interface data."
+    DEFVAL	{ 100 }
+    ::= { begemotMib2 4 }
+
+END

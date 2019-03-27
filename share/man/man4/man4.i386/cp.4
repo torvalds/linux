@@ -1,0 +1,113 @@
+.\" Copyright (c) 2003-2004 Roman Kurakin <rik@cronyx.ru>
+.\" Copyright (c) 2003-2004 Cronyx Engineering
+.\" All rights reserved.
+.\"
+.\" This software is distributed with NO WARRANTIES, not even the implied
+.\" warranties for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.\" Authors grant any other persons or organisations a permission to use,
+.\" modify and redistribute this software in source and binary forms,
+.\" as long as this message is kept with the software, all derivative
+.\" works or modified versions.
+.\"
+.\" Cronyx Id: cp.4,v 1.1.2.5 2004/06/21 17:47:40 rik Exp $
+.\" $FreeBSD$
+.\"
+.Dd July 16, 2005
+.Dt CP 4 i386
+.Os
+.Sh NAME
+.Nm cp
+.Nd "driver for synchronous Cronyx Tau-PCI WAN adapters"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device cp"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_cp_load="YES"
+.Ed
+.Pp
+Additional options:
+.Cd "device sppp"
+.Cd "options NETGRAPH"
+.Cd "options NETGRAPH_CRONYX"
+.Sh DESCRIPTION
+The
+.Nm
+driver needs either
+.Xr sppp 4
+or
+.Xr netgraph 4 .
+Which one to use is determined by the
+.Dv NETGRAPH_CRONYX
+option.
+If this option is present in your kernel configuration file, the
+.Nm
+driver will be compiled with
+.Xr netgraph 4
+support.
+Otherwise, it will be compiled with
+.Xr sppp 4
+support.
+.Pp
+Refer to
+.Xr sconfig 8
+for information about the
+.Nm
+adapter configuration.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following models of Tau-PCI WAN adapters:
+.Pp
+.Bl -tag -width 20n -compact
+.It Cronyx Tau-PCI
+V.35 and RS-232 interfaces
+.It Cronyx Tau-PCI/R
+RS-530(RS-449) and X.21 interfaces
+.It Cronyx Tau-PCI-L
+one V.35 and RS-232 interface, low profile
+.It Cronyx Tau-PCI-L/R
+one RS-530(RS-449) and X.21 interface, low profile
+.It Cronyx Tau-PCI-E1
+fractional E1 interfaces
+.It Cronyx Tau-PCI-G703
+unframed E1 interfaces
+.It Cronyx Tau-PCI-2E1
+fractional E1 and unframed E1 interfaces
+.It Cronyx Tau-PCI-4E1
+fractional E1 and unframed E1 interfaces
+.It Cronyx Tau-PCI-E3
+E3 interface
+.It Cronyx Tau-PCI-T3
+T3 interface
+.It Cronyx Tau-PCI-STS1
+STS-1 interface
+.El
+.Sh SEE ALSO
+.Xr ctau 4 ,
+.Xr cx 4 ,
+.Xr sppp 4 ,
+.Xr ifconfig 8 ,
+.Xr sconfig 8 ,
+.Xr spppcontrol 8
+.Sh HISTORY
+The
+.Nm
+driver was added in
+.Fx 5.3
+and
+.Fx 4.11 .
+The
+.Nm
+driver for previous versions of
+.Fx
+is available from
+.Pa http://www.cronyx.ru/ .

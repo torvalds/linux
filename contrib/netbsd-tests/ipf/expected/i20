@@ -1,0 +1,4 @@
+pass in on ppp0(!) inet from ppp0/peer to ppp0/32
+block in on hme0(!) inet from any to hme0/bcast
+pass in on bge0(!) inet from bge0/net to bge0/32
+block in on eri0(!) inet from any to eri0/netmasked

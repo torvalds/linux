@@ -1,0 +1,21 @@
+#
+# Ubiquiti Routerstation: boot from MFS
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+include		"AR71XX_BASE"
+ident		"ROUTERSTATION_MFS"
+hints		"ROUTERSTATION.hints"
+
+# GEOM modules
+device		geom_redboot	# to get access to the SPI flash partitions
+device		xz
+options 	GEOM_UZIP
+
+options 	ROOTDEVNAME=\"ufs:md0.uzip\"
+
+options 	MD_ROOT
+options 	MD_ROOT_SIZE="6144"

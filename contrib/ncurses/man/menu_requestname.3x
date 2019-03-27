@@ -1,0 +1,65 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: menu_requestname.3x,v 1.9 2010/12/04 18:40:45 tom Exp $
+.TH menu_requestname 3X ""
+.SH NAME
+\fBmenu_requestname\fR \- handle printable menu request names
+.SH SYNOPSIS
+\fB#include <menu.h>\fR
+.br
+const char *menu_request_name(int request);
+.br
+int menu_request_by_name(const char *name);
+.br
+.SH DESCRIPTION
+The function \fBmenu_request_name\fR returns the printable name of a menu
+request code.
+.br
+The function \fBmenu_request_by_name\fR searches in the name-table for a request
+with the given name and returns its request code.
+Otherwise E_NO_MATCH is returned.
+.SH RETURN VALUE
+\fBmenu_request_name\fR returns \fBNULL\fR on error
+and sets errno to \fBE_BAD_ARGUMENT\fR.
+.br
+\fBmenu_request_by_name\fR returns \fBE_NO_MATCH\fR on error.
+It does not set errno.
+.SH SEE ALSO
+\fBcurses\fR(3X), \fBmenu\fR(3X).
+.SH NOTES
+The header file \fB<menu.h>\fR automatically includes the header file
+\fB<curses.h>\fR.
+.SH PORTABILITY
+These routines are specific to ncurses.  They were not supported on
+Version 7, BSD or System V implementations.  It is recommended that
+any code depending on them be conditioned using NCURSES_VERSION.
+.SH AUTHORS
+Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
+S. Raymond.

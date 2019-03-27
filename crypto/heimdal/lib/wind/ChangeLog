@@ -1,0 +1,136 @@
+2008-07-15  Love Hörnquist Åstrand  <lha@kth.se>
+
+	* Makefile.am: Try to do depencies better.
+	
+2008-07-15  Love Hörnquist Åstrand  <lha@kth.se>
+
+	* Makefile.am: add punycode_examples.[ch] to built files.
+
+2008-06-01  Love Hörnquist Åstrand  <lha@kth.se>
+
+	* Add utf8 <-> utf16 support.
+
+2008-05-31  Love Hörnquist Åstrand  <lha@kth.se>
+
+	* generate files into the source tree
+
+2008-05-31  Love Hörnquist Åstrand  <lha@kth.se>
+
+	* Support utf8 to utf16 conversion.
+
+2008-05-30  Love Hörnquist Åstrand  <lha@kth.se>
+
+	* idn-lookup.c: Drop <stdint.h>
+
+	* wind.h: Use <krb5-types.h>
+
+2008-05-23  Love Hörnquist Åstrand  <lha@kth.se>
+
+	* windlocl.h: Include <krb5-types.h> to get fixed int types.
+	
+2008-04-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* stringprep.c: Use <string.h> instead of <strings.h>.
+	
+2008-04-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* wind.h: Make wind_stringprep match prototype in .c file. pointed
+	out by David Rosenstrauch.
+	
+2008-04-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test-normalize.c: include roken.h
+
+2008-02-26  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Add more built files so they are distributed.
+
+2008-02-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Add LIB_com_err.
+
+2008-02-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Add more built files.
+
+	* Makefile.am: Add unicode header files.
+
+	* punycode.c: make pass the test cases again.
+	
+	* Makefile.am: add more missing .py files.
+
+	* Makefile.am: add generate.py
+
+	* test-ldap.c: Test ldap cases.
+
+	* Makefile.am: Drop com_err files from dist sources.
+
+	* ldap.c (_wind_ldap_case_exact_attribute): case exact matching.
+
+2008-02-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* rename wind_punycode_toascii to wind_punycode_label_toascii
+
+	* stringprep.c: Move else to make it work again.
+
+2008-02-11  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Add partial support for LDAP-prep Insignificant Character Handling
+
+	* normalize.c: use generated constant for length, check for
+	overruns, dont use gcc/c99 extentions
+
+	* gen-normalize.py, test-normalize.c: use generated constant for length
+	
+2008-02-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* utf8.c: Make wind_utf8ucs4_length() work again.
+
+	* test-utf8.c: Test wind_utf8ucs4_length().
+
+2008-02-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* utf8.c: Fix overaggressive checks, fix comments.
+
+	* Add UCS-2 reading and writing functions
+
+2008-02-01  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Add and use com_err error codes
+
+	* libwind from Assar. stringprep library supporting nameprep,
+	saslprep and ldapprep. Added libwind to Heimdal repository.
+	
+2007-01-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test-utf8.c: spelling
+	
+	* utf8.c: Add wind_ucs4toutf8
+	
+2006-10-08  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* test-utf8.c: Add test for wind_ucs4toutf8.
+
+	* wind.h (wind_ucs4toutf8): New function.
+	
+	* utf8.c (wind_utf8toucs4): allow calculation of length by passing
+	in NULL as out buffer.
+	(wind_ucs4toutf8): new function.
+	
+2004-12-20  Assar Westerlund <assar@kth.se>
+	
+	* util.py: 
+	* rfc3454.py: 
+	* generate.py: 
+	* gen-punycode-examples.py: 
+	* gen-normalize.py: 
+	* gen-map.py: 
+	* gen-errorlist.py: 
+	* gen-combining.py: 
+	* gen-bidi.py: 
+	* UnicodeData.py:
+	Add encoding.
+
+2004-12-20  Assar Westerlund  <assar@kth.se>
+
+	* First version of stringprep library.

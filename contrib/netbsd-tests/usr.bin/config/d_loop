@@ -1,0 +1,23 @@
+include "arch/regress/conf/std.regress"
+maxusers 4
+file-system	REGRESSFS
+
+master0		at root
+
+# The following definitions build a loop of 'looper' devices.
+# This tests how well the code that look for orphans handle loops.
+#
+# In that case, while the loopchild devices will always be seen in
+# time, the code has to make sure it reaches all the loopbaby
+# devices.
+
+looper0		at master0
+looper1		at looper0
+
+loopchild0	at looper0
+loopchild1	at looper1
+
+loopbaby0	at loopchild0
+loopbaby1	at loopchild1
+
+config regress root on ?

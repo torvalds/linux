@@ -1,0 +1,143 @@
+.\"
+.\" Copyright (c) 2010-2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written at the Centre for Advanced Internet
+.\" Architectures, Swinburne University of Technology, Melbourne, Australia by
+.\" David Hayes under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 18, 2012
+.Dt H_ERTT 4
+.Os
+.Sh NAME
+.Nm h_ertt
+.Nd Enhanced Round Trip Time Khelp module
+.Sh SYNOPSIS
+.In netinet/khelp/h_ertt.h
+.Sh DESCRIPTION
+The
+.Nm
+Khelp module works within the
+.Xr khelp 9
+framework to provide TCP with a per-connection, low noise estimate of the
+instantaneous RTT.
+The implementation attempts to be robust in the face of delayed
+acknowledgements, TCP Segmentation Offload (TSO), receivers who manipulate TCP
+timestamps and lack of the TCP timestamp option altogether.
+.Pp
+TCP receivers using delayed acknowledgements either acknowledge every second packet
+(reflecting the time stamp of the first) or use a timeout to trigger the
+acknowledgement if no second packet arrives.
+If the heuristic used by
+.Nm
+determines that the receiver is using delayed acknowledgements, it measures the
+RTT using the second packet (the one that triggers the acknowledgement).
+It does not measure the RTT if the acknowledgement is for the
+first packet, since it cannot be accurately determined.
+.Pp
+When TSO is in use,
+.Nm
+will momentarily disable TSO whilst marking a packet to use for a new
+measurement.
+The process has negligible impact on the connection.
+.Pp
+.Nm
+associates the following struct with each connection's TCP control block:
+.Bd -literal
+struct ertt {
+	TAILQ_HEAD(txseginfo_head, txseginfo) txsegi_q;	/* Private. */
+	long		bytes_tx_in_rtt;		/* Private. */
+	long		bytes_tx_in_marked_rtt;
+	unsigned long	marked_snd_cwnd;
+	int		rtt;
+	int		maxrtt;
+	int		minrtt;
+	int		dlyack_rx;			/* Private. */
+	int		timestamp_errors;		/* Private. */
+	int		markedpkt_rtt;			/* Private. */
+	uint32_t	flags;
+};
+.Ed
+.Pp
+The fields marked as private should not be manipulated by any code outside of
+the
+.Nm
+implementation.
+The non-private fields provide the following data:
+.Bl -tag -width ".Va bytes_tx_in_marked_rtt"  -offset indent
+.It Va bytes_tx_in_marked_rtt
+The number of bytes transmitted in the
+.Va markedpkt_rtt .
+.It Va marked_snd_cwnd
+The value of cwnd for the marked rtt measurement.
+.It Va rtt
+The most recent RTT measurement.
+.It Va maxrtt
+The longest RTT measurement that has been taken.
+.It Va minrtt
+The shortest RTT measurement that has been taken.
+.It Va flags
+The ERTT_NEW_MEASUREMENT flag will be set by the implementation when a new
+measurement is available.
+It is the responsibility of
+.Nm
+consumers to unset the flag if they wish to use it as a notification method for
+new measurements.
+.El
+.Sh SEE ALSO
+.Xr cc_chd 4 ,
+.Xr cc_hd 4 ,
+.Xr cc_vegas 4 ,
+.Xr mod_cc 4 ,
+.Xr hhook 9 ,
+.Xr khelp 9
+.Sh ACKNOWLEDGEMENTS
+Development and testing of this software were made possible in part by grants
+from the FreeBSD Foundation and Cisco University Research Program Fund at
+Community Foundation Silicon Valley.
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Fx 9.0 .
+.Pp
+The module was first released in 2010 by David Hayes whilst working on the
+NewTCP research project at Swinburne University of Technology's Centre for
+Advanced Internet Architectures, Melbourne, Australia.
+More details are available at:
+.Pp
+http://caia.swin.edu.au/urp/newtcp/
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+Khelp module and this manual page were written by
+.An David Hayes Aq Mt david.hayes@ieee.org .
+.Sh BUGS
+The module maintains enhanced RTT estimates for all new TCP connections created
+after the time at which the module was loaded.
+It might be beneficial to see if it is possible to have the module only affect
+connections which actually care about ERTT estimates.

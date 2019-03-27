@@ -1,0 +1,144 @@
+=pod
+
+=head1 NAME
+
+CONF_modules_load_file, CONF_modules_load - OpenSSL configuration functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/conf.h>
+
+ int CONF_modules_load_file(const char *filename, const char *appname,
+                            unsigned long flags);
+ int CONF_modules_load(const CONF *cnf, const char *appname,
+                       unsigned long flags);
+
+=head1 DESCRIPTION
+
+The function CONF_modules_load_file() configures OpenSSL using file
+B<filename> and application name B<appname>. If B<filename> is NULL
+the standard OpenSSL configuration file is used. If B<appname> is
+NULL the standard OpenSSL application name B<openssl_conf> is used.
+The behaviour can be customized using B<flags>.
+
+CONF_modules_load() is identical to CONF_modules_load_file() except it
+reads configuration information from B<cnf>.
+
+=head1 NOTES
+
+The following B<flags> are currently recognized:
+
+If B<CONF_MFLAGS_IGNORE_ERRORS> is set errors returned by individual
+configuration modules are ignored. If not set the first module error is
+considered fatal and no further modules are loaded.
+
+Normally any modules errors will add error information to the error queue. If
+B<CONF_MFLAGS_SILENT> is set no error information is added.
+
+If B<CONF_MFLAGS_IGNORE_RETURN_CODES> is set the function unconditionally
+returns success.
+This is used by default in L<OPENSSL_init_crypto(3)> to ignore any errors in
+the default system-wide configuration file, as having all OpenSSL applications
+fail to start when there are potentially minor issues in the file is too risky.
+Applications calling B<CONF_modules_load_file> explicitly should not generally
+set this flag.
+
+If B<CONF_MFLAGS_NO_DSO> is set configuration module loading from DSOs is
+disabled.
+
+B<CONF_MFLAGS_IGNORE_MISSING_FILE> if set will make CONF_load_modules_file()
+ignore missing configuration files. Normally a missing configuration file
+return an error.
+
+B<CONF_MFLAGS_DEFAULT_SECTION> if set and B<appname> is not NULL will use the
+default section pointed to by B<openssl_conf> if B<appname> does not exist.
+
+By using CONF_modules_load_file() with appropriate flags an application can
+customise application configuration to best suit its needs. In some cases the
+use of a configuration file is optional and its absence is not an error: in
+this case B<CONF_MFLAGS_IGNORE_MISSING_FILE> would be set.
+
+Errors during configuration may also be handled differently by different
+applications. For example in some cases an error may simply print out a warning
+message and the application continue. In other cases an application might
+consider a configuration file error as fatal and exit immediately.
+
+Applications can use the CONF_modules_load() function if they wish to load a
+configuration file themselves and have finer control over how errors are
+treated.
+
+=head1 EXAMPLES
+
+Load a configuration file and print out any errors and exit (missing file
+considered fatal):
+
+ if (CONF_modules_load_file(NULL, NULL, 0) <= 0) {
+     fprintf(stderr, "FATAL: error loading configuration file\n");
+     ERR_print_errors_fp(stderr);
+     exit(1);
+ }
+
+Load default configuration file using the section indicated by "myapp",
+tolerate missing files, but exit on other errors:
+
+ if (CONF_modules_load_file(NULL, "myapp",
+                            CONF_MFLAGS_IGNORE_MISSING_FILE) <= 0) {
+     fprintf(stderr, "FATAL: error loading configuration file\n");
+     ERR_print_errors_fp(stderr);
+     exit(1);
+ }
+
+Load custom configuration file and section, only print warnings on error,
+missing configuration file ignored:
+
+ if (CONF_modules_load_file("/something/app.cnf", "myapp",
+                            CONF_MFLAGS_IGNORE_MISSING_FILE) <= 0) {
+     fprintf(stderr, "WARNING: error loading configuration file\n");
+     ERR_print_errors_fp(stderr);
+ }
+
+Load and parse configuration file manually, custom error handling:
+
+ FILE *fp;
+ CONF *cnf = NULL;
+ long eline;
+
+ fp = fopen("/somepath/app.cnf", "r");
+ if (fp == NULL) {
+     fprintf(stderr, "Error opening configuration file\n");
+     /* Other missing configuration file behaviour */
+ } else {
+     cnf = NCONF_new(NULL);
+     if (NCONF_load_fp(cnf, fp, &eline) == 0) {
+         fprintf(stderr, "Error on line %ld of configuration file\n", eline);
+         ERR_print_errors_fp(stderr);
+         /* Other malformed configuration file behaviour */
+     } else if (CONF_modules_load(cnf, "appname", 0) <= 0) {
+         fprintf(stderr, "Error configuring application\n");
+         ERR_print_errors_fp(stderr);
+         /* Other configuration error behaviour */
+     }
+     fclose(fp);
+     NCONF_free(cnf);
+ }
+
+=head1 RETURN VALUES
+
+These functions return 1 for success and a zero or negative value for
+failure. If module errors are not ignored the return code will reflect the
+return value of the failing module (this will always be zero or negative).
+
+=head1 SEE ALSO
+
+L<config(5)>, L<OPENSSL_config(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2004-2019 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

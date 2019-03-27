@@ -1,0 +1,148 @@
+.\" Copyright (c) 2016 Mariusz Zaborski <oshogbo@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 21, 2019
+.Dt CAPSICUM_HELPERS 3
+.Os
+.Sh NAME
+.Nm caph_limit_stream ,
+.Nm caph_limit_stdin ,
+.Nm caph_limit_stderr ,
+.Nm caph_limit_stdout ,
+.Nm caph_limit_stdio ,
+.Nm caph_cache_tzdata ,
+.Nm caph_cache_catpages ,
+.Nm caph_enter ,
+.Nm caph_enter_casper ,
+.Nm caph_rights_limit ,
+.Nm caph_ioctls_limit ,
+.Nm caph_fcntls_limit
+.Nd "set of the capsicum helpers, part of the libcapsicum"
+.Sh LIBRARY
+.Lb libcapsicum
+.Sh SYNOPSIS
+.In capsicum_helpers.h
+.Ft int
+.Fn caph_enter "void"
+.Ft int
+.Fn caph_enter_casper "void"
+.Ft int
+.Fn caph_rights_limit "int fd" "const cap_righst_t *rights"
+.Ft int
+.Fn caph_ioctls_limit "int fd" "const unsigned long *cmds" "size_t ncmds"
+.Ft int
+.Fn caph_fcntls_limit "int fd" "uint32_t fcntlrights"
+.Ft int
+.Fn caph_limit_stream "int fd" "int flags"
+.Ft int
+.Fn caph_limit_stdin "void"
+.Ft int
+.Fn caph_limit_stderr "void"
+.Ft int
+.Fn caph_limit_stdout "void"
+.Ft int
+.Fn caph_limit_stdio "void"
+.Ft void
+.Fn caph_cache_tzdata "void"
+.Ft void
+.Fn caph_cache_catpages "void"
+.Sh DESCRIPTION
+The
+.Nm caph_enter ,
+.Nm caph_rights_limit ,
+.Nm caph_ioctls_limit
+and
+.Nm caph_fcntls_limit
+are respectively equivalent to
+.Xr cap_enter 2 ,
+.Xr cap_rights_limit 2 ,
+.Xr cap_ioctls_limit 2
+and
+.Xr cap_fcntls_limit 2 ,
+it returns success when the kernel is built without support of the capability
+mode.
+.Pp
+The
+.Nm caph_enter_casper
+is equivalent to the
+.Nm caph_enter
+it returns success when the system is built without Casper support.
+.Pp
+The
+.Nm capsicum helpers
+are a set of a inline functions which simplify modifying programs to use
+Capsicum.
+The goal is to reduce duplicated code patterns.
+The
+.Nm capsicum helpers
+are part of
+.Nm libcapsicum
+but there is no need to link to the library.
+.Pp
+.Fn caph_limit_stream
+restricts capabilities on
+.Fa fd
+to only those needed by POSIX stream objects (that is, FILEs).
+.Pp
+These flags can be provided:
+.Pp
+.Bl -tag -width "CAPH_IGNORE_EBADF" -compact -offset indent
+.It Dv CAPH_IGNORE_EBADF
+Do not return an error if file descriptor is invalid.
+.It Dv CAPH_READ
+Set CAP_READ on limited descriptor.
+.It Dv CAPH_WRITE
+Set CAP_WRITE on limited descriptor.
+.El
+.Pp
+.Fn caph_limit_stdin ,
+.Fn caph_limit_stderr
+and
+.Fn caph_limit_stdout
+limit standard descriptors using the
+.Nm caph_limit_stream
+function.
+.Pp
+.Fn caph_limit_stdio
+limits stdin, stderr and stdout.
+.Pp
+.Fn caph_cache_tzdata
+precaches all timezone data needed to use
+.Li libc
+local time functions.
+.Pp
+.Fn caph_cache_catpages
+caches Native Language Support (NLS) data.
+NLS data is used for localized error printing by
+.Xr strerror 3
+and
+.Xr err 3 ,
+among others.
+.Ed
+.Sh SEE ALSO
+.Xr cap_enter 2 ,
+.Xr cap_rights_limit 2 ,
+.Xr rights 4

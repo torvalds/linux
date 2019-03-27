@@ -1,0 +1,235 @@
+.\" Copyright (c) 1987, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)fstat.1	8.3 (Berkeley) 2/25/94
+.\" $FreeBSD$
+.\"
+.Dd September 28, 2011
+.Dt FSTAT 1
+.Os
+.Sh NAME
+.Nm fstat
+.Nd identify active files
+.Sh SYNOPSIS
+.Nm
+.Op Fl fmnv
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl p Ar pid
+.Op Fl u Ar user
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility identifies open files.
+A file is considered open by a process if it was explicitly opened,
+is the working directory, root directory, jail root directory,
+active executable text, or kernel trace file for that process.
+If no options are specified,
+.Nm
+reports on all open files in the system.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl f
+Restrict examination to files open in the same file systems as
+the named file arguments, or to the file system containing the
+current directory if there are no additional filename arguments.
+For example, to find all files open in the file system where the
+directory
+.Pa /usr/src
+resides, type
+.Dq Li fstat -f /usr/src .
+.It Fl M
+Extract values associated with the name list from the specified core
+instead of the default
+.Pa /dev/kmem .
+.It Fl N
+Extract the name list from the specified system instead of the default,
+which is the kernel image the system has booted from.
+.It Fl m
+Include memory-mapped files in the listing; normally these are excluded
+due to the extra processing required.
+.It Fl n
+Numerical format.
+Print the device number (maj,min) of the file system
+the file resides in rather than the mount point name; for special
+files, print the
+device number that the special device refers to rather than the filename
+in
+.Pa /dev ;
+and print the mode of the file in octal instead of symbolic form.
+.It Fl p
+Report all files open by the specified process.
+.It Fl u
+Report all files open by the specified user.
+.It Fl v
+Verbose mode.
+Print error messages upon failures to locate particular
+system data structures rather than silently ignoring them.
+Most of
+these data structures are dynamically created or deleted and it is
+possible for them to disappear while
+.Nm
+is running.
+This
+is normal and unavoidable since the rest of the system is running while
+.Nm
+itself is running.
+.It Ar
+Restrict reports to the specified files.
+.El
+.Pp
+The following fields are printed:
+.Bl -tag -width MOUNT
+.It Li USER
+The username of the owner of the process (effective uid).
+.It Li CMD
+The command name of the process.
+.It Li PID
+The process id.
+.It Li FD
+The file number in the per-process open file table or one of the following
+special names:
+.Pp
+.Bd -literal -offset indent -compact
+jail	- jail root directory
+mmap	- memory-mapped file
+root	- root inode
+text	- executable text inode
+tr	- kernel trace file
+wd 	- current working directory
+.Ed
+.Pp
+If the file number is followed by an asterisk (``*''), the file is
+not an inode, but rather a socket,
+.Tn FIFO ,
+or there is an error.
+In this case the remainder of the line does not
+correspond to the remaining headers -- the format of the line
+is described later under
+.Sx SOCKETS .
+.It Li MOUNT
+If the
+.Fl n
+flag was not specified, this header is present and is the
+pathname that the file system the file resides in is mounted on.
+.It Li DEV
+If the
+.Fl n
+flag is specified, this header is present and is the
+number of the device that this file resides in.
+.It Li INUM
+The inode number of the file.
+.It Li MODE
+The mode of the file.
+If the
+.Fl n
+flag is not specified, the mode is printed
+using a symbolic format (see
+.Xr strmode 3 ) ;
+otherwise, the mode is printed
+as an octal number.
+.It Li SZ\&|DV
+If the file is a semaphore,
+prints the current value of the semaphore.
+If the file is not a character or block special, prints the size of
+the file in bytes.
+Otherwise, if the
+.Fl n
+flag is not specified, prints
+the name of the special file as located in
+.Pa /dev .
+If that cannot be
+located, or the
+.Fl n
+flag is specified, prints the major/minor device
+number that the special device refers to.
+.It Li R/W
+This column describes the access mode that the file allows.
+The letter ``r'' indicates open for reading;
+the letter ``w'' indicates open for writing.
+This field is useful when trying to find the processes that are
+preventing a file system from being down graded to read-only.
+.It Li NAME
+If filename arguments are specified and the
+.Fl f
+flag is not, then
+this field is present and is the name associated with the given file.
+Normally the name cannot be determined since there is no mapping
+from an open file back to the directory entry that was used to open
+that file.
+Also, since different directory entries may reference
+the same file (via
+.Xr ln 1 ) ,
+the name printed may not be the actual
+name that the process originally used to open that file.
+.El
+.Sh SOCKETS
+The formatting of open sockets depends on the protocol domain.
+In all cases the first field is the domain name, the second field
+is the socket type (stream, dgram, etc), and the third is the socket
+flags field (in hex).
+The remaining fields are protocol dependent.
+For tcp, it is the address of the tcpcb, and for udp, the inpcb (socket pcb).
+For unix domain sockets, its the address of the socket pcb and the address
+of the connected pcb (if connected).
+Otherwise the protocol number and address of the socket itself are printed.
+The attempt is to make enough information available to
+permit further analysis without duplicating
+.Xr netstat 1 .
+.Pp
+For example, the addresses mentioned above are the addresses which the
+.Dq Li netstat -A
+command would print for tcp, udp, and unixdomain.
+Note that since pipes are implemented using sockets, a pipe appears as a
+connected unix domain stream socket.
+A unidirectional unix domain socket indicates the direction of flow with
+an arrow (``<-'' or ``->''), and a full duplex socket shows a double arrow
+(``<->'').
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr nfsstat 1 ,
+.Xr procstat 1 ,
+.Xr ps 1 ,
+.Xr sockstat 1 ,
+.Xr systat 1 ,
+.Xr tcp 4 ,
+.Xr unix 4 ,
+.Xr iostat 8 ,
+.Xr pstat 8 ,
+.Xr vmstat 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 tahoe .
+.Sh BUGS
+Since
+.Nm
+takes a snapshot of the system, it is only correct for a very short period
+of time.

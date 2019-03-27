@@ -1,0 +1,96 @@
+.\"
+.\" Copyright (c) 1998 Jordan Hubbard
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" "
+.Dd October 7, 1998
+.Dt PROPERTIES 3
+.Os
+.Sh NAME
+.Nm properties_read ,
+.Nm property_find ,
+.Nm properties_free
+.Nd "functions to allow creating simple property lists from ASCII file data"
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In libutil.h
+.Ft properties
+.Fn properties_read "int fd"
+.Ft char *
+.Fn property_find "properties list" "const char *name"
+.Ft void
+.Fn properties_free "properties list"
+.Sh DESCRIPTION
+.Bd -literal
+typedef struct _properties {
+	struct _properties *next;
+	char *name;
+	char *value;
+} *properties;
+.Ed
+.Pp
+The function
+.Fn properties_read
+reads
+.Fa name = value
+pairs from the file descriptor passed in
+.Fa fd
+and returns the head of a new property list, assuming that the
+file's contents have been parsed properly, or NULL in case
+of error.
+.Pp
+The
+.Fn property_find
+function returns the associated value string for the property named
+.Fa name
+if found, otherwise NULL.
+The value returned may be up to
+.Dv PROPERTY_MAX_VALUE
+bytes in length.
+.Pp
+The
+.Fn properties_free
+function is used to free the structure returned by
+.Fn properties_read
+when it is no longer needed.
+.Sh FILE FORMAT
+Each property in the file is assumed to have the format of
+.Fa name = value
+where
+.Fa name
+is an alphanumeric string (and any punctuation not including the `=' character)
+and
+.Fa value
+is an arbitrary string of text terminated by a newline character.
+If newlines
+are desired, the entire value should be enclosed in { } (curly-bracket)
+characters.
+Any line beginning with a # or ; character is assumed to
+be a comment and will be ignored.
+.Sh AUTHORS
+.An Jordan Hubbard
+.Sh BUGS
+Simplistic.

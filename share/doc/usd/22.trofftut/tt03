@@ -1,0 +1,240 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)tt03	8.1 (Berkeley) 6/8/93
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.NH
+Fonts and Special Characters
+.PP
+.UL troff
+and the typesetter allow four different fonts at any one time.
+Normally three fonts (Times roman, italic and bold) and one collection of special characters
+are permanently
+mounted.
+.P1 2
+.ft R
+abcdefghijklmnopqrstuvwxyz 0123456789
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+.ft I
+abcdefghijklmnopqrstuvwxyz 0123456789
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+.ft B
+abcdefghijklmnopqrstuvwxyz 0123456789
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+.ft R
+.P2
+The
+greek, mathematical symbols and miscellany
+of the special font are
+listed in Appendix A.
+.PP
+.UL troff
+prints in roman unless told otherwise.
+To switch into bold, use
+the
+.BD .ft
+command
+.P1
+^ft B
+.P2
+and for italics,
+.P1
+^ft I
+.P2
+To return to roman, use
+.BD .ft\ R ;
+to return to the previous font,
+whatever it was,
+use either
+.BD .ft\ P
+or just
+.BD .ft  .
+The `underline' command
+.P1
+^ul
+.P2
+causes the next input line to print in italics.
+.BD .ul
+can be followed by a count to
+indicate that more than one line is to be italicized.
+.PP
+Fonts can also be changed within a line or word
+with the in-line command
+.BD \ef :
+.P1
+\fBbold\fIface\fR text
+.P2
+is produced by
+.P1
+\efBbold\efIface\efR text
+.P2
+If you want to do this so the previous font, whatever it was,
+is left undisturbed, insert extra
+.BD \efP
+commands, like this:
+.P1
+\efBbold\efP\efIface\efP\efR text\efP
+.P2
+Because only the immediately previous font is remembered,
+you have to restore the previous font after each change
+or you can lose it.
+The same is true of 
+.BD .ps
+and
+.BD .vs
+when used without an argument.
+.PP
+There are other fonts available besides the standard set,
+although you can still use only four at any given time.
+The command
+.BD .fp
+tells
+.UL troff
+what fonts are physically mounted on the typesetter:
+.P1
+^fp 3 H
+.P2
+says that the Helvetica font is mounted on position 3.
+(The complete list of font sizes and styles depends on
+your typesetter or laser printer.)
+Appropriate
+.BD .fp
+commands should appear at the beginning of your document
+if you do not use the standard fonts.
+.PP
+It is possible to make a document relatively independent
+of the actual fonts used to print it
+by using font numbers instead of names;
+for example,
+.BD \ef3
+and
+.BD .ft\ 3
+mean `whatever font is mounted at position 3',
+and thus work for any setting.
+Normal settings are roman font on 1, italic on 2,
+bold on 3,
+and special on 4.
+.PP
+There is also a way to get `synthetic' bold fonts
+by overstriking letters with a slight offset.
+Look at the
+.BD .bd
+command in [1].
+.WS
+.PP
+Special characters have four-character names beginning with
+.BD \e( ,
+and they may be inserted anywhere.
+For example,
+.P1
+\(14 + \(12 = \(34
+.P2
+is produced by
+.P1
+\e(14 + \e(12 = \e(34
+.P2
+In particular,
+greek letters are all of the form
+.BD  \e(*\- ,
+where
+.BD \-
+is an upper or lower case roman letter
+reminiscent of the greek.
+Thus
+to get
+.P1
+\(*S(\(*a\(mu\(*b) \(-> \(if
+.P2
+in bare
+.UL troff
+we have to type
+.P1
+\e(*S(\e(*a\e(mu\e(*b) \e(\(mi> \e(if
+.P2
+That line is unscrambled as follows:
+.P1
+.ta 1i 2i 3i
+\e(*S	\(*S
+(	(
+\e(*a	\(*a
+\e(mu	\(mu
+\e(*b	\(*b
+)	)
+\e(\(mi>	\(->
+\e(if	\(if
+.P2
+A complete list of these special names occurs in Appendix A.
+.PP
+In
+.UL eqn 
+[2]
+the same effect can be achieved with the input
+.P1
+SIGMA ( alpha times beta ) \-> inf
+.P2
+which is less concise, but clearer to the uninitiated.
+.PP
+Notice that
+each
+four-character name is a single character
+as far as
+.UL troff
+is concerned _
+the
+`translate' command
+.P1
+^tr \e(mi\e(em
+.P2
+is perfectly clear, meaning
+.P1
+^tr \(mi\(em
+.P2
+that is, to translate \(mi into \(em.
+.PP
+Some characters are automatically translated into others:
+grave  \(ga  and acute  \(aa  accents (apostrophes) become open and close single quotes
+`\|'\|;
+the combination of ``...'' is generally preferable to the double quotes "...".
+Similarly a typed minus sign becomes a hyphen -.
+To print an explicit \- sign, use
+.BD \e\|- .
+To get a backslash printed, use
+.BD \ee .

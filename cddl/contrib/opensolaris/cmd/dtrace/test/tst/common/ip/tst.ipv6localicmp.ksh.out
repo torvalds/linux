@@ -1,0 +1,8 @@
+
+
+PING6(56=40+8+8 bytes) ::1 --> ::1
+1 packets transmitted, 1 packets received, 0.0% packet loss
+2 ip:::send    (args[2]: 6 16, args[5]: 6 0 16)
+2 ip:::send    (args[2]: 6 16, args[5]: 6 0 16)
+3 ip:::receive (args[2]: 6 16, args[5]: 6 0 16)
+3 ip:::receive (args[2]: 6 16, args[5]: 6 0 16)

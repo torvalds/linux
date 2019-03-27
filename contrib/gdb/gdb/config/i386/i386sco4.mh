@@ -1,0 +1,11 @@
+# Host: Intel 386 running SCO Unix 3.2v4
+
+XM_FILE= xm-i386sco.h
+XM_CLIBS= -lPW
+
+NAT_FILE= nm-i386sco4.h
+NATDEPFILES= infptrace.o inftarg.o fork-child.o corelow.o core-aout.o i386v-nat.o
+
+# The cc compiler mishandles const in cases like 
+# struct type ** const (c_builtin_types[]) = 
+MH_CFLAGS=-Dconst=

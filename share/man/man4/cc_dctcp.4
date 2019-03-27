@@ -1,0 +1,133 @@
+.\"
+.\" Copyright (c) 2014 Midori Kato <katoon@sfc.wide.ad.jp>
+.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Portions of this documentation were written at Keio University, Japan.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 12, 2015
+.Dt CC_DCTCP 4
+.Os
+.Sh NAME
+.Nm cc_dctcp
+.Nd DCTCP Congestion Control Algorithm
+.Sh DESCRIPTION
+The DCTCP (data center TCP) congestion control algorithm aims to maximise
+throughput and minimise latency in data center networks by utilising the
+proportion of Explicit Congestion Notification (ECN) marks received from capable
+hardware as a congestion signal.
+.Pp
+DCTCP uses fraction of ECN marked packets to update congestion window.
+The window reduction ratio is always <= 1/2.
+Only when all of the packets are
+marked, congestion window is halved.
+.Pp
+In order to keep the accuracy of the ECN marked fraction, a DCTCP receiver
+mirrors back incoming (or missing) CE marks by setting (or clearing) ECE marks.
+This feedback methodology is also adopted when the receiver uses delayed ACK.
+.Pp
+The
+.Fx
+DCTCP implementation includes two minor modifications for the one-sided
+deployment.
+Considering the situation that DCTCP is used as sender and classic
+ECN is used as receiver, DCTCP sets the CWR flag as the reaction to the ECE
+flag.
+In addition, when classic ECN is used as sender and DCTCP is used as
+receiver, DCTCP avoids to mirror back ACKs only when the CWR flag is
+set in the incoming packet.
+.Pp
+The other specifications are based on the paper and Internet Draft referenced
+in the
+.Sx SEE ALSO
+section below.
+.Sh MIB Variables
+The algorithm exposes the following tunable variables in the
+.Va net.inet.tcp.cc.dctcp
+branch of the
+.Xr sysctl 3
+MIB:
+.Bl -tag -width ".Va alpha"
+.It Va alpha
+An initial estimator of the congestion on the link.
+Default is 0.
+.It Va dctcp_shift_g
+An estimation gain in the alpha calculation.
+Default is 16.
+.It Va slowstart
+A trigger to halve congestion window after slow start.
+Default does nothing to halve window.
+.El
+.Sh SEE ALSO
+.Xr cc_chd 4 ,
+.Xr cc_cubic 4 ,
+.Xr cc_hd 4 ,
+.Xr cc_htcp 4 ,
+.Xr cc_newreno 4 ,
+.Xr cc_vegas 4 ,
+.Xr mod_cc 4 ,
+.Xr tcp 4 ,
+.Xr mod_cc 9
+.Rs
+.%A "Mohammad Alizadeh"
+.%A "Albert Greenberg"
+.%A "David A. Maltz"
+.%A "Jitendra Padhye"
+.%A "Parveen Patel"
+.%A "Balaji Prabhakar"
+.%A "Sudipta Sengupta"
+.%A "Murari Sridharan"
+.%T "Data Center TCP (DCTCP)"
+.%U "http://research.microsoft.com/pubs/121386/dctcp-public.pdf"
+.%J "ACM SIGCOMM 2010"
+.%D "July 2010"
+.%P "63-74"
+.Re
+.Rs
+.%A "Stephen Bensley"
+.%A "Lars Eggert"
+.%A "Dave Thaler"
+.%T "Microsoft's Datacenter TCP (DCTCP): TCP Congestion Control for Datacenters"
+.%U "http://tools.ietf.org/html/draft-bensley-tcpm-dctcp-01"
+.Re
+.Sh HISTORY
+The
+.Nm
+congestion control module first appeared in
+.Fx 11.0 .
+.Pp
+The module was first released in 2014 by Midori Kato studying at Keio
+University, Japan.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+congestion control module and this manual page were written by
+.An Midori Kato Mt katoon@sfc.wide.ad.jp
+and
+.An Lars Eggert Mt lars@netapp.com
+with help and modifications from
+.An Hiren Panchasara Mt hiren@FreeBSD.org

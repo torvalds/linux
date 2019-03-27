@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+failures=0
+
+check() {
+	if [ "$2" != "$3" ]; then
+		failures=$((failures+1))
+		echo "For $1, expected $3 actual $2"
+	fi
+}
+
+unset a
+check '$((1+${a:-$((7+2))}))' "$((1+${a:-$((7+2))}))" 10
+check '$((1+${a:=$((2+2))}))' "$((1+${a:=$((2+2))}))" 5
+check '$a' "$a" 4
+
+exit $((failures != 0))

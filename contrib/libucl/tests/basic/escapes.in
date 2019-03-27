@@ -1,0 +1,2 @@
+# Checks for escapes in strings
+str = "\r\n\b\t\f\\\"\u03B4\u0B90\u1F640\uFFFFsome text"

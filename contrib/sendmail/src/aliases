@@ -1,0 +1,65 @@
+#
+#	$Id: aliases,v 8.5 2002-06-05 22:54:26 gshapiro Exp $
+#	@(#)aliases	8.2 (Berkeley) 3/5/94
+#
+#  Aliases in this file will NOT be expanded in the header from
+#  Mail, but WILL be visible over networks.
+#
+#	>>>>>>>>>>	The program "newaliases" must be run after
+#	>> NOTE >>	this file is updated for any changes to
+#	>>>>>>>>>>	show through to sendmail.
+#
+#
+# See also RFC 2142, `MAILBOX NAMES FOR COMMON SERVICES, ROLES 
+# AND FUNCTIONS', May 1997
+
+# Pretty much everything else in this file points to "root", so 
+# you should forward root's email to the system administrator.
+# Delivering mail to root's mailbox or reading mail as root is
+# inadvisable.
+
+# Uncomment and *CHANGE* this!
+# root:		insert-human-being-here
+
+# Basic system aliases -- these MUST be present
+MAILER-DAEMON:	postmaster
+postmaster:	root
+
+# General redirections for pseudo accounts
+bin:		root
+daemon:		root
+games:		root
+mailnull:	postmaster
+smmsp:		postmaster
+ingres:		root
+nobody:		root
+system:		root
+toor:		root
+
+# Well-known aliases
+manager:	root
+dumper:		root
+operator:	root
+
+# RFC 2142: BUSINESS-RELATED MAILBOX NAMES
+# info:		root
+# marketing:	root
+# sales:	root
+# support:	root
+
+# RFC 2142: NETWORK OPERATIONS MAILBOX NAMES
+abuse:		root
+noc:		root
+security:	root
+
+# RFC 2142: SUPPORT MAILBOX NAMES FOR SPECIFIC INTERNET SERVICES
+hostmaster:	root
+usenet:		root
+news:		usenet
+webmaster:	root
+www:		webmaster
+uucp:		root
+ftp:		root
+
+# Trap decode to catch security attacks
+decode:		root

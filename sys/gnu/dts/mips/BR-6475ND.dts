@@ -1,0 +1,181 @@
+/dts-v1/;
+
+#include "rt3883.dtsi"
+
+/ {
+	compatible = "BR-6475ND", "ralink,rt3883-soc";
+	model = "Edimax BR-6475nD";
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <100>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 7 1>;
+			linux,code = <0x198>;
+		};
+
+		rfkill {
+			label = "rfkill";
+			gpios = <&gpio0 9 1>;
+			linux,input-type = <5>;
+			linux,code = <0xf7>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		power {
+			label = "br-6475nd:green:power";
+			gpios = <&gpio0 10 1>;
+		};
+
+		wlan {
+			label = "br-6475nd:amber:wlan";
+			gpios = <&gpio0 11 1>;
+		};
+
+		wlan_5ghz {
+			label = "br-6475nd:amber:wlan_5ghz";
+			gpios = <&gpio0 14 1>;
+		};
+	};
+
+	nor-flash@1c000000 {
+		compatible = "cfi-flash";
+		reg = <0x1c000000 0x800000>;
+		bank-width = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			reg = <0x00000000 0x00030000>;
+			label = "u-boot";
+			read-only;
+		};
+
+		partition@30000 {
+			reg = <0x00030000 0x00010000>;
+			label = "nvram";
+			read-only;
+		};
+
+		factory: partition@40000 {
+			reg = <0x00040000 0x00010000>;
+			label = "factory";
+			read-only;
+		};
+
+		devdata: partition@50000 {
+			reg = <0x00050000 0x00020000>;
+			label = "devdata";
+			read-only;
+		};
+
+		partition@70000 {
+			reg = <0x00070000 0x00790000>;
+			label = "firmware";
+		};
+
+		partition@170000 {
+			reg = <0x00270000 0x00590000>;
+			label = "rootfs";
+		};
+	};
+
+	rtl8367 {
+		compatible = "realtek,rtl8367";
+		gpio-sda = <&gpio0 5 0>;
+		gpio-sck = <&gpio0 4 0>;
+		realtek,extif0 = <1 0 1 1 1 1 1 1 2>;
+	};
+
+	/* Unclear if this is the correct gpio setup; the USB ports are
+	   unpopulated on a stock BR-6475nD, even though the hardware exists
+	   and the headers are there. */
+	/*
+	gpio_export {
+		compatible = "gpio-export";
+		#size-cells = <0>;
+
+		usb {
+			gpio-export,name="usb";
+			gpio-export,output=<0>;
+			gpios = <&gpio0 19 0>;
+		};
+	};
+	*/
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "spi", "jtag", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&timer {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&uartlite {
+	status = "okay";
+};
+
+&ethernet {
+	status = "okay";
+	mtd-mac-address = <&devdata 0x0d>;
+
+	port@0 {
+		mediatek,fixed-link = <1000 1 1 1>;
+	};
+};
+
+&wmac {
+	status = "okay";
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&pci {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pci_pins>;
+
+	pci_pins: pci {
+		pci {
+			ralink,group = "pci";
+			ralink,function = "pci-fnc";
+		};
+	};
+
+	host-bridge {
+		pci-bridge@1 {
+			status = "okay";
+
+			wmac@0,0 {
+				ralink,5ghz = <0>;
+				compatible = "ralink,rt2880-pci", "pciclass060400", "pciclass0604";
+				reg = < 0x10000 0 0 0 0 >;
+				ralink,eeprom = "rt2x00pci_1_0.eeprom";
+			};
+		};
+	};
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};

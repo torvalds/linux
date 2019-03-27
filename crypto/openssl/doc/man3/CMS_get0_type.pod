@@ -1,0 +1,82 @@
+=pod
+
+=head1 NAME
+
+CMS_get0_type, CMS_set1_eContentType, CMS_get0_eContentType, CMS_get0_content - get and set CMS content types and content
+
+=head1 SYNOPSIS
+
+ #include <openssl/cms.h>
+
+ const ASN1_OBJECT *CMS_get0_type(const CMS_ContentInfo *cms);
+ int CMS_set1_eContentType(CMS_ContentInfo *cms, const ASN1_OBJECT *oid);
+ const ASN1_OBJECT *CMS_get0_eContentType(CMS_ContentInfo *cms);
+ ASN1_OCTET_STRING **CMS_get0_content(CMS_ContentInfo *cms);
+
+=head1 DESCRIPTION
+
+CMS_get0_type() returns the content type of a CMS_ContentInfo structure as
+an ASN1_OBJECT pointer. An application can then decide how to process the
+CMS_ContentInfo structure based on this value.
+
+CMS_set1_eContentType() sets the embedded content type of a CMS_ContentInfo
+structure. It should be called with CMS functions (such as L<CMS_sign>, L<CMS_encrypt>)
+with the B<CMS_PARTIAL>
+flag and B<before> the structure is finalised, otherwise the results are
+undefined.
+
+ASN1_OBJECT *CMS_get0_eContentType() returns a pointer to the embedded
+content type.
+
+CMS_get0_content() returns a pointer to the B<ASN1_OCTET_STRING> pointer
+containing the embedded content.
+
+=head1 NOTES
+
+As the B<0> implies CMS_get0_type(), CMS_get0_eContentType() and
+CMS_get0_content() return internal pointers which should B<not> be freed up.
+CMS_set1_eContentType() copies the supplied OID and it B<should> be freed up
+after use.
+
+The B<ASN1_OBJECT> values returned can be converted to an integer B<NID> value
+using OBJ_obj2nid(). For the currently supported content types the following
+values are returned:
+
+ NID_pkcs7_data
+ NID_pkcs7_signed
+ NID_pkcs7_digest
+ NID_id_smime_ct_compressedData:
+ NID_pkcs7_encrypted
+ NID_pkcs7_enveloped
+
+The return value of CMS_get0_content() is a pointer to the B<ASN1_OCTET_STRING>
+content pointer. That means that for example:
+
+ ASN1_OCTET_STRING **pconf = CMS_get0_content(cms);
+
+B<*pconf> could be NULL if there is no embedded content. Applications can
+access, modify or create the embedded content in a B<CMS_ContentInfo> structure
+using this function. Applications usually will not need to modify the
+embedded content as it is normally set by higher level functions.
+
+=head1 RETURN VALUES
+
+CMS_get0_type() and CMS_get0_eContentType() return an ASN1_OBJECT structure.
+
+CMS_set1_eContentType() returns 1 for success or 0 if an error occurred.  The
+error can be obtained from ERR_get_error(3).
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2008-2019 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

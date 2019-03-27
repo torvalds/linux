@@ -1,0 +1,95 @@
+.\"
+.\" Copyright (c) 2003 Bruce M Simpson <bms@spc.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 21, 2003
+.Dt PMAP_EXTRACT 9
+.Os
+.Sh NAME
+.Nm pmap_extract ,
+.Nm pmap_extract_and_hold
+.Nd map a virtual address to a physical page
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/pmap.h
+.Ft vm_paddr_t
+.Fn pmap_extract "pmap_t pmap" "vm_offset_t va"
+.Ft vm_paddr_t
+.Fn pmap_extract_and_hold "pmap_t pmap" "vm_offset_t va" "vm_prot_t prot"
+.Sh DESCRIPTION
+The
+.Fn pmap_extract
+function maps a virtual address to a physical page.
+In certain situations, callers may use
+.Fn pmap_extract_and_hold
+instead, to ensure that the returned page is held.
+.Pp
+The
+.Fn pmap_extract_and_hold
+function maps a virtual address to a physical page, and atomically holds
+the returned page for use by the caller, only if the mapping permits
+the given page protection.
+.Sh IMPLEMENTATION NOTES
+Currently, the page protection requested by the caller is not verified.
+.Sh RETURN VALUES
+The
+.Fn pmap_extract
+function will return the physical page address associated with the
+virtual address
+.Fa va
+inside the physical map
+.Fa pmap .
+If the mapping does not exist, or if the
+.Fa pmap
+parameter is
+.Dv NULL ,
+then
+.Dv NULL
+will be returned.
+.Pp
+The
+.Fn pmap_extract_and_hold
+function will return the physical page address associated with the
+virtual address
+.Fa va
+inside the physical map
+.Fa pmap .
+If the mapping does not exist, the result is a no-op, and
+.Dv NULL
+will
+be returned.
+.Sh SEE ALSO
+.Xr mutex 9 ,
+.Xr pmap 9
+.Sh AUTHORS
+.An -nosplit
+The
+.Fn pmap_extract_and_hold
+function was implemented by
+.An Alan L. Cox Aq Mt alc@imimic.com .
+This manual page was written by
+.An Bruce M Simpson Aq Mt bms@spc.org .

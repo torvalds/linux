@@ -1,0 +1,1070 @@
+$Id: NEWS,v 1.32 2018/08/08 14:47:38 schwarze Exp $
+
+This file lists the most important changes in the mandoc.bsd.lv distribution.
+
+Changes in version 1.14.4, released on August 8, 2018
+
+    --- MAJOR NEW FEATURES ---
+ * In ASCII output, render mathematical symbols and greek letters
+   as transliterations conveying the characters' meanings rather
+   than trying to imitate their shape.  Consequently, such characters
+   can now be used in portable manual pages.  All the same, please
+   limit their use to contexts where they really matter, for example
+   when showing complicated mathematical formulae.
+ * First steps towards better support for small screens in HTML
+   output (responsive design): avoid most style= attributes, in
+   particular all hard-coded indentations and column widths, and
+   provide a better mandoc.css style sheet with a @media query,
+   using em units throughout, and avoiding redundancy in selectors.
+ * Better HTML output with some more fitting HTML elements, eliminating
+   needless class= attributes, and avoiding various HTML syntax errors
+   (element nesting, URL-fragment syntax, duplicate id= attributes).
+    --- MINOR NEW FEATURES ---
+ * When a man(1) argument contains a slash, imply -l like in man-db.
+ * Use TIOCGWINSZ to reduce the default -Owidth and -Oindent during
+   interactive use on terminals narrower than 79 columns.
+ * Generated PostScript files are now more than 50% smaller.
+ * Terminal rendering of eqn(7) is improved in several respects.
+ * Simplified and nicer output from the mdoc(7) .Lk macro, formatting
+   all links in-line, even long ones.
+ * roff(7) \n+ and \n- numerical register auto-increment and -decrement
+ * roff(7) .nr optional third argument (auto-increment step size)
+ * Autodetect in ./configure whether the compiler can use -W and -static,
+   allowing to build on Solaris 10 and 11 without any configure.local.
+    --- RELIABILITY BUGFIXES ---
+ * Only activate UTF-8 output when the user really selected UTF-8,
+   not some other multibyte character encoding.
+ * Prevent excessive .ll arguments from generating infinite output.
+ * Fix out of bounds accesses to parse buffers that could happen when
+   using renamed or user defined macros after roff(7) conditionals.
+ * Avoid an assertion failure in certain .Bl -column lists.
+ * Avoid a NULL pointer access on deroff() failure after '.SS ""'.
+ * Fix a segfault that could be triggered by two invalid .Dt macros.
+ * Fix two syntax errors in generated PDF files.
+ * Properly state the page size in generated PostScript files.
+ * Close a memory leak caused by missing gzclose(3).
+ * Fix misformatting of man(7) documents lacking .SH macros
+   in PostScript and PDF output.
+ * And many minor bugfixes.
+    --- THANKS TO ---
+ * Marc Espie (OpenBSD) for implementing the size reduction of
+   PostScript files, one additional patch for code simplification,
+   and two bug reports.
+ * Theo Buehler (OpenBSD) for a bugfix patch,
+   and Theo de Raadt (OpenBSD) for checking it.
+ * John Gardner for more than a dozen suggestions regarding HTML output.
+ * Mike Williams for teaching me how to use %%DocumentMedia and
+   setpagedevice in PostScript files.
+ * Werner Lemberg (groff) for feedback on mdoc(7) language changes.
+ * Colin Watson (man-db) for feedback on man-db semantics.
+ * Jason McIntyre (OpenBSD) for lots of feedback and suggestions
+   on diagnostic messages and on the documentation.
+ * Thomas Klausner (NetBSD) for suggesting two new style messages
+   and one new feature, for two bug reports, and for release testing.
+ * Leah Neukirchen (Void Linux) for suggesting a new style message,
+   five bug reports, and release testing.
+ * Anthony Bentley (OpenBSD) for reporting multiple bugs and missing
+   features.
+ * Paul Irofti (OpenBSD) and Nate Bargmann for suggesting new features.
+ * Michael Stapelberg (Debian) for bug reports and release testing.
+ * Christian Weisgerber, Jonathan Gray, Stuart Henderson,
+   Ted Unangst (OpenBSD), Takeshi Nakayama (NetBSD),
+   Anton Lazarov, Jakub Klinkovsky, Jan Stary, Jesper Wallin,
+   Will Backmam, and Wolfgang Mueller for bug reports.
+ * Sevan Janiyan (NetBSD) for additions to lib.in.
+ * George Brown for suggesting code simplifications.
+ * David Coppa, Igor Sobrado (OpenBSD), and Alexander Kuleshov
+   for documentation improvements.
+ * Laura Morales and Raf Czlonka for questions resulting in better
+   documentation.
+ * Yuri Pankov (illumos) for release testing.
+
+Changes in version 1.14.3, released on August 5, 2017
+
+    --- BUG FIXES ---
+ * man(7): Do not crash with out-of-bounds read access to a constant
+   array if .sp or a blank line immediately precedes .SS or .SH.
+ * mdoc(7): Do not crash with out-of-bounds read access to a constant
+   array if .sp or a blank line precede the first .Sh macro.
+ * tbl(7): Ignore explicitly specified negative column widths rather than
+   wrapping around to huge numbers and risking memory exhaustion.
+ * man(1): No longer use names that only occur in the SYNOPSIS section.
+   Gets rid of some surprising behaviour and bogus warnings.
+    --- THANKS TO ---
+   Leah Neukirchen (Void Linux), Markus Waldeck (Debian),
+   Peter Bui (nd.edu), and Yuri Pankov (illumos) for bug reports.
+
+Changes in version 1.14.2, released on July 28, 2017
+
+    --- MAJOR NEW FEATURES ---
+ * New mdoc(7) -Tmarkdown output mode.
+ * For -Thtml, implement internal hyperlinks pointing to authoritative
+   definitions of various syntax elements, similar to the ctags(1)-like
+   less(1) :t internal searching in terminal mode.
+ * Provide a superset of the functionality of the former mdoclint(1)
+   utility and a new -Wstyle message level with several new messages,
+   including validity checking of .Xr cross references.
+ * tbl(7): Implement automatic line breaking inside individual table
+   cells, and several other formatting improvements.
+ * eqn(7): Complete rewrite of the lexer, resulting in several bugfixes.
+ * Continue parser unification, in particular allowing generation
+   of syntax tree nodes on the roff(7) level, allowing implementation
+   of many additional roff requests.
+    --- REMOVED FUNCTIONALITY ---
+ * Delete the manpage(1) utility.  It was never enabled in any release.
+ * Delete the -Txhtml command line option.  It has been an obsolete
+   alias for the -Thtml output mode for more than two years.
+    --- MINOR NEW FEATURES ---
+ * -Tlint now puts parser messages on stdout instead of stderr,
+   making commands like "man -l -Tlint *.1" useful.
+ * mdoc(7): Various .Lk formatting improvements.
+ * mdoc(7) -Thtml: Better CSS for .Bl lists.
+ * man(7): Implement the .MT/.ME block macro (mailto hyperlink).
+ * man(7): Implement the .DT macro (restore default tab positions).
+ * man(7): Improved support for manuals generated with reStructuredText
+   by partial support for the \n[an-margin] number register.
+ * man(7) -Thtml: Support deep linking to .SH and .SS headers.
+ * tbl(7): Implement the "allbox" table option.
+ * tbl(7): Implement the column spacing and the 'w' (minimum column
+   width) layout modifiers.
+ * tbl(7): Significant improvements of the manual page.
+ * eqn(7): Much improved font selection, including recognition of
+   well-known function names, and a few other formatting improvements.
+ * eqn(7) -Thtml: Use <mn> and <mo> in addition to <mi>.
+ * roff(7): Implement the .ce (centering), .mc (margin character),
+   .rj (right justify), .ta (define tab stops), .ti (temporary indent),
+   .als (macro alias), .ec and .eo (escape character control),
+   .po (page offset), and .rn (macro rename) requests.
+ * roff(7) .am: Implement appending to mdoc(7) and man(7) macros.
+ * roff(7): implement the \h (horizontol motion), \l (horizontal
+   line drawing), and \p (break output line) escape sequences,
+   and also several additional character escape sequences.
+ * roff(7): Implement the 'd' conditional (macro or string defined).
+ * man.cgi(8) now uses pledge(2), too.
+ * regress.pl(1): simpler user interface, better summary output,
+   simpler code, and no more recursion.
+    --- THANKS TO ---
+ * Anthony Bentley (OpenBSD) for the implementation of .MT/.ME,
+   reports of many bugs and missing features, and suggestions
+   for a number of feature and documentation improvements.
+ * Sebastien Marie (OpenBSD) for two source code patches and
+   for some useful discussions.
+ * Florian Obser (OpenBSD) for a bugfix patch and a bug report.
+ * Jonathan Gray (OpenBSD) for several bug reports from afl(1)
+   and several more from static analysis tools.
+ * Theo Buehler (OpenBSD) for several bug reports, most from afl(1).
+ * Jason McIntyre (OpenBSD) for many useful discussions about a
+   wide variety of topics, lots of continuous testing, a number of
+   bug reports, and some suggestions for messages and documentation.
+ * Thomas Klausner (NetBSD) for lots of help while migrating
+   mdoclint(1) functionality to mandoc -Tlint, for suggesting
+   several useful new messages, and for release testing.
+ * Reyk Floeter (OpenBSD) and Vsevolod Stakhov (FreeBSD) for
+   suggesting a markdown output mode.
+ * Thomas Guettler for suggesting -Thtml internal hyperlinks.
+ * Yuri Pankov (Illumos) for inspiring new warning messages and
+   for extensive release testing.
+ * Anton Lindqvist and TJ Townsend (both OpenBSD) and Jan Stary
+   for multiple bug reports.
+ * Leah Neukirchen (Void Linux) for bug reports and release testing.
+ * Michael Stapelberg (Debian) for suggesting feature improvements
+   and for release testing.
+ * Martin Natano and Theo de Raadt (both OpenBSD), Andreas Voegele,
+   Gabriel Guzman, Gonzalo Tornaria, Markus Waldeck, and Raf Czlonka
+   for bug reports.
+ * Antoine Jacoutot (OpenBSD) and Steffen Nurpmeso for suggesting
+   feature improvements.
+ * Dag-Erling Smoergrav (FreeBSD) for inspiring new warning messages.
+ * Ted Unangst and Marc Espie (OpenBSD) for providing useful ideas.
+ * Svyatoslav Mishyn (Crux Linux) for release testing.
+ * Carsten Kunze (Heirloom roff) for help keeping mandoc and groff
+   compatible and for committing some of my patches to groff.
+
+Changes in version 1.14.1, released on February 21, 2017
+
+    --- MAJOR NEW FEATURES ---
+ * apropos(1): Reimplement complete semantic search functionality
+   without the dependency on SQLite3, using only POSIX APIs.
+   This comes with a completely new mandoc.db(5) file format.
+ * man(1): Support more than one tag entry for the same search term,
+   plus some minor improvements to the less(1) :t support.
+ * -Thtml: Use real macro names for CSS classes.
+   Systematic cleanup of and many improvements to mandoc.css.
+ * -Thtml: Produce human readable HTML code by using indentation
+   and better line breaks.  Improve various HTML elements,
+   and trim several useless ones.
+ * New catman(8) utility, still somewhat experimental.
+ * Now includes a portable version of the OpenBSD mandoc regression
+   suite, see regress/regress.pl.1 for details.
+    --- REMOVED FUNCTIONALITY ---
+ * Operating systems that don't provide mmap(3) are no longer supported.
+ * Drop support for manpath(1).  Even if your system has manpath(1),
+   it is simpler to use MANPATH_DEFAULT in configure.local for
+   operating system defaults, man.conf(5) for machine-specific
+   modifications, and ${MANPATH}, -m, and -M for user preferences
+   than to bother with the complexity of manpath(1).
+ * makewhatis(8) -p: No longer warn about missing MLINKS since these
+   are no longer needed for anything.
+    --- MINOR NEW FEATURES ---
+ * mdoc(7): Warn about invalid punctuation and content below NAME.
+ * mdoc(7): Warn about .Xr lacking the second argument (section).
+ * mdoc(7): Warn about violations of the rule "new sentence, new line".
+ * roff(7): Warn about trailing whitespace at the end of comments.
+ * mdoc(7): Improve rendering of double quotes.
+ * mdoc(7): Always do text production in the validator, never in the
+   formatters.  Cleaner, simpler, shorter, helps NetBSD apropos(1)
+   and also makes -Ttree output more useful.
+ * -Ttree: Show metadata and some additional node flags.
+   New -Onoval output option to show the unvalidated tree.
+    --- RELIABILITY BUGFIXES ---
+ * man(1): Make "man -l" work with standard input from a pipe or file,
+   as long as standard output is a terminal.
+ * man(7): Fix out of bounds read access if a text node immediately
+   preceded the first .SH header.
+ * mdoc(7): Fix out of bounds read access for .Bl without a type
+   but with a width.
+ * mdoc(7): Fix out of bounds read access for .Bl -column starting
+   with a tab character instead of a child .It macro.
+ * mdoc(7): Fix syntax tree corruption leading to segfaults caused
+   by stray block end macros in nested blocks of mismatching type.
+ * man(1): Fix NULL dereference when the first of multiple pages
+   shown was preformatted.
+ * mdoc(7): Fix syntax tree corruption leading to NULL dereference
+   caused by partial implicit macros inside .Bl -column table cells.
+ * mdoc(7): Fix syntax tree corruption leading to NULL dereference
+   for macro sequences like .Bl .Bl .It Bo .El .It.
+ * mdoc(7): Fix syntax tree corruption leading to NULL dereference
+   caused by .Ta following a nested .Bl -column breaking another block.
+ * mdoc(7): Fix syntax tree corruption sometimes leading to NULL
+   dereference caused by indirectly broken .Nd or .Nm blocks.
+ * mdoc(7) -Thtml: Fix a NULL dereference for .Bl -column with 0 columns.
+ * mdoc(7): Fix NULL dereference in some specific cases of a
+   block-end macro calling another block-end macro.
+ * mdoc(7): Fix NULL dereference if the only child of the head
+   of the first .Sh was an empty in-line macro.
+ * eqn(7): Fix NULL dereference in the terminal formatter
+   for empty matrices and empty square roots.
+ * mdoc(7): Fix an assertion failure for a .Bd without a type that
+   breaks another block.
+ * mdoc(7): Fix an assertion failure that happened for some .Bl -column
+   lists containing a column width of "-4n", "-3n", or "-2n".
+ * mdoc(7): Fix an assertion failure caused by .Bl -column without .It
+   but containing eqn(7) or tbl(7) code.
+ * roff(7): Fix an assertion failure caused by \z\[u00FF] with -Tps/-Tpdf.
+ * roff(7): Fix an assertion failures caused by whitespace inside \o''
+   (overstrike) sequences.
+ * -Thtml: Fix an assertion failure caused by -Oman or -Oincludes of
+   excessive length.
+    --- PORTABILITY IMPROVEMENTS ---
+ * man(1): Do not mix stdio narrow and wide stream orientation
+   on stdout, which could cause output corruption on glibc.
+ * mandoc(1): Autodetect a suitable locale for -Tutf8 mode.
+ * ./configure: Autodetect whether PATH_MAX and O_DIRECTORY are defined.
+ * ./configure: Autodetect if nanosleep(3) needs -lrt.
+ * ./configure: Provide an ${LN} configuration variable.
+ * ./configure: Put compiler arguments that may contain -l at the end.
+    --- MINOR BUGFIXES ---
+ * mdoc(7): Fix SYNOPSIS output if the first child of .Nm is a macro.
+ * mdoc(7) -Thtml: Improve formatting of .Bl -tag with short tags.
+ * man(7) -Thtml: Preserve whitespace in .nf (nofill) mode.
+ * mandoc(1): Error out on invalid output options on the command line.
+    --- STRUCTURAL CHANGES, no functional change ---
+ * Redesign part of the mandoc_html(3) interfaces, making them much
+   easier to use and reducing the amount of code by a few hundred lines.
+    --- THANKS TO ---
+ * Michael Stapelberg (Debian) for designing the new mandocd(8)
+   and parts of the new catman(8), for release testing, and for a
+   number of patches and bug reports.
+ * Baptiste Daroussin (FreeBSD) for profiling the new makewhatis(8)
+   implementation and suggesting an algorithmic improvement which
+   more than doubled performance, and for a few bug reports.
+ * Ed Maste (FreeBSD) for an important patch improving reproducibility
+   of builds in makewhatis(8), and for a few bug reports.
+ * Theo Buehler (OpenBSD) for almost twenty important bug reports,
+   most of them found by systematic afl(1) fuzzing.
+ * Benny Lofgren, David Dahlberg, and in particular Vadim Zhukov
+   for crucial help in getting .Bl -tag CSS formatting fixed.
+ * Svyatoslav Mishyn (Crux Linux) for an initial version of the
+   patch to autodetect a suitable locale for -Tutf8 mode
+   and for release testing.
+ * Jason McIntyre (OpenBSD) for multiple useful discussions
+   and a number of bug reports.
+ * Sevan Janiyan (NetBSD) for extensive release testing and multiple
+   bug reports.
+ * Thomas Klausner and Christos Zoulas (NetBSD), Yuri Pankov (illumos),
+   and Leah Neukirchen (Void Linux) for release testing and bug reports.
+ * Ulrich Spoerlein (FreeBSD) for release testing.
+ * Alexander Bluhm, Andrew Fresh, Antoine Jacoutot, Antony Bentley,
+   Christian Weisgerber, Jonathan Gray, Marc Espie, Martijn van Duren,
+   Stuart Henderson, Ted Unangst, Theo de Raadt (OpenBSD), Abhinav
+   Upadhyay, Kamil Rytarowski (NetBSD), Aaron M. Ucko, Bdale Garbee,
+   Reiner Herrmann, Shane Kerr (Debian), Daniel Sabogal (Alpine Linux),
+   Carsten Kunze (Heirloom roff), Kristaps Dzonsons (bsd.lv),
+   Anton Lindqvist, Jan Stary, Jeremy A. Mates, Mark Patruck,
+   Pavan Maddamsetti, Sean Levy <attila@stalphonsos.com>, and
+   Tiago Silva for bug reports.
+ * Brent Cook, Marc Espie, Philip Guenther, Todd Miller (OpenBSD)
+   and Markus Waldeck for useful discussions.
+ * And as usual, OpenCSW for providing me with a Solaris 9/10/11
+   testing environment.
+
+Changes in version 1.13.4, released on July 14, 2016
+
+    --- MAJOR NEW FEATURES ---
+ * man.conf(5): Design and implement a simpler configuration file format.
+ * man(1): Leverage less(1) -T and :t in a way resembling ctags(1)
+   to jump to the definitions of various terms inside manual pages.
+ * soelim(1): New implementation by Baptiste Daroussin.
+ * privilege limitation: Use OpenBSD pledge(2) or OS X sandbox_init(3)
+   when available.
+ * man.cgi(8): Support short URIs like http://man.openbsd.org/mdoc .
+ * mandoc.css: Use one unified stylesheet rather than three different ones.
+    --- MAJOR FUNCTIONALLY RELEVANT BUGFIXES ---
+ * mdoc(7): Fix multiple aspects of SYNOPSIS .Nm formatting.
+ * man(1): Fix process group handling, avoiding unclean shutdowns.
+    --- PORTABILITY IMPROVEMENTS ---
+ * Correctly use the ohash(3) compatibility implementation
+   even when building without SQLite support.
+ * Add compat glue for building on Solaris 9 and 10.
+ * Let ./configure select a supported RE syntax for word boundaries.
+ * Support LDFLAGS, to be used for example for hardening options.
+ * Avoid mixing putchar(3) and putwchar(3) on the same file descriptor,
+   it resulted in output corruption on some platforms.
+ * Avoid reusing va_lists, use va_copy(3) for better portability.
+ * Do not hardcode the path to the more(1) program.
+    --- MINOR NEW FEATURES ---
+ * roff(7): Implement \n(.$ (number of macro arguments).
+ * roff(7): Fully implement \z (do not advance cursor).
+ * roff(7): Implement the `r'  conditional (register exists).
+ * roff(7): Implement \\$* (interpolate all arguments).
+ * roff(7): Parse and ignore \, and \/ (italic corrections).
+ * When there is no -m, no -M, no MANPATH and no /etc/man.conf,
+   fall back to /usr/share/man:/usr/X11R6/man:/usr/local/man.
+ * man(1): Give manuals in purely numerical sections priority over
+   manuals of the same name in sections with an alphabetical suffix.
+ * man.cgi(8): Support "header.html" and "footer.html".
+ * man.cgi(8): Set the "autofocus" attribute on the query text box.
+ * man.cgi(8): Simplify the search form, drop two useless buttons.
+ * man.cgi(8): Delete the pseudo-manpath "mandoc", assume that
+   apropos(1) and man.cgi(8) are installed in the default manpath.
+    --- RELIABILITY BUGFIXES ---
+ * mdoc(7): Avoid a use after free and an assertion failure when nodes
+   are deleted during validation.
+ * mdoc(7): Avoid a NULL pointer access when .Bd has no arguments.
+ * mdoc(7): Avoid a NULL pointer access triggered by mismatching end macros.
+ * mdoc(7): Avoid an assertion when .Fo has no argument.
+ * mdoc(7): Avoid an assertion when .Ta<tab> occurs in .Bl -column.
+ * mdoc(7): Avoid an assertion when a body gets broken and has a tail.
+ * roff(7): Avoid an assertion caused by blanks inside \o.
+ * roff(7): Make .so links to gziped manuals work without mandoc.db(5).
+ * tbl(7): Avoid a use after free when the last line of a layout is empty.
+ * eqn(7): Avoid an infinite loop caused by recursive "define".
+ * makewhatis(8): Avoid a segfault caused by unusual directory structures.
+ * Fix handling of leading, trailing, and double colons in MANPATH and -m.
+    --- MINOR BUGFIXES ---
+ * mdoc(7): Put arguments to end macros of broken partial explicit blocks
+   inside the breaking block.
+ * mdoc(7): Let .Dv force normal font.
+ * mdoc(7): Make trailing whitespace significant in .Bl -tag widths.
+ * mdoc(7): Fix macro interpretation around tabs in .Bl -column.
+ * man(7): Use the default width for .RS without arguments.
+ * man(7): On a new RS nesting level, the saved width starts from
+   the default width, not from the saved width of the previous level.
+ * man(7): Allow .PD in next-line scope.
+ * man(7): Improve handling of empty .HP.
+ * man(7): Improve formatting of .br and .sp inside .HP.
+ * man(7): Do not mistreat empty arguments to font alternating
+   macros as vertical spacing requests.
+ * man(7): Allow fill mode changes in tagged paragraph next-line scope.
+ * man(7): Fix minor bugs in block rewinding and simplify the related code.
+ * man(7): Add missing line breaks before subsection headers.
+ * man(7): Give section and subsection headers hanging indentation.
+ * man(7): Make trailing whitespace significant in .TP widths.
+ * roff(7): Don't allow breaking the output line after hyphens
+   that immediately follow escape sequences.
+ * roff(7): Ignore blank characters at the beginning of conditional blocks.
+ * roff(7): Escape breakable hyphens only after handling input line traps.
+ * roff(7): Reject \[uD800] to \[uDFFF] (surrogates) in the parser.
+ * tbl(7): Allow more than one data field after T} on the same input line.
+ * terminal output: Apply bold and italic to non-ASCII Unicode codepoints.
+ * terminal output: Improve rounding rules for horizontal scaling widths.
+ * HTML output: Render ASCII_NBRSP as "&nbsp;", not "-".
+ * man(1): Do not match the first part of a name if it continues with a dot.
+ * man(1): Keep working even if the current directory is unusable.
+ * man(1): Better error message when $PAGER is invalid.
+ * makewhatis(8): Improve handling of .Va and .Vt macros.
+ * apropos(1): Print "nothing appropriate" to stderr when appropriate.
+ * apropos(1): Abort with a useful error message when elementary
+   database operations like preparing queries or binding variables fail.
+    --- STRUCTURAL CHANGES, no functional change ---
+ * mdoc(7) and man(7): Unified data structures struct roff_node etc.
+ * mdoc(7) and man(7): Unified node handling library in roff.c.
+ * mdoc(7) and man(7): Seperate validation phase from parsing.
+ * roff(7): Major character table cleanup.
+ * Link with libz rather than forking gunzip(1).
+    --- THANKS TO ---
+ * Baptiste Daroussin (FreeBSD) for the new soelim(1)
+   and for release testing.
+ * Anthony Bentley (OpenBSD) for unifying mandoc.css, two nice
+   patches for man.cgi(8), some documentation patches, some bug
+   reports, and various useful discussions.
+ * Todd Miller (OpenBSD) for lots of help with process group and
+   signal handling, a few patches, some bug reports and some useful
+   discussions.
+ * Jonathan Gray (OpenBSD) for yet more testing with afl(1)
+   again resulting in more than half a dozen important bug reports.
+ * Svyatoslav Mishyn (Crux Linux) for some patches, several bug
+   reports, and extensive release testing.
+ * Leah Neukirchen (Void Linux) for a number of compatibility
+   patches and suggestions and several bug reports.
+ * Christos Zoulas (NetBSD) for a bug fix patch and some useful
+   suggestions for cleanup.
+ * Florian Obser (OpenBSD) for a bugfix patch and some bug reports.
+ * Sevan Janiyan for help with Solaris compatibility and release
+   testing on many platforms.
+ * Jan Holzhueter and OpenCSW in general for help with Solaris
+   compatibility, and for providing me with a Solaris 9/10/11 testing
+   environment.
+ * Michael McConville (OpenBSD) for some simple cleanup patches.
+ * Thomas Klausner (NetBSD) for some bug reports and release testing.
+ * Christian Weisgerber, Dmitrij Czarkoff, Igor Sobrado,
+   Ken Westerback, Marc Espie, Mike Belopuhov, Rafael Neves,
+   Ted Unangst, Tim van der Molen, Theo Buehler, Theo de Raadt
+   (OpenBSD), Kurt Jaeger, Dag Erling Smoergrav (FreeBSD),
+   Joerg Sonnenberger (NetBSD), Carsten Kunze (Heirloom troff),
+   Daniel Levai, Fabian Raetz, Jan Stary, Jean-Yves Migeon,
+   Lorenzo Beretta, Markus Waldeck, Maxim Belooussov, Michael Reed,
+   Peter Bray, and Serguey Parkhomovsky for bug reports and feature
+   suggestions.
+ * Alexander Hall, Andrew Fresh, Antoine Jacoutot, Doug Hogan,
+   Jason McIntyre, Jasper Lievisse Adriaanse, Kent Spillner,
+   Nicholas Marriott, Peter Hessler, Sebastien Marie, Stefan Sperling,
+   and Theo de Raadt (OpenBSD) for helpful discussions and feedback.
+
+Changes in version 1.13.3, released on March 13, 2015
+
+    --- MAJOR NEW FEATURES ---
+ * When a manual is missing from an outdated database, let man(1)
+   show it anyway, using a KISS file system lookup as a fallback.
+ * Use this to always provide man(1), even without database support.
+ * Fatal errors no longer exist.  If a file can be opened, mandoc
+   will produce some output; at worst, the output may be almost empty.
+ * New -Wunsupp message level.
+    --- POTENTIONALLY SECURITY RELEVANT BUGFIXES ---
+ * Fix a potential write buffer overrun on incomplete string conditionals.
+   http://mandoc.bsd.lv/cgi-bin/cvsweb/roff.c#rev1.241
+ * Fix a potential write buffer overrun on backslash at EOF in a conditional.
+   http://mandoc.bsd.lv/cgi-bin/cvsweb/roff.c#rev1.247
+ * Fix a use after free sometimes hit when validation deletes a block.
+   http://mandoc.bsd.lv/cgi-bin/cvsweb/mdoc_macro.c#rev1.180
+    --- MAJOR FUNCTIONALLY RELEVANT BUGFIXES ---
+ * Let man(1) show manuals for the current architecture by default,
+   and support the MACHINE environment variable.
+ * Fix the man(1) and apropos(1) -m option, it didn't work at all.
+ * Do not spawn a pager when there is no output.
+ * In makewhatis(8), fix detection of hardlinked manuals on platforms
+   having padding in struct inodev (typically 64bit platforms).
+    --- PORTABILITY IMPROVEMENTS ---
+ * Ignore O_CLOEXEC when the operating system doesn't provide it.
+ * Avoid forward reference to enum type which violates ISO C99.
+ * Support homebrew-style linking on Mac OS X.
+    --- MINOR NEW FEATURES ---
+ * lookup: Accept digit+letter and "n" as section names in man(1),
+   and consistently handle digit+letter in file name extensions.
+ * lookup: Speed up -s/-S by using the "mlinks" rather than the "keys" table.
+ * output: Insert horizontal lines between formatted manual pages.
+ * input: New stricter and more resilient UTF-8 parser.
+ * mdoc(7): Refactor block rewinding for simpler and more robust parsing.
+ * man(7): Use the -Ios option when .TH has less than four arguments.
+ * tbl(7): Implement the "center" option.
+ * tbl(7): New option and format parsers, improved in many respects.
+ * roff(7): Basic implementation of the \o escape sequence (overstrike),
+   and improved rendering of overstrikes in PostScript and PDF output.
+ * Message improvements, in particular for, but not restricted to,
+   eqn(7), tbl(7), and wrong numbers of arguments in mdoc(7) and man(7),
+   in various cases also improving output generated by invalid input.
+ * Delete the -V option.  It serves no purpose but keeps confusing people.
+ * gmdiff: Minimal support for Heirloom roff.
+    --- RELIABILITY BUGFIXES ---
+ * tbl(7): Fix a read buffer overrun on 'f' at EOL in a layout.
+ * roff(7): Fix a read buffer overrun on incomplete numerical conditions.
+ * mdoc(7): Fix a NULL pointer access on .Nd followed by an explicit block.
+ * mdoc(7): Fix a NULL pointer access on .It Xo without .Xc.
+ * mdoc(7): Fix a NULL pointer access on .Eo without a tail.
+ * mdoc(7): Fix a NULL pointer access in the validation of empty .St macros.
+ * man(7)/tbl(7): Fix a NULL pointer access on .TS right after .TP.
+ * tbl(7): Fix a NULL pointer access on layout lines without any cells.
+ * eqn(7): Fix NULL pointer accesses in the terminal formatter.
+ * roff(7): Fix a NULL pointer access on trailing \s-/\s+ without an argument.
+ * gz: Fix a potential NULL pointer access after waitpid() failure.
+ * roff(7): Don't let the modulo operator divide by zero.
+ * input: Fix an assertion failure on certain invalid UTF-8 input.
+ * terminal output: Allow arbitrary depth of the font stack (assertion fix).
+ * mdoc(7): Fix assertion failures and endless loops on invalid block closing.
+ * mdoc(7): Fix an assertion failure on .Bl .Sm not followed by .It.
+ * mdoc(7): Fix an assertion failure on .Bl -column ... .El .Ta.
+ * tbl(7): Fix assertion failures by macros inside table data,
+   but do not throw away the macro arguments.
+ * Prevent certain kinds of unreasonable input from producing excessive
+   output, in one case caused by unsigned integer underflow.
+ * Fix a potential memory leak in makewhatis(8) on very long filenames.
+    --- MINOR BUGFIXES ---
+ * mdoc(7): Fix parsing of badly nested blocks with multiple identical blocks.
+ * mdoc(7): Support negative indentations for displays and lists.
+ * mdoc(7): Don't mistreat negative .sp arguments as large positive ones.
+ * mdoc(7): Some spacing fixes for .Eo/.Ec.
+ * man(7): Support negative horizontal widths.
+ * man(7): Do not print out invalid .IP arguments.
+ * man(7): Correctly handle scaling units after .PD.
+ * man(7): Support .RE with an argument.
+ * man(7): Fix restoring indentation after .RS with large negative arguments.
+ * tbl(7): Prevent tables from breaking the filling of preceding text.
+ * tbl(7): Fix vertical spacing at the beginning of tables.
+ * tbl(7): Parser and formatter fixes for line drawing and font modifiers.
+ * tbl(7): Correct handling of blank data lines.
+ * eqn(7): Add sometimes missing whitespace before equation output.
+ * roff(7): Fix vertical scaling, most of it was wrong.
+ * roff(7): Slightly improve \w width measurements.
+ * roff(7): Accept the historic aliases \s10 to \s39 for \s(10 to \s(39.
+ * roff(7): Correctly escape quotes when expanding macro arguments.
+ * roff(7): Correctly handle scaling units in numerical expressions,
+   and some other improvements to the parsing of numerical expressions.
+ * roff(7): Three minor fixes with respect to evaluation of conditionals.
+ * roff(7): Let .it accept numerical expressions, not just constants.
+ * mandoc_char(7): Correct some character names and renderings.
+ * If earlier files set a non-zero exit status, never reset it to zero.
+    --- THANKS TO ---
+ * Jonathan Gray (OpenBSD) for yet more testing with afl (the American
+   Fuzzy Lop security fuzzer), again resulting in many bug reports.
+ * Theo de Raadt (OpenBSD) for suggesting the main new feature (man(1) file
+   system lookup) and for reporting an important bug (pager without output).
+ * Theo Buehler for an important bug report (-s/-S slowness)
+   and for proposing a nice new feature (lines between pages).
+ * Jason McIntyre for an important bug report (hardlink detection)
+   and multiple documentation patches.
+ * Pascal Stumpf (OpenBSD) and Alessandro de Laurenzis for
+   important bug reports (architecture and man -m, respectively).
+ * Thomas Klausner (NetBSD) for proposing a new feature (man(7) -Ios),
+   a bug report, and release testing.
+ * Anthony Bentley, Daniel Dickman, Ted Unangst (OpenBSD) and
+   Kristaps Dzonsons (bsd.lv) for source code patches and bug reports.
+ * Christian Weisgerber (OpenBSD) for more than half a dozen bug reports.
+ * Carsten Kunze (Heirloom troff) for bug reports and release testing.
+ * Antoine Jacoutot (OpenBSD) for release testing.
+ * Alexis Hildebrandt (Homebrew), Baptiste Daroussin (FreeBSD),
+   Jonathan Perkin (SmartOS), Pedro Giffuni (FreeBSD), Svyatoslav
+   Mishyn (Crux Linux), Ulrich Spoerlein (FreeBSD), Jan Stary, Patrick
+   Keshishian, Sebastien Marie, and Steffen Nurpmeso for bug reports.
+
+Changes in version 1.13.2, released on December 13, 2014
+
+    --- MAJOR NEW FEATURES ---
+ * Include an implementation of man(1), the manual page viewer.
+ * Unified set of command line option, each one supported by all
+   command names, including new options -a (format all), -c (no
+   pager), -h (synopsis only), and -w (list filenames).
+ * Support the MANPAGER and PAGER environment variables.
+ * Support gzip'ed manuals by the whole toolset, even as .so targets.
+ * Support UTF-8 and Latin-1 input by the whole toolset, delete preconv(1).
+ * Switch the default output mode from -Tascii to -Tlocale.
+ * Improve -Tascii output for Unicode escape sequences.
+ * Let the -Thtml output mode produce polyglot HTML5.
+ * Many improvements for eqn(7), in particular in-line equations,
+   MathML output in -Thtml mode, and much improved terminal formatting.
+    --- PORTABILITY IMPROVEMENTS ---
+ * Change the build sequence to the usual ./configure; make; make install.
+ * Support ./configure.local for build customizations.
+ * Autodetect wchar, sqlite3, and manpath support.
+ * Provide a fallback version of fts(3) for systems lacking it.
+ * Support choosing alternative binary and manual names.
+    --- MINOR NEW FEATURES ---
+ * Rudimentary implementation of the e, x, and z tbl(7) layout
+   modifiers to equalize, maximize, and ignore the width of columns.
+ * Implement font modifiers in tbl(7) layouts.
+ * Allow comma-separated options in the tbl(7) options line.
+ * Parse and ignore the .pl (page length) roff(7) request.
+ * Implement .An -[no]split for the mdoc(7) -Thtml output mode.
+ * Support bold italic font in PostScript and PDF output.
+ * Warn about commas in function arguments and parentheses in function names.
+ * Warn about botched .Xr ordering and punctuation below SEE ALSO.
+ * Warn about AUTHORS sections without .An macros.
+ * Warn about attempts to call non-callable macros.
+ * New developer documentation manual page mandoc_headers(3).
+    --- BUGFIXES ---
+ * Fix read buffer overrun sometimes triggered by trailing whitespace.
+ * Fix read buffer overrun triggered by certain invalid \H sequences.
+ * Fix NULL pointer access triggered by .Bl without any arguments.
+ * Fix NULL pointer access triggered by .It Nm Fo without .Fc.
+ * Fix NULL pointer access triggered by .Sh Xo .Sh without .Xc.
+ * Fix NULL pointer access triggered by missing .Nm.
+ * Fix an assertion triggered by .It right after .El.
+ * Fix an assertion triggered by .Ec without preceding .Eo.
+ * Fix an assertion triggered by .Sm or .Db with multiple arguments.
+ * Fix assertion failures triggered by very large width arguments.
+ * Fix a division by zero in the roff(7) parser.
+ * Prevent negative arguments to .ll from causing integer underflow.
+ * Correctly autodetect source format even when .Dd is preceded by .ll.
+ * Multiple fixes with respect to .Bd and .Bl -offset and -width.
+ * Many bugfixes with respect to scaling units.
+ * Multiple fixes with respect to delimiter handling by in-line macros.
+ * Multiple fixes with respect to .Pf.
+ * Make \c work properly in no-fill mode.
+ * Stricter syntax checking of Unicode character names.
+    --- THANKS TO ---
+ * Kristaps Dzonsons for rewriting the eqn(7) parser, implementing
+   HTML5 and MathML output, and various other code contributions.
+ * Jonathan Gray (OpenBSD) for extensive testing with afl (the
+   American Fuzzy Lop security fuzzer) resulting in many bug reports.
+ * Anthony Bentley (OpenBSD), Baptiste Daroussin (FreeBSD), Daniel
+   Dickman, Doug Hogan, Jason McIntyre, Theo de Raadt (OpenBSD),
+   and Martin Natano for source code patches.
+ * Carsten Kunze (Heirloom troff), Daniel Levai (Slackware),
+   Garrett D'Amore (illumos), Giovanni Becchis, Matthew Dempsky,
+   Stuart Henderson, Ted Unangst, Todd Miller (OpenBSD), Thomas
+   Klausner (NetBSD), Ulrich Spoerlein (FreeBSD), Justin Haynes,
+   Marcus Merighi, Sebastien Marie, Steffen Nurpmeso and Theo Buehler
+   for bug reports.
+
+Changes in version 1.13.1, released on August 10, 2014
+
+    --- MAJOR NEW FEATURES ---
+ * A complete apropos(1)/makewhatis(8)/man.cgi(8) suite
+   based on SQLite3 is now included.
+ * The roff(7) parser now provides an almost complete implementation
+   of numerical expressions.
+ * Warning and error messages have been improved in many ways.
+   Almost all fatal errors were downgraded to normal errors and some
+   even to warnings.  Almost all messages now mention the macro where
+   the issue is detected and many indicate the workaround employed.
+   The mandoc(1) manual now includes a list explaining all messages.
+    --- MINOR NEW FEATURES ---
+ * The roff(7) parser now supports the .ami (append to macro with
+   indirectly specified name), .as (append to user-defined
+   string), .dei (define macro with indirectly specified name),
+   .ll (line length), and .rr (remove register) requests.
+ * The roff(7) parser now supports string comparison and numerical
+   conditionals in the .if and .ie requests.
+ * The roff parser now fully supports the \B (validate numerical
+   expression) and partially supports the \w (measure text width)
+   escape sequences.
+ * The terminal formatter now supports the \: (optional line break)
+   escape sequence.
+ * The roff parser now supports expansion of user-defined strings
+   involving indirect references.
+ * The roff(7) parser now handles some pre-defined read-only
+   number registers that occur in the pod2man(1) preamble.
+ * For backward compatibility, the mdoc(7) parser and formatters
+   now support the obsolete macros .En, .Es, .Fr, and .Ot.
+ * The mdoc(7) formatter non partially supports .Bd -centered.
+ * tbl(7) now handles leading and trailing vertical lines.
+ * The build system now provides fallback versions of strcasestr(3)
+   and strsep(3) for systems lacking them.
+ * The mdoc(7) manual now explains how various standards
+   supported by the .St macro are related to each other.
+    --- BUGFIXES ---
+ * In the roff(7) parser, several bugs were fixed with respect
+   to closing conditional blocks on macro lines.
+ * Parsing of roff(7) identifiers and escape sequences was improved
+   in multiple respects.
+ * In the mdoc(7) parser, the handling of defective document
+   prologues was improved in multiple ways.
+ * The mdoc(7) parser no longer skips content before the first section
+   header, and it no longer deletes non-.% content from .Rs blocks.
+ * In the mdoc(7) parser, a crash was fixed related to weird .Sh headers.
+ * In the mdoc(7) parser, handling of .Sm with missing or invalid
+   arguments was corrected.
+ * In the mdoc(7) parser, trailing punctuation at the end of partial
+   implicit macros no longer triggers end-of-sentence spacing.
+ * In the terminal formatter, two crashes were fixed: one triggered by
+   excessive indentation and another by excessively long .Nm arguments.
+ * In the terminal formatter, a floating point rounding bug was
+   fixed that sometimes caused an off-by-one error in indentation.
+ * In the UTF-8 formatter, rendering of accents, breakable hyphens,
+   and non-breakable spaces was corrected.
+ * In the HTML formatter, encoding of special characters was
+   corrected in multiple respects.
+ * In the mdoc(7) formatter, rendering of .Ex and .Rv was
+   improved for various edge cases.
+ * In the mdoc(7) formatter, handling of empty .Bl -inset item
+   heads was improved.
+ * In the man(7) formatter, some bugs were fixed with respect
+   to same-line detection in the context of .TP and .nf macros,
+   and the indentation of .IP and .TP blocks was improved.
+ * The mandoc(3) library no longer prints to stderr.
+    --- THANKS TO ---
+   Abhinav Upadhyay (NetBSD), Andreas Voegele, Anthony Bentley (OpenBSD),
+   Christian Weisgerber (OpenBSD), Havard Eidnes (NetBSD), Jan Stary,
+   Jason McIntyre (OpenBSD), Jeremie Courreges-Anglas (OpenBSD),
+   Joerg Sonnenberger (NetBSD), Juan Francisco Cantero Hurtado (OpenBSD),
+   Marc Espie (OpenBSD), Matthias Scheler (NetBSD), Pascal Stumpf (OpenBSD),
+   Paul Onyschuk (Alpine Linux), Sebastien Marie, Steffen Nurpmeso,
+   Stuart Henderson (OpenBSD), Ted Unangst (OpenBSD), Theo de Raadt (OpenBSD),
+   Thomas Klausner (NetBSD), and Ulrich Spoerlein (FreeBSD)
+   for reporting bugs and missing features.
+
+Changes in version 1.12.3, released on December 31, 2013
+
+ * In the mdoc(7) SYNOPSIS, line breaks and hanging indentation
+   now work correctly for .Fo/.Fa/.Fc and .Fn blocks.
+   Thanks to Franco Fichtner for doing part of the work.
+ * The mdoc(7) .Bk macro got some addititonal bugfixes.
+ * In mdoc(7) macro arguments, double quotes can now be quoted
+   by doubling them, just like in man(7).
+   Thanks to Tsugutomo ENAMI for the patch.
+ * At the end of man(7) macro lines, end-of-sentence spacing
+   now works.  Thanks to Franco Fichtner for the patch.
+ * For backward compatibility, the man(7) parser now supports the
+   man-ext .UR/.UE (uniform resource identifier) block macros.
+ * The man(7) parser now handles closing blocks that are not open
+   more gracefully.
+ * The man(7) parser now ignores blank lines right after .SH and .SS.
+ * In the man(7) formatter, reset indentation when leaving a block,
+   not just when entering the next one.
+ * The roff(7) .nr request now supports incrementing and decrementing
+   number registers and stops parsing the number right before the
+   first non-digit character.
+ * The roff(7) parser now supports the alternative escape sequence
+   syntax \C'uXXXX' for Unicode characters.
+ * The roff(7) parser now parses and ignores the .fam (font family)
+   and .hw (hyphenation points) requests and the \d and \u escape
+   sequences.
+ * The roff(7) manual got a new ESCAPE SEQUENCE REFERENCE.
+
+Changes in version 1.12.2, released on Oktober 5, 2013
+
+ * The mdoc(7) to man(7) converter, to be called as mandoc -Tman,
+   is now fully functional.
+ * The mandoc(1) utility now supports the -Ios (default operating system)
+   input option, and the -Tutf8 output mode now actually works.
+ * The mandocdb(8) utility no longer truncates existing databases when
+   starting to build new ones, but only replaces them when the build
+   actually succeeds.
+ * The man(7) parser now supports the PD macro (paragraph distance),
+   and (for GNU man-ext compatibility only) EX (example block) and EE
+   (example end).  Plus several bugfixes regarding indentation, line
+   breaks, and vertical spacing, and regarding RS following TP.
+ * The roff(7) parser now supports the \f(BI (bold+italic) font escape,
+   the \z (zero cursor advance) escape and the cc (change control
+   character) and it (input line trap) requests. Plus bugfixes regarding
+   the \t (tab) escape, nested escape sequences, and conditional requests.
+ * In mdoc(7), several bugs were fixed related to UTF-8 output of quoting
+   enclosures, delimiter handling, list indentation and horizontal and
+   vertical spacing, formatting of the Lk, %U, and %C macros, plus some
+   bugfixes related to the handling of syntax errors like badly nested
+   font blocks, stray Ta macros outside column lists, unterminated It Xo
+   blocks, and non-text children of Nm blocks.
+ * In tbl(7), the width of horizontal spans and the vertical spacing
+   around tables was corrected, and in man(7) files, a crash was fixed
+   that was triggered by some particular unclosed T{ macros.
+ * For mandoc developers, we now provide a tbl(3) library manual and
+   gmdiff, a very small, very simplistic groff-versus-mandoc output
+   comparison tool.
+ * Provide this NEWS file.
+
+Changes in version 1.12.1, released on March 23, 2012
+
+ * Significant work on apropos(1) and mandocdb(8). These tools are now
+   much more robust.  A whatis(1) implementation is now handled as an
+   apropos(1) mode.  These tools are also able to minimally handle
+   pre-formatted pages, that is, those already formatted by another
+   utility such as GNU troff.
+ * The man.cgi(7) script is also now available for wider testing.
+   It interfaces with mandocdb(8) manuals cached by catman(8).
+   HTML output is generated on-the-fly by libmandoc or internal
+   methods to convert pre-formatted pages.
+ * The mailing list archive for the discuss and tech lists are being
+   hosted by Gmane at gmane.comp.tools.mdocml.user and
+   gmane.comp.tools.mdocml.devel, respectively.
+
+Changes in version 1.12.0, released on October 8, 2011
+
+ * This version features a new, work-in-progress mandoc(1) output mode:
+   -Tman.  This mode allows a system maintainer to distribute man(7)
+   media for older systems that may not natively support mdoc(7), such
+   as old Solaris systems.
+ * The -Ofragment option was added to mandoc(1)'s -Thtml and -Txhtml modes.
+ * While adding features, an apropos(1) utility has been merged from the
+   mandoc-tools sandbox.  This interfaces with mandocdb(8) for semantic
+   search of manual content.  apropos(1) is different from the traditional
+   apropos primarily in allowing keyword search (such as for functions,
+   utilities, etc.) and regular expressions.  Note that the calling
+   syntax for apropos is likely to change as it settles down.
+ * In documentation news, the mdoc(7) and man(7) manuals have been
+   made considerably more readable by adding MACRO OVERVIEW sections, by
+   moving the gory details of the LANGUAGE SYNTAX to the roff(7) manual,
+   and by moving the very technical MACRO SYNTAX sections down to the
+   bottom of the page.
+ * Furthermore, for tbl(7), the -Tascii mode horizontal spacing of tables
+   was rewritten completely.  It is now compatible with groff(1), both
+   with and without frames and rulers.
+ * Nesting of indented blocks is now supported in man(7), and several
+   bugs were fixed regarding indentation and alignment.
+ * The page headers in mdoc(7) are now nicer for very long titles.
+
+Changes in version 1.11.7, released on September 2, 2011
+
+ * Added demandoc(1) utility for stripping away macros and escapes.
+   This replaces the historical deroff(1) utility.
+ * Also improved the mdoc(7) and man(7) manuals.
+
+Changes in version 1.11.6, released on August 16, 2011
+
+ * Handling of tr macro in roff(7) implemented.  This makes Perl
+   documentation much more readable.  Hyphenation is also now enabled in
+   man(7) format documents.  Many other general improvements have been
+   implemented.
+
+Changes in version 1.11.5, released on July 24, 2011
+
+ * Significant eqn(7) improvements.  mdocml can now parse arbitrary eqn
+   input (although few GNU extensions are accepted, nor is mixing
+   low-level roff with eqn).  See the eqn(7) manual for details.
+   For the time being, equations are rendered as simple in-line text.
+   The equation parser satisfies the language specified in the
+   Second Edition User's Guide:
+   http://www.kohala.com/start/troff/v7man/eqn/eqn2e.ps
+
+Changes in version 1.11.4, released on July 12, 2011
+
+ * Bug-fixes and clean-ups across all systems, especially in mandocdb(8)
+   and the man(7) parser.  This release was significantly assisted by
+   participants in OpenBSD's c2k11.  Thanks!
+
+Changes in version 1.11.3, released on May 26, 2011
+
+ * Introduce locale-encoding of output with the -Tlocale output option and
+   Unicode escaped-character input.  See mandoc(1) and mandoc_char(7),
+   respectively, for details.  This allows for non-ASCII characters (e.g.,
+   \[u5000]) to be rendered in the locale's encoding, if said environment
+   supports wide-character encoding (if it does not, -Tascii is used
+   instead).  Locale support can be turned off at compile time by removing
+   -DUSE_WCHAR in the Makefile, in which case -Tlocale is always a synonym
+   for -Tascii.
+ * Furthermore, multibyte-encoded documents, such as those in UTF-8, may
+   be on-the-fly recoded into mandoc(1) input by using the newly-added
+   preconv(1) utility.  Note: in the future, this feature may be
+   integrated into mandoc(1).
+
+Changes in version 1.11.2, released on May 12, 2011
+
+ * Corrected some installation issues in version 1.11.1.
+ * Further migration to libmandoc.
+ * Initial public release (this utility is very much under development)
+   of mandocdb(8).  This utility produces keyword databases of manual
+   content, which features semantic querying of manual content.
+
+Changes in version 1.11.1, released on April 4, 2011
+
+ * The earlier libroff, libmdoc, and libman soup have been merged into
+   a single library, libmandoc, which manages all aspects of parsing
+   real manuals, from line-handling to tbl(7) parsing.
+ * As usual, many general fixes and improvements have also occurred.
+   In particular, a great deal of redundancy and superfluous code has
+   been removed with the merging of the backend libraries.
+ * see also the changes in 1.10.10
+
+Changes in version 1.10.10, March 20, 2011, NOT released
+
+ * Initial eqn(7) functionality is in place.  For the time being,
+   this is limited to the recognition of equation blocks;
+   future version of mdocml will expand upon this framework.
+
+Changes in version 1.10.9, released on January 7, 2011
+
+ * Many back-end fixes have been implemented: argument handling (quoting),
+   man(7) improvements, error/warning classes, and many more.
+ * Initial tbl(7) functionality (see the "TS", "TE", and "T&" macros in
+   the roff(7) manual) has been merged from tbl.bsd.lv.  Output is still
+   minimal, especially for -Thtml and -Txhtml, but manages to at least
+   display data.  This means that mandoc(1) now has built-in support
+   for two troff preprocessors via libroff: soelim(1) and tbl(1).
+
+Changes in version 1.10.8, released on December 24, 2010
+
+ * Overhauled the -Thtml and -Txhtml output modes.  They now display
+   readable output in arbitrary browsers, including text-based ones like
+   lynx(1).  See HTML and XHTML manuals in the DOCUMENTATION section
+   for examples.  Attention: available style-sheet classes have been
+   considerably changed!  See the example.style.css file for details.
+   Lastly, libmdoc and libman have been cleaned up and reduced in size
+   and complexity.
+ * see also the changes in 1.10.7
+
+Changes in version 1.10.7, December 6, 2010, NOT released
+
+ Significant improvements merged from OpenBSD downstream, including:
+ * many new roff(7) components,
+ * in-line implementation of troff's soelim(1),
+ * broken-block handling,
+ * overhauled error classifications, and
+ * cleaned up handling of error conditions.
+
+Changes in version 1.10.6, released on September 27, 2010
+
+ * Calling conventions for mandoc(1) have changed: -W improved and -f
+   deprecated.
+ * Non-ASCII characters are also now uniformly discarded.
+ * Lots of documentation improvements.
+ * Many incremental fixes accomodating for groff's more interesting
+   productions.
+ * Lastly, pod2man(1) preambles are now fully accepted after some
+   considerable roff(7) and special character support.
+
+Changes in version 1.10.5, released on July 27, 2010
+
+ * Primarily a bug-fix and polish release, but including -Tpdf support
+   in mandoc(1) by way of "Summer of Code".  Highlights:
+ * fix "Sm" and "Bd" handling
+ * fix end-of-sentence handling for embedded sentences
+ * polish man(7) documentation
+ * document all mdoc(7) macros
+ * polish mandoc(1) -Tps output
+ * lots of internal clean-ups in character escapes
+ * un-break literal contexts in man(7) documents
+ * improve -Thtml output for -man
+ * add mandoc(1) -Tpdf support
+
+Changes in version 1.10.4, released on July 12, 2010
+
+ * Lots of features developed during both "Summer of Code" and the
+   OpenBSD c2k10 hackathon:
+ * minimal "ds" roff(7) symbols are supported
+ * beautified SYNOPSIS section output
+ * acceptance of scope-block breakage in mdoc(7)
+ * clarify error message status
+ * many minor bug-fixes and formatting issues resolved
+ * see also changes in 1.10.3
+
+Changes in version 1.10.3, June 29, 2010, NOT released
+
+ * variable font-width and paper-size support in mandoc(1) -Tps output
+ * "Bk" mdoc(7) support
+
+Changes in version 1.10.2, released on June 19, 2010
+
+ * Small release featuring text-decoration in -Tps output,
+   a few minor relaxations of errors, and some optimisations.
+
+Changes in version 1.10.1, released on June 7, 2010
+
+ * This primarily focusses on the "Bl" and "It" macros described in
+   mdoc(7).  Multi-line column support is now fully compatible with groff,
+   as are implicit list entries for columns.
+ * Removed manuals(7) in favour of http://manpages.bsd.lv.
+ * The way we handle the SYNOPSIS section (see the SYNOPSIS documentation
+   in MANUAL STRUCTURE) has also been considerably simplified compared
+   to groff's method.
+ * Furthermore, the -Owidth=width output option has been added to -Tascii,
+   see mandoc(1).
+ * Lastly, initial PostScript output has been added with the -Tps option
+   to mandoc(1).  It's brutally simple at the moment: fixed-font, with no
+   font decorations.
+
+Changes in version 1.10.0, released on May 29, 2010
+
+ * Release consisting of the results from the m2k10 hackathon and up-merge
+   from OpenBSD.  This requires a significant note of thanks to Ingo
+   Schwarze (OpenBSD) and Joerg Sonnenberger (NetBSD) for their hard work,
+   and again to Joerg for hosting m2k10.  Highlights (mostly cribbed from
+   Ingo's m2k10 report) follow in no particular order:
+ * a libroff preprocessor in front of libmdoc and libman stripping out
+   roff(7) instructions;
+ * end-of-sentence (EOS) detection in free-form and macro lines;
+ * correct handling of tab-separated columnar lists in mdoc(7);
+ * improved main calling routines to optionally use mmap(3) for better
+   performance;
+ * cleaned up exiting when invoked as -Tlint or over multiple files
+   with -fign-errors;
+ * error and warning message handling re-written to be unified for
+   libroff, libmdoc, and libman;
+ * handling of badly-nested explicit-scoped macros;
+ * improved free-form text parsing in libman and libmdoc;
+ * significant GNU troff compatibility improvements in -Tascii,
+   largely in terms of spacing;
+ * a regression framework for making sure the many fragilities of GNU
+   troff aren't trampled in subsequent work;
+ * support for -Tascii breaking at hyphens encountered in free-form text;
+ * and many more minor fixes and improvements
+
+Changes in version 1.9.25, released on May 13, 2010
+
+ * Fixed handling of "\*(Ba" escape.
+ * Backed out -fno-ign-chars (pointless complexity).
+ * Fixed erroneous breaking of literal lines.
+ * Fixed SYNOPSIS breaking lines before non-initial macros.
+ * Changed default section ordering.
+ * Most importantly, the framework for end-of-sentence double-spacing is
+   in place, now implemented for the "end-of-sentence, end-of-line" rule.
+ * This is a stable roll-back point before the mandoc hackathon in Rostock!
+
+Changes in version 1.9.24, released on May 9, 2010
+
+ * Rolled back break-at-hyphen.
+ * -DUGLY is now the default (no feature splits!).
+ * Free-form text is not de-chunked any more: lines are passed
+   whole-sale into the front-end, including whitespace.
+ * Added mailing lists.
+
+Changes in version 1.9.23, released on April 7, 2010
+
+ * mdocml has been linked to the OpenBSD build.
+ * This version incorporates many small changes, mostly from patches
+   by OpenBSD, allowing crufty manuals to slip by with warnings instead
+   of erroring-out.
+ * Some subtle semantic issues, such as punctuation scope, have also
+   been fixed.
+ * Lastly, some issues with -Thtml have been fixed, which prompted an
+   update to the online manual pages style layout.
+
+Changes in version 1.9.22, released on March 31, 2010
+
+ * Adjusted merge of the significant work by Ingo Schwarze
+   in getting "Xo" blocks (block full implicit, e.g., "It"
+   for non-columnar lists) to work properly.  This isn't
+   enabled by default: you must specify -DUGLY as a compiler
+   flag (see the Makefile for details).
+
+Changes in version 1.9.20, released on March 30, 2010
+
+ * More efforts to get roff instructions in man(7) documents under
+   control.  Note that roff instructions embedded in line-scoped,
+   next-line macros (e.g. "B") are not supported.
+ * Leading punctuation for mdoc(7) macros, such as "Fl ( ( a",
+   are now correctly handled.
+
+Changes in version 1.9.18, released on March 27, 2010
+
+ * Many fixes (largely pertaining to scope)
+   and improvements (e.g., handling of apostrophe-control macros,
+   which fixes the strange "BR" seen in some macro output)
+   to handling roff instructions in man(7) documents.
+
+Changes in version 1.9.17, released on March 25, 2010
+
+ * Accept perlpod(1) standard preamble.
+ * Also accept (and discard) "de", "dei", "am", "ami", and "ig"
+   roff macro blocks.
+
+Changes in version 1.9.16, released on March 22, 2010
+
+ * Inspired by patches and bug reports by Ingo Schwarze,
+   allowed man(7) to accept non-printing elements to be nested
+   within next-line scopes, such as "br" within "B" or "TH",
+   which is valid roff.
+ * Longsoon architecture also noted and Makefile cleaned up.
+
+Changes in version 1.9.15, released on February 18, 2010
+
+ * Moved to our new BSD.lv home.
+ * XHTML is now an acceptable output mode for mandoc(1);
+ * "Xr" made more compatible with groff;
+ * "Vt" fixed when invoked in SYNOPSIS;
+ * "\\" escape removed;
+ * end-of-line white-space detected for all lines;
+ * subtle bug fixed in list display for some modes;
+ * compatibility layer checked in for compilation in diverse
+   UNIX systems;
+ * and column lengths handled correctly.
+
+For older releases, see the ChangeLog files
+in http://mandoc.bsd.lv/snapshots/ .

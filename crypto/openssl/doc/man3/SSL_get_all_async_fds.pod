@@ -1,0 +1,88 @@
+=pod
+
+=head1 NAME
+
+SSL_waiting_for_async,
+SSL_get_all_async_fds,
+SSL_get_changed_async_fds
+- manage asynchronous operations
+
+=head1 SYNOPSIS
+
+=for comment multiple includes
+
+ #include <openssl/async.h>
+ #include <openssl/ssl.h>
+
+ int SSL_waiting_for_async(SSL *s);
+ int SSL_get_all_async_fds(SSL *s, OSSL_ASYNC_FD *fd, size_t *numfds);
+ int SSL_get_changed_async_fds(SSL *s, OSSL_ASYNC_FD *addfd, size_t *numaddfds,
+                               OSSL_ASYNC_FD *delfd, size_t *numdelfds);
+
+=head1 DESCRIPTION
+
+SSL_waiting_for_async() determines whether an SSL connection is currently
+waiting for asynchronous operations to complete (see the SSL_MODE_ASYNC mode in
+L<SSL_CTX_set_mode(3)>).
+
+SSL_get_all_async_fds() returns a list of file descriptor which can be used in a
+call to select() or poll() to determine whether the current asynchronous
+operation has completed or not. A completed operation will result in data
+appearing as "read ready" on the file descriptor (no actual data should be read
+from the file descriptor). This function should only be called if the SSL object
+is currently waiting for asynchronous work to complete (i.e.
+SSL_ERROR_WANT_ASYNC has been received - see L<SSL_get_error(3)>). Typically the
+list will only contain one file descriptor. However if multiple asynchronous
+capable engines are in use then more than one is possible. The number of file
+descriptors returned is stored in B<*numfds> and the file descriptors themselves
+are in B<*fds>. The B<fds> parameter may be NULL in which case no file
+descriptors are returned but B<*numfds> is still populated. It is the callers
+responsibility to ensure sufficient memory is allocated at B<*fds> so typically
+this function is called twice (once with a NULL B<fds> parameter and once
+without).
+
+SSL_get_changed_async_fds() returns a list of the asynchronous file descriptors
+that have been added and a list that have been deleted since the last
+SSL_ERROR_WANT_ASYNC was received (or since the SSL object was created if no
+SSL_ERROR_WANT_ASYNC has been received). Similar to SSL_get_all_async_fds() it
+is the callers responsibility to ensure that B<*addfd> and B<*delfd> have
+sufficient memory allocated, although they may be NULL. The number of added fds
+and the number of deleted fds are stored in B<*numaddfds> and B<*numdelfds>
+respectively.
+
+=head1 RETURN VALUES
+
+SSL_waiting_for_async() will return 1 if the current SSL operation is waiting
+for an async operation to complete and 0 otherwise.
+
+SSL_get_all_async_fds() and SSL_get_changed_async_fds() return 1 on success or
+0 on error.
+
+=head1 NOTES
+
+On Windows platforms the openssl/async.h header is dependent on some
+of the types customarily made available by including windows.h. The
+application developer is likely to require control over when the latter
+is included, commonly as one of the first included headers. Therefore
+it is defined as an application developer's responsibility to include
+windows.h prior to async.h.
+
+=head1 SEE ALSO
+
+L<SSL_get_error(3)>, L<SSL_CTX_set_mode(3)>
+
+=head1 HISTORY
+
+The SSL_waiting_for_async(), SSL_get_all_async_fds()
+and SSL_get_changed_async_fds() functions were added in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

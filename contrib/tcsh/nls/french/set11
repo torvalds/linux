@@ -1,0 +1,10 @@
+$ $tcsh: set11,v 1.4 2011/02/04 18:19:35 christos Exp $
+$ sh.c
+$set 11 
+1 Attention: pas d'accès au tty (%s).\n
+2 Ainsi pas de contrôle de job dans ce shell.\n
+3 Vous avez %d messages courrier (mail).\n
+4 Vous avez %d messages courrier (mail) dans %s.\n
+5 Vous avez du %scourrier.\n
+6 nouveau 
+7 Vous avez du %scourrier dans %s.\n

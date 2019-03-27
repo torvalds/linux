@@ -1,0 +1,25 @@
+#
+# Ubiquiti Routerstation Pro: boot from MFS
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+include		"AR71XX_BASE"
+ident		"RSPRO_MFS"
+hints		"RSPRO.hints"
+
+# RTC - requires hackery in the spibus code to work
+device		pcf2123_rtc
+
+# GEOM modules
+device		geom_redboot	# to get access to the SPI flash partitions
+device		xz
+options 	GEOM_UZIP
+
+# Boot from the first MFS uzip
+options 	ROOTDEVNAME=\"ufs:md0.uzip\"
+
+options 	MD_ROOT
+options 	MD_ROOT_SIZE="6144"

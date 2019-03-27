@@ -1,0 +1,246 @@
+.\" Copyright (c) 2014 Bryan Venteicher
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 31, 2017
+.Dt VXLAN 4
+.Os
+.Sh NAME
+.Nm vxlan
+.Nd "Virtual eXtensible LAN interface"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device vxlan"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_vxlan_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver creates a virtual tunnel endpoint in a
+.Nm
+segment.
+A
+.Nm
+segment is a virtual Layer 2 (Ethernet) network that is overlaid
+in a Layer 3 (IP/UDP) network.
+.Nm
+is analogous to
+.Xr vlan 4
+but is designed to be better suited for large, multiple tenant
+data center environments.
+.Pp
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va cloned_interfaces
+variable in
+.Xr rc.conf 5 .
+The interface may be removed with the
+.Xr ifconfig 8
+.Cm destroy
+command.
+.Pp
+The
+.Nm
+driver creates a pseudo Ethernet network interface
+that supports the usual network
+.Xr ioctl 2 Ns s
+and is thus can be used with
+.Xr ifconfig 8
+like any other Ethernet interface.
+The
+.Nm
+interface encapsulates the Ethernet frame
+by prepending IP/UDP and
+.Nm
+headers.
+Thus, the encapsulated (inner) frame is able to transmitted
+over a routed, Layer 3 network to the remote host.
+.Pp
+The
+.Nm
+interface may be configured in either unicast or multicast mode.
+When in unicast mode,
+the interface creates a tunnel to a single remote host,
+and all traffic is transmitted to that host.
+When in multicast mode,
+the interface joins an IP multicast group,
+and receives packets sent to the group address,
+and transmits packets to either the multicast group address,
+or directly the remote host if there is an appropriate
+forwarding table entry.
+.Pp
+When the
+.Nm
+interface is brought up, a
+.Xr udp 4
+.Xr socket 9
+is created based on the configuration,
+such as the local address for unicast mode or
+the group address for multicast mode,
+and the listening (local) port number.
+Since multiple
+.Nm
+interfaces may be created that either
+use the same local address
+or join the same group address,
+and use the same port,
+the driver may share a socket among multiple interfaces.
+However, each interface within a socket must belong to
+a unique
+.Nm
+segment.
+The analogous
+.Xr vlan 4
+configuration would be a physical interface configured as
+the parent device for multiple VLAN interfaces, each with
+a unique VLAN tag.
+Each
+.Nm
+segment is identified by a 24-bit value in the
+.Nm
+header called the
+.Dq VXLAN Network Identifier ,
+or VNI.
+.Pp
+When configured with the
+.Xr ifconfig 8
+.Cm vxlanlearn
+parameter, the interface dynamically creates forwarding table entries
+from received packets.
+An entry in the forwarding table maps the inner source MAC address
+to the outer remote IP address.
+During transmit, the interface attempts to lookup an entry for
+the encapsulated destination MAC address.
+If an entry is found, the IP address in the entry is used to directly
+transmit the encapsulated frame to the destination.
+Otherwise, when configured in multicast mode,
+the interface must flood the frame to all hosts in the group.
+The maximum number of entries in the table is configurable with the
+.Xr ifconfig 8
+.Cm vxlanmaxaddr
+command.
+Stale entries in the table periodically pruned.
+The timeout is configurable with the
+.Xr ifconfig 8
+.Cm vxlantimeout
+command.
+The table may be viewed with the
+.Xr sysctl 8
+.Cm net.link.vxlan.N.ftable.dump
+command.
+.Sh MTU
+Since the
+.Nm
+interface encapsulates the Ethernet frame with an IP, UDP, and
+.Nm
+header, the resulting frame may be larger than the MTU of the
+physical network.
+The
+.Nm
+specification recommends the physical network MTU be configured
+to use jumbo frames to accommodate the encapsulated frame size.
+Alternatively, the
+.Xr ifconfig 8
+.Cm mtu
+command may be used to reduce the MTU size on the
+.Nm
+interface to allow the encapsulated frame to fit in the
+current MTU of the physical network.
+.Sh EXAMPLES
+Create a
+.Nm
+interface in unicast mode
+with the
+.Cm vxlanlocal
+tunnel address of 192.168.100.1,
+and the
+.Cm vxlanremote
+tunnel address of 192.168.100.2.
+.Bd -literal -offset indent
+ifconfig vxlan create vxlanid 108 vxlanlocal 192.168.100.1 vxlanremote 192.168.100.2
+.Ed
+.Pp
+Create a
+.Nm
+interface in multicast mode,
+with the
+.Cm local
+address of 192.168.10.95,
+and the
+.Cm group
+address of 224.0.2.6.
+The em0 interface will be used to transmit multicast packets.
+.Bd -literal -offset indent
+ifconfig vxlan create vxlanid 42 vxlanlocal 192.168.10.95 vxlangroup 224.0.2.6 vxlandev em0
+.Ed
+.Pp
+Once created, the
+.Nm
+interface can be configured with
+.Xr ifconfig 8 .
+.Pp
+The following when placed in the file
+.Pa /etc/rc.conf
+will cause a vxlan interface called
+.Dq Li vxlan0
+to be created, and will configure the interface in unicast mode.
+.Bd -literal -offset indent
+cloned_interfaces="vxlan0"
+create_args_vxlan0="vxlanid 108 vxlanlocal 192.168.100.1 vxlanremote 192.168.100.2"
+.Ed
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr inet6 4 ,
+.Xr vlan 4 ,
+.Xr rc.conf 5 ,
+.Xr ifconfig 8 ,
+.Xr sysctl 8
+.Rs
+.%A "M. Mahalingam"
+.%A "et al"
+.%T "Virtual eXtensible Local Area Network (VXLAN): A Framework for Overlaying Virtualized Layer 2 Networks over Layer 3 Networks"
+.%D August 2014
+.%O "RFC 7348"
+.Re
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Bryan Venteicher Aq bryanv@freebsd.org .

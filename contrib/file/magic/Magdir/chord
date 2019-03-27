@@ -1,0 +1,15 @@
+
+#------------------------------------------------------------------------------
+# $File: chord,v 1.5 2010/09/20 19:19:16 rrt Exp $
+# chord: file(1) magic for Chord music sheet typesetting utility input files
+#
+# From Philippe De Muyter <phdm@macqel.be>
+# File format is actually free, but many distributed files begin with `{title'
+#
+0	string		{title		Chord text file
+
+# Type:	PowerTab file format
+# URL:	http://www.power-tab.net/
+# From:	Jelmer Vernooij <jelmer@samba.org>
+0	string		ptab\003\000	Power-Tab v3 Tablature File
+0	string		ptab\004\000	Power-Tab v4 Tablature File

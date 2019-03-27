@@ -1,0 +1,111 @@
+.\" Copyright (c) 2003 Giorgos Keramidas
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 21, 2018
+.Dt GSTAT 8
+.Os
+.Sh NAME
+.Nm gstat
+.Nd print statistics about GEOM disks
+.Sh SYNOPSIS
+.Nm
+.Op Fl abBcdops
+.Op Fl f Ar filter
+.Op Fl I Ar interval
+.Sh DESCRIPTION
+The
+.Nm
+utility can be used to monitor I/O transactions of
+.Xr geom 4
+devices.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a
+Only display providers that are at least 0.1% busy.
+.It Fl b
+Batch mode.
+Collect numbers, print and exit.
+Default if stdout is not a tty.
+.It Fl B
+Endless batch mode.
+Same as batch mode, but does not exit after collecting
+the first set of data.
+.It Fl c
+Enable display of
+.Xr geom 4
+consumers too.
+The default is to show statistics only for
+.Xr geom 4
+producers.
+.It Fl C
+CSV output mode.
+Implies endless batch mode, but output is in the form of comma-separated
+values, with ISO 8601-like timestamps.
+.It Fl d
+Enable display of statistics for delete
+.Pq Dv BIO_DELETE
+operations.
+.It Fl f Ar filter
+A regular expression that can be used to only show statistics for some
+devices.
+Only devices with the names matching
+.Ar filter
+will be displayed.
+The format of the regular expression is described in
+.Xr re_format 7 .
+.It Fl o
+Enable display of statistics for other operations
+.Pq Dv BIO_FLUSH .
+.It Fl s
+Enable blocks' size statistics.
+.It Fl I Ar interval
+Refresh the
+.Nm
+display every
+.Ar interval
+microseconds.
+Adding a suffix of
+.Cm s , ms ,
+or
+.Cm us
+(the default) indicates that the update interval is specified in
+seconds, milliseconds, or microseconds, respectively.
+.It Fl p
+Only display physical providers (those with rank of 1).
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr systat 1 ,
+.Xr geom 4 ,
+.Xr iostat 8 ,
+.Xr vmstat 8
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.Fx 5.0 .

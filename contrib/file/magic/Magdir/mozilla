@@ -1,0 +1,22 @@
+
+#------------------------------------------------------------------------------
+# $File: mozilla,v 1.8 2018/01/17 12:08:36 christos Exp $
+# mozilla:  file(1) magic for Mozilla XUL fastload files
+# (XUL.mfasl and XPC.mfasl)
+# URL:	http://www.mozilla.org/
+# From:	Josh Triplett <josh@freedesktop.org>
+
+0	string	XPCOM\nMozFASL\r\n\x1A		Mozilla XUL fastload data
+0	string	mozLz4a				Mozilla lz4 compressed bookmark data
+
+# From: Joerg Jenderek
+# URL: https://en.wikipedia.org/wiki/Firefox_4
+# Reference: https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
+# Note:	Most ZIP utilities are able to extract such archives
+#	maybe only partly or after some warnings. Example:
+#	zip -FF omni.ja --out omni.zip
+4	string	PK\001\002	Mozilla archive omni.ja
+!:mime	application/x-zip
+!:ext	ja
+# TODO:
+#>4	use	zip-dir-entry

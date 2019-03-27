@@ -1,0 +1,61 @@
+# $FreeBSD$
+# $NetBSD: JISX0213-1%UCS@SIP.src,v 1.1 2007/03/05 16:58:33 tnozaki Exp $
+
+TYPE		ROWCOL
+NAME		"JISX0213-1/UCS:SIP"
+SRC_ZONE	0x21-0x7E / 0x21-0x7E / 8
+OOB_MODE	INVALID
+DST_INVALID	0xFFFE
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+## JIS X 0213:2004 vs Unicode mapping table
+## 
+## Date: 22 May 2006
+## License:
+## 	Copyright (C) 2001 earthian@tama.or.jp, All Rights Reserved.
+## 	Copyright (C) 2001 I'O, All Rights Reserved.
+## 	Copyright (C) 2006 Project X0213, All Rights Reserved.
+## 	You can use, modify, distribute this table freely.
+## Note:
+## 	3-XXXX	JIS X 0213:2004 plane 1 (GL encoding)
+## 	4-XXXX	JIS X 0213:2000 plane 2 (GL encoding)
+## 	[1983]	JIS codepoint defined by JIS X 0208-1983
+## 	[1990]	JIS codepoint defined by JIS X 0208-1990
+## 	[2000]	JIS codepoint defined by JIS X 0213:2000
+## 	[2004]	JIS codepoint defined by JIS X 0213:2004
+## 	[Unicode3.1]	UCS codepoint defined by Unicode 3.1
+## 	[Unicode3.2]	UCS codepoint defined by Unicode 3.2
+## 	Fullwidth	UCS fullwidth form (U+Fxxx)
+## 	Windows 	Windows (CP932) mapping
+## 	Some 0213 character can't represent by one UCS character.
+## 	In this table, such characters are described as 'U+xxxx+xxxx'.
+## 
+## JIS	Unicode	Name	Note
+0x2E22 = 0x000B
+0x2F42 = 0x123D
+0x2F4C = 0x131B
+0x2F60 = 0x146E
+0x2F7B = 0x18BD
+0x4F54 = 0x0B9F
+0x4F63 = 0x16B4
+0x4F6E = 0x1E34
+0x753A = 0x31C4
+0x7572 = 0x35C4
+0x7629 = 0x373F
+0x7632 = 0x3763
+0x7660 = 0x3CFE
+0x776C = 0x47F1
+0x787E = 0x548E
+0x7929 = 0x550E
+0x7947 = 0x5771
+0x7954 = 0x59C4
+0x796E = 0x5DA1
+0x7A5D = 0x6AFF
+0x7B33 = 0x6E40
+0x7B49 = 0x70F4
+0x7B6C = 0x7684
+0x7C49 = 0x8277
+0x7C51 = 0x83CD
+0x7E66 = 0xA190
+END_MAP

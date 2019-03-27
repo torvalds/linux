@@ -1,0 +1,21 @@
+// -*- C++ -*-
+//===------------------------------- any ----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+#ifndef _LIBCPP_EXPERIMENTAL_ANY
+#define _LIBCPP_EXPERIMENTAL_ANY
+
+#include <__config>
+
+#ifdef _LIBCPP_WARNING
+_LIBCPP_WARNING("<experimental/any> has been removed. Use <any> instead.")
+#else
+# warning "<experimental/any> has been removed. Use <any> instead."
+#endif
+
+#endif // _LIBCPP_EXPERIMENTAL_ANY

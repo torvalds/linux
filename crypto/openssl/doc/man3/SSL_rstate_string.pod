@@ -1,0 +1,68 @@
+=pod
+
+=head1 NAME
+
+SSL_rstate_string, SSL_rstate_string_long - get textual description of state of an SSL object during read operation
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ const char *SSL_rstate_string(SSL *ssl);
+ const char *SSL_rstate_string_long(SSL *ssl);
+
+=head1 DESCRIPTION
+
+SSL_rstate_string() returns a 2 letter string indicating the current read state
+of the SSL object B<ssl>.
+
+SSL_rstate_string_long() returns a string indicating the current read state of
+the SSL object B<ssl>.
+
+=head1 NOTES
+
+When performing a read operation, the SSL/TLS engine must parse the record,
+consisting of header and body. When working in a blocking environment,
+SSL_rstate_string[_long]() should always return "RD"/"read done".
+
+This function should only seldom be needed in applications.
+
+=head1 RETURN VALUES
+
+SSL_rstate_string() and SSL_rstate_string_long() can return the following
+values:
+
+=over 4
+
+=item "RH"/"read header"
+
+The header of the record is being evaluated.
+
+=item "RB"/"read body"
+
+The body of the record is being evaluated.
+
+=item "RD"/"read done"
+
+The record has been completely processed.
+
+=item "unknown"/"unknown"
+
+The read state is unknown. This should never happen.
+
+=back
+
+=head1 SEE ALSO
+
+L<ssl(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

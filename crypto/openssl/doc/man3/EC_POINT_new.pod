@@ -1,0 +1,233 @@
+=pod
+
+=head1 NAME
+
+EC_POINT_set_Jprojective_coordinates_GFp,
+EC_POINT_point2buf,
+EC_POINT_new,
+EC_POINT_free,
+EC_POINT_clear_free,
+EC_POINT_copy,
+EC_POINT_dup,
+EC_POINT_method_of,
+EC_POINT_set_to_infinity,
+EC_POINT_get_Jprojective_coordinates_GFp,
+EC_POINT_set_affine_coordinates,
+EC_POINT_get_affine_coordinates,
+EC_POINT_set_compressed_coordinates,
+EC_POINT_set_affine_coordinates_GFp,
+EC_POINT_get_affine_coordinates_GFp,
+EC_POINT_set_compressed_coordinates_GFp,
+EC_POINT_set_affine_coordinates_GF2m,
+EC_POINT_get_affine_coordinates_GF2m,
+EC_POINT_set_compressed_coordinates_GF2m,
+EC_POINT_point2oct,
+EC_POINT_oct2point,
+EC_POINT_point2bn,
+EC_POINT_bn2point,
+EC_POINT_point2hex,
+EC_POINT_hex2point
+- Functions for creating, destroying and manipulating EC_POINT objects
+
+=head1 SYNOPSIS
+
+ #include <openssl/ec.h>
+
+ EC_POINT *EC_POINT_new(const EC_GROUP *group);
+ void EC_POINT_free(EC_POINT *point);
+ void EC_POINT_clear_free(EC_POINT *point);
+ int EC_POINT_copy(EC_POINT *dst, const EC_POINT *src);
+ EC_POINT *EC_POINT_dup(const EC_POINT *src, const EC_GROUP *group);
+ const EC_METHOD *EC_POINT_method_of(const EC_POINT *point);
+ int EC_POINT_set_to_infinity(const EC_GROUP *group, EC_POINT *point);
+ int EC_POINT_set_Jprojective_coordinates_GFp(const EC_GROUP *group,
+                                              EC_POINT *p,
+                                              const BIGNUM *x, const BIGNUM *y,
+                                              const BIGNUM *z, BN_CTX *ctx);
+ int EC_POINT_get_Jprojective_coordinates_GFp(const EC_GROUP *group,
+                                              const EC_POINT *p,
+                                              BIGNUM *x, BIGNUM *y, BIGNUM *z,
+                                              BN_CTX *ctx);
+ int EC_POINT_set_affine_coordinates(const EC_GROUP *group, EC_POINT *p,
+                                     const BIGNUM *x, const BIGNUM *y,
+                                     BN_CTX *ctx);
+ int EC_POINT_get_affine_coordinates(const EC_GROUP *group, const EC_POINT *p,
+                                     BIGNUM *x, BIGNUM *y, BN_CTX *ctx);
+ int EC_POINT_set_compressed_coordinates(const EC_GROUP *group, EC_POINT *p,
+                                         const BIGNUM *x, int y_bit,
+                                         BN_CTX *ctx);
+ int EC_POINT_set_affine_coordinates_GFp(const EC_GROUP *group, EC_POINT *p,
+                                         const BIGNUM *x, const BIGNUM *y,
+                                         BN_CTX *ctx);
+ int EC_POINT_get_affine_coordinates_GFp(const EC_GROUP *group,
+                                         const EC_POINT *p,
+                                         BIGNUM *x, BIGNUM *y, BN_CTX *ctx);
+ int EC_POINT_set_compressed_coordinates_GFp(const EC_GROUP *group,
+                                             EC_POINT *p,
+                                             const BIGNUM *x, int y_bit,
+                                             BN_CTX *ctx);
+ int EC_POINT_set_affine_coordinates_GF2m(const EC_GROUP *group, EC_POINT *p,
+                                          const BIGNUM *x, const BIGNUM *y,
+                                          BN_CTX *ctx);
+ int EC_POINT_get_affine_coordinates_GF2m(const EC_GROUP *group,
+                                          const EC_POINT *p,
+                                          BIGNUM *x, BIGNUM *y, BN_CTX *ctx);
+ int EC_POINT_set_compressed_coordinates_GF2m(const EC_GROUP *group,
+                                              EC_POINT *p,
+                                              const BIGNUM *x, int y_bit,
+                                              BN_CTX *ctx);
+ size_t EC_POINT_point2oct(const EC_GROUP *group, const EC_POINT *p,
+                           point_conversion_form_t form,
+                           unsigned char *buf, size_t len, BN_CTX *ctx);
+ size_t EC_POINT_point2buf(const EC_GROUP *group, const EC_POINT *point,
+                           point_conversion_form_t form,
+                           unsigned char **pbuf, BN_CTX *ctx);
+ int EC_POINT_oct2point(const EC_GROUP *group, EC_POINT *p,
+                        const unsigned char *buf, size_t len, BN_CTX *ctx);
+ BIGNUM *EC_POINT_point2bn(const EC_GROUP *group, const EC_POINT *p,
+                           point_conversion_form_t form, BIGNUM *bn,
+                           BN_CTX *ctx);
+ EC_POINT *EC_POINT_bn2point(const EC_GROUP *group, const BIGNUM *bn,
+                             EC_POINT *p, BN_CTX *ctx);
+ char *EC_POINT_point2hex(const EC_GROUP *group, const EC_POINT *p,
+                          point_conversion_form_t form, BN_CTX *ctx);
+ EC_POINT *EC_POINT_hex2point(const EC_GROUP *group, const char *hex,
+                              EC_POINT *p, BN_CTX *ctx);
+
+
+=head1 DESCRIPTION
+
+An B<EC_POINT> structure represents a point on a curve. A new point is
+constructed by calling the function EC_POINT_new() and providing the
+B<group> object that the point relates to.
+
+EC_POINT_free() frees the memory associated with the B<EC_POINT>.
+if B<point> is NULL nothing is done.
+
+EC_POINT_clear_free() destroys any sensitive data held within the EC_POINT and
+then frees its memory. If B<point> is NULL nothing is done.
+
+EC_POINT_copy() copies the point B<src> into B<dst>. Both B<src> and B<dst>
+must use the same B<EC_METHOD>.
+
+EC_POINT_dup() creates a new B<EC_POINT> object and copies the content from
+B<src> to the newly created B<EC_POINT> object.
+
+EC_POINT_method_of() obtains the B<EC_METHOD> associated with B<point>.
+
+A valid point on a curve is the special point at infinity. A point is set to
+be at infinity by calling EC_POINT_set_to_infinity().
+
+The affine co-ordinates for a point describe a point in terms of its x and y
+position. The function EC_POINT_set_affine_coordinates() sets the B<x> and B<y>
+co-ordinates for the point B<p> defined over the curve given in B<group>. The
+function EC_POINT_get_affine_coordinates() sets B<x> and B<y>, either of which
+may be NULL, to the corresponding coordinates of B<p>.
+
+The functions EC_POINT_set_affine_coordinates_GFp() and
+EC_POINT_set_affine_coordinates_GF2m() are synonyms for
+EC_POINT_set_affine_coordinates(). They are defined for backwards compatibility
+only and should not be used.
+
+The functions EC_POINT_get_affine_coordinates_GFp() and
+EC_POINT_get_affine_coordinates_GF2m() are synonyms for
+EC_POINT_get_affine_coordinates(). They are defined for backwards compatibility
+only and should not be used.
+
+As well as the affine co-ordinates, a point can alternatively be described in
+terms of its Jacobian projective co-ordinates (for Fp curves only). Jacobian
+projective co-ordinates are expressed as three values x, y and z. Working in
+this co-ordinate system provides more efficient point multiplication
+operations.  A mapping exists between Jacobian projective co-ordinates and
+affine co-ordinates. A Jacobian projective co-ordinate (x, y, z) can be written
+as an affine co-ordinate as (x/(z^2), y/(z^3)). Conversion to Jacobian
+projective from affine co-ordinates is simple. The co-ordinate (x, y) is mapped
+to (x, y, 1). To set or get the projective co-ordinates use
+EC_POINT_set_Jprojective_coordinates_GFp() and
+EC_POINT_get_Jprojective_coordinates_GFp() respectively.
+
+Points can also be described in terms of their compressed co-ordinates. For a
+point (x, y), for any given value for x such that the point is on the curve
+there will only ever be two possible values for y. Therefore a point can be set
+using the EC_POINT_set_compressed_coordinates() function where B<x> is the x
+co-ordinate and B<y_bit> is a value 0 or 1 to identify which of the two
+possible values for y should be used.
+
+The functions EC_POINT_set_compressed_coordinates_GFp() and
+EC_POINT_set_compressed_coordinates_GF2m() are synonyms for
+EC_POINT_set_compressed_coordinates(). They are defined for backwards
+compatibility only and should not be used.
+
+In addition B<EC_POINT> can be converted to and from various external
+representations. The octet form is the binary encoding of the B<ECPoint>
+structure (as defined in RFC5480 and used in certificates and TLS records):
+only the content octets are present, the B<OCTET STRING> tag and length are
+not included. B<BIGNUM> form is the octet form interpreted as a big endian
+integer converted to a B<BIGNUM> structure. Hexadecimal form is the octet
+form converted to a NULL terminated character string where each character
+is one of the printable values 0-9 or A-F (or a-f).
+
+The functions EC_POINT_point2oct(), EC_POINT_oct2point(), EC_POINT_point2bn(),
+EC_POINT_bn2point(), EC_POINT_point2hex() and EC_POINT_hex2point() convert from
+and to EC_POINTs for the formats: octet, BIGNUM and hexadecimal respectively.
+
+The function EC_POINT_point2oct() must be supplied with a buffer long enough to
+store the octet form. The return value provides the number of octets stored.
+Calling the function with a NULL buffer will not perform the conversion but
+will still return the required buffer length.
+
+The function EC_POINT_point2buf() allocates a buffer of suitable length and
+writes an EC_POINT to it in octet format. The allocated buffer is written to
+B<*pbuf> and its length is returned. The caller must free up the allocated
+buffer with a call to OPENSSL_free(). Since the allocated buffer value is
+written to B<*pbuf> the B<pbuf> parameter B<MUST NOT> be B<NULL>.
+
+The function EC_POINT_point2hex() will allocate sufficient memory to store the
+hexadecimal string. It is the caller's responsibility to free this memory with
+a subsequent call to OPENSSL_free().
+
+=head1 RETURN VALUES
+
+EC_POINT_new() and EC_POINT_dup() return the newly allocated EC_POINT or NULL
+on error.
+
+The following functions return 1 on success or 0 on error: EC_POINT_copy(),
+EC_POINT_set_to_infinity(), EC_POINT_set_Jprojective_coordinates_GFp(),
+EC_POINT_get_Jprojective_coordinates_GFp(),
+EC_POINT_set_affine_coordinates_GFp(), EC_POINT_get_affine_coordinates_GFp(),
+EC_POINT_set_compressed_coordinates_GFp(),
+EC_POINT_set_affine_coordinates_GF2m(), EC_POINT_get_affine_coordinates_GF2m(),
+EC_POINT_set_compressed_coordinates_GF2m() and EC_POINT_oct2point().
+
+EC_POINT_method_of returns the EC_METHOD associated with the supplied EC_POINT.
+
+EC_POINT_point2oct() and EC_POINT_point2buf() return the length of the required
+buffer or 0 on error.
+
+EC_POINT_point2bn() returns the pointer to the BIGNUM supplied, or NULL on
+error.
+
+EC_POINT_bn2point() returns the pointer to the EC_POINT supplied, or NULL on
+error.
+
+EC_POINT_point2hex() returns a pointer to the hex string, or NULL on error.
+
+EC_POINT_hex2point() returns the pointer to the EC_POINT supplied, or NULL on
+error.
+
+=head1 SEE ALSO
+
+L<crypto(7)>, L<EC_GROUP_new(3)>, L<EC_GROUP_copy(3)>,
+L<EC_POINT_add(3)>, L<EC_KEY_new(3)>,
+L<EC_GFp_simple_method(3)>, L<d2i_ECPKParameters(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2013-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

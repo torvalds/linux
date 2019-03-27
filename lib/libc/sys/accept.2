@@ -1,0 +1,239 @@
+.\" Copyright (c) 1983, 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)accept.2	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd October 9, 2014
+.Dt ACCEPT 2
+.Os
+.Sh NAME
+.Nm accept ,
+.Nm accept4
+.Nd accept a connection on a socket
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.Ft int
+.Fn accept "int s" "struct sockaddr * restrict addr" "socklen_t * restrict addrlen"
+.Ft int
+.Fn accept4 "int s" "struct sockaddr * restrict addr" "socklen_t * restrict addrlen" "int flags"
+.Sh DESCRIPTION
+The argument
+.Fa s
+is a socket that has been created with
+.Xr socket 2 ,
+bound to an address with
+.Xr bind 2 ,
+and is listening for connections after a
+.Xr listen 2 .
+The
+.Fn accept
+system call extracts the first connection request on the
+queue of pending connections, creates a new socket,
+and allocates a new file descriptor for the socket which
+inherits the state of the
+.Dv O_NONBLOCK
+and
+.Dv O_ASYNC
+properties and the destination of
+.Dv SIGIO
+and
+.Dv SIGURG
+signals from the original socket
+.Fa s .
+.Pp
+The
+.Fn accept4
+system call is similar,
+but the
+.Dv O_NONBLOCK
+property of the new socket is instead determined by the
+.Dv SOCK_NONBLOCK
+flag in the
+.Fa flags
+argument,
+the
+.Dv O_ASYNC
+property is cleared,
+the signal destination is cleared
+and the close-on-exec flag on the new file descriptor can be set via the
+.Dv SOCK_CLOEXEC
+flag in the
+.Fa flags
+argument.
+.Pp
+If no pending connections are
+present on the queue, and the original socket
+is not marked as non-blocking,
+.Fn accept
+blocks the caller until a connection is present.
+If the original socket
+is marked non-blocking and no pending
+connections are present on the queue,
+.Fn accept
+returns an error as described below.
+The accepted socket
+may not be used
+to accept more connections.
+The original socket
+.Fa s
+remains open.
+.Pp
+The argument
+.Fa addr
+is a result argument that is filled-in with
+the address of the connecting entity,
+as known to the communications layer.
+The exact format of the
+.Fa addr
+argument is determined by the domain in which the communication
+is occurring.
+A null pointer may be specified for
+.Fa addr
+if the address information is not desired;
+in this case,
+.Fa addrlen
+is not used and should also be null.
+Otherwise, the
+.Fa addrlen
+argument
+is a value-result argument; it should initially contain the
+amount of space pointed to by
+.Fa addr ;
+on return it will contain the actual length (in bytes) of the
+address returned.
+This call
+is used with connection-based socket types, currently with
+.Dv SOCK_STREAM .
+.Pp
+It is possible to
+.Xr select 2
+a socket for the purposes of doing an
+.Fn accept
+by selecting it for read.
+.Pp
+For certain protocols which require an explicit confirmation,
+such as
+.Tn ISO
+or
+.Tn DATAKIT ,
+.Fn accept
+can be thought of
+as merely dequeueing the next connection
+request and not implying confirmation.
+Confirmation can be implied by a normal read or write on the new
+file descriptor, and rejection can be implied by closing the
+new socket.
+.Pp
+For some applications, performance may be enhanced by using an
+.Xr accept_filter 9
+to pre-process incoming connections.
+.Pp
+When using
+.Fn accept ,
+portable programs should not rely on the
+.Dv O_NONBLOCK
+and
+.Dv O_ASYNC
+properties and the signal destination being inherited,
+but should set them explicitly using
+.Xr fcntl 2 ;
+.Fn accept4
+sets these properties consistently,
+but may not be fully portable across
+.Ux
+platforms.
+.Sh RETURN VALUES
+These calls return \-1 on error.
+If they succeed, they return a non-negative
+integer that is a descriptor for the accepted socket.
+.Sh ERRORS
+The
+.Fn accept
+and
+.Fn accept4
+system calls will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The descriptor is invalid.
+.It Bq Er EINTR
+The
+.Fn accept
+operation was interrupted.
+.It Bq Er EMFILE
+The per-process descriptor table is full.
+.It Bq Er ENFILE
+The system file table is full.
+.It Bq Er ENOTSOCK
+The descriptor references a file, not a socket.
+.It Bq Er EINVAL
+.Xr listen 2
+has not been called on the socket descriptor.
+.It Bq Er EFAULT
+The
+.Fa addr
+argument is not in a writable part of the
+user address space.
+.It Bo Er EWOULDBLOCK Bc or Bq Er EAGAIN
+The socket is marked non-blocking and no connections
+are present to be accepted.
+.It Bq Er ECONNABORTED
+A connection arrived, but it was closed while waiting
+on the listen queue.
+.El
+.Pp
+The
+.Fn accept4
+system call will also fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa flags
+argument is invalid.
+.El
+.Sh SEE ALSO
+.Xr bind 2 ,
+.Xr connect 2 ,
+.Xr getpeername 2 ,
+.Xr getsockname 2 ,
+.Xr listen 2 ,
+.Xr select 2 ,
+.Xr socket 2 ,
+.Xr accept_filter 9
+.Sh HISTORY
+The
+.Fn accept
+system call appeared in
+.Bx 4.2 .
+.Pp
+The
+.Fn accept4
+system call appeared in
+.Fx 10.0 .

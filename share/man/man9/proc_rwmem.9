@@ -1,0 +1,104 @@
+.\"
+.\" Copyright (c) 2015 Mark Johnston <markj@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 7, 2015
+.Dt PROC_RWMEM 9
+.Os
+.Sh NAME
+.Nm proc_rwmem ,
+.Nm proc_readmem ,
+.Nm proc_writemem
+.Nd read from or write to a process address space
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/ptrace.h
+.Ft int
+.Fn proc_rwmem "struct proc *p" "struct uio *uio"
+.Ft ssize_t
+.Fn proc_readmem "struct thread *td" "struct proc *p" "vm_offset_t va" "void *buf" "size_t len"
+.Ft ssize_t
+.Fn proc_writemem "struct thread *td" "struct proc *p" "vm_offset_t va" "void *buf" "size_t len"
+.Sh DESCRIPTION
+These functions are used to read to or write from the address space of the
+process
+.Fa p .
+The
+.Fn proc_rwmem
+function requires the caller to specify the I/O parameters using a
+.Vt "struct uio" ,
+described in
+.Xr uio 9 .
+The
+.Fn proc_readmem
+and
+.Fn proc_writemem
+functions provide a simpler, less general interface which allows the caller to
+read into or write the kernel buffer
+.Fa buf
+of size
+.Fa len
+from or to the memory at offset
+.Fa va
+in the address space of
+.Fa p .
+The operation is performed on behalf of thread
+.Fa td ,
+which will most often be the current thread.
+.Pp
+These functions may sleep and thus may not be called with any non-sleepable
+locks held.
+The process
+.Fa p
+must be held by the caller using
+.Xr PHOLD 9 .
+.Sh RETURN VALUES
+The
+.Fn proc_rwmem
+function returns
+.Dv 0
+on success.
+.Dv EFAULT
+is returned if the specified user address is invalid, and
+.Dv ENOMEM
+is returned if the target pages could not be faulted in due to a resource
+shortage.
+.Pp
+The
+.Fn proc_readmem
+and
+.Fn proc_writemem
+functions return the number of bytes read or written, respectively.
+This may be smaller than the number of bytes requested, for example if the
+request spans multiple pages in the process address space and one of them after
+the first is not mapped.
+Otherwise, -1 is returned.
+.Sh SEE ALSO
+.Xr copyin 9 ,
+.Xr locking 9 ,
+.Xr PHOLD 9 ,
+.Xr uio 9
+.Sh AUTHORS
+This manual page was written by
+.An Mark Johnston Aq Mt markj@FreeBSD.org .

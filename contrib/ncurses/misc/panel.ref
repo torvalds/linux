@@ -1,0 +1,18 @@
+LIBRARY panel2 INITINSTANCE
+DESCRIPTION 'NCurses 1.9.9e-1 for OS/2 - panel library'
+EXPORTS
+	"panel_window"		@1
+	"update_panels"		@2
+	"hide_panel"		@3
+	"show_panel"		@4
+	"del_panel"		@5
+	"top_panel"		@6
+	"bottom_panel"		@7
+	"new_panel"		@8
+	"panel_above"		@9
+	"panel_below"		@10
+	"set_panel_userptr"	@11
+	"panel_userptr"		@12
+	"move_panel"		@13
+	"replace_panel"		@14
+	"panel_hidden"		@15

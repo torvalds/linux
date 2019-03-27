@@ -1,0 +1,207 @@
+.\" Copyright (c) 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mem.4	5.3 (Berkeley) 5/2/91
+.\" $FreeBSD$
+.\"
+.Dd October 3, 2004
+.Dt MEM 4
+.Os
+.Sh NAME
+.Nm mem ,
+.Nm kmem
+.Nd memory files
+.Sh SYNOPSIS
+.Cd "device mem"
+.Sh DESCRIPTION
+The special file
+.Pa /dev/mem
+is an interface to the physical memory of the computer.
+Byte offsets in this file are interpreted as physical memory addresses.
+Reading and writing this file is equivalent to reading and writing
+memory itself.
+Only offsets within the bounds of
+.Pa /dev/mem
+are allowed.
+.Pp
+Kernel virtual memory is accessed through the interface
+.Pa /dev/kmem
+in the same manner as
+.Pa /dev/mem .
+Only kernel virtual addresses that are currently mapped to memory are allowed.
+.Pp
+On
+.Tn ISA
+the
+.Tn I/O
+memory space begins at physical address 0x000a0000
+and runs to 0x00100000.
+The
+per-process data
+size
+for the current process
+is
+.Dv UPAGES
+long, and ends at virtual
+address 0xf0000000.
+.Sh IOCTL INTERFACE
+Several architectures allow attributes to be associated with ranges of physical
+memory.
+These attributes can be manipulated via
+.Fn ioctl
+calls performed on
+.Pa /dev/mem .
+Declarations and data types are to be found in
+.In sys/memrange.h .
+.Pp
+The specific attributes, and number of programmable ranges may vary between
+architectures.
+The full set of supported attributes is:
+.Bl -tag -width indent
+.It Dv MDF_UNCACHEABLE
+The region is not cached.
+.It Dv MDF_WRITECOMBINE
+Writes to the region may be combined or performed out of order.
+.It Dv MDF_WRITETHROUGH
+Writes to the region are committed synchronously.
+.It Dv MDF_WRITEBACK
+Writes to the region are committed asynchronously.
+.It Dv MDF_WRITEPROTECT
+The region cannot be written to.
+.El
+.Pp
+Memory ranges are described by
+.Vt struct mem_range_desc :
+.Bd -literal -offset indent
+uint64_t	mr_base;	/\(** physical base address \(**/
+uint64_t	mr_len;		/\(** physical length of region \(**/
+int		mr_flags;	/\(** attributes of region \(**/
+char		mr_owner[8];
+.Ed
+.Pp
+In addition to the region attributes listed above, the following flags
+may also be set in the
+.Fa mr_flags
+field:
+.Bl -tag -width indent
+.It MDF_FIXBASE
+The region's base address cannot be changed.
+.It MDF_FIXLEN
+The region's length cannot be changed.
+.It MDF_FIRMWARE
+The region is believed to have been established by the system firmware.
+.It MDF_ACTIVE
+The region is currently active.
+.It MDF_BOGUS
+We believe the region to be invalid or otherwise erroneous.
+.It MDF_FIXACTIVE
+The region cannot be disabled.
+.It MDF_BUSY
+The region is currently owned by another process and may not be
+altered.
+.El
+.Pp
+Operations are performed using
+.Fa struct mem_range_op :
+.Bd -literal -offset indent
+struct mem_range_desc	*mo_desc;
+int			mo_arg[2];
+.Ed
+.Pp
+The
+.Dv MEMRANGE_GET
+ioctl is used to retrieve current memory range attributes.
+If
+.Va mo_arg[0]
+is set to 0, it will be updated with the total number of memory range
+descriptors.
+If greater than 0, the array at
+.Va mo_desc
+will be filled with a corresponding number of descriptor structures,
+or the maximum, whichever is less.
+.Pp
+The
+.Dv MEMRANGE_SET
+ioctl is used to add, alter and remove memory range attributes.
+A range
+with the
+.Dv MDF_FIXACTIVE
+flag may not be removed; a range with the
+.Dv MDF_BUSY
+flag may not be removed or updated.
+.Pp
+.Va mo_arg[0]
+should be set to
+.Dv MEMRANGE_SET_UPDATE
+to update an existing or establish a new range, or to
+.Dv MEMRANGE_SET_REMOVE
+to remove a range.
+.Sh RETURN VALUES
+.Bl -tag -width Er
+.It Bq Er EOPNOTSUPP
+Memory range operations are not supported on this architecture.
+.It Bq Er ENXIO
+No memory range descriptors are available (e.g.\& firmware has not enabled
+any).
+.It Bq Er EINVAL
+The memory range supplied as an argument is invalid or overlaps another
+range in a fashion not supported by this architecture.
+.It Bq Er EBUSY
+An attempt to remove or update a range failed because the range is busy.
+.It Bq Er ENOSPC
+An attempt to create a new range failed due to a shortage of hardware
+resources (e.g.\& descriptor slots).
+.It Bq Er ENOENT
+An attempt to remove a range failed because no range matches the descriptor
+base/length supplied.
+.It Bq Er EPERM
+An attempt to remove a range failed because the range is permanently
+enabled.
+.El
+.Sh FILES
+.Bl -tag -width /dev/kmem -compact
+.It Pa /dev/mem
+.It Pa /dev/kmem
+.El
+.Sh SEE ALSO
+.Xr kvm 3 ,
+.Xr memcontrol 8
+.Sh HISTORY
+The
+.Nm mem
+and
+.Nm kmem
+files appeared in
+.At v6 .
+The ioctl interface for memory range attributes was added in
+.Fx 3.2 .
+.Sh BUGS
+Busy range attributes are not yet managed correctly.
+.Pp
+This device is required for all users of
+.Xr kvm 3
+to operate.

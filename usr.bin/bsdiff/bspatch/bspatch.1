@@ -1,0 +1,86 @@
+.\"-
+.\" Copyright 2003-2005 Colin Percival
+.\" All rights reserved
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted providing that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 18, 2003
+.Dt BSPATCH 1
+.Os
+.Sh NAME
+.Nm bspatch
+.Nd apply a patch built with
+.Xr bsdiff 1
+.Sh SYNOPSIS
+.Nm
+.Ar oldfile newfile patchfile
+.Sh DESCRIPTION
+The
+.Nm
+utility
+generates
+.Ar newfile
+from
+.Ar oldfile
+and
+.Ar patchfile
+where
+.Ar patchfile
+is a binary patch built by
+.Xr bsdiff 1 .
+.Pp
+The
+.Nm
+utility
+uses memory equal to the size of
+.Ar oldfile
+plus the size of
+.Ar newfile ,
+but can tolerate a very small working set without a dramatic loss
+of performance.
+.Sh SEE ALSO
+.Xr bsdiff 1
+.Sh AUTHORS
+.An Colin Percival Aq Mt cperciva@FreeBSD.org
+.Sh BUGS
+The
+.Nm
+utility does not verify that
+.Ar oldfile
+is the correct source file for
+.Ar patchfile .
+Attempting to apply a patch to the wrong file will usually produce
+garbage; consequently it is strongly recommended that users of
+.Nm
+verify that
+.Ar oldfile
+matches the source file from which
+.Ar patchfile
+was built, by comparing cryptographic hashes, for example.
+Users may also wish to verify after running
+.Nm
+that
+.Ar newfile
+matches the target file from which
+.Ar was built.

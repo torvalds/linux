@@ -1,0 +1,128 @@
+.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 8, 2016
+.Dt GGATED 8
+.Os
+.Sh NAME
+.Nm ggated
+.Nd "GEOM Gate network daemon"
+.Sh SYNOPSIS
+.Nm
+.Op Fl h
+.Op Fl n
+.Op Fl v
+.Op Fl a Ar address
+.Op Fl p Ar port
+.Op Fl F Ar pidfile
+.Op Fl R Ar rcvbuf
+.Op Fl S Ar sndbuf
+.Op Ar "exports file"
+.Sh DESCRIPTION
+The
+.Nm
+utility is a network server for the GEOM Gate class.
+It runs on a server machine to service GEOM Gate requests from workers
+placed on a client machine.
+Keep in mind, that connections between
+.Xr ggatec 8
+and
+.Nm
+are not encrypted.
+.Pp
+Available options:
+.Bl -tag -width ".Ar exports\ file"
+.It Fl a Ar address
+Specifies an IP address to bind to.
+.It Fl h
+Print available options.
+.It Fl n
+Do not use
+.Dv TCP_NODELAY
+option on TCP sockets.
+.It Fl p Ar port
+Port on which
+.Nm
+listens for connections.
+Default is 3080.
+.It Fl F Ar pidfile
+PID file that
+.Nm
+uses.
+.It Fl R Ar rcvbuf
+Size of receive buffer to use.
+Default is 131072 (128kB).
+.It Fl S Ar sndbuf
+Size of send buffer to use.
+Default is 131072 (128kB).
+.It Fl v
+Do not fork, run in foreground and print debug information on standard
+output.
+.It Ar "exports file"
+An alternate location for the exports file.
+.El
+.Pp
+The format of an exports file is as follows:
+.Bd -literal -offset indent
+1.2.3.4		RO	/dev/cd0
+1.2.3.0/24	RW	/tmp/test.img
+hostname	WO	/tmp/image
+.Ed
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/ggated.pid" -compact
+.It Pa /var/run/ggated.pid
+The default location of the
+.Nm
+PID file.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, or 1 if the command fails.
+To get details about the failure,
+.Nm
+should be called with the
+.Fl v
+option.
+.Sh EXAMPLES
+Export CD-ROM device and a file:
+.Bd -literal -offset indent
+# echo "1.2.3.0/24 RO /dev/cd0" > /etc/gg.exports
+# echo "client RW /image" >> /etc/gg.exports
+# ggated
+.Ed
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr ggatec 8 ,
+.Xr ggatel 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+The
+.Nm
+utility as well as this manual page was written by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .

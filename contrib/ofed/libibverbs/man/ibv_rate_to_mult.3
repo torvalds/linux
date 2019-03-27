@@ -1,0 +1,47 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_RATE_TO_MULT 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+.nf
+ibv_rate_to_mult \- convert IB rate enumeration to multiplier of 2.5 Gbit/sec
+.sp
+mult_to_ibv_rate \- convert multiplier of 2.5 Gbit/sec to an IB rate enumeration
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "int ibv_rate_to_mult(enum ibv_rate " "rate" ");
+.sp
+.BI "enum ibv_rate mult_to_ibv_rate(int " "mult" ");
+.fi
+.SH "DESCRIPTION"
+.B ibv_rate_to_mult()
+converts the IB transmission rate enumeration
+.I rate
+to a multiple of 2.5 Gbit/sec (the base rate). For example, if
+.I rate
+is
+.BR IBV_RATE_5_GBPS\fR,
+the value 2 will be returned (5 Gbit/sec = 2 * 2.5 Gbit/sec).
+.PP
+.B mult_to_ibv_rate()
+converts the multiplier value (of 2.5 Gbit/sec)
+.I mult
+to an IB transmission rate enumeration. For example, if
+.I mult
+is 2, the rate enumeration
+.BR IBV_RATE_5_GBPS
+will be returned.
+.SH "RETURN VALUE"
+.B
+ibv_rate_to_mult()
+returns the multiplier of the base rate 2.5 Gbit/sec.
+.PP
+.B mult_to_ibv_rate()
+returns the enumeration representing the IB transmission rate.
+.SH "SEE ALSO"
+.BR ibv_query_port (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

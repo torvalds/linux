@@ -1,0 +1,43 @@
+# $FreeBSD$
+
+ 2) should understand Rock Ridge
+
+   Yes, we have follows function.
+
+       o Symbolic Link
+       o Real Name(long name)
+       o File Attribute 
+       o Time stamp
+       o uid, gid
+       o Devices
+       o Relocated directories
+
+   Except follows:
+
+       o POSIX device number mapping
+
+         There is some preliminary stuff in there that (ab-)uses the mknod
+         system call, but this needs a writable filesystem
+         
+ 5) should have name translation enabled by mount flag
+
+   Yes. we can disable the Rock Ridge Extension by follows option;
+
+      "mount -t isofs -o -norrip /dev/cd0d /cdrom"
+
+ 6) should run as a user process, and not take up kernel space (cdroms
+    are slow)
+
+   Not yet.
+
+ 7) ECMA support.
+
+   Not yet. we need not only a technical spec but also ECMA format
+   cd-rom itself!
+
+ 8) Character set change by SVD ( multi SVD support )
+
+   Not yet. We should also hack the other part of system as 8 bit
+   clean. As far as I know, if you export the cdrom by NFS, the client
+   can access the 8 bit clean (ie. Solaris Japanese with EUC code )
+

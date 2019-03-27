@@ -1,0 +1,136 @@
+#!@SHELL@
+# $Id: dialog-config.in,v 1.6 2012/10/06 14:29:45 tom Exp $
+##############################################################################
+# Copyright (c) 2007-2011,2012 Thomas E. Dickey                              #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+
+prefix="@prefix@"
+exec_prefix="@exec_prefix@"
+datarootdir="@datarootdir@"
+
+bindir="@bindir@"
+libdir="@libdir@"
+datadir="@datadir@"
+mandir="@mandir@"
+
+THIS="@PACKAGE@"
+
+test $# = 0 && exec @SHELL@ $0 --error
+
+while test $# -gt 0; do
+	case "$1" in
+	-*=*)
+		ARG=`echo "$1" | sed 's/[-_a-zA-Z0-9]*=//'`
+		;;
+	*)
+		ARG=
+		;;
+	esac
+
+	case "$1" in
+	# basic configuration
+	--prefix=*)
+		prefix="$ARG"
+		test -z "$exec_prefix" && exec_prefix="$ARG"
+		;;
+	--prefix)
+		echo "$prefix"
+		;;
+	--exec-prefix=*)
+		exec_prefix="$ARG"
+		;;
+	--exec-prefix)
+		echo "$exec_prefix"
+		;;
+	# compile/link
+	--cflags)
+		INCS=
+		if test "${prefix}/include" != /usr/include ; then
+			INCS="-I${prefix}/include"
+		fi
+		sed -e 's,^[ ]*,,' -e 's, [ ]*, ,g' -e 's,[ ]*$,,' <<-ENDECHO
+			$INCS
+ENDECHO
+		;;
+	--libs)
+		sed -e 's,^[ ]*,,' -e 's, [ ]*, ,g' -e 's,[ ]*$,,' <<-ENDECHO
+			-L${exec_prefix}/lib -l${THIS} @LIBS@
+ENDECHO
+		;;
+	# identification
+	--version)
+		echo "@VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@"
+		;;
+	--abi-version)
+		echo "@VERSION@" | sed -e 's/:/./g'
+		;;
+	# locations
+	--bindir)
+		echo "${bindir}"
+		;;
+	--datadir)
+		echo "${datadir}"
+		;;
+	--libdir)
+		echo "${libdir}"
+		;;
+	--mandir)
+		echo "${mandir}"
+		;;
+	# general info
+	--help)
+		cat <<ENDHELP
+Usage: ${THIS}-config [options]
+
+Options:
+  --prefix           echos the package-prefix of ${THIS}
+  --prefix=ARG       sets the package-prefix of ${THIS}
+  --exec-prefix      echos the executable-prefix of ${THIS}
+  --exec-prefix=ARG  sets the executable-prefix of ${THIS}
+
+  --cflags           echos the C compiler flags needed to compile with ${THIS}
+  --libs             echos the libraries needed to link with ${THIS}
+
+  --version          echos the release+patchdate version of ${THIS}
+  --abi-version      echos the ABI version of ${THIS}
+
+  --bindir           echos the directory containing ${THIS} programs
+  --datadir          echos the directory containing ${THIS} data
+  --libdir           echos the directory containing ${THIS} libraries
+  --mandir           echos the directory containing ${THIS} manpages
+
+  --help             prints this message
+ENDHELP
+		;;
+	--error|*)
+		@SHELL@ $0 --help 1>&2
+		exit 1
+		;;
+	esac
+	shift
+done
+# vile:shmode

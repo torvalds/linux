@@ -1,0 +1,50 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: bgfsck
+# REQUIRE: cron devfs syslogd
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="background_fsck"
+desc="Run fsck in background"
+rcvar="background_fsck"
+start_cmd="bgfsck_start"
+start_precmd="bgfsck_start_precmd"
+stop_cmd=":"
+
+bgfsck_start_precmd()
+{
+	if [ $($ID -u) != 0 ]; then
+		err 1 "Must be root."
+	fi
+}
+
+bgfsck_start()
+{
+	: ${background_fsck_delay=0}
+	if [ -n "${rc_force}" ]; then
+		background_fsck_delay=0
+	fi
+	if [ ${background_fsck_delay} -lt 0 ]; then
+		warn "Background file system checks delayed indefinitely"
+		return 0
+	fi
+
+	bgfsck_msg='Starting background file system checks'
+	if [ "${background_fsck_delay}" -gt 0 ]; then
+		bgfsck_msg="${bgfsck_msg} in ${background_fsck_delay} seconds"
+	fi
+	if [ -z "${rc_force}" ]; then
+		check_startmsgs && echo "${bgfsck_msg}."
+	fi
+
+	(sleep ${background_fsck_delay}; nice -4 fsck -B -p) 2>&1 | \
+	    logger -p daemon.notice -t fsck &
+}
+
+load_rc_config $name
+run_rc_command "$1"

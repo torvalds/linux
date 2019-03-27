@@ -1,0 +1,23 @@
+Posix says we should execute the command as if run by system(3)
+Expect 'Hello,' and 'World!'
+Hello,
+World!
+a command
+a command prefixed by '+' executes even with -n
+another command
+make -n
+echo a command
+echo "a command prefixed by '+' executes even with -n"
+a command prefixed by '+' executes even with -n
+echo another command
+make -n -j1
+{ echo a command 
+} || exit $?
+echo "a command prefixed by '+' executes even with -n"
+a command prefixed by '+' executes even with -n
+{ echo another command 
+} || exit $?
+Now we expect an error...
+*** Error code 1 (continuing)
+`all' not remade because of errors.
+exit status 0

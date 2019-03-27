@@ -1,0 +1,89 @@
+.\"
+.\" Copyright (c) 2004 Mark Santcroos <marks@ripe.net>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 8, 2004
+.Dt ACPI_VIDEO 4
+.Os
+.Sh NAME
+.Nm acpi_video
+.Nd ACPI Video Extensions driver
+.Sh SYNOPSIS
+.Cd "device acpi_video"
+.Sh DESCRIPTION
+This driver uses the ACPI Video Extensions to control display switching and
+backlight brightness.
+The availability of the
+.Xr sysctl 8
+variables depends on the functions offered by the host's ACPI implementation.
+.Sh SYSCTL VARIABLES
+The following sysctls are currently implemented,
+where
+.Aq Ar device
+is
+.Va crt , lcd ,
+or
+.Va tv :
+.Bl -tag -width indent
+.It Va hw.acpi.video. Ns Ao Ar device Ac Ns Va .active
+Current state of the output device.
+.It Va hw.acpi.video. Ns Ao Ar device Ac Ns Va .levels
+List of supported brightness levels.
+.It Va hw.acpi.video. Ns Ao Ar device Ac Ns Va .brightness
+Current brightness level of the device.
+.It Va hw.acpi.video. Ns Ao Ar device Ac Ns Va .fullpower
+Preset brightness level to be used in full power mode.
+.It Va hw.acpi.video. Ns Ao Ar device Ac Ns Va .economy
+Preset brightness level to be used in economy mode.
+.El
+.Pp
+Defaults for these variables can be set in
+.Xr sysctl.conf 5 ,
+which is parsed at boot-time.
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr loader.conf 5 ,
+.Xr sysctl.conf 5 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Taku YAMAMOTO Aq Mt taku@cent.saitama-u.ac.jp .
+This manual page was written by
+.An Mark Santcroos Aq Mt marks@ripe.net .
+.Sh BUGS
+Some systems only perform output switching via SMM even though they export
+the proper information via ACPI.
+On such systems, the proper hotkeys or OEM driver (for example,
+.Xr acpi_toshiba 4 )
+must be used instead.

@@ -1,0 +1,128 @@
+/*
+ * Copyright (c) 2012 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * This software was developed by Semihalf under sponsorship from
+ * the FreeBSD Foundation.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * Freescale i.MX515 Device Tree Source.
+ *
+ * $FreeBSD$
+ */
+
+/dts-v1/;
+/include/ "imx51x.dtsi"
+
+/ {
+	model = "Genesi Efika MX";
+	compatible = "genesi,imx51-efikamx", "fsl,imx51";
+
+	memory {
+		/* RAM 512M */
+		reg = <0x90000000 0x20000000>;
+	};
+
+	localbus@5e000000 {
+		ipu3@5e000000 {
+			status = "okay";
+		};
+	};
+
+	soc@70000000 {
+		aips@70000000 {
+			spba@70000000 {
+				esdhc@70004000 {
+					clock-frequency = <216000000>;
+					status = "okay";
+				};
+				esdhc@70008000 {
+					clock-frequency = <216000000>;
+					status = "okay";
+				};
+				SSI2: ssi@70014000 {
+					status = "okay";
+				};
+			};
+			timer@73fa0000 {
+				status = "okay";
+			};
+
+			/* UART1, console */
+			UART1: serial@73fbc000 {
+				status = "okay";
+				clock-frequency = <3000000>; /* XXX */
+			};
+
+			clock@73fd4000 {
+				status = "okay";
+			};
+			gpio@73f84000 {
+				status = "okay";
+			};
+			gpio@73f88000 {
+				status = "okay";
+			};
+			gpio@73f8c000 {
+				status = "okay";
+			};
+			gpio@73f90000 {
+				status = "okay";
+			};
+			usb@73f80000 /* OTG */ {
+				status = "okay";
+			};
+			usb@73f80200 /* Host 1 */ {
+				status = "okay";
+			};
+			wdog@73f98000 {
+				status = "okay";
+			};
+		};
+		aips@80000000 {
+			i2c@83fc4000 {
+				status = "okay";
+			};
+			i2c@83fc8000 {
+				status = "okay";
+			};
+			audmux@83fd4000 {
+				status = "okay";
+			};
+			ide@83fe0000 {
+				status = "okay";
+			};
+		};
+	};
+
+	aliases {
+		UART1 = &UART1;
+		SSI2 = &SSI2;
+	};
+
+	chosen {
+		bootargs = "-v";
+		stdin = "UART1";
+		stdout = "UART1";
+	};
+};

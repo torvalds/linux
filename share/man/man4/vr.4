@@ -1,0 +1,217 @@
+.\" Copyright (c) 1997, 1998
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 25, 2012
+.Dt VR 4
+.Os
+.Sh NAME
+.Nm vr
+.Nd "VIA Technologies Rhine I/II/III Ethernet device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device vr"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_vr_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI Ethernet adapters and embedded
+controllers based on the VIA Technologies VT3043 Rhine I,
+VT86C100A Rhine II, and VT6105/VT6105M Rhine III Fast Ethernet
+controller chips.
+.Pp
+The VIA Rhine chips use bus master DMA and have a descriptor layout
+designed to resemble that of the DEC 21x4x
+.Dq tulip
+chips.
+The register
+layout is different however and the receive filter in the Rhine chips
+is much simpler and is programmed through registers rather than by
+downloading a special setup frame through the transmit DMA engine.
+Transmit and receive DMA buffers must be longword
+aligned.
+The Rhine chips are meant to be interfaced with external
+physical layer devices via an MII bus.
+They support both
+10 and 100Mbps speeds in either full or half duplex.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to the
+.Pa /etc/rc.conf
+file.
+.It 10baseT/UTP
+Set 10Mbps operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It full-duplex
+Force full duplex operation.
+.It half-duplex
+Force half duplex operation.
+.El
+.Pp
+Note that the 100baseTX media type is only available if supported
+by the adapter.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports VIA Technologies Rhine I, Rhine II, and Rhine III based
+Fast Ethernet adapters including:
+.Pp
+.Bl -bullet -compact
+.It
+AOpen/Acer ALN-320
+.It
+D-Link DFE520-TX
+.It
+D-Link DFE530-TX
+.It
+Hawking Technologies PN102TX
+.It
+Soekris Engineering net5501
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as
+.Xr sysctl 8
+variables:
+.Bl -tag -width indent
+.It Va dev.vr.%d.stats
+Display lots of useful MAC counters maintained in the driver.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "vr%d: couldn't map memory"
+A fatal initialization error has occurred.
+.It "vr%d: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "vr%d: watchdog timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.It "vr%d: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.It "vr%d: no memory for tx list"
+The driver failed to allocate an mbuf for the transmitter ring when
+allocating a pad buffer or collapsing an mbuf chain into a cluster.
+.It "vr%d: chip is in D3 power state -- setting to D0"
+This message applies only to adapters which support power
+management.
+Some operating systems place the controller in low power
+mode when shutting down, and some PCI BIOSes fail to bring the chip
+out of this state before configuring it.
+The controller loses all of
+its PCI configuration in the D3 state, so if the BIOS does not set
+it back to full power mode in time, it will not be able to configure it
+correctly.
+The driver tries to detect this condition and bring
+the adapter back to the D0 (full power) state, but this may not be
+enough to return the driver to a fully operational condition.
+If
+you see this message at boot time and the driver fails to attach
+the device as a network interface, you will have to perform second
+warm boot to have the device properly configured.
+.Pp
+Note that this condition only occurs when warm booting from another
+operating system.
+If you power down your system prior to booting
+.Fx ,
+the card should be configured correctly.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr polling 4 ,
+.Xr ifconfig 8
+.Rs
+.%T The VIA Technologies VT86C100A data sheet
+.%U http://www.via.com.tw
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu .
+.Sh BUGS
+The
+.Nm
+driver always copies transmit mbuf chains into longword-aligned
+buffers prior to transmission in order to pacify the Rhine chips.
+If buffers are not aligned correctly, the chip will round the
+supplied buffer address and begin DMAing from the wrong location.
+This buffer copying impairs transmit performance on slower systems but cannot
+be avoided.
+On faster machines (e.g.\& a Pentium II), the performance
+impact is much less noticeable.

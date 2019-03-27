@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0
-if MIPS_PARAVIRT
-
-config MIPS_PCI_VIRTIO
-	def_bool y
-
-endif #  MIPS_PARAVIRT

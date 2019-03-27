@@ -1,0 +1,50 @@
+
+#------------------------------------------------------------------------------
+# $File: frame,v 1.13 2015/08/29 07:10:35 christos Exp $
+# frame:  file(1) magic for FrameMaker files
+#
+# This stuff came on a FrameMaker demo tape, most of which is
+# copyright, but this file is "published" as witness the following:
+#
+# Note that this is the Framemaker Maker Interchange Format, not the
+# Normal format which would be application/vnd.framemaker.
+#
+0	string		\<MakerFile	FrameMaker document
+!:mime	application/x-mif
+>11	string		5.5		 (5.5
+>11	string		5.0		 (5.0
+>11	string		4.0		 (4.0
+>11	string		3.0		 (3.0
+>11	string		2.0		 (2.0
+>11	string		1.0		 (1.0
+>14	byte		x		  %c)
+0	string		\<MIFFile	FrameMaker MIF (ASCII) file
+!:mime	application/x-mif
+>9	string		4.0		 (4.0)
+>9	string		3.0		 (3.0)
+>9	string		2.0		 (2.0)
+>9	string		1.0		 (1.x)
+0	search/1	\<MakerDictionary	FrameMaker Dictionary text
+!:mime	application/x-mif
+>17	string		3.0		 (3.0)
+>17	string		2.0		 (2.0)
+>17	string		1.0		 (1.x)
+0	string		\<MakerScreenFont	FrameMaker Font file
+!:mime	application/x-mif
+>17	string		1.01		 (%s)
+0	string		\<MML		FrameMaker MML file
+!:mime	application/x-mif
+0	string		\<BookFile	FrameMaker Book file
+!:mime	application/x-mif
+>10	string		3.0		 (3.0
+>10	string		2.0		 (2.0
+>10	string		1.0		 (1.0
+>13	byte		x		  %c)
+# XXX - this book entry should be verified, if you find one, uncomment this
+#0	string		\<Book\040 	FrameMaker Book (ASCII) file
+#!:mime	application/x-mif
+#>6	string		3.0		 (3.0)
+#>6	string		2.0		 (2.0)
+#>6	string		1.0		 (1.0)
+0	string		\<Maker\040Intermediate\040Print\040File	FrameMaker IPL file
+!:mime	application/x-mif

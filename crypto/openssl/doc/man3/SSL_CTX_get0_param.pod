@@ -1,0 +1,64 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_get0_param, SSL_get0_param, SSL_CTX_set1_param, SSL_set1_param -
+get and set verification parameters
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ X509_VERIFY_PARAM *SSL_CTX_get0_param(SSL_CTX *ctx)
+ X509_VERIFY_PARAM *SSL_get0_param(SSL *ssl)
+ int SSL_CTX_set1_param(SSL_CTX *ctx, X509_VERIFY_PARAM *vpm)
+ int SSL_set1_param(SSL *ssl, X509_VERIFY_PARAM *vpm)
+
+=head1 DESCRIPTION
+
+SSL_CTX_get0_param() and SSL_get0_param() retrieve an internal pointer to
+the verification parameters for B<ctx> or B<ssl> respectively. The returned
+pointer must not be freed by the calling application.
+
+SSL_CTX_set1_param() and SSL_set1_param() set the verification parameters
+to B<vpm> for B<ctx> or B<ssl>.
+
+=head1 NOTES
+
+Typically parameters are retrieved from an B<SSL_CTX> or B<SSL> structure
+using SSL_CTX_get0_param() or SSL_get0_param() and an application modifies
+them to suit its needs: for example to add a hostname check.
+
+=head1 EXAMPLE
+
+Check hostname matches "www.foo.com" in peer certificate:
+
+ X509_VERIFY_PARAM *vpm = SSL_get0_param(ssl);
+ X509_VERIFY_PARAM_set1_host(vpm, "www.foo.com", 0);
+
+=head1 RETURN VALUES
+
+SSL_CTX_get0_param() and SSL_get0_param() return a pointer to an
+B<X509_VERIFY_PARAM> structure.
+
+SSL_CTX_set1_param() and SSL_set1_param() return 1 for success and 0
+for failure.
+
+=head1 SEE ALSO
+
+L<X509_VERIFY_PARAM_set_flags(3)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 1.0.2.
+
+=head1 COPYRIGHT
+
+Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,13 @@
+include "arch/regress/conf/std.regress"
+maxusers 4
+file-system	REGRESSFS
+
+# Pseudo-devices can have children on interface attributes,
+# which means they don't necessarily have to explicitly
+# define locators (see pseudodev definition).
+
+pseudo-device	pseudodev
+
+child*	at pseudodev?
+
+config regress root on ?

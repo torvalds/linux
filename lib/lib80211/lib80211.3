@@ -1,0 +1,119 @@
+.\" Copyright (c) 2015 Adrian Chadd.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 15, 2015
+.Dt 80211 3
+.Os
+.Sh NAME
+.Nm lib80211_alloc_regdata ,
+.Nm lib80211_free_regdata ,
+.Nm lib80211_regdomain_readconfig ,
+.Nm lib80211_regdomain_cleanup ,
+.Nm lib80211_regdomain_findbysku ,
+.Nm lib80211_regdomain_findbyname ,
+.Nm lib80211_country_findbycc ,
+.Nm lib80211_country_findbyname
+.Nd manage net80211 configuration and regulatory database
+.Sh LIBRARY
+.Lb lib80211
+.Sh SYNOPSIS
+.In lib80211/lib80211_regdomain.h
+.In lib80211/lib80211_ioctl.h
+.Ft struct regdata *
+.Fn lib80211_alloc_regdata void
+.Ft void
+.Fn lib80211_free_regdata "struct regdata *reg"
+.Ft int
+.Fn lib80211_regdomain_readconfig "struct regdata *reg" "const void *config" "size_t size"
+.Ft void
+.Fn lib80211_regdomain_cleanup "struct regdata *reg"
+.Ft const struct regdomain *
+.Fn lib80211_regdomain_findbysku "const struct regdata *reg" "enumRegDomainCode"
+.Ft const struct regdomain *
+.Fn lib80211_regdomain_findbyname "const struct regdata *reg" "const char *sku"
+.Ft const struct country *
+.Fn lib80211_country_findbycc "const struct regdata *reg" "enum ISOCountryCode"
+.Ft const struct country *
+.Fn lib80211_country_findbyname "const struct regdata *reg" "const char *cc"
+.Sh DESCRIPTION
+The
+.Nm lib80211
+library is an interface to the
+.Xr net80211 4
+infrastructure.
+It implements wrappers around the
+.Xr net80211 4
+ioctl command, as well as providing a convenient API to access the regulatory
+database.
+.Pp
+The
+.Fn lib80211_alloc_regdata
+and
+.Fn lib80211_free_regdata
+function allocates / frees a regdata structure to store regulatory domain
+information in.
+.Pp
+The
+.Fn lib80211_regdomain_readconfig
+and
+.Fn lib80211_regdomain_cleanup
+functions read in the regulatory database XML configuration and free it when
+finished.
+.Pp
+The
+.Fn lib80211_regdomain_findbysku
+and
+.Fn lib80211_regdomain_findbyname
+functions look up a regulatory domain entry by SKU enum and SKU name
+respectively.
+.Pp
+The
+.Fn lib80211_country_findbycc
+and
+.Fn lib80211_country_findbyname
+functions look up a country information entry by ISO country enum and
+ISO country code string respectively.
+.Sh RETURN VALUES
+The
+.Fn lib80211_alloc_regdata ,
+.Fn lib80211_regdomain_readconfig ,
+.Fn lib80211_regdomain_findbysku ,
+.Fn lib80211_regdomain_findbyname ,
+.Fn lib80211_country_findbycc ,
+.Fn lib80211_country_findbyname
+return
+.Dv NULL
+upon error.
+.Sh SEE ALSO
+.Xr net80211 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm lib80211
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An Adrian Chadd

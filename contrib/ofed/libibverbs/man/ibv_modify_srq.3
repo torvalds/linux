@@ -1,0 +1,64 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_MODIFY_SRQ 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_modify_srq \- modify attributes of a shared receive queue (SRQ)
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "int ibv_modify_srq(struct ibv_srq " "*srq" ,
+.BI "                   struct ibv_srq_attr " "*srq_attr" ,
+.BI "                   int " "srq_attr_mask" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_modify_srq()
+modifies the attributes of SRQ
+.I srq
+with the attributes in
+.I srq_attr
+according to the mask
+.I srq_attr_mask\fR.
+The argument \fIsrq_attr\fR is an ibv_srq_attr struct, as defined in <infiniband/verbs.h>.
+.PP
+.nf
+struct ibv_srq_attr {
+.in +8
+uint32_t                max_wr;      /* maximum number of outstanding work requests (WRs) in the SRQ */
+uint32_t                max_sge;     /* number of scatter elements per WR (irrelevant for ibv_modify_srq) */
+uint32_t                srq_limit;   /* the limit value of the SRQ */
+.in -8
+};
+.fi
+.PP
+The argument
+.I srq_attr_mask
+specifies the SRQ attributes to be modified.
+The argument is either 0 or the bitwise OR of one or more of the following flags:
+.PP
+.TP
+.B IBV_SRQ_MAX_WR \fR Resize the SRQ
+.TP
+.B IBV_SRQ_LIMIT \fR Set the SRQ limit
+.SH "RETURN VALUE"
+.B ibv_modify_srq()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+If any of the modify attributes is invalid, none of the attributes will be modified.
+.PP
+Not all devices support resizing SRQs.  To check if a device supports it, check if the
+.B IBV_DEVICE_SRQ_RESIZE
+bit is set in the device capabilities flags.
+.PP
+Modifying the srq_limit arms the SRQ to produce an
+.B IBV_EVENT_SRQ_LIMIT_REACHED
+"low watermark" asynchronous event once the number of WRs in the SRQ drops below srq_limit.
+.SH "SEE ALSO"
+.BR ibv_query_device (3),
+.BR ibv_create_srq (3),
+.BR ibv_destroy_srq (3),
+.BR ibv_query_srq (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

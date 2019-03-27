@@ -1,0 +1,70 @@
+=pod
+
+=head1 NAME
+
+PEM_read_bio_ex, PEM_FLAG_SECURE, PEM_FLAG_EAY_COMPATIBLE,
+PEM_FLAG_ONLY_B64 - read PEM format files with custom processing
+
+=head1 SYNOPSIS
+
+ #include <openssl/pem.h>
+
+ #define PEM_FLAG_SECURE             0x1
+ #define PEM_FLAG_EAY_COMPATIBLE     0x2
+ #define PEM_FLAG_ONLY_B64           0x4
+ int PEM_read_bio_ex(BIO *in, char **name, char **header,
+                     unsigned char **data, long *len, unsigned int flags);
+
+=head1 DESCRIPTION
+
+PEM_read_bio_ex() reads in PEM formatted data from an input BIO, outputting
+the name of the type of contained data, the header information regarding
+the possibly encrypted data, and the binary data payload (after base64 decoding).
+It should generally only be used to implement PEM_read_bio_-family functions
+for specific data types or other usage, but is exposed to allow greater flexibility
+over how processing is performed, if needed.
+
+If PEM_FLAG_SECURE is set, the intermediate buffers used to read in lines of
+input are allocated from the secure heap.
+
+If PEM_FLAG_EAY_COMPATIBLE is set, a simple algorithm is used to remove whitespace
+and control characters from the end of each line, so as to be compatible with
+the historical behavior of PEM_read_bio().
+
+If PEM_FLAG_ONLY_B64 is set, all characters are required to be valid base64
+characters (or newlines); non-base64 characters are treated as end of input.
+
+If neither PEM_FLAG_EAY_COMPATIBLE or PEM_FLAG_ONLY_B64 is set, control characters
+are ignored.
+
+If both PEM_FLAG_EAY_COMPATIBLE and PEM_FLAG_ONLY_B64 are set, an error is returned;
+these options are not compatible with each other.
+
+=head1 NOTES
+
+The caller must release the storage allocated for *name, *header, and *data.
+If PEM_FLAG_SECURE was set, use OPENSSL_secure_free(); otherwise,
+OPENSSL_free() is used.
+
+=head1 RETURN VALUES
+
+PEM_read_bio_ex() returns 1 for success or 0 for failure.
+
+=head1 SEE ALSO
+
+L<PEM(3)>
+
+=head1 HISTORY
+
+The PEM_read_bio_ex() function was added in OpenSSL 1.1.1.
+
+=head1 COPYRIGHT
+
+Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

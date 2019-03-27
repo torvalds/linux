@@ -1,0 +1,247 @@
+.\"
+.\" scp.1
+.\"
+.\" Author: Tatu Ylonen <ylo@cs.hut.fi>
+.\"
+.\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
+.\"                    All rights reserved
+.\"
+.\" Created: Sun May  7 00:14:37 1995 ylo
+.\"
+.\" $OpenBSD: scp.1,v 1.80 2018/07/19 10:28:47 dtucker Exp $
+.\"
+.Dd $Mdocdate: July 19 2018 $
+.Dt SCP 1
+.Os
+.Sh NAME
+.Nm scp
+.Nd secure copy (remote file copy program)
+.Sh SYNOPSIS
+.Nm scp
+.Op Fl 346BCpqrTv
+.Op Fl c Ar cipher
+.Op Fl F Ar ssh_config
+.Op Fl i Ar identity_file
+.Op Fl l Ar limit
+.Op Fl o Ar ssh_option
+.Op Fl P Ar port
+.Op Fl S Ar program
+.Ar source ... target
+.Sh DESCRIPTION
+.Nm
+copies files between hosts on a network.
+It uses
+.Xr ssh 1
+for data transfer, and uses the same authentication and provides the
+same security as
+.Xr ssh 1 .
+.Nm
+will ask for passwords or passphrases if they are needed for
+authentication.
+.Pp
+The
+.Ar source
+and
+.Ar target
+may be specified as a local pathname, a remote host with optional path
+in the form
+.Sm off
+.Oo user @ Oc host : Op path ,
+.Sm on
+or a URI in the form
+.Sm off
+.No scp:// Oo user @ Oc host Oo : port Oc Op / path .
+.Sm on
+Local file names can be made explicit using absolute or relative pathnames
+to avoid
+.Nm
+treating file names containing
+.Sq :\&
+as host specifiers.
+.Pp
+When copying between two remote hosts, if the URI format is used, a
+.Ar port
+may only be specified on the
+.Ar target
+if the
+.Fl 3
+option is used.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 3
+Copies between two remote hosts are transferred through the local host.
+Without this option the data is copied directly between the two remote
+hosts.
+Note that this option disables the progress meter.
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
+.It Fl B
+Selects batch mode (prevents asking for passwords or passphrases).
+.It Fl C
+Compression enable.
+Passes the
+.Fl C
+flag to
+.Xr ssh 1
+to enable compression.
+.It Fl c Ar cipher
+Selects the cipher to use for encrypting the data transfer.
+This option is directly passed to
+.Xr ssh 1 .
+.It Fl F Ar ssh_config
+Specifies an alternative
+per-user configuration file for
+.Nm ssh .
+This option is directly passed to
+.Xr ssh 1 .
+.It Fl i Ar identity_file
+Selects the file from which the identity (private key) for public key
+authentication is read.
+This option is directly passed to
+.Xr ssh 1 .
+.It Fl l Ar limit
+Limits the used bandwidth, specified in Kbit/s.
+.It Fl o Ar ssh_option
+Can be used to pass options to
+.Nm ssh
+in the format used in
+.Xr ssh_config 5 .
+This is useful for specifying options
+for which there is no separate
+.Nm scp
+command-line flag.
+For full details of the options listed below, and their possible values, see
+.Xr ssh_config 5 .
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It AddressFamily
+.It BatchMode
+.It BindAddress
+.It BindInterface
+.It CanonicalDomains
+.It CanonicalizeFallbackLocal
+.It CanonicalizeHostname
+.It CanonicalizeMaxDots
+.It CanonicalizePermittedCNAMEs
+.It CertificateFile
+.It ChallengeResponseAuthentication
+.It CheckHostIP
+.It Ciphers
+.It Compression
+.It ConnectionAttempts
+.It ConnectTimeout
+.It ControlMaster
+.It ControlPath
+.It ControlPersist
+.It GlobalKnownHostsFile
+.It GSSAPIAuthentication
+.It GSSAPIDelegateCredentials
+.It HashKnownHosts
+.It Host
+.It HostbasedAuthentication
+.It HostbasedKeyTypes
+.It HostKeyAlgorithms
+.It HostKeyAlias
+.It HostName
+.It IdentitiesOnly
+.It IdentityAgent
+.It IdentityFile
+.It IPQoS
+.It KbdInteractiveAuthentication
+.It KbdInteractiveDevices
+.It KexAlgorithms
+.It LogLevel
+.It MACs
+.It NoHostAuthenticationForLocalhost
+.It NumberOfPasswordPrompts
+.It PasswordAuthentication
+.It PKCS11Provider
+.It Port
+.It PreferredAuthentications
+.It ProxyCommand
+.It ProxyJump
+.It PubkeyAcceptedKeyTypes
+.It PubkeyAuthentication
+.It RekeyLimit
+.It SendEnv
+.It ServerAliveInterval
+.It ServerAliveCountMax
+.It SetEnv
+.It StrictHostKeyChecking
+.It TCPKeepAlive
+.It UpdateHostKeys
+.It User
+.It UserKnownHostsFile
+.It VerifyHostKeyDNS
+.El
+.It Fl P Ar port
+Specifies the port to connect to on the remote host.
+Note that this option is written with a capital
+.Sq P ,
+because
+.Fl p
+is already reserved for preserving the times and modes of the file.
+.It Fl p
+Preserves modification times, access times, and modes from the
+original file.
+.It Fl q
+Quiet mode: disables the progress meter as well as warning and diagnostic
+messages from
+.Xr ssh 1 .
+.It Fl r
+Recursively copy entire directories.
+Note that
+.Nm
+follows symbolic links encountered in the tree traversal.
+.It Fl S Ar program
+Name of
+.Ar program
+to use for the encrypted connection.
+The program must understand
+.Xr ssh 1
+options.
+.It Fl T
+Disable strict filename checking.
+By default when copying files from a remote host to a local directory
+.Nm
+checks that the received filenames match those requested on the command-line
+to prevent the remote end from sending unexpected or unwanted files.
+Because of differences in how various operating systems and shells interpret
+filename wildcards, these checks may cause wanted files to be rejected.
+This option disables these checks at the expense of fully trusting that
+the server will not send unexpected filenames.
+.It Fl v
+Verbose mode.
+Causes
+.Nm
+and
+.Xr ssh 1
+to print debugging messages about their progress.
+This is helpful in
+debugging connection, authentication, and configuration problems.
+.El
+.Sh EXIT STATUS
+.Ex -std scp
+.Sh SEE ALSO
+.Xr sftp 1 ,
+.Xr ssh 1 ,
+.Xr ssh-add 1 ,
+.Xr ssh-agent 1 ,
+.Xr ssh-keygen 1 ,
+.Xr ssh_config 5 ,
+.Xr sshd 8
+.Sh HISTORY
+.Nm
+is based on the rcp program in
+.Bx
+source code from the Regents of the University of California.
+.Sh AUTHORS
+.An Timo Rinne Aq Mt tri@iki.fi
+.An Tatu Ylonen Aq Mt ylo@cs.hut.fi

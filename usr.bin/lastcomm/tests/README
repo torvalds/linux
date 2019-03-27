@@ -1,0 +1,10 @@
+$FreeBSD$
+
+To create the files for regression testing do the following.
+
+1. Run values.sh for a given architecture and accounting version.
+2. Unpack the generated file and rename acct into VERSION-ARCH.acct.
+3. Run lastcomm -cuseS -f VERSION-ARCH-acct.in |
+   awk '{$4 = ""; print}' >VERSION-ARCH.out.
+4. Compare the reported values in VERSION-ARCH.out against the
+   *.time values found in the file that values.sh generated.

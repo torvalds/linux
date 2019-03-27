@@ -1,0 +1,830 @@
+.\" Copyright (c) 1983, 1990, 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)netstat.1	8.8 (Berkeley) 4/18/94
+.\" $FreeBSD$
+.\"
+.Dd March 22, 2018
+.Dt NETSTAT 1
+.Os
+.Sh NAME
+.Nm netstat
+.Nd show network status and statistics
+.Sh SYNOPSIS
+.Bk -words
+.Bl -tag -width "netstat"
+.It Nm
+.Op Fl -libxo
+.Op Fl 46AaLnPRSTWx
+.Op Fl f Ar protocol_family | Fl p Ar protocol
+.Op Fl M Ar core
+.Op Fl N Ar system
+.It Nm Fl i | I Ar interface
+.Op Fl -libxo
+.Op Fl 46abdhnW
+.Op Fl f Ar address_family
+.Op Fl M Ar core
+.Op Fl N Ar system
+.It Nm Fl w Ar wait
+.Op Fl -libxo
+.Op Fl I Ar interface
+.Op Fl 46d
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl q Ar howmany
+.It Nm Fl s
+.Op Fl -libxo
+.Op Fl 46sz
+.Op Fl f Ar protocol_family | Fl p Ar protocol
+.Op Fl M Ar core
+.Op Fl N Ar system
+.It Nm Fl i | I Ar interface Fl s
+.Op Fl -libxo
+.Op Fl 46s
+.Op Fl f Ar protocol_family | Fl p Ar protocol
+.Op Fl M Ar core
+.Op Fl N Ar system
+.It Nm Fl m
+.Op Fl -libxo
+.Op Fl M Ar core
+.Op Fl N Ar system
+.It Nm Fl B
+.Op Fl -libxo
+.Op Fl z
+.Op Fl I Ar interface
+.It Nm Fl r
+.Op Fl -libxo
+.Op Fl 46nW
+.Op Fl F Ar fibnum
+.Op Fl f Ar address_family
+.It Nm Fl rs
+.Op Fl -libxo
+.Op Fl s
+.Op Fl M Ar core
+.Op Fl N Ar system
+.It Nm Fl g
+.Op Fl -libxo
+.Op Fl 46W
+.Op Fl f Ar address_family
+.It Nm Fl gs
+.Op Fl -libxo
+.Op Fl 46s
+.Op Fl f Ar address_family
+.Op Fl M Ar core
+.Op Fl N Ar system
+.It Nm Fl Q
+.Op Fl -libxo
+.El
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+command symbolically displays the contents of various network-related
+data structures.
+There are a number of output formats,
+depending on the options for the information presented.
+.Bl -tag -width indent
+.It Xo
+.Bk -words
+.Nm
+.Op Fl 46AaLnRSTWx
+.Op Fl f Ar protocol_family | Fl p Ar protocol
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Display a list of active sockets
+(protocol control blocks)
+for each network protocol.
+.Pp
+The default display for active sockets shows the local
+and remote addresses, send and receive queue sizes (in bytes), protocol,
+and the internal state of the protocol.
+Address formats are of the form
+.Dq host.port
+or
+.Dq network.port
+if a socket's address specifies a network but no specific host address.
+When known, the host and network addresses are displayed symbolically
+according to the databases
+.Xr hosts 5
+and
+.Xr networks 5 ,
+respectively.
+If a symbolic name for an address is unknown, or if
+the
+.Fl n
+option is specified, the address is printed numerically, according
+to the address family.
+For more information regarding
+the Internet IPv4
+.Dq dot format ,
+refer to
+.Xr inet 3 .
+Unspecified,
+or
+.Dq wildcard ,
+addresses and ports appear as
+.Dq Li * .
+.Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
+.It Fl 4
+Show IPv4 only.
+See
+.Sx GENERAL OPTIONS .
+.It Fl 6
+Show IPv6 only.
+See
+.Sx GENERAL OPTIONS .
+.It Fl A
+Show the address of a protocol control block (PCB)
+associated with a socket; used for debugging.
+.It Fl a
+Show the state of all sockets;
+normally sockets used by server processes are not shown.
+.It Fl L
+Show the size of the various listen queues.
+The first count shows the number of unaccepted connections,
+the second count shows the amount of unaccepted incomplete connections,
+and the third count is the maximum number of queued connections.
+.It Fl n
+Do not resolve numeric addresses and port numbers to names.
+See
+.Sx GENERAL OPTIONS .
+.It Fl P
+Display the log ID for each socket.
+.It Fl R
+Display the flowid and flowtype for each socket.
+flowid is a 32 bit hardware specific identifier for each flow.
+flowtype defines which protocol fields are hashed to produce the id.
+A complete listing is available in
+.Pa sys/mbuf.h
+under
+.Dv M_HASHTYPE_* .
+.It Fl S
+Show network addresses as numbers (as with
+.Fl n )
+but show ports symbolically.
+.It Fl T
+Display diagnostic information from the TCP control block.
+Fields include the number of packets requiring retransmission,
+received out-of-order, and those advertising a zero-sized window.
+.It Fl W
+Avoid truncating addresses even if this causes some fields to overflow.
+.It Fl x
+Display socket buffer and TCP timer statistics for each
+internet socket.
+.Pp
+The
+.Fl x
+flag causes
+.Nm
+to output all the information recorded about data
+stored in the socket buffers.
+The fields are:
+.Bl -column ".Li R-MBUF"
+.It Li R-MBUF Ta Number of mbufs in the receive queue.
+.It Li S-MBUF Ta Number of mbufs in the send queue.
+.It Li R-CLUS Ta Number of clusters, of any type, in the receive
+queue.
+.It Li S-CLUS Ta Number of clusters, of any type, in the send queue.
+.It Li R-HIWA Ta Receive buffer high water mark, in bytes.
+.It Li S-HIWA Ta Send buffer high water mark, in bytes.
+.It Li R-LOWA Ta Receive buffer low water mark, in bytes.
+.It Li S-LOWA Ta Send buffer low water mark, in bytes.
+.It Li R-BCNT Ta Receive buffer byte count.
+.It Li S-BCNT Ta Send buffer byte count.
+.It Li R-BMAX Ta Maximum bytes that can be used in the receive buffer.
+.It Li S-BMAX Ta Maximum bytes that can be used in the send buffer.
+.It Li rexmt Ta Time, in seconds, to fire Retransmit Timer, or 0 if not armed.
+.It Li persist Ta Time, in seconds, to fire Retransmit Persistence, or 0 if not armed.
+.It Li keep Ta Time, in seconds, to fire Keep Alive, or 0 if not armed.
+.It Li 2msl Ta Time, in seconds, to fire 2*msl TIME_WAIT Timer, or 0 if not armed.
+.It Li delack Ta Time, in seconds, to fire Delayed ACK Timer, or 0 if not armed.
+.It Li rcvtime Ta Time, in seconds, since last packet received.
+.El
+.It Fl f Ar protocol_family
+Filter by
+.Ar protocol_family .
+See
+.Sx GENERAL OPTIONS .
+.It Fl p Ar protocol
+Filter by
+.Ar protocol .
+See
+.Sx GENERAL OPTIONS .
+.It Fl M
+Use an alternative core.
+See
+.Sx GENERAL OPTIONS .
+.It Fl N
+Use an alternative kernel image.
+See
+.Sx GENERAL OPTIONS .
+.El
+.It Xo
+.Bk -words
+.Nm
+.Fl i | I Ar interface
+.Op Fl 46abdhnW
+.Op Fl f Ar address_family
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Show the state of all network interfaces or a single
+.Ar interface
+which have been auto-configured
+(interfaces statically configured into a system, but not
+located at boot time are not shown).
+An asterisk
+.Pq Dq Li *
+after an interface name indicates that the interface is
+.Dq down .
+.Pp
+When
+.Nm
+is invoked with
+.Fl i
+.Pq all interfaces
+or
+.Fl I Ar interface ,
+it provides a table of cumulative
+statistics regarding packets transferred, errors, and collisions.
+The network addresses of the interface
+and the maximum transmission unit
+.Pq Dq mtu
+are also displayed.
+.Bl -tag -width indent
+.It Fl 4
+Show IPv4 only.
+See
+.Sx GENERAL OPTIONS .
+.It Fl 6
+Show IPv6 only.
+See
+.Sx GENERAL OPTIONS .
+.It Fl a
+Multicast addresses currently in use are shown
+for each Ethernet interface and for each IP interface address.
+Multicast addresses are shown on separate lines following the interface
+address with which they are associated.
+.It Fl b
+Show the number of bytes in and out.
+.It Fl d
+Show the number of dropped packets.
+.It Fl h
+Print all counters in human readable form.
+.It Fl n
+Do not resolve numeric addresses and port numbers to names.
+See
+.Sx GENERAL OPTIONS .
+.It Fl W
+Avoid truncating interface names even if this causes some fields to overflow.
+.Sx GENERAL OPTIONS .
+.It Fl f Ar protocol_family
+Filter by
+.Ar protocol_family .
+See
+.Sx GENERAL OPTIONS .
+.El
+.It Xo
+.Bk -words
+.Nm
+.Fl w Ar wait
+.Op Fl I Ar interface
+.Op Fl 46d
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl q Ar howmany
+.Ek
+.Xc
+At intervals of
+.Ar wait
+seconds, display the information regarding packet traffic on all
+configured network interfaces or a single
+.Ar interface .
+.Pp
+When
+.Nm
+is invoked with the
+.Fl w
+option and a
+.Ar wait
+interval argument, it displays a running count of statistics related to
+network interfaces.
+An obsolescent version of this option used a numeric parameter
+with no option, and is currently supported for backward compatibility.
+By default, this display summarizes information for all interfaces.
+Information for a specific interface may be displayed with the
+.Fl I Ar interface
+option.
+.Bl -tag -width indent
+.It Fl I Ar interface
+Only show information regarding
+.Ar interface
+.It Fl 4
+Show IPv4 only.
+See
+.Sx GENERAL OPTIONS .
+.It Fl 6
+Show IPv6 only.
+See
+.Sx GENERAL OPTIONS .
+.It Fl d
+Show the number of dropped packets.
+.It Fl M
+Use an alternative core.
+See
+.Sx GENERAL OPTIONS .
+.It Fl N
+Use an alternative kernel image.
+See
+.Sx GENERAL OPTIONS .
+.It Fl q
+Exit after
+.Ar howmany
+outputs.
+.El
+.It Xo
+.Bk -words
+.Nm
+.Fl s
+.Op Fl 46sz
+.Op Fl f Ar protocol_family | Fl p Ar protocol
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Display system-wide statistics for each network protocol.
+.Bl -tag -width indent
+.It Fl 4
+Show IPv4 only.
+See
+.Sx GENERAL OPTIONS .
+.It Fl 6
+Show IPv6 only.
+See
+.Sx GENERAL OPTIONS .
+.It Fl s
+If
+.Fl s
+is repeated, counters with a value of zero are suppressed.
+.It Fl z
+Reset statistic counters after displaying them.
+.It Fl f Ar protocol_family
+Filter by
+.Ar protocol_family .
+See
+.Sx GENERAL OPTIONS .
+.It Fl p Ar protocol
+Filter by
+.Ar protocol .
+See
+.Sx GENERAL OPTIONS .
+.It Fl M
+Use an alternative core.
+See
+.Sx GENERAL OPTIONS .
+.It Fl N
+Use an alternative kernel image
+See
+.Sx GENERAL OPTIONS .
+.El
+.It Xo
+.Bk -words
+.Nm
+.Fl i | I Ar interface Fl s
+.Op Fl 46s
+.Op Fl f Ar protocol_family | Fl p Ar protocol
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Display per-interface statistics for each network protocol.
+.Bl -tag -width indent
+.It Fl 4
+Show IPv4 only
+See
+.Sx GENERAL OPTIONS .
+.It Fl 6
+Show IPv6 only
+See
+.Sx GENERAL OPTIONS .
+.It Fl s
+If
+.Fl s
+is repeated, counters with a value of zero are suppressed.
+.It Fl f Ar protocol_family
+Filter by
+.Ar protocol_family .
+See
+.Sx GENERAL OPTIONS .
+.It Fl p Ar protocol
+Filter by
+.Ar protocol .
+See
+.Sx GENERAL OPTIONS .
+.It Fl M
+Use an alternative core
+See
+.Sx GENERAL OPTIONS .
+.It Fl N
+Use an alternative kernel image
+See
+.Sx GENERAL OPTIONS .
+.El
+.It Xo
+.Bk -words
+.Nm
+.Fl m
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Show statistics recorded by the memory management routines
+.Pq Xr mbuf 9 .
+The network manages a private pool of memory buffers.
+.Bl -tag -width indent
+.It Fl M
+Use an alternative core
+See
+.Sx GENERAL OPTIONS .
+.It Fl N
+Use an alternative kernel image
+See
+.Sx GENERAL OPTIONS .
+.El
+.It Xo
+.Bk -words
+.Nm
+.Fl B
+.Op Fl z
+.Op Fl I Ar interface
+.Ek
+.Xc
+Show statistics about
+.Xr bpf 4
+peers.
+This includes information like
+how many packets have been matched, dropped and received by the
+bpf device, also information about current buffer sizes and device
+states.
+.Pp
+The
+.Xr bpf 4
+flags displayed when
+.Nm
+is invoked with the
+.Fl B
+option represent the underlying parameters of the bpf peer.
+Each flag is
+represented as a single lower case letter.
+The mapping between the letters and flags in order of appearance are:
+.Bl -column ".Li i"
+.It Li p Ta Set if listening promiscuously
+.It Li i Ta Dv BIOCIMMEDIATE No has been set on the device
+.It Li f Ta Dv BIOCGHDRCMPLT No status: source link addresses are being
+filled automatically
+.It Li s Ta Dv BIOCGSEESENT No status: see packets originating locally and
+remotely on the interface.
+.It Li a Ta Packet reception generates a signal
+.It Li l Ta Dv BIOCLOCK No status: descriptor has been locked
+.El
+.Pp
+For more information about these flags, please refer to
+.Xr bpf 4 .
+.Bl -tag -width indent
+.It Fl z
+Reset statistic counters after displaying them.
+.El
+.It Xo
+.Bk -words
+.Nm
+.Fl r
+.Op Fl 46AnW
+.Op Fl F Ar fibnum
+.Op Fl f Ar address_family
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Display the contents of routing tables.
+.Pp
+When
+.Nm
+is invoked with the routing table option
+.Fl r ,
+it lists the available routes and their status.
+Each route consists of a destination host or network, and a gateway to use
+in forwarding packets.
+The flags field shows a collection of information about the route stored
+as binary choices.
+The individual flags are discussed in more detail in the
+.Xr route 8
+and
+.Xr route 4
+manual pages.
+The mapping between letters and flags is:
+.Bl -column ".Li W" ".Dv RTF_WASCLONED"
+.It Li 1 Ta Dv RTF_PROTO1 Ta "Protocol specific routing flag #1"
+.It Li 2 Ta Dv RTF_PROTO2 Ta "Protocol specific routing flag #2"
+.It Li 3 Ta Dv RTF_PROTO3 Ta "Protocol specific routing flag #3"
+.It Li B Ta Dv RTF_BLACKHOLE Ta "Just discard pkts (during updates)"
+.It Li b Ta Dv RTF_BROADCAST Ta "The route represents a broadcast address"
+.It Li D Ta Dv RTF_DYNAMIC Ta "Created dynamically (by redirect)"
+.It Li G Ta Dv RTF_GATEWAY Ta "Destination requires forwarding by intermediary"
+.It Li H Ta Dv RTF_HOST Ta "Host entry (net otherwise)"
+.It Li L Ta Dv RTF_LLINFO Ta "Valid protocol to link address translation"
+.It Li M Ta Dv RTF_MODIFIED Ta "Modified dynamically (by redirect)"
+.It Li R Ta Dv RTF_REJECT Ta "Host or net unreachable"
+.It Li S Ta Dv RTF_STATIC Ta "Manually added"
+.It Li U Ta Dv RTF_UP Ta "Route usable"
+.It Li X Ta Dv RTF_XRESOLVE Ta "External daemon translates proto to link address"
+.El
+.Pp
+Direct routes are created for each
+interface attached to the local host;
+the gateway field for such entries shows the address of the outgoing interface.
+The refcnt field gives the
+current number of active uses of the route.
+Connection oriented
+protocols normally hold on to a single route for the duration of
+a connection while connectionless protocols obtain a route while sending
+to the same destination.
+The use field provides a count of the number of packets
+sent using that route.
+The interface entry indicates the network interface utilized for the route.
+.Bl -tag -width indent
+.It Fl 4
+Show IPv4 only.
+See
+.Sx GENERAL OPTIONS .
+.It Fl 6
+Show IPv6 only.
+See
+.Sx GENERAL OPTIONS .
+.It Fl n
+Do not resolve numeric addresses and port numbers to names.
+See
+.Sx GENERAL OPTIONS .
+.It Fl W
+Show the path MTU for each route, and print interface names with a
+wider field size.
+.It Fl F
+Display the routing table with the number
+.Ar fibnum .
+If the specified
+.Ar fibnum
+is -1 or
+.Fl F
+is not specified,
+the default routing table is displayed.
+.It Fl f
+Display the routing table for a particular
+.Ar address_family .
+.It Fl M
+Use an alternative core
+See
+.Sx GENERAL OPTIONS .
+.It Fl N
+Use an alternative kernel image
+See
+.Sx GENERAL OPTIONS .
+.El
+.It Xo
+.Bk -words
+.Nm
+.Fl rs
+.Op Fl s
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Display routing statistics.
+.Bl -tag -width indent
+.It Fl s
+If
+.Fl s
+is repeated, counters with a value of zero are suppressed.
+.It Fl M
+Use an alternative core
+See
+.Sx GENERAL OPTIONS .
+.It Fl N
+Use an alternative kernel image
+See
+.Sx GENERAL OPTIONS .
+.El
+.It Xo
+.Bk -words
+.Nm
+.Fl g
+.Op Fl 46W
+.Op Fl f Ar address_family
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Display the contents of the multicast virtual interface tables,
+and multicast forwarding caches.
+Entries in these tables will appear only when the kernel is
+actively forwarding multicast sessions.
+This option is applicable only to the
+.Cm inet
+and
+.Cm inet6
+address families.
+.Bl -tag -width indent
+.It Fl 4
+Show IPv4 only
+See
+.Sx GENERAL OPTIONS .
+.It Fl 6
+Show IPv6 only
+See
+.Sx GENERAL OPTIONS .
+.It Fl W
+Avoid truncating addresses even if this causes some fields to overflow.
+.It Fl f Ar protocol_family
+Filter by
+.Ar protocol_family .
+See
+.Sx GENERAL OPTIONS .
+.It Fl M
+Use an alternative core
+See
+.Sx GENERAL OPTIONS .
+.It Fl N
+Use an alternative kernel image
+See
+.Sx GENERAL OPTIONS .
+.El
+.It Xo
+.Bk -words
+.Nm
+.Fl gs
+.Op Fl 46s
+.Op Fl f Ar address_family
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Ek
+.Xc
+Show multicast routing statistics.
+.Bl -tag -width indent
+.It Fl 4
+Show IPv4 only
+See
+.Sx GENERAL OPTIONS .
+.It Fl 6
+Show IPv6 only
+See
+.Sx GENERAL OPTIONS .
+.It Fl s
+If
+.Fl s
+is repeated, counters with a value of zero are suppressed.
+.It Fl f Ar protocol_family
+Filter by
+.Ar protocol_family .
+See
+.Sx GENERAL OPTIONS .
+.It Fl M
+Use an alternative core
+See
+.Sx GENERAL OPTIONS .
+.It Fl N
+Use an alternative kernel image
+See
+.Sx GENERAL OPTIONS .
+.El
+.It Xo
+.Bk -words
+.Nm
+.Fl Q
+.Ek
+.Xc
+Show
+.Xr netisr 9
+statistics.
+The flags field shows available ISR handlers:
+.Bl -column ".Li W" ".Dv NETISR_SNP_FLAGS_DRAINEDCPU"
+.It Li C Ta Dv NETISR_SNP_FLAGS_M2CPUID Ta "Able to map mbuf to cpu id"
+.It Li D Ta Dv NETISR_SNP_FLAGS_DRAINEDCPU  Ta "Has queue drain handler"
+.It Li F Ta Dv NETISR_SNP_FLAGS_M2FLOW Ta "Able to map mbuf to flow id"
+.El
+.El
+.Pp
+.Ss GENERAL OPTIONS
+Some options have the general meaning:
+.Bl -tag -width flag
+.It Fl 4
+Is shorthand for
+.Fl f
+.Ar inet
+.Pq Show only IPv4
+.It Fl 6
+Is shorthand for
+.Fl f
+.Ar inet6
+.Pq Show only IPv6
+.It Fl f Ar address_family , Fl p Ar protocol
+Limit display to those records
+of the specified
+.Ar address_family
+or a single
+.Ar protocol .
+The following address families and protocols are recognized:
+.Pp
+.Bl -tag -width ".Cm netgraph , ng Pq Dv AF_NETGRAPH" -compact
+.It Em Family
+.Em Protocols
+.It Cm inet Pq Dv AF_INET
+.Cm divert , icmp , igmp , ip , ipsec , pim, sctp , tcp , udp
+.It Cm inet6 Pq Dv AF_INET6
+.Cm icmp6 , ip6 , ipsec6 , rip6 , sctp , tcp , udp
+.It Cm pfkey Pq Dv PF_KEY
+.Cm pfkey
+.It Cm netgraph , ng Pq Dv AF_NETGRAPH
+.Cm ctrl , data
+.It Cm unix Pq Dv AF_UNIX
+.It Cm link Pq Dv AF_LINK
+.El
+.Pp
+The program will complain if
+.Ar protocol
+is unknown or if there is no statistics routine for it.
+.It Fl M
+Extract values associated with the name list from the specified core
+instead of the default
+.Pa /dev/kmem .
+.It Fl N
+Extract the name list from the specified system instead of the default,
+which is the kernel image the system has booted from.
+.It Fl n
+Show network addresses and ports as numbers.
+Normally
+.Nm
+attempts to resolve addresses and ports,
+and display them symbolically.
+.El
+.Sh SEE ALSO
+.Xr fstat 1 ,
+.Xr nfsstat 1 ,
+.Xr procstat 1 ,
+.Xr ps 1 ,
+.Xr sockstat 1 ,
+.Xr libxo 3 ,
+.Xr xo_parse_args 3 ,
+.Xr bpf 4 ,
+.Xr inet 4 ,
+.Xr route 4 ,
+.Xr unix 4 ,
+.Xr hosts 5 ,
+.Xr networks 5 ,
+.Xr protocols 5 ,
+.Xr services 5 ,
+.Xr iostat 8 ,
+.Xr route 8 ,
+.Xr trpt 8 ,
+.Xr vmstat 8 ,
+.Xr mbuf 9
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .
+.Pp
+IPv6 support was added by WIDE/KAME project.
+.Sh BUGS
+The notion of errors is ill-defined.

@@ -1,0 +1,7 @@
+# $FreeBSD$ 
+# $NetBSD: ISO-8859.src,v 1.1 2003/06/27 08:40:56 tshiozak Exp $
+
+NAME		"ISO-8859-x"
+ENCODING	"NONE"
+DEFCSID		"ISO-8859-x"	0
+INVALID		0x3F	# '?'

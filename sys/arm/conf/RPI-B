@@ -1,0 +1,99 @@
+#
+# RPI-B -- Custom configuration for the Raspberry Pi
+#
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
+#
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+# $FreeBSD$
+
+ident		RPI-B
+
+include 	"std.armv6"
+include 	"../broadcom/bcm2835/std.rpi"
+include 	"../broadcom/bcm2835/std.bcm2835"
+
+options 	SCHED_4BSD		# 4BSD scheduler
+options 	PLATFORM
+
+# NFS root from boopt/dhcp
+#options 	BOOTP
+#options 	BOOTP_NFSROOT
+#options 	BOOTP_COMPAT
+#options 	BOOTP_NFSV3
+#options 	BOOTP_WIRED_TO=ue0
+
+#options 	ROOTDEVNAME=\"ufs:mmcsd0s2\"
+
+device		bpf
+device		loop
+device		ether
+device		uart
+device		pty
+device		snp
+device		pl011
+
+# Device mode support
+device		usb_template    	# Control of the gadget
+
+# Comment following lines for boot console on serial port
+device		vt
+device		kbdmux
+device		ukbd
+
+device		sdhci
+device		mmc
+device		mmcsd
+
+device		gpio
+device		gpioled
+
+# I2C
+device		iic
+device		iicbus
+device		bcm2835_bsc
+
+device		md
+device		random			# Entropy device
+
+# USB support
+device		usb
+device		dwcotg			# DWC OTG controller
+
+# USB storage support
+device		scbus
+device		da
+device		umass
+
+# USB ethernet support
+device		smcphy
+device		mii
+device		smsc
+
+# SPI
+device		spibus
+device		bcm2835_spi
+
+device		vchiq
+device		sound
+
+device		fdt_pinctrl
+
+# Flattened Device Tree
+options 	FDT			# Configure using FDT/DTB data
+# Note:  DTB is normally loaded and modified by RPi boot loader, then
+# handed to kernel via U-Boot and ubldr.
+#options 	FDT_DTB_STATIC
+#makeoptions	FDT_DTS_FILE=rpi.dts
+makeoptions	MODULES_EXTRA="dtb/rpi rpi_ft5406"

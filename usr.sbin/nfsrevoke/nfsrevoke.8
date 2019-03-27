@@ -1,0 +1,64 @@
+.\" Copyright (c) 2009 Rick Macklem, University of Guelph
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 25, 2009
+.Dt NFSREVOKE 8
+.Os
+.Sh NAME
+.Nm nfsrevoke
+.Nd revoke
+.Tn NFS
+V4 client
+.Sh SYNOPSIS
+.Nm nfsrevoke
+.Ar ClientId
+.Sh DESCRIPTION
+.Nm
+This command is used by a system administrator to revoke a client's access
+to the NFS Version 4 server. All Open/Lock state held by the client will
+be released.
+After revocation, the client will no longer be able to use state on the server
+until it does a fresh SetClientID/SetClientIDConfirm operations sequence.
+THIS SHOULD BE DONE AS A LAST RESORT ONLY, when clients are holding state
+that must be released on the server.
+.Pp
+The
+.Ar ClientId
+argument is a hexadecimal string, which is the last field
+of the
+.Xr nfsdumpstate 8
+command's
+.Fl o
+and
+.Fl l
+options output.
+.Sh SEE ALSO
+.Xr nfsv4 4 ,
+.Xr nfsdumpstate 8
+.Sh HISTORY
+The
+.Nm
+command was introduced as a part of the experimental nfs server subsystem.

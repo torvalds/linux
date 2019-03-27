@@ -1,0 +1,570 @@
+@(#)Theory	8.4
+This file is in the public domain, so clarified as of
+2009-05-17 by Arthur David Olson.
+$FreeBSD$
+
+----- Outline -----
+
+	Time and date functions
+	Names of time zone regions
+	Time zone abbreviations
+	Calendrical issues
+	Time and time zones on Mars
+
+----- Time and date functions -----
+
+These time and date functions are upwards compatible with POSIX,
+an international standard for UNIX-like systems.
+As of this writing, the current edition of POSIX is:
+
+  Standard for Information technology
+  -- Portable Operating System Interface (POSIX (R))
+  -- System Interfaces
+  IEEE Std 1003.1, 2004 Edition
+  <http://www.opengroup.org/online-pubs?DOC=7999959899>
+  <http://www.opengroup.org/pubs/catalog/t041.htm>
+
+POSIX has the following properties and limitations.
+
+*	In POSIX, time display in a process is controlled by the
+	environment variable TZ.  Unfortunately, the POSIX TZ string takes
+	a form that is hard to describe and is error-prone in practice.
+	Also, POSIX TZ strings can't deal with other (for example, Israeli)
+	daylight saving time rules, or situations where more than two
+	time zone abbreviations are used in an area.
+
+	The POSIX TZ string takes the following form:
+
+		stdoffset[dst[offset],date[/time],date[/time]]
+
+	where:
+
+	std and dst
+		are 3 or more characters specifying the standard
+		and daylight saving time (DST) zone names.
+		Starting with POSIX.1-2001, std and dst may also be
+		in a quoted form like "<UTC+10>"; this allows
+		"+" and "-" in the names.
+	offset
+		is of the form `[-]hh:[mm[:ss]]' and specifies the
+		offset west of UTC.  The default DST offset is one hour
+		ahead of standard time.
+	date[/time],date[/time]
+		specifies the beginning and end of DST.  If this is absent,
+		the system supplies its own rules for DST, and these can
+		differ from year to year; typically US DST rules are used.
+	time
+		takes the form `hh:[mm[:ss]]' and defaults to 02:00.
+	date
+		takes one of the following forms:
+		Jn (1<=n<=365)
+			origin-1 day number not counting February 29
+		n (0<=n<=365)
+			origin-0 day number counting February 29 if present
+		Mm.n.d (0[Sunday]<=d<=6[Saturday], 1<=n<=5, 1<=m<=12)
+			for the dth day of week n of month m of the year,
+			where week 1 is the first week in which day d appears,
+			and `5' stands for the last week in which day d appears
+			(which may be either the 4th or 5th week).
+
+	Here is an example POSIX TZ string, for US Pacific time using rules
+	appropriate from 1987 through 2006:
+
+		TZ='PST8PDT,M4.1.0/02:00,M10.5.0/02:00'
+
+	This POSIX TZ string is hard to remember, and mishandles time stamps
+	before 1987 and after 2006.  With this package you can use this
+	instead:
+
+		TZ='America/Los_Angeles'
+
+*	POSIX does not define the exact meaning of TZ values like "EST5EDT".
+	Typically the current US DST rules are used to interpret such values,
+	but this means that the US DST rules are compiled into each program
+	that does time conversion.  This means that when US time conversion
+	rules change (as in the United States in 1987), all programs that
+	do time conversion must be recompiled to ensure proper results.
+
+*	In POSIX, there's no tamper-proof way for a process to learn the
+	system's best idea of local wall clock.  (This is important for
+	applications that an administrator wants used only at certain times--
+	without regard to whether the user has fiddled the "TZ" environment
+	variable.  While an administrator can "do everything in UTC" to get
+	around the problem, doing so is inconvenient and precludes handling
+	daylight saving time shifts--as might be required to limit phone
+	calls to off-peak hours.)
+
+*	POSIX requires that systems ignore leap seconds.
+
+These are the extensions that have been made to the POSIX functions:
+
+*	The "TZ" environment variable is used in generating the name of a file
+	from which time zone information is read (or is interpreted a la
+	POSIX); "TZ" is no longer constrained to be a three-letter time zone
+	name followed by a number of hours and an optional three-letter
+	daylight time zone name.  The daylight saving time rules to be used
+	for a particular time zone are encoded in the time zone file;
+	the format of the file allows U.S., Australian, and other rules to be
+	encoded, and allows for situations where more than two time zone
+	abbreviations are used.
+
+	It was recognized that allowing the "TZ" environment variable to
+	take on values such as "America/New_York" might cause "old" programs
+	(that expect "TZ" to have a certain form) to operate incorrectly;
+	consideration was given to using some other environment variable
+	(for example, "TIMEZONE") to hold the string used to generate the
+	time zone information file name.  In the end, however, it was decided
+	to continue using "TZ":  it is widely used for time zone purposes;
+	separately maintaining both "TZ" and "TIMEZONE" seemed a nuisance;
+	and systems where "new" forms of "TZ" might cause problems can simply
+	use TZ values such as "EST5EDT" which can be used both by
+	"new" programs (a la POSIX) and "old" programs (as zone names and
+	offsets).
+
+*	To handle places where more than two time zone abbreviations are used,
+	the functions "localtime" and "gmtime" set tzname[tmp->tm_isdst]
+	(where "tmp" is the value the function returns) to the time zone
+	abbreviation to be used.  This differs from POSIX, where the elements
+	of tzname are only changed as a result of calls to tzset.
+
+*	Since the "TZ" environment variable can now be used to control time
+	conversion, the "daylight" and "timezone" variables are no longer
+	needed.  (These variables are defined and set by "tzset"; however, their
+	values will not be used by "localtime.")
+
+*	The "localtime" function has been set up to deliver correct results
+	for near-minimum or near-maximum time_t values.  (A comment in the
+	source code tells how to get compatibly wrong results).
+
+*	A function "tzsetwall" has been added to arrange for the system's
+	best approximation to local wall clock time to be delivered by
+	subsequent calls to "localtime."  Source code for portable
+	applications that "must" run on local wall clock time should call
+	"tzsetwall();" if such code is moved to "old" systems that don't
+	provide tzsetwall, you won't be able to generate an executable program.
+	(These time zone functions also arrange for local wall clock time to be
+	used if tzset is called--directly or indirectly--and there's no "TZ"
+	environment variable; portable applications should not, however, rely
+	on this behavior since it's not the way SVR2 systems behave.)
+
+*	These functions can account for leap seconds, thanks to Bradley White.
+
+Points of interest to folks with other systems:
+
+*	This package is already part of many POSIX-compliant hosts,
+	including BSD, HP, Linux, Network Appliance, SCO, SGI, and Sun.
+	On such hosts, the primary use of this package
+	is to update obsolete time zone rule tables.
+	To do this, you may need to compile the time zone compiler
+	`zic' supplied with this package instead of using the system `zic',
+	since the format of zic's input changed slightly in late 1994,
+	and many vendors still do not support the new input format.
+
+*	The UNIX Version 7 "timezone" function is not present in this package;
+	it's impossible to reliably map timezone's arguments (a "minutes west
+	of GMT" value and a "daylight saving time in effect" flag) to a
+	time zone abbreviation, and we refuse to guess.
+	Programs that in the past used the timezone function may now examine
+	tzname[localtime(&clock)->tm_isdst] to learn the correct time
+	zone abbreviation to use.  Alternatively, use
+	localtime(&clock)->tm_zone if this has been enabled.
+
+*	The 4.2BSD gettimeofday function is not used in this package.
+	This formerly let users obtain the current UTC offset and DST flag,
+	but this functionality was removed in later versions of BSD.
+
+*	In SVR2, time conversion fails for near-minimum or near-maximum
+	time_t values when doing conversions for places that don't use UTC.
+	This package takes care to do these conversions correctly.
+
+The functions that are conditionally compiled if STD_INSPIRED is defined
+should, at this point, be looked on primarily as food for thought.  They are
+not in any sense "standard compatible"--some are not, in fact, specified in
+*any* standard.  They do, however, represent responses of various authors to
+standardization proposals.
+
+Other time conversion proposals, in particular the one developed by folks at
+Hewlett Packard, offer a wider selection of functions that provide capabilities
+beyond those provided here.  The absence of such functions from this package
+is not meant to discourage the development, standardization, or use of such
+functions.  Rather, their absence reflects the decision to make this package
+contain valid extensions to POSIX, to ensure its broad acceptability.  If
+more powerful time conversion functions can be standardized, so much the
+better.
+
+
+----- Names of time zone rule files -----
+
+The time zone rule file naming conventions attempt to strike a balance
+among the following goals:
+
+ * Uniquely identify every national region where clocks have all
+   agreed since 1970.  This is essential for the intended use: static
+   clocks keeping local civil time.
+
+ * Indicate to humans as to where that region is.  This simplifes use.
+
+ * Be robust in the presence of political changes.  This reduces the
+   number of updates and backward-compatibility hacks.  For example,
+   names of countries are ordinarily not used, to avoid
+   incompatibilities when countries change their name
+   (e.g. Zaire->Congo) or when locations change countries
+   (e.g. Hong Kong from UK colony to China).
+
+ * Be portable to a wide variety of implementations.
+   This promotes use of the technology.
+
+ * Use a consistent naming convention over the entire world.
+   This simplifies both use and maintenance.
+
+This naming convention is not intended for use by inexperienced users
+to select TZ values by themselves (though they can of course examine
+and reuse existing settings).  Distributors should provide
+documentation and/or a simple selection interface that explains the
+names; see the 'tzselect' program supplied with this distribution for
+one example.
+
+Names normally have the form AREA/LOCATION, where AREA is the name
+of a continent or ocean, and LOCATION is the name of a specific
+location within that region.  North and South America share the same
+area, `America'.  Typical names are `Africa/Cairo', `America/New_York',
+and `Pacific/Honolulu'.
+
+Here are the general rules used for choosing location names,
+in decreasing order of importance:
+
+	Use only valid POSIX file name components (i.e., the parts of
+		names other than `/').  Within a file name component,
+		use only ASCII letters, `.', `-' and `_'.  Do not use
+		digits, as that might create an ambiguity with POSIX
+		TZ strings.  A file name component must not exceed 14
+		characters or start with `-'.  E.g., prefer `Brunei'
+		to `Bandar_Seri_Begawan'.
+	Include at least one location per time zone rule set per country.
+		One such location is enough.  Use ISO 3166 (see the file
+		iso3166.tab) to help decide whether something is a country.
+		However, uninhabited ISO 3166 regions like Bouvet Island
+		do not need locations, since local time is not defined there.
+	If all the clocks in a country's region have agreed since 1970,
+		don't bother to include more than one location
+		even if subregions' clocks disagreed before 1970.
+		Otherwise these tables would become annoyingly large.
+	If a name is ambiguous, use a less ambiguous alternative;
+		e.g. many cities are named San Jose and Georgetown, so
+		prefer `Costa_Rica' to `San_Jose' and `Guyana' to `Georgetown'.
+	Keep locations compact.  Use cities or small islands, not countries
+		or regions, so that any future time zone changes do not split
+		locations into different time zones.  E.g. prefer `Paris'
+		to `France', since France has had multiple time zones.
+	Use mainstream English spelling, e.g. prefer `Rome' to `Roma', and
+		prefer `Athens' to the true name (which uses Greek letters).
+		The POSIX file name restrictions encourage this rule.
+	Use the most populous among locations in a country's time zone,
+		e.g. prefer `Shanghai' to `Beijing'.  Among locations with
+		similar populations, pick the best-known location,
+		e.g. prefer `Rome' to `Milan'.
+	Use the singular form, e.g. prefer `Canary' to `Canaries'.
+	Omit common suffixes like `_Islands' and `_City', unless that
+		would lead to ambiguity.  E.g. prefer `Cayman' to
+		`Cayman_Islands' and `Guatemala' to `Guatemala_City',
+		but prefer `Mexico_City' to `Mexico' because the country
+		of Mexico has several time zones.
+	Use `_' to represent a space.
+	Omit `.' from abbreviations in names, e.g. prefer `St_Helena'
+		to `St._Helena'.
+	Do not change established names if they only marginally
+		violate the above rules.  For example, don't change
+		the existing name `Rome' to `Milan' merely because
+		Milan's population has grown to be somewhat greater
+		than Rome's.
+	If a name is changed, put its old spelling in the `backward' file.
+
+The file `zone.tab' lists the geographical locations used to name
+time zone rule files.  It is intended to be an exhaustive list
+of canonical names for geographic regions.
+
+Older versions of this package used a different naming scheme,
+and these older names are still supported.
+See the file `backward' for most of these older names
+(e.g. `US/Eastern' instead of `America/New_York').
+The other old-fashioned names still supported are
+`WET', `CET', `MET', `EET' (see the file `europe'),
+and `Factory' (see the file `factory').
+
+
+----- Time zone abbreviations -----
+
+When this package is installed, it generates time zone abbreviations
+like `EST' to be compatible with human tradition and POSIX.
+Here are the general rules used for choosing time zone abbreviations,
+in decreasing order of importance:
+
+	Use abbreviations that consist of three or more ASCII letters.
+		Previous editions of this database also used characters like
+		' ' and '?', but these characters have a special meaning to
+		the shell and cause commands like
+			set `date`
+		to have unexpected effects.
+		Previous editions of this rule required upper-case letters,
+		but the Congressman who introduced Chamorro Standard Time
+		preferred "ChST", so the rule has been relaxed.
+
+		This rule guarantees that all abbreviations could have
+		been specified by a POSIX TZ string.  POSIX
+		requires at least three characters for an
+		abbreviation.  POSIX through 2000 says that an abbreviation
+		cannot start with ':', and cannot contain ',', '-',
+		'+', NUL, or a digit.  POSIX from 2001 on changes this
+		rule to say that an abbreviation can contain only '-', '+',
+		and alphanumeric characters from the portable character set
+		in the current locale.  To be portable to both sets of
+		rules, an abbreviation must therefore use only ASCII
+		letters.
+
+	Use abbreviations that are in common use among English-speakers,
+		e.g. `EST' for Eastern Standard Time in North America.
+		We assume that applications translate them to other languages
+		as part of the normal localization process; for example,
+		a French application might translate `EST' to `HNE'.
+
+	For zones whose times are taken from a city's longitude, use the
+		traditional xMT notation, e.g. `PMT' for Paris Mean Time.
+		The only name like this in current use is `GMT'.
+
+	If there is no common English abbreviation, abbreviate the English
+		translation of the usual phrase used by native speakers.
+		If this is not available or is a phrase mentioning the country
+		(e.g. ``Cape Verde Time''), then:
+
+		When a country has a single or principal time zone region,
+			append `T' to the country's ISO	code, e.g. `CVT' for
+			Cape Verde Time.  For summer time append `ST';
+			for double summer time append `DST'; etc.
+		When a country has multiple time zones, take the first three
+			letters of an English place name identifying each zone
+			and then append `T', `ST', etc. as before;
+			e.g. `VLAST' for VLAdivostok Summer Time.
+
+	Use UTC (with time zone abbreviation "zzz") for locations while
+		uninhabited.  The "zzz" mnemonic is that these locations are,
+		in some sense, asleep.
+
+Application writers should note that these abbreviations are ambiguous
+in practice: e.g. `EST' has a different meaning in Australia than
+it does in the United States.  In new applications, it's often better
+to use numeric UTC offsets like `-0500' instead of time zone
+abbreviations like `EST'; this avoids the ambiguity.
+
+
+----- Calendrical issues -----
+
+Calendrical issues are a bit out of scope for a time zone database,
+but they indicate the sort of problems that we would run into if we
+extended the time zone database further into the past.  An excellent
+resource in this area is Nachum Dershowitz and Edward M. Reingold,
+<a href="http://emr.cs.iit.edu/home/reingold/calendar-book/third-edition/">
+Calendrical Calculations: Third Edition
+</a>, Cambridge University Press (2008).  Other information and
+sources are given below.  They sometimes disagree.
+
+
+France
+
+Gregorian calendar adopted 1582-12-20.
+French Revolutionary calendar used 1793-11-24 through 1805-12-31,
+and (in Paris only) 1871-05-06 through 1871-05-23.
+
+
+Russia
+
+From Chris Carrier (1996-12-02):
+On 1929-10-01 the Soviet Union instituted an ``Eternal Calendar''
+with 30-day months plus 5 holidays, with a 5-day week.
+On 1931-12-01 it changed to a 6-day week; in 1934 it reverted to the
+Gregorian calendar while retaining the 6-day week; on 1940-06-27 it
+reverted to the 7-day week.  With the 6-day week the usual days
+off were the 6th, 12th, 18th, 24th and 30th of the month.
+(Source: Evitiar Zerubavel, _The Seven Day Circle_)
+
+
+Mark Brader reported a similar story in "The Book of Calendars", edited
+by Frank Parise (1982, Facts on File, ISBN 0-8719-6467-8), page 377.  But:
+
+From: Petteri Sulonen (via Usenet)
+Date: 14 Jan 1999 00:00:00 GMT
+...
+
+If your source is correct, how come documents between 1929 -- 1940 were
+still dated using the conventional, Gregorian calendar?
+
+I can post a scan of a document dated December 1, 1934, signed by
+Yenukidze, the secretary, on behalf of Kalinin, the President of the
+Executive Committee of the Supreme Soviet, if you like.
+
+
+
+Sweden (and Finland)
+
+From: Mark Brader
+<a href="news:1996Jul6.012937.29190@sq.com">
+Subject: Re: Gregorian reform -- a part of locale?
+</a>
+Date: 1996-07-06
+
+In 1700, Denmark made the transition from Julian to Gregorian.  Sweden
+decided to *start* a transition in 1700 as well, but rather than have one of
+those unsightly calendar gaps :-), they simply decreed that the next leap
+year after 1696 would be in 1744 -- putting the whole country on a calendar
+different from both Julian and Gregorian for a period of 40 years.
+
+However, in 1704 something went wrong and the plan was not carried through;
+they did, after all, have a leap year that year.  And one in 1708.  In 1712
+they gave it up and went back to Julian, putting 30 days in February that
+year!...
+
+Then in 1753, Sweden made the transition to Gregorian in the usual manner,
+getting there only 13 years behind the original schedule.
+
+(A previous posting of this story was challenged, and Swedish readers
+produced the following references to support it: "Tiderakning och historia"
+by Natanael Beckman (1924) and "Tid, en bok om tiderakning och
+kalendervasen" by Lars-Olof Lode'n (no date was given).)
+
+
+Grotefend's data
+
+From: "Michael Palmer" [with one obvious typo fixed]
+Subject: Re: Gregorian Calendar (was Re: Another FHC related question
+Newsgroups: soc.genealogy.german
+Date: Tue, 9 Feb 1999 02:32:48 -800
+...
+
+The following is a(n incomplete) listing, arranged chronologically, of
+European states, with the date they converted from the Julian to the
+Gregorian calendar:
+
+04/15 Oct 1582 - Italy (with exceptions), Spain, Portugal, Poland (Roman
+                 Catholics and Danzig only)
+09/20 Dec 1582 - France, Lorraine
+
+21 Dec 1582/
+   01 Jan 1583 - Holland, Brabant, Flanders, Hennegau
+10/21 Feb 1583 - bishopric of Liege (L"uttich)
+13/24 Feb 1583 - bishopric of Augsburg
+04/15 Oct 1583 - electorate of Trier
+05/16 Oct 1583 - Bavaria, bishoprics of Freising, Eichstedt, Regensburg,
+                 Salzburg, Brixen
+13/24 Oct 1583 - Austrian Oberelsass and Breisgau
+20/31 Oct 1583 - bishopric of Basel
+02/13 Nov 1583 - duchy of J"ulich-Berg
+02/13 Nov 1583 - electorate and city of K"oln
+04/15 Nov 1583 - bishopric of W"urzburg
+11/22 Nov 1583 - electorate of Mainz
+16/27 Nov 1583 - bishopric of Strassburg and the margraviate of Baden
+17/28 Nov 1583 - bishopric of M"unster and duchy of Cleve
+14/25 Dec 1583 - Steiermark
+
+06/17 Jan 1584 - Austria and Bohemia
+11/22 Jan 1584 - Luzern, Uri, Schwyz, Zug, Freiburg, Solothurn
+12/23 Jan 1584 - Silesia and the Lausitz
+22 Jan/
+   02 Feb 1584 - Hungary (legally on 21 Oct 1587)
+      Jun 1584 - Unterwalden
+01/12 Jul 1584 - duchy of Westfalen
+
+16/27 Jun 1585 - bishopric of Paderborn
+
+14/25 Dec 1590 - Transylvania
+
+22 Aug/
+   02 Sep 1612 - duchy of Prussia
+
+13/24 Dec 1614 - Pfalz-Neuburg
+
+          1617 - duchy of Kurland (reverted to the Julian calendar in
+                 1796)
+
+          1624 - bishopric of Osnabr"uck
+
+          1630 - bishopric of Minden
+
+15/26 Mar 1631 - bishopric of Hildesheim
+
+          1655 - Kanton Wallis
+
+05/16 Feb 1682 - city of Strassburg
+
+18 Feb/
+   01 Mar 1700 - Protestant Germany (including Swedish possessions in
+                 Germany), Denmark, Norway
+30 Jun/
+   12 Jul 1700 - Gelderland, Zutphen
+10 Nov/
+   12 Dec 1700 - Utrecht, Overijssel
+
+31 Dec 1700/
+   12 Jan 1701 - Friesland, Groningen, Z"urich, Bern, Basel, Geneva,
+                 Turgau, and Schaffhausen
+
+          1724 - Glarus, Appenzell, and the city of St. Gallen
+
+01 Jan 1750    - Pisa and Florence
+
+02/14 Sep 1752 - Great Britain
+
+17 Feb/
+   01 Mar 1753 - Sweden
+
+1760-1812      - Graub"unden
+
+The Russian empire (including Finland and the Baltic states) did not
+convert to the Gregorian calendar until the Soviet revolution of 1917.
+
+Source:  H. Grotefend, _Taschenbuch der Zeitrechnung des deutschen
+Mittelalters und der Neuzeit_, herausgegeben von Dr. O. Grotefend
+(Hannover:  Hahnsche Buchhandlung, 1941), pp. 26-28.
+
+
+----- Time and time zones on Mars -----
+
+Some people have adjusted their work schedules to fit Mars time.
+Dozens of special Mars watches were built for Jet Propulsion
+Laboratory workers who kept Mars time during the Mars Exploration
+Rovers mission (2004).  These timepieces look like normal Seikos and
+Citizens but use Mars seconds rather than terrestrial seconds.
+
+A Mars solar day is called a "sol" and has a mean period equal to
+about 24 hours 39 minutes 35.244 seconds in terrestrial time.  It is
+divided into a conventional 24-hour clock, so each Mars second equals
+about 1.02749125 terrestrial seconds.
+
+The prime meridian of Mars goes through the center of the crater
+Airy-0, named in honor of the British astronomer who built the
+Greenwich telescope that defines Earth's prime meridian.  Mean solar
+time on the Mars prime meridian is called Mars Coordinated Time (MTC).
+
+Each landed mission on Mars has adopted a different reference for
+solar time keeping, so there is no real standard for Mars time zones.
+For example, the Mars Exploration Rover project (2004) defined two
+time zones "Local Solar Time A" and "Local Solar Time B" for its two
+missions, each zone designed so that its time equals local true solar
+time at approximately the middle of the nominal mission.  Such a "time
+zone" is not particularly suited for any application other than the
+mission itself.
+
+Many calendars have been proposed for Mars, but none have achieved
+wide acceptance.  Astronomers often use Mars Sol Date (MSD) which is a
+sequential count of Mars solar days elapsed since about 1873-12-29
+12:00 GMT.
+
+The tz database does not currently support Mars time, but it is
+documented here in the hopes that support will be added eventually.
+
+Sources:
+
+Michael Allison and Robert Schmunk,
+"Technical Notes on Mars Solar Time as Adopted by the Mars24 Sunclock"
+<http://www.giss.nasa.gov/tools/mars24/help/notes.html> (2004-07-30).
+
+Jia-Rui Chong, "Workdays Fit for a Martian", Los Angeles Times
+(2004-01-14), pp A1, A20-A21.

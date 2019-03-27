@@ -1,0 +1,17 @@
+#!/bin/sh
+# $FreeBSD$
+
+set -e
+
+scriptdir=$(cd $(dirname $0) && pwd)
+fwdir="$scriptdir/../../../../../sys/contrib/dev/drm2/radeonkmsfw"
+srcdir=$1
+
+if [ -z "$srcdir" -o ! -d "$srcdir" ]; then
+	echo "Syntax: $(basename $0) <path to original firmwares>" 1>&2
+	exit
+fi
+
+for file in "$srcdir"/*.bin; do
+	uuencode -o "$fwdir"/$(basename $file).uu $file $(basename $file)
+done

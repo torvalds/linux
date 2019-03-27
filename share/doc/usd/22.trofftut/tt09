@@ -1,0 +1,322 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)tt09	8.1 (Berkeley) 6/8/93
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.NH
+Titles, Pages and Numbering
+.PP
+This is an area where things get tougher,
+because nothing is done for you automatically.
+Of necessity, some of this section is a cookbook,
+to be copied literally until you get some experience.
+.PP
+Suppose you want a title at the top of each page,
+saying just
+.sp 3p
+.lt 2.8i
+.tl 'left top'center top'right top'
+.lt
+.sp 3p
+In
+.UL roff ,
+one can say
+.P1 2
+^he 'left top'center top'right top'
+^fo 'left bottom'center bottom'right bottom'
+.P2
+to get headers and footers automatically on every page.
+Alas, this doesn't work so easily in
+.UL troff ,
+a serious hardship for the novice.
+Instead you have to do a lot of specification (or use
+a macro package, which makes it effortless).
+.PP
+You have to say what the actual title is (easy);
+when to print it (easy enough);
+and what to do at and around the title line (harder).
+Taking these in reverse order,
+first we define a macro
+.BD .NP
+(for `new page') to process
+titles and the like at the end of one page
+and the beginning of the next:
+.P1
+^de NP
+\(fmbp
+\(fmsp 0.5i
+\&.tl 'left top'center top'right top'
+\(fmsp 0.3i
+^^
+.P2
+To make sure we're at the top of a page,
+we issue a `begin page' command
+.BD \(fmbp ,
+which causes a skip to top-of-page
+(we'll explain the
+.BD \(fm
+shortly).
+Then we space down half an inch,
+print the title
+(the use of
+.BD .tl
+should be self explanatory; later we will discuss parameterizing the titles),
+space another 0.3 inches,
+and we're done.
+.PP
+To ask for
+.BD .NP
+at the bottom of each page,
+we have to say something like
+`when the text is within an inch
+of the bottom of the page,
+start the processing
+for a new page.'
+This is done with a `when' command
+.BD .wh :
+.P1
+^wh  \-1i  NP
+.P2
+(No `.' is used before NP;
+this is simply the name of a macro, not a macro call.)
+The minus sign means
+`measure up from the bottom of the page',
+so
+`\-1i' means `one inch from the bottom'.
+.PP
+The
+.BD .wh
+command appears in the input outside the definition of
+.BD .NP ;
+typically the input would be
+.P1
+^de NP
+^^^
+^^
+^wh \-1i NP
+.P2
+.PP
+Now what happens?
+As text is actually being output,
+.UL troff 
+keeps track of its vertical position on the page,
+and after a line is printed within one inch from the bottom,
+the
+.BD .NP
+macro is activated.
+(In the jargon, the
+.BD .wh
+command sets a
+.ul
+trap
+at the specified place,
+which is `sprung' when that point is passed.)
+.BD .NP
+causes a skip to the top of the next page
+(that's what the
+.BD \(fmbp
+was for),
+then prints the title with the appropriate margins.
+.PP
+Why
+.BD \(fmbp
+and
+.BD \(fmsp 
+instead of
+.BD .bp
+and
+.BD .sp ?
+The answer is that
+.BD .sp
+and
+.BD .bp ,
+like several other commands,
+cause a
+.ul
+break
+to take place.
+That is, all the input text collected but not yet printed
+is flushed out as soon as possible,
+and the next input line is guaranteed to start
+a new line of output.
+If we had used
+.BD .sp
+or
+.BD .bp
+in the
+.BD .NP
+macro,
+this would cause a break in the middle
+of the current output line when a new page is started.
+The effect would be to print the left-over part of that line
+at the top of the page, followed by the next input line on a new output line.
+This is
+.ul
+not
+what we want.
+Using
+.BD \(fm
+instead of
+.BD . 
+for a command
+tells
+.UL troff 
+that
+no break is to take place _
+the output line
+currently being filled
+should
+.ul
+not
+be forced out before the space or new page.
+.PP
+The list of commands that cause a break 
+is short and natural:
+.P1
+^bp   ^br   ^ce   ^fi   ^nf   ^sp   ^in   ^ti
+.P2
+All others cause
+.ul
+no
+break,
+regardless of whether you use a
+.BD .
+or a 
+.BD \(fm .
+If you really need a break, add a
+.BD .br 
+command at the appropriate place.
+.PP
+One other thing to beware of _
+if you're changing fonts or point sizes a lot,
+you may find that
+if you cross a page boundary
+in an unexpected font or size,
+your titles come out in that size and font
+instead of what you intended.
+Furthermore, the length of a title is independent of the current line length,
+so titles will come out at the default length of 6.5 inches
+unless you change it,
+which is done with the
+.BD .lt
+command.
+.PP
+There are several ways to fix the problems of point sizes
+and fonts in titles.
+For the simplest applications, we can change
+.BD .NP 
+to set the proper size and font for the title,
+then restore the previous values, like this:
+.P1 2
+.ta .8i
+^de NP
+\(fmbp
+\(fmsp 0.5i
+^ft R	\e" set title font to roman
+^ps 10	\e" and size to 10 point
+^lt 6i	\e" and length to 6 inches
+^tl 'left'center'right'
+^ps	\e" revert to previous size
+^ft P	\e" and to previous font
+\(fmsp 0.3i
+^^
+.P2
+.PP
+This version of
+.BD .NP
+does
+.ul
+not
+work if the fields in the
+.BD .tl
+command contain size or font changes.
+To cope with that
+requires
+.UL troff 's
+`environment' mechanism,
+which we will discuss in Section 13.
+.PP
+To get a footer at the bottom of a page,
+you can modify
+.BD .NP
+so it does
+some processing before
+the
+.BD \(fmbp
+command,
+or split the job into a footer macro invoked
+at the bottom margin and a header macro invoked
+at the top of the page.
+These variations are left as exercises.
+.WS
+.PP
+Output page numbers are computed automatically
+as each page is produced (starting at 1),
+but no numbers are printed unless you ask for them explicitly.
+To get page numbers printed,
+include the character
+.BD %
+in the
+.BD .tl
+line at
+the position where you want the number to appear.
+For example
+.P1
+^tl ''- % -''
+.P2
+centers the page number inside hyphens, as on this page.
+You can set the page number at any time
+with either
+.BD .bp\ n ,
+which immediately starts a new page numbered
+.BD n ,
+or with
+.BD .pn\ n ,
+which sets the page number for the next page
+but doesn't cause a skip to the new page.
+Again,
+.BD .bp\ +n
+sets the page number to
+.BD n
+more than its current value;
+.BD .bp
+means
+.BD .bp\ +1 .

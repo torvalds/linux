@@ -1,0 +1,78 @@
+#!/bin/sh
+# Copyright (c) 2009-2011 Roy Marples
+# All rights reserved
+
+# PowerDNS Recursor subscriber for resolvconf
+
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+[ -f "@SYSCONFDIR@"/resolvconf.conf ] || exit 0
+. "@SYSCONFDIR@/resolvconf.conf" || exit 1
+[ -z "$pdns_zones" ] && exit 0
+[ -z "$RESOLVCONF" ] && eval "$(@SBINDIR@/resolvconf -v)"
+NL="
+"
+
+: ${pdns_service:=pdns_recursor}
+
+newzones=
+
+# pds_recursor does not present support global forward servers, which
+# does limit it's usefulness somewhat.
+# If it did, the below code can be enabled, or something like it.
+#for n in $NAMESERVERS; do
+#	newzones="$newzones${newzones:+,}$n"
+#done
+#[ -n "$newzones" ] && newzones=".=$newzones$NL"
+
+for d in $DOMAINS; do
+	newns=
+	ns="${d#*:}"
+	while [ -n "$ns" ]; do
+		newns="$newns${newns:+,}${ns%%,*}"
+		[ "$ns" = "${ns#*,}" ] && break
+		ns="${ns#*,}"
+	done
+	[ -n "$newns" ] && newzones="$newzones${d%%:*}=$newns$NL"
+done
+
+# Try to ensure that config dirs exist
+if type config_mkdirs >/dev/null 2>&1; then
+	config_mkdirs "$pdnsd_zones"
+else
+	@SBINDIR@/resolvconf -D "$pdnsd_zones"
+fi
+
+if [ ! -f "$pdns_zones" ] || \
+	[ "$(cat "$pdns_zones")" != "$(printf %s "$newzones")" ]
+then
+	printf %s "$newzones" >"$pdns_zones"
+	if [ -n "$pdns_restart" ]; then
+		eval $pdns_restart
+	elif [ -n "$RESTARTCMD" ]; then
+		set -- ${pdns_service}
+		eval $RESTARTCMD
+	else
+		@SBINDIR@/resolvconf -r ${pdns_service}
+	fi
+fi

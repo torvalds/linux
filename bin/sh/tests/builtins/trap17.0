@@ -1,0 +1,10 @@
+# $FreeBSD$
+# This use-after-free bug probably needs non-default settings to show up.
+
+v1=nothing v2=nothing
+trap 'trap "echo bad" USR1
+v1=trap_received
+v2=trap_invoked
+:' USR1
+kill -USR1 "$$"
+[ "$v1.$v2" = trap_received.trap_invoked ]

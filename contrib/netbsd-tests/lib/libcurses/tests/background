@@ -1,0 +1,23 @@
+include start
+call OK bkgd `\002A`
+call OK refresh
+# looks like a bug - bottom right char not filled
+compare background1.chk
+call OK printw "%s" "a test string"
+call OK refresh
+compare background2.chk
+call win1 newwin 6 6 2 5
+check win1 NON_NULL
+call OK wprintw $win1 "%s" "window 1"
+# call OK refresh
+call OK wrefresh $win1
+compare background3.chk
+call OK wbkgd $win1 `\004B`
+call OK refresh
+call OK wrefresh $win1
+compare background4.chk
+call OK wprintw $win1 "%s" "hello world"
+call OK refresh
+call OK wrefresh $win1
+compare background5.chk
+

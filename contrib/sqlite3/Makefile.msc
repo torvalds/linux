@@ -1,0 +1,1015 @@
+#### DO NOT EDIT ####
+# This makefile is automatically generated from the Makefile.msc at
+# the root of the canonical SQLite source tree (not the
+# amalgamation tarball) using the tool/mkmsvcmin.tcl
+# script.
+#
+
+#
+# nmake Makefile for SQLite
+#
+###############################################################################
+############################## START OF OPTIONS ###############################
+###############################################################################
+
+# The toplevel directory of the source tree.  This is the directory
+# that contains this "Makefile.msc".
+#
+TOP = .
+
+
+# Set this non-0 to enable full warnings (-W4, etc) when compiling.
+#
+!IFNDEF USE_FULLWARN
+USE_FULLWARN = 1
+!ENDIF
+
+# Set this non-0 to enable treating warnings as errors (-WX, etc) when
+# compiling.
+#
+!IFNDEF USE_FATAL_WARN
+USE_FATAL_WARN = 0
+!ENDIF
+
+# Set this non-0 to enable full runtime error checks (-RTC1, etc).  This
+# has no effect if (any) optimizations are enabled.
+#
+!IFNDEF USE_RUNTIME_CHECKS
+USE_RUNTIME_CHECKS = 0
+!ENDIF
+
+# Set this non-0 to create a SQLite amalgamation file that excludes the
+# various built-in extensions.
+#
+!IFNDEF MINIMAL_AMALGAMATION
+MINIMAL_AMALGAMATION = 0
+!ENDIF
+
+# Set this non-0 to use "stdcall" calling convention for the core library
+# and shell executable.
+#
+!IFNDEF USE_STDCALL
+USE_STDCALL = 0
+!ENDIF
+
+# Set this non-0 to have the shell executable link against the core dynamic
+# link library.
+#
+!IFNDEF DYNAMIC_SHELL
+DYNAMIC_SHELL = 0
+!ENDIF
+
+# Set this non-0 to enable extra code that attempts to detect misuse of the
+# SQLite API.
+#
+!IFNDEF API_ARMOR
+API_ARMOR = 0
+!ENDIF
+
+# If necessary, create a list of harmless compiler warnings to disable when
+# compiling the various tools.  For the SQLite source code itself, warnings,
+# if any, will be disabled from within it.
+#
+!IFNDEF NO_WARN
+!IF $(USE_FULLWARN)!=0
+NO_WARN = -wd4054 -wd4055 -wd4100 -wd4127 -wd4130 -wd4152 -wd4189 -wd4206
+NO_WARN = $(NO_WARN) -wd4210 -wd4232 -wd4305 -wd4306 -wd4702 -wd4706
+!ENDIF
+!ENDIF
+
+# Set this non-0 to use the library paths and other options necessary for
+# Windows Phone 8.1.
+#
+!IFNDEF USE_WP81_OPTS
+USE_WP81_OPTS = 0
+!ENDIF
+
+# Set this non-0 to split the SQLite amalgamation file into chunks to
+# be used for debugging with Visual Studio.
+#
+!IFNDEF SPLIT_AMALGAMATION
+SPLIT_AMALGAMATION = 0
+!ENDIF
+
+
+# Set this non-0 to dynamically link to the MSVC runtime library.
+#
+!IFNDEF USE_CRT_DLL
+USE_CRT_DLL = 0
+!ENDIF
+
+# Set this non-0 to link to the RPCRT4 library.
+#
+!IFNDEF USE_RPCRT4_LIB
+USE_RPCRT4_LIB = 0
+!ENDIF
+
+# Set this non-0 to generate assembly code listings for the source code
+# files.
+#
+!IFNDEF USE_LISTINGS
+USE_LISTINGS = 0
+!ENDIF
+
+# Set this non-0 to attempt setting the native compiler automatically
+# for cross-compiling the command line tools needed during the compilation
+# process.
+#
+!IFNDEF XCOMPILE
+XCOMPILE = 0
+!ENDIF
+
+# Set this non-0 to use the native libraries paths for cross-compiling
+# the command line tools needed during the compilation process.
+#
+!IFNDEF USE_NATIVE_LIBPATHS
+USE_NATIVE_LIBPATHS = 0
+!ENDIF
+
+# Set this 0 to skip the compiling and embedding of version resources.
+#
+!IFNDEF USE_RC
+USE_RC = 1
+!ENDIF
+
+# Set this non-0 to compile binaries suitable for the WinRT environment.
+# This setting does not apply to any binaries that require Tcl to operate
+# properly (i.e. the text fixture, etc).
+#
+!IFNDEF FOR_WINRT
+FOR_WINRT = 0
+!ENDIF
+
+# Set this non-0 to compile binaries suitable for the UWP environment.
+# This setting does not apply to any binaries that require Tcl to operate
+# properly (i.e. the text fixture, etc).
+#
+!IFNDEF FOR_UWP
+FOR_UWP = 0
+!ENDIF
+
+# Set this non-0 to compile binaries suitable for the Windows 10 platform.
+#
+!IFNDEF FOR_WIN10
+FOR_WIN10 = 0
+!ENDIF
+
+
+# Set this to non-0 to create and use PDBs.
+#
+!IFNDEF SYMBOLS
+SYMBOLS = 1
+!ENDIF
+
+# Set this to non-0 to use the SQLite debugging heap subsystem.
+#
+!IFNDEF MEMDEBUG
+MEMDEBUG = 0
+!ENDIF
+
+# Set this to non-0 to use the Win32 native heap subsystem.
+#
+!IFNDEF WIN32HEAP
+WIN32HEAP = 0
+!ENDIF
+
+# Set this to non-0 to enable OSTRACE() macros, which can be useful when
+# debugging.
+#
+!IFNDEF OSTRACE
+OSTRACE = 0
+!ENDIF
+
+# Set this to one of the following values to enable various debugging
+# features.  Each level includes the debugging options from the previous
+# levels.  Currently, the recognized values for DEBUG are:
+#
+# 0 == NDEBUG: Disables assert() and other runtime diagnostics.
+# 1 == SQLITE_ENABLE_API_ARMOR: extra attempts to detect misuse of the API.
+# 2 == Disables NDEBUG and all optimizations and then enables PDBs.
+# 3 == SQLITE_DEBUG: Enables various diagnostics messages and code.
+# 4 == SQLITE_WIN32_MALLOC_VALIDATE: Validate the Win32 native heap per call.
+# 5 == SQLITE_DEBUG_OS_TRACE: Enables output from the OSTRACE() macros.
+# 6 == SQLITE_ENABLE_IOTRACE: Enables output from the IOTRACE() macros.
+#
+!IFNDEF DEBUG
+DEBUG = 0
+!ENDIF
+
+# Enable use of available compiler optimizations?  Normally, this should be
+# non-zero.  Setting this to zero, thus disabling all compiler optimizations,
+# can be useful for testing.
+#
+!IFNDEF OPTIMIZATIONS
+OPTIMIZATIONS = 2
+!ENDIF
+
+# Set this to non-0 to enable support for the session extension.
+#
+!IFNDEF SESSION
+SESSION = 0
+!ENDIF
+
+# Set the source code file to be used by executables and libraries when
+# they need the amalgamation.
+#
+!IFNDEF SQLITE3C
+!IF $(SPLIT_AMALGAMATION)!=0
+SQLITE3C = sqlite3-all.c
+!ELSE
+SQLITE3C = sqlite3.c
+!ENDIF
+!ENDIF
+
+# Set the include code file to be used by executables and libraries when
+# they need SQLite.
+#
+!IFNDEF SQLITE3H
+SQLITE3H = sqlite3.h
+!ENDIF
+
+# This is the name to use for the SQLite dynamic link library (DLL).
+#
+!IFNDEF SQLITE3DLL
+!IF $(FOR_WIN10)!=0
+SQLITE3DLL = winsqlite3.dll
+!ELSE
+SQLITE3DLL = sqlite3.dll
+!ENDIF
+!ENDIF
+
+# This is the name to use for the SQLite import library (LIB).
+#
+!IFNDEF SQLITE3LIB
+!IF $(FOR_WIN10)!=0
+SQLITE3LIB = winsqlite3.lib
+!ELSE
+SQLITE3LIB = sqlite3.lib
+!ENDIF
+!ENDIF
+
+# This is the name to use for the SQLite shell executable (EXE).
+#
+!IFNDEF SQLITE3EXE
+!IF $(FOR_WIN10)!=0
+SQLITE3EXE = winsqlite3shell.exe
+!ELSE
+SQLITE3EXE = sqlite3.exe
+!ENDIF
+!ENDIF
+
+# This is the argument used to set the program database (PDB) file for the
+# SQLite shell executable (EXE).
+#
+!IFNDEF SQLITE3EXEPDB
+!IF $(FOR_WIN10)!=0
+SQLITE3EXEPDB =
+!ELSE
+SQLITE3EXEPDB = /pdb:sqlite3sh.pdb
+!ENDIF
+!ENDIF
+
+
+# These are the "standard" SQLite compilation options used when compiling for
+# the Windows platform.
+#
+!IFNDEF OPT_FEATURE_FLAGS
+!IF $(MINIMAL_AMALGAMATION)==0
+OPT_FEATURE_FLAGS = $(OPT_FEATURE_FLAGS) -DSQLITE_ENABLE_FTS3=1
+OPT_FEATURE_FLAGS = $(OPT_FEATURE_FLAGS) -DSQLITE_ENABLE_RTREE=1
+OPT_FEATURE_FLAGS = $(OPT_FEATURE_FLAGS) -DSQLITE_ENABLE_GEOPOLY=1
+OPT_FEATURE_FLAGS = $(OPT_FEATURE_FLAGS) -DSQLITE_ENABLE_JSON1=1
+OPT_FEATURE_FLAGS = $(OPT_FEATURE_FLAGS) -DSQLITE_ENABLE_STMTVTAB=1
+OPT_FEATURE_FLAGS = $(OPT_FEATURE_FLAGS) -DSQLITE_ENABLE_DBPAGE_VTAB=1
+OPT_FEATURE_FLAGS = $(OPT_FEATURE_FLAGS) -DSQLITE_ENABLE_DBSTAT_VTAB=1
+OPT_FEATURE_FLAGS = $(OPT_FEATURE_FLAGS) -DSQLITE_INTROSPECTION_PRAGMAS=1
+!ENDIF
+OPT_FEATURE_FLAGS = $(OPT_FEATURE_FLAGS) -DSQLITE_ENABLE_COLUMN_METADATA=1
+!ENDIF
+
+# Should the session extension be enabled?  If so, add compilation options
+# to enable it.
+#
+!IF $(SESSION)!=0
+OPT_FEATURE_FLAGS = $(OPT_FEATURE_FLAGS) -DSQLITE_ENABLE_SESSION=1
+OPT_FEATURE_FLAGS = $(OPT_FEATURE_FLAGS) -DSQLITE_ENABLE_PREUPDATE_HOOK=1
+!ENDIF
+
+# These are the "extended" SQLite compilation options used when compiling for
+# the Windows 10 platform.
+#
+!IFNDEF EXT_FEATURE_FLAGS
+!IF $(FOR_WIN10)!=0
+EXT_FEATURE_FLAGS = $(EXT_FEATURE_FLAGS) -DSQLITE_ENABLE_FTS4=1
+EXT_FEATURE_FLAGS = $(EXT_FEATURE_FLAGS) -DSQLITE_SYSTEM_MALLOC=1
+EXT_FEATURE_FLAGS = $(EXT_FEATURE_FLAGS) -DSQLITE_OMIT_LOCALTIME=1
+!ELSE
+EXT_FEATURE_FLAGS =
+!ENDIF
+!ENDIF
+
+###############################################################################
+############################### END OF OPTIONS ################################
+###############################################################################
+
+# When compiling for the Windows 10 platform, the PLATFORM macro must be set
+# to an appropriate value (e.g. x86, x64, arm, arm64, etc).
+#
+!IF $(FOR_WIN10)!=0
+!IFNDEF PLATFORM
+!ERROR Using the FOR_WIN10 option requires a value for PLATFORM.
+!ENDIF
+!ENDIF
+
+# This assumes that MSVC is always installed in 32-bit Program Files directory
+# and sets the variable for use in locating other 32-bit installs accordingly.
+#
+PROGRAMFILES_X86 = $(VCINSTALLDIR)\..\..
+PROGRAMFILES_X86 = $(PROGRAMFILES_X86:\\=\)
+
+# Check for the predefined command macro CC.  This should point to the compiler
+# binary for the target platform.  If it is not defined, simply define it to
+# the legacy default value 'cl.exe'.
+#
+!IFNDEF CC
+CC = cl.exe
+!ENDIF
+
+# Check for the predefined command macro CSC.  This should point to a working
+# C Sharp compiler binary.  If it is not defined, simply define it to the
+# legacy default value 'csc.exe'.
+#
+!IFNDEF CSC
+CSC = csc.exe
+!ENDIF
+
+# Check for the command macro LD.  This should point to the linker binary for
+# the target platform.  If it is not defined, simply define it to the legacy
+# default value 'link.exe'.
+#
+!IFNDEF LD
+LD = link.exe
+!ENDIF
+
+# Check for the predefined command macro RC.  This should point to the resource
+# compiler binary for the target platform.  If it is not defined, simply define
+# it to the legacy default value 'rc.exe'.
+#
+!IFNDEF RC
+RC = rc.exe
+!ENDIF
+
+# Check for the MSVC runtime library path macro.  Otherwise, this value will
+# default to the 'lib' directory underneath the MSVC installation directory.
+#
+!IFNDEF CRTLIBPATH
+CRTLIBPATH = $(VCINSTALLDIR)\lib
+!ENDIF
+
+CRTLIBPATH = $(CRTLIBPATH:\\=\)
+
+# Check for the command macro NCC.  This should point to the compiler binary
+# for the platform the compilation process is taking place on.  If it is not
+# defined, simply define it to have the same value as the CC macro.  When
+# cross-compiling, it is suggested that this macro be modified via the command
+# line (since nmake itself does not provide a built-in method to guess it).
+# For example, to use the x86 compiler when cross-compiling for x64, a command
+# line similar to the following could be used (all on one line):
+#
+#     nmake /f Makefile.msc sqlite3.dll
+#           XCOMPILE=1 USE_NATIVE_LIBPATHS=1
+#
+# Alternatively, the full path and file name to the compiler binary for the
+# platform the compilation process is taking place may be specified (all on
+# one line):
+#
+#     nmake /f Makefile.msc sqlite3.dll
+#           "NCC=""%VCINSTALLDIR%\bin\cl.exe"""
+#           USE_NATIVE_LIBPATHS=1
+#
+!IFDEF NCC
+NCC = $(NCC:\\=\)
+!ELSEIF $(XCOMPILE)!=0
+NCC = "$(VCINSTALLDIR)\bin\$(CC)"
+NCC = $(NCC:\\=\)
+!ELSE
+NCC = $(CC)
+!ENDIF
+
+# Check for the MSVC native runtime library path macro.  Otherwise,
+# this value will default to the 'lib' directory underneath the MSVC
+# installation directory.
+#
+!IFNDEF NCRTLIBPATH
+NCRTLIBPATH = $(VCINSTALLDIR)\lib
+!ENDIF
+
+NCRTLIBPATH = $(NCRTLIBPATH:\\=\)
+
+# Check for the Platform SDK library path macro.  Otherwise, this
+# value will default to the 'lib' directory underneath the Windows
+# SDK installation directory (the environment variable used appears
+# to be available when using Visual C++ 2008 or later via the
+# command line).
+#
+!IFNDEF NSDKLIBPATH
+NSDKLIBPATH = $(WINDOWSSDKDIR)\lib
+!ENDIF
+
+NSDKLIBPATH = $(NSDKLIBPATH:\\=\)
+
+# Check for the UCRT library path macro.  Otherwise, this value will
+# default to the version-specific, platform-specific 'lib' directory
+# underneath the Windows SDK installation directory.
+#
+!IFNDEF UCRTLIBPATH
+UCRTLIBPATH = $(WINDOWSSDKDIR)\lib\$(WINDOWSSDKLIBVERSION)\ucrt\$(PLATFORM)
+!ENDIF
+
+UCRTLIBPATH = $(UCRTLIBPATH:\\=\)
+
+# C compiler and options for use in building executables that
+# will run on the platform that is doing the build.
+#
+!IF $(USE_FULLWARN)!=0
+BCC = $(NCC) -nologo -W4 $(CCOPTS) $(BCCOPTS)
+!ELSE
+BCC = $(NCC) -nologo -W3 $(CCOPTS) $(BCCOPTS)
+!ENDIF
+
+# Check if assembly code listings should be generated for the source
+# code files to be compiled.
+#
+!IF $(USE_LISTINGS)!=0
+BCC = $(BCC) -FAcs
+!ENDIF
+
+# Check if the native library paths should be used when compiling
+# the command line tools used during the compilation process.  If
+# so, set the necessary macro now.
+#
+!IF $(USE_NATIVE_LIBPATHS)!=0
+NLTLIBPATHS = "/LIBPATH:$(NCRTLIBPATH)" "/LIBPATH:$(NSDKLIBPATH)"
+
+!IFDEF NUCRTLIBPATH
+NUCRTLIBPATH = $(NUCRTLIBPATH:\\=\)
+NLTLIBPATHS = $(NLTLIBPATHS) "/LIBPATH:$(NUCRTLIBPATH)"
+!ENDIF
+!ENDIF
+
+# C compiler and options for use in building executables that
+# will run on the target platform.  (BCC and TCC are usually the
+# same unless your are cross-compiling.)
+#
+!IF $(USE_FULLWARN)!=0
+TCC = $(CC) -nologo -W4 -DINCLUDE_MSVC_H=1 $(CCOPTS) $(TCCOPTS)
+!ELSE
+TCC = $(CC) -nologo -W3 $(CCOPTS) $(TCCOPTS)
+!ENDIF
+
+# Check if warnings should be treated as errors when compiling.
+#
+!IF $(USE_FATAL_WARN)!=0
+TCC = $(TCC) -WX
+!ENDIF
+
+TCC = $(TCC) -DSQLITE_OS_WIN=1 -I. -I$(TOP) -fp:precise
+RCC = $(RC) -DSQLITE_OS_WIN=1 -I. -I$(TOP) $(RCOPTS) $(RCCOPTS)
+
+# Check if we want to use the "stdcall" calling convention when compiling.
+# This is not supported by the compilers for non-x86 platforms.  It should
+# also be noted here that building any target with these "stdcall" options
+# will most likely fail if the Tcl library is also required.  This is due
+# to how the Tcl library functions are declared and exported (i.e. without
+# an explicit calling convention, which results in "cdecl").
+#
+!IF $(USE_STDCALL)!=0 || $(FOR_WIN10)!=0
+!IF "$(PLATFORM)"=="x86"
+CORE_CCONV_OPTS = -Gz -DSQLITE_CDECL=__cdecl -DSQLITE_APICALL=__stdcall -DSQLITE_CALLBACK=__stdcall -DSQLITE_SYSAPI=__stdcall
+SHELL_CCONV_OPTS = -Gz -DSQLITE_CDECL=__cdecl -DSQLITE_APICALL=__stdcall -DSQLITE_CALLBACK=__stdcall -DSQLITE_SYSAPI=__stdcall
+!ELSE
+!IFNDEF PLATFORM
+CORE_CCONV_OPTS = -Gz -DSQLITE_CDECL=__cdecl -DSQLITE_APICALL=__stdcall -DSQLITE_CALLBACK=__stdcall -DSQLITE_SYSAPI=__stdcall
+SHELL_CCONV_OPTS = -Gz -DSQLITE_CDECL=__cdecl -DSQLITE_APICALL=__stdcall -DSQLITE_CALLBACK=__stdcall -DSQLITE_SYSAPI=__stdcall
+!ELSE
+CORE_CCONV_OPTS =
+SHELL_CCONV_OPTS =
+!ENDIF
+!ENDIF
+!ELSE
+CORE_CCONV_OPTS =
+SHELL_CCONV_OPTS =
+!ENDIF
+
+# These are additional compiler options used for the core library.
+#
+!IFNDEF CORE_COMPILE_OPTS
+!IF $(DYNAMIC_SHELL)!=0 || $(FOR_WIN10)!=0
+CORE_COMPILE_OPTS = $(CORE_CCONV_OPTS) -DSQLITE_API=__declspec(dllexport)
+!ELSE
+CORE_COMPILE_OPTS = $(CORE_CCONV_OPTS)
+!ENDIF
+!ENDIF
+
+# These are the additional targets that the core library should depend on
+# when linking.
+#
+!IFNDEF CORE_LINK_DEP
+!IF $(DYNAMIC_SHELL)!=0
+CORE_LINK_DEP =
+!ELSEIF $(FOR_WIN10)==0 || "$(PLATFORM)"=="x86"
+CORE_LINK_DEP = sqlite3.def
+!ELSE
+CORE_LINK_DEP =
+!ENDIF
+!ENDIF
+
+# These are additional linker options used for the core library.
+#
+!IFNDEF CORE_LINK_OPTS
+!IF $(DYNAMIC_SHELL)!=0
+CORE_LINK_OPTS =
+!ELSEIF $(FOR_WIN10)==0 || "$(PLATFORM)"=="x86"
+CORE_LINK_OPTS = /DEF:sqlite3.def
+!ELSE
+CORE_LINK_OPTS =
+!ENDIF
+!ENDIF
+
+# These are additional compiler options used for the shell executable.
+#
+!IFNDEF SHELL_COMPILE_OPTS
+!IF $(DYNAMIC_SHELL)!=0 || $(FOR_WIN10)!=0
+SHELL_COMPILE_OPTS = $(SHELL_CCONV_OPTS) -DSQLITE_API=__declspec(dllimport)
+!ELSE
+SHELL_COMPILE_OPTS = $(SHELL_CCONV_OPTS)
+!ENDIF
+!ENDIF
+
+# This is the source code that the shell executable should be compiled
+# with.
+#
+!IFNDEF SHELL_CORE_SRC
+!IF $(DYNAMIC_SHELL)!=0 || $(FOR_WIN10)!=0
+SHELL_CORE_SRC =
+!ELSE
+SHELL_CORE_SRC = $(SQLITE3C)
+!ENDIF
+!ENDIF
+
+# This is the core library that the shell executable should depend on.
+#
+!IFNDEF SHELL_CORE_DEP
+!IF $(DYNAMIC_SHELL)!=0 || $(FOR_WIN10)!=0
+SHELL_CORE_DEP = $(SQLITE3DLL)
+!ELSE
+SHELL_CORE_DEP =
+!ENDIF
+!ENDIF
+
+
+# This is the core library that the shell executable should link with.
+#
+!IFNDEF SHELL_CORE_LIB
+!IF $(DYNAMIC_SHELL)!=0 || $(FOR_WIN10)!=0
+SHELL_CORE_LIB = $(SQLITE3LIB)
+!ELSE
+SHELL_CORE_LIB =
+!ENDIF
+!ENDIF
+
+# These are additional linker options used for the shell executable.
+#
+!IFNDEF SHELL_LINK_OPTS
+SHELL_LINK_OPTS = $(SHELL_CORE_LIB)
+!ENDIF
+
+# Check if assembly code listings should be generated for the source
+# code files to be compiled.
+#
+!IF $(USE_LISTINGS)!=0
+TCC = $(TCC) -FAcs
+!ENDIF
+
+# When compiling the library for use in the WinRT environment,
+# the following compile-time options must be used as well to
+# disable use of Win32 APIs that are not available and to enable
+# use of Win32 APIs that are specific to Windows 8 and/or WinRT.
+#
+!IF $(FOR_WINRT)!=0
+TCC = $(TCC) -DSQLITE_OS_WINRT=1
+RCC = $(RCC) -DSQLITE_OS_WINRT=1
+TCC = $(TCC) -DWINAPI_FAMILY=WINAPI_FAMILY_APP
+RCC = $(RCC) -DWINAPI_FAMILY=WINAPI_FAMILY_APP
+!ENDIF
+
+# C compiler options for the Windows 10 platform (needs MSVC 2015).
+#
+!IF $(FOR_WIN10)!=0
+TCC = $(TCC) /d2guard4 -D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE
+BCC = $(BCC) /d2guard4 -D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE
+!ENDIF
+
+# Also, we need to dynamically link to the correct MSVC runtime
+# when compiling for WinRT (e.g. debug or release) OR if the
+# USE_CRT_DLL option is set to force dynamically linking to the
+# MSVC runtime library.
+#
+!IF $(FOR_WINRT)!=0 || $(USE_CRT_DLL)!=0
+!IF $(DEBUG)>1
+TCC = $(TCC) -MDd
+BCC = $(BCC) -MDd
+!ELSE
+TCC = $(TCC) -MD
+BCC = $(BCC) -MD
+!ENDIF
+!ELSE
+!IF $(DEBUG)>1
+TCC = $(TCC) -MTd
+BCC = $(BCC) -MTd
+!ELSE
+TCC = $(TCC) -MT
+BCC = $(BCC) -MT
+!ENDIF
+!ENDIF
+
+
+# Define -DNDEBUG to compile without debugging (i.e., for production usage)
+# Omitting the define will cause extra debugging code to be inserted and
+# includes extra comments when "EXPLAIN stmt" is used.
+#
+!IF $(DEBUG)==0
+TCC = $(TCC) -DNDEBUG
+BCC = $(BCC) -DNDEBUG
+RCC = $(RCC) -DNDEBUG
+!ENDIF
+
+!IF $(DEBUG)>0 || $(API_ARMOR)!=0 || $(FOR_WIN10)!=0
+TCC = $(TCC) -DSQLITE_ENABLE_API_ARMOR=1
+RCC = $(RCC) -DSQLITE_ENABLE_API_ARMOR=1
+!ENDIF
+
+!IF $(DEBUG)>2
+TCC = $(TCC) -DSQLITE_DEBUG=1
+RCC = $(RCC) -DSQLITE_DEBUG=1
+!IF $(DYNAMIC_SHELL)==0
+TCC = $(TCC) -DSQLITE_ENABLE_WHERETRACE -DSQLITE_ENABLE_SELECTTRACE
+RCC = $(RCC) -DSQLITE_ENABLE_WHERETRACE -DSQLITE_ENABLE_SELECTTRACE
+!ENDIF
+!ENDIF
+
+!IF $(DEBUG)>4 || $(OSTRACE)!=0
+TCC = $(TCC) -DSQLITE_FORCE_OS_TRACE=1 -DSQLITE_DEBUG_OS_TRACE=1
+RCC = $(RCC) -DSQLITE_FORCE_OS_TRACE=1 -DSQLITE_DEBUG_OS_TRACE=1
+!ENDIF
+
+!IF $(DEBUG)>5
+TCC = $(TCC) -DSQLITE_ENABLE_IOTRACE=1
+RCC = $(RCC) -DSQLITE_ENABLE_IOTRACE=1
+!ENDIF
+
+# Prevent warnings about "insecure" MSVC runtime library functions
+# being used.
+#
+TCC = $(TCC) -D_CRT_SECURE_NO_DEPRECATE -D_CRT_SECURE_NO_WARNINGS
+BCC = $(BCC) -D_CRT_SECURE_NO_DEPRECATE -D_CRT_SECURE_NO_WARNINGS
+RCC = $(RCC) -D_CRT_SECURE_NO_DEPRECATE -D_CRT_SECURE_NO_WARNINGS
+
+# Prevent warnings about "deprecated" POSIX functions being used.
+#
+TCC = $(TCC) -D_CRT_NONSTDC_NO_DEPRECATE -D_CRT_NONSTDC_NO_WARNINGS
+BCC = $(BCC) -D_CRT_NONSTDC_NO_DEPRECATE -D_CRT_NONSTDC_NO_WARNINGS
+RCC = $(RCC) -D_CRT_NONSTDC_NO_DEPRECATE -D_CRT_NONSTDC_NO_WARNINGS
+
+# Use the SQLite debugging heap subsystem?
+#
+!IF $(MEMDEBUG)!=0
+TCC = $(TCC) -DSQLITE_MEMDEBUG=1
+RCC = $(RCC) -DSQLITE_MEMDEBUG=1
+
+# Use native Win32 heap subsystem instead of malloc/free?
+#
+!ELSEIF $(WIN32HEAP)!=0
+TCC = $(TCC) -DSQLITE_WIN32_MALLOC=1
+RCC = $(RCC) -DSQLITE_WIN32_MALLOC=1
+
+# Validate the heap on every call into the native Win32 heap subsystem?
+#
+!IF $(DEBUG)>3
+TCC = $(TCC) -DSQLITE_WIN32_MALLOC_VALIDATE=1
+RCC = $(RCC) -DSQLITE_WIN32_MALLOC_VALIDATE=1
+!ENDIF
+!ENDIF
+
+
+# Compiler options needed for programs that use the readline() library.
+#
+!IFNDEF READLINE_FLAGS
+READLINE_FLAGS = -DHAVE_READLINE=0
+!ENDIF
+
+# The library that programs using readline() must link against.
+#
+!IFNDEF LIBREADLINE
+LIBREADLINE =
+!ENDIF
+
+# Should the database engine be compiled threadsafe
+#
+TCC = $(TCC) -DSQLITE_THREADSAFE=1
+RCC = $(RCC) -DSQLITE_THREADSAFE=1
+
+# Do threads override each others locks by default (1), or do we test (-1)
+#
+TCC = $(TCC) -DSQLITE_THREAD_OVERRIDE_LOCK=-1
+RCC = $(RCC) -DSQLITE_THREAD_OVERRIDE_LOCK=-1
+
+# Any target libraries which libsqlite must be linked against
+#
+!IFNDEF TLIBS
+TLIBS =
+!ENDIF
+
+# Flags controlling use of the in memory btree implementation
+#
+# SQLITE_TEMP_STORE is 0 to force temporary tables to be in a file, 1 to
+# default to file, 2 to default to memory, and 3 to force temporary
+# tables to always be in memory.
+#
+TCC = $(TCC) -DSQLITE_TEMP_STORE=1
+RCC = $(RCC) -DSQLITE_TEMP_STORE=1
+
+# Enable/disable loadable extensions, and other optional features
+# based on configuration. (-DSQLITE_OMIT*, -DSQLITE_ENABLE*).
+# The same set of OMIT and ENABLE flags should be passed to the
+# LEMON parser generator and the mkkeywordhash tool as well.
+
+# These are the required SQLite compilation options used when compiling for
+# the Windows platform.
+#
+REQ_FEATURE_FLAGS = $(REQ_FEATURE_FLAGS) -DSQLITE_MAX_TRIGGER_DEPTH=100
+
+# If we are linking to the RPCRT4 library, enable features that need it.
+#
+!IF $(USE_RPCRT4_LIB)!=0
+REQ_FEATURE_FLAGS = $(REQ_FEATURE_FLAGS) -DSQLITE_WIN32_USE_UUID=1
+!ENDIF
+
+# Add the required and optional SQLite compilation options into the command
+# lines used to invoke the MSVC code and resource compilers.
+#
+TCC = $(TCC) $(REQ_FEATURE_FLAGS) $(OPT_FEATURE_FLAGS) $(EXT_FEATURE_FLAGS)
+RCC = $(RCC) $(REQ_FEATURE_FLAGS) $(OPT_FEATURE_FLAGS) $(EXT_FEATURE_FLAGS)
+
+# Add in any optional parameters specified on the commane line, e.g.
+# nmake /f Makefile.msc all "OPTS=-DSQLITE_ENABLE_FOO=1 -DSQLITE_OMIT_FOO=1"
+#
+TCC = $(TCC) $(OPTS)
+RCC = $(RCC) $(OPTS)
+
+# If compiling for debugging, add some defines.
+#
+!IF $(DEBUG)>1
+TCC = $(TCC) -D_DEBUG
+BCC = $(BCC) -D_DEBUG
+RCC = $(RCC) -D_DEBUG
+!ENDIF
+
+# If optimizations are enabled or disabled (either implicitly or
+# explicitly), add the necessary flags.
+#
+!IF $(DEBUG)>1 || $(OPTIMIZATIONS)==0
+TCC = $(TCC) -Od
+BCC = $(BCC) -Od
+!IF $(USE_RUNTIME_CHECKS)!=0
+TCC = $(TCC) -RTC1
+BCC = $(BCC) -RTC1
+!ENDIF
+!ELSEIF $(OPTIMIZATIONS)>=3
+TCC = $(TCC) -Ox
+BCC = $(BCC) -Ox
+!ELSEIF $(OPTIMIZATIONS)==2
+TCC = $(TCC) -O2
+BCC = $(BCC) -O2
+!ELSEIF $(OPTIMIZATIONS)==1
+TCC = $(TCC) -O1
+BCC = $(BCC) -O1
+!ENDIF
+
+# If symbols are enabled (or compiling for debugging), enable PDBs.
+#
+!IF $(DEBUG)>1 || $(SYMBOLS)!=0
+TCC = $(TCC) -Zi
+BCC = $(BCC) -Zi
+!ENDIF
+
+
+# Command line prefixes for compiling code, compiling resources,
+# linking, etc.
+#
+LTCOMPILE = $(TCC) -Fo$@
+LTRCOMPILE = $(RCC) -r
+LTLIB = lib.exe
+LTLINK = $(TCC) -Fe$@
+
+# If requested, link to the RPCRT4 library.
+#
+!IF $(USE_RPCRT4_LIB)!=0
+LTLIBS = $(LTLIBS) rpcrt4.lib
+!ENDIF
+
+# If a platform was set, force the linker to target that.
+# Note that the vcvars*.bat family of batch files typically
+# set this for you.  Otherwise, the linker will attempt
+# to deduce the binary type based on the object files.
+!IFDEF PLATFORM
+LTLINKOPTS = /NOLOGO /MACHINE:$(PLATFORM)
+LTLIBOPTS = /NOLOGO /MACHINE:$(PLATFORM)
+!ELSE
+LTLINKOPTS = /NOLOGO
+LTLIBOPTS = /NOLOGO
+!ENDIF
+
+# When compiling for use in the WinRT environment, the following
+# linker option must be used to mark the executable as runnable
+# only in the context of an application container.
+#
+!IF $(FOR_WINRT)!=0
+LTLINKOPTS = $(LTLINKOPTS) /APPCONTAINER
+!IF "$(VISUALSTUDIOVERSION)"=="12.0" || "$(VISUALSTUDIOVERSION)"=="14.0"
+!IFNDEF STORELIBPATH
+!IF "$(PLATFORM)"=="x86"
+STORELIBPATH = $(CRTLIBPATH)\store
+!ELSEIF "$(PLATFORM)"=="x64"
+STORELIBPATH = $(CRTLIBPATH)\store\amd64
+!ELSEIF "$(PLATFORM)"=="ARM"
+STORELIBPATH = $(CRTLIBPATH)\store\arm
+!ELSE
+STORELIBPATH = $(CRTLIBPATH)\store
+!ENDIF
+!ENDIF
+STORELIBPATH = $(STORELIBPATH:\\=\)
+LTLINKOPTS = $(LTLINKOPTS) "/LIBPATH:$(STORELIBPATH)"
+!ENDIF
+!ENDIF
+
+# When compiling for Windows Phone 8.1, an extra library path is
+# required.
+#
+!IF $(USE_WP81_OPTS)!=0
+!IFNDEF WP81LIBPATH
+!IF "$(PLATFORM)"=="x86"
+WP81LIBPATH = $(PROGRAMFILES_X86)\Windows Phone Kits\8.1\lib\x86
+!ELSEIF "$(PLATFORM)"=="ARM"
+WP81LIBPATH = $(PROGRAMFILES_X86)\Windows Phone Kits\8.1\lib\ARM
+!ELSE
+WP81LIBPATH = $(PROGRAMFILES_X86)\Windows Phone Kits\8.1\lib\x86
+!ENDIF
+!ENDIF
+!ENDIF
+
+# When compiling for Windows Phone 8.1, some extra linker options
+# are also required.
+#
+!IF $(USE_WP81_OPTS)!=0
+!IFDEF WP81LIBPATH
+LTLINKOPTS = $(LTLINKOPTS) "/LIBPATH:$(WP81LIBPATH)"
+!ENDIF
+LTLINKOPTS = $(LTLINKOPTS) /DYNAMICBASE
+LTLINKOPTS = $(LTLINKOPTS) WindowsPhoneCore.lib RuntimeObject.lib PhoneAppModelHost.lib
+LTLINKOPTS = $(LTLINKOPTS) /NODEFAULTLIB:kernel32.lib /NODEFAULTLIB:ole32.lib
+!ENDIF
+
+# When compiling for UWP or the Windows 10 platform, some extra linker
+# options are also required.
+#
+!IF $(FOR_UWP)!=0 || $(FOR_WIN10)!=0
+LTLINKOPTS = $(LTLINKOPTS) /DYNAMICBASE /NODEFAULTLIB:kernel32.lib
+LTLINKOPTS = $(LTLINKOPTS) mincore.lib
+!IFDEF PSDKLIBPATH
+LTLINKOPTS = $(LTLINKOPTS) "/LIBPATH:$(PSDKLIBPATH)"
+!ENDIF
+!ENDIF
+
+!IF $(FOR_WIN10)!=0
+LTLINKOPTS = $(LTLINKOPTS) /guard:cf "/LIBPATH:$(UCRTLIBPATH)"
+!IF $(DEBUG)>1
+LTLINKOPTS = $(LTLINKOPTS) /NODEFAULTLIB:libucrtd.lib /DEFAULTLIB:ucrtd.lib
+!ELSE
+LTLINKOPTS = $(LTLINKOPTS) /NODEFAULTLIB:libucrt.lib /DEFAULTLIB:ucrt.lib
+!ENDIF
+!ENDIF
+
+# If either debugging or symbols are enabled, enable PDBs.
+#
+!IF $(DEBUG)>1 || $(SYMBOLS)!=0
+LDFLAGS = /DEBUG $(LDOPTS)
+!ELSE
+LDFLAGS = $(LDOPTS)
+!ENDIF
+
+
+# You should not have to change anything below this line
+###############################################################################
+
+
+# Object files for the amalgamation.
+#
+LIBOBJS1 = sqlite3.lo
+
+# Determine the real value of LIBOBJ based on the 'configure' script
+#
+LIBOBJ = $(LIBOBJS1)
+
+# Determine if embedded resource compilation and usage are enabled.
+#
+!IF $(USE_RC)!=0
+LIBRESOBJS = sqlite3res.lo
+!ELSE
+LIBRESOBJS =
+!ENDIF
+
+
+# Additional compiler options for the shell.  These are only effective
+# when the shell is not being dynamically linked.
+#
+!IF $(DYNAMIC_SHELL)==0 && $(FOR_WIN10)==0
+SHELL_COMPILE_OPTS = $(SHELL_COMPILE_OPTS) -DSQLITE_ENABLE_FTS4=1
+SHELL_COMPILE_OPTS = $(SHELL_COMPILE_OPTS) -DSQLITE_ENABLE_EXPLAIN_COMMENTS=1
+SHELL_COMPILE_OPTS = $(SHELL_COMPILE_OPTS) -DSQLITE_ENABLE_OFFSET_SQL_FUNC=1
+!ENDIF
+
+
+# This is the default Makefile target.  The objects listed here
+# are what get build when you type just "make" with no arguments.
+#
+core:	dll shell
+
+# Targets that require the Tcl library.
+#
+tcl:	$(ALL_TCL_TARGETS)
+
+# This Makefile target builds all of the standard binaries.
+#
+all:	core tcl
+
+# Dynamic link library section.
+#
+dll:	$(SQLITE3DLL)
+
+# Shell executable.
+#
+shell:	$(SQLITE3EXE)
+
+
+$(SQLITE3DLL):	$(LIBOBJ) $(LIBRESOBJS) $(CORE_LINK_DEP)
+	$(LD) $(LDFLAGS) $(LTLINKOPTS) $(LTLIBPATHS) /DLL $(CORE_LINK_OPTS) /OUT:$@ $(LIBOBJ) $(LIBRESOBJS) $(LTLIBS) $(TLIBS)
+
+Replace.exe:
+	$(CSC) /target:exe $(TOP)\Replace.cs
+
+sqlite3.def:	Replace.exe $(LIBOBJ)
+	echo EXPORTS > sqlite3.def
+	dumpbin /all $(LIBOBJ) \
+		| .\Replace.exe "^\s+/EXPORT:_?(sqlite3(?:session|changeset|changegroup|rebaser)?_[^@,]*)(?:@\d+|,DATA)?$$" $$1 true \
+		| sort >> sqlite3.def
+
+$(SQLITE3EXE):	shell.c $(SHELL_CORE_DEP) $(LIBRESOBJS) $(SHELL_CORE_SRC) $(SQLITE3H)
+	$(LTLINK) $(SHELL_COMPILE_OPTS) $(READLINE_FLAGS) shell.c $(SHELL_CORE_SRC) \
+		/link $(SQLITE3EXEPDB) $(LDFLAGS) $(LTLINKOPTS) $(SHELL_LINK_OPTS) $(LTLIBPATHS) $(LIBRESOBJS) $(LIBREADLINE) $(LTLIBS) $(TLIBS)
+
+
+# Rule to build the amalgamation
+#
+sqlite3.lo:	$(SQLITE3C)
+	$(LTCOMPILE) $(CORE_COMPILE_OPTS) -c $(SQLITE3C)
+
+
+# Rule to build the Win32 resources object file.
+#
+!IF $(USE_RC)!=0
+_HASHCHAR=^#
+!IF ![echo !IFNDEF VERSION > rcver.vc] && \
+    ![for /F "delims=" %V in ('type "$(SQLITE3H)" ^| "%SystemRoot%\System32\find.exe" "$(_HASHCHAR)define SQLITE_VERSION "') do (echo VERSION = ^^%V >> rcver.vc)] && \
+    ![echo !ENDIF >> rcver.vc]
+!INCLUDE rcver.vc
+!ENDIF
+
+RESOURCE_VERSION = $(VERSION:^#=)
+RESOURCE_VERSION = $(RESOURCE_VERSION:define=)
+RESOURCE_VERSION = $(RESOURCE_VERSION:SQLITE_VERSION=)
+RESOURCE_VERSION = $(RESOURCE_VERSION:"=)
+RESOURCE_VERSION = $(RESOURCE_VERSION:.=,)
+
+$(LIBRESOBJS):	$(TOP)\sqlite3.rc rcver.vc $(SQLITE3H)
+	echo #ifndef SQLITE_RESOURCE_VERSION > sqlite3rc.h
+	echo #define SQLITE_RESOURCE_VERSION $(RESOURCE_VERSION) >> sqlite3rc.h
+	echo #endif >> sqlite3rc.h
+	$(LTRCOMPILE) -fo $(LIBRESOBJS) -DRC_VERONLY $(TOP)\sqlite3.rc
+!ENDIF
+
+
+clean:
+	del /Q *.exp *.lo *.ilk *.lib *.obj *.ncb *.pdb *.sdf *.suo 2>NUL
+	del /Q *.bsc *.def *.cod *.da *.bb *.bbg *.vc gmon.out 2>NUL
+	del /Q $(SQLITE3EXE) $(SQLITE3DLL) Replace.exe 2>NUL

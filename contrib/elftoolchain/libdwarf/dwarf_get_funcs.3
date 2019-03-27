@@ -1,0 +1,215 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_get_funcs.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd April 10, 2011
+.Dt DWARF_GET_FUNCS 3
+.Os
+.Sh NAME
+.Nm dwarf_get_funcs ,
+.Nm dwarf_func_cu_offset ,
+.Nm dwarf_func_die_offset ,
+.Nm dwarf_func_name_offsets ,
+.Nm dwarf_funcname
+.Nd retrieve information about static functions
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_get_funcs
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Func **funcs"
+.Fa "Dwarf_Signed *nfuncs"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_func_cu_offset
+.Fa "Dwarf_Func func"
+.Fa "Dwarf_Off *cu_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_func_die_offset
+.Fa "Dwarf_Func func"
+.Fa "Dwarf_Off *die_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_func_name_offsets
+.Fa "Dwarf_Func func"
+.Fa "char **name"
+.Fa "Dwarf_Off *die_offset"
+.Fa "Dwarf_Off *cu_die_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_funcname
+.Fa "Dwarf_Func func"
+.Fa "char **name"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+These functions retrieve information about static functions from the
+lookup tables in the (SGI-specific)
+.Dq ".debug_funcnames"
+section.
+Information about these functions is returned using opaque descriptors
+of type
+.Vt Dwarf_Func .
+Applications need to use the functions described below to retrieve
+the name and offset information contained in these descriptors.
+.Pp
+Function
+.Fn dwarf_get_funcs
+retrieves descriptors for all the static functions associated with the
+DWARF debug context specified by argument
+.Ar dbg .
+The argument
+.Ar funcs
+should point to a location that will be set to a pointer to an array
+of
+.Vt Dwarf_Func
+descriptors.
+The argument
+.Ar nfuncs
+should point to a location that will be set to the number of
+descriptors returned.
+.Pp
+Function
+.Fn dwarf_func_cu_offset
+returns the offset, relative to the
+.Dq ".debug_info"
+section, of the compilation unit that contains the debugging
+information entry associated with the argument
+.Ar func .
+Argument
+.Ar cu_offset
+should point to a location that will hold the returned offset.
+.Pp
+Function
+.Fn dwarf_func_die_offset
+retrieves the offset, relative to the
+.Dq ".debug_info"
+section, of the debugging information entry associated with the
+argument
+.Ar func ,
+and stores it into the location pointed to by the argument
+.Ar die_offset .
+.Pp
+Function
+.Fn dwarf_func_name_offsets
+retrieves the name and offsets for the debugging information entry for
+argument
+.Ar func .
+Argument
+.Ar name
+should point to a location which will be set to a pointer to a
+NUL-terminated string containing the name of the associated debugging
+information entry.
+Argument
+.Ar die_offset
+should point to a location which will be set to the offset, relative
+to the
+.Dq ".debug_info"
+section, of the associated debugging information entry.
+Argument
+.Ar cu_die_offset
+should point to a location which will be set to the offset, relative
+to the
+.Dq ".debug_info"
+section, of the first debugging information entry in the compilation
+unit associated with argument
+.Ar func .
+.Pp
+Function
+.Fn dwarf_funcname
+sets the location pointed to by argument
+.Ar name
+to a pointer to a NUL-terminated string holding the name of the
+debugging information entry associated with the argument
+.Ar func .
+.Ss Memory Management
+The memory area used for the array of
+.Vt Dwarf_Func
+descriptors returned in argument
+.Ar funcs
+by function
+.Fn dwarf_get_funcs
+is owned by the
+.Lb libdwarf .
+Application code should not attempt to directly free this pointer.
+Portable code should instead use the function
+.Xr dwarf_funcs_dealloc 3
+to indicate that the memory area may be freed.
+.Pp
+The memory area used for the string returned in the
+.Ar name
+argument to functions
+.Fn dwarf_func_name_offsets
+and
+.Fn dwarf_funcname
+is owned by the
+.Lb libdwarf .
+Portable code should indicate that the memory area can
+be freed using the
+.Xr dwarf_dealloc 3
+function.
+.Ss Error Returns
+If argument
+.Ar err
+is not NULL, these functions will use it to store error information,
+in case of an error.
+.Sh RETURN VALUES
+On success, these functions returns
+.Dv DW_DLV_OK .
+In case of an error, they return
+.Dv DW_DLV_ERROR
+and set the argument
+.Ar err .
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Va cu_die_offset ,
+.Va cu_offset ,
+.Va dbg ,
+.Va die_offset ,
+.Va func ,
+.Va funcs ,
+.Va name ,
+or
+.Va nfuncs
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+The DWARF debugging context referenced by argument
+.Ar dbg
+did not contain information about static functions.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_funcs_dealloc 3 ,
+.Xr dwarf_get_cu_die_offset_given_cu_header_offset 3

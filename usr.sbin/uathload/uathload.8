@@ -1,0 +1,69 @@
+.\"
+.\" Copyright (c) 2009 Weongyo Jeong.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 11, 2010
+.Dt UATHLOAD 8
+.Os
+.Sh NAME
+.Nm uathload
+.Nd "firmware loader for Atheros USB wireless driver"
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Fl d Ar ugen-device
+.Op Ar firmware-file
+.Sh DESCRIPTION
+The
+.Nm
+utility provides a way to load the firmware for Atheros USB wireless
+devices with AR5005UG and AR5005UX chipsets.
+.Pp
+The following options are accepted.
+.Bl -tag -width ".Fl f Ar file"
+.It Fl d Ar ugen-device
+Use a specific
+.Xr ugen 4
+device.
+.It Fl v
+Enable debugging messages.
+.El
+.Pp
+If
+.Ar firmware-file
+is specified
+.Nm
+tries to load it instead of the built-in firmware image.
+.Sh EXAMPLES
+Load the built-in firmware image into a specific
+.Xr ugen 4
+device:
+.Pp
+.Dl "uathload -d /dev/ugen0.2"
+.Sh SEE ALSO
+.Xr uath 4
+.Sh AUTHORS
+.An Weongyo Jeong

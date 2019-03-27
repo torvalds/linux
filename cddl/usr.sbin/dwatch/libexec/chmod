@@ -1,0 +1,65 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for [l]chmod(2), fchmodat(2), or similar entry $
+# $Copyright: 2014-2018 Devin Teske. All rights reserved. $
+# $FreeBSD$
+#
+############################################################ DESCRIPTION
+#
+# Print mode/path being passed to chmod(2), lchmod(2), fchmodat(2), or similar
+#
+############################################################ PROBE
+
+case "$PROFILE" in
+chmod)
+	: ${PROBE:=$( echo \
+		syscall::chmod:entry, \
+		syscall::lchmod:entry, \
+		syscall::fchmodat:entry )}
+	;;
+*)
+	: ${PROBE:=syscall::$PROFILE:entry}
+esac
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+this mode_t mode;
+this string path;
+this u_char at;
+
+$PROBE /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");
+}
+	/*
+	 * Should we expect the first argument to be a file descriptor?
+	 * NB: Based on probefunc ending in "at" (e.g., fchmodat(2))
+	 */
+	this->at = strstr(probefunc, "at") ==
+		(probefunc + strlen(probefunc) - 2) ? 1 : 0;
+
+	this->mode = (mode_t)(this->at ? arg2 : arg1);
+	this->path = copyinstr(this->at ? arg1 : arg0);
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 1 ))
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print mode/path details
+	 */
+	printf("%04o %s", this->mode, this->path);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

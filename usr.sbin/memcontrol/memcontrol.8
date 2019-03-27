@@ -1,0 +1,111 @@
+.\" Copyright (c) 1999 Chris Costello
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 15, 2002
+.Dt MEMCONTROL 8
+.Os
+.Sh NAME
+.Nm memcontrol
+.Nd "control system cache behaviour with respect to memory"
+.Sh SYNOPSIS
+.Nm
+.Cm list
+.Op Fl a
+.Nm
+.Cm set
+.Fl b Ar base
+.Fl l Ar length
+.Fl o Ar owner
+.Ar attribute
+.Nm
+.Cm clear
+.Fl o Ar owner
+.Nm
+.Cm clear
+.Fl b Ar base
+.Fl l Ar length
+.Sh DESCRIPTION
+A number of supported system architectures allow the behaviour of the CPU
+cache to be programmed to behave differently depending on the region being
+written.
+.Pp
+The
+.Nm
+utility
+provides an interface to this facility, allowing CPU cache behavior to
+be altered for ranges of system physical memory.
+.Pp
+These ranges are typically power-of-2 aligned and sized, however the specific
+rules governing their layout vary between architectures.
+The
+.Nm
+utility does not attempt to enforce these rules, however the system will
+reject any attempt to set an illegal combination.
+.Bl -tag -width ".Cm clear"
+.It Cm list
+List range slots.
+.Bl -tag -width indent
+.It Fl a
+List all range slots, even those that are inactive.
+.El
+.It Cm set
+Set memory range attributes.
+.Bl -tag -width indent
+.It Fl b Ar base
+Memory range base address.
+.It Fl l Ar length
+Length of memory range in bytes, power of 2.
+.It Fl o Ar owner
+Text identifier for this setting (7 char max).
+.It Ar attribute
+Attributes applied to this range; combinations of
+.Cm force , uncacheable , write-combine , write-through , write-back ,
+and
+.Cm write-protect .
+.El
+.It Cm clear
+Clear memory range attributes.
+Ranges may be cleared by owner or by
+base/length combination.
+.Pp
+To clear based on ownership:
+.Bl -tag -width indent
+.It Fl o Ar owner
+All ranges with this owner will be cleared.
+.El
+.Pp
+To clear based on the base/length combination:
+.Bl -tag -width indent
+.It Fl b Ar base
+Memory range base address.
+.It Fl l Ar length
+Length of memory range in bytes, power of 2.
+.El
+.Pp
+Base and length must exactly match an existing range.
+.El
+.Sh SEE ALSO
+.Xr mem 4

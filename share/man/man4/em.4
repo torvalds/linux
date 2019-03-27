@@ -1,0 +1,327 @@
+.\" Copyright (c) 2001-2003, Intel Corporation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Intel Corporation nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 30, 2019
+.Dt EM 4
+.Os
+.Sh NAME
+.Nm em
+.Nd "Intel(R) PRO/1000 Gigabit Ethernet adapter driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iflib"
+.Cd "device em"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_em_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI Gigabit Ethernet adapters based on
+the Intel 82540, 82541ER, 82541PI, 82542, 82543, 82544, 82545, 82546,
+82546EB, 82546GB, 82547, 82571, 81572, 82573, and 82574 Ethernet
+controller chips.
+.Pp
+The
+.Nm
+driver also provides support for PCI Express Gigabit Ethernet adapters
+based on the Intel 82575, 82576, 82580, i21x and i35x.
+.Pp
+The driver supports Transmit/Receive checksum offload and Jumbo Frames
+on all but 82542-based adapters.
+.Pp
+Furthermore it supports TCP segmentation offload (TSO) on all adapters but
+those based on the 82543, 82544 and 82547 controller chips.
+The identification LEDs of the adapters supported by the
+.Nm
+driver can be controlled via the
+.Xr led 4
+API for localization purposes.
+For further hardware information, see the
+.Pa README
+included with the driver.
+.Pp
+For questions related to hardware requirements, refer to the
+documentation supplied with your Intel PRO/1000 adapter.
+All hardware requirements listed apply to use with
+.Fx .
+.Pp
+Support for Jumbo Frames is provided via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit Jumbo Frames.
+The maximum MTU size for Jumbo Frames is 16114.
+.Pp
+This driver supports hardware assisted VLANs.
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
+Enables auto-negotiation for speed and duplex.
+.It Cm 10baseT/UTP
+Sets 10Mbps operation.
+Use the
+.Cm mediaopt
+option to select
+.Cm full-duplex
+mode.
+.It Cm 100baseTX
+Sets 100Mbps operation.
+Use the
+.Cm mediaopt
+option to select
+.Cm full-duplex
+mode.
+.It Cm 1000baseSX
+Sets 1000Mbps operation.
+Only
+.Cm full-duplex
+mode is supported at this speed.
+.It Cm 1000baseTX
+Sets 1000Mbps operation.
+Only
+.Cm full-duplex
+mode is supported at this speed.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
+Forces full-duplex operation
+.It Cm half-duplex
+Forces half-duplex operation.
+.El
+.Pp
+Only use
+.Cm mediaopt
+to set the driver to
+.Cm full-duplex .
+If
+.Cm mediaopt
+is not specified, the driver defaults to
+.Cm half-duplex .
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Gigabit Ethernet adapters based on the Intel
+82540, 82541ER, 82541PI, 82542, 82543, 82544, 82545, 82546, 82546EB,
+82546GB, 82547, 82571, 82572, 82573, 82574, 82575, 82576, and 82580
+controller chips:
+.Pp
+.Bl -bullet -compact
+.It
+Intel Gigabit ET Dual Port Server Adapter (82576)
+.It
+Intel Gigabit VT Quad Port Server Adapter (82575)
+.It
+Intel Single, Dual and Quad Gigabit Ethernet Controller (82580)
+.It
+Intel i210 and i211 Gigabit Ethernet Controller
+.It
+Intel i350 and i354 Gigabit Ethernet Controller
+.It
+Intel PRO/1000 CT Network Connection (82547)
+.It
+Intel PRO/1000 F Server Adapter (82543)
+.It
+Intel PRO/1000 Gigabit Server Adapter (82542)
+.It
+Intel PRO/1000 GT Desktop Adapter (82541PI)
+.It
+Intel PRO/1000 MF Dual Port Server Adapter (82546)
+.It
+Intel PRO/1000 MF Server Adapter (82545)
+.It
+Intel PRO/1000 MF Server Adapter (LX) (82545)
+.It
+Intel PRO/1000 MT Desktop Adapter (82540)
+.It
+Intel PRO/1000 MT Desktop Adapter (82541)
+.It
+Intel PRO/1000 MT Dual Port Server Adapter (82546)
+.It
+Intel PRO/1000 MT Quad Port Server Adapter (82546EB)
+.It
+Intel PRO/1000 MT Server Adapter (82545)
+.It
+Intel PRO/1000 PF Dual Port Server Adapter (82571)
+.It
+Intel PRO/1000 PF Quad Port Server Adapter (82571)
+.It
+Intel PRO/1000 PF Server Adapter (82572)
+.It
+Intel PRO/1000 PT Desktop Adapter (82572)
+.It
+Intel PRO/1000 PT Dual Port Server Adapter (82571)
+.It
+Intel PRO/1000 PT Quad Port Server Adapter (82571)
+.It
+Intel PRO/1000 PT Server Adapter (82572)
+.It
+Intel PRO/1000 T Desktop Adapter (82544)
+.It
+Intel PRO/1000 T Server Adapter (82543)
+.It
+Intel PRO/1000 XF Server Adapter (82544)
+.It
+Intel PRO/1000 XT Server Adapter (82544)
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.em.disable_crc_stripping
+Disable or enable hardware stripping of CRC field.
+This is mostly useful on BMC/IPMI shared interfaces where stripping the CRC
+causes remote access over IPMI to fail.
+Default 0 (enabled).
+.It Va hw.em.eee_setting
+Disable or enable Energy Efficient Ethernet.
+Default 1 (disabled).
+.It Va hw.em.msix
+Enable or disable MSI-X style interrupts.
+Default 1 (enabled).
+.It Va hw.em.smart_pwr_down
+Enable or disable smart power down features on newer adapters.
+Default 0 (disabled).
+.It Va hw.em.sbp
+Show bad packets when in promiscuous mode.
+Default 0 (off).
+.It Va hw.em.rxd
+Number of receive descriptors allocated by the driver.
+The default value is 1024 for adapters newer than 82547,
+and 256 for older ones.
+The 82542 and 82543-based adapters can handle up to 256 descriptors,
+while others can have up to 4096.
+.It Va hw.em.txd
+Number of transmit descriptors allocated by the driver.
+The default value is 1024 for adapters newer than 82547,
+and 256 for older ones.
+The 82542 and 82543-based adapters can handle up to 256 descriptors,
+while others can have up to 4096.
+.It Va hw.em.rx_int_delay
+This value delays the generation of receive interrupts in units of
+1.024 microseconds.
+The default value is 0, since adapters may hang with this feature
+being enabled.
+.It Va hw.em.rx_abs_int_delay
+If
+.Va hw.em.rx_int_delay
+is non-zero, this tunable limits the maximum delay in which a receive
+interrupt is generated.
+.It Va hw.em.tx_int_delay
+This value delays the generation of transmit interrupts in units of
+1.024 microseconds.
+The default value is 64.
+.It Va hw.em.tx_abs_int_delay
+If
+.Va hw.em.tx_int_delay
+is non-zero, this tunable limits the maximum delay in which a transmit
+interrupt is generated.
+.El
+.Sh FILES
+.Bl -tag -width /dev/led/em*
+.It Pa /dev/led/em*
+identification LED device nodes
+.El
+.Sh EXAMPLES
+Make the identification LED of em0 blink:
+.Pp
+.Dl "echo f2 > /dev/led/em0"
+.Pp
+Turn the identification LED of em0 off again:
+.Pp
+.Dl "echo 0 > /dev/led/em0"
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "em%d: Unable to allocate bus resource: memory"
+A fatal initialization error has occurred.
+.It "em%d: Unable to allocate bus resource: interrupt"
+A fatal initialization error has occurred.
+.It "em%d: watchdog timeout -- resetting"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.El
+.Sh SUPPORT
+For general information and support,
+go to the Intel support website at:
+.Pa http://support.intel.com .
+.Pp
+If an issue is identified with the released source code on the supported kernel
+with a supported adapter, email the specific information related to the
+issue to
+.Aq Mt freebsd@intel.com .
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr iflib 4 ,
+.Xr led 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr polling 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.4 .
+.Nm
+was merged with the igb device driver and converted to the iflib framework in
+.Fx 12.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was originally written by
+.An Intel Corporation Aq Mt freebsd@intel.com .
+It was merged with igb driver and converted to the iflib framework by
+.An Matthew Macy Aq Mt mmacy@mattmacy.io
+and
+.An Sean Bruno Aq Mt sbruno@FreeBSD.org .

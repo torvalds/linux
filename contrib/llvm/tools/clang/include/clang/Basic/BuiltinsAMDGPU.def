@@ -1,0 +1,171 @@
+//==- BuiltinsAMDGPU.def - AMDGPU Builtin function database ------*- C++ -*-==//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the AMDGPU-specific builtin function database. Users of
+// this file must define the BUILTIN macro to make use of this information.
+//
+//===----------------------------------------------------------------------===//
+
+// The format of this database matches clang/Basic/Builtins.def.
+
+#if defined(BUILTIN) && !defined(TARGET_BUILTIN)
+#   define TARGET_BUILTIN(ID, TYPE, ATTRS, FEATURE) BUILTIN(ID, TYPE, ATTRS)
+#endif
+//===----------------------------------------------------------------------===//
+// SI+ only builtins.
+//===----------------------------------------------------------------------===//
+
+BUILTIN(__builtin_amdgcn_dispatch_ptr, "v*4", "nc")
+BUILTIN(__builtin_amdgcn_kernarg_segment_ptr, "v*4", "nc")
+BUILTIN(__builtin_amdgcn_implicitarg_ptr, "v*4", "nc")
+BUILTIN(__builtin_amdgcn_queue_ptr, "v*4", "nc")
+
+BUILTIN(__builtin_amdgcn_workgroup_id_x, "Ui", "nc")
+BUILTIN(__builtin_amdgcn_workgroup_id_y, "Ui", "nc")
+BUILTIN(__builtin_amdgcn_workgroup_id_z, "Ui", "nc")
+
+BUILTIN(__builtin_amdgcn_workitem_id_x, "Ui", "nc")
+BUILTIN(__builtin_amdgcn_workitem_id_y, "Ui", "nc")
+BUILTIN(__builtin_amdgcn_workitem_id_z, "Ui", "nc")
+
+//===----------------------------------------------------------------------===//
+// Instruction builtins.
+//===----------------------------------------------------------------------===//
+BUILTIN(__builtin_amdgcn_s_getreg, "UiIi", "n")
+BUILTIN(__builtin_amdgcn_s_getpc, "LUi", "n")
+BUILTIN(__builtin_amdgcn_s_waitcnt, "vIi", "n")
+BUILTIN(__builtin_amdgcn_s_sendmsg, "vIiUi", "n")
+BUILTIN(__builtin_amdgcn_s_sendmsghalt, "vIiUi", "n")
+BUILTIN(__builtin_amdgcn_s_barrier, "v", "n")
+BUILTIN(__builtin_amdgcn_wave_barrier, "v", "n")
+BUILTIN(__builtin_amdgcn_s_dcache_inv, "v", "n")
+BUILTIN(__builtin_amdgcn_buffer_wbinvl1, "v", "n")
+
+// FIXME: Need to disallow constant address space.
+BUILTIN(__builtin_amdgcn_div_scale, "dddbb*", "n")
+BUILTIN(__builtin_amdgcn_div_scalef, "fffbb*", "n")
+BUILTIN(__builtin_amdgcn_div_fmas, "ddddb", "nc")
+BUILTIN(__builtin_amdgcn_div_fmasf, "ffffb", "nc")
+BUILTIN(__builtin_amdgcn_div_fixup, "dddd", "nc")
+BUILTIN(__builtin_amdgcn_div_fixupf, "ffff", "nc")
+BUILTIN(__builtin_amdgcn_trig_preop, "ddi", "nc")
+BUILTIN(__builtin_amdgcn_trig_preopf, "ffi", "nc")
+BUILTIN(__builtin_amdgcn_rcp, "dd", "nc")
+BUILTIN(__builtin_amdgcn_rcpf, "ff", "nc")
+BUILTIN(__builtin_amdgcn_rsq, "dd", "nc")
+BUILTIN(__builtin_amdgcn_rsqf, "ff", "nc")
+BUILTIN(__builtin_amdgcn_rsq_clamp, "dd", "nc")
+BUILTIN(__builtin_amdgcn_rsq_clampf, "ff", "nc")
+BUILTIN(__builtin_amdgcn_sinf, "ff", "nc")
+BUILTIN(__builtin_amdgcn_cosf, "ff", "nc")
+BUILTIN(__builtin_amdgcn_log_clampf, "ff", "nc")
+BUILTIN(__builtin_amdgcn_ldexp, "ddi", "nc")
+BUILTIN(__builtin_amdgcn_ldexpf, "ffi", "nc")
+BUILTIN(__builtin_amdgcn_frexp_mant, "dd", "nc")
+BUILTIN(__builtin_amdgcn_frexp_mantf, "ff", "nc")
+BUILTIN(__builtin_amdgcn_frexp_exp, "id", "nc")
+BUILTIN(__builtin_amdgcn_frexp_expf, "if", "nc")
+BUILTIN(__builtin_amdgcn_fract, "dd", "nc")
+BUILTIN(__builtin_amdgcn_fractf, "ff", "nc")
+BUILTIN(__builtin_amdgcn_lerp, "UiUiUiUi", "nc")
+BUILTIN(__builtin_amdgcn_class, "bdi", "nc")
+BUILTIN(__builtin_amdgcn_classf, "bfi", "nc")
+BUILTIN(__builtin_amdgcn_cubeid, "ffff", "nc")
+BUILTIN(__builtin_amdgcn_cubesc, "ffff", "nc")
+BUILTIN(__builtin_amdgcn_cubetc, "ffff", "nc")
+BUILTIN(__builtin_amdgcn_cubema, "ffff", "nc")
+BUILTIN(__builtin_amdgcn_s_memtime, "LUi", "n")
+BUILTIN(__builtin_amdgcn_s_sleep, "vIi", "n")
+BUILTIN(__builtin_amdgcn_s_incperflevel, "vIi", "n")
+BUILTIN(__builtin_amdgcn_s_decperflevel, "vIi", "n")
+BUILTIN(__builtin_amdgcn_uicmp, "LUiUiUiIi", "nc")
+BUILTIN(__builtin_amdgcn_uicmpl, "LUiLUiLUiIi", "nc")
+BUILTIN(__builtin_amdgcn_sicmp, "LUiiiIi", "nc")
+BUILTIN(__builtin_amdgcn_sicmpl, "LUiLiLiIi", "nc")
+BUILTIN(__builtin_amdgcn_fcmp, "LUiddIi", "nc")
+BUILTIN(__builtin_amdgcn_fcmpf, "LUiffIi", "nc")
+BUILTIN(__builtin_amdgcn_ds_swizzle, "iiIi", "nc")
+BUILTIN(__builtin_amdgcn_ds_permute, "iii", "nc")
+BUILTIN(__builtin_amdgcn_ds_bpermute, "iii", "nc")
+BUILTIN(__builtin_amdgcn_readfirstlane, "ii", "nc")
+BUILTIN(__builtin_amdgcn_readlane, "iii", "nc")
+BUILTIN(__builtin_amdgcn_fmed3f, "ffff", "nc")
+BUILTIN(__builtin_amdgcn_ds_faddf, "ff*3fIiIiIb", "n")
+BUILTIN(__builtin_amdgcn_ds_fminf, "ff*3fIiIiIb", "n")
+BUILTIN(__builtin_amdgcn_ds_fmaxf, "ff*3fIiIiIb", "n")
+
+//===----------------------------------------------------------------------===//
+// CI+ only builtins.
+//===----------------------------------------------------------------------===//
+TARGET_BUILTIN(__builtin_amdgcn_s_dcache_inv_vol, "v", "n", "ci-insts")
+TARGET_BUILTIN(__builtin_amdgcn_buffer_wbinvl1_vol, "v", "n", "ci-insts")
+
+//===----------------------------------------------------------------------===//
+// VI+ only builtins.
+//===----------------------------------------------------------------------===//
+
+TARGET_BUILTIN(__builtin_amdgcn_div_fixuph, "hhhh", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_rcph, "hh", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_rsqh, "hh", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_sinh, "hh", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_cosh, "hh", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_ldexph, "hhi", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_frexp_manth, "hh", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_frexp_exph, "sh", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_fracth, "hh", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_classh, "bhi", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_s_memrealtime, "LUi", "n", "s-memrealtime")
+TARGET_BUILTIN(__builtin_amdgcn_mov_dpp, "iiIiIiIiIb", "nc", "dpp")
+TARGET_BUILTIN(__builtin_amdgcn_update_dpp, "iiiIiIiIiIb", "nc", "dpp")
+TARGET_BUILTIN(__builtin_amdgcn_s_dcache_wb, "v", "n", "vi-insts")
+
+//===----------------------------------------------------------------------===//
+// GFX9+ only builtins.
+//===----------------------------------------------------------------------===//
+
+TARGET_BUILTIN(__builtin_amdgcn_fmed3h, "hhhh", "nc", "gfx9-insts")
+
+//===----------------------------------------------------------------------===//
+// Deep learning builtins.
+//===----------------------------------------------------------------------===//
+
+TARGET_BUILTIN(__builtin_amdgcn_fdot2, "fV2hV2hfIb", "nc", "dot-insts")
+TARGET_BUILTIN(__builtin_amdgcn_sdot2, "SiV2SsV2SsSiIb", "nc", "dot-insts")
+TARGET_BUILTIN(__builtin_amdgcn_udot2, "UiV2UsV2UsUiIb", "nc", "dot-insts")
+TARGET_BUILTIN(__builtin_amdgcn_sdot4, "SiSiSiSiIb", "nc", "dot-insts")
+TARGET_BUILTIN(__builtin_amdgcn_udot4, "UiUiUiUiIb", "nc", "dot-insts")
+TARGET_BUILTIN(__builtin_amdgcn_sdot8, "SiSiSiSiIb", "nc", "dot-insts")
+TARGET_BUILTIN(__builtin_amdgcn_udot8, "UiUiUiUiIb", "nc", "dot-insts")
+
+//===----------------------------------------------------------------------===//
+// Special builtins.
+//===----------------------------------------------------------------------===//
+BUILTIN(__builtin_amdgcn_read_exec, "LUi", "nc")
+BUILTIN(__builtin_amdgcn_read_exec_lo, "Ui", "nc")
+BUILTIN(__builtin_amdgcn_read_exec_hi, "Ui", "nc")
+
+//===----------------------------------------------------------------------===//
+// R600-NI only builtins.
+//===----------------------------------------------------------------------===//
+
+BUILTIN(__builtin_r600_implicitarg_ptr, "Uc*7", "nc")
+
+BUILTIN(__builtin_r600_read_tgid_x, "Ui", "nc")
+BUILTIN(__builtin_r600_read_tgid_y, "Ui", "nc")
+BUILTIN(__builtin_r600_read_tgid_z, "Ui", "nc")
+
+BUILTIN(__builtin_r600_read_tidig_x, "Ui", "nc")
+BUILTIN(__builtin_r600_read_tidig_y, "Ui", "nc")
+BUILTIN(__builtin_r600_read_tidig_z, "Ui", "nc")
+
+BUILTIN(__builtin_r600_recipsqrt_ieee, "dd", "nc")
+BUILTIN(__builtin_r600_recipsqrt_ieeef, "ff", "nc")
+
+#undef BUILTIN
+#undef TARGET_BUILTIN

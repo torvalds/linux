@@ -1,0 +1,18 @@
+block in from any to any with ipopts
+pass in from any to any with opt sec-class topsecret
+block in from any to any with opt ssrr,sec-class topsecret
+pass in from any to any with opt ssrr,sec-class topsecret
+block in from any to any with opt ts,sec-class topsecret
+pass in from any to any with opt ts,sec-class topsecret
+block in from any to any with opt sec-class secret
+pass in from any to any with opt sec-class secret
+block in from any to any with opt lsrr,ssrr
+pass in from any to any with opt lsrr,ssrr
+pass in from any to any with ipopts
+block in from any to any with opt lsrr
+pass in from any to any with opt lsrr
+block in from any to any with opt ssrr,ts
+pass in from any to any with opt ssrr,ts
+block in from any to any with opt rr
+pass in from any to any with opt rr
+block in from any to any with opt sec-class topsecret

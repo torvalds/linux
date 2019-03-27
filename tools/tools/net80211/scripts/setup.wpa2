@@ -1,0 +1,54 @@
+#! /bin/sh
+#
+# Script for testing WPA2 w/ AES.
+#
+# $FreeBSD$
+#
+PATH=.:$PATH
+. config
+
+BRIDGE=bridge0
+WLAN=wlan0
+SSID=$SSID-wpa
+CONF=$TMPDIR/bsd-$WLAN.conf
+
+makeconf()
+{
+	conf=$1
+	rm -f $conf
+	cat >$1 <<EOF
+interface=$WLAN
+ctrl_interface=$HOSTAPD_CTRL_INTERFACE
+logger_syslog=-1
+logger_syslog_level=0
+logger_stdout=-1
+logger_stdout_level=0
+debug=4
+wpa=2
+wpa_key_mgmt=WPA-PSK
+wpa_passphrase=$WPA_PASSPHRASE
+wpa_pairwise=CCMP
+EOF
+}
+
+trap "ifconfig $BRIDGE destroy; ifconfig $WLAN destroy; \
+	rm -f $CONF" 2
+
+#mwldebug -i $WIRELESS hal
+ifconfig $WLAN create wlandev $WIRELESS wlanmode hostap
+#wlandebug -i $WLAN assoc+crypto
+wlandebug -i $WLAN assoc
+ifconfig $WLAN ssid $SSID
+ifconfig $WLAN channel $CHANNEL
+ifconfig $WLAN mtu 1500		# NB: if_bridge requires matching mtu's
+
+ifconfig $BRIDGE create
+ifconfig $BRIDGE addm $WIRED addm $WLAN up
+ifconfig $WLAN up
+ifconfig $WIRED up
+
+ifconfig
+
+makeconf $CONF
+#mwldebug -i $WIRELESS keycache
+start_hostapd -K $CONF

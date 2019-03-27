@@ -1,0 +1,38 @@
+$FreeBSD$
+---
+
+A lot of the tests written in C use assert(), only printing 'ok' at the end
+of the program if none of the assert()s fired.
+
+This is wrong.  They should do the test outside of an assert(), and print
+'ok' or 'not ok' as appropriate, instead of bailing out part way through.
+That way if a test starts failing we'll know exactly which one failed, and
+the other tests can continue.
+
+This probably means a simple libtest.so that they can link against to
+provide an ok() function (the non-fatal assert), probably with some helper
+functions to keep track of test numbers and so on.
+
+---
+
+Any of the tests written in C should link against the libraries under
+/usr/obj rather than using the system libraries.
+
+---
+
+Not everything's been converted to the new style.  In particular;
+
+   atm/
+   ccd/
+   some of geom_*/
+   some of netinet/
+   nfsmmap/
+   p1003_1b/
+   some of pipe/
+   security/
+   some of sockets/
+   tls/
+
+needs to be converted.  And fsx/ and gaithrstress/ are (I think) standalone
+programs rather than individual tests, so aren't amenable to this sort of 
+conversion.

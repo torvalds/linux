@@ -1,0 +1,50 @@
+.\" @(#)rtime.3n	2.1 88/08/08 4.0 RPCSRC; from 1.5 88/02/08 SMI
+.\" $FreeBSD$
+.\"
+.Dd November 22, 1987
+.Dt RTIME 3
+.Os
+.Sh NAME
+.Nm rtime
+.Nd "get remote time"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/time.h
+.In netinet/in.h
+.Ft int
+.Fo rtime
+.Fa "struct sockaddr_in *addrp"
+.Fa "struct timeval *timep"
+.Fa "struct timeval *timeout"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn rtime
+function
+consults the Internet Time Server at the address pointed to by
+.Fa addrp
+and returns the remote time in the
+.Vt timeval
+struct pointed to by
+.Fa timep .
+Normally, the
+.Tn UDP
+protocol is used when consulting the Time Server.
+The
+.Fa timeout
+argument specifies how long the
+routine should wait before giving
+up when waiting for a reply.
+If
+.Fa timeout
+is specified as
+.Dv NULL ,
+however, the routine will instead use
+.Tn TCP
+and block until a reply is received from the time server.
+.Sh RETURN VALUES
+.Rv -std rtime
+.Sh SEE ALSO
+.Xr timed 8

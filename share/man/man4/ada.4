@@ -1,0 +1,168 @@
+.\" Copyright (c) 2009 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 20, 2017
+.Dt ADA 4
+.Os
+.Sh NAME
+.Nm ada
+.Nd ATA Direct Access device driver
+.Sh SYNOPSIS
+.Cd device ada
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for direct access devices, implementing the
+.Tn ATA
+command protocol, that are attached to the system through a host adapter
+supported by the CAM subsystem.
+.Pp
+The host adapter must also be separately configured into the system before an
+.Tn ATA
+direct access device can be configured.
+.Sh COMMAND QUEUING
+Command queuing allows the device to process multiple transactions
+concurrently, often re-ordering them to reduce the number and length of
+seeks.
+.Tn ATA
+defines two types of queuing:
+.Tn TCQ (Tagged Command Queuing, PATA legacy)
+and
+.Tn NCQ (Native Command Queuing, SATA) .
+The
+.Nm
+device driver takes full advantage of NCQ, when supported.
+To ensure that transactions to distant parts of the media,
+which may be deferred indefinitely by servicing requests closer to the current
+head position, are completed in a timely fashion, an ordered
+transaction is sent every 7 seconds during continuous device operation.
+.Sh CACHE EFFECTS
+Many direct access devices are equipped with read and/or write caches.
+Parameters affecting the device's cache are reported in device IDENTIFY data
+and can be examined and modified via the
+.Xr camcontrol 8
+utility.
+.Pp
+The read cache is used to store data from device-initiated read ahead
+operations as well as frequently used data.
+The read cache is transparent
+to the user and can be enabled without any adverse effect.
+Most devices
+with a read cache come from the factory with it enabled.
+.Pp
+The write cache can greatly decrease the latency of write operations
+and allows the device to reorganize writes to increase efficiency and
+performance.
+This performance gain comes at a price.
+Should the device
+lose power while its cache contains uncommitted write operations, these
+writes will be lost.
+The effect of a loss of write transactions on
+a file system is non-deterministic and can cause corruption.
+Most
+devices age write transactions to limit the vulnerability to a few transactions
+recently reported as complete, but it is nonetheless recommended that
+systems with write cache enabled devices reside on an Uninterruptible
+Power Supply (UPS).
+The
+.Nm
+device driver ensures that the cache and media are synchronized upon
+final close of the device or an unexpected shutdown (panic) event.
+This ensures that it is safe to disconnect power once the operating system
+has reported that it has halted.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width 12
+.It Va kern.cam.ada.retry_count
+.Pp
+This variable determines how many times the
+.Nm
+driver will retry a READ or WRITE command.
+This does not affect the number of retries used during probe time or for
+the
+.Nm
+driver dump routine.
+This value currently defaults to 4.
+.It Va kern.cam.ada.default_timeout
+.Pp
+This variable determines how long the
+.Nm
+driver will wait before timing out an outstanding command.
+The units for this value are seconds, and the default is currently 30
+seconds.
+.It Va kern.cam.ada.spindown_shutdown
+.Pp
+This variable determines whether to spin-down disks when shutting down.
+Set to 1 to enable spin-down, 0 to disable.
+The default is currently enabled.
+.It Va kern.cam.sort_io_queue
+.It Va kern.cam.ada. Ns Ar X Ns Va .sort_io_queue
+.Pp
+These variables determine whether request queue should be sorted trying
+to optimize head seeks.
+Set to 1 to enable sorting, 0 to disable, -1 to leave it as-is.
+The default is sorting enabled for HDDs and disabled SSDs.
+.It Va kern.cam.ada.read_ahead
+.It Va kern.cam.ada. Ns Ar X Ns Va .read_ahead
+.It Va kern.cam.ada.write_cache
+.It Va kern.cam.ada. Ns Ar X Ns Va .write_cache
+.Pp
+These variables determine whether device read-ahead and write caches
+should be enabled globally or per-device or disabled.
+Set to 1 to enable write cache, 0 to disable, -1 to leave it as-is.
+Values modified at runtime take effect only after device reset
+.Pq using the reset subcommand of Xr camcontrol 8 .
+Because of that, this setting should be changed in
+.Pa /boot/loader.conf
+instead of
+.Pa /etc/sysctl.conf .
+The global default is currently 1.
+The per-device default is to leave it as-is (follow global setting).
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/ada*" -compact
+.It Pa /dev/ada*
+ATA device nodes
+.El
+.Sh SEE ALSO
+.Xr ahci 4 ,
+.Xr cam 4 ,
+.Xr da 4 ,
+.Xr mvs 4 ,
+.Xr nda 4 ,
+.Xr siis 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+.An Alexander Motin Aq Mt mav@FreeBSD.org

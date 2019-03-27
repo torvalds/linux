@@ -1,0 +1,493 @@
+# en_US.txt #
+
+#
+#//===----------------------------------------------------------------------===//
+#//
+#//                     The LLVM Compiler Infrastructure
+#//
+#// This file is dual licensed under the MIT and the University of Illinois Open
+#// Source Licenses. See LICENSE.txt for details.
+#//
+#//===----------------------------------------------------------------------===//
+#
+
+# Default messages, embedded into the OpenMP RTL, and source for English catalog.
+
+
+# Compatible changes (which does not require version bumping):
+#     * Editing message (number and type of placeholders must remain, relative order of
+#       placeholders may be changed, e.g. "File %1$s line %2$d" may be safely edited to
+#       "Line %2$d file %1$s").
+#     * Adding new message to the end of section.
+# Incompatible changes (version must be bumbed by 1):
+#     * Introducing new placeholders to existing messages.
+#     * Changing type of placeholders (e.g. "line %1$d" -> "line %1$s").
+#     * Rearranging order of messages.
+#     * Deleting messages.
+# Use special "OBSOLETE" pseudoidentifier for obsolete entries, which is kept only for backward
+# compatibility. When version is bumped, do not forget to delete all obsolete entries.
+
+
+# --------------------------------------------------------------------------------------------------
+-*- META -*-
+# --------------------------------------------------------------------------------------------------
+
+# Meta information about message catalog.
+
+Language "English"
+Country  "USA"
+LangId   "1033"
+Version  "2"
+Revision "20170523"
+
+
+
+# --------------------------------------------------------------------------------------------------
+-*- STRINGS -*-
+# --------------------------------------------------------------------------------------------------
+
+# Strings are not complete messages, just fragments. We need to work on it and reduce number of
+# strings (to zero?).
+
+Error                        "Error"
+UnknownFile                  "(unknown file)"
+NotANumber                   "not a number"
+BadUnit                      "bad unit"
+IllegalCharacters            "illegal characters"
+ValueTooLarge                "value too large"
+ValueTooSmall                "value too small"
+NotMultiple4K                "value is not a multiple of 4k"
+UnknownTopology              "Unknown processor topology"
+CantOpenCpuinfo              "Cannot open /proc/cpuinfo"
+ProcCpuinfo                  "/proc/cpuinfo"
+NoProcRecords                "cpuinfo file invalid (No processor records)"
+TooManyProcRecords           "cpuinfo file invalid (Too many processor records)"
+CantRewindCpuinfo            "Cannot rewind cpuinfo file"
+LongLineCpuinfo              "cpuinfo file invalid (long line)"
+TooManyEntries               "cpuinfo file contains too many entries"
+MissingProcField             "cpuinfo file missing processor field"
+MissingPhysicalIDField       "cpuinfo file missing physical id field"
+MissingValCpuinfo            "cpuinfo file invalid (missing val)"
+DuplicateFieldCpuinfo        "cpuinfo file invalid (duplicate field)"
+PhysicalIDsNotUnique         "Physical node/pkg/core/thread ids not unique"
+ApicNotPresent               "APIC not present"
+InvalidCpuidInfo             "Invalid cpuid info"
+OBSOLETE                     "APIC ids not unique"
+InconsistentCpuidInfo        "Inconsistent cpuid info"
+OutOfHeapMemory              "Out of heap memory"
+MemoryAllocFailed            "Memory allocation failed"
+Core                         "core"
+Thread                       "thread"
+Package                      "package"
+Node                         "node"
+OBSOLETE                     "<undef>"
+DecodingLegacyAPIC           "decoding legacy APIC ids"
+OBSOLETE                     "parsing /proc/cpuinfo"
+NotDefined                   "value is not defined"
+EffectiveSettings            "Effective settings:"
+UserSettings                 "User settings:"
+StorageMapWarning            "warning: pointers or size don't make sense"
+OBSOLETE                     "CPU"
+OBSOLETE                     "TPU"
+OBSOLETE                     "TPUs per package"
+OBSOLETE                     "HT enabled"
+OBSOLETE                     "HT disabled"
+Decodingx2APIC               "decoding x2APIC ids"
+NoLeaf11Support              "cpuid leaf 11 not supported"
+NoLeaf4Support               "cpuid leaf 4 not supported"
+ThreadIDsNotUnique           "thread ids not unique"
+UsingPthread                 "using pthread info"
+LegacyApicIDsNotUnique       "legacy APIC ids not unique"
+x2ApicIDsNotUnique           "x2APIC ids not unique"
+DisplayEnvBegin		     "OPENMP DISPLAY ENVIRONMENT BEGIN"
+DisplayEnvEnd		     "OPENMP DISPLAY ENVIRONMENT END"
+Device			     "[device]"
+Host			     "[host]"
+Tile                         "tile"
+
+
+
+# --------------------------------------------------------------------------------------------------
+-*- FORMATS -*-
+# --------------------------------------------------------------------------------------------------
+
+Info                         "OMP: Info #%1$d: %2$s\n"
+Warning                      "OMP: Warning #%1$d: %2$s\n"
+Fatal                        "OMP: Error #%1$d: %2$s\n"
+SysErr                       "OMP: System error #%1$d: %2$s\n"
+Hint                         "OMP: Hint %1$s\n"
+
+Pragma                       "%1$s pragma (at %2$s:%3$s():%4$s)"
+    # %1 is pragma name (like "parallel" or "master",
+    # %2 is file name,
+    # %3 is function (routine) name,
+    # %4 is the line number (as string, so "s" type specifier should be used).
+
+
+
+# --------------------------------------------------------------------------------------------------
+-*- MESSAGES -*-
+# --------------------------------------------------------------------------------------------------
+
+# Messages of any severity: informational, warning, or fatal.
+# To maintain message numbers (they are visible to customers), add new messages to the end.
+
+# Use following prefixes for messages and hints when appropriate:
+#    Aff -- Affinity messages.
+#    Cns -- Consistency check failures (KMP_CONSISTENCY_CHECK).
+#    Itt -- ITT Notify-related messages.
+
+LibraryIsSerial              "Library is \"serial\"."
+CantOpenMessageCatalog       "Cannot open message catalog \"%1$s\":"
+WillUseDefaultMessages       "Default messages will be used."
+LockIsUninitialized          "%1$s: Lock is uninitialized"
+LockSimpleUsedAsNestable     "%1$s: Lock was initialized as simple, but used as nestable"
+LockNestableUsedAsSimple     "%1$s: Lock was initialized as nestable, but used as simple"
+LockIsAlreadyOwned           "%1$s: Lock is already owned by requesting thread"
+LockStillOwned               "%1$s: Lock is still owned by a thread"
+LockUnsettingFree            "%1$s: Attempt to release a lock not owned by any thread"
+LockUnsettingSetByAnother    "%1$s: Attempt to release a lock owned by another thread"
+StackOverflow                "Stack overflow detected for OpenMP thread #%1$d"
+StackOverlap                 "Stack overlap detected. "
+AssertionFailure             "Assertion failure at %1$s(%2$d)."
+CantRegisterNewThread        "Unable to register a new user thread."
+DuplicateLibrary             "Initializing %1$s, but found %2$s already initialized."
+CantOpenFileForReading       "Cannot open file \"%1$s\" for reading:"
+CantGetEnvVar                "Getting environment variable \"%1$s\" failed:"
+CantSetEnvVar                "Setting environment variable \"%1$s\" failed:"
+CantGetEnvironment           "Getting environment failed:"
+BadBoolValue                 "%1$s=\"%2$s\": Wrong value, boolean expected."
+SSPNotBuiltIn                "No Helper Thread support built in this OMP library."
+SPPSotfTerminateFailed       "Helper thread failed to soft terminate."
+BufferOverflow               "Buffer overflow detected."
+RealTimeSchedNotSupported    "Real-time scheduling policy is not supported."
+RunningAtMaxPriority         "OMP application is running at maximum priority with real-time scheduling policy. "
+CantChangeMonitorPriority    "Changing priority of the monitor thread failed:"
+MonitorWillStarve            "Deadlocks are highly possible due to monitor thread starvation."
+CantSetMonitorStackSize      "Unable to set monitor thread stack size to %1$lu bytes:"
+CantSetWorkerStackSize       "Unable to set OMP thread stack size to %1$lu bytes:"
+CantInitThreadAttrs          "Thread attribute initialization failed:"
+CantDestroyThreadAttrs       "Thread attribute destroying failed:"
+CantSetWorkerState           "OMP thread joinable state setting failed:"
+CantSetMonitorState          "Monitor thread joinable state setting failed:"
+NoResourcesForWorkerThread   "System unable to allocate necessary resources for OMP thread:"
+NoResourcesForMonitorThread  "System unable to allocate necessary resources for the monitor thread:"
+CantTerminateWorkerThread    "Unable to terminate OMP thread:"
+ScheduleKindOutOfRange       "Wrong schedule type %1$d, see <omp.h> or <omp_lib.h> file for the list of values supported."
+UnknownSchedulingType        "Unknown scheduling type \"%1$d\"."
+InvalidValue                 "%1$s value \"%2$s\" is invalid."
+SmallValue                   "%1$s value \"%2$s\" is too small."
+LargeValue                   "%1$s value \"%2$s\" is too large."
+StgInvalidValue              "%1$s: \"%2$s\" is an invalid value; ignored."
+BarrReleaseValueInvalid      "%1$s release value \"%2$s\" is invalid."
+BarrGatherValueInvalid       "%1$s gather value \"%2$s\" is invalid."
+OBSOLETE                     "%1$s supported only on debug builds; ignored."
+ParRangeSyntax               "Syntax error: Usage: %1$s=[ routine=<func> | filename=<file> | range=<lb>:<ub> "
+                             "| excl_range=<lb>:<ub> ],..."
+UnbalancedQuotes             "Unbalanced quotes in %1$s."
+EmptyString                  "Empty string specified for %1$s; ignored."
+LongValue                    "%1$s value is too long; ignored."
+InvalidClause                "%1$s: Invalid clause in \"%2$s\"."
+EmptyClause                  "Empty clause in %1$s."
+InvalidChunk                 "%1$s value \"%2$s\" is invalid chunk size."
+LargeChunk                   "%1$s value \"%2$s\" is to large chunk size."
+IgnoreChunk                  "%1$s value \"%2$s\" is ignored."
+CantGetProcFreq              "Cannot get processor frequency, using zero KMP_ITT_PREPARE_DELAY."
+EnvParallelWarn              "%1$s must be set prior to first parallel region; ignored."
+AffParamDefined              "%1$s: parameter has been specified already, ignoring \"%2$s\"."
+AffInvalidParam              "%1$s: parameter invalid, ignoring \"%2$s\"."
+AffManyParams                "%1$s: too many integer parameters specified, ignoring \"%2$s\"."
+AffManyParamsForLogic        "%1$s: too many integer parameters specified for logical or physical type, ignoring \"%2$d\"."
+AffNoParam                   "%1$s: '%2$s' type does not take any integer parameters, ignoring them."
+AffNoProcList                "%1$s: proclist not specified with explicit affinity type, using \"none\"."
+AffProcListNoType            "%1$s: proclist specified, setting affinity type to \"explicit\"."
+AffProcListNotExplicit       "%1$s: proclist specified without \"explicit\" affinity type, proclist ignored."
+AffSyntaxError               "%1$s: syntax error, not using affinity."
+AffZeroStride                "%1$s: range error (zero stride), not using affinity."
+AffStartGreaterEnd           "%1$s: range error (%2$d > %3$d), not using affinity."
+AffStrideLessZero            "%1$s: range error (%2$d < %3$d & stride < 0), not using affinity."
+AffRangeTooBig               "%1$s: range error ((%2$d-%3$d)/%4$d too big), not using affinity."
+OBSOLETE                     "%1$s: %2$s is defined. %3$s will be ignored."
+AffNotSupported              "%1$s: affinity not supported, using \"disabled\"."
+OBSOLETE                     "%1$s: affinity only supported for Intel(R) Architecture Processors."
+GetAffSysCallNotSupported    "%1$s: getaffinity system call not supported."
+SetAffSysCallNotSupported    "%1$s: setaffinity system call not supported."
+OBSOLETE                     "%1$s: pthread_aff_set_np call not found."
+OBSOLETE                     "%1$s: pthread_get_num_resources_np call not found."
+OBSOLETE                     "%1$s: the OS kernel does not support affinity."
+OBSOLETE                     "%1$s: pthread_get_num_resources_np returned %2$d."
+AffCantGetMaskSize           "%1$s: cannot determine proper affinity mask size."
+ParseSizeIntWarn             "%1$s=\"%2$s\": %3$s."
+ParseExtraCharsWarn          "%1$s: extra trailing characters ignored: \"%2$s\"."
+UnknownForceReduction        "%1$s: unknown method \"%2$s\"."
+TimerUseGettimeofday         "KMP_STATS_TIMER: clock_gettime is undefined, using gettimeofday."
+TimerNeedMoreParam           "KMP_STATS_TIMER: \"%1$s\" needs additional parameter, e.g. 'clock_gettime,2'. Using gettimeofday."
+TimerInvalidParam            "KMP_STATS_TIMER: clock_gettime parameter \"%1$s\" is invalid, using gettimeofday."
+TimerGettimeFailed           "KMP_STATS_TIMER: clock_gettime failed, using gettimeofday."
+TimerUnknownFunction         "KMP_STATS_TIMER: clock function unknown (ignoring value \"%1$s\")."
+UnknownSchedTypeDetected     "Unknown scheduling type detected."
+DispatchManyThreads          "Too many threads to use analytical guided scheduling - switching to iterative guided scheduling."
+IttLookupFailed              "ittnotify: Lookup of \"%1$s\" function in \"%2$s\" library failed."
+IttLoadLibFailed             "ittnotify: Loading \"%1$s\" library failed."
+IttAllNotifDisabled          "ittnotify: All itt notifications disabled."
+IttObjNotifDisabled          "ittnotify: Object state itt notifications disabled."
+IttMarkNotifDisabled         "ittnotify: Mark itt notifications disabled."
+IttUnloadLibFailed           "ittnotify: Unloading \"%1$s\" library failed."
+CantFormThrTeam              "Cannot form a team with %1$d threads, using %2$d instead."
+ActiveLevelsNegative         "Requested number of active parallel levels \"%1$d\" is negative; ignored."
+ActiveLevelsExceedLimit      "Requested number of active parallel levels \"%1$d\" exceeds supported limit; "
+                             "the following limit value will be used: \"%1$d\"."
+SetLibraryIncorrectCall      "kmp_set_library must only be called from the top level serial thread; ignored."
+FatalSysError                "Fatal system error detected."
+OutOfHeapMemory              "Out of heap memory."
+OBSOLETE                     "Clearing __KMP_REGISTERED_LIB env var failed."
+OBSOLETE                     "Registering library with env var failed."
+Using_int_Value              "%1$s value \"%2$d\" will be used."
+Using_uint_Value             "%1$s value \"%2$u\" will be used."
+Using_uint64_Value           "%1$s value \"%2$s\" will be used."
+Using_str_Value              "%1$s value \"%2$s\" will be used."
+MaxValueUsing                "%1$s maximum value \"%2$d\" will be used."
+MinValueUsing                "%1$s minimum value \"%2$d\" will be used."
+MemoryAllocFailed            "Memory allocation failed."
+FileNameTooLong              "File name too long."
+OBSOLETE                     "Lock table overflow."
+ManyThreadsForTPDirective    "Too many threads to use threadprivate directive."
+AffinityInvalidMask          "%1$s: invalid mask."
+WrongDefinition              "Wrong definition."
+TLSSetValueFailed            "Windows* OS: TLS Set Value failed."
+TLSOutOfIndexes              "Windows* OS: TLS out of indexes."
+OBSOLETE                     "PDONE directive must be nested within a DO directive."
+CantGetNumAvailCPU           "Cannot get number of available CPUs."
+AssumedNumCPU                "Assumed number of CPUs is 2."
+ErrorInitializeAffinity      "Error initializing affinity - not using affinity."
+AffThreadsMayMigrate         "Threads may migrate across all available OS procs (granularity setting too coarse)."
+AffIgnoreInvalidProcID       "Ignoring invalid OS proc ID %1$d."
+AffNoValidProcID             "No valid OS proc IDs specified - not using affinity."
+UsingFlatOS                  "%1$s - using \"flat\" OS <-> physical proc mapping."
+UsingFlatOSFile              "%1$s: %2$s - using \"flat\" OS <-> physical proc mapping."
+UsingFlatOSFileLine          "%1$s, line %2$d: %3$s - using \"flat\" OS <-> physical proc mapping."
+FileMsgExiting               "%1$s: %2$s - exiting."
+FileLineMsgExiting           "%1$s, line %2$d: %3$s - exiting."
+ConstructIdentInvalid        "Construct identifier invalid."
+ThreadIdentInvalid           "Thread identifier invalid."
+RTLNotInitialized            "runtime library not initialized."
+TPCommonBlocksInconsist      "Inconsistent THREADPRIVATE common block declarations are non-conforming "
+                             "and are unsupported. Either all threadprivate common blocks must be declared "
+                             "identically, or the largest instance of each threadprivate common block "
+                             "must be referenced first during the run."
+CantSetThreadAffMask         "Cannot set thread affinity mask."
+CantSetThreadPriority        "Cannot set thread priority."
+CantCreateThread             "Cannot create thread."
+CantCreateEvent              "Cannot create event."
+CantSetEvent                 "Cannot set event."
+CantCloseHandle              "Cannot close handle."
+UnknownLibraryType           "Unknown library type: %1$d."
+ReapMonitorError             "Monitor did not reap properly."
+ReapWorkerError              "Worker thread failed to join."
+ChangeThreadAffMaskError     "Cannot change thread affinity mask."
+ThreadsMigrate               "%1$s: Threads may migrate across %2$d innermost levels of machine"
+DecreaseToThreads            "%1$s: decrease to %2$d threads"
+IncreaseToThreads            "%1$s: increase to %2$d threads"
+OBSOLETE                     "%1$s: Internal thread %2$d bound to OS proc set %3$s"
+AffCapableUseCpuinfo         "%1$s: Affinity capable, using cpuinfo file"
+AffUseGlobCpuid              "%1$s: Affinity capable, using global cpuid info"
+AffCapableUseFlat            "%1$s: Affinity capable, using default \"flat\" topology"
+AffNotCapableUseLocCpuid     "%1$s: Affinity not capable, using local cpuid info"
+AffNotCapableUseCpuinfo      "%1$s: Affinity not capable, using cpuinfo file"
+AffFlatTopology              "%1$s: Affinity not capable, assumming \"flat\" topology"
+InitOSProcSetRespect         "%1$s: Initial OS proc set respected: %2$s"
+InitOSProcSetNotRespect      "%1$s: Initial OS proc set not respected: %2$s"
+AvailableOSProc              "%1$s: %2$d available OS procs"
+Uniform                      "%1$s: Uniform topology"
+NonUniform                   "%1$s: Nonuniform topology"
+Topology                     "%1$s: %2$d packages x %3$d cores/pkg x %4$d threads/core (%5$d total cores)"
+OBSOLETE                     "%1$s: OS proc to physical thread map ([] => level not in map):"
+OSProcToPackage              "%1$s: OS proc <n> maps to <n>th package core 0"
+OBSOLETE                     "%1$s: OS proc %2$d maps to package %3$d [core %4$d] [thread %5$d]"
+OBSOLETE                     "%1$s: OS proc %2$d maps to [package %3$d] [core %4$d] [thread %5$d]"
+OBSOLETE                     "%1$s: OS proc %2$d maps to [package %3$d] [core %4$d] thread %5$d"
+OBSOLETE                     "%1$s: OS proc %2$d maps to [package %3$d] core %4$d [thread %5$d]"
+OBSOLETE                     "%1$s: OS proc %2$d maps to package %3$d [core %4$d] [thread %5$d]"
+OBSOLETE                     "%1$s: OS proc %2$d maps to [package %3$d] core %4$d thread %5$d"
+OBSOLETE                     "%1$s: OS proc %2$d maps to package %3$d core %4$d [thread %5$d]"
+OBSOLETE                     "%1$s: OS proc %2$d maps to package %3$d [core %4$d] thread %5$d"
+OBSOLETE                     "%1$s: OS proc %2$d maps to package %3$d core %4$d thread %5$d"
+OSProcMapToPack              "%1$s: OS proc %2$d maps to %3$s"
+OBSOLETE                     "%1$s: Internal thread %2$d changed affinity mask from %3$s to %4$s"
+OBSOLETE                     "%1$s: OS proc %2$d maps to package %3$d, CPU %4$d, TPU %5$d"
+OBSOLETE                     "%1$s: OS proc %2$d maps to package %3$d, CPU %4$d"
+OBSOLETE                     "%1$s: HT enabled; %2$d packages; %3$d TPU; %4$d TPUs per package"
+OBSOLETE                     "%1$s: HT disabled; %2$d packages"
+BarriersInDifferentOrder     "Threads encountered barriers in different order. "
+FunctionError                "Function %1$s failed:"
+TopologyExtra                "%1$s: %2$s packages x %3$d cores/pkg x %4$d threads/core (%5$d total cores)"
+WrongMessageCatalog          "Incompatible message catalog \"%1$s\": Version \"%2$s\" found, version \"%3$s\" expected."
+StgIgnored                   "%1$s: ignored because %2$s has been defined"
+                                 # %1, -- name of ignored variable, %2 -- name of variable with higher priority.
+OBSOLETE                     "%1$s: overrides %3$s specified before"
+                                 # %1, %2 -- name and value of the overriding variable, %3 -- name of overriden variable.
+AffTilesNoHWLOC              "%1$s: Tiles are only supported if KMP_TOPOLOGY_METHOD=hwloc, using granularity=package instead"
+AffTilesNoTiles              "%1$s: Tiles requested but were not detected on this HW, using granularity=package instead"
+TopologyExtraTile            "%1$s: %2$d packages x %3$d tiles/pkg x %4$d cores/tile x %5$d threads/core (%6$d total cores)"
+TopologyExtraNode            "%1$s: %2$d packages x %3$d nodes/pkg x %4$d cores/node x %5$d threads/core (%6$d total cores)"
+TopologyExtraNoTi            "%1$s: %2$d packages x %3$d nodes/pkg x %4$d tiles/node x %5$d cores/tile x %6$d threads/core (%7$d total cores)"
+OmptOutdatedWorkshare        "OMPT: Cannot determine workshare type; using the default (loop) instead. "
+                             "This issue is fixed in an up-to-date compiler."
+OmpNoAllocator               "Allocator %1$s is not available, will use default allocator."
+
+# --- OpenMP errors detected at runtime ---
+#
+#    %1 is the name of OpenMP construct (formatted with "Pragma" format).
+#
+CnsBoundToWorksharing        "%1$s must be bound to a work-sharing or work-queuing construct with an \"ordered\" clause"
+CnsDetectedEnd               "Detected end of %1$s without first executing a corresponding beginning."
+CnsIterationRangeTooLarge    "Iteration range too large in %1$s."
+CnsLoopIncrZeroProhibited    "%1$s must not have a loop increment that evaluates to zero."
+#
+#    %1 is the name of the first OpenMP construct, %2 -- the name of the second one (both formatted with "Pragma" format).
+#
+CnsExpectedEnd               "Expected end of %1$s; %2$s, however, has most recently begun execution."
+CnsInvalidNesting            "%1$s is incorrectly nested within %2$s"
+CnsMultipleNesting           "%1$s cannot be executed multiple times during execution of one parallel iteration/section of %2$s"
+CnsNestingSameName           "%1$s is incorrectly nested within %2$s of the same name"
+CnsNoOrderedClause           "%1$s is incorrectly nested within %2$s that does not have an \"ordered\" clause"
+CnsNotInTaskConstruct        "%1$s is incorrectly nested within %2$s but not within any of its \"task\" constructs"
+CnsThreadsAtBarrier          "One thread at %1$s while another thread is at %2$s."
+
+# New errors
+CantConnect                  "Cannot connect to %1$s"
+CantConnectUsing             "Cannot connect to %1$s - Using %2$s"
+LibNotSupport                "%1$s does not support %2$s. Continuing without using %2$s."
+LibNotSupportFor             "%1$s does not support %2$s for %3$s. Continuing without using %2$s."
+StaticLibNotSupport          "Static %1$s does not support %2$s. Continuing without using %2$s."
+OBSOLETE                     "KMP_DYNAMIC_MODE=irml cannot be used with KMP_USE_IRML=0"
+IttUnknownGroup              "ittnotify: Unknown group \"%2$s\" specified in environment variable \"%1$s\"."
+IttEnvVarTooLong             "ittnotify: Environment variable \"%1$s\" too long: Actual lengths is %2$lu, max allowed length is %3$lu."
+AffUseGlobCpuidL11           "%1$s: Affinity capable, using global cpuid leaf 11 info"
+AffNotCapableUseLocCpuidL11  "%1$s: Affinity not capable, using local cpuid leaf 11 info"
+AffInfoStr                   "%1$s: %2$s."
+AffInfoStrStr                "%1$s: %2$s - %3$s."
+OSProcToPhysicalThreadMap    "%1$s: OS proc to physical thread map:"
+AffUsingFlatOS               "%1$s: using \"flat\" OS <-> physical proc mapping."
+AffParseFilename             "%1$s: parsing %2$s."
+MsgExiting                   "%1$s - exiting."
+IncompatibleLibrary          "Incompatible %1$s library with version %2$s found."
+IttFunctionError             "ittnotify: Function %1$s failed:"
+IttUnknownError              "ittnofify: Error #%1$d."
+EnvMiddleWarn                "%1$s must be set prior to first parallel region or certain API calls; ignored."
+CnsLockNotDestroyed          "Lock initialized at %1$s(%2$d) was not destroyed"
+                                 # %1, %2, %3, %4 -- file, line, func, col
+CantLoadBalUsing             "Cannot determine machine load balance - Using %1$s"
+AffNotCapableUsePthread      "%1$s: Affinity not capable, using pthread info"
+AffUsePthread                "%1$s: Affinity capable, using pthread info"
+OBSOLETE                     "Loading \"%1$s\" library failed:"
+OBSOLETE                     "Lookup of \"%1$s\" function failed:"
+OBSOLETE                     "Buffer too small."
+OBSOLETE                     "Error #%1$d."
+NthSyntaxError               "%1$s: Invalid symbols found. Check the value \"%2$s\"."
+NthSpacesNotAllowed          "%1$s: Spaces between digits are not allowed \"%2$s\"."
+AffStrParseFilename          "%1$s: %2$s - parsing %3$s."
+OBSOLETE                     "%1$s cannot be specified via kmp_set_defaults() on this machine because it has more than one processor group."
+AffTypeCantUseMultGroups     "Cannot use affinity type \"%1$s\" with multiple Windows* OS processor groups, using \"%2$s\"."
+AffGranCantUseMultGroups     "Cannot use affinity granularity \"%1$s\" with multiple Windows* OS processor groups, using \"%2$s\"."
+AffWindowsProcGroupMap       "%1$s: Mapping Windows* OS processor group <i> proc <j> to OS proc 64*<i>+<j>."
+AffOSProcToGroup             "%1$s: OS proc %2$d maps to Windows* OS processor group %3$d proc %4$d"
+AffBalancedNotAvail          "%1$s: Affinity balanced is not available."
+OBSOLETE                     "%1$s: granularity=core will be used."
+EnvLockWarn                  "%1$s must be set prior to first OMP lock call or critical section; ignored."
+FutexNotSupported            "futex system call not supported; %1$s=%2$s ignored."
+AffGranUsing                 "%1$s: granularity=%2$s will be used."
+AffHWSubsetInvalid           "%1$s: invalid value \"%2$s\", valid format is \"N<item>[@N][,...][,Nt] "
+                             "(<item> can be S, N, L2, C, T  for Socket, NUMA Node, L2 Cache, Core, Thread)\"."
+AffHWSubsetUnsupported       "KMP_HW_SUBSET ignored: unsupported architecture."
+AffHWSubsetManyCores         "KMP_HW_SUBSET ignored: too many cores requested."
+SyntaxErrorUsing             "%1$s: syntax error, using %2$s."
+AdaptiveNotSupported         "%1$s: Adaptive locks are not supported; using queuing."
+EnvSyntaxError               "%1$s: Invalid symbols found. Check the value \"%2$s\"."
+EnvSpacesNotAllowed          "%1$s: Spaces between digits are not allowed \"%2$s\"."
+BoundToOSProcSet             "%1$s: pid %2$d tid %3$d thread %4$d bound to OS proc set %5$s"
+CnsLoopIncrIllegal           "%1$s error: parallel loop increment and condition are inconsistent."
+NoGompCancellation           "libgomp cancellation is not currently supported."
+AffHWSubsetNonUniform        "KMP_HW_SUBSET ignored: non-uniform topology."
+AffHWSubsetNonThreeLevel     "KMP_HW_SUBSET ignored: only three-level topology is supported."
+AffGranTopGroup              "%1$s: granularity=%2$s is not supported with KMP_TOPOLOGY_METHOD=group. Using \"granularity=fine\"."
+AffGranGroupType             "%1$s: granularity=group is not supported with KMP_AFFINITY=%2$s. Using \"granularity=core\"."
+AffHWSubsetManySockets       "KMP_HW_SUBSET ignored: too many sockets requested."
+AffHWSubsetDeprecated        "KMP_HW_SUBSET \"o\" offset designator deprecated, please use @ prefix for offset value."
+AffUsingHwloc                "%1$s: Affinity capable, using hwloc."
+AffIgnoringHwloc             "%1$s: Ignoring hwloc mechanism."
+AffHwlocErrorOccurred        "%1$s: Hwloc failed in %2$s. Relying on internal affinity mechanisms."
+EnvSerialWarn                "%1$s must be set prior to OpenMP runtime library initialization; ignored."
+EnvVarDeprecated             "%1$s variable deprecated, please use %2$s instead."
+RedMethodNotSupported        "KMP_FORCE_REDUCTION: %1$s method is not supported; using critical."
+AffHWSubsetNoHWLOC           "KMP_HW_SUBSET ignored: unsupported item requested for non-HWLOC topology method (KMP_TOPOLOGY_METHOD)"
+AffHWSubsetManyNodes         "KMP_HW_SUBSET ignored: too many NUMA Nodes requested."
+AffHWSubsetManyTiles         "KMP_HW_SUBSET ignored: too many L2 Caches requested."
+AffHWSubsetManyProcs         "KMP_HW_SUBSET ignored: too many Procs requested."
+HierSchedInvalid             "Hierarchy ignored: unsupported level: %1$s."
+AffFormatDefault             "OMP: pid %1$s tid %2$s thread %3$s bound to OS proc set {%4$s}"
+
+
+# --------------------------------------------------------------------------------------------------
+-*- HINTS -*-
+# --------------------------------------------------------------------------------------------------
+
+# Hints. Hint may be printed after a message. Usually it is longer explanation text or suggestion.
+# To maintain hint numbers (they are visible to customers), add new hints to the end.
+
+SubmitBugReport              "Please submit a bug report with this message, compile and run "
+                             "commands used, and machine configuration info including native "
+                             "compiler and operating system versions. Faster response will be "
+                             "obtained by including all program sources. For information on "
+                             "submitting this issue, please see "
+                             "https://bugs.llvm.org/."
+OBSOLETE                     "Check NLSPATH environment variable, its value is \"%1$s\"."
+ChangeStackLimit             "Please try changing the shell stack limit or adjusting the "
+                             "OMP_STACKSIZE environment variable."
+Unset_ALL_THREADS            "Consider unsetting KMP_DEVICE_THREAD_LIMIT (KMP_ALL_THREADS), KMP_TEAMS_THREAD_LIMIT, and OMP_THREAD_LIMIT (if any are set)."
+Set_ALL_THREADPRIVATE        "Consider setting KMP_ALL_THREADPRIVATE to a value larger than %1$d."
+PossibleSystemLimitOnThreads "This could also be due to a system-related limit on the number of threads."
+DuplicateLibrary             "This means that multiple copies of the OpenMP runtime have been "
+                             "linked into the program. That is dangerous, since it can degrade "
+                             "performance or cause incorrect results. "
+                             "The best thing to do is to ensure that only a single OpenMP runtime is "
+                             "linked into the process, e.g. by avoiding static linking of the OpenMP "
+                             "runtime in any library. As an unsafe, unsupported, undocumented workaround "
+                             "you can set the environment variable KMP_DUPLICATE_LIB_OK=TRUE to allow "
+                             "the program to continue to execute, but that may cause crashes or "
+                             "silently produce incorrect results. "
+                             "For more information, please see http://openmp.llvm.org/"
+NameComesFrom_CPUINFO_FILE   "This name is specified in environment variable KMP_CPUINFO_FILE."
+NotEnoughMemory              "Seems application required too much memory."
+ValidBoolValues              "Use \"0\", \"FALSE\". \".F.\", \"off\", \"no\" as false values, "
+                             "\"1\", \"TRUE\", \".T.\", \"on\", \"yes\" as true values."
+BufferOverflow               "Perhaps too many threads."
+RunningAtMaxPriority         "Decrease priority of application. "
+                             "This will allow the monitor thread run at higher priority than other threads."
+ChangeMonitorStackSize       "Try changing KMP_MONITOR_STACKSIZE or the shell stack limit."
+ChangeWorkerStackSize        "Try changing OMP_STACKSIZE and/or the shell stack limit."
+IncreaseWorkerStackSize      "Try increasing OMP_STACKSIZE or the shell stack limit."
+DecreaseWorkerStackSize      "Try decreasing OMP_STACKSIZE."
+Decrease_NUM_THREADS         "Try decreasing the value of OMP_NUM_THREADS."
+IncreaseMonitorStackSize     "Try increasing KMP_MONITOR_STACKSIZE."
+DecreaseMonitorStackSize     "Try decreasing KMP_MONITOR_STACKSIZE."
+DecreaseNumberOfThreadsInUse "Try decreasing the number of threads in use simultaneously."
+DefaultScheduleKindUsed      "Will use default schedule type (%1$s)."
+GetNewerLibrary              "It could be a result of using an older OMP library with a newer "
+                             "compiler or memory corruption. You may check the proper OMP library "
+                             "is linked to the application."
+CheckEnvVar                  "Check %1$s environment variable, its value is \"%2$s\"."
+OBSOLETE                     "You may want to use an %1$s library that supports %2$s interface with version %3$s."
+OBSOLETE                     "You may want to use an %1$s library with version %2$s."
+BadExeFormat                 "System error #193 is \"Bad format of EXE or DLL file\". "
+                             "Usually it means the file is found, but it is corrupted or "
+                             "a file for another architecture. "
+                             "Check whether \"%1$s\" is a file for %2$s architecture."
+SystemLimitOnThreads         "System-related limit on the number of threads."
+
+
+
+# --------------------------------------------------------------------------------------------------
+# end of file #
+# --------------------------------------------------------------------------------------------------
+

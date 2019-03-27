@@ -1,0 +1,23 @@
+# $FreeBSD$
+
+DEFAULT_VECTOR=	bfd_elf64_sparc_freebsd_vec
+
+SRCS+=	aout32.c	\
+	cpu-sparc.c	\
+	elf32.c		\
+	elf32-sparc.c	\
+	elf32-target.h	\
+	elf64.c		\
+	elf64-sparc.c	\
+	elf64-target.h	\
+	elflink.c	\
+	elfxx-sparc.c	\
+	elfxx-sparc.h	\
+	sparcnetbsd.c	\
+	sunos.c
+
+VECS=	${DEFAULT_VECTOR} \
+	bfd_elf64_sparc_vec \
+	bfd_elf32_sparc_vec \
+	sparcnetbsd_vec \
+	sunos_big_vec

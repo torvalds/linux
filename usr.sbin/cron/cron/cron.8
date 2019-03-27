@@ -1,0 +1,232 @@
+.\"/* Copyright 1988,1990,1993 by Paul Vixie
+.\" * All rights reserved
+.\" *
+.\" * Distribute freely, except: don't remove my name from the source or
+.\" * documentation (don't take credit for my work), mark your changes (don't
+.\" * get me blamed for your possible bugs), don't alter or remove this
+.\" * notice.  May be sold if buildable source is provided to buyer.  No
+.\" * warrantee of any kind, express or implied, is included with this
+.\" * software; use at your own risk, responsibility for damages (if any) to
+.\" * anyone resulting from the use of this software rests entirely with the
+.\" * user.
+.\" *
+.\" * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
+.\" * I'll try to keep a version up to date.  I can be reached as follows:
+.\" * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
+.\" */
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 19, 2017
+.Dt CRON 8
+.Os
+.Sh NAME
+.Nm cron
+.Nd daemon to execute scheduled commands (Vixie Cron)
+.Sh SYNOPSIS
+.Nm
+.Op Fl j Ar jitter
+.Op Fl J Ar rootjitter
+.Op Fl m Ar mailto
+.Op Fl n
+.Op Fl s
+.Op Fl o
+.Op Fl x Ar debugflag Ns Op , Ns Ar ...
+.Sh DESCRIPTION
+The
+.Nm
+utility should be started from
+.Pa /etc/rc
+or
+.Pa /etc/rc.local .
+It will return immediately,
+so you do not need to start it with '&'.
+.Pp
+The
+.Nm
+utility searches
+.Pa /var/cron/tabs
+for crontab files which are named after accounts in
+.Pa /etc/passwd ;
+crontabs found are loaded into memory.
+The
+.Nm
+utility also searches for
+.Pa /etc/crontab
+and files in
+.Pa /etc/cron.d
+and
+.Pa /usr/local/etc/cron.d
+which are in a different format (see
+.Xr crontab 5 ) .
+.Pp
+The
+.Nm
+utility
+then wakes up every minute, examining all stored crontabs, checking each
+command to see if it should be run in the current minute.
+Before running a command from a per-account crontab file,
+.Nm
+checks the status of the account with
+.Xr pam 3
+and skips the command if the account is unavailable,
+e.g., locked out or expired.
+Commands from
+.Pa /etc/crontab
+bypass this check.
+When executing
+commands, any output is mailed to the owner of the crontab (or to the user
+named in the
+.Ev MAILTO
+environment variable in the crontab, if such exists).
+.Pp
+Additionally,
+.Nm
+checks each minute to see if its spool directory's modification time (or
+the modification time on
+.Pa /etc/crontab )
+has changed, and if it has,
+.Nm
+will then examine the modification time on all crontabs and reload those
+which have changed.
+Thus
+.Nm
+need not be restarted whenever a crontab file is modified.
+Note that the
+.Xr crontab 1
+command updates the modification time of the spool directory whenever it
+changes a crontab.
+.Pp
+Available options:
+.Bl -tag -width indent
+.It Fl j Ar jitter
+Enable time jitter.
+Prior to executing commands,
+.Nm
+will sleep a random number of seconds in the range from 0 to
+.Ar jitter .
+This will not affect superuser jobs (see
+.Fl J ) .
+A value for
+.Ar jitter
+must be between 0 and 60 inclusive.
+Default is 0, which effectively disables time jitter.
+.Pp
+This option can help to smooth down system load spikes during
+moments when a lot of jobs are likely to start at once, e.g.,
+at the beginning of the first minute of each hour.
+.It Fl J Ar rootjitter
+Enable time jitter for superuser jobs.
+The same as
+.Fl j
+except that it will affect jobs run by the superuser only.
+.It Fl m Ar mailto
+Overrides the default recipient for
+.Nm
+mail.
+Each
+.Xr crontab 5
+without
+.Ev MAILTO
+explicitly set will send mail to the
+.Ar mailto
+mailbox.
+Sending mail will be disabled by default if
+.Ar mailto
+set to a null string, usually specified in a shell as
+.Li ''
+or
+.Li \*q\*q .
+.It Fl n
+Do not daemonize; run in foreground instead.
+.It Fl s
+Enable special handling of situations when the GMT offset of the local
+timezone changes, such as the switches between the standard time and
+daylight saving time.
+.Pp
+The jobs run during the GMT offset changes time as
+intuitively expected.
+If a job falls into a time interval that disappears
+(for example, during the switch from
+standard time) to daylight saving time or is
+duplicated (for example, during the reverse switch), then it is handled
+in one of two ways:
+.Pp
+The first case is for the jobs that run every at hour of a time interval
+overlapping with the disappearing or duplicated interval.
+In other words, if the job had run within one hour before the GMT offset change
+(and cron was not restarted nor the
+.Xr crontab 5
+changed after that)
+or would run after the change at the next hour.
+They work as always, skip the skipped time or run in the added
+time as usual.
+.Pp
+The second case is for the jobs that run less frequently.
+They are executed exactly once, they are not skipped nor
+executed twice (unless cron is restarted or the user's
+.Xr crontab 5
+is changed during such a time interval).
+If an interval disappears
+due to the GMT offset change, such jobs are
+executed at the same absolute point of time as they would be in the
+old time zone.
+For example, if exactly one hour disappears, this
+point would be during the next hour at the first minute that is
+specified for them in
+.Xr crontab 5 .
+.It Fl o
+Disable the special handling of situations when the GMT offset of the local
+timezone changes, to be compatible with the old (default) behavior.
+If both options
+.Fl o
+and
+.Fl s
+are specified, the option specified last wins.
+.It Fl x Ar debugflag Ns Op , Ns Ar ...
+Enable writing of debugging information to standard output.
+One or more of the following comma separated
+.Ar debugflag
+identifiers must be specified:
+.Pp
+.Bl -tag -width ".Cm proc" -compact
+.It Cm bit
+currently not used
+.It Cm ext
+make the other debug flags more verbose
+.It Cm load
+be verbose when loading crontab files
+.It Cm misc
+be verbose about miscellaneous one-off events
+.It Cm pars
+be verbose about parsing individual crontab lines
+.It Cm proc
+be verbose about the state of the process, including all of its offspring
+.It Cm sch
+be verbose when iterating through the scheduling algorithms
+.It Cm test
+trace through the execution, but do not perform any actions
+.El
+.El
+.Sh FILES
+.Bl -tag -width /usr/local/etc/cron.d -compact
+.It Pa /etc/crontab
+System crontab file
+.It Pa /etc/cron.d
+Directory for optional/modularized system crontab files.
+.It Pa /etc/pam.d/cron
+.Xr pam.conf 5
+configuration file for
+.Nm
+.It Pa /usr/local/etc/cron.d
+Directory for third-party package provided crontab files.
+.It Pa /var/cron/tabs
+Directory for personal crontab files
+.El
+.Sh SEE ALSO
+.Xr crontab 1 ,
+.Xr pam 3 ,
+.Xr crontab 5 ,
+.Xr pam.conf 5
+.Sh AUTHORS
+.An Paul Vixie Aq Mt paul@vix.com

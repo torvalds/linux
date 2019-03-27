@@ -1,0 +1,117 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: form_field_opts.3x,v 1.16 2010/12/04 18:41:07 tom Exp $
+.TH form_field_opts 3X ""
+.SH NAME
+\fBform_field_opts\fR \- set and get field options
+.SH SYNOPSIS
+\fB#include <form.h>\fR
+.br
+int set_field_opts(FIELD *field, Field_Options opts);
+.br
+int field_opts_on(FIELD *field, Field_Options opts);
+.br
+int field_opts_off(FIELD *field, Field_Options opts);
+.br
+Field_Options field_opts(const FIELD *field);
+.br
+.SH DESCRIPTION
+The function \fBset_field_opts\fR sets all the given field's option bits (field
+option bits may be logically-OR'ed together).
+.PP
+The function \fBfield_opts_on\fR turns on the given option bits, and leaves
+others alone.
+.PP
+The function \fBfield_opts_off\fR turns off the given option bits, and leaves
+others alone.
+.PP
+The function \fBfield_opts\fR returns the field's current option bits.
+.PP
+The following options are defined (all are on by default):
+.TP 5
+O_VISIBLE
+The field is displayed.  If this option is off, display of the field is
+suppressed.
+.TP 5
+O_ACTIVE
+The field is visited during processing.  If this option is off, the field will
+not be reachable by navigation keys. Please notice that an invisible field
+appears to be inactive also.
+.TP 5
+O_PUBLIC
+The field contents are displayed as data is entered.
+.TP 5
+O_EDIT
+The field can be edited.
+.TP 5
+O_WRAP
+Words that do not fit on a line are wrapped to the next line.  Words are
+blank-separated.
+.TP 5
+O_BLANK
+The field is cleared whenever a character is entered at the first position.
+.TP 5
+O_AUTOSKIP
+Skip to the next field when this one fills.
+.TP 5
+O_NULLOK
+Allow a blank field.
+.TP 5
+O_STATIC
+Field buffers are fixed to field's original size.
+Turn this option off to create a dynamic field.
+.TP 5
+O_PASSOK
+Validate field only if modified by user.
+.SH RETURN VALUE
+Except for \fBfield_opts\fR, each routine returns one of the following:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_CURRENT
+The field is the current field.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
+.SH SEE ALSO
+\fBcurses\fR(3X), \fBform\fR(3X).
+.SH NOTES
+The header file \fB<form.h>\fR automatically includes the header file
+\fB<curses.h>\fR.
+.SH PORTABILITY
+These routines emulate the System V forms library.  They were not supported on
+Version 7 or BSD versions.
+.SH AUTHORS
+Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
+S. Raymond.

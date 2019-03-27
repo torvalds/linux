@@ -1,0 +1,73 @@
+.\" Copyright (c) 2001 Mike Barcroft <mike@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 14, 2001
+.Dt IMAXDIV 3
+.Os
+.Sh NAME
+.Nm imaxdiv
+.Nd returns quotient and remainder
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In inttypes.h
+.Ft imaxdiv_t
+.Fn imaxdiv "intmax_t numer" "intmax_t denom"
+.Sh DESCRIPTION
+The
+.Fn imaxdiv
+function computes the value of
+.Fa numer
+divided by
+.Fa denom
+and returns the stored result in the form of the
+.Vt imaxdiv_t
+type.
+.Pp
+The
+.Vt imaxdiv_t
+type is defined as:
+.Bd -literal -offset indent
+typedef struct {
+	intmax_t quot; /* Quotient. */
+	intmax_t rem;  /* Remainder. */
+} imaxdiv_t;
+.Ed
+.Sh SEE ALSO
+.Xr div 3 ,
+.Xr ldiv 3 ,
+.Xr lldiv 3 ,
+.Xr math 3
+.Sh STANDARDS
+The
+.Fn imaxdiv
+function conforms to
+.St -isoC-99 .
+.Sh HISTORY
+The
+.Fn imaxdiv
+function first appeared in
+.Fx 5.0 .

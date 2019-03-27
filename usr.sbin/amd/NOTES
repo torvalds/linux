@@ -1,0 +1,3 @@
+amd/amd supports HESIOD, LDAP, and NIS+ which we don't presently.
+If they are added to FreeBSD, add info_hesiod.c, info_ldap.c, info_nisplus.c
+to amd/amd's Makefile.

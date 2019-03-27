@@ -1,0 +1,14 @@
+## check-libopts.mf - automake fragment
+##
+## If we are not using the tearoff libopts, we won't be
+## building its libopts.la, so the submake is allowed
+## to fail.
+
+BUILT_SOURCES	+= check-libopts
+CLEANFILES	+= check-libopts
+
+check-libopts: libopts/libopts.la
+	@echo stamp > $@
+
+libopts/libopts.la:
+	-cd libopts && $(MAKE) $(AM_MAKEFLAGS) libopts.la

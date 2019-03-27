@@ -1,0 +1,119 @@
+# Tests which are known to fail from the GCC torture test suite.
+
+# Syntax: Each line has a single test to be marked as a 'known failure' (or
+# 'exclusion'. Known failures are expected to fail, and will cause an error if
+# they pass. (Known failures that do not run at all will not cause an
+# error). The format is
+# <name> <attributes> # comment
+
+# Computed gotos are not supported (Cannot select BlockAddress/BRIND)
+20071220-1.c
+20071220-2.c
+20040302-1.c
+20041214-1.c O0
+20071210-1.c
+920501-4.c
+920501-5.c
+comp-goto-1.c
+980526-1.c
+990208-1.c
+label13.C O0
+label13a.C O0
+label3.C
+pr42462.C O0
+
+# WebAssembly hasn't implemented (will never?) __builtin_return_address
+20010122-1.c
+20030323-1.c
+20030811-1.c
+pr17377.c
+
+# Error: invalid output constraint '=t' in asm.
+990413-2.c
+
+# Error: __builtin_setjmp / __builtin_longjmp is not supported for the current target.
+built-in-setjmp.c
+pr60003.c
+
+# Error in the program / unsupported by Clang.
+20000822-1.c
+20010209-1.c
+20010605-1.c
+20030501-1.c
+20040520-1.c
+20061220-1.c
+20090219-1.c
+920415-1.c
+920428-2.c
+920501-7.c
+920612-2.c
+920721-4.c
+921017-1.c
+921215-1.c
+931002-1.c
+comp-goto-2.c
+nest-align-1.c
+nest-stdar-1.c
+nestfunc-1.c
+nestfunc-2.c
+nestfunc-3.c
+nestfunc-5.c
+nestfunc-6.c
+nestfunc-7.c
+pr22061-3.c
+pr22061-4.c
+pr24135.c
+pr51447.c
+20020412-1.c
+20040308-1.c
+20040423-1.c
+20041218-2.c
+20070919-1.c
+align-nest.c
+pr41935.c
+920302-1.c
+920501-3.c
+920728-1.c
+pr28865.c
+widechar-2.c
+attr-alias-1.C
+attr-alias-2.C
+attr-ifunc-1.C
+attr-ifunc-2.C
+attr-ifunc-3.C
+attr-ifunc-4.C
+complit12.C
+va-arg-pack-1.C
+va-arg-pack-len-1.C
+builtin-line1.C
+builtin-location.C
+devirt-6.C  # bad main signature
+devirt-13.C  # bad main signature
+devirt-14.C  # bad main signature
+devirt-21.C  # bad main signature
+devirt-23.C  # bad main signature
+lifetime2.C  # violates C++ DR1696
+
+# Untriaged C++ failures
+spec5.C
+addr1.C
+ef_test.C
+friend18.C
+member2.C
+new39.C
+new40.C
+nrv8.C
+offsetof9.C
+opaque-1.C
+pr19650.C
+pr37146-1.C
+pr46149.C
+pr59470.C
+rtti2.C
+self1.C
+type-generic-1.C
+vbase8-10.C
+vbase8-21.C
+vbase8-22.C
+vbase8-4.C
+vector1.C

@@ -1,0 +1,141 @@
+.\" Copyright (c) 1996-1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\" $Whistle: ng_rfc1490.8,v 1.4 1999/01/25 23:46:27 archie Exp $
+.\"
+.Dd January 19, 1999
+.Dt NG_RFC1490 4
+.Os
+.Sh NAME
+.Nm ng_rfc1490
+.Nd RFC 1490 netgraph node type
+.Sh SYNOPSIS
+.In netgraph/ng_rfc1490.h
+.Sh DESCRIPTION
+The
+.Nm rfc1490
+node type performs protocol encapsulation, de-encapsulation, and
+multiplexing according to RFC 1490 (which has since been updated by RFC 2427).
+This particular type of encapsulation is often used on top of frame relay
+DLCI channels.
+.Pp
+The
+.Dv downstream
+hook is used to transmit and receive encapsulated frames.
+On the other side of the node, the
+.Dv inet
+and
+.Dv ppp
+hooks are used to transmit and receive raw IP frames and PPP frames,
+respectively.
+PPP frames are transmitted and received according to
+RFC 1973; in particular, frames appearing on the
+.Dv ppp
+hook begin with the PPP protocol number.
+The
+.Dv ethernet
+hook can be used to transmit and receive Ethernet frames (without a
+checksum) in RFC 1490's bridging format.
+.Pp
+Typically the
+.Dv inet
+hook is connected to the
+.Dv inet
+hook of an
+.Xr ng_iface 4
+node.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va downstream"
+.It Va downstream
+Connects to the RFC 1490 peer entity.
+.It Va ethernet
+Transmits and receives bridged raw Ethernet frames, without a checksum.
+.It Va inet
+Transmits and receives raw IP frames.
+.It Va ppp
+Transmits and receives PPP frames.
+.El
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_RFC1490_SET_ENCAP Pq Ic setencap
+This command sets encapsulation method for the node.
+The desired method must be passed as a string message argument,
+and must be one of the following supported encapsulation modes:
+.Bl -tag -width ".Qq Li ietf-snap"
+.It Qq Li ietf-ip
+IP packets are sent using simple RFC1490/2427 encapsulation.
+.It Qq Li ietf-snap
+IP packets are sent inside SNAP frames.
+Also conforms to RFC1490/2427.
+.It Qq Li cisco
+IP packets are sent and received using proprietary Cisco encapsulation
+method.
+.El
+.It Dv NGM_RFC1490_GET_ENCAP Pq Ic getencap
+This command returns current encapsulation method on the node.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_frame_relay 4 ,
+.Xr ng_iface 4 ,
+.Xr ngctl 8
+.Rs
+.%A C. Brown
+.%A A. Malis
+.%T "Multiprotocol Interconnect over Frame Relay"
+.%O RFC 2427
+.Re
+.Rs
+.%A W. Simpson
+.%T "PPP in Frame Relay"
+.%O RFC 1973
+.Re
+.Pp
+.Pa http://www.cisco.com/warp/public/121/frf8modes.pdf
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Julian Elischer Aq Mt julian@FreeBSD.org
+.Sh BUGS
+Not all of RFC 1490 is implemented.

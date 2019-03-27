@@ -1,0 +1,62 @@
+#!/bin/sh -
+#
+# Copyright (c) 2001  The FreeBSD Project
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+. /etc/periodic/security/security.functions
+
+security_daily_compat_var security_status_chksetuid_enable
+
+rc=0
+
+if check_yesno_period security_status_chksetuid_enable
+then
+	echo ""
+	echo 'Checking setuid files and devices:'
+	IFS=$'\n'	# Don't split mount points with spaces or tabs
+	MP=`mount -t ufs,zfs | awk '
+		$0 !~ /no(suid|exec)/ {
+			sub(/^.* on \//, "/");
+			sub(/ \(.*\)/, "");
+			print $0
+		}'`
+	find -sx $MP /dev/null \( ! -fstype local \) -prune -o -type f \
+	    \( -perm -u+x -or -perm -g+x -or -perm -o+x \) \
+	    \( -perm -u+s -or -perm -g+s \) -exec ls -liTd \{\} \+ |
+	check_diff setuid - "${host} setuid diffs:"
+	rc=$?
+fi
+
+exit $rc

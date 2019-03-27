@@ -1,0 +1,86 @@
+.\"	$NetBSD: timespec_get.3,v 1.2 2016/10/04 10:46:40 wiz Exp $
+.\"
+.\" Copyright (c) 2016 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Kamil Rytarowski.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 10, 2018
+.Dt TIMESPEC_GET 3
+.Os
+.Sh NAME
+.Nm timespec_get
+.Nd get current calendar time
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In time.h
+.Ft int
+.Fn timespec_get "struct timespec *ts" "int base"
+.Sh DESCRIPTION
+The
+.Nm
+function sets the interval pointed to by
+.Fa ts
+to hold the current calendar time based on the specified time base in
+.Fa base .
+.Pp
+The base
+.Dv TIME_UTC
+returns the time since the epoch.
+This time is expressed in seconds and nanoseconds since midnight (0 hour), January 1, 1970.
+In
+.Fx ,
+this corresponds to
+.Dv CLOCK_REALTIME .
+.Sh RETURN VALUES
+The
+.Nm
+function returns the passed value of
+.Fa base
+if successful, otherwise
+.Dv 0
+on failure.
+.Sh SEE ALSO
+.Xr gettimeofday 2 ,
+.Xr clock_gettime 2 ,
+.Xr time 3
+.Sh STANDARDS
+The
+.Nm
+function with a
+.Fa base
+of
+.Dv TIME_UTC
+conforms to
+.St -isoC-2011 .
+.Sh HISTORY
+This interface first appeared in
+.Fx 12 .
+.Sh AUTHORS
+.An Kamil Rytarowski Aq Mt kamil@NetBSD.org
+.An Warner Losh Aq Mt imp@FreeBSD.org

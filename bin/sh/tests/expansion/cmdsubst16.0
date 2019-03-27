@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+f() { return 3; }
+f
+[ `echo $?` = 3 ]

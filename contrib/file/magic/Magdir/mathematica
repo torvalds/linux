@@ -1,0 +1,81 @@
+
+#------------------------------------------------------------------------------
+# $File: mathematica,v 1.9 2017/03/17 21:35:28 christos Exp $
+# mathematica:  file(1) magic for mathematica files
+# "H. Nanosecond" <aldomel@ix.netcom.com>
+# Mathematica a multi-purpose math program
+# versions 2.2 and 3.0
+
+#mathematica .mb
+0	string	\064\024\012\000\035\000\000\000	Mathematica version 2 notebook
+!:ext mb
+0	string	\064\024\011\000\035\000\000\000	Mathematica version 2 notebook
+!:ext mb
+
+# .ma
+# multiple possibilites:
+
+0	string	(*^\n\n::[\011frontEndVersion\ =\ 	Mathematica notebook
+#>41	string	>\0	%s
+!:ext mb
+
+#0	string	(*^\n\n::[\011palette	Mathematica notebook version 2.x
+
+#0	string	(*^\n\n::[\011Information	Mathematica notebook version 2.x
+#>675	string	>\0	%s #doesn't work well
+
+# there may be 'cr' instread of 'nl' in some does this matter?
+
+# generic:
+0	string	(*^\r\r::[\011	Mathematica notebook version 2.x
+!:ext mb
+0	string	(*^\r\n\r\n::[\011	Mathematica notebook version 2.x
+!:ext mb
+0	string	(*^\015			Mathematica notebook version 2.x
+!:ext mb
+0	string	(*^\n\r\n\r::[\011	Mathematica notebook version 2.x
+!:ext mb
+0	string	(*^\r::[\011	Mathematica notebook version 2.x
+!:ext mb
+0	string	(*^\r\n::[\011	Mathematica notebook version 2.x
+!:ext mb
+0	string	(*^\n\n::[\011	Mathematica notebook version 2.x
+!:ext mb
+0	string	(*^\n::[\011	Mathematica notebook version 2.x
+!:ext mb
+
+
+# Mathematica .mx files
+
+#0	string	(*This\ is\ a\ Mathematica\ binary\ dump\ file.\ It\ can\ be\ loaded\ with\ Get.*)	Mathematica binary file
+0	string	(*This\ is\ a\ Mathematica\ binary\ 	Mathematica binary file
+#>71	string \000\010\010\010\010\000\000\000\000\000\000\010\100\010\000\000\000
+# >71... is optional
+>88	string	>\0	from %s
+
+
+# Mathematica files PBF:
+# 115 115 101 120 102 106 000 001 000 000 000 203 000 001 000
+0	string	MMAPBF\000\001\000\000\000\203\000\001\000	Mathematica PBF (fonts I think)
+
+# .ml files  These are menu resources I think
+# these start with "[0-9][0-9][0-9]\ A~[0-9][0-9][0-9]\
+# how to put that into a magic rule?
+4	string	\ A~	MAthematica .ml file
+
+# .nb files
+#too long 0	string	(***********************************************************************\n\n\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ Mathematica-Compatible Notebook	Mathematica 3.0 notebook
+0	string	(***********************	Mathematica 3.0 notebook
+
+# other (* matches it is a comment start in these langs
+# GRR: Too weak; also matches other languages e.g. ML
+#0	string	(*	Mathematica, or Pascal, Modula-2 or 3 code text
+
+#########################
+# MatLab v5
+0       string  MATLAB  Matlab v5 mat-file
+>126    short   0x494d  (big endian)
+>>124   beshort x       version 0x%04x
+>126    short   0x4d49  (little endian)
+>>124   leshort x       version 0x%04x
+

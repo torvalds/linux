@@ -1,0 +1,77 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_REREG_MR 3 2016-03-13 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_rereg_mr \- re-register a memory region (MR)
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "int ibv_rereg_mr(struct ibv_mr " "*mr" ", int " " flags" ,
+.BI "                 struct ibv_pd * " "pd" ", void " " *addr",
+.BI "                 size_t " " length" ", int " " access");
+.fi
+.fi
+.SH "DESCRIPTION"
+.B ibv_rereg_mr()
+Modifies the attributes of an existing memory region (MR)
+.I mr\fR.
+Conceptually, this call performs the functions deregister memory region
+followed by register memory region.  Where possible,
+resources are reused instead of deallocated and reallocated.
+.PP
+.I flags\fR
+is a bit-mask used to indicate which of the following properties of the memory region are being modified. Flags should be a combination (bit field) of:
+.PP
+.TP
+.B IBV_REREG_MR_CHANGE_TRANSLATION \fR Change translation (location and length)
+.TP
+.B IBV_REREG_MR_CHANGE_PD \fR Change protection domain
+.TP
+.B IBV_REREG_MR_CHANGE_ACCESS \fR Change access flags
+.PP
+When
+.B IBV_REREG_MR_CHANGE_PD
+is used,
+.I pd\fR
+represents the new PD this MR should be registered to.
+.br
+When
+.B IBV_REREG_MR_CHANGE_TRANSLATION
+is used,
+.I addr\fR.
+represents the virtual address (user-space pointer) of the new MR, while
+.I length\fR
+represents its length.
+.PP
+The access and other flags are represented in the field
+.I access\fR.
+This field describes the desired memory protection attributes; it is either 0 or the bitwise OR of one or more of ibv_access_flags.
+.TP
+.SH "RETURN VALUE"
+.B ibv_rereg_mr()
+returns 0 on success, otherwise an error has occurred,
+.I enum ibv_rereg_mr_err_code\fR
+represents the error as of below.
+.br
+IBV_REREG_MR_ERR_INPUT - Old MR is valid, an input error was detected by libibverbs.
+.br
+IBV_REREG_MR_ERR_DONT_FORK_NEW - Old MR is valid, failed via don't fork on new address range.
+.br
+IBV_REREG_MR_ERR_DO_FORK_OLD - New MR is valid, failed via do fork on old address range.
+.br
+IBV_REREG_MR_ERR_CMD - MR shouldn't be used, command error.
+.br
+IBV_REREG_MR_ERR_CMD_AND_DO_FORK_NEW - MR shouldn't be used, command error, invalid fork state on new address range.
+
+.SH "NOTES"
+Even on a failure, the user still needs to call ibv_dereg_mr on this MR.
+.SH "SEE ALSO"
+.BR ibv_reg_mr (3),
+.BR ibv_dereg_mr (3),
+.SH "AUTHORS"
+.TP
+Matan Barak <matanb@mellanox.com>
+.TP
+Yishai Hadas <yishaih@mellanox.com>

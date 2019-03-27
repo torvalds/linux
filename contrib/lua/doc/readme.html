@@ -1,0 +1,365 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD>
+<TITLE>Lua 5.3 readme</TITLE>
+<LINK REL="stylesheet" TYPE="text/css" HREF="lua.css">
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=iso-8859-1">
+<STYLE TYPE="text/css">
+blockquote, .display {
+	border: solid #a0a0a0 2px ;
+	border-radius: 8px ;
+	padding: 1em ;
+	margin: 0px ;
+}
+
+.display {
+	word-spacing: 0.25em ;
+}
+
+dl.display dd {
+	padding-bottom: 0.2em ;
+}
+
+tt, kbd, code {
+	font-size: 12pt ;
+}
+</STYLE>
+</HEAD>
+
+<BODY>
+
+<H1>
+<A HREF="http://www.lua.org/"><IMG SRC="logo.gif" ALT="Lua"></A>
+Welcome to Lua 5.3
+</H1>
+
+<DIV CLASS="menubar">
+<A HREF="#about">about</A>
+&middot;
+<A HREF="#install">installation</A>
+&middot;
+<A HREF="#changes">changes</A>
+&middot;
+<A HREF="#license">license</A>
+&middot;
+<A HREF="contents.html">reference manual</A>
+</DIV>
+
+<H2><A NAME="about">About Lua</A></H2>
+<P>
+Lua is a powerful, fast, lightweight, embeddable scripting language
+developed by a
+<A HREF="http://www.lua.org/authors.html">team</A>
+at
+<A HREF="http://www.puc-rio.br/">PUC-Rio</A>,
+the Pontifical Catholic University of Rio de Janeiro in Brazil.
+Lua is
+<A HREF="#license">free software</A>
+used in many products and projects around the world.
+
+<P>
+Lua's
+<A HREF="http://www.lua.org/">official web site</A>
+provides complete information
+about Lua,
+including
+an
+<A HREF="http://www.lua.org/about.html">executive summary</A>
+and
+updated
+<A HREF="http://www.lua.org/docs.html">documentation</A>,
+especially the
+<A HREF="http://www.lua.org/manual/5.3/">reference manual</A>,
+which may differ slightly from the
+<A HREF="contents.html">local copy</A>
+distributed in this package.
+
+<H2><A NAME="install">Installing Lua</A></H2>
+<P>
+Lua is distributed in
+<A HREF="http://www.lua.org/ftp/">source</A>
+form.
+You need to build it before using it.
+Building Lua should be straightforward
+because
+Lua is implemented in pure ANSI C and compiles unmodified in all known
+platforms that have an ANSI C compiler.
+Lua also compiles unmodified as C++.
+The instructions given below for building Lua are for Unix-like platforms.
+See also
+<A HREF="#other">instructions for other systems</A>
+and
+<A HREF="#customization">customization options</A>.
+
+<P>
+If you don't have the time or the inclination to compile Lua yourself,
+get a binary from
+<A HREF="http://lua-users.org/wiki/LuaBinaries">LuaBinaries</A>.
+Try also
+<A HREF="http://luadist.org/">LuaDist</A>,
+a multi-platform distribution of Lua that includes batteries.
+
+<H3>Building Lua</H3>
+<P>
+In most Unix-like platforms, simply do "<KBD>make</KBD>" with a suitable target.
+Here are the details.
+
+<OL>
+<LI>
+Open a terminal window and move to
+the top-level directory, which is named <TT>lua-5.3.5</TT>.
+The <TT>Makefile</TT> there controls both the build process and the installation process.
+<P>
+<LI>
+  Do "<KBD>make</KBD>" and see if your platform is listed.
+  The platforms currently supported are:
+<P>
+<P CLASS="display">
+   aix bsd c89 freebsd generic linux macosx mingw posix solaris
+</P>
+<P>
+  If your platform is listed, just do "<KBD>make xxx</KBD>", where xxx
+  is your platform name.
+<P>
+  If your platform is not listed, try the closest one or posix, generic,
+  c89, in this order.
+<P>
+<LI>
+The compilation takes only a few moments
+and produces three files in the <TT>src</TT> directory:
+lua (the interpreter),
+luac (the compiler),
+and liblua.a (the library).
+<P>
+<LI>
+  To check that Lua has been built correctly, do "<KBD>make test</KBD>"
+  after building Lua. This will run the interpreter and print its version.
+</OL>
+<P>
+If you're running Linux and get compilation errors,
+make sure you have installed the <TT>readline</TT> development package
+(which is probably named <TT>libreadline-dev</TT> or <TT>readline-devel</TT>).
+If you get link errors after that,
+then try "<KBD>make linux MYLIBS=-ltermcap</KBD>".
+
+<H3>Installing Lua</H3>
+<P>
+  Once you have built Lua, you may want to install it in an official
+  place in your system. In this case, do "<KBD>make install</KBD>". The official
+  place and the way to install files are defined in the <TT>Makefile</TT>. You'll
+  probably need the right permissions to install files.
+
+<P>
+  To build and install Lua in one step, do "<KBD>make xxx install</KBD>",
+  where xxx is your platform name.
+
+<P>
+  To install Lua locally, do "<KBD>make local</KBD>".
+  This will create a directory <TT>install</TT> with subdirectories
+  <TT>bin</TT>, <TT>include</TT>, <TT>lib</TT>, <TT>man</TT>, <TT>share</TT>,
+  and install Lua as listed below.
+
+  To install Lua locally, but in some other directory, do
+  "<KBD>make install INSTALL_TOP=xxx</KBD>", where xxx is your chosen directory.
+  The installation starts in the <TT>src</TT> and <TT>doc</TT> directories,
+  so take care if <TT>INSTALL_TOP</TT> is not an absolute path.
+
+<DL CLASS="display">
+<DT>
+    bin:
+<DD>
+    lua luac
+<DT>
+    include:
+<DD>
+    lua.h luaconf.h lualib.h lauxlib.h lua.hpp
+<DT>
+    lib:
+<DD>
+    liblua.a
+<DT>
+    man/man1:
+<DD>
+    lua.1 luac.1
+</DL>
+
+<P>
+  These are the only directories you need for development.
+  If you only want to run Lua programs,
+  you only need the files in <TT>bin</TT> and <TT>man</TT>.
+  The files in <TT>include</TT> and <TT>lib</TT> are needed for
+  embedding Lua in C or C++ programs.
+
+<H3><A NAME="customization">Customization</A></H3>
+<P>
+  Three kinds of things can be customized by editing a file:
+<UL>
+    <LI> Where and how to install Lua &mdash; edit <TT>Makefile</TT>.
+    <LI> How to build Lua &mdash; edit <TT>src/Makefile</TT>.
+    <LI> Lua features &mdash; edit <TT>src/luaconf.h</TT>.
+</UL>
+
+<P>
+  You don't actually need to edit the Makefiles because you may set the
+  relevant variables in the command line when invoking make.
+  Nevertheless, it's probably best to edit and save the Makefiles to
+  record the changes you've made.
+
+<P>
+  On the other hand, if you need to customize some Lua features, you'll need
+  to edit <TT>src/luaconf.h</TT> before building and installing Lua.
+  The edited file will be the one installed, and
+  it will be used by any Lua clients that you build, to ensure consistency.
+  Further customization is available to experts by editing the Lua sources.
+
+<H3><A NAME="other">Building Lua on other systems</A></H3>
+<P>
+  If you're not using the usual Unix tools, then the instructions for
+  building Lua depend on the compiler you use. You'll need to create
+  projects (or whatever your compiler uses) for building the library,
+  the interpreter, and the compiler, as follows:
+
+<DL CLASS="display">
+<DT>
+library:
+<DD>
+lapi.c lcode.c lctype.c ldebug.c ldo.c ldump.c lfunc.c lgc.c llex.c
+lmem.c lobject.c lopcodes.c lparser.c lstate.c lstring.c ltable.c
+ltm.c lundump.c lvm.c lzio.c
+lauxlib.c lbaselib.c lbitlib.c lcorolib.c ldblib.c liolib.c
+lmathlib.c loslib.c lstrlib.c ltablib.c lutf8lib.c loadlib.c linit.c
+<DT>
+interpreter:
+<DD>
+  library, lua.c
+<DT>
+compiler:
+<DD>
+  library, luac.c
+</DL>
+
+<P>
+  To use Lua as a library in your own programs you'll need to know how to
+  create and use libraries with your compiler. Moreover, to dynamically load
+  C libraries for Lua you'll need to know how to create dynamic libraries
+  and you'll need to make sure that the Lua API functions are accessible to
+  those dynamic libraries &mdash; but <EM>don't</EM> link the Lua library
+  into each dynamic library. For Unix, we recommend that the Lua library
+  be linked statically into the host program and its symbols exported for
+  dynamic linking; <TT>src/Makefile</TT> does this for the Lua interpreter.
+  For Windows, we recommend that the Lua library be a DLL.
+  In all cases, the compiler luac should be linked statically.
+
+<P>
+  As mentioned above, you may edit <TT>src/luaconf.h</TT> to customize
+  some features before building Lua.
+
+<H2><A NAME="changes">Changes since Lua 5.2</A></H2>
+<P>
+Here are the main changes introduced in Lua 5.3.
+The
+<A HREF="contents.html">reference manual</A>
+lists the
+<A HREF="manual.html#8">incompatibilities</A> that had to be introduced.
+
+<H3>Main changes</H3>
+<UL>
+<LI> integers (64-bit by default)
+<LI> official support for 32-bit numbers
+<LI> bitwise operators
+<LI> basic utf-8 support
+<LI> functions for packing and unpacking values
+
+</UL>
+
+Here are the other changes introduced in Lua 5.3:
+<H3>Language</H3>
+<UL>
+<LI> userdata can have any Lua value as uservalue
+<LI> floor division
+<LI> more flexible rules for some metamethods
+</UL>
+
+<H3>Libraries</H3>
+<UL>
+<LI> <CODE>ipairs</CODE> and the table library respect metamethods
+<LI> strip option in <CODE>string.dump</CODE>
+<LI> table library respects metamethods
+<LI> new function <CODE>table.move</CODE>
+<LI> new function <CODE>string.pack</CODE>
+<LI> new function <CODE>string.unpack</CODE>
+<LI> new function <CODE>string.packsize</CODE>
+</UL>
+
+<H3>C API</H3>
+<UL>
+<LI> simpler API for continuation functions in C
+<LI> <CODE>lua_gettable</CODE> and similar functions return type of resulted value
+<LI> strip option in <CODE>lua_dump</CODE>
+<LI> new function: <CODE>lua_geti</CODE>
+<LI> new function: <CODE>lua_seti</CODE>
+<LI> new function: <CODE>lua_isyieldable</CODE>
+<LI> new function: <CODE>lua_numbertointeger</CODE>
+<LI> new function: <CODE>lua_rotate</CODE>
+<LI> new function: <CODE>lua_stringtonumber</CODE>
+</UL>
+
+<H3>Lua standalone interpreter</H3>
+<UL>
+<LI> can be used as calculator; no need to prefix with '='
+<LI> <CODE>arg</CODE> table available to all code
+</UL>
+
+<H2><A NAME="license">License</A></H2>
+<P>
+<A HREF="http://www.opensource.org/docs/definition.php">
+<IMG SRC="osi-certified-72x60.png" ALIGN="right" ALT="[osi certified]" STYLE="padding-left: 30px ;">
+</A>
+Lua is free software distributed under the terms of the
+<A HREF="http://www.opensource.org/licenses/mit-license.html">MIT license</A>
+reproduced below;
+it may be used for any purpose, including commercial purposes,
+at absolutely no cost without having to ask us.
+
+The only requirement is that if you do use Lua,
+then you should give us credit by including the appropriate copyright notice somewhere in your product or its documentation.
+
+For details, see
+<A HREF="http://www.lua.org/license.html">this</A>.
+
+<BLOCKQUOTE STYLE="padding-bottom: 0em">
+Copyright &copy; 1994&ndash;2017 Lua.org, PUC-Rio.
+
+<P>
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+<P>
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+<P>
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+</BLOCKQUOTE>
+<P>
+
+<P CLASS="footer">
+Last update:
+Mon Jun 18 22:57:33 -03 2018
+</P>
+<!--
+Last change: revised for Lua 5.3.5
+-->
+
+</BODY>
+</HTML>

@@ -1,0 +1,150 @@
+
+#------------------------------------------------------------------------------
+# $File: printer,v 1.28 2017/03/17 22:20:22 christos Exp $
+# printer:  file(1) magic for printer-formatted files
+#
+
+# PostScript, updated by Daniel Quinlan (quinlan@yggdrasil.com)
+0	string		%!		PostScript document text
+!:mime	application/postscript
+!:apple	ASPSTEXT
+>2	string		PS-Adobe-	conforming
+>>11	string		>\0		DSC level %.3s
+>>>15	string		EPS		\b, type %s
+>>>15	string		Query		\b, type %s
+>>>15	string		ExitServer	\b, type %s
+>>>15   search/1000		%%LanguageLevel:\040
+>>>>&0	string		>\0		\b, Level %s
+# Some PCs have the annoying habit of adding a ^D as a document separator
+0	string		\004%!		PostScript document text
+!:mime	application/postscript
+!:apple	ASPSTEXT
+>3	string		PS-Adobe-	conforming
+>>12	string		>\0		DSC level %.3s
+>>>16	string		EPS		\b, type %s
+>>>16	string		Query		\b, type %s
+>>>16	string		ExitServer	\b, type %s
+>>>16   search/1000		%%LanguageLevel:\040
+>>>>&0	string		>\0		\b, Level %s
+0	string		\033%-12345X%!PS	PostScript document
+
+# DOS EPS Binary File Header
+# From: Ed Sznyter <ews@Black.Market.NET>
+0       belong          0xC5D0D3C6      DOS EPS Binary File
+>4      long            >0              Postscript starts at byte %d
+>>8     long            >0              length %d
+>>>12   long            >0              Metafile starts at byte %d
+>>>>16  long            >0              length %d
+>>>20   long            >0              TIFF starts at byte %d
+>>>>24  long            >0              length %d
+
+# Summary: Adobe's PostScript Printer Description File
+# Extension: .ppd
+# Reference: http://partners.adobe.com/public/developer/en/ps/5003.PPD_Spec_v4.3.pdf, Section 3.8
+# Submitted by: Yves Arrouye <arrouye@marin.fdn.fr>
+#
+0	string		*PPD-Adobe:\x20	PPD file
+>&0	string		x		\b, version %s
+
+# HP Printer Job Language
+0	string		\033%-12345X@PJL	HP Printer Job Language data
+# HP Printer Job Language
+# The header found on Win95 HP plot files is the "Silliest Thing possible"
+# (TM)
+# Every driver puts the language at some random position, with random case
+# (LANGUAGE and Language)
+# For example the LaserJet 5L driver puts the "PJL ENTER LANGUAGE" in line 10
+# From: Uwe Bonnes <bon@elektron.ikp.physik.th-darmstadt.de>
+#
+0	string		\033%-12345X@PJL	HP Printer Job Language data
+>&0	string		>\0			%s
+>>&0	string		>\0			%s
+>>>&0	string		>\0			%s
+>>>>&0	string		>\0			%s
+#>15	string		\ ENTER\ LANGUAGE\ =
+#>31	string		PostScript		PostScript
+
+# From: Stefan Thurner <thurners@nicsys.de>
+0	string		\033%-12345X@PJL
+>&0	search/10000	%!			PJL encapsulated PostScript document text
+
+# Rick Richardson <rickrich@gmail.com>
+
+# For Fuji-Xerox Printers - HBPL stands for Host Based Printer Language
+# For Oki Data Printers - HIPERC
+# For Konica Minolta Printers - LAVAFLOW
+# For Samsung Printers - QPDL
+# For HP Printers - ZJS stands for Zenographics ZJStream
+0	string		\033%-12345X@PJL	HP Printer Job Language data
+>0	search/10000	@PJL\ ENTER\ LANGUAGE=HBPL	- HBPL
+>0	search/10000	@PJL\ ENTER\ LANGUAGE=HIPERC	- Oki Data HIPERC
+>0	search/10000	@PJL\ ENTER\ LANGUAGE=LAVAFLOW	- Konica Minolta LAVAFLOW
+>0	search/10000	@PJL\ ENTER\ LANGUAGE=QPDL	- Samsung QPDL
+>0	search/10000	@PJL\ ENTER\ LANGUAGE\ =\ QPDL	- Samsung QPDL
+>0	search/10000	@PJL\ ENTER\ LANGUAGE=ZJS	- HP ZJS
+
+
+# HP Printer Control Language, Daniel Quinlan (quinlan@yggdrasil.com)
+0	string		\033E\033	HP PCL printer data
+>3	string		\&l0A		- default page size
+>3	string		\&l1A		- US executive page size
+>3	string		\&l2A		- US letter page size
+>3	string		\&l3A		- US legal page size
+>3	string		\&l26A		- A4 page size
+>3	string		\&l80A		- Monarch envelope size
+>3	string		\&l81A		- No. 10 envelope size
+>3	string		\&l90A		- Intl. DL envelope size
+>3	string		\&l91A		- Intl. C5 envelope size
+>3	string		\&l100A		- Intl. B5 envelope size
+>3	string		\&l-81A		- No. 10 envelope size (landscape)
+>3	string		\&l-90A		- Intl. DL envelope size (landscape)
+
+# IMAGEN printer-ready files:
+0	string	@document(		Imagen printer
+# this only works if "language xxx" is first item in Imagen header.
+>10	string	language\ impress	(imPRESS data)
+>10	string	language\ daisy		(daisywheel text)
+>10	string	language\ diablo	(daisywheel text)
+>10	string	language\ printer	(line printer emulation)
+>10	string	language\ tektronix	(Tektronix 4014 emulation)
+# Add any other languages that your Imagen uses - remember
+# to keep the word `text' if the file is human-readable.
+# [GRR 950115:  missing "postscript" or "ultrascript" (whatever it was called)]
+#
+# Now magic for IMAGEN font files...
+0	string		Rast		RST-format raster font data
+>45	string		>0		face %s
+# From Jukka Ukkonen
+0	string		\033[K\002\0\0\017\033(a\001\0\001\033(g	Canon Bubble Jet BJC formatted data
+
+# From <mike@flyn.org>
+# These are the /etc/magic entries to decode data sent to an Epson printer.
+0       string          \x1B\x40\x1B\x28\x52\x08\x00\x00REMOTE1P        Epson Stylus Color 460 data
+
+
+#------------------------------------------------------------------------------
+# zenographics:  file(1) magic for Zenographics ZjStream printer data
+# Rick Richardson <rickrich@gmail.com>
+0	string		JZJZ
+>0x12	string		ZZ		Zenographics ZjStream printer data (big-endian)
+0	string		ZJZJ
+>0x12	string		ZZ		Zenographics ZjStream printer data (little-endian)
+
+
+#------------------------------------------------------------------------------
+# Oak Technologies printer stream
+# Rick Richardson <rickrich@gmail.com>
+0       string          OAK
+>0x07	byte		0
+>0x0b	byte		0	Oak Technologies printer stream
+
+# This would otherwise be recognized as PostScript - nick@debian.org
+0	string		%!VMF 		SunClock's Vector Map Format data
+
+#------------------------------------------------------------------------------
+# HP LaserJet 1000 series downloadable firmware file
+0	string	\xbe\xefABCDEFGH	HP LaserJet 1000 series downloadable firmware
+
+# From: Paolo <oopla@users.sf.net>
+# Epson ESC/Page, ESC/PageColor
+0	string	\x1b\x01@EJL	Epson ESC/Page language printer data

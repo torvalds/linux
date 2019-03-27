@@ -1,0 +1,114 @@
+.\"	$NetBSD: getwc.3,v 1.3 2002/02/07 07:00:26 ross Exp $
+.\"
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getc.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd March 3, 2004
+.Dt GETWC 3
+.Os
+.Sh NAME
+.Nm fgetwc ,
+.Nm getwc ,
+.Nm getwchar
+.Nd get next wide character from input stream
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.In wchar.h
+.Ft wint_t
+.Fn fgetwc "FILE *stream"
+.Ft wint_t
+.Fn getwc "FILE *stream"
+.Ft wint_t
+.Fn getwchar void
+.Sh DESCRIPTION
+The
+.Fn fgetwc
+function
+obtains the next input wide character (if present) from the stream pointed at by
+.Fa stream ,
+or the next character pushed back on the stream via
+.Xr ungetwc 3 .
+.Pp
+The
+.Fn getwc
+function
+acts essentially identically to
+.Fn fgetwc .
+.Pp
+The
+.Fn getwchar
+function
+is equivalent to
+.Fn getwc
+with the argument
+.Dv stdin .
+.Sh RETURN VALUES
+If successful, these routines return the next wide character
+from the
+.Fa stream .
+If the stream is at end-of-file or a read error occurs,
+the routines return
+.Dv WEOF .
+The routines
+.Xr feof 3
+and
+.Xr ferror 3
+must be used to distinguish between end-of-file and error.
+If an error occurs, the global variable
+.Va errno
+is set to indicate the error.
+The end-of-file condition is remembered, even on a terminal, and all
+subsequent attempts to read will return
+.Dv WEOF
+until the condition is cleared with
+.Xr clearerr 3 .
+.Sh SEE ALSO
+.Xr ferror 3 ,
+.Xr fopen 3 ,
+.Xr fread 3 ,
+.Xr getc 3 ,
+.Xr putwc 3 ,
+.Xr stdio 3 ,
+.Xr ungetwc 3
+.Sh STANDARDS
+The
+.Fn fgetwc ,
+.Fn getwc
+and
+.Fn getwchar
+functions
+conform to
+.St -isoC-99 .

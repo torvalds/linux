@@ -1,0 +1,126 @@
+.\"	$KAME: ip6addrctl.8,v 1.3 2003/03/22 05:56:41 jinmei Exp $
+.\"
+.\" Copyright (C) 2001 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 25, 2001
+.Dt IP6ADDRCTL 8
+.Os
+.\"
+.Sh NAME
+.Nm ip6addrctl
+.Nd configure address selection policy for IPv6 and IPv4
+.\"
+.Sh SYNOPSIS
+.Nm
+.Op Cm show
+.Nm
+.Cm add
+.Ar prefix precedence label
+.Nm
+.Cm delete
+.Ar prefix
+.Nm
+.Cm flush
+.Nm
+.Cm install
+.Ar configfile
+.\"
+.Sh DESCRIPTION
+The
+.Nm
+utility manages the policy table of source and destination address
+selection for outgoing IPv4 and IPv6 packets.
+When
+.Nm
+is invoked without an argument or with a single argument
+.Cm show ,
+it prints the content of the policy table currently installed in the
+kernel.
+.Pp
+To modify the table, the following operations are available:
+.Bl -tag -width indent
+.It Cm add Ar prefix precedence label
+Add a policy entry.
+The
+.Ar prefix
+argument
+is an IPv6 prefix, which is a key for the entry.
+An IPv4 prefix should be specified with an IPv6 prefix using an
+IPv4-mapped IPv6 address.
+The
+.Ar precedence
+and
+.Ar label
+arguments
+are decimal numbers, which specify the precedence and label values
+for the entry, respectively.
+This operation should be performed without an existing entry for the
+prefix.
+.It Cm delete Ar prefix
+Delete a policy entry specified by
+.Ar prefix ,
+which should be an IPv6 prefix.
+A corresponding entry for the prefix should have already been
+installed.
+.It Cm flush
+Delete all existing policy entries in the kernel.
+.It Cm install Ar configfile
+Install policy entries from a configuration file named
+.Ar configfile .
+The configuration file should contain a set of policy entries.
+Each entry is specified in a single line which contains an IPv6 prefix,
+a decimal precedence value, and a decimal label value, separated with
+white space or tab characters.
+In the configuration file, lines beginning with the pound-sign
+.Pq Ql #
+are
+comments and are ignored.
+.El
+.\"
+.Sh EXIT STATUS
+.Ex -std
+.\"
+.Sh SEE ALSO
+.Rs
+.%A "Richard Draves"
+.%T "Default Address Selection for IPv6"
+.%N RFC 3484
+.Re
+.\"
+.Sh HISTORY
+The
+.Nm
+utility first appeared in the KAME IPv6 protocol stack kit.
+The original command name was
+.Nm addrselect ,
+but it was then renamed to the current one so that the name would
+describe its function well.
+.\" .Sh BUGS
+.\" (to be written)

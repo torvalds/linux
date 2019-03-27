@@ -1,0 +1,269 @@
+.TH "Heimdal Kerberos 5 deprecated functions" 3 "11 Jan 2012" "Version 1.5.2" "HeimdalKerberos5library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+Heimdal Kerberos 5 deprecated functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_change_password\fP (krb5_context context, krb5_creds *creds, const char *newpw, int *result_code, krb5_data *result_code_string, krb5_data *result_string) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_config_parse_string_multi\fP (krb5_context context, const char *string, krb5_config_section **res) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_keytype_to_enctypes\fP (krb5_context context, krb5_keytype keytype, unsigned *len, krb5_enctype **val) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL \fBkrb5_enctypes_compatible_keys\fP (krb5_context context, krb5_enctype etype1, krb5_enctype etype2) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_free_data_contents\fP (krb5_context context, krb5_data *data) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_keytype_to_enctypes_default\fP (krb5_context context, krb5_keytype keytype, unsigned *len, krb5_enctype **val) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_keytype_to_string\fP (krb5_context context, krb5_keytype keytype, char **string) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_string_to_keytype\fP (krb5_context context, const char *string, krb5_keytype *keytype) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_CALLCONV \fBkrb5_password_key_proc\fP (krb5_context context, krb5_enctype type, krb5_salt salt, krb5_const_pointer keyseed, krb5_keyblock **key) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_get_in_tkt_with_password\fP (krb5_context context, krb5_flags options, krb5_addresses *addrs, const krb5_enctype *etypes, const krb5_preauthtype *pre_auth_types, const char *password, krb5_ccache ccache, krb5_creds *creds, krb5_kdc_rep *ret_as_reply) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_get_in_tkt_with_skey\fP (krb5_context context, krb5_flags options, krb5_addresses *addrs, const krb5_enctype *etypes, const krb5_preauthtype *pre_auth_types, const krb5_keyblock *key, krb5_ccache ccache, krb5_creds *creds, krb5_kdc_rep *ret_as_reply) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_CALLCONV \fBkrb5_keytab_key_proc\fP (krb5_context context, krb5_enctype enctype, krb5_salt salt, krb5_const_pointer keyseed, krb5_keyblock **key) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_get_in_tkt_with_keytab\fP (krb5_context context, krb5_flags options, krb5_addresses *addrs, const krb5_enctype *etypes, const krb5_preauthtype *pre_auth_types, krb5_keytab keytab, krb5_ccache ccache, krb5_creds *creds, krb5_kdc_rep *ret_as_reply) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_realm *KRB5_LIB_CALL \fBkrb5_princ_realm\fP (krb5_context context, krb5_principal principal) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_princ_set_realm\fP (krb5_context context, krb5_principal principal, krb5_realm *realm) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_free_creds_contents\fP (krb5_context context, krb5_creds *c) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_free_error_string\fP (krb5_context context, char *str) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_set_error_string\fP (krb5_context context, const char *fmt,...) __attribute__((format(printf"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_vset_error_string\fP (krb5_context context, const char *fmt, va_list args) __attribute__((format(printf"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_clear_error_string\fP (krb5_context context) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_get_cred_from_kdc_opt\fP (krb5_context context, krb5_ccache ccache, krb5_creds *in_creds, krb5_creds **out_creds, krb5_creds ***ret_tgts, krb5_flags flags) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_get_cred_from_kdc\fP (krb5_context context, krb5_ccache ccache, krb5_creds *in_creds, krb5_creds **out_creds, krb5_creds ***ret_tgts) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_free_unparsed_name\fP (krb5_context context, char *str) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_generate_subkey\fP (krb5_context context, const krb5_keyblock *key, krb5_keyblock **subkey) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_auth_getremoteseqnumber\fP (krb5_context context, krb5_auth_context auth_context, int32_t *seqnumber) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_get_init_creds_opt_init\fP (krb5_get_init_creds_opt *opt) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_get_init_creds_opt_get_error\fP (krb5_context context, krb5_get_init_creds_opt *opt, KRB_ERROR **error) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_c_enctype_compare\fP (krb5_context context, krb5_enctype e1, krb5_enctype e2, krb5_boolean *similar) KRB5_DEPRECATED_FUNCTION('Use X instead')"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_auth_getremoteseqnumber (krb5_context context, krb5_auth_context auth_context, int32_t * seqnumber)"
+.PP
+Deprecated: use krb5_auth_con_getremoteseqnumber() 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_c_enctype_compare (krb5_context context, krb5_enctype e1, krb5_enctype e2, krb5_boolean * similar)"
+.PP
+Deprecated: keytypes doesn't exists, they are really enctypes. 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_change_password (krb5_context context, krb5_creds * creds, const char * newpw, int * result_code, krb5_data * result_code_string, krb5_data * result_string)"
+.PP
+Deprecated: \fBkrb5_change_password()\fP is deprecated, use \fBkrb5_set_password()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Keberos context 
+.br
+\fIcreds\fP 
+.br
+\fInewpw\fP 
+.br
+\fIresult_code\fP 
+.br
+\fIresult_code_string\fP 
+.br
+\fIresult_string\fP 
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+On sucess password is changed.
+.RE
+.PP
+@ 
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_clear_error_string (krb5_context context)"
+.PP
+Clear the error message returned by krb5_get_error_string().
+.PP
+Deprecated: use \fBkrb5_clear_error_message()\fP
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos context 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_config_parse_string_multi (krb5_context context, const char * string, krb5_config_section ** res)"
+.PP
+Deprecated: configuration files are not strings 
+.SS "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL krb5_enctypes_compatible_keys (krb5_context context, krb5_enctype etype1, krb5_enctype etype2)"
+.PP
+Deprecated: keytypes doesn't exists, they are really enctypes. 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_free_creds_contents (krb5_context context, krb5_creds * c)"
+.PP
+Deprecated: use \fBkrb5_free_cred_contents()\fP 
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_free_data_contents (krb5_context context, krb5_data * data)"
+.PP
+Same as \fBkrb5_data_free()\fP. MIT compat.
+.PP
+Deprecated: use \fBkrb5_data_free()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIdata\fP krb5_data to free. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_free_error_string (krb5_context context, char * str)"
+.PP
+Free the error message returned by krb5_get_error_string().
+.PP
+Deprecated: use krb5_free_error_message()
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos context 
+.br
+\fIstr\fP error message to free 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_free_unparsed_name (krb5_context context, char * str)"
+.PP
+Deprecated: use krb5_xfree(). 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_generate_subkey (krb5_context context, const krb5_keyblock * key, krb5_keyblock ** subkey)"
+.PP
+Deprecated: use \fBkrb5_generate_subkey_extended()\fP 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_get_cred_from_kdc (krb5_context context, krb5_ccache ccache, krb5_creds * in_creds, krb5_creds ** out_creds, krb5_creds *** ret_tgts)"
+.PP
+Deprecated: use krb5_get_credentials_with_flags(). 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_get_cred_from_kdc_opt (krb5_context context, krb5_ccache ccache, krb5_creds * in_creds, krb5_creds ** out_creds, krb5_creds *** ret_tgts, krb5_flags flags)"
+.PP
+Deprecated: use krb5_get_credentials_with_flags(). 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_get_in_tkt_with_keytab (krb5_context context, krb5_flags options, krb5_addresses * addrs, const krb5_enctype * etypes, const krb5_preauthtype * pre_auth_types, krb5_keytab keytab, krb5_ccache ccache, krb5_creds * creds, krb5_kdc_rep * ret_as_reply)"
+.PP
+Deprecated: use krb5_get_init_creds() and friends. 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_get_in_tkt_with_password (krb5_context context, krb5_flags options, krb5_addresses * addrs, const krb5_enctype * etypes, const krb5_preauthtype * pre_auth_types, const char * password, krb5_ccache ccache, krb5_creds * creds, krb5_kdc_rep * ret_as_reply)"
+.PP
+Deprecated: use krb5_get_init_creds() and friends. 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_get_in_tkt_with_skey (krb5_context context, krb5_flags options, krb5_addresses * addrs, const krb5_enctype * etypes, const krb5_preauthtype * pre_auth_types, const krb5_keyblock * key, krb5_ccache ccache, krb5_creds * creds, krb5_kdc_rep * ret_as_reply)"
+.PP
+Deprecated: use krb5_get_init_creds() and friends. 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_get_init_creds_opt_get_error (krb5_context context, krb5_get_init_creds_opt * opt, KRB_ERROR ** error)"
+.PP
+Deprecated: use the new \fBkrb5_init_creds_init()\fP and \fBkrb5_init_creds_get_error()\fP. 
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_get_init_creds_opt_init (krb5_get_init_creds_opt * opt)"
+.PP
+Deprecated: use \fBkrb5_get_init_creds_opt_alloc()\fP.
+.PP
+The reason \fBkrb5_get_init_creds_opt_init()\fP is deprecated is that krb5_get_init_creds_opt is a static structure and for ABI reason it can't grow, ie can't add new functionality. 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_CALLCONV krb5_keytab_key_proc (krb5_context context, krb5_enctype enctype, krb5_salt salt, krb5_const_pointer keyseed, krb5_keyblock ** key)"
+.PP
+Deprecated: use krb5_get_init_creds() and friends. 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_keytype_to_enctypes (krb5_context context, krb5_keytype keytype, unsigned * len, krb5_enctype ** val)"
+.PP
+Deprecated: keytypes doesn't exists, they are really enctypes. 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_keytype_to_enctypes_default (krb5_context context, krb5_keytype keytype, unsigned * len, krb5_enctype ** val)"
+.PP
+Deprecated: keytypes doesn't exists, they are really enctypes. 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_keytype_to_string (krb5_context context, krb5_keytype keytype, char ** string)"
+.PP
+Deprecated: keytypes doesn't exists, they are really enctypes in most cases, use krb5_enctype_to_string(). 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_CALLCONV krb5_password_key_proc (krb5_context context, krb5_enctype type, krb5_salt salt, krb5_const_pointer keyseed, krb5_keyblock ** key)"
+.PP
+Deprecated: use krb5_get_init_creds() and friends. 
+.SS "KRB5_LIB_FUNCTION krb5_realm* KRB5_LIB_CALL krb5_princ_realm (krb5_context context, krb5_principal principal)"
+.PP
+Deprecated: use \fBkrb5_principal_get_realm()\fP 
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_princ_set_realm (krb5_context context, krb5_principal principal, krb5_realm * realm)"
+.PP
+Deprecated: use \fBkrb5_principal_set_realm()\fP 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_set_error_string (krb5_context context, const char * fmt,  ...)"
+.PP
+Set the error message returned by krb5_get_error_string().
+.PP
+Deprecated: use krb5_get_error_message()
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos context 
+.br
+\fIfmt\fP error message to free
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_string_to_keytype (krb5_context context, const char * string, krb5_keytype * keytype)"
+.PP
+Deprecated: keytypes doesn't exists, they are really enctypes in most cases, use krb5_string_to_enctype(). 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_vset_error_string (krb5_context context, const char * fmt, va_list args)"
+.PP
+Set the error message returned by krb5_get_error_string(), deprecated, use \fBkrb5_set_error_message()\fP.
+.PP
+Deprecated: use krb5_vset_error_message()
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos context 
+.br
+\fImsg\fP error message to free
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0. 
+.RE
+.PP
+

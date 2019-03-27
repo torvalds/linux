@@ -1,0 +1,3 @@
+# Used to generate ../ip_rules.c and ../ip_rules.h
+pass in all
+pass out all

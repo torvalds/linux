@@ -1,0 +1,8 @@
+#!bin/sh
+#
+#  psdf - DVI to PostScript printer filter
+#  Installed in /usr/local/libexec/psdf
+#
+#  Invoked by lpd when user runs lpr -d
+#
+exec /usr/local/bin/dvips -f | /usr/local/libexec/lprps "$@"

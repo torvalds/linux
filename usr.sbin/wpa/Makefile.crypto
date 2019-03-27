@@ -1,0 +1,135 @@
+# $FreeBSD$
+
+.if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
+SRCS+=	crypto_openssl.c random.c sha1-prf.c sha256-prf.c sha256-tlsprf.c
+LIBADD+=	ssl crypto
+CFLAGS+= -DCONFIG_SHA256
+.else
+CFLAGS+=-DCONFIG_CRYPTO_INTERNAL
+SRCS+=	crypto_internal.c random.c
+CONFIG_INTERNAL_AES=y
+CONFIG_INTERNAL_DES=y
+CONFIG_INTERNAL_MD4=y
+CONFIG_INTERNAL_MD5=y
+CONFIG_INTERNAL_RC4=y
+CONFIG_INTERNAL_SHA1=y
+NEED_SHA256=y
+CONFIG_INTERNAL_SHA256=y
+CONFIG_INTERNAL_TLS=y
+CONFIG_INTERNAL_DH5=y
+CONFIG_INTERNAL_DH=y
+NEED_AES_ENC=true
+NEED_AES_CBC=true
+.endif
+NEED_AES_OMAC1=true
+
+.if defined(TLS_FUNCS)
+NEED_TLS_PRF=y
+.if defined(CONFIG_INTERNAL_TLS)
+CFLAGS+=-DCONFIG_INTERNAL_LIBTOMMATH \
+	-DCONFIG_TLS_INTERNAL_CLIENT
+SRCS+=	asn1.c \
+	bignum.c \
+	crypto_internal-cipher.c \
+	crypto_internal-modexp.c \
+	crypto_internal-rsa.c \
+	pkcs1.c \
+	pkcs5.c \
+	pkcs8.c \
+	rsa.c \
+	tls_internal.c \
+	tlsv1_common.c \
+	tlsv1_record.c \
+	tlsv1_cred.c \
+	tlsv1_client.c \
+	tlsv1_client_write.c \
+	tlsv1_client_read.c \
+	x509v3.c
+NEED_DES=y
+NEED_MD4=y
+NEED_RC4=y
+.else
+CFLAGS+=-DEAP_TLS_OPENSSL
+SRCS+=	tls_openssl.c tls_openssl_ocsp.c
+.endif
+.endif
+
+.if defined(CONFIG_INTERNAL_AES)
+SRCS+=	aes-unwrap.c aes-wrap.c \
+	aes-internal.c \
+	aes-internal-dec.c \
+	aes-internal-enc.c
+.endif
+
+.if defined(NEED_AES_CBC)
+SRCS+=	aes-cbc.c
+.endif
+
+.if defined(NEED_AES_EAX)
+SRCS+=	aes-eax.c
+NEED_AES_CTR=y
+.endif
+
+.if defined(NEED_AES_CTR)
+SRCS+=	aes-ctr.c
+.endif
+
+.if defined(NEED_AES_ENCBLOCK)
+SRCS+=	aes-encblock.c
+.endif
+
+.if defined(NEED_AES_OMAC1)
+SRCS+=	aes-omac1.c
+.endif
+
+.if defined(NEED_DES)
+.if defined(CONFIG_INTERNAL_DES)
+SRCS+=	des-internal.c
+.endif
+.endif
+
+.if defined(NEED_MD4)
+.if defined(CONFIG_INTERNAL_MD4)
+SRCS+=	md4-internal.c
+.endif
+.endif
+
+.if defined(CONFIG_INTERNAL_MD5)
+SRCS+=	md5.c md5-internal.c
+.endif
+
+.if defined(NEED_FIPS186_2_PRF)
+.if defined(CONFIG_INTERNAL_SHA1)
+SRCS+=	fips_prf_internal.c
+.else
+SRCS+=	fips_prf_openssl.c
+.endif
+.endif
+
+.if defined(CONFIG_INTERNAL_RC4)
+SRCS+=	rc4.c
+.endif
+
+.if defined(CONFIG_INTERNAL_SHA1)
+SRCS+=	sha1-internal.c sha1-pbkdf2.c sha1.c sha1-prf.c
+.endif
+
+.if defined(NEED_SHA256)
+CFLAGS+=-DCONFIG_SHA256
+SRCS+=	sha256.c
+.if defined(CONFIG_INTERNAL_SHA256)
+SRCS+=	sha256-internal.c sha256-prf.c
+.endif
+.endif
+
+.if defined(NEED_TLS_PRF)
+SRCS+=	sha1-tlsprf.c
+.endif
+
+.if defined(CONFIG_INTERNAL_DH5)
+SRCS+=	dh_group5.c
+.endif
+
+.if defined(CONFIG_INTERNAL_DH)
+SRCS+=	dh_groups.c
+.endif

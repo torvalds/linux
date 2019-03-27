@@ -1,0 +1,77 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_backup_passwd_enable" in
+    [Yy][Ee][Ss])
+	if [ ! -f /etc/master.passwd ]
+	then
+	    echo '$daily_backup_passwd_enable" is set but /etc/master.passwd' \
+		"doesn't exist"
+	    rc=2
+	elif [ ! -f /etc/group ]
+	then
+	    echo '$daily_backup_passwd_enable" is set but /etc/group' \
+		"doesn't exist"
+	    rc=2
+	else
+	    bak=/var/backups
+	    rc=0
+
+	    echo ""
+	    echo "Backup passwd and group files:"
+
+	    if [ ! -f $bak/master.passwd.bak ]
+	    then
+		rc=1
+		echo "no $bak/master.passwd.bak"
+		cp -p /etc/master.passwd $bak/master.passwd.bak || rc=3
+	    fi
+
+	    if ! cmp -s $bak/master.passwd.bak /etc/master.passwd
+	    then
+		[ $rc -lt 1 ] && rc=1
+		echo "$host passwd diffs:"
+		diff -uI '^#' $bak/master.passwd.bak /etc/master.passwd |\
+			sed 's/^\([-+ ][^-+:]*\):[^:]*:/\1:(password):/'
+		mv $bak/master.passwd.bak $bak/master.passwd.bak2
+		cp -p /etc/master.passwd $bak/master.passwd.bak || rc=3
+	    fi
+
+	    if [ ! -f $bak/group.bak ]
+	    then
+		[ $rc -lt 1 ] && rc=1
+		echo "no $bak/group.bak"
+		cp -p /etc/group $bak/group.bak || rc=3
+	    fi
+
+	    if ! cmp -s $bak/group.bak /etc/group
+	    then
+		[ $rc -lt 1 ] && rc=1
+		echo "$host group diffs:"
+		diff -u $bak/group.bak /etc/group
+		mv $bak/group.bak $bak/group.bak2
+		cp -p /etc/group $bak/group.bak || rc=3
+	    fi
+
+	    if [ -f /etc/group ]
+	    then
+	        echo ""
+		echo "Verifying group file syntax:"
+	        chkgrp /etc/group || rc=3
+	    fi
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

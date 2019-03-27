@@ -1,0 +1,79 @@
+/*
+ * $FreeBSD$
+ */
+
+/*
+ * This only needs to contain AEABI symbols that are not listed in
+ * symbol maps from other parts of libc (i.e., not found in
+ * stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...).
+ */
+FBSDprivate_1.0 {
+	__aeabi_atexit;
+
+	__aeabi_dcmpeq;
+	__aeabi_dcmplt;
+	__aeabi_dcmple;
+	__aeabi_dcmpge;
+	__aeabi_dcmpgt;
+	__aeabi_dcmpun;
+
+	__aeabi_cdcmpeq;
+	__aeabi_cdcmple;
+	__aeabi_cdrcmple;
+
+	__aeabi_d2iz;
+	__aeabi_d2f;
+
+	__aeabi_dadd;
+	__aeabi_ddiv;
+	__aeabi_dmul;
+	__aeabi_dsub;
+
+
+	__aeabi_fcmpeq;
+	__aeabi_fcmplt;
+	__aeabi_fcmple;
+	__aeabi_fcmpge;
+	__aeabi_fcmpgt;
+	__aeabi_fcmpun;
+
+	__aeabi_cfcmpeq;
+	__aeabi_cfcmple;
+	__aeabi_cfrcmple;
+
+	__aeabi_f2iz;
+	__aeabi_f2d;
+
+	__aeabi_fadd;
+	__aeabi_fdiv;
+	__aeabi_fmul;
+	__aeabi_fsub;
+
+
+	__aeabi_i2d;
+	__aeabi_i2f;
+
+
+	__aeabi_memclr;
+	__aeabi_memclr4;
+	__aeabi_memclr8;
+	__aeabi_memcmp;
+	__aeabi_memcmp4;
+	__aeabi_memcmp8;
+	__aeabi_memcpy;
+	__aeabi_memcpy4;
+	__aeabi_memcpy8;
+	__aeabi_memmove;
+	__aeabi_memmove4;
+	__aeabi_memmove8;
+	__aeabi_memset;
+	__aeabi_memset4;
+	__aeabi_memset8;
+
+	/*
+	 * A workaround for DEFINE_AEABI_FUNCTION_ALIAS() bug.
+	 * - see aeabi_int_div.S
+	 */
+	__aeabi_idiv;
+	__aeabi_uidiv;
+};

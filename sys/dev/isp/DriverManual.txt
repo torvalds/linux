@@ -1,0 +1,634 @@
+/* $FreeBSD$ */
+
+		Driver Theory of Operation Manual
+
+1. Introduction
+
+This is a short text document that will describe the background, goals
+for, and current theory of operation for the joint Fibre Channel/SCSI
+HBA driver for QLogic hardware.
+
+Because this driver is an ongoing project, do not expect this manual
+to remain entirely up to date. Like a lot of software engineering, the
+ultimate documentation is the driver source. However, this manual should
+serve as a solid basis for attempting to understand where the driver
+started and what is trying to be accomplished with the current source.
+
+The reader is expected to understand the basics of SCSI and Fibre Channel
+and to be familiar with the range of platforms that Solaris, Linux and
+the variant "BSD" Open Source systems are available on. A glossary and
+a few references will be placed at the end of the document.
+
+There will be references to functions and structures within the body of
+this document. These can be easily found within the source using editor
+tags or grep. There will be few code examples here as the code already
+exists where the reader can easily find it.
+
+2. A Brief History for this Driver
+
+This driver originally started as part of work funded by NASA Ames
+Research Center's Numerical Aerodynamic Simulation center ("NAS" for
+short) for the QLogic PCI 1020 and 1040 SCSI Host Adapters as part of my
+work at porting the NetBSD Operating System to the Alpha architectures
+(specifically the AlphaServer 8200 and 8400 platforms).  In short, it
+started just as simple single SCSI HBA driver for just the purpose of
+running off a SCSI disk. This work took place starting in January, 1997.
+
+Because the first implementation was for NetBSD, which runs on a very
+large number of platforms, and because NetBSD supported both systems with
+SBus cards (e.g., Sun SPARC systems) as well as systems with PCI cards,
+and because the QLogic SCSI cards came in both SBus and PCI versions, the
+initial implementation followed the very thoughtful NetBSD design tenet
+of splitting drivers into what are called MI (for Machine Independent)
+and MD (Machine Dependent) portions. The original design therefore was
+from the premise that the driver would drive both SBus and PCI card
+variants. These busses are similar but have quite different constraints,
+and while the QLogic SBus and PCI cards are very similar, there are some
+significant differences.
+
+After this initial goal had been met, there began to be some talk about
+looking into implementing Fibre Channel mass storage at NAS. At this time
+the QLogic 2100 FC/AL HBA was about to become available. After looking at
+the way it was designed I concluded that it was so darned close to being
+just like the SCSI HBAs that it would be insane to *not* leverage off of
+the existing driver. So, we ended up with a driver for NetBSD that drove
+PCI and SBus SCSI cards, and now also drove the QLogic 2100 FC-AL HBA.
+
+After this, ports to non-NetBSD platforms became interesting as well.
+This took the driver out of the interest with NAS and into interested
+support from a number of other places. Since the original NetBSD
+development, the driver has been ported to FreeBSD, OpenBSD, Linux,
+Solaris, and two proprietary systems. Following from the original MI/MD
+design of NetBSD, a rather successful attempt has been made to keep the
+Operating System Platform differences segregated and to a minimum.
+
+Along the way, support for the 2200 as well as full fabric and target
+mode support has been added, and 2300 support as well as an FC-IP stack
+are planned.
+
+3. Driver Design Goals
+
+The driver has not started out as one normally would do such an effort.
+Normally you design via top-down methodologies and set an initial goal
+and meet it. This driver has had a design goal that changes from almost
+the very first. This has been an extremely peculiar, if not risque,
+experience. As a consequence, this section of this document contains
+a bit of "reconstruction after the fact" in that the design goals are
+as I perceive them to be now- not necessarily what they started as.
+
+The primary design goal now is to have a driver that can run both the
+SCSI and Fibre Channel SCSI prototocols on multiple OS platforms with
+as little OS platform support code as possible.
+
+The intended support targets for SCSI HBAs is to support the single and
+dual channel PCI Ultra2 and PCI Ultra3 cards as well as the older PCI
+Ultra single channel cards and SBus cards.
+
+The intended support targets for Fibre Channel HBAs is the 2100, 2200
+and 2300 PCI cards.
+
+Fibre Channel support should include complete fabric and public loop
+as well as private loop and private loop, direct-attach topologies.
+FC-IP support is also a goal.
+
+For both SCSI and Fibre Channel, simultaneous target/initiator mode support
+is a goal.
+
+Pure, raw, performance is not a primary goal of this design. This design,
+because it has a tremendous amount of code common across multiple
+platforms, will undoubtedly never be able to beat the performance of a
+driver that is specifically designed for a single platform and a single
+card. However, it is a good strong secondary goal to make the performance
+penalties in this design as small as possible.
+
+Another primary aim, which almost need not be stated, is that the
+implementation of platform differences must not clutter up the common
+code with platform specific defines. Instead, some reasonable layering
+semantics are defined such that platform specifics can be kept in the
+platform specific code.
+
+4. QLogic Hardware Architecture
+
+In order to make the design of this driver more intelligible, some
+description of the Qlogic hardware architecture is in order. This will
+not be an exhaustive description of how this card works, but will
+note enough of the important features so that the driver design is
+hopefully clearer.
+
+4.1 Basic QLogic hardware
+
+The QLogic HBA cards all contain a tiny 16-bit RISC-like processor and
+varying sizes of SRAM. Each card contains a Bus Interface Unit (BIU)
+as appropriate for the host bus (SBus or PCI).  The BIUs allow access
+to a set of dual-ranked 16 bit incoming and outgoing mailbox registers
+as well as access to control registers that control the RISC or access
+other portions of the card (e.g., Flash BIOS). The term 'dual-ranked'
+means that at the same host visible address if you write a mailbox
+register, that is a write to an (incoming, to the HBA) mailbox register,
+while a read to the same address reads another (outgoing, to the HBA)
+mailbox register with completely different data. Each HBA also then has
+core and auxiliary logic which either is used to interface to a SCSI bus
+(or to external bus drivers that connect to a SCSI bus), or to connect
+to a Fibre Channel bus.
+
+4.2 Basic Control Interface
+
+There are two principle I/O control mechanisms by which the driver
+communicates with and controls the QLogic HBA. The first mechanism is to
+use the incoming mailbox registers to interrupt and issue commands to
+the RISC processor (with results usually, but not always, ending up in
+the ougtoing mailbox registers). The second mechanism is to establish,
+via mailbox commands, circular request and response queues in system
+memory that are then shared between the QLogic and the driver. The
+request queue is used to queue requests (e.g., I/O requests) for the
+QLogic HBA's RISC engine to copy into the HBA memory and process. The
+result queue is used by the QLogic HBA's RISC engine to place results of
+requests read from the request queue, as well as to place notification
+of asynchronous events (e.g., incoming commands in target mode).
+
+To give a bit more precise scale to the preceding description, the QLogic
+HBA has 8 dual-ranked 16 bit mailbox registers, mostly for out-of-band
+control purposes. The QLogic HBA then utilizes a circular request queue
+of 64 byte fixed size Queue Entries to receive normal initiator mode
+I/O commands (or continue target mode requests). The request queue may
+be up to 256 elements for the QLogic 1020 and 1040 chipsets, but may
+be quite larger for the QLogic 12X0/12160 SCSI and QLogic 2X00 Fibre
+Channel chipsets.
+
+In addition to synchronously initiated usage of mailbox commands by
+the host system, the QLogic may also deliver asynchronous notifications
+solely in outgoing mailbox registers. These asynchronous notifications in
+mailboxes may be things like notification of SCSI Bus resets, or that the
+Fabric Name server has sent a change notification, or even that a specific
+I/O command completed without error (this is called 'Fast Posting'
+and saves the QLogic HBA from having to write a response queue entry).
+
+The QLogic HBA is an interrupting card, and when servicing an interrupt
+you really only have to check for either a mailbox interrupt or an
+interrupt notification that the response queue has an entry to
+be dequeued.
+
+4.3 Fibre Channel SCSI out of SCSI
+
+QLogic took the approach in introducing the 2X00 cards to just treat
+FC-AL as a 'fat' SCSI bus (a SCSI bus with more than 15 targets). All
+of the things that you really need to do with Fibre Channel with respect
+to providing FC-4 services on top of a Class 3 connection are performed
+by the RISC engine on the QLogic card itself. This means that from
+an HBA driver point of view, very little needs to change that would
+distinguish addressing a Fibre Channel disk from addressing a plain
+old SCSI disk.
+
+However, in the details it's not *quite* that simple. For example, in
+order to manage Fabric Connections, the HBA driver has to do explicit
+binding of entities it's queried from the name server to specific 'target'
+ids (targets, in this case, being a virtual entity).
+
+Still- the HBA firmware does really nearly all of the tedious management
+of Fibre Channel login state. The corollary to this sometimes is the
+lack of ability to say why a particular login connection to a Fibre
+Channel disk is not working well.
+
+There are clear limits with the QLogic card in managing fabric devices.
+The QLogic manages local loop devices (LoopID or Target 0..126) itself,
+but for the management of fabric devices, it has an absolute limit of
+253 simultaneous connections (256 entries less 3 reserved entries).
+
+5. Driver Architecture
+
+5.1 Driver Assumptions
+
+The first basic assumption for this driver is that the requirements for
+a SCSI HBA driver for any system is that of a 2 or 3 layer model where
+there are SCSI target device drivers (drivers which drive SCSI disks,
+SCSI tapes, and so on), possibly a middle services layer, and a bottom
+layer that manages the transport of SCSI CDB's out a SCSI bus (or across
+Fibre Channel) to a SCSI device. It's assumed that each SCSI command is
+a separate structure (or pointer to a structure) that contains the SCSI
+CDB and a place to store SCSI Status and SCSI Sense Data.
+
+This turns out to be a pretty good assumption. All of the Open Source
+systems (*BSD and Linux) and most of the proprietary systems have this
+kind of structure. This has been the way to manage SCSI subsystems for
+at least ten years.
+
+There are some additional basic assumptions that this driver makes- primarily
+in the arena of basic simple services like memory zeroing, memory copying,
+delay, sleep, microtime functions. It doesn't assume much more than this.
+
+5.2 Overall Driver Architecture
+
+The driver is split into a core (machine independent) module and platform
+and bus specific outer modules (machine dependent).
+
+The core code (in the files isp.c, isp_inline.h, ispvar.h, ispreg.h and
+ispmbox.h) handles:
+
+ + Chipset recognition and reset and firmware download (isp_reset)
+ + Board Initialization (isp_init)
+ + First level interrupt handling (response retrieval) (isp_intr)
+ + A SCSI command queueing entry point (isp_start)
+ + A set of control services accessed either via local requirements within
+   the core module or via an externally visible control entry point
+   (isp_control).
+
+The platform/bus specific modules (and definitions) depend on each
+platform, and they provide both definitions and functions for the core
+module's use.  Generally a platform module set is split into a bus
+dependent module (where configuration is begun from and bus specific
+support functions reside) and relatively thin platform specific layer
+which serves as the interconnect with the rest of this platform's SCSI
+subsystem.
+
+For ease of bus specific access issues, a centralized soft state
+structure is maintained for each HBA instance (struct ispsoftc). This
+soft state structure contains a machine/bus dependent vector (mdvec)
+for functions that read and write hardware registers, set up DMA for the
+request/response queues and fibre channel scratch area, set up and tear
+down DMA mappings for a SCSI command, provide a pointer to firmware to
+load, and other minor things.
+
+The machine dependent outer module must provide functional entry points
+for the core module:
+
+ + A SCSI command completion handoff point (isp_done)
+ + An asynchronous event handler (isp_async)
+ + A logging/printing function (isp_prt)
+
+The machine dependent outer module code must also provide a set of
+abstracting definitions which is what the core module utilizes heavily
+to do its job. These are discussed in detail in the comments in the
+file ispvar.h, but to give a sense of the range of what is required,
+let's illustrate two basic classes of these defines.
+
+The first class are "structure definition/access" class. An
+example of these would be:
+
+	XS_T            Platform SCSI transaction type (i.e., command for HBA)
+	..
+	XS_TGT(xs)      gets the target from an XS_T
+	..
+	XS_TAG_TYPE(xs) which type of tag to use
+	..
+
+The second class are 'functional' class definitions. Some examples of
+this class are:
+ 
+	MEMZERO(dst, src)                       platform zeroing function
+	..
+	MBOX_WAIT_COMPLETE(struct ispsoftc *)   wait for mailbox cmd to be done
+
+Note that the former is likely to be simple replacement with bzero or
+memset on most systems, while the latter could be quite complex.
+
+This soft state structure also contains different parameter information
+based upon whether this is a SCSI HBA or a Fibre Channel HBA (which is
+filled in by the code module).
+
+In order to clear up what is undoubtedly a seeming confusion of
+interconnects, a description of the typical flow of code that performs
+boards initialization and command transactions may help.
+
+5.3 Initialization Code Flow
+
+Typically a bus specific module for a platform (e.g., one that wants
+to configure a PCI card) is entered via that platform's configuration
+methods. If this module recognizes a card and can utilize or construct the
+space for the HBA instance softc, it does so, and initializes the machine
+dependent vector as well as any other platform specific information that
+can be hidden in or associated with this structure.
+
+Configuration at this point usually involves mapping in board registers
+and registering an interrupt. It's quite possible that the core module's
+isp_intr function is adequate to be the interrupt entry point, but often
+it's more useful have a bus specific wrapper module that calls isp_intr.
+
+After mapping and interrupt registry is done, isp_reset is called.
+Part of the isp_reset call may cause callbacks out to the bus dependent
+module to perform allocation and/or mapping of Request and Response
+queues (as well as a Fibre Channel scratch area if this is a Fibre
+Channel HBA).  The reason this is considered 'bus dependent' is that
+only the bus dependent module may have the information that says how
+one could perform I/O mapping and dependent (e.g., on a Solaris system)
+on the Request and Response queues. Another callback can enable the *use*
+of interrupts should this platform be able to finish configuration in
+interrupt driven mode.
+
+If isp_reset is successful at resetting the QLogic chipset and downloading
+new firmware (if available) and setting it running, isp_init is called. If
+isp_init is successful in doing initial board setups (including reading
+NVRAM from the QLogic card), then this bus specicic module will call the
+platform dependent module that takes the appropriate steps to 'register'
+this HBA with this platform's SCSI subsystem.  Examining either the
+OpenBSD or the NetBSD isp_pci.c or isp_sbus.c files may assist the reader
+here in clarifying some of this.
+
+5.4 Initiator Mode Command Code Flow
+
+A successful execution of isp_init will lead to the driver 'registering'
+itself with this platform's SCSI subsystem. One assumed action for this
+is the registry of a function that the SCSI subsystem for this platform
+will call when it has a SCSI command to run.
+
+The platform specific module function that receives this will do whatever
+it needs to to prepare this command for execution in the core module. This
+sounds vague, but it's also very flexible. In principle, this could be
+a complete marshalling/demarshalling of this platform's SCSI command
+structure (should it be impossible to represent in an XS_T). In addition,
+this function can also block commands from running (if, e.g., Fibre
+Channel loop state would preclude successful starting of the command).
+
+When it's ready to do so, the function isp_start is called with this
+command. This core module tries to allocate request queue space for
+this command. It also calls through the machine dependent vector
+function to make sure any DMA mapping for this command is done.
+
+Now, DMA mapping here is possibly a misnomer, as more than just
+DMA mapping can be done in this bus dependent function. This is
+also the place where any endian byte-swizzling will be done. At any
+rate, this function is called last because the process of establishing
+DMA addresses for any command may in fact consume more Request Queue
+entries than there are currently available. If the mapping and other
+functions are successful, the QLogic mailbox inbox pointer register
+is updated to indicate to the QLogic that it has a new request to
+read.
+
+If this function is unsuccessful, policy as to what to do at this point is
+left to the machine dependent platform function which called isp_start. In
+some platforms, temporary resource shortages can be handled by the main
+SCSI subsystem. In other platforms, the machine dependent code has to
+handle this.
+
+In order to keep track of commands that are in progress, the soft state
+structure contains an array of 'handles' that are associated with each
+active command. When you send a command to the QLogic firmware, a portion
+of the Request Queue entry can contain a non-zero handle identifier so
+that at a later point in time in reading either a Response Queue entry
+or from a Fast Posting mailbox completion interrupt, you can take this
+handle to find the command you were waiting on. It should be noted that
+this is probably one of the most dangerous areas of this driver. Corrupted
+handles will lead to system panics.
+
+At some later point in time an interrupt will occur. Eventually,
+isp_intr will be called. This core module will determine what the cause
+of the interrupt is, and if it is for a completing command. That is,
+it'll determine the handle and fetch the pointer to the command out of
+storage within the soft state structure. Skipping over a lot of details,
+the machine dependent code supplied function isp_done is called with the
+pointer to the completing command. This would then be the glue layer that
+informs the SCSI subsystem for this platform that a command is complete.
+
+5.5 Asynchronous Events
+
+Interrupts occur for events other than commands (mailbox or request queue
+started commands) completing. These are called Asynchronous Mailbox
+interrupts. When some external event causes the SCSI bus to be reset,
+or when a Fibre Channel loop changes state (e.g., a LIP is observed),
+this generates such an asynchronous event.
+
+Each platform module has to provide an isp_async entry point that will
+handle a set of these. This isp_async entry point also handles things
+which aren't properly async events but are simply natural outgrowths
+of code flow for another core function (see discussion on fabric device
+management below).
+
+5.6 Target Mode Code Flow
+
+This section could use a lot of expansion, but this covers the basics.
+
+The QLogic cards, when operating in target mode, follow a code flow that is
+essentially the inverse of that for intiator mode describe above. In this
+scenario, an interrupt occurs, and present on the Response Queue is a
+queue entry element defining a new command arriving from an initiator.
+
+This is passed to possibly external target mode handler. This driver
+provides some handling for this in a core module, but also leaves
+things open enough that a completely different target mode handler
+may accept this incoming queue entry.
+
+The external target mode handler then turns around forms up a response
+to this 'response' that just arrived which is then placed on the Request
+Queue and handled very much like an initiator mode command (i.e., calling
+the bus dependent DMA mapping function). If this entry completes the
+command, no more need occur. But often this handles only part of the
+requested command, so the QLogic firmware will rewrite the response
+to the initial 'response' again onto the Response Queue, whereupon the
+target mode handler will respond to that, and so on until the command
+is completely handled.
+
+Because almost no platform provides basic SCSI Subsystem target mode
+support, this design has been left extremely open ended, and as such
+it's a bit hard to describe in more detail than this.
+
+5.7 Locking Assumptions
+
+The observant reader by now is likely to have asked the question, "but what
+about locking? Or interrupt masking" by now.
+
+The basic assumption about this is that the core module does not know
+anything directly about locking or interrupt masking. It may assume that
+upon entry (e.g., via isp_start, isp_control, isp_intr) that appropriate
+locking and interrupt masking has been done.
+
+The platform dependent code may also therefore assume that if it is
+called (e.g., isp_done or isp_async) that any locking or masking that
+was in place upon the entry to the core module is still there. It is up
+to the platform dependent code to worry about avoiding any lock nesting
+issues. As an example of this, the Linux implementation simply queues
+up commands completed via the callout to isp_done, which it then pushes
+out to the SCSI subsystem after a return from it's calling isp_intr is
+executed (and locks dropped appropriately, as well as avoidance of deep
+interrupt stacks).
+
+Recent changes in the design have now eased what had been an original
+requirement that the while in the core module no locks or interrupt
+masking could be dropped. It's now up to each platform to figure out how
+to implement this. This is principally used in the execution of mailbox
+commands (which are principally used for Loop and Fabric management via
+the isp_control function).
+
+5.8 SCSI Specifics
+
+The driver core or platform dependent architecture issues that are specific
+to SCSI are few. There is a basic assumption that the QLogic firmware
+supported Automatic Request sense will work- there is no particular provision
+for disabling it's usage on a per-command basis.
+
+5.9 Fibre Channel Specifics
+
+Fibre Channel presents an interesting challenge here. The QLogic firmware
+architecture for dealing with Fibre Channel as just a 'fat' SCSI bus
+is fine on the face of it, but there are some subtle and not so subtle
+problems here.
+
+5.9.1 Firmware State
+
+Part of the initialization (isp_init) for Fibre Channel HBAs involves
+sending a command (Initialize Control Block) that establishes Node
+and Port WWNs as well as topology preferences. After this occurs,
+the QLogic firmware tries to traverese through serveral states:
+
+	FW_CONFIG_WAIT
+	FW_WAIT_AL_PA
+	FW_WAIT_LOGIN
+	FW_READY
+	FW_LOSS_OF_SYNC
+	FW_ERROR
+	FW_REINIT
+	FW_NON_PART
+
+It starts with FW_CONFIG_WAIT, attempts to get an AL_PA (if on an FC-AL
+loop instead of being connected as an N-port), waits to log into all
+FC-AL loop entities and then hopefully transitions to FW_READY state.
+
+Clearly, no command should be attempted prior to FW_READY state is
+achieved. The core internal function isp_fclink_test (reachable via
+isp_control with the ISPCTL_FCLINK_TEST function code). This function
+also determines connection topology (i.e., whether we're attached to a
+fabric or not).
+
+5.9.2. Loop State Transitions- From Nil to Ready
+
+Once the firmware has transitioned to a ready state, then the state of the
+connection to either arbitrated loop or to a fabric has to be ascertained,
+and the identity of all loop members (and fabric members validated).
+
+This can be very complicated, and it isn't made easy in that the QLogic
+firmware manages PLOGI and PRLI to devices that are on a local loop, but
+it is the driver that must manage PLOGI/PRLI with devices on the fabric.
+
+In order to manage this state an eight level staging of current "Loop"
+(where "Loop" is taken to mean FC-AL or N- or F-port connections) states
+in the following ascending order:
+
+	LOOP_NIL
+	LOOP_LIP_RCVD
+	LOOP_PDB_RCVD
+	LOOP_SCANNING_FABRIC
+	LOOP_FSCAN_DONE
+	LOOP_SCANNING_LOOP
+	LOOP_LSCAN_DONE
+	LOOP_SYNCING_PDB
+	LOOP_READY
+
+When the core code initializes the QLogic firmware, it sets the loop
+state to LOOP_NIL. The first 'LIP Received' asynchronous event sets state
+to LOOP_LIP_RCVD. This should be followed by a "Port Database Changed"
+asynchronous event which will set the state to LOOP_PDB_RCVD. Each of
+these states, when entered, causes an isp_async event call to the
+machine dependent layers with the ISPASYNC_CHANGE_NOTIFY code.
+
+After the state of LOOP_PDB_RCVD is reached, the internal core function
+isp_scan_fabric (reachable via isp_control(..ISPCTL_SCAN_FABRIC)) will,
+if the connection is to a fabric, use Simple Name Server mailbox mediated
+commands to dump the entire fabric contents. For each new entity, an
+isp_async event will be generated that says a Fabric device has arrived
+(ISPASYNC_FABRIC_DEV). The function that isp_async must perform in this
+step is to insert possibly remove devices that it wants to have the
+QLogic firmware log into (at LOOP_SYNCING_PDB state level)).
+
+After this has occurred, the state LOOP_FSCAN_DONE is set, and then the
+internal function isp_scan_loop (isp_control(...ISPCTL_SCAN_LOOP)) can
+be called which will then scan for any local (FC-AL) entries by asking
+for each possible local loop id the QLogic firmware for a Port Database
+entry. It's at this level some entries cached locally are purged
+or shifting loopids are managed (see section 5.9.4).
+
+The final step after this is to call the internal function isp_pdb_sync
+(isp_control(..ISPCTL_PDB_SYNC)). The purpose of this function is to
+then perform the PLOGI/PRLI functions for fabric devices. The next state
+entered after this is LOOP_READY, which means that the driver is ready
+to process commands to send to Fibre Channel devices.
+
+5.9.3 Fibre Channel variants of Initiator Mode Code Flow
+
+The code flow in isp_start for Fibre Channel devices is the same as it is
+for SCSI devices, but with a notable exception.
+
+Maintained within the fibre channel specific portion of the driver soft
+state structure is a distillation of the existing population of both
+local loop and fabric devices. Because Loop IDs can shift on a local
+loop but we wish to retain a 'constant' Target ID (see 5.9.4), this
+is indexed directly via the Target ID for the command (XS_TGT(xs)).
+
+If there is a valid entry for this Target ID, the command is started
+(with the stored 'Loop ID'). If not the command is completed with
+the error that is just like a SCSI Selection Timeout error.
+
+This code is currently somewhat in transition. Some platforms to
+do firmware and loop state management (as described above) at this
+point. Other platforms manage this from the machine dependent layers. The
+important function to watch in this respect is isp_fc_runstate (in
+isp_inline.h).
+
+5.9.4 "Target" in Fibre Channel is a fixed virtual construct
+
+Very few systems can cope with the notion that "Target" for a disk
+device can change while you're using it. But one of the properties of
+for arbitrated loop is that the physical bus address for a loop member
+(the AL_PA) can change depending on when and how things are inserted in
+the loop.
+
+To illustrate this, let's take an example. Let's say you start with a
+loop that has 5 disks in it. At boot time, the system will likely find
+them and see them in this order:
+
+disk#   Loop ID         Target ID
+disk0   0               0
+disk1   1               1
+disk2   2               2
+disk3   3               3
+disk4   4               4
+
+The driver uses 'Loop ID' when it forms requests to send a comamnd to
+each disk. However, it reports to NetBSD that things exist as 'Target
+ID'. As you can see here, there is perfect correspondence between disk,
+Loop ID and Target ID.
+
+Let's say you add a new disk between disk2 and disk3 while things are
+running. You don't really often see this, but you *could* see this where
+the loop has to renegotiate, and you end up with:
+
+disk#   Loop ID         Target ID
+disk0   0               0
+disk1   1               1
+disk2   2               2
+diskN   3               ?
+disk3   4               ?
+disk4   5               ?
+
+Clearly, you don't want disk3 and disk4's "Target ID" to change while you're
+running since currently mounted filesystems will get trashed.
+
+What the driver is supposed to do (this is the function of isp_scan_loop),
+is regenerate things such that the following then occurs:
+
+disk#   Loop ID         Target ID
+disk0   0               0
+disk1   1               1
+disk2   2               2
+diskN   3               5
+disk3   4               3
+disk4   5               4
+
+So, "Target" is a virtual entity that is maintained while you're running.
+
+6. Glossary
+
+HBA - Host Bus Adapter
+
+SCSI - Small Computer 
+
+7. References
+
+Various URLs of interest:
+
+http://www.netbsd.org		-	NetBSD's Web Page
+http://www.openbsd.org		-	OpenBSD's Web Page
+https://www.freebsd.org		-	FreeBSD's Web Page
+
+http://www.t10.org		-	ANSI SCSI Commitee's Web Page
+					(SCSI Specs)
+http://www.t11.org		-	NCITS Device Interface Web Page
+					(Fibre Channel Specs)
+

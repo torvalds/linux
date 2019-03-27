@@ -1,0 +1,9 @@
+/* -*- Mode: Text -*- */
+
+#ifndef __windows__
+rcfile         = ".ntprc";
+#else
+rcfile         = "ntp.ini";
+#endif
+
+homerc         =  $HOME, ".";

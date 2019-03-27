@@ -1,0 +1,407 @@
+################################################################################
+# Thelp DDisplay command help
+
+	help [topic [subtopic]]
+	help index
+
+	The help command displays help on commands and their usage.
+
+	In command help, a term enclosed with <...> indicates a value as
+	described by the term.  A term enclosed with [...] is optional,
+	and may not be required by all forms of the command.
+
+	Some commands may not be available.  Use the '?' command to list
+	most available commands.
+
+################################################################################
+# T? DList available commands
+
+	?
+
+	Lists all available commands.
+
+################################################################################
+# Tautoboot DBoot after a delay
+
+	autoboot [<delay> [<prompt>]]
+
+	Displays <prompt> or a default prompt, and counts down <delay> seconds
+	before attempting to boot.  If <delay> is not specified, the default
+	value is 10.
+
+################################################################################
+# Tboot DBoot immediately
+
+	boot [<kernelname>] [-<arg> ...]
+
+	Boot the system.  If arguments are specified, they are added to the
+	arguments for the kernel.  If <kernelname> is specified, and a kernel
+	has not already been loaded, it will be booted instead of the default
+	kernel.
+
+################################################################################
+# Tbcachestat DGet disk block cache stats
+
+	bcachestat
+
+	Displays statistics about disk cache usage.  For debugging only.
+
+################################################################################
+# Techo DEcho arguments
+
+	echo [-n] [<message>]
+
+	Emits <message>, with no trailing newline if -n is specified.  This is
+	most useful in conjunction with scripts and the '@' line prefix.
+
+	Variables are substituted by prefixing them with $, eg.
+
+		echo Current device is $currdev
+
+	will print the current device.
+
+################################################################################
+# Tload DLoad a kernel or module
+	
+	load [-t <type>] <filename>
+
+	Loads the module contained in <filename> into memory.  If no other
+	modules are loaded, <filename> must be a kernel or the command will
+	fail.
+
+	If -t is specified, the module is loaded as raw data of <type>, for
+	later use by the kernel or other modules.  <type> may be any string.
+
+################################################################################
+# Tls DList files
+
+	ls [-l] [<path>]
+
+	Displays a listing of files in the directory <path>, or the root
+	directory of the current device if <path> is not specified.
+
+	The -l argument displays file sizes as well; the process of obtaining
+	file sizes on some media may be very slow.
+
+################################################################################
+# Tlsdev DList devices
+
+	lsdev [-v]
+
+	List all of the devices from which it may be possible to load modules.
+	If -v is specified, print more details.
+
+################################################################################
+# Tlsmod DList modules
+
+	lsmod [-v]
+
+	List loaded modules. If [-v] is specified, print more details.
+
+################################################################################
+# Tmore DPage files
+
+	more <filename> [<filename> ...]
+
+	Show contents of text files. When displaying the contents of more,
+	than one file, if the user elects to quit displaying a file, the
+	remaining files will not be shown.
+
+################################################################################
+# Tpnpscan DScan for PnP devices
+
+	pnpscan [-v]
+
+	Scan for Plug-and-Play devices.  This command is normally automatically
+	run as part of the boot process, in order to dynamically load modules
+	required for system operation.
+
+	If the -v argument is specified, details on the devices found will
+	be printed.
+
+################################################################################
+# Tset DSet a variable
+
+	set <variable name>
+	set <variable name>=<value>
+
+	The set command is used to set variables.
+
+################################################################################
+# Tset Sautoboot_delay DSet the default autoboot delay
+
+	set autoboot_delay=<value>
+
+	Sets the default delay for the autoboot command to <value> seconds.
+	Set value to -1 if you don't want to allow user to interrupt autoboot
+	process and escape to the loader prompt.
+
+################################################################################
+# Tset Sbootfile DSet the default boot file set
+
+	set bootfile=<filename>[;<filename>...]
+
+	Sets the default set of kernel boot filename(s). It may be overridden
+	by setting the bootfile variable to a semicolon-separated list of
+	filenames, each of which will be searched for in the module_path
+	directories. The default bootfile set is "kernel".
+
+################################################################################
+# Tset Sboot_askname DPrompt for root device
+
+	set boot_askname
+
+	Instructs the kernel to prompt the user for the name of the root device
+	when the kernel is booted.
+
+################################################################################
+# Tset Sboot_cdrom DMount root file system from CD-ROM
+
+	set boot_cdrom
+
+	Instructs the kernel to try to mount the root file system from CD-ROM.
+
+################################################################################
+# Tset Sboot_ddb DDrop to the kernel debugger (DDB)
+
+	set boot_ddb
+
+	Instructs the kernel to start in the DDB debugger, rather than
+	proceeding to initialize when booted.
+
+################################################################################
+# Tset Sboot_dfltroot DUse default root file system
+
+	set boot_dfltroot
+
+	Instructs the kernel to mount the statically compiled-in root
+	file system.
+
+################################################################################
+# Tset Sboot_gdb DSelect gdb-remote mode for the kernel debugger
+
+	set boot_gdb
+
+	Selects gdb-remote mode for the kernel debugger by default.
+
+################################################################################
+# Tset Sboot_multicons DUse multiple consoles
+
+	set boot_multicons
+
+	Enables multiple console support in the kernel early on boot.
+	In a running system, console configuration can be manipulated
+	by the conscontrol(8) utility.
+
+################################################################################
+# Tset Sboot_mute DMute the console
+
+	set boot_mute
+
+	All console output is suppressed when console is muted.
+	In a running system, the state of console muting can be
+	manipulated by the conscontrol(8) utility.
+
+################################################################################
+# Tset Sboot_pause DPause after each line during device probing
+
+	set boot_pause
+
+	During the device probe, pause after each line is printed.
+
+################################################################################
+# Tset Sboot_serial DUse serial console
+
+	set boot_serial
+
+	Force the use of a serial console even when an internal console
+	is present.
+
+################################################################################
+# Tset Sboot_single DStart system in single-user mode
+
+	set boot_single
+
+	Prevents the kernel from initiating a multi-user startup; instead,
+	a single-user mode will be entered when the kernel has finished
+	device probes.
+
+################################################################################
+# Tset Sboot_verbose DVerbose boot messages
+
+	set boot_verbose
+
+	Setting this variable causes extra debugging information to be printed
+	by the kernel during the boot phase.
+
+################################################################################
+# Tset Sconsole DSet the current console
+
+	set console[=<value>]
+
+	Sets the current console.  If <value> is omitted, a list of valid
+	consoles will be displayed.
+
+################################################################################
+# Tset Scurrdev DSet the current device
+
+	set currdev=<device>
+
+	Selects the default device.  See lsdev for available devices.
+
+################################################################################
+# Tset Sinit_path DSet the list of init candidates
+
+	set init_path=<path>[:<path>...]
+
+	Sets the list of binaries which the kernel will try to run as initial
+	process.
+
+
+################################################################################
+# Tset Smodule_path DSet the module search path
+
+	set module_path=<path>[;<path>...]
+
+	Sets the list of directories which will be searched in for modules
+	named in a load command or implicitly required by a dependency. The
+	default module_path is "/boot/modules" with the kernel directory
+	prepended.
+
+################################################################################
+# Tset Sprompt DSet the command prompt
+
+	set prompt=<value>
+
+	The command prompt is displayed when the loader is waiting for input.
+	Variable substitution is performed on the prompt.  The default 
+	prompt can be set with:
+
+		set prompt=\${interpret}
+
+################################################################################
+# Tset Srootdev DSet the root filesystem
+
+	set rootdev=<path>
+
+	By default the value of $currdev is used to set the root filesystem
+	when the kernel is booted.  This can be overridden by setting
+	$rootdev explicitly.
+
+################################################################################
+# Tset Stunables DSet kernel tunable values
+
+	Various kernel tunable parameters can be overridden by specifying new 
+	values in the environment.
+
+	set kern.ipc.nmbclusters=<value>
+
+		Set the number of mbuf clusters to be allocated.  The value
+		cannot be set below the default determined when the kernel
+		was compiled.
+
+	set kern.ipc.nsfbufs=<value>		NSFBUFS
+
+		Set the number of sendfile buffers to be allocated.  This
+		overrides the value determined when the kernel was compiled.
+
+	set vm.kmem_size=<value>		VM_KMEM_SIZE
+
+		Sets the size of kernel memory (bytes).  This overrides
+		the value determined when the kernel was compiled.
+
+	set machdep.disable_mtrrs=1
+
+		Disable the use of i686 MTRRs (i386 only)
+
+	set net.inet.tcp.tcbhashsize=<value>	TCBHASHSIZE
+
+		Overrides the compile-time set value of TCBHASHSIZE or
+		the preset default of 512.  Must be a power of 2.
+
+	hw.syscons.sc_no_suspend_vtswitch=<value>
+
+		Disable VT switching on suspend.
+
+		value is 0 (default) or non-zero to enable.
+
+	set hw.physmem=<value>			MAXMEM (i386 only)
+
+		Limits the amount of physical memory space available to
+		the system to <value> bytes.  <value> may have a k, M or G
+		suffix to indicate kilobytes, megabytes and gigabytes
+		respectively.  Note that the current i386 architecture
+		limits this value to 4GB.
+
+		On systems where memory cannot be accurately probed,
+		this option provides a hint as to the actual size of
+		system memory (which will be tested before use).
+
+	set hw.{acpi,pci}.host_start_mem=<value>
+
+		Sets the lowest address that the pci code will assign
+		when it doesn't have other information about the address
+		to assign (like from a pci bridge).  This is only useful
+		in older systems without a pci bridge.  Also, it only
+		impacts devices that the BIOS doesn't assign to, typically
+		CardBus bridges.  The default <value> is 0x80000000, but
+		some systems need values like 0xf0000000, 0xfc000000 or
+		0xfe000000 may be suitable for older systems (the older
+		the system, the higher the number typically should be).
+
+	set hw.pci.enable_io_modes=<value>
+
+		Enable PCI resources which are left off by some BIOSes
+		or are not enabled correctly by the device driver.
+
+		value is 1 (default), but this may cause problems with
+		some peripherals.  Set to 0 to disable.
+
+################################################################################
+# Tshow DShow the values of variables
+
+	show [<variable>]
+
+	Displays the value of <variable>, or all variables if not specified.
+	Multiple paths can be separated with a semicolon.
+
+################################################################################
+# Tinclude DRead commands from a script file
+
+	include <filename> [<filename> ...]
+
+	The entire contents of <filename> are read into memory before executing
+	commands, so it is safe to source a file from removable media.
+
+################################################################################
+# Tread DRead input from the terminal
+
+	read [-t <value>] [-p <prompt>] [<variable name>]
+
+	The read command reads a line of input from the terminal.  If the 
+	-t argument is specified, it will return nothing if no input has been
+	received after <value> seconds.  (Any keypress will cancel the 
+	timeout).
+
+	If -p is specified, <prompt> is printed before reading input. No 
+	newline is emitted after the prompt.
+
+	If a variable name is supplied, the variable is set to the value read,
+	less any terminating newline.
+
+################################################################################
+# Tunload DRemove all modules from memory
+
+	unload
+
+	This command removes any kernel and all loaded modules from memory.
+
+################################################################################
+# Tunset DUnset a variable
+
+	unset <variable name>
+
+	If allowed, the named variable's value is discarded and the variable
+	is removed.	
+
+################################################################################

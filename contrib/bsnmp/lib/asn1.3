@@ -1,0 +1,492 @@
+.\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt.
+.\"	All rights reserved.
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\"	All rights reserved.
+.\"
+.\" Author: Harti Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Begemot: bsnmp/lib/asn1.3,v 1.9 2005/10/04 08:46:49 brandt_h Exp $
+.\"
+.Dd October 4, 2005
+.Dt ASN1 3
+.Os
+.Sh NAME
+.Nm asn_get_header ,
+.Nm asn_put_header ,
+.Nm asn_put_temp_header ,
+.Nm asn_commit_header ,
+.Nm asn_get_integer_raw ,
+.Nm asn_get_integer ,
+.Nm asn_put_integer ,
+.Nm asn_get_octetstring_raw ,
+.Nm asn_get_octetstring ,
+.Nm asn_put_octetstring ,
+.Nm asn_get_null_raw ,
+.Nm asn_get_null ,
+.Nm asn_put_null ,
+.Nm asn_put_exception ,
+.Nm asn_get_objid_raw ,
+.Nm asn_get_objid ,
+.Nm asn_put_objid ,
+.Nm asn_get_sequence ,
+.Nm asn_get_ipaddress_raw ,
+.Nm asn_get_ipaddress ,
+.Nm asn_put_ipaddress ,
+.Nm asn_get_uint32_raw ,
+.Nm asn_put_uint32 ,
+.Nm asn_get_counter64_raw ,
+.Nm asn_put_counter64 ,
+.Nm asn_get_timeticks ,
+.Nm asn_put_timeticks ,
+.Nm asn_skip ,
+.Nm asn_slice_oid ,
+.Nm asn_append_oid ,
+.Nm asn_compare_oid ,
+.Nm asn_is_suboid ,
+.Nm asn_oid2str_r ,
+.Nm asn_oid2str
+.Nd "ASN.1 library for SNMP"
+.Sh LIBRARY
+Begemot SNMP library
+.Pq libbsnmp, -lbsnmp
+.Sh SYNOPSIS
+.In bsnmp/asn1.h
+.Ft enum asn_err
+.Fn asn_get_header "struct asn_buf *buf" "u_char *type" "asn_len_t *lenp"
+.Ft enum asn_err
+.Fn asn_put_header "struct asn_buf *buf" "u_char type" "asn_len_t len"
+.Ft enum asn_err
+.Fn asn_put_temp_header "struct asn_buf *buf" "u_char type" "u_char **ptr"
+.Ft enum asn_err
+.Fn asn_commit_header "struct asn_buf *buf" "u_char *ptr"
+.Ft enum asn_err
+.Fn asn_get_integer_raw "struct asn_buf *buf" "asn_len_t len" "int32_t *res"
+.Ft enum asn_err
+.Fn asn_get_integer "struct asn_buf *buf" "int32_t *res"
+.Ft enum asn_err
+.Fn asn_put_integer "struct asn_buf *buf" "int32_t arg"
+.Ft enum asn_err
+.Fn asn_get_octetstring_raw "struct asn_buf *buf" "asn_len_t len" "u_char *out" "u_int *outsize"
+.Ft enum asn_err
+.Fn asn_get_octetstring "struct asn_buf *buf" "u_char *out" "u_int *outsize"
+.Ft enum asn_err
+.Fn asn_put_octetstring "struct asn_buf *buf" "const u_char *str" "u_int strsize"
+.Ft enum asn_err
+.Fn asn_get_null_raw "struct asn_buf *buf" "asn_len_t len"
+.Ft enum asn_err
+.Fn asn_get_null "struct asn_buf *buf"
+.Ft enum asn_err
+.Fn asn_put_null "struct asn_buf *buf"
+.Ft enum asn_err
+.Fn asn_put_exception "struct asn_buf *buf" "u_int type"
+.Ft enum asn_err
+.Fn asn_get_objid_raw "struct asn_buf *buf" "asn_len_t len" "struct asn_oid *oid"
+.Ft enum asn_err
+.Fn asn_get_objid "struct asn_buf *buf" "struct asn_oid *oid"
+.Ft enum asn_err
+.Fn asn_put_objid "struct asn_buf *buf" "const struct asn_oid *oid"
+.Ft enum asn_err
+.Fn asn_get_sequence "struct asn_buf *buf" "asn_len_t *lenp"
+.Ft enum asn_err
+.Fn asn_get_ipaddress_raw "struct asn_buf *buf" "asn_len_t len" "u_char *ipa"
+.Ft enum asn_err
+.Fn asn_get_ipaddress "struct asn_buf *buf" "u_char *ipa"
+.Ft enum asn_err
+.Fn asn_put_ipaddress "struct asn_buf *buf" "const u_char *ipa"
+.Ft enum asn_err
+.Fn asn_get_uint32_raw "struct asn_buf *buf" "asn_len_t len" "u_int32_t *res"
+.Ft enum asn_err
+.Fn asn_put_uint32 "struct asn_buf *buf" "u_char type" "u_int32_t val"
+.Ft enum asn_err
+.Fn asn_get_counter64_raw "struct asn_buf *buf" "asn_len_t len" "u_int64_t *res"
+.Ft enum asn_err
+.Fn asn_put_counter64 "struct asn_buf *buf" "u_int64_t val"
+.Ft enum asn_err
+.Fn asn_get_timeticks "struct asn_buf *buf" "u_int32_t *valp"
+.Ft enum asn_err
+.Fn asn_put_timeticks "struct asn_buf *buf" "u_int32_t val"
+.Ft enum asn_err
+.Fn asn_skip "struct asn_buf *buf" "asn_len_t len"
+.Ft void
+.Fn asn_slice_oid "struct asn_oid *dest" "const struct asn_oid *src" "u_int from" "u_int to"
+.Ft void
+.Fn asn_append_oid "struct asn_oid *to" "const struct asn_oid *from"
+.Ft int
+.Fn asn_compare_oid "const struct asn_oid *oid1" "const struct asn_oid *oid2"
+.Ft int
+.Fn asn_is_suboid "const struct asn_oid *oid1" "const struct asn_oid *oid2"
+.Ft char *
+.Fn asn_oid2str_r "const struct asn_oid *oid" "char *buf"
+.Ft char *
+.Fn asn_oid2str "const struct asn_oid *oid"
+.Sh DESCRIPTION
+The ASN.1 library contains routines to handle ASN.1 encoding for SNMP.
+It supports only the restricted form of ASN.1 as required by SNMP.
+There are two basic structures used throughout the library:
+.Bd -literal -offset indent
+/* these restrictions are in the SMI */
+#define ASN_MAXID	0xffffffff
+#define ASN_MAXOIDLEN	128
+
+/* type of subidentifiers */
+typedef u_int32_t asn_subid_t;
+
+struct asn_oid {
+	u_int	len;
+	asn_subid_t subs[ASN_MAXOIDLEN];
+};
+.Ed
+.Pp
+This structure represents an OID with the restrictions defined in the SNMP
+SMI.
+.Fa len
+holds the current length of the OID and
+.Fa subs
+holds the elements of the OID.
+.Bd -literal -offset indent
+struct asn_buf {
+	union {
+		u_char	*ptr;
+		const u_char *cptr;
+	}	asn_u;
+	size_t	asn_len;
+};
+#define asn_cptr	asn_u.cptr
+#define asn_ptr	asn_u.ptr
+.Ed
+.Pp
+This structure is used to encode and decode ASN.1.
+It describes the output
+buffer for encoding routines and the input buffer for decoding routines.
+For encoding
+.Fa asn_len
+holds the number of remaining free octets in the buffer.
+The first free byte is pointed to by
+.Fa asn_ptr .
+For decoding
+.Fa asn_len
+holds the number of remaining bytes to decode.
+The next byte to decode is pointed to by
+.Fa asn_cptr .
+.Pp
+Most of the functions return an error code
+.Fa "enum asn_error" :
+.Bd -literal -offset indent
+enum asn_err {
+	/* conversion was ok */
+	ASN_ERR_OK	= 0,
+	/* conversion failed and stopped */
+	ASN_ERR_FAILED	= 1 | 0x1000,
+	/* length field bad, value skipped */
+	ASN_ERR_BADLEN	= 2,
+	/* out of buffer, stopped */
+	ASN_ERR_EOBUF	= 3 | 0x1000,
+	/* length ok, but value is out of range */
+	ASN_ERR_RANGE	= 4,
+	/* not the expected tag, stopped */
+	ASN_ERR_TAG	= 5 | 0x1000,
+};
+#define ASN_ERR_STOPPED(E) (((E) & 0x1000) != 0)
+.Ed
+.Pp
+If
+.Fn ASN_ERR_STOPPED
+returns true, the error was fatal and processing has stopped at the point
+of error.
+.Pp
+The function
+.Fn asn_get_header
+reads the next header from the input octet stream.
+It returns the tag in the variable pointed to by
+.Fa type
+(note that only single byte tags are supported) and the decoded length field
+in the value pointed to by
+.Fa lenp
+(this is restricted to a unsigned 32-bit value).
+All errors in this function are fatal and stop processing.
+.Pp
+The function
+.Fn asn_put_header
+writes an ASN.1 header.
+.Fa type
+is the tag to write and is restricted to one byte tags (i.e., tags
+lesser or equal than 0x30).
+.Fa len
+is the length of the value and is restricted to 16-bit.
+.Pp
+The functions
+.Fn asn_put_temp_header
+and
+.Fn asn_commit_header
+are used to write a header when the length of the value is not known in
+advance, for example, for sequences.
+.Fn asn_put_temp_header
+writes a header with the given tag
+.Fa type
+and space for the maximum supported length field and sets the pointer pointed
+to by
+.Fa ptr
+to the begin of this length field.
+This pointer must then be fed into
+.Fn asn_commit_header
+directly after writing the value to the buffer.
+The function will compute the
+length, insert it into the right place and shift the value if the resulting
+length field is shorter than the estimated one.
+.Pp
+The function
+.Fn asn_get_integer_raw
+is used to decode a signed integer value (32-bit).
+It assumes, that the
+header of the integer has been decoded already.
+.Fa len
+is the length obtained from the ASN.1 header and the integer will be returned
+in the value pointed to by
+.Fa res .
+.Pp
+The function
+.Fn asn_get_integer
+decodes a complete 32-bit signed integer including the header.
+If the tag is wrong
+.Li ASN_ERR_TAG
+is returned.
+The function
+.Fn asn_put_integer
+encodes a 32-bit signed integer.
+.Pp
+The function
+.Fn asn_get_octetstring_raw
+decodes the value field of an ASN.1 octet string.
+The length obtained from the header must be fed into the
+.Fa len
+argument and
+.Fa out
+must point to a buffer to receive the octet string.
+On entry to the function
+.Fa outsize
+must point to the size of the buffer.
+On exit
+.Fa outsize
+will point to the number of octets decoded (if no error occurs this will be
+equal to
+.Fa len ).
+The function
+.Fn asn_get_octetstring
+decodes an octetstring including the header.
+.Fa out
+must point to a buffer to receive the string,
+.Fa outsize
+must point to the size of the buffer.
+On exit of the function
+.Fa outsize
+will point to the number of octets decoded.
+The function
+.Fn asn_put_octetstring
+encodes an octetstring (including the header).
+.Fa str
+points to the string to encode and
+.Fa strsize
+is the length of the string (the string may contain embedded
+.Li NUL Ns s).
+.Pp
+The function
+.Fn asn_get_null_raw
+decodes a null value.
+.Fa len
+is the length obtained from the header and must be 0.
+The function
+.Fn asn_get_null
+decodes a null including the header and the function
+.Fn asn_put_null
+encodes a null.
+.Pp
+The function
+.Fn asn_put_exception
+is used to encode an SNMPv2 exception.
+The exception type is
+.Fa type .
+.Pp
+The function
+.Fn asn_get_objid_raw
+is used to decode an OID value.
+.Fa len
+must be the value length obtained from the header and
+.Fa oid
+will receive the decoded OID.
+The function
+.Fn asn_get_objid
+decodes a complete OID (including the header) and the function
+.Fn asn_put_objid
+encodes a complete OID.
+.Pp
+The function
+.Fn asn_get_sequence
+decodes a sequence header.
+The length of the sequence value will be stored in the value pointed to by
+.Fa lenp .
+.Pp
+The function
+.Fn asn_get_ipaddress_raw
+decodes an IP address value.
+.Fa len
+is the length from the header and must be 4.
+.Fa ipa
+will receive the decoded IP address and must point to a buffer of at least
+four bytes.
+The function
+.Fn asn_get_ipaddress
+decodes a complete IP address (including the header) and
+.Fn asn_put_ipaddress
+encodes an IP address.
+.Pp
+The function
+.Fn asn_get_uint32_raw
+decodes an unsigned 32-bit integer value.
+.Fa len
+is the length from the header and
+.Fa res
+will get the decoded value.
+The function
+.Fn asn_put_uint32
+encodes an unsigned 32-bit integer value and inserts the tag given in
+.Fa type
+into the header.
+.Pp
+The function
+.Fn asn_get_counter64_raw
+decodes an unsigned 64-bit integer value.
+.Fa len
+must be the value length from the header.
+The resulting value is stored into the variable pointed to by
+.Fa res .
+The function
+.Fn asn_put_counter64
+encodes a complete unsigned 64-bit value.
+.Pp
+The function
+.Fn asn_get_timeticks
+decodes an ASN.1 object of type
+.Li TIMETICKS
+and the function
+.Fn asn_put_timeticks
+encodes such an object.
+.Pp
+The function
+.Fn asn_skip
+can be used to skip
+.Fa len
+bytes in the input buffer.
+.Pp
+The function
+.Fn asn_slice_oid
+splits a part out from an OID.
+It takes all the subids from the OID pointed to by
+.Fa src
+starting with the subid at position
+.Fa from
+(the first subid being subid 0) up to, but not including, subid
+.Fa to
+and generates a new OID in
+.Fa dest .
+If
+.Fa to
+is less or equal to
+.Fa from
+the resulting OID will have a length of zero.
+.Pp
+The function
+.Fn asn_append_oid
+appends the OID
+.Fa from
+to the OID
+.Fa to
+given that the resulting OID is not too long.
+If the maximum length is exceeded the result is undefined.
+.Pp
+The function
+.Fn asn_compare_oid
+compares two oids and returns the values
+.Li -1 ,
+.Li 0 or
+.Li +1
+when
+.Fa oid1
+is lesser than, equal, or larger than
+.Fa oid2
+resp.
+.Pp
+The function
+.Fn asn_is_suboid
+returns 1 if
+.Fa oid1
+is equal to the leading part of
+.Fa oid2 .
+It returns 0 otherwise.
+.Pp
+The function
+.Fn asn_oid2str_r
+makes a printable string from
+.Fa oid .
+The buffer pointed to by
+.Fa str
+must be large enough to hold the result.
+The constant
+.Li ASN_OIDSTRLEN
+is defined to be the length of the maximum string generated by this function
+(including the trailing NUL).
+The function
+.Fn asn_oid2str
+makes a printable string from
+.Fa oid
+into a private buffer that is overwritten by each call.
+.Sh DIAGNOSTICS
+When an error occurs in any of the function the function pointed to
+by the global pointer
+.Bd -literal -offset indent
+extern void (*asn_error)(const struct asn_buf *, const char *, ...);
+.Ed
+.Pp
+is called with the current buffer (this may be
+.Li NULL )
+and a
+.Xr printf 3
+style format string.
+There is a default error handler in the library that prints a message
+starting with
+.Sq ASN.1:
+followed by the error message and an optional dump of the buffer.
+.Sh SEE ALSO
+.Xr gensnmptree 1 ,
+.Xr bsnmpd 1 ,
+.Xr bsnmpagent 3 ,
+.Xr bsnmpclient 3 ,
+.Xr bsnmplib 3
+.Sh STANDARDS
+This implementation conforms to the applicable IETF RFCs and ITU-T
+recommendations.
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@FreeBSD.org

@@ -1,0 +1,16 @@
+#! /bin/sh
+
+set -e
+
+GCL_REMOVEWRITE=0
+. ./packageinfo.sh
+if [ ! -w . ] ; then
+        GCL_REMOVEWRITE=1
+        chmod u+w .
+        [ -f CommitLog -a ! -w CommitLog ] && chmod u+w CommitLog
+fi
+bk changes -v -m -r${CLTAG}.. > CommitLog.new
+mv CommitLog.new CommitLog
+case "$GCL_REMOVEWRITE" in
+ 1) chmod a-w CommitLog .
+esac

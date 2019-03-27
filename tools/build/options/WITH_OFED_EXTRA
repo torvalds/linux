@@ -1,0 +1,4 @@
+.\" $FreeBSD$
+Set to build the non-essential components of the
+.Dq "OpenFabrics Enterprise Distribution"
+Infiniband software stack, mostly examples.

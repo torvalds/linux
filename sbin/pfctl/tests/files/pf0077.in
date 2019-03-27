@@ -1,0 +1,5 @@
+# dynaddr with netmask. I never want to see this again:
+# <henning@quigon:1>$ echo "pass inet from (le0)/8" | pfctl -nvf -
+# pass inet from (l)/8 to any 
+
+pass inet from (lo0)/8

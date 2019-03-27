@@ -1,0 +1,1429 @@
+#------------------------------------------------------------------------------
+# $File: archive,v 1.119 2018/04/24 23:19:45 christos Exp $
+# archive:  file(1) magic for archive formats (see also "msdos" for self-
+#           extracting compressed archives)
+#
+# cpio, ar, arc, arj, hpack, lha/lharc, rar, squish, uc2, zip, zoo, etc.
+# pre-POSIX "tar" archives are also handled in the C code ../../src/is_tar.c.
+
+# POSIX tar archives
+# URL: https://en.wikipedia.org/wiki/Tar_(computing)
+# Reference: https://www.freebsd.org/cgi/man.cgi?query=tar&sektion=5&manpath=FreeBSD+8-current
+# header mainly padded with nul bytes
+500	quad		0		
+!:strength /2
+# filename or extended attribute printable strings in range space null til umlaut ue
+>0	ubeshort	>0x1F00		
+>>0	ubeshort	<0xFCFD
+# last 4 header bytes often null but tar\0 in gtarfail2.tar gtarfail.tar-bad
+# at https://sourceforge.net/projects/s-tar/files/testscripts/
+>>>508	ubelong&0x8B9E8DFF	0	
+# nul, space or ascii digit 0-7 at start of mode
+>>>>100	ubyte&0xC8	=0		
+>>>>>101 ubyte&0xC8	=0		
+# nul, space at end of check sum
+>>>>>>155 ubyte&0xDF	=0	
+# space or ascii digit 0 at start of check sum
+>>>>>>>148	ubyte&0xEF	=0x20	
+>>>>>>>>0	use	tar-file
+#	minimal check and then display tar archive information which can also be
+#	embedded inside others like Android Backup, Clam AntiVirus database
+0	name		tar-file
+>257	string		!ustar		
+# header padded with nuls
+>>257	ulong		=0		
+# GNU tar version 1.29 with non pax format option without refusing
+# creates misleading V7 header for Long path, Multi-volume, Volume type
+>>>156	ubyte		0x4c		GNU tar archive
+!:mime	application/x-gtar
+!:ext	tar/gtar
+>>>156	ubyte		0x4d		GNU tar archive
+!:mime	application/x-gtar
+!:ext	tar/gtar
+>>>156	ubyte		0x56		GNU tar archive
+!:mime	application/x-gtar
+!:ext	tar/gtar
+>>>156	default		x		tar archive (V7)
+!:mime	application/x-tar
+!:ext	tar
+# other stuff in padding
+# some implementations add new fields to the blank area at the end of the header record
+# created for example by DOS TAR 3.20g 1994 Tim V.Shapore with -j option
+>>257	ulong		!0		tar archive (old)
+!:mime	application/x-tar
+!:ext	tar
+# magic in newer, GNU, posix variants
+>257	string		=ustar		
+# 2 last char of magic and UStar version because string expression does not work
+# 2 space characters followed by a null for GNU variant
+>>261	ubelong		=0x72202000	POSIX tar archive (GNU)
+!:mime	application/x-gtar
+!:ext	tar/gtar
+# UStar version with ASCII "00"
+>>261	ubelong		0x72003030	POSIX
+# gLOBAL and ExTENSION type only found in POSIX.1-2001 format
+>>>156	ubyte		0x67		\b.1-2001
+>>>156	ubyte		0x78		\b.1-2001
+>>>156	ubyte		x		tar archive
+!:mime	application/x-ustar
+!:ext	tar/ustar
+# version with 2 binary nuls embedded in Android Backup like com.android.settings.ab
+>>261	ubelong		0x72000000	tar archive (ustar)
+!:mime	application/x-ustar
+!:ext	tar/ustar
+# not seen ustar variant with garbish version
+>>261	default		x		tar archive (unknown ustar)
+!:mime	application/x-ustar
+!:ext	tar/ustar
+# type flag of 1st tar archive member
+#>156	ubyte		x		\b, %c-type
+>156	ubyte		x		
+>>156	ubyte		0		\b, file
+>>156	ubyte		0x30		\b, file
+>>156	ubyte		0x31		\b, hard link
+>>156	ubyte		0x32		\b, symlink
+>>156	ubyte		0x33		\b, char device
+>>156	ubyte		0x34		\b, block device
+>>156	ubyte		0x35		\b, directory
+>>156	ubyte		0x36		\b, fifo
+>>156	ubyte		0x37		\b, reserved
+>>156	ubyte		0x4c		\b, long path
+>>156	ubyte		0x4d		\b, multi volume
+>>156	ubyte		0x56		\b, volume
+>>156	ubyte		0x67		\b, global
+>>156	ubyte		0x78		\b, extension
+>>156	default		x		\b, type
+>>>156	ubyte		x		'%c'
+# name[100]
+>0	string		>\0		%-.60s
+# mode mainly stored as an octal number in ASCII null or space terminated
+>100	string		>\0		\b, mode %-.7s
+# user id mainly as octal numbers in ASCII null or space terminated
+>108	string		>\0		\b, uid %-.7s
+# group id mainly as octal numbers in ASCII null or space terminated
+>116	string		>\0		\b, gid %-.7s
+# size mainly as octal number in ASCII
+>124	ubyte		<0x38		
+>>124	string		>\0		\b, size %-.12s
+# coding indicated by setting the high-order bit of the leftmost byte
+>124	ubyte		>0xEF		\b, size 0x
+>>124	ubyte		!0xff		\b%2.2x
+>>125	ubyte		!0xff		\b%2.2x
+>>126	ubyte		!0xff		\b%2.2x
+>>127	ubyte		!0xff		\b%2.2x
+>>128	ubyte		!0xff		\b%2.2x
+>>129	ubyte		!0xff		\b%2.2x
+>>130	ubyte		!0xff		\b%2.2x
+>>131	ubyte		!0xff		\b%2.2x
+>>132	ubyte		!0xff		\b%2.2x
+>>133	ubyte		!0xff		\b%2.2x
+>>134	ubyte		!0xff		\b%2.2x
+>>135	ubyte		!0xff		\b%2.2x
+# seconds since 0:0:0 1 jan 1970 UTC as octal number mainly in ASCII null or space terminated
+>136	string		>\0		\b, seconds %-.11s
+# header checksum stored as an octal number in ASCII null or space terminated
+#>148	string		x		\b, cksum %.7s
+# linkname[100]
+>157	string		>\0		\b, linkname %-.40s
+# additional fields for ustar
+>257	string		=ustar		
+# owner user name null terminated
+>>265	string		>\0		\b, user %-.32s
+# group name null terminated
+>>297	string		>\0		\b, group %-.32s
+# device major minor if not zero
+>>329	ubequad&0xCFCFCFCFcFcFcFdf	!0
+>>>329	string		x		\b, devmaj %-.7s
+>>337	ubequad&0xCFCFCFCFcFcFcFdf	!0
+>>>337	string		x		\b, devmin %-.7s
+# prefix[155]
+>>345	string		>\0		\b, prefix %-.155s
+# old non ustar/POSIX tar
+>257	string		!ustar		
+>>508	string		=tar\0		
+# padding[255] in old star
+>>>257	string		>\0		\b, padding: %-.40s
+>>508	default		x		
+# padding[255] in old tar sometimes comment field
+>>>257	string		>\0		\b, comment: %-.40s
+
+# Incremental snapshot gnu-tar format from:
+# http://www.gnu.org/software/tar/manual/html_node/Snapshot-Files.html
+0	string		GNU\ tar-	GNU tar incremental snapshot data
+>&0	regex		[0-9]\.[0-9]+-[0-9]+	version %s
+
+# cpio archives
+#
+# Yes, the top two "cpio archive" formats *are* supposed to just be "short".
+# The idea is to indicate archives produced on machines with the same
+# byte order as the machine running "file" with "cpio archive", and
+# to indicate archives produced on machines with the opposite byte order
+# from the machine running "file" with "byte-swapped cpio archive".
+#
+# The SVR4 "cpio(4)" hints that there are additional formats, but they
+# are defined as "short"s; I think all the new formats are
+# character-header formats and thus are strings, not numbers.
+0	short		070707		cpio archive
+!:mime	application/x-cpio
+0	short		0143561		byte-swapped cpio archive
+!:mime	application/x-cpio # encoding: swapped
+0	string		070707		ASCII cpio archive (pre-SVR4 or odc)
+0	string		070701		ASCII cpio archive (SVR4 with no CRC)
+0	string		070702		ASCII cpio archive (SVR4 with CRC)
+
+#
+# Various archive formats used by various versions of the "ar"
+# command.
+#
+
+#
+# Original UNIX archive formats.
+# They were written with binary values in host byte order, and
+# the magic number was a host "int", which might have been 16 bits
+# or 32 bits.  We don't say "PDP-11" or "VAX", as there might have
+# been ports to little-endian 16-bit-int or 32-bit-int platforms
+# (x86?) using some of those formats; if none existed, feel free
+# to use "PDP-11" for little-endian 16-bit and "VAX" for little-endian
+# 32-bit.  There might have been big-endian ports of that sort as
+# well.
+#
+0	leshort		0177555		very old 16-bit-int little-endian archive
+0	beshort		0177555		very old 16-bit-int big-endian archive
+0	lelong		0177555		very old 32-bit-int little-endian archive
+0	belong		0177555		very old 32-bit-int big-endian archive
+
+0	leshort		0177545		old 16-bit-int little-endian archive
+>2	string		__.SYMDEF	random library
+0	beshort		0177545		old 16-bit-int big-endian archive
+>2	string		__.SYMDEF	random library
+0	lelong		0177545		old 32-bit-int little-endian archive
+>4	string		__.SYMDEF	random library
+0	belong		0177545		old 32-bit-int big-endian archive
+>4	string		__.SYMDEF	random library
+
+#
+# From "pdp" (but why a 4-byte quantity?)
+#
+0	lelong		0x39bed		PDP-11 old archive
+0	lelong		0x39bee		PDP-11 4.0 archive
+
+#
+# XXX - what flavor of APL used this, and was it a variant of
+# some ar archive format?  It's similar to, but not the same
+# as, the APL workspace magic numbers in pdp.
+#
+0	long		0100554		apl workspace
+
+#
+# System V Release 1 portable(?) archive format.
+#
+0	string		=<ar>		System V Release 1 ar archive
+!:mime	application/x-archive
+
+#
+# Debian package; it's in the portable archive format, and needs to go
+# before the entry for regular portable archives, as it's recognized as
+# a portable archive whose first member has a name beginning with
+# "debian".
+#
+0	string		=!<arch>\ndebian
+>8	string		debian-split	part of multipart Debian package
+!:mime	application/vnd.debian.binary-package
+>8	string		debian-binary	Debian binary package
+!:mime	application/vnd.debian.binary-package
+>8	string		!debian
+>68	string		>\0		(format %s)
+# These next two lines do not work, because a bzip2 Debian archive
+# still uses gzip for the control.tar (first in the archive).  Only
+# data.tar varies, and the location of its filename varies too.
+# file/libmagic does not current have support for ascii-string based
+# (offsets) as of 2005-09-15.
+#>81	string		bz2		\b, uses bzip2 compression
+#>84	string		gz		\b, uses gzip compression
+#>136	ledate		x		created: %s
+
+#
+# MIPS archive; they're in the portable archive format, and need to go
+# before the entry for regular portable archives, as it's recognized as
+# a portable archive whose first member has a name beginning with
+# "__________E".
+#
+0	string	=!<arch>\n__________E	MIPS archive
+!:mime	application/x-archive
+>20	string	U			with MIPS Ucode members
+>21	string	L			with MIPSEL members
+>21	string	B			with MIPSEB members
+>19	string	L			and an EL hash table
+>19	string	B			and an EB hash table
+>22	string	X			-- out of date
+
+0	search/1	-h-		Software Tools format archive text
+
+#
+# BSD/SVR2-and-later portable archive formats.
+#
+0	string		=!<arch>\n		current ar archive
+!:mime	application/x-archive
+>8	string		__.SYMDEF	random library
+>68	string		__.SYMDEF\ SORTED	random library
+
+#
+# "Thin" archive, as can be produced by GNU ar.
+#
+0	string		=!<thin>\n	thin archive with
+>68	belong		0		no symbol entries
+>68	belong		1		%d symbol entry
+>68	belong		>1		%d symbol entries
+
+# ARC archiver, from Daniel Quinlan (quinlan@yggdrasil.com)
+#
+# The first byte is the magic (0x1a), byte 2 is the compression type for
+# the first file (0x01 through 0x09), and bytes 3 to 15 are the MS-DOS
+# filename of the first file (null terminated).  Since some types collide
+# we only test some types on basis of frequency: 0x08 (83%), 0x09 (5%),
+# 0x02 (5%), 0x03 (3%), 0x04 (2%), 0x06 (2%).  0x01 collides with terminfo.
+0	lelong&0x8080ffff	0x0000081a	ARC archive data, dynamic LZW
+!:mime	application/x-arc
+0	lelong&0x8080ffff	0x0000091a	ARC archive data, squashed
+!:mime	application/x-arc
+0	lelong&0x8080ffff	0x0000021a	ARC archive data, uncompressed
+!:mime	application/x-arc
+0	lelong&0x8080ffff	0x0000031a	ARC archive data, packed
+!:mime	application/x-arc
+0	lelong&0x8080ffff	0x0000041a	ARC archive data, squeezed
+!:mime	application/x-arc
+0	lelong&0x8080ffff	0x0000061a	ARC archive data, crunched
+!:mime	application/x-arc
+# [JW] stuff taken from idarc, obviously ARC successors:
+0	lelong&0x8080ffff	0x00000a1a	PAK archive data
+!:mime	application/x-arc
+0	lelong&0x8080ffff	0x0000141a	ARC+ archive data
+!:mime	application/x-arc
+0	lelong&0x8080ffff	0x0000481a	HYP archive data
+!:mime	application/x-arc
+
+# Acorn archive formats (Disaster prone simpleton, m91dps@ecs.ox.ac.uk)
+# I can't create either SPARK or ArcFS archives so I have not tested this stuff
+# [GRR:  the original entries collide with ARC, above; replaced with combined
+#  version (not tested)]
+#0	byte		0x1a		RISC OS archive (spark format)
+0	string		\032archive	RISC OS archive (ArcFS format)
+0       string          Archive\000     RISC OS archive (ArcFS format)
+
+# All these were taken from idarc, many could not be verified. Unfortunately,
+# there were many low-quality sigs, i.e. easy to trigger false positives.
+# Please notify me of any real-world fishy/ambiguous signatures and I'll try
+# to get my hands on the actual archiver and see if I find something better. [JW]
+# probably many can be enhanced by finding some 0-byte or control char near the start
+
+# idarc calls this Crush/Uncompressed... *shrug*
+0	string	CRUSH Crush archive data
+# Squeeze It (.sqz)
+0	string	HLSQZ Squeeze It archive data
+# SQWEZ
+0	string	SQWEZ SQWEZ archive data
+# HPack (.hpk)
+0	string	HPAK HPack archive data
+# HAP
+0	string	\x91\x33HF HAP archive data
+# MD/MDCD
+0	string	MDmd MDCD archive data
+# LIM
+0	string	LIM\x1a LIM archive data
+# SAR
+3	string	LH5 SAR archive data
+# BSArc/BS2
+0	string	\212\3SB\020\0	BSArc/BS2 archive data
+# Bethesda Softworks Archive (Oblivion)
+0	string	BSA\0 		BSArc archive data
+>4	lelong	x		version %d
+# MAR
+2	string	=-ah MAR archive data
+# ACB
+#0	belong&0x00f800ff	0x00800000 ACB archive data
+# CPZ
+# TODO, this is what idarc says: 0	string	\0\0\0 CPZ archive data
+# JRC
+0	string	JRchive JRC archive data
+# Quantum
+0	string	DS\0 Quantum archive data
+# ReSOF
+0	string	PK\3\6 ReSOF archive data
+# QuArk
+0	string	7\4 QuArk archive data
+# YAC
+14	string	YC YAC archive data
+# X1
+0	string	X1 X1 archive data
+0	string	XhDr X1 archive data
+# CDC Codec (.dqt)
+0	belong&0xffffe000	0x76ff2000 CDC Codec archive data
+# AMGC
+0	string	\xad6" AMGC archive data
+# NuLIB
+0	string	N\xc3\xb5F\xc3\xa9lx\xc3\xa5 NuLIB archive data
+# PakLeo
+0	string	LEOLZW PAKLeo archive data
+# ChArc
+0	string	SChF ChArc archive data
+# PSA
+0	string	PSA PSA archive data
+# CrossePAC
+0	string	DSIGDCC CrossePAC archive data
+# Freeze
+0	string	\x1f\x9f\x4a\x10\x0a Freeze archive data
+# KBoom
+0	string	\xc2\xa8MP\xc2\xa8 KBoom archive data
+# NSQ, must go after CDC Codec
+0	string	\x76\xff NSQ archive data
+# DPA
+0	string	Dirk\ Paehl DPA archive data
+# BA
+# TODO: idarc says "bytes 0-2 == bytes 3-5"
+# TTComp
+# URL: http://fileformats.archiveteam.org/wiki/TTComp_archive
+# Update: Joerg Jenderek
+# GRR: line below is too general as it matches also Panorama database "TCDB 2003-10 demo.pan", others
+0	string	\0\6
+# look for first keyword of Panorama database *.pan
+>12	search/261	DESIGN
+# skip keyword with low entropy
+>12	default		x	TTComp archive, binary, 4K dictionary
+# (version 5.25) labeled the above entry as "TTComp archive data"
+# ESP, could this conflict with Easy Software Products' (e.g.ESP ghostscript) documentation?
+0	string	ESP ESP archive data
+# ZPack
+0	string	\1ZPK\1 ZPack archive data
+# Sky
+0	string	\xbc\x40 Sky archive data
+# UFA
+0	string	UFA UFA archive data
+# Dry
+0	string	=-H2O DRY archive data
+# FoxSQZ
+0	string	FOXSQZ FoxSQZ archive data
+# AR7
+0	string	,AR7 AR7 archive data
+# PPMZ
+0	string	PPMZ PPMZ archive data
+# MS Compress
+# Update: Joerg Jenderek
+# URL: http://fileformats.archiveteam.org/wiki/MS-DOS_installation_compression
+# Reference: https://hwiegman.home.xs4all.nl/fileformats/compress/szdd_kwaj_format.html
+# Note: use correct version of extracting tool like EXPAND, UNPACK, DECOMP or 7Z  
+4	string	\x88\xf0\x27
+#		KWAJ variant
+>0	string	KWAJ		MS Compress archive data, KWAJ variant
+!:mime	application/x-ms-compress-kwaj
+# extension not working in version 5.32
+# magic/Magdir/archive, 284: Warning: EXTENSION type ` ??_' has bad char '?'
+# file: line 284: Bad magic entry '   ??_'
+!:ext	??_
+# compression method (0-4)
+>>8	uleshort	x	\b, %u method
+# offset of compressed data
+>>10	uleshort	x	\b, 0x%x offset
+#>>(10.s)	uleshort	x
+#>>>&-6		string	x	\b, TEST extension %-.3s
+# header flags to mark header extensions
+>>12	uleshort	>0	\b, 0x%x flags
+# 4 bytes: decompressed length of file
+>>12	uleshort	&0x01
+>>>14	ulelong		x	\b, original size: %u bytes
+# 2 bytes: unknown purpose
+# 2 bytes: length of unknown data + mentioned bytes
+# 1-9 bytes: null-terminated file name
+# 1-4 bytes: null-terminated file extension
+>>12	uleshort	&0x08
+>>>12	uleshort				^0x01
+>>>>12		uleshort			^0x02
+>>>>>12			uleshort		^0x04
+>>>>>>12			uleshort	^0x10	
+>>>>>>>14				string	x	\b, %-.8s
+>>>>>>12			uleshort	&0x10	
+>>>>>>>14				string	x	\b, %-.8s
+>>>>>>>>&1				string	x	\b.%-.3s
+>>>>>12			uleshort		&0x04
+>>>>>>12			uleshort	^0x10	
+>>>>>>>(14.s)			uleshort	x
+>>>>>>>>&14				string	x	\b, %-.8s
+>>>>>>12			uleshort	&0x10	
+>>>>>>>(14.s)			uleshort	x
+>>>>>>>>&14				string	x	\b, %-.8s
+>>>>>>>>>&1				string	x	\b.%-.3s
+>>>>12		uleshort			&0x02
+>>>>>12			uleshort		^0x04
+>>>>>>12			uleshort	^0x10	
+>>>>>>>16				string	x	\b, %-.8s
+>>>>>>12			uleshort	&0x10	
+>>>>>>>16				string	x	\b, %-.8s
+>>>>>>>>&1				string	x	\b.%-.3s
+>>>>>12			uleshort		&0x04
+>>>>>>12			uleshort	^0x10	
+>>>>>>>(16.s)			uleshort	x
+>>>>>>>>&16				string	x	\b, %-.8s
+>>>>>>12			uleshort	&0x10	
+>>>>>>>(16.s)			uleshort	x
+>>>>>>>&16				string	x	%-.8s
+>>>>>>>>&1				string	x	\b.%-.3s
+>>>12	uleshort				&0x01
+>>>>12		uleshort			^0x02
+>>>>>12			uleshort		^0x04
+>>>>>>12			uleshort	^0x10
+>>>>>>>18				string	x	\b, %-.8s
+>>>>>>12			uleshort	&0x10	
+>>>>>>>18				string	x	\b, %-.8s
+>>>>>>>>&1				string	x	\b.%-.3s
+>>>>>12			uleshort		&0x04
+>>>>>>12			uleshort	^0x10	
+>>>>>>>(18.s)			uleshort	x
+>>>>>>>>&18				string	x	\b, %-.8s
+>>>>>>12			uleshort	&0x10	
+>>>>>>>(18.s)			uleshort	x
+>>>>>>>>&18				string	x	\b, %-.8s
+>>>>>>>>>&1				string	x	\b.%-.3s
+>>>>12		uleshort			&0x02
+>>>>>12			uleshort		^0x04
+>>>>>>12			uleshort	^0x10	
+>>>>>>>20				string	x	\b, %-.8s
+>>>>>>12			uleshort	&0x10	
+>>>>>>>20				string	x	\b, %-.8s
+>>>>>>>>&1				string	x	\b.%-.3s
+>>>>>12			uleshort		&0x04
+>>>>>>12			uleshort	^0x10	
+>>>>>>>(20.s)			uleshort	x
+>>>>>>>>&20				string	x	\b, %-.8s
+>>>>>>12			uleshort	&0x10	
+>>>>>>>(20.s)			uleshort	x
+>>>>>>>>&20				string	x	\b, %-.8s
+>>>>>>>>>&1				string	x	\b.%-.3s
+# 2 bytes: length of data + mentioned bytes
+#
+#		SZDD variant Haruhiko Okumura's LZSS or 7z type MsLZ
+>0	string	SZDD		MS Compress archive data, SZDD variant
+!:mime	application/x-ms-compress-szdd
+!:ext	??_
+# The character missing from the end of the filename (0=unknown)
+>>9	string	>\0		\b, %-.1s is last character of original name
+# https://www.betaarchive.com/forum/viewtopic.php?t=26161
+# Compression mode: "A" (0x41) found but sometimes "B" in Windows 3.1 builds 026 and 034e
+>>8	string	!A		\b, %-.1s method
+>>10	ulelong	>0		\b, original size: %u bytes
+#		QBasic SZDD variant
+3	string	\x88\xf0\x27
+>0	string	SZ\x20		MS Compress archive data, QBasic variant
+!:mime	application/x-ms-compress-sz
+!:ext	??$
+>>8	ulelong	>0		\b, original size: %u bytes
+
+# MP3 (archiver, not lossy audio compression)
+0	string	MP3\x1a MP3-Archiver archive data
+# ZET
+0	string	OZ\xc3\x9d ZET archive data
+# TSComp
+0	string	\x65\x5d\x13\x8c\x08\x01\x03\x00 TSComp archive data
+# ARQ
+0	string	gW\4\1 ARQ archive data
+# Squash
+3	string	OctSqu Squash archive data
+# Terse
+0	string	\5\1\1\0 Terse archive data
+# PUCrunch
+0	string	\x01\x08\x0b\x08\xef\x00\x9e\x32\x30\x36\x31 PUCrunch archive data
+# UHarc
+0	string	UHA UHarc archive data
+# ABComp
+0	string	\2AB ABComp archive data
+0	string	\3AB2 ABComp archive data
+# CMP
+0	string	CO\0 CMP archive data
+# Splint
+0	string	\x93\xb9\x06 Splint archive data
+# InstallShield
+0	string	\x13\x5d\x65\x8c InstallShield Z archive Data
+# Gather
+1	string	GTH Gather archive data
+# BOA
+0	string	BOA BOA archive data
+# RAX
+0	string	ULEB\xa RAX archive data
+# Xtreme
+0	string	ULEB\0 Xtreme archive data
+# Pack Magic
+0	string	@\xc3\xa2\1\0 Pack Magic archive data
+# BTS
+0	belong&0xfeffffff	0x1a034465 BTS archive data
+# ELI 5750
+0	string	Ora\  ELI 5750 archive data
+# QFC
+0	string	\x1aFC\x1a QFC archive data
+0	string	\x1aQF\x1a QFC archive data
+# PRO-PACK
+0	string	RNC PRO-PACK archive data
+# 777
+0	string	777 777 archive data
+# LZS221
+0	string	sTaC LZS221 archive data
+# HPA
+0	string	HPA HPA archive data
+# Arhangel
+0	string	LG Arhangel archive data
+# EXP1, uses bzip2
+0	string	0123456789012345BZh EXP1 archive data
+# IMP
+0	string	IMP\xa IMP archive data
+# NRV
+0	string	\x00\x9E\x6E\x72\x76\xFF NRV archive data
+# Squish
+0	string	\x73\xb2\x90\xf4 Squish archive data
+# Par
+0	string	PHILIPP Par archive data
+0	string	PAR Par archive data
+# HIT
+0	string	UB HIT archive data
+# SBX
+0	belong&0xfffff000	0x53423000 SBX archive data
+# NaShrink
+0	string	NSK NaShrink archive data
+# SAPCAR
+0	string	#\ CAR\ archive\ header SAPCAR archive data
+0	string	CAR\ 2.00RG SAPCAR archive data
+# Disintegrator
+0	string	DST Disintegrator archive data
+# ASD
+0	string	ASD ASD archive data
+# InstallShield CAB
+0	string	ISc( InstallShield CAB
+# TOP4
+0	string	T4\x1a TOP4 archive data
+# BatComp left out: sig looks like COM executable
+# so TODO: get real 4dos batcomp file and find sig
+# BlakHole
+0	string	BH\5\7 BlakHole archive data
+# BIX
+0	string	BIX0 BIX archive data
+# ChiefLZA
+0	string	ChfLZ ChiefLZA archive data
+# Blink
+0	string	Blink Blink archive data
+# Logitech Compress
+0	string	\xda\xfa Logitech Compress archive data
+# ARS-Sfx (FIXME: really a SFX? then goto COM/EXE)
+1	string	(C)\ STEPANYUK ARS-Sfx archive data
+# AKT/AKT32
+0	string	AKT32 AKT32 archive data
+0	string	AKT AKT archive data
+# NPack
+0	string	MSTSM NPack archive data
+# PFT
+0	string	\0\x50\0\x14 PFT archive data
+# SemOne
+0	string	SEM SemOne archive data
+# PPMD
+0	string	\x8f\xaf\xac\x84 PPMD archive data
+# FIZ
+0	string	FIZ FIZ archive data
+# MSXiE
+0	belong&0xfffff0f0	0x4d530000 MSXiE archive data
+# DeepFreezer
+0	belong&0xfffffff0	0x797a3030 DeepFreezer archive data
+# DC
+0	string	=<DC- DC archive data
+# TPac
+0	string	\4TPAC\3 TPac archive data
+# Ai
+0	string	Ai\1\1\0 Ai archive data
+0	string	Ai\1\0\0 Ai archive data
+# Ai32
+0	string	Ai\2\0 Ai32 archive data
+0	string	Ai\2\1 Ai32 archive data
+# SBC
+0	string	SBC SBC archive data
+# Ybs
+0	string	YBS Ybs archive data
+# DitPack
+0	string	\x9e\0\0 DitPack archive data
+# DMS
+0	string	DMS! DMS archive data
+# EPC
+0	string	\x8f\xaf\xac\x8c EPC archive data
+# VSARC
+0	string	VS\x1a VSARC archive data
+# PDZ
+0	string	PDZ PDZ archive data
+# ReDuq
+0	string	rdqx ReDuq archive data
+# GCA
+0	string	GCAX GCA archive data
+# PPMN
+0	string	pN PPMN archive data
+# WinImage
+3	string	WINIMAGE WinImage archive data
+# Compressia
+0	string	CMP0CMP Compressia archive data
+# UHBC
+0	string	UHB UHBC archive data
+# WinHKI
+0	string	\x61\x5C\x04\x05 WinHKI archive data
+# WWPack data file
+0	string	WWP WWPack archive data
+# BSN (BSA, PTS-DOS)
+0	string	\xffBSG BSN archive data
+1	string	\xffBSG BSN archive data
+3	string	\xffBSG BSN archive data
+1	string	\0\xae\2 BSN archive data
+1	string	\0\xae\3 BSN archive data
+1	string	\0\xae\7 BSN archive data
+# AIN
+0	string	\x33\x18 AIN archive data
+0	string	\x33\x17 AIN archive data
+# XPA32 test moved and merged with XPA by Joerg Jenderek at Sep 2015
+# SZip (TODO: doesn't catch all versions)
+0	string	SZ\x0a\4 SZip archive data
+# XPack DiskImage
+# *.XDI updated by Joerg Jenderek Sep 2015
+# ftp://ftp.sac.sk/pub/sac/pack/0index.txt
+# GRR: this test is still too general as it catches also text files starting with jm
+0	string	jm
+# only found examples with this additional characteristic 2 bytes
+>2	string	\x2\x4	Xpack DiskImage archive data
+#!:ext xdi
+# XPack Data
+# *.xpa updated by Joerg Jenderek Sep 2015
+# ftp://ftp.elf.stuba.sk/pub/pc/pack/
+0	string	xpa	XPA
+!:ext	xpa
+# XPA32
+# ftp://ftp.elf.stuba.sk/pub/pc/pack/xpa32.zip
+# created by XPA32.EXE version 1.0.2 for Windows
+>0	string	xpa\0\1 \b32 archive data
+# created by XPACK.COM version 1.67m or 1.67r with short 0x1800
+>3	ubeshort	!0x0001	\bck archive data
+# XPack Single Data
+# changed by Joerg Jenderek Sep 2015 back to like in version 5.12
+# letter 'I'+ acute accent is equivalent to \xcd
+0	string	\xcd\ jm	Xpack single archive data
+#!:mime	application/x-xpa-compressed
+!:ext xpa
+
+# TODO: missing due to unknown magic/magic at end of file:
+#DWC
+#ARG
+#ZAR
+#PC/3270
+#InstallIt
+#RKive
+#RK
+#XPack Diskimage
+
+# These were inspired by idarc, but actually verified
+# Dzip archiver (.dz)
+# Update: Joerg Jenderek
+# URL: http://speeddemosarchive.com/dzip/
+# reference: http://speeddemosarchive.com/dzip/dz29src.zip/main.c 
+# GRR: line below is too general as it matches also ASCII texts like Doszip commander help dz.txt
+0	string	DZ 
+# latest version is 2.9 dated 7 may 2003
+>2	byte	<4 Dzip archive data
+!:mime	application/x-dzip
+!:ext	dz
+>>2	byte	x \b, version %i
+>>3	byte	x \b.%i
+>>4	ulelong	x \b, offset 0x%x
+>>8	ulelong	x \b, %u files
+# ZZip archiver (.zz)
+0	string	ZZ\ \0\0 ZZip archive data
+0	string	ZZ0 ZZip archive data
+# PAQ archiver (.paq)
+0	string	\xaa\x40\x5f\x77\x1f\xe5\x82\x0d PAQ archive data
+0	string	PAQ PAQ archive data
+>3	byte&0xf0	0x30
+>>3	byte	x (v%c)
+# JAR archiver (.j), this is the successor to ARJ, not Java's JAR (which is essentially ZIP)
+0xe	string	\x1aJar\x1b JAR (ARJ Software, Inc.) archive data
+0	string	JARCS JAR (ARJ Software, Inc.) archive data
+
+# ARJ archiver (jason@jarthur.Claremont.EDU)
+0	leshort		0xea60		ARJ archive data
+!:mime	application/x-arj
+>5	byte		x		\b, v%d,
+>8	byte		&0x04		multi-volume,
+>8	byte		&0x10		slash-switched,
+>8	byte		&0x20		backup,
+>34	string		x		original name: %s,
+>7	byte		0		os: MS-DOS
+>7	byte		1		os: PRIMOS
+>7	byte		2		os: Unix
+>7	byte		3		os: Amiga
+>7	byte		4		os: Macintosh
+>7	byte		5		os: OS/2
+>7	byte		6		os: Apple ][ GS
+>7	byte		7		os: Atari ST
+>7	byte		8		os: NeXT
+>7	byte		9		os: VAX/VMS
+>3	byte		>0		%d]
+# [JW] idarc says this is also possible
+2	leshort		0xea60		ARJ archive data
+
+# HA archiver (Greg Roelofs, newt@uchicago.edu)
+# This is a really bad format. A file containing HAWAII will match this...
+#0	string		HA		HA archive data,
+#>2	leshort		=1		1 file,
+#>2	leshort		>1		%hu files,
+#>4	byte&0x0f	=0		first is type CPY
+#>4	byte&0x0f	=1		first is type ASC
+#>4	byte&0x0f	=2		first is type HSC
+#>4	byte&0x0f	=0x0e		first is type DIR
+#>4	byte&0x0f	=0x0f		first is type SPECIAL
+# suggestion: at least identify small archives (<1024 files)
+0  belong&0xffff00fc 0x48410000 HA archive data
+>2	leshort		=1		1 file,
+>2	leshort		>1		%u files,
+>4	byte&0x0f	=0		first is type CPY
+>4	byte&0x0f	=1		first is type ASC
+>4	byte&0x0f	=2		first is type HSC
+>4	byte&0x0f	=0x0e		first is type DIR
+>4	byte&0x0f	=0x0f		first is type SPECIAL
+
+# HPACK archiver (Peter Gutmann, pgut1@cs.aukuni.ac.nz)
+0	string		HPAK		HPACK archive data
+
+# JAM Archive volume format, by Dmitry.Kohmanyuk@UA.net
+0	string		\351,\001JAM\ 		JAM archive,
+>7	string		>\0			version %.4s
+>0x26	byte		=0x27			-
+>>0x2b	string          >\0			label %.11s,
+>>0x27	lelong		x			serial %08x,
+>>0x36	string		>\0			fstype %.8s
+
+# LHARC/LHA archiver (Greg Roelofs, newt@uchicago.edu)
+# Update: Joerg Jenderek
+# URL: https://en.wikipedia.org/wiki/LHA_(file_format)
+# Reference: http://web.archive.org/web/20021005080911/http://www.osirusoft.com/joejared/lzhformat.html
+#
+#	check and display information of lharc (LHa,PMarc) file
+0	name				lharc-file
+# check 1st character of method id like -lz4- -lh5- or -pm2-
+>2	string		-
+# check 5th character of method id
+>>6	string		-
+# check header level 0 1 2 3
+>>>20	ubyte		<4
+# check 2nd, 3th and 4th character of method id
+>>>>3	regex		\^(lh[0-9a-ex]|lz[s2-8]|pm[012]|pc1)		\b 
+!:mime	application/x-lzh-compressed
+# creator type "LHA "
+!:apple	????LHA
+# display archive type name like "LHa/LZS archive data" or "LArc archive"
+>>>>>2	string		-lz		\b 
+!:ext	lzs
+# already known  -lzs- -lz4- -lz5- with old names
+>>>>>>2	string	-lzs		LHa/LZS archive data
+>>>>>>3	regex	\^lz[45]	LHarc 1.x archive data
+# missing -lz?- with wikipedia names
+>>>>>>3	regex	\^lz[2378]	LArc archive
+# display archive type name like "LHa (2.x) archive data"
+>>>>>2	string		-lh		\b
+# already known -lh0- -lh1- -lh2- -lh3-  -lh4- -lh5- -lh6- -lh7- -lhd- variants with old names
+>>>>>>3	regex		\^lh[01]	LHarc 1.x/ARX archive data
+# LHice archiver use ".ICE" as name extension instead usual one ".lzh"
+# FOOBAR archiver use ".foo" as name extension instead usual one
+# "Florain Orjanov's and Olga Bachetska's ARchiver" not found at the moment
+>>>>>>>2	string	-lh1		\b 
+!:ext lha/lzh/ice
+>>>>>>3	regex		\^lh[23d]	LHa 2.x? archive data
+>>>>>>3	regex		\^lh[7]		LHa (2.x)/LHark archive data
+>>>>>>3	regex		\^lh[456]	LHa (2.x) archive data
+>>>>>>>2	string	-lh5		\b 
+# https://en.wikipedia.org/wiki/BIOS
+# Some mainboard BIOS like Award use LHa compression. So archives with unusal extension are found like
+# bios.rom , kd7_v14.bin, 1010.004, ...
+!:ext lha/lzh/rom/bin
+# missing -lh?- variants (Joe Jared)
+>>>>>>3	regex		\^lh[89a-ce]	LHa (Joe Jared) archive
+# UNLHA32 2.67a
+>>>>>>2	string		-lhx		LHa (UNLHA32) archive
+# lha archives with standard file name extensions ".lha" ".lzh"
+>>>>>>3	regex		!\^(lh1|lh5)	\b 
+!:ext lha/lzh
+# this should not happen if all -lh variants are described
+>>>>>>2	default		x		LHa (unknown) archive
+#!:ext	lha
+# PMarc
+>>>>>3	regex		\^pm[012]	PMarc archive data
+!:ext pma
+# append method id without leading and trailing minus character
+>>>>>3	string		x		[%3.3s]
+>>>>>>0	use	lharc-header
+#
+#	check and display information of lharc header
+0	name				lharc-header
+# header size 0x4 , 0x1b-0x61
+>0	ubyte		x
+# compressed data size != compressed file size
+#>7	ulelong		x		\b, data size %d
+# attribute: 0x2~?? 0x10~symlink|target 0x20~normal
+#>19	ubyte		x		\b, 19_0x%x
+# level identifier 0 1 2 3
+#>20	ubyte		x		\b, level %d
+# time stamp
+#>15		ubelong	x		DATE 0x%8.8x
+# OS ID for level 1
+>20	ubyte		1
+# 0x20 types find for *.rom files
+>>(21.b+24)	ubyte	<0x21		\b, 0x%x OS
+# ascii type like M for MSDOS
+>>(21.b+24)	ubyte	>0x20		\b, '%c' OS
+# OS ID for level 2
+>20	ubyte		2
+#>>23	ubyte		x		\b, OS ID 0x%x
+>>23	ubyte		<0x21		\b, 0x%x OS
+>>23	ubyte		>0x20		\b, '%c' OS
+# filename only for level 0 and 1
+>20	ubyte		<2
+# length of filename
+>>21		ubyte	>0		\b, with
+# filename
+>>>21		pstring	x		"%s"
+#
+#2	string		-lh0-		LHarc 1.x/ARX archive data [lh0]
+#!:mime	application/x-lharc
+2	string		-lh0-
+>0	use	lharc-file
+#2	string		-lh1-		LHarc 1.x/ARX archive data [lh1]
+#!:mime	application/x-lharc
+2	string		-lh1-
+>0	use	lharc-file
+# NEW -lz2- ... -lz8-
+2	string		-lz2-
+>0	use	lharc-file
+2	string		-lz3-
+>0	use	lharc-file
+2	string		-lz4-
+>0	use	lharc-file
+2	string		-lz5-
+>0	use	lharc-file
+2	string		-lz7-
+>0	use	lharc-file
+2	string		-lz8-
+>0	use	lharc-file
+#	[never seen any but the last; -lh4- reported in comp.compression:]
+#2	string		-lzs-		LHa/LZS archive data [lzs]
+2	string		-lzs-
+>0	use	lharc-file
+# According to wikipedia and others such a version does not exist
+#2	string		-lh\40-		LHa 2.x? archive data [lh ]
+#2	string		-lhd-		LHa 2.x? archive data [lhd]
+2	string		-lhd-
+>0	use	lharc-file
+#2	string		-lh2-		LHa 2.x? archive data [lh2]
+2	string		-lh2-
+>0	use	lharc-file
+#2	string		-lh3-		LHa 2.x? archive data [lh3]
+2	string		-lh3-
+>0	use	lharc-file
+#2	string		-lh4-		LHa (2.x) archive data [lh4]
+2	string		-lh4-
+>0	use	lharc-file
+#2	string		-lh5-		LHa (2.x) archive data [lh5]
+2	string		-lh5-
+>0	use	lharc-file
+#2	string		-lh6-		LHa (2.x) archive data [lh6]
+2	string		-lh6-
+>0	use	lharc-file
+#2	string		-lh7-		LHa (2.x)/LHark archive data [lh7]
+2	string		-lh7-
+# !:mime	application/x-lha
+# >20	byte		x		- header level %d
+>0	use	lharc-file
+# NEW -lh8- ... -lhe- , -lhx-
+2	string		-lh8-
+>0	use	lharc-file
+2	string		-lh9-
+>0	use	lharc-file
+2	string		-lha-
+>0	use	lharc-file
+2	string		-lhb-
+>0	use	lharc-file
+2	string		-lhc-
+>0	use	lharc-file
+2	string		-lhe-
+>0	use	lharc-file
+2	string		-lhx-
+>0	use	lharc-file
+# taken from idarc [JW]
+2   string      -lZ         PUT archive data
+# already done by LHarc magics
+# this should never happen if all sub types of LZS archive are identified
+#2   string      -lz         LZS archive data
+2   string      -sw1-       Swag archive data
+
+0	name		rar-file-header
+>24	byte		15		\b, v1.5
+>24	byte		20		\b, v2.0
+>24	byte		29		\b, v4
+>15	byte		0		\b, os: MS-DOS
+>15	byte		1		\b, os: OS/2
+>15	byte		2		\b, os: Win32
+>15	byte		3		\b, os: Unix
+>15	byte		4		\b, os: Mac OS
+>15	byte		5		\b, os: BeOS
+
+0	name		rar-archive-header
+>3	leshort&0x1ff	>0		\b, flags:
+>>3	leshort		&0x01		ArchiveVolume
+>>3	leshort		&0x02		Commented
+>>3	leshort		&0x04		Locked
+>>3	leshort		&0x10		NewVolumeNaming
+>>3	leshort		&0x08		Solid
+>>3	leshort		&0x20		Authenticated
+>>3	leshort		&0x40		RecoveryRecordPresent
+>>3	leshort		&0x80		EncryptedBlockHeader
+>>3	leshort		&0x100		FirstVolume
+
+# RAR (Roshal Archive) archive
+0	string		Rar!\x1a\7\0		RAR archive data
+!:mime	application/x-rar
+!:ext	rar/cbr
+# file header
+>(0xc.l+9)	byte	0x74
+>>(0xc.l+7)	use	rar-file-header
+# subblock seems to share information with file header
+>(0xc.l+9)	byte	0x7a
+>>(0xc.l+7)	use	rar-file-header
+>9		byte	0x73
+>>7		use	rar-archive-header
+
+0	string		Rar!\x1a\7\1\0		RAR archive data, v5
+!:mime	application/x-rar
+!:ext	rar
+
+# Very old RAR archive
+# http://jasonblanks.com/wp-includes/images/papers/KnowyourarchiveRAR.pdf
+0	string		RE\x7e\x5e  RAR archive data (<v1.5)
+!:mime	application/x-rar
+!:ext	rar/cbr
+
+# SQUISH archiver (Greg Roelofs, newt@uchicago.edu)
+0	string		SQSH		squished archive data (Acorn RISCOS)
+
+# UC2 archiver (Greg Roelofs, newt@uchicago.edu)
+# [JW] see exe section for self-extracting version
+0	string		UC2\x1a		UC2 archive data
+
+# PKZIP multi-volume archive
+0	string		PK\x07\x08PK\x03\x04	Zip multi-volume archive data, at least PKZIP v2.50 to extract
+!:mime	application/zip
+!:ext zip/cbz
+
+# Zip archives (Greg Roelofs, c/o zip-bugs@wkuvx1.wku.edu)
+0	string		PK\005\006	Zip archive data (empty)
+!:mime application/zip
+!:ext zip/cbz
+0	string		PK\003\004
+
+# Specialised zip formats which start with a member named 'mimetype'
+# (stored uncompressed, with no 'extra field') containing the file's MIME type.
+# Check for have 8-byte name, 0-byte extra field, name "mimetype", and
+#  contents starting with "application/":
+>26	string		\x8\0\0\0mimetypeapplication/
+
+#  KOffice / OpenOffice & StarOffice / OpenDocument formats
+#    From: Abel Cheung <abel@oaka.org>
+
+#   KOffice (1.2 or above) formats
+#    (mimetype contains "application/vnd.kde.<SUBTYPE>")
+>>50	string	vnd.kde.		KOffice (>=1.2)
+>>>58	string	karbon			Karbon document
+>>>58	string	kchart			KChart document
+>>>58	string	kformula		KFormula document
+>>>58	string	kivio			Kivio document
+>>>58	string	kontour			Kontour document
+>>>58	string	kpresenter		KPresenter document
+>>>58	string	kspread			KSpread document
+>>>58	string	kword			KWord document
+
+#   OpenOffice formats (for OpenOffice 1.x / StarOffice 6/7)
+#    (mimetype contains "application/vnd.sun.xml.<SUBTYPE>")
+>>50	string	vnd.sun.xml.		OpenOffice.org 1.x
+>>>62	string	writer			Writer
+>>>>68	byte	!0x2e			document
+>>>>68	string	.template		template
+>>>>68	string	.global			global document
+>>>62	string	calc			Calc
+>>>>66	byte	!0x2e			spreadsheet
+>>>>66	string	.template		template
+>>>62	string	draw			Draw
+>>>>66	byte	!0x2e			document
+>>>>66	string	.template		template
+>>>62	string	impress			Impress
+>>>>69	byte	!0x2e			presentation
+>>>>69	string	.template		template
+>>>62	string	math			Math document
+>>>62	string	base			Database file
+
+#   OpenDocument formats (for OpenOffice 2.x / StarOffice >= 8)
+#    http://lists.oasis-open.org/archives/office/200505/msg00006.html
+#    (mimetype contains "application/vnd.oasis.opendocument.<SUBTYPE>")
+>>50	string	vnd.oasis.opendocument.	OpenDocument
+>>>73	string	text
+>>>>77	byte	!0x2d			Text
+!:mime	application/vnd.oasis.opendocument.text
+>>>>77	string	-template		Text Template
+!:mime	application/vnd.oasis.opendocument.text-template
+>>>>77	string	-web			HTML Document Template
+!:mime	application/vnd.oasis.opendocument.text-web
+>>>>77	string	-master			Master Document
+!:mime	application/vnd.oasis.opendocument.text-master
+>>>73	string	graphics
+>>>>81	byte	!0x2d			Drawing
+!:mime	application/vnd.oasis.opendocument.graphics
+>>>>81	string	-template		Template
+!:mime	application/vnd.oasis.opendocument.graphics-template
+>>>73	string	presentation
+>>>>85	byte	!0x2d			Presentation
+!:mime	application/vnd.oasis.opendocument.presentation
+>>>>85	string	-template		Template
+!:mime	application/vnd.oasis.opendocument.presentation-template
+>>>73	string	spreadsheet
+>>>>84	byte	!0x2d			Spreadsheet
+!:mime	application/vnd.oasis.opendocument.spreadsheet
+>>>>84	string	-template		Template
+!:mime	application/vnd.oasis.opendocument.spreadsheet-template
+>>>73	string	chart
+>>>>78	byte	!0x2d			Chart
+!:mime	application/vnd.oasis.opendocument.chart
+>>>>78	string	-template		Template
+!:mime	application/vnd.oasis.opendocument.chart-template
+>>>73	string	formula
+>>>>80	byte	!0x2d			Formula
+!:mime	application/vnd.oasis.opendocument.formula
+>>>>80	string	-template		Template
+!:mime	application/vnd.oasis.opendocument.formula-template
+>>>73	string	database		Database
+!:mime	application/vnd.oasis.opendocument.database
+# Valid for LibreOffice Base 6.0.1.1 at least
+>>>73	string	base 			Database
+!:mime	application/vnd.oasis.opendocument.base
+>>>73	string	image
+>>>>78	byte	!0x2d			Image
+!:mime	application/vnd.oasis.opendocument.image
+>>>>78	string	-template		Template
+!:mime	application/vnd.oasis.opendocument.image-template
+
+#  EPUB (OEBPS) books using OCF (OEBPS Container Format)
+#    http://www.idpf.org/ocf/ocf1.0/download/ocf10.htm, section 4.
+#    From: Ralf Brown <ralf.brown@gmail.com>
+>>50	string	epub+zip	EPUB document
+!:mime application/epub+zip
+
+#  Catch other ZIP-with-mimetype formats
+#	In a ZIP file, the bytes immediately after a member's contents are
+#	always "PK". The 2 regex rules here print the "mimetype" member's
+#	contents up to the first 'P'. Luckily, most MIME types don't contain
+#	any capital 'P's. This is a kludge.
+#    (mimetype contains "application/<OTHER>")
+>>50		string	!epub+zip
+>>>50		string	!vnd.oasis.opendocument.
+>>>>50		string	!vnd.sun.xml.
+>>>>>50		string	!vnd.kde.
+>>>>>>38	regex	[!-OQ-~]+		Zip data (MIME type "%s"?)
+!:mime	application/zip
+#    (mimetype contents other than "application/*")
+>26		string	\x8\0\0\0mimetype
+>>38		string	!application/
+>>>38		regex	[!-OQ-~]+		Zip data (MIME type "%s"?)
+!:mime	application/zip
+
+# Java Jar files
+>(26.s+30)	leshort	0xcafe		Java archive data (JAR)
+!:mime	application/java-archive
+
+# iOS App
+>(26.s+30)	leshort	!0xcafe
+>>26		string	!\x8\0\0\0mimetype
+>>>30		string	Payload/
+>>>>38		search/64       .app/   iOS App
+!:mime application/x-ios-app
+
+
+# Generic zip archives (Greg Roelofs, c/o zip-bugs@wkuvx1.wku.edu)
+#   Next line excludes specialized formats:
+>(26.s+30)	leshort	!0xcafe
+>>26    string          !\x8\0\0\0mimetype	Zip archive data
+!:mime	application/zip
+>>>4	beshort		x			\b, at least
+>>>4	use		zipversion
+>>>4	beshort		x			to extract
+>>>0x161	string		WINZIP		\b, WinZIP self-extracting
+
+# StarView Metafile
+# From Pierre Ducroquet <pinaraf@pinaraf.info>
+0	string	VCLMTF	StarView MetaFile
+>6	beshort	x	\b, version %d
+>8	belong	x	\b, size %d
+
+# Zoo archiver
+20	lelong		0xfdc4a7dc	Zoo archive data
+!:mime	application/x-zoo
+>4	byte		>48		\b, v%c.
+>>6	byte		>47		\b%c
+>>>7	byte		>47		\b%c
+>32	byte		>0		\b, modify: v%d
+>>33	byte		x		\b.%d+
+>42	lelong		0xfdc4a7dc	\b,
+>>70	byte		>0		extract: v%d
+>>>71	byte		x		\b.%d+
+
+# Shell archives
+10	string		#\ This\ is\ a\ shell\ archive	shell archive text
+!:mime	application/octet-stream
+
+#
+# LBR. NB: May conflict with the questionable
+#          "binary Computer Graphics Metafile" format.
+#
+0       string  \0\ \ \ \ \ \ \ \ \ \ \ \0\0    LBR archive data
+#
+# PMA (CP/M derivative of LHA)
+# Update: Joerg Jenderek
+# URL: https://en.wikipedia.org/wiki/LHA_(file_format)
+#
+#2       string          -pm0-           PMarc archive data [pm0]
+2	string		-pm0-
+>0	use	lharc-file
+#2       string          -pm1-           PMarc archive data [pm1]
+2	string		-pm1-
+>0	use	lharc-file
+#2       string          -pm2-           PMarc archive data [pm2]
+2	string		-pm2-
+>0	use	lharc-file
+2       string          -pms-           PMarc SFX archive (CP/M, DOS)
+#!:mime	application/x-foobar-exec
+!:ext com
+5       string          -pc1-           PopCom compressed executable (CP/M)
+#!:mime	application/x-
+#!:ext com
+
+# From Rafael Laboissiere <rafael@laboissiere.net>
+# The Project Revision Control System (see
+# http://prcs.sourceforge.net) generates a packaged project
+# file which is recognized by the following entry:
+0	leshort		0xeb81	PRCS packaged project
+
+# Microsoft cabinets
+# by David Necas (Yeti) <yeti@physics.muni.cz>
+#0	string	MSCF\0\0\0\0	Microsoft cabinet file data,
+#>25	byte	x		v%d
+#>24	byte	x		\b.%d
+# MPi: All CABs have version 1.3, so this is pointless.
+# Better magic in debian-additions.
+
+# GTKtalog catalogs
+# by David Necas (Yeti) <yeti@physics.muni.cz>
+4	string	gtktalog\ 	GTKtalog catalog data,
+>13	string	3		version 3
+>>14	beshort	0x677a		(gzipped)
+>>14	beshort	!0x677a		(not gzipped)
+>13	string	>3		version %s
+
+############################################################################
+# Parity archive reconstruction file, the 'par' file format now used on Usenet.
+0       string          PAR\0	PARity archive data
+>48	leshort		=0	- Index file
+>48	leshort		>0	- file number %d
+
+# Felix von Leitner <felix-file@fefe.de>
+0	string	d8:announce	BitTorrent file
+!:mime	application/x-bittorrent
+# Durval Menezes, <jmgthbfile at durval dot com>
+0	string	d13:announce-list	BitTorrent file
+!:mime	application/x-bittorrent
+
+# Atari MSA archive - Teemu Hukkanen <tjhukkan@iki.fi>
+0	beshort 0x0e0f		Atari MSA archive data
+>2	beshort x		\b, %d sectors per track
+>4	beshort 0		\b, 1 sided
+>4	beshort 1		\b, 2 sided
+>6	beshort x		\b, starting track: %d
+>8	beshort x		\b, ending track: %d
+
+# Alternate ZIP string (amc@arwen.cs.berkeley.edu)
+0	string	PK00PK\003\004	Zip archive data
+!:mime	application/zip
+!:ext zip/cbz
+
+# ACE archive (from http://www.wotsit.org/download.asp?f=ace)
+# by Stefan `Sec` Zehl <sec@42.org>
+7	string		**ACE**		ACE archive data
+>15	byte	>0		version %d
+>16	byte	=0x00		\b, from MS-DOS
+>16	byte	=0x01		\b, from OS/2
+>16	byte	=0x02		\b, from Win/32
+>16	byte	=0x03		\b, from Unix
+>16	byte	=0x04		\b, from MacOS
+>16	byte	=0x05		\b, from WinNT
+>16	byte	=0x06		\b, from Primos
+>16	byte	=0x07		\b, from AppleGS
+>16	byte	=0x08		\b, from Atari
+>16	byte	=0x09		\b, from Vax/VMS
+>16	byte	=0x0A		\b, from Amiga
+>16	byte	=0x0B		\b, from Next
+>14	byte	x		\b, version %d to extract
+>5	leshort &0x0080		\b, multiple volumes,
+>>17	byte	x		\b (part %d),
+>5	leshort &0x0002		\b, contains comment
+>5	leshort	&0x0200		\b, sfx
+>5	leshort	&0x0400		\b, small dictionary
+>5	leshort	&0x0800		\b, multi-volume
+>5	leshort	&0x1000		\b, contains AV-String
+>>30	string	\x16*UNREGISTERED\x20VERSION*	(unregistered)
+>5	leshort &0x2000		\b, with recovery record
+>5	leshort &0x4000		\b, locked
+>5	leshort &0x8000		\b, solid
+# Date in MS-DOS format (whatever that is)
+#>18	lelong	x		Created on
+
+# sfArk : compression program for Soundfonts (sf2) by Dirk Jagdmann
+# <doj@cubic.org>
+0x1A	string	sfArk		sfArk compressed Soundfont
+>0x15	string	2
+>>0x1	string	>\0		Version %s
+>>0x2A	string	>\0		: %s
+
+# DR-DOS 7.03 Packed File *.??_
+0	string	Packed\ File\ 	Personal NetWare Packed File
+>12	string	x		\b, was "%.12s"
+
+# EET archive
+# From: Tilman Sauerbeck <tilman@code-monkey.de>
+0	belong	0x1ee7ff00	EET archive
+!:mime	application/x-eet
+
+# rzip archives
+0	string	RZIP		rzip compressed data
+>4	byte	x		- version %d
+>5	byte	x		\b.%d
+>6	belong	x		(%d bytes)
+
+# From: "Robert Dale" <robdale@gmail.com>
+0	belong	123		dar archive,
+>4	belong	x		label "%.8x
+>>8	belong	x		%.8x
+>>>12	beshort	x		%.4x"
+>14	byte	0x54		end slice
+>14	beshort	0x4e4e		multi-part
+>14	beshort	0x4e53		multi-part, with -S
+
+# Symbian installation files
+#  http://www.thouky.co.uk/software/psifs/sis.html
+#  http://developer.symbian.com/main/downloads/papers/SymbianOSv91/softwareinstallsis.pdf
+8	lelong	0x10000419	Symbian installation file
+!:mime	application/vnd.symbian.install
+>4	lelong	0x1000006D	(EPOC release 3/4/5)
+>4	lelong	0x10003A12	(EPOC release 6)
+0	lelong	0x10201A7A	Symbian installation file (Symbian OS 9.x)
+!:mime	x-epoc/x-sisx-app
+
+# From "Nelson A. de Oliveira" <naoliv@gmail.com>
+0	string	MPQ\032		MoPaQ (MPQ) archive
+
+# From: "Nelson A. de Oliveira" <naoliv@gmail.com>
+# .kgb
+0	string KGB_arch		KGB Archiver file
+>10	string x		with compression level %.1s
+
+# xar (eXtensible ARchiver) archive
+# xar archive format: http://code.google.com/p/xar/
+# From: "David Remahl" <dremahl@apple.com>
+0	string	xar!		xar archive
+!:mime	application/x-xar
+#>4	beshort	x		header size %d
+>6	beshort	x		version %d,
+#>8	quad	x		compressed TOC: %d,
+#>16	quad	x		uncompressed TOC: %d,
+>24	belong	0		no checksum
+>24	belong	1		SHA-1 checksum
+>24	belong	2		MD5 checksum
+
+# Type: Parity Archive
+# From: Daniel van Eeden <daniel_e@dds.nl>
+0	string	PAR2		Parity Archive Volume Set
+
+# Bacula volume format. (Volumes always start with a block header.)
+# URL: http://bacula.org/3.0.x-manuals/en/developers/developers/Block_Header.html
+# From: Adam Buchbinder <adam.buchbinder@gmail.com>
+12	string	BB02		Bacula volume
+>20	bedate	x		\b, started %s
+
+# ePub is XHTML + XML inside a ZIP archive.  The first member of the
+#   archive must be an uncompressed file called 'mimetype' with contents
+#   'application/epub+zip'
+
+
+# From: "Michael Gorny" <mgorny@gentoo.org>
+# ZPAQ: http://mattmahoney.net/dc/zpaq.html
+0	string	zPQ	ZPAQ stream
+>3	byte	x	\b, level %d
+# From: Barry Carter <carter.barry@gmail.com>
+# http://encode.ru/threads/456-zpaq-updates/page32
+0	string	7kSt	ZPAQ file
+
+# BBeB ebook, unencrypted (LRF format)
+# URL: http://www.sven.de/librie/Librie/LrfFormat
+# From: Adam Buchbinder <adam.buchbinder@gmail.com>
+0	string	L\0R\0F\0\0\0	BBeB ebook data, unencrypted
+>8	beshort	x		\b, version %d
+>36	byte	1		\b, front-to-back
+>36	byte	16		\b, back-to-front
+>42	beshort	x		\b, (%dx,
+>44	beshort	x		%d)
+
+# Symantec GHOST image by Joerg Jenderek at May 2014
+# http://us.norton.com/ghost/
+# http://www.garykessler.net/library/file_sigs.html
+0		ubelong&0xFFFFf7f0	0xFEEF0100	Norton GHost image
+# *.GHO
+>2		ubyte&0x08		0x00		\b, first file
+# *.GHS or *.[0-9] with cns program option
+>2		ubyte&0x08		0x08		\b, split file
+# part of split index interesting for *.ghs
+>>4		ubyte			x		id=0x%x
+# compression tag minus one equals numeric compression command line switch z[1-9]
+>3		ubyte			0		\b, no compression
+>3		ubyte			2		\b, fast compression (Z1)
+>3		ubyte			3		\b, medium compression (Z2)
+>3		ubyte			>3
+>>3		ubyte			<11		\b, compression (Z%d-1)
+>2		ubyte&0x08		0x00
+# ~ 30 byte password field only for *.gho
+>>12		ubequad			!0		\b, password protected
+>>44		ubyte			!1
+# 1~Image All, sector-by-sector only for *.gho
+>>>10		ubyte			1		\b, sector copy
+# 1~Image Boot track only for *.gho
+>>>43		ubyte			1		\b, boot track
+# 1~Image Disc only for *.gho implies Image Boot track and sector copy
+>>44		ubyte			1		\b, disc sector copy
+# optional image description only *.gho
+>>0xff		string			>\0		"%-.254s"
+# look for DOS sector end sequence
+>0xE08	search/7776		\x55\xAA
+>>&-512	indirect		x		\b; contains
+
+# Google Chrome extensions
+# https://developer.chrome.com/extensions/crx
+# https://developer.chrome.com/extensions/hosting
+0	string	Cr24	Google Chrome extension
+!:mime	application/x-chrome-extension
+>4	ulong	x	\b, version %u
+
+# SeqBox - Sequenced container
+# ext: sbx, seqbox
+# Marco Pontello marcopon@gmail.com
+# reference: https://github.com/MarcoPon/SeqBox
+0	string	SBx	SeqBox,
+>3	byte	x	version %d
+
+# LyNX archive
+56	string	USE\040LYNX\040TO\040DISSOLVE\040THIS\040FILE	 LyNX archive

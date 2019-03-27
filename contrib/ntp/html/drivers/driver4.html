@@ -1,0 +1,76 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<title>Spectracom WWVB/GPS Receivers</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+<style type="text/css">
+<!--
+.style1 {
+	font-family: Symbol
+}
+-->
+</style>
+</head>
+<body>
+<h3>Spectracom WWVB/GPS Receivers</h3>
+<p>Author: David L. Mills (mills@udel.edu)<br>
+  Last update:
+  <!-- #BeginDate format:En2m -->11-Sep-2010  05:56<!-- #EndDate -->
+  UTC</p>
+<hr>
+<h4>Synopsis</h4>
+<p>Address: 127.127.4.<i>u</i><br>
+  Reference ID: <tt>WWVB</tt><br>
+  Driver ID: <tt>WWVB_SPEC</tt><br>
+  Serial Port: <tt>/dev/wwvb<i>u</i></tt>; 9600 baud, 8-bits, no parity<br>
+  Features: Optional PPS signal processing, <tt>tty_clk</tt><br>
+  Requires: Optional PPS signal processing requires the PPSAPI signal interface.</p>
+<h4>Description</h4>
+<p>This driver supports all known Spectracom radio and satellite clocks, including the Model 8170 and Netclock/2 WWVB Synchronized Clocks and the Netclock/GPS GPS Master Clock. The claimed accuracy of the WWVB clocks is 100 <span class="style1">m</span>s relative to the broadcast signal. These clocks have proven a reliable source of time, except in some parts of the country with high levels of conducted RF interference. WIth the GPS clock the claimed accuracy is 130 ns. However, in most cases the actual accuracy is limited by the precision of the timecode and the latencies of the serial interface and operating system.</p>
+<p>The DIPswitches on these clocks should be set to 24-hour display, AUTO DST off, data format 0 or 2 (see below) and baud rate 9600. If this clock is used as the source for the IRIG Audio Decoder (<tt>refclock_irig.c</tt> in this distribution), set the DIPswitches for AM IRIG output and IRIG format 1 (IRIG B with signature control).</p>
+<p>There are two timecode formats used by these clocks. Format 0, which is available with all clocks, and format 2, which is available with all clocks except the original (unmodified) Model 8170.</p>
+<p>Format 0 (22 ASCII printing characters):<br>
+  &lt;cr&gt;&lt;lf&gt;i ddd hh:mm:ss TZ=zz&lt;cr&gt;&lt;lf&gt;</p>
+<p>on-time = first &lt;cr&gt;<br>
+  i = synchronization flag (' ' = in synch, '?' = out synch)<br>
+  hh:mm:ss = hours, minutes, seconds</p>
+<p>The alarm condition is indicated by other than ' ' at <tt>i</tt>, which occurs during initial synchronization and when received signal is lost for about ten hours.</p>
+<p>Format 2 (24 ASCII printing characters):<br>
+  lt;cr&gt;lf&gt;iqyy ddd hh:mm:ss.fff ld</p>
+<p>on-time = &lt;cr&gt;<br>
+  i = synchronization flag (' ' = in synch, '?' = out synch)<br>
+  q = quality indicator (' ' = locked, 'A'...'D' = unlocked)<br>
+  yy = year (as broadcast)<br>
+  ddd = day of year<br>
+  hh:mm:ss.fff = hours, minutes, seconds, milliseconds</p>
+<p>The alarm condition is indicated by other than ' ' at <tt>i</tt>, which occurs during initial synchronization and when received signal is lost for about ten hours. The unlock condition is indicated by other than ' ' at <tt>q</tt>.</p>
+<p>The <tt>q</tt> is normally ' ' when the time error is less than 1 ms and a character in the set <tt>A...D</tt> when the time error is less than 10, 100, 500 and greater than 500 ms respectively. The <tt>l</tt> is normally ' ', but is set to <tt>L</tt> early in the month of an upcoming UTC leap second and reset to ' ' on the first day of the following month. The <tt>d</tt> is set to <tt>S</tt> for standard time <tt>S</tt>, <tt>I</tt> on the day preceding a switch to daylight time, <tt>D</tt> for daylight time and <tt>O</tt> on the day preceding a switch to standard time. The start bit of the first &lt;cr&gt; is synchronized to the indicated time as returned.</p>
+<p>This driver does not need to be told which format is in use - it figures out which one from the length of the message. A three-stage median filter is used to reduce jitter and provide a dispersion measure. The driver makes no attempt to correct for the intrinsic jitter of the radio itself, which is a known problem with the older radios.</p>
+<h4>PPS Signal Processing</h4>
+<p>When PPS signal processing is enabled, and when the system clock has been set by this or another driver and the PPS signal offset is within 0.4 s of the system clock offset, the PPS signal replaces the timecode for as long as the PPS signal is active. If for some reason the PPS signal fails for one or more poll intervals, the driver reverts to the timecode. If the timecode fails for one or more poll intervals, the PPS signal is disconnected.</p>
+<h4>Monitor Data</h4>
+<p>The driver writes each timecode as received to the <tt>clockstats</tt> file. When enabled by the <tt>flag4</tt> fudge flag, a table of quality data maintained internally by the Netclock/2 is retrieved and written to the <tt>clockstats</tt> file when the first timecode message of a new day is received.</p>
+<h4>Fudge Factors</h4>
+<dl>
+  <dt><tt>time1 <i>time</i></tt></dt>
+  <dd>Specifies the PPS time offset calibration factor, in seconds and fraction, with default 0.0.</dd>
+  <dt><tt>time2 <i>time</i></tt></dt>
+  <dd>Specifies the serial time offset calibration factor, in seconds and fraction, with default 0.0.</dd>
+  <dt><tt>stratum <i>number</i></tt></dt>
+  <dd>Specifies the driver stratum, in decimal from 0 to 15, with default 0.</dd>
+  <dt><tt>refid <i>string</i></tt></dt>
+  <dd>Specifies the driver reference identifier, an ASCII string from one to four characters, with default <tt>WWVB</tt>.</dd>
+  <dt><tt>flag1 0 | 1</tt></dt>
+  <dd>Disable PPS signal processing if 0 (default); enable PPS signal processing if 1.</dd>
+  <dt><tt>flag2 0 | 1</tt></dt>
+  <dd>If PPS signal processing is enabled, capture the pulse on the rising edge if 0 (default); capture on the falling edge if 1.</dd>
+  <dt><tt>flag3 0 | 1</tt></dt>
+  <dd>If PPS signal processing is enabled, use the <tt>ntpd</tt> clock discipline if 0 (default); use the kernel discipline if 1.</dd>
+  <dt><tt>flag4 0 | 1</tt></dt>
+  <dd>Enable verbose <tt>clockstats</tt> recording if set.</dd>
+</dl>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

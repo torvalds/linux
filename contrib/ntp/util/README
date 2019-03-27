@@ -1,0 +1,44 @@
+README file for directory ./util of the NTP Version 4 distribution
+
+This directory contains the sources for the various utility programs.
+See the README and RELNOTES files in the parent directory for directions
+on how to make and install these programs.
+
+The ntptime.c program checks the kernel configuration for the NTP user
+interface syscalls ntp_gettime() and ntp_adjtime().  If present, the
+current timekeeping data are displayed.  If not, a dissapointment is
+displayed.  See the kernel page file in the HTML documentation in
+distribution for further details. ntptime will be built be if configure
+believes your system can use it.
+
+The jitter.c program can be used to determine the timing jitter due to
+the operating system in a gettimeofday() call.  For most systems the
+dominant contribution to the jitter budget is the period of the hardware
+interrupt, usually in the range 10 us-1 ms.  For those systems with
+microsecond counters, such as recent Sun and certain HP and DEC systems,
+the jitter is dominated only by the operating system.
+
+The timetrim.c program can be used with SGI machines to implement a
+scheme to discipline the hardware clock frequency.  See the source code
+for further information.
+
+The byteorder.c and longsize.c programs are used during the configuration
+process to determine the byte order (little or big endian) and longword
+size (32 or 64 bits).  See the configure scripts for further details.
+
+The testrs6000.c program is used for testing purposes with the IBM
+RS/6000 AIX machines. Bill Jones <jones@chpc.utexas.edu> reports:
+"I could not get a tickadj of less than 40 us to work on a RS6000.
+If you set it less than 40 us do so at your own risk!"
+
+The tickadj.c program can be used to read and set various kernel
+parameters affecting NTP operations. See the tickadj page in the HTML
+documentation for further details.  tickadj will be built if configure
+believes your system can use it.
+
+tg.c and tg2.c are tone generators.  They make audio signals
+that emulate WWV or IRIG (-B and -E).  tg runs on Solaris.
+tg2 is a clone that runs on Linux, FreeBSD, and NetBSD.
+Read the source for the fine print.  tg2 has a help option
+available via -h.
+

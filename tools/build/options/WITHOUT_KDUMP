@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to not build
+.Xr kdump 1
+and
+.Xr truss 1 .

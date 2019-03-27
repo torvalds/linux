@@ -1,0 +1,9 @@
+
+#------------------------------------------------------------------------------
+# $File: allegro,v 1.4 2009/09/19 16:28:07 christos Exp $
+# allegro:  file(1) magic for Allegro datafiles
+# Toby Deshane <hac@shoelace.digivill.net>
+#
+0 belong 0x736C6821   Allegro datafile (packed)
+0 belong 0x736C682E   Allegro datafile (not packed/autodetect)
+0 belong 0x736C682B   Allegro datafile (appended exe data)

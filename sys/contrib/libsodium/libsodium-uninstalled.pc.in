@@ -1,0 +1,6 @@
+Name: @PACKAGE_NAME@
+Version: @PACKAGE_VERSION@
+Description: A modern and easy-to-use crypto library
+
+Libs: -L${pcfiledir}/src/libsodium -lsodium
+Cflags: -I${pcfiledir}/src/libsodium/include -I@top_srcdir@/src/libsodium/include -I@top_srcdir@/src/libsodium/include/sodium

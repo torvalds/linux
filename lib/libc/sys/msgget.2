@@ -1,0 +1,154 @@
+.\"	$NetBSD: msgget.2,v 1.1 1995/10/16 23:49:19 jtc Exp $
+.\"
+.\" Copyright (c) 1995 Frank van der Linden
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed for the NetBSD Project
+.\"      by Frank van der Linden
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" $FreeBSD$
+.\"
+.\"/
+.Dd March 4, 2018
+.Dt MSGGET 2
+.Os
+.Sh NAME
+.Nm msgget
+.Nd get message queue
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/msg.h
+.Ft int
+.Fn msgget "key_t key" "int msgflg"
+.Sh DESCRIPTION
+The
+.Fn msgget
+function
+returns the message queue identifier associated with
+.Fa key .
+A message queue identifier is a unique integer greater than zero.
+.Pp
+A message queue is created if either
+.Fa key
+is equal to
+.Dv IPC_PRIVATE ,
+or
+.Fa key
+does not have a message queue identifier associated with it, and the
+.Dv IPC_CREAT
+bit is set in
+.Fa msgflg .
+.Pp
+If a new message queue is created, the data structure associated with it (the
+.Va msqid_ds
+structure, see
+.Xr msgctl 2 )
+is initialized as follows:
+.Bl -bullet
+.It
+.Va msg_perm.cuid
+and
+.Va msg_perm.uid
+are set to the effective uid of the calling process.
+.It
+.Va msg_perm.gid
+and
+.Va msg_perm.cgid
+are set to the effective gid of the calling process.
+.It
+.Va msg_perm.mode
+is set to the lower 9 bits of
+.Fa msgflg
+which are set by ORing these constants:
+.Bl -tag -width 0000
+.It Dv 0400
+Read access for user.
+.It Dv 0200
+Write access for user.
+.It Dv 0040
+Read access for group.
+.It Dv 0020
+Write access for group.
+.It Dv 0004
+Read access for other.
+.It Dv 0002
+Write access for other.
+.El
+.It
+.Va msg_cbytes ,
+.Va msg_qnum ,
+.Va msg_lspid ,
+.Va msg_lrpid ,
+.Va msg_rtime ,
+and
+.Va msg_stime
+are set to 0.
+.It
+.Va msg_qbytes
+is set to the system wide maximum value for the number of bytes in a queue
+.Pf ( Dv MSGMNB ) .
+.It
+.Va msg_ctime
+is set to the current time.
+.El
+.Sh RETURN VALUES
+Upon successful completion a positive message queue identifier is returned.
+Otherwise, -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EACCES
+A message queue is already associated with
+.Fa key
+and the caller has no permission to access it.
+.It Bq Er EEXIST
+Both
+.Dv IPC_CREAT
+and
+.Dv IPC_EXCL
+are set in
+.Fa msgflg ,
+and a message queue is already associated with
+.Fa key .
+.It Bq Er ENOSPC
+A new message queue could not be created because the system limit for
+the number of message queues has been reached.
+.It Bq Er ENOENT
+.Dv IPC_CREAT
+was not set in
+.Fa msgflg
+and no message queue associated with
+.Fa key
+was found.
+.El
+.Sh SEE ALSO
+.Xr msgctl 2 ,
+.Xr msgrcv 2 ,
+.Xr msgsnd 2
+.Sh HISTORY
+Message queues appeared in the first release of
+.At V .

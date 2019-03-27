@@ -1,0 +1,125 @@
+.\" Copyright (c) 2011 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JOSEPH KOSHY ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL JOSEPH KOSHY BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: mcs.1 3642 2018-10-14 14:24:28Z jkoshy $
+.\"
+.Dd November 29, 2011
+.Dt MCS 1
+.Os
+.Sh NAME
+.Nm mcs
+.Nd manipulate the comment section of an ELF object
+.Sh SYNOPSIS
+.Nm
+.Op Fl a Ar string
+.Op Fl c
+.Op Fl n Ar name
+.Op Fl p
+.Ar
+.Nm
+.Fl d
+.Op Fl n Ar name
+.Ar
+.Nm
+.Fl h | Fl -help
+.Nm
+.Fl V | Fl -version
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to manipulate comment sections in an ELF object.
+If a command-line argument
+.Ar file
+names an
+.Xr ar 1
+archive, then
+.Nm
+will operate on the ELF objects contained in the archive.
+.Pp
+By default
+.Nm
+operates on the ELF section named
+.Dq .comment .
+This may be changed using the
+.Fl n
+option.
+.Pp
+The
+.Nm
+utility supports the following options:
+.Bl -tag -width ".Fl a Ar string"
+.It Fl a Ar string
+Append the text in
+.Ar string
+to the comment section.
+This option may be specified multiple times.
+.It Fl c
+Compress the comment section by removing duplicate entries.
+.It Fl d
+Delete the comment section from the ELF object.
+.It Fl h | Fl -help
+Display a usage message and exit.
+.It Fl n Ar name
+Operate on the section named
+.Ar name .
+.It Fl p
+Print the contents of the comment section.
+This step is taken after actions specified by the
+.Fl a
+and
+.Fl c
+options (if any) are completed.
+.It Fl V | Fl -version
+Print a version identifier and exit.
+.El
+.Sh COMPATIBILITY
+The behavior of the
+.Nm
+utility differs from its SVR4 counterpart in the following ways:
+.Bl -bullet -compact
+.It
+If the
+.Fl d
+option is specified, it causes any
+.Fl a ,
+.Fl c
+and
+.Fl p
+options present to be ignored.
+.It
+The order of options
+.Fl a ,
+.Fl c ,
+.Fl d ,
+and
+.Fl p
+on the command line is not significant.
+.El
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr ar 1 ,
+.Xr elfcopy 1 ,
+.Xr ld 1 ,
+.Xr nm 1 ,
+.Xr strip 1

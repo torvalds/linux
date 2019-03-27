@@ -1,0 +1,17 @@
+#
+# Log all short TCP packets to qe3, with 10.3.3.3 as the intended
+# destination for the packet.
+#
+block in on qe0 to qe3:10.3.3.3 proto tcp all with short
+#
+# Log all connection attempts for TCP
+#
+pass in on le0 dup-to le1:10.3.3.3 proto tcp all flags S/SA
+#
+# Route all UDP packets through transparently.
+#
+pass in on ppp0 fastroute proto udp all
+#
+# Route all ICMP packets to network 10 out through le1, to 10.3.3.1
+#
+pass in on le0 to le1:10.3.3.1 proto icmp all

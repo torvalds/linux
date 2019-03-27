@@ -1,0 +1,797 @@
+.\"	$OpenBSD: awk.1,v 1.44 2015/09/14 20:06:58 schwarze Exp $
+.\"
+.\" Copyright (C) Lucent Technologies 1997
+.\" All Rights Reserved
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby
+.\" granted, provided that the above copyright notice appear in all
+.\" copies and that both that the copyright notice and this
+.\" permission notice and warranty disclaimer appear in supporting
+.\" documentation, and that the name Lucent Technologies or any of
+.\" its entities not be used in advertising or publicity pertaining
+.\" to distribution of the software without specific, written prior
+.\" permission.
+.\"
+.\" LUCENT DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+.\" INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS.
+.\" IN NO EVENT SHALL LUCENT OR ANY OF ITS ENTITIES BE LIABLE FOR ANY
+.\" SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+.\" IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+.\" ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+.\" THIS SOFTWARE.
+.\"
+.\"	$FreeBSD$
+.Dd $Mdocdate: September 14 2015 $
+.Dt AWK 1
+.Os
+.Sh NAME
+.Nm awk
+.Nd pattern-directed scanning and processing language
+.Sh SYNOPSIS
+.Nm awk
+.Op Fl safe
+.Op Fl V
+.Op Fl d Ns Op Ar n
+.Op Fl F Ar fs
+.Op Fl v Ar var Ns = Ns Ar value
+.Op Ar prog | Fl f Ar progfile
+.Ar
+.Sh DESCRIPTION
+.Nm
+scans each input
+.Ar file
+for lines that match any of a set of patterns specified literally in
+.Ar prog
+or in one or more files specified as
+.Fl f Ar progfile .
+With each pattern there can be an associated action that will be performed
+when a line of a
+.Ar file
+matches the pattern.
+Each line is matched against the
+pattern portion of every pattern-action statement;
+the associated action is performed for each matched pattern.
+The file name
+.Sq -
+means the standard input.
+Any
+.Ar file
+of the form
+.Ar var Ns = Ns Ar value
+is treated as an assignment, not a filename,
+and is executed at the time it would have been opened if it were a filename.
+.Pp
+The options are as follows:
+.Bl -tag -width "-safe "
+.It Fl d Ns Op Ar n
+Debug mode.
+Set debug level to
+.Ar n ,
+or 1 if
+.Ar n
+is not specified.
+A value greater than 1 causes
+.Nm
+to dump core on fatal errors.
+.It Fl F Ar fs
+Define the input field separator to be the regular expression
+.Ar fs .
+.It Fl f Ar progfile
+Read program code from the specified file
+.Ar progfile
+instead of from the command line.
+.It Fl safe
+Disable file output
+.Pf ( Ic print No > ,
+.Ic print No >> ) ,
+process creation
+.Po
+.Ar cmd | Ic getline ,
+.Ic print | ,
+.Ic system
+.Pc
+and access to the environment
+.Pf ( Va ENVIRON ;
+see the section on variables below).
+This is a first
+.Pq and not very reliable
+approximation to a
+.Dq safe
+version of
+.Nm .
+.It Fl V
+Print the version number of
+.Nm
+to standard output and exit.
+.It Fl v Ar var Ns = Ns Ar value
+Assign
+.Ar value
+to variable
+.Ar var
+before
+.Ar prog
+is executed;
+any number of
+.Fl v
+options may be present.
+.El
+.Pp
+The input is normally made up of input lines
+.Pq records
+separated by newlines, or by the value of
+.Va RS .
+If
+.Va RS
+is null, then any number of blank lines are used as the record separator,
+and newlines are used as field separators
+(in addition to the value of
+.Va FS ) .
+This is convenient when working with multi-line records.
+.Pp
+An input line is normally made up of fields separated by whitespace,
+or by the regular expression
+.Va FS .
+The fields are denoted
+.Va $1 , $2 , ... ,
+while
+.Va $0
+refers to the entire line.
+If
+.Va FS
+is null, the input line is split into one field per character.
+.Pp
+Normally, any number of blanks separate fields.
+In order to set the field separator to a single blank, use the
+.Fl F
+option with a value of
+.Sq [\ \&] .
+If a field separator of
+.Sq t
+is specified,
+.Nm
+treats it as if
+.Sq \et
+had been specified and uses
+.Aq TAB
+as the field separator.
+In order to use a literal
+.Sq t
+as the field separator, use the
+.Fl F
+option with a value of
+.Sq [t] .
+.Pp
+A pattern-action statement has the form
+.Pp
+.D1 Ar pattern Ic \&{ Ar action Ic \&}
+.Pp
+A missing
+.Ic \&{ Ar action Ic \&}
+means print the line;
+a missing pattern always matches.
+Pattern-action statements are separated by newlines or semicolons.
+.Pp
+Newlines are permitted after a terminating statement or following a comma
+.Pq Sq ,\& ,
+an open brace
+.Pq Sq { ,
+a logical AND
+.Pq Sq && ,
+a logical OR
+.Pq Sq || ,
+after the
+.Sq do
+or
+.Sq else
+keywords,
+or after the closing parenthesis of an
+.Sq if ,
+.Sq for ,
+or
+.Sq while
+statement.
+Additionally, a backslash
+.Pq Sq \e
+can be used to escape a newline between tokens.
+.Pp
+An action is a sequence of statements.
+A statement can be one of the following:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Ic if Ar ( expression ) Ar statement Op Ic else Ar statement
+.It Ic while Ar ( expression ) Ar statement
+.It Ic for Ar ( expression ; expression ; expression ) statement
+.It Ic for Ar ( var Ic in Ar array ) statement
+.It Ic do Ar statement Ic while Ar ( expression )
+.It Ic break
+.It Ic continue
+.It Xo Ic {
+.Op Ar statement ...
+.Ic }
+.Xc
+.It Xo Ar expression
+.No # commonly
+.Ar var No = Ar expression
+.Xc
+.It Xo Ic print
+.Op Ar expression-list
+.Op > Ns Ar expression
+.Xc
+.It Xo Ic printf Ar format
+.Op Ar ... , expression-list
+.Op > Ns Ar expression
+.Xc
+.It Ic return Op Ar expression
+.It Xo Ic next
+.No # skip remaining patterns on this input line
+.Xc
+.It Xo Ic nextfile
+.No # skip rest of this file, open next, start at top
+.Xc
+.It Xo Ic delete
+.Sm off
+.Ar array Ic \&[ Ar expression Ic \&]
+.Sm on
+.No # delete an array element
+.Xc
+.It Xo Ic delete Ar array
+.No # delete all elements of array
+.Xc
+.It Xo Ic exit
+.Op Ar expression
+.No # exit immediately; status is Ar expression
+.Xc
+.El
+.Pp
+Statements are terminated by
+semicolons, newlines or right braces.
+An empty
+.Ar expression-list
+stands for
+.Ar $0 .
+String constants are quoted
+.Li \&"" ,
+with the usual C escapes recognized within
+(see
+.Xr printf 1
+for a complete list of these).
+Expressions take on string or numeric values as appropriate,
+and are built using the operators
+.Ic + \- * / % ^
+.Pq exponentiation ,
+and concatenation
+.Pq indicated by whitespace .
+The operators
+.Ic \&! ++ \-\- += \-= *= /= %= ^=
+.Ic > >= < <= == != ?:
+are also available in expressions.
+Variables may be scalars, array elements
+(denoted
+.Li x[i] )
+or fields.
+Variables are initialized to the null string.
+Array subscripts may be any string,
+not necessarily numeric;
+this allows for a form of associative memory.
+Multiple subscripts such as
+.Li [i,j,k]
+are permitted; the constituents are concatenated,
+separated by the value of
+.Va SUBSEP
+.Pq see the section on variables below .
+.Pp
+The
+.Ic print
+statement prints its arguments on the standard output
+(or on a file if
+.Pf > Ar file
+or
+.Pf >> Ar file
+is present or on a pipe if
+.Pf |\ \& Ar cmd
+is present), separated by the current output field separator,
+and terminated by the output record separator.
+.Ar file
+and
+.Ar cmd
+may be literal names or parenthesized expressions;
+identical string values in different statements denote
+the same open file.
+The
+.Ic printf
+statement formats its expression list according to the format
+(see
+.Xr printf 1 ) .
+.Pp
+Patterns are arbitrary Boolean combinations
+(with
+.Ic "\&! || &&" )
+of regular expressions and
+relational expressions.
+.Nm
+supports extended regular expressions
+.Pq EREs .
+See
+.Xr re_format 7
+for more information on regular expressions.
+Isolated regular expressions
+in a pattern apply to the entire line.
+Regular expressions may also occur in
+relational expressions, using the operators
+.Ic ~
+and
+.Ic !~ .
+.Pf / Ar re Ns /
+is a constant regular expression;
+any string (constant or variable) may be used
+as a regular expression, except in the position of an isolated regular expression
+in a pattern.
+.Pp
+A pattern may consist of two patterns separated by a comma;
+in this case, the action is performed for all lines
+from an occurrence of the first pattern
+through an occurrence of the second.
+.Pp
+A relational expression is one of the following:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Ar expression matchop regular-expression
+.It Ar expression relop expression
+.It Ar expression Ic in Ar array-name
+.It Xo Ic \&( Ns
+.Ar expr , expr , \&... Ns Ic \&) in
+.Ar array-name
+.Xc
+.El
+.Pp
+where a
+.Ar relop
+is any of the six relational operators in C, and a
+.Ar matchop
+is either
+.Ic ~
+(matches)
+or
+.Ic !~
+(does not match).
+A conditional is an arithmetic expression,
+a relational expression,
+or a Boolean combination
+of these.
+.Pp
+The special patterns
+.Ic BEGIN
+and
+.Ic END
+may be used to capture control before the first input line is read
+and after the last.
+.Ic BEGIN
+and
+.Ic END
+do not combine with other patterns.
+.Pp
+Variable names with special meanings:
+.Pp
+.Bl -tag -width "FILENAME " -compact
+.It Va ARGC
+Argument count, assignable.
+.It Va ARGV
+Argument array, assignable;
+non-null members are taken as filenames.
+.It Va CONVFMT
+Conversion format when converting numbers
+(default
+.Qq Li %.6g ) .
+.It Va ENVIRON
+Array of environment variables; subscripts are names.
+.It Va FILENAME
+The name of the current input file.
+.It Va FNR
+Ordinal number of the current record in the current file.
+.It Va FS
+Regular expression used to separate fields; also settable
+by option
+.Fl F Ar fs .
+.It Va NF
+Number of fields in the current record.
+.Va $NF
+can be used to obtain the value of the last field in the current record.
+.It Va NR
+Ordinal number of the current record.
+.It Va OFMT
+Output format for numbers (default
+.Qq Li %.6g ) .
+.It Va OFS
+Output field separator (default blank).
+.It Va ORS
+Output record separator (default newline).
+.It Va RLENGTH
+The length of the string matched by the
+.Fn match
+function.
+.It Va RS
+Input record separator (default newline).
+.It Va RSTART
+The starting position of the string matched by the
+.Fn match
+function.
+.It Va SUBSEP
+Separates multiple subscripts (default 034).
+.El
+.Sh FUNCTIONS
+The awk language has a variety of built-in functions:
+arithmetic, string, input/output, general, and bit-operation.
+.Pp
+Functions may be defined (at the position of a pattern-action statement)
+thusly:
+.Pp
+.Dl function foo(a, b, c) { ...; return x }
+.Pp
+Parameters are passed by value if scalar, and by reference if array name;
+functions may be called recursively.
+Parameters are local to the function; all other variables are global.
+Thus local variables may be created by providing excess parameters in
+the function definition.
+.Ss Arithmetic Functions
+.Bl -tag -width "atan2(y, x)"
+.It Fn atan2 y x
+Return the arctangent of
+.Fa y Ns / Ns Fa x
+in radians.
+.It Fn cos x
+Return the cosine of
+.Fa x ,
+where
+.Fa x
+is in radians.
+.It Fn exp x
+Return the exponential of
+.Fa x .
+.It Fn int x
+Return
+.Fa x
+truncated to an integer value.
+.It Fn log x
+Return the natural logarithm of
+.Fa x .
+.It Fn rand
+Return a random number,
+.Fa n ,
+such that
+.Sm off
+.Pf 0 \*(Le Fa n No \*(Lt 1 .
+.Sm on
+.It Fn sin x
+Return the sine of
+.Fa x ,
+where
+.Fa x
+is in radians.
+.It Fn sqrt x
+Return the square root of
+.Fa x .
+.It Fn srand expr
+Sets seed for
+.Fn rand
+to
+.Fa expr
+and returns the previous seed.
+If
+.Fa expr
+is omitted, the time of day is used instead.
+.El
+.Ss String Functions
+.Bl -tag -width "split(s, a, fs)"
+.It Fn gsub r t s
+The same as
+.Fn sub
+except that all occurrences of the regular expression are replaced.
+.Fn gsub
+returns the number of replacements.
+.It Fn index s t
+The position in
+.Fa s
+where the string
+.Fa t
+occurs, or 0 if it does not.
+.It Fn length s
+The length of
+.Fa s
+taken as a string,
+or of
+.Va $0
+if no argument is given.
+.It Fn match s r
+The position in
+.Fa s
+where the regular expression
+.Fa r
+occurs, or 0 if it does not.
+The variable
+.Va RSTART
+is set to the starting position of the matched string
+.Pq which is the same as the returned value
+or zero if no match is found.
+The variable
+.Va RLENGTH
+is set to the length of the matched string,
+or \-1 if no match is found.
+.It Fn split s a fs
+Splits the string
+.Fa s
+into array elements
+.Va a[1] , a[2] , ... , a[n]
+and returns
+.Va n .
+The separation is done with the regular expression
+.Ar fs
+or with the field separator
+.Va FS
+if
+.Ar fs
+is not given.
+An empty string as field separator splits the string
+into one array element per character.
+.It Fn sprintf fmt expr ...
+The string resulting from formatting
+.Fa expr , ...
+according to the
+.Xr printf 1
+format
+.Fa fmt .
+.It Fn sub r t s
+Substitutes
+.Fa t
+for the first occurrence of the regular expression
+.Fa r
+in the string
+.Fa s .
+If
+.Fa s
+is not given,
+.Va $0
+is used.
+An ampersand
+.Pq Sq &
+in
+.Fa t
+is replaced in string
+.Fa s
+with regular expression
+.Fa r .
+A literal ampersand can be specified by preceding it with two backslashes
+.Pq Sq \e\e .
+A literal backslash can be specified by preceding it with another backslash
+.Pq Sq \e\e .
+.Fn sub
+returns the number of replacements.
+.It Fn substr s m n
+Return at most the
+.Fa n Ns -character
+substring of
+.Fa s
+that begins at position
+.Fa m
+counted from 1.
+If
+.Fa n
+is omitted, or if
+.Fa n
+specifies more characters than are left in the string,
+the length of the substring is limited by the length of
+.Fa s .
+.It Fn tolower str
+Returns a copy of
+.Fa str
+with all upper-case characters translated to their
+corresponding lower-case equivalents.
+.It Fn toupper str
+Returns a copy of
+.Fa str
+with all lower-case characters translated to their
+corresponding upper-case equivalents.
+.El
+.Ss Input/Output and General Functions
+.Bl -tag -width "getline [var] < file"
+.It Fn close expr
+Closes the file or pipe
+.Fa expr .
+.Fa expr
+should match the string that was used to open the file or pipe.
+.It Ar cmd | Ic getline Op Va var
+Read a record of input from a stream piped from the output of
+.Ar cmd .
+If
+.Va var
+is omitted, the variables
+.Va $0
+and
+.Va NF
+are set.
+Otherwise
+.Va var
+is set.
+If the stream is not open, it is opened.
+As long as the stream remains open, subsequent calls
+will read subsequent records from the stream.
+The stream remains open until explicitly closed with a call to
+.Fn close .
+.Ic getline
+returns 1 for a successful input, 0 for end of file, and \-1 for an error.
+.It Fn fflush [expr]
+Flushes any buffered output for the file or pipe
+.Fa expr ,
+or all open files or pipes if
+.Fa expr
+is omitted.
+.Fa expr
+should match the string that was used to open the file or pipe.
+.It Ic getline
+Sets
+.Va $0
+to the next input record from the current input file.
+This form of
+.Ic getline
+sets the variables
+.Va NF ,
+.Va NR ,
+and
+.Va FNR .
+.Ic getline
+returns 1 for a successful input, 0 for end of file, and \-1 for an error.
+.It Ic getline Va var
+Sets
+.Va $0
+to variable
+.Va var .
+This form of
+.Ic getline
+sets the variables
+.Va NR
+and
+.Va FNR .
+.Ic getline
+returns 1 for a successful input, 0 for end of file, and \-1 for an error.
+.It Xo
+.Ic getline Op Va var
+.Pf \ \&< Ar file
+.Xc
+Sets
+.Va $0
+to the next record from
+.Ar file .
+If
+.Va var
+is omitted, the variables
+.Va $0
+and
+.Va NF
+are set.
+Otherwise
+.Va var
+is set.
+If
+.Ar file
+is not open, it is opened.
+As long as the stream remains open, subsequent calls will read subsequent
+records from
+.Ar file .
+.Ar file
+remains open until explicitly closed with a call to
+.Fn close .
+.It Fn system cmd
+Executes
+.Fa cmd
+and returns its exit status.
+.El
+.Ss Bit-Operation Functions
+.Bl -tag -width "lshift(a, b)"
+.It Fn compl x
+Returns the bitwise complement of integer argument x.
+.It Fn and v1 v2 ...
+Performs a bitwise AND on all arguments provided, as integers.
+There must be at least two values.
+.It Fn or v1 v2 ...
+Performs a bitwise OR on all arguments provided, as integers.
+There must be at least two values.
+.It Fn xor v1 v2 ...
+Performs a bitwise Exclusive-OR on all arguments provided, as integers.
+There must be at least two values.
+.It Fn lshift x n
+Returns integer argument x shifted by n bits to the left.
+.It Fn rshift x n
+Returns integer argument x shifted by n bits to the right.
+.El
+.Sh EXIT STATUS
+.Ex -std awk
+.Pp
+But note that the
+.Ic exit
+expression can modify the exit status.
+.Sh EXAMPLES
+Print lines longer than 72 characters:
+.Pp
+.Dl length($0) > 72
+.Pp
+Print first two fields in opposite order:
+.Pp
+.Dl { print $2, $1 }
+.Pp
+Same, with input fields separated by comma and/or blanks and tabs:
+.Bd -literal -offset indent
+BEGIN { FS = ",[ \et]*|[ \et]+" }
+      { print $2, $1 }
+.Ed
+.Pp
+Add up first column, print sum and average:
+.Bd -literal -offset indent
+{ s += $1 }
+END { print "sum is", s, " average is", s/NR }
+.Ed
+.Pp
+Print all lines between start/stop pairs:
+.Pp
+.Dl /start/, /stop/
+.Pp
+Simulate echo(1):
+.Bd -literal -offset indent
+BEGIN { # Simulate echo(1)
+        for (i = 1; i < ARGC; i++) printf "%s ", ARGV[i]
+        printf "\en"
+        exit }
+.Ed
+.Pp
+Print an error message to standard error:
+.Bd -literal -offset indent
+{ print "error!" > "/dev/stderr" }
+.Ed
+.Sh SEE ALSO
+.Xr cut 1 ,
+.Xr lex 1 ,
+.Xr printf 1 ,
+.Xr sed 1 ,
+.Xr re_format 7 ,
+.Xr script 7
+.Rs
+.%A A. V. Aho
+.%A B. W. Kernighan
+.%A P. J. Weinberger
+.%T The AWK Programming Language
+.%I Addison-Wesley
+.%D 1988
+.%O ISBN 0-201-07981-X
+.Re
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification,
+except
+.Nm
+does not support {n,m} pattern matching.
+.Pp
+The flags
+.Op Fl \&dV
+and
+.Op Fl safe ,
+as well as the commands
+.Cm fflush , compl , and , or ,
+.Cm xor , lshift , rshift ,
+are extensions to that specification.
+.Sh HISTORY
+An
+.Nm
+utility appeared in
+.At v7 .
+.Sh BUGS
+There are no explicit conversions between numbers and strings.
+To force an expression to be treated as a number add 0 to it;
+to force it to be treated as a string concatenate
+.Li \&""
+to it.
+.Pp
+The scope rules for variables in functions are a botch;
+the syntax is worse.

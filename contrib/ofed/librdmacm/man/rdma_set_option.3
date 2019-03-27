@@ -1,0 +1,34 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_SET_OPTION" 3 "2007-08-06" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_set_option \- Set communication options for an rdma_cm_id.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "int" rdma_set_option
+.BI "(struct rdma_cm_id *" id ","
+.BI "int " level ","
+.BI "int " optname ","
+.BI "void *" optval ","
+.BI "size_t " optlen ");"
+.SH ARGUMENTS
+.IP "id" 12
+RDMA identifier.
+.IP "level" 12
+Protocol level of the option to set.
+.IP "optname" 12
+Name of the option, relative to the level, to set.
+.IP "optval" 12
+Reference to the option data.  The data is dependent on the level and optname.
+.IP "optlen" 12
+The size of the %optval buffer.
+.SH "DESCRIPTION"
+Sets communication options for an rdma_cm_id.  This call is used to override
+the default system settings.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
+.SH "NOTES"
+Option details may be found in the relevant header files.
+.SH "SEE ALSO"
+rdma_create_id(3)

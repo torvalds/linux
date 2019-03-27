@@ -1,0 +1,517 @@
+.\"-
+.\" Copyright (c) 2001 Chris D. Faulhaber
+.\" Copyright (c) 2011 Edward Tomasz Napierała
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 26, 2018
+.Dt SETFACL 1
+.Os
+.Sh NAME
+.Nm setfacl
+.Nd set ACL information
+.Sh SYNOPSIS
+.Nm
+.Op Fl R Op Fl H | L | P
+.Op Fl bdhkn
+.Op Fl a Ar position entries
+.Op Fl m Ar entries
+.Op Fl M Ar file
+.Op Fl x Ar entries | position
+.Op Fl X Ar file
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility sets discretionary access control information on
+the specified file(s).
+If no files are specified, or the list consists of the only
+.Sq Fl ,
+the file names are taken from the standard input.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl a Ar position entries
+Modify the ACL on the specified files by inserting new
+ACL entries
+specified in
+.Ar entries ,
+starting at position
+.Ar position ,
+counting from zero.
+This option is only applicable to NFSv4 ACLs.
+.It Fl b
+Remove all ACL entries except for the ones synthesized
+from the file mode - the three mandatory entries in case
+of POSIX.1e ACL.
+If the POSIX.1e ACL contains a
+.Dq Li mask
+entry, the permissions of the
+.Dq Li group
+entry in the resulting ACL will be set to the permission
+associated with both the
+.Dq Li group
+and
+.Dq Li mask
+entries of the current ACL.
+.It Fl d
+The operations apply to the default ACL entries instead of
+access ACL entries.
+Currently only directories may have
+default ACL's.
+This option is not applicable to NFSv4 ACLs.
+.It Fl h
+If the target of the operation is a symbolic link, perform the operation
+on the symbolic link itself, rather than following the link.
+.It Fl H
+If the
+.Fl R
+option is specified, symbolic links on the command line are followed
+and hence unaffected by the command.
+(Symbolic links encountered during tree traversal are not followed.)
+.It Fl k
+Delete any default ACL entries on the specified files.
+It
+is not considered an error if the specified files do not have
+any default ACL entries.
+An error will be reported if any of
+the specified files cannot have a default entry (i.e.,
+non-directories).
+This option is not applicable to NFSv4 ACLs.
+.It Fl L
+If the
+.Fl R
+option is specified, all symbolic links are followed.
+.It Fl m Ar entries
+Modify the ACL on the specified file.
+New entries will be added, and existing entries will be modified
+according to the
+.Ar entries
+argument.
+For NFSv4 ACLs, it is recommended to use the
+.Fl a
+and
+.Fl x
+options instead.
+.It Fl M Ar file
+Modify the ACL entries on the specified files by adding new
+ACL entries and modifying existing ACL entries with the ACL
+entries specified in the file
+.Ar file .
+If
+.Ar file
+is
+.Fl ,
+the input is taken from stdin.
+.It Fl n
+Do not recalculate the permissions associated with the ACL
+mask entry.
+This option is not applicable to NFSv4 ACLs.
+.It Fl P
+If the
+.Fl R
+option is specified, no symbolic links are followed.
+This is the default.
+.It Fl R
+Perform the action recursively on any specified directories.
+When modifying or adding NFSv4 ACL entries, inheritance flags
+are applied only to directories.
+.It Fl x Ar entries | position
+If
+.Ar entries
+is specified, remove the ACL entries specified there
+from the access or default ACL of the specified files.
+Otherwise, remove entry at index
+.Ar position ,
+counting from zero.
+.It Fl X Ar file
+Remove the ACL entries specified in the file
+.Ar file
+from the access or default ACL of the specified files.
+.El
+.Pp
+The above options are evaluated in the order specified
+on the command-line.
+.Sh POSIX.1e ACL ENTRIES
+A POSIX.1E ACL entry contains three colon-separated fields:
+an ACL tag, an ACL qualifier, and discretionary access
+permissions:
+.Bl -tag -width indent
+.It Ar "ACL tag"
+The ACL tag specifies the ACL entry type and consists of
+one of the following:
+.Dq Li user
+or
+.Ql u
+specifying the access
+granted to the owner of the file or a specified user;
+.Dq Li group
+or
+.Ql g
+specifying the access granted to the file owning group
+or a specified group;
+.Dq Li other
+or
+.Ql o
+specifying the access
+granted to any process that does not match any user or group
+ACL entry;
+.Dq Li mask
+or
+.Ql m
+specifying the maximum access
+granted to any ACL entry except the
+.Dq Li user
+ACL entry for the file owner and the
+.Dq Li other
+ACL entry.
+.It Ar "ACL qualifier"
+The ACL qualifier field describes the user or group associated with
+the ACL entry.
+It may consist of one of the following: uid or
+user name, gid or group name, or empty.
+For
+.Dq Li user
+ACL entries, an empty field specifies access granted to the
+file owner.
+For
+.Dq Li group
+ACL entries, an empty field specifies access granted to the
+file owning group.
+.Dq Li mask
+and
+.Dq Li other
+ACL entries do not use this field.
+.It Ar "access permissions"
+The access permissions field contains up to one of each of
+the following:
+.Ql r ,
+.Ql w ,
+and
+.Ql x
+to set read, write, and
+execute permissions, respectively.
+Each of these may be excluded
+or replaced with a
+.Ql -
+character to indicate no access.
+.El
+.Pp
+A
+.Dq Li mask
+ACL entry is required on a file with any ACL entries other than
+the default
+.Dq Li user ,
+.Dq Li group ,
+and
+.Dq Li other
+ACL entries.
+If the
+.Fl n
+option is not specified and no
+.Dq Li mask
+ACL entry was specified, the
+.Nm
+utility
+will apply a
+.Dq Li mask
+ACL entry consisting of the union of the permissions associated
+with all
+.Dq Li group
+ACL entries in the resulting ACL.
+.Pp
+Traditional POSIX interfaces acting on file system object modes have
+modified semantics in the presence of POSIX.1e extended ACLs.
+When a mask entry is present on the access ACL of an object, the mask
+entry is substituted for the group bits; this occurs in programs such
+as
+.Xr stat 1
+or
+.Xr ls 1 .
+When the mode is modified on an object that has a mask entry, the
+changes applied to the group bits will actually be applied to the
+mask entry.
+These semantics provide for greater application compatibility:
+applications modifying the mode instead of the ACL will see
+conservative behavior, limiting the effective rights granted by all
+of the additional user and group entries; this occurs in programs
+such as
+.Xr chmod 1 .
+.Pp
+ACL entries applied from a file using the
+.Fl M
+or
+.Fl X
+options shall be of the following form: one ACL entry per line, as
+previously specified; whitespace is ignored; any text after a
+.Ql #
+is ignored (comments).
+.Pp
+When POSIX.1e ACL entries are evaluated, the access check algorithm checks
+the ACL entries in the following order: file owner,
+.Dq Li user
+ACL entries, file owning group,
+.Dq Li group
+ACL entries, and
+.Dq Li other
+ACL entry.
+.Pp
+Multiple ACL entries specified on the command line are
+separated by commas.
+.Pp
+It is possible for files and directories to inherit ACL entries from their
+parent directory.
+This is accomplished through the use of the default ACL.
+It should be noted that before you can specify a default ACL, the mandatory
+ACL entries for user, group, other and mask must be set.
+For more details see the examples below.
+Default ACLs can be created by using
+.Fl d .
+.Sh NFSv4 ACL ENTRIES
+An NFSv4 ACL entry contains four or five colon-separated fields: an ACL tag,
+an ACL qualifier (only for
+.Dq Li user
+and
+.Dq Li group
+tags), discretionary access permissions, ACL inheritance flags, and ACL type:
+.Bl -tag -width indent
+.It Ar "ACL tag"
+The ACL tag specifies the ACL entry type and consists of
+one of the following:
+.Dq Li user
+or
+.Ql u
+specifying the access
+granted to the specified user;
+.Dq Li group
+or
+.Ql g
+specifying the access granted to the specified group;
+.Dq Li owner@
+specifying the access granted to the owner of the file;
+.Dq Li group@
+specifying the access granted to the file owning group;
+.Dq Li everyone@
+specifying everyone.
+Note that
+.Dq Li everyone@
+is not the same as traditional Unix
+.Dq Li other
+- it means,
+literally, everyone, including file owner and owning group.
+.It Ar "ACL qualifier"
+The ACL qualifier field describes the user or group associated with
+the ACL entry.
+It may consist of one of the following: uid or
+user name, or gid or group name.
+In entries whose tag type is one of
+.Dq Li owner@ ,
+.Dq Li group@ ,
+or
+.Dq Li everyone@ ,
+this field is omitted altogether, including the trailing comma.
+.It Ar "access permissions"
+Access permissions may be specified in either short or long form.
+Short and long forms may not be mixed.
+Permissions in long form are separated by the
+.Ql /
+character; in short form, they are concatenated together.
+Valid permissions are:
+.Bl -tag -width ".Dv modify_set"
+.It Short
+Long
+.It r
+read_data
+.It w
+write_data
+.It x
+execute
+.It p
+append_data
+.It D
+delete_child
+.It d
+delete
+.It a
+read_attributes
+.It A
+write_attributes
+.It R
+read_xattr
+.It W
+write_xattr
+.It c
+read_acl
+.It C
+write_acl
+.It o
+write_owner
+.It s
+synchronize
+.El
+.Pp
+In addition, the following permission sets may be used:
+.Bl -tag -width ".Dv modify_set"
+.It Set
+Permissions
+.It full_set
+all permissions, as shown above
+.It modify_set
+all permissions except write_acl and write_owner
+.It read_set
+read_data, read_attributes, read_xattr and read_acl
+.It write_set
+write_data, append_data, write_attributes and write_xattr
+.El
+.It Ar "ACL inheritance flags"
+Inheritance flags may be specified in either short or long form.
+Short and long forms may not be mixed.
+Access flags in long form are separated by the
+.Ql /
+character; in short form, they are concatenated together.
+Valid inheritance flags are:
+.Bl -tag -width ".Dv short"
+.It Short
+Long
+.It f
+file_inherit
+.It d
+dir_inherit
+.It i
+inherit_only
+.It n
+no_propagate
+.It I
+inherited
+.El
+.Pp
+Other than the "inherited" flag, inheritance flags may be only set on directories.
+.It Ar "ACL type"
+The ACL type field is either
+.Dq Li allow
+or
+.Dq Li deny .
+.El
+.Pp
+ACL entries applied from a file using the
+.Fl M
+or
+.Fl X
+options shall be of the following form: one ACL entry per line, as
+previously specified; whitespace is ignored; any text after a
+.Ql #
+is ignored (comments).
+.Pp
+NFSv4 ACL entries are evaluated in their visible order.
+.Pp
+Multiple ACL entries specified on the command line are
+separated by commas.
+.Pp
+Note that the file owner is always granted the read_acl, write_acl,
+read_attributes, and write_attributes permissions, even if the ACL
+would deny it.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+.Dl setfacl -d -m u::rwx,g::rx,o::rx,mask::rwx dir
+.Dl setfacl -d -m g:admins:rwx dir
+.Pp
+The first command sets the mandatory elements of the POSIX.1e default ACL.
+The second command specifies that users in group admins can have read, write, and execute
+permissions for directory named "dir".
+It should be noted that any files or directories created underneath "dir" will
+inherit these default ACLs upon creation.
+.Pp
+.Dl setfacl -m u::rwx,g:mail:rw file
+.Pp
+Sets read, write, and execute permissions for the
+.Pa file
+owner's POSIX.1e ACL entry and read and write permissions for group mail on
+.Pa file .
+.Pp
+.Dl setfacl -m owner@:rwxp::allow,g:mail:rwp::allow file
+.Pp
+Semantically equal to the example above, but for NFSv4 ACL.
+.Pp
+.Dl setfacl -M file1 file2
+.Pp
+Sets/updates the ACL entries contained in
+.Pa file1
+on
+.Pa file2 .
+.Pp
+.Dl setfacl -x g:mail:rw file
+.Pp
+Remove the group mail POSIX.1e ACL entry containing read/write permissions
+from
+.Pa file .
+.Pp
+.Dl setfacl -x0 file
+.Pp
+Remove the first entry from the NFSv4 ACL from
+.Pa file .
+.Pp
+.Dl setfacl -bn file
+.Pp
+Remove all
+.Dq Li access
+ACL entries except for the three required from
+.Pa file .
+.Pp
+.Dl getfacl file1 | setfacl -b -n -M - file2
+.Pp
+Copy ACL entries from
+.Pa file1
+to
+.Pa file2 .
+.Sh SEE ALSO
+.Xr getfacl 1 ,
+.Xr acl 3 ,
+.Xr getextattr 8 ,
+.Xr setextattr 8 ,
+.Xr acl 9 ,
+.Xr extattr 9
+.Sh STANDARDS
+The
+.Nm
+utility is expected to be
+.Tn IEEE
+Std 1003.2c compliant.
+.Sh HISTORY
+Extended Attribute and Access Control List support was developed
+as part of the
+.Tn TrustedBSD
+Project and introduced in
+.Fx 5.0 .
+NFSv4 ACL support was introduced in
+.Fx 8.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.An Chris D. Faulhaber Aq Mt jedgar@fxp.org .
+NFSv4 ACL support was implemented by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org .

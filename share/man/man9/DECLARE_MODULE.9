@@ -1,0 +1,128 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2000 Alexander Langer
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 13, 2018
+.Dt DECLARE_MODULE 9
+.Os
+.Sh NAME
+.Nm DECLARE_MODULE
+.Nd kernel module declaration macro
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/kernel.h
+.In sys/module.h
+.Fn DECLARE_MODULE "name" "moduledata_t data" "sub" "order"
+.Fn DECLARE_MODULE_TIED "name" "moduledata_t data" "sub" "order"
+.Sh DESCRIPTION
+The
+.Fn DECLARE_MODULE
+macro declares a generic kernel module.
+It is used to register the module with the system, using the
+.Fn SYSINIT
+macro.
+.Fn DECLARE_MODULE
+is usually used within other macros, such as
+.Xr DRIVER_MODULE 9 ,
+.Xr DEV_MODULE 9
+and
+.Xr SYSCALL_MODULE 9 .
+Of course, it can also be called directly, for example in
+order to implement dynamic sysctls.
+.Pp
+A module declared with
+.Fn DECLARE_MODULE_TIED
+will load only if the running kernel version
+(as specified by
+.Dv __FreeBSD_version )
+is identical to that on which it was built.
+This declaration should be used by modules which depend on interfaces beyond
+the stable kernel KBI (such as ABI emulators or hypervisors that rely on
+internal kernel structures).
+.Fn DECLARE_MODULE
+will behave like 
+.Fn DECLARE_MODULE_TIED
+when compiled with modules built with the kernel. This allows locks and
+other synchronization primitives to be inlined safely.
+.Pp
+The arguments are:
+.Bl -tag -width indent
+.It Fa name
+The module name, which will be used in the
+.Fn SYSINIT
+call to identify the module.
+.It Fa data
+A
+.Vt moduledata_t
+structure, which contains two main items, the official name of the
+module name, which will be used in the
+.Vt module_t
+structure and a pointer to the event handler function of type
+.Vt modeventhand_t .
+.It Fa sub
+An argument directed to the
+.Fn SYSINIT
+macro.
+Valid values for this are contained in the
+.Vt sysinit_sub_id
+enumeration
+(see
+.In sys/kernel.h )
+and specify the type of system startup interfaces.
+The
+.Xr DRIVER_MODULE 9
+macro uses a value of
+.Dv SI_SUB_DRIVERS
+here for example, since these modules contain a driver for a device.
+For kernel modules that are loaded at runtime, a value of
+.Dv SI_SUB_EXEC
+is common.
+.It Fa order
+An argument for
+.Fn SYSINIT .
+It represents the KLDs order of initialization within the subsystem.
+Valid values are defined in the
+.Vt sysinit_elem_order
+enumeration
+.Pq In sys/kernel.h .
+.El
+.Sh SEE ALSO
+.Xr DEV_MODULE 9 ,
+.Xr DRIVER_MODULE 9 ,
+.Xr module 9 ,
+.Xr SYSCALL_MODULE 9
+.Pp
+.Pa /usr/include/sys/kernel.h ,
+.Pa /usr/share/examples/kld
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Alexander Langer Aq Mt alex@FreeBSD.org ,
+inspired by the KLD Facility Programming Tutorial by
+.An Andrew Reiter Aq Mt arr@watson.org .

@@ -1,0 +1,86 @@
+#!/bin/sh
+#
+# $NetBSD: t_readdir,v 1.5 2006/11/09 16:20:06 jmmv Exp $
+#
+# Copyright (c) 2005, 2006 The NetBSD Foundation, Inc.
+# All rights reserved.
+#
+# This code is derived from software contributed to The NetBSD Foundation
+# by Julio M. Merino Vidal, developed as part of Google's Summer of Code
+# 2005 program.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+#
+# Verifies that the readdir operation works.
+#
+
+test_run() {
+	test_mount
+
+	test_name "Directory has '.' and '..' entries"
+	/bin/ls -a | grep '^\.$' >/dev/null || die
+	/bin/ls -a | grep '^\..$' >/dev/null || die
+
+	test_name "Creation of files of all possible types"
+	mkdir dir || die
+	touch reg || die
+	ln -s reg lnk || die
+	mknod b blk 0 0 || die
+	mknod c chr 0 0 || die
+	mkfifo fifo || die
+	${Src_Dir}/h_tools sockets sock || die
+
+	test_name "Read of directory"
+	ls >/dev/null || die
+	rm -rf * || die
+
+	# Catch a bug caused by incorrect invalidation of readdir caching
+	# variables.
+	test_name "Populate directory"
+	touch $(jot 10) || die
+	test_name "Clean it"
+	rm * || die
+	test_name "Repopulate directory"
+	touch $(jot 20) || die
+	test_name "Listing should return all entries"
+	ls >/dev/null || die
+
+	test_name "Creation of many files"
+	mkdir a || die
+	for f in $(jot 500); do
+		touch a/$f || die
+	done
+
+	test_name "Removal of all files using a wildcard"
+	rm a/* || die
+
+	test_name "Removal of should-be-empty directory"
+	rmdir a || die
+
+	test_unmount
+}
+
+. ${SUBRDIR}/h_funcs.subr

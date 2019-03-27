@@ -1,0 +1,152 @@
+.\" Copyright (c) 2018 Jeffrey Roberson <jeff@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 30, 2018
+.Dt DOMAINSET 9
+.Os
+.Sh NAME
+.Nm domainset(9)
+.Nd domainset functions and operation
+.Sh SYNOPSIS
+.In sys/_domainset.h
+.In sys/domainset.h
+.\"
+.Bd -literal -offset indent
+struct domainset {
+        domainset_t     ds_mask;
+        uint16_t        ds_policy;
+        domainid_t      ds_prefer;
+	...
+};
+.Ed
+.Pp
+.Ft struct domainset *
+.Fn DOMAINSET_FIXED domain
+.Ft struct domainset *
+.Fn DOMAINSET_RR
+.Ft struct domainset *
+.Fn DOMAINSET_PREF domain
+.Ft struct domainset *
+.Fn domainset_create "const struct domainset *key"
+.Ft int
+.Fn sysctl_handle_domainset "SYSCTL_HANDLER_ARGS"
+.Sh DESCRIPTION
+The
+.Nm
+API provides memory domain allocation policy for NUMA machines.
+Each
+.Vt domainset
+contains a bitmask of allowed domains, an integer policy, and an optional
+preferred domain.
+Together, these specify a search order for memory allocations as well as
+the ability to restrict threads and objects to a subset of available
+memory domains for system partitioning and resource management.
+.Pp
+Every thread in the system and optionally every
+.Vt vm_object_t ,
+which is used to represent files and other memory sources, has
+a reference to a
+.Vt struct domainset .
+The domainset associated with the object is consulted first and the system
+falls back to the thread policy if none exists.
+.Pp
+The allocation policy has the following possible values:
+.Bl -tag -width "foo"
+.It Dv DOMAINSET_POLICY_ROUNDROBIN
+Memory is allocated from each domain in the mask in a round-robin fashion.
+This distributes bandwidth evenly among available domains.
+This policy can specify a single domain for a fixed allocation.
+.It Dv DOMAINSET_POLICY_FIRSTTOUCH
+Memory is allocated from the node that it is first accessed on.
+Allocation falls back to round-robin if the current domain is not in the
+allowed set or is out of memory.
+This policy optimizes for locality but may give pessimal results if the
+memory is accessed from many CPUs that are not in the local domain.
+.It Dv DOMAINSET_POLICY_PREFER
+Memory is allocated from the node in the
+.Vt prefer
+member.  The preferred node must be set in the allowed mask.
+If the preferred node is out of memory the allocation falls back to 
+round-robin among allowed sets.
+.It Dv DOMAINSET_POLICY_INTERLEAVE
+Memory is allocated in a striped fashion with multiple pages
+allocated to each domain in the set according to the offset within
+the object.
+The strip width is object dependent and may be as large as a
+super-page (2MB on amd64).
+This gives good distribution among memory domains while keeping system
+efficiency higher and is preferential to round-robin for general use.
+.El
+.Pp
+The
+.Fn DOMAINSET_FIXED ,
+.Fn DOMAINSET_RR
+and
+.Fn DOMAINSET_PREF
+macros provide pointers to global pre-defined policies for use when the
+desired policy is known at compile time.
+.Fn DOMAINSET_FIXED
+is a policy which only permits allocations from the specified domain.
+.Fn DOMAINSET_RR
+provides round-robin selection among all domains in the system.
+The
+.Fn DOMAINSET_PREF
+policies attempt allocation from the specified domain, but unlike
+.Fn DOMAINSET_FIXED
+will fall back to other domains to satisfy the request.
+These policies should be used in preference to
+.Fn DOMAINSET_FIXED
+to avoid blocking indefinitely on a
+.Dv M_WAITOK
+request.
+The
+.Fn domainset_create
+function takes a partially filled in domainset as a key and returns a
+valid domainset or NULL.
+It is critical that consumers not use domainsets that have not been
+returned by this function.
+.Vt
+domainset
+is an immutable type that is shared among all matching keys and must
+not be modified after return.
+.Pp
+The
+.Fn sysctl_handle_domainset
+function is provided as a convenience for modifying or viewing domainsets
+that are not accessible via
+.Xr cpuset 2 .
+It is intended for use with 
+.Xr sysctl 9 .
+.Pp
+.Sh SEE ALSO
+.Xr cpuset 1 ,
+.Xr cpuset 2 ,
+.Xr cpuset_setdomain 2 ,
+.Xr bitset 9
+.Sh HISTORY
+.In sys/domainset.h
+first appeared in
+.Fx 12.0 .

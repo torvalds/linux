@@ -1,0 +1,126 @@
+.\" Copyright (c) 2015 Christian Brueffer
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 30, 2015
+.Dt PMS 4
+.Os
+.Sh NAME
+.Nm pms
+.Nd "PMC-Sierra PM8001/8081/8088/8089/8074/8076/8077 SAS/SATA HBA Controller driver"
+.Sh SYNOPSIS
+To compile the driver into the kernel,
+place the following line in the
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pmspcv"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+pmspcv_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the PMC-Sierra PM8001/8081/8088/8089/8074/8076/8077
+range of SAS/SATA HBA controllers.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following hardware:
+.Pp
+.Bl -bullet -compact
+.It
+Tachyon TS Fibre Channel Card
+.It
+Tachyon TL Fibre Channel Card
+.It
+Tachyon XL2 Fibre Channel Card
+.It
+Tachyon DX2 Fibre Channel Card
+.It
+Tachyon DX2+ Fibre Channel Card
+.It
+Tachyon DX4+ Fibre Channel Card
+.It
+Tachyon QX2 Fibre Channel Card
+.It
+Tachyon QX4 Fibre Channel Card
+.It
+Tachyon DE4 Fibre Channel Card
+.It
+Tachyon QE4 Fibre Channel Card
+.It
+Tachyon XL10 Fibre Channel Card
+.It
+PMC Sierra SPC SAS-SATA Card
+.It
+PMC Sierra SPC-V SAS-SATA Card
+.It
+PMC Sierra SPC-VE SAS-SATA Card
+.It
+PMC Sierra SPC-V 16 Port SAS-SATA Card
+.It
+PMC Sierra SPC-VE 16 Port SAS-SATA Card
+.It
+PMC Sierra SPC-V SAS-SATA Card 12Gig
+.It
+PMC Sierra SPC-VE SAS-SATA Card 12Gig
+.It
+PMC Sierra SPC-V 16 Port SAS-SATA Card 12Gig
+.It
+PMC Sierra SPC-VE 16 Port SAS-SATA Card 12Gig
+.It
+Adaptec Hialeah 4/8 Port SAS-SATA HBA Card 6Gig
+.It
+Adaptec Hialeah 4/8 Port SAS-SATA RAID Card 6Gig
+.It
+Adaptec Hialeah 8/16 Port SAS-SATA HBA Card 6Gig
+.It
+Adaptec Hialeah 8/16 Port SAS-SATA RAID Card 6Gig
+.It
+Adaptec Hialeah 8/16 Port SAS-SATA HBA Encryption Card 6Gig
+.It
+Adaptec Hialeah 8/16 Port SAS-SATA RAID Encryption Card 6Gig
+.It
+Adaptec Delray 8 Port SAS-SATA HBA Card 12Gig
+.It
+Adaptec Delray 8 Port SAS-SATA HBA Encryption Card 12Gig
+.It
+Adaptec Delray 16 Port SAS-SATA HBA Card 12Gig
+.It
+Adaptec Delray 16 Port SAS-SATA HBA Encryption Card 12Gig
+.El
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr camcontrol 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 10.2 .

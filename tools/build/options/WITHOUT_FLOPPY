@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set to not build or install programs
+for operating floppy disk driver.

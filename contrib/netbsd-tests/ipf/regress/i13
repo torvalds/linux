@@ -1,0 +1,8 @@
+a=any;
+b="from $a";
+c='to $a';
+d=block;
+e="pass in";
+$d in $b $c
+f=" $b $c";
+$e${f}

@@ -1,0 +1,149 @@
+.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris Costello
+.\" at Safeport Network Services and Network Associates Laboratories, the
+.\" Security Research Division of Network Associates, Inc. under
+.\" DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 21, 2005
+.Dt MAC_BSDEXTENDED 4
+.Os
+.Sh NAME
+.Nm mac_bsdextended
+.Nd "file system firewall policy"
+.Sh SYNOPSIS
+To compile the file system firewall policy into your kernel,
+place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Cd "options MAC_BSDEXTENDED"
+.Ed
+.Pp
+Alternately, to load the file system firewall policy module at boot time,
+place the following line in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Ed
+.Pp
+and in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mac_bsdextended_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+security policy module provides an interface for the system administrator
+to impose mandatory rules regarding users and some system objects.
+Rules are uploaded to the module
+(typically using
+.Xr ugidfw 8 ,
+or some other tool utilizing
+.Xr libugidfw 3 )
+where they are stored internally
+and used to determine whether to allow or deny specific accesses
+(see
+.Xr ugidfw 8 ) .
+.Sh IMPLEMENTATION NOTES
+While the traditional
+.Xr mac 9
+entry points are implemented,
+policy labels are not used;
+instead, access control decisions are made by iterating through the internal
+list of rules until a rule
+which denies the particular access
+is found,
+or the end of the list is reached.
+The
+.Nm
+policy works similar to
+.Xr ipfw 8
+or by using a
+.Em first match semantic .
+This means that not all rules are applied,
+only the first matched rule; thus if
+Rule A allows access and Rule B blocks
+access, Rule B will never be applied.
+.Pp
+.Ss Sysctls
+The following sysctls may be used to tweak the behavior of
+.Nm :
+.Bl -tag -width indent
+.It Va security.mac.bsdextended.enabled
+Set to zero or one to toggle the policy off or on.
+.It Va security.mac.bsdextended.rule_count
+List the number of defined rules, the maximum rule count is
+current set at 256.
+.It Va security.mac.bsdextended.rule_slots
+List the number of rule slots currently being used.
+.It Va security.mac.bsdextended.firstmatch_enabled
+Toggle between the old all rules match functionality
+and the new first rule matches functionality.
+This is enabled by default.
+.It Va security.mac.bsdextended.logging
+Log all access violations via the
+.Dv AUTHPRIV
+.Xr syslog 3
+facility.
+.It Va security.mac.bsdextended.rules
+Currently does nothing interesting.
+.El
+.Sh SEE ALSO
+.Xr libugidfw 3 ,
+.Xr syslog 3 ,
+.Xr mac 4 ,
+.Xr mac_biba 4 ,
+.Xr mac_ifoff 4 ,
+.Xr mac_lomac 4 ,
+.Xr mac_mls 4 ,
+.Xr mac_none 4 ,
+.Xr mac_partition 4 ,
+.Xr mac_portacl 4 ,
+.Xr mac_seeotheruids 4 ,
+.Xr mac_test 4 ,
+.Xr ipfw 8 ,
+.Xr ugidfw 8 ,
+.Xr mac 9
+.Sh HISTORY
+The
+.Nm
+policy module first appeared in
+.Fx 5.0
+and was developed by the
+.Tn TrustedBSD
+Project.
+.Pp
+The "match first case" and logging capabilities were later added by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org .
+.Sh AUTHORS
+This software was contributed to the
+.Fx
+Project by NAI Labs, the Security Research Division of Network Associates
+Inc.\& under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.

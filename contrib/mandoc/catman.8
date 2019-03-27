@@ -1,0 +1,186 @@
+.\"	$Id: catman.8,v 1.8 2017/03/18 19:56:01 schwarze Exp $
+.\"
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 18 2017 $
+.Dt CATMAN 8
+.Os
+.Sh NAME
+.Nm catman
+.Nd format all manual pages below a directory
+.Sh SYNOPSIS
+.Nm catman
+.Op Fl I Cm os Ns = Ns Ar name
+.Op Fl T Ar output
+.Ar srcdir dstdir
+.Sh DESCRIPTION
+The
+.Nm
+utility assumes that all files below
+.Ar srcdir
+are manual pages in
+.Xr mdoc 7
+and
+.Xr man 7
+format and formats all of them, storing the formatted versions in
+the same relative paths below
+.Ar dstdir .
+Subdirectories of
+.Ar dstdir
+are created as needed.
+Existing files are not explicitly deleted, but possibly overwritten.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl I Cm os Ns = Ns Ar name
+Override the default operating system
+.Ar name
+for the
+.Xr mdoc 7
+.Ic \&Os
+and for the
+.Xr man 7
+.Ic TH
+macro.
+.It Fl T Ar output
+Output format.
+The
+.Ar output
+argument can be
+.Cm ascii ,
+.Cm utf8 ,
+or
+.Cm html ;
+see
+.Xr mandoc 1 .
+In
+.Cm html
+output mode, the
+.Cm fragment
+output option is implied.
+Other output options are not supported.
+.El
+.Sh IMPLEMENTATION NOTES
+Since this version avoids
+.Xr fork 2
+and
+.Xr exec 3
+overhead and uses the much faster
+.Sy mandoc
+parsers and formatters rather than
+.Sy groff ,
+it may be about one order of magnitude faster than other
+.Nm
+implementations.
+.Sh EXIT STATUS
+.Ex -std
+.Pp
+Possible errors include:
+.Bl -bullet
+.It
+missing, invalid, or excessive command line arguments
+.It
+failure to change the current working directory to
+.Ar srcdir
+.It
+failure to open
+.Ar dstdir
+.It
+communication failure with
+.Xr mandocd 8
+.It
+resource exhaustion, for example file descriptor, process table,
+or memory exhaustion
+.El
+.Pp
+Except for memory exhaustion and similar system-level failures,
+failures while trying to open, read, parse, or format individual
+manual pages, to save individual formatted files to the file system,
+or even to create directories do not cause
+.Nm
+to return an error exit status.
+In such cases,
+.Nm
+will simply continue with the next file or subdirectory.
+.Sh SEE ALSO
+.Xr mandoc 1 ,
+.Xr mandocd 8
+.Sh HISTORY
+A
+.Nm
+utility first appeared in
+.Fx 1.0 .
+Other, incompatible implementations appeared in
+.Nx 1.0
+and in
+.Sy man-db No 2.2 .
+.Pp
+This version appeared in version 1.14.1 of the
+.Sy mandoc
+toolkit.
+.Sh AUTHORS
+.An -nosplit
+The first
+.Nm
+implementation was a short shell script by
+.An Christoph Robitschko
+in July 1993.
+.Pp
+The
+.Nx
+implementations were written by
+.An J. T. Conklin Aq Mt jtc@netbsd.org
+in 1993,
+.An Christian E. Hopps Aq Mt chopps@netbsd.org
+in 1994,
+and
+.An Dante Profeta Aq Mt dante@netbsd.org
+in 1999; the
+.Sy man-db
+implementation by
+.An Graeme W. Wilford
+in 1994; and the
+.Fx
+implementations by
+.An Wolfram Schneider Aq Mt wosch@freebsd.org
+in 1995 and
+.An John Rochester Aq Mt john@jrochester.org
+in 2002.
+.Pp
+The concept of the present version was designed and implemented by
+.An Michael Stapelberg Aq Mt stapelberg@debian.org
+in 2017.
+Option and argument handling and directory iteration was added by
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org .
+.Sh CAVEATS
+All versions of
+.Nm
+are incompatible with each other because each caters to the needs
+of a specific operating system, for example regarding directory
+structures and file naming conventions.
+.Pp
+This version is more flexible than the others in so far as it does
+not assume any particular directory structure or naming convention.
+That flexibility comes at the price of not being able to change the
+names and relative paths of the source files when reusing them to
+store the formatted files, of not supporting any configuration file
+formats or environment variables, and of being unable to scan for
+and remove junk files in
+.Ar dstdir .
+.Pp
+Currently,
+.Nm
+always reformats each page, even if the formatted version is newer
+than the source version.

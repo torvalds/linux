@@ -1,0 +1,247 @@
+**************************************************************************
+**************************************************************************
+**                                                                      **
+** The FreeBSD Project has chosen to redistribute and modify Less under **
+** the 'Less License' (as described in the 'LICENSE' file).             **
+**                                                                      **
+**************************************************************************
+**************************************************************************
+
+                            Less, version 530
+
+    This is the distribution of less, version 530, released 05 Dec 2017.
+    This program is part of the GNU project (http://www.gnu.org).
+
+    This program is free software.  You may redistribute it and/or
+    modify it under the terms of either:
+
+    1. The GNU General Public License, as published by the Free
+       Software Foundation; either version 3, or (at your option) any
+       later version.  A copy of this license is in the file COPYING.
+    or
+    2. The Less License, in the file LICENSE.
+
+    Please report any problems to bug-less@gnu.org.
+    See http://www.greenwoodsoftware.com/less for the latest info.
+    Source repository is at https://github.com/gwsw/less.git.
+
+=========================================================================
+
+This is the distribution of "less", a paginator similar to "more" or "pg".
+
+The formatted manual page is in less.man.
+The manual page nroff source is in less.nro.
+Major changes made since the last posted version are in NEWS.
+
+=======================================================================
+INSTALLATION (Unix systems only):
+
+1. Move the distributed source to its own directory and unpack it,
+   if you have not already done so.  
+
+2. Type "sh configure".
+   This will generate a Makefile and a defines.h.
+   Warning: if you have a GNU sed, make sure it is version 2.05 or later.
+
+   The file INSTALL describes the usage of the configure program in
+   general.  In addition, these options to configure are supported:
+
+   --with-editor=program
+     Specifies the default editor program used by the "v" command.
+     The default is "vi".
+
+   --with-regex=lib
+     Specifies the regular expression library used by less for pattern
+     matching.  The default is "auto", which means the configure program 
+     finds a regular expression library automatically.  Other values are:
+        gnu            Use the GNU regex library.
+        pcre           Use the PCRE library.
+        posix          Use the POSIX-compatible regcomp.
+        regcmp         Use the regcmp library.
+        re_comp        Use the re_comp library.
+        regcomp        Use the V8-compatible regcomp.
+        regcomp-local  Use Henry Spencer's V8-compatible regcomp
+                       (source is supplied with less).
+        none           No regular expressions, only simple string matching.
+   --with-secure
+     Builds a "secure" version of less, with some features disabled
+     to prevent users from viewing other files, accessing shell
+     commands, etc.
+
+
+3. It is a good idea to look over the generated Makefile and defines.h
+   and make sure they look ok.  If you know of any peculiarities of
+   your system that configure might not have detected, you may fix the
+   Makefile now.  Take particular notice of the list of "terminal" 
+   libraries in the LIBS definition in the Makefile; these may need 
+   to be edited.  The terminal libraries will be some subset of
+       -lncurses  -lcurses  -ltermcap  -ltermlib
+
+   If you wish, you may edit defines.h to remove some optional features.
+   If you choose not to include some features in your version, you may
+   wish to edit the manual page "less.nro" and the help page "less.hlp" 
+   to remove the descriptions of the features which you are removing.
+   If you edit less.hlp, you should run "make -f Makefile.aut help.c".
+
+4. Type "make" and watch the fun.
+
+5. If the make succeeds, it will generate the programs "less",
+   "lesskey" and "lessecho" in your current directory.  Test the 
+   generated programs.
+
+6. When satisfied that it works, if you wish to install it
+   in a public place, type "make install".
+
+   The default install destinations are:
+        Executables (less, lesskey, lessecho) in /usr/local/bin
+        Documentation (less.nro, lesskey.nro) in /usr/local/man/man1
+   If you want to install any of these files elsewhere, define
+   bindir and/or mandir to the appropriate directories.
+
+If you have any problems building or running "less", suggestions, 
+complaints, etc., you may mail to bug-less@gnu.org.
+
+Note to hackers: comments noting possible improvements are enclosed
+in double curly brackets {{ like this }}.
+
+(Note that the above note was originally written at a time when 
+"hackers" most commonly meant "enthusiastic and dedicated computer 
+programmers", not "persons who attempt to circumvent computer security".)
+
+
+
+=======================================================================
+INSTALLATION (MS-DOS systems only,
+              with Microsoft C, Borland C, or DJGPP)
+
+1. Move the distributed source to its own directory.
+   Depending on your compiler, you may need to convert the source 
+   to have CR-LF rather than LF as line terminators.
+
+2. If you are using Microsoft C, rename MAKEFILE.DSU to MAKEFILE.
+   If you are using Borland C, rename MAKEFILE.DSB to MAKEFILE.
+   If you are using DJGPP, rename MAKEFILE.DSG to MAKEFILE.
+
+3. Look at MAKEFILE to make sure that the definitions for CC and LIBDIR
+   are correct.  CC should be the name of your C compiler and
+   LIBDIR should be the directory where the C libraries reside (for
+   Microsoft C only).  If these definitions need to be changed, you can
+   either modify the definitions directly in MAKEFILE, or set your
+   environment variables CC and/or LIBDIR to override the definitions
+   in MAKEFILE.
+
+4. If you wish, you may edit DEFINES.DS to remove some optional features.
+   If you choose not to include some features in your version, you may
+   wish to edit the manual page LESS.MAN and the help page HELP.C
+   to remove the descriptions of the features which you are removing.
+
+5. Run your "make" program and watch the fun.
+   If your "make" requires a flag to import environment variables,
+   you should use that flag.
+   If your compiler runs out of memory, try running "make -n >cmds.bat" 
+   and then run cmds.bat.
+
+6. If the make succeeds, it will generate the programs "LESS.EXE" and
+   "LESSKEY.EXE" in your current directory.  Test the generated programs.
+
+7. When satisfied that it works, you may wish to install LESS.EXE and
+   LESSKEY.EXE in a directory which is included in your PATH.
+
+
+
+=======================================================================
+INSTALLATION (Windows-95, Windows-98 and Windows-NT systems only,
+              with Borland C or Microsoft Visual C++)
+
+1. Move the distributed source to its own directory.
+
+2. If you are using Borland C, rename Makefile.wnb to Makefile.
+   If you are using Microsoft Visual C++, rename Makefile.wnm to Makefile.
+
+3. Check the Makefile to make sure the definitions look ok.
+
+4. If you wish, you may edit defines.wn to remove some optional features.
+   If you choose not to include some features in your version, you may
+   wish to edit the manual page less.man and the help page help.c
+   to remove the descriptions of the features which you are removing.
+
+5. Type "make" and watch the fun.
+
+6. If the make succeeds, it will generate the programs "less.exe" and
+   "lesskey.exe" in your current directory.  Test the generated programs.
+
+7. When satisfied that it works, if you wish to install it
+   in a public place, type "make install".
+   See step 6 of the Unix installation instructions for details
+   on how to change the default installation directories.
+
+
+
+=======================================================================
+INSTALLATION (OS/2 systems only,
+              with EMX C)
+
+1. Move the distributed source to its own directory.
+
+2. Rename Makefile.o2e to Makefile.
+
+3. Check the Makefile to make sure the definitions look ok.
+
+4. If you wish, you may edit defines.o2 to remove some optional features.
+   If you choose not to include some features in your version, you may
+   wish to edit the manual page less.man and the help page help.c
+   to remove the descriptions of the features which you are removing.
+
+5. Type "make" and watch the fun.
+
+6. If the make succeeds, it will generate the programs "less.exe" and
+   "lesskey.exe" in your current directory.  Test the generated programs.
+
+7. Make sure you have the emx runtime installed. You need the emx DLLs
+   emx.dll and emxlibcs.dll and also the termcap database, termcap.dat.
+   Make sure you have termcap.dat either in the default location or
+   somewhere in a directory listed in the PATH or INIT environment 
+   variables.
+
+8. When satisfied that it works, you may wish to install less.exe,
+   lesskey.exe and scrsize.exe in a directory which is included in 
+   your PATH.  scrsize.exe is required only if you use a terminal
+   emulator such as xterm or rxvt.
+
+
+
+=======================================================================
+INSTALLATION (OS-9 systems only,
+              with Microware C or Ultra C)
+
+1. Move the distributed source to its own directory.
+
+2. If you are using Microware C, rename Makefile.o9c to Makefile.
+   If you are using Ultra C, rename Makefile.o9u to Makefile.
+
+3. Check the Makefile to make sure the definitions look ok.
+
+4. If you wish, you may edit defines.o9 to remove some optional features.
+   If you choose not to include some features in your version, you may
+   wish to edit the manual page less.man and the help page help.c
+   to remove the descriptions of the features which you are removing.
+
+5. Type "dmake" and watch the fun.
+   The standard OS-9 "make" will probably not work.  If you don't
+   have dmake, you can get a copy from os9archive.rtsi.com.
+
+6. If the make succeeds, it will generate the programs "less" and
+   "lesskey" in your current directory.  Test the generated programs.
+
+7. When satisfied that it works, if you wish to install it
+   in a public place, type "dmake install".
+   See step 6 of the Unix installation instructions for details
+   on how to change the default installation directories.
+
+=======================================================================
+ACKNOWLEDGMENTS:
+  Some versions of the less distribution are packaged using 
+  Info-ZIP's compression utility.
+  Info-ZIP's software is free and can be obtained as source 
+  code or executables from various anonymous-ftp sites,
+  including ftp.uu.net:/pub/archiving/zip.

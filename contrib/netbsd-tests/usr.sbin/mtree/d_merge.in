@@ -1,0 +1,27 @@
+# The last entry for any duplicate node should take precedence.
+
+.                               type=dir
+
+# directory "a" with only one entry, changing from dir to link
+./a                             type=dir
+./a/change-dir-to-link          type=dir  mode=0755
+./a/change-dir-to-link          type=link  mode=0755
+
+# directory "b" with only one entry, changing from link to dir
+./b                             type=dir
+./b/change-link-to-dir          type=link  mode=0755
+./b/change-link-to-dir          type=dir  mode=0755
+
+# directory "c" with multiple entries, one changing from dir to link
+./c                             type=dir
+./c/aaa                         type=file
+./c/zzz                         type=file
+./c/change-dir-to-link          type=dir  mode=0755
+./c/change-dir-to-link          type=link  mode=0755
+
+# directory "d" with multiple entries, one changing from link to dir
+./d                             type=dir
+./d/aaa                         type=file
+./d/zzz                         type=file
+./d/change-link-to-dir          type=link  mode=0755
+./d/change-link-to-dir          type=dir  mode=0755

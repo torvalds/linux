@@ -1,0 +1,3 @@
+include start
+# our test terminal can change colors so expect true.
+call 1 can_change_color

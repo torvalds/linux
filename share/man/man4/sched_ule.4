@@ -1,0 +1,75 @@
+.\" Copyright (c) 2005 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 10, 2012
+.Dt SCHED_ULE 4
+.Os
+.Sh NAME
+.Nm sched_ule
+.Nd ULE scheduler
+.Sh SYNOPSIS
+.Cd "options SCHED_ULE"
+.Sh DESCRIPTION
+The
+.Nm
+scheduler
+provides a number of advanced scheduler
+features not present in
+.Xr sched_4bsd 4 ,
+the traditional system scheduler.
+These features address SMP and interactivity and include:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Thread CPU affinity.
+.It
+CPU topology awareness, including for hyper-threading.
+.It
+Per-CPU run queues.
+.It
+Interactivity heuristics that detect interactive applications and schedules
+them preferentially under high load.
+.El
+.Pp
+The following sysctls are relevant to the operation of
+.Nm :
+.Bl -tag -width indent
+.It Va kern.sched.name
+This read-only sysctl reports the name of the active scheduler.
+.It Va kern.sched.quantum
+This read-write sysctl reports or sets the length of the quantum (in
+micro-seconds) granted to a thread.
+.El
+.Sh SEE ALSO
+.Xr sched_4bsd 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+scheduler first appeared in
+.Fx 5.1 .
+.Sh AUTHORS
+.An Jeff Roberson Aq Mt jeff@FreeBSD.org

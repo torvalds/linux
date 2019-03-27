@@ -1,0 +1,133 @@
+.\" Copyright (c) 2016 The FreeBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 1, 2016
+.Dt THR_kill 2
+.Os
+.Sh NAME
+.Nm thr_kill
+.Nd send signal to thread
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/thr.h
+.Ft int
+.Fn thr_kill "long id" "int sig"
+.Ft int
+.Fn thr_kill2 "pid_t pid" "long id" "int sig"
+.Sh DESCRIPTION
+The
+.Fn thr_kill
+and
+.Fn thr_kill2
+system calls allow sending a signal, specified by the
+.Fa sig
+argument, to some threads in a process.
+For the
+.Fn thr_kill
+function, signalled threads are always limited to the current process.
+For the
+.Fn thr_kill2
+function, the
+.Fa pid
+argument specifies the process with threads to be signalled.
+.Pp
+The
+.Fa id
+argument specifies which threads get the signal.
+If
+.Fa id
+is equal to \-1, all threads in the specified process are signalled.
+Otherwise, only the thread with the thread identifier equal to the
+argument is signalled.
+.Pp
+The
+.Fa sig
+argument defines the delivered signal.
+It must be a valid signal number or zero.
+In the latter case no signal is actually sent, and the call is used to
+verify the liveness of the thread.
+.Pp
+The signal is delivered with
+.Dv siginfo
+.Dv si_code
+set to
+.Dv SI_LWP .
+.Sh RETURN VALUES
+If successful,
+.Fn thr_kill
+and
+.Fn thr_kill2
+will return zero, otherwise \-1 is returned, and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn thr_kill
+and
+.Fn thr_kill2
+operations return the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa sig
+argument is not zero and does not specify valid signal.
+.It Bq Er ESRCH
+The specified process or thread was not found.
+.El
+.Pp
+Additionally, the
+.Fn thr_kill2
+may return the following errors:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The current process does not have sufficient privilege to check existence or
+send a signal to the specified process.
+.El
+.Sh SEE ALSO
+.Xr kill 2 ,
+.Xr thr_exit 2 ,
+.Xr thr_new 2 ,
+.Xr thr_self 2 ,
+.Xr thr_set_name 2 ,
+.Xr _umtx_op 2 ,
+.Xr pthread_kill 3 ,
+.Xr signal 3
+.Sh STANDARDS
+The
+.Fn thr_kill
+and
+.Fn thr_kill2
+system calls are non-standard and are used by the
+.Lb libthr
+to implement
+.St -p1003.1-2001
+.Xr pthread 3
+functionality.

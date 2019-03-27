@@ -1,0 +1,94 @@
+$ $tcsh: set2,v 1.6 2011/02/04 18:19:36 christos Exp $
+$ Signal names
+$set 2
+1 Null signal
+2 Aufgelegt
+3 Unterbrochen
+4 Verlassen
+5 Fehlerhafte Prozessoranweisung
+6 Trace/BPT trap
+7 Abbruch
+8 IOT trap
+9 Systemabsturz steht bevor
+10 Fehlerhaft beendet
+11 EMT trap
+12 Fließkommafehler
+13 Abgebrochen
+14 Benutzersignal 1
+15 Benutzersignal 2
+16 Speicherschutzverletzung
+17 Bus error
+18 Programmbereichsfehler
+19 Operandenbereichsfehler
+20 Falscher Systemaufruf
+21 Ausgabeweitergabe abgebrochen
+22 Alarm clock
+23 Beendet
+24 Kindprozeß hat Zustand geändert
+25 Abbruch eines Kindprozesses
+26 Apollo-spezifischer Fehler
+27 Kindprozeß angehalten oder beendet
+28 Kindprozeß beendet
+29 Stromunterbrechung
+30 Ressource verloren
+31 Unterbrechung (Ctrl-Break)
+32 Mögliches Ein-/Ausgabesignal
+33 Asynchrone I/O (select)
+34 Dringende Anfrage von Ein-/Ausgabekanal
+35 Multitasking wake-up
+36 Multitasking kill
+37 Fortran asynchrones Ein-Ausgabeende
+38 Wiederaufsetzen
+39 Nicht korrigierbarer Speicherfehler
+40 CPU-Zeitbeschränkung überschritten
+41 Systembeendigung absehbar
+42 micro-tasking group-no wakeup flag set
+43 Thread error - (use cord -T for detailed info)
+44 CRAY Y-MP register parity error
+45 Information request
+46 Angehalten (Signal)
+47 Angehalten (Signal)
+48 Angehalten
+49 Angehalten
+50 Fortsetzen
+51 Angehalten (Tty-Eingabe)
+52 Angehalten (Tty-Eingabe)
+53 Angehalten (Tty-Ausgabe)
+54 Angehalten (Tty-Ausgabe)
+55 Fensterzustand hat sich geändert
+56 Fenstergröße hat sich geändert
+57 Phone status changed
+58 CPU-Zeitbeschränkung überschritten
+59 Beschränkung der Dateigröße überschritten
+60 Virtueller Zeitalarm
+61 Profiling time alarm
+62 DIL signal
+63 Pollable event occured
+64 Process's lwps are blocked
+65 Special LWP signal
+66 Special CPR Signal
+67 Special CPR Signal
+68 First Realtime Signal
+69 Second Realtime Signal
+70 Third Realtime Signal
+71 Fourth Realtime Signal
+72 Fourth Last Realtime Signal
+73 Third Last Realtime Signal
+74 Second Last Realtime Signal
+75 Last Realtime Signal
+76 LAN Asyncronous I/O
+77 PTY read/write availability
+78 I/O intervention required
+79 HFT monitor mode granted
+80 HFT monitor mode should be relinguished
+81 HFT sound completed
+82 Data in HFT ring buffer
+83 Migrate process
+84 Secure attention key
+85 Reschedule
+86 Signaling SS$_DEBUG
+87 Priority changed
+88 Echte Verklemmung entdeckt
+89 New input character
+90 Stack limit exceeded
+91 Unused signal

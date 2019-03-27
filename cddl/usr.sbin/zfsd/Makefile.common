@@ -1,0 +1,40 @@
+# $FreeBSD$
+
+SRCS=		callout.cc		\
+		case_file.cc		\
+		zfsd_event.cc		\
+		vdev.cc			\
+		vdev_iterator.cc	\
+		zfsd.cc			\
+		zfsd_exception.cc	\
+		zpool_list.cc		\
+		zfsd_main.cc
+
+WARNS?=		3
+
+# Ignore warnings about Solaris specific pragmas.
+IGNORE_PRAGMA=  YES
+
+INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzpool/common
+INCFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
+INCFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/lib/libumem
+INCFLAGS+= -I${SRCTOP}/sys/cddl/compat/opensolaris
+INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/head
+INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libuutil/common
+INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libumem/common
+INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs_core/common
+INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs/common
+INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libnvpair
+INCFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/common/zfs
+INCFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common
+INCFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
+INCFLAGS+= -I${SRCTOP}/cddl/usr.sbin
+
+CFLAGS= -g -DNEED_SOLARIS_BOOLEAN ${INCFLAGS}
+
+LIBADD+=	devdctl zfs zfs_core util geom bsdxml sbuf nvpair uutil
+
+cscope:
+	find ${.CURDIR} -type f -a \( -name "*.[ch]" -o -name "*.cc" \) \
+	     > ${.CURDIR}/cscope.files
+	cd ${.CURDIR} && cscope -buq ${INCFLAGS}

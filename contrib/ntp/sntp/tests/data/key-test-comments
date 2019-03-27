@@ -1,0 +1,3 @@
+# This is an initial comment, this file should contain 2 keys.
+34 MD5 xyz #This is a comment after an ASCII key.
+10 MD5 010101010101010101010101010101 #Comment after hex key.

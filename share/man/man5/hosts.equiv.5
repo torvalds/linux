@@ -1,0 +1,144 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 25, 2013
+.Dt HOSTS.EQUIV 5
+.Os
+.Sh NAME
+.Nm hosts.equiv ,
+.Nm .rhosts
+.Nd trusted remote host and user name data base
+.Sh DESCRIPTION
+The
+.Nm
+and
+.Nm .rhosts
+files contain information regarding
+trusted hosts and users on the network.
+For each host a single line should be present
+with the following information:
+.Pp
+simple
+.Bd -unfilled -offset indent
+hostname [username]
+.Ed
+.Pp
+or the more verbose
+.Bd -unfilled -offset indent
+[+-][hostname|@netgroup] [[+-][username|@netgroup]]
+.Ed
+.Pp
+A
+.Dq @
+indicates a host by netgroup or user by netgroup.
+A single
+.Dq +
+matches all hosts or users.
+A host name with a leading
+.Dq -
+will reject
+all matching hosts and all their users.
+A user name with leading
+.Dq -
+will reject all matching users from matching hosts.
+.Pp
+Items are separated by any number of blanks and/or
+tab characters.
+A
+.Dq #
+indicates the beginning of
+a comment; characters up to the end of the line are
+not interpreted by routines which search the file.
+.Pp
+Host names are specified in the conventional Internet DNS
+dotted-domains
+.Dq .\&
+(dot) notation using the
+.Xr inet_addr 3
+routine
+from the Internet address manipulation library,
+.Xr inet 3 .
+Host names may contain any printable
+character other than a field delimiter, newline,
+or comment character.
+.Pp
+For security reasons, a user's
+.Nm .rhosts
+file will be ignored if it is not a regular file, or if it
+is not owned by the user, or
+if it is writable by anyone other than the user.
+.Sh FILES
+.Bl -tag -width /etc/hosts.equivxxx -compact
+.It Pa /etc/hosts.equiv
+The
+.Nm
+file resides in
+.Pa /etc .
+.It Pa $HOME/.rhosts
+.Nm .rhosts
+file resides in
+.Pa $HOME .
+.El
+.Sh EXAMPLES
+.Dl bar.com foo
+.Pp
+Trust user
+.Dq foo
+from host
+.Dq bar.com .
+.Pp
+.Dl +@allclient
+.Pp
+Trust all hosts from netgroup
+.Dq allclient .
+.Pp
+.Dl +@allclient -@dau
+.Pp
+Trust all hosts from netgroup
+.Dq allclient
+and their users
+except users from netgroup
+.Dq dau .
+.Sh SEE ALSO
+.Xr rcp 1 ,
+.Xr rlogin 1 ,
+.Xr rsh 1 ,
+.Xr gethostbyname 3 ,
+.Xr inet 3 ,
+.Xr innetgr 3 ,
+.Xr ruserok 3 ,
+.Xr netgroup 5 ,
+.Xr ifconfig 8 ,
+.Xr yp 8
+.Sh BUGS
+This manual page is incomplete.
+For more information read
+the source in
+.Pa src/lib/libc/net/rcmd.c
+or the SunOS manual page.

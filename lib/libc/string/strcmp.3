@@ -1,0 +1,101 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Chris Torek and the American National Standards Committee X3,
+.\" on Information Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)strcmp.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd October 11, 2001
+.Dt STRCMP 3
+.Os
+.Sh NAME
+.Nm strcmp ,
+.Nm strncmp
+.Nd compare strings
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In string.h
+.Ft int
+.Fn strcmp "const char *s1" "const char *s2"
+.Ft int
+.Fn strncmp "const char *s1" "const char *s2" "size_t len"
+.Sh DESCRIPTION
+The
+.Fn strcmp
+and
+.Fn strncmp
+functions
+lexicographically compare the null-terminated strings
+.Fa s1
+and
+.Fa s2 .
+.Pp
+The
+.Fn strncmp
+function
+compares not more than
+.Fa len
+characters.
+Because
+.Fn strncmp
+is designed for comparing strings rather than binary data,
+characters that appear after a
+.Ql \e0
+character are not compared.
+.Sh RETURN VALUES
+The
+.Fn strcmp
+and
+.Fn strncmp
+functions return an integer greater than, equal to, or less than 0, according
+as the string
+.Fa s1
+is greater than, equal to, or less than the string
+.Fa s2 .
+The comparison is done using unsigned characters, so that
+.Ql \e200
+is greater than
+.Ql \e0 .
+.Sh SEE ALSO
+.Xr bcmp 3 ,
+.Xr memcmp 3 ,
+.Xr strcasecmp 3 ,
+.Xr strcoll 3 ,
+.Xr strxfrm 3 ,
+.Xr wcscmp 3
+.Sh STANDARDS
+The
+.Fn strcmp
+and
+.Fn strncmp
+functions
+conform to
+.St -isoC .

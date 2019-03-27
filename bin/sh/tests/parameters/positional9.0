@@ -1,0 +1,18 @@
+# $FreeBSD$
+# Although POSIX leaves the result of expanding ${#@} and ${#*} unspecified,
+# make sure it is at least numeric.
+
+set -- bb cc ddd
+set -f
+lengths=${#*}${#@}"${#*}${#@}"$(echo ${#*}${#@}"${#*}${#@}")
+IFS=
+lengths=$lengths${#*}${#@}"${#*}${#@}"$(echo ${#*}${#@}"${#*}${#@}")
+case $lengths in
+*[!0-9]*)
+	printf 'bad: %s\n' "$lengths"
+	exit 3 ;;
+????????????????*) ;;
+*)
+	printf 'too short: %s\n' "$lengths"
+	exit 3 ;;
+esac

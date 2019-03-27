@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+# Add additional swap files
+#
+# $FreeBSD$
+#
+
+# PROVIDE: addswap
+# REQUIRE: FILESYSTEMS kld
+# BEFORE:  netif
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="addswap"
+start_cmd=":"
+stop_cmd=":"
+rcvar=
+
+set_rcvar_obsolete swapfile
+set_rcvar_obsolete geli_swap_flags
+
+load_rc_config $name
+run_rc_command "$1"

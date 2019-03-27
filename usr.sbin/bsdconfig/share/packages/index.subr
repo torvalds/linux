@@ -1,0 +1,416 @@
+if [ ! "$_PACKAGES_INDEX_SUBR" ]; then _PACKAGES_INDEX_SUBR=1
+#
+# Copyright (c) 2013-2016 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." packages/index.subr
+f_include $BSDCFG_SHARE/device.subr
+f_include $BSDCFG_SHARE/media/common.subr
+f_include $BSDCFG_SHARE/packages/musthavepkg.subr
+f_include $BSDCFG_SHARE/strings.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+############################################################ GLOBALS
+
+PACKAGE_INDEX=
+_INDEX_INITTED=
+
+#
+# Default path to pkg(8) repo-packagesite.sqlite database
+#
+SQLITE_REPO="/var/db/pkg/repo-FreeBSD.sqlite"
+
+#
+# Default path to on-disk cache INDEX file
+#
+PACKAGES_INDEX_CACHEFILE="/var/run/bsdconfig/packages_INDEX.cache"
+
+############################################################ FUNCTIONS
+
+# f_index_initialize [$var_to_set]
+#
+# Read and initialize the global index. Returns success unless media cannot be
+# initialized for any reason (e.g. user cancels media selection dialog or an
+# error occurs). The index is sorted before being loaded into $var_to_set.
+#
+# NOTE: The index is processed with f_index_read() [below] after being loaded.
+#
+f_index_initialize()
+{
+	local __funcname=f_index_initialize
+	local __var_to_set="${1:-PACKAGE_INDEX}"
+
+	[ "$_INDEX_INITTED" ] && return $SUCCESS
+
+	# Got any media?
+	f_media_verify || return $FAILURE
+
+	# Make sure we have a usable pkg(8) with $PKG_ABI
+	f_musthavepkg_init
+
+	# Does it move when you kick it?
+	f_device_init device_media || return $FAILURE
+
+	f_show_info "$msg_attempting_to_update_repository_catalogue"
+
+	#
+	# Generate $PACKAGESITE variable for pkg(8) based on media type
+	#
+	local __type __data __site
+	device_media get type __type
+	device_media get private __data
+	case "$__type" in
+	$DEVICE_TYPE_DIRECTORY)
+		__site="file://$__data/packages/$PKG_ABI" ;;
+	$DEVICE_TYPE_FLOPPY)
+		__site="file://${__data:-$MOUNTPOINT}/packages/$PKG_ABI" ;;
+	$DEVICE_TYPE_FTP)
+		f_getvar $VAR_FTP_PATH __site
+		__site="$__site/packages/$PKG_ABI" ;;
+	$DEVICE_TYPE_HTTP)
+		f_getvar $VAR_HTTP_PATH __site
+		__site="$__site/$PKG_ABI/latest" ;;
+	$DEVICE_TYPE_HTTP_PROXY)
+		f_getvar $VAR_HTTP_PROXY_PATH __site
+		__site="$__site/packages/$PKG_ABI" ;;
+	$DEVICE_TYPE_CDROM)
+		__site="file://$MOUNTPOINT/packages/$PKG_ABI"
+		export REPOS_DIR="$MOUNTPOINT/packages/repos" ;;
+	*) # UFS, DISK, CDROM, USB, DOS, NFS, etc.
+		__site="file://$MOUNTPOINT/packages/$PKG_ABI"
+	esac
+
+	f_dprintf "PACKAGESITE=[%s]" "$__site"
+	if ! f_eval_catch $__funcname pkg \
+		'PACKAGESITE="%s" pkg update' "$__site"
+	then
+		f_show_err "$msg_unable_to_update_pkg_from_selected_media"
+		f_device_shutdown device_media
+		return $FAILURE
+	fi
+
+	#
+	# Try to get contents from validated on-disk cache
+	#
+
+	#
+	# Calculate digest used to determine if the on-disk persistent cache
+	# INDEX (containing this digest on the first line) is valid and can be
+	# used to quickly populate the environment.
+	#
+	local __sqlite_digest
+	if ! __sqlite_digest=$( md5 < "$SQLITE_REPO" 2> /dev/null ); then
+		f_show_err "$msg_no_pkg_database_found"
+		f_device_shutdown device_media
+		return $FAILURE
+	fi
+
+	#
+	# Check to see if the persistent cache INDEX file exists
+	#
+	if [ -f "$PACKAGES_INDEX_CACHEFILE" ]; then
+		#
+		# Attempt to populate the environment with the (soon to be)
+		# validated on-disk cache. If validation fails, fall-back to
+		# generating a fresh cache.
+		#
+		if eval $__var_to_set='$(
+			(	# Get digest as the first word on first line
+				read digest rest_ignored
+
+				#
+				# If the stored digest matches the calculated-
+				# one populate the environment from the on-disk
+				# cache and provide success exit status.
+				#
+				if [ "$digest" = "$__sqlite_digest" ]; then
+					cat
+					exit $SUCCESS
+				else
+					# Otherwise, return the current value
+					eval echo \"\$__var_to_set\"
+					exit $FAILURE
+				fi
+			) < "$PACKAGES_INDEX_CACHEFILE" 2> /dev/null
+		)'; then
+			if ! f_index_read "$__var_to_set"; then
+				f_show_err \
+					"$msg_io_or_format_error_on_index_file"
+				return $FAILURE
+			fi
+			_INDEX_INITTED=1
+			return $SUCCESS
+		fi
+		# Otherwise, fall-thru to create a fresh cache from scratch
+	fi
+
+	#
+	# If we reach this point, we need to generate the data from scratch
+	#
+
+	eval "$__var_to_set"='$( pkg rquery -I | (
+		exec 2<&1; dpv -ko /dev/stderr >&$TERMINAL_STDOUT_PASSTHRU \
+			-b "$DIALOG_BACKTITLE" \
+			-- "$msg_generating_index_from_pkg_database"
+	) | sort )'
+
+	#
+	# Attempt to create the persistent on-disk cache
+	#
+
+	# Create a new temporary file to write to
+	local __tmpfile
+	if f_eval_catch -dk __tmpfile $__funcname mktemp \
+		'mktemp -t "%s"' "$pgm"
+	then
+		# Write the temporary file contents
+		echo "$__sqlite_digest" > "$__tmpfile"
+		debug= f_getvar "$__var_to_set" >> "$__tmpfile"
+
+		# Finally, move the temporary file into place
+		case "$PACKAGES_INDEX_CACHEFILE" in
+		*/*) f_eval_catch -d $__funcname mkdir \
+			'mkdir -p "%s"' "${PACKAGES_INDEX_CACHEFILE%/*}"
+		esac
+		f_eval_catch -d $__funcname mv 'mv -f "%s" "%s"' \
+			"$__tmpfile" "$PACKAGES_INDEX_CACHEFILE"
+	fi
+
+	if ! f_index_read "$__var_to_set"; then
+		f_show_err "$msg_io_or_format_error_on_index_file"
+		return $FAILURE
+	fi
+
+	_INDEX_INITTED=1
+	return $SUCCESS
+}
+
+# f_index_read [$var_to_get]
+#
+# Process the INDEX file (contents contained in $var_to_get) and...
+#
+# 1. create a list ($CATEGORY_MENU_LIST) of categories with package counts
+# 2. For convenience, create $_npkgs holding the total number of all packages
+# 3. extract associative categories for each package into $_categories_$varpkg
+# 4. extract runtime dependencies for each package into $_rundeps_$varpkg
+# 5. extract a [sorted] list of categories into $PACKAGE_CATEGORIES
+# 6. create $_npkgs_$varcat holding the total number of packages in category
+#
+# NOTE: $varpkg is the product of f_str2varname $package varpkg
+# NOTE: $package is the name as it appears in the INDEX (no archive suffix)
+# NOTE: We only show categories for which there are at least one package.
+# NOTE: $varcat is the product of f_str2varname $category varcat
+#
+f_index_read()
+{
+	local var_to_get="${1:-PACKAGE_INDEX}"
+
+	# Export variables required by awk(1) below
+	export msg_no_description_provided
+	export msg_all msg_all_desc
+	export VALID_VARNAME_CHARS
+	export msg_packages
+
+	eval "$( debug= f_getvar "$var_to_get" | awk -F'|' '
+	function _asorti(src, dest)
+	{
+		k = nitems = 0
+
+		# Copy src indices to dest and calculate array length
+		for (i in src) dest[++nitems] = i
+
+		# Sort the array of indices (dest) using insertion sort method
+		for (i = 1; i <= nitems; k = i++)
+		{
+			idx = dest[i]
+			while ((k > 0) && (dest[k] > idx))
+			{
+				dest[k+1] = dest[k]
+				k--
+			}
+			dest[k+1] = idx
+		}
+
+		return nitems
+	}
+	function print_category(category, npkgs, desc)
+	{
+		cat = category
+		# Accent the category if the first page has been
+		# cached (also acting as a visitation indicator)
+		if ( ENVIRON["_index_page_" varcat "_1"] )
+			cat = cat "*"
+		printf "'\''%s'\'' '\''%s " packages "'\'' '\''%s'\''\n",
+		       cat, npkgs, desc
+	}
+	BEGIN {
+		valid_chars = ENVIRON["VALID_VARNAME_CHARS"]
+		default_desc = ENVIRON["msg_no_description_provided"]
+		packages = ENVIRON["msg_packages"]
+		tpkgs = 0
+		prefix = ""
+	}
+	{
+		tpkgs++
+		varpkg = $1
+		gsub("[^" valid_chars "]", "_", varpkg)
+		print "_categories_" varpkg "=\"" $7 "\""
+		split($7, pkg_categories, /[[:space:]]+/)
+		for (pkg_category in pkg_categories)
+			categories[pkg_categories[pkg_category]]++
+		print "_rundeps_" varpkg "=\"" $9 "\""
+	}
+	END {
+		print "_npkgs=" tpkgs # For convenience, total package count
+
+		n = _asorti(categories, categories_sorted)
+
+		# Produce package counts for each category
+		for (i = 1; i <= n; i++)
+		{
+			cat = varcat = categories_sorted[i]
+			npkgs = categories[cat]
+			gsub("[^" valid_chars "]", "_", varcat)
+			print "_npkgs_" varcat "=\"" npkgs "\""
+		}
+
+		# Create menu list and generate list of categories at same time
+		print "CATEGORY_MENU_LIST=\""
+		print_category(ENVIRON["msg_all"], tpkgs,
+		               ENVIRON["msg_all_desc"])
+		category_list = ""
+		for (i = 1; i <= n; i++)
+		{
+			cat = varcat = categories_sorted[i]
+			npkgs = categories[cat]
+			cur_prefix = tolower(substr(cat, 1, 1))
+			if ( prefix != cur_prefix )
+				prefix = cur_prefix
+			else
+				cat = " " cat
+			gsub("[^" valid_chars "]", "_", varcat)
+			desc = ENVIRON["_category_" varcat]
+			if ( ! desc ) desc = default_desc
+			print_category(cat, npkgs, desc)
+			category_list = category_list " " cat
+		}
+		print "\""
+
+		# Produce the list of categories (calculated in above block)
+		sub(/^ /, "", category_list)
+		print "PACKAGE_CATEGORIES=\"" category_list "\""
+
+	}' | ( exec 2<&1; dpv -ko /dev/stderr >&$TERMINAL_STDOUT_PASSTHRU \
+		-b "$DIALOG_BACKTITLE" -- "$msg_reading_package_index_data"
+	) )" # End-Quote
+}
+
+# f_index_extract_pages $var_to_get $var_basename $pagesize [$category]
+#
+# Extracts the package INDEX ($PACKAGE_INDEX by default if/when $var_to_get is
+# NULL; but should not be missing) into a series of sequential variables
+# corresponding to "pages" containing up to $pagesize packages. The package
+# INDEX data must be contained in the variable $var_to_get. The extracted pages
+# are stored in variables ${var_basename}_# -- where "#" is a the page number.
+# If $category is set, only packages for that category are extracted.
+# Otherwise, if $category is "All", missing, or NULL, all packages are
+# extracted and no filtering is done.
+#
+f_index_extract_pages()
+{
+	local var_to_get="${1:-PACKAGE_INDEX}" var_basename="$2" pagesize="$3"
+	local category="$4" # Optional
+
+	eval "$(
+		debug= f_getvar "$var_to_get" | awk -F'|' \
+			-v cat="$category" \
+			-v pagesize="$pagesize" \
+			-v var_basename="$var_basename" \
+			-v i18n_all="$msg_all" '
+		BEGIN { n = page = 0 }
+		/'\''/{ gsub(/'\''/, "'\''\\'\'\''") }
+		{
+			if ( cat !~ "(^$|^" i18n_all "$)" && $7 !~ \
+			     "(^|[[:space:]])" cat "([[:space:]]|$)" ) next
+			starting_new_page = (n++ == (pagesize * page))
+			if ( starting_new_page )
+				printf "%s%s", ( n > 1 ? "'\''\n" : "" ),
+				       var_basename "_" ++page "='\''"
+			printf "%s%s", ( starting_new_page ? "" : "\n" ), $0
+		}
+		END { if ( n > 0 ) print "'\''" }'
+	)"
+}
+
+# f_index_search $var_to_get $name [$var_to_set]
+#
+# Search the package INDEX ($PACKAGE_INDEX by default if/when $var_to_get is
+# NULL; but should not be missing) for $name, returning the first match.
+# Matches are strict (not regular expressions) and must match the beginning
+# portion of the package name to be considered a match. If $var_to_set is
+# missing or NULL, output is sent to standard output. If a match is found,
+# returns success; otherwise failure.
+#
+f_index_search()
+{
+	local __var_to_get="${1:-PACKAGE_INDEX}" __pkg_basename="$2"
+	local __var_to_set="$3"
+
+	f_dprintf "f_index_search: Searching package data (in %s) for %s" \
+	          "$__var_to_get" "$__pkg_basename"
+
+	local __pkg=
+	__pkg=$( debug= f_getvar "$__var_to_get" |
+			awk -F'|' -v basename="$__pkg_basename" '
+		BEGIN { n = length(basename) }
+		substr($1, 0, n) == basename { print $1; exit }
+	' )
+	if [ ! "$__pkg" ]; then
+		f_dprintf "f_index_search: No packages matching %s found" \
+		          "$__pkg_basename"
+		return $FAILURE
+	fi
+
+	f_dprintf "f_index_search: Found package %s" "$__pkg"
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__pkg"
+	else
+		echo "$__pkg"
+	fi
+	return $SUCCESS
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." packages/index.subr
+
+fi # ! $_PACKAGES_INDEX_SUBR

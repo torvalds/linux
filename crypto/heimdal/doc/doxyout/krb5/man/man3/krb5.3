@@ -1,0 +1,1091 @@
+.TH "Heimdal Kerberos 5 library" 3 "11 Jan 2012" "Version 1.5.2" "HeimdalKerberos5library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+krb5 \- Heimdal Kerberos 5 library
+.SH SYNOPSIS
+.in +1c
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_add_et_list\fP (krb5_context context, void(*func)(struct et_list **))"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_set_password\fP (krb5_context context, krb5_creds *creds, const char *newpw, krb5_principal targprinc, int *result_code, krb5_data *result_code_string, krb5_data *result_string)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_init_context\fP (krb5_context *context)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_copy_context\fP (krb5_context context, krb5_context *out)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_free_context\fP (krb5_context context)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_set_config_files\fP (krb5_context context, char **filenames)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_prepend_config_files_default\fP (const char *filelist, char ***pfilenames)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_get_default_config_files\fP (char ***pfilenames)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_free_config_files\fP (char **filenames)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION const krb5_enctype *KRB5_LIB_CALL \fBkrb5_kerberos_enctypes\fP (krb5_context context)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_set_default_in_tkt_etypes\fP (krb5_context context, const krb5_enctype *etypes)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_get_default_in_tkt_etypes\fP (krb5_context context, krb5_pdu pdu_type, krb5_enctype **etypes)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_init_ets\fP (krb5_context context)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_set_use_admin_kdc\fP (krb5_context context, krb5_boolean flag)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL \fBkrb5_get_use_admin_kdc\fP (krb5_context context)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_add_extra_addresses\fP (krb5_context context, krb5_addresses *addresses)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_set_extra_addresses\fP (krb5_context context, const krb5_addresses *addresses)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_get_extra_addresses\fP (krb5_context context, krb5_addresses *addresses)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_add_ignore_addresses\fP (krb5_context context, krb5_addresses *addresses)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_set_ignore_addresses\fP (krb5_context context, const krb5_addresses *addresses)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_get_ignore_addresses\fP (krb5_context context, krb5_addresses *addresses)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_set_fcache_version\fP (krb5_context context, int version)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_get_fcache_version\fP (krb5_context context, int *version)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL \fBkrb5_is_thread_safe\fP (void)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_set_dns_canonicalize_hostname\fP (krb5_context context, krb5_boolean flag)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL \fBkrb5_get_dns_canonicalize_hostname\fP (krb5_context context)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_get_kdc_sec_offset\fP (krb5_context context, int32_t *sec, int32_t *usec)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_set_kdc_sec_offset\fP (krb5_context context, int32_t sec, int32_t usec)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION time_t KRB5_LIB_CALL \fBkrb5_get_max_time_skew\fP (krb5_context context)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_set_max_time_skew\fP (krb5_context context, time_t t)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL \fBkrb5_set_home_dir_access\fP (krb5_context context, krb5_boolean allow)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_copy_host_realm\fP (krb5_context context, const krb5_realm *from, krb5_realm **to)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_free_cred_contents\fP (krb5_context context, krb5_creds *c)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_copy_creds_contents\fP (krb5_context context, const krb5_creds *incred, krb5_creds *c)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_copy_creds\fP (krb5_context context, const krb5_creds *incred, krb5_creds **outcred)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_free_creds\fP (krb5_context context, krb5_creds *c)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL \fBkrb5_compare_creds\fP (krb5_context context, krb5_flags whichfields, const krb5_creds *mcreds, const krb5_creds *creds)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION unsigned long KRB5_LIB_CALL \fBkrb5_creds_get_ticket_flags\fP (krb5_creds *creds)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_data_zero\fP (krb5_data *p)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_data_free\fP (krb5_data *p)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_free_data\fP (krb5_context context, krb5_data *p)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_data_alloc\fP (krb5_data *p, int len)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_data_realloc\fP (krb5_data *p, int len)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_data_copy\fP (krb5_data *p, const void *data, size_t len)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_copy_data\fP (krb5_context context, const krb5_data *indata, krb5_data **outdata)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION int KRB5_LIB_CALL \fBkrb5_data_cmp\fP (const krb5_data *data1, const krb5_data *data2)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION int KRB5_LIB_CALL \fBkrb5_data_ct_cmp\fP (const krb5_data *data1, const krb5_data *data2)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_krbhst_get_addrinfo\fP (krb5_context context, krb5_krbhst_info *host, struct addrinfo **ai)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_free_ticket\fP (krb5_context context, krb5_ticket *ticket)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_copy_ticket\fP (krb5_context context, const krb5_ticket *from, krb5_ticket **to)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ticket_get_client\fP (krb5_context context, const krb5_ticket *ticket, krb5_principal *client)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ticket_get_server\fP (krb5_context context, const krb5_ticket *ticket, krb5_principal *server)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION time_t KRB5_LIB_CALL \fBkrb5_ticket_get_endtime\fP (krb5_context context, const krb5_ticket *ticket)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ticket_get_authorization_data_type\fP (krb5_context context, krb5_ticket *ticket, int type, krb5_data *data)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_set_real_time\fP (krb5_context context, krb5_timestamp sec, int32_t usec)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_add_et_list (krb5_context context, void(*)(struct et_list **) func)"
+.PP
+Add a specified list of error messages to the et list in context. Call func (probably a comerr-generated function) with a pointer to the current et_list.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A kerberos context. 
+.br
+\fIfunc\fP The generated com_err et function.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_add_extra_addresses (krb5_context context, krb5_addresses * addresses)"
+.PP
+Add extra address to the address list that the library will add to the client's address list when communicating with the KDC.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIaddresses\fP addreses to add
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_add_ignore_addresses (krb5_context context, krb5_addresses * addresses)"
+.PP
+Add extra addresses to ignore when fetching addresses from the underlaying operating system.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIaddresses\fP addreses to ignore
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL krb5_compare_creds (krb5_context context, krb5_flags whichfields, const krb5_creds * mcreds, const krb5_creds * creds)"
+.PP
+Return TRUE if `mcreds' and `creds' are equal (`whichfields' determines what equal means).
+.PP
+The following flags, set in whichfields affects the comparison:
+.IP "\(bu" 2
+KRB5_TC_MATCH_SRV_NAMEONLY Consider all realms equal when comparing the service principal.
+.IP "\(bu" 2
+KRB5_TC_MATCH_KEYTYPE Compare enctypes.
+.IP "\(bu" 2
+KRB5_TC_MATCH_FLAGS_EXACT Make sure that the ticket flags are identical.
+.IP "\(bu" 2
+KRB5_TC_MATCH_FLAGS Make sure that all ticket flags set in mcreds are also present in creds .
+.IP "\(bu" 2
+KRB5_TC_MATCH_TIMES_EXACT Compares the ticket times exactly.
+.IP "\(bu" 2
+KRB5_TC_MATCH_TIMES Compares only the expiration times of the creds.
+.IP "\(bu" 2
+KRB5_TC_MATCH_AUTHDATA Compares the authdata fields.
+.IP "\(bu" 2
+KRB5_TC_MATCH_2ND_TKT Compares the second tickets (used by user-to-user authentication).
+.IP "\(bu" 2
+KRB5_TC_MATCH_IS_SKEY Compares the existance of the second ticket.
+.PP
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIwhichfields\fP which fields to compare. 
+.br
+\fImcreds\fP cred to compare with. 
+.br
+\fIcreds\fP cred to compare with.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+return TRUE if mcred and creds are equal, FALSE if not. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_copy_context (krb5_context context, krb5_context * out)"
+.PP
+Make a copy for the Kerberos 5 context, the new krb5_context shoud be freed with \fBkrb5_free_context()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP the Kerberos context to copy 
+.br
+\fIout\fP the copy of the Kerberos, set to NULL error.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_copy_creds (krb5_context context, const krb5_creds * incred, krb5_creds ** outcred)"
+.PP
+Copy krb5_creds.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIincred\fP source credential 
+.br
+\fIoutcred\fP destination credential, free with \fBkrb5_free_creds()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_copy_creds_contents (krb5_context context, const krb5_creds * incred, krb5_creds * c)"
+.PP
+Copy content of krb5_creds.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIincred\fP source credential 
+.br
+\fIc\fP destination credential, free with \fBkrb5_free_cred_contents()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_copy_data (krb5_context context, const krb5_data * indata, krb5_data ** outdata)"
+.PP
+Copy the data into a newly allocated krb5_data.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIindata\fP the krb5_data data to copy 
+.br
+\fIoutdata\fP new krb5_date to copy too. Free with \fBkrb5_free_data()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_copy_host_realm (krb5_context context, const krb5_realm * from, krb5_realm ** to)"
+.PP
+Copy the list of realms from `from' to `to'.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIfrom\fP list of realms to copy from. 
+.br
+\fIto\fP list of realms to copy to, free list of \fBkrb5_free_host_realm()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_copy_ticket (krb5_context context, const krb5_ticket * from, krb5_ticket ** to)"
+.PP
+Copy ticket and content
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Kerberos 5 context 
+.br
+\fIfrom\fP ticket to copy 
+.br
+\fIto\fP new copy of ticket, free with \fBkrb5_free_ticket()\fP
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION unsigned long KRB5_LIB_CALL krb5_creds_get_ticket_flags (krb5_creds * creds)"
+.PP
+Returns the ticket flags for the credentials in creds. See also \fBkrb5_ticket_get_flags()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcreds\fP credential to get ticket flags from
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+ticket flags 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_data_alloc (krb5_data * p, int len)"
+.PP
+Allocate data of and krb5_data.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIp\fP krb5_data to allocate. 
+.br
+\fIlen\fP size to allocate.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION int KRB5_LIB_CALL krb5_data_cmp (const krb5_data * data1, const krb5_data * data2)"
+.PP
+Compare to data.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIdata1\fP krb5_data to compare 
+.br
+\fIdata2\fP krb5_data to compare
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+return the same way as memcmp(), useful when sorting. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_data_copy (krb5_data * p, const void * data, size_t len)"
+.PP
+Copy the data of len into the krb5_data.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIp\fP krb5_data to copy into. 
+.br
+\fIdata\fP data to copy.. 
+.br
+\fIlen\fP new size.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION int KRB5_LIB_CALL krb5_data_ct_cmp (const krb5_data * data1, const krb5_data * data2)"
+.PP
+Compare to data not exposing timing information from the checksum data
+.PP
+\fBParameters:\fP
+.RS 4
+\fIdata1\fP krb5_data to compare 
+.br
+\fIdata2\fP krb5_data to compare
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns zero for same data, otherwise non zero. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_data_free (krb5_data * p)"
+.PP
+Free the content of krb5_data structure, its ok to free a zeroed structure (with memset() or \fBkrb5_data_zero()\fP). When done, the structure will be zeroed. The same function is called \fBkrb5_free_data_contents()\fP in MIT Kerberos.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIp\fP krb5_data to free. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_data_realloc (krb5_data * p, int len)"
+.PP
+Grow (or shrink) the content of krb5_data to a new size.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIp\fP krb5_data to free. 
+.br
+\fIlen\fP new size.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_data_zero (krb5_data * p)"
+.PP
+Reset the (potentially uninitalized) krb5_data structure.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIp\fP krb5_data to reset. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_free_config_files (char ** filenames)"
+.PP
+Free a list of configuration files.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIfilenames\fP list, terminated with a NULL pointer, to be freed. NULL is an valid argument.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_free_context (krb5_context context)"
+.PP
+Frees the krb5_context allocated by \fBkrb5_init_context()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP context to be freed. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_free_cred_contents (krb5_context context, krb5_creds * c)"
+.PP
+Free content of krb5_creds.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIc\fP krb5_creds to free.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_free_creds (krb5_context context, krb5_creds * c)"
+.PP
+Free krb5_creds.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIc\fP krb5_creds to free.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_free_data (krb5_context context, krb5_data * p)"
+.PP
+Free krb5_data (and its content).
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIp\fP krb5_data to free. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_free_ticket (krb5_context context, krb5_ticket * ticket)"
+.PP
+Free ticket and content
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Kerberos 5 context 
+.br
+\fIticket\fP ticket to free
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_get_default_config_files (char *** pfilenames)"
+.PP
+Get the global configuration list.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIpfilenames\fP return array of filenames, should be freed with \fBkrb5_free_config_files()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_get_default_in_tkt_etypes (krb5_context context, krb5_pdu pdu_type, krb5_enctype ** etypes)"
+.PP
+Get the default encryption types that will be use in communcation with the KDC, clients and servers.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIetypes\fP Encryption types, array terminated with ETYPE_NULL(0), caller should free array with krb5_xfree():
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL krb5_get_dns_canonicalize_hostname (krb5_context context)"
+.PP
+Get if the library uses DNS to canonicalize hostnames.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+return non zero if the library uses DNS to canonicalize hostnames. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_get_extra_addresses (krb5_context context, krb5_addresses * addresses)"
+.PP
+Get extra address to the address list that the library will add to the client's address list when communicating with the KDC.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIaddresses\fP addreses to set
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_get_fcache_version (krb5_context context, int * version)"
+.PP
+Get version of fcache that the library should use.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIversion\fP version number.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_get_ignore_addresses (krb5_context context, krb5_addresses * addresses)"
+.PP
+Get extra addresses to ignore when fetching addresses from the underlaying operating system.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIaddresses\fP list addreses ignored
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_get_kdc_sec_offset (krb5_context context, int32_t * sec, int32_t * usec)"
+.PP
+Get current offset in time to the KDC.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIsec\fP seconds part of offset. 
+.br
+\fIusec\fP micro seconds part of offset.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns zero 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION time_t KRB5_LIB_CALL krb5_get_max_time_skew (krb5_context context)"
+.PP
+Get max time skew allowed.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+timeskew in seconds. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL krb5_get_use_admin_kdc (krb5_context context)"
+.PP
+Make the kerberos library default to the admin KDC.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+boolean flag to telling the context will use admin KDC as the default KDC. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_init_context (krb5_context * context)"
+.PP
+Initializes the context structure and reads the configuration file /etc/krb5.conf. The structure should be freed by calling \fBkrb5_free_context()\fP when it is no longer being used.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP pointer to returned context
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an errno code is returned. Failure means either that something bad happened during initialization (typically ENOMEM) or that Kerberos should not be used ENXIO. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_init_ets (krb5_context context)"
+.PP
+Init the built-in ets in the Kerberos library.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP kerberos context to add the ets too 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL krb5_is_thread_safe (void)"
+.PP
+Runtime check if the Kerberos library was complied with thread support.
+.PP
+\fBReturns:\fP
+.RS 4
+TRUE if the library was compiled with thread support, FALSE if not. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION const krb5_enctype* KRB5_LIB_CALL krb5_kerberos_enctypes (krb5_context context)"
+.PP
+Returns the list of Kerberos encryption types sorted in order of most preferred to least preferred encryption type. Note that some encryption types might be disabled, so you need to check with \fBkrb5_enctype_valid()\fP before using the encryption type.
+.PP
+\fBReturns:\fP
+.RS 4
+list of enctypes, terminated with ETYPE_NULL. Its a static array completed into the Kerberos library so the content doesn't need to be freed. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_krbhst_get_addrinfo (krb5_context context, krb5_krbhst_info * host, struct addrinfo ** ai)"
+.PP
+Return an `struct addrinfo *' for a KDC host.
+.PP
+Returns an the struct addrinfo in in that corresponds to the information in `host'. free:ing is handled by krb5_krbhst_free, so the returned ai must not be released. 
+.PP
+First try this as an IP address, this allows us to add a dot at the end to stop using the search domains.
+.PP
+If the hostname contains a dot, assumes it's a FQDN and don't use search domains since that might be painfully slow when machine is disconnected from that network. 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_prepend_config_files_default (const char * filelist, char *** pfilenames)"
+.PP
+Prepend the filename to the global configuration list.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIfilelist\fP a filename to add to the default list of filename 
+.br
+\fIpfilenames\fP return array of filenames, should be freed with \fBkrb5_free_config_files()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_set_config_files (krb5_context context, char ** filenames)"
+.PP
+Reinit the context from a new set of filenames.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP context to add configuration too. 
+.br
+\fIfilenames\fP array of filenames, end of list is indicated with a NULL filename.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_set_default_in_tkt_etypes (krb5_context context, const krb5_enctype * etypes)"
+.PP
+Set the default encryption types that will be use in communcation with the KDC, clients and servers.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIetypes\fP Encryption types, array terminated with ETYPE_NULL (0).
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_set_dns_canonicalize_hostname (krb5_context context, krb5_boolean flag)"
+.PP
+Set if the library should use DNS to canonicalize hostnames.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIflag\fP if its dns canonicalizion is used or not. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_set_extra_addresses (krb5_context context, const krb5_addresses * addresses)"
+.PP
+Set extra address to the address list that the library will add to the client's address list when communicating with the KDC.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIaddresses\fP addreses to set
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_set_fcache_version (krb5_context context, int version)"
+.PP
+Set version of fcache that the library should use.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIversion\fP version number.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL krb5_set_home_dir_access (krb5_context context, krb5_boolean allow)"
+.PP
+Enable and disable home directory access on either the global state or the krb5_context state. By calling \fBkrb5_set_home_dir_access()\fP with context set to NULL, the global state is configured otherwise the state for the krb5_context is modified.
+.PP
+For home directory access to be allowed, both the global state and the krb5_context state have to be allowed.
+.PP
+Administrator (root user), never uses the home directory.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Kerberos 5 context or NULL 
+.br
+\fIallow\fP allow if TRUE home directory 
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the old value 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_set_ignore_addresses (krb5_context context, const krb5_addresses * addresses)"
+.PP
+Set extra addresses to ignore when fetching addresses from the underlaying operating system.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIaddresses\fP addreses to ignore
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_set_kdc_sec_offset (krb5_context context, int32_t sec, int32_t usec)"
+.PP
+Set current offset in time to the KDC.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIsec\fP seconds part of offset. 
+.br
+\fIusec\fP micro seconds part of offset.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns zero 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_set_max_time_skew (krb5_context context, time_t t)"
+.PP
+Set max time skew allowed.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIt\fP timeskew in seconds. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_set_password (krb5_context context, krb5_creds * creds, const char * newpw, krb5_principal targprinc, int * result_code, krb5_data * result_code_string, krb5_data * result_string)"
+.PP
+Change password using creds.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Keberos context 
+.br
+\fIcreds\fP The initial kadmin/passwd for the principal or an admin principal 
+.br
+\fInewpw\fP The new password to set 
+.br
+\fItargprinc\fP if unset, the default principal is used. 
+.br
+\fIresult_code\fP Result code, KRB5_KPASSWD_SUCCESS is when password is changed. 
+.br
+\fIresult_code_string\fP binary message from the server, contains at least the result_code. 
+.br
+\fIresult_string\fP A message from the kpasswd service or the library in human printable form. The string is NUL terminated.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+On sucess and *result_code is KRB5_KPASSWD_SUCCESS, the password is changed.
+.RE
+.PP
+@ 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_set_real_time (krb5_context context, krb5_timestamp sec, int32_t usec)"
+.PP
+Set the absolute time that the caller knows the kdc has so the kerberos library can calculate the relative diffrence beteen the KDC time and local system time.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Keberos 5 context. 
+.br
+\fIsec\fP The applications new of 'now' in seconds 
+.br
+\fIusec\fP The applications new of 'now' in micro seconds
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Kerberos 5 error code, see krb5_get_error_message(). 
+.RE
+.PP
+
+.PP
+If the caller passes in a negative usec, its assumed to be unknown and the function will use the current time usec. 
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_set_use_admin_kdc (krb5_context context, krb5_boolean flag)"
+.PP
+Make the kerberos library default to the admin KDC.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIflag\fP boolean flag to select if the use the admin KDC or not. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ticket_get_authorization_data_type (krb5_context context, krb5_ticket * ticket, int type, krb5_data * data)"
+.PP
+Extract the authorization data type of type from the ticket. Store the field in data. This function is to use for kerberos applications.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Kerberos 5 context 
+.br
+\fIticket\fP Kerberos ticket 
+.br
+\fItype\fP type to fetch 
+.br
+\fIdata\fP returned data, free with \fBkrb5_data_free()\fP 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ticket_get_client (krb5_context context, const krb5_ticket * ticket, krb5_principal * client)"
+.PP
+Return client principal in ticket
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Kerberos 5 context 
+.br
+\fIticket\fP ticket to copy 
+.br
+\fIclient\fP client principal, free with \fBkrb5_free_principal()\fP
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION time_t KRB5_LIB_CALL krb5_ticket_get_endtime (krb5_context context, const krb5_ticket * ticket)"
+.PP
+Return end time of ticket
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Kerberos 5 context 
+.br
+\fIticket\fP ticket to copy
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+end time of ticket 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ticket_get_server (krb5_context context, const krb5_ticket * ticket, krb5_principal * server)"
+.PP
+Return server principal in ticket
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Kerberos 5 context 
+.br
+\fIticket\fP ticket to copy 
+.br
+\fIserver\fP server principal, free with \fBkrb5_free_principal()\fP
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Returns 0 to indicate success. Otherwise an kerberos et error code is returned, see krb5_get_error_message(). 
+.RE
+.PP
+

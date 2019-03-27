@@ -1,0 +1,95 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" Author: Thomas E. Dickey 1996-on
+.\"
+.\" $Id: resizeterm.3x,v 1.17 2013/06/22 20:41:54 tom Exp $
+.TH resizeterm 3X ""
+.SH NAME
+\fBis_term_resized\fR,
+\fBresize_term\fR,
+\fBresizeterm\fR \- change the curses terminal size
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBbool is_term_resized(int lines, int columns);\fR
+.br
+\fBint resize_term(int lines, int columns);\fR
+.br
+\fBint resizeterm(int lines, int columns);\fR
+.SH DESCRIPTION
+This is an extension to the curses library.
+It provides callers with a hook into the \fBncurses\fR data to resize windows,
+primarily for use by programs running in an X Window terminal (e.g., xterm).
+The function \fBresizeterm\fR resizes the standard and current windows
+to the specified dimensions, and adjusts other bookkeeping data used by
+the \fBncurses\fR library that record the window dimensions
+such as the \fBLINES\fP and \fBCOLS\fP variables.
+.LP
+Most of the work is done by the inner function \fBresize_term\fR.
+The outer function \fBresizeterm\fR adds bookkeeping for the SIGWINCH handler.
+When resizing the windows,
+\fBresize_term\fR blank-fills the areas that are extended.
+The calling application should fill in these areas with appropriate data.
+The \fBresize_term\fR function attempts to resize all windows.
+However, due to the calling convention of pads,
+it is not possible to resize these
+without additional interaction with the application.
+.LP
+A support function \fBis_term_resized\fR is provided so that applications
+can check if the \fBresize_term\fR function would modify the window structures.
+It returns TRUE if the windows would be modified, and FALSE otherwise.
+.SH RETURN VALUE
+Except as noted, these functions return
+the integer \fBERR\fR upon failure and \fBOK\fR on success.
+They will fail if either of the dimensions are less than or equal to zero,
+or if an error occurs while (re)allocating memory for the windows.
+.SH NOTES
+While these functions are intended to be used to support a signal handler
+(i.e., for SIGWINCH), care should be taken to avoid invoking them in a
+context where \fBmalloc\fR or \fBrealloc\fR may have been interrupted,
+since it uses those functions.
+.PP
+If ncurses is configured to supply its own SIGWINCH handler,
+the \fBresizeterm\fR function \fBungetch\fP's a \fBKEY_RESIZE\fR which
+will be read on the next call to \fBgetch\fR.
+This is used to alert an application that the screen size has changed,
+and that it should repaint special features such as pads that cannot
+be done automatically.
+.PP
+If the environment variables \fBLINES\fP or \fBCOLUMNS\fP are set,
+this overrides the library's use of the window size obtained from
+the operating system.
+Thus, even if a SIGWINCH is received,
+no screen size change may be recorded.
+.SH SEE ALSO
+\fBcurs_getch\fR(3X),
+\fBcurs_variables\fR(3X),
+\fBwresize\fR(3X).
+.SH AUTHOR
+Thomas Dickey (from an equivalent function written in 1988 for BSD curses).

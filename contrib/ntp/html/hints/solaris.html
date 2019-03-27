@@ -1,0 +1,236 @@
+<HTML>
+<HEAD>
+<TITLE>Solaris hints and kinks</title><link href="scripts/style.css" type="text/css" rel="stylesheet">
+
+</HEAD>
+<BODY>
+Information on compiling and executing ntpd under Solaris.
+<BR>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->27-Jan-2014  05:31<!-- #EndDate -->
+  UTC,
+John Hawkinson,
+<! -- This is deliberately not a mailto -- > &lt;jhawk@MIT.EDU&gt;
+</p>
+<P>
+If you're not running Solaris 2.5.1 or later, it is likely
+that you will have problems; upgrading would be a really good plan.
+<P>
+<H3>All Solaris versions</H3>
+<P>
+      We have a report that says starting with Solaris 2.6 we should leave
+      <I>dosynctodr</I> alone.
+      <A HREF="solaris-dosynctodr.html">Here is the report</A>.
+<P>
+Proper operation of ntp under Solaris may require setting the kernel
+variable <I>dosynctodr</I> to zero (meaning "do not synchronize the clock
+to the hardware time-of-day clock").  This can be done with the
+tickadj utility:
+<BLOCKQUOTE><TT>
+tickadj -s
+</TT></BLOCKQUOTE>
+If you prefer, it can also be done with the native Solaris kernel debugger:
+<BLOCKQUOTE><TT>
+echo dosynctodr/W0 | adb -k -w /dev/ksyms /dev/mem
+</BLOCKQUOTE></TT>
+<P>
+Or, it can also be set by adding a line to /etc/system:
+<BLOCKQUOTE><TT>
+set dosynctodr = 0
+</BLOCKQUOTE></TT>
+<P>
+Instead of the <I>tick</I> kernel variable, which many operating
+systems use to control microseconds added to the system time every
+clock tick (c.f. <A HREF="#frequency_tolerance">Dealing
+with Frequency Tolerance Violations</A>), Solaris has the variables
+<I>nsec_per_tick</I> and <I>usec_per_tick</I>.
+<P>
+<I>nsec_per_tick</I> and <I>usec_per_tick</I> control the number of
+nanoseconds and microseconds, respectively, added to the system clock
+each clock interrupt. Enterprising souls may set these based on
+information collected by ntpd in the <CODE>/etc/ntp.drift</CODE> file
+to correct for individual hardware variations.
+<P>
+On UltraSPARC systems, <I>nsec_per_tick</I> and <I>usec_per_tick</I>
+are ignored in favor of the <I>cpu_tick_freq</I> variable, which
+should be automatically be determined by the PROM in an accurate
+fashion.
+<P>
+In general, the same ntp binaries should not be used across multiple
+operating system releases. There is enough variation in the core operating
+system support for timekeeping that a rebuild of ntpd for the idiosyncracies
+of your specific operating system version is advisable.
+<P>
+It is recommended that ntp be started via a script like <A
+HREF="solaris.xtra.S99ntpd">this one</A>, installed in
+<CODE>/etc/init.d/ntpd</CODE> with a symbol link from
+<CODE>/etc/rc2.d/S99ntpd</CODE>.
+
+<a id="frequency_tolerance" />
+<h4>Dealing with Frequency Tolerance Violations (<tt>tickadj</tt> and
+Friends)</h4>
+    The NTP Version 3 specification RFC-1305 calls for a maximum
+    oscillator frequency tolerance of +-100 parts-per-million (PPM), which is
+representative of those components suitable for use in relatively
+inexpensive workstation platforms. For those platforms meeting this
+tolerance, NTP will automatically compensate for the frequency errors of the
+individual oscillator and no further adjustments are required, either to the
+configuration file or to various kernel variables. For the NTP Version 4
+release, this tolerance has been increased to +-500 PPM.  <p>However, in the
+case of certain notorious platforms, in particular Sun 4.1.1 systems, the
+performance can be improved by adjusting the values of certain kernel
+variables; in particular, <tt>tick</tt> and <tt>tickadj</tt>.  The variable
+<tt>tick</tt> is the increment in microseconds added to the system time on
+each interval- timer interrupt, while the variable <tt>tickadj</tt> is used
+by the time adjustment code as a slew rate, in microseconds per tick. When
+the time is being adjusted via a call to the system routine
+<tt>adjtime()</tt>, the kernel increases or reduces tick by <tt>tickadj</tt>
+microseconds per tick until the specified adjustment has been
+completed. Unfortunately, in most Unix implementations the tick increment
+must be either zero or plus/minus exactly <tt>tickadj</tt> microseconds,
+meaning that adjustments are truncated to be an integral multiple of
+<tt>tickadj</tt> (this latter behaviour is a misfeature, and is the only
+reason the <tt>tickadj</tt> code needs to concern itself with the internal
+implementation of <tt>tickadj</tt> at all). In addition, the stock Unix
+implementation considers it an error to request another adjustment before a
+prior one has completed.</p> <p>Thus, to make very sure it avoids problems
+related to the roundoff, the <tt>tickadj</tt> program can be used to adjust
+the values of <tt>tick</tt> and <tt>tickadj</tt>. This ensures that all
+adjustments given to <tt>adjtime()</tt> are an even multiple of
+<tt>tickadj</tt> microseconds and computes the largest adjustment that can
+be completed in the adjustment interval (using both the value of
+<tt>tick</tt> and the value of <tt>tickadj</tt>) so it can avoid exceeding
+this limit. It is important to note that not all systems will allow
+inspection or modification of kernel variables other than at system build
+time. It is also important to know that, with the current NTP tolerances, it
+is rarely necessary to make these changes, but in many cases they will
+substantially improve the general accuracy of the time service.</p>
+<p>Unfortunately, the value of <tt>tickadj</tt> set by default is almost
+always too large for <tt>ntpd</tt>. NTP operates by continuously making
+small adjustments to the clock, usually at one-second intervals. If
+<tt>tickaj</tt> is set too large, the adjustments will disappear in the
+roundoff; while, if <tt>tickadj</tt> is too small, NTP will have difficulty
+if it needs to make an occasional large adjustment. While the daemon itself
+will read the kernel's values of these variables, it will not change the
+values, even if they are unsuitable. You must do this yourself before the
+daemon is started using the <tt>tickadj</tt> program included in the
+<tt>./util</tt> directory of the distribution. Note that the latter program
+will also compute an optimal value of <tt>tickadj</tt> for NTP use based on
+the kernel's value of <tt>tick</tt>.</p> <p>The <tt>tickadj</tt> program can
+reset several other kernel variables if asked. It can change the value of
+<tt>tick</tt> if asked. This is handy to compensate for kernel bugs which
+cause the clock to run with a very large frequency error, as with SunOS
+4.1.1 systems. It can also be used to set the value of the kernel
+<tt>dosynctodr</tt> variable to zero. This variable controls whether to
+synchronize the system clock to the time-of-day clock, something you really
+don't want to be happen when <tt>ntpd</tt> is trying to keep it under
+control. In some systems, such as recent Sun Solaris kernels, the
+<tt>dosynctodr</tt > variable is the only one that can be changed by the
+<tt>tickadj</tt> program.  In this and other modern kernels, it is not
+necessary to change the other variables in any case.</p>
+
+<p>We have a report that says starting with Solaris 2.6 we should leave
+<i>dosynctodr</i> alone.</p> <p>In order to maintain reasonable correctness
+bounds, as well as reasonably good accuracy with acceptable polling
+intervals, <tt>ntpd</tt> will complain if the frequency error is greater
+than 500 PPM. For machines with a value of <tt>tick</tt> in the 10-ms range,
+a change of one in the value of <tt>tick</tt> will change the frequency by
+about 100 PPM. In order to determine the value of <tt>tick</tt> for a
+particular CPU, disconnect the machine from all source s of time
+(<tt>dosynctodr</tt> = 0) and record its actual time compared to an outside
+source (eyeball-and-wristwatch will do) over a day or more. Multiply the
+time change over the day by 0.116 and add or subtract the result to tick,
+depending on whether the CPU is fast or slow. An example call to
+<tt>tickadj</tt> useful on SunOS 4.1.1 is:</p>
+                <pre>
+     <tt>tickadj</tt> -t 9999 -a 5 -s
+</pre>
+which sets tick 100 PPM fast, <tt>tickadj</tt> to 5 microseconds and turns
+off the clock/calendar chip fiddle. This line can be added to the <tt
+>rc.local</tt> configuration file to automatically set the kernel variables
+at boot time.  <p>All this stuff about diddling kernel variables so the NTP
+daemon will work is really silly. If vendors would ship machines with clocks
+that kept reasonable time and would make their <tt>adjtime()</tt> system
+call apply the slew it is given exactly, independent of the value of
+<tt>tickadj</tt>, all this could go away. This is in fact the case on many
+current Unix systems.</p>
+
+<H3>Solaris 2.6</H3>
+<P>
+Solaris 2.6 adds support for kernel PLL timekeeping, but breaks this
+support in such a fashion that using it worse than not. This is <A
+HREF="solaris.xtra.4095849"> SUN Bug ID 4095849</A>, and it is not yet
+fixed as of June 1998.
+<P>
+<H3>Solaris 2.5 and 2.5.1</H3>
+<P>
+On UltraSPARC systems, calculation of <I>cpu_tick_freq</I> is broken
+such that values that are off by significant amounts may be used
+instead. This unfortunately means that ntpd may have severe problems
+keeping synchronization. This is <A HREF="solaris.xtra.4023118"> SUN Bug ID
+4023118</A>. Bryan Cantrill <! -- &lt;bmc@eng.sun.com&gt; --> of Sun
+posted <A HREF="solaris.xtra.patchfreq">patchfreq</A>, a workaround script,
+to comp.protocols.time.ntp in March of 1997.
+<P>
+<HR>
+<H2>OLD DATA</H2>
+<STRONG>I can't vouch for the accuracy the information below this
+rule. It may be significantly dated or incorrect.</STRONG>
+<P>
+<P>
+<H3>Solaris 2.2</H3>
+<P>
+Solaris 2.2 and later contain completely re-written clock code to
+provide high resolution microsecond timers. A benefit of the
+re-written clock code is that adjtime does not round off its
+adjustments, so ntp does not have to compensate for this
+rounding. Under Solaris 2.2 and later, ntp #define's
+<CODE>ADJTIME_IS_ACCURATE</CODE>, and does not look for the <I>tickadj</I>
+kernel variable.
+<P>
+<H3>Solaris 2.1</H3>
+(This originally written by William L. Jones &lt;jones@chpc.utexas.edu&gt;)
+<P>
+Solaris 2.1 contains fairly traditional clock code, with <I>tick</I>
+and <I>tickadj</I>.
+<P>
+Since settimeofday under Solaris 2.1 only sets the seconds part of timeval
+care must be used in starting xntpd.  I suggest the following start
+up script:
+<BLOCKQUOTE><TT>
+tickadj -s -a 1000
+<BR>ntpdate -v server1 server2
+<BR>sleep 20
+<BR>ntpdate -v server1 server2
+<BR>sleep 20
+<BR>tickadj -a 200
+<BR>xntpd
+</TT></BLOCKQUOTE>
+
+The first tickadj turns of the time of day clock and sets the tick
+adjust value to 1 millisecond.  This will insure that an adjtime value
+of at most 2 seconds will complete in 20 seconds.
+<P>
+The first ntpdate will set the time to within two seconds 
+using settimeofday or it will adjust time using adjtime.
+<P>
+The first sleep insures the adjtime has completed for the first ntpdate.
+<P>
+The second ntpdate will use adjtime to set the time of day since the
+clock should be within 2 seconds of the correct time.
+<P>
+The second tickadj set the tick adjust system value to 5 microseconds.
+<P>
+The second sleeps insure that adjtime will complete before starting 
+the next xntpd.
+<P>
+I tried running with a tickadj of 5 microseconds with out much success.
+200 microseconds seems to work well.  
+<P>
+<HR>
+Prior versions of this file had major text contributed by:
+<MENU>
+<LI>Denny Gentry &lt;denny@eng.sun.com&gt;
+</MENU>
+<BODY>
+</HTML>

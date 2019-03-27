@@ -1,0 +1,127 @@
+.\"	$FreeBSD$
+.\"
+.TH IPFS 8
+.SH NAME
+ipfs \- saves and restores information for NAT and state tables.
+.SH SYNOPSIS
+.B ipfs
+[-nv] -l
+.PP
+.B ipfs
+[-nv] -u
+.PP
+.B ipfs
+[-nv] [
+.B \-d
+<\fIdirname\fP>
+] -R
+.PP
+.B ipfs
+[-nv] [
+.B \-d
+<\fIdirname\fP>
+] -W
+.PP
+.B ipfs
+[-nNSv] [
+.B \-f
+<\fIfilename\fP>
+] -r
+.PP
+.B ipfs
+[-nNSv] [
+.B \-f
+<\fIfilename\fP>
+] -w
+.PP
+.B ipfs
+[-nNSv]
+.B \-f
+<\fIfilename\fP>
+.B \-i
+<if1>,<if2>
+.SH DESCRIPTION
+.PP
+\fBipfs\fP allows state information created for NAT entries and rules using
+\fIkeep state\fP to be locked (modification prevented) and then saved to disk,
+allowing for the system to experience a reboot, followed by the restoration
+of that information, resulting in connections not being interrupted.
+.SH OPTIONS
+.TP
+.B \-d
+Change the default directory used with
+.B \-R
+and
+.B \-W
+options for saving state information.
+.TP
+.B \-n
+Don't actually take any action that would affect information stored in
+the kernel or on disk.
+.TP
+.B \-v
+Provides a verbose description of what's being done.
+.TP
+.B \-i <ifname1>,<ifname2>
+Change all instances of interface name ifname1 in the state save file to
+ifname2.  Useful if you're restoring state information after a hardware
+reconfiguration or change.
+.TP
+.B \-N
+Operate on NAT information.
+.TP
+.B \-S
+Operate on filtering state information.
+.TP
+.B \-u
+Unlock state tables in the kernel.
+.TP
+.B \-l
+Lock state tables in the kernel.
+.TP
+.B \-r
+Read information in from the specified file and load it into the
+kernel.  This requires the state tables to have already been locked
+and does not change the lock once complete.
+.TP
+.B \-w
+Write information out to the specified file and from the kernel.
+This requires the state tables to have already been locked
+and does not change the lock once complete.
+.TP
+.B \-R
+Restores all saved state information, if any, from two files,
+\fIipstate.ipf\fP and \fIipnat.ipf\fP, stored in the \fI/var/db/ipf\fP
+directory unless otherwise specified by the
+.B \-d
+option.  The state tables are locked at the beginning of this
+operation and unlocked once complete.
+.TP
+.B \-W
+Saves in-kernel state information, if any, out to two files,
+\fIipstate.ipf\fP and \fIipnat.ipf\fP, stored in the \fI/var/db/ipf\fP
+directory unless otherwise specified by the
+.B \-d
+option.  The state tables are locked at the beginning of this
+operation and unlocked once complete.
+.DT
+.SH FILES
+/var/db/ipf/ipstate.ipf
+.br
+/var/db/ipf/ipnat.ipf
+.br
+/dev/ipl
+.br
+/dev/ipstate
+.br
+/dev/ipnat
+.SH SEE ALSO
+ipf(8), ipl(4), ipmon(8), ipnat(8)
+.SH DIAGNOSTICS
+.PP
+Perhaps the -W and -R operations should set the locking but rather than
+undo it, restore it to what it was previously.  Fragment table information
+is currently not saved.
+.SH BUGS
+.PP
+If you find any, please send email to me at darrenr@pobox.com

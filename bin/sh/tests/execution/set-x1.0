@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+key='must_contain_this'
+{ r=`set -x; { : "$key"; } 2>&1 >/dev/null`; } 2>/dev/null
+case $r in
+*"$key"*) true ;;
+*) false ;;
+esac

@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+{
+	trap '' garbage && exit 3
+	trap - garbage && exit 3
+	trap true garbage && exit 3
+	trap '' 99999 && exit 3
+	trap - 99999 && exit 3
+	trap true 99999 && exit 3
+} 2>/dev/null
+exit 0

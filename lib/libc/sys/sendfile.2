@@ -1,0 +1,433 @@
+.\" Copyright (c) 2003, David G. Lawrence
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice unmodified, this list of conditions, and the following
+.\"    disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 15, 2019
+.Dt SENDFILE 2
+.Os
+.Sh NAME
+.Nm sendfile
+.Nd send a file to a socket
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In sys/uio.h
+.Ft int
+.Fo sendfile
+.Fa "int fd" "int s" "off_t offset" "size_t nbytes"
+.Fa "struct sf_hdtr *hdtr" "off_t *sbytes" "int flags"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn sendfile
+system call
+sends a regular file or shared memory object specified by descriptor
+.Fa fd
+out a stream socket specified by descriptor
+.Fa s .
+.Pp
+The
+.Fa offset
+argument specifies where to begin in the file.
+Should
+.Fa offset
+fall beyond the end of file, the system will return
+success and report 0 bytes sent as described below.
+The
+.Fa nbytes
+argument specifies how many bytes of the file should be sent, with 0 having the special
+meaning of send until the end of file has been reached.
+.Pp
+An optional header and/or trailer can be sent before and after the file data by specifying
+a pointer to a
+.Vt "struct sf_hdtr" ,
+which has the following structure:
+.Pp
+.Bd -literal -offset indent -compact
+struct sf_hdtr {
+	struct iovec *headers;	/* pointer to header iovecs */
+	int hdr_cnt;		/* number of header iovecs */
+	struct iovec *trailers;	/* pointer to trailer iovecs */
+	int trl_cnt;		/* number of trailer iovecs */
+};
+.Ed
+.Pp
+The
+.Fa headers
+and
+.Fa trailers
+pointers, if
+.Pf non- Dv NULL ,
+point to arrays of
+.Vt "struct iovec"
+structures.
+See the
+.Fn writev
+system call for information on the iovec structure.
+The number of iovecs in these
+arrays is specified by
+.Fa hdr_cnt
+and
+.Fa trl_cnt .
+.Pp
+If
+.Pf non- Dv NULL ,
+the system will write the total number of bytes sent on the socket to the
+variable pointed to by
+.Fa sbytes .
+.Pp
+The least significant 16 bits of
+.Fa flags
+argument is a bitmap of these values:
+.Bl -tag -offset indent -width "SF_USER_READAHEAD"
+.It Dv SF_NODISKIO
+This flag causes
+.Nm
+to return
+.Er EBUSY
+instead of blocking when a busy page is encountered.
+This rare situation can happen if some other process is now working
+with the same region of the file.
+It is advised to retry the operation after a short period.
+.Pp
+Note that in older
+.Fx
+versions the
+.Dv SF_NODISKIO
+had slightly different notion.
+The flag prevented
+.Nm
+to run I/O operations in case if an invalid (not cached) page is encountered,
+thus avoiding blocking on I/O.
+Starting with
+.Fx 11
+.Nm
+sending files off the
+.Xr ffs 7
+filesystem does not block on I/O
+(see
+.Sx IMPLEMENTATION NOTES
+), so the condition no longer applies.
+However, it is safe if an application utilizes
+.Dv SF_NODISKIO
+and on
+.Er EBUSY
+performs the same action as it did in
+older
+.Fx
+versions, e.g.,
+.Xr aio_read 2 ,
+.Xr read 2
+or
+.Nm
+in a different context.
+.It Dv SF_NOCACHE
+The data sent to socket will not be cached by the virtual memory system,
+and will be freed directly to the pool of free pages.
+.It Dv SF_SYNC
+.Nm
+sleeps until the network stack no longer references the VM pages
+of the file, making subsequent modifications to it safe.
+Please note that this is not a guarantee that the data has actually
+been sent.
+.It Dv SF_USER_READAHEAD
+.Nm
+has some internal heuristics to do readahead when sending data.
+This flag forces
+.Nm
+to override any heuristically calculated readahead and use exactly the
+application specified readahead.
+See
+.Sx SETTING READAHEAD
+for more details on readahead.
+.El
+.Pp
+When using a socket marked for non-blocking I/O,
+.Fn sendfile
+may send fewer bytes than requested.
+In this case, the number of bytes successfully
+written is returned in
+.Fa *sbytes
+(if specified),
+and the error
+.Er EAGAIN
+is returned.
+.Sh SETTING READAHEAD
+.Nm
+uses internal heuristics based on request size and file system layout
+to do readahead.
+Additionally application may request extra readahead.
+The most significant 16 bits of
+.Fa flags
+specify amount of pages that
+.Nm
+may read ahead when reading the file.
+A macro
+.Fn SF_FLAGS
+is provided to combine readahead amount and flags.
+An example showing specifying readahead of 16 pages and
+.Dv SF_NOCACHE
+flag:
+.Pp
+.Bd -literal -offset indent -compact
+	SF_FLAGS(16, SF_NOCACHE)
+.Ed
+.Pp
+.Nm
+will use either application specified readahead or internally calculated,
+whichever is bigger.
+Setting flag
+.Dv SF_USER_READAHEAD
+would turn off any heuristics and set maximum possible readahead length to
+the number of pages specified via flags.
+.Sh IMPLEMENTATION NOTES
+The
+.Fx
+implementation of
+.Fn sendfile
+does not block on disk I/O when it sends a file off the
+.Xr ffs 7
+filesystem.
+The syscall returns success before the actual I/O completes, and data
+is put into the socket later unattended.
+However, the order of data in the socket is preserved, so it is safe
+to do further writes to the socket.
+.Pp
+The
+.Fx
+implementation of
+.Fn sendfile
+is "zero-copy", meaning that it has been optimized so that copying of the file data is avoided.
+.Sh TUNING
+.Ss physical paging buffers
+.Fn sendfile
+uses vnode pager to read file pages into memory.
+The pager uses a pool of physical buffers to run its I/O operations.
+When system runs out of pbufs, sendfile will block and report state
+.Dq Li zonelimit .
+Size of the pool can be tuned with
+.Va vm.vnode_pbufs
+.Xr loader.conf 5
+tunable and can be checked with
+.Xr sysctl 8
+OID of the same name at runtime.
+.Ss sendfile(2) buffers
+On some architectures, this system call internally uses a special
+.Fn sendfile
+buffer
+.Pq Vt "struct sf_buf"
+to handle sending file data to the client.
+If the sending socket is
+blocking, and there are not enough
+.Fn sendfile
+buffers available,
+.Fn sendfile
+will block and report a state of
+.Dq Li sfbufa .
+If the sending socket is non-blocking and there are not enough
+.Fn sendfile
+buffers available, the call will block and wait for the
+necessary buffers to become available before finishing the call.
+.Pp
+The number of
+.Vt sf_buf Ns 's
+allocated should be proportional to the number of nmbclusters used to
+send data to a client via
+.Fn sendfile .
+Tune accordingly to avoid blocking!
+Busy installations that make extensive use of
+.Fn sendfile
+may want to increase these values to be inline with their
+.Va kern.ipc.nmbclusters
+(see
+.Xr tuning 7
+for details).
+.Pp
+The number of
+.Fn sendfile
+buffers available is determined at boot time by either the
+.Va kern.ipc.nsfbufs
+.Xr loader.conf 5
+variable or the
+.Dv NSFBUFS
+kernel configuration tunable.
+The number of
+.Fn sendfile
+buffers scales with
+.Va kern.maxusers .
+The
+.Va kern.ipc.nsfbufsused
+and
+.Va kern.ipc.nsfbufspeak
+read-only
+.Xr sysctl 8
+variables show current and peak
+.Fn sendfile
+buffers usage respectively.
+These values may also be viewed through
+.Nm netstat Fl m .
+.Pp
+If
+.Xr sysctl 8
+OID
+.Va kern.ipc.nsfbufs
+doesn't exist, your architecture does not need to use
+.Fn sendfile
+buffers because their task can be efficiently performed
+by the generic virtual memory structures.
+.Sh RETURN VALUES
+.Rv -std sendfile
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The socket is marked for non-blocking I/O and not all data was sent due to
+the socket buffer being filled.
+If specified, the number of bytes successfully sent will be returned in
+.Fa *sbytes .
+.It Bq Er EBADF
+The
+.Fa fd
+argument
+is not a valid file descriptor.
+.It Bq Er EBADF
+The
+.Fa s
+argument
+is not a valid socket descriptor.
+.It Bq Er EBUSY
+A busy page was encountered and
+.Dv SF_NODISKIO
+had been specified.
+Partial data may have been sent.
+.It Bq Er EFAULT
+An invalid address was specified for an argument.
+.It Bq Er EINTR
+A signal interrupted
+.Fn sendfile
+before it could be completed.
+If specified, the number
+of bytes successfully sent will be returned in
+.Fa *sbytes .
+.It Bq Er EINVAL
+The
+.Fa fd
+argument
+is not a regular file.
+.It Bq Er EINVAL
+The
+.Fa s
+argument
+is not a SOCK_STREAM type socket.
+.It Bq Er EINVAL
+The
+.Fa offset
+argument
+is negative.
+.It Bq Er EIO
+An error occurred while reading from
+.Fa fd .
+.It Bq Er ENOTCAPABLE
+The
+.Fa fd
+or the
+.Fa s
+argument has insufficient rights.
+.It Bq Er ENOBUFS
+The system was unable to allocate an internal buffer.
+.It Bq Er ENOTCONN
+The
+.Fa s
+argument
+points to an unconnected socket.
+.It Bq Er ENOTSOCK
+The
+.Fa s
+argument
+is not a socket.
+.It Bq Er EOPNOTSUPP
+The file system for descriptor
+.Fa fd
+does not support
+.Fn sendfile .
+.It Bq Er EPIPE
+The socket peer has closed the connection.
+.El
+.Sh SEE ALSO
+.Xr loader.conf 5 ,
+.Xr netstat 1 ,
+.Xr open 2 ,
+.Xr send 2 ,
+.Xr socket 2 ,
+.Xr writev 2 ,
+.Xr sysctl 8 ,
+.Xr tuning 7
+.Rs
+.%A K. Elmeleegy
+.%A A. Chanda
+.%A A. L. Cox
+.%A W. Zwaenepoel
+.%T A Portable Kernel Abstraction for Low-Overhead Ephemeral Mapping Management
+.%J The Proceedings of the 2005 USENIX Annual Technical Conference
+.%P pp 223-236
+.%D 2005
+.Re
+.Sh HISTORY
+The
+.Fn sendfile
+system call
+first appeared in
+.Fx 3.0 .
+This manual page first appeared in
+.Fx 3.1 .
+In
+.Fx 10
+support for sending shared memory descriptors had been introduced.
+In
+.Fx 11
+a non-blocking implementation had been introduced.
+.Sh AUTHORS
+The initial implementation of
+.Fn sendfile
+system call
+and this manual page were written by
+.An David G. Lawrence Aq Mt dg@dglawrence.com .
+The
+.Fx 11
+implementation was written by
+.An Gleb Smirnoff Aq Mt glebius@FreeBSD.org .
+.Sh BUGS
+The
+.Fn sendfile
+system call will not fail, i.e., return
+.Dv -1
+and set
+.Va errno
+to
+.Er EFAULT ,
+if provided an invalid address for
+.Fa sbytes .

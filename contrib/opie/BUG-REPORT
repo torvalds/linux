@@ -1,0 +1,85 @@
+OPIE Software Distribution, Release 2.4                      Bug Reporting Form
+=======================================                      ==================
+
+	Before submitting a bug report, please check the README file and make
+sure that your "bug" is not a known problem.
+
+	Please make a copy of this file and then edit it with your favorite
+text editor (NOT a word processor; the end result needs to be reasonable ASCII
+text) to include the answers to the following questions:
+
+1. Your name and electronic mail address, in case we need more information.
+	If you can provide multiple addresses, please do so in case we
+	are unable to reply to the first one.
+
+2. Your exact operating system vendor, name, and version number. If available,
+        please provide the output of "uname -a" and/or the version of your C
+        runtime library. Please be more specific than "UNIX".
+
+3. The exact hardware the system was installed upon.
+
+4. Which compiler and C runtime you used and its version number.
+	For instance, some systems have been known to have the GNU libc
+	installed as well as its native one, or to have a "BSD
+	compatibility" environment.
+
+5. What version of OPIE you are using (the output of opiepasswd -v) and,
+	if you used the Autoconf install, a copy of the config.h, config.log,
+	and Makefile that Autoconf created.
+
+6. A clear description of what you did and what bug then appeared.
+	If your system has the script(1) command, please run a session
+	under that to demonstrate the bug. Window-system cut-and-paste
+	also works well. Sometimes, the exact output is critical to
+	finding the bug.
+
+If you can provide any of the following things, it will greatly assist
+us in fixing the problem and improve the chances that we'll get back to you:
+
+7. A diagnosis of what is causing the problem.
+
+8. A test case that can repeatably demonstrate the problem.
+
+9. A fix for the problem.
+
+	Bug reports should be sent by Internet electronic mail to 
+<opie-bugs@inner.net>. This mail is run through an automated sorter that helps
+get the bug report into the hands of someone who can help you. In order to
+make that program work, we ask that you:
+
+	* Send this is normal RFC822 plain text or MIME text/plain.
+
+	* DO NOT send this or any other file as an "attachment" from
+	  your mailer.
+
+	* DO NOT send a copy of your bug report to ANYONE other than
+	  <opie-bugs@inner.net>. This includes listing more than one recipient
+          or sending it as a carbon-copy ("Cc:") to someone else.
+
+	* DO NOT send a copy of your bug report directly to the
+	  authors or to any mailing lists. This really makes the
+	  authors angry, and will be interpreted as a request to not
+	  provide you with any help.
+
+	* DO NOT re-send bug reports because you didn't receive a
+	  response. We attempt to respond to ALL properly submitted
+	  bug reports. If we can't send mail back to you or you
+	  didn't bother to follow the directions for submitting a
+	  bug report, you won't receive a response.
+
+	While OPIE is NOT a supported program, we generally try to respond
+to all properly submitted bug reports as soon as we can. If your bug report
+is properly submitted so our machine sorter can process it, this usually
+takes one working day. If our machine sorter can't process your bug report,
+it usually takes a week or two.
+
+Copyright
+=========
+
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
+Reserved. The Inner Net License Version 2 applies to these portions of
+the software.
+You should have received a copy of the license with this software. If
+you didn't get a copy, you may request one from <license@inner.net>.
+

@@ -1,0 +1,44 @@
+
+#------------------------------------------------------------------------------
+# $File: msooxml,v 1.8 2018/05/24 18:11:17 christos Exp $
+# msooxml:  file(1) magic for Microsoft Office XML
+# From: Ralf Brown <ralf.brown@gmail.com>
+
+# .docx, .pptx, and .xlsx are XML plus other files inside a ZIP
+#   archive.  The first member file is normally "[Content_Types].xml".
+#   but some libreoffice generated files put this later. Perhaps skip
+#   the "[Content_Types].xml" test?
+# Since MSOOXML doesn't have anything like the uncompressed "mimetype"
+#   file of ePub or OpenDocument, we'll have to scan for a filename
+#   which can distinguish between the three types
+
+0		name		msooxml
+>0		string		word/		Microsoft Word 2007+
+!:mime application/vnd.openxmlformats-officedocument.wordprocessingml.document
+>0		string		ppt/		Microsoft PowerPoint 2007+
+!:mime application/vnd.openxmlformats-officedocument.presentationml.presentation
+>0		string		xl/		Microsoft Excel 2007+
+!:mime application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+
+# start by checking for ZIP local file header signature
+0		string		PK\003\004
+!:strength +10
+# make sure the first file is correct
+>0x1E		use		msooxml
+>0x1E		regex		\\[Content_Types\\]\\.xml|_rels/\\.rels
+# skip to the second local file header
+# since some documents include a 520-byte extra field following the file
+# header, we need to scan for the next header
+>>(18.l+49)	search/2000	PK\003\004
+# now skip to the *third* local file header; again, we need to scan due to a
+# 520-byte extra field following the file header
+>>>&26		search/1000	PK\003\004
+# and check the subdirectory name to determine which type of OOXML
+# file we have.  Correct the mimetype with the registered ones:
+# http://technet.microsoft.com/en-us/library/cc179224.aspx
+>>>>&26		use		msooxml	
+>>>>&26		default		x
+# OpenOffice/Libreoffice orders ZIP entry differently, so check the 4th file
+>>>>>&26	search/1000	PK\003\004
+>>>>>>&26	use		msooxml	
+>>>>>>&26	default		x		Microsoft OOXML

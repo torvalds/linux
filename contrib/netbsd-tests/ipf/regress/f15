@@ -1,0 +1,8 @@
+block in log quick on hme0 from any to 195.134.65.0/25 head 10
+block return-rst in log quick proto tcp all flags S head 100 group 10
+pass in quick proto tcp from any to any port = 22 keep state group 100
+pass in quick proto tcp from any to any port = 23 keep state group 100
+pass in quick proto tcp from any to any port = 21 keep state group 100
+block return-icmp in quick proto udp all keep state head 110 group 10
+pass in quick proto udp from any to any port = 53 keep state group 110
+block in log quick on hme0 from any to any

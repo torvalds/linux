@@ -1,0 +1,56 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: nfsd
+# REQUIRE: mountcritremote mountd hostname gssd nfsuserd
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="nfsd"
+desc="Remote NFS server"
+rcvar="nfs_server_enable"
+command="/usr/sbin/${name}"
+nfs_server_vhost=""
+
+load_rc_config $name
+start_precmd="nfsd_precmd"
+sig_stop="USR1"
+
+nfsd_precmd()
+{
+	local	_vhost
+	rc_flags="${nfs_server_flags}"
+
+	# Load the modules now, so that the vfs.nfsd sysctl
+	# oids are available.
+	load_kld nfsd
+
+	if checkyesno nfs_reserved_port_only; then
+		echo 'NFS on reserved port only=YES'
+		sysctl vfs.nfsd.nfs_privport=1 > /dev/null
+	else
+		sysctl vfs.nfsd.nfs_privport=0 > /dev/null
+	fi
+
+	if checkyesno nfs_server_managegids; then
+		force_depend nfsuserd || err 1 "Cannot run nfsuserd"
+	fi
+
+	if checkyesno nfsv4_server_enable; then
+		sysctl vfs.nfsd.server_max_nfsvers=4 > /dev/null
+	else
+		echo 'NFSv4 is disabled'
+		sysctl vfs.nfsd.server_max_nfsvers=3 > /dev/null
+	fi
+
+	force_depend rpcbind || return 1
+	force_depend mountd || return 1
+	if [ -n "${nfs_server_vhost}" ]; then
+		command_args="-V \"${nfs_server_vhost}\""
+	fi
+}
+
+run_rc_command "$1"

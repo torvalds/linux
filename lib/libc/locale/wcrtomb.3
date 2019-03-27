@@ -1,0 +1,123 @@
+.\" Copyright (c) 2002-2004 Tim J. Robbins
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 21, 2013
+.Dt WCRTOMB 3
+.Os
+.Sh NAME
+.Nm wcrtomb ,
+.Nm c16rtomb ,
+.Nm c32rtomb
+.Nd "convert a wide-character code to a character (restartable)"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In wchar.h
+.Ft size_t
+.Fn wcrtomb "char * restrict s" "wchar_t c" "mbstate_t * restrict ps"
+.In uchar.h
+.Ft size_t
+.Fn c16rtomb "char * restrict s" "char16_t c" "mbstate_t * restrict ps"
+.Ft size_t
+.Fn c32rtomb "char * restrict s" "char32_t c" "mbstate_t * restrict ps"
+.Sh DESCRIPTION
+The
+.Fn wcrtomb ,
+.Fn c16rtomb
+and
+.Fn c32rtomb
+functions store a multibyte sequence representing the
+wide character
+.Fa c ,
+including any necessary shift sequences, to the
+character array
+.Fa s ,
+storing a maximum of
+.Dv MB_CUR_MAX
+bytes.
+.Pp
+If
+.Fa s
+is
+.Dv NULL ,
+these functions behave as if
+.Fa s
+pointed to an internal buffer and
+.Fa c
+was a null wide character (L'\e0').
+.Pp
+The
+.Ft mbstate_t
+argument,
+.Fa ps ,
+is used to keep track of the shift state.
+If it is
+.Dv NULL ,
+these functions use an internal, static
+.Vt mbstate_t
+object, which is initialized to the initial conversion state
+at program startup.
+.Pp
+As certain multibyte characters may only be represented by a series of
+16-bit characters, the
+.Fn c16rtomb
+may need to invoked multiple times before a multibyte sequence is
+returned.
+.Sh RETURN VALUES
+These functions return the length (in bytes) of the multibyte sequence
+needed to represent
+.Fa c ,
+or
+.Po Vt size_t Pc Ns \-1
+if
+.Fa c
+is not a valid wide character code.
+.Sh ERRORS
+The
+.Fn wcrtomb ,
+.Fn c16rtomb
+and
+.Fn c32rtomb
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EILSEQ
+An invalid wide character code was specified.
+.It Bq Er EINVAL
+The conversion state is invalid.
+.El
+.Sh SEE ALSO
+.Xr mbrtowc 3 ,
+.Xr multibyte 3 ,
+.Xr setlocale 3 ,
+.Xr wctomb 3
+.Sh STANDARDS
+The
+.Fn wcrtomb ,
+.Fn c16rtomb
+and
+.Fn c32rtomb
+functions conform to
+.St -isoC-2011 .

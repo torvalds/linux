@@ -1,0 +1,238 @@
+This file lists people who have contributed to tcpdump:
+
+The current maintainers:
+    Bill Fenner                   <fenner at research dot att dot com>
+    Denis Ovsienko                <denis at ovsienko dot info>
+    Fulvio Risso                  <risso at polito dot it>
+    Guy Harris                    <guy at alum dot mit dot edu>
+    Hannes Gredler                <hannes at gredler dot at>
+    Michael Richardson            <mcr at sandelman dot ottawa dot on dot ca>
+    Francois-Xavier Le Bail       <fx dot lebail at yahoo dot com>
+
+Additional people who have contributed patches:
+
+    Aaron Campbell                <aaron at arbor dot net>
+    A Costa                       <agcosta at gis dot net>
+    Albert Chin                   <china at thewrittenword dot com>
+    Alexandra Kossovsky           <alexandra1975 at sourceforge dot net>
+    Alfredo Andres                <aandres at s21sec dot com>
+    Ananth Suryanarayana          <anantha at juniper dot net>
+    Andrea Bittau                 <a dot bittau at cs dot ucl dot ac dot uk>
+    Andrew Brown                  <atatat at atatdot dot net>
+    Andrew Church                 <andrew at users dot sourceforge dot net>
+    Andrew Darqui                 <andrew dot darqui at gmail dot com>
+    Andrew Hintz                  <adhintz at users dot sourceforge dot net>
+    Andrew Nording                <andrew at nording dot ru>
+    Andrew Tridgell               <tridge at linuxcare dot com>
+    Andy Heffernan                <ahh at juniper dot net>
+    Anton Bernal                  <anton at juniper dot net>
+    Antonin Décimo                <antonin dot decimo at gmail dot com>
+    Arkadiusz Miskiewicz          <misiek at pld dot org dot pl>
+    Armando L. Caro Jr.           <acaro at mail dot eecis dot udel dot edu>
+    Arnaldo Carvalho de Melo      <acme at ghostprotocols dot net>
+    Atsushi Onoe                  <onoe at netbsd dot org>
+    Baptiste Jonglez              <baptiste dot jonglez at ens-lyon dot org>
+    Ben Byer                      <bushing at sourceforge dot net>
+    Ben Smithurst                 <ben at scientia dot demon dot co dot uk>
+    Bert Vermeulen                <bert at biot dot com>
+    Bill Parker                   <wp02855 at gmail dot com>
+    Bjoern A. Zeeb                <bzeeb at Zabbadoz dot NeT>
+    Bram                          <tcpdump at mail dot wizbit dot be>
+    Brent L. Bates                <blbates at vigyan dot com>
+    Brian Carpenter               <brian dot carpenter at gmail dot com>
+    Brian Ginsbach                <ginsbach at cray dot com>
+    Bruce M. Simpson              <bms at spc dot org>
+    Carles Kishimoto Bisbe        <ckishimo at ac dot upc dot es>
+    Charles M. Hannum             <mycroft at netbsd dot org>
+    Charlie Lenahan               <clenahan at fortresstech dot com>
+    Chris Cogdon                  <chris at cogdon dot org>
+    Chris G. Demetriou            <cgd at netbsd dot org>
+    Chris Jepeway                 <jepeway at blasted-heath dot com>
+    Chris Larson                  <clarson at kergoth dot com>
+    Christian Sievers             <c_s at users dot sourceforge dot net>
+    Christophe Rhodes             <csr21 at cantab dot net>
+    Cliff Frey                    <cliff at meraki dot com>
+    Craig Rodrigues               <rodrigc at mediaone dot net>
+    Crist J. Clark                <cjclark at alum dot mit dot edu>
+    Daniel Hagerty                <hag at ai dot mit dot edu>
+    Daniel Lee                    <Longinus00 at gmail dot com>
+    Darren Reed                   <darrenr at reed dot wattle dot id dot au>
+    David Binderman               <d dot binderman at virgin dot net>
+    David Horn                    <dhorn2000 at gmail dot com>
+    David Smith                   <dsmith at redhat dot com>
+    David Young                   <dyoung at ojctech dot com>
+    Dmitrij Tejblum               <tejblum at yandex-team dot ru>
+    Dmitry Eremin-Solenikov       <dbaryshkov at gmail dot com>
+    Don Ebright                   <Don dot Ebright at compuware dot com>
+    Eddie Kohler                  <xexd at sourceforge dot net>
+    Elmar Kirchner                <elmar at juniper dot net>
+    Fang Wang                     <fangwang at sourceforge dot net>
+    Florent Drouin                <Florent dot Drouin at alcatel-lucent dot fr>
+    Florian Forster               <octo at verplant dot org>
+    fra                           <foo at bar dot baz>
+    Francesco Fondelli            <francesco dot fondelli at gmail dot com>
+    Francisco Matias Cuenca-Acuna <mcuenca at george dot rutgers dot edu>
+    Francis Dupont                <Francis dot Dupont at enst-bretagne dot fr>
+    Frank Volf                    <volf at oasis dot IAEhv dot nl>
+    Fulvio Risso                  <risso at polito dot it>
+    George Bakos                  <gbakos at ists dot dartmouth dot edu>
+    Gerald Combs                  <gerald at ethereal dot com>
+    Gerrit Renker                 <gerrit at erg dot abdn dot ac dot uk>
+    Gert Doering                  <gert at greenie dot muc dot de>
+    Gilbert Ramirez Jr.           <gram at xiexie dot org>
+    Gisle Vanem                   <gvanem at yahoo dot no>
+    Greg Minshall                 <minshall at acm dot org>
+    Grégoire Henry                <henry at pps dot jussieu dot fr>
+    Gregory Detal                 <gregory dot detal at uclouvain dot be>
+    Greg Stark                    <gsstark at mit dot edu>
+    Hank Leininger                <tcpdump-workers at progressive-comp dot com>
+    Hannes Viertel                <hviertel at juniper dot net>
+    Hanno Böck                    <hanno at hboeck dot de>
+    Harry Raaymakers              <harryr at connect dot com dot au>
+    Heinz-Ado Arnolds             <Ado dot Arnolds at dhm-systems dot de>
+    Hendrik Scholz                <hendrik at scholz dot net>
+    Herwin Weststrate             <herwin at quarantainenet dot nl>
+    Ian McDonald                  <imcdnzl at gmail dot com>
+    Ilpo Järvinen                 <ilpo dot jarvinen at helsinki dot fi>
+    Jacek Tobiasz                 <Jacek dot Tobiasz at atm dot com dot pl>
+    Jakob Schlyter                <jakob at openbsd dot org>
+    Jamal Hadi Salim              <hadi at cyberus dot ca>
+    Jan Oravec                    <wsx at wsx6 dot net>
+    Jason R. Thorpe               <thorpej at netbsd dot org>
+    Jefferson Ogata               <jogata at nodc dot noaa dot gov>
+    Jeffrey Hutzelman             <jhutz at cmu dot edu>
+    Jean-Raphaël Gaglione         <jr dot gaglione at yahoo dot fr>
+    Jesper Peterson               <jesper at endace dot com>
+    Jesse Gross                   <jesse at nicira dot com>
+    Jim Hutchins                  <jim at ca dot sandia dot gov>
+    João Medeiros                 <ignotus21 at sourceforge dot net>
+    Joerg Mayer                   <jmayer at loplof dot de>
+    Jonathan Heusser              <jonny at drugphish dot ch>
+    Jorge Boncompte [DTI2]        <jorge at dti2 dot net>
+    Jørgen Thomsen                <jth at jth dot net>
+    Julian Cowley                 <julian at lava dot net>
+    Juliusz Chroboczek            <jch at pps dot jussieu dot fr>
+    Kaarthik Sivakumar            <kaarthik at torrentnet dot com>
+    Kaladhar Musunuru             <kaladharm at sourceforge dot net>
+    Kamil Frankowicz              <kontakt at frankowicz dot me>
+    Karl Norby                    <karl-norby at sourceforge dot net>
+    Kazushi Sugyo                 <sugyo at pb dot jp dot nec dot com>
+    Kelly Carmichael              <kcarmich at ipapp dot com>
+    Ken Hornstein                 <kenh at cmf dot nrl dot navy dot mil>
+    Kenichi Maehashi              <webmaster at kenichimaehashi dot com>
+    Kevin Steves                  <stevesk at pobox dot com>
+    Klaus Klein                   <kleink at reziprozitaet dot de>
+    Kris Kennaway                 <kris at freebsd dot org>
+    Krzysztof Halasa              <khc at pm dot waw dot pl>
+    Larry Lile                    <lile at stdio dot com>
+    Lennert Buytenhek             <buytenh at gnu dot org>
+    Loganaden Velvindron          <logan at elandsys dot com>
+    Loris Degioanni               <loris at netgroup-serv dot polito dot it>
+    Love Hörnquist-Åstrand        <lha at stacken dot kth dot se>
+    Lucas C. Villa Real           <lucasvr at us dot ibm dot com>
+    Luis MartinGarcia             <luis dot mgarc at gmail dot com>
+    Maciej W. Rozycki             <macro at ds2 dot pg dot gda dot pl>
+    Manu Pathak                   <mapathak at cisco dot com>
+    Marc Abramowitz               <marc at marc-abramowitz dot com>
+    Marc A. Lehmann               <pcg at goof dot com>
+    Marc Binderberger             <mbind at sourceforge dot net>
+    Mark Ellzey Thomas            <mark at ackers dot net>
+    Marko Kiiskila                <carnil at cs dot tut dot fi>
+    Markus Schöpflin              <schoepflin at sourceforge dot net>
+    Marshall Rose                 <mrose at dbc dot mtview dot ca dot us>
+    Martin Husemann               <martin at netbsd dot org>
+    Matthieu Boutier              <boutier at pps dot univ-paris-diderot dot fr>
+    Max Laier                     <max at love2party dot net>
+    Michael A. Meffie III         <meffie at sourceforge dot net>
+    Michael Madore                <mmadore at turbolinux dot com>
+    Michael Riepe                 <too-tired at sourceforge dot net>
+    Michael Shalayeff             <mickey at openbsd dot org>
+    Michael Shields               <shields at msrl dot com>
+    Michael T. Stolarchuk         <mts at off dot to>
+    Michal Sekletar               <msekleta at redhat dot com>
+    Michele "mydecay" Marchetto   <smarchetto1 at tin dot it>
+    Mike Frysinger                <vapier at gmail dot com>
+    Minto Jeyananth               <minto at juniper dot net>
+    Monroe Williams               <monroe at pobox dot com>
+    Motonori Shindo               <mshindo at mshindo dot net>
+    Nathaniel Couper-Noles        <Nathaniel at isi1 dot tccisi dot com>
+    Nathan J. Williams            <nathanw at MIT dot EDU>
+    Neil T. Spring                <bluehal at users dot sourceforge dot net>
+    Nickolai Zeldovich            <kolya at MIT dot EDU>
+    Nicolas Ferrero               <toorop at babylo dot net>
+    Niels Provos                  <provos at openbsd dot org>
+    Noritoshi Demizu              <demizu at users dot sourceforge dot net>
+    Olaf Kirch                    <okir at caldera dot de>
+    Ola Martin Lykkja             <ola dot lykkja at q-free dot com>
+    Oleksij Rempel                <linux at rempel-privat dot de>
+    Onno van der Linden           <onno at simplex dot nl>
+    Paolo Abeni                   <paolo dot abeni at email dot it>
+    Pascal Hennequin              <pascal dot hennequin at int-evry dot fr>
+    Pasvorn Boonmark              <boonmark at juniper dot net>
+    Patrik Lundquist              <patrik dot lundquist at gmail dot com>
+    Paul Ferrell                  <pflarr at sourceforge dot net>
+    Paul Mundt                    <lethal at linux-sh dot org>
+    Paul S. Traina                <pst at freebsd dot org>
+    Pavlin Radoslavov             <pavlin at icir dot org>
+    Pawel Worach                  <pawel dot worach at gmail dot com>
+    Pekka Savola                  <pekkas at netcore dot fi>
+    Petar Alilovic                <petar dot alilovic at gmail dot com>
+    Peter Fales                   <peter at fales-lorenz dot net>
+    Peter Jeremy                  <peter dot jeremy at alcatel dot com dot au>
+    Peter Volkov                  <pva at gentoo dot org>
+                                  <pfhunt at users dot sourceforge dot net>
+    Phil Wood                     <cpw at lanl dot gov>
+    Rafal Maszkowski              <rzm at icm dot edu dot pl>
+    Randy Sofia                   <rsofia at users dot sourceforge dot net>
+    Raphael Raimbault             <raphael dot raimbault at netasq dot com>
+    Rick Cheng                    <rcheng at juniper dot net>
+    Rick Jones                    <rick dot jones2 at hp dot com>
+    Rick Watson                   <watsonrick at users dot sourceforge dot net>
+    Rob Braun                     <bbraun at synack dot net>
+    Robert Edmonds                <stu-42 at sourceforge dot net>
+    Roderick Schertler            <roderick at argon dot org>
+    Romain Francoise              <rfrancoise at debian dot org>
+    Ruben Kerkhof                 <ruben at rubenkerkhof dot com>
+    Sagun Shakya                  <sagun dot shakya at sun dot com>
+    Sami Farin                    <safari at iki dot fi>
+    Scott Mcmillan                <scott dot a dot mcmillan at intel dot com>
+    Scott Rose                    <syberpunk at users dot sourceforge dot net>
+    Sebastian Krahmer             <krahmer at cs dot uni-potsdam dot de>
+    Sebastien Raveau              <sebastien dot raveau at epita dot fr>
+    Sebastien Vincent             <svincent at idems dot fr>
+    Sepherosa Ziehau              <sepherosa at gmail dot com>
+    Seth Webster                  <swebster at sst dot ll dot mit dot edu>
+    Shinsuke Suzuki               <suz at kame dot net>
+    Simon Ruderich                <simon at ruderich dot org>
+    Steinar Haug                  <sthaug at nethelp dot no>
+    Stephane Bortzmeyer           <stephane+github at bortzmeyer dot org>
+    Swaminathan Chandrasekaran    <chander at juniper dot net>
+    Swaathi Vetrivel              <swaathiv at juniper dot net>
+    Takashi Yamamoto              <yamt at mwd dot biglobe dot ne dot jp>
+    Tatuya Jinmei                 <jinmei at kame dot net>
+    Terry Kennedy                 <terry at tmk dot com>
+    Thomas Jacob                  <jacob at internet24 dot de>
+    Timo Koskiahde
+    Tony Li                       <tli at procket dot com>
+    Toshihiro Kanda               <candy at fct dot kgc dot co dot jp>
+    Udayakumar                    <udaya011 at gmail dot com>
+    Uns Lider                     <unslider at miranda dot org>
+    Victor Oppleman               <oppleman at users dot sourceforge dot net>
+    Vyacheslav Trushkin           <dogonthesun at gmail dot com>
+    Weesan Lee                    <weesan at juniper dot net>
+    Wesley Griffin                <wgriffin at users dot sourceforge dot net>
+    Wesley Shields                <wxs at FreeBSD dot org>
+    Wilbert de Graaf              <wilbertdg at hetnet dot nl>
+    Will Drewry                   <will at alum dot bu dot edu>
+    William J. Hulley             <bill dot hulley at gmail dot com>
+    Wim Torfs                     <wtorfs at gmail dot com>
+    Yen Yen Lim
+    Yoshifumi Nishida
+
+The original LBL crew:
+    Steve McCanne
+    Craig Leres
+    Van Jacobson
+
+Past maintainers:
+    Jun-ichiro itojun Hagino         <itojun at iijlab dot net>		Also see: http://www.wide.ad.jp/itojun-award/

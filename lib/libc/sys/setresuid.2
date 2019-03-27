@@ -1,0 +1,94 @@
+.\" Copyright (c) 2000
+.\"      Sheldon Hearn.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 7, 2015
+.Dt SETRESUID 2
+.Os
+.Sh NAME
+.Nm getresgid ,
+.Nm getresuid ,
+.Nm setresgid ,
+.Nm setresuid
+.Nd "get or set real, effective and saved user or group ID"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In unistd.h
+.Ft int
+.Fn getresgid "gid_t *rgid" "gid_t *egid" "gid_t *sgid"
+.Ft int
+.Fn getresuid "uid_t *ruid" "uid_t *euid" "uid_t *suid"
+.Ft int
+.Fn setresgid "gid_t rgid" "gid_t egid" "gid_t sgid"
+.Ft int
+.Fn setresuid "uid_t ruid" "uid_t euid" "uid_t suid"
+.Sh DESCRIPTION
+The
+.Fn setresuid
+system call sets the real,
+effective and saved user IDs of the current process.
+The analogous
+.Fn setresgid
+sets the real, effective and saved group IDs.
+.Pp
+Privileged processes may set these IDs
+to arbitrary values.
+Unprivileged processes are restricted
+in that each of the new IDs must match one of the current IDs.
+.Pp
+Passing -1 as an argument causes the corresponding value
+to remain unchanged.
+.Pp
+The
+.Fn getresgid
+and
+.Fn getresuid
+calls retrieve the real, effective, and saved group and user IDs of
+the current process, respectively.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EPERM
+The calling process was not privileged
+and tried to change one or more IDs to a value
+which was not the current real ID, the current effective ID
+nor the current saved ID.
+.It Bq Er EFAULT
+An address passed to
+.Fn getresgid
+or
+.Fn getresuid
+was invalid.
+.El
+.Sh SEE ALSO
+.Xr getegid 2 ,
+.Xr geteuid 2 ,
+.Xr getgid 2 ,
+.Xr getuid 2 ,
+.Xr issetugid 2 ,
+.Xr setgid 2 ,
+.Xr setregid 2 ,
+.Xr setreuid 2 ,
+.Xr setuid 2
+.Sh HISTORY
+These functions first appeared in HP-UX.

@@ -1,0 +1,622 @@
+/*
+ * Copyright (c) 2012 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * This software was developed by Semihalf under sponsorship from
+ * the FreeBSD Foundation.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * Freescale i.MX515 Device Tree Source.
+ *
+ * $FreeBSD$
+ */
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		soc = &SOC;
+	};
+
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "ARM,MCIMX515";
+			reg = <0x0>;
+			d-cache-line-size = <32>;
+			i-cache-line-size = <32>;
+			d-cache-size = <0x8000>;
+			i-cache-size = <0x8000>;
+			/* TODO: describe L2 cache also */
+			timebase-frequency = <0>;
+			bus-frequency = <0>;
+			clock-frequency = <0>;
+		};
+	};
+
+	localbus@e0000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* This reflects CPU decode windows setup. */
+		ranges;
+
+		tzic: tz-interrupt-controller@e0000000 {
+			compatible = "fsl,imx51-tzic", "fsl,tzic";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0xe0000000 0x00004000>;
+		};
+		/*
+		 * 60000000 60000FFF 4K Debug ROM
+		 * 60001000 60001FFF 4K ETB
+		 * 60002000 60002FFF 4K ETM
+		 * 60003000 60003FFF 4K TPIU
+		 * 60004000 60004FFF 4K CTI0
+		 * 60005000 60005FFF 4K CTI1
+		 * 60006000 60006FFF 4K CTI2
+		 * 60007000 60007FFF 4K CTI3
+		 * 60008000 60008FFF 4K Cortex Debug Unit
+		 *
+		 * E0000000 E0003FFF 0x4000 TZIC
+		 */
+	};
+
+	SOC: soc@70000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+    		interrupt-parent = <&tzic>;
+		ranges = <0x70000000 0x70000000 0x14000000>;
+
+		aips@70000000 { /* AIPS1 */
+			compatible = "fsl,aips-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			interrupt-parent = <&tzic>;
+			ranges;
+
+			/* Required by many devices, so better to stay first */
+			/* 73FD4000 0x4000 CCM */
+			clock@73fd4000 {
+				compatible = "fsl,imx51-ccm";
+			/* 83F80000 0x4000 DPLLIP1 */
+			/* 83F84000 0x4000 DPLLIP2 */
+			/* 83F88000 0x4000 DPLLIP3 */
+				reg = <0x73fd4000 0x4000
+					0x83F80000 0x4000
+					0x83F84000 0x4000
+					0x83F88000 0x4000>;
+				interrupt-parent = <&tzic>;
+				interrupts = <71 72>;
+				status = "disabled";
+			};
+
+			/*
+			 * GPIO modules moved up - to have it attached for
+			 * drivers which rely on GPIO
+			 */
+			/* 73F84000 0x4000 GPIO1 */
+			gpio1: gpio@73f84000 {
+				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+				reg = <0x73f84000 0x4000>;
+				interrupt-parent = <&tzic>;
+				interrupts = <50 51 42 43 44 45 46 47 48 49>;
+				/* TODO: use <> also */
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+			};
+
+			/* 73F88000 0x4000 GPIO2 */
+			gpio2: gpio@73f88000 {
+				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+				reg = <0x73f88000 0x4000>;
+				interrupt-parent = <&tzic>;
+				interrupts = <52 53>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+			};
+
+			/* 73F8C000 0x4000 GPIO3 */
+			gpio3: gpio@73f8c000 {
+				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+				reg = <0x73f8c000 0x4000>;
+				interrupt-parent = <&tzic>;
+				interrupts = <54 55>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+			};
+
+			/* 73F90000 0x4000 GPIO4 */
+			gpio4: gpio@73f90000 {
+				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+				reg = <0x73f90000 0x4000>;
+				interrupt-parent = <&tzic>;
+				interrupts = <56 57>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+			};
+
+			spba@70000000 {
+				compatible = "fsl,spba-bus", "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				interrupt-parent = <&tzic>;
+				ranges;
+
+				/* 70004000 0x4000 ESDHC 1 */
+				esdhc@70004000 {
+					compatible = "fsl,imx51-esdhc";
+					reg = <0x70004000 0x4000>;
+					interrupt-parent = <&tzic>; interrupts = <1>;
+					status = "disabled";
+				};
+
+				/* 70008000 0x4000 ESDHC 2 */
+				esdhc@70008000 {
+					compatible = "fsl,imx51-esdhc";
+					reg = <0x70008000 0x4000>;
+					interrupt-parent = <&tzic>; interrupts = <2>;
+					status = "disabled";
+				};
+
+				/* 7000C000 0x4000 UART 3 */
+				uart3: serial@7000c000 {
+					compatible = "fsl,imx51-uart", "fsl,imx-uart";
+					reg = <0x7000c000 0x4000>;
+					interrupt-parent = <&tzic>; interrupts = <33>;
+					status = "disabled";
+				};
+
+				/* 70010000 0x4000 eCSPI1 */
+				ecspi@70010000 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					compatible = "fsl,imx51-ecspi";
+					reg = <0x70010000 0x4000>;
+					interrupt-parent = <&tzic>; interrupts = <36>;
+					status = "disabled";
+				};
+
+				/* 70014000 0x4000 SSI2 irq30 */
+				SSI2: ssi@70014000 {
+					compatible = "fsl,imx51-ssi";
+					reg = <0x70014000 0x4000>;
+					interrupt-parent = <&tzic>; interrupts = <30>;
+					status = "disabled";
+				};
+
+				/* 70020000 0x4000 ESDHC 3 */
+				esdhc@70020000 {
+					compatible = "fsl,imx51-esdhc";
+					reg = <0x70020000 0x4000>;
+					interrupt-parent = <&tzic>; interrupts = <3>;
+					status = "disabled";
+				};
+
+				/* 70024000 0x4000 ESDHC 4 */
+				esdhc@70024000 {
+					compatible = "fsl,imx51-esdhc";
+					reg = <0x70024000 0x4000>;
+					interrupt-parent = <&tzic>; interrupts = <4>;
+					status = "disabled";
+				};
+
+				/* 70028000 0x4000 SPDIF */
+				    /* 91 SPDIF */
+
+				/* 70030000 0x4000 PATA (PORT UDMA) irq70 */
+
+				/* 70034000 0x4000 SLM */
+				/* 70038000 0x4000 HSI2C */ /* 64 HS-I2C */
+				/* 7003C000 0x4000 SPBA */
+			};
+
+			usbphy0: usbphy@0 {
+				compatible = "usb-nop-xceiv";
+				status = "okay";
+			};
+
+			usbotg: usb@73f80000 {
+				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
+				reg = <0x73f80000 0x0200>;
+				interrupts = <18>;
+				fsl,usbmisc = <&usbmisc 0>;
+				fsl,usbphy = <&usbphy0>;
+				status = "disabled";
+			};
+
+			usbh1: usb@73f80200 {
+				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
+				reg = <0x73f80200 0x0200>;
+				interrupts = <14>;
+				fsl,usbmisc = <&usbmisc 1>;
+				status = "disabled";
+			};
+
+			usbh2: usb@73f80400 {
+				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
+				reg = <0x73f80400 0x0200>;
+				interrupts = <16>;
+				fsl,usbmisc = <&usbmisc 2>;
+				status = "disabled";
+			};
+
+			usbh3: usb@73f80600 {
+				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
+				reg = <0x73f80600 0x0200>;
+				interrupts = <17>;
+				fsl,usbmisc = <&usbmisc 3>;
+				status = "disabled";
+			};
+
+			usbmisc: usbmisc@73f80800 {
+				#index-cells = <1>;
+				compatible = "fsl,imx51-usbmisc";
+				reg = <0x73f80800 0x200>;
+			};
+
+			/* 73F98000 0x4000 WDOG1 */
+			wdog@73f98000 {
+				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
+				reg = <0x73f98000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <58>;
+				status = "disabled";
+			};
+
+			/* 73F9C000 0x4000 WDOG2 (TZ) */
+			wdog@73f9c000 {
+				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
+				reg = <0x73f9c000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <59>;
+				status = "disabled";
+			};
+
+			/* 73F94000 0x4000 KPP */
+			keyboard@73f94000 {
+				compatible = "fsl,imx51-kpp";
+				reg = <0x73f94000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <60>;
+				status = "disabled";
+			};
+
+			/* 73FA0000 0x4000 GPT */
+			timer@73fa0000 {
+				compatible = "fsl,imx51-gpt";
+				reg = <0x73fa0000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <39>;
+				status = "disabled";
+			};
+
+			/* 73FA4000 0x4000 SRTC */
+
+			rtc@73fa4000 {
+				compatible = "fsl,imx51-srtc";
+				reg = <0x73fa4000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <24 25>;
+				status = "disabled";
+			};
+
+			/* 73FA8000 0x4000 IOMUXC */
+			iomux@73fa8000 {
+				compatible = "fsl,imx51-iomux";
+				reg = <0x73fa8000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <7>;
+			};
+
+			/* 73FAC000 0x4000 EPIT1 */
+			epit1: timer@73fac000 {
+				compatible = "fsl,imx51-epit";
+				reg = <0x73fac000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <40>;
+				status = "disabled";
+			};
+
+			/* 73FB0000 0x4000 EPIT2 */
+			epit2: timer@73fb0000 {
+				compatible = "fsl,imx51-epit";
+				reg = <0x73fb0000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <41>;
+				status = "disabled";
+			};
+
+			/* 73FB4000 0x4000 PWM1 */
+			pwm@73fb4000 {
+				compatible = "fsl,imx51-pwm";
+				reg = <0x73fb4000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <61>;
+				status = "disabled";
+			};
+
+			/* 73FB8000 0x4000 PWM2 */
+			pwm@73fb8000 {
+				compatible = "fsl,imx51-pwm";
+				reg = <0x73fb8000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <94>;
+				status = "disabled";
+			};
+
+			/* 73FBC000 0x4000 UART 1 */
+			uart1: serial@73fbc000 {
+				compatible = "fsl,imx51-uart", "fsl,imx-uart";
+				reg = <0x73fbc000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <31>;
+				status = "disabled";
+			};
+
+			/* 73FC0000 0x4000 UART 2 */
+			uart2: serial@73fc0000 {
+				compatible = "fsl,imx51-uart", "fsl,imx-uart";
+				reg = <0x73fc0000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <32>;
+				status = "disabled";
+			};
+
+			/* 73FC4000 0x4000 USBOH3 */
+			/* NOTYET
+			usb@73fc4000 {
+				compatible = "fsl,imx51-otg";
+				reg = <0x73fc4000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <>;
+				status = "disabled";
+			};
+			*/
+			/* 73FD0000 0x4000 SRC */
+			reset@73fd0000 {
+				compatible = "fsl,imx51-src";
+				reg = <0x73fd0000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <75>;
+				status = "disabled";
+			};
+			/* 73FD8000 0x4000 GPC */
+			power@73fd8000 {
+				compatible = "fsl,imx51-gpc";
+				reg = <0x73fd8000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <73 74>;
+				status = "disabled";
+			};
+
+		};
+
+		aips@80000000 { /* AIPS2 */
+			compatible = "fsl,aips-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+    			interrupt-parent = <&tzic>;
+			ranges;
+
+			/* 83F94000 0x4000 AHBMAX */
+			/* 83F98000 0x4000 IIM */
+			    /*
+			     * 69 IIM Interrupt request to the processor.
+			     * Indicates to the processor that program or
+			     * explicit.
+			     */
+			/* 83F9C000 0x4000 CSU */
+			    /*
+			     * 27 CSU Interrupt Request 1. Indicates to the
+			     * processor that one or more alarm inputs were.
+			     */
+
+			/* 83FA0000 0x4000 TIGERP_PLATFORM_NE_32K_256K */
+			/* irq76 Neon Monitor Interrupt */
+			/* irq77 Performance Unit Interrupt */
+			/* irq78 CTI IRQ */
+			/* irq79 Debug Interrupt, Cross-Trigger Interface 1 */
+			/* irq80 Debug Interrupt, Cross-Trigger Interface 1 */
+			/* irq89 Debug Interrupt, Cross-Trigger Interface 2 */
+			/* irq98 Debug Interrupt, Cross-Trigger Interface 3 */
+
+			/* 83FA4000 0x4000 OWIRE irq88 */
+			/* 83FA8000 0x4000 FIRI irq93 */
+			/* 83FAC000 0x4000 eCSPI2 */
+			ecspi@83fac000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx51-ecspi";
+				reg = <0x83fac000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <37>;
+				status = "disabled";
+			};
+
+			/* 83FB0000 0x4000 SDMA */
+			sdma@83fb0000 {
+				compatible = "fsl,imx51-sdma", "fsl,imx35-sdma";
+				reg = <0x83fb0000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <6>;
+			};
+
+			/* 83FB4000 0x4000 SCC */
+			/* 21 SCC Security Monitor High Priority Interrupt. */
+			/* 22 SCC Secure (TrustZone) Interrupt. */
+			/* 23 SCC Regular (Non-Secure) Interrupt. */
+
+			/* 83FB8000 0x4000 ROMCP */
+			/* 83FBC000 0x4000 RTIC */
+			/*
+			 * 26 RTIC RTIC (Trust Zone) Interrupt Request.
+			 * Indicates that the RTIC has completed hashing the
+			 */
+
+			/* 83FC0000 0x4000 CSPI */
+			cspi@83fc0000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx51-cspi", "fsl,imx35-cspi";
+				reg = <0x83fc0000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <38>;
+				status = "disabled";
+			};
+
+			/* 83FC4000 0x4000 I2C2 */
+			i2c@83fc4000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx51-i2c", "fsl,imx1-i2c", "fsl,imx-i2c";
+				reg = <0x83fc4000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <63>;
+				status = "disabled";
+			};
+
+			/* 83FC8000 0x4000 I2C1 */
+			i2c@83fc8000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx51-i2c", "fsl,imx1-i2c", "fsl,imx-i2c";
+				reg = <0x83fc8000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <62>;
+				status = "disabled";
+			};
+
+			/* 83FCC000 0x4000 SSI1 */
+			/* 29 SSI1 SSI-1 Interrupt Request */
+			SSI1: ssi@83fcc000 {
+				compatible = "fsl,imx51-ssi";
+				reg = <0x83fcc000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <29>;
+				status = "disabled";
+			};
+
+			/* 83FD0000 0x4000 AUDMUX */
+			audmux@83fd4000 {
+				compatible = "fsl,imx51-audmux";
+				reg = <0x83fd4000 0x4000>;
+				status = "disabled";
+			};
+
+			/* 83FD8000 0x4000 EMI1 */
+			/* 8 EMI (NFC) */
+			/* 15 EMI */
+			/* 97 EMI Boot sequence completed interrupt */
+			/*
+			 * 101 EMI Indicates all pages have been transferred
+			 * to NFC during an auto program operation.
+			 */
+
+			/* 83FE0000 0x4000 PATA (PORT PIO) */
+			/* 70 PATA Parallel ATA host controller interrupt */
+			ide@83fe0000 {
+				compatible = "fsl,imx51-ata";
+				reg = <0x83fe0000 0x4000>;
+				interrupt-parent = <&tzic>;
+				interrupts = <70>;
+				status = "disabled";
+			};
+
+			/* 83FE4000 0x4000 SIM */
+			/* 67 SIM intr composed of oef, xte, sdi1, and sdi0 */
+			/* 68 SIM intr composed of tc, etc, tfe, and rdrf */
+
+			/* 83FE8000 0x4000 SSI3 */
+			/* 96 SSI3 SSI-3 Interrupt Request */
+			SSI3: ssi@83fe8000 {
+				compatible = "fsl,imx51-ssi";
+				reg = <0x83fe8000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <96>;
+				status = "disabled";
+			};
+
+			/* 83FEC000 0x4000 FEC */
+			ethernet@83fec000 {
+				compatible = "fsl,imx51-fec";
+				reg = <0x83fec000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <87>;
+				status = "disabled";
+			};
+
+			/* 83FF0000 0x4000 TVE */
+			/* 92 TVE */
+			/* 83FF4000 0x4000 VPU */
+			/* 9 VPU */
+			/* 100 VPU Idle interrupt from VPU */
+
+			/* 83FF8000 0x4000 SAHARA Lite */
+			/* 19 SAHARA SAHARA host 0 (TrustZone) Intr Lite */
+			/* 20 SAHARA SAHARA host 1 (non-TrustZone) Intr Lite */
+		};
+	};
+
+	localbus@5e000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		ranges;
+
+		vga: ipu3@5e000000 {
+			compatible = "fsl,ipu3";
+			reg = <
+				0x5e000000 0x08000	/* CM */
+				0x5e008000 0x08000	/* IDMAC */
+				0x5e018000 0x08000	/* DP */
+				0x5e020000 0x08000	/* IC */
+				0x5e028000 0x08000	/* IRT */
+				0x5e030000 0x08000	/* CSI0 */
+				0x5e038000 0x08000	/* CSI1 */
+				0x5e040000 0x08000	/* DI0 */
+				0x5e048000 0x08000	/* DI1 */
+				0x5e050000 0x08000	/* SMFC */
+				0x5e058000 0x08000	/* DC */
+				0x5e060000 0x08000	/* DMFC */
+				0x5e068000 0x08000	/* VDI */
+				0x5f000000 0x20000	/* CPMEM */
+				0x5f020000 0x20000	/* LUT */
+				0x5f040000 0x20000	/* SRM */
+				0x5f060000 0x20000	/* TPM */
+				0x5f080000 0x20000	/* DCTMPL */
+			>;
+			interrupt-parent = <&tzic>;
+			interrupts = <
+				10	/* IPUEX Error */
+				11	/* IPUEX Sync */
+			>;
+			status = "disabled";
+		};
+	};
+};
+
+/*
+
+TODO: Not mapped interrupts
+
+5	DAP
+84	GPU2D (OpenVG) general interrupt
+85	GPU2D (OpenVG) busy signal (for S/W power gating feasibility)
+12	GPU3D
+102	GPU3D Idle interrupt from GPU3D (for S/W power gating)
+90	SJC
+*/

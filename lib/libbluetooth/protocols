@@ -1,0 +1,22 @@
+# $Id: protocols,v 1.2 2003/05/21 22:17:14 max Exp $
+# $FreeBSD$
+#
+# Bluetooth Protocol/Service Multiplexor (PSM) names and numbers
+#
+# See also
+# https://www.bluetooth.org/foundry/assignnumb/document/assigned_numbers
+#
+# Protocol       PSM Alias         Reference
+
+sdp              1   SDP           # Service Discovery Protocol
+rfcomm           3   RFCOMM        # RFCOMM with TS 07.10
+tcs-bin          5   TCS-BIN       # Telephony Control Specification
+tcs-bin-cordless 7   TCS-BIN-CORDLESS # Telephony Control Specification
+bnep             15  BNEP          # Bluetooth Network Encapsulation Protocol
+hid-control      17  HID-Control   # Human Interface Device (control)
+hid-interrupt    19  HID-Interrupt # Human Interface Device (interrupt)
+upnp             21  UPnP          # See ESDP, Bluetooth SIG
+avctp            23  AVCTP         # Audio/Video Control Transport Protocol
+avdtp            25  AVDTP         # Audio/Video Distribution Transport Protocol
+udi-c-plane      29  UDI-C-Plane   # Unrestricted Digital Information Profile
+

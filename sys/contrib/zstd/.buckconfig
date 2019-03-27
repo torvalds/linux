@@ -1,0 +1,9 @@
+[cxx]
+  cppflags = -DXXH_NAMESPACE=ZSTD_ -DZSTD_LEGACY_SUPPORT=4
+  cflags = -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement -Wstrict-prototypes -Wundef -Wpointer-arith
+  cxxppflags = -DXXH_NAMESPACE=ZSTD_ -DZSTD_LEGACY_SUPPORT=4
+  cxxflags = -std=c++11 -Wno-deprecated-declarations
+  gtest_dep = //contrib/pzstd:gtest
+
+[httpserver]
+  port = 0

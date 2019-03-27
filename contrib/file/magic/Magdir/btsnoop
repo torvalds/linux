@@ -1,0 +1,13 @@
+
+#------------------------------------------------------------------------------
+# $File: btsnoop,v 1.5 2009/09/19 16:28:08 christos Exp $
+# BTSnoop:  file(1) magic for BTSnoop files
+#
+# From <marcel@holtmann.org>
+0	string		btsnoop\0		BTSnoop
+>8	belong		x			version %d,
+>12	belong		1001			Unencapsulated HCI
+>12	belong		1002			HCI UART (H4)
+>12	belong		1003			HCI BCSP
+>12	belong		1004			HCI Serial (H5)
+>>12	belong		x			type %d

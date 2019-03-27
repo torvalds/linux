@@ -1,0 +1,39 @@
+Configuring IP Filter for firewall usage.
+=========================================
+
+Step 1 - Block out "bad" IP packets.
+------------------------------------
+
+Run the perl script "mkfilters".  This will generate a list of blocking
+rules which:
+	a) blocks all packets which might belong to an IP Spoofing attack;
+	b) blocks all packets with IP options;
+	c) blocks all packets which have a length which is too short for
+	   any legal packet;
+
+Step 2 - Convert Network Security Policy to filter rules.
+---------------------------------------------------------
+
+Draw up a list of which services you want to allow users to use on the
+Internet (e.g. WWW, ftp, etc).  Draw up a separate list for what you
+want each host that is part of your firewall to be allowed to do, including
+communication with internal hosts.
+
+Step 3 - Create TCP "keep state" rules.
+---------------------------------------
+
+For each service that uses TCP, create a rule as follows:
+
+pass in on <int-a> proto tcp from <int-net> to any port <ext-service> flags S/SA keep state
+
+where
+* "int-a" is the internal interface of the firewall.  That is, it is the
+  closest to your internal network in terms of network hops.
+
+* "int-net" is the internal network IP# subnet address range.  This might
+   be something like 10.1.0.0/16, or 128.33.1.0/24
+
+* "ext-service" is the service to which you wish to connect or if it doesn't
+  have a proper name, a number can be used.  The translation of "ext-service"
+  as a name to a number is controlled with the /etc/services file.
+

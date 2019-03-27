@@ -1,0 +1,469 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.\"	@(#)p3	8.1 (Berkeley) 6/8/93
+.\"
+.NH
+THE STANDARD I/O LIBRARY
+.PP
+The ``Standard I/O Library''
+is a collection of routines
+intended to provide
+efficient
+and portable
+I/O services
+for most C programs.
+The standard I/O library is available on each system that supports C,
+so programs that confine
+their system interactions
+to its facilities
+can be transported from one system to another essentially without change.
+.PP
+In this section, we will discuss the basics of the standard I/O library.
+The appendix contains a more complete description of its capabilities.
+.NH 2
+File Access
+.PP
+The programs written so far have all
+read the standard input and written the standard output,
+which we have assumed are magically pre-defined.
+The next step
+is to write a program that accesses
+a file that is
+.ul
+not
+already connected to the program.
+One simple example is
+.IT wc ,
+which counts the lines, words and characters
+in a set of files.
+For instance, the command
+.P1
+wc x.c y.c
+.P2
+prints the number of lines, words and characters
+in
+.UL x.c
+and
+.UL y.c
+and the totals.
+.PP
+The question is how to arrange for the named files
+to be read \(em
+that is, how to connect the file system names 
+to the I/O statements which actually read the data.
+.PP
+The rules are simple.
+Before it can be read or written
+a file has to be
+.ul
+opened
+by the standard library function
+.UL fopen .
+.UL fopen
+takes an external name
+(like
+.UL x.c
+or
+.UL y.c ),
+does some housekeeping and negotiation with the operating system,
+and returns an internal name
+which must be used in subsequent
+reads or writes of the file.
+.PP
+This internal name is actually a pointer,
+called a
+.IT file
+.IT pointer ,
+to a structure
+which contains information about the file,
+such as the location of a buffer,
+the current character position in the buffer,
+whether the file is being read or written,
+and the like.
+Users don't need to know the details,
+because part of the standard I/O definitions
+obtained by including
+.UL stdio.h
+is a structure definition called
+.UL FILE .
+The only declaration needed for a file pointer
+is exemplified by
+.P1
+FILE	*fp, *fopen();
+.P2
+This says that
+.UL fp
+is a pointer to a
+.UL FILE ,
+and
+.UL fopen
+returns a pointer to
+a
+.UL FILE .
+.UL FILE \& (
+is a type name, like
+.UL int ,
+not a structure tag.
+.PP
+The actual call to
+.UL fopen
+in a program
+is
+.P1
+fp = fopen(name, mode);
+.P2
+The first argument of
+.UL fopen
+is the
+name
+of the file,
+as a character string.
+The second argument is the
+mode,
+also as a character string,
+which indicates how you intend to
+use the file.
+The only allowable modes are
+read
+.UL \&"r" ), (
+write
+.UL \&"w" ), (
+or append
+.UL \&"a" ). (
+.PP
+If a file that you open for writing or appending does not exist,
+it is created
+(if possible).
+Opening an existing file for writing causes the old contents
+to be discarded.
+Trying to read a file that does not exist
+is an error,
+and there may be other causes of error
+as well
+(like trying to read a file
+when you don't have permission).
+If there is any error,
+.UL fopen
+will return the null pointer
+value
+.UL NULL 
+(which is defined as zero in
+.UL stdio.h ).
+.PP
+The next thing needed is a way to read or write the file
+once it is open.
+There are several possibilities,
+of which
+.UL getc
+and
+.UL putc
+are the simplest.
+.UL getc
+returns the next character from a file;
+it needs the file pointer to tell it what file.
+Thus
+.P1
+c = getc(fp)
+.P2
+places in 
+.UL c
+the next character from the file referred to by
+.UL fp ;
+it returns
+.UL EOF
+when it reaches end of file.
+.UL putc
+is the inverse of
+.UL getc :
+.P1
+putc(c, fp)
+.P2
+puts the character
+.UL c
+on the file
+.UL fp 
+and returns
+.UL c .
+.UL getc
+and
+.UL putc
+return
+.UL EOF
+on error.
+.PP
+When a program is started, three files are opened automatically,
+and file pointers are provided for them.
+These files are the standard input,
+the standard output,
+and the standard error output;
+the corresponding file pointers are
+called
+.UL stdin ,
+.UL stdout ,
+and
+.UL stderr .
+Normally these are all connected to the terminal,
+but
+may be redirected to files or pipes as described in
+Section 2.2.
+.UL stdin ,
+.UL stdout
+and
+.UL stderr
+are pre-defined in the I/O library
+as the standard input, output and error files;
+they may be used anywhere an object of type
+.UL FILE\ *
+can be.
+They are 
+constants, however,
+.ul
+not
+variables,
+so don't try to assign to them.
+.PP
+With some of the preliminaries out of the way,
+we can now write
+.IT wc .
+The basic design 
+is one that has been found
+convenient for many programs:
+if there are command-line arguments, they are processed in order.
+If there are no arguments, the standard input
+is processed.
+This way the program can be used stand-alone
+or as part of a larger process.
+.P1
+#include <stdio.h>
+
+main(argc, argv)	/* wc: count lines, words, chars */
+int argc;
+char *argv[];
+{
+	int c, i, inword;
+	FILE *fp, *fopen();
+	long linect, wordct, charct;
+	long tlinect = 0, twordct = 0, tcharct = 0;
+
+	i = 1;
+	fp = stdin;
+	do {
+		if (argc > 1 && (fp=fopen(argv[i], "r")) == NULL) {
+			fprintf(stderr, "wc: can't open %s\en", argv[i]);
+			continue;
+		}
+		linect = wordct = charct = inword = 0;
+		while ((c = getc(fp)) != EOF) {
+			charct++;
+			if (c == '\en')
+				linect++;
+			if (c == ' ' || c == '\et' || c == '\en')
+				inword = 0;
+			else if (inword == 0) {
+				inword = 1;
+				wordct++;
+			}
+		}
+		printf("%7ld %7ld %7ld", linect, wordct, charct);
+		printf(argc > 1 ? " %s\en" : "\en", argv[i]);
+		fclose(fp);
+		tlinect += linect;
+		twordct += wordct;
+		tcharct += charct;
+	} while (++i < argc);
+	if (argc > 2)
+		printf("%7ld %7ld %7ld total\en", tlinect, twordct, tcharct);
+	exit(0);
+}
+.P2
+The function
+.UL fprintf
+is identical to
+.UL printf ,
+save that the first argument is a file pointer
+that specifies the file to be
+written.
+.PP
+The function
+.UL fclose
+is the inverse of
+.UL fopen ;
+it breaks the connection between the file pointer and the external name
+that was established by
+.UL fopen ,
+freeing the
+file pointer for another file.
+Since there is a limit on the number
+of files
+that a program may have open simultaneously,
+it's a good idea to free things when they are no longer needed.
+There is also another reason to call
+.UL fclose 
+on an output file
+\(em it flushes the buffer
+in which
+.UL putc
+is collecting output.
+.UL fclose \& (
+is called automatically for each open file
+when a program terminates normally.)
+.NH 2
+Error Handling \(em Stderr and Exit
+.PP
+.UL stderr
+is assigned to a program in the same way that
+.UL stdin
+and
+.UL stdout
+are.
+Output written on 
+.UL stderr
+appears on the user's terminal
+even if the standard output is redirected.
+.IT wc
+writes its diagnostics on
+.UL stderr
+instead of
+.UL stdout
+so that if one of the files can't
+be accessed for some reason,
+the message
+finds its way to the user's terminal instead of disappearing
+down a pipeline
+or into an output file.
+.PP
+The program actually signals errors in another way,
+using the function
+.UL exit 
+to terminate program execution.
+The argument of
+.UL exit
+is available to whatever process
+called it (see Section 6),
+so the success or failure
+of the program can be tested by another program
+that uses this one as a sub-process.
+By convention, a return value of 0
+signals that all is well;
+non-zero values signal abnormal situations.
+.PP
+.UL exit
+itself
+calls
+.UL fclose
+for each open output file,
+to flush out any buffered output,
+then calls
+a routine named
+.UL _exit .
+The function
+.UL _exit
+causes immediate termination without any buffer flushing;
+it may be called directly if desired.
+.NH 2
+Miscellaneous I/O Functions
+.PP
+The standard I/O library provides several other I/O functions
+besides those we have illustrated above.
+.PP
+Normally output with
+.UL putc ,
+etc., is buffered (except to
+.UL stderr );
+to force it out immediately, use
+.UL fflush(fp) .
+.PP
+.UL fscanf
+is identical to
+.UL scanf ,
+except that its first argument is a file pointer
+(as with
+.UL fprintf )
+that specifies the file from which the input comes;
+it returns
+.UL EOF
+at end of file.
+.PP
+The functions
+.UL sscanf
+and
+.UL sprintf
+are identical to
+.UL fscanf
+and
+.UL fprintf ,
+except that the first argument names a character string
+instead of a file pointer.
+The conversion is done from the string
+for 
+.UL sscanf 
+and into it for
+.UL sprintf .
+.PP
+.UL fgets(buf,\ size,\ fp)
+copies the next line from
+.UL fp ,
+up to and including a newline,
+into 
+.UL buf ;
+at most
+.UL size-1
+characters are copied;
+it returns
+.UL NULL
+at end of file.
+.UL fputs(buf,\ fp)
+writes the string in
+.UL buf
+onto file
+.UL fp .
+.PP
+The function
+.UL ungetc(c,\ fp)
+``pushes back'' the character
+.UL c
+onto the input stream
+.UL fp ;
+a subsequent call to
+.UL getc ,
+.UL fscanf ,
+etc.,
+will encounter 
+.UL c .
+Only one character of pushback per file is permitted.

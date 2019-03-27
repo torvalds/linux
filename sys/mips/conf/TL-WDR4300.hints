@@ -1,0 +1,237 @@
+# $FreeBSD$
+
+# MAC/ART ? - they're 00:02:03:04:05:06 :(
+
+# ath0 chain0 EXTERNAL_LNA0: 18
+# ath0 chain1 EXTERNAL_LNA1: 19
+# These are configured as GPIO output, init low, then
+# set the GPIO 'type' AR934X_GPIO_OUT_EXT_LNA0/AR934X_GPIO_OUT_EXT_LNA1.
+
+# XXX There's no arge1 on this!
+
+# XXX RFKILL?
+
+# mdiobus0 on arge0
+hint.argemdio.0.at="nexus0"
+hint.argemdio.0.maddr=0x19000000
+hint.argemdio.0.msize=0x1000
+hint.argemdio.0.order=0
+
+# DB120 GMAC configuration
+# + AR934X_ETH_CFG_RGMII_GMAC0              (1 << 0)
+hint.ar934x_gmac.0.gmac_cfg=0x1
+
+# Board mac address is at 0x1f01fc00.
+# ath0: offset 0
+# ath1: offset -1
+# arge0: offset -2
+# arge1: not hooked up; doesn't matter
+hint.ar71xx.0.eeprom_mac_addr=0x1f01fc00
+hint.ar71xx.0.eeprom_mac_isascii=0
+
+hint.ar71xx_mac_map.0.devid=ath
+hint.ar71xx_mac_map.0.unitid=0
+hint.ar71xx_mac_map.0.offset=0
+hint.ar71xx_mac_map.0.is_local=0
+
+hint.ar71xx_mac_map.1.devid=ath
+hint.ar71xx_mac_map.1.unitid=1
+hint.ar71xx_mac_map.1.offset=-1
+hint.ar71xx_mac_map.1.is_local=0
+
+hint.ar71xx_mac_map.2.devid=arge
+hint.ar71xx_mac_map.2.unitid=0
+hint.ar71xx_mac_map.2.offset=-2
+hint.ar71xx_mac_map.2.is_local=0
+
+# GMAC0 here - connected to an AR8327
+hint.arswitch.0.at="mdio0"
+hint.arswitch.0.is_7240=0
+hint.arswitch.0.is_9340=0	# not the internal switch!
+hint.arswitch.0.numphys=5
+hint.arswitch.0.phy4cpu=0
+hint.arswitch.0.is_rgmii=0
+hint.arswitch.0.is_gmii=0
+
+# Other AR8327 configuration parameters
+
+# AR8327_PAD_MAC_RGMII
+hint.arswitch.0.pad.0.mode=6
+hint.arswitch.0.pad.0.txclk_delay_en=1
+hint.arswitch.0.pad.0.rxclk_delay_en=1
+# AR8327_CLK_DELAY_SEL1
+hint.arswitch.0.pad.0.txclk_delay_sel=1
+# AR8327_CLK_DELAY_SEL2
+hint.arswitch.0.pad.0.rxclk_delay_sel=2
+
+# XXX there's no LED management just yet!
+hint.arswitch.0.led.ctrl0=0xc737c737
+hint.arswitch.0.led.ctrl1=0x00000000
+hint.arswitch.0.led.ctrl2=0x00000000
+hint.arswitch.0.led.ctrl3=0x0030c300
+hint.arswitch.0.led.open_drain=0
+
+# force_link=1 is required for the rest of the parameters
+# to be configured.
+hint.arswitch.0.port.0.force_link=1
+hint.arswitch.0.port.0.speed=1000
+hint.arswitch.0.port.0.duplex=1
+hint.arswitch.0.port.0.txpause=1
+hint.arswitch.0.port.0.rxpause=1
+
+# XXX OpenWRT DB120 BSP doesn't have media/duplex set?
+hint.arge.0.phymask=0x0
+hint.arge.0.media=1000
+hint.arge.0.fduplex=1
+hint.arge.0.miimode=3           # RGMII
+hint.arge.0.pll_1000=0x06000000
+
+# mdiobus1 on arge1
+hint.argemdio.1.at="nexus0"
+hint.argemdio.1.maddr=0x1a000000
+hint.argemdio.1.msize=0x1000
+hint.argemdio.1.order=0
+
+# Embedded switch on the AR9344
+# mdio1 is actually created as the AR8327 internal bus; so
+# this pops up as mdio2.
+#
+# XXX TODO: there's no need for AR9344 internal switch; it isn't exposed
+hint.arswitch.1.at="mdio2"
+hint.arswitch.1.is_7240=0
+hint.arswitch.1.is_9340=1
+hint.arswitch.1.numphys=5
+hint.arswitch.1.phy4cpu=0       # phy 4 is not a "CPU port" PHY here
+hint.arswitch.1.is_rgmii=0
+hint.arswitch.1.is_gmii=1       # arge1 <-> switch PHY is GMII
+
+# arge1 - lock up to 1000/full
+hint.arge.1.phymask=0x0		# Nothing attached here (XXX?)
+hint.arge.1.media=1000
+hint.arge.1.fduplex=1
+hint.arge.1.miimode=1		# GMII
+
+# MAC for arge1 is the second 6 bytes of the ART
+# hint.arge.1.eeprommac=0x1f7f0006
+
+# ART calibration data mapping - for the AR934x AHB device
+hint.ar71xx_caldata.0.at="nexus0"
+hint.ar71xx_caldata.0.order=0
+# Where the ART is - last 64k in the first 8MB of flash
+hint.ar71xx_caldata.0.map.0.ath_fixup_addr=0x1fff0000
+hint.ar71xx_caldata.0.map.0.ath_fixup_size=16384
+
+# And now tell the ath(4) driver where to look!
+hint.ath.0.eeprom_firmware="ar71xx_caldata.0.map.0.eeprom_firmware"
+
+# ath1: it's different; it's a PCIe attached device, so
+# we instead need to teach the PCIe bridge code about it
+# (ie, the 'early pci fixup' stuff that programs the PCIe
+# host registers on the NIC) and then we teach ath where
+# to find it.
+
+# ath1 hint - pcie slot 0
+hint.pcib.0.bus.0.0.0.ath_fixup_addr=0x1fff4000
+hint.pcib.0.bus.0.0.0.ath_fixup_size=16384
+
+# ath0 - eeprom comes from here
+hint.ath.1.eeprom_firmware="pcib.0.bus.0.0.0.eeprom_firmware"
+
+# flash layout:
+#
+# bootargs=console=ttyS0,115200 root=31:02 rootfstype=jffs2 init=/sbin/init mtdparts=ath-nor0:256k(u-boot),64k(u-boot-env),6336k(rootfs),1408k(uImage),64k(mib0),64k(ART)
+
+# 128KiB uboot
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x00020000	# 128k u-boot
+hint.map.0.name="u-boot"
+hint.map.0.readonly=1
+
+# kernel
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x00020000
+hint.map.2.end="search:0x00020000:0x10000:.!/bin/sh"
+hint.map.2.name="kernel"
+hint.map.2.readonly=1
+
+# 1344KiB uImage
+hint.map.3.at="flash/spi0"
+hint.map.3.start="search:0x00020000:0x10000:.!/bin/sh"
+hint.map.3.end=0x007d0000
+hint.map.3.name="rootfs"
+hint.map.3.readonly=1
+
+# 64KiB cfg
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x007d0000
+hint.map.4.end=0x007e0000
+hint.map.4.name="cfg"
+hint.map.4.readonly=0
+
+# 64KiB mib0
+hint.map.5.at="flash/spi0"
+hint.map.5.start=0x007e0000
+hint.map.5.end=0x007f0000	# 64k mib0
+hint.map.5.name="mib0"
+hint.map.5.readonly=1
+
+# 64KiB ART
+hint.map.6.at="flash/spi0"
+hint.map.6.start=0x007f0000
+hint.map.6.end=0x00800000	# 64k ART
+hint.map.6.name="ART"
+hint.map.6.readonly=1
+
+# GPIO configuration
+# GPIO21 and GPIO22 - USB1 and USB2 power
+# ath0 chain0 EXTERNAL_LNA0: 18, output
+# ath0 chain1 EXTERNAL_LNA1: 19, output
+
+# These are the GPIO LEDs and buttons which can be software controlled.
+hint.gpio.0.pinmask=0x0063f800
+
+# Enable GPIO21, GPIO22 output and high - for USB power
+hint.gpio.0.pinon=0x00600000
+
+hint.gpio.0.func.18.gpiofunc=46
+hint.gpio.0.func.18.gpiomode=1	# output, default low
+
+hint.gpio.0.func.19.gpiofunc=47
+hint.gpio.0.func.19.gpiomode=1	# output, default low
+
+# LED QSS - 15
+# LED SYSTEM - 14
+# LED USB1 - 11
+# LED USB2 - 12
+# LED WLAN2G - 13
+
+# SWITCH WPS - 16
+# SWITCH RFKILL - 17
+
+hint.gpioled.0.at="gpiobus0"
+hint.gpioled.0.name="USB1"
+hint.gpioled.0.pins=0x0800
+hint.gpioled.0.invert=1
+
+hint.gpioled.1.at="gpiobus0"
+hint.gpioled.1.name="USB2"
+hint.gpioled.1.pins=0x1000
+hint.gpioled.1.invert=1
+
+hint.gpioled.2.at="gpiobus0"
+hint.gpioled.2.name="WLAN2G"
+hint.gpioled.2.pins=0x2000
+hint.gpioled.2.invert=1
+
+hint.gpioled.3.at="gpiobus0"
+hint.gpioled.3.name="SYSTEM"
+hint.gpioled.3.pins=0x4000
+hint.gpioled.3.invert=1
+
+hint.gpioled.4.at="gpiobus0"
+hint.gpioled.4.name="QSS"
+hint.gpioled.4.pins=0x8000
+hint.gpioled.4.invert=1
+
+# XXX TODO: WPS/RFKILL switch

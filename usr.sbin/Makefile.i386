@@ -1,0 +1,27 @@
+# $FreeBSD$
+
+.if ${MK_ACPI} != "no"
+SUBDIR+=	acpi
+.endif
+.if ${MK_APM} != "no"
+SUBDIR+=	apm
+SUBDIR+=	apmd
+.endif
+SUBDIR+=	boot0cfg
+.if ${MK_TOOLCHAIN} != "no"
+SUBDIR+=	btxld
+.endif
+SUBDIR+=	cpucontrol
+.if ${MK_HYPERV} != "no"
+SUBDIR+=	hyperv
+.endif
+SUBDIR+=	kgmon
+SUBDIR+=	kgzip
+SUBDIR+=	lptcontrol
+SUBDIR+=	mptable
+.if ${MK_NDIS} != "no"
+SUBDIR+=	ndiscvt
+.endif
+SUBDIR+=	pnpinfo
+SUBDIR+=	spkrtest
+SUBDIR+=	zzz

@@ -1,0 +1,132 @@
+.\" Copyright (C) 1995, 1996, 1997, 1998, 1999, and 2000 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Copyright (c) 1999 Brian Somers <brian@Awfulhak.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 11, 2000
+.Dt REALHOSTNAME_SA 3
+.Os
+.Sh NAME
+.Nm realhostname_sa
+.Nd "convert a"
+.Vt "struct sockaddr"
+to the real host name
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In sys/types.h
+.In netinet/in.h
+.In libutil.h
+.Ft int
+.Fn realhostname_sa "char *host" "size_t hsize" "struct sockaddr *addr" "int addrlen"
+.Sh DESCRIPTION
+The function
+.Fn realhostname_sa
+converts
+.Ar addr
+to the corresponding host name.
+This is done by resolving
+.Ar addr
+to a host name and then ensuring that the host name resolves
+back to
+.Ar addr .
+.Pp
+.Ar host
+must point to a buffer of at least
+.Ar hsize
+bytes, and will always be written to by this function.
+.Pp
+If the name resolution does not work both ways or if the host name is longer
+than
+.Ar hsize
+bytes,
+.Xr getnameinfo 3
+with NI_NUMERICHOST specified, is used to convert
+.Ar addr
+to an ASCII form.
+.Pp
+If the string written to
+.Ar host
+is
+.Ar hsize
+bytes long,
+.Ar host
+will not be NUL terminated.
+.Sh RETURN VALUES
+The
+.Fn realhostname_sa
+function will return one of the following constants which are defined in
+.In libutil.h :
+.Bl -tag -width XXX -offset XXX
+.It Li HOSTNAME_FOUND
+A valid host name was found.
+.It Li HOSTNAME_INCORRECTNAME
+A host name was found, but it did not resolve back to the passed
+.Ar ip .
+.Ar host
+now contains the numeric value of
+.Ar ip .
+.It Li HOSTNAME_INVALIDADDR
+.Ar ip
+could not be resolved.
+.Ar host
+now contains the numeric value of
+.Ar ip .
+.It Li HOSTNAME_INVALIDNAME
+A host name was found, but it could not be resolved back to any ip number.
+.Ar host
+now contains the numeric value of
+.Ar ip .
+.El
+.Sh SEE ALSO
+.Xr getaddrinfo 3 ,
+.Xr getnameinfo 3 ,
+.Xr realhostname 3

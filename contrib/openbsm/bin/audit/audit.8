@@ -1,0 +1,105 @@
+.\" Copyright (c) 2004-2009 Apple Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1.  Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\" 2.  Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\" 3.  Neither the name of Apple Inc. ("Apple") nor the names of
+.\"     its contributors may be used to endorse or promote products derived
+.\"     from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY APPLE AND ITS CONTRIBUTORS "AS IS" AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED. IN NO EVENT SHALL APPLE OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd July 25, 2015
+.Dt AUDIT 8
+.Os
+.Sh NAME
+.Nm audit
+.Nd audit management utility
+.Sh SYNOPSIS
+.Nm
+.Fl e | i | n | s | t
+.Sh DESCRIPTION
+The
+.Nm
+utility controls the state of the audit system.
+One of the following flags is required as an argument to
+.Nm :
+.Bl -tag -width indent
+.It Fl e
+Forces the audit system to immediately remove audit log files that
+meet the expiration criteria specified in the audit control file without
+doing a log rotation.
+.It Fl i
+Initializes and starts auditing.
+This option is currently for Mac OS X only
+and requires
+.Xr auditd 8
+to be configured to run under
+.Xr launchd 8 .
+.It Fl n
+Forces the audit system to close the existing audit log file and rotate to
+a new log file in a location specified in the audit control file.
+Also, audit log files that meet the expiration criteria specified in the
+audit control file will be removed.
+.It Fl s
+Specifies that the audit system should [re]synchronize its
+configuration from the audit control file.
+A new log file will be created.
+.It Fl t
+Specifies that the audit system should terminate.
+Log files are closed
+and renamed to indicate the time of the shutdown.
+.El
+.Sh NOTES
+The
+.Xr auditd 8
+daemon must already be running.
+Optionally, it can be configured to be started
+on-demand by
+.Xr launchd 8
+(Mac OS X only).
+The
+.Nm
+utility requires audit administrator privileges for successful operation.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/security/audit_control" -compact
+.It Pa /etc/security/audit_control
+Audit policy file used to configure the auditing system.
+.El
+.Sh SEE ALSO
+.Xr audit 4 ,
+.Xr audit_control 5 ,
+.Xr auditd 8 ,
+.Xr launchd 8 (Mac OS X)
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
+.Sh AUTHORS
+.An -nosplit
+This software was created by McAfee Research, the security research division
+of McAfee, Inc., under contract to Apple Computer Inc.
+Additional authors include
+.An Wayne Salamon ,
+.An Robert Watson ,
+and SPARTA Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.

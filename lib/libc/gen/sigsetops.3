@@ -1,0 +1,117 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)sigsetops.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd December 16, 2004
+.Dt SIGSETOPS 3
+.Os
+.Sh NAME
+.Nm sigemptyset ,
+.Nm sigfillset ,
+.Nm sigaddset ,
+.Nm sigdelset ,
+.Nm sigismember
+.Nd manipulate signal sets
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In signal.h
+.Ft int
+.Fn sigemptyset "sigset_t *set"
+.Ft int
+.Fn sigfillset "sigset_t *set"
+.Ft int
+.Fn sigaddset "sigset_t *set" "int signo"
+.Ft int
+.Fn sigdelset "sigset_t *set" "int signo"
+.Ft int
+.Fn sigismember "const sigset_t *set" "int signo"
+.Sh DESCRIPTION
+These functions manipulate signal sets stored in a
+.Fa sigset_t .
+Either
+.Fn sigemptyset
+or
+.Fn sigfillset
+must be called for every object of type
+.Fa sigset_t
+before any other use of the object.
+.Pp
+The
+.Fn sigemptyset
+function initializes a signal set to be empty.
+.Pp
+The
+.Fn sigfillset
+function initializes a signal set to contain all signals.
+.Pp
+The
+.Fn sigaddset
+function adds the specified signal
+.Fa signo
+to the signal set.
+.Pp
+The
+.Fn sigdelset
+function deletes the specified signal
+.Fa signo
+from the signal set.
+.Pp
+The
+.Fn sigismember
+function returns whether a specified signal
+.Fa signo
+is contained in the signal set.
+.Sh RETURN VALUES
+The
+.Fn sigismember
+function returns 1
+if the signal is a member of the set,
+0 otherwise.
+The other functions return 0 upon success.
+A \-1 return value
+indicates an error occurred and the global variable
+.Va errno
+is set to indicate the reason.
+.Sh ERRORS
+These functions could fail if one of the following occurs:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa signo
+has an invalid value.
+.El
+.Sh SEE ALSO
+.Xr kill 2 ,
+.Xr sigaction 2 ,
+.Xr sigpending 2 ,
+.Xr sigprocmask 2 ,
+.Xr sigsuspend 2
+.Sh STANDARDS
+These functions are defined by
+.St -p1003.1-88 .

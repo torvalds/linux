@@ -1,0 +1,98 @@
+.\" Generated from pam_vprompt.c by gendoc.pl
+.\" $OpenPAM: pam_vprompt.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt PAM_VPROMPT 3
+.Os
+.Sh NAME
+.Nm pam_vprompt
+.Nd call the conversation function
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.Ft "int"
+.Fn pam_vprompt "const pam_handle_t *pamh" "int style" "char **resp" "const char *fmt" "va_list ap"
+.Sh DESCRIPTION
+The
+.Fn pam_vprompt
+function constructs a string from the
+.Fa fmt
+and
+.Fa ap
+arguments using
+.Xr vsnprintf 3 ,
+and passes it to the given PAM context's
+conversation function.
+.Pp
+The
+.Fa style
+argument specifies the type of interaction requested, and
+must be one of the following:
+.Bl -tag -width 18n
+.It Dv PAM_PROMPT_ECHO_OFF
+Display the message and obtain the user's response without
+displaying it.
+.It Dv PAM_PROMPT_ECHO_ON
+Display the message and obtain the user's response.
+.It Dv PAM_ERROR_MSG
+Display the message as an error message, and do not wait
+for a response.
+.It Dv PAM_TEXT_INFO
+Display the message as an informational message, and do
+not wait for a response.
+.El
+.Pp
+A pointer to the response, or
+.Dv NULL
+if the conversation function did
+not return one, is stored in the location pointed to by the
+.Fa resp
+argument.
+.Pp
+The message and response should not exceed
+.Dv PAM_MAX_MSG_SIZE
+or
+.Dv PAM_MAX_RESP_SIZE ,
+respectively.
+If they do, they may be truncated.
+.Pp
+.Sh RETURN VALUES
+The
+.Fn pam_vprompt
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.El
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam_error 3 ,
+.Xr pam_info 3 ,
+.Xr pam_prompt 3 ,
+.Xr pam_strerror 3 ,
+.Xr pam_verror 3 ,
+.Xr pam_vinfo 3 ,
+.Xr vsnprintf 3
+.Sh STANDARDS
+The
+.Fn pam_vprompt
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn pam_vprompt
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

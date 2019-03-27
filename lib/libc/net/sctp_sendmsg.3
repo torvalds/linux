@@ -1,0 +1,329 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)send.2	8.2 (Berkeley) 2/21/94
+.\" $FreeBSD$
+.\"
+.Dd December 15, 2006
+.Dt SCTP_SENDMSG 3
+.Os
+.Sh NAME
+.Nm sctp_sendmsg ,
+.Nm sctp_sendmsgx
+.Nd send a message from an SCTP socket
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netinet/sctp.h
+.Ft ssize_t
+.Fo sctp_sendmsg
+.Fa "int s" "const void *msg" "size_t len" "const struct sockaddr *to"
+.Fa "socklen_t tolen" "uint32_t ppid" "uint32_t flags" "uint16_t stream_no"
+.Fa "uint32_t timetolive" "uint32_t context"
+.Fc
+.Ft ssize_t
+.Fo sctp_sendmsgx
+.Fa "int s" "const void *msg" "size_t len" "const struct sockaddr *to"
+.Fa "int addrcnt" "uint32_t ppid" "uint32_t flags" "uint16_t stream_no"
+.Fa "uint32_t timetolive" "uint32_t context"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn sctp_sendmsg
+system call
+is used to transmit a message to another SCTP endpoint.
+The
+.Fn sctp_sendmsg
+may be used at any time.
+If the socket is a one-to-many type (SOCK_SEQPACKET)
+socket then an attempt to send to an address that no association exists to will
+implicitly create a new association.
+Data sent in such an instance will result in
+the data being sent on the third leg of the SCTP four-way handshake.
+Note that if
+the socket is a one-to-one type (SOCK_STREAM) socket then an association must
+be in existence (by use of the
+.Xr connect 2
+system call).
+Calling
+.Fn sctp_sendmsg
+or
+.Fn sctp_sendmsgx
+on a non-connected one-to-one socket will result in
+.Va errno
+being set to
+.Er ENOTCONN ,
+-1 being returned, and the message not being transmitted.
+.Pp
+The address of the target is given by
+.Fa to
+with
+.Fa tolen
+specifying its size.
+The length of the message
+.Fa msg
+is given by
+.Fa len .
+If the message is too long to pass atomically through the
+underlying protocol,
+.Va errno
+is set to
+.Er EMSGSIZE ,
+-1 is returned, and
+the message is not transmitted.
+.Pp
+No indication of failure to deliver is implicit in a
+.Xr sctp_sendmsg 3
+call.
+Locally detected errors are indicated by a return value of -1.
+.Pp
+If no space is available at the socket to hold
+the message to be transmitted, then
+.Xr sctp_sendmsg 3
+normally blocks, unless the socket has been placed in
+non-blocking I/O mode.
+The
+.Xr select 2
+system call may be used to determine when it is possible to
+send more data on one-to-one type (SOCK_STREAM) sockets.
+.Pp
+The
+.Fa ppid
+argument is an opaque 32 bit value that is passed transparently
+through the stack to the peer endpoint.
+It will be available on
+reception of a message (see
+.Xr sctp_recvmsg 3 ) .
+Note that the stack passes this value without regard to byte
+order.
+.Pp
+The
+.Fa flags
+argument may include one or more of the following:
+.Bd -literal
+#define SCTP_EOF 	  0x0100	/* Start a shutdown procedures */
+#define SCTP_ABORT	  0x0200	/* Send an ABORT to peer */
+#define SCTP_UNORDERED 	  0x0400	/* Message is un-ordered */
+#define SCTP_ADDR_OVER	  0x0800	/* Override the primary-address */
+#define SCTP_SENDALL      0x1000	/* Send this on all associations */
+					/* for the endpoint */
+/* The lower byte is an enumeration of PR-SCTP policies */
+#define SCTP_PR_SCTP_TTL  0x0001	/* Time based PR-SCTP */
+#define SCTP_PR_SCTP_BUF  0x0002	/* Buffer based PR-SCTP */
+#define SCTP_PR_SCTP_RTX  0x0003	/* Number of retransmissions based PR-SCTP */
+.Ed
+.Pp
+The flag
+.Dv SCTP_EOF
+is used to instruct the SCTP stack to queue this message
+and then start a graceful shutdown of the association.
+All
+remaining data in queue will be sent after which the association
+will be shut down.
+.Pp
+.Dv SCTP_ABORT
+is used to immediately terminate an association.
+An abort
+is sent to the peer and the local TCB is destroyed.
+.Pp
+.Dv SCTP_UNORDERED
+is used to specify that the message being sent has no
+specific order and should be delivered to the peer application
+as soon as possible.
+When this flag is absent messages
+are delivered in order within the stream they are sent, but without
+respect to order to peer streams.
+.Pp
+The flag
+.Dv SCTP_ADDR_OVER
+is used to specify that an specific address should be used.
+Normally
+SCTP will use only one of a multi-homed peers addresses as the primary
+address to send to.
+By default, no matter what the
+.Fa to
+argument is, this primary address is used to send data.
+By specifying
+this flag, the user is asking the stack to ignore the primary address
+and instead use the specified address not only as a lookup mechanism
+to find the association but also as the actual address to send to.
+.Pp
+For a one-to-many type (SOCK_SEQPACKET) socket the flag
+.Dv SCTP_SENDALL
+can be used as a convenient way to make one send call and have
+all associations that are under the socket get a copy of the message.
+Note that this mechanism is quite efficient and makes only one actual
+copy of the data which is shared by all the associations for sending.
+.Pp
+The remaining flags are used for the partial reliability extension (RFC3758)
+and will only be effective if the peer endpoint supports this extension.
+This option specifies what local policy the local endpoint should use
+in skipping data.
+If none of these options are set, then data is
+never skipped over.
+.Pp
+.Dv SCTP_PR_SCTP_TTL
+is used to indicate that a time based lifetime is being applied
+to the data.
+The
+.Fa timetolive
+argument is then a number of milliseconds for which the data is
+attempted to be transmitted.
+If that many milliseconds elapse
+and the peer has not acknowledged the data, the data will be
+skipped and no longer transmitted.
+Note that this policy does
+not even assure that the data will ever be sent.
+In times of a congestion
+with large amounts of data being queued, the
+.Fa timetolive
+may expire before the first transmission is ever made.
+.Pp
+The
+.Dv SCTP_PR_SCTP_BUF
+based policy transforms the
+.Fa timetolive
+field into a total number of bytes allowed on the outbound
+send queue.
+If that number or more bytes are in queue, then
+other buffer based sends are looked to be removed and
+skipped.
+Note that this policy may also result in the data
+never being sent if no buffer based sends are in queue and
+the maximum specified by
+.Fa timetolive
+bytes is in queue.
+.Pp
+The
+.Dv SCTP_PR_SCTP_RTX
+policy transforms the
+.Fa timetolive
+into a number of retransmissions to allow.
+This policy
+always assures that at a minimum one send attempt is
+made of the data.
+After which no more than
+.Fa timetolive
+retransmissions will be made before the data is skipped.
+.Pp
+.Fa stream_no
+is the SCTP stream that you wish to send the
+message on.
+Streams in SCTP are reliable (or partially reliable) flows of ordered
+messages.
+The
+.Fa context
+field is used only in the event the message cannot be sent.
+This is an opaque
+value that the stack retains and will give to the user when a failed send
+is given if that notification is enabled (see
+.Xr sctp 4 ) .
+Normally a user process can use this value to index some application
+specific data structure when a send cannot be fulfilled.
+.Fn sctp_sendmsgx
+is identical to
+.Fn sctp_sendmsg
+with the exception that it takes an array of sockaddr structures in the
+argument
+.Fa to
+and adds the additional argument
+.Fa addrcnt
+which specifies how many addresses are in the array.
+This allows a
+caller to implicitly set up an association passing multiple addresses
+as if
+.Fn sctp_connectx
+had been called to set up the association.
+.Sh RETURN VALUES
+The call returns the number of characters sent, or -1
+if an error occurred.
+.Sh ERRORS
+The
+.Fn sctp_sendmsg
+system call
+fails if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+An invalid descriptor was specified.
+.It Bq Er ENOTSOCK
+The argument
+.Fa s
+is not a socket.
+.It Bq Er EFAULT
+An invalid user space address was specified for an argument.
+.It Bq Er EMSGSIZE
+The socket requires that message be sent atomically,
+and the size of the message to be sent made this impossible.
+.It Bq Er EAGAIN
+The socket is marked non-blocking and the requested operation
+would block.
+.It Bq Er ENOBUFS
+The system was unable to allocate an internal buffer.
+The operation may succeed when buffers become available.
+.It Bq Er ENOBUFS
+The output queue for a network interface was full.
+This generally indicates that the interface has stopped sending,
+but may be caused by transient congestion.
+.It Bq Er EHOSTUNREACH
+The remote host was unreachable.
+.It Bq Er ENOTCONN
+On a one-to-one style socket no association exists.
+.It Bq Er ECONNRESET
+An abort was received by the stack while the user was
+attempting to send data to the peer.
+.It Bq Er ENOENT
+On a one-to-many style socket no address is specified
+so that the association cannot be located or the
+.Dv SCTP_ABORT
+flag was specified on a non-existing association.
+.It Bq Er EPIPE
+The socket is unable to send anymore data
+.Dv ( SBS_CANTSENDMORE
+has been set on the socket).
+This typically means that the socket
+is not connected and is a one-to-one style socket.
+.El
+.Sh SEE ALSO
+.Xr connect 2 ,
+.Xr getsockopt 2 ,
+.Xr recv 2 ,
+.Xr select 2 ,
+.Xr sendmsg 2 ,
+.Xr socket 2 ,
+.Xr write 2 ,
+.Xr sctp_connectx 3 ,
+.Xr sctp 4
+.Sh BUGS
+Because in the one-to-many style socket
+.Fn sctp_sendmsg
+or
+.Fn sctp_sendmsgx
+may have multiple associations under one endpoint, a
+select on write will only work for a one-to-one style
+socket.

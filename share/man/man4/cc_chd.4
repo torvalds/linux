@@ -1,0 +1,128 @@
+.\"
+.\" Copyright (c) 2010-2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written at the Centre for Advanced Internet
+.\" Architectures, Swinburne University of Technology, Melbourne, Australia by
+.\" David Hayes under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 15, 2011
+.Dt CC_CHD 4
+.Os
+.Sh NAME
+.Nm cc_chd
+.Nd CHD Congestion Control Algorithm
+.Sh DESCRIPTION
+CHD enhances the HD algorithm implemented in
+.Xr cc_hd 4 .
+It provides tolerance to non-congestion related packet loss and improvements to
+coexistence with traditional loss-based TCP flows, especially when the
+bottleneck link is lightly multiplexed.
+.Pp
+Like HD, the algorithm aims to keep network queuing delays below a particular
+threshold (queue_threshold) and decides to reduce the congestion window (cwnd)
+probabilistically based on its estimate of the network queuing delay.
+.Pp
+It differs from HD in three key aspects:
+.Bl -bullet
+.It
+The probability of cwnd reduction due to congestion is calculated once per round
+trip time instead of each time an acknowledgement is received as done by
+.Xr cc_hd 4 .
+.It
+Packet losses that occur while the queuing delay is less than queue_threshold
+do not cause cwnd to be reduced.
+.It
+CHD uses a shadow window to help regain lost transmission opportunities when
+competing with loss-based TCP flows.
+.El
+.Sh MIB Variables
+The algorithm exposes the following tunable variables in the
+.Va net.inet.tcp.cc.chd
+branch of the
+.Xr sysctl 3
+MIB:
+.Bl -tag -width ".Va queue_threshold"
+.It Va queue_threshold
+Queueing congestion threshold (qth) in ticks.
+Default is 20.
+.It Va pmax
+Per RTT maximum backoff probability as a percentage.
+Default is 50.
+.It Va qmin
+Minimum queuing delay threshold (qmin) in ticks.
+Default is 5.
+.It Va loss_fair
+If 1, cwnd is adjusted using the shadow window when a congestion
+related loss is detected.
+Default is 1.
+.It Va use_max
+If 1, the maximum RTT seen within the measurement period is used as the basic
+delay measurement for the algorithm, otherwise a sampled RTT measurement
+is used.
+Default is 1.
+.El
+.Sh SEE ALSO
+.Xr cc_cubic 4 ,
+.Xr cc_hd 4 ,
+.Xr cc_htcp 4 ,
+.Xr cc_newreno 4 ,
+.Xr cc_vegas 4 ,
+.Xr h_ertt 4 ,
+.Xr mod_cc 4 ,
+.Xr tcp 4 ,
+.Xr khelp 9 ,
+.Xr mod_cc 9
+.Rs
+.%A "D. A. Hayes"
+.%A "G. Armitage"
+.%T "Improved coexistence and loss tolerance for delay based TCP congestion control"
+.%J "in 35th Annual IEEE Conference on Local Computer Networks"
+.%D "October 2010"
+.%P "24-31"
+.Re
+.Sh ACKNOWLEDGEMENTS
+Development and testing of this software were made possible in part by grants
+from the FreeBSD Foundation and Cisco University Research Program Fund at
+Community Foundation Silicon Valley.
+.Sh HISTORY
+The
+.Nm
+congestion control module first appeared in
+.Fx 9.0 .
+.Pp
+The module was first released in 2010 by David Hayes whilst working on the
+NewTCP research project at Swinburne University of Technology's Centre for
+Advanced Internet Architectures, Melbourne, Australia.
+More details are available at:
+.Pp
+http://caia.swin.edu.au/urp/newtcp/
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+congestion control module and this manual page were written by
+.An David Hayes Aq Mt david.hayes@ieee.org .

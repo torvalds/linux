@@ -1,0 +1,17 @@
+
+#------------------------------------------------------------------------------
+# $File: gcc,v 1.5 2016/07/01 23:31:13 christos Exp $
+# gcc:  file(1) magic for GCC special files
+#
+0	string		gpch		GCC precompiled header
+
+# The version field is annoying.  It's 3 characters, not zero-terminated.
+>5	byte		x			(version %c
+>6	byte		x			\b%c
+>7	byte		x			\b%c)
+
+# 67 = 'C', 111 = 'o', 43 = '+', 79 = 'O'
+>4	byte		67			for C
+>4	byte		111			for Objective-C
+>4	byte		43			for C++
+>4	byte		79			for Objective-C++

@@ -1,0 +1,16 @@
+# $FreeBSD$
+echo $LINENO
+echo $LINENO
+
+f() {	
+	echo $LINENO
+	echo $LINENO
+}
+
+f
+
+echo ${LINENO:-foo}
+echo ${LINENO=foo}
+echo ${LINENO:+foo}
+echo ${LINENO+foo}
+echo ${#LINENO}

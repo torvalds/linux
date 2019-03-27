@@ -1,0 +1,2158 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.5, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>ntpq: Network Time Protocol Query User&rsquo;s Manual</title>
+
+<meta name="description" content="ntpq: Network Time Protocol Query User&rsquo;s Manual">
+<meta name="keywords" content="ntpq: Network Time Protocol Query User&rsquo;s Manual">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="#Top" rel="start" title="Top">
+<link href="dir.html#Top" rel="up" title="(dir)">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<h1 class="settitle" align="center">ntpq: Network Time Protocol Query User&rsquo;s Manual</h1>
+
+
+
+
+
+<a name="SEC_Overview"></a>
+<h2 class="shortcontents-heading">Short Table of Contents</h2>
+
+<div class="shortcontents">
+<ul class="no-bullet">
+<li><a name="stoc-Description" href="#toc-Description">1 Description</a></li>
+</ul>
+</div>
+
+
+<a name="Top"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpq-Description" accesskey="n" rel="next">ntpq Description</a>, Previous: <a href="dir.html#Top" accesskey="p" rel="prev">(dir)</a>, Up: <a href="dir.html#Top" accesskey="u" rel="up">(dir)</a> &nbsp; </p>
+</div>
+<a name="ntpq_003a-Network-Time-Protocol-Query-User-Manual"></a>
+<h1 class="top">ntpq: Network Time Protocol Query User Manual</h1>
+
+<p>The <code>ntpq</code> utility program is used to
+monitor the operational status
+and determine the performance of
+<code>ntpd</code>, the NTP daemon.
+</p>
+<p>This document applies to version 4.2.8p13 of <code>ntpq</code>.
+</p>
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-Description" accesskey="1">ntpq Description</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-Invocation" accesskey="2">ntpq Invocation</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Invoking ntpq
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Usage" accesskey="3">Usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Internal-Commands" accesskey="4">Internal Commands</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Control-Message-Commands" accesskey="5">Control Message Commands</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Status-Words-and-Kiss-Codes" accesskey="6">Status Words and Kiss Codes</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#System-Variables" accesskey="7">System Variables</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Peer-Variables" accesskey="8">Peer Variables</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Clock-Variables" accesskey="9">Clock Variables</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+</table>
+
+<hr>
+<a name="ntpq-Description"></a>
+<div class="header">
+<p>
+Next: <a href="#Usage" accesskey="n" rel="next">Usage</a>, Previous: <a href="#Top" accesskey="p" rel="prev">Top</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
+</div>
+<a name="Description"></a>
+<h2 class="chapter">1 Description</h2>
+
+<p>The <code>ntpq</code> utility program is used to monitor NTP daemon <code>ntpd</code> operations and determine performance.
+It uses the standard NTP mode 6 control message formats defined in
+Appendix B of the NTPv3 specification RFC1305.
+The same formats are used in NTPv4, although some of the variable names have changed and new ones added.
+The description on this page is for the NTPv4 variables.
+</p>
+<p>The program can be run either in interactive mode or controlled using command line arguments.  Requests to read and write arbitrary variables can be assembled, with raw and pretty-printed output options being available.  The <code>ntpq</code> can also obtain and print a list of peers in a common format by sending multiple queries to the server.
+</p>
+<p>If one or more request options is included on the command line when <code>ntpq</code> is executed, each of the requests will be sent to the NTP servers running on each of the hosts given as command line arguments, or on localhost by default.  If no request options are given, <code>ntpq</code> will attempt to read commands from the standard input and execute these on the NTP server running on the first host given on the command line, again defaulting to localhost when no other host is specified.  <code>ntpq</code> will prompt for commands if the standard input is a terminal device.
+</p>
+<p><code>ntpq</code> uses NTP mode 6 packets to communicate with the NTP server, and hence can be used to query any compatible server on the network which permits it.  Note that since NTP is a UDP protocol this communication will be somewhat unreliable, especially over large distances in terms of network topology.  <code>ntpq</code> makes one attempt to retransmit requests, and will time requests out if the remote host is not heard from within a suitable timeout time.
+</p>
+<p>Note that in contexts where a host name is expected, a <code>-4</code> qualifier preceding the host name forces DNS resolution to the IPv4 namespace, while a <code>-6</code> qualifier forces DNS resolution to the IPv6 namespace.
+</p>
+<p>For examples and usage, see the <a href="debug.html">NTP Debugging Techniques</a> page.
+</p>
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-Invocation" accesskey="1">ntpq Invocation</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Usage" accesskey="2">Usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Internal-Commands" accesskey="3">Internal Commands</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Control-Message-Commands" accesskey="4">Control Message Commands</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Status-Words-and-Kiss-Codes" accesskey="5">Status Words and Kiss Codes</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#System-Variables" accesskey="6">System Variables</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Peer-Variables" accesskey="7">Peer Variables</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Clock-Variables" accesskey="8">Clock Variables</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+</table>
+
+<hr>
+<a name="ntpq-Invocation"></a>
+<div class="header">
+<p>
+Next: <a href="#Usage" accesskey="n" rel="next">Usage</a>, Previous: <a href="#ntpq-Description" accesskey="p" rel="prev">ntpq Description</a>, Up: <a href="#ntpq-Description" accesskey="u" rel="up">ntpq Description</a> &nbsp; </p>
+</div>
+<a name="Invoking-ntpq"></a>
+<h3 class="section">1.1 Invoking ntpq</h3>
+<a name="index-ntpq"></a>
+<a name="index-standard-NTP-query-program"></a>
+
+
+<p>The
+<code>ntpq</code>
+utility program is used to query NTP servers to monitor NTP operations
+and performance, requesting
+information about current state and/or changes in that state.
+The program may be run either in interactive mode or controlled using
+command line arguments.
+Requests to read and write arbitrary
+variables can be assembled, with raw and pretty-printed output
+options being available.
+The
+<code>ntpq</code>
+utility can also obtain and print a
+list of peers in a common format by sending multiple queries to the
+server.
+</p>
+<p>If one or more request options is included on the command line
+when
+<code>ntpq</code>
+is executed, each of the requests will be sent
+to the NTP servers running on each of the hosts given as command
+line arguments, or on localhost by default.
+If no request options
+are given,
+<code>ntpq</code>
+will attempt to read commands from the
+standard input and execute these on the NTP server running on the
+first host given on the command line, again defaulting to localhost
+when no other host is specified.
+The
+<code>ntpq</code>
+utility will prompt for
+commands if the standard input is a terminal device.
+</p>
+<p><code>ntpq</code>
+uses NTP mode 6 packets to communicate with the
+NTP server, and hence can be used to query any compatible server on
+the network which permits it.
+Note that since NTP is a UDP protocol
+this communication will be somewhat unreliable, especially over
+large distances in terms of network topology.
+The
+<code>ntpq</code>
+utility makes
+one attempt to retransmit requests, and will time requests out if
+the remote host is not heard from within a suitable timeout
+time.
+</p>
+<p>Note that in contexts where a host name is expected, a
+<code>-4</code>
+qualifier preceding the host name forces resolution to the IPv4
+namespace, while a
+<code>-6</code>
+qualifier forces resolution to the IPv6 namespace.
+For examples and usage, see the
+&ldquo;NTP Debugging Techniques&rdquo;
+page.
+</p>
+<p>Specifying a
+command line option other than
+<code>-i</code>
+or
+<code>-n</code>
+will
+cause the specified query (queries) to be sent to the indicated
+host(s) immediately.
+Otherwise,
+<code>ntpq</code>
+will attempt to read
+interactive format commands from the standard input.
+</p>
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-usage" accesskey="1">ntpq usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-ipv4" accesskey="2">ntpq ipv4</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-ipv6" accesskey="3">ntpq ipv6</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-command" accesskey="4">ntpq command</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-interactive" accesskey="5">ntpq interactive</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-numeric" accesskey="6">ntpq numeric</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-old_002drv" accesskey="7">ntpq old-rv</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-peers" accesskey="8">ntpq peers</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-refid" accesskey="9">ntpq refid</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-wide">ntpq wide</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-config">ntpq config</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-exit-status">ntpq exit status</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+</table>
+
+<a name="Internal-Commands-1"></a>
+<h4 class="subsection">1.1.1 Internal Commands</h4>
+
+<p>Interactive format commands consist of a keyword followed by zero
+to four arguments.
+Only enough characters of the full keyword to
+uniquely identify the command need be typed.
+</p>
+<p>A
+number of interactive format commands are executed entirely within
+the
+<code>ntpq</code>
+utility itself and do not result in NTP
+requests being sent to a server.
+These are described following.
+</p><dl compact="compact">
+<dt><code>?</code> <code>[<kbd>command</kbd>]</code></dt>
+<dt><code>help</code> <code>[<kbd>command</kbd>]</code></dt>
+<dd><p>A
+&lsquo;?&rsquo;
+by itself will print a list of all the commands
+known to
+<code>ntpq</code>
+A
+&lsquo;?&rsquo;
+followed by a command name will print function and usage
+information about the command.
+</p></dd>
+<dt><code>addvars</code> <kbd>name</kbd><code>[=<kbd>value</kbd>]</code><code>[,...]</code></dt>
+<dt><code>rmvars</code> <kbd>name</kbd><code>[,...]</code></dt>
+<dt><code>clearvars</code></dt>
+<dt><code>showvars</code></dt>
+<dd><p>The arguments to this command consist of a list of
+items of the form
+<kbd>name</kbd><code>[=<kbd>value</kbd>]</code>,
+where the
+.No = Ns Ar value
+is ignored, and can be omitted,
+in requests to the server to read variables.
+The
+<code>ntpq</code>
+utility maintains an internal list in which data to be included in
+messages can be assembled, and displayed or set using the
+<code>readlist</code>
+and
+<code>writelist</code>
+commands described below.
+The
+<code>addvars</code>
+command allows variables and their optional values to be added to
+the list.
+If more than one variable is to be added, the list should
+be comma-separated and not contain white space.
+The
+<code>rmvars</code>
+command can be used to remove individual variables from the list,
+while the
+<code>clearvars</code>
+command removes all variables from the
+list.
+The
+<code>showvars</code>
+command displays the current list of optional variables.
+</p></dd>
+<dt><code>authenticate</code> <code>[<code>yes</code>|<code>no</code>]</code></dt>
+<dd><p>Normally
+<code>ntpq</code>
+does not authenticate requests unless
+they are write requests.
+The command
+<code>authenticate</code> <code>yes</code>
+causes
+<code>ntpq</code>
+to send authentication with all requests it
+makes.
+Authenticated requests causes some servers to handle
+requests slightly differently.
+The command
+<code>authenticate</code>
+causes
+<code>ntpq</code>
+to display whether or not
+it is currently authenticating requests.
+</p></dd>
+<dt><code>cooked</code></dt>
+<dd><p>Causes output from query commands to be &quot;cooked&quot;, so that
+variables which are recognized by
+<code>ntpq</code>
+will have their
+values reformatted for human consumption.
+Variables which
+<code>ntpq</code>
+could not decode completely are
+marked with a trailing
+&lsquo;?&rsquo;.
+</p></dd>
+<dt><code>debug</code> <code>[<code>more</code>|<code>less</code>|<code>off</code>]</code></dt>
+<dd><p>With no argument, displays the current debug level.
+Otherwise, the debugging level is changed as indicated.
+</p></dd>
+<dt><code>delay</code> <code>[<kbd>milliseconds</kbd>]</code></dt>
+<dd><p>Specify a time interval to be added to timestamps included in
+requests which require authentication.
+This is used to enable
+(unreliable) server reconfiguration over long delay network paths
+or between machines whose clocks are unsynchronized.
+Actually the
+server does not now require timestamps in authenticated requests,
+so this command may be obsolete.
+Without any arguments, displays the current delay.
+</p></dd>
+<dt><code>drefid</code> <code>[<code>hash</code>|<code>ipv4</code>]</code></dt>
+<dd><p>Display refids as IPv4 or hash.
+Without any arguments, displays whether refids are shown as IPv4
+addresses or hashes.
+</p></dd>
+<dt><code>exit</code></dt>
+<dd><p>Exit
+<code>ntpq</code>
+</p></dd>
+<dt><code>host</code> <code>[<kbd>name</kbd>]</code></dt>
+<dd><p>Set the host to which future queries will be sent.
+The
+<kbd>name</kbd>
+may be either a host name or a numeric address.
+Without any arguments, displays the current host.
+</p></dd>
+<dt><code>hostnames</code> <code>[<code>yes</code>|<code>no</code>]</code></dt>
+<dd><p>If
+<code>yes</code>
+is specified, host names are printed in
+information displays.
+If
+<code>no</code>
+is specified, numeric
+addresses are printed instead.
+The default is
+<code>yes</code>,
+unless
+modified using the command line
+<code>-n</code>
+switch.
+Without any arguments, displays whether host names or numeric addresses
+are shown.
+</p></dd>
+<dt><code>keyid</code> <code>[<kbd>keyid</kbd>]</code></dt>
+<dd><p>This command allows the specification of a key number to be
+used to authenticate configuration requests.
+This must correspond
+to the
+<code>controlkey</code>
+key number the server has been configured to use for this
+purpose.
+Without any arguments, displays the current
+<kbd>keyid</kbd>.
+</p></dd>
+<dt><code>keytype</code> <code>[<kbd>digest</kbd>]</code></dt>
+<dd><p>Specify the digest algorithm to use for authenticating requests, with default
+<code>MD5</code>.
+If
+<code>ntpq</code>
+was built with OpenSSL support, and OpenSSL is installed,
+<kbd>digest</kbd>
+can be any message digest algorithm supported by OpenSSL.
+If no argument is given, the current
+<code>keytype</code> <kbd>digest</kbd>
+algorithm used is displayed.
+</p></dd>
+<dt><code>ntpversion</code> <code>[<code>1</code>|<code>2</code>|<code>3</code>|<code>4</code>]</code></dt>
+<dd><p>Sets the NTP version number which
+<code>ntpq</code>
+claims in
+packets.
+Defaults to 3, and note that mode 6 control messages (and
+modes, for that matter) didn&rsquo;t exist in NTP version 1.
+There appear
+to be no servers left which demand version 1.
+With no argument, displays the current NTP version that will be used
+when communicating with servers.
+</p></dd>
+<dt><code>passwd</code></dt>
+<dd><p>This command prompts you to type in a password (which will not
+be echoed) which will be used to authenticate configuration
+requests.
+The password must correspond to the key configured for
+use by the NTP server for this purpose if such requests are to be
+successful.
+</p></dd>
+<dt><code>poll</code> <code>[<kbd>n</kbd>]</code> <code>[<code>verbose</code>]</code></dt>
+<dd><p>Poll an NTP server in client mode
+<kbd>n</kbd>
+times.
+Poll not implemented yet.
+</p></dd>
+<dt><code>quit</code></dt>
+<dd><p>Exit
+<code>ntpq</code>
+</p></dd>
+<dt><code>raw</code></dt>
+<dd><p>Causes all output from query commands is printed as received
+from the remote server.
+The only formating/interpretation done on
+the data is to transform nonascii data into a printable (but barely
+understandable) form.
+</p></dd>
+<dt><code>timeout</code> <code>[<kbd>milliseconds</kbd>]</code></dt>
+<dd><p>Specify a timeout period for responses to server queries.
+The
+default is about 5000 milliseconds.
+Without any arguments, displays the current timeout period.
+Note that since
+<code>ntpq</code>
+retries each query once after a timeout, the total waiting time for
+a timeout will be twice the timeout value set.
+</p></dd>
+<dt><code>version</code></dt>
+<dd><p>Display the version of the
+<code>ntpq</code>
+program.
+</p></dd>
+</dl>
+
+<a name="Control-Message-Commands-1"></a>
+<h4 class="subsubsection">1.1.1.1 Control Message Commands</h4>
+<p>Association ids are used to identify system, peer and clock variables.
+System variables are assigned an association id of zero and system name
+space, while each association is assigned a nonzero association id and
+peer namespace.
+Most control commands send a single message to the server and expect a
+single response message.
+The exceptions are the
+<code>peers</code>
+command, which sends a series of messages,
+and the
+<code>mreadlist</code>
+and
+<code>mreadvar</code>
+commands, which iterate over a range of associations.
+</p><dl compact="compact">
+<dt><code>apeers</code></dt>
+<dd><p>Display a list of peers in the form:
+</p><div class="example">
+<pre class="example">[tally]remote refid assid st t when pool reach delay offset jitter
+</pre></div>
+<p>where the output is just like the
+<code>peers</code>
+command except that the
+<code>refid</code>
+is displayed in hex format and the association number is also displayed.
+</p></dd>
+<dt><code>associations</code></dt>
+<dd><p>Display a list of mobilized associations in the form:
+</p><div class="example">
+<pre class="example">ind assid status conf reach auth condition last_event cnt
+</pre></div>
+<dl compact="compact">
+<dt>Sy Variable Ta Sy Description</dt>
+<dt><code>ind</code> <code>Ta</code> <code>index</code> <code>on</code> <code>this</code> <code>list</code></dt>
+<dt><code>assid</code> <code>Ta</code> <code>association</code> <code>id</code></dt>
+<dt><code>status</code> <code>Ta</code> <code>peer</code> <code>status</code> <code>word</code></dt>
+<dt><code>conf</code> <code>Ta</code> <code>yes</code>: <code>No</code> <code>persistent,</code> <code>no</code>: <code>No</code> <code>ephemeral</code></dt>
+<dt><code>reach</code> <code>Ta</code> <code>yes</code>: <code>No</code> <code>reachable,</code> <code>no</code>: <code>No</code> <code>unreachable</code></dt>
+<dt><code>auth</code> <code>Ta</code> <code>ok</code>, <code>yes</code>, <code>bad</code> <code>No</code> <code>and</code> <code>none</code></dt>
+<dt><code>condition</code> <code>Ta</code> <code>selection</code> <code>status</code> <code>(see</code> <code>the</code> <code>select</code> <code>No</code> <code>field</code> <code>of</code> <code>the</code> <code>peer</code> <code>status</code> <code>word)</code></dt>
+<dt><code>last_event</code> <code>Ta</code> <code>event</code> <code>report</code> <code>(see</code> <code>the</code> <code>event</code> <code>No</code> <code>field</code> <code>of</code> <code>the</code> <code>peer</code> <code>status</code> <code>word)</code></dt>
+<dt><code>cnt</code> <code>Ta</code> <code>event</code> <code>count</code> <code>(see</code> <code>the</code> <code>count</code> <code>No</code> <code>field</code> <code>of</code> <code>the</code> <code>peer</code> <code>status</code> <code>word)</code></dt>
+</dl>
+</dd>
+<dt><code>authinfo</code></dt>
+<dd><p>Display the authentication statistics counters:
+time since reset, stored keys, free keys, key lookups, keys not found,
+uncached keys, expired keys, encryptions, decryptions.
+</p></dd>
+<dt><code>clocklist</code> <code>[<kbd>associd</kbd>]</code></dt>
+<dt><code>cl</code> <code>[<kbd>associd</kbd>]</code></dt>
+<dd><p>Display all clock variables in the variable list for those associations
+supporting a reference clock.
+</p></dd>
+<dt><code>clockvar</code> <code>[<kbd>associd</kbd>]</code> <code>[<kbd>name</kbd><code>[=<kbd>value</kbd>]</code>]</code><code>[,...]</code></dt>
+<dt><code>cv</code> <code>[<kbd>associd</kbd>]</code> <code>[<kbd>name</kbd><code>[=<kbd>value</kbd>]</code>]</code><code>[,...]</code></dt>
+<dd><p>Display a list of clock variables for those associations supporting a
+reference clock.
+</p></dd>
+<dt><code>:config</code> <kbd>configuration command line</kbd></dt>
+<dd><p>Send the remainder of the command line, including whitespace, to the
+server as a run-time configuration command in the same format as a line
+in the configuration file.
+This command is experimental until further notice and clarification.
+Authentication is of course required.
+</p></dd>
+<dt><code>config-from-file</code> <kbd>filename</kbd></dt>
+<dd><p>Send each line of
+<kbd>filename</kbd>
+to the server as run-time configuration commands in the same format as
+lines in the configuration file.
+This command is experimental until further notice and clarification.
+Authentication is required.
+</p></dd>
+<dt><code>ifstats</code></dt>
+<dd><p>Display status and statistics counters for each local network interface address:
+interface number, interface name and address or broadcast, drop, flag,
+ttl, mc, received, sent, send failed, peers, uptime.
+Authentication is required.
+</p></dd>
+<dt><code>iostats</code></dt>
+<dd><p>Display network and reference clock I/O statistics:
+time since reset, receive buffers, free receive buffers, used receive buffers,
+low water refills, dropped packets, ignored packets, received packets,
+packets sent, packet send failures, input wakeups, useful input wakeups.
+</p></dd>
+<dt><code>kerninfo</code></dt>
+<dd><p>Display kernel loop and PPS statistics:
+associd, status, pll offset, pll frequency, maximum error,
+estimated error, kernel status, pll time constant, precision,
+frequency tolerance, pps frequency, pps stability, pps jitter,
+calibration interval, calibration cycles, jitter exceeded,
+stability exceeded, calibration errors.
+As with other ntpq output, times are in milliseconds; very small values
+may be shown as exponentials.
+The precision value displayed is in milliseconds as well, unlike the
+precision system variable.
+</p></dd>
+<dt><code>lassociations</code></dt>
+<dd><p>Perform the same function as the associations command, except display
+mobilized and unmobilized associations, including all clients.
+</p></dd>
+<dt><code>lopeers</code> <code>[<code>-4</code>|<code>-6</code>]</code></dt>
+<dd><p>Display a list of all peers and clients showing
+<code>dstadr</code>
+(associated with the given IP version).
+</p></dd>
+<dt><code>lpassociations</code></dt>
+<dd><p>Display the last obtained list of associations, including all clients.
+</p></dd>
+<dt><code>lpeers</code> <code>[<code>-4</code>|<code>-6</code>]</code></dt>
+<dd><p>Display a list of all peers and clients (associated with the given IP version).
+</p></dd>
+<dt><code>monstats</code></dt>
+<dd><p>Display monitor facility status, statistics, and limits:
+enabled, addresses, peak addresses, maximum addresses,
+reclaim above count, reclaim older than, kilobytes, maximum kilobytes.
+</p></dd>
+<dt><code>mreadlist</code> <kbd>associdlo</kbd> <kbd>associdhi</kbd></dt>
+<dt><code>mrl</code> <kbd>associdlo</kbd> <kbd>associdhi</kbd></dt>
+<dd><p>Perform the same function as the
+<code>readlist</code>
+command for a range of association ids.
+</p></dd>
+<dt><code>mreadvar</code> <kbd>associdlo</kbd> <kbd>associdhi</kbd> <code>[<kbd>name</kbd>]</code><code>[,...]</code></dt>
+<dd><p>This range may be determined from the list displayed by any
+command showing associations.
+</p></dd>
+<dt><code>mrv</code> <kbd>associdlo</kbd> <kbd>associdhi</kbd> <code>[<kbd>name</kbd>]</code><code>[,...]</code></dt>
+<dd><p>Perform the same function as the
+<code>readvar</code>
+command for a range of association ids.
+This range may be determined from the list displayed by any
+command showing associations.
+</p></dd>
+<dt><code>mrulist</code> <code>[<code>limited</code> | <code>kod</code> | <code>mincount</code>=<kbd>count</kbd> | <code>laddr</code>=<kbd>localaddr</kbd> | <code>sort</code>=<code>[-]</code><kbd>sortorder</kbd> | <code>resany</code>=<kbd>hexmask</kbd> | <code>resall</code>=<kbd>hexmask</kbd>]</code></dt>
+<dd><p>Display traffic counts of the most recently seen source addresses
+collected and maintained by the monitor facility.
+With the exception of
+<code>sort</code>=<code>[-]</code><kbd>sortorder</kbd>,
+the options filter the list returned by
+<code>ntpd(8)</code>.
+The
+<code>limited</code>
+and
+<code>kod</code>
+options return only entries representing client addresses from which the
+last packet received triggered either discarding or a KoD response.
+The
+<code>mincount</code>=<kbd>count</kbd>
+option filters entries representing less than
+<kbd>count</kbd>
+packets.
+The
+<code>laddr</code>=<kbd>localaddr</kbd>
+option filters entries for packets received on any local address other than
+<kbd>localaddr</kbd>.
+<code>resany</code>=<kbd>hexmask</kbd>
+and
+<code>resall</code>=<kbd>hexmask</kbd>
+filter entries containing none or less than all, respectively, of the bits in
+<kbd>hexmask</kbd>,
+which must begin with
+<code>0x</code>.
+The
+<kbd>sortorder</kbd>
+defaults to
+<code>lstint</code>
+and may be 
+<code>addr</code>,
+<code>avgint</code>,
+<code>count</code>,
+<code>lstint</code>,
+or any of those preceded by
+&lsquo;-&rsquo;
+to reverse the sort order.
+The output columns are:
+</p><dl compact="compact">
+<dt>Column</dt>
+<dd><p>Description
+</p></dd>
+<dt><code>lstint</code></dt>
+<dd><p>Interval in seconds between the receipt of the most recent packet from
+this address and the completion of the retrieval of the MRU list by
+<code>ntpq</code>
+</p></dd>
+<dt><code>avgint</code></dt>
+<dd><p>Average interval in s between packets from this address.
+</p></dd>
+<dt><code>rstr</code></dt>
+<dd><p>Restriction flags associated with this address.
+Most are copied unchanged from the matching
+<code>restrict</code>
+command, however 0x400 (kod) and 0x20 (limited) flags are cleared unless
+the last packet from this address triggered a rate control response.
+</p></dd>
+<dt><code>r</code></dt>
+<dd><p>Rate control indicator, either
+a period,
+<code>L</code>
+or
+<code>K</code>
+for no rate control response,
+rate limiting by discarding, or rate limiting with a KoD response, respectively.
+</p></dd>
+<dt><code>m</code></dt>
+<dd><p>Packet mode.
+</p></dd>
+<dt><code>v</code></dt>
+<dd><p>Packet version number.
+</p></dd>
+<dt><code>count</code></dt>
+<dd><p>Packets received from this address.
+</p></dd>
+<dt><code>rport</code></dt>
+<dd><p>Source port of last packet from this address.
+</p></dd>
+<dt><code>remote</code> <code>address</code></dt>
+<dd><p>host or DNS name, numeric address, or address followed by
+claimed DNS name which could not be verified in parentheses.
+</p></dd>
+</dl>
+</dd>
+<dt><code>opeers</code> <code>[<code>-4</code> | <code>-6</code>]</code></dt>
+<dd><p>Obtain and print the old-style list of all peers and clients showing
+<code>dstadr</code>
+(associated with the given IP version),
+rather than the
+<code>refid</code>.
+</p></dd>
+<dt><code>passociations</code></dt>
+<dd><p>Perform the same function as the
+<code>associations</code>
+command,
+except that it uses previously stored data rather than making a new query.
+</p></dd>
+<dt><code>peers</code></dt>
+<dd><p>Display a list of peers in the form:
+</p><div class="example">
+<pre class="example">[tally]remote refid st t when pool reach delay offset jitter
+</pre></div>
+<dl compact="compact">
+<dt>Variable</dt>
+<dd><p>Description
+</p></dd>
+<dt><code>[tally]</code></dt>
+<dd><p>single-character code indicating current value of the
+<code>select</code>
+field of the
+.Lk decode.html#peer &quot;peer status word&quot;
+</p></dd>
+<dt><code>remote</code></dt>
+<dd><p>host name (or IP number) of peer.
+The value displayed will be truncated to 15 characters unless the
+<code>ntpq</code>
+<code>-w</code>
+option is given, in which case the full value will be displayed
+on the first line, and if too long,
+the remaining data will be displayed on the next line.
+</p></dd>
+<dt><code>refid</code></dt>
+<dd><p>source IP address or
+.Lk decode.html#kiss &quot;&rsquo;kiss code&quot;
+</p></dd>
+<dt><code>st</code></dt>
+<dd><p>stratum: 0 for local reference clocks, 1 for servers with local
+reference clocks, ..., 16 for unsynchronized server clocks
+</p></dd>
+<dt><code>t</code></dt>
+<dd><p><code>u</code>:
+unicast or manycast client,
+<code>b</code>:
+broadcast or multicast client,
+<code>p</code>:
+pool source,
+<code>l</code>:
+local (reference clock),
+<code>s</code>:
+symmetric (peer),
+<code>A</code>:
+manycast server,
+<code>B</code>:
+broadcast server,
+<code>M</code>:
+multicast server
+</p></dd>
+<dt><code>when</code></dt>
+<dd><p>time in seconds, minutes, hours, or days since the last packet
+was received, or
+&lsquo;-&rsquo;
+if a packet has never been received
+</p></dd>
+<dt><code>poll</code></dt>
+<dd><p>poll interval (s)
+</p></dd>
+<dt><code>reach</code></dt>
+<dd><p>reach shift register (octal)
+</p></dd>
+<dt><code>delay</code></dt>
+<dd><p>roundtrip delay
+</p></dd>
+<dt><code>offset</code></dt>
+<dd><p>offset of server relative to this host
+</p></dd>
+<dt><code>jitter</code></dt>
+<dd><p>offset RMS error estimate.
+</p></dd>
+</dl>
+</dd>
+<dt><code>pstats</code> <kbd>associd</kbd></dt>
+<dd><p>Display the statistics for the peer with the given
+<kbd>associd</kbd>:
+associd, status, remote host, local address, time last received,
+time until next send, reachability change, packets sent,
+packets received, bad authentication, bogus origin, duplicate,
+bad dispersion, bad reference time, candidate order.
+</p></dd>
+<dt><code>readlist</code> <code>[<kbd>associd</kbd>]</code></dt>
+<dt><code>rl</code> <code>[<kbd>associd</kbd>]</code></dt>
+<dd><p>Display all system or peer variables.
+If the
+<kbd>associd</kbd>
+is omitted, it is assumed to be zero.
+</p></dd>
+<dt><code>readvar</code> <code>[<kbd>associd</kbd> <kbd>name</kbd><code>[=<kbd>value</kbd>]</code> <code>[, ...]</code>]</code></dt>
+<dt><code>rv</code> <code>[<kbd>associd</kbd> <kbd>name</kbd><code>[=<kbd>value</kbd>]</code> <code>[, ...]</code>]</code></dt>
+<dd><p>Display the specified system or peer variables.
+If
+<kbd>associd</kbd>
+is zero, the variables are from the
+<a href="#System-Variables">System Variables</a>
+name space, otherwise they are from the
+<a href="#Peer-Variables">Peer Variables</a>
+name space.
+The
+<kbd>associd</kbd>
+is required, as the same name can occur in both spaces.
+If no
+<kbd>name</kbd>
+is included, all operative variables in the name space are displayed.
+In this case only, if the
+<kbd>associd</kbd>
+is omitted, it is assumed to be zero.
+Multiple names are specified with comma separators and without whitespace.
+Note that time values are represented in milliseconds
+and frequency values in parts-per-million (PPM).
+Some NTP timestamps are represented in the format
+<kbd>YYYY</kbd><kbd>MM</kbd> <kbd>DD</kbd> <kbd>TTTT</kbd>,
+where
+<kbd>YYYY</kbd>
+is the year,
+<kbd>MM</kbd>
+the month of year,
+<kbd>DD</kbd>
+the day of month and
+<kbd>TTTT</kbd>
+the time of day.
+</p></dd>
+<dt><code>reslist</code></dt>
+<dd><p>Display the access control (restrict) list for
+<code>ntpq</code>
+Authentication is required.
+</p></dd>
+<dt><code>saveconfig</code> <kbd>filename</kbd></dt>
+<dd><p>Save the current configuration,
+including any runtime modifications made by
+<code>:config</code>
+or
+<code>config-from-file</code>,
+to the NTP server host file
+<kbd>filename</kbd>.
+This command will be rejected by the server unless
+.Lk miscopt.html#saveconfigdir &quot;saveconfigdir&quot;
+appears in the
+<code>ntpd(8)</code>
+configuration file.
+<kbd>filename</kbd>
+can use
+<code>date(1)</code>
+format specifiers to substitute the current date and time, for
+example,
+</p><div class="example">
+<pre class="example"><code>saveconfig</code> <samp>ntp-%Y%m%d-%H%M%S.conf</samp>. 
+</pre></div>
+<p>The filename used is stored in system variable
+<code>savedconfig</code>.
+Authentication is required.
+</p></dd>
+<dt><code>sysinfo</code></dt>
+<dd><p>Display system operational summary:
+associd, status, system peer, system peer mode, leap indicator,
+stratum, log2 precision, root delay, root dispersion,
+reference id, reference time, system jitter, clock jitter,
+clock wander, broadcast delay, symm. auth. delay.
+</p></dd>
+<dt><code>sysstats</code></dt>
+<dd><p>Display system uptime and packet counts maintained in the
+protocol module:
+uptime, sysstats reset, packets received, current version,
+older version, bad length or format, authentication failed,
+declined, restricted, rate limited, KoD responses,
+processed for time.
+</p></dd>
+<dt><code>timerstats</code></dt>
+<dd><p>Display interval timer counters:
+time since reset, timer overruns, calls to transmit.
+</p></dd>
+<dt><code>writelist</code> <kbd>associd</kbd></dt>
+<dd><p>Set all system or peer variables included in the variable list.
+</p></dd>
+<dt><code>writevar</code> <kbd>associd</kbd> <kbd>name</kbd>=<kbd>value</kbd> <code>[, ...]</code></dt>
+<dd><p>Set the specified variables in the variable list.
+If the
+<kbd>associd</kbd>
+is zero, the variables are from the
+<a href="#System-Variables">System Variables</a>
+name space, otherwise they are from the
+<a href="#Peer-Variables">Peer Variables</a>
+name space.
+The
+<kbd>associd</kbd>
+is required, as the same name can occur in both spaces.
+Authentication is required.
+</p></dd>
+</dl>
+
+<a name="Status-Words-and-Kiss-Codes-1"></a>
+<h4 class="subsubsection">1.1.1.2 Status Words and Kiss Codes</h4>
+<p>The current state of the operating program is shown
+in a set of status words
+maintained by the system.
+Status information is also available on a per-association basis.
+These words are displayed by the
+<code>readlist</code>
+and
+<code>associations</code>
+commands both in hexadecimal and in decoded short tip strings.
+The codes, tips and short explanations are documented on the
+.Lk decode.html &quot;Event Messages and Status Words&quot;
+page.
+The page also includes a list of system and peer messages,
+the code for the latest of which is included in the status word.
+</p>
+<p>Information resulting from protocol machine state transitions
+is displayed using an informal set of ASCII strings called
+.Lk decode.html#kiss &quot;kiss codes&quot; .
+The original purpose was for kiss-o&rsquo;-death (KoD) packets
+sent by the server to advise the client of an unusual condition.
+They are now displayed, when appropriate,
+in the reference identifier field in various billboards.
+</p>
+<a name="System-Variables-1"></a>
+<h4 class="subsubsection">1.1.1.3 System Variables</h4>
+<p>The following system variables appear in the
+<code>readlist</code>
+billboard.
+Not all variables are displayed in some configurations.
+</p>
+<dl compact="compact">
+<dt>Variable</dt>
+<dd><p>Description
+</p></dd>
+<dt><code>status</code></dt>
+<dd><p>.Lk decode.html#sys &quot;system status word&quot;
+</p></dd>
+<dt><code>version</code></dt>
+<dd><p>NTP software version and build time
+</p></dd>
+<dt><code>processor</code></dt>
+<dd><p>hardware platform and version
+</p></dd>
+<dt><code>system</code></dt>
+<dd><p>operating system and version
+</p></dd>
+<dt><code>leap</code></dt>
+<dd><p>leap warning indicator (0-3)
+</p></dd>
+<dt><code>stratum</code></dt>
+<dd><p>stratum (1-15)
+</p></dd>
+<dt><code>precision</code></dt>
+<dd><p>precision (log2 s)
+</p></dd>
+<dt><code>rootdelay</code></dt>
+<dd><p>total roundtrip delay to the primary reference clock
+</p></dd>
+<dt><code>rootdisp</code></dt>
+<dd><p>total dispersion to the primary reference clock
+</p></dd>
+<dt><code>refid</code></dt>
+<dd><p>reference id or
+.Lk decode.html#kiss &quot;kiss code&quot;
+</p></dd>
+<dt><code>reftime</code></dt>
+<dd><p>reference time
+</p></dd>
+<dt><code>clock</code></dt>
+<dd><p>date and time of day
+</p></dd>
+<dt><code>peer</code></dt>
+<dd><p>system peer association id
+</p></dd>
+<dt><code>tc</code></dt>
+<dd><p>time constant and poll exponent (log2 s) (3-17)
+</p></dd>
+<dt><code>mintc</code></dt>
+<dd><p>minimum time constant (log2 s) (3-10)
+</p></dd>
+<dt><code>offset</code></dt>
+<dd><p>combined offset of server relative to this host
+</p></dd>
+<dt><code>frequency</code></dt>
+<dd><p>frequency drift (PPM) relative to hardware clock
+</p></dd>
+<dt><code>sys_jitter</code></dt>
+<dd><p>combined system jitter
+</p></dd>
+<dt><code>clk_wander</code></dt>
+<dd><p>clock frequency wander (PPM)
+</p></dd>
+<dt><code>clk_jitter</code></dt>
+<dd><p>clock jitter
+</p></dd>
+<dt><code>tai</code></dt>
+<dd><p>TAI-UTC offset (s)
+</p></dd>
+<dt><code>leapsec</code></dt>
+<dd><p>NTP seconds when the next leap second is/was inserted
+</p></dd>
+<dt><code>expire</code></dt>
+<dd><p>NTP seconds when the NIST leapseconds file expires
+</p></dd>
+</dl>
+<p>The jitter and wander statistics are exponentially-weighted RMS averages.
+The system jitter is defined in the NTPv4 specification;
+the clock jitter statistic is computed by the clock discipline module.
+</p>
+<p>When the NTPv4 daemon is compiled with the OpenSSL software library,
+additional system variables are displayed,
+including some or all of the following,
+depending on the particular Autokey dance:
+</p><dl compact="compact">
+<dt>Variable</dt>
+<dd><p>Description
+</p></dd>
+<dt><code>host</code></dt>
+<dd><p>Autokey host name for this host
+</p></dd>
+<dt><code>ident</code></dt>
+<dd><p>Autokey group name for this host
+</p></dd>
+<dt><code>flags</code></dt>
+<dd><p>host flags  (see Autokey specification)
+</p></dd>
+<dt><code>digest</code></dt>
+<dd><p>OpenSSL message digest algorithm
+</p></dd>
+<dt><code>signature</code></dt>
+<dd><p>OpenSSL digest/signature scheme
+</p></dd>
+<dt><code>update</code></dt>
+<dd><p>NTP seconds at last signature update
+</p></dd>
+<dt><code>cert</code></dt>
+<dd><p>certificate subject, issuer and certificate flags
+</p></dd>
+<dt><code>until</code></dt>
+<dd><p>NTP seconds when the certificate expires
+</p></dd>
+</dl>
+<a name="Peer-Variables-1"></a>
+<h4 class="subsubsection">1.1.1.4 Peer Variables</h4>
+<p>The following peer variables appear in the
+<code>readlist</code>
+billboard for each association.
+Not all variables are displayed in some configurations.
+</p>
+<dl compact="compact">
+<dt>Variable</dt>
+<dd><p>Description
+</p></dd>
+<dt><code>associd</code></dt>
+<dd><p>association id
+</p></dd>
+<dt><code>status</code></dt>
+<dd><p>.Lk decode.html#peer &quot;peer status word&quot;
+</p></dd>
+<dt><code>srcadr</code></dt>
+<dd><p>source (remote) IP address
+</p></dd>
+<dt><code>srcport</code></dt>
+<dd><p>source (remote) port
+</p></dd>
+<dt><code>dstadr</code></dt>
+<dd><p>destination (local) IP address
+</p></dd>
+<dt><code>dstport</code></dt>
+<dd><p>destination (local) port
+</p></dd>
+<dt><code>leap</code></dt>
+<dd><p>leap indicator (0-3)
+</p></dd>
+<dt><code>stratum</code></dt>
+<dd><p>stratum (0-15)
+</p></dd>
+<dt><code>precision</code></dt>
+<dd><p>precision (log2 s)
+</p></dd>
+<dt><code>rootdelay</code></dt>
+<dd><p>total roundtrip delay to the primary reference clock
+</p></dd>
+<dt><code>rootdisp</code></dt>
+<dd><p>total root dispersion to the primary reference clock
+</p></dd>
+<dt><code>refid</code></dt>
+<dd><p>reference id or
+.Lk decode.html#kiss &quot;kiss code&quot;
+</p></dd>
+<dt><code>reftime</code></dt>
+<dd><p>reference time
+</p></dd>
+<dt><code>rec</code></dt>
+<dd><p>last packet received time
+</p></dd>
+<dt><code>reach</code></dt>
+<dd><p>reach register (octal)
+</p></dd>
+<dt><code>unreach</code></dt>
+<dd><p>unreach counter
+</p></dd>
+<dt><code>hmode</code></dt>
+<dd><p>host mode (1-6)
+</p></dd>
+<dt><code>pmode</code></dt>
+<dd><p>peer mode (1-5)
+</p></dd>
+<dt><code>hpoll</code></dt>
+<dd><p>host poll exponent (log2 s) (3-17)
+</p></dd>
+<dt><code>ppoll</code></dt>
+<dd><p>peer poll exponent (log2 s) (3-17)
+</p></dd>
+<dt><code>headway</code></dt>
+<dd><p>headway (see
+.Lk rate.html &quot;Rate Management and the Kiss-o&rsquo;-Death Packet&quot; )
+</p></dd>
+<dt><code>flash</code></dt>
+<dd><p>.Lk decode.html#flash &quot;flash status word&quot;
+</p></dd>
+<dt><code>keyid</code></dt>
+<dd><p>symmetric key id
+</p></dd>
+<dt><code>offset</code></dt>
+<dd><p>filter offset
+</p></dd>
+<dt><code>delay</code></dt>
+<dd><p>filter delay
+</p></dd>
+<dt><code>dispersion</code></dt>
+<dd><p>filter dispersion
+</p></dd>
+<dt><code>jitter</code></dt>
+<dd><p>filter jitter
+</p></dd>
+<dt><code>bias</code></dt>
+<dd><p>unicast/broadcast bias
+</p></dd>
+<dt><code>xleave</code></dt>
+<dd><p>interleave delay (see
+.Lk xleave.html &quot;NTP Interleaved Modes&quot; )
+</p></dd>
+</dl>
+<p>The
+<code>bias</code>
+variable is calculated when the first broadcast packet is received
+after the calibration volley.
+It represents the offset of the broadcast subgraph relative to the
+unicast subgraph.
+The
+<code>xleave</code>
+variable appears only for the interleaved symmetric and interleaved modes.
+It represents the internal queuing, buffering and transmission delays
+for the preceding packet.
+</p>
+<p>When the NTPv4 daemon is compiled with the OpenSSL software library,
+additional peer variables are displayed, including the following:
+</p><dl compact="compact">
+<dt>Variable</dt>
+<dd><p>Description
+</p></dd>
+<dt><code>flags</code></dt>
+<dd><p>peer flags (see Autokey specification)
+</p></dd>
+<dt><code>host</code></dt>
+<dd><p>Autokey server name
+</p></dd>
+<dt><code>flags</code></dt>
+<dd><p>peer flags (see Autokey specification)
+</p></dd>
+<dt><code>signature</code></dt>
+<dd><p>OpenSSL digest/signature scheme
+</p></dd>
+<dt><code>initsequence</code></dt>
+<dd><p>initial key id
+</p></dd>
+<dt><code>initkey</code></dt>
+<dd><p>initial key index
+</p></dd>
+<dt><code>timestamp</code></dt>
+<dd><p>Autokey signature timestamp
+</p></dd>
+<dt><code>ident</code></dt>
+<dd><p>Autokey group name for this association
+</p></dd>
+</dl>
+
+<a name="Clock-Variables-1"></a>
+<h4 class="subsubsection">1.1.1.5 Clock Variables</h4>
+<p>The following clock variables appear in the
+<code>clocklist</code>
+billboard for each association with a reference clock.
+Not all variables are displayed in some configurations.
+</p><dl compact="compact">
+<dt>Variable</dt>
+<dd><p>Description
+</p></dd>
+<dt><code>associd</code></dt>
+<dd><p>association id
+</p></dd>
+<dt><code>status</code></dt>
+<dd><p>.Lk decode.html#clock &quot;clock status word&quot;
+</p></dd>
+<dt><code>device</code></dt>
+<dd><p>device description
+</p></dd>
+<dt><code>timecode</code></dt>
+<dd><p>ASCII time code string (specific to device)
+</p></dd>
+<dt><code>poll</code></dt>
+<dd><p>poll messages sent
+</p></dd>
+<dt><code>noreply</code></dt>
+<dd><p>no reply
+</p></dd>
+<dt><code>badformat</code></dt>
+<dd><p>bad format
+</p></dd>
+<dt><code>baddata</code></dt>
+<dd><p>bad date or time
+</p></dd>
+<dt><code>fudgetime1</code></dt>
+<dd><p>fudge time 1
+</p></dd>
+<dt><code>fudgetime2</code></dt>
+<dd><p>fudge time 2
+</p></dd>
+<dt><code>stratum</code></dt>
+<dd><p>driver stratum
+</p></dd>
+<dt><code>refid</code></dt>
+<dd><p>driver reference id
+</p></dd>
+<dt><code>flags</code></dt>
+<dd><p>driver flags
+</p></dd>
+</dl>
+
+<p>This section was generated by <strong>AutoGen</strong>,
+using the <code>agtexi-cmd</code> template and the option descriptions for the <code>ntpq</code> program.
+This software is released under the NTP license, &lt;http://ntp.org/license&gt;.
+</p>
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-usage" accesskey="1">ntpq usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ntpq help/usage (<samp>--help</samp>)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-ipv4" accesskey="2">ntpq ipv4</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ipv4 option (-4)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-ipv6" accesskey="3">ntpq ipv6</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ipv6 option (-6)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-command" accesskey="4">ntpq command</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">command option (-c)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-interactive" accesskey="5">ntpq interactive</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">interactive option (-i)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-numeric" accesskey="6">ntpq numeric</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">numeric option (-n)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-old_002drv" accesskey="7">ntpq old-rv</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">old-rv option
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-peers" accesskey="8">ntpq peers</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">peers option (-p)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-refid" accesskey="9">ntpq refid</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">refid option (-r)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-wide">ntpq wide</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">wide option (-w)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-config">ntpq config</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">presetting/configuring ntpq
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpq-exit-status">ntpq exit status</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">exit status
+</td></tr>
+</table>
+
+<hr>
+<a name="ntpq-usage"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpq-ipv4" accesskey="n" rel="next">ntpq ipv4</a>, Up: <a href="#ntpq-Invocation" accesskey="u" rel="up">ntpq Invocation</a> &nbsp; </p>
+</div>
+<a name="ntpq-help_002fusage-_0028_002d_002dhelp_0029"></a>
+<h4 class="subsection">1.1.2 ntpq help/usage (<samp>--help</samp>)</h4>
+<a name="index-ntpq-help"></a>
+
+<p>This is the automatically generated usage text for ntpq.
+</p>
+<p>The text printed is the same whether selected with the <code>help</code> option
+(<samp>--help</samp>) or the <code>more-help</code> option (<samp>--more-help</samp>).  <code>more-help</code> will print
+the usage text by passing it through a pager program.
+<code>more-help</code> is disabled on platforms without a working
+<code>fork(2)</code> function.  The <code>PAGER</code> environment variable is
+used to select the program, defaulting to <samp>more</samp>.  Both will exit
+with a status code of 0.
+</p>
+<div class="example">
+<pre class="example">ntpq - standard NTP query program - Ver. 4.2.8p12
+Usage:  ntpq [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ]... [ host ...]
+  Flg Arg Option-Name    Description
+   -4 no  ipv4           Force IPv4 name resolution
+                                - prohibits the option 'ipv6'
+   -6 no  ipv6           Force IPv6 name resolution
+                                - prohibits the option 'ipv4'
+   -c Str command        run a command and exit
+                                - may appear multiple times
+   -d no  debug-level    Increase debug verbosity level
+                                - may appear multiple times
+   -D Num set-debug-level Set the debug verbosity level
+                                - may appear multiple times
+   -i no  interactive    Force ntpq to operate in interactive mode
+                                - prohibits these options:
+                                command
+                                peers
+   -n no  numeric        numeric host addresses
+      no  old-rv         Always output status line with readvar
+   -p no  peers          Print a list of the peers
+                                - prohibits the option 'interactive'
+   -r KWd refid          Set default display type for S2+ refids
+   -w no  wide           Display the full 'remote' value
+      opt version        output version information and exit
+   -? no  help           display extended usage information and exit
+   -! no  more-help      extended usage information passed thru pager
+   -&gt; opt save-opts      save the option state to a config file
+   -&lt; Str load-opts      load options from a config file
+                                - disabled as '--no-load-opts'
+                                - may appear multiple times
+
+Options are specified by doubled hyphens and their name or by a single
+hyphen and the flag character.
+
+The following option preset mechanisms are supported:
+ - reading file $HOME/.ntprc
+ - reading file ./.ntprc
+ - examining environment variables named NTPQ_*
+
+The valid &quot;refid&quot; option keywords are:
+  hash ipv4
+  or an integer from 0 through 1
+
+Please send bug reports to:  &lt;http://bugs.ntp.org, bugs@ntp.org&gt;
+</pre></div>
+
+<hr>
+<a name="ntpq-ipv4"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpq-ipv6" accesskey="n" rel="next">ntpq ipv6</a>, Previous: <a href="#ntpq-usage" accesskey="p" rel="prev">ntpq usage</a>, Up: <a href="#ntpq-Invocation" accesskey="u" rel="up">ntpq Invocation</a> &nbsp; </p>
+</div>
+<a name="ipv4-option-_0028_002d4_0029"></a>
+<h4 class="subsection">1.1.3 ipv4 option (-4)</h4>
+<a name="index-ntpq_002dipv4"></a>
+
+<p>This is the &ldquo;force ipv4 name resolution&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must not appear in combination with any of the following options:
+ipv6.
+</li></ul>
+
+<p>Force resolution of following host names on the command line
+to the IPv4 namespace.
+</p><hr>
+<a name="ntpq-ipv6"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpq-command" accesskey="n" rel="next">ntpq command</a>, Previous: <a href="#ntpq-ipv4" accesskey="p" rel="prev">ntpq ipv4</a>, Up: <a href="#ntpq-Invocation" accesskey="u" rel="up">ntpq Invocation</a> &nbsp; </p>
+</div>
+<a name="ipv6-option-_0028_002d6_0029"></a>
+<h4 class="subsection">1.1.4 ipv6 option (-6)</h4>
+<a name="index-ntpq_002dipv6"></a>
+
+<p>This is the &ldquo;force ipv6 name resolution&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must not appear in combination with any of the following options:
+ipv4.
+</li></ul>
+
+<p>Force resolution of following host names on the command line
+to the IPv6 namespace.
+</p><hr>
+<a name="ntpq-command"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpq-interactive" accesskey="n" rel="next">ntpq interactive</a>, Previous: <a href="#ntpq-ipv6" accesskey="p" rel="prev">ntpq ipv6</a>, Up: <a href="#ntpq-Invocation" accesskey="u" rel="up">ntpq Invocation</a> &nbsp; </p>
+</div>
+<a name="command-option-_0028_002dc_0029"></a>
+<h4 class="subsection">1.1.5 command option (-c)</h4>
+<a name="index-ntpq_002dcommand"></a>
+
+<p>This is the &ldquo;run a command and exit&rdquo; option.
+This option takes a string argument <samp>cmd</samp>.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> may appear an unlimited number of times.
+</li></ul>
+
+<p>The following argument is interpreted as an interactive format command
+and is added to the list of commands to be executed on the specified
+host(s).
+</p><hr>
+<a name="ntpq-interactive"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpq-numeric" accesskey="n" rel="next">ntpq numeric</a>, Previous: <a href="#ntpq-command" accesskey="p" rel="prev">ntpq command</a>, Up: <a href="#ntpq-Invocation" accesskey="u" rel="up">ntpq Invocation</a> &nbsp; </p>
+</div>
+<a name="interactive-option-_0028_002di_0029"></a>
+<h4 class="subsection">1.1.6 interactive option (-i)</h4>
+<a name="index-ntpq_002dinteractive"></a>
+
+<p>This is the &ldquo;force ntpq to operate in interactive mode&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must not appear in combination with any of the following options:
+command, peers.
+</li></ul>
+
+<p>Force <code>ntpq</code> to operate in interactive mode.
+Prompts will be written to the standard output and
+commands read from the standard input.
+</p><hr>
+<a name="ntpq-numeric"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpq-old_002drv" accesskey="n" rel="next">ntpq old-rv</a>, Previous: <a href="#ntpq-interactive" accesskey="p" rel="prev">ntpq interactive</a>, Up: <a href="#ntpq-Invocation" accesskey="u" rel="up">ntpq Invocation</a> &nbsp; </p>
+</div>
+<a name="numeric-option-_0028_002dn_0029"></a>
+<h4 class="subsection">1.1.7 numeric option (-n)</h4>
+<a name="index-ntpq_002dnumeric"></a>
+
+<p>This is the &ldquo;numeric host addresses&rdquo; option.
+Output all host addresses in dotted-quad numeric format rather than
+converting to the canonical host names.
+</p><hr>
+<a name="ntpq-old_002drv"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpq-peers" accesskey="n" rel="next">ntpq peers</a>, Previous: <a href="#ntpq-numeric" accesskey="p" rel="prev">ntpq numeric</a>, Up: <a href="#ntpq-Invocation" accesskey="u" rel="up">ntpq Invocation</a> &nbsp; </p>
+</div>
+<a name="old_002drv-option"></a>
+<h4 class="subsection">1.1.8 old-rv option</h4>
+<a name="index-ntpq_002dold_002drv"></a>
+
+<p>This is the &ldquo;always output status line with readvar&rdquo; option.
+By default, <code>ntpq</code> now suppresses the <code>associd=...</code>
+line that precedes the output of <code>readvar</code>
+(alias <code>rv</code>) when a single variable is requested, such as
+<code>ntpq -c &quot;rv 0 offset&quot;</code>.
+This option causes <code>ntpq</code> to include both lines of output
+for a single-variable <code>readvar</code>.
+Using an environment variable to
+preset this option in a script will enable both older and
+newer <code>ntpq</code> to behave identically in this regard.
+</p><hr>
+<a name="ntpq-peers"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpq-refid" accesskey="n" rel="next">ntpq refid</a>, Previous: <a href="#ntpq-old_002drv" accesskey="p" rel="prev">ntpq old-rv</a>, Up: <a href="#ntpq-Invocation" accesskey="u" rel="up">ntpq Invocation</a> &nbsp; </p>
+</div>
+<a name="peers-option-_0028_002dp_0029"></a>
+<h4 class="subsection">1.1.9 peers option (-p)</h4>
+<a name="index-ntpq_002dpeers"></a>
+
+<p>This is the &ldquo;print a list of the peers&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must not appear in combination with any of the following options:
+interactive.
+</li></ul>
+
+<p>Print a list of the peers known to the server as well as a summary
+of their state. This is equivalent to the &rsquo;peers&rsquo; interactive command.
+</p><hr>
+<a name="ntpq-refid"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpq-wide" accesskey="n" rel="next">ntpq wide</a>, Previous: <a href="#ntpq-peers" accesskey="p" rel="prev">ntpq peers</a>, Up: <a href="#ntpq-Invocation" accesskey="u" rel="up">ntpq Invocation</a> &nbsp; </p>
+</div>
+<a name="refid-option-_0028_002dr_0029"></a>
+<h4 class="subsection">1.1.10 refid option (-r)</h4>
+<a name="index-ntpq_002drefid"></a>
+
+<p>This is the &ldquo;set default display type for s2+ refids&rdquo; option.
+This option takes a keyword argument.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> This option takes a keyword as its argument.
+The argument sets an enumeration value that can be tested by comparing the option value macro (OPT_VALUE_REFID).
+The available keywords are:
+<div class="example">
+<pre class="example">    hash ipv4
+</pre></div>
+
+<p>or their numeric equivalent.</p></li></ul>
+
+<p>Set the default display format for S2+ refids.
+</p><hr>
+<a name="ntpq-wide"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpq-config" accesskey="n" rel="next">ntpq config</a>, Previous: <a href="#ntpq-refid" accesskey="p" rel="prev">ntpq refid</a>, Up: <a href="#ntpq-Invocation" accesskey="u" rel="up">ntpq Invocation</a> &nbsp; </p>
+</div>
+<a name="wide-option-_0028_002dw_0029"></a>
+<h4 class="subsection">1.1.11 wide option (-w)</h4>
+<a name="index-ntpq_002dwide"></a>
+
+<p>This is the &ldquo;display the full &rsquo;remote&rsquo; value&rdquo; option.
+Display the full value of the &rsquo;remote&rsquo; value.  If this requires
+more than 15 characters, display the full value, emit a newline,
+and continue the data display properly indented on the next line.
+</p>
+
+<hr>
+<a name="ntpq-config"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpq-exit-status" accesskey="n" rel="next">ntpq exit status</a>, Previous: <a href="#ntpq-wide" accesskey="p" rel="prev">ntpq wide</a>, Up: <a href="#ntpq-Invocation" accesskey="u" rel="up">ntpq Invocation</a> &nbsp; </p>
+</div>
+<a name="presetting_002fconfiguring-ntpq"></a>
+<h4 class="subsection">1.1.12 presetting/configuring ntpq</h4>
+
+<p>Any option that is not marked as <i>not presettable</i> may be preset by
+loading values from configuration (&quot;rc&quot; or &quot;ini&quot;) files, and values from environment variables named <code>NTPQ</code> and <code>NTPQ_&lt;OPTION_NAME&gt;</code>.  <code>&lt;OPTION_NAME&gt;</code> must be one of
+the options listed above in upper case and segmented with underscores.
+The <code>NTPQ</code> variable will be tokenized and parsed like
+the command line.  The remaining variables are tested for existence and their
+values are treated like option arguments.
+</p>
+
+<p><code>libopts</code> will search in 2 places for configuration files:
+</p><ul>
+<li> $HOME
+</li><li> $PWD
+</li></ul>
+<p>The environment variables <code>HOME</code>, and <code>PWD</code>
+are expanded and replaced when <samp>ntpq</samp> runs.
+For any of these that are plain files, they are simply processed.
+For any that are directories, then a file named <samp>.ntprc</samp> is searched for
+within that directory and processed.
+</p>
+<p>Configuration files may be in a wide variety of formats.
+The basic format is an option name followed by a value (argument) on the
+same line.  Values may be separated from the option name with a colon,
+equal sign or simply white space.  Values may be continued across multiple
+lines by escaping the newline with a backslash.
+</p>
+<p>Multiple programs may also share the same initialization file.
+Common options are collected at the top, followed by program specific
+segments.  The segments are separated by lines like:
+</p><div class="example">
+<pre class="example">[NTPQ]
+</pre></div>
+<p>or by
+</p><div class="example">
+<pre class="example">&lt;?program ntpq&gt;
+</pre></div>
+<p>Do not mix these styles within one configuration file.
+</p>
+<p>Compound values and carefully constructed string values may also be
+specified using XML syntax:
+</p><div class="example">
+<pre class="example">&lt;option-name&gt;
+   &lt;sub-opt&gt;...&amp;lt;...&amp;gt;...&lt;/sub-opt&gt;
+&lt;/option-name&gt;
+</pre></div>
+<p>yielding an <code>option-name.sub-opt</code> string value of
+</p><div class="example">
+<pre class="example">&quot;...&lt;...&gt;...&quot;
+</pre></div>
+<p><code>AutoOpts</code> does not track suboptions.  You simply note that it is a
+hierarchicly valued option.  <code>AutoOpts</code> does provide a means for searching
+the associated name/value pair list (see: optionFindValue).
+</p>
+<p>The command line options relating to configuration and/or usage help are:
+</p>
+<a name="version-_0028_002d_0029"></a>
+<h4 class="subsubheading">version (-)</h4>
+
+<p>Print the program version to standard out, optionally with licensing
+information, then exit 0.  The optional argument specifies how much licensing
+detail to provide.  The default is to print just the version.  The licensing infomation may be selected with an option argument.
+Only the first letter of the argument is examined:
+</p>
+<dl compact="compact">
+<dt>&lsquo;<samp>version</samp>&rsquo;</dt>
+<dd><p>Only print the version.  This is the default.
+</p></dd>
+<dt>&lsquo;<samp>copyright</samp>&rsquo;</dt>
+<dd><p>Name the copyright usage licensing terms.
+</p></dd>
+<dt>&lsquo;<samp>verbose</samp>&rsquo;</dt>
+<dd><p>Print the full copyright usage licensing terms.
+</p></dd>
+</dl>
+
+<hr>
+<a name="ntpq-exit-status"></a>
+<div class="header">
+<p>
+Previous: <a href="#ntpq-config" accesskey="p" rel="prev">ntpq config</a>, Up: <a href="#ntpq-Invocation" accesskey="u" rel="up">ntpq Invocation</a> &nbsp; </p>
+</div>
+<a name="ntpq-exit-status-1"></a>
+<h4 class="subsection">1.1.13 ntpq exit status</h4>
+
+<p>One of the following exit values will be returned:
+</p><dl compact="compact">
+<dt>&lsquo;<samp>0 (EXIT_SUCCESS)</samp>&rsquo;</dt>
+<dd><p>Successful program execution.
+</p></dd>
+<dt>&lsquo;<samp>1 (EXIT_FAILURE)</samp>&rsquo;</dt>
+<dd><p>The operation failed or the command syntax was not valid.
+</p></dd>
+<dt>&lsquo;<samp>66 (EX_NOINPUT)</samp>&rsquo;</dt>
+<dd><p>A specified configuration file could not be loaded.
+</p></dd>
+<dt>&lsquo;<samp>70 (EX_SOFTWARE)</samp>&rsquo;</dt>
+<dd><p>libopts had an internal operational error.  Please report
+it to autogen-users@lists.sourceforge.net.  Thank you.
+</p></dd>
+</dl>
+
+<hr>
+<a name="Usage"></a>
+<div class="header">
+<p>
+Next: <a href="#Internal-Commands" accesskey="n" rel="next">Internal Commands</a>, Previous: <a href="#ntpq-Description" accesskey="p" rel="prev">ntpq Description</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
+</div>
+<a name="Usage-1"></a>
+<h3 class="section">1.2 Usage</h3>
+
+<table>
+<thead><tr><th width="23%">What</th><th width="23%">Default</th><th width="5%">Flag</th><th width="15%">Option</th></tr></thead>
+<tr><td width="23%">configuration file</td><td width="23%"><code>/etc/ntp.conf</code></td><td width="5%"><code>-c</code></td><td width="15%"><code>conffile</code></td></tr>
+<tr><td width="23%">frequency file</td><td width="23%">none</td><td width="5%"><code>-f</code></td><td width="15%"><code>driftfile</code></td></tr>
+<tr><td width="23%">leapseconds file</td><td width="23%">none</td><td width="5%"></td><td width="15%"><code>leapfile</code></td></tr>
+<tr><td width="23%">process ID file</td><td width="23%">none</td><td width="5%"><code>-p</code></td><td width="15%"><code>pidfile</code></td></tr>
+<tr><td width="23%">log file</td><td width="23%">system log</td><td width="5%"><code>-l</code></td><td width="15%"><code>logfile</code></td></tr>
+<tr><td width="23%">include file</td><td width="23%">none</td><td width="5%">none</td><td width="15%"><code>includefile</code></td></tr>
+<tr><td width="23%">statistics path</td><td width="23%"><code>/var/NTP</code></td><td width="5%"><code>-s</code></td><td width="15%"><code>statsdir</code></td></tr>
+<tr><td width="23%">keys path</td><td width="23%"><code>/usr/local/etc</code></td><td width="5%"><code>-k</code></td><td width="15%"><code>keysdir</code></td></tr>
+</table>
+
+<hr>
+<a name="Internal-Commands"></a>
+<div class="header">
+<p>
+Next: <a href="#Control-Message-Commands" accesskey="n" rel="next">Control Message Commands</a>, Previous: <a href="#Usage" accesskey="p" rel="prev">Usage</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
+</div>
+<a name="Internal-Commands-2"></a>
+<h3 class="section">1.3 Internal Commands</h3>
+
+<p>Interactive format commands consist of a keyword followed by zero to four arguments.  Only enough characters of the full keyword to uniquely identify the command need be typed.  The output of a command is normally sent to the standard output, but optionally the output of individual commands may be sent to a file by appending a <code>&gt;</code>, followed by a file name, to the command line.  A number of interactive format commands are executed entirely within the <code>ntpq</code> program itself and do not result in NTP mode-6 requests being sent to a server.  These are described following.
+</p>
+<dl compact="compact">
+<dt><code><a name="help"></a><code>? [</code><kbd>command_keyword</kbd><code>]</code></code></dt>
+<dt><code><code>help [</code><kbd>command_keyword</kbd><code>]</code></code></dt>
+<dd><p>A <code>?</code> by itself will print a list of all the command keywords known to <code>ntpq</code>.  A <code>?</code> followed by a command keyword will print function and usage information about the command.
+</p>
+</dd>
+<dt><code><a name="addvars"></a>&gt;<code>addvars <kbd>name</kbd> [ = <kbd>value</kbd>] [...]</code></code></dt>
+<dt><code><code>rmvars <kbd>name</kbd> [...]</code></code></dt>
+<dt><code><code>clearvars</code>&lt;/dt&gt;</code></dt>
+<dd><p>The arguments to these commands consist of a list of items of the form
+<code><kbd>name</kbd> = <kbd>value</kbd></code>, where the <code>= <kbd>value</kbd></code> is ignored,
+and can be omitted in read requests.
+<code>ntpq</code> maintains an internal list in which data to be included
+in control messages can be assembled, and sent using the <code>readlist</code>
+and <code>writelist</code> commands described below.
+The <code>addvars</code> command allows variables and optional values
+to be added to the list.
+If more than one variable is to be added
+the list should be comma-separated and not contain white space.
+The <code>rmvars</code> command can be used to remove individual variables
+from the list,
+while the <code>clearlist</code> command removes all variables from the list.
+</p>
+</dd>
+<dt><code><a name="cooked"></a><code>cooked</code></code></dt>
+<dd><p>Display server messages in prettyprint format.
+</p>
+</dd>
+<dt><code><a name="debug"></a><code>debug more | less | off</code></code></dt>
+<dd><p>Turns internal query program debugging on and off.
+</p>
+</dd>
+<dt><code><a name="delay"></a><code>delay <kbd>milliseconds</kbd></code></code></dt>
+<dd><p>Specify a time interval to be added to timestamps included in requests which require authentication.  This is used to enable (unreliable) server reconfiguration over long delay network paths or between machines whose clocks are unsynchronized.  Actually the server does not now require timestamps in authenticated requests, so this command may be obsolete.
+</p>
+</dd>
+<dt><code><a name="host"></a><code>host <kbd>name</kbd></code></code></dt>
+<dd><p>Set the host to which future queries will be sent.
+The name may be either a DNS name or a numeric address.
+</p>
+</dd>
+<dt><code><a name="hostnames"></a><code>hostnames [yes | no]</code></code></dt>
+<dd><p>If <code>yes</code> is specified, host names are printed in information displays.
+If <code>no</code> is specified, numeric addresses are printed instead.
+The default is <code>yes</code>,
+unless modified using the command line <code>-n</code> switch.
+</p>
+</dd>
+<dt><code><a name="keyid"></a><code>keyid <kbd>keyid</kbd></code></code></dt>
+<dd><p>This command specifies the key number to be used
+to authenticate configuration requests.
+This must correspond to a key ID configured in <code>ntp.conf</code> for this purpose.
+</p>
+</dd>
+<dt><code><a name="keytype"></a><code>keytype</code></code></dt>
+<dd><p>Specify the digest algorithm to use for authenticated requests,
+with default <code>MD5</code>.
+If the OpenSSL library is installed,
+digest can be be any message digest algorithm supported by the library.
+The current selections are: <code>AES128CMAC</code>, <code>MD2</code>, <code>MD4</code>, <code>MD5</code>, <code>MDC2</code>, <code>RIPEMD160</code>, <code>SHA</code> and <code>SHA1</code>.
+</p>
+</dd>
+<dt><code><a name="ntpversion"></a><code>ntpversion 1 | 2 | 3 | 4</code></code></dt>
+<dd><p>Sets the NTP version number which <code>ntpq</code> claims in packets.
+Defaults to 2.
+Note that mode-6 control messages (and modes, for that matter)
+didn&rsquo;t exist in NTP version 1.
+</p>
+</dd>
+<dt><code><a name="passwd"></a><code>passwd</code></code></dt>
+<dd><p>This command prompts for a password to authenticate requests.
+The password must correspond to the key ID configured in <code>ntp.conf</code> for this purpose.
+</p>
+</dd>
+<dt><code><a name="quit"></a><code>quit</code></code></dt>
+<dd><p>Exit <code>ntpq</code>.
+</p>
+</dd>
+<dt><code><a name="raw"></a><code>raw</code></code></dt>
+<dd><p>Display server messages as received and without reformatting.
+</p>
+</dd>
+<dt><code><a name="timeout"></a><code>timeout <kbd>milliseconds</kbd></code></code></dt>
+<dd><p>Specify a timeout period for responses to server queries.
+The default is about 5000 milliseconds.
+Note that since <code>ntpq</code> retries each query once after a timeout
+the total waiting time for a timeout will be twice the timeout value set.
+</p>
+</dd>
+</dl>
+
+<hr>
+<a name="Control-Message-Commands"></a>
+<div class="header">
+<p>
+Next: <a href="#Status-Words-and-Kiss-Codes" accesskey="n" rel="next">Status Words and Kiss Codes</a>, Previous: <a href="#Internal-Commands" accesskey="p" rel="prev">Internal Commands</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
+</div>
+<a name="Control-Message-Commands-2"></a>
+<h3 class="section">1.4 Control Message Commands</h3>
+
+<p>Association IDs are used to identify system, peer and clock variables.
+System variables are assigned an association ID of zero and system name space,
+while each association is assigned a nonzero association ID and peer namespace.
+Most control commands send a single mode-6 message to the server
+and expect a single response message.
+The exceptions are the <code>peers</code> command,
+which sends a series of messages,
+and the <code>mreadlist</code> and <code>mreadvar</code> commands,
+which iterate over a range of associations.
+</p>
+<a name="as"></a><dl compact="compact">
+<dt><code><code>associations</code></code></dt>
+<dd><p>Display a list of mobilized associations in the form:
+<br>
+<code>ind assid status conf reach auth condition last_event cnt</code>
+</p>
+<table>
+<thead><tr><th width="10%">Variable</th><th width="40%">Description</th></tr></thead>
+<tr><td width="10%"><code>ind</code></td><td width="40%">index on this list</td></tr>
+<tr><td width="10%"><code>assid</code></td><td width="40%">association ID</td></tr>
+<tr><td width="10%"><code>status</code></td><td width="40%"><a href="decode.html#peer">peer status word</a></td></tr>
+<tr><td width="10%"><code>conf</code></td><td width="40%"><code>yes</code>: persistent, <code>no</code>: ephemeral</td></tr>
+<tr><td width="10%"><code>reach</code></td><td width="40%"><code>yes</code>: reachable, <code>no</code>: unreachable</td></tr>
+<tr><td width="10%"><code>auth</code></td><td width="40%"><code>ok</code>, <code>yes</code>, <code>bad</code> and <code>none</code></td></tr>
+<tr><td width="10%"><code>condition</code></td><td width="40%">selection status (see the <code>select</code> field of the <a href="decode.html#peer">peer status word</a>)</td></tr>
+<tr><td width="10%"><code>last_event</code></td><td width="40%">event report (see the <code>event</code> field of the <a href="decode.html#peer">peer status word</a>)</td></tr>
+<tr><td width="10%"><code>cnt</code>
+event count (see the <code>count</code> field of the <a href="decode.html#peer">peer status word</a>)</td></tr>
+</table>
+
+</dd>
+<dt><code><a name="cv"></a>clockvar <kbd>assocID</kbd> [<kbd>name</kbd> [ = <kbd>value</kbd> [...]] [...]]</code></dt>
+<dt><code>cv <kbd>assocID</kbd> [<kbd>name</kbd> [ = <kbd>value</kbd> [...] ][...]]</code></dt>
+<dd><p>Display a list of &lsquo;clock variables&rsquo; for those associations supporting a reference clock.
+</p>
+</dd>
+<dt><code><a name="g_t_003aconfig"></a>:config [...]</code></dt>
+<dd><p>Send the remainder of the command line, including whitespace, to the server
+as a run-time configuration command in the same format
+as the configuration file.
+This command is experimental until further notice and clarification.
+Authentication is of course required.
+</p>
+</dd>
+<dt><code><a name="config_002dfrom_002dfile"></a>config-from-file <kbd>filename</kbd></code></dt>
+<dd><p>Send the each line of <kbd>filename</kbd> to the server as
+run-time configuration commands in the same format as the configuration file.
+This command is experimental until further notice and clarification.
+Authentication is required.
+</p>
+</dd>
+<dt><code><a name="ifstats"></a>ifstats</code></dt>
+<dd><p>Display statistics for each local network address.
+Authentication is required.
+</p>
+</dd>
+<dt><code><a name="iostats"></a>iostats</code></dt>
+<dd><p>Display network and reference clock I/O statistics.
+</p>
+</dd>
+<dt><code><a name="kerninfo"></a>kerninfo</code></dt>
+<dd><p>Display kernel loop and PPS statistics.
+As with other ntpq output, times are in milliseconds.
+The precision value displayed is in milliseconds as well,
+unlike the precision system variable.
+</p>
+</dd>
+<dt><code><a name="lassoc"></a>lassociations</code></dt>
+<dd><p>Perform the same function as the associations command,
+except display mobilized and unmobilized associations.
+</p>
+</dd>
+<dt><code><a name="monstats"></a>monstats</code></dt>
+<dd><p>Display monitor facility statistics.
+</p>
+</dd>
+<dt><code><a name="mrulist"></a>mrulist [limited | kod | mincount=<kbd>count</kbd> | laddr=<kbd>localaddr</kbd> | sort=<kbd>sortorder</kbd> | resany=<kbd>hexmask</kbd> | resall=<kbd>hexmask</kbd>]</code></dt>
+<dd><p>Obtain and print traffic counts collected and maintained by
+the monitor facility.
+With the exception of <code>sort=<kbd>sortorder</kbd></code>,
+the options filter the list returned by <code>ntpd</code>.
+The <code>limited</code> and <code>kod</code> options return only entries
+representing client addresses from which the last packet received
+triggered either discarding or a KoD response.
+The <code>mincount=<kbd>count</kbd></code> option filters entries representing
+less than <code><kbd>count</kbd></code> packets.
+The <code>laddr=<kbd>localaddr</kbd></code> option filters entries for packets
+received on any local address other than <code><kbd>localaddr</kbd></code>.
+<code>resany=<kbd>hexmask</kbd></code> and <code>resall=<kbd>hexmask</kbd></code>
+filter entries containing none or less than all, respectively,
+of the bits in <code><kbd>hexmask</kbd></code>, which must begin with <code>0x</code>.
+<br>
+The <code><kbd>sortorder</kbd></code> defaults to <code>lstint</code> and may be any of
+<code>addr</code>, <code>count</code>, <code>avgint</code>, <code>lstint</code>, or
+any of those preceded by a minus sign (hyphen) to reverse the sort order.
+The output columns are:
+</p>
+<table>
+<thead><tr><th width="10%">Column</th><th width="40%">Description</th></tr></thead>
+<tr><td width="10%"><code>lstint</code></td><td width="40%">Interval in s between the receipt of the most recent packet from this
+address and the completion of the retrieval of the MRU list by <code>ntpq</code></td></tr>
+<tr><td width="10%"><code>avgint</code></td><td width="40%">Average interval in s between packets from this address.</td></tr>
+<tr><td width="10%"><code>rstr</code></td><td width="40%">Restriction flags associated with this address.
+Most are copied unchanged from the matching <code>restrict</code> command,
+however 0x400 (kod) and 0x20 (limited) flags are cleared unless
+the last packet from this address triggered a rate control response.</td></tr>
+<tr><td width="10%"><code>r</code></td><td width="40%">Rate control indicator, either a period, <code>L</code> or <code>K</code> for
+no rate control response, rate limiting by discarding, or
+rate limiting with a KoD response, respectively.</td></tr>
+<tr><td width="10%"><code>m</code></td><td width="40%">Packet mode.</td></tr>
+<tr><td width="10%"><code>v</code></td><td width="40%">Packet version number.</td></tr>
+<tr><td width="10%"><code>count</code></td><td width="40%">Packets received from this address.</td></tr>
+<tr><td width="10%"><code>rport</code></td><td width="40%">Source port of last packet from this address.</td></tr>
+<tr><td width="10%"><code>remote address</code></td><td width="40%">DNS name, numeric address, or address followed by claimed DNS name which
+could not be verified in parentheses.</td></tr>
+</table>
+
+</dd>
+<dt><code><a name="mreadvar"></a><code>mreadvar <kbd>assocID</kbd> <kbd>assocID</kbd> [ <kbd>variable_name</kbd> [ = <kbd>value</kbd>[ ... ]</code></code></dt>
+<dt><code><a name="mrv"></a><code>mrv <kbd>assocID</kbd> <kbd>assocID</kbd> [ <kbd>variable_name</kbd> [ = <kbd>value</kbd>[ ... ]</code></code></dt>
+<dd><p>Perform the same function as the <code>readvar</code> command,
+except for a range of association IDs.
+This range is determined from the association list cached by
+the most recent <code>associations</code> command.
+</p>
+</dd>
+<dt><code><a name="passoc"></a><code>passociations</code></code></dt>
+<dd><p>Perform the same function as the <code>associations command</code>, except that
+it uses previously stored data rather than making a new query.
+</p>
+</dd>
+<dt><code><a name="pe"></a><code>peers</code></code></dt>
+<dd><p>Display a list of peers in the form:
+<br>
+<code>[tally]remote refid st t when pool reach delay offset jitter</code>
+</p>
+<table>
+<thead><tr><th width="10%">Variable</th><th width="20%">Description</th></tr></thead>
+<tr><td width="10%"><code>[tally]</code></td><td width="20%">single-character code indicating current value of the <code>select</code> field
+of the <a href="decode.html#peer">peer status word</a>.</td></tr>
+<tr><td width="10%"><code>remote</code></td><td width="20%">host name (or IP number) of peer</td></tr>
+<tr><td width="10%"><code>refid</code></td><td width="20%">association ID or <a href="decode.html#kiss">kiss code</a>.</td></tr>
+<tr><td width="10%"><code>st</code></td><td width="20%">stratum</td></tr>
+<tr><td width="10%"><code>t</code></td><td width="20%"><code>u</code>: unicast or manycast client,
+<code>b</code>: broadcast or multicast client,
+<code>l</code>: local (reference clock),
+<code>s</code>: symmetric (peer),
+<code>A</code>: manycast server,
+<code>B</code>: broadcast server,
+<code>M</code>: multicast server.</td></tr>
+<tr><td width="10%"><code>when</code></td><td width="20%">sec/min/hr since last received packet</td></tr>
+<tr><td width="10%"><code>poll</code></td><td width="20%">poll interval (log(2) s)</td></tr>
+<tr><td width="10%"><code>reach</code></td><td width="20%">reach shift register (octal)</td></tr>
+<tr><td width="10%"><code>delay</code></td><td width="20%">roundtrip delay</td></tr>
+<tr><td width="10%"><code>offset</code></td><td width="20%">offset of server relative to this host</td></tr>
+<tr><td width="10%"><code>jitter</code></td><td width="20%">jitter</td></tr>
+</table>
+
+</dd>
+<dt><code><a name="rv"></a>readvar <kbd>assocID</kbd> <kbd>name</kbd> [ = <kbd>value</kbd> ] [,...]</code></dt>
+<dt><code>rv <kbd>assocID</kbd> [ <kbd>name</kbd> ] [,...]</code></dt>
+<dd><p>Display the specified variables.
+If <code><kbd>assocID</kbd></code> is zero,
+the variables are from the &lsquo;system variables&rsquo; name space,
+otherwise they are from the &lsquo;peer variables&rsquo; name space.
+The <kbd>assocID</kbd> is required, as the same name can occur in both spaces.
+If no <kbd>name</kbd> is included,
+all operative variables in the name space are displayed.
+In this case only, if the <code><kbd>assocID</kbd></code> is omitted, it is assumed zero.
+Multiple names are specified with comma separators and without whitespace.
+Note that time values are represented in milliseconds and
+frequency values in parts-per-million (PPM).
+Some NTP timestamps are represented in the format YYYYMMDDTTTT,
+where YYYY is the year, MM the month of year, DD the day of month and
+TTTT the time of day.
+</p>
+</dd>
+<dt><code><a name="saveconfig"></a><code>saveconfig <kbd>filename</kbd></code></code></dt>
+<dd><p>Write the current configuration, including any runtime modifications
+given with <code>:config</code> or <code>config-from-file</code>,
+to the ntpd host&rsquo;s file <kbd>filename</kbd>.
+This command will be rejected by the server unless
+<a href="miscopt.html#saveconfigdir">saveconfigdir</a>
+appears in the <code>ntpd</code> configuration file.
+<kbd>filename</kbd> can use <code>strftime()</code> format specifiers
+to substitute the current date and time, for example,
+<code>saveconfig ntp-%Y%m%d-%H%M%S.conf</code>.
+The filename used is stored in system variable <code>savedconfig</code>.
+Authentication is required.
+</p>
+</dd>
+<dt><code><a name="writevar"></a>writevar <kbd>assocID</kbd> <kbd>name</kbd> = <kbd>value</kbd> [,...]</code></dt>
+<dd><p>Write the specified variables.
+If the <code><kbd>assocID</kbd></code> is zero, the variables are from the
+&lsquo;system variables&rsquo; name space, otherwise they are from the
+&lsquo;peer variables&rsquo; name	space.
+The <code><kbd>assocID</kbd></code> is required,
+as the same name can occur in both spaces.
+</p>
+</dd>
+<dt><code><a name="sysinfo"></a><code>sysinfo</code></code></dt>
+<dd><p>Display operational summary.
+</p>
+</dd>
+<dt><code><a name="sysstats"></a><code>sysstats</code></code></dt>
+<dd><p>Print statistics counters maintained in the protocol module.
+</p>
+</dd>
+</dl>
+
+<hr>
+<a name="Status-Words-and-Kiss-Codes"></a>
+<div class="header">
+<p>
+Next: <a href="#System-Variables" accesskey="n" rel="next">System Variables</a>, Previous: <a href="#Control-Message-Commands" accesskey="p" rel="prev">Control Message Commands</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
+</div>
+<a name="Status-Words-and-Kiss-Codes-2"></a>
+<h3 class="section">1.5 Status Words and Kiss Codes</h3>
+
+<p>The current state of the operating program is shown
+in a set of status words maintained by the system
+and each association separately.
+These words are displayed in the <code>rv</code> and <code>as</code> commands
+both in hexadecimal and decoded short tip strings.
+The codes, tips and short explanations are on the
+<a href="decode.html">Event Messages and Status Words</a> page.
+The page also includes a list of system and peer messages,
+the code for the latest of which is included in the status word.
+</p>
+<p>Information resulting from protocol machine state transitions
+is displayed using an informal set of ASCII strings called
+<a href="decode.html#kiss">kiss codes</a>.
+The original purpose was for kiss-o&rsquo;-death (KoD) packets sent
+by the server to advise the client of an unusual condition.
+They are now displayed, when appropriate,
+in the reference identifier field in various billboards.
+</p>
+<hr>
+<a name="System-Variables"></a>
+<div class="header">
+<p>
+Next: <a href="#Peer-Variables" accesskey="n" rel="next">Peer Variables</a>, Previous: <a href="#Status-Words-and-Kiss-Codes" accesskey="p" rel="prev">Status Words and Kiss Codes</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
+</div>
+<a name="System-Variables-2"></a>
+<h3 class="section">1.6 System Variables</h3>
+
+<p>The following system variables appear in the <code>rv</code> billboard.
+Not all variables are displayed in some configurations.
+</p>
+<table>
+<thead><tr><th width="10%">Variable</th><th width="20%">Description</th></tr></thead>
+<tr><td width="10%"><code>status</code></td><td width="20%"><a href="decode.html#sys">system status word</a></td></tr>
+<tr><td width="10%"><code>version</code></td><td width="20%">NTP software version and build time</td></tr>
+<tr><td width="10%"><code>processor</code></td><td width="20%">hardware platform and version</td></tr>
+<tr><td width="10%"><code>system</code></td><td width="20%">operating system and version</td></tr>
+<tr><td width="10%"><code>leap</code></td><td width="20%">leap warning indicator (0-3)</td></tr>
+<tr><td width="10%"><code>stratum</code></td><td width="20%">stratum (1-15)</td></tr>
+<tr><td width="10%"><code>precision</code></td><td width="20%">precision (log(2) s)</td></tr>
+<tr><td width="10%"><code>rootdelay</code></td><td width="20%">total roundtrip delay to the primary reference clock</td></tr>
+<tr><td width="10%"><code>rootdisp</code></td><td width="20%">total dispersion to the primary reference clock</td></tr>
+<tr><td width="10%"><code>peer</code></td><td width="20%">system peer association ID</td></tr>
+<tr><td width="10%"><code>tc</code>
+time constant and poll exponent (log(2) s) (3-17)</td></tr>
+<tr><td width="10%"><code>mintc</code>
+minimum time constant (log(2) s) (3-10)</td></tr>
+<tr><td width="10%"><code>clock</code></td><td width="20%">date and time of day</td></tr>
+<tr><td width="10%"><code>refid</code>
+reference ID or <a href="decode.html#kiss">kiss code</a></td></tr>
+<tr><td width="10%"><code>reftime</code></td><td width="20%">reference time</td></tr>
+<tr><td width="10%"><code>offset</code></td><td width="20%">combined offset of server relative to this host</td></tr>
+<tr><td width="10%"><code>sys_jitter</code></td><td width="20%">combined system jitter</td></tr>
+<tr><td width="10%"><code>frequency</code></td><td width="20%">frequency offset (PPM) relative to hardware clock</td></tr>
+<tr><td width="10%"><code>clk_wander</code></td><td width="20%">clock frequency wander (PPM)</td></tr>
+<tr><td width="10%"><code>clk_jitter</code></td><td width="20%">clock jitter</td></tr>
+<tr><td width="10%"><code>tai</code></td><td width="20%">TAI-UTC offset (s)</td></tr>
+<tr><td width="10%"><code>leapsec</code></td><td width="20%">NTP seconds when the next leap second is/was inserted</td></tr>
+<tr><td width="10%"><code>expire</code></td><td width="20%">NTP seconds when the NIST leapseconds file expires</td></tr>
+</table>
+
+<p>The jitter and wander statistics are exponentially-weighted RMS averages.
+The system jitter is defined in the NTPv4 specification;
+the clock jitter statistic is computed by the clock discipline module.
+</p>
+<p>When the NTPv4 daemon is compiled with the OpenSSL software library,
+additional system variables are displayed, including some or all of the
+following, depending on the particular Autokey dance:
+</p>
+<table>
+<thead><tr><th width="10%">Variable</th><th width="20%">Description</th></tr></thead>
+<tr><td width="10%"><code>host</code></td><td width="20%">Autokey host name for this host</td></tr>
+<tr><td width="10%"><code>ident</code></td><td width="20%">Autokey group name for this host</td></tr>
+<tr><td width="10%"><code>flags</code></td><td width="20%">host flags  (see Autokey specification)</td></tr>
+<tr><td width="10%"><code>digest</code></td><td width="20%">OpenSSL message digest algorithm</td></tr>
+<tr><td width="10%"><code>signature</code></td><td width="20%">OpenSSL digest/signature scheme</td></tr>
+<tr><td width="10%"><code>update</code></td><td width="20%">NTP seconds at last signature update</td></tr>
+<tr><td width="10%"><code>cert</code></td><td width="20%">certificate subject, issuer and certificate flags</td></tr>
+<tr><td width="10%"><code>until</code></td><td width="20%">NTP seconds when the certificate expires</td></tr>
+</table>
+
+<hr>
+<a name="Peer-Variables"></a>
+<div class="header">
+<p>
+Next: <a href="#Clock-Variables" accesskey="n" rel="next">Clock Variables</a>, Previous: <a href="#System-Variables" accesskey="p" rel="prev">System Variables</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
+</div>
+<a name="Peer-Variables-2"></a>
+<h3 class="section">1.7 Peer Variables</h3>
+
+<p>The following peer variables appear in the <code>rv</code> billboard
+for each association.
+Not all variables are displayed in some configurations.
+</p>
+<table>
+<thead><tr><th width="10%">Variable</th><th width="20%">Description</th></tr></thead>
+<tr><td width="10%"><code>associd</code></td><td width="20%">association ID</td></tr>
+<tr><td width="10%"><code>status</code></td><td width="20%"><a href="decode.html#peer">peer status word</a></td></tr>
+<tr><td width="10%"><code>srcadr</code>
+<p><code>srcport</code>
+</p></td><td width="20%">source (remote) IP address and port</td></tr>
+<tr><td width="10%"><code>dstadr</code>
+<p><code>dstport</code>
+</p></td><td width="20%">destination (local) IP address and port</td></tr>
+<tr><td width="10%"><code>leap</code></td><td width="20%">leap indicator (0-3)</td></tr>
+<tr><td width="10%"><code>stratum</code></td><td width="20%">stratum (0-15)</td></tr>
+<tr><td width="10%"><code>precision</code></td><td width="20%">precision (log(2) s)</td></tr>
+<tr><td width="10%"><code>rootdelay</code></td><td width="20%">total roundtrip delay to the primary reference clock</td></tr>
+<tr><td width="10%"><code>rootdisp</code></td><td width="20%">total root dispersion to the primary reference clock</td></tr>
+<tr><td width="10%"><code>refid</code></td><td width="20%">reference ID or <a href="decode.html#kiss">kiss code</a></td></tr>
+<tr><td width="10%"><code>reftime</code></td><td width="20%">reference time</td></tr>
+<tr><td width="10%"><code>reach</code></td><td width="20%">reach register (octal)</td></tr>
+<tr><td width="10%"><code>unreach</code></td><td width="20%">unreach counter</td></tr>
+<tr><td width="10%"><code>hmode</code></td><td width="20%">host mode (1-6)</td></tr>
+<tr><td width="10%"><code>pmode</code></td><td width="20%">peer mode (1-5)</td></tr>
+<tr><td width="10%"><code>hpoll</code></td><td width="20%">host poll exponent (log(2) s) (3-17)</td></tr>
+<tr><td width="10%"><code>ppoll</code></td><td width="20%">peer poll exponent (log(2) s) (3-17)</td></tr>
+<tr><td width="10%"><code>headway</code></td><td width="20%">headway (see <a href="rate.html">Rate Management and the Kiss-o&rsquo;-Death Packet</a>)</td></tr>
+<tr><td width="10%"><code>flash</code></td><td width="20%"><a href="decode.html#flash">flash status word</a></td></tr>
+<tr><td width="10%"><code>offset</code></td><td width="20%">filter offset</td></tr>
+<tr><td width="10%"><code>delay</code></td><td width="20%">filter delay</td></tr>
+<tr><td width="10%"><code>dispersion</code></td><td width="20%">filter dispersion</td></tr>
+<tr><td width="10%"><code>jitter</code></td><td width="20%">filter jitter</td></tr>
+<tr><td width="10%"><code>ident</code></td><td width="20%">Autokey group name for this association</td></tr>
+<tr><td width="10%"><code>bias</code></td><td width="20%">unicast/broadcast bias</td></tr>
+<tr><td width="10%"><code>xleave</code></td><td width="20%">interleave delay (see <a href="xleave.html">NTP Interleaved Modes</a>)</td></tr>
+</table>
+
+<p>The bias variable is calculated when the first broadcast packet is received
+after the calibration volley.  It represents the offset of the broadcast
+subgraph relative to the unicast subgraph.  The xleave variable appears
+only the interleaved symmetric and interleaved modes.  It represents
+the internal queuing, buffering and transmission delays for the preceding
+packet.
+</p>
+<p>When the NTPv4 daemon is compiled with the OpenSSL software library,
+additional peer variables are displayed, including the following:
+</p>
+<table>
+<thead><tr><th width="10%">Variable</th><th width="20%">Description</th></tr></thead>
+<tr><td width="10%"><code>flags</code></td><td width="20%">peer flags (see Autokey specification)</td></tr>
+<tr><td width="10%"><code>host</code></td><td width="20%">Autokey server name</td></tr>
+<tr><td width="10%"><code>flags</code></td><td width="20%">peer flags (see Autokey specification)</td></tr>
+<tr><td width="10%"><code>signature</code></td><td width="20%">OpenSSL digest/signature scheme</td></tr>
+<tr><td width="10%"><code>initsequence</code></td><td width="20%">initial key ID</td></tr>
+<tr><td width="10%"><code>initkey</code></td><td width="20%">initial key index</td></tr>
+<tr><td width="10%"><code>timestamp</code></td><td width="20%">Autokey signature timestamp</td></tr>
+</table>
+
+<hr>
+<a name="Clock-Variables"></a>
+<div class="header">
+<p>
+Previous: <a href="#Peer-Variables" accesskey="p" rel="prev">Peer Variables</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
+</div>
+<a name="Clock-Variables-2"></a>
+<h3 class="section">1.8 Clock Variables</h3>
+
+<p>The following clock variables appear in the <code>cv</code> billboard for each association with a reference clock.  Not all variables are displayed in some configurations.
+</p>
+<table>
+<thead><tr><th width="10%">Variable</th><th width="20%">Description</th></tr></thead>
+<tr><td width="10%"><code>associd</code></td><td width="20%">association ID</td></tr>
+<tr><td width="10%"><code>status</code></td><td width="20%"><a href="decode.html#clock">clock status word</a></td></tr>
+<tr><td width="10%"><code>device</code></td><td width="20%">device description</td></tr>
+<tr><td width="10%"><code>timecode</code></td><td width="20%">ASCII time code string (specific to device)</td></tr>
+<tr><td width="10%"><code>poll</code></td><td width="20%">poll messages sent</td></tr>
+<tr><td width="10%"><code>noreply</code></td><td width="20%">no reply</td></tr>
+<tr><td width="10%"><code>badformat</code></td><td width="20%">bad format</td></tr>
+<tr><td width="10%"><code>baddata</code></td><td width="20%">bad date or time</td></tr>
+<tr><td width="10%"><code>fudgetime1</code></td><td width="20%">fudge time 1</td></tr>
+<tr><td width="10%"><code>fudgetime2</code></td><td width="20%">fudge time 2</td></tr>
+<tr><td width="10%"><code>stratum</code></td><td width="20%">driver stratum</td></tr>
+<tr><td width="10%"><code>refid</code></td><td width="20%">driver reference ID</td></tr>
+<tr><td width="10%"><code>flags</code></td><td width="20%">driver flags</td></tr>
+</table>
+<hr>
+
+
+
+</body>
+</html>

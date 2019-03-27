@@ -1,0 +1,26 @@
+$FreeBSD$
+
+This is the part of the NgATM stuff that is shared by kernel and user.
+Be careful to feed changes back to the maintainer <harti@freebsd.org>,
+because the code here is actually shared with other environments besides
+FreeBSD.
+
+Import should be done by:
+
+	1. Put the distribution into a clean directory.
+
+	2. Remove any unneeded files.
+
+	3. cvs import \
+		-m "Virgin import of NgATM shared kernel/user part X.Y" \
+		src/sys/contrib/ngatm/netnatm BEGEMOT NGATM_X_Y
+
+	4. resolve conflicts
+
+	5. check-out the imported stuff
+
+	6. Re-generate files by calling ./genfiles
+
+	7. If neccessary commit the re-generated files
+
+harti

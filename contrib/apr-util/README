@@ -1,0 +1,111 @@
+Apache Portable Runtime Utility Library README
+----------------------------------------------
+
+   The Apache Portable Runtime Utility Library provides a predictable
+   and consistent interface to underlying client library interfaces.
+   This API assures predictable if not identical behavior regardless
+   of which libraries are available on a given platform.
+
+   APR and its companion libraries are implemented entirely in C
+   and provide a common programming interface across a wide variety
+   of operating system platforms without sacrificing performance.
+   Currently supported platforms include:
+
+     UNIX variants
+     Windows
+     Netware
+     Mac OS X
+     OS/2
+
+   To give a brief overview, the primary core
+   subsystems of APR-util 1.3 include the following:
+
+     Hashing and UUID services
+     Multiple SQL DBD client interfaces
+     Multiple flat-database DBM client interfaces
+     Typesafe function Hooks abstraction
+     LDAP SSL connections for a variety of LDAP toolkits   
+     MemCache interface
+     Date parsing rourtines
+     Resource Lists
+     Thread Pools
+     Queues
+     Relocatable Memory Management functions
+     String filename-style pattern matching
+     URI Parsing
+     Charset translation (iconv based)
+     XML parsing (expat based)
+
+   For a more complete list, please refer to the following URLs:
+
+     http://apr.apache.org/docs/apr-util/modules.html
+
+   Users of APR 0.9 should be aware that migrating to the APR 1.x
+   programming interfaces may require some adjustments; APR 1.x is
+   neither source nor binary compatible with earlier APR 0.9 releases.
+   Users of APR 1.x can expect consistent interfaces and binary backwards
+   compatibility throughout the entire APR 1.x release cycle, as defined
+   in our versioning rules:
+
+     http://apr.apache.org/versioning.html
+
+   APR is already used extensively by the Apache HTTP Server
+   version 2 and the Subversion revision control system, to
+   name but a few.  We list all known projects using APR at
+   http://apr.apache.org/projects.html -- so please let us know
+   if you find our libraries useful in your own projects!
+
+
+Database Providers
+------------------
+As of apr-util version 1.2.11, MySQL DBD driver is shipped as part of the
+distribution.  However, to avoid licensing incompatibilities, it is not
+built by default.  To enable MySQL support, use the --with-mysql option,
+but be aware that the MySQL license may introduce licensing implications
+for your compiled code.  Similarly, the bindings for propritary drivers
+such as Oracle (--with-oracle option) must also be explicitly enabled.
+
+On windows, selection of supported drivers is via the environment values
+DBD_LIST (for freetds, mysql, oracle, pgsql, sqlite2 and/or sqlite3) 
+and DBM_LIST (db and/or gdbm).  DBD odbc and DBM sdbm are unconditionally
+compiled and installed, do not include these in the list.
+
+Whenever distributing apr-util in combination with database client 
+drivers, always review the license requirements of all components.
+
+
+Cryptographic Software Notice
+-----------------------------
+This distribution includes cryptographic software.  The country in 
+which you currently reside may have restrictions on the import, 
+possession, use, and/or re-export to another country, of 
+encryption software.  BEFORE using any encryption software, please 
+check your country's laws, regulations and policies concerning the
+import, possession, or use, and re-export of encryption software, to 
+see if this is permitted.  See http://www.wassenaar.org/ for more
+information.
+
+The U.S. Government Department of Commerce, Bureau of Industry and
+Security (BIS), has classified this software as Export Commodity 
+Control Number (ECCN) 5D002.C.1, which includes information security
+software using or performing cryptographic functions with asymmetric
+algorithms.  The form and manner of this Apache Software Foundation
+distribution makes it eligible for export under the License Exception
+ENC Technology Software Unrestricted (TSU) exception (see the BIS 
+Export Administration Regulations, Section 740.13) for both object 
+code and source code.
+
+The following provides more details on the included cryptographic
+software:
+
+  APR-Util provides an abstract interface for symmetrical cryptographic
+  functions that make use of a general-purpose encryption library,
+  such as OpenSSL, NSS, or the operating system's platform-specific
+  facilities. This interface is known as the apr_crypto interface,
+  with implementation beneath the /crypto directory.
+
+  APR-Util provides an abstract interface for SSL encrypted LDAP (ldaps
+  and STARTTLS style) connections, which can be powered by OpenLDAP, 
+  Netscape LDAP SDK, Mozilla LDAP SDK, or other platform specific ldap
+  interfaces.
+

@@ -1,0 +1,14 @@
+/*
+ * Calendrier français
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _fr_FR_ISO8859_1_all_
+#define _fr_FR_ISO8859_1_all_
+
+#include <fr_FR.ISO8859-1/calendar.jferies>
+#include <fr_FR.ISO8859-1/calendar.fetes>
+#include <fr_FR.ISO8859-1/calendar.proverbes>
+
+#endif /* !_fr_FR.ISO8859-1_all_ */

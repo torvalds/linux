@@ -1,0 +1,190 @@
+.\" Copyright (c) 2003 Sergey A. Osokin <osa@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 24, 2007
+.Dt LED 4
+.Os
+.Sh NAME
+.Nm led
+.Nd API for manipulating LED's, lamps and other annunciators
+.Sh SYNOPSIS
+.In dev/led/led.h
+.Pp
+.Fd "typedef void led_t(void *priv, int onoff);"
+.Ft struct cdev *
+.Fn led_create_state "led_t *func" "void *priv" "char const *name" "int state"
+.Ft struct cdev *
+.Fn led_create "led_t *func" "void *priv" "char const *name"
+.Ft void
+.Fn led_destroy "struct cdev *"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides generic support for handling LEDs, lamps and other
+annunciators.
+.Pp
+The hardware driver must supply a function to turn the annunciator on and off
+and the device
+.Fa name
+of the annunciator relative to
+.Pa /dev/led/ .
+The
+.Fa priv
+argument is passed back to this on/off function and can be used however
+the hardware driver sees fit.
+.Pp
+The lamp can be controlled by opening and writing
+.Tn ASCII
+strings to the
+.Pa /dev/led/bla
+device.
+.Pp
+In the following, we will use this special notation to indicate the resulting
+output of the annunciator:
+.Pp
+.Bl -tag -width indent -offset indent -compact
+.It Ic *
+The annunciator is on for 1/10th second.
+.It Ic _
+The annunciator is off for 1/10th second.
+.El
+.Pp
+State can be set directly, and since the change happens immediately,
+it is possible to flash the annunciator with very short periods and
+synchronize it with program events.
+It should be noted that there is a non-trivial overhead, so this may
+not be usable for benchmarking or measuring short intervals.
+.Pp
+.Bl -tag -width indent -offset indent -compact
+.It Ic 0
+Turn the annunciator off immediately.
+.It Ic 1
+Turn the annunciator on immediately.
+.El
+.Pp
+Flashing can be set with a given period.
+The pattern continues endlessly.
+.Pp
+.Bl -tag -width indent -offset indent -compact
+.It Ic f
+_*
+.It Ic f1
+_*
+.It Ic f2
+__**
+.It Ic f3
+___***
+.It ...
+.It Ic f9
+_________*********
+.El
+.Pp
+Three high-level commands are available:
+.Bl -tag -width indent -offset indent
+.It Ic d%d
+Numbers.
+Each digit is blinked out at 1/10th second, zero as ten pulses.
+Between digits a one second pause and after the last
+digit a two second pause after which the sequence is repeated.
+.It Ic s%s
+String.
+This gives full control over the annunciator.
+Letters
+.Ql A
+.No ...
+.Ql J
+turn the annunciator on for from 1/10th to one full
+second.
+Letters
+.Ql a
+.No ...
+.Ql j
+turn the annunciator off for 1/10th
+to one full second.
+Letters
+.Ql u
+and
+.Ql U
+turn the annunciator off and on respectively when the next
+UTC second starts.
+Unless terminated with a
+.Ql \&. ,
+the sequence is immediately repeated.
+.It Ic m%s
+Morse.
+.Pp
+.Bl -tag -width indent -offset indent -compact
+.It Ql \&.
+becomes
+.Ql _*
+.It Ql -
+becomes
+.Sq Li _***
+.It Ql "\ "
+becomes
+.Sq Li __
+.It Ql \en
+becomes
+.Sq Li ____
+.El
+.El
+.Pp
+The sequence is repeated after a one second pause.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/led/*"
+.It Pa /dev/led/*
+.El
+.Sh EXAMPLES
+A
+.Sq Li d12
+flashes the lamp
+.Pp
+.Dl *__________*_*______________________________
+.Pp
+A
+.Sq Li sAaAbBa
+flashes
+.Pp
+.Dl *_*__**_
+.Bd -literal
+/usr/bin/morse -l "Soekris rocks" > /dev/led/error
+.Ed
+.Sh SEE ALSO
+.Xr morse 6
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.2 .
+.Sh AUTHORS
+.An -nosplit
+This software was written by
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Sergey A. Osokin Aq Mt osa@FreeBSD.org
+and
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .

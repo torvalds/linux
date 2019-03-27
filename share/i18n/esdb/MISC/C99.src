@@ -1,0 +1,8 @@
+# $FreeBSD$ 
+# $NetBSD: C99.src,v 1.1 2006/11/13 15:16:30 tnozaki Exp $
+
+NAME            "C99"
+ENCODING        "UES"
+VARIABLE        "C99"
+DEFCSID         "UCS"		0
+INVALID         0x3F # '?'

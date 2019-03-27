@@ -1,0 +1,41 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_ALLOC_PD 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_alloc_pd, ibv_dealloc_pd \- allocate or deallocate a protection domain (PDs)
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "struct ibv_pd *ibv_alloc_pd(struct ibv_context " "*context" );
+.sp
+.BI "int ibv_dealloc_pd(struct ibv_pd " "*pd" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_alloc_pd()
+allocates a PD for the RDMA device context 
+.I context\fR.
+.PP
+.B ibv_dealloc_pd()
+deallocates the PD
+.I pd\fR.
+.SH "RETURN VALUE"
+.B ibv_alloc_pd()
+returns a pointer to the allocated PD, or NULL if the request fails.
+.PP
+.B ibv_dealloc_pd()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+.B ibv_dealloc_pd()
+may fail if any other resource is still associated with the PD being
+freed.
+.SH "SEE ALSO"
+.BR ibv_reg_mr (3),
+.BR ibv_create_srq (3),
+.BR ibv_create_qp (3),
+.BR ibv_create_ah (3),
+.BR ibv_create_ah_from_wc (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

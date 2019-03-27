@@ -1,0 +1,132 @@
+.\"	$NetBSD: netconfig.5,v 1.2 2000/11/08 13:18:28 lukem Exp $
+.\" $NetBSD: netconfig.5,v 1.2 2000/11/08 13:18:28 lukem Exp $
+.\" $FreeBSD$
+.Dd November 17, 2000
+.Dt NETCONFIG 5
+.Os
+.Sh NAME
+.Nm netconfig
+.Nd network configuration data base
+.Sh SYNOPSIS
+.Pa /etc/netconfig
+.Sh DESCRIPTION
+The
+.Nm
+file defines a list of
+.Dq transport names ,
+describing their semantics and protocol.
+In
+.Fx ,
+this file is only used by the RPC library code.
+.Pp
+Entries have the following format:
+.Pp
+.Ar network_id semantics flags family protoname device libraries
+.Pp
+Entries consist of the following fields:
+.Bl -tag -width network_id
+.It Ar network_id
+The name of the transport described.
+.It Ar semantics
+Describes the semantics of the transport.
+This can be one of:
+.Bl -tag -width tpi_cots_ord -offset indent
+.It Sy tpi_clts
+Connectionless transport.
+.It Sy tpi_cots
+Connection-oriented transport
+.It Sy tpi_cots_ord
+Connection-oriented, ordered transport.
+.It Sy tpi_raw
+A raw connection.
+.El
+.It Ar flags
+This field is either blank (specified by
+.Dq Li - ) ,
+or contains one or more of the following characters:
+.Bl -tag -width b -offset indent
+.It Sy b
+The network represented by this entry is broadcast capable.
+This flag is meaningless in
+.Fx .
+.It Sy v
+The entry may be returned by the
+.Xr getnetpath 3
+function.
+.El
+.It Ar family
+The protocol family of the transport.
+This is currently one of:
+.Bl -tag -width loopback -offset indent
+.It Sy inet6
+The IPv6
+.Pq Dv PF_INET6
+family of protocols.
+.It Sy inet
+The IPv4
+.Pq Dv PF_INET
+family of protocols.
+.It Sy loopback
+The
+.Dv PF_LOCAL
+protocol family.
+.El
+.It Ar protoname
+The name of the protocol used for this transport.
+Can currently be either
+.Sy udp ,
+.Sy tcp
+or empty.
+.It Ar device
+This field is always empty in
+.Fx .
+.It Ar libraries
+This field is always empty in
+.Fx .
+.El
+.Pp
+The order of entries in this file will determine which transport will
+be preferred by the RPC library code, given a match on a specified
+network type.
+For example, if a sample network config file would look like this:
+.Bd -literal -offset indent
+udp6       tpi_clts      v     inet6    udp     -       -
+tcp6       tpi_cots_ord  v     inet6    tcp     -       -
+udp        tpi_clts      v     inet     udp     -       -
+tcp        tpi_cots_ord  v     inet     tcp     -       -
+rawip      tpi_raw       -     inet      -      -       -
+local      tpi_cots_ord  -     loopback  -      -       -
+.Ed
+.Pp
+then using the network type
+.Sy udp
+in calls to the RPC library function (see
+.Xr rpc 3 )
+will make the code first try
+.Sy udp6 ,
+and then
+.Sy udp .
+.Pp
+.Xr getnetconfig 3
+and associated functions will parse this file and return structures of
+the following format:
+.Bd -literal
+struct netconfig {
+    char *nc_netid;              /* Network ID */
+    unsigned long nc_semantics;  /* Semantics */
+    unsigned long nc_flag;       /* Flags */
+    char *nc_protofmly;          /* Protocol family */
+    char *nc_proto;              /* Protocol name */
+    char *nc_device;             /* Network device pathname (unused) */
+    unsigned long nc_nlookups;   /* Number of lookup libs (unused) */
+    char **nc_lookups;           /* Names of the libraries (unused) */
+    unsigned long nc_unused[9];  /* reserved */
+};
+.Ed
+.Sh FILES
+.Bl -tag -width /etc/netconfig -compact
+.It Pa /etc/netconfig
+.El
+.Sh SEE ALSO
+.Xr getnetconfig 3 ,
+.Xr getnetpath 3

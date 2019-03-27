@@ -1,0 +1,258 @@
+if [ ! "$_MEDIA_NFS_SUBR" ]; then _MEDIA_NFS_SUBR=1
+#
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." media/nfs.subr
+f_include $BSDCFG_SHARE/device.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/media/common.subr
+f_include $BSDCFG_SHARE/media/network.subr
+f_include $BSDCFG_SHARE/media/tcpip.subr
+f_include $BSDCFG_SHARE/struct.subr
+f_include $BSDCFG_SHARE/variable.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+############################################################ GLOBALS
+
+NFS_MOUNTED=
+
+############################################################ FUNCTIONS
+
+# f_media_set_nfs
+#
+# Return success if we both found and set the media type to be an NFS server.
+# Variables from variable.subr that can be used to script user input:
+#
+# 	VAR_NFS_PATH
+# 		The NFS path specification (host:path) to use when mounting the
+# 		remote repository.
+# 	VAR_NAMESERVER [Optional]
+# 		Automatically populated from resolv.conf(5) but can be
+# 		overridden. If set, the host portion of VAR_NFS_PATH is
+# 		looked up using f_host_lookup() from `tcpip.subr'.
+#
+# Meanwhile, the following variables from variable.subr are set after
+# successful execution:
+#
+# 	VAR_NFS_HOST
+# 		The host portion of the NFS path specification, parsed from
+# 		VAR_NFS_PATH.
+#
+f_media_set_nfs()
+{
+	local nfs
+
+	f_media_close
+
+	f_variable_get_value $VAR_NFS_PATH \
+		"$msg_please_enter_the_full_nfs_file_specification"
+	f_getvar $VAR_NFS_PATH nfs
+	[ "$nfs" ] || return $FAILURE
+
+	case "$nfs" in
+	*:*) : valid NFS path ;;
+	*)
+		f_show_msg "$msg_invalid_nfs_path_specification"
+		return $FAILURE
+	esac
+
+	f_struct_new DEVICE device_nfs
+	device_nfs set name "$nfs"
+
+	if ! f_struct device_network ||
+	   ! f_dialog_yesno "$msg_youve_already_done_the_network_configuration"
+	then
+		f_struct device_network &&
+			f_device_shutdown device_network
+		f_device_select_tcp || return $FAILURE
+		local dev if
+		f_getvar $VAR_NETWORK_DEVICE if
+		f_device_find -1 "$if" $DEVICE_TYPE_NETWORK dev
+		f_struct_copy "$dev" device_network
+	fi
+	f_device_init device_network ||
+		f_dprintf "%s: $msg_net_device_init_failed\n" f_media_set_nfs
+
+	local hostname="${nfs%%:*}"
+	if f_isset $VAR_NAMESERVER && ! {
+		f_validate_ipaddr "$hostname" || f_validate_ipaddr6 "$hostname"
+	}; then
+		f_show_info "$msg_looking_up_host" "$hostname"
+		f_dprintf "%s Looking up hostname, %s, using host(1)" \
+		          "f_media_set_nfs" "$hostname"
+		if ! f_quietly f_host_lookup "$hostname"; then
+			f_show_msg "$msg_cannot_resolve_hostname" "$hostname"
+			f_struct device_network &&
+				f_device_shutdown device_network
+			f_struct_free device_network
+			unset $VAR_NFS_PATH
+			return $FAILURE
+		fi
+		f_dprintf "Found DNS entry for %s successfully." "$hostname"
+	fi
+
+	setvar $VAR_NFS_HOST "$hostname"
+
+	device_nfs set type     $DEVICE_TYPE_NFS
+	device_nfs set init     f_media_init_nfs
+	device_nfs set get      f_media_get_nfs
+	device_nfs set shutdown f_media_shutdown_nfs
+	device_nfs set private  device_network # in name only (deref'd later)
+
+	f_struct_copy device_nfs device_media
+	f_struct_free device_nfs
+
+	return $SUCCESS
+}
+
+# f_media_init_nfs $device
+#
+# Initializes the NFS media device. Returns success if able to mount the NFS
+# device using mount_nfs(1).
+#
+# The variables (from variable.subr) used to initialize the NFS mount are as
+# follows (all of which are configured manually/optionally from the options
+# menu):
+#
+# 	VAR_NFS_TCP [Optional]
+# 		If non-NULL, adds the "tcp" option via `-o' to mount_nfs(8).
+# 	VAR_NFS_V3 [Optional]
+# 		If non-NULL, adds the "nfsv3" option via `-o' to mount_nfs(8).
+# 	VAR_NFS_SECURE [Optional]
+# 		If non-NULL, adds the "-P" flag to mount_nfs(8).
+# 	VAR_SLOW_ETHER [Optional]
+# 		If non-NULL, adjusts the read/write size to avoid timeouts.
+#
+f_media_init_nfs()
+{
+	local funcname=f_media_init_nfs
+	local dev="$1" name err
+
+	$dev get name name || return $FAILURE
+	f_dprintf "Init routine called for NFS device. name=[%s]" \
+	          "$name"
+
+	if [ "$NFS_MOUNTED" ]; then
+		f_dprintf "NFS device already mounted."
+		return $SUCCESS
+	fi
+
+	if ! f_device_init device_network; then
+		f_dprintf "f_media_init_nfs: %s" "$msg_net_device_init_failed"
+		return $FAILURE
+	fi
+
+	if [ ! -e "$MOUNTPOINT" ]; then
+		f_eval_catch $funcname mkdir 'mkdir -p "%s"' "$MOUNTPOINT" ||
+			return $FAILURE
+	fi
+
+	local cp tcp="" use3="" secure="" readsize=4096 writesize=4096
+	f_getvar $VAR_NFS_TCP cp
+	[ "$cp" = "YES" ] && tcp=1
+	f_getvar $VAR_NFS_V3 cp
+	[ "$cp" = "YES" ] && use3=1
+	f_getvar $VAR_NFS_SECURE cp
+	[ "$cp" = "YES" ] && secure=1
+	f_getvar $VAR_SLOW_ETHER cp
+	[ "$cp" = "YES" ] && readsize=1024 writesize=1024
+
+	local options="rsize=$readsize,wsize=$writesize"
+	[ "$use3" ] && options="$options,nfsv3"
+	[ "$tcp" ] && options="$options,tcp"
+
+	if ! f_eval_catch -dk err $funcname mount_nfs \
+		'mount_nfs %s -o "%s" "%s" "%s"' \
+		"${secure:+-P}" "$options" "$name" "$MOUNTPOINT"
+	then
+		err="${err#mount_nfs: }"
+		f_show_msg "$msg_error_mounting_device" \
+		           "$name" "$MOUNTPOINT" "$err"
+		f_struct device_network &&
+			f_device_shutdown device_network
+		return $FAILURE
+	fi
+	NFS_MOUNTED=1
+
+	f_dprintf "Mounted NFS device %s onto %s" "$name" "$MOUNTPOINT"
+
+	return $SUCCESS
+}
+
+# f_media_get_nfs $device $file [$probe_type]
+#
+# Returns data from $file on a mounted NFS device. Similar to cat(1). If
+# $probe_type is present and non-NULL, returns success if $file exists. If
+# $probe_type is equal to $PROBE_SIZE, prints the size of $file in bytes to
+# standard-out.
+#
+f_media_get_nfs()
+{
+	local dev="$1" file="$2" probe_type="$3"
+	local name
+
+	$dev get name name
+	f_dprintf "f_media_get_nfs: dev=[%s] file=[%s] probe_type=%s" \
+	          "$name" "$file" "$probe_type"
+
+	f_media_generic_get "$MOUNTPOINT" "$file" "$probe_type"
+}
+
+# f_media_shutdown_nfs $device
+#
+# Shuts down the NFS device using umount(8). Return status should be ignored.
+#
+f_media_shutdown_nfs()
+{
+	local funcname=f_media_shutdown_nfs
+	local dev="$1" err
+
+	[ "$NFS_MOUNTED" ] || return $FAILURE
+
+	f_dprintf "Unmounting NFS partition on %s" "$MOUNTPOINT"
+	if ! f_eval_catch -dk err $funcname umount \
+		'umount -f "%s"' "$MOUNTPOINT"
+	then
+		err="${err#umount: }"; err="${err#*: }"
+		f_show_msg "$msg_could_not_unmount_the_nfs_partition" \
+		           "$MOUNTPOINT" "$err"
+	else
+		NFS_MOUNTED=
+	fi
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." media/nfs.subr
+
+fi # ! $_MEDIA_NFS_SUBR

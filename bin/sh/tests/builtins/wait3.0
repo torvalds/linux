@@ -1,0 +1,21 @@
+# $FreeBSD$
+
+failures=
+failure() {
+	echo "Error at line $1" >&2
+	failures=x$failures
+}
+
+T=$(mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXX)
+trap 'rm -rf $T' 0
+cd $T || exit 3
+mkfifo fifo1
+for i in 1 2 3 4 5 6 7 8 9 10; do
+	exit $i 4<fifo1 &
+done
+exec 3>fifo1
+wait || failure $LINENO
+(${SH} -c echo >&3) 2>/dev/null && failure $LINENO
+wait || failure $LINENO
+
+test -z "$failures"

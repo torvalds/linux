@@ -1,0 +1,103 @@
+.\"
+.\" Copyright (c) 2015 Jason A. Harmening <jah@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 6, 2015
+.Dt PMAP_QUICK_ENTER_PAGE 9
+.Os
+.Sh NAME
+.Nm pmap_quick_enter_page ,
+.Nm pmap_quick_remove_page
+.Nd manage fast, single-page kernel address space mappings
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/pmap.h
+.Ft vm_offset_t
+.Fn pmap_quick_enter_page "vm_page_t m"
+.Ft void
+.Fn pmap_quick_remove_page "vm_offset_t kva"
+.Sh DESCRIPTION
+The
+.Fn pmap_quick_enter_page
+function accepts a single page
+.Fa m ,
+and enters this page into a preallocated address in kernel virtual
+address (KVA) space.
+This function is intended for temporary mappings that will only
+be used for a very short period, for example a copy operation on
+the page contents.
+.Pp
+The
+.Fn pmap_quick_remove_page
+function removes a mapping previously created by
+.Fn pmap_quick_enter_page
+at
+.Fa kva ,
+making the KVA frame used by
+.Fn pmap_quick_enter_page
+available for reuse.
+.Pp
+On many architectures,
+.Fn pmap_quick_enter_page
+uses a per-CPU pageframe.
+In those cases, it must disable preemption on the local CPU.
+The corresponding call to
+.Fn pmap_quick_remove_page
+then re-enables preemption.
+It is therefore not safe for machine-independent code to sleep
+or perform locking operations while holding these mappings.
+Current implementations only guarantee the availability of a single
+page for the calling thread, so calls to
+.Fn pmap_quick_enter_page
+must not be nested.
+.Pp
+.Fn pmap_quick_enter_page
+and
+.Fn pmap_quick_remove_page
+do not sleep, and
+.Fn pmap_quick_enter_page
+always returns a valid address.
+It is safe to use these functions under all types of locks except spin mutexes.
+It is also safe to use them in all thread contexts except primary interrupt
+context.
+.Pp
+The page
+.Em must
+not be swapped or otherwise reused while the mapping is active.
+It must be either wired or held, or it must belong to an unmanaged
+region such as I/O device memory.
+.Sh RETURN VALUES
+The
+.Fn pmap_quick_enter_page
+function returns the kernel virtual address
+that is mapped to the page
+.Fa m .
+.Sh SEE ALSO
+.Xr pmap 9
+.Sh AUTHORS
+This manual page was written by
+.An Jason A Harmening Aq Mt jah@FreeBSD.org .

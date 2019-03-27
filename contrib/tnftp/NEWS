@@ -1,0 +1,36 @@
+This is tnftp version 20091122.
+
+Changes in tnftp from 20090606 to 20091122:
+
+	Portability fixes.
+
+Changes in tnftp from 20090520 to 20090606:
+
+	Portability fixes.
+
+Changes in tnftp from 20070806 to 20090520:
+
+	Fix intermittent "Alarm clock" error.
+
+	Add epsv6 and epsv to disable extended passive mode for IPv6 or
+	both IPv4 and IPv6 respectively.
+
+	Improve parsing of HTTP chunked transfers per RFC2616.
+
+	Use the service name to getaddrinfo() (along with the host name),
+	so that features such as DNS Service Discovery will work.
+
+	Fix various compiler warnings.
+
+
+Changes in tnftp from 20050625 to 20070806:
+
+	Implement '-s srcaddr' to set the local IP address for
+	all connections.
+
+	Support '-q quittime' when waiting for server replies.
+
+	Use IEC 60027-2 "KiB", "MiB" (etc) instead of "KB", "MB", ...
+
+	Portability fixes, including for FreeBSD, Mac OS X, and Solaris.
+

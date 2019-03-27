@@ -1,0 +1,92 @@
+.\" Copyright (c) 1997 - 2004 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd April 10, 2007
+.Dt KSTASH 8
+.Os HEIMDAL
+.Sh NAME
+.Nm kstash
+.Nd "store the KDC master password in a file"
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Oo Fl e Ar string \*(Ba Xo
+.Fl Fl enctype= Ns Ar string
+.Xc
+.Oc
+.Oo Fl k Ar file \*(Ba Xo
+.Fl Fl key-file= Ns Ar file
+.Xc
+.Oc
+.Op Fl Fl convert-file
+.Op Fl Fl random-key
+.Op Fl Fl master-key-fd= Ns Ar fd
+.Op Fl Fl random-key
+.Op Fl h | Fl Fl help
+.Op Fl Fl version
+.Ek
+.Sh DESCRIPTION
+.Nm
+reads the Kerberos master key and stores it in a file that will be
+used by the KDC.
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Fl e Ar string , Fl Fl enctype= Ns Ar string
+the encryption type to use, defaults to DES3-CBC-SHA1.
+.It Fl k Ar file , Fl Fl key-file= Ns Ar file
+the name of the master key file.
+.It Fl Fl convert-file
+don't ask for a new master key, just read an old master key file, and
+write it back in the new keyfile format.
+.It Fl Fl random-key
+generate a random master key.
+.It Fl Fl master-key-fd= Ns Ar fd
+filedescriptor to read passphrase from, if not specified the
+passphrase will be read from the terminal.
+.El
+.\".Sh ENVIRONMENT
+.Sh FILES
+.Pa /var/heimdal/m-key
+is the default keyfile if no other keyfile is specified.
+The format of a Heimdal master key is the same as a keytab, so
+.Nm ktutil
+list can be used to list the content of the file.
+.\".Sh EXAMPLES
+.\".Sh DIAGNOSTICS
+.Sh SEE ALSO
+.Xr kdc 8
+.\".Sh STANDARDS
+.\".Sh HISTORY
+.\".Sh AUTHORS
+.\".Sh BUGS

@@ -1,0 +1,140 @@
+.\" Copyright (c) 2007 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 24, 2007
+.Dt PMC_NAME_OF_CAPABILITY 3
+.Os
+.Sh NAME
+.Nm pmc_name_of_capability ,
+.Nm pmc_name_of_class ,
+.Nm pmc_name_of_cputype ,
+.Nm pmc_name_of_disposition ,
+.Nm pmc_name_of_event ,
+.Nm pmc_name_of_mode ,
+.Nm pmc_name_of_state
+.Nd human readable names for numeric constants used by
+.Xr pmc 3
+and
+.Xr hwpmc 4
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Ft "const char *"
+.Fn pmc_name_of_capability "enum pmc_caps pc"
+.Ft "const char *"
+.Fn pmc_name_of_class "enum pmc_class pc"
+.Ft "const char *"
+.Fn pmc_name_of_cputype "enum pmc_cputype ct"
+.Ft "const char *"
+.Fn pmc_name_of_disposition "enum pmc_disp pd"
+.Ft "const char *"
+.Fn pmc_name_of_event "enum pmc_event pe"
+.Ft "const char *"
+.Fn pmc_name_of_mode "enum pmc_mode pm"
+.Ft "const char *"
+.Fn pmc_name_of_state "enum pmc_state ps"
+.Sh DESCRIPTION
+These convenience functions translate numeric constants used by the
+.Lb libpmc
+to
+.Vt "const char *"
+pointers to human readable representations of their arguments.
+.Pp
+Function
+.Fn pmc_name_of_capability
+translates a PMC capability flag given in argument
+.Fa pc
+to a human readable string.
+PMC capabilities are described in
+.Xr pmc 3 .
+.Pp
+Function
+.Fn pmc_name_of_class
+translates the PMC class value specified in argument
+.Fa pc
+to a human readable name.
+PMC classes are described in
+.Xr pmc 3 .
+.Pp
+Function
+.Fn pmc_name_of_cputype
+translates the CPU type value specified in argument
+.Fa ct
+to a human readable name.
+CPU types known to the library are described in
+.Xr pmc 3 .
+.Pp
+Function
+.Fn pmc_name_of_disposition
+translates the PMC row disposition specified in argument
+.Fa pd
+to a human readable name.
+PMC row dispositions are described in
+.Xr hwpmc 4 .
+.Pp
+Function
+.Fn pmc_name_of_event
+translates the PMC event number specified by argument
+.Fa pe
+to a string.
+PMC event names are documented in section
+.Sx EVENT SPECIFIERS
+of
+.Xr pmc 3 .
+.Pp
+Function
+.Fn pmc_name_of_mode
+translates the PMC mode specified by argument
+.Fa pm
+to a human readable string.
+PMC modes are described in
+.Xr pmc 3 .
+.Pp
+Function
+.Fn pmc_name_of_state
+translates the value of argument
+.Fa ps
+to a human readable name.
+.Sh IMPLEMENTATION NOTES
+The returned pointers point to static storage inside the PMC
+library and should not be freed by the caller.
+.Sh RETURN VALUES
+These functions return a non-NULL pointer on successful completion.
+In case of an error, a NULL pointer is returned and the global
+variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+A call to these functions may fail with the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The function argument specified an invalid value.
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc_cpuinfo 3 ,
+.Xr pmc_pmcinfo 3 ,
+.Xr hwpmc 4

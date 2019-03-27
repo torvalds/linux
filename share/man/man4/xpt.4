@@ -1,0 +1,108 @@
+.\"
+.\" Copyright (c) 1998 Kenneth D. Merry.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 10, 1998
+.Dt XPT 4
+.Os
+.Sh NAME
+.Nm xpt
+.Nd CAM transport layer interface
+.Sh SYNOPSIS
+None.
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a way for userland applications to issue certain CAM CCBs
+to the kernel.
+.Pp
+Since the
+.Nm
+driver allows direct access to the CAM subsystem, system administrators
+should exercise caution when granting access to this driver.
+If used
+improperly, this driver can allow userland applications to crash a machine
+or cause data loss.
+.Sh KERNEL CONFIGURATION
+There is no kernel configuration required for the
+.Nm
+driver.
+It is enabled when
+.Tn SCSI
+support is enabled in the kernel.
+There is one instance of the xpt driver
+per CAM transport layer instance.
+Since there is currently only one CAM
+transport layer, there will only be one instance of this driver.
+.Sh IOCTLS
+.Bl -tag -width 01234567890123
+.It CAMIOCOMMAND
+This ioctl takes certain kinds of CAM CCBs and passes them through to the
+CAM transport layer for action.
+Only the following CCB types are
+supported:
+.Pp
+.Bl -tag -width XPT_DEV_MATCH -compact
+.It XPT_SCAN_BUS
+.It XPT_RESET_BUS
+.It XPT_SCAN_LUN
+.It XPT_ENG_INQ
+.It XPT_ENG_EXEC
+.It XPT_DEBUG
+.It XPT_DEV_MATCH
+.It XPT_PATH_INQ
+.El
+.Pp
+The above CCBs are the only ones supported since it makes more sense to
+send them through a generic passthrough device rather than a passthrough
+device tied to a particular underlying
+.Tn SCSI
+device.
+.It CAMGETPASSTHRU
+This ioctl takes an XPT_GDEVLIST CCB, and returns the passthrough device
+corresponding to the device in question.
+.El
+.Sh FILES
+.Bl -tag -width /dev/xpt0 -compact
+.It Pa /dev/xpt0
+Character device node for the
+.Nm
+driver.
+.El
+.Sh DIAGNOSTICS
+None.
+.Sh SEE ALSO
+.Xr cam 3 ,
+.Xr cam_cdbparse 3 ,
+.Xr pass 4 ,
+.Xr camcontrol 8
+.Sh HISTORY
+The CAM transport layer driver first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An Kenneth Merry Aq Mt ken@FreeBSD.org

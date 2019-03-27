@@ -1,0 +1,29 @@
+> zx0 ip #0 20(20) 255 1.1.1.1 > 2.3.2.3
+> zx0 ip #0 20(20) 255 1.1.1.1 > 2.2.2.3
+> zx0 ip #0 20(20) 255 1.1.1.2 > 2.2.2.3
+> zx0 ip #0 20(20) 255 1.2.1.2 > 2.2.2.3
+> zx0 ip #0 20(20) 255 1.1.1.1 > 2.2.2.4
+> zx0 ip #0 20(20) 255 1.1.1.1 > 2.2.2.3
+> zx0 ip #0 40(20) 6 1.1.1.1,101 > 2.3.2.3,203
+> zx0 ip #0 40(20) 6 4.4.4.4,1000 > 6.6.0.1,203
+List of active MAP/Redirect filters:
+rewrite out on zx0 proto tcp from 0/0 to 2.2.0.0/16 -> src 4.4.4.4/32,1000-2000 dst 6.6.0.0/16;
+
+List of active sessions:
+RWR-MAP 1.1.1.1         101   2.2.2.3         203  <- -> 4.4.4.4         1000  6.6.0.1         203  
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------

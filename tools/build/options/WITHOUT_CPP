@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set to not build
+.Xr cpp 1 .

@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+T=$(mktemp -d "${TMPDIR:-/tmp}/sh-test.XXXXXXXX") || exit
+trap 'rm -rf "$T"' 0
+
+set -C
+echo . >"$T/a" &&
+[ -s "$T/a" ] &&
+{ ! true >"$T/a"; } 2>/dev/null &&
+[ -s "$T/a" ] &&
+ln -s /dev/null "$T/b" &&
+true >"$T/b"

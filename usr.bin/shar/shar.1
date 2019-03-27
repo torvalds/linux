@@ -1,0 +1,107 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)shar.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd January 31, 2019
+.Dt SHAR 1
+.Os
+.Sh NAME
+.Nm shar
+.Nd create a shell archive of files
+.Sh SYNOPSIS
+.Nm
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+command writes a
+.Xr sh 1
+shell script to the standard output which will recreate the file
+hierarchy specified by the command line operands.
+Directories will be recreated and must be specified before the
+files they contain (the
+.Xr find 1
+utility does this correctly).
+.Pp
+The
+.Nm
+command is normally used for distributing files by
+.Xr ftp 1
+or
+.Xr mail 1 .
+.Sh EXAMPLES
+To create a shell archive of the program
+.Xr ls 1
+and mail it to Rick:
+.Bd -literal -offset indent
+cd ls
+shar `find . -print` \&| mail -s "ls source" rick
+.Ed
+.Pp
+To recreate the program directory:
+.Bd -literal -offset indent
+mkdir ls
+cd ls
+\&...
+<delete header lines and examine mailed archive>
+\&...
+sh archive
+.Ed
+.Sh SEE ALSO
+.Xr compress 1 ,
+.Xr mail 1 ,
+.Xr tar 1 ,
+.Xr uuencode 1
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.4 .
+.Sh BUGS
+The
+.Nm
+command makes no provisions for special types of files or files containing
+magic characters.
+The
+.Nm
+command cannot handle files without a newline ('\\n')
+as the last character.
+.Pp
+It is easy to insert trojan horses into
+.Nm
+files.
+It is strongly recommended that all shell archive files be examined
+before running them through
+.Xr sh 1 .
+Archives produced using this implementation of
+.Nm
+may be easily examined with the command:
+.Bd -literal -offset indent
+egrep -av '^[X#]' shar.file
+.Ed

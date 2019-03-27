@@ -1,0 +1,310 @@
+Apache Serf 1.3.9 [2016-09-01, from tags/1.3.9, rxxxx]
+  serf is now Apache Serf; apply header changes (r1700062)
+  Fix issue #151: SCons build broken when only one library in ENVPATH
+  Fix issue #153: avoid SSPI handle leak
+  Fix issue #167: Explicitly use the ANSI version of SSPI
+  Fix issue #170: Allow building with Microsoft Visual Studio 2015
+  Fix build of 'check' target when using VPATH-style builds (r1699858, ...)
+    (builddir != srcdir).
+  Resolve a bucket (aka "memory") leak when a request bucket is
+    destroyed before it is morphed into an aggregate bucket (r1699791)
+  Reset state variables when resetting connection (r1708849)
+  Fix types of passed, but unused batons (r1699986, r1699987)
+  Fix some usages of the openssl BIO api (r1699852)
+  Improve handling of bad data in the response state line. (r1699985)
+  Resolve several compiler issues with less common compilers
+  Support more overrides via SCons arguments (r1701836, ...)
+  Adapt to OpenSSL 1.1.x api (r1750819)
+
+
+Serf 1.3.8 [2014-10-20, from /tags/1.3.8, r2441]
+  Fix issue #152: CRC calculation error for gzipped http reponses > 4GB.
+  Fix issue #153: SSPI CredHandle not freed when APR pool is destroyed.
+  Fix issue #154: Disable SSLv2 and SSLv3 as both or broken.
+
+
+Serf 1.3.7 [2014-08-11, from /tags/1.3.7, r2411]
+  Handle NUL bytes in fields of an X.509 certificate. (r2393, r2399)
+
+
+Serf 1.3.6 [2014-06-09, from /tags/1.3.6, r2372]
+  Revert r2319 from serf 1.3.5: this change was making serf call handle_response
+    multiple times in case of an error response, leading to unexpected behavior.
+
+
+Serf 1.3.5 [2014-04-27, from /tags/1.3.5, r2355]
+  Fix issue #125: no reverse lookup during Negotiate authentication for proxies.
+  Fix a crash caused by incorrect reuse of the ssltunnel CONNECT request (r2316)
+  Cancel request if response parsing failed + authn callback set (r2319)
+  Update the expired certificates in the test suite.
+
+
+Serf 1.3.4 [2014-02-08, from /tags/1.3.4, r2310]
+  Fix issue #119: Endless loop during ssl tunnel setup with Negotiate authn
+  Fix issue #123: Can't setup ssl tunnel which sends Connection close header
+  Fix a race condition when initializing OpenSSL from multiple threads (r2263)
+  Fix issue #138: Incorrect pkg-config file when GSSAPI isn't configured
+
+
+Serf 1.3.3 [2013-12-09, from /tags/1.3.3, r2242]
+  Fix issue 129: Try more addresses of multihomed servers
+  Handle X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE correctly (r2225)
+  Return APR_TIMEUP from poll() to enable detecting connection timeouts (r2183)
+
+
+Serf 1.3.2 [2013-10-04, from /tags/1.3.2, r2195]
+  Fix issue 130: HTTP headers should be treated case-insensitively
+  Fix issue 126: Compilation breaks with Codewarrior compiler
+  Fix crash during cleanup of SSL buckets in apr_terminate() (r2145)
+  Fix Windows build: Also export functions with capital letters in .def file
+  Fix host header when url contains a username or password (r2170)
+  Ensure less TCP package fragmentation on Windows (r2145)
+  Handle authentication for responses to HEAD requests (r2178,-9)
+  Improve serf_get: add option to add request headers, allow url with query,
+     allow HEAD requests (r2143,r2175,-6)
+  Improve RFC conformance: don't expect body for certain responses (r2011,-2)
+  Do not invoke progress callback when no data was received (r2144)
+  And more test suite fixes and build warning cleanups
+  SCons-related fixes:
+   Fix build when GSSAPI not in default include path (2155)
+   Fix OpenBSD build: always map all LIBPATH entries into RPATH (r2156)
+   Checksum generation in Windows shared libraries for release builds (2162)
+   Mac OS X: Use MAJOR version only in dylib install name (r2161)
+   Use both MAJOR and MINOR version for the shared library name (2163)
+   Fix the .pc file when installing serf in a non-default LIBDIR (r2191)
+
+
+Serf 1.3.1 [2013-08-15, from /tags/1.3.1, r2138]
+  Fix issue 77: Endless loop if server doesn't accept Negotiate authentication.
+  Fix issue 114: ssl/tls renegotiation fails
+  Fix issue 120: error with ssl tunnel over proxy with KeepAlive off and
+                 Basic authentication.
+  Fixed bugs with authentication (r2057,2115,2118)
+  SCons-related fixes:
+   Fix issue 111: add flag to set custom library path
+   Fix issue 112: add soname
+   Fix issue 113: add gssapi libs in the serf pc file
+   Fix issue 115: Setting RPATH on Solaris broken in SConstruct
+   Fix issue 116: scons check should return non-zero exit staths
+   Fix issue 121: make CFLAGS, LIBS, LINKFLAGS and CPPFLAGS take a space-
+                   separated list of flags.
+   Fix issue 122: make scons PREFIX create the folder if it doesn't exist
+   Mac OS X: Fix scons --install-sandbox
+   Solaris: Fix build with cc, don't use unsupported compiler flags
+  Require SCons version 2.3.0 or higher now (for the soname support).
+
+
+Serf 1.3.0 [2013-07-23, from /tags/1.3.0, r2074]
+  Fix issue 83: use PATH rather than URI within an ssltunnel (r1952)
+  Fix issue 108: improved error reporting from the underlying socket (r1951)
+  NEW: Switch to the SCons build system; retire serfmake, serf.mak, autotools
+  Improved Basic and Digest authentication:
+    - remember credentials on a per-server basis
+    - properly manage authentication realms
+    - continue functioning when a server sets KeepAlive: off
+  Windows: add support for NTLM authentication
+  Improved 2617 compliance: always use strongest authentication (r1968,1971)
+  Fixed bugs with proxy authentication and SSL tunneling through a proxy
+  Fixed bugs the response parser (r2032,r2036)
+  SSL connection performance improvements
+  Huge expansion of the test suite
+
+
+Serf 1.2.1 [2013-06-03, from /tags/1.2.1, r1906]
+  Fix issue 95: add gssapi switches to configure (r1864, r1900)
+  Fix issue 97: skip mmap bucket if APR_HAS_MMAP is undefined (r1877)
+  Fix issue 100: building against an old Windows Platform SDK (r1881)
+  Fix issue 102: digest authentication failures (r1885)
+  Improve error return values in SSPI authentication (r1804)
+  Ensure serf-1.pc is constructed by serfmake (r1865)
+  Optimize SPNego authentication processing (r1868)
+  Reject certs that application does not like (r1794)
+  Fix possible endless loop in serf_linebuf_fetch() (r1816)
+  Windows build: dereference INTDIR in serf.mak (r1882)
+
+
+Serf 1.2.0 [2013-02-22, from /tags/1.2.0, r1726]
+  Fixed issue 94: Serf can enter an infinite loop when server aborts conn.
+  Fixed issue 91: Serf doesn't handle an incoming 408 Timeout Request
+  Fixed issue 80: Serf is not handling Negotiate authentication correctly
+  Fixed issue 77: Endless loop if server doesn't accept Negotiate authn
+  Fixed issue 93: cleanup-after-fork interferes with parent (r1714)
+  Fixed most of issue 89: Support REAL SPNEGO authentication
+  Enable Negotiate/Kerberos support for proxy servers.
+  Return error when C-L, chunked, gzip encoded response bodies were
+    truncated (due to aborted connection) (r1688)
+  Add a logging mechanism that can be enabled at compile-time.
+  Don't lookup server address if a proxy was configured. (r1706)
+  Fix an off-by-one in buffer sizing (r1695)
+  Disable SSL compression by default + API to enable it (r1692)
+  New serf_connection_get_latency() for estimated network latency (r1689)
+  New error code and RFC compliance for the HTTPS tunnel (r1701, r1644)
+  Handle EINTR when a user suspends and then backgrounds the app (r1708)
+  Minor fixes and test suite improvements.
+
+
+Serf 1.1.1 [2012-10-04, from /tags/1.1.1, r1657]
+  Fixed issue 86: ensure requeued requests are correctly handled.
+    This fixes:
+      - infinite loop with multiple connection resets or SIGPIPE errors
+      - "connection" hang where we would not re-queue requests that are
+        held after we re-connect
+  Fixed issue 74: test_all goes in an endless loop
+  Fix memleak when conn. is closed explicitly/due to pool cleanups (r1623)
+  Windows: Fix https connection aborts (r1628..-30,-33,-34,-37)
+  Add new error codes for the SSL bucket
+
+
+Serf 1.1.0 [2012-06-07, from /tags/1.1.0, r1617]
+  New: serf_bucket_request_set_CL() for C-L based, non-chunked requests
+  New: serf_ssl_server_cert_chain_callback_set() for full-chain validation
+
+
+Serf 1.0.3 [2012-03-20, from /tags/1.0.3, r1586]
+  Map more OpenSSL errors into SERF_SSL_CERT_UNKNOWNCA (r1573)
+
+
+Serf 1.0.2
+  Not released.
+
+
+Serf 1.0.1 [2012-02-15, from /tags/1.0.1, r1569]
+  FreeBSD fixes in the test suite (r1560, r1565)
+  Minor build fixes
+
+
+Serf 1.0.0 [2011-07-15, from /tags/1.0.0, r1540]
+  Fixed issue 38: enable builds using non-GNU make
+  Fixed issue 49: support SSL tunnels for HTTPS via a proxy
+  Fixed issue 56: allow Subject Alternative Name, and enable SNI
+  Fixed issue 61: include order dependencies
+  Fixed issue 66: improved error reporting when creating install dirs
+  Fixed issue 71: handle ECONNREFUSED on Windows
+  Fixed issue 79: destroy the APR allocator, if we create one
+  Fixed issue 81: build failed on APR 0.9.x
+  Major performance improvements and bug fixes for SSL buckets/handling (r1462)
+  Add a new "iovec" bucket type (r1434)
+  Minimize network packet writes based on ra_serf analysis (r1467, r1471)
+  Fix out of order issue with multiple priority requests (r1469)
+  Work around broken WSAPoll() impl on Windows introduced in APR 1.4.0 (r1506)
+  Fix 100% CPU usage with many pipelined requests (r1456)
+  Corrected contents of build/serf.def; it now includes bucket types (r1512)
+  Removed "snapshot" feature from buckets (r1503)
+  Various improvements to the test system
+  Various memory leak fixes
+
+
+Serf 0.7.2 [2011-03-12, from /tags/0.7.2, r1452]
+  Actually disable Nagle when creating a connection (r1441)
+  Return error when app asks for HTTPS over proxy connection (r1433)
+
+
+Serf 0.7.1 [2011-01-25, from /tags/0.7.1, r1432]
+  Fix memory leak when using SSL (r1408, r1416)
+  Fix build for blank apr-util directory (r1421)
+
+
+Serf 0.7.0 [2010-08-25, from /tags/0.7.0, r1407]
+  Fix double free abort when destroying request buckets
+  Fix test server in unit test framework to avoid random test failures
+  Allow older Serf programs which don't use the new authn framework to still
+    handle authn without forcing them to switch to the new framework. (r1401)
+  Remove the SERF_DECLARE macros, preferring a .DEF file for Windows
+  Barrier buckets now pass read_iovec to their wrapped bucket
+  Fix HTTP header parsing to allow for empty header values
+
+
+Serf 0.6.1 [2010-05-14, from /tags/0.6.1, r1370]
+  Generally: this release fixes problems with the 0.4.0 packaging
+  Small compilation fix in outgoing.c for Windows builds
+
+
+Serf 0.6.0
+  Not released.
+
+
+Serf 0.5.0
+  Not released.
+
+
+Serf 0.4.0
+  WITHDRAWN: this release misstated itself as 0.5.0; use a later release
+
+  Provide authn framework, supporting Basic, Digest, Kerberos (SSPI, GSS),
+    along with proxy authn using Basic or Digest
+  Added experimental listener framework, along with test_server.c
+  Improvements and fixes to SSL support, including connection setup changes
+  Experimental support for unrequested, arriving ("async") responses
+  Experimental BWTP support using the async arrival feature
+  Headers are combined on read (not write), to ease certian classes of parsing
+  Experimental feature on aggregate buckets for a callback-on-empty
+  Fix the bucket allocator for when APR is using its pool debugging features
+  Proxy support in the serf_get testing utility
+  Fix to include the port number in the Host header
+  serf_get propagates errors from the response, instead of aborting (Issue 52)
+  Added serf_lib_version() for runtime version tests
+
+
+Serf 0.3.1 [2010-02-14, from /tags/0.3.1, r1322]
+  Fix loss of error on request->setup() callback. (Issue 47)
+  Support APR 2.x. (Issue 48)
+  Fixed slowdown in aggregate bucket with millions of child buckets
+  Avoid hang in apr_pollset_poll() by unclosed connections after fork()
+
+
+Serf 0.3.0 [2009-01-26, from /tags/0.3.0, r1217]
+  Support LTFLAGS override as a config-time env. variable (Issue 44)
+  Fix CUTest test harness compilation on Solaris (Issue 43)
+  Fix small race condition in OpenSSL initialization (Issue 39)
+  Handle content streams larger than 4GB on 32-bit OSes (Issue 41)
+  Fix test_ssl.c compilation with mingw+msys
+  Fix conn close segfault by explicitly closing conn when pool is destroyed
+  Expose the depth of the SSL certificate so the validator can use that info
+  Fix socket address family issue when opening a connection to a proxy
+  Provide new API to take snapshots of buckets
+  Implement snapshot API for simple and aggregate buckets
+  Build with bundled apr and apr-util VPATH builds
+  Build with bundled OpenSSL builds
+
+
+Serf 0.2.0 [2008-06-06, from /tags/0.2.0, r1189]
+  Enable use of external event loop: serf_create_context_ex
+  Enable adding new requests at the beginning of the request queue
+  Handle 'Connection:close' headers
+  Enable limiting the number of outstanding requests
+  Add readline function to simple buckets
+  Concatenate repeated headers using comma as separator, as per RFC 2616,
+    section 4.2. (Issue 29)
+  Add proxy server support
+  Add progress feedback support. (Issue 11)
+  Provide new API to simplify use of proxy and progress feedback support
+  Add callback to validate SSL server certificates. (Issue 31)
+  Add new test framework
+  Send current version string in the test programs (Issue 21)
+  Bugfixes:
+     Fix segfault with epoll when removing a NULL socket
+     Reset OpenSSL thread-safety callbacks when apr_terminate() called
+     Do not remove the socket from the pollset on pool cleanup
+     Do not issue double close on skt w/second one being close(-1) (Issue 33)
+
+
+Serf 0.1.2 [2007-06-18, from /tags/0.1.2, r1115]
+  Enable thread-safety with OpenSSL (Issue 19)
+  Teach serfmake to install headers into include/serf-0
+  Be more tolerant when servers close the connection without telling us
+  Do not open the connection until we have requests to deliver
+  Fix serfmake to produce the library that corresponds to the minor version
+  Fix a memory leak with the socket bucket (Issue 14)
+  Fix uninitialized branch in serf_spider (Issue 15)
+
+
+Serf 0.1.1 [2007-05-12, from /tags/0.1.1, r1105]
+  Add SSL client certificate support
+  Implement optimized iovec reads for header buckets
+  Fix up 'make clean' and 'make distclean' (Issues 9, 10)
+  Add SERF_VERSION_AT_LEAST macro
+  Remove abort() calls (Issue 13)
+
+
+Serf 0.1.0 [2006-12-14, from /tags/0.1.0, r1087]
+  Initial packaged release

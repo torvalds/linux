@@ -1,0 +1,90 @@
+.\" Copyright (c) 2016 The FreeBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 1, 2016
+.Dt THR_SELF 2
+.Os
+.Sh NAME
+.Nm thr_self
+.Nd return thread identifier for the calling thread
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/thr.h
+.Ft int
+.Fn thr_self "long *id"
+.Sh DESCRIPTION
+The
+.Fn thr_self
+system call stores the system-wide thread identifier for the current
+kernel-scheduled thread in the variable pointed by the argument
+.Va id .
+.Pp
+The thread identifier is an integer in the range from
+.Dv PID_MAX + 2
+(10002) to
+.Dv INT_MAX .
+The thread identifier is guaranteed to be unique at any given time,
+for each running thread in the system.
+After the thread exits, the identifier may be reused.
+.Sh RETURN VALUES
+If successful,
+.Fn thr_self
+will return zero, otherwise \-1 is returned, and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn thr_self
+operation may return the following errors:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The memory pointed to by the
+.Fa id
+argument is not valid.
+.El
+.Sh SEE ALSO
+.Xr thr_exit 2 ,
+.Xr thr_kill 2 ,
+.Xr thr_kill2 2 ,
+.Xr thr_new 2 ,
+.Xr thr_set_name 2 ,
+.Xr _umtx_op 2 ,
+.Xr pthread_getthreadid_np 3 ,
+.Xr pthread_self 3
+.Sh STANDARDS
+The
+.Fn thr_self
+system call is non-standard and is used by
+.Lb libthr
+to implement
+.St -p1003.1-2001
+.Xr pthread 3
+functionality.

@@ -1,0 +1,14 @@
+@c ------------------------------ CONFIGURATION VARS:
+@c 1. Inclusiveness of this manual
+@clear GENERIC
+
+@c 2. Specific target machines
+@set H8300
+@set Renesas
+@clear I960
+
+@c 3. Properties of this configuration
+@set SingleFormat
+@clear UsesEnvVars
+@c ------------------------------ end CONFIGURATION VARS
+

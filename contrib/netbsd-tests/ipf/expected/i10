@@ -1,0 +1,5 @@
+pass in inet from 127.0.0.1/32 to 127.0.0.1/32 with opt sec
+pass in inet from 127.0.0.1/32 to 127.0.0.1/32 with opt lsrr not opt sec
+block in inet from any to any with not opt sec-class topsecret
+block in inet from any to any with not opt sec-class topsecret,secret
+pass in inet from any to any with opt sec-class topsecret,confid not opt sec-class unclass

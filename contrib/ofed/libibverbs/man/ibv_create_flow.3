@@ -1,0 +1,216 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH IBV_CREATE_FLOW 3 2016-03-15 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_create_flow, ibv_destroy_flow \- create or destroy flow steering rules
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "struct ibv_flow *ibv_create_flow(struct ibv_qp " "*qp" ,
+.BI "                                 struct ibv_flow_attr " "*flow_attr");
+.BI "int ibv_destroy_flow(struct ibv_flow " "*flow_id");
+.sp
+.fi
+.SH "DESCRIPTION"
+.SS ibv_create_flow()
+allows a user application QP
+.I qp
+to be attached into a specified flow
+.I flow
+which is defined in
+.I <infiniband/verbs.h>
+.PP
+.nf
+struct ibv_flow_attr {
+.in +8
+uint32_t comp_mask;                     /* Future extendibility */
+enum ibv_flow_attr_type type;           /* Rule type - see below */
+uint16_t size;                          /* Size of command */
+uint16_t priority;                      /* Rule priority - see below */
+uint8_t num_of_specs;                   /* Number of ibv_flow_spec_xxx */
+uint8_t port;                           /* The uplink port number */
+uint32_t flags;                         /* Extra flags for rule - see below */
+/* Following are the optional layers according to user request
+ * struct ibv_flow_spec_xxx
+ * struct ibv_flow_spec_yyy
+ */
+.in -8
+};
+.sp
+.nf
+enum ibv_flow_attr_type {
+.in +8
+IBV_FLOW_ATTR_NORMAL		= 0x0,		/* Steering according to rule specifications */
+IBV_FLOW_ATTR_ALL_DEFAULT	= 0x1,		/* Default unicast and multicast rule - receive all Eth traffic which isn't steered to any QP */
+IBV_FLOW_ATTR_MC_DEFAULT 	= 0x2,		/* Default multicast rule - receive all Eth multicast traffic which isn't steered to any QP */
+IBV_FLOW_ATTR_SNIFFER		= 0x3,		/* Sniffer rule - receive all port traffic */
+.in -8
+};
+.sp
+.nf
+enum ibv_flow_flags {
+.in +8
+IBV_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK = 1 << 0,	/* Apply the rules on packets that were sent from the attached QP through loopback */
+IBV_FLOW_ATTR_FLAGS_DONT_TRAP       = 1 << 1,	/* Rule doesn't trap received packets, allowing them to match lower prioritized rules */
+.in -8
+};
+.fi
+.nf
+.br
+
+enum ibv_flow_spec_type {
+.in +8
+IBV_FLOW_SPEC_ETH                       = 0x20,   /* Flow specification of L2 header */
+IBV_FLOW_SPEC_IPV4                      = 0x30,   /* Flow specification of IPv4 header */
+IBV_FLOW_SPEC_IPV6                      = 0x31,   /* Flow specification of IPv6 header */
+IBV_FLOW_SPEC_IPV4_EXT                  = 0x32,   /* Extended flow specification of IPv4 */
+IBV_FLOW_SPEC_TCP                       = 0x40,   /* Flow specification of TCP header */
+IBV_FLOW_SPEC_UDP                       = 0x41,   /* Flow specification of UDP header */
+IBV_FLOW_SPEC_VXLAN_TUNNEL             	= 0x50,   /* Flow specification of VXLAN header */
+IBV_FLOW_SPEC_INNER                    	= 0x100,  /* Flag making L2/L3/L4 specifications to be applied on the inner header */
+IBV_FLOW_SPEC_ACTION_TAG                = 0x1000, /* Action tagging matched packet */
+IBV_FLOW_SPEC_ACTION_DROP               = 0x1001, /* Action dropping matched packet */
+.in -8
+};
+.br
+
+Flow specification general structure:
+.BR
+struct ibv_flow_spec_xxx {
+.in +8
+enum ibv_flow_spec_type  type;
+uint16_t  size;                  /* Flow specification size = sizeof(struct ibv_flow_spec_xxx) */
+struct ibv_flow_xxx_filter val;
+struct ibv_flow_xxx_filter mask; /* Defines which bits from the filter value are applicable when looking for a match in the incoming packet */
+.in -8
+};
+.PP
+Each spec struct holds the relevant network layer parameters for matching. To enforce the match, the user sets a mask for each parameter.
+.br
+If the bit is set in the mask, the corresponding bit in the value should be matched.
+.br
+Note that most vendors support either full mask (all "1"s) or zero mask (all "0"s).
+.br
+.B Network parameters in the relevant network structs should be given in network order (big endian).
+
+.SS Flow domains and priority
+Flow steering defines the concept of domain and priority. Each domain represents an application that can attach a flow.
+Domains are prioritized. A higher priority domain will always supersede a lower priority domain when their flow specifications overlap.
+.br
+.B IB verbs have the higher priority domain.
+.br
+In addition to the domain, there is priority within each of the domains.
+A lower priority numeric value (higher priority) takes precedence over matching rules with higher numeric priority value (lower priority).
+It is important to note that the priority value of a flow spec is used not only to establish the precedence of conflicting flow matches
+but also as a way to abstract the order on which flow specs are tested for matches. Flows with higher priorities will be tested before flows with lower priorities.
+.PP
+.SS ibv_destroy_flow()
+destroys the flow
+.I flow_id\fR.
+.SH "RETURN VALUE"
+.B ibv_create_flow()
+returns a pointer to the flow, or NULL if the request fails. In case of an error, errno is updated.
+.PP
+.B ibv_destroy_flow()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "ERRORS"
+.SS EINVAL
+.B ibv_create_flow()
+flow specification, QP or priority are invalid
+.PP
+.B ibv_destroy_flow()
+flow_id is invalid
+.SS ENOMEM
+Couldn't create/destroy flow, not enough memory
+.SS ENXIO
+Device managed flow steering isn't currently supported
+.SS EPERM
+No permissions to add the flow steering rule
+.SH "NOTES"
+1. These verbs are available only for devices supporting
+.br
+   IBV_DEVICE_MANAGED_FLOW_STEERING and only for QPs of Transport Service Type
+.BR IBV_QPT_UD
+or
+.BR IBV_QPT_RAW_PACKET
+.br
+2. User must memset the spec struct with zeros before using it.
+.br
+3. ether_type field in ibv_flow_eth_filter is the ethertype following the last VLAN tag of the packet.
+.br
+4. Only rule type IBV_FLOW_ATTR_NORMAL supports IBV_FLOW_ATTR_FLAGS_DONT_TRAP flag.
+.br
+5. No specifications are needed for IBV_FLOW_ATTR_SNIFFER rule type.
+.br
+.PP
+.SH EXAMPLE
+.br
+Below flow_attr defines a rule in priority 0 to match a destination
+mac address and a source ipv4 address. For that, L2 and L3 specs are used.
+.br
+If there is a hit on this rule, means the
+received packet has destination mac: 66:11:22:33:44:55 and source ip: 0x0B86C806,
+the packet is steered to its attached qp.
+.sp
+.nf
+struct raw_eth_flow_attr {
+.in +8
+struct ibv_flow_attr            attr;
+struct ibv_flow_spec_eth        spec_eth;
+struct ibv_flow_spec_ipv4       spec_ipv4;
+.in -8
+} __attribute__((packed));
+.sp
+.nf
+struct raw_eth_flow_attr flow_attr = {
+.in +8
+        .attr = {
+                .comp_mask      = 0,
+                .type           = IBV_FLOW_ATTR_NORMAL,
+                .size           = sizeof(flow_attr),
+                .priority       = 0,
+                .num_of_specs   = 2,
+                .port           = 1,
+                .flags          = 0,
+        },
+        .spec_eth = {
+                .type   = IBV_FLOW_SPEC_ETH,
+                .size   = sizeof(struct ibv_flow_spec_eth),
+                .val = {
+                        .dst_mac = {0x66, 0x11, 0x22, 0x33, 0x44, 0x55},
+                        .src_mac = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+                        .ether_type = 0,
+                        .vlan_tag = 0,
+                },
+                .mask = {
+                        .dst_mac = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+                        .src_mac = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+                        .ether_type = 0,
+                        .vlan_tag = 0,
+                }
+        },
+        .spec_ipv4 = {
+                .type   = IBV_FLOW_SPEC_IPV4,
+                .size   = sizeof(struct ibv_flow_spec_ipv4),
+                .val = {
+                        .src_ip = 0x0B86C806,
+                        .dst_ip = 0,
+                },
+                .mask = {
+                        .src_ip = 0xFFFFFFFF,
+                        .dst_ip = 0,
+                }
+        }
+.in -8
+};
+.sp
+.nf
+.SH "AUTHORS"
+.TP
+Hadar Hen Zion <hadarh@mellanox.com>
+.TP
+Matan Barak <matanb@mellanox.com>
+.TP
+Yishai Hadas <yishaih@mellanox.com>
+.TP
+Maor Gottlieb <maorg@mellanox.com>

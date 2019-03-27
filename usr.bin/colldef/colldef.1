@@ -1,0 +1,279 @@
+.\" Copyright (c) 1995 Alex Tatmanjants <alex@elvisti.kiev.ua>
+.\"		at Electronni Visti IA, Kiev, Ukraine.
+.\"			All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 18, 2016
+.Dt COLLDEF 1
+.Os
+.Sh NAME
+.Nm colldef
+.Nd convert collation sequence source definition
+.Sh SYNOPSIS
+.Nm
+.Op Fl I Ar map_dir
+.Op Fl o Ar out_file
+.Op Ar filename
+.Sh DESCRIPTION
+The
+.Nm
+utility converts a collation sequence source definition
+into a format usable by the
+.Fn strxfrm
+and
+.Fn strcoll
+functions.
+It is used to define the many ways in which
+strings can be ordered and collated.
+The
+.Fn strxfrm
+function transforms
+its first argument and places the result in its second
+argument.
+The transformed string is such that it can be
+correctly ordered with other transformed strings by using
+.Fn strcmp ,
+.Fn strncmp ,
+or
+.Fn memcmp .
+The
+.Fn strcoll
+function transforms its arguments and does a
+comparison.
+.Pp
+The
+.Nm
+utility reads the collation sequence source definition
+from the standard input and stores the converted definition in filename.
+The output file produced contains the
+database with collating sequence information in a form
+usable by system commands and routines.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl I Ar map_dir
+Set directory name where
+.Ar charmap
+files can be found, current directory by default.
+.It Fl o Ar out_file
+Set output file name,
+.Ar LC_COLLATE
+by default.
+.El
+.Pp
+The collation sequence definition specifies a set of collating elements and
+the rules defining how strings containing these should be ordered.
+This is most useful for different language definitions.
+.Pp
+The specification file can consist of three statements:
+.Ar charmap ,
+.Ar substitute
+and
+.Ar order .
+.Pp
+Of these, only the
+.Ar order
+statement is required.
+When
+.Ar charmap
+or
+.Ar substitute
+is
+supplied, these statements must be ordered as above.
+Any
+statements after the order statement are ignored.
+.Pp
+Lines in the specification file beginning with a
+.Ql #
+are
+treated as comments and are ignored.
+Blank lines are also
+ignored.
+.Pp
+.Dl "charmap charmapfile"
+.Pp
+.Ar Charmap
+defines where a mapping of the character
+and collating element symbols to the actual
+character encoding can be found.
+.Pp
+The format of
+.Ar charmapfile
+is shown below.
+Symbol
+names are separated from their values by TAB or
+SPACE characters.
+Symbol-value can be specified in
+a hexadecimal (\ex\fI??\fR) or octal (\e\fI???\fR)
+representation, and can be only one character in length.
+.Bd -literal -offset indent
+symbol-name1 symbol-value1
+symbol-name2 symbol-value2
+\&...
+.Ed
+.Pp
+Symbol names cannot be specified in
+.Ar substitute
+fields.
+.Pp
+The
+.Ar charmap
+statement is optional.
+.Bd -literal -offset indent
+substitute "symbol" with "repl_string"
+.Ed
+.Pp
+The
+.Ar substitute
+statement substitutes the character
+.Ar symbol
+with the string
+.Ar repl_string .
+Symbol names cannot be specified in
+.Ar repl_string
+field.
+The
+.Ar substitute
+statement is optional.
+.Pp
+.Dl "order order_list"
+.Pp
+.Ar Order_list
+is a list of symbols, separated by semi colons, that defines the
+collating sequence.
+The
+special symbol
+.Ar ...
+specifies, in a short-hand
+form, symbols that are sequential in machine code
+order.
+.Pp
+An order list element
+can be represented in any one of the following
+ways:
+.Bl -bullet
+.It
+The symbol itself (for example,
+.Ar a
+for the lower-case letter
+.Ar a ) .
+.It
+The symbol in octal representation (for example,
+.Ar \e141
+for the letter
+.Ar a ) .
+.It
+The symbol in hexadecimal representation (for example,
+.Ar \ex61
+for the letter
+.Ar a ) .
+.It
+The symbol name as defined in the
+.Ar charmap
+file (for example,
+.Ar <letterA>
+for
+.Ar letterA \e023
+record in
+.Ar charmapfile ) .
+If character map name have
+.Ar >
+character, it must be escaped as
+.Ar /> ,
+single
+.Ar /
+must be escaped as
+.Ar // .
+.It
+Symbols
+.Ar \ea ,
+.Ar \eb ,
+.Ar \ef ,
+.Ar \en ,
+.Ar \er ,
+.Ar \ev
+are permitted in its usual C-language meaning.
+.It
+The symbol chain (for example:
+.Ar abc ,
+.Ar <letterA><letterB>c ,
+.Ar \exf1b\exf2 )
+.It
+The symbol range (for example,
+.Ar a;...;z ) .
+.It
+Comma-separated symbols, ranges and chains enclosed in parenthesis (for example
+.Ar \&(
+.Ar sym1 ,
+.Ar sym2 ,
+.Ar ...
+.Ar \&) )
+are assigned the
+same primary ordering but different secondary
+ordering.
+.It
+Comma-separated symbols, ranges and chains enclosed in curly brackets (for example
+.Ar \&{
+.Ar sym1 ,
+.Ar sym2 ,
+.Ar ...
+.Ar \&} )
+are assigned the same primary ordering only.
+.El
+.Pp
+The backslash character
+.Ar \e
+is used for continuation.
+In this case, no characters are permitted
+after the backslash character.
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /usr/share/locale/ Ns Ao Ar language Ac Ns Pa /LC_COLLATE
+The standard shared location for collation orders
+under the locale
+.Aq Ar language .
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with the following values:
+.Bl -tag -width indent
+.It Li 0
+No errors were found and the output was successfully created.
+.It Li !=0
+Errors were found.
+.El
+.Sh NOTES
+.Nm
+has been replaced by
+.Xr localedef 1
+in
+.Fx 11.0 .
+.Sh SEE ALSO
+.Xr localedef 1 ,
+.Xr mklocale 1 ,
+.Xr setlocale 3 ,
+.Xr strcoll 3 ,
+.Xr strxfrm 3

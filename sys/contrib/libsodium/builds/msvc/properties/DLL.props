@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    
+  <PropertyGroup>
+    <_PropertySheetDisplayName>Dynamic Library</_PropertySheetDisplayName>
+    <DefaultLinkage>dynamic</DefaultLinkage>
+    <TargetExt>.dll</TargetExt>
+  </PropertyGroup>
+  
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>_DLL;_WINDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+</Project>

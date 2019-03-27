@@ -1,0 +1,7 @@
+pass in proto tcp from any to any port = smtp flags S/SA keep state divert-to 8025
+pass in proto tcp from any to any port = smtp flags S/SA keep state divert-to 8025
+pass in inet proto tcp from any to any port = smtp flags S/SA keep state divert-to 8025
+pass in inet proto tcp from any to any port = smtp flags S/SA keep state divert-to 8025
+pass in proto tcp from any to any port = smtp flags S/SA keep state divert-to 8025
+pass in inet6 proto tcp from any to any port = smtp flags S/SA keep state divert-to 8025
+pass in inet6 proto tcp from any to any port = smtp flags S/SA keep state divert-to 8025

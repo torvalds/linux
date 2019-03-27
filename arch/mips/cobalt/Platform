@@ -1,6 +1,0 @@
-#
-# Cobalt Server
-#
-platform-$(CONFIG_MIPS_COBALT)	+= cobalt/
-cflags-$(CONFIG_MIPS_COBALT)	+= -I$(srctree)/arch/mips/include/asm/mach-cobalt
-load-$(CONFIG_MIPS_COBALT)	+= 0xffffffff80080000

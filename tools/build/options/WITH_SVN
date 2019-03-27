@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to install
+.Xr svnlite 1
+as
+.Xr svn 1 .

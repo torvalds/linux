@@ -1,0 +1,28 @@
+-- $Id$ --
+
+PKCS9 DEFINITIONS ::=
+
+BEGIN
+
+-- The PFX PDU
+
+id-pkcs-9 OBJECT IDENTIFIER ::= { iso(1) member-body(2) us(840)
+	rsadsi(113549) pkcs(1) pkcs-9(9) }
+
+id-pkcs9-emailAddress		OBJECT IDENTIFIER ::= {id-pkcs-9 1 }
+id-pkcs9-contentType		OBJECT IDENTIFIER ::= {id-pkcs-9 3 }
+id-pkcs9-messageDigest		OBJECT IDENTIFIER ::= {id-pkcs-9 4 }
+id-pkcs9-signingTime		OBJECT IDENTIFIER ::= {id-pkcs-9 5 }
+id-pkcs9-countersignature	OBJECT IDENTIFIER ::= {id-pkcs-9 6 }
+
+id-pkcs-9-at-friendlyName	OBJECT IDENTIFIER ::= {id-pkcs-9 20}
+id-pkcs-9-at-localKeyId		OBJECT IDENTIFIER ::= {id-pkcs-9 21}
+id-pkcs-9-at-certTypes		OBJECT IDENTIFIER ::= {id-pkcs-9 22}
+id-pkcs-9-at-certTypes-x509	OBJECT IDENTIFIER ::= {id-pkcs-9-at-certTypes 1}
+
+PKCS9-BMPString ::= BMPString
+
+PKCS9-friendlyName ::= SET OF PKCS9-BMPString
+
+END
+

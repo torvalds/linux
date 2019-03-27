@@ -1,0 +1,85 @@
+.\" Manpage Copyright (c) 1995, Jordan Hubbard <jkh@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by the FreeBSD Project
+.\"      its contributors.
+.\" 4. Neither the name of the FreeBSD Project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE CONTRIBUTOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE CONTRIBUTOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 13, 2006
+.Dt WHICH 1
+.Os
+.Sh NAME
+.Nm which
+.Nd "locate a program file in the user's path"
+.Sh SYNOPSIS
+.Nm
+.Op Fl as
+.Ar program ...
+.Sh DESCRIPTION
+The
+.Nm
+utility
+takes a list of command names and searches the path for each executable
+file that would be run had these commands actually been invoked.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl a
+List all instances of executables found (instead of just the first one
+of each).
+.It Fl s
+No output, just return 0 if all of the executables are found, or 1 if
+some were not found.
+.El
+.Pp
+Some shells may provide a builtin
+.Nm
+command which is similar or identical to this utility.
+Consult the
+.Xr builtin 1
+manual page.
+.Sh SEE ALSO
+.Xr builtin 1 ,
+.Xr csh 1 ,
+.Xr find 1 ,
+.Xr locate 1 ,
+.Xr whereis 1
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 2.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was originally written in Perl and was contributed by
+.An Wolfram Schneider Aq Mt wosch@FreeBSD.org .
+The current version of
+.Nm
+was rewritten in C by
+.An Daniel Papasian Aq Mt dpapasia@andrew.cmu.edu .

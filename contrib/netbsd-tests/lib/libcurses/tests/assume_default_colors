@@ -1,0 +1,19 @@
+include start
+call OK start_color
+call OK assume_default_colors -1 -1
+call OK refresh
+compare color_start.chk
+# This should be the same as the default
+compare color_default.chk
+# default foreground, blue background
+call OK assume_default_colors -1 $COLOR_BLUE
+call OK refresh
+compare color_blue_back.chk
+# red foreground, default background
+call OK assume_default_colors $COLOR_RED -1
+call OK refresh
+compare color_red_fore.chk
+# back to default
+call OK assume_default_colors -1 -1
+call OK refresh
+compare color_default.chk

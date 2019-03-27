@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ypxfrd
+# REQUIRE: rpcbind ypserv
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="ypxfrd"
+desc="NIS map transfer server"
+rcvar="nis_ypxfrd_enable"
+
+load_rc_config $name
+
+command="/usr/sbin/rpc.${name}"
+command_args="${nis_ypxfrd_flags}"
+
+start_precmd="ypxfrd_precmd"
+
+ypxfrd_precmd()
+{
+	local _domain
+
+	force_depend rpcbind || return 1
+	force_depend ypserv nis_server || return 1
+
+	_domain=`domainname`
+	if [ -z "$_domain" ]; then
+		warn "NIS domainname(1) is not set."
+		return 1
+	fi
+}
+
+run_rc_command "$1"

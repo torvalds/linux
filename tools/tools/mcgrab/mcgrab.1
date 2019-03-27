@@ -1,0 +1,83 @@
+.\" Copyright (c) 2008 George V. Neville-Neil
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 9, 2008
+.Dt MCGRAB 1
+.Os
+.Sh NAME
+.Nm mcgrab
+.Nd "multicast filter overload test"
+.Sh SYNOPSIS
+.Nm
+.Op Fl i Ar interface
+.Op Fl g Ar group
+.Op Fl n Ar number
+.Sh DESCRIPTION
+The
+.Nm
+command implements a multicast test which grabs and holds
+N multicast addresses.
+The purpose of the test is to see what
+happens when a network interface is no longer able to filter
+multicasts in hardware and has to switch to promiscuous or
+multicast promiscuous mode.
+A successful test does not have any
+result, but an unsuccessful test will have deleterious side effects.
+Packet size in bytes.
+The options are as follows:
+.Bl -tag -width ".Fl i Ar interface"
+.It Fl i Ar interface
+Network interface, which can be found with
+.Xr ifconfig 8 .
+.It Fl g Ar group
+Multicast group.
+.It Fl n Ar number
+Number of groups to join.
+.El
+.Sh EXAMPLES
+The following is an example of a typical usage
+of the
+.Nm
+command:
+.Pp
+.Dl "mcgrab -i em0 -g 239.255.255.1 -n 1024"
+.Sh SEE ALSO
+.Xr mctest 1 ,
+.Xr netstat 1 ,
+.Xr nanosleep 2 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An George V. Neville-Neil Aq Mt gnn@FreeBSD.org .
+.Sh BUGS
+Should be reported to the author or to
+.Aq Mt net@FreeBSD.org .

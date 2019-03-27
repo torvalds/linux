@@ -1,0 +1,94 @@
+.\" Copyright (c) 2016 The FreeBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 27, 2017
+.Dt PTHREAD_MUTEX_CONSISTENT 3
+.Os
+.Sh NAME
+.Nm pthread_mutex_consistent
+.Nd mark state protected by robust mutex as consistent
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_mutex_consistent "pthread_mutex_t *mutex"
+.Sh DESCRIPTION
+If the thread owning a robust mutex terminates while holding the
+mutex, the mutex becomes inconsistent and the next thread that
+acquires the mutex lock is notified of the state by the return value
+.Er EOWNERDEAD .
+In this case, the mutex does not become normally usable again until
+the state is marked consistent.
+.Pp
+The
+.Fn pthread_mutex_consistent ,
+when called with the
+.Fa mutex
+argument, which points to the initialized robust mutex in an
+inconsistent state, marks the by mutex as consistent again.
+The consequent unlock of the mutex, by either
+.Fn pthread_mutex_unlock
+or other methods, allows other contenders to lock the mutex.
+.Pp
+If the mutex in the inconsistent state is not marked consistent
+by the call to
+.Fn pthread_mutex_consistent
+before unlock,
+further attempts to lock the
+.Fa mutex
+result in the
+.Er ENOTRECOVERABLE
+condition reported by the locking functions.
+.Sh RETURN VALUES
+If successful,
+.Fn pthread_mutex_consistent
+will return zero, otherwise an error number will be returned to
+indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_mutex_lock
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The mutex pointed to by the
+.Fa mutex
+argument is not robust, or is not in the inconsistent state.
+.El
+.Sh SEE ALSO
+.Xr pthread_mutex_init 3 ,
+.Xr pthread_mutex_lock 3 ,
+.Xr pthread_mutex_unlock 3 ,
+.Xr pthread_mutexattr_setrobust 3
+.Sh STANDARDS
+The
+.Fn pthread_mutex_lock
+function conforms to
+.St -susv4 .

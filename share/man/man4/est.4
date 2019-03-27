@@ -1,0 +1,120 @@
+.\"
+.\" Copyright (c) 2012 Sean Bruno <sbruno@freebsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 18, 2012
+.Dt EST 4
+.Os
+.Sh NAME
+.Nm est
+.Nd Enhanced Speedstep Technology
+.Sh SYNOPSIS
+To compile this capability into your kernel
+place the following line in your kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd "device cpufreq"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+interface provides support for the Intel Enhanced Speedstep Technology.
+.Pp
+Note that
+.Nm
+capabilities are automatically loaded by the
+.Xr cpufreq 4
+driver.
+.Sh LOADER TUNABLES
+The
+.Nm
+interface is intended to allow
+.Xr cpufreq 4
+to access and implement Intel Enhanced SpeedStep Technology via
+.Xr acpi 4
+and the acpi_perf interface accessors.
+If the default settings are not optimal, the following sysctls can be
+used to modify or monitor
+.Nm
+behavior.
+.Bl -tag -width indent
+.It hw.est.msr_info
+Attempt to infer information from direct probing of the msr.
+Should only be used in diagnostic cases.
+.Pq default 0
+.It hw.est.strict
+Validate frequency requested is accepted by the cpu when set.
+It appears that this will only work on single core cpus.
+.Pq default 0
+.El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+values are available
+.Bl -tag -width indent
+.It Va dev.est.%d.\%desc
+Description of support, almost always Enhanced SpeedStep Frequency Control.
+.It dev.est.0.%desc: Enhanced SpeedStep Frequency Control
+.It Va dev.est.%d.\%driver
+Driver in use, always est.
+.It dev.est.0.%driver: est
+.It Va dev.est.%d.\%parent
+.It dev.est.0.%parent: cpu0
+The cpu that is exposing these frequencies.
+For example
+.Va cpu0 .
+.It Va dev.est.%d.freq_settings .
+The valid frequencies that are allowed by this CPU and their step values.
+.It dev.est.0.freq_settings: 2201/45000 2200/45000 2000/39581 1900/37387
+1800/34806 1700/32703 1600/30227 1500/28212 1400/25828 1300/23900 1200/21613
+1100/19775 1000/17582 900/15437 800/13723
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "est%d: <Enhanced SpeedStep Frequency Control> on cpu%d"
+.Pp
+Indicates normal startup of this interface.
+.It "est: CPU supports Enhanced Speedstep, but is not recognized."
+.It "est: cpu_vendor GenuineIntel, msr 471c471c0600471c"
+.It "device_attach: est%d attach returned 6"
+.Pp
+Indicates all attempts to attach to this interface have failed.
+This usually indicates an improper BIOS setting restricting O/S
+control of the CPU speeds.
+Consult your BIOS documentation for more details.
+.El
+.Sh COMPATIBILITY
+.Nm
+is only found on supported Intel CPUs.
+.Sh SEE ALSO
+.Xr cpufreq 4
+.Rs
+.%T "Intel 64 and IA-32 Architectures Software Developer Manuals"
+.%U "http://www.intel.com/content/www/us/en/processors/architectures-software-developer-manuals.html"
+.Re
+.Sh AUTHORS
+This manual page was written by
+.An Sean Bruno Aq Mt sbruno@FreeBSD.org .

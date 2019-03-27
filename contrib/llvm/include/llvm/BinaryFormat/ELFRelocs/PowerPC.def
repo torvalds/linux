@@ -1,0 +1,123 @@
+
+#ifndef ELF_RELOC
+#error "ELF_RELOC must be defined"
+#endif
+
+// glibc's PowerPC asm/sigcontext.h, when compiling for PPC64, has the
+// unfortunate behavior of including asm/elf.h, which defines R_PPC_NONE, etc.
+// to their corresponding integer values. As a result, we need to undef them
+// here before continuing.
+
+#undef R_PPC_NONE
+#undef R_PPC_ADDR32
+#undef R_PPC_ADDR24
+#undef R_PPC_ADDR16
+#undef R_PPC_ADDR16_LO
+#undef R_PPC_ADDR16_HI
+#undef R_PPC_ADDR16_HA
+#undef R_PPC_ADDR14
+#undef R_PPC_ADDR14_BRTAKEN
+#undef R_PPC_ADDR14_BRNTAKEN
+#undef R_PPC_REL24
+#undef R_PPC_REL14
+#undef R_PPC_REL14_BRTAKEN
+#undef R_PPC_REL14_BRNTAKEN
+#undef R_PPC_GOT16
+#undef R_PPC_GOT16_LO
+#undef R_PPC_GOT16_HI
+#undef R_PPC_GOT16_HA
+#undef R_PPC_PLTREL24
+#undef R_PPC_JMP_SLOT
+#undef R_PPC_LOCAL24PC
+#undef R_PPC_REL32
+#undef R_PPC_TLS
+#undef R_PPC_DTPMOD32
+#undef R_PPC_TPREL16
+#undef R_PPC_TPREL16_LO
+#undef R_PPC_TPREL16_HI
+#undef R_PPC_TPREL16_HA
+#undef R_PPC_TPREL32
+#undef R_PPC_DTPREL16
+#undef R_PPC_DTPREL16_LO
+#undef R_PPC_DTPREL16_HI
+#undef R_PPC_DTPREL16_HA
+#undef R_PPC_DTPREL32
+#undef R_PPC_GOT_TLSGD16
+#undef R_PPC_GOT_TLSGD16_LO
+#undef R_PPC_GOT_TLSGD16_HI
+#undef R_PPC_GOT_TLSGD16_HA
+#undef R_PPC_GOT_TLSLD16
+#undef R_PPC_GOT_TLSLD16_LO
+#undef R_PPC_GOT_TLSLD16_HI
+#undef R_PPC_GOT_TLSLD16_HA
+#undef R_PPC_GOT_TPREL16
+#undef R_PPC_GOT_TPREL16_LO
+#undef R_PPC_GOT_TPREL16_HI
+#undef R_PPC_GOT_TPREL16_HA
+#undef R_PPC_GOT_DTPREL16
+#undef R_PPC_GOT_DTPREL16_LO
+#undef R_PPC_GOT_DTPREL16_HI
+#undef R_PPC_GOT_DTPREL16_HA
+#undef R_PPC_TLSGD
+#undef R_PPC_TLSLD
+#undef R_PPC_REL16
+#undef R_PPC_REL16_LO
+#undef R_PPC_REL16_HI
+#undef R_PPC_REL16_HA
+
+ELF_RELOC(R_PPC_NONE,                   0)      /* No relocation. */
+ELF_RELOC(R_PPC_ADDR32,                 1)
+ELF_RELOC(R_PPC_ADDR24,                 2)
+ELF_RELOC(R_PPC_ADDR16,                 3)
+ELF_RELOC(R_PPC_ADDR16_LO,              4)
+ELF_RELOC(R_PPC_ADDR16_HI,              5)
+ELF_RELOC(R_PPC_ADDR16_HA,              6)
+ELF_RELOC(R_PPC_ADDR14,                 7)
+ELF_RELOC(R_PPC_ADDR14_BRTAKEN,         8)
+ELF_RELOC(R_PPC_ADDR14_BRNTAKEN,        9)
+ELF_RELOC(R_PPC_REL24,                  10)
+ELF_RELOC(R_PPC_REL14,                  11)
+ELF_RELOC(R_PPC_REL14_BRTAKEN,          12)
+ELF_RELOC(R_PPC_REL14_BRNTAKEN,         13)
+ELF_RELOC(R_PPC_GOT16,                  14)
+ELF_RELOC(R_PPC_GOT16_LO,               15)
+ELF_RELOC(R_PPC_GOT16_HI,               16)
+ELF_RELOC(R_PPC_GOT16_HA,               17)
+ELF_RELOC(R_PPC_PLTREL24,               18)
+ELF_RELOC(R_PPC_JMP_SLOT,               21)
+ELF_RELOC(R_PPC_LOCAL24PC,              23)
+ELF_RELOC(R_PPC_REL32,                  26)
+ELF_RELOC(R_PPC_TLS,                    67)
+ELF_RELOC(R_PPC_DTPMOD32,               68)
+ELF_RELOC(R_PPC_TPREL16,                69)
+ELF_RELOC(R_PPC_TPREL16_LO,             70)
+ELF_RELOC(R_PPC_TPREL16_HI,             71)
+ELF_RELOC(R_PPC_TPREL16_HA,             72)
+ELF_RELOC(R_PPC_TPREL32,                73)
+ELF_RELOC(R_PPC_DTPREL16,               74)
+ELF_RELOC(R_PPC_DTPREL16_LO,            75)
+ELF_RELOC(R_PPC_DTPREL16_HI,            76)
+ELF_RELOC(R_PPC_DTPREL16_HA,            77)
+ELF_RELOC(R_PPC_DTPREL32,               78)
+ELF_RELOC(R_PPC_GOT_TLSGD16,            79)
+ELF_RELOC(R_PPC_GOT_TLSGD16_LO,         80)
+ELF_RELOC(R_PPC_GOT_TLSGD16_HI,         81)
+ELF_RELOC(R_PPC_GOT_TLSGD16_HA,         82)
+ELF_RELOC(R_PPC_GOT_TLSLD16,            83)
+ELF_RELOC(R_PPC_GOT_TLSLD16_LO,         84)
+ELF_RELOC(R_PPC_GOT_TLSLD16_HI,         85)
+ELF_RELOC(R_PPC_GOT_TLSLD16_HA,         86)
+ELF_RELOC(R_PPC_GOT_TPREL16,            87)
+ELF_RELOC(R_PPC_GOT_TPREL16_LO,         88)
+ELF_RELOC(R_PPC_GOT_TPREL16_HI,         89)
+ELF_RELOC(R_PPC_GOT_TPREL16_HA,         90)
+ELF_RELOC(R_PPC_GOT_DTPREL16,           91)
+ELF_RELOC(R_PPC_GOT_DTPREL16_LO,        92)
+ELF_RELOC(R_PPC_GOT_DTPREL16_HI,        93)
+ELF_RELOC(R_PPC_GOT_DTPREL16_HA,        94)
+ELF_RELOC(R_PPC_TLSGD,                  95)
+ELF_RELOC(R_PPC_TLSLD,                  96)
+ELF_RELOC(R_PPC_REL16,                  249)
+ELF_RELOC(R_PPC_REL16_LO,               250)
+ELF_RELOC(R_PPC_REL16_HI,               251)
+ELF_RELOC(R_PPC_REL16_HA,               252)

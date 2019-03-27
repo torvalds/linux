@@ -1,0 +1,699 @@
+Oct 06, 2018: RAR 5.0 reader
+
+Sep 03, 2018: libarchive 3.3.3 released
+
+Jul 19, 2018: Avoid super-linear slowdown on malformed mtree files
+
+Jan 27, 2018: Many fixes for building with Visual Studio
+
+Oct 19, 2017: NO_OVERWRITE doesn't change existing directory attributes
+
+Aug 12, 2017: New support for Zstandard read and write filters
+
+Jul 09, 2017: libarchive 3.3.2 released
+
+Mar 16, 2017: NFSv4 ACL support for Linux (librichacl)
+
+Feb 26, 2017: libarchive 3.3.1 released
+    Security & Feature release
+
+Feb 19, 2017: libarchive 3.3.0 released
+    Security & Feature release
+
+Jan 29, 2017: Limited NFSv4 ACL support for Mac OS (Darwin)
+
+Jan 10, 2017: POSIX.1e and NFSv4 ACL support for Solaris and derivates
+
+Dec 27, 2016: NFSv4 ACL read and write support for pax
+    Deprecated functions: archive_entry_acl_text(), archive_entry_acl_text_w()
+
+Nov, 2016: libarchive is now being tested by the OSS-Fuzz project
+
+Oct 26, 2016: Remove liblzmadec support
+
+Oct 23, 2016: libarchive 3.2.2 released
+    Security release
+
+Jun 20, 2016: libarchive 3.2.1 released
+    This fixes a handful of security and other critical issues with 3.2.0
+
+May 01, 2016: libarchive 3.2.0 released
+
+Apr 09, 2016: libarchive 3.1.901a released
+    Another test release in preparation for 3.2.0
+
+Feb 13, 2016: libarchive 3.1.900a released
+    This is a test release in preparation for 3.2.0
+
+Oct 21, 2015: Preliminary port to OSF
+
+Apr 11, 2015: libarchive's issue tracker is now hosted at GitHub.
+    https://github.com/libarchive/libarchive/issues
+
+Early 2015:  Many fixes to crash and overflow bugs thanks to Hanno Boeck
+
+Oct 13, 2014: Zip encryption and decryption support
+
+Aug 13, 2014: Add support for lz4 compression.
+
+Jun 10, 2014: Add warc format support
+
+May  3, 2014: Add experimental Zip streaming extension
+
+Apr  6, 2014: Add bsdcat command-line tool
+
+Jan 12, 2014: Add Zip64 support
+
+Dec  1, 2013: Rewrite Zip write logic
+
+Jul  1, 2013: Add ability to detect encrypted entries for many formats
+     (This does not add the ability to *decrypt* those entries, however)
+
+Feb 23, 2013: "raw" write support added
+
+Feb 09, 2013: libarchive 3.1.2 released
+
+Jan 28, 2013: libarchive's new website moved to http://www.libarchive.org.
+
+Jan 13, 2013: libarchive 3.1.1 released
+
+Jan 13, 2013: libarchive 3.1.0 released
+
+Dec 07, 2012: Implement functions to manually set the format and filters used.
+    
+Nov 11, 2012: Add support for __MACOSX directory in Zip archives, which resource
+    forks are stored in.
+
+Oct 20, 2012: Add support for writing v7 tar format.
+
+Oct 09, 2012: Add support for grzip compression.
+
+Oct 07, 2012: Introduce b64encode filter.    
+Oct 07, 2012: Introduce uuencode filter.
+
+Oct 06, 2012: Add support for lzop.
+    
+Sep 27, 2012: Implement function used to seek within data blocks.
+    (Currently only supported for uncompressed RAR archives).
+    
+Apr 22, 2012: Add basic archive read and write filter support for lrzip.
+
+Mar 27, 2012: libarchive 3.0.4 released
+
+Feb 05, 2012: libarchive development now hosted at GitHub.
+    http://libarchive.github.com/
+Feb 05, 2012: libarchive's issue tracker remains at Google Code.
+    http://code.google.com/p/libarchive/issues/list
+Feb 05, 2012: libarchive's mailing lists remain at Google Groups.
+
+Dec 24, 2011: libarchive 3.0.2 released
+Dec 23, 2011: Various fixes merged from FreeBSD
+Dec 23, 2011: Symlink support in Zip reader and writer
+Dec 23, 2011: Robustness fixes to 7Zip reader
+
+Nov 27, 2011: libarchive 3.0.1b released
+
+Nov 26, 2011: 7Zip reader
+Nov 26, 2011: Small fixes to ISO and Zip to improve robustness with corrupted input
+Nov 24, 2011: Improve streaming Zip reader's support for uncompressed entries
+Nov 20, 2011: New seeking Zip reader supports SFX Zip archives
+Nov 20, 2011: Build fixes on Windows
+
+Nov 13, 2011: libarchive 3.0.0a released
+
+Nov 06, 2011: Update shared-library version calculations for libarchive 3.x
+Sep 04, 2011: Fix tar -s; follow GNU tar for controlling hardlink/symlink substitutions
+Aug 18, 2011: Fix reading ISO images built by NetBSD's mkisofs
+Aug 15, 2011: Old archive_read_support_compression_XXX functions are deprecated and
+   will disappear in libarchive 4.0.
+Jun 26, 2011: RAR reader
+Jun 16, 2011: Add tar:compat-2x option to emulate broken libarchive 2.x
+   handling of pax UTF-8 headers
+Apr 25, 2011: Refactor read_open() into a collection of single-item setters;
+   support the old interfaces as wrappers
+Apr 12, 2011: Split disk writer into separate POSIX and Windows implementations
+Apr 10, 2011: Improvements to character translations on Windows.
+Mar 30, 2011: More work to return errors instead of calling abort()
+Mar 23, 2011: Add charset option to many writers to control MBCS filenames
+Mar 17, 2011: Overhauled support for per-format extension options
+Mar 17, 2011: Track character set used for mbcs strings, support
+   translating to/from user-specified locale
+Mar 09, 2011: Recognize mtree files without requiring a signature
+Mar 06, 2011: Use iconv to convert to/from Unicode instead of making bad
+   assumptions about the C90 character set translation functions
+Feb 17, 2011: Fixes for AIX, TRU64, and other platforms
+Dec 22, 2010: CAB reader
+Dec 20, 2010: LHA/LZH reader
+Jul 03, 2010: minitar example demonstrates archive_read_disk directory traversal
+Jun 29, 2010: Many improvements to ISO reader compatibility
+Jun 26, 2010: Use larger buffers when copy files into an archive
+Jun 18, 2010: Reimplement Mac OS extensions in libarchive
+Jun 09, 2010: archive_read_disk now supports traversals
+May 28, 2010: XAR writer
+May 16, 2010: Fix ^T handling; don't exit on interrupted reads and writes
+May 09, 2010: Improved detection of platform-specific crypto support
+May 04, 2010: lzip read and write filters
+May 01, 2010: New options: tar --gid --gname --uid --uname
+Apr 28, 2010: Use Red-black tree for ISO reader/writer to improve performance
+Apr 17, 2010: Minimal writer for legacy GNU tar format
+Mar 12, 2010: Don't dereference symlinks on Linux when reading ACLs.
+Mar 06, 2010: Fix build when an older libarchive is already installed
+Feb 28, 2010: Relax handling of state failures; misuse by clients now generally
+      results in a sticky ARCHIVE_FATAL rather than a visit to abort()
+Feb 25, 2010: ISO writer
+Feb 21, 2010: Split many man pages into smaller chunks.
+Feb 21, 2010: Performance: Cheat on block sizes when reading archives from disk.
+Feb 21, 2010: Use int64_t instead of off_t, dev_t, ino_t, uid_t, and gid_t
+Feb 20, 2010: Document new ACL functions.
+Feb 19, 2010: Support multiple write filters
+Feb 07, 2010: Remove some legacy libarchive 1.x APIs
+Feb 04, 2010: Read afio headers
+Feb 02, 2010: Archive sparse files compatibly with GNU tar
+Feb 01, 2010: Integrate Apple extensions for Mac OS extended attributes into bsdtar
+Jan 31, 2010: Support cpio -V
+
+Feb 04, 2010: libarchive 2.8.0 released
+Jan 17, 2010: Fix error handling for 'echo nonexistent | cpio -o'
+Jan 17, 2010: Don't use futimes() on Cygwin
+
+Jan 02, 2010: libarchive 2.7.902a released (test release for 2.8)
+Jan 02, 2010: Fix tar/test/test_windows on MinGW
+Jan 02, 2010: Fix memory leaks in libarchive tests
+Jan 01, 2010: Fix memory leak when filter startup fails
+
+Dec 27, 2009: libarchive 2.7.901a released (test release for 2.8)
+
+Aug 04, 2009: libarchive 2.7.1 released
+Jul 20, 2009: Suppress bogus warning about unxz
+Jul 19, 2009: Support Cygwin 1.7
+Jun 11, 2009: Support lzma/xz files compressed with larger buffer sizes.
+May 24, 2009: Handle gzip files signed with OpenBSD "gzsig" program.
+May 07, 2009: Avoid false failures when reading from pipe.
+
+Apr 16, 2009: libarchive 2.7.0 released
+
+Apr 10, 2009: libarchive 2.6.992a released
+Apr 09, 2009: Fix SIGPIPE issue building with MSVC.
+Apr 09, 2009: Fix several minor memory leaks in libarchive and libarchive_test
+
+Apr 08, 2009: libarchive 2.6.991a released
+Apr 07, 2009: Additional tests added to bsdcpio_test
+
+Apr 01, 2009: libarchive 2.6.990a released
+Apr 01, 2009: Use command-line gunzip, bunzip2, unxz, unlzma for
+	decompression if the library is built without suitable
+	libraries.  The setup functions return ARCHIVE_WARN
+	in this case so clients can adapt if necessary.
+Apr 01, 2009: Use getpw*_r and getgr*_r functions for thread-safety.
+Mar 24, 2009: Add archive_read_next_header2(), which is up to 25%
+	more efficient for some clients; from Brian Harring.
+Mar 22, 2009: PDF versions of manpages are now included in the distribution.
+Mar, 2009: Major work to improve Cygwin build by Charles Wilson.
+Feb/Mar, 2009: Major work on cmake build support, mostly by Michihiro NAKAJIMA.
+Feb/Mar, 2009: Major work on Visual Studio support by Michihiro NAKAJIMA.
+	All tests now pass.
+Feb 25, 2009: Fix Debian Bug #516577
+Feb 21, 2009: Yacc is no longer needed to build; date parser rewritten in C.
+Jan/Feb, 2009: Mtree work by Michihiro.
+Feb, 2009: Joliet support by Andreas Henriksson.
+Jan/Feb, 2009: New options framework by Michihiro.
+Feb, 2009: High-res timestamps on Tru64, AIX, and GNU Hurd, by Björn Jacke.
+Jan 18, 2009: Extended attributes work on FreeBSD and Linux now	with pax format.
+Jan 07, 2009: New archive_read_disk_entry_from_file() knows about ACLs,
+	extended attributes, etc so that bsdtar and bsdcpio don't require
+	such system-specific knowledge.
+Jan 03, 2009: Read filter system extensively refactored.  In particular,
+	read filter pipelines are now built out automatically and individual
+	filters should be much easier to implement.  Documentation on the
+	Googlecode Wiki explains how to implement new filters.
+Dec 28, 2008: Many Windows/Visual Studio fixes from Michihiro NAKAJIMA.
+
+Dec 28, 2008: Main libarchive development moved from FreeBSD Perforce
+	server to Google Code.  This should make it easier for more
+	people to participate in libarchive development.
+
+Dec 28, 2008: libarchive 2.6.0 released
+Dec 25, 2008: libarchive 2.5.905a released
+Dec 10, 2008: libarchive 2.5.904a released
+Dec 04, 2008: libarchive 2.5.903a released
+Nov 09, 2008: libarchive 2.5.902a released
+Nov 08, 2008: libarchive 2.5.901a released
+Nov 08, 2008: Start of pre-release testing for libarchive 2.6
+
+Nov 07, 2008: Read filter refactor: The decompression routines just
+	consume and produce arbitrarily-sized blocks.  The reblocking
+	from read_support_compression_none() has been pulled into the
+	read core.  Also, the decompression bid now makes multiple
+	passes and stacks read filters.
+Oct 21, 2008: bsdcpio: New command-line parser.
+Oct 19, 2008: Internal read_ahead change: short reads are now an error
+Oct 06, 2008: bsdtar: option parser no longer uses getopt_long(),
+	gives consistent option parsing on all platforms.
+Sep 19, 2008: Jaakko Heinonen: shar utility built on libarchive
+Sep 17, 2008: Pedro Giffuni: birthtime support
+Sep 17, 2008: Miklos Vajna: lzma reader and test.  Note:  I still have
+	some concerns about the auto-detection (LZMA file format
+	doesn't support auto-detection well), so this is not yet
+	enabled under archive_read_support_compression_all().  For
+	now, you must call archive_read_support_compression_lzma() if
+	you want LZMA read support.
+Sep 11, 2008: Ivailo Petrov: Many fixes to Windows build, new solution files
+Jul 26, 2008: archive_entry now tracks which values have not been set.
+	This helps zip extraction (file size is often "unknown") and
+	time restores (tar usually doesn't know atime).
+Jul 26, 2008: Joerg Sonnenberger: Performance improvements to shar writer
+Jul 25, 2008: Joerg Sonnenberger: mtree write support
+
+Jul 02, 2008: libarchive 2.5.5 released
+
+Jul 02, 2008: libarchive 2.5.5b released
+Jul 01, 2008: bsdcpio is being used by enough people, we can call it 1.0.0 now
+Jun 20, 2008: bsdcpio: If a -l link fails with EXDEV, copy the file instead
+Jun 19, 2008: bsdcpio: additional long options for better GNU cpio compat
+Jun 15, 2008: Many small portability and bugfixes since 2.5.4b.
+
+May 25, 2008: libarchive 2.5.4b released
+May 21, 2008: Joerg Sonnenberger: fix bsdtar hardlink handling for newc format
+
+May 21, 2008: More progress on Windows building.  Thanks to "Scott"
+        for the Windows makefiles, thanks to Kees Zeelenberg for
+        code contributions.
+
+May 21, 2008: Fix a number of non-exploitable integer and buffer overflows,
+        thanks to David Remahl at Apple for pointing these out.
+
+May 21, 2008: Colin Percival: SIGINFO or SIGUSR1 to bsdtar prints progress info
+
+May 16, 2008: bsdtar's test harness no longer depends on file ordering.
+        This was causing spurious test failures on a lot of systems.
+        Thanks to Bernhard R. Link for the diagnosis.
+
+May 14, 2008: Joerg Sonnenberger: -s substitution support for bsdtar
+
+May 13, 2008: Joerg Sonnenberger: Many mtree improvements
+
+May 11, 2008: Joerg Sonnenberger: fix hardlink extraction when
+	hardlinks have different permissions from original file
+
+April 30, 2008: Primary libarchive work has been moved into the FreeBSD
+	project's Perforce repository: 	http://perforce.freebsd.org/
+	The libarchive project can be browsed at
+        //depot/user/kientzle/libarchive-portable
+        Direct link: http://preview.tinyurl.com/46mdgr
+
+May 04, 2008: libarchive 2.5.3b released
+	* libarchive: Several fixes to link resolver to address bsdcpio crashes
+	* bsdcpio: -p hardlink handling fixes
+	* tar/pax: Ensure ustar dirnames end in '/'; be more careful about
+	  measuring filenames when deciding what pathname fields to use
+	* libarchive: Mark which entry strings are set; be accurate about
+	  distinguishing empty strings ("") from unset ones (NULL)
+	* tar: Don't crash reading entries with empty filenames
+	* libarchive_test, bsdtar_test, bsdcpio_test:  Better defaults:
+	  run all tests, delete temp dirs, summarize repeated failures
+	* -no-undefined to libtool for Cygwin
+	* libarchive_test: Skip large file tests on systems with 32-bit off_t
+	* iso9660: Don't bother trying to find the body of an empty file;
+	  this works around strange behavior from some ISO9660 writers
+	* tar: allow -r -T to be used together
+	* tar: allow --format with -r or -u
+	* libarchive: Don't build archive.h
+
+May 04, 2008: Simplified building: archive.h is no longer constructed
+	This may require additional #if conditionals on some platforms.
+
+Mar 30, 2008: libarchive 2.5.1b released
+
+Mar 15, 2008: libarchive 2.5.0b released
+Mar 15, 2008: bsdcpio now seems to correctly write hardlinks into newc,
+	ustar, and old cpio archives.  Just a little more testing before
+	bsdcpio 1.0 becomes a reality.
+Mar 15, 2008: I think the new linkify() interface is finally handling
+	all known hardlink strategies.
+Mar 15, 2008: Mtree read fixes from Joerg Sonnenberger.
+Mar 15, 2008: Many new bsdtar and bsdcpio options from Joerg Sonnenberger.
+Mar 15, 2008: test harnesses no longer require uudecode; they
+	now have built-in decoding logic that decodes the reference
+	files as they are needed.
+
+Mar 14, 2008: libarchive 2.4.14 released; identical to 2.4.13 except for
+	a point fix for gname/uname mixup in pax format that was introduced
+	with the UTF-8 fixes.
+
+Feb 26, 2008: libarchive 2.4.13 released
+Feb 25, 2008: Handle path, linkname, gname, or uname that can't be converted
+	to/from UTF-8.  Implement "hdrcharset" attribute from SUS-2008.
+Feb 25, 2008: Fix name clash on NetBSD.
+Feb 18, 2008: Fix writing empty 'ar' archives, per Kai Wang
+Feb 18, 2008: [bsdtar] Permit appending on block devices.
+Feb 09, 2008: New "linkify" resolver to help with newc hardlink writing;
+	bsdcpio still needs to be converted to use this.
+Feb 02, 2008: Windows compatibility fixes from Ivailo Petrov, Kees Zeelenberg
+Jan 30, 2008: Ignore hardlink size for non-POSIX tar archives.
+
+Jan 22, 2008: libarchive 2.4.12 released
+Jan 22, 2008: Fix bad padding when writing symlinks to newc cpio archives.
+Jan 22, 2008: Verify bsdcpio_test by getting it to work against GNU cpio 2.9.
+	bsdcpio_test complains about missing options (-y and -z), format
+	of informational messages (--version, --help), and a minor formatting
+	issue in odc format output.  After this update, bsdcpio_test uncovered
+	several more cosmetic issues in bsdcpio, all now fixed.
+Jan 22, 2008: Experimental support for self-extracting Zip archives.
+Jan 22, 2008: Extend hardlink restore strategy to work correctly with
+	hardlinks extracted from newc cpio files.  (Which store the body
+	only with the last occurrence of a link.)
+
+Dec 30, 2007: libarchive 2.4.11 released
+Dec 30, 2007: Fixed a compile error in bsdcpio on some systems.
+
+Dec 29, 2007: libarchive 2.4.10 released
+Dec 29, 2007: bsdcpio 0.9.0 is ready for wider use.
+Dec 29, 2007: Completed initial test harness for bsdcpio.
+
+Dec 22, 2007: libarchive 2.4.9 released
+Dec 22, 2007: Implement the remaining options for bsdcpio:  -a, -q, -L, -f,
+	pattern selection for -i and -it.
+
+Dec 13, 2007: libarchive 2.4.8 released
+Dec 13, 2007: gzip and bzip2 compression now handle zero-byte writes correctly,
+	Thanks to Damien Golding for bringing this to my attention.
+
+Dec 12, 2007: libarchive 2.4.7 released
+
+Dec 10, 2007: libarchive 2.4.6 released
+Dec 09, 2007: tar/test/test_copy.c verifies "tar -c | tar -x" copy pipeline
+Dec 07, 2007: Fix a couple of minor memory leaks.
+
+Dec 04, 2007: libarchive 2.4.5 released
+Dec 04, 2007: Fix cpio/test/test_write_odc by setting the umask first.
+
+Dec 03, 2007: libarchive 2.4.4 released
+Dec 03, 2007: New configure options --disable-xattr and --disable-acl,
+	thanks to Samuli Suominen.
+
+Dec 03, 2007: libarchive 2.4.3 released
+Dec 03, 2007: Thanks to Lapo Luchini for sending me a ZIP file that
+	libarchive couldn't handle.  Fixed a bug in handling of
+	"length at end" flags in ZIP files.
+Dec 03, 2007: Fixed bsdcpio -help, bsdtar -help tests.
+Dec 02, 2007: First cut at real bsdtar test harness.
+
+Dec 02, 2007: libarchive 2.4.2 released
+
+Dec 02, 2007: libarchive 2.4.1 released
+Dec 02, 2007: Minor fixes, rough cut of mdoc-to-man conversion for
+	man pages.
+
+Oct 30, 2007: libarchive 2.4.0 released
+Oct 30, 2007: Minor compile fix thanks to Joerg Schilling.
+Oct 30, 2007: Only run the format auction once at the beginning of the
+	archive.  This is simpler and supports better error recovery.
+Oct 29, 2007: Test support for very large entries in tar archives:
+	libarchive_test now exercises entries from 2GB up to 1TB.
+
+Oct 27, 2007: libarchive 2.3.5 released
+Oct 27, 2007: Correct some unnecessary internal data copying in the
+	"compression none" reader and writer; this reduces user time
+	by up to 2/3 in some tests.  (Thanks to Jan Psota for
+	publishing his performance test results to GNU tar's bug-tar
+	mailing list; those results pointed me towards this problem.)
+Oct 27, 2007: Fix for skipping archive entries that are exactly
+	a multiple of 4G on 32-bit platforms.
+Oct 25, 2007: Fix for reading very large (>8G) tar archives; this was
+	broken when I put in support for new GNU tar sparse formats.
+Oct 20, 2007: Initial work on new pattern-matching code for cpio; I
+	hope this eventually replaces the code currently in bsdtar.
+
+Oct 08, 2007: libarchive 2.3.4 released
+Oct 05, 2007: Continuing work on bsdcpio test suite.
+Oct 05, 2007: New cpio.5 manpage, updates to "History" of bsdcpio.1 and
+	bsdtar.1 manpages.
+Oct 05, 2007: Fix zip reader to immediately return EOF if you try
+	to read body of non-regular file.  In particular, this fixes
+	bsdtar extraction of zip archives.
+
+Sep 30, 2007: libarchive 2.3.3 released
+Sep 26, 2007: Rework Makefile.am so that the enable/disable options
+	actually do the right things.
+Sep 26, 2007: cpio-odc and cpio-newc archives no longer write bodies
+	for non-regular files.
+Sep 26, 2007: Test harness for bsdcpio is in place, needs more tests written.
+	This is much nicer than the ragtag collection of test scripts
+	that bsdtar has.
+
+Sep 20, 2007: libarchive 2.3.2 released
+Sep 20, 2007: libarchive 2.3.1 broke bsdtar because the archive_write_data()
+	fix was implemented incorrectly.
+
+Sep 16, 2007: libarchive 2.3.1 released
+Sep 16, 2007: Many fixes to bsdcpio 0.3:  handle hardlinks with -p, recognize
+	block size on writing, fix a couple of segfaults.
+Sep 16, 2007: Fixed return value from archive_write_data() when used
+	with archive_write_disk() to match the documentation and other
+	instances of this same function.
+Sep 15, 2007: Add archive_entry_link_resolver, archive_entry_strmode
+
+Sep 11, 2007: libarchive 2.2.8 released
+Sep 09, 2007: bsdcpio 0.2 supports most (not yet all) of the old POSIX spec.
+
+Sep 01, 2007: libarchive 2.2.7 released
+Aug 31, 2007: Support for reading mtree files, including an mtree.5 manpage
+	(A little experimental still.)
+Aug 18, 2007: Read gtar 1.17 --posix --sparse entries.
+Aug 13, 2007: Refined suid/sgid restore handling; it is no longer
+	an error if suid/sgid bits are dropped when you request
+	perm restore but don't request owner restore.
+Aug 06, 2007: Use --enable-bsdcpio if you want to try bsdcpio
+
+Aug 05, 2007: libarchive 2.2.6 released
+Aug 05, 2007: New configure option --disable-bsdtar, thanks to Joerg
+	Sonnenberger.
+Aug 05, 2007: Several bug fixes from FreeBSD CVS repo.
+
+Jul 13, 2007: libarchive 2.2.5 released
+
+Jul 12, 2007: libarchive 2.2.4 released
+Jul 12, 2007: Thanks to Colin Percival's help in diagnosing and
+	fixing several critical security bugs.  Details available at
+	http://security.freebsd.org/advisories/FreeBSD-SA-07:05.libarchive.asc
+
+May 26, 2007: libarchive 2.2.3 released
+May 26, 2007: Fix memory leaks in ZIP reader and shar writer, add some
+	missing system headers to archive_entry.h, dead code cleanup
+	from Colin Percival, more tests for gzip/bzip2, fix an
+	EOF anomaly in bzip2 decompression.
+
+May 12, 2007: libarchive 2.2.2 released
+May 12, 2007: Fix archive_write_disk permission restore by cloning
+	entry passed into write_header so that permission info is
+	still available at finish_entry time.  (archive_read_extract()
+	worked okay because it held onto the passed-in entry, but
+	direct consumers of archive_write_disk would break).  This
+	required fixing archive_entry_clone(), which now works and has
+	a reasonably complete test case.
+May 10, 2007: Skeletal cpio implementation.
+
+May 06, 2007: libarchive 2.2.1 released
+May 06, 2007: Flesh out a lot more of test_entry.c so as to catch
+	problems such as the device node breakage before releasing <sigh>.
+May 05, 2007: Fix a bad bug introduced in 2.1.9 that broke device
+	node entries in tar archives.
+May 03, 2007: Move 'struct stat' out of archive_entry core as well.
+	This removes some portability headaches and fixes a bunch
+	of corner cases that arise when manipulating archives on
+	dissimilar systems.
+
+Apr 30, 2007: libarchive 2.1.10 released
+Apr 31, 2007: Minor code cleanup.
+
+Apr 24, 2007: libarchive 2.1.9 released
+Apr 24, 2007: Fix some recently-introduced problems with libraries
+	(Just let automake handle it and it all works much better.)
+	Finish isolating major()/minor()/makedev() in archive_entry.c.
+
+Apr 23, 2007: libarchive 2.1.8 released
+Apr 23, 2007: Minor fixes found from building on MacOS X
+
+Apr 22, 2007: libarchive 2.1.7 released
+Apr 22, 2007: Eliminated all uses of 'struct stat' from the
+	format readers/writers.  This should improve portability;
+	'struct stat' is now only used in archive_entry and in
+	code that actually touches the disk.
+
+Apr 17, 2007: libarchive 2.1.6 released
+	Libarchive now compiles and passes all tests on Interix.
+
+Apr 16, 2007: libarchive 2.1.5 released
+
+Apr 15, 2007: libarchive 2.1b2 released
+Apr 15, 2007: New libarchive_internals.3 documentation of internal APIs.
+	Not complete, but should prove helpful.
+Apr 15, 2007: Experimental "read_compress_program" and "write_compress_program"
+	for using libarchive with external compression.  Not yet
+	well tested, and likely has portability issues.  Feedback
+	appreciated.
+
+Apr 14, 2007: libarchive 2.0.31 released
+Apr 14, 2007: More fixes for Interix, more 'ar' work
+
+Apr 14, 2007: libarchive 2.0.30 released
+Apr 13, 2007: libarchive now enforces trailing '/' on dirs
+	written to tar archives
+
+Apr 11, 2007: libarchive 2.0.29 released
+Apr 11, 2007: Make it easier to statically configure for different platforms.
+Apr 11, 2007: Updated config.guess, config.sub, libtool
+
+Apr 06, 2007: libarchive 2.0.28 released
+Apr 06, 2007: 'ar' format read/write support thanks to Kai Wang.
+
+Apr 01, 2007: libarchive 2.0.27 released
+Mar 31, 2007: Several minor fixes from Colin Percival and Joerg Sonnenberger.
+
+Mar 12, 2007: libarchive 2.0.25 released
+Mar 12, 2007: Fix broken --unlink flag.
+
+Mar 11, 2007: libarchive 2.0.24 released
+Mar 10, 2007: Correct an ACL blunder that causes any ACL with an entry
+    that refers to a non-existent user or group to not be restored correctly.
+    The fix both makes the parser more tolerant (so that archives created
+    with the buggy ACLs can be read now) and corrects the ACL formatter.
+Mar 10, 2007: More work on test portability to Linux.
+
+Mar 10, 2007: libarchive 2.0.22 released
+Mar 10, 2007: Header cleanups; added linux/fs.h, removed
+    some unnecessary headers, added #include guards in bsdtar.
+    If you see any obvious compile failures from this, let me know.
+Mar 10, 2007: Work on bsdtar test scripts: not yet robust enough
+    to enable as part of "make check", but getting better.
+Mar 10, 2007: libarchive now returns ARCHIVE_FAILED when
+    a header write fails in a way that only affects this item.
+    Less bad than ARCHIVE_FATAL, but worse than ARCHIVE_WARN.
+
+Mar 07, 2007: libarchive 2.0.21 released
+Mar 07, 2007: Add some ACL tests (only for the system-independent
+    portion of the ACL support for now).
+Mar 07, 2007: tar's ability to read ACLs off disk got
+    turned off for FreeBSD; re-enable it.  (ACL restores and
+    libarchive support for storing/reading ACLs from pax
+    archives was unaffected.)
+
+Mar 02, 2007: libarchive 2.0.20 released
+Mar 2, 2007:  It's not perfect, but it's pretty good.
+    Libarchive 2.0 is officially out of beta.
+
+Feb 28, 2007: libarchive 2.0b17 released
+Feb 27, 2007: Make the GID restore checks more robust by checking
+    whether the current user has too few or too many privileges.
+
+Feb 26, 2007: libarchive 2.0b15 released
+Feb 26, 2007: Don't lose symlinks when extracting from ISOs.
+    Thanks to Diego "Flameeyes" Pettenò for telling me about the
+    broken testcase on Gentoo that (finally!) led me to the cause
+    of this long-standing bug.
+
+Feb 26, 2007: libarchive 2.0b14 released
+Feb 26, 2007: Fix a broken test on platforms that lack lchmod().
+
+Feb 25, 2007: libarchive 2.0b13 released
+Feb 25, 2007: Empty archives were being written as empty files,
+    without a proper end-of-archive marker.  Fixed.
+
+Feb 23, 2007: libarchive 2.0b12 released
+Feb 22, 2007: Basic security checks added: _EXTRACT_SECURE_NODOTDOT
+    and _EXTRACT_SECURE_SYMLINK.  These checks used to be in bsdtar,
+    but they belong down in libarchive where they can be used by
+    other tools and where they can be better optimized.
+
+Feb 11, 2007: libarchive 2.0b11 released
+Feb 10, 2007: Fixed a bunch of errors in libarchive's handling
+    of EXTRACT_PERM and EXTRACT_OWNER, especially relating
+    to SUID and SGID bits.
+
+Jan 31, 2007: libarchive 2.0b9 released
+Jan 31, 2007: Added read support for "empty" archives as a
+    distinct archive format.  Bsdtar uses this to handle, e.g.,
+    "touch foo.tar; tar -rf foo.tar"
+
+Jan 22, 2007: libarchive 2.0b6 released
+Jan 22, 2007: archive_write_disk API is now in place.  It provides
+    a finer-grained interface than archive_read_extract.  In particular,
+    you can use it to create objects on disk without having an archive
+    around (just feed it archive_entry objects describing what you
+    want to create), you can override the uname/gname-to-uid/gid lookups
+    (minitar uses this to avoid getpwXXX() and getgrXXX() bloat).
+
+Jan 09, 2007: libarchive 2.0a3 released
+Jan 9, 2007: archive_extract is now much better; it handles the
+    most common cases with a minimal number of system calls.
+    Some features still need a lot of testing, especially corner
+    cases involving objects that already exist on disk.   I expect
+    the next round of API overhaul will simplify building test cases.
+Jan 9, 2007: a number of fixes thanks to Colin Percival, especially
+    corrections to the skip() framework and handling of large files.
+Jan 9, 2007: Fixes for large ISOs.  The code should correctly handle
+    very large ISOs with entries up to 4G.   Thanks to Robert Sciuk
+    for pointing out these issues.
+
+Sep 05, 2006: libarchive 1.3.1 released
+Sep 5, 2006: Bump version to 1.3 for new I/O wrappers.
+Sep 4, 2006: New memory and FILE read/write wrappers.
+Sep 4, 2006: libarchive test harness is now minimally functional;
+    it's located a few minor bugs in error-handling logic
+
+Aug 17, 2006: libarchive 1.2.54 released
+Aug 17, 2006: Outline ABI changes for libarchive 2.0; these
+   are protected behind #ifdef's until I think I've found everything
+   that needs to change.
+Aug 17, 2006: Fix error-handling in archive_read/write_close()
+   They weren't returning any errors before.
+Aug 17, 2006: Fix recursive-add logic to not trigger if it's not set
+   Fixes a bug adding files when writing archive to pipe or when
+   using archive_write_open() directly.
+Jul 2006: New "skip" handling improves performance extracting
+   single files from large uncompressed archives.
+
+Mar 21, 2006: 1.2.52 released
+Mar 21, 2006: Fix -p on platforms that don't have platform-specific
+   extended attribute code.
+Mar 20, 2006: Add NEWS file; fill in some older history from other
+   files.  I'll try to keep this file up-to-date from now on.
+
+OLDER NEWS SUMMARIES
+
+Mar 19, 2006: libarchive 1.2.51 released
+Mar 18, 2006: Many fixes to extended attribute support, including a redesign
+   of the storage format to simplify debugging.
+Mar 12, 2006: Remove 'tp' support; it was a fun idea, but not worth
+   spending much time on.
+Mar 11, 2006: Incorporated Jaakko Heinonen's still-experimental support
+   for extended attributes (Currently Linux-only.).
+Mar 11, 2006: Reorganized distribution package: There is now one tar.gz
+   file that builds both libarchive and bsdtar.
+Feb 13, 2006: Minor bug fixes: correctly read cpio device entries, write
+   Pax attribute entry names.
+Nov 7, 2005: Experimental 'tp' format support in libarchive.  Feedback
+   appreciated; this is not enabled by archive_read_support_format_all()
+   yet as I'm not quite content with the format detection heuristics.
+Nov 7, 2005: Some more portability improvements thanks to Darin Broady,
+   minor bugfixes.
+Oct 12, 2005: Use GNU libtool to build shared libraries on many systems.
+Aug 9, 2005: Correctly detect that MacOS X does not have POSIX ACLs.
+Apr 17, 2005: Kees Zeelenberg has ported libarchive and bsdtar to Windows:
+   http://gnuwin32.sourceforge.net/
+Apr 11, 2005: Extended Zip/Zip64 support thanks to Dan Nelson.  -L/-h
+   fix from Jaakko Heinonen.
+Mar 12, 2005: archive_read_extract can now handle very long
+   pathnames (I've tested with pathnames up to 1MB).
+Mar 12, 2005: Marcus Geiger has written an article about libarchive
+   http://xsnil.antbear.org/2005/02/05/archive-mit-libarchive-verarbeiten/
+   including examples of using it from Objective-C.  His MoinX
+   http://moinx.antbear.org/ desktop Wiki uses
+   libarchive for archiving and restoring Wiki pages.
+Jan 22, 2005: Preliminary ZIP extraction support,
+    new directory-walking code for bsdtar.
+Jan 16, 2005: ISO9660 extraction code added; manpage corrections.
+May 22, 2004: Many gtar-compatible long options have been added; almost
+    all FreeBSD ports extract correctly with bsdtar.
+May 18, 2004: bsdtar can read Solaris, HP-UX, Unixware, star, gtar,
+    and pdtar archives.

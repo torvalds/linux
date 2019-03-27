@@ -1,0 +1,200 @@
+-- $Id$ --
+
+PKINIT DEFINITIONS ::= BEGIN
+
+IMPORTS EncryptionKey, PrincipalName, Realm, KerberosTime, Checksum, Ticket FROM krb5
+	IssuerAndSerialNumber, ContentInfo FROM cms
+	SubjectPublicKeyInfo, AlgorithmIdentifier FROM rfc2459
+	heim_any FROM heim;
+
+id-pkinit OBJECT IDENTIFIER ::=
+  { iso (1) org (3) dod (6) internet (1) security (5)
+    kerberosv5 (2) pkinit (3) }
+
+id-pkauthdata  OBJECT IDENTIFIER  ::= { id-pkinit 1 }
+id-pkdhkeydata OBJECT IDENTIFIER  ::= { id-pkinit 2 }
+id-pkrkeydata  OBJECT IDENTIFIER  ::= { id-pkinit 3 }
+id-pkekuoid    OBJECT IDENTIFIER  ::= { id-pkinit 4 }
+id-pkkdcekuoid OBJECT IDENTIFIER  ::= { id-pkinit 5 }
+
+id-pkinit-kdf OBJECT IDENTIFIER           ::= { id-pkinit 6 }
+id-pkinit-kdf-ah-sha1 OBJECT IDENTIFIER   ::= { id-pkinit-kdf 1 }
+id-pkinit-kdf-ah-sha256 OBJECT IDENTIFIER ::= { id-pkinit-kdf 2 }
+id-pkinit-kdf-ah-sha512 OBJECT IDENTIFIER ::= { id-pkinit-kdf 3 }
+
+id-pkinit-san	OBJECT IDENTIFIER ::=
+  { iso(1) org(3) dod(6) internet(1) security(5) kerberosv5(2)
+    x509-sanan(2) }
+
+id-pkinit-ms-eku OBJECT IDENTIFIER ::=
+  { iso(1) org(3) dod(6) internet(1) private(4)
+    enterprise(1) microsoft(311) 20 2 2 }
+
+id-pkinit-ms-san OBJECT IDENTIFIER ::=
+  { iso(1) org(3) dod(6) internet(1) private(4)
+    enterprise(1) microsoft(311) 20 2 3 }
+
+MS-UPN-SAN ::= UTF8String
+
+pa-pk-as-req INTEGER ::=                  16
+pa-pk-as-rep INTEGER ::=                  17
+
+td-trusted-certifiers INTEGER ::=        104
+td-invalid-certificates INTEGER ::=      105
+td-dh-parameters INTEGER ::=             109
+
+DHNonce ::= OCTET STRING
+
+KDFAlgorithmId ::= SEQUENCE {
+       kdf-id            [0] OBJECT IDENTIFIER,
+       ...
+}
+
+TrustedCA ::= SEQUENCE {
+	caName                  [0] IMPLICIT OCTET STRING,
+	certificateSerialNumber [1] INTEGER OPTIONAL,
+	subjectKeyIdentifier    [2] OCTET STRING OPTIONAL,
+	...
+}
+
+ExternalPrincipalIdentifier ::= SEQUENCE {
+	subjectName		[0] IMPLICIT OCTET STRING OPTIONAL,
+	issuerAndSerialNumber	[1] IMPLICIT OCTET STRING OPTIONAL,
+	subjectKeyIdentifier	[2] IMPLICIT OCTET STRING OPTIONAL,
+	...
+}
+
+ExternalPrincipalIdentifiers ::= SEQUENCE OF ExternalPrincipalIdentifier
+
+PA-PK-AS-REQ ::= SEQUENCE {
+        signedAuthPack          [0] IMPLICIT OCTET STRING,
+        trustedCertifiers       [1] ExternalPrincipalIdentifiers OPTIONAL,
+	kdcPkId                 [2] IMPLICIT OCTET STRING OPTIONAL,
+	...
+}
+
+PKAuthenticator ::= SEQUENCE {
+	cusec                   [0] INTEGER -- (0..999999) --,
+	ctime                   [1] KerberosTime,
+	nonce                   [2] INTEGER (0..4294967295),
+	paChecksum              [3] OCTET STRING OPTIONAL,
+	...
+}
+
+AuthPack ::= SEQUENCE {
+	pkAuthenticator         [0] PKAuthenticator,
+	clientPublicValue       [1] SubjectPublicKeyInfo OPTIONAL,
+	supportedCMSTypes       [2] SEQUENCE OF AlgorithmIdentifier OPTIONAL,
+	clientDHNonce           [3] DHNonce OPTIONAL,
+	...,
+	supportedKDFs		[4] SEQUENCE OF KDFAlgorithmId OPTIONAL,
+	...
+}
+
+TD-TRUSTED-CERTIFIERS ::= ExternalPrincipalIdentifiers
+TD-INVALID-CERTIFICATES ::= ExternalPrincipalIdentifiers
+
+KRB5PrincipalName ::= SEQUENCE {
+	realm                   [0] Realm,
+	principalName           [1] PrincipalName
+}
+
+AD-INITIAL-VERIFIED-CAS ::= SEQUENCE OF ExternalPrincipalIdentifier
+
+DHRepInfo ::= SEQUENCE {
+	dhSignedData            [0] IMPLICIT OCTET STRING,
+	serverDHNonce           [1] DHNonce OPTIONAL,
+	...,
+	kdf			[2] KDFAlgorithmId OPTIONAL,
+	...
+}
+
+PA-PK-AS-REP ::= CHOICE {
+	dhInfo                  [0] DHRepInfo,
+	encKeyPack              [1] IMPLICIT OCTET STRING,
+	...
+}
+
+KDCDHKeyInfo ::= SEQUENCE {
+	subjectPublicKey        [0] BIT STRING,
+	nonce                   [1] INTEGER (0..4294967295),
+	dhKeyExpiration         [2] KerberosTime OPTIONAL,
+	...
+}
+
+ReplyKeyPack ::= SEQUENCE {
+	replyKey                [0] EncryptionKey,
+	asChecksum		[1] Checksum,
+	...
+}
+
+TD-DH-PARAMETERS ::= SEQUENCE OF AlgorithmIdentifier
+
+
+-- Windows compat glue --
+
+PKAuthenticator-Win2k ::= SEQUENCE {
+	kdcName			[0] PrincipalName,
+	kdcRealm		[1] Realm,
+	cusec			[2] INTEGER (0..4294967295),
+	ctime			[3] KerberosTime,
+	nonce                   [4] INTEGER (-2147483648..2147483647)
+}
+
+AuthPack-Win2k ::= SEQUENCE {
+	pkAuthenticator         [0] PKAuthenticator-Win2k,
+	clientPublicValue       [1] SubjectPublicKeyInfo OPTIONAL
+}
+
+
+TrustedCA-Win2k ::= CHOICE {
+	caName                  [1] heim_any,
+	issuerAndSerial         [2] IssuerAndSerialNumber
+}
+
+PA-PK-AS-REQ-Win2k ::= SEQUENCE {
+	signed-auth-pack	[0] IMPLICIT OCTET STRING,
+	trusted-certifiers	[2] SEQUENCE OF TrustedCA-Win2k OPTIONAL,
+	kdc-cert		[3] IMPLICIT OCTET STRING OPTIONAL,
+	encryption-cert		[4] IMPLICIT OCTET STRING OPTIONAL
+}
+
+PA-PK-AS-REP-Win2k ::= CHOICE {
+	dhSignedData		[0] IMPLICIT OCTET STRING,
+	encKeyPack		[1] IMPLICIT OCTET STRING
+}
+
+KDCDHKeyInfo-Win2k ::= SEQUENCE {
+	nonce			[0] INTEGER (-2147483648..2147483647),
+	subjectPublicKey	[2] BIT STRING
+}
+
+ReplyKeyPack-Win2k ::= SEQUENCE {
+        replyKey                [0] EncryptionKey,
+        nonce                   [1] INTEGER (-2147483648..2147483647),
+	...
+}
+
+PA-PK-AS-REP-BTMM ::= SEQUENCE {
+	dhSignedData		[0] heim_any OPTIONAL,
+	encKeyPack		[1] heim_any OPTIONAL
+}
+
+
+PkinitSP80056AOtherInfo ::= SEQUENCE {
+	algorithmID   AlgorithmIdentifier,
+	partyUInfo     [0] OCTET STRING,
+	partyVInfo     [1] OCTET STRING,
+	suppPubInfo    [2] OCTET STRING OPTIONAL,
+	suppPrivInfo   [3] OCTET STRING OPTIONAL
+}
+
+PkinitSuppPubInfo ::= SEQUENCE {
+       enctype           [0] INTEGER (-2147483648..2147483647),
+       as-REQ            [1] OCTET STRING,
+       pk-as-rep         [2] OCTET STRING,
+       ticket            [3] Ticket,
+       ...
+}
+
+END

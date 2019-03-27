@@ -1,0 +1,294 @@
+.\" opieftpd.8: Manual page describing the FTP daemon.
+.\"
+.\" %%% portions-copyright-cmetz-98
+.\" Portions of this software are Copyright 1998-1999 by Craig Metz, All Rights
+.\" Reserved. The Inner Net License Version 2 applies to these portions of
+.\" the software.
+.\" You should have received a copy of the license with this software. If
+.\" you didn't get a copy, you may request one from <license@inner.net>.
+.\"
+.\"
+.\" Portions of this software are Copyright 1995 by Randall Atkinson and Dan
+.\" McDonald, All Rights Reserved. All Rights under this copyright are assigned
+.\" to the U.S. Naval Research Laboratory (NRL). The NRL Copyright Notice and
+.\" License Agreement applies to this software.
+.\"
+.\"	History:
+.\"
+.\"	Modified by cmetz for OPIE 2.4. Document -u option.
+.\"	Modified at NRL for OPIE 2.0.
+.\"	Originally from BSD.
+.\"
+.\"	NOTE:
+.\"
+.\"	This manual page uses the BSD >= Net/2 "mandoc" macros and may not
+.\"	format properly on all systems.
+.\"
+.\" Copyright (c) 1985, 1988, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)opieopieftpd.8	6.9 (Berkeley) 3/16/91
+.\"
+.TH OPIEFTPD 8 "10 January 1995"
+
+.SH NAME
+opieftpd \- File Transfer Protocol server that uses OPIE authentication
+
+.SH SYNOPSIS
+.B opieftpd
+[\-d] [\-l] [\-t 
+.I timeout
+] [\-T
+.I maxtimeout
+] [\-u
+.I umask
+]
+
+.SH DESCRIPTION
+.I opieftpd
+is the Internet File Transfer Protocol server process. The server uses the
+TCP protocol and listens at the port specified in the ftp service 
+specification; see
+.IR services (5).
+
+.SH OPTIONS
+.TP
+.B \-d
+Debugging information is written to the system logs.
+.TP
+.B \-l
+Each
+.IR ftp (1)
+session is logged in the system logs.
+.TP
+.B \-t
+The inactivity timeout period is set to
+.I timeout
+seconds (the default is 15 minutes).
+.TP
+.B \-T
+A client may also request a different timeout period;
+the maximum period allowed may be set to
+.I maxtimeout
+seconds with the
+.B \-T
+option. The default limit is 2 hours.
+.B \-u
+Set the default umask value to 
+.I umask.
+.SH COMMANDS
+The ftp server currently supports the following ftp
+requests; case is not distinguished:
+.PP
+.nf
+.ta \w'Request      'u
+Request      Description
+ABOR	abort previous command
+ACCT	specify account (ignored)
+ALLO	allocate storage (vacuously)
+APPE	append to a file
+CDUP	change to parent of current working directory
+CWD	change working directory
+DELE	delete a file
+HELP	give help information
+LIST	give a list of files in a directory
+MKD	make a directory
+MDTM	show last modification time of file
+MODE	specify data transfer mode
+NLST	give name list of files in directory
+NOOP	do nothing
+PASS	specify password
+PASV	prepare for server-to-server transfer
+PORT	specify data connection port
+PWD	print the current working directory
+QUIT	terminate session
+REST	restart incomplete transfer
+RETR	retrieve a file
+RMD	remove a directory
+RNFR	specify rename-from file name
+RNTO	specify rename-to file name
+SITE	non-standard commands (see next section)
+SIZE	return size of file
+STAT	return status of server
+STOR	store a file
+STOU	store a file with a unique name
+STRU	specify data transfer structure
+SYST	show operating system type of server system
+TYPE	specify data transfer type
+USER	specify user name
+XCUP	change to parent of current working directory (deprecated)
+XCWD	change working directory (deprecated)
+XMKD	make a directory (deprecated)
+XPWD	print the current working directory (deprecated)
+XRMD	remove a directory (deprecated)
+.fi
+
+The following non-standard or UNIX-specific commands are supported
+by the SITE request:
+.PP
+.nf
+.ta \w'Request      'u
+Request      Description
+UMASK	change umask (e.g. SITE UMASK 002)
+IDLE	set idle-timer (e.g. SITE IDLE 60)
+CHMOD	change mode of a file (e.g. SITE CHMOD 755 file)
+HELP	give help information (e.g. SITE HELP)
+.fi
+.sp
+The remaining ftp requests specified in Internet RFC-959 are
+recognized, but not implemented.
+.sp
+MDTM and SIZE are not specified in RFC-959, but will appear
+in the next updated FTP RFC.
+
+The ftp server will abort an active file transfer only when the
+ABOR command is preceded by a Telnet "Interrupt Process" (IP)
+signal and a Telnet "Synch" signal in the command Telnet stream,
+as described in Internet RFC-959.
+If a STAT command is received during a data transfer, preceded by
+a Telnet IP and Synch, transfer status will be returned.
+.I opieftpd
+interprets file names according to the globbing conventions used by
+.IR csh (1).
+This allows users to utilize the metacharacters
+\&*?[]{}~.
+.sp
+.I opieftpd
+authenticates users according to three rules: 
+.sp
+The user name must be in the password data base,
+.I /etc/passwd,
+and not have a null password. In this case, a password
+must be provided by the client before any file operations
+may be performed.
+.sp
+The user name must not appear in the file
+.I /etc/ftpusers.
+.sp
+The user must have a standard shell returned by 
+.IR getusershell (3).
+.sp
+If the user name is
+.I anonymous
+or
+.I ftp,
+an anonymous ftp account must be present in the password
+file (user
+.I ftp ).
+In this case, the user is allowed to log in by specifying any
+password (by convention, this is given as the client host's name).
+
+In the last case, 
+.I opieftpd
+takes special measures to restrict the client's access privileges.
+The server performs a 
+.IR chroot (2)
+command to the home directory of the
+.I ftp
+user.
+In order that system security is not breached, it is recommended
+that the
+.I ftp
+subtree be constructed with care;  the following
+rules are recommended:
+.sp
+.TP
+.B ~ftp
+Make the home directory owned by
+.I ftp
+and unwritable by anyone.
+.TP
+.B ~ftp/bin
+Make this directory owned by the super-user and unwritable by
+anyone. The program
+.IR ls (1)
+must be present to support the LIST command.  This
+program should have mode 111.
+.TP
+.B ~ftp/etc
+Make this directory owned by the super-user and unwritable by
+anyone. The files
+.IR passwd (5)
+and
+.IR group (5)
+must be present for the 
+.IR ls (1)
+command to be able to produce owner names rather than numbers.
+The password field in
+.I passwd
+is not used, and should not contain real encrypted passwords.
+These files should be mode 444.
+.TP
+.B ~ftp/pub
+Make this directory mode 777 and owned by
+.I ftp.
+Users should then place files which are to be accessible via the
+anonymous account in this directory.
+.SH SEE ALSO
+.BR ftpd (8),
+.BR ftp (1),
+.BR opie (4),
+.BR opiekey (1),
+.BR opiepasswd (1),
+.BR opieinfo (1),
+.BR opiesu (1),
+.BR opieftpd (8),
+.BR opiekeys (5),
+.BR opieaccess (5)
+
+.SH BUGS
+The anonymous account is inherently dangerous and should
+avoided when possible. In
+.I opieftpd,
+it is a compile-time option that should be disabled if it is not
+being used.
+The server must run as the super-user
+to create sockets with privileged port numbers.  It maintains
+an effective user id of the logged in user, reverting to
+the super-user only when binding addresses to sockets.  The
+possible security holes have been scrutinized, but are possibly incomplete.
+
+.SH HISTORY
+The
+.I ftpd
+command appeared in 4.2BSD.
+
+.SH AUTHOR
+Originally written for BSD, 
+.I ftpd
+was modified at NRL by Randall Atkinson, Dan McDonald, and Craig Metz to 
+support OTP authentication.
+
+.SH CONTACT
+OPIE is discussed on the Bellcore "S/Key Users" mailing list. To join,
+send an email request to:
+.sp
+skey-users-request@thumper.bellcore.com

@@ -1,0 +1,83 @@
+.\" Copyright (c) 2012 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elftc.3 3645 2018-10-15 20:17:14Z jkoshy $
+.\"
+.Dd December 24, 2012
+.Dt ELFTC 3
+.Os
+.Sh NAME
+.Nm elftc
+.Nd support routines used in the Elftoolchain project
+.Sh LIBRARY
+.Lb libelftc
+.Sh SYNOPSIS
+.In libelftc.h
+.Sh DESCRIPTION
+The
+.Lb libelftc
+provides support routines used for developing the utilities in the
+Elftoolchain source tree.
+.Pp
+This manual page serves as an overview of the functionality in this
+library.
+Additional reference information may be found in the individual
+manual pages for the functions listed below.
+.Ss Functional Grouping
+.Bl -tag -width indent
+.It "Binary Object Handling"
+.Bl -tag -compact -width indent
+.It Fn elftc_bfd_find_target
+Locate a binary object descriptor.
+.It Fn elftc_bfd_target_class
+Query the ELF class for a binary object descriptor.
+.It Fn elftc_bfd_target_byteorder
+Query the byte order for a binary object descriptor.
+.It Fn elftc_bfd_target_flavor
+Query the object format for a binary object descriptor.
+.It Fn elftc_bfd_target_machine
+Query the target machine for a binary object descriptor.
+.El
+.It "C++ support"
+.Bl -tag -compact -width indent
+.It Fn elftc_demangle
+Decodes a symbol name encoded according to the encoding rules for the
+C++ language.
+.El
+.It "Programming conveniences"
+.Bl -tag -compact -width indent
+.It Fn elftc_copyfile
+Copies the contents of a file to another.
+.It Fn elftc_set_timestamp
+Portably set the time stamps on a file.
+.El
+.It "Project Configuration"
+.Bl -tag -compact -width indent
+.It Fn elftc_version
+Returns a project-wide identifier string that encodes the source
+revision of the source tree.
+.El
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr elf 3

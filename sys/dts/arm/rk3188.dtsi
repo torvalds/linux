@@ -1,0 +1,254 @@
+/*-
+ * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@freebsd.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/ {
+	compatible = "rockchip,rk3188";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	interrupt-parent = <&GIC>;
+
+	aliases {
+		soc = &SOC;
+	};
+
+	SOC: rk3188 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges;
+		bus-frequency = <0>;
+
+		GIC: interrupt-controller@1013d000 {
+			compatible = "arm,gic";
+			reg =	<0x1013d000 0x1000>,	/* Distributor Registers */
+				<0x1013c100 0x0100>;	/* CPU Interface Registers */
+			interrupt-controller;
+			#interrupt-cells = <1>;
+		};
+
+		pmu@20004000 {
+			compatible = "rockchip,rk30xx-pmu";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x20004000 0x100>;
+		};
+
+		grf@20008000 {
+			compatible = "rockchip,rk30xx-grf";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = < 0x20008000 0x2000 >;
+		};
+
+		mp_tmr@1013c600 {
+			compatible = "arm,mpcore-timers";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = < 148500000 >;
+			reg =	<0x1013c200 0x100>,	/* Global Timer Regs */
+				<0x1013c600 0x20>;	/* Private Timer Regs */
+			interrupts = < 27 29 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		timer@20038000 {
+			compatible = "rockchip,rk30xx-timer";
+			reg = <0x20038000 0x20>;
+			interrupts = <76>;
+			clock-frequency = <24000000>;
+			status = "disabled";
+		};
+
+		timer@20038020 {
+			compatible = "rockchip,rk30xx-timer";
+			reg = <0x20038020 0x20>;
+			interrupts = <77>;
+			clock-frequency = <24000000>;
+			status = "disabled";
+		};
+
+		timer@20038060 {
+			compatible = "rockchip,rk30xx-timer";
+			reg = <0x20038060 0x20>;
+			interrupts = <91>;
+			clock-frequency = <24000000>;
+			status = "disabled";
+		};
+
+		timer@20038080 {
+			compatible = "rockchip,rk30xx-timer";
+			reg = <0x20038080 0x20>;
+			interrupts = <92>;
+			clock-frequency = <24000000>;
+			status = "disabled";
+		};
+
+		timer@200380a0 {
+			compatible = "rockchip,rk30xx-timer";
+			reg = <0x200380a0 0x20>;
+			interrupts = <96>;
+			clock-frequency = <24000000>;
+			status = "disabled";
+		};
+
+		watchdog@2004c000 {
+			compatible = "rockchip,rk30xx-wdt";
+			reg = <0x2004c000 0x100>;
+			clock-frequency = < 66000000 >;
+		};
+
+		gpio0: gpio@2000a000 {
+			compatible = "rockchip,rk30xx-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			reg = <0x2000a000 0x100>;
+			interrupts = <86>;
+			interrupt-parent = <&GIC>;
+		};
+
+		gpio1: gpio@2003c000 {
+			compatible = "rockchip,rk30xx-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			reg = <0x2003c000 0x100>;
+			interrupts = <87>;
+			interrupt-parent = <&GIC>;
+		};
+
+		gpio2: gpio@2003e000 {
+			compatible = "rockchip,rk30xx-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			reg = <0x2003e000 0x100>;
+			interrupts = <88>;
+			interrupt-parent = <&GIC>;
+		};
+
+		gpio3: gpio@20080000 {
+			compatible = "rockchip,rk30xx-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			reg = <0x20080000 0x100>;
+			interrupts = <89>;
+			interrupt-parent = <&GIC>;
+		};
+
+		usb0: usb@10180000 {
+			compatible = "synopsys,designware-hs-otg2";
+			reg = <0x10180000 0x40000>;
+			interrupts = <48>;
+			interrupt-parent = <&GIC>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		usb1: usb@101c0000 {
+			compatible = "synopsys,designware-hs-otg2";
+			reg = <0x101c0000 0x40000>;
+			interrupts = < 49 >;
+			interrupt-parent = <&GIC>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			gpios = <&gpio0 3 2 2>;
+		};
+
+		uart0: serial@10124000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x10124000 0x400>;
+			reg-shift = <2>;
+			interrupts = <66>;
+			interrupt-parent = <&GIC>;
+			current-speed = <115200>;
+			clock-frequency = < 24000000 >;
+			broken-txfifo = <1>;
+			status = "disabled";
+		};
+
+		uart1: serial@10126000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x10126000 0x400>;
+			reg-shift = <2>;
+			interrupts = <67>;
+			interrupt-parent = <&GIC>;
+			current-speed = <115200>;
+			clock-frequency = < 24000000 >;
+			broken-txfifo = <1>;
+			status = "disabled";
+		};
+
+		uart2: serial@20064000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x20064000 0x400>;
+			reg-shift = <2>;
+			interrupts = <68>;
+			interrupt-parent = <&GIC>;
+			current-speed = <115200>;
+			clock-frequency = < 24000000 >;
+			broken-txfifo = <1>;
+			status = "disabled";
+		};
+
+		uart3: serial@20068000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x20068000 0x400>;
+			reg-shift = <2>;
+			interrupts = <69>;
+			interrupt-parent = <&GIC>;
+			current-speed = <115200>;
+			clock-frequency = < 24000000 >;
+			broken-txfifo = <1>;
+			status = "disabled";
+		};
+
+		mmc@10214000 {
+			compatible = "rockchip,rk2928-dw-mshc";
+			reg = <0x10214000 0x1000>;
+			interrupts = <55>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			bus-frequency = <48000000>;	/* TODO: verify freq */
+			fifo-depth = <0x40>;
+			num-slots = <1>;
+			status = "disabled";
+		};
+
+		mmc@10218000 {
+			compatible = "rockchip,rk2928-dw-mshc";
+			reg = <0x10218000 0x1000>;
+			interrupts = <56>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			bus-frequency = <48000000>;	/* TODO: verify freq */
+			fifo-depth = <0x40>;
+			num-slots = <1>;
+			status = "disabled";
+		};
+	};
+};
+

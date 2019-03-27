@@ -1,0 +1,89 @@
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)sigreturn.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd September 6, 2013
+.Dt SIGRETURN 2
+.Os
+.Sh NAME
+.Nm sigreturn
+.Nd return from signal
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In signal.h
+.Ft int
+.Fn sigreturn "const ucontext_t *scp"
+.Sh DESCRIPTION
+The
+.Fn sigreturn
+system call
+allows users to atomically unmask, switch stacks,
+and return from a signal context.
+The thread's signal mask and stack status are
+restored from the context structure pointed to by
+.Fa scp .
+The system call does not return;
+the users stack pointer, frame pointer, argument pointer,
+and processor status longword are restored from the context.
+Execution resumes at the specified pc.
+This system call is used by the trampoline code and
+.Xr longjmp 3
+when returning from a signal to the previously executing program.
+.Sh RETURN VALUES
+If successful, the system call does not return.
+Otherwise, a value of -1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn sigreturn
+system call
+will fail and the thread context will remain unchanged
+if one of the following occurs.
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The
+.Fa scp
+argument
+points to memory that is not a valid part of the process
+address space.
+.It Bq Er EINVAL
+The process status longword is invalid or would improperly
+raise the privilege level of the process.
+.El
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr setjmp 3 ,
+.Xr ucontext 3
+.Sh HISTORY
+The
+.Fn sigreturn
+system call appeared in
+.Bx 4.3 .

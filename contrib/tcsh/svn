@@ -1,0 +1,32 @@
+#! /usr/bin/env python2.5
+
+import sys
+import os
+
+#for name in os.environ.keys():
+#	print "key " + name + " = " + os.environ[name]
+
+def print_output(cmd, prefix):
+	pipeOut = os.popen3(cmd, mode = 'br')[1]
+	for line in pipeOut:
+		term = ""
+		if os.path.isdir(line.strip()):
+			term = "/"
+		print prefix + line.strip() + term
+	pipeOut.close()
+
+if not os.environ.has_key("COMMAND_LINE"):
+	print "Fancy completion is not supported by your version of tcsh."
+	sys.exit(1)
+
+cmdLine = os.environ["COMMAND_LINE"]
+URL = cmdLine.split()[2]
+dir = "/" + URL.split('/', 3)[3]
+prefix = "file:/"
+
+if dir[-1] != "/":
+	dir = dir.rpartition("/")[0] + "/"
+
+print_output("svn ls " + "file://" + dir, prefix + "/" + dir)
+print_output("ls -d /" + dir + "*", prefix)
+

@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+# This conflicts with ksh extended patterns but occurs in the wild.
+
+set -e
+
+!(false)

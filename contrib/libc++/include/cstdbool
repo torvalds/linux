@@ -1,0 +1,32 @@
+// -*- C++ -*-
+//===--------------------------- cstdbool ---------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CSTDBOOL
+#define _LIBCPP_CSTDBOOL
+
+/*
+    cstdbool synopsis
+
+Macros:
+
+    __bool_true_false_are_defined
+
+*/
+
+#include <__config>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+#undef __bool_true_false_are_defined
+#define __bool_true_false_are_defined 1
+
+#endif  // _LIBCPP_CSTDBOOL

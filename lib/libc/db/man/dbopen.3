@@ -1,0 +1,546 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)dbopen.3	8.5 (Berkeley) 1/2/94
+.\" $FreeBSD$
+.\"
+.Dd September 10, 2010
+.Dt DBOPEN 3
+.Os
+.Sh NAME
+.Nm dbopen
+.Nd "database access methods"
+.Sh SYNOPSIS
+.In sys/types.h
+.In db.h
+.In fcntl.h
+.In limits.h
+.Ft DB *
+.Fn dbopen "const char *file" "int flags" "int mode" "DBTYPE type" "const void *openinfo"
+.Sh DESCRIPTION
+The
+.Fn dbopen
+function
+is the library interface to database files.
+The supported file formats are btree, hashed and UNIX file oriented.
+The btree format is a representation of a sorted, balanced tree structure.
+The hashed format is an extensible, dynamic hashing scheme.
+The flat-file format is a byte stream file with fixed or variable length
+records.
+The formats and file format specific information are described in detail
+in their respective manual pages
+.Xr btree 3 ,
+.Xr hash 3
+and
+.Xr recno 3 .
+.Pp
+The
+.Fn dbopen
+function
+opens
+.Fa file
+for reading and/or writing.
+Files never intended to be preserved on disk may be created by setting
+the
+.Fa file
+argument to
+.Dv NULL .
+.Pp
+The
+.Fa flags
+and
+.Fa mode
+arguments
+are as specified to the
+.Xr open 2
+routine, however, only the
+.Dv O_CREAT , O_EXCL , O_EXLOCK , O_NOFOLLOW , O_NONBLOCK ,
+.Dv O_RDONLY , O_RDWR , O_SHLOCK , O_SYNC
+and
+.Dv O_TRUNC
+flags are meaningful.
+(Note, opening a database file
+.Dv O_WRONLY
+is not possible.)
+.\"Three additional options may be specified by
+.\".Em or Ns 'ing
+.\"them into the
+.\".Fa flags
+.\"argument.
+.\".Bl -tag -width indent
+.\".It Dv DB_LOCK
+.\"Do the necessary locking in the database to support concurrent access.
+.\"If concurrent access is not needed or the database is read-only this
+.\"flag should not be set, as it tends to have an associated performance
+.\"penalty.
+.\".It Dv DB_SHMEM
+.\"Place the underlying memory pool used by the database in shared
+.\"memory.
+.\"Necessary for concurrent access.
+.\".It Dv DB_TXN
+.\"Support transactions in the database.
+.\"The
+.\".Dv DB_LOCK
+.\"and
+.\".Dv DB_SHMEM
+.\"flags must be set as well.
+.\".El
+.Pp
+The
+.Fa type
+argument is of type
+.Ft DBTYPE
+(as defined in the
+.In db.h
+include file) and
+may be set to
+.Dv DB_BTREE , DB_HASH
+or
+.Dv DB_RECNO .
+.Pp
+The
+.Fa openinfo
+argument is a pointer to an access method specific structure described
+in the access method's manual page.
+If
+.Fa openinfo
+is
+.Dv NULL ,
+each access method will use defaults appropriate for the system
+and the access method.
+.Pp
+The
+.Fn dbopen
+function
+returns a pointer to a
+.Ft DB
+structure on success and
+.Dv NULL
+on error.
+The
+.Ft DB
+structure is defined in the
+.In db.h
+include file, and contains at
+least the following fields:
+.Bd -literal
+typedef struct {
+	DBTYPE type;
+	int (*close)(DB *db);
+	int (*del)(const DB *db, const DBT *key, u_int flags);
+	int (*fd)(const DB *db);
+	int (*get)(const DB *db, const DBT *key, DBT *data, u_int flags);
+	int (*put)(const DB *db, DBT *key, const DBT *data,
+	     u_int flags);
+	int (*sync)(const DB *db, u_int flags);
+	int (*seq)(const DB *db, DBT *key, DBT *data, u_int flags);
+} DB;
+.Ed
+.Pp
+These elements describe a database type and a set of functions performing
+various actions.
+These functions take a pointer to a structure as returned by
+.Fn dbopen ,
+and sometimes one or more pointers to key/data structures and a flag value.
+.Bl -tag -width indent
+.It Va type
+The type of the underlying access method (and file format).
+.It Va close
+A pointer to a routine to flush any cached information to disk, free any
+allocated resources, and close the underlying file(s).
+Since key/data pairs may be cached in memory, failing to sync the file
+with a
+.Va close
+or
+.Va sync
+function may result in inconsistent or lost information.
+.Va close
+routines return -1 on error (setting
+.Va errno )
+and 0 on success.
+.It Va del
+A pointer to a routine to remove key/data pairs from the database.
+.Pp
+The
+.Fa flags
+argument
+may be set to the following value:
+.Bl -tag -width indent
+.It Dv R_CURSOR
+Delete the record referenced by the cursor.
+The cursor must have previously been initialized.
+.El
+.Pp
+.Va delete
+routines return -1 on error (setting
+.Va errno ) ,
+0 on success, and 1 if the specified
+.Fa key
+was not in the file.
+.It Va fd
+A pointer to a routine which returns a file descriptor representative
+of the underlying database.
+A file descriptor referencing the same file will be returned to all
+processes which call
+.Fn dbopen
+with the same
+.Fa file
+name.
+This file descriptor may be safely used as an argument to the
+.Xr fcntl 2
+and
+.Xr flock 2
+locking functions.
+The file descriptor is not necessarily associated with any of the
+underlying files used by the access method.
+No file descriptor is available for in memory databases.
+.Va \&Fd
+routines return -1 on error (setting
+.Va errno ) ,
+and the file descriptor on success.
+.It Va get
+A pointer to a routine which is the interface for keyed retrieval from
+the database.
+The address and length of the data associated with the specified
+.Fa key
+are returned in the structure referenced by
+.Fa data .
+.Va get
+routines return -1 on error (setting
+.Va errno ) ,
+0 on success, and 1 if the
+.Fa key
+was not in the file.
+.It Va put
+A pointer to a routine to store key/data pairs in the database.
+.Pp
+The
+.Fa flags
+argument
+may be set to one of the following values:
+.Bl -tag -width indent
+.It Dv R_CURSOR
+Replace the key/data pair referenced by the cursor.
+The cursor must have previously been initialized.
+.It Dv R_IAFTER
+Append the data immediately after the data referenced by
+.Fa key ,
+creating a new key/data pair.
+The record number of the appended key/data pair is returned in the
+.Fa key
+structure.
+(Applicable only to the
+.Dv DB_RECNO
+access method.)
+.It Dv R_IBEFORE
+Insert the data immediately before the data referenced by
+.Fa key ,
+creating a new key/data pair.
+The record number of the inserted key/data pair is returned in the
+.Fa key
+structure.
+(Applicable only to the
+.Dv DB_RECNO
+access method.)
+.It Dv R_NOOVERWRITE
+Enter the new key/data pair only if the key does not previously exist.
+.It Dv R_SETCURSOR
+Store the key/data pair, setting or initializing the position of the
+cursor to reference it.
+(Applicable only to the
+.Dv DB_BTREE
+and
+.Dv DB_RECNO
+access methods.)
+.El
+.Pp
+.Dv R_SETCURSOR
+is available only for the
+.Dv DB_BTREE
+and
+.Dv DB_RECNO
+access
+methods because it implies that the keys have an inherent order
+which does not change.
+.Pp
+.Dv R_IAFTER
+and
+.Dv R_IBEFORE
+are available only for the
+.Dv DB_RECNO
+access method because they each imply that the access method is able to
+create new keys.
+This is only true if the keys are ordered and independent, record numbers
+for example.
+.Pp
+The default behavior of the
+.Va put
+routines is to enter the new key/data pair, replacing any previously
+existing key.
+.Pp
+.Va put
+routines return -1 on error (setting
+.Va errno ) ,
+0 on success, and 1 if the
+.Dv R_NOOVERWRITE
+flag
+was set and the key already exists in the file.
+.It Va seq
+A pointer to a routine which is the interface for sequential
+retrieval from the database.
+The address and length of the key are returned in the structure
+referenced by
+.Fa key ,
+and the address and length of the data are returned in the
+structure referenced
+by
+.Fa data .
+.Pp
+Sequential key/data pair retrieval may begin at any time, and the
+position of the
+.Dq cursor
+is not affected by calls to the
+.Va del ,
+.Va get ,
+.Va put ,
+or
+.Va sync
+routines.
+Modifications to the database during a sequential scan will be reflected
+in the scan, i.e., records inserted behind the cursor will not be returned
+while records inserted in front of the cursor will be returned.
+.Pp
+The
+.Fa flags
+argument
+.Em must
+be set to one of the following values:
+.Bl -tag -width indent
+.It Dv R_CURSOR
+The data associated with the specified key is returned.
+This differs from the
+.Va get
+routines in that it sets or initializes the cursor to the location of
+the key as well.
+(Note, for the
+.Dv DB_BTREE
+access method, the returned key is not necessarily an
+exact match for the specified key.
+The returned key is the smallest key greater than or equal to the specified
+key, permitting partial key matches and range searches.)
+.It Dv R_FIRST
+The first key/data pair of the database is returned, and the cursor
+is set or initialized to reference it.
+.It Dv R_LAST
+The last key/data pair of the database is returned, and the cursor
+is set or initialized to reference it.
+(Applicable only to the
+.Dv DB_BTREE
+and
+.Dv DB_RECNO
+access methods.)
+.It Dv R_NEXT
+Retrieve the key/data pair immediately after the cursor.
+If the cursor is not yet set, this is the same as the
+.Dv R_FIRST
+flag.
+.It Dv R_PREV
+Retrieve the key/data pair immediately before the cursor.
+If the cursor is not yet set, this is the same as the
+.Dv R_LAST
+flag.
+(Applicable only to the
+.Dv DB_BTREE
+and
+.Dv DB_RECNO
+access methods.)
+.El
+.Pp
+.Dv R_LAST
+and
+.Dv R_PREV
+are available only for the
+.Dv DB_BTREE
+and
+.Dv DB_RECNO
+access methods because they each imply that the keys have an inherent
+order which does not change.
+.Pp
+.Va seq
+routines return -1 on error (setting
+.Va errno ) ,
+0 on success and 1 if there are no key/data pairs less than or greater
+than the specified or current key.
+If the
+.Dv DB_RECNO
+access method is being used, and if the database file
+is a character special file and no complete key/data pairs are currently
+available, the
+.Va seq
+routines return 2.
+.It Va sync
+A pointer to a routine to flush any cached information to disk.
+If the database is in memory only, the
+.Va sync
+routine has no effect and will always succeed.
+.Pp
+The
+.Fa flags
+argument may be set to the following value:
+.Bl -tag -width indent
+.It Dv R_RECNOSYNC
+If the
+.Dv DB_RECNO
+access method is being used, this flag causes
+the
+.Va sync
+routine to apply to the btree file which underlies the
+recno file, not the recno file itself.
+(See the
+.Va bfname
+field of the
+.Xr recno 3
+manual page for more information.)
+.El
+.Pp
+.Va sync
+routines return -1 on error (setting
+.Va errno )
+and 0 on success.
+.El
+.Sh "KEY/DATA PAIRS"
+Access to all file types is based on key/data pairs.
+Both keys and data are represented by the following data structure:
+.Bd -literal
+typedef struct {
+	void *data;
+	size_t size;
+} DBT;
+.Ed
+.Pp
+The elements of the
+.Ft DBT
+structure are defined as follows:
+.Bl -tag -width "data"
+.It Va data
+A pointer to a byte string.
+.It Va size
+The length of the byte string.
+.El
+.Pp
+Key and data byte strings may reference strings of essentially unlimited
+length although any two of them must fit into available memory at the same
+time.
+It should be noted that the access methods provide no guarantees about
+byte string alignment.
+.Sh ERRORS
+The
+.Fn dbopen
+routine may fail and set
+.Va errno
+for any of the errors specified for the library routines
+.Xr open 2
+and
+.Xr malloc 3
+or the following:
+.Bl -tag -width Er
+.It Bq Er EFTYPE
+A file is incorrectly formatted.
+.It Bq Er EINVAL
+An argument has been specified (hash function, pad byte etc.) that is
+incompatible with the current file specification or which is not
+meaningful for the function (for example, use of the cursor without
+prior initialization) or there is a mismatch between the version
+number of file and the software.
+.El
+.Pp
+The
+.Va close
+routines may fail and set
+.Va errno
+for any of the errors specified for the library routines
+.Xr close 2 ,
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr free 3 ,
+or
+.Xr fsync 2 .
+.Pp
+The
+.Va del ,
+.Va get ,
+.Va put
+and
+.Va seq
+routines may fail and set
+.Va errno
+for any of the errors specified for the library routines
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr free 3
+or
+.Xr malloc 3 .
+.Pp
+The
+.Va fd
+routines will fail and set
+.Va errno
+to
+.Er ENOENT
+for in memory databases.
+.Pp
+The
+.Va sync
+routines may fail and set
+.Va errno
+for any of the errors specified for the library routine
+.Xr fsync 2 .
+.Sh SEE ALSO
+.Xr btree 3 ,
+.Xr hash 3 ,
+.Xr mpool 3 ,
+.Xr recno 3
+.Rs
+.%T "LIBTP: Portable, Modular Transactions for UNIX"
+.%A Margo Seltzer
+.%A Michael Olson
+.%R "USENIX proceedings"
+.%D Winter 1992
+.Re
+.Sh BUGS
+The typedef
+.Ft DBT
+is a mnemonic for
+.Dq "data base thang" ,
+and was used
+because noone could think of a reasonable name that was not already used.
+.Pp
+The file descriptor interface is a kluge and will be deleted in a
+future version of the interface.
+.Pp
+None of the access methods provide any form of concurrent access,
+locking, or transactions.

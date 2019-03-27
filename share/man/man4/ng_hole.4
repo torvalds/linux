@@ -1,0 +1,91 @@
+.\" Copyright (c) 1996-1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\" $Whistle: ng_hole.8,v 1.4 1999/01/25 23:46:26 archie Exp $
+.\"
+.Dd May 19, 2004
+.Dt NG_HOLE 4
+.Os
+.Sh NAME
+.Nm ng_hole
+.Nd netgraph discard node type
+.Sh SYNOPSIS
+.In sys/types.h
+.In netgraph/ng_hole.h
+.Sh DESCRIPTION
+The
+.Nm hole
+node type silently discards all data and control messages it receives.
+This type is used for testing and debugging.
+.Sh HOOKS
+A
+.Nm
+node accepts any request to connect, regardless of the hook name,
+as long as the name is unique.
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the
+following:
+.Bl -tag -width foo
+.It Dv NGM_HOLE_GET_STATS Pq Ic getstats
+This command takes an
+.Tn ASCII
+string argument, the hook name, and returns the statistics
+associated with the hook as a
+.Vt "struct ng_hole_hookstat" .
+.It Dv NGM_HOLE_CLR_STATS Pq Ic clrstats
+This command takes an
+.Tn ASCII
+string argument, the hook name, and clears the statistics
+associated with the hook.
+.It Dv NGM_HOLE_GETCLR_STATS Pq Ic getclrstats
+This command is identical to
+.Dv NGM_HOLE_GET_STATS ,
+except that the statistics are also atomically cleared.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_echo 4 ,
+.Xr ngctl 8
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Julian Elischer Aq Mt julian@FreeBSD.org

@@ -1,0 +1,95 @@
+.\"
+.\" Copyright (c) 2015 M. Warner Losh
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 20, 2015
+.Dt OWC 4
+.Os
+.Sh NAME
+.Nm owc
+.Nd Dallas Semiconductor 1-Wire Controller
+.Sh SYNOPSIS
+.Cd device owc
+.Sh DESCRIPTION
+The
+.Nm
+module implements Dallas Semiconductor 1-Wire signaling.
+It attaches the
+.Xr ow 4
+driver 1-Wire bus protocol.
+The
+.Nm
+device implements the Link Layer of the 1-Wire bus protocol stack.
+.Pp
+Bit banging a pin on a
+.Xr gpiobus 4
+is the only supported controller.
+Both standard and overdrive transfer timings are implemented.
+Strong pull-up functionality needed to support parasitic mode is not
+implemented.
+.Pp
+To enable 1-Wire for FDT systems requires modifying the DTS for your
+board to add something like:
+.Bd -literal
+/ {
+	...
+	onewire {
+		compatible = "w1-gpio";
+		gpios = <&gpio 4 1>;
+	};
+	...
+};
+.Ed
+.Pp
+The gpios property describes the GPIO pin the 1-Wire bus is connected
+to.
+For more details about the
+.Va gpios
+property, please consult
+.Pa /usr/src/sys/dts/bindings-gpio.txt .
+.Sh SEE ALSO
+.Xr gpiobus 4 ,
+.Xr ow 4 ,
+.Xr ow_temp 4 ,
+.Xr owll 9 ,
+.Xr own 9
+.Sh LEGAL
+.Tn 1-Wire
+is a registered trademark of Maxim Integrated Products, Inc.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+The
+.Nm
+device driver and this manual page were written by
+.An Warner Losh .
+.Sh CAVEATS
+The gpio driver implements timing by busy waiting, which can cause a
+high load on slower systems.
+.Sh BUGS
+Overdrive mode has not actually been tested.

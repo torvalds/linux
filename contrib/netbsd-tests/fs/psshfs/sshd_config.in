@@ -1,0 +1,40 @@
+# $NetBSD: sshd_config.in,v 1.2 2011/02/11 13:19:46 pooka Exp $
+
+# Basic settings.
+Port 10000
+Protocol 2
+
+# Provide information to the user in case something goes wrong.
+LogLevel DEBUG1
+
+# The host key.  It lives in the work directory because we need to set
+# very strict permissions on it and cannot modify the copy on the source
+# directory.
+HostKey @WORKDIR@/ssh_host_key
+
+# The authorized keys file we set up during the test to allow the client
+# to safely log in.  We need to disable strict modes because ATF_WORKDIR
+# usually lives in /tmp, which has 1777 permissions and are not liked by
+# sshd.
+AuthorizedKeysFile @WORKDIR@/authorized_keys
+StrictModes no
+
+# Some settings to allow user runs of sshd.
+PidFile @WORKDIR@/sshd.pid
+Subsystem sftp @WORKDIR@/sftp-server
+UsePam no
+UsePrivilegeSeparation no
+
+# The root user should also be able to run the tests.
+PermitRootLogin yes
+
+# Be restrictive about access to the temporary server.  Only allow key-based
+# authentication.
+ChallengeResponseAuthentication no
+GSSAPIAuthentication no
+HostbasedAuthentication no
+KerberosAuthentication no
+MaxAuthTries 1
+MaxStartups 1
+PasswordAuthentication no
+PubkeyAuthentication yes

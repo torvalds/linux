@@ -1,0 +1,53 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+# Remove stale files in /var/preserve
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_clean_preserve_enable" in
+    [Yy][Ee][Ss])
+	if [ -z "$daily_clean_preserve_days" ]
+	then
+	    echo '$daily_clean_preserve_enable is set but' \
+		'$daily_clean_preserve_days is not'
+	    rc=2
+	elif [ ! -d /var/preserve ]
+	then
+	    echo '$daily_clean_preserve_enable is set but /var/preserve' \
+		"doesn't exist"
+	    rc=2
+	else
+	    echo ""
+	    echo "Removing stale files from /var/preserve:"
+
+	    if cd /var/preserve
+	    then
+		case "$daily_clean_preserve_verbose" in
+		    [Yy][Ee][Ss])
+			print=-print;;
+		    *)
+			print=;;
+		esac
+
+		rc=$(find . ! -name . -mtime +$daily_clean_preserve_days \
+		    -delete $print | tee /dev/stderr | wc -l)
+		[ -z "$print" ] && rc=0
+		[ $rc -gt 1 ] && rc=1
+	    else
+		rc=3
+	    fi
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

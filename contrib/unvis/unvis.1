@@ -1,0 +1,80 @@
+.\"	$NetBSD: unvis.1,v 1.10 2012/12/15 02:08:13 uwe Exp $
+.\"
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)unvis.1	8.1 (Berkeley) 6/6/93
+.\"
+.Dd November 27, 2010
+.Dt UNVIS 1
+.Os
+.Sh NAME
+.Nm unvis
+.Nd "revert a visual representation of data back to original form"
+.Sh SYNOPSIS
+.Nm
+.Op Fl e
+.Op Fl Hh | Fl m
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+is the inverse function of
+.Xr vis 1 .
+It reverts
+a visual representation of data back to its original form on standard output.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl e
+Don't decode \e escaped sequences.
+.It Fl H
+Decode entity references and numeric character references from RFC 1866.
+.Pq Dv VIS_HTTP1866
+.It Fl h
+Decode using the URI encoding from RFC 1808.
+.Pq Dv VIS_HTTP1808
+.It Fl m
+Decode using mime style.
+.Pq Dv VIS_MIMESTYLE
+.El
+.Pp
+Mixing
+.Fl h
+or
+.Fl H
+with
+.Fl m
+is not supported.
+.Sh SEE ALSO
+.Xr vis 1 ,
+.Xr unvis 3 ,
+.Xr vis 3
+.Sh HISTORY
+The
+.Nm
+command appears in
+.Bx 4.4 .

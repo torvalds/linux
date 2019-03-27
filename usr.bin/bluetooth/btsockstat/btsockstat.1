@@ -1,0 +1,83 @@
+.\" Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: btsockstat.1,v 1.6 2003/05/21 00:09:45 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd October 12, 2003
+.Dt BTSOCKSTAT 1
+.Os
+.Sh NAME
+.Nm btsockstat
+.Nd show Bluetooth sockets information
+.Sh SYNOPSIS
+.Nm
+.Op Fl nrh
+.Op Fl M Ar core
+.Op Fl p Ar protocol
+.Sh DESCRIPTION
+The
+.Nm
+utility symbolically displays the contents of various Bluetooth sockets
+related data structures.
+There are few output formats, depending on the
+options for the information presented.
+The
+.Nm
+utility
+will print results to the standard output and error messages to the
+standard error.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl h
+Display usage message and exit.
+.It Fl M Ar core
+Extract values associated with the name list from the specified core
+instead of the default
+.Pa /dev/kmem .
+.It Fl n
+Show Bluetooth addresses as numbers.
+Normally,
+.Nm
+attempts to resolve Bluetooth addresses, and display them symbolically.
+.It Fl p Ar protocol
+Display a list of active sockets (protocol control blocks) for each
+specified protocol.
+Supported protocols are:
+.Cm hci_raw , l2cap_raw , l2cap, rfcomm
+and
+.Cm rfcomm_s .
+.It Fl r
+Display a list of active routing entries (if any) for specified protocol.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr ng_btsocket 4
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
+.Sh BUGS
+Most likely.
+Please report if found.

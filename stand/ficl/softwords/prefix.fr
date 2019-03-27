@@ -1,0 +1,59 @@
+\ ** 
+\ ** Prefix words for ficl
+\ ** submitted by Larry Hastings, larry@hastings.org
+\ **
+\ (jws) To make a prefix, simply create a new definition in the <prefixes> 
+\ wordlist. start-prefixes and end-prefixes handle the bookkeeping
+\
+\ $FreeBSD$
+
+variable save-current
+
+: start-prefixes   get-current save-current ! <prefixes> set-current ;
+: end-prefixes     save-current @ set-current ;
+: show-prefixes    <prefixes> >search  words  search> drop ;
+
+\ #if (FICL_EXTENDED_PREFIX)
+
+start-prefixes
+
+\ define " (double-quote) as an alias for s", and make it a prefix
+: " postpone s" ; immediate
+
+
+\ make .( a prefix (we just create an alias for it in the prefixes list)
+: .( postpone .( ; immediate
+
+
+\ make \ a prefix, and add // (same thing) as a prefix too
+\ (jws) "//" is precompiled to save aggravation with Perl
+\ : // postpone \ ; immediate
+
+
+\ ** add 0b, 0o, 0d, and 0x as prefixes 
+\ ** these temporarily shift the base to 2, 8, 10, and 16 respectively
+\ ** and consume the next number in the input stream, pushing/compiling
+\ ** as normal
+
+\ (jws) __tempbase is precompiled, as are 0x and 0d - see prefix.c
+\
+\ : __tempbase  { newbase | oldbase -- }
+\   base @ to oldbase 
+\   newbase base !
+\   0 0 parse-word >number 2drop drop
+\   oldbase base !
+\   ;
+
+: 0b  2 __tempbase ; immediate
+
+: 0o  8 __tempbase ; immediate
+
+\ : 0d 10 __tempbase ; immediate
+\ "0d" add-prefix
+
+\ : 0x 16 __tempbase ; immediate
+\ "0x" add-prefix
+
+end-prefixes
+
+\ #endif

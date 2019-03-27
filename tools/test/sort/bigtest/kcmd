@@ -1,0 +1,376 @@
+#!/bin/sh
+
+# $FreeBSD$
+
+rm -rf siks
+mkdir -p siks
+
+export GNUSORT_NUMERIC_COMPATIBILITY=x
+
+BSDSORT=../sort
+GNUSORT=~/coreutils/bin/sort
+#GNUSORT=sort
+
+FILECMP=cmp
+
+INPUT_FILE=si
+
+rm -rf test.log
+
+#ru_RU.ISO-8859-5 en_US.ISO8859-15 zh_HK.Big5HKSCS 
+#
+# ru KOI-8 is an "irregular" locale with non-trivial ordering.
+# zh* is a 2-bytes locale
+
+for lang in ru_RU.KOI8-R C ru_RU.ISO-8859-5 en_US.ISO8859-15 zh_HK.Big5HKSCS  
+do
+
+    export LANG=${lang}
+
+    for KEYS in -srh -sfrudb -Vs -sM -siz 
+    do
+	
+	echo ${LANG} ${KEYS}
+	
+	${BSDSORT} ${KEYS} ${INPUT_FILE} -o siks/sik1
+	ER=$?
+	if ! [ ${ER} -eq 0 ] ; then
+	    echo ${LANG} ${KEYS} crash >> test.log
+	    exit
+	fi
+	${GNUSORT} ${KEYS} ${INPUT_FILE} -o siks/sik2
+	if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.0.0 2>&1 ; then
+	    echo ${LANG} ${KEYS}  error >> test.log
+	fi
+	${BSDSORT} -c ${KEYS}  siks/sik1
+	ER=$?
+	if ! [ ${ER} -eq 0 ] ; then
+	    echo ${LANG} ${KEYS}  -c error  >> test.log
+	fi
+	rm siks/res.0.0
+	
+	${BSDSORT} ${KEYS} -t " "  ${INPUT_FILE} -o siks/sik1
+	ER=$?
+	if ! [ ${ER} -eq 0 ] ; then
+	    echo ${LANG} ${KEYS} -t " " crash >> test.log
+	    exit
+	fi
+	${GNUSORT} ${KEYS} -t " "  ${INPUT_FILE} -o siks/sik2
+	if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.0.0 2>&1 ; then
+	    echo ${LANG} ${KEYS} error -t " " >> test.log
+	fi
+	${BSDSORT} -c -t " " ${KEYS}  siks/sik1
+	ER=$?
+	if ! [ ${ER} -eq 0 ] ; then
+	    echo $? ${LANG} ${KEYS}  -t " " -c error >> test.log
+	fi
+	rm siks/res.0.0
+	
+	${BSDSORT} ${KEYS} -t "|"  ${INPUT_FILE} -o siks/sik1
+	ER=$?
+	if ! [ ${ER} -eq 0 ] ; then
+	    echo ${LANG} ${KEYS} -t "|" crash >> test.log
+	    exit
+	fi
+	${GNUSORT} ${KEYS} -t "|"  ${INPUT_FILE} -o siks/sik2
+	if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.0.0 2>&1 ; then
+	    echo ${LANG} ${KEYS}  error -t "|" >> test.log
+	fi
+	${BSDSORT} -c -t "|" ${KEYS}  siks/sik1
+	ER=$?
+	if ! [ ${ER} -eq 0 ] ; then
+	    echo ${LANG} ${KEYS}  -c -t "|" error >> test.log
+	fi
+	rm siks/res.0.0
+	
+	${BSDSORT} ${KEYS} -t '\0' ${INPUT_FILE} -o siks/sik1
+	ER=$?
+	if ! [ ${ER} -eq 0 ] ; then
+	    echo ${LANG} ${KEYS} -t 0 crash >> test.log
+	    exit
+	fi
+	${GNUSORT} ${KEYS} -t '\0' ${INPUT_FILE} -o siks/sik2
+	if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.0.0 2>&1 ; then
+	    echo ${LANG} ${KEYS} error -t '\0' >> test.log
+	fi
+	${BSDSORT} -c -t '\0' ${KEYS} siks/sik1
+	ER=$?
+	if ! [ ${ER} -eq 0 ] ; then
+	    echo ${LANG} ${KEYS} -c -t '\0' error >> test.log
+	fi
+	rm siks/res.0.0
+	
+	for f1 in 1 2 3 4 5 6 7 8 9
+	do
+	    for c1 in 1 2 3 4 5 10 15 20 25 30
+	    do
+		echo ${LANG} ${KEYS} ${f1} ${c1}
+		
+		${BSDSORT} ${KEYS} +${f1}.${c1} ${INPUT_FILE} -o siks/sik1
+		ER=$?
+		if ! [ ${ER} -eq 0 ] ; then
+	        echo ${LANG} ${KEYS} +${f1}.${c1} crash +- >> test.log
+	        exit
+		fi
+		${GNUSORT} ${KEYS} +${f1}.${c1} ${INPUT_FILE} -o siks/sik2
+		if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.${f1}.${c1} 2>&1 ; then
+		    echo ${LANG} ${KEYS} +${f1}.${c1} error +- >> test.log
+		fi
+		${BSDSORT} -c ${KEYS} +${f1}.${c1} siks/sik1
+		ER=$?
+		if ! [ ${ER} -eq 0 ] ; then
+		    echo ${LANG} ${KEYS} +${f1}.${c1} -c error +- >> test.log
+		fi
+		rm siks/res.${f1}.${c1}
+
+		${BSDSORT} ${KEYS} -k${f1}.${c1} ${INPUT_FILE} -o siks/sik1
+		ER=$?
+		if ! [ ${ER} -eq 0 ] ; then
+	        echo ${LANG} ${KEYS} -k${f1}.${c1} crash >> test.log
+	        exit
+		fi
+		${GNUSORT} ${KEYS} -k${f1}.${c1} ${INPUT_FILE} -o siks/sik2
+		if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.${f1}.${c1} 2>&1 ; then
+		    echo ${LANG} ${KEYS} -k${f1}.${c1} error >> test.log
+		fi
+		${BSDSORT} -c ${KEYS} -k${f1}.${c1} siks/sik1
+		ER=$?
+		if ! [ ${ER} -eq 0 ] ; then
+		    echo ${LANG} ${KEYS} -k${f1}.${c1} -c error >> test.log
+		fi
+		rm siks/res.${f1}.${c1}
+
+		${BSDSORT} ${KEYS} -k${f1}.${c1}b ${INPUT_FILE} -o siks/sik1
+		ER=$?
+		if ! [ ${ER} -eq 0 ] ; then
+	        echo ${LANG} ${KEYS} -k${f1}.${c1}b crash >> test.log
+	        exit
+		fi
+		${GNUSORT} ${KEYS} -k${f1}.${c1}b ${INPUT_FILE} -o siks/sik2
+		if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.${f1}.${c1} 2>&1 ; then
+		    echo ${LANG} ${KEYS} -k${f1}.${c1}b error >> test.log
+		fi
+		${BSDSORT} -c ${KEYS} -k${f1}.${c1}b siks/sik1
+		ER=$?
+		if ! [ ${ER} -eq 0 ] ; then
+		    echo ${LANG} ${KEYS} -k${f1}.${c1}b -c error >> test.log
+		fi
+		rm siks/res.${f1}.${c1}
+		
+		${BSDSORT} ${KEYS} -t " " -k${f1}.${c1} ${INPUT_FILE} -o siks/sik1
+		ER=$?
+		if ! [ ${ER} -eq 0 ] ; then
+	            echo ${LANG} ${KEYS} -t -k${f1}.${c1} crash >> test.log
+	            exit
+		fi
+		${GNUSORT} ${KEYS} -t " " -k${f1}.${c1} ${INPUT_FILE} -o siks/sik2
+		if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.${f1}.${c1} 2>&1 ; then
+		    echo ${LANG} ${KEYS} -k${f1}.${c1} error -t " " >> test.log
+		fi
+		${BSDSORT} -c -t " " ${KEYS} -k${f1}.${c1} siks/sik1
+		ER=$?
+		if ! [ ${ER} -eq 0 ] ; then
+		    echo ${LANG} ${KEYS} -k${f1}.${c1} -t " " -c error >> test.log
+		fi
+		rm siks/res.${f1}.${c1}
+		
+		${BSDSORT} ${KEYS} -t " " -k${f1}.${c1}n ${INPUT_FILE} -o siks/sik1
+		ER=$?
+		if ! [ ${ER} -eq 0 ] ; then
+	            echo ${LANG} ${KEYS} -k${f1}.${c1}n crash >> test.log
+	            exit
+		fi
+		${GNUSORT} ${KEYS} -t " " -k${f1}.${c1}n ${INPUT_FILE} -o siks/sik2
+		if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.${f1}.${c1} 2>&1 ; then
+		    echo ${LANG} ${KEYS} -k${f1}.${c1} error -t " " n >> test.log
+		fi 
+		${BSDSORT} -c -t " " ${KEYS} -k${f1}.${c1}n siks/sik1
+		ER=$?
+		if ! [ ${ER} -eq 0 ] ; then
+		    echo ${LANG} ${KEYS} -k${f1}.${c1} -c -t " " n error >> test.log
+		fi
+		rm siks/res.${f1}.${c1}
+		
+		${BSDSORT} ${KEYS} -t "|" -k${f1}.${c1} ${INPUT_FILE} -o siks/sik1
+		ER=$?
+		if ! [ ${ER} -eq 0 ] ; then
+	            echo ${LANG} ${KEYS} -t "|" -k${f1}.${c1} crash >> test.log
+	            exit
+		fi
+		${GNUSORT} ${KEYS} -t "|" -k${f1}.${c1} ${INPUT_FILE} -o siks/sik2
+		if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.${f1}.${c1} 2>&1 ; then
+		    echo ${LANG} ${KEYS} -k${f1}.${c1} error -t "|" >> test.log
+		fi
+		${BSDSORT} -c -t "|" ${KEYS} -k${f1}.${c1} siks/sik1
+		ER=$?
+		if ! [ ${ER} -eq 0 ] ; then
+		    echo ${LANG} ${KEYS} -k${f1}.${c1} -c -t "|" error >> test.log
+		fi
+		rm siks/res.${f1}.${c1}
+		
+		for f2 in 1 2 3 4 5 6 7 8 9 10
+		do
+		    for c2 in 0 1 2 3 4 5 10 15 20 25 30
+		    do
+			echo ${LANG} ${KEYS} ${f1} ${c1} ${f2} ${c2}
+			
+			${BSDSORT} ${KEYS} +${f1}.${c1} -${f2}.${c2} ${INPUT_FILE} -o siks/sik1
+	    		ER=$?
+	    		if ! [ ${ER} -eq 0 ] ; then
+	        	    echo ${LANG} ${KEYS} +${f1}.${c1} -${f2}.${c2} crash >> test.log
+	        	    exit
+			fi
+			${GNUSORT} ${KEYS} +${f1}.${c1} -${f2}.${c2} ${INPUT_FILE} -o siks/sik2
+			if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.${f1}.${c1}.${f2}.${c2} 2>&1 ; then
+			    echo ${LANG} ${KEYS} +${f1}.${c1} -${f2}.${c2} error +- >> test.log
+			fi
+			${BSDSORT} -c ${KEYS} +${f1}.${c1} -${f2}.${c2} siks/sik1
+			ER=$?
+			if ! [ ${ER} -eq 0 ] ; then
+			    echo ${LANG} ${KEYS} +${f1}.${c1} -${f2}.${c2} -c error +- >> test.log
+			fi
+			rm siks/res.${f1}.${c1}.${f2}.${c2}
+
+			${BSDSORT} ${KEYS} -k${f1}.${c1},${f2}.${c2} ${INPUT_FILE} -o siks/sik1
+	    		ER=$?
+	    		if ! [ ${ER} -eq 0 ] ; then
+	        	    echo ${LANG} ${KEYS} -k${f1}.${c1},${f2}.${c2} crash >> test.log
+	        	    exit
+			fi
+			${GNUSORT} ${KEYS} -k${f1}.${c1},${f2}.${c2} ${INPUT_FILE} -o siks/sik2
+			if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.${f1}.${c1}.${f2}.${c2} 2>&1 ; then
+			    echo ${LANG} ${KEYS} -k${f1}.${c1}.${f2}.${c2} error >> test.log
+			fi
+			${BSDSORT} -c ${KEYS} -k${f1}.${c1},${f2}.${c2} siks/sik1
+			ER=$?
+			if ! [ ${ER} -eq 0 ] ; then
+			    echo ${LANG} ${KEYS} -k${f1}.${c1},${f2}.${c2} -c error >> test.log
+			fi
+			rm siks/res.${f1}.${c1}.${f2}.${c2}
+
+			${BSDSORT} ${KEYS} -k${f1}.${c1}b,${f2}.${c2} ${INPUT_FILE} -o siks/sik1
+	    		ER=$?
+	    		if ! [ ${ER} -eq 0 ] ; then
+	        	    echo ${LANG} ${KEYS} -k${f1}.${c1}b,${f2}.${c2} crash >> test.log
+	        	    exit
+			fi
+			${GNUSORT} ${KEYS} -k${f1}.${c1}b,${f2}.${c2} ${INPUT_FILE} -o siks/sik2
+			if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.${f1}.${c1}.${f2}.${c2} 2>&1 ; then
+			    echo ${LANG} ${KEYS} -k${f1}.${c1}.b.${f2}.${c2} error >> test.log
+			fi
+			${BSDSORT} -c ${KEYS} -k${f1}.${c1}b,${f2}.${c2} siks/sik1
+			ER=$?
+			if ! [ ${ER} -eq 0 ] ; then
+			    echo ${LANG} ${KEYS} -k${f1}.${c1}b,${f2}.${c2} -c error >> test.log
+			fi
+			rm siks/res.${f1}.${c1}.${f2}.${c2}
+			
+			${BSDSORT} ${KEYS} -t " " -k${f1}.${c1},${f2}.${c2} ${INPUT_FILE} -o siks/sik1
+	    		ER=$?
+	    		if ! [ ${ER} -eq 0 ] ; then
+	        	    echo ${LANG} ${KEYS} -t " " -k${f1}.${c1},${f2}.${c2} crash >> test.log
+	        	    exit
+			fi
+			${GNUSORT} ${KEYS} -t " " -k${f1}.${c1},${f2}.${c2} ${INPUT_FILE} -o siks/sik2
+			if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.${f1}.${c1}.${f2}.${c2} 2>&1 ; then
+			    echo ${LANG} ${KEYS} -k${f1}.${c1}.${f2}.${c2} error -t " " >> test.log
+			fi
+			${BSDSORT} -c -t " " ${KEYS} -k${f1}.${c1},${f2}.${c2} siks/sik1
+			ER=$?
+			if ! [ ${ER} -eq 0 ] ; then
+			    echo ${LANG} ${KEYS} -k${f1}.${c1},${f2}.${c2} -c -t " " error >> test.log
+			fi
+			rm siks/res.${f1}.${c1}.${f2}.${c2}
+			
+			${BSDSORT} ${KEYS} -t " " -k${f1}.${c1}n,${f2}.${c2} ${INPUT_FILE} -o siks/sik1
+	    		ER=$?
+	    		if ! [ ${ER} -eq 0 ] ; then
+	        	    echo ${LANG} ${KEYS} -t " " -k${f1}.${c1}n,${f2}.${c2} crash >> test.log
+	        	    exit
+			fi
+			${GNUSORT} ${KEYS} -t " " -k${f1}.${c1}n,${f2}.${c2} ${INPUT_FILE} -o siks/sik2
+			if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.${f1}.${c1}.${f2}.${c2} 2>&1 ; then
+			    echo ${LANG} ${KEYS} -t " " -k${f1}.${c1}.${f2}.${c2} error n >> test.log
+			fi
+			${BSDSORT} -c -t " " ${KEYS} -k${f1}.${c1}n,${f2}.${c2} siks/sik1
+			ER=$?
+			if ! [ ${ER} -eq 0 ] ; then
+			    echo ${LANG} ${KEYS} -k${f1}.${c1},${f2}.${c2} -c -t " " n error >> test.log
+			fi
+			rm siks/res.${f1}.${c1}.${f2}.${c2}
+			
+			${BSDSORT} ${KEYS} -t '\0' -k${f1}.${c1}n,${f2}.${c2} ${INPUT_FILE} -o siks/sik1
+	    		ER=$?
+	    		if ! [ ${ER} -eq 0 ] ; then
+	        	    echo ${LANG} ${KEYS} -t '\0' -k${f1}.${c1}n,${f2}.${c2} crash >> test.log
+	        	    exit
+			fi
+			${GNUSORT} ${KEYS} -t '\0' -k${f1}.${c1}n,${f2}.${c2} ${INPUT_FILE} -o siks/sik2
+			if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.${f1}.${c1}.${f2}.${c2} 2>&1 ; then
+			    echo ${LANG} ${KEYS} -k${f1}.${c1}.${f2}.${c2} error -t '\0' n >> test.log
+			fi
+			${BSDSORT} -c -t '\0' ${KEYS} -k${f1}.${c1}n,${f2}.${c2} siks/sik1
+			ER=$?
+			if ! [ ${ER} -eq 0 ] ; then
+			    echo ${LANG} ${KEYS} -k${f1}.${c1},${f2}.${c2} -c -t '\0' n error >> test.log
+			fi
+			rm siks/res.${f1}.${c1}.${f2}.${c2}
+			
+			${BSDSORT} ${KEYS} -t "|" -k${f1}.${c1},${f2}.${c2} ${INPUT_FILE} -o siks/sik1
+	    		ER=$?
+	    		if ! [ ${ER} -eq 0 ] ; then
+	        	    echo ${LANG} ${KEYS} -t "|" -k${f1}.${c1},${f2}.${c2} crash >> test.log
+	        	    exit
+			fi
+			${GNUSORT} ${KEYS} -t "|" -k${f1}.${c1},${f2}.${c2} ${INPUT_FILE} -o siks/sik2
+			if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.${f1}.${c1}.${f2}.${c2} 2>&1 ; then
+			    echo ${LANG} ${KEYS} -k${f1}.${c1}.${f2}.${c2} error -t "|" >> test.log
+			fi
+			${BSDSORT} -c -t "|" ${KEYS} -k${f1}.${c1},${f2}.${c2} siks/sik1
+			ER=$?
+			if ! [ ${ER} -eq 0 ] ; then
+			    echo ${LANG} ${KEYS} -k${f1}.${c1},${f2}.${c2} -c -t "|" error >> test.log
+			fi
+			rm siks/res.${f1}.${c1}.${f2}.${c2}
+			
+			${BSDSORT} ${KEYS} -t "|" -k${f1}.${c1},${f2}.${c2} -k${f2}.${c1},${f1}.${c2} ${INPUT_FILE} -o siks/sik1
+	    		ER=$?
+	    		if ! [ ${ER} -eq 0 ] ; then
+	        	    echo ${LANG} ${KEYS} -t "|" -k${f1}.${c1},${f2}.${c2} -k${f2}.${c1},${f1}.${c2} crash >> test.log
+	        	    exit
+			fi
+			${GNUSORT} ${KEYS} -t "|" -k${f1}.${c1},${f2}.${c2} -k${f2}.${c1},${f1}.${c2} ${INPUT_FILE} -o siks/sik2
+			if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.${f1}.${c1}.${f2}.${c2} 2>&1 ; then
+			    echo ${LANG} ${KEYS} -k${f1}.${c1}.${f2}.${c2} error -t "|" 2k >> test.log
+			fi
+			${BSDSORT} -c -t "|" ${KEYS} -k${f1}.${c1},${f2}.${c2} -k${f2}.${c1},${f1}.${c2} siks/sik1
+			ER=$?
+			if ! [ ${ER} -eq 0 ] ; then
+			    echo ${LANG} ${KEYS} -k${f1}.${c1},${f2}.${c2} -c -t "|" 2k error >> test.log
+			fi
+			rm siks/res.${f1}.${c1}.${f2}.${c2}
+
+			${BSDSORT} ${KEYS} -k${f1}.${c1}b,${f2}.${c2} -k${f2}.${c1},${f1}.${c2} ${INPUT_FILE} -o siks/sik1
+	    		ER=$?
+	    		if ! [ ${ER} -eq 0 ] ; then
+	        	    echo ${LANG} ${KEYS} -k${f1}.${c1}b,${f2}.${c2} -k${f2}.${c1},${f1}.${c2} crash >> test.log
+	        	    exit
+			fi
+			${GNUSORT} ${KEYS} -k${f1}.${c1}b,${f2}.${c2} -k${f2}.${c1},${f1}.${c2} ${INPUT_FILE} -o siks/sik2
+			if ! ${FILECMP} siks/sik1 siks/sik2 >siks/res.${f1}.${c1}.${f2}.${c2} 2>&1 ; then
+			    echo ${LANG} ${KEYS} -k${f1}.${c1}.b.${f2}.${c2} error 2k >> test.log
+			fi
+			${BSDSORT} -c ${KEYS} -k${f1}.${c1}b,${f2}.${c2} -k${f2}.${c1},${f1}.${c2} siks/sik1
+			ER=$?
+			if ! [ ${ER} -eq 0 ] ; then
+			    echo ${LANG} ${KEYS} -k${f1}.${c1}b,${f2}.${c2} -c 2k error >> test.log
+			fi
+			rm siks/res.${f1}.${c1}.${f2}.${c2}
+			
+		    done
+		done
+	    done
+	done
+    done
+done
+

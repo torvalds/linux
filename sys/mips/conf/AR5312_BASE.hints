@@ -1,0 +1,29 @@
+# $FreeBSD$
+hint.apb.0.at="nexus0"
+hint.apb.0.irq=4
+
+# uart0
+hint.uart.0.at="apb0"
+# see atheros/uart_cpu_ar71xx.c why +3
+hint.uart.0.maddr=0x1C000003
+hint.uart.0.msize=0x20
+#hint.uart.0.irq=4
+#hint.uart.0.flags="0x30"
+
+# Watchdog
+hint.ar5315_wdog.0.at="apb0"
+hint.ar5315_wdog.0.irq=6
+
+# Ethernet
+hint.are.0.at="nexus0" 
+hint.are.0.maddr=0x18100000
+hint.are.0.msize=0x00100000  
+hint.are.0.irq=1
+
+hint.are.1.at="nexus0"     
+hint.are.1.maddr=0x18200000
+hint.are.1.msize=0x00100000
+hint.are.1.irq=2
+
+# GEOM redboot FIS directory offset
+#hint.redboot.0.fisoffset="0x007e0000"

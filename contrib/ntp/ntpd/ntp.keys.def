@@ -1,0 +1,168 @@
+/* -*- Mode: Text -*- */
+
+autogen definitions options;
+
+#include copyright.def
+#include version.def
+
+// We want the synopsis to be "/etc/ntp.keys" but we need the prog-name
+// to be ntp.keys - the latter is also how autogen produces the output
+// file name.
+prog-name	= "ntp.keys";
+file-path	= "/etc/ntp.keys";
+prog-title	= "NTP symmetric key file format";
+
+/* explain: Additional information whenever the usage routine is invoked */
+explain = <<- _END_EXPLAIN
+	_END_EXPLAIN;
+
+doc-section	= {
+  ds-type	= 'DESCRIPTION';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_PROG_MDOC_DESCRIP
+This document describes the format of an NTP symmetric key file.
+For a description of the use of this type of file, see the
+.Qq Authentication Support
+section of the
+.Xr ntp.conf 5
+page.
+.Pp
+.Xr ntpd 8
+reads its keys from a file specified using the
+.Fl k
+command line option or the
+.Ic keys
+statement in the configuration file.
+While key number 0 is fixed by the NTP standard
+(as 56 zero bits)
+and may not be changed,
+one or more keys numbered between 1 and 65535
+may be arbitrarily set in the keys file.
+.Pp
+The key file uses the same comment conventions
+as the configuration file.
+Key entries use a fixed format of the form
+.Pp
+.D1 Ar keyno type key opt_IP_list
+.Pp
+where
+.Ar keyno
+is a positive integer (between 1 and 65535),
+.Ar type
+is the message digest algorithm,
+.Ar key
+is the key itself, and
+.Ar opt_IP_list
+is an optional comma-separated list of IPs
+where the
+.Ar keyno
+should be trusted.
+that are allowed to serve time.
+Each IP in
+.Ar opt_IP_list
+may contain an optional
+.Cm /subnetbits
+specification which identifies the number of bits for
+the desired subnet of trust.
+If
+.Ar opt_IP_list
+is empty,
+any properly-authenticated message will be
+accepted.
+.Pp
+The
+.Ar key
+may be given in a format
+controlled by the
+.Ar type
+field.
+The
+.Ar type
+.Li MD5
+is always supported.
+If
+.Li ntpd
+was built with the OpenSSL library
+then any digest library supported by that library may be specified.
+However, if compliance with FIPS 140-2 is required the
+.Ar type
+must be either
+.Li SHA
+or
+.Li SHA1 .
+.Pp
+What follows are some key types, and corresponding formats:
+.Pp
+.Bl -tag -width RMD160 -compact
+.It Li MD5
+The key is 1 to 16 printable characters terminated by
+an EOL,
+whitespace,
+or
+a
+.Li #
+(which is the "start of comment" character).
+.Pp
+.It Li SHA
+.It Li SHA1
+.It Li RMD160
+The key is a hex-encoded ASCII string of 40 characters,
+which is truncated as necessary.
+.El
+.Pp
+Note that the keys used by the
+.Xr ntpq 8
+and
+.Xr ntpdc 8
+programs are checked against passwords
+requested by the programs and entered by hand,
+so it is generally appropriate to specify these keys in ASCII format.
+	_END_PROG_MDOC_DESCRIP;
+};
+
+doc-section	= {
+  ds-type	= 'FILES';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_FILES
+.Bl -tag -width /etc/ntp.keys -compact
+.It Pa /etc/ntp.keys
+the default name of the configuration file
+.El
+	_END_MDOC_FILES;
+};
+
+doc-section	= {
+  ds-type	= 'SEE ALSO';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_SEE_ALSO
+.Xr ntp.conf 5 ,
+.Xr ntpd 1ntpdmdoc ,
+.Xr ntpdate 1ntpdatemdoc ,
+.Xr ntpdc 1ntpdcmdoc ,
+.Xr sntp 1sntpmdoc
+	_END_MDOC_SEE_ALSO;
+};
+
+/*
+doc-section	= {
+  ds-type	= 'BUGS';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_BUGS
+.Xr ntpd 8
+has gotten rather fat.
+While not huge, it has gotten larger than might
+be desirable for an elevated-priority daemon running on a workstation,
+particularly since many of the fancy features which consume the space
+were designed more with a busy primary server, rather than a high
+stratum workstation, in mind.
+	_END_MDOC_BUGS;
+};
+*/
+
+doc-section	= {
+  ds-type	= 'NOTES';
+  ds-format	= 'mdoc';
+  ds-text	= <<- _END_MDOC_NOTES
+This document was derived from FreeBSD.
+	_END_MDOC_NOTES;
+};

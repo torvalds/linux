@@ -1,0 +1,204 @@
+.\"
+.\" Copyright (c) 2003 Tom Rhodes
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 7, 2009
+.Dt IPS 4
+.Os
+.Sh NAME
+.Nm ips
+.Nd IBM/Adaptec ServeRAID controller driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
+.Cd "device ips"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ips_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver claims to support the
+.Tn IBM
+(now Adaptec) ServeRAID series
+.Tn SCSI
+controller cards.
+.Pp
+These cards come with a built in configuration utility stored in
+the firmware known as the
+.Tn ISPR .
+This utility is accessed with the
+.Aq Em Ctrl+I
+key combination during the initial card
+.Tn POST .
+.Pp
+It is highly recommended that this utility be used to configure the card
+before attempting to diagnose the below error messages.
+.Pp
+In some cases, the
+.Nm
+driver can have difficulties attaching during
+the system initialization period.
+To avoid these difficulties, set the
+.Va hw.ips.0.disable
+tunable to 1.
+It will prevent the driver from attaching.
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+IBM ServeRAID 3H
+.It
+ServeRAID 4L/4M/4H
+.It
+ServeRAID Series 5
+.It
+ServeRAID 6i/6M
+.It
+ServeRAID 7t/7k/7M
+.El
+.Pp
+Newer ServeRAID controllers are supported by the
+.Xr aac 4
+or
+.Xr mfi 4
+driver.
+.Sh DIAGNOSTICS
+Several error codes may be shown when the card initializes the
+.Tn IBM
+.Tn ISPR
+utility and are independent of
+.Fx .
+.Bl -diag
+.It ips%d: failed to get adapter configuration data from device
+.It ips%d: failed to get drive configuration data from device
+.Pp
+Unable to obtain adapter or drive configuration.
+.It ips%d iobuf error
+.Pp
+A buffer input/output error has occurred.
+.Bq Er ENXIO
+.El
+.Ss General adapter errors :
+.Bl -diag
+.It Attaching bus failed
+.Pp
+This message is undocumented.
+.It WARNING: command timeout. Adapter is in toaster mode, resetting
+.Pp
+A command timeout has caused the adapter to be reset.
+.It AIEE! adapter reset failed, giving up and going home! Have a nice day
+.Pp
+An error occurred while attempting to reset the adapter.
+.It unable to get adapter configuration
+.It unable to get drive configuration
+.Pp
+There was an error when attempting to get configuration information.
+.It Adapter error during initialization.
+.It adapter initialization failed
+.Pp
+There was an error while attempting to initialize the adapter.
+.It adapter failed config check
+.It adapter clear failed
+.Pp
+There was an error while checking the adapter.
+.It device is disabled
+.Pp
+The adapter is disabled.
+.It resource allocation failed
+.It irq allocation failed
+.It irq setup failed
+.Pp
+The driver was unable to allocate resources for the device.
+.El
+.Ss Error messages due to DMA :
+.Bl -diag
+.It can't alloc command dma tag
+.It can't alloc SG dma tag
+.It can't alloc dma tag for statue queue
+.It dmamap failed
+.Pp
+Failure to map or allocate DMA resources.
+.El
+.Ss Cache, buffer, and command errors :
+.Bl -diag
+.It failed to initialize command buffers
+.It no mem for command slots!
+.Pp
+The
+.Nm
+driver will return
+.Bq Er ENOMEM
+in such cases.
+.It ERROR: unable to get a command! can't flush cache!
+.It ERROR: cache flush command failed!
+.It ERROR: unable to get a command! can't update nvram
+.It ERROR: nvram update command failed!
+.It ERROR: unable to get a command! can't sync cache!
+.It ERROR: cache sync command failed!
+.It ERROR: unable to get a command! can't sync cache!
+.It ERROR: etable command failed!
+.El
+.Sh COMPATIBILITY
+Unlike many of the other
+.Tn SCSI
+devices in
+.Fx ,
+the
+.Nm
+driver does not use the
+.Xr cam 4
+.Tn SCSI
+subsystem.
+.Sh SEE ALSO
+.Xr aac 4 ,
+.Xr ch 4 ,
+.Xr da 4 ,
+.Xr mfi 4 ,
+.Xr sysctl 8
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An -nosplit
+.An David Jefferys
+and
+.An Scott Long Aq Mt scottl@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org .

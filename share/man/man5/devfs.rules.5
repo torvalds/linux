@@ -1,0 +1,128 @@
+.\" Copyright (c) 2004 Roland Smith <rsmith@xs4all.nl>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 21, 2010
+.Dt DEVFS.RULES 5
+.Os
+.Sh NAME
+.Nm devfs.rules
+.Nd devfs configuration information
+.Sh DESCRIPTION
+The
+.Nm
+file provides an easy way to create and apply
+.Xr devfs 8
+rules, even for devices that are not available at boot.
+.Pp
+For devices available at boot, see
+.Xr devfs.conf 5 .
+.Pp
+The format of this file is simple.
+Empty lines and lines beginning with a hash sign
+.Pq Ql #
+are ignored.
+A line between brackets denotes the start of a ruleset.
+In the brackets should be the name of the ruleset and its number,
+separated by an equal sign.
+.Pp
+Other lines are rule specifications as documented in
+.Xr devfs 8 ,
+in the section
+.Sx "Rule Specification" .
+These lines are prepended with
+.Dq Li rule
+and are passed to
+.Xr devfs 8
+by the startup scripts of the system.
+It is important to put path elements that contain
+.Xr glob 3
+special characters between quotes.
+.Pp
+Rulesets should have a unique name and number.
+.Pp
+All rules that follow a ruleset declaration belong to that ruleset, until a
+new ruleset is started.
+.Pp
+One custom ruleset has to be enabled in
+.Pa /etc/rc.conf ,
+otherwise it will not be applied to the
+.Pa /dev
+file system by the default system startup process.
+For example, to enable a
+.Dq Li localrules
+ruleset for the
+.Pa /dev
+file system, you would have to use something like this in your
+.Pa rc.conf
+file:
+.Bd -literal -offset indent
+devfs_system_ruleset="localrules"
+.Ed
+.Sh FILES
+.Bl -tag -compact -width Pa
+.It Pa /etc/defaults/devfs.rules
+Default
+.Nm
+configuration file.
+.It Pa /etc/devfs.rules
+Local
+.Nm
+configuration file.
+Rulesets in here override those in
+.Pa /etc/defaults/devfs.rules
+with the same ruleset number, otherwise the two files are effectively merged.
+.El
+.Sh EXAMPLES
+To make all the partitions of
+.Xr da 4
+devices readable and writable by their owner and the
+.Dq Li usb
+group, the following rule may be used:
+.Pp
+.Dl "[localrules=10]"
+.Dl "add path 'da*s*' mode 0660 group usb"
+.Pp
+The first line declares and starts a new ruleset, with the name
+.Va localrules
+and the number 10.
+.Pp
+To give
+.Xr usbconfig 8
+and
+.Xr libusb 3
+enabled applications permission to all usb devices for their owner and the
+.Dq Li usb
+group, a similar rule may be used:
+.Pp
+.Dl "add path 'usb/*' mode 0660 group usb"
+.Sh SEE ALSO
+.Xr glob 3 ,
+.Xr devfs 5 ,
+.Xr devfs.conf 5 ,
+.Xr devfs 8
+.Sh AUTHORS
+This manual page was written by
+.An Roland Smith Aq Mt rsmith@xs4all.nl .

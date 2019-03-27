@@ -1,0 +1,252 @@
+.\"
+.\" Copyright (c) 2003 David O'Brien
+.\" Copyright (c) 2000 Jeroen Ruigrok van der Werven
+.\" Copyright (c) 2000 Michael Smith
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 15, 2017
+.Dt MLX 4
+.Os
+.Sh NAME
+.Nm mlx
+.Nd Mylex DAC-family RAID driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device mlx"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mlx_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Mylex DAC-family PCI to SCSI RAID controllers,
+including versions relabeled by Digital/Compaq.
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Mylex DAC960P
+.It
+Mylex DAC960PD / DEC KZPSC (Fast Wide)
+.It
+Mylex DAC960PDU
+.It
+Mylex DAC960PL
+.It
+Mylex DAC960PJ
+.It
+Mylex DAC960PG
+.It
+Mylex DAC960PU / DEC PZPAC (Ultra Wide)
+.It
+Mylex AcceleRAID 150 (DAC960PRL)
+.It
+Mylex AcceleRAID 250 (DAC960PTL1)
+.It
+Mylex eXtremeRAID 1100 (DAC1164P)
+.It
+RAIDarray 230 controllers, aka the Ultra-SCSI DEC KZPAC-AA (1-ch, 4MB
+cache), KZPAC-CA (3-ch, 4MB), KZPAC-CB (3-ch, 8MB cache)
+.El
+.Pp
+All major firmware revisions (2.x, 3.x, 4.x and 5.x) are supported, however
+it is always advisable to upgrade to the most recent firmware
+available for the controller.
+.Pp
+Compatible Mylex controllers not listed should work, but have not been
+verified.
+.Sh DIAGNOSTICS
+.Ss Controller initialisation phase
+.Bl -diag
+.It mlx%d: controller initialisation in progress...
+.It mlx%d: initialisation complete
+.Pp
+The controller firmware is performing/has completed initialisation.
+.It mlx%d: physical drive %d:%d not responding
+.Pp
+The drive at channel:target is not responding; it may have failed or
+been removed.
+.It mlx%d: spinning up drives...
+.Pp
+Drive startup is in progress; this may take several minutes.
+.It mlx%d: configuration checksum error
+.Pp
+The array configuration has become corrupted.
+.It mlx%d: mirror race recovery in progress
+.It mlx%d: mirror race on a critical system drive
+.It mlx%d: mirror race recovery failed
+.Pp
+These error codes are undocumented.
+.It mlx%d: physical drive %d:%d COD mismatch
+.Pp
+Configuration data on the drive at channel:target does not match the
+rest of the array.
+.It mlx%d: system drive installation aborted
+.Pp
+Errors occurred preventing one or more system drives from being configured.
+.It mlx%d: new controller configuration found
+.Pp
+The controller has detected a configuration on disk which supersedes the
+configuration in its nonvolatile memory.
+It will reset and come up with the new configuration.
+.It mlx%d: FATAL MEMORY PARITY ERROR
+.Pp
+Firmware detected a fatal memory error; the driver will not attempt to
+attach to this controller.
+.It mlx%d: unknown firmware initialisation error %x:%x:%x
+.Pp
+An unknown error occurred during initialisation; it will be ignored.
+.El
+.Ss Driver initialisation/shutdown phase:
+.Bl -diag
+.It mlx%d: can't allocate scatter/gather DMA tag
+.It mlx%d: can't allocate buffer DMA tag
+.It mlx%d: can't allocate s/g table
+.It mlx%d: can't make initial s/g list mapping
+.It mlx%d: can't make permanent s/g list mapping
+.It mlx%d: can't allocate interrupt
+.It mlx%d: can't set up interrupt
+.Pp
+A resource allocation error occurred while initialising the driver;
+initialisation has failed and the driver will not attach to this
+controller.
+.It mlx%d: error fetching drive status
+.Pp
+The current status of all system drives could not be fetched; attachment
+of system drives will be aborted.
+.It mlx%d: device_add_child failed
+.It mlx%d: bus_generic_attach returned %d
+.Pp
+Creation of the system drive instances failed; attachment of one or more
+system drives may have been aborted.
+.It mlxd%d: detaching...
+.Pp
+The indicated system drive is being detached.
+.It mlxd%d: still open, can't detach
+.Pp
+The indicated system drive is still open or mounted;
+the controller cannot be detached.
+.It mlx%d: flushing cache...
+.Pp
+The controller cache is being flushed prior to detach or shutdown.
+.El
+.Ss Operational diagnostics:
+.Bl -diag
+.It mlx%d: ENQUIRY failed - %s
+.It mlx%d: ENQUIRY2 failed
+.It mlx%d: ENQUIRY_OLD failed
+.It mlx%d: FLUSH failed - %s
+.It mlx%d: CHECK ASYNC failed - %s
+.It mlx%d: REBUILD ASYNC failed - %s
+.It mlx%d: command failed - %s
+.Pp
+The controller rejected a command for the reason given.
+.It mlx%d: I/O beyond end of unit (%u,%d > %u)
+.It mlx%d: I/O error - %s
+.Pp
+An I/O error was reported by the controller.
+.It mlx%d: periodic enquiry failed - %s
+.Pp
+An attempt to poll the controller for status failed for the reason given.
+.It mlx%d: mlx_periodic_enquiry: unknown command %x
+.Pp
+The periodic status poll has issued a command which has become corrupted.
+.It mlxd%d: drive offline
+.It mlxd%d: drive online
+.It mlxd%d: drive critical
+.Pp
+The system disk indicated has changed state.
+.It mlx%d: physical drive %d:%d reset
+.It mlx%d: physical drive %d:%d killed %s
+.It "mlx%d: physical drive %d:%d error log: sense = %d asc = %x asq = %x"
+.It "mlx%d:   info %4D csi %4D"
+.Pp
+The drive at channel:target has been reset, killed for the given reason,
+or experienced a SCSI error.
+.It mlx%d: unknown log message type %x
+.It mlx%d: error reading message log - %s
+.Pp
+An error occurred while trying to read the controller's message log.
+.It mlxd%d: consistency check started
+.It mlx%d: consistency check completed
+.Pp
+A user-initiated consistency check has started/completed.
+.It mlx%d: drive rebuild started for %d:%d
+.It mlx%d: drive rebuild completed
+.Pp
+A user-initiated physical drive rebuild has started/completed.
+.It mlx%d: background check/rebuild operation started
+.It mlx%d: background check/rebuild operation completed
+.Pp
+An automatic system drive consistency check
+or physical drive rebuild has started/completed.
+.It mlx%d: channel %d pausing for %d seconds
+.It mlx%d: channel %d resuming
+.It mlx%d: pause command failed - %s
+.It mlx%d: pause failed for channel %d
+.It mlx%d: resume command failed - %s
+.It mlx%d: resume failed for channel %d
+.Pp
+Controller/channel pause operation notification.
+(Channel pause is not currently supported on any controller.)
+.It mlx%d: controller wedged (not taking commands)
+.Pp
+The controller is not responding to attempts to submit new commands.
+.It mlx%d: duplicate done event for slot %d
+.It mlx%d: done event for nonbusy slot %d
+.Pp
+Corruption has occurred in either the controller's onboard list of commands
+or in the driver.
+.El
+.Sh SEE ALSO
+.Xr mlxcontrol 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Michael Smith Aq Mt msmith@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Jeroen Ruigrok van der Werven Aq Mt asmodai@FreeBSD.org
+and
+.An Michael Smith Aq Mt msmith@FreeBSD.org .
+.Sh BUGS
+The DEC KZPSC has insufficient flash ROM to hold any reasonably recent firmware.
+This has caused problems for this driver.
+.Pp
+The driver does not yet support the version 6.x firmware as found in the
+AcceleRAID 352 and eXtremeRAID 2000 and 3000 products.

@@ -1,0 +1,261 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)pathconf.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd July 7, 2009
+.Dt PATHCONF 2
+.Os
+.Sh NAME
+.Nm pathconf ,
+.Nm lpathconf ,
+.Nm fpathconf
+.Nd get configurable pathname variables
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft long
+.Fn pathconf "const char *path" "int name"
+.Ft long
+.Fn lpathconf "const char *path" "int name"
+.Ft long
+.Fn fpathconf "int fd" "int name"
+.Sh DESCRIPTION
+The
+.Fn pathconf ,
+.Fn lpathconf
+and
+.Fn fpathconf
+system calls provide a method for applications to determine the current
+value of a configurable system limit or option variable associated
+with a pathname or file descriptor.
+.Pp
+For
+.Fn pathconf
+and
+.Fn lpathconf ,
+the
+.Fa path
+argument is the name of a file or directory.
+For
+.Fn fpathconf ,
+the
+.Fa fd
+argument is an open file descriptor.
+The
+.Fa name
+argument specifies the system variable to be queried.
+Symbolic constants for each name value are found in the include file
+.Li <unistd.h> .
+.Pp
+The
+.Fn lpathconf
+system call is like
+.Fn pathconf
+except in the case where the named file is a symbolic link,
+in which case
+.Fn lpathconf
+returns information about the link,
+while
+.Fn pathconf
+returns information about the file the link references.
+.Pp
+The available values are as follows:
+.Bl -tag -width 6n
+.It Li _PC_LINK_MAX
+The maximum file link count.
+.It Li _PC_MAX_CANON
+The maximum number of bytes in terminal canonical input line.
+.It Li _PC_MAX_INPUT
+The minimum maximum number of bytes for which space is available in
+a terminal input queue.
+.It Li _PC_NAME_MAX
+The maximum number of bytes in a file name.
+.It Li _PC_PATH_MAX
+The maximum number of bytes in a pathname.
+.It Li _PC_PIPE_BUF
+The maximum number of bytes which will be written atomically to a pipe.
+.It Li _PC_CHOWN_RESTRICTED
+Return 1 if appropriate privilege is required for the
+.Xr chown 2
+system call, otherwise 0.
+.St -p1003.1-2001
+requires appropriate privilege in all cases, but this behavior was optional
+in prior editions of the standard.
+.It Li _PC_NO_TRUNC
+Return greater than zero if attempts to use pathname components longer than
+.Brq Dv NAME_MAX
+will result in an
+.Bq Er ENAMETOOLONG
+error; otherwise, such components will be truncated to
+.Brq Dv NAME_MAX .
+.St -p1003.1-2001
+requires the error in all cases, but this behavior was optional in prior
+editions of the standard, and some
+.No non- Ns Tn POSIX Ns -compliant
+file systems do not support this behavior.
+.It Li _PC_VDISABLE
+Returns the terminal character disabling value.
+.It Li _PC_ASYNC_IO
+Return 1 if asynchronous I/O is supported, otherwise 0.
+.It Li _PC_PRIO_IO
+Returns 1 if prioritised I/O is supported for this file,
+otherwise 0.
+.It Li _PC_SYNC_IO
+Returns 1 if synchronised I/O is supported for this file, otherwise 0.
+.It Li _PC_ALLOC_SIZE_MIN
+Minimum number of bytes of storage allocated for any portion of a file.
+.It Li _PC_FILESIZEBITS
+Number of bits needed to represent the maximum file size.
+.It Li _PC_REC_INCR_XFER_SIZE
+Recommended increment for file transfer sizes between
+.Dv _PC_REC_MIN_XFER_SIZE
+and
+.Dv _PC_REC_MAX_XFER_SIZE .
+.It Li _PC_REC_MAX_XFER_SIZE
+Maximum recommended file transfer size.
+.It Li _PC_REC_MIN_XFER_SIZE
+Minimum recommended file transfer size.
+.It Li _PC_REC_XFER_ALIGN
+Recommended file transfer buffer alignment.
+.It Li _PC_SYMLINK_MAX
+Maximum number of bytes in a symbolic link.
+.It Li _PC_ACL_EXTENDED
+Returns 1 if an Access Control List (ACL) can be set on the specified
+file, otherwise 0.
+.It Li _PC_ACL_NFS4
+Returns 1 if an NFSv4 ACLs can be set on the specified
+file, otherwise 0.
+.It Li _PC_ACL_PATH_MAX
+Maximum number of ACL entries per file.
+.It Li _PC_CAP_PRESENT
+Returns 1 if a capability state can be set on the specified file,
+otherwise 0.
+.It Li _PC_INF_PRESENT
+Returns 1 if an information label can be set on the specified file,
+otherwise 0.
+.It Li _PC_MAC_PRESENT
+Returns 1 if a Mandatory Access Control (MAC) label can be set on the
+specified file, otherwise 0.
+.It Li _PC_MIN_HOLE_SIZE
+If a file system supports the reporting of holes (see
+.Xr lseek 2 ) ,
+.Fn pathconf
+and
+.Fn fpathconf
+return a positive number that represents the minimum hole size returned in
+bytes.
+The offsets of holes returned will be aligned to this same value.
+A special value of 1 is returned if the file system does not specify the minimum
+hole size but still reports holes.
+.El
+.Sh RETURN VALUES
+If the call to
+.Fn pathconf
+or
+.Fn fpathconf
+is not successful, \-1 is returned and
+.Va errno
+is set appropriately.
+Otherwise, if the variable is associated with functionality that does
+not have a limit in the system, \-1 is returned and
+.Va errno
+is not modified.
+Otherwise, the current variable value is returned.
+.Sh ERRORS
+If any of the following conditions occur, the
+.Fn pathconf
+and
+.Fn fpathconf
+system calls shall return -1 and set
+.Va errno
+to the corresponding value.
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value of the
+.Fa name
+argument is invalid.
+.It Bq Er EINVAL
+The implementation does not support an association of the variable
+name with the associated file.
+.El
+.Pp
+The
+.Fn pathconf
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded
+.Brq Dv NAME_MAX
+characters (but see
+.Dv _PC_NO_TRUNC
+above),
+or an entire path name exceeded
+.Brq Dv PATH_MAX
+characters.
+.It Bq Er ENOENT
+The named file does not exist.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to the file system.
+.El
+.Pp
+The
+.Fn fpathconf
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument
+is not a valid open file descriptor.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to the file system.
+.El
+.Sh SEE ALSO
+.Xr lseek 2 ,
+.Xr sysctl 3
+.Sh HISTORY
+The
+.Fn pathconf
+and
+.Fn fpathconf
+system calls first appeared in
+.Bx 4.4 .
+The
+.Fn lpathconf
+system call first appeared in
+.Fx 8.0 .

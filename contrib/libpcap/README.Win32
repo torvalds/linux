@@ -1,0 +1,46 @@
+Under Win32, libpcap is integrated in the WinPcap packet capture system.
+WinPcap provides a framework that allows libpcap to capture the packets
+under Windows 95, Windows 98, Windows ME, Windows NT 4, Windows 2000
+and Windows XP.
+WinPcap binaries and source code can be found at http://winpcap.polito.it:
+they include also a developer's pack with all the necessary to compile
+libpcap-based applications under Windows.
+
+How to compile libpcap with Visual Studio
+-----------------------------------------
+
+In order to compile libpcap you will need:
+
+- version 6 (or higher) of Microsoft Visual Studio
+- The November 2001 (or later) edition of Microsoft Platform
+Software Development Kit (SDK), that contains some necessary includes
+for IPv6 support. You can download it from http://www.microsoft.com/sdk
+- the latest WinPcap sources from http://winpcap.polito.it/install
+
+The WinPcap source code already contains a recent (usually the latest
+stable) version of libpcap. If you need to compile a different one,
+simply download it from www.tcpdump.org and copy the sources in the
+winpcap\wpcap\libpcap folder of the WinPcap distribution. If you want to
+compile a libpcap source retrieved from the tcpdump.org Git, you will
+have to create the scanner and the grammar by hand (with lex and yacc)
+or with the cygnus makefile, since The Visual Studio project is not able
+to build them.
+
+Open the project file winpcap\wpcap\prj\wpcap.dsw with Visual Studio and
+build wpcap.dll. wpcap.lib, the library file to link with the applications,
+will be generated in winpcap\wpcap\lib\. wpcap.dll will be generated in
+winpcap\wpcap\prj\release or winpcap\wpcap\prj\debug depending on the type
+of binary that is being created.
+
+How to compile libpcap with Cygnus
+----------------------------------
+
+To build wpcap.dll, cd to the directory WPCAP/PRJ of the WinPcap source code
+distribution and type "make". libwpcap.a, the library file to link with the
+applications, will be generated in winpcap\wpcap\lib\. wpcap.dll will be
+generated in winpcap\wpcap\prj.
+
+Remember, you CANNOT use the MSVC-generated .lib files with gcc, use
+libwpcap.a instead.
+
+"make install" installs wpcap.dll in the Windows system folder.

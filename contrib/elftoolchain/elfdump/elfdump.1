@@ -1,0 +1,158 @@
+.\" Copyright (c) 2003 David O'Brien
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: src/usr.bin/elfdump/elfdump.1,v 1.6 2005/01/18 13:43:48 ru Exp $
+.\" $Id: elfdump.1 3231 2015-07-30 13:47:56Z emaste $
+.\"
+.Dd August 25, 2011
+.Dt ELFDUMP 1
+.Os
+.Sh NAME
+.Nm elfdump
+.Nd "display information about"
+.Tn ELF
+files
+.Sh SYNOPSIS
+.Nm
+.Fl a | cdeGhiknprsv
+.Op Fl S
+.Op Fl V
+.Op Fl N Ar name
+.Op Fl w Ar file
+.Ar file ...
+.Sh DESCRIPTION
+The
+.Nm
+utility
+dumps various information about the specified
+.Tn ELF
+.Ar file .
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl w Ar file"
+.It Fl a
+Dump all information.
+.It Fl c
+Dump section headers.
+.It Fl d
+Dump dynamic symbols.
+.It Fl e
+Dump ELF header.
+.It Fl G
+Dump the GOT.
+.It Fl h
+Dump the hash values.
+.It Fl i
+Dump the dynamic interpreter.
+.It Fl k
+Dump the ELF checksum.
+.It Fl n
+Dump note sections.
+.It Fl N Ar name
+Only dump the section with the specific
+.Ar name .
+Archive symbol table can be specified with
+the special section name ARSYM.
+More than one
+.Fl N
+option may appear.
+.It Fl p
+Dump the program header.
+.It Fl r
+Dump relocations.
+.It Fl s
+Dump the symbol table.
+.It Fl S
+Output in the Solaris
+.Nm
+format.
+.It Fl v
+Dump the symbol-versioning sections.
+.It Fl V
+Print a version identifier and exit.
+.It Fl w Ar file
+Write output to a
+.Ar file
+instead of the standard output.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+The following is an example of a typical usage
+of the
+.Nm
+command:
+.Pp
+.Dl "elfdump -a -w output /bin/ls"
+.Pp
+To dump the content of '.dynsym' symbol table:
+.Pp
+.Dl "elfdump -s -N .dynsym /bin/ls"
+.Pp
+To dump the archive symbol table,
+but not the symbol tables of archive members:
+.Pp
+.Dl "elfdump -s -N ARSYM /usr/lib/libelf.a"
+.Pp
+To dump the content of .got section and
+the symbol-versioning sections in Solaris
+.Nm
+format:
+.Pp
+.Dl "elfdump -S -Gv /bin/ls"
+.Sh SEE ALSO
+.Xr objdump 1 ,
+.Xr readelf 1 ,
+.Xr elf 3
+.Rs
+.%A "AT&T Unix Systems Labs"
+.%T "System V Application Binary Interface"
+.%O http://www.sco.com/developers/gabi/
+.Re
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility
+was written by
+.An Jake Burkholder Aq Mt jake@FreeBSD.org .
+Later it was rewritten based on the
+libelf library.
+This
+manual page was written by
+.An David O'Brien Aq Mt obrien@FreeBSD.org .
+.Pp
+.An Kai Wang Aq Mt kaiw@FreeBSD.org
+rewrote it using the
+.Lb libelf
+and implemented additional functionality.
+.Sh BUGS
+Does not fully implement the
+.Tn ELF
+gABI.

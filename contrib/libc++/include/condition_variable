@@ -1,0 +1,269 @@
+// -*- C++ -*-
+//===---------------------- condition_variable ----------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CONDITION_VARIABLE
+#define _LIBCPP_CONDITION_VARIABLE
+
+/*
+    condition_variable synopsis
+
+namespace std
+{
+
+enum class cv_status { no_timeout, timeout };
+
+class condition_variable
+{
+public:
+    condition_variable();
+    ~condition_variable();
+
+    condition_variable(const condition_variable&) = delete;
+    condition_variable& operator=(const condition_variable&) = delete;
+
+    void notify_one() noexcept;
+    void notify_all() noexcept;
+
+    void wait(unique_lock<mutex>& lock);
+    template <class Predicate>
+        void wait(unique_lock<mutex>& lock, Predicate pred);
+
+    template <class Clock, class Duration>
+        cv_status
+        wait_until(unique_lock<mutex>& lock,
+                   const chrono::time_point<Clock, Duration>& abs_time);
+
+    template <class Clock, class Duration, class Predicate>
+        bool
+        wait_until(unique_lock<mutex>& lock,
+                   const chrono::time_point<Clock, Duration>& abs_time,
+                   Predicate pred);
+
+    template <class Rep, class Period>
+        cv_status
+        wait_for(unique_lock<mutex>& lock,
+                 const chrono::duration<Rep, Period>& rel_time);
+
+    template <class Rep, class Period, class Predicate>
+        bool
+        wait_for(unique_lock<mutex>& lock,
+                 const chrono::duration<Rep, Period>& rel_time,
+                 Predicate pred);
+
+    typedef pthread_cond_t* native_handle_type;
+    native_handle_type native_handle();
+};
+
+void notify_all_at_thread_exit(condition_variable& cond, unique_lock<mutex> lk);
+
+class condition_variable_any
+{
+public:
+    condition_variable_any();
+    ~condition_variable_any();
+
+    condition_variable_any(const condition_variable_any&) = delete;
+    condition_variable_any& operator=(const condition_variable_any&) = delete;
+
+    void notify_one() noexcept;
+    void notify_all() noexcept;
+
+    template <class Lock>
+        void wait(Lock& lock);
+    template <class Lock, class Predicate>
+        void wait(Lock& lock, Predicate pred);
+
+    template <class Lock, class Clock, class Duration>
+        cv_status
+        wait_until(Lock& lock,
+                   const chrono::time_point<Clock, Duration>& abs_time);
+
+    template <class Lock, class Clock, class Duration, class Predicate>
+        bool
+        wait_until(Lock& lock,
+                   const chrono::time_point<Clock, Duration>& abs_time,
+                   Predicate pred);
+
+    template <class Lock, class Rep, class Period>
+        cv_status
+        wait_for(Lock& lock,
+                 const chrono::duration<Rep, Period>& rel_time);
+
+    template <class Lock, class Rep, class Period, class Predicate>
+        bool
+        wait_for(Lock& lock,
+                 const chrono::duration<Rep, Period>& rel_time,
+                 Predicate pred);
+};
+
+}  // std
+
+*/
+
+#include <__config>
+#include <__mutex_base>
+#include <memory>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+#ifndef _LIBCPP_HAS_NO_THREADS
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+class _LIBCPP_TYPE_VIS condition_variable_any
+{
+    condition_variable __cv_;
+    shared_ptr<mutex>  __mut_;
+public:
+    _LIBCPP_INLINE_VISIBILITY
+    condition_variable_any();
+
+    _LIBCPP_INLINE_VISIBILITY
+    void notify_one() _NOEXCEPT;
+    _LIBCPP_INLINE_VISIBILITY
+    void notify_all() _NOEXCEPT;
+
+    template <class _Lock>
+        _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
+        void wait(_Lock& __lock);
+    template <class _Lock, class _Predicate>
+        _LIBCPP_INLINE_VISIBILITY
+        void wait(_Lock& __lock, _Predicate __pred);
+
+    template <class _Lock, class _Clock, class _Duration>
+        _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
+        cv_status
+        wait_until(_Lock& __lock,
+                   const chrono::time_point<_Clock, _Duration>& __t);
+
+    template <class _Lock, class _Clock, class _Duration, class _Predicate>
+        bool
+        _LIBCPP_INLINE_VISIBILITY
+        wait_until(_Lock& __lock,
+                   const chrono::time_point<_Clock, _Duration>& __t,
+                   _Predicate __pred);
+
+    template <class _Lock, class _Rep, class _Period>
+        cv_status
+        _LIBCPP_INLINE_VISIBILITY
+        wait_for(_Lock& __lock,
+                 const chrono::duration<_Rep, _Period>& __d);
+
+    template <class _Lock, class _Rep, class _Period, class _Predicate>
+        bool
+        _LIBCPP_INLINE_VISIBILITY
+        wait_for(_Lock& __lock,
+                 const chrono::duration<_Rep, _Period>& __d,
+                 _Predicate __pred);
+};
+
+inline
+condition_variable_any::condition_variable_any()
+    : __mut_(make_shared<mutex>()) {}
+
+inline
+void
+condition_variable_any::notify_one() _NOEXCEPT
+{
+    {lock_guard<mutex> __lx(*__mut_);}
+    __cv_.notify_one();
+}
+
+inline
+void
+condition_variable_any::notify_all() _NOEXCEPT
+{
+    {lock_guard<mutex> __lx(*__mut_);}
+    __cv_.notify_all();
+}
+
+struct __lock_external
+{
+    template <class _Lock>
+    void operator()(_Lock* __m) {__m->lock();}
+};
+
+template <class _Lock>
+void
+condition_variable_any::wait(_Lock& __lock)
+{
+    shared_ptr<mutex> __mut = __mut_;
+    unique_lock<mutex> __lk(*__mut);
+    __lock.unlock();
+    unique_ptr<_Lock, __lock_external> __lxx(&__lock);
+    lock_guard<unique_lock<mutex> > __lx(__lk, adopt_lock);
+    __cv_.wait(__lk);
+}  // __mut_.unlock(), __lock.lock()
+
+template <class _Lock, class _Predicate>
+inline
+void
+condition_variable_any::wait(_Lock& __lock, _Predicate __pred)
+{
+    while (!__pred())
+        wait(__lock);
+}
+
+template <class _Lock, class _Clock, class _Duration>
+cv_status
+condition_variable_any::wait_until(_Lock& __lock,
+                                   const chrono::time_point<_Clock, _Duration>& __t)
+{
+    shared_ptr<mutex> __mut = __mut_;
+    unique_lock<mutex> __lk(*__mut);
+    __lock.unlock();
+    unique_ptr<_Lock, __lock_external> __lxx(&__lock);
+    lock_guard<unique_lock<mutex> > __lx(__lk, adopt_lock);
+    return __cv_.wait_until(__lk, __t);
+}  // __mut_.unlock(), __lock.lock()
+
+template <class _Lock, class _Clock, class _Duration, class _Predicate>
+inline
+bool
+condition_variable_any::wait_until(_Lock& __lock,
+                                   const chrono::time_point<_Clock, _Duration>& __t,
+                                   _Predicate __pred)
+{
+    while (!__pred())
+        if (wait_until(__lock, __t) == cv_status::timeout)
+            return __pred();
+    return true;
+}
+
+template <class _Lock, class _Rep, class _Period>
+inline
+cv_status
+condition_variable_any::wait_for(_Lock& __lock,
+                                 const chrono::duration<_Rep, _Period>& __d)
+{
+    return wait_until(__lock, chrono::steady_clock::now() + __d);
+}
+
+template <class _Lock, class _Rep, class _Period, class _Predicate>
+inline
+bool
+condition_variable_any::wait_for(_Lock& __lock,
+                                 const chrono::duration<_Rep, _Period>& __d,
+                                 _Predicate __pred)
+{
+    return wait_until(__lock, chrono::steady_clock::now() + __d,
+                      _VSTD::move(__pred));
+}
+
+_LIBCPP_FUNC_VIS
+void notify_all_at_thread_exit(condition_variable& cond, unique_lock<mutex> lk);
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // !_LIBCPP_HAS_NO_THREADS
+
+#endif  // _LIBCPP_CONDITION_VARIABLE

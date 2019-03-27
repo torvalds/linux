@@ -1,0 +1,4 @@
+rdr le0 0/0 port 80 -> 10.1.1.252 port 3128 tcp round-robin
+rdr le0 0/0 port 80 -> 10.1.2.252 port 3128 tcp round-robin
+rdr le0 0/0 port 80 -> 10.1.3.252 port 3128 tcp round-robin sticky
+rdr le0 0/0 port 80 -> 10.1.1.253,10.1.2.253 port 3128 tcp round-robin sticky

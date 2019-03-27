@@ -1,0 +1,54 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for nanosleep(2) [or similar] entry $
+# $Copyright: 2014-2018 Devin Teske. All rights reserved. $
+# $FreeBSD$
+#
+############################################################ DESCRIPTION
+#
+# Print arguments being passed to nanosleep(2) [or similar]
+#
+############################################################ PROBE
+
+: ${PROBE:=syscall::$PROFILE:entry}
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+this struct timespec *	rqtp;
+this time_t		requested_sec;
+this long		requested_nsec;
+
+$PROBE /* probe ID $ID */
+{${TRACE:+
+	print("<$ID>");
+}
+	/*
+	 * const struct timespec *
+	 */
+	this->rqtp = (struct timespec *)copyin(arg0, sizeof(struct timespec));
+	this->requested_sec  = (time_t)this->rqtp->tv_sec;
+	this->requested_nsec = (long)this->rqtp->tv_nsec;
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 1 ))
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Dump nanosleep(2) arguments
+	 */
+	printf("%d.%d seconds",
+		this->requested_sec, this->requested_nsec / 100000);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

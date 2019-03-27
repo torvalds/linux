@@ -1,0 +1,143 @@
+pam_passwdqc is a simple password strength checking module for
+PAM-aware password changing programs, such as passwd(1).  In addition
+to checking regular passwords, it offers support for passphrases and
+can provide randomly generated passwords.  All features are optional
+and can be (re-)configured without rebuilding.
+
+This module should be stacked before your usual password changing
+module (such as pam_unix or pam_pwdb) in the password management group
+(the "password" lines in /etc/pam.d/passwd or /etc/pam.conf).  The
+password changing module should then be told to use the provided new
+authentication token (new password) rather than request it from the
+user.  There's usually the "use_authtok" option to do that.  If your
+password changing module lacks the "use_authtok" option or its prompts
+are inconsistent with pam_passwdqc's, you may tell pam_passwdqc to ask
+for the old password as well, with "ask_oldauthtok".  In that case the
+option to use with the password changing module is "use_first_pass".
+
+There's a number of supported options which can be used to modify the
+behavior of pam_passwdqc (defaults are given in square brackets):
+
+	min=N0,N1,N2,N3,N4		[min=disabled,24,12,8,7]
+
+The minimum allowed password lengths, separately for different kinds
+of passwords/passphrases.  The special word "disabled" can be used to
+disallow passwords of a given kind regardless of their length.  Each
+subsequent number is required to be no larger than the preceding one.
+
+N0 is used for passwords consisting of characters from one character
+class only.  (The character classes are: digits, lower-case letters,
+upper-case letters, and other characters.  There's also the special
+class for non-ASCII characters which couldn't be classified, but are
+assumed to be non-digits.)
+
+N1 is used for passwords consisting of characters from two character
+classes, which don't meet the requirements for a passphrase.
+
+N2 is used for passphrases.  A passphrase must consist of sufficient
+words (see the "passphrase" option, below).
+
+N3 and N4 are used for passwords consisting of characters from three
+and four character classes, respectively.
+
+When calculating the number of character classes, upper-case letters
+used as the first character and digits used as the last character of a
+password are not counted.
+
+In addition to being sufficiently long, passwords are required to
+contain enough different characters for the character classes and
+the minimum length they've been checked against.
+
+	max=N				[max=40]
+
+The maximum allowed password length.  This can be used to prevent
+users from setting passwords which may be too long for some system
+services.
+
+The value 8 is treated specially.  Passwords longer than 8 characters
+will not be rejected, but will be truncated to 8 characters for the
+strength checks and the user will be warned.  This is to be used with
+the traditional crypt(3) password hashes.
+
+It is important that you do set max=8 if you're using the traditional
+hashes, or some weak passwords will pass the checks.
+
+	passphrase=N			[passphrase=3]
+
+The number of words required for a passphrase, or 0 to disable the
+support for passphrases.
+
+	match=N				[match=4]
+
+The length of common substring required to conclude that a password is
+at least partially based on information found in a character string,
+or 0 to disable the substring search.  Note that the password will not
+be rejected once a weak substring is found.  Instead, the password
+will be subjected to the usual strength requirements with the weak
+substring removed.
+
+The substring search is case-insensitive and is able to detect and
+remove a common substring spelled backwards.
+
+	similar=permit|deny		[similar=deny]
+
+Whether a new password is allowed to be similar to the old one.  The
+passwords are considered to be similar when there's a sufficiently
+long common substring and the new password with the substring removed
+would be weak.
+
+	random=N[,only]			[random=42]
+
+The size of randomly-generated passwords in bits, or 0 to disable this
+feature.  Passwords that contain the offered randomly-generated string
+will be allowed regardless of other possible restrictions.
+
+The "only" modifier can be used to disallow user-chosen passwords.
+
+	enforce=none|users|everyone	[enforce=everyone]
+
+The module can be configured to warn of weak passwords only, but not
+actually enforce strong passwords.  The "users" setting will enforce
+strong passwords for non-root users only.
+
+	non-unix			[]
+
+By default, the module uses getpwnam(3) to obtain the user's personal
+login information and use that during the password strength checks.
+This behavior can be disabled with "non-unix".
+
+	retry=N				[retry=3]
+
+The number of times the module will ask for a new password if the user
+fails to provide a sufficiently strong password and enter it twice the
+first time.
+
+	ask_oldauthtok[=update]		[]
+
+Ask for the old password as well.  Normally, pam_passwdqc leaves this
+task for the password changing module.  A simple "ask_oldauthtok" will
+cause pam_passwdqc to ask for the old password during the preliminary
+check phase.  With "ask_oldauthtok=update", pam_passwdqc will do that
+during the update phase.
+
+	check_oldauthtok		[]
+
+This tells pam_passwdqc to validate the old password before giving a
+new password prompt.  Normally, this task is left for the password
+changing module.
+
+The primary use for this option is with "ask_oldauthtok=update" in
+which case no other modules have a chance to run and validate the
+password between the prompts.  Of course, this will only work with
+Unix passwords.
+
+	use_first_pass			[]
+	use_authtok			[]
+
+Use the new password obtained by modules stacked before pam_passwdqc.
+This disables user interaction within pam_passwdqc.  With this module,
+the only difference between "use_first_pass" and "use_authtok" is that
+the former is incompatible with "ask_oldauthtok".
+
+-- 
+Solar Designer <solar@openwall.com>

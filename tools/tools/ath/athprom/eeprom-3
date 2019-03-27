@@ -1,0 +1,165 @@
+# $FreeBSD$
+#
+# v3 format EEPROM template
+#
+.ifmode 11a
+ =================Header Information for mode 11a===============
+ |  Major Version           $V_major  |  Minor Version           $V_minor  |
+ |-------------------------------------------------------------|
+ |  A Mode         $Amode  |  B Mode         $Bmode  |  G Mode        $Gmode  |
+ |  RegDomain    $regdomain |  Turbo2 Disable $turbo2Disable  |  Turbo5 Disable $turbo5Disable |
+ |  RF Silent      $rfKill  |  XR5 Disable    $disableXr5  |  XR2 Disable    $disableXr2 |
+ | Turbo 2W Maximum dBm $turbo2WMaxPower5 | cckOfdmDelta(10x) $cckOfdmDelta | GainI $gainI   |
+ |-------------------------------------------------------------|
+ |  device type              $deviceType  |  Switch Settling Time  $switchSettling  |
+ |  ADC Desired size       $adcDesiredSize  |  XLNA Gain             $xlnaGain  |
+ |  tx end to XLNA on     $txEndToXLNAOn  |  Threashold 62         $thresh62  |
+ |  tx end to XPA off     $txEndToXPAOff  |  tx end to XPA on      $txFrameToXPAOn  |
+ |  PGA Desired size       $pgaDesiredSize  |  Noise Threshold        $noiseFloorThresh  |
+ |  XPD Gain              $xgain  |  XPD                      $xpd  |
+ |  txrx Attenuation      $txrxAtten  |  Capabilities        $capField  |
+ |  Antenna control    0  $antennaControl0  |  Antenna control    1  $antennaControl1  |
+ |  Antenna control    2  $antennaControl2  |  Antenna control    3  $antennaControl3  |
+ |  Antenna control    4  $antennaControl4  |  Antenna control    5  $antennaControl5  |
+ |  Antenna control    6  $antennaControl6  |  Antenna control    7  $antennaControl7  |
+ |  Antenna control    8  $antennaControl8  |  Antenna control    9  $antennaControl9  |
+ |  Antenna control   10  $antennaControl10  |                              |
+ |-------------------------------------------------------------|
+ |   OB_1   $ob1   |   OB_2    $ob2   |   OB_3   $ob3  |   OB_4     $ob4   |
+ |   DB_1   $db1   |   DB_2    $db2   |   DB_3   $db3  |   DB_4     $db4   |
+ ===============================================================
+
+ =========================Calibration Information============================
+ |     $channelValue0     |     $channelValue1     |     $channelValue2     |     $channelValue3     |     $channelValue4     |
+ |==============|==============|==============|==============|==============|
+ |pcdac pwr(dBm)|pcdac pwr(dBm)|pcdac pwr(dBm)|pcdac pwr(dBm)|pcdac pwr(dBm)|
+.forpcdac
+ |  $pcdac0    $pwrValue0 |  $pcdac1    $pwrValue1 |  $pcdac2    $pwrValue2 |  $pcdac3    $pwrValue3 |  $pcdac4    $pwrValue4 |
+.endforpcdac
+ |              |              |              |              |              |
+ | pcdac min $pcdacMin0 | pcdac min $pcdacMin1 | pcdac min $pcdacMin2 | pcdac min $pcdacMin3 | pcdac min $pcdacMin4 |
+ | pcdac max $pcdacMax0 | pcdac max $pcdacMax1 | pcdac max $pcdacMax2 | pcdac max $pcdacMax3 | pcdac max $pcdacMax4 |
+ |==============|==============|==============|==============|==============|
+ |     $channelValue5     |     $channelValue6     |     $channelValue7     |     $channelValue8     |     $channelValue9     |
+ |==============|==============|==============|==============|==============|
+ |pcdac pwr(dBm)|pcdac pwr(dBm)|pcdac pwr(dBm)|pcdac pwr(dBm)|pcdac pwr(dBm)|
+.forpcdac
+ |  $pcdac5    $pwrValue5 |  $pcdac6    $pwrValue6 |  $pcdac7    $pwrValue7 |  $pcdac8    $pwrValue8 |  $pcdac9    $pwrValue9 |
+.endforpcdac
+ |              |              |              |              |              |
+ | pcdac min $pcdacMin5 | pcdac min $pcdacMin6 | pcdac min $pcdacMin7 | pcdac min $pcdacMin8 | pcdac min $pcdacMin9 |
+ | pcdac max $pcdacMax5 | pcdac max $pcdacMax6 | pcdac max $pcdacMax7 | pcdac max $pcdacMax8 | pcdac max $pcdacMax9 |
+ |==============|==============|==============|==============|==============|
+
+ ============================Target Power Info===============================
+ |     rate     |     $testChannel0     |     $testChannel1     |     $testChannel2     |     $testChannel3     |
+ |==============|==============|==============|==============|==============|
+ |     6-24     |     $pwr6_24_0     |     $pwr6_24_1     |     $pwr6_24_2     |     $pwr6_24_3     |
+ |      36      |     $pwr36_0     |     $pwr36_1     |     $pwr36_2     |     $pwr36_3     |
+ |      48      |     $pwr48_0     |     $pwr48_1     |     $pwr48_2     |     $pwr48_3     |
+ |      54      |     $pwr54_0     |     $pwr54_1     |     $pwr54_2     |     $pwr54_3     |
+ |==============|==============|==============|==============|==============|
+ |     rate     |     $testChannel4     |     $testChannel5     |     $testChannel6     |     $testChannel7     |
+ |==============|==============|==============|==============|==============|
+ |     6-24     |     $pwr6_24_4     |     $pwr6_24_5     |     $pwr6_24_6     |     $pwr6_24_7     |
+ |      36      |     $pwr36_4     |     $pwr36_5     |     $pwr36_6     |     $pwr36_7     |
+ |      48      |     $pwr48_4     |     $pwr48_5     |     $pwr48_6     |     $pwr48_7     |
+ |      54      |     $pwr54_4     |     $pwr54_5     |     $pwr54_6     |     $pwr54_7     |
+ |==============|==============|==============|==============|==============|
+.endmode
+
+.ifmode 11b
+ =================Header Information for mode 11b===============
+ |  Major Version           $V_major  |  Minor Version           $V_minor  |
+ |-------------------------------------------------------------|
+ |  A Mode         $Amode  |  B Mode         $Bmode  |  G Mode        $Gmode  |
+ |  RegDomain    $regdomain |  Turbo2 Disable $turbo2Disable  |  Turbo5 Disable $turbo5Disable |
+ |  RF Silent      $rfKill  |  XR5 Disable    $disableXr5  |  XR2 Disable    $disableXr2 |
+ | Turbo 2W Maximum dBm $turbo2WMaxPower5 | cckOfdmDelta(10x) $cckOfdmDelta | GainI $gainI   |
+ |-------------------------------------------------------------|
+ |  device type              $deviceType  |  Switch Settling Time  $switchSettling  |
+ |  ADC Desired size       $adcDesiredSize  |  XLNA Gain             $xlnaGain  |
+ |  tx end to XLNA on     $txEndToXLNAOn  |  Threashold 62         $thresh62  |
+ |  tx end to XPA off     $txEndToXPAOff  |  tx end to XPA on      $txFrameToXPAOn  |
+ |  PGA Desired size       $pgaDesiredSize  |  Noise Threshold        $noiseFloorThresh  |
+ |  XPD Gain              $xgain  |  XPD                      $xpd  |
+ |  txrx Attenuation      $txrxAtten  |  Capabilities        $capField  |
+ |  Antenna control    0  $antennaControl0  |  Antenna control    1  $antennaControl1  |
+ |  Antenna control    2  $antennaControl2  |  Antenna control    3  $antennaControl3  |
+ |  Antenna control    4  $antennaControl4  |  Antenna control    5  $antennaControl5  |
+ |  Antenna control    6  $antennaControl6  |  Antenna control    7  $antennaControl7  |
+ |  Antenna control    8  $antennaControl8  |  Antenna control    9  $antennaControl9  |
+ |  Antenna control   10  $antennaControl10  |                              |
+ |-------------------------------------------------------------|
+ |   OB_1   $obFor24   |   B_OB    $ob2GHz0   |   DB_1   $dbFor24  |   B_DB     $db2GHz0   |
+ ===============================================================
+
+ ==========Calibration Information=============
+ |     $channelValue0     |     $channelValue1     |     $channelValue2     |
+ |==============|==============|==============|
+ |pcdac pwr(dBm)|pcdac pwr(dBm)|pcdac pwr(dBm)|
+.forpcdac
+ |  $pcdac0    $pwrValue0 |  $pcdac1    $pwrValue1 |  $pcdac2    $pwrValue2 |
+.endforpcdac
+ |              |              |              |
+ | pcdac min $pcdacMin0 | pcdac min $pcdacMin1 | pcdac min $pcdacMin2 |
+ | pcdac max $pcdacMax0 | pcdac max $pcdacMax1 | pcdac max $pcdacMax2 |
+ |==============|==============|==============|
+
+ =============Target Power Info================
+ |     rate     |     $testChannel0     |     $testChannel1     |
+ |==============|==============|==============|
+ |      1       |     $pwr6_24_0     |     $pwr6_24_1     |
+ |      2       |     $pwr36_0     |     $pwr36_1     |
+ |      5.5     |     $pwr48_0     |     $pwr48_1     |
+ |      11      |     $pwr54_0     |     $pwr54_1     |
+ |==============|==============|==============|
+.endmode
+
+.ifmode 11g
+ =================Header Information for mode 11g===============
+ |  Major Version           $V_major  |  Minor Version           $V_minor  |
+ |-------------------------------------------------------------|
+ |  A Mode         $Amode  |  B Mode         $Bmode  |  G Mode        $Gmode  |
+ |  RegDomain    $regdomain |  Turbo2 Disable $turbo2Disable  |  Turbo5 Disable $turbo5Disable |
+ |  RF Silent      $rfKill  |  XR5 Disable    $disableXr5  |  XR2 Disable    $disableXr2 |
+ | Turbo 2W Maximum dBm $turbo2WMaxPower5 | cckOfdmDelta(10x) $cckOfdmDelta | GainI $gainI   |
+ |-------------------------------------------------------------|
+ |  device type              $deviceType  |  Switch Settling Time  $switchSettling  |
+ |  ADC Desired size       $adcDesiredSize  |  XLNA Gain             $xlnaGain  |
+ |  tx end to XLNA on     $txEndToXLNAOn  |  Threashold 62         $thresh62  |
+ |  tx end to XPA off     $txEndToXPAOff  |  tx end to XPA on      $txFrameToXPAOn  |
+ |  PGA Desired size       $pgaDesiredSize  |  Noise Threshold        $noiseFloorThresh  |
+ |  XPD Gain              $xgain  |  XPD                      $xpd  |
+ |  txrx Attenuation      $txrxAtten  |  Capabilities        $capField  |
+ |  Antenna control    0  $antennaControl0  |  Antenna control    1  $antennaControl1  |
+ |  Antenna control    2  $antennaControl2  |  Antenna control    3  $antennaControl3  |
+ |  Antenna control    4  $antennaControl4  |  Antenna control    5  $antennaControl5  |
+ |  Antenna control    6  $antennaControl6  |  Antenna control    7  $antennaControl7  |
+ |  Antenna control    8  $antennaControl8  |  Antenna control    9  $antennaControl9  |
+ |  Antenna control   10  $antennaControl10  |                              |
+ |-------------------------------------------------------------|
+ |   OB_1   $obFor24g   |   B_OB    $ob2GHz1   |   DB_1   $dbFor24g  |   B_DB     $db2GHz1   |
+ ===============================================================
+
+ ==========Calibration Information=============
+ |     $channelValue0     |     $channelValue1     |     $channelValue2     |
+ |==============|==============|==============|
+ |pcdac pwr(dBm)|pcdac pwr(dBm)|pcdac pwr(dBm)|
+.forpcdac
+ |  $pcdac0    $pwrValue0 |  $pcdac1    $pwrValue1 |  $pcdac2    $pwrValue2 |
+.endforpcdac
+ |              |              |              |
+ | pcdac min $pcdacMin0 | pcdac min $pcdacMin1 | pcdac min $pcdacMin2 |
+ | pcdac max $pcdacMax0 | pcdac max $pcdacMax1 | pcdac max $pcdacMax2 |
+ |==============|==============|==============|
+
+ =============Target Power Info================
+ |     rate     |     $testChannel0     |     $testChannel1     |
+ |==============|==============|==============|
+ |      1       |     $pwr6_24_0     |     $pwr6_24_1     |
+ |      2       |     $pwr36_0     |     $pwr36_1     |
+ |      5.5     |     $pwr48_0     |     $pwr48_1     |
+ |      11      |     $pwr54_0     |     $pwr54_1     |
+ |==============|==============|==============|
+.endmode

@@ -1,0 +1,10 @@
+document.write("<p>Build and Install</p><ul>\
+<li class='inline'><a href='build.html'>Building and Installing the Distribution</a></li>\
+<li class='inline'><a href='config.html'>Build Options</a></li>\
+<li class='inline'><a href='rdebug.html'>Debugging Reference Clock Drivers</a></li>\
+<li class='inline'><a href='quick.html'>Quick Start</a></li>\
+<li class='inline'><a href='release.html'>NTP Version 4 Release Notes</a></li>\
+<li class='inline'><a href='debug.html'>NTP Debugging Techniques</a></li>\
+<li class='inline'><a href='bugs.html'>NTP Bug Reporting Procedures</a></li>\
+<li class='inline'><a href='sitemap.html'>Site Map</a></li>\
+</ul>")

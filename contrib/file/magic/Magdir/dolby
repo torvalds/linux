@@ -1,0 +1,69 @@
+
+#------------------------------------------------------------------------------
+# $File: dolby,v 1.8 2017/03/17 21:35:28 christos Exp $
+# ATSC A/53 aka AC-3 aka Dolby Digital <ashitaka@gmx.at>
+# from http://www.atsc.org/standards/a_52a.pdf
+# corrections, additions, etc. are always welcome!
+#
+# syncword
+0	beshort		0x0b77	ATSC A/52 aka AC-3 aka Dolby Digital stream,
+# Proposed audio/ac3 RFC/4184
+!:mime	audio/vnd.dolby.dd-raw
+# fscod
+>4	byte&0xc0 = 0x00	48 kHz,
+>4	byte&0xc0 = 0x40	44.1 kHz,
+>4	byte&0xc0 = 0x80	32 kHz,
+# is this one used for 96 kHz?
+>4	byte&0xc0 = 0xc0	reserved frequency,
+#
+>5	byte&0x07 = 0x00	\b, complete main (CM)
+>5	byte&0x07 = 0x01	\b, music and effects (ME)
+>5	byte&0x07 = 0x02	\b, visually impaired (VI)
+>5	byte&0x07 = 0x03	\b, hearing impaired (HI)
+>5	byte&0x07 = 0x04	\b, dialogue (D)
+>5	byte&0x07 = 0x05	\b, commentary (C)
+>5	byte&0x07 = 0x06	\b, emergency (E)
+>5	beshort&0x07e0  0x0720	\b, voiceover (VO)
+>5	beshort&0x07e0 >0x0720	\b, karaoke
+# acmod
+>6	byte&0xe0 = 0x00	1+1 front,
+>>6	byte&0x10 = 0x10	LFE on,
+>6	byte&0xe0 = 0x20	1 front/0 rear,
+>>6	byte&0x10 = 0x10	LFE on,
+>6	byte&0xe0 = 0x40	2 front/0 rear,
+# dsurmod (for stereo only)
+>>6	byte&0x18 = 0x00	Dolby Surround not indicated
+>>6	byte&0x18 = 0x08	not Dolby Surround encoded
+>>6	byte&0x18 = 0x10	Dolby Surround encoded
+>>6	byte&0x18 = 0x18	reserved Dolby Surround mode
+>>6	byte&0x04 = 0x04	LFE on,
+>6	byte&0xe0 = 0x60	3 front/0 rear,
+>>6	byte&0x04 = 0x04	LFE on,
+>6	byte&0xe0 = 0x80	2 front/1 rear,
+>>6	byte&0x04 = 0x04	LFE on,
+>6	byte&0xe0 = 0xa0	3 front/1 rear,
+>>6	byte&0x01 = 0x01	LFE on,
+>6	byte&0xe0 = 0xc0	2 front/2 rear,
+>>6	byte&0x04 = 0x04	LFE on,
+>6	byte&0xe0 = 0xe0	3 front/2 rear,
+>>6	byte&0x01 = 0x01	LFE on,
+#
+>4	byte&0x3e = 0x00	\b, 32 kbit/s
+>4	byte&0x3e = 0x02	\b, 40 kbit/s
+>4	byte&0x3e = 0x04	\b, 48 kbit/s
+>4	byte&0x3e = 0x06	\b, 56 kbit/s
+>4	byte&0x3e = 0x08	\b, 64 kbit/s
+>4	byte&0x3e = 0x0a	\b, 80 kbit/s
+>4	byte&0x3e = 0x0c	\b, 96 kbit/s
+>4	byte&0x3e = 0x0e	\b, 112 kbit/s
+>4	byte&0x3e = 0x10	\b, 128 kbit/s
+>4	byte&0x3e = 0x12	\b, 160 kbit/s
+>4	byte&0x3e = 0x14	\b, 192 kbit/s
+>4	byte&0x3e = 0x16	\b, 224 kbit/s
+>4	byte&0x3e = 0x18	\b, 256 kbit/s
+>4	byte&0x3e = 0x1a	\b, 320 kbit/s
+>4	byte&0x3e = 0x1c	\b, 384 kbit/s
+>4	byte&0x3e = 0x1e	\b, 448 kbit/s
+>4	byte&0x3e = 0x20	\b, 512 kbit/s
+>4	byte&0x3e = 0x22	\b, 576 kbit/s
+>4	byte&0x3e = 0x24	\b, 640 kbit/s

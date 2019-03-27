@@ -1,0 +1,19 @@
+#! /bin/sh
+#
+# Setup a TDMA slave and hook it into a bridge.
+#
+# $FreeBSD$
+#
+PATH=.:$PATH
+. config
+
+SSID='freebsd+tdma'
+
+WLAN=`ifconfig wlan create wlanmode tdma wlandev $WIRELESS`
+ifconfig $WLAN ssid "$SSID"
+wlandebug -i $WLAN state+scan+tdma
+
+BRIDGE=`ifconfig bridge create`
+ifconfig $BRIDGE addm $WLAN 192.168.2.2/24
+
+ifconfig $WLAN up

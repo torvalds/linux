@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+[ `echo '/[e]tc'` = /etc ]

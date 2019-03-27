@@ -1,0 +1,831 @@
+2008-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* libtelnet/enc_des.c: Use RAND_bytes() + DES_is_weak_key() to
+	generate random DES key. Introdunce random by feeding the des
+	session key into the random pool when the keys is recived instead
+	of encrypt the random key with the kerberos key.
+	
+	This avoid depenency on DES_new_random_key() that doesn't exists
+	in OpenSSL.
+
+2008-04-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* libtelnet/enc_des.c: No need to call
+	DES_init_random_number_generator, hcrypto is sane now.
+
+	* libtelnet/enc_des.c: Use DES_new_random_key().
+
+2008-04-10  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* telnetd/sys_term.c: Really, mac os uses wtmpx (or asl).
+
+2008-03-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/sys_term.c: Dont need to set this as the controlling PTY
+	on steams sockets, don't abort on failure. From Harald Barth and
+	Ian Delahorne.
+
+2007-12-31  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/sys_term.c: Use strlcpy instead of strncpy, thanks to
+	Antoine Brodin.
+	
+2007-07-31  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/telnetd.c (usage): use exit_code, add --version and
+	--help.
+
+	* telnetd/telnetd.c: Add --help, reported by David Love.
+
+2007-07-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/main.c: Catch --help, reported by David Love.
+	
+2007-07-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/sys_term.c: GLIBC made the choice that ut_tv should be
+	shared between 32 and 64 bit platforms so now we can no longer use
+	struct timeval functions to compare or set/get data that uses
+	pointer (gettimeofday for example) since ut_tv is now not a struct
+	timeval but rather a struct { int32_t tv_sec; int32_t tv_usec; };
+
+2006-10-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/telnet_locl.h: Include roken.h before the local
+	headerfiles.
+
+	* telnetd/telnetd.h: HP/UX defines SE in sys/uio.h, #undef it.
+
+	* telnetd/sys_term.c: Dont't include some streamspty headers here.
+
+	* telnetd/telnetd.c: Dont't include some streamspty headers here.
+
+	* telnetd/telnetd.h: includes some STREAMSPTY header here to avoid
+	ioctl vs socket_wrapper horror.
+	
+2006-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/Makefile.am: more files
+	
+	* telnetd/Makefile.am: more files
+	
+2006-09-19  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* telnetd/telnetd.8: Add documentation for -e, require encryption.
+
+	* telnetd/telnetd.h: Add require_encryption.
+
+	* telnetd/telnetd.c: Allow encryption to be required, wait to the
+	client to turn it on, if failes, refuse the connection.
+
+	* telnetd/state.c: If encryption is required, don't allow it to be
+	turned off.
+	
+2006-09-04  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* libtelnet/kerberos5.c (kerberos5_forward): use KDCOptions2int on
+	flags before passing them to krb5_get_forwarded_creds.
+	
+2006-05-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Rename u_intXX_t to uintXX_t
+
+2006-03-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* libtelnet/encrypt.c: Spelling.
+
+2005-12-01  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* telnetd/telnetd.c: Initialize the slc mapping table before its
+	used.  Based on bug report from Russell Sanford
+	<rrs@clyde.dcccd.edu>
+	
+2005-11-03  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* telnet/telnet.c: Spelling in comments, from Dave Love
+	<fx@gnu.org>
+	
+2005-10-31  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* libtelnet/kerberos5.c (Data): Use right variable. From Tomas
+	Olsson
+	
+2005-10-22  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* telnet/commands.c: Check return value from asprintf instead of
+	string != NULL since it undefined behavior on Linux. From Björn
+	Sandell
+
+	* libtelnet/kerberos5.c: Check return value from asprintf instead
+	of string != NULL since it undefined behavior on Linux. From Björn
+	Sandell
+
+	* libtelnet/kerberos.c: Check return value from asprintf instead
+	of string != NULL since it undefined behavior on Linux. From Björn
+	Sandell
+	
+2005-08-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/telnetd.c: Fix printing of /etc/issue{,.net}.
+	
+	* telnetd/utility.c: make writenet take const void * and size_t,
+	abort if size it too large
+
+	* telnetd/state.c: Fix ansi c warning.
+
+	* telnetd/sys_term.c: no need to typecast argument to writenet
+
+	* telnetd/ext.h: make writenet take const void * and size_t
+
+2005-07-07  Assar Westerlund  <assar@kth.se>
+
+	* libtelnet/kerberos.c: Do not assume that des_key_schedule is an
+	array.
+
+2005-05-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* libtelnet/kerberos5.c: case uid_t to unsigned long in printf
+	format
+
+	* telnetd/sys_term.c (set_termbuf): use {} around if to make else
+	unambiguous
+
+2005-05-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/sys_term.c (start_login): put utmpx code into a new
+	scope to avoid pre c99 problems.
+
+2005-05-19  Dave Love  <fx@gnu.org>
+
+	* telnet/telnet.c,telnet_locl.h: Make solaris find tgetent
+
+2005-05-13  Johan Danielsson  <joda@pdc.kth.se>
+
+	* telnetd/sys_term.c (start_login): set encryption pointers to
+	NULL, so we don't try to do either
+	
+2005-05-11  Dave Love  <fx@gnu.org>
+
+	* telnet/telnet.c: undef ISASCII before we define our own (problem
+	on Irix)
+
+2005-04-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* telnetd/utility.c (putf): %t: the regular and streamspty case
+	are functionally equivalent, so merge them, this also makes it
+	work better on machines that puts their devices in a subdirectory
+	to /dev
+
+2005-04-27  Dave Love  <fx@gnu.org>
+
+	* telnetd/sys_term.c (getpty): Declare p.
+
+2005-04-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/telnetd.c: use strlcpy
+	
+2005-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/global.c, telnetd/state.c, telnetd/telnetd.c,
+	telentd/ext.h: remove another strcpy
+
+2005-04-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/sys_term.c: rewrite getpty to make use openpty when its
+	found, save the slave fd so that cleanopen can use it if its
+	available
+
+2005-04-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/sys_term.c: clean_ttyname might be unused, mark it so
+	with __attribute__
+	
+2005-04-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/sys_term.c: use NULL as last argument to execl, not 0
+
+	* telnet/commands.c: use NULL as last argument to execl, not 0
+	
+2005-03-29  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/telnet.c: From FreeBSD:
+	
+	Correct a pair of buffer overflows in the telnet(1) command:
+	
+	 (CAN-2005-0468) A heap buffer overflow in env_opt_add() and related
+	 functions.
+	
+	 (CAN-2005-0469) A global uninitialized data section buffer overflow in
+	 slc_add_reply() and related functions.
+	
+	As a result of these vulnerabilities, it may be possible for a
+	malicious telnet server or active network attacker to cause
+	telnet(1) to execute arbitrary code with the privileges of the
+	user running it.
+	
+	Security: CAN-2005-0468, CAN-2005-0469 Security:
+	FreeBSD-SA-05:01.telnet Security:
+	http://www.idefense.com/application/poi/display?id=220&type=vulnerabilities
+	Security:
+	http://www.idefense.com/application/poi/display?id=221&type=vulnerabilities
+	
+	These fixes are based in part on patches Submitted by: Solar
+	Designer <solar@openwall.com>
+
+2005-03-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/telnetd.c: remove setting of DES_check_key, all code
+	uses DES_set_key_checked
+
+	* libtelnet/enc_des.c: use DES_set_key_checked
+	
+2005-01-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/telnet.c: cast argument to toupper to unsigned char
+
+	* telnet/commands.c: cast argument to is* to unsigned char
+
+2004-06-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/network.c: make network rings larger From: MAAAAA MOOOR
+	<huaraz@btinternet.com>
+	
+	* telnetd/state.c: make subbuffer larger XXX resize dynamicly
+	From: MAAAAA MOOOR <huaraz@btinternet.com>
+	
+	* libtelnet/kerberos5.c (Data): allocate the data needed to be
+	send From: MAAAAA MOOOR <huaraz@btinternet.com>
+	
+2004-04-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/main.c: make encrypt, forwardable, forward use appdefault
+	(that also searches libdefaults), prompted by Thomas Nystrom
+	<thn@saeab.se>
+	
+2004-03-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/telnetd.c: call setprogname to make libvers happy
+
+	* telnet/main.c: call setprogname to make libvers happy
+
+2003-09-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/externs.h: export Scheduler and scheduler_lockout_tty
+	
+	* telnet/telnet.c (my_telnet): if telnet_spin returns failure,
+	complain that the server disconnected and exit
+	
+	* telnet/authenc.c (telnet_spin): if Scheduler() returns failure
+	(-1) propagate to higher level
+
+2003-09-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/telnetd.c: use new DES_ api
+	
+	* libtelnet/enc_des.c: use new DES_ api
+	
+2003-04-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/telnet.1: replace <,> with \*[Lt],\*[Gt]
+	
+2002-09-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* libtelnet/kerberos5.c: set AP_OPTS_USE_SUBKEY
+
+2002-08-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* telnet/commands.c: remove extra "Toggle"'s
+
+	* telnet/commands.c: IRIX == 4 -> IRIX4
+
+	* telnet/main.c: rename functions to what they're really called
+
+	* telnet/commands.c: kill some might be uninitialized warnings
+
+	* telnet/commands.c: add forward and forwardable toggle options,
+	and call set_forward_options() after parsing .telnetrc
+
+	* telnet/externs.h: proto for set_forward_options
+
+	* telnet/main.c: only register what forwarding options are asked
+	for when parsing command line, we have to set the actual flags
+	later after we have read .telnetrc
+
+	* libtelnet/auth-proto.h: kerberos5_set_forward{,able} protos
+
+	* libtelnet/kerberos5.c: add kerberos5_set_forward{,able}
+	functions suitable for the command parser
+
+2002-08-23  Assar Westerlund  <assar@kth.se>
+
+	* telnetd/telnetd.c: add --version as a special case
+	* telnet/main.c: add --version as a special case
+
+2002-05-03  Johan Danielsson  <joda@pdc.kth.se>
+
+	* telnet/telnet.c: only try to negotiate encryption if we're
+	talking to a real telnet
+
+2002-03-31  Johan Danielsson  <joda@pdc.kth.se>
+
+	* telnet/commands.c: fix an old cut-n-paste typo (via debian)
+
+2002-02-07  Johan Danielsson  <joda@pdc.kth.se>
+
+	* telnet/telnet.c: print a more informative message than "done"
+	after negotiating encryption
+
+2001-09-17  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/telnetd.c: add a kludge to make it build on aix (that
+	defines NOERROR in both sys/stream.h and arpa/nameser.h and
+	considers that a fatal error)
+
+	* telnet/telnet.c: undef PUTSHORT to avoid conflict
+
+2001-08-26  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/Makefile.am: also link with the library for logout
+
+2001-08-22  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c: include libutil.h if it exists
+
+2001-08-10  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (getpty): call openpty if it exists
+
+2001-07-19  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/global.c (output_data): make sure of not forwarding
+	`nfrontp' too far, thereby allowing writes after the end of
+	`netobuf'
+
+2001-06-18  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/kerberos5.c: update to new krb5_auth_con* names
+
+2001-04-25  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (start_login): give the correct error if exec
+	fails
+	* telnetd/utility.c (fatalperror_errno): add a new function with
+	explicit errno parameter
+
+2001-03-07  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c: some minimal more amount of
+ 	const-correctness
+
+2001-02-24  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/enc_des.c: learn to live with libcrypto (from openssl)
+
+2001-02-20  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (tn): copy the hostname so it doesn't get
+	overwritten while reading ~/.telnetrc
+	(*): removed some unneeded externs
+
+2001-02-08  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (startslave, start_login): re-write code to
+	keep track both of remote hostname and utmp string to be used
+	* telnetd/telnetd.c (doit, my_telnet): re-write code to keep track
+	both of remote hostname and utmp string to be used
+
+2001-02-07  Assar Westerlund  <assar@sics.se>
+
+	* telnet/Makefile.am, telnetd/Makefile.am: add LIB_kdfs
+
+2001-01-09  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/kerberos5.c (kerberos5_is): use krb5_rd_cred2 instead
+	of krb5_rd_cred
+
+2000-12-31  Assar Westerlund  <assar@sics.se>
+
+	* telnet/main.c (krb5_init): check krb5_init_context for success
+	* libtelnet/kerberos5.c (kerberos5_init): check krb5_init_context
+	for success
+
+2000-12-11  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (sourceroute): make it not break if the
+	rfc2292 api does not exist
+
+2000-12-09  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (scrub_env): add supporting non-file TERMCAP
+	variables
+
+2000-12-07  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/telnetd.h: move include files around to avoid getting SE
+	from sys/*.h on HP to override SE from telnet.h
+
+	* telnetd/sys_term.c (scrub_env): remove some const-ness
+	* telnetd/sys_term.c (scrub_env): add LOGNAME and POSIXLY_CORRECT
+	to the list of authorized environment variables to be compatible
+	with linux-telnetd
+
+	* telnetd/sys_term.c (scrub_env): change filtering algoritm from
+	allowing everything except a few bad cases to not allowing
+	anything except a few non-dangerous cases
+
+2000-12-06  Johan Danielsson  <joda@pdc.kth.se>
+
+	* libtelnet/kerberos5.c: de-pointerise auth_context parameter to
+	krb5_mk_rep
+
+2000-11-23  Johan Danielsson  <joda@pdc.kth.se>
+
+	* libtelnet/kerberos5.c: print the principal we're trying to use
+
+	* libtelnet/kerberos.c: print the principal we're trying to use
+
+2000-11-16  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/misc-proto.h (telnet_getenv): const-ize some
+
+2000-11-08  Johan Danielsson  <joda@pdc.kth.se>
+
+	* telnet/telnet.c: fake entry if no tgetent
+
+2000-10-08  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/utility.c (stilloob): check that fds are not too large
+	to select on
+	(ttloop): remove confusing output of errno
+	* telnetd/telnetd.c (my_telnet): check that fds are not too large
+	to select on
+	* telnet/utilities.c (EmptyTerminal): check that fds are not too
+	large to select on
+	* telnet/sys_bsd.c (process_rings): check that fds are not too
+	large to select on
+	* telnet/network.c (stilloob): check that fds are not too large to
+	select on
+
+2000-06-09  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c: remove all setuid(getuid()).  we do not
+	support telnet being setuid root
+
+2000-05-05  Assar Westerlund  <assar@sics.se>
+
+	* telnet/externs.h (sourceroute): update prototype
+	* telnet/commands.c (tn): re-enable source routing
+	(sourceroute): make it work again based on the code from
+	itojun@kame.net
+
+2000-03-28  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (tn): clean-up a tiny little bit.  give-up if
+	we do not manage to connect to any address
+
+2000-03-26  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (*): make sure to always call time, ctime,
+	and gmtime with `time_t's.  there were some types (like in
+	lastlog) that we believed to always be time_t.  this has proven
+	wrong on Solaris 8 in 64-bit mode, where they are stored as 32-bit
+	quantities but time_t has gone up to 64 bits
+
+2000-03-03  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/kerberos5.c (kerberos5_init): check that we do have a
+	keytab before saying that we will support KERBEROS5
+
+2000-02-12  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (tn): only set tos for AF_INET.  From
+	itojun@iijlab.net
+
+2000-02-07  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/kerberos.c (kerberos4_is): send a reject back to the
+	client when we're not authorized
+
+2000-02-06  Assar Westerlund  <assar@sics.se>
+
+	* telnet/ring.h (ring_encrypt): better proto
+	* telnet/ring.c (ring_encrypt): better proto
+
+2000-02-04  Assar Westerlund  <assar@sics.se>
+
+	* telnet/telnet_locl.h: klduge-around KLUDGELINEMODE
+
+2000-01-18  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/misc.c (auth_encrypt_user): const-ify
+	* libtelnet/misc.h (RemoteHostName, LocalHostName): const-ify
+	* libtelnet/misc.c (auth_encrypt_init, RemoteHostName,
+	LocalHostName): const-ify
+	* libtelnet/misc-proto.h (auth_encrypt_init, auth_encrypt_user):
+	const-ify
+	* libtelnet/encrypt.c (encrypt_init, Name): const-ify
+	* libtelnet/enc-proto.h (encrypt_init): const-ify
+	* libtelnet/auth.c (auth_init, Name): const-ify
+	* libtelnet/auth-proto.h (auth_init): const-ify
+
+2000-01-08  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (tn): handle ai_canonname being set in any of
+	the addresses returnedby getaddrinfo.  glibc apparently returns
+	the reverse lookup of every address in ai_canonname.  remove some
+	unused variables.
+
+2000-01-01  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (addarg): make void (return value isn't check
+	anyway).  fatal error when malloc fails
+
+1999-12-16  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (*): handle ai_canonname not being set
+
+1999-12-04  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/telnetd.c (doit): use getnameinfo_verified
+	* telnetd/telnetd.c: use getnameinfo
+	* telnet/commands.c: re-write to using getaddrinfo.  disable
+	source-routing for the moment, it doesn't seem to be used anyways.
+	
+1999-09-16  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c: revert 1.54, get_default_username should DTRT
+ 	now
+
+1999-09-05  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/utility.c (ttloop): make it return 1 if interrupted by a
+ 	signal, which must have been what was meant from the beginning
+
+	* telnetd/ext.h (ttloop): update prototype
+
+	* telnetd/authenc.c (telnet_spin): actually return the value from
+ 	ttloop (otherwise it's kind of bogus)
+
+1999-08-05  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (rmut): free utxp
+
+1999-08-04  Assar Westerlund  <assar@sics.se>
+
+	* telnet/main.c: add -G and config file support.  From Miroslav
+ 	Ruda <ruda@ics.muni.cz>
+
+	* telnetd/sys_term.c (rmut): work around utmpx strangness.  From
+ 	Miroslav Ruda <ruda@ics.muni.cz>
+
+1999-08-02  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/telnetd.c (doit): only free hp if != NULL.  From: Jonas
+ 	Oberg <jonas@coyote.org>
+
+1999-07-29  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/telnetd.c (doit): remove unused variable mapped_sin
+
+1999-07-26  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/ext.h: update prototypes
+	
+	* telnetd/telnetd.c: make it handle v4 and v6 sockets.  (it
+	doesn't handle being given a v6 socket that's really talking to an
+	v4 adress (mapped) because the rest of the code in telnetd is not
+	able to handle it anyway).  please run two telnetd from your
+	inetd, one for v4 and one for v6.
+
+1999-07-07  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (tn): extra bogus const-cast
+
+1999-07-06  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (start_login): print a different warning with
+ 	`-a otp'
+
+1999-06-24  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/kerberos5.c (kerberos5_send): set the addresses in the
+ 	auth_context
+
+1999-06-23  Assar Westerlund  <assar@sics.se>
+
+	* telnet/Makefile.am (INCLUDES): add $(INCLUDE_krb4)
+
+	* telnet/commands.c (togkrbdebug): conditionalize on
+ 	krb_disable_debug
+
+1999-06-16  Johan Danielsson  <joda@pdc.kth.se>
+
+	* telnet/commands.c: add kerberos debugging option
+
+1999-06-15  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (tn): use get_default_username
+
+1999-05-14  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/state.c (telrcv): magic patch to make it work against
+ 	DOS Clarkson Telnet.  From Miroslav Ruda <ruda@ics.muni.cz>
+
+1999-04-25  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/kerberos5.c (kerberos5_send): use
+	`krb5_auth_setkeytype' instead of `krb5_auth_setenctype' to make
+	sure we get a DES session key.
+
+Thu Apr  1 16:59:27 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* telnetd/Makefile.am: don't run check-local
+
+	* telnet/Makefile.am: don't run check-local
+
+Mon Mar 29 16:11:33 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* telnetd/sys_term.c: _CRAY -> HAVE_STRUCT_UTMP_UT_ID
+
+Sat Mar 20 00:12:54 1999  Assar Westerlund  <assar@sics.se>
+
+	* telnet/authenc.c (telnet_gets): remove old extern declarations
+
+Thu Mar 18 11:20:16 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* telnetd/Makefile.am: include Makefile.am.common
+
+	* telnet/Makefile.am: include Makefile.am.common
+
+	* libtelnet/Makefile.am: include Makefile.am.common
+
+	* Makefile.am: include Makefile.am.common
+
+Mon Mar 15 17:40:53 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* telnetd/telnetd.c: replace perror/exit with fatalperror
+
+Sat Mar 13 22:18:57 1999  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/telnetd.c (main): 0 -> STDIN_FILENO.  remove abs
+
+	* libtelnet/kerberos.c (kerberos4_is): syslog root logins
+
+Thu Mar 11 14:48:54 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* telnetd/Makefile.in: add WFLAGS
+
+	* telnet/Makefile.in: add WFLAGS
+
+	* libtelnet/Makefile.in: add WFLAGS
+
+	* telnetd/sys_term.c: remove unused variables
+
+	* telnet/telnet.c: fix some warnings
+
+	* telnet/main.c: fix some warnings
+
+	* telnet/commands.c: fix types in format string
+
+	* libtelnet/auth.c: fix types in format string
+
+Mon Mar  1 10:50:30 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* telnetd/sys_term.c: HAVE_UT_* -> HAVE_STRUCT_UTMP*_UT_*
+
+Mon Feb  1 04:08:36 1999  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (tn): only call gethostbyname2 with AF_INET6
+ 	if we actually have IPv6.  From "Brandon S. Allbery KF8NH"
+ 	<allbery@kf8nh.apk.net>
+
+Sat Nov 21 16:51:00 1998  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* telnetd/sys_term.c (cleanup): don't call vhangup() on sgi:s
+
+Fri Aug 14 16:29:18 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* libtelnet/kerberos.c: krb_put_int -> KRB_PUT_INT
+
+Thu Jul 23 20:29:05 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* libtelnet/kerberos5.c: use krb5_verify_authenticator_checksum
+
+Mon Jul 13 22:00:09 1998  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (tn): don't advance hostent->h_addr_list, use
+ 	a copy instead
+
+Wed May 27 04:19:17 1998  Assar Westerlund  <assar@sics.se>
+
+	* telnet/sys_bsd.c (process_rings): correct call to `stilloob'
+
+Fri May 15 19:38:19 1998  Johan Danielsson  <joda@blubb.pdc.kth.se>
+
+	* libtelnet/kerberos5.c: Always print errors from mk_req.
+
+Fri May  1 07:16:59 1998  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c: unifdef -DHAVE_H_ERRNO
+
+Sat Apr  4 15:00:29 1998  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (tn): moved the printing of `trying...' to the
+ 	loop
+
+Thu Mar 12 02:33:48 1998  Assar Westerlund  <assar@sics.se>
+
+	* telnet/telnet_locl.h: include <term.h>. From Gregory S. Stark
+ 	<gsstark@mit.edu>
+
+Sat Feb 21 15:12:38 1998  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/ext.h: add prototype for login_tty
+
+	* telnet/utilities.c (printsub): `direction' is now an int.
+
+	* libtelnet/misc-proto.h: add prototype for `printsub'
+
+Tue Feb 17 02:45:01 1998  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/kerberos.c (kerberos4_is): cred.pname should be
+ 	cred.pinst.  From <art@stacken.kth.se>
+
+Sun Feb 15 02:46:39 1998  Assar Westerlund  <assar@sics.se>
+
+	* telnet/*/*.c: renamed `telnet' to `my_telnet' to avoid
+ 	conflicts with system header files on mklinux.
+
+Tue Feb 10 02:09:03 1998  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/telnetd.c: new signature for `getterminaltype' and
+ 	`auth_wait'
+
+	* libtelnet: changed the signature of the authentication method
+ 	`status'
+
+Sat Feb  7 07:21:29 1998  Assar Westerlund  <assar@sics.se>
+
+	* */*.c: replace HAS_GETTOS by HAVE_PARSETOS and HAVE_GETTOSBYNAME
+
+Fri Dec 26 16:17:10 1997  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (tn): repair support for numeric addresses
+
+Sun Dec 21 09:40:31 1997  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/kerberos.c: fix up lots of stuff related to the
+ 	forwarding of v4 tickets.
+
+	* libtelnet/kerberos5.c (kerberos5_forward): zero out `creds'.
+
+Mon Dec 15 20:53:13 1997  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* telnet/sys_bsd.c: Don't turn off OPOST in 8bit-mode.
+
+Tue Dec  9 19:26:50 1997  Assar Westerlund  <assar@sics.se>
+
+	* telnet/main.c (main): add 'b' to getopt
+
+Sat Nov 29 03:28:54 1997  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* telnet/telnet.c: Change binary mode to do just that, and add a
+ 	eight-bit mode for just passing all characters.
+
+Sun Nov 16 04:37:02 1997  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/kerberos5.c (kerberos5_send): always ask for a session
+ 	key of type DES
+
+	* libtelnet/kerberos5.c: remove old garbage and fix call to
+ 	krb5_auth_con_setaddrs_from_fd
+
+Fri Nov 14 20:35:18 1997  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* telnetd/telnetd.c: Output contents of /etc/issue.
+
+Mon Nov  3 07:09:16 1997  Assar Westerlund  <assar@sics.se>
+
+	* telnet/telnet_locl.h: only include <sys/termio.h> iff
+ 	!defined(HAVE_TERMIOS_H)
+
+	* libtelnet/kerberos.c (kerberos4_is): send the peer address to
+ 	krb_rd_req
+
+	* telnetd/telnetd.c (terminaltypeok): always return OK.  It used
+ 	to call `tgetent' to figure if it was a defined terminal type.
+  	It's possible to overflow tgetent so that's a bad idea.  The worst
+ 	that could happen by saying yes to all terminals is that the user
+ 	ends up with a terminal that has no definition on the local
+ 	system.  And besides, most telnet client has no support for
+ 	falling back to a different terminal type.
+
+Mon Oct 20 05:47:19 1997  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/kerberos5.c: remove lots of old junk.  clean-up.
+  	better error checking and reporting.  tell the user permission
+ 	denied much earlier.
+
+	* libtelnet/kerberos.c (kerberos4_is): only print
+ 	UserNameRequested if != NULL
+

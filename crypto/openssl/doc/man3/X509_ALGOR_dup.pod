@@ -1,0 +1,60 @@
+=pod
+
+=head1 NAME
+
+X509_ALGOR_dup, X509_ALGOR_set0, X509_ALGOR_get0, X509_ALGOR_set_md, X509_ALGOR_cmp - AlgorithmIdentifier functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509.h>
+
+ X509_ALGOR *X509_ALGOR_dup(X509_ALGOR *alg);
+ int X509_ALGOR_set0(X509_ALGOR *alg, ASN1_OBJECT *aobj, int ptype, void *pval);
+ void X509_ALGOR_get0(const ASN1_OBJECT **paobj, int *pptype,
+                      const void **ppval, const X509_ALGOR *alg);
+ void X509_ALGOR_set_md(X509_ALGOR *alg, const EVP_MD *md);
+ int X509_ALGOR_cmp(const X509_ALGOR *a, const X509_ALGOR *b);
+
+=head1 DESCRIPTION
+
+X509_ALGOR_dup() returns a copy of B<alg>.
+
+X509_ALGOR_set0() sets the algorithm OID of B<alg> to B<aobj> and the
+associated parameter type to B<ptype> with value B<pval>. If B<ptype> is
+B<V_ASN1_UNDEF> the parameter is omitted, otherwise B<ptype> and B<pval> have
+the same meaning as the B<type> and B<value> parameters to ASN1_TYPE_set().
+All the supplied parameters are used internally so must B<NOT> be freed after
+this call.
+
+X509_ALGOR_get0() is the inverse of X509_ALGOR_set0(): it returns the
+algorithm OID in B<*paobj> and the associated parameter in B<*pptype>
+and B<*ppval> from the B<AlgorithmIdentifier> B<alg>.
+
+X509_ALGOR_set_md() sets the B<AlgorithmIdentifier> B<alg> to appropriate
+values for the message digest B<md>.
+
+X509_ALGOR_cmp() compares B<a> and B<b> and returns 0 if they have identical
+encodings and non-zero otherwise.
+
+=head1 RETURN VALUES
+
+X509_ALGOR_dup() returns a valid B<X509_ALGOR> structure or NULL if an error
+occurred.
+
+X509_ALGOR_set0() returns 1 on success or 0 on error.
+
+X509_ALGOR_get0() and X509_ALGOR_set_md() return no values.
+
+X509_ALGOR_cmp() returns 0 if the two parameters have identical encodings and
+non-zero otherwise.
+
+=head1 COPYRIGHT
+
+Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

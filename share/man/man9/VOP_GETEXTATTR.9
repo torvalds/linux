@@ -1,0 +1,133 @@
+.\"-
+.\" Copyright (c) 1999, 2000, 2001, 2003 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 23, 1999
+.Dt VOP_GETEXTATTR 9
+.Os
+.Sh NAME
+.Nm VOP_GETEXTATTR
+.Nd retrieve named extended attribute from a vnode
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.In sys/extattr.h
+.Ft int
+.Fo VOP_GETEXTATTR
+.Fa "struct vnode *vp"
+.Fa "int attrnamespace"
+.Fa "const char *name"
+.Fa "struct uio *uio"
+.Fa "size_t *size"
+.Fa "struct ucred *cred"
+.Fa "struct thread *td"
+.Fc
+.Sh DESCRIPTION
+This vnode call may be used to retrieve a specific named extended attribute
+from a file or directory.
+.Pp
+Its arguments are:
+.Bl -tag -width ".Fa attrnamespace"
+.It Fa vp
+The vnode of the file or directory.
+.It Fa attrnamespace
+Integer constant indicating which extended attribute namespace the attribute
+name is present in.
+.It Fa name
+Pointer to a null-terminated character string containing the attribute name.
+.It Fa uio
+The location of the data to be read.
+.It Fa size
+If not
+.Dv NULL ,
+on return it will contain the number of bytes required to read all of the
+attribute data.
+In most cases
+.Fa uio
+will be
+.Dv NULL
+when
+.Fa size
+is not, and vice versa.
+.It Fa cred
+The user credentials to use in authorizing the request.
+.It Fa td
+The thread requesting the extended attribute.
+.El
+.Pp
+The
+.Fa cred
+pointer may be
+.Dv NULL
+to indicate that access control checks are not to be performed, if possible.
+This
+.Fa cred
+setting might be used to allow the kernel to authorize extended attribute
+retrieval that the active process might not be permitted to do.
+.Pp
+Extended attribute semantics may vary by file system implementing the call.
+More information on extended attributes may be found in
+.Xr extattr 9 .
+.Sh LOCKS
+The vnode will be locked on entry and should remain locked on return.
+.Sh RETURN VALUES
+On success, zero will be returned, and the uio structure will be updated to
+reflect data read.
+Otherwise, an appropriate error code is returned.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ENOATTR
+The requested attribute was not defined for this vnode.
+.It Bq Er EACCES
+The caller does not have the appropriate privilege.
+.It Bq Er ENXIO
+The request was not valid in this file system for the specified vnode and
+attribute name.
+.It Bq Er ENOMEM
+Sufficient memory is not available to fulfill the request.
+.It Bq Er EFAULT
+The uio structure refers to an invalid userspace address.
+.It Bq Er EINVAL
+The
+.Fa name ,
+.Fa namespace ,
+or
+.Fa uio
+argument is invalid.
+.It Bq Er EOPNOTSUPP
+The file system does not support
+.Fn VOP_GETEXTATTR .
+.El
+.Sh SEE ALSO
+.Xr extattr 9 ,
+.Xr vnode 9 ,
+.Xr VOP_LISTEXTATTR 9 ,
+.Xr VOP_SETEXTATTR 9
+.Sh BUGS
+By passing in the empty string as the attribute name, some file systems
+will return a list of defined names on the target vnode for the
+requested namespace.
+This is a bad API, and will be replaced by an explicit VOP.

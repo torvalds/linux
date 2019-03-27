@@ -1,0 +1,76 @@
+These screens allow you to add groups and users to your system.
+
+Many of the settings get reasonable defaults if you leave them blank.
+The first time you have entered the name of the new group or user, the
+system will show you what it would chose for most of these fields.
+You are free to change them, of course.
+
+
+User groups
+===========
+
+It's certainly almost generally a good idea to first create a new
+group for your users.  Common names for such a group are "users", or
+even simply "other".  Group names are used to control file access
+permissions for users that belong to the same group.  Several group
+names are already used for system files.
+
+The numerical user or group IDs are often nothing you want to care for
+explicitly.  If you don't fill in these fields, the system will choose
+reasonable defaults.  However, these numbers (rather than the
+associated names) are what the operating system actually uses to
+distinguish users and groups -- hence they should normally be unique
+to each person or group, respectively.
+
+
+Users
+=====
+
+The user's login ID is a short (up to 15 characters) alphanumeric ID
+that the user must enter when logging into the system.  It's often the
+initial letters of the user's name, and commonly used in lower case.
+It's also the local mail name for this user (though it's possible to
+also set up more descriptive mail alias names later).
+
+The user's login group determines which group access rights the user
+will initially get when logging in.  If an additional list of groups is
+provided which the user will become a member of, (s)he will also be
+able to access files of those groups later without providing any
+additional password etc.  Except for the "wheel" case mentioned below,
+the additional group membership list should normally not contain the
+login group again.
+
+The user's password can also be set here, and should be chosen with
+care - 6 or more characters, intermixing punctuation and numerics, and
+*not* a word from the dictionary or related to the username is a good
+password choice.
+
+Some of the system's groups have a special meaning.  In particular,
+members of group "wheel" are the only people who are later allowed to
+become superuser using the command su(1).  So if you're going to add a
+new user who should later perform administrative tasks, don't forget
+to add him to this group!  (Well, ``he'' will most likely be yourself
+in the very first place. :)
+
+Also, members of group "operator" will by default get permissions for
+minor administrative operations, like performing system backups, or
+shutting down the system -- without first becoming superuser!  So,
+take care when adding people to this group.
+
+The ``full name'' field serves as a comment only.  It is also used by
+mail front ends to determine the real name of the user, hence you
+should actually fill in the first and last name of this user.  By
+convention, this field can be divided into comma-separated subfields,
+where the office location, the work phone number, and the home phone
+number follow the full name of the user.
+
+The home directory is the directory in the filesystem where the user
+is being logged into, and where his personalized setup files (``dot
+files'', since they usually begin with a `.' and are not displayed by
+the ls(1) command by default) will be looked up.  It is often created
+under /usr/home/ or /home/.
+
+Finally, the shell is the user's initial command interpreter.  The
+default shell is /bin/sh, some users prefer the more historic
+/bin/csh.  Other, often more user-friendly and comfortable shells can
+be found in the ports and packages collection.

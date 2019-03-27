@@ -1,0 +1,68 @@
+=pod
+
+=head1 NAME
+
+DSA_sign, DSA_sign_setup, DSA_verify - DSA signatures
+
+=head1 SYNOPSIS
+
+ #include <openssl/dsa.h>
+
+ int DSA_sign(int type, const unsigned char *dgst, int len,
+              unsigned char *sigret, unsigned int *siglen, DSA *dsa);
+
+ int DSA_sign_setup(DSA *dsa, BN_CTX *ctx, BIGNUM **kinvp, BIGNUM **rp);
+
+ int DSA_verify(int type, const unsigned char *dgst, int len,
+                unsigned char *sigbuf, int siglen, DSA *dsa);
+
+=head1 DESCRIPTION
+
+DSA_sign() computes a digital signature on the B<len> byte message
+digest B<dgst> using the private key B<dsa> and places its ASN.1 DER
+encoding at B<sigret>. The length of the signature is places in
+*B<siglen>. B<sigret> must point to DSA_size(B<dsa>) bytes of memory.
+
+DSA_sign_setup() is defined only for backward binary compatibility and
+should not be used.
+Since OpenSSL 1.1.0 the DSA type is opaque and the output of
+DSA_sign_setup() cannot be used anyway: calling this function will only
+cause overhead, and does not affect the actual signature
+(pre-)computation.
+
+DSA_verify() verifies that the signature B<sigbuf> of size B<siglen>
+matches a given message digest B<dgst> of size B<len>.
+B<dsa> is the signer's public key.
+
+The B<type> parameter is ignored.
+
+The PRNG must be seeded before DSA_sign() (or DSA_sign_setup())
+is called.
+
+=head1 RETURN VALUES
+
+DSA_sign() and DSA_sign_setup() return 1 on success, 0 on error.
+DSA_verify() returns 1 for a valid signature, 0 for an incorrect
+signature and -1 on error. The error codes can be obtained by
+L<ERR_get_error(3)>.
+
+=head1 CONFORMING TO
+
+US Federal Information Processing Standard FIPS 186 (Digital Signature
+Standard, DSS), ANSI X9.30
+
+=head1 SEE ALSO
+
+L<DSA_new(3)>, L<ERR_get_error(3)>, L<RAND_bytes(3)>,
+L<DSA_do_sign(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

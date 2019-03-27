@@ -1,0 +1,354 @@
+/*
+ * Proverbes liés au calendrier
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _fr_FR_ISO8859_1_proverbes_
+#define _fr_FR_ISO8859_1_proverbes_
+
+LANG=fr_FR.ISO8859-1
+
+/* Janvier */
+01/01	Calme et claire nuit de l'an
+	À bonne année donne l'élan.
+01/02	Janvier d'eau chiche
+	Fait le paysan riche.
+01/04	Un mois de janvier sans gelée
+	N'amène jamais une bonne année.
+01/06	Pluie aux Rois,
+	Blé jusqu'au toit.
+01/08	Janvier sec et sage
+	Est un bon présage.
+01/09	Saint Julien brise la glace ;
+	S'il ne la brise, c'est qu'il l'embrasse.
+01/10	Beau temps à la saint Guillaume
+	Donne plus de blé que de chaume.
+01/13	Soleil au jour de saint Hilaire,
+	Fends du bois pour ton hiver.
+01/14	Pingouin dans les champs,
+	Hiver méchant.
+01/15	S'il gèle à la saint Maur,
+	La moitié de l'hiver est dehors.
+01/18	À la saint Pierre,
+	L'hiver s'en va ou se resserre.
+01/20	S'il gèle à la saint Sébastien,
+	L'hiver s'en va ou revient.
+01/22	Pour saint Vincent,
+	L'hiver perd ses dents
+	Ou les retrouve pour longtemps.
+01/24	S'il tonne en janvier,
+	Monte les barriques au grenier.
+01/25	Le jour de saint Paul,
+	L'hiver se rompt le col.
+01/31	Janvier fait le péché,
+	Mars en est accusé.
+
+/* Février */
+02/01	À la saint Ignace,
+	L'eau est de glace.
+02/02	Chandeleur claire, hiver derrière ;
+	Chandeleur trouble, hiver redouble.
+02/03	À la saint Blaise,
+	L'hiver s'apaise,
+	Mais s'il redouble et s'il reprend,
+	Longtemps après on s'en ressent.
+02/05	Pour la sainte Agathe, sème ton oignon,
+	Fût-il dans la glace, il deviendra bon.
+02/09	À la sainte Apolline
+	Bien souvent l'hiver nous quitte.
+02/12	Si le soleil rit à la sainte Eulalie,
+	Pommes et cidre à la folie.
+02/14	À la saint Valentin,
+	Tous les vents sont marins.
+02/16	Pluie de février
+	À la terre vaut du fumier.
+02/18	Février trop doux,
+	Printemps en courroux.
+02/20	La neige de février
+	Brûle le blé.
+02/22	Neige à la sainte Isabelle
+	Fait la fleur plus belle.
+02/24	Saint Mathias
+	Casse la glace ;
+	S'il n'y en a pas,
+	Il en fera.
+02/27	Gelée de la sainte Honorine
+	Rend toute la vallée chagrine.
+02/28	Fleur de février
+	Va mal au pommier.
+
+/* Mars */
+03/01	Taille à la saint Aubin
+	Donnera de gros raisins.
+03/02	Quand mars mouillera,
+	Bien du vin tu auras.
+03/03	Soit au début, soit à la fin,
+	Mars nous montre son venin.
+03/06	À la sainte Colette
+	Commence à chanter l'alouette.
+03/08	Quand en mars il tonne,
+	L'année sera bonne.
+03/10	Mars venteux,
+	Vergers pommeux.
+03/12	À la saint Grégoire,
+	Il faut tailler la vigne pour boire.
+03/13	Poussière de mars
+	Est poussière d'or...
+03/15	Pluie de mars grandit l'herbette
+	Et souvent annonce disette.
+03/17	S'il fait doux à la saint Patrice,
+	De leurs trous sortent les écrevisses.
+03/19	Pour saint Joseph,
+	L'hirondelle va et vient.
+03/21	S'il pleut à la saint Benoît,
+	Il pleut trente-sept jours plus trois.
+03/23	Quand à glace il gèle à la saint Victorien,
+	En pêches et en abricots il n'y a rien.
+03/25	Quand fleurs en mars il y aura,
+	Guère de fruits ne mangeras.
+03/28	À la saint Gontran, si la température est belle,
+	Arrivent les premières hirondelles.
+03/30	Quand mars se déguise en été,
+	Avril prend ses habits fourrés.
+03/31	À la saint Benjamin,
+	Le mauvais temps prend fin.
+
+/* Mobiles */
+Easter-7	Le propre jour des Rameaux
+	Sème oignons et poireaux.
+Easter-3	La gelée du jeudi saint
+	Gèle le sarrasin.
+Easter-2	Gelée du vendredi saint
+	Gèle le pain et le vin.
+Easter	S'il pleut à Pâques,
+	Il pleut pendant quarante jours.
+Easter	Pâques en mars,
+	Pestes, guerres ou famines.
+Easter+36	Haricots de rogations
+	Rendent à foison.
+Easter+37	Belles rogations,
+	Belles moissons.
+Easter+39	S'il pleut à l'Ascension,
+	Tout va en perdition.
+Easter+49	La Pentecôte
+	Donne les fruits, ou les ôte.
+Easter+56	S'il pleut à la Trinité,
+	Il pleut tous les jours de l'année.
+
+/* Avril */
+04/01	Avril entrant,
+	Coucou chantant,
+	Sonnailles tintant.
+04/05	Avril fait la fleur,
+	Mai en a l'honneur.
+04/10	Il n'est point d'avril si beau
+	Qu'il n'ait de neige à son chapeau.
+04/15	En avril, ne te découvre pas d'un fil ;
+	En mai, fais ce qu'il te plaît ;
+	En juin, de trois habits n'en garde qu'un.
+04/17	Orage en avril,
+	Prépare tes barrils.
+04/19	À la sainte Léonide
+	Chaque blé pousse rapide.
+04/22	Pluie à la sainte Opportune,
+	Ni cerises ni prunes.
+04/23	À la saint Georges,
+	Sème ton orge,
+	À la saint Marc,
+	Il est trop tard.
+04/25	À la saint Marc, s'il tombe de l'eau,
+	Il n'y aura pas de fruits à couteau.
+04/28	Avril pluvieux et mai venteux
+	Ne rendent pas le paysan disetteux.
+04/30	La pluie à la saint Robert
+	De bon vin emplira ton verre.
+
+/* Mai */
+05/03	Les trois saints au sang de navet,
+	Pancrace, Mamert et Servais,
+	Sont bien nommés les saints de glace,
+	Mamert, Servais et Pancrace.
+05/15	À la sainte Denise,
+	Le froid n'en fait plus à sa guise.
+05/16	À la saint Honoré,
+	S'il fait gelée,
+	Le vin diminue de moitié.
+05/18	Bon fermier à sainte Juliette
+	Doit vendre ses poulettes.
+05/22	Beau temps à la sainte Émilie
+	Donne du fruit à la folie.
+05/23	Qui sème haricots à la saint Didier
+	Les arrachera à poignées.
+
+/* Juin */
+06/08	S'il pleut à la saint Médard,
+	Il pleut quarante jours plus tard,
+	À moins que saint Barnabé
+	Ne vienne l'arrêter.
+06/11	À la saint Barnabé,
+	Fauche ton pré.
+06/16	Si le jour de saint Fargeau
+	La lune se fait dans l'eau,
+	Le reste du mois est beau.
+06/19	S'il pleut à la saint Gervais,
+	Il pleut quarante jours après.
+06/20	Pluie d'orage à la saint Sylvère,
+	C'est beaucoup de vin dans le verre.
+06/24	S'il pleut à la saint Jean,
+	Guère de vin ni de pain.
+06/25	Après la saint Jean, si le coucou chante,
+	L'année sera rude et méchante.
+06/29	S'il pleut la veille de la saint Pierre,
+	La vigne est réduite du tiers.
+
+/* Juillet */
+07/02	S'il pleut à la Visitation,
+	Pluie à discrétion.
+07/03	À la saint Anatole,
+	Confiture dans la casserole.
+07/06	Juillet sans orage,
+	Famine au village.
+07/10	Petite pluie de juillet ensoleillé
+	Emplit caves et greniers.
+07/13	Quand reviendra la saint Henri,
+	Tu planteras ton céleri.
+07/16	Qui veut des beaux navets
+	Les sème en juillet.
+07/20	À la sainte Marguerite, pluie
+	Jamais au paysan ne souris ;
+	Mais pluie à la sainte Anne,
+	Pour lui c'est de la manne.
+07/21	S'il pleut à la saint Victor,
+	La récolte n'est pas d'or.
+07/22	S'il pleut à la sainte Madeleine,
+	Il pleuvra durant six semaines.
+07/25	Si saint jacques est serein,
+	L'hiver sera dû et serein.
+07/26	Pour la sainte Anne, s'il pleut,
+	Trente jours seront pluvieux.
+
+/* Août */
+August Sun+2	En août et vendanges, il n'y a ni fêtes ni dimanches.
+08/02	S'il pleut au mois d'août,
+	Les truffes sont au bout.
+08/04	Août donne goût.
+08/06	Soleil rouge en août,
+	C'est de la pluie partout.
+08/10	Qui sème à la saint Laurent
+	Y perd la graine et puis le temps.
+08/13	S'il pleut à la sainte Radegonde,
+	Misère abonde sur le monde.
+08/15	Pluie de l'Assomption,
+	Huit jours de mouillon.
+08/16	De saint Roch la grande chaleur
+	Prépare du vin la couleur.
+08/18	Temps trop beau en août
+	Annonce hiver en courroux.
+08/20	Brumes d'août font passer les châtaignes.
+08/22	Jamais d'août la sécheresse
+	N'amènera la richesse.
+08/24	À la saint Barthélémy,
+	Paie to dû.
+08/28	Fine pluie à la saint Augustin,
+	C'est comme s'il pleuvait du vin.
+08/29	Quand les hirondelles voient la saint Michel,
+	L'hiver ne vient qu'à Noël.
+
+/* Septembre */
+09/01	Pluie de la saint Gilles ruine les glands.
+09/05	Septembre humide,
+	Pas de tonneau vide.
+09/11	Tu peux semer sans crainte
+	Quand arrive la saint Hyacinthe.
+09/15	La rosée de saint Albin
+	est, dit-on, rosée de vin.
+09/19	Qui sème à la saint Janvier
+	De l'an récolte le premier.
+09/21	Si Matthieu pleure au lieu de rire,
+	Le vin en vinaigre vire.
+09/22	Semis de saint Maurice,
+	Récolte à ton caprice.
+09/23	Septembre se nomme
+	Le mai de l'automne.
+09/25	À la saint Firmin
+	L'hiver est en chemin.
+09/29	Pluie de saint Michel sans orage
+	D'un hiver doux est le présage.
+09/30	À la saint Jérôme,
+	Hoche tes pommes.
+
+/* Octobre */
+10/02	À la saint Léger,
+	Faut s'purger !
+10/04	Sème à la saint François,
+	Ton blé aura plus de poids.
+10/09	Beau temps à la saint Denis,
+	Hiver pourri.
+10/13	En octobre, qui ne fume rien
+	Ne récolte rien.
+10/16	Coupe ton chou à la saint Gall,
+	En hiver c'est un régal.
+10/18	À la saint Luc, sème dru,
+	Ou ne sème plus.
+10/23	Gelée d'octobre
+	Rend le vigneron sobre.
+10/25	Pour saint Crépin, mort aux mouches.
+10/28	À la sainte Simone,
+	Il faut avoir rentré ses pommes.
+10/31	Quand octobre prend sa fin,
+	Dans la cave est le vin.
+
+/* Novembre */
+11/01	À la Toussaint commence l'été de la saint Martin.
+11/02	Telle Toussaint, tel Noël,
+	Et Pâques pareil.
+11/04	À la saint Charles,
+	La gelée parle.
+11/08	En novembre, s'il tonne,
+	L'année sera bonne.
+11/11	Si l'hiver va droit son chemin,
+	Vous l'aurez à la saint Martin,
+	Mais s'il trouve quelque encombrée,
+	Vous l'aurez à la saint André.
+11/11	Tue ton cochon à la saint Martin
+	Et invite ton voisin.
+11/19	Sainte Élisabeth nous montre quel bonhomme sera l'hiver.
+11/22	Pour sainte Cécile,
+	Chaque haricot en fait mille.
+11/23	Quand l'hiver vient doucement,
+	Il est là à la saint Clément.
+11/25	Sainte Catherine, toute fille veut la fêter,
+	Mais aucune ne veut la coiffer.
+11/25	Quand sainte Catherine au ciel fait la moue,
+	Il faut patauger longtemps dans la boue.
+11/30	Quand l'hiver n'est pas pressé,
+	Il arrive à la saint André.
+
+/* Décembre */
+12/SundayFirst	Tel avent,
+	Tel printemps.
+12/06	Neige de saint Nicolas
+	Donne froid pour trois mois.
+12/07	À la saint Ambroise,
+	Du froid pour huit jours.
+12/10	À la sainte Julie,
+	Le soleil ne quitte pas son lit.
+12/13	À la sainte Luce,
+	Le jour croît du saut d'une puce.
+12/16	Décembre de froid trop chiche
+	Ne fait pas le paysan riche.
+12/21	S'il gèle à la saint Thomas,
+	Il gèlera encore trois mois.
+12/23	Le tonnerre en décembre
+	Annonce pour l'an qui vient
+	Aux bêtes et aux gens
+	Abondance de biens.
+12/25	Noël au balcon,
+	Pâques au tison.
+12/26	À la saint Étienne,
+	Chacun trouve la sienne.
+12/28	Les jours entre Noël et les Rois
+	Indiquent le temps des douze mois.
+
+#endif /*! _fr_FR_ISO8859_1_proverbes_ */

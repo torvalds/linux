@@ -1,0 +1,173 @@
+.\"-
+.\" Copyright (c) 2009 Apple, Inc.
+.\" Copyright (c) 2005 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 30, 2018
+.Dt AU_IO 3
+.Os
+.Sh NAME
+.Nm au_fetch_tok ,
+.Nm au_print_tok ,
+.Nm au_print_flags_tok ,
+.Nm au_read_rec
+.Nd "perform I/O involving an audit record"
+.Sh LIBRARY
+.Lb libbsm
+.Sh SYNOPSIS
+.In bsm/libbsm.h
+.Ft int
+.Fn au_fetch_tok "tokenstr_t *tok" "u_char *buf" "int len"
+.Ft void
+.Fo au_print_tok
+.Fa "FILE *outfp" "tokenstr_t *tok" "char *del" "char raw" "char sfrm"
+.Fc
+.Ft void
+.Fo au_print_flags_tok
+.Fa "FILE *outfp" "tokenstr_t *tok" "char *del" "int oflags"
+.Fc
+.Ft int
+.Fn au_read_rec "FILE *fp" "u_char **buf"
+.Sh DESCRIPTION
+These interfaces support input and output (I/O) involving audit records,
+internalizing an audit record from a byte stream, converting a token to
+either a raw or default string, and reading a single record from a file.
+.Pp
+The
+.Fn au_fetch_tok
+function
+reads a token from the passed buffer
+.Fa buf
+of length
+.Fa len
+bytes, and returns a pointer to the token via
+.Fa tok .
+.Pp
+The
+.Fn au_print_tok
+function
+prints a string form of the token
+.Fa tok
+to the file output stream
+.Fa outfp ,
+either in default mode, or raw mode if
+.Fa raw
+is set non-zero.
+The delimiter
+.Fa del
+is used when printing.
+The
+.Fn au_print_flags_tok
+function is a replacement for
+.Fn au_print_tok .
+The
+.Fa oflags
+controls how the output should be formatted and is specified by
+or'ing the following flags:
+.Pp
+.Bl -tag -width AU_OFLAG_NORESOLVE -compact -offset indent
+.It Li AU_OFLAG_NONE
+Use the default form.
+.It Li AU_OFLAG_NORESOLVE
+Leave user and group IDs in their numeric form.
+.It Li AU_OFLAG_RAW
+Use the raw, numeric form.
+.It Li AU_OFLAG_SHORT
+Use the short form.
+.It Li AU_OFLAG_XML
+Use the XML form.
+.El
+.Pp
+The flags options AU_OFLAG_SHORT and AU_OFLAG_RAW are exclusive and
+should not be used together.
+.Pp
+The
+.Fn au_read_rec
+function
+reads an audit record from the file stream
+.Fa fp ,
+and returns an allocated memory buffer containing the record via
+.Fa *buf ,
+which must be freed by the caller using
+.Xr free 3 .
+.Pp
+A typical use of these routines might open a file with
+.Xr fopen 3 ,
+then read records from the file sequentially by calling
+.Fn au_read_rec .
+Each record would be broken down into components tokens through sequential
+calls to
+.Fn au_fetch_tok
+on the buffer, and then invoking
+.Fn au_print_flags_tok
+to print each token to an output stream such as
+.Dv stdout .
+On completion of the processing of each record, a call to
+.Xr free 3
+would be used to free the record buffer.
+Finally, the source stream would be closed by a call to
+.Xr fclose 3 .
+.Sh RETURN VALUES
+On success,
+.Fn au_fetch_tok
+returns 0 while
+.Fn au_read_rec
+returns the number of bytes read.
+Both functions return \-1 on failure with
+.Va errno
+set appropriately.
+.Sh SEE ALSO
+.Xr free 3 ,
+.Xr libbsm 3
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer, Inc., in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
+.Pp
+The
+.Fn au_print_flags_tok
+function was added by Stacey Son as a replacement for the
+.Fn au_print_tok
+so new output formatting flags can be easily added without changing the API.
+The
+.Fn au_print_tok
+is obsolete but remains in the API to support legacy code.
+.Sh AUTHORS
+.An -nosplit
+This software was created by
+.An Robert Watson ,
+.An Wayne Salamon ,
+and
+.An Suresh Krishnaswamy
+for McAfee Research, the security research division of McAfee,
+Inc., under contract to Apple Computer, Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.
+.Sh BUGS
+The
+.Va errno
+variable
+may not always be properly set in the event of an error.

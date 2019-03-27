@@ -1,0 +1,185 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Copyright 2002	Joerg Wunsch
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)whereis.1	8.2 (Berkeley) 12/30/93
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 22, 2002
+.Dt WHEREIS 1
+.Os
+.Sh NAME
+.Nm whereis
+.Nd locate programs
+.Sh SYNOPSIS
+.Nm
+.Op Fl abmqsux
+.Op Fl BMS Ar dir ... Fl f
+.Ar program ...
+.Sh DESCRIPTION
+The
+.Nm
+utility checks the standard binary, manual page, and source
+directories for the specified programs, printing out the paths of any
+it finds.
+The supplied program names are first stripped of leading
+path name components, any single trailing extension added by
+.Xr gzip 1 ,
+.Xr compress 1 ,
+or
+.Xr bzip2 1 ,
+and the leading
+.Ql s.\&
+or trailing
+.Ql ,v
+from a source code control system.
+.Pp
+The default path searched is the string returned by the
+.Xr sysctl 8
+utility for the
+.Dq user.cs_path
+string, with
+.Pa /usr/libexec
+and the current user's
+.Ev $PATH
+appended.
+Manual pages are searched by default along the
+.Ev $MANPATH .
+Program sources are located in a list of known standard places,
+including all the subdirectories of
+.Pa /usr/src
+and
+.Pa /usr/ports .
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl B
+Specify directories to search for binaries.
+Requires the
+.Fl f
+option.
+.It Fl M
+Specify directories to search for manual pages.
+Requires the
+.Fl f
+option.
+.It Fl S
+Specify directories to search for program sources.
+Requires the
+.Fl f
+option.
+.It Fl a
+Report all matches instead of only the first of each requested type.
+.It Fl b
+Search for binaries.
+.It Fl f
+Delimits the list of directories after the
+.Fl B ,
+.Fl M ,
+or
+.Fl S
+options, and indicates the beginning of the
+.Ar program
+list.
+.It Fl m
+Search for manual pages.
+.It Fl q
+.Pq Dq quiet .
+Suppress the output of the utility name in front of the normal
+output line.
+This can become handy for use in a backquote substitution of a
+shell command line, see
+.Sx EXAMPLES .
+.It Fl s
+Search for source directories.
+.It Fl u
+Search for
+.Dq unusual
+entries.
+A file is said to be unusual if it does not have at least
+one entry of each requested type.
+Only the name of the unusual entry is printed.
+.It Fl x
+Do not use
+.Dq expensive
+tools when searching for source directories.
+Normally, after unsuccessfully searching all the first-level
+subdirectories of the source directory list,
+.Nm
+will ask
+.Xr locate 1
+to find the entry on its behalf.
+Since this can take much longer, it can be turned off with
+.Fl x .
+.El
+.Sh EXAMPLES
+The following finds all utilities under
+.Pa /usr/bin
+that do not have documentation:
+.Pp
+.Dl whereis -m -u /usr/bin/*
+.Pp
+Change to the source code directory of
+.Xr ls 1 :
+.Pp
+.Dl cd `whereis -sq ls`
+.Sh SEE ALSO
+.Xr find 1 ,
+.Xr locate 1 ,
+.Xr man 1 ,
+.Xr which 1 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 3.0 .
+This version re-implements the historical
+functionality that was lost in
+.Bx 4.4 .
+.Sh AUTHORS
+This implementation of the
+.Nm
+command was written by
+.An J\(:org Wunsch .
+.Sh BUGS
+This re-implementation of the
+.Nm
+utility is not bug-for-bug compatible with historical versions.
+It is believed to be compatible with the version that was shipping with
+.Fx 2.2
+through
+.Fx 4.5
+though.
+.Pp
+The
+.Nm
+utility can report some unrelated source entries when the
+.Fl a
+option is specified.

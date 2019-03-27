@@ -1,0 +1,75 @@
+\ examples from FORML conference paper Nov 98
+\ sadler
+\
+\ $FreeBSD$
+
+.( loading FORML examples ) cr
+object --> sub c-example
+             cell: .cell0
+    c-4byte   obj: .nCells
+  4 c-4byte array: .quad
+       c-byte obj: .length
+         79 chars: .name
+
+    : init   ( inst class -- )
+        2dup  object => init
+        s" aardvark"  2swap  --> set-name
+    ;
+
+    : get-name  ( inst class -- c-addr u )
+        2dup 
+        --> .name  -rot      ( c-addr inst class )
+        --> .length --> get
+    ;
+
+    : set-name  { c-addr u 2:this -- }
+        u       this --> .length --> set
+        c-addr  this --> .name  u move
+    ;
+
+    : ?  ( inst class ) c-example => get-name type cr ;
+end-class
+
+
+: test ." this is a test" cr ;
+' test
+c-word --> ref testref
+
+\ add a method to c-word...
+c-word --> get-wid ficl-set-current
+\ list dictionary thread
+: list  ( inst class )
+    begin
+        2dup --> get-name type cr 
+        --> next over 
+    0= until
+    2drop
+;
+set-current 
+
+object subclass c-led
+    c-byte obj: .state
+
+    : on   { led# 2:this -- }
+        this --> .state --> get
+        1 led# lshift or dup !oreg
+        this --> .state --> set
+    ;
+
+    : off   { led# 2:this -- }
+        this --> .state --> get
+        1 led# lshift invert and dup !oreg
+        this --> .state --> set
+    ;
+
+end-class
+
+
+object subclass c-switch
+
+    : ?on   { bit# 2:this -- flag }
+        
+        1 bit# lshift
+    ;
+end-class
+

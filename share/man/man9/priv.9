@@ -1,0 +1,119 @@
+.\"-
+.\" Copyright (c) 2006 nCircle Network Security, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed by Robert N. M. Watson for the TrustedBSD
+.\" Project under contract to nCircle Network Security, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR, NCIRCLE NETWORK SECURITY,
+.\" INC., OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+.\" TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+.\" PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+.\" LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\" NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+.\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 19, 2018
+.Dt PRIV 9
+.Os
+.Sh NAME
+.Nm priv
+.Nd kernel privilege checking API
+.Sh SYNOPSIS
+.In sys/priv.h
+.Ft int
+.Fn priv_check "struct thread *td" "int priv"
+.Ft int
+.Fn priv_check_cred "struct ucred *cred" "int priv"
+.Sh DESCRIPTION
+The
+.Nm
+interfaces check to see if specific system privileges are granted to the
+passed thread,
+.Fa td ,
+or credential,
+.Fa cred .
+This interface replaces the now removed
+.Xr suser 9
+privilege checking interface.
+Privileges typically represent rights in one of two categories: the right to
+manage a particular component of the system, or an exemption to a specific
+policy or access control list.
+The caller identifies the desired privilege via the
+.Fa priv
+argument.
+.Ss Privilege Policies
+Privileges are typically granted based on one of two base system policies:
+the superuser policy, which grants privilege based on the effective (or
+sometimes real) UID having a value of 0, and the
+.Xr jail 2
+policy, which permits only certain privileges to be granted to processes in a
+jail.
+The set of available privileges may also be influenced by the TrustedBSD MAC
+Framework, described in
+.Xr mac 9 .
+.Sh IMPLEMENTATION NOTES
+When adding a new privilege check to a code path, first check the complete
+list of current privileges in
+.Pa sys/priv.h
+to see if one already exists for the class of privilege required.
+Only if there is not an exact match should a new privilege be added to the
+privilege list.
+As privilege numbers becomes encoded in the kernel module ABI, privilege
+constants must not be changed as any kernel modules depending on privileges
+will then need to be recompiled.
+When adding a new privilege, be certain to also determine whether it should
+be listed in
+.Fn prison_priv_check ,
+which includes a complete list of privileges granted to the root user in
+.Xr jail 2 .
+.Pp
+Certain catch-all privileges exist, such as
+.Dv PRIV_DRIVER ,
+intended to be used by device drivers, rather than adding a new
+driver-specific privilege.
+.Sh RETURN VALUES
+Typically, 0 will be returned for success, and
+.Er EPERM
+will be returned on failure.
+Most consumers of
+.Nm
+will wish to directly return the error code from a failed privilege check to
+user space; a small number will wish to translate it to another error code
+appropriate to a specific context.
+.Pp
+When designing new APIs, it is preferable to return explicit errors from a
+call if privilege is not granted rather than changing the semantics of the
+call but returning success.
+For example, the behavior exhibited by
+.Xr stat 2 ,
+in which the generation field is optionally zero'd out when there is
+insufficient privilege is highly undesirable, as it results in frequent
+privilege checks, and the caller is unable to tell if an access control
+failure occurred.
+.Sh SEE ALSO
+.Xr jail 2 ,
+.Xr mac 9 ,
+.Xr ucred 9
+.Sh AUTHORS
+The
+.Nm
+API and implementation were created by
+.An Robert Watson
+under contract to
+nCircle Network Security, Inc.

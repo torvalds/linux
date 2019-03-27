@@ -1,0 +1,32 @@
+/* $FreeBSD$ */
+
+char *
+x(void)
+{
+	type		identifier;
+	type	       *pointer;
+	unused	       *value;
+	(void)unused * value;
+
+	dmax = (double)3 * 10.0;
+	dmin = (double)dmax * 10.0;
+	davg = (double)dmax * dmin;
+
+	return NULL;
+}
+
+int *
+y(void)
+{
+
+}
+
+int
+z(void)
+{
+
+}
+
+int		x;
+int	       *y;
+int	    ****z;

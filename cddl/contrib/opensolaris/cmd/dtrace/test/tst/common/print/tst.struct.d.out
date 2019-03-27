@@ -1,0 +1,12 @@
+foo_t {
+    int a = 0x1
+    void *b = 0x2
+    struct c = {
+        uint64_t alpha = 0x3
+        uint64_t beta = 0x4
+    }
+    ushort_t d = 0x5
+    int e = 0x6
+    forward_t *f = 0x7
+    int (*)() g = 0x8
+}

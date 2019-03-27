@@ -1,0 +1,242 @@
+# $FreeBSD$
+# $NetBSD: INUIT%UCS.src,v 1.1 2006/03/13 19:45:36 tnozaki Exp $
+
+TYPE		ROWCOL
+NAME		INUIT/UCS
+SRC_ZONE	0x00-0xFF
+OOB_MODE	ILSEQ
+DST_ILSEQ	0xFFFE
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+#
+# This mapping data is made from the mapping data provided by Unicode, Inc.
+# Original notice:
+#
+#=======================================================================
+#   File name:  INUIT.TXT
+#
+#   Contents:   Map (external version) from Mac OS Inuit
+#               character set to Unicode 3.0 and later
+#
+#   Contacts:   charsets@apple.com, everson@evertype.com
+#
+#   Changes:
+#
+#       c01  2005-Apr-01    First posted version. Matches internal xml
+#                           <c1.1> and Text Encoding Converter 2.0.
+#
+# Standard header:
+# ----------------
+#
+#   Apple, the Apple logo, and Macintosh are trademarks of Apple
+#   Computer, Inc., registered in the United States and other countries.
+#   Unicode is a trademark of Unicode Inc. For the sake of brevity,
+#   throughout this document, "Macintosh" can be used to refer to
+#   Macintosh computers and "Unicode" can be used to refer to the
+#   Unicode standard.
+#
+#   Apple Computer, Inc. ("Apple") makes no warranty or representation,
+#   either express or implied, with respect to this document and the
+#   included data, its quality, accuracy, or fitness for a particular
+#   purpose. In no event will Apple be liable for direct, indirect,
+#   special, incidental, or consequential damages resulting from any
+#   defect or inaccuracy in this document or the included data.
+#
+#   These mapping tables and character lists are subject to change.
+#   The latest tables should be available from the following:
+#
+#   <http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/>
+#
+#   For general information about Mac OS encodings and these mapping
+#   tables, see the file "README.TXT".
+#
+# Format:
+# -------
+#
+#   Three tab-separated columns;
+#   '#' begins a comment which continues to the end of the line.
+#     Column #1 is the Mac OS Inuit code (in hex as 0xNN)
+#     Column #2 is the corresponding Unicode (in hex as 0xNNNN)
+#     Column #3 is a comment containing the Unicode name
+#
+#   The entries are in Mac OS Inuit code order.
+#
+#   Control character mappings are not shown in this table, following
+#   the conventions of the standard UTC mapping tables. However, the
+#   Mac OS Inuit character set uses the standard control characters
+#   at 0x00-0x1F and 0x7F.
+#
+# Notes on Mac OS Inuit (partly from Michael Everson):
+# ----------------------------------------------------
+#
+#   This is a legacy Mac OS encoding; in the Mac OS X Carbon and Cocoa
+#   environments, it is only supported via transcoding to and from
+#   Unicode.
+#
+#   This character set was developed by Michael Everson of Everson
+#   Typography (everson@evertype.com) and was used for the Inuktitut
+#   localizations of Mac OS, as well as for the Inuktitut utilities
+#	package from Everson Typography. Note that while Apple authorized
+#   the Inuktitut localization mentioned above, it was not shipped with
+#   Apple hardware, and was not otherwise supported by Apple. Fonts
+#   conforming to the Mac OS Inuit character set are available from
+#   Everson Typography (http://www.evertype.com/software/apple/).
+#   Information about the use of this character set is available at 
+#   http://www.evertype.com/standards/iu/.
+#
+#   The Mac OS Inuit character set shares the script code smEthiopic
+#   (28) with the Ethiopic encoding. To determine if the Inuktitut
+#   encoding is being used, you must also check if the system region
+#   code is 78, verNunavut.
+#
+#   The Mac OS Inuit character set includes the full syllabic letter
+#   repertoire required for Inuktitut; it is a subset of the Unified
+#   Canadian Aboriginal Syllabics set encoded in Unicode. The encoding
+#   is InuitSCII, designed by Doug Hitch for the Government of the 
+#   Northwest Territories.
+#
+#   The Mac OS Inuit character set also includes a number of characters
+#   that were needed for the classic Mac OS user interface and
+#   localization (e.g. ellipsis, bullet, copyright sign). All of the
+#   characters in Mac OS Inuit that are also in the Mac OS Roman
+#   encoding are at the same code point in both; this improves
+#   application compatibility.
+#
+# Unicode mapping issues and notes:
+# ---------------------------------
+#
+# Details of mapping changes in each version:
+# -------------------------------------------
+#
+##################
+0x00 - 0x7E = 0x0000 -
+0x80 = 0x1403
+0x81 = 0x1404
+0x82 = 0x1405
+0x83 = 0x1406
+0x84 = 0x140A
+0x85 = 0x140B
+0x86 = 0x1431
+0x87 = 0x1432
+0x88 = 0x1433
+0x89 = 0x1434
+0x8A = 0x1438
+0x8B = 0x1439
+0x8C = 0x1449
+0x8D = 0x144E
+0x8E = 0x144F
+0x8F = 0x1450
+0x90 = 0x1451
+0x91 = 0x1455
+0x92 = 0x1456
+0x93 = 0x1466
+0x94 = 0x146D
+0x95 = 0x146E
+0x96 = 0x146F
+0x97 = 0x1470
+0x98 = 0x1472
+0x99 = 0x1473
+0x9A = 0x1483
+0x9B = 0x148B
+0x9C = 0x148C
+0x9D = 0x148D
+0x9E = 0x148E
+0x9F = 0x1490
+0xA0 = 0x1491
+0xA1 = 0x00B0
+0xA2 = 0x14A1
+0xA3 = 0x14A5
+0xA4 = 0x14A6
+0xA5 = 0x2022
+0xA6 = 0x00B6
+0xA7 = 0x14A7
+0xA8 = 0x00AE
+0xA9 = 0x00A9
+0xAA = 0x2122
+0xAB = 0x14A8
+0xAC = 0x14AA
+0xAD = 0x14AB
+0xAE = 0x14BB
+0xAF = 0x14C2
+0xB0 = 0x14C3
+0xB1 = 0x14C4
+0xB2 = 0x14C5
+0xB3 = 0x14C7
+0xB4 = 0x14C8
+0xB5 = 0x14D0
+0xB6 = 0x14EF
+0xB7 = 0x14F0
+0xB8 = 0x14F1
+0xB9 = 0x14F2
+0xBA = 0x14F4
+0xBB = 0x14F5
+0xBC = 0x1505
+0xBD = 0x14D5
+0xBE = 0x14D6
+0xBF = 0x14D7
+0xC0 = 0x14D8
+0xC1 = 0x14DA
+0xC2 = 0x14DB
+0xC3 = 0x14EA
+0xC4 = 0x1528
+0xC5 = 0x1529
+0xC6 = 0x152A
+0xC7 = 0x152B
+0xC8 = 0x152D
+0xC9 = 0x2026
+0xCA = 0x00A0
+0xCB = 0x152E
+0xCC = 0x153E
+0xCD = 0x1555
+0xCE = 0x1556
+0xCF = 0x1557
+0xD0 = 0x2013
+0xD1 = 0x2014
+0xD2 = 0x201C
+0xD3 = 0x201D
+0xD4 = 0x2018
+0xD5 = 0x2019
+0xD6 = 0x1558
+0xD7 = 0x1559
+0xD8 = 0x155A
+0xD9 = 0x155D
+0xDA = 0x1546
+0xDB = 0x1547
+0xDC = 0x1548
+0xDD = 0x1549
+0xDE = 0x154B
+0xDF = 0x154C
+0xE0 = 0x1550
+0xE1 = 0x157F
+0xE2 = 0x1580
+0xE3 = 0x1581
+0xE4 = 0x1582
+0xE5 = 0x1583
+0xE6 = 0x1584
+0xE7 = 0x1585
+0xE8 = 0x158F
+0xE9 = 0x1590
+0xEA = 0x1591
+0xEB = 0x1592
+0xEC = 0x1593
+0xED = 0x1594
+0xEE = 0x1595
+0xEF = 0x1671
+0xF0 = 0x1672
+0xF1 = 0x1673
+0xF2 = 0x1674
+0xF3 = 0x1675
+0xF4 = 0x1676
+0xF5 = 0x1596
+0xF6 = 0x15A0
+0xF7 = 0x15A1
+0xF8 = 0x15A2
+0xF9 = 0x15A3
+0xFA = 0x15A4
+0xFB = 0x15A5
+0xFC = 0x15A6
+0xFD = 0x157C
+0xFE = 0x0141
+0xFF = 0x0142
+END_MAP

@@ -1,0 +1,67 @@
+%{
+/*
+ * Copyright is disclaimed as to the contents of this file.
+ *
+ * $FreeBSD$
+ */
+
+#include <sys/types.h>
+
+#include <string.h>
+#include <unistd.h>
+
+#include "getconf.h"
+
+/*
+ * Override gperf's built-in external scope.
+ */
+static const struct map *in_word_set(const char *str);
+
+/*
+ * The Standard seems a bit ambiguous over whether the POSIX_V6_*
+ * are specified with or without a leading underscore, so we just
+ * use both.
+ */
+/*
+ * The alt_path member gives the path containing another `getconf'
+ * executable which was compiled using the specified programming
+ * environment.  If it is NULL, the current executable is good enough.
+ * If we ever support multiple environments, this table will need to
+ * be updated.  (We cheat here and define the supported environments
+ * statically.)
+ */
+#ifdef	__LP64__
+#define	have_LP64_OFF64		NULL
+#endif
+
+#ifdef	__ILP32__
+#define	have_ILP32_OFFBIG	NULL
+#endif
+
+%}
+struct map { const char *name; const char *alt_path; int valid; };
+%%
+POSIX_V6_ILP32_OFF32, notdef
+POSIX_V6_ILP32_OFFBIG, have_ILP32_OFFBIG
+POSIX_V6_LP64_OFF64, have_LP64_OFF64
+POSIX_V6_LPBIG_OFFBIG, notdef
+_POSIX_V6_ILP32_OFF32, notdef
+_POSIX_V6_ILP32_OFFBIG, have_ILP32_OFFBIG
+_POSIX_V6_LP64_OFF64, have_LP64_OFF64
+_POSIX_V6_LPBIG_OFFBIG, notdef
+%%
+int
+find_progenv(const char *name, const char **alt_path)
+{
+	const struct map *rv;
+
+	rv = in_word_set(name);
+	if (rv != NULL) {
+		if (rv->valid) {
+			*alt_path = rv->alt_path;
+			return 1;
+		}
+		return -1;
+	}
+	return 0;
+}

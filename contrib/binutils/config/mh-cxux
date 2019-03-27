@@ -1,0 +1,5 @@
+# Configuration for Harris CX/UX 7 (and maybe 6), based on sysv4 configuration.
+
+# The l flag generates a warning from the SVR4 archiver, remove it.
+AR_FLAGS = cq
+

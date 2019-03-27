@@ -1,0 +1,11 @@
+foo = "ssh, ftp"
+bar = "other thing"
+inside = "10.0.0.0/8"
+block drop in inet proto udp from 10.0.0.0/8 port = echo to 12.34.56.78 port = 6667
+block drop in inet proto udp from 10.0.0.0/8 port = echo to 12.34.56.78 port = 16
+block drop in inet proto udp from 10.0.0.0/8 port = ssh to 12.34.56.78 port = 6667
+block drop in inet proto udp from 10.0.0.0/8 port = ssh to 12.34.56.78 port = 16
+block drop in inet proto udp from 10.0.0.0/8 port = ftp to 12.34.56.78 port = 6667
+block drop in inet proto udp from 10.0.0.0/8 port = ftp to 12.34.56.78 port = 16
+block drop in inet proto udp from 10.0.0.0/8 port = auth to 12.34.56.78 port = 6667
+block drop in inet proto udp from 10.0.0.0/8 port = auth to 12.34.56.78 port = 16

@@ -1,0 +1,141 @@
+.\" Copyright (c) 1998 Jonathan Lemon
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 27, 1998
+.Dt I386_VM86 2
+.Os
+.Sh NAME
+.Nm i386_vm86
+.Nd control vm86-related functions
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In machine/sysarch.h
+.In machine/vm86.h
+.Ft int
+.Fn i386_vm86 "int function" "void *data"
+.Sh DESCRIPTION
+The
+.Fn i386_vm86
+system call
+is used to call various vm86 related functions.
+The
+.Fa function
+argument
+can be one of the following values:
+.Bl -tag -offset indent -width VM86_SET_VME
+.It Dv VM86_INIT
+This will initialize the kernel's vm86 parameter area for the
+process, and permit the process to make vm86 calls.
+The
+.Fa data
+argument
+points to the following structure:
+.Bd -literal
+struct vm86_init_args {
+        int     debug;
+        int     cpu_type;
+        u_char  int_map[32];
+};
+.Ed
+.Pp
+The
+.Fa debug
+argument
+is used to turn on debugging code.
+The
+.Fa cpu_type
+argument
+controls the type of CPU being emulated, and is currently unimplemented.
+The
+.Fa int_map
+argument
+is a bitmap which determines whether vm86 interrupts should be handled
+in vm86 mode, or reflected back to the process.
+If the
+.Em Nth
+bit is set, the interrupt will be reflected to the process, otherwise
+it will be dispatched by the vm86 interrupt table.
+.It Dv VM86_INTCALL
+This allows calls to be made to vm86 interrupt handlers by the process.
+It effectively simulates an INT instruction.
+.Fa data
+should point to the following structure:
+.Bd -literal
+struct vm86_intcall_args {
+	int	intnum;
+	struct	vm86frame vmf;
+};
+.Ed
+.Pp
+.Fa intnum
+specifies the operand of INT for the simulated call.
+A value of 0x10, for example, would often be used to call into the VGA BIOS.
+.Fa vmf
+is used to initialize CPU registers according to the calling convention for
+the interrupt handler.
+.It Dv VM86_GET_VME
+This is used to retrieve the current state of the Pentium(r) processor's
+VME (Virtual-8086 Mode Extensions) flag, which is bit 0 of CR4.
+.Fa data
+should be initialized to point to the following:
+.Bd -literal
+struct vm86_vme_args {
+	int	state;			/* status */
+};
+.Ed
+.Pp
+.Fa state
+will contain the state of the VME flag on return.
+.\" .It Dv VM86_SET_VME
+.El
+.Pp
+vm86 mode is entered by calling
+.Xr sigreturn 2
+with the correct machine context for vm86, and with the
+.Dv PSL_VM
+bit set.
+Control returns to the process upon delivery of a signal.
+.Sh RETURN VALUES
+.Rv -std i386_vm86
+.Sh ERRORS
+The
+.Fn i386_vm86
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The kernel does not have vm86 support, or an invalid function was specified.
+.It Bq Er ENOMEM
+There is not enough memory to initialize the kernel data structures.
+.El
+.Sh AUTHORS
+.An -nosplit
+This man page was written by
+.An Jonathan Lemon ,
+and updated by
+.An Bruce M Simpson .

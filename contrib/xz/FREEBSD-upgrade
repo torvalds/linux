@@ -1,0 +1,31 @@
+$FreeBSD$
+
+xz
+
+The source code is pulled with git:
+
+	git clone --branch=v5.0 http://git.tukaani.org/xz.git xz
+
+ChangeLog is generated with:
+	
+	git log > ChangeLog
+
+For the import files and directories were pruned by:
+	
+sh -c 'for F in `cat FREEBSD-Xlist | grep -v FreeBSD`; do rm -rf ./$F ; done'
+
+You may check if there are any new files that we don't need.
+
+You should run ``configure'' to make sure you use a more recent
+config.h.  Running ``make check'' in the xz source tree is also useful.
+
+The instructions for importing new release and merging to HEAD can be found
+at FreeBSD wiki:
+
+	http://wiki.freebsd.org/SubversionPrimer/VendorImports
+
+To make local changes to xz, simply patch and commit to the trunk
+branch (aka HEAD).  Never make local changes on the vendor branch.
+
+mm@FreeBSD.org
+11-July-2011

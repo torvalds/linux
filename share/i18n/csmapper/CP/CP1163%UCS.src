@@ -1,0 +1,81 @@
+# $FreeBSD$
+# $NetBSD: CP1163%UCS.src,v 1.1 2007/06/18 16:19:30 tnozaki Exp $
+
+# Copyright (c)2007 Citrus Project,
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+
+TYPE		ROWCOL
+NAME		"CP1163/UCS"
+SRC_ZONE	0x00-0xFF
+OOB_MODE	ILSEQ
+DST_ILSEQ	0xFFFE
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+#
+# CP1163 - Vietnamese ISO-8
+# this mapping data is made from:
+#    ftp://ftp.software.ibm.com/software/globalization/gcoc/attachments/
+#        CP0{01163,01258}.{pdf,txt}
+#    ftp://ftp.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP1258.TXT
+#
+0x00 - 0xA3 = 0x0000 -
+0xA4 = 0x20AC
+0xA5 - 0xA7 = 0x00A5 -
+0xA8 = 0x0153
+0xA9 - 0xB3 = 0x00A9 -
+0xB4 = 0x0178
+0xB5 - 0xB7 = 0x00B5 -
+0xB8 = 0x0152
+0xB9 - 0xC2 = 0x00B9 -
+0xC3 = 0x0102
+0xC4 - 0xCB = 0x00C4 -
+0xCC = 0x0300
+0xCD - 0xCF = 0x00CD -
+0xD0 = 0x0110
+0xD1 = 0x00D1
+0xD2 = 0x0309
+0xD3 = 0x00D3
+0xD4 = 0x00D4
+0xD5 = 0x01A0
+0xD6 - 0xDC = 0x00D6 -
+0xDD = 0x01AF
+0xDE = 0x0303
+0xDF - 0xE2 = 0x00DF -
+0xE3 = 0x0103
+0xE4 - 0xEB = 0x00E4 -
+0xEC = 0x0301
+0xED - 0xEF = 0x00ED -
+0xF0 = 0x0111
+0xF1 = 0x00F1
+0xF2 = 0x0323
+0xF3 = 0x00F3
+0xF4 = 0x00F4
+0xF5 = 0x01A1
+0xF6 - 0xFC = 0x00F6 -
+0xFD = 0x01B0
+0xFE = 0x20AB
+0xFF = 0x00FF
+END_MAP

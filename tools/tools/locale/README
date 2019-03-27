@@ -1,0 +1,31 @@
+# $FreeBSD$
+
+To generate the locales:
+
+Tools needed:
+	java (openjdk >= 8)
+	perl
+	converters/p5-Text-Iconv
+	devel/p5-Tie-IxHash
+	textproc/p5-XML-Parser
+
+1. Fetch CLDR data from: http://unicode.org/Public/cldr/.  You need all of the
+core.zip, keyboards.zip, and tools.zip.
+2. Fetch unidata (UCD.zip) from http://www.unicode.org/Public/zipped/latest.
+3. Extract:
+	mkdir -p ~/unicode
+	cd ~/unicode
+	unzip ~/core.zip
+	unzip ~/keyboards.zip
+	unzip ~/tools.zip
+	unzip ~/UCD.zip
+4. Export variable:
+	UNIDIR=~/unicode; export UNIDIR
+5. Build the CLDR tools:
+	cd $UNIDIR/tools/java
+	ant jar
+6. Build POSIX data files from CLDR data:
+	make POSIX
+7. Build and install new locale data:
+	make
+	make install

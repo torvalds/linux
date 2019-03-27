@@ -1,0 +1,398 @@
+.\" Copyright (c) 1996-1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@whistle.com>
+.\"
+.\" $FreeBSD$
+.\" $Whistle: netgraph.3,v 1.7 1999/01/25 07:14:06 archie Exp $
+.\"
+.Dd November 25, 2013
+.Dt NETGRAPH 3
+.Os
+.Sh NAME
+.Nm NgMkSockNode ,
+.Nm NgNameNode ,
+.Nm NgSendMsg ,
+.Nm NgSendAsciiMsg ,
+.Nm NgSendReplyMsg ,
+.Nm NgRecvMsg ,
+.Nm NgAllocRecvMsg ,
+.Nm NgRecvAsciiMsg ,
+.Nm NgAllocRecvAsciiMsg ,
+.Nm NgSendData ,
+.Nm NgRecvData ,
+.Nm NgAllocRecvData ,
+.Nm NgSetDebug ,
+.Nm NgSetErrLog
+.Nd netgraph user library
+.Sh LIBRARY
+.Lb libnetgraph
+.Sh SYNOPSIS
+.In netgraph/netgraph.h
+.Ft int
+.Fn NgMkSockNode "const char *name" "int *csp" "int *dsp"
+.Ft int
+.Fn NgNameNode "int cs" "const char *path" "const char *fmt" ...
+.Ft int
+.Fo NgSendMsg
+.Fa "int cs" "const char *path" "int cookie" "int cmd" "const void *arg"
+.Fa "size_t arglen"
+.Fc
+.Ft int
+.Fn NgSendAsciiMsg "int cs" "const char *path" "const char *fmt" ...
+.Ft int
+.Fo NgSendReplyMsg
+.Fa "int cs" "const char *path" "struct ng_mesg *msg" "const void *arg"
+.Fa "size_t arglen"
+.Fc
+.Ft int
+.Fn NgRecvMsg "int cs" "struct ng_mesg *rep" "size_t replen" "char *path"
+.Ft int
+.Fn NgAllocRecvMsg "int cs" "struct ng_mesg **rep" "char *path"
+.Ft int
+.Fn NgRecvAsciiMsg "int cs" "struct ng_mesg *rep" "size_t replen" "char *path"
+.Ft int
+.Fn NgAllocRecvAsciiMsg "int cs" "struct ng_mesg **rep" "char *path"
+.Ft int
+.Fn NgSendData "int ds" "const char *hook" "const u_char *buf" "size_t len"
+.Ft int
+.Fn NgRecvData "int ds" "u_char *buf" "size_t len" "char *hook"
+.Ft int
+.Fn NgAllocRecvData "int ds" "u_char **buf" "char *hook"
+.Ft int
+.Fn NgSetDebug "int level"
+.Ft void
+.Fo NgSetErrLog
+.Fa "void \*[lp]*log\*[rp]\*[lp]const char *fmt, ...\*[rp]"
+.Fa "void \*[lp]*logx\*[rp]\*[lp]const char *fmt, ...\*[rp]"
+.Fc
+.Sh DESCRIPTION
+These functions facilitate user-mode program participation in the kernel
+.Xr netgraph 4
+graph-based networking system, by utilizing the netgraph
+.Vt socket
+node type (see
+.Xr ng_socket 4 ) .
+.Pp
+The
+.Fn NgMkSockNode
+function should be called first, to create a new
+.Vt socket
+type netgraph node with associated control and data sockets.
+If
+.Fa name
+is
+.No non- Ns Dv NULL ,
+the node will have that global name assigned to it.
+The
+.Fa csp
+and
+.Fa dsp
+arguments will be set to the newly opened control and data sockets
+associated with the node; either
+.Fa csp
+or
+.Fa dsp
+may be
+.Dv NULL
+if only one socket is desired.
+The
+.Fn NgMkSockNode
+function loads the
+.Vt socket
+node type KLD if it is not already loaded.
+.Pp
+The
+.Fn NgNameNode
+function assigns a global name to the node addressed by
+.Fa path .
+.Pp
+The
+.Fn NgSendMsg
+function sends a binary control message from the
+.Vt socket
+node associated with control socket
+.Fa cs
+to the node addressed by
+.Fa path .
+The
+.Fa cookie
+indicates how to interpret
+.Fa cmd ,
+which indicates a specific command.
+Extra argument data (if any) is specified by
+.Fa arg
+and
+.Fa arglen .
+The
+.Fa cookie , cmd ,
+and argument data are defined by the header file corresponding
+to the type of the node being addressed.
+The unique, non-negative token value chosen for use in the message
+header is returned.
+This value is typically used to associate replies.
+.Pp
+Use
+.Fn NgSendReplyMsg
+to send reply to a previously received control message.
+The original message header should be pointed to by
+.Fa msg .
+.Pp
+The
+.Fn NgSendAsciiMsg
+function performs the same function as
+.Fn NgSendMsg ,
+but adds support for
+.Tn ASCII
+encoding of control messages.
+The
+.Fn NgSendAsciiMsg
+function formats its input a la
+.Xr printf 3
+and then sends the resulting
+.Tn ASCII
+string to the node in a
+.Dv NGM_ASCII2BINARY
+control message.
+The node returns a binary version of the
+message, which is then sent back to the node just as with
+.Fn NgSendMsg .
+As with
+.Fn NgSendMsg ,
+the message token value is returned.
+Note that
+.Tn ASCII
+conversion may not be supported by all node types.
+.Pp
+The
+.Fn NgRecvMsg
+function reads the next control message received by the node associated with
+control socket
+.Fa cs .
+The message and any extra argument data must fit in
+.Fa replen
+bytes.
+If
+.Fa path
+is
+.No non- Ns Dv NULL ,
+it must point to a buffer of at least
+.Dv NG_PATHSIZ
+bytes, which will be filled in (and
+.Dv NUL
+terminated) with the path to
+the node from which the message was received.
+.Pp
+The length of the control message is returned.
+A return value of zero indicates that the socket was closed.
+.Pp
+The
+.Fn NgAllocRecvMsg
+function works exactly like
+.Fn NgRecvMsg ,
+except that the buffer for a message is dynamically allocated
+to guarantee that a message is not truncated.
+The size of the buffer is equal to the socket's receive buffer size.
+The caller is responsible for freeing the buffer when it is no longer required.
+.Pp
+The
+.Fn NgRecvAsciiMsg
+function works exactly like
+.Fn NgRecvMsg ,
+except that after the message is received, any binary arguments
+are converted to
+.Tn ASCII
+by sending a
+.Dv NGM_BINARY2ASCII
+request back to the originating node.
+The result is the same as
+.Fn NgRecvMsg ,
+with the exception that the reply arguments field will contain a
+.Dv NUL Ns -terminated
+.Tn ASCII
+version of the arguments (and the reply
+header argument length field will be adjusted).
+.Pp
+The
+.Fn NgAllocRecvAsciiMsg
+function works exactly like
+.Fn NgRecvAsciiMsg ,
+except that the buffer for a message is dynamically allocated
+to guarantee that a message is not truncated.
+The size of the buffer is equal to the socket's receive buffer size.
+The caller is responsible for freeing the buffer when it is no longer required.
+.Pp
+The
+.Fn NgSendData
+function writes a data packet out on the specified hook of the node
+corresponding to data socket
+.Fa ds .
+The node must already be connected to some other node via that hook.
+.Pp
+The
+.Fn NgRecvData
+function reads the next data packet (of up to
+.Fa len
+bytes) received by the node corresponding to data socket
+.Fa ds
+and stores it in
+.Fa buf ,
+which must be large enough to hold the entire packet.
+If
+.Fa hook
+is
+.No non- Ns Dv NULL ,
+it must point to a buffer of at least
+.Dv NG_HOOKSIZ
+bytes, which will be filled in (and
+.Dv NUL
+terminated) with the name of
+the hook on which the data was received.
+.Pp
+The length of the packet is returned.
+A return value of zero indicates that the socket was closed.
+.Pp
+The
+.Fn NgAllocRecvData
+function works exactly like
+.Fn NgRecvData ,
+except that the buffer for a data packet is dynamically allocated
+to guarantee that a data packet is not truncated.
+The size of the buffer is equal to the socket's receive buffer size.
+The caller is responsible for freeing the buffer when it is no longer required.
+.Pp
+The
+.Fn NgSetDebug
+and
+.Fn NgSetErrLog
+functions are used for debugging.
+The
+.Fn NgSetDebug
+function sets the debug level (if non-negative), and returns the old setting.
+Higher debug levels result in more verbosity.
+The default is zero.
+All debug and error messages are logged via the functions
+specified in the most recent call to
+.Fn NgSetErrLog .
+The default logging functions are
+.Xr vwarn 3
+and
+.Xr vwarnx 3 .
+.Pp
+At debug level 3, the library attempts to display control message arguments
+in
+.Tn ASCII
+format; however, this results in additional messages being
+sent which may interfere with debugging.
+At even higher levels,
+even these additional messages will be displayed, etc.
+.Pp
+Note that
+.Xr select 2
+can be used on the data and the control sockets to detect the presence of
+incoming data and control messages, respectively.
+Data and control packets are always written and read atomically, i.e.,
+in one whole piece.
+.Pp
+User mode programs must be linked with the
+.Fl l Ns Li netgraph
+flag to link in this library.
+.Sh INITIALIZATION
+To enable netgraph in your kernel, either your kernel must be
+compiled with
+.Cd "options NETGRAPH"
+in the kernel configuration
+file, or else the
+.Xr netgraph 4
+and
+.Xr ng_socket 4
+KLD modules must have been loaded via
+.Xr kldload 8 .
+.Sh RETURN VALUES
+The
+.Fn NgSetDebug
+function returns the previous debug setting.
+.Pp
+The
+.Fn NgSetErrLog
+function has no return value.
+.Pp
+All other functions return \-1 if there was an error and set
+.Va errno
+accordingly.
+.Pp
+A return value of zero from
+.Fn NgRecvMsg
+or
+.Fn NgRecvData
+indicates that the netgraph socket has been closed.
+.Pp
+For
+.Fn NgSendAsciiMsg
+and
+.Fn NgRecvAsciiMsg ,
+the following additional errors are possible:
+.Bl -tag -width Er
+.It Bq Er ENOSYS
+The node type does not know how to encode or decode the control message.
+.It Bq Er ERANGE
+The encoded or decoded arguments were too long for the supplied buffer.
+.It Bq Er ENOENT
+An unknown structure field was seen in an
+.Tn ASCII
+control message.
+.It Bq Er EALREADY
+The same structure field was specified twice in an
+.Tn ASCII
+control message.
+.It Bq Er EINVAL
+.Tn ASCII
+control message parse error or illegal value.
+.It Bq Er E2BIG
+ASCII control message array or fixed width string buffer overflow.
+.El
+.Sh SEE ALSO
+.Xr select 2 ,
+.Xr socket 2 ,
+.Xr warnx 3 ,
+.Xr kld 4 ,
+.Xr netgraph 4 ,
+.Xr ng_socket 4
+.Sh HISTORY
+The
+.Nm netgraph
+system was designed and first implemented at Whistle Communications, Inc.\& in
+a version of
+.Fx 2.2
+customized for the Whistle InterJet.
+.Sh AUTHORS
+.An Archie Cobbs Aq Mt archie@FreeBSD.org

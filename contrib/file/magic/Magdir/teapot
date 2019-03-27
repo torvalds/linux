@@ -1,0 +1,6 @@
+
+#------------------------------------------------------------------------------
+# $File: teapot,v 1.4 2009/09/19 16:28:12 christos Exp $
+# teapot:  file(1) magic for "teapot" spreadsheet
+#
+0       string          #!teapot\012xdr      teapot work sheet (XDR format)

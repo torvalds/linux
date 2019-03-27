@@ -1,0 +1,155 @@
+.\"
+.\" Copyright (c) 2015 M. Warner Losh
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 20, 2015
+.Dt OW_TEMP 4
+.Os
+.Sh NAME
+.Nm ow_temp
+.Nd Dallas Semiconductor 1-Wire Temperature sensor
+.Sh SYNOPSIS
+.Cd device ow_temp
+.Sh DESCRIPTION
+The
+.Nm
+module supports many of the 1-Wire temperature sensors.
+.Pp
+The sensor is read periodically and the results returned via a
+.Xr sysctl 3
+as described below.
+.Sh HARDWARE
+These temperature sensors are supported by the
+.Nm
+driver:
+.Bl -tag -width MAX31820 -compact
+.It DS1820
+1-Wire Digital Thermometer
+.It DS18S20
+High-Precision 1-Wire Digital Thermometer
+.It DS18B20
+Programmable Resolution 1-Wire Digital Thermometer
+.It DS1822
+Econo 1-Wire Digital Thermometer
+.It DS1825
+Programmable Resolution 1-Wire Digital Thermometer with 4-bit ID
+.It MAX31820
+1-Wire, Parasite-Power, Ambient Temperature Sensor
+.El
+.Pp
+The driver supports Family codes 0x10, 0x22, 0x28, and 0x3b.
+.Sh SYSCTL
+The
+.Nm
+driver reports data via
+.Xr sysctl 8
+entries in the device's node in the
+.Xr sysctl 8
+tree:
+.Bl -tag -width xxxxxxxxxx
+.It temperature
+The last temperature read, in milli-Kelvin.
+.It badcrc
+The number of CRC errors in reading the temperature form the
+device.
+Some CRC errors are to be expected.
+High rates of CRC errors, however, generally indicate a noisy
+environment, cabling issues, or too many devices on the bus.
+.It badread
+The number of times a non-CRC error was encountered reading the temperature
+from the card.
+This type of error is very rare.
+.It reading_interval
+The time, in ticks, between successive reads of the sensor.
+.It parasite
+This item is non-zero when the device is connected using its parasitic
+power mode.
+It can also indicate a wiring error.
+.El
+.Pp
+Temperatures are reported in milli-Kelvin, even though the absolute
+accuracy is around 0.2 degrees for the good devices and around 1
+degree for cheaper devices.
+The devices report in steps of 0.0625 degrees.
+The driver preserves the precision of the device's measurements
+in its
+.Xr sysctl 8
+reports.
+These devices often have a much higher relative accuracy and
+repeatability than their absolute accuracy.
+This makes them well suited for control loops that strive for
+stability and become possible if the full precision is preserved.
+.Sh SEE ALSO
+.Xr ow 4 ,
+.Xr owc 4 ,
+.Xr sysctl 8 ,
+.Xr owll 9 ,
+.Xr own 9
+.Sh LEGAL
+.Tn 1-Wire
+is a registered trademark of Maxim Integrated Products, Inc.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+The
+.Nm
+device driver and this manual page were written by
+.An Warner Losh .
+.Sh BUGS
+The parasitic mode of the devices does not work.
+It requires support from the
+.Xr owc 4
+driver that is unimplemented.
+.Pp
+The ID bits from the
+.Em DS1825
+are not recognized or reported.
+.Pp
+The type of the device is not reported via
+.Xr sysctl 8 .
+.Pp
+Alarm mode is not supported.
+It is not possible to set the low and high alarm temperatures.
+.Pp
+There is no way to write to the EEPROM.
+.Pp
+.Dq Convert Temperature
+requests are sent directly to the device.
+There is no way to use the broadcast ability of the 1-Wire bus to do
+all the conversions in parallel.
+.Pp
+It is not possible to set the precision on those devices that support
+it.
+.Pp
+The time to convert is fixed at 1 second, even though some devices are
+faster.
+.Pp
+There is no character device to supply a stream of readings to a
+program.
+Programs interested in the temperature must poll the sysctl to get the
+temperature.

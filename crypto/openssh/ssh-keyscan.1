@@ -1,0 +1,158 @@
+.\"	$OpenBSD: ssh-keyscan.1,v 1.44 2018/03/05 07:03:18 jmc Exp $
+.\"
+.\" Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
+.\"
+.\" Modification and redistribution in source and binary forms is
+.\" permitted provided that due credit is given to the author and the
+.\" OpenBSD project by leaving this copyright notice intact.
+.\"
+.Dd $Mdocdate: March 5 2018 $
+.Dt SSH-KEYSCAN 1
+.Os
+.Sh NAME
+.Nm ssh-keyscan
+.Nd gather SSH public keys
+.Sh SYNOPSIS
+.Nm ssh-keyscan
+.Op Fl 46cDHv
+.Op Fl f Ar file
+.Op Fl p Ar port
+.Op Fl T Ar timeout
+.Op Fl t Ar type
+.Op Ar host | addrlist namelist
+.Sh DESCRIPTION
+.Nm
+is a utility for gathering the public SSH host keys of a number of
+hosts.
+It was designed to aid in building and verifying
+.Pa ssh_known_hosts
+files,
+the format of which is documented in
+.Xr sshd 8 .
+.Nm
+provides a minimal interface suitable for use by shell and perl
+scripts.
+.Pp
+.Nm
+uses non-blocking socket I/O to contact as many hosts as possible in
+parallel, so it is very efficient.
+The keys from a domain of 1,000
+hosts can be collected in tens of seconds, even when some of those
+hosts are down or do not run
+.Xr sshd 8 .
+For scanning, one does not need
+login access to the machines that are being scanned, nor does the
+scanning process involve any encryption.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 4
+Force
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Force
+.Nm
+to use IPv6 addresses only.
+.It Fl c
+Request certificates from target hosts instead of plain keys.
+.It Fl D
+Print keys found as SSHFP DNS records.
+The default is to print keys in a format usable as a
+.Xr ssh 1
+.Pa known_hosts
+file.
+.It Fl f Ar file
+Read hosts or
+.Dq addrlist namelist
+pairs from
+.Ar file ,
+one per line.
+If
+.Sq -
+is supplied instead of a filename,
+.Nm
+will read from the standard input.
+Input is expected in the format:
+.Bd -literal
+1.2.3.4,1.2.4.4 name.my.domain,name,n.my.domain,n,1.2.3.4,1.2.4.4
+.Ed
+.It Fl H
+Hash all hostnames and addresses in the output.
+Hashed names may be used normally by
+.Xr ssh 1
+and
+.Xr sshd 8 ,
+but they do not reveal identifying information should the file's contents
+be disclosed.
+.It Fl p Ar port
+Connect to
+.Ar port
+on the remote host.
+.It Fl T Ar timeout
+Set the timeout for connection attempts.
+If
+.Ar timeout
+seconds have elapsed since a connection was initiated to a host or since the
+last time anything was read from that host, the connection is
+closed and the host in question considered unavailable.
+The default is 5 seconds.
+.It Fl t Ar type
+Specify the type of the key to fetch from the scanned hosts.
+The possible values are
+.Dq dsa ,
+.Dq ecdsa ,
+.Dq ed25519 ,
+or
+.Dq rsa .
+Multiple values may be specified by separating them with commas.
+The default is to fetch
+.Dq rsa ,
+.Dq ecdsa ,
+and
+.Dq ed25519
+keys.
+.It Fl v
+Verbose mode:
+print debugging messages about progress.
+.El
+.Pp
+If an ssh_known_hosts file is constructed using
+.Nm
+without verifying the keys, users will be vulnerable to
+.Em man in the middle
+attacks.
+On the other hand, if the security model allows such a risk,
+.Nm
+can help in the detection of tampered keyfiles or man in the middle
+attacks which have begun after the ssh_known_hosts file was created.
+.Sh FILES
+.Pa /etc/ssh/ssh_known_hosts
+.Sh EXAMPLES
+Print the RSA host key for machine
+.Ar hostname :
+.Pp
+.Dl $ ssh-keyscan -t rsa hostname
+.Pp
+Find all hosts from the file
+.Pa ssh_hosts
+which have new or different keys from those in the sorted file
+.Pa ssh_known_hosts :
+.Bd -literal -offset indent
+$ ssh-keyscan -t rsa,dsa,ecdsa,ed25519 -f ssh_hosts | \e
+	sort -u - ssh_known_hosts | diff ssh_known_hosts -
+.Ed
+.Sh SEE ALSO
+.Xr ssh 1 ,
+.Xr sshd 8
+.Rs
+.%D 2006
+.%R RFC 4255
+.%T Using DNS to Securely Publish Secure Shell (SSH) Key Fingerprints
+.Re
+.Sh AUTHORS
+.An -nosplit
+.An David Mazieres Aq Mt dm@lcs.mit.edu
+wrote the initial version, and
+.An Wayne Davison Aq Mt wayned@users.sourceforge.net
+added support for protocol version 2.

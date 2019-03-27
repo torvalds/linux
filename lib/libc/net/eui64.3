@@ -1,0 +1,223 @@
+.\" Copyright 2004 The Aerospace Corporation.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1.  Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions, and the following disclaimer.
+.\" 2.  Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions, and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\" 3.  The name of The Aerospace Corporation may not be used to endorse or
+.\"     promote products derived from this software.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AEROSPACE CORPORATION "AS IS" AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AEROSPACE CORPORATION BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Copyright (c) 1995
+.\"	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 4, 2004
+.Dt EUI64 3
+.Os
+.Sh NAME
+.Nm eui64 ,
+.\" .Nm eui64_line ,
+.Nm eui64_aton ,
+.Nm eui64_ntoa ,
+.Nm eui64_ntohost ,
+.Nm eui64_hostton
+.Nd IEEE EUI-64 conversion and lookup routines
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/eui64.h
+.\" .Ft int
+.\" .Fn eui64_line "const char *l" "struct eui64 *e" "char *hostname" "size_t len"
+.Ft int
+.Fn eui64_aton "const char *a" "struct eui64 *e"
+.Ft int
+.Fn eui64_ntoa "const struct eui64 *id" "char *a" "size_t len"
+.Ft int
+.Fn eui64_ntohost "char *hostname" "size_t len" "const struct eui64 *id"
+.Ft int
+.Fn eui64_hostton "const char *hostname" "struct eui64 *id"
+.Sh DESCRIPTION
+These functions operate on IEEE EUI-64s using an
+.Vt eui64
+structure, which is defined in the header file
+.In sys/eui64.h :
+.Bd -literal -offset indent
+/*
+ * The number of bytes in an EUI-64.
+ */
+#define EUI64_LEN		8
+
+/*
+ * Structure of an IEEE EUI-64.
+ */
+struct  eui64 {
+        u_char octet[EUI64_LEN];
+};
+.Ed
+.\" .Pp
+.\" The function
+.\" .Fn eui64_line
+.\" scans
+.\" .Fa l ,
+.\" an
+.\" .Tn ASCII
+.\" string in
+.\" .Xr eui64 5
+.\" format and sets
+.\" .Fa e
+.\" to the EUI-64 specified in the string and
+.\" .Fa h
+.\" to the hostname.
+.\" This function is used to parse lines from
+.\" .Pa /etc/eui64
+.\" into their component parts.
+.Pp
+The
+.Fn eui64_aton
+function converts an
+.Tn ASCII
+representation of an EUI-64 into an
+.Vt eui64
+structure.
+Likewise,
+.Fn eui64_ntoa
+converts an EUI-64 specified as an
+.Vt eui64
+structure into an
+.Tn ASCII
+string.
+.Pp
+The
+.Fn eui64_ntohost
+and
+.Fn eui64_hostton
+functions map EUI-64s to their corresponding hostnames
+as specified in the
+.Pa /etc/eui64
+database.
+The
+.Fn eui64_ntohost
+function
+converts from EUI-64 to hostname, and
+.Fn eui64_hostton
+converts from hostname to EUI-64.
+.Sh RETURN VALUES
+.\" The
+.\" .Fn eui64_line
+.\" function
+.\" returns zero on success and non-zero if it was unable to parse
+.\" any part of the supplied line
+.\" .Fa l .
+.\" It returns the extracted EUI-64 in the supplied
+.\" .Vt eui64
+.\" structure
+.\" .Fa e
+.\" and the hostname in the supplied string
+.\" .Fa h .
+.\" .Pp
+On success,
+.Fn eui64_ntoa
+returns a pointer to a string containing an
+.Tn ASCII
+representation of an EUI-64.
+If it is unable to convert
+the supplied
+.Vt eui64
+structure, it returns a
+.Dv NULL
+pointer.
+Likewise,
+.Fn eui64_aton
+returns a pointer to an
+.Vt eui64
+structure on success and a
+.Dv NULL
+pointer on failure.
+.Pp
+The
+.Fn eui64_ntohost
+and
+.Fn eui64_hostton
+functions both return zero on success or non-zero if they were
+unable to find a match in the
+.Pa /etc/eui64
+database.
+.Sh NOTES
+The user must ensure that the hostname strings passed to the
+.\" .Fn eui64_line ,
+.Fn eui64_ntohost
+and
+.Fn eui64_hostton
+functions are large enough to contain the returned hostnames.
+.Sh NIS INTERACTION
+If the
+.Pa /etc/eui64
+contains a line with a single
+.Ql +
+in it, the
+.Fn eui64_ntohost
+and
+.Fn eui64_hostton
+functions will attempt to consult the NIS
+.Pa eui64.byname
+and
+.Pa eui64.byid
+maps in addition to the data in the
+.Pa /etc/eui64
+file.
+.Sh SEE ALSO
+.Xr firewire 4 ,
+.Xr eui64 5 ,
+.Xr yp 8
+.Sh HISTORY
+These functions first appears in
+.Fx 5.3 .
+They are derived from the
+.Xr ethers 3
+family of functions.

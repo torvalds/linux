@@ -1,0 +1,7 @@
+#!
+__mulh          0x3100
+__mull          0x3180
+__divss         0x3200
+__divus         0x3280
+__quoss         0x3300
+__quous         0x3380

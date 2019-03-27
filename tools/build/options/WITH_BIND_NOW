@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Build all binaries with the
+.Dv DF_BIND_NOW
+flag set to indicate that the run-time loader should perform all relocation
+processing at process startup rather than on demand.

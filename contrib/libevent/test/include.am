@@ -1,0 +1,175 @@
+# test/Makefile.am for libevent
+# Copyright 2000-2007 Niels Provos
+# Copyright 2007-2012 Niels Provos and Nick Mathewson
+#
+# See LICENSE for copying information.
+
+regress_CPPFLAGS = -DTINYTEST_LOCAL
+
+EXTRA_DIST+=					\
+	test/check-dumpevents.py		\
+	test/regress.gen.c			\
+	test/regress.gen.h				\
+	test/regress.rpc				\
+	test/rpcgen_wrapper.sh			\
+	test/test.sh
+
+TESTPROGRAMS = \
+	test/bench					\
+	test/bench_cascade				\
+	test/bench_http				\
+	test/bench_httpclient			\
+	test/test-changelist				\
+	test/test-dumpevents				\
+	test/test-eof				\
+	test/test-closed				\
+	test/test-fdleak				\
+	test/test-init				\
+	test/test-ratelim				\
+	test/test-time				\
+	test/test-weof \
+	test/regress
+
+if BUILD_REGRESS
+noinst_PROGRAMS += $(TESTPROGRAMS)
+EXTRA_PROGRAMS+= test/regress
+endif
+
+noinst_HEADERS+=				\
+	test/regress.h				\
+	test/regress_thread.h			\
+	test/tinytest.h				\
+	test/tinytest_local.h			\
+	test/tinytest_macros.h
+
+TESTS = \
+	test_runner_epoll \
+	test_runner_select \
+	test_runner_kqueue \
+	test_runner_evport \
+	test_runner_devpoll \
+	test_runner_poll \
+	test_runner_win32 \
+	test_runner_timerfd \
+	test_runner_changelist \
+	test_runner_timerfd_changelist
+LOG_COMPILER = true
+TESTS_COMPILER = true
+
+test_runner_epoll: test/test.sh
+	test/test.sh -b EPOLL
+test_runner_select: test/test.sh
+	test/test.sh -b SELECT
+test_runner_kqueue: test/test.sh
+	test/test.sh -b KQUEUE
+test_runner_evport: test/test.sh
+	test/test.sh -b EVPORT
+test_runner_devpoll: test/test.sh
+	test/test.sh -b DEVPOLL
+test_runner_poll: test/test.sh
+	test/test.sh -b POLL
+test_runner_win32: test/test.sh
+	test/test.sh -b WIN32
+test_runner_timerfd: test/test.sh
+	test/test.sh -b "" -t
+test_runner_changelist: test/test.sh
+	test/test.sh -b "" -c
+test_runner_timerfd_changelist: test/test.sh
+	test/test.sh -b "" -T
+
+DISTCLEANFILES += test/regress.gen.c test/regress.gen.h
+
+if BUILD_REGRESS
+BUILT_SOURCES += test/regress.gen.c test/regress.gen.h
+endif
+
+test_test_init_SOURCES = test/test-init.c
+test_test_init_LDADD = libevent_core.la
+test_test_dumpevents_SOURCES = test/test-dumpevents.c
+test_test_dumpevents_LDADD = libevent_core.la
+test_test_eof_SOURCES = test/test-eof.c
+test_test_eof_LDADD = libevent_core.la
+test_test_closed_SOURCES = test/test-closed.c
+test_test_closed_LDADD = libevent_core.la
+test_test_changelist_SOURCES = test/test-changelist.c
+test_test_changelist_LDADD = libevent_core.la
+test_test_weof_SOURCES = test/test-weof.c
+test_test_weof_LDADD = libevent_core.la
+test_test_time_SOURCES = test/test-time.c
+test_test_time_LDADD = libevent_core.la
+test_test_ratelim_SOURCES = test/test-ratelim.c
+test_test_ratelim_LDADD = libevent_core.la -lm
+test_test_fdleak_SOURCES = test/test-fdleak.c
+test_test_fdleak_LDADD = libevent_core.la
+
+test_regress_SOURCES = 				\
+	test/regress.c				\
+	test/regress.gen.c				\
+	test/regress.gen.h				\
+	test/regress_buffer.c			\
+	test/regress_bufferevent.c			\
+	test/regress_dns.c				\
+	test/regress_et.c				\
+	test/regress_finalize.c				\
+	test/regress_http.c				\
+	test/regress_listener.c			\
+	test/regress_main.c				\
+	test/regress_minheap.c			\
+	test/regress_rpc.c				\
+	test/regress_testutils.c			\
+	test/regress_testutils.h			\
+	test/regress_util.c				\
+	test/tinytest.c				\
+	$(regress_thread_SOURCES)		\
+	$(regress_zlib_SOURCES)
+
+if PTHREADS
+regress_thread_SOURCES = test/regress_thread.c
+PTHREAD_LIBS += libevent_pthreads.la
+endif
+if BUILD_WIN32
+if THREADS
+regress_thread_SOURCES = test/regress_thread.c
+endif
+endif
+if ZLIB_REGRESS
+regress_zlib_SOURCES = test/regress_zlib.c
+endif
+if BUILD_WIN32
+test_regress_SOURCES += test/regress_iocp.c
+endif
+
+test_regress_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la $(PTHREAD_LIBS) $(ZLIB_LIBS)
+test_regress_CPPFLAGS = $(AM_CPPFLAGS) $(PTHREAD_CFLAGS) $(ZLIB_CFLAGS) -Itest
+test_regress_LDFLAGS = $(PTHREAD_CFLAGS)
+
+if OPENSSL
+test_regress_SOURCES += test/regress_ssl.c
+test_regress_CPPFLAGS += $(OPENSSL_INCS)
+test_regress_LDADD += libevent_openssl.la $(OPENSSL_LIBS) ${OPENSSL_LIBADD}
+endif
+
+test_bench_SOURCES = test/bench.c
+test_bench_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+test_bench_cascade_SOURCES = test/bench_cascade.c
+test_bench_cascade_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+test_bench_http_SOURCES = test/bench_http.c
+test_bench_http_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+test_bench_httpclient_SOURCES = test/bench_httpclient.c
+test_bench_httpclient_LDADD = $(LIBEVENT_GC_SECTIONS) libevent_core.la
+
+test/regress.gen.c test/regress.gen.h: test/rpcgen-attempted
+
+test/rpcgen-attempted: test/regress.rpc event_rpcgen.py test/rpcgen_wrapper.sh
+	$(AM_V_GEN)date -u > $@
+	$(AM_V_at)if $(srcdir)/test/rpcgen_wrapper.sh $(srcdir)/test; then \
+	   true; \
+	else \
+	   echo "No Python installed; stubbing out RPC test." >&2; \
+	   echo " "> test/regress.gen.c; \
+	   echo "#define NO_PYTHON_EXISTS" > test/regress.gen.h; \
+	fi
+
+CLEANFILES += test/rpcgen-attempted
+
+$(TESTPROGRAMS) : libevent.la

@@ -1,0 +1,100 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+    <title>Using APR Pools</title>
+  </head>
+  <body>
+    <div align="right">
+      Last modified at [$Date: 2004-11-24 17:51:51 -0500 (Wed, 24 Nov 2004) $]
+    </div>
+
+    <h1>Using APR Pools</h1>
+
+    <p>
+      From <a href="http://subversion.tigris.org/">Subversion</a>, we
+      have learned a <em>lot</em> about how to use pools in a heavily
+      structured/object-based environment.
+      <a href="http://httpd.apache.org/">Apache httpd</a> is a
+      completely different beast: "allocate a request pool. use
+      it. destroy it."
+    </p>
+
+    <p>
+      In a complex app, that request-style of behavior is not
+      present. Luckily, the "proper" use of pools can be described in
+      just a few rules:
+    </p>
+
+    <ul>
+      <li>
+        Objects should not have their own pools. An object is
+        allocated into a pool defined by the constructor's caller. The
+        <strong>caller</strong> knows the lifetime of the object and
+        will manage it via the pool. Generally, this also means that
+        objects will not have a "close" or a "free" since those
+        operations will happen implicitly as part of the destruction
+        of the pool the objects live within.
+      </li>
+
+      <li>
+        <p>
+          Functions should not create/destroy pools for their
+          operation; they should use a pool provided by the
+          caller. Again, the <strong>caller</strong> knows more about
+          how the function will be used, how often, how many times,
+          etc. Thus, it should be in charge of the function's memory
+          usage.
+        </p>
+        <p>
+          As an example, the caller might know that the app will exit
+          upon the function's return. Thus, the function would be
+          creating extra work if it built and destroyed a
+          pool. Instead, it should use the passed-in pool, which the
+          caller is going to be tossing as part of app-exit anyways.
+        </p>
+      </li>
+
+      <li>
+        <p>
+          Whenever an unbounded iteration occurs, a subpool should be
+          used. The general pattern is:
+        </p>
+        <blockquote>
+          <pre>
+subpool = apr_create_subpool(pool);
+for (i = 0; i < n; ++i) {
+  apr_pool_clear(subpool);
+
+  do_operation(..., subpool);
+}
+apr_pool_destroy(subpool);</pre>
+        </blockquote>
+        <p>
+          This pattern prevents the 'pool' from growing unbounded and
+          consuming all of memory. Note that it is slightly more
+          optimal to clear the pool on loop-entry. This pattern also
+          allows for a '<tt>continue</tt>' to occur within the loop,
+          yet still ensure the pool will be cleared.
+        </p>
+      </li>
+
+      <li>
+        Given all of the above, it is pretty well mandatory to pass a
+        pool to <em>every</em> function. Since objects are not
+        recording pools for themselves, and the caller is always
+        supposed to be managing memory, then each function needs a
+        pool, rather than relying on some hidden magic pool. In
+        limited cases, objects may record the pool used for their
+        construction so that they can construct sub-parts, but these
+        cases should be examined carefully. Internal pools can lead to
+        unbounded pool usage if the object is not careful.
+      </li>
+    </ul>
+
+    <hr>
+    <address>Greg Stein</address>
+    <!-- Created: Wed Jun 25 14:39:57 PDT 2003 -->
+    <!-- hhmts start -->
+Last modified: Wed Jun 25 14:50:19 PDT 2003
+<!-- hhmts end -->
+
+</body></html>

@@ -1,0 +1,212 @@
+/* $FreeBSD$ */
+
+                     FreeBSD Quirk Guidelines
+
+                  Nate Lawson - njl at freebsd org
+
+0. Introduction
+
+FreeBSD drivers make every attempt possible to support the standards
+behind hardware. Where possible and not in conflict with the standard,
+they also attempt to work around hardware which doesn't strictly
+conform. However, some devices have flaws which can't be worked
+around while keeping the driver compatible with the standard. For
+these devices, we have created a quirks mechanism to indicate to
+the driver that it must avoid certain commands or use them differently
+with a specific model and/or version of hardware. This document
+focuses on identifying and committing quirks for storage hardware
+involving CAM and UMASS but is applicable to other areas.
+
+CAM provides a generic transport for SCSI-like devices. Many different
+transports use SCSI command sets including parallel SCSI, firewire
+(1394), USB UMASS, fibre channel, and ATAPI. For block devices (i.e.
+hard drives, flash adapters, cameras) there are two standards, SBC
+and RBC. SCSI hard drives are usually SBC-compliant and smaller
+devices like flash drives are usually RBC-compliant. Multimedia
+devices including CDROMs and DVD-RW are usually MMC-compliant.
+
+Please follow these guidelines to get your device working as soon
+as possible. If you are a committer, please do NOT commit quirks
+directly but follow this process also.
+
+1. Determing the problem
+
+The first step is to determine what's wrong. If the device should
+be supported but hangs while attaching, it's possible a quirk can
+help. The types of things a quirk can fix are:
+`
+ * cam/cam_xpt.c quirks 
+
+  o CAM_QUIRK_NOLUNS - do not probe luns other than 0 since device
+  responds to all inquiries with "lun present".
+
+  o CAM_QUIRK_NOSERIAL - do not send an inquiry for serial number. 
+
+  o CAM_QUIRK_HILUNS - probe all luns even if some respond "not present"
+  since device has a sparse lun space. 
+
+ * cam/scsi/scsi_da.c quirks 
+
+  o DA_Q_NO_SYNC_CACHE - The sync cache command is used to force a
+  drive to write out all changes to disk before shutting down. Some
+  drives hang when receiving this command even though it is required
+  by all SBC and RBC standards. Note that a warning message on
+  console is NOT sufficient to add this quirk. The warning messages
+  are harmless and only a device or system hang is cause for adding
+  this quirk.
+
+  o DA_Q_NO_6_BYTE - The RBC spec (see Links below) does not allow
+  for 6-byte READ/WRITE commands. Some manufacturers took that too
+  literally and crash when receiving 6-byte commands. This quirk
+  causes FreeBSD to only send 10-byte commands. Since the CAM subsystem
+  has been modified to not send 6-byte commands to USB, 1394, and
+  other transports that don't support SBC, this quirk should be very
+  rare.
+
+  o DA_Q_NO_PREVENT - Don't use the prevent/allow commands to keep a
+  removable medium from being ejected. Some systems can't handle these
+  commands (rare).
+
+ * cam/scsi/scsi_cd.c quirks 
+
+  o CD_Q_NO_TOUCH - not implemented 
+
+  o CD_Q_BCD_TRACKS - convert start/end track to BCD 
+
+  o CD_Q_NO_CHANGER - never treat as a changer 
+
+  o CD_Q_CHANGER - always treat as a changer 
+
+ * cam/scsi/scsi_ch.c quirks 
+  o CH_Q_NO_DBD - disable block descriptors in mode sense 
+
+ * cam/scsi/scsi_sa.c quirks 
+
+  o SA_QUIRK_NOCOMP - Can't deal with compression at all 
+
+  o SA_QUIRK_FIXED - Force fixed mode 
+
+  o SA_QUIRK_VARIABLE - Force variable mode 
+
+  o SA_QUIRK_2FM - Needs Two File Marks at EOD 
+
+  o SA_QUIRK_1FM - No more than 1 File Mark at EOD 
+
+  o SA_QUIRK_NODREAD - Don't try and dummy read density 
+
+  o SA_QUIRK_NO_MODESEL - Don't do mode select at all 
+
+  o SA_QUIRK_NO_CPAGE - Don't use DEVICE COMPRESSION page 
+
+ * dev/usb/umass.c quirks 
+
+  o NO_TEST_UNIT_READY - The drive does not support Test Unit Ready.
+  Convert to Start Unit. This command is a simple no-op for most
+  firmware but some of them hang when this command is sent.
+
+  o RS_NO_CLEAR_UA - The drive does not reset the Unit Attention state
+  after REQUEST SENSE has been sent. The INQUIRY command does not
+  reset the UA either, and so CAM runs in circles trying to retrieve
+  the initial INQUIRY data. This quirk signifies that after a unit
+  attention condition, don't try to clear the condition with a request
+  sense command.
+
+  o NO_START_STOP - Like test unit ready, don't send this command if it hangs the device. 
+
+  o FORCE_SHORT_INQUIRY - Don't ask for full inquiry data (256
+  bytes). Some drives can only handle the shorter inquiry length
+  (36 bytes).
+
+  o SHUTTLE_INIT - Needs to be initialised the Shuttle way. Haven't
+  looked into what this does but apparently it's mostly Shuttle
+  devices.
+
+  o ALT_IFACE_1 - Drive needs to be switched to alternate interface 1. Rare.
+
+  o FLOPPY_SPEED - Drive does not do 1Mb/s, but just floppy speeds (20kb/s). 
+
+  o IGNORE_RESIDUE - The device can't count and gets the residue
+  of transfers wrong. This is sometimes needed for devices where
+  large transfers cause stalls.
+
+  o NO_GETMAXLUN - Get maximum LUN is a command to identify multiple
+  devices sharing the same ID. For instance, a multislot compact
+  flash reader might be on two LUNS. Some non-standard devices hang
+  when receiving this command so this quirk disables it.
+
+  o WRONG_CSWSIG - The device uses a weird CSWSIGNATURE. Rare. 
+
+  o NO_INQUIRY - Device cannot handle INQUIRY so fake a generic
+  response. INQUIRY is one of the most basic commands but some
+  drives can't even handle it. (No idea how such devices even work
+  at all on other OS's.) This quirk fakes up a valid but generic
+  response for devices that can't handle INQUIRY.
+
+  o NO_INQUIRY_EVPD - Device cannot handle an extended INQUIRY
+  asking for vital product data (EVPD) so just return a "no data"
+  response (check condition) without sending the command to the
+  device.
+
+2. Testing a Quirk
+
+After you have an idea what you want to try, edit the proper file
+above, using wildcarding to be sure your device is matched. Here
+is a list of the common things to try. Note that some devices require
+multiple quirks or quirks in different drivers. For example, some
+USB pen drives or flash readers require quirks in both da(4) and
+umass(4).
+
+* umass(4) device (sys/dev/usb/umass.c) -- this quirk matches an Asahi Optical device with any product ID or revision ID. 
+* 
+*         { USB_VENDOR_ASAHIOPTICAL, PID_WILDCARD, RID_WILDCARD,
+*           UMASS_PROTO_ATAPI | UMASS_PROTO_CBI_I,
+*           RS_NO_CLEAR_UA
+*         },
+* da(4) device (sys/cam/scsi/scsi_da.c) -- this quirk matches a Creative device with a name of "NOMAD_MUVO" and any revision. 
+* 
+*         {
+*                 /*
+*                  * Creative Nomad MUVO mp3 player (USB)
+*                  * PR: kern/53094
+*                  */
+*                 {T_DIRECT, SIP_MEDIA_REMOVABLE, "CREATIVE", "NOMAD_MUVO", "*"},
+*                 /*quirks*/ DA_Q_NO_SYNC_CACHE|DA_Q_NO_PREVENT
+*         },
+
+3. Filing a PR
+
+All quirk submissions MUST go through GNATS. For information on how
+to submit a PR, see this page.
+
+Please include the following in your PR:
+
+ * Subject: QUIRK: FooCo USB DVD-RAM drive 
+ * Output of "camcontrol inquiry yourdevice" 
+ * Manufacturer name, model number, etc. 
+ * Transport type (FC, SCSI, USB, Firewire) 
+ * Output from dmesg for failed attach attempts 
+ * Output from dmesg for successful attach attempts (after quirk added) 
+ * Output of "usbdevs -v" with device attached 
+ * Valid email address 
+
+Here are some examples of well-formed PRs: 
+
+ * kern/43580 
+ * kern/49054 
+
+4. What happens next
+
+I will review your submission, respond with comments, and once the
+quirk is deemed necessary and ready for committing, I'll commit it,
+referencing the PR. (Again, all quirks must be submitted as PRs).
+Questions? Email njl AT freebsd.org.
+
+5. Note to Committers
+
+Please insert quirks in the right section in scsi_da.c, sorted by
+PR number. Always include the name and PR number for scsi_da.c (see
+above for an example.) Please sort quirks alphabetically in umass.c.
+Follow the surrounding style in all drivers. Be sure to correspond
+with the submitter to be sure the quirk you are adding is the minimum
+necessary, not quirking other useful features and not overly broad
+(i.e., too many wildcards).

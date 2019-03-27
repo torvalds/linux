@@ -1,0 +1,210 @@
+#
+# Copyright (c) 2010 Philip Paeps <philip@FreeBSD.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+(1 internet
+  (4 private
+    (1 enterprises
+      (12325 fokus
+        (1 begemot
+          (200 begemotPf
+            (1 begemotPfObjects
+              (1 pfStatus
+                (1 pfStatusRunning ENUM ( 1 true 2 false ) pf_status GET)
+                (2 pfStatusRuntime TIMETICKS pf_status GET)
+                (3 pfStatusDebug ENUM ( 0 none 1 urgent 2 misc 3 loud ) pf_status GET)
+                (4 pfStatusHostId OCTETSTRING pf_status GET)
+              )
+              (2 pfCounter
+                (1 pfCounterMatch COUNTER64 pf_counter GET)
+                (2 pfCounterBadOffset COUNTER64 pf_counter GET)
+                (3 pfCounterFragment COUNTER64 pf_counter GET)
+                (4 pfCounterShort COUNTER64 pf_counter GET)
+                (5 pfCounterNormalize COUNTER64 pf_counter GET)
+                (6 pfCounterMemDrop COUNTER64 pf_counter GET)
+              )
+              (3 pfStateTable
+                (1 pfStateTableCount UNSIGNED32 pf_statetable GET)
+                (2 pfStateTableSearches COUNTER64 pf_statetable GET)
+                (3 pfStateTableInserts COUNTER64 pf_statetable GET)
+                (4 pfStateTableRemovals COUNTER64 pf_statetable GET)
+              )
+              (4 pfSrcNodes
+                (1 pfSrcNodesCount UNSIGNED32 pf_srcnodes GET)
+                (2 pfSrcNodesSearches COUNTER64 pf_srcnodes GET)
+                (3 pfSrcNodesInserts COUNTER64 pf_srcnodes GET)
+                (4 pfSrcNodesRemovals COUNTER64 pf_srcnodes GET)
+              )
+              (5 pfLimits
+                (1 pfLimitsStates UNSIGNED32 pf_limits GET)
+                (2 pfLimitsSrcNodes UNSIGNED32 pf_limits GET)
+                (3 pfLimitsFrags UNSIGNED32 pf_limits GET)
+              )
+              (6 pfTimeouts
+                (1 pfTimeoutsTcpFirst INTEGER32 pf_timeouts GET)
+                (2 pfTimeoutsTcpOpening INTEGER32 pf_timeouts GET)
+                (3 pfTimeoutsTcpEstablished INTEGER32 pf_timeouts GET)
+                (4 pfTimeoutsTcpClosing INTEGER32 pf_timeouts GET)
+                (5 pfTimeoutsTcpFinWait INTEGER32 pf_timeouts GET)
+                (6 pfTimeoutsTcpClosed INTEGER32 pf_timeouts GET)
+                (7 pfTimeoutsUdpFirst INTEGER32 pf_timeouts GET)
+                (8 pfTimeoutsUdpSingle INTEGER32 pf_timeouts GET)
+                (9 pfTimeoutsUdpMultiple INTEGER32 pf_timeouts GET)
+                (10 pfTimeoutsIcmpFirst INTEGER32 pf_timeouts GET)
+                (11 pfTimeoutsIcmpError INTEGER32 pf_timeouts GET)
+                (12 pfTimeoutsOtherFirst INTEGER32 pf_timeouts GET)
+                (13 pfTimeoutsOtherSingle INTEGER32 pf_timeouts GET)
+                (14 pfTimeoutsOtherMultiple INTEGER32 pf_timeouts GET)
+                (15 pfTimeoutsFragment INTEGER32 pf_timeouts GET)
+                (16 pfTimeoutsInterval INTEGER32 pf_timeouts GET)
+                (17 pfTimeoutsAdaptiveStart INTEGER32 pf_timeouts GET)
+                (18 pfTimeoutsAdaptiveEnd INTEGER32 pf_timeouts GET)
+                (19 pfTimeoutsSrcNode INTEGER32 pf_timeouts GET)
+              )
+              (7 pfLogInterface
+                (1 pfLogInterfaceName OCTETSTRING pf_logif GET)
+                (2 pfLogInterfaceIp4BytesIn COUNTER64 pf_logif GET)
+                (3 pfLogInterfaceIp4BytesOut COUNTER64 pf_logif GET)
+                (4 pfLogInterfaceIp4PktsInPass COUNTER64 pf_logif GET)
+                (5 pfLogInterfaceIp4PktsInDrop COUNTER64 pf_logif GET)
+                (6 pfLogInterfaceIp4PktsOutPass COUNTER64 pf_logif GET)
+                (7 pfLogInterfaceIp4PktsOutDrop COUNTER64 pf_logif GET)
+                (8 pfLogInterfaceIp6BytesIn COUNTER64 pf_logif GET)
+                (9 pfLogInterfaceIp6BytesOut COUNTER64 pf_logif GET)
+                (10 pfLogInterfaceIp6PktsInPass COUNTER64 pf_logif GET)
+                (11 pfLogInterfaceIp6PktsInDrop COUNTER64 pf_logif GET)
+                (12 pfLogInterfaceIp6PktsOutPass COUNTER64 pf_logif GET)
+                (13 pfLogInterfaceIp6PktsOutDrop COUNTER64 pf_logif GET)
+              )
+              (8 pfInterfaces
+                (1 pfInterfacesIfNumber INTEGER32 pf_interfaces GET)
+                (2 pfInterfacesIfTable
+                  (1 pfInterfacesIfEntry : INTEGER32 pf_iftable
+                    (1 pfInterfacesIfIndex INTEGER32)
+                    (2 pfInterfacesIfDescr OCTETSTRING GET)
+                    (3 pfInterfacesIfType ENUM ( 0 group 1 instance 2 detached ) GET)
+		    (4 pfInterfacesIfTZero TIMETICKS GET)
+                    (5 pfInterfacesIfRefsState NULL GET)
+                    (6 pfInterfacesIfRefsRule UNSIGNED32 GET)
+                    (7 pfInterfacesIf4BytesInPass COUNTER64 GET)
+                    (8 pfInterfacesIf4BytesInBlock COUNTER64 GET)
+                    (9 pfInterfacesIf4BytesOutPass COUNTER64 GET)
+                    (10 pfInterfacesIf4BytesOutBlock COUNTER64 GET)
+                    (11 pfInterfacesIf4PktsInPass COUNTER64 GET)
+                    (12 pfInterfacesIf4PktsInBlock COUNTER64 GET)
+                    (13 pfInterfacesIf4PktsOutPass COUNTER64 GET)
+                    (14 pfInterfacesIf4PktsOutBlock COUNTER64 GET)
+                    (15 pfInterfacesIf6BytesInPass COUNTER64 GET)
+                    (16 pfInterfacesIf6BytesInBlock COUNTER64 GET)
+                    (17 pfInterfacesIf6BytesOutPass COUNTER64 GET)
+                    (18 pfInterfacesIf6BytesOutBlock COUNTER64 GET)
+                    (19 pfInterfacesIf6PktsInPass COUNTER64 GET)
+                    (20 pfInterfacesIf6PktsInBlock COUNTER64 GET)
+                    (21 pfInterfacesIf6PktsOutPass COUNTER64 GET)
+                    (22 pfInterfacesIf6PktsOutBlock COUNTER64 GET)
+                  )
+                )
+              )
+	      (9 pfTables
+	        (1 pfTablesTblNumber INTEGER32 pf_tables GET)
+		(2 pfTablesTblTable
+		  (1 pfTablesTblEntry : INTEGER32 pf_tbltable
+		    (1 pfTablesTblIndex INTEGER32)
+		    (2 pfTablesTblDescr OCTETSTRING GET)
+		    (3 pfTablesTblCount INTEGER32 GET)
+		    (4 pfTablesTblTZero TIMETICKS GET)
+		    (5 pfTablesTblRefsAnchor INTEGER32 GET)
+		    (6 pfTablesTblRefsRule INTEGER32 GET)
+		    (7 pfTablesTblEvalMatch COUNTER64 GET)
+		    (8 pfTablesTblEvalNoMatch COUNTER64 GET)
+		    (9 pfTablesTblBytesInPass COUNTER64 GET)
+		    (10 pfTablesTblBytesInBlock COUNTER64 GET)
+		    (11 pfTablesTblBytesInXPass COUNTER64 GET)
+		    (12 pfTablesTblBytesOutPass COUNTER64 GET)
+		    (13 pfTablesTblBytesOutBlock COUNTER64 GET)
+		    (14 pfTablesTblBytesOutXPass COUNTER64 GET)
+		    (15 pfTablesTblPktsInPass COUNTER64 GET)
+		    (16 pfTablesTblPktsInBlock COUNTER64 GET)
+		    (17 pfTablesTblPktsInXPass COUNTER64 GET)
+		    (18 pfTablesTblPktsOutPass COUNTER64 GET)
+		    (19 pfTablesTblPktsOutBlock COUNTER64 GET)
+		    (20 pfTablesTblPktsOutXPass COUNTER64 GET)
+		  )
+		)
+		(3 pfTablesAddrTable
+		  (1 pfTablesAddrEntry : INTEGER32 pf_tbladdr
+		    (1 pfTablesAddrIndex INTEGER32)
+		    (2 pfTablesAddrNetType ENUM ( 0 unknown 1 ipv4 2 ipv6) GET)
+		    (3 pfTablesAddrNet OCTETSTRING | InetAddress GET)
+		    (4 pfTablesAddrPrefix UNSIGNED32 GET)
+		    (5 pfTablesAddrTZero TIMETICKS GET)
+		    (6 pfTablesAddrBytesInPass COUNTER64 GET)
+		    (7 pfTablesAddrBytesInBlock COUNTER64 GET)
+		    (8 pfTablesAddrBytesOutPass COUNTER64 GET)
+		    (9 pfTablesAddrBytesOutBlock COUNTER64 GET)
+		    (10 pfTablesAddrPktsInPass COUNTER64 GET)
+		    (11 pfTablesAddrPktsInBlock COUNTER64 GET)
+		    (12 pfTablesAddrPktsOutPass COUNTER64 GET)
+		    (13 pfTablesAddrPktsOutBlock COUNTER64 GET)
+		  )
+		)
+	      )
+	      (10 pfAltq
+	        (1 pfAltqQueueNumber INTEGER32 pf_altq GET)
+		(2 pfAltqQueueTable
+		  (1 pfAltqQueueEntry : INTEGER32 pf_altqq
+		    (1 pfAltqQueueIndex INTEGER32)
+		    (2 pfAltqQueueDescr OCTETSTRING GET)
+		    (3 pfAltqQueueParent OCTETSTRING GET)
+		    (4 pfAltqQueueScheduler ENUM ( 1 cbq 8 hfsc 11 priq ) GET)
+		    (5 pfAltqQueueBandwidth UNSIGNED32 GET)
+		    (6 pfAltqQueuePriority INTEGER32 GET)
+		    (7 pfAltqQueueLimit INTEGER32 GET)
+		  )
+		)
+	      )
+	      (11 pfLabels
+		(1 pfLabelsLblNumber INTEGER32 pf_labels GET)
+		(2 pfLabelsLblTable
+		  (1 pfLabelsLblEntry : INTEGER pf_lbltable
+		    (1 pfLabelsLblIndex INTEGER)
+		    (2 pfLabelsLblName OCTETSTRING GET)
+		    (3 pfLabelsLblEvals COUNTER64 GET)
+		    (4 pfLabelsLblBytesIn COUNTER64 GET)
+		    (5 pfLabelsLblBytesOut COUNTER64 GET)
+		    (6 pfLabelsLblPktsIn COUNTER64 GET)
+		    (7 pfLabelsLblPktsOut COUNTER64 GET)
+		  )
+		)
+	      )
+            )
+          )
+        )
+      )
+    )
+  )
+)

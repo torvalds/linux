@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+set -T
+trapped=''
+trap "trapped=x$trapped" USR1
+[ "x$(kill -USR1 $$)y" = xy ] && [ "$trapped" = x ]

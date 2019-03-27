@@ -1,0 +1,142 @@
+.\"
+.\" Copyright (c) 2007 Seccuris Inc.
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Robert N. M. Watson under contract to
+.\" Seccuris Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 28, 2007
+.Dt SF_BUF 9
+.Os
+.Sh NAME
+.Nm sf_buf
+.Nd manage temporary kernel address space mapping for memory pages
+.Sh SYNOPSIS
+.In sys/sf_buf.h
+.Ft struct sf_buf *
+.Fn sf_buf_alloc "struct vm_page *m" "int flags"
+.Ft void
+.Fn sf_buf_free "struct sf_buf *sf"
+.Ft vm_offset_t
+.Fn sf_buf_kva "struct sf_buf *sf"
+.Ft struct vm_page *
+.Fn sf_buf_page "struct sf_buf *sf"
+.Sh DESCRIPTION
+The
+.Nm
+interface, historically the
+.Xr sendfile 2
+buffer interface, allows kernel subsystems to manage temporary kernel address
+space mappings for physical memory pages.
+On systems with a direct memory map region (allowing all physical pages to be
+visible in the kernel address space at all times), the
+.Vt "struct sf_buf"
+will point to an address in the direct map region; on systems without a
+direct memory map region, the
+.Vt "struct sf_buf"
+will manage a temporary kernel address space mapping valid for the lifetime
+of the
+.Vt "struct sf_buf".
+.Pp
+Call
+.Fn sf_buf_alloc
+to allocate a
+.Vt "struct sf_buf"
+for a physical memory page.
+.Fn sf_buf_alloc
+is not responsible for arranging for the page to be present in physical
+memory; the caller should already have arranged for the page to be wired,
+i.e., by calling
+.Xr vm_page_wire 9 .
+Several flags may be passed to
+.Fn sf_buf_alloc :
+.Bl -tag -width SFB_CPUPRIVATE
+.It Dv SFB_CATCH
+Cause
+.Fn sf_buf_alloc
+to abort and return
+.Dv NULL
+if a signal is received waiting for a
+.Vt "struct sf_buf"
+to become available.
+.It Dv SFB_NOWAIT
+Cause
+.Fn sf_buf_alloc
+to return
+.Dv NULL
+rather than sleeping if a
+.Vt "struct sf_buf"
+is not immediately available.
+.It Dv SFB_CPUPRIVATE
+Cause
+.Fn sf_buf_alloc
+to only arrange that the temporary mapping be valid on the current CPU,
+avoiding unnecessary TLB shootdowns for mappings that will only be accessed
+on a single CPU at a time.
+The caller must ensure that accesses to the virtual address occur only on the
+CPU from which
+.Fn sf_buf_alloc
+was invoked, perhaps by using
+.Fn sched_pin .
+.El
+.Pp
+Call
+.Fn sf_buf_kva
+to return a kernel mapped address for the page.
+.Pp
+Call
+.Fn sf_buf_page
+to return a pointer to the page originally passed into
+.Fn sf_buf_alloc .
+.Pp
+Call
+.Fn sf_buf_free
+to release the
+.Vt "struct sf_buf"
+reference.
+The caller is responsible for releasing any wiring they have previously
+acquired on the physical page;
+.Fn sf_buf_free
+releases only the temporary kernel address space mapping, not the page
+itself.
+.Pp
+Uses of this interface include managing mappings of borrowed pages from user
+memory, such as in zero-copy socket I/O, or pages of memory from the buffer
+cache referenced by mbuf external storage for
+.Xr sendfile 2 .
+.Sh SEE ALSO
+.Xr sendfile 2 ,
+.Xr vm_page_wire 9
+.Sh AUTHORS
+.An -nosplit
+The
+.Vt "struct sf_buf"
+API was designed and implemented by
+.An Alan L. Cox .
+This manual page was written by
+.An Robert N. M. Watson .

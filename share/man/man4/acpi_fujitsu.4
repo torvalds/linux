@@ -1,0 +1,175 @@
+.\"
+.\" Copyright (c) 2005 Philip Paeps <philip@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 8, 2010
+.Dt ACPI_FUJITSU 4
+.Os
+.Sh NAME
+.Nm acpi_fujitsu
+.Nd Fujitsu Laptop Extras
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device acpi_fujitsu"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+acpi_fujitsu_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver enables the ACPI-controlled buttons on Fujitsu notebooks.
+The button events are sent to userspace via
+.Xr devd 8 ,
+and a
+.Xr sysctl 8
+interface is provided to simulate the hardware events.
+.Pp
+Using this driver, one can control the brightness of the display, the volume
+of the speakers, and the internal (eraserhead) mouse pointer.
+.Sh SYSCTL VARIABLES
+These sysctls are currently implemented:
+.Bl -tag -width indent
+.It Va hw.acpi.fujitsu.lcd_brightness
+Makes the LCD backlight brighter or dimmer.
+.It Va hw.acpi.fujitsu.pointer_enable
+Enables or disables the internal mouse pointer.
+.It Va hw.acpi.fujitsu.volume
+Controls the speaker volume.
+.It Va hw.acpi.fujitsu.mute
+Mutes the speakers.
+.El
+.Pp
+Defaults for these sysctls can be set in
+.Xr sysctl.conf 5 .
+.Sh EXAMPLES
+The following can be added to
+.Xr devd.conf 5
+in order to pass button events to a
+.Pa /usr/local/sbin/acpi_oem_exec.sh
+script:
+.Bd -literal -offset indent
+notify 10 {
+        match "system"		"ACPI";
+        match "subsystem"	"FUJITSU";
+        action "/usr/local/sbin/acpi_oem_exec.sh $notify fujitsu";
+};
+.Ed
+.Pp
+A possible
+.Pa /usr/local/sbin/acpi_oem_exec.sh
+script might look like:
+.Bd -literal -offset indent
+#!/bin/sh
+#
+if [ "$1" = "" -o "$2" = "" ]
+then
+        echo "usage: $0 notify oem_name"
+        exit 1
+fi
+NOTIFY=`echo $1`
+LOGGER="logger"
+CALC="bc"
+BC_PRECOMMANDS="scale=2"
+ECHO="echo"
+CUT="cut"
+MAX_LCD_BRIGHTNESS=7
+MAX_VOLUME=16
+OEM=$2
+DISPLAY_PIPE=/tmp/acpi_${OEM}_display
+
+case ${NOTIFY} in
+        0x00)
+                LEVEL=`sysctl -n hw.acpi.${OEM}.mute`
+                if [ "$LEVEL" = "1" ]
+                then
+                        MESSAGE="volume muted"
+                else
+                        MESSAGE="volume unmuted"
+                fi
+                ;;
+        0x01)
+                LEVEL=`sysctl -n hw.acpi.${OEM}.pointer_enable`
+                if [ "$LEVEL" = "1" ]
+                then
+                        MESSAGE="pointer enabled"
+                else
+                        MESSAGE="pointer disabled"
+                fi
+                ;;
+        0x02)
+                LEVEL=`sysctl -n hw.acpi.${OEM}.lcd_brightness`
+                PERCENT=`${ECHO} "${BC_PRECOMMANDS} ; \\
+			 ${LEVEL} / ${MAX_LCD_BRIGHTNESS} * 100" |\\
+			 ${CALC} | ${CUT} -d . -f 1`
+                MESSAGE="brightness level ${PERCENT}%"
+                ;;
+        0x03)
+                LEVEL=`sysctl -n hw.acpi.${OEM}.volume`
+                PERCENT=`${ECHO} "${BC_PRECOMMANDS} ; \\
+			${LEVEL} / ${MAX_VOLUME} * 100" | \\
+			 ${CALC} | ${CUT} -d . -f 1`
+                MESSAGE="volume level ${PERCENT}%"
+                ;;
+        *)
+                ;;
+        esac
+        ${LOGGER} ${MESSAGE}
+        if [ -p ${DISPLAY_PIPE} ]
+        then
+                ${ECHO} ${MESSAGE} >> ${DISPLAY_PIPE} &
+        fi
+exit 0
+.Ed
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr sysctl.conf 5 ,
+.Xr devd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.4 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Sean Bullington Aq Mt shegget@gmail.com ,
+.An Anish Mistry Aq Mt mistry.7@osu.edu ,
+and
+.An Marc Santcroos Aq Mt marks@ripe.net .
+.Pp
+This manual page was written by
+.An Philip Paeps Aq Mt philip@FreeBSD.org .

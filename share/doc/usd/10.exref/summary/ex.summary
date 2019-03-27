@@ -1,0 +1,730 @@
+.\" Copyright (c) 1980, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)ex.summary	8.3 (Berkeley) 8/18/96
+.\"
+.ds p \v'-0.2'.\v'+0.2'
+.ds U \s-2UNIX\s+2
+.ds c \v'-0.2':\v'+0.2'
+.nr LL 6.5i
+.lt 6.5i
+.ll 6.5i
+.ds CH
+.ds LF Computing Services, U.C. Berkeley
+.ds RF April 3, 1979
+.de SP
+.sp 1v
+..
+.nr PI 3n
+.nr PD 0
+.ND
+.ps 12
+.ft B
+.ce 1
+Ex/Edit Command Summary (Version 2.0)
+.sp 1
+.ft R
+.nr VS 11
+.nr PS 9
+.2C
+.PP
+.I Ex
+and
+.I edit
+are text editors, used for creating
+and modifying files of text on the \*U
+computer system.
+.I Edit
+is a variant of
+.I ex
+with features designed to
+make it less complicated
+to learn and use.
+In terms of command syntax and effect
+the editors are essentially identical,
+and this command summary applies to both.
+.PP
+The summary is meant as a quick reference
+for users already acquainted
+with
+.I edit
+or \fIex\fP.
+Fuller explanations of the editors are available
+in the documents
+.I
+Edit: A Tutorial
+.R
+(a self-teaching introduction) and the
+.I
+Ex Reference Manual
+.R
+(the comprehensive reference source for
+both \fIedit\fP and \fIex\fP).
+Both of these writeups are available in the
+Computing Services Library.
+.PP
+In the examples included with the
+summary, commands and text entered by
+the user are printed in \fBboldface\fR to
+distinguish them from responses printed
+by the computer.
+.sp 0.45v
+.LP
+.B
+The Editor Buffer
+.PP
+In order to perform its tasks
+the editor sets aside a temporary
+work space,
+called a \fIbuffer\fR,
+separate from the user's permanent
+file.
+Before starting to work on an existing
+file the editor makes a copy of it in the
+buffer, leaving the original untouched.
+All editing changes are made to the
+buffer copy, which must then
+be written back to the permanent
+file in order to update the
+old version.
+The buffer disappears
+at the end of the editing session.
+.sp 0.45v
+.LP
+.B
+Editing: Command and Text Input Modes
+.PP
+.R
+During an editing session there are
+two usual modes of operation:
+\fIcommand\fP mode and \fItext input\fP
+mode.
+(This disregards, for the moment,
+.I open
+and
+.I visual
+modes, discussed below.)
+In command mode, the editor issues a
+colon prompt (:)
+to show that it is ready to
+accept and execute a command.
+In text input mode, on the other hand, there is
+no prompt and the editor merely accepts text to
+be added to the buffer.
+Text input mode is initiated by the commands
+\fIappend\fP, \fIinsert\fP, and \fIchange\fP,
+and is terminated by typing a period as the
+first and only character on a line.
+.sp 0.45v
+.LP
+.B
+Line Numbers and Command Syntax
+.PP
+.R
+The editor keeps track of lines of text
+in the buffer by numbering them consecutively
+starting with 1 and renumbering
+as lines are added or deleted.
+At any given time the editor is positioned
+at one of these lines; this position is
+called the \fIcurrent line\fP.
+Generally, commands that change the
+contents of the buffer print the
+new current line at the end of their
+execution.
+.PP
+Most commands can be preceded by one or two
+line-number addresses which indicate the lines
+to be affected.
+If one number is given the command operates on
+that line only; if two, on an inclusive range
+of lines.
+Commands that can take line-number prefixes also
+assume default prefixes if none are given.
+The default assumed by each command is designed
+to make it convenient to use in many instances
+without any line-number prefix.
+For the most part, a command used without a
+prefix operates on the current line,
+though exceptions to this rule should be noted.
+The \fIprint\fP command
+by itself, for instance, causes
+one line, the current line, to be
+printed at the terminal.
+.PP
+The summary shows the number of line addresses
+that can be
+prefixed to each command as well as
+the defaults assumed if they are omitted.
+For example,
+.I (.,.)
+means that up to 2 line-numbers may be given,
+and that if none is given the
+command operates on the current line.
+(In the address prefix notation, ``.'' stands
+for the current line and ``$'' stands for
+the last line of the buffer.)
+If no such notation appears, no
+line-number prefix may be used.
+.PP
+Some commands take trailing
+information;
+only
+the more important instances of this
+are mentioned in the summary.
+.sp 0.25v
+.LP
+.B
+Open and Visual Modes
+.PP
+.R
+Besides command and text input modes,
+.I ex
+and
+.I edit
+provide on some CRT terminals other modes of editing,
+.I open
+and
+.I visual .
+In these modes the cursor can
+be moved to individual words
+or characters in a line.
+The commands then given are very different
+from the standard editor commands; most do not appear on the screen when
+typed.
+.I
+An Introduction to Display Editing with Vi
+.R
+provides a full discussion.
+.sp 0.25v
+.LP
+.B
+Special Characters
+.PP
+.R
+.fi
+Some characters take on special meanings
+when used in context searches
+and in patterns given to the \fIsubstitute\fP command.
+For \fIedit\fR, these are ``^'' and ``$'',
+meaning the beginning and end of a line,
+respectively.
+.I Ex
+has the following additional special characters:
+.B
+.ce 1
+\&.     &     *     [     ]     ~
+.R
+To use one of the special characters as its
+simple graphic representation
+rather than with its special meaning,
+precede it by a backslash (\\).
+The backslash always has a special meaning.
+.1C
+.TS
+cp10 cp10 cp10 cp10
+ltw(1.0i) lt2w(0.40i)fB ltw(3.0i) ltw(1.8i).
+Name	Abbr	Description	Examples
+.sp 1.75
+(.)\fBappend	a	T{
+Begins text input mode,
+adding lines to the buffer after
+the line specified. Appending continues
+until ``.'' is typed alone at the
+beginning of a new line, followed by
+a carriage return. \fI0a\fR places
+lines at the beginning of the buffer.
+T}	T{
+.nf
+\fR:\fBa
+Three lines of text
+are added to the buffer
+after the current line.
+\*p
+.R
+\*c
+.fi
+T}
+.SP
+\fR(.,.)\fBchange	c	T{
+Deletes indicated line(s) and
+initiates text input mode to
+replace them with new text which follows.
+New text is terminated the same way
+as with \fIappend\fR.
+T}	T{
+.nf
+:\fB5,6c
+Lines 5 and 6 are
+deleted and replaced by
+these three lines.
+\*p
+.R
+\*c
+.fi
+T}
+.SP
+\fR(.,.)\fBcopy \fIaddr	co	T{
+Places a copy of the specified lines
+after the line indicated by \fIaddr\fR.
+The example places a copy of lines 8 through
+12, inclusive, after line 25.
+T}	T{
+.nf
+\fR:\fB8,12co 25
+\fRLast line copied is printed
+\fR\*c
+.fi
+T}
+.SP
+\fR(.,.)\fBdelete	d	T{
+Removes lines from the buffer
+and prints the current line after the deletion.
+T}	T{
+.nf
+\fR:\fB13,15d
+\fRNew current line is printed
+\*c
+.fi
+T}
+.TE
+.sp 0.5v
+.TS
+ltw(1.0i) lt2w(0.40i)fB ltw(3.0i) ltw(1.8i).
+T{
+\fBedit \fIfile\fP
+.br
+\fBedit! \fIfile\fP
+T}	T{
+e
+.br
+e!
+T}	T{
+.fi
+\fRClears the editor buffer and then
+copies into it the named \fIfile\fR,
+which becomes the current file.
+This is a way of shifting to a different
+file
+without leaving the editor.
+The editor issues a warning
+message if this command is used before
+saving changes
+made to the file already in the buffer;
+using the form \fBe!\fR overrides this protective mechanism.
+T}	T{
+.nf
+\fR:\fBe ch10\fR
+No write since last change
+:\fBe! ch10\fR
+"ch10" 3 lines, 62 characters
+\*c
+.fi
+T}
+.SP
+\fBfile \fIname\fR	f	T{
+\fRIf followed by a \fIname\fR, renames
+the current file to \fIname\fR.
+If used without \fIname\fR, prints
+the name of the current file.
+T}	T{
+.nf
+\fR:\fBf ch9
+\fR"ch9" [Modified] 3 lines ...
+:\fBf
+\fR"ch9" [Modified] 3 lines ...
+\*c
+.fi
+T}
+.SP
+(1,$)\fBglobal	g	\fBglobal/\fIpattern\fB/\fIcommands	T{
+.nf
+:\fBg/nonsense/d
+\fR\*c
+.fi
+T}
+\fR(1,$)\fBglobal!	g!\fR or \fBv	T{
+Searches the entire buffer (unless a smaller
+range is specified by line-number prefixes) and
+executes \fIcommands\fR on every line with
+an expression matching \fIpattern\fR.
+The second form, abbreviated
+either \fBg!\fR or \fBv\fR,
+executes \fIcommands\fR on lines that \fIdo
+not\fR contain the expression \fIpattern\fR.
+T}	\^
+.SP
+\fR(.)\fBinsert	i	T{
+Inserts new lines of text immediately before the specified line.
+Differs from
+.I append
+only in that text is placed before, rather than after, the indicated line.
+In other words, \fB1i\fR has the same effect as \fB0a\fR.
+T}	T{
+.nf
+:\fB1i
+These lines of text will
+be added prior to line 1.
+\&.
+\fR:
+.fi
+T}
+.SP
+\fR(.,.+1)\fBjoin	j	T{
+Join lines together, adjusting white space (spaces
+and tabs) as necessary.
+T}	T{
+.nf
+:\fB2,5j\fR
+Resulting line is printed
+:
+.fi
+T}
+.TE
+.bp
+.TS
+cp10 cp10 cp10 cp10
+ltw(1.0i) lt2w(0.40i)fB ltw(3.0i) ltw(1.8i).
+Name	Abbr	Description	Examples
+.sp 1.75
+\fR(.,.)\fBlist	l	T{
+\fRPrints lines in a more
+unambiguous way than the \fIprint\fR
+command does. The end of a line,
+for example, is marked with a ``$'',
+and tabs printed as ``^I''.
+T}	T{
+.nf
+:\fB9l
+\fRThis is line 9$
+\*c
+.fi
+T}
+.TE
+.sp 0.5v
+.TS
+ltw(1.0i) lt2w(0.40i)fB ltw(3.0i) ltw(1.8i).
+\fR(.,.)\fBmove \fIaddr\fB	m	T{
+\fRMoves the specified lines
+to a position after the line
+indicated by \fIaddr\fR.
+T}	T{
+.nf
+\fR:\fB12,15m 25\fR
+New current line is printed
+\*c
+.fi
+T}
+.SP
+\fR(.,.)\fBnumber	nu	T{
+Prints each line preceded
+by its buffer line number.
+T}	T{
+.nf
+\fR:\fBnu
+\0\0\fR10\0 This is line 10
+\*c
+.fi
+T}
+.SP
+\fR(.)\fBopen	o	T{
+Too involved to discuss here,
+but if you enter open mode
+accidentally, press
+the \s-2ESC\s0 key followed by
+\fBq\fR to
+get back into normal editor
+command mode.
+\fIEdit\fP is designed to
+prevent accidental use of
+the open command.
+T}	
+.SP
+\fBpreserve	pre	T{
+Saves a copy of the current buffer contents as though the system had
+just crashed.  This is for use in an emergency when a
+.I write
+command has failed and you don't know how else to save your work.\(dg
+T}	T{
+.nf
+:\fBpreserve\fR
+File preserved.
+:
+.fi
+T}
+.SP
+\fR(.,.)\fBprint	p	Prints the text of line(s).	T{
+.nf
+:\fB+2,+3p\fR
+The second and third lines
+after the current line
+:
+.fi
+T}
+.TE
+.FS
+.ll 6.5i
+\(dg You should seek assistance from a system administrator as soon as
+possible after saving a file with the
+.I preserve
+command, because the preserved copy of the file is saved in a
+directory used to store temporary files, and thus, the preserved
+copy may only be available for a short period of time.
+.FE
+.SP
+.nf
+.TS
+ltw(1.0i) lt2w(0.40i)fB ltw(3.0i) ltw(1.8i).
+T{
+.nf
+\fBquit
+quit!
+.fi
+T}	T{
+.nf
+q
+q!
+T}	T{
+.fi
+\fREnds the editing session.
+You will receive a
+warning if you have changed the buffer
+since last writing its contents
+to the file. In this event you
+must either type \fBw\fR to write,
+or type \fBq!\fR to exit from
+the editor without saving your changes.
+T}	T{
+.nf
+\fR:\fBq
+\fRNo write since last change
+:\fBq!
+\fR%
+.fi
+T}
+.SP
+\fR(.)\fBread \fIfile\fP	r	T{
+.fi
+\fRPlaces a copy of \fIfile\fR in the
+buffer after the specified line.
+Address 0 is permissible and causes
+the copy of \fIfile\fR to be placed
+at the beginning of the buffer.
+The \fIread\fP command does not
+erase any text already in the buffer.
+If no line number is specified,
+\fIfile\fR is placed after the
+current line.
+T}	T{
+.nf
+\fR:\fB0r newfile
+\fR"newfile" 5 lines, 86 characters
+\*c
+.fi
+T}
+.SP
+\fBrecover \fIfile\fP	rec	T{
+.fi
+Retrieves a copy of the editor buffer
+after a system crash, editor crash,
+phone line disconnection, or
+\fIpreserve\fR command.
+T}
+.SP
+\fR(.,.)\fBsubstitute	s	T{
+.nf
+\fBsubstitute/\fIpattern\fB/\fIreplacement\fB/
+substitute/\fIpattern\fB/\fIreplacement\fB/gc
+.fi
+\fRReplaces the first occurrence of \fIpattern\fR
+on a line
+with \fIreplacement\fP.
+Including a \fBg\fR after the command
+changes all occurrences of \fIpattern\fP
+on the line.
+The \fBc\fR option allows the user to
+confirm each substitution before it is
+made; see the manual for details.
+T}	T{
+.nf
+:\fB3p
+\fRLine 3 contains a misstake
+:\fBs/misstake/mistake/
+\fRLine 3 contains a mistake
+\*c
+.fi
+T}
+.TE
+.bp
+.TS
+cp10 cp10 cp10 cp10
+ltw(1.0i) lt2w(0.40i)fB ltw(3.0i) ltw(1.8i).
+Name	Abbr	Description	Examples
+.sp 1.75
+\fBundo	u	T{
+.fi
+\fRReverses the changes made in
+the buffer by the last buffer-editing
+command.
+Note that this example contains
+a notification about the number of
+lines affected.
+T}	T{
+.nf
+\fR:\fB1,15d
+\fR15 lines deleted
+new line number 1 is printed
+:\fBu
+\fR15 more lines in file ...
+old line number 1 is printed
+\*c
+.fi
+T}
+.SP
+\fR(1,$)\fBwrite \fIfile\fR	w	T{
+.fi
+\fRCopies data from the buffer onto
+a permanent file. If no \fIfile\fR
+is named, the current filename
+is used.
+The file is automatically created
+if it does not yet exist.
+A response containing the number of
+lines and characters in the file
+indicates that the write
+has been completed successfully.
+The editor's built-in protections
+against overwriting existing files
+will in some circumstances
+inhibit a write.
+The form \fBw!\fR forces the
+write, confirming that
+an existing file is to be overwritten.
+T}	T{
+.nf
+\fR:\fBw
+\fR"file7" 64 lines, 1122 characters
+:\fBw file8
+\fR"file8" File exists ...
+:\fBw! file8
+\fR"file8" 64 lines, 1122 characters
+\*c
+.fi
+T}
+\fR(1,$)\fBwrite! \fIfile\fP	w!	\^	\^
+.TE
+.sp 0.5v
+.TS
+ltw(1.0i) lt2w(0.40i)fB ltw(3.0i) ltw(1.8i).
+\fR(.)\fBz \fIcount\fP	z	T{
+.fi
+\fRPrints a screen full of text starting
+with the line indicated;
+or, if \fIcount\fR is specified,
+prints that number of lines.
+Variants of the \fIz\fR command
+are described in the manual.
+T}	
+.SP
+\fB!\fIcommand		T{
+.fi
+Executes the remainder of the line
+after \fB!\fR as a \*U command.
+The buffer is unchanged by this, and
+control is returned to the editor when
+the execution of \fIcommand\fR is complete.
+T}	T{
+.nf
+\fR:\fB!date
+\fRFri Jun 9 12:15:11 PDT 1978
+!
+\*c
+.fi
+T}
+.SP
+\fRcontrol-d		T{
+.fi
+Prints the next \fIscroll\fR of text,
+normally half of a screen. See the
+manual for details of the \fIscroll\fR
+option.
+T}
+.SP
+\fR(.+1)<cr>		T{
+.fi
+An address alone followed by a carriage
+return causes the line to be printed.
+A carriage return by itself prints the
+line following the current line.
+T}	T{
+.nf
+:\fR<cr>
+the line after the current line
+\*c
+.fi
+T}
+.TE
+.sp 0.5v
+.TS
+ltw(1.0i) lt2w(0.40i)fB ltw(3.0i) ltw(1.8i).
+\fB/\fIpattern\fB/		T{
+.fi
+\fRSearches for the next line in which
+\fIpattern\fR occurs and prints it.
+T}	T{
+.nf
+\fR:\fB/This pattern/
+\fRThis pattern next occurs here.
+\*c
+.fi
+T}
+.SP
+\fB//		T{
+Repeats the most recent search.
+T}	T{
+.nf
+\fR:\fB//
+\fRThis pattern also occurs here.
+\*c
+.fi
+T}
+.SP
+\fB?\fIpattern\fB?		T{
+Searches in the reverse direction
+for \fIpattern\fP.
+T}	
+.SP
+\fB??		T{
+Repeats the most recent search,
+moving in the reverse direction
+through the buffer.
+T}
+.TE

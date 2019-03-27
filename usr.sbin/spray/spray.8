@@ -1,0 +1,76 @@
+.\"
+.\" Copyright (c) 1994 James A. Jegers
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 10, 1995
+.Dt SPRAY 8
+.Os
+.Sh NAME
+.Nm spray
+.Nd send many packets to host
+.Sh SYNOPSIS
+.Nm
+.Op Fl c Ar count
+.Op Fl d Ar delay
+.Op Fl l Ar length
+.Ar host
+.Sh DESCRIPTION
+The
+.Nm
+utility sends multiple RPC packets to
+.Ar host
+and records how many of them were correctly received and how long it took.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl c Ar count
+Send
+.Ar count
+packets.
+.It Fl d Ar delay
+Pause
+.Ar delay
+microseconds between sending each packet.
+.It Fl l Ar length
+Set the length of the packet that holds the RPC call message to
+.Ar length
+bytes.
+Not all values of
+.Ar length
+are possible because RPC data is encoded using XDR.
+The
+.Nm
+utility rounds up to the nearest possible value.
+.El
+.Pp
+The
+.Nm
+utility is intended for use in network testing, measurement, and management.
+This command
+.Em "can be very hard on a network and should be used with caution" .
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr ifconfig 8 ,
+.Xr ping 8 ,
+.Xr rpc.sprayd 8

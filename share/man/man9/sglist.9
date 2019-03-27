@@ -1,0 +1,566 @@
+.\"
+.\" Copyright (c) 2009 Hudson River Trading LLC
+.\" Written by: John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 16, 2017
+.Dt SGLIST 9
+.Os
+.Sh NAME
+.Nm sglist ,
+.Nm sglist_alloc ,
+.Nm sglist_append ,
+.Nm sglist_append_bio ,
+.Nm sglist_append_mbuf ,
+.Nm sglist_append_phys ,
+.Nm sglist_append_sglist ,
+.Nm sglist_append_uio ,
+.Nm sglist_append_user ,
+.Nm sglist_append_vmpages ,
+.Nm sglist_build ,
+.Nm sglist_clone ,
+.Nm sglist_consume_uio ,
+.Nm sglist_count ,
+.Nm sglist_count_vmpages ,
+.Nm sglist_free ,
+.Nm sglist_hold ,
+.Nm sglist_init ,
+.Nm sglist_join ,
+.Nm sglist_length ,
+.Nm sglist_reset ,
+.Nm sglist_slice ,
+.Nm sglist_split
+.Nd manage a scatter/gather list of physical memory addresses
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/sglist.h
+.Ft struct sglist *
+.Fn sglist_alloc "int nsegs" "int mflags"
+.Ft int
+.Fn sglist_append "struct sglist *sg" "void *buf" "size_t len"
+.Ft int
+.Fn sglist_append_bio "struct sglist *sg" "struct bio *bp"
+.Ft int
+.Fn sglist_append_mbuf "struct sglist *sg" "struct mbuf *m"
+.Ft int
+.Fn sglist_append_phys "struct sglist *sg" "vm_paddr_t paddr" "size_t len"
+.Ft int
+.Fn sglist_append_sglist "struct sglist *sg" "struct sglist *source" "size_t offset" "size_t len"
+.Ft int
+.Fn sglist_append_uio "struct sglist *sg" "struct uio *uio"
+.Ft int
+.Fn sglist_append_user "struct sglist *sg" "void *buf" "size_t len" "struct thread *td"
+.Ft int
+.Fn sglist_append_vmpages "struct sglist *sg" "vm_page_t *m" "size_t pgoff" "size_t len"
+.Ft struct sglist *
+.Fn sglist_build "void *buf" "size_t len" "int mflags"
+.Ft struct sglist *
+.Fn sglist_clone "struct sglist *sg" "int mflags"
+.Ft int
+.Fn sglist_consume_uio "struct sglist *sg" "struct uio *uio" "size_t resid"
+.Ft int
+.Fn sglist_count "void *buf" "size_t len"
+.Ft int
+.Fn sglist_count_vmpages "vm_page_t *m" "size_t pgoff" "size_t len"
+.Ft void
+.Fn sglist_free "struct sglist *sg"
+.Ft struct sglist *
+.Fn sglist_hold "struct sglist *sg"
+.Ft void
+.Fn sglist_init "struct sglist *sg" "int maxsegs" "struct sglist_seg *segs"
+.Ft int
+.Fn sglist_join "struct sglist *first" "struct sglist *second"
+.Ft size_t
+.Fn sglist_length "struct sglist *sg"
+.Ft void
+.Fn sglist_reset "struct sglist *sg"
+.Ft int
+.Fn sglist_slice "struct sglist *original" "struct sglist **slice" "size_t offset" "size_t length" "int mflags"
+.Ft int
+.Fn sglist_split "struct sglist *original" "struct sglist **head" "size_t length" "int mflags"
+.Sh DESCRIPTION
+The
+.Nm
+API manages physical address ranges.
+Each list contains one or more elements.
+Each element contains a starting physical address and a length.
+Scatter/gather lists are read-only while they are shared.
+If one wishes to alter an existing scatter/gather list and does not hold the
+sole reference to the list,
+then one should create a new list instead of modifying the existing list.
+.Pp
+Each scatter/gather list object contains a reference count.
+New lists are created with a single reference.
+New references are obtained by calling
+.Nm sglist_hold
+and are released by calling
+.Nm sglist_free .
+.Ss Allocating and Initializing Lists
+Each
+.Nm
+object consists of a header structure and a variable-length array of
+scatter/gather list elements.
+The
+.Nm sglist_alloc
+function allocates a new list that contains a header and
+.Fa nsegs
+scatter/gather list elements.
+The
+.Fa mflags
+argument can be set to either
+.Dv M_NOWAIT
+or
+.Dv M_WAITOK .
+.Pp
+The
+.Nm sglist_count
+function returns the number of scatter/gather list elements needed to describe
+the physical address ranges mapped by a single kernel virtual address range.
+The kernel virtual address range starts at
+.Fa buf
+and is
+.Fa len
+bytes long.
+.Pp
+The
+.Nm sglist_count_vmpages
+function returns the number of scatter/gather list elements needed to describe
+the physical address ranges of a buffer backed by an array of virtual memory
+pages
+.Fa m .
+The buffer starts at an offset of
+.Fa pgoff
+bytes relative to the first page and is
+.Fa len
+bytes long.
+.Pp
+The
+.Nm sglist_build
+function allocates a new scatter/gather list object that describes the physical
+address ranges mapped by a single kernel virtual address range.
+The kernel virtual address range starts at
+.Fa buf
+and is
+.Fa len
+bytes long.
+The
+.Fa mflags
+argument can be set to either
+.Dv M_NOWAIT
+or
+.Dv M_WAITOK .
+.Pp
+The
+.Nm sglist_clone
+function returns a copy of an existing scatter/gather list object
+.Fa sg .
+The
+.Fa mflags
+argument can be set to either
+.Dv M_NOWAIT
+or
+.Dv M_WAITOK .
+This can be used to obtain a private copy of a scatter/gather list before
+modifying it.
+.Pp
+The
+.Nm sglist_init
+function initializes a scatter/gather list header.
+The header is pointed to by
+.Fa sg
+and is initialized to manage an array of
+.Fa maxsegs
+scatter/gather list elements pointed to by
+.Fa segs .
+This can be used to initialize a scatter/gather list header whose storage
+is not provided by
+.Nm sglist_alloc .
+In that case, the caller should not call
+.Nm sglist_free
+to release its own reference and is responsible for ensuring all other
+references to the list are dropped before it releases the storage for
+.Fa sg
+and
+.Fa segs .
+.Ss Constructing Scatter/Gather Lists
+The
+.Nm
+API provides several routines for building a scatter/gather list to describe
+one or more objects.
+Specifically, the
+.Nm sglist_append
+family of routines can be used to append the physical address ranges described
+by an object to the end of a scatter/gather list.
+All of these routines return 0 on success or an error on failure.
+If a request to append an address range to a scatter/gather list fails,
+the scatter/gather list will remain unchanged.
+.Pp
+The
+.Nm sglist_append
+function appends the physical address ranges described by a single kernel
+virtual address range to the scatter/gather list
+.Fa sg .
+The kernel virtual address range starts at
+.Fa buf
+and is
+.Fa len
+bytes long.
+.Pp
+The
+.Nm sglist_append_bio
+function appends the physical address ranges described by a single bio
+.Fa bp
+to the scatter/gather list
+.Fa sg .
+.Pp
+The
+.Nm sglist_append_mbuf
+function appends the physical address ranges described by an entire mbuf
+chain
+.Fa m
+to the scatter/gather list
+.Fa sg .
+.Pp
+The
+.Nm sglist_append_phys
+function appends a single physical address range to the scatter/gather list
+.Fa sg .
+The physical address range starts at
+.Fa paddr
+and is
+.Fa len
+bytes long.
+.Pp
+The
+.Nm sglist_append_sglist
+function appends physical address ranges described by the scatter/gather list
+.Fa source
+to the scatter/gather list
+.Fa sg .
+The physical address ranges start at offset
+.Fa offset
+within
+.Fa source
+and continue for
+.Fa len
+bytes.
+.Pp
+The
+.Nm sglist_append_uio
+function appends the physical address ranges described by a
+.Xr uio 9
+object to the scatter/gather list
+.Fa sg .
+Note that it is the caller's responsibility to ensure that the pages backing
+the I/O request are wired for the lifetime of
+.Fa sg .
+Note also that this routine does not modify
+.Fa uio .
+.Pp
+The
+.Nm sglist_append_user
+function appends the physical address ranges described by a single user
+virtual address range to the scatter/gather list
+.Fa sg .
+The user virtual address range is relative to the address space of the thread
+.Fa td .
+It starts at
+.Fa buf
+and is
+.Fa len
+bytes long.
+Note that it is the caller's responsibility to ensure that the pages backing
+the user buffer are wired for the lifetime of
+.Fa sg .
+.Pp
+The
+.Nm sglist_append_vmpages
+function appends the physical address ranges of a buffer backed by an array
+of virtual memory pages
+.Fa m .
+The buffer starts at an offset of
+.Fa pgoff
+bytes relative to the first page and is
+.Fa len
+bytes long.
+.Pp
+The
+.Nm sglist_consume_uio
+function is a variation of
+.Nm sglist_append_uio .
+As with
+.Nm sglist_append_uio ,
+it appends the physical address ranges described by
+.Fa uio
+to the scatter/gather list
+.Fa sg .
+Unlike
+.Nm sglist_append_uio ,
+however,
+.Nm sglist_consume_uio
+modifies the I/O request to indicate that the appended address ranges have
+been processed similar to calling
+.Xr uiomove 9 .
+This routine will only append ranges that describe up to
+.Fa resid
+total bytes in length.
+If the available segments in the scatter/gather list are exhausted before
+.Fa resid
+bytes are processed,
+then the
+.Fa uio
+structure will be updated to reflect the actual number of bytes processed,
+and
+.Nm sglist_consume_io
+will return zero to indicate success.
+In effect, this function will perform partial reads or writes.
+The caller can compare the
+.Fa uio_resid
+member of
+.Fa uio
+before and after calling
+.Nm sglist_consume_uio
+to determine the actual number of bytes processed.
+.Ss Manipulating Scatter/Gather Lists
+The
+.Nm sglist_join
+function appends physical address ranges from the scatter/gather list
+.Fa second
+onto
+.Fa first
+and then resets
+.Fa second
+to an empty list.
+It returns zero on success or an error on failure.
+.Pp
+The
+.Nm sglist_split
+function splits an existing scatter/gather list into two lists.
+The first
+.Fa length
+bytes described by the list
+.Fa original
+are moved to a new list
+.Fa *head .
+If
+.Fa original
+describes a total address range that is smaller than
+.Fa length
+bytes,
+then all of the address ranges will be moved to the new list at
+.Fa *head
+and
+.Fa original
+will be an empty list.
+The caller may supply an existing scatter/gather list in
+.Fa *head .
+If so, the list must be empty.
+Otherwise, the caller may set
+.Fa *head
+to
+.Dv NULL
+in which case a new scatter/gather list will be allocated.
+In that case,
+.Fa mflags
+may be set to either
+.Dv M_NOWAIT
+or
+.Dv M_WAITOK .
+Note that since the
+.Fa original
+list is modified by this call, it must be a private list with no other
+references.
+The
+.Nm sglist_split
+function returns zero on success or an error on failure.
+.Pp
+The
+.Nm sglist_slice
+function generates a new scatter/gather list from a sub-range of an existing
+scatter/gather list
+.Fa original .
+The sub-range to extract is specified by the
+.Fa offset
+and
+.Fa length
+parameters.
+The new scatter/gather list is stored in
+.Fa *slice .
+As with
+.Fa head
+for
+.Nm sglist_join ,
+the caller may either provide an empty scatter/gather list,
+or it may set
+.Fa *slice
+to
+.Dv NULL
+in which case
+.Nm sglist_slice
+will allocate a new list subject to
+.Fa mflags .
+Unlike
+.Nm sglist_split ,
+.Nm sglist_slice
+does not modify
+.Fa original
+and does not require it to be a private list.
+The
+.Nm sglist_split
+function returns zero on success or an error on failure.
+.Ss Miscellaneous Routines
+The
+.Nm sglist_reset
+function clears the scatter/gather list
+.Fa sg
+so that it no longer maps any address ranges.
+This can allow reuse of a single scatter/gather list object for multiple
+requests.
+.Pp
+The
+.Nm sglist_length
+function returns the total length of the physical address ranges described
+by the scatter/gather list
+.Fa sg .
+.Sh RETURN VALUES
+The
+.Nm sglist_alloc ,
+.Nm sglist_build ,
+and
+.Nm sglist_clone
+functions return a new scatter/gather list on success or
+.Dv NULL
+on failure.
+.Pp
+The
+.Nm sglist_append
+family of functions and the
+.Nm sglist_consume_uio ,
+.Nm sglist_join ,
+.Nm sglist_slice ,
+and
+.Nm sglist_split
+functions return zero on success or an error on failure.
+.Pp
+The
+.Nm sglist_count
+and
+.Nm sglist_count_vmpages
+functions return a count of scatter/gather list elements.
+.Pp
+The
+.Nm sglist_length
+function returns a count of address space described by a scatter/gather list
+in bytes.
+.Sh ERRORS
+The
+.Nm sglist_append
+functions return the following errors on failure:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The scatter/gather list has zero segments.
+.It Bq Er EFBIG
+There are not enough available segments in the scatter/gather list to append
+the specified physical address ranges.
+.El
+.Pp
+The
+.Nm sglist_consume_uio
+function returns the following error on failure:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The scatter/gather list has zero segments.
+.El
+.Pp
+The
+.Nm sglist_join
+function returns the following error on failure:
+.Bl -tag -width Er
+.It Bq Er EFBIG
+There are not enough available segments in the scatter/gather list
+.Fa first
+to append the physical address ranges from
+.Fa second .
+.El
+.Pp
+The
+.Nm sglist_slice
+function returns the following errors on failure:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa original
+scatter/gather list does not describe enough address space to cover the
+requested sub-range.
+.It Bq Er EINVAL
+The caller-supplied scatter/gather list in
+.Fa *slice
+is not empty.
+.It Bq Er ENOMEM
+An attempt to allocate a new scatter/gather list with
+.Dv M_NOWAIT
+set in
+.Fa mflags
+failed.
+.It Bq Er EFBIG
+There are not enough available segments in the caller-supplied scatter/gather
+list in
+.Fa *slice
+to describe the requested physical address ranges.
+.El
+.Pp
+The
+.Nm sglist_split
+function returns the following errors on failure:
+.Bl -tag -width Er
+.It Bq Er EDOOFUS
+The
+.Fa original
+scatter/gather list has more than one reference.
+.It Bq Er EINVAL
+The caller-supplied scatter/gather list in
+.Fa *head
+is not empty.
+.It Bq Er ENOMEM
+An attempt to allocate a new scatter/gather list with
+.Dv M_NOWAIT
+set in
+.Fa mflags
+failed.
+.It Bq Er EFBIG
+There are not enough available segments in the caller-supplied scatter/gather
+list in
+.Fa *head
+to describe the requested physical address ranges.
+.El
+.Sh SEE ALSO
+.Xr g_bio 9 ,
+.Xr malloc 9 ,
+.Xr mbuf 9 ,
+.Xr uio 9
+.Sh HISTORY
+This API was first introduced in
+.Fx 8.0 .

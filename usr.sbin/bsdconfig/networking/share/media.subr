@@ -1,0 +1,247 @@
+if [ ! "$_NETWORKING_MEDIA_SUBR" ]; then _NETWORKING_MEDIA_SUBR=1
+#
+# Copyright (c) 2006-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." networking/media.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/networking/common.subr
+f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+############################################################ FUNCTIONS
+
+# f_ifconfig_options $interface
+#
+# Returns any/all extra ifconfig(8) parameters associated with $interface.
+#
+f_ifconfig_options()
+{
+	local interface="$1"
+	[ "$interface" ] || return $SUCCESS
+
+	#
+	# Loop over the options, removing what we don't want
+	#
+	(
+		set -- $( f_sysrc_get ifconfig_$interface )
+
+		#
+		# Return if the interface is configured for DHCP
+		#
+		glob="[Dd][Hh][Cc][Pp]"
+		case "$*" in
+		$glob|[Ss][Yy][Nn][Cc]$glob|[Nn][Oo][Ss][Yy][Nn][Cc]$glob)
+			exit $SUCCESS
+		esac
+
+		output=
+		while [ $# -gt 0 ]; do
+			case "$1" in
+			inet|netmask) shift 1 ;;
+			*) output="$output${output:+ }$1"
+			esac
+			shift 1
+		done
+		echo "$output"
+	)
+}
+
+# f_ifconfig_media $interface
+#
+# Returns list of supported media for $interface.
+#
+f_ifconfig_media()
+{
+	local interface="$1"
+	ifconfig -m "$interface" 2> /dev/null | awk \
+	'
+		BEGIN { media_found = 0 }
+		{
+			if ( media_found == 1 ) { print; next }
+		}
+		( $1 $2 == "supported" "media:" ) \
+		{
+			media_found = 1
+			next
+		}
+		END { exit ! media_found }
+	'
+}
+
+# f_dialog_input_options $interface
+#
+# Input custom interface options. If the user does not press ESC or choose
+# Cancel/No, $options will hold the user's input. Default input is taken from
+# the same variable ($options).
+#
+f_dialog_input_options()
+{
+	local interface="$1"
+
+	#
+	# Return with-error when there are NFS-mounts currently active. If the
+	# options are changed while NFS-exported directories are mounted,
+	# the system may hang (if any NFS mounts are using that interface).
+	#
+	if f_nfs_mounted && ! f_jailed; then
+		local setting
+		f_sprintf setting "$msg_current_options" \
+		                  "$interface" "$options"
+		f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
+			return $DIALOG_CANCEL
+	fi
+
+	local msg
+	f_sprintf msg "$msg_please_enter_mediaopts" "$interface"
+	local hline="$hline_alnum_punc_tab_enter"
+
+	local _options
+	_options=$( $DIALOG \
+		--title "$DIALOG_TITLE"         \
+		--backtitle "$DIALOG_BACKTITLE" \
+		--hline "$hline"                \
+		--ok-label "$msg_ok"            \
+		--cancel-label "$msg_cancel"    \
+		--inputbox "$msg" 9 70          \
+		"$options"                      \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_line_sanitize _options
+
+	[ $retval -eq $DIALOG_OK ] && options="$_options"
+
+	return $retval
+}
+
+# f_dialog_menu_media_options $interface
+#
+# Display a menu of additional media options for the given network interface.
+#
+f_dialog_menu_media_options()
+{
+	local interface="$1" _options="$2"
+	#
+	# Not all network interfaces support additional media options, but
+	# when available we should prompt the user to select from a list
+	# of available options (or none, as is the first/default option).
+	#
+
+	#
+	# Return with-error when there are NFS-mounts currently active. If the
+	# media options are changed while NFS-exported directories are mounted,
+	# the system may hang (if any NFS mounts are using that interface).
+	#
+	if f_nfs_mounted && ! f_jailed; then
+		local setting
+		f_sprintf setting "$msg_current_options" \
+		                  "$interface" "$_options"
+		f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
+			return $DIALOG_CANCEL
+	fi
+
+	#
+	# Build list of additional media options
+	#
+	local opt_none="$msg_no_options"
+	local opt_cust="$msg_custom"
+	local supported_media="$(
+		f_ifconfig_media $interface | \
+		( index=1
+
+		  f_substr -v tagn "$DIALOG_MENU_TAGS" $index 1
+		  echo "'$tagn' '$opt_none'"
+		  index=$(( $index + 1 ))
+
+		  f_substr -v tagn "$DIALOG_MENU_TAGS" $index 1
+		  echo "'$tagn' '$opt_cust'"
+		  index=$(( $index + 1 ))
+
+		  while read media_options; do
+		  	[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
+		  	f_substr -v tagn "$DIALOG_MENU_TAGS" $index 1
+		  	echo "'$tagn' '$media_options'"
+		  	index=$(( $index + 1 ))
+		  done
+		)
+	)"
+
+	local msg
+	if [ "$USE_XDIALOG" ]; then
+		f_sprintf msg "$xmsg_supported_media_options" \
+		              "$interface" "$interface"
+	else
+		f_sprintf msg "$msg_supported_media_options" \
+		              "$interface" "$interface"
+	fi
+
+	local hline="$hline_arrows_tab_enter"
+
+	local tag
+	tag=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--menu \"\$msg\" 21 60 12          \
+		$supported_media                   \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize tag
+
+	if [ $retval -eq $DIALOG_OK ]; then
+		options=$( eval f_dialog_menutag2item \"\$tag\" \
+		                                      $supported_media )
+		case "$options" in
+		"$opt_none")
+			options=
+			;;
+		"$opt_cust")
+			options="$_options"
+			f_dialog_input_options "$interface"
+			retval=$?
+			;;
+		esac
+	fi
+
+	return $retval
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." networking/media.subr
+
+fi # ! $_NETWORKING_MEDIA_SUBR

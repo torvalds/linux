@@ -1,0 +1,211 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2001 Boris Popov
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 28, 2001
+.Dt MDCHAIN 9
+.Os
+.Sh NAME
+.Nm mdchain ,
+.Nm md_initm ,
+.Nm md_done ,
+.Nm md_append_record ,
+.Nm md_next_record ,
+.Nm md_get_uint8 ,
+.Nm md_get_uint16 ,
+.Nm md_get_uint16be ,
+.Nm md_get_uint16le ,
+.Nm md_get_uint32 ,
+.Nm md_get_uint32be ,
+.Nm md_get_uint32le ,
+.Nm md_get_int64 ,
+.Nm md_get_int64be ,
+.Nm md_get_int64le ,
+.Nm md_get_mem ,
+.Nm md_get_mbuf ,
+.Nm md_get_uio
+.Nd "set of functions to dissect an mbuf chain to various data types"
+.Sh SYNOPSIS
+.Cd options LIBMCHAIN
+.Li kldload libmchain
+.Pp
+.In sys/param.h
+.In sys/uio.h
+.In sys/mchain.h
+.Ft void
+.Fn md_initm "struct mdchain *mdp" "struct mbuf *m"
+.Ft void
+.Fn md_done "struct mdchain *mdp"
+.Ft void
+.Fn md_append_record "struct mdchain *mdp" "struct mbuf *top"
+.Ft int
+.Fn md_next_record "struct mdchain *mdp"
+.Ft int
+.Fn md_get_uint8 "struct mdchain *mdp" "uint8_t *x"
+.Ft int
+.Fn md_get_uint16 "struct mdchain *mdp" "uint16_t *x"
+.Ft int
+.Fn md_get_uint16be "struct mdchain *mdp" "uint16_t *x"
+.Ft int
+.Fn md_get_uint16le "struct mdchain *mdp" "uint16_t *x"
+.Ft int
+.Fn md_get_uint32 "struct mdchain *mdp" "uint32_t *x"
+.Ft int
+.Fn md_get_uint32be "struct mdchain *mdp" "uint32_t *x"
+.Ft int
+.Fn md_get_uint32le "struct mdchain *mdp" "uint32_t *x"
+.Ft int
+.Fn md_get_int64 "struct mdchain *mdp" "int64_t *x"
+.Ft int
+.Fn md_get_int64be "struct mdchain *mdp" "int64_t *x"
+.Ft int
+.Fn md_get_int64le "struct mdchain *mdp" "int64_t *x"
+.Ft int
+.Fn md_get_mem "struct mdchain *mdp" "caddr_t target" "int size" "int type"
+.Ft int
+.Fn md_get_mbuf "struct mdchain *mdp" "int size" "struct mbuf **m"
+.Ft int
+.Fn md_get_uio "struct mdchain *mdp" "struct uio *uiop" "int size"
+.Sh DESCRIPTION
+These functions are used to decompose mbuf chains to various data types.
+The
+.Vt mdchain
+structure is used as a working context
+and should be initialized through a call of the
+.Fn mb_initm
+function.
+It has the following fields:
+.Bl -tag -width "md_top"
+.It Va "md_top"
+.Pq Vt "struct mbuf *"
+A pointer to the top of the parsed mbuf chain.
+.It Va md_cur
+.Pq Vt "struct mbuf *"
+A pointer to the currently parsed mbuf.
+.It Va md_pas
+.Pq Vt int
+Offset in the current mbuf.
+.El
+.Pp
+The
+.Fn md_done
+function disposes of an mbuf chain pointed to by the
+.Fa mdp->md_top
+field and sets the field to
+.Dv NULL .
+.Pp
+The
+.Fn md_append_record
+appends a new mbuf chain using
+.Va m_nextpkt
+field to form a single linked list of mbuf chains.
+If the
+.Fa mdp->md_top
+field is
+.Dv NULL ,
+then this function behaves exactly as the
+.Fn md_initm
+function.
+.Pp
+The
+.Fn md_next_record
+function extracts the next mbuf chain and disposes the current one, if any.
+For a new mbuf chain it calls the
+.Fn md_initm
+function.
+If there is no data left the function returns
+.Er ENOENT .
+.Pp
+All
+.Fn md_get_*
+functions perform an actual copy of the data from an mbuf chain.
+Functions which have
+.Cm le
+or
+.Cm be
+suffixes will perform conversion to the little\- or big\-endian data formats.
+.Pp
+.Fn md_get_mem
+function copies
+.Fa size
+bytes of data specified by the
+.Fa source
+argument from an mbuf chain.
+The
+.Fa type
+argument specifies the method used to perform a copy,
+and can be one of the following:
+.Bl -tag -width ".Dv MB_MINLINE"
+.It Dv MB_MSYSTEM
+Use the
+.Fn bcopy
+function.
+.It Dv MB_MUSER
+Use the
+.Xr copyin 9
+function.
+.It Dv MB_MINLINE
+Use an
+.Dq inline
+loop which does not call any function.
+.El
+.Pp
+If
+.Fa target
+is
+.Dv NULL ,
+an actual copy is not performed
+and the function just skips the given number of bytes.
+.Sh RETURN VALUES
+All
+.Ft int
+functions return zero if successful,
+otherwise an error code is returned.
+.Pp
+.Em Note :
+after failure of any function,
+an mbuf chain is left in the broken state and only the
+.Fn md_done
+function can safely be called to destroy it.
+.Sh EXAMPLES
+.Bd -literal
+struct mdchain *mdp;
+struct mbuf *m;
+uint16_t length;
+uint8_t byte;
+
+receive(so, &m);
+md_initm(mdp, m);
+if (md_get_uint8(mdp, &byte) != 0 ||
+    md_get_uint16le(mdp, &length) != 0)
+	error = EBADRPC;
+mb_done(mdp);
+.Ed
+.Sh SEE ALSO
+.Xr mbchain 9 ,
+.Xr mbuf 9
+.Sh AUTHORS
+This manual page was written by
+.An Boris Popov Aq Mt bp@FreeBSD.org .

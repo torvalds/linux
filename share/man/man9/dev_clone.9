@@ -1,0 +1,78 @@
+.\" Copyright (c) 2008 Konstantin Belousov
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 3, 2009
+.Dt DEV_CLONE 9
+.Os
+.Sh NAME
+.Nm dev_clone ,
+.Nm drain_dev_clone_events
+.Nd eventhandler for name-based device cloning in devfs
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/conf.h
+.Ft void
+.Fn clone_handler "void *arg" "struct ucred *cr" "char *name" "int namelen" "struct cdev **dev"
+.Bd -literal
+EVENTHANDLER_REGISTER(dev_clone, clone_handler, arg, priority);
+.Ed
+.Ft void
+.Fn drain_dev_clone_events
+.Sh DESCRIPTION
+A device driver may register a listener that will be notified each time
+a name lookup on the
+.Xr devfs 5
+mount point fails to find the vnode.
+A listener shall be registered for the
+.Va dev_clone
+event.
+When called, it is supplied with the first argument
+.Va arg
+that was specified at handler registration time,
+appropriate credentials
+.Va cr ,
+and a name
+.Va name
+of length
+.Va namelen
+that we look for.
+If the handler decides that the name is appropriate and wants to create the device
+that will be associated with the name, it should return it to devfs
+in the
+.Va dev
+argument.
+.Pp
+The
+.Fn drain_dev_clone_events
+function is a barrier.
+It is guaranteed that all calls to eventhandlers for
+.Nm dev_clone
+that were started before
+.Fn drain_dev_clone_events
+call, are finished before it returns control.
+.Sh SEE ALSO
+.Xr devfs 5 ,
+.Xr namei 9

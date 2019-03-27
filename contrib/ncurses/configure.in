@@ -1,0 +1,2057 @@
+dnl***************************************************************************
+dnl Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
+dnl                                                                          *
+dnl Permission is hereby granted, free of charge, to any person obtaining a  *
+dnl copy of this software and associated documentation files (the            *
+dnl "Software"), to deal in the Software without restriction, including      *
+dnl without limitation the rights to use, copy, modify, merge, publish,      *
+dnl distribute, distribute with modifications, sublicense, and/or sell       *
+dnl copies of the Software, and to permit persons to whom the Software is    *
+dnl furnished to do so, subject to the following conditions:                 *
+dnl                                                                          *
+dnl The above copyright notice and this permission notice shall be included  *
+dnl in all copies or substantial portions of the Software.                   *
+dnl                                                                          *
+dnl THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+dnl OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+dnl MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+dnl IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+dnl DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+dnl OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+dnl THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+dnl                                                                          *
+dnl Except as contained in this notice, the name(s) of the above copyright   *
+dnl holders shall not be used in advertising or otherwise to promote the     *
+dnl sale, use or other dealings in this Software without prior written       *
+dnl authorization.                                                           *
+dnl***************************************************************************
+dnl
+dnl Author: Thomas E. Dickey 1995-on
+dnl
+dnl $Id: configure.in,v 1.577 2013/12/15 00:03:02 tom Exp $
+dnl Process this file with autoconf to produce a configure script.
+dnl
+dnl See http://invisible-island.net/autoconf/ for additional information.
+dnl
+dnl ---------------------------------------------------------------------------
+AC_PREREQ(2.52.20030208)
+AC_REVISION($Revision: 1.577 $)
+AC_INIT(ncurses/base/lib_initscr.c)
+AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
+
+CF_TOP_BUILDDIR
+CF_SUBST_NCURSES_VERSION
+
+CF_WITH_REL_VERSION(NCURSES)
+CF_WITH_ABI_VERSION
+
+CF_WITH_SYSTYPE
+
+###	Save the given $CFLAGS to allow user-override.
+cf_user_CFLAGS="$CFLAGS"
+
+###	Default install-location
+CF_CFG_DEFAULTS
+
+###	Checks for programs.
+AC_ARG_WITH(ada,
+	[  --without-ada           suppress check for Ada95, don't build demo],
+	[cf_with_ada=$withval],
+	[cf_with_ada=yes])
+if test "x$cf_with_ada" = xyes
+then
+	cf_PROG_CC="gnatgcc gcc cc"
+else
+	cf_PROG_CC="gcc cc"
+fi
+
+CF_PROG_CC($cf_PROG_CC)
+
+AC_PROG_CPP
+AC_PROG_GCC_TRADITIONAL
+CF_PROG_CC_C_O(CC)
+CF_PROG_LDCONFIG
+
+dnl DEFECT in autoconf 2.12:	an attempt to set policy, this breaks the
+dnl				configure script by not letting us test if C++
+dnl				is present, making this option necessary.
+AC_MSG_CHECKING(if you want to ensure bool is consistent with C++)
+AC_ARG_WITH(cxx,
+	[  --without-cxx           do not adjust ncurses bool to match C++],
+	[cf_with_cxx=$withval],
+	[cf_with_cxx=yes])
+AC_MSG_RESULT($cf_with_cxx)
+if test "X$cf_with_cxx" = Xno ; then
+	CXX=""
+	GXX=""
+else
+	# with autoconf 2.13, we can change the error to a warning:
+	pushdef([AC_MSG_ERROR],
+		[AC_MSG_RESULT(no)
+		 AC_MSG_WARN([You don't have any C++ compiler, too bad])
+		cf_with_cxx=no; CXX=""; GXX="";])dnl
+	AC_PROG_CXX
+	popdef([AC_MSG_ERROR])dnl
+	# autoconf 2.5x removed the error (hardcoding it to g++, or just blank)
+	if test "$CXX" = "g++" ; then
+		AC_PATH_PROG(CXX,g++)
+	fi
+	case "x$CXX" in #(vi
+	x|xg++)
+		AC_MSG_WARN([You don't have any C++ compiler, too bad])
+		cf_with_cxx=no; CXX=""; GXX="";
+		;;
+	esac
+fi
+
+CF_GXX_VERSION
+case $GXX_VERSION in
+1*|2.[[0-6]]*)
+	# GXX=""; CXX=""; ac_cv_prog_gxx=no
+	# cf_cxx_library=no
+	AC_MSG_WARN(templates do not work)
+	;;
+esac
+
+AC_MSG_CHECKING(if you want to build C++ binding and demo)
+AC_ARG_WITH(cxx-binding,
+	[  --without-cxx-binding   do not build C++ binding and demo],
+	[cf_with_cxx_binding=$withval],
+	[cf_with_cxx_binding=$cf_with_cxx])
+AC_MSG_RESULT($cf_with_cxx_binding)
+
+AC_MSG_CHECKING(if you want to build with Ada95)
+AC_MSG_RESULT($cf_with_ada)
+
+AC_MSG_CHECKING(if you want to install terminal database)
+AC_ARG_ENABLE(db-install,
+	[  --disable-db-install    suppress install of terminal database],
+	[cf_with_db_install=$enableval],
+	[cf_with_db_install=yes])
+AC_MSG_RESULT($cf_with_db_install)
+
+AC_MSG_CHECKING(if you want to install manpages)
+AC_ARG_WITH(manpages,
+	[  --without-manpages      suppress install of manpages],
+	[cf_with_manpages=$withval],
+	[cf_with_manpages=yes])
+AC_MSG_RESULT($cf_with_manpages)
+
+AC_MSG_CHECKING(if you want to build programs such as tic)
+AC_ARG_WITH(progs,
+	[  --without-progs         suppress build/install with programs (e.g., tic)],
+	[cf_with_progs=$withval],
+	[cf_with_progs=yes])
+AC_MSG_RESULT($cf_with_progs)
+
+AC_MSG_CHECKING(if you want to build test-programs)
+AC_ARG_WITH(tests,
+	[  --without-tests         suppress build/install with test-programs],
+	[cf_with_tests=$withval],
+	[cf_with_tests=yes])
+AC_MSG_RESULT($cf_with_tests)
+
+AC_MSG_CHECKING(if you wish to install curses.h)
+AC_ARG_WITH(curses-h,
+	[  --without-curses-h      install curses.h as ncurses.h only],
+	[with_curses_h=$withval],
+	[with_curses_h=yes])
+AC_MSG_RESULT($with_curses_h)
+
+modules_to_build="ncurses"
+if test "X$cf_with_progs" != Xno ; then
+modules_to_build="$modules_to_build progs tack"
+fi
+modules_to_build="$modules_to_build panel menu form"
+
+AC_ARG_PROGRAM
+
+CF_PROG_AWK
+CF_PROG_EGREP
+CF_PROG_INSTALL
+CF_PROG_LINT
+CF_PROG_LN_S
+
+AC_SYS_LONG_FILE_NAMES
+
+# if we find pkg-config, check if we should install the ".pc" files.
+CF_PKG_CONFIG
+CF_WITH_PKG_CONFIG_LIBDIR
+CF_ENABLE_PC_FILES
+
+AC_MSG_CHECKING(if we should assume mixed-case filenames)
+AC_ARG_ENABLE(mixed-case,
+	[  --enable-mixed-case     tic should assume mixed-case filenames],
+	[enable_mixedcase=$enableval],
+	[enable_mixedcase=auto])
+AC_MSG_RESULT($enable_mixedcase)
+if test "$enable_mixedcase" = "auto" ; then
+    CF_MIXEDCASE_FILENAMES
+else
+    cf_cv_mixedcase=$enable_mixedcase
+    if test "x$enable_mixedcase" = "xyes" ; then
+        AC_DEFINE(MIXEDCASE_FILENAMES,1,[Define to 1 if tic should assume mixed-case filenames])
+    fi
+fi
+
+# do this after mixed-case option (tags/TAGS is not as important as tic).
+AC_PROG_MAKE_SET
+CF_MAKE_TAGS
+CF_MAKEFLAGS
+
+dnl These are standard among *NIX systems, but not when cross-compiling
+AC_CHECK_TOOL(RANLIB, ranlib, ':')
+AC_CHECK_TOOL(LD, ld, ld)
+AC_CHECK_TOOL(AR, ar, ar)
+AC_CHECK_TOOL(NM, nm, nm)
+CF_AR_FLAGS
+
+dnl Special option for use by system-builders: the install-prefix is used to
+dnl adjust the location into which the actual install is done, so that an
+dnl archive can be built without modifying the host system's configuration.
+AC_MSG_CHECKING(if you have specified an install-prefix)
+AC_ARG_WITH(install-prefix,
+	[  --with-install-prefix   prefixes actual install-location ($DESTDIR)],
+	[case "x$withval" in #(vi
+	xyes|xno) #(vi
+		;;
+	*)	DESTDIR="$withval"
+		;;
+	esac])
+AC_MSG_RESULT($DESTDIR)
+AC_SUBST(DESTDIR)
+
+###############################################################################
+CF_HELP_MESSAGE(Build-Tools Needed to Compile Temporary Applications for Cross-compiling:)
+# If we're cross-compiling, allow the user to override the tools and their
+# options.  The configure script is oriented toward identifying the host
+# compiler, etc., but we need a build compiler to generate parts of the source.
+CF_BUILD_CC
+
+###############################################################################
+CF_HELP_MESSAGE(Options to Specify the Libraries Built/Used:)
+
+### Options to allow the user to specify the set of libraries which are used.
+### Use "--without-normal --with-shared" to allow the default model to be
+### shared, for example.
+cf_list_models=""
+AC_SUBST(cf_list_models)dnl	the complete list of models ("normal debug")
+
+CF_WITH_LIBTOOL
+if test "$with_libtool" != "no" ; then
+
+cf_list_models="$cf_list_models libtool"
+
+else
+
+AC_MSG_CHECKING(if you want to build shared libraries)
+AC_ARG_WITH(shared,
+	[  --with-shared           generate shared-libraries],
+	[with_shared=$withval],
+	[with_shared=no])
+AC_MSG_RESULT($with_shared)
+test "x$with_shared" = "xyes" && cf_list_models="$cf_list_models shared"
+
+AC_MSG_CHECKING(if you want to build static libraries)
+AC_ARG_WITH(normal,
+	[  --with-normal           generate normal-libraries (default)],
+	[with_normal=$withval],
+	[with_normal=yes])
+AC_MSG_RESULT($with_normal)
+test "x$with_normal" = "xyes" && cf_list_models="$cf_list_models normal"
+
+AC_MSG_CHECKING(if you want to build debug libraries)
+AC_ARG_WITH(debug,
+	[  --with-debug            generate debug-libraries (default)],
+	[with_debug=$withval],
+	[with_debug=yes])
+AC_MSG_RESULT($with_debug)
+test "x$with_debug" = "xyes" && cf_list_models="$cf_list_models debug"
+
+AC_MSG_CHECKING(if you want to build profiling libraries)
+AC_ARG_WITH(profile,
+	[  --with-profile          generate profile-libraries],
+	[with_profile=$withval],
+	[with_profile=no])
+AC_MSG_RESULT($with_profile)
+test "x$with_profile" = "xyes" && cf_list_models="$cf_list_models profile"
+
+fi
+
+if test "X$cf_with_cxx_binding" != Xno; then
+if test "x$with_shared" = "xyes"; then
+AC_MSG_CHECKING(if you want to build C++ shared libraries)
+AC_ARG_WITH(cxx-shared,
+	[  --with-cxx-shared       generate C++ shared-libraries],
+	[with_shared_cxx=$withval],
+	[with_shared_cxx=no])
+AC_MSG_RESULT($with_shared_cxx)
+fi
+fi
+
+###############################################################################
+
+AC_MSG_CHECKING(for specified models)
+test -z "$cf_list_models" && cf_list_models=normal
+dnl If we use libtool to generate libraries, then it must be the only
+dnl specified model.
+test "$with_libtool" != "no" && cf_list_models=libtool
+AC_MSG_RESULT($cf_list_models)
+
+### Use the first model as the default, and save its suffix for use in building
+### up test-applications.
+AC_MSG_CHECKING(for default model)
+DFT_LWR_MODEL=`echo "$cf_list_models" | $AWK '{print $1}'`
+AC_MSG_RESULT($DFT_LWR_MODEL)
+
+CF_UPPER(DFT_UPR_MODEL,$DFT_LWR_MODEL)dnl
+
+AC_SUBST(DFT_LWR_MODEL)dnl	the default model ("normal")
+AC_SUBST(DFT_UPR_MODEL)dnl	the default model ("NORMAL")
+
+TICS_NAME=tic
+AC_SUBST(TICS_NAME)
+
+TINFO_NAME=tinfo
+AC_SUBST(TINFO_NAME)
+
+LIB_NAME=ncurses
+AC_SUBST(LIB_NAME)
+
+LIB_DIR=../lib
+LIB_2ND=../../lib
+
+CF_WITH_LIB_PREFIX(cf_prefix)
+
+LIB_SUFFIX=
+AC_SUBST(LIB_SUFFIX)
+CF_PATHSEP
+
+###############################################################################
+
+AC_MSG_CHECKING(if you want to build a separate terminfo library)
+AC_ARG_WITH(termlib,
+	[  --with-termlib          generate separate terminfo library],
+	[with_termlib=$withval],
+	[with_termlib=no])
+AC_MSG_RESULT($with_termlib)
+
+AC_MSG_CHECKING(if you want to build a separate tic library)
+AC_ARG_WITH(ticlib,
+	[  --with-ticlib           generate separate tic library],
+	[with_ticlib=$withval],
+	[with_ticlib=no])
+AC_MSG_RESULT($with_ticlib)
+
+### Checks for special libraries, must be done up-front.
+SHLIB_LIST=""
+CF_WITH_GPM
+if test "$with_gpm" != no ; then
+	AC_MSG_CHECKING(if you want to load GPM dynamically)
+	AC_ARG_WITH(dlsym,
+		[  --without-dlsym         do not use dlsym() to load GPM dynamically],
+		[with_dlsym=$withval],
+		[with_dlsym=yes])
+	AC_MSG_RESULT($with_dlsym)
+	if test "x$with_dlsym" = xyes ; then
+		CF_FUNC_DLSYM
+		if test "x$with_gpm" != xyes ; then
+			CF_VERBOSE(assuming soname for gpm is $with_gpm)
+			cf_cv_gpm_soname="$with_gpm"
+		else
+			CF_LIB_SONAME([#include <gpm.h>],[if (Gpm_Open(0,0)) Gpm_Close();],gpm)
+		fi
+		test "$cf_cv_gpm_soname" != "unknown" && AC_DEFINE_UNQUOTED(LIBGPM_SONAME,"$cf_cv_gpm_soname",[Define as needed to set the gpm share library soname])
+		SHLIB_LIST="-ldl $SHLIB_LIST"
+	else
+		SHLIB_LIST="-lgpm $SHLIB_LIST"
+		CF_ADD_LIB(gpm,TEST_LIBS)
+	fi
+	AC_DEFINE(HAVE_LIBGPM,1,[Define to 1 if we have the gpm library])
+	CF_CHECK_GPM_WGETCH
+fi
+
+CF_WITH_SYSMOUSE
+
+dnl Not all ports of gcc support the -g option
+
+if test X"$CC_G_OPT" = X"" ; then
+	CC_G_OPT='-g'
+	test -n "$GCC" && test "x${ac_cv_prog_cc_g}" != xyes && CC_G_OPT=''
+fi
+AC_SUBST(CC_G_OPT)
+
+if test X"$CXX_G_OPT" = X"" ; then
+	CXX_G_OPT='-g'
+	test -n "$GXX" && test "x${ac_cv_prog_cxx_g}" != xyes && CXX_G_OPT=''
+fi
+AC_SUBST(CXX_G_OPT)
+
+AC_MSG_CHECKING(for default loader flags)
+case $DFT_LWR_MODEL in
+libtool) LD_MODEL=''   ;;
+normal)  LD_MODEL=''   ;;
+debug)   LD_MODEL=$CC_G_OPT ;;
+profile) LD_MODEL='-pg';;
+shared)  LD_MODEL=''   ;;
+esac
+AC_SUBST(LD_MODEL)dnl		the type of link (e.g., -g or -pg)
+AC_MSG_RESULT($LD_MODEL)
+
+case $DFT_LWR_MODEL in
+shared)
+CF_ENABLE_RPATH
+AC_MSG_CHECKING(if shared libraries should be relinked during install)
+AC_ARG_ENABLE(relink,
+[  --disable-relink        relink shared libraries during install],
+[cf_cv_do_relink=$enableval],
+[cf_cv_do_relink=yes])
+AC_MSG_RESULT($cf_cv_do_relink)
+	;;
+esac
+
+# we will build libraries one-level down.
+rel_builddir=..
+CF_SHARED_OPTS
+if test "$CC_SHARED_OPTS" = "unknown"; then
+	for model in $cf_list_models; do
+		if test "$model" = "shared"; then
+			AC_ERROR(Shared libraries are not supported in this version)
+		fi
+	done
+fi
+
+### If we're building with rpath, try to link non-standard libs that way too.
+if test "$DFT_LWR_MODEL" = "shared"; then
+	CF_DISABLE_RPATH_HACK
+fi
+
+###############################################################################
+CF_HELP_MESSAGE(Fine-Tuning Your Configuration:)
+
+###	use option --disable-overwrite to leave out the link to -lcurses
+AC_MSG_CHECKING(if you wish to install ncurses overwriting curses)
+AC_ARG_ENABLE(overwrite,
+	[  --disable-overwrite     leave out the link to -lcurses],
+	[with_overwrite=$enableval],
+	[if test "$prefix" = "/usr" ; then with_overwrite=yes; else with_overwrite=no; fi])
+AC_MSG_RESULT($with_overwrite)
+
+AC_MSG_CHECKING(if external terminfo-database is used)
+AC_ARG_ENABLE(database,
+	[  --disable-database      do not use terminfo, only fallbacks/termcap],
+	[use_database=$enableval],
+	[use_database=yes])
+AC_MSG_RESULT($use_database)
+
+case $host_os in #(vi
+os2*) #(vi
+	TERMINFO_SRC='${top_srcdir}/misc/emx.src'
+	;;
+*) #(vi
+	TERMINFO_SRC='${top_srcdir}/misc/terminfo.src'
+	;;
+esac
+AC_SUBST(TERMINFO_SRC)
+
+NCURSES_USE_DATABASE=0
+if test "$use_database" != no ; then
+	NCURSES_USE_DATABASE=1
+
+	AC_MSG_CHECKING(which terminfo source-file will be installed)
+	AC_ARG_WITH(database,
+		[  --with-database=XXX     specify terminfo source to install],
+		[TERMINFO_SRC=$withval])
+	AC_MSG_RESULT($TERMINFO_SRC)
+
+	AC_MSG_CHECKING(whether to use hashed database instead of directory/tree)
+	AC_ARG_WITH(hashed-db,
+		[  --with-hashed-db        specify hashed-database library],,
+		[with_hashed_db=no])
+	AC_MSG_RESULT($with_hashed_db)
+else
+	with_hashed_db=no
+fi
+AC_SUBST(NCURSES_USE_DATABASE)
+
+AC_MSG_CHECKING(for list of fallback descriptions)
+AC_ARG_WITH(fallbacks,
+	[  --with-fallbacks=XXX    specify list of fallback terminal descriptions],
+	[with_fallback=$withval],
+	[with_fallback=])
+AC_MSG_RESULT($with_fallback)
+FALLBACK_LIST=`echo "$with_fallback" | sed -e 's/,/ /g'`
+AC_SUBST(FALLBACK_LIST)
+
+AC_MSG_CHECKING(if you want modern xterm or antique)
+AC_ARG_WITH(xterm-new,
+	[  --without-xterm-new     specify if xterm terminfo should be old version],
+	[with_xterm_new=$withval],
+	[with_xterm_new=yes])
+case $with_xterm_new in
+no)	with_xterm_new=xterm-old;;
+*)	with_xterm_new=xterm-new;;
+esac
+AC_MSG_RESULT($with_xterm_new)
+WHICH_XTERM=$with_xterm_new
+AC_SUBST(WHICH_XTERM)
+
+AC_MSG_CHECKING(if xterm backspace sends BS or DEL)
+AC_ARG_WITH(xterm-kbs,
+	[  --with-xterm-kbs=XXX    specify if xterm backspace sends BS or DEL],
+	[with_xterm_kbs=$withval],
+	[with_xterm_kbs=BS])
+case x$with_xterm_kbs in
+xyes|xno|xBS|xbs|x8)
+	with_xterm_kbs=BS
+	;;
+xDEL|xdel|x127)
+	with_xterm_kbs=DEL
+	;;
+*)
+	with_xterm_kbs=$withval
+	;;
+esac
+AC_MSG_RESULT($with_xterm_kbs)
+XTERM_KBS=$with_xterm_kbs
+AC_SUBST(XTERM_KBS)
+
+MAKE_TERMINFO=
+if test "$use_database" = no ; then
+	TERMINFO="${datadir}/terminfo"
+	MAKE_TERMINFO="#"
+else
+
+AC_MSG_CHECKING(for list of terminfo directories)
+CF_WITH_PATHLIST(terminfo-dirs,
+	[  --with-terminfo-dirs=XXX specify list of terminfo directories],
+	TERMINFO_DIRS,
+	DATADIR/terminfo,
+	${datadir}/terminfo)
+AC_MSG_RESULT($TERMINFO_DIRS)
+test -n "$TERMINFO_DIRS" && AC_DEFINE_UNQUOTED(TERMINFO_DIRS,"$TERMINFO_DIRS",[Define as needed to predefine the TERMINFO_DIR searchlist])
+
+AC_MSG_CHECKING(for default terminfo directory)
+CF_WITH_PATH(default-terminfo-dir,
+	[  --with-default-terminfo-dir=DIR default terminfo directory],
+	TERMINFO,
+	DATADIR/terminfo,
+	${datadir}/terminfo)
+AC_MSG_RESULT($TERMINFO)
+AC_DEFINE_UNQUOTED(TERMINFO,"$TERMINFO",[Define to set the default terminal database path])
+
+fi
+
+AC_SUBST(TERMINFO)
+AC_SUBST(MAKE_TERMINFO)
+
+###	use option --disable-big-core to make tic run on small machines
+###	We need 4Mb, check if we can allocate 50% more than that.
+AC_MSG_CHECKING(if big-core option selected)
+AC_ARG_ENABLE(big-core,
+	[  --disable-big-core      assume machine has little memory],
+	[with_big_core=$enableval],
+	[AC_TRY_RUN([
+#include <stdlib.h>
+#include <string.h>
+int main() {
+	unsigned long n = 6000000L;
+	char *s = malloc(n);
+	if (s != 0)
+		s[0] = s[n-1] = 0;
+	${cf_cv_main_return:-return}(s == 0);
+}],
+	[with_big_core=yes],
+	[with_big_core=no],
+	[with_big_core=no])])
+AC_MSG_RESULT($with_big_core)
+test "x$with_big_core" = "xyes" && AC_DEFINE(HAVE_BIG_CORE,1,[Define to 1 if machine has ample memory for tic])
+
+### ISO C only guarantees 512-char strings, we have tables which load faster
+### when constructed using "big" strings.  More than the C compiler, the awk
+### program is a limit on most vendor UNIX systems.  Check that we can build.
+AC_MSG_CHECKING(if big-strings option selected)
+AC_ARG_ENABLE(big-strings,
+	[  --disable-big-strings   assume compiler has only standard-size strings],
+	[with_big_strings=$enableval],
+	[CF_AWK_BIG_PRINTF(12000,with_big_strings)])
+AC_MSG_RESULT($with_big_strings)
+
+USE_BIG_STRINGS=0
+test "x$with_big_strings" = "xyes" && USE_BIG_STRINGS=1
+AC_SUBST(USE_BIG_STRINGS)
+
+###	use option --enable-termcap to compile in the termcap fallback support
+AC_MSG_CHECKING(if you want termcap-fallback support)
+AC_ARG_ENABLE(termcap,
+	[  --enable-termcap        compile in termcap fallback support],
+	[with_termcap=$enableval],
+	[with_termcap=no])
+AC_MSG_RESULT($with_termcap)
+
+NCURSES_USE_TERMCAP=0
+if test "x$with_termcap" != "xyes" ; then
+	if test "$use_database" = no ; then
+		if test -z "$with_fallback" ; then
+			AC_ERROR(You have disabled the database w/o specifying fallbacks)
+		fi
+	fi
+	AC_DEFINE(PURE_TERMINFO,1,[Define to 1 if we should support only terminfo])
+else
+
+	if test "$with_ticlib" != no ; then
+		AC_ERROR(Options --with-ticlib and --enable-termcap cannot be combined)
+	fi
+
+	NCURSES_USE_TERMCAP=1
+	AC_MSG_CHECKING(for list of termcap files)
+	CF_WITH_PATHLIST(termpath,
+		[  --with-termpath=XXX     specify list of termcap files],
+		TERMPATH,
+		/etc/termcap:/usr/share/misc/termcap)
+	AC_MSG_RESULT($TERMPATH)
+	test -n "$TERMPATH" && AC_DEFINE_UNQUOTED(TERMPATH,"$TERMPATH",[Define to set the termcap searchlist])
+
+	###	use option --enable-getcap to use a hacked getcap for reading termcaps
+	AC_MSG_CHECKING(if fast termcap-loader is needed)
+	AC_ARG_ENABLE(getcap,
+		[  --enable-getcap         fast termcap load, no xrefs to terminfo],
+		[with_getcap=$enableval],
+		[with_getcap=no])
+	AC_MSG_RESULT($with_getcap)
+	test "x$with_getcap" = "xyes" && AC_DEFINE(USE_GETCAP,1,[Define to 1 to use fast termcap-loader])
+
+	AC_MSG_CHECKING(if translated termcaps will be cached in ~/.terminfo)
+	AC_ARG_ENABLE(getcap-cache,
+		[  --enable-getcap-cache   cache translated termcaps in ~/.terminfo],
+		[with_getcap_cache=$enableval],
+		[with_getcap_cache=no])
+	AC_MSG_RESULT($with_getcap_cache)
+	test "x$with_getcap_cache" = "xyes" && AC_DEFINE(USE_GETCAP_CACHE,1,[Define to 1 if translated termcap should be stored in $HOME/.terminfo])
+
+fi
+AC_SUBST(NCURSES_USE_TERMCAP)
+
+###   Use option --disable-home-terminfo to completely remove ~/.terminfo
+AC_MSG_CHECKING(if ~/.terminfo is wanted)
+AC_ARG_ENABLE(home-terminfo,
+	[  --disable-home-terminfo drop ~/.terminfo from terminfo search-path],
+	[with_home_terminfo=$enableval],
+	[with_home_terminfo=yes])
+AC_MSG_RESULT($with_home_terminfo)
+test "x$with_home_terminfo" = "xyes" && AC_DEFINE(USE_HOME_TERMINFO,1,[Define to 1 if $HOME/.terminfo feature is wanted])
+
+AC_MSG_CHECKING(if you want to use restricted environment when running as root)
+AC_ARG_ENABLE(root-environ,
+	[  --disable-root-environ  restrict environment when running as root],
+	[with_root_environ=$enableval],
+	[with_root_environ=yes])
+AC_MSG_RESULT($with_root_environ)
+test "x$with_root_environ" = xyes && AC_DEFINE(USE_ROOT_ENVIRON,1,[Define to 1 if environment should be restricted for root user])
+
+###   Use option --enable-symlinks to make tic use symlinks, not hard links
+###   to reduce storage requirements for the terminfo database.
+CF_LINK_FUNCS
+
+with_links=no
+with_symlinks=no
+
+# soft links (symbolic links) are useful for some systems where hard links do
+# not work, or to make it simpler to copy terminfo trees around.
+if test "x$ac_cv_func_symlink" = xyes ; then
+    AC_MSG_CHECKING(if tic should use symbolic links)
+    AC_ARG_ENABLE(symlinks,
+	[  --enable-symlinks       make tic use symbolic links not hard links],
+	[with_symlinks=$enableval],
+	[with_symlinks=no])
+    AC_MSG_RESULT($with_symlinks)
+fi
+
+# If we have hard links and did not choose to use soft links instead, there is
+# no reason to make this choice optional - use the hard links.
+if test "$with_symlinks" = no ; then
+    AC_MSG_CHECKING(if tic should use hard links)
+    if test "x$ac_cv_func_link" = xyes ; then
+	with_links=yes
+    else
+	with_links=no
+    fi
+    AC_MSG_RESULT($with_links)
+fi
+
+test "x$with_links" = xyes && AC_DEFINE(USE_LINKS,1,[Define to 1 if hardlinks should be used in terminfo database])
+test "x$with_symlinks" = xyes && AC_DEFINE(USE_SYMLINKS,1,[Define to 1 if symbolic links should be used in terminfo database])
+
+###   use option --enable-broken-linker to force on use of broken-linker support
+AC_MSG_CHECKING(if you want broken-linker support code)
+AC_ARG_ENABLE(broken_linker,
+	[  --enable-broken_linker  compile with broken-linker support code],
+	[with_broken_linker=$enableval],
+	[with_broken_linker=${BROKEN_LINKER:-no}])
+AC_MSG_RESULT($with_broken_linker)
+
+BROKEN_LINKER=0
+if test "x$with_broken_linker" = xyes ; then
+	AC_DEFINE(BROKEN_LINKER,1,[Define to 1 to work around linkers which cannot link data-only modules])
+	BROKEN_LINKER=1
+elif test "$DFT_LWR_MODEL" = shared ; then
+	case $cf_cv_system_name in #(vi
+	cygwin*)
+		AC_DEFINE(BROKEN_LINKER,1,[Define to 1 to work around linkers which cannot link data-only modules])
+		BROKEN_LINKER=1
+		CF_VERBOSE(cygwin linker is broken anyway)
+		;;
+	esac
+fi
+AC_SUBST(BROKEN_LINKER)
+
+###   use option --enable-bsdpad to have tputs process BSD-style prefix padding
+AC_MSG_CHECKING(if tputs should process BSD-style prefix padding)
+AC_ARG_ENABLE(bsdpad,
+	[  --enable-bsdpad         recognize BSD-style prefix padding],
+	[with_bsdpad=$enableval],
+	[with_bsdpad=no])
+AC_MSG_RESULT($with_bsdpad)
+test "x$with_bsdpad" = xyes && AC_DEFINE(BSD_TPUTS,1,[Define to 1 to recognize BSD-style prefix padding])
+
+###   use option --enable-widec to turn on use of wide-character support
+NCURSES_CH_T=chtype
+NCURSES_LIBUTF8=0
+
+NEED_WCHAR_H=0
+NCURSES_MBSTATE_T=0
+NCURSES_WCHAR_T=0
+NCURSES_WINT_T=0
+
+# Check to define _XOPEN_SOURCE "automatically"
+CF_XOPEN_SOURCE(500)
+
+# Work around breakage on OS X
+CF_SIGWINCH
+
+# Checks for CODESET support.
+AM_LANGINFO_CODESET
+
+# use these variables to work around a defect in gcc's fixincludes.
+NCURSES_OK_WCHAR_T=
+NCURSES_OK_WINT_T=
+
+AC_MSG_CHECKING(if you want wide-character code)
+AC_ARG_ENABLE(widec,
+	[  --enable-widec          compile with wide-char/UTF-8 code],
+	[with_widec=$enableval],
+	[with_widec=no])
+AC_MSG_RESULT($with_widec)
+if test "x$with_widec" = xyes ; then
+	LIB_SUFFIX="w${LIB_SUFFIX}"
+	AC_DEFINE(USE_WIDEC_SUPPORT,1,[Define to 1 to compile with wide-char/UTF-8 code])
+	AC_DEFINE(NCURSES_WIDECHAR,1,[Define to 1 to compile with wide-char/UTF-8 code])
+
+	CF_CHECK_WCHAR_H
+
+	# with_overwrite=no
+	NCURSES_CH_T=cchar_t
+	AC_CHECK_FUNCS(putwc btowc wctob mbtowc wctomb mblen mbrlen mbrtowc wcsrtombs mbsrtowcs wcstombs mbstowcs)
+	if test "x$ac_cv_func_putwc" != xyes ; then
+		CF_UTF8_LIB
+		if test "$cf_cv_utf8_lib" != no ; then
+			NCURSES_LIBUTF8=1
+		fi
+	fi
+	CF_WCHAR_TYPE(mbstate_t, NCURSES_MBSTATE_T)
+	CF_WCHAR_TYPE(wchar_t,   NCURSES_WCHAR_T,   NCURSES_OK_WCHAR_T)
+	CF_WCHAR_TYPE(wint_t,    NCURSES_WINT_T,    NCURSES_OK_WINT_T)
+
+	if test "$NCURSES_MBSTATE_T" != 0; then
+		AC_DEFINE(NEED_MBSTATE_T_DEF,1,[Define to 1 if we must declare mbstate_t])
+	fi
+fi
+AC_SUBST(NCURSES_CH_T)
+AC_SUBST(NCURSES_LIBUTF8)
+
+AC_SUBST(NEED_WCHAR_H)
+AC_SUBST(NCURSES_MBSTATE_T)
+AC_SUBST(NCURSES_WCHAR_T)
+AC_SUBST(NCURSES_WINT_T)
+
+AC_SUBST(NCURSES_OK_WCHAR_T)
+AC_SUBST(NCURSES_OK_WINT_T)
+
+###   use option --disable-lp64 to allow long chtype
+case $cf_cv_abi_version in
+[[345]]*)
+	default_with_lp64=no
+	;;
+*)
+	default_with_lp64=yes
+	;;
+esac
+
+AC_MSG_CHECKING(whether to enable _LP64 definition in curses.h)
+AC_ARG_ENABLE(lp64,
+	[  --disable-lp64          allow chtype to be long (ignore _LP64)],
+	[with_lp64=$enableval],
+	[with_lp64=$default_with_lp64])
+AC_MSG_RESULT($with_lp64)
+
+if test "x$with_lp64" = xyes ; then
+	cf_cv_enable_lp64=1
+else
+	cf_cv_enable_lp64=0
+fi
+AC_SUBST(cf_cv_enable_lp64)
+
+CF_LARGEFILE
+
+###   use option --disable-tparm-varargs to make tparm() conform to X/Open
+AC_MSG_CHECKING(if you want tparm not to use X/Open fixed-parameter list)
+AC_ARG_ENABLE(tparm-varargs,
+	[  --disable-tparm-varargs compile tparm() without varargs interface],
+	[with_tparm_varargs=$enableval],
+	[with_tparm_varargs=yes])
+AC_MSG_RESULT($with_tparm_varargs)
+NCURSES_TPARM_VARARGS=0
+test "x$with_tparm_varargs" = xyes && NCURSES_TPARM_VARARGS=1
+AC_SUBST(NCURSES_TPARM_VARARGS)
+
+###   use option --disable-tic-depends to make libtic not explicitly depend on ncurses/ncursesw
+if test "$with_ticlib" != no ; then
+AC_MSG_CHECKING(if you want tic library to use explicit dependency on ncurses$LIB_SUFFIX library)
+AC_ARG_ENABLE(tic-depends,
+	[  --disable-tic-depends   link tic library without explicit dependency on ncurses library],
+	[with_tic_depends=$enableval],
+	[with_tic_depends=yes])
+AC_MSG_RESULT($with_tic_depends)
+else
+	with_tic_depends=no
+fi
+
+###   use option --with-bool to override bool's type
+AC_MSG_CHECKING(for type of bool)
+AC_ARG_WITH(bool,
+	[  --with-bool=TYPE        override fallback type of bool variable],
+	[NCURSES_BOOL="$withval"],
+	[NCURSES_BOOL=auto])
+AC_MSG_RESULT($NCURSES_BOOL)
+AC_SUBST(NCURSES_BOOL)
+
+AC_MSG_CHECKING(for alternate terminal capabilities file)
+AC_ARG_WITH(caps,
+	[  --with-caps=alt         compile with alternate Caps file],
+	[TERMINFO_CAPS=Caps.$withval],
+	[TERMINFO_CAPS=Caps])
+test -f "${srcdir}/include/${TERMINFO_CAPS}" || TERMINFO_CAPS=Caps
+AC_MSG_RESULT($TERMINFO_CAPS)
+AC_SUBST(TERMINFO_CAPS)
+
+###   use option --with-chtype to override chtype's type
+AC_MSG_CHECKING(for type of chtype)
+AC_ARG_WITH(chtype,
+	[  --with-chtype=TYPE      override type of chtype],
+	[NCURSES_CHTYPE="$withval"],
+	[NCURSES_CHTYPE=auto])
+AC_MSG_RESULT($NCURSES_CHTYPE)
+
+###   use option --with-ospeed to override ospeed's type
+AC_MSG_CHECKING(for type of ospeed)
+AC_ARG_WITH(ospeed,
+	[  --with-ospeed=TYPE      override type of ospeed variable],
+	[NCURSES_OSPEED="$withval"],
+	[NCURSES_OSPEED=short])
+AC_MSG_RESULT($NCURSES_OSPEED)
+AC_SUBST(NCURSES_OSPEED)
+
+###   use option --with-mmask-t to override mmask_t's type
+AC_MSG_CHECKING(for type of mmask_t)
+AC_ARG_WITH(mmask-t,
+	[  --with-mmask-t=TYPE     override type of mmask_t],
+	[NCURSES_MMASK_T="$withval"],
+	[NCURSES_MMASK_T=auto])
+AC_MSG_RESULT($NCURSES_MMASK_T)
+
+###   use option --with-ccharw-max to override CCHARW_MAX size
+AC_MSG_CHECKING(for size CCHARW_MAX)
+AC_ARG_WITH(ccharw-max,
+	[  --with-ccharw-max=XXX   override size CCHARW_MAX],
+	[NCURSES_CCHARW_MAX="$withval"],
+	[NCURSES_CCHARW_MAX=5])
+AC_MSG_RESULT($NCURSES_CCHARW_MAX)
+AC_SUBST(NCURSES_CCHARW_MAX)
+
+###   use option --with-tparm-arg to override tparm's argument type
+AC_MSG_CHECKING(for type of tparm args)
+AC_ARG_WITH(tparm-arg,
+	[  --with-tparm-arg=TYPE   override parameter type of tparm],
+	[NCURSES_TPARM_ARG="$withval"],
+	[NCURSES_TPARM_ARG=long])
+AC_MSG_RESULT($NCURSES_TPARM_ARG)
+AC_SUBST(NCURSES_TPARM_ARG)
+
+### Enable compiling-in rcs id's
+AC_MSG_CHECKING(if RCS identifiers should be compiled-in)
+AC_ARG_WITH(rcs-ids,
+	[  --with-rcs-ids          compile-in RCS identifiers],
+	[with_rcs_ids=$withval],
+	[with_rcs_ids=no])
+AC_MSG_RESULT($with_rcs_ids)
+test "x$with_rcs_ids" = xyes && AC_DEFINE(USE_RCS_IDS,1,[Define to 1 to compile-in RCS identifiers])
+
+###############################################################################
+CF_MAN_PAGES([ captoinfo clear infocmp infotocap tabs tic toe tput tset ])
+
+###############################################################################
+CF_HELP_MESSAGE(Extensions:)
+
+### Note that some functions (such as const) are normally disabled anyway.
+AC_MSG_CHECKING(if you want to build with function extensions)
+AC_ARG_ENABLE(ext-funcs,
+	[  --disable-ext-funcs     disable function-extensions],
+	[with_ext_funcs=$enableval],
+	[with_ext_funcs=yes])
+AC_MSG_RESULT($with_ext_funcs)
+if test "x$with_ext_funcs" = xyes ; then
+	NCURSES_EXT_FUNCS=1
+	AC_DEFINE(HAVE_ASSUME_DEFAULT_COLORS,1,[Define to 1 to enable assume_default_colors() function])
+	AC_DEFINE(HAVE_CURSES_VERSION,1,[Define to 1 to enable curses_version() function])
+	AC_DEFINE(HAVE_HAS_KEY,1,[Define to 1 to enable has_key() function])
+	AC_DEFINE(HAVE_RESIZETERM,1,[Define to 1 to enable resizeterm() function])
+	AC_DEFINE(HAVE_RESIZE_TERM,1,[Define to 1 to enable resize_term() function])
+	AC_DEFINE(HAVE_TERM_ENTRY_H,1,[Define to 1 to enable term_entry() function])
+	AC_DEFINE(HAVE_USE_DEFAULT_COLORS,1,[Define to 1 to enable use_default_colors() function])
+	AC_DEFINE(HAVE_USE_SCREEN,1,[Define to 1 to enable use_screen() function])
+	AC_DEFINE(HAVE_USE_WINDOW,1,[Define to 1 to enable use_window() function])
+	AC_DEFINE(HAVE_WRESIZE,1,[Define to 1 to enable wresize() function])
+	AC_DEFINE(NCURSES_EXT_FUNCS,1,[Define to 1 to enable ncurses extended functions])
+	GENERATED_EXT_FUNCS=generated
+else
+	NCURSES_EXT_FUNCS=0
+	GENERATED_EXT_FUNCS=
+fi
+AC_SUBST(NCURSES_EXT_FUNCS)
+AC_SUBST(GENERATED_EXT_FUNCS)
+
+AC_MSG_CHECKING(if you want to build with experimental SCREEN extensions)
+AC_ARG_ENABLE(sp-funcs,
+	[  --enable-sp-funcs       enable experimental SCREEN-extensions],
+	[with_sp_funcs=$enableval],
+	[with_sp_funcs=no])
+AC_MSG_RESULT($with_sp_funcs)
+if test "x$with_sp_funcs" = xyes ; then
+	NCURSES_SP_FUNCS=1
+	AC_DEFINE(NCURSES_SP_FUNCS,1,[Define to 1 to enable experimental SCREEN-extensions])
+	GENERATED_SP_FUNCS=generated
+else
+	NCURSES_SP_FUNCS=0
+	GENERATED_SP_FUNCS=
+fi
+AC_SUBST(NCURSES_SP_FUNCS)
+AC_SUBST(GENERATED_SP_FUNCS)
+
+AC_MSG_CHECKING(if you want to build with experimental terminal-driver)
+AC_ARG_ENABLE(term-driver,
+	[  --enable-term-driver    enable experimental terminal-driver],
+	[with_term_driver=$enableval],
+	[with_term_driver=no])
+AC_MSG_RESULT($with_term_driver)
+if test "x$with_term_driver" = xyes ; then
+	AC_DEFINE(USE_TERM_DRIVER,1,[Define to 1 to enable experimental terminal-driver])
+	if test "x$with_sp_funcs" != xyes ; then
+		AC_MSG_ERROR(The term-driver option relies upon sp-funcs)
+	fi
+fi
+
+###   use option --enable-const to turn on use of const beyond that in XSI.
+AC_MSG_CHECKING(for extended use of const keyword)
+AC_ARG_ENABLE(const,
+	[  --enable-const          compile with extra/non-standard const],
+	[with_ext_const=$enableval],
+	[with_ext_const=no])
+AC_MSG_RESULT($with_ext_const)
+NCURSES_CONST='/*nothing*/'
+if test "x$with_ext_const" = xyes ; then
+	NCURSES_CONST=const
+fi
+AC_SUBST(NCURSES_CONST)
+
+###   use option --enable-ext-colors to turn on use of colors beyond 16.
+AC_MSG_CHECKING(if you want to use extended colors)
+AC_ARG_ENABLE(ext-colors,
+	[  --enable-ext-colors     compile for 256-color support],
+	[with_ext_colors=$enableval],
+	[with_ext_colors=no])
+AC_MSG_RESULT($with_ext_colors)
+NCURSES_EXT_COLORS=0
+if test "x$with_ext_colors" = xyes ; then
+	if test "x$with_widec" != xyes ; then
+		AC_MSG_ERROR(This option applies only to wide-character library)
+	else
+		# cannot be ABI 5 since it changes sizeof(cchar_t)
+		CF_NCURSES_ABI_6
+	fi
+	NCURSES_EXT_COLORS=1
+	AC_DEFINE(NCURSES_EXT_COLORS,1,[Define to 1 to compile for 256-color support])
+fi
+AC_SUBST(NCURSES_EXT_COLORS)
+
+###   use option --enable-ext-mouse to modify coding to support 5-button mice
+AC_MSG_CHECKING(if you want to use extended mouse encoding)
+AC_ARG_ENABLE(ext-mouse,
+	[  --enable-ext-mouse      compile for extended mouse-encoding],
+	[with_ext_mouse=$enableval],
+	[with_ext_mouse=no])
+AC_MSG_RESULT($with_ext_mouse)
+NCURSES_MOUSE_VERSION=1
+if test "x$with_ext_mouse" = xyes ; then
+	NCURSES_MOUSE_VERSION=2
+	CF_NCURSES_ABI_6
+fi
+AC_SUBST(NCURSES_MOUSE_VERSION)
+
+AC_MSG_CHECKING(if you want \$NCURSES_NO_PADDING code)
+AC_ARG_ENABLE(no-padding,
+	[  --enable-no-padding     compile with $NCURSES_NO_PADDING code],
+	[with_no_padding=$enableval],
+	[with_no_padding=$with_ext_funcs])
+AC_MSG_RESULT($with_no_padding)
+test "x$with_no_padding" = xyes && AC_DEFINE(NCURSES_NO_PADDING,1,[Define to 1 to compile with $NCURSES_NO_PADDING code])
+
+AC_CHECK_SIZEOF([signed char], 0)
+if test "$ac_cv_sizeof_signed_char" = 1 ; then
+	NCURSES_SBOOL="signed char"
+else
+	NCURSES_SBOOL="char"
+fi
+AC_MSG_CHECKING(if you want to use signed Boolean array in term.h)
+AC_ARG_ENABLE(signed-char,
+	[  --enable-signed-char    compile using signed Boolean's in term.h],
+	[with_signed_char=$enableval],
+	[with_signed_char=no])
+AC_MSG_RESULT($with_signed_char)
+test "x$with_signed_char" != xyes && NCURSES_SBOOL="char"
+AC_SUBST(NCURSES_SBOOL)
+
+###   use option --enable-sigwinch to turn on use of SIGWINCH logic
+AC_MSG_CHECKING(if you want SIGWINCH handler)
+AC_ARG_ENABLE(sigwinch,
+	[  --enable-sigwinch       compile with SIGWINCH handler],
+	[with_sigwinch=$enableval],
+	[with_sigwinch=$with_ext_funcs])
+AC_MSG_RESULT($with_sigwinch)
+test "x$with_sigwinch" = xyes && AC_DEFINE(USE_SIGWINCH,1,[Define to 1 to compile with SIGWINCH handler])
+
+###   use option --enable-tcap-names to allow user to define new capabilities
+AC_MSG_CHECKING(if you want user-definable terminal capabilities like termcap)
+AC_ARG_ENABLE(tcap-names,
+	[  --enable-tcap-names     compile with user-definable terminal capabilities],
+	[with_tcap_names=$enableval],
+	[with_tcap_names=$with_ext_funcs])
+AC_MSG_RESULT($with_tcap_names)
+NCURSES_XNAMES=0
+test "x$with_tcap_names" = xyes && NCURSES_XNAMES=1
+AC_SUBST(NCURSES_XNAMES)
+
+###############################################################################
+# These options are relatively safe to experiment with.
+CF_HELP_MESSAGE(Development Code:)
+AC_MSG_CHECKING(if you want all development code)
+AC_ARG_WITH(develop,
+	[  --without-develop       disable development options],
+	[with_develop=$withval],
+	[with_develop=no])
+AC_MSG_RESULT($with_develop)
+
+###   use option --enable-hard-tabs to turn on use of hard-tabs optimize
+AC_MSG_CHECKING(if you want hard-tabs code)
+AC_ARG_ENABLE(hard-tabs,
+	[  --enable-hard-tabs      compile with hard-tabs code],,
+	[enable_hard_tabs=$with_develop])
+AC_MSG_RESULT($enable_hard_tabs)
+test "x$enable_hard_tabs" = xyes && AC_DEFINE(USE_HARD_TABS,1,[Define to 1 to compile with hard-tabs code])
+
+###   use option --enable-xmc-glitch to turn on use of magic-cookie optimize
+AC_MSG_CHECKING(if you want limited support for xmc)
+AC_ARG_ENABLE(xmc-glitch,
+	[  --enable-xmc-glitch     compile with support for xmc (magic-cookie)],,
+	[enable_xmc_glitch=$with_develop])
+AC_MSG_RESULT($enable_xmc_glitch)
+test "x$enable_xmc_glitch" = xyes && AC_DEFINE(USE_XMC_SUPPORT,1,[Define to 1 to compile with support for xmc (magic-cookie)])
+
+###############################################################################
+# These are just experimental, probably should not be in a package:
+CF_HELP_MESSAGE(Experimental Code:)
+
+AC_MSG_CHECKING(if you do not want to assume colors are white-on-black)
+AC_ARG_ENABLE(assumed-color,
+	[  --disable-assumed-color do not assume anything about default-colors],
+	[with_assumed_color=$enableval],
+	[with_assumed_color=yes])
+AC_MSG_RESULT($with_assumed_color)
+test "x$with_assumed_color" = xyes && AC_DEFINE(USE_ASSUMED_COLOR,1,[Define to 1 to assume things about default-colors])
+
+###   use option --enable-hashmap to turn on use of hashmap scrolling logic
+AC_MSG_CHECKING(if you want hashmap scrolling-optimization code)
+AC_ARG_ENABLE(hashmap,
+	[  --disable-hashmap       compile without hashmap scrolling-optimization],
+	[with_hashmap=$enableval],
+	[with_hashmap=yes])
+AC_MSG_RESULT($with_hashmap)
+test "x$with_hashmap" = xyes && AC_DEFINE(USE_HASHMAP,1,[Define to 1 to compile with hashmap scrolling-optimization])
+
+###   use option --enable-colorfgbg to turn on use of $COLORFGBG environment
+AC_MSG_CHECKING(if you want colorfgbg code)
+AC_ARG_ENABLE(colorfgbg,
+	[  --enable-colorfgbg      compile-in experimental $COLORFGBG code],
+	[with_colorfgbg=$enableval],
+	[with_colorfgbg=no])
+AC_MSG_RESULT($with_colorfgbg)
+test "x$with_colorfgbg" = xyes && AC_DEFINE(USE_COLORFGBG,1,[Define to 1 to compile-in experimental $COLORFGBG code])
+
+###   use option --enable-interop to turn on use of bindings used for interop
+AC_MSG_CHECKING(if you want interop bindings)
+AC_ARG_ENABLE(interop,
+	[  --enable-interop        compile-in experimental interop bindings],
+	[with_exp_interop=$enableval],
+	[with_exp_interop=no])
+AC_MSG_RESULT($with_exp_interop)
+
+NCURSES_INTEROP_FUNCS=0
+test "x$with_exp_interop" = xyes && NCURSES_INTEROP_FUNCS=1
+AC_SUBST(NCURSES_INTEROP_FUNCS)
+
+# This is still experimental (20080329), but should ultimately be moved to
+# the script-block --with-normal, etc.
+CF_WITH_PTHREAD
+
+if test "x$with_pthread" != xno; then
+	AC_CHECK_FUNC(pthread_kill,[
+		AC_MSG_CHECKING(if you want to allow EINTR in wgetch with pthreads)
+		AC_ARG_ENABLE(pthreads-eintr,
+			[  --enable-pthreads-eintr enable EINTR in wgetch with pthreads],
+			[use_pthreads_eintr=$enableval],
+			[use_pthreads_eintr=no])
+		AC_MSG_RESULT($use_pthreads_eintr)
+		if test "x$use_pthreads_eintr" = xyes ; then
+			AC_DEFINE(USE_PTHREADS_EINTR,1,[Define to 1 to enable EINTR in wgetch with pthreads])
+		fi])
+
+	AC_MSG_CHECKING(if you want to use weak-symbols for pthreads)
+	AC_ARG_ENABLE(weak-symbols,
+		[  --enable-weak-symbols   enable weak-symbols for pthreads],
+		[use_weak_symbols=$enableval],
+		[use_weak_symbols=no])
+	AC_MSG_RESULT($use_weak_symbols)
+	if test "x$use_weak_symbols" = xyes ; then
+		CF_WEAK_SYMBOLS
+	else
+		cf_cv_weak_symbols=no
+	fi
+
+	if test "x$cf_cv_weak_symbols" = xyes ; then
+		AC_DEFINE(USE_WEAK_SYMBOLS,1,[Define to 1 to enable weak-symbols for pthreads])
+	fi
+fi
+
+PTHREAD=
+if test "x$with_pthread" = "xyes" ; then
+    AC_DEFINE(USE_PTHREADS,1,[Define to 1 to use pthreads feature])
+    enable_reentrant=yes
+    if test "x$cf_cv_weak_symbols" = xyes ; then
+        PTHREAD=-lpthread
+    fi
+fi
+AC_SUBST(PTHREAD)
+
+# Reentrant code has to be opaque; there's little advantage to making ncurses
+# opaque outside of that, so there is no --enable-opaque option.  We can use
+# this option without --with-pthreads, but this will be always set for
+# pthreads.
+AC_MSG_CHECKING(if you want experimental reentrant code)
+AC_ARG_ENABLE(reentrant,
+	[  --enable-reentrant      compile with experimental reentrant code],
+	[with_reentrant=$enableval],
+	[with_reentrant=no])
+AC_MSG_RESULT($with_reentrant)
+if test "x$with_reentrant" = xyes ; then
+	cf_cv_enable_reentrant=1
+	cf_cv_enable_opaque="NCURSES_INTERNALS"
+	NCURSES_OPAQUE=1
+	NCURSES_SIZE_T=int
+	if test "x$cf_cv_weak_symbols" = xyes ; then
+		CF_REMOVE_LIB(LIBS,$LIBS,pthread)
+		CF_ADD_LIB(pthread,TEST_LIBS)
+		CF_ADD_LIB(pthread,TEST_LIBS2)
+	else
+		# when not using weak symbols but with_reentrant,
+		# add 't' to the library suffix on all platforms
+		# except cygwin, where we only do that if ALSO
+		# compiling with full thread support.
+		case "$host" in
+		*cygwin* | *msys*)
+			if test "$with_pthread" = "yes" ; then
+				LIB_SUFFIX="t${LIB_SUFFIX}"
+			fi ;;
+		* ) LIB_SUFFIX="t${LIB_SUFFIX}" ;;
+		esac
+	fi
+	AC_DEFINE(USE_REENTRANT,1,[Define to 1 to use experimental reentrant feature])
+	CF_NCURSES_ABI_6
+else
+	cf_cv_enable_reentrant=0
+	cf_cv_enable_opaque="NCURSES_OPAQUE"
+	NCURSES_OPAQUE=0
+	NCURSES_SIZE_T=short
+fi
+AC_SUBST(cf_cv_enable_reentrant)
+AC_SUBST(cf_cv_enable_opaque)
+AC_SUBST(NCURSES_OPAQUE)
+AC_SUBST(NCURSES_SIZE_T)
+
+### Allow using a different wrap-prefix
+if test "$cf_cv_enable_reentrant" != 0 || test "$BROKEN_LINKER" = 1 ; then
+	AC_MSG_CHECKING(for prefix used to wrap public variables)
+	AC_ARG_WITH(wrap-prefix,
+		[  --with-wrap-prefix=XXX  override prefix used for public variables],
+		[NCURSES_WRAP_PREFIX=$withval],
+		[NCURSES_WRAP_PREFIX=_nc_])
+	AC_MSG_RESULT($NCURSES_WRAP_PREFIX)
+else
+	NCURSES_WRAP_PREFIX=_nc_
+fi
+AC_SUBST(NCURSES_WRAP_PREFIX)
+AC_DEFINE_UNQUOTED(NCURSES_WRAP_PREFIX,"$NCURSES_WRAP_PREFIX",[Define to override _nc_ prefix])
+
+AC_MSG_CHECKING(if you want experimental safe-sprintf code)
+AC_ARG_ENABLE(safe-sprintf,
+	[  --enable-safe-sprintf   compile with experimental safe-sprintf code],
+	[with_safe_sprintf=$enableval],
+	[with_safe_sprintf=no])
+AC_MSG_RESULT($with_safe_sprintf)
+test "x$with_safe_sprintf" = xyes && AC_DEFINE(USE_SAFE_SPRINTF,1,[Define to 1 to compile with experimental safe-sprintf code])
+
+###   use option --disable-scroll-hints to turn off use of scroll-hints scrolling logic
+# when hashmap is used scroll hints are useless
+if test "$with_hashmap" = no ; then
+AC_MSG_CHECKING(if you want to experiment without scrolling-hints code)
+AC_ARG_ENABLE(scroll-hints,
+	[  --disable-scroll-hints  compile without scroll-hints code],
+	[with_scroll_hints=$enableval],
+	[with_scroll_hints=yes])
+AC_MSG_RESULT($with_scroll_hints)
+test "x$with_scroll_hints" = xyes && AC_DEFINE(USE_SCROLL_HINTS,1,[Define to 1 to compile without scroll-hints code])
+fi
+
+AC_MSG_CHECKING(if you want experimental wgetch-events code)
+AC_ARG_ENABLE(wgetch-events,
+	[  --enable-wgetch-events  compile with experimental wgetch-events code],
+	[with_wgetch_events=$enableval],
+	[with_wgetch_events=no])
+AC_MSG_RESULT($with_wgetch_events)
+test "x$with_wgetch_events" = xyes && AC_DEFINE(NCURSES_WGETCH_EVENTS,1,[Define to 1 to compile with experimental wgetch-events code])
+
+###############################################################################
+CF_HELP_MESSAGE(Testing/development Options:)
+
+###	use option --disable-echo to suppress full display compiling commands
+CF_DISABLE_ECHO
+if test "x$enable_echo" = xyes; then
+	ECHO_LINK=
+else
+	ECHO_LINK='@ echo linking $@ ... ;'
+	test -n "$LIBTOOL" && LIBTOOL="$LIBTOOL --silent"
+	test -n "$LIBTOOL_CXX" && LIBTOOL_CXX="$LIBTOOL_CXX --silent"
+fi
+AC_SUBST(ECHO_LINK)
+
+###	use option --enable-warnings to turn on all gcc warnings
+AC_MSG_CHECKING(if you want to see compiler warnings)
+AC_ARG_ENABLE(warnings,
+	[  --enable-warnings       build: turn on GCC compiler warnings],
+	[with_warnings=$enableval])
+AC_MSG_RESULT($with_warnings)
+
+if test "x$with_warnings" = "xyes"; then
+ 	CF_ADD_ADAFLAGS(-gnatg)
+	CF_GCC_WARNINGS(Wno-unknown-pragmas Wswitch-enum)
+	if test "x$cf_with_cxx" = xyes ; then
+		CF_GXX_WARNINGS(Wno-unused)
+	fi
+fi
+CF_GCC_ATTRIBUTES
+CF_ENABLE_STRING_HACKS
+
+###	use option --enable-assertions to turn on generation of assertion code
+AC_MSG_CHECKING(if you want to enable runtime assertions)
+AC_ARG_ENABLE(assertions,
+	[  --enable-assertions     test: turn on generation of assertion code],
+	[with_assertions=$enableval],
+	[with_assertions=no])
+AC_MSG_RESULT($with_assertions)
+if test -n "$GCC"
+then
+	if test "$with_assertions" = no
+	then
+		CPPFLAGS="$CPPFLAGS -DNDEBUG"
+	else
+		CF_ADD_ADAFLAGS(-gnata)
+	fi
+fi
+
+###	use option --disable-leaks to suppress "permanent" leaks, for testing
+CF_DISABLE_LEAKS
+AC_DEFINE(HAVE_NC_ALLOC_H,1,[Define to 1 if we have nc_alloc.h header])
+
+###	use option --enable-expanded to generate certain macros as functions
+AC_ARG_ENABLE(expanded,
+	[  --enable-expanded       test: generate functions for certain macros],
+	[test "x$enableval" = xyes && AC_DEFINE(NCURSES_EXPANDED,1,[Define to 1 to generate functions for certain macros])])
+
+###	use option --disable-macros to suppress macros in favor of functions
+AC_ARG_ENABLE(macros,
+	[  --disable-macros        test: use functions rather than macros],
+	[test "$enableval" = no && AC_DEFINE(NCURSES_NOMACROS,1,[Define to 1 to use functions rather than macros])])
+
+# Normally we only add trace() to the debug-library.  Allow this to be
+# extended to all models of the ncurses library:
+cf_all_traces=no
+case "$CFLAGS $CPPFLAGS" in
+*-DTRACE*)
+	cf_all_traces=yes
+	;;
+esac
+
+AC_MSG_CHECKING(whether to add trace feature to all models)
+AC_ARG_WITH(trace,
+[  --with-trace            test: add trace() function to all models of ncurses],
+[cf_with_trace=$withval],
+[cf_with_trace=$cf_all_traces])
+AC_MSG_RESULT($cf_with_trace)
+
+if test "x$cf_with_trace" = xyes ; then
+	LIB_TRACING=all
+	ADA_TRACE=TRUE
+	CF_ADD_CFLAGS(-DTRACE)
+else
+	LIB_TRACING=DEBUG
+	ADA_TRACE=FALSE
+fi
+
+AC_SUBST(ADA_TRACE)
+
+###	Checks for libraries.
+case $cf_cv_system_name in #(vi
+*mingw32*) #(vi
+	;;
+*)
+AC_CHECK_FUNC(gettimeofday,
+	AC_DEFINE(HAVE_GETTIMEOFDAY,1,[Define to 1 if we have gettimeofday function]),[
+
+AC_CHECK_LIB(bsd, gettimeofday,
+	AC_DEFINE(HAVE_GETTIMEOFDAY,1,[Define to 1 if we have gettimeofday function])
+	CF_ADD_LIB(bsd))])dnl CLIX: bzero, select, gettimeofday
+	;;
+esac
+
+CF_MATH_LIB(MATH_LIB,pow(sin(x),x))
+AC_SUBST(MATH_LIB)
+
+###	Checks for header files.
+AC_STDC_HEADERS
+AC_HEADER_DIRENT
+AC_HEADER_TIME
+CF_REGEX
+
+dnl These are some other potentially nonportable headers.
+AC_CHECK_HEADERS( \
+fcntl.h \
+getopt.h \
+limits.h \
+locale.h \
+math.h \
+poll.h \
+sys/bsdtypes.h \
+sys/ioctl.h \
+sys/param.h \
+sys/poll.h \
+sys/select.h \
+sys/time.h \
+sys/times.h \
+ttyent.h \
+unistd.h \
+wctype.h \
+)
+
+CF_GETOPT_HEADER
+
+# check for ISC (this may also define _POSIX_SOURCE)
+# Note: even non-Posix ISC needs <sys/bsdtypes.h> to declare fd_set
+if test "x$ISC" = xyes ; then
+	AC_CHECK_LIB(cposix,main)
+	AC_CHECK_LIB(inet,bzero,CF_ADD_LIB(inet))dnl also 'select()'
+fi
+
+CF_SYS_TIME_SELECT
+
+###	checks for compiler characteristics
+AC_LANG_C
+AC_C_CONST
+CF_C_INLINE(NCURSES_INLINE,1200)
+CF_SIG_ATOMIC_T
+
+if test $NCURSES_CHTYPE = auto ; then
+	CF_TYPEOF_CHTYPE
+else
+	cf_cv_typeof_chtype=$NCURSES_CHTYPE
+fi
+test "$cf_cv_typeof_chtype" = unsigned && cf_cv_typeof_chtype=""
+AC_SUBST(cf_cv_typeof_chtype)
+
+CF_UNSIGNED_LITERALS
+cf_cv_1UL="1"
+test ".$cf_cv_unsigned_literals" = .yes && cf_cv_1UL="${cf_cv_1UL}U"
+test ".$cf_cv_typeof_chtype"    = .long && cf_cv_1UL="${cf_cv_1UL}L"
+AC_SUBST(cf_cv_1UL)
+
+if test $NCURSES_MMASK_T = auto ; then
+	cf_cv_typeof_mmask_t=long
+else
+	cf_cv_typeof_mmask_t=$NCURSES_MMASK_T
+fi
+test "$cf_cv_typeof_mmask_t" = unsigned && cf_cv_typeof_mmask_t=""
+AC_SUBST(cf_cv_typeof_mmask_t)
+
+###	Checks for external-data
+CF_ERRNO
+CF_LINK_DATAONLY
+
+###	Checks for library functions.
+AC_CHECK_FUNCS( \
+getcwd \
+getegid \
+geteuid \
+getttynam \
+issetugid \
+poll \
+putenv \
+remove \
+select \
+setbuf \
+setbuffer \
+setenv \
+setvbuf \
+sigaction \
+sigvec \
+strdup \
+strstr \
+tcgetpgrp \
+times \
+vsnprintf \
+)
+if test "x$with_getcap" = "xyes" ; then
+	CF_CGETENT
+fi
+
+CF_ISASCII
+CF_STRUCT_SIGACTION
+CF_FUNC_NANOSLEEP
+CF_FUNC_TERMIOS
+CF_FUNC_VSSCANF
+CF_MKSTEMP
+
+# setup for prototype of fallback for vsscanf()
+CF_SUBST_IF(["$cf_cv_func_vsscanf" = vsscanf], HAVE_VSSCANF, 1, 0)
+
+dnl FIXME (may need this) AC_SYS_RESTARTABLE_SYSCALLS
+if test "x$cross_compiling" = xyes ; then
+	AC_MSG_WARN(cross compiling: assume setvbuf params not reversed)
+else
+	AC_FUNC_SETVBUF_REVERSED
+fi
+AC_CHECK_TYPE(intptr_t, long)
+CF_TYPE_SIGACTION
+CF_SIZECHANGE
+CF_FUNC_MEMMOVE
+CF_FUNC_POLL
+CF_VA_COPY
+AC_FUNC_VFORK
+
+# special check for test/ditto.c
+CF_FUNC_OPENPTY
+if test "$cf_cv_func_openpty" != no ; then
+    AC_DEFINE_UNQUOTED(USE_OPENPTY_HEADER,<$cf_cv_func_openpty>,[Define to actual header for openpty function])
+    AC_DEFINE(USE_XTERM_PTY,1,[Define to 1 if we should assume xterm pseudoterminal interface])
+    if test "x$cf_cv_lib_util" = xyes ; then
+        CF_ADD_LIB(util,TEST_LIBS)
+    fi
+fi
+AC_SUBST(TEST_LIBS)
+AC_SUBST(TEST_LIBS2)
+
+if test "$with_hashed_db" != no ; then
+	AC_DEFINE(USE_HASHED_DB,1,[Define to 1 if we should build terminfo in hashed database])
+	CF_HASHED_DB($with_hashed_db)
+fi
+
+dnl We'll do our own -g libraries, unless the user's overridden via $CFLAGS
+if test -z "$cf_user_CFLAGS" && test "$with_no_leaks" = no ; then
+	CF_STRIP_G_OPT(CFLAGS)
+	CF_STRIP_G_OPT(CXXFLAGS)
+fi
+
+# Just in case, check if the C compiler has a bool type.
+CF_BOOL_DECL(cf_cv_cc_bool_type)
+
+# Check for C++ compiler characteristics (and ensure that it's there!)
+if test -n "$CXX" ; then
+	AC_LANG_CPLUSPLUS
+	CF_STDCPP_LIBRARY
+	CF_PROG_CC_C_O(CXX)
+
+	case $GXX_VERSION in
+	1*|2.[0-6]*)
+		cf_cxx_library=yes
+		;;
+	*-2.7*|2.7*)
+		CF_GPP_LIBRARY
+		;;
+	*)
+		cf_cxx_library=no
+		;;
+	esac
+
+	AC_CHECK_HEADERS(typeinfo)
+	CF_CXX_IOSTREAM_NAMESPACE
+	CF_BOOL_DECL
+	CF_BOOL_SIZE
+	CF_ETIP_DEFINES
+	CF_CPP_PARAM_INIT
+	CF_CPP_STATIC_CAST
+	CF_CXX_AR_FLAGS
+else
+	cf_cxx_library=no
+	cf_cv_builtin_bool=1
+
+	# Just because we are not configuring against C++ right now does not
+	# mean that a user will not want to use C++.  Some distributors disable
+	# the C++ portion of this configuration as a shortcut (or just to avoid
+	# compiling the demo in the c++ directory).  So we need a reasonable
+	# default for the 'bool' type.
+	#
+	# Caveat: since the storage of the bool type is not standardized, it
+	# may change.
+
+	if test "$NCURSES_BOOL" != auto ; then
+		cf_cv_type_of_bool=$NCURSES_BOOL
+		cf_cv_header_stdbool_h=0
+	else
+		if test "$cf_cv_header_stdbool_h" = 1 ; then
+			CF_BOOL_SIZE
+		else
+			AC_MSG_CHECKING(for fallback type of bool)
+			case "$host_cpu" in #(vi
+			i?86)	cf_cv_type_of_bool=char	;; #(vi
+			*)	cf_cv_type_of_bool=int	;;
+			esac
+			AC_MSG_RESULT($cf_cv_type_of_bool)
+		fi
+	fi
+fi
+AC_SUBST(CXXLIBS)
+
+# If the C compiler did not declare bool, and we did not determine that the C++
+# compiler does not declare bool, turn on an ifdef in curses.h that makes the
+# ncurses library use the same type as C++ bool.  Note that this allows one to
+# specify the type of bool in a configure-script option and postpone
+# integration with the C++ compiler provided that the types are compatible.
+USE_CXX_BOOL=1
+if test $cf_cv_cc_bool_type = 1
+then
+	# oops: C has a bool.  Unlikely, but C++ could differ.
+	USE_CXX_BOOL=0
+elif test $cf_cv_builtin_bool = 0
+then
+	# C++ has no bool
+	USE_CXX_BOOL=0
+else
+	# this is the normal case
+	USE_CXX_BOOL='defined(__cplusplus)'
+fi
+AC_SUBST(USE_CXX_BOOL)
+
+CF_HELP_MESSAGE(Ada95 Binding Options:)
+
+dnl If the Ada95 source-tree is present, add that to the build unless it will
+dnl not work, or was not requested.
+if test -f "${srcdir}/Ada95/Makefile.in" ; then
+
+dnl libtool does not know anything about GNAT, though a change made in 1998
+dnl provided for it "someday".  Disable the ada subtree if we are using
+dnl libtool -TD 20070714
+	if test "$cf_with_ada" != "no" ; then
+		if test "$with_libtool" != "no"; then
+			AC_MSG_WARN(libtool does not support Ada - disabling feature)
+			cf_with_ada=no
+		fi
+	fi
+
+dnl Check for availability of GNU Ada Translator (GNAT).
+dnl At the moment we support no other Ada95 compiler.
+	if test "$cf_with_ada" != "no" ; then
+		CF_PROG_GNAT
+		if test	"x$cf_cv_prog_gnat_correct" = xyes; then
+			CF_ADD_ADAFLAGS(-gnatpn)
+			CF_FIXUP_ADAFLAGS
+
+			CF_GNAT_GENERICS
+			CF_GNAT_SIGINT
+			CF_GNAT_PRAGMA_UNREF
+			CF_GNAT_PROJECTS
+
+			CF_WITH_ADA_COMPILER
+
+			cf_ada_package=terminal_interface
+			AC_SUBST(cf_ada_package)
+
+			CF_WITH_ADA_INCLUDE
+			CF_WITH_ADA_OBJECTS
+			CF_WITH_ADA_SHAREDLIB
+		fi
+	fi
+else
+	cf_with_ada=no
+fi
+
+# do this "late" to avoid conflict with header-checks
+if test "x$with_widec" = xyes ; then
+	AC_CHECK_SIZEOF(wchar_t)
+fi
+
+### Construct the ncurses library-subsets, if any, from this set of keywords:
+###	none, base, ext_funcs, ext_tinfo, ticlib, termlib, widechar
+###
+### ticlib modules may be a separate library, otherwise contained in termlib.
+### termlib modules may be a separate library, otherwise contained in ncurses.
+###
+### The of "+" or " " between the tokens controls the way the script
+### chooses to split module lists into libraries.
+###
+### (see CF_LIB_RULES).
+AC_MSG_CHECKING(for library subsets)
+LIB_SUBSETS=
+
+if test "x$cf_with_progs" = xyes || test "$with_ticlib" != no || test "$with_termcap" != no; then
+	LIB_SUBSETS="${LIB_SUBSETS}ticlib"
+	if test "$with_ticlib" != no ; then
+		LIB_SUBSETS="${LIB_SUBSETS} "
+	else
+		LIB_SUBSETS="${LIB_SUBSETS}+"
+	fi
+fi
+
+LIB_SUBSETS="${LIB_SUBSETS}termlib"
+test "x$with_ext_funcs" = xyes && LIB_SUBSETS="${LIB_SUBSETS}+ext_tinfo"
+
+if test "$with_termlib" != no ; then
+	LIB_SUBSETS="${LIB_SUBSETS} "
+else
+	LIB_SUBSETS="${LIB_SUBSETS}+"
+fi
+
+LIB_SUBSETS="${LIB_SUBSETS}base"
+
+# Most term-driver calls are to tinfo, but some like init_pair are to the
+# base library (so it resides in base).
+if test "$with_term_driver" != no ; then
+	LIB_SUBSETS="${LIB_SUBSETS}+port_drivers"
+	case $cf_cv_system_name in #(vi
+	*mingw32*) #(vi
+		LIB_SUBSETS="${LIB_SUBSETS}+port_tinfo+port_win32con"
+		;;
+	*) #(vi
+		LIB_SUBSETS="${LIB_SUBSETS}+port_tinfo"
+		;;
+	esac
+fi
+
+test "x$with_widec"     = xyes && LIB_SUBSETS="${LIB_SUBSETS}+widechar"
+test "x$with_ext_funcs" = xyes && LIB_SUBSETS="${LIB_SUBSETS}+ext_funcs"
+
+AC_MSG_RESULT($LIB_SUBSETS)
+
+### Construct the list of include-directories to be generated
+CF_INCLUDE_DIRS
+CF_ADA_INCLUDE_DIRS
+
+### Build up pieces for makefile rules
+AC_MSG_CHECKING(default library suffix)
+CF_LIB_TYPE($DFT_LWR_MODEL,DFT_ARG_SUFFIX)dnl
+AC_SUBST(DFT_ARG_SUFFIX)dnl the string to append to "-lncurses" ("")
+AC_MSG_RESULT($DFT_ARG_SUFFIX)
+
+AC_MSG_CHECKING(default library-dependency suffix)
+CF_LIB_SUFFIX($DFT_LWR_MODEL,DFT_LIB_SUFFIX,DFT_DEP_SUFFIX)dnl
+AC_SUBST(DFT_DEP_SUFFIX)dnl the corresponding library-suffix (".a")
+AC_MSG_RESULT($DFT_DEP_SUFFIX)
+
+AC_MSG_CHECKING(default object directory)
+CF_OBJ_SUBDIR($DFT_LWR_MODEL,DFT_OBJ_SUBDIR)dnl
+AC_SUBST(DFT_OBJ_SUBDIR)dnl the default object-directory ("obj")
+AC_MSG_RESULT($DFT_OBJ_SUBDIR)
+
+if test "x$cf_with_cxx" = xyes ; then
+AC_MSG_CHECKING(c++ library-dependency suffix)
+if test "$with_libtool" != "no"; then
+	# libtool thinks it can make c++ shared libraries (perhaps only g++)
+	CXX_LIB_SUFFIX=$DFT_DEP_SUFFIX
+elif test "$with_shared_cxx" != "no"; then
+	# also for g++ users...
+	CXX_LIB_SUFFIX=$DFT_DEP_SUFFIX
+else
+	# we normally make a static library because C/C++ library rules differ
+	CF_LIB_SUFFIX(normal,CXX_LIB_SUFFIX,CXX_DEP_SUFFIX)
+fi
+AC_MSG_RESULT($CXX_LIB_SUFFIX)
+AC_SUBST(CXX_LIB_SUFFIX)
+fi
+
+# do not want -ldl in build except as needed for -lncurses dependency
+if test "x$with_dlsym" = xyes ; then
+if test $DFT_LWR_MODEL = shared || \
+   test $DFT_LWR_MODEL = libtool ; then
+	CF_REMOVE_LIB(LIBS,$LIBS,dl)
+fi
+fi
+### Set up low-level terminfo dependencies for makefiles.
+
+# TICS_LIST and TINFO_LIST are needed to build libtic.so and libterm.so, but
+# do not need libdl
+TICS_LIST=
+if test "x$with_dlsym" = xyes ; then
+	CF_REMOVE_LIB(TINFO_LIST,$SHLIB_LIST,dl)
+fi
+
+if test "$with_ticlib" != no ; then
+
+	if test "x$with_ticlib" != xyes ; then
+		TICS_NAME=$with_ticlib
+		TICS_ARG_SUFFIX="${with_ticlib}`echo ${DFT_ARG_SUFFIX}|sed -e "s/^${LIB_SUFFIX}//"`"
+		TICS_DEP_SUFFIX="${with_ticlib}`echo ${DFT_DEP_SUFFIX}|sed -e "s/^${LIB_SUFFIX}//"`"
+		TICS_LIB_SUFFIX="${with_ticlib}"
+	else
+		TICS_ARG_SUFFIX="${TICS_NAME}${DFT_ARG_SUFFIX}"
+		TICS_DEP_SUFFIX="${TICS_NAME}${DFT_DEP_SUFFIX}"
+		TICS_LIB_SUFFIX="${TICS_NAME}${LIB_SUFFIX}"
+	fi
+	TICS_LDFLAGS="-L${LIB_DIR}"
+	TICS_LIBS="-l${TICS_LIB_SUFFIX}"
+else
+	TICS_LDFLAGS="-L${LIB_DIR}"
+	TICS_LIBS="-l${LIB_NAME}${DFT_ARG_SUFFIX}"
+fi
+AC_SUBST(TICS_ARG_SUFFIX)
+AC_SUBST(TICS_DEP_SUFFIX)
+AC_SUBST(TICS_LIB_SUFFIX)
+AC_SUBST(TICS_LDFLAGS)
+AC_SUBST(TICS_LIBS)
+
+if test "$with_termlib" != no ; then
+
+	if test "x$with_termlib" != xyes ; then
+		TINFO_NAME=$with_termlib
+		TINFO_SUFFIX="`echo ${DFT_LIB_SUFFIX}|sed -e "s/^${LIB_SUFFIX}//"`"
+		TINFO_ARG_SUFFIX="${with_termlib}`echo ${DFT_ARG_SUFFIX}|sed -e "s/^${LIB_SUFFIX}//"`"
+		TINFO_DEP_SUFFIX="${with_termlib}`echo ${DFT_DEP_SUFFIX}|sed -e "s/^${LIB_SUFFIX}//"`"
+		TINFO_LIB_SUFFIX="${with_termlib}"
+	else
+		TINFO_SUFFIX=${DFT_LIB_SUFFIX}
+		TINFO_ARG_SUFFIX="${TINFO_NAME}${DFT_ARG_SUFFIX}"
+		TINFO_DEP_SUFFIX="${TINFO_NAME}${DFT_DEP_SUFFIX}"
+		TINFO_LIB_SUFFIX="${TINFO_NAME}${LIB_SUFFIX}"
+	fi
+
+	TEST_DEPS="${LIB_DIR}/${LIB_PREFIX}${TINFO_DEP_SUFFIX}"
+	TEST_DEP2="${LIB_2ND}/${LIB_PREFIX}${TINFO_DEP_SUFFIX}"
+	if test "$DFT_LWR_MODEL" = "libtool"; then
+		TEST_ARGS="${TEST_DEPS}"
+		TEST_ARG2="${TEST_DEP2}"
+		TINFO_LDFLAGS="-L${LIB_DIR}"
+		TINFO_LIBS="$TEST_ARGS"
+		TICS_LIST="$SHLIB_LIST $TEST_ARGS"
+		SHLIB_LIST="${SHLIB_LIST} $TEST_ARGS"
+	else
+		TEST_ARGS="-l${TINFO_ARG_SUFFIX}"
+		TEST_ARG2="-l${TINFO_ARG_SUFFIX}"
+		if test "x$with_term_driver" != xno ; then
+			TICS_LIST="$SHLIB_LIST -l${LIB_NAME}${DFT_ARG_SUFFIX}"
+			TICS_LIBS="$TICS_LIBS -l${LIB_NAME}${DFT_ARG_SUFFIX}"
+			TINFO_LIBS="-l${LIB_NAME}${DFT_ARG_SUFFIX} $TEST_ARGS"
+		else
+			TICS_LIST="$SHLIB_LIST -l${TINFO_LIB_SUFFIX}"
+			TINFO_LIBS="$TEST_ARGS"
+		fi
+		TINFO_LDFLAGS="-L${LIB_DIR}"
+		SHLIB_LIST="$SHLIB_LIST -l${TINFO_LIB_SUFFIX}"
+	fi
+else
+	# the next lines are needed for linking libtic over libncurses
+	TINFO_NAME=${LIB_NAME}
+	TINFO_SUFFIX=${DFT_LIB_SUFFIX}
+	TINFO_ARG_SUFFIX=${LIB_NAME}${DFT_ARG_SUFFIX}
+	if test "x$with_tic_depends" = xyes ; then
+		TICS_LIST="$SHLIB_LIST -l${LIB_NAME}${DFT_ARG_SUFFIX}"
+	else
+		TICS_LIST="$SHLIB_LIST"
+	fi
+
+	TINFO_LDFLAGS="-L${LIB_DIR}"
+	TINFO_LIBS="-l${LIB_NAME}${DFT_ARG_SUFFIX}"
+fi
+
+if test "$DFT_LWR_MODEL" = shared ; then
+	case $cf_cv_system_name in #(vi
+	cygwin*|msys*)
+		# "lib" files have ".dll.a" suffix, "cyg"or "msys-" files have ".dll"
+		TINFO_SUFFIX=.dll
+		;;
+	esac
+fi
+
+AC_SUBST(TINFO_ARG_SUFFIX)
+AC_SUBST(TINFO_DEP_SUFFIX)
+AC_SUBST(TINFO_LIB_SUFFIX)
+AC_SUBST(TINFO_LDFLAGS)
+AC_SUBST(TINFO_LIBS)
+
+if test "x$with_dlsym" = xyes ; then
+	CF_REMOVE_LIB(TICS_LIST,$TICS_LIST,dl)
+fi
+
+if test "$DFT_LWR_MODEL" = "libtool"; then
+    OBJEXT=lo
+fi
+
+# needed for Ada95
+TINFO_LDFLAGS2=`echo "$TINFO_LDFLAGS" | sed -e 's,-L\.\./,-L../../,'`
+AC_SUBST(TINFO_LDFLAGS2)
+
+case $DFT_LWR_MODEL in
+normal|debug|profile)
+	CF_LDFLAGS_STATIC
+	;;
+esac
+
+AC_MSG_CHECKING(where we will install curses.h)
+AC_SUBST(includesubdir)
+includesubdir=
+if test "$with_overwrite" = no && \
+ ( test "x$includedir" = 'x${prefix}/include' || \
+   test "x$includedir" = "x${prefix}/include" )
+then
+	includesubdir="/ncurses${LIB_SUFFIX}"
+fi
+AC_MSG_RESULT(${includedir}${includesubdir})
+
+### Resolve a conflict between normal and wide-curses by forcing applications
+### that will need libutf8 to add it to their configure script.
+if test "$with_overwrite" != no ; then
+if test "$NCURSES_LIBUTF8" = 1 ; then
+	NCURSES_LIBUTF8='defined(HAVE_LIBUTF8_H)'
+	AC_MSG_WARN(Wide-character applications must define HAVE_LIBUTF8_H to include curses.h)
+fi
+fi
+WITH_OVERWRITE=$with_overwrite
+
+AC_SUBST(WITH_OVERWRITE)
+AC_SUBST(TICS_LIST)
+AC_SUBST(TINFO_LIST)
+AC_SUBST(SHLIB_LIST)
+
+# used to separate tack out of the tree
+NCURSES_TREE=
+AC_SUBST(NCURSES_TREE)
+
+### predefined stuff for the test programs
+AC_DEFINE(HAVE_SLK_COLOR,1,[Define to 1 if we have slk_color for test-programs])
+
+### Construct the list of subdirectories for which we'll customize makefiles
+### with the appropriate compile-rules.
+
+CF_SRC_MODULES($modules_to_build)
+
+if test "x$cf_with_ada" = "xyes" && test "x$cf_cv_prog_gnat_correct" = "xyes"; then
+   SUB_MAKEFILES="$SUB_MAKEFILES Ada95/gen/adacurses${DFT_ARG_SUFFIX}-config:Ada95/gen/adacurses-config.in"
+   SUB_MAKEFILES="$SUB_MAKEFILES man/adacurses${DFT_ARG_SUFFIX}-config.1:man/MKada_config.in"
+fi
+
+CF_DIRS_TO_MAKE
+
+# symbols that differ when compiling Ada95 by itself.
+NCURSES_SHLIB2='sh $(top_srcdir)/misc/shlib'
+AC_SUBST(NCURSES_SHLIB2)
+
+# values to use as strings
+AC_DEFINE_UNQUOTED(NCURSES_PATHSEP,'$PATH_SEPARATOR',[Define to override ':' as library path-separator])
+
+AC_DEFINE_UNQUOTED(NCURSES_VERSION_STRING, "${NCURSES_MAJOR}.${NCURSES_MINOR}.${NCURSES_PATCH}",[Define to 1 if machine has ample memory for tic])
+
+### Now that we're done running tests, add the compiler-warnings, if any
+CF_ADD_CFLAGS($EXTRA_CFLAGS)
+
+### Define substitutions for header files to avoid name-pollution
+CF_SUBST_IF(["x$cf_cv_have_tcgetattr" = xyes], HAVE_TCGETATTR, 1, 0)
+CF_SUBST_IF(["x$ac_cv_header_termio_h" = xyes], HAVE_TERMIO_H, 1, 0)
+CF_SUBST_IF(["x$ac_cv_header_termios_h" = xyes], HAVE_TERMIOS_H, 1, 0)
+
+################################################################################
+test "x$use_database" = xyes && \
+SUB_MAKEFILES="$SUB_MAKEFILES misc/run_tic.sh:misc/run_tic.in"
+
+SUB_MAKEFILES="$SUB_MAKEFILES misc/ncurses-config:misc/ncurses-config.in"
+SUB_MAKEFILES="$SUB_MAKEFILES man/ncurses${DFT_ARG_SUFFIX}${cf_cv_abi_version}-config.1:man/MKncu_config.in"
+
+if test "x$enable_pc_files" = xyes ; then \
+SUB_MAKEFILES="$SUB_MAKEFILES misc/gen-pkgconfig:misc/gen-pkgconfig.in"
+MAKE_PC_FILES=
+else
+MAKE_PC_FILES="#"
+fi
+AC_SUBST(MAKE_PC_FILES)
+AC_SUBST(cross_compiling)
+
+AC_PATH_PROG(TIC_PATH,tic,unknown,$PATH:/usr/local/ncurses/bin)
+if test -n "$FALLBACK_LIST"
+then
+	if test "$TIC_PATH" = unknown
+	then
+		AC_MSG_WARN(no tic program found for fallbacks)
+	fi
+fi
+AC_SUBST(TIC_PATH)
+
+if test "x$cf_with_tests" != xno ; then
+	MAKE_TESTS=
+else
+	MAKE_TESTS="#"
+fi
+AC_SUBST(MAKE_TESTS)
+
+ADAHTML_DIR=../../doc/html/ada
+AC_SUBST(ADAHTML_DIR)
+
+# these could be configurable, but are not currently
+PANEL_NAME=panel
+MENU_NAME=menu
+FORM_NAME=form
+CXX_NAME=ncurses++
+
+AC_SUBST(PANEL_NAME)
+AC_SUBST(MENU_NAME)
+AC_SUBST(FORM_NAME)
+AC_SUBST(CXX_NAME)
+
+# workaround for g++ versus Solaris (20131116)
+case $cf_cv_system_name in #(vi
+solaris2*) #(vi
+	case "x$CPPFLAGS" in #(vi
+	*-D_XOPEN_SOURCE_EXTENDED*)
+		CF_VERBOSE(moving _XOPEN_SOURCE_EXTENDED to work around g++ problem)
+		CFLAGS="$CFLAGS -D_XOPEN_SOURCE_EXTENDED"
+		CPPFLAGS=`echo "x$CPPFLAGS" | sed -e  's/^.//' -e 's/-D_XOPEN_SOURCE_EXTENDED//'`
+		;;
+	esac
+	;;
+esac
+
+# AC_CHECK_SIZEOF demands a literal parameter, no variables.  So we do this.
+case "x$NCURSES_OSPEED" in #(vi
+*short*) #(vi
+	cf_compatible=1
+	;;
+*)
+	cf_compatible=0
+	;;
+esac
+AC_DEFINE_UNQUOTED(NCURSES_OSPEED_COMPAT,$cf_compatible,[Define to 1 if termcap variable ospeed is short])
+
+SUB_SCRIPTS=
+
+AC_OUTPUT( \
+	include/MKterm.h.awk \
+	include/curses.head:include/curses.h.in \
+	include/ncurses_dll.h \
+	include/termcap.h \
+	include/unctrl.h \
+	$SUB_SCRIPTS \
+	$SUB_MAKEFILES \
+	Makefile,[
+if test "x$cf_with_tests" != xno ; then
+	CF_PRG_RULES([$srcdir/test/mk-test.awk INSTALL=no ECHO_LINK="$ECHO_LD"], test)
+fi
+CF_LIB_RULES($SRC_SUBDIRS)
+
+if test "x$cf_with_ada" = "xyes" && test "x$cf_cv_prog_gnat_correct" = "xyes"; then
+if test -z "$USE_OLD_MAKERULES" ; then
+	$AWK -f $srcdir/Ada95/mk-1st.awk <$srcdir/Ada95/src/modules >>Ada95/src/Makefile
+fi
+fi
+],[
+### Special initialization commands, used to pass information from the
+### configuration-run into config.status
+
+AWK="$AWK"
+DFT_ARG_SUFFIX="$DFT_ARG_SUFFIX"
+DFT_LWR_MODEL="$DFT_LWR_MODEL"
+ECHO_LD="$ECHO_LD"
+LDCONFIG="$LDCONFIG"
+LIBTOOL_VERSION="$LIBTOOL_VERSION"
+LIB_NAME="$LIB_NAME"
+LIB_PREFIX="$LIB_PREFIX"
+LIB_SUBSETS="$LIB_SUBSETS"
+LIB_SUFFIX="$LIB_SUFFIX"
+LIB_TRACING="$LIB_TRACING"
+LN_S="$LN_S"
+MAKE_TERMINFO="$MAKE_TERMINFO"
+NCURSES_MAJOR="$NCURSES_MAJOR"
+NCURSES_MINOR="$NCURSES_MINOR"
+NCURSES_OSPEED="$NCURSES_OSPEED"
+NCURSES_PATCH="$NCURSES_PATCH"
+SRC_SUBDIRS="$SRC_SUBDIRS"
+TERMINFO="$TERMINFO"
+TICS_ARG_SUFFIX="$TICS_ARG_SUFFIX"
+TICS_LIB_SUFFIX="$TICS_LIB_SUFFIX"
+TICS_NAME="$TICS_NAME"
+TIC_PATH="$TIC_PATH"
+TINFO_ARG_SUFFIX="$TINFO_ARG_SUFFIX"
+TINFO_LIB_SUFFIX="$TINFO_LIB_SUFFIX"
+TINFO_NAME="$TINFO_NAME"
+TINFO_SUFFIX="$TINFO_SUFFIX"
+USE_OLD_MAKERULES="$USE_OLD_MAKERULES"
+WITH_CURSES_H="$with_curses_h"
+WITH_ECHO="${enable_echo:=yes}"
+WITH_OVERWRITE="$with_overwrite"
+cf_LIST_MODELS="$cf_list_models"
+cf_cv_abi_version="$cf_cv_abi_version"
+cf_cv_do_relink="$cf_cv_do_relink"
+cf_cv_do_symlinks="$cf_cv_do_symlinks"
+cf_cv_enable_lp64="$cf_cv_enable_lp64"
+cf_cv_enable_opaque="$cf_cv_enable_opaque"
+cf_cv_prog_CC_c_o=$cf_cv_prog_CC_c_o
+cf_cv_prog_CXX_c_o=$cf_cv_prog_CXX_c_o
+cf_cv_prog_gnat_correct=$cf_cv_prog_gnat_correct
+cf_cv_rel_version="$cf_cv_rel_version"
+cf_cv_rm_so_locs="$cf_cv_rm_so_locs"
+cf_cv_shared_soname='$cf_cv_shared_soname'
+cf_cv_shlib_version="$cf_cv_shlib_version"
+cf_cv_shlib_version_infix="$cf_cv_shlib_version_infix"
+cf_cv_system_name="$cf_cv_system_name"
+cf_cv_term_driver="$with_term_driver"
+cf_with_ada="$cf_with_ada"
+cf_with_cxx_binding="$cf_with_cxx_binding"
+cf_with_db_install="$cf_with_db_install"
+cf_with_manpages="$cf_with_manpages"
+cf_with_tests="$cf_with_tests"
+with_shared_cxx="$with_shared_cxx"
+host="$host"
+target="$target"
+
+],cat)dnl
+${MAKE:-make} preinstall

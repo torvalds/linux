@@ -1,0 +1,728 @@
+.\"	$FreeBSD$
+.\"
+.TH IPNAT 5
+.SH NAME
+ipnat, ipnat.conf \- IPFilter NAT file format
+.SH DESCRIPTION
+.PP
+The
+.B ipnat.conf
+file is used to specify rules for the Network Address Translation (NAT)
+component of IPFilter.  To load rules specified in the
+.B ipnat.conf
+file, the
+.B ipnat(8)
+program is used.
+.PP
+For standard NAT functionality, a rule should start with \fBmap\fP and then
+proceeds to specify the interface for which outgoing packets will have their
+source address rewritten.  Following this it is expected that the old source
+address, and optionally port number, will be specified.
+.PP
+In general, all NAT rules conform to the following layout:
+the first word indicates what type of NAT rule is present, this is followed
+by some stanzas to match a packet, followed by a "->" and this is then
+followed by several more stanzas describing the new data to be put in the
+packet.
+.PP
+In this text and in others,
+use of the term "left hand side" (LHS) when talking about a NAT rule refers
+to text that appears before the "->" and the "right hand side" (RHS) for text
+that appears after it.  In essence, the LHS is the packet matching and the
+RHS is the new data to be used.
+.SH VARIABLES
+.PP
+This configuration file, like all others used with IPFilter, supports the
+use of variable substitution throughout the text.
+.nf
+
+nif="ppp0";
+map $nif 0/0 -> 0/32
+.fi
+.PP
+would become
+.nf
+
+map ppp0 0/0 -> 0/32
+.fi
+.PP
+Variables can be used recursively, such as 'foo="$bar baz";', so long as
+$bar exists when the parser reaches the assignment for foo.
+.PP
+See
+.B ipnat(8)
+for instructions on how to define variables to be used from a shell
+environment.
+.SH OUTBOUND SOURCE TRANSLATION (map'ing)
+Changing the source address of a packet is traditionally performed using
+.B map
+rules.  Both the source address and optionally port number can be changed
+according to various controls.
+.PP
+To start out with, a common rule used is of the form:
+.nf
+
+map le0 0/0 -> 0/32
+.fi
+.PP
+Here we're saying change the source address of all packets going out of
+le0 (the address/mask pair of 0/0 matching all packets) to that of the
+interface le0 (0/32 is a synonym for the interface's own address at
+the current point in time.)  If we wanted to pass the packet through
+with no change in address, we would write it as:
+.nf
+
+map le0 0/0 -> 0/0
+.fi
+.PP
+If we only want to change a portion of our internal network and to a
+different address that is routed back through this host, we might do:
+.nf
+
+map le0 10.1.1.0/24 -> 192.168.55.3/32
+.fi
+.PP
+In some instances, we may have an entire subnet to map internal addresses
+out onto, in which case we can express the translation as this:
+.nf
+
+map le0 10.0.0.0/8 -> 192.168.55.0/24
+.fi
+.PP
+IPFilter will cycle through each of the 256 addresses in the 192.168.55.0/24
+address space to ensure that they all get used.
+.PP
+Of course this poses a problem for TCP and UDP, with many connections made,
+each with its own port number pair.  If we're unlucky, translations can be
+dropped because the new address/port pair mapping already exists.  To
+mitigate this problem, we add in port translation or port mapping:
+.nf
+
+map le0 10.0.0.0/8 -> 192.168.55.0/24 portmap tcp/udp auto
+.fi
+.PP
+In this instance, the word "auto" tells IPFilter to calculate a private
+range of port numbers for each address on the LHS to use without fear
+of them being trampled by others.  This can lead to problems if there are
+connections being generated more quickly than IPFilter can expire them.
+In this instance, and if we want to get away from a private range of
+port numbers, we can say:
+.nf
+
+map le0 10.0.0.0/8 -> 192.168.55.0/24 portmap tcp/udp 5000:65000
+.fi
+.PP
+And now each connection through le0 will add to the enumeration of
+the port number space 5000-65000 as well as the IP address subnet
+of 192.168.55.0/24.
+.PP
+If the new addresses to be used are in a consecutive range, rather
+than a complete subnet, we can express this as:
+.nf
+
+map le0 10.0.0.0/8 -> range 192.168.55.10-192.168.55.249
+                      portmap tcp/udp 5000:65000
+.fi
+.PP
+This tells IPFilter that it has a range of 240 IP address to use, from
+192.168.55.10 to 192.168.55.249, inclusive.
+.PP
+If there were several ranges of addresses for use, we can use each one
+in a round-robin fashion as followed:
+.nf
+
+map le0 10.0.0.0/8 -> range 192.168.55.10-192.168.55.29
+                      portmap tcp/udp 5000:65000 round-robin
+map le0 10.0.0.0/8 -> range 192.168.55.40-192.168.55.49
+                      portmap tcp/udp 5000:65000 round-robin
+.fi
+.PP
+To specify translation rules that impact a specific IP protocol,
+the protocol name or number is appended to the rule like this:
+.nf
+
+map le0 10.0.0.0/8 -> 192.168.55.0/24 tcp/udp
+map le0 10.0.0.0/8 -> 192.168.55.1/32 icmp
+map le0 10.0.0.0/8 -> 192.168.55.2/32 gre
+.fi
+.PP
+For TCP connections exiting a connection such as PPPoE where the MTU is
+slightly smaller than normal ethernet, it can be useful to reduce the
+Maximum Segment Size (MSS) offered by the internal machines to match,
+reducing the liklihood that the either end will attempt to send packets
+that are too big and result in fragmentation.  This is acheived using the
+.B mssclamp
+option with TCP
+.B map
+rules like this:
+.nf
+
+map pppoe0 0/0 -> 0/32 mssclamp 1400 tcp
+.fi
+.PP
+For ICMP packets, we can map the ICMP id space in query packets:
+.nf
+
+map le0 10.0.0.0/8 -> 192.168.55.1/32 icmpidmap icmp 1000:20000
+.fi
+.PP
+If we wish to be more specific about our initial matching criteria on the
+LHS, we can expand to using a syntax more similar to that in
+.B ipf.conf(5)
+:
+.nf
+
+map le0 from 10.0.0.0/8 to 26.0.0.0/8 ->
+                      192.168.55.1
+map le0 from 10.0.0.0/8 port > 1024 to 26.0.0.0/8 ->
+                      192.168.55.2 portmap 5000:9999 tcp/udp
+map le0 from 10.0.0.0/8 ! to 26.0.0.0/8 ->
+                      192.168.55.3 portmap 5000:9999 tcp/udp
+.fi
+.TP
+.B NOTE:
+negation matching with source addresses is
+.B NOT
+possible with
+.B map
+/
+.B map-block
+rules.
+.PP
+The NAT code has builtin default timeouts for TCP, UDP, ICMP and another
+for all other protocols.  In general, the timeout for an entry to be
+deleted shrinks once a reply packet has been seen (excluding TCP.)
+If you wish to specify your own timeouts, this can be achieved either
+by setting one timeout for both directions:
+.nf
+
+map le0 0/0 -> 0/32 gre age 30
+.fi
+.PP
+or setting a different timeout for the reply:
+.nf
+
+map le0 from any to any port = 53 -> 0/32 age 60/10 udp
+.fi
+.PP
+A pressing problem that many people encounter when using NAT is that the
+address protocol can be embedded inside an application's communication.
+To address this problem, IPFilter provides a number of built-in proxies
+for the more common trouble makers, such as FTP.  These proxies can be
+used as follows:
+.nf
+
+map le0 0/0 -> 0/32 proxy port 21 ftp/tcp
+.fi
+.PP
+In this rule, the word "proxy" tells us that we want to connect up this
+translation with an internal proxy.  The "port 21" is an extra restriction
+that requires the destination port number to be 21 if this rule is to be
+activated.  The word "ftp" is the proxy identifier that the kernel will
+try and resolve internally, "tcp" the protocol that packets must match.
+.PP
+See below for a list of proxies and their relative staus.
+.PP
+To associate NAT rules with filtering rules, it is possible to set and
+match tags during either inbound or outbound processing.  At present the
+tags for forwarded packets are not preserved by forwarding, so once the
+packet leaves IPFilter, the tag is forgotten.  For
+.B map
+rules, we can match tags set by filter rules like this:
+.nf
+
+map le0 0/0 -> 0/32 proxy portmap 5000:5999 tag lan1 tcp
+.fi
+.PP
+This would be used with "pass out" rules that includes a stanza such
+as "set-tag (nat = lan1)".
+.PP
+If the interface in which packets are received is different from the
+interface on which packets are sent out, then the translation rule needs
+to be written to take this into account:
+.nf
+
+map hme0,le0 0/0 -> 0/32
+.fi
+.PP
+Although this might seem counterintuitive, the interfaces when listed
+in rules for
+.B ipnat.conf
+are always in the
+.I inbound
+,
+.I outbound
+order.  In this case, hme0 would be the return interface and le0 would be
+the outgoing interface.  If you wish to allow return packets on any
+interface, the correct syntax to use would be:
+.nf
+
+map *,le0 0/0 -> 0/32
+.fi
+.LP
+A special variant of
+.B map
+rules exists, called
+.B map-block.
+This command is intended for use when there is a large network to be mapped
+onto a smaller network, where the difference in netmasks is upto 14 bits
+difference in size.  This is achieved by dividing the address space and
+port space up to ensure that each source address has its own private range
+of ports to use.  For example, this rule:
+.nf
+
+map-block ppp0 172.192.0.0/16 -> 209.1.2.0/24 ports auto
+.fi
+.PP
+would result in 172.192.0.0/24 being mapped to 209.1.2.0/32
+with each address, from 172.192.0.0 to 172.192.0.255 having 252 ports of its
+own.  As opposed to the above use of \fBmap\fP, if for some reason the user
+of (say) 172.192.0.2 wanted 260 simultaneous connections going out, they would
+be limited to 252 with \fBmap-block\fP but would just \fImove on\fP to the next
+IP address with the \fBmap\fP command.
+.SS Extended matching
+.PP
+If it is desirable to match on both the source and destination of a packet
+before applying an address translation to it, this can be achieved by using
+the same from-to syntax as is used in \fBipf.conf\fP(5).  What follows
+applies equally to the
+.B map
+rules discussed above and
+.B rdr
+rules discussed below.  A simple example is as follows:
+.nf
+
+map bge0 from 10.1.0.0/16 to 192.168.1.0/24 -> 172.12.1.4
+.fi
+.PP
+This would only match packets that are coming from hosts that have a source
+address matching 10.1.0.0/16 and a destination matching 192.168.1.0/24.
+This can be expanded upon with ports for TCP like this:
+.nf
+
+rdr bge0 from 10.1.0.0/16 to any port = 25 -> 127.0.0.1 port 2501 tcp
+.fi
+.PP
+Where only TCP packets from 10.1.0.0/16 to port 25 will be redirected to
+port 2501.
+.PP
+As with \fBipf.conf\fR(5), if we have a large set of networks or addresses
+that we would like to match up with then we can define a pool using
+\fBippool\fR(8) in \fBippool.conf\fR(5) and then refer to it in an
+\fBipnat\fR rule like this:
+.nf
+
+map bge0 from pool/100 to any port = 25 -> 127.0.0.1 port 2501 tcp
+.fi
+.TP
+.B NOTE:
+In this situation, the rule is considered to have a netmask of "0" and
+thus is looked at last, after any rules with /16's or /24's in them,
+.I even if
+the defined pool only has /24's or /32's.  Pools may also be used
+.I wherever
+the from-to syntax in \fBipnat.conf\fR(5) is allowed.
+.SH INBOUND DESTINATION TRANSLATION (redirection)
+.PP
+Redirection of packets is used to change the destination fields in a packet
+and is supported for packets that are moving \fIin\fP on a network interface.
+While the same general syntax for
+.B map
+rules is supported, there are differences and limitations.
+.PP
+Firstly, by default all redirection rules target a single IP address, not
+a network or range of network addresses, so a rule written like this:
+.nf
+
+rdr le0 0/0 -> 192.168.1.0
+.fi
+.PP
+Will not spread packets across all 256 IP addresses in that class C network.
+If you were to try a rule like this:
+.nf
+
+rdr le0 0/0 -> 192.168.1.0/24
+.fi
+.PP
+then you will receive a parsing error.
+.PP
+The from-to source-destination matching used with
+.B map
+rules can be used with rdr rules, along with negation, however the
+restriction moves - only a source address match can be negated:
+.nf
+
+rdr le0 from 1.1.0.0/16 to any -> 192.168.1.3
+rdr le0 ! from 1.1.0.0/16 to any -> 192.168.1.4
+.fi
+.PP
+If there is a consective set of addresses you wish to spread the packets
+over, then this can be done in one of two ways, the word "range" optional
+to preserve:
+.nf
+
+rdr le0 0/0 -> 192.168.1.1 - 192.168.1.5
+rdr le0 0/0 -> range 192.168.1.1 - 192.168.1.5
+.fi
+.PP
+If there are only two addresses to split the packets across, the
+recommended method is to use a comma (",") like this:
+.nf
+
+rdr le0 0/0 -> 192.168.1.1,192.168.1.2
+.fi
+.PP
+If there is a large group of destination addresses that are somewhat
+disjoint in nature, we can cycle through them using a
+.B round-robin
+technique like this:
+.nf
+
+rdr le0 0/0 -> 192.168.1.1,192.168.1.2 round-robin
+rdr le0 0/0 -> 192.168.1.5,192.168.1.7 round-robin
+rdr le0 0/0 -> 192.168.1.9 round-robin
+.fi
+.PP
+If there are a large number of redirect rules and hosts being targetted
+then it may be desirable to have all those from a single source address
+be targetted at the same destination address.  To achieve this, the
+word
+.B sticky
+is appended to the rule like this:
+.nf
+
+rdr le0 0/0 -> 192.168.1.1,192.168.1.2 sticky
+rdr le0 0/0 -> 192.168.1.5,192.168.1.7 round-robin sticky
+rdr le0 0/0 -> 192.168.1.9 round-robin sticky
+.fi
+.PP
+The
+.B sticky
+feature can only be combined with
+.B round-robin
+and the use of comma.
+.PP
+For TCP and UDP packets, it is possible to both match on the destiantion
+port number and to modify it.  For example, to change the destination port
+from 80 to 3128, we would use a rule like this:
+.nf
+
+rdr de0 0/0 port 80 -> 127.0.0.1 port 3128 tcp
+.fi
+.PP
+If a range of ports is given on the LHS and a single port is given on the
+RHS, the entire range of ports is moved.  For example, if we had this:
+.nf
+
+rdr le0 0/0 port 80-88 -> 127.0.0.1 port 3128 tcp
+.fi
+.PP
+then port 80 would become 3128, port 81 would become 3129, etc.  If we
+want to redirect a number of different pots to just a single port, an
+equals sign ("=") is placed before the port number on the RHS like this:
+.nf
+
+rdr le0 0/0 port 80-88 -> 127.0.0.1 port = 3128 tcp
+.fi
+.PP
+In this case, port 80 goes to 3128, port 81 to 3128, etc.
+.PP
+As with
+.B map
+rules, it is possible to manually set a timeout using the
+.B age
+option, like this:
+.nf
+
+rdr le0 0/0 port 53 -> 127.0.0.1 port 10053 udp age 5/5
+.fi
+.PP
+The use of proxies is not restricted to
+.B map
+rules and outbound sessions.  Proxies can also be used with redirect
+rules, although the syntax is slightly different:
+.nf
+
+rdr ge0 0/0 port 21 -> 127.0.0.1 port 21 tcp proxy ftp
+.fi
+.PP
+For
+.B rdr
+rules, the interfaces supplied are in the same order as
+.B map
+rules - input first, then output.  In situations where the outgoing interface
+is not certain, it is also possible to use a wildcard ("*") to effect a match
+on any interface.
+.nf
+
+rdr le0,* 0/0 -> 192.168.1.0
+.fi
+.PP
+A single rule, with as many options set as possible would look something like
+this:
+.nf
+
+rdr le0,ppp0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp
+    round-robin frag age 40/40 sticky mssclamp 1000 tag tagged
+.fi
+.SH REWRITING SOURCE AND DESTINATION
+.PP
+Whilst the above two commands provide a lot of flexibility in changing
+addressing fields in packets, often it can be of benefit to translate
+\fIboth\fP source \fBand\fR destination at the same time or to change
+the source address on input or the destination address on output.
+Doing all of these things can be accomplished using
+.B rewrite
+NAT rules.
+.PP
+A
+.B rewrite
+rule requires the same level of packet matching as before, protocol and
+source/destination information but in addition allows either
+.B in
+or
+.B out
+to be specified like this:
+.nf
+
+rewrite in on ppp0 proto tcp from any to any port = 80 ->
+	src 0/0 dst 127.0.0.1,3128;
+rewrite out on ppp0 from any to any ->
+	src 0/32 dst 10.1.1.0/24;
+.fi
+.PP
+On the RHS we can specify both new source and destination information to place
+into the packet being sent out.  As with other rules used in
+\fBipnat.conf\fR, there are shortcuts syntaxes available to use the original
+address information (\fB0/0\fR) and the address associated with the network
+interface (\fB0/32\fR.)  For TCP and UDP, both address and port information
+can be changed.  At present it is only possible to specify either a range of
+port numbers to be used (\fBX-Y\fR) or a single port number (\fB= X\fR) as
+follows:
+.nf
+
+rewrite in on le0 proto tcp from any to any port = 80 ->
+	src 0/0,2000-20000 dst 127.0.0.1,port = 3128;
+.fi
+.PP
+There are four fields that are stepped through in enumerating the number
+space available for creating a new destination:
+.LP
+source address
+.LP
+source port
+.LP
+destination address
+.LP
+destination port
+.PP
+If one of these happens to be a static then it will be skipped and the next
+one incremented.  As an example:
+.nf
+
+rewrite out on le0 proto tcp from any to any port = 80 ->
+	src 1.0.0.0/8,5000-5999 dst 2.0.0.0/24,6000-6999;
+.fi
+.PP
+The translated packets would be:
+.LP
+1st src=1.0.0.1,5000 dst=2.0.0.1,6000
+.LP
+2nd src=1.0.0.2,5000 dst=2.0.0.1,6000
+.LP
+3rd src=1.0.0.2,5001 dst=2.0.0.1,6000
+.LP
+4th src=1.0.0.2,5001 dst=2.0.0.2,6000
+.LP
+5th src=1.0.0.2,5001 dst=2.0.0.2,6001
+.LP
+6th src=1.0.0.3,5001 dst=2.0.0.2,6001
+.PP
+and so on.
+.PP
+As with
+.B map
+rules, it is possible to specify a range of addresses by including the word
+\fIrange\fR before the addresses:
+.nf
+
+rewrite from any to any port = 80 ->
+	src 1.1.2.3 - 1.1.2.6 dst 2.2.3.4 - 2.2.3.6;
+.fi
+.SH DIVERTING PACKETS
+.PP
+If you'd like to send packets to a UDP socket rather than just another
+computer to be decapsulated, this can be achieved using a
+.B divert
+rule.
+.PP
+Divert rules can be be used with both inbound and outbound packet
+matching however the rule
+.B must
+specify host addresses for the outer packet, not ranges of addresses
+or netmasks, just single addresses.
+Additionally the syntax must supply required information for UDP.
+An example of what a divert rule looks ike is as follows:
+.nf
+
+divert in on le0 proto udp from any to any port = 53 ->
+	src 192.1.1.1,54 dst 192.168.1.22.1,5300;
+.fi
+.PP
+On the LHS is a normal set of matching capabilities but on the RHS it is
+a requirement to specify both the source and destination addresses and
+ports.
+.PP
+As this feature is intended to be used with targetting packets at sockets
+and not IPFilter running on other systems, there is no rule provided to
+\fIundivert\fR packets.
+.TP
+.B NOTE:
+Diverted packets \fImay\fP be fragmented if the addition of the
+encapsulating IP header plus UDP header causes the packet to exceed
+the size allowed by the outbound network interface.  At present it is
+not possible to cause Path MTU discovery to happen as this feature
+is intended to be transparent to both endpoints.
+.B Path MTU Discovery
+If Path MTU discovery is being used and the "do not fragment" flag
+is set in packets to be encapsulated, an ICMP error message will
+be sent back to the sender if the new packet would need to be
+fragmented.
+.SH COMMON OPTIONS
+This section deals with options that are available with all rules.
+.TP
+.B purge
+When the purge keyword is added to the end of a NAT rule, it will
+cause all of the active NAT sessions to be removed when the rule
+is removed as an individual operation. If all of the NAT rules
+are flushed out, it is expected that the operator will similarly
+flush the NAT table and thus NAT sessions are not removed when the
+NAT rules are flushed out.
+.SH RULE ORDERING
+.PP
+.B NOTE:
+Rules in
+.B ipnat.conf
+are read in sequentially as listed and loaded into the kernel in this
+fashion
+.B BUT
+packet matching is done on \fBnetmask\fR, going from 32 down to 0.
+If a rule uses
+.B pool
+or
+.B hash
+to reference a set of addresses or networks, the netmask value for
+these fields is considered to be "0".
+So if your
+.B ipnat.conf
+has the following rules:
+.nf
+
+rdr le0 192.0.0.0/8 port 80 -> 127.0.0.1 3132 tcp
+rdr le0 192.2.0.0/16 port 80 -> 127.0.0.1 3131 tcp
+rdr le0 from any to pool/100 port 80 -> 127.0.0.1 port 3130 tcp
+rdr le0 192.2.2.0/24 port 80 -> 127.0.0.1 3129 tcp
+rdr le0 192.2.2.1 port 80 -> 127.0.0.1 3128 tcp
+.fi
+.PP
+then the rule with 192.2.2.1 will match \fBfirst\fR, regardless of where
+it appears in the ordering of the above rules.  In fact, the order in
+which they would be used to match a packet is:
+.nf
+
+rdr le0 192.2.2.1 port 80 -> 127.0.0.1 3128 tcp
+rdr le0 192.2.2.0/24 port 80 -> 127.0.0.1 3129 tcp
+rdr le0 192.2.0.0/16 port 80 -> 127.0.0.1 3131 tcp
+rdr le0 192.0.0.0/8 port 80 -> 127.0.0.1 3132 tcp
+rdr le0 from any to pool/100 port 80 -> 127.0.0.1 port 3130 tcp
+.fi
+.PP
+where the first line is actually a /32.
+.PP
+If your
+.B ipnat.conf
+file has entries with matching target fields (source address for
+.B map
+rules and destination address for
+.B rdr
+rules), then the ordering in the
+.B ipnat.conf
+file does matter.  So if you had the following:
+.nf
+
+rdr le0 from 1.1.0.0/16 to 192.2.2.1 port 80 -> 127.0.0.1 3129 tcp
+rdr le0 from 1.1.1.0/24 to 192.2.2.1 port 80 -> 127.0.0.1 3128 tcp
+.fi
+.PP
+Then no packets will match the 2nd rule, they'll all match the first.
+.SH IPv6
+.PP
+In all of the examples above, where an IPv4 address is present, an IPv6
+address can also be used. All rules must use either IPv4 addresses with
+both halves of the NAT rule or IPv6 addresses for both halves. Mixing
+IPv6 addresses with IPv4 addresses, in a single rule, will result in an
+error.
+.PP
+For shorthand notations such as "0/32", the equivalent for IPv6 is
+"0/128". IPFilter will treat any netmask greater than 32 as an
+implicit direction that the address should be IPv6, not IPv4.
+To be unambiguous with 0/0, for IPv6 use ::0/0.
+.SH KERNEL PROXIES
+.PP
+IP Filter comes with a few, simple, proxies built into the code that is loaded
+into the kernel to allow secondary channels to be opened without forcing the
+packets through a user program.  The current state of the proxies is listed
+below, as one of three states:
+.HP
+Aging - protocol is roughly understood from
+the time at which the proxy was written but it is not well tested or
+maintained;
+.HP
+Developmental - basic functionality exists, works most of the time but
+may be problematic in extended real use;
+.HP
+Experimental - rough support for the protocol at best, may or may not
+work as testing has been at best sporadic, possible large scale changes
+to the code in order to properly support the protocol.
+.HP
+Mature - well tested, protocol is properly
+understood by the proxy;
+.PP
+The currently compiled in proxy list is as follows:
+.TP
+FTP - Mature
+(map ... proxy port ftp ftp/tcp)
+.TP
+IRC - Experimental
+(proxy port 6667 irc/tcp)
+.TP
+rpcbind - Experimental
+.TP
+PPTP - Experimental
+.TP
+H.323 - Experimental
+(map ... proxy port 1720 h323/tcp)
+.TP
+Real Audio (PNA) - Aging
+.TP
+DNS - Developmental
+(map ... proxy port 53 dns/udp { block .cnn.com; })
+.TP
+IPsec - Developmental
+(map ... proxy port 500 ipsec/tcp)
+.TP
+netbios - Experimental
+.TP
+R-command - Mature
+(map ... proxy port shell rcmd/tcp)
+.SH KERNEL PROXIES
+.SH FILES
+/dev/ipnat
+.br
+/etc/protocols
+.br
+/etc/services
+.br
+/etc/hosts
+.SH SEE ALSO
+ipnat(4), hosts(5), ipf(5), services(5), ipf(8), ipnat(8)

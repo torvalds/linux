@@ -1,0 +1,113 @@
+/dts-v1/;
+
+#include "rt3050.dtsi"
+
+/ {
+	compatible = "UR-326N4G", "ralink,rt3052-soc";
+	model = "UPVEL UR-326N4G";
+
+	cfi@1f000000 {
+		compatible = "cfi-flash";
+		reg = <0x1f000000 0x800000>;
+		bank-width = <2>;
+		device-width = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x3b0000>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		3g {
+			label = "ur-326n4g:green:3g";
+			gpios = <&gpio0 9 1>;
+		};
+
+		gateway {
+			label = "ur-326n4g:green:gateway";
+			gpios = <&gpio0 11 1>;
+		};
+
+		ap {
+			label = "ur-326n4g:green:ap";
+			gpios = <&gpio0 12 1>;
+		};
+
+		wps {
+			label = "ur-326n4g:green:wps";
+			gpios = <&gpio0 14 1>;
+		};
+
+		station {
+			label = "ur-326n4g:green:station";
+			gpios = <&gpio0 13 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset_wps {
+			label = "reset_wps";
+			gpios = <&gpio0 10 1>;
+			linux,code = <0x198>;
+		};
+
+		mode {
+			label = "mode";
+			gpios = <&gpio0 7 1>;
+			linux,code = <0x32>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "spi", "i2c", "jtag", "rgmii", "mdio", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x4004>;
+};
+
+&esw {
+	mediatek,portmap = <0x2f>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&otg {
+	status = "okay";
+};

@@ -1,0 +1,5 @@
+# Host: NetBSD/i386 a.out
+NATDEPFILES= fork-child.o infptrace.o inftarg.o i386bsd-nat.o \
+	solib.o solib-sunos.o
+NAT_FILE= nm-nbsdaout.h
+XM_FILE= xm-nbsd.h

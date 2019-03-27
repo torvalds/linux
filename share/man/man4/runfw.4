@@ -1,0 +1,50 @@
+.\" Copyright (c) 2010 Akinori Furukoshi <moonlightakkiy@yahoo.ca>
+.\" Copyright (c) 2010 Warren Block <wblock@wonkity.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 11, 2013
+.Dt RUNFW 4
+.Os
+.Sh NAME
+.Nm runfw
+.Nd "Firmware Module for Ralink driver"
+.Sh SYNOPSIS
+To compile this module into the kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device runfw"
+.Ed
+.Pp
+This will include two firmware images, RT2870 and RT3071, inside the kernel.
+.Xr run 4
+will load the appropriate image into the chip.
+.Pp
+Alternatively, to load the firmware images as a module at boot time, place
+the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+runfw_load="YES"
+.Ed
+.Sh DESCRIPTION
+This module provides firmware sets for the Ralink RT2700U,
+RT2800U, RT3000U and RT3900E chip based USB WiFi adapters.
+Please read Ralink's license, src/sys/contrib/dev/run/LICENSE.
+.Sh SEE ALSO
+.Xr run 4 ,
+.Xr firmware 9

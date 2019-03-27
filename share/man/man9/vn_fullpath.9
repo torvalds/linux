@@ -1,0 +1,126 @@
+.\"
+.\" Copyright (c) 2003 Robert N. M. Watson.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 23, 2008
+.Dt VN_FULLPATH 9
+.Os
+.Sh NAME
+.Nm vn_fullpath
+.Nd "convert a vnode reference to a full pathname, given a process context"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fo vn_fullpath
+.Fa "struct thread *td" "struct vnode *vp" "char **retbuf" "char **freebuf"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn vn_fullpath
+function makes a
+.Dq "best effort"
+attempt to generate a string pathname for
+the passed vnode; the resulting path, if any, will be relative to
+the root directory of the process associated with the passed thread pointer.
+The
+.Fn vn_fullpath
+function
+is implemented by inspecting the VFS name cache, and attempting to
+reconstruct a path from the process root to the object.
+.Pp
+This process is necessarily unreliable for several reasons: intermediate
+entries in the path may not be found in the cache; files may have more
+than one name (hard links), not all file systems use the name cache
+(specifically, most synthetic file systems do not); a single name may
+be used for more than one file (in the context of file systems covering
+other file systems); a file may have no name (if deleted but still
+open or referenced).
+However, the resulting string may still be more useable to a user than
+a vnode pointer value, or a device number and inode number.
+Code consuming the results of this function should anticipate (and
+properly handle) failure.
+.Pp
+Its arguments are:
+.Bl -tag -width ".Fa freebuf"
+.It Fa td
+The thread performing the call; this pointer will be dereferenced to find
+the process and its file descriptor structure, in order to identify the
+root vnode to use.
+.It Fa vp
+The vnode to search for.
+No need to be locked by the caller.
+.It Fa retbuf
+Pointer to a
+.Vt "char *"
+that
+.Fn vn_fullpath
+may (on success) point at a newly
+allocated buffer containing the resulting pathname.
+.It Fa freebuf
+Pointer to a
+.Vt "char *"
+that
+.Fn vn_fullpath
+may (on success) point at a buffer
+to be freed, when the caller is done with
+.Fa retbuf .
+.El
+.Pp
+Typical consumers will declare two character pointers:
+.Va fullpath
+and
+.Va freepath ;
+they will set
+.Va freepath
+to
+.Dv NULL ,
+and
+.Va fullpath
+to a name to use
+in the event that the call to
+.Fn vn_fullpath
+fails.
+After done with the value of
+.Va fullpath ,
+the caller will check if
+.Va freepath
+is
+.Pf non- Dv NULL ,
+and if so, invoke
+.Xr free 9
+with a pool type of
+.Dv M_TEMP .
+.Sh RETURN VALUES
+If the vnode is successfully converted to a pathname, 0 is returned;
+otherwise, an error number is returned.
+.Sh SEE ALSO
+.Xr free 9
+.Sh AUTHORS
+This manual page was written by
+.An Robert Watson Aq Mt rwatson@FreeBSD.org .

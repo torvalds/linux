@@ -1,0 +1,251 @@
+.\" Copyright (c) 1980, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" Portions of this software was developed for the FreeBSD Project by
+.\" ThinkSec AS and NAI Labs, the Security Research Division of Network
+.\" Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+.\" ("CBOSS"), as part of the DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)pstat.8	8.5 (Berkeley) 5/13/94
+.\" $FreeBSD$
+.\"
+.Dd October 11, 2014
+.Dt PSTAT 8
+.Os
+.Sh NAME
+.Nm pstat ,
+.Nm swapinfo
+.Nd display system data structures
+.Sh SYNOPSIS
+.Nm
+.Op Fl Tfghkmnst
+.Op Fl M Ar core Op Fl N Ar system
+.Nm swapinfo
+.Op Fl ghkm
+.Op Fl M Ar core Op Fl N Ar system
+.Sh DESCRIPTION
+The
+.Nm
+utility displays open file entry, swap space utilization,
+terminal state, and vnode data structures.
+.Pp
+If invoked as
+.Nm swapinfo
+the
+.Fl s
+option is implied, and only the
+.Fl k , m , g ,
+and
+.Fl h
+options are legal.
+.Pp
+If the
+.Fl M
+option is not specified, information is obtained from
+the currently running kernel via the
+.Xr sysctl 3
+interface.
+Otherwise, information is read from the specified core file,
+using the name list from the specified kernel image (or from
+the default image).
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl n
+Print devices out by major/minor instead of name.
+.It Fl h
+.Dq Human-readable
+output.
+Use unit suffixes when printing swap partition sizes:
+Byte, Kilobyte, Megabyte, Gigabyte, Terabyte and Petabyte.
+.It Fl k
+Print sizes in kilobytes, regardless of the setting of the
+.Ev BLOCKSIZE
+environment variable.
+.It Fl m
+Print sizes in megabytes, regardless of the setting of the
+.Ev BLOCKSIZE
+environment variable.
+.It Fl g
+Print sizes in gigabytes, regardless of the setting of the
+.Ev BLOCKSIZE
+environment variable.
+.It Fl T
+Print the number of used and free slots in several system tables.
+This is useful for checking to see how large system tables have become
+if the system is under heavy load.
+.It Fl f
+Print the open file table with these headings:
+.Bl -tag -width indent
+.It LOC
+The core location of this table entry.
+.It TYPE
+The type of object the file table entry points to.
+.It FLG
+Miscellaneous state variables encoded thus:
+.Pp
+.Bl -tag -width indent -compact
+.It R
+open for reading
+.It W
+open for writing
+.It A
+open for appending
+.It I
+signal pgrp when data ready
+.El
+.It CNT
+Number of processes that know this open file.
+.It MSG
+Number of messages outstanding for this file.
+.It DATA
+The location of the vnode table entry or socket structure for this file.
+.It OFFSET
+The file offset (see
+.Xr lseek 2 ) .
+.El
+.It Fl s
+Print information about swap space usage on all the
+swap areas compiled into the kernel.
+The first column is the device name of the partition.
+The next column is
+the total space available in the partition.
+The
+.Ar Used
+column indicates the total blocks used so far; the
+.Ar Available
+column indicates how much space is remaining on each partition.
+The
+.Ar Capacity
+reports the percentage of space used.
+.Pp
+If more than one partition is configured into the system, totals for all
+of the statistics will be reported in the final line of the report.
+.It Fl t
+Print table for terminals
+with these headings:
+.Bl -tag -width indent
+.It LINE
+Device name.
+.It INQ
+Number of characters that can be stored in the input queue.
+.It CAN
+Number of characters in the input queue which can be read.
+.It LIN
+Number of characters in the input queue which cannot be read yet.
+.It LOW
+Low water mark for input.
+.It OUTQ
+Number of characters that can be stored in the output queue.
+.It USE
+Number of bytes in the output queue.
+.It LOW
+Low water mark for output.
+.It COL
+Calculated column position of terminal.
+.It SESS
+Process ID of the session leader.
+.It PGID
+Process group for which this is the controlling terminal.
+.It STATE
+Miscellaneous state variables encoded thus:
+.Pp
+.Bl -tag -width indent -compact
+.It I
+init/lock-state device nodes present
+.It C
+callout device nodes present
+.It O
+opened
+.It c
+console in use
+.It G
+gone
+.It B
+busy in
+.Xr open 2
+.It Y
+send SIGIO for input events
+.It L
+next character is literal
+.It H
+high watermark reached
+.It X
+open for exclusive use
+.It S
+output stopped (ixon flow control)
+.It l
+block mode input routine in use
+.It Z
+connection lost
+.It s
+i/o being snooped
+.It b
+busy in
+.Xr read 2
+or
+.Xr write 2
+.El
+.Pp
+The
+.Ql i
+and
+.Ql o
+characters refer to the previous character, to differentiate between
+input and output.
+.El
+.It Fl M
+Extract values associated with the name list from the specified core.
+.It Fl N
+If
+.Fl M
+is also specified,
+extract the name list from the specified system instead of the default,
+which is the kernel image the system has booted from.
+.El
+.Sh SEE ALSO
+.Xr ps 1 ,
+.Xr systat 1 ,
+.Xr stat 2 ,
+.Xr fs 5 ,
+.Xr iostat 8 ,
+.Xr vmstat 8
+.Rs
+.%T UNIX Implementation
+.%A K. Thompson
+.Re
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.0 .
+.Sh BUGS
+Does not understand
+.Tn NFS
+swap servers.

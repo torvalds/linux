@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+# POSIX and C99 say D800-DFFF are undefined in a universal character name.
+# We reject this but many other shells expand to something that looks like
+# CESU-8.
+
+v=$( (eval ": \$'\uD800'") 2>&1 >/dev/null)
+[ $? -ne 0 ] && [ -n "$v" ]

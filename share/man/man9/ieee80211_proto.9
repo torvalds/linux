@@ -1,0 +1,241 @@
+.\"
+.\" Copyright (c) 2009 Sam Leffler, Errno Consulting
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 4, 2009
+.Dt IEEE80211_PROTO 9
+.Os
+.Sh NAME
+.Nm ieee80211_proto
+.Nd 802.11 state machine support
+.Sh SYNOPSIS
+.In net80211/ieee80211_var.h
+.Pp
+.Ft void
+.Fn ieee80211_start_all "struct ieee80211com *"
+.Ft void
+.Fn ieee80211_stop_all "struct ieee80211com *"
+.Ft void
+.Fn ieee80211_suspend_all "struct ieee80211com *"
+.Ft void
+.Fn ieee80211_resume_all "struct ieee80211com *"
+.Pp
+.Dv enum ieee80211_state ;
+.Ft int
+.Fn ieee80211_new_state "struct ieee80211vap *" "enum ieee80211_state" "int"
+.Pp
+.Ft void
+.Fn ieee80211_wait_for_parent "struct ieee80211com *"
+.Sh DESCRIPTION
+The
+.Nm net80211
+layer that supports 802.11 device drivers uses a state machine
+to control operation of vaps.
+These state machines vary according to the vap operating mode.
+Station mode state machines follow the 802.11 MLME states
+in the protocol specification.
+Other state machines are simpler and reflect operational work
+such as scanning for a BSS or automatically selecting a channel to
+operate on.
+When multiple vaps are operational the state machines are used to
+coordinate operation such as choosing a channel.
+The state machine mechanism also serves to bind the
+.Nm net80211
+layer to a driver; this is described more below.
+.Pp
+The following states are defined for state machines:
+.Bl -tag -width IEEE80211_S_ASSOC
+.It Dv IEEE80211_S_INIT
+Default/initial state.
+A vap in this state should not hold any dynamic state (e.g. entries
+for associated stations in the node table).
+The driver must quiesce the hardware; e.g. there should be no
+interrupts firing.
+.It Dv IEEE80211_S_SCAN
+Scanning for a BSS or choosing a channel to operate on.
+Note that scanning can also take place in other states (e.g. when
+background scanning is active); this state is entered when
+initially bringing a vap to an operational state or after an
+event such as a beacon miss (in station mode).
+.It Dv IEEE80211_S_AUTH
+Authenticating to an access point (in station mode).
+This state is normally reached from
+.Dv IEEE80211_S_SCAN
+after selecting a BSS, but may also be reached from
+.Dv IEEE80211_S_ASSOC
+or
+.Dv IEEE80211_S_RUN
+if the authentication handshake fails.
+.It Dv IEEE80211_S_ASSOC
+Associating to an access point (in station mode).
+This state is reached from
+.Dv IEEE80211_S_AUTH
+after successfully authenticating or from
+.Dv IEEE80211_S_RUN
+if a DisAssoc frame is received.
+.It Dv IEEE80211_S_CAC
+Doing Channel Availability Check (CAC).
+This state is entered only when DFS is enabled and the channel selected
+for operation requires CAC.
+.It Dv IEEE80211_S_RUN
+Operational.
+In this state a vap can transmit data frames, accept requests for
+stations associating, etc.
+Beware that data traffic is also gated by whether the associated
+.Dq port
+is authorized.
+When WPA/802.11i/802.1x is operational authorization may happen separately;
+e.g. in station mode
+.Xr wpa_supplicant 8
+must complete the handshakes and plumb the necessary keys before a port
+is authorized.
+In this state a BSS is operational and associated state is valid and may
+be used; e.g.
+.Vt ic_bss
+and
+.Vt ic_bsschan
+are guaranteed to be usable.
+.It Dv IEEE80211_S_CSA
+Channel Switch Announcement (CSA) is pending.
+This state is reached only from
+.Dv IEEE80211_S_RUN
+when either a CSA is received from an access point (in station mode)
+or the local station is preparing to change channel.
+In this state traffic may be muted depending on the Mute setting in the CSA.
+.It Dv IEEE80211_S_SLEEP
+Asleep to save power (in station mode).
+This state is reached only from
+.Dv IEEE80211_S_RUN
+when power save operation is enabled and the local station is deemed
+sufficiently idle to enter low power mode.
+.El
+.Pp
+Note that states are ordered (as shown above);
+e.g. a vap must be in the
+.Dv IEEE80211_S_RUN
+or
+.Dq greater
+before it can transmit frames.
+Certain
+.Nm net80211
+data are valid only in certain states; e.g. the
+.Vt iv_bsschan
+that specifies the channel for the operating BSS should never be used
+except in
+.Dv IEEE80211_S_RUN
+or greater.
+.Sh STATE CHANGES
+State machine changes are typically handled internal to the
+.Nm net80211
+layer in response to
+.Xr ioctl 2
+requests, received frames, or external events such as a beacon miss.
+The
+.Fn ieee80211_new_state
+function is used to initiate a state machine change on a vap.
+The new state and an optional argument are supplied.
+The request is initially processed to handle coordination of multiple vaps.
+For example, only one vap at a time can be scanning, if multiple vaps
+request a change to
+.Dv IEEE80211_S_SCAN
+the first will be permitted to run and the others will be
+.Em deferred
+until the scan operation completes at which time the selected channel
+will be adopted.
+Similarly
+.Nm net80211
+handles coordination of combinations of vaps such as an AP and station vap
+where the station may need to roam to follow the AP it is associated to
+(dragging along the AP vap to the new channel).
+Another important coordination is the handling of
+.Dv IEEE80211_S_CAC
+and
+.Dv IEEE80211_S_CSA .
+No more than one vap can ever be actively changing state at a time.
+In fact
+.Nm net80211
+single-threads the state machine logic in a dedicated
+.Xr taskqueue 9
+thread that is also used to synchronize work such as scanning and
+beacon miss handling.
+.Pp
+After multi-vap scheduling/coordination is done the per-vap
+.Vt iv_newstate
+method is called to carry out the state change work.
+Drivers use this entry to setup private state and then dispatch
+the call to the
+.Nm net80211
+layer using the previously defined method pointer (in OOP-parlance they
+call the
+.Dq super method
+).
+.Pp
+.Nm net80211
+handles two state changes specially.
+On transition to
+.Dv IEEE80211_S_RUN
+the
+.Dv IFF_DRV_OACTIVE
+bit on the vap's transmit queue is cleared so traffic can flow.
+On transition to
+.Dv IEEE80211_S_INIT
+any state in the scan cache associated with the vap is flushed
+and any frames pending on the transmit queue are flushed.
+.Sh DRIVER INTEGRATION
+Drivers are expected to override the
+.Vt iv_newstate
+method to interpose their own code and handle setup work required
+by state changes.
+Otherwise drivers must call
+.Fn ieee80211_start_all
+in response to being marked up through an
+.Dv SIOCSIFFLAGS
+ioctl request and they should use
+.Fn ieee80211_suspend_all
+and
+.Fn ieee80211_resume_all
+to implement suspend/resume support.
+.Pp
+There is also an
+.Fn ieee80211_stop_all
+call to force all vaps to an
+.Dv IEEE80211_S_INIT
+state but this should not be needed by a driver; control is usually
+handled by
+.Nm net80211
+or, in the case of card eject or vap destroy,
+work will be initiated outside the driver.
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr wpa_supplicant 8 ,
+.Xr ieee80211 9 ,
+.Xr ifnet 9 ,
+.Xr taskqueue 9
+.Sh HISTORY
+The state machine concept was part of the original
+.Nm ieee80211
+code base that first appeared in
+.Nx 1.5 .

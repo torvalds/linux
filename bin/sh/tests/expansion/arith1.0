@@ -1,0 +1,30 @@
+# $FreeBSD$
+
+failures=0
+
+check() {
+	if [ $(($1)) != $2 ]; then
+		failures=$((failures+1))
+		echo "For $1, expected $2 actual $(($1))"
+	fi
+}
+
+check "0&&0" 0
+check "1&&0" 0
+check "0&&1" 0
+check "1&&1" 1
+check "2&&2" 1
+check "1&&2" 1
+check "1<<40&&1<<40" 1
+check "1<<40&&4" 1
+
+check "0||0" 0
+check "1||0" 1
+check "0||1" 1
+check "1||1" 1
+check "2||2" 1
+check "1||2" 1
+check "1<<40||1<<40" 1
+check "1<<40||4" 1
+
+exit $((failures != 0))

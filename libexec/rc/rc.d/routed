@@ -1,0 +1,22 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: routed
+# REQUIRE: netif routing
+# BEFORE: NETWORK
+# KEYWORD: nojailvnet
+
+. /etc/rc.subr
+
+name="routed"
+desc="Network RIP and router discovery routing daemon"
+rcvar="routed_enable"
+
+set_rcvar_obsolete router_enable routed_enable
+set_rcvar_obsolete router routed_program
+set_rcvar_obsolete router_flags	routed_flags
+
+load_rc_config $name
+run_rc_command "$1"

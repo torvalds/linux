@@ -1,0 +1,163 @@
+.\"	$KAME: getifaddrs.3,v 1.4 2000/05/17 14:13:14 itojun Exp $
+.\"	BSDI	getifaddrs.3,v 2.5 2000/02/23 14:51:59 dab Exp
+.\"
+.\" Copyright (c) 1995, 1999
+.\"	Berkeley Software Design, Inc.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Berkeley Software Design, Inc. ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Berkeley Software Design, Inc. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 25, 2014
+.Dt GETIFADDRS 3
+.Os
+.Sh NAME
+.Nm getifaddrs
+.Nd get interface addresses
+.Sh SYNOPSIS
+.In ifaddrs.h
+.Ft int
+.Fn getifaddrs "struct ifaddrs **ifap"
+.Ft void
+.Fn freeifaddrs "struct ifaddrs *ifp"
+.Sh DESCRIPTION
+The
+.Fn getifaddrs
+function stores a reference to a linked list of the network interfaces
+on the local machine in the memory referenced by
+.Fa ifap .
+The list consists of
+.Nm ifaddrs
+structures, as defined in the include file
+.In ifaddrs.h .
+The
+.Nm ifaddrs
+structure contains at least the following entries:
+.Bd -literal
+    struct ifaddrs   *ifa_next;         /* Pointer to next struct */
+    char             *ifa_name;         /* Interface name */
+    u_int             ifa_flags;        /* Interface flags */
+    struct sockaddr  *ifa_addr;         /* Interface address */
+    struct sockaddr  *ifa_netmask;      /* Interface netmask */
+    struct sockaddr  *ifa_broadaddr;    /* Interface broadcast address */
+    struct sockaddr  *ifa_dstaddr;      /* P2P interface destination */
+    void             *ifa_data;		/* Address specific data */
+.Ed
+.Pp
+The
+.Li ifa_next
+field contains a pointer to the next structure on the list.
+This field is
+.Dv NULL
+in last structure on the list.
+.Pp
+The
+.Li ifa_name
+field contains the interface name.
+.Pp
+The
+.Li ifa_flags
+field contains the interface flags, as set by
+.Xr ifconfig 8
+utility.
+.Pp
+The
+.Li ifa_addr
+field references either the address of the interface or the link level
+address of the interface, if one exists, otherwise it is NULL.
+(The
+.Li sa_family
+field of the
+.Li ifa_addr
+field should be consulted to determine the format of the
+.Li ifa_addr
+address.)
+.Pp
+The
+.Li ifa_netmask
+field references the netmask associated with
+.Li ifa_addr ,
+if one is set, otherwise it is NULL.
+.Pp
+The
+.Li ifa_broadaddr
+field,
+which should only be referenced for non-P2P interfaces,
+references the broadcast address associated with
+.Li ifa_addr ,
+if one exists, otherwise it is NULL.
+.Pp
+The
+.Li ifa_dstaddr
+field references the destination address on a P2P interface,
+if one exists, otherwise it is NULL.
+.Pp
+The
+.Li ifa_data
+field references address family specific data
+in a pointer to the
+.Fa struct if_data
+(as defined in include file
+.In net/if.h ) .
+For
+.Dv AF_LINK
+addresses,
+it contains various interface attributes and statistics.
+For all other address families,
+it contains per-address interface statistics.
+.Pp
+The data returned by
+.Fn getifaddrs
+is dynamically allocated and should be freed using
+.Fn freeifaddrs
+when no longer needed.
+.Sh RETURN VALUES
+.Rv -std getifaddrs
+.Sh ERRORS
+The
+.Fn getifaddrs
+may fail and set
+.Va errno
+for any of the errors specified for the library routines
+.Xr ioctl 2 ,
+.Xr socket 2 ,
+.Xr malloc 3
+or
+.Xr sysctl 3 .
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr socket 2 ,
+.Xr sysctl 3 ,
+.Xr networking 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+implementation first appeared in BSDi
+.Bsx .
+.Sh BUGS
+If both
+.In net/if.h
+and
+.In ifaddrs.h
+are being included,
+.In net/if.h
+.Em must
+be included before
+.In ifaddrs.h .

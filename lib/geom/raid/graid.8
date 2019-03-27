@@ -1,0 +1,321 @@
+.\" Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 4, 2013
+.Dt GRAID 8
+.Os
+.Sh NAME
+.Nm graid
+.Nd "control utility for software RAID devices"
+.Sh SYNOPSIS
+.Nm
+.Cm label
+.Op Fl f
+.Op Fl o Ar fmtopt
+.Op Fl S Ar size
+.Op Fl s Ar strip
+.Ar format
+.Ar label
+.Ar level
+.Ar prov ...
+.Nm
+.Cm add
+.Op Fl f
+.Op Fl S Ar size
+.Op Fl s Ar strip
+.Ar name
+.Ar label
+.Ar level
+.Nm
+.Cm delete
+.Op Fl f
+.Ar name
+.Op Ar label | Ar num
+.Nm
+.Cm insert
+.Ar name
+.Ar prov ...
+.Nm
+.Cm remove
+.Ar name
+.Ar prov ...
+.Nm
+.Cm fail
+.Ar name
+.Ar prov ...
+.Nm
+.Cm stop
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Nm
+.Cm load
+.Nm
+.Cm unload
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to manage software RAID configurations, supported by the
+GEOM RAID class.
+GEOM RAID class uses on-disk metadata to provide access to software-RAID
+volumes defined by different RAID BIOSes.
+Depending on RAID BIOS type and its metadata format, different subsets of
+configurations and features are supported.
+To allow booting from RAID volume, the metadata format should match the
+RAID BIOS type and its capabilities.
+To guarantee that these match, it is recommended to create volumes via the
+RAID BIOS interface, while experienced users are free to do it using this
+utility.
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm destroy"
+.It Cm label
+Create an array with single volume.
+The
+.Ar format
+argument specifies the on-disk metadata format to use for this array,
+such as "Intel".
+The
+.Ar label
+argument specifies the label of the created volume.
+The
+.Ar level
+argument specifies the RAID level of the created volume, such as:
+"RAID0", "RAID1", etc.
+The subsequent list enumerates providers to use as array components.
+The special name "NONE" can be used to reserve space for absent disks.
+The order of components can be important, depending on specific RAID level
+and metadata format.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl s Ar strip"
+.It Fl f
+Enforce specified configuration creation if it is officially unsupported,
+but technically can be created.
+.It Fl o Ar fmtopt
+Specifies metadata format options.
+.It Fl S Ar size
+Use
+.Ar size
+bytes on each component for this volume.
+Should be used if several volumes per array are planned, or if smaller
+components going to be inserted later.
+Defaults to size of the smallest component.
+.It Fl s Ar strip
+Specifies strip size in bytes.
+Defaults to 131072.
+.El
+.It Cm add
+Create another volume on the existing array.
+The
+.Ar name
+argument is the name of the existing array, reported by label command.
+The rest of arguments are the same as for the label command.
+.It Cm delete
+Delete volume(s) from the existing array.
+When the last volume is deleted, the array is also deleted and its metadata
+erased.
+The
+.Ar name
+argument is the name of existing array.
+Optional
+.Ar label
+or
+.Ar num
+arguments allow specifying volume for deletion.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Delete volume(s) even if it is still open.
+.El
+.It Cm insert
+Insert specified provider(s) into specified array instead of the first missing
+or failed components.
+If there are no such components, mark disk(s) as spare.
+.It Cm remove
+Remove the specified provider(s) from the specified array and erase metadata.
+If there are spare disks present, the removed disk(s) will be replaced by
+spares.
+.It Cm fail
+Mark the given disks(s) as failed, removing from active use unless absolutely
+necessary due to exhausted redundancy.
+If there are spare disks present - failed disk(s) will be replaced with one
+of them.
+.It Cm stop
+Stop the given array.
+The metadata will not be erased.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Stop the given array even if some of its volumes are opened.
+.El
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl v"
+.It Fl v
+Be more verbose.
+.El
+.Sh SUPPORTED METADATA FORMATS
+The GEOM RAID class follows a modular design, allowing different metadata
+formats to be used.
+Support is currently implemented for the following formats:
+.Bl -tag -width "Intel"
+.It DDF
+The format defined by the SNIA Common RAID Disk Data Format v2.0 specification.
+Used by some Adaptec RAID BIOSes and some hardware RAID controllers.
+Because of high format flexibility different implementations support
+different set of features and have different on-disk metadata layouts.
+To provide compatibility, the GEOM RAID class mimics capabilities
+of the first detected DDF array.
+Respecting that, it may support different number of disks per volume,
+volumes per array, partitions per disk, etc.
+The following configurations are supported: RAID0 (2+ disks), RAID1 (2+ disks),
+RAID1E (3+ disks), RAID3 (3+ disks), RAID4 (3+ disks), RAID5 (3+ disks),
+RAID5E (4+ disks), RAID5EE (4+ disks), RAID5R (3+ disks), RAID6 (4+ disks),
+RAIDMDF (4+ disks), RAID10 (4+ disks), SINGLE (1 disk), CONCAT (2+ disks).
+.Pp
+Format supports two options "BE" and "LE", that mean big-endian byte order
+defined by specification (default) and little-endian used by some Adaptec
+controllers.
+.It Intel
+The format used by Intel RAID BIOS.
+Supports up to two volumes per array.
+Supports configurations: RAID0 (2+ disks), RAID1 (2 disks),
+RAID5 (3+ disks), RAID10 (4 disks).
+Configurations not supported by Intel RAID BIOS, but enforceable on your own
+risk: RAID1 (3+ disks), RAID1E (3+ disks), RAID10 (6+ disks).
+.It JMicron
+The format used by JMicron RAID BIOS.
+Supports one volume per array.
+Supports configurations: RAID0 (2+ disks), RAID1 (2 disks),
+RAID10 (4 disks), CONCAT (2+ disks).
+Configurations not supported by JMicron RAID BIOS, but enforceable on your own
+risk: RAID1 (3+ disks), RAID1E (3+ disks), RAID10 (6+ disks), RAID5 (3+ disks).
+.It NVIDIA
+The format used by NVIDIA MediaShield RAID BIOS.
+Supports one volume per array.
+Supports configurations: RAID0 (2+ disks), RAID1 (2 disks),
+RAID5 (3+ disks), RAID10 (4+ disks), SINGLE (1 disk), CONCAT (2+ disks).
+Configurations not supported by NVIDIA MediaShield RAID BIOS, but enforceable
+on your own risk: RAID1 (3+ disks).
+.It Promise
+The format used by Promise and AMD/ATI RAID BIOSes.
+Supports multiple volumes per array.
+Each disk can be split to be used by up to two arbitrary volumes.
+Supports configurations: RAID0 (2+ disks), RAID1 (2 disks),
+RAID5 (3+ disks), RAID10 (4 disks), SINGLE (1 disk), CONCAT (2+ disks).
+Configurations not supported by RAID BIOSes, but enforceable on your
+own risk: RAID1 (3+ disks), RAID10 (6+ disks).
+.It SiI
+The format used by SiliconImage RAID BIOS.
+Supports one volume per array.
+Supports configurations: RAID0 (2+ disks), RAID1 (2 disks),
+RAID5 (3+ disks), RAID10 (4 disks), SINGLE (1 disk), CONCAT (2+ disks).
+Configurations not supported by SiliconImage RAID BIOS, but enforceable on your
+own risk: RAID1 (3+ disks), RAID10 (6+ disks).
+.El
+.Sh SUPPORTED RAID LEVELS
+The GEOM RAID class follows a modular design, allowing different RAID levels
+to be used.
+Full support for the following RAID levels is currently implemented:
+RAID0, RAID1, RAID1E, RAID10, SINGLE, CONCAT.
+The following RAID levels supported as read-only for volumes in optimal
+state (without using redundancy): RAID4, RAID5, RAID5E, RAID5EE, RAID5R,
+RAID6, RAIDMDF.
+.Sh RAID LEVEL MIGRATION
+The GEOM RAID class has no support for RAID level migration, allowed by some
+metadata formats.
+If you started migration using BIOS or in some other way, make sure to
+complete it there.
+Do not run GEOM RAID class on migrating volumes under pain of possible data
+corruption!
+.Sh 2TiB BARRIERS
+NVIDIA metadata format does not support volumes above 2TiB.
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variable can be used to control the behavior of the
+.Nm RAID
+GEOM class.
+.Bl -tag -width indent
+.It Va kern.geom.raid.aggressive_spare : No 0
+Use any disks without metadata connected to controllers of the vendor
+matching to volume metadata format as spare.
+Use it with much care to not lose data if connecting unrelated disk!
+.It Va kern.geom.raid.clean_time : No 5
+Mark volume as clean when idle for the specified number of seconds.
+.It Va kern.geom.raid.debug : No 0
+Debug level of the
+.Nm RAID
+GEOM class.
+.It Va kern.geom.raid.enable : No 1
+Enable on-disk metadata taste.
+.It Va kern.geom.raid.idle_threshold : No 1000000
+Time in microseconds to consider a volume idle for rebuild purposes.
+.It Va kern.geom.raid.name_format : No 0
+Providers name format: 0 -- raid/r{num}, 1 -- raid/{label}.
+.It Va kern.geom.raid.read_err_thresh : No 10
+Number of read errors equated to disk failure.
+Write errors are always considered as disk failures.
+.It Va kern.geom.raid.start_timeout : No 30
+Time to wait for missing array components on startup.
+.It Va kern.geom.raid. Ns Ar X Ns Va .enable : No 1
+Enable taste for specific metadata or transformation module.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, and non-zero if the command fails.
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr geom 8 ,
+.Xr gvinum 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An Alexander Motin Aq Mt mav@FreeBSD.org
+.An M. Warner Losh Aq Mt imp@FreeBSD.org

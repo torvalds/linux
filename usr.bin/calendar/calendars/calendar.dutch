@@ -1,0 +1,79 @@
+/*
+ * $FreeBSD$
+ *
+ * Originally submitted by Edwin Groothuis <edwin@FreeBSD.org>
+ */
+
+LANG=nl_NL.ISO8859-15
+Easter=Pasen
+
+/*
+ * Feestdagen
+ */
+jan/01	Nieuwjaar
+jan/06	Driekoningen
+apr/01	1 april
+apr/27	Koningsdag
+mei/01	Dag van de Arbeid
+mei/04	Dodenherdenking
+mei/05	Bevrijdingsdag
+okt/04	Dierendag
+nov/01	Allerheiligen
+nov/02	Allerzielen
+nov/11	Sint Maarten
+nov/11	Elfde-van-de-elfde
+dec/05	Sinterklaasavond
+dec/15	Koninkrijksdag
+dec/24	Kerstavond
+dec/25	Eerste Kerstdag
+dec/26	Tweede Kerstdag
+dec/28	Feest der Onnozele Kinderen
+dec/31	Oudjaar
+
+/*
+ * Pasen gerelateerd
+ */
+Pasen-50	Carnaval
+Pasen-49	Carnaval
+Pasen-48	Carnaval
+Pasen-47	Carnaval (Vastenavond)
+Pasen-46	Aswoensdag
+Pasen-7		Palmzondag
+Pasen-3		Witte Donderdag
+Pasen-2		Goede Vrijdag
+Pasen-1		Stille Zaterdag
+Pasen		Eerste Paasdag
+Pasen+1		Tweede Paasdag
+Pasen+39	Hemelvaartsdag
+Pasen+49	Eerste Pinksterdag
+Pasen+50	Tweede Pinksterdag
+Pasen+56	Trinitatis
+
+/*
+ * Misc
+ */
+mei/SunSecond	Moederdag
+jun/SunThird	Vaderdag
+sep/TueThird	Prinsjesdag
+
+/*
+ * Het koningshuis
+ */
+jan/19	Prinses Margriet (1943)
+jan/31	Prinses Beatrix (1938)
+feb/17	Prins Willem III (1817 - 1890)
+feb/18	Prinses Christina (1947)
+apr/10	Prinses Ariane (2007)
+apr/19	Prins Hendrik (1876 - 1934)
+apr/27	Koning Willem-Alexander (1967)
+apr/30	Prinses Juliana (1909 - 2004)
+apr/30	Mr. Pieter van Vollenhoven (1939)
+mei/17	Koningin Maxima (1971)
+jun/26	Prinses Alexia (2005)
+jun/29	Prins Bernhard (1911 - 2004)
+aug/05	Prinses Irene (1939)
+aug/31	Prinses Wilhelmina (1880 - 1962)
+sep/06	Prins Claus (1925 - 2002)
+sep/25	Prins Johan Friso (1968 - 2013)
+okt/11	Prins Constantijn (1969)
+dec/07	Kroonprinses Catharina-Amalia (2003)

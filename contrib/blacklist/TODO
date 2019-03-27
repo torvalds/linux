@@ -1,0 +1,21 @@
+# $NetBSD: TODO,v 1.7 2015/01/23 21:34:01 christos Exp $
+
+- don't poll periodically, find the next timeout
+- use the socket also for commands? Or separate socket?
+- add functionality to the control program. Should it change the database
+  directly, or talk to the daemon to have it do it?
+- perhaps handle interfaces too instead of addresses for dynamic ip?
+  <bge0/4>? What to do with multiple addresses?
+- perhaps rate limit against DoS
+- perhaps instead of scanning the list have a sparse map by port?
+- do we want to use libnpf directly for efficiency?
+- add more daemons ftpd?
+- do we care about the db state becoming too large? 
+- instead of a yes = bump one, no = return to 0 interface, do we want
+  to have something more flexible like?
+	+n
+	-n
+	block
+	unblock
+- do we need an api in blacklistctl to perform maintenance
+- fix the blacklistctl output to be more user friendly

@@ -1,0 +1,94 @@
+<HTML>
+<HEAD><TITLE>smfi_chgfrom</TITLE></HEAD>
+<BODY>
+<!--
+$Id: smfi_chgfrom.html,v 1.4 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>smfi_chgfrom</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_chgfrom(
+	SMFICTX *ctx,
+	const char *mail,
+	char *args
+);
+</PRE>
+Change the envelope sender (MAIL From) of the current message.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>Called only from <A href="xxfi_eom.html">xxfi_eom</A>.</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>Change the envelope sender (MAIL From) of the current message.</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>ctx</TD>
+	<TD>Opaque context structure.
+	</TD></TR>
+    <TR valign="top"><TD>mail</TD>
+	<TD>The new sender address.
+	</TD></TR>
+    <TR valign="top"><TD>args</TD>
+	<TD>ESMTP arguments.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
+
+<TD>smfi_chgfrom will fail and return MI_FAILURE if:
+<UL><LI>mail is NULL.
+    <LI>Changing the sender in the current connection state is invalid.
+    <LI>A network error occurs.
+    <LI>SMFIF_CHGFROM was not set when <A href="smfi_register.html">smfi_register</A> was called.
+</UL>
+Otherwise, it will return MI_SUCCESS.
+</TD>
+</TR>
+
+<!----------- Notes ---------->
+<TR align="left" valign=top>
+<TH>NOTES</TH> 
+<TD>
+A filter which calls smfi_chgfrom must have set the SMFIF_CHGFROM flag
+in the smfiDesc_str passed to 
+<A href="smfi_register.html">smfi_register</A>.
+<BR>
+Even though all ESMTP arguments could be set via this call,
+it does not make sense to do so for many of them,
+e.g., SIZE and BODY.
+Setting those may cause problems, proper care must be taken.
+Moreover, there is no feedback from the MTA to the milter
+whether the call was successful.
+</TD>
+</TR>
+
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2006 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

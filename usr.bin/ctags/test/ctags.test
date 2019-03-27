@@ -1,0 +1,67 @@
+int	bar = (1 + 5);
+
+FOO("here is a #define test: ) {");
+char sysent[20];
+int	nsysent = sizeof (sysent) / sizeof (sysent[0]);
+/*
+ * now is the time for a comment.
+ * four lines in length...
+ */struct struct_xtra{int list;};r4(x,y){};typedef struct{int bar;}struct_xxe;
+#define FOO	BAR
+struct struct_three {
+	int	list;
+};
+#define SINGLE
+int	BAD();
+enum color {red, green, gold, brown};
+char qq[] = "  quote(one,two) {int bar;}  ";
+typedef struct {
+	int	bar;
+	struct struct_two {
+		int foo;
+		union union_3 {
+			struct struct_three entry;
+			char size[25];
+		};
+		struct last {
+			struct struct_three xentry;
+			char list[34];
+		};
+	};
+} struct_one;
+#define TWOLINE	((MAXLIST + FUTURE + 15) \
+	/ (time_to_live ? 3 : 4))
+#if (defined(BAR))
+int	bar;
+#endif
+#define MULTIPLE {\
+	multiple(one,two); \
+	lineno++; \
+	callroute(one,two); \
+}
+#if defined(BAR)
+int	bar;
+#endif
+union union_one {
+	struct struct_three	s3;
+	char	foo[25];
+};
+#define XYZ(A,B)	(A + B / 2) * (3 - 26 + l_lineno)
+routine1(one,two)	/* comments here are fun... */
+	struct {
+		int entry;
+		char bar[34];
+	} *one;
+	char two[10];
+{
+typedef unsigned char	u_char;
+	register struct buf *bp;
+	five(one,two);
+}
+ routine2 (one,two) { puts("hello\n"); }
+ routine3
+(one,
+two) { puts("world\n"); }
+routine4(int one, char (*two)(void)) /* test ANSI arguments */
+{
+}

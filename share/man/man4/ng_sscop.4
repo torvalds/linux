@@ -1,0 +1,403 @@
+.\"
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\" 	All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.\" ng_sscop(4) man page
+.\"
+.Dd October 24, 2003
+.Dt NG_SSCOP 4
+.Os
+.Sh NAME
+.Nm ng_sscop
+.Nd netgraph SSCOP node type
+.Sh SYNOPSIS
+.In netnatm/saal/sscopdef.h
+.In netgraph/atm/ng_sscop.h
+.Sh DESCRIPTION
+The
+.Nm sscop
+netgraph node type implements the ITU-T standard Q.2110.
+This standard describes
+the so called Service Specific Connection Oriented Protocol (SSCOP) that
+is used to carry signalling messages over the private and public UNIs and
+the public NNI.
+This protocol is a transport protocol with selective
+acknowledgements, and can be tailored to the environment.
+This implementation is a full implementation of that standard.
+.Pp
+After creation of the node, the SSCOP instance must be created by sending
+an
+.Dq enable
+message to the node.
+If the node is enabled, the SSCOP parameters
+can be retrieved and modified and the protocol can be started.
+.Pp
+The node is shut down either by a
+.Dv NGM_SHUTDOWN
+message, or when all hooks are disconnected.
+.Sh HOOKS
+Each
+.Nm sscop
+node has three hooks with fixed names:
+.Bl -tag -width ".Va manage"
+.It Va lower
+This hook must be connected to a node that ensures
+transport of packets to and from the remote peer node.
+Normally this is a
+.Xr ng_atm 4
+node with an AAL5 hook, but the
+.Nm sscop
+node is able to work on any packet-transporting layer, like, for example,
+IP or UDP.
+The node handles flow control messages received on
+this hook: if it receives a
+.Dv NGM_HIGH_WATER_PASSED
+message, it declares the
+.Dq "lower layer busy"
+state.
+If a
+.Dv NGM_LOW_WATER_PASSED
+message is received, the busy state is cleared.
+Note that the node does not
+look at the message contents of these flow control messages.
+.It Va upper
+This is the interface to the SSCOP user.
+This interface uses the following message format:
+.Bd -literal
+struct sscop_arg {
+	uint32_t sig;
+	uint32_t arg;	/* opt. sequence number or clear-buff */
+	u_char	 data[];
+};
+.Ed
+.Pp
+The
+.Va sig
+field
+is one of the signals defined in the standard:
+.Bd -literal
+enum sscop_aasig {
+    SSCOP_ESTABLISH_request,	/* <- UU, BR */
+    SSCOP_ESTABLISH_indication,	/* -> UU */
+    SSCOP_ESTABLISH_response,	/* <- UU, BR */
+    SSCOP_ESTABLISH_confirm,	/* -> UU */
+
+    SSCOP_RELEASE_request,	/* <- UU */
+    SSCOP_RELEASE_indication,	/* -> UU, SRC */
+    SSCOP_RELEASE_confirm,	/* -> */
+
+    SSCOP_DATA_request,		/* <- MU */
+    SSCOP_DATA_indication,	/* -> MU, SN */
+
+    SSCOP_UDATA_request,	/* <- MU */
+    SSCOP_UDATA_indication,	/* -> MU */
+
+    SSCOP_RECOVER_indication,	/* -> */
+    SSCOP_RECOVER_response,	/* <- */
+
+    SSCOP_RESYNC_request,	/* <- UU */
+    SSCOP_RESYNC_indication,	/* -> UU */
+    SSCOP_RESYNC_response,	/* <- */
+    SSCOP_RESYNC_confirm,	/* -> */
+
+    SSCOP_RETRIEVE_request,	/* <- RN */
+    SSCOP_RETRIEVE_indication,	/* -> MU */
+    SSCOP_RETRIEVE_COMPL_indication,/* -> */
+};
+.Ed
+.Pp
+The arrows in the comment show the direction of the signal, whether it
+is a signal that comes out of the node
+.Pq Ql -> ,
+or is sent by the node user to the node
+.Pq Ql <- .
+The
+.Va arg
+field contains the argument to some of the signals: it is either a PDU
+sequence number, or the
+.Dv CLEAR-BUFFER
+flag.
+There are a number of special sequence numbers for some operations:
+.Pp
+.Bl -tag -width ".Dv SSCOP_RETRIEVE_UNKNOWN" -offset indent -compact
+.It Dv SSCOP_MAXSEQNO
+maximum legal sequence number
+.It Dv SSCOP_RETRIEVE_UNKNOWN
+retrieve transmission queue
+.It Dv SSCOP_RETRIEVE_TOTAL
+retrieve transmission buffer and queue
+.El
+.Pp
+For signals that carry user data (as, for example,
+.Dv SSCOP_DATA_request )
+these two fields are followed by the variable sized user data.
+.Pp
+If the
+.Va upper
+hook is disconnected and the SSCOP instance is not in the idle
+state, and the
+.Va lower
+hook is still connected, an
+.Dv SSCOP_RELEASE_request
+is executed to release the SSCOP connection.
+.It Va manage
+This is the management interface defined in the standard.
+The data structure used here is:
+.Bd -literal
+struct sscop_marg {
+	uint32_t sig;
+	u_char	 data[];
+};
+.Ed
+.Pp
+Here
+.Va sig
+is one of
+.Bd -literal
+enum sscop_maasig {
+    SSCOP_MDATA_request,	/* <- MU */
+    SSCOP_MDATA_indication,	/* -> MU */
+    SSCOP_MERROR_indication,	/* -> CODE, CNT */
+};
+.Ed
+.Pp
+The
+.Dv SSCOP_MDATA
+signals are followed by the actual management data, where the
+.Dv SSCOP_MERROR
+signal has the form:
+.Bd -literal
+struct sscop_merr {
+	uint32_t sig;
+	uint32_t err;	/* error code */
+	uint32_t cnt;	/* error count */
+};
+.Ed
+.El
+.Sh CONTROL MESSAGES
+The
+.Nm sscop
+node understands the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_SSCOP_SETPARAM Pq Ic setparam
+Sets operational parameters of the SSCOP instance and takes the
+following structure:
+.Bd -literal
+struct ng_sscop_setparam {
+	uint32_t		mask;
+	struct sscop_param	param;
+};
+.Ed
+.Pp
+The sub-structure
+.Va param
+contains the parameters to set, and the
+.Va mask
+field contains a bit mask, telling which of the parameters to set, and which
+to ignore.
+If a bit is set, the corresponding parameter is set.
+The parameters are:
+.Bd -literal
+struct sscop_param {
+	uint32_t timer_cc;	/* timer_cc in msec */
+	uint32_t timer_poll;	/* timer_poll im msec */
+	uint32_t timer_keep_alive;/* timer_keep_alive in msec */
+	uint32_t timer_no_response;/*timer_no_response in msec */
+	uint32_t timer_idle;	/* timer_idle in msec */
+	uint32_t maxk;		/* maximum user data in bytes */
+	uint32_t maxj;		/* maximum u-u info in bytes */
+	uint32_t maxcc;		/* max. retransmissions for control packets */
+	uint32_t maxpd;		/* max. vt(pd) before sending poll */
+	uint32_t maxstat;	/* max. number of elements in stat list */
+	uint32_t mr;		/* initial window */
+	uint32_t flags;		/* flags */
+};
+.Ed
+.Pp
+The
+.Va flags
+field contains the following flags influencing SSCOP operation:
+.Pp
+.Bl -tag -width ".Dv SSCOP_POLLREX" -offset indent -compact
+.It Dv SSCOP_ROBUST
+enable atmf/97-0216 robustness enhancement
+.It Dv SSCOP_POLLREX
+send POLL after each retransmission
+.El
+.Pp
+The bitmap has the following bits:
+.Pp
+.Bl -tag -width ".Dv SSCOP_SET_POLLREX" -offset indent -compact
+.It Dv SSCOP_SET_TCC
+set
+.Va timer_cc
+.It Dv SSCOP_SET_TPOLL
+set
+.Va timer_poll
+.It Dv SSCOP_SET_TKA
+set
+.Va timer_keep_alive
+.It Dv SSCOP_SET_TNR
+set
+.Va timer_no_response
+.It Dv SSCOP_SET_TIDLE
+set
+.Va timer_idle
+.It Dv SSCOP_SET_MAXK
+set
+.Va maxk
+.It Dv SSCOP_SET_MAXJ
+set
+.Va maxj
+.It Dv SSCOP_SET_MAXCC
+set
+.Va maxcc
+.It Dv SSCOP_SET_MAXPD
+set
+.Va maxpd
+.It Dv SSCOP_SET_MAXSTAT
+set
+.Va maxstat
+.It Dv SSCOP_SET_MR
+set the initial window
+.It Dv SSCOP_SET_ROBUST
+set or clear
+.Dv SSCOP_ROBUST
+.It Dv SSCOP_SET_POLLREX
+set or clear
+.Dv SSCOP_POLLREX
+.El
+.Pp
+The node responds to the
+.Dv NGM_SSCOP_SETPARAM
+message with the following response:
+.Bd -literal
+struct ng_sscop_setparam_resp {
+	uint32_t mask;
+	int32_t	 error;
+};
+.Ed
+.Pp
+Here
+.Va mask
+contains a bitmask of the parameters that the user requested to set,
+but that could not be set and
+.Va error
+is an
+.Xr errno 2
+code describing why the parameter could not be set.
+.It Dv NGM_SSCOP_GETPARAM Pq Ic getparam
+This message returns the current operational parameters of the SSCOP
+instance in a
+.Vt sscop_param
+structure.
+.It Dv NGM_SSCOP_ENABLE Pq Ic enable
+This message creates the actual SSCOP instance and initializes it.
+Until this is done, parameters may neither be retrieved nor set, and all
+messages received on any hook are discarded.
+.It Dv NGM_SSCOP_DISABLE Pq Ic disable
+Destroy the SSCOP instance.
+After this, all messages on any hooks are
+discarded.
+.It Dv NGM_SSCOP_SETDEBUG Pq Ic setdebug
+Set debugging flags.
+The argument is a
+.Vt uint32_t .
+.It Dv NGM_SSCOP_GETDEBUG Pq Ic getdebug
+Retrieve the actual debugging flags.
+Needs no arguments and responds with a
+.Vt uint32_t .
+.It Dv NGM_SSCOP_GETSTATE Pq Ic getstate
+Responds with the current state of the SSCOP instance in a
+.Vt uint32_t .
+If the node is not enabled, the retrieved state is 0.
+.El
+.Sh FLOW CONTROL
+Flow control works on the upper and on the lower layer interface.
+At the lower
+layer interface, the two messages,
+.Dv NGM_HIGH_WATER_PASSED
+and
+.Dv NGM_LOW_WATER_PASSED ,
+are used to declare or clear the
+.Dq "lower layer busy"
+state of the protocol.
+.Pp
+At the upper layer interface, the
+.Nm sscop
+node handles three types of flow control messages:
+.Bl -tag -width foo
+.It Dv NGM_HIGH_WATER_PASSED
+If this message is received, the SSCOP stops moving the receive window.
+Each time a data message is handed over to the upper layer, the receive
+window is moved by one message.
+Stopping these updates
+means that the window will start to close and if the peer has sent
+all messages allowed by the current window, it stops transmission.
+This means that the upper layer must be able to still receive a full window
+amount of messages.
+.It Dv NGM_LOW_WATER_PASSED
+This will re-enable the automatic window updates, and if the space indicated
+in the message is larger than the current window, the window will be opened
+by that amount.
+The space is computed as the difference of the
+.Va max_queuelen_packets
+and
+.Va current
+members of the
+.Vt ngm_queue_state
+structure.
+.It Dv NGM_SYNC_QUEUE_STATE
+If the upper layer buffer filling state, as indicated by
+.Va current ,
+is equal to or greater than
+.Va high_watermark
+then the message is ignored.
+If this is not the case, the amount
+of receiver space is computed as the difference of
+.Va max_queuelen_packets
+and
+.Va current
+if automatic window updates are currently allowed, and as the difference of
+.Va high_water_mark
+and
+.Va current
+if window updates are disabled.
+If the resulting value is larger than the current window, the current window
+is opened up to this value.
+Automatic window updates are enabled if they
+were disabled.
+.El
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_atm 4 ,
+.Xr ng_sscfu 4 ,
+.Xr ngctl 8
+.Sh AUTHORS
+.An Harti Brandt Aq Mt harti@FreeBSD.org

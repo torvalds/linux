@@ -1,0 +1,7 @@
+# $FreeBSD$
+false && {
+	${}
+	${foo/}
+	${foo@bar}
+}
+:

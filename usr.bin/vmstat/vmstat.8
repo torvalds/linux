@@ -1,0 +1,393 @@
+.\" Copyright (c) 1986, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)vmstat.8	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd January 18, 2018
+.Dt VMSTAT 8
+.Os
+.Sh NAME
+.Nm vmstat
+.Nd report virtual memory statistics
+.Sh SYNOPSIS
+.Nm
+.\" .Op Fl fimst
+.Op Fl -libxo
+.Op Fl afHhimoPsz
+.Op Fl M Ar core Op Fl N Ar system
+.Op Fl c Ar count
+.Op Fl n Ar devs
+.Oo
+.Fl p
+.Sm off
+.Ar type , if , pass
+.Sm on
+.Oc
+.Op Fl w Ar wait
+.Op Ar disks ...
+.Op wait Op count
+.Sh DESCRIPTION
+The
+.Nm
+utility reports certain kernel statistics kept about process, virtual memory,
+disk, trap and cpu activity.
+.Pp
+If the
+.Fl M
+option is not specified, information is obtained from
+the currently running kernel via the
+.Xr sysctl 3
+interface.
+Otherwise, information is read from the specified core file,
+using the name list from the specified kernel image (or from
+the default image).
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
+.It Fl a
+When used with
+.Fl i ,
+include statistics about interrupts that have never been generated.
+.It Fl c
+Repeat the display
+.Ar count
+times.
+The first display is for the time since a reboot and each subsequent
+report is for the time period since the last display.
+If no repeat
+.Ar count
+is specified, and
+.Fl w
+is specified, the default is infinity, otherwise the default is one.
+.It Fl f
+Report on the number
+.Xr fork 2 ,
+.Xr vfork 2
+and
+.Xr rfork 2
+system calls since system startup, and the number of pages of virtual memory
+involved in each.
+.It Fl h
+Changes memory columns into more easily human readable form.
+The default if
+standard output is a terminal device.
+.It Fl H
+Changes memory columns into straight numbers.
+The default if standard output
+is not a terminal device (such as a script).
+.It Fl i
+Report on the number of interrupts taken by each device since system
+startup.
+.It Fl M
+Extract values associated with the name list from the specified
+.Ar core .
+.It Fl N
+If
+.Fl M
+is also specified,
+extract the name list from the specified
+.Ar system
+instead of the default,
+which is the kernel image the system has booted from.
+.It Fl m
+Report on the usage of kernel dynamic memory allocated using
+.Xr malloc 9
+by type.
+.It Fl n
+Change the maximum number of disks to display from the default of 2.
+.It Fl o
+Display a list of virtual memory objects in the system and the resident
+memory used by each object.
+.It Fl P
+Report per-cpu system/user/idle cpu statistics.
+.It Fl p
+Specify which types of devices to display.
+There are three different
+categories of devices:
+.Pp
+.Bl -tag -width indent -compact
+.It device type:
+.Bl -tag -width 9n -compact
+.It da
+Direct Access devices
+.It sa
+Sequential Access devices
+.It printer
+Printers
+.It proc
+Processor devices
+.It worm
+Write Once Read Multiple devices
+.It cd
+CD devices
+.It scanner
+Scanner devices
+.It optical
+Optical Memory devices
+.It changer
+Medium Changer devices
+.It comm
+Communication devices
+.It array
+Storage Array devices
+.It enclosure
+Enclosure Services devices
+.It floppy
+Floppy devices
+.El
+.Pp
+.It interface:
+.Bl -tag -width 9n -compact
+.It IDE
+Integrated Drive Electronics devices
+.It SCSI
+Small Computer System Interface devices
+.It other
+Any other device interface
+.El
+.Pp
+.It passthrough:
+.Bl -tag -width 9n -compact
+.It pass
+Passthrough devices
+.El
+.El
+.Pp
+The user must specify at least one device type, and may specify at most
+one device type from each category.
+Multiple device types in a single
+device type statement must be separated by commas.
+.Pp
+Any number of
+.Fl p
+arguments may be specified on the command line.
+All
+.Fl p
+arguments are ORed together to form a matching expression against which
+all devices in the system are compared.
+Any device that fully matches
+any
+.Fl p
+argument will be included in the
+.Nm
+output, up to two devices, or the maximum number of devices specified
+by the user.
+.It Fl s
+Display the contents of the
+.Em sum
+structure, giving the total number of several kinds of paging related
+events which have occurred since system startup.
+.\" .It Fl t
+.\" Report on the number of page in and page reclaims since system startup,
+.\" and the amount of time required by each.
+.It Fl w
+Pause
+.Ar wait
+seconds between each display.
+If no repeat
+.Ar wait
+interval is specified, the default is 1 second.
+The
+.Nm
+command will accept and honor a non-integer number of seconds.
+.It Fl z
+Report on memory used by the kernel zone allocator,
+.Xr uma 9 ,
+by zone.
+.El
+.Pp
+The
+.Ar wait
+and
+.Ar count
+arguments may be given after their respective flags at any point
+on the command line before the
+.Ar disks
+argument(s), or without their flags, as the final argument(s).
+The latter form is accepted for backwards compatibility, but it is
+preferred to use the forms with
+.Fl w
+and
+.Fl c
+to avoid ambiguity.
+.Pp
+By default,
+.Nm
+displays the following information:
+.Bl -tag -width indent
+.It procs
+Information about the number of threads in various states:
+.Pp
+.Bl -tag -width indent -compact
+.It r
+running or in run queue
+.It b
+blocked for resources (i/o, paging, etc.)
+.It w
+swapped out
+.El
+.It memory
+Information about the usage of virtual and real memory.
+.Pp
+Mapped virtual memory is a sum of all of the virtual pages belonging
+to mapped virtual memory objects.
+Note that the entire memory object's size is considered mapped even if
+only a subset of the object's pages are currently mapped.
+This statistic is not related to the active page queue which is used to track
+real memory.
+.Pp
+.Bl -tag -width indent -compact
+.It avm
+mapped virtual memory
+.Po previously called active in
+.Nm
+output
+.Pc
+.It fre
+size of the free list
+.El
+.It page
+Information about page faults and paging activity.
+These are given in units per second.
+.Pp
+.Bl -tag -width indent -compact
+.It flt
+total number of page faults
+.It re
+page reclaims (simulating reference bits)
+.\" .It at
+.\" pages attached (found in free list)
+.It pi
+pages paged in
+.It po
+pages paged out
+.It fr
+pages freed
+.\" .It de
+.\" anticipated short term memory shortfall
+.It sr
+pages scanned by page daemon
+.El
+.It disks
+Disk operations per second (this field is system dependent).
+Typically paging will be split across the available drives.
+The header of the field is the first two characters of the disk name and
+the unit number.
+If more than two disk drives are configured in the system,
+.Nm
+displays only the first two drives, unless the user specifies the
+.Fl n
+argument to increase the number of drives displayed.
+This will probably
+cause the display to exceed 80 columns, however.
+To force
+.Nm
+to display specific drives, their names may be supplied on the command line.
+The
+.Nm
+utility
+defaults to show disks first, and then various other random devices in the
+system to add up to two devices, if there are that many devices in the
+system.
+If devices are specified on the command line, or if a device type
+matching pattern is specified (see above),
+.Nm
+will only display the given devices or the devices matching the pattern,
+and will not randomly select other devices in the system.
+.It faults
+Trap/interrupt rates per second.
+.Pp
+.Bl -tag -width indent -compact
+.It in
+device interrupts (including clock interrupts)
+.It sy
+system calls
+.It cs
+cpu context switches
+.El
+.It cpu
+Breakdown of percentage usage of CPU time.
+.Pp
+.Bl -tag -width indent -compact
+.It us
+user time for normal and low priority processes
+.It sy
+system and interrupt time
+.It id
+cpu idle
+.El
+.El
+.Sh FILES
+.Bl -tag -width /boot/kernel/kernel -compact
+.It Pa /boot/kernel/kernel
+default kernel namelist
+.It Pa /dev/kmem
+default memory file
+.El
+.Sh EXAMPLES
+The command:
+.Dl vmstat -w 5
+will print what the system is doing every five
+seconds.
+.Pp
+The command:
+.Dl vmstat -p da -p cd -w 1
+will tell vmstat to select the first two direct access or CDROM devices
+and display statistics on those devices, as well as other systems
+statistics every second.
+.Sh SEE ALSO
+.Xr fstat 1 ,
+.Xr netstat 1 ,
+.Xr nfsstat 1 ,
+.Xr ps 1 ,
+.Xr systat 1 ,
+.Xr libmemstat 3 ,
+.Xr libxo 3 ,
+.Xr xo_parse_args 3 ,
+.Xr gstat 8 ,
+.Xr iostat 8 ,
+.Xr pstat 8 ,
+.Xr sysctl 8 ,
+.Xr malloc 9 ,
+.Xr uma 9
+.Pp
+The sections starting with ``Interpreting system activity'' in
+.%T "Installing and Operating 4.3BSD" .
+.Sh BUGS
+The
+.Fl c
+and
+.Fl w
+options are only available with the default output.

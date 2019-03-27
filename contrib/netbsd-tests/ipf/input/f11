@@ -1,0 +1,16 @@
+in on e0 tcp 1.1.1.1,1 2.1.2.2,23 S seq=1 ack=0
+in on e0 tcp 1.1.1.1,1 2.1.2.2,24 SA seq=1 ack=1
+in on e1 tcp 2.1.2.2,23 1.1.1.1,2 SA seq=101 ack=2
+in on e1 tcp 2.1.2.2,23 1.1.1.1,1 SA seq=101 ack=2
+in on e0 tcp 1.1.1.1,1 2.1.2.2,23 A seq=2 ack=102
+in on e0 tcp 1.1.1.1,1 2.1.2.2,25 A seq=2 ack=102
+in on e1 tcp 2.1.2.2,23 1.1.1.1,1 A seq=102 ack=2
+in on e1 tcp 2.1.2.2,25 1.1.1.1,1 A seq=102 ack=2
+in on e0 tcp 1.1.1.1,1 2.1.2.2,23 FA seq=2 ack=102
+in on e0 tcp 1.1.1.1,1 2.1.2.2,23 A seq=2 ack=102
+in on e0 tcp 1.1.1.1,2 2.1.2.2,23 A seq=2 ack=102
+in on e1 udp 1.1.1.1,1 4.4.4.4,53
+in on e1 udp 2.2.2.2,2 4.4.4.4,53
+in on e0 udp 4.4.4.4,53 1.1.1.1,1
+in on e0 udp 4.4.4.4,1023 1.1.1.1,2049
+in on e0 udp 4.4.4.4,2049 1.1.1.1,1023

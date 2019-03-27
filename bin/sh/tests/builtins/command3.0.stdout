@@ -1,0 +1,7 @@
+/bin/ls
+true
+/bin/ls
+fun
+break
+if
+alias foo=bar

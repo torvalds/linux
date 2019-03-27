@@ -1,0 +1,158 @@
+.\" Copyright (c) 2014 Rohit Grover <rgrover1 at gmail dot com>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 24, 2014
+.Dt ATP 4
+.Os
+.Sh NAME
+.Nm atp
+.Nd Apple touchpad driver
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines into
+your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device atp"
+.Cd "device usb"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+atp_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Apple Internal Trackpad device found in many
+Apple laptops.
+Older (Fountain/Geyser) and the newer (Wellspring) trackpad
+families are all supported through a unified driver.
+.Pp
+The driver simulates a three\-button mouse using multi\-finger tap detection.
+Single finger tap generates a left\-button click; two\-finger tap maps to the
+middle button; whereas a three\-finger tap gets treated as a right button
+click.
+.Pp
+There is support for 2\-finger horizontal scrolling, which translates to
+page\-back/forward events; vertical multi\-finger scrolling emulates the mouse
+wheel.
+.Pp
+A double\-tap followed by a drag is treated as a selection gesture; a
+virtual left\-button click is assumed for the lifespan of the drag.
+.Pp
+.Nm
+supports dynamic reconfiguration using
+.Xr sysctl 8 ;
+through nodes under
+.Nm hw.usb.atp .
+Pointer sensitivity can be controlled using the sysctl tunable
+.Nm hw.usb.atp.scale_factor .
+Smaller values of
+.Fa scale_factor
+result in faster movement.
+.
+A simple high-pass filter is used to reduce contributions
+from small movements; the threshold for this filter may be controlled by
+.Nm hw.usb.atp.small_movement .
+.
+The maximum tolerable duration of a touch gesture is controlled by
+.Nm hw.usb.atp.touch_timeout
+(in microseconds); beyond this period, touches are considered to be slides.
+(This conversion also happens when a finger stroke accumulates at least
+.Nm hw.usb.atp.slide_min_movement
+movement (in mickeys).
+.
+The maximum time (in microseconds) to allow an association between a double-
+tap and drag gesture may be controlled by
+.Nm hw.usb.atp.double_tap_threshold .
+.
+Should one want to disable tap detection and rely only upon physical button
+presses, set the following sysctl to a value of 2
+.Nm hw.usb.atp.tap_minimum .
+.
+.Sh HARDWARE
+The
+.Nm
+driver provides support for the following Product IDs:
+.Pp
+.Bl -bullet -compact
+.It
+PowerBooks, iBooks (IDs: 0x020e, 0x020f, 0x0210, 0x0214, 0x0215, 0x0216)
+.It
+Core Duo MacBook & MacBook Pro (IDs: 0x0217, 0x0218, 0x0219)
+.It
+Core2 Duo MacBook & MacBook Pro (IDs: 0x021a, 0x021b, 0x021c)
+.It
+Core2 Duo MacBook3,1 (IDs: 0x0229, 0x022a, 0x022b)
+.It
+12 inch PowerBook and iBook (IDs: 0x030a, 0x030b)
+.It
+15 inch PowerBook (IDs: 0x020e, 0x020f, 0x0215)
+.It
+17 inch PowerBook (ID: 0x020d)
+.It
+Almost all recent Macbook-Pros and Airs (IDs: 0x0223, 0x0223, 0x0224, 0x0224,
+0x0225, 0x0225, 0x0230, 0x0230, 0x0231, 0x0231, 0x0232, 0x0232, 0x0236,
+0x0236, 0x0237, 0x0237, 0x0238, 0x0238, 0x023f, 0x023f, 0x0240, 0x0241,
+0x0242, 0x0243, 0x0244, 0x0245, 0x0246, 0x0247, 0x0249, 0x024a, 0x024b,
+0x024c, 0x024d, 0x024e, 0x0252, 0x0252, 0x0253, 0x0253, 0x0254, 0x0254,
+0x0259, 0x025a, 0x025b, 0x0262, 0x0262, 0x0263, 0x0264, 0x0290, 0x0291,
+0x0292)
+.El
+.Pp
+To discover the product\-id of a touchpad, search for 'Trackpad' in the
+output of
+.Xr lshal 1
+and look up the property
+.Nm usb_device.product_id .
+.Sh FILES
+.Nm
+creates a blocking pseudo\-device file,
+.Pa /dev/atp0 ,
+which presents the mouse as a
+.Ar sysmouse
+or
+.Ar mousesystems
+type device\-\-see
+.Xr moused 8
+for an explanation of these mouse
+types.
+.Sh SEE ALSO
+.Xr sysmouse 4 ,
+.Xr usb 4 ,
+.Xr loader.conf 5 ,
+.Xr xorg.conf 5 Pq Pa ports/x11/xorg ,
+.Xr moused 8 ,
+.Xr sysctl 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Rohit Grover Aq Mt rgrover1@gmail.com .

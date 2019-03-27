@@ -1,0 +1,149 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: cfumass
+# REQUIRE: var
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="cfumass"
+desc="Configure the LUN for device mode USB mass storage"
+rcvar="cfumass_enable"
+
+start_cmd="${name}_start"
+stop_cmd="${name}_stop"
+
+extra_commands="reload"
+reload_cmd="${name}_start"
+
+: ${cfumass_dir:=/var/cfumass}
+: ${cfumass_image:=/var/tmp/cfumass.img}
+: ${cfumass_vendor:="FreeBSD"}
+: ${cfumass_product:="cfumass(4)"}
+
+remove_luns()
+{
+	local _lun _luns
+
+	_luns=`ctladm devlist -b block -v | awk '
+
+	$1 ~ /^[0-9]+$/ {
+		lun = $1
+	}
+
+	$1 == "file='"${cfumass_image}"'" {
+		print lun
+	}'`
+
+	for _lun in ${_luns}; do
+		ctladm remove -b block -l "${_lun}" > /dev/null
+	done
+}
+
+cfumass_start()
+{
+	local err _files _template _new_template
+
+	if [ ! -d "${cfumass_dir}" ]; then
+		warn "${cfumass_dir} does not exist"
+		return 1
+	fi
+
+	_files=`find "${cfumass_dir}" -newer "${cfumass_image}" -print 2> /dev/null`
+	if [ ! -e "${cfumass_image}" -o -n "${_files}" ]; then
+		# The image doesn't exist or is out of date.
+		makefs -t cd9660 -o label="${cfumass_vendor}" \
+		    -o rockridge "${cfumass_image}" "${cfumass_dir}"
+		err=$?
+		if [ "${err}" -ne 0 ]; then
+			warn "unable to create ${cfumass_image}"
+			return "${err}"
+		fi
+	fi
+
+	remove_luns
+
+	ctladm create -b block -o file="${cfumass_image}" -o readonly=on \
+	    -o vendor="${cfumass_vendor}" -o product="${cfumass_product}" \
+	    -S 0 > /dev/null
+	err=$?
+	if [ "${err}" -ne 0 ]; then
+		warn "unable to create CTL LUN"
+		return "${err}"
+	fi
+
+	load_kld -e cfumass cfumass
+
+	# If the template is already switched to Mass Storage, then reset
+	# it to -1 to force the host to reenumerate it; otherwise it might
+	# not notice the new LUN.
+	_template=`sysctl -n hw.usb.template`
+	if [ "${_template}" -eq 0 ]; then
+		sysctl hw.usb.template=-1 > /dev/null
+		err=$?
+		if [ "${err}" -ne 0 ]; then
+			warn "unable to set hw.usb.template sysctl"
+			return "${err}"
+		fi
+	fi
+
+	# Set the template number based on the current one.
+	_template=`sysctl -n hw.usb.template`
+	case "${_template}" in
+	-1)
+		_new_template="0"
+		;;
+	8)
+		_new_template="10"
+		;;
+	*)
+		warn "hw.usb.template sysctl set to neither -1 nor 8; not changing"
+		_new_template=""
+		;;
+	esac
+		
+	if [ -n "${_new_template}" ]; then
+		sysctl hw.usb.template="${_new_template}" > /dev/null
+		err=$?
+		if [ "${err}" -ne 0 ]; then
+			warn "unable to set hw.usb.template sysctl to ${_new_template}"
+			return "${err}"
+		fi
+	fi
+}
+
+cfumass_stop()
+{
+	local err _template _new_template
+
+	remove_luns
+
+	_template=`sysctl -n hw.usb.template`
+	case "${_template}" in
+	0)
+		_new_template="-1"
+		;;
+	10)
+		_new_template="8"
+		;;
+	*)
+		warn "hw.usb.template sysctl set to neither 0 nor 10; not changing"
+		_new_template=""
+		;;
+	esac
+		
+	if [ -n "${_new_template}" ]; then
+		sysctl hw.usb.template="${_new_template}" > /dev/null
+		err=$?
+		if [ "${err}" -ne 0 ]; then
+			warn "unable to set hw.usb.template sysctl to ${_new_template}"
+			return "${err}"
+		fi
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

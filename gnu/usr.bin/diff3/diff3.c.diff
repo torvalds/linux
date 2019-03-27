@@ -1,0 +1,11 @@
+$FreeBSD$
+--- diff3.c.orig	2004-04-12 15:44:35.000000000 +0800
++++ diff3.c	2007-06-15 14:49:23.903835977 +0800
+@@ -230,7 +230,6 @@
+   initialize_main (&argc, &argv);
+   program_name = argv[0];
+   setlocale (LC_ALL, "");
+-  bindtextdomain (PACKAGE, LOCALEDIR);
+   textdomain (PACKAGE);
+   c_stack_action (0);
+ 

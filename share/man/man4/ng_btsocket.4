@@ -1,0 +1,354 @@
+.\" Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: ng_btsocket.4,v 1.7 2003/05/21 19:37:35 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd November 13, 2012
+.Dt NG_BTSOCKET 4
+.Os
+.Sh NAME
+.Nm ng_btsocket
+.Nd Bluetooth sockets layer
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In sys/bitstring.h
+.In netgraph/bluetooth/include/ng_hci.h
+.In netgraph/bluetooth/include/ng_l2cap.h
+.In netgraph/bluetooth/include/ng_btsocket.h
+.Sh DESCRIPTION
+The
+.Nm
+module implements three Netgraph node types.
+Each type in its turn implements one protocol within
+.Dv PF_BLUETOOTH
+domain.
+.Sh Dv BLUETOOTH_PROTO_HCI protocol
+.Ss Dv SOCK_RAW HCI sockets
+Implemented by
+.Nm btsock_hci_raw
+Netgraph type.
+Raw HCI sockets allow sending of raw HCI command datagrams
+only to correspondents named in
+.Xr send 2
+calls.
+Raw HCI datagrams (HCI commands, events and data) are generally received with
+.Xr recvfrom 2 ,
+which returns the next datagram with its return address.
+Raw HCI sockets can also be used to control HCI nodes.
+.Pp
+The Bluetooth raw HCI socket address is defined as follows:
+.Bd -literal -offset indent
+/* Bluetooth version of struct sockaddr for raw HCI sockets */
+struct sockaddr_hci {
+        u_char	hci_len;      /* total length */
+        u_char	hci_family;   /* address family */
+	char	hci_node[32]; /* address (size == NG_NODESIZ ) */
+};
+.Ed
+.Pp
+Raw HCI sockets support a number of
+.Xr ioctl 2
+requests such as:
+.Bl -tag -width foo
+.It Dv SIOC_HCI_RAW_NODE_GET_STATE
+Returns current state for the HCI node.
+.It Dv SIOC_HCI_RAW_NODE_INIT
+Turn on
+.Dq inited
+bit for the HCI node.
+.It Dv SIOC_HCI_RAW_NODE_GET_DEBUG
+Returns current debug level for the HCI node.
+.It Dv SIOC_HCI_RAW_NODE_SET_DEBUG
+Sets current debug level for the HCI node.
+.It Dv SIOC_HCI_RAW_NODE_GET_BUFFER
+Returns current state of data buffers for the HCI node.
+.It Dv SIOC_HCI_RAW_NODE_GET_BDADDR
+Returns BD_ADDR for the HCI node.
+.It Dv SIOC_HCI_RAW_NODE_GET_FEATURES
+Returns the list of features supported by hardware for the HCI node.
+.It Dv SIOC_HCI_RAW_NODE_GET_STAT
+Returns various statistic counters for the HCI node.
+.It Dv SIOC_HCI_RAW_NODE_RESET_STAT
+Resets all statistic counters for the HCI node to zero.
+.It Dv SIOC_HCI_RAW_NODE_FLUSH_NEIGHBOR_CACHE
+Remove all neighbor cache entries for the HCI node.
+.It Dv SIOC_HCI_RAW_NODE_GET_NEIGHBOR_CACHE
+Returns content of the neighbor cache for the HCI node.
+.It Dv SIOC_HCI_RAW_NODE_GET_CON_LIST
+Returns list of active baseband connections (i.e., ACL and SCO links) for
+the HCI node.
+.It SIOC_HCI_RAW_NODE_GET_LINK_POLICY_MASK
+Returns current link policy settings mask for the HCI node.
+.It SIOC_HCI_RAW_NODE_SET_LINK_POLICY_MASK
+Sets current link policy settings mask for the HCI node.
+.It SIOC_HCI_RAW_NODE_GET_PACKET_MASK
+Returns current packet mask for the HCI node.
+.It SIOC_HCI_RAW_NODE_SET_PACKET_MASK
+Sets current packet mask for the HCI node.
+.It SIOC_HCI_RAW_NODE_GET_ROLE_SWITCH
+Returns current value of the role switch parameter for the HCI node.
+.It SIOC_HCI_RAW_NODE_SET_ROLE_SWITCH
+Sets new value of the role switch parameter for the HCI node.
+.El
+.Pp
+The
+.Va net.bluetooth.hci.sockets.raw.ioctl_timeout
+variable, that can be examined and set via
+.Xr sysctl 8 ,
+controls the control request timeout (in seconds) for raw HCI sockets.
+.Pp
+Raw HCI sockets support filters.
+The application can filter certain HCI datagram types.
+For HCI event datagrams the application can set additional filter.
+The raw HCI socket filter defined as follows:
+.Bd -literal -offset indent
+/*
+ * Raw HCI socket filter.
+ *
+ * For packet mask use (1 << (HCI packet indicator - 1))
+ * For event mask use (1 << (Event - 1))
+ */
+
+struct ng_btsocket_hci_raw_filter {
+        bitstr_t bit_decl(packet_mask, 32);
+        bitstr_t bit_decl(event_mask, (NG_HCI_EVENT_MASK_SIZE * 8));
+};
+.Ed
+.Pp
+The
+.Dv SO_HCI_RAW_FILTER
+option defined at
+.Dv SOL_HCI_RAW
+level can be used to obtain via
+.Xr getsockopt 2
+or change via
+.Xr setsockopt 2
+raw HCI socket's filter.
+.Sh Dv BLUETOOTH_PROTO_L2CAP protocol
+The Bluetooth L2CAP socket address is defined as follows:
+.Bd -literal -offset indent
+/* Bluetooth version of struct sockaddr for L2CAP sockets */
+struct sockaddr_l2cap {
+        u_char    l2cap_len;    /* total length */
+        u_char    l2cap_family; /* address family */
+        uint16_t  l2cap_psm;    /* Protocol/Service Multiplexor */
+        bdaddr_t  l2cap_bdaddr; /* address */
+};
+.Ed
+.Ss Dv SOCK_RAW L2CAP sockets
+Implemented by
+.Nm btsock_l2c_raw
+Netgraph type.
+Raw L2CAP sockets do not provide access to raw L2CAP datagrams.
+These
+sockets used to control L2CAP nodes and to issue special L2CAP requests
+such as
+.Dv ECHO_REQUEST
+and
+.Dv GET_INFO
+request.
+.Pp
+Raw L2CAP sockets support number of
+.Xr ioctl 2
+requests such as:
+.Bl -tag -width foo
+.It Dv SIOC_L2CAP_NODE_GET_FLAGS
+Returns current state for the L2CAP node.
+.It Dv SIOC_L2CAP_NODE_GET_DEBUG
+Returns current debug level for the L2CAP node.
+.It Dv SIOC_L2CAP_NODE_SET_DEBUG
+Sets current debug level for the L2CAP node.
+.It Dv SIOC_L2CAP_NODE_GET_CON_LIST
+Returns list of active baseband connections (i.e., ACL links) for the L2CAP
+node.
+.It Dv SIOC_L2CAP_NODE_GET_CHAN_LIST
+Returns list of active channels for the L2CAP node.
+.It Dv SIOC_L2CAP_NODE_GET_AUTO_DISCON_TIMO
+Returns current value of the auto disconnect timeout for the L2CAP node.
+.It Dv SIOC_L2CAP_NODE_SET_AUTO_DISCON_TIMO
+Sets current value of the auto disconnect timeout for the L2CAP node.
+.It Dv SIOC_L2CAP_L2CA_PING
+Issues L2CAP
+.Dv ECHO_REQUEST .
+.It Dv SIOC_L2CAP_L2CA_GET_INFO
+Issues L2CAP
+.Dv GET_INFO
+request.
+.El
+.Pp
+The
+.Va net.bluetooth.l2cap.sockets.raw.ioctl_timeout
+variable, that can be examined and set via
+.Xr sysctl 8 ,
+controls the control request timeout (in seconds) for raw L2CAP sockets.
+.Ss Dv SOCK_SEQPACKET L2CAP sockets
+Implemented by
+.Nm btsock_l2c
+Netgraph type.
+L2CAP sockets are either
+.Dq active
+or
+.Dq passive .
+Active sockets initiate connections to passive sockets.
+By default, L2CAP sockets are created active; to create a passive socket, the
+.Xr listen 2
+system call must be used after binding the socket with the
+.Xr bind 2
+system call.
+Only passive sockets may use the
+.Xr accept 2
+call to accept incoming connections.
+Only active sockets may use the
+.Xr connect 2
+call to initiate connections.
+.Pp
+L2CAP sockets support
+.Dq "wildcard addressing" .
+In this case, socket must be bound to
+.Dv NG_HCI_BDADDR_ANY
+address.
+Note that PSM (Protocol/Service Multiplexor) field is always required.
+Once a connection has been established, the socket's address is
+fixed by the peer entity's location.
+The address assigned to the socket is
+the address associated with the Bluetooth device through which packets are
+being transmitted and received, and PSM (Protocol/Service Multiplexor).
+.Pp
+L2CAP sockets support number of options defined at
+.Dv SOL_L2CAP
+level which can be set with
+.Xr setsockopt 2
+and tested with
+.Xr getsockopt 2 :
+.Bl -tag -width foo
+.It Dv SO_L2CAP_IMTU
+Get (set) maximum payload size the local socket is capable of accepting.
+.It Dv SO_L2CAP_OMTU
+Get maximum payload size the remote socket is capable of accepting.
+.It Dv SO_L2CAP_IFLOW
+Get incoming flow specification for the socket.
+.Bf -emphasis
+Not implemented.
+.Ef
+.It Dv SO_L2CAP_OFLOW
+Get (set) outgoing flow specification for the socket.
+.Bf -emphasis
+Not implemented.
+.Ef
+.It Dv SO_L2CAP_FLUSH
+Get (set) value of the flush timeout.
+.Bf -emphasis
+Not implemented.
+.Ef
+.El
+.Sh Dv BLUETOOTH_PROTO_RFCOMM protocol
+The Bluetooth RFCOMM socket address is defined as follows:
+.Bd -literal -offset indent
+/* Bluetooth version of struct sockaddr for RFCOMM sockets */
+struct sockaddr_rfcomm {
+        u_char   rfcomm_len;     /* total length */
+        u_char   rfcomm_family;  /* address family */
+        bdaddr_t rfcomm_bdaddr;  /* address */
+        uint8_t  rfcomm_channel; /* channel */
+};
+.Ed
+.Ss Dv SOCK_STREAM RFCOMM sockets
+Note that RFCOMM sockets do not have associated Netgraph node type.
+RFCOMM sockets are implemented as additional layer on top of L2CAP sockets.
+RFCOMM sockets are either
+.Dq active
+or
+.Dq passive .
+Active sockets initiate connections to passive sockets.
+By default, RFCOMM sockets are created active; to create a passive socket, the
+.Xr listen 2
+system call must be used after binding the socket with the
+.Xr bind 2
+system call.
+Only passive sockets may use the
+.Xr accept 2
+call to accept incoming connections.
+Only active sockets may use the
+.Xr connect 2
+call to initiate connections.
+.Pp
+RFCOMM sockets support
+.Dq "wildcard addressing" .
+In this case, socket must be bound to
+.Dv NG_HCI_BDADDR_ANY
+address.
+Note that RFCOMM channel field is always required.
+Once a connection has been established, the socket's address is fixed by the
+peer entity's location.
+The address assigned to the socket is the address associated with the
+Bluetooth device through which packets are being transmitted and received,
+and RFCOMM channel.
+.Pp
+The following options, which can be tested with
+.Xr getsockopt 2
+call, are defined at
+.Dv SOL_RFCOMM
+level for RFCOMM sockets:
+.Bl -tag -width foo
+.It Dv SO_RFCOMM_MTU
+Returns the maximum transfer unit size (in bytes) for the underlying RFCOMM
+channel.
+Note that application still can write/read bigger chunks to/from the socket.
+.It Dv SO_RFCOMM_FC_INFO
+Return the flow control information for the underlying RFCOMM channel.
+.El
+.Pp
+The
+.Va net.bluetooth.rfcomm.sockets.stream.timeout
+variable, that can be examined and set via
+.Xr sysctl 8 ,
+controls the connection timeout (in seconds) for RFCOMM sockets.
+.Sh HOOKS
+These node types support hooks with arbitrary names (as long as they are
+unique) and always accept hook connection requests.
+.Sh NETGRAPH CONTROL MESSAGES
+These node types support the generic control messages.
+.Sh SHUTDOWN
+These nodes are persistent and cannot be shut down.
+.Sh SEE ALSO
+.Xr btsockstat 1 ,
+.Xr socket 2 ,
+.Xr netgraph 4 ,
+.Xr ng_bluetooth 4 ,
+.Xr ng_hci 4 ,
+.Xr ng_l2cap 4 ,
+.Xr ngctl 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+module was implemented in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
+.Sh BUGS
+Most likely.
+Please report if found.

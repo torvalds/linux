@@ -1,0 +1,63 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: abi
+# REQUIRE: archdep
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="abi"
+desc="Enable foreign ABIs"
+start_cmd="${name}_start"
+stop_cmd=":"
+
+sysv_start()
+{
+	echo -n ' sysvipc'
+	load_kld sysvmsg
+	load_kld sysvsem
+	load_kld sysvshm
+}
+
+linux_start()
+{
+	local _tmpdir
+
+	echo -n ' linux'
+	load_kld -e 'linux(aout|elf)' linux
+	case `sysctl -n hw.machine_arch` in
+	amd64)
+		load_kld -e 'linux64elf' linux64
+		;;
+	esac
+	if [ -x /compat/linux/sbin/ldconfigDisabled ]; then
+		_tmpdir=`mktemp -d -t linux-ldconfig`
+		/compat/linux/sbin/ldconfig -C ${_tmpdir}/ld.so.cache
+		if ! cmp -s ${_tmpdir}/ld.so.cache /compat/linux/etc/ld.so.cache; then
+			cat ${_tmpdir}/ld.so.cache > /compat/linux/etc/ld.so.cache
+		fi
+		rm -rf ${_tmpdir}
+	fi
+}
+
+abi_start()
+{
+	local _echostop
+
+	_echostop=
+	if checkyesno sysvipc_enable || checkyesno linux_enable; then
+		echo -n 'Additional ABI support:'
+		_echostop=yes
+	fi
+
+	checkyesno sysvipc_enable && sysv_start
+	checkyesno linux_enable && linux_start
+
+	[ -n "${_echostop}" ] && echo '.'
+}
+
+load_rc_config $name
+run_rc_command "$1"

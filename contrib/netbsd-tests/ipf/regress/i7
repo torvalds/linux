@@ -1,0 +1,14 @@
+pass in on ed0 proto tcp from localhost to localhost port = 23 flags S/SA
+block in on lo0 proto tcp from any to any flags A
+pass in on lo0 proto tcp from any to any flags /SAP
+block in on lo0 proto tcp from any to any flags 0x80/A
+pass in on lo0 proto tcp from any to any flags S/18
+block in on lo0 proto tcp from any to any flags 2/18
+pass in on lo0 proto tcp from any to any flags 2
+block in on lo0 proto tcp from any to any flags /16
+pass in on lo0 proto tcp from any to any flags 2/SA
+pass in on lo0 proto tcp from any to any flags S/18
+block in on lo0 proto tcp from any to any flags 2/18
+pass in on lo0 proto tcp from any to any flags 2
+block in on lo0 proto tcp from any to any flags /16
+pass in on lo0 proto tcp from any to any flags 2/SA

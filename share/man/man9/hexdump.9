@@ -1,0 +1,94 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2003 Scott Long
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 7, 2003
+.Dt HEXDUMP 9
+.Os
+.Sh NAME
+.Nm hexdump
+.Nd "dump a block of bytes to the console in hexadecimal form"
+.Sh SYNOPSIS
+.In sys/systm.h
+.Ft void
+.Fn hexdump "void *ptr" "int length" "const char *hdr" "int flags"
+.Sh DESCRIPTION
+The
+.Fn hexdump
+function prints an array of bytes to the console in hexadecimal form, along with
+the
+.Tn ASCII
+representation of the bytes, if possible.
+By default, each line of
+output will start with an offset count, followed by 16 hexadecimal values,
+followed by 16
+.Tn ASCII
+characters.
+.Bl -tag -width indent
+.It Fa ptr
+Pointer to the array of bytes to print.
+It does not need to be
+.Dv NUL Ns
+-terminated.
+.It Fa length
+Number of bytes to print.
+.It Fa hdr
+Pointer to a
+.Dv NUL Ns
+-terminated character string that will be prepended to each
+line of output.
+A value of
+.Dv NULL
+implies that no header will be printed.
+.It Fa flags
+Flags for controlling the formatting of the output.
+.Bl -tag -width ".Dv HD_OMIT_COUNT"
+.It Bits 0-7
+Integer value of the number of bytes to display on each line.
+A value of 0 implies that the default value of 16 will be used.
+.It Bits 8-15
+Character
+.Tn ASCII
+value to use as the separator for the hexadecimal output.
+A value of 0 implies that the default value of 32
+.Tn ( ASCII
+space) will be used.
+.It Dv HD_OMIT_COUNT
+Do not print the offset column at the beginning of each line.
+.It Dv HD_OMIT_HEX
+Do not print the hexadecimal values on each line.
+.It Dv HD_OMIT_CHARS
+Do not print the character values on each line.
+.El
+.El
+.Sh SEE ALSO
+.Xr ascii 7
+.Sh AUTHORS
+This manual page was written by
+.An Scott Long .

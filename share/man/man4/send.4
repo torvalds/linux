@@ -1,0 +1,214 @@
+.\"-
+.\" Copyright (c) 2010 Ana Kukec
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 19, 2010
+.Dt SEND 4
+.Os
+.Sh NAME
+.Nm send
+.Nd "Kernel side support for Secure Neighbor Discovery (SeND)"
+.Sh SYNOPSIS
+.In sys/socket.h
+.In netinet/in.h
+.In netinet6/send.h
+.Ft int
+.Fn socket PF_INET6 SOCK_RAW IPPROTO_SEND
+.Pp
+To load the driver as a module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+send_load="YES"
+.Ed
+.Sh DESCRIPTION
+IPv6 nodes use the Neighbor Discovery Protocol (NDP) to discover other nodes
+on the link, to determine their link-layer addresses to find routers, and
+to maintain reachability information about the paths to active members.
+NDP is vulnerable to various attacks [RFC3756].
+Secure Neighbor Discovery is a set of extensions to NDP that counter threats
+to NDP [RFC3971].
+.Pp
+Kernel side support for SeND consists of a kernel module with hooks that
+divert relevant packets (Neighbor Solicitations, Neighbor Advertisements,
+Router Solicitations, Router Advertisements and Redirects) from the NDP stack,
+send them to user space on a dedicated socket and reinject them back for
+further processing.
+Hooks are triggered only if the
+.Nm
+module is loaded.
+.Pp
+The native SeND socket is similar to a raw IP socket, but with its own,
+internal pseudo-protocol (IPPROTO_SEND).
+Struct sockaddr_send is defined in
+.In netinet6/send.h .
+It defines the total length of the structure, the address family, packet's
+incoming or outgoing direction from the interface's point of view, and the
+interface index.
+.Bd -literal
+struct sockaddr_send {
+        unsigned char           send_len;       /* total length */
+        sa_family_t             send_family;    /* address family */
+        int                     send_direction;
+        int                     send_ifidx;
+        char                    send_zero[8];
+};
+.Ed
+.Pp
+The address family is always
+.Va AF_INET6 .
+The
+.Va send_direction
+variable denotes the direction of the packet from the interface's
+point of view and has either the value
+.Dv SND_IN
+or
+.Dv SND_OUT .
+The
+.Va send_ifidx
+variable is the interface index of the receiving or sending interface.
+The
+.Va send_zero
+variable is padding and must always be zero.
+.Pp
+In case that no user space application is connected to the send socket,
+processing continues normally as if the module was not loaded.
+.Sh INPUT HOOK
+The input hook is named after the input path of the incoming or outgoing
+NDP packets, on the way from the wire, through the nd6 stack, to user
+space.
+Relevant packets are identified by adding an mbuf_tag
+(see
+.Xr mbuf_tags 9 )
+to the
+.Xr mbuf 9 ,
+if the
+.Nm
+module is loaded.
+It is then passed on to the kernel-userland interface
+for either cryptographic protection or validation by the SeND application.
+The hook takes an argument that describes the direction of the packet, both
+in case of incoming and outgoing packets.
+.Dv SND_IN
+is the direction of the incoming packets that are usually protected
+by the SeND options and then sent to user space for cryptographic validation.
+.Dv SND_OUT
+is the outgoing direction.
+It describes both reply and locally
+originated outgoing packets that are sent to user space for the addition
+of SeND options.
+.Sh INCOMING PACKETS
+The incoming ND packet from the wire:
+.Bd -literal
+                                        kernelspace ( userspace
+                                                    )
+ incoming SeND/ND packet                            (
+            |                                       )
+            v                 ( SND_IN )            (
+           icmp6_input() -> send_input_hook ---> send socket ----+
+            :                                       )            |
+            :             #                 #       (            |
+   normal   :             #                 #       )            v
+ processing :             #     send.ko     #       (    SeND application
+    path    :             #                 #       )            |
+            :             #                 #       (            |
+            v                                       )            |
+   icmp6/nd6_??_input() <- protocol switch  <--- send socket <---+
+            |         structure (IPPPROTO_SEND)     )
+            |                ( SND_IN )             (
+            v                                       )
+ continue normal ND processing                      (
+.Ed
+.Sh OUTGOING PACKETS
+Outgoing ND packet (reply or locally triggered):
+.Bd -literal
+                                        kernelspace ( userspace
+                                                    )
+ nd6_na_input()                                     (
+ +PACKET_TAG_ND_OUTGOING                            )
+ |                                                  )
+ |   outgoing packet                                (
+ |          |                                       )
+ |          v                                       (
+ |   icmp6_redirect_output()                        )
+ |   nd6_ns_output()                                (
+ |   nd6_na_output()                                )
+ |   +PACKET_TAG_ND_OUTGOING                        (
+ |          |                                       )
+ |          +-----------<- rip6_output() <----------)----- rtsol/rtadvd/..
+ |          |              +PACKET_TAG_ND_OUTGOING  (
+ |          v                                       )
+ |       ip6_output()                               (
+ |          |                                       )
+ +-------->-+                                       (
+            |                                       )
+            v                ( SND_OUT )            (
+        nd6_output_lle() -> send_input_hook ---> send socket ----+
+ -PACKET_TAG_ND_OUTGOING                            )            |
+            :             #                 #       (            |
+   normal   :             #                 #       )            v
+ processing :             #     send.ko     #       (    SeND application
+    path    :             #                 #       )            |
+            :             #                 #       (            |
+            v                                       )            |
+    (*ifp->if_output)() <- protocol switch  <--- send socket <---+
+            |         structure (IPPPROTO_SEND)     )
+            |                ( SND_OUT )            (
+            v                                       )
+ continue with normal packet output                 (
+.Ed
+.Sh ERRORS
+A socket operation may fail with one of the following errors returned:
+.Bl -tag -width Er
+.It Bq Er EEXIST
+Another user space SeND application is bound to the socket.
+.It Bq Er ENOBUFS
+Shortage of space to receive the incoming (SeND-protected) or outgoing
+(SeND-validated) packet from the SeND application.
+.It Bq Er ENOSYS
+A packet received from user space and passed to the NDP stack for further
+processing is neither Neighbor Solicitation, Neighbor Advertisement,
+Router Solicitation, Router Advertisement nor Redirect.
+.It Bq Er ENOENT
+Occurs if interface output routines fail to send the packet out of the
+interface.
+.El
+.Sh SEE ALSO
+.Xr recvfrom 2 ,
+.Xr sendto 2 ,
+.Xr socket 2 ,
+.Xr loader.conf 5
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An Ana Kukec Aq Mt anchie@FreeBSD.org ,
+University of Zagreb
+.Sh BUGS
+Due to the lack of NDP locking, it is currently not possible to unload the
+.Nm
+module.

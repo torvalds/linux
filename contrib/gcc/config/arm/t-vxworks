@@ -1,0 +1,10 @@
+# Multilibs for VxWorks.
+
+MULTILIB_OPTIONS = \
+  t4/t4be/t4t/t4tbe/t5/t5be/t5t/t5tbe/txscale/txscalebe
+
+MULTILIB_DIRNAMES = \
+  ARMARCH4gnu ARMARCH4gnube ARMARCH4_Tgnu ARMARCH4_Tgnube \
+  ARMARCH5gnu ARMARCH5gnube ARMARCH5_Tgnu ARMARCH5_Tgnube \
+  XSCALEgnu XSCALEgnube
+

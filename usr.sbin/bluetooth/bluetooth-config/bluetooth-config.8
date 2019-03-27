@@ -1,0 +1,111 @@
+.\" Copyright (c) 2019 Dirk Engling
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 7, 2019
+.Dt BLUETOOTH-CONFIG 8
+.Os
+.Sh NAME
+.Nm bluetooth-config
+.Nd a script to manage config files for the bluetooth sub system
+.Sh SYNOPSIS
+.Nm
+.Ar scan
+.Op Fl d Ar device
+.Op Fl n Ar node
+.Sh DESCRIPTION
+The
+.Nm
+utility is an interactive script to provide a frontend to the complex bluetooth sub system daemons.
+.Pp
+The following options are available:
+.Bl -tag -width indent+
+.It Fl d
+Scan for a specific bluetooth device address.
+.It Fl n
+Limit scan to a specific host controller. Hint: List all netgraph nodes with
+.Ql /usr/sbin/ngctl list .
+.El
+.Pp
+.Nm
+will help finding and setting up bluetooth controllers, scan for nearby bluetooth devices in
+pairing mode, lookup their names, allow mapping to friendly names in
+.Pa /etc/bluetooth/hosts ,
+ask for the paring PIN, instrument
+.Xr hcsecd 8
+to securely pair with new devices and, if the device offers HID endpoints such as mice or
+keyboards, configure and restart
+.Xr bthidd 8 .
+.Pp
+.Nm
+can bring up any interface and daemon necessary for operation and, if a node is provided on
+command line, will do so automatically for that interface.
+.Sh CAVEATS
+.Nm
+can not parse entries in
+.Xr hcsecd 8
+config file and thus will ask the user to manually modify existing pairing PIN entries.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/bluetooth/hosts" -compact
+.It Pa /etc/bluetooth/hosts
+.It Pa sysrc -n bthidd_config
+.It Pa sysrc -n hcsecd_config
+.El
+.Sh EXAMPLES
+.Nm
+scan -n ubt0 -a 00:26:bb:7a:58:95
+.Bd -ragged -offset indent
+This will scan the bluetooth controller ubt0hci for a bluetooth device with the address
+00:26:bb:7a:58:95, set up ubt0 if necessary and enter an interactive dialog to pair the
+new device. Since in this example a mouse is paired,
+.Nm
+will interact with
+.Xr bthidd 8 ,
+enabling it if necessary and then write an HID descriptor to its config.
+.Ed
+.Pp
+.Nm
+scan
+.Bd -ragged -offset indent
+This will scan all bluetooth controllers on the systems for bluetooth devices, prompting
+to bring up controllers or daemons along the way.
+.Ed
+.Sh SEE ALSO
+.Xr bthidcontrol 8 ,
+.Xr bthidd 8 ,
+.Xr bthost 1 ,
+.Xr hccontrol 8 ,
+.Xr hcsecd 8 ,
+.Xr sdpcontrol 8 ,
+.Xr sysrc 8
+.Sh HISTORY
+A
+.Nm
+utility first appeared in
+.Fx 12.1 .
+.Sh AUTHORS
+.An Dirk Engling Aq Mt erdgeist@erdgeist.org
+.Sh THANKS TO
+Lars Engels and Warren Block for suggestions, help, and testing.

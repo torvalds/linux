@@ -1,0 +1,140 @@
+$ $tcsh: set1,v 1.5 2015/05/26 17:38:25 christos Exp $
+$ Mensajes de Error
+$set 1 
+1 Error de sintaxis
+2 %s no está permitido
+3 Palabra demasiado larga
+4 $< línea demasiado larga
+5 No hay fichero para $0
+6 Modificador [] incompleto
+7 $ expansión debe terminar antes de ]
+8 Modificador erróneo : en $ '%c'
+9 Error de índice
+10 Número erróneamente formado
+11 No hay más palabras
+12 Falta nombre de fichero
+13 Error interno de glob
+14 Comando no encontrado
+15 Demasiado pocos argumentos
+16 Demasiados argumentos
+17 Es demasiado peligroso crear un alias para eso
+18 `If' vacío
+19 `Then' incorrecto
+20 Las palabras no están entre paréntesis
+21 No se encuentra %s
+22 Máscara incorrecta
+23 No existe límite de ese tipo
+24 Argumento demasiado grande
+25 Factor de escala incorrecto o desconocido
+26 Variable indefinida
+27 La pila de directorios no es tan profunda
+28 Mal número de señal
+29 Señal desconocida; `kill -l' lista las señales
+30 El nombre de la variable debe comenzar con una letra
+31 El nombre de la variable es demasiado grande
+32 El nombre de la variable debe contener caracteres alfanuméricos
+33 No hay control de trabajos en esta shell
+34 Sintaxis de la expresión
+35 No está el directorio personal
+36 No se puede cambiar al directorio personal
+37 Comando nulo inválido
+38 Expresion carece de asignación
+39 Operador desconocido
+40 Ambiguo
+41 %s: Archivo existente
+42 El argumento para `-c' debe terminar en una barra invertida
+43 Interumpido
+44 Índice fuera del rango válido
+45 Sobrepasada la capacidad de la línea
+46 No existe ese trabajo
+47 No se puede desde una terminal
+48 No se encuentra en bucle while/foreach
+49 No hay más procesos
+50 No existe correspondencia
+51 Falta '%c'
+52 No se ha hallado correspondencia con '%c'
+53 Memoria insuficiente
+54 No se puede crear la tubería
+55 %s: %s
+56 %s
+57 Uso: jobs [ -l ]
+58 Los argumentos deben ser trabajos o identificadores de proceso
+59 No hay trabajo en curso
+60 No hay trabajo previo
+61 No hay trabajo que corresponda con este patrón
+62 Llamadas a `fork' entrelazadas > %d; puede ser un bucle `...`
+63 No se puede gestionar trabajos en sub-shells 
+64 Fallo de sincronización: No se encuentra el proceso %d
+65 %shay trabajos interrumpidos
+66 %shay trabajos parados
+67 No hay más directorios
+68 Pila de directorios vacía
+69 Directorio erróneo
+70 Uso: %s [-%s]%s
+71 `-h' necesita operandos
+72 No es un shell de ingreso
+73 División por 0
+74 Módulo por 0
+75 Error de escala: Seguro que era "%s"?
+76 No se puede suspender un shell de ingreso (aún)
+77 Usuario desconocido: %s
+78 La variable $home no está definida
+79 Uso: history [-%s] [# número de comandos]
+80 No esta permitido el uso de $, ! o < con $# o $?
+81 Nombre de variable incluye un retorno de carro
+82 No esta permitido el uso de * con  $# o $?
+83 No esta permitido usar $?<dígito> o $#<dígito>
+84 Nombre de variable ilegal
+85 Retorno de carro en el índice de variables
+86 Desborde en el buffer de expansión
+87 Sintaxis de variable
+88 Forma ! incorrecta
+89 No existe sustituto previo
+90 Sustituto erróneo
+91 No existe `lado izquierdo' previo
+92 Valor de asignación demasiado largo
+93 Modificador de ! incorrecto: '%c'
+94 Error de modificador
+95 Desborde el el buffer de sustitución
+96 Selector de argumento de ! erróneo
+97 No existe búsqueda previa
+98 %s: No se encuentra el comando
+99 Demasiados `)'
+100 Demasiados `('
+101 Colocación de `(' incorrecta
+102 Falta el nombre de la redirección
+103 Redirección de salida ambigua
+104 No se puede usar << entre paréntesis
+105 Redirección de entrada ambigua
+106 Colocación de paréntesis errónea
+107 Lazo en los `alias'
+108 La variable $watch no ha sido definida
+109 No hay comandos programados
+110 Uso: sched -<item#>.\nUso: sched [+]hh:mm <comando>
+111 No hay tantos comandos programados
+112 No hay ningún comando a ejecutar
+113 Tiempo de ejecución del comando incorrecto
+114 Tiempo relativo inconsistente con am/pm
+115 Se ha agotado el espacio para cadenas termcap
+116 Uso: settc %s [yes|no]
+117 Característica `%s' desconocida
+118 Parámetro termcap '%%%c' desconocido
+119 Demasiados argumentos para `%s' (%d)
+120 `%s' requiere %d argumentos
+121 Uso: echotc [-v|-s] [<característica> [<args>]]
+122 %s: %s. Arquitectura errónea
+123 !# Lazo en el historial
+124 Consulta de archivo incorrecta
+125 Desborde en el selector
+126 Opción desconocida: `-%s'\nUso: %s [ -bcdefilmnqstvVxX -Dnombre[=valor] ] [ argumento ... ]
+127 Opción desconocida: `-%s'\nUso: %s [ -bcdefFilmnqstvVxX ] [ argumento ... ]
+128 Opción desconocida: `-%s'\nUso: %s [ -bcdefilmnqstvVxX ] [ argumento ... ]
+129 \nModo de terminación automática inválido: "%s"
+130 \nInválido %s: '%c'
+131 \nFalta el separador '%c' después %s "%s"
+132 \n%s incompleto: "%s"
+133 `-m' no necesita operandos
+134 Uso: unlimit [-fh] [límites]
+135 $%S es de sólo-lectura
+136 No existe ese trabajo
+137 Unknown colorls variable '%c%c'

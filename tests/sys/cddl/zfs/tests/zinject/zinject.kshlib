@@ -1,0 +1,227 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)zinject.kshlib	1.6	09/06/22 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/cli_root/zfs_set/zfs_set_common.kshlib
+. $STF_SUITE/tests/cache/cache.kshlib
+
+function cleanup_env
+{
+	inject_clear
+	poolexists $TESTPOOL && \
+		destroy_pool $TESTPOOL
+	[[ -d $TESTDIR ]] && \
+		log_must $RM -rf $TESTDIR
+}
+
+#
+# Inject an error into object
+# 	$1: data,dnode,mos,mosdir,config,bplist,spacemap,metaslab,errlog
+#	$2: if $1 is data or dnode, $2 should be a file or dir.
+#		otherwise, $2 should be poolname
+#	$3: "io" or "checksum"
+#	$4: expect return value of zinject, default is 0
+#
+function inject_fault #type, object, error, expect
+{
+	typeset type=$1
+	typeset object=$2
+	typeset error=${3:-io}
+	typeset -i expect=${4:-0}
+
+	if (( expect == 0 )); then  
+		log_must eval '$ZINJECT -t $type -e $error \
+			-m -a -q $object > /dev/null 2>&1'
+	else
+		log_mustnot eval '$ZINJECT -t $type -e $error \
+			-m -a -q $object > /dev/null 2>&1'
+	fi		
+	$SLEEP 1
+	return 0
+}
+
+#
+# Clear all registrated handler and do scrub to keep integrity
+#
+function inject_clear
+{
+	log_must eval '$ZINJECT -c all > /dev/null 2>&1'
+	$SLEEP 1
+	if poolexists $TESTPOOL ; then
+		while ! check_pool_status $TESTPOOL "state" "ONLINE" ; do
+			log_must $ZPOOL clear $TESTPOOL
+			$SLEEP 2
+		done
+		log_must $ZPOOL scrub $TESTPOOL
+		while ! is_pool_scrubbed $TESTPOOL && ! is_pool_resilvered $TESTPOOL ; do
+			$SLEEP 2
+		done
+	fi
+	return 0
+}
+
+#
+# Inject a fault into a particular device
+#	$1: device name
+#	$2: pool name 
+#	$3: errno, can either be 'nxio' (the default) or 'io'.
+#
+function inject_device #device, pool, errno
+{
+	typeset device=$1
+	typeset pool=$2
+	typeset errno=$3
+
+	log_must eval '$ZINJECT -d $device -e $errno -q $pool > /dev/null 2>&1'
+	$SLEEP 1
+	return 0
+}
+
+#
+# Check if the ereport is occurred after the given timestamp
+#
+function check_ereport #timestamp, etype
+{
+	typeset etime=$1
+	typeset ereport
+	typeset -i i=0
+	typeset -i maxtimes=20
+
+	shift
+
+	for type in $@ ; do
+		i=0
+		while (( i < maxtimes )); do
+			(( i = i + 1 ))
+			ereport=$($FMDUMP -t "$etime" -e -v -c $type | \
+				$NAWK '(NR != 1) {print $0}')
+			if [[ -n $ereport ]]; then
+				break
+			elif (( i == maxtimes )) ; then
+				$FMDUMP -t "$etime" -e -v
+				log_fail "$type not found"
+			fi
+			$SLEEP 3
+		done
+	done
+	return 0
+}
+
+#
+# Check if the fault is occurred after the given timestamp
+#
+function check_fault #timestamp, fault_class
+{
+	typeset after_time=$1
+	typeset ereport
+	typeset -i i=0
+	typeset -i maxtimes=20
+
+	shift
+
+	for fault in $@ ; do
+		i=0
+		while (( i < maxtimes )); do
+			(( i = i + 1 ))
+			ereport=$($FMDUMP -av -t "$after_time" | $GREP $fault)
+			if [[ -n $ereport ]]; then
+				break
+			elif (( i == maxtimes )) ; then
+				$FMDUMP -av -t "$after_time"
+				log_fail "$fault not found"
+			fi
+			$SLEEP 3
+		done
+	done
+	return 0
+}
+
+#
+# Check if 'zpool status -v' contain the permanent error as expected
+#
+function check_status #poolname, errors
+{
+	typeset poolname=$1
+	typeset errors=$2
+
+	for err in $errors ; do
+		ereport=$($ZPOOL status -v $poolname | $GREP "$err")
+		if [[ -z $ereport ]]; then
+			$ZPOOL status -v $poolname
+			log_fail "$err not found"
+		fi
+	done
+	return 0
+}
+
+#
+# Invoke the trigger function according to the fault type corresponded
+#
+function trigger_inject #etype, object, objtype
+{
+	typeset etype=$1
+	typeset object=$2
+	typeset objtype=$3
+
+	if [[ $etype == "bplist" ]] ; then
+		$ECHO "ZFS Fault Harness" > $object
+	fi
+		
+	case $objtype in
+		dir)
+			$LS -l $object > /dev/null 2>&1
+			;;
+		file)
+			$CAT $object > /dev/null 2>&1
+			;;
+	esac
+}
+
+function populate_test_env #basedir #count
+{
+	typeset basedir=$1
+	typeset -i count=$2
+	typeset -i i=1
+
+	if [[ -d $basedir ]]; then
+		log_must $RM -rf $basedir/*
+	else
+		log_must $MKDIR -p $basedir
+	fi
+
+	while (( i <= count )); do
+		$ECHO "ZFS Fault Harness" > $basedir/testfile.$i
+		$MKDIR -p $basedir/testdir.$i
+		(( i = i + 1 ))
+	done
+
+	return 0
+}

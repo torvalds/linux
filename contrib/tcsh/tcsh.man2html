@@ -1,0 +1,850 @@
+: # -*- perl -*-
+# $tcsh: tcsh.man2html,v 1.15 2011/02/05 16:15:56 christos Exp $
+
+# tcsh.man2html, Dave Schweisguth <dcs@proton.chem.yale.edu>
+#
+# Notes:
+#
+# Always puts all files in the directory tcsh.html, creating it if necessary.
+# tcsh.html/top.html is the entry point, and tcsh.html/index.html is a symlink
+# to tcsh.html/top.html so one needn't specify a file at all if working through
+# a typically configured server.
+#
+# Designed for tcsh manpage. Guaranteed not to work on manpages not written
+# in the exact same style of nroff -man, i.e. any other manpage.
+#
+# Makes links FROM items which are both a) in particular sections (see
+# Configuration) and b) marked with .B or .I. Makes links TO items which
+# are marked with \fB ... \fR or \fI ... \fR.
+#
+# Designed with X Mosaic in mind and tested lightly with lynx. I've punted on
+# HTML's lack of a .PD equivalent and lynx's different <menu> handling.
+
+# Emulate #!/usr/local/bin/perl on systems without #!
+
+eval '(exit $?0)' && eval 'exec perl -S $0 ${1+"$@"}'
+& eval 'exec perl -S $0 $argv:q' if 0;
+
+### Constants
+
+# Setup
+
+($whatami = $0)	=~ s|.*/||;	# `basename $0`
+$isatty		= -t STDIN;
+
+# Configuration
+
+$index		= 0;		# Don't make a searchable index CGI script
+$cgibin		= 0;		# Look for $cgifile in $dir, not $cgibindir
+$shortfiles	= 0;		# Use long filenames
+$single		= 0;		# Make single page instead of top and sections
+
+$host		= '';		# host:port part of server URL ***
+$updir		= '';		# Directories between $host and $dir ***
+$dir		= 'tcsh';	# Directory in which to put the pieces *
+$cgifile	= 'tcsh.cgi';	# CGI script name **
+$cgibindir	= 'cgi-bin';	# CGI directory ***
+$headerfile	= 'header';	# HTML file for initial comments *
+$indexfile	= 'index';	# Symlink to $topfile *
+$listsfile	= 'lists';	# Mailing list description HTML file *	
+$outfile	= 'tcsh.man';	# Default input file and copy of input file
+$script		= $whatami;	# Copy of script; filename length must be OK
+$topfile	= 'top';	# Top-level HTML file *
+
+# *   .htm or .html suffix added later
+# **  Only used with -i or -c
+# *** Only used with -c
+
+# Sections to inline in the top page
+
+%inline_me	= ('NAME',	1,
+		   'SYNOPSIS',	1);
+
+# Sections in which to put name anchors and the font in which to look for
+# links to those anchors
+
+%link_me	= ('Editor commands',		'I',
+		   'Builtin commands',		'I',
+		   'Special aliases',		'I',
+		   'Special shell variables',	'B',
+		   'ENVIRONMENT',		'B',
+		   'FILES',			'I');
+
+### Arguments and error-checking
+
+# Parse args
+
+while ($#ARGV > -1 && (($first, $rest) = ($ARGV[0] =~ /^-(.)(.*)/))) {
+    # Perl 5 lossage alert
+    if ($first =~ /[CdDGh]/) {	# Switches with arguments
+    	shift;
+    	$arg = $rest ne '' ? $rest : $ARGV[0] ne '' ? shift :
+      	    &usage("$whatami: -$first requires an argument.\n");
+    } elsif ($rest ne '') {
+    	$ARGV[0] = "-$rest";
+    } else {
+	shift;
+    }
+    if	  ($first eq '1')   { $single = 1; }
+    elsif ($first eq 'c')   { $cgibin = 1; }
+    elsif ($first eq 'C')   { $cgibindir = $arg; }
+    elsif ($first eq 'd')   { $updir = $arg; }
+    elsif ($first eq 'D')   { $dir = $arg; }
+    elsif ($first eq 'G')   { $cgifile = $arg; }
+    elsif ($first eq 'h')   { $host = $arg; }
+    elsif ($first eq 'i')   { $index = 1; }
+    elsif ($first eq 's')   { $shortfiles = 1; }
+    elsif ($first eq 'u')   { &usage(0); }
+    else		    { &usage("$whatami: -$first is not an option.\n"); }
+}
+
+if (@ARGV == 0) {
+    if ($isatty) {
+        $infile = $outfile;		# Default input file if interactive
+    } else {
+	$infile = 'STDIN';		# Read STDIN if no args and not a tty
+    }
+} elsif (@ARGV == 1) {
+    $infile = $ARGV[0];
+} else {
+    &usage("$whatami: Please specify one and only one file.\n");
+}
+
+$index = $index || $cgibin;		# $index is true if $cgibin is true
+
+if ($cgibin && ! $host) {
+    die "$whatami: Must specify host with -h if using -c.\n";
+}
+
+# Decide on HTML suffix and append it to filenames
+
+$html = $shortfiles ? 'htm' : 'html';	# Max 3-character extension
+$dir		.= ".$html";		# Directory in which to put the pieces
+$headerfile	.= ".$html";		# HTML file for initial comments
+$topfile	.= ".$html";		# Top-level HTML file (or moved notice)
+$indexfile	.= ".$html";		# Symlink to $topfile
+$listsfile	.= ".$html";		# Mailing list description HTML file
+
+# Check for input file
+
+unless ($infile eq 'STDIN') {
+    die "$whatami: $infile doesn't exist!\n"	unless -e $infile;
+    die "$whatami: $infile is unreadable!\n"	unless -r _;
+    die "$whatami: $infile is empty!\n"		unless -s _;
+}
+
+# Check for output directory and create if necessary
+
+if (-e $dir) {
+    -d _ || die "$whatami: $dir is not a directory!\n";
+    -r _ && -w _ && -x _ || die "$whatami: $dir is inaccessible!\n"
+} else {
+    mkdir($dir, 0755) || die "$whatami: Can't create $dir!\n";
+}
+
+# Slurp manpage
+
+if ($infile eq 'STDIN') {
+    @man = <STDIN>;
+} else {
+    open(MAN, $infile) || die "$whatami: Error opening $infile!\n";
+    @man = <MAN>;
+    close MAN;
+}
+
+# Print manpage to HTML directory (can't use cp if we're reading from STDIN)
+
+open(MAN, ">$dir/$outfile") || die "$whatami: Can't open $dir/$outfile!\n";
+print MAN @man;
+close MAN;
+
+# Copy script to HTML directory
+
+(system("cp $0 $dir") >> 8) && die "$whatami: Can't copy $0 to $dir!\n";
+
+# Link top.html to index.html in case someone looks at tcsh.html/
+
+system("rm -f $dir/$indexfile");    # Some systems can't ln -sf
+(system("ln -s $topfile $dir/$indexfile") >> 8)
+    && die "$whatami: Can't link $topfile to $dir/$indexfile!\n";
+
+### Get title and section headings
+
+$comment = 0;			    # 0 for text, 1 for ignored text
+@sectionlines = (0);		    # First line of section
+@sectiontypes = (0);		    # H or S
+@sectiontexts = ('Header');	    # Text of section heading
+@sectionfiles = ($headerfile);	    # Filename in which to store section
+%name = ();			    # Array of name anchors
+@name = () if $index;		    # Ordered array of name anchors
+$font = '';		    	    # '' to not make names, 'B' or 'I' to do so
+
+$line = 0;
+foreach (@man) {
+    if (/^\.ig/) {		    # Start ignoring
+	$comment = 1;
+    } elsif (/^\.\./) {		    # Stop ignoring
+	$comment = 0;
+    } elsif (! $comment) {	    # Not in .ig'ed section; do stuff
+	
+	# nroff special characters
+	
+	s/\\-/-/g;		    # \-
+	s/\\^//g;		    # \^
+	s/^\\'/'/;		    # leading ' escape
+	s/^\\(\s)/$1/;		    # leading space escape
+	s/\\(e|\\)/\\/g;	    # \e, \\; must do this after other escapes
+
+	# HTML special characters; deal with these before adding more
+	
+	s/&/&amp\;/g;
+	s/>/&gt\;/g;
+	s/</&lt\;/g;
+	
+	# Get title
+	
+	if (/^\.TH\s+(\w+)\s+(\w+)\s+\"([^\"]*)\"\s+\"([^\"]*)\"/) {
+	    $title = "$1($2) $4 ($3) $1($2)";
+	}
+	
+	# Build per-section info arrays
+	
+	if (($type, $text) = /^\.S([HS])\s+\"?([^\"]*)\"?/) {
+
+	    push(@sectionlines, $line);	    # Index of first line of section
+	    push(@sectiontypes, $type eq 'H' ? 0 : 1);	# Type of section
+	    $text =~ s/\s*$//;		    # Remove trailing whitespace
+	    push(@sectiontexts, $text);	    # Title of section (key for href)
+	    $text =~ s/\s*\(\+\)$//;	    # Remove (+)
+	    if ($shortfiles) {
+		$file = $#sectionlines;	    # Short filenames; use number
+	    } else {
+		$file = $text;		    # Long filenames; use title
+		$file =~ s/[\s\/]+/_/g;	    # Replace whitespace and / with _
+	    }
+	    $file .= ".$html" unless $single;
+	    push(@sectionfiles, $file);	    # File in which to store section
+	    $name{"$text B"} = ($single ? '#' : '') . $file;
+					    # Index entry for &make_hrefs
+	    push(@name, "$text\t" . $name{"$text B"}) if $index;
+					    # Index entry for CGI script
+	    # Look for anchors in the rest of this section if $link_me{$text}
+	    # is non-null, and mark them with the font which is its value
+
+	    $font = $link_me{$text};
+    	}
+	&make_name(*name, *font, *file, *index, *_) if $font;
+    }
+    $line++;
+}
+
+### Make top page
+
+open(TOP, ">$dir/$topfile");
+select TOP;
+
+# Top page header
+
+print <<EOP;
+<HEAD>
+<TITLE>$title</TITLE>
+</HEAD>
+<BODY>
+<A NAME="top"></A>
+<H1>$title</H1>
+<HR>
+EOP
+
+# FORM block, if we're making an index
+
+$action = $cgibin ? "http://$host/$cgibindir/$cgifile" : $cgifile;
+
+print <<EOP if $index;
+<FORM METHOD="GET" ACTION="$action">
+Go directly to a section, command or variable: <INPUT NAME="input">
+</FORM>
+EOP
+
+# Table of contents
+
+print <<EOP;
+<H2>
+EOP
+
+foreach $section (1 .. $#sectionlines) {
+    if ($sectiontypes[$section - 1] < $sectiontypes[$section]) {
+	print "</H2> <menu>\n";	    # Indent, smaller font
+    } elsif ($sectiontypes[$section - 1] > $sectiontypes[$section]) {
+	print "</menu> <H2>\n";	    # Outdent, larger font
+    }
+    if ($inline_me{$sectiontexts[$section]}) {    # Section is in %inline_me
+	
+	# Print section inline
+	
+	print "$sectiontexts[$section]\n";
+	print "</H2> <menu>\n";	    # Indent, smaller font
+	&printsectionbody(*man, *sectionlines, *section, *name);
+	print "</menu> <H2>\n";	    # Outdent, larger font
+    } else {
+	
+	# Print link to section
+	
+	print "<A HREF=\"", $single ? '#' : '',
+	    "$sectionfiles[$section]\">$sectiontexts[$section]</A><BR>\n";
+    }
+}
+
+print <<EOP;
+</H2>
+EOP
+
+print "<HR>\n" if $single;
+
+### Make sections
+
+foreach $section (0 .. $#sectionlines) {
+
+    # Skip inlined sections
+
+    next if $inline_me{$sectiontexts[$section]};
+    
+    if ($single) {
+
+	# Header
+    
+	print <<EOP if $section;	# Skip header section
+<H2><A NAME="$sectionfiles[$section]">$sectiontexts[$section]</A></H2>
+<menu>
+EOP
+	&printsectionbody(*man, *sectionlines, *section, *name);
+	print <<EOP if $section;	# Skip header section
+<A HREF="#top">Table of Contents</A>
+</menu>
+EOP
+
+    } else {
+
+	# Make pointer line for header and trailer
+	
+	$pointers  = "<A HREF=\"$topfile\">Up</A>";
+	$pointers .= "\n<A HREF=\"$sectionfiles[$section + 1]\">Next</A>"
+	    if ($section < $#sectionlines) &&
+	    ! $inline_me{$sectiontexts[$section + 1]};
+	$pointers .= "\n<A HREF=\"$sectionfiles[$section - 1]\">Previous</A>"
+	    if ($section > 1) &&		# section 0 is initial comments
+	    ! $inline_me{$sectiontexts[$section - 1]};
+    
+	# Header
+
+	open(OUT, ">$dir/$sectionfiles[$section]");
+	select OUT;
+	print <<EOP;
+<HEAD>
+<TITLE>$sectiontexts[$section]</TITLE>
+</HEAD>
+<BODY>
+$pointers
+<H2>$sectiontexts[$section]</H2>
+EOP
+	&printsectionbody(*man, *sectionlines, *section, *name);
+
+	# Trailer
+
+	print <<EOP;
+$pointers
+</BODY>
+EOP
+
+    }
+}
+
+select TOP unless $single;
+
+# Top page trailer
+
+print <<EOP;
+</H2>
+<HR>
+Here are the <A HREF="$outfile">nroff manpage</A> (175K)
+from which this HTML version was generated,
+the <A HREF="$script">Perl script</A> which did the conversion
+and the <A HREF="ftp://ftp.astron.com/pub/tcsh/">
+complete source code</A> for <I>tcsh</I>.
+<HR>
+<I>tcsh</I> is maintained by
+Christos Zoulas <A HREF="mailto:christos\@gw.com">&lt;christos\@gw.com&gt;</A>
+and the <A HREF="$listsfile"><I>tcsh</I> maintainers' mailing list</A>.
+Dave Schweisguth <A HREF="mailto:dcs\@proton.chem.yale.edu">&lt;dcs\@proton.chem.yale.edu&gt;</A>
+wrote the manpage and the HTML conversion script.
+</BODY>
+EOP
+
+close TOP;
+
+### Make lists page
+
+open(LISTS, ">$dir/$listsfile");
+select LISTS;
+while(($_ = <DATA>) ne "END\n") {   # Text stored after __END__
+    s/TOPFILEHERE/$topfile/;
+    print;
+}
+close LISTS;
+
+### Make search script
+
+if ($index) {
+
+    # URL of $dir; see comments in search script
+
+    $root = $cgibin
+	? "'http://$host/" . ($updir ? "$updir/" : '') . "$dir/'"
+	: '"http://$ENV{\'SERVER_NAME\'}:$ENV{\'SERVER_PORT\'}" . (($_ = $ENV{\'SCRIPT_NAME\'}) =~ s|[^/]*$||, $_)';
+
+    # String for passing @name to search script
+
+    $name = join("',\n'", @name);
+
+    open(TOP, ">$dir/$cgifile");
+    select TOP;
+    while(($_ = <DATA>) ne "END\n") {   # Text stored after __END__
+	s/ROOTHERE/$root/;
+	s/NAMEHERE/$name/;
+	s/TOPFILEHERE/$topfile/;
+	print;
+    }
+    close TOP;
+    chmod(0755, "$dir/$cgifile") ||
+	die "$whatami: Can't chmod 0755 $dir/$cgifile!\n";
+    warn "$whatami: Don't forget to move $dir/$cgifile to /$cgibindir.\n"
+	if $cgibin;
+}
+
+### That's all, folks
+
+exit;
+
+### Subroutines
+
+# Process and print the body of a section
+
+sub printsectionbody {
+
+    local(*man, *sectionlines, *sline, *name) = @_;	# Number of section
+    local($sfirst, $slast, @paralines, @paratypes, $comment, $dl, $pline,
+	  $comment, $pfirst, $plast, @para, @tag, $changeindent);
+
+    # Define section boundaries
+
+    $sfirst = $sectionlines[$sline] + 1;
+    if ($sline == $#sectionlines) {
+	$slast = $#man;
+    } else {
+	$slast = $sectionlines[$sline + 1] - 1;
+    }
+
+    # Find paragraph markers, ignoring those between '.ig' and '..'
+
+    if ($man[$sfirst] =~ /^\.[PIT]P/) {
+	@paralines = ();
+	@paratypes = ();
+    } else {
+	@paralines = ($sfirst - 1);		# .P follows .S[HS] by default
+	@paratypes = ('P');
+    }
+    $comment = 0;
+    foreach ($sfirst .. $slast) {
+	if ($man[$_] =~ /^\.ig/) {		# Start ignoring
+	    $comment = 1;
+	} elsif ($man[$_] =~ /^\.\./) {		# Stop ignoring
+	    $comment = 0;
+	} elsif (! $comment && $man[$_] =~ /^\.([PIT])P/) {
+	    push(@paralines, $_);
+	    push(@paratypes, $1);
+	}
+    }
+
+    # Process paragraphs
+
+    $changeindent = 0;
+    $dl = 0;
+    foreach $pline (0 .. $#paralines) {
+
+	@para = ();
+	$comment = 0;
+
+	# Define para boundaries
+
+	$pfirst = $paralines[$pline] + 1;
+	if ($pline == $#paralines) {
+	    $plast = $slast;
+	} else {
+	    $plast = $paralines[$pline + 1] - 1;
+	}
+
+	foreach (@man[$pfirst .. $plast]) {
+	    if (/^\.ig/) {		    # nroff begin ignore
+		if ($comment == 0) {
+		    $comment = 2;
+		    push(@para, "<!--\n");
+		} elsif ($comment == 1) {
+		    $comment = 2;
+		} elsif ($comment == 2) {
+		    s/--/-/g;		    # Remove double-dashes in comments
+		    push(@para, $_);
+		}
+	    } elsif (/^\.\./) {		    # nroff end ignore
+		if ($comment == 0) {
+		    ;
+		} elsif ($comment == 1) {
+		    ;
+		} elsif ($comment == 2) {
+		    $comment = 1;
+		}
+	    } elsif (/^\.\\\"/) {	    # nroff comment
+		if ($comment == 0) {
+		    $comment = 1;
+		    push(@para, "<!--\n");
+		    s/^\.\\\"//;
+		} elsif ($comment == 1) {
+		    s/^\.\\\"//;
+		} elsif ($comment == 2) {
+		    ;
+		}
+		s/--/-/g;		    # Remove double-dashes in comments
+		push(@para, $_);
+	    } else {			    # Nothing to do with comments
+		if ($comment == 0) {
+		    ;
+    		} elsif ($comment == 1) {
+		    $comment = 0;
+		    push(@para, "-->\n");
+		} elsif ($comment == 2) {
+		    s/--/-/g;		    # Remove double-dashes in comments
+		}
+
+		unless ($comment) {
+		
+		    if (/^\.TH/) {	    # Title; got this already
+			next;
+		    } elsif (/^\.PD/) {	    # Para spacing; unimplemented
+			next;
+		    } elsif (/^\.RS/) {	    # Indent (one width only)
+			$changeindent++;
+			next;
+		    } elsif (/^\.RE/) {	    # Outdent
+			$changeindent--;
+			next;
+		    }
+
+		    # Line break
+		    s/^\.br.*/<BR>/;
+
+		    # More nroff special characters
+
+		    s/^\\&amp\;//;	    # leading dot escape; save until
+					    #   now so leading dots aren't
+					    #   confused with ends of .igs
+
+		    &make_hrefs(*name, *_);			
+		}
+		push(@para, $_);
+	    }
+	}
+	
+	push(@para, "-->\n") if $comment;   # Close open comment
+	
+    	# Print paragraph
+
+	if ($paratypes[$pline] eq 'P') {
+	    &font(*para);
+	    print   @para;
+	} elsif ($paratypes[$pline] eq 'I') {
+	    &font(*para);
+	    print   "<menu>\n",
+		    @para,
+		    "</menu>\n";
+	} else {			# T
+	    @tag = shift(@para);
+	    &font(*tag);
+	    &font(*para);
+	    print   "<DL compact>\n" unless $dl;
+	    print   "<DT>\n",
+		    @tag,
+		    "<DD>\n",
+		    @para;
+	    if ($pline == $#paratypes || $paratypes[$pline + 1] ne 'T') {
+		# Perl 5 lossage alert
+		# Next para is not a definition list
+		$dl = 0;		    # Close open definition list
+		print "</DL>\n";
+	    } else {
+		$dl = 1;		    # Leave definition list open
+	    }
+	}
+	print "<P>\n";
+	
+	# Indent/outdent the *next* para
+	
+	while ($changeindent > 0) {
+	    print "<menu>\n";
+	    $changeindent--;
+	}
+	while ($changeindent < 0) {
+	    print "</menu>\n";
+	    $changeindent++;
+	}
+    }
+    1;
+}
+
+# Make one name anchor in a line; cue on fonts (.B or .I) but leave them alone
+
+sub make_name {
+
+    local(*name, *font, *file, *index, *line) = @_;
+    local($text);
+
+    if (($text) = ($line =~ /^\.[BI]\s+([^\s\\]+)/)) {	# Found pattern
+
+	if (
+	    $text !~ /^-/		    # Avoid lists of options
+	    && (length($text) > 1	    # and history escapes
+		||  $text =~ /^[%:@]$/)	    # Special pleading for %, :, @
+	    && ! $name{"$text $font"}	    # Skip if there's one already
+	) {
+	    # Record link
+	    
+	    $name{"$text $font"} = ($single ? '' : $file) . "#$text";
+	    push(@name, "$text\t" . $name{"$text $font"}) if $index;
+	    
+	    # Put in the name anchor
+    
+	    $line =~ s/^(\.[BI]\s+)([^\s\\]+)/$1<A NAME=\"$text\">$2<\/A>/;
+	}
+    }
+    $line;
+}
+
+# Make all the href anchors in a line; cue on fonts (\fB ... \fR or
+# \fI ... \fR) but leave them alone
+
+sub make_hrefs {
+
+    local(*name, *line) = @_;
+    local(@pieces, $piece);
+
+    @pieces = split(/(\\f[BI][^\\]*\\fR)/, $line);
+    
+    $piece = 0;
+    foreach (@pieces) {
+	if (/\\f([BI])([^\\]*)\\fR/	# Found a possibility
+
+	# It's not followed by (, i.e. it's not a manpage reference
+
+	&& substr($pieces[$piece + 1], 0, 1) ne '(') {
+	    $key = "$2 $1";
+	    if ($name{$key}) {			# If there's a matching name
+		s/(\\f[BI])([^\\]*)(\\fR)/$1<A HREF=\"$name{$key}\">$2<\/A>$3/;
+	    }
+	}
+	$piece++;
+    }
+    $line = join('', @pieces);
+}
+
+# Convert nroff font escapes to HTML
+# Expects comments and breaks to be in HTML form already
+
+sub font {
+
+    local(*para) = @_;
+    local($i, $j, @begin, @end, $part, @pieces, $bold, $italic);
+
+    return 0 if $#para == -1;   # Ignore empty paragraphs
+				# Perl 5 lossage alert
+
+    # Find beginning and end of each part between HTML comments
+
+    $i = 0;
+    @begin = ();
+    @end = ();
+    foreach (@para) {
+	push(@begin, $i + 1) if /^-->/ || /^<BR>/;
+	push(@end, $i - 1) if /^<!--/ || /^<BR>/;
+	$i++;
+    }
+    if ($para[0] =~ /^<!--/ || $para[0] =~ /^<BR>/) {
+	shift(@end);
+    } else {
+	unshift(@begin, 0);	# Begin at the beginning
+    }
+    if ($para[$#para] =~ /^-->/ || $para[$#para] =~ /^<BR>/) {
+	pop(@begin);
+    } else {
+	push(@end, $#para);	# End at the end
+    }
+
+    # Fontify each part
+
+    $bold = $italic = 0;
+    foreach $i (0 .. $#begin) {
+	$part = join('', @para[$begin[$i] .. $end[$i]]);
+	$part =~ s/^\.([BI])\s+(.*)$/\\f$1$2\\fR/gm;	    # .B, .I
+	@pieces = split(/(\\f[BIR])/m, $part);
+	$part = '';
+	foreach $j (@pieces) {
+	    if ($j eq '\fB') {
+		if ($italic) {
+		    $italic = 0;
+		    $part .= '</I>';
+		}
+		unless ($bold) {
+		    $bold = 1;
+		    $part .= '<B>';
+		}
+	    } elsif ($j eq '\fI') {
+		if ($bold) {
+		    $bold = 0;
+		    $part .= '</B>';
+		}
+		unless ($italic) {
+		    $italic = 1;
+		    $part .= '<I>';
+		}
+	    } elsif ($j eq '\fR') {
+		if ($bold) {
+		    $bold = 0;
+		    $part .= '</B>';
+		} elsif ($italic) {
+		    $italic = 0;
+		    $part .= '</I>';
+		}
+	    } else {
+		$part .= $j;	
+	    }
+	}
+
+	# Close bold/italic before break
+
+	if ($end[$i] == $#para || $para[$end[$i] + 1] =~ /^<BR>/) {
+	    # Perl 5 lossage alert
+	    if ($bold) {
+		$bold = 0;
+		$part =~ s/(\n)?$/<\/B>$1\n/;
+	    } elsif ($italic) {
+		$italic = 0;
+		$part =~ s/(\n)?$/<\/I>$1\n/;
+	    }
+	}
+
+	# Rebuild this section of @para
+
+	foreach $j ($begin[$i] .. $end[$i]) {
+	    $part =~ s/^([^\n]*(\n|$))//;
+	    $para[$j] = $1;
+	}
+    }
+
+    # Close bold/italic on last non-comment line
+    # Do this only here because fonts pass through comments
+
+    $para[$end[$#end]] =~ s/(\n)?$/<\/B>$1/ if $bold;
+    $para[$end[$#end]] =~ s/(\n)?$/<\/I>$1/ if $italic;
+}
+
+sub usage {
+    local ($message) = $_[0];
+
+    warn $message if $message;
+    warn <<EOP;
+Usage: $whatami [-1icsu] [-C dir] [-d dir] [-h host] [file]
+Without [file], reads from tcsh.man or stdin.
+-1	    Makes a single page instead of a table of contents and sections
+-i	    Makes a CGI searchable index script, tcsh.html/tcsh.cgi, intended
+	    for a server which respects the .cgi extension in any directory.
+-c	    Like -i,  but the CGI script is intended for a server which wants
+	    scripts in /cgi-bin (or some other privileged directory separate
+	    from the rest of the HTML) and must be moved there by hand.
+-C dir	    Uses /dir instead of /cgi-bin as the CGI bin dir.
+	    Meaningless without -c.
+-d dir	    Uses /dir/tcsh.html instead of /tcsh.html as the HTML dir.
+	    Meaningless without -c.
+-D dir	    Uses /dir.html instead of /tcsh.html as the HTML dir.
+	    Meaningless without -c.
+-G name	    Uses name instead of tcsh.cgi as the name of the CGI script.
+	    Meaningless without -c or -i.
+-h host	    Uses host as the host:port part of the URL to the entry point.
+	    Meaningless without -c.
+-s	    Filenames are shorter (max 8 + 3) but less descriptive.
+-u	    This message
+EOP
+    exit !! $message;
+}
+
+### Inlined documents. Watch for *HERE tokens.
+
+__END__
+<HEAD>
+<TITLE>The tcsh mailing lists</TITLE>
+</HEAD>
+<BODY>
+<A HREF="TOPFILEHERE">Up</A>
+<H2>The <I>tcsh</I> mailing lists</H2>
+There are three <I>tcsh</I> mailing lists:
+<DL>
+<DT>
+<I>tcsh@mx.gw.com</I>
+<DD>
+The <I>tcsh</I> maintainers and testers' mailing list.
+<DT>
+<I>tcsh-bugs@mx.gw.com</I>
+<DD>
+Open bug and user comment discussion.
+</DL>
+You can subscribe to either of these lists by visiting
+<I><A HREF="http://mx.gw.com/">http://mx.gw.com/</A></I>
+<P>
+To file a bug report or a feature suggestion (preferably
+with code), please visit
+<I><A HREF="http://bugs.gw.com/">http://bugs.gw.com/</A></I>
+<P>
+<A HREF="TOPFILEHERE">Up</A>
+</BODY>
+END
+: # -*- perl -*-
+
+# Emulate #!/usr/local/bin/perl on systems without #!
+
+eval '(exit $?0)' && eval 'exec perl -S $0 ${1+"$@"}'
+& eval 'exec perl -S $0 $argv:q' if 0;
+
+# Setup
+
+# Location: doesn't work with relative URLs, so we need to know where to find
+#   the top and section files.
+# If the search engine is in /cgi-bin, we need a hard-coded URL.
+# If the search engine is in the same directory, we can figure it out from CGI
+#   environment variables.
+
+$root = ROOTHERE;
+$topfile = 'TOPFILEHERE';
+@name = (
+'NAMEHERE'
+);
+
+# Do the search
+
+$input = $ENV{'QUERY_STRING'};
+$input =~ s/^input=//;
+$input =~ s/\+/ /g;
+print "Status: 302 Found\n";
+if ($input ne '' && ($key = (grep(/^$input/,  @name))[0] ||
+			    (grep(/^$input/i, @name))[0] ||
+			    (grep( /$input/i, @name))[0]   )) {
+    $key =~ /\t([^\t]*)$/;
+    print "Location: $root$1\n\n";
+} else {
+    print "Location: $root$topfile\n\n";
+}
+END

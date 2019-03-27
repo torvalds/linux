@@ -1,0 +1,132 @@
+.\"
+.\" Copyright (c) 2002-2015 Mark R V Murray
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 26, 2018
+.Dt RANDOM_HARVEST 9
+.Os
+.Sh NAME
+.Nm random_harvest
+.Nd gather entropy from the kernel for the entropy device
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/random.h
+.Ft void
+.Fo random_harvest_direct
+.Fa "void *entropy"
+.Fa "u_int size"
+.Fa "enum esource source"
+.Fc
+.Ft void
+.Fo random_harvest_fast
+.Fa "void *entropy"
+.Fa "u_int size"
+.Fa "enum esource source"
+.Fc
+.Ft void
+.Fo random_harvest_queue
+.Fa "void *entropy"
+.Fa "u_int size"
+.Fa "enum esource source"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn random_harvest_*
+functions are used by device drivers
+and other kernel processes to pass data
+that is considered (at least partially) stochastic
+to the entropy device.
+.Pp
+The caller should pass
+a pointer pointing to the
+.Dq random
+data in
+.Fa entropy .
+The argument
+.Fa size
+contains the number of bytes pointed to.
+The
+.Fa source
+is chosen from one of
+the values enumerated in
+.Pa sys/dev/random.h .
+and is used to indicate the source of the entropy.
+.Pp
+The
+.Fo random_harvest_direct
+.Fc
+variant is used
+for early harvesting
+before any multitasking
+is enabled.
+.Pp
+The
+.Fn random_harvest_fast
+variant is used
+by sources that
+should not take
+a performance hit
+from harvesting,
+as they are high-rate
+sources.
+Some entropy is sacrificed,
+but the high rate of supply
+will compensate for this.
+.Pp
+The
+.Fn random_harvest_queue
+variant is used
+for general harvesting
+and is the default
+choice for most entropy sources
+such as interrupts
+or console events.
+.Pp
+Interrupt harvesting has been
+in part simplified
+for the kernel programmer.
+If a device driver registers an interrupt handler
+with
+.Xr BUS_SETUP_INTR 9
+or
+.Xr bus_setup_intr 9 ,
+then it is only necessary to
+include the
+.Dv INTR_ENTROPY
+bit in the
+.Fa flags
+argument to have that interrupt source
+be used for entropy harvesting.
+This should be done wherever practicable.
+.Sh SEE ALSO
+.Xr random 4 ,
+.Xr BUS_SETUP_INTR 9
+.Sh AUTHORS
+The
+.Fx
+.Xr random 4
+entropy device and supporting documentation was written by
+.An Mark R V Murray .

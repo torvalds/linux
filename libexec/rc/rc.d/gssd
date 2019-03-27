@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: gssd
+# REQUIRE: root
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name=gssd
+desc="Generic Security Services Daemon"
+rcvar=gssd_enable
+
+load_rc_config $name
+run_rc_command "$1"

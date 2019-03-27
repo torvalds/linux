@@ -1,0 +1,116 @@
+.\" Copyright (c) 2009,2011 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elftc_demangle.3 3645 2018-10-15 20:17:14Z jkoshy $
+.\"
+.Dd August 24, 2011
+.Dt ELFTC_DEMANGLE 3
+.Os
+.Sh NAME
+.Nm elftc_demangle
+.Nd demangle a C++ name
+.Sh LIBRARY
+.Lb libelftc
+.Sh SYNOPSIS
+.In libelftc.h
+.Ft int
+.Fo elftc_demangle
+.Fa "const char *encodedname"
+.Fa "char *buffer"
+.Fa "size_t bufsize"
+.Fa "unsigned int flags"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn elftc_demangle
+decodes a symbol name encoded according to the type encoding rules
+for the C++ language and returns a string denoting an equivalent
+C++ prototype.
+.Pp
+Argument
+.Ar encodedname
+specifies the encoded symbol name.
+Argument
+.Ar buffer
+denotes a programmer-specified area to place the prototype string in.
+Argument
+.Ar bufsize
+specifies the size of the programmer-specified area.
+Argument
+.Ar flags
+specifies the encoding style in use for argument
+.Ar encodedname .
+Supported encoding styles are:
+.Bl -tag -width ".Dv ELFTC_DEM_GNU3"
+.It Dv ELFTC_DEM_ARM
+The encoding style used by compilers adhering to the conventions of the
+C++ Annotated Reference Manual.
+.It Dv ELFTC_DEM_GNU2
+The encoding style by GNU C++ version 2.
+.It Dv ELFTC_DEM_GNU3
+The encoding style by GNU C++ version 3 and later.
+.El
+.Pp
+Argument
+.Ar flags
+may be zero, in which case the function will attempt to guess the
+encoding scheme from the contents of
+.Ar encodedname .
+.Sh RETURN VALUES
+Function
+.Fn elftc_demangle
+returns 0 on success.
+In case of an error it returns -1 and sets the
+.Va errno
+variable.
+.Sh EXAMPLES
+To decode a name that uses an unknown encoding style use:
+.Bd -literal -offset indent
+char buffer[1024];
+const char *funcname;
+
+funcname = ...; /* points to string to be demangled */
+if (elftc_demangle(funcname, buffer, sizeof(buffer), 0) == 0)
+	printf("Demangled name: %\\n", buffer);
+else
+	perror("Cannot demangle %s", funcname);
+.Ed
+.Sh ERRORS
+Function
+.Fn elftc_demangle
+may fail with the following errors:
+.Bl -tag -width ".Bq Er ENAMETOOLONG"
+.It Bq Er EINVAL
+Argument
+.Ar encodedname
+was not a valid encoded name.
+.It Bq Er ENAMETOOLONG
+The output buffer specified by arguments
+.Ar buffer
+and
+.Ar bufsize
+was too small to hold the decoded function prototype.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_strptr 3

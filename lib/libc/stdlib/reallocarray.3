@@ -1,0 +1,142 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 1, 2015
+.Dt REALLOCARRAY 3
+.Os
+.Sh NAME
+.Nm reallocarray
+.Nd memory reallocation function
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft void *
+.Fn reallocarray "void *ptr" "size_t nmemb" "size_t size"
+.Sh DESCRIPTION
+The
+.Fn reallocarray
+function is similar to the
+.Fn realloc
+function
+except it operates on
+.Fa nmemb
+members of size
+.Fa size
+and checks for integer overflow in the calculation
+.Fa nmemb
+*
+.Fa size .
+.Sh RETURN VALUES
+The
+.Fn reallocarray
+function returns a pointer to the allocated space; otherwise, a
+.Dv NULL
+pointer is returned and
+.Va errno
+is set to
+.Er ENOMEM .
+.Sh EXAMPLES
+Consider
+.Fn reallocarray
+when there is multiplication in the
+.Fa size
+argument of
+.Fn malloc
+or
+.Fn realloc .
+For example, avoid this common idiom as it may lead to integer overflow:
+.Bd -literal -offset indent
+if ((p = malloc(num * size)) == NULL)
+	err(1, "malloc");
+.Ed
+.Pp
+A drop-in replacement is the
+.Ox
+extension
+.Fn reallocarray :
+.Bd -literal -offset indent
+if ((p = reallocarray(NULL, num, size)) == NULL)
+	err(1, "reallocarray");
+.Ed
+.Pp
+When using
+.Fn realloc ,
+be careful to avoid the following idiom:
+.Bd -literal -offset indent
+size += 50;
+if ((p = realloc(p, size)) == NULL)
+	return (NULL);
+.Ed
+.Pp
+Do not adjust the variable describing how much memory has been allocated
+until the allocation has been successful.
+This can cause aberrant program behavior if the incorrect size value is used.
+In most cases, the above sample will also result in a leak of memory.
+As stated earlier, a return value of
+.Dv NULL
+indicates that the old object still remains allocated.
+Better code looks like this:
+.Bd -literal -offset indent
+newsize = size + 50;
+if ((newp = realloc(p, newsize)) == NULL) {
+	free(p);
+	p = NULL;
+	size = 0;
+	return (NULL);
+}
+p = newp;
+size = newsize;
+.Ed
+.Pp
+As with
+.Fn malloc ,
+it is important to ensure the new size value will not overflow;
+i.e. avoid allocations like the following:
+.Bd -literal -offset indent
+if ((newp = realloc(p, num * size)) == NULL) {
+	...
+.Ed
+.Pp
+Instead, use
+.Fn reallocarray :
+.Bd -literal -offset indent
+if ((newp = reallocarray(p, num, size)) == NULL) {
+	...
+.Ed
+.Sh SEE ALSO
+.Xr realloc 3
+.Sh HISTORY
+The
+.Fn reallocarray
+function first appeared in
+.Ox 5.6
+and
+.Fx 11.0 .

@@ -1,0 +1,98 @@
+<HTML>
+<HEAD><TITLE>xxfi_envrcpt</TITLE></HEAD>
+<BODY>
+<!--
+$Id: xxfi_envrcpt.html,v 1.17 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>xxfi_envrcpt</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+sfsistat (*xxfi_envrcpt)(
+	SMFICTX *ctx,
+	char **argv
+);
+</PRE>
+Handle the envelope RCPT command.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>xxfi_envrcpt is called once per recipient, hence one or more times per message, immediately after xxfi_envfrom.</TD>
+</TR>
+<TR align="left" valign=top>
+<TH>Default Behavior</TH>
+<TD>Do nothing; return SMFIS_CONTINUE.</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>ctx</TD>
+	<TD>Opaque context structure.
+	</TD></TR>
+    <TR valign="top"><TD>argv</TD>
+	<TD>Null-terminated SMTP command arguments;
+		argv[0] is guaranteed to be the recipient address.
+		Later arguments are the ESMTP arguments.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>SPECIAL RETURN VALUES</TH>
+<TD><TABLE border="1" cellspacing=0>
+  <TR bgcolor="#dddddd"><TH>Return value</TH><TH>Description</TH></TR>
+  <TR valign="top">
+     <TD>SMFIS_TEMPFAIL</TD>
+     <TD>Temporarily fail for this particular recipient; further recipients 
+     may still be sent.  <A href="xxfi_abort.html">xxfi_abort</A> is not called.
+     </TD>
+  </TR>
+  <TR valign="top">
+     <TD>SMFIS_REJECT</TD>
+     <TD>Reject this particular recipient; further recipients may still be sent.
+     <A href="xxfi_abort.html">xxfi_abort</A> is not called.
+     </TD>
+  </TR>
+  <TR valign="top">
+     <TD>SMFIS_DISCARD</TD>
+     <TD>Accept and discard the message.  <A href="xxfi_abort.html">xxfi_abort</A> will be called.
+     </TD>
+  </TR>
+  <TR valign="top">
+     <TD>SMFIS_ACCEPT</TD>
+     <TD>Accept this message.
+     <A href="xxfi_abort.html">xxfi_abort</A> will not be called.
+     </TD>
+   </TR>
+</TABLE>
+</TR>
+
+<!----------- Notes ---------->
+<TR>
+<TH valign="top" align=left>NOTES</TH> 
+<TD>For more details on ESMTP responses, please see RFC
+<A href="http://www.rfc-editor.org/rfc/rfc1869.txt">1869</A>.</TD>
+</TR>
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2000, 2003, 2010 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

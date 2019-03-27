@@ -1,0 +1,73 @@
+.\" Copyright (c) 2009 Sam Leffler, Errno Consulting
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 29, 2017
+.Dt IWMFW 4
+.Os
+.Sh NAME
+.Nm iwmfw
+.Nd "Firmware Module for Intel Wireless driver"
+.Sh SYNOPSIS
+To compile this module into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iwmfw"
+.Ed
+.Pp
+This will include firmware images for all
+.Xr iwm 4
+devices inside the kernel.
+If you want to pick only the firmware image for your network adapter choose one
+of the following:
+.Bd -ragged -offset indent
+.Cd "device iwm3160fw"
+.Cd "device iwm3168fw"
+.Cd "device iwm7260fw"
+.Cd "device iwm7265fw"
+.Cd "device iwm8000Cfw"
+.Cd "device iwm8265fw"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+iwm3160fw_load="YES"
+iwm3168fw_load="YES"
+iwm7260fw_load="YES"
+iwm7265fw_load="YES"
+iwm7265Dfw_load="YES"
+iwm8000Cfw_load="YES"
+iwm8265fw_load="YES"
+.Ed
+.Sh DESCRIPTION
+This module provides access to firmware sets for the
+Intel Dual Band Wireless WiFi 3160, 3165, 3168, 7260, 7265, 8000, and 8260 series of
+IEEE 802.11n/11ac adapters.
+It may be
+statically linked into the kernel, or loaded as a module.
+.Sh SEE ALSO
+.Xr iwm 4 ,
+.Xr firmware 9

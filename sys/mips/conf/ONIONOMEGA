@@ -1,0 +1,55 @@
+#
+# Onion Omega - an AR9330 based SoC
+#
+# https://onion.io/omega/
+#
+# * AR9330 SoC
+# * 64MB RAM
+# * 16MB flash
+# * Integrated 1x1 2GHz wifi and optional 10/100 ethernet
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+# Include the default AR933x parameters
+include         "std.AR933X"
+
+ident           ONIONOMEGA
+
+# Override hints with board values
+hints           "ONIONOMEGA.hints"
+
+# Board memory - 64MB
+options         AR71XX_REALMEM=(64*1024*1024)
+
+# i2c GPIO bus
+#device		gpioiic
+#device		iicbb
+#device		iicbus
+#device		iic
+
+# Options required for miiproxy and mdiobus
+options 	ARGE_MDIO	# Export an MDIO bus separate from arge
+device		miiproxy	# MDIO bus <-> MII PHY rendezvous
+
+device		etherswitch
+device		arswitch
+
+# read MSDOS formatted disks - USB
+#options 	MSDOSFS
+
+# Enable the uboot environment stuff rather then the
+# redboot stuff.
+options 	AR71XX_ENV_UBOOT
+
+# uzip - to boot natively from flash
+device		xz
+options 	GEOM_UZIP
+
+# Used for the static uboot partition map
+device          geom_map
+
+# Boot off of the rootfs, as defined in the geom_map setup.
+options 	ROOTDEVNAME=\"ufs:map/rootfs.uzip\"

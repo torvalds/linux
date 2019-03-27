@@ -1,0 +1,368 @@
+.\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt
+.\"	All rights reserved.
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\"	All rights reserved.
+.\"
+.\" Author: Harti Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Begemot: bsnmp/snmp_mibII/snmp_mibII.3,v 1.10 2005/10/04 08:46:52 brandt_h Exp $
+.\"
+.Dd January 4, 2017
+.Dt SNMP_MIBII 3
+.Os
+.Sh NAME
+.Nm mibII ,
+.Nm mibif_notify_f ,
+.Nm mib_netsock ,
+.Nm mib_if_set_dyn ,
+.Nm mib_refresh_iflist ,
+.Nm mib_find_if ,
+.Nm mib_find_if_sys ,
+.Nm mib_find_if_name ,
+.Nm mib_first_if ,
+.Nm mib_next_if ,
+.Nm mib_register_newif ,
+.Nm mib_unregister_newif ,
+.Nm mib_fetch_ifmib ,
+.Nm mib_if_admin ,
+.Nm mib_find_ifa ,
+.Nm mib_first_ififa ,
+.Nm mib_next_ififa ,
+.Nm mib_ifstack_create ,
+.Nm mib_ifstack_delete ,
+.Nm mib_find_rcvaddr ,
+.Nm mib_rcvaddr_create ,
+.Nm mib_rcvaddr_delete ,
+.Nm mibif_notify ,
+.Nm mibif_unnotify
+.Nd "mib-2 module for bsnmpd."
+.Sh LIBRARY
+.Pq begemotSnmpdModulePath."mibII" = "@MODPATH@snmp_mibII.so"
+.Sh SYNOPSIS
+.In net/if.h
+.In net/if_mib.h
+.In bsnmp/snmpmod.h
+.In bsnmp/snmp_mibII.h
+.Ft typedef void
+.Fn (*mibif_notify_f) "struct mibif *ifp" "enum mibif_notify event" "void *uarg"
+.Vt extern int mib_netsock ;
+.Ft void
+.Fn mib_if_set_dyn "const char *ifname"
+.Ft void
+.Fn mib_refresh_iflist "void"
+.Ft struct mibif *
+.Fn mib_find_if "u_int ifindex"
+.Ft struct mibif *
+.Fn mib_find_if_sys "u_int sysindex"
+.Ft struct mibif *
+.Fn mib_find_if_name "const char *ifname"
+.Ft struct mibif *
+.Fn mib_first_if "void"
+.Ft struct mibif *
+.Fn mib_next_if "const struct mibif *ifp"
+.Ft int
+.Fn mib_register_newif "int (*func)(struct mibif *)" "const struct lmodule *mod"
+.Ft void
+.Fn mib_unregister_newif "const struct lmodule *mod"
+.Ft int
+.Fn mib_fetch_ifmib "struct mibif *ifp"
+.Ft int
+.Fn mib_if_admin "struct mibif *ifp" "int up"
+.Ft struct mibifa *
+.Fn mib_find_ifa "struct in_addr ipa"
+.Ft struct mibifa *
+.Fn mib_first_ififa "const struct mibif *ifp"
+.Ft struct mibifa *
+.Fn mib_next_ififa "struct mibifa *ifa"
+.Ft int
+.Fn mib_ifstack_create "const struct mibif *lower" "const struct mibif *upper"
+.Ft void
+.Fn mib_ifstack_delete "const struct mibif *lower" "const struct mibif *upper"
+.Ft struct mibrcvaddr *
+.Fn mib_find_rcvaddr "u_int ifindex" "const u_char *addr" "size_t addrlen"
+.Ft struct mibrcvaddr *
+.Fn mib_rcvaddr_create "struct mibif *ifp" "const u_char *addr" "size_t addrlen"
+.Ft void
+.Fn mib_rcvaddr_delete "struct mibrcvaddr *addr"
+.Ft void *
+.Fn mibif_notify "struct mibif *ifp" "const struct lmodule *mod" "mibif_notify_f func" "void *uarg"
+.Ft void
+.Fn mibif_unnotify "void *reg"
+.Sh DESCRIPTION
+The
+.Nm snmp_mibII
+module implements parts of the internet standard MIB-2.
+Most of the relevant MIBs are implemented.
+Some of the tables are restricted to be read-only instead of read-write.
+The exact current implementation can be found in
+.Pa @DEFPATH@mibII_tree.def .
+The module also exports a number of functions and global variables for use
+by other modules, that need to handle network interfaces.
+This man page describes these functions.
+.Ss DIRECT NETWORK ACCESS
+The
+.Nm
+module opens a socket that is used to execute all network related
+.Xr ioctl 2
+functions.
+This socket is globally available under the name
+.Va mib_netsock .
+.Ss NETWORK INTERFACES
+The
+.Nm
+module handles a list of all currently existing network interfaces.
+It allows
+other modules to handle their own interface lists with special information
+by providing a mechanism to register to events that change the interface list
+(see below).
+The basic data structure is the interface structure:
+.Bd -literal -offset indent
+struct mibif {
+	TAILQ_ENTRY(mibif) link;
+	u_int		flags;
+	u_int		index;	/* logical ifindex */
+	u_int		sysindex;
+	char		name[IFNAMSIZ];
+	char		descr[256];
+	struct ifmibdata mib;
+	uint64_t	mibtick;
+	void		*specmib;
+	size_t		specmiblen;
+	u_char		*physaddr;
+	u_int		physaddrlen;
+	int		has_connector;
+	int		trap_enable;
+	uint64_t	counter_disc;
+	mibif_notify_f	xnotify;
+	void		*xnotify_data;
+	const struct lmodule *xnotify_mod;
+	struct asn_oid	spec_oid;
+};
+.Ed
+.Pp
+The
+.Nm
+module tries to implement the semantic if
+.Va ifIndex
+as described in RFC-2863.
+This RFC states, that an interface indexes may not be reused.
+That means, for example, if
+.Pa tun
+is a synthetic interface type and the system creates the interface
+.Pa tun0 ,
+destroys this interfaces and again creates a
+.Pa tun 0 ,
+then these interfaces must have different interface indexes, because in fact
+they are different interfaces.
+If, on the other hand, there is a hardware interface
+.Pa xl0
+and this interface disappears, because its driver is unloaded and appears
+again, because the driver is loaded again, the interface index must stay
+the same.
+.Nm
+implements this by differentiating between real and synthetic (dynamic)
+interfaces.
+An interface type can be declared dynamic by calling the function
+.Fn mib_if_set_dyn
+with the name if the interface type (for example
+.Qq tun ).
+For real interfaces, the module keeps the mapping between the interface name
+and its
+.Va ifIndex
+in a special list, if the interface is unloaded.
+For dynamic interfaces
+a new
+.Va ifIndex
+is generated each time the interface comes into existence.
+This means, that the interface index as seen by SNMP is not the same index
+as used by the system.
+The SNMP
+.Va ifIndex
+is held in field
+.Va index ,
+the system's interface index is
+.Va sysindex .
+.Pp
+A call to
+.Nm mib_refresh_iflist
+causes the entire interface list to be re-created.
+.Pp
+The interface list can be traversed with the functions
+.Fn mib_first_if
+and
+.Fn mib_next_if .
+Be sure not to change the interface list while traversing the list with
+these two calls.
+.Pp
+There are three functions to find an interface by name or index.
+.Fn mib_find_if
+finds an interface by searching for an SNMP
+.Va ifIndex ,
+.Fn mib_find_if_sys
+finds an interface by searching for a system interface index and
+.Fn mib_find_if_name
+finds an interface by looking for an interface name.
+Each of the function returns
+.Li NULL
+if the interface cannot be found.
+.Pp
+The function
+.Fn mib_fetch_ifmib
+causes the interface MIB to be refreshed from the kernel.
+.Pp
+The function
+.Fn mib_if_admin
+can be used to change the interface administrative state to up
+(argument is 1) or down (argument is 0).
+.Ss INTERFACE EVENTS
+A module can register itself to receive a notification when a new entry is
+created in the interface list.
+This is done by calling
+.Fn mib_register_newif .
+A module can register only one function, a second call to
+.Fn mib_register_newif
+causes the registration to be overwritten.
+The registration can be removed with a call to
+.Fn mib_unregister_newif .
+It is unregistered automatically, when the registering module is unloaded.
+.Pp
+A module can also register to events on a specific interface.
+This is done by calling
+.Fn mibif_notify .
+This causes the given callback
+.Fa func
+to be called with the interface pointer, a notification code and
+the user argument
+.Fa uarg
+when any of the following events occur:
+.Bl -tag -width "XXXXX"
+.It Li MIBIF_NOTIFY_DESTROY
+The interface is destroyed.
+.El
+.Pp
+This mechanism can be used to implement interface type specific MIB parts
+in other modules.
+The registration can be removed with
+.Fn mib_unnotify
+which the return value from
+.Fa mib_notify .
+Any notification registration is removed automatically when the interface
+is destroyed or the registering module is unloaded.
+.Em Note that only one module can register to any given interface .
+.Ss INTERFACE ADDRESSES
+The
+.Nm
+module handles a table of interface IP-addresses.
+These addresses are held in a
+.Bd -literal -offset indent
+struct mibifa {
+	TAILQ_ENTRY(mibifa) link;
+	struct in_addr	inaddr;
+	struct in_addr	inmask;
+	struct in_addr	inbcast;
+	struct asn_oid	index;
+	u_int		ifindex;
+	u_int		flags;
+};
+.Ed
+.Pp
+The (ordered) list of IP-addresses on a given interface can be traversed by
+calling
+.Fn mib_first_ififa
+and
+.Fn mib_next_ififa .
+The list should not be considered read-only.
+.Ss INTERFACE RECEIVE ADDRESSES
+The internet MIB-2 contains a table of interface receive addresses.
+These addresses are handled in:
+.Bd -literal -offset indent
+struct mibrcvaddr {
+	TAILQ_ENTRY(mibrcvaddr) link;
+	struct asn_oid	index;
+	u_int		ifindex;
+	u_char		addr[ASN_MAXOIDLEN];
+	size_t		addrlen;
+	u_int		flags;
+};
+enum {
+	MIBRCVADDR_VOLATILE	= 0x00000001,
+	MIBRCVADDR_BCAST	= 0x00000002,
+	MIBRCVADDR_HW		= 0x00000004,
+};
+.Ed
+.Pp
+Note, that the assignment of
+.Li MIBRCVADDR_BCAST
+is based on a list of known interface types.
+The flags should be handled
+by modules implementing interface type specific MIBs.
+.Pp
+A receive address can be created with
+.Fn mib_rcvaddr_create
+and deleted with
+.Fn mib_rcvaddr_delete .
+This needs to be done only for addresses that are not automatically handled
+by the system.
+.Pp
+A receive address can be found with
+.Fn mib_find_rcvaddr .
+.Ss INTERFACE STACK TABLE
+The
+.Nm
+module maintains also the interface stack table.
+Because for complex stacks,
+there is no system supported generic way of getting this information, interface
+type specific modules need to help setting up stack entries.
+The
+.Nm
+module handles only the top and bottom entries.
+.Pp
+A table entry is created with
+.Fn mib_ifstack_create
+and deleted with
+.Fn mib_ifstack_delete .
+Both functions need the pointers to the interfaces.
+Entries are automatically
+deleted if any of the interfaces of the entry is destroyed.
+The functions handle
+both the stack table and the reverse stack table.
+.Sh FILES
+.Bl -tag -width ".It Pa @DEFPATH@mibII_tree.def" -compact
+.It Pa @DEFPATH@mibII_tree.def
+The description of the MIB tree implemented by
+.Nm .
+.It Pa /usr/local/share/snmp/mibs
+.It Pa @MIBSPATH@
+The various internet MIBs.
+.El
+.Sh SEE ALSO
+.Xr gensnmptree 1 ,
+.Xr snmpmod 3
+.Sh STANDARDS
+This implementation conforms to the applicable IETF RFCs.
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@FreeBSD.org

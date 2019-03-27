@@ -1,0 +1,181 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 8, 2018
+.Dt VOP_LOOKUP 9
+.Os
+.Sh NAME
+.Nm VOP_LOOKUP
+.Nd lookup a component of a pathname
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.In sys/namei.h
+.Ft int
+.Fn VOP_LOOKUP "struct vnode *dvp" "struct vnode **vpp" "struct componentname *cnp"
+.Sh DESCRIPTION
+This entry point looks up a single pathname component in a given directory.
+.Pp
+Its arguments are:
+.Bl -tag -width vpp
+.It Fa dvp
+The locked vnode of the directory to search.
+.It Fa vpp
+The address of a variable where the resulting locked vnode should be stored.
+.It Fa cnp
+The pathname component to be searched for.
+It is a pointer to a componentname structure defined as follows:
+.Bd -literal
+struct componentname {
+	/*
+	 * Arguments to lookup.
+	 */
+	u_long	cn_nameiop;	/* namei operation */
+	u_long	cn_flags;	/* flags to namei */
+	struct	thread *cn_thread;	/* thread requesting lookup */
+	struct	ucred *cn_cred;	/* credentials */
+	int     cn_lkflags;     /* Lock flags LK_EXCLUSIVE or LK_SHARED */
+	/*
+	 * Shared between lookup and commit routines.
+	 */
+	char	*cn_pnbuf;	/* pathname buffer */
+	char	*cn_nameptr;	/* pointer to looked up name */
+	long	cn_namelen;	/* length of looked up component */
+};
+.Ed
+.Pp
+Convert a component of a pathname into a pointer to a locked vnode.
+This is a very central and rather complicated routine.
+If the file system is not maintained in a strict tree hierarchy,
+this can result in a deadlock situation.
+.Pp
+The
+.Fa cnp->cn_nameiop
+argument is
+.Dv LOOKUP ,
+.Dv CREATE ,
+.Dv RENAME ,
+or
+.Dv DELETE
+depending on the intended use of the object.
+When
+.Dv CREATE ,
+.Dv RENAME ,
+or
+.Dv DELETE
+is specified, information usable in
+creating, renaming, or deleting a directory entry may be calculated.
+.Pp
+Overall outline of VOP_LOOKUP:
+.Bd -ragged -offset indent
+Check accessibility of directory.
+Look for name in cache, if found, then return name.
+Search for name in directory, goto to found or notfound as appropriate.
+.Ed
+.Pp
+notfound:
+.Bd -ragged -offset indent
+If creating or renaming and at end of pathname,
+return
+.Er EJUSTRETURN ,
+leaving info on available slots else return
+.Er ENOENT .
+.Ed
+.Pp
+found:
+.Bd -ragged -offset indent
+If at end of path and deleting, return information to allow delete.
+If at end of path and renaming, lock target
+inode and return info to allow rename.
+If not at end, add name to cache; if at end and neither creating
+nor deleting, add name to cache.
+.Ed
+.Sh LOCKS
+The directory
+.Fa dvp
+should be locked on entry and exit, regardless of error condition.
+If an entry is found in the directory, it will be returned locked.
+.Sh RETURN VALUES
+Zero is returned with
+.Fa *vpp
+set to the locked vnode of the file if the component is found.
+If the component being searched for is ".", then the vnode just has
+an extra reference added to it with
+.Xr vref 9 .
+The caller must take care to release the locks appropriately in this
+case.
+.Pp
+If the component is not found and the operation is
+.Dv CREATE
+or
+.Dv RENAME ,
+the flag
+.Dv ISLASTCN
+is specified and the operation would succeed, the special return value
+.Er EJUSTRETURN
+is returned.
+Otherwise, an appropriate error code is returned.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+The vnode
+.Fa dvp
+does not represent a directory.
+.It Bq Er ENOENT
+The component
+.Fa dvp
+was not found in this directory.
+.It Bq Er EACCES
+Access for the specified operation is denied.
+.It Bq Er EJUSTRETURN
+A
+.Dv CREATE
+or
+.Dv RENAME
+operation would be successful.
+.El
+.Sh SEE ALSO
+.Xr vnode 9 ,
+.Xr VOP_ACCESS 9 ,
+.Xr VOP_CREATE 9 ,
+.Xr VOP_MKDIR 9 ,
+.Xr VOP_MKNOD 9 ,
+.Xr VOP_RENAME 9 ,
+.Xr VOP_SYMLINK 9
+.Sh HISTORY
+The function
+.Nm
+appeared in
+.Bx 4.3 .
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson ,
+with some text from comments in
+.Pa ufs_lookup.c .

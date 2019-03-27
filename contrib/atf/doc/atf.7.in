@@ -1,0 +1,120 @@
+.\" Copyright (c) 2007 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd September 14, 2014
+.Dt ATF 7
+.Os
+.Sh NAME
+.Nm ATF
+.Nd introduction to the Automated Testing Framework
+.Sh DESCRIPTION
+The Automated Testing Framework
+.Pf ( Nm )
+is a
+.Em collection of libraries
+to implement test programs in a variety of languages.
+These libraries all offer similar functionality and any test program
+written with them exposes a consistent user interface.
+.Pp
+Test programs using the
+.Nm
+libraries rely on a separate runtime engine to execute them in a
+deterministic fashion.
+The runtime engine isolates the test programs from the rest of the system
+and ensures some common side-effects are cleaned up.
+The runtime engine is also responsible for gathering the results of all
+tests and composing reports.
+The current runtime of choice is Kyua, described in
+.Xr kyua 1 .
+.Pp
+If your operating systems distributes
+.Nm ,
+it should also provide an introductory
+.Xr tests 7
+manual page.
+You are encouraged to read it now.
+.Pp
+The rest of this manual page serves as a cross-reference to all the other
+documentation shipped with
+.Nm .
+.Ss Language bindings
+.Bl -tag -width atfXtestXprogramXXXXX
+.It Xr atf-c 3
+C programming interface.
+.It Xr atf-c++ 3
+C++ programming interface.
+.It Xr atf-sh 3
+.Xr sh 1
+programming interface.
+.El
+.Ss Miscellaneous pages
+.Bl -tag -width atfXtestXprogramXXXXX
+.It Xr atf-test-case 4
+Generic description of test cases, independent of the language they are
+implemented in.
+.It Xr atf-test-program 1
+Common interface provided by the test programs written using the
+.Nm
+libraries.
+.El
+.Sh SEE ALSO
+.Xr kyua 1 ,
+.Xr tests 7
+.Sh HISTORY
+.Nm
+started as a Google Summer of Code 2007 project mentored by The NetBSD
+Foundation.
+Its original goal was to provide a testing framework for the
+.Nx
+operating system, but it grew as an independent project because the
+framework itself did not need to be tied to a specific operating system.
+.Pp
+Originally,
+.Nm
+shipped the collection of libraries described in this manual page as well
+as a runtime engine.
+The runtime engine has since been replaced by Kyua and the old tools were
+removed in
+.Nm 0.20 ,
+which shipped in early 2014.
+.Pp
+As of late 2014, both
+.Fx
+and
+.Nx
+ship
+.Nm
+in their base systems and provide extensive test suites based on it.
+.Pp
+For more details on historical changes, refer to:
+.Bd -literal -offset indent
+.Pa __DOCDIR__/NEWS
+.Ed
+.Sh AUTHORS
+For more details on the people that made
+.Nm
+possible, refer to:
+.Bd -literal -offset indent
+.Pa __DOCDIR__/AUTHORS
+.Ed

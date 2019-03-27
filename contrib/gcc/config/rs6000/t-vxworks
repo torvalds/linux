@@ -1,0 +1,11 @@
+# Multilibs for VxWorks.
+
+# The base multilib is -mhard-float.
+MULTILIB_OPTIONS = mrtp fPIC msoft-float
+MULTILIB_DIRNAMES =
+MULTILIB_MATCHES = fPIC=fpic
+MULTILIB_EXCEPTIONS = fPIC*
+
+# Restore some variables from t-vxworks clobbered by t-ppccomm.
+EXTRA_MULTILIB_PARTS = 
+LIB2FUNCS_EXTRA = $(srcdir)/config/vxlib.c

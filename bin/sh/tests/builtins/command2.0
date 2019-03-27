@@ -1,0 +1,3 @@
+# $FreeBSD$
+PATH=
+command -p cat < /dev/null

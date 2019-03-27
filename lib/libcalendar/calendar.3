@@ -1,0 +1,203 @@
+.\" Copyright (c) 1997 Wolfgang Helbig
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 29, 1997
+.Dt CALENDAR 3
+.Os
+.Sh NAME
+.Nm easterg ,
+.Nm easterog ,
+.Nm easteroj ,
+.Nm gdate ,
+.Nm jdate ,
+.Nm ndaysg ,
+.Nm ndaysj ,
+.Nm week ,
+.Nm weekday
+.Nd Calendar arithmetic for the Christian era
+.Sh LIBRARY
+.Lb libcalendar
+.Sh SYNOPSIS
+.In calendar.h
+.Ft struct date *
+.Fn easterg "int year" "struct date *dt"
+.Ft struct date *
+.Fn easterog "int year" "struct date *dt"
+.Ft struct date *
+.Fn easteroj "int year" "struct date *dt"
+.Ft struct date *
+.Fn gdate "int nd" "struct date *dt"
+.Ft struct date *
+.Fn jdate "int nd" "struct date *dt"
+.Ft int
+.Fn ndaysg "struct date *dt"
+.Ft int
+.Fn ndaysj "struct date *dt"
+.Ft int
+.Fn week "int nd" "int *year"
+.Ft int
+.Fn weekday "int nd"
+.Sh DESCRIPTION
+These functions provide calendar arithmetic for a large range of years,
+starting at March 1st, year zero (i.e., 1 B.C.) and ending way beyond
+year 100000.
+.Pp
+Programs should be linked with
+.Fl lcalendar .
+.Pp
+The functions
+.Fn easterg ,
+.Fn easterog
+and
+.Fn easteroj
+store the date of Easter Sunday into the structure pointed at by
+.Fa dt
+and return a pointer to this structure.
+The function
+.Fn easterg
+assumes Gregorian Calendar (adopted by most western churches after 1582) and
+the functions
+.Fn easterog
+and
+.Fn easteroj
+compute the date of Easter Sunday according to the orthodox rules
+(Western churches before 1582, Greek and Russian Orthodox Church
+until today).
+The result returned by
+.Fn easterog
+is the date in Gregorian Calendar, whereas
+.Fn easteroj
+returns the date in Julian Calendar.
+.Pp
+The functions
+.Fn gdate ,
+.Fn jdate ,
+.Fn ndaysg
+and
+.Fn ndaysj
+provide conversions between the common "year, month, day" notation
+of a date and the "number of days" representation, which is better suited
+for calculations.
+The days are numbered from March 1st year 1 B.C., starting
+with zero, so the number of a day gives the number of days since March 1st,
+year 1 B.C.
+The conversions work for nonnegative day numbers only.
+.Pp
+The
+.Fn gdate
+and
+.Fn jdate
+functions
+store the date corresponding to the day number
+.Fa nd
+into the structure pointed at by
+.Fa dt
+and return a pointer to this structure.
+.Pp
+The
+.Fn ndaysg
+and
+.Fn ndaysj
+functions
+return the day number of the date pointed at by
+.Fa dt .
+.Pp
+The
+.Fn gdate
+and
+.Fn ndaysg
+functions
+assume Gregorian Calendar after October 4, 1582 and Julian Calendar before,
+whereas
+.Fn jdate
+and
+.Fn ndaysj
+assume Julian Calendar throughout.
+.Pp
+The two calendars differ by the definition of the leap year.
+The
+Julian Calendar says every year that is a multiple of four is a
+leap year.
+The Gregorian Calendar excludes years that are multiples of
+100 and not multiples of 400.
+This means the years 1700, 1800, 1900, 2100 are not leap years
+and the year 2000 is
+a leap year.
+The new rules were inaugurated on October 4, 1582 by deleting ten
+days following this date.
+Most catholic countries adopted the new
+calendar by the end of the 16th century, whereas others stayed with
+the Julian Calendar until the 20th century.
+The United Kingdom and
+their colonies switched on September 2, 1752.
+They already had to
+delete 11 days.
+.Pp
+The function
+.Fn week
+returns the number of the week which contains the day numbered
+.Fa nd .
+The argument
+.Fa *year
+is set with the year that contains (the greater part of) the week.
+The weeks are numbered per year starting with week 1, which is the
+first week in a year that includes more than three days of the year.
+Weeks start on Monday.
+This function is defined for Gregorian Calendar only.
+.Pp
+The function
+.Fn weekday
+returns the weekday (Mo = 0 ..\& Su = 6) of the day numbered
+.Fa nd .
+.Pp
+The structure
+.Fa date
+is defined in
+.In calendar.h .
+It contains these fields:
+.Bd -literal -offset indent
+int y;          /\(** year (0000 - ????) \(**/
+int m;          /\(** month (1 - 12) \(**/
+int d;          /\(** day of month (1 - 31) \(**/
+.Ed
+.Pp
+The year zero is written as "1 B.C." by historians and "0" by astronomers
+and in this library.
+.Sh SEE ALSO
+.Xr ncal 1 ,
+.Xr strftime 3
+.Sh STANDARDS
+The week number conforms to ISO 8601: 1988.
+.Sh HISTORY
+The
+.Nm calendar
+library first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+This manual page and the library was written by
+.An Wolfgang Helbig Aq Mt helbig@FreeBSD.org .
+.Sh BUGS
+The library was coded with great care so there are no bugs left.

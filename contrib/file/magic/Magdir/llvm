@@ -1,0 +1,21 @@
+
+#------------------------------------------------------------------------------
+# $File: llvm,v 1.8 2013/01/12 03:09:51 christos Exp $
+# llvm:  file(1) magic for LLVM byte-codes
+# URL:  http://llvm.org/docs/BitCodeFormat.html
+# From: Al Stone <ahs3@fc.hp.com>
+
+0	string	llvm	LLVM byte-codes, uncompressed
+0	string	llvc0	LLVM byte-codes, null compression
+0	string	llvc1	LLVM byte-codes, gzip compression
+0	string	llvc2	LLVM byte-codes, bzip2 compression
+
+0	lelong	0x0b17c0de	LLVM bitcode, wrapper
+# Are these Mach-O ABI values?  They appear to be.
+>16	lelong	0x01000007	x86_64
+>16	lelong	0x00000007	i386
+>16	lelong	0x00000012	ppc
+>16	lelong	0x01000012	ppc64
+>16	lelong 	0x0000000c	arm
+
+0	string	BC\xc0\xde	LLVM IR bitcode

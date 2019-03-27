@@ -1,0 +1,53 @@
+# $FreeBSD$
+# This tests if the cmdsubst optimization is still used if possible.
+
+failures=''
+ok=''
+
+testcase() {
+	code="$1"
+
+	unset v
+	eval "pid=\$(dummy=$code echo \$(\$SH -c echo\ \\\$PPID))"
+
+	if [ "$pid" = "$$" ]; then
+		ok=x$ok
+	else
+		failures=x$failures
+		echo "Failure for $code"
+	fi
+}
+
+unset v
+w=1
+testcase '$w'
+testcase '1${w+1}'
+testcase '1${w-1}'
+testcase '1${v+1}'
+testcase '1${v-1}'
+testcase '1${w:+1}'
+testcase '1${w:-1}'
+testcase '1${v:+1}'
+testcase '1${v:-1}'
+testcase '${w?}'
+testcase '${w:?}'
+testcase '${w#x}'
+testcase '${w##x}'
+testcase '${w%x}'
+testcase '${w%%x}'
+
+testcase '$((w))'
+testcase '$(((w+4)*2/3))'
+testcase '$((w==1))'
+testcase '$((w>=0 && w<=5 && w!=2))'
+testcase '$((${#w}))'
+testcase '$((${#IFS}))'
+testcase '$((${#w}>=1))'
+testcase '$(($$))'
+testcase '$(($#))'
+testcase '$(($?))'
+
+testcase '$(: $((w=4)))'
+testcase '$(: ${v=2})'
+
+test "x$failures" = x

@@ -1,0 +1,523 @@
+if [ ! "$_TIMEZONE_ZONES_SUBR" ]; then _TIMEZONE_ZONES_SUBR=1
+#
+# Copyright (c) 2011-2012 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." timezone/zones.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/timezone/continents.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="090.timezone"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+############################################################ CONFIGURATION
+
+#
+# Standard pathnames
+#
+_PATH_ZONETAB="/usr/share/zoneinfo/zone.tab"
+_PATH_ZONEINFO="/usr/share/zoneinfo"
+_PATH_LOCALTIME="/etc/localtime"
+_PATH_DB="/var/db/zoneinfo"
+
+#
+# Export required i18n messages for awk(1) ENVIRON visibility
+#
+export msg_conflicting_zone_definition
+export msg_country_code_invalid
+export msg_country_code_unknown
+export msg_invalid_country_code
+export msg_invalid_format
+export msg_invalid_region
+export msg_invalid_zone_name
+export msg_zone_multiply_defined
+export msg_zone_must_have_description
+
+############################################################ FUNCTIONS
+
+# f_read_zones
+#
+# Read the zone descriptions database in _PATH_ZONETAB:
+# 	/usr/share/zoneinfo/zone.tab on all OSes
+#
+# The format of this file (on all OSes) is:
+# 	code	coordinates	TZ	comments
+#
+# With each of the following elements (described below) being separated by a
+# single tab character:
+#
+# 	code
+# 		The ISO 3166 2-character country code.
+# 	coordinates
+# 		Latitude and logitude of the zone's principal location in ISO
+# 		6709 sign-degrees-minutes-seconds format, either +-DDMM+-DDDMM
+# 		or +-DDMMSS+-DDDMMSS, first latitude (+ is north), then long-
+# 		itude (+ is east).
+# 	TZ
+# 		Zone name used in value of TZ environment variable.
+# 	comments
+# 		Comments; present if and only if the country has multiple rows.
+#
+# Required variables [from continents.subr]:
+#
+# 	CONTINENTS
+# 		Space-separated list of continents.
+# 	continent_*_name
+# 		Directory element in _PATH_ZONEINFO for the continent
+# 		represented by *.
+#
+# Required variables [created by f_read_iso3166_table from iso3166.subr]:
+#
+# 	country_CODE_name
+# 		Country name of the country represented by CODE, the 2-
+# 		character country code.
+#
+# Variables created by this function:
+#
+# 	country_CODE_nzones
+# 		Either set to `-1' to indicate that the 2-character country
+# 		code has only a single zone associated with it (and therefore
+# 		you should query the `country_CODE_*' environment variables),
+# 		or set to `0' or higher to indicate how many zones are assoc-
+# 		iated with the given country code. When multiple zones are
+# 		configured for a single code, you should instead query the
+# 		`country_CODE_*_N' environment variables (e.g., `echo
+# 		$country_AQ_descr_1' prints the description of the first
+# 		timezone in Antarctica).
+# 	country_CODE_filename
+# 		The ``filename'' portion of the TZ value that appears after the
+# 		`/' (e.g., `Hong_Kong' from `Asia/Hong_Kong' or `Isle_of_Man'
+# 		from `Europe/Isle_of_Man').
+# 	country_CODE_cont
+# 		The ``continent'' portion of the TZ value that appears before
+# 		the `/' (e.g., `Asia' from `Asia/Hong_Kong' or `Europe' from
+# 		`Europe/Isle_of_Man').
+# 	country_CODE_descr
+# 		The comments associated with the ISO 3166 code entry (if any).
+#
+# 	NOTE: CODE is the 2-character country code.
+# 	
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_read_zones_awk='
+# Variables that should be defined on the invocation line:
+# 	-v progname="progname"
+#
+BEGIN {
+	lineno = 0
+	failed = 0
+
+	#
+	# Initialize continents array/map (name => id)
+	#
+	split(ENVIRON["CONTINENTS"], array, /[[:space:]]+/)
+	for (item in array)
+	{
+		cont = array[item]
+		if (!cont) continue
+		name = ENVIRON["continent_" cont "_name"]
+		continents[name] = cont
+	}
+}
+function die(fmt, argc, argv)
+{
+	printf "f_die 1 \"%%s: %s\" \"%s\"", fmt, progname
+	for (n = 1; n <= argc; n++)
+		printf " \"%s\"", argv[n]
+	print ""
+	failed++
+	exit 1
+}
+function find_continent(name)
+{
+	return continents[name]
+}
+function add_zone_to_country(lineno, tlc, descr, file, cont)
+{
+	#
+	# Validate the two-character country code
+	#
+	if (!match(tlc, /^[A-Z][A-Z]$/))
+	{
+		argv[1] = FILENAME
+		argv[2] = lineno
+		argv[3] = tlc
+		die(ENVRION["msg_country_code_invalid"], 3, argv)
+	}
+	if (!ENVIRON["country_" tlc "_name"])
+	{
+		argv[1] = FILENAME
+		argv[2] = lineno
+		argv[3] = tlc
+		die(ENVIRON["msg_country_code_unknown"], 3, argv)
+	}
+
+	#
+	# Add Zone to an array that we will parse at the end
+	#
+	if (length(descr) > 0)
+	{
+		if (country_nzones[tlc] < 0)
+		{
+			argv[1] = FILENAME
+			argv[2] = lineno
+			die(ENVIRON["msg_conflicting_zone_definition"], 2, argv)
+		}
+
+		n = ++country_nzones[tlc]
+		country_cont[tlc,n] = cont
+		country_filename[tlc,n] = file
+		country_descr[tlc,n] = descr
+	}
+	else
+	{
+		if (country_nzones[tlc] > 0)
+		{
+			argv[1] = FILENAME
+			argv[2] = lineno
+			die(ENVIRON["msg_zone_must_have_description"], 2, argv)
+		}
+		if (country_nzones[tlc] < 0)
+		{
+			argv[1] = FILENAME
+			argv[2] = lineno
+			die(ENVIRON["msg_zone_multiply_defined"], 2, argv)
+		}
+
+		country_nzones[tlc] = -1
+		country_cont[tlc] = cont
+		country_filename[tlc] = file
+	}
+}
+function print_country_code(tlc)
+{
+	nz = country_nzones[tlc]
+
+	printf "country_%s_nzones=%d\n", tlc, nz
+	printf "export country_%s_nzones\n", tlc
+
+	if (nz < 0)
+	{
+		printf "country_%s_cont=\"%s\"\n", tlc, country_cont[tlc]
+		printf "export country_%s_cont\n", tlc
+		printf "country_%s_filename=\"%s\"\n",
+		       tlc, country_filename[tlc]
+	}
+	else
+	{
+		n = 0
+		while ( ++n <= nz )
+		{
+			printf "country_%s_cont_%d=\"%s\"\n",
+			       tlc, n, country_cont[tlc,n]
+			printf "export country_%s_cont_%d\n", tlc, n
+			printf "country_%s_filename_%d=\"%s\"\n",
+			       tlc, n, country_filename[tlc,n]
+			printf "country_%s_descr_%d=\"%s\"\n",
+			       tlc, n, country_descr[tlc,n]
+		}
+	}
+}
+/^#/ {
+	lineno++
+	next
+}
+!/^#/ {
+	lineno++
+
+	#
+	# Split the current record (on TAB) into an array
+	#
+	if (split($0, line, /\t/) < 2)
+	{
+		argv[1] = FILENAME
+		argv[2] = lineno
+		die(ENVIRON["msg_invalid_format"], 2, argv)
+	}
+
+	# Get the ISO3166-1 (Alpha 1) 2-letter country code
+	tlc = line[1]
+
+	#
+	# Validate the two-character country code
+	#
+	if (length(tlc) != 2)
+	{
+		argv[1] = FILENAME
+		argv[2] = lineno
+		argv[3] = tlc
+		die(ENVIRON["msg_invalid_country_code"], 3, argv)
+	}
+
+	# Get the TZ field
+	tz = line[3]
+
+	#
+	# Validate the TZ field
+	#
+	if (!match(tz, "/"))
+	{
+		argv[1] = FILENAME
+		argv[2] = lineno
+		argv[3] = tz
+		die(ENVIRON["msg_invalid_zone_name"], 3, argv)
+	}
+
+	#
+	# Get the continent portion of the TZ field
+	#
+	contbuf = tz
+	sub("/.*$", "", contbuf)
+
+	#
+	# Validate the continent
+	#
+	cont = find_continent(contbuf)
+	if (!cont)
+	{
+		argv[1] = FILENAME
+		argv[2] = lineno
+		argv[3] = contbuf
+		die(ENVIRON["msg_invalid_region"], 3, argv)
+	}
+
+	#
+	# Get the filename portion of the TZ field
+	#
+	filename = tz
+	sub("^[^/]*/", "", filename)
+
+	#
+	# Calculate the substr start-position of the comment
+	#
+	descr_start = 0
+	n = 4
+	while (--n)
+		descr_start += length(line[n]) + 1
+
+	# Get the comment field
+	descr = substr($0, descr_start + 1)
+
+	add_zone_to_country(lineno, tlc, descr, filename, cont)
+}
+END {
+	if (failed) exit failed
+	for (tlc in country_nzones)
+		print_country_code(tlc)
+}
+'
+f_read_zones()
+{
+	eval $( awk -v progname="$pgm"   \
+	            "$f_read_zones_awk"  \
+	            "$_PATH_ZONETAB"     )
+}
+
+# f_install_zoneinfo_file $filename
+#
+# Installs a zone file to _PATH_LOCALTIME.
+#
+f_install_zoneinfo_file()
+{
+	local funcname=f_install_zoneinfo_file
+	local zoneinfo_file="$1"
+	local copymode title msg height width
+
+	if [ -L "$_PATH_LOCALTIME" ]; then
+		copymode=
+	elif [ ! -e "$_PATH_LOCALTIME" ]; then
+		# Nothing there yet...
+		copymode=1
+	else
+		copymode=1
+	fi
+
+	if [ "$VERBOSE" ]; then
+		if [ ! "$zoneinfo_file" ]; then
+			f_sprintf msg "$msg_removing_file" "$_PATH_LOCALTIME"
+		elif [ "$copymode" ]; then
+			f_sprintf msg "$msg_copying_file" \
+			              "$zoneinfo_file" "$_PATH_LOCALTIME"
+		else
+			f_sprintf msg "$msg_creating_symlink" \
+			              "$_PATH_LOCALTIME" "$zoneinfo_file"
+		fi
+		if [ "$USEDIALOG" ]; then
+			f_dialog_title "$msg_info"
+			f_dialog_msgbox "$msg"
+			f_dialog_title_restore
+		else
+			printf "%s\n" "$msg"
+		fi
+	fi
+
+	[ "$REALLYDOIT" ] || return $SUCCESS
+
+	local catch_args="-de"
+	[ "$USEDIALOG" ] && catch_args=
+
+	if [ ! "$zoneinfo_file" ]; then
+		f_eval_catch $catch_args $funcname rm \
+			'rm -f "%s"' "$_PATH_LOCALTIME" || return $FAILURE
+		f_eval_catch $catch_args $funcname rm \
+			'rm -f "%s"' "$_PATH_DB" || return $FAILURE
+
+		if [ "$VERBOSE" ]; then
+			f_sprintf msg "$msg_removed_file" "$_PATH_LOCALTIME"
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_done"
+				f_dialog_msgbox "$msg"
+				f_dialog_title_restore
+			else
+				printf "%s\n" "$msg"
+			fi
+		fi
+		return $SUCCESS
+	fi # ! zoneinfo_file
+
+	if [ "$copymode" ]; then
+		f_eval_catch $catch_args $funcname rm \
+			'rm -f "%s"' "$_PATH_LOCALTIME" || return $FAILURE
+		f_eval_catch $catch_args $funcname sh \
+			'umask 222 && :> "%s"' "$_PATH_LOCALTIME" ||
+			return $FAILURE
+		f_eval_catch $catch_args $funcname sh \
+			'cat "%s" > "%s"' \
+			"$zoneinfo_file" "$_PATH_LOCALTIME" || return $FAILURE
+	else
+		f_eval_catch $catch_args $funcname sh \
+			'( :< "%s" )' "$zoneinfo_file" || return $FAILURE
+		f_eval_catch $catch_args $funcname rm \
+			'rm -f "%s"' "$_PATH_LOCALTIME" || return $FAILURE
+		f_eval_catch $catch_args $funcname ln \
+			'ln -s "%s" "%s"' \
+			"$zoneinfo_file" "$_PATH_LOCALTIME" || return $FAILURE
+	fi # copymode
+
+	if [ "$VERBOSE" ]; then
+		if [ "$copymode" ]; then
+			f_sprintf msg "$msg_copied_timezone_file" \
+			              "$zoneinfo_file" "$_PATH_LOCALTIME"
+		else
+			f_sprintf msg "$msg_created_symlink" \
+			              "$_PATH_LOCALTIME" "$zoneinfo_file"
+		fi
+		if [ "$USEDIALOG" ]; then
+			f_dialog_title "$msg_done"
+			f_dialog_msgbox "$msg"
+			f_dialog_title_restore
+		else
+			printf "%s\n" "$msg"
+		fi
+	fi
+
+	return $SUCCESS
+}
+
+# f_install_zoneinfo $zoneinfo
+#
+# Install a zoneinfo file relative to _PATH_ZONEINFO. The given $zoneinfo
+# will be written to _PATH_DB (usable later with the `-r' flag).
+#
+f_install_zoneinfo()
+{
+	local zoneinfo="$1"
+	local rv
+
+	f_install_zoneinfo_file "$_PATH_ZONEINFO/$zoneinfo"
+	rv=$?
+
+	# Save knowledge for later
+	if [ "$REALLYDOIT" -a $rv -eq $SUCCESS ]; then
+		if true 2> /dev/null > "$_PATH_DB"; then
+			cat <<-EOF > "$_PATH_DB"
+			$zoneinfo
+			EOF
+		fi
+	fi
+
+	return $rv
+}
+
+# f_confirm_zone $filename
+#
+# Prompt the user to confirm the new timezone data. The first (and only)
+# argument should be the pathname to the zoneinfo file, either absolute or
+# relative to `/usr/share/zoneinfo' (e.g., "America/Los_Angeles").
+#
+# The return status is 0 if "Yes" is chosen, 1 if "No", and 255 if Esc is
+# pressed (see dialog(1) for additional details).
+# 
+f_confirm_zone()
+{
+	local filename="$1"
+	f_dialog_title "$msg_confirmation"
+	local title="$DIALOG_TITLE" btitle="$DIALOG_BACKTITLE"
+	f_dialog_title_restore
+	local tm_zone="$( TZ="$filename" date +%Z )"
+	local prompt # Calculated below
+	local height=5 width=72
+
+	f_sprintf prompt "$msg_look_reasonable" "$tm_zone"
+	if [ "$USE_XDIALOG" ]; then
+		height=$(( $height + 4 ))
+		$DIALOG \
+			--title "$title"         \
+			--backtitle "$btitle"    \
+			--ok-label "$msg_yes"    \
+			--cancel-label "$msg_no" \
+			--yesno "$prompt" $height $width
+	else
+		$DIALOG \
+			--title "$title"       \
+			--backtitle "$btitle"  \
+			--yes-label "$msg_yes" \
+			--no-label "$msg_no"   \
+			--yesno "$prompt" $height $width
+	fi
+}
+
+# f_set_zone_utc
+#
+# Resets to the UTC timezone.
+#
+f_set_zone_utc()
+{
+	f_confirm_zone "" || return $FAILURE
+	f_install_zoneinfo_file ""
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." timezone/zones.subr
+
+fi # ! $_TIMEZONE_ZONES_SUBR

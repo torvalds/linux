@@ -1,0 +1,298 @@
+.\" $FreeBSD$
+.\" Man page generated from reStructuredText.
+.
+.TH "LLI" "1" "2018-08-02" "7" "LLVM"
+.SH NAME
+lli \- directly execute programs from LLVM bitcode
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.SH SYNOPSIS
+.sp
+\fBlli\fP [\fIoptions\fP] [\fIfilename\fP] [\fIprogram args\fP]
+.SH DESCRIPTION
+.sp
+\fBlli\fP directly executes programs in LLVM bitcode format.  It takes a program
+in LLVM bitcode format and executes it using a just\-in\-time compiler or an
+interpreter.
+.sp
+\fBlli\fP is \fInot\fP an emulator. It will not execute IR of different architectures
+and it can only interpret (or JIT\-compile) for the host architecture.
+.sp
+The JIT compiler takes the same arguments as other tools, like \fBllc\fP,
+but they don\(aqt necessarily work for the interpreter.
+.sp
+If \fIfilename\fP is not specified, then \fBlli\fP reads the LLVM bitcode for the
+program from standard input.
+.sp
+The optional \fIargs\fP specified on the command line are passed to the program as
+arguments.
+.SH GENERAL OPTIONS
+.INDENT 0.0
+.TP
+.B \-fake\-argv0=executable
+Override the \fBargv[0]\fP value passed into the executing program.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-force\-interpreter={false,true}
+If set to true, use the interpreter even if a just\-in\-time compiler is available
+for this architecture. Defaults to false.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-help
+Print a summary of command line options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-load=pluginfilename
+Causes \fBlli\fP to load the plugin (shared object) named \fIpluginfilename\fP and use
+it for optimization.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-stats
+Print statistics from the code\-generation passes. This is only meaningful for
+the just\-in\-time compiler, at present.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-time\-passes
+Record the amount of time needed for each code\-generation pass and print it to
+standard error.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-version
+Print out the version of \fBlli\fP and exit without doing anything else.
+.UNINDENT
+.SH TARGET OPTIONS
+.INDENT 0.0
+.TP
+.B \-mtriple=target triple
+Override the target triple specified in the input bitcode file with the
+specified string.  This may result in a crash if you pick an
+architecture which is not compatible with the current system.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-march=arch
+Specify the architecture for which to generate assembly, overriding the target
+encoded in the bitcode file.  See the output of \fBllc \-help\fP for a list of
+valid architectures.  By default this is inferred from the target triple or
+autodetected to the current architecture.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-mcpu=cpuname
+Specify a specific chip in the current architecture to generate code for.
+By default this is inferred from the target triple and autodetected to
+the current architecture.  For a list of available CPUs, use:
+\fBllvm\-as < /dev/null | llc \-march=xyz \-mcpu=help\fP
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-mattr=a1,+a2,\-a3,...
+Override or control specific attributes of the target, such as whether SIMD
+operations are enabled or not.  The default set of attributes is set by the
+current CPU.  For a list of available attributes, use:
+\fBllvm\-as < /dev/null | llc \-march=xyz \-mattr=help\fP
+.UNINDENT
+.SH FLOATING POINT OPTIONS
+.INDENT 0.0
+.TP
+.B \-disable\-excess\-fp\-precision
+Disable optimizations that may increase floating point precision.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-enable\-no\-infs\-fp\-math
+Enable optimizations that assume no Inf values.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-enable\-no\-nans\-fp\-math
+Enable optimizations that assume no NAN values.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-enable\-unsafe\-fp\-math
+Causes \fBlli\fP to enable optimizations that may decrease floating point
+precision.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-soft\-float
+Causes \fBlli\fP to generate software floating point library calls instead of
+equivalent hardware instructions.
+.UNINDENT
+.SH CODE GENERATION OPTIONS
+.INDENT 0.0
+.TP
+.B \-code\-model=model
+Choose the code model from:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+default: Target default code model
+small: Small code model
+kernel: Kernel code model
+medium: Medium code model
+large: Large code model
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-disable\-post\-RA\-scheduler
+Disable scheduling after register allocation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-disable\-spill\-fusing
+Disable fusing of spill code into instructions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-jit\-enable\-eh
+Exception handling should be enabled in the just\-in\-time compiler.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-join\-liveintervals
+Coalesce copies (default=true).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-nozero\-initialized\-in\-bss
+Don\(aqt place zero\-initialized symbols into the BSS section.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-pre\-RA\-sched=scheduler
+Instruction schedulers available (before register allocation):
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+=default: Best scheduler for the target
+=none: No scheduling: breadth first sequencing
+=simple: Simple two pass scheduling: minimize critical path and maximize processor utilization
+=simple\-noitin: Simple two pass scheduling: Same as simple except using generic latency
+=list\-burr: Bottom\-up register reduction list scheduling
+=list\-tdrr: Top\-down register reduction list scheduling
+=list\-td: Top\-down list scheduler \-print\-machineinstrs \- Print generated machine code
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-regalloc=allocator
+Register allocator to use (default=linearscan)
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+=bigblock: Big\-block register allocator
+=linearscan: linear scan register allocator =local \-   local register allocator
+=simple: simple register allocator
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-relocation\-model=model
+Choose relocation model from:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+=default: Target default relocation model
+=static: Non\-relocatable code =pic \-   Fully relocatable, position independent code
+=dynamic\-no\-pic: Relocatable external references, non\-relocatable code
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-spiller
+Spiller to use (default=local)
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+=simple: simple spiller
+=local: local spiller
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-x86\-asm\-syntax=syntax
+Choose style of code to emit from X86 backend:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+=att: Emit AT&T\-style assembly
+=intel: Emit Intel\-style assembly
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH EXIT STATUS
+.sp
+If \fBlli\fP fails to load the program, it will exit with an exit code of 1.
+Otherwise, it will return the exit code of the program it executes.
+.SH SEE ALSO
+.sp
+\fBllc\fP
+.SH AUTHOR
+Maintained by The LLVM Team (http://llvm.org/).
+.SH COPYRIGHT
+2003-2018, LLVM Project
+.\" Generated by docutils manpage writer.
+.

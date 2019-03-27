@@ -1,0 +1,860 @@
+#
+# $FreeBSD$
+#
+
+Notes on the internal structure of dummynet (2010 version)
+by Riccardo Panicucci and Luigi Rizzo
+Work supported by the EC project ONELAB2
+
+
+*********
+* INDEX *
+*********
+Implementation of new dummynet
+    Internal structure
+    Files
+Packet arrival
+    The reconfiguration routine
+dummynet_task()
+Configuration
+    Add a pipe
+    Add a scheduler
+    Add a flowset
+Listing object
+Delete of object
+    Delete a pipe
+    Delete a flowset
+    Delete a scheduler
+Compatibility with FreeBSD7.2 and FreeBSD 8 ipfw binary
+    ip_dummynet_glue.c
+    ip_fw_glue.c
+How to configure dummynet
+How to implement a new scheduler
+
+
+
+OPEN ISSUES
+------------------------------
+20100131 deleting RR causes infinite loop
+	presumably in the rr_free_queue() call -- seems to hang
+	forever when deleting a live flow
+------------------------------
+
+Dummynet is a traffic shaper and network emulator. Packets are
+selected by an external filter such as ipfw, and passed to the emulator
+with a tag such as "pipe 10" or "queue 5" which tells what to
+do with the packet. As an example
+
+	ipfw add queue 5 icmp from 10.0.0.2 to all
+
+All packets with the same tag belong to a "flowset", or a set
+of flows which can be further partitioned according to a mask.
+Flowsets are then passed to a scheduler for processing. The
+association of flowsets and schedulers is configurable e.g.
+
+	ipfw queue 5 config sched 10 weight 3 flow_mask xxxx
+	ipfw queue 8 config sched 10 weight 1 ...
+	ipfw queue 3 config sched 20 weight 1 ...
+
+"sched 10" represents one or more scheduler instances,
+selected through a mask on the 5-tuple itself.
+
+	ipfw sched 20 config type FIFO sched_mask yyy ...
+
+There are in fact two masks applied to each packet:
++ the "sched_mask" sends packets arriving to a scheduler_id to
+  one of many instances.
++ the "flow_mask" together with the flowset_id is used to
+  collect packets into independent flows on each scheduler.
+
+As an example, we can have
+	ipfw queue 5 config sched 10 flow_mask src-ip 0x000000ff
+	ipfw sched 10 config type WF2Q+ sched_mask src-ip 0xffffff00
+
+means that sched 10 will have one instance per /24 source subnet,
+and within that, each individual source will be a flow.
+	
+Internal structure
+-----------------
+Dummynet-related data is split into several data structures,
+part of them constituting the userland-kernel API, and others
+specific to the kernel.
+NOTE: for up-to-date details please look at the relevant source
+	headers (ip_dummynet.h, ip_dn_private.h, dn_sched.h)
+
+USERLAND-KERNEL API	(ip_dummynet.h)
+
+    struct dn_link:
+	contains data about the physical link such as
+	bandwidth, delay, burst size;
+
+    struct dn_fs:
+	describes a flowset, i.e. a template for queues.
+	Main parameters are the scheduler we attach to, a flow_mask,
+	buckets, queue size, plr, weight, and other scheduler-specific
+	parameters.
+
+    struct dn_flow
+	contains information on a flow, including masks and
+	statistics
+
+    struct dn_sch:
+	defines a scheduler (and a link attached to it).
+	Parameters include scheduler type, sched_mask, number of
+	buckets, and possibly other scheduler-specific parameters,
+
+    struct dn_profile:
+	fields to simulate a delay profile
+
+
+KERNEL REPRESENTATION	(ip_dn_private.h)
+
+    struct mq
+	a queue of mbufs with head and tail.
+
+    struct dn_queue
+	individual queue of packets, created by a flowset using
+	flow_mask and attached to a scheduler instance selected
+	through sched_mask.
+	A dn_queue has a pointer to the dn_fsk (which in turn counts
+	how many queues point to it), a pointer to the
+	dn_sch_inst it attaches to, and is in a hash table in the
+	flowset. scheduler instances also should store queues in
+	their own containers used for scheduling (lists, trees, etc.)
+	CREATE: done on packet arrivals when a flow matches a flowset.
+	DELETE: done only when deleting the parent dn_sch_inst
+		or draining memory.
+
+    struct dn_fsk
+	includes a dn_fs; a pointer to the dn_schk; a link field
+	for the list of dn_fsk attached to the same scheduler,
+	or for the unlinked list;
+	a refcount for the number of queues pointing to it;
+	The dn_fsk is in a hash table, fshash.
+	CREATE: done on configuration commands.
+	DELETE: on configuration commands.
+
+    struct dn_sch_inst
+	a scheduler instance, created from a dn_schk applying sched_mask.
+	Contains a delay line, a reference to the parent, and scheduler-
+	specific info.  Both dn_sch_inst and its delay line can be in the
+	evheap if they have events to be processed.
+	CREATE: created from a dn_schk applying sched_mask
+	DELETE: configuration command delete a scheduler which in turn
+		sweeps the hash table of instances deleting them
+
+    struct dn_schk
+	includes dn_sch, dn_link, a pointer to dn_profile,
+	a hash table of dn_sch_inst, a list of dn_fsk
+	attached to it.
+	CREATE: configuration command. If there are flowsets that
+		refer to this number, they are attached and moved
+		to the hash table
+	DELETE: manual, see dn_sch_inst
+
+
+	fshash                            schedhash
+      +---------------+   sched        +--------------+
+      |      sched-------------------->|      NEW_SCHK|
+  -<----*sch_chain    |<-----------------*fsk_list    |
+      |NEW_FSK        |<----.          | [dn_link]    |
+      +---------------+     |          +--------------+
+      |qht (hash)     |     |          |  siht(hash)  |
+      |   [dn_queue]  |     |          |  [dn_si]     |
+      |   [dn_queue]  |     |          |  [dn_si]     |
+      |     ...       |     |          |   ...        |
+      |   +--------+  |     |          | +---------+  |
+      |   |dn_queue|  |     |          | |dn_si    |  |
+      |  |    fs *----------'          | |         |  |
+      |  |    si *---------------------->|         |  |
+      |  +---------+  |                | +---------+  |
+      +---------------+                +--------------+
+
+The following global data structures contain all
+schedulers and flowsets.
+
+- schedhash[x]: contains all scheduler templates in the system.
+	Looked up only on manual configurations, where flowsets
+	are attached to matching schedulers.
+	We have one entry per 'sched X config' command
+	(plus one for each 'pipe X config').
+
+- fshash[x]: contains all flowsets.
+	We do a lookup on this for each packet.
+	We have one entry for each 'queue X config'
+	(plus one for each 'pipe X config').
+
+Additionally, a list that contains all unlinked flowset:
+- fsu:  contains flowset that are not linked with any scheduler.
+	Flowset are put in this list when they refer to a non
+	existing scheduler.
+	We don't need an efficient data structure as we never search
+	here on a packet arrivals.
+
+Scheduler instances and the delay lines associated with each scheduler
+instance need to be woken up at certain times. Because we have many
+such objects, we keep them in a priority heap (system_heap).
+
+Almost all objects in this implementation are preceded by a structure
+(struct dn_id) which makes it easier to identify them.
+
+
+Files
+-----
+The dummynet code is split in several files.
+All kernel code is in sys/netpfil/ipfw except ip_dummynet.h
+All userland code is in sbin/ipfw.
+Files are
+- sys/netpfil/ip_dummynet.h defines the kernel-userland API
+- ip_dn_private.h contains the kernel-specific APIs
+  and data structures
+- dn_sched.h defines the scheduler API
+- ip_dummynet.c cointains module glue and sockopt handlers, with all
+  functions to configure and list objects.
+- ip_dn_io.c contains the functions directly related to packet processing,
+  and run in the critical path. It also contains some functions
+  exported to the schedulers.
+- dn_heap.[ch] implement a binary heap and a generic hash table
+- dn_sched_* implement the various scheduler modules
+  
+- dummynet.c is the file used to implement the user side of dummynet.
+  It contains the function to parsing command line, and functions to
+  show the output of dummynet objects.
+Moreover, there are two new file (ip_dummynet_glue.c and ip_fw_glue.c) that
+are used to allow compatibility with the "ipfw" binary from FreeBSD 7.2 and
+FreeBSD 8.
+
+LOCKING
+=======
+At the moment the entire processing occurs under a single lock
+which is expected to be acquired in exclusive mode
+DN_BH_WLOCK() / DN_BH_WUNLOCK().
+
+In perspective we aim at the following:
+- the 'busy' flag, 'pending' list and all structures modified by packet
+  arrivals and departures are protected by the BH_WLOCK.
+  This is normally acquired in exclusive mode by the packet processing
+  functions for short sections of code (exception -- the timer).
+  If 'busy' is not set, we can do regular packet processing.
+  If 'busy' is set, no pieces can be accessed.
+  We must enqueue the packet on 'pending' and return immediately.
+
+- the 'busy' flag is set/cleared by long sections of code as follows:
+	UH_WLOCK(); KASSERT(busy == 0);
+	BH_WLOCK(); busy=1; BH_WUNLOCK();
+	... do processing ...
+	BH_WLOCK(); busy=0; drain_queue(pending); BH_WUNLOCK();
+	UH_WUNLOCK();
+  this normally happens when the upper half has something heavy
+  to do. The prologue and epilogue are not in the critical path.
+
+- the main containers (fshash, schedhash, ...) are protected by
+  UH_WLOCK.
+  
+Packet processing
+=================
+A packet enters dummynet through dummynet_io(). We first lookup
+the flowset number in fshash using dn_ht_find(), then find the scheduler
+instance using ipdn_si_find(), then possibly identify the correct
+queue with ipdn_q_find().
+If successful, we call the scheduler's enqueue function(), and
+if needed start I/O on the link calling serve_sched().
+If the packet can be returned immediately, this is done by
+leaving *m0 set. Otherwise, the packet is absorbed by dummynet
+and we simply return, possibly with some appropriate error code.
+
+Reconfiguration
+---------------
+Reconfiguration is the complex part of the system because we need to
+keep track of the various objects and containers.
+At the moment we do not use reference counts for objects so all
+processing must be done under a lock.
+
+The main entry points for configuration is the ip_dn_ctl() handler
+for the IP_DUMMYNET3 sockopt (others are provided only for backward
+compatibility). Modifications to the configuration call do_config().
+The argument is a sequence of blocks each starting with a  struct dn_id
+which specifies its content.
+The first dn_id must contain as obj.id the DN_API_VERSION
+The obj.type is DN_CMD_CONFIG (followed by actual objects),
+DN_CMD_DELETE (with the correct subtype and list of objects), or
+DN_CMD_FLUSH.
+
+DN_CMD_CONFIG is followed by objects to add/reconfigure. In general,
+if an object already exists it is reconfigured, otherwise it is
+created in a way that keeps the structure consistent.
+We have the following objects in the system, normally numbered with
+an identifier N between 1 and 65535. For certain objects we have
+"shadow" copies numbered I+NMAX and I+ 2*NMAX which are used to
+implement certain backward compatibility features.
+
+In general we have the following linking
+
+  TRADITIONAL DUMMYNET QUEUES "queue N config ... pipe M ..."
+	corresponds to a dn_fs object numbered N
+
+  TRADITIONAL DUMMYNET PIPES "pipe N config ..."
+	dn_fs N+2*NMAX --> dn_sch N+NMAX type FIFO --> dn_link N+NMAX
+
+  GENERIC SCHEDULER "sched N config ... "
+	[dn_fs N+NMAX] --> dn_sch N --> dn_link N
+	The flowset N+NMAX is created only if the scheduler is not
+	of type MULTIQUEUE.
+
+  DELAY PROFILE	"pipe N config profile ..."
+	it is always attached to an existing dn_link N
+
+Because traditional dummynet pipes actually configure both a
+'standalone' instance and one that can be used by queues,
+we do the following:
+
+    "pipe N config ..." configures:
+	dn_sched N type WF2Q+
+	dn_sched N+NMAX type FIFO
+	dn_fs N+2NMAX attached to dn_sched N+NMAX
+	dn_pipe N
+	dn_pipe N+NMAX
+
+    "queue N config" configures
+	dn_fs N
+
+    "sched N config" configures
+	dn_sched N type as desired
+	dn_fs N+NMAX attached to dn_sched N
+
+
+dummynet_task()
+===============
+The dummynet_task() function is the main dummynet processing function and is
+called every tick. This function first calculate the new current time, then
+it checks if it is the time to wake up object from the system_heap comparing
+the current time and the key of the heap. Two types of object (really the
+heap contains pointer to objects) are in the
+system_heap:
+
+- scheduler instance: if a scheduler instance is waked up, the dequeue()
+  function is called until it has credit. If the dequeue() returns packets,
+  the scheduler instance is inserted in the heap with a new key depending of
+  the data that will be send out. If the scheduler instance remains with
+  some credit, it means that is hasn't other packet to send and so the
+  instance is no longer inserted in the heap.
+
+  If the scheduler instance extracted from the heap has the DELETE flag set,
+  the dequeue() is not called and the instance is destroyed now.
+
+- delay line: when extracting a delay line, the function transmit_event() is
+  called to send out packet from delay line.
+
+  If the scheduler instance associated with this delay line doesn't exists,
+  the delay line will be delete now.
+
+Configuration
+=============
+To create a pipe, queue or scheduler, the user should type commands like:
+"ipfw pipe x config"
+"ipfw queue y config pipe x"
+"ipfw pipe x config sched <type>"
+
+The userland side of dummynet will prepare a buffer contains data to pass to
+kernel side.
+The buffer contains all struct needed to configure an object. In more detail,
+to configure a pipe all three structs (dn_link, dn_sch, dn_fs) are needed,
+plus the delay profile struct if the pipe has a delay profile.
+
+If configuring a scheduler only the struct dn_sch is wrote in the buffer,
+while if configuring a flowset only the dn_fs struct is wrote.
+
+The first struct in the buffer contains the type of command request, that is
+if it is configuring a pipe, a queue, or a scheduler. Then there are structs
+need to configure the object, and finally there is the struct that mark
+the end of the buffer.
+
+To support the insertion of pipe and queue using the old syntax, when adding
+a pipe it's necessary to create a FIFO flowset and a FIFO scheduler, which
+have a number x + DN_PIPEOFFSET.
+
+Add a pipe
+----------
+A pipe is only a template for a link.
+If the pipe already exists, parameters are updated. If a delay profile exists
+it is deleted and a new one is created.
+If the pipe doesn't exist a new one is created. After the creation, the
+flowset unlinked list is scanned to see if there are some flowset that would
+be linked with this pipe. If so, these flowset will be of wf2q+ type (for
+compatibility) and a new wf2q+ scheduler is created now.
+
+Add a scheduler
+---------------
+If the scheduler already exists, and the type and the mask are the same, the
+scheduler is simply reconfigured calling the config_scheduler() scheduler
+function with the RECONFIGURE flag active.
+If the type or the mask differ, it is necessary to delete the old scheduler
+and create a new one.
+If the scheduler doesn't exists, a new one is created. If the scheduler has
+a mask, the hash table is created to store pointers to scheduler instances.
+When a new scheduler is created, it is necessary to scan the unlinked
+flowset list to search eventually flowset that would be linked with this
+scheduler number. If some are found, flowsets became of the type of this
+scheduler and they are configured properly.
+
+Add a flowset
+-------------
+Flowset pointers are store in the system in two list. The unlinked flowset list
+contains all flowset that aren't linked with a scheduler, the flowset list
+contains flowset linked to a scheduler, and so they have a type.
+When adding a new flowset, first it is checked if the flowset exists (that is,
+it is in the flowset list) and if it doesn't exists a new flowset is created
+and added to unlinked flowset list if the scheduler which the flowset would be
+linked doesn't exists, or added in the flowset list and configured properly if
+the scheduler exists. If the flowset (before to be created) was in the
+unlinked flowset list, it is removed and deleted, and then recreated.
+If the flowset exists, to allow reconfiguration of this flowset, the
+scheduler number and types must match with the one in memory. If this isn't
+so, the flowset is deleted and a new one will be created. Really, the flowset
+it isn't deleted now, but it is removed from flowset list and it will be
+deleted later because there could be some queues that are using it.
+
+Listing of object
+=================
+The user can request a list of object present in dummynet through the command
+"ipfw [-v] pipe|queue [x] list|show"
+The kernel side of dummynet send a buffer to user side that contains all
+pipe, all scheduler, all flowset, plus all scheduler instances and all queues.
+The dummynet user land will format the output and show only the relevant
+information.
+The buffer sent start with all pipe from the system. The entire struct dn_link
+is passed, except the delay_profile struct that is useless in user space.
+After pipes, all flowset are wrote in the buffer. The struct contains
+scheduler flowset specific data is linked with the flowset writing the
+'obj' id of the extension into the 'alg_fs' pointer.
+Then schedulers are wrote. If a scheduler has one or more scheduler instance,
+these are linked to the parent scheduler writing the id of the parent in the
+'ptr_sched' pointer. If a scheduler instance has queues, there are wrote in
+the buffer and linked thorugh the 'obj' and 'sched_inst' pointer.
+Finally, flowsets in the unlinked flowset list  are write in the buffer, and
+then a struct gen in saved in the buffer to mark the last struct in the buffer.
+
+
+Delete of object
+================
+An object is usually removed by user through a command like
+"ipfw pipe|queue x delete". XXX sched?
+ipfw pass to the kernel a struct gen that contains the type and the number
+of the object to remove
+
+Delete of pipe x
+----------------
+A pipe can be deleted by the user through the command 'ipfw pipe x delete'.
+To delete a pipe, the pipe is removed from the pipe list, and then deleted.
+Also the scheduler associated with this pipe should be deleted.
+For compatibility with old dummynet syntax, the associated FIFO scheduler and
+FIFO flowset must be deleted.
+
+Delete of flowset x
+-------------------
+To remove a flowset, we must be sure that is no longer referenced by any object.
+If the flowset to remove is in the unlinked flowset list, there is not any
+issue, the flowset can be safely removed calling a free() (the flowset
+extension is not yet created if the flowset is in this list).
+If the flowset is in the flowset list, first we remove from it so new packet
+are discarded when arrive. Next, the flowset is marked as delete.
+Now we must check if some queue is using this flowset.
+To do this, a counter (active_f) is provided. This counter indicate how many
+queues exist using this flowset.
+The active_f counter is automatically incremented when a queue is created
+and decremented when a queue is deleted.
+If the counter is 0, the flowset can be safely deleted, and the delete_alg_fs()
+scheduler function is called before deallocate memory.
+If the counter is not 0, the flowset remain in memory until the counter become
+zero. When a queue is delete (by dn_delete_queue() function) it is checked if
+the linked flowset is deleting and if so the counter is decrementing. If the
+counter reaches 0, the flowset is deleted.
+The deletion of a queue can be done only by the scheduler, or when the scheduler
+is destroyed.
+
+Delete of scheduler x
+---------------------
+To delete a scheduler we must be sure that any scheduler instance of this type
+are in the system_heap. To do so, a counter (inst_counter) is provided.
+This counter is managed by the system: it is incremented every time it is
+inserted in the system_heap, and decremented every time it is extracted from it.
+To delete the scheduler, first we remove it from the scheduler list, so new
+packet are discarded when they arrive, and mark the scheduler as deleting.
+
+If the counter is 0, we can remove the scheduler safely calling the
+really_deletescheduler() function. This function will scan all scheduler
+instances and call the delete_scheduler_instance() function that will delete
+the instance. When all instance are deleted, the scheduler template is
+deleted calling the delete_scheduler_template(). If the delay line associate
+with the scheduler is empty, it is deleted now, else it will be deleted when
+it will became empy.
+If the counter was not 0, we wait for it. Every time the dummynet_task()
+function extract a scheduler from the system_heap, the counter is decremented.
+If the scheduler has the delete flag enabled the dequeue() is not called and
+delete_scheduler_instance() is called to delete the instance.
+Obviously this scheduler instance is no longer inserted in the system_heap.
+If the counter reaches 0, the delete_scheduler_template() function is called
+all memory is released.
+NOTE: Flowsets that belong to this scheduler are not deleted, so if a new
+      scheduler with the same number is inserted will use these flowsets.
+      To do so, the best approach would be insert these flowset in the
+      unlinked flowset list, but doing this now will be very expensive.
+      So flowsets will remain in memory and linked with a scheduler that no
+      longer exists until a packet belonging to this flowset arrives. When
+      this packet arrives, the reconfigure() function is called because the
+      generation number mismatch with one contains in the flowset and so
+      the flowset will be moved into the flowset unlinked list, or will be
+      linked with the new scheduler if a new one was created.
+
+
+COMPATIBILITY WITH FREEBSD 7.2 AND FREEBSD 8 'IPFW' BINARY
+==========================================================
+Dummynet is not compatible with old ipfw binary because internal structs are
+changed. Moreover, the old ipfw binary is not compatible with new kernels
+because the struct that represents a firewall rule has changed. So, if a user
+install a new kernel on a FreeBSD 7.2, the ipfw (and possibly many other
+commands) will not work.
+New dummynet uses a new socket option: IP_DUMMYNET3, used for both set and get.
+The old option can be used to allow compatibility with the 'ipfw' binary of
+older version (tested with 7.2 and 8.0) of FreeBSD.
+Two file are provided for this purpose:
+- ip_dummynet_glue.c translates old dummynet requests to the new ones,
+- ip_fw_glue.c converts the rule format between 7.2 and 8 versions.
+Let see in detail these two files.
+
+IP_DUMMYNET_GLUE.C
+------------------
+The internal structs of new dummynet are very different from the original.
+Because of there are some difference from between dummynet in FreeBSD 7.2 and
+dummynet in FreeBSD 8 (the FreeBSD 8 version includes support to pipe delay
+profile and burst option), I have to include both header files. I copied
+the revision 191715 (for version 7.2) and the revision 196045 (for version 8)
+and I appended a number to each struct to mark them.
+
+The main function of this file is ip_dummynet_compat() that is called by
+ip_dn_ctl() when it receive a request of old socket option.
+
+A global variabile ('is7') store the version of 'ipfw' that FreeBSD is using.
+This variable is set every time a request of configuration is done, because
+with this request we receive a buffer of which size depending of ipfw version.
+Because of in general the first action is a configuration, this variable is
+usually set accordly. If the first action is a request of listing of pipes
+or queues, the system cannot know the version of ipfw, and we suppose that
+version 7.2 is used. If version is wrong, the output can be senseless, but
+the application should not crash.
+
+There are four request for old dummynet:
+- IP_DUMMYNET_FLUSH: the flush options have no parameter, so simply the
+  dummynet_flush() function is called;
+- IP_DUMMYNET_DEL: the delete option need to be translate.
+  It is only necessary to extract the number and the type of the object
+  (pipe or queue) to delete from the buffer received and build a new struct
+  gen contains the right parameters, then call the delete_object() function;
+- IP_DUMMYNET_CONFIGURE: the configure command receive a buffer depending of
+  the ipfw version. After the properly extraction of all data, that depends
+  by the ipfw version used, new structures are filled and then the dummynet
+  config_link() function is properly called. Note that the 7.2 version does
+  not support some parameter as burst or delay profile.
+- IP_DUMMYNET_GET: The get command should send to the ipfw the correct buffer
+  depending of its version. There are two function that build the
+  corrected buffer, ip_dummynet_get7() and ip_dummynet_get8(). These
+  functions reproduce the buffer exactly as 'ipfw' expect. The only difference
+  is that the weight parameter for a queue is no longer sent by dummynet and so
+  it is set to 0.
+  Moreover, because of the internal structure has changed, the bucket size
+  of a queue could not be correct, because now all flowset share the hash
+  table.
+  If the version of ipfw is wrong, the output could be senseless or truncated,
+  but the application should not crash.
+
+IP_FW_GLUE.C
+------------
+The ipfw binary also is used to add rules to FreeBSD firewall. Because of the
+struct ip_fw is changed from FreeBsd 7.2 to FreeBSD 8, it is necessary
+to write some glue code to allow use ipfw from FreeBSD 7.2 with the kernel
+provided with FreeBSD 8.
+This file contains two functions to convert a rule from FreeBSD 7.2 format to
+FreeBSD 8 format, and viceversa.
+The conversion should be done when a rule passes from userspace to kernel space
+and viceversa.
+I have to modify the ip_fw2.c file to manage these two case, and added a
+variable (is7) to store the ipfw version used, using an approach like the
+previous file:
+- when a new rule is added (option IP_FW_ADD) the is7 variable is set if the
+  size of the rule received correspond to FreeBSD 7.2 ipfw version. If so, the
+  rule is converted to version 8 calling the function convert_rule_to_8().
+  Moreover, after the insertion of the rule, the rule is now reconverted to
+  version 7 because the ipfw binary will print it.
+- when the user request a list of rules (option IP_FW_GET) the is7 variable
+  should be set correctly because we suppose that a configure command was done,
+  else we suppose that the FreeBSD version is 8. The function ipfw_getrules()
+  in ip_fw2.c file return all rules, eventually converted to version 7 (if
+  the is7 is set) to the ipfw binary.
+The conversion of a rule is quite simple. The only difference between the
+two structures (struct ip_fw) is that in the new there is a new field
+(uint32_t id). So, I copy the entire rule in a buffer and the copy the rule in
+the right position in the new (or old) struct. The size of commands are not
+changed, and the copy is done into a cicle.
+
+How to configure dummynet
+=========================
+It is possible to configure dummynet through two main commands:
+'ipfw pipe' and 'ipfw queue'.
+To allow compatibility with old version, it is possible configure dummynet
+using the old command syntax. Doing so, obviously, it is only possible to
+configure a FIFO scheduler or a wf2q+ scheduler.
+A new command, 'ipfw pipe x config sched <type>' is supported to add a new
+scheduler to the system.
+
+- ipfw pipe x config ...
+  create a new pipe with the link parameters
+  create a new scheduler fifo (x + offset)
+  create a new flowset fifo (x + offset)
+  the mask is eventually stored in the FIFO scheduler
+
+- ipfw queue y config pipe x ...
+  create a new flowset y linked to sched x.
+    The type of flowset depends by the specified scheduler.
+    If the scheduler does not exist, this flowset is inserted in a special
+    list and will be not active.
+    If pipe x exists and sched does not exist, a new wf2q+ scheduler is
+    created and the flowset will be linked to this new scheduler (this is
+    done for compatibility with old syntax).
+
+- ipfw pipe x config sched <type> ...
+  create a new scheduler x of type <type>.
+  Search into the flowset unlinked list if there are some flowset that
+  should be linked with this new scheduler.
+
+- ipfw pipe x delete
+  delete the pipe x
+  delete the scheduler fifo (x + offset)
+  delete the scheduler x
+  delete the flowset fifo (x + offset)
+
+- ipfw queue x delete
+  delete the flowset x
+
+- ipfw sched x delete ///XXX
+  delete the scheduler x
+
+Follow now some examples to how configure dummynet:
+- Ex1:
+  ipfw pipe 10 config bw 1M delay 15 // create a pipe with band and delay
+                                        A FIFO flowset and scheduler is
+                                        also created
+  ipfw queue 5 config pipe 10 weight 56 // create a flowset. This flowset
+                                           will be of wf2q+ because a pipe 10
+                                           exists. Moreover, the wf2q+
+                                           scheduler is created now.
+- Ex2:
+  ipfw queue 5 config pipe 10 weight 56 // Create a flowset. Scheduler 10
+                                           does not exist, so this flowset
+                                           is inserted in the unlinked
+                                           flowset list.
+  ipfw pipe 10 config bw... // Create a pipe, a FIFO flowset and scheduler.
+                               Because of a flowset with 'pipe 10' exists,
+                               a wf2q+ scheduler is created now and that
+                               flowset is linked with this sceduler.
+
+- Ex3:
+  ipfw pipe 10 config bw...    // Create a pipe, a FIFO flowset and scheduler.
+  ipfw pipe 10 config sched rr // Create a scheduler of type RR, linked to
+                                  pipe 10
+  ipfw queue 5 config pipe 10 weight 56 // Create a flowset 5. This flowset
+                                           will belong to scheduler 10 and
+                                           it is of type RR
+
+- Ex4:
+  ipfw pipe 10 config sched rr // Create a scheduler of type RR, linked to
+                                  pipe 10 (not exist yet)
+  ipfw pipe 10 config bw... // Create a pipe, a FIFO flowset and scheduler.
+  ipfw queue 5 config pipe 10 weight 56 // Create a flowset 5.This flowset
+                                           will belong to scheduler 10 and
+                                           it is of type RR
+  ipfw pipe 10 config sched wf2q+ // Modify the type of scheduler 10. It
+                                     becomes a wf2q+ scheduler.
+                                     When a new packet of flowset 5 arrives,
+                                     the flowset 5 becomes to wf2q+ type.
+
+How to implement a new scheduler
+================================
+In dummynet, a scheduler algorithm is represented by two main structs, some
+functions and other minor structs.
+- A struct dn_sch_xyz (where xyz is the 'type' of scheduler algorithm
+  implemented) contains data relative to scheduler, as global parameter that
+  are common to all instances of the scheduler
+- A struct dn_sch_inst_xyz contains data relative to a single scheduler
+  instance, as local status variable depending for example by flows that
+  are linked with the scheduler, and so on.
+To add a scheduler to dummynet, the user should type a command like:
+'ipfw pipe x config sched <type> [mask ... ...]'
+This command creates a new struct dn_sch_xyz of type <type>, and
+store the optional parameter in that struct.
+
+The parameter mask determines how many scheduler instance of this
+scheduler may exist. For example, it is possible to divide traffic
+depending on the source port (or destination, or ip address...),
+so that every scheduler instance act as an independent scheduler.
+If the mask is not set, all traffic goes to the same instance.
+
+When a packet arrives to a scheduler, the system search the corrected
+scheduler instance, and if it does not exist it is created now (the
+struct dn_sch_inst_xyz is allocated by the system, and the scheduler
+fills the field correctly). It is a task of the scheduler to create
+the struct that contains all queues for a scheduler instance.
+Dummynet provides some function to create an hash table to store
+queues, but the schedule algorithm can choice the own struct.
+
+To link a flow to a scheduler, the user should type a command like:
+'ipfw queue z config pipe x [mask... ...]'
+
+This command creates a new 'dn_fs' struct that will be inserted
+in the system.  If the scheduler x exists, this flowset will be
+linked to that scheduler and the flowset type become the same as
+the scheduler type. At this point, the function create_alg_fs_xyz()
+is called to allow store eventually parameter for the flowset that
+depend by scheduler (for example the 'weight' parameter for a wf2q+
+scheduler, or some priority...). A parameter mask can be used for
+a flowset. If the mask parameter is set, the scheduler instance can
+separate packet according to its flow id (src and dst ip, ports...)
+and assign it to a separate queue. This is done by the scheduler,
+so it can ignore the mask if it wants.
+
+See now the two main structs:
+struct dn_sch_xyz {
+    struct gen g; /* important the name g */
+    /* global params */
+};
+struct dn_sch_inst_xyz {
+    struct gen g; /* important the name g */
+    /* params of the instance */
+};
+It is important to embed the struct gen as first parameter. The struct gen
+contains some values that the scheduler instance must fill (the 'type' of
+scheduler, the 'len' of the struct...)
+The function create_scheduler_xyz() should be implemented to initialize global
+parameters in the first struct, and if memory allocation is done it is
+mandatory to implement the delete_scheduler_template() function to free that
+memory.
+The function create_scheduler_instance_xyz() must be implemented even if the
+scheduler instance does not use extra parameters. In this function the struct
+gen fields must be filled with corrected infos. The
+delete_scheduler_instance_xyz() function must bu implemented if the instance
+has allocated some memory in the previous function.
+
+To store data belonging to a flowset the follow struct is used:
+struct alg_fs_xyz {
+    struct gen g;
+    /* fill correctly the gen struct
+     g.subtype = DN_XYZ;
+     g.len = sizeof(struct alg_fs_xyz)
+     ...
+     */
+    /* params for the flow */
+};
+The create_alg_fs_xyz() function is mandatory, because it must fill the struct
+gen, but the delete_alg_fs_xyz() is mandatory only if the previous function
+has allocated some memory.
+
+A struct dn_queue contains packets belonging to a queue and some statistical
+data. The scheduler could have to store data in this struct, so it must define
+a dn_queue_xyz struct:
+struct dn_queue_xyz {
+    struct dn_queue q;
+    /* parameter for a queue */
+}
+
+All structures are allocated by the system. To do so, the scheduler must
+set the size of its structs in the scheduler descriptor:
+scheduler_size:     sizeof(dn_sch_xyz)
+scheduler_i_size:   sizeof(dn_sch_inst_xyz)
+flowset_size:       sizeof(alg_fs_xyz)
+queue_size:         sizeof(dn_queue_xyz);
+The scheduler_size could be 0, but other struct must have at least a struct gen.
+
+
+After the definition of structs, it is necessary to implement the
+scheduler functions.
+
+- int (*config_scheduler)(char *command, void *sch, int reconfigure);
+    Configure a scheduler, or reconfigure if 'reconfigure' == 1.
+    This function performs additional allocation and initialization of global
+    parameter for this scheduler.
+    If memory is allocated here, the delete_scheduler_template() function
+    should be implemented to remove this memory.
+- int (*delete_scheduler_template)(void* sch);
+    Delete a scheduler template. This function is mandatory if the scheduler
+    uses extra data respect the struct dn_sch.
+- int (*create_scheduler_instance)(void *s);
+    Create a new scheduler instance. The system allocate the necessary memory
+    and the schedulet can access it using the 's' pointer.
+    The scheduler instance stores all queues, and to do this can use the
+    hash table provided by the system.
+- int (*delete_scheduler_instance)(void *s);
+    Delete a scheduler instance. It is important to free memory allocated
+    by create_scheduler_instance() function. The memory allocated by system
+    is freed by the system itself. The struct contains all queue also has
+    to be deleted.
+- int (*enqueue)(void *s, struct gen *f, struct mbuf *m,
+                 struct ipfw_flow_id *id);
+    Called when a packet arrives. The packet 'm' belongs to the scheduler
+    instance 's', has a flowset 'f' and the flowid 'id' has already been
+    masked. The enqueue() must call dn_queue_packet(q, m) function to really
+    enqueue packet in the queue q. The queue 'q' is chosen by the scheduler
+    and if it does not exist should be created calling the dn_create_queue()
+    function. If the schedule want to drop the packet, it must call the
+    dn_drop_packet() function and then return 1.
+- struct mbuf * (*dequeue)(void *s);
+    Called when the timer expires (or when a packet arrives and the scheduler
+    instance is idle).
+    This function is called when at least a packet can be send out. The
+    scheduler choices the packet and returns it; if no packet are in the
+    schedulerinstance, the function must return NULL.
+    Before return a packet, it is important to call the function
+    dn_return_packet() to update some statistic of the queue and update the
+    queue counters.
+- int (*drain_queue)(void *s, int flag);
+    The system request to scheduler to delete all queues that is not using
+    to free memory. The flag parameter indicate if a queue must be deleted
+    even if it is active.
+
+- int (*create_alg_fs)(char *command, struct gen *g, int reconfigure);
+    It is called when a flowset is linked with a scheduler. This is done
+    when the scheduler is defined, so we can know the type of flowset.
+    The function initialize the flowset paramenter parsing the command
+    line. The parameter will be stored in the g struct that have the right
+    size allocated by the system. If the reconfigure flag is set, it means
+    that the flowset is reconfiguring
+- int (*delete_alg_fs)(struct gen *f);
+    It is called when a flowset is deleting. Must remove the memory allocate
+    by the create_alg_fs() function.
+
+- int (*create_queue_alg)(struct dn_queue *q, struct gen *f);
+    Called when a queue is created. The function should link the queue
+    to the struct used by the scheduler instance to store all queues.
+- int (*delete_queue_alg)(struct dn_queue *q);
+    Called when a queue is deleting. The function should remove extra data
+    and update the struct contains all queues in the scheduler instance.
+
+The struct scheduler represent the scheduler descriptor that is passed to
+dummynet when a scheduler module is loaded.
+This struct contains the type of scheduler, the length of all structs and
+all function pointers.
+If a function is not implemented should be initialize to NULL. Some functions
+are mandatory, other are mandatory if some memory should be freed.
+Mandatory functions:
+- create_scheduler_instance()
+- enqueue()
+- dequeue()
+- create_alg_fs()
+- drain_queue()
+Optional functions:
+- config_scheduler()
+- create_queue_alg()
+Mandatory functions if the corresponding create...() has allocated memory:
+- delete_scheduler_template()
+- delete_scheduler_instance()
+- delete_alg_fs()
+- delete_queue_alg()
+

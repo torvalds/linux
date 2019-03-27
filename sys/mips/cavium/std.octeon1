@@ -1,0 +1,9 @@
+# $FreeBSD$
+# 
+files	"../cavium/files.octeon1"
+machine	mips mips64
+cpu		CPU_CNMIPS
+
+makeoptions CFLAGS_PARAM_INLINE_UNIT_GROWTH=10000
+makeoptions CFLAGS_PARAM_LARGE_FUNCTION_GROWTH=100000
+makeoptions CFLAGS_ARCH_PARAMS="--param max-inline-insns-single=10000"

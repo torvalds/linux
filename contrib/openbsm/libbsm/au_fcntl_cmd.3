@@ -1,0 +1,95 @@
+.\"-
+.\" Copyright (c) 2009 Apple Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1.  Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\" 2.  Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\" 3.  Neither the name of Apple Inc. ("Apple") nor the names of
+.\"     its contributors may be used to endorse or promote products derived
+.\"     from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY APPLE AND ITS CONTRIBUTORS "AS IS" AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL APPLE OR ITS CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE. 
+.\"
+.Dd March 5, 2009
+.Dt AU_BSM_TO_FCNTL_CMD 3
+.Os
+.Sh NAME
+.Nm au_bsm_to_fcntl_cmd ,
+.Nm au_fcntl_cmd_to_bsm
+.Nd "convert between BSM and local fcntl(2) command values"
+.Sh LIBRARY
+.Lb libbsm
+.Sh SYNOPSIS
+.In bsm/libbsm.h
+.Ft int
+.Fn au_bsm_to_fcntl_cmd "u_short bsm_fcntl_cmd" "int *local_fcntl_cmdp"
+.Ft u_short
+.Fn au_fcntl_cmd_to_bsm "int local_fcntl_cmd"
+.Sh DESCRIPTION
+These interfaces may be used to convert between the local and BSM
+.Xr fcntl 2
+command values.
+The
+.Fn au_bsm_to_fcntl_cmd
+function accepts a BSM command value,
+.Fa bsm_fcntl_cmd ,
+and converts it to a local command value passed to
+.Xr fcntl 2 ,
+that will be stored in the integer pointed to by
+.Fa local_fcntl_cmdp
+if successful.
+This call will fail if the BSM command value cannot be mapped into a local
+.Xr fcntl 2
+command value which may occur if the command token was generated on another
+operating system.
+.Pp
+The
+.Fn au_fcntl_cmd_to_bsm
+function accepts a local
+.Xr fcntl 2
+command value, and returns the BSM
+.Xr fcntl 2
+command value for it.  This call cannot fail, and instead returns a BSM
+command value indicating to a later decoder that the command value could
+not be encoded.
+.Sh RETURN VALUES
+On success,
+.Fn au_bsm_to_fcntl_cmd
+returns 0 and a converted command value; on failure, it returns -1 but does
+not set
+.Xr errno 2 .
+.Sh SEE ALSO
+.Xr fcntl 2 ,
+.Xr au_bsm_to_domain 3 ,
+.Xr au_bsm_to_socket_type 3 ,
+.Xr au_domain_to_bsm 3 ,
+.Xr au_socket_type_to_bsm 3 ,
+.Xr libbsm 3
+.Sh HISTORY
+.Fn au_bsm_to_domain
+and
+.Fn au_domain_to_bsm
+were introduced in OpenBSM 1.1.
+.Sh AUTHORS
+These functions were implemented by
+.An Stacey Son
+under contract to Apple Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.

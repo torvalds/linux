@@ -1,0 +1,582 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Monitoring Options</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>Monitoring Commands and Options</h3>
+<img src="pic/pogo8.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html"></a> from <i>Pogo</i>, Walt Kelly</a>
+<p>Pig was hired to watch the logs.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->7-Dec-2017  10:17<!-- #EndDate -->
+    UTC</p>
+<br clear="left">
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/command.txt"></script>
+<script type="text/javascript" language="javascript" src="scripts/monopt.txt"></script>
+<h4>Table of Contents</h4>
+<ul>
+  <li class="inline"><a href="#intro">Naming Conventions</a></li>
+  <li class="inline"><a href="#cmd">Monitoring Commands and Options</a></li>
+  <li class="inline"><a href="#types">File Set Types</a></li>
+</ul>
+<hr>
+<h4 id="intro">Naming Conventions</h4>
+<p>The <tt>ntpd</tt> includes a comprehensive monitoring facility which collects
+  statistical data of various types and writes the data to files associated with
+  each type at defined events or intervals. The files associated with a particular
+  type are collectively called the generation file set for that type. The files
+  in the file set are the members of that set.</p>
+<p>File sets have names specific to the type and generation epoch. The names
+  are constructed from three concatenated elements <i><tt>prefix</tt></i>, <i><tt>filename</tt></i> and <i><tt>suffix</tt></i>:</p>
+<dl>
+  <dt><i><tt>prefix</tt></i></dt>
+  <dd>The directory path specified in the <tt>statsdir</tt> command.</dd>
+  <dt><i><tt>name</tt></i></dt>
+  <dd>The name specified by the <tt>file</tt> option of the <tt>filegen</tt> command.</dd>
+  <dt><i><tt>suffix</tt></i></dt>
+  <dd>A string of elements bdginning with . (dot) followed by a number of elements
+    depending on the file set type.</dd>
+</dl>
+<p>Statistics files can be managed using scripts, examples of which are in the <tt>./scripts</tt> directory.
+  Using these or similar scripts and Unix <tt>cron</tt> jobs, the files can be
+  automatically summarized and archived for retrospective analysis.</p>
+<h4 id="cmd">Monitoring Commands and Options</h4>
+<p>Unless noted otherwise, further information about these commands is on the <a href="decode.html">Event Messages and Status Codes</a> page.</p></a> page.</p><dl>
+  <dt id="filegen"><tt>filegen <i>name</i> [file <i>filename</i>] [type <i>type</i>]
+    [link | nolink] [enable | disable]</tt></dt>
+  <dd>
+    <dl>
+      <dt><i><tt>name</tt></i></dt>
+      <dd>Specifies the file set type from the list in the next section.</dd>
+      <dt><tt>file <i>filename</i></tt></dt>
+      <dd>Specifies the filename prefix. The default is the file set type, such as "loopstats".</dd>
+      <dt><tt>type <i>typename</i></tt></dt>
+      <dd>Specifies the file set interval. The following intervals are supported
+        with default <tt>day</tt>:</dd>
+      <dd>
+        <dl>
+          <dt><tt>none</tt></dt>
+          <dd>The file set is actually a single plain file.</dd>
+          <dt><tt>pid</tt></dt>
+          <dd>One file set member is created for every incarnation of <tt>ntpd</tt>.
+            The file name suffix is the string .<tt>n</tt>, where <tt>n</tt> is the
+            process ID of the <tt>ntpd</tt> server process.</dd>
+          <dt><tt>day</tt></dt>
+          <dd>One file set member is created per day. A day is defined as the period
+            between 00:00 and 23:59 UTC. The file name suffix is the string .<tt>yyyymmdd</tt>,
+            where <tt>yyyy</tt> is the year, <tt>mm</tt> the month of the year and <tt>dd</tt> the
+            day of the month. Thus, member created on 10 December 1992 would have suffix <tt>.19921210</tt>.</dd>
+          <dt><tt>week</tt></dt>
+          <dd>One file set member is created per week. The week is defined as the
+            day of year modulo 7. The file name suffix is the string .<tt>yyyyWww</tt>,
+            where <tt>yyyy</tt> is the year, <tt>W</tt> stands for itself and <tt>ww</tt> the
+            week number starting from 0. For example, The member created on 10 January
+            1992 would have suffix <tt>.1992W1</tt>.</dd>
+          <dt><tt>month</tt></dt>
+          <dd>One file set member is created per month. The file name suffix is the
+            string .<tt>yyyymm</tt>, where <tt>yyyy</tt> is the year and <tt>mm</tt> the
+            month of the year starting from 1. For example, The member created on 10
+            January 1992 would have suffix <tt>.199201</tt>.</dd>
+          <dt><tt>year</tt></dt>
+          <dd>One file set member is generated per year. The file name suffix is the
+            string .<tt>yyyy</tt>, where <tt>yyyy</tt> is the year. For example, The
+            member created on 1 January 1992 would have suffix <tt>.1992</tt>.</dd>
+          <dt><tt>age</tt></dt>
+          <dd>One file set member is generated every 24 hours of <tt>ntpd</tt> operation.
+            The filename suffix is the string <tt>.adddddddd</tt>, where <tt>a</tt> stands
+            for itself and <tt>dddddddd</tt> is the <tt>ntpd</tt> running time in seconds
+            at the start of the corresponding 24-hour period.</dd>
+        </dl>
+      </dd>
+      <dt><tt>link | nolink</tt></dt>
+      <dd>It is convenient to be able to access the current file set members by
+        file name, but without the suffix. This feature is enabled by <tt>link</tt> and
+        disabled by <tt>nolink</tt>. If enabled, which is the default, a hard link
+        from the current file set member to a file without suffix is created. When
+        there is already a file with this name and the number of links to this file
+        is one, it is renamed by appending a dot, the letter <tt>C</tt>, and the
+        pid of the <tt>ntpd</tt> server process. When the number of links is greater
+        than one, the file is unlinked. This allows the current file to be accessed
+        by a constant name.</dd>
+      <dt><tt>enable | disable</tt></dt>
+      <dd>Enable or disable the recording function, with default <tt>enable</tt>.
+        These options are intended for remote configuration commands.</dd>
+    </dl>
+  </dd>
+  <dt id="statistics"><tt>statistics <i>name</i>...</tt></dt>
+  <dd>Enables writing of statistics records. Currently, eight kinds of
+    statistics are supported: <i>name</i>s specify the file set type(s) from
+    the list in the next section.</dd>
+  <dt id="statsdir"><tt>statsdir <i>directory_path</i></tt></dt>
+  <dd>Specify the directory path prefix for statistics file names.</dd>
+</dl>
+<h4 id="types">File Set Types</h4>
+<dl>
+  <dt><tt>clockstats</tt></dt>
+  <dd>Record reference clock statistics. Each update received from a reference
+    clock driver appends one line to the <tt>clockstats</tt> file set:</dd>
+  <dd><tt>49213 525.624 127.127.4.1 93 226 00:08:29.606 D</tt></dd>
+  <dd>
+    <table width="100%" border="1" cellspacing="2" cellpadding="2">
+      <tr>
+        <td>Item</td>
+        <td>Units</td>
+        <td>Description</td>
+      </tr>
+      <tr>
+        <td><tt>49213</tt></td>
+        <td>MJD</td>
+        <td>date</td>
+      </tr>
+      <tr>
+        <td><tt>525.624</tt></td>
+        <td>s</td>
+        <td>time past midnight</td>
+      </tr>
+      <tr>
+        <td><tt>127.127.4.1</tt></td>
+        <td>IP</td>
+        <td>reference clock address</td>
+      </tr>
+      <tr>
+        <td><tt><i>message</i></tt></td>
+        <td>text</td>
+        <td>log message</td>
+      </tr>
+    </table>
+  </dd>
+  <dd>The <tt><i>message</i></tt> field includes the last timecode received in
+    decoded ASCII format, where meaningful. In some cases a good deal of additional
+    information is displayed. See information specific to each reference clock
+    for further details.</dd>
+  <dt><tt>cryptostats</tt></dt>
+  <dd>Record significant events in the Autokey protocol. This option requires
+    the OpenSSL cryptographic software library. Each event appends one line to
+    the <tt>cryptostats</tt> file set:</dd>
+  <dd><tt>49213 525.624 128.4.1.1 <i>message</i></tt></dd>
+  <dd>
+    <table width="100%" border="1" cellspacing="2" cellpadding="2">
+      <tr>
+        <td>Item</td>
+        <td>Units</td>
+        <td>Description</td>
+      </tr>
+      <tr>
+        <td><tt>49213</tt></td>
+        <td>MJD</td>
+        <td>date</td>
+      </tr>
+      <tr>
+        <td><tt>525.624</tt></td>
+        <td>s</td>
+        <td>time past midnight</td>
+      </tr>
+      <tr>
+        <td><tt>128.4.1.1</tt></td>
+        <td>IP</td>
+        <td>source address (<tt>0.0.0.0</tt> for system)</td>
+      </tr>
+      <tr>
+        <td><tt><i>message</i></tt></td>
+        <td>text</td>
+        <td>log message</td>
+      </tr>
+    </table>
+  </dd>
+  <dd>The <tt><i>message</i></tt> field includes the message type and certain
+    ancillary information. See the <a href="authopt.html">Authentication Options</a> page
+    for further information.</dd>
+  <dt><tt>loopstats</tt></dt>
+  <dd>Record clock discipline loop statistics. Each system clock update appends
+    one line to the <tt>loopstats</tt> file set:</dd>
+  <dd><tt>50935 75440.031 0.000006019 13.778 0.000351733 0.013380 6</tt></dd>
+  <dd>
+    <table width="100%" border="1" cellspacing="2" cellpadding="2">
+      <tr>
+        <td>Item</td>
+        <td>Units</td>
+        <td>Description</td>
+      </tr>
+      <tr>
+        <td><tt>50935</tt></td>
+        <td>MJD</td>
+        <td>date</td>
+      </tr>
+      <tr>
+        <td><tt>75440.031</tt></td>
+        <td>s</td>
+        <td>time past midnight</td>
+      </tr>
+      <tr>
+        <td><tt>0.000006019</tt></td>
+        <td>s</td>
+        <td>clock offset</td>
+      </tr>
+      <tr>
+        <td><tt>13.778</tt></td>
+        <td>PPM</td>
+        <td>frequency offset</td>
+      </tr>
+      <tr>
+        <td><tt>0.000351733</tt></td>
+        <td>s</td>
+        <td>RMS jitter</td>
+      </tr>
+      <tr>
+        <td><tt>0.013380</tt></td>
+        <td>PPM</td>
+        <td>RMS&nbsp;frequency jitter (aka wander)</td>
+      </tr>
+      <tr>
+        <td><tt>6 </tt></td>
+        <td>log<sub>2</sub> s</td>
+        <td>clock discipline loop time constant</td>
+      </tr>
+    </table>
+  </dd>
+  <dt><tt>peerstats</tt></dt>
+  <dd>Record peer statistics. Each NTP packet or reference clock update received
+    appends one line to the <tt>peerstats</tt> file set:</dd>
+  <dd><tt>48773 10847.650 127.127.4.1 9714 -0.001605376 0.000000000 0.001424877
+    0.000958674</tt></dd>
+  <dd>
+    <table width="100%" border="1" cellspacing="2" cellpadding="2">
+      <tr>
+        <td>Item</td>
+        <td>Units</td>
+        <td>Description</td>
+      </tr>
+      <tr>
+        <td><tt>48773</tt></td>
+        <td>MJD</td>
+        <td>date</td>
+      </tr>
+      <tr>
+        <td><tt>10847.650</tt></td>
+        <td>s</td>
+        <td>time past midnight</td>
+      </tr>
+      <tr>
+        <td><tt>127.127.4.1</tt></td>
+        <td>IP</td>
+        <td>source address</td>
+      </tr>
+      <tr>
+        <td><tt>9714</tt></td>
+        <td>hex</td>
+        <td>status word</td>
+      </tr>
+      <tr>
+        <td><tt>-0.001605376</tt></td>
+        <td>s</td>
+        <td>clock offset</td>
+      </tr>
+      <tr>
+        <td><tt>0.000000000 </tt></td>
+        <td>s</td>
+        <td>roundtrip delay</td>
+      </tr>
+      <tr>
+        <td><tt>0.001424877</tt></td>
+        <td>s</td>
+        <td>dispersion</td>
+      </tr>
+      <tr>
+        <td><tt>0.000958674</tt></td>
+        <td>s</td>
+        <td>RMS&nbsp;jitter</td>
+      </tr>
+    </table>
+  </dd>
+  <dd>The status field is encoded in hex format as described in Appendix B of
+    the NTP specification RFC 1305.</dd>
+  <dt><tt>protostats</tt></dt>
+  <dd>Record significant peer, system and protocol events. Each significant event
+    appends one line to the <tt>protostats</tt> file set:</dd>
+  <dd><tt>49213 525.624 128.4.1.1 963a 8a <i>message</i></tt></dd>
+  <dd>
+    <table width="100%" border="1" cellspacing="2" cellpadding="2">
+      <tr>
+        <td>Item</td>
+        <td>Units</td>
+        <td>Description</td>
+      </tr>
+      <tr>
+        <td><tt>49213</tt></td>
+        <td>MJD</td>
+        <td>date</td>
+      </tr>
+      <tr>
+        <td><tt>525.624</tt></td>
+        <td>s</td>
+        <td>time past midnight</td>
+      </tr>
+      <tr>
+        <td><tt>128.4.1.1</tt></td>
+        <td>IP</td>
+        <td>source address (<tt>0.0.0.0</tt> for system)</td>
+      </tr>
+      <tr>
+        <td><tt>963a</tt></td>
+        <td>code</td>
+        <td>status word</td>
+      </tr>
+      <tr>
+        <td><tt>8a</tt></td>
+        <td>code</td>
+        <td>event message code</td>
+      </tr>
+      <tr>
+        <td><tt><i>message</i></tt></td>
+        <td>text</td>
+        <td>event message</td>
+      </tr>
+    </table>
+  </dd>
+  <dd>The event message code and <tt><i>message</i></tt> field are described on
+    the <a href="decode.html">Event Messages and Status Words</a> page.</dd>
+  <dt><tt>rawstats</tt></dt>
+  <dd>Record timestamp statistics. Each NTP packet received appends one line to
+the <tt>rawstats</tt> file set.  As of ntp-4.2.8p11, each NTP packet written appends one line to the <tt>rawstats</tt> file set, as well.  The format of this line is:</dd>
+  <dd><tt>56285 54575.160 128.4.1.1 192.168.1.5 3565350574.400229473 3565350574.442385200 3565350574.442436000 3565350575.154505763 0 4 4 1 8 -21 0.000000 0.000320 .PPS.</tt></dd>
+  <dd><tt>56285 54575.160 128.4.1.1 192.168.1.5 3565350574.400229473 3565350574.442385200 3565350574.442436000 3565350575.154505763 0 4 4 1 8 -21 0.000000 0.000320 .PPS. 4: 0000</tt></dd>
+  </tt></dd>
+  <dd>
+    <table width="100%" border="1" cellspacing="2" cellpadding="2">
+      <tr>
+        <td>Item</td>
+        <td>Units</td>
+        <td>Description</td>
+      </tr>
+      <tr>
+        <td><tt>56285</tt></td>
+        <td>MJD</td>
+        <td>date</td>
+      </tr>
+      <tr>
+        <td><tt>54575.160</tt></td>
+        <td>s</td>
+        <td>time past midnight</td>
+      </tr>
+      <tr>
+        <td><tt>128.4.1.1</tt></td>
+        <td>IP</td>
+        <td>source address</td>
+      </tr>
+      <tr>
+        <td><tt>192.168.1.5</tt></td>
+        <td>IP</td>
+        <td>destination address</td>
+      </tr>
+      <tr>
+        <td><tt>3565350574.400229473</tt></td>
+        <td>NTP&nbsp;s</td>
+        <td>origin timestamp</td>
+      </tr>
+      <tr>
+        <td><tt>3565350574.442385200</tt></td>
+        <td>NTP s</td>
+        <td>receive timestamp</td>
+      </tr>
+      <tr>
+        <td><tt>3565350574.442436000</tt></td>
+        <td>NTP s</td>
+        <td>transmit timestamp</td>
+      </tr>
+      <tr>
+        <td><tt>3565350575.154505763</tt></td>
+        <td>NTP&nbsp;s</td>
+        <td>destination timestamp</td>
+      </tr>
+      <tr>
+        <td><tt>0</tt></td>
+        <td>0: OK, 1: insert pending,<br>2: delete pending, 3: not synced</td>
+        <td>leap warning indicator</td>
+      </tr>
+      <tr>
+        <td><tt>4</tt></td>
+        <td>4 was current in 2012</td>
+        <td>NTP version</td>
+      </tr>
+      <tr>
+        <td><tt>4</tt></td>
+        <td>3: client, 4: server, 5: broadcast</td>
+        <td>mode</td>
+      </tr>
+      <tr>
+        <td><tt>1</tt></td>
+        <td>1-15, 16: not synced</td>
+        <td>stratum</td>
+      </tr>
+      <tr>
+        <td><tt>8</tt></td>
+        <td>log<sub>2</sub> seconds</td>
+        <td>poll</td>
+      </tr>
+      <tr>
+        <td><tt>-21</tt></td>
+        <td>log<sub>2</sub> seconds</td>
+        <td>precision</td>
+      </tr>
+      <tr>
+        <td><tt>0.000000</tt></td>
+        <td>seconds</td>
+        <td>total roundtrip delay to the primary reference clock</td>
+      </tr>
+      <tr>
+        <td><tt>0.000320</tt></td>
+        <td>seconds</td>
+        <td>total dispersion to the primary reference clock</td>
+      </tr>
+      <tr>
+        <td><tt>.PPS.</tt></td>
+        <td>REFID</td>
+        <td>system peer, association ID</td>
+      </tr>
+      <tr>
+	<td></td>
+	<td></td>
+        <td>If there is data beyond the base packet:</td>
+      </tr>
+      <tr>
+        <td><tt>4:</tt></td>
+        <td>Integer</td>
+        <td>Length, in bytes</td>
+      </tr>
+      <tr>
+        <td><tt>0000</tt></td>
+        <td>Hex data</td>
+      </tr>
+    </table>
+  </dd>
+  <dt><tt>sysstats</tt></dt>
+  <dd>Record system statistics. Each hour one line is appended to the <tt>sysstats</tt> file
+    set in the following format:</dd>
+  <dd><tt>50928 2132.543 3600 81965 0 9546 56 512 540 10 4 147 1</tt></dd>
+  <dd>
+    <table width="100%" border="1" cellspacing="2" cellpadding="2">
+      <tr>
+        <td>Item</td>
+        <td>Units</td>
+        <td>Description</td>
+      </tr>
+      <tr>
+        <td><tt>50928</tt></td>
+        <td>MJD</td>
+        <td>date</td>
+      </tr>
+      <tr>
+        <td><tt>2132.543</tt></td>
+        <td>s</td>
+        <td>time past midnight</td>
+      </tr>
+      <tr>
+        <td><tt>3600</tt></td>
+        <td>s</td>
+        <td>time since reset</td>
+      </tr>
+      <tr>
+        <td><tt>81965</tt></td>
+        <td>#</td>
+        <td>packets received</td>
+      </tr>
+      <tr>
+        <td><tt>0</tt></td>
+        <td>#</td>
+        <td>packets for this host</td>
+      </tr>
+      <tr>
+        <td><tt>9546</tt></td>
+        <td>#</td>
+        <td>current versions</td>
+      </tr>
+      <tr>
+        <td><tt>56</tt></td>
+        <td>#</td>
+        <td>old version</td>
+      </tr>
+      <tr>
+        <td><tt>512</tt></td>
+        <td>#</td>
+        <td>access denied</td>
+      </tr>
+      <tr>
+        <td><tt>540</tt></td>
+        <td>#</td>
+        <td>bad length or format</td>
+      </tr>
+      <tr>
+        <td><tt>10</tt></td>
+        <td>#</td>
+        <td>bad authentication</td>
+      </tr>
+      <tr>
+        <td><tt>4</tt></td>
+        <td>#</td>
+        <td>declined</td>
+      </tr>
+      <tr>
+        <td><tt>147</tt></td>
+        <td>#</td>
+        <td>rate exceeded</td>
+      </tr>
+      <tr>
+        <td><tt>1</tt></td>
+        <td>#</td>
+        <td>kiss-o'-death packets sent</td>
+      </tr>
+    </table>
+  </dd>
+  <dt><tt>timingstats</tt></dt>
+  <dd>(Only available when the daemon is compiled with process time debugging
+    support (--enable-debug-timing - costs performance). Record processing time
+    statistics for various selected code paths.</dd>
+  <dd><tt>53876 36.920 10.0.3.5 1 0.000014592 input processing delay</tt></dd>
+  <dd>
+    <table width="100%" border="1" cellspacing="2" cellpadding="2">
+      <tr>
+        <td>Item</td>
+        <td>Units</td>
+        <td>Description</td>
+      </tr>
+      <tr>
+        <td><tt>53876</tt></td>
+        <td>MJD</td>
+        <td>date</td>
+      </tr>
+      <tr>
+        <td><tt>36.920</tt></td>
+        <td>s</td>
+        <td>time past midnight</td>
+      </tr>
+      <tr>
+        <td><tt>10.0.3.5</tt></td>
+        <td>IP</td>
+        <td>server address</td>
+      </tr>
+      <tr>
+        <td><tt>1</tt></td>
+        <td>#</td>
+        <td>event count</td>
+      </tr>
+      <tr>
+        <td><tt>0.000014592</tt></td>
+        <td>s</td>
+        <td>total time</td>
+      </tr>
+      <tr>
+        <td><tt><i>message</i></tt></td>
+        <td>text</td>
+        <td>code path description (see source)</td>
+      </tr>
+    </table>
+  </dd>
+</dl>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

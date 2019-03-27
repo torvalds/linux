@@ -1,0 +1,156 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_get_fde_info_for_all_regs.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd June 4, 2011
+.Dt DWARF_GET_FDE_INFO_FOR_ALL_REGS 3
+.Os
+.Sh NAME
+.Nm dwarf_get_fde_info_for_all_regs
+.Nd retrieve register rule row
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_get_fde_info_for_all_regs
+.Fa "Dwarf_Fde fde"
+.Fa "Dwarf_Addr pc"
+.Fa "Dwarf_Regtable *reg_table"
+.Fa "Dwarf_Addr *row_pc"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_get_fde_info_for_all_regs
+retrieves a row from the register rule table associated with the given
+FDE descriptor.
+.Pp
+Argument
+.Ar fde
+should reference a valid DWARF FDE descriptor.
+.Pp
+Argument
+.Ar pc
+should hold the program counter address to be used to locate the
+desired table row.
+.Pp
+Argument
+.Ar reg_table
+should point to a
+.Vt Dwarf_Regtable
+descriptor which will hold the returned table row of register rules.
+.Pp
+Argument
+.Ar row_pc
+should point to a location which will be set to the lowest program
+counter address associated with the table row.
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case of an
+error.
+.Pp
+The
+.Vt Dwarf_Regtable
+descriptor is defined in the header file
+.In libdwarf.h :
+.Bd -literal -offset indent
+typedef struct {
+	struct {
+		Dwarf_Small	dw_offset_relevant;
+		Dwarf_Half	dw_regnum;
+		Dwarf_Addr	dw_offset;
+	} rules[DW_REG_TABLE_SIZE];
+} Dwarf_Regtable;
+.Ed
+.Pp
+For each of the register rules returned,
+the
+.Va dw_offset_relevant
+field is set to 1 if the register rule has a offset value.
+The
+.Va dw_regnum
+field is set to the register number associated with the regsiter rule.
+The
+.Va dw_offset
+field is set to the offset value associated with the register rule.
+.Pp
+The number of register columns returned is either the constant
+value
+.Dv DW_REG_TABLE_SIZE as defined
+in the header file
+.In libdwarf.h ,
+or the value set by function
+.Xr dwarf_set_frame_rule_table_size 3 ,
+whichever is smaller.
+.Ss COMPATIBILITY
+Function
+.Fn dwarf_get_fde_info_for_all_regs
+is deprecated since it only supports DWARF2 frame sections.
+Applications should instead use function
+.Xr dwarf_get_fde_info_for_all_regs3 3
+which supports both DWARF2 and DWARF3 frame sections.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_get_fde_info_for_all_regs
+returns
+.Dv DW_DLV_OK
+when it succeeds.
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets the argument
+.Ar err .
+.Sh ERRORS
+Function
+.Fn dwarf_get_fde_info_for_all_regs
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_PC_NOT_IN_FDE_RANGE"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar fde ,
+.Ar reg_table
+or
+.Ar row_pc
+was NULL.
+.It Bq Er DW_DLE_PC_NOT_IN_FDE_RANGE
+The program counter value provided in argument
+.Ar pc
+did not fall in the range covered by argument
+.Ar fde .
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_get_fde_at_pc 3 ,
+.Xr dwarf_get_fde_info_for_all_regs3 3 ,
+.Xr dwarf_get_fde_info_for_cfa_reg3 3 ,
+.Xr dwarf_get_fde_info_for_reg 3 ,
+.Xr dwarf_get_fde_info_for_reg3 3 ,
+.Xr dwarf_get_fde_n 3 ,
+.Xr dwarf_set_frame_cfa_value 3 ,
+.Xr dwarf_set_frame_rule_initial_value 3 ,
+.Xr dwarf_set_frame_rule_table_size 3 ,
+.Xr dwarf_set_frame_same_value 3 ,
+.Xr dwarf_set_frame_undefined_value 3

@@ -1,0 +1,223 @@
+.\" Copyright (c) 2006-2008,2011 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elf_flagdata.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd December 3, 2011
+.Dt ELF_FLAGDATA 3
+.Os
+.Sh NAME
+.Nm elf_flagarhdr ,
+.Nm elf_flagdata ,
+.Nm elf_flagehdr ,
+.Nm elf_flagelf ,
+.Nm elf_flagphdr ,
+.Nm elf_flagscn ,
+.Nm elf_flagshdr
+.Nd manipulate flags associated with ELF(3) data structures
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft "unsigned int"
+.Fn elf_flagarhdr "Elf_Arhdr *arhdr" "Elf_Cmd cmd" "unsigned int flags"
+.Ft "unsigned int"
+.Fn elf_flagdata "Elf_Data *data" "Elf_Cmd cmd" "unsigned int flags"
+.Ft "unsigned int"
+.Fn elf_flagehdr "Elf *elf" "Elf_Cmd cmd" "unsigned int flags"
+.Ft "unsigned int"
+.Fn elf_flagelf "Elf *elf" "Elf_Cmd cmd" "unsigned int flags"
+.Ft "unsigned int"
+.Fn elf_flagphdr "Elf *elf" "Elf_Cmd cmd" "unsigned int flags"
+.Ft "unsigned int"
+.Fn elf_flagscn "Elf_Scn *scn" "Elf_Cmd cmd" "unsigned int flags"
+.Ft "unsigned int"
+.Fn elf_flagshdr "Elf_Scn *scn" "Elf_Cmd cmd" "unsigned int flags"
+.Sh DESCRIPTION
+These functions are used to query, set or reset flags on data
+structures associated with an ELF file.
+.Pp
+Arguments
+.Ar arhdr ,
+.Ar data ,
+.Ar elf
+and
+.Ar scn
+denote the data structures whose flags need to be changed.
+These values should have been returned by prior calls to
+functions in the ELF(3) API set:
+.Bl -bullet -compact
+.It
+Argument
+.Ar arhdr
+should have been returned by a prior call to
+.Xr elf_getarhdr 3 .
+.It
+Argument
+.Ar data
+should have been returned by a prior call to one of
+.Xr elf_newdata 3 ,
+.Xr elf_getdata 3
+or
+.Xr elf_rawdata 3 .
+.It
+Argument
+.Ar elf
+should have been allocated by a prior call to one of
+.Xr elf_begin 3
+or
+.Xr elf_memory 3 .
+.It
+Argument
+.Ar scn
+should have been returned by a prior call to one of
+.Xr elf_getscn 3 ,
+.Xr elf_newscn 3
+or
+.Xr elf_nextscn 3 .
+.El
+These values are allowed to be NULL to simplify error handling in
+application code.
+.Pp
+Argument
+.Ar cmd
+may have the following values:
+.Bl -tag -width ELF_C_SET
+.It Dv ELF_C_CLR
+The argument
+.Ar flags
+specifies the flags to be cleared.
+.It Dv ELF_C_SET
+The argument
+.Ar flags
+specifies the flags to be set.
+.El
+.Pp
+The argument
+.Ar flags
+is allowed to have the following flags set:
+.Bl -tag -width ELF_F_ARCHIVE_SYSV
+.It Dv ELF_F_ARCHIVE
+This flag is only valid with the
+.Fn elf_flagelf
+API.
+It informs the library that the application desires to create an
+.Xr ar 1
+archive.
+Argument
+.Ar elf
+should have been opened for writing using the
+.Dv ELF_C_WRITE
+command to function
+.Fn elf_begin .
+.It Dv ELF_F_ARCHIVE_SYSV
+This flag is used in conjunction with the
+.Dv ELF_F_ARCHIVE
+flag to indicate that library should create archives that conform
+to System V layout rules.
+The default is to create BSD style archives.
+.It Dv ELF_F_DIRTY
+Mark the associated data structure as needing to be written back
+to the underlying file.
+A subsequent call to
+.Xr elf_update 3
+will resynchronize the library's internal data structures.
+.It Dv ELF_F_LAYOUT
+This flag is only valid with the
+.Fn elf_flagelf
+API.
+It informs the library that the application will take
+responsibility for the layout of the file and that the library is
+not to insert any padding in between sections.
+.El
+.Pp
+Marking a given data structure as
+.Dq dirty
+affects all of its contained elements.
+Thus marking an ELF descriptor
+.Ar elf
+with
+.Fn elf_flagelf "elf" "ELF_C_SET" "ELF_F_DIRTY"
+means that the entire contents of the descriptor are
+.Dq dirty .
+.Pp
+Using a value of zero for argument
+.Ar flags
+will return the current set of flags for the data structure being
+queried.
+.Sh RETURN VALUES
+These functions return the updated flags if successful, or zero if
+an error is detected.
+.Sh COMPATIBILITY
+The
+.Fn elf_flagarhdr
+function and the
+.Dv ELF_F_ARCHIVE
+and
+.Dv ELF_F_ARCHIVE_SYSV
+flags are an extension to the ELF(3) API.
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARGUMENT
+An unsupported value was used for the
+.Ar cmd
+argument.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar flags
+had unsupported flags set.
+.It Bq Er ELF_E_ARGUMENT
+The argument
+.Ar elf
+was not a descriptor for an ELF object.
+.It Bq Er ELF_E_MODE
+The
+.Dv ELF_F_ARCHIVE
+flag was used with an ELF descriptor that had not been opened for writing.
+.It Bq Er ELF_E_SEQUENCE
+Function
+.Fn elf_flagehdr
+was called without an executable header being allocated.
+.It Bq Er ELF_E_SEQUENCE
+Function
+.Fn elf_flagphdr
+was called without a program header being allocated.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf32_newehdr 3 ,
+.Xr elf32_newphdr 3 ,
+.Xr elf64_newehdr 3 ,
+.Xr elf64_newphdr 3 ,
+.Xr elf_newdata 3 ,
+.Xr elf_update 3 ,
+.Xr gelf 3 ,
+.Xr gelf_newehdr 3 ,
+.Xr gelf_newphdr 3 ,
+.Xr gelf_update_dyn 3 ,
+.Xr gelf_update_move 3 ,
+.Xr gelf_update_rel 3 ,
+.Xr gelf_update_rela 3 ,
+.Xr gelf_update_sym 3 ,
+.Xr gelf_update_syminfo 3

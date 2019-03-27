@@ -1,0 +1,339 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ss5	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+5: Ambiguity and Conflicts
+.PP
+A set of grammar rules is
+.I ambiguous
+if there is some input string that can be structured in two or more different ways.
+For example, the grammar rule
+.DS
+expr	:	expr  \'\-\'  expr
+.DE
+is a natural way of expressing the fact that one way of forming an arithmetic expression
+is to put two other expressions together with a minus sign between them.
+Unfortunately, this grammar rule does not
+completely specify the way that all complex inputs
+should be structured.
+For example, if the input is
+.DS
+expr  \-  expr  \-  expr
+.DE
+the rule allows this input to be structured as either
+.DS
+(  expr  \-  expr  )  \-  expr
+.DE
+or as
+.DS
+expr  \-  (  expr  \-  expr  )
+.DE
+(The first is called
+.I "left association" ,
+the second
+.I "right association" ).
+.PP
+Yacc detects such ambiguities when it is attempting to build the parser.
+It is instructive to consider the problem that confronts the parser when it is
+given an input such as
+.DS
+expr  \-  expr  \-  expr
+.DE
+When the parser has read the second expr, the input that it has seen:
+.DS
+expr  \-  expr
+.DE
+matches the right side of the grammar rule above.
+The parser could
+.I reduce
+the input by applying this rule;
+after applying the rule;
+the input is reduced to
+.I expr (the
+left side of the rule).
+The parser would then read the final part of the input:
+.DS
+\-  expr
+.DE
+and again reduce.
+The effect of this is to take the left associative interpretation.
+.PP
+Alternatively, when the parser has seen
+.DS
+expr  \-  expr
+.DE
+it could defer the immediate application of the rule, and continue reading
+the input until it had seen
+.DS
+expr  \-  expr  \-  expr
+.DE
+It could then apply the rule to the rightmost three symbols, reducing them to
+.I expr
+and leaving
+.DS
+expr  \-  expr
+.DE
+Now the rule can be reduced once more; the effect is to
+take the right associative interpretation.
+Thus, having read
+.DS
+expr  \-  expr
+.DE
+the parser can do two legal things, a shift or a reduction, and has no way of
+deciding between them.
+This is called a
+.I "shift / reduce conflict" .
+It may also happen that the parser has a choice of two legal reductions;
+this is called a
+.I "reduce / reduce conflict" .
+Note that there are never any ``Shift/shift'' conflicts.
+.PP
+When there are shift/reduce or reduce/reduce conflicts, Yacc still produces a parser.
+It does this by selecting one of the valid steps wherever it has a choice.
+A rule describing which choice to make in a given situation is called
+a
+.I "disambiguating rule" .
+.PP
+Yacc invokes two disambiguating rules by default:
+.IP 1.
+In a shift/reduce conflict, the default is to do the shift.
+.IP 2.
+In a reduce/reduce conflict, the default is to reduce by the
+.I earlier
+grammar rule (in the input sequence).
+.PP
+Rule 1 implies that reductions are deferred whenever there is a choice,
+in favor of shifts.
+Rule 2 gives the user rather crude control over the behavior of the parser
+in this situation, but reduce/reduce conflicts should be avoided whenever possible.
+.PP
+Conflicts may arise because of mistakes in input or logic, or because the grammar rules, while consistent,
+require a more complex parser than Yacc can construct.
+The use of actions within rules can also cause conflicts, if the action must
+be done before the parser can be sure which rule is being recognized.
+In these cases, the application of disambiguating rules is inappropriate,
+and leads to an incorrect parser.
+For this reason, Yacc
+always reports the number of shift/reduce and reduce/reduce conflicts resolved by Rule 1 and Rule 2.
+.PP
+In general, whenever it is possible to apply disambiguating rules to produce a correct parser, it is also
+possible to rewrite the grammar rules so that the same inputs are read but there are no
+conflicts.
+For this reason, most previous parser generators
+have considered conflicts to be fatal errors.
+Our experience has suggested that this rewriting is somewhat unnatural,
+and produces slower parsers; thus, Yacc will produce parsers even in the presence of conflicts.
+.PP
+As an example of the power of disambiguating rules, consider a fragment from a programming
+language involving an ``if-then-else'' construction:
+.DS
+stat	:	IF  \'(\'  cond  \')\'  stat
+	|	IF  \'(\'  cond  \')\'  stat  ELSE  stat
+	;
+.DE
+In these rules,
+.I IF
+and
+.I ELSE
+are tokens,
+.I cond
+is a nonterminal symbol describing
+conditional (logical) expressions, and
+.I stat
+is a nonterminal symbol describing statements.
+The first rule will be called the
+.ul
+simple-if
+rule, and the
+second the
+.ul
+if-else
+rule.
+.PP
+These two rules form an ambiguous construction, since input of the form
+.DS
+IF  (  C1  )  IF  (  C2  )  S1  ELSE  S2
+.DE
+can be structured according to these rules in two ways:
+.DS
+IF  (  C1  )  {
+	IF  (  C2  )  S1
+	}
+ELSE  S2
+.DE
+or
+.DS
+IF  (  C1  )  {
+	IF  (  C2  )  S1
+	ELSE  S2
+	}
+.DE
+The second interpretation is the one given in most programming languages
+having this construct.
+Each
+.I ELSE
+is associated with the last preceding
+``un-\fIELSE'\fRd''
+.I IF .
+In this example, consider the situation where the parser has seen
+.DS
+IF  (  C1  )  IF  (  C2  )  S1
+.DE
+and is looking at the
+.I ELSE .
+It can immediately
+reduce
+by the simple-if rule to get
+.DS
+IF  (  C1  )  stat
+.DE
+and then read the remaining input,
+.DS
+ELSE  S2
+.DE
+and reduce
+.DS
+IF  (  C1  )  stat  ELSE  S2
+.DE
+by the if-else rule.
+This leads to the first of the above groupings of the input.
+.PP
+On the other hand, the
+.I ELSE
+may be shifted,
+.I S2
+read, and then the right hand portion of
+.DS
+IF  (  C1  )  IF  (  C2  )  S1  ELSE  S2
+.DE
+can be reduced by the if-else rule to get
+.DS
+IF  (  C1  )  stat
+.DE
+which can be reduced by the simple-if rule.
+This leads to the second of the above groupings of the input, which
+is usually desired.
+.PP
+Once again the parser can do two valid things \- there is a shift/reduce conflict.
+The application of disambiguating rule 1 tells the parser to shift in this case,
+which leads to the desired grouping.
+.PP
+This shift/reduce conflict arises only when there is a particular current input symbol,
+.I ELSE ,
+and particular inputs already seen, such as
+.DS
+IF  (  C1  )  IF  (  C2  )  S1
+.DE
+In general, there may be many conflicts, and each one
+will be associated with an input symbol and
+a set of previously read inputs.
+The previously read inputs are characterized by the
+state
+of the parser.
+.PP
+The conflict messages of Yacc are best understood
+by examining the verbose (\fB\-v\fR) option output file.
+For example, the output corresponding to the above
+conflict state might be:
+.DS L
+23: shift/reduce conflict (shift 45, reduce 18) on ELSE
+
+state 23
+
+	  stat  :  IF  (  cond  )  stat\_         (18)
+	  stat  :  IF  (  cond  )  stat\_ELSE  stat
+
+	 ELSE     shift 45
+	 .        reduce 18
+
+.DE
+The first line describes the conflict, giving the state and the input symbol.
+The ordinary state description follows, giving
+the grammar rules active in the state, and the parser actions.
+Recall that the underline marks the
+portion of the grammar rules which has been seen.
+Thus in the example, in state 23 the parser has seen input corresponding
+to
+.DS
+IF  (  cond  )  stat
+.DE
+and the two grammar rules shown are active at this time.
+The parser can do two possible things.
+If the input symbol is
+.I ELSE ,
+it is possible to shift into state
+45.
+State 45 will have, as part of its description, the line
+.DS
+stat  :  IF  (  cond  )  stat  ELSE\_stat
+.DE
+since the
+.I ELSE
+will have been shifted in this state.
+Back in state 23, the alternative action, described by ``\fB.\fR'',
+is to be done if the input symbol is not mentioned explicitly in the above actions; thus,
+in this case, if the input symbol is not
+.I ELSE ,
+the parser reduces by grammar rule 18:
+.DS
+stat  :  IF  \'(\'  cond  \')\'  stat
+.DE
+Once again, notice that the numbers following ``shift'' commands refer to other states,
+while the numbers following ``reduce'' commands refer to grammar
+rule numbers.
+In the
+.I y.output
+file, the rule numbers are printed after those rules which can be reduced.
+In most one states, there will be at most reduce action possible in the
+state, and this will be the default command.
+The user who encounters unexpected shift/reduce conflicts will probably want to
+look at the verbose output to decide whether the default actions are appropriate.
+In really tough cases, the user might need to know more about
+the behavior and construction of the parser than can be covered here.
+In this case, one of the theoretical references
+.[
+Aho Johnson Surveys Parsing
+.]
+.[
+Aho Johnson Ullman Deterministic Ambiguous
+.]
+.[
+Aho Ullman Principles Design
+.]
+might be consulted; the services of a local guru might also be appropriate.

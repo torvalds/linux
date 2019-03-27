@@ -1,0 +1,173 @@
+.\" Copyright (c) 2006 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd June 15, 2006
+.Dt KRB5_GET_CREDS 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_get_creds ,
+.Nm krb5_get_creds_opt_add_options ,
+.Nm krb5_get_creds_opt_alloc ,
+.Nm krb5_get_creds_opt_free ,
+.Nm krb5_get_creds_opt_set_enctype ,
+.Nm krb5_get_creds_opt_set_impersonate ,
+.Nm krb5_get_creds_opt_set_options ,
+.Nm krb5_get_creds_opt_set_ticket
+.Nd get credentials from the KDC
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Ft krb5_error_code
+.Fo krb5_get_creds
+.Fa "krb5_context context"
+.Fa "krb5_get_creds_opt opt"
+.Fa "krb5_ccache ccache"
+.Fa "krb5_const_principal inprinc"
+.Fa "krb5_creds **out_creds"
+.Fc
+.Ft void
+.Fo krb5_get_creds_opt_add_options
+.Fa "krb5_context context"
+.Fa "krb5_get_creds_opt opt"
+.Fa "krb5_flags options"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_creds_opt_alloc
+.Fa "krb5_context context"
+.Fa "krb5_get_creds_opt *opt"
+.Fc
+.Ft void
+.Fo krb5_get_creds_opt_free
+.Fa "krb5_context context"
+.Fa "krb5_get_creds_opt opt"
+.Fc
+.Ft void
+.Fo krb5_get_creds_opt_set_enctype
+.Fa "krb5_context context"
+.Fa "krb5_get_creds_opt opt"
+.Fa "krb5_enctype enctype"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_creds_opt_set_impersonate
+.Fa "krb5_context context"
+.Fa "krb5_get_creds_opt opt"
+.Fa "krb5_const_principal self"
+.Fc
+.Ft void
+.Fo krb5_get_creds_opt_set_options
+.Fa "krb5_context context"
+.Fa "krb5_get_creds_opt opt"
+.Fa "krb5_flags options"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_creds_opt_set_ticket
+.Fa "krb5_context context"
+.Fa "krb5_get_creds_opt opt"
+.Fa "const Ticket *ticket"
+.Fc
+.Sh DESCRIPTION
+.Fn krb5_get_creds
+fetches credentials specified by
+.Fa opt
+by first looking in the
+.Fa ccache ,
+and then it doesn't exists, fetch the credential from the KDC
+using the krbtgts in
+.Fa ccache .
+The credential is returned in
+.Fa out_creds
+and should be freed using the function
+.Fn krb5_free_creds .
+.Pp
+The structure
+.Li krb5_get_creds_opt
+controls the behavior of
+.Fn krb5_get_creds .
+The structure is opaque to consumers that can set the content of the
+structure with accessors functions. All accessor functions make copies
+of the data that is passed into accessor functions, so external
+consumers free the memory before calling
+.Fn krb5_get_creds .
+.Pp
+The structure
+.Li krb5_get_creds_opt
+is allocated with
+.Fn krb5_get_creds_opt_alloc
+and freed with
+.Fn krb5_get_creds_opt_free .
+The free function also frees the content of the structure set by the
+accessor functions.
+.Pp
+.Fn krb5_get_creds_opt_add_options
+and
+.Fn krb5_get_creds_opt_set_options
+adds and sets options to the
+.Fi krb5_get_creds_opt
+structure .
+The possible options to set are
+.Bl -tag -width "KRB5_GC_USER_USER" -compact
+.It KRB5_GC_CACHED
+Only check the
+.Fa ccache ,
+don't got out on network to fetch credential.
+.It KRB5_GC_USER_USER
+request a user to user ticket.
+This options doesn't store the resulting user to user credential in
+the
+.Fa ccache .
+.It KRB5_GC_EXPIRED_OK
+returns the credential even if it is expired, default behavior is trying
+to refetch the credential from the KDC.
+.It KRB5_GC_NO_STORE
+Do not store the resulting credentials in the
+.Fa ccache .
+.El
+.Pp
+.Fn krb5_get_creds_opt_set_enctype
+sets the preferred encryption type of the application. Don't set this
+unless you have to since if there is no match in the KDC, the function
+call will fail.
+.Pp
+.Fn krb5_get_creds_opt_set_impersonate
+sets the principal to impersonate., Returns a ticket that have the
+impersonation principal as a client and the requestor as the
+service. Note that the requested principal have to be the same as the
+client principal in the krbtgt.
+.Pp
+.Fn krb5_get_creds_opt_set_ticket
+sets the extra ticket used in user-to-user or contrained delegation use case.
+.Sh SEE ALSO
+.Xr krb5 3 ,
+.Xr krb5_get_credentials 3 ,
+.Xr krb5.conf 5

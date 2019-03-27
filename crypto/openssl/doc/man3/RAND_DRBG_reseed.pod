@@ -1,0 +1,111 @@
+=pod
+
+=head1 NAME
+
+RAND_DRBG_reseed,
+RAND_DRBG_set_reseed_interval,
+RAND_DRBG_set_reseed_time_interval,
+RAND_DRBG_set_reseed_defaults
+- reseed a RAND_DRBG instance
+
+=head1 SYNOPSIS
+
+ #include <openssl/rand_drbg.h>
+
+ int RAND_DRBG_reseed(RAND_DRBG *drbg,
+                      const unsigned char *adin, size_t adinlen);
+
+ int RAND_DRBG_set_reseed_interval(RAND_DRBG *drbg,
+                                   unsigned int interval);
+
+ int RAND_DRBG_set_reseed_time_interval(RAND_DRBG *drbg,
+                                        time_t interval);
+
+ int RAND_DRBG_set_reseed_defaults(
+                                   unsigned int master_reseed_interval,
+                                   unsigned int slave_reseed_interval,
+                                   time_t master_reseed_time_interval,
+                                   time_t slave_reseed_time_interval
+                                   );
+
+
+=head1 DESCRIPTION
+
+RAND_DRBG_reseed()
+reseeds the given B<drbg>, obtaining entropy input from its entropy source
+and mixing in the specified additional data provided in the buffer B<adin>
+of length B<adinlen>.
+The additional data can be omitted by setting B<adin> to NULL and B<adinlen>
+to 0.
+
+RAND_DRBG_set_reseed_interval()
+sets the reseed interval of the B<drbg>, which is the maximum allowed number
+of generate requests between consecutive reseedings.
+If B<interval> > 0, then the B<drbg> will reseed automatically whenever the
+number of generate requests since its last seeding exceeds the given reseed
+interval.
+If B<interval> == 0, then this feature is disabled.
+
+
+RAND_DRBG_set_reseed_time_interval()
+sets the reseed time interval of the B<drbg>, which is the maximum allowed
+number of seconds between consecutive reseedings.
+If B<interval> > 0, then the B<drbg> will reseed automatically whenever the
+elapsed time since its last reseeding exceeds the given reseed time interval.
+If B<interval> == 0, then this feature is disabled.
+
+RAND_DRBG_set_reseed_defaults() sets the default values for the reseed interval
+(B<master_reseed_interval> and B<slave_reseed_interval>)
+and the reseed time interval
+(B<master_reseed_time_interval> and B<slave_reseed_tme_interval>)
+of DRBG instances.
+The default values are set independently for master DRBG instances (which don't
+have a parent) and slave DRBG instances (which are chained to a parent DRBG).
+
+=head1 RETURN VALUES
+
+RAND_DRBG_reseed(),
+RAND_DRBG_set_reseed_interval(), and
+RAND_DRBG_set_reseed_time_interval(),
+return 1 on success, 0 on failure.
+
+
+=head1 NOTES
+
+The default OpenSSL random generator is already set up for automatic reseeding,
+so in general it is not necessary to reseed it explicitly, or to modify
+its reseeding thresholds.
+
+Normally, the entropy input for seeding a DRBG is either obtained from a
+trusted os entropy source or from a parent DRBG instance, which was seeded
+(directly or indirectly) from a trusted os entropy source.
+In exceptional cases it is possible to replace the reseeding mechanism entirely
+by providing application defined callbacks using RAND_DRBG_set_callbacks().
+
+The reseeding default values are applied only during creation of a DRBG instance.
+To ensure that they are applied to the global and thread-local DRBG instances
+(<master>, resp. <public> and <private>), it is necessary to call
+RAND_DRBG_set_reseed_defaults() before creating any thread and before calling any
+ cryptographic routines that obtain random data directly or indirectly.
+
+=head1 HISTORY
+
+The RAND_DRBG functions were added in OpenSSL 1.1.1.
+
+=head1 SEE ALSO
+
+L<RAND_DRBG_generate(3)>,
+L<RAND_DRBG_bytes(3)>,
+L<RAND_DRBG_set_callbacks(3)>.
+L<RAND_DRBG(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

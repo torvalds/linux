@@ -1,0 +1,168 @@
+.\" Copyright (c) 2001
+.\" Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 23, 2015
+.Dt DEVICE.HINTS 5
+.Os
+.Sh NAME
+.Nm device.hints
+.Nd device resource hints
+.Sh DESCRIPTION
+The
+.Nm
+file is read in by the boot
+.Xr loader 8
+when the system is about to start, and its contents are
+passed to the kernel.
+It contains various variables to control the boot behavior of
+the kernel.
+These variables are typically
+.Dq device hints ,
+but can include any kernel tunable values.
+.Pp
+The file contains one variable per line.
+Lines starting with the
+.Ql #
+character are comments and are ignored by the boot loader.
+.Pp
+After the file is read by the boot loader, you may examine
+the variables with the
+.Ic show
+command, and may add a new variable, modify an existing one,
+or delete a variable with the
+.Ic set
+and
+.Ic unset
+commands of the boot loader
+(see
+.Xr loader 8 ) .
+.Pp
+After the system has started, you can dump these variables
+with the
+.Xr kenv 1
+command.
+.Sh DEVICE HINTS
+Device hint variables are used by device drivers to set up
+the device.
+They are most often used by ISA device drivers to specify
+where the driver will probe for the relevant devices, and what
+resources it will attempt to use.
+.Pp
+A device hint line looks like:
+.Pp
+.Sm off
+.D1 Li hint. Ar driver . Ar unit . Ar keyword Li = Qq Ar value
+.Sm on
+.Pp
+where
+.Ar driver
+is the name of a device driver,
+.Ar unit
+is the unit number, and
+.Ar keyword
+is the keyword of the hint.
+The keyword may be:
+.Pp
+.Bl -tag -width ".Li disabled" -compact -offset indent
+.It Li at
+specifies a bus to which the device is attached.
+.It Li port
+specifies the start address of I/O ports to be used by the device.
+.It Li portsize
+specifies the number of ports used by the device.
+.It Li irq
+is the interrupt line number to be used.
+.It Li drq
+is the DMA channel number.
+.It Li maddr
+specifies the physical memory address used by the device.
+.It Li msize
+specifies the physical memory size used by the device.
+.It Li flags
+sets various flag bits for the device.
+.It Li disabled
+can be set to
+.Qq 1
+to disable the device.
+.El
+.Pp
+A device driver may require one or more hint lines with these keywords,
+and may accept other keywords not listed here, through
+.Xr resource_int_value 9 .
+Consult individual device drivers' manual pages for available
+keywords and their possible values.
+.\" .Sh CONTROL VARIABLES
+.\" Lines not starting with
+.\" .Dq hint.
+.\" specify other control variables for the kernel.
+.\" They look:
+.\" .Pp
+.\" .Dl <name>="<value>"
+.\" XXX
+.\" WE SHOULD LIST AVAILABLE VARIABLE NAMES AND THEIR POSSIBLE VALUES HERE!
+.\" .Pp
+.Sh FILES
+.Bl -tag -width ".Pa /sys/ Ns Ar ARCH Ns Pa /conf/GENERIC.hints" -compact
+.It Pa /boot/device.hints
+Device resource hints file.
+.It Pa /sys/ Ns Ar ARCH Ns Pa /conf/GENERIC.hints
+Sample resource hints for the
+.Pa GENERIC
+kernel.
+.It Pa /sys/ Ns Ar ARCH Ns Pa /conf/NOTES
+Notes on the kernel configuration file and device resource hints.
+.El
+.Sh EXAMPLES
+The following example sets up resources for the
+.Xr sio 4
+driver on the ISA bus:
+.Bd -literal -offset indent
+hint.sio.0.at="isa"
+hint.sio.0.port="0x3F8"
+hint.sio.0.flags="0x10"
+hint.sio.0.irq="4"
+.Ed
+.Pp
+The following example disables the ACPI driver:
+.Bd -literal -offset indent
+hint.acpi.0.disabled="1"
+.Ed
+.Pp
+Setting a tunable variable:
+.Bd -literal -offset indent
+vm.pmap.pg_ps_enabled=1
+.Ed
+.Sh SEE ALSO
+.Xr kenv 1 ,
+.Xr loader.conf 5 ,
+.Xr loader 8 ,
+.Xr resource_int_value 9
+.Sh HISTORY
+The
+.Nm
+file first appeared in
+.Fx 5.0 .

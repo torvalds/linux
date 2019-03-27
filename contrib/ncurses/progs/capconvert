@@ -1,0 +1,258 @@
+#!/bin/sh
+##############################################################################
+# Copyright (c) 1998-2006,2011 Free Software Foundation, Inc.                #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+# $Id: capconvert,v 1.5 2011/11/12 23:28:07 Robert.Millan Exp $
+#
+# capconvert -- automated conversion from termcap to terminfo
+#
+
+echo "This script tries to automatically set you up so that your applications"
+echo "that now use termcap can use terminfo and the ncurses library."
+echo ""
+
+# Note, except for telling if we're running under xterm we don't use TERM at
+# all.  This is because BSD users not infrequently have multiple termtypes
+# selected by conditionals in tset -- unless they're xterm users, in which
+# case they're on a workstation and probably don't.
+
+# Check to make sure TERMINFO is not already defined
+if test -n "$TERMINFO"
+then
+	echo "TERMINFO is already defined in your environment.  This means"
+	echo "you already have a local terminfo tree, so you do not need any"
+	echo "conversion."
+	if test ! -d $TERMINFO ; then
+		echo "Caution: TERMINFO does not point to a directory!"
+	fi
+	exit;
+fi
+
+# Check to see if terminfo is present in one of the standard locations.
+terminfo=no
+for p in $TERMINFO \
+	/usr/lib/terminfo \
+	/usr/share/lib/terminfo \
+	/usr/share/terminfo \
+	/usr/local/lib/terminfo \
+	/usr/local/share/terminfo
+do
+	if test -d $p ; then
+		terminfo=yes
+		break
+	fi
+done
+
+if test $terminfo = yes
+then
+	echo "Your system already has a system-wide terminfo tree."
+	echo ""
+	if test -z "$TERMCAP"
+	then
+		echo "You have no TERMCAP variable set, so we are done."
+		# Assumes the terminfo master covers all canned terminal types
+		exit;
+	fi
+	case $TERM in
+	xterm | xterm-*)
+		echo "You are running xterm, which usually sets TERMCAP itself."
+		echo "We can ignore this, because terminfo knows about xterm."
+		echo "So you will just use the system-wide terminfo tree."
+		exit
+		;;
+	*)
+		echo "We will have to make a local one for you anyway, to capture the effect"
+		echo "of your TERMCAP variable."
+		;;
+	esac
+else
+	echo "No system-wide terminfo tree.  We will make you a local one."
+fi
+echo "";
+
+# Check if test -x works (it's not portable, but useful)
+OPT="-x"
+TMP=test$$; touch $TMP && chmod 755 $TMP
+if test $OPT $TMP ; then
+	chmod 644 $TMP
+	test $OPT $TMP && OPT="-f"
+else
+	OPT="-f"
+fi
+rm -f $TMP
+
+# First step -- go find tic
+TIC=
+IFS="${IFS= 	}"; save_ifs="$IFS"; IFS="${IFS}:"
+for x in $PATH .
+do
+	if test $OPT $x/tic
+	then
+		TIC=$x/tic
+		break
+	fi
+done
+IFS="$ac_save_ifs"
+
+if test -n "$TIC"
+then
+	echo "I see tic at $TIC."
+	case $TIC in # (vi
+	./tic)
+		if test $OPT ../misc/shlib ; then
+			TIC="../misc/shlib $TIC"
+		fi
+		;;
+	esac
+else
+	echo "You do not have tic installed anywhere I can see, please fix that."
+	exit;
+fi
+echo "";
+
+# We have tic.  Either there's no system terminfo tree or there is one but
+# the user has a TERMCAP variable that may modify a stock description.
+#
+
+# Make the user a terminfo directory
+if test -d $HOME/.terminfo
+then
+	echo "It appears you already have a private terminfo directory"
+	echo "at $HOME/.terminfo; this seems odd, because TERMINFO"
+	echo "is not defined.  I am not going to second-guess this -- if you"
+	echo "really want me to try auto-configuring for you, remove or"
+	echo "rename $HOME/terminfo and run me again."
+	exit;
+else
+	echo "I am creating your private terminfo directory at $HOME/.terminfo"
+	mkdir $HOME/.terminfo
+	# Ensure that that's where tic's compilation results.
+	# This isn't strictly necessary with a 1.9.7 or later tic.
+	TERMINFO="$HOME/.terminfo"; export TERMINFO
+fi
+echo "";
+
+# Find a terminfo source to work from
+if test -f ../misc/terminfo.src
+then
+	echo "I see the terminfo master source is handy; I will use that."
+	master=../misc/terminfo.src
+else
+	# Ooops...looks like we're running from somewhere other than the
+	# progs directory of an ncurses source tree.
+	master=`find $HOME -name "*terminfo.src" -print`
+	mcount=`echo $master | wc -l`
+	case $mcount in
+	0)
+		echo "I can not find a terminfo source file anywhere under your home directory."
+		echo "There should be a file called terminfo.src somewhere in your"
+		echo "ncurses distribution; please put it in your home directotry"
+		echo "and run me again (it does not have to live there permanently)."
+		exit;
+	;;
+	1)
+		echo "I see a file called $master."
+		echo "I am going to assume this is the terminfo source included with"
+		echo "the ncurses distribution.  If this assumption is wrong, please"
+		echo "interrupt me now!  OK to continue?"
+		read ans;
+	;;
+	2)
+		echo "I see more than one possible terminfo source.  Here they are:"
+		echo $master | sed "/^/s//	/";
+		while :
+		do
+			echo "Please tell me which one to use:"
+			read master;
+			if test -f $master
+			then
+				break
+			else
+				echo "That file does not exist. Try again?";
+			fi
+		done
+	;;
+	esac
+fi
+echo "";
+
+# Now that we have a master, compile it into the local tree
+echo "OK, now I will make your private terminfo tree.  This may take a bit..."
+#
+# Kluge alert: we compile terminfo.src in two pieces because a lot of machines
+# with < 16MB RAM choke on tic's core-hog habits.
+trap "rm -f tsplit$$.*" 0 1 2 5 15
+sed -n $master \
+	-e '1,/SPLIT HERE/w 'tsplit$$.01 \
+	-e '/SPLIT HERE/,$w 'tsplit$$.02 \
+	2>/dev/null
+for x in tsplit$$.*; do eval $TIC $x; done
+rm tsplit$$.*
+trap 0 1 2 5 15
+#
+echo "You now have a private tree under $HOME/.terminfo;"
+echo "the ncurses library will automatically read from it,"
+echo "and ncurses tic will automatically compile entries to it."
+
+# We're done unless user has a .termcap file or equivalent named by TERMCAP
+if test -z "$TERMCAP"
+then
+	echo "You have no TERMCAP set, so we are done."
+fi
+
+# OK, here comes the nasty case...user has a TERMCAP.  Instead of
+# trying to follow all the convolutions of the relationship between
+# TERM and TERMCAP (partly because it's too painful, and partly because
+# we don't actually know what TERM will be nor even if it always has
+# the same value for this user) we do the following three steps...
+
+if test -f $HOME/.termcap
+then
+	echo 'I see you have a $HOME/.termcap file.  I will compile that.'
+	eval $TIC $HOME/.termcap
+	echo "Done."
+	echo "Note that editing $HOME/.termcap will no longer change the data curses sees."
+elif test -f "$TERMCAP"
+then
+	echo "Your TERMCAP names the file $TERMCAP.  I will compile that."
+	eval $TIC $TERMCAP
+	echo "Done."
+	echo "Note that editing $TERMCAP will no longer change the data curses sees."
+else
+	echo "Your TERMCAP value appears to be an entry in termcap format."
+	echo "I will compile it."
+	echo $TERMCAP >myterm$$
+	eval $TIC myterm$$
+	rm myterm$$
+	echo "Done."
+	echo "Note that editing TERMCAP will no longer change the data curses sees."
+fi
+echo "To do that, decompile the terminal decription you want with infocmp(1),"
+echo "edit to taste, and recompile using tic(1)."
+
+# capconvert ends here
+

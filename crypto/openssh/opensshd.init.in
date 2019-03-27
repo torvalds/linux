@@ -1,0 +1,88 @@
+#!@STARTUP_SCRIPT_SHELL@
+# Donated code that was put under PD license.
+#
+# Stripped PRNGd out of it for the time being.
+
+umask 022
+
+CAT=@CAT@
+KILL=@KILL@
+
+prefix=@prefix@
+sysconfdir=@sysconfdir@
+piddir=@piddir@
+
+SSHD=$prefix/sbin/sshd
+PIDFILE=$piddir/sshd.pid
+PidFile=`grep "^PidFile" ${sysconfdir}/sshd_config | tr "=" " " | awk '{print $2}'`
+[ X$PidFile = X ]  ||  PIDFILE=$PidFile
+SSH_KEYGEN=$prefix/bin/ssh-keygen
+HOST_KEY_DSA=$sysconfdir/ssh_host_dsa_key
+HOST_KEY_RSA=$sysconfdir/ssh_host_rsa_key
+@COMMENT_OUT_ECC@HOST_KEY_ECDSA=$sysconfdir/ssh_host_ecdsa_key
+HOST_KEY_ED25519=$sysconfdir/ssh_host_ed25519_key
+
+
+checkkeys() {
+    if [ ! -f $HOST_KEY_DSA ]; then
+	${SSH_KEYGEN} -t dsa -f ${HOST_KEY_DSA} -N ""
+    fi
+    if [ ! -f $HOST_KEY_RSA ]; then
+	${SSH_KEYGEN} -t rsa -f ${HOST_KEY_RSA} -N ""
+    fi
+@COMMENT_OUT_ECC@    if [ ! -f $HOST_KEY_ECDSA ]; then
+@COMMENT_OUT_ECC@	${SSH_KEYGEN} -t ecdsa -f ${HOST_KEY_ECDSA} -N ""
+@COMMENT_OUT_ECC@    fi
+    if [ ! -f $HOST_KEY_ED25519 ]; then
+	${SSH_KEYGEN} -t ed25519 -f ${HOST_KEY_ED25519} -N ""
+    fi
+}
+
+stop_service() {
+    if [  -r $PIDFILE  -a  ! -z ${PIDFILE}  ]; then
+	PID=`${CAT} ${PIDFILE}`
+    fi
+    if [  ${PID:=0} -gt 1 -a  ! "X$PID" = "X "  ]; then
+	${KILL} ${PID}
+    else
+	echo "Unable to read PID file"
+    fi
+}
+
+start_service() {
+    # XXX We really should check if the service is already going, but
+    # XXX we will opt out at this time. - Bal
+
+    # Check to see if we have keys that need to be made
+    checkkeys
+
+    # Start SSHD
+    echo "starting $SSHD... \c"         ; $SSHD
+
+    sshd_rc=$?
+    if [ $sshd_rc -ne 0 ]; then
+	echo "$0: Error ${sshd_rc} starting ${SSHD}... bailing."
+	exit $sshd_rc
+    fi
+    echo done.
+}
+
+case $1 in
+
+'start')
+    start_service
+    ;;
+
+'stop')
+    stop_service
+    ;;
+
+'restart')
+    stop_service
+    start_service
+    ;;
+
+*)
+    echo "$0:  usage:  $0 {start|stop|restart}"
+    ;;
+esac

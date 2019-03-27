@@ -1,0 +1,13 @@
+#! /bin/sh
+#
+#	@(#)do_sort	8.1 (Berkeley) 5/31/93
+# $FreeBSD$
+#
+# an aggressive little script for sorting the fortune files
+# depends on octal 02 and 03 not being anywhere in the files.
+
+sp="/usr/bin/sort -dfu -T /var/tmp"
+
+sed 's/^%$//' | tr '\12' '\3' | tr '\2' '\12' |
+	sed -e 's/^//' -e '/^$/d' -e 's/$/%/' |
+	$sp | tr '\3' '\12'

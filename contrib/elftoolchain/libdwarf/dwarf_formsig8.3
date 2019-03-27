@@ -1,0 +1,96 @@
+.\" Copyright (c) 2010 Joseph Koshy
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_formsig8.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd July 24, 2010
+.Dt DWARF_FORMSIG8 3
+.Os
+.Sh NAME
+.Nm dwarf_formsig8
+.Nd return the 64-bit type signature for a DWARF type
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_formsig8
+.Fa "Dwarf_Attribute attr"
+.Fa "Dwarf_Sig8 *ret"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_formsig8
+sets the location pointed to by argument
+.Ar ret
+to the 64-bit type signature that is the value of
+the attribute referenced by argument
+.Ar attr .
+The form of argument
+.Ar attr
+must be
+.Dv DW_FORM_ref_sig8 .
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to return an error descriptor in case
+of an error.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_formsig8
+returns
+.Dv DW_DLV_OK
+on success.
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets argument
+.Ar err .
+.Sh ERRORS
+Function
+.Fn dwarf_formsig8
+may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ATTR_FORM_BAD"
+.It Bq Er DW_DLE_ARGUMENT
+Either of arguments
+.Ar attr
+or
+.Ar ret
+was NULL.
+.It Bq Er DW_DLE_ATTR_FORM_BAD
+The attribute referenced by argument
+.Ar attr
+was not of a permitted kind.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_attr 3 ,
+.Xr dwarf_formflag 3 ,
+.Xr dwarf_formref 3 ,
+.Xr dwarf_formsdata 3 ,
+.Xr dwarf_formstring 3 ,
+.Xr dwarf_formudata 3 ,
+.Xr dwarf_hasattr 3
+.Sh HISTORY
+Type signatures were added in version 4 of the DWARF specification.

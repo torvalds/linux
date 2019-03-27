@@ -1,0 +1,47 @@
+# $FreeBSD$
+#
+# This list is taken from RFC 959.
+# It probably needs a going over.
+#
+110 OK		Restart marker reply
+120 TEMP	Service ready in a few minutes
+125 OK		Data connection already open; transfer starting
+150 OK		File status okay; about to open data connection
+200 OK		Command okay
+202 PROTO	Command not implemented, superfluous at this site
+211 INFO	System status, or system help reply
+212 INFO	Directory status
+213 INFO	File status
+214 INFO	Help message
+215 INFO	Set system type
+220 OK		Service ready for new user
+221 OK		Service closing control connection
+225 OK		Data connection open; no transfer in progress
+226 OK		Requested file action successful
+227 OK		Entering Passive Mode
+229 OK		Entering Extended Passive Mode
+230 OK		User logged in, proceed
+250 OK		Requested file action okay, completed
+257 OK		File/directory created
+331 AUTH	User name okay, need password
+332 AUTH	Need account for login
+350 OK		Requested file action pending further information
+421 DOWN	Service not available, closing control connection
+425 NETWORK	Can't open data connection
+426 ABORT	Connection closed; transfer aborted
+450 UNAVAIL	File unavailable (e.g., file busy)
+451 SERVER	Requested action aborted: local error in processing
+452 FULL	Insufficient storage space in system
+500 PROTO	Syntax error, command unrecognized
+501 PROTO	Syntax error in parameters or arguments
+502 PROTO	Command not implemented
+503 PROTO	Bad sequence of commands
+504 PROTO	Command not implemented for that parameter
+530 AUTH	Not logged in
+532 AUTH	Need account for storing files
+535 PROTO	Bug in MediaHawk Video Kernel FTP server
+550 UNAVAIL	File unavailable (e.g., file not found, no access)
+551 PROTO	Requested action aborted. Page type unknown
+552 FULL	Exceeded storage allocation
+553 EXISTS	File name not allowed
+999 PROTO	Protocol error

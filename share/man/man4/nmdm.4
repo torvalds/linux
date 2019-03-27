@@ -1,0 +1,97 @@
+.\" Copyright (c) 2001
+.\"	The FreeBSD Project
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 23, 2018
+.Dt NMDM 4
+.Os
+.Sh NAME
+.Nm nmdm
+.Nd nullmodem terminal driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device nmdm"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+nmdm_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides two
+.Xr tty 4
+devices connected
+by a virtual
+.Dq "null modem"
+cable.
+.Pp
+If either of the two tty devices have the
+.Dv CDSR_OFLOW
+bit
+.Pq Dq Li "stty dsrflow"
+set in their line discipline, the
+.Nm
+device will emulate the speed configured in the
+.Xr termios 4
+settings.
+The speed emulation works independently in the two directions,
+controlled by the slower end's termios settings
+.Va ( c_ispeed , c_ospeed ,
+.Dv CS5 ... CS8 , CSTOPB
+and
+.Dv PARENB ) .
+.Sh FILES
+.Bl -tag -width ".Pa /dev/nmdm Ns Ar N Ns Op Pa AB" -compact
+.It Pa /dev/nmdm Ns Ar N Ns Op Pa AB
+nullmodem device nodes.
+Where the
+.Pa A
+node has a matching
+.Pa B
+node.
+.El
+.Pp
+The
+.Nm
+driver implements
+.Dq "on-demand device creation"
+so simply accessing a given instance in
+.Pa /dev
+will create it.
+.Sh DIAGNOSTICS
+None.
+.Sh SEE ALSO
+.Xr stty 1 ,
+.Xr termios 4 ,
+.Xr tty 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.4 .

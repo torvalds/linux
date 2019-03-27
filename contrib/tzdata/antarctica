@@ -1,0 +1,343 @@
+# tzdb data for Antarctica and environs
+
+# This file is in the public domain, so clarified as of
+# 2009-05-17 by Arthur David Olson.
+
+# From Paul Eggert (1999-11-15):
+# To keep things manageable, we list only locations occupied year-round; see
+# COMNAP - Stations and Bases
+# http://www.comnap.aq/comnap/comnap.nsf/P/Stations/
+# and
+# Summary of the Peri-Antarctic Islands (1998-07-23)
+# http://www.spri.cam.ac.uk/bob/periant.htm
+# for information.
+# Unless otherwise specified, we have no time zone information.
+
+# FORMAT is '-00' and GMTOFF is 0 for locations while uninhabited.
+
+# Argentina - year-round bases
+# Belgrano II, Confin Coast, -770227-0343737, since 1972-02-05
+# Carlini, Potter Cove, King George Island, -6414-0602320, since 1982-01
+# Esperanza, Hope Bay, -6323-05659, since 1952-12-17
+# Marambio, -6414-05637, since 1969-10-29
+# Orcadas, Laurie I, -6016-04444, since 1904-02-22
+# San Martín, Barry I, -6808-06706, since 1951-03-21
+#	(except 1960-03 / 1976-03-21)
+
+# Australia - territories
+# Heard Island, McDonald Islands (uninhabited)
+#	previously sealers and scientific personnel wintered
+#	Margaret Turner reports
+#	https://web.archive.org/web/20021204222245/http://www.dstc.qut.edu.au/DST/marg/daylight.html
+#	(1999-09-30) that they're UT +05, with no DST;
+#	presumably this is when they have visitors.
+#
+# year-round bases
+# Casey, Bailey Peninsula, -6617+11032, since 1969
+# Davis, Vestfold Hills, -6835+07759, since 1957-01-13
+#	(except 1964-11 - 1969-02)
+# Mawson, Holme Bay, -6736+06253, since 1954-02-13
+
+# From Steffen Thorsen (2009-03-11):
+# Three Australian stations in Antarctica have changed their time zone:
+# Casey moved from UTC+8 to UTC+11
+# Davis moved from UTC+7 to UTC+5
+# Mawson moved from UTC+6 to UTC+5
+# The changes occurred on 2009-10-18 at 02:00 (local times).
+#
+# Government source: (Australian Antarctic Division)
+# http://www.aad.gov.au/default.asp?casid=37079
+#
+# We have more background information here:
+# https://www.timeanddate.com/news/time/antarctica-new-times.html
+
+# From Steffen Thorsen (2010-03-10):
+# We got these changes from the Australian Antarctic Division: ...
+#
+# - Casey station reverted to its normal time of UTC+8 on 5 March 2010.
+# The change to UTC+11 is being considered as a regular summer thing but
+# has not been decided yet.
+#
+# - Davis station will revert to its normal time of UTC+7 at 10 March 2010
+# 20:00 UTC.
+#
+# - Mawson station stays on UTC+5.
+#
+# Background:
+# https://www.timeanddate.com/news/time/antartica-time-changes-2010.html
+
+# From Steffen Thorsen (2016-10-28):
+# Australian Antarctica Division informed us that Casey changed time
+# zone to UTC+11 in "the morning of 22nd October 2016".
+
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Antarctica/Casey	0	-	-00	1969
+			8:00	-	+08	2009 Oct 18  2:00
+			11:00	-	+11	2010 Mar  5  2:00
+			8:00	-	+08	2011 Oct 28  2:00
+			11:00	-	+11	2012 Feb 21 17:00u
+			8:00	-	+08	2016 Oct 22
+			11:00	-	+11	2018 Mar 11  4:00
+			8:00	-	+08
+Zone Antarctica/Davis	0	-	-00	1957 Jan 13
+			7:00	-	+07	1964 Nov
+			0	-	-00	1969 Feb
+			7:00	-	+07	2009 Oct 18  2:00
+			5:00	-	+05	2010 Mar 10 20:00u
+			7:00	-	+07	2011 Oct 28  2:00
+			5:00	-	+05	2012 Feb 21 20:00u
+			7:00	-	+07
+Zone Antarctica/Mawson	0	-	-00	1954 Feb 13
+			6:00	-	+06	2009 Oct 18  2:00
+			5:00	-	+05
+# References:
+# Casey Weather (1998-02-26)
+# http://www.antdiv.gov.au/aad/exop/sfo/casey/casey_aws.html
+# Davis Station, Antarctica (1998-02-26)
+# http://www.antdiv.gov.au/aad/exop/sfo/davis/video.html
+# Mawson Station, Antarctica (1998-02-25)
+# http://www.antdiv.gov.au/aad/exop/sfo/mawson/video.html
+
+# Belgium - year-round base
+# Princess Elisabeth, Queen Maud Land, -713412+0231200, since 2007
+
+# Brazil - year-round base
+# Ferraz, King George Island, -6205+05824, since 1983/4
+
+# Bulgaria - year-round base
+# St. Kliment Ohridski, Livingston Island, -623829-0602153, since 1988
+
+# Chile - year-round bases and towns
+# Escudero, South Shetland Is, -621157-0585735, since 1994
+# Frei Montalva, King George Island, -6214-05848, since 1969-03-07
+# O'Higgins, Antarctic Peninsula, -6319-05704, since 1948-02
+# Prat, -6230-05941
+# Villa Las Estrellas (a town), around the Frei base, since 1984-04-09
+# These locations employ Region of Magallanes time; use
+# TZ='America/Punta_Arenas'.
+
+# China - year-round bases
+# Great Wall, King George Island, -6213-05858, since 1985-02-20
+# Zhongshan, Larsemann Hills, Prydz Bay, -6922+07623, since 1989-02-26
+
+# France - year-round bases (also see "France & Italy")
+#
+# From Antoine Leca (1997-01-20):
+# Time data entries are from Nicole Pailleau at the IFRTP
+# (French Institute for Polar Research and Technology).
+# She confirms that French Southern Territories and Terre Adélie bases
+# don't observe daylight saving time, even if Terre Adélie supplies came
+# from Tasmania.
+#
+# French Southern Territories with year-round inhabitants
+#
+# Alfred Faure, Possession Island, Crozet Islands, -462551+0515152, since 1964;
+#	sealing & whaling stations operated variously 1802/1911+;
+#	see Indian/Reunion.
+#
+# Martin-de-Viviès, Amsterdam Island, -374105+0773155, since 1950
+# Port-aux-Français, Kerguelen Islands, -492110+0701303, since 1951;
+#	whaling & sealing station operated 1908/1914, 1920/1929, and 1951/1956
+#
+# St Paul Island - near Amsterdam, uninhabited
+#	fishing stations operated variously 1819/1931
+#
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Indian/Kerguelen	0	-	-00	1950 # Port-aux-Français
+			5:00	-	+05
+#
+# year-round base in the main continent
+# Dumont d'Urville, Île des Pétrels, -6640+14001, since 1956-11
+# <https://en.wikipedia.org/wiki/Dumont_d'Urville_Station> (2005-12-05)
+#
+# Another base at Port-Martin, 50km east, began operation in 1947.
+# It was destroyed by fire on 1952-01-14.
+#
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Antarctica/DumontDUrville 0 -	-00	1947
+			10:00	-	+10	1952 Jan 14
+			0	-	-00	1956 Nov
+			10:00	-	+10
+
+# France & Italy - year-round base
+# Concordia, -750600+1232000, since 2005
+
+# Germany - year-round base
+# Neumayer III, -704080-0081602, since 2009
+
+# India - year-round bases
+# Bharati, -692428+0761114, since 2012
+# Maitri, -704558+0114356, since 1989
+
+# Italy - year-round base (also see "France & Italy")
+# Zuchelli, Terra Nova Bay, -744140+1640647, since 1986
+
+# Japan - year-round bases
+# Syowa (also known as Showa), -690022+0393524, since 1957
+#
+# From Hideyuki Suzuki (1999-02-06):
+# In all Japanese stations, +0300 is used as the standard time.
+#
+# Syowa station, which is the first antarctic station of Japan,
+# was established on 1957-01-29.  Since Syowa station is still the main
+# station of Japan, it's appropriate for the principal location.
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Antarctica/Syowa	0	-	-00	1957 Jan 29
+			3:00	-	+03
+# See:
+# NIPR Antarctic Research Activities (1999-08-17)
+# http://www.nipr.ac.jp/english/ara01.html
+
+# S Korea - year-round base
+# Jang Bogo, Terra Nova Bay, -743700+1641205 since 2014
+# King Sejong, King George Island, -6213-05847, since 1988
+
+# New Zealand - claims
+# Balleny Islands (never inhabited)
+# Scott Island (never inhabited)
+#
+# year-round base
+# Scott Base, Ross Island, since 1957-01.
+# See Pacific/Auckland.
+
+# Norway - territories
+# Bouvet (never inhabited)
+#
+# claims
+# Peter I Island (never inhabited)
+#
+# year-round base
+# Troll, Queen Maud Land, -720041+0023206, since 2005-02-12
+#
+# From Paul-Inge Flakstad (2014-03-10):
+# I recently had a long dialog about this with the developer of timegenie.com.
+# In the absence of specific dates, he decided to choose some likely ones:
+#   GMT +1 - From March 1 to the last Sunday in March
+#   GMT +2 - From the last Sunday in March until the last Sunday in October
+#   GMT +1 - From the last Sunday in October until November 7
+#   GMT +0 - From November 7 until March 1
+# The dates for switching to and from UTC+0 will probably not be absolutely
+# correct, but they should be quite close to the actual dates.
+#
+# From Paul Eggert (2014-03-21):
+# The CET-switching Troll rules require zic from tz 2014b or later, so as
+# suggested by Bengt-Inge Larsson comment them out for now, and approximate
+# with only UTC and CEST.  Uncomment them when 2014b is more prevalent.
+#
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+#Rule	Troll	2005	max	-	Mar	 1	1:00u	1:00	+01
+Rule	Troll	2005	max	-	Mar	lastSun	1:00u	2:00	+02
+#Rule	Troll	2005	max	-	Oct	lastSun	1:00u	1:00	+01
+#Rule	Troll	2004	max	-	Nov	 7	1:00u	0:00	+00
+# Remove the following line when uncommenting the above '#Rule' lines.
+Rule	Troll	2004	max	-	Oct	lastSun	1:00u	0:00	+00
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Antarctica/Troll	0	-	-00	2005 Feb 12
+			0:00	Troll	%s
+
+# Poland - year-round base
+# Arctowski, King George Island, -620945-0582745, since 1977
+
+# Romania - year-bound base
+# Law-Racoviță, Larsemann Hills, -692319+0762251, since 1986
+
+# Russia - year-round bases
+# Bellingshausen, King George Island, -621159-0585337, since 1968-02-22
+# Mirny, Davis coast, -6633+09301, since 1956-02
+# Molodezhnaya, Alasheyev Bay, -6740+04551,
+#	year-round from 1962-02 to 1999-07-01
+# Novolazarevskaya, Queen Maud Land, -7046+01150,
+#	year-round from 1960/61 to 1992
+
+# Vostok, since 1957-12-16, temporarily closed 1994-02/1994-11
+# From Craig Mundell (1994-12-15):
+# http://quest.arc.nasa.gov/antarctica/QA/computers/Directions,Time,ZIP
+# Vostok, which is one of the Russian stations, is set on the same
+# time as Moscow, Russia.
+#
+# From Lee Hotz (2001-03-08):
+# I queried the folks at Columbia who spent the summer at Vostok and this is
+# what they had to say about time there:
+# "in the US Camp (East Camp) we have been on New Zealand (McMurdo)
+# time, which is 12 hours ahead of GMT. The Russian Station Vostok was
+# 6 hours behind that (although only 2 miles away, i.e. 6 hours ahead
+# of GMT). This is a time zone I think two hours east of Moscow. The
+# natural time zone is in between the two: 8 hours ahead of GMT."
+#
+# From Paul Eggert (2001-05-04):
+# This seems to be hopelessly confusing, so I asked Lee Hotz about it
+# in person.  He said that some Antarctic locations set their local
+# time so that noon is the warmest part of the day, and that this
+# changes during the year and does not necessarily correspond to mean
+# solar noon.  So the Vostok time might have been whatever the clocks
+# happened to be during their visit.  So we still don't really know what time
+# it is at Vostok.  But we'll guess +06.
+#
+Zone Antarctica/Vostok	0	-	-00	1957 Dec 16
+			6:00	-	+06
+
+# S Africa - year-round bases
+# Marion Island, -4653+03752
+# SANAE IV, Vesleskarvet, Queen Maud Land, -714022-0025026, since 1997
+
+# Ukraine - year-round base
+# Vernadsky (formerly Faraday), Galindez Island, -651445-0641526, since 1954
+
+# United Kingdom
+#
+# British Antarctic Territories (BAT) claims
+# South Orkney Islands
+#	scientific station from 1903
+#	whaling station at Signy I 1920/1926
+# South Shetland Islands
+#
+# year-round bases
+# Bird Island, South Georgia, -5400-03803, since 1983
+# Deception Island, -6259-06034, whaling station 1912/1931,
+#	scientific station 1943/1967,
+#	previously sealers and a scientific expedition wintered by accident,
+#	and a garrison was deployed briefly
+# Halley, Coates Land, -7535-02604, since 1956-01-06
+#	Halley is on a moving ice shelf and is periodically relocated
+#	so that it is never more than 10km from its nominal location.
+# Rothera, Adelaide Island, -6734-6808, since 1976-12-01
+#
+# From Paul Eggert (2002-10-22)
+# <http://webexhibits.org/daylightsaving/g.html> says Rothera is -03 all year.
+#
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Antarctica/Rothera	0	-	-00	1976 Dec  1
+			-3:00	-	-03
+
+# Uruguay - year round base
+# Artigas, King George Island, -621104-0585107
+
+# USA - year-round bases
+#
+# Palmer, Anvers Island, since 1965 (moved 2 miles in 1968)
+# See 'southamerica' for Antarctica/Palmer, since it uses South American DST.
+#
+# McMurdo Station, Ross Island, since 1955-12
+# Amundsen-Scott South Pole Station, continuously occupied since 1956-11-20
+#
+# From Chris Carrier (1996-06-27):
+# Siple, the first commander of the South Pole station,
+# stated that he would have liked to have kept GMT at the station,
+# but that he found it more convenient to keep GMT+12
+# as supplies for the station were coming from McMurdo Sound,
+# which was on GMT+12 because New Zealand was on GMT+12 all year
+# at that time (1957).  (Source: Siple's book 90 Degrees South.)
+#
+# From Susan Smith
+# http://www.cybertours.com/whs/pole10.html
+# (1995-11-13 16:24:56 +1300, no longer available):
+# We use the same time as McMurdo does.
+# And they use the same time as Christchurch, NZ does....
+# One last quirk about South Pole time.
+# All the electric clocks are usually wrong.
+# Something about the generators running at 60.1hertz or something
+# makes all of the clocks run fast.  So every couple of days,
+# we have to go around and set them back 5 minutes or so.
+# Maybe if we let them run fast all of the time, we'd get to leave here sooner!!
+#
+# See 'australasia' for Antarctica/McMurdo.

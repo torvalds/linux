@@ -1,0 +1,1299 @@
+.TH "EVP generic crypto functions" 3 "11 Jan 2012" "Version 1.5.2" "Heimdal crypto library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+EVP generic crypto functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_wincrypt_des_ede3_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_hcrypto_aes_128_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_hcrypto_aes_192_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_hcrypto_aes_256_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_hcrypto_aes_128_cfb8\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_hcrypto_aes_192_cfb8\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_hcrypto_aes_256_cfb8\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_hcrypto_sha256\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_hcrypto_sha384\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_hcrypto_sha512\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_hcrypto_sha1\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_hcrypto_md5\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_hcrypto_md4\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_hcrypto_md2\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_hcrypto_des_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_hcrypto_des_ede3_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_hcrypto_rc2_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_hcrypto_rc2_40_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_hcrypto_rc2_64_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_hcrypto_camellia_128_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_hcrypto_camellia_192_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_hcrypto_camellia_256_cbc\fP (void)"
+.br
+.ti -1c
+.RI "size_t \fBEVP_MD_size\fP (const EVP_MD *md)"
+.br
+.ti -1c
+.RI "size_t \fBEVP_MD_block_size\fP (const EVP_MD *md)"
+.br
+.ti -1c
+.RI "EVP_MD_CTX * \fBEVP_MD_CTX_create\fP (void)"
+.br
+.ti -1c
+.RI "void \fBEVP_MD_CTX_init\fP (EVP_MD_CTX *ctx) HC_DEPRECATED"
+.br
+.ti -1c
+.RI "void \fBEVP_MD_CTX_destroy\fP (EVP_MD_CTX *ctx)"
+.br
+.ti -1c
+.RI "int \fBEVP_MD_CTX_cleanup\fP (EVP_MD_CTX *ctx) HC_DEPRECATED"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_MD_CTX_md\fP (EVP_MD_CTX *ctx)"
+.br
+.ti -1c
+.RI "size_t \fBEVP_MD_CTX_size\fP (EVP_MD_CTX *ctx)"
+.br
+.ti -1c
+.RI "size_t \fBEVP_MD_CTX_block_size\fP (EVP_MD_CTX *ctx)"
+.br
+.ti -1c
+.RI "int \fBEVP_DigestInit_ex\fP (EVP_MD_CTX *ctx, const EVP_MD *md, ENGINE *engine)"
+.br
+.ti -1c
+.RI "int \fBEVP_DigestUpdate\fP (EVP_MD_CTX *ctx, const void *data, size_t size)"
+.br
+.ti -1c
+.RI "int \fBEVP_DigestFinal_ex\fP (EVP_MD_CTX *ctx, void *hash, unsigned int *size)"
+.br
+.ti -1c
+.RI "int \fBEVP_Digest\fP (const void *data, size_t dsize, void *hash, unsigned int *hsize, const EVP_MD *md, ENGINE *engine)"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_sha256\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_sha384\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_sha512\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_sha1\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_sha\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_md5\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_md4\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_md2\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_MD * \fBEVP_md_null\fP (void)"
+.br
+.ti -1c
+.RI "size_t \fBEVP_CIPHER_block_size\fP (const EVP_CIPHER *c)"
+.br
+.ti -1c
+.RI "size_t \fBEVP_CIPHER_key_length\fP (const EVP_CIPHER *c)"
+.br
+.ti -1c
+.RI "size_t \fBEVP_CIPHER_iv_length\fP (const EVP_CIPHER *c)"
+.br
+.ti -1c
+.RI "void \fBEVP_CIPHER_CTX_init\fP (EVP_CIPHER_CTX *c)"
+.br
+.ti -1c
+.RI "int \fBEVP_CIPHER_CTX_cleanup\fP (EVP_CIPHER_CTX *c)"
+.br
+.ti -1c
+.RI "int \fBEVP_CIPHER_CTX_set_key_length\fP (EVP_CIPHER_CTX *c, int length)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_CIPHER_CTX_cipher\fP (EVP_CIPHER_CTX *ctx)"
+.br
+.ti -1c
+.RI "size_t \fBEVP_CIPHER_CTX_block_size\fP (const EVP_CIPHER_CTX *ctx)"
+.br
+.ti -1c
+.RI "size_t \fBEVP_CIPHER_CTX_key_length\fP (const EVP_CIPHER_CTX *ctx)"
+.br
+.ti -1c
+.RI "size_t \fBEVP_CIPHER_CTX_iv_length\fP (const EVP_CIPHER_CTX *ctx)"
+.br
+.ti -1c
+.RI "unsigned long \fBEVP_CIPHER_CTX_flags\fP (const EVP_CIPHER_CTX *ctx)"
+.br
+.ti -1c
+.RI "int \fBEVP_CIPHER_CTX_mode\fP (const EVP_CIPHER_CTX *ctx)"
+.br
+.ti -1c
+.RI "void * \fBEVP_CIPHER_CTX_get_app_data\fP (EVP_CIPHER_CTX *ctx)"
+.br
+.ti -1c
+.RI "void \fBEVP_CIPHER_CTX_set_app_data\fP (EVP_CIPHER_CTX *ctx, void *data)"
+.br
+.ti -1c
+.RI "int \fBEVP_CipherInit_ex\fP (EVP_CIPHER_CTX *ctx, const EVP_CIPHER *c, ENGINE *engine, const void *key, const void *iv, int encp)"
+.br
+.ti -1c
+.RI "int \fBEVP_CipherUpdate\fP (EVP_CIPHER_CTX *ctx, void *out, int *outlen, void *in, size_t inlen)"
+.br
+.ti -1c
+.RI "int \fBEVP_CipherFinal_ex\fP (EVP_CIPHER_CTX *ctx, void *out, int *outlen)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_enc_null\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_rc2_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_rc2_40_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_rc2_64_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_rc4\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_rc4_40\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_des_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_des_ede3_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_aes_128_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_aes_192_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_aes_256_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_aes_128_cfb8\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_aes_192_cfb8\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_aes_256_cfb8\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_camellia_128_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_camellia_192_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_camellia_256_cbc\fP (void)"
+.br
+.ti -1c
+.RI "const EVP_CIPHER * \fBEVP_get_cipherbyname\fP (const char *name)"
+.br
+.ti -1c
+.RI "int \fBEVP_BytesToKey\fP (const EVP_CIPHER *type, const EVP_MD *md, const void *salt, const void *data, size_t datalen, unsigned int count, void *keydata, void *ivdata)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+See the \fBEVP - generic crypto interface\fP for description and examples. 
+.SH "Function Documentation"
+.PP 
+.SS "const EVP_CIPHER* EVP_aes_128_cbc (void)"
+.PP
+The AES-128 cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the AES-128 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.PP
+\fBExamples: \fP
+.in +1c
+\fBexample_evp_cipher.c\fP.
+.SS "const EVP_CIPHER* EVP_aes_128_cfb8 (void)"
+.PP
+The AES-128 cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the AES-128 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_aes_192_cbc (void)"
+.PP
+The AES-192 cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the AES-192 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_aes_192_cfb8 (void)"
+.PP
+The AES-192 cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the AES-192 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_aes_256_cbc (void)"
+.PP
+The AES-256 cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the AES-256 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_aes_256_cfb8 (void)"
+.PP
+The AES-256 cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the AES-256 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "int EVP_BytesToKey (const EVP_CIPHER * type, const EVP_MD * md, const void * salt, const void * data, size_t datalen, unsigned int count, void * keydata, void * ivdata)"
+.PP
+Provides a legancy string to key function, used in PEM files.
+.PP
+New protocols should use new string to key functions like NIST SP56-800A or PKCS#5 v2.0 (see \fBPKCS5_PBKDF2_HMAC_SHA1()\fP).
+.PP
+\fBParameters:\fP
+.RS 4
+\fItype\fP type of cipher to use 
+.br
+\fImd\fP message digest to use 
+.br
+\fIsalt\fP salt salt string, should be an binary 8 byte buffer. 
+.br
+\fIdata\fP the password/input key string. 
+.br
+\fIdatalen\fP length of data parameter. 
+.br
+\fIcount\fP iteration counter. 
+.br
+\fIkeydata\fP output keydata, needs to of the size \fBEVP_CIPHER_key_length()\fP. 
+.br
+\fIivdata\fP output ivdata, needs to of the size \fBEVP_CIPHER_block_size()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the size of derived key. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_camellia_128_cbc (void)"
+.PP
+The Camellia-128 cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the Camellia-128 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_camellia_192_cbc (void)"
+.PP
+The Camellia-198 cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the Camellia-198 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_camellia_256_cbc (void)"
+.PP
+The Camellia-256 cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the Camellia-256 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "size_t EVP_CIPHER_block_size (const EVP_CIPHER * c)"
+.PP
+Return the block size of the cipher.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIc\fP cipher to get the block size from.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the block size of the cipher. 
+.RE
+.PP
+
+.PP
+\fBExamples: \fP
+.in +1c
+\fBexample_evp_cipher.c\fP.
+.SS "size_t EVP_CIPHER_CTX_block_size (const EVP_CIPHER_CTX * ctx)"
+.PP
+Return the block size of the cipher context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP cipher context to get the block size from.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the block size of the cipher context. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_CIPHER_CTX_cipher (EVP_CIPHER_CTX * ctx)"
+.PP
+Return the EVP_CIPHER for a EVP_CIPHER_CTX context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP the context to get the cipher type from.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "int EVP_CIPHER_CTX_cleanup (EVP_CIPHER_CTX * c)"
+.PP
+Clean up the EVP_CIPHER_CTX context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIc\fP the cipher to clean up.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success. 
+.RE
+.PP
+
+.PP
+\fBExamples: \fP
+.in +1c
+\fBexample_evp_cipher.c\fP.
+.SS "unsigned long EVP_CIPHER_CTX_flags (const EVP_CIPHER_CTX * ctx)"
+.PP
+Get the flags for an EVP_CIPHER_CTX context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP the EVP_CIPHER_CTX to get the flags from
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the flags for an EVP_CIPHER_CTX. 
+.RE
+.PP
+
+.SS "void* EVP_CIPHER_CTX_get_app_data (EVP_CIPHER_CTX * ctx)"
+.PP
+Get the app data for an EVP_CIPHER_CTX context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP the EVP_CIPHER_CTX to get the app data from
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the app data for an EVP_CIPHER_CTX. 
+.RE
+.PP
+
+.SS "void EVP_CIPHER_CTX_init (EVP_CIPHER_CTX * c)"
+.PP
+Initiate a EVP_CIPHER_CTX context. Clean up with \fBEVP_CIPHER_CTX_cleanup()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIc\fP the cipher initiate. 
+.RE
+.PP
+
+.PP
+\fBExamples: \fP
+.in +1c
+\fBexample_evp_cipher.c\fP.
+.SS "size_t EVP_CIPHER_CTX_iv_length (const EVP_CIPHER_CTX * ctx)"
+.PP
+Return the IV size of the cipher context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP cipher context to get the IV size from.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the IV size of the cipher context. 
+.RE
+.PP
+
+.SS "size_t EVP_CIPHER_CTX_key_length (const EVP_CIPHER_CTX * ctx)"
+.PP
+Return the key size of the cipher context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP cipher context to get the key size from.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the key size of the cipher context. 
+.RE
+.PP
+
+.SS "int EVP_CIPHER_CTX_mode (const EVP_CIPHER_CTX * ctx)"
+.PP
+Get the mode for an EVP_CIPHER_CTX context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP the EVP_CIPHER_CTX to get the mode from
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the mode for an EVP_CIPHER_CTX. 
+.RE
+.PP
+
+.SS "void EVP_CIPHER_CTX_set_app_data (EVP_CIPHER_CTX * ctx, void * data)"
+.PP
+Set the app data for an EVP_CIPHER_CTX context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP the EVP_CIPHER_CTX to set the app data for 
+.br
+\fIdata\fP the app data to set for an EVP_CIPHER_CTX. 
+.RE
+.PP
+
+.SS "int EVP_CIPHER_CTX_set_key_length (EVP_CIPHER_CTX * c, int length)"
+.PP
+If the cipher type supports it, change the key length
+.PP
+\fBParameters:\fP
+.RS 4
+\fIc\fP the cipher context to change the key length for 
+.br
+\fIlength\fP new key length
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success. 
+.RE
+.PP
+
+.SS "size_t EVP_CIPHER_iv_length (const EVP_CIPHER * c)"
+.PP
+Return the IV size of the cipher.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIc\fP cipher to get the IV size from.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the IV size of the cipher. 
+.RE
+.PP
+
+.PP
+\fBExamples: \fP
+.in +1c
+\fBexample_evp_cipher.c\fP.
+.SS "size_t EVP_CIPHER_key_length (const EVP_CIPHER * c)"
+.PP
+Return the key size of the cipher.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIc\fP cipher to get the key size from.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the key size of the cipher. 
+.RE
+.PP
+
+.PP
+\fBExamples: \fP
+.in +1c
+\fBexample_evp_cipher.c\fP.
+.SS "int EVP_CipherFinal_ex (EVP_CIPHER_CTX * ctx, void * out, int * outlen)"
+.PP
+Encipher/decipher final data
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP the cipher context. 
+.br
+\fIout\fP output data from the operation. 
+.br
+\fIoutlen\fP output length
+.RE
+.PP
+The input length needs to be at least \fBEVP_CIPHER_block_size()\fP bytes long.
+.PP
+See \fBEVP Cipher\fP for an example how to use this function.
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success. 
+.RE
+.PP
+
+.PP
+\fBExamples: \fP
+.in +1c
+\fBexample_evp_cipher.c\fP.
+.SS "int EVP_CipherInit_ex (EVP_CIPHER_CTX * ctx, const EVP_CIPHER * c, ENGINE * engine, const void * key, const void * iv, int encp)"
+.PP
+Initiate the EVP_CIPHER_CTX context to encrypt or decrypt data. Clean up with \fBEVP_CIPHER_CTX_cleanup()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP context to initiate 
+.br
+\fIc\fP cipher to use. 
+.br
+\fIengine\fP crypto engine to use, NULL to select default. 
+.br
+\fIkey\fP the crypto key to use, NULL will use the previous value. 
+.br
+\fIiv\fP the IV to use, NULL will use the previous value. 
+.br
+\fIencp\fP non zero will encrypt, -1 use the previous value.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success. 
+.RE
+.PP
+
+.PP
+\fBExamples: \fP
+.in +1c
+\fBexample_evp_cipher.c\fP.
+.SS "int EVP_CipherUpdate (EVP_CIPHER_CTX * ctx, void * out, int * outlen, void * in, size_t inlen)"
+.PP
+Encipher/decipher partial data
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP the cipher context. 
+.br
+\fIout\fP output data from the operation. 
+.br
+\fIoutlen\fP output length 
+.br
+\fIin\fP input data to the operation. 
+.br
+\fIinlen\fP length of data.
+.RE
+.PP
+The output buffer length should at least be \fBEVP_CIPHER_block_size()\fP byte longer then the input length.
+.PP
+See \fBEVP Cipher\fP for an example how to use this function.
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success. 
+.RE
+.PP
+
+.PP
+If there in no spare bytes in the left from last Update and the input length is on the block boundery, the \fBEVP_CipherUpdate()\fP function can take a shortcut (and preformance gain) and directly encrypt the data, otherwise we hav to fix it up and store extra it the EVP_CIPHER_CTX. 
+.PP
+\fBExamples: \fP
+.in +1c
+\fBexample_evp_cipher.c\fP.
+.SS "const EVP_CIPHER* EVP_des_cbc (void)"
+.PP
+The DES cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the DES-CBC EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_des_ede3_cbc (void)"
+.PP
+The tripple DES cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the DES-EDE3-CBC EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "int EVP_Digest (const void * data, size_t dsize, void * hash, unsigned int * hsize, const EVP_MD * md, ENGINE * engine)"
+.PP
+Do the whole \fBEVP_MD_CTX_create()\fP, \fBEVP_DigestInit_ex()\fP, \fBEVP_DigestUpdate()\fP, \fBEVP_DigestFinal_ex()\fP, \fBEVP_MD_CTX_destroy()\fP dance in one call.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIdata\fP the data to update the context with 
+.br
+\fIdsize\fP length of data 
+.br
+\fIhash\fP output data of at least \fBEVP_MD_size()\fP length. 
+.br
+\fIhsize\fP output length of hash. 
+.br
+\fImd\fP message digest to use 
+.br
+\fIengine\fP engine to use, NULL for default engine.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success. 
+.RE
+.PP
+
+.SS "int EVP_DigestFinal_ex (EVP_MD_CTX * ctx, void * hash, unsigned int * size)"
+.PP
+Complete the message digest.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP the context to complete. 
+.br
+\fIhash\fP the output of the message digest function. At least \fBEVP_MD_size()\fP. 
+.br
+\fIsize\fP the output size of hash.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success. 
+.RE
+.PP
+
+.SS "int EVP_DigestInit_ex (EVP_MD_CTX * ctx, const EVP_MD * md, ENGINE * engine)"
+.PP
+Init a EVP_MD_CTX for use a specific message digest and engine.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP the message digest context to init. 
+.br
+\fImd\fP the message digest to use. 
+.br
+\fIengine\fP the engine to use, NULL to use the default engine.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success. 
+.RE
+.PP
+
+.SS "int EVP_DigestUpdate (EVP_MD_CTX * ctx, const void * data, size_t size)"
+.PP
+Update the digest with some data.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP the context to update 
+.br
+\fIdata\fP the data to update the context with 
+.br
+\fIsize\fP length of data
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_enc_null (void)"
+.PP
+The NULL cipher type, does no encryption/decryption.
+.PP
+\fBReturns:\fP
+.RS 4
+the null EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_get_cipherbyname (const char * name)"
+.PP
+Get the cipher type using their name.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIname\fP the name of the cipher.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the selected EVP_CIPHER pointer or NULL if not found. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_hcrypto_aes_128_cbc (void)"
+.PP
+The AES-128 cipher type (hcrypto)
+.PP
+\fBReturns:\fP
+.RS 4
+the AES-128 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_hcrypto_aes_128_cfb8 (void)"
+.PP
+The AES-128 CFB8 cipher type (hcrypto)
+.PP
+\fBReturns:\fP
+.RS 4
+the AES-128 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_hcrypto_aes_192_cbc (void)"
+.PP
+The AES-192 cipher type (hcrypto)
+.PP
+\fBReturns:\fP
+.RS 4
+the AES-192 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_hcrypto_aes_192_cfb8 (void)"
+.PP
+The AES-192 CFB8 cipher type (hcrypto)
+.PP
+\fBReturns:\fP
+.RS 4
+the AES-192 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_hcrypto_aes_256_cbc (void)"
+.PP
+The AES-256 cipher type (hcrypto)
+.PP
+\fBReturns:\fP
+.RS 4
+the AES-256 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_hcrypto_aes_256_cfb8 (void)"
+.PP
+The AES-256 CFB8 cipher type (hcrypto)
+.PP
+\fBReturns:\fP
+.RS 4
+the AES-256 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_hcrypto_camellia_128_cbc (void)"
+.PP
+The Camellia-128 cipher type - hcrypto
+.PP
+\fBReturns:\fP
+.RS 4
+the Camellia-128 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_hcrypto_camellia_192_cbc (void)"
+.PP
+The Camellia-198 cipher type - hcrypto
+.PP
+\fBReturns:\fP
+.RS 4
+the Camellia-198 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_hcrypto_camellia_256_cbc (void)"
+.PP
+The Camellia-256 cipher type - hcrypto
+.PP
+\fBReturns:\fP
+.RS 4
+the Camellia-256 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_hcrypto_des_cbc (void)"
+.PP
+The DES cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the DES-CBC EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_hcrypto_des_ede3_cbc (void)"
+.PP
+The tripple DES cipher type - hcrypto
+.PP
+\fBReturns:\fP
+.RS 4
+the DES-EDE3-CBC EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_hcrypto_md2 (void)"
+.PP
+The message digest MD2 - hcrypto
+.PP
+\fBReturns:\fP
+.RS 4
+the message digest type. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_hcrypto_md4 (void)"
+.PP
+The message digest MD4 - hcrypto
+.PP
+\fBReturns:\fP
+.RS 4
+the message digest type. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_hcrypto_md5 (void)"
+.PP
+The message digest MD5 - hcrypto
+.PP
+\fBReturns:\fP
+.RS 4
+the message digest type. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_hcrypto_rc2_40_cbc (void)"
+.PP
+The RC2-40 cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the RC2-40 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_hcrypto_rc2_64_cbc (void)"
+.PP
+The RC2-64 cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the RC2-64 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_hcrypto_rc2_cbc (void)"
+.PP
+The RC2 cipher type - hcrypto
+.PP
+\fBReturns:\fP
+.RS 4
+the RC2 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_hcrypto_sha1 (void)"
+.PP
+The message digest SHA1 - hcrypto
+.PP
+\fBReturns:\fP
+.RS 4
+the message digest type. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_hcrypto_sha256 (void)"
+.PP
+The message digest SHA256 - hcrypto
+.PP
+\fBReturns:\fP
+.RS 4
+the message digest type. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_hcrypto_sha384 (void)"
+.PP
+The message digest SHA384 - hcrypto
+.PP
+\fBReturns:\fP
+.RS 4
+the message digest type. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_hcrypto_sha512 (void)"
+.PP
+The message digest SHA512 - hcrypto
+.PP
+\fBReturns:\fP
+.RS 4
+the message digest type. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_md2 (void)"
+.PP
+The message digest MD2
+.PP
+\fBReturns:\fP
+.RS 4
+the message digest type. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_md4 (void)"
+.PP
+The message digest MD4
+.PP
+\fBReturns:\fP
+.RS 4
+the message digest type. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_md5 (void)"
+.PP
+The message digest MD5
+.PP
+\fBReturns:\fP
+.RS 4
+the message digest type. 
+.RE
+.PP
+
+.SS "size_t EVP_MD_block_size (const EVP_MD * md)"
+.PP
+Return the blocksize of the message digest function.
+.PP
+\fBParameters:\fP
+.RS 4
+\fImd\fP the evp message
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+size size of the message digest block size 
+.RE
+.PP
+
+.SS "size_t EVP_MD_CTX_block_size (EVP_MD_CTX * ctx)"
+.PP
+Return the blocksize of the message digest function.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP the evp message digest context
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+size size of the message digest block size 
+.RE
+.PP
+
+.SS "int EVP_MD_CTX_cleanup (EVP_MD_CTX * ctx)"
+.PP
+Free the resources used by the EVP_MD context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP the context to free the resources from.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 on success. 
+.RE
+.PP
+
+.SS "EVP_MD_CTX* EVP_MD_CTX_create (void)"
+.PP
+Allocate a messsage digest context object. Free with \fBEVP_MD_CTX_destroy()\fP.
+.PP
+\fBReturns:\fP
+.RS 4
+a newly allocated message digest context object. 
+.RE
+.PP
+
+.SS "void EVP_MD_CTX_destroy (EVP_MD_CTX * ctx)"
+.PP
+Free a messsage digest context object.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP context to free. 
+.RE
+.PP
+
+.SS "void EVP_MD_CTX_init (EVP_MD_CTX * ctx)"
+.PP
+Initiate a messsage digest context object. Deallocate with \fBEVP_MD_CTX_cleanup()\fP. Please use \fBEVP_MD_CTX_create()\fP instead.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP variable to initiate. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_MD_CTX_md (EVP_MD_CTX * ctx)"
+.PP
+Get the EVP_MD use for a specified context.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP the EVP_MD context to get the EVP_MD for.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+the EVP_MD used for the context. 
+.RE
+.PP
+
+.SS "size_t EVP_MD_CTX_size (EVP_MD_CTX * ctx)"
+.PP
+Return the output size of the message digest function.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP the evp message digest context
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+size output size of the message digest function. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_md_null (void)"
+.PP
+The null message digest
+.PP
+\fBReturns:\fP
+.RS 4
+the message digest type. 
+.RE
+.PP
+
+.SS "size_t EVP_MD_size (const EVP_MD * md)"
+.PP
+Return the output size of the message digest function.
+.PP
+\fBParameters:\fP
+.RS 4
+\fImd\fP the evp message
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+size output size of the message digest function. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_rc2_40_cbc (void)"
+.PP
+The RC2 cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the RC2 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_rc2_64_cbc (void)"
+.PP
+The RC2 cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the RC2 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_rc2_cbc (void)"
+.PP
+The RC2 cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the RC2 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_rc4 (void)"
+.PP
+The RC4 cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the RC4 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_rc4_40 (void)"
+.PP
+The RC4-40 cipher type
+.PP
+\fBReturns:\fP
+.RS 4
+the RC4-40 EVP_CIPHER pointer. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_sha (void)"
+.PP
+The message digest SHA1
+.PP
+\fBReturns:\fP
+.RS 4
+the message digest type. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_sha1 (void)"
+.PP
+The message digest SHA1
+.PP
+\fBReturns:\fP
+.RS 4
+the message digest type. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_sha256 (void)"
+.PP
+The message digest SHA256
+.PP
+\fBReturns:\fP
+.RS 4
+the message digest type. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_sha384 (void)"
+.PP
+The message digest SHA384
+.PP
+\fBReturns:\fP
+.RS 4
+the message digest type. 
+.RE
+.PP
+
+.SS "const EVP_MD* EVP_sha512 (void)"
+.PP
+The message digest SHA512
+.PP
+\fBReturns:\fP
+.RS 4
+the message digest type. 
+.RE
+.PP
+
+.SS "const EVP_CIPHER* EVP_wincrypt_des_ede3_cbc (void)"
+.PP
+The tripple DES cipher type (Micrsoft crypt provider)
+.PP
+\fBReturns:\fP
+.RS 4
+the DES-EDE3-CBC EVP_CIPHER pointer. 
+.RE
+.PP
+

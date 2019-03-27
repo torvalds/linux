@@ -1,0 +1,112 @@
+.\"
+.\" Copyright (c) 2018 Ian Lepore <ian@freebsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 7, 2018
+.Dt IMX_WDOG 4
+.Os
+.Sh NAME
+.Nm imx_wdog
+.Nd device driver for the NXP i.MX5 and i.MX6 watchdog timer
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device imxwdt"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+imx_wdog_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides
+.Xr watchdog 4
+support for the watchdog timer present on NXP i.MX5 and i.MX6 processors.
+The i.MX watchdog hardware supports programmable timeouts ranging from
+0.5 to 128 seconds, in half-second increments.
+Once activated, the watchdog hardware cannot be deactivated, but the
+timeout period can be changed to any valid non-zero value.
+.Pp
+At power-on, a special 16-second
+.Sq power-down timer
+mode is automatically enabled by the hardware.
+It will assert the external WDOG_B signal, which may be connected to
+external hardware that causes the system to reset or power-down.
+The power-down timer is often reset by the boot loader (typically U-Boot).
+If the power-down timer is still active at the time when the normal
+watchdog is first enabled, the
+.Nm
+driver automatically disables it.
+.Pp
+The
+.Nm
+driver supports the FDT
+.Va fsl,external-reset
+property by enabling the assertion of the WDOG_B external timeout signal
+when the property is present.
+When running this way, the need to reset the system due to watchdog
+timeout is signaled by driving the WDOG_B line low; some external
+entity is expected to assert the chip's POR pin in response.
+The
+.Nm
+driver attempts to backstop this external reset by scheduling an
+interrupt to occur as well.
+The interrupt handler waits 1 second for the external reset to occur,
+then it triggers a normal software reset.
+Note that the WDOG_B signal can be configured to use a variety of
+pins on the chip.
+For the
+.Va fsl,external-reset
+property to be effective, the signal must be connected to an appropriate
+pin by the system's FDT pinctrl data.
+.Pp
+The
+.Nm
+driver supports the FDT
+.Va timeout-secs
+property by enabling the watchdog as soon as the driver attaches,
+using the given timeout value.
+This extends watchdog protection to much of the system startup process,
+but it still requires that
+.Xr watchdogd 4
+be configured to service the watchdog.
+.Sh SEE ALSO
+.Xr fdt 4 ,
+.Xr watchdog 4 ,
+.Xr watchdog 8 ,
+.Xr watchdogd 8 ,
+.Xr watchdog 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 10.0 .

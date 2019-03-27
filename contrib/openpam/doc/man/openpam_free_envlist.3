@@ -1,0 +1,36 @@
+.\" Generated from openpam_free_envlist.c by gendoc.pl
+.\" $OpenPAM: openpam_free_envlist.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt OPENPAM_FREE_ENVLIST 3
+.Os
+.Sh NAME
+.Nm openpam_free_envlist
+.Nd free an environment list
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.In security/openpam.h
+.Ft "void"
+.Fn openpam_free_envlist "char **envlist"
+.Sh DESCRIPTION
+The
+.Fn openpam_free_envlist
+function is a convenience function which
+frees all the environment variables in an environment list, and the
+list itself.
+It is suitable for freeing the return value from
+.Xr pam_getenvlist 3 .
+.Pp
+.Sh SEE ALSO
+.Xr pam 3 ,
+.Xr pam_getenvlist 3
+.Sh STANDARDS
+The
+.Fn openpam_free_envlist
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn openpam_free_envlist
+function and this manual page were
+developed by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

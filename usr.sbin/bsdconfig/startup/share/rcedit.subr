@@ -1,0 +1,90 @@
+if [ ! "$_STARTUP_RCEDIT_SUBR" ]; then _STARTUP_RCEDIT_SUBR=1
+#
+# Copyright (c) 2012 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." startup/rcedit.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="140.startup"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+############################################################ FUNCTIONS
+
+# f_dialog_rcedit $var [[--] $init ...]
+#
+# Allow the user to enter a new value for a given rc.conf(5) variable. If the
+# user does not cancel or press ESC, the variable will be saved without
+# confirmation.
+#
+# If the second argument is non-NULL, it will be processed as the initial text
+# to be displayed, overriding the default behavior to display the currently
+# configured value as the initial text.
+#
+# If instead the second argument is "--", then the third argument (NULL or
+# otherwise) will be treated as the initial text.
+#
+f_dialog_rcedit()
+{
+	local funcname=f_dialog_rcedit
+	local msg var="$1" _input
+
+	f_sprintf msg "$msg_please_enter_a_new_value" \
+	              "$var" "$( f_sysrc_get_default "$var" )"
+
+	shift 1 # var
+	if [ "$1" ]; then
+		[ "$1" = "--" ] && shift 1 # --
+		_input="$1"
+	else
+		_input=$( f_sysrc_get "$var" )
+	fi
+
+	# Return if user has either pressed ESC or chosen Cancel/No
+	f_dialog_input _input "$msg" "$_input" \
+	               "$hline_alnum_punc_tab_enter" || return $?
+
+	# Return if the value has not changed from current
+	local cur_val="$( f_sysrc_get "$var" )"
+	[ "$_input" = "$cur_val" ] && return $DIALOG_OK
+
+	f_dprintf "%s: [%s]->[%s]" "$var" "$cur_val" "$_input"
+
+	f_eval_catch $funcname f_sysrc_set \
+		'f_sysrc_set "%s" "%s"' "$var" "$_input"
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." startup/rcedit.subr
+
+fi # ! $_STARTUP_RCEDIT_SUBR

@@ -1,0 +1,8 @@
+
+#------------------------------------------------------------------------------
+# $File: pbm,v 1.6 2009/09/19 16:28:11 christos Exp $
+# pbm:  file(1) magic for Portable Bitmap files
+#
+# XXX - byte order?
+#
+0	short	0x2a17	"compact bitmap" format (Poskanzer)

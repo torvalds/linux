@@ -1,0 +1,97 @@
+.\"
+.\" ----------------------------------------------------------------------------
+.\" "THE BEER-WARE LICENSE" (Revision 42):
+.\" <phk@FreeBSD.org> wrote this file.  As long as you retain this notice you
+.\" can do whatever you want with this stuff. If we meet some day, and you think
+.\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+.\" ----------------------------------------------------------------------------
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 5, 2016
+.Dt NOS-TUN 8
+.Os
+.Sh NAME
+.Nm nos-tun
+.Nd implement ``nos'' or ``ka9q'' style IP over IP tunnel
+.Sh SYNOPSIS
+.Nm
+.Fl t
+.Ar tunnel
+.Fl s
+.Ar source
+.Fl d
+.Ar destination
+.Fl p
+.Ar protocol_number
+.Op Ar source
+.Ar target
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to establish an
+.Em nos
+style tunnel, (also known as
+.Em ka9q
+or
+.Em IP-IP
+tunnel) using a
+.Xr tun 4
+kernel interface.
+.Pp
+.Ar Tunnel
+is the name of the tunnel device
+.Pa /dev/tun0
+for example.
+.Pp
+.Ar Source
+and
+.Ar destination
+are the addresses used on the tunnel device.
+If you configure the tunnel against a cisco router, use a netmask of
+.Dq 255.255.255.252
+on the cisco.
+This is because the tunnel is a point-to-point interface
+in the
+.Fx
+end, a concept cisco does not really implement.
+.Pp
+.Ar Protocol number
+sets tunnel mode.
+Original KA9Q NOS uses 94 but many people use 4
+on the worldwide backbone of ampr.org.
+.Pp
+.Ar Target
+is the address of the remote tunnel device, this must match the source
+address set on the remote end.
+.Sh EXAMPLES
+This end, a
+.Fx
+box on address 192.168.59.34:
+.Bd -literal -offset indent
+nos-tun -t /dev/tun0 -s 192.168.61.1 -d 192.168.61.2 192.168.56.45
+.Ed
+.Pp
+Remote cisco on address 192.168.56.45:
+.Bd -literal -offset indent
+interface tunnel 0
+ip address 192.168.61.2 255.255.255.252
+tunnel mode nos
+tunnel destination 192.168.59.34
+tunnel source 192.168.56.45
+.Ed
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An -nosplit
+.An Nickolay N. Dudorov Aq Mt nnd@itfs.nsk.su
+wrote the program,
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org
+wrote the man-page.
+.An Isao SEKI Aq Mt iseki@gongon.com
+added a new flag, IP protocol number.
+.Sh BUGS
+We do not allow for setting our source address for multihomed machines.

@@ -1,0 +1,3638 @@
+'\" t
+.\" $Id: dialog.3,v 1.121 2018/06/20 01:21:53 tom Exp $
+.\" Copyright 2005-2017,2018  Thomas E. Dickey
+.\"
+.\" This program is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU Lesser General Public License, version 2.1
+.\" as published by the Free Software Foundation.
+.\"
+.\" This program is distributed in the hope that it will be useful, but
+.\" WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" Lesser General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU Lesser General Public
+.\" License along with this program; if not, write to
+.\"	Free Software Foundation, Inc.
+.\"	51 Franklin St., Fifth Floor
+.\"	Boston, MA 02110, USA.
+.\"
+.\" definitions for renaming
+.ds p dialog
+.ds l dialog
+.ds L Dialog
+.ds D DIALOG
+.
+.de ES
+.ne 8
+.IP
+..
+.de Ex
+.RS +7
+.PP
+.nf
+.ft CW
+..
+.de Ee
+.fi
+.ft R
+.RE
+..
+.\" Bulleted paragraph
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.TH \*D 3 "" "$Date: 2018/06/20 01:21:53 $"
+.SH NAME
+dialog \- widgets and utilities for the \*p program
+.SH SYNOPSIS
+.B cc [ flag ... ] file ...  -l\*l [ library ... ]
+.br
+\ \ \ or
+.br
+.B cc $(\*p-config --cflags) file ... $(\*p-config --libs) ]
+.sp
+.B #include <\*l.h>
+.PP
+\fB\*L\fP
+is a program that will let you present a variety of questions or
+display messages using dialog boxes from a shell script.
+It is built from the \fB\*l\fP library,
+which consists of several widgets
+as well as utility functions that are used by the widgets
+or the main program.
+.
+.SH DESCRIPTION
+This manpage documents the features from \fI<\*l.h>\fP which
+are likely to be important to developers using the widgets directly.
+Some hints are also given for developing new widgets.
+.PP
+Here is a \fB\*l\fP version of \fIHello World\/\fP:
+.RS
+.nf
+int main(void)
+{
+	int status;
+	init_dialog(stdin, stdout);
+	status = dialog_yesno(
+			"Hello, in dialog-format",
+			"Hello World!",
+			0, 0);
+	end_dialog();
+	return status;
+}
+.fi
+.RE
+.
+.\" ************************************************************************
+.SH DEFINITIONS
+Exit codes (passed back to the main program for its use)
+are defined with a "\fIDLG_EXIT_\fP prefix.
+The efined constants can be mapped using environment variables
+as described in \fB\*p\fP(1),
+e.g., \fIDLG_EXIT_OK\fP corresponds to \fI$DIALOG_OK\fP.
+.PP
+Useful character constants which correspond to user input
+are named with the "\fICHR_\fP" prefix, e.g.,
+\fICHR_BACKSPACE\fP.
+.PP
+Colors and video attributes are categorized and associated with
+settings in the configuration file
+(see the discussion of \fI$DIALOGRC\fP in \fB\*p\/\fP(1)).
+The \fIDIALOG_ATR(n)\fP macro is used for defining the references
+to the combined color and attribute table \fBdlg_color_table[]\fP.
+.PP
+The \fB\*p\fP application passes its command-line parameters
+to the widget functions.
+Some of those parameters are single values,
+but some of the widgets accept data as an array of values.
+Those include checklist/radiobox, menubox and formbox.
+When the \fB--item-help\fP option is given, an extra column
+of data is expected.
+The USE_ITEM_HELP(), CHECKBOX_TAGS, MENUBOX_TAGS and FORMBOX_TAGS
+macros are used to hide this difference from the calling application.
+.PP
+Most of the other definitions found in \fI<\*l.h>\fP
+are used for convenience in building the library or main program.
+These include definitions based on the generated \fI<dlg_config.h>\fP header.
+.
+.\" ************************************************************************
+.SH DATA STRUCTURES
+All of the global data for the \fB\*l\fP library is stored in
+a few structures:
+\fIDIALOG_STATE\fP, \fIDIALOG_VARS\fP and \fIDIALOG_COLORS\fP.
+The corresponding
+\fBdialog_state\fP, \fBdialog_vars\fP and \fBdlg_color_table\fP
+global variables should be initialized to zeros,
+and then populated with the data to use.
+A few of these must be nonzero for the corresponding widgets to function.
+As as the case with function names,
+variables beginning with "\fIdialog_\fP"
+are designed for use by the calling application
+while variables beginning with "\fIdlg_\fP"
+are intended for lower levels, e.g., by the \fB\*l\fP library.
+.\" ---------------------------------------------------------------------------
+.SH DIALOG_STATE
+The \fIstate\fP variables are \fB\*l\fP's working variables.
+It initializes those, uses them to manage the widgets.
+.\" ---------------------------------------------------------------------------
+.SS .all_subwindows
+This is a linked list of all subwindows created by the library.
+The \fBdlg_del_window\fP function uses this
+to free storage for subwindows when deleting a window.
+.\" ---------------------------------------------------------------------------
+.SS .all_windows
+This is a linked list of all windows created by the library.
+The \fBdlg_del_window\fP function uses this to locate windows which
+may be redrawn after deleting a window.
+.\" ---------------------------------------------------------------------------
+.SS .aspect_ratio
+This corresponds to the command-line option "\fB--aspect-ratio\fP".
+The value gives the application
+some control over the box dimensions when using auto
+sizing (specifying 0 for height and width).
+It represents width / height.
+The default is 9, which means 9 characters wide to every 1 line high.
+.\" ---------------------------------------------------------------------------
+.SS .finish_string
+When set to true, this allows calls to \fBdlg_finish_string\fP to discard the
+corresponding data which is created to speed up layout computations for the
+given string parameter.
+The \fBgauge\fP widget uses this feature.
+.\" ---------------------------------------------------------------------------
+.SS .getc_callbacks
+This is set up in \fIui_getc.c\fP to record windows which must be polled
+for input, e.g., to handle the background tailbox widget.
+One window is designated as the foreground or control window.
+.\" ---------------------------------------------------------------------------
+.SS .getc_redirect
+If the control window for \fIDIALOG_STATE.getc_callbacks\fP is
+closed, the list is transferred to this variable.
+Closing all windows causes the application to exit.
+.\" ---------------------------------------------------------------------------
+.SS .no_mouse
+This corresponds to the command-line option "\fB--no-mouse\fP".
+If true, \fB\*p\fP will not initialize (and enable) the mouse in
+\fIinit_dialog\fP.
+.\" ---------------------------------------------------------------------------
+.SS .output
+This is set in the \fB\*p\fP application to the stream on
+which the application and library functions may write text results.
+Normally that is the standard error,
+since the curses library prefers to write its data to the standard output.
+Some scripts, trading portability for convenience,
+prefer to write results to the standard output,
+e.g., by using the "\fB--stdout\fP" option.
+.\" ---------------------------------------------------------------------------
+.SS .output_count
+This is incremented by \fBdlg_does_output\fP,
+which is called by each widget that writes text to the output.
+The \fB\*p\fP application uses that to decide if it should
+also write a separator, i.e.,
+\fIDIALOG_STATE.separate_str\fP,
+between calls to each widget.
+.\" ---------------------------------------------------------------------------
+.SS .pipe_input
+This is set in \fIinit_dialog\fP to a stream which can be used by the
+\fBgauge\fP widget, which must be the application's standard input.
+The \fB\*p\fP application calls \fIinit_dialog\fP normally with
+\fIinput\fP set to the standard input, but optionally based on the
+"\fB--input-fd\fP" option.
+Since the application cannot read from
+a pipe (standard input) and at the same time read
+the curses input from the standard input,
+it must allow for reopening the latter from either
+a specific file descriptor,
+or directly from the terminal.
+The adjusted pipe stream value is stored in this variable.
+.\" ---------------------------------------------------------------------------
+.SS .screen_initialized
+This is set in \fIinit_dialog\fP and
+reset in \fIend_dialog\fP.
+It is used to check if curses has been initialized,
+and if the \fIendwin\fP function must be called on exit.
+.\" ---------------------------------------------------------------------------
+.SS .screen_output
+This is set in \fIinit_dialog\fP to the output stream used
+by the curses library.
+Normally that is the standard output,
+unless that happens to not be a terminal (and if \fIinit_dialog\fP can
+successfully open the terminal directly).
+.\" ---------------------------------------------------------------------------
+.SS .separate_str
+This corresponds to the command-line option "\fB--separate-widget\fP".
+The given string
+specifies a string that will separate the output on \fB\*p\fP's output from
+each widget.
+This is used to simplify parsing the result of a dialog with several widgets.
+If this option is not given,
+the default separator string is a tab character.
+.\" ---------------------------------------------------------------------------
+.SS .tab_len
+This corresponds to the command-line option "\fB--tab-len\fP \fInumber\/\fP".
+Specify the number of spaces that a tab character occupies if the
+"\fB--tab-correct\fP"
+option is given.
+The default is 8.
+.\" ---------------------------------------------------------------------------
+.SS .text_height
+This text-formatting functions set this to the number of lines used for
+formatting a string.
+.LP
+It is used by \fB\*l\fP for the command-line options
+"\fB--print-text-size\fP" and
+"\fB--print-text-only\fP".
+.\" ---------------------------------------------------------------------------
+.SS .text_only
+\fB\*L\fP uses this in the command-line option "\fB--print-text-only\fP".
+.LP
+The text-formatting functions
+(\fBdlg_print_text\fP,
+\fBdlg_print_line\fP, and
+\fBdlg_print_autowrap\fP)
+check this to decide whether to print the formatted text to
+\fB\*p\fP's output or to the curses-display.
+.LP
+Also,
+\fBdlg_auto_size\fP checks the flag, allowing it to be used before
+\fBinit_dialog\fP is called.
+.\" ---------------------------------------------------------------------------
+.SS .text_width
+This text-formatting functions set this to the number of columns used for
+formatting a string.
+.LP
+It is used by \fB\*l\fP for the command-line options
+"\fB--print-text-size\fP" and
+"\fB--print-text-only\fP".
+.\" ---------------------------------------------------------------------------
+.SS .trace_output
+This corresponds to the command-line option "\fB--trace\fP \fIfile\fP".
+It is the file pointer to which trace messages are written.
+.\" ---------------------------------------------------------------------------
+.SS .use_colors
+This is set in \fIinit_dialog\fP if the curses implementation supports color.
+.\" ---------------------------------------------------------------------------
+.SS .use_scrollbar
+This corresponds to the command-line option "\fB--scrollbar\fP".
+If true,
+draw a scrollbar to make windows holding scrolled data more readable.
+.\" ---------------------------------------------------------------------------
+.SS .use_shadow
+This corresponds to the command-line option "\fB--no-shadow\fP".
+This is set in \fIinit_dialog\fP if the curses implementation supports color.
+If true,
+suppress shadows that would be drawn to the right and bottom of each dialog box.
+.\" ---------------------------------------------------------------------------
+.SS .visit_items
+This corresponds to the command-line option "\fB--visit-items\fP".
+Modify the tab-traversal of the list-oriented widgets
+(buildlist, checklist, radiobox, menubox, inputmenu, and treeview)
+to include the list of items as one of the states.
+This is useful as a visual aid,
+i.e., the cursor position helps some users.
+.\" ---------------------------------------------------------------------------
+.PP
+The \fB\*p\fP application resets the \fBdialog_vars\fP data before
+accepting options to invoke each widget.
+Most of the \fIDIALOG_VARS\fP members are set directly from \fB\*p\fP's
+command-line options:
+.\" ---------------------------------------------------------------------------
+.SH
+DIALOG_VARS
+.PP
+In contrast to \fBDIALOG_STATE\fP, the members of \fBDIALOG_VARS\fP
+are set by command-line options in \fB\*p\fP.
+.\" ---------------------------------------------------------------------------
+.SS .ascii_lines
+This corresponds to the command-line option "\fB--ascii-lines\fP.
+It causes line-drawing to be done with ASCII characters, e.g., "+" and "-".
+See \fIDIALOG_VARS.no_lines\fP.
+.\" ---------------------------------------------------------------------------
+.SS .backtitle
+This corresponds to the command-line option
+"\fB--backtitle\fP \fIbacktitle\/\fP".
+It specifies a
+\fIbacktitle\fP
+string to be displayed on the backdrop, at the top of the screen.
+.\" ---------------------------------------------------------------------------
+.SS .beep_after_signal
+This corresponds to the command-line option "\fB--beep-after\fP".
+If true, beep after a user has completed a widget
+by pressing one of the buttons.
+.\" ---------------------------------------------------------------------------
+.SS .beep_signal
+This corresponds to the command-line option "\fB--beep\fP".
+It is obsolete.
+.\" ---------------------------------------------------------------------------
+.SS .begin_set
+This is true if the command-line option "\fB--begin\fP \fIy x\/\fP" was used.
+It specifies the position of the upper left corner
+of a dialog box on the screen.
+.\" ---------------------------------------------------------------------------
+.SS .begin_x
+This corresponds to the \fIx\fP value from
+the command-line option "\fB--begin\fP \fIy x\/\fP" (second value).
+.\" ---------------------------------------------------------------------------
+.SS .begin_y
+This corresponds to the \fIy\fP value from
+the command-line option "\fB--begin\fP \fIy x\/\fP" (first value).
+.\" ---------------------------------------------------------------------------
+.SS .cancel_label
+This corresponds to the command-line option
+"\fB--cancel-label\fP \fIstring\/\fP".
+The given \fIstring\fP overrides the label used for \*(``Cancel\*('' buttons.
+.\" ---------------------------------------------------------------------------
+.SS .cant_kill
+This corresponds to the command-line option "\fB--no-kill\fP".
+If true, this tells
+\fB\*p\fP
+to put the
+\fBtailboxbg\fP
+box in the background,
+printing its process id to \fB\*p\fP's output.
+SIGHUP is disabled for the background process.
+.\" ---------------------------------------------------------------------------
+.SS .colors
+This corresponds to the command-line option "\fB--colors\fP".
+If true, interpret embedded "\eZ" sequences in the dialog text
+by the following character,
+which tells \fB\*p\fP to set colors or video attributes:
+0 through 7 are the ANSI codes used in curses:
+black,
+red,
+green,
+yellow,
+blue,
+magenta,
+cyan and
+white respectively.
+Bold is set by 'b', reset by 'B'.
+Reverse is set by 'r', reset by 'R'.
+Underline is set by 'u', reset by 'U'.
+The settings are cumulative, e.g., "\eZb\eZ1" makes the following text
+bright red.
+Restore normal settings with "\eZn".
+.\" ---------------------------------------------------------------------------
+.SS .column_separator
+This corresponds to the command-line option "\fB--column-separator\fP".
+\fB\*L\fP splits data for radio/checkboxes and menus on the
+occurrences of the given string, and aligns the split data into columns.
+.\" ---------------------------------------------------------------------------
+.SS .cr_wrap
+This corresponds to the command-line option "\fB--cr-wrap\fP".
+If true,
+interpret embedded newlines in the dialog text as a newline on the screen.
+Otherwise, \fB\*p\fR will only wrap lines where needed
+to fit inside the text box.
+Even though you can control line breaks with this,
+\fB\*p\fR will still wrap any lines that are too long for the width of the box.
+Without cr-wrap, the layout of your text may be formatted to look nice
+in the source code of your script without affecting the way it will
+look in the dialog.
+.\" ---------------------------------------------------------------------------
+.SS .date_format
+This corresponds to the command-line option
+"\fB--date-format\fP \fIstring\/\fP".
+If the host provides \fBstrftime\fP, and the value is nonnull,
+the calendar widget uses this to format its output.
+.\" ---------------------------------------------------------------------------
+.SS .default_button
+This is set by the command-line option "\fB--default-button\fP.
+It is used by \fBdlg_default_button\fP.
+.\" ---------------------------------------------------------------------------
+.SS .default_item
+This corresponds to the command-line option
+"\fB--default-item\fP \fIstring\/\fP".
+The given string is used as
+the default item in a checklist, form or menu box.
+Normally the first item in the box is the default.
+.\" ---------------------------------------------------------------------------
+.SS .defaultno
+This corresponds to the command-line option "\fB--defaultno\fP".
+If true,
+make the default value of the
+\fByes/no\fP
+box a
+.BR No .
+Likewise, treat the default button of widgets that provide
+\*(``OK\*('' and \*(``Cancel\*(''
+as a \fICancel\fP.
+If \fB--nocancel\fP was given that option overrides this,
+making the default button always \*(``Yes\*(''
+(internally the same as \*(``OK\*('').
+.\" ---------------------------------------------------------------------------
+.SS .dlg_clear_screen
+This corresponds to the command-line option "\fB--clear\fP".
+This option is implemented in the main program, not the library.
+If true,
+the screen will be cleared on exit.
+This may be used alone, without other options.
+.\" ---------------------------------------------------------------------------
+.SS .exit_label
+This corresponds to the command-line option "\fB--exit-label string\fP".
+The given string overrides the label used for \*(``EXIT\*('' buttons.
+.\" ---------------------------------------------------------------------------
+.SS .extra_button
+This corresponds to the command-line option "\fB--extra-button\fP".
+If true, some widgets show an extra button,
+between \*(``OK\*('' and \*(``Cancel\*('' buttons.
+.\" ---------------------------------------------------------------------------
+.SS .extra_label
+This corresponds to the command-line option
+"\fB--extra-label\fP \fIstring\/\fP".
+The given string overrides the label used for \*(``Extra\*('' buttons.
+Note: for inputmenu widgets, this defaults to \*(``Rename\*(''.
+.\" ---------------------------------------------------------------------------
+.SS .formitem_type
+This is set by the command-line option "\fB--passwordform\fP"
+to tell the form widget that its text fields should be treated like
+password widgets.
+.\" ---------------------------------------------------------------------------
+.SS .help_button
+This corresponds to the command-line option "\fB--help-button\fP".
+If true, some widgets show a help-button after
+\*(``OK\*('' and \*(``Cancel\*('' buttons,
+i.e., in checklist, radiolist and menu boxes.
+If \fB--item-help\fR is also given, on exit
+the return status will be the same as for the \*(``OK\*('' button,
+and the item-help text will be written to \fB\*p\fP's output
+after the token \*(``HELP\*(''.
+Otherwise, the return status will indicate that the Help button was pressed,
+and no message printed.
+.\" ---------------------------------------------------------------------------
+.SS .help_file
+This corresponds to the command-line option "\fB--hfile\fP \fIstring\/\fP".
+The given filename is passed to \fBdialog_helpfile\fP when the user
+presses F1.
+.\" ---------------------------------------------------------------------------
+.SS .help_label
+This corresponds to the command-line option "\fB--help-label\fP \fIstring\/\fP".
+The given string overrides the label used for \*(``Help\*('' buttons.
+.\" ---------------------------------------------------------------------------
+.SS .help_line
+This corresponds to the command-line option "\fB--hline\fP \fIstring\/\fP".
+The given string is displayed in the bottom of dialog windows,
+like a subtitle.
+.\" ---------------------------------------------------------------------------
+.SS .help_status
+This corresponds to the command-line option "\fB--help-status\fP".
+If true, and the the help-button is selected,
+writes the checklist or radiolist information
+after the item-help \*(``HELP\*('' information.
+This can be used to reconstruct the state of a checklist after processing
+the help request.
+.\" ---------------------------------------------------------------------------
+.SS .help_tags
+This corresponds to the command-line option "\fB--help-tags\fP".
+If true,
+\fBdlg_add_help_formitem\fP and
+\fBdlg_add_help_listitem\fP use the item's tag value consistently
+rather than using the tag's help-text value
+when \fIDIALOG_VARS.item_help\fP is set.
+.\" ---------------------------------------------------------------------------
+.SS .input_length
+This is nonzero if \fIDIALOG_VARS.input_result\fP is allocated,
+versus being a pointer to the user's local variables.
+.\" ---------------------------------------------------------------------------
+.SS .input_menu
+This flag is set to denote whether the menubox widget
+implements a menu versus a inputmenu widget.
+.\" ---------------------------------------------------------------------------
+.SS .input_result
+This may be either a user-supplied buffer,
+or a buffer dynamically allocated by the library,
+depending on \fIDIALOG_VARS.input_length\fP:
+.bP
+If \fIDIALOG_VARS.input_length\fP is zero,
+this is a pointer to user buffer (on the stack, or static).
+The buffer size is assumed to be \fBMAX_LEN\fP,
+which is defined in \fI<\*l.h>\fP.
+.bP
+When \fIDIALOG_VARS.input_length\fP is nonzero,
+this is a dynamically-allocated buffer used by the widgets to return
+printable results to the calling application.
+.LP
+Certain widgets copy a result to this buffer.
+If the pointer is NULL, or if the length is insufficient for
+the result, then the \fB\*l\fP library allocates a buffer which is large enough,
+and sets \fIDIALOG_VARS.input_length\fP.
+Callers should check for this case if they have supplied their own buffer.
+.\" ---------------------------------------------------------------------------
+.SS .insecure
+This corresponds to the command-line option "\fB--insecure\fP".
+If true, make the password widget friendlier but less secure,
+by echoing asterisks for each character.
+.\" ---------------------------------------------------------------------------
+.SS .in_helpfile
+This variable is used to prevent \fBdialog_helpfile\fP from showing
+anything, e.g., if F1 were pressed within a help-file display.
+.\" ---------------------------------------------------------------------------
+.SS .iso_week
+This corresponds to the command-line option "\fB--iso-week\fP".
+It is used in the calendar widget to tell how
+to compute the starting week for the year:
+.bP
+by default, the calendar treats January 1 as the first week of the year.
+.bP
+If this variable is true, the calendar uses ISO 8601's convention.
+ISO 8601 numbers weeks starting with the first week in January with
+a Thursday in the current year.
+January 1 may be in the \fIprevious\fP year.
+.\" ---------------------------------------------------------------------------
+.SS .item_help
+This corresponds to the command-line option "\fB--item-help\fP".
+If true,
+interpret the tags data for checklist, radiolist and menu boxes
+adding a column whose text is displayed in the bottom line of the
+screen, for the currently selected item.
+.\" ---------------------------------------------------------------------------
+.SS .keep_tite
+This is set by the command-line option "\fB--keep-tite\fP"
+to tell \fB\*p\fP to not attempt to cancel the terminal initialization
+(termcap \fIti\/\fP/\,\fIte\/\fP) sequences
+which correspond to xterm's alternate-screen switching.
+Normally \fB\*p\fP does this to avoid flickering when run several times
+in a script.
+.\" ---------------------------------------------------------------------------
+.SS .keep_window
+This corresponds to the command-line option "\fB--keep-window\fP".
+If true, do not remove/repaint the window on exit.
+This is useful for keeping the window contents visible when several
+widgets are run in the same process.
+Note that curses will clear the screen when starting a new process.
+.\" ---------------------------------------------------------------------------
+.SS .last_key
+This corresponds to the command-line option "\fB--last-key\fP".
+.\" ---------------------------------------------------------------------------
+.SS .max_input
+This corresponds to the command-line option "\fB--max-input\fP \fIsize\/\fP".
+Limit input strings to the given size.
+If not specified, the limit is 2048.
+.\" ---------------------------------------------------------------------------
+.SS .no_items
+This corresponds to the command-line option "\fB--no-items\fP".
+Some widgets (checklist, inputmenu, radiolist, menu) display a list
+with two columns (a \*(``tag\*('' and \*(``item\*('',
+i.e., \*(``description\*('').
+This tells \fB\*p\fP to read shorter rows from data,
+omitting the \*(``list\*(''.
+.\" ---------------------------------------------------------------------------
+.SS .no_label
+This corresponds to the command-line option "\fB--no-label\fP \fIstring\/\fP".
+The given string overrides the label used for \*(``No\*('' buttons.
+.\" ---------------------------------------------------------------------------
+.SS .no_lines
+This corresponds to the command-line option "\fB--no-lines\fP.
+It suppresses line-drawing.
+See \fIDIALOG_VARS.ascii_lines\fP.
+.\" ---------------------------------------------------------------------------
+.SS .no_nl_expand
+This corresponds to the command-line option "\fB--no-nl-expand\fP".
+If false, \fBdlg_trim_string\fP converts literal "\en" substrings
+in a message into newlines.
+.\" ---------------------------------------------------------------------------
+.SS .no_tags
+This corresponds to the command-line option "\fB--no-tags\fP".
+Some widgets (checklist, inputmenu, radiolist, menu) display a list
+with two columns (a \*(``tag\*('' and \*(``item\*('',
+also known as \*(``description\*('').
+The tag is useful for scripting, but may not help the user.
+The \fB--no-tags\fP option (from Xdialog) may be used to suppress the
+column of tags from the display.
+.LP
+Normally \fB\*p\fP allows you to quickly move to entries on the displayed list,
+by matching a single character to the first character of the tag.
+When the \fB--no-tags\fP option is given, \fB\*p\fP matches against
+the first character of the description.
+In either case, the matchable character is highlighted.
+.LP
+Here is a table showing how the no_tags and no_items values interact:
+.TS
+tab(/);
+l l l l l
+l l l n n.
+Widget/Fields Shown/Fields Read/.no_items/.no_tags
+_
+buildlist/item/tag,item/0/0*
+buildlist/item/tag,item/0/1
+buildlist/tag/tag/1/0*
+buildlist/tag/tag/1/1
+checklist/tag,item/tag,item/0/0
+checklist/item/tag,item/0/1
+checklist/tag/tag/1/0
+checklist/tag/tag/1/1
+inputmenu/tag,item/tag,item/0/0
+inputmenu/item/tag,item/0/1
+inputmenu/tag/tag/1/0
+inputmenu/tag/tag/1/1
+menu/tag,item/tag,item/0/0
+menu/item/tag,item/0/1
+menu/tag/tag/1/0
+menu/tag/tag/1/1
+radiolist/tag,item/tag,item/0/0
+radiolist/item/tag,item/0/1
+radiolist/tag/tag/1/0
+radiolist/tag/tag/1/1
+treeview/item/tag,item/0/0*
+treeview/item/tag,item/0/1
+treeview/tag/tag/1/0*
+treeview/tag/tag/1/1
+_
+.TE
+.TP 2
+*
+Xdialog does not display the tag column for the analogous buildlist
+and treeview widgets.
+\fB\*L\fP does the same on the command-line.
+However the library interface defaults to displaying the tag column.
+Your application can enable or disable the tag column as needed for each widget.
+.\" ---------------------------------------------------------------------------
+.SS .nocancel
+This corresponds to the command-line option "\fB--no-cancel\fP".
+If true,
+suppress the \*(``Cancel\*('' button in checklist, inputbox and menu box modes.
+A script can still test if the user pressed the ESC key to cancel to quit.
+.\" ---------------------------------------------------------------------------
+.SS .nocollapse
+This corresponds to the command-line option "\fB--no-collapse\fP".
+Normally \fB\*p\fR converts tabs to spaces and reduces multiple
+spaces to a single space for text which is displayed in a message boxes, etc.
+It true, that feature is disabled.
+Note that \fB\*p\fR will still wrap text, subject to the \fB--cr-wrap\fR
+option.
+.\" ---------------------------------------------------------------------------
+.SS .nook
+This corresponds to the command-line option "\fB--nook\fP.
+\fB\*L\fP will suppress the \*(``ok\*('' (or \*(``yes\*('') button
+from the widget.
+.\" ---------------------------------------------------------------------------
+.SS .ok_label
+This corresponds to the command-line option "\fB--ok-label\fP \fIstring\/\fP".
+The given string overrides the label used for \*(``OK\*('' buttons.
+.\" ---------------------------------------------------------------------------
+.SS .print_siz
+This corresponds to the command-line option "\fB--print-size\fP".
+If true,
+each widget prints its size to \fB\*p\fP's output when it is invoked.
+.\" ---------------------------------------------------------------------------
+.SS .quoted
+This corresponds to the command-line option "\fB--quoted\fP.
+Normally \fB\*p\fP quotes the strings returned by checklist's
+as well as the item-help text.
+If true, \fB\*p\fP will quote all string results.
+.\" ---------------------------------------------------------------------------
+.SS .reorder
+This corresponds to the command-line option "\fB--reorder\fP.
+By default, the buildlist widget uses the same order for the output (right)
+list as for the input (left).
+If true, \fB\*p\fP will use the order in which a user adds selections
+to the output list.
+.\" ---------------------------------------------------------------------------
+.SS .separate_output
+This corresponds to the command-line option "\fB--separate-output\fP".
+If true,
+checklist widgets output result one line at a time, with no quoting.
+This facilitates parsing by another program.
+.\" ---------------------------------------------------------------------------
+.SS .single_quoted
+This corresponds to the command-line option "\fB--single-quoted\fP".
+If true,
+use single-quoting as needed (and no quotes if unneeded) for the
+output of checklist's as well as the item-help text.
+If this option is not set, \fB\*p\fP uses double quotes around each item.
+The latter requires occasional use of backslashes to make the output useful in
+shell scripts.
+.\" ---------------------------------------------------------------------------
+.SS .size_err
+This corresponds to the command-line option "\fB--size-err\fP".
+If true,
+check the resulting size of a dialog box before trying to use it,
+printing the resulting size if it is larger than the screen.
+(This option is obsolete, since all new-window calls are checked).
+.\" ---------------------------------------------------------------------------
+.SS .sleep_secs
+This corresponds to the command-line option "\fB--sleep\fP \fIsecs\/\fP".
+This option is implemented in the main program, not the library.
+If nonzero, this is the number of seconds after to delay
+after processing a dialog box.
+.\" ---------------------------------------------------------------------------
+.SS .tab_correct
+This corresponds to the command-line option "\fB--tab-correct\fP".
+If true, convert each tab character of the text to one or more spaces.
+Otherwise, tabs are rendered according to the curses library's interpretation.
+.\" ---------------------------------------------------------------------------
+.SS .time_format
+This corresponds to the command-line option
+"\fB--time-format\fP \fIstring\/\fP".
+If the host provides \fBstrftime\fP, and the value is nonnull,
+the timebox widget uses this to format its output.
+.\" ---------------------------------------------------------------------------
+.SS .timeout_secs
+This corresponds to the command-line option "\fB--timeout\fP \fIsecs\/\fP".
+If nonzero, timeout input requests (exit with error code)
+if no user response within the given number of seconds.
+.\" ---------------------------------------------------------------------------
+.SS .title
+This corresponds to the command-line option "\fB--title\fP \fItitle\/\fP".
+Specifies a
+\fItitle\fP
+string to be displayed at the top of the dialog box.
+.\" ---------------------------------------------------------------------------
+.SS .trim_whitespace
+This corresponds to the command-line option "\fB--trim\fP".
+If true, eliminate leading blanks,
+trim literal newlines and repeated blanks from message text.
+.\" ---------------------------------------------------------------------------
+.SS .week_start
+This corresponds to the command-line option "\fB--week-start\fP".
+It is used in the calendar widget to set the starting day for the week.
+The string value can be
+.bP
+a number (0 to 6, Sunday through Saturday using POSIX) or
+.bP
+the special value \*(``locale\*('' (this works with systems using glibc,
+providing an extension to the \fBlocale\fP command,
+the \fBfirst_weekday\fP value).
+.bP
+a string matching one of the abbreviations for the day of the week
+shown in the \fBcalendar\fP widget, e.g., \*(``Mo\*('' for \*(``Monday\*(''.
+.\" ---------------------------------------------------------------------------
+.SS .yes_label
+This corresponds to the command-line option "\fB--yes-label\fP \fIstring\/\fP".
+The given string overrides the label used for \*(``Yes\*('' buttons.
+.
+.\" ************************************************************************
+.\" ************************************************************************
+.SH WIDGETS
+Functions that implement major functionality for the command-line \fB\*p\fP
+program, e.g., widgets, have names beginning "\fIdialog_\fP".
+.PP
+All dialog boxes have at least three parameters:
+.RS 3
+.TP 5
+\fItitle\fP
+the caption for the box, shown on its top border.
+.TP 5
+\fIheight\fP
+the height of the dialog box.
+.TP 5
+\fIwidth\fP
+the width of the dialog box.
+.RE
+.PP
+Other parameters depend on the box type.
+.
+.\" ************************************************************************
+.SS dialog_buildlist
+implements the "\fB--buildlist\fP" option.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIlist_height
+is the minimum height to reserve for displaying the list.
+If zero, it is computed based on the given \fIheight\fP and \fIwidth\fP.
+.TP 5
+.B int \fIitem_no
+is the number of rows in \fIitems\fP.
+.TP 5
+.B char ** \fIitems
+is an array of strings which is viewed either as a list of rows
+.RS
+\fItag item status\fR
+.RE
+.IP
+or
+.RS
+\fItag item status help\fR
+.RE
+.IP
+depending on whether \fBdialog_vars.item_help\fP is set.
+.TP 5
+.B int \fIorder_mode
+is reserved for future enhancements
+.
+.\" ************************************************************************
+.SS dialog_calendar
+implements the "\fB--calendar\fP" option.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIsubtitle
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the height excluding the fixed-height calendar grid.
+.TP 5
+.B int \fIwidth
+is the overall width of the box,
+which is adjusted up to the calendar grid's minimum width if needed.
+.TP 5
+.B int \fIday
+is the initial day of the week shown,
+counting zero as Sunday.
+If the value is negative, the current day of the week is used.
+.TP 5
+.B int \fImonth
+is the initial month of the year shown,
+counting one as January.
+If the value is negative, the current month of the year is used.
+.TP 5
+.B int \fIyear
+is the initial year shown.
+If the value is negative, the current year is used.
+.\" ************************************************************************
+.SS dialog_checklist
+implements the "\fB--checklist\fP" and "\fB--radiolist\fP" options
+depending on the \fIflag\fP parameter.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIlist_height
+is the minimum height to reserve for displaying the list.
+If zero, it is computed based on the given \fIheight\fP and \fIwidth\fP.
+.TP 5
+.B int \fIitem_no
+is the number of rows in \fIitems\fP.
+.TP 5
+.B int \fIitems
+is an array of strings which is viewed either as a list of rows
+.RS
+\fItag item status\fR
+.RE
+.IP
+or
+.RS
+\fItag item status help\fR
+.RE
+.IP
+depending on whether \fBdialog_vars.item_help\fP is set.
+.IP flag
+is either \fIFLAG_CHECK\fP, for checklists,
+or \fIFLAG_RADIO\fP for radiolists.
+.\" ************************************************************************
+.SS dialog_dselect
+implements the "\fB--dselect\fP" option.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIpath
+is the preselected value to show in the input-box,
+which is used also to set the directory- and file-windows.
+.TP 5
+.B int \fIheight
+is the height excluding the minimum needed to show the dialog box framework.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.\" ************************************************************************
+.SS dialog_editbox
+implements the "\fB--editbox\fP" option.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIfile
+is the name of the file from which to read.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is adjusted to use the available screen size.
+.\" ************************************************************************
+.SS dialog_form
+implements the "\fB--form\fP" option.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIform_height
+is the minimum height to reserve for displaying the list.
+If zero, it is computed based on the given \fIheight\fP and \fIwidth\fP.
+.TP 5
+.B int \fIitem_no
+is the number of rows in \fIitems\fP.
+.TP 5
+.B int \fIitems
+is an array of strings which is viewed either as a list of rows
+.RS
+\fIName NameY NameX Text TextY TextX FLen ILen\fR
+.RE
+.IP
+or
+.RS
+\fIName NameY NameX Text TextY TextX FLen ILen Help\fR
+.RE
+.IP
+depending on whether \fBdialog_vars.item_help\fP is set.
+.\" ************************************************************************
+.SS dialog_fselect
+implements the "\fB--fselect\fP" option.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIpath
+is the preselected value to show in the input-box,
+which is used also to set the directory- and file-windows.
+.TP 5
+.B int \fIheight
+is the height excluding the minimum needed to show the dialog box framework.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.\" ************************************************************************
+.SS dialog_gauge
+implements the "\fB--gauge\fP" option.
+Alternatively, a simpler or customized gauge widget can be
+set up using
+\fBdlg_allocate_gauge\fP,
+\fBdlg_reallocate_gauge\fP,
+\fBdlg_update_gauge\fP and
+\fBdlg_free_gauge\fP.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIpercent
+is the percentage to show in the progress bar.
+.\" ************************************************************************
+.SS dialog_inputbox
+implements the "\fB--inputbox\fP" or
+"\fB--password\fP" option, depending on the value of \fIpassword\fP.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B const char * \fIinit
+is the initial value of the input box, whose length is taken into account
+when auto-sizing the width of the dialog box.
+.TP 5
+.B int \fIpassword
+if true, causes typed input to be echoed as asterisks.
+.\" ************************************************************************
+.SS dialog_helpfile
+implements the "\fB--hfile\fP" option.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIfile
+is the name of a file containing the text to display.
+This function is internally bound to F1 (function key \*(``1\*(''),
+passing \fBdialog_vars.help_file\fP as a parameter.
+The \fBdialog\fP program sets that variable when the \fB--hfile\fP option
+is given.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.\" ************************************************************************
+.SS dialog_menu
+implements the "\fB--menu\fP" or "\fB--inputmenu\fP" option
+depending on whether \fBdialog_vars.input_menu\fP is set.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fImenu_height
+is the minimum height to reserve for displaying the list.
+If zero, it is computed based on the given \fIheight\fP and \fIwidth\fP.
+.TP 5
+.B int \fIitem_no
+is the number of rows in \fIitems\fP.
+.TP 5
+.B int \fIitems
+is an array of strings which is viewed either as a list of rows
+.RS
+\fItag item\fR
+.RE
+.IP
+or
+.RS
+\fItag item help\fR
+.RE
+.IP
+depending on whether \fBdialog_vars.item_help\fP is set.
+.\" ************************************************************************
+.SS dialog_mixedform
+implements the "\fB--mixedform\fP" option.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIform_height
+is the minimum height to reserve for displaying the list.
+If zero, it is computed based on the given \fIheight\fP and \fIwidth\fP.
+.TP 5
+.B int \fIitem_no
+is the number of rows in \fIitems\fP.
+.TP 5
+.B int \fIitems
+is an array of strings which is viewed either as a list of rows
+.RS
+\fIName NameY NameX Text TextY TextX FLen ILen Ityp\fR
+.RE
+.IP
+or
+.RS
+\fIName NameY NameX Text TextY TextX FLen ILen Ityp Help\fR
+.RE
+.IP
+depending on whether \fBdialog_vars.item_help\fP is set.
+.\" ************************************************************************
+.SS dialog_mixedgauge
+implements the "\fB--mixedgauge\fP" option
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the caption text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIpercent
+is the percentage to show in the progress bar.
+.TP 5
+.B int \fIitem_no
+is the number of rows in \fIitems\fP.
+.TP 5
+.B int \fIitems
+is an array of strings which is viewed as a list
+of \fItag\fP and \fIitem\fP values.
+The \fItag\fP values are listed,
+one per row, in the list at the top of the widget.
+.IP
+The \fIitem\fP values are decoded:
+digits 0 through 9 are the following strings
+.RS
+.IP 0
+Succeeded
+.IP 1
+Failed
+.IP 2
+Passed
+.IP 3
+Completed
+.IP 4
+Checked
+.IP 5
+Done
+.IP 6
+Skipped
+.IP 7
+In Progress
+.IP 8
+(blank)
+.IP 9
+N/A
+.RE
+.IP
+A string with a leading "-" character is centered, marked with "%".
+For example, "-75" is displayed as "75%".
+Other strings are displayed as is.
+.\" ************************************************************************
+.SS dialog_msgbox
+implements the "\fB--msgbox\fP" or "\fB--infobox\fP" option
+depending on whether \fIpauseopt\fP is set.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIpauseopt
+if true, an \*(``OK\*('' button will be shown,
+and the dialog will wait for it to complete.
+With an \*(``OK\*('' button, it is denoted a \*(``msgbox\*('',
+without an \*(``OK\*('' button, it is denoted an \*(``infobox\*(''.
+.\" ************************************************************************
+.SS dialog_pause
+implements the "\fB--pause\fP" option.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIseconds
+is the timeout to use for the progress bar.
+.\" ************************************************************************
+.SS dialog_prgbox
+implements the "\fB--prgbox\fP" option.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+If empty or null, no prompt is shown.
+.TP 5
+.B const char * \fIcommand
+is the name of the command to execute.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIpauseopt
+if true, an \*(``OK\*('' button will be shown,
+and the dialog will wait for it to complete.
+.\" ************************************************************************
+.SS dialog_progressbox
+implements the "\fB--progressbox\fP" option.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+If empty or null, no prompt is shown.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.\" ************************************************************************
+.SS dialog_rangebox
+implements the "\fB--rangebox\fP" option.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+If empty or null, no prompt is shown.
+.TP 5
+.B int \fIheight
+is the desired height of the widget.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the widget.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fImin_value
+is the minimum value to allow.
+.TP 5
+.B int \fImax_value
+is the maximum value to allow.
+.TP 5
+.B int \fIdefault_value
+is the default value, if no change is made.
+.\" ************************************************************************
+.SS dialog_tailbox
+implements the "\fB--tailbox\fP" or "\fB--tailboxbg\fP" option
+depending on whether \fIbg_task\fP is set.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIfile
+is the name of the file to display in the dialog.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIbg_task
+if true,
+the window is added to the callback list in \fBdialog_state\fP,
+and the application will poll for the window to be updated.
+Otherwise an \*(``OK\*('' button is added to the window,
+and it will be closed when the button is activated.
+.\" ************************************************************************
+.SS dialog_textbox
+implements the "\fB--textbox\fP" option.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIfile
+is the name of the file to display in the dialog.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.\" ************************************************************************
+.SS dialog_timebox
+implements the "\fB--timebox\fP" option.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIsubtitle
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIhour
+is the initial hour shown.
+If the value is negative, the current hour is used.
+Returns DLG_EXIT_ERROR if the value specified is greater than or equal to 24.
+.TP 5
+.B int \fIminute
+is the initial minute shown.
+If the value is negative, the current minute is used.
+Returns DLG_EXIT_ERROR if the value specified is greater than or equal to 60.
+.TP 5
+.B int \fIsecond
+is the initial second shown.
+If the value is negative, the current second is used.
+Returns DLG_EXIT_ERROR if the value specified is greater than or equal to 60.
+.\" ************************************************************************
+.SS dialog_treeview
+implements the "\fB--treeview\fP" option.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIlist_height
+is the minimum height to reserve for displaying the list.
+If zero, it is computed based on the given \fIheight\fP and \fIwidth\fP.
+.TP 5
+.B int \fIitem_no
+is the number of rows in \fIitems\fP.
+.TP 5
+.B char ** \fIitems
+is the list of items, contain tag, name, and optionally help strings
+(if \fBdialog_vars.item_help\fP is set).
+The initial selection state for each item is also in this list.
+.TP 5
+.B int \fIflag
+.IP flag
+is either \fIFLAG_CHECK\fP, for checklists (multiple selections),
+or \fIFLAG_RADIO\fP for radiolists (a single selection).
+.\" ************************************************************************
+.SS dialog_yesno
+implements the "\fB--yesno\fP" option.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.
+.\" ************************************************************************
+.SH UTILITY FUNCTIONS
+Most functions that implement lower-level
+functionality for the command-line \fB\*p\fP
+program or widgets, have names beginning "\fIdlg_\fP".
+Bowing to longstanding usage, the functions that initialize the
+display and end it are named \fIinit_dialog\fP and \fIend_dialog\fP.
+.PP
+The only non-widget function whose name begins with "\fIdialog_\fP"
+is \fBdialog_version\fP, which returns the version number of the
+library as a string.
+.
+.PP
+Here is a brief summary of the utility functions and their parameters:
+.\" ---------------------------------------------------------------------------
+.SS dlg_add_callback
+Add a callback, used to allow polling input from multiple tailbox
+widgets.
+.TP 5
+.B DIALOG_CALLBACK *\fIp\fP
+contains the callback information.
+.\" ---------------------------------------------------------------------------
+.SS dlg_add_callback_ref
+Like \fBdlg_add_callback\fP, but passes a reference to the \fBDIALOG_CALLBACK\fP
+as well as a pointer to a cleanup function which will be called when the
+associated input ends.
+.TP 5
+.B DIALOG_CALLBACK **\fIp\fP
+points to the callback information.
+This is a reference to the pointer so that the caller's pointer can be
+zeroed when input ends.
+.TP 5
+.B DIALOG_FREEBACK \fIfunc\fP
+function to call when input ends, e.g., to free caller's additional data.
+.\" ---------------------------------------------------------------------------
+.SS dlg_add_help_formitem
+This is a utility function used enforce consistent behavior for
+the \fIDIALOG_VARS.help_tags\fP and \fIDIALOG_VARS.item_help\fP variables.
+.TP 5
+.B int *\fIresult\fP
+this is updated to DLG_EXIT_ITEM_HELP if \fIDIALOG_VARS.item_help\fP is set.
+.TP 5
+.B char **\fItag\fP
+the tag- or help-text is stored here.
+.TP 5
+.B DIALOG_FORMITEM *\fIitem\fP
+contains the list item to use for tag- or help-text.
+.\" ---------------------------------------------------------------------------
+.SS dlg_add_help_listitem
+This is a utility function used enforce consistent behavior for
+the \fIDIALOG_VARS.help_tags\fP and \fIDIALOG_VARS.item_help\fP variables.
+.TP 5
+.B int *\fIresult\fP
+this is updated to DLG_EXIT_ITEM_HELP if \fIDIALOG_VARS.item_help\fP is set.
+.TP 5
+.B char **\fItag\fP
+the tag- or help-text is stored here.
+.TP 5
+.B DIALOG_LISTITEM *\fIitem\fP
+contains the list item to use for tag- or help-text.
+.\" ---------------------------------------------------------------------------
+.SS dlg_add_last_key
+Report the last key entered by the user.
+This implements the \fB--last-key\fP command-line option,
+using \fBdialog_vars.last_key\fP.
+.TP 5
+.B int \fImode
+controls the way the last key report is separated from other results:
+.RS
+.TP 5
+-2
+(no separator)
+.TP 5
+-1
+(separator after the key name)
+.TP 5
+0
+(separator is optionally before the key name)
+.TP 5
+1
+(same as -1)
+.RE
+.\" ---------------------------------------------------------------------------
+.SS dlg_add_quoted
+Add a quoted string to the result buffer (see \fBdlg_add_result\fP).
+If no quotes are necessary, none are used.
+If \fBdialog_vars.single_quoted\fR is set, single-quotes are used.
+Otherwise, double-quotes are used.
+.TP 5
+.B char * \fIstring
+is the string to add.
+.\" ---------------------------------------------------------------------------
+.SS dlg_add_result
+Add a string to the result buffer \fBdialog_vars.input_result\fP.
+.TP 5
+.B char * \fIstring
+is the string to add.
+.\" ---------------------------------------------------------------------------
+.SS dlg_add_separator
+Add an output-separator to the result buffer \fBdialog_vars.input_result\fP.
+If \fBdialog_vars.output_separator\fP is set, use that.
+Otherwise, if \fBdialog_vars.separate_output\fP is set, use newline.
+If neither is set, use a space.
+.\" ---------------------------------------------------------------------------
+.SS dlg_add_string
+Add a quoted or unquoted string to the result buffer
+(see \fBdlg_add_quoted\fP) and \fBdlg_add_result\fP),
+according to whether \fBdialog_vars.quoted\fP is true.
+.TP 5
+.B char * \fIstring
+is the string to add.
+.\" ---------------------------------------------------------------------------
+.SS dlg_align_columns
+Copy and reformat an array of pointers to strings, aligning according to
+the column separator \fBdialog_vars.column_separator\fP.
+If no column separator is set, the array will be unmodified;
+otherwise it is copied and reformatted.
+.IP
+Caveat: This function is only implemented for 8-bit characters.
+.TP 5
+.B char **\fItarget
+This is the array to reformat.
+It points to the first string to modify.
+.TP 5
+.B int \fIper_row
+This is the size of the struct for each row of the array.
+.TP 5
+.B int \fInum_rows
+This is the number of rows in the array.
+.\" ---------------------------------------------------------------------------
+.SS dlg_allocate_gauge
+Allocates a gauge widget.
+Use \fBdlg_update_gauge\fP to display the result.
+.TP 5
+.B const char * \fItitle
+is the title string to display at the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIpercent
+is the percentage to show in the progress bar.
+.\" ---------------------------------------------------------------------------
+.SS dlg_asciibox
+returns its parameter transformed to the
+corresponding "+" or "-", etc.,
+for the line-drawing characters used in \fB\*p\fP.
+If the parameter is not a line-drawing or other special character
+such as ACS_DARROW, it returns 0.
+.TP 5
+.B chtype \fIch
+is the parameter, usually one of the \fBACS_\fP\fIxxx\fP constants.
+.\" ---------------------------------------------------------------------------
+.SS dlg_attr_clear
+Set window to the given attribute.
+.TP 5
+.B WINDOW * \fIwin
+is the window to update.
+.TP 5
+.B int \fIheight
+is the number of rows to update.
+.TP 5
+.B int \fIwidth
+is the number of columns to update.
+.TP 5
+.B chtype \fIattr
+is the attribute, e.g., \fBA_BOLD\fP.
+.\" ---------------------------------------------------------------------------
+.SS dlg_auto_size
+Compute window size based on the size of the formatted \fIprompt\fP and
+minimum dimensions for a given widget.
+.PP
+\fB\*L\fP sets
+\fBdialog_state.text_height\fP and
+\fBdialog_state.text_width\fP for
+the formatted \fIprompt\fP
+as a side-effect.
+.PP
+Normally \fB\*l\fP writes the formatted \fIprompt\fP to the curses
+window,
+but it will write the formatted \fIprompt\fP to the output stream
+if \fBdialog_state.text_only\fP is set.
+.TP 5
+.B const char * \fItitle
+is the title string to display at the top of the widget.
+.TP 5
+.B const char * \fIprompt
+is the message text which will be displayed in the widget,
+used here to determine how large the widget should be.
+.IP
+If the value is \fINULL\fP,
+\fB\*l\fP allows the widget to use the whole screen,
+i.e., if the values referenced by \fIheight\fP and/or \fIwidth\fP are zero.
+.TP 5
+.B int * \fIheight
+is the nominal height.
+\fB\*L\fP checks the referenced value and may update it:
+.RS
+.bP
+if the value is negative,
+\fB\*l\fP updates it to the available height of the screen,
+after reserving rows for the window border and shadow,
+as well as taking into account
+\fBdialog_vars.begin_y\fP and
+\fBdialog_vars.begin_set\fP.
+.bP
+if the value is zero,
+\fB\*l\fP updates it to the required height of the window,
+taking into account a (possibly) multi-line \fIprompt\fP.
+.bP
+if the value is greater than zero, 
+\fB\*l\fP uses it internally, but restores the value on return.
+.RE
+.TP 5
+.B int * \fIwidth
+is the nominal width.
+\fB\*L\fP checks the referenced value and may update it:
+.RS
+.bP
+if the value is negative,
+\fB\*l\fP updates it to the available width of the screen,
+after reserving rows for the window border and shadow,
+as well as taking into account
+\fBdialog_vars.begin_x\fP and
+\fBdialog_vars.begin_set\fP.
+.bP
+if the value is zero,
+\fB\*l\fP updates it to the required width of the window,
+taking into account a (possibly) multi-line \fIprompt\fP.
+.bP
+if the value is greater than zero, 
+\fB\*l\fP uses it internally, but restores the value on return.
+.RE
+.TP 5
+.B int \fIboxlines
+is the number of lines to reserve in the vertical direction.
+.TP 5
+.B int \fImincols
+is the minimum number of columns to use.
+.\" ---------------------------------------------------------------------------
+.SS dlg_auto_sizefile
+Like \fBdlg_auto_size\fP, but use a file contents to decide how large
+the widget should be.
+.TP 5
+.B const char * \fItitle
+is the title string to display at the top of the widget.
+.TP 5
+.B const char * \fIfile
+is the name of the file.
+.TP 5
+.B int * \fIheight
+is the nominal height.
+.IP
+If it is -1, use the screen's height
+(after subtracting \fBdialog_vars.begin_y\fP
+if \fBdialog_vars.begin_set\fP is true).
+.IP
+If it is greater than zero,
+limit the referenced value to the screen-height
+after verifying that the file exists.
+.TP 5
+.B int * \fIwidth
+is the nominal width.
+.IP
+If it is -1, use the screen's width (after subtracting \fBdialog_vars.begin_x\fP
+if \fBdialog_vars.begin_set\fP is true).
+.IP
+If it is greater than zero,
+limit the referenced value to the screen-width
+after verifying that the file exists.
+.TP 5
+.B int \fIboxlines
+is the number of lines to reserve on the screen for drawing boxes.
+.TP 5
+.B int \fImincols
+is the number of columns to reserve on the screen for drawing boxes.
+.\" ---------------------------------------------------------------------------
+.SS dlg_beeping
+If \fBdialog_vars.beep_signal\fP is nonzero,
+this calls \fBbeep\fP once and sets
+\fBdialog_vars.beep_signal\fP to zero.
+.\" ---------------------------------------------------------------------------
+.SS dlg_boxchar
+returns its \fBchtype\fP parameter transformed as follows:
+.bP
+if neither \fBdialog_vars.ascii_lines\fP nor \fBdialog_vars.no_lines\fP is set.
+.bP
+if \fBdialog_vars.ascii_lines\fP is set,
+returns the corresponding "+" or "-", etc.,
+for the line-drawing characters used in \fB\*p\fP.
+.bP
+otherwise, if \fBdialog_vars.no_lines\fP is set,
+returns a space for the line-drawing characters.
+.bP
+if the parameter is not a line-drawing or other special character
+such as ACS_DARROW,
+it returns the parameter unchanged.
+.\" ---------------------------------------------------------------------------
+.SS dlg_box_x_ordinate
+returns a suitable x-ordinate (column) for a new widget.
+If \fBdialog_vars.begin_set\fP is 1,
+use \fBdialog_vars.begin_x\fP;
+otherwise center the widget on the screen (using the \fIwidth\fP parameter).
+.TP 5
+.B int \fIwidth
+is the width of the widget.
+.\" ---------------------------------------------------------------------------
+.SS dlg_box_y_ordinate
+returns a suitable y-ordinate (row) for a new widget.
+If \fBdialog_vars.begin_set\fP is 1,
+use \fBdialog_vars.begin_y\fP;
+otherwise center the widget on the screen (using the \fIheight\fP parameter).
+.TP 5
+.B int \fIheight
+is the height of the widget.
+.\" ---------------------------------------------------------------------------
+.SS dlg_buildlist
+This is an alternate interface to the \fBbuildlist\fP widget
+which allows the application to read the list item states back
+directly without putting them in the output buffer.
+.TP 5
+.B const char * \fItitle
+is the title string to display at the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIlist_height
+is the minimum height to reserve for displaying the list.
+If zero, it is computed based on the given \fIheight\fP and \fIwidth\fP.
+.TP 5
+.B int \fIitem_no
+is the number of rows in \fIitems\fP.
+.TP 5
+.B DIALOG_LISTITEM * \fIitems
+is the list of items, contain tag, name, and optionally help strings
+(if \fBdialog_vars.item_help\fP is set).
+The initial selection state for each item is also in this list.
+.TP 5
+.B const char * \fIstates
+This is a list of characters to display for the given states.
+Normally a buildlist provides true (1) and false (0) values,
+which the widget displays as "*" and space, respectively.
+An application may set this parameter to an arbitrary null-terminated string.
+The widget determines the number of states from the length of this string,
+and will cycle through the corresponding display characters as the user
+presses the space-bar.
+.TP 5
+.B int \fIorder_mode
+is reserved for future enhancements
+.TP 5
+.B int * \fIcurrent_item
+The widget sets the referenced location to the index of the current display
+item (cursor) when it returns.
+.\" ---------------------------------------------------------------------------
+.SS dlg_button_count
+Count the buttons in the list.
+.TP 5
+.B const char ** \fIlabels
+is a list of (pointers to) button labels terminated by a null pointer.
+.\" ---------------------------------------------------------------------------
+.SS dlg_button_layout
+Make sure there is enough space for the buttons by
+computing the width required for their labels,
+adding margins and limiting based on the screen size.
+.TP 5
+.B const char ** \fIlabels
+is a list of (pointers to) button labels terminated by a null pointer.
+.TP 5
+.B int * \fIlimit
+the function sets the referenced \fIlimit\fP to the width required for
+the buttons (limited by the screen size)
+if that is wider than the passed-in limit.
+.\" ---------------------------------------------------------------------------
+.SS dlg_button_sizes
+Compute the size of the button array in columns.
+.TP 5
+.B const char ** \fIlabels
+is a list of (pointers to) button labels terminated by a null pointer.
+.TP 5
+.B int \fIvertical
+is true if the buttons are arranged in a column rather than a row.
+.TP 5
+.B int * \fIlongest
+Return the total number of columns in the referenced location.
+.TP 5
+.B int * \fIlength
+Return the longest button's columns in the referenced location.
+.\" ---------------------------------------------------------------------------
+.SS dlg_button_to_char
+Find the first uppercase character in the label, which we may use for an
+abbreviation.
+If the label is empty, return -1.
+If no uppercase character is found, return 0.
+Otherwise return the uppercase character.
+.LP
+Normally
+.B dlg_draw_buttons
+and
+.B dlg_char_to_button
+use the first uppercase character.
+However, they keep track of all of the labels and
+if the first has already been used in another label,
+they will continue looking for another uppercase character.
+This function does not have enough information to make that check.
+.TP 5
+.B const char * \fIlabel
+is the label to test.
+.\" ---------------------------------------------------------------------------
+.SS dlg_button_x_step
+Compute the step-size needed between elements of the button array.
+.TP 5
+.B const char ** \fIlabels
+is a list of (pointers to) button labels terminated by a null pointer.
+.TP 5
+.B int \fIlimit
+is the maximum number of columns to allow for the buttons.
+.TP 5
+.B int * \fIgap
+store the nominal gap between buttons in the referenced location.
+This is constrained to be at least one.
+.TP 5
+.B int * \fImargin
+store the left+right total margins (for the list of buttons) in the referenced
+location.
+.TP 5
+.B int * \fIstep
+store the step-size in the referenced location.
+.\" ---------------------------------------------------------------------------
+.SS dlg_calc_list_width
+Calculate the minimum width for the list,
+assuming none of the items are truncated.
+.TP 5
+.B int \fIitem_no
+is the number of \fIitems\fP.
+.TP 5
+.B DIALOG_LISTITEM * \fIitems
+contains a \fIname\fP and \fItext\fP field,
+e.g., for checklists or radiobox lists.
+The function returns the sum of the widest columns
+needed for of each of these fields.
+.IP
+If \fBdialog_vars.no_items\fP is set,
+the \fItext\fP fields in the list are ignored.
+.\" ---------------------------------------------------------------------------
+.SS dlg_calc_listh
+Calculate new height and list_height values.
+.TP 5
+.B int * \fIheight
+on input, is the height without adding the list-height.
+On return, this contains the total list-height and is the
+actual widget's height.
+.TP 5
+.B int * \fIlist_height
+on input, is the requested list-height.
+On return, this contains the number of rows available for displaying
+the list after taking into account the screen size and
+the \fBdialog_vars.begin_set\fP and \fBdialog_vars.begin_y\fP variables.
+.TP 5
+.B int \fIitem_no
+is the number of \fIitems\fP in the list.
+.\" ---------------------------------------------------------------------------
+.SS dlg_calc_listw
+This function is obsolete, provided for library-compatibility.
+It is replaced by \fBdlg_calc_list_width\fP.
+.TP 5
+.B int \fIitem_no
+is the number of \fIitems\fP.
+.TP 5
+.B char ** \fIitems
+is a list of character pointers.
+.TP 5
+.B int \fIgroup
+is the number of items in each group, e.g., the second array index.
+.\" ---------------------------------------------------------------------------
+.SS dlg_char_to_button
+Given a list of button labels,
+and a character which may be the abbreviation for one, find it, if it exists.
+An abbreviation will be the first character
+which happens to be capitalized in the label.
+If the character is found, return its index within the list of \fIlabels\fP.
+Otherwise, return \fBDLG_EXIT_UNKNOWN\fP.
+.TP 5
+.B int \fIch
+is the character to find.
+.TP 5
+.B const char ** \fIlabels
+is a list of (pointers to) button labels terminated by a null pointer.
+.\" ---------------------------------------------------------------------------
+.SS dlg_checklist
+This entrypoint provides the \fB--checklist\fP or \fB--radiolist\fP
+functionality without the limitations of \fB\*p\fP's command-line syntax
+(compare to \fBdialog_checklist\fP).
+.TP 5
+.B const char * \fItitle
+is the title string to display at the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIlist_height
+is the minimum height to reserve for displaying the list.
+If zero, it is computed based on the given \fIheight\fP and \fIwidth\fP.
+.TP 5
+.B int \fIitem_no
+is the number of \fIitems\fP.
+.TP 5
+.B DIALOG_LISTITEM * \fIitems
+This is a list of the items to display in the checklist.
+.TP 5
+.B const char * \fIstates
+This is a list of characters to display for the given states.
+Normally a checklist provides true (1) and false (0) values,
+which the widget displays as "*" and space, respectively.
+An application may set this parameter to an arbitrary null-terminated string.
+The widget determines the number of states from the length of this string,
+and will cycle through the corresponding display characters as the user
+presses the space-bar.
+.TP 5
+.B int \fIflag
+This is should be one of \fBFLAG_CHECK\fP or \fPFLAG_RADIO\fP,
+depending on whether the widget should act as a checklist or radiobox.
+.TP 5
+.B int * \fIcurrent_item
+The widget sets the referenced location to the index of the current display
+item (cursor) when it returns.
+.\" ---------------------------------------------------------------------------
+.SS dlg_check_scrolled
+given a function key (or other key that was mapped to a function key),
+check if it is one of the up/down scrolling functions:
+.sp
+.RS
+DLGK_PAGE_FIRST,
+.br
+DLGK_PAGE_LAST,
+.br
+DLGK_GRID_UP,
+.br
+DLGK_GRID_DOWN,
+.br
+DLGK_PAGE_PREV or
+.br
+DLGK_PAGE_NEXT.
+.RE
+.fi
+.LP
+Some widgets use these key bindings for scrolling the prompt-text up and
+down, to allow for display in very small windows.
+.LP
+The function returns 0 (zero) if it finds one of these keys,
+and -1 if not.
+.TP 5
+.B int \fIkey
+is the function-key to check
+.TP 5
+.B int \fIlast
+is the number of lines
+which would be used to display the scrolled prompt in
+an arbitrarily tall window.
+It is used here to check limits for the \fIoffset\fP value.
+.TP 5
+.B int \fIpage
+this is the available height for writing scrolled text,
+which is smaller than the window if it contains buttons.
+.TP 5
+.B bool * \fIshow
+on return, holds TRUE if \fBdlg_print_scrolled\fP should be used to redisplay
+the prompt text.
+.TP 5
+.B int * \fIoffset
+on entry, holds the starting line number (counting from zero)
+last used for \fBdlg_print_scrolled\fP.
+On return, holds the updated starting line number.
+.\" ---------------------------------------------------------------------------
+.SS dlg_clear
+Set window to the default \fB\*p\fP screen attribute.
+This is set in the rc-file with \fBscreen_color\fP.
+.\" ---------------------------------------------------------------------------
+.SS dlg_clr_result
+Free storage used for the result buffer (\fBdialog_vars.input_result\fP).
+The corresponding pointer is set to NULL.
+.\" ---------------------------------------------------------------------------
+.SS dlg_color_count
+Return the number of colors that can be configured in \fB\*p\fP.
+.\" ---------------------------------------------------------------------------
+.SS dlg_color_setup
+Initialize the color pairs used in \fB\*p\fP.
+.\" ---------------------------------------------------------------------------
+.SS dlg_count_argv
+Count the entries in an argument vector.
+.TP 5
+.B argv
+Points to the argument vector.
+.\" ---------------------------------------------------------------------------
+.SS dlg_count_columns
+Returns the number of columns used for a string.
+This is not necessarily the number of bytes in a string.
+.TP 5
+.B const char * \fIstring
+is the string to measure.
+.\" ---------------------------------------------------------------------------
+.SS dlg_count_real_columns
+Returns the number of columns used for a string,
+accounting for "\eZ" sequences which can be used for
+coloring the text if \fBdialog_vars.colors\fP is set.
+This is not necessarily the number of bytes in a string.
+.TP 5
+.B const char * \fIstring
+is the string to measure.
+.\" ---------------------------------------------------------------------------
+.SS dlg_count_wchars
+Returns the number of wide-characters in the string.
+.TP 5
+.B const char * \fIstring
+is the string to measure.
+.\" ---------------------------------------------------------------------------
+.SS dlg_create_rc
+Create a configuration file,
+i.e., write internal tables to a file which can be read back by \fB\*p\fP
+as an rc-file.
+.TP 5
+.B const char * \fIfilename
+is the name of the file to write to.
+.\" ---------------------------------------------------------------------------
+.SS dlg_ctl_size
+If \fBdialog_vars.size_err\fP is true,
+check if the given window size is too large to fit on the screen.
+If so, exit with an error reporting the size of the window.
+.TP 5
+.B int \fIheight
+is the window's height
+.TP 5
+.B int \fIwidth
+is the window's width
+.\" ---------------------------------------------------------------------------
+.SS dlg_default_button
+If \fBdialog_vars.default_button\fP is positive,
+return the button-index for that button code,
+using \fBdlg_ok_buttoncode\fP to test indices starting with zero.
+Otherwise (or if no match was found for the button code), return zero.
+.\" ---------------------------------------------------------------------------
+.SS dlg_default_formitem
+If \fBdialog_vars.default_item\fP is not null,
+find that name by matching the \fIname\fP field in the list of form \fIitems\fP.
+If found, return the index of that item in the list.
+Otherwise, return zero.
+.TP 5
+.B DIALOG_FORMITEM * \fIitems
+is the list of items to search.
+It is terminated by an entry with a null \fIname\fP field.
+.\" ---------------------------------------------------------------------------
+.SS dlg_default_item
+This function is obsolete, provided for library-compatibility.
+It is replaced by \fBdlg_default_formitem\fP and \fBdlg_default_listitem\fP.
+.TP 5
+.B char ** \fIitems
+is the list of items to search.
+.TP 5
+.B int \fIllen
+is the number of items in each group, e.g., the second array index.
+.\" ---------------------------------------------------------------------------
+.SS dlg_defaultno_button
+If \fBdialog_vars.defaultno\fP is true, and \fBdialog_vars.nocancel\fP is not,
+find the button-index for the \*(``Cancel\*('' button.
+Otherwise, return the index for \*(``OK\*('' (always zero).
+.\" ---------------------------------------------------------------------------
+.SS dlg_del_window
+Remove a window, repainting everything else.
+.TP 5
+.B WINDOW * \fIwin
+is the window to remove.
+.\" ---------------------------------------------------------------------------
+.SS dlg_does_output
+This is called each time a widget is invoked which may do output.
+It increments \fBdialog_state.output_count\fP,
+so the output function in \fB\*p\fP can test this and add a separator.
+.\" ---------------------------------------------------------------------------
+.SS dlg_draw_arrows
+Draw up/down arrows on a window, e.g., for scrollable lists.
+It calls \fBdlg_draw_arrows2\fP using the
+\fImenubox_color\fP and \fImenubox_border_color\fP attributes.
+.TP 5
+.B WINDOW * \fIdialog
+is the window on which to draw an arrow.
+.TP 5
+.B int \fItop_arrow
+is true if an up-arrow should be drawn at the top of the window.
+.TP 5
+.B int \fIbottom_arrow
+is true if an down-arrow should be drawn at the bottom of the window.
+.TP 5
+.B int \fIx
+is the zero-based column within the window on which to draw arrows.
+.TP 5
+.B int \fItop
+is the zero-based row within the window on which to draw up-arrows
+as well as a horizontal line to show the window's top.
+.TP 5
+.B int \fIbottom
+is the zero-based row within the window on which to draw down-arrows
+as well as a horizontal line to show the window's bottom.
+.\" ---------------------------------------------------------------------------
+.SS dlg_draw_arrows2
+Draw up/down arrows on a window, e.g., for scrollable lists.
+.TP 5
+.B WINDOW * \fIdialog
+is the window on which to draw an arrow.
+.TP 5
+.B int \fItop_arrow
+is true if an up-arrow should be drawn at the top of the window.
+.TP 5
+.B int \fIbottom_arrow
+is true if an down-arrow should be drawn at the bottom of the window.
+.TP 5
+.B int \fIx
+is the zero-based column within the window on which to draw arrows.
+.TP 5
+.B int \fItop
+is the zero-based row within the window on which to draw up-arrows
+as well as a horizontal line to show the window's top.
+.TP 5
+.B int \fIbottom
+is the zero-based row within the window on which to draw down-arrows
+as well as a horizontal line to show the window's bottom.
+.TP 5
+.B chtype \fIattr
+is the window's background attribute.
+.TP 5
+.B chtype \fIborderattr
+is the window's border attribute.
+.\" ---------------------------------------------------------------------------
+.SS dlg_draw_bottom_box
+Draw a partial box at the bottom of a window,
+e.g., to surround a row of buttons.
+It is designed to merge with an existing box around
+the whole window (see \fBdlg_draw_box\fP),
+so it uses tee-elements rather than corner-elements
+on the top corners of this box.
+.TP 5
+.B WINDOW * \fIwin
+is the window to update.
+.\" ---------------------------------------------------------------------------
+.SS dlg_draw_bottom_box2
+Draw a partial box at the bottom of a window,
+e.g., to surround a row of buttons.
+It is designed to merge with an existing box around
+the whole window (see \fBdlg_draw_box2\fP),
+so it uses tee-elements rather than corner-elements
+on the top corners of this box.
+.TP 5
+.B WINDOW * \fIwin
+is the window to update.
+.TP 5
+.B chtype \fIon_left
+is used to color the upper/left edges of the box, i.e., the tee-element and
+horizontal line
+.TP 5
+.B chtype \fIon_right
+is used to color the right edge of the box, i.e., the tee-element
+.TP 5
+.B chtype \fIon_inside
+is used to fill-color the inside of the box
+.\" ---------------------------------------------------------------------------
+.SS dlg_draw_box
+Draw a rectangular box with line drawing characters.
+.TP 5
+.B WINDOW * \fIwin
+is the window to update.
+.TP 5
+.B int \fIy
+is the top row of the box.
+.TP 5
+.B int \fIx
+is the left column of the box.
+.TP 5
+.B int \fIheight
+is the height of the box.
+.TP 5
+.B int \fIwidth
+is the width of the box.
+.TP 5
+.B chtype \fIboxchar
+is used to color the right/lower edges.
+It also is fill-color used for the box contents.
+.TP 5
+.B chtype \fIborderchar
+is used to color the upper/left edges.
+.\" ---------------------------------------------------------------------------
+.SS dlg_draw_box2
+Draw a rectangular box with line drawing characters.
+.TP 5
+.B WINDOW * \fIwin
+is the window to update.
+.TP 5
+.B int \fIy
+is the top row of the box.
+.TP 5
+.B int \fIx
+is the left column of the box.
+.TP 5
+.B int \fIheight
+is the height of the box.
+.TP 5
+.B int \fIwidth
+is the width of the box.
+.TP 5
+.B chtype \fIboxchar
+is used to fill-color for the box contents.
+.TP 5
+.B chtype \fIborderchar
+is used to color the upper/left edges.
+.TP 5
+.B chtype \fIborderchar2
+is used to color the right/lower edges.
+.\" ---------------------------------------------------------------------------
+.SS dlg_draw_buttons
+Print a list of buttons at the given position.
+.TP 5
+.B WINDOW * \fIwin
+is the window to update.
+.TP 5
+.B int \fIy
+is the starting row.
+.TP 5
+.B int \fIx
+is the starting column.
+.TP 5
+.B const char ** \fIlabels
+is a list of (pointers to) button labels terminated by a null pointer.
+.TP 5
+.B int \fIselected
+is the index within the list of the selected button.
+.TP 5
+.B int \fIvertical
+is true if the buttons are arranged in a column rather than a row.
+.TP 5
+.B int \fIlimit
+is the number of columns (or rows if \fIvertical\/\fP) allowed for the display.
+.\" ---------------------------------------------------------------------------
+.SS dlg_draw_helpline
+draw the text in \fBdialog_vars.help_line\fP at the bottom of the given window.
+.TP 5
+.B WINDOW * \fIdialog
+is the window to modify.
+.TP 5
+.B bool \fIdecorations
+if true, allow room for the scrolling arrows.
+.\" ---------------------------------------------------------------------------
+.SS dlg_draw_scrollbar
+If \fBdialog_state.use_scrollbar\fP is set,
+draw a scrollbar on the right margin of windows holding scrollable data.
+Also (whether or not the scrollbar is drawn),
+annotate the bottom margin of the window with the percentage of data
+by the bottom of that window,
+and call \fBdlg_draw_arrows2\fP to put markers on the window showing
+when more data is available.
+.TP 5
+.B WINDOW * \fIwin
+is the window in which the data is scrolled.
+Because \fIleft\fP, \fIright\fP, \fItop\fP, \fIbottom\fP
+are passed as parameters, this window can contain additional data.
+.TP 5
+.B long \fIfirst_data
+is the zero-based index to the first row of data in the current window.
+.TP 5
+.B long \fIthis_data
+is the zero-based index to the current row of data.
+.TP 5
+.B long \fInext_data
+is the zero-based index to the next data after the current row.
+.TP 5
+.B long \fItotal_data
+is the total number of rows of data.
+.TP 5
+.B int \fIleft
+is the zero-based left margin/column of the window.
+The up/down arrows are draw inset by 5 columns from this point.
+.TP 5
+.B int \fIright
+is the zero-based right margin/column of the window.
+The scrollbar is drawn flush against this column.
+.TP 5
+.B int \fItop
+is the zero-based row within the window on which to draw up-arrows
+as well as a horizontal line to show the window's top.
+.TP 5
+.B int \fIbottom
+is the zero-based row within the window on which to draw down-arrows
+as well as a horizontal line to show the window's bottom.
+.TP 5
+.B chtype \fIattr
+is the window's background attribute.
+.TP 5
+.B chtype \fIborderattr
+is the window's border attribute.
+.\" ---------------------------------------------------------------------------
+.SS dlg_draw_shadow
+Draw shadows along the right and bottom edge of a window to give it
+a 3-dimensional look.
+(The height, etc., may not be the same as the window's actual values).
+.TP 5
+.B WINDOW * \fIwin
+is the window to update.
+.TP 5
+.B int \fIheight
+is the height of the window.
+.TP 5
+.B int \fIwidth
+is the width of the window.
+.TP 5
+.B int \fIy
+is the top row of the window.
+.TP 5
+.B int \fIx
+is the left column of the window.
+.\" ---------------------------------------------------------------------------
+.SS dlg_draw_title
+Draw a title centered at the top of the window.
+.TP 5
+.B WINDOW * \fIwin
+is the window to update.
+.TP 5
+.B const char * \fItitle
+is the title string to display at the top of the widget.
+.\" ---------------------------------------------------------------------------
+.SS dlg_dummy_menutext
+This is a utility function which supports the \fB--inputmenu\fP option of
+the \fB\*p\fP program.
+If \fBdialog_vars.input_menu\fP is set, \fBdialog_menu\fP passes this
+pointer to \fBdlg_menu\fP as the \fIrename_menutext\fP parameter.
+Otherwise, it passes \fBdlg_dummy_menutext\fP.
+.LP
+The function should only return \fBDLG_EXIT_ERROR\fP.
+.TP 5
+.B DIALOG_LISTITEM * \fIitems
+is the list of menu items
+.TP 5
+.B int \fIcurrent
+is the index of the currently-selected item
+.TP 5
+.B char * \fInewtext
+is the updated text for the menu item
+.\" ---------------------------------------------------------------------------
+.SS dlg_dump_keys
+Write all user-defined key-bindings to the given stream,
+e.g., as part of \fBdlg_create_rc\fP.
+.TP 5
+.B FILE * \fIfp
+is the stream on which to write the bindings.
+.\" ---------------------------------------------------------------------------
+.SS dlg_dump_window_keys
+Write all user-defined key-bindings to the given stream,
+e.g., as part of \fBdlg_create_rc\fP.
+.TP 5
+.B FILE * \fIfp
+is the stream on which to write the bindings.
+.TP 5
+.B WINDOW * \fIwin
+is the window for which bindings should be dumped.
+If it is null, then only built-in bindings are dumped.
+.\" ---------------------------------------------------------------------------
+.SS dlg_eat_argv
+Remove one or more items from an argument vector.
+.TP 5
+.B int * \fIargcp
+in/out parameter giving the length of the argument vector.
+.B char *** \fIargvp
+in/out parameter pointing to the argument vector.
+.B int \fIstart
+starting index.
+.B int \fIcount
+number of arguments to remove.
+.\" ---------------------------------------------------------------------------
+.SS dlg_edit_offset
+Given the character-offset in the string,
+returns the display-offset where
+\fB\*p\fP should position the cursor.
+In this context, \*(``characters\*('' may be multicolumn,
+since the string can be a multibyte character string.
+.TP 5
+.B char * \fIstring
+is the string to analyze
+.TP 5
+.B int \fIoffset
+is the character-offset
+.TP 5
+.B int \fIx_last
+is a limit on the column positions that can be used,
+e.g., the window's size.
+.\" ---------------------------------------------------------------------------
+.SS dlg_edit_string
+Updates the string and character-offset, given various editing characters
+or literal characters which are inserted at the character-offset.
+Returns true if an editing change was made (and the display should
+be updated), and false if the key was something like KEY_ENTER,
+which is a non-editing action outside this function.
+.TP 5
+.B char * \fIstring
+is the (multibyte) string to update
+.TP 5
+.B int * \fIoffset
+is the character-offset
+.TP 5
+.B int \fIkey
+is the editing key
+.TP 5
+.B int \fIfkey
+is true if the editing key is a function-key
+.TP 5
+.B bool \fIforce
+is used in a special loop case by calling code to force the return
+value of this function when a function-key code 0 is passed in.
+.\" ---------------------------------------------------------------------------
+.SS dlg_exit
+Given an internal exit code,
+check if the corresponding environment variable is set.
+If so, remap the exit code to match the environment variable.
+Finally call \fBexit\fP with the resulting exit code.
+.TP 5
+.B int \fIcode
+is the internal exit code, e.g., \fBDLG_EXIT_OK\fP,
+which may be remapped.
+.LP
+The \fB\*p\fP program uses this function
+to allow shell scripts to remap the exit codes so they can distinguish ESC
+from ERROR.
+.\" ---------------------------------------------------------------------------
+.SS dlg_exit_buttoncode
+Map the given button index for \fBdlg_exit_label\fP into \fB\*p\fP's exit-code.
+.TP 5
+.B int \fIbutton
+is the button index
+.\" ---------------------------------------------------------------------------
+.SS dlg_exit_label
+Return a list of button labels.
+If \fBdialog_vars.extra_button\fP is true,
+return the result of \fBdlg_ok_labels\fP.
+Otherwise, return a list with the \*(``Exit\*('' label
+and (if \fBdialog_vars.help_button\fP is set)
+the \*(``Help\*('' button as well.
+.\" ---------------------------------------------------------------------------
+.SS dlg_exiterr
+Quit program killing all \fBtailboxbg\fP widgets.
+.TP 5
+.B const char * \fIfmt
+is the format of the \fBprintf\fP-like message to write.
+.TP 5
+.B ...
+.br
+are the variables to apply to the \fIfmt\fP format.
+.\" ---------------------------------------------------------------------------
+.SS dlg_find_index
+Given the character-offset to find in the list, return the corresponding
+array index.
+.TP 5
+.B const int *\fIlist
+contains a list of character-offsets,
+i.e., indices into a string that denote the beginning of multibyte characters.
+.TP 5
+.B int \fIlimit
+is the last index into \fBlist\fP to search.
+.TP 5
+.B int \fIto_find
+is the character-offset to find.
+.\" ---------------------------------------------------------------------------
+.SS dlg_finish_string
+If \fIDIALOG_STATE.finish_string\fP is true,
+this function discards data used to speed up layout computations.
+.TP 5
+.B const char * \fIstring
+is the address of the string whose data should be discarded.
+The address rather than contents is used as the unique identifier because
+some of the caching is used for editable input-fields.
+.\" ---------------------------------------------------------------------------
+.SS dlg_flush_getc
+Cancel the local data saved by \fBdlg_last_getc\fP.
+.\" ---------------------------------------------------------------------------
+.SS dlg_editbox
+This entrypoint provides the \fB--editbox\fP
+functionality without the limitations of \fB\*p\fP's command-line syntax
+(compare to \fBdialog_editbox\fP).
+.TP 5
+.B const char * \fItitle
+is the title string to display at the top of the widget.
+.TP 5
+.B char *** \fIlist
+is a pointer to an array of \fBchar\ *\fP pointers.
+The array is allocated by the caller,
+and so are the strings to which it points.
+The \fBdlg_editbox\fP function may reallocate the
+array and the strings.
+.TP 5
+.B int * \fIrows
+points to the nominal length of \fIlist\fP.
+The referenced value is updated if\fIlist\fP is reallocated.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is adjusted to use the available screen size.
+.\" ---------------------------------------------------------------------------
+.SS dlg_form
+This entrypoint provides the \fB--form\fP
+functionality without the limitations of \fB\*p\fP's command-line syntax
+(compare to \fBdialog_form\fP).
+.TP 5
+.B const char * \fItitle
+is the title string to display at the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIform_height
+is the minimum height to reserve for displaying the list.
+If zero, it is computed based on the given \fIheight\fP and \fIwidth\fP.
+.TP 5
+.B int \fIitem_no
+is the number of \fIitems\fP.
+.TP 5
+.B DIALOG_FORMITEM * \fIitems
+This is a list of the items to display in the form.
+.TP 5
+.B int * \fIcurrent_item
+The widget sets the referenced location to the index of the current display
+item (cursor) when it returns.
+.\" ---------------------------------------------------------------------------
+.SS dlg_free_columns
+Free data allocated by \fBdlg_align_columns\fP.
+.TP 5
+.B char **\fItarget
+This is the array which was reformatted.
+It points to the first string to free.
+.TP 5
+.B int \fIper_row
+This is the size of the struct for each row of the array.
+.TP 5
+.B int \fInum_rows
+This is the number of rows in the array.
+.\" ---------------------------------------------------------------------------
+.SS dlg_free_formitems
+Free memory owned by a list of DIALOG_FORMITEM's.
+.TP 5
+.B DIALOG_FORMITEM * \fIitems
+is the list to free.
+.\" ---------------------------------------------------------------------------
+.SS dlg_free_gauge
+Remove the gauge widget from the screen and free its associated memory.
+.TP 5
+.B void *\fIobjptr
+points to the gauge widget.
+.\" ---------------------------------------------------------------------------
+.SS dlg_getc
+Read a character from the given window.
+Handle repainting here (to simplify
+things in the calling application).
+Also, if input-callback(s) are set up,
+poll the corresponding files and handle the updates,
+e.g., for displaying a tailbox.
+Returns the key-code.
+.TP 5
+.B WINDOW * \fIwin
+is the window within which to read.
+.TP 5
+.B int * \fIfkey
+as a side-effect, set this to true if the key-code is really a function-key.
+.\" ---------------------------------------------------------------------------
+.SS dlg_get_attrs
+extract the video attributes from the given window.
+.TP 5
+.B WINDOW * \fIwin
+is the window from which to get attributes.
+.\" ---------------------------------------------------------------------------
+.SS dlg_getc_callbacks
+passes the given key-code \fIch\fP to the current window that
+has established a callback.
+If the callback returns zero, remove it and try the next window.
+If no more callbacks remain, return.
+If any callbacks were found, return true, otherwise false.
+.TP 5
+.B int \fIch
+is the key-code
+.TP 5
+.B int \fIfkey
+is true if the key is a function-key
+.TP 5
+.B int * \fIresult
+is used to pass an exit-code to the caller,
+which should pass that via \fBdlg_exit\fP.
+.\" ---------------------------------------------------------------------------
+.SS dlg_index_columns
+Build a list of the display-columns for the given multibyte string's characters.
+.TP 5
+.B const char * \fIstring
+is the string to analyze
+.\" ---------------------------------------------------------------------------
+.SS dlg_index_wchars
+Build an index of the wide-characters in the string,
+so the caller can easily tell
+which byte-offset begins a given wide-character.
+.TP 5
+.B const char * \fIstring
+is the string to analyze
+.\" ---------------------------------------------------------------------------
+.SS dlg_item_help
+Draw the string for the \fBdialog_vars.item_help\fP feature.
+.TP 5
+.B const char * \fItxt
+is the help-message
+.\" ---------------------------------------------------------------------------
+.SS dlg_killall_bg
+If \fB\*p\fP has callbacks active,
+purge the list of all that are not marked
+to keep in the background.
+If any remain, run those in a background process.
+.TP 5
+.B int * \fIretval
+stores the exit-code to pass back to the caller.
+.\" ---------------------------------------------------------------------------
+.SS dlg_last_getc
+returns the most recent character that was read via \fBdlg_getc\fP.
+.\" ---------------------------------------------------------------------------
+.SS dlg_limit_columns
+Given a column limit,
+count the number of wide characters that can fit into that limit.
+The offset is used to skip over a leading character
+that was already written.
+.TP 5
+.B const char * \fIstring
+is the string to analyze
+.TP 5
+.B int \fIlimit
+is the column limit
+.TP 5
+.B int \fIoffset
+is the starting offset from which analysis should continue
+.\" ---------------------------------------------------------------------------
+.SS dlg_lookup_key
+Check for a key-binding.
+If there is no binding associated with the widget, it simply returns
+the given curses-key.
+Otherwise, it returns the result of the binding
+.TP 5
+.B WINDOW * \fIwin
+is the window on which the binding is checked
+.TP 5
+.B int \fIcurses_key
+is the curses key-code
+.TP 5
+.B int * \fIdialog_key
+is the corresponding \fB\*p\fP internal code
+(see \fBDLG_KEYS_ENUM\fP in dlg_key.h).
+.\" ---------------------------------------------------------------------------
+.SS dlg_max_input
+Limit the parameter according to \fBdialog_vars.max_input\fP
+.TP 5
+.B int \fImax_len
+is the value to limit
+.\" ---------------------------------------------------------------------------
+.SS dlg_match_char
+Match a given character against the beginning of the string,
+ignoring case of the given character.
+The matching string must begin with an uppercase character.
+.TP 5
+.B int \fIch
+is the character to check
+.TP 5
+.B const char * \fIstring
+is the string to search
+.\" ---------------------------------------------------------------------------
+.SS dlg_menu
+This entrypoint provides the \fB--menu\fP
+functionality without the limitations of \fB\*p\fP's command-line syntax
+(compare to \fBdialog_menu\fP).
+.TP 5
+.B const char * \fItitle
+is the title string to display at the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fImenu_height
+is the minimum height to reserve for displaying the list.
+If zero, it is computed based on the given \fIheight\fP and \fIwidth\fP.
+.TP 5
+.B int \fIitem_no
+is the number of \fIitems\fP.
+.TP 5
+.B DIALOG_LISTITEM * \fIitems
+This is a list of the items to display in the form.
+.TP 5
+.B int * \fIcurrent_item
+The widget sets the referenced location to the index of the current display
+item (cursor) when it returns.
+.TP 5
+.B DIALOG_INPUTMENU \fIrename_menutext
+If this is not \fBdlg_dummy_menutext\fP,
+the widget acts like an \fIinputmenu\fP widget,
+providing an extra \*(``Rename\*('' button,
+which activates an edit feature on the selected menu item.
+.\" ---------------------------------------------------------------------------
+.SS dlg_move_window
+Moves/resizes the given window to the given position and size.
+.TP 5
+.B WINDOW *\fIwin
+is the window to move/resize.
+.TP 5
+.B WINDOW *\fIheight
+is the height of the resized window.
+.TP 5
+.B WINDOW *\fIwidth
+is the width of the resized window.
+.TP 5
+.B WINDOW *\fIy
+y-ordinate to use for the repositioned window.
+.TP 5
+.B WINDOW *\fIx
+x-ordinate to use for the repositioned window.
+.\" ---------------------------------------------------------------------------
+.SS dlg_mouse_bigregion
+Retrieve the big-region under the pointer.
+.TP 5
+.B int \fIy
+is the row on which the mouse click occurred
+.TP 5
+.B int \fIx
+is the column on which the mouse click occurred
+.\" ---------------------------------------------------------------------------
+.SS dlg_mouse_free_regions
+Free the memory associated with mouse regions.
+.\" ---------------------------------------------------------------------------
+.SS dlg_mouse_mkbigregion
+Creates a region on which the mouse-clicks will return a specified code.
+.TP 5
+.B int \fIy
+is the top-row of the region.
+.TP 5
+.B int \fIx
+is the left-column of the region.
+.TP 5
+.B int \fIheight
+is the height of the region.
+.TP 5
+.B int \fIwidth
+is the width of the region.
+.TP 5
+.B int \fIcode
+is a code used to make the region unique within a widget
+.TP 5
+.B int \fIstep_x
+is used in modes 2 (columns) and 3 (cells) to determine the width
+of a column/cell.
+.TP 5
+.B int \fIstep_y
+is currently unused
+.TP 5
+.B int \fImode
+is used to determine how the mouse position is translated into
+a code (like a function-key):
+.RS 5
+.TP 3
+1
+index by lines
+.TP
+2
+index by columns
+.TP
+3
+index by cells
+.RE
+.\" ---------------------------------------------------------------------------
+.SS dlg_mouse_mkregion
+.TP 5
+.B int \fIy
+is the top-row of the region.
+.TP 5
+.B int \fIx
+is the left-column of the region.
+.TP 5
+.B int \fIheight
+is the height of the region.
+.TP 5
+.B int \fIwidth
+is the width of the region.
+.TP 5
+.B int \fIcode
+is a code used to make the region unique within a widget
+.\" ---------------------------------------------------------------------------
+.SS dlg_mouse_region
+Retrieve the frame under the mouse pointer
+.TP 5
+.B int \fIy
+is the row of the mouse-click
+.TP 5
+.B int \fIx
+is the column of the mouse-click
+.\" ---------------------------------------------------------------------------
+.SS dlg_mouse_setbase
+Sets a base for subsequent calls to \fBdlg_mouse_mkregion\fP,
+so they can make regions relative to the start of a given window.
+.TP 5
+.B int \fIx
+is the left-column for the base
+.TP 5
+.B int \fIy
+is the top-row for the base
+.\" ---------------------------------------------------------------------------
+.SS dlg_mouse_setcode
+Sets a value used internally by \fBdlg_mouse_mkregion\fP
+which is added to the \fIcode\fP parameter.
+By providing different values,
+e.g., multiples of \fBKEY_MAX\fP,
+it is possible to support multiple \*(``big\*('' regions in a widget.
+The \fIbuildlist\fP widget uses this feature to recognize mouse-clicks
+in the left/right panes.
+.TP 5
+.B int \fIcode
+is the value to add to \fBdlg_mouse_mkregion\fP's \fIcode\fP parameter.
+.\" ---------------------------------------------------------------------------
+.SS dlg_mouse_wgetch
+is a wrapper for \fBdlg_getc\fP which additionally maps mouse-clicks
+(if the curses library supports those) into extended function-keys
+which encode the position according to the \fImode\fP in
+\fBdlg_mouse_mkbigregion\fP.
+Returns the corresponding key-code.
+.TP 5
+.B WINDOW * \fIwin
+is the window on which to perform the input
+.TP 5
+.B int * \fIfkey
+the referenced location is set to true if the key-code is an actual
+or extended (mouse) function-key.
+.\" ---------------------------------------------------------------------------
+.SS dlg_mouse_wgetch_nowait
+This is a non-blocking variant of \fBdlg_mouse_wgetch\fP.
+.TP 5
+.B WINDOW * \fIwin
+is the window on which to perform the input
+.TP 5
+.B int * \fIfkey
+the referenced location is set to true if the key-code is an actual
+or extended (mouse) function-key.
+.\" ---------------------------------------------------------------------------
+.SS dlg_need_separator
+Check if an output-separator is needed.
+If \fBdialog_vars.output_separator\fP is set, return true.
+Otherwise, if \fBdialog_vars.input_result\fP is nonempty, return true.
+If neither, return false.
+.\" ---------------------------------------------------------------------------
+.SS dlg_new_modal_window
+Create a modal window, optionally with a shadow.
+The shadow is created if \fBdialog_state.use_shadow\fP is true.
+.TP 5
+.B WINDOW * \fIparent
+is the parent window (usually the top-level window of a widget)
+.TP 5
+.B int \fIheight
+is the window's height
+.TP 5
+.B int \fIwidth
+is the window's width
+.TP 5
+.B int \fIy
+is the window's top-row
+.TP 5
+.B int \fIx
+is the window's left-column
+.\" ---------------------------------------------------------------------------
+.SS dlg_new_window
+Create a window, optionally with a shadow.
+The shadow is created if \fBdialog_state.use_shadow\fP is true.
+.TP 5
+.B int \fIheight
+is the window's height
+.TP 5
+.B int \fIwidth
+is the window's width
+.TP 5
+.B int \fIy
+is the window's top-row
+.TP 5
+.B int \fIx
+is the window's left-column
+.\" ---------------------------------------------------------------------------
+.SS dlg_next_button
+Return the next index in the list of labels.
+.TP 5
+.B const char ** \fIlabels
+is a list of (pointers to) button labels terminated by a null pointer.
+.TP 5
+.B int \fIbutton
+is the current button-index.
+.\" ---------------------------------------------------------------------------
+.SS dlg_next_ok_buttonindex
+Assuming that the caller is using \fBdlg_ok_labels\fP to list buttons,
+find the next index in the list of buttons.
+.TP 5
+.B int \fIcurrent
+is the current index in the list of buttons
+.TP 5
+.B int \fIextra
+if negative, provides a way to enumerate extra active areas on the widget.
+.\" ---------------------------------------------------------------------------
+.SS dlg_ok_buttoncode
+Map the given button index for \fBdlg_ok_labels\fP
+into \fB\*p\fP's exit-code.
+.TP 5
+.B int \fIbutton
+is the button-index (which is not necessarily the same as the index
+in the list of labels).
+.\" ---------------------------------------------------------------------------
+.SS dlg_ok_label
+Returns a list with the \*(``Ok\*('' label,
+and if \fBdialog_vars.help_button\fP is true, the \*(``Help\*('' label as well.
+.\" ---------------------------------------------------------------------------
+.SS dlg_ok_labels
+Return a list of button labels for the OK/Cancel group of widgets.
+.\" ---------------------------------------------------------------------------
+.SS dlg_ordinate
+Decode the string as an integer, decrement if greater than zero to make
+a curses-ordinate from a dialog-ordinate.
+.\" ---------------------------------------------------------------------------
+.SS dlg_parse_bindkey
+Parse the parameters of the \*(``bindkeys\*('' configuration-file entry.
+This expects widget name which may be "*", followed by curses key definition and
+then \fB\*p\fP key definition.
+.TP 5
+.B char * \fIparams
+is the parameter string to parse.
+.\" ---------------------------------------------------------------------------
+.SS dlg_parse_rc
+Parse the configuration file and set up variables.
+.\" ---------------------------------------------------------------------------
+.SS dlg_popen
+Open a pipe which ties the standard error and output together.
+The \fBpopen\fP function captures only the standard output of a command.
+.TP 5
+.B const char *\fIcommand
+The shell command to run.
+.TP 5
+.B const char *\fItype
+Like \fBpopen\fP, "r" is used to read, and "w" is used to write.
+.\" ---------------------------------------------------------------------------
+.SS dlg_prev_button
+Return the previous index in the list of labels.
+.TP 5
+.B const char ** \fIlabels
+is a list of (pointers to) button labels terminated by a null pointer.
+.TP 5
+.B int \fIbutton
+is the current button index
+.\" ---------------------------------------------------------------------------
+.SS dlg_print_listitem
+This is a helper function used for the various \*(``list\*('' widgets,
+e.g., checklist, menu, buildlist, treeview.
+Each list-widget has \*(``tag\*('' and \*(``description\*('' values
+for each item which can be displayed.
+If \fBdialog_vars.no_tags\fP is true,
+the \*(``tag\*('' value is not shown.
+The first character of the first value shown (tag or description)
+is highlighted to indicate that the widget will match it for quick navigation.
+.TP 5
+.B WINDOW *\fIwin
+the window in which to display the text
+.TP 5
+.B const char *\fItext
+the value to display
+.TP 5
+.B int \fIclimit
+the number of columns available for printing the text
+.TP 5
+.B bool \fIfirst
+true if this is the first call (for \*(``tag\*('' and \*(``description\*(''),
+and the first character of the value should be highlighted.
+.TP 5
+.B int \fIselected
+nonzero if the text should be displayed using the \*(``selected\*('' colors
+.\" ---------------------------------------------------------------------------
+.SS dlg_print_scrolled
+This is a wrapper for \fBdlg_print_autowrap\fP which allows the user
+to scroll too-long prompt text up/down.
+.LP
+See \fBdlg_check_scrolled\fP for a function which updates the \fIoffset\fP
+variable used as a parameter here.
+It complements this function; you need both.
+If \fIpauseopt\fP is set, this function returns an updated \fIlast\fP
+parameter, needed for \fBdlg_check_scrolled\fP calls.
+.TP 5
+.B WINDOW * \fIwin
+is the window to update.
+.TP 5
+.B const char * \fIprompt
+is the string to print
+.TP 5
+.B int \fIoffset
+is the starting line-number to write wrapped text.
+.TP 5
+.B int \fIheight
+is the available height for writing the wrapped text
+.TP 5
+.B int \fIwidth
+is the width that the wrapping should occur in
+.TP 5
+.B int \fIpauseopt
+is true if the extra functionality for scrolling should be enabled.
+If false, this calls \fBdlg_print_autowrap\fP without doing any scrolling.
+.\" ---------------------------------------------------------------------------
+.SS dlg_print_line
+Print one line of the prompt in the window within the limits of the
+specified right margin.
+The line will end on a word boundary and a pointer
+to the start of the next line is returned, or a NULL pointer if the end of
+*prompt is reached.
+.TP 5
+.B WINDOW *\fIwin
+is the window to update.
+.TP 5
+.B chtype *\fIattr
+holds the starting attributes, and is updated to reflect the final attributes
+applied to the string.
+.TP 5
+.B const char *\fIprompt
+is the string to print
+.TP 5
+.B int \fIlm
+is the left margin.
+.TP 5
+.B int \fIrm
+is the right margin
+.TP 5
+.B int *\fIx
+returns the ending x-ordinate.
+.\" ---------------------------------------------------------------------------
+.SS dlg_prev_ok_buttonindex
+Find the previous button index in the list from \fBdlg_ok_labels\fP.
+.TP 5
+.B int \fIcurrent
+is the current index
+.TP 5
+.B int \fIextra
+if negative provides a way to enumerate extra active areas on the widget.
+.\" ---------------------------------------------------------------------------
+.SS dlg_print_autowrap
+Print a string of text in a window, automatically wrap around to the next
+line if the string is too long to fit on one line.
+Note that the string may contain embedded newlines.
+The text is written starting at the top of the window.
+.TP 5
+.B WINDOW * \fIwin
+is the window to update.
+.TP 5
+.B const char * \fIprompt
+is the string to print
+.TP 5
+.B int \fIheight
+is the nominal height the wrapped string is limited to
+.TP 5
+.B int \fIwidth
+is the width that the wrapping should occur in
+.\" ---------------------------------------------------------------------------
+.SS dlg_print_size
+If \fBdialog_vars.print_siz\fP is true,
+print the given height/width (from a widget)
+to \fBdialog_state.output\fP, e.g.,
+\fBSize: height, width\fP.
+.TP 5
+.B int \fIheight
+is the window's height
+.TP 5
+.B int \fIwidth
+is the window's width
+.\" ---------------------------------------------------------------------------
+.SS dlg_print_text
+Print up to \fIcols\fP columns from \fBtext\fP,
+optionally rendering \fB\*p\fP's escape sequences for attributes and color.
+.TP 5
+.B WINDOW * \fIwin
+is the window to update.
+.TP 5
+.B const char * \fItxt
+is the string to print
+.TP 5
+.B int \fIcol
+is the column limit
+.TP 5
+.B chtype * \fIattr
+holds the starting attributes, and is updated to reflect the final attributes
+applied to the string.
+.\" ---------------------------------------------------------------------------
+.SS dlg_progressbox
+implements the "\fB--prgbox\fP" and "\fB--progressbox\fP" options.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+If empty or null, no prompt is shown.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIpauseopt
+if true, an \*(``OK\*('' button will be shown,
+and the dialog will wait for it to complete.
+With an \*(``OK\*('' button, it is denoted a \*(``programbox\*('',
+without an \*(``OK\*('' button, it is denoted a \*(``progressbox\*(''.
+.TP 5
+.B FILE * \fIfp
+is the file pointer, which may be a pipe or a regular file.
+.\" ---------------------------------------------------------------------------
+.SS dlg_put_backtitle
+Display the background title if \fBdialog_vars.backtitle\fP is non-null.
+The background title is shown at the top of the screen.
+.\" ---------------------------------------------------------------------------
+.SS dlg_reallocate_gauge
+Allocates or reallocates a gauge widget (see \fBdlg_allocate_gauge\fP).
+Use \fBdlg_update_gauge\fP to display the result.
+.TP 5
+.B void ** \fIobjptr
+If the pointer referenced by this parameter is null, the function creates
+a new gauge widget using \fBdlg_allocate_gauge\fP.
+Otherwise, it updates the title and cprompt values, reusing the window
+from the previous call on this function.
+As a side-effect, the function stores the updated object-pointer via
+the \fIobjptr\fP parameter.
+.TP 5
+.B const char * \fItitle
+is the title string to display at the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIpercent
+is the percentage to show in the progress bar.
+.\" ---------------------------------------------------------------------------
+.SS dlg_register_buttons
+The widget developer should call this function after \fBdlg_register_window\fP,
+for the list of button labels associated with the widget.
+One may bind a key to a button, e.g., \*(``OK\*('' for \fBDLGK_OK\fP,
+.TP 5
+.B WINDOW * \fIwin
+is the window with which to associate the buttons
+.TP 5
+.B const char * \fIname
+is the widget's binding name (usually the name of the widget).
+.TP 5
+.B const char ** \fIbuttons
+is the list of buttons
+.\" ---------------------------------------------------------------------------
+.SS dlg_register_window
+For a given named widget's window, associate a binding table.
+.TP 5
+.B WINDOW * \fIwin
+is the window with which to associate the buttons
+.TP 5
+.B const char * \fIname
+is the widget's binding name (usually the name of the widget).
+.TP 5
+.B DLG_KEYS_BINDING * \fIbinding
+is the binding table
+.\" ---------------------------------------------------------------------------
+.SS dlg_remove_callback
+Remove a callback.
+.TP 5
+.B DIALOG_CALLBACK * \fIp
+contains the callback information.
+.\" ---------------------------------------------------------------------------
+.SS dlg_renamed_menutext
+This is a utility function which supports the \fB--inputmenu\fP option of
+the \fB\*p\fP program.
+If \fBdialog_vars.input_menu\fP is set, \fBdialog_menu\fP passes this
+pointer to \fBdlg_menu\fP as the \fIrename_menutext\fP parameter.
+Otherwise, it passes \fBdlg_dummy_menutext\fP.
+.LP
+The function should add \*(``RENAMED\*('' to \fBdialog_vars.input_result\fP ,
+followed by the menu item's name and the \fInewtext\fP value
+(with a space separating the three items),
+and return \fBDLG_EXIT_EXTRA\fP.
+.TP 5
+.B DIALOG_LISTITEM * \fIitems
+is the list of menu items
+.TP 5
+.B int \fIcurrent
+is the index of the currently-selected item
+.TP 5
+.B char * \fInewtext
+is the updated text for the menu item
+.\" ---------------------------------------------------------------------------
+.SS dlg_restore_vars
+Restore \fB\*p\fP's variables from the given variable
+(see \fBdialog_save_vars\fP).
+.TP 5
+.B DIALOG_VARS * \fIsave
+is the variable from which to restore.
+.LP
+The
+\fIDIALOG_VARS.input_length\fP and
+\fIDIALOG_VARS.input_result\fP members are treated specially,
+since these are used by a widget to pass data to the caller.
+They are not modified by this function.
+.\" ---------------------------------------------------------------------------
+.SS dlg_result_key
+Test a \fB\*p\fP internal keycode to see if it corresponds to one of the push
+buttons on the widget such as \*(``OK\*(''.
+This is only useful if there are user-defined key bindings, since there are
+no built-in bindings that map directly to \fBDLGK_OK\fP, etc.
+Return true if a mapping was done.
+.TP 5
+.B int \fIdialog_key
+is the \fB\*p\fP key to test
+.TP 5
+.B int \fIfkey
+is true if this is a function key
+.TP 5
+.B int * \fIresultp
+store the result of the mapping in the referenced location.
+.\" ---------------------------------------------------------------------------
+.SS dlg_save_vars
+Save \fB\*p\fP's variables into the given variable (see \fBdlg_restore_vars\fP).
+.TP 5
+.B DIALOG_VARS * \fIsave
+is the variable into which to save.
+.\" ---------------------------------------------------------------------------
+.SS dlg_set_focus
+Set focus on the given window,
+making it display above other windows on the screen.
+.TP 5
+.B WINDOW * \fIparent
+is the parent window (usually the top-level window of a widget)
+.TP 5
+.B WINDOW * \fIwin
+is the window on which to place focus (usually a subwindow of a widget)
+.\" ---------------------------------------------------------------------------
+.SS dlg_set_result
+Setup a fixed-buffer for the result in \fBdialog_vars.input_result\fP
+.TP 5
+.B const char * \fIstring
+is the new contents for the result
+.\" ---------------------------------------------------------------------------
+.SS dlg_show_string
+Displays the string, shifted as necessary, to fit within the box and show
+the current character-offset.
+.TP 5
+.B WINDOW * \fIwin
+is the window within which to display
+.TP 5
+.B const char * \fIstring
+is the string to display
+.TP 5
+.B int \fIoffset
+is the starting (character, not bytes) offset
+.TP 5
+.B chtype \fIattr
+is the window attribute to use for the string
+.TP 5
+.B int \fIy_base
+beginning row on screen
+.TP 5
+.B int \fIx_base
+beginning column on screen
+.TP 5
+.B int \fIx_last
+number of columns on screen
+.TP 5
+.B bool \fIhidden
+if true, do not echo input
+.TP 5
+.B bool \fIforce
+if true, force repaint
+.\" ---------------------------------------------------------------------------
+.SS dlg_strclone
+duplicate the string, like \fBstrdup\fP.
+.TP 5
+.B const char * \fIcprompt
+is the string to duplicate
+.\" ---------------------------------------------------------------------------
+.SS dlg_strcmp
+compare two strings, ignoring case.
+.TP 5
+.B const char * \fIa
+is one string
+.TP 5
+.B const char * \fIb
+is the other string
+.\" ---------------------------------------------------------------------------
+.SS dlg_string_to_argv
+Convert a string to an argument vector
+returning an index (which must be freed by the caller).
+The string is modified:
+.bP
+Blanks between arguments are replaced by nulls.
+.bP
+Normally arguments are separated by blanks;
+however you can double-quote an argument to enclose blanks.
+The surrounding double-quotes are removed from the string.
+.bP
+A backslash preceding a double-quote within double-quotes is removed.
+.bP
+A backslash preceding a newline outside double-quotes is removed.
+.bP
+Except for special cases, backslashes are preserved in the strings,
+since other \fB\*l\fP functions interpret backslashes, e.g., for colors.
+.TP 5
+.B char *\fIblob
+is the string to convert.
+.\" ---------------------------------------------------------------------------
+.SS dlg_sub_window
+create a subwindow, e.g., for an input area of a widget
+.TP 5
+.B WINDOW * \fIwin
+is the parent window
+.TP 5
+.B int \fIheight
+is the subwindow's height
+.TP 5
+.B int \fIwidth
+is the subwindow's width
+.TP 5
+.B int \fIy
+is the subwindow's top-row
+.TP 5
+.B int \fIx
+is the subwindow's left-column
+.\" ---------------------------------------------------------------------------
+.SS dlg_tab_correct_str
+If the \fBdialog_vars.tab_correct\fP is true, convert tabs to single spaces.
+Return the converted result.
+The caller is responsible for freeing the string.
+.TP 5
+.B char * \fIprompt
+is the string to convert
+.\" ---------------------------------------------------------------------------
+.SS dlg_trace
+If the parameter is non-null, opens a trace file with that
+name and stores the file pointer in \fBdialog_state.trace\fP.
+.\" ---------------------------------------------------------------------------
+.SS dlg_trace_2n
+logs a numeric value as a comment.
+.TP 5
+.B char * \fIname
+is the name to log in the comment.
+.TP 5
+.B int \fIvalue
+is the value to log in the comment.
+.\" ---------------------------------------------------------------------------
+.SS dlg_trace_2n
+logs a string value as a comment.
+If the value contains embedded newlines,
+the comment is continued with \*(``#+\*('' markers.
+.TP 5
+.B char * \fIname
+is the name to log in the comment.
+.TP 5
+.B int \fIvalue
+is the value to log in the comment.
+.\" ---------------------------------------------------------------------------
+.SS dlg_trace_chr
+If \fBdialog_state.trace\fP is set,
+translate the parameters into a printable representation,
+log it on a \*(``chr\*('' line.
+.TP 5
+.B int \fIch
+is the nominal keycode value.
+.TP 5
+.B int \fIfkey
+is nonzero if the value is really a function key.
+Some of these may be values declared in the DLG_KEYS_ENUM.
+.\" ---------------------------------------------------------------------------
+.SS dlg_trace_msg
+Write a formatted message to the trace file.
+.TP 5
+.B const char * \fIfmt
+is the format of the \fBprintf\fP-like message to write.
+.TP 5
+.B ...
+.br
+are the variables to apply to the \fIfmt\fP format.
+.LP
+Use the DLG_TRACE macro for portability, in case the trace
+feature is not compiled into the library.
+It uses an extra level of parentheses to work with a variable number of
+parameters, e.g.,
+.Ex
+DLG_TRACE(("this is dialog version %s\en", dialog_version()));
+.Ee
+.\" ---------------------------------------------------------------------------
+.SS dlg_ttysize
+Returns the screensize without using curses.
+That allows the function to be used before initializing the screen.
+.\" ---------------------------------------------------------------------------
+.SS dlg_trace_win
+If \fBdialog_state.trace\fP is set,
+log a printable picture of the given window.
+.\" ---------------------------------------------------------------------------
+.SS dlg_treeview
+This is an alternate interface to 'treeview' which allows the application
+to read the list item states back directly without putting them in the
+output buffer.
+.TP 5
+.B const char * \fItitle
+is the title on the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is based on the screen size.
+.TP 5
+.B int \fIlist_height
+is the minimum height to reserve for displaying the list.
+If zero, it is computed based on the given \fIheight\fP and \fIwidth\fP.
+.TP 5
+.B int \fIitem_no
+is the number of rows in \fIitems\fP.
+.TP 5
+.B DIALOG_LISTITEM * \fIitems
+is the list of items, contain tag, name, and optionally help strings
+(if \fBdialog_vars.item_help\fP is set).
+The initial selection state for each item is also in this list.
+.TP 5
+.B const char * \fIstates
+This is a list of characters to display for the given states.
+Normally a buildlist provides true (1) and false (0) values,
+which the widget displays as "*" and space, respectively.
+An application may set this parameter to an arbitrary null-terminated string.
+The widget determines the number of states from the length of this string,
+and will cycle through the corresponding display characters as the user
+presses the space-bar.
+.TP 5
+.B int * \fIdepths
+This is a list of depths of each item in the tree.
+It is a separate parameter from \fIitems\fP to allow reuse of
+the existing functions.
+.TP 5
+.B int \fIflag
+is either \fIFLAG_CHECK\fP, for checklists (multiple selections),
+or \fIFLAG_RADIO\fP for radiolists (a single selection).
+.TP 5
+.B int * \fIcurrent_item
+The widget sets the referenced location to the index of the current display
+item (cursor) when it returns.
+.\" ---------------------------------------------------------------------------
+.SS dlg_trim_string
+The \fBdialog\fP program uses this in each widget to adjust the
+message string,
+which may contain the newline character (referred to as '\en')
+and/or the special substring "\en"
+(which can be translated into a newline character).
+.LP
+There are several optional features:
+.bP
+Unless \fBdialog_vars.nocollapse\fP is set,
+each tab is converted to a space before other processing.
+.bP
+If \fBdialog_vars.no_nl_expand\fP is not set,
+and the string has "\en" substrings:
+.RS
+.bP
+The function changes embedded "\en" substrings to '\en' characters.
+.IP
+The function preserves extra spaces after these substitutions.
+For instance, spaces following a newline (substring or character)
+are preserved to use as an indentation.
+.bP
+If \fBdialog_vars.cr_wrap\fP is set,
+the function preserves '\en' newline characters.
+Otherwise, each '\en' newline character is converted to a space.
+.RE
+.bP
+Otherwise, if \fBdialog_vars.trim_whitespace\fP is set:
+.RS
+.bP
+This function strips all extra spaces to simplify justification.
+.bP
+If \fBdialog_vars.cr_wrap\fP is set,
+the function preserves '\en' newline characters.
+Otherwise, each '\en' newline character is converted to a space.
+.RE
+.bP
+Finally
+(if \fBdialog_vars.no_nl_expand\fP is set,
+or the string does not contain "\en" substrings,
+and \fBdialog_vars.trim_whitespace\fP is not set):
+.RS
+.bP
+Unless \fBdialog_vars.nocollapse\fP is set,
+sequences of spaces are reduced to a single space.
+.RE
+.TP 5
+.B char * \fIsrc
+is the string to trim
+.\" ---------------------------------------------------------------------------
+.SS dlg_unregister_window
+Remove the bindings for a given window.
+.TP 5
+.B WINDOW * \fIwin
+is the window from which to remove bindings
+.\" ---------------------------------------------------------------------------
+.SS dlg_update_gauge
+Update a gauge widget to show a different percentage value.
+.TP 5
+.B void *\fIobjptr
+points to the gauge object to update.
+.TP 5
+.B int \fIpercent
+is the new percentage value to display.
+.\" ---------------------------------------------------------------------------
+.SS dlg_will_resize
+This filters out bursts of \fBKEY_RESIZE\fP values.
+Call this after \fBdlg_getc\fP returns \fBKEY_RESIZE\fP,
+to improve performance.
+.\" ---------------------------------------------------------------------------
+.SS dlg_yes_buttoncode
+Map the given button index for \fBdlg_yes_labels\fP into \fB\*p\fP's exit-code.
+.TP 5
+.B int \fIbutton
+is the button index
+.\" ---------------------------------------------------------------------------
+.SS dlg_yes_labels
+Return a list of buttons for Yes/No labels.
+.\" ---------------------------------------------------------------------------
+.SS end_dialog
+End use of \fB\*p\fP functions.
+.\" ---------------------------------------------------------------------------
+.SS init_dialog
+Do some initialization for \fB\*p\fP.
+.TP 5
+.B FILE *\fIinput
+is the real tty input of \fB\*p\fP.
+Usually it is the standard input, but if
+\fB--input-fd\fP option is used, it may be anything.
+.TP 5
+.B FILE *\fIoutput
+is where \fB\*p\fP will send its result.
+Usually it is the standard error, but
+if \fB--stdout\fP or \fB--output-fd\fP is used, it may be anything.
+.
+.\" ************************************************************************
+.SH SEE ALSO
+\fB\*p\fP (1).
+.
+.\" ************************************************************************
+.SH AUTHOR
+Thomas E.\& Dickey

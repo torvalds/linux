@@ -1,0 +1,23 @@
+# $FreeBSD$
+
+unset LC_ALL
+export LC_CTYPE=en_US.ISO8859-1
+
+e=
+for i in 0 1 2 3; do
+	for j in 0 1 2 3 4 5 6 7; do
+		for k in 0 1 2 3 4 5 6 7; do
+			case $i$j$k in
+			000) continue ;;
+			esac
+			e="$e\n\\$i$j$k"
+		done
+	done
+done
+e1=$(printf "$e")
+e2="$(printf "$e")"
+[ "${#e1}" = 510 ] || echo length bad
+[ "$e1" = "$e2" ] || echo e1 != e2
+[ "$e1" = "$(printf "$e")" ] || echo quoted bad
+IFS=
+[ "$e1" = $(printf "$e") ] || echo unquoted bad

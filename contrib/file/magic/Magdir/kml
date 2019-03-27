@@ -1,0 +1,34 @@
+
+#------------------------------------------------------------------------------
+# $File: kml,v 1.4 2017/03/17 21:35:28 christos Exp $
+# Type: Google KML, formerly Keyhole Markup Language
+# Future development of this format has been handed
+# over to the Open Geospatial Consortium.
+# http://www.opengeospatial.org/standards/kml/
+# From: Asbjoern Sloth Toennesen <asbjorn@lila.io>
+0 string/t    \<?xml
+>20  search/400 \ xmlns=
+>>&0 regex ['"]http://earth.google.com/kml Google KML document
+!:mime application/vnd.google-earth.kml+xml
+>>>&1 string 2.0' \b, version 2.0
+>>>&1 string 2.1' \b, version 2.1
+>>>&1 string 2.2' \b, version 2.2
+
+#------------------------------------------------------------------------------
+# Type: OpenGIS KML, formerly Keyhole Markup Language
+# This standard is maintained by the
+# Open Geospatial Consortium.
+# http://www.opengeospatial.org/standards/kml/
+# From: Asbjoern Sloth Toennesen <asbjorn@lila.io>
+>>&0 regex ['"]http://www.opengis.net/kml OpenGIS KML document
+!:mime application/vnd.google-earth.kml+xml
+>>>&1 string/t 2.2 \b, version 2.2
+
+#------------------------------------------------------------------------------
+# Type: Google KML Archive (ZIP based)
+# http://code.google.com/apis/kml/documentation/kml_tut.html
+# From: Asbjoern Sloth Toennesen <asbjorn@lila.io>
+0 string    PK\003\004
+>4  byte    0x14
+>>30  string doc.kml Compressed Google KML Document, including resources.
+!:mime application/vnd.google-earth.kmz

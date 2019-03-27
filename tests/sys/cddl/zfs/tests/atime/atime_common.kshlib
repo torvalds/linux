@@ -1,0 +1,72 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)atime_common.kshlib	1.3	07/03/14 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+#
+# Check if the access time for specified file is updated.
+#
+# $1 Given an absolute path to a file name
+#
+# Return value: 
+#	0 -> The access time is updated.
+#	1 -> The access time is not updated.
+#
+function check_atime_updated
+{
+	typeset filename=$1
+
+	typeset before=$($LS -luD "%Y-%m-%d %R.%s" $filename | $AWK '{print $7}')
+	sleep 2
+	log_must $CAT $filename
+	typeset after=$($LS -luD "%Y-%m-%d %R.%s" $filename | $AWK '{print $7}')
+
+	if [[ $before != $after ]]; then
+		return 0
+	else 
+		return 1
+	fi
+}
+
+function setup_snap_clone
+{
+	# Create two file to verify snapshot.
+	log_must $TOUCH $TESTDIR/$TESTFILE
+
+	create_snapshot $TESTPOOL/$TESTFS $TESTSNAP
+	create_clone $TESTPOOL/$TESTFS@$TESTSNAP $TESTPOOL/$TESTCLONE
+}
+
+function cleanup
+{
+	destroy_clone $TESTPOOL/$TESTCLONE
+	destroy_snapshot $TESTPOOL/$TESTFS@$TESTSNAP
+}

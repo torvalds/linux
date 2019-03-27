@@ -1,0 +1,169 @@
+
+#------------------------------------------------------------------------------
+# $File: cad,v 1.16 2018/05/07 23:26:31 christos Exp $
+# autocad:  file(1) magic for cad files
+#
+
+# Microstation DGN/CIT Files (www.bentley.com)
+# Last updated July 29, 2005 by Lester Hightower
+# DGN is the default file extension of Microstation/Intergraph CAD files.
+# CIT is the proprietary raster format (similar to TIFF) used to attach
+# raster underlays to Microstation DGN (vector) drawings.
+#
+# http://www.wotsit.org/search.asp
+# http://filext.com/detaillist.php?extdetail=DGN
+# http://filext.com/detaillist.php?extdetail=CIT
+#
+# http://www.bentley.com/products/default.cfm?objectid=97F351F5-9C35-4E5E-89C2
+# 3F86C928&method=display&p_objectid=97F351F5-9C35-4E5E-89C280A93F86C928
+# http://www.bentley.com/products/default.cfm?objectid=A5C2FD43-3AC9-4C71-B682
+# 721C479F&method=display&p_objectid=A5C2FD43-3AC9-4C71-B682C7BE721C479F
+0	string	\010\011\376			Microstation
+>3	string	\002
+>>30	string	\026\105			DGNFile
+>>30	string	\034\105			DGNFile
+>>30	string	\073\107			DGNFile
+>>30	string	\073\110			DGNFile
+>>30	string	\106\107			DGNFile
+>>30	string	\110\103			DGNFile
+>>30	string	\120\104			DGNFile
+>>30	string	\172\104			DGNFile
+>>30	string	\172\105			DGNFile
+>>30	string	\172\106			DGNFile
+>>30	string	\234\106			DGNFile
+>>30	string	\273\105			DGNFile
+>>30	string	\306\106			DGNFile
+>>30	string	\310\104			DGNFile
+>>30	string	\341\104			DGNFile
+>>30	string	\372\103			DGNFile
+>>30	string	\372\104			DGNFile
+>>30	string	\372\106			DGNFile
+>>30	string	\376\103			DGNFile
+>4	string	\030\000\000			CITFile
+>4	string	\030\000\003			CITFile
+
+# AutoCAD
+# Merge of the different contributions and updates from http://en.wikipedia.org/wiki/Dwg
+# and http://www.iana.org/assignments/media-types/image/vnd.dwg
+0	string	MC0.0	DWG AutoDesk AutoCAD Release 1.0
+!:mime image/vnd.dwg
+0	string	AC1.2	DWG AutoDesk AutoCAD Release 1.2
+!:mime image/vnd.dwg
+0	string	AC1.3	DWG AutoDesk AutoCAD Release 1.3
+!:mime image/vnd.dwg
+0	string	AC1.40	DWG AutoDesk AutoCAD Release 1.40
+!:mime image/vnd.dwg
+0	string	AC1.50	DWG AutoDesk AutoCAD Release 2.05
+!:mime image/vnd.dwg
+0	string	AC2.10	DWG AutoDesk AutoCAD Release 2.10
+!:mime image/vnd.dwg
+0	string	AC2.21	DWG AutoDesk AutoCAD Release 2.21
+!:mime image/vnd.dwg
+0	string	AC2.22	DWG AutoDesk AutoCAD Release 2.22
+!:mime image/vnd.dwg
+0	string	AC1001	DWG AutoDesk AutoCAD Release 2.22
+!:mime image/vnd.dwg
+0	string	AC1002	DWG AutoDesk AutoCAD Release 2.50
+!:mime image/vnd.dwg
+0	string	AC1003	DWG AutoDesk AutoCAD Release 2.60
+!:mime image/vnd.dwg
+0	string	AC1004	DWG AutoDesk AutoCAD Release 9
+!:mime image/vnd.dwg
+0	string	AC1006	DWG AutoDesk AutoCAD Release 10
+!:mime image/vnd.dwg
+0	string	AC1009	DWG AutoDesk AutoCAD Release 11/12
+!:mime image/vnd.dwg
+# AutoCAD DWG versions R13/R14 (www.autodesk.com)
+# Written December 01, 2003 by Lester Hightower
+# Based on the DWG File Format Specifications at http://www.opendwg.org/
+# AutoCad, from Nahuel Greco
+# AutoCAD DWG versions R12/R13/R14 (www.autodesk.com)
+0	string	AC1012	DWG AutoDesk AutoCAD Release 13
+!:mime image/vnd.dwg
+0	string	AC1014	DWG AutoDesk AutoCAD Release 14
+!:mime image/vnd.dwg
+0	string	AC1015	DWG AutoDesk AutoCAD 2000/2002
+!:mime image/vnd.dwg
+
+# A new version of AutoCAD DWG
+# Sergey Zaykov (mail_of_sergey@mail.ru, sergey_zaikov@rambler.ru,
+# ICQ 358572321)
+# From various sources like:
+# http://autodesk.blogs.com/between_the_lines/autocad-release-history.html
+0	string	AC1018	DWG AutoDesk AutoCAD 2004/2005/2006
+!:mime image/vnd.dwg
+0	string	AC1021	DWG AutoDesk AutoCAD 2007/2008/2009
+!:mime image/vnd.dwg
+0	string	AC1024	DWG AutoDesk AutoCAD 2010/2011/2012
+!:mime image/vnd.dwg
+0	string	AC1027	DWG AutoDesk AutoCAD 2013/2014
+!:mime image/vnd.dwg
+
+# KOMPAS 2D drawing from ASCON
+# This is KOMPAS 2D drawing or fragment of drawing but is not detailed nor
+# gathered nor specification
+# ASCON http://ascon.net/main/ in English,
+#	http://ascon.ru/ main site in Russian
+# Extension is CDW for drawing and FRW for fragment of drawing
+# Sergey Zaykov (mail_of_sergey@mail.ru, sergey_zaikov@rambler.ru,
+# ICQ 358572321, http://vkontakte.ru/id16076543)
+# From:
+# http://sd.ascon.ru/otrs/customer.pl?Action=CustomerFAQ&CategoryID=4&ItemID=292
+# (in russian) and my experiments
+0	string	KF
+>2	belong	0x4E00000C	Kompas drawing 12.0 SP1
+>2	belong	0x4D00000C	Kompas drawing 12.0
+>2	belong	0x3200000B	Kompas drawing 11.0 SP1
+>2	belong	0x3100000B	Kompas drawing 11.0
+>2	belong	0x2310000A	Kompas drawing 10.0 SP1
+>2	belong	0x2110000A	Kompas drawing 10.0
+>2	belong	0x08000009	Kompas drawing 9.0 SP1
+>2	belong	0x05000009	Kompas drawing 9.0
+>2	belong	0x33010008	Kompas drawing 8+
+>2	belong	0x1A000008	Kompas drawing 8.0
+>2	belong	0x2C010107	Kompas drawing 7+
+>2	belong	0x05000007	Kompas drawing 7.0
+>2	belong	0x32000006	Kompas drawing 6+
+>2	belong	0x09000006	Kompas drawing 6.0
+>2	belong	0x5C009005	Kompas drawing 5.11R03
+>2	belong	0x54009005	Kompas drawing 5.11R02
+>2	belong	0x51009005	Kompas drawing 5.11R01
+>2	belong	0x22009005	Kompas drawing 5.10R03
+>2	belong	0x22009005	Kompas drawing 5.10R02 mar
+>2	belong	0x21009005	Kompas drawing 5.10R02 febr
+>2	belong	0x19009005	Kompas drawing 5.10R01
+>2	belong	0xF4008005	Kompas drawing 5.9R01.003
+>2	belong	0x1C008005	Kompas drawing 5.9R01.002
+>2	belong	0x11008005	Kompas drawing 5.8R01.003
+
+# CAD: file(1) magic for computer aided design files
+# Phillip Griffith <phillip dot griffith at gmail dot com>
+# AutoCAD magic taken from the Open Design Alliance's OpenDWG specifications.
+#
+0	belong	0x08051700	Bentley/Intergraph MicroStation DGN cell library
+0	belong	0x0809fe02	Bentley/Intergraph MicroStation DGN vector CAD
+0	belong	0xc809fe02	Bentley/Intergraph MicroStation DGN vector CAD
+0	beshort	0x0809		Bentley/Intergraph MicroStation
+>0x02	byte	0xfe
+>>0x04	beshort	0x1800		CIT raster CAD
+
+# 3DS (3d Studio files)
+0	leshort		0x4d4d
+>6	leshort		0x2
+>>8	lelong		0xa
+>>>16	leshort		0x3d3d	3D Studio model
+!:mime	image/x-3ds
+!:ext 3ds
+
+# MegaCAD 2D/3D drawing (.prt)
+# http://megacad.de/
+# From: Markus Heidelberg <markus.heidelberg@web.de>
+0	string	MegaCad23\0	MegaCAD 2D/3D drawing
+
+# Hoops CAD files
+# https://docs.techsoft3d.com/visualize/3df/latest/build/general/hsf/\
+# HSF_architecture.html
+# Stephane Charette <stephane.charette@gmail.com>
+0	string	;;\020HSF\020V		OpenHSF (Hoops Stream Format)
+>7	regex/9 V[.0-9]{4,5}\020	%s
+!:ext hsf

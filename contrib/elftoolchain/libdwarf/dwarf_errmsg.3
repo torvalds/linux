@@ -1,0 +1,67 @@
+.\" Copyright (c) 2009 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: dwarf_errmsg.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd December 12, 2009
+.Dt DWARF_ERRMSG 3
+.Os
+.Sh NAME
+.Nm dwarf_errmsg
+.Nd retrieve a human-readable string corresponding to a
+.Vt Dwarf_Error
+instance
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft "const char *"
+.Fn dwarf_errmsg "Dwarf_Error err"
+.Sh DESCRIPTION
+Function
+.Fn dwarf_errmsg
+returns a
+.Dv NUL Ns - Ns
+terminated string for the error denoted by
+argument
+.Ar err .
+.Pp
+Argument
+.Ar err
+should be a valid handle to a
+.Vt Dwarf_Error
+instance.
+.Sh Memory Management
+The returned pointer should not be freed using
+.Xr free 3
+or
+.Xr dwarf_dealloc 3 .
+.Sh RETURN VALUES
+Function
+.Fn dwarf_errmsg
+returns a pointer to a
+.Dv NUL Ns - Ns
+terminated string.
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_errno 3

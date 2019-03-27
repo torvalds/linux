@@ -1,0 +1,37 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_has_client_custom_ext - check whether a handler exists for a particular
+client extension type
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_CTX_has_client_custom_ext(const SSL_CTX *ctx, unsigned int ext_type);
+
+=head1 DESCRIPTION
+
+SSL_CTX_has_client_custom_ext() checks whether a handler has been set for a
+client extension of type B<ext_type> using SSL_CTX_add_client_custom_ext().
+
+=head1 RETURN VALUES
+
+Returns 1 if a handler has been set, 0 otherwise.
+
+=head1 SEE ALSO
+
+L<ssl(7)>,
+L<SSL_CTX_add_client_custom_ext(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

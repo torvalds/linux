@@ -1,0 +1,3 @@
+YACC: e - line 8 of "./err_syntax17.y", unterminated action
+S: { error
+   ^

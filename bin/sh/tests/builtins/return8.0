@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+if [ "$1" = nested ]; then
+	return 17
+fi
+
+f() {
+	set -- nested
+	. "$0"
+	return $(($? ^ 1))
+}
+f
+exit $(($? ^ 16))

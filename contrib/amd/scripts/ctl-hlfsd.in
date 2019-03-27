@@ -1,0 +1,116 @@
+#!/bin/sh
+# control starting, stopping, or restarting hlfsd.
+# usage: ctl-hlfsd [start | stop | restart]
+#
+# Package:	am-utils-6.x
+# Author:	Erez Zadok <ezk@cs.columbia.edu>
+#
+# chkconfig: - 72 28
+# description: hlfsd is a daemon similar to amd, used to redirect user
+#              mail to home directory of the user
+# processname: hlfsd
+#
+
+# set path
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+PATH=@sbindir@:@bindir@:/usr/ucb:/usr/bin:/bin:${PATH}
+export PATH
+
+# kill the named process(es)
+killproc()
+{
+# try bsd style ps
+pscmd="ps axc"
+pid=`${pscmd} 2>/dev/null | grep "$1" | sed -e 's/^  *//' -e 's/ .*//'`
+if test "$pid" != ""
+then
+	kill $pid
+	return 0
+fi
+
+# try bsd44 style ps
+pscmd="ps -x"
+pid=`${pscmd} 2>/dev/null | grep "$1" | sed -e 's/^  *//' -e 's/ .*//'`
+if test "$pid" != ""
+then
+	kill $pid
+	return 0
+fi
+
+# try svr4 style ps
+pscmd="ps -e"
+pid=`${pscmd} 2>/dev/null | grep "$1" | sed -e 's/^  *//' -e 's/ .*//'`
+if test "$pid" != ""
+then
+	kill $pid
+	return 0
+fi
+
+# failed
+return 1
+}
+
+# before running any real programs, chdir to / to avoid possible hangs on (NFS)
+# mounts.
+cd /
+
+# locate logs directory
+if [ -d /var/log ]; then
+	logdir="/var/log"
+else
+	logdir="/tmp"
+fi
+
+# locate the mail spool directory
+if [ -d /var/mail/. ]; then
+	maildir="/var/mail"
+	altmaildir="/var/alt_mail"
+elif [ -d /var/spool/mail/. ]; then
+	maildir="/var/spool/mail"
+	altmaildir="/var/spool/alt_mail"
+else
+	maildir="/usr/spool/mail"
+	altmaildir="/usr/spool/alt_mail"
+fi
+
+# locate any optional password file
+if [ -f @sysconfdir@/passwd ]; then
+	PASSWD_FILE="-P @sysconfdir@/passwd"
+else
+	PASSWD_FILE=""
+fi
+
+case "$1" in
+'start')
+	#
+	# Start the hlfsd mail redirector service
+	#
+	if [ -x @sbindir@/hlfsd -a -h $maildir ]
+	then
+		echo @sbindir@/hlfsd ${PASSWD_FILE} -a $altmaildir -x all -l $logdir/hlfsd /mail/home .mailspool
+		@sbindir@/hlfsd ${PASSWD_FILE} -a $altmaildir -x all -l $logdir/hlfsd /mail/home .mailspool &
+		test -x /var/lock/subsys && touch /var/lock/subsys/hlfsd
+	fi
+	;;
+
+'stop')
+	# prepend space to program name to ensure only amd process dies
+	killproc " hlfsd"
+	test -f /var/lock/subsys/hlfsd && rm -f /var/lock/subsys/hlfsd
+	;;
+
+'restart')
+	# kill hlfsd, wait for it to die, then restart
+	echo "killing hlfsd..."
+	ctl-hlfsd stop
+	echo "Waiting for 10 seconds..."
+	sleep 10	# hope that would be enough
+	echo "Restarting hlfsd..."
+	ctl-hlfsd start
+	;;
+
+*)
+	echo "Usage: @sbindir@/ctl-hlfsd [ start | stop | restart ]"
+	;;
+esac

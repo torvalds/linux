@@ -1,0 +1,124 @@
+.\"-
+.\" Copyright (c) 2010 Nathan Whitehorn <nwhitehorn@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 22, 2010
+.Dt SMU 4
+.Os
+.Sh NAME
+.Nm smu
+.Nd Apple System Management Unit Driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device smu"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the System Management Unit (SMU) found in many
+Apple G5 systems.
+This includes most Power Macintosh G5 and all iMac G5 systems.
+.Pp
+The Apple SMU controller provides software power management and thermal
+control functionality, and is responsible for managing system cooling
+devices.
+.Sh HARDWARE
+Chips supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Apple System Management Unit
+.El
+.Sh THERMAL MANAGEMENT
+The
+.Nm
+driver provides basic automatic thermal management. Without a userspace
+daemon providing more advanced control, the driver will attempt to maintain
+system temperatures in a conservative range through coarse-grained control of
+system cooling devices (see below). Automatic kernel-level thermal control
+will take over if more than 3 seconds elapses between userspace cooling
+setting adjustments.
+.Sh SYSCTL VARIABLES
+The
+.Nm
+driver provides power management services and thermal readout through a
+sysctl interface.
+The following sysctls can be used to control the
+power management behavior and to examine current system power and
+thermal conditions.
+.Bl -tag -width indent
+.It Va dev.smu.%d.server_mode
+Restart after power failure behavior (1 causes system to reboot after power
+cut, 0 causes system to remain off).
+.It Va dev.smu.%d.target_temp
+Target system temperature, in degrees Celsius. The
+.Nm
+driver will attempt to adjust fans to maintain the temperature of the
+warmest component in the system at or below this level.
+.It Va dev.smu.%d.critical_temp
+System critical temperature, in degrees Celsius. If any component in
+the system exceeds this temperature, the machine will be shut down within
+500 ms.
+.It Va dev.smu.%d.fans.%s.minrpm
+Minimum allowed speed for this fan.
+.It Va dev.smu.%d.fans.%s.maxrpm
+Maximum allowed speed for this fan.
+.It Va dev.smu.%d.fans.%s.rpm
+Current speed for this fan. The fan speed can be adjusted by changing this
+sysctl. If more than 3 seconds elapses between fan speed adjustments, the
+kernel will resume automatic control of the fan.
+.It Va dev.smu.%d.sensors.%s
+Current reading from this sensor. Four sensor types are supported. Temperature
+sensors are in units of degrees Celsius, current sensors in milliamps, voltage
+sensors in millivolts, and power sensors in milliwatts.
+.El
+.Sh LED INTERFACE
+The
+.Nm
+driver provides an
+.Xr led 4
+annunciator interface at
+.Pa /dev/led/sleepled .
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr led 4 ,
+.Xr pmu 4
+.Sh HISTORY
+The
+.Nm
+device driver appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Nathan Whitehorn Aq Mt nwhitehorn@FreeBSD.org .

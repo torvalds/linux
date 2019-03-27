@@ -1,0 +1,136 @@
+.\" Copyright (c) 1998, 1999, Nicolas Souchu
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 5, 1998
+.Dt PPC 4
+.Os
+.Sh NAME
+.Nm ppc
+.Nd Parallel Port Chipset driver
+.Sh SYNOPSIS
+.Cd "device ppc"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.ppc.0.at="isa"
+.Cd hint.ppc.0.irq="7"
+.Pp
+For one or more PPBUS busses:
+.Cd "device ppbus"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides low level support to various parallel port chipsets for the
+.Xr ppbus 4
+system.
+.Pp
+During the probe phase,
+.Nm
+detects parallel port chipsets and initializes
+private data according to their operating mode: COMPATIBLE,
+NIBBLE, PS/2, EPP, ECP and other mixed modes.
+If a mode is provided at startup through the
+.Va flags
+variable of the boot
+interface, the operating mode of the chipset is forced according to
+.Va flags
+and the hardware supported modes.
+.Pp
+During the attach phase,
+.Nm
+allocates a ppbus structure, initializes it and calls the ppbus
+attach function.
+.Ss Supported flags
+.Bl -item -offset indent
+.It
+bits 0-3: chipset forced mode(s)
+.Bd -literal
+PPB_COMPATIBLE  0x0     /* Centronics compatible mode */
+PPB_NIBBLE      0x1     /* reverse 4 bit mode */
+PPB_PS2         0x2     /* PS/2 byte mode */
+PPB_EPP         0x4     /* EPP mode, 32 bit */
+PPB_ECP         0x8     /* ECP mode */
+.Ed
+.Pp
+And any mixed values.
+.It
+bit 4: EPP protocol (0 EPP 1.9, 1 EPP 1.7)
+.It
+bit 5: activate IRQ (1 IRQ disabled, 0 IRQ enabled)
+.It
+bit 6: disable chipset specific detection
+.It
+bit 7: disable FIFO detection
+.El
+.Ss Supported chipsets
+Some parallel port chipsets are explicitly supported:
+detection and initialisation code has been written according to
+their datasheets.
+.Bl -bullet -offset indent
+.It
+SMC FDC37C665GT and FDC37C666GT chipsets
+.It
+Natsemi PC873xx-family (PC87332 and PC87306)
+.It
+Winbond W83877xx-family (W83877F and W83877AF)
+.It
+SMC-like chipsets with mixed modes (see
+.Xr ppbus 4 )
+.El
+.Ss Adding support to a new chipset
+You may want to add support for the newest chipset your motherboard was
+sold with.
+For the ISA bus, just retrieve the specs of the chipset and write the
+corresponding
+.Fn ppc_mychipset_detect ""
+function.
+Then add an entry to the general purpose
+.Fn ppc_detect ""
+function.
+.Pp
+Your
+.Fn ppc_mychipset_detect ""
+function should ensure that if the mode field of the
+.Va flags
+boot variable is not null, then the operating
+mode is forced to the given mode and no other mode is available and
+ppb->ppb_avm field contains the available modes of the chipset.
+.Sh SEE ALSO
+.Xr ppbus 4 ,
+.Xr ppi 4 ,
+.Xr device.hints 5
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+This manual page was written by
+.An Nicolas Souchu .
+.Sh BUGS
+The chipset detection process may corrupt your chipset configuration.
+You may
+disable chipset specific detection by using the above flags.

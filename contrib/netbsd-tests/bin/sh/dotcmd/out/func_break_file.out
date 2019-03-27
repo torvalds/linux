@@ -1,0 +1,6 @@
+before function
+before dotcmd
+before break
+after break, return value: 0
+after dotcmd
+after function

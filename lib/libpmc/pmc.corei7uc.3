@@ -1,0 +1,880 @@
+.\" Copyright (c) 2010 Fabien Thomas.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 24, 2010
+.Dt PMC.COREI7UC 3
+.Os
+.Sh NAME
+.Nm pmc.corei7uc
+.Nd uncore measurement events for
+.Tn Intel
+.Tn Core i7 and Xeon 5500
+family CPUs
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+.Tn Intel
+.Tn "Core i7"
+CPUs contain PMCs conforming to version 2 of the
+.Tn Intel
+performance measurement architecture.
+These CPUs contain 2 classes of PMCs:
+.Bl -tag -width "Li PMC_CLASS_UCP"
+.It Li PMC_CLASS_UCF
+Fixed-function counters that count only one hardware event per counter.
+.It Li PMC_CLASS_UCP
+Programmable counters that may be configured to count one of a defined
+set of hardware events.
+.El
+.Pp
+The number of PMCs available in each class and their widths need to be
+determined at run time by calling
+.Xr pmc_cpuinfo 3 .
+.Pp
+Intel Core i7 and Xeon 5500 PMCs are documented in
+.Rs
+.%B "Intel(R) 64 and IA-32 Architectures Software Developes Manual"
+.%T "Volume 3B: System Programming Guide, Part 2"
+.%N "Order Number: 253669-033US"
+.%D December 2009
+.%Q "Intel Corporation"
+.Re
+.Ss COREI7 AND XEON 5500 UNCORE FIXED FUNCTION PMCS
+These PMCs and their supported events are documented in
+.Xr pmc.ucf 3 .
+.Ss COREI7 AND XEON 5500 UNCORE PROGRAMMABLE PMCS
+The programmable PMCs support the following capabilities:
+.Bl -column "PMC_CAP_INTERRUPT" "Support"
+.It Em Capability Ta Em Support
+.It PMC_CAP_CASCADE Ta \&No
+.It PMC_CAP_EDGE Ta Yes
+.It PMC_CAP_INTERRUPT Ta \&No
+.It PMC_CAP_INVERT Ta Yes
+.It PMC_CAP_READ Ta Yes
+.It PMC_CAP_PRECISE Ta \&No
+.It PMC_CAP_SYSTEM Ta \&No
+.It PMC_CAP_TAGGING Ta \&No
+.It PMC_CAP_THRESHOLD Ta Yes
+.It PMC_CAP_USER Ta \&No
+.It PMC_CAP_WRITE Ta Yes
+.El
+.Ss Event Qualifiers
+Event specifiers for these PMCs support the following common
+qualifiers:
+.Bl -tag -width indent
+.It Li cmask= Ns Ar value
+Configure the PMC to increment only if the number of configured
+events measured in a cycle is greater than or equal to
+.Ar value .
+.It Li edge
+Configure the PMC to count the number of de-asserted to asserted
+transitions of the conditions expressed by the other qualifiers.
+If specified, the counter will increment only once whenever a
+condition becomes true, irrespective of the number of clocks during
+which the condition remains true.
+.It Li inv
+Invert the sense of comparison when the
+.Dq Li cmask
+qualifier is present, making the counter increment when the number of
+events per cycle is less than the value specified by the
+.Dq Li cmask
+qualifier.
+.El
+.Ss Event Specifiers (Programmable PMCs)
+Core i7 and Xeon 5500 uncore programmable PMCs support the following events:
+.Bl -tag -width indent
+.It Li GQ_CYCLES_FULL.READ_TRACKER
+.Pq Event 00H , Umask 01H
+Uncore cycles Global Queue read tracker is full.
+.It Li GQ_CYCLES_FULL.WRITE_TRACKER
+.Pq Event 00H , Umask 02H
+Uncore cycles Global Queue write tracker is full.
+.It Li GQ_CYCLES_FULL.PEER_PROBE_TRACKER
+.Pq Event 00H , Umask 04H
+Uncore cycles Global Queue peer probe tracker is full. The peer probe
+tracker queue tracks snoops from the IOH and remote sockets.
+.It Li GQ_CYCLES_NOT_EMPTY.READ_TRACKER
+.Pq Event 01H , Umask 01H
+Uncore cycles were Global Queue read tracker has at least one valid entry.
+.It Li GQ_CYCLES_NOT_EMPTY.WRITE_TRACKER
+.Pq Event 01H , Umask 02H
+Uncore cycles were Global Queue write tracker has at least one valid entry.
+.It Li GQ_CYCLES_NOT_EMPTY.PEER_PROBE_TRACKER
+.Pq Event 01H , Umask 04H
+Uncore cycles were Global Queue peer probe tracker has at least one valid
+entry. The peer probe tracker queue tracks IOH and remote socket snoops.
+.It Li GQ_ALLOC.READ_TRACKER
+.Pq Event 03H , Umask 01H
+Counts the number of tread tracker allocate to deallocate entries. The GQ
+read tracker allocate to deallocate occupancy count is divided by the count
+to obtain the average read tracker latency.
+.It Li GQ_ALLOC.RT_L3_MISS
+.Pq Event 03H , Umask 02H
+Counts the number GQ read tracker entries for which a full cache line read
+has missed the L3. The GQ read tracker L3 miss to fill occupancy count is
+divided by this count to obtain the average cache line read L3 miss latency.
+The latency represents the time after which the L3 has determined that the
+cache line has missed. The time between a GQ read tracker allocation and the
+L3 determining that the cache line has missed is the average L3 hit latency.
+The total L3 cache line read miss latency is the hit latency + L3 miss
+latency.
+.It Li GQ_ALLOC.RT_TO_L3_RESP
+.Pq Event 03H , Umask 04H
+Counts the number of GQ read tracker entries that are allocated in the read
+tracker queue that hit or miss the L3. The GQ read tracker L3 hit occupancy
+count is divided by this count to obtain the average L3 hit latency.
+.It Li GQ_ALLOC.RT_TO_RTID_ACQUIRED
+.Pq Event 03H , Umask 08H
+Counts the number of GQ read tracker entries that are allocated in the read
+tracker, have missed in the L3 and have not acquired a Request Transaction
+ID. The GQ read tracker L3 miss to RTID acquired occupancy count is
+divided by this count to obtain the average latency for a read L3 miss to
+acquire an RTID.
+.It Li GQ_ALLOC.WT_TO_RTID_ACQUIRED
+.Pq Event 03H , Umask 10H
+Counts the number of GQ write tracker entries that are allocated in the
+write tracker, have missed in the L3 and have not acquired a Request
+Transaction ID. The GQ write tracker L3 miss to RTID occupancy count is
+divided by this count to obtain the average latency for a write L3 miss to
+acquire an RTID.
+.It Li GQ_ALLOC.WRITE_TRACKER
+.Pq Event 03H , Umask 20H
+Counts the number of GQ write tracker entries that are allocated in the
+write tracker queue that miss the L3. The GQ write tracker occupancy count
+is divided by the this count to obtain the average L3 write miss latency.
+.It Li GQ_ALLOC.PEER_PROBE_TRACKER
+.Pq Event 03H , Umask 40H
+Counts the number of GQ peer probe tracker (snoop) entries that are
+allocated in the peer probe tracker queue that miss the L3. The GQ peer
+probe occupancy count is divided by this count to obtain the average L3 peer
+probe miss latency.
+.It Li GQ_DATA.FROM_QPI
+.Pq Event 04H , Umask 01H
+Cycles Global Queue Quickpath Interface input data port is busy importing
+data from the Quickpath Interface. Each cycle the input port can transfer 8
+or 16 bytes of data.
+.It Li GQ_DATA.FROM_QMC
+.Pq Event 04H , Umask 02H
+Cycles Global Queue Quickpath Memory Interface input data port is busy
+importing data from the Quickpath Memory Interface. Each cycle the input
+port can transfer 8 or 16 bytes of data.
+.It Li GQ_DATA.FROM_L3
+.Pq Event 04H , Umask 04H
+Cycles GQ L3 input data port is busy importing data from the Last Level
+Cache. Each cycle the input port can transfer 32 bytes of data.
+.It Li GQ_DATA.FROM_CORES_02
+.Pq Event 04H , Umask 08H
+Cycles GQ Core 0 and 2 input data port is busy importing data from processor
+cores 0 and 2. Each cycle the input port can transfer 32 bytes of data.
+.It Li GQ_DATA.FROM_CORES_13
+.Pq Event 04H , Umask 10H
+Cycles GQ Core 1 and 3 input data port is busy importing data from processor
+cores 1 and 3. Each cycle the input port can transfer 32 bytes of data.
+.It Li GQ_DATA.TO_QPI_QMC
+.Pq Event 05H , Umask 01H
+Cycles GQ QPI and QMC output data port is busy sending data to the Quickpath
+Interface or Quickpath Memory Interface. Each cycle the output port can
+transfer 32 bytes of data.
+.It Li GQ_DATA.TO_L3
+.Pq Event 05H , Umask 02H
+Cycles GQ L3 output data port is busy sending data to the Last Level Cache.
+Each cycle the output port can transfer 32 bytes of data.
+.It Li GQ_DATA.TO_CORES
+.Pq Event 05H , Umask 04H
+Cycles GQ Core output data port is busy sending data to the Cores. Each
+cycle the output port can transfer 32 bytes of data.
+.It Li SNP_RESP_TO_LOCAL_HOME.I_STATE
+.Pq Event 06H , Umask 01H
+Number of snoop responses to the local home that L3 does not have the
+referenced cache line.
+.It Li SNP_RESP_TO_LOCAL_HOME.S_STATE
+.Pq Event 06H , Umask 02H
+Number of snoop responses to the local home that L3 has the referenced line
+cached in the S state.
+.It Li SNP_RESP_TO_LOCAL_HOME.FWD_S_STATE
+.Pq Event 06H , Umask 04H
+Number of responses to code or data read snoops to the local home that the
+L3 has the referenced cache line in the E state. The L3 cache line state is
+changed to the S state and the line is forwarded to the local home in the S
+state.
+.It Li SNP_RESP_TO_LOCAL_HOME.FWD_I_STATE
+.Pq Event 06H , Umask 08H
+Number of responses to read invalidate snoops to the local home that the L3
+has the referenced cache line in the M state. The L3 cache line state is
+invalidated and the line is forwarded to the local home in the M state.
+.It Li SNP_RESP_TO_LOCAL_HOME.CONFLICT
+.Pq Event 06H , Umask 10H
+Number of conflict snoop responses sent to the local home.
+.It Li SNP_RESP_TO_LOCAL_HOME.WB
+.Pq Event 06H , Umask 20H
+Number of responses to code or data read snoops to the local home that the
+L3 has the referenced line cached in the M state.
+.It Li SNP_RESP_TO_REMOTE_HOME.I_STATE
+.Pq Event 07H , Umask 01H
+Number of snoop responses to a remote home that L3 does not have the
+referenced cache line.
+.It Li SNP_RESP_TO_REMOTE_HOME.S_STATE
+.Pq Event 07H , Umask 02H
+Number of snoop responses to a remote home that L3 has the referenced line
+cached in the S state.
+.It Li SNP_RESP_TO_REMOTE_HOME.FWD_S_STATE
+.Pq Event 07H , Umask 04H
+Number of responses to code or data read snoops to a remote home that the L3
+has the referenced cache line in the E state. The L3 cache line state is
+changed to the S state and the line is forwarded to the remote home in the S
+state.
+.It Li SNP_RESP_TO_REMOTE_HOME.FWD_I_STATE
+.Pq Event 07H , Umask 08H
+Number of responses to read invalidate snoops to a remote home that the L3
+has the referenced cache line in the M state. The L3 cache line state is
+invalidated and the line is forwarded to the remote home in the M state.
+.It Li SNP_RESP_TO_REMOTE_HOME.CONFLICT
+.Pq Event 07H , Umask 10H
+Number of conflict snoop responses sent to the local home.
+.It Li SNP_RESP_TO_REMOTE_HOME.WB
+.Pq Event 07H , Umask 20H
+Number of responses to code or data read snoops to a remote home that the L3
+has the referenced line cached in the M state.
+.It Li SNP_RESP_TO_REMOTE_HOME.HITM
+.Pq Event 07H , Umask 24H
+Number of HITM snoop responses to a remote home
+.It Li L3_HITS.READ
+.Pq Event 08H , Umask 01H
+Number of code read, data read and RFO requests that hit in the L3
+.It Li L3_HITS.WRITE
+.Pq Event 08H , Umask 02H
+Number of writeback requests that hit in the L3. Writebacks from the cores
+will always result in L3 hits due to the inclusive property of the L3.
+.It Li L3_HITS.PROBE
+.Pq Event 08H , Umask 04H
+Number of snoops from IOH or remote sockets that hit in the L3.
+.It Li L3_HITS.ANY
+.Pq Event 08H , Umask 03H
+Number of reads and writes that hit the L3.
+.It Li L3_MISS.READ
+.Pq Event 09H , Umask 01H
+Number of code read, data read and RFO requests that miss the L3.
+.It Li L3_MISS.WRITE
+.Pq Event 09H , Umask 02H
+Number of writeback requests that miss the L3. Should always be zero as
+writebacks from the cores will always result in L3 hits due to the inclusive
+property of the L3.
+.It Li L3_MISS.PROBE
+.Pq Event 09H , Umask 04H
+Number of snoops from IOH or remote sockets that miss the L3.
+.It Li L3_MISS.ANY
+.Pq Event 09H , Umask 03H
+Number of reads and writes that miss the L3.
+.It Li L3_LINES_IN.M_STATE
+.Pq Event 0AH , Umask 01H
+Counts the number of L3 lines allocated in M state. The only time a cache
+line is allocated in the M state is when the line was forwarded in M state
+is forwarded due to a Snoop Read Invalidate Own request.
+.It Li L3_LINES_IN.E_STATE
+.Pq Event 0AH , Umask 02H
+Counts the number of L3 lines allocated in E state.
+.It Li L3_LINES_IN.S_STATE
+.Pq Event 0AH , Umask 04H
+Counts the number of L3 lines allocated in S state.
+.It Li L3_LINES_IN.F_STATE
+.Pq Event 0AH , Umask 08H
+Counts the number of L3 lines allocated in F state.
+.It Li L3_LINES_IN.ANY
+.Pq Event 0AH , Umask 0FH
+Counts the number of L3 lines allocated in any state.
+.It Li L3_LINES_OUT.M_STATE
+.Pq Event 0BH , Umask 01H
+Counts the number of L3 lines victimized that were in the M state. When the
+victim cache line is in M state, the line is written to its home cache agent
+which can be either local or remote.
+.It Li L3_LINES_OUT.E_STATE
+.Pq Event 0BH , Umask 02H
+Counts the number of L3 lines victimized that were in the E state.
+.It Li L3_LINES_OUT.S_STATE
+.Pq Event 0BH , Umask 04H
+Counts the number of L3 lines victimized that were in the S state.
+.It Li L3_LINES_OUT.I_STATE
+.Pq Event 0BH , Umask 08H
+Counts the number of L3 lines victimized that were in the I state.
+.It Li L3_LINES_OUT.F_STATE
+.Pq Event 0BH , Umask 10H
+Counts the number of L3 lines victimized that were in the F state.
+.It Li L3_LINES_OUT.ANY
+.Pq Event 0BH , Umask 1FH
+Counts the number of L3 lines victimized in any state.
+.It Li QHL_REQUESTS.IOH_READS
+.Pq Event 20H , Umask 01H
+Counts number of Quickpath Home Logic read requests from the IOH.
+.It Li QHL_REQUESTS.IOH_WRITES
+.Pq Event 20H , Umask 02H
+Counts number of Quickpath Home Logic write requests from the IOH.
+.It Li QHL_REQUESTS.REMOTE_READS
+.Pq Event 20H , Umask 04H
+Counts number of Quickpath Home Logic read requests from a remote socket.
+.It Li QHL_REQUESTS.REMOTE_WRITES
+.Pq Event 20H , Umask 08H
+Counts number of Quickpath Home Logic write requests from a remote socket.
+.It Li QHL_REQUESTS.LOCAL_READS
+.Pq Event 20H , Umask 10H
+Counts number of Quickpath Home Logic read requests from the local socket.
+.It Li QHL_REQUESTS.LOCAL_WRITES
+.Pq Event 20H , Umask 20H
+Counts number of Quickpath Home Logic write requests from the local socket.
+.It Li QHL_CYCLES_FULL.IOH
+.Pq Event 21H , Umask 01H
+Counts uclk cycles all entries in the Quickpath Home Logic IOH are full.
+.It Li QHL_CYCLES_FULL.REMOTE
+.Pq Event 21H , Umask 02H
+Counts uclk cycles all entries in the Quickpath Home Logic remote tracker
+are full.
+.It Li QHL_CYCLES_FULL.LOCAL
+.Pq Event 21H , Umask 04H
+Counts uclk cycles all entries in the Quickpath Home Logic local tracker are
+full.
+.It Li QHL_CYCLES_NOT_EMPTY.IOH
+.Pq Event 22H , Umask 01H
+Counts uclk cycles all entries in the Quickpath Home Logic IOH is busy.
+.It Li QHL_CYCLES_NOT_EMPTY.REMOTE
+.Pq Event 22H , Umask 02H
+Counts uclk cycles all entries in the Quickpath Home Logic remote tracker is
+busy.
+.It Li QHL_CYCLES_NOT_EMPTY.LOCAL
+.Pq Event 22H , Umask 04H
+Counts uclk cycles all entries in the Quickpath Home Logic local tracker is
+busy.
+.It Li QHL_OCCUPANCY.IOH
+.Pq Event 23H , Umask 01H
+QHL IOH tracker allocate to deallocate read occupancy.
+.It Li QHL_OCCUPANCY.REMOTE
+.Pq Event 23H , Umask 02H
+QHL remote tracker allocate to deallocate read occupancy.
+.It Li QHL_OCCUPANCY.LOCAL
+.Pq Event 23H , Umask 04H
+QHL local tracker allocate to deallocate read occupancy.
+.It Li QHL_ADDRESS_CONFLICTS.2WAY
+.Pq Event 24H , Umask 02H
+Counts number of QHL Active Address Table (AAT) entries that saw a max of 2
+conflicts. The AAT is a structure that tracks requests that are in conflict.
+The requests themselves are in the home tracker entries. The count is
+reported when an AAT entry deallocates.
+.It Li QHL_ADDRESS_CONFLICTS.3WAY
+.Pq Event 24H , Umask 04H
+Counts number of QHL Active Address Table (AAT) entries that saw a max of 3
+conflicts. The AAT is a structure that tracks requests that are in conflict.
+The requests themselves are in the home tracker entries. The count is
+reported when an AAT entry deallocates.
+.It Li QHL_CONFLICT_CYCLES.IOH
+.Pq Event 25H , Umask 01H
+Counts cycles the Quickpath Home Logic IOH Tracker contains two or more
+requests with an address conflict. A max of 3 requests can be in conflict.
+.It Li QHL_CONFLICT_CYCLES.REMOTE
+.Pq Event 25H , Umask 02H
+Counts cycles the Quickpath Home Logic Remote Tracker contains two or more
+requests with an address conflict. A max of 3 requests can be in conflict.
+.It Li QHL_CONFLICT_CYCLES.LOCAL
+.Pq Event 25H , Umask 04H
+Counts cycles the Quickpath Home Logic Local Tracker contains two or more
+requests with an address conflict. A max of 3 requests can be in conflict.
+.It Li QHL_TO_QMC_BYPASS
+.Pq Event 26H , Umask 01H
+Counts number or requests to the Quickpath Memory Controller that bypass the
+Quickpath Home Logic. All local accesses can be bypassed. For remote
+requests, only read requests can be bypassed.
+.It Li QMC_NORMAL_FULL.READ.CH0
+.Pq Event 27H , Umask 01H
+Uncore cycles all the entries in the DRAM channel 0 medium or low priority
+queue are occupied with read requests.
+.It Li QMC_NORMAL_FULL.READ.CH1
+.Pq Event 27H , Umask 02H
+Uncore cycles all the entries in the DRAM channel 1 medium or low priority
+queue are occupied with read requests.
+.It Li QMC_NORMAL_FULL.READ.CH2
+.Pq Event 27H , Umask 04H
+Uncore cycles all the entries in the DRAM channel 2 medium or low priority
+queue are occupied with read requests.
+.It Li QMC_NORMAL_FULL.WRITE.CH0
+.Pq Event 27H , Umask 08H
+Uncore cycles all the entries in the DRAM channel 0 medium or low priority
+queue are occupied with write requests.
+.It Li QMC_NORMAL_FULL.WRITE.CH1
+.Pq Event 27H , Umask 10H
+Counts cycles all the entries in the DRAM channel 1 medium or low priority
+queue are occupied with write requests.
+.It Li QMC_NORMAL_FULL.WRITE.CH2
+.Pq Event 27H , Umask 20H
+Uncore cycles all the entries in the DRAM channel 2 medium or low priority
+queue are occupied with write requests.
+.It Li QMC_ISOC_FULL.READ.CH0
+.Pq Event 28H , Umask 01H
+Counts cycles all the entries in the DRAM channel 0 high priority queue are
+occupied with isochronous read requests.
+.It Li QMC_ISOC_FULL.READ.CH1
+.Pq Event 28H , Umask 02H
+Counts cycles all the entries in the DRAM channel 1 high priority queue are
+occupied with isochronous read requests.
+.It Li QMC_ISOC_FULL.READ.CH2
+.Pq Event 28H , Umask 04H
+Counts cycles all the entries in the DRAM channel 2 high priority queue are
+occupied with isochronous read requests.
+.It Li QMC_ISOC_FULL.WRITE.CH0
+.Pq Event 28H , Umask 08H
+Counts cycles all the entries in the DRAM channel 0 high priority queue are
+occupied with isochronous write requests.
+.It Li QMC_ISOC_FULL.WRITE.CH1
+.Pq Event 28H , Umask 10H
+Counts cycles all the entries in the DRAM channel 1 high priority queue are
+occupied with isochronous write requests.
+.It Li QMC_ISOC_FULL.WRITE.CH2
+.Pq Event 28H , Umask 20H
+Counts cycles all the entries in the DRAM channel 2 high priority queue are
+occupied with isochronous write requests.
+.It Li QMC_BUSY.READ.CH0
+.Pq Event 29H , Umask 01H
+Counts cycles where Quickpath Memory Controller has at least 1 outstanding
+read request to DRAM channel 0.
+.It Li QMC_BUSY.READ.CH1
+.Pq Event 29H , Umask 02H
+Counts cycles where Quickpath Memory Controller has at least 1 outstanding
+read request to DRAM channel 1.
+.It Li QMC_BUSY.READ.CH2
+.Pq Event 29H , Umask 04H
+Counts cycles where Quickpath Memory Controller has at least 1 outstanding
+read request to DRAM channel 2.
+.It Li QMC_BUSY.WRITE.CH0
+.Pq Event 29H , Umask 08H
+Counts cycles where Quickpath Memory Controller has at least 1 outstanding
+write request to DRAM channel 0.
+.It Li QMC_BUSY.WRITE.CH1
+.Pq Event 29H , Umask 10H
+Counts cycles where Quickpath Memory Controller has at least 1 outstanding
+write request to DRAM channel 1.
+.It Li QMC_BUSY.WRITE.CH2
+.Pq Event 29H , Umask 20H
+Counts cycles where Quickpath Memory Controller has at least 1 outstanding
+write request to DRAM channel 2.
+.It Li QMC_OCCUPANCY.CH0
+.Pq Event 2AH , Umask 01H
+IMC channel 0 normal read request occupancy.
+.It Li QMC_OCCUPANCY.CH1
+.Pq Event 2AH , Umask 02H
+IMC channel 1 normal read request occupancy.
+.It Li QMC_OCCUPANCY.CH2
+.Pq Event 2AH , Umask 04H
+IMC channel 2 normal read request occupancy.
+.It Li QMC_ISSOC_OCCUPANCY.CH0
+.Pq Event 2BH , Umask 01H
+IMC channel 0 issoc read request occupancy.
+.It Li QMC_ISSOC_OCCUPANCY.CH1
+.Pq Event 2BH , Umask 02H
+IMC channel 1 issoc read request occupancy.
+.It Li QMC_ISSOC_OCCUPANCY.CH2
+.Pq Event 2BH , Umask 04H
+IMC channel 2 issoc read request occupancy.
+.It Li QMC_ISSOC_READS.ANY
+.Pq Event 2BH , Umask 07H
+IMC issoc read request occupancy.
+.It Li QMC_NORMAL_READS.CH0
+.Pq Event 2CH , Umask 01H
+Counts the number of Quickpath Memory Controller channel 0 medium and low
+priority read requests. The QMC channel 0 normal read occupancy divided by
+this count provides the average QMC channel 0 read latency.
+.It Li QMC_NORMAL_READS.CH1
+.Pq Event 2CH , Umask 02H
+Counts the number of Quickpath Memory Controller channel 1 medium and low
+priority read requests. The QMC channel 1 normal read occupancy divided by
+this count provides the average QMC channel 1 read latency.
+.It Li QMC_NORMAL_READS.CH2
+.Pq Event 2CH , Umask 04H
+Counts the number of Quickpath Memory Controller channel 2 medium and low
+priority read requests. The QMC channel 2 normal read occupancy divided by
+this count provides the average QMC channel 2 read latency.
+.It Li QMC_NORMAL_READS.ANY
+.Pq Event 2CH , Umask 07H
+Counts the number of Quickpath Memory Controller medium and low priority
+read requests. The QMC normal read occupancy divided by this count provides
+the average QMC read latency.
+.It Li QMC_HIGH_PRIORITY_READS.CH0
+.Pq Event 2DH , Umask 01H
+Counts the number of Quickpath Memory Controller channel 0 high priority
+isochronous read requests.
+.It Li QMC_HIGH_PRIORITY_READS.CH1
+.Pq Event 2DH , Umask 02H
+Counts the number of Quickpath Memory Controller channel 1 high priority
+isochronous read requests.
+.It Li QMC_HIGH_PRIORITY_READS.CH2
+.Pq Event 2DH , Umask 04H
+Counts the number of Quickpath Memory Controller channel 2 high priority
+isochronous read requests.
+.It Li QMC_HIGH_PRIORITY_READS.ANY
+.Pq Event 2DH , Umask 07H
+Counts the number of Quickpath Memory Controller high priority isochronous
+read requests.
+.It Li QMC_CRITICAL_PRIORITY_READS.CH0
+.Pq Event 2EH , Umask 01H
+Counts the number of Quickpath Memory Controller channel 0 critical priority
+isochronous read requests.
+.It Li QMC_CRITICAL_PRIORITY_READS.CH1
+.Pq Event 2EH , Umask 02H
+Counts the number of Quickpath Memory Controller channel 1 critical priority
+isochronous read requests.
+.It Li QMC_CRITICAL_PRIORITY_READS.CH2
+.Pq Event 2EH , Umask 04H
+Counts the number of Quickpath Memory Controller channel 2 critical priority
+isochronous read requests.
+.It Li QMC_CRITICAL_PRIORITY_READS.ANY
+.Pq Event 2EH , Umask 07H
+Counts the number of Quickpath Memory Controller critical priority
+isochronous read requests.
+.It Li QMC_WRITES.FULL.CH0
+.Pq Event 2FH , Umask 01H
+Counts number of full cache line writes to DRAM channel 0.
+.It Li QMC_WRITES.FULL.CH1
+.Pq Event 2FH , Umask 02H
+Counts number of full cache line writes to DRAM channel 1.
+.It Li QMC_WRITES.FULL.CH2
+.Pq Event 2FH , Umask 04H
+Counts number of full cache line writes to DRAM channel 2.
+.It Li QMC_WRITES.FULL.ANY
+.Pq Event 2FH , Umask 07H
+Counts number of full cache line writes to DRAM.
+.It Li QMC_WRITES.PARTIAL.CH0
+.Pq Event 2FH , Umask 08H
+Counts number of partial cache line writes to DRAM channel 0.
+.It Li QMC_WRITES.PARTIAL.CH1
+.Pq Event 2FH , Umask 10H
+Counts number of partial cache line writes to DRAM channel 1.
+.It Li QMC_WRITES.PARTIAL.CH2
+.Pq Event 2FH , Umask 20H
+Counts number of partial cache line writes to DRAM channel 2.
+.It Li QMC_WRITES.PARTIAL.ANY
+.Pq Event 2FH , Umask 38H
+Counts number of partial cache line writes to DRAM.
+.It Li QMC_CANCEL.CH0
+.Pq Event 30H , Umask 01H
+Counts number of DRAM channel 0 cancel requests.
+.It Li QMC_CANCEL.CH1
+.Pq Event 30H , Umask 02H
+Counts number of DRAM channel 1 cancel requests.
+.It Li QMC_CANCEL.CH2
+.Pq Event 30H , Umask 04H
+Counts number of DRAM channel 2 cancel requests.
+.It Li QMC_CANCEL.ANY
+.Pq Event 30H , Umask 07H
+Counts number of DRAM cancel requests.
+.It Li QMC_PRIORITY_UPDATES.CH0
+.Pq Event 31H , Umask 01H
+Counts number of DRAM channel 0 priority updates. A priority update occurs
+when an ISOC high or critical request is received by the QHL and there is a
+matching request with normal priority that has already been issued to the
+QMC. In this instance, the QHL will send a priority update to QMC to
+expedite the request.
+.It Li QMC_PRIORITY_UPDATES.CH1
+.Pq Event 31H , Umask 02H
+Counts number of DRAM channel 1 priority updates. A priority update occurs
+when an ISOC high or critical request is received by the QHL and there is a
+matching request with normal priority that has already been issued to the
+QMC. In this instance, the QHL will send a priority update to QMC to
+expedite the request.
+.It Li QMC_PRIORITY_UPDATES.CH2
+.Pq Event 31H , Umask 04H
+Counts number of DRAM channel 2 priority updates. A priority update occurs
+when an ISOC high or critical request is received by the QHL and there is a
+matching request with normal priority that has already been issued to the
+QMC. In this instance, the QHL will send a priority update to QMC to
+expedite the request.
+.It Li QMC_PRIORITY_UPDATES.ANY
+.Pq Event 31H , Umask 07H
+Counts number of DRAM priority updates. A priority update occurs when an
+ISOC high or critical request is received by the QHL and there is a matching
+request with normal priority that has already been issued to the QMC. In
+this instance, the QHL will send a priority update to QMC to expedite the
+request.
+.It Li QHL_FRC_ACK_CNFLTS.LOCAL
+.Pq Event 33H , Umask 04H
+Counts number of Force Acknowledge Conflict messages sent by the Quickpath
+Home Logic to the local home.
+.It Li QPI_TX_STALLED_SINGLE_FLIT.HOME.LINK_0
+.Pq Event 40H , Umask 01H
+Counts cycles the Quickpath outbound link 0 HOME virtual channel is stalled
+due to lack of a VNA and VN0 credit. Note that this event does not filter
+out when a flit would not have been selected for arbitration because another
+virtual channel is getting arbitrated.
+.It Li QPI_TX_STALLED_SINGLE_FLIT.SNOOP.LINK_0
+.Pq Event 40H , Umask 02H
+Counts cycles the Quickpath outbound link 0 SNOOP virtual channel is stalled
+due to lack of a VNA and VN0 credit. Note that this event does not filter
+out when a flit would not have been selected for arbitration because another
+virtual channel is getting arbitrated.
+.It Li QPI_TX_STALLED_SINGLE_FLIT.NDR.LINK_0
+.Pq Event 40H , Umask 04H
+Counts cycles the Quickpath outbound link 0 non-data response virtual
+channel is stalled due to lack of a VNA and VN0 credit. Note that this event
+does not filter out when a flit would not have been selected for arbitration
+because another virtual channel is getting arbitrated.
+.It Li QPI_TX_STALLED_SINGLE_FLIT.HOME.LINK_1
+.Pq Event 40H , Umask 08H
+Counts cycles the Quickpath outbound link 1 HOME virtual channel is stalled
+due to lack of a VNA and VN0 credit. Note that this event does not filter
+out when a flit would not have been selected for arbitration because another
+virtual channel is getting arbitrated.
+.It Li QPI_TX_STALLED_SINGLE_FLIT.SNOOP.LINK_1
+.Pq Event 40H , Umask 10H
+Counts cycles the Quickpath outbound link 1 SNOOP virtual channel is stalled
+due to lack of a VNA and VN0 credit. Note that this event does not filter
+out when a flit would not have been selected for arbitration because another
+virtual channel is getting arbitrated.
+.It Li QPI_TX_STALLED_SINGLE_FLIT.NDR.LINK_1
+.Pq Event 40H , Umask 20H
+Counts cycles the Quickpath outbound link 1 non-data response virtual
+channel is stalled due to lack of a VNA and VN0 credit. Note that this event
+does not filter out when a flit would not have been selected for arbitration
+because another virtual channel is getting arbitrated.
+.It Li QPI_TX_STALLED_SINGLE_FLIT.LINK_0
+.Pq Event 40H , Umask 07H
+Counts cycles the Quickpath outbound link 0 virtual channels are stalled due
+to lack of a VNA and VN0 credit. Note that this event does not filter out
+when a flit would not have been selected for arbitration because another
+virtual channel is getting arbitrated.
+.It Li QPI_TX_STALLED_SINGLE_FLIT.LINK_1
+.Pq Event 40H , Umask 38H
+Counts cycles the Quickpath outbound link 1 virtual channels are stalled due
+to lack of a VNA and VN0 credit. Note that this event does not filter out
+when a flit would not have been selected for arbitration because another
+virtual channel is getting arbitrated.
+.It Li QPI_TX_STALLED_MULTI_FLIT.DRS.LINK_0
+.Pq Event 41H , Umask 01H
+Counts cycles the Quickpath outbound link 0 Data ResponSe virtual channel is
+stalled due to lack of VNA and VN0 credits. Note that this event does not
+filter out when a flit would not have been selected for arbitration because
+another virtual channel is getting arbitrated.
+.It Li QPI_TX_STALLED_MULTI_FLIT.NCB.LINK_0
+.Pq Event 41H , Umask 02H
+Counts cycles the Quickpath outbound link 0 Non-Coherent Bypass virtual
+channel is stalled due to lack of VNA and VN0 credits. Note that this event
+does not filter out when a flit would not have been selected for arbitration
+because another virtual channel is getting arbitrated.
+.It Li QPI_TX_STALLED_MULTI_FLIT.NCS.LINK_0
+.Pq Event 41H , Umask 04H
+Counts cycles the Quickpath outbound link 0 Non-Coherent Standard virtual
+channel is stalled due to lack of VNA and VN0 credits. Note that this event
+does not filter out when a flit would not have been selected for arbitration
+because another virtual channel is getting arbitrated.
+.It Li QPI_TX_STALLED_MULTI_FLIT.DRS.LINK_1
+.Pq Event 41H , Umask 08H
+Counts cycles the Quickpath outbound link 1 Data ResponSe virtual channel is
+stalled due to lack of VNA and VN0 credits. Note that this event does not
+filter out when a flit would not have been selected for arbitration because
+another virtual channel is getting arbitrated.
+.It Li QPI_TX_STALLED_MULTI_FLIT.NCB.LINK_1
+.Pq Event 41H , Umask 10H
+Counts cycles the Quickpath outbound link 1 Non-Coherent Bypass virtual
+channel is stalled due to lack of VNA and VN0 credits. Note that this event
+does not filter out when a flit would not have been selected for arbitration
+because another virtual channel is getting arbitrated.
+.It Li QPI_TX_STALLED_MULTI_FLIT.NCS.LINK_1
+.Pq Event 41H , Umask 20H
+Counts cycles the Quickpath outbound link 1 Non-Coherent Standard virtual
+channel is stalled due to lack of VNA and VN0 credits. Note that this event
+does not filter out when a flit would not have been selected for arbitration
+because another virtual channel is getting arbitrated.
+.It Li QPI_TX_STALLED_MULTI_FLIT.LINK_0
+.Pq Event 41H , Umask 07H
+Counts cycles the Quickpath outbound link 0 virtual channels are stalled due
+to lack of VNA and VN0 credits. Note that this event does not filter out
+when a flit would not have been selected for arbitration because another
+virtual channel is getting arbitrated.
+.It Li QPI_TX_STALLED_MULTI_FLIT.LINK_1
+.Pq Event 41H , Umask 38H
+Counts cycles the Quickpath outbound link 1 virtual channels are stalled due
+to lack of VNA and VN0 credits. Note that this event does not filter out
+when a flit would not have been selected for arbitration because another
+virtual channel is getting arbitrated.
+.It Li QPI_TX_HEADER.BUSY.LINK_0
+.Pq Event 42H , Umask 02H
+Number of cycles that the header buffer in the Quickpath Interface outbound
+link 0 is busy.
+.It Li QPI_TX_HEADER.BUSY.LINK_1
+.Pq Event 42H , Umask 08H
+Number of cycles that the header buffer in the Quickpath Interface outbound
+link 1 is busy.
+.It Li QPI_RX_NO_PPT_CREDIT.STALLS.LINK_0
+.Pq Event 43H , Umask 01H
+Number of cycles that snoop packets incoming to the Quickpath Interface link
+0 are stalled and not sent to the GQ because the GQ Peer Probe Tracker (PPT)
+does not have any available entries.
+.It Li QPI_RX_NO_PPT_CREDIT.STALLS.LINK_1
+.Pq Event 43H , Umask 02H
+Number of cycles that snoop packets incoming to the Quickpath Interface link
+1 are stalled and not sent to the GQ because the GQ Peer Probe Tracker (PPT)
+does not have any available entries.
+.It Li DRAM_OPEN.CH0
+.Pq Event 60H , Umask 01H
+Counts number of DRAM Channel 0 open commands issued either for read or
+write. To read or write data, the referenced DRAM page must first be opened.
+.It Li DRAM_OPEN.CH1
+.Pq Event 60H , Umask 02H
+Counts number of DRAM Channel 1 open commands issued either for read or
+write. To read or write data, the referenced DRAM page must first be opened.
+.It Li DRAM_OPEN.CH2
+.Pq Event 60H , Umask 04H
+Counts number of DRAM Channel 2 open commands issued either for read or
+write. To read or write data, the referenced DRAM page must first be opened.
+.It Li DRAM_PAGE_CLOSE.CH0
+.Pq Event 61H , Umask 01H
+DRAM channel 0 command issued to CLOSE a page due to page idle timer
+expiration. Closing a page is done by issuing a precharge.
+.It Li DRAM_PAGE_CLOSE.CH1
+.Pq Event 61H , Umask 02H
+DRAM channel 1 command issued to CLOSE a page due to page idle timer
+expiration. Closing a page is done by issuing a precharge.
+.It Li DRAM_PAGE_CLOSE.CH2
+.Pq Event 61H , Umask 04H
+DRAM channel 2 command issued to CLOSE a page due to page idle timer
+expiration. Closing a page is done by issuing a precharge.
+.It Li DRAM_PAGE_MISS.CH0
+.Pq Event 62H , Umask 01H
+Counts the number of precharges (PRE) that were issued to DRAM channel 0
+because there was a page miss. A page miss refers to a situation in which a
+page is currently open and another page from the same bank needs to be
+opened. The new page experiences a page miss. Closing of the old page is
+done by issuing a precharge.
+.It Li DRAM_PAGE_MISS.CH1
+.Pq Event 62H , Umask 02H
+Counts the number of precharges (PRE) that were issued to DRAM channel 1
+because there was a page miss. A page miss refers to a situation in which a
+page is currently open and another page from the same bank needs to be
+opened. The new page experiences a page miss. Closing of the old page is
+done by issuing a precharge.
+.It Li DRAM_PAGE_MISS.CH2
+.Pq Event 62H , Umask 04H
+Counts the number of precharges (PRE) that were issued to DRAM channel 2
+because there was a page miss. A page miss refers to a situation in which a
+page is currently open and another page from the same bank needs to be
+opened. The new page experiences a page miss. Closing of the old page is
+done by issuing a precharge.
+.It Li DRAM_READ_CAS.CH0
+.Pq Event 63H , Umask 01H
+Counts the number of times a read CAS command was issued on DRAM channel 0.
+.It Li DRAM_READ_CAS.AUTOPRE_CH0
+.Pq Event 63H , Umask 02H
+Counts the number of times a read CAS command was issued on DRAM channel 0
+where the command issued used the auto-precharge (auto page close) mode.
+.It Li DRAM_READ_CAS.CH1
+.Pq Event 63H , Umask 04H
+Counts the number of times a read CAS command was issued on DRAM channel 1.
+.It Li DRAM_READ_CAS.AUTOPRE_CH1
+.Pq Event 63H , Umask 08H
+Counts the number of times a read CAS command was issued on DRAM channel 1
+where the command issued used the auto-precharge (auto page close) mode.
+.It Li DRAM_READ_CAS.CH2
+.Pq Event 63H , Umask 10H
+Counts the number of times a read CAS command was issued on DRAM channel 2.
+.It Li DRAM_READ_CAS.AUTOPRE_CH2
+.Pq Event 63H , Umask 20H
+Counts the number of times a read CAS command was issued on DRAM channel 2
+where the command issued used the auto-precharge (auto page close) mode.
+.It Li DRAM_WRITE_CAS.CH0
+.Pq Event 64H , Umask 01H
+Counts the number of times a write CAS command was issued on DRAM channel 0.
+.It Li DRAM_WRITE_CAS.AUTOPRE_CH0
+.Pq Event 64H , Umask 02H
+Counts the number of times a write CAS command was issued on DRAM channel 0
+where the command issued used the auto-precharge (auto page close) mode.
+.It Li DRAM_WRITE_CAS.CH1
+.Pq Event 64H , Umask 04H
+Counts the number of times a write CAS command was issued on DRAM channel 1.
+.It Li DRAM_WRITE_CAS.AUTOPRE_CH1
+.Pq Event 64H , Umask 08H
+Counts the number of times a write CAS command was issued on DRAM channel 1
+where the command issued used the auto-precharge (auto page close) mode.
+.It Li DRAM_WRITE_CAS.CH2
+.Pq Event 64H , Umask 10H
+Counts the number of times a write CAS command was issued on DRAM channel 2.
+.It Li DRAM_WRITE_CAS.AUTOPRE_CH2
+.Pq Event 64H , Umask 20H
+Counts the number of times a write CAS command was issued on DRAM channel 2
+where the command issued used the auto-precharge (auto page close) mode.
+.It Li DRAM_REFRESH.CH0
+.Pq Event 65H , Umask 01H
+Counts number of DRAM channel 0 refresh commands. DRAM loses data content
+over time. In order to keep correct data content, the data values have to be
+refreshed periodically.
+.It Li DRAM_REFRESH.CH1
+.Pq Event 65H , Umask 02H
+Counts number of DRAM channel 1 refresh commands. DRAM loses data content
+over time. In order to keep correct data content, the data values have to be
+refreshed periodically.
+.It Li DRAM_REFRESH.CH2
+.Pq Event 65H , Umask 04H
+Counts number of DRAM channel 2 refresh commands. DRAM loses data content
+over time. In order to keep correct data content, the data values have to be
+refreshed periodically.
+.It Li DRAM_PRE_ALL.CH0
+.Pq Event 66H , Umask 01H
+Counts number of DRAM Channel 0 precharge-all (PREALL) commands that close
+all open pages in a rank. PREALL is issued when the DRAM needs to be
+refreshed or needs to go into a power down mode.
+.It Li DRAM_PRE_ALL.CH1
+.Pq Event 66H , Umask 02H
+Counts number of DRAM Channel 1 precharge-all (PREALL) commands that close
+all open pages in a rank. PREALL is issued when the DRAM needs to be
+refreshed or needs to go into a power down mode.
+.It Li DRAM_PRE_ALL.CH2
+.Pq Event 66H , Umask 04H
+Counts number of DRAM Channel 2 precharge-all (PREALL) commands that close
+all open pages in a rank. PREALL is issued when the DRAM needs to be
+refreshed or needs to go into a power down mode.
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.atom 3 ,
+.Xr pmc.core 3 ,
+.Xr pmc.corei7 3 ,
+.Xr pmc.iaf 3 ,
+.Xr pmc.k7 3 ,
+.Xr pmc.k8 3 ,
+.Xr pmc.p4 3 ,
+.Xr pmc.p5 3 ,
+.Xr pmc.p6 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmc.ucf 3 ,
+.Xr pmc.westmere 3 ,
+.Xr pmc.westmereuc 3 ,
+.Xr pmc_cpuinfo 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4
+.Sh HISTORY
+The
+.Nm pmc
+library first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+The
+.Lb libpmc
+library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .

@@ -1,0 +1,229 @@
+cdialog (20180621) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 15 Feb 2018 05:02:43 -0500
+
+cdialog (20171209) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 09 Dec 2017 10:52:09 -0500
+
+cdialog (20170509) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Tue, 09 May 2017 19:08:48 -0400
+
+cdialog (20170131) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 23 Jan 2017 17:41:21 -0500
+
+cdialog (20161120) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 20 Nov 2016 06:47:59 -0500
+
+cdialog (20160828) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 26 Aug 2016 17:41:17 -0400
+
+cdialog (20160424) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Tue, 19 Apr 2016 06:33:50 -0400
+
+cdialog (20160209) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 01 Feb 2016 05:18:04 -0500
+
+cdialog (20160126) unstable; urgency=low
+
+  * maintenance updates, add --week-start option
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 25 Jan 2016 13:13:51 -0500
+
+cdialog (20150920) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 20 Sep 2015 18:08:36 -0400
+
+cdialog (20150528) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 28 May 2015 19:42:32 -0400
+
+cdialog (20150513) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 13 May 2015 10:46:07 -0400
+
+cdialog (20150512) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 10 May 2015 19:31:46 -0400
+
+cdialog (20150225) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 25 Feb 2015 05:10:57 -0500
+
+cdialog (20150224) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Tue, 24 Feb 2015 07:10:45 -0500
+
+cdialog (20150125) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 25 Jan 2015 16:30:54 -0500
+
+cdialog (20140911) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 11 Sep 2014 03:56:17 -0400
+
+cdialog (20140910) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 10 Sep 2014 04:23:13 -0400
+
+cdialog (20140908) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 08 Sep 2014 05:10:11 -0400
+
+cdialog (20140901) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 01 Sep 2014 12:15:40 -0400
+
+cdialog (20140219) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 19 Feb 2014 04:13:36 -0500
+
+cdialog (20140112) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 12 Jan 2014 13:22:17 -0500
+
+cdialog (20130928) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 28 Sep 2013 21:27:37 -0400
+
+cdialog (20130923) unstable; urgency=low
+
+  * improved memory-caching for gauge widget
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 21 Sep 2013 09:18:26 -0400
+
+cdialog (20130902) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 01 Sep 2013 19:08:31 -0400
+
+cdialog (20130523) unstable; urgency=low
+
+  * minor fixes
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 23 May 2013 19:25:01 -0400
+
+cdialog (20130315) unstable; urgency=low
+
+  * minor fixes
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 15 Mar 2013 04:41:20 -0400
+
+cdialog (20121230) unstable; urgency=low
+
+  * new widgets
+  * coverity fixes
+  * configure-script updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 06 Oct 2012 09:19:29 -0400
+
+cdialog (20120706) unstable; urgency=high
+
+  * fix regression in msgbox (ArchLinux #30574)
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 06 Jul 2012 12:52:46 -0400
+
+cdialog (20120703) unstable; urgency=low
+
+  * minor fixes
+  * add --default-button
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 30 Jun 2012 10:41:05 -0400
+
+cdialog (20120215) unstable; urgency=low
+
+  * minor fixes
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 15 Feb 2012 19:40:32 -0500
+
+cdialog (20111020) unstable; urgency=high
+
+  * fix regression in menubox.c logic for inputmenu vs menu.
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 19 Oct 2011 19:17:40 -0400
+
+cdialog (20111018) unstable; urgency=high
+
+  * improve color configurability
+  * misc bug-fixes.
+  * various improvements to tracing.
+  * remove an incorrect free() call in dlg_free_gauge()
+  * fix missing trailing null from dlg_align_columns
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 07 Sep 2011 20:04:04 -0400
+
+cdialog (20110707) unstable; urgency=high
+
+  * fix a regression in dlg_getc() from 20110630 changes.
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 07 Jul 2011 18:10:47 -0400
+
+cdialog (20110630) unstable; urgency=high
+
+  * various bug-fixes reported in FreeBSD.
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 13 Jun 2011 05:44:17 -0400
+
+cdialog (20110302) unstable; urgency=high
+
+  * Add --prgbox and --progressbox
+  * Bug-fix for --timeout.
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 28 Feb 2011 18:42:17 -0500
+
+cdialog (20110118) unstable; urgency=high
+
+  * Initial package release
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 30 Dec 2010 09:23:24 -0500

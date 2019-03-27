@@ -1,0 +1,121 @@
+.\"
+.\" Copyright (c) 2016 John Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 24, 2017
+.Dt sysdecode_fcntl_arg 3
+.Os
+.Sh NAME
+.Nm sysdecode_fcntl_arg ,
+.Nm sysdecode_fcntl_arg_p
+.Nd output description of fcntl argument
+.Sh LIBRARY
+.Lb libsysdecode
+.Sh SYNOPSIS
+.In sys/types.h
+.In stdbool.h
+.In stdio.h
+.In sysdecode.h
+.Ft void
+.Fn sysdecode_fcntl_arg "FILE *fp" "int cmd" "uintptr_t arg" "int base"
+.Ft bool
+.Fn sysdecode_fcntl_arg_p "int cmd"
+.Sh DESCRIPTION
+The
+.Fn sysdecode_fcntl_arg
+function outputs a text description of the optional
+.Fa arg
+argument to
+.Xr fcntl 2
+to the stream
+.Fa fp .
+The type and format of
+.Fa arg
+are determined by
+.Fa cmd :
+.Bl -column ".Dv F_SETLKW" "Vt struct flock *"
+.It Sy Command Ta Fa arg Sy Type Ta Sy Output Format
+.It
+.It Dv F_SETFD Ta Vt int Ta
+.Dq FD_CLOEXEC
+or the value of
+.Fa arg
+in the indicated
+.Fa base
+.Pq one of 8, 10, or 16 .
+.It
+.It Dv F_SETFL Ta Vt int Ta
+File flags as output by
+.Xr sysdecode_fcntl_fileflags 3
+with any unknown or remaining bits output in hexadecimal.
+.It
+.It Dv F_GETLK Ta Vt struct flock * Ta
+.It Dv F_SETLK Ta Vt struct flock * Ta
+.It Dv F_SETLKW Ta Vt struct flock * Ta
+The value of
+.Fa arg
+using the
+.Dq %p
+conversion specification.
+.It
+.It Others Ta Vt int Ta
+The value of
+.Fa arg
+in the indicated
+.Fa base
+.Pq one of 8, 10, or 16 .
+.El
+.Pp
+The
+.Fn sysdecode_fcntl_arg_p
+function can be used to determine if a
+.Xr fcntl 2
+command uses the optional third argument to
+.Xr fcntl 2 .
+The function returns
+.Dv true
+if
+.Fa cmd
+accepts a third argument to
+.Xr fcntl 2
+and
+.Dv false
+if it does not.
+.Sh RETURN VALUES
+The
+.Nm sysdecode_fcntl_arg_p
+function returns
+.Dv true
+if
+.Fa cmd
+accepts a third argument to
+.Xr fcntl 2
+and
+.Dv false
+if it does not.
+.Sh SEE ALSO
+.Xr sysdecode 3 ,
+.Xr sysdecode_fcntl_cmd 3 ,
+.Xr sysdecode_fcntl_fileflags 3

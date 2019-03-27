@@ -1,0 +1,8 @@
+# $FreeBSD$
+# Sometimes the "Killed" message is not flushed soon enough and it
+# is redirected along with the output of a builtin.
+# Do not change the semicolon to a newline as it would hide the bug.
+
+exec 3>&1
+exec >/dev/null 2>&1
+${SH} -c 'kill -9 $$'; : >&3 2>&3

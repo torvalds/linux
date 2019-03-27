@@ -1,0 +1,273 @@
+.\"	$OpenBSD: ohash_init.3,v 1.2 2014/05/13 14:01:41 jmc Exp $
+.\" Copyright (c) 1999 Marc Espie <espie@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 12, 2014
+.Dt OHASH_INIT 3
+.Os
+.Sh NAME
+.Nm ohash_init ,
+.Nm ohash_delete ,
+.Nm ohash_lookup_interval ,
+.Nm ohash_lookup_memory ,
+.Nm ohash_find ,
+.Nm ohash_remove ,
+.Nm ohash_insert ,
+.Nm ohash_first ,
+.Nm ohash_next ,
+.Nm ohash_entries
+.Nd light-weight open hashing
+.Sh SYNOPSIS
+.In stdint.h
+.In stddef.h
+.In ohash.h
+.Ft void
+.Fn ohash_init "struct ohash *h" "unsigned int size" "struct ohash_info *info"
+.Ft void
+.Fn ohash_delete "struct ohash *h"
+.Ft "unsigned int"
+.Fn ohash_lookup_interval "struct ohash *h" "const char *start" "const char *end" "uint32_t hv"
+.Ft "unsigned int"
+.Fn ohash_lookup_memory "struct ohash *h" "const char *k" "size_t s" "uint32_t hv"
+.Ft void *
+.Fn ohash_find "struct ohash *h" "unsigned int i"
+.Ft void *
+.Fn ohash_remove "struct ohash *h" "unsigned int i"
+.Ft void *
+.Fn ohash_insert "struct ohash *h" "unsigned int i" "void *p"
+.Ft void *
+.Fn ohash_first "struct ohash *h" "unsigned int *i"
+.Ft void *
+.Fn ohash_next "struct ohash *h" "unsigned int *i"
+.Ft "unsigned int"
+.Fn ohash_entries "struct ohash *h"
+.Sh DESCRIPTION
+These functions have been designed as a fast, extensible alternative to
+the usual hash table functions.
+They provide storage and retrieval of records indexed by keys,
+where a key is a contiguous sequence of bytes at a fixed position in
+each record.
+Keys can either be NUL-terminated strings or fixed-size memory areas.
+All functions take a pointer to an ohash structure as the
+.Fa h
+function argument.
+Storage for this structure should be provided by user code.
+.Pp
+.Fn ohash_init
+initializes the table to store roughly 2 to the power
+.Fa size
+elements.
+.Fa info
+is a pointer to a
+.Fa struct ohash_info .
+.Bd -literal -offset indent
+struct ohash_info {
+	ptrdiff_t key_offset;
+	void *data;	/* user data */
+	void *(*calloc)(size_t, size_t, void *);
+	void (*free)(void *, void *);
+	void *(*alloc)(size_t, void *);
+};
+.Ed
+.Pp
+The
+.Va offset
+field holds the position of the key in each record;
+the
+.Va calloc
+and
+.Va free
+fields are pointers to
+.Xr calloc 3
+and
+.Xr free 3 Ns -like
+functions, used for managing the table internal storage;
+the
+.Va alloc
+field is only used by the utility function
+.Xr ohash_create_entry 3 .
+.Pp
+Each of these functions are called similarly to their standard counterpart,
+but with an extra
+.Ft void *
+parameter corresponding to the content of the field
+.Fa data ,
+which can be used to communicate specific information to the functions.
+.Pp
+.Fn ohash_init
+stores a copy of those fields internally, so
+.Fa info
+can be reclaimed after initialization.
+.Pp
+.Fn ohash_delete
+frees storage internal to
+.Fa h .
+Elements themselves should be freed by the user first, using for instance
+.Fn ohash_first
+and
+.Fn ohash_next .
+.Pp
+.Fn ohash_lookup_interval
+and
+.Fn ohash_lookup_memory
+are the basic look-up element functions.
+The hashing function result is provided by the user as
+.Fa hv .
+These return a
+.Qq slot
+in the ohash table
+.Fa h ,
+to be used with
+.Fn ohash_find ,
+.Fn ohash_insert ,
+or
+.Fn ohash_remove .
+This slot is only valid up to the next call to
+.Fn ohash_insert
+or
+.Fn ohash_remove .
+.Pp
+.Fn ohash_lookup_interval
+handles string-like keys.
+.Fn ohash_lookup_interval
+assumes the key is the interval between
+.Fa start
+and
+.Fa end ,
+exclusive,
+though the actual elements stored in the table should only contain
+NUL-terminated keys.
+.Pp
+.Fn ohash_lookup_memory
+assumes the key is the memory area starting at
+.Fa k
+of size
+.Fa s .
+All bytes are significant in key comparison.
+.Pp
+.Fn ohash_find
+retrieves an element from a slot
+.Fa i
+returned by the
+.Fn ohash_lookup*
+functions.
+It returns
+.Dv NULL
+if the slot is empty.
+.Pp
+.Fn ohash_insert
+inserts a new element
+.Fa p
+at slot
+.Fa i .
+Slot
+.Fa i
+must be empty and element
+.Fa p
+must have a key corresponding to the
+.Fn ohash_lookup*
+call.
+.Pp
+.Fn ohash_remove
+removes the element at slot
+.Fa i .
+It returns the removed element, for user code to dispose of, or
+.Dv NULL
+if the slot was empty.
+.Pp
+.Fn ohash_first
+and
+.Fn ohash_next
+can be used to access all elements in an ohash table, like this:
+.Bd -literal -offset indent
+for (n = ohash_first(h, &i); n != NULL; n = ohash_next(h, &i))
+	do_something_with(n);
+.Ed
+.Pp
+.Fa i
+points to an auxiliary unsigned integer used to record the current position
+in the ohash table.
+Those functions are safe to use even while entries are added to/removed
+from the table, but in such a case they don't guarantee that new entries
+will be returned.
+As a special case, they can safely be used to free elements in the table.
+.Pp
+.Fn ohash_entries
+returns the number of elements in the hash table.
+.Sh STORAGE HANDLING
+Only
+.Fn ohash_init ,
+.Fn ohash_insert ,
+.Fn ohash_remove
+and
+.Fn ohash_delete
+may call the user-supplied memory functions:
+.Bd -literal -offset indent
+p = (*info->calloc)(n, sizeof_record, info->data);
+/* copy data from old to p */
+(*info->free)(old, info->data);
+.Ed
+.Pp
+It is the responsibility of the user memory allocation code to verify
+that those calls did not fail.
+.Pp
+If memory allocation fails,
+.Fn ohash_init
+returns a useless hash table.
+.Fn ohash_insert
+and
+.Fn ohash_remove
+still perform the requested operation, but the returned table should be
+considered read-only.
+It can still be accessed by
+.Fn ohash_lookup* ,
+.Fn ohash_find ,
+.Fn ohash_first
+and
+.Fn ohash_next
+to dump relevant information to disk before aborting.
+.Sh THREAD SAFETY
+The open hashing functions are not thread-safe by design.
+In particular, in a threaded environment, there is no guarantee that a
+.Qq slot
+will not move between a
+.Fn ohash_lookup*
+and a
+.Fn ohash_find ,
+.Fn ohash_insert
+or
+.Fn ohash_remove
+call.
+.Pp
+Multi-threaded applications should explicitly protect ohash table access.
+.Sh SEE ALSO
+.Xr hcreate 3 ,
+.Xr ohash_interval 3
+.Rs
+.%A Donald E. Knuth
+.%B The Art of Computer Programming
+.%V Vol. 3
+.%P pp 506-550
+.%D 1973
+.Re
+.Sh STANDARDS
+Those functions are completely non-standard and should be avoided in
+portable programs.
+.Sh HISTORY
+Those functions were designed and written for
+.Ox
+.Xr make 1
+by Marc Espie in 1999.

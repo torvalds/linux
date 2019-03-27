@@ -1,0 +1,21 @@
+// -*- C++ -*-
+//===---------------------------- chrono ----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+#ifndef _LIBCPP_EXPERIMENTAL_CHRONO
+#define _LIBCPP_EXPERIMENTAL_CHRONO
+
+#include <__config>
+
+#ifdef _LIBCPP_WARNING
+_LIBCPP_WARNING("<experimental/chrono> has been removed. Use <chrono> instead.")
+#else
+# warning "<experimental/chrono> has been removed. Use <chrono> instead."
+#endif
+
+#endif // _LIBCPP_EXPERIMENTAL_CHRONO

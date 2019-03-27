@@ -1,0 +1,92 @@
+.\"
+.\" Copyright (c) 2015 John Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 26, 2018
+.Dt SYSDECODE 3
+.Os
+.Sh NAME
+.Nm sysdecode
+.Nd system argument decoding library
+.Sh LIBRARY
+.Lb libsysdecode
+.Sh SYNOPSIS
+.In sys/types.h
+.In stdbool.h
+.In sysdecode.h
+.Sh DESCRIPTION
+The
+.Nm
+library includes several functions that provide descriptive names of
+values associated with system calls.
+.Ss Supported ABIs
+Some functions in this library provide ABI-specific descriptions.
+The supported ABIs are named by the
+.Vt enum sysdecode_abi
+enumeration.
+.Pp
+.Bl -tag -width "Li SYSDECODE_ABI_CLOUDABI64" -compact
+.It Li SYSDECODE_ABI_FREEBSD
+Native FreeBSD binaries.
+Supported on all platforms.
+.It Li SYSDECODE_ABI_FREEBSD32
+32-bit FreeBSD binaries.
+Supported on amd64 and powerpc64.
+.It Li SYSDECODE_ABI_LINUX
+Linux binaries of the same platform.
+Supported on amd64, i386, and arm64.
+.It Li SYSDECODE_ABI_LINUX32
+32-bit Linux binaries.
+Supported on amd64.
+.It Li SYSDECODE_ABI_CLOUDABI32
+32-bit CloudABI binaries.
+Supported on all platforms.
+.It Li SYSDECODE_ABI_CLOUDABI64
+64-bit CloudABI binaries.
+Supported on all platforms.
+.It Li SYSDECODE_ABI_UNKNOWN
+A placeholder for use when the ABI is not known.
+.El
+.Sh SEE ALSO
+.Xr sysdecode_abi_to_freebsd_errno 3 ,
+.Xr sysdecode_cap_rights 3 ,
+.Xr sysdecode_cmsg_type 3 ,
+.Xr sysdecode_enum 3 ,
+.Xr sysdecode_fcntl_arg 3 ,
+.Xr sysdecode_ioctlname 3 ,
+.Xr sysdecode_kevent 3 ,
+.Xr sysdecode_mask 3 ,
+.Xr sysdecode_quotactl_cmd 3 ,
+.Xr sysdecode_sctp_sinfo_flags 3 ,
+.Xr sysdecode_sigcode 3 ,
+.Xr sysdecode_socket_protocol 3 ,
+.Xr sysdecode_sockopt_name 3 ,
+.Xr sysdecode_syscallnames 3 ,
+.Xr sysdecode_utrace 3
+.Sh HISTORY
+The
+.Nm
+library first appeared in
+.Fx 11.0 .

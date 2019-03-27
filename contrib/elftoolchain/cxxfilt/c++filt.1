@@ -1,0 +1,109 @@
+.\" Copyright (c) 2009-2011 Joseph Koshy <jkoshy@users.sourceforge.net>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer
+.\"    in this position and unchanged.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $Id: c++filt.1 3642 2018-10-14 14:24:28Z jkoshy $
+.\"
+.Dd August 24, 2011
+.Dt C++FILT 1
+.Os
+.Sh NAME
+.Nm c++filt
+.Nd decode C++ symbols
+.Sh SYNOPSIS
+.Nm
+.Op Fl -help
+.Op Fl _ | Fl -strip-underscores
+.Op Fl n | Fl -no-strip-underscores
+.Op Fl p | Fl -no-params
+.Op Fl s Ar scheme | Fl -format Ns = Ns Ar scheme
+.Op Fl V | Fl -version
+.Op Ar encoded-names ...
+.Sh DESCRIPTION
+The
+.Nm
+utility translates encoded C++ symbol names to human-readable form.
+.Pp
+The
+.Nm
+utility has two operating modes.
+.Bl -bullet
+.It
+If arguments
+.Ar encoded-names
+are not specified, then
+.Nm
+will act as a filter, reading from standard input
+and writing to standard output.
+.It
+If arguments
+.Ar encoded-names
+are specified, then
+.Nm
+will decode each such argument in turn, writing its decoded form
+to standard output.
+.El
+.Pp
+The
+.Nm
+utility recognizes the following options:
+.Bl -tag -width indent
+.It Fl -help
+Print a help message and exit.
+.It Fl _ | Fl -strip-underscores
+Remove a leading underscore from symbol names prior to decoding them.
+.It Fl n | Fl -no-strip-underscores
+Do not remove leading underscores from names.
+.It Fl p | Fl -no-params
+This option is recognized but ignored.
+.It Fl s Ar scheme | Fl -format Ns = Ns Ar scheme
+Select the encoding scheme to use.
+Argument
+.Ar scheme
+can be one of the following:
+.Bl -tag -width "gnu-v5"
+.It Ar arm
+Use the encoding scheme specified by the C++ Annotated Reference Manual.
+.It Ar auto
+Guess the encoding scheme from the input.
+.It Ar gnu
+Use the encoding scheme used by the GNU C++ compiler.
+.It Ar gnu-v3
+Use the encoding scheme used by the GNU C++ compiler, version 3.
+.El
+.It Fl V | Fl -version
+Print a version identifier for
+.Nm
+and exit.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr nm 1 ,
+.Xr strip 1 ,
+.Xr elftc_demangle 3
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Kai Wang Aq Mt kaiwang27@users.sourceforge.net .

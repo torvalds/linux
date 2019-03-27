@@ -1,0 +1,184 @@
+.\"
+.\" Copyright (c) 2007-2009 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 6, 2017
+.Dt STACK 9
+.Os
+.Sh NAME
+.Nm stack
+.Nd kernel thread stack tracing routines
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/stack.h
+.Pp
+In the kernel configuration file:
+.Cd "options DDB"
+.Cd "options STACK"
+.Pp
+.Ft struct stack *
+.Fn stack_create "int flags"
+.Ft void
+.Fn stack_destroy "struct stack *st"
+.Ft int
+.Fn stack_put "struct stack *st" "vm_offset_t pc"
+.Ft void
+.Fn stack_copy "const struct stack *src" "struct stack dst"
+.Ft void
+.Fn stack_zero "struct stack *st"
+.Ft void
+.Fn stack_print "const struct stack *st"
+.Ft void
+.Fn stack_print_ddb "const struct stack *st"
+.Ft void
+.Fn stack_print_short "const struct stack *st"
+.Ft void
+.Fn stack_print_short_ddb "const struct stack *st"
+.Ft void
+.Fn stack_sbuf_print "struct sbuf sb*" "const struct stack *st"
+.Ft void
+.Fn stack_sbuf_print_ddb "struct sbuf sb*" "const struct stack *st"
+.Ft void
+.Fn stack_save "struct stack *st"
+.Ft void
+.Fn stack_save_td "struct stack *st" "struct thread *td"
+.Ft int
+.Fn stack_save_td_running "struct stack *st" "struct thread *td"
+.Sh DESCRIPTION
+The
+.Nm
+KPI allows querying of kernel stack trace information and the automated
+generation of kernel stack trace strings for the purposes of debugging and
+tracing.
+To use the KPI, at least one of
+.Cd "options DDB"
+and
+.Cd "options STACK"
+must be compiled into the kernel.
+.Pp
+Each stack trace is described by a
+.Vt "struct stack" .
+Before a trace may be created or otherwise manipulated, storage for the trace
+must be allocated with
+.Fn stack_create .
+The
+.Ar flags
+argument is passed to
+.Xr malloc 9 .
+Memory associated with a trace is freed by calling
+.Fn stack_destroy .
+.Pp
+A trace of the current kernel thread's call stack may be captured using
+.Fn stack_save .
+.Fn stack_save_td
+and
+.Fn stack_save_td_running
+can also be used to capture the stack of a caller-specified thread.
+Callers of these functions must own the thread lock of the specified thread.
+.Fn stack_save_td
+can capture the stack of a kernel thread that is not running or
+swapped out at the time of the call.
+.Fn stack_save_td_running
+can capture the stack of a running kernel thread.
+.Pp
+.Fn stack_print
+and
+.Fn stack_print_short
+may be used to print a stack trace using the kernel
+.Xr printf 9 ,
+and may sleep as a result of acquiring
+.Xr sx 9
+locks in the kernel linker while looking up symbol names.
+In locking-sensitive environments, the unsynchronized
+.Fn stack_print_ddb
+and
+.Fn stack_print_short_ddb
+variants may be invoked.
+This function bypasses kernel linker locking, making it usable in
+.Xr ddb 4 ,
+but not in a live system where linker data structures may change.
+.Pp
+.Fn stack_sbuf_print
+may be used to construct a human-readable string, including conversion (where
+possible) from a simple kernel instruction pointer to a named symbol and
+offset.
+The argument
+.Ar sb
+must be an initialized
+.Dv struct sbuf
+as described in
+.Xr sbuf 9 .
+This function may sleep if an auto-extending
+.Dv struct sbuf
+is used, or due to kernel linker locking.
+In locking-sensitive environments, such as
+.Xr ddb 4 ,
+the unsynchronized
+.Fn stack_sbuf_print_ddb
+variant may be invoked to avoid kernel linker locking; it should be used with
+a fixed-length sbuf.
+.Pp
+The utility functions
+.Nm stack_zero ,
+.Nm stack_copy ,
+and
+.Nm stack_put
+may be used to manipulate stack data structures directly.
+.Sh RETURN VALUES
+.Fn stack_put
+returns 0 on success.
+Otherwise the
+.Dv struct stack
+does not contain space to record additional frames, and a non-zero value is
+returned.
+.Pp
+.Fn stack_save_td_running
+returns 0 when the stack capture was successful and a non-zero error number
+otherwise.
+In particular,
+.Er EAGAIN
+is returned if the thread was running in user mode at the time that the
+capture was attempted, and
+.Er EOPNOTSUPP
+is returned if the operation is not implemented.
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr printf 9 ,
+.Xr sbuf 9 ,
+.Xr sx 9
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+function suite was created by
+.An Antoine Brodin .
+.Nm
+was extended by
+.An Robert Watson
+for general-purpose use outside of
+.Xr ddb 4 .

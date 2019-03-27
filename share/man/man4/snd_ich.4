@@ -1,0 +1,111 @@
+.\" Copyright (c) 2004 Jorge Mario G. Mazo
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 6, 2009
+.Dt SND_ICH 4
+.Os
+.Sh NAME
+.Nm snd_ich
+.Nd "Intel ICH AC'97 and compatible bridge device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device sound"
+.Cd "device snd_ich"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_ich_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+bridge driver allows the generic audio driver
+.Xr sound 4
+to attach to Intel ICH AC'97 and compatible audio devices.
+.Pp
+Some later chips, like ICH6/ICH7, depending on wiring can instead implement
+newer Intel HD Audio specification, which is supported by
+.Xr snd_hda 4
+driver.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following audio devices:
+.Pp
+.Bl -bullet -compact
+.It
+AMD 768
+.It
+AMD 8111
+.It
+Intel 443MX
+.It
+Intel ICH
+.It
+Intel ICH revision 1
+.It
+Intel ICH2
+.It
+Intel ICH3
+.It
+Intel ICH4
+.It
+Intel ICH5
+.It
+Intel ICH6
+.It
+Intel ICH7
+.It
+NVIDIA nForce
+.It
+NVIDIA nForce2
+.It
+NVIDIA nForce2 400
+.It
+NVIDIA nForce3
+.It
+NVIDIA nForce3 250
+.It
+NVIDIA nForce4
+.It
+SiS 7012
+.El
+.Sh SEE ALSO
+.Xr snd_hda 4 ,
+.Xr sound 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.2 .
+.Sh AUTHORS
+This manual page was written by
+.An Jorge Mario G. Mazo Aq Mt jgutie11@eafit.edu.co .

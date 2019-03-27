@@ -1,0 +1,100 @@
+.\" opieinfo.1: Manual page for the opieinfo(1) program.
+.\"
+.\" %%% portions-copyright-cmetz-96
+.\" Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
+.\" Reserved. The Inner Net License Version 2 applies to these portions of
+.\" the software.
+.\" You should have received a copy of the license with this software. If
+.\" you didn't get a copy, you may request one from <license@inner.net>.
+.\"
+.\" Portions of this software are Copyright 1995 by Randall Atkinson and Dan
+.\" McDonald, All Rights Reserved. All Rights under this copyright are assigned
+.\" to the U.S. Naval Research Laboratory (NRL). The NRL Copyright Notice and
+.\" License Agreement applies to this software.
+.\"
+.\"	History:
+.\"
+.\"     Modified by cmetz for OPIE 2.2. Removed MJR DES documentation.
+.\"	Modified at NRL for OPIE 2.0.
+.\"	Written at Bellcore for the S/Key Version 1 software distribution
+.\"		(keyinfo.1).
+.\"
+.\"	$FreeBSD$
+.ll 6i
+.pl 10.5i
+.lt 6.0i
+.TH OPIEINFO 1 "January 10, 1995"
+.AT 3
+.SH NAME
+opieinfo \-  Extract sequence number and seed for future OPIE challenges.
+
+.SH SYNOPSIS
+.B opieinfo 
+[\-v] [\-h] [
+.I user_name
+]
+
+.SH DESCRIPTION
+.I opieinfo
+takes an optional user name and writes the current sequence number
+and seed found in the OPIE key database for either the current user
+or the user specified. opiekey is compatible with the 
+.IR keyinfo (1)
+program
+from Bellcore's S/Key Version 1 except that specification of a remote
+system name is not permitted.
+.sp
+.I opieinfo
+can be used to generate a listing of your future OPIE responses
+if you are going to be without an OPIE calculator and still need to log into
+the system. To do so, you would run something like:
+.sp
+.B	opiekey \-n 42 `opieinfo`
+
+.SH OPTIONS
+.TP
+.B \-v
+Display the version number and compile-time options, then exit.
+.TP
+.B \-h
+Display a brief help message and exit.
+.TP
+.B <user_name>
+The name of a user whose key information you wish to display. The default is
+the user running opieinfo.
+
+.SH EXAMPLE
+.sp 0
+wintermute$ opieinfo
+.sp 0
+495 wi01309
+.sp 0
+wintermute$
+.LP
+
+.SH FILES
+.TP
+/etc/opiekeys -- database of key information for the OPIE system.
+
+.SH SEE ALSO
+.BR opie (4),
+.BR opiekey (1),
+.BR opiepasswd (1),
+.BR su (1),
+.BR login (1),
+.BR ftpd (8),
+.BR opiekeys (5)
+.BR opieaccess (5)
+
+.SH AUTHOR
+Bellcore's S/Key was written by Phil Karn, Neil M. Haller, and John S. Walden 
+of Bellcore. OPIE was created at NRL by Randall Atkinson, Dan McDonald, and
+Craig Metz.
+
+S/Key is a trademark of Bell Communications Research (Bellcore).
+
+.SH CONTACT
+OPIE is discussed on the Bellcore "S/Key Users" mailing list. To join, 
+send an email request to:
+.sp
+skey-users-request@thumper.bellcore.com

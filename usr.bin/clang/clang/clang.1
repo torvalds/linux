@@ -1,0 +1,862 @@
+.\" $FreeBSD$
+.\" Man page generated from reStructuredText.
+.
+.TH "CLANG" "1" "Aug 02, 2018" "7" "Clang"
+.SH NAME
+clang \- the Clang C, C++, and Objective-C compiler
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.SH SYNOPSIS
+.sp
+\fBclang\fP [\fIoptions\fP] \fIfilename ...\fP
+.SH DESCRIPTION
+.sp
+\fBclang\fP is a C, C++, and Objective\-C compiler which encompasses
+preprocessing, parsing, optimization, code generation, assembly, and linking.
+Depending on which high\-level mode setting is passed, Clang will stop before
+doing a full link.  While Clang is highly integrated, it is important to
+understand the stages of compilation, to understand how to invoke it.  These
+stages are:
+.INDENT 0.0
+.TP
+.B Driver
+The clang executable is actually a small driver which controls the overall
+execution of other tools such as the compiler, assembler and linker.
+Typically you do not need to interact with the driver, but you
+transparently use it to run the other tools.
+.TP
+.B Preprocessing
+This stage handles tokenization of the input source file, macro expansion,
+#include expansion and handling of other preprocessor directives.  The
+output of this stage is typically called a ".i" (for C), ".ii" (for C++),
+".mi" (for Objective\-C), or ".mii" (for Objective\-C++) file.
+.TP
+.B Parsing and Semantic Analysis
+This stage parses the input file, translating preprocessor tokens into a
+parse tree.  Once in the form of a parse tree, it applies semantic
+analysis to compute types for expressions as well and determine whether
+the code is well formed. This stage is responsible for generating most of
+the compiler warnings as well as parse errors. The output of this stage is
+an "Abstract Syntax Tree" (AST).
+.TP
+.B Code Generation and Optimization
+This stage translates an AST into low\-level intermediate code (known as
+"LLVM IR") and ultimately to machine code.  This phase is responsible for
+optimizing the generated code and handling target\-specific code generation.
+The output of this stage is typically called a ".s" file or "assembly" file.
+.sp
+Clang also supports the use of an integrated assembler, in which the code
+generator produces object files directly. This avoids the overhead of
+generating the ".s" file and of calling the target assembler.
+.TP
+.B Assembler
+This stage runs the target assembler to translate the output of the
+compiler into a target object file. The output of this stage is typically
+called a ".o" file or "object" file.
+.TP
+.B Linker
+This stage runs the target linker to merge multiple object files into an
+executable or dynamic library. The output of this stage is typically called
+an "a.out", ".dylib" or ".so" file.
+.UNINDENT
+.sp
+\fBClang Static Analyzer\fP
+.sp
+The Clang Static Analyzer is a tool that scans source code to try to find bugs
+through code analysis.  This tool uses many parts of Clang and is built into
+the same driver.  Please see <\fI\%http://clang\-analyzer.llvm.org\fP> for more details
+on how to use the static analyzer.
+.SH OPTIONS
+.SS Stage Selection Options
+.INDENT 0.0
+.TP
+.B \-E
+Run the preprocessor stage.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fsyntax\-only
+Run the preprocessor, parser and type checking stages.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-S
+Run the previous stages as well as LLVM generation and optimization stages
+and target\-specific code generation, producing an assembly file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-c
+Run all of the above, plus the assembler, generating a target ".o" object file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B no stage selection option
+If no stage selection option is specified, all stages above are run, and the
+linker is run to combine the results into an executable or shared library.
+.UNINDENT
+.SS Language Selection and Mode Options
+.INDENT 0.0
+.TP
+.B \-x <language>
+Treat subsequent input files as having type language.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-std=<standard>
+Specify the language standard to compile for.
+.sp
+Supported values for the C language are:
+.INDENT 7.0
+.INDENT 3.5
+.nf
+\fBc89\fP
+\fBc90\fP
+\fBiso9899:1990\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 1990
+.UNINDENT
+.UNINDENT
+.nf
+\fBiso9899:199409\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 1990 with amendment 1
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu89\fP
+\fBgnu90\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 1990 with GNU extensions
+.UNINDENT
+.UNINDENT
+.nf
+\fBc99\fP
+\fBiso9899:1999\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 1999
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu99\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 1999 with GNU extensions
+.UNINDENT
+.UNINDENT
+.nf
+\fBc11\fP
+\fBiso9899:2011\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 2011
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu11\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 2011 with GNU extensions
+.UNINDENT
+.UNINDENT
+.nf
+\fBc17\fP
+\fBiso9899:2017\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 2017
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu17\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C 2017 with GNU extensions
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The default C language standard is \fBgnu11\fP, except on PS4, where it is
+\fBgnu99\fP\&.
+.sp
+Supported values for the C++ language are:
+.INDENT 7.0
+.INDENT 3.5
+.nf
+\fBc++98\fP
+\fBc++03\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C++ 1998 with amendments
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu++98\fP
+\fBgnu++03\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C++ 1998 with amendments and GNU extensions
+.UNINDENT
+.UNINDENT
+.nf
+\fBc++11\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C++ 2011 with amendments
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu++11\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C++ 2011 with amendments and GNU extensions
+.UNINDENT
+.UNINDENT
+.nf
+\fBc++14\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C++ 2014 with amendments
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu++14\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C++ 2014 with amendments and GNU extensions
+.UNINDENT
+.UNINDENT
+.nf
+\fBc++17\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C++ 2017 with amendments
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu++17\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+ISO C++ 2017 with amendments and GNU extensions
+.UNINDENT
+.UNINDENT
+.nf
+\fBc++2a\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+Working draft for ISO C++ 2020
+.UNINDENT
+.UNINDENT
+.nf
+\fBgnu++2a\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+Working draft for ISO C++ 2020 with GNU extensions
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The default C++ language standard is \fBgnu++14\fP\&.
+.sp
+Supported values for the OpenCL language are:
+.INDENT 7.0
+.INDENT 3.5
+.nf
+\fBcl1.0\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+OpenCL 1.0
+.UNINDENT
+.UNINDENT
+.nf
+\fBcl1.1\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+OpenCL 1.1
+.UNINDENT
+.UNINDENT
+.nf
+\fBcl1.2\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+OpenCL 1.2
+.UNINDENT
+.UNINDENT
+.nf
+\fBcl2.0\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+OpenCL 2.0
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The default OpenCL language standard is \fBcl1.0\fP\&.
+.sp
+Supported values for the CUDA language are:
+.INDENT 7.0
+.INDENT 3.5
+.nf
+\fBcuda\fP
+.fi
+.sp
+.INDENT 0.0
+.INDENT 3.5
+NVIDIA CUDA(tm)
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-stdlib=<library>
+Specify the C++ standard library to use; supported options are libstdc++ and
+libc++. If not specified, platform default will be used.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-rtlib=<library>
+Specify the compiler runtime library to use; supported options are libgcc and
+compiler\-rt. If not specified, platform default will be used.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-ansi
+Same as \-std=c89.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-ObjC, \-ObjC++
+Treat source input files as Objective\-C and Object\-C++ inputs respectively.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-trigraphs
+Enable trigraphs.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-ffreestanding
+Indicate that the file should be compiled for a freestanding, not a hosted,
+environment.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fno\-builtin
+Disable special handling and optimizations of builtin functions like
+\fBstrlen()\fP and \fBmalloc()\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fmath\-errno
+Indicate that math functions should be treated as updating \fBerrno\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fpascal\-strings
+Enable support for Pascal\-style strings with "\epfoo".
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fms\-extensions
+Enable support for Microsoft extensions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fmsc\-version=
+Set _MSC_VER. Defaults to 1300 on Windows. Not set otherwise.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fborland\-extensions
+Enable support for Borland extensions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fwritable\-strings
+Make all string literals default to writable.  This disables uniquing of
+strings and other optimizations.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-flax\-vector\-conversions
+Allow loose type checking rules for implicit vector conversions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fblocks
+Enable the "Blocks" language feature.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fobjc\-abi\-version=version
+Select the Objective\-C ABI version to use. Available versions are 1 (legacy
+"fragile" ABI), 2 (non\-fragile ABI 1), and 3 (non\-fragile ABI 2).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fobjc\-nonfragile\-abi\-version=<version>
+Select the Objective\-C non\-fragile ABI version to use by default. This will
+only be used as the Objective\-C ABI when the non\-fragile ABI is enabled
+(either via \fI\%\-fobjc\-nonfragile\-abi\fP, or because it is the platform
+default).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fobjc\-nonfragile\-abi, \-fno\-objc\-nonfragile\-abi
+Enable use of the Objective\-C non\-fragile ABI. On platforms for which this is
+the default ABI, it can be disabled with \fI\%\-fno\-objc\-nonfragile\-abi\fP\&.
+.UNINDENT
+.SS Target Selection Options
+.sp
+Clang fully supports cross compilation as an inherent part of its design.
+Depending on how your version of Clang is configured, it may have support for a
+number of cross compilers, or may only support a native target.
+.INDENT 0.0
+.TP
+.B \-arch <architecture>
+Specify the architecture to build for.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-mmacosx\-version\-min=<version>
+When building for Mac OS X, specify the minimum version supported by your
+application.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-miphoneos\-version\-min
+When building for iPhone OS, specify the minimum version supported by your
+application.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-march=<cpu>
+Specify that Clang should generate code for a specific processor family
+member and later.  For example, if you specify \-march=i486, the compiler is
+allowed to generate instructions that are valid on i486 and later processors,
+but which may not exist on earlier ones.
+.UNINDENT
+.SS Code Generation Options
+.INDENT 0.0
+.TP
+.B \-O0, \-O1, \-O2, \-O3, \-Ofast, \-Os, \-Oz, \-Og, \-O, \-O4
+Specify which optimization level to use:
+.INDENT 7.0
+.INDENT 3.5
+\fI\%\-O0\fP Means "no optimization": this level compiles the fastest and
+generates the most debuggable code.
+.sp
+\fI\%\-O1\fP Somewhere between \fI\%\-O0\fP and \fI\%\-O2\fP\&.
+.sp
+\fI\%\-O2\fP Moderate level of optimization which enables most
+optimizations.
+.sp
+\fI\%\-O3\fP Like \fI\%\-O2\fP, except that it enables optimizations that
+take longer to perform or that may generate larger code (in an attempt to
+make the program run faster).
+.sp
+\fI\%\-Ofast\fP Enables all the optimizations from \fI\%\-O3\fP along
+with other aggressive optimizations that may violate strict compliance with
+language standards.
+.sp
+\fI\%\-Os\fP Like \fI\%\-O2\fP with extra optimizations to reduce code
+size.
+.sp
+\fI\%\-Oz\fP Like \fI\%\-Os\fP (and thus \fI\%\-O2\fP), but reduces code
+size further.
+.sp
+\fI\%\-Og\fP Like \fI\%\-O1\fP\&. In future versions, this option might
+disable different optimizations in order to improve debuggability.
+.sp
+\fI\%\-O\fP Equivalent to \fI\%\-O2\fP\&.
+.sp
+\fI\%\-O4\fP and higher
+.INDENT 0.0
+.INDENT 3.5
+Currently equivalent to \fI\%\-O3\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-g, \-gline\-tables\-only, \-gmodules
+Control debug information output.  Note that Clang debug information works
+best at \fI\%\-O0\fP\&.  When more than one option starting with \fI\-g\fP is
+specified, the last one wins:
+.INDENT 7.0
+.INDENT 3.5
+\fB\-g\fP Generate debug information.
+.sp
+\fB\-gline\-tables\-only\fP Generate only line table debug information. This
+allows for symbolicated backtraces with inlining information, but does not
+include any information about variables, their locations or types.
+.sp
+\fI\%\-gmodules\fP Generate debug information that contains external
+references to types defined in Clang modules or precompiled headers instead
+of emitting redundant debug type information into every object file.  This
+option transparently switches the Clang module format to object file
+containers that hold the Clang module together with the debug information.
+When compiling a program that uses Clang modules or precompiled headers,
+this option produces complete debug information with faster compile
+times and much smaller object files.
+.sp
+This option should not be used when building static libraries for
+distribution to other machines because the debug info will contain
+references to the module cache on the machine the object files in the
+library were built on.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fstandalone\-debug \-fno\-standalone\-debug
+Clang supports a number of optimizations to reduce the size of debug
+information in the binary. They work based on the assumption that the
+debug type information can be spread out over multiple compilation units.
+For instance, Clang will not emit type definitions for types that are not
+needed by a module and could be replaced with a forward declaration.
+Further, Clang will only emit type info for a dynamic C++ class in the
+module that contains the vtable for the class.
+.sp
+The \fB\-fstandalone\-debug\fP option turns off these optimizations.
+This is useful when working with 3rd\-party libraries that don\(aqt come with
+debug information.  This is the default on Darwin.  Note that Clang will
+never emit type information for types that are not referenced at all by the
+program.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fexceptions
+Enable generation of unwind information. This allows exceptions to be thrown
+through Clang compiled stack frames.  This is on by default in x86\-64.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-ftrapv
+Generate code to catch integer overflow errors.  Signed integer overflow is
+undefined in C. With this flag, extra code is generated to detect this and
+abort when it happens.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fvisibility
+This flag sets the default visibility level.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-fcommon, \-fno\-common
+This flag specifies that variables without initializers get common linkage.
+It can be disabled with \fI\%\-fno\-common\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-ftls\-model=<model>
+Set the default thread\-local storage (TLS) model to use for thread\-local
+variables. Valid values are: "global\-dynamic", "local\-dynamic",
+"initial\-exec" and "local\-exec". The default is "global\-dynamic". The default
+model can be overridden with the tls_model attribute. The compiler will try
+to choose a more efficient model if possible.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-flto, \-flto=full, \-flto=thin, \-emit\-llvm
+Generate output files in LLVM formats, suitable for link time optimization.
+When used with \fI\%\-S\fP this generates LLVM intermediate language
+assembly files, otherwise this generates LLVM bitcode format object files
+(which may be passed to the linker depending on the stage selection options).
+.sp
+The default for \fI\%\-flto\fP is "full", in which the
+LLVM bitcode is suitable for monolithic Link Time Optimization (LTO), where
+the linker merges all such modules into a single combined module for
+optimization. With "thin", ThinLTO
+compilation is invoked instead.
+.UNINDENT
+.SS Driver Options
+.INDENT 0.0
+.TP
+.B \-###
+Print (but do not run) the commands to run for this compilation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-help
+Display available options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-Qunused\-arguments
+Do not emit any warnings for unused driver arguments.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-Wa,<args>
+Pass the comma separated arguments in args to the assembler.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-Wl,<args>
+Pass the comma separated arguments in args to the linker.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-Wp,<args>
+Pass the comma separated arguments in args to the preprocessor.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-Xanalyzer <arg>
+Pass arg to the static analyzer.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-Xassembler <arg>
+Pass arg to the assembler.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-Xlinker <arg>
+Pass arg to the linker.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-Xpreprocessor <arg>
+Pass arg to the preprocessor.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-o <file>
+Write output to file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-print\-file\-name=<file>
+Print the full library path of file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-print\-libgcc\-file\-name
+Print the library path for the currently used compiler runtime library
+("libgcc.a" or "libclang_rt.builtins.*.a").
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-print\-prog\-name=<name>
+Print the full program path of name.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-print\-search\-dirs
+Print the paths used for finding libraries and programs.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-save\-temps
+Save intermediate compilation results.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-save\-stats, \-save\-stats=cwd, \-save\-stats=obj
+Save internal code generation (LLVM) statistics to a file in the current
+directory (\fI\%\-save\-stats\fP/"\-save\-stats=cwd") or the directory
+of the output file ("\-save\-state=obj").
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-integrated\-as, \-no\-integrated\-as
+Used to enable and disable, respectively, the use of the integrated
+assembler. Whether the integrated assembler is on by default is target
+dependent.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-time
+Time individual commands.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-ftime\-report
+Print timing summary of each stage of compilation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-v
+Show commands to run and use verbose output.
+.UNINDENT
+.SS Diagnostics Options
+.INDENT 0.0
+.TP
+.B \-fshow\-column, \-fshow\-source\-location, \-fcaret\-diagnostics, \-fdiagnostics\-fixit\-info, \-fdiagnostics\-parseable\-fixits, \-fdiagnostics\-print\-source\-range\-info, \-fprint\-source\-range\-info, \-fdiagnostics\-show\-option, \-fmessage\-length
+These options control how Clang prints out information about diagnostics
+(errors and warnings). Please see the Clang User\(aqs Manual for more information.
+.UNINDENT
+.SS Preprocessor Options
+.INDENT 0.0
+.TP
+.B \-D<macroname>=<value>
+Adds an implicit #define into the predefines buffer which is read before the
+source file is preprocessed.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-U<macroname>
+Adds an implicit #undef into the predefines buffer which is read before the
+source file is preprocessed.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-include <filename>
+Adds an implicit #include into the predefines buffer which is read before the
+source file is preprocessed.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-I<directory>
+Add the specified directory to the search path for include files.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-F<directory>
+Add the specified directory to the search path for framework include files.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-nostdinc
+Do not search the standard system directories or compiler builtin directories
+for include files.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-nostdlibinc
+Do not search the standard system directories for include files, but do
+search compiler builtin include directories.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-nobuiltininc
+Do not search clang\(aqs builtin directory for include files.
+.UNINDENT
+.SH ENVIRONMENT
+.INDENT 0.0
+.TP
+.B TMPDIR, TEMP, TMP
+These environment variables are checked, in order, for the location to write
+temporary files used during the compilation process.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B CPATH
+If this environment variable is present, it is treated as a delimited list of
+paths to be added to the default system include path list. The delimiter is
+the platform dependent delimiter, as used in the PATH environment variable.
+.sp
+Empty components in the environment variable are ignored.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B C_INCLUDE_PATH, OBJC_INCLUDE_PATH, CPLUS_INCLUDE_PATH, OBJCPLUS_INCLUDE_PATH
+These environment variables specify additional paths, as for \fI\%CPATH\fP, which are
+only used when processing the appropriate language.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B MACOSX_DEPLOYMENT_TARGET
+If \fI\%\-mmacosx\-version\-min\fP is unspecified, the default deployment
+target is read from this environment variable. This option only affects
+Darwin targets.
+.UNINDENT
+.SH BUGS
+.sp
+To report bugs, please visit <\fI\%http://llvm.org/bugs/\fP>.  Most bug reports should
+include preprocessed source files (use the \fI\%\-E\fP option) and the full
+output of the compiler, along with information to reproduce.
+.SH SEE ALSO
+.sp
+\fBas(1)\fP, \fBld(1)\fP
+.SH AUTHOR
+Maintained by the Clang / LLVM Team (<http://clang.llvm.org>)
+.SH COPYRIGHT
+2007-2018, The Clang Team
+.\" Generated by docutils manpage writer.
+.

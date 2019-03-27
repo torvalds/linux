@@ -1,0 +1,122 @@
+.\" Copyright (c) 1985, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)sqrt.3	6.4 (Berkeley) 5/6/91
+.\" $FreeBSD$
+.\"
+.Dd March 5, 2011
+.Dt SQRT 3
+.Os
+.Sh NAME
+.Nm cbrt ,
+.Nm cbrtf ,
+.Nm cbrtl ,
+.Nm sqrt ,
+.Nm sqrtf ,
+.Nm sqrtl
+.Nd cube root and square root functions
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn cbrt "double x"
+.Ft float
+.Fn cbrtf "float x"
+.Ft long double
+.Fn cbrtl "long double x"
+.Ft double
+.Fn sqrt "double x"
+.Ft float
+.Fn sqrtf "float x"
+.Ft long double
+.Fn sqrtl "long double x"
+.Sh DESCRIPTION
+The
+.Fn cbrt ,
+.Fn cbrtf ,
+and
+.Fn cbrtl
+functions compute
+the cube root of
+.Ar x .
+.Pp
+The
+.Fn sqrt ,
+.Fn sqrtf ,
+and
+.Fn sqrtl
+functions compute the
+non-negative square root of
+.Ar x .
+.Sh RETURN VALUES
+The
+.Fn cbrt ,
+.Fn cbrtf ,
+and
+.Fn cbrtl
+functions return the requested cube root.
+The
+.Fn sqrt ,
+.Fn sqrtf ,
+and
+.Fn sqrtl
+functions return the requested square root
+unless an error occurs.
+An attempt to take the
+.Fn sqrt
+of negative
+.Fa x
+raises an invalid exception and causes an \*(Na to be returned
+(except that the square root of -0 is valid and equal to -0.)
+.Sh SEE ALSO
+.Xr fenv 3 ,
+.Xr math 3
+.Sh STANDARDS
+The
+.Fn cbrt ,
+.Fn cbrtf ,
+.Fn cbrtl ,
+.Fn sqrt ,
+.Fn sqrtf ,
+and
+.Fn sqrtl
+functions conform to
+.St -isoC-99 .
+.Sh HISTORY
+The
+.Fn cbrt
+function appeared in
+.Bx 4.3 .
+The
+.Fn sqrtl
+function appeared in
+.Fx 8.0 .
+The
+.Fn cbrtl
+function appeared in
+.Fx 9.0 .

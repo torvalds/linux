@@ -1,0 +1,131 @@
+
+AT&T Freeware Year 2000 Certification
+====================================
+
+This is the "readme" file for the freeware application which has 
+been certified by AT&T Labs as part of the "Freeware Y2K 
+Certification Project".
+
+DISCLAIMER
+----------
+    For its own internal business purposes AT&T Labs has
+    assessed various programs obtained from the Internet for
+    Year-2000 (Y2K) readiness that were not sufficiently certified
+    for AT&T's needs.  As a service to the computing community
+    AT&T Labs is freely releasing this information to the
+    public as a series of "Y2K Application Updates", one update
+    for what AT&T Labs considers an "application".
+
+    For use outside of AT&T, AT&T Labs is not certifying this
+    information is correct, that any software, including repairs
+    and tests, will help others in any way, survive the year
+    2000, nor work with current applications. Nor is AT&T
+    taking any responsibility for repairing any Y2K problems
+    that were overlooked nor repairing any bugs in any
+    "Y2K Application Update". All risk of using this Y2K
+    Application Update remains with the user who is expected
+    to test that this update meets their needs.
+
+    LICENSE TO USE
+    AT&T's intent is to ensure these Y2K patches are freely
+    available to the public but will not maintain a public web site
+    for their distribution. Any copyright claims only only apply to 
+    the specific changes made by Y2K to the code. Any original 
+    copyright holders retain rights to unchanged code. Wherever 
+    possible patches will be returned to the current owner(s) of the code.
+
+    Owners and publishers are free to incorporate appropriate patches,
+    upgrades, and tests within legal future distributions as long as
+    they include the credit:
+
+      Various Y2K updates and tests provided by AT&T Labs.
+      Copyright 1999 AT&T.
+
+    and any AT&T "comments" on the changed code remain intact.
+
+    Any distributions of the updates must keep the entire update
+    intact, without any change, including copyright and disclaimer
+    information.  If integrated with the original application items
+    not needed for an integrated release may be omitted. When
+    distributed on the same media as the original application there
+    must be no charge for this "Y2k Application Update".
+
+    CONTACTS
+    If you find any overlooked Y2K problems, or have other strictly Y2K
+    repairs for the software, please E-mail:
+
+            y2k@y2k.labs.att.com
+
+    This address is strictly reserved for the topic at hand.
+    AT&T makes no commitments to answer any E-mail
+    to this address.  AT&T is free to use any submissions,
+    including publishing in future Y2K related release notes,
+    without payment or advance notice to the submitting person or
+    persons... appropriate credit will be given in any future
+    publications to the first person submitting something that
+    AT&T uses.
+
+
+======================================================================
+
+Perl  ver - 4.036 
+No. of Repairs: 2 Repairs
+Compilation of Patches Required: No
+OS Tested: Solaris 2.6
+
+======================================================================
+
+ORGANIZATION OF THE "Y2KFixes" DIRECTORY
+
+The "Y2KFixes" directory has been included in the archive to give
+you information about the Y2K testing that was conducted and their
+results.
+
+The Y2KFixes directory contains at least the following three files:
+|----> NOTES.y2kfixes    -- Technical details about the Y2K Testing
+|----> Readme.y2kfixes   -- this Readme file
+|----> Results.y2kfixes  -- The results of Y2K Environment Tests
+
+The directory may contain additional files and/or directories, as 
+appropriate to the application, to provide the exact snapshots.
+
+
+======================================================================
+
+INSTALLING THE "PATCHES"
+
+If you have downloaded a "patch", then you may install it as follows:
+
+    At the same level as the source directory, invoke:
+
+	patch -p < *.patches 
+
+The patch file contains a header which has a manifest of changed files.
+
+======================================================================
+
+ADDITIONAL INSTRUCTIONS:
+
+
+1) Extract the patches into perl-4.036 directory which is top level directory
+   for the perl4 source.
+
+2) cd to Y2KFixes.
+
+3) It will have y2k directory which contains regression tests for Y2K testing.
+
+4) now cd to ../t which contains TEST file for running this regression tests.
+
+5) run TEST, see the results  & apply patches.
+
+6) Once you apply the patch, you need to run a shell script in x2p/find2perl.SH
+   which will generate find2perl.
+
+
+======================================================================
+
+SUPPORT
+
+See http://y2k.labs.att.com/freeware.  There will be no ongoing 
+support for the project. But if you have some very important issue, 
+you may email us at: y2k@y2k.labs.att.com

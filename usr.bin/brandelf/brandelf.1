@@ -1,0 +1,104 @@
+.\" Copyright 1997 John-Mark Gurney.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 25, 2014
+.Dt BRANDELF 1
+.Os
+.Sh NAME
+.Nm brandelf
+.Nd mark an ELF binary for a specific ABI
+.Sh SYNOPSIS
+.Nm
+.Op Fl lv
+.Op Fl f Ar ELF_ABI_number
+.Op Fl t Ar string
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility marks an ELF binary to be run under a certain ABI for
+.Fx .
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl f Ar ELF_ABI_number
+Forces branding with the supplied ELF ABI number.
+Incompatible with the
+.Fl t
+option.
+These values are assigned by SCO/USL.
+.It Fl l
+Writes the list of all known ELF types to the standard error.
+.It Fl v
+Turns on verbose output.
+.It Fl t Ar string
+Brands the given ELF binaries to be of the
+.Ar string
+ABI type.
+Currently supported ABIs are
+.Dq Li FreeBSD ,
+.Dq Li Linux ,
+and
+.Dq Li SVR4 .
+.It Ar file
+If
+.Fl t Ar string
+is given it will brand
+.Ar file
+to be of type
+.Ar string ,
+otherwise it will simply display the branding of
+.Ar file .
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command
+fails if a file does not exist, is too short, fails to brand properly,
+or the brand requested is not one of the known types and the
+.Fl f
+option is not set.
+.Sh EXAMPLES
+The following is an example of a typical usage
+of the
+.Nm
+command:
+.Bd -literal -offset indent
+brandelf file
+brandelf -t Linux file
+.Ed
+.Sh SEE ALSO
+.Rs
+.%A The Santa Cruz Operation, Inc.
+.%T System V Application Binary Interface
+.%D April 29, 1998 (DRAFT)
+.%U http://www.sco.com/developer/devspecs/
+.Re
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+This manual page was written by
+.An John-Mark Gurney Aq Mt jmg@FreeBSD.org .

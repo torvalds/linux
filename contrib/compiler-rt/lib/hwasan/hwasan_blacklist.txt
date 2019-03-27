@@ -1,0 +1,7 @@
+# Blacklist for HWAddressSanitizer. Turns off instrumentation of particular
+# functions or sources. Use with care. You may set location of blacklist
+# at compile-time using -fsanitize-blacklist=<path> flag.
+
+# Example usage:
+# fun:*bad_function_name*
+# src:file_with_tricky_code.cc

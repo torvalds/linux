@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+f() {
+	local -
+	set -a
+	case $- in
+	*a*) : ;;
+	*) echo In-function \$- bad
+	esac
+}
+case $- in
+*a*) echo Initial \$- bad
+esac
+f
+case $- in
+*a*) echo Final \$- bad
+esac

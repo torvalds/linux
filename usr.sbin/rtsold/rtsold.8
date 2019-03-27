@@ -1,0 +1,304 @@
+.\"	$KAME: rtsold.8,v 1.20 2003/04/11 12:46:12 jinmei Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 14, 2011
+.Dt RTSOLD 8
+.Os
+.\"
+.Sh NAME
+.Nm rtsold , rtsol
+.Nd router solicitation daemon
+.\"
+.Sh SYNOPSIS
+.Nm
+.Op Fl dDfFmu1
+.Op Fl O Ar script-name
+.Op Fl p Ar pidfile
+.Op Fl R Ar script-name
+.Ar interface ...
+.Nm
+.Op Fl dDfFmu1
+.Op Fl O Ar script-name
+.Op Fl p Ar pidfile
+.Op Fl R Ar script-name
+.Fl a
+.Nm rtsol
+.Op Fl dDu
+.Op Fl O Ar script-name
+.Op Fl R Ar script-name
+.Ar interface ...
+.Nm rtsol
+.Op Fl dDu
+.Op Fl O Ar script-name
+.Op Fl R Ar script-name
+.Fl a
+.\"
+.Sh DESCRIPTION
+.Nm
+is the daemon program to send ICMPv6 Router Solicitation messages
+on the specified interfaces.
+If a node (re)attaches to a link,
+.Nm
+sends some Router Solicitations on the link destined to the link-local scope
+all-routers multicast address to discover new routers
+and to get non link-local addresses.
+.Pp
+.Nm
+should be used on IPv6 hosts
+.Pq non-router nodes
+only.
+.Pp
+If you invoke the program as
+.Nm rtsol ,
+it will transmit probes from the specified
+.Ar interface ,
+without becoming a daemon.
+In other words,
+.Nm rtsol
+behaves as
+.Do
+.Nm
+.Fl f1
+.Ar interfaces
+.Dc .
+.Pp
+Specifically,
+.Nm
+sends at most 3 Router Solicitations on an interface
+after one of the following events:
+.Pp
+.Bl -bullet -compact
+.It
+Just after invocation of
+.Nm
+daemon.
+.It
+The interface is up after a temporary interface failure.
+.Nm
+detects such failures by periodically probing to see if the status
+of the interface is active or not.
+Note that some network cards and drivers do not allow the extraction
+of link state.
+In such cases,
+.Nm
+cannot detect the change of the interface status.
+.It
+Every 60 seconds if the
+.Fl m
+option is specified and the
+.Nm
+daemon cannot get the interface status.
+This feature does not conform to the IPv6 neighbor discovery
+specification, but is provided for mobile stations.
+The default interval for router advertisements, which is on the order of 10
+minutes, is slightly long for mobile stations.
+This feature is provided
+for such stations so that they can find new routers as soon as possible
+when they attach to another link.
+.El
+.Lp
+Once
+.Nm
+has sent a Router Solicitation, and has received a valid Router Advertisement,
+it refrains from sending additional solicitations on that interface, until
+the next time one of the above events occurs.
+.Lp
+When sending a Router Solicitation on an interface,
+.Nm
+includes a Source Link-layer address option if the interface
+has a link-layer address.
+.Lp
+.Nm
+manages a per-interface parameter to detect if a separate protocol is
+needed for configuration parameters other than host's addresses.
+At the invocation time, the flag is FALSE, and becomes TRUE when
+the daemon receives a router advertisement with the OtherConfig flag
+being set.
+A script file can be specified to deal with the case
+.Pq see below .
+When
+.Nm
+start resending router solicitation messages by one of the conditions
+events,
+the daemon resets the parameter because the event may indicate a
+change on the attached link.
+.Pp
+Upon receipt of signal
+.Dv SIGUSR1 ,
+.Nm
+will dump the current internal state into
+.Pa /var/run/rtsold.dump .
+.\"
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a
+Autoprobe outgoing interfaces.
+.Nm
+will try to find any non-loopback, non-point-to-point, IPv6-capable interfaces
+and send router solicitation messages on all of them.
+.It Fl d
+Enable debugging.
+.It Fl D
+Enable more debugging including the printing of internal timer information.
+.It Fl f
+Prevent
+.Nm
+from becoming a daemon (foreground mode).
+Warning messages are generated to standard error
+instead of
+.Xr syslog 3 .
+.It Fl F
+Explicitly configure the kernel to accept Router Advertisements and
+disable IPv6 forwarding.
+These settings are required for proper
+.Nm
+operation.
+Without this option, the current settings will be obeyed;
+if they are incompatible with proper operation,
+warning messages will be generated,
+but Router Solicitations will still be sent.
+The settings may be changed manually with
+.Xr sysctl 8
+and
+.Xr ifconfig 8 .
+.It Fl m
+Enable mobility support.
+If this option is specified,
+.Nm
+sends probing packets to default routers that have advertised Router
+Advertisements
+when the node (re)attaches to an interface.
+Moreover, if the option is specified,
+.Nm
+periodically sends Router Solicitation on an interface that does not support
+.Dv SIOCGIFMEDIA
+ioctl.
+.It Fl 1
+Perform only one probe.
+Transmit Router Solicitation packets until at least one valid Router
+Advertisement packet has arrived on each
+.Ar interface ,
+then exit.
+.It Fl O Ar script-name
+Specifies a supplement script file to handle the Other Configuration
+flag of the router advertisement.
+When the flag changes from FALSE to TRUE,
+.Nm
+will invoke
+.Ar script-name
+with a single argument of the receiving interface name,
+expecting the script will then start a protocol for the other
+configuration.
+.Ar script-name
+must be the absolute path from root to the script file, be a regular
+file, and be created by the same owner who runs
+.Nm .
+.It Fl p Ar pidfile
+Writes the process ID of
+.Nm
+to
+.Pa pidfile
+instead of the default PID file
+.Pa /var/run/rtsold.pid .
+.It Fl R Ar script-name
+Specifies a script to run when router advertisement options
+.Dv RDNSS Pq Recursive DNS Server
+or
+.Dv DNSSL Pq DNS Search List
+are encountered.
+The information of DNS servers and DNS search domains will be sent to
+standard input of this script.
+The
+.Xr resolvconf 8
+script is used by default.
+.It Fl u
+Specifies whether to add the source address of Router Advertisement
+messages to the interface name in the parameters of the RDNSS and DNSSL
+scripts.
+.Pp
+If
+.Fl u
+is specified, the interface name in the script parameters will be
+.Ql ifname:slaac:[RA-source-address] .
+.Pp
+Otherwise it will be
+.Ql ifname:slaac .
+.El
+.Sh FILES
+.Bl -tag -width /var/run/rtsold.dump -compact
+.It Pa /var/run/rtsold.pid
+The PID of the currently running
+.Nm .
+.It Pa /var/run/rtsold.dump
+Internal state dump file.
+.El
+.\"
+.Sh EXIT STATUS
+.Ex -std
+.\"
+.Sh SEE ALSO
+.Xr resolvconf 8 ,
+.Xr rtadvd 8 ,
+.Xr sysctl 8
+.\"
+.Sh HISTORY
+The
+.Nm
+command is based on the
+.Nm rtsol
+command, which first appeared in WIDE/KAME IPv6 protocol stack kit.
+.Nm rtsol
+is now integrated into
+.Xr rtsold 8 .
+.\"
+.Sh BUGS
+In some operating systems, when a PCMCIA network card is removed
+and reinserted, the corresponding interface index is changed.
+However,
+.Nm
+assumes such changes will not occur, and always uses the index that
+it got at invocation.
+As a result,
+.Nm
+may not work if you reinsert a network card.
+In such a case,
+.Nm
+should be killed and restarted.
+.Pp
+The IPv6 autoconfiguration specification assumes a single-interface host.
+You may see kernel error messages if you try to autoconfigure a host with
+multiple interfaces.
+Also, it seems contradictory for
+.Nm
+to accept multiple
+.Ar interface
+arguments.

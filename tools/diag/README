@@ -1,0 +1,14 @@
+$FreeBSD$
+
+This directory is for diagnostic programs.
+
+A diagnostic program is one that will inform you that something is wrong
+somewhere, for instance by traversing a kernel-structure and verifying
+the integrity.
+
+Please make a subdir per program, and add a brief description to this file.
+
+dumpvfscache	program that can be used to examine the contents of the vfs
+		name cache.
+localeck	check for invalid/incomplete locales 
+prtblknos	Print out the blocks used by each inode in the list

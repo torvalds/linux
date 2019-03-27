@@ -1,0 +1,12 @@
+$ $tcsh: set9,v 1.5 2015/05/26 17:38:25 christos Exp $
+$ ed.xmap.c
+$set 9
+1 AddXkey: δεν επιτρέπεται μηδενικό extended-key.\n
+2 AddXkey: η εντολή με αυτήν την αρχική ακολουθία δεν επιτρέπεται\n
+3 DeleteXkey: δεν επιτρέπεται μηδενικό extended-key.\n
+4 Ασυσχέτιστο extended key "%S"\n
+5 Μερικά extended keys είναι πολύ μεγάλα γιά τον εσωτερικό print buffer
+6 Enumerate: BUG!! Πέρασμα μηδενικού pointer!\n
+7 δεν υπάρχει είσοδος
+8 Κάτι πρέπει να ακολουθεί: '%c'\n
+9 Η οκταδική σταθερά δε χωράει στο μέγεθος ενός char.\n

@@ -1,0 +1,39 @@
+LIST="one two three four five six"
+LIST:ts,="one,two,three,four,five,six"
+LIST:ts/:tu="ONE/TWO/THREE/FOUR/FIVE/SIX"
+LIST:ts::tu="ONE:TWO:THREE:FOUR:FIVE:SIX"
+LIST:ts:tu="ONETWOTHREEFOURFIVESIX"
+LIST:tu:ts/="ONE/TWO/THREE/FOUR/FIVE/SIX"
+LIST:ts:="one:two:three:four:five:six"
+LIST:ts="onetwothreefourfivesix"
+LIST:ts:S/two/2/="one2threefourfivesix"
+LIST:S/two/2/:ts="one2threefourfivesix"
+LIST:ts/:S/two/2/="one/2/three/four/five/six"
+Pretend the '/' in '/n' etc. below are back-slashes.
+LIST:ts/n="one
+two
+three
+four
+five
+six"
+LIST:ts/t="one	two	three	four	five	six"
+LIST:ts/012:tu="ONE
+TWO
+THREE
+FOUR
+FIVE
+SIX"
+LIST:ts/xa:tu="ONE
+TWO
+THREE
+FOUR
+FIVE
+SIX"
+make: Bad modifier `:tx' for LIST
+LIST:tx="}"
+make: Bad modifier `:ts\X' for LIST
+LIST:ts/x:tu="\X:tu}"
+FU_mod-ts="a/b/cool"
+FU_mod-ts:ts:T="cool" == cool?
+B.${AAA:ts}="Baaa" == Baaa?
+exit status 0

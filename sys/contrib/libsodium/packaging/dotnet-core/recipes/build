@@ -1,0 +1,9 @@
+cd ~
+tar xzf /io/libsodium.tar.gz
+cd libsodium-*
+./configure
+make
+make check
+make install
+strip --strip-all /usr/local/lib/libsodium.so
+cp /usr/local/lib/libsodium.so /io/output

@@ -1,0 +1,115 @@
+.\" Author:	Juli Mallett <jmallett@FreeBSD.org>
+.\" Date:	June 04, 2003
+.\" Description:
+.\" 	Manual page for libufs functions:
+.\"		ufs_disk_close(3)
+.\"		ufs_disk_fillout(3)
+.\"		ufs_disk_fillout_blank(3)
+.\"		ufs_disk_write(3)
+.\"
+.\" This file is in the public domain.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 4, 2003
+.Dt UFS_DISK_CLOSE 3
+.Os
+.Sh NAME
+.Nm ufs_disk_close ,
+.Nm ufs_disk_fillout ,
+.Nm ufs_disk_fillout_blank ,
+.Nm ufs_disk_write
+.Nd open and close userland UFS disks
+.Sh LIBRARY
+.Lb libufs
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.In ufs/ufs/ufsmount.h
+.In ufs/ufs/dinode.h
+.In ufs/ffs/fs.h
+.In libufs.h
+.Ft int
+.Fn ufs_disk_close "struct uufsd *disk"
+.Ft int
+.Fn ufs_disk_fillout "struct uufsd *disk" "const char *name"
+.Ft int
+.Fn ufs_disk_fillout_blank "struct uufsd *disk" "const char *name"
+.Ft int
+.Fn ufs_disk_write "struct uufsd *disk"
+.Sh DESCRIPTION
+The
+.Fn ufs_disk_close
+function closes a disk and frees internal memory related to it.
+It does not free the
+.Fa disk
+structure.
+.Pp
+The
+.Fn ufs_disk_fillout
+and
+.Fn ufs_disk_fillout_blank
+functions open a disk specified by
+.Fa name
+and populate the structure pointed to by
+.Fa disk .
+The disk is opened read-only.
+The specified
+.Fa name
+may be either a mountpoint, a device name or a filesystem image.
+The
+.Fn ufs_disk_fillout
+function assumes there is a valid superblock and will fail if not,
+whereas the
+.Fn ufs_disk_fillout_blank
+function makes no assumptions of that sort.
+.Pp
+The
+.Fn ufs_disk_write
+function attempts to re-open a disk as writable if it is not currently.
+.Sh ERRORS
+The function
+.Fn ufs_disk_close
+has no failure points.
+.Pp
+The function
+.Fn ufs_disk_fillout
+may fail for any of the reasons
+.Fn ufs_disk_fillout_blank
+might, as well as for any reason
+.Xr sbread 3
+might.
+.Pp
+The
+.Fn ufs_disk_fillout_blank
+may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr open 2 ,
+.Xr strdup 3 .
+Additionally, it may follow the
+.Xr libufs 3
+error methodologies in situations where no device could be found to
+open.
+.Pp
+The function
+.Fn ufs_disk_write
+may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr open 2
+and
+.Xr stat 2 .
+Namely, it will fail if the disk in question may not be written to.
+.Sh SEE ALSO
+.Xr open 2 ,
+.Xr getfsfile 3 ,
+.Xr libufs 3 ,
+.Xr sbread 3
+.Sh HISTORY
+These functions first appeared as part of
+.Xr libufs 3
+in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Juli Mallett Aq Mt jmallett@FreeBSD.org

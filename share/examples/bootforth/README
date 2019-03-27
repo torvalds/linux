@@ -1,0 +1,35 @@
+Here you can find some simple examples how to use BootFORTH (part of the
+new bootloader) together with terminal emulation code (available when
+compiling /stand/i386/libi386 with -DTERM_EMU).
+
+Normally, you can place the files in /boot as they are here, and they will be
+automatically loaded by /boot/loader. You must choose between boot.4th or
+loader.rc, though. Copy one or the other, but not both. Also, menu.4th is
+only used by boot.4th, and menuconf.4th is only used by loader.rc, so you
+don't need to copy both files.
+
+The files are:
+
+boot.4th	example of file which is always loaded by /boot/loader, if
+		present in /boot/
+loader.rc	example of file which is always loader by /boot/loader, if
+		present in /boot/
+screen.4th	helpful words for screen manipulation.
+frames.4th	basic frame drawing primitives. Requires screen.4th.
+menu.4th	example of simple startup menu.
+menuconf.4th	another example of simples startup menu.
+
+You're encouraged to add more features to these files - I'm not a Forth
+hacker, unfortunately...
+
+Andrzej Bialecki
+<abial@freebsd.org>
+
+If you use loader.rc/menuconf.4th, be sure to create /boot/stable.conf and
+/boot/current.conf, like described in loader.conf(5), with appropriate
+configuration to distinguish one from the other.
+
+Daniel C. Sobral
+<dcs@freebsd.org>
+
+$FreeBSD$

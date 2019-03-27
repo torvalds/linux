@@ -1,0 +1,259 @@
+.\" Man page generated from reStructuredText.
+.
+.TH IBPORTSTATE 8 "" "" "Open IB Diagnostics"
+.SH NAME
+IBPORTSTATE \- handle port (physical) state and link speed of an InfiniBand port
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.SH SYNOPSIS
+.sp
+ibportstate [options] <dest dr_path|lid|guid> <portnum> [<op>]
+.SH DESCRIPTION
+.sp
+ibportstate allows the port state and port physical state of an IB port
+to be queried (in addition to link width and speed being validated
+relative to the peer port when the port queried is a switch port),
+or a switch port to be disabled, enabled, or reset. It
+also allows the link speed/width enabled on any IB port to be adjusted.
+.SH OPTIONS
+.INDENT 0.0
+.TP
+.B \fB<op>\fP
+.INDENT 7.0
+.TP
+.B Supported ops: enable, disable, reset, speed, espeed, fdr10, width, query,
+on, off, down, arm, active, vls, mtu, lid, smlid, lmc,
+mkey, mkeylease, mkeyprot
+(Default is query)
+.UNINDENT
+.sp
+\fBenable, disable, and reset\fP are only allowed on switch ports (An
+error is indicated if attempted on CA or router ports)
+.sp
+\fBoff\fP change the port state to disable.
+.sp
+\fBon\fP change the port state to enable(only when the current state is disable).
+.sp
+\fBspeed and width\fP are allowed on any port
+.sp
+\fBspeed\fP values are the legal values for PortInfo:LinkSpeedEnabled (An
+error is indicated if PortInfo:LinkSpeedSupported does not support this
+setting)
+.sp
+\fBespeed\fP is allowed on any port supporting extended link speeds
+.sp
+\fBfdr10\fP is allowed on any port supporting fdr10 (An error is
+indicated if port\(aqs capability mask indicates extended link speeds are
+not supported or if PortInfo:LinkSpeedExtSupported does not support
+this setting)
+.sp
+\fBwidth\fP values are legal values for PortInfo:LinkWidthEnabled (An
+error is indicated if PortInfo:LinkWidthSupported does not support this
+setting) (NOTE: Speed and width changes are not effected until the port
+goes through link renegotiation)
+.sp
+\fBquery\fP also validates port characteristics (link width, speed,
+espeed, and fdr10) based on the peer port. This checking is done when
+the port queried is a switch port as it relies on combined routing (an
+initial LID route with directed routing to the peer) which can only be
+done on a switch. This peer port validation feature of query op
+requires LID routing to be functioning in the subnet.
+.sp
+\fBmkey, mkeylease, and mkeyprot\fP are only allowed on CAs, routers, or
+switch port 0 (An error is generated if attempted on external switch
+ports).  Hexadecimal and octal mkeys may be specified by prepending the
+key with \(aq0x\(aq or \(aq0\(aq, respectively.  If a non\-numeric value (like \(aqx\(aq)
+is specified for the mkey, then ibportstate will prompt for a value.
+.UNINDENT
+.SS Addressing Flags
+.\" Define the common option -L
+.
+.sp
+\fB\-L, \-\-Lid\fP   The address specified is a LID
+.\" Define the common option -G
+.
+.sp
+\fB\-G, \-\-Guid\fP     The address specified is a Port GUID
+.\" Define the common option -D for Directed routes
+.
+.sp
+\fB\-D, \-\-Direct\fP     The address specified is a directed route
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+Examples:
+   [options] \-D [options] "0"          # self port
+   [options] \-D [options] "0,1,2,1,4"  # out via port 1, then 2, ...
+
+   (Note the second number in the path specified must match the port being
+   used.  This can be specified using the port selection flag \(aq\-P\(aq or the
+   port found through the automatic selection process.)
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.\" Define the common option -s
+.
+.sp
+\fB\-s, \-\-sm_port <smlid>\fP     use \(aqsmlid\(aq as the target lid for SA queries.
+.SS Port Selection flags
+.\" Define the common option -C
+.
+.sp
+\fB\-C, \-\-Ca <ca_name>\fP    use the specified ca_name.
+.\" Define the common option -P
+.
+.sp
+\fB\-P, \-\-Port <ca_port>\fP    use the specified ca_port.
+.\" Explanation of local port selection
+.
+.SS Local port Selection
+.sp
+Multiple port/Multiple CA support: when no IB device or port is specified
+(see the "local umad parameters" below), the libibumad library
+selects the port to use by the following criteria:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP 1. 3
+the first port that is ACTIVE.
+.IP 2. 3
+if not found, the first port that is UP (physical link up).
+.UNINDENT
+.sp
+If a port and/or CA name is specified, the libibumad library attempts
+to fulfill the user request, and will fail if it is not possible.
+.sp
+For example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+ibaddr                 # use the first port (criteria #1 above)
+ibaddr \-C mthca1       # pick the best port from "mthca1" only.
+ibaddr \-P 2            # use the second (active/up) port from the first available IB device.
+ibaddr \-C mthca0 \-P 2  # use the specified port only.
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Configuration flags
+.\" Define the common option -z
+.
+.sp
+\fB\-\-config, \-z  <config_file>\fP Specify alternate config file.
+.INDENT 0.0
+.INDENT 3.5
+Default: /etc/infiniband-diags/ibdiag.conf
+.UNINDENT
+.UNINDENT
+.\" Define the common option -t
+.
+.sp
+\fB\-t, \-\-timeout <timeout_ms>\fP override the default timeout for the solicited mads.
+.\" Define the common option -y
+.
+.INDENT 0.0
+.TP
+.B \fB\-y, \-\-m_key <key>\fP
+use the specified M_key for requests. If non\-numeric value (like \(aqx\(aq)
+is specified then a value will be prompted for.
+.UNINDENT
+.SS Debugging flags
+.\" Define the common option -h
+.
+.sp
+\fB\-h, \-\-help\fP      show the usage message
+.\" Define the common option -d
+.
+.INDENT 0.0
+.TP
+.B \-d
+raise the IB debugging level.
+May be used several times (\-ddd or \-d \-d \-d).
+.UNINDENT
+.\" Define the common option -e
+.
+.INDENT 0.0
+.TP
+.B \-e
+show send and receive errors (timeouts and others)
+.UNINDENT
+.\" Define the common option -K
+.
+.INDENT 0.0
+.TP
+.B \fB\-K, \-\-show_keys\fP
+show security keys (mkey, smkey, etc.) associated with the request.
+.UNINDENT
+.\" Define the common option -v
+.
+.INDENT 0.0
+.TP
+.B \fB\-v, \-\-verbose\fP
+increase the application verbosity level.
+May be used several times (\-vv or \-v \-v \-v)
+.UNINDENT
+.\" Define the common option -V
+.
+.sp
+\fB\-V, \-\-version\fP     show the version info.
+.SH FILES
+.\" Common text for the config file
+.
+.SS CONFIG FILE
+.sp
+/etc/infiniband-diags/ibdiag.conf
+.sp
+A global config file is provided to set some of the common options for all
+tools.  See supplied config file for details.
+.SH EXAMPLES
+.INDENT 0.0
+.TP
+.B ::
+ibportstate 3 1 disable                  # by lid
+ibportstate \-G 0x2C9000100D051 1 enable  # by guid
+ibportstate \-D 0 1                       # (query) by direct route
+ibportstate 3 1 reset                    # by lid
+ibportstate 3 1 speed 1                  # by lid
+ibportstate 3 1 width 1                  # by lid
+ibportstate \-D 0 1 lid 0x1234 arm        # by direct route
+.UNINDENT
+.SH AUTHOR
+.INDENT 0.0
+.TP
+.B Hal Rosenstock
+< \fI\%hal.rosenstock@gmail.com\fP >
+.UNINDENT
+.\" Generated by docutils manpage writer.
+.

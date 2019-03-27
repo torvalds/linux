@@ -1,0 +1,23 @@
+$ $tcsh: set19,v 1.6 2011/02/25 23:58:07 christos Exp $
+$ tc.alloc.c
+$set 19 
+1 nbytes=%d: Plus de mémoire\n
+2 free(%lx) appelé avant allocation.
+3 free(%lx) au delà de la limite memoire.
+4 free(%lx) en deçà de la limite memoire.
+5 free(%lx) mauvais bloc.
+6 free(%lx) limites incorrectes.
+7 free(%lx) index de bloc incorrect.
+8 %s allocation mémoire actuelle:\nfree:\t
+9 utilisé
+10 \n\tTotal utilisé: %d, total libre: %d\n
+11 \tMémoire allouée de 0x%lx à 0x%lx.  Limite réelle supérieure à 0x%lx\n
+12 Mémoire allouée de 0x%lx à 0x%lx (%ld).\n
+13 %s current memory allocation:\n
+14 Total space allocated from system: %d\n
+15 Number of non-inuse chunks: %d\n
+16 Number of mmapped regions: %d\n
+17 Total space in mmapped regions: %d\n
+18 Total allocated space: %d\n
+19 Total non-inuse space: %d\n
+20 Top-most, releasable space: %d\n

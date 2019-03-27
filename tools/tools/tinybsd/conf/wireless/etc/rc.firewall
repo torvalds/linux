@@ -1,0 +1,302 @@
+#!/bin/sh -
+# Copyright (c) 1996  Poul-Henning Kamp
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+#
+# Setup system for firewall service.
+#
+
+# Suck in the configuration variables.
+if [ -z "${source_rc_confs_defined}" ]; then
+	if [ -r /etc/defaults/rc.conf ]; then
+		. /etc/defaults/rc.conf
+		source_rc_confs
+	elif [ -r /etc/rc.conf ]; then
+		. /etc/rc.conf
+	fi
+fi
+
+############
+# Define the firewall type in /etc/rc.conf.  Valid values are:
+#   open     - will allow anyone in
+#   client   - will try to protect just this machine
+#   simple   - will try to protect a whole network
+#   closed   - totally disables IP services except via lo0 interface
+#   UNKNOWN  - disables the loading of firewall rules.
+#   filename - will load the rules in the given filename (full path required)
+#
+# For ``client'' and ``simple'' the entries below should be customized
+# appropriately.
+
+############
+#
+# If you don't know enough about packet filtering, we suggest that you
+# take time to read this book:
+#
+#	Building Internet Firewalls, 2nd Edition
+#	Brent Chapman and Elizabeth Zwicky
+#
+#	O'Reilly & Associates, Inc
+#	ISBN 1-56592-871-7
+#	http://www.ora.com/
+#	http://www.oreilly.com/catalog/fire2/
+#
+# For a more advanced treatment of Internet Security read:
+#
+#	Firewalls & Internet Security
+#	Repelling the wily hacker
+#	William R. Cheswick, Steven M. Bellowin
+#
+#	Addison-Wesley
+#	ISBN 0-201-63357-4
+#	http://www.awl.com/
+#	http://www.awlonline.com/product/0%2C2627%2C0201633574%2C00.html
+#
+
+setup_loopback () {
+	############
+	# Only in rare cases do you want to change these rules
+	#
+	${fwcmd} add 100 pass all from any to any via lo0
+	${fwcmd} add 200 deny all from any to 127.0.0.0/8
+	${fwcmd} add 300 deny ip from 127.0.0.0/8 to any
+}
+
+if [ -n "${1}" ]; then
+	firewall_type="${1}"
+fi
+
+############
+# Set quiet mode if requested
+#
+case ${firewall_quiet} in
+[Yy][Ee][Ss])
+	fwcmd="/sbin/ipfw -q"
+	;;
+*)
+	fwcmd="/sbin/ipfw"
+	;;
+esac
+
+############
+# Flush out the list before we begin.
+#
+${fwcmd} -f flush
+
+############
+# Network Address Translation.  All packets are passed to natd(8)
+# before they encounter your remaining rules.  The firewall rules
+# will then be run again on each packet after translation by natd
+# starting at the rule number following the divert rule.
+#
+# For ``simple'' firewall type the divert rule should be put to a
+# different place to not interfere with address-checking rules.
+#
+case ${firewall_type} in
+[Oo][Pp][Ee][Nn]|[Cc][Ll][Ii][Ee][Nn][Tt])
+	case ${natd_enable} in
+	[Yy][Ee][Ss])
+		if [ -n "${natd_interface}" ]; then
+			${fwcmd} add 50 divert natd all from any to any via ${natd_interface}
+		fi
+		;;
+	esac
+esac
+
+############
+# If you just configured ipfw in the kernel as a tool to solve network
+# problems or you just want to disallow some particular kinds of traffic
+# then you will want to change the default policy to open.  You can also
+# do this as your only action by setting the firewall_type to ``open''.
+#
+# ${fwcmd} add 65000 pass all from any to any
+
+
+# Prototype setups.
+#
+case ${firewall_type} in
+[Oo][Pp][Ee][Nn])
+	setup_loopback
+	${fwcmd} add 65000 pass all from any to any
+	;;
+
+[Cc][Ll][Ii][Ee][Nn][Tt])
+	############
+	# This is a prototype setup that will protect your system somewhat
+	# against people from outside your own network.
+	############
+
+	# set these to your network and netmask and ip
+	net="192.0.2.0"
+	mask="255.255.255.0"
+	ip="192.0.2.1"
+
+	setup_loopback
+
+	# Allow any traffic to or from my own net.
+	${fwcmd} add pass all from ${ip} to ${net}:${mask}
+	${fwcmd} add pass all from ${net}:${mask} to ${ip}
+
+	# Allow TCP through if setup succeeded
+	${fwcmd} add pass tcp from any to any established
+
+	# Allow IP fragments to pass through
+	${fwcmd} add pass all from any to any frag
+
+	# Allow setup of incoming email
+	${fwcmd} add pass tcp from any to ${ip} 25 setup
+
+	# Allow setup of outgoing TCP connections only
+	${fwcmd} add pass tcp from ${ip} to any setup
+
+	# Disallow setup of all other TCP connections
+	${fwcmd} add deny tcp from any to any setup
+
+	# Allow DNS queries out in the world
+	${fwcmd} add pass udp from ${ip} to any 53 keep-state
+
+	# Allow NTP queries out in the world
+	${fwcmd} add pass udp from ${ip} to any 123 keep-state
+
+	# Everything else is denied by default, unless the
+	# IPFIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
+	# config file.
+	;;
+
+[Ss][Ii][Mm][Pp][Ll][Ee])
+	############
+	# This is a prototype setup for a simple firewall.  Configure this
+	# machine as a DNS and NTP server, and point all the machines
+	# on the inside at this machine for those services.
+	############
+
+	# set these to your outside interface network and netmask and ip
+	oif="ed0"
+	onet="192.0.2.0"
+	omask="255.255.255.240"
+	oip="192.0.2.1"
+
+	# set these to your inside interface network and netmask and ip
+	iif="ed1"
+	inet="192.0.2.16"
+	imask="255.255.255.240"
+	iip="192.0.2.17"
+
+	setup_loopback
+
+	# Stop spoofing
+	${fwcmd} add deny all from ${inet}:${imask} to any in via ${oif}
+	${fwcmd} add deny all from ${onet}:${omask} to any in via ${iif}
+
+	# Stop RFC1918 nets on the outside interface
+	${fwcmd} add deny all from any to 10.0.0.0/8 via ${oif}
+	${fwcmd} add deny all from any to 172.16.0.0/12 via ${oif}
+	${fwcmd} add deny all from any to 192.168.0.0/16 via ${oif}
+
+	# Stop draft-manning-dsua-03.txt (1 May 2000) nets (includes RESERVED-1,
+	# DHCP auto-configuration, NET-TEST, MULTICAST (class D), and class E)
+	# on the outside interface
+	${fwcmd} add deny all from any to 0.0.0.0/8 via ${oif}
+	${fwcmd} add deny all from any to 169.254.0.0/16 via ${oif}
+	${fwcmd} add deny all from any to 192.0.2.0/24 via ${oif}
+	${fwcmd} add deny all from any to 224.0.0.0/4 via ${oif}
+	${fwcmd} add deny all from any to 240.0.0.0/4 via ${oif}
+
+	# Network Address Translation.  This rule is placed here deliberately
+	# so that it does not interfere with the surrounding address-checking
+	# rules.  If for example one of your internal LAN machines had its IP
+	# address set to 192.0.2.1 then an incoming packet for it after being
+	# translated by natd(8) would match the `deny' rule above.  Similarly
+	# an outgoing packet originated from it before being translated would
+	# match the `deny' rule below.
+	case ${natd_enable} in
+	[Yy][Ee][Ss])
+		if [ -n "${natd_interface}" ]; then
+			${fwcmd} add divert natd all from any to any via ${natd_interface}
+		fi
+		;;
+	esac
+
+	# Stop RFC1918 nets on the outside interface
+	${fwcmd} add deny all from 10.0.0.0/8 to any via ${oif}
+	${fwcmd} add deny all from 172.16.0.0/12 to any via ${oif}
+	${fwcmd} add deny all from 192.168.0.0/16 to any via ${oif}
+
+	# Stop draft-manning-dsua-03.txt (1 May 2000) nets (includes RESERVED-1,
+	# DHCP auto-configuration, NET-TEST, MULTICAST (class D), and class E)
+	# on the outside interface
+	${fwcmd} add deny all from 0.0.0.0/8 to any via ${oif}
+	${fwcmd} add deny all from 169.254.0.0/16 to any via ${oif}
+	${fwcmd} add deny all from 192.0.2.0/24 to any via ${oif}
+	${fwcmd} add deny all from 224.0.0.0/4 to any via ${oif}
+	${fwcmd} add deny all from 240.0.0.0/4 to any via ${oif}
+
+	# Allow TCP through if setup succeeded
+	${fwcmd} add pass tcp from any to any established
+
+	# Allow IP fragments to pass through
+	${fwcmd} add pass all from any to any frag
+
+	# Allow setup of incoming email
+	${fwcmd} add pass tcp from any to ${oip} 25 setup
+
+	# Allow access to our DNS
+	${fwcmd} add pass tcp from any to ${oip} 53 setup
+	${fwcmd} add pass udp from any to ${oip} 53
+	${fwcmd} add pass udp from ${oip} 53 to any
+
+	# Allow access to our WWW
+	${fwcmd} add pass tcp from any to ${oip} 80 setup
+
+	# Reject&Log all setup of incoming connections from the outside
+	${fwcmd} add deny log tcp from any to any in via ${oif} setup
+
+	# Allow setup of any other TCP connection
+	${fwcmd} add pass tcp from any to any setup
+
+	# Allow DNS queries out in the world
+	${fwcmd} add pass udp from ${oip} to any 53 keep-state
+
+	# Allow NTP queries out in the world
+	${fwcmd} add pass udp from ${oip} to any 123 keep-state
+
+	# Everything else is denied by default, unless the
+	# IPFIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
+	# config file.
+	;;
+
+[Cc][Ll][Oo][Ss][Ee][Dd])
+	setup_loopback
+	;;
+[Uu][Nn][Kk][Nn][Oo][Ww][Nn])
+	;;
+*)
+	if [ -r "${firewall_type}" ]; then
+		${fwcmd} ${firewall_flags} ${firewall_type}
+	fi
+	;;
+esac

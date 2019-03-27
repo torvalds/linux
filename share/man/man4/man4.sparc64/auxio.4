@@ -1,0 +1,80 @@
+.\"-
+.\" Copyright (c) 2004 Pyun YongHyeon
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 18, 2005
+.Dt AUXIO 4 sparc64
+.Os
+.Sh NAME
+.Nm auxio
+.Nd "Sun Auxiliary I/O"
+.Sh SYNOPSIS
+.Cd "device auxio"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the auxiliary I/O device found on the
+.Tn EBus
+and
+.Tn SBus
+busses of
+.Tn Sun UltraSPARC
+workstation and small server class systems.
+This device contains miscellaneous system controls,
+including the front panel LED.
+This LED can be made to blink by writing
+.Tn ASCII
+strings to the
+.Pa /dev/led/auxioled
+device.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/led/auxioled"
+.It Pa /dev/led/auxioled
+Auxiliary I/O device node
+.El
+.Sh SEE ALSO
+.Xr ebus 4 ,
+.Xr led 4 ,
+.Xr sbus 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Nx 1.5 .
+The first
+.Fx
+version to include it was
+.Fx 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Matthew R. Green
+and ported to
+.Fx
+by
+.An Pyun YongHyeon Aq Mt yongari@FreeBSD.org .

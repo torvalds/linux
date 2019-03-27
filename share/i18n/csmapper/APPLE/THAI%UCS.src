@@ -1,0 +1,302 @@
+# $FreeBSD$
+# $NetBSD: THAI%UCS.src,v 1.1 2006/03/13 19:45:36 tnozaki Exp $
+
+TYPE		ROWCOL
+NAME		THAI/UCS
+SRC_ZONE	0x00-0xFF
+OOB_MODE	ILSEQ
+DST_ILSEQ	0xFFFE
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+#
+# This mapping data is made from the mapping data provided by Unicode, Inc.
+# Original notice:
+#
+#=======================================================================
+#   File name:  THAI.TXT
+#
+#   Contents:   Map (external version) from Mac OS Thai
+#               character set to Unicode 3.2 and later.
+#
+#   Copyright:  (c) 1995-2002, 2005 by Apple Computer, Inc., all rights
+#               reserved.
+#
+#   Contact:    charsets@apple.com
+#
+#   Changes:
+#
+#       c02  2005-Apr-05    Update header comments. Matches internal xml
+#                           <c1.1> and Text Encoding Converter 2.0.
+#      b3,c1 2002-Dec-19    Update mapping for 0xDB to use new Unicode
+#                           3.2 WORD JOINER instead of ZWNBSP (BOM).
+#                           Update URLs. Matches internal utom<b3>.
+#       b02  1999-Sep-22    Update contact e-mail address. Matches
+#                           internal utom<b1>, ufrm<b2>, and Text
+#                           Encoding Converter version 1.5.
+#       n07  1998-Feb-05    Update to match internal utom<n5>, ufrm<n13>
+#                           and Text Encoding Converter version 1.3:
+#                           Use standard Unicodes plus transcoding hints
+#                           instead of single corporate characters; see
+#                           details below. Also update header comments
+#                           to new format.
+#       n04  1995-Nov-17    First version (after fixing some typos).
+#                           Matches internal ufrm<n6>.
+#
+# Standard header:
+# ----------------
+#
+#   Apple, the Apple logo, and Macintosh are trademarks of Apple
+#   Computer, Inc., registered in the United States and other countries.
+#   Unicode is a trademark of Unicode Inc. For the sake of brevity,
+#   throughout this document, "Macintosh" can be used to refer to
+#   Macintosh computers and "Unicode" can be used to refer to the
+#   Unicode standard.
+#
+#   Apple Computer, Inc. ("Apple") makes no warranty or representation,
+#   either express or implied, with respect to this document and the
+#   included data, its quality, accuracy, or fitness for a particular
+#   purpose. In no event will Apple be liable for direct, indirect,
+#   special, incidental, or consequential damages resulting from any
+#   defect or inaccuracy in this document or the included data.
+#
+#   These mapping tables and character lists are subject to change.
+#   The latest tables should be available from the following:
+#
+#   <http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/>
+#
+#   For general information about Mac OS encodings and these mapping
+#   tables, see the file "README.TXT".
+#
+# Format:
+# -------
+#
+#   Three tab-separated columns;
+#   '#' begins a comment which continues to the end of the line.
+#     Column #1 is the Mac OS Thai code (in hex as 0xNN)
+#     Column #2 is the corresponding Unicode or Unicode sequence
+#       (in hex as 0xNNNN or 0xNNNN+0xNNNN).
+#     Column #3 is a comment containing the Unicode name
+#
+#   The entries are in Mac OS Thai code order.
+#
+#   Some of these mappings require the use of corporate characters.
+#   See the file "CORPCHAR.TXT" and notes below.
+#
+#   Control character mappings are not shown in this table, following
+#   the conventions of the standard UTC mapping tables. However, the
+#   Mac OS Thai character set uses the standard control characters at
+#   0x00-0x1F and 0x7F.
+#
+# Notes on Mac OS Thai:
+# ---------------------
+#
+#   This is a legacy Mac OS encoding; in the Mac OS X Carbon and Cocoa
+#   environments, it is only supported via transcoding to and from
+#   Unicode.
+#
+#   Codes 0xA1-0xDA and 0xDF-0xFB are the character set from Thai
+#   standard TIS 620-2533, except that the following changes are
+#   made:
+#     0xEE is TRADE MARK SIGN (instead of THAI CHARACTER YAMAKKAN)
+#     0xFA is REGISTERED SIGN (instead of THAI CHARACTER ANGKHANKHU)
+#     0xFB is COPYRIGHT SIGN (instead of THAI CHARACTER KHOMUT)
+#
+#   Codes 0x80-0x82, 0x8D-0x8E, 0x91, 0x9D-0x9E, and 0xDB-0xDE are
+#   various additional punctuation marks (e.g. curly quotes,
+#   ellipsis), no-break space, and two special characters "word join"
+#   and "word break".
+#
+#   Codes 0x83-0x8C, 0x8F, and 0x92-0x9C are for positional variants
+#   of the upper vowels, tone marks, and other signs at 0xD1,
+#   0xD4-0xD7, and 0xE7-0xED. The positional variants would normally
+#   be considered presentation forms only and not characters. In most
+#   cases they are not typed directly; they are selected automatically
+#   at display time by the WorldScript software. However, using the
+#   Thai-DTP keyboard, the presentation forms can in fact be typed
+#   directly using dead keys. Thus they must be treated as real
+#   characters in the Mac OS Thai encoding. They are mapped using
+#   variant tags; see below.
+#
+#   Several code points are undefined and unused (they cannot be
+#   typed using any of the Mac OS Thai keyboard layouts): 0x90, 0x9F,
+#   0xFC-0xFE. These are not shown in the table below.
+#
+# Unicode mapping issues and notes:
+# ---------------------------------
+#
+#   The goals in the Apple mappings provided here are:
+#   - Ensure roundtrip mapping from every character in the Mac OS Thai
+#   character set to Unicode and back
+#   - Use standard Unicode characters as much as possible, to maximize
+#   interchangeability of the resulting Unicode text. Whenever possible,
+#   avoid having content carried by private-use characters.
+#
+#   To satisfy both goals, we use private use characters to mark variants
+#   that are similar to a sequence of one or more standard Unicode
+#   characters.
+#
+#   Apple has defined a block of 32 corporate characters as "transcoding
+#   hints." These are used in combination with standard Unicode characters
+#   to force them to be treated in a special way for mapping to other
+#   encodings; they have no other effect. Sixteen of these transcoding
+#   hints are "grouping hints" - they indicate that the next 2-4 Unicode
+#   characters should be treated as a single entity for transcoding. The
+#   other sixteen transcoding hints are "variant tags" - they are like
+#   combining characters, and can follow a standard Unicode (or a sequence
+#   consisting of a base character and other combining characters) to
+#   cause it to be treated in a special way for transcoding. These always
+#   terminate a combining-character sequence.
+#
+#   The transcoding coding hints used in this mapping table are four
+#   variant tags in the range 0xF873-75. Since these are combined with
+#   standard Unicode characters, some characters in the Mac OS Thai
+#   character set map to a sequence of two Unicodes instead of a single
+#   Unicode character. For example, the Mac OS Thai character at 0x83 is a
+#   low-left positional variant of THAI CHARACTER MAI EK (the standard
+#   mapping is for the abstract character at 0xE8). So 0x83 is mapped to
+#   0x0E48 (THAI CHARACTER MAI EK) + 0xF875 (a variant tag).
+#
+# Details of mapping changes in each version:
+# -------------------------------------------
+#
+#   Changes from version b02 to version b03/c01:
+#
+#   - Update mapping for 0xDB to use new Unicode 3.2 character U+2060
+#     WORD JOINER instead of U+FEFF ZERO WIDTH NO-BREAK SPACE (BOM)
+#
+#   Changes from version n04 to version n07:
+#
+#   - Changed mappings of the positional variants to use standard
+#   Unicodes + transcoding hint, instead of using single corporate
+#   zone characters. This affected the mappings for the following:
+#   0x83-08C, 0x8F, 0x92-0x9C
+#
+#   - Just comment out unused code points in the table, instead
+#   of mapping them to U+FFFD.
+#
+##################
+0x00 - 0x7E = 0x0000 -
+0x80 = 0x00AB
+0x81 = 0x00BB
+0x82 = 0x2026
+0x83 = 0x0E48
+0x84 = 0x0E49
+0x85 = 0x0E4A
+0x86 = 0x0E4B
+0x87 = 0x0E4C
+0x88 = 0x0E48
+0x89 = 0x0E49
+0x8A = 0x0E4A
+0x8B = 0x0E4B
+0x8C = 0x0E4C
+0x8D = 0x201C
+0x8E = 0x201D
+0x8F = 0x0E4D
+0x91 = 0x2022
+0x92 = 0x0E31
+0x93 = 0x0E47
+0x94 = 0x0E34
+0x95 = 0x0E35
+0x96 = 0x0E36
+0x97 = 0x0E37
+0x98 = 0x0E48
+0x99 = 0x0E49
+0x9A = 0x0E4A
+0x9B = 0x0E4B
+0x9C = 0x0E4C
+0x9D = 0x2018
+0x9E = 0x2019
+0xA0 = 0x00A0
+0xA1 = 0x0E01
+0xA2 = 0x0E02
+0xA3 = 0x0E03
+0xA4 = 0x0E04
+0xA5 = 0x0E05
+0xA6 = 0x0E06
+0xA7 = 0x0E07
+0xA8 = 0x0E08
+0xA9 = 0x0E09
+0xAA = 0x0E0A
+0xAB = 0x0E0B
+0xAC = 0x0E0C
+0xAD = 0x0E0D
+0xAE = 0x0E0E
+0xAF = 0x0E0F
+0xB0 = 0x0E10
+0xB1 = 0x0E11
+0xB2 = 0x0E12
+0xB3 = 0x0E13
+0xB4 = 0x0E14
+0xB5 = 0x0E15
+0xB6 = 0x0E16
+0xB7 = 0x0E17
+0xB8 = 0x0E18
+0xB9 = 0x0E19
+0xBA = 0x0E1A
+0xBB = 0x0E1B
+0xBC = 0x0E1C
+0xBD = 0x0E1D
+0xBE = 0x0E1E
+0xBF = 0x0E1F
+0xC0 = 0x0E20
+0xC1 = 0x0E21
+0xC2 = 0x0E22
+0xC3 = 0x0E23
+0xC4 = 0x0E24
+0xC5 = 0x0E25
+0xC6 = 0x0E26
+0xC7 = 0x0E27
+0xC8 = 0x0E28
+0xC9 = 0x0E29
+0xCA = 0x0E2A
+0xCB = 0x0E2B
+0xCC = 0x0E2C
+0xCD = 0x0E2D
+0xCE = 0x0E2E
+0xCF = 0x0E2F
+0xD0 = 0x0E30
+0xD1 = 0x0E31
+0xD2 = 0x0E32
+0xD3 = 0x0E33
+0xD4 = 0x0E34
+0xD5 = 0x0E35
+0xD6 = 0x0E36
+0xD7 = 0x0E37
+0xD8 = 0x0E38
+0xD9 = 0x0E39
+0xDA = 0x0E3A
+0xDB = 0x2060
+0xDC = 0x200B
+0xDD = 0x2013
+0xDE = 0x2014
+0xDF = 0x0E3F
+0xE0 = 0x0E40
+0xE1 = 0x0E41
+0xE2 = 0x0E42
+0xE3 = 0x0E43
+0xE4 = 0x0E44
+0xE5 = 0x0E45
+0xE6 = 0x0E46
+0xE7 = 0x0E47
+0xE8 = 0x0E48
+0xE9 = 0x0E49
+0xEA = 0x0E4A
+0xEB = 0x0E4B
+0xEC = 0x0E4C
+0xED = 0x0E4D
+0xEE = 0x2122
+0xEF = 0x0E4F
+0xF0 = 0x0E50
+0xF1 = 0x0E51
+0xF2 = 0x0E52
+0xF3 = 0x0E53
+0xF4 = 0x0E54
+0xF5 = 0x0E55
+0xF6 = 0x0E56
+0xF7 = 0x0E57
+0xF8 = 0x0E58
+0xF9 = 0x0E59
+0xFA = 0x00AE
+0xFB = 0x00A9
+END_MAP

@@ -1,0 +1,65 @@
+Fri Dec  5 15:01:16 CET 2003
+
+This is a mini-SNMP daemon. The basic daemon implements the system group
+and a number of private extensions to manage the UDP transport mapping,
+communities, trap destinations and loadable modules. In this form it can
+be used to provide remote access to arbitrary data that can be described in
+the form as required by the SMI. The daemon speaks both SNMPv1 and SNMPv2c.
+
+One basic loadable module is provided together with the daemon:
+
+- snmp_mibII provides the information groups for ip, tcp, and udp.
+
+Installation
+------------
+
+As usual by doing:
+
+	configure [--with-libbegemot[=path]]
+	make
+	make install
+
+This does not install a configuration file. The standard location for the
+configuration is /etc/snmpd.config, but can be overwritten on the command
+line. An example configuration file is provided. Use --with-libbegemot
+to use libbegemot instead of libisc.
+
+Running
+-------
+
+	snmpd [-m name[=value]] [-p pid-file] [-c config-file] [-d] [-l prefix]
+	      [-D debug-flags] [-I path]
+
+	-m	defines a configuration macro. If no value is given it
+		is set to the empty string.
+
+	-p	specify the file where to store the PID. Default is
+		/var/run/{prefix}.pid.
+
+	-c	specify the configuration file. Default is /etc/{prefix}.config.
+
+	-d	don't go into daemon mode.
+
+	-l	specify the prefix. This is used for the default config and
+		pid file names and for the syslog. Default is "snmpd".
+
+	-D	specify debug flags:
+
+		d	dump all PDUs.
+
+		e	debug event library.
+
+	-I	specify the include path for system configuration files.
+		Default is /etc:/usr/etc:/usr/local/etc.
+
+The directory snmpd contains a snmpd.sh script, which can be copied to
+/usr/local/etc/rc.d to automatically start and stop the daemon. snmpd.config
+is an example config script.
+
+Bug reports:
+-----------
+
+Please report bugs to harti@freebsd.org.
+
+Happy hacking,
+harti

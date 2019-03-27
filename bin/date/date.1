@@ -1,0 +1,471 @@
+.\"-
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)date.1	8.3 (Berkeley) 4/28/95
+.\" $FreeBSD$
+.\"
+.Dd March 20, 2019
+.Dt DATE 1
+.Os
+.Sh NAME
+.Nm date
+.Nd display or set date and time
+.Sh SYNOPSIS
+.Nm
+.Op Fl jRu
+.Op Fl r Ar seconds | Ar filename
+.Oo
+.Fl v
+.Sm off
+.Op Cm + | -
+.Ar val Op Ar ymwdHMS
+.Sm on
+.Oc
+.Ar ...
+.Op Cm + Ns Ar output_fmt
+.Nm
+.Op Fl ju
+.Sm off
+.Op Oo Oo Oo Oo Ar cc Oc Ar yy Oc Ar mm Oc Ar dd Oc Ar HH
+.Ar MM Op Ar .ss
+.Sm on
+.Nm
+.Op Fl jRu
+.Fl f Ar input_fmt new_date
+.Op Cm + Ns Ar output_fmt
+.Nm
+.Op Fl jnu
+.Op Fl I Ns Op Ar FMT
+.Op Fl f Ar input_fmt
+.Op Fl r Ar ...
+.Op Fl v Ar ...
+.Op Ar new_date
+.Sh DESCRIPTION
+When invoked without arguments, the
+.Nm
+utility displays the current date and time.
+Otherwise, depending on the options specified,
+.Nm
+will set the date and time or print it in a user-defined way.
+.Pp
+The
+.Nm
+utility displays the date and time read from the kernel clock.
+When used to set the date and time,
+both the kernel clock and the hardware clock are updated.
+.Pp
+Only the superuser may set the date,
+and if the system securelevel (see
+.Xr securelevel 7 )
+is greater than 1,
+the time may not be changed by more than 1 second.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl f
+Use
+.Ar input_fmt
+as the format string to parse the
+.Ar new_date
+provided rather than using the default
+.Sm off
+.Oo Oo Oo Oo Oo
+.Ar cc Oc
+.Ar yy Oc
+.Ar mm Oc
+.Ar dd Oc
+.Ar HH
+.Oc Ar MM Op Ar .ss
+.Sm on
+format.
+Parsing is done using
+.Xr strptime 3 .
+.It Fl I Ns Op Ar FMT
+Use
+.St -iso8601
+output format.
+.Ar FMT
+may be omitted, in which case the default is
+.Sq date .
+Valid
+.Ar FMT
+values are
+.Sq date ,
+.Sq hours ,
+.Sq minutes ,
+and
+.Sq seconds .
+The date and time is formatted to the specified precision.
+When
+.Ar FMT
+is
+.Sq hours
+(or the more precise
+.Sq minutes
+or
+.Sq seconds ) ,
+the
+.St -iso8601
+format includes the timezone.
+.It Fl j
+Do not try to set the date.
+This allows you to use the
+.Fl f
+flag in addition to the
+.Cm +
+option to convert one date format to another.
+.It Fl R
+Use RFC 2822 date and time output format.
+This is equivalent to using
+.Dq Li %a, %d %b %Y \&%T %z
+as
+.Ar output_fmt
+while
+.Ev LC_TIME
+is set to the
+.Dq C
+locale .
+.It Fl r Ar seconds
+Print the date and time represented by
+.Ar seconds ,
+where
+.Ar seconds
+is the number of seconds since the Epoch
+(00:00:00 UTC, January 1, 1970;
+see
+.Xr time 3 ) ,
+and can be specified in decimal, octal, or hex.
+.It Fl r Ar filename
+Print the date and time of the last modification of
+.Ar filename .
+.It Fl u
+Display or set the date in
+.Tn UTC
+(Coordinated Universal) time.
+.It Fl v
+Adjust (i.e., take the current date and display the result of the
+adjustment; not actually set the date) the second, minute, hour, month
+day, week day, month or year according to
+.Ar val .
+If
+.Ar val
+is preceded with a plus or minus sign,
+the date is adjusted forwards or backwards according to the remaining string,
+otherwise the relevant part of the date is set.
+The date can be adjusted as many times as required using these flags.
+Flags are processed in the order given.
+.Pp
+When setting values
+(rather than adjusting them),
+seconds are in the range 0-59, minutes are in the range 0-59, hours are
+in the range 0-23, month days are in the range 1-31, week days are in the
+range 0-6 (Sun-Sat),
+months are in the range 1-12 (Jan-Dec)
+and years are in the range 80-38 or 1980-2038.
+.Pp
+If
+.Ar val
+is numeric, one of either
+.Ar y ,
+.Ar m ,
+.Ar w ,
+.Ar d ,
+.Ar H ,
+.Ar M
+or
+.Ar S
+must be used to specify which part of the date is to be adjusted.
+.Pp
+The week day or month may be specified using a name rather than a
+number.
+If a name is used with the plus
+(or minus)
+sign, the date will be put forwards
+(or backwards)
+to the next
+(previous)
+date that matches the given week day or month.
+This will not adjust the date,
+if the given week day or month is the same as the current one.
+.Pp
+When a date is adjusted to a specific value or in units greater than hours,
+daylight savings time considerations are ignored.
+Adjustments in units of hours or less honor daylight saving time.
+So, assuming the current date is March 26, 0:30 and that the DST adjustment
+means that the clock goes forward at 01:00 to 02:00, using
+.Fl v No +1H
+will adjust the date to March 26, 2:30.
+Likewise, if the date is October 29, 0:30 and the DST adjustment means that
+the clock goes back at 02:00 to 01:00, using
+.Fl v No +3H
+will be necessary to reach October 29, 2:30.
+.Pp
+When the date is adjusted to a specific value that does not actually exist
+(for example March 26, 1:30 BST 2000 in the Europe/London timezone),
+the date will be silently adjusted forwards in units of one hour until it
+reaches a valid time.
+When the date is adjusted to a specific value that occurs twice
+(for example October 29, 1:30 2000),
+the resulting timezone will be set so that the date matches the earlier of
+the two times.
+.Pp
+It is not possible to adjust a date to an invalid absolute day, so using
+the switches
+.Fl v No 31d Fl v No 12m
+will simply fail five months of the year.
+It is therefore usual to set the month before setting the day; using
+.Fl v No 12m Fl v No 31d
+always works.
+.Pp
+Adjusting the date by months is inherently ambiguous because
+a month is a unit of variable length depending on the current date.
+This kind of date adjustment is applied in the most intuitive way.
+First of all,
+.Nm
+tries to preserve the day of the month.
+If it is impossible because the target month is shorter than the present one,
+the last day of the target month will be the result.
+For example, using
+.Fl v No +1m
+on May 31 will adjust the date to June 30, while using the same option
+on January 30 will result in the date adjusted to the last day of February.
+This approach is also believed to make the most sense for shell scripting.
+Nevertheless, be aware that going forth and back by the same number of
+months may take you to a different date.
+.Pp
+Refer to the examples below for further details.
+.El
+.Pp
+An operand with a leading plus
+.Pq Sq +
+sign signals a user-defined format string
+which specifies the format in which to display the date and time.
+The format string may contain any of the conversion specifications
+described in the
+.Xr strftime 3
+manual page, as well as any arbitrary text.
+A newline
+.Pq Ql \en
+character is always output after the characters specified by
+the format string.
+The format string for the default display is
+.Dq +%+ .
+.Pp
+If an operand does not have a leading plus sign, it is interpreted as
+a value for setting the system's notion of the current date and time.
+The canonical representation for setting the date and time is:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It Ar cc
+Century
+(either 19 or 20)
+prepended to the abbreviated year.
+.It Ar yy
+Year in abbreviated form
+(e.g., 89 for 1989, 06 for 2006).
+.It Ar mm
+Numeric month, a number from 1 to 12.
+.It Ar dd
+Day, a number from 1 to 31.
+.It Ar HH
+Hour, a number from 0 to 23.
+.It Ar MM
+Minutes, a number from 0 to 59.
+.It Ar ss
+Seconds, a number from 0 to 60
+(59 plus a potential leap second).
+.El
+.Pp
+Everything but the minutes is optional.
+.Pp
+Time changes for Daylight Saving Time, standard time, leap seconds,
+and leap years are handled automatically.
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width Ds
+.It Ev TZ
+The timezone to use when displaying dates.
+The normal format is a pathname relative to
+.Pa /usr/share/zoneinfo .
+For example, the command
+.Dq TZ=America/Los_Angeles date
+displays the current time in California.
+See
+.Xr environ 7
+for more information.
+.El
+.Sh FILES
+.Bl -tag -width /var/log/messages -compact
+.It Pa /var/log/utx.log
+record of date resets and time changes
+.It Pa /var/log/messages
+record of the user setting the time
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 on success, 1 if unable to set the date, and 2
+if able to set the local date, but unable to set it globally.
+.Sh EXAMPLES
+The command:
+.Pp
+.Dl "date ""+DATE: %Y-%m-%d%nTIME: %H:%M:%S"""
+.Pp
+will display:
+.Bd -literal -offset indent
+DATE: 1987-11-21
+TIME: 13:36:16
+.Ed
+.Pp
+In the Europe/London timezone, the command:
+.Pp
+.Dl "date -v1m -v+1y"
+.Pp
+will display:
+.Pp
+.Dl "Sun Jan  4 04:15:24 GMT 1998"
+.Pp
+where it is currently
+.Li "Mon Aug  4 04:15:24 BST 1997" .
+.Pp
+The command:
+.Pp
+.Dl "date -v1d -v3m -v0y -v-1d"
+.Pp
+will display the last day of February in the year 2000:
+.Pp
+.Dl "Tue Feb 29 03:18:00 GMT 2000"
+.Pp
+So will the command:
+.Pp
+.Dl "date -v3m -v30d -v0y -v-1m"
+.Pp
+because there is no such date as the 30th of February.
+.Pp
+The command:
+.Pp
+.Dl "date -v1d -v+1m -v-1d -v-fri"
+.Pp
+will display the last Friday of the month:
+.Pp
+.Dl "Fri Aug 29 04:31:11 BST 1997"
+.Pp
+where it is currently
+.Li "Mon Aug  4 04:31:11 BST 1997" .
+.Pp
+The command:
+.Pp
+.Dl "date 8506131627"
+.Pp
+sets the date to
+.Dq Li "June 13, 1985, 4:27 PM" .
+.Pp
+.Dl "date ""+%Y%m%d%H%M.%S"""
+.Pp
+may be used on one machine to print out the date
+suitable for setting on another.
+.Qq ( Li "+%m%d%H%M%Y.%S"
+for use on
+.Tn Linux . )
+.Pp
+The command:
+.Pp
+.Dl "date 1432"
+.Pp
+sets the time to
+.Li "2:32 PM" ,
+without modifying the date.
+.Pp
+The command
+.Pp
+.Dl "TZ=America/Los_Angeles date -Iseconds -r 1533415339"
+.Pp
+will display
+.Pp
+.Dl "2018-08-04T13:42:19-07:00"
+.Pp
+Finally the command:
+.Pp
+.Dl "date -j -f ""%a %b %d %T %Z %Y"" ""`date`"" ""+%s"""
+.Pp
+can be used to parse the output from
+.Nm
+and express it in Epoch time.
+.Sh DIAGNOSTICS
+It is invalid to combine the
+.Fl I
+flag with either
+.Fl R
+or an output format
+.Dq ( + Ns ... )
+operand.
+If this occurs,
+.Nm
+prints:
+.Ql multiple output formats specified
+and exits with an error status.
+.Sh SEE ALSO
+.Xr locale 1 ,
+.Xr gettimeofday 2 ,
+.Xr getutxent 3 ,
+.Xr strftime 3 ,
+.Xr strptime 3
+.Rs
+.%T "TSP: The Time Synchronization Protocol for UNIX 4.3BSD"
+.%A R. Gusella
+.%A S. Zatti
+.Re
+.Sh STANDARDS
+The
+.Nm
+utility is expected to be compatible with
+.St -p1003.2 .
+The
+.Fl d , f , I , j , r , t ,
+and
+.Fl v
+options are all extensions to the standard.
+.Pp
+The format selected by the
+.Fl I
+flag is compatible with
+.St -iso8601 .
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v1 .
+.Pp
+The
+.Fl I
+flag was added in
+.Fx 12.0 .

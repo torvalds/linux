@@ -1,0 +1,69 @@
+
+#------------------------------------------------------------------------------
+# $File: convex,v 1.8 2012/10/03 23:44:43 christos Exp $
+# convex:  file(1) magic for Convex boxes
+#
+# Convexes are big-endian.
+#
+# /*\
+#  * Below are the magic numbers and tests added for Convex.
+#  * Added at beginning, because they are expected to be used most.
+# \*/
+0	belong	0507	Convex old-style object
+>16	belong	>0	not stripped
+0	belong	0513	Convex old-style demand paged executable
+>16	belong	>0	not stripped
+0	belong	0515	Convex old-style pre-paged executable
+>16	belong	>0	not stripped
+0	belong	0517	Convex old-style pre-paged, non-swapped executable
+>16	belong	>0	not stripped
+0	belong	0x011257	Core file
+#
+# The following are a series of dump format magic numbers.  Each one
+# corresponds to a drastically different dump format.  The first on is
+# the original dump format on a 4.1 BSD or earlier file system.  The
+# second marks the change between the 4.1 file system and the 4.2 file
+# system.  The Third marks the changing of the block size from 1K
+# to 2K to be compatible with an IDC file system.  The fourth indicates
+# a dump that is dependent on Convex Storage Manager, because data in
+# secondary storage is not physically contained within the dump.
+# The restore program uses these number to determine how the data is
+# to be extracted.
+#
+24	belong	=60013	dump format, 4.2 or 4.3 BSD (IDC compatible)
+24	belong	=60014	dump format, Convex Storage Manager by-reference dump
+#
+# what follows is a bunch of bit-mask checks on the flags field of the opthdr.
+# If there is no `=' sign, assume just checking for whether the bit is set?
+#
+0	belong	0601		Convex SOFF
+>88	belong&0x000f0000	=0x00000000	c1
+>88	belong			&0x00010000	c2
+>88	belong			&0x00020000	c2mp
+>88	belong			&0x00040000	parallel
+>88	belong			&0x00080000	intrinsic
+>88	belong			&0x00000001	demand paged
+>88	belong			&0x00000002	pre-paged
+>88	belong			&0x00000004	non-swapped
+>88	belong			&0x00000008	POSIX
+#
+>84	belong			&0x80000000	executable
+>84	belong			&0x40000000	object
+>84	belong&0x20000000	=0		not stripped
+>84	belong&0x18000000	=0x00000000	native fpmode
+>84	belong&0x18000000	=0x10000000	ieee fpmode
+>84	belong&0x18000000	=0x18000000	undefined fpmode
+#
+0	belong			0605		Convex SOFF core
+#
+0	belong			0607		Convex SOFF checkpoint
+>88	belong&0x000f0000	=0x00000000	c1
+>88	belong			&0x00010000	c2
+>88	belong			&0x00020000	c2mp
+>88	belong			&0x00040000	parallel
+>88	belong			&0x00080000	intrinsic
+>88	belong			&0x00000008	POSIX
+#
+>84	belong&0x18000000	=0x00000000	native fpmode
+>84	belong&0x18000000	=0x10000000	ieee fpmode
+>84	belong&0x18000000	=0x18000000	undefined fpmode

@@ -1,0 +1,5 @@
+# Host: FreeBSD/amd64
+NATDEPFILES= fork-child.o infptrace.o inftarg.o \
+	amd64-nat.o amd64bsd-nat.o amd64fbsd-nat.o gcore.o fbsd-proc.o
+NAT_FILE= nm-fbsd64.h
+XM_FILE= xm-i386.h

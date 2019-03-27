@@ -1,0 +1,17 @@
+pass in all
+block out all
+log in all
+log body in all
+count in from any to any
+pass in from !any to any pps 10
+block in from any to !any
+pass in on ed0(!) inet from 127.0.0.1/32 to 127.0.0.1/32
+pass in on ed0(!),vx0(!) inet from 127.0.0.1/32 to 127.0.0.1/32
+block in log first on lo0(!) from any to any
+pass in log body or-block quick from any to any
+block return-rst in quick on le0(!) proto tcp from any to any
+block return-icmp in on qe0(!) from any to any
+block return-icmp(host-unr) in on qe0(!) from any to any
+block return-icmp-as-dest in on le0(!) from any to any
+block return-icmp-as-dest(port-unr) in on qe0(!) from any to any
+pass out on longNICname0(!) inet from 254.220.186.152/32 to 254.220.186.152/32

@@ -1,0 +1,23 @@
+.
+.TH "ZSTDGREP" "1" "December 2018" "zstd 1.3.8" "User Commands"
+.
+.SH "NAME"
+\fBzstdgrep\fR \- print lines matching a pattern in zstandard\-compressed files
+.
+.SH "SYNOPSIS"
+\fBzstdgrep\fR [\fIgrep\-flags\fR] [\-\-] \fIpattern\fR [\fIfiles\fR \.\.\.]
+.
+.SH "DESCRIPTION"
+\fBzstdgrep\fR runs \fBgrep (1)\fR on files or stdin, if no files argument is given, after decompressing them with \fBzstdcat (1)\fR\.
+.
+.P
+The grep\-flags and pattern arguments are passed on to \fBgrep (1)\fR\. If an \fB\-e\fR flag is found in the \fBgrep\-flags\fR, \fBzstdgrep\fR will not look for a pattern argument\.
+.
+.SH "EXIT STATUS"
+In case of missing arguments or missing pattern, 1 will be returned, otherwise 0\.
+.
+.SH "SEE ALSO"
+\fBzstd (1)\fR
+.
+.SH "AUTHORS"
+Thomas Klausner \fIwiz@NetBSD\.org\fR

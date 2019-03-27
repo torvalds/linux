@@ -1,0 +1,74 @@
+.\" Generated from pam_getenvlist.c by gendoc.pl
+.\" $OpenPAM: pam_getenvlist.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt PAM_GETENVLIST 3
+.Os
+.Sh NAME
+.Nm pam_getenvlist
+.Nd returns a list of all the PAM environment variables
+.Sh SYNOPSIS
+.In sys/types.h
+.In security/pam_appl.h
+.Ft "char **"
+.Fn pam_getenvlist "pam_handle_t *pamh"
+.Sh DESCRIPTION
+The
+.Fn pam_getenvlist
+function returns a copy of the given PAM context's
+environment list as a pointer to an array of strings.
+The last element in the array is
+.Dv NULL .
+The pointer is suitable for assignment to
+.Va environ .
+.Pp
+The array and the strings it lists are allocated using
+.Xr malloc 3 ,
+and
+should be released using
+.Xr free 3
+after use:
+.Pp
+.Bd -literal
+    char **envlist, **env;
+
+    envlist = environ;
+    environ = pam_getenvlist(pamh);
+    /* do something nifty */
+    for (env = environ; *env != NULL; env++)
+        free(*env);
+    free(environ);
+    environ = envlist;
+.Ed
+.Sh RETURN VALUES
+The
+.Fn pam_getenvlist
+function returns
+.Dv NULL
+on failure.
+.Sh SEE ALSO
+.Xr free 3 ,
+.Xr malloc 3 ,
+.Xr pam 3 ,
+.Xr pam_getenv 3 ,
+.Xr pam_putenv 3 ,
+.Xr pam_setenv 3 ,
+.Xr environ 7
+.Sh STANDARDS
+.Rs
+.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
+.%D "June 1997"
+.Re
+.Sh AUTHORS
+The
+.Fn pam_getenvlist
+function and this manual page were
+developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

@@ -1,0 +1,55 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# Modify this to suit your needs.  The "$1" is the map name, eg. "auto_master".
+# To debug, simply run this script with map name as the only parameter.  It's
+# supposed to output map contents ("key location" pairs) to standard output.
+SEARCHBASE="ou=$1,dc=example,dc=com"
+ENTRY_ATTRIBUTE="cn"
+VALUE_ATTRIBUTE="automountInformation"
+
+/usr/local/bin/ldapsearch -LLL -x -o ldif-wrap=no -b "$SEARCHBASE" "$ENTRY_ATTRIBUTE" "$VALUE_ATTRIBUTE" | awk '
+$1 == "'$ENTRY_ATTRIBUTE':" {
+	key = $2
+}
+
+$1 == "'$VALUE_ATTRIBUTE':" {
+	for (i = 2; i <= NF; i++) {
+		value[i] = $(i)
+	}
+	nvalues = NF
+	b64 = 0
+}
+
+# Double colon after attribute name means the value is in Base64.
+$1 == "'$VALUE_ATTRIBUTE'::" {
+	for (i = 2; i <= NF; i++) {
+		value[i] = $(i)
+	}
+	nvalues = NF
+	b64 = 1
+}
+
+# Empty line - end of record.
+NF == 0 && key != "" && nvalues > 0 {
+	printf "%s%s", key, OFS
+	for (i = 2; i < nvalues; i++) {
+		printf "%s%s", value[i], OFS
+	}
+	if (b64 == 1) {
+		printf "%s", value[nvalues] | "b64decode -rp"
+		close("b64decode -rp")
+		printf "%s", ORS
+	} else {
+		printf "%s%s", value[nvalues], ORS
+	}
+}
+
+NF == 0 {
+	key = ""
+	nvalues = 0
+	delete value
+}
+'

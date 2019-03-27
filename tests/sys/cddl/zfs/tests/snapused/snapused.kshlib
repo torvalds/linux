@@ -1,0 +1,191 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)snapused.kshlib	1.1	09/05/19 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+function usedby_supported
+{
+	fs_prop_exist "usedbysnapshots"
+	return $?
+}
+
+function _check_used # dataset
+{
+        typeset dataset=$1
+
+	if [[ "$(get_prop type $dataset)" == "snapshot" ]]; then
+		return
+	fi
+
+	used=$(get_prop used $dataset)
+	usedbychildren=$(get_prop usedbychildren $dataset)
+	usedbydataset=$(get_prop usedbydataset $dataset)
+	usedbyrefreservation=$(get_prop usedbyrefreservation $dataset)
+	usedbysnapshots=$(get_prop usedbysnapshots $dataset)
+	(( used_sum = usedbychildren + usedbydataset + \
+		usedbyrefreservation + usedbysnapshots ))
+	if (( used != used_sum )); then
+		log_fail "$dataset: used($used) is not the sum($used_sum) of usedby*"
+	fi
+}
+
+function check_used # dataset
+{
+	typeset dataset=$1
+	for child in $($ZFS list -rH -t filesystem,volume -o name $dataset)
+	do
+		_check_used $child
+	done
+}
+
+function check_usedbychildren # dataset
+{
+	typeset dataset=$1
+	typeset -i usedbychildren_sum=0
+	typeset -i parent_usedbychildren=0
+	for child in $($ZFS list -rH -t filesystem,volume -o name $dataset)
+	do
+		if [[ "$(get_prop type $child)" == "snapshot" ]]; then
+               		continue
+        	fi
+
+		# parent
+		if [[ "$child" == "$dataset" ]]; then
+			parent_usedbychildren=$(get_prop usedbychildren $child)
+		else #child
+			reservation=$(get_prop reservation $child)
+			used=$(get_prop used $child)
+			if (( reservation > used )); then
+				(( usedbychildren_sum += reservation ))
+			else
+				(( usedbychildren_sum += used ))
+			fi
+		fi
+	done
+
+        if (( parent_usedbychildren != usedbychildren_sum )); then
+                log_fail "$dataset: usedbychildren($parent_usedbychildren) is not the sum($usedbychildren_sum) of used by children"
+        fi
+}
+
+function _check_usedbydataset # dataset
+{
+        typeset dataset=$1
+	if [[ "$(get_prop type $dataset)" == "snapshot" ]]; then
+		return
+	fi
+
+	usedbydataset=$(get_prop usedbydataset $dataset)
+	referenced=$(get_prop referenced $dataset)
+	
+	is_cloned=$(get_prop is:cloned $dataset)
+
+	if [[ "$is_cloned" == "yes" ]]; then
+		if (( usedbydataset > referenced )); then
+			log_fail "$dataset(cloned): usedbydataset($usedbydataset) is more than referenced($referenced)"
+		fi
+	else
+		#
+		# if non-clones, should usedbydataset == referenced
+		#
+		if (( usedbydataset != referenced )); then
+			log_fail "$dataset: usedbydataset($usedbydataset) is not equal to referenced($referenced)"
+		fi
+	fi
+}
+
+function check_usedbydataset # dataset
+{
+	typeset dataset=$1
+	for child in $($ZFS list -rH -t filesystem,volume -o name $dataset)
+	do
+		_check_usedbydataset $child
+	done
+}
+
+function _check_usedbyrefreservation # dataset
+{
+        typeset dataset=$1
+	if [[ "$(get_prop type $dataset)" == "snapshot" ]]; then
+		return
+	fi
+
+	usedbyrefreservation=$(get_prop usedbyrefreservation $dataset)
+	referenced=$(get_prop referenced $dataset)
+	refreservation=$(get_prop refreservation $dataset)
+	(( diff_ref = refreservation - referenced ))
+	if (( usedbyrefreservation > refreservation || \
+		usedbyrefreservation < diff_ref )); then
+		log_fail "$dataset: usedbyrefreservation($usedbyrefreservation) checking is not ok"
+	fi
+}
+
+function check_usedbyrefreservation # dataset
+{
+	typeset dataset=$1
+	for child in $($ZFS list -rH -t filesystem,volume -o name $dataset)
+	do
+		_check_usedbyrefreservation $child
+	done
+}
+
+function check_usedbysnapshots # dataset
+{
+	typeset dataset=$1
+	typeset -i usedbysnapshots_sum=0
+	typeset -i parent_usedbysnapshots=0
+	for child in $($ZFS list -rH -t filesystem,volume,snapshot -o name $dataset)
+	do
+		# parent
+		if [[ "$child" == "$dataset" ]]; then
+			parent_usedbysnapshots=$(get_prop usedbysnapshots $child)
+			continue
+		fi
+
+		if [[ "$(get_prop type $child)" != "snapshot" ]]; then
+               		continue
+        	fi
+
+		if [[ "$child" != "$dataset@"* ]]; then
+			continue
+		fi
+
+		# snapshot
+		used=$(get_prop used $child)
+		(( usedbysnapshots_sum += used ))
+	done
+
+        if (( parent_usedbysnapshots < usedbysnapshots_sum )); then
+                log_fail "$dataset: usedbysnapshots($parent_usedbysnapshots) is not more than or equal to" \
+				"the sum($usedbysnapshots_sum) of used of snapshots"
+        fi
+}
+

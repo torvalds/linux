@@ -1,0 +1,100 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2016 John H. Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 1, 2016
+.Dt BUS_GET_CPUS 9
+.Os
+.Sh NAME
+.Nm BUS_GET_CPUS ,
+.Nm bus_get_cpus
+.Nd "request a set of device-specific CPUs"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.In sys/cpuset.h
+.Ft int
+.Fo BUS_GET_CPUS
+.Fa "device_t dev" "device_t child" "enum cpu_sets op" "size_t setsize"
+.Fa "cpuset_t *cpuset"
+.Fc
+.Ft int
+.Fo bus_get_cpus
+.Fa "device_t dev" "enum cpu_sets op" "size_t setsize" "cpuset_t *cpuset"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn BUS_GET_CPUS
+method queries the parent bus device for a set of device-specific CPUs.
+The
+.Fa op
+argument specifies which set of CPUs to retrieve.
+If successful,
+the requested set of CPUs are returned in
+.Fa cpuset .
+The
+.Fa setsize
+argument specifies the size in bytes of the set passed in
+.Fa cpuset .
+.Pp
+.Fn BUS_GET_CPUS
+supports querying different types of CPU sets via the
+.Fa op argument.
+Not all set types are supported for every device.
+If a set type is not supported,
+.Fn BUS_GET_CPUS
+fails with
+.Er EINVAL .
+These set types are supported:
+.Bl -tag -width ".Dv LOCAL_CPUS"
+.It Dv LOCAL_CPUS
+The set of CPUs that are local to the device.
+If a device is closer to a specific memory domain in a non-uniform memory
+architecture system
+.Pq NUMA ,
+this will return the set of CPUs in that memory domain.
+.It Dv INTR_CPUS
+The preferred set of CPUs that this device should use for device interrupts.
+This set type must be supported by all bus drivers.
+.El
+.Pp
+The
+.Fn bus_get_cpus
+function is a simple wrapper around
+.Fn BUS_GET_CPUS .
+.Sh RETURN VALUES
+Zero is returned on success, otherwise an appropriate error is returned.
+.Sh SEE ALSO
+.Xr cpuset 2 ,
+.Xr BUS_BIND_INTR 9 ,
+.Xr device 9
+.Sh HISTORY
+The
+.Fn BUS_GET_CPUS
+method and
+.Fn bus_get_cpus
+function first appeared in
+.Fx 11.0 .

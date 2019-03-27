@@ -1,0 +1,309 @@
+: \ `\n parse drop ; immediate
+
+\ This file defines the core non-native functions (mainly used for
+\ parsing words, i.e. not part of the generated output). The line above
+\ defines the syntax for comments.
+
+\ Define parenthesis comments.
+\ : ( `) parse drop ; immediate
+
+: else postpone ahead 1 cs-roll postpone then ; immediate
+: while postpone if 1 cs-roll ; immediate
+: repeat postpone again postpone then ; immediate
+
+: ['] ' ; immediate
+: [compile] compile ; immediate
+
+: 2drop drop drop ;
+: dup2 over over ;
+
+\ Local variables are defined with the native word '(local)'. We define
+\ a helper construction that mimics what is found in Apple's Open Firmware
+\ implementation. The syntax is: { a b ... ; c d ... }
+\ I.e. there is an opening brace, then some names. Names appearing before
+\ the semicolon are locals that are both defined and then filled with the
+\ values on stack (in stack order: { a b } fills 'b' with the top-of-stack,
+\ and 'a' with the value immediately below). Names appearing after the
+\ semicolon are not initialized.
+: __deflocal ( from_stack name -- )
+	dup (local) swap if
+		compile-local-write
+	else
+		drop
+	then ;
+: __deflocals ( from_stack -- )
+	next-word
+	dup "}" eqstr if
+		2drop ret
+	then
+	dup ";" eqstr if
+		2drop 0 __deflocals ret
+	then
+	over __deflocals
+	__deflocal ;
+: {
+	-1 __deflocals ; immediate
+
+\ Data building words.
+: data:
+	new-data-block next-word define-data-word ;
+: hexb|
+	0 0 { acc z }
+	begin
+		char
+		dup `| = if
+			z if "Truncated hexadecimal byte" puts cr exitvm then
+			ret
+		then
+		dup 0x20 > if
+			hexval
+			z if acc 4 << + data-add8 else >acc then
+			z not >z
+		then
+	again ;
+
+\ Convert hexadecimal character to number. Complain loudly if conversion
+\ is not possible.
+: hexval ( char -- x )
+	hexval-nf dup 0 < if "Not an hex digit: " puts . cr exitvm then ;
+
+\ Convert hexadecimal character to number. If not an hexadecimal digit,
+\ return -1.
+: hexval-nf ( char -- x )
+	dup dup `0 >= swap `9 <= and if `0 - ret then
+	dup dup `A >= swap `F <= and if `A - 10 + ret then
+	dup dup `a >= swap `f <= and if `a - 10 + ret then
+	drop -1 ;
+
+\ Convert decimal character to number. Complain loudly if conversion
+\ is not possible.
+: decval ( char -- x )
+	decval-nf dup 0 < if "Not a decimal digit: " puts . cr exitvm then ;
+
+\ Convert decimal character to number. If not a decimal digit,
+\ return -1.
+: decval-nf ( char -- x )
+	dup dup `0 >= swap `9 <= and if `0 - ret then
+	drop -1 ;
+
+\ Commonly used shorthands.
+: 1+ 1 + ;
+: 2+ 2 + ;
+: 1- 1 - ;
+: 2- 2 - ;
+: 0= 0 = ;
+: 0<> 0 <> ;
+: 0< 0 < ;
+: 0> 0 > ;
+
+\ Get a 16-bit value from the constant data block. This uses big-endian
+\ encoding.
+: data-get16 ( addr -- x )
+	dup data-get8 8 << swap 1+ data-get8 + ;
+
+\ The case..endcase construction is the equivalent of 'switch' is C.
+\ Usage:
+\     case
+\         E1 of C1 endof
+\         E2 of C2 endof
+\         ...
+\         CN
+\     endcase
+\
+\ Upon entry, it considers the TOS (let's call it X). It will then evaluate
+\ E1, which should yield a single value Y1; at that point, the X value is
+\ still on the stack, just below Y1, and must remain untouched. The 'of'
+\ word compares X with Y1; if they are equal, C1 is executed, and then
+\ control jumps to after the 'endcase'. The X value is popped from the
+\ stack immediately before evaluating C1.
+\
+\ If X and Y1 are not equal, flow proceeds to E2, to obtain a value Y2 to
+\ compare with X. And so on.
+\
+\ If none of the 'of' clauses found a match, then CN is evaluated. When CN
+\ is evaluated, the X value is on the TOS, and CN must either leave it on
+\ the stack, or replace it with exactly one value; the 'endcase' word
+\ expects (and drops) one value.
+\
+\ Implementation: this is mostly copied from ANS Forth specification,
+\ although simplified a bit because we know that our control-flow stack
+\ is independent of the data stack. During compilation, the number of
+\ clauses is maintained on the stack; each of..endof clause really is
+\ an 'if..else' that must be terminated with a matching 'then' in 'endcase'.
+
+: case 0 ; immediate
+: of 1+ postpone over postpone = postpone if postpone drop ; immediate
+: endof postpone else ; immediate
+: endcase
+	postpone drop
+	begin dup while 1- postpone then repeat drop ; immediate
+
+\ A simpler and more generic "case": there is no management for a value
+\ on the stack, and each test is supposed to come up with its own boolean
+\ value.
+: choice 0 ; immediate
+: uf 1+ postpone if ; immediate
+: ufnot 1+ postpone ifnot ; immediate
+: enduf postpone else ; immediate
+: endchoice begin dup while 1- postpone then repeat drop ; immediate
+
+\ C implementations for native words that can be used in generated code.
+add-cc: co { T0_CO(); }
+add-cc: execute { T0_ENTER(ip, rp, T0_POP()); }
+add-cc: drop { (void)T0_POP(); }
+add-cc: dup { T0_PUSH(T0_PEEK(0)); }
+add-cc: swap { T0_SWAP(); }
+add-cc: over { T0_PUSH(T0_PEEK(1)); }
+add-cc: rot { T0_ROT(); }
+add-cc: -rot { T0_NROT(); }
+add-cc: roll { T0_ROLL(T0_POP()); }
+add-cc: pick { T0_PICK(T0_POP()); }
+add-cc: + {
+	uint32_t b = T0_POP();
+	uint32_t a = T0_POP();
+	T0_PUSH(a + b);
+}
+add-cc: - {
+	uint32_t b = T0_POP();
+	uint32_t a = T0_POP();
+	T0_PUSH(a - b);
+}
+add-cc: neg {
+	uint32_t a = T0_POP();
+	T0_PUSH(-a);
+}
+add-cc: * {
+	uint32_t b = T0_POP();
+	uint32_t a = T0_POP();
+	T0_PUSH(a * b);
+}
+add-cc: / {
+	int32_t b = T0_POPi();
+	int32_t a = T0_POPi();
+	T0_PUSHi(a / b);
+}
+add-cc: u/ {
+	uint32_t b = T0_POP();
+	uint32_t a = T0_POP();
+	T0_PUSH(a / b);
+}
+add-cc: % {
+	int32_t b = T0_POPi();
+	int32_t a = T0_POPi();
+	T0_PUSHi(a % b);
+}
+add-cc: u% {
+	uint32_t b = T0_POP();
+	uint32_t a = T0_POP();
+	T0_PUSH(a % b);
+}
+add-cc: < {
+	int32_t b = T0_POPi();
+	int32_t a = T0_POPi();
+	T0_PUSH(-(uint32_t)(a < b));
+}
+add-cc: <= {
+	int32_t b = T0_POPi();
+	int32_t a = T0_POPi();
+	T0_PUSH(-(uint32_t)(a <= b));
+}
+add-cc: > {
+	int32_t b = T0_POPi();
+	int32_t a = T0_POPi();
+	T0_PUSH(-(uint32_t)(a > b));
+}
+add-cc: >= {
+	int32_t b = T0_POPi();
+	int32_t a = T0_POPi();
+	T0_PUSH(-(uint32_t)(a >= b));
+}
+add-cc: = {
+	uint32_t b = T0_POP();
+	uint32_t a = T0_POP();
+	T0_PUSH(-(uint32_t)(a == b));
+}
+add-cc: <> {
+	uint32_t b = T0_POP();
+	uint32_t a = T0_POP();
+	T0_PUSH(-(uint32_t)(a != b));
+}
+add-cc: u< {
+	uint32_t b = T0_POP();
+	uint32_t a = T0_POP();
+	T0_PUSH(-(uint32_t)(a < b));
+}
+add-cc: u<= {
+	uint32_t b = T0_POP();
+	uint32_t a = T0_POP();
+	T0_PUSH(-(uint32_t)(a <= b));
+}
+add-cc: u> {
+	uint32_t b = T0_POP();
+	uint32_t a = T0_POP();
+	T0_PUSH(-(uint32_t)(a > b));
+}
+add-cc: u>= {
+	uint32_t b = T0_POP();
+	uint32_t a = T0_POP();
+	T0_PUSH(-(uint32_t)(a >= b));
+}
+add-cc: and {
+	uint32_t b = T0_POP();
+	uint32_t a = T0_POP();
+	T0_PUSH(a & b);
+}
+add-cc: or {
+	uint32_t b = T0_POP();
+	uint32_t a = T0_POP();
+	T0_PUSH(a | b);
+}
+add-cc: xor {
+	uint32_t b = T0_POP();
+	uint32_t a = T0_POP();
+	T0_PUSH(a ^ b);
+}
+add-cc: not {
+	uint32_t a = T0_POP();
+	T0_PUSH(~a);
+}
+add-cc: << {
+	int c = (int)T0_POPi();
+	uint32_t x = T0_POP();
+	T0_PUSH(x << c);
+}
+add-cc: >> {
+	int c = (int)T0_POPi();
+	int32_t x = T0_POPi();
+	T0_PUSHi(x >> c);
+}
+add-cc: u>> {
+	int c = (int)T0_POPi();
+	uint32_t x = T0_POP();
+	T0_PUSH(x >> c);
+}
+add-cc: data-get8 {
+	size_t addr = T0_POP();
+	T0_PUSH(t0_datablock[addr]);
+}
+
+add-cc: . {
+	extern int printf(const char *fmt, ...);
+	printf(" %ld", (long)T0_POPi());
+}
+add-cc: putc {
+	extern int printf(const char *fmt, ...);
+	printf("%c", (char)T0_POPi());
+}
+add-cc: puts {
+	extern int printf(const char *fmt, ...);
+	printf("%s", &t0_datablock[T0_POPi()]);
+}
+add-cc: cr {
+	extern int printf(const char *fmt, ...);
+	printf("\n");
+}
+add-cc: eqstr {
+	const void *b = &t0_datablock[T0_POPi()];
+	const void *a = &t0_datablock[T0_POPi()];
+	T0_PUSH(-(int32_t)(strcmp(a, b) == 0));
+}

@@ -1,0 +1,27 @@
+/* $FreeBSD$ */
+typedef void (*xxxxxxxxxxx) (int,
+							 char);
+
+typedef char (*xxxxxxxxxxxxxxxxxxxxxxxxxxxx) (int *,
+											  unsigned *,
+											  char,
+											  float *);
+
+void
+test(void)
+{
+	char		chars[secondf(firstf(B),
+							  *here)];
+
+	float		xxx = yyyyyyyyyyyyyy(zzzzzzzzzzzzz(p1,
+												   (p2),
+												   p3));
+
+	if (1) {
+		char	   *xxx = firstf(secondf2(p1,
+										  p2));
+	}
+
+	rb->allocfunc(1);
+	rb2.allocfunc(7);
+}

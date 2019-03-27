@@ -1,0 +1,29 @@
+/* $FreeBSD$ */
+
+#ifndef LLVM_ASM_PARSER
+#  error Please define the macro LLVM_ASM_PARSER(TargetName)
+#endif
+
+#ifdef LLVM_TARGET_ENABLE_AARCH64
+LLVM_ASM_PARSER(AArch64)
+#endif
+#ifdef LLVM_TARGET_ENABLE_ARM
+LLVM_ASM_PARSER(ARM)
+#endif
+#ifdef LLVM_TARGET_ENABLE_BPF
+LLVM_ASM_PARSER(BPF)
+#endif
+#ifdef LLVM_TARGET_ENABLE_MIPS
+LLVM_ASM_PARSER(Mips)
+#endif
+#ifdef LLVM_TARGET_ENABLE_POWERPC
+LLVM_ASM_PARSER(PowerPC)
+#endif
+#ifdef LLVM_TARGET_ENABLE_SPARC
+LLVM_ASM_PARSER(Sparc)
+#endif
+#ifdef LLVM_TARGET_ENABLE_X86
+LLVM_ASM_PARSER(X86)
+#endif
+
+#undef LLVM_ASM_PARSER

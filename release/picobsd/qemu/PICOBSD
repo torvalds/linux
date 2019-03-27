@@ -1,0 +1,124 @@
+#
+# $FreeBSD$
+# A configuration file to run tests on qemu.
+# We disable SMP because it does not work well with qemu, and set HZ=1000
+# to avoid it being overridden.
+#
+# Line starting with #PicoBSD contains PicoBSD build parameters
+#marker         def_sz  init    MFS_inodes      floppy_inodes
+#PicoBSD	18000	init	8192		32768
+options MD_ROOT_SIZE=18000      # same as def_sz
+
+hints	"PICOBSD.hints"
+
+# values accessible through getenv()
+# env		"PICOBSD.env"
+
+#cpu		I486_CPU
+cpu		I586_CPU
+cpu		I686_CPU
+ident		PICOBSD
+
+# SMP seems to be needed for kern_et
+options		SMP
+device	apic
+
+options		SCHED_ULE	# mandatory to have one scheduler
+options		PREEMPTION	# needed for decent interrupt processing
+#options	MATH_EMULATE		#Support for x87 emulation
+options 	INET			#InterNETworking
+#options	INET6
+options 	FFS			#Berkeley Fast Filesystem
+#options	BOOTP			#Use BOOTP to obtain IP address/hostname
+options 	MD_ROOT			#MD is a potential root device
+
+#options	NFS			#Network Filesystem
+#options	NFS_ROOT		#NFS usable as root device, NFS required
+
+#options 	MSDOSFS			#MSDOS Filesystem
+#options 	CD9660			#ISO 9660 Filesystem
+#options 	CD9660_ROOT		#CD-ROM usable as root, CD9660 required
+#options	DEVFS			#Device Filesystem
+#options 	PROCFS			#Process filesystem
+options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
+
+options		KDB
+options		DDB
+
+options		IPFIREWALL
+options		IPFIREWALL_DEFAULT_TO_ACCEPT
+options		IPDIVERT		# divert (for natd)
+
+# Support for bridging and bandwidth limiting
+options		DUMMYNET
+device		if_bridge
+# Running with less than 1000 seems to give poor timing on
+# qemu, so we set HZ explicitly.
+options		HZ=1000
+
+device		random			# used by ssh
+device		pci
+
+# Floppy drives
+device		fdc
+
+# ATA and ATAPI devices
+#device		ata
+#device		atadisk			# ATA disk drives
+#device		atapicd			# ATAPI CDROM drives
+#options		ATA_STATIC_ID		#Static device numbering
+
+# atkbdc0 controls both the keyboard and the PS/2 mouse
+device		atkbdc			# At keyboard controller
+device		atkbd
+#device		psm			# do we need the mouse ??
+
+device		vga			# VGA screen
+
+# syscons is the default console driver, resembling an SCO console
+device		sc
+
+# Serial (COM) ports
+device		uart
+
+# Audio support
+#device		pcm
+
+# PCCARD (PCMCIA) support
+#device		card		# pccard bus
+#device		pcic		# PCMCIA bridge
+
+# Parallel port
+#device		ppc
+#device		ppbus		# Parallel port bus (required)
+#device		lpt		# Printer
+#device		plip		# TCP/IP over parallel
+#device		ppi		# Parallel port interface device
+
+#
+# The following Ethernet NICs are all PCI devices.
+#
+device	miibus 
+device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+device		nfe		# nVidia nForce MCP on-board Ethernet
+#device		xl		# 3Com
+device		rl		# RealTek 8129/8139
+device		re		# RealTek 8139C+/8169/8169S/8110S
+device		sis		# National/SiS
+device		dc		# DEC/Intel 21143 and various workalikes
+device		ed
+
+device		loop		# Network loopback
+device		ether		# Ethernet support
+device		tun		# Packet tunnel.
+device		pty		# Pseudo-ttys (telnet etc)
+device		md		# Memory "disks"
+#device		gif	4	# IPv6 and IPv4 tunneling
+device		tap
+
+#options 	VIMAGE		# soner or later we may want to test this
+#options               DEVICE_POLLING
+
+# The `bpf' device enables the Berkeley Packet Filter.
+# Be aware of the administrative consequences of enabling this!
+device		bpf		# Berkeley packet filter

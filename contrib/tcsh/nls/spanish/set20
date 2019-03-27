@@ -1,0 +1,41 @@
+$ $tcsh: set20,v 1.5 2015/08/13 08:54:04 christos Exp $
+$ tc.bind.c
+$set 20 
+1 Nombre de tecla no válido `%S'\n
+2 Nombre de tecla incorrecto: %S\n
+3 Nombre de comando incorrecto: %S\n
+4 Especificador de tecla incorrecto %S\n
+5 Especificada la cadena nula\n
+6 Definiciones de teclas estándar\n
+7 Definiciones de teclas alternativas\n
+8 Definiciones Multi-carácter\n
+9 Definiciones de las teclas de flechas\n
+10 %-15s->  indefinida\n
+11 ¡¡¡BUG!!! %s no tiene definición asociada.\n
+12 Uso: bindkey [opciones] [--] [TECLA [COMANDO]]\n
+13     -a   lista o define TECLA en un mapa de teclas alternativo\n
+14     -b   acepta definiciones de teclas simbólicas\n
+15     -s   asume que COMANDO es una cadena ha de imprimir literalmente\n
+16     -c   interpreta COMANDO como comando interno o externo\n
+17     -v   usa las definiciones del editor vi\n
+18     -e   usa las definiciones del editor vi\n
+19     -d   usa las definiciones del editor por defecto (%s)\n
+20     -l   lista los comandos del editor y sus descripciones\n
+21     -r   elimina la definición asociada a TECLA\n
+22     -k   interpreta TECLA como nombre simbólico de tecla de flecha\n
+23     --   fuerza "break" en el procesamiento de opciones\n
+24     -u   (o cualquier opción no válida) este mensaje\n
+25 Sin TECLA o COMANDO, imprime todas las asociaciones de teclas\n
+26 Sin COMANDO, imprime la asociación de TECLA.\n
+27 especificación de tecla inválida -- cadena nula\n
+28 especificación de tecla inválida -- cadena vacía\n
+29 Especificación de tecla de función inválida. No se permite una tecla nula\n
+30 especificación de tecla inválida -- número hexadecimal incorrecto\n
+31 especificación de tecla inválida -- número octal incorrecto\n
+32 especificación de tecla inválida -- número decimal incorrecto\n
+33 Especificación de tecla de función incorrecta.\n
+34 No se permite una tecla nula\n
+35 especificación de tecla inválida -- nombre desconocido "%S"\n
+36 uso: bind [TECLA | COMANDO TECLA | "emacs" | "vi" | "-a"]\n
+37 función no válida
+38  %s\t\tno está definida\n

@@ -1,0 +1,15 @@
+This is a valid gzip file that decompresses to itself, from
+  http://www.maximumcompression.com/selfgz.gz
+
+This is used in test_read_too_many_filters to try to
+crash libarchive by forcing it to spawn an unending
+list of gunzip filters.
+
+begin 644 test_read_too_many_filters.gz
+M'XL(`````````P`/`/#_'XL(`````````P`/`/#_````__\```#__X)QH5P`
+M`!X`X?\```#__P```/__@G&A7```'@#A_P```/__````__\```#__P```/__
+M````__\```#__\(FAF`!`!0`Z_\```#__P```/__PB:&8`$`%`#K_\(FAF`!
+M`!0`Z_^9(#6-B"@Q,C,T`K/`+```%`#K_P*SP"P``!0`Z_]"B"'$`````/__
+>`P!#2DTAT@```$*((<0`````__\#`$-*32'2````
+`
+end

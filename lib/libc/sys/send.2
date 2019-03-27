@@ -1,0 +1,275 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)send.2	8.2 (Berkeley) 2/21/94
+.\" $FreeBSD$
+.\"
+.Dd January 4, 2019
+.Dt SEND 2
+.Os
+.Sh NAME
+.Nm send ,
+.Nm sendto ,
+.Nm sendmsg ,
+.Nm sendmmsg
+.Nd send message(s) from a socket
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/socket.h
+.Ft ssize_t
+.Fn send "int s" "const void *msg" "size_t len" "int flags"
+.Ft ssize_t
+.Fn sendto "int s" "const void *msg" "size_t len" "int flags" "const struct sockaddr *to" "socklen_t tolen"
+.Ft ssize_t
+.Fn sendmsg "int s" "const struct msghdr *msg" "int flags"
+.Ft ssize_t
+.Fn sendmmsg "int s" "struct mmsghdr * restrict msgvec" "size_t vlen" "int flags"
+.Sh DESCRIPTION
+The
+.Fn send
+and
+.Fn sendmmsg
+functions,
+and
+.Fn sendto
+and
+.Fn sendmsg
+system calls
+are used to transmit one or more messages (with the
+.Fn sendmmsg
+call) to
+another socket.
+The
+.Fn send
+function
+may be used only when the socket is in a
+.Em connected
+state, while
+.Fn sendto ,
+.Fn sendmsg
+and
+.Fn sendmmsg
+may be used at any time.
+.Pp
+The address of the target is given by
+.Fa to
+with
+.Fa tolen
+specifying its size.
+The length of the message is given by
+.Fa len .
+If the message is too long to pass atomically through the
+underlying protocol, the error
+.Er EMSGSIZE
+is returned, and
+the message is not transmitted.
+.Pp
+The
+.Fn sendmmsg
+function sends multiple messages at a call.
+They are given by the
+.Fa msgvec
+vector along with
+.Fa vlen
+specifying the vector size.
+The number of octets sent per each message is placed in the
+.Fa msg_len
+field of each processed element of the vector after transmission.
+.Pp
+No indication of failure to deliver is implicit in a
+.Fn send .
+Locally detected errors are indicated by a return value of -1.
+.Pp
+If no messages space is available at the socket to hold
+the message to be transmitted, then
+.Fn send
+normally blocks, unless the socket has been placed in
+non-blocking I/O mode.
+The
+.Xr select 2
+system call may be used to determine when it is possible to
+send more data.
+.Pp
+The
+.Fa flags
+argument may include one or more of the following:
+.Bd -literal
+#define	MSG_OOB		0x00001 /* process out-of-band data */
+#define	MSG_DONTROUTE	0x00004 /* bypass routing, use direct interface */
+#define	MSG_EOR		0x00008 /* data completes record */
+#define	MSG_DONTWAIT	0x00080 /* do not block */
+#define	MSG_EOF		0x00100 /* data completes transaction */
+#define	MSG_NOSIGNAL	0x20000 /* do not generate SIGPIPE on EOF */
+.Ed
+.Pp
+The flag
+.Dv MSG_OOB
+is used to send
+.Dq out-of-band
+data on sockets that support this notion (e.g.\&
+.Dv SOCK_STREAM ) ;
+the underlying protocol must also support
+.Dq out-of-band
+data.
+.Dv MSG_EOR
+is used to indicate a record mark for protocols which support the
+concept.
+The
+.Dv MSG_DONTWAIT
+flag request the call to return when it would block otherwise.
+.Dv MSG_EOF
+requests that the sender side of a socket be shut down, and that an
+appropriate indication be sent at the end of the specified data;
+this flag is only implemented for
+.Dv SOCK_STREAM
+sockets in the
+.Dv PF_INET
+protocol family.
+.Dv MSG_DONTROUTE
+is usually used only by diagnostic or routing programs.
+.Dv MSG_NOSIGNAL
+is used to prevent
+.Dv SIGPIPE
+generation when writing a socket that
+may be closed.
+.Pp
+See
+.Xr recv 2
+for a description of the
+.Fa msghdr
+structure and the
+.Fa mmsghdr
+structure.
+.Sh RETURN VALUES
+The
+.Fn send ,
+.Fn sendto
+and
+.Fn sendmsg
+calls
+return the number of octets sent.
+The
+.Fn sendmmsg
+call returns the number of messages sent.
+If an error occurred a value of -1 is returned.
+.Sh ERRORS
+The
+.Fn send
+and
+.Fn sendmmsg
+functions and
+.Fn sendto
+and
+.Fn sendmsg
+system calls
+fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+An invalid descriptor was specified.
+.It Bq Er EACCES
+The destination address is a broadcast address, and
+.Dv SO_BROADCAST
+has not been set on the socket.
+.It Bq Er ENOTSOCK
+The argument
+.Fa s
+is not a socket.
+.It Bq Er EFAULT
+An invalid user space address was specified for an argument.
+.It Bq Er EMSGSIZE
+The socket requires that message be sent atomically,
+and the size of the message to be sent made this impossible.
+.It Bq Er EAGAIN
+The socket is marked non-blocking, or
+.Dv MSG_DONTWAIT
+is specified, and the requested operation would block.
+.It Bq Er ENOBUFS
+The system was unable to allocate an internal buffer.
+The operation may succeed when buffers become available.
+.It Bq Er ENOBUFS
+The output queue for a network interface was full.
+This generally indicates that the interface has stopped sending,
+but may be caused by transient congestion.
+.It Bq Er EHOSTUNREACH
+The remote host was unreachable.
+.It Bq Er EISCONN
+A destination address was specified and the socket is already connected.
+.It Bq Er ECONNREFUSED
+The socket received an ICMP destination unreachable message
+from the last message sent.
+This typically means that the
+receiver is not listening on the remote port.
+.It Bq Er EHOSTDOWN
+The remote host was down.
+.It Bq Er ENETDOWN
+The remote network was down.
+.It Bq Er EADDRNOTAVAIL
+The process using a
+.Dv SOCK_RAW
+socket was jailed and the source
+address specified in the IP header did not match the IP
+address bound to the prison.
+.It Bq Er EPIPE
+The socket is unable to send anymore data
+.Dv ( SBS_CANTSENDMORE
+has been set on the socket).
+This typically means that the socket
+is not connected.
+.El
+.Sh SEE ALSO
+.Xr fcntl 2 ,
+.Xr getsockopt 2 ,
+.Xr recv 2 ,
+.Xr select 2 ,
+.Xr socket 2 ,
+.Xr write 2 ,
+.Xr CMSG_DATA 3
+.Sh HISTORY
+The
+.Fn send
+function appeared in
+.Bx 4.2 .
+The
+.Fn sendmmsg
+function appeared in
+.Fx 11.0 .
+.Sh BUGS
+Because
+.Fn sendmsg
+does not necessarily block until the data has been transferred, it
+is possible to transfer an open file descriptor across an
+.Dv AF_UNIX
+domain socket
+(see
+.Xr recv 2 ) ,
+then
+.Fn close
+it before it has actually been sent, the result being that the receiver
+gets a closed file descriptor.
+It is left to the application to
+implement an acknowledgment mechanism to prevent this from happening.

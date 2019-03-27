@@ -1,0 +1,144 @@
+--
+-- Copyright (c) 2005
+--	Hartmut Brandt
+--	All rights reserved.
+--
+-- Author: Harti Brandt <harti@freebsd.org>
+--
+-- Redistribution and use in source and binary forms, with or without
+-- modification, are permitted provided that the following conditions
+-- are met:
+-- 1. Redistributions of source code must retain the above copyright
+--    notice, this list of conditions and the following disclaimer.
+-- 2. Redistributions in binary form must reproduce the above copyright
+--    notice, this list of conditions and the following disclaimer in the
+--    documentation and/or other materials provided with the distribution.
+--
+-- THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+-- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+-- ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+-- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+-- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+-- OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+-- HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+-- LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+-- OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+-- SUCH DAMAGE.
+--
+-- $Begemot: bsnmp/snmp_ntp/BEGEMOT-NTP-MIB.txt,v 1.3 2005/10/04 08:13:41 brandt_h Exp $
+--
+-- Private MIB for NTP module.
+--
+BEGEMOT-NTP-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, TimeTicks, Unsigned32, Counter64
+	FROM SNMPv2-SMI
+    TruthValue
+	FROM SNMPv2-TC
+    begemot
+	FROM BEGEMOT-MIB;
+
+begemotNtp MODULE-IDENTITY
+    LAST-UPDATED "200509300000Z"
+    ORGANIZATION "German Aerospace Center"
+    CONTACT-INFO
+	    "		Hartmut Brandt
+
+	     Postal:	German Aerospace Center
+			Oberpfaffenhofen
+			82234 Wessling
+			Germany
+
+	     Fax:	+49 8153 28 2843
+
+	     E-mail:	harti@freebsd.org"
+    DESCRIPTION
+	    "The MIB for the NTP control module for SNMP."
+    ::= { begemot 201 }
+
+begemotNtpObjects	OBJECT IDENTIFIER ::= { begemotNtp 1 }
+
+begemotNtpHost OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The name of the host where the NTP daemon is running that
+	     is to be connected."
+    ::= { begemotNtpObjects 1 }
+
+begemotNtpPort OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The port of the host where the NTP daemon is running that
+	     is to be connected."
+    ::= { begemotNtpObjects 2 }
+
+begemotNtpTimeout OBJECT-TYPE
+    SYNTAX	TimeTicks
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The number of ticks to wait for the response from the NTP
+	     daemon to complete."
+    ::= { begemotNtpObjects 3 }
+
+begemotNtpDebug OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "Debug flags. The following flags are currently used:
+
+		0x01 - produce a dump of all received/sent NTP packets.
+		0x02 - print the variable names and values return by the daemon
+
+	     Other bits are ignored."
+    ::= { begemotNtpObjects 4 }
+
+begemotNtpJitter OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Current jitter in seconds multiplied by 2^32."
+    ::= { begemotNtpObjects 5 }
+
+begemotNtpStability OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Current stability in ppm multiplied by 2^32."
+    ::= { begemotNtpObjects 6 }
+
+begemotNtpJitterThresh OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Jitter trap threshold in seconds multiplied by 2^32."
+    ::= { begemotNtpObjects 7 }
+
+begemotNtpStabilityThresh OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Stability trap threshold in ppm multiplied by 2^32."
+    ::= { begemotNtpObjects 8 }
+
+begemotNtpTrapEnable OBJECT-TYPE
+    SYNTAX	TruthValue
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Enables the sending of traps when either the peer is lost/
+	     found or one of the above thresholds is crossed."
+    ::= { begemotNtpObjects 9 }
+
+END

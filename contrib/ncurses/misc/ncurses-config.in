@@ -1,0 +1,199 @@
+#!@SHELL@
+# $Id: ncurses-config.in,v 1.30 2012/11/11 00:14:28 tom Exp $
+##############################################################################
+# Copyright (c) 2006-2011,2012 Free Software Foundation, Inc.                #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+# Author: Thomas E. Dickey, 2006-on
+
+LANG=C;		export LANG
+LANGUAGE=C;	export LANGUAGE
+LC_ALL=C;	export LC_ALL
+LC_CTYPE=C;	export LC_CTYPE
+
+prefix="@prefix@"
+exec_prefix="@exec_prefix@"
+
+bindir="@bindir@"
+includedir="@includedir@"
+libdir="@libdir@"
+datarootdir="@datarootdir@"
+datadir="@datadir@"
+mandir="@mandir@"
+
+THIS="@LIB_NAME@@DFT_ARG_SUFFIX@"
+TINFO_LIB="@TINFO_ARG_SUFFIX@"
+RPATH_LIST="@RPATH_LIST@"
+
+# Ensure that RPATH_LIST contains only absolute pathnames, if it is nonempty.
+# We cannot filter it out within the build-process since the variable is used
+# in some special cases of installation using a relative path.
+if test -n "$RPATH_LIST"
+then
+	save_IFS="$IFS"
+	IFS='@PATH_SEPARATOR@'
+	filtered=
+	for item in $RPATH_LIST
+	do
+		case "$item" in
+		./*|../*|*/..|*/../*)
+			;;
+		*)
+			test -n "$filtered" && filtered="${filtered}@PATH_SEPARATOR@"
+			filtered="${filtered}${item}"
+			;;
+		esac
+	done
+	IFS="$save_IFS"
+	# if the result is empty, there is little we can do to fix it
+	RPATH_LIST="$filtered"
+fi
+
+# with --disable-overwrite, we installed into a subdirectory, but transformed
+# the headers to include like this:
+#	<ncurses@LIB_SUFFIX@/curses.h>
+if test x@WITH_OVERWRITE@ = xno ; then
+	case $includedir in
+	$prefix/include/ncurses@LIB_SUFFIX@)
+		includedir=`echo "$includedir" | sed -e 's,/[^/]*$,,'`
+		;;
+	esac
+fi
+
+test $# = 0 && exec @SHELL@ $0 --error
+
+while test $# -gt 0; do
+	case "$1" in
+	# basic configuration
+	--prefix)
+		echo "$prefix"
+		;;
+	--exec-prefix)
+		echo "$exec_prefix"
+		;;
+	# compile/link
+	--cflags)
+		INCS=
+		if test "x@WITH_OVERWRITE@" = xno ; then
+			INCS="$INCS -I${includedir}/${THIS}"
+		fi
+		if test "${includedir}" != /usr/include ; then
+			INCS="$INCS -I${includedir}"
+		fi
+		sed -e 's,^[ ]*,,' -e 's, [ ]*, ,g' -e 's,[ ]*$,,' <<-ENDECHO
+			$INCS
+ENDECHO
+		;;
+	--libs)
+		if test "$libdir" = /usr/lib
+		then
+			LIBDIR=
+		else
+			LIBDIR=-L$libdir
+		fi
+		if test @TINFO_NAME@ = @LIB_NAME@ ; then
+		sed -e 's,^[ ]*,,' -e 's, [ ]*, ,g' -e 's,[ ]*$,,' <<-ENDECHO
+			$LIBDIR @EXTRA_LDFLAGS@ -l${THIS} @LIBS@
+ENDECHO
+		else
+		sed -e 's,^[ ]*,,' -e 's, [ ]*, ,g' -e 's,[ ]*$,,' <<-ENDECHO
+			$LIBDIR @EXTRA_LDFLAGS@ -l${THIS} -l${TINFO_LIB} @LIBS@
+ENDECHO
+		fi
+		;;
+	# identification
+	--version)
+		echo "@NCURSES_MAJOR@.@NCURSES_MINOR@.@NCURSES_PATCH@"
+		;;
+	--abi-version)
+		echo "@cf_cv_abi_version@"
+		;;
+	--mouse-version)
+		echo "@NCURSES_MOUSE_VERSION@"
+		;;
+	# locations
+	--bindir)
+		echo "${bindir}"
+		;;
+	--datadir)
+		echo "${datadir}"
+		;;
+	--includedir)
+		echo "${includedir}"
+		;;
+	--libdir)
+		echo "${libdir}"
+		;;
+	--mandir)
+		echo "${mandir}"
+		;;
+	--terminfo)
+		echo "@TERMINFO@"
+		;;
+	--terminfo-dirs)
+		echo "@TERMINFO_DIRS@"
+		;;
+	--termpath)
+		echo "@TERMPATH@"
+		;;
+	# general info
+	--help)
+		cat <<ENDHELP
+Usage: ${THIS}-config [options]
+
+Options:
+  --prefix           echos the package-prefix of ${THIS}
+  --exec-prefix      echos the executable-prefix of ${THIS}
+
+  --cflags           echos the C compiler flags needed to compile with ${THIS}
+  --libs             echos the libraries needed to link with ${THIS}
+
+  --version          echos the release+patchdate version of ${THIS}
+  --abi-version      echos the ABI version of ${THIS}
+  --mouse-version    echos the mouse-interface version of ${THIS}
+
+  --bindir           echos the directory containing ${THIS} programs
+  --datadir          echos the directory containing ${THIS} data
+  --includedir       echos the directory containing ${THIS} header files
+  --libdir           echos the directory containing ${THIS} libraries
+  --mandir           echos the directory containing ${THIS} manpages
+  --terminfo         echos the \$TERMINFO terminfo database path
+  --terminfo-dirs    echos the \$TERMINFO_DIRS directory list
+  --termpath         echos the \$TERMPATH termcap list
+
+  --help             prints this message
+ENDHELP
+		;;
+	--error|*)
+		@SHELL@ $0 --help 1>&2
+		exit 1
+		;;
+	esac
+	shift
+done
+# vi:ts=4 sw=4
+# vile:shmode

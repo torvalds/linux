@@ -1,0 +1,92 @@
+.\"
+.\" Copyright (c) 1994 University of Maryland
+.\" All Rights Reserved.
+.\"
+.\" Permission to use, copy, modify, distribute, and sell this software and its
+.\" documentation for any purpose is hereby granted without fee, provided that
+.\" the above copyright notice appear in all copies and that both that
+.\" copyright notice and this permission notice appear in supporting
+.\" documentation, and that the name of U.M. not be used in advertising or
+.\" publicity pertaining to distribution of the software without specific,
+.\" written prior permission.  U.M. makes no representations about the
+.\" suitability of this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.\" U.M. DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL U.M.
+.\" BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
+.\" IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" Author: James da Silva, Systems Design and Analysis Group
+.\"			   Computer Science Department
+.\"			   University of Maryland at College Park
+.\" $FreeBSD$
+.\"
+.Dd June 14, 1994
+.Dt CRUNCHIDE 1
+.Os
+.Sh NAME
+.Nm crunchide
+.Nd hides symbol names from ld, for crunching programs together
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar keep-list-file
+.Op Fl k Ar keep-symbol
+.Op Ar object-file ...
+.Sh DESCRIPTION
+The
+.Nm
+utility hides the global symbols of
+.Ar object-file
+such that they are ignored by subsequent runs of the linker,
+.Xr ld 1 .
+Some symbols may be left visible via the
+.Fl k Ar keep-symbol
+and
+.Fl f Ar keep-list-file
+options.
+The
+.Ar keep-list-file
+must contain a list of symbols to keep visible, one symbol per line.
+The names given by
+.Ar keep-symbol
+or in
+.Ar keep-list-file
+should be C names.
+For example,
+to keep the C function
+.Dq foo
+visible, the option
+.Dq -k foo
+should be used.
+.Pp
+The
+.Nm
+utility is designed as a companion program for
+.Xr crunchgen 1 ,
+which automates the process of creating crunched binaries from
+multiple component programs.
+.Sh SEE ALSO
+.Xr crunchgen 1 ,
+.Xr ld 1
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm crunch
+utility was written by
+.An James da Silva Aq Mt jds@cs.umd.edu .
+.Pp
+Copyright (c) 1994 University of Maryland.
+All Rights Reserved.
+.Pp
+.An Chris Demetriou Aq Mt cgd@netbsd.org
+reorganized
+.Nm
+so that it supported multiple object formats, and added
+ELF object support and ECOFF object recognition.
+.Pp
+Copyright (c) 1997
+.An Christopher G. Demetriou .
+All Rights Reserved.

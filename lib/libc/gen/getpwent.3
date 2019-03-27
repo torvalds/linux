@@ -1,0 +1,315 @@
+.\" Copyright (c) 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)getpwent.3	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd April 16, 2003
+.Dt GETPWENT 3
+.Os
+.Sh NAME
+.Nm getpwent ,
+.Nm getpwent_r ,
+.Nm getpwnam ,
+.Nm getpwnam_r ,
+.Nm getpwuid ,
+.Nm getpwuid_r ,
+.Nm setpassent ,
+.Nm setpwent ,
+.Nm endpwent
+.Nd password database operations
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In pwd.h
+.Ft struct passwd *
+.Fn getpwent void
+.Ft int
+.Fn getpwent_r "struct passwd *pwd" "char *buffer" "size_t bufsize" "struct passwd **result"
+.Ft struct passwd *
+.Fn getpwnam "const char *login"
+.Ft int
+.Fn getpwnam_r "const char *name" "struct passwd *pwd" "char *buffer" "size_t bufsize" "struct passwd **result"
+.Ft struct passwd *
+.Fn getpwuid "uid_t uid"
+.Ft int
+.Fn getpwuid_r "uid_t uid" "struct passwd *pwd" "char *buffer" "size_t bufsize" "struct passwd **result"
+.Ft int
+.Fn setpassent "int stayopen"
+.Ft void
+.Fn setpwent void
+.Ft void
+.Fn endpwent void
+.Sh DESCRIPTION
+These functions
+operate on the password database file
+which is described
+in
+.Xr passwd 5 .
+Each entry in the database is defined by the structure
+.Vt passwd
+found in the include
+file
+.In pwd.h :
+.Bd -literal -offset indent
+struct passwd {
+	char	*pw_name;	/* user name */
+	char	*pw_passwd;	/* encrypted password */
+	uid_t	pw_uid;		/* user uid */
+	gid_t	pw_gid;		/* user gid */
+	time_t	pw_change;	/* password change time */
+	char	*pw_class;	/* user access class */
+	char	*pw_gecos;	/* Honeywell login info */
+	char	*pw_dir;	/* home directory */
+	char	*pw_shell;	/* default shell */
+	time_t	pw_expire;	/* account expiration */
+	int	pw_fields;	/* internal: fields filled in */
+};
+.Ed
+.Pp
+The functions
+.Fn getpwnam
+and
+.Fn getpwuid
+search the password database for the given login name or user uid,
+respectively, always returning the first one encountered.
+.Pp
+The
+.Fn getpwent
+function
+sequentially reads the password database and is intended for programs
+that wish to process the complete list of users.
+.Pp
+The functions
+.Fn getpwent_r ,
+.Fn getpwnam_r ,
+and
+.Fn getpwuid_r
+are thread-safe versions of
+.Fn getpwent ,
+.Fn getpwnam ,
+and
+.Fn getpwuid ,
+respectively.
+The caller must provide storage for the results of the search in
+the
+.Fa pwd ,
+.Fa buffer ,
+.Fa bufsize ,
+and
+.Fa result
+arguments.
+When these functions are successful, the
+.Fa pwd
+argument will be filled-in, and a pointer to that argument will be
+stored in
+.Fa result .
+If an entry is not found or an error occurs,
+.Fa result
+will be set to
+.Dv NULL .
+.Pp
+The
+.Fn setpassent
+function
+accomplishes two purposes.
+First, it causes
+.Fn getpwent
+to ``rewind'' to the beginning of the database.
+Additionally, if
+.Fa stayopen
+is non-zero, file descriptors are left open, significantly speeding
+up subsequent accesses for all of the routines.
+(This latter functionality is unnecessary for
+.Fn getpwent
+as it does not close its file descriptors by default.)
+.Pp
+It is dangerous for long-running programs to keep the file descriptors
+open as the database will become out of date if it is updated while the
+program is running.
+.Pp
+The
+.Fn setpwent
+function
+is identical to
+.Fn setpassent
+with an argument of zero.
+.Pp
+The
+.Fn endpwent
+function
+closes any open files.
+.Pp
+These routines have been written to ``shadow'' the password file, e.g.\&
+allow only certain programs to have access to the encrypted password.
+If the process which calls them has an effective uid of 0, the encrypted
+password will be returned, otherwise, the password field of the returned
+structure will point to the string
+.Ql * .
+.Sh RETURN VALUES
+The functions
+.Fn getpwent ,
+.Fn getpwnam ,
+and
+.Fn getpwuid
+return a valid pointer to a passwd structure on success
+or
+.Dv NULL
+if the entry is not found or if an error occurs.
+If an error does occur,
+.Va errno
+will be set.
+Note that programs must explicitly set
+.Va errno
+to zero before calling any of these functions if they need to
+distinguish between a non-existent entry and an error.
+The functions
+.Fn getpwent_r ,
+.Fn getpwnam_r ,
+and
+.Fn getpwuid_r
+return 0 if no error occurred, or an error number to indicate failure.
+It is not an error if a matching entry is not found.
+(Thus, if
+.Fa result
+is
+.Dv NULL
+and the return value is 0, no matching entry exists.)
+.Pp
+The
+.Fn setpassent
+function returns 0 on failure and 1 on success.
+The
+.Fn endpwent
+and
+.Fn setpwent
+functions
+have no return value.
+.Sh FILES
+.Bl -tag -width /etc/master.passwd -compact
+.It Pa /etc/pwd.db
+The insecure password database file
+.It Pa /etc/spwd.db
+The secure password database file
+.It Pa /etc/master.passwd
+The current password file
+.It Pa /etc/passwd
+A Version 7 format password file
+.El
+.Sh COMPATIBILITY
+The historic function
+.Xr setpwfile 3 ,
+which allowed the specification of alternate password databases,
+has been deprecated and is no longer available.
+.Sh ERRORS
+These routines may fail for any of the errors specified in
+.Xr open 2 ,
+.Xr dbopen 3 ,
+.Xr socket 2 ,
+and
+.Xr connect 2 ,
+in addition to the following:
+.Bl -tag -width Er
+.It Bq Er ERANGE
+The buffer specified by the
+.Fa buffer
+and
+.Fa bufsize
+arguments was insufficiently sized to store the result.
+The caller should retry with a larger buffer.
+.El
+.Sh SEE ALSO
+.Xr getlogin 2 ,
+.Xr getgrent 3 ,
+.Xr nsswitch.conf 5 ,
+.Xr passwd 5 ,
+.Xr pwd_mkdb 8 ,
+.Xr vipw 8 ,
+.Xr yp 8
+.Sh STANDARDS
+The
+.Fn getpwent ,
+.Fn getpwnam ,
+.Fn getpwnam_r ,
+.Fn getpwuid ,
+.Fn getpwuid_r ,
+.Fn setpwent ,
+and
+.Fn endpwent
+functions conform to
+.St -p1003.1-96 .
+.Sh HISTORY
+The
+.Fn getpwent ,
+.Fn getpwnam ,
+.Fn getpwuid ,
+.Fn setpwent ,
+and
+.Fn endpwent
+functions appeared in
+.At v7 .
+The
+.Fn setpassent
+function appeared in
+.Bx 4.3 Reno .
+The
+.Fn getpwent_r ,
+.Fn getpwnam_r ,
+and
+.Fn getpwuid_r
+functions appeared in
+.Fx 5.1 .
+.Sh BUGS
+The functions
+.Fn getpwent ,
+.Fn getpwnam ,
+and
+.Fn getpwuid ,
+leave their results in an internal static object and return
+a pointer to that object.
+Subsequent calls to
+the same function
+will modify the same object.
+.Pp
+The functions
+.Fn getpwent ,
+.Fn getpwent_r ,
+.Fn endpwent ,
+.Fn setpassent ,
+and
+.Fn setpwent
+are fairly useless in a networked environment and should be
+avoided, if possible.
+The
+.Fn getpwent
+and
+.Fn getpwent_r
+functions
+make no attempt to suppress duplicate information if multiple
+sources are specified in
+.Xr nsswitch.conf 5 .

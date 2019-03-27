@@ -1,0 +1,8 @@
+set optimization aggressive
+set timeout { tcp.closing 6, tcp.opening 6 }
+set timeout tcp.first 6
+set limit states 500
+set limit {states 1000,frags 1000}
+set loginterface lo0
+set loginterface none
+set hostid 1

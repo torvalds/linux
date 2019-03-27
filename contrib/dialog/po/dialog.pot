@@ -1,0 +1,110 @@
+# Dialog
+# Copyright 2003-2014,2015 # Thomas Dickey
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.2.20150510\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2015-05-10 21:00-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: buttons.c:480
+msgid "Yes"
+msgstr ""
+
+#: buttons.c:488
+msgid "No"
+msgstr ""
+
+#: buttons.c:496
+msgid "OK"
+msgstr ""
+
+#: buttons.c:504
+msgid "Cancel"
+msgstr ""
+
+#: buttons.c:512
+msgid "EXIT"
+msgstr ""
+
+#: buttons.c:520
+msgid "Extra"
+msgstr ""
+
+#: buttons.c:528
+msgid "Help"
+msgstr ""
+
+#. Headline "Month"
+#: calendar.c:300
+msgid "Month"
+msgstr ""
+
+#. Headline "Year"
+#: calendar.c:322
+msgid "Year"
+msgstr ""
+
+#: dialog.c:728
+msgid "Rename"
+msgstr ""
+
+#: fselect.c:596
+msgid "Directories"
+msgstr ""
+
+#: fselect.c:597
+msgid "Files"
+msgstr ""
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr ""
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr ""
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr ""
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr ""
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr ""
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr ""
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr ""
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr ""
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr ""
+
+#: mixedgauge.c:190
+msgid "Overall Progress"
+msgstr ""
+
+#: textbox.c:502
+msgid "Search"
+msgstr ""

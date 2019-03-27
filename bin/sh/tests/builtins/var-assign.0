@@ -1,0 +1,55 @@
+# $FreeBSD$
+IFS=,
+
+SPECIAL="break,\
+	:,\
+	continue,\
+	. /dev/null,
+	eval,
+	exec,
+	export -p,
+	readonly -p,
+	set,
+	shift 0,
+	times,
+	trap,
+	unset foo"
+
+UTILS="alias,\
+	bg,\
+	bind,\
+	cd,\
+	command echo,\
+	echo,\
+	false,\
+	fc -l,\
+	fg,\
+	getopts a var,\
+	hash,\
+	jobs,\
+	printf a,\
+	pwd,\
+	read var < /dev/null,\
+	test,\
+	true,\
+	type ls,\
+	ulimit,\
+	umask,\
+	unalias -a,\
+	wait"
+
+set -e
+
+# For special built-ins variable assignments affect the shell environment.
+set -- ${SPECIAL}
+for cmd in "$@"
+do
+	${SH} -c "VAR=1; VAR=0 ${cmd}; exit \${VAR}" >/dev/null 2>&1
+done
+
+# For other built-ins and utilities they do not.
+set -- ${UTILS}
+for cmd in "$@"
+do
+	${SH} -c "VAR=0; VAR=1 ${cmd}; exit \${VAR}" >/dev/null 2>&1
+done

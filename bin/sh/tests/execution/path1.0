@@ -1,0 +1,15 @@
+# $FreeBSD$
+# Some builtins should not be overridable via PATH.
+
+set -e
+T=$(mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXX)
+trap 'rm -rf ${T}' 0
+echo '#!/bin/sh
+echo bad' >"$T/cd"
+chmod 755 "$T/cd"
+cd /bin
+oPATH=$PATH
+PATH=$T:$PATH:%builtin
+cd /
+PATH=$oPATH
+[ "$(pwd)" = / ]

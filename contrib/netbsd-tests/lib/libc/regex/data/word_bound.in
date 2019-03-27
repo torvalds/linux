@@ -1,0 +1,13 @@
+# word boundaries (ick)
+[[:<:]]a	&	a	a
+[[:<:]]a	&	ba
+[[:<:]]a	&	-a	a
+a[[:>:]]	&	a	a
+a[[:>:]]	&	ab
+a[[:>:]]	&	a-	a
+[[:<:]]a.c[[:>:]]	&	axcd-dayc-dazce-abc	abc
+[[:<:]]a.c[[:>:]]	&	axcd-dayc-dazce-abc-q	abc
+[[:<:]]a.c[[:>:]]	&	axc-dayc-dazce-abc	axc
+[[:<:]]b.c[[:>:]]	&	a_bxc-byc_d-bzc-q	bzc
+[[:<:]].x..[[:>:]]	&	y_xa_-_xb_y-_xc_-axdc	_xc_
+[[:<:]]a_b[[:>:]]	&	x_a_b

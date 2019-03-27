@@ -1,0 +1,78 @@
+#
+# AR91XX -- Kernel configuration base file for the Atheros AR913x SoC.
+#
+# This file (and the hints file accompanying it) are not designed to be
+# used by themselves. Instead, users of this file should create a kernel
+# config file which includes this file (which gets the basic hints), then
+# override the default options (adding devices as needed) and adding
+# hints as needed (for example, the GPIO and LAN PHY.)
+#
+# $FreeBSD$
+#
+
+machine         mips mips
+#ident		std.AR934X
+cpu		CPU_MIPS74K
+makeoptions	KERNLOADADDR=0x80050000
+options 	HZ=1000
+
+files		"../atheros/files.ar71xx"
+hints		"AR934X_BASE.hints"
+
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+
+options 	DDB
+options 	KDB
+options 	ALQ
+
+options 	SCHED_4BSD		#4BSD scheduler
+options 	INET			#InterNETworking
+#options 	INET6			#InterNETworking
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+#options 	NFSCL			#Network Filesystem Client
+options 	PSEUDOFS		#Pseudo-filesystem framework
+options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+
+# PMC
+options 	HWPMC_HOOKS
+
+# options 	NFS_LEGACYRPC
+# Debugging for use in -current
+#options 	INVARIANTS
+#options 	INVARIANT_SUPPORT
+#options 	WITNESS
+#options 	WITNESS_SKIPSPIN
+options 	FFS                     #Berkeley Fast Filesystem
+#options 	SOFTUPDATES             #Enable FFS soft updates support
+#options 	UFS_ACL                 #Support for access control lists
+#options 	UFS_DIRHASH             #Improve performance on big directories
+options 	NO_FFS_SNAPSHOT		# We don't require snapshot support
+
+include 	"std.AR_MIPS_BASE"
+makeoptions 	MODULES_OVERRIDE+="hwpmc_mips74k"
+
+# EEPROM caldata for AHB connected device
+options 	AR71XX_ATH_EEPROM
+device 		ar71xx_caldata
+device 		firmware
+
+# Support AR9340 support in AR9300 HAL
+options 	AH_SUPPORT_AR9340
+
+# Support EEPROM caldata in AHB devices
+options 	ATH_EEPROM_FIRMWARE
+
+device		pci
+device		ar724x_pci
+device		uart_ar71xx
+
+# XXX for now; later a separate APB mux is needed to demux PCI/WLAN interrupts.
+device		ar71xx_apb
+
+device 		usb
+device 		ehci
+
+device  	scbus
+device  	umass
+device  	da
+

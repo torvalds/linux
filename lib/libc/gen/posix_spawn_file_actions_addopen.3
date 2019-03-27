@@ -1,0 +1,203 @@
+.\" Copyright (c) 2008 Ed Schouten <ed@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Portions of this text are reprinted and reproduced in electronic form
+.\" from IEEE Std 1003.1, 2004 Edition, Standard for Information Technology --
+.\" Portable Operating System Interface (POSIX), The Open Group Base
+.\" Specifications Issue 6, Copyright (C) 2001-2004 by the Institute of
+.\" Electrical and Electronics Engineers, Inc and The Open Group.  In the
+.\" event of any discrepancy between this version and the original IEEE and
+.\" The Open Group Standard, the original IEEE and The Open Group Standard is
+.\" the referee document.  The original Standard can be obtained online at
+.\"	http://www.opengroup.org/unix/online.html.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 9, 2013
+.Dt POSIX_SPAWN_FILE_ACTIONS_ADDOPEN 3
+.Os
+.Sh NAME
+.Nm posix_spawn_file_actions_addopen ,
+.Nm posix_spawn_file_actions_adddup2 ,
+.Nm posix_spawn_file_actions_addclose
+.Nd "add open, dup2 or close action to spawn file actions object"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In spawn.h
+.Ft int
+.Fn posix_spawn_file_actions_addopen "posix_spawn_file_actions_t * file_actions" "int fildes" "const char *restrict path" "int oflag" "mode_t mode"
+.Ft int
+.Fn posix_spawn_file_actions_adddup2 "posix_spawn_file_actions_t * file_actions" "int fildes" "int newfildes"
+.Ft int
+.Fn posix_spawn_file_actions_addclose "posix_spawn_file_actions_t * file_actions" "int fildes"
+.Sh DESCRIPTION
+These functions add an open, dup2 or close action to a spawn
+file actions object.
+.Pp
+A spawn file actions object is of type
+.Vt posix_spawn_file_actions_t
+(defined in
+.In spawn.h )
+and is used to specify a series of actions to be performed by a
+.Fn posix_spawn
+or
+.Fn posix_spawnp
+operation in order to arrive at the set of open file descriptors for the
+child process given the set of open file descriptors of the parent.
+.Pp
+A spawn file actions object, when passed to
+.Fn posix_spawn
+or
+.Fn posix_spawnp ,
+specify how the set of open file descriptors in the calling
+process is transformed into a set of potentially open file descriptors
+for the spawned process.
+This transformation is as if the specified sequence of actions was
+performed exactly once, in the context of the spawned process (prior to
+execution of the new process image), in the order in which the actions
+were added to the object; additionally, when the new process image is
+executed, any file descriptor (from this new set) which has its
+.Dv FD_CLOEXEC
+flag set is closed (see
+.Fn posix_spawn ) .
+.Pp
+The
+.Fn posix_spawn_file_actions_addopen
+function adds an open action to the object referenced by
+.Fa file_actions
+that causes the file named by
+.Fa path
+to be opened (as if
+.Bd -literal -offset indent
+open(path, oflag, mode)
+.Ed
+.Pp
+had been called, and the returned file descriptor, if not
+.Fa fildes ,
+had been changed to
+.Fa fildes )
+when a new process is spawned using this file actions object.
+If
+.Fa fildes
+was already an open file descriptor, it is closed before the new
+file is opened.
+.Pp
+The string described by
+.Fa path
+is copied by the
+.Fn posix_spawn_file_actions_addopen
+function.
+.Pp
+The
+.Fn posix_spawn_file_actions_adddup2
+function adds a dup2 action to the object referenced by
+.Fa file_actions
+that causes the file descriptor
+.Fa fildes
+to be duplicated as
+.Fa newfildes
+(as if
+.Bd -literal -offset indent
+dup2(fildes, newfildes)
+.Ed
+.Pp
+had been called) when a new process is spawned using this file actions object,
+except that the
+.Dv FD_CLOEXEC
+flag for
+.Fa newfildes
+is cleared even if
+.Fa fildes
+is equal to
+.Fa newfildes .
+The difference from
+.Fn dup2
+is useful for passing a particular file descriptor
+to a particular child process.
+.Pp
+The
+.Fn posix_spawn_file_actions_addclose
+function adds a close action to the object referenced by
+.Fa file_actions
+that causes the file descriptor
+.Fa fildes
+to be closed (as if
+.Bd -literal -offset indent
+close(fildes)
+.Ed
+.Pp
+had been called) when a new process is spawned using this file actions
+object.
+.Sh RETURN VALUES
+Upon successful completion, these functions return zero;
+otherwise, an error number is returned to indicate the error.
+.Sh ERRORS
+These
+functions fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The value specified by
+.Fa fildes
+or
+.Fa newfildes
+is negative.
+.It Bq Er ENOMEM
+Insufficient memory exists to add to the spawn file actions object.
+.El
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr dup2 2 ,
+.Xr open 2 ,
+.Xr posix_spawn 3 ,
+.Xr posix_spawn_file_actions_destroy 3 ,
+.Xr posix_spawn_file_actions_init 3 ,
+.Xr posix_spawnp 3
+.Sh STANDARDS
+The
+.Fn posix_spawn_file_actions_addopen ,
+.Fn posix_spawn_file_actions_adddup2
+and
+.Fn posix_spawn_file_actions_addclose
+functions conform to
+.St -p1003.1-2001 ,
+with the exception of the behavior of
+.Fn posix_spawn_file_actions_adddup2
+if
+.Fa fildes
+is equal to
+.Fa newfildes
+(clearing
+.Dv FD_CLOEXEC ) .
+A future update of the Standard is expected to require this behavior.
+.Sh HISTORY
+The
+.Fn posix_spawn_file_actions_addopen ,
+.Fn posix_spawn_file_actions_adddup2
+and
+.Fn posix_spawn_file_actions_addclose
+functions first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+.An \&Ed Schouten Aq Mt ed@FreeBSD.org

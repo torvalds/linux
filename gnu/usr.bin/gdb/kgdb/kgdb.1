@@ -1,0 +1,150 @@
+.\" Copyright (c) 2004 Marcel Moolenaar
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 5, 2017
+.Dt KGDB 1
+.Os
+.Sh NAME
+.Nm kgdb
+.Nd "kernel debugger"
+.Sh SYNOPSIS
+.Nm
+.Op Fl a | Fl f | Fl fullname
+.Op Fl b Ar rate
+.Op Fl q | Fl quiet
+.Op Fl v
+.Op Fl w
+.Op Fl d Ar crashdir
+.Op Fl c Ar core | Fl n Ar dumpnr | Fl r Ar device
+.Op Ar kernel Op Ar core
+.Sh DEPRECATION NOTICE
+This version of
+.Nm
+is deprecated and will be removed from future versions of the
+.Fx
+base system.
+A newer version of
+.Nm
+is available from ports or packages
+(devel/gdb).
+.Sh DESCRIPTION
+The
+.Nm
+utility is a debugger based on
+.Xr gdb 1
+that allows debugging of kernel core files.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl d Ar crashdir"
+.It Fl a
+Increase the annotation level.
+An annotation level of 1 features the historical
+.Fl fullname
+option of
+.Xr gdb 1 .
+This is useful when running
+.Nm
+in Emacs.
+The
+.Fl f
+or
+.Fl fullname
+options are supported for backward compatibility as well.
+.It Fl b Ar rate
+Set the baudrate to
+.Ar rate .
+.It Fl q
+Suppress printing of the banner when the debugger starts.
+The
+.Fl quiet
+form is supported for compatibility as well.
+.It Fl v
+Increase verbosity.
+.It Fl w
+Opens kmem-based targets in read-write mode.
+(This is identical to what
+.Fl -wcore
+used to do in previous
+gdb versions for
+.Fx . )
+.It Fl d Ar crashdir
+Use
+.Ar crashdir
+instead of the default,
+.Pa /var/crash
+to locate kernel core dump files in.
+The name
+.Pa vmcore.
+plus the dump number will be appended to determine
+the actual dump file name.
+.It Fl c Ar core
+Explicitly use
+.Ar core
+as the core dump file.
+.It Fl n Ar dumpnr
+Use the kernel core dump file numbered
+.Ar dumpnr
+for debugging.
+.It Fl r Ar device
+Use
+.Ar device
+to connect
+.Nm
+to for a remote debugging session.
+.El
+.Pp
+The
+.Fl c , n ,
+and
+.Fl r
+options are mutually exclusive.
+.Pp
+Optionally, the name of the kernel symbol file and
+the name of the core dump file can be supplied on the
+command-line as positional arguments.
+If no kernel symbol file name has been given, the
+symbol file of the currently running kernel will be
+used.
+If no core dump file has been specified through either
+of the options or the last command-line argument,
+.Pa /dev/mem
+will be opened to allow debugging the currently running
+kernel.
+.Sh FILES
+.Bl -tag -width ".Pa /var/crash"
+.It Pa /dev/mem
+Default memory image to open if no core dump file
+has been specified.
+.It Pa /var/crash
+Default directory to locate kernel core dump files.
+.El
+.Sh SEE ALSO
+.Xr gdb 1
+.Sh HISTORY
+The
+.Nm
+utility first appeared in its current form in
+.Fx 5.3 .

@@ -1,0 +1,142 @@
+.\" Copyright (c) 2002-2004 Tim J. Robbins. All rights reserved.
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Donn Seeley of BSDI.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)multibyte.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd April 8, 2004
+.Dt MULTIBYTE 3
+.Os
+.Sh NAME
+.Nm multibyte
+.Nd multibyte and wide character manipulation functions
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In limits.h
+.In stdlib.h
+.In wchar.h
+.Sh DESCRIPTION
+The basic elements of some written natural languages, such as Chinese,
+cannot be represented uniquely with single C
+.Vt char Ns s .
+The C standard supports two different ways of dealing with
+extended natural language encodings:
+wide characters and
+multibyte characters.
+Wide characters are an internal representation
+which allows each basic element to map
+to a single object of type
+.Vt wchar_t .
+Multibyte characters are used for input and output
+and code each basic element as a sequence of C
+.Vt char Ns s .
+Individual basic elements may map into one or more
+(up to
+.Dv MB_LEN_MAX )
+bytes in a multibyte character.
+.Pp
+The current locale
+.Pq Xr setlocale 3
+governs the interpretation of wide and multibyte characters.
+The locale category
+.Dv LC_CTYPE
+specifically controls this interpretation.
+The
+.Vt wchar_t
+type is wide enough to hold the largest value
+in the wide character representations for all locales.
+.Pp
+Multibyte strings may contain
+.Sq shift
+indicators to switch to and from
+particular modes within the given representation.
+If explicit bytes are used to signal shifting,
+these are not recognized as separate characters
+but are lumped with a neighboring character.
+There is always a distinguished
+.Sq initial
+shift state.
+Some functions (e.g.,
+.Xr mblen 3 ,
+.Xr mbtowc 3
+and
+.Xr wctomb 3 )
+maintain static shift state internally, whereas
+others store it in an
+.Vt mbstate_t
+object passed by the caller.
+Shift states are undefined after a call to
+.Xr setlocale 3
+with the
+.Dv LC_CTYPE
+or
+.Dv LC_ALL
+categories.
+.Pp
+For convenience in processing,
+the wide character with value 0
+(the null wide character)
+is recognized as the wide character string terminator,
+and the character with value 0
+(the null byte)
+is recognized as the multibyte character string terminator.
+Null bytes are not permitted within multibyte characters.
+.Pp
+The C library provides the following functions for dealing with
+multibyte characters:
+.Bl -column "Description"
+.It Sy "Function	Description"
+.It Xr mblen 3 Ta "get number of bytes in a character"
+.It Xr mbrlen 3 Ta "get number of bytes in a character (restartable)"
+.It Xr mbrtowc 3 Ta "convert a character to a wide-character code (restartable)"
+.It Xr mbsrtowcs 3 Ta "convert a character string to a wide-character string (restartable)"
+.It Xr mbstowcs 3 Ta "convert a character string to a wide-character string"
+.It Xr mbtowc 3 Ta "convert a character to a wide-character code"
+.It Xr wcrtomb 3 Ta "convert a wide-character code to a character (restartable)"
+.It Xr wcstombs 3 Ta "convert a wide-character string to a character string"
+.It Xr wcsrtombs 3 Ta "convert a wide-character string to a character string (restartable)"
+.It Xr wctomb 3 Ta "convert a wide-character code to a character"
+.El
+.Sh SEE ALSO
+.Xr mklocale 1 ,
+.Xr setlocale 3 ,
+.Xr stdio 3 ,
+.Xr big5 5 ,
+.Xr euc 5 ,
+.Xr gb18030 5 ,
+.Xr gb2312 5 ,
+.Xr gbk 5 ,
+.Xr mskanji 5 ,
+.Xr utf8 5
+.Sh STANDARDS
+These functions conform to
+.St -isoC-99 .

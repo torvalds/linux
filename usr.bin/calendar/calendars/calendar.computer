@@ -1,0 +1,76 @@
+/*
+ * Computer
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _calendar_computer_
+#define _calendar_computer_
+
+01/01	AT&T officially divests its local Bell companies, 1984
+01/01	The Epoch (Time 0 for UNIX systems, Midnight GMT, 1970)
+01/03	Apple Computer founded, 1977
+01/08	American Telephone and Telegraph loses antitrust case, 1982
+01/08	Herman Hollerith patents first data processing computer, 1889
+01/08	Justice Dept. drops IBM suit, 1982
+01/10	First CDC 1604 delivered to Navy, 1960
+01/16	Set uid bit patent issued, to Dennis Ritchie, 1979
+01/17	Justice Dept. begins IBM anti-trust suit, 1969 (drops it, January 8, 1982)
+01/24	DG Nova introduced, 1969
+01/25	First U.S. meeting of ALGOL definition committee, 1958
+01/26	EDVAC demonstrated, 1952
+01/31	Hewlett-Packard founded, 1939
+02/11	Last day of JOSS service at RAND Corp., 1966
+02/14	First micro-on-a-chip patented (TI), 1978
+02/15	ENIAC demonstrated, 1946
+03/01	First NPL (later PL/I) report published, 1964
+03/04	First Cray-1 shipped to Los Alamos
+03/09	"GOTO considered harmful" (E.J. Dijkstra) published in CACM, 1968
+03/14	LISP introduced, 1960
+03/28	DEC announces PDP-11, 1970
+03/31	Eckert-Mauchly Computer Corp. founded, Phila, 1946
+04/01	Yourdon, Inc. founded, 1974 (It figures.)
+04/03	IBM 701 introduced, 1953
+04/04	Tandy Corp. acquires Radio Shack, 1963 (9 stores)
+04/07	IBM announces System/360, 1964
+04/09	ENIAC Project begun, 1943
+04/28	Zilog Z-80 introduced, 1976
+05/06	EDSAC demonstrated, 1949
+05/01	First BASIC program run at Dartmouth, 1964
+05/16	First report on SNOBOL distributed (within BTL), 1963
+05/19	UNIX is 10000 days old, 1997
+05/21	DEC announces PDP-8, 1965
+05/22	Ethernet first described, 1973
+05/27	First joint meeting of U.S. and European ALGOL definition cte., 1958
+05/28	First meeting of COBOL definition cte. (eventually CODASYL), 1959
+05/30	Colossus Mark II, 1944
+06/02	First issue of Computerworld, 1967
+06/07	Alan Mathison Turing died, 1954
+06/10	First Apple II shipped, 1977
+06/15	UNIVAC I delivered to the Census Bureau, 1951
+06/16	First publicized programming error at Census Bureau, 1951
+06/23	IBM unbundles software, 1969
+06/23	Alan Mathison Turing born, 1912
+06/30	First advanced degree on computer related topic: to H. Karamanian,
+	Temple Univ., Phila, 1948, for symbolic differentiation on the ENIAC
+07/08	Bell Telephone Co. formed (predecessor of AT&T), 1877
+07/08	CDC incorporated, 1957
+07/FriLast	System Administrator Appreciation Day
+08/14	First Unix-based mallet created, 1954
+08/14	IBM PC announced, 1981
+08/22	CDC 6600 introduced, 1963
+08/23	DEC founded, 1957
+09/15	ACM founded, 1947
+09/20	Harlan Herrick runs first FORTRAN program, 1954
+10/02	First robotics-based CAM, 1939
+10/06	First GPSS manual published, 1961
+10/08	First VisiCalc prototype, 1978
+10/12	Univac gives contract for SIMULA compiler to Nygaard and Dahl, 1962
+10/14	British Computer Society founded, 1957
+10/15	First FORTRAN Programmer's Reference Manual published, 1956
+10/20	Zurich ALGOL report published, 1958
+10/25	DEC announces VAX-11/780, 1977
+11/04	UNIVAC I program predicts Eisenhower victory based on 7% of votes, 1952
+12/08	First Ph.D. awarded by Computer Science Dept, Univ. of Penna, 1965
+
+#endif /* !_calendar_computer_ */

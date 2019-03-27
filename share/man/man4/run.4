@@ -1,0 +1,255 @@
+.\" $OpenBSD: run.4,v 1.22 2009/11/23 06:16:32 jmc Exp $
+.\"
+.\" Copyright (c) 2008 Damien Bergamini <damien.bergamini@free.fr>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 8, 2018
+.Dt RUN 4
+.Os
+.Sh NAME
+.Nm run
+.Nd Ralink Technology USB IEEE 802.11a/g/n wireless network device
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ehci"
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
+.Cd "device run"
+.Cd "device wlan"
+.Cd "device wlan_amrr"
+.Ed
+.Pp
+Firmware is also needed, and provided by:
+.Bd -ragged -offset indent
+.Cd "device runfw"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_run_load="YES"
+runfw_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports USB 2.0 wireless adapters based on the Ralink RT2700U,
+RT2800U, RT3000U and RT3900E chipsets.
+.Pp
+The RT2700U chipset consists of two integrated chips, an RT2770 MAC/BBP and
+an RT2720 (1T2R) or RT2750 (dual-band 1T2R) radio transceiver.
+.Pp
+The RT2800U chipset consists of two integrated chips, an RT2870 MAC/BBP and
+an RT2820 (2T3R) or RT2850 (dual-band 2T3R) radio transceiver.
+.Pp
+The RT3000U is a single-chip solution based on an RT3070 MAC/BBP and
+an RT3020 (1T1R), RT3021 (1T2R) or RT3022 (2T2R) single-band radio
+transceiver.
+.Pp
+The RT3900E is a single-chip USB 2.0 802.11n solution.
+The MAC/Baseband Processor can be an RT3593, RT5390, RT5392 or an RT5592.
+The radio can be an RT3053, RT5370, RT5372 or an RT5572.
+The RT3053 chip operates in the 2GHz and 5GHz spectra and supports up to
+3 transmit paths and 3 receiver paths (3T3R).
+The RT5370 chip operates in the 2GHz spectrum and supports 1 transmit path
+and 1 receiver path (1T1R).
+The RT5372 chip operates in the 2GHz spectrum and supports up to 2 transmit
+paths and 2 receiver paths (2T2R).
+The RT5572 chip operates in the 2GHz and 5GHz spectra and supports up to
+2 transmit paths and 2 receiver paths (2T2R).
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It Host AP mode
+In this mode the driver acts as an access point (base station)
+for other cards.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA-PSK and WPA2-PSK).
+WPA is the de facto encryption standard for wireless networks.
+It is strongly recommended that WEP
+not be used as the sole mechanism
+to secure wireless communication,
+due to serious weaknesses in it.
+The
+.Nm
+driver offloads both encryption and decryption of data frames to the
+hardware for the WEP40, WEP104, TKIP(+MIC) and CCMP ciphers.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports the following wireless adapters:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Airlink101 AWLL6090
+.It ASUS USB-N11
+.It ASUS USB-N13 ver. A1
+.It ASUS USB-N66
+.It ASUS WL-160N
+.It Belkin F5D8051 ver 3000
+.It Belkin F5D8053
+.It Belkin F5D8055
+.It Belkin F6D4050 ver 1
+.It Belkin F9L1103
+.It Buffalo WLI-UC-AG300N
+.It Buffalo WLI-UC-G300HP
+.It Buffalo WLI-UC-G300N
+.It Buffalo WLI-UC-G301N
+.It Buffalo WLI-UC-GN
+.It Buffalo WLI-UC-GNM
+.It Buffalo WLI-UC-GNM2
+.It Corega CG-WLUSB2GNL
+.It Corega CG-WLUSB2GNR
+.It Corega CG-WLUSB300AGN
+.It Corega CG-WLUSB300GNM
+.It D-Link DWA-130 rev B1
+.It D-Link DWA-140 rev B1, B2, B3, \&D1
+.It D-Link DWA-160 rev B2
+.It D-Link DWA-162
+.It DrayTek Vigor N61
+.It Edimax EW-7711UAn
+.It Edimax EW-7711UTn
+.It Edimax EW-7717Un
+.It Edimax EW-7718Un
+.It Edimax EW-7733UnD
+.It Gigabyte GN-WB30N
+.It Gigabyte GN-WB31N
+.It Gigabyte GN-WB32L
+.It Hawking HWDN1
+.It Hawking HWUN1
+.It Hawking HWUN2
+.It Hercules HWNU-300
+.It Linksys WUSB54GC v3
+.It Linksys WUSB600N
+.It Logitec LAN-W150N/U2
+.It Mvix Nubbin MS-811N
+.It Panda Wireless PAU06
+.It Planex GW-USMicroN
+.It Planex GW-US300MiniS
+.It Sitecom WL-182
+.It Sitecom WL-188
+.It Sitecom WL-301
+.It Sitecom WL-302
+.It Sitecom WL-315
+.It SMC SMCWUSBS-N2
+.It Sweex LW303
+.It Sweex LW313
+.It TP-LINK TL-WDN3200
+.It TP-LINK TL-WN321G v4
+.It TP-LINK TL-WN727N v3
+.It Unex DNUR-81
+.It Unex DNUR-82
+.It ZyXEL NWD2705
+.It ZyXEL NWD210N
+.It ZyXEL NWD270N
+.El
+.Sh EXAMPLES
+Join an existing BSS network (i.e., connect to an access point):
+.Bd -literal -offset indent
+ifconfig wlan create wlandev run0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig wlan create wlandev run0 ssid my_net up"
+.Pp
+Join a specific BSS network with 64-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev run0 ssid my_net \e
+	wepmode on wepkey 0x1234567890 weptxkey 1 up
+.Ed
+.Pp
+Join a specific BSS network with 128-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev run0 wlanmode adhoc ssid my_net \e
+    wepmode on wepkey 0x01020304050607080910111213 weptxkey 1
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "run%d: faild load firmware of file runfw"
+For some reason, the driver was unable to read the microcode file from the
+filesystem.
+The file might be missing or corrupted.
+.It "run%d: could not load 8051 microcode"
+An error occurred while attempting to upload the microcode to the onboard 8051
+microcontroller unit.
+.It "run%d: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr runfw 4 ,
+.Xr usb 4 ,
+.Xr wlan 4 ,
+.Xr wlan_amrr 4 ,
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr wlan_xauth 4 ,
+.Xr hostapd 8 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8
+.Pp
+Ralink Technology:
+.Pa http://www.ralinktech.com/
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.5 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Damien Bergamini Aq Mt damien@openbsd.org .
+.Sh CAVEATS
+The
+.Nm
+driver does not support any of the 802.11n capabilities offered by the
+RT2800, RT3000 and RT3900 chipsets.

@@ -1,0 +1,159 @@
+.\" Copyright (c) 2001 Mark R V Murray
+.\" Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+.\" Copyright (c) 2004-2011 Dag-Erling Smørgrav
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by ThinkSec AS and
+.\" NAI Labs, the Security Research Division of Network Associates, Inc.
+.\" under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 7, 2011
+.Dt PAM_SSH 8
+.Os
+.Sh NAME
+.Nm pam_ssh
+.Nd authentication and session management with SSH private keys
+.Sh SYNOPSIS
+.Op Ar service-name
+.Ar module-type
+.Ar control-flag
+.Pa pam_ssh
+.Op Ar options
+.Sh DESCRIPTION
+The
+SSH
+authentication service module for PAM,
+.Nm
+provides functionality for two PAM categories:
+authentication
+and session management.
+In terms of the
+.Ar module-type
+parameter, they are the
+.Dq Li auth
+and
+.Dq Li session
+features.
+.Ss SSH Authentication Module
+The
+SSH
+authentication component
+provides a function to verify the identity of a user
+.Pq Fn pam_sm_authenticate ,
+by prompting the user for a passphrase and verifying that it can
+decrypt the target user's SSH key using that passphrase.
+.Pp
+The following options may be passed to the authentication module:
+.Bl -tag -width ".Cm use_first_pass"
+.It Cm use_first_pass
+If the authentication module
+is not the first in the stack,
+and a previous module
+obtained the user's password,
+that password is used
+to authenticate the user.
+If this fails,
+the authentication module returns failure
+without prompting the user for a password.
+This option has no effect
+if the authentication module
+is the first in the stack,
+or if no previous modules
+obtained the user's password.
+.It Cm try_first_pass
+This option is similar to the
+.Cm use_first_pass
+option,
+except that if the previously obtained password fails,
+the user is prompted for another password.
+.It Cm nullok
+Normally, keys with no passphrase are ignored for authentication
+purposes.
+If this option is set, keys with no passphrase will be taken into
+consideration, allowing the user to log in with a blank password.
+.El
+.Ss SSH Session Management Module
+The
+SSH
+session management component
+provides functions to initiate
+.Pq Fn pam_sm_open_session
+and terminate
+.Pq Fn pam_sm_close_session
+sessions.
+The
+.Fn pam_sm_open_session
+function starts an SSH agent,
+passing it any private keys it decrypted
+during the authentication phase,
+and sets the environment variables
+the agent specifies.
+The
+.Fn pam_sm_close_session
+function kills the previously started SSH agent
+by sending it a
+.Dv SIGTERM .
+.Pp
+The following options may be passed to the session management module:
+.Bl -tag -width ".Cm want_agent"
+.It Cm want_agent
+Start an agent even if no keys were decrypted during the
+authentication phase.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa $HOME/.ssh/id_ed25519" -compact
+.It Pa $HOME/.ssh/id_rsa
+SSH2 RSA key
+.It Pa $HOME/.ssh/id_dsa
+SSH2 DSA key
+.It Pa $HOME/.ssh/id_ecdsa
+SSH2 ECDSA key
+.It Pa $HOME/.ssh/id_ed25519
+SSH2 Ed25519 key
+.El
+.Sh SEE ALSO
+.Xr ssh-agent 1 ,
+.Xr pam.conf 5 ,
+.Xr pam 8
+.Sh AUTHORS
+The
+.Nm
+module was originally written by
+.An -nosplit
+.An Andrew J. Korty Aq Mt ajk@iu.edu .
+The current implementation was developed for the
+.Fx
+Project by
+ThinkSec AS and NAI Labs, the Security Research Division of Network
+Associates, Inc.\& under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+This manual page was written by
+.An Mark R V Murray Aq Mt markm@FreeBSD.org .

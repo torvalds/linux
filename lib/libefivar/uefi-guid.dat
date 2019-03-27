@@ -1,0 +1,11 @@
+gEfiDebugPortProtocolGuid
+gEfiPcAnsiGuid
+gEfiPersistentVirtualCdGuid
+gEfiPersistentVirtualDiskGuid
+gEfiSasDevicePathGuid
+gEfiUartDevicePathGuid
+gEfiVT100Guid
+gEfiVT100PlusGuid
+gEfiVTUTF8Guid
+gEfiVirtualCdGuid
+gEfiVirtualDiskGuid

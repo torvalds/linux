@@ -1,0 +1,143 @@
+=pod
+
+=head1 NAME
+
+openssl-crl,
+crl - CRL utility
+
+=head1 SYNOPSIS
+
+B<openssl> B<crl>
+[B<-help>]
+[B<-inform PEM|DER>]
+[B<-outform PEM|DER>]
+[B<-text>]
+[B<-in filename>]
+[B<-out filename>]
+[B<-nameopt option>]
+[B<-noout>]
+[B<-hash>]
+[B<-issuer>]
+[B<-lastupdate>]
+[B<-nextupdate>]
+[B<-CAfile file>]
+[B<-CApath dir>]
+
+=head1 DESCRIPTION
+
+The B<crl> command processes CRL files in DER or PEM format.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-help>
+
+Print out a usage message.
+
+=item B<-inform DER|PEM>
+
+This specifies the input format. B<DER> format is DER encoded CRL
+structure. B<PEM> (the default) is a base64 encoded version of
+the DER form with header and footer lines.
+
+=item B<-outform DER|PEM>
+
+This specifies the output format, the options have the same meaning and default
+as the B<-inform> option.
+
+=item B<-in filename>
+
+This specifies the input filename to read from or standard input if this
+option is not specified.
+
+=item B<-out filename>
+
+Specifies the output filename to write to or standard output by
+default.
+
+=item B<-text>
+
+Print out the CRL in text form.
+
+=item B<-nameopt option>
+
+Option which determines how the subject or issuer names are displayed. See
+the description of B<-nameopt> in L<x509(1)>.
+
+=item B<-noout>
+
+Don't output the encoded version of the CRL.
+
+=item B<-hash>
+
+Output a hash of the issuer name. This can be use to lookup CRLs in
+a directory by issuer name.
+
+=item B<-hash_old>
+
+Outputs the "hash" of the CRL issuer name using the older algorithm
+as used by OpenSSL before version 1.0.0.
+
+=item B<-issuer>
+
+Output the issuer name.
+
+=item B<-lastupdate>
+
+Output the lastUpdate field.
+
+=item B<-nextupdate>
+
+Output the nextUpdate field.
+
+=item B<-CAfile file>
+
+Verify the signature on a CRL by looking up the issuing certificate in
+B<file>.
+
+=item B<-CApath dir>
+
+Verify the signature on a CRL by looking up the issuing certificate in
+B<dir>. This directory must be a standard certificate directory: that
+is a hash of each subject name (using B<x509 -hash>) should be linked
+to each certificate.
+
+=back
+
+=head1 NOTES
+
+The PEM CRL format uses the header and footer lines:
+
+ -----BEGIN X509 CRL-----
+ -----END X509 CRL-----
+
+=head1 EXAMPLES
+
+Convert a CRL file from PEM to DER:
+
+ openssl crl -in crl.pem -outform DER -out crl.der
+
+Output the text form of a DER encoded certificate:
+
+ openssl crl -in crl.der -inform DER -text -noout
+
+=head1 BUGS
+
+Ideally it should be possible to create a CRL using appropriate options
+and files too.
+
+=head1 SEE ALSO
+
+L<crl2pkcs7(1)>, L<ca(1)>, L<x509(1)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

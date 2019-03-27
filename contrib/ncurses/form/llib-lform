@@ -1,0 +1,777 @@
+/****************************************************************************
+ * Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
+ *                                                                          *
+ * Permission is hereby granted, free of charge, to any person obtaining a  *
+ * copy of this software and associated documentation files (the            *
+ * "Software"), to deal in the Software without restriction, including      *
+ * without limitation the rights to use, copy, modify, merge, publish,      *
+ * distribute, distribute with modifications, sublicense, and/or sell       *
+ * copies of the Software, and to permit persons to whom the Software is    *
+ * furnished to do so, subject to the following conditions:                 *
+ *                                                                          *
+ * The above copyright notice and this permission notice shall be included  *
+ * in all copies or substantial portions of the Software.                   *
+ *                                                                          *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+ * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+ * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+ *                                                                          *
+ * Except as contained in this notice, the name(s) of the above copyright   *
+ * holders shall not be used in advertising or otherwise to promote the     *
+ * sale, use or other dealings in this Software without prior written       *
+ * authorization.                                                           *
+ ****************************************************************************/
+
+/****************************************************************************
+ *  Author: Thomas E. Dickey       1996-2005,2010                           *
+ ****************************************************************************/
+/* LINTLIBRARY */
+
+/* ./f_trace.c */
+
+#include <form.priv.h>
+
+#undef _nc_retrace_field_ptr
+FIELD	**_nc_retrace_field_ptr(
+		FIELD	**code)
+		{ return(*(FIELD ***)0); }
+
+#undef _nc_retrace_field
+FIELD	*_nc_retrace_field(
+		FIELD	*code)
+		{ return(*(FIELD **)0); }
+
+#undef _nc_retrace_field_type
+FIELDTYPE *_nc_retrace_field_type(
+		FIELDTYPE *code)
+		{ return(*(FIELDTYPE **)0); }
+
+#undef _nc_retrace_form
+FORM	*_nc_retrace_form(
+		FORM	*code)
+		{ return(*(FORM **)0); }
+
+#undef _nc_retrace_form_hook
+Form_Hook _nc_retrace_form_hook(
+		Form_Hook code)
+		{ return(*(Form_Hook *)0); }
+
+/* ./fld_arg.c */
+
+#undef set_fieldtype_arg
+int	set_fieldtype_arg(
+		FIELDTYPE *typ, 
+		void	*(*const make_arg)(
+		va_list	*p1), 
+		void	*(*const copy_arg)(
+		const void *p1), 
+		void	(*const free_arg)(
+		void	*p1))
+		{ return(*(int *)0); }
+
+#undef field_arg
+void	*field_arg(
+		const FIELD *field)
+		{ return(*(void **)0); }
+
+/* ./fld_attr.c */
+
+#undef set_field_fore
+int	set_field_fore(
+		FIELD	*field, 
+		chtype	attr)
+		{ return(*(int *)0); }
+
+#undef field_fore
+chtype	field_fore(
+		const FIELD *field)
+		{ return(*(chtype *)0); }
+
+#undef set_field_back
+int	set_field_back(
+		FIELD	*field, 
+		chtype	attr)
+		{ return(*(int *)0); }
+
+#undef field_back
+chtype	field_back(
+		const FIELD *field)
+		{ return(*(chtype *)0); }
+
+/* ./fld_current.c */
+
+#undef set_current_field
+int	set_current_field(
+		FORM	*form, 
+		FIELD	*field)
+		{ return(*(int *)0); }
+
+#undef current_field
+FIELD	*current_field(
+		const FORM *form)
+		{ return(*(FIELD **)0); }
+
+#undef field_index
+int	field_index(
+		const FIELD *field)
+		{ return(*(int *)0); }
+
+/* ./fld_def.c */
+
+#undef _nc_Default_Field
+FIELD	*_nc_Default_Field;
+
+#undef _nc_Make_Argument
+TypeArgument *_nc_Make_Argument(
+		const FIELDTYPE *typ, 
+		va_list	*ap, 
+		int	*err)
+		{ return(*(TypeArgument **)0); }
+
+#undef _nc_Copy_Argument
+TypeArgument *_nc_Copy_Argument(
+		const FIELDTYPE *typ, 
+		const TypeArgument *argp, 
+		int	*err)
+		{ return(*(TypeArgument **)0); }
+
+#undef _nc_Free_Argument
+void	_nc_Free_Argument(
+		const FIELDTYPE *typ, 
+		TypeArgument *argp)
+		{ /* void */ }
+
+#undef _nc_Copy_Type
+NCURSES_BOOL _nc_Copy_Type(
+		FIELD	*dst, 
+		FIELD const *src)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef _nc_Free_Type
+void	_nc_Free_Type(
+		FIELD	*field)
+		{ /* void */ }
+
+#undef new_field
+FIELD	*new_field(
+		int	rows, 
+		int	cols, 
+		int	frow, 
+		int	fcol, 
+		int	nrow, 
+		int	nbuf)
+		{ return(*(FIELD **)0); }
+
+#undef free_field
+int	free_field(
+		FIELD	*field)
+		{ return(*(int *)0); }
+
+/* ./fld_dup.c */
+
+#undef dup_field
+FIELD	*dup_field(
+		FIELD	*field, 
+		int	frow, 
+		int	fcol)
+		{ return(*(FIELD **)0); }
+
+/* ./fld_ftchoice.c */
+
+#undef set_fieldtype_choice
+int	set_fieldtype_choice(
+		FIELDTYPE *typ, 
+		NCURSES_BOOL (*const next_choice)(
+		FIELD	*p1, 
+		const void *p2), 
+		NCURSES_BOOL (*const prev_choice)(
+		FIELD	*p1, 
+		const void *p2))
+		{ return(*(int *)0); }
+
+/* ./fld_ftlink.c */
+
+#undef link_fieldtype
+FIELDTYPE *link_fieldtype(
+		FIELDTYPE *type1, 
+		FIELDTYPE *type2)
+		{ return(*(FIELDTYPE **)0); }
+
+/* ./fld_info.c */
+
+#undef field_info
+int	field_info(
+		const FIELD *field, 
+		int	*rows, 
+		int	*cols, 
+		int	*frow, 
+		int	*fcol, 
+		int	*nrow, 
+		int	*nbuf)
+		{ return(*(int *)0); }
+
+#undef dynamic_field_info
+int	dynamic_field_info(
+		const FIELD *field, 
+		int	*drows, 
+		int	*dcols, 
+		int	*maxgrow)
+		{ return(*(int *)0); }
+
+/* ./fld_just.c */
+
+#undef set_field_just
+int	set_field_just(
+		FIELD	*field, 
+		int	just)
+		{ return(*(int *)0); }
+
+#undef field_just
+int	field_just(
+		const FIELD *field)
+		{ return(*(int *)0); }
+
+/* ./fld_link.c */
+
+#undef link_field
+FIELD	*link_field(
+		FIELD	*field, 
+		int	frow, 
+		int	fcol)
+		{ return(*(FIELD **)0); }
+
+/* ./fld_max.c */
+
+#undef set_max_field
+int	set_max_field(
+		FIELD	*field, 
+		int	maxgrow)
+		{ return(*(int *)0); }
+
+/* ./fld_move.c */
+
+#undef move_field
+int	move_field(
+		FIELD	*field, 
+		int	frow, 
+		int	fcol)
+		{ return(*(int *)0); }
+
+/* ./fld_newftyp.c */
+
+#undef _nc_Default_FieldType
+FIELDTYPE *_nc_Default_FieldType;
+
+#undef new_fieldtype
+FIELDTYPE *new_fieldtype(
+		NCURSES_BOOL (*const field_check)(
+		FIELD	*p1, 
+		const void *p2), 
+		NCURSES_BOOL (*const char_check)(
+		int	p1, 
+		const void *p2))
+		{ return(*(FIELDTYPE **)0); }
+
+#undef free_fieldtype
+int	free_fieldtype(
+		FIELDTYPE *typ)
+		{ return(*(int *)0); }
+
+/* ./fld_opts.c */
+
+#undef set_field_opts
+int	set_field_opts(
+		FIELD	*field, 
+		Field_Options opts)
+		{ return(*(int *)0); }
+
+#undef field_opts
+Field_Options field_opts(
+		const FIELD *field)
+		{ return(*(Field_Options *)0); }
+
+#undef field_opts_on
+int	field_opts_on(
+		FIELD	*field, 
+		Field_Options opts)
+		{ return(*(int *)0); }
+
+#undef field_opts_off
+int	field_opts_off(
+		FIELD	*field, 
+		Field_Options opts)
+		{ return(*(int *)0); }
+
+/* ./fld_pad.c */
+
+#undef set_field_pad
+int	set_field_pad(
+		FIELD	*field, 
+		int	ch)
+		{ return(*(int *)0); }
+
+#undef field_pad
+int	field_pad(
+		const FIELD *field)
+		{ return(*(int *)0); }
+
+/* ./fld_page.c */
+
+#undef set_new_page
+int	set_new_page(
+		FIELD	*field, 
+		NCURSES_BOOL new_page_flag)
+		{ return(*(int *)0); }
+
+#undef new_page
+NCURSES_BOOL new_page(
+		const FIELD *field)
+		{ return(*(NCURSES_BOOL *)0); }
+
+/* ./fld_stat.c */
+
+#undef set_field_status
+int	set_field_status(
+		FIELD	*field, 
+		NCURSES_BOOL status)
+		{ return(*(int *)0); }
+
+#undef field_status
+NCURSES_BOOL field_status(
+		const FIELD *field)
+		{ return(*(NCURSES_BOOL *)0); }
+
+/* ./fld_type.c */
+
+#undef set_field_type
+int	set_field_type(
+		FIELD	*field, 
+		FIELDTYPE *type, 
+		...)
+		{ return(*(int *)0); }
+
+#undef field_type
+FIELDTYPE *field_type(
+		const FIELD *field)
+		{ return(*(FIELDTYPE **)0); }
+
+/* ./fld_user.c */
+
+#undef set_field_userptr
+int	set_field_userptr(
+		FIELD	*field, 
+		void	*usrptr)
+		{ return(*(int *)0); }
+
+#undef field_userptr
+void	*field_userptr(
+		const FIELD *field)
+		{ return(*(void **)0); }
+
+/* ./frm_cursor.c */
+
+#undef pos_form_cursor
+int	pos_form_cursor(
+		FORM	*form)
+		{ return(*(int *)0); }
+
+/* ./frm_data.c */
+
+#undef data_behind
+NCURSES_BOOL data_behind(
+		const FORM *form)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef data_ahead
+NCURSES_BOOL data_ahead(
+		const FORM *form)
+		{ return(*(NCURSES_BOOL *)0); }
+
+/* ./frm_def.c */
+
+#undef _nc_Default_Form
+FORM	*_nc_Default_Form;
+
+#undef new_form_sp
+FORM	*new_form_sp(
+		SCREEN	*sp, 
+		FIELD	**fields)
+		{ return(*(FORM **)0); }
+
+#undef new_form
+FORM	*new_form(
+		FIELD	**fields)
+		{ return(*(FORM **)0); }
+
+#undef free_form
+int	free_form(
+		FORM	*form)
+		{ return(*(int *)0); }
+
+#undef set_form_fields
+int	set_form_fields(
+		FORM	*form, 
+		FIELD	**fields)
+		{ return(*(int *)0); }
+
+#undef form_fields
+FIELD	**form_fields(
+		const FORM *form)
+		{ return(*(FIELD ***)0); }
+
+#undef field_count
+int	field_count(
+		const FORM *form)
+		{ return(*(int *)0); }
+
+/* ./frm_driver.c */
+
+#undef _nc_get_fieldbuffer
+void	_nc_get_fieldbuffer(
+		FORM	*form, 
+		FIELD	*field, 
+		char	*buf)
+		{ /* void */ }
+
+#undef _nc_Position_Form_Cursor
+int	_nc_Position_Form_Cursor(
+		FORM	*form)
+		{ return(*(int *)0); }
+
+#undef _nc_Refresh_Current_Field
+int	_nc_Refresh_Current_Field(
+		FORM	*form)
+		{ return(*(int *)0); }
+
+#undef _nc_Synchronize_Attributes
+int	_nc_Synchronize_Attributes(
+		FIELD	*field)
+		{ return(*(int *)0); }
+
+#undef _nc_Synchronize_Options
+int	_nc_Synchronize_Options(
+		FIELD	*field, 
+		Field_Options newopts)
+		{ return(*(int *)0); }
+
+#undef _nc_Set_Current_Field
+int	_nc_Set_Current_Field(
+		FORM	*form, 
+		FIELD	*newfield)
+		{ return(*(int *)0); }
+
+#undef _nc_Internal_Validation
+NCURSES_BOOL _nc_Internal_Validation(
+		FORM	*form)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef _nc_First_Active_Field
+FIELD	*_nc_First_Active_Field(
+		FORM	*form)
+		{ return(*(FIELD **)0); }
+
+#undef _nc_Set_Form_Page
+int	_nc_Set_Form_Page(
+		FORM	*form, 
+		int	page, 
+		FIELD	*field)
+		{ return(*(int *)0); }
+
+typedef struct
+{
+  int keycode; 
+  int (*cmd) (FORM *); 
+}
+Binding_Info;
+
+#undef form_driver
+int	form_driver(
+		FORM	*form, 
+		int	c)
+		{ return(*(int *)0); }
+
+#undef set_field_buffer
+int	set_field_buffer(
+		FIELD	*field, 
+		int	buffer, 
+		const char *value)
+		{ return(*(int *)0); }
+
+#undef field_buffer
+char	*field_buffer(
+		const FIELD *field, 
+		int	buffer)
+		{ return(*(char **)0); }
+
+/* ./frm_hook.c */
+
+#undef set_field_init
+int	set_field_init(
+		FORM	*form, 
+		Form_Hook func)
+		{ return(*(int *)0); }
+
+#undef field_init
+Form_Hook field_init(
+		const FORM *form)
+		{ return(*(Form_Hook *)0); }
+
+#undef set_field_term
+int	set_field_term(
+		FORM	*form, 
+		Form_Hook func)
+		{ return(*(int *)0); }
+
+#undef field_term
+Form_Hook field_term(
+		const FORM *form)
+		{ return(*(Form_Hook *)0); }
+
+#undef set_form_init
+int	set_form_init(
+		FORM	*form, 
+		Form_Hook func)
+		{ return(*(int *)0); }
+
+#undef form_init
+Form_Hook form_init(
+		const FORM *form)
+		{ return(*(Form_Hook *)0); }
+
+#undef set_form_term
+int	set_form_term(
+		FORM	*form, 
+		Form_Hook func)
+		{ return(*(int *)0); }
+
+#undef form_term
+Form_Hook form_term(
+		const FORM *form)
+		{ return(*(Form_Hook *)0); }
+
+/* ./frm_opts.c */
+
+#undef set_form_opts
+int	set_form_opts(
+		FORM	*form, 
+		Form_Options opts)
+		{ return(*(int *)0); }
+
+#undef form_opts
+Form_Options form_opts(
+		const FORM *form)
+		{ return(*(Form_Options *)0); }
+
+#undef form_opts_on
+int	form_opts_on(
+		FORM	*form, 
+		Form_Options opts)
+		{ return(*(int *)0); }
+
+#undef form_opts_off
+int	form_opts_off(
+		FORM	*form, 
+		Form_Options opts)
+		{ return(*(int *)0); }
+
+/* ./frm_page.c */
+
+#undef set_form_page
+int	set_form_page(
+		FORM	*form, 
+		int	page)
+		{ return(*(int *)0); }
+
+#undef form_page
+int	form_page(
+		const FORM *form)
+		{ return(*(int *)0); }
+
+/* ./frm_post.c */
+
+#undef post_form
+int	post_form(
+		FORM	*form)
+		{ return(*(int *)0); }
+
+#undef unpost_form
+int	unpost_form(
+		FORM	*form)
+		{ return(*(int *)0); }
+
+/* ./frm_req_name.c */
+
+#undef form_request_name
+const char *form_request_name(
+		int	request)
+		{ return(*(const char **)0); }
+
+#undef form_request_by_name
+int	form_request_by_name(
+		const char *str)
+		{ return(*(int *)0); }
+
+/* ./frm_scale.c */
+
+#undef scale_form
+int	scale_form(
+		const FORM *form, 
+		int	*rows, 
+		int	*cols)
+		{ return(*(int *)0); }
+
+/* ./frm_sub.c */
+
+#undef set_form_sub
+int	set_form_sub(
+		FORM	*form, 
+		WINDOW	*win)
+		{ return(*(int *)0); }
+
+#undef form_sub
+WINDOW	*form_sub(
+		const FORM *form)
+		{ return(*(WINDOW **)0); }
+
+/* ./frm_user.c */
+
+#undef set_form_userptr
+int	set_form_userptr(
+		FORM	*form, 
+		void	*usrptr)
+		{ return(*(int *)0); }
+
+#undef form_userptr
+void	*form_userptr(
+		const FORM *form)
+		{ return(*(void **)0); }
+
+/* ./frm_win.c */
+
+#undef set_form_win
+int	set_form_win(
+		FORM	*form, 
+		WINDOW	*win)
+		{ return(*(int *)0); }
+
+#undef form_win
+WINDOW	*form_win(
+		const FORM *form)
+		{ return(*(WINDOW **)0); }
+
+/* ./fty_alnum.c */
+
+typedef struct
+  {
+    int width;
+  }
+alnumARG;
+
+#undef TYPE_ALNUM
+FIELDTYPE *TYPE_ALNUM;
+
+/* ./fty_alpha.c */
+
+typedef struct
+  {
+    int width;
+  }
+alphaARG;
+
+#undef TYPE_ALPHA
+FIELDTYPE *TYPE_ALPHA;
+
+/* ./fty_enum.c */
+
+typedef struct
+  {
+    char **kwds;
+    int count;
+    NCURSES_BOOL checkcase;
+    NCURSES_BOOL checkunique;
+  }
+enumARG;
+
+typedef struct
+  {
+    char **kwds;
+    int ccase;
+    int cunique;
+  }
+enumParams;
+
+#undef TYPE_ENUM
+FIELDTYPE *TYPE_ENUM;
+
+/* ./fty_generic.c */
+
+#undef _nc_fty_generic
+void	_nc_fty_generic(void)
+		{ /* void */ }
+
+/* ./fty_int.c */
+
+typedef struct
+  {
+    int precision;
+    long low;
+    long high;
+  }
+integerARG;
+
+typedef struct
+  {
+    int precision;
+    long low;
+    long high;
+  }
+integerPARM;
+
+#undef TYPE_INTEGER
+FIELDTYPE *TYPE_INTEGER;
+
+/* ./fty_ipv4.c */
+#undef TYPE_IPV4
+FIELDTYPE *TYPE_IPV4;
+
+/* ./fty_num.c */
+
+#include <locale.h>
+
+typedef struct
+  {
+    int precision;
+    double low;
+    double high;
+    struct lconv *L;
+  }
+numericARG;
+
+typedef struct
+  {
+    int precision;
+    double low;
+    double high;
+  }
+thisPARM;
+
+#undef TYPE_NUMERIC
+FIELDTYPE *TYPE_NUMERIC;
+
+/* ./fty_regex.c */
+
+#include <regex.h>
+
+typedef struct
+  {
+    regex_t *pRegExp;
+    unsigned long *refCount;
+  }
+RegExp_Arg;
+
+#undef TYPE_REGEXP
+FIELDTYPE *TYPE_REGEXP;

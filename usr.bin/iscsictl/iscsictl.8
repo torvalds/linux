@@ -1,0 +1,225 @@
+.\" Copyright (c) 2012 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Edward Tomasz Napierala under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 27, 2018
+.Dt ISCSICTL 8
+.Os
+.Sh NAME
+.Nm iscsictl
+.Nd iSCSI initiator management utility
+.Sh SYNOPSIS
+.Nm
+.Fl A
+.Fl p Ar portal Fl t Ar target
+.Op Fl u Ar user Fl s Ar secret
+.Op Fl w Ar timeout
+.Op Fl r
+.Op Fl e Cm on Ns | Ns Cm off
+.Nm
+.Fl A
+.Fl d Ar discovery-host
+.Op Fl u Ar user Fl s Ar secret
+.Op Fl r
+.Op Fl e Cm on Ns | Ns Cm off
+.Nm
+.Fl A
+.Fl a Op Fl c Ar path
+.Nm
+.Fl A
+.Fl n Ar nickname Op Fl c Ar path
+.Nm
+.Fl M
+.Fl i Ar session-id
+.Op Fl p Ar portal
+.Op Fl t Ar target
+.Op Fl u Ar user
+.Op Fl s Ar secret
+.Op Fl e Cm on Ns | Ns Cm off
+.Nm
+.Fl M
+.Fl i Ar session-id
+.Op Fl n Ar nickname Op Fl c Ar path
+.Nm
+.Fl R
+.Op Fl p Ar portal
+.Op Fl t Ar target
+.Nm
+.Fl R
+.Fl a
+.Nm
+.Fl R
+.Fl n Ar nickname Op Fl c Ar path
+.Nm
+.Fl L
+.Op Fl v
+.Op Fl w Ar timeout
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to configure the iSCSI initiator.
+.Pp
+The following options are available:
+.Bl -tag -width "-d discovery-host"
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
+.It Fl A
+Add session.
+.It Fl M
+Modify session.
+.It Fl R
+Remove session.
+.It Fl L
+List sessions.
+.It Fl a
+When adding, add all sessions defined in the configuration file.
+When removing, remove all currently established sessions.
+.It Fl c Ar path
+Path to the configuration file.
+The default is
+.Pa /etc/iscsi.conf .
+.It Fl d Ar discovery-host
+Target host name or address used for SendTargets discovery.
+When used, it will add a temporary discovery session.
+After discovery is done, sessions will be added for each discovered target,
+and the temporary discovery session will be removed.
+.It Fl e Cm on Ns | Ns Cm off
+Enable or disable the session.
+This is ignored for discovery sessions, but gets passed down to normal
+sessions they add.
+.It Fl i Ar session-id
+Session ID, as displayed by
+.Nm
+.Fl v .
+.It Fl n Ar nickname
+The
+.Ar nickname
+of a session defined in the configuration file.
+.It Fl p Ar portal
+Target portal \(em host name or address \(em for statically defined targets.
+.It Fl r
+Use iSER (iSCSI over RDMA) instead of plain iSCSI over TCP/IP.
+.It Fl s Ar secret
+CHAP secret.
+.It Fl t Ar target
+Target name.
+.It Fl u Ar user
+CHAP login.
+.It Fl v
+Verbose mode.
+.It Fl w Ar timeout
+Instead of returning immediately, wait up to
+.Ar timeout
+seconds until all configured sessions are successfully established.
+.El
+.Pp
+Certain parameters are necessary when adding a session.
+One can specify these either via command line (using the
+.Fl t ,
+.Fl p ,
+.Fl u ,
+and
+.Fl s
+options), or configuration file (using the
+.Fl a
+or
+.Fl n
+options).
+Some functionality - for example mutual CHAP - is available only
+via configuration file.
+.Pp
+Since connecting to the target is performed in background, non-zero
+exit status does not mean that the session was successfully established.
+Use either
+.Nm Fl L
+to check the connection status, or the
+.Fl w
+flag to wait for session establishment.
+.Pp
+Note that in order for the iSCSI initiator to be able to connect to a target,
+the
+.Xr iscsid 8
+daemon must be running.
+.Pp
+Also note that
+.Fx
+currently supports two different initiators: the old one,
+.Xr iscsi_initiator 4 ,
+with its control utility
+.Xr iscontrol 8 ,
+and the new one,
+.Xr iscsi 4 ,
+with
+.Nm
+and
+.Xr iscsid 8 .
+The only thing the two have in common is the configuration file,
+.Xr iscsi.conf 5 .
+.Sh FILES
+.Bl -tag -width ".Pa /etc/iscsi.conf" -compact
+.It Pa /etc/iscsi.conf
+iSCSI initiator configuration file.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 on success, and >0 if an error occurs.
+.Sh EXAMPLES
+Attach to target iqn.2012-06.com.example:target0, served by 192.168.1.1:
+.Dl Nm Fl A Fl t Ar iqn.2012-06.com.example:target0 Fl p Ar 192.168.1.1
+.Pp
+Perform discovery on 192.168.1.1, and add disabled sessions for each
+discovered target; use
+.Nm -M -e on
+to connect them:
+.Dl Nm Fl A Fl d Ar 192.168.1.1 Fl e Ar off
+.Pp
+Disconnect all iSCSI sessions:
+.Dl Nm Fl Ra
+.Sh SEE ALSO
+.Xr libxo 3 ,
+.Xr xo_parse_args 3 ,
+.Xr iscsi 4 ,
+.Xr iscsi.conf 5 ,
+.Xr iscsid 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+utility was developed by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.

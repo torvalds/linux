@@ -1,0 +1,156 @@
+.\" Copyright (c) 2016, EMC / Isilon Storage Division
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS
+.\" IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+.\" THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+.\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 9, 2016
+.Dt FOPENCOOKIE 3
+.Os
+.Sh NAME
+.Nm fopencookie
+.Nd open a stream
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.Ft typedef ssize_t
+.Fn (*cookie_read_function_t) "void *cookie" "char *buf" "size_t size"
+.Ft typedef ssize_t
+.Fn (*cookie_write_function_t) "void *cookie" "const char *buf" "size_t size"
+.Ft typedef int
+.Fn (*cookie_seek_function_t) "void *cookie" "off64_t *offset" "int whence"
+.Ft typedef int
+.Fn (*cookie_close_function_t) "void *cookie"
+.Bd -literal
+typedef struct {
+	cookie_read_function_t	*read;
+	cookie_write_function_t	*write;
+	cookie_seek_function_t	*seek;
+	cookie_close_function_t	*close;
+} cookie_io_functions_t;
+.Ed
+.Ft FILE *
+.Fn fopencookie "void *cookie" "const char *mode" "cookie_io_functions_t io_funcs"
+.Sh DESCRIPTION
+The
+.Nm
+function
+associates a stream with up to four
+.Dq Tn I/O No functions .
+These
+.Tn I/O
+functions will be used to read, write, seek and
+close the new stream.
+.Pp
+In general, omitting a function means that any attempt to perform the
+associated operation on the resulting stream will fail.
+If the write function is omitted, data written to the stream is discarded.
+If the close function is omitted, closing the stream will flush
+any buffered output and then succeed.
+.Pp
+The calling conventions of
+.Fa read ,
+.Fa write ,
+and
+.Fa close
+must match those, respectively, of
+.Xr read 2 ,
+.Xr write 2 ,
+and
+.Xr close 2
+with the single exception that they are passed the
+.Fa cookie
+argument specified to
+.Nm
+in place of the traditional file descriptor argument.
+The
+.Fa seek
+function updates the current stream offset using
+.Fa *offset
+and
+.Fa whence .
+If
+.Fa *offset
+is non-NULL, it updates
+.Fa *offset
+with the current stream offset.
+.Pp
+.Nm
+is implemented as a thin shim around the
+.Xr funopen 3
+interface.
+Limitations, possibilities, and requirements of that interface apply to
+.Nm .
+.Sh RETURN VALUES
+Upon successful completion,
+.Nm
+returns a
+.Dv FILE
+pointer.
+Otherwise,
+.Dv NULL
+is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+A bogus
+.Fa mode
+was provided to
+.Nm .
+.It Bq Er ENOMEM
+The
+.Nm
+function
+may fail and set
+.Va errno
+for any of the errors
+specified for the
+.Xr malloc 3
+routine.
+.El
+.Sh SEE ALSO
+.Xr fcntl 2 ,
+.Xr open 2 ,
+.Xr fclose 3 ,
+.Xr fopen 3 ,
+.Xr fseek 3 ,
+.Xr funopen 3
+.Sh HISTORY
+The
+.Fn funopen
+functions first appeared in
+.Bx 4.4 .
+The
+.Nm
+function first appeared in
+.Fx 11 .
+.Sh BUGS
+The
+.Nm
+function is a nonstandard glibc extension and may not be portable to systems
+other than
+.Fx
+and Linux.

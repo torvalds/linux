@@ -1,0 +1,23 @@
+$ $tcsh: set19,v 1.5 2011/02/25 23:58:07 christos Exp $
+$ tc.alloc.c
+$set 19 
+1 nbytes=%d: Mälu on otsas\n
+2 free(%lx) kasutati enne mälu haaramist.
+3 free(%lx) enne mälu algust.
+4 free(%lx) pärast mälu lõppu.
+5 free(%lx) halb plokk.
+6 free(%lx) vigane piirkonna kontroll.
+7 free(%lx) vigane plokkide indeks.
+8 %s mälu kasutamine hetkel:\nvaba:\t
+9 kasutatud
+10 \n\tKokku kasutusel: %d, kokku vaba: %d\n
+11 \tMälu vahemikus 0x%lx kuni 0x%lx.  Tegelik algus 0x%lx\n
+12 Mälu vahemikus 0x%lx kuni 0x%lx (%ld).\n
+13 %s current memory allocation:\n
+14 Total space allocated from system: %d\n
+15 Number of non-inuse chunks: %d\n
+16 Number of mmapped regions: %d\n
+17 Total space in mmapped regions: %d\n
+18 Total allocated space: %d\n
+19 Total non-inuse space: %d\n
+20 Top-most, releasable space: %d\n

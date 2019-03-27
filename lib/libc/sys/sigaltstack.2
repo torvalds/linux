@@ -1,0 +1,162 @@
+.\" Copyright (c) 1983, 1991, 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)sigaltstack.2	8.2 (Berkeley) 5/1/95
+.\" $FreeBSD$
+.\"
+.Dd May 6, 2010
+.Dt SIGALTSTACK 2
+.Os
+.Sh NAME
+.Nm sigaltstack
+.Nd set and/or get signal stack context
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In signal.h
+.Bd -literal
+typedef struct {
+        char    *ss_sp;
+        size_t  ss_size;
+        int     ss_flags;
+} stack_t;
+.Ed
+.Ft int
+.Fn sigaltstack "const stack_t * restrict ss" "stack_t * restrict oss"
+.Sh DESCRIPTION
+The
+.Fn sigaltstack
+system call
+allows defining an alternate stack on which signals
+are to be processed for the current thread.
+If
+.Fa ss
+is non-zero,
+it specifies a pointer to and the size of a
+.Em "signal stack"
+on which to deliver signals.
+When a signal's action indicates its handler
+should execute on the signal stack (specified with a
+.Xr sigaction 2
+system call), the system checks to see
+if the thread is currently executing on that stack.
+If the thread is not currently executing on the signal stack,
+the system arranges a switch to the signal stack for the
+duration of the signal handler's execution.
+.Pp
+An active stack cannot be modified.
+.Pp
+If
+.Dv SS_DISABLE
+is set in
+.Fa ss_flags ,
+.Fa ss_sp
+and
+.Fa ss_size
+are ignored and the signal stack will be disabled.
+A disabled stack will cause all signals to be
+taken on the regular user stack.
+If the stack is later re-enabled then all signals that were specified
+to be processed on an alternate stack will resume doing so.
+.Pp
+If
+.Fa oss
+is non-zero, the current signal stack state is returned.
+The
+.Fa ss_flags
+field will contain the value
+.Dv SS_ONSTACK
+if the thread is currently on a signal stack and
+.Dv SS_DISABLE
+if the signal stack is currently disabled.
+.Sh NOTES
+The value
+.Dv SIGSTKSZ
+is defined to be the number of bytes/chars that would be used to cover
+the usual case when allocating an alternate stack area.
+The following code fragment is typically used to allocate an alternate stack.
+.Bd -literal -offset indent
+if ((sigstk.ss_sp = malloc(SIGSTKSZ)) == NULL)
+	/* error return */
+sigstk.ss_size = SIGSTKSZ;
+sigstk.ss_flags = 0;
+if (sigaltstack(&sigstk, NULL) < 0)
+	perror("sigaltstack");
+.Ed
+An alternative approach is provided for programs with signal handlers
+that require a specific amount of stack space other than the default size.
+The value
+.Dv MINSIGSTKSZ
+is defined to be the number of bytes/chars that is required by
+the operating system to implement the alternate stack feature.
+In computing an alternate stack size,
+programs should add
+.Dv MINSIGSTKSZ
+to their stack requirements to allow for the operating system overhead.
+.Pp
+Signal stacks are automatically adjusted for the direction of stack
+growth and alignment requirements.
+Signal stacks may or may not be protected by the hardware and
+are not ``grown'' automatically as is done for the normal stack.
+If the stack overflows and this space is not protected
+unpredictable results may occur.
+.Sh RETURN VALUES
+.Rv -std sigaltstack
+.Sh ERRORS
+The
+.Fn sigaltstack
+system call
+will fail and the signal stack context will remain unchanged
+if one of the following occurs.
+.Bl -tag -width Er
+.It Bq Er EFAULT
+Either
+.Fa ss
+or
+.Fa oss
+points to memory that is not a valid part of the process
+address space.
+.It Bq Er EPERM
+An attempt was made to modify an active stack.
+.It Bq Er EINVAL
+The
+.Fa ss_flags
+field was invalid.
+.It Bq Er ENOMEM
+Size of alternate stack area is less than or equal to
+.Dv MINSIGSTKSZ .
+.El
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr setjmp 3
+.Sh HISTORY
+The predecessor to
+.Fn sigaltstack ,
+the
+.Fn sigstack
+system call, appeared in
+.Bx 4.2 .

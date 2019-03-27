@@ -1,0 +1,10 @@
+#          Example of ppp.linkup file
+#
+iij-demand:
+ delete ALL
+ add 0 0 HISADDR
+#
+# Otherwise, simply add peer as default gateway.
+#
+MYADDR:
+ add 0 0 HISADDR

@@ -1,0 +1,112 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_set1_groups, SSL_CTX_set1_groups_list, SSL_set1_groups,
+SSL_set1_groups_list, SSL_get1_groups, SSL_get_shared_group,
+SSL_CTX_set1_curves, SSL_CTX_set1_curves_list, SSL_set1_curves,
+SSL_set1_curves_list, SSL_get1_curves, SSL_get_shared_curve
+- EC supported curve functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_CTX_set1_groups(SSL_CTX *ctx, int *glist, int glistlen);
+ int SSL_CTX_set1_groups_list(SSL_CTX *ctx, char *list);
+
+ int SSL_set1_groups(SSL *ssl, int *glist, int glistlen);
+ int SSL_set1_groups_list(SSL *ssl, char *list);
+
+ int SSL_get1_groups(SSL *ssl, int *groups);
+ int SSL_get_shared_group(SSL *s, int n);
+
+ int SSL_CTX_set1_curves(SSL_CTX *ctx, int *clist, int clistlen);
+ int SSL_CTX_set1_curves_list(SSL_CTX *ctx, char *list);
+
+ int SSL_set1_curves(SSL *ssl, int *clist, int clistlen);
+ int SSL_set1_curves_list(SSL *ssl, char *list);
+
+ int SSL_get1_curves(SSL *ssl, int *curves);
+ int SSL_get_shared_curve(SSL *s, int n);
+
+=head1 DESCRIPTION
+
+For all of the functions below that set the supported groups there must be at
+least one group in the list.
+
+SSL_CTX_set1_groups() sets the supported groups for B<ctx> to B<glistlen>
+groups in the array B<glist>. The array consist of all NIDs of groups in
+preference order. For a TLS client the groups are used directly in the
+supported groups extension. For a TLS server the groups are used to
+determine the set of shared groups.
+
+SSL_CTX_set1_groups_list() sets the supported groups for B<ctx> to
+string B<list>. The string is a colon separated list of group NIDs or
+names, for example "P-521:P-384:P-256".
+
+SSL_set1_groups() and SSL_set1_groups_list() are similar except they set
+supported groups for the SSL structure B<ssl>.
+
+SSL_get1_groups() returns the set of supported groups sent by a client
+in the supported groups extension. It returns the total number of
+supported groups. The B<groups> parameter can be B<NULL> to simply
+return the number of groups for memory allocation purposes. The
+B<groups> array is in the form of a set of group NIDs in preference
+order. It can return zero if the client did not send a supported groups
+extension.
+
+SSL_get_shared_group() returns shared group B<n> for a server-side
+SSL B<ssl>. If B<n> is -1 then the total number of shared groups is
+returned, which may be zero. Other than for diagnostic purposes,
+most applications will only be interested in the first shared group
+so B<n> is normally set to zero. If the value B<n> is out of range,
+NID_undef is returned.
+
+All these functions are implemented as macros.
+
+The curve functions are synonyms for the equivalently named group functions and
+are identical in every respect. They exist because, prior to TLS1.3, there was
+only the concept of supported curves. In TLS1.3 this was renamed to supported
+groups, and extended to include Diffie Hellman groups. The group functions
+should be used in preference.
+
+=head1 NOTES
+
+If an application wishes to make use of several of these functions for
+configuration purposes either on a command line or in a file it should
+consider using the SSL_CONF interface instead of manually parsing options.
+
+=head1 RETURN VALUES
+
+SSL_CTX_set1_groups(), SSL_CTX_set1_groups_list(), SSL_set1_groups() and
+SSL_set1_groups_list(), return 1 for success and 0 for failure.
+
+SSL_get1_groups() returns the number of groups, which may be zero.
+
+SSL_get_shared_group() returns the NID of shared group B<n> or NID_undef if there
+is no shared group B<n>; or the total number of shared groups if B<n>
+is -1.
+
+When called on a client B<ssl>, SSL_get_shared_group() has no meaning and
+returns -1.
+
+=head1 SEE ALSO
+
+L<SSL_CTX_add_extra_chain_cert(3)>
+
+=head1 HISTORY
+
+The curve functions were added in OpenSSL 1.0.2. The equivalent group
+functions were added in OpenSSL 1.1.1.
+
+=head1 COPYRIGHT
+
+Copyright 2013-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

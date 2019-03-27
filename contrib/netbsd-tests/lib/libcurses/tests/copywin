@@ -1,0 +1,81 @@
+include start
+include window_create
+call win2 newwin 7 9 10 14
+check win2 NON_NULL
+call OK wrefresh $win2
+compare copywin1.chk
+call OK mvwprintw $win1 0 0 "%s" "testin"
+call OK mvwprintw $win1 1 0 "%s" "gtesti"
+call OK mvwprintw $win1 2 0 "%s" "ngtest"
+call OK mvwprintw $win1 3 0 "%s" "ingtes"
+call OK mvwprintw $win1 4 0 "%s" "tingte"
+call OK mvwprintw $win1 5 0 "%s" "stingt"
+call OK wrefresh $win1
+compare copywin2.chk
+call OK copywin $win1 $win2 0 0 1 1 7 7 0
+call OK wrefresh $win2
+compare copywin3.chk
+call OK wclear $win1
+call OK wclear $win2
+call OK wrefresh $win1
+call OK wrefresh $win2
+compare copywin4.chk
+call OK mvwprintw $win2 0 0 "%s" "testingte"
+call OK mvwprintw $win2 1 0 "%s" "stingtest"
+call OK mvwprintw $win2 2 0 "%s" "ingtestin"
+call OK mvwprintw $win2 3 0 "%s" "gtestingt"
+call OK mvwprintw $win2 4 0 "%s" "estingtes"
+call OK mvwprintw $win2 5 0 "%s" "tingtesti"
+call OK wrefresh $win2
+compare copywin5.chk
+call OK copywin $win2 $win1 0 0 0 0 7 9 0
+call OK wrefresh $win1
+compare copywin6.chk
+call OK wclear $win1
+call OK wclear $win2
+call OK wrefresh $win1
+call OK wrefresh $win2
+compare copywin7.chk
+call OK mvwprintw $win1 0 0 "%s" "t s i "
+call OK mvwprintw $win1 1 0 "%s" "g e t "
+call OK mvwprintw $win1 2 0 "%s" "n t s "
+call OK mvwprintw $win1 3 0 "%s" " n t s"
+call OK mvwprintw $win1 4 0 "%s" "t n t "
+call OK mvwprintw $win1 5 0 "%s" " t n t"
+call OK wrefresh $win1
+compare copywin8.chk
+call OK mvwprintw $win2 0 0 "%s" " e t n"
+call OK mvwprintw $win2 1 0 "%s" " t s i"
+call OK mvwprintw $win2 2 0 "%s" " g e t"
+call OK mvwprintw $win2 3 0 "%s" "i g e "
+call OK mvwprintw $win2 4 0 "%s" " i g e"
+call OK mvwprintw $win2 5 0 "%s" "s i g "
+call OK wrefresh $win2
+compare copywin9.chk
+call OK copywin $win1 $win2 0 0 0 0 6 6 0
+call OK wrefresh $win2
+compare copywin10.chk
+call OK wclear $win1
+call OK wclear $win2
+call OK wrefresh $win1
+call OK wrefresh $win2
+compare copywin11.chk
+call OK mvwprintw $win1 0 0 "%s" "t s i "
+call OK mvwprintw $win1 1 0 "%s" "g e t "
+call OK mvwprintw $win1 2 0 "%s" "n t s "
+call OK mvwprintw $win1 3 0 "%s" " n t s"
+call OK mvwprintw $win1 4 0 "%s" "t n t "
+call OK mvwprintw $win1 5 0 "%s" " t n t"
+call OK wrefresh $win1
+compare copywin12.chk
+call OK mvwprintw $win2 0 0 "%s" " e t n"
+call OK mvwprintw $win2 1 0 "%s" " t s i"
+call OK mvwprintw $win2 2 0 "%s" " g e t"
+call OK mvwprintw $win2 3 0 "%s" "i g e "
+call OK mvwprintw $win2 4 0 "%s" " i g e"
+call OK mvwprintw $win2 5 0 "%s" "s i g "
+call OK wrefresh $win2
+compare copywin13.chk
+call OK copywin $win1 $win2 0 0 0 0 6 6 1
+call OK wrefresh $win2
+compare copywin14.chk

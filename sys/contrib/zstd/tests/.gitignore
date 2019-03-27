@@ -1,0 +1,67 @@
+# local binary (Makefile)
+fullbench
+fullbench32
+fullbench-lib
+fuzzer
+fuzzer32
+fuzzer-dll
+zbufftest
+zbufftest32
+zbufftest-dll
+zstreamtest
+zstreamtest32
+zstreamtest_asan
+zstreamtest_tsan
+zstreamtest-dll
+datagen
+paramgrill
+paramgrill32
+roundTripCrash
+longmatch
+symbols
+legacy
+decodecorpus
+pool
+poolTests
+invalidDictionaries
+checkTag
+zcat
+zstdcat
+tm
+
+# Tmp test directory
+zstdtest
+speedTest
+versionsTest
+namespaceTest
+
+# Local script
+startSpeedTest
+speedTest.pid
+
+# Object files
+*.o
+*.ko
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Default result files
+dictionary
+grillResults.txt
+_*
+tmp*
+*.zst
+*.gz
+result
+out
+*.zstd
+
+# fuzzer
+afl
+
+# Misc files
+*.bat
+dirTest*

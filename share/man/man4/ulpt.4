@@ -1,0 +1,110 @@
+.\" $NetBSD: ulpt.4,v 1.6 2002/02/05 00:37:48 augustss Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 22, 2006
+.Dt ULPT 4
+.Os
+.Sh NAME
+.Nm ulpt
+.Nd USB printer support
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ulpt"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ulpt_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB printers that follow the printer
+bi- or uni-directional protocol.
+The bits in the minor number select various features of the driver.
+.Bl -column "Minor Bit" "Functionxxxxxxxxxxxxxxxxxxxxxxxxxxxx" -offset indent
+.It Em "Minor Bit" Ta Em "Function"
+.It "64" Ta "Do not initialize (reset) the device on the port."
+.El
+.Pp
+Some printers cannot handle the reset on open; in case of problems try the
+.Pa unlpt
+device.
+.Sh HARDWARE
+The
+.Nm
+driver provides support for USB printers and parallel printer
+conversion cables, including the following:
+.Pp
+.Bl -bullet -compact
+.It
+ATen parallel printer adapter
+.It
+Belkin F5U002 parallel printer adapter
+.It
+Canon BJ F850, S600
+.It
+Canon LBP-1310, 350
+.It
+Entrega USB-to-parallel printer adapter
+.It
+Hewlett-Packard HP Deskjet 3420 (P/N: C8947A #ABJ)
+.It
+Oki Data MICROLINE ML660PS
+.It
+Seiko Epson PM-900C, 880C, 820C, 730C
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/unlpt?" -compact
+.It Pa /dev/ulpt?
+device with reset
+.It Pa /dev/unlpt?
+device without reset
+.El
+.Sh SEE ALSO
+.Xr lpt 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Nx 1.4 .
+This manual page was adopted from
+.Nx
+by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org
+in April 2002.

@@ -1,0 +1,5 @@
+This is a more complete test
+and a few typ0s to fix
+also I plan to add few lines
+    and to remove
+other lines

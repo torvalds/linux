@@ -1,0 +1,78 @@
+#
+# This is a test configuration file for use in SSLeay etc...
+#
+
+init = 5
+in\#it1 =10
+init2='10'
+init3='10\''
+init4="10'"
+init5='='10\'' again'
+
+SSLeay::version = 0.5.0
+
+[genrsa]
+default_bits	= 512
+SSLEAY::version = 0.5.0
+
+[gendh]
+default_bits	= 512
+def_generator	= 2
+
+[s_client]
+cipher1		= DES_CBC_MD5:DES_CBC_SHA:DES_EDE_SHA:RC4_MD5\
+cipher2		= 'DES_CBC_MD5 DES_CBC_SHA DES_EDE_SHA RC4_MD5'
+cipher3		= "DES_CBC_MD5 DES_CBC_SHA DES_EDE_SHA RC4_MD5"
+cipher4		= DES_CBC_MD5 DES_CBC_SHA DES_EDE_SHA RC4_MD5
+
+[ default ]
+#cert_dir	= $ENV::HOME/.ca_certs
+
+HOME		= /tmp/eay
+
+tmp_cert_dir	= $HOME/.ca_certs
+tmp2_cert_dir	= thisis$(HOME)stuff
+
+LOGNAME	= Eric Young (home=$HOME)
+
+[ special ]
+
+#H=$HOME
+#H=$default::HOME
+#H=$ENV::HOME
+#
+# SSLeay example configuration file.
+# This is mostly being used for generation of certificate requests.
+#
+
+RANDFILE		= $HOME/.rand
+
+[ req ]
+default_bits		= 512
+default_keyfile 	= privkey.pem
+
+Attribute_type_1	= countryName
+Attribute_text_1	= Country Name (2 letter code)
+Attribute_default_1	= AU
+
+Attribute_type_2	= stateOrProvinceName
+Attribute_text_2	= State or Province Name (full name)
+Attribute_default_2	= Queensland
+
+Attribute_type_3	= localityName
+Attribute_text_3	= Locality Name (eg, city)
+
+Attribute_type_4	= organizationName
+Attribute_text_4	= Organization Name (eg, company)
+Attribute_default_4	= Mincom Pty Ltd
+
+Attribute_type_5	= organizationalUnitName
+Attribute_text_5	= Organizational Unit Name (eg, section)
+Attribute_default_5	= TR
+
+Attribute_type_6	= commonName
+Attribute_text_6	= Common Name (eg, YOUR name)
+
+Attribute_type_7	= emailAddress
+Attribute_text_7	= Email Address
+

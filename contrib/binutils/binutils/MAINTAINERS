@@ -1,0 +1,254 @@
+		========= Binutils Maintainers =========
+
+This is the list of individuals responsible for maintenance and update
+of the GNU Binary Utilities project.  This includes the linker (ld),
+the assembler (gas), the profiler (gprof), a whole suite of other
+programs (binutils) and the libraries that they use (bfd and
+opcodes).  This project shares a common set of header files with the
+GCC and GDB projects (include), so maintainership of those files is
+shared amoungst the projects.
+
+The home page for binutils is:
+
+  http://www.gnu.org/software/binutils/binutils.html
+
+and patches should be sent to:
+
+  binutils@sourceware.org
+
+with "[Patch]" as part of the subject line.  Note - patches to the
+top level config.guess and config.sub scripts should be sent to:
+
+  config-patches@gnu.org
+
+and not to the binutils lists.  Patches to the other top level
+configure files (configure, configure.in, config-ml.in) should
+be sent to the binutils lists, and copied to the gcc and gdb
+lists as well (gcc-patches@gcc.gnu.org and
+gdb-patches@sourceware.org).
+
+		--------- Blanket Write Privs ---------
+
+The following people have permission to check patches into the
+repository without obtaining approval first:
+
+  Nick Clifton <nickc@redhat.com> (head maintainer)
+  Richard Henderson <rth@redhat.com>
+  Ian Lance Taylor <ian@airs.com>
+  Jeff Law <law@redhat.com>
+  Jim Wilson <wilson@specifixinc.com>
+  DJ Delorie <dj@redhat.com>
+  Alan Modra <amodra@bigpond.net.au>
+  Michael Meissner <gnu@the-meissners.org>
+  Daniel Jacobowitz <dan@debian.org>
+
+      --------- Maintainers ---------
+
+Maintainers are individuals who are responsible for, and have
+permission to check in changes in, certain subsets of the code.  Note
+that maintainers still need approval to check in changes outside of
+the immediate domain that they maintain.
+
+If there is no maintainer for a given domain then the responsibility
+falls to the head maintainer (above).  If there are several
+maintainers for a given domain then responsibility falls to the first
+maintainer.  The first maintainer is free to devolve that
+responsibility among the other maintainers.
+
+  ALPHA            Richard Henderson <rth@redhat.com>
+  ARM		   Nick Clifton <nickc@redhat.com>
+  ARM		   Richard Earnshaw <rearnsha@arm.com>
+  ARM		   Paul Brook <paul@codesourcery.com>
+  ARM (Symbian)	   Mark Mitchell <mark@codesourcery.com>
+  AVR		   Denis Chertykov <denisc@overta.ru>
+  AVR		   Marek Michalkiewicz <marekm@amelek.gda.pl>
+  BFIN		   Jie Zhang <jie.zhang@analog.com>
+  BFIN		   Bernd Schmidt <bernd.schmidt@analog.com>
+  BUILD SYSTEM	   Ben Elliston <bje@gnu.org>
+  BUILD SYSTEM	   Daniel Jacobowitz <dan@debian.org>
+  CRIS		   Hans-Peter Nilsson <hp@axis.com>
+  CRX		   Tomer Levi <Tomer.Levi@nsc.com>
+  DLX              Nikolaos Kavvadias <nkavv@physics.auth.gr>
+  DWARF2	   Jason Merrill <jason@redhat.com>
+  FR30		   Dave Brolley <brolley@redhat.com>
+  FRV		   Dave Brolley <brolley@redhat.com>
+  FRV		   Alexandre Oliva <aoliva@redhat.com>
+  H8300		   Anil Paranjpe <anilp1@kpitcummins.com>
+  HPPA		   Dave Anglin <dave.anglin@nrc.ca>
+  HPPA elf32	   Alan Modra <amodra@bigpond.net.au>
+  HPPA elf64	   Jeff Law <law@redhat.com> [Basic maintainance only]
+  IA-64		   Jim Wilson <wilson@specifixinc.com>
+  IQ2000	   Stan Cox <scox@redhat.com>
+  i860		   Jason Eckhardt <jle@rice.edu>
+  ix86		   Alan Modra <amodra@bigpond.net.au>
+  ix86 PE	   Christopher Faylor <cgf@redhat.com>
+  ix86 COFF	   DJ Delorie <dj@redhat.com>
+  ix86		   H.J. Lu <hjl@gnu.org>
+  ix86 INTEL MODE  Jan Beulich <jbeulich@novell.com>
+  M68HC11 M68HC12  Stephane Carrez <stcarrez@nerim.fr>
+  M68k		   Ben Elliston <bje@gnu.org>
+  M88k		   Mark Kettenis <kettenis@gnu.org>
+  MAXQ		   Inderpreet Singh <inderpreetb@noida.hcltech.com>
+  MEP		   Dave Brolley <brolley@redhat.com>
+  MIPS		   Eric Christopher <echristo@apple.com>
+  MIPS		   Thiemo Seufer <ths@networkno.de>
+  MMIX		   Hans-Peter Nilsson <hp@bitrange.com>
+  MN10300	   Eric Christopher <echristo@apple.com>
+  MN10300	   Alexandre Oliva <aoliva@redhat.com>
+  MSP430	   Dmitry Diky <diwil@spec.ru>
+  NetBSD support   Matt Thomas <matt@netbsd.org>
+  PPC		   Geoff Keating <geoffk@geoffk.org>
+  PPC		   Alan Modra <amodra@bigpond.net.au>
+  PPC vector ext   Aldy Hernandez <aldyh@redhat.com>
+  s390, s390x	   Martin Schwidefsky <schwidefsky@de.ibm.com>
+  SCORE		   Mei Ligang <ligang@sunnorth.com.cn>
+  SH		   Alexandre Oliva <aoliva@redhat.com>
+  SH		   Kaz Kojima <kkojima@rr.iij4u.or.jp>
+  SPARC		   Jakub Jelinek <jakub@redhat.com>
+  TESTSUITES	   Ben Elliston <bje@gnu.org>
+  TIC4X            Svein Seldal <svein@dev.seldal.com>
+  TIC54X           Timothy Wall <twall@alum.mit.edu>
+  VAX		   Matt Thomas <matt@netbsd.org>
+  VAX		   Jan-Benedict Glaw <jbglaw@lug-owl.de>
+  x86_64	   Jan Hubicka <jh@suse.cz>
+  x86_64	   Andreas Jaeger <aj@suse.de>
+  x86_64	   H.J. Lu <hjl@gnu.org>
+  Xtensa	   Bob Wilson <bob.wilson@acm.org>
+  z80		   Arnold Metselaar <arnold.metselaar@planet.nl>
+  z8k		   Christian Groessler <chris@groessler.org>
+
+
+      --------- CGEN Maintainers -------------
+
+CGEN is a tool for building, amongst other things, assemblers,
+disassemblers and simulators from a single description of a CPU.
+It creates files in several of the binutils directories, but it
+is mentioned here since there is a single group that maintains
+CGEN and the files that it creates.
+
+If you have CGEN related problems you can send email to;
+
+   cgen@sourceware.org
+
+The current CGEN maintainers are:
+
+  Doug Evans, Frank Eigler
+
+     --------- Write After Approval ---------
+
+Individuals with "write after approval" have the ability to check in
+changes, but they must get approval for each change from someone in
+one of the above lists (blanket write or maintainers).
+
+[It's a huge list, folks.  You know who you are.  If you have the
+ *ability* to do binutils checkins, you're in this group.  Just
+ remember to get approval before checking anything in.]
+
+     -------------  Obvious Fixes -------------
+
+Fixes for obvious mistakes do not need approval, and can be checked in
+right away, but the patch should still be sent to the binutils list.
+The definition of obvious is a bit hazy, and if you are not sure, then
+you should seek approval first.  Obvious fixes include fixes for
+spelling mistakes, blatantly incorrect code (where the correct code is
+also blatantly obvious), and so on.  Obvious fixes should always be
+small, the larger they are, the more likely it is that they contain
+some un-obvious side effect or consequence.
+
+    --------- Branch Checkins ---------
+
+If a patch is approved for check in to the mainline sources, it can
+also be checked into the current release branch.  Normally however
+only bug fixes should be applied to the branch.  New features, new
+ports, etc, should be restricted to the mainline.  (Otherwise the
+burden of maintaining the branch in sync with the mainline becomes too
+great).  If you are uncertain as to whether a patch is appropriate for
+the branch, ask the branch maintainer.  This is:
+
+   Daniel Jacobowitz  <dan@debian.org>
+
+    -------- Testsuites ---------------
+
+In general patches to any of the binutils testsuites should be
+considered generic and sent to the binutils mailing list for
+approval.  Patches to target specific tests are the responsibility the
+relevent port maintainer(s), and can be approved/checked in by them.
+Other testsuite patches need the approval of a blanket-write-priveleges
+person.
+
+    -------- Configure patches ----------
+
+Patches to the top level configure files (config.sub & config.guess)
+are not the domain of the binutils project and they cannot be approved
+by the binutils group.  Instead they should be submitted to the config
+maintainer at:
+
+	config-patches@gnu.org
+
+    --------- Creating Branches ---------
+
+Anyone with at least write-after-approval access may create a branch
+to use for their own development purposes.  In keeping with FSF
+policies, all patches applied to such a branch must come from people
+with appropriate copyright assignments on file.  All legal
+requirements that would apply to any other contribution apply equally
+to contributions on a branch.
+
+Before creating the branch, you should select a name for the branch of
+the form:
+
+  binutils-<org>-<name>
+
+where "org" is the initials of your organization, or your own initials
+if you are acting as an individual.  For example, for a branch created
+by The GNUDist Company, "tgc" would be an appropriate choice for
+"org".  It's up to each organization to select an appropriate choice
+for "name"; some organizations may use more structure than others, so
+"name" may contain additional hyphens.
+
+Suppose that The GNUDist Company was creating a branch to develop a
+port of Binutils to the FullMonty processor.  Then, an appropriate
+choice of branch name would be:
+
+  binutils-tgc-fm
+
+A data stamp is not required as part of the name field, but some
+organizations like to have one.  If you do include the date, you
+should follow these rules:
+
+1. The date should be the date that the branch was created.
+
+2. The date should be numerical and in the form YYYYMMDD.
+
+For example:
+
+  binutils-tgc-fm_20050101
+
+would be appropriate if the branch was created on January 1st, 2005.
+
+Having selected the branch name, create the branch as follows:
+
+1. Check out binutils, so that you have a CVS checkout corresponding
+   to the initial state of your branch.
+
+2. Create a tag:
+
+     cvs tag binutils-<org>-<name>-branchpoint
+
+   That tag will allow you, and others, to easily determine what's
+   changed on the branch relative to the initial state.
+
+3. Create the branch:
+
+     cvs rtag -b -r binutils-<org>-<name>-branchpoint \
+       binutils-<org>-<name>-branch
+
+4. Document the branch:
+
+     Add a description of the branch to binutils/BRANCHES, and check
+     that file in.  All branch descriptions should be added to the
+     HEAD revision of the file; it doesn't help to modify
+     binutils/BRANCHES on a branch!
+
+Please do not commit any patches to a branch you did not create
+without the explicit permission of the person who created the branch.

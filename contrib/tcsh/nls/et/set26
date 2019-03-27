@@ -1,0 +1,15 @@
+$ $tcsh: set26,v 1.3 2011/02/04 18:19:33 christos Exp $
+$ tc.who.c
+$set 26 
+1 Ei saa lugeda %s atribuute.  Anna käsk "unset watch".\n
+2 %s ei saa avada.  Anna käsk "unset watch".\n
+3 BUG! viimane element ei ole viimasena registreeritud!\n
+4 tagurpidi: 
+5 BUG! esimene element ei ole esimesena registreeritud!\n
+6 uus: %s/%s\n
+7 %n %a terminalil %l masinast %m.
+8 %n %a terminalil %l.
+9 töötab
+10 lõpetas töö
+11 asendas %s terminalil
+12 kohalik

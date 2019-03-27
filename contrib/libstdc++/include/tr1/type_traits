@@ -1,0 +1,703 @@
+// TR1 type_traits -*- C++ -*-
+
+// Copyright (C) 2004, 2005, 2006 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 2, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License along
+// with this library; see the file COPYING.  If not, write to the Free
+// Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
+// USA.
+
+// As a special exception, you may use this file as part of a free software
+// library without restriction.  Specifically, if other files instantiate
+// templates or use macros or inline functions from this file, or you compile
+// this file and link it with other files to produce an executable, this
+// file does not by itself cause the resulting executable to be covered by
+// the GNU General Public License.  This exception does not however
+// invalidate any other reasons why the executable file might be covered by
+// the GNU General Public License.
+
+/** @file tr1/type_traits
+ *  This is a TR1 C++ Library header. 
+ */
+
+#ifndef _TR1_TYPE_TRAITS
+#define _TR1_TYPE_TRAITS 1
+
+#include <bits/c++config.h>
+#include <tr1/type_traits_fwd.h>
+
+// namespace std::tr1
+namespace std
+{
+_GLIBCXX_BEGIN_NAMESPACE(tr1)
+
+  // For use in __in_array and elsewhere.
+  struct __sfinae_types
+  {
+    typedef char __one;
+    typedef struct { char __arr[2]; } __two;
+  };
+
+  template<typename _Tp>
+    struct __in_array
+    : public __sfinae_types
+    {
+    private:
+      template<typename _Up>
+        static __one __test(_Up(*)[1]);
+      template<typename>
+        static __two __test(...);
+    
+    public:
+      static const bool __value = sizeof(__test<_Tp>(0)) == 1;
+    };
+
+#define _DEFINE_SPEC_BODY(_Value)                                    \
+    : public integral_constant<bool, _Value> { };
+
+#define _DEFINE_SPEC_0_HELPER(_Spec, _Value)                         \
+  template<>                                                         \
+    struct _Spec                                                     \
+    _DEFINE_SPEC_BODY(_Value)
+
+#define _DEFINE_SPEC_1_HELPER(_Spec, _Value)                         \
+  template<typename _Tp>                                             \
+    struct _Spec                                                     \
+    _DEFINE_SPEC_BODY(_Value)
+      
+#define _DEFINE_SPEC_2_HELPER(_Spec, _Value)                         \
+  template<typename _Tp, typename _Cp>                               \
+    struct _Spec                                                     \
+    _DEFINE_SPEC_BODY(_Value)
+
+#define _DEFINE_SPEC(_Order, _Trait, _Type, _Value)                  \
+  _DEFINE_SPEC_##_Order##_HELPER(_Trait<_Type>, _Value)              \
+  _DEFINE_SPEC_##_Order##_HELPER(_Trait<_Type const>, _Value)        \
+  _DEFINE_SPEC_##_Order##_HELPER(_Trait<_Type volatile>, _Value)     \
+  _DEFINE_SPEC_##_Order##_HELPER(_Trait<_Type const volatile>, _Value)
+
+  /// @brief  helper classes [4.3].
+  template<typename _Tp, _Tp __v>
+    struct integral_constant
+    {
+      static const _Tp                      value = __v;
+      typedef _Tp                           value_type;
+      typedef integral_constant<_Tp, __v>   type;
+    };
+  typedef integral_constant<bool, true>     true_type;
+  typedef integral_constant<bool, false>    false_type;
+
+  template<typename _Tp, _Tp __v>
+    const _Tp integral_constant<_Tp, __v>::value;
+
+  /// @brief  primary type categories [4.5.1].
+  template<typename>
+    struct is_void
+    : public false_type { };
+  _DEFINE_SPEC(0, is_void, void, true)
+
+  template<typename>
+    struct is_integral
+    : public false_type { };
+  _DEFINE_SPEC(0, is_integral, bool, true)
+  _DEFINE_SPEC(0, is_integral, char, true)
+  _DEFINE_SPEC(0, is_integral, signed char, true)
+  _DEFINE_SPEC(0, is_integral, unsigned char, true)
+#ifdef _GLIBCXX_USE_WCHAR_T
+  _DEFINE_SPEC(0, is_integral, wchar_t, true)
+#endif
+  _DEFINE_SPEC(0, is_integral, short, true)
+  _DEFINE_SPEC(0, is_integral, unsigned short, true)
+  _DEFINE_SPEC(0, is_integral, int, true)
+  _DEFINE_SPEC(0, is_integral, unsigned int, true)
+  _DEFINE_SPEC(0, is_integral, long, true)
+  _DEFINE_SPEC(0, is_integral, unsigned long, true)
+  _DEFINE_SPEC(0, is_integral, long long, true)
+  _DEFINE_SPEC(0, is_integral, unsigned long long, true)
+
+  template<typename>
+    struct is_floating_point
+    : public false_type { };
+  _DEFINE_SPEC(0, is_floating_point, float, true)
+  _DEFINE_SPEC(0, is_floating_point, double, true)
+  _DEFINE_SPEC(0, is_floating_point, long double, true)
+
+  template<typename>
+    struct is_array
+    : public false_type { };
+
+  template<typename _Tp, std::size_t _Size>
+    struct is_array<_Tp[_Size]>
+    : public true_type { };
+
+  template<typename _Tp>
+    struct is_array<_Tp[]>
+    : public true_type { };
+
+  template<typename>
+    struct is_pointer
+    : public false_type { };
+  _DEFINE_SPEC(1, is_pointer, _Tp*, true)
+ 
+  template<typename>
+    struct is_reference
+    : public false_type { };
+
+  template<typename _Tp>
+    struct is_reference<_Tp&>
+    : public true_type { };
+
+  template<typename>
+    struct is_member_object_pointer
+    : public false_type { };
+  _DEFINE_SPEC(2, is_member_object_pointer, _Tp _Cp::*,
+	       !is_function<_Tp>::value)
+
+  template<typename>
+    struct is_member_function_pointer
+    : public false_type { };
+  _DEFINE_SPEC(2, is_member_function_pointer, _Tp _Cp::*,
+	       is_function<_Tp>::value)
+
+  template<typename _Tp>
+    struct is_enum
+    : public integral_constant<bool, !(is_fundamental<_Tp>::value
+				       || is_array<_Tp>::value
+				       || is_pointer<_Tp>::value
+				       || is_reference<_Tp>::value
+				       || is_member_pointer<_Tp>::value
+				       || is_function<_Tp>::value
+				       || __is_union_or_class<_Tp>::value)>
+    { };
+
+  template<typename>
+    struct is_union { };
+
+  template<typename>
+    struct is_class { };
+
+  template<typename _Tp>
+    struct is_function
+    : public integral_constant<bool, !(__in_array<_Tp>::__value
+				       || __is_union_or_class<_Tp>::value
+				       || is_reference<_Tp>::value
+				       || is_void<_Tp>::value)>
+    { };
+
+  /// @brief  composite type traits [4.5.2].
+  template<typename _Tp>
+    struct is_arithmetic
+    : public integral_constant<bool, (is_integral<_Tp>::value
+				      || is_floating_point<_Tp>::value)>
+    { };
+
+  template<typename _Tp>
+    struct is_fundamental
+    : public integral_constant<bool, (is_arithmetic<_Tp>::value
+				      || is_void<_Tp>::value)>
+    { };
+
+  template<typename _Tp>
+    struct is_object
+    : public integral_constant<bool, !(is_function<_Tp>::value
+				       || is_reference<_Tp>::value
+				       || is_void<_Tp>::value)>
+    { };
+
+  template<typename _Tp>
+    struct is_scalar
+    : public integral_constant<bool, (is_arithmetic<_Tp>::value
+				      || is_enum<_Tp>::value
+				      || is_pointer<_Tp>::value
+				      || is_member_pointer<_Tp>::value)>
+    { };
+
+  template<typename _Tp>
+    struct is_compound
+    : public integral_constant<bool, !is_fundamental<_Tp>::value> { };
+
+  template<typename _Tp>
+    struct is_member_pointer
+    : public integral_constant<bool,
+			       (is_member_object_pointer<_Tp>::value
+				|| is_member_function_pointer<_Tp>::value)>
+    { };
+
+  template<typename _Tp>
+    struct __is_union_or_class_helper
+    : public __sfinae_types
+    {
+    private:
+      template<typename _Up>
+        static __one __test(int _Up::*);
+      template<typename>
+        static __two __test(...);
+    
+    public:
+      static const bool __value = sizeof(__test<_Tp>(0)) == 1;
+    };
+
+  // Extension.
+  template<typename _Tp>
+    struct __is_union_or_class
+    : public integral_constant<bool, __is_union_or_class_helper<_Tp>::__value>
+    { };
+  
+  /// @brief  type properties [4.5.3].
+  template<typename>
+    struct is_const
+    : public false_type { };
+
+  template<typename _Tp>
+    struct is_const<_Tp const>
+    : public true_type { };
+  
+  template<typename>
+    struct is_volatile
+    : public false_type { };
+
+  template<typename _Tp>
+    struct is_volatile<_Tp volatile>
+    : public true_type { };
+
+  template<typename _Tp>
+    struct is_pod
+    : public integral_constant<bool, (is_void<_Tp>::value
+				      || is_scalar<typename
+				      remove_all_extents<_Tp>::type>::value)>
+    { };
+
+  // NB: Without compiler support we cannot tell union from class types,
+  // and is_empty and is_polymorphic don't work at all with the former. 
+  template<typename _Tp, bool = !__is_union_or_class<_Tp>::value>
+    struct __is_empty_helper
+    { 
+    private:
+      template<typename>
+        struct __first { };
+      template<typename _Up>
+        struct __second
+        : public _Up { };
+           
+    public:
+      static const bool __value = sizeof(__first<_Tp>) == sizeof(__second<_Tp>);
+    };
+
+  template<typename _Tp>
+    struct __is_empty_helper<_Tp, true>
+    { static const bool __value = false; };
+
+  template<typename _Tp>
+    struct is_empty
+    : public integral_constant<bool, __is_empty_helper<_Tp>::__value>
+    { };
+
+  template<typename _Tp, bool = !__is_union_or_class<_Tp>::value>
+    struct __is_polymorphic_helper
+    { 
+    private:
+      template<typename _Up>
+        struct __first
+        : public _Up { };
+      template<typename _Up>
+        struct __second
+        : public _Up
+	{ 
+	  virtual void __dummy();
+	  virtual ~__second() throw();
+	};
+
+    public:
+      static const bool __value = sizeof(__first<_Tp>) == sizeof(__second<_Tp>);
+    };
+
+  template<typename _Tp>
+    struct __is_polymorphic_helper<_Tp, true>
+    { static const bool __value = false; };
+
+  template<typename _Tp>
+    struct is_polymorphic
+    : public integral_constant<bool, __is_polymorphic_helper<_Tp>::__value>
+    { };
+
+  // Exploit the resolution DR core/337.
+  template<typename _Tp>
+    struct is_abstract
+    : public integral_constant<bool, (!__in_array<_Tp>::__value
+				      && __is_union_or_class<_Tp>::value)> { };
+
+  template<typename _Tp>
+    struct has_trivial_constructor
+    : public integral_constant<bool, is_pod<_Tp>::value> { };
+
+  template<typename _Tp>
+    struct has_trivial_copy
+    : public integral_constant<bool, is_pod<_Tp>::value> { };
+
+  template<typename _Tp>
+    struct has_trivial_assign
+    : public integral_constant<bool, is_pod<_Tp>::value> { };
+
+  template<typename _Tp>
+    struct has_trivial_destructor
+    : public integral_constant<bool, is_pod<_Tp>::value> { };
+
+  template<typename _Tp>
+    struct has_nothrow_constructor
+    : public integral_constant<bool, is_pod<_Tp>::value> { };
+
+  template<typename _Tp>
+    struct has_nothrow_copy
+    : public integral_constant<bool, is_pod<_Tp>::value> { };
+
+  template<typename _Tp>
+    struct has_nothrow_assign
+    : public integral_constant<bool, is_pod<_Tp>::value> { };
+
+  template<typename>
+    struct has_virtual_destructor
+    : public false_type { };
+
+  template<typename>
+    struct is_signed
+    : public false_type { };
+  _DEFINE_SPEC(0, is_signed, signed char, true)
+  _DEFINE_SPEC(0, is_signed, short, true)
+  _DEFINE_SPEC(0, is_signed, int, true)
+  _DEFINE_SPEC(0, is_signed, long, true)
+  _DEFINE_SPEC(0, is_signed, long long, true)
+
+  template<typename>
+    struct is_unsigned
+    : public false_type { };
+  _DEFINE_SPEC(0, is_unsigned, unsigned char, true)
+  _DEFINE_SPEC(0, is_unsigned, unsigned short, true)
+  _DEFINE_SPEC(0, is_unsigned, unsigned int, true)
+  _DEFINE_SPEC(0, is_unsigned, unsigned long, true)
+  _DEFINE_SPEC(0, is_unsigned, unsigned long long, true)
+
+  template<typename _Tp>
+    struct alignment_of
+    : public integral_constant<std::size_t, __alignof__(_Tp)> { };
+  
+  template<typename>
+    struct rank
+    : public integral_constant<std::size_t, 0> { };
+   
+  template<typename _Tp, std::size_t _Size>
+    struct rank<_Tp[_Size]>
+    : public integral_constant<std::size_t, 1 + rank<_Tp>::value> { };
+
+  template<typename _Tp>
+    struct rank<_Tp[]>
+    : public integral_constant<std::size_t, 1 + rank<_Tp>::value> { };
+   
+  template<typename, unsigned>
+    struct extent
+    : public integral_constant<std::size_t, 0> { };
+  
+  template<typename _Tp, unsigned _Uint, std::size_t _Size>
+    struct extent<_Tp[_Size], _Uint>
+    : public integral_constant<std::size_t,
+			       _Uint == 0 ? _Size : extent<_Tp,
+							   _Uint - 1>::value>
+    { };
+
+  template<typename _Tp, unsigned _Uint>
+    struct extent<_Tp[], _Uint>
+    : public integral_constant<std::size_t,
+			       _Uint == 0 ? 0 : extent<_Tp,
+						       _Uint - 1>::value>
+    { };
+  
+  /// @brief  relationships between types [4.6].
+  template<typename, typename>
+    struct is_same
+    : public false_type { };
+
+  template<typename _Tp>
+    struct is_same<_Tp, _Tp>
+    : public true_type { };
+
+  // See Daveed Vandevoorde explanation in http://tinyurl.com/502f.
+  // Also see Rani Sharoni in http://tinyurl.com/6jvyq.
+  template<typename _Base, typename _Derived,
+	   bool = (!__is_union_or_class<_Base>::value
+		   || !__is_union_or_class<_Derived>::value
+		   || is_same<_Base, _Derived>::value)>
+    struct __is_base_of_helper
+    : public __sfinae_types
+    {
+    private:
+      typedef typename remove_cv<_Base>::type     _NoCv_Base;      
+      typedef typename remove_cv<_Derived>::type  _NoCv_Derived;
+      
+      template<typename _Up>
+        static __one __test(_NoCv_Derived&, _Up);
+      static __two __test(_NoCv_Base&, int);
+   
+      struct _Conv
+      {
+	operator _NoCv_Derived&();
+	operator _NoCv_Base&() const;
+      };
+   
+    public:
+      static const bool __value = sizeof(__test(_Conv(), 0)) == 1;
+    };
+
+  template<typename _Base, typename _Derived>
+    struct __is_base_of_helper<_Base, _Derived, true>
+    { static const bool __value = is_same<_Base, _Derived>::value; };
+
+  template<typename _Base, typename _Derived>
+    struct is_base_of
+    : public integral_constant<bool,
+			       __is_base_of_helper<_Base, _Derived>::__value>
+    { };
+
+  template<typename _From, typename _To>
+    struct __is_convertible_simple
+    : public __sfinae_types
+    {
+    private:
+      static __one __test(_To);
+      static __two __test(...);
+      static _From __makeFrom();
+    
+    public:
+      static const bool __value = sizeof(__test(__makeFrom())) == 1;
+    };
+
+  template<typename _Tp>
+    struct __is_int_or_cref
+    {
+      typedef typename remove_reference<_Tp>::type __rr_Tp;
+      static const bool __value = (is_integral<_Tp>::value
+				   || (is_integral<__rr_Tp>::value
+				       && is_const<__rr_Tp>::value
+				       && !is_volatile<__rr_Tp>::value));
+    };
+
+  template<typename _From, typename _To,
+	   bool = (is_void<_From>::value || is_void<_To>::value
+		   || is_function<_To>::value || is_array<_To>::value
+		   // This special case is here only to avoid warnings.		   
+		   || (is_floating_point<typename
+		       remove_reference<_From>::type>::value
+		       && __is_int_or_cref<_To>::__value))>
+    struct __is_convertible_helper
+    {
+      // "An imaginary lvalue of type From...".
+      static const bool __value = (__is_convertible_simple<typename
+				   add_reference<_From>::type, _To>::__value);
+    };
+
+  template<typename _From, typename _To>
+    struct __is_convertible_helper<_From, _To, true>
+    { static const bool __value = (is_void<_To>::value
+				   || (__is_int_or_cref<_To>::__value
+				       && !is_void<_From>::value)); };
+
+  template<typename _From, typename _To>
+    struct is_convertible
+    : public integral_constant<bool,
+			       __is_convertible_helper<_From, _To>::__value>
+    { };
+
+  /// @brief  const-volatile modifications [4.7.1].
+  template<typename _Tp>
+    struct remove_const
+    { typedef _Tp     type; };
+
+  template<typename _Tp>
+    struct remove_const<_Tp const>
+    { typedef _Tp     type; };
+  
+  template<typename _Tp>
+    struct remove_volatile
+    { typedef _Tp     type; };
+
+  template<typename _Tp>
+    struct remove_volatile<_Tp volatile>
+    { typedef _Tp     type; };
+  
+  template<typename _Tp>
+    struct remove_cv
+    {
+      typedef typename
+      remove_const<typename remove_volatile<_Tp>::type>::type     type;
+    };
+  
+  template<typename _Tp>
+    struct add_const
+    { typedef _Tp const     type; };
+   
+  template<typename _Tp>
+    struct add_volatile
+    { typedef _Tp volatile     type; };
+  
+  template<typename _Tp>
+    struct add_cv
+    {
+      typedef typename
+      add_const<typename add_volatile<_Tp>::type>::type     type;
+    };
+
+  /// @brief  reference modifications [4.7.2].
+  template<typename _Tp>
+    struct remove_reference
+    { typedef _Tp     type; };
+
+  template<typename _Tp>
+    struct remove_reference<_Tp&>
+    { typedef _Tp     type; };
+
+  // NB: Careful with reference to void.
+  template<typename _Tp, bool = (is_void<_Tp>::value
+				 || is_reference<_Tp>::value)>
+    struct __add_reference_helper
+    { typedef _Tp&    type; };
+
+  template<typename _Tp>
+    struct __add_reference_helper<_Tp, true>
+    { typedef _Tp     type; };
+
+  template<typename _Tp>
+    struct add_reference
+    : public __add_reference_helper<_Tp>
+    { };
+
+  /// @brief  array modifications [4.7.3].
+  template<typename _Tp>
+    struct remove_extent
+    { typedef _Tp     type; };
+
+  template<typename _Tp, std::size_t _Size>
+    struct remove_extent<_Tp[_Size]>
+    { typedef _Tp     type; };
+
+  template<typename _Tp>
+    struct remove_extent<_Tp[]>
+    { typedef _Tp     type; };
+
+  template<typename _Tp>
+    struct remove_all_extents
+    { typedef _Tp     type; };
+
+  template<typename _Tp, std::size_t _Size>
+    struct remove_all_extents<_Tp[_Size]>
+    { typedef typename remove_all_extents<_Tp>::type     type; };
+
+  template<typename _Tp>
+    struct remove_all_extents<_Tp[]>
+    { typedef typename remove_all_extents<_Tp>::type     type; };
+
+  /// @brief  pointer modifications [4.7.4].
+#undef _DEFINE_SPEC_BODY
+#define _DEFINE_SPEC_BODY(_Value)      \
+    { typedef _Tp     type; };
+
+  template<typename _Tp>
+    struct remove_pointer
+    { typedef _Tp     type; };
+  _DEFINE_SPEC(1, remove_pointer, _Tp*, false)
+  
+  template<typename _Tp>
+    struct add_pointer
+    { typedef typename remove_reference<_Tp>::type*     type; };
+
+  /// @brief  other transformations [4.8].
+  
+  // Due to c++/19163 and c++/17743, for the time being we cannot use
+  // the correct, neat implementation :-(
+  // 
+  // template<std::size_t _Len, std::size_t _Align>
+  //   struct aligned_storage
+  //   { typedef char type[_Len] __attribute__((__aligned__(_Align))); }
+  //
+  // Temporary workaround, useful for Align up to 32:
+  template<std::size_t, std::size_t>
+    struct aligned_storage { };
+
+  template<std::size_t _Len>
+    struct aligned_storage<_Len, 1>
+    {
+      union type
+      {
+	unsigned char __data[_Len];
+	char __align __attribute__((__aligned__(1)));
+      };
+    };
+
+  template<std::size_t _Len>
+    struct aligned_storage<_Len, 2>
+    {
+      union type
+      {
+	unsigned char __data[_Len];
+	char __align __attribute__((__aligned__(2)));
+      };
+    };
+
+  template<std::size_t _Len>
+    struct aligned_storage<_Len, 4>
+    {
+      union type
+      {
+	unsigned char __data[_Len];
+	char __align __attribute__((__aligned__(4)));
+      };
+    };
+
+  template<std::size_t _Len>
+    struct aligned_storage<_Len, 8>
+    {
+      union type
+      {
+	unsigned char __data[_Len];
+	char __align __attribute__((__aligned__(8)));
+      };
+    };
+
+  template<std::size_t _Len>
+    struct aligned_storage<_Len, 16>
+    {
+      union type
+      {
+	unsigned char __data[_Len];
+	char __align __attribute__((__aligned__(16)));
+      };
+    };
+  
+  template<std::size_t _Len>
+    struct aligned_storage<_Len, 32>
+    {
+      union type
+      {
+	unsigned char __data[_Len];
+	char __align __attribute__((__aligned__(32)));
+      };
+    };
+
+#undef _DEFINE_SPEC_0_HELPER
+#undef _DEFINE_SPEC_1_HELPER
+#undef _DEFINE_SPEC_2_HELPER
+#undef _DEFINE_SPEC
+#undef _DEFINE_SPEC_BODY
+
+_GLIBCXX_END_NAMESPACE
+}
+
+#endif

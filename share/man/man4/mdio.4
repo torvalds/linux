@@ -1,0 +1,54 @@
+.\" Written by Landon Fuller for the FreeBSD Project.
+.\" Based on the miibus(4) manual page written by Tom Rhodes.
+.\" Please see the /usr/src/COPYRIGHT file for copyright information.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 17, 2015
+.Dt MDIO 4
+.Os
+.Sh NAME
+.Nm mdio
+.Nd IEEE 802.3 Management Data Input/Output interface
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device mdio"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides an interconnection between the Media Access Control (MAC)
+sublayer and Physical Layer (PHY) entities' control and status registers,
+as defined by the IEEE 802.3 Standard.
+.Pp
+The
+.Nm
+layer allows device drivers to share common support code for various
+external PHY devices.
+.Pp
+.Tn MDIO
+is one of two signal interfaces that comprise the
+Media Independent Interface (MII) defined by the IEEE 802.3
+Standard.
+The
+.Xr miibus 4
+driver provides support for devices that require full
+.Tn MII
+support.
+.Sh SEE ALSO
+.Xr miibus 4
+.Sh STANDARDS
+More information on
+.Tn MDIO
+can be found in the IEEE 802.3 Standard.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The driver was written by
+.An Stefan Bethke Aq Mt stb@lassitu.de .

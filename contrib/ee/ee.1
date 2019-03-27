@@ -1,0 +1,543 @@
+.\"
+.\"
+.\"  To format this reference page, use the command:
+.\"
+.\"    nroff -man ee.1
+.\"
+.\"  $Header: /home/hugh/sources/old_ae/RCS/ee.1,v 1.22 2001/12/16 04:49:27 hugh Exp $
+.\"
+.\"
+.TH ee 1 "" "" ""
+.SH NAME
+ee \- easy editor
+.SH SYNOPSIS
+.nf
+ee [-e] [-i] [-h] [+#] [\fIfile\fR ...]
+ree [-e] [-i] [-h] [+#] [\fIfile\fR ...]
+.ta
+.fi
+.ad b
+.SH DESCRIPTION
+The command 
+.I ee 
+is a simple screen oriented text editor.  It is always in text insertion 
+mode unless there is a prompt at the bottom of the terminal, or a 
+menu present (in a box in the middle of the terminal).  The command 
+.I ree 
+is the same as 
+.I ee, 
+but restricted to editing the named 
+file (no file operations, or shell escapes are allowed).
+.PP
+An editor with similar user-friendly qualities but more features is available 
+and is called 
+.I aee.
+.PP
+For 
+.I ee
+to work properly, the environment variable 
+.SM TERM 
+must be set to indicate the type of terminal being used.  For 
+example, for an 
+.SM HP 700/92 
+terminal, the 
+.SM TERM 
+variable should be set to "70092".  See your System Administrator if 
+you need more information.
+.\"
+.\"     options
+.\"
+.SS Options
+The following options are available from the command line:
+.PP
+.TP 4
+.B -e
+Turns off expansion of tab character to spaces.
+.TP 
+.B -i
+Turns off display of information window at top of terminal.
+.TP
+.B -h
+Turns off highlighting of borders of windows and menus (improves 
+performance on some terminals).
+.TP
+.B +#
+Moves the cursor to line '#' at startup.
+.br
+.\"
+.\"     control keys
+.\"
+.SS "Control keys"
+To do anything other than insert text, the user must use the control 
+keys (the 
+.B Control 
+key, represented by a "^",  pressed in conjunction with an 
+alphabetic key, e.g., ^a) and function keys available on the keyboard 
+(such as 
+.BR "Next Page" ", " "Prev Page" ,
+arrow keys, etc.).
+.PP
+Since not all terminals have function keys, 
+.I ee
+has the basic cursor movement functions assigned to control keys as 
+well as more intuitive keys on the keyboard when available.  For 
+instance, to move the cursor up, the user can use the up arrow key, 
+or 
+.BR ^u .
+.RS 4
+.nf
+.ta 1.4i
+.sp
+^a 	Prompt for the decimal value of a character to insert.
+^b 	Move to the bottom of the text.
+^c 	Get the prompt for a command.
+^d 	Move the cursor down.
+^e 	Prompt for the string to search for.
+^f 	Undelete the last deleted character.
+^g 	Move to the beginning of the line.
+^h 	Backspace.
+^i 	Tab.
+^j 	Insert a newline.
+^k 	Delete the character the cursor is sitting on.
+^l 	Move the cursor left.
+^m 	Insert a newline.
+^n 	Move to the next page.
+^o 	Move to the end of the line.
+^p 	Move to the previous page.
+^r 	Move the cursor to the right.
+^t 	Move to the top of the text.
+^u 	Move the cursor up.
+^v 	Undelete the last deleted word.
+^w 	Delete the word beginning at the cursor position.
+^x 	Search.
+^y 	Delete from the cursor position to the end of line.
+^z 	Undelete the last deleted line.
+^[ (ESC)	Pop up menu.
+.ta
+.fi
+.RE
+.sp
+.SS "EMACS keys mode"
+.PP
+Since many shells provide an Emacs mode (for cursor movement and other editing 
+operations), some bindings that may be more useful for people familiar with 
+those bindings have been provided.  These are accessible via the 
+.B settings 
+menu, or via the initialization file (see below).  The mappings are as follows:
+.RS
+.nf
+.ta 1.4i
+^a	Move to the beginning of the line.
+^b	Back 1 character.
+^c	Command prompt.
+^d	Delete character the cursor is sitting on.
+^e	End of line.
+^f	Forward 1 character.
+^g	Go back 1 page.
+^h	Backspace.
+^i	Tab.
+^j	Undelete last deleted character.
+^k	Delete line.
+^l	Undelete last deleted line.
+^m	Insert a newline.
+^n	Move to the next line.
+^o	Prompt for the decimal value of a character to insert.
+^p	Previous line.
+^r	Restore last deleted word.
+^t	Move to the top of the text.
+^u	Move to the bottom of the text.
+^v	Move to the next page.
+^w	Delete the word beginning at the cursor position.
+^y	Prompt for the string to search for.
+^z	Next word.
+^[ (ESC)	Pop up menu.
+.ta
+.fi
+.RE
+.sp
+.\"
+.\"     function keys
+.\"
+.SS "Function Keys"
+.RS 4
+.IP "\fBNext Page\fR"
+Move to the next page.
+.IP "\fBPrev Page\fR"
+Move to the previous page.
+.IP "\fBDelete Char\fR"
+Delete the character the cursor is on.
+.IP "\fBDelete Line\fR"
+Delete from the cursor to the end of line.
+.IP "\fBInsert line\fR"
+Insert a newline at the cursor position.
+.IP "\fBArrow keys\fR"
+Move the cursor in the direction indicated.
+.RE
+.\"
+.\"     commands
+.\"
+.SS Commands
+.PP
+Some operations require more information than a single keystroke can 
+provide.  For the most basic operations, there is a menu that can be 
+obtained by pressing the 
+.SM \fBESC\fR
+key.  The same operations, and more can be performed by obtaining the 
+command prompt (^c) and typing in one of the commands below.
+.RS 4
+.IP "!\fBcmd\fR"
+Execute \fBcmd\fR in a shell.
+.IP "\fB0-9\fR"
+Move to the line indicated.
+.IP "\fBcase\fR"
+Make searches case sensitive.
+.IP "\fBcharacter\fR"
+Display the ascii value of the character at the cursor.
+.IP "\fBexit\fR"
+Save the edited text, and leave the editor.
+.IP "\fBexpand\fR"
+Expand tabs to spaces.
+.IP "\fBfile\fR"
+Print the name of the file.
+.IP "\fBhelp\fR"
+Display help screen.
+.IP "\fBline\fR"
+Display the current line number.
+.IP "\fBnocase\fR
+Make searches insensitive to case (the default).
+.IP "\fBnoexpand\fR"
+Don't expand tab to spaces when the TAB key is pressed.
+.IP "\fBquit\fR"
+Leave the editor without saving changes.
+.IP "\fBread\fR \fIfile\fR"
+Read the named \fIfile\fR.
+.IP "\fBwrite\fR \fIfile\fR"
+Write the text to the named \fIfile\fR.
+.RE
+.\"
+.\"     menu operations
+.\"
+.SS "Menu Operations"
+.PP
+Pop-up menus can be obtained by pressing the 
+.B escape 
+key (or 
+.B ^[ 
+if no 
+.B escape 
+key is present).  When in the menu, the escape key can be 
+used to leave the menu without performing any operations.  Use the up and 
+down arrow keys, or 
+.B ^u
+for moving up and 
+.B ^d 
+for moving down to move to the desired items in the menu, then press 
+.B return 
+to perform the indicated task.
+.PP
+To the left of each menu item is a letter, which if the corresponding 
+letter is pressed on the keyboard selects that menu entry.
+.PP
+The main menu in \fIee\fR is as follows:
+.RS 4
+.IP "\fBleave editor\fR" 
+If changes have been made, the user will get a menu prompting whether or 
+not the changes should be saved.
+.IP "\fBhelp\fR"
+Displays a help screen, with all of the keyboard operations and commands.
+.IP "\fBfile operations\fR"
+Pops up a menu for selecting whether to read a file, write to a file, or 
+save the current contents of the editor, as well as send the contents of 
+the editor to a print command (see the section \fBInitializing ee from a 
+file\fR).
+.IP "\fBredraw screen\fR"
+Provides a means to repaint the screen if the screen has been corrupted.
+.IP "\fBsettings\fR"
+Shows the current values of the operating modes, and right margin.  By 
+pressing return when the cursor is on a particular item, the value can be 
+changed.  To leave this menu, press the \fBescape\fR key.  (See \fBModes\fR 
+below.)
+.IP "\fBsearch\fR"
+.br
+Pops up a menu in which the user may choose to enter a string to search 
+for, or search for a string already entered.
+.IP "\fBmiscellaneous\fR"
+Pops up a menu that allows the user to format the current paragraph, 
+execute a shell command, or check the spelling of the text in the editor.
+.RE
+.\"
+.\"     paragraph formatting
+.\"
+.SS "Paragraph Formatting"
+.PP
+Paragraphs are defined for \fIee\fR by a block of text bounded by:
+.sp 
+.RS 8
+.IP \(bu 
+Begin or end of file.
+.IP \(bu
+Line with no characters, or only spaces and/or tabs.
+.IP \(bu
+Line starting with a period ('.') or right angle bracket ('>').
+.RE
+.PP
+A paragraph may be formatted two ways:  explicitly by choosing the 
+\fBformat paragraph\fR menu item, or by setting \fIee\fR to automatically 
+format paragraphs.  The automatic mode may be set via a menu, or via the 
+initialization file.
+.PP
+There are three states for text operation in \fIee\fR: free-form, margins, 
+and automatic formatting.
+.PP
+"Free-form" is best used for things like programming.  There are no 
+restrictions on the length of lines, and no formatting takes place.
+.PP
+"Margins" allows the user to type in text without having to worry about going 
+beyond the right margin (the right margin may be set in the \fBsettings\fR 
+menu, the default is for the margin to be the right edge of the 
+terminal).  This is the mode that allows the \fBformat paragraph\fR menu 
+item to work.
+.PP
+"Automatic formatting" provides word-processor-like behavior.  The user 
+may type in text, while \fIee\fR will make sure the entire paragraph fits 
+within the width of the terminal every time the user inserts a space after 
+typing or deleting text.  Margin observation must also be enabled in order for 
+automatic formatting to occur.
+.\"
+.\"     modes
+.\"
+.SS Modes
+.PP
+Although ee is a 'modeless' editor (it is in text insertion mode all the 
+time), there are modes in some of the things it does.  These include:
+.RS 4
+.IP "\fBtab expansion\fR"
+Tabs may be inserted as a single tab character, or replaced with spaces.
+.IP "\fBcase sensitivity\fR"
+The search operation can be sensitive to whether characters are upper- or 
+lower-case, or ignore case completely.
+.IP "\fBmargins observed\fR"
+Lines can either be truncated at the right margin, or extend on forever.
+.IP "\fBauto paragraph formatting\fR"
+While typing in text, the editor can try to keep it looking reasonably well 
+within the width of the screen.
+.IP "\fBeightbit characters\fR"
+Toggles whether eight bit characters are displayed as their value in angle 
+brackets (e.g. "<220>") or as a character.
+.IP "\fBinfo window\fR"
+A window showing the keyboard operations that can be performed can be 
+displayed or not.
+.IP "\fBemacs keys\fR"
+Control keys may be given bindings similar to emacs, or not.
+.IP "\fB16 bit characters\fR"
+Toggles whether sixteen bit characters are handled as one 16-bit quantity or 
+two 8-bit quantities.  This works primarily with the Chinese Big 5 code set.
+.RE
+.PP
+You may set these modes via the initialization file (see below), or with a 
+menu (see above).
+.\"
+.\"     spell checking
+.\"
+.SS "Spell Checking"
+.PP
+There are two ways to have the spelling in the text checked from \fIee\fR.  
+One is by the traditional \fIspell\fR(1) command, the other is with the 
+optional \fIispell\fR(1) command.
+.PP
+Using \fIspell\fR, the words that are not recognized will be placed at the top 
+of the file.  For the \fIispell\fR option, the file is written to disk, 
+then \fIispell\fR run on the file, and the file read back in once 
+\fIispell\fR has completed making changes to the file.
+.\"
+.\"     printing
+.\"
+.SS "Printing the contents of the editor"
+.PP
+The user may select a menu item which prints the contents of the editor.  
+.I ee
+pipes the text in the editor to the command specified by the 
+initialization command 
+.B printcommand
+(see the section 
+.B Initializing ee from a file 
+below).  The default is to send the contents to "lp".  
+.PP
+Whatever the user assigns to 
+.B printcommand 
+must take input from 
+standard input.  See your system administrator for more details.
+.\"
+.\"     shell operations
+.\"
+.SS "Shell operations"
+.PP
+Shell commands can be executed from within 
+.I ee 
+by selecting the 
+.B shell command 
+item in the 
+.B miscellaneous 
+menu, or by placing an exclamation mark ("!") before the command to 
+execute at the 
+.B command: 
+prompt.  Additionally, the user may direct the contents of the edit buffer 
+out to a shell operation (via a pipe) by using the left angle bracket 
+(">"), followed by a "!" and the shell command to execute.  The output of 
+a shell operation can also be directed into the edit buffer by using a 
+right angle bracket ("<") before the exclamation mark.  These can even be 
+used together to send output to a shell operation and read back the 
+results into the editor.  So, if the editor contained a list of words 
+to be sorted, they could be sorted by typing the following at the command 
+prompt:
+.RS 4
+.sp
+><!sort
+.sp
+.RE
+This would send the contents of the editor to be piped into the 
+.I sort 
+utility and the result would be placed into the edit buffer at the current 
+cursor location.  The old information would have to be deleted by the user.
+.\"
+.\"     initializing ee from a file
+.\"
+.SS "Initializing ee from a file"
+.PP
+Since different users have different preferences, \fIee\fR allows some 
+slight configurability.  There are three possible locations for an 
+initialization file for ee:  the file \fI/usr/share/misc/init.ee\fR, the 
+file \fI.init.ee\fR in the user's home directory, or the file \fI.init.ee\fR 
+in the current directory (if different from the home 
+directory).  This allows system administrators to set some preferences for 
+the users on a system-wide basis (for example, the \fBprint\fR command), 
+and the user to customize settings for particular directories (like one 
+for correspondence, and a different directory for programming).
+.PP
+The file \fI\/usr/share/misc/init.ee\fR is read first, then 
+\fI$HOME/.init.ee\fR, then \fI.init.ee\fR, with the settings specified by the 
+most recent file read taking precedence.
+.PP
+The following items may be entered in the initialization file:
+.RS 4
+.IP \fBcase\fR
+Sets searches to be case sensitive.
+.IP \fBnocase\fR
+Sets searches to be insensitive to case (default).
+.IP \fBexpand\fR
+Causes \fIee\fR to expand tabs to spaces (default).
+.IP \fBnoexpand\fR 
+Causes \fIee\fR to insert tabs as a single character.
+.IP \fBinfo\fR
+A small information window is displayed at the top of the terminal 
+(default).
+.IP \fBnoinfo\fR
+Turns off the display of the information window.
+.IP \fBmargins\fR
+Causes \fIee\fR to truncate lines at the right margin when the 
+cursor passes beyond the right margin as set by the user 
+while text is being inserted 
+(default).
+.IP \fBnomargins\fR
+Allows lines to extend beyond the right margin.
+.IP \fBautoformat\fR
+Causes \fIee\fR to automatically try to format the current paragraph while 
+text insertion is occurring.
+.IP \fBnoautoformat\fR
+Turns off automatic paragraph formatting (default).
+.IP \fBprintcommand\fR
+Allows the setting of the print command (default: "lp").
+.IP \fBrightmargin\fR
+The user can select a value for the right margin (the first column on the 
+screen is zero).
+.IP \fBhighlight\fR
+Turns on highlighting border of information window and menus (default).
+.IP \fBnohighlight\fR
+Turns off highlighting of border of information window and menus.
+.IP \fBeightbit\fR
+Turns on display of eight bit characters.
+.IP \fBnoeightbit\fR
+Turns off display of eight bit characters (they are displayed as their decimal 
+value inside angle brackets, e.g., "<220>").
+.IP \fB16bit\fR
+Turns on handling of 16-bit characters.
+.IP \fBno16bit\fR
+Turns off handling of 16-bit characters.
+.IP \fBemacs\fR
+Turns on emacs key bindings.
+.IP \fBnoemacs\fR
+Turns off emacs key bindings.
+.RE
+.\"
+.\"     save editor configuration
+.\"
+.SS "Save Editor Configuration"
+.PP
+When using this entry from the 
+.B settings 
+menu, the user may choose to save the current configuration of 
+the editor (see \fBInitializing ee from a 
+file\fR above) to a file named 
+.I .init.ee 
+in the current directory or the user's home directory.  If a file named 
+.I .init.ee 
+already exists, it will be renamed 
+.IR .init.ee.old .
+.\"
+.\"     Caveats
+.\"
+.SH CAVEATS
+.PP
+THIS MATERIAL IS PROVIDED "AS IS".  THERE ARE 
+NO WARRANTIES OF ANY KIND WITH REGARD TO THIS 
+MATERIAL, INCLUDING, BUT NOT LIMITED TO, THE 
+IMPLIED WARRANTIES OF MERCHANTABILITY AND 
+FITNESS FOR A PARTICULAR PURPOSE.  Neither 
+Hewlett-Packard nor Hugh Mahon shall be liable 
+for errors contained herein, nor for 
+incidental or consequential damages in 
+connection with the furnishing, performance or 
+use of this material.  Neither Hewlett-Packard 
+nor Hugh Mahon assumes any responsibility for 
+the use or reliability of this software or 
+documentation.  This software and 
+documentation is totally UNSUPPORTED.  There 
+is no support contract available.  Hewlett-Packard 
+has done NO Quality Assurance on ANY 
+of the program or documentation.  You may find 
+the quality of the materials inferior to 
+supported materials. 
+.PP
+Always make a copy of files that cannot be easily reproduced before 
+editing.  Save files early, and save often.
+.SS "International Code Set Support"
+.I ee 
+supports single-byte character code sets (eight-bit clean), or the 
+Chinese Big-5 code set.  (Other multi-byte code sets may function, but the 
+reason Big-5 works is that a two-byte character also takes up two columns on 
+the screen.)
+.SH WARNINGS
+The automatic paragraph formatting operation 
+may be too slow for slower systems.
+.SH FILES
+.PP
+.I /usr/share/misc/init.ee
+.br
+.I $HOME/.init.ee
+.br
+.I .init.ee
+.SH AUTHOR
+.PP
+The software 
+.I ee
+was developed by Hugh Mahon.
+.PP
+This software and documentation contains 
+proprietary information which is protected by 
+copyright.  All rights are reserved. 
+.PP
+Copyright (c) 1990, 1991, 1992, 1993, 1995, 1996, 2001 Hugh Mahon.
+.SH "SEE ALSO"
+.PP
+termcap(4), terminfo(4), environ(5), spell(1), ispell(1), lp(1), aee(1)
+

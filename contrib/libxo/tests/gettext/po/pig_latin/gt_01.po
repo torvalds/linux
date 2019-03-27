@@ -1,0 +1,109 @@
+# SOME DESCRIPTIVE TITLE.
+# This file is put in the public domain.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: libxo unit test\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2015-07-01 16:15-0400\n"
+"PO-Revision-Date: 2015-07-09 13:43-0400\n"
+"Last-Translator: P.S. <ps@example.com>\n"
+"Language-Team: Self-inflicted <test@example.com>\n"
+"Language: teo\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 1.8.1\n"
+"Plural-Forms: nplurals=3; plural=(n==0) ? 0 : (n==1) ? 1 : 2;\n"
+"X-Poedit-SourceCharset: iso-8859-1\n"
+
+#: gt_01.c:42
+#, c-format
+msgid "{:bytes}{N:byte,bytes}\n"
+msgstr "{:bytes}{N:ytebay,ytesbay}\n"
+
+#: gt_01.c:44
+#, c-format
+msgid "{L:total} {:total}\n"
+msgstr "{L:otaltay} {:total}\n"
+
+#: gt_01.c:60
+#, c-format
+msgid "Only {:marzlevanes} {N:marzlevane,marzlevanes} are functioning correctly\n"
+msgstr "Onlyay {:marzlevanes} {N:marzlevane,marzlevanes} areyay unctioningfay orrectlycay\n"
+
+#: gt_01.c:63
+msgid "Version {:version} {:date}\n"
+msgstr "Ersionvay {:date} {:version}\n"
+
+#: gt_01.c:66
+msgid "Unable to {:verb} forward velociping"
+msgstr "Nableuay otay {:verb} orwardfay elocipingvay"
+
+#: gt_01.c:67
+msgid "{:style} synchronization of {:type} {:target} failed"
+msgstr "{:style} ynchronizationsay ofyay {:type} {:target} ailedfay"
+
+#: gt_01.c:69
+#, c-format
+msgid "{L:hydrocoptic marzlevanes}{:marzlevanes}\n"
+msgstr "{L:ydrocoptichay arzlevanesmay}{:marzlevanes}\n"
+
+#: gt_01.c:71
+msgid "{L:Windings}{:windings}\n"
+msgstr "Dude, {L:Windings}{:windings}\n"
+
+msgid "byte"
+msgid_plural "bytes"
+msgstr[0] "yebay"
+msgstr[1] "yesbay"
+msgstr[2] "yezbay"
+
+msgid "marzlevane"
+msgid_plural "marzlevanes"
+msgstr[0] "arzlevanemay"
+msgstr[1] "arzlevanesmay"
+msgstr[2] "arzlevanezmay"
+
+msgid "lotus-o-delta"
+msgstr "otuslay-oyay-eltayay"
+
+msgid "cardinal"
+msgstr "ardinalyay"
+
+msgid "automatic"
+msgstr "automaticyay"
+
+msgid "grammeters"
+msgstr "ammetersgray"
+
+msgid "objectulate"
+msgstr "ectulatobjay"
+
+msgid "hydrocoptic marzlevanes"
+msgstr "ydrocoptichay arzlevanesmay"
+
+msgid "Windings"
+msgstr "Indingsway"
+
+msgid "Your {:adjective} {:noun} is {:verb} {:owner} {:target}\n"
+msgstr "Ouryay {:noun} {:adjective} isyay {:owner}{:target} bubbly-bubbly {:verb}\n"
+
+msgid "The {:adjective} {:noun} was {:verb} {:owner} {:target}\n"
+msgstr "Ethay {:noun} asway '{:owner}{:adjective}{:target}' {:verb}\n"
+
+msgid "flaming"
+msgstr "amingflay"
+
+msgid "sword"
+msgstr "ordsway"
+
+msgid "burning"
+msgstr "urningbay"
+
+msgid "my"
+msgstr "ymay"
+
+msgid "couch"
+msgstr "ouchcay"

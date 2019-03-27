@@ -1,0 +1,366 @@
+2008-04-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* utmp_login.c: Reorder to avoid prototype.
+
+	* login_locl.h: If cygwin doesnt have WTMPX_FILE, it uses wtmp for
+	wtmpx http://www.cygwin.com/ml/cygwin/2006-12/msg00630.html
+	
+2008-04-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* utmp_login.c: Remove utmp warning on mac os x
+
+2006-12-05  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* limits_conf.c: Clear errno before calling the strtol
+	functions. From Paul Stoeber to OpenBSD by Ray Lai and Björn
+	Sandell.
+
+	* limits_conf.c: Report to syslog strings that start with NUL;
+	prevents negative index array access. Ray Lai of OpenBSD via Björn
+	Sandell.
+	
+2006-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* Makefile.am: Add man_MANS to EXTRA_DIST
+
+2006-09-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* read_string.c: try to not call signaction for signal 0 and use
+	NSIG if it exists to determin how many signals there exists, also,
+	only restore those signalhandlers that we got out.
+	
+2006-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* login_locl.h: Include "loginpaths.h"
+	
+	* loginpaths.h: Shared paths between login and rshd.
+	
+2006-01-09 Johan Danielsson <joda@blubb.pdc.kth.se>
+
+	* login.c: log successful logins
+	
+2005-08-08  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* login.c (do_login): only do krb4_get_afs_tokens if we have done
+	v4 authentication or done a 5to4 conversion of tickets. This is to
+	avoid delays on a realm that only support Kerberos 5 and drop
+	Kerberos 4 requests.
+
+2005-05-10  Dave Love  <fx@gnu.org>
+
+	* login.c: Include <crypt.h>.
+
+2005-05-02  Dave Love  <fx@gnu.org>
+
+	* limits_conf.c: Check RLIMIT_MEMLOCK, not RLIMIT_LOCK.
+
+2005-04-28  Dave Love  <fx@gnu.org>
+
+	* limits_conf.c: Maybe include sys/resource.h.  Use various
+	RLIMIT_ macros conditionally.  For Solaris, Irix and Tru64.
+
+2005-04-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* login.1: document limits.conf
+	
+	* Makefile.am: limits_conf.c
+	
+	* login_locl.h: template for limits.conf
+	
+	* login.c: read limits.conf (from /etc/security by default,
+	overridable in login.conf)
+	
+	* limits_conf.c: implement a parser for limits.conf
+	
+2004-09-08  Johan Danielsson  <joda@pdc.kth.se>
+
+	* login.c: use krb5_appdefault_boolean instead of
+	krb5_config_get_bool
+
+2003-09-03  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* login.c (krb5_to4): set client princ of the mcred
+	
+2003-07-07  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* login.c (krb5_to4): use krb5_cc_clear_mcred
+	
+2003-03-24  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: install man pages
+
+	* login.1: manpage for login
+
+	* login.c: allow "welcome" as well as "motd" in login.conf
+
+	* login.access.5: login.access manual page
+
+2003-03-18  Love Hörnquist Åstrand <lha@it.su.se>
+	
+	* login.c: also need pag_set
+	* login.c: if there is kerberos 5, call krb5_afslog\*
+	
+2002-08-23  Johan Danielsson  <joda@pdc.kth.se>
+
+	* login.c: if motd is set in login.conf, output its contents
+	before starting the shell
+
+2002-02-27  Johan Danielsson  <joda@pdc.kth.se>
+
+	* login.c: reset signals to default, needed on solaris 8
+
+2002-02-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* login_locl.h: include netgroup.h and rpcsvc/ypclnt.h
+
+	* login.c: make this build without krb5
+
+2001-09-22  Assar Westerlund  <assar@sics.se>
+
+	* login_locl.h: kludge: use absolute path to find prot.h so we do
+	not get confused by athena's prot.h
+
+2001-09-17  Assar Westerlund  <assar@sics.se>
+
+	* login.c (do_login): add setpcred
+
+2001-07-06  Assar Westerlund  <assar@sics.se>
+
+	* login.c: move osf2c magic earlier.  from Mark Davies
+	<mark@MCS.VUW.AC.NZ>
+
+2001-06-19  Assar Westerlund  <assar@sics.se>
+
+	* login.c (krb5_to4): dereference result from krb5_princ_realm.
+	noted by Thomas Nystrom <thn@saeab.se>
+
+2001-06-04  Assar Westerlund  <assar@sics.se>
+
+	* update copyright messages on Wietse Venema's code.
+
+2001-05-31  Assar Westerlund  <assar@sics.se>
+
+	* login.c (krb5_to4): look for [realms]<realm>krb4_get_tickets to
+	decide whether to get kerberos 4 tickets
+
+2001-02-08  Assar Westerlund  <assar@sics.se>
+
+	* utmp_login.c, utmpx_login.c: try to write a useful string as
+	host in utmp, using the same algoritm as telnetd
+
+2001-01-29  Assar Westerlund  <assar@sics.se>
+
+	* login.c: remove some krb5_free_context that might happen at
+	unappropriate times
+
+2000-12-31  Assar Westerlund  <assar@sics.se>
+
+	* login.c (main): handle krb5_init_context failure consistently
+
+2000-12-11  Assar Westerlund  <assar@sics.se>
+
+	* login.c (do_login): set the group on the tty.
+	(r_flag): comment out
+	* login.c (krb5_to4): always return a value
+
+2000-10-15  Assar Westerlund  <assar@sics.se>
+
+	* login.c (krb5_to4): check another return code
+
+2000-08-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* login.c (do_login): set PATH to something sane;
+	(start_logout_process): avoid getting signals sent to the parent
+
+	* login_locl.h: _PATH_DEFPATH
+
+2000-07-01  Assar Westerlund  <assar@sics.se>
+
+	* login.c (login_timeout): add back
+
+2000-06-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* env.c: new file for environment related functions
+
+	* login.c: move environment stuff to separate file, allow
+	specifying list of environment files via login.conf
+
+2000-06-21  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (LDADD): add otp
+	* login.c: add reading of /etc/environment.  From Ake Sandgren
+	<ake@cs.umu.se>
+	add otp support. From Daniel Kouril <kouril@ics.muni.cz>
+
+2000-06-09  Assar Westerlund  <assar@sics.se>
+
+	* login.c (do_login): work-around for setuid and capabilities bug
+	fixed in Linux 2.2.16
+
+2000-04-09  Assar Westerlund  <assar@sics.se>
+
+	* login.c: allow conversion of v5 -> v4 tickets when logging in
+	with forwarded tickets
+
+1999-11-09  Johan Danielsson  <joda@pdc.kth.se>
+
+	* conf.c: remove case for not having cgetent, since it's in roken
+
+1999-11-05  Assar Westerlund  <assar@sics.se>
+
+	* login.c (do_login): conditionalize shadow stuff on getspnam
+
+1999-10-30  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (login_DEPENDENCIES): remove, it's not entirely
+ 	correct and was causing problems with non-GNU make
+
+1999-10-28  Assar Westerlund  <assar@sics.se>
+
+	* login.c (start_logout_proceess): don't examine `prog' before
+ 	setting it.
+
+1999-10-27  Assar Westerlund  <assar@sics.se>
+
+	* login.c (do_login): chown and chmod the tty.  some clean-up.
+
+1999-10-03  Assar Westerlund  <assar@sics.se>
+
+	* login.c (krb5_start_session): correct the ccache to
+ 	krb524_convert_creds_kdc
+
+1999-09-28  Assar Westerlund  <assar@sics.se>
+
+	* login.c (krb5_verify): use krb5_verify_user_lrealm
+
+1999-09-01  Johan Danielsson  <joda@pdc.kth.se>
+
+	* login.c: SGI capability mumbo-jumbo
+
+1999-08-09  Johan Danielsson  <joda@pdc.kth.se>
+
+	* login.c (start_logout_process): call setproctitle
+
+	* login_locl.h: declare struct spwd
+
+	* login.c: add support for starting extra processes at login and
+	logout; always preserve TERM and TZ
+
+	* conf.c: add configuration file support
+
+1999-08-07  Assar Westerlund  <assar@sics.se>
+
+	* shadow.c (check_shadow): check for a NULL sp
+
+1999-08-05  Assar Westerlund  <assar@sics.se>
+
+	* login.c (main): move down login incorrect to disallow account
+ 	guessing
+
+1999-08-04  Assar Westerlund  <assar@sics.se>
+
+	* utmpx_login.c (utmpx_login): fix for Solaris.  From Miroslav
+ 	Ruda <ruda@ics.muni.cz>
+
+	* login_locl.h: add <shadow.h> and some prototypes
+
+	* login.c: fixes with v4 and shadow support.  From Miroslav Ruda
+ 	<ruda@ics.muni.cz>
+
+	* shadow.c: new file with functions for handling shadow passwords
+
+	* Makefile.am: add shadow
+
+1999-07-22  Assar Westerlund  <assar@sics.se>
+
+	* login.c (main): generate a better tty name
+
+1999-05-25  Johan Danielsson  <joda@pdc.kth.se>
+
+	* login.c (do_login): set $SHELL
+
+1999-05-18  Assar Westerlund  <assar@sics.se>
+
+	* add login-access
+
+1999-05-11  Assar Westerlund  <assar@sics.se>
+
+	* login.c: copy the v5 ccache to a file after having done setuid
+
+1999-05-09  Assar Westerlund  <assar@sics.se>
+
+	* login.c (krb5_verify): check seteuid for errors
+	
+Mon Apr 19 22:30:55 1999  Assar Westerlund  <assar@sics.se>
+
+	* login.c: conditionalize the kafs calls on KRB4
+
+	* Makefile.am (LDADD): add kafs
+
+	* login.c: add support for getting afs tokens with v4 and v5
+
+Sun Apr 18 14:12:28 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* login.c: check _PATH_NOLOGIN
+
+	* login_locl.h: _PATH_NOLOGIN
+
+1999-04-11  Assar Westerlund  <assar@sics.se>
+
+	* login.c (main): use print_version
+
+Thu Apr  8 15:03:55 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* login.c: remove definition of KRB_VERIFY_USER et.al. (moved to
+ 	config.h)
+
+	* login_locl.h: include udb.h, sys/resource.h, and sys/category.h
+
+Sat Mar 27 17:58:37 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: osfc2.c
+
+	* login.c: magic for OSF C2, and Crays
+
+	* login_locl.h: do_osfc2_magic proto
+
+	* osfc2.c: bsd_locl -> login_locl
+
+	* osfc2.c: OSF C2 magic
+
+Tue Mar 23 14:17:40 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* login_locl.h: _PATH_UTMP
+
+Sun Mar 21 15:02:31 1999  Johan Danielsson  <joda@blubb.pdc.kth.se>
+
+	* login.c: `-h' is host, not help
+
+Sat Mar 20 00:11:13 1999  Assar Westerlund  <assar@sics.se>
+
+	* login_locl.h: krb.h: add
+
+	* login.c: static-size
+	(krb4_verify): add
+
+Thu Mar 18 11:36:10 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: include Makefile.am.common
+
+Thu Mar 11 17:53:36 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* utmpx_login.c: add some consts
+
+	* utmp_login.c: add some consts
+
+	* login.c: staticize
+
+	* login_locl.h: add prototypes, and defaults for
+ 	_PATH_*
+
+Mon Mar  1 10:49:14 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* utmpx_login.c: HAVE_UT_* -> HAVE_STRUCT_UTMP*_UT_*
+
+	* utmp_login.c: HAVE_UT_* -> HAVE_STRUCT_UTMP*_UT_*
+

@@ -1,0 +1,273 @@
+		README for BINUTILS
+
+These are the GNU binutils.  These are utilities of use when dealing
+with binary files, either object files or executables.  These tools
+consist of the linker (ld), the assembler (gas), and the profiler
+(gprof) each of which have their own sub-directory named after them.
+There is also a collection of other binary tools, including the
+disassembler (objdump) in this directory.  These tools make use of a
+pair of libraries (bfd and opcodes) and a common set of header files
+(include).
+
+There are README and NEWS files in most of the program sub-directories
+which give more information about those specific programs.
+
+
+Unpacking and Installation -- quick overview
+============================================
+
+When you unpack the binutils archive file, you will get a directory
+called something like `binutils-XXX', where XXX is the number of the
+release.  (Probably 2.13 or higher).  This directory contains
+various files and sub-directories.  Most of the files in the top
+directory are for information and for configuration.  The actual
+source code is in sub-directories.
+
+To build binutils, you can just do:
+
+	cd binutils-XXX
+	./configure [options]
+	make
+	make install # copies the programs files into /usr/local/bin
+		     # by default.
+
+This will configure and build all the libraries as well as the
+assembler, the binutils, and the linker.
+
+If you have GNU make, we recommend building in a different directory:
+
+	mkdir objdir
+	cd objdir
+	../binutils-XXX/configure [options]
+	make
+	make install
+
+This relies on the VPATH feature of GNU make.
+
+By default, the binutils will be configured to support the system on
+which they are built.  When doing cross development, use the --target
+configure option to specify a different target, eg:
+
+	./configure --target=foo-elf        
+
+The --enable-targets option adds support for more binary file formats
+besides the default.  List them as the argument to --enable-targets,
+separated by commas.  For example:
+
+	./configure --enable-targets=sun3,rs6000-aix,decstation
+
+The name 'all' compiles in support for all valid BFD targets:
+
+	./configure --enable-targets=all
+
+On 32-bit hosts though, this support will be restricted to 32-bit
+target unless the --enable-64-bit-bfd option is also used:
+
+	./configure --enable-64-bit-bfd --enable-targets=all
+	
+You can also specify the --enable-shared option when you run
+configure.  This will build the BFD and opcodes libraries as shared
+libraries.  You can use arguments with the --enable-shared option to
+indicate that only certain libraries should be built shared; for
+example, --enable-shared=bfd.  The only potential shared libraries in
+a binutils release are bfd and opcodes.
+
+The binutils will be linked against the shared libraries.  The build
+step will attempt to place the correct library in the run-time search
+path for the binaries.  However, in some cases, after you install the
+binaries, you may have to set an environment variable, normally
+LD_LIBRARY_PATH, so that the system can find the installed libbfd
+shared library.
+
+To build under openVMS/AXP, see the file makefile.vms in the top level
+directory.
+
+
+Native Language Support
+=======================
+
+By default Native Language Support will be enabled for binutils.  On
+some systems however this support is not present and can lead to error
+messages such as "undefined reference to `libintl_gettext'" when
+building there tools.  If that happens the NLS support can be disabled
+by adding the --disable-nls switch to the configure line like this:
+
+	../binutils-XXX/configure --disable-nls
+
+
+If you don't have ar
+====================
+
+If your system does not already have an 'ar' program, the normal
+binutils build process will not work.  In this case, run configure as
+usual.  Before running make, run this script:
+
+#!/bin/sh
+MAKE_PROG="${MAKE-make}"
+MAKE="${MAKE_PROG} AR=true LINK=true"
+export MAKE
+${MAKE} $* all-libiberty
+${MAKE} $* all-intl
+${MAKE} $* all-bfd
+cd binutils
+MAKE="${MAKE_PROG}"
+export MAKE
+${MAKE} $* ar_DEPENDENCIES= ar_LDADD='../bfd/*.o ../libiberty/*.o `if test -f ../intl/gettext.o; then echo '../intl/*.o'; fi`' ar
+
+This script will build an ar program in binutils/ar.  Move binutils/ar
+into a directory on your PATH.  After doing this, you can run make as
+usual to build the complete binutils distribution.  You do not need
+the ranlib program in order to build the distribution.
+
+Porting
+=======
+
+Binutils-2.13 supports many different architectures, but there
+are many more not supported, including some that were supported
+by earlier versions.  We are hoping for volunteers to improve this
+situation.
+
+The major effort in porting binutils to a new host and/or target
+architecture involves the BFD library.  There is some documentation
+in ../bfd/doc.  The file ../gdb/doc/gdbint.texinfo (distributed
+with gdb-5.x) may also be of help.
+
+Reporting bugs
+==============
+
+Send bug reports and patches to:
+
+   bug-binutils@gnu.org.
+
+Please include the following in bug reports:
+
+- A description of exactly what went wrong, and exactly what should have
+  happened instead.
+
+- The configuration name(s) given to the "configure" script.  The
+  "config.status" file should have this information.  This is assuming
+  you built binutils yourself.  If you didn't build binutils youself,
+  then we need information regarding your machine and operating system,
+  and it may be more appropriate to report bugs to wherever you obtained
+  binutils.
+
+- The options given to the tool (gas, objcopy, ld etc.) at run time.
+
+- The actual input file that caused the problem.
+
+Always mention the version number you are running; this is printed by
+running any of the binutils with the --version option.  We appreciate
+reports about bugs, but we do not promise to fix them, particularly so
+when the bug report is against an old version.  If you are able, please
+consider building the latest tools from CVS to check that your bug has
+not already been fixed.
+
+When reporting problems about gas and ld, it's useful to provide a
+testcase that triggers the problem.  In the case of a gas problem, we
+want input files to gas and command line switches used.  The inputs to
+gas are _NOT_ .c or .i files, but rather .s files.  If your original
+source was a C program, you can generate the .s file and see the command
+line options by passing -v -save-temps to gcc in addition to all the
+usual options you use.  The reason we don't want C files is that we
+might not have a C compiler around for the target you use.  While it
+might be possible to build a compiler, that takes considerable time and
+disk space, and we might not end up with exactly the same compiler you
+use.
+
+In the case of a ld problem, the input files are .o, .a and .so files,
+and possibly a linker script specified with -T.  Again, when using gcc
+to link, you can see these files by adding options to the gcc command
+line.  Use -v -save-temps -Wl,-t, except that on targets that use gcc's
+collect2, you would add -v -save-temps -Wl,-t,-debug.  The -t option
+tells ld to print all files and libraries used, so that, for example,
+you can associate -lc on the ld command line with the actual libc used.
+Note that your simple two line C program to trigger a problem typically
+expands into several megabytes of objects by the time you include
+libraries.
+
+It is antisocial to post megabyte sized attachments to mailing lists, so
+please put large testcases somewhere on an ftp or web site so that only
+interested developers need to download them, or offer to email them on
+request.  Better still, try to reduce the testcase, for example, try to
+develop a ld testcase that doesn't use system libraries.  However,
+please be sure it is a complete testcase and that it really does
+demonstrate the problem.  Also, don't bother paring it down if that will
+cause large delays in filing the bug report.
+
+If you expect to be contributing a large number of test cases, it would
+be helpful if you would look at the test suite included in the release
+(based on the Deja Gnu testing framework, available from the usual ftp
+sites) and write test cases to fit into that framework.  This is
+certainly not required.
+
+VMS
+===
+
+This section was written by Klaus K"ampf <kkaempf@rmi.de>.  It
+describes how to build and install the binutils on openVMS (Alpha and
+Vax).  (The BFD library only supports reading Vax object files.)
+
+Compiling the release:
+
+To compile the gnu binary utilities and the gnu assembler, you'll
+need DEC C or GNU C for openVMS/Alpha. You'll need *both* compilers
+on openVMS/Vax.
+
+Compiling with either DEC C or GNU C works on openVMS/Alpha only. Some
+of the opcodes and binutils files trap a bug in the DEC C optimizer,
+so these files must be compiled with /noopt.
+
+Compiling on openVMS/Vax is a bit complicated, as the bfd library traps
+a bug in GNU C and the gnu assembler a bug in (my version of) DEC C.
+
+I never tried compiling with VAX C.
+
+
+You further need GNU Make Version 3.76 or later. This is available
+at ftp.progis.de or any GNU archive site. The makefiles assume that
+gmake starts gnu make as a foreign command.
+
+If you're compiling with DEC C or VAX C, you must run
+
+  $ @setup
+
+before starting gnu-make. This isn't needed with GNU C.
+
+On the Alpha you can choose the compiler by editing the toplevel
+makefile.vms. Either select CC=cc (for DEC C) or CC=gcc (for GNU C)
+
+
+Installing the release
+
+Provided that your directory setup conforms to the GNU on openVMS
+standard, you already have a concealed device named 'GNU_ROOT'.
+In this case, a simple
+
+ $ gmake install
+
+suffices to copy all programs and libraries to the proper directories.
+
+Define the programs as foreign commands by adding these lines to your
+login.com:
+
+  $ gas :== $GNU_ROOT:[bin]as.exe
+  $ size :== $GNU_ROOT:[bin]size.exe
+  $ nm :== $GNU_ROOT:[bin]nm.exe
+  $ objdump :== $GNU_ROOT:[bin]objdump.exe
+  $ strings :== $GNU_ROOT:[bin]strings.exe
+
+If you have a different directory setup, copy the binary utilities
+([.binutils]size.exe, [.binutils]nm.exe, [.binutils]objdump.exe,
+and [.binutils]strings.exe) and the gnu assembler and preprocessor
+([.gas]as.exe and [.gas]gasp.exe]) to a directory of your choice
+and define all programs as foreign commands.
+
+
+If you're satisfied with the compilation, you may want to remove
+unneeded objects and libraries:
+
+  $ gmake clean
+
+
+If you have any problems or questions about the binutils on VMS, feel
+free to mail me at kkaempf@rmi.de.

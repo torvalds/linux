@@ -1,0 +1,100 @@
+.\"-
+.\" Copyright (c) 2011 Edward Tomasz Napierala
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 12, 2016
+.Dt GETLOGINCLASS 2
+.Os
+.Sh NAME
+.Nm getloginclass ,
+.Nm setloginclass
+.Nd get/set login class
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn getloginclass "char *name" "size_t len"
+.Ft int
+.Fn setloginclass "const char *name"
+.Sh DESCRIPTION
+The
+.Fn getloginclass
+routine returns the login class name associated with the calling process,
+as previously set by
+.Fn setloginclass .
+The caller must provide the buffer
+.Fa name
+with length
+.Fa len
+bytes to hold the result.
+The buffer should be at least
+.Dv MAXLOGNAME
+bytes in length.
+.Pp
+The
+.Fn setloginclass
+system call sets the login class of the calling process to
+.Fa name .
+This system call is restricted to the super-user, and is normally used
+only when a new session is being created on behalf of the named user
+(for example, at login time, or when a remote shell is invoked).
+Processes inherit login class from their parents.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The following errors may be returned by these calls:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The
+.Fa name
+argument gave an invalid address.
+.It Bq Er EINVAL
+The
+.Fa name
+argument pointed to a string that was too long.
+Login class names are limited to
+.Dv MAXLOGNAME
+(from
+.In sys/param.h )
+characters, currently 33 including null.
+.It Bq Er EPERM
+The caller tried to set the login class and was not the super-user.
+.It Bq Er ENAMETOOLONG
+The size of the buffer is smaller than the result to be returned.
+.El
+.Sh SEE ALSO
+.Xr ps 1 ,
+.Xr setusercontext 3 ,
+.Xr login.conf 5 ,
+.Xr rctl 8
+.Sh HISTORY
+The
+.Fn getloginclass
+and
+.Fn setloginclass
+system calls first appeared in
+.Fx 9.0 .

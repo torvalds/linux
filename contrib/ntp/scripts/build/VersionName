@@ -1,0 +1,70 @@
+#! /bin/sh
+ 
+packageinfo='./packageinfo.sh'
+case "$#" in
+ 2)
+    case "$1" in
+     -p|--packageinfo)
+	packageinfo="$2"
+    esac
+    ;;
+ 0)
+    ;;
+ *) echo "Usage: $0 [-p packageinfo.sh]"
+    exit 1
+    ;;
+esac
+
+# This script must be executed from the TLD of the source tree...
+. "$packageinfo"
+
+NAME="$version"
+case "$repotype::$point" in
+ dev::)
+    case "${proto}.${major}" in
+     4.[012])
+	NAME="${NAME}p${point}"
+        ;;
+     *) NAME="${NAME}"
+        ;;
+    esac
+    ;;
+ stable::[1-9]* | dev::[0-9]*)
+    case "${proto}.${major}" in
+     4.[012])
+	NAME="${NAME}p${point}"
+        ;;
+     *) NAME="${NAME}.${point}"
+        ;;
+    esac
+    ;;
+ NEW) ;;
+ '') ;;
+ *) echo "Unexpected value for 'point' <$point>! (repotype is <$repotype>)"
+    exit 1
+    ;;
+esac
+
+case $special in
+ '') ;;
+ *) NAME="${NAME}-${special}" ;;
+esac
+
+case "$prerelease::$repotype" in
+ ''::*)
+    ;;
+ beta::stable)
+    NAME="${NAME}-beta${betapoint}"
+    ;;
+ rc::dev|RC::dev)
+    NAME="${NAME}-RC"
+    ;;
+ rc::stable|RC::stable)
+    NAME="${NAME}-RC${rcpoint}"
+    ;;
+ *) echo "Unexpected value for 'prerelease::repotype' <$prerelease::$repotype>!"
+    exit 1
+    ;;
+esac
+
+echo "$NAME"

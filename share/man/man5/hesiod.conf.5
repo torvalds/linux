@@ -1,0 +1,80 @@
+.\"	$NetBSD: hesiod.conf.5,v 1.2 1999/01/25 22:37:06 lukem Exp $
+.\"
+.\" from: #Id: hesiod.conf.5,v 1.1 1996/12/08 21:36:38 ghudson Exp #
+.\"
+.\" Copyright 1996 by the Massachusetts Institute of Technology.
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 30, 1996
+.Dt HESIOD.CONF 5
+.Os
+.Sh NAME
+.Nm hesiod.conf
+.Nd "configuration file for the Hesiod library"
+.Sh DESCRIPTION
+The file
+.Nm
+determines the behavior of the Hesiod library.
+Blank lines and lines beginning with a
+.Ql #
+character are ignored.
+All
+other lines should be of the form
+.Ar variable
+=
+.Ar value ,
+where the
+.Ar value
+should be a single word.
+Possible
+.Ar variables
+and
+.Ar values
+are:
+.Bl -tag -width classes
+.It Ic lhs
+Specifies the domain prefix used for Hesiod queries.
+In almost all cases, you should specify
+.Dq Li lhs=.ns .
+The default value if you do
+not specify an lhs value is no domain prefix, which is not compatible
+with most Hesiod domains.
+.It Ic rhs
+Specifies the default Hesiod domain; this value may be overridden by
+the
+.Ev HES_DOMAIN
+environment variable.
+You must specify an rhs line for the Hesiod
+library to work properly.
+.It Ic classes
+Specifies which DNS classes Hesiod should do lookups in.
+Possible values are
+.Cm IN
+(the preferred class) and
+.Cm HS
+(the deprecated class, still used by some sites).
+You may specify both classes separated by
+a comma to try one class first and then the other if no entry is
+available in the first class.
+The default value of the classes variable is
+.Dq Li IN,HS .
+.El
+.Sh SEE ALSO
+.Xr hesiod 3
+.Sh BUGS
+The default value for
+.Ic lhs
+should probably be more reasonable.

@@ -1,0 +1,453 @@
+# Copyright (c) 2008, 2009 Edward Tomasz Napierała <trasz@FreeBSD.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# This is a tools-level test for POSIX.1e ACL functionality.  Run it as root
+# using ACL-enabled kernel:
+#
+# /usr/src/tools/regression/acltools/run /usr/src/tools/regression/acltools/tools-posix.test
+#
+# WARNING: Creates files in unsafe way.
+
+$ whoami
+> root
+$ umask 022
+
+# Smoke test for getfacl(1).
+$ touch xxx
+$ getfacl -n xxx
+> # file: xxx
+> # owner: root
+> # group: wheel
+> user::rw-
+> group::r--
+> other::r--
+
+$ getfacl -q xxx
+> user::rw-
+> group::r--
+> other::r--
+
+$ setfacl -m u:42:r,g:43:w xxx
+$ getfacl -n xxx
+> # file: xxx
+> # owner: root
+> # group: wheel
+> user::rw-
+> user:42:r--
+> group::r--
+> group:43:-w-
+> mask::rw-
+> other::r--
+
+# Check whether ls correctly marks files with "+".
+$ ls -l xxx | cut -d' ' -f1
+> -rw-rw-r--+
+
+# Same as above, but for symlinks.
+$ ln -s xxx lll
+$ getfacl -h lll
+> # file: lll
+> # owner: root
+> # group: wheel
+> user::rwx
+> group::r-x
+> other::r-x
+
+$ getfacl -qh lll
+> user::rwx
+> group::r-x
+> other::r-x
+
+$ getfacl -q lll
+> user::rw-
+> user:42:r--
+> group::r--
+> group:43:-w-
+> mask::rw-
+> other::r--
+
+$ setfacl -hm u:44:x,g:45:w lll
+$ getfacl -h lll
+> # file: lll
+> # owner: root
+> # group: wheel
+> user::rwx
+> user:44:--x
+> group::r-x
+> group:45:-w-
+> mask::rwx
+> other::r-x
+
+$ ls -l lll | cut -d' ' -f1
+> lrwxrwxr-x+
+
+# Check whether the original file is left untouched.
+$ ls -l xxx | cut -d' ' -f1
+> -rw-rw-r--+
+
+$ rm lll
+
+# Test removing entries.
+$ setfacl -x user:42: xxx
+$ getfacl xxx
+> # file: xxx
+> # owner: root
+> # group: wheel
+> user::rw-
+> group::r--
+> group:43:-w-
+> mask::rw-
+> other::r--
+
+$ setfacl -m u:42:r xxx
+$ getfacl -n xxx
+> # file: xxx
+> # owner: root
+> # group: wheel
+> user::rw-
+> user:42:r--
+> group::r--
+> group:43:-w-
+> mask::rw-
+> other::r--
+
+# Test removing entries by number.
+$ setfacl -x 1 xxx
+$ getfacl -n xxx
+> # file: xxx
+> # owner: root
+> # group: wheel
+> user::rw-
+> group::r--
+> group:43:-w-
+> mask::rw-
+> other::r--
+
+$ setfacl -m g:43:r xxx
+$ getfacl -n xxx
+> # file: xxx
+> # owner: root
+> # group: wheel
+> user::rw-
+> group::r--
+> group:43:r--
+> mask::r--
+> other::r--
+
+# Make sure cp without any flags does not copy the ACL.
+$ cp xxx yyy
+$ ls -l yyy | cut -d' ' -f1
+> -rw-r--r--
+
+# Make sure it does with the "-p" flag.
+$ rm yyy
+$ cp -p xxx yyy
+$ getfacl -n yyy
+> # file: yyy
+> # owner: root
+> # group: wheel
+> user::rw-
+> group::r--
+> group:43:r--
+> mask::r--
+> other::r--
+
+$ rm yyy
+
+# Test removing entries by...  by example?
+$ setfacl -m u:42:r,g:43:w xxx
+$ setfacl -x u:42: xxx
+$ getfacl -n xxx
+> # file: xxx
+> # owner: root
+> # group: wheel
+> user::rw-
+> group::r--
+> group:43:-w-
+> mask::rw-
+> other::r--
+
+# Test setfacl -b.
+$ setfacl -b xxx
+$ getfacl -n xxx
+> # file: xxx
+> # owner: root
+> # group: wheel
+> user::rw-
+> group::r--
+> mask::r--
+> other::r--
+
+$ ls -l xxx | cut -d' ' -f1
+> -rw-r--r--+
+
+$ setfacl -nb xxx
+$ getfacl -n xxx
+> # file: xxx
+> # owner: root
+> # group: wheel
+> user::rw-
+> group::r--
+> other::r--
+
+$ ls -l xxx | cut -d' ' -f1
+> -rw-r--r--
+
+# Check setfacl(1) and getfacl(1) with multiple files.
+$ touch xxx yyy zzz
+
+$ ls -l xxx yyy zzz | cut -d' ' -f1
+> -rw-r--r--
+> -rw-r--r--
+> -rw-r--r--
+
+$ setfacl -m u:42:x,g:43:w nnn xxx yyy zzz
+> setfacl: nnn: acl_get_file() failed: No such file or directory
+
+$ ls -l nnn xxx yyy zzz | cut -d' ' -f1
+> ls: nnn: No such file or directory
+> -rw-rwxr--+
+> -rw-rwxr--+
+> -rw-rwxr--+
+
+$ getfacl -nq nnn xxx yyy zzz
+> getfacl: nnn: stat() failed: No such file or directory
+> user::rw-
+> user:42:--x
+> group::r--
+> group:43:-w-
+> mask::rwx
+> other::r--
+> 
+> user::rw-
+> user:42:--x
+> group::r--
+> group:43:-w-
+> mask::rwx
+> other::r--
+> 
+> user::rw-
+> user:42:--x
+> group::r--
+> group:43:-w-
+> mask::rwx
+> other::r--
+
+$ setfacl -b nnn xxx yyy zzz
+> setfacl: nnn: acl_get_file() failed: No such file or directory
+
+$ ls -l nnn xxx yyy zzz | cut -d' ' -f1
+> ls: nnn: No such file or directory
+> -rw-r--r--+
+> -rw-r--r--+
+> -rw-r--r--+
+
+$ setfacl -bn nnn xxx yyy zzz
+> setfacl: nnn: acl_get_file() failed: No such file or directory
+
+$ ls -l nnn xxx yyy zzz | cut -d' ' -f1
+> ls: nnn: No such file or directory
+> -rw-r--r--
+> -rw-r--r--
+> -rw-r--r--
+
+$ rm xxx yyy zzz
+
+# Check whether chmod actually does what it should do.
+$ touch xxx
+$ setfacl -m u:42:rwx,g:43:rwx xxx
+$ chmod 600 xxx
+$ getfacl -n xxx
+> # file: xxx
+> # owner: root
+> # group: wheel
+> user::rw-
+> user:42:rwx		# effective: ---
+> group::r--		# effective: ---
+> group:43:rwx		# effective: ---
+> mask::---
+> other::---
+
+$ chmod 060 xxx
+$ getfacl -n xxx
+> # file: xxx
+> # owner: root
+> # group: wheel
+> user::---
+> user:42:rwx		# effective: rw-
+> group::r--
+> group:43:rwx		# effective: rw-
+> mask::rw-
+> other::---
+
+# Test default ACLs.
+$ umask 022
+$ mkdir ddd
+$ getfacl -qn ddd
+> user::rwx
+> group::r-x
+> other::r-x
+
+$ ls -l | grep ddd | cut -d' ' -f1
+> drwxr-xr-x
+
+$ getfacl -dq ddd
+$ setfacl -dm u::rwx,g::rx,o::rx,mask::rwx ddd
+$ getfacl -dqn ddd
+> user::rwx
+> group::r-x
+> mask::rwx
+> other::r-x
+
+# No change - ls(1) output doesn't take into account default ACLs.
+$ ls -l | grep ddd | cut -d' ' -f1
+> drwxr-xr-x
+
+$ setfacl -dm g:42:rwx,u:42:r ddd
+$ setfacl -dm g::w ddd
+$ getfacl -dqn ddd
+> user::rwx
+> user:42:r--
+> group::-w-
+> group:42:rwx
+> mask::rwx
+> other::r-x
+
+$ setfacl -dx group:42: ddd
+$ getfacl -dqn ddd
+> user::rwx
+> user:42:r--
+> group::-w-
+> mask::rw-
+> other::r-x
+
+$ ls -l | grep ddd | cut -d' ' -f1
+> drwxr-xr-x
+
+$ rmdir ddd
+$ rm xxx
+
+# Test inheritance.
+$ mkdir ddd
+
+$ touch ddd/xxx
+$ getfacl -q ddd/xxx
+> user::rw-
+> group::r--
+> other::r--
+
+$ mkdir ddd/ddd
+$ getfacl -q ddd/ddd
+> user::rwx
+> group::r-x
+> other::r-x
+
+$ rmdir ddd/ddd
+$ rm ddd/xxx
+
+$ setfacl -dm u::rwx,g::rx,o::rx,mask::rwx ddd
+$ setfacl -dm g:42:rwx,u:43:r ddd
+$ getfacl -dq ddd
+> user::rwx
+> user:43:r--
+> group::r-x
+> group:42:rwx
+> mask::rwx
+> other::r-x
+
+$ touch ddd/xxx
+$ getfacl -q ddd/xxx
+> user::rw-
+> user:43:r--
+> group::r-x		# effective: r--
+> group:42:rwx		# effective: r--
+> mask::r--
+> other::r--
+
+$ mkdir ddd/ddd
+$ getfacl -q ddd/ddd
+> user::rwx
+> user:43:r--
+> group::r-x
+> group:42:rwx		# effective: r-x
+> mask::r-x
+> other::r-x
+
+$ rmdir ddd/ddd
+$ rm ddd/xxx
+$ rmdir ddd
+
+# Test if we deal properly with fifos.
+$ mkfifo fff
+$ ls -l fff | cut -d' ' -f1
+> prw-r--r--
+
+$ setfacl -m u:42:r,g:43:w fff
+$ getfacl fff
+> # file: fff
+> # owner: root
+> # group: wheel
+> user::rw-
+> user:42:r--
+> group::r--
+> group:43:-w-
+> mask::rw-
+> other::r--
+
+$ ls -l fff | cut -d' ' -f1
+> prw-rw-r--+
+
+$ setfacl -bn fff
+$ getfacl fff
+> # file: fff
+> # owner: root
+> # group: wheel
+> user::rw-
+> group::r--
+> other::r--
+
+$ ls -l fff | cut -d' ' -f1
+> prw-r--r--
+
+$ rm fff
+
+# Test if we deal properly with device files.
+$ mknod bbb b 1 1
+$ setfacl -m u:42:r,g:43:w bbb
+> setfacl: bbb: acl_get_file() failed: Operation not supported
+$ ls -l bbb | cut -d' ' -f1
+> brw-r--r--
+
+$ rm bbb
+
+$ mknod ccc c 1 1
+$ setfacl -m u:42:r,g:43:w ccc
+> setfacl: ccc: acl_get_file() failed: Operation not supported
+$ ls -l ccc | cut -d' ' -f1
+> crw-r--r--
+
+$ rm ccc

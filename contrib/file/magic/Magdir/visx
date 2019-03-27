@@ -1,0 +1,32 @@
+
+#------------------------------------------------------------------------------
+# $File: visx,v 1.5 2009/09/19 16:28:13 christos Exp $
+# visx:  file(1) magic for Visx format files
+#
+0	short		0x5555		VISX image file
+>2	byte		0		(zero)
+>2	byte		1		(unsigned char)
+>2	byte		2		(short integer)
+>2	byte		3		(float 32)
+>2	byte		4		(float 64)
+>2	byte		5		(signed char)
+>2	byte		6		(bit-plane)
+>2	byte		7		(classes)
+>2	byte		8		(statistics)
+>2	byte		10		(ascii text)
+>2	byte		15		(image segments)
+>2	byte		100		(image set)
+>2	byte		101		(unsigned char vector)
+>2	byte		102		(short integer vector)
+>2	byte		103		(float 32 vector)
+>2	byte		104		(float 64 vector)
+>2	byte		105		(signed char vector)
+>2	byte		106		(bit plane vector)
+>2	byte		121		(feature vector)
+>2	byte		122		(feature vector library)
+>2	byte		124		(chain code)
+>2	byte		126		(bit vector)
+>2	byte		130		(graph)
+>2	byte		131		(adjacency graph)
+>2	byte		132		(adjacency graph library)
+>2	string		.VISIX		(ascii text)

@@ -1,0 +1,27 @@
+\ ** ficl/softwords/marker.fr
+\ ** Ficl implementation of CORE EXT MARKER
+\ John Sadler, 4 Oct 98
+\ Requires ficl 2.02 FORGET-WID !!
+\
+\ $FreeBSD$
+
+: marker   ( "name" -- )
+    create  
+    get-current ,
+    get-order dup , 
+    0 ?do , loop 
+  does>
+    0 set-order                     \ clear search order
+    dup body> >name drop 
+    here - allot                    \ reset HERE to my xt-addr
+    dup @                           ( pfa current-wid )
+    dup set-current forget-wid      ( pfa )
+    cell+ dup @ swap                ( count count-addr )
+    over cells + swap               ( last-wid-addr count )
+    0 ?do 
+        dup @ dup                   ( wid-addr wid wid )
+        >search forget-wid          ( wid-addr )
+        cell- 
+    loop
+    drop
+;

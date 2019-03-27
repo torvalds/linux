@@ -1,0 +1,190 @@
+.\" Copyright 1996 Massachusetts Institute of Technology
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby
+.\" granted, provided that both the above copyright notice and this
+.\" permission notice appear in all copies, that both the above
+.\" copyright notice and this permission notice appear in all
+.\" supporting documentation, and that the name of M.I.T. not be used
+.\" in advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.  M.I.T. makes
+.\" no representations about the suitability of this software for any
+.\" purpose.  It is provided "as is" without express or implied
+.\" warranty.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
+.\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT
+.\" SHALL M.I.T. BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 28, 2009
+.Dt IFMIB 4
+.Os
+.Sh NAME
+.Nm ifmib
+.Nd Management Information Base for network interfaces
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In sys/sysctl.h
+.In sys/time.h
+.In net/if.h
+.In net/if_mib.h
+.Sh DESCRIPTION
+The
+.Nm
+facility is an application of the
+.Xr sysctl 3
+interface to provide management information about network interfaces
+to client applications such as
+.Xr netstat 1 ,
+.Xr slstat 8 ,
+and
+.Tn SNMP
+management agents.
+This information is structured as a table, where
+each row in the table represents a logical network interface (either a
+hardware device or a software pseudo-device like
+.Xr lo 4 ) .
+There are two columns in the table, each containing a single
+structure: one column contains generic information relevant to all
+interfaces, and the other contains information specific to the
+particular class of interface.
+(Generally the latter will implement
+the
+.Tn SNMP
+.Tn MIB
+defined for that particular interface class, if one exists and can be
+implemented in the kernel.)
+.Pp
+The
+.Nm
+facility is accessed via the
+.Dq Li net.link.generic
+branch of the
+.Xr sysctl 3
+MIB.
+The manifest constants for each level in the
+.Xr sysctl 3
+.Ar name
+are defined in
+.In net/if_mib.h .
+The index of the last row in the table is given by
+.Dq Li net.link.generic.system.ifcount
+(or, using the manifest constants,
+.Dv CTL_NET ,
+.Dv PF_LINK ,
+.Dv NETLINK_GENERIC ,
+.Dv IFMIB_SYSTEM ,
+.Dv IFMIB_IFCOUNT ) .
+A management application searching for a particular interface should
+start with row 1 and continue through the table row-by-row until the
+desired interface is found, or the interface count is reached.
+Note that the table may be sparse, i.e., a given row may not exist,
+indicated by an
+.Va errno
+of
+.Er ENOENT .
+Such an error should be ignored, and the next row should be checked.
+.Pp
+The generic interface information, common to all interfaces,
+can be accessed via the following procedure:
+.Bd -literal -offset indent
+int
+get_ifmib_general(int row, struct ifmibdata *ifmd)
+{
+	int name[6];
+	size_t len;
+
+	name[0] = CTL_NET;
+	name[1] = PF_LINK;
+	name[2] = NETLINK_GENERIC;
+	name[3] = IFMIB_IFDATA;
+	name[4] = row;
+	name[5] = IFDATA_GENERAL;
+
+	len = sizeof(*ifmd);
+
+	return sysctl(name, 6, ifmd, &len, (void *)0, 0);
+}
+.Ed
+.Pp
+The fields in
+.Li struct ifmibdata
+are as follows:
+.Bl -tag -width "ifmd_snd_drops"
+.It Li ifmd_name
+.Pq Li "char []"
+the name of the interface, including the unit number
+.It Li ifmd_pcount
+.Pq Li int
+the number of promiscuous listeners
+.It Li ifmd_flags
+.Pq Li int
+the interface's flags (defined in
+.In net/if.h )
+.It Li ifmd_snd_len
+.Pq Li int
+the current instantaneous length of the send queue
+.It Li ifmd_snd_drops
+.Pq Li int
+the number of packets dropped at this interface because the send queue
+was full
+.It Li ifmd_data
+.Pq Li struct if_data
+more information from a structure defined in
+.In net/if.h
+(see
+.Xr if_data 9 )
+.El
+.Pp
+Class-specific information can be retrieved by examining the
+.Dv IFDATA_LINKSPECIFIC
+column instead.
+Note that the form and length of the structure will
+depend on the class of interface.
+For
+.Dv IFT_ETHER ,
+.Dv IFT_ISO88023 ,
+and
+.Dv IFT_STARLAN
+interfaces, the structure is called
+.Dq Li struct ifmib_iso_8802_3
+(defined in
+.In net/if_mib.h ) ,
+and implements a superset of the
+.Tn "RFC 1650"
+MIB for Ethernet-like networks.
+.Sh SEE ALSO
+.Xr sysctl 3 ,
+.Xr intro 4 ,
+.Xr ifnet 9
+.\" .Xr ethermib 4 ,
+.Rs
+.%T "Definitions of Managed Objects for the Ethernet-like Interface Types Using SMIv2"
+.%A F. Kastenholz
+.%D August 1994
+.%O RFC 1650
+.Re
+.Sh HISTORY
+The
+.Nm
+interface first appeared in
+.Fx 2.2 .
+.Sh BUGS
+Many Ethernet-like interfaces do not yet support the Ethernet MIB;
+the interfaces known to support it include
+.Xr ed 4
+and
+.Xr de 4 .
+Regardless, all interfaces automatically support the generic MIB.

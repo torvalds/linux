@@ -1,0 +1,500 @@
+if [ ! "$_STARTUP_RCCONF_SUBR" ]; then _STARTUP_RCCONF_SUBR=1
+#
+# Copyright (c) 2006-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." startup/rcconf.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="140.startup"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+############################################################ GLOBALS
+
+#
+# Initialize in-memory cache variables
+#
+STARTUP_RCCONF_MAP=
+_STARTUP_RCCONF_MAP=
+
+#
+# Define what a variable looks like
+#
+STARTUP_RCCONF_REGEX="^[[:alpha:]_][[:alnum:]_]*="
+
+#
+# Default path to on-disk cache file(s)
+#
+STARTUP_RCCONF_MAP_CACHEFILE="/var/run/bsdconfig/startup_rcconf_map.cache"
+
+############################################################ FUNCTIONS
+
+# f_startup_rcconf_list
+#
+# Produce a list of non-default configuration variables configured in the
+# rc.conf(5) collection of files.
+#
+f_startup_rcconf_list()
+{
+	( # Operate within a sub-shell to protect the parent environment
+		. "$RC_DEFAULTS" > /dev/null
+		f_clean_env --except PATH STARTUP_RCCONF_REGEX rc_conf_files
+		source_rc_confs > /dev/null
+		export _rc_conf_files_file="$( f_sysrc_find rc_conf_files )"
+		export RC_DEFAULTS
+		set | awk -F= "
+		function test_print(var)
+		{
+			if ( var == \"OPTIND\" ) return
+			if ( var == \"PATH\" ) return
+			if ( var == \"RC_DEFAULTS\" ) return
+			if ( var == \"STARTUP_RCCONF_REGEX\" ) return
+			if ( var == \"_rc_conf_files_file\" ) return
+			if ( var == \"rc_conf_files\" )
+			{
+				if ( ENVIRON[\"_rc_conf_files_file\"] == \
+				     ENVIRON[\"RC_DEFAULTS\"] ) return
+			}
+			print var
+		}
+		/$STARTUP_RCCONF_REGEX/ { test_print(\$1) }"
+	)
+}
+
+# f_startup_rcconf_map [$var_to_set]
+#
+# Produce a map (beit from in-memory cache or on-disk cache) of rc.conf(5)
+# variables and their descriptions. The map returned has the following format:
+#
+# 	var description
+#
+# With each as follows:
+#
+# 	var           the rc.conf(5) variable
+# 	description   description of the variable
+#
+# If $var_to_set is missing or NULL, the map is printed to standard output for
+# capturing in a sub-shell (which is less-recommended because of performance
+# degredation; for example, when called in a loop).
+#
+f_startup_rcconf_map()
+{
+	local __funcname=f_startup_rcconf_map
+	local __var_to_set="$1"
+
+	# If the in-memory cached value is available, return it immediately
+	if [ "$_STARTUP_RCCONF_MAP" ]; then
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" "$STARTUP_RCCONF_MAP"
+		else
+			echo "$STARTUP_RCCONF_MAP"
+		fi
+		return $SUCCESS
+	fi
+
+	#
+	# Create the in-memory cache (potentially from validated on-disk cache)
+	#
+
+	#
+	# Calculate digest used to determine if the on-disk global persistent
+	# cache file (containing this digest on the first line) is valid and
+	# can be used to quickly populate the cache value for immediate return.
+	#
+	local __rc_defaults_digest
+	__rc_defaults_digest=$( exec 2> /dev/null; md5 < "$RC_DEFAULTS" )
+
+	#
+	# Check to see if the global persistent cache file exists
+	#
+	if [ -f "$STARTUP_RCCONF_MAP_CACHEFILE" ]; then
+		#
+		# Attempt to populate the in-memory cache with the (soon to be)
+		# validated on-disk cache. If validation fails, fall-back to
+		# the current value and provide error exit status.
+		#
+		STARTUP_RCCONF_MAP=$(
+			(	# Get digest as the first word on first line
+				read digest rest_ignored
+
+				#
+				# If the stored digest matches the calculated-
+				# one populate the in-memory cache from the on-
+				# disk cache and provide success exit status.
+				#
+				if [ "$digest" = "$__rc_defaults_digest" ]
+				then
+					cat
+					exit $SUCCESS
+				else
+					# Otherwise, return the current value
+					echo "$STARTUP_RCCONF_MAP"
+					exit $FAILURE
+				fi
+			) < "$STARTUP_RCCONF_MAP_CACHEFILE"
+		)
+		local __retval=$?
+		export STARTUP_RCCONF_MAP # Make children faster (export cache)
+		if [ $__retval -eq $SUCCESS ]; then
+			export _STARTUP_RCCONF_MAP=1
+			if [ "$__var_to_set" ]; then
+				setvar "$__var_to_set" "$STARTUP_RCCONF_MAP"
+			else
+				echo "$STARTUP_RCCONF_MAP"
+			fi
+			return $SUCCESS
+		fi
+		# Otherwise, fall-thru to create in-memory cache from scratch
+	fi
+
+	#
+	# If we reach this point, we need to generate the data from scratch
+	# (and after we do, we'll attempt to create the global persistent
+	# cache file to speed up future executions).
+	#
+
+	STARTUP_RCCONF_MAP=$(
+		f_clean_env --except \
+			PATH                 \
+			RC_DEFAULTS          \
+			STARTUP_RCCONF_REGEX \
+			f_sysrc_desc_awk
+		. "$RC_DEFAULTS"
+
+		# Unset variables we don't want reported
+		unset source_rc_confs_defined
+
+		for var in $( set | awk -F= "
+			function test_print(var)
+			{
+				if ( var == \"OPTIND\" ) return 
+				if ( var == \"PATH\" ) return 
+				if ( var == \"RC_DEFAULTS\" ) return 
+				if ( var == \"STARTUP_RCCONF_REGEX\" ) return 
+				if ( var == \"f_sysrc_desc_awk\" ) return
+				print var
+			}
+			/$STARTUP_RCCONF_REGEX/ { test_print(\$1) }
+		" ); do
+			echo $var "$( f_sysrc_desc $var )"
+		done
+	)
+	export STARTUP_RCCONF_MAP
+	export _STARTUP_RCCONF_MAP=1
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$STARTUP_RCCONF_MAP"
+	else
+		echo "$STARTUP_RCCONF_MAP"
+	fi
+
+	#
+	# Attempt to create the persistent global cache
+	#
+
+	# Create a new temporary file to write to
+	local __tmpfile
+	f_eval_catch -dk __tmpfile $__funcname mktemp \
+		'mktemp -t "%s"' "$pgm" || return $FAILURE
+
+	# Write the temporary file contents
+	echo "$__rc_defaults_digest" > "$__tmpfile"
+	echo "$STARTUP_RCCONF_MAP" >> "$__tmpfile"
+
+	# Finally, move the temporary file into place
+	case "$STARTUP_RCCONF_MAP_CACHEFILE" in
+	*/*) f_eval_catch -d $__funcname mkdir \
+		'mkdir -p "%s"' "${STARTUP_RCCONF_MAP_CACHEFILE%/*}"
+	esac
+	f_eval_catch -d $__funcname mv \
+		'mv "%s" "%s"' "$__tmpfile" "$STARTUP_RCCONF_MAP_CACHEFILE"
+}
+
+# f_startup_rcconf_map_expand $var_to_get
+#
+# Expands the map ($var_to_get) into the shell environment namespace by
+# creating _${var}_desc variables containing the description of each variable
+# encountered.
+#
+# NOTE: Variables are exported for later-required awk(1) ENVIRON visibility.
+#
+f_startup_rcconf_map_expand()
+{
+	local var_to_get="$1"
+	eval "$( debug= f_getvar "$var_to_get" | awk '
+	BEGIN {
+		rword = "^[[:space:]]*[^[:space:]]*[[:space:]]*"
+	}
+	{
+		var  = $1
+		desc = $0
+		sub(rword, "", desc)
+		gsub(/'\''/, "'\''\\'\'\''", desc)
+		printf "_%s_desc='\''%s'\''\n", var, desc
+		printf "export _%s_desc\n", var
+	}' )"
+}
+
+# f_dialog_input_view_details
+#
+# Display a menu for selecting which details are to be displayed. The following
+# variables are tracked/modified by the menu/user's selection:
+#
+# 	SHOW_DESC		Show or hide descriptions
+#
+# Mutually exclusive options:
+#
+# 	SHOW_VALUE		Show the value (default; override only)
+# 	SHOW_DEFAULT_VALUE	Show both value and default
+# 	SHOW_CONFIGURED		Show rc.conf(5) file variable is configured in
+#
+# Each variable is treated as a boolean (NULL for false, non-NULL for true).
+#
+# Variables are exported for later-required awk(1) ENVIRON visibility. Returns
+# success unless the user chose `Cancel' or pressed Escape.
+#
+f_dialog_input_view_details()
+{
+	local prompt=
+	local menu_list # calculated below
+	local defaultitem= # calculated below
+	local hline="$hline_arrows_tab_enter"
+
+	# Calculate marks for checkboxes and radio buttons
+	local md=" "
+	if [ "$SHOW_DESC" ]; then
+		md="X"
+	fi
+	local m1=" " m2=" " m3=" "
+	if [ "$SHOW_VALUE" ]; then
+		m1="*"
+		defaultitem="1 ($m1) $msg_show_value"
+	elif [ "$SHOW_DEFAULT_VALUE" ]; then
+		m2="*"
+		defaultitem="2 ($m2) $msg_show_default_value"
+	elif [ "$SHOW_CONFIGURED" ]; then
+		m3="*"
+		defaultitem="3 ($m3) $msg_show_configured"
+	fi
+
+	# Create the menu list with the above-calculated marks
+	menu_list="
+		'R $msg_reset'                    '$msg_reset_desc'
+		'D [$md] $msg_desc'               '$msg_desc_desc'
+		'1 ($m1) $msg_show_value'         '$msg_show_value_desc'
+		'2 ($m2) $msg_show_default_value' '$msg_show_default_value_desc'
+		'3 ($m3) $msg_show_configured'    '$msg_show_configured_desc'
+	" # END-QUOTE
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	f_dialog_title "$msg_choose_view_details"
+
+	local mtag
+	mtag=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\" \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize mtag
+
+	f_dialog_title_restore
+
+	[ $retval -eq $DIALOG_OK ] || return $DIALOG_CANCEL
+
+	case "$mtag" in
+	"R $msg_reset")
+		SHOW_VALUE=1
+		SHOW_DESC=1
+		SHOW_DEFAULT_VALUE=
+		SHOW_CONFIGURED=
+		;;
+	"D [X] $msg_desc") SHOW_DESC=  ;;
+	"D [ ] $msg_desc") SHOW_DESC=1 ;;
+	"1 ("?") $msg_show_value")
+		SHOW_VALUE=1
+		SHOW_DEFAULT_VALUE=
+		SHOW_CONFIGURED=
+		;;
+	"2 ("?") $msg_show_default_value")
+		SHOW_VALUE=
+		SHOW_DEFAULT_VALUE=1
+		SHOW_CONFIGURED=
+		;;
+	"3 ("?") $msg_show_configured")
+		SHOW_VALUE=
+		SHOW_DEFAULT_VALUE=
+		SHOW_CONFIGURED=1
+		;;
+	esac
+}
+
+# f_dialog_input_rclist [$default]
+#
+# Presents a menu of rc.conf(5) defaults (with, or without descriptions). This
+# function should be treated like a call to dialog(1) (the exit status should
+# be captured and f_dialog_menutag_fetch() should be used to get the user's
+# response). Optionally if present and non-null, highlight $default rcvar.
+#
+f_dialog_input_rclist()
+{
+	local prompt="$msg_please_select_an_rcconf_directive"
+	local menu_list="
+		'X $msg_exit' '' ${SHOW_DESC:+'$msg_exit_this_menu'}
+	" # END-QUOTE
+	local defaultitem="$1"
+	local hline="$hline_arrows_tab_enter"
+
+	if [ ! "$_RCCONF_MAP" ]; then
+		# Generate RCCONF_MAP of `var desc ...' per-line
+		f_dialog_info "$msg_creating_rcconf_map"
+		RCCONF_MAP=$( f_startup_rcconf_map )
+		export RCCONF_MAP
+		# Generate _${var}_desc variables from $RCCONF_MAP
+		f_startup_rcconf_map_expand
+		export _RCCONF_MAP=1
+	fi
+
+	menu_list="$menu_list $(
+		export SHOW_DESC
+		echo "$RCCONF_MAP" | awk '
+		BEGIN {
+			prefix = ""
+			rword  = "^[[:space:]]*[^[:space:]]*[[:space:]]*"
+		}
+		{
+			cur_prefix = tolower(substr($1, 1, 1))
+			printf "'\''"
+			if ( prefix != cur_prefix )
+				prefix = cur_prefix
+			else
+				printf " "
+			rcvar  = $1
+			printf "%s'\'' '\'\''", rcvar
+			if ( ENVIRON["SHOW_DESC"] ) {
+				desc = $0
+				sub(rword, "", desc)
+				gsub(/'\''/, "'\''\\'\'\''", desc)
+				printf " '\''%s'\''", desc
+			}
+			printf "\n"
+		}'
+	)"
+
+	set -f # set noglob because descriptions in the $menu_list may contain
+	       # `*' and get expanded by dialog(1) (doesn't affect Xdialog(1)).
+	       # This prevents dialog(1) from expanding wildcards in help line.
+
+	local height width rows
+	eval f_dialog_menu${SHOW_DESC:+_with_help}_size \
+		height width rows \
+		\"\$DIALOG_TITLE\"     \
+		\"\$DIALOG_BACKTITLE\" \
+		\"\$prompt\"           \
+		\"\$hline\"            \
+		$menu_list
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--default-item \"\$defaultitem\"   \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		${SHOW_DESC:+--item-help}          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_menutag_store -s "$menu_choice"
+	return $retval
+}
+
+# f_dialog_input_rcvar [$init]
+#
+# Allows the user to enter the name for a new rc.conf(5) variable. If the user
+# does not cancel or press ESC, the $rcvar variable will hold the newly-
+# configured value upon return.
+#
+f_dialog_input_rcvar()
+{
+	#
+	# Loop until the user provides taint-free/valid input
+	#
+	local _input="$1"
+	while :; do
+
+		# Return if user either pressed ESC or chosen Cancel/No
+		f_dialog_input _input "$msg_please_enter_rcvar_name" \
+		               "$_input" "$hline_alnum_tab_enter" || return $?
+
+		# Check for invalid entry (1of2)
+		if ! echo "$_input" | grep -q "^[[:alpha:]_]"; then
+			f_show_msg "$msg_rcvar_must_start_with"
+			continue
+		fi
+
+		# Check for invalid entry (2of2)
+		if ! echo "$_input" | grep -q "^[[:alpha:]_][[:alnum:]_]*$"
+		then
+			f_show_msg "$msg_rcvar_contains_invalid_chars"
+			continue
+		fi
+
+		rcvar="$_input"
+		break
+	done
+
+	f_dprintf "f_dialog_input_rcvar: rcvar->[%s]" "$rcvar"
+
+	return $DIALOG_OK
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." startup/rcconf.subr
+
+fi # ! $_STARTUP_RCCONF_SUBR

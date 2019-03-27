@@ -1,0 +1,22 @@
+#$FreeBSD$
+
+arm/ti/ti_smc.S					standard
+
+arm/ti/usb/omap_ehci.c				optional	usb ehci
+arm/ti/usb/omap_host.c				optional	usb
+arm/ti/usb/omap_tll.c				optional	usb
+arm/ti/ti_sdma.c				optional	ti_sdma
+
+arm/ti/omap4/omap4_gpio.c			optional	gpio
+arm/ti/omap4/omap4_l2cache.c			optional	pl310
+arm/ti/omap4/omap4_prcm_clks.c			standard
+arm/ti/omap4/omap4_scm_padconf.c		standard
+arm/ti/omap4/omap4_mp.c				optional	smp
+arm/ti/omap4/omap4_wugen.c			standard
+
+arm/ti/omap4/pandaboard/pandaboard.c		standard
+
+arm/ti/twl/twl.c				optional	twl
+arm/ti/twl/twl_vreg.c				optional	twl twl_vreg
+arm/ti/twl/twl_clks.c				optional	twl twl_clks
+

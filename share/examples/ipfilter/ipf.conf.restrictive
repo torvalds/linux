@@ -1,0 +1,77 @@
+# $FreeBSD$
+#--------------------------------------------------------------------------
+# ed1 - external interface
+# fxp0 - internal interface
+#--------------------------------------------------------------------------
+# First, nasty packets which we don't want near us at all
+# packets which are too short to be real except echo replies on lo0
+pass in log quick on lo0 proto icmp from 127.0.0.1/8 to 127.0.0.1/8 with short
+block in log quick all with short
+block in log quick all with opt lsrr
+block in log quick all with opt ssrr
+#--------------------------------------------------------------------------
+# loopback packets left unmolested
+pass in log quick on lo0 all
+pass out log quick on lo0 all
+#--------------------------------------------------------------------------
+# Group setup:
+# 100 incoming ed1
+# 150 outgoing ed1
+# 200 incoming fxp0
+# 250 outgoing fxp0
+#--------------------------------------------------------------------------
+block in log body on ed1 all head 100
+block out log body on ed1 all head 150
+#--------------------------------------------------------------------------
+block in log on fxp0 all head 200
+block out log on fxp0 all head 250
+#--------------------------------------------------------------------------
+# incoming ed1 traffic - group 100
+# 1) prevent localhost spoofing
+block in log quick from 127.0.0.1/32 to 192.168.0.0/24 group 100
+block in log quick from 127.0.0.1/32 to 192.168.1.0/24 group 100
+block in log quick from any to 127.0.0.1/8 group 100
+#--------------------------------------------------------------------------
+# 2) deny pakets which should not be seen on th internet (paranoid)
+block in log quick from 10.0.0.0/8 to any group 100
+block in log quick from any to 10.0.0.0/8 group 100
+block in log quick from 172.16.0.0/16 to any group 100
+block in log quick from any to 172.16.0.0/16 group 100
+block in log quick from 192.168.0.0/16 to any group 100
+block in log from any to 192.168.0.0/16 group 100
+# 3) implement policy
+# allow incoming ftp-data
+pass in log quick proto tcp/udp from any to 192.168.1.1/24 keep state group 100
+# if nothing applies, block and return icmp-replies (unreachable and rst)
+block return-icmp(net-unr) in proto udp from any to any group 100
+block return-rst in log proto tcp from any to any group 100
+#--------------------------------------------------------------------------
+# outgoing ed1 traffic - group 150
+# Setup outgoing DNS
+pass out log quick proto tcp/udp from any to 212.40.0.10 port = 53 keep state group 150
+pass out log quick proto tcp/udp from any to 212.40.5.50 port = 53 keep state group 150
+# allow outgoing http-service
+pass out log quick proto tcp from any to any port = 80 flags S/SA keep state keep frags group 150
+# allow outgoing smtp traffic
+pass out log quick proto tcp from 192.168.1.1/24 to any port = 25 flags S/SA keep state group 150
+# allow outgoing pop3 traffic
+pass out log quick proto tcp from 192.168.1.1/24 to any port = 110 flags S/SA keep state group 150
+# allow outgoing ftp traffic
+pass out log quick proto tcp/udp from 192.168.1.1/24 to any port = ftp keep state group 150
+pass out log quick proto icmp from any to any keep state keep frags group 150
+#--------------------------------------------------------------------------
+# incoming traffic on fxp0 - group 200
+#--------------------------------------------------------------------------
+# 1) prevent localhost spoofing
+block in log quick from 127.0.0.0/8 to any group 200
+block in log quick from 192.168.0.1/32 to any group 200
+block in log quick from 192.168.1.110/24 to any group 200
+pass in log quick from any to any group 200
+#--------------------------------------------------------------------------
+# outgoing traffic on fxp0 - group 250
+#--------------------------------------------------------------------------
+block out log quick from 127.0.0.0/8 to any group 250
+block out quick from any to 127.0.0.0/8 group 250
+block out log quick from any to 192.168.0.1/32 group 250
+pass out log quick from any to nay group 250
+#--------------------------------------------------------------------------

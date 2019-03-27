@@ -1,0 +1,6 @@
+$FreeBSD$
+
+This is a modified login version for PicoBSD purposes, which does
+not demand PAM.
+The "login.c" file is replaced by pico-login.c in this directory,
+the remaining files are taken from usr.bin/login/

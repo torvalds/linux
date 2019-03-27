@@ -1,0 +1,70 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: mitem_value.3x,v 1.10 2010/12/04 18:40:45 tom Exp $
+.TH mitem_value 3X ""
+.SH NAME
+\fBmitem_value\fR \- set and get menu item values
+.SH SYNOPSIS
+\fB#include <menu.h>\fR
+.br
+int set_item_value(ITEM *item, bool value);
+.br
+bool item_value(const ITEM *item);
+.br
+.SH DESCRIPTION
+If you turn off the menu option \fBO_ONEVALUE\fR (e.g., with
+\fBset_menu_opts\fR or \fBmenu_opts_off\fR; see \fBmenu_opts\fR(3X)), the menu
+becomes multi-valued; that is, more than one item may simultaneously be
+selected.
+.PP
+In a multi_valued menu, you can used \fBset_item_value\fR to select the
+given menu item (second argument \fBTRUE\fR) or deselect it (second argument
+\fBFALSE\fR).
+.SH RETURN VALUE
+The function \fBset_item_value\fR returns one of the following:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
+.TP 5
+.B E_REQUEST_DENIED
+The menu driver could not process the request.
+.SH SEE ALSO
+\fBcurses\fR(3X), \fBmenu\fR(3X).
+.SH NOTES
+The header file \fB<menu.h>\fR automatically includes the header file
+\fB<curses.h>\fR.
+.SH PORTABILITY
+These routines emulate the System V menu library.  They were not supported on
+Version 7 or BSD versions.
+.SH AUTHORS
+Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
+S. Raymond.

@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+set -o pipefail
+: && : | : && : | : | : && : | : | : | :

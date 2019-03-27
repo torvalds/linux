@@ -1,0 +1,206 @@
+.\" Copyright (c) 2006, 2008 Stanislav Sedov <stas@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 5, 2018
+.Dt CPUCONTROL 8
+.Os
+.Sh NAME
+.Nm cpucontrol
+.Nd control utility for the
+.Xr cpuctl 4
+device
+.Sh SYNOPSIS
+.Nm
+.Bk
+.Op Fl v
+.Fl m Ar msr
+.Ar device
+.Ek
+.Bk
+.Nm
+.Op Fl v
+.Fl m Ar msr Ns = Ns Ar value
+.Ar device
+.Ek
+.Bk
+.Nm
+.Op Fl v
+.Fl m Ar msr Ns &= Ns Ar mask
+.Ar device
+.Ek
+.Bk
+.Nm
+.Op Fl v
+.Fl m Ar msr Ns |= Ns Ar mask
+.Ar device
+.Ek
+.Bk
+.Nm
+.Op Fl v
+.Fl i Ar level
+.Ar device
+.Ek
+.Bk
+.Nm
+.Op Fl v
+.Fl i Ar level,level_type
+.Ar device
+.Ek
+.Bk
+.Nm
+.Op Fl vn
+.Op Fl d Ar datadir
+.Fl u
+.Ar device
+.Ek
+.Bk
+.Nm
+.Fl e
+.Ar device
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+utility can be used to read and write arbitrary machine-specific
+CPU registers via the
+.Xr cpuctl 4
+special device.
+It can also be used to apply CPU firmware updates.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl d Ar datadir
+Directory paths where to look for microcode images.
+The option can be specified multiple times.
+The paths are added in order of the options appearance on the command
+line, default directories are appended after the user-supplied paths.
+.It Fl n
+Do not look for the microcode images in the standard directories.
+Currently standard directory to look for the microcode update files is
+.Pa /usr/local/share/cpucontrol .
+.It Fl m Ar msr
+Show value of the specified MSR.
+MSR register number should be given as a hexadecimal number.
+The high word is printed first, then the low word is printed second.
+.It Fl m Ar msr Ns = Ns Ar value
+Store the
+.Ar value
+in the specified MSR register.
+The
+.Ar value
+argument can be prefixed with ~ operator.
+In this case the inverted value of argument will be stored in the register.
+.It Fl m Ar msr Ns &= Ns Ar mask
+Store the result of bitwise AND operation between
+.Ar mask
+and the current MSR value in the MSR register.
+The
+.Ar mask
+argument can be prefixed with ~ operator.
+In this case the inverted value of mask will be used.
+.It Fl m Ar msr Ns |= Ns Ar mask
+Store the result of bitwise OR operation between
+.Ar mask
+and the current MSR value in the MSR register.
+The
+.Ar mask
+argument can be prefixed with ~ operator.
+In this case the inverted value of mask will be used.
+.It Fl i Ar level
+Retrieve CPUID info.
+Level should be given as a hex number.
+.It Fl i Ar level,level_type
+Retrieve CPUID info.
+Level and level_type should be given as hex numbers.
+.It Fl u
+Apply CPU firmware updates.
+The
+.Nm
+utility will walk through the configured data directories
+and apply all firmware updates available for this CPU.
+.It Fl e
+Re-evaluate the kernel flags indicating the present CPU features.
+This command is typically executed after a firmware update was applied
+which changes information reported by the
+.Dv CPUID
+instruction.
+.Pp
+.Bf -symbolic
+Only execute the
+.Fl e
+command after the microcode update was applied to all CPUs in the system.
+The kernel does not operate correctly if the features of processors are
+not identical.
+.Ef
+.It Fl v
+Increase the verbosity level.
+.It Fl h
+Show help message.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+The command
+.Pp
+.Dq Li "cpucontrol -m 0x10 /dev/cpuctl0"
+.Pp
+will read the contents of TSC MSR from CPU 0.
+.Pp
+To set the CPU 0 TSC MSR register value to 0x1 issue
+.Pp
+.Dq Li "cpucontrol -m 0x10=0x1 /dev/cpuctl0" .
+.Pp
+The following command will clear the second bit of TSC register:
+.Pp
+.Dq Li "cpucontrol -m 0x10&=~0x02 /dev/cpuctl0" .
+.Pp
+The following command will set the forth and second bit of TSC register:
+.Pp
+.Dq Li "cpucontrol -m 0x10|=0x0a /dev/cpuctl0" .
+.Pp
+The command
+.Pp
+.Dq Li "cpucontrol -i 0x1 /dev/cpuctl1"
+.Pp
+will retrieve the CPUID level 0x1 from CPU 1.
+.Pp
+To perform firmware updates on CPU 0 from images located at
+.Pa /usr/local/share/cpuctl
+use the following command:
+.Pp
+.Dq Li "cpucontrol -nd /usr/local/share/cpuctl -u /dev/cpuctl0"
+.Sh SEE ALSO
+.Xr cpuctl 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 7.2 .
+.Sh AUTHORS
+The
+.Nm
+utility and this manual page was written by
+.An Stanislav Sedov Aq Mt stas@FreeBSD.org .

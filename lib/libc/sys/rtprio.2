@@ -1,0 +1,198 @@
+.\"-
+.\" Copyright (c) 1994, Henrik Vestergaard Draboel
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" 	This product includes software developed by Henrik Vestergaard Draboel.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"-
+.\" Copyright (c) 2011 Xin LI <delphij@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 27, 2011
+.Dt RTPRIO 2
+.Os
+.Sh NAME
+.Nm rtprio ,
+.Nm rtprio_thread
+.Nd examine or modify realtime or idle priority
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/rtprio.h
+.Ft int
+.Fn rtprio "int function" "pid_t pid" "struct rtprio *rtp"
+.Ft int
+.Fn rtprio_thread "int function" "lwpid_t lwpid" "struct rtprio *rtp"
+.Sh DESCRIPTION
+The
+.Fn rtprio
+system call
+is used to lookup or change the realtime or idle priority of a process,
+or the calling thread.
+The
+.Fn rtprio_thread
+system call
+is used to lookup or change the realtime or idle priority of a thread.
+.Pp
+The
+.Fa function
+argument
+specifies the operation to be performed.
+RTP_LOOKUP to lookup the current priority,
+and RTP_SET to set the priority.
+.Pp
+For the
+.Fn rtprio
+system call,
+the
+.Fa pid
+argument
+specifies the process to operate on,
+0 for the calling thread.
+When
+.Fa pid
+is non-zero,
+the system call reports the highest priority in the process,
+or sets all threads' priority in the process,
+depending on value of the
+.Fa function
+argument.
+.Pp
+For the
+.Fn rtprio_thread
+system call,
+the
+.Fa lwpid
+specifies the thread to operate on,
+0 for the calling thread.
+.Pp
+The
+.Fa *rtp
+argument
+is a pointer to a struct rtprio which is used to specify the priority and priority type.
+This structure has the following form:
+.Bd -literal
+struct rtprio {
+	u_short	type;
+	u_short prio;
+};
+.Ed
+.Pp
+The value of the
+.Va type
+field may be RTP_PRIO_REALTIME for realtime priorities,
+RTP_PRIO_NORMAL for normal priorities, and RTP_PRIO_IDLE for idle priorities.
+The priority specified by the
+.Va prio
+field ranges between 0 and
+.Dv RTP_PRIO_MAX
+.Pq usually 31 .
+0 is the highest possible priority.
+.Pp
+Realtime and idle priority is inherited through fork() and exec().
+.Pp
+A realtime thread can only be preempted by a thread of equal or
+higher priority, or by an interrupt; idle priority threads will run only
+when no other real/normal priority thread is runnable.
+Higher real/idle priority threads
+preempt lower real/idle priority threads.
+Threads of equal real/idle priority are run round-robin.
+.Sh RETURN VALUES
+.Rv -std rtprio rtprio_thread
+.Sh ERRORS
+The
+.Fn rtprio
+and
+.Fn rtprio_thread
+system calls
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The rtp pointer passed to
+.Fn rtprio
+or
+.Fn rtprio_thread
+was invalid.
+.It Bq Er EINVAL
+The specified
+.Fa prio
+was out of range.
+.It Bq Er EPERM
+The calling thread is not allowed to set the realtime priority.
+Only
+root is allowed to change the realtime priority of any thread, and non-root
+may only change the idle priority of threads the user owns,
+when the
+.Xr sysctl 8
+variable
+.Va security.bsd.unprivileged_idprio
+is set to non-zero.
+.It Bq Er ESRCH
+The specified process or thread was not found or visible.
+.El
+.Sh SEE ALSO
+.Xr nice 1 ,
+.Xr ps 1 ,
+.Xr rtprio 1 ,
+.Xr setpriority 2 ,
+.Xr nice 3 ,
+.Xr renice 8 ,
+.Xr p_cansee 9
+.Sh AUTHORS
+.An -nosplit
+The original author was
+.An Henrik Vestergaard Draboel Aq Mt hvd@terry.ping.dk .
+This implementation in
+.Fx
+was substantially rewritten by
+.An David Greenman .
+The
+.Fn rtprio_thread
+system call was implemented by
+.An David Xu .

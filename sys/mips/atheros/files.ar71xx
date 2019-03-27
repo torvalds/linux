@@ -1,0 +1,35 @@
+# $FreeBSD$
+
+mips/atheros/apb.c		optional ar71xx_apb
+mips/atheros/ar71xx_caldata.c	optional ar71xx_caldata
+mips/atheros/ar71xx_gpio.c	optional gpio
+mips/atheros/ar71xx_machdep.c	standard
+mips/atheros/ar71xx_ehci.c	optional ehci
+mips/atheros/ar71xx_ohci.c	optional ohci
+mips/atheros/ar71xx_pci.c	optional ar71xx_pci pci
+mips/atheros/ar724x_pci.c	optional ar724x_pci pci
+mips/atheros/ar71xx_pci_bus_space.c	optional pci
+mips/atheros/ar71xx_spi.c	optional ar71xx_spi
+mips/atheros/ar71xx_macaddr.c	standard
+mips/atheros/pcf2123_rtc.c	optional pcf2123_rtc ar71xx_spi
+mips/atheros/ar71xx_wdog.c	optional ar71xx_wdog
+mips/atheros/if_arge.c		optional arge
+mips/atheros/uart_bus_ar71xx.c	optional uart_ar71xx
+mips/atheros/uart_cpu_ar71xx.c	optional uart_ar71xx
+mips/atheros/uart_bus_ar933x.c	optional uart_ar933x
+mips/atheros/uart_cpu_ar933x.c	optional uart_ar933x
+mips/atheros/uart_dev_ar933x.c	optional uart_ar933x
+mips/atheros/ar71xx_bus_space_reversed.c	standard
+mips/mips/intr_machdep.c        standard
+mips/mips/tick.c		standard
+mips/atheros/ar71xx_setup.c	standard
+mips/atheros/ar71xx_chip.c	standard
+mips/atheros/ar724x_chip.c	standard
+mips/atheros/ar91xx_chip.c	standard
+mips/atheros/ar933x_chip.c	standard
+mips/atheros/ar934x_chip.c	standard
+mips/atheros/qca953x_chip.c	standard
+mips/atheros/qca955x_chip.c	standard
+mips/atheros/ar71xx_fixup.c	optional ar71xx_ath_eeprom
+mips/atheros/qca955x_apb.c	optional qca955x_apb
+mips/atheros/qca955x_pci.c	optional qca955x_pci pci

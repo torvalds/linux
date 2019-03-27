@@ -1,0 +1,228 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)recno.3	8.5 (Berkeley) 8/18/94
+.\" $FreeBSD$
+.\"
+.Dd August 18, 1994
+.Dt RECNO 3
+.Os
+.Sh NAME
+.Nm recno
+.Nd "record number database access method"
+.Sh SYNOPSIS
+.In sys/types.h
+.In db.h
+.Sh DESCRIPTION
+The routine
+.Fn dbopen
+is the library interface to database files.
+One of the supported file formats is record number files.
+The general description of the database access methods is in
+.Xr dbopen 3 ,
+this manual page describes only the
+.Nm
+specific information.
+.Pp
+The record number data structure is either variable or fixed-length
+records stored in a flat-file format, accessed by the logical record
+number.
+The existence of record number five implies the existence of records
+one through four, and the deletion of record number one causes
+record number five to be renumbered to record number four, as well
+as the cursor, if positioned after record number one, to shift down
+one record.
+.Pp
+The
+.Nm
+access method specific data structure provided to
+.Fn dbopen
+is defined in the
+.In db.h
+include file as follows:
+.Bd -literal
+typedef struct {
+	u_long flags;
+	u_int cachesize;
+	u_int psize;
+	int lorder;
+	size_t reclen;
+	u_char bval;
+	char *bfname;
+} RECNOINFO;
+.Ed
+.Pp
+The elements of this structure are defined as follows:
+.Bl -tag -width indent
+.It Va flags
+The flag value is specified by
+.Em or Ns 'ing
+any of the following values:
+.Bl -tag -width indent
+.It Dv R_FIXEDLEN
+The records are fixed-length, not byte delimited.
+The structure element
+.Va reclen
+specifies the length of the record, and the structure element
+.Va bval
+is used as the pad character.
+Any records, inserted into the database, that are less than
+.Va reclen
+bytes long are automatically padded.
+.It Dv R_NOKEY
+In the interface specified by
+.Fn dbopen ,
+the sequential record retrieval fills in both the caller's key and
+data structures.
+If the
+.Dv R_NOKEY
+flag is specified, the
+.Em cursor
+routines are not required to fill in the key structure.
+This permits applications to retrieve records at the end of files without
+reading all of the intervening records.
+.It Dv R_SNAPSHOT
+This flag requires that a snapshot of the file be taken when
+.Fn dbopen
+is called, instead of permitting any unmodified records to be read from
+the original file.
+.El
+.It Va cachesize
+A suggested maximum size, in bytes, of the memory cache.
+This value is
+.Em only
+advisory, and the access method will allocate more memory rather than fail.
+If
+.Va cachesize
+is 0 (no size is specified) a default cache is used.
+.It Va psize
+The
+.Nm
+access method stores the in-memory copies of its records
+in a btree.
+This value is the size (in bytes) of the pages used for nodes in that tree.
+If
+.Va psize
+is 0 (no page size is specified) a page size is chosen based on the
+underlying file system I/O block size.
+See
+.Xr btree 3
+for more information.
+.It Va lorder
+The byte order for integers in the stored database metadata.
+The number should represent the order as an integer; for example,
+big endian order would be the number 4,321.
+If
+.Va lorder
+is 0 (no order is specified) the current host order is used.
+.It Va reclen
+The length of a fixed-length record.
+.It Va bval
+The delimiting byte to be used to mark the end of a record for
+variable-length records, and the pad character for fixed-length
+records.
+If no value is specified, newlines
+.Pq Dq \en
+are used to mark the end
+of variable-length records and fixed-length records are padded with
+spaces.
+.It Va bfname
+The
+.Nm
+access method stores the in-memory copies of its records
+in a btree.
+If
+.Va bfname
+is
+.No non\- Ns Dv NULL ,
+it specifies the name of the btree file,
+as if specified as the file name for a
+.Fn dbopen
+of a btree file.
+.El
+.Pp
+The data part of the key/data pair used by the
+.Nm
+access method
+is the same as other access methods.
+The key is different.
+The
+.Va data
+field of the key should be a pointer to a memory location of type
+.Ft recno_t ,
+as defined in the
+.In db.h
+include file.
+This type is normally the largest unsigned integral type available to
+the implementation.
+The
+.Va size
+field of the key should be the size of that type.
+.Pp
+Because there can be no meta-data associated with the underlying
+.Nm
+access method files, any changes made to the default values
+(e.g.\& fixed record length or byte separator value) must be explicitly
+specified each time the file is opened.
+.Pp
+In the interface specified by
+.Fn dbopen ,
+using the
+.Va put
+interface to create a new record will cause the creation of multiple,
+empty records if the record number is more than one greater than the
+largest record currently in the database.
+.Sh ERRORS
+The
+.Nm
+access method routines may fail and set
+.Va errno
+for any of the errors specified for the library routine
+.Xr dbopen 3
+or the following:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+An attempt was made to add a record to a fixed-length database that
+was too large to fit.
+.El
+.Sh SEE ALSO
+.Xr btree 3 ,
+.Xr dbopen 3 ,
+.Xr hash 3 ,
+.Xr mpool 3
+.Rs
+.%T "Document Processing in a Relational Database System"
+.%A Michael Stonebraker
+.%A Heidi Stettner
+.%A Joseph Kalash
+.%A Antonin Guttman
+.%A Nadene Lynn
+.%R "Memorandum No. UCB/ERL M82/32"
+.%D May 1982
+.Re
+.Sh BUGS
+Only big and little endian byte order is supported.

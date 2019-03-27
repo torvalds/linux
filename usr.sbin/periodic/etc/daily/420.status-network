@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_status_network_enable" in
+    [Yy][Ee][Ss])
+	echo ""
+	echo "Network interface status:"
+
+	flags="${daily_status_network_netstat_flags}"
+	case "$daily_status_network_usedns" in
+	    [Yy][Ee][Ss])
+		;;
+	    *)
+		flags="${flags} -n";;
+	esac
+	netstat -i ${flags} && rc=0 || rc=3;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

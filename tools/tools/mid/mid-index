@@ -1,0 +1,83 @@
+#!/usr/local/bin/perl
+#
+# create message-id / in-reply-to database
+#
+# $FreeBSD$
+
+sub usage { die "usage: mid-index name < filelist"; }
+
+sub id {
+    local($name, @files) = @_;
+    local($bytes, $bytes2, $headlen, $file);
+    local($counter);
+    local($from,$from2);
+    
+    $counter = 0;
+    open(MID, "| sort -u -o $name.mid") || die "open sort > $name.mid: $!\n";
+    open(IRT, "| sort -u -o $name.irt") || die "open sort > $name.irt: $!\n";
+
+    while(<>) {
+	local($/) = "\n\n";
+	chop;
+	$file = $_;
+
+	open(R, $file) || do {
+	    warn "open $file:$!\n";
+	    next;
+	};
+	$bytes = 0;
+
+	while(<R>) {    
+	    $headlen = length($_);
+	    $from2 = substr($_, 0, 6);
+	    $from =  substr($from2, 0, 5);
+
+	    # warn "xxx" . $from . "yyy\n";
+	    if ($from eq "From " || $from2 eq "\nFrom ") {
+
+		if ($from eq "From ") {
+		    $bytes2 = $bytes;
+		} else {
+		    # One bytes more for "\nFrom "
+		    $bytes2 = $bytes + 1;
+		}
+
+		$counter++;
+		s/\n[ \t]+/ /g;
+		if ($debug && $counter % $speedstep == 0) {
+		    print STDERR sprintf("\r%7d", $counter); 
+		}
+
+		foreach (split("\n")) {
+		    if (/^Message-id:\s+\<([^$idsep]+)/oi) {
+			print MID "$1 $file $bytes2\n";
+		    } elsif (/^Resent-Message-id:\s+\<([^$idsep]+)/oi) {
+			print MID "$1 $file $bytes2\n";
+		    } elsif (/^References:\s+\<([^$idsep]+)/oi) {
+			print IRT "$1 $file $bytes2\n";
+		    } elsif (/^In-Reply-to:\s+[^<]*\<([^$idsep]+)/oi) {
+			print IRT "$1 $file $bytes2\n";
+		    }
+		}
+	     }
+             $bytes += $headlen;
+	}
+	close R;
+    }
+    close MID || warn "close: MID\n";
+    close IRT || warn "close: IRT\n";
+    print STDERR sprintf("\r%7d", $counter) 
+	if $debug && $counter % $speedstep != 0;
+    print STDERR "\n" if $debug;
+}
+
+$idsep = '>';
+$idsep = '>@\s';
+$debug = 0;
+$speedstep = 100;
+
+&usage if $#ARGV != 0;
+$name = $ARGV[0]; shift @ARGV;
+&id($name);
+
+

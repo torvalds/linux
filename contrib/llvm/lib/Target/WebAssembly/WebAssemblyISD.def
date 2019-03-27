@@ -1,0 +1,30 @@
+//- WebAssemblyISD.def - WebAssembly ISD ---------------------------*- C++ -*-//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file describes the various WebAssembly ISD node types.
+///
+//===----------------------------------------------------------------------===//
+
+// NOTE: NO INCLUDE GUARD DESIRED!
+
+HANDLE_NODETYPE(CALL1)
+HANDLE_NODETYPE(CALL0)
+HANDLE_NODETYPE(RETURN)
+HANDLE_NODETYPE(ARGUMENT)
+HANDLE_NODETYPE(Wrapper)
+HANDLE_NODETYPE(BR_IF)
+HANDLE_NODETYPE(BR_TABLE)
+HANDLE_NODETYPE(SHUFFLE)
+HANDLE_NODETYPE(VEC_SHL)
+HANDLE_NODETYPE(VEC_SHR_S)
+HANDLE_NODETYPE(VEC_SHR_U)
+HANDLE_NODETYPE(THROW)
+
+// add memory opcodes starting at ISD::FIRST_TARGET_MEMORY_OPCODE here...

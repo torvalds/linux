@@ -1,0 +1,843 @@
+=pod
+
+=head1 NAME
+
+ssl - OpenSSL SSL/TLS library
+
+=head1 SYNOPSIS
+
+See the individual manual pages for details.
+
+=head1 DESCRIPTION
+
+The OpenSSL B<ssl> library implements the Secure Sockets Layer (SSL v2/v3) and
+Transport Layer Security (TLS v1) protocols. It provides a rich API which is
+documented here.
+
+An B<SSL_CTX> object is created as a framework to establish
+TLS/SSL enabled connections (see L<SSL_CTX_new(3)>).
+Various options regarding certificates, algorithms etc. can be set
+in this object.
+
+When a network connection has been created, it can be assigned to an
+B<SSL> object. After the B<SSL> object has been created using
+L<SSL_new(3)>, L<SSL_set_fd(3)> or
+L<SSL_set_bio(3)> can be used to associate the network
+connection with the object.
+
+When the TLS/SSL handshake is performed using
+L<SSL_accept(3)> or L<SSL_connect(3)>
+respectively.
+L<SSL_read_ex(3)>, L<SSL_read(3)>, L<SSL_write_ex(3)> and L<SSL_write(3)> are
+used to read and write data on the TLS/SSL connection.
+L<SSL_shutdown(3)> can be used to shut down the
+TLS/SSL connection.
+
+=head1 DATA STRUCTURES
+
+Currently the OpenSSL B<ssl> library functions deals with the following data
+structures:
+
+=over 4
+
+=item B<SSL_METHOD> (SSL Method)
+
+This is a dispatch structure describing the internal B<ssl> library
+methods/functions which implement the various protocol versions (SSLv3
+TLSv1, ...). It's needed to create an B<SSL_CTX>.
+
+=item B<SSL_CIPHER> (SSL Cipher)
+
+This structure holds the algorithm information for a particular cipher which
+are a core part of the SSL/TLS protocol. The available ciphers are configured
+on a B<SSL_CTX> basis and the actual ones used are then part of the
+B<SSL_SESSION>.
+
+=item B<SSL_CTX> (SSL Context)
+
+This is the global context structure which is created by a server or client
+once per program life-time and which holds mainly default values for the
+B<SSL> structures which are later created for the connections.
+
+=item B<SSL_SESSION> (SSL Session)
+
+This is a structure containing the current TLS/SSL session details for a
+connection: B<SSL_CIPHER>s, client and server certificates, keys, etc.
+
+=item B<SSL> (SSL Connection)
+
+This is the main SSL/TLS structure which is created by a server or client per
+established connection. This actually is the core structure in the SSL API.
+At run-time the application usually deals with this structure which has
+links to mostly all other structures.
+
+=back
+
+
+=head1 HEADER FILES
+
+Currently the OpenSSL B<ssl> library provides the following C header files
+containing the prototypes for the data structures and functions:
+
+=over 4
+
+=item B<ssl.h>
+
+This is the common header file for the SSL/TLS API.  Include it into your
+program to make the API of the B<ssl> library available. It internally
+includes both more private SSL headers and headers from the B<crypto> library.
+Whenever you need hard-core details on the internals of the SSL API, look
+inside this header file.
+
+=item B<ssl2.h>
+
+Unused. Present for backwards compatibility only.
+
+=item B<ssl3.h>
+
+This is the sub header file dealing with the SSLv3 protocol only.
+I<Usually you don't have to include it explicitly because
+it's already included by ssl.h>.
+
+=item B<tls1.h>
+
+This is the sub header file dealing with the TLSv1 protocol only.
+I<Usually you don't have to include it explicitly because
+it's already included by ssl.h>.
+
+=back
+
+=head1 API FUNCTIONS
+
+Currently the OpenSSL B<ssl> library exports 214 API functions.
+They are documented in the following:
+
+=head2 Dealing with Protocol Methods
+
+Here we document the various API functions which deal with the SSL/TLS
+protocol methods defined in B<SSL_METHOD> structures.
+
+=over 4
+
+=item const SSL_METHOD *B<TLS_method>(void);
+
+Constructor for the I<version-flexible> SSL_METHOD structure for clients,
+servers or both.
+See L<SSL_CTX_new(3)> for details.
+
+=item const SSL_METHOD *B<TLS_client_method>(void);
+
+Constructor for the I<version-flexible> SSL_METHOD structure for clients.
+Must be used to support the TLSv1.3 protocol.
+
+=item const SSL_METHOD *B<TLS_server_method>(void);
+
+Constructor for the I<version-flexible> SSL_METHOD structure for servers.
+Must be used to support the TLSv1.3 protocol.
+
+=item const SSL_METHOD *B<TLSv1_2_method>(void);
+
+Constructor for the TLSv1.2 SSL_METHOD structure for clients, servers or both.
+
+=item const SSL_METHOD *B<TLSv1_2_client_method>(void);
+
+Constructor for the TLSv1.2 SSL_METHOD structure for clients.
+
+=item const SSL_METHOD *B<TLSv1_2_server_method>(void);
+
+Constructor for the TLSv1.2 SSL_METHOD structure for servers.
+
+=item const SSL_METHOD *B<TLSv1_1_method>(void);
+
+Constructor for the TLSv1.1 SSL_METHOD structure for clients, servers or both.
+
+=item const SSL_METHOD *B<TLSv1_1_client_method>(void);
+
+Constructor for the TLSv1.1 SSL_METHOD structure for clients.
+
+=item const SSL_METHOD *B<TLSv1_1_server_method>(void);
+
+Constructor for the TLSv1.1 SSL_METHOD structure for servers.
+
+=item const SSL_METHOD *B<TLSv1_method>(void);
+
+Constructor for the TLSv1 SSL_METHOD structure for clients, servers or both.
+
+=item const SSL_METHOD *B<TLSv1_client_method>(void);
+
+Constructor for the TLSv1 SSL_METHOD structure for clients.
+
+=item const SSL_METHOD *B<TLSv1_server_method>(void);
+
+Constructor for the TLSv1 SSL_METHOD structure for servers.
+
+=item const SSL_METHOD *B<SSLv3_method>(void);
+
+Constructor for the SSLv3 SSL_METHOD structure for clients, servers or both.
+
+=item const SSL_METHOD *B<SSLv3_client_method>(void);
+
+Constructor for the SSLv3 SSL_METHOD structure for clients.
+
+=item const SSL_METHOD *B<SSLv3_server_method>(void);
+
+Constructor for the SSLv3 SSL_METHOD structure for servers.
+
+=back
+
+=head2 Dealing with Ciphers
+
+Here we document the various API functions which deal with the SSL/TLS
+ciphers defined in B<SSL_CIPHER> structures.
+
+=over 4
+
+=item char *B<SSL_CIPHER_description>(SSL_CIPHER *cipher, char *buf, int len);
+
+Write a string to I<buf> (with a maximum size of I<len>) containing a human
+readable description of I<cipher>. Returns I<buf>.
+
+=item int B<SSL_CIPHER_get_bits>(SSL_CIPHER *cipher, int *alg_bits);
+
+Determine the number of bits in I<cipher>. Because of export crippled ciphers
+there are two bits: The bits the algorithm supports in general (stored to
+I<alg_bits>) and the bits which are actually used (the return value).
+
+=item const char *B<SSL_CIPHER_get_name>(SSL_CIPHER *cipher);
+
+Return the internal name of I<cipher> as a string. These are the various
+strings defined by the I<SSL3_TXT_xxx> and I<TLS1_TXT_xxx>
+definitions in the header files.
+
+=item const char *B<SSL_CIPHER_get_version>(SSL_CIPHER *cipher);
+
+Returns a string like "C<SSLv3>" or "C<TLSv1.2>" which indicates the
+SSL/TLS protocol version to which I<cipher> belongs (i.e. where it was defined
+in the specification the first time).
+
+=back
+
+=head2 Dealing with Protocol Contexts
+
+Here we document the various API functions which deal with the SSL/TLS
+protocol context defined in the B<SSL_CTX> structure.
+
+=over 4
+
+=item int B<SSL_CTX_add_client_CA>(SSL_CTX *ctx, X509 *x);
+
+=item long B<SSL_CTX_add_extra_chain_cert>(SSL_CTX *ctx, X509 *x509);
+
+=item int B<SSL_CTX_add_session>(SSL_CTX *ctx, SSL_SESSION *c);
+
+=item int B<SSL_CTX_check_private_key>(const SSL_CTX *ctx);
+
+=item long B<SSL_CTX_ctrl>(SSL_CTX *ctx, int cmd, long larg, char *parg);
+
+=item void B<SSL_CTX_flush_sessions>(SSL_CTX *s, long t);
+
+=item void B<SSL_CTX_free>(SSL_CTX *a);
+
+=item char *B<SSL_CTX_get_app_data>(SSL_CTX *ctx);
+
+=item X509_STORE *B<SSL_CTX_get_cert_store>(SSL_CTX *ctx);
+
+=item STACK *B<SSL_CTX_get_ciphers>(const SSL_CTX *ctx);
+
+=item STACK *B<SSL_CTX_get_client_CA_list>(const SSL_CTX *ctx);
+
+=item int (*B<SSL_CTX_get_client_cert_cb>(SSL_CTX *ctx))(SSL *ssl, X509 **x509, EVP_PKEY **pkey);
+
+=item void B<SSL_CTX_get_default_read_ahead>(SSL_CTX *ctx);
+
+=item char *B<SSL_CTX_get_ex_data>(const SSL_CTX *s, int idx);
+
+=item int B<SSL_CTX_get_ex_new_index>(long argl, char *argp, int (*new_func);(void), int (*dup_func)(void), void (*free_func)(void))
+
+=item void (*B<SSL_CTX_get_info_callback>(SSL_CTX *ctx))(SSL *ssl, int cb, int ret);
+
+=item int B<SSL_CTX_get_quiet_shutdown>(const SSL_CTX *ctx);
+
+=item void B<SSL_CTX_get_read_ahead>(SSL_CTX *ctx);
+
+=item int B<SSL_CTX_get_session_cache_mode>(SSL_CTX *ctx);
+
+=item long B<SSL_CTX_get_timeout>(const SSL_CTX *ctx);
+
+=item int (*B<SSL_CTX_get_verify_callback>(const SSL_CTX *ctx))(int ok, X509_STORE_CTX *ctx);
+
+=item int B<SSL_CTX_get_verify_mode>(SSL_CTX *ctx);
+
+=item int B<SSL_CTX_load_verify_locations>(SSL_CTX *ctx, const char *CAfile, const char *CApath);
+
+=item SSL_CTX *B<SSL_CTX_new>(const SSL_METHOD *meth);
+
+=item int SSL_CTX_up_ref(SSL_CTX *ctx);
+
+=item int B<SSL_CTX_remove_session>(SSL_CTX *ctx, SSL_SESSION *c);
+
+=item int B<SSL_CTX_sess_accept>(SSL_CTX *ctx);
+
+=item int B<SSL_CTX_sess_accept_good>(SSL_CTX *ctx);
+
+=item int B<SSL_CTX_sess_accept_renegotiate>(SSL_CTX *ctx);
+
+=item int B<SSL_CTX_sess_cache_full>(SSL_CTX *ctx);
+
+=item int B<SSL_CTX_sess_cb_hits>(SSL_CTX *ctx);
+
+=item int B<SSL_CTX_sess_connect>(SSL_CTX *ctx);
+
+=item int B<SSL_CTX_sess_connect_good>(SSL_CTX *ctx);
+
+=item int B<SSL_CTX_sess_connect_renegotiate>(SSL_CTX *ctx);
+
+=item int B<SSL_CTX_sess_get_cache_size>(SSL_CTX *ctx);
+
+=item SSL_SESSION *(*B<SSL_CTX_sess_get_get_cb>(SSL_CTX *ctx))(SSL *ssl, unsigned char *data, int len, int *copy);
+
+=item int (*B<SSL_CTX_sess_get_new_cb>(SSL_CTX *ctx)(SSL *ssl, SSL_SESSION *sess);
+
+=item void (*B<SSL_CTX_sess_get_remove_cb>(SSL_CTX *ctx)(SSL_CTX *ctx, SSL_SESSION *sess);
+
+=item int B<SSL_CTX_sess_hits>(SSL_CTX *ctx);
+
+=item int B<SSL_CTX_sess_misses>(SSL_CTX *ctx);
+
+=item int B<SSL_CTX_sess_number>(SSL_CTX *ctx);
+
+=item void B<SSL_CTX_sess_set_cache_size>(SSL_CTX *ctx, t);
+
+=item void B<SSL_CTX_sess_set_get_cb>(SSL_CTX *ctx, SSL_SESSION *(*cb)(SSL *ssl, unsigned char *data, int len, int *copy));
+
+=item void B<SSL_CTX_sess_set_new_cb>(SSL_CTX *ctx, int (*cb)(SSL *ssl, SSL_SESSION *sess));
+
+=item void B<SSL_CTX_sess_set_remove_cb>(SSL_CTX *ctx, void (*cb)(SSL_CTX *ctx, SSL_SESSION *sess));
+
+=item int B<SSL_CTX_sess_timeouts>(SSL_CTX *ctx);
+
+=item LHASH *B<SSL_CTX_sessions>(SSL_CTX *ctx);
+
+=item int B<SSL_CTX_set_app_data>(SSL_CTX *ctx, void *arg);
+
+=item void B<SSL_CTX_set_cert_store>(SSL_CTX *ctx, X509_STORE *cs);
+
+=item void B<SSL_CTX_set1_cert_store>(SSL_CTX *ctx, X509_STORE *cs);
+
+=item void B<SSL_CTX_set_cert_verify_cb>(SSL_CTX *ctx, int (*cb)(), char *arg)
+
+=item int B<SSL_CTX_set_cipher_list>(SSL_CTX *ctx, char *str);
+
+=item void B<SSL_CTX_set_client_CA_list>(SSL_CTX *ctx, STACK *list);
+
+=item void B<SSL_CTX_set_client_cert_cb>(SSL_CTX *ctx, int (*cb)(SSL *ssl, X509 **x509, EVP_PKEY **pkey));
+
+=item int B<SSL_CTX_set_ct_validation_callback>(SSL_CTX *ctx, ssl_ct_validation_cb callback, void *arg);
+
+=item void B<SSL_CTX_set_default_passwd_cb>(SSL_CTX *ctx, int (*cb);(void))
+
+=item void B<SSL_CTX_set_default_read_ahead>(SSL_CTX *ctx, int m);
+
+=item int B<SSL_CTX_set_default_verify_paths>(SSL_CTX *ctx);
+
+Use the default paths to locate trusted CA certificates. There is one default
+directory path and one default file path. Both are set via this call.
+
+=item int B<SSL_CTX_set_default_verify_dir>(SSL_CTX *ctx)
+
+Use the default directory path to locate trusted CA certificates.
+
+=item int B<SSL_CTX_set_default_verify_file>(SSL_CTX *ctx)
+
+Use the file path to locate trusted CA certificates.
+
+=item int B<SSL_CTX_set_ex_data>(SSL_CTX *s, int idx, char *arg);
+
+=item void B<SSL_CTX_set_info_callback>(SSL_CTX *ctx, void (*cb)(SSL *ssl, int cb, int ret));
+
+=item void B<SSL_CTX_set_msg_callback>(SSL_CTX *ctx, void (*cb)(int write_p, int version, int content_type, const void *buf, size_t len, SSL *ssl, void *arg));
+
+=item void B<SSL_CTX_set_msg_callback_arg>(SSL_CTX *ctx, void *arg);
+
+=item unsigned long B<SSL_CTX_clear_options>(SSL_CTX *ctx, unsigned long op);
+
+=item unsigned long B<SSL_CTX_get_options>(SSL_CTX *ctx);
+
+=item unsigned long B<SSL_CTX_set_options>(SSL_CTX *ctx, unsigned long op);
+
+=item void B<SSL_CTX_set_quiet_shutdown>(SSL_CTX *ctx, int mode);
+
+=item void B<SSL_CTX_set_read_ahead>(SSL_CTX *ctx, int m);
+
+=item void B<SSL_CTX_set_session_cache_mode>(SSL_CTX *ctx, int mode);
+
+=item int B<SSL_CTX_set_ssl_version>(SSL_CTX *ctx, const SSL_METHOD *meth);
+
+=item void B<SSL_CTX_set_timeout>(SSL_CTX *ctx, long t);
+
+=item long B<SSL_CTX_set_tmp_dh>(SSL_CTX* ctx, DH *dh);
+
+=item long B<SSL_CTX_set_tmp_dh_callback>(SSL_CTX *ctx, DH *(*cb)(void));
+
+=item void B<SSL_CTX_set_verify>(SSL_CTX *ctx, int mode, int (*cb);(void))
+
+=item int B<SSL_CTX_use_PrivateKey>(SSL_CTX *ctx, EVP_PKEY *pkey);
+
+=item int B<SSL_CTX_use_PrivateKey_ASN1>(int type, SSL_CTX *ctx, unsigned char *d, long len);
+
+=item int B<SSL_CTX_use_PrivateKey_file>(SSL_CTX *ctx, const char *file, int type);
+
+=item int B<SSL_CTX_use_RSAPrivateKey>(SSL_CTX *ctx, RSA *rsa);
+
+=item int B<SSL_CTX_use_RSAPrivateKey_ASN1>(SSL_CTX *ctx, unsigned char *d, long len);
+
+=item int B<SSL_CTX_use_RSAPrivateKey_file>(SSL_CTX *ctx, const char *file, int type);
+
+=item int B<SSL_CTX_use_certificate>(SSL_CTX *ctx, X509 *x);
+
+=item int B<SSL_CTX_use_certificate_ASN1>(SSL_CTX *ctx, int len, unsigned char *d);
+
+=item int B<SSL_CTX_use_certificate_file>(SSL_CTX *ctx, const char *file, int type);
+
+=item int B<SSL_CTX_use_cert_and_key>(SSL_CTX *ctx, X509 *x, EVP_PKEY *pkey, STACK_OF(X509) *chain, int override);
+
+=item X509 *B<SSL_CTX_get0_certificate>(const SSL_CTX *ctx);
+
+=item EVP_PKEY *B<SSL_CTX_get0_privatekey>(const SSL_CTX *ctx);
+
+=item void B<SSL_CTX_set_psk_client_callback>(SSL_CTX *ctx, unsigned int (*callback)(SSL *ssl, const char *hint, char *identity, unsigned int max_identity_len, unsigned char *psk, unsigned int max_psk_len));
+
+=item int B<SSL_CTX_use_psk_identity_hint>(SSL_CTX *ctx, const char *hint);
+
+=item void B<SSL_CTX_set_psk_server_callback>(SSL_CTX *ctx, unsigned int (*callback)(SSL *ssl, const char *identity, unsigned char *psk, int max_psk_len));
+
+
+=back
+
+=head2 Dealing with Sessions
+
+Here we document the various API functions which deal with the SSL/TLS
+sessions defined in the B<SSL_SESSION> structures.
+
+=over 4
+
+=item int B<SSL_SESSION_cmp>(const SSL_SESSION *a, const SSL_SESSION *b);
+
+=item void B<SSL_SESSION_free>(SSL_SESSION *ss);
+
+=item char *B<SSL_SESSION_get_app_data>(SSL_SESSION *s);
+
+=item char *B<SSL_SESSION_get_ex_data>(const SSL_SESSION *s, int idx);
+
+=item int B<SSL_SESSION_get_ex_new_index>(long argl, char *argp, int (*new_func);(void), int (*dup_func)(void), void (*free_func)(void))
+
+=item long B<SSL_SESSION_get_time>(const SSL_SESSION *s);
+
+=item long B<SSL_SESSION_get_timeout>(const SSL_SESSION *s);
+
+=item unsigned long B<SSL_SESSION_hash>(const SSL_SESSION *a);
+
+=item SSL_SESSION *B<SSL_SESSION_new>(void);
+
+=item int B<SSL_SESSION_print>(BIO *bp, const SSL_SESSION *x);
+
+=item int B<SSL_SESSION_print_fp>(FILE *fp, const SSL_SESSION *x);
+
+=item int B<SSL_SESSION_set_app_data>(SSL_SESSION *s, char *a);
+
+=item int B<SSL_SESSION_set_ex_data>(SSL_SESSION *s, int idx, char *arg);
+
+=item long B<SSL_SESSION_set_time>(SSL_SESSION *s, long t);
+
+=item long B<SSL_SESSION_set_timeout>(SSL_SESSION *s, long t);
+
+=back
+
+=head2 Dealing with Connections
+
+Here we document the various API functions which deal with the SSL/TLS
+connection defined in the B<SSL> structure.
+
+=over 4
+
+=item int B<SSL_accept>(SSL *ssl);
+
+=item int B<SSL_add_dir_cert_subjects_to_stack>(STACK *stack, const char *dir);
+
+=item int B<SSL_add_file_cert_subjects_to_stack>(STACK *stack, const char *file);
+
+=item int B<SSL_add_client_CA>(SSL *ssl, X509 *x);
+
+=item char *B<SSL_alert_desc_string>(int value);
+
+=item char *B<SSL_alert_desc_string_long>(int value);
+
+=item char *B<SSL_alert_type_string>(int value);
+
+=item char *B<SSL_alert_type_string_long>(int value);
+
+=item int B<SSL_check_private_key>(const SSL *ssl);
+
+=item void B<SSL_clear>(SSL *ssl);
+
+=item long B<SSL_clear_num_renegotiations>(SSL *ssl);
+
+=item int B<SSL_connect>(SSL *ssl);
+
+=item int B<SSL_copy_session_id>(SSL *t, const SSL *f);
+
+Sets the session details for B<t> to be the same as in B<f>. Returns 1 on
+success or 0 on failure.
+
+=item long B<SSL_ctrl>(SSL *ssl, int cmd, long larg, char *parg);
+
+=item int B<SSL_do_handshake>(SSL *ssl);
+
+=item SSL *B<SSL_dup>(SSL *ssl);
+
+SSL_dup() allows applications to configure an SSL handle for use
+in multiple SSL connections, and then duplicate it prior to initiating
+each connection with the duplicated handle.
+Use of SSL_dup() avoids the need to repeat the configuration of the
+handles for each connection.
+
+For SSL_dup() to work, the connection MUST be in its initial state
+and MUST NOT have not yet have started the SSL handshake.
+For connections that are not in their initial state SSL_dup() just
+increments an internal reference count and returns the I<same>
+handle.
+It may be possible to use L<SSL_clear(3)> to recycle an SSL handle
+that is not in its initial state for re-use, but this is best
+avoided.
+Instead, save and restore the session, if desired, and construct a
+fresh handle for each connection.
+
+=item STACK *B<SSL_dup_CA_list>(STACK *sk);
+
+=item void B<SSL_free>(SSL *ssl);
+
+=item SSL_CTX *B<SSL_get_SSL_CTX>(const SSL *ssl);
+
+=item char *B<SSL_get_app_data>(SSL *ssl);
+
+=item X509 *B<SSL_get_certificate>(const SSL *ssl);
+
+=item const char *B<SSL_get_cipher>(const SSL *ssl);
+
+=item int B<SSL_is_dtls>(const SSL *ssl);
+
+=item int B<SSL_get_cipher_bits>(const SSL *ssl, int *alg_bits);
+
+=item char *B<SSL_get_cipher_list>(const SSL *ssl, int n);
+
+=item char *B<SSL_get_cipher_name>(const SSL *ssl);
+
+=item char *B<SSL_get_cipher_version>(const SSL *ssl);
+
+=item STACK *B<SSL_get_ciphers>(const SSL *ssl);
+
+=item STACK *B<SSL_get_client_CA_list>(const SSL *ssl);
+
+=item SSL_CIPHER *B<SSL_get_current_cipher>(SSL *ssl);
+
+=item long B<SSL_get_default_timeout>(const SSL *ssl);
+
+=item int B<SSL_get_error>(const SSL *ssl, int i);
+
+=item char *B<SSL_get_ex_data>(const SSL *ssl, int idx);
+
+=item int B<SSL_get_ex_data_X509_STORE_CTX_idx>(void);
+
+=item int B<SSL_get_ex_new_index>(long argl, char *argp, int (*new_func);(void), int (*dup_func)(void), void (*free_func)(void))
+
+=item int B<SSL_get_fd>(const SSL *ssl);
+
+=item void (*B<SSL_get_info_callback>(const SSL *ssl);)()
+
+=item int B<SSL_get_key_update_type>(SSL *s);
+
+=item STACK *B<SSL_get_peer_cert_chain>(const SSL *ssl);
+
+=item X509 *B<SSL_get_peer_certificate>(const SSL *ssl);
+
+=item const STACK_OF(SCT) *B<SSL_get0_peer_scts>(SSL *s);
+
+=item EVP_PKEY *B<SSL_get_privatekey>(const SSL *ssl);
+
+=item int B<SSL_get_quiet_shutdown>(const SSL *ssl);
+
+=item BIO *B<SSL_get_rbio>(const SSL *ssl);
+
+=item int B<SSL_get_read_ahead>(const SSL *ssl);
+
+=item SSL_SESSION *B<SSL_get_session>(const SSL *ssl);
+
+=item char *B<SSL_get_shared_ciphers>(const SSL *ssl, char *buf, int size);
+
+=item int B<SSL_get_shutdown>(const SSL *ssl);
+
+=item const SSL_METHOD *B<SSL_get_ssl_method>(SSL *ssl);
+
+=item int B<SSL_get_state>(const SSL *ssl);
+
+=item long B<SSL_get_time>(const SSL *ssl);
+
+=item long B<SSL_get_timeout>(const SSL *ssl);
+
+=item int (*B<SSL_get_verify_callback>(const SSL *ssl))(int, X509_STORE_CTX *)
+
+=item int B<SSL_get_verify_mode>(const SSL *ssl);
+
+=item long B<SSL_get_verify_result>(const SSL *ssl);
+
+=item char *B<SSL_get_version>(const SSL *ssl);
+
+=item BIO *B<SSL_get_wbio>(const SSL *ssl);
+
+=item int B<SSL_in_accept_init>(SSL *ssl);
+
+=item int B<SSL_in_before>(SSL *ssl);
+
+=item int B<SSL_in_connect_init>(SSL *ssl);
+
+=item int B<SSL_in_init>(SSL *ssl);
+
+=item int B<SSL_is_init_finished>(SSL *ssl);
+
+=item int B<SSL_key_update>(SSL *s, int updatetype);
+
+=item STACK *B<SSL_load_client_CA_file>(const char *file);
+
+=item SSL *B<SSL_new>(SSL_CTX *ctx);
+
+=item int SSL_up_ref(SSL *s);
+
+=item long B<SSL_num_renegotiations>(SSL *ssl);
+
+=item int B<SSL_peek>(SSL *ssl, void *buf, int num);
+
+=item int B<SSL_pending>(const SSL *ssl);
+
+=item int B<SSL_read>(SSL *ssl, void *buf, int num);
+
+=item int B<SSL_renegotiate>(SSL *ssl);
+
+=item char *B<SSL_rstate_string>(SSL *ssl);
+
+=item char *B<SSL_rstate_string_long>(SSL *ssl);
+
+=item long B<SSL_session_reused>(SSL *ssl);
+
+=item void B<SSL_set_accept_state>(SSL *ssl);
+
+=item void B<SSL_set_app_data>(SSL *ssl, char *arg);
+
+=item void B<SSL_set_bio>(SSL *ssl, BIO *rbio, BIO *wbio);
+
+=item int B<SSL_set_cipher_list>(SSL *ssl, char *str);
+
+=item void B<SSL_set_client_CA_list>(SSL *ssl, STACK *list);
+
+=item void B<SSL_set_connect_state>(SSL *ssl);
+
+=item int B<SSL_set_ct_validation_callback>(SSL *ssl, ssl_ct_validation_cb callback, void *arg);
+
+=item int B<SSL_set_ex_data>(SSL *ssl, int idx, char *arg);
+
+=item int B<SSL_set_fd>(SSL *ssl, int fd);
+
+=item void B<SSL_set_info_callback>(SSL *ssl, void (*cb);(void))
+
+=item void B<SSL_set_msg_callback>(SSL *ctx, void (*cb)(int write_p, int version, int content_type, const void *buf, size_t len, SSL *ssl, void *arg));
+
+=item void B<SSL_set_msg_callback_arg>(SSL *ctx, void *arg);
+
+=item unsigned long B<SSL_clear_options>(SSL *ssl, unsigned long op);
+
+=item unsigned long B<SSL_get_options>(SSL *ssl);
+
+=item unsigned long B<SSL_set_options>(SSL *ssl, unsigned long op);
+
+=item void B<SSL_set_quiet_shutdown>(SSL *ssl, int mode);
+
+=item void B<SSL_set_read_ahead>(SSL *ssl, int yes);
+
+=item int B<SSL_set_rfd>(SSL *ssl, int fd);
+
+=item int B<SSL_set_session>(SSL *ssl, SSL_SESSION *session);
+
+=item void B<SSL_set_shutdown>(SSL *ssl, int mode);
+
+=item int B<SSL_set_ssl_method>(SSL *ssl, const SSL_METHOD *meth);
+
+=item void B<SSL_set_time>(SSL *ssl, long t);
+
+=item void B<SSL_set_timeout>(SSL *ssl, long t);
+
+=item void B<SSL_set_verify>(SSL *ssl, int mode, int (*callback);(void))
+
+=item void B<SSL_set_verify_result>(SSL *ssl, long arg);
+
+=item int B<SSL_set_wfd>(SSL *ssl, int fd);
+
+=item int B<SSL_shutdown>(SSL *ssl);
+
+=item OSSL_HANDSHAKE_STATE B<SSL_get_state>(const SSL *ssl);
+
+Returns the current handshake state.
+
+=item char *B<SSL_state_string>(const SSL *ssl);
+
+=item char *B<SSL_state_string_long>(const SSL *ssl);
+
+=item long B<SSL_total_renegotiations>(SSL *ssl);
+
+=item int B<SSL_use_PrivateKey>(SSL *ssl, EVP_PKEY *pkey);
+
+=item int B<SSL_use_PrivateKey_ASN1>(int type, SSL *ssl, unsigned char *d, long len);
+
+=item int B<SSL_use_PrivateKey_file>(SSL *ssl, const char *file, int type);
+
+=item int B<SSL_use_RSAPrivateKey>(SSL *ssl, RSA *rsa);
+
+=item int B<SSL_use_RSAPrivateKey_ASN1>(SSL *ssl, unsigned char *d, long len);
+
+=item int B<SSL_use_RSAPrivateKey_file>(SSL *ssl, const char *file, int type);
+
+=item int B<SSL_use_certificate>(SSL *ssl, X509 *x);
+
+=item int B<SSL_use_certificate_ASN1>(SSL *ssl, int len, unsigned char *d);
+
+=item int B<SSL_use_certificate_file>(SSL *ssl, const char *file, int type);
+
+=item int B<SSL_use_cert_and_key>(SSL *ssl, X509 *x, EVP_PKEY *pkey, STACK_OF(X509) *chain, int override);
+
+=item int B<SSL_version>(const SSL *ssl);
+
+=item int B<SSL_want>(const SSL *ssl);
+
+=item int B<SSL_want_nothing>(const SSL *ssl);
+
+=item int B<SSL_want_read>(const SSL *ssl);
+
+=item int B<SSL_want_write>(const SSL *ssl);
+
+=item int B<SSL_want_x509_lookup>(const SSL *ssl);
+
+=item int B<SSL_write>(SSL *ssl, const void *buf, int num);
+
+=item void B<SSL_set_psk_client_callback>(SSL *ssl, unsigned int (*callback)(SSL *ssl, const char *hint, char *identity, unsigned int max_identity_len, unsigned char *psk, unsigned int max_psk_len));
+
+=item int B<SSL_use_psk_identity_hint>(SSL *ssl, const char *hint);
+
+=item void B<SSL_set_psk_server_callback>(SSL *ssl, unsigned int (*callback)(SSL *ssl, const char *identity, unsigned char *psk, int max_psk_len));
+
+=item const char *B<SSL_get_psk_identity_hint>(SSL *ssl);
+
+=item const char *B<SSL_get_psk_identity>(SSL *ssl);
+
+=back
+
+=head1 RETURN VALUES
+
+See the individual manual pages for details.
+
+=head1 SEE ALSO
+
+L<openssl(1)>, L<crypto(7)>,
+L<CRYPTO_get_ex_new_index(3)>,
+L<SSL_accept(3)>, L<SSL_clear(3)>,
+L<SSL_connect(3)>,
+L<SSL_CIPHER_get_name(3)>,
+L<SSL_COMP_add_compression_method(3)>,
+L<SSL_CTX_add_extra_chain_cert(3)>,
+L<SSL_CTX_add_session(3)>,
+L<SSL_CTX_ctrl(3)>,
+L<SSL_CTX_flush_sessions(3)>,
+L<SSL_CTX_get_verify_mode(3)>,
+L<SSL_CTX_load_verify_locations(3)>
+L<SSL_CTX_new(3)>,
+L<SSL_CTX_sess_number(3)>,
+L<SSL_CTX_sess_set_cache_size(3)>,
+L<SSL_CTX_sess_set_get_cb(3)>,
+L<SSL_CTX_sessions(3)>,
+L<SSL_CTX_set_cert_store(3)>,
+L<SSL_CTX_set_cert_verify_callback(3)>,
+L<SSL_CTX_set_cipher_list(3)>,
+L<SSL_CTX_set_client_CA_list(3)>,
+L<SSL_CTX_set_client_cert_cb(3)>,
+L<SSL_CTX_set_default_passwd_cb(3)>,
+L<SSL_CTX_set_generate_session_id(3)>,
+L<SSL_CTX_set_info_callback(3)>,
+L<SSL_CTX_set_max_cert_list(3)>,
+L<SSL_CTX_set_mode(3)>,
+L<SSL_CTX_set_msg_callback(3)>,
+L<SSL_CTX_set_options(3)>,
+L<SSL_CTX_set_quiet_shutdown(3)>,
+L<SSL_CTX_set_read_ahead(3)>,
+L<SSL_CTX_set_security_level(3)>,
+L<SSL_CTX_set_session_cache_mode(3)>,
+L<SSL_CTX_set_session_id_context(3)>,
+L<SSL_CTX_set_ssl_version(3)>,
+L<SSL_CTX_set_timeout(3)>,
+L<SSL_CTX_set_tmp_dh_callback(3)>,
+L<SSL_CTX_set_verify(3)>,
+L<SSL_CTX_use_certificate(3)>,
+L<SSL_alert_type_string(3)>,
+L<SSL_do_handshake(3)>,
+L<SSL_enable_ct(3)>,
+L<SSL_get_SSL_CTX(3)>,
+L<SSL_get_ciphers(3)>,
+L<SSL_get_client_CA_list(3)>,
+L<SSL_get_default_timeout(3)>,
+L<SSL_get_error(3)>,
+L<SSL_get_ex_data_X509_STORE_CTX_idx(3)>,
+L<SSL_get_fd(3)>,
+L<SSL_get_peer_cert_chain(3)>,
+L<SSL_get_rbio(3)>,
+L<SSL_get_session(3)>,
+L<SSL_get_verify_result(3)>,
+L<SSL_get_version(3)>,
+L<SSL_load_client_CA_file(3)>,
+L<SSL_new(3)>,
+L<SSL_pending(3)>,
+L<SSL_read_ex(3)>,
+L<SSL_read(3)>,
+L<SSL_rstate_string(3)>,
+L<SSL_session_reused(3)>,
+L<SSL_set_bio(3)>,
+L<SSL_set_connect_state(3)>,
+L<SSL_set_fd(3)>,
+L<SSL_set_session(3)>,
+L<SSL_set_shutdown(3)>,
+L<SSL_shutdown(3)>,
+L<SSL_state_string(3)>,
+L<SSL_want(3)>,
+L<SSL_write_ex(3)>,
+L<SSL_write(3)>,
+L<SSL_SESSION_free(3)>,
+L<SSL_SESSION_get_time(3)>,
+L<d2i_SSL_SESSION(3)>,
+L<SSL_CTX_set_psk_client_callback(3)>,
+L<SSL_CTX_use_psk_identity_hint(3)>,
+L<SSL_get_psk_identity(3)>,
+L<DTLSv1_listen(3)>
+
+=head1 HISTORY
+
+B<SSLv2_client_method>, B<SSLv2_server_method> and B<SSLv2_method> were removed
+in OpenSSL 1.1.0.
+
+The return type of B<SSL_copy_session_id> was changed from void to int in
+OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

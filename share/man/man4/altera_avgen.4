@@ -1,0 +1,155 @@
+.\"-
+.\" Copyright (c) 2012 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 18, 2012
+.Dt ALTERA_AVGEN 4
+.Os
+.Sh NAME
+.Nm altera_avgen
+.Nd driver for generic Altera Avalon-bus-attached, memory-mapped devices
+.Sh SYNOPSIS
+.Cd "device altera_avgen"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.altera_avgen.0.at="nexus0"
+.Cd hint.altera_avgen.0.maddr=0x7f00a000
+.Cd hint.altera_avgen.0.msize=20
+.Cd hint.altera_avgen.0.width=4
+.Cd hint.altera_avgen.0.fileio="rw"
+.Cd hint.altera_avgen.0.devname="berirom"
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides generic support for memory-mapped devices on the
+Altera Avalon bus.
+.Pa device.hints
+entries configure the address, size, I/O disposition, and
+.Pa /dev
+device node name that will be used.
+The
+.Xr open 2 ,
+.Xr read 2 ,
+.Xr write 2 ,
+and
+.Xr mmap 2
+system calls (and variations) may be used on
+.Nm
+device nodes, subject to constraints imposed using
+.Pa device.hints
+entries.
+Although reading and writing mapped memory is supported,
+.Nm
+does not currently support directing device interrupts to userspace.
+.Pp
+A number of
+.Pa device.hints
+sub-fields are available to configure
+.Nm
+device instances:
+.Bl -tag -width devunit
+.It maddr
+base physical address of the memory region to export; must be aligned to
+.Li width
+.It msize
+length of the memory region export; must be aligned to
+.Li width
+.It width
+Granularity at which
+.Xr read 2
+and
+.Xr write 2
+operations will be performed.
+Larger requests will be broken down into
+.Li width -sized
+operations; smaller requests will be rejected.
+I/O operations must be aligned to
+.Li width .
+.It fileio
+allowed file descriptor operations;
+.Li r
+authorizes
+.Xr read 2 ;
+.Li w
+authorizes
+.Xr write 2 .
+.It mmapio
+allowed
+.Xr mmap 2
+permissions;
+.Li w
+authorizes
+.Dv PROT_WRITE ;
+.Li r
+authorizes
+.Dv PROT_READ ;
+.Li x
+authorizes
+.Dv PROT_EXEC .
+.It devname
+specifies a device name relative to
+.Pa /dev .
+.It devunit
+specifies a device unit number; no unit number is used if this is unspecified.
+.El
+.Sh SEE ALSO
+.Xr mmap 2 ,
+.Xr open 2 ,
+.Xr read 2 ,
+.Xr write 2
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+device driver and this manual page were
+developed by SRI International and the University of Cambridge Computer
+Laboratory under DARPA/AFRL contract
+.Pq FA8750-10-C-0237
+.Pq Do CTSRD Dc ,
+as part of the DARPA CRASH research programme.
+This device driver was written by
+.An Robert N. M. Watson .
+.Sh BUGS
+.Nm
+is intended to support the writing of userspace device drivers; however, it
+does not permit directing interrupts to userspace, only memory-mapped I/O.
+.Pp
+.Nm
+supports only a
+.Li nexus
+bus attachment, which is appropriate for system-on-chip busses such as
+Altera's Avalon bus.
+If the target device is off of another bus type, then additional bus
+attachments will be required.

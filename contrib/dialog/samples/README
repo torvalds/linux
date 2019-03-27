@@ -1,0 +1,7 @@
+-- $Id: README,v 1.4 2012/12/02 18:52:52 tom Exp $
+
+You can set the environment-variable DIALOG to whatever program you
+want to check. Default is "dialog".
+
+Use "export DIALOG=/usr/bin/dialog" for sh or "setenv DIALOG ../dialog" for csh
+to test the /usr/bin/dialog program.

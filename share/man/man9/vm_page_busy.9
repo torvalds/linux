@@ -1,0 +1,216 @@
+.\"
+.\" Copyright (c) 2013 EMC Corp.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd August 07, 2013
+.Dt VM_PAGE_BUSY 9
+.Os
+.Sh NAME
+.Nm vm_page_busied ,
+.Nm vm_page_busy_downgrade ,
+.Nm vm_page_busy_sleep ,
+.Nm vm_page_sbusied ,
+.Nm vm_page_sbusy ,
+.Nm vm_page_sleep_if_busy ,
+.Nm vm_page_sunbusy ,
+.Nm vm_page_trysbusy ,
+.Nm vm_page_tryxbusy ,
+.Nm vm_page_xbusied ,
+.Nm vm_page_xbusy ,
+.Nm vm_page_xunbusy ,
+.Nm vm_page_assert_sbusied ,
+.Nm vm_page_assert_unbusied ,
+.Nm vm_page_assert_xbusied
+.Nd protect page identity changes and page content references
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_page.h
+.Ft int
+.Fn vm_page_busied "vm_page_t m"
+.Ft void
+.Fn vm_page_busy_downgrade "vm_page_t m"
+.Ft void
+.Fn vm_page_busy_sleep "vm_page_t m" "const char *msg"
+.Ft int
+.Fn vm_page_sbusied "vm_page_t m"
+.Ft void
+.Fn vm_page_sbusy "vm_page_t m"
+.Ft int
+.Fn vm_page_sleep_if_busy "vm_page_t m" "const char *msg"
+.Ft void
+.Fn vm_page_sunbusy "vm_page_t m"
+.Ft int
+.Fn vm_page_trysbusy "vm_page_t m"
+.Ft int
+.Fn vm_page_tryxbusy "vm_page_t m"
+.Ft int
+.Fn vm_page_xbusied "vm_page_t m"
+.Ft void
+.Fn vm_page_xbusy "vm_page_t m"
+.Ft void
+.Fn vm_page_xunbusy "vm_page_t m"
+.Pp
+.Cd "options INVARIANTS"
+.Cd "options INVARIANT_SUPPORT"
+.Ft void
+.Fn vm_page_assert_sbusied "vm_page_t m"
+.Ft void
+.Fn vm_page_assert_unbusied "vm_page_t m"
+.Ft void
+.Fn vm_page_assert_xbusied "vm_page_t m"
+.Sh DESCRIPTION
+Page identity is usually protected by higher level locks like vm_object
+locks and vm page locks.
+However, sometimes it is not possible to hold such locks for the time
+necessary to complete the identity change.
+In such case the page can be exclusively busied by a thread which needs
+to own the identity for a certain amount of time.
+.Pp
+In other situations, threads do not need to change the identity of the
+page but they want to prevent other threads from changing the identity
+themselves.
+For example, when a thread wants to access or update page contents
+without a lock held the page is shared busied.
+.Pp
+Before busying a page the vm_object lock must be held.
+The same rule applies when a page is unbusied.
+This makes the vm_object lock a real busy interlock.
+.Pp
+The
+.Fn vm_page_busied
+function returns non-zero if the current thread busied
+.Fa m
+in either exclusive or shared mode.
+Returns zero otherwise.
+.Pp
+The
+.Fn vm_page_busy_downgrade
+function must be used to downgrade
+.Fa m
+from an exclusive busy state to a shared busy state.
+.Pp
+The
+.Fn vm_page_busy_sleep
+function puts the invoking thread to sleep using the appropriate
+waitchannels for the busy mechanism.
+The parameter
+.Fa msg
+is a string describing the sleep condition for userland tools.
+.Pp
+The
+.Fn vm_page_busied
+function returns non-zero if the current thread busied
+.Fa m
+in shared mode.
+Returns zero otherwise.
+.Pp
+The
+.Fn vm_page_sbusy
+function shared busies
+.Fa m .
+.Pp
+The
+.Fn vm_page_sleep_if_busy
+function puts the invoking thread to sleep, using the appropriate
+waitchannels for the busy mechanism, if
+.Fa m .
+is busied in either exclusive or shared mode.
+If the invoking thread slept a non-zero value is returned, otherwise
+0 is returned.
+The parameter
+.Fa msg
+is a string describing the sleep condition for userland tools.
+.Pp
+The
+.Fn vm_page_sunbusy
+function shared unbusies
+.Fa m .
+.Pp
+The
+.Fn vm_page_trysbusy
+attempts to shared busy
+.Fa m .
+If the operation cannot immediately succeed
+.Fn vm_page_trysbusy
+returns 0, otherwise a non-zero value is returned.
+.Pp
+The
+.Fn vm_page_tryxbusy
+attempts to exclusive busy
+.Fa m .
+If the operation cannot immediately succeed
+.Fn vm_page_tryxbusy
+returns 0, otherwise a non-zero value is returned.
+.Pp
+The
+.Fn vm_page_xbusied
+function returns non-zero if the current thread busied
+.Fa m
+in exclusive mode.
+Returns zero otherwise.
+.Pp
+The
+.Fn vm_page_xbusy
+function exclusive busies
+.Fa m .
+.Pp
+The
+.Fn vm_page_xunbusy
+function exclusive unbusies
+.Fa m .
+Assertions on the busy state allow kernels compiled with
+.Cd "options INVARIANTS"
+and
+.Cd "options INVARIANT_SUPPORT"
+to panic if they are not respected.
+.Pp
+The
+.Fn vm_page_assert_sbusied
+function panics if
+.Fa m
+is not shared busied.
+.Pp
+The
+.Fn vm_page_assert_unbusied
+function panics if
+.Fa m
+is not unbusied.
+.Pp
+The
+.Fn vm_page_assert_xbusied
+function panics if
+.Fa m
+is not exclusive busied.
+.Sh SEE ALSO
+.Xr vm_page_aflag 9 ,
+.Xr vm_page_alloc 9 ,
+.Xr vm_page_deactivate 9 ,
+.Xr vm_page_free 9 ,
+.Xr vm_page_grab 9 ,
+.Xr vm_page_insert 9 ,
+.Xr vm_page_lookup 9 ,
+.Xr vm_page_rename 9 ,
+.Xr VOP_GETPAGES 9

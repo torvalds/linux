@@ -1,0 +1,14 @@
+/* $FreeBSD$ */
+/* See r303489 */
+void
+t(void)
+{
+        switch (1) {
+        case 1:                 /* test */
+        case 2:                 /* test */
+        }
+CLEANUP:
+        ;
+V:      ;
+U:      ;
+}

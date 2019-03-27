@@ -1,0 +1,9 @@
+
+If you have imake running on your machine, you may skip steps 1 and 2
+described in the README file and try instead the process described here.
+Note that imake is not supported for all the platforms yet, so this
+might not work on your machine. If that is the case please let us know.
+If you can send a patch that fixes the problem we would appreciate it.
+
+1. edit imake.config and modify the configurable parameters to your liking.
+2. 'xmkmf; make depend; make'

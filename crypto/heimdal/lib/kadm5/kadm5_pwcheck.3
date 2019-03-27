@@ -1,0 +1,159 @@
+.\" Copyright (c) 2003 - 2004 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd February 29, 2004
+.Dt KADM5_PWCHECK 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_pwcheck ,
+.Nm kadm5_setup_passwd_quality_check ,
+.Nm kadm5_add_passwd_quality_verifier ,
+.Nm kadm5_check_password_quality
+.Nd Heimdal warning and error functions
+.Sh LIBRARY
+Kerberos 5 Library (libkadm5srv, -lkadm5srv)
+.Sh SYNOPSIS
+.In kadm5-protos.h
+.In kadm5-pwcheck.h
+.Ft void
+.Fo kadm5_setup_passwd_quality_check
+.Fa "krb5_context context"
+.Fa "const char *check_library"
+.Fa "const char *check_function"
+.Fc
+.Ft "krb5_error_code"
+.Fo kadm5_add_passwd_quality_verifier
+.Fa "krb5_context context"
+.Fa "const char *check_library"
+.Fc
+.Ft "const char *"
+.Fo kadm5_check_password_quality
+.Fa "krb5_context context"
+.Fa "krb5_principal principal"
+.Fa "krb5_data *pwd_data"
+.Fc
+.Ft int
+.Fo "(*kadm5_passwd_quality_check_func)"
+.Fa "krb5_context context"
+.Fa "krb5_principal principal"
+.Fa "krb5_data *password"
+.Fa "const char *tuning"
+.Fa "char *message"
+.Fa "size_t length"
+.Fc
+.Sh DESCRIPTION
+These functions perform the quality check for the heimdal database
+library.
+.Pp
+There are two versions of the shared object API; the old version (0)
+is deprecated, but still supported.  The new version (1) supports
+multiple password quality checking policies in the same shared object.
+See below for details.
+.Pp
+The password quality checker will run all policies that are
+configured by the user.  If any policy rejects the password, the password
+will be rejected.
+.Pp
+Policy names are of the form
+.Ql module-name:policy-name
+or, if the the policy name is unique enough, just
+.Ql policy-name .
+.Sh IMPLEMENTING A PASSWORD QUALITY CHECKING SHARED OBJECT
+(This refers to the version 1 API only.)
+.Pp
+Module shared objects may conveniently be compiled and linked with
+.Xr libtool 1 .
+An object needs to export a symbol called
+.Ql kadm5_password_verifier
+of the type
+.Ft "struct kadm5_pw_policy_verifier" .
+.Pp
+Its
+.Ft name
+and
+.Ft vendor
+fields should contain the obvious information.
+.Ft name
+must match the
+.Ql module-name
+portion of the policy name (the part before the colon), if the policy name
+contains a colon, or the policy will not be run.
+.Ft version
+should be
+.Dv KADM5_PASSWD_VERSION_V1 .
+.Pp
+.Ft funcs
+contains an array of
+.Ft "struct kadm5_pw_policy_check_func"
+structures that is terminated with an entry whose
+.Ft name
+component is
+.Dv NULL .
+The
+.Ft name
+field of the array must match the
+.Ql policy-name
+portion of a policy name (the part after the colon, or the complete policy
+name if there is no colon) specified by the user or the policy will not be
+run.  The
+.Ft func
+fields of the array elements are functions that are exported by the
+module to be called to check the password.  They get the following
+arguments:  the Kerberos context, principal, password, a tuning parameter, and
+a pointer to a message buffer and its length.  The tuning parameter
+for the quality check function is currently always
+.Dv NULL .
+If the password is acceptable, the function returns zero.  Otherwise
+it returns non-zero and fills in the message buffer with an
+appropriate explanation.
+.Sh RUNNING THE CHECKS
+.Nm kadm5_setup_passwd_quality_check
+sets up type 0 checks.  It sets up all type 0 checks defined in
+.Xr krb5.conf 5
+if called with the last two arguments null.
+.Pp
+.Nm kadm5_add_passwd_quality_verifier
+sets up type 1 checks.  It sets up all type 1 tests defined in
+.Xr krb5.conf 5
+if called with a null second argument.
+.Nm kadm5_check_password_quality
+runs the checks in the order in which they are defined in
+.Xr krb5.conf 5
+and the order in which they occur in a
+module's
+.Ft funcs
+array until one returns non-zero.
+.Sh SEE ALSO
+.Xr libtool 1 ,
+.Xr krb5 3 ,
+.Xr krb5.conf 5

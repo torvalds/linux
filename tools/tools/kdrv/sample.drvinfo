@@ -1,0 +1,44 @@
+#
+# Sample driver information file for KernelDriver.  See the top of
+# the KernelDriver script for a more exact definition of the syntax.
+#
+# $FreeBSD$
+
+# Device driver name
+#
+driver blorg
+
+# Description (must be in curly braces)
+#
+description {Snoofle roob wronkle bnar}
+
+# List of files to install for the driver.
+# The filei386 directive causes the *.c files to be added to i386/conf/file.i386
+# The fileconf directive causes the *.c files to be added to conf/file
+# Paths listed separately
+#
+filei386 i386/isa/ mdsio.c
+filei386 i386/include mdsio.h
+fileconf pci/ mdsio.c
+
+# List of options used by the driver, and the header into which
+# they should be written.
+# optioni386 causes them to be added to i386/conf/options.i386
+# optionconf causes them to be added to conf/options
+#
+optioni386 MDSIO_RXBUF opt_mdsio.h
+optioni386 MDSIO_TXBUF opt_mdsio.h
+optioni386 MDSIO_DEBUG opt_mdsio.h
+optionconf MDSIO_FOO opt_mdsio.h
+
+# Text to be added to LINT to provide configuration examples for the
+# user.
+#
+
+linttext
+#
+# This driver causes your system to emit occasional digestive noises.
+#
+device	blorg0 at isa? port 0x123 irq 10 flags 0x10 drq 2
+device	blorg1 at isa? port 0x234 irq 11 flags 0x10 drq 2
+end

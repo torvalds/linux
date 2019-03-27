@@ -1,0 +1,189 @@
+.\" Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 17, 2018
+.Dt GNOP 8
+.Os
+.Sh NAME
+.Nm gnop
+.Nd "control utility for NOP GEOM class"
+.Sh SYNOPSIS
+.Nm
+.Cm create
+.Op Fl v
+.Op Fl e Ar error
+.Op Fl o Ar offset
+.Op Fl p Ar stripesize
+.Op Fl P Ar stripeoffset
+.Op Fl r Ar rfailprob
+.Op Fl s Ar size
+.Op Fl S Ar secsize
+.Op Fl w Ar wfailprob
+.Op Fl z Ar physpath
+.Ar dev ...
+.Nm
+.Cm configure
+.Op Fl v
+.Op Fl e Ar error
+.Op Fl r Ar rfailprob
+.Op Fl w Ar wfailprob
+.Ar prov ...
+.Nm
+.Cm destroy
+.Op Fl fv
+.Ar prov ...
+.Nm
+.Cm reset
+.Op Fl v
+.Ar prov ...
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Nm
+.Cm load
+.Nm
+.Cm unload
+.Sh DESCRIPTION
+The
+.Nm
+utility is used for setting up transparent providers on existing ones.
+Its main purpose is testing other GEOM classes, as it allows forced provider
+removal and I/O error simulation with a given probability.
+It also gathers statistics on the number of read, write, delete,
+getattr, flush, and other requests, and the number of bytes read and written.
+.Nm
+can also be used as a good starting point for implementing new GEOM
+classes.
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm configure"
+.It Cm create
+Set up a transparent provider on the given devices.
+If the operation succeeds, the new provider should appear with name
+.Pa /dev/ Ns Ao Ar dev Ac Ns Pa .nop .
+The kernel module
+.Pa geom_nop.ko
+will be loaded if it is not loaded already.
+.It Cm configure
+Configure existing transparent provider.
+At the moment it is only used for changing failure probability.
+.It Cm destroy
+Turn off the given transparent providers.
+.It Cm reset
+Reset statistics for the given transparent providers.
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Pp
+Additional options:
+.Bl -tag -width ".Fl r Ar rfailprob"
+.It Fl e Ar error
+Specifies the error number to return on failure.
+.It Fl f
+Force the removal of the specified provider.
+.It Fl o Ar offset
+Where to begin on the original provider.
+.It Fl p Ar stripesize
+Value of the stripesize property of the transparent provider.
+.It Fl P Ar stripeoffset
+Value of the stripeoffset property of the transparent provider.
+.It Fl r Ar rfailprob
+Specifies read failure probability in percent.
+.It Fl s Ar size
+Size of the transparent provider.
+.It Fl S Ar secsize
+Sector size of the transparent provider.
+.It Fl w Ar wfailprob
+Specifies write failure probability in percent.
+.It Fl v
+Be more verbose.
+.It Fl z Ar physpath
+Physical path of the transparent provider.
+.El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to control the behavior of the
+.Nm NOP
+GEOM class.
+The default value is shown next to each variable.
+.Bl -tag -width indent
+.It Va kern.geom.nop.debug : No 0
+Debug level of the
+.Nm NOP
+GEOM class.
+This can be set to a number between 0 and 2 inclusive.
+If set to 0, minimal debug information is printed.
+If set to 1, basic debug information is logged along with the I/O requests
+that were returned as errors.
+If set to 2, the maximum amount of debug information is printed including
+all I/O requests.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
+.Sh EXAMPLES
+The following example shows how to create a transparent provider for disk
+.Pa /dev/da0
+with 50% write failure probability, and how to destroy it.
+.Bd -literal -offset indent
+gnop create -v -w 50 da0
+gnop destroy -v da0.nop
+.Ed
+.Pp
+The traffic statistics for the given transparent providers can be obtained
+with the
+.Cm list
+command.
+The example below shows the number of bytes written with
+.Xr newfs 8 :
+.Bd -literal -offset indent
+gnop create da0
+newfs /dev/da0.nop
+gnop list
+.Ed
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr geom 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org

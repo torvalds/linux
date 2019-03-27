@@ -1,0 +1,338 @@
+=pod
+
+=head1 NAME
+
+openssl-pkeyutl,
+pkeyutl - public key algorithm utility
+
+=head1 SYNOPSIS
+
+B<openssl> B<pkeyutl>
+[B<-help>]
+[B<-in file>]
+[B<-out file>]
+[B<-sigfile file>]
+[B<-inkey file>]
+[B<-keyform PEM|DER|ENGINE>]
+[B<-passin arg>]
+[B<-peerkey file>]
+[B<-peerform PEM|DER|ENGINE>]
+[B<-pubin>]
+[B<-certin>]
+[B<-rev>]
+[B<-sign>]
+[B<-verify>]
+[B<-verifyrecover>]
+[B<-encrypt>]
+[B<-decrypt>]
+[B<-derive>]
+[B<-kdf algorithm>]
+[B<-kdflen length>]
+[B<-pkeyopt opt:value>]
+[B<-hexdump>]
+[B<-asn1parse>]
+[B<-rand file...>]
+[B<-writerand file>]
+[B<-engine id>]
+[B<-engine_impl>]
+
+=head1 DESCRIPTION
+
+The B<pkeyutl> command can be used to perform low level public key operations
+using any supported algorithm.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-help>
+
+Print out a usage message.
+
+=item B<-in filename>
+
+This specifies the input filename to read data from or standard input
+if this option is not specified.
+
+=item B<-out filename>
+
+Specifies the output filename to write to or standard output by
+default.
+
+=item B<-sigfile file>
+
+Signature file, required for B<verify> operations only
+
+=item B<-inkey file>
+
+The input key file, by default it should be a private key.
+
+=item B<-keyform PEM|DER|ENGINE>
+
+The key format PEM, DER or ENGINE. Default is PEM.
+
+=item B<-passin arg>
+
+The input key password source. For more information about the format of B<arg>
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
+
+=item B<-peerkey file>
+
+The peer key file, used by key derivation (agreement) operations.
+
+=item B<-peerform PEM|DER|ENGINE>
+
+The peer key format PEM, DER or ENGINE. Default is PEM.
+
+=item B<-pubin>
+
+The input file is a public key.
+
+=item B<-certin>
+
+The input is a certificate containing a public key.
+
+=item B<-rev>
+
+Reverse the order of the input buffer. This is useful for some libraries
+(such as CryptoAPI) which represent the buffer in little endian format.
+
+=item B<-sign>
+
+Sign the input data (which must be a hash) and output the signed result. This
+requires a private key.
+
+=item B<-verify>
+
+Verify the input data (which must be a hash) against the signature file and
+indicate if the verification succeeded or failed.
+
+=item B<-verifyrecover>
+
+Verify the input data (which must be a hash) and output the recovered data.
+
+=item B<-encrypt>
+
+Encrypt the input data using a public key.
+
+=item B<-decrypt>
+
+Decrypt the input data using a private key.
+
+=item B<-derive>
+
+Derive a shared secret using the peer key.
+
+=item B<-kdf algorithm>
+
+Use key derivation function B<algorithm>.  The supported algorithms are
+at present B<TLS1-PRF> and B<HKDF>.
+Note: additional parameters and the KDF output length will normally have to be
+set for this to work.
+See L<EVP_PKEY_CTX_set_hkdf_md(3)> and L<EVP_PKEY_CTX_set_tls1_prf_md(3)>
+for the supported string parameters of each algorithm.
+
+=item B<-kdflen length>
+
+Set the output length for KDF.
+
+=item B<-pkeyopt opt:value>
+
+Public key options specified as opt:value. See NOTES below for more details.
+
+=item B<-hexdump>
+
+hex dump the output data.
+
+=item B<-asn1parse>
+
+Parse the ASN.1 output data, this is useful when combined with the
+B<-verifyrecover> option when an ASN1 structure is signed.
+
+=item B<-rand file...>
+
+A file or files containing random data used to seed the random number
+generator.
+Multiple files can be specified separated by an OS-dependent character.
+The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
+all others.
+
+=item [B<-writerand file>]
+
+Writes random data to the specified I<file> upon exit.
+This can be used with a subsequent B<-rand> flag.
+
+=item B<-engine id>
+
+Specifying an engine (by its unique B<id> string) will cause B<pkeyutl>
+to attempt to obtain a functional reference to the specified engine,
+thus initialising it if needed. The engine will then be set as the default
+for all available algorithms.
+
+=item B<-engine_impl>
+
+When used with the B<-engine> option, it specifies to also use
+engine B<id> for crypto operations.
+
+=back
+
+=head1 NOTES
+
+The operations and options supported vary according to the key algorithm
+and its implementation. The OpenSSL operations and options are indicated below.
+
+Unless otherwise mentioned all algorithms support the B<digest:alg> option
+which specifies the digest in use for sign, verify and verifyrecover operations.
+The value B<alg> should represent a digest name as used in the
+EVP_get_digestbyname() function for example B<sha1>. This value is not used to
+hash the input data. It is used (by some algorithms) for sanity-checking the
+lengths of data passed in to the B<pkeyutl> and for creating the structures that
+make up the signature (e.g. B<DigestInfo> in RSASSA PKCS#1 v1.5 signatures).
+
+This utility does not hash the input data but rather it will use the data
+directly as input to the signature algorithm. Depending on the key type,
+signature type, and mode of padding, the maximum acceptable lengths of input
+data differ. The signed data can't be longer than the key modulus with RSA. In
+case of ECDSA and DSA the data shouldn't be longer than the field
+size, otherwise it will be silently truncated to the field size. In any event
+the input size must not be larger than the largest supported digest size.
+
+In other words, if the value of digest is B<sha1> the input should be the 20
+bytes long binary encoding of the SHA-1 hash function output.
+
+The Ed25519 and Ed448 signature algorithms are not supported by this utility.
+They accept non-hashed input, but this utility can only be used to sign hashed
+input.
+
+=head1 RSA ALGORITHM
+
+The RSA algorithm generally supports the encrypt, decrypt, sign,
+verify and verifyrecover operations. However, some padding modes
+support only a subset of these operations. The following additional
+B<pkeyopt> values are supported:
+
+=over 4
+
+=item B<rsa_padding_mode:mode>
+
+This sets the RSA padding mode. Acceptable values for B<mode> are B<pkcs1> for
+PKCS#1 padding, B<sslv23> for SSLv23 padding, B<none> for no padding, B<oaep>
+for B<OAEP> mode, B<x931> for X9.31 mode and B<pss> for PSS.
+
+In PKCS#1 padding if the message digest is not set then the supplied data is
+signed or verified directly instead of using a B<DigestInfo> structure. If a
+digest is set then the a B<DigestInfo> structure is used and its the length
+must correspond to the digest type.
+
+For B<oaep> mode only encryption and decryption is supported.
+
+For B<x931> if the digest type is set it is used to format the block data
+otherwise the first byte is used to specify the X9.31 digest ID. Sign,
+verify and verifyrecover are can be performed in this mode.
+
+For B<pss> mode only sign and verify are supported and the digest type must be
+specified.
+
+=item B<rsa_pss_saltlen:len>
+
+For B<pss> mode only this option specifies the salt length. Three special
+values are supported: "digest" sets the salt length to the digest length,
+"max" sets the salt length to the maximum permissible value. When verifying
+"auto" causes the salt length to be automatically determined based on the
+B<PSS> block structure.
+
+=item B<rsa_mgf1_md:digest>
+
+For PSS and OAEP padding sets the MGF1 digest. If the MGF1 digest is not
+explicitly set in PSS mode then the signing digest is used.
+
+=back
+
+=head1 RSA-PSS ALGORITHM
+
+The RSA-PSS algorithm is a restricted version of the RSA algorithm which only
+supports the sign and verify operations with PSS padding. The following
+additional B<pkeyopt> values are supported:
+
+=over 4
+
+=item B<rsa_padding_mode:mode>, B<rsa_pss_saltlen:len>, B<rsa_mgf1_md:digest>
+
+These have the same meaning as the B<RSA> algorithm with some additional
+restrictions. The padding mode can only be set to B<pss> which is the
+default value.
+
+If the key has parameter restrictions than the digest, MGF1
+digest and salt length are set to the values specified in the parameters.
+The digest and MG cannot be changed and the salt length cannot be set to a
+value less than the minimum restriction.
+
+=back
+
+=head1 DSA ALGORITHM
+
+The DSA algorithm supports signing and verification operations only. Currently
+there are no additional options other than B<digest>. Only the SHA1
+digest can be used and this digest is assumed by default.
+
+=head1 DH ALGORITHM
+
+The DH algorithm only supports the derivation operation and no additional
+options.
+
+=head1 EC ALGORITHM
+
+The EC algorithm supports sign, verify and derive operations. The sign and
+verify operations use ECDSA and derive uses ECDH. Currently there are no
+additional options other than B<digest>. Only the SHA1 digest can be used and
+this digest is assumed by default.
+
+=head1 X25519 and X448 ALGORITHMS
+
+The X25519 and X448 algorithms support key derivation only. Currently there are
+no additional options.
+
+=head1 EXAMPLES
+
+Sign some data using a private key:
+
+ openssl pkeyutl -sign -in file -inkey key.pem -out sig
+
+Recover the signed data (e.g. if an RSA key is used):
+
+ openssl pkeyutl -verifyrecover -in sig -inkey key.pem
+
+Verify the signature (e.g. a DSA key):
+
+ openssl pkeyutl -verify -in file -sigfile sig -inkey key.pem
+
+Sign data using a message digest value (this is currently only valid for RSA):
+
+ openssl pkeyutl -sign -in file -inkey key.pem -out sig -pkeyopt digest:sha256
+
+Derive a shared secret value:
+
+ openssl pkeyutl -derive -inkey key.pem -peerkey pubkey.pem -out secret
+
+Hexdump 48 bytes of TLS1 PRF using digest B<SHA256> and shared secret and
+seed consisting of the single byte 0xFF:
+
+ openssl pkeyutl -kdf TLS1-PRF -kdflen 48 -pkeyopt md:SHA256 \
+    -pkeyopt hexsecret:ff -pkeyopt hexseed:ff -hexdump
+
+=head1 SEE ALSO
+
+L<genpkey(1)>, L<pkey(1)>, L<rsautl(1)>
+L<dgst(1)>, L<rsa(1)>, L<genrsa(1)>,
+L<EVP_PKEY_CTX_set_hkdf_md(3)>, L<EVP_PKEY_CTX_set_tls1_prf_md(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

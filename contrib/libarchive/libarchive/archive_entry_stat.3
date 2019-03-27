@@ -1,0 +1,274 @@
+.\" Copyright (c) 2010 Joerg Sonnenberger
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd February 2, 2012
+.Dt ARCHIVE_ENTRY_STAT 3
+.Os
+.Sh NAME
+.Nm archive_entry_stat ,
+.Nm archive_entry_copy_stat ,
+.Nm archive_entry_filetype ,
+.Nm archive_entry_set_filetype ,
+.Nm archive_entry_mode ,
+.Nm archive_entry_set_mode ,
+.Nm archive_entry_size ,
+.Nm archive_entry_size_is_set ,
+.Nm archive_entry_set_size ,
+.Nm archive_entry_unset_size ,
+.Nm archive_entry_dev ,
+.Nm archive_entry_set_dev ,
+.Nm archive_entry_dev_is_set ,
+.Nm archive_entry_devmajor ,
+.Nm archive_entry_set_devmajor ,
+.Nm archive_entry_devminor ,
+.Nm archive_entry_set_devminor ,
+.Nm archive_entry_ino ,
+.Nm archive_entry_set_ino ,
+.Nm archive_entry_ino_is_set ,
+.Nm archive_entry_ino64 ,
+.Nm archive_entry_set_ino64 ,
+.Nm archive_entry_nlink ,
+.Nm archive_entry_rdev ,
+.Nm archive_entry_set_rdev ,
+.Nm archive_entry_rdevmajor ,
+.Nm archive_entry_set_rdevmajor ,
+.Nm archive_entry_rdevminor ,
+.Nm archive_entry_set_rdevminor ,
+.Nd accessor functions for manipulating archive entry descriptions
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.In archive_entry.h
+.Ft const struct stat *
+.Fn archive_entry_stat "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_copy_stat "struct archive_entry *a" "const struct stat *sb"
+.Ft mode_t
+.Fn archive_entry_filetype "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_set_filetype "struct archive_entry *a" "unsigned int type"
+.Ft mode_t
+.Fn archive_entry_mode "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_set_mode "struct archive_entry *a" "mode_t mode"
+.Ft int64_t
+.Fn archive_entry_size "struct archive_entry *a"
+.Ft int
+.Fn archive_entry_size_is_set "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_set_size "struct archive_entry *a" "int64_t size"
+.Ft void
+.Fn archive_entry_unset_size "struct archive_entry *a"
+.Ft dev_t
+.Fn archive_entry_dev "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_set_dev "struct archive_entry *a" "dev_t dev"
+.Ft int
+.Fn archive_entry_dev_is_set "struct archive_entry *a"
+.Ft dev_t
+.Fn archive_entry_devmajor "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_set_devmajor "struct archive_entry *a" "dev_t major"
+.Ft dev_t
+.Fn archive_entry_devminor "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_set_devminor "struct archive_entry *a" "dev_t minor"
+.Ft ino_t
+.Fn archive_entry_ino "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_set_ino "struct archive_entry *a" "unsigned long ino"
+.Ft int
+.Fn archive_entry_ino_is_set "struct archive_entry *a"
+.Ft int64_t
+.Fn archive_entry_ino64 "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_set_ino64 "struct archive_entry *a" "int64_t ino"
+.Ft unsigned int
+.Fn archive_entry_nlink "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_set_nlink "struct archive_entry *a" "unsigned int count"
+.Ft dev_t
+.Fn archive_entry_rdev "struct archive_entry *a"
+.Ft dev_t
+.Fn archive_entry_rdevmajor "struct archive_entry *a"
+.Ft dev_t
+.Fn archive_entry_rdevminor "struct archive_entry *a"
+.Ft void
+.Fn archive_entry_set_rdev "struct archive_entry *a" "dev_t dev"
+.Ft void
+.Fn archive_entry_set_rdevmajor "struct archive_entry *a" "dev_t major"
+.Ft void
+.Fn archive_entry_set_rdevminor "struct archive_entry *a" "dev_t minor"
+.Sh DESCRIPTION
+.Ss Copying to and from Vt struct stat
+The function
+.Fn archive_entry_stat
+converts the various fields stored in the archive entry to the format
+used by
+.Xr stat 2 .
+The return value remains valid until either
+.Fn archive_entry_clear
+or
+.Fn archive_entry_free
+is called.
+It is not affected by calls to the set accessor functions.
+It currently sets the following values in
+.Vt struct stat :
+.Vt st_atime ,
+.Vt st_ctime ,
+.Vt st_dev ,
+.Vt st_gid ,
+.Vt st_ino ,
+.Vt st_mode ,
+.Vt st_mtime ,
+.Vt st_nlink ,
+.Vt st_rdev ,
+.Vt st_size ,
+.Vt st_uid .
+In addition,
+.Vt st_birthtime
+and high-precision information for time-related fields
+will be included on platforms that support it.
+.Pp
+The function
+.Fn archive_entry_copy_stat
+copies fields from the platform's
+.Vt struct stat .
+Fields not provided by
+.Vt struct stat
+are unchanged.
+.Ss General accessor functions
+The functions
+.Fn archive_entry_filetype
+and
+.Fn archive_entry_set_filetype
+get respectively set the filetype.
+The file type is one of the following constants:
+.Bl -tag -width "AE_IFSOCK" -compact -offset indent
+.It AE_IFREG
+Regular file
+.It AE_IFLNK
+Symbolic link
+.It AE_IFSOCK
+Socket
+.It AE_IFCHR
+Character device
+.It AE_IFBLK
+Block device
+.It AE_IFDIR
+Directory
+.It AE_IFIFO
+Named pipe (fifo)
+.El
+Not all file types are supported by all platforms.
+The constants used by
+.Xr stat 2
+may have different numeric values from the
+corresponding constants above.
+.Pp
+The functions
+.Fn archive_entry_mode
+and
+.Fn archive_entry_set_mode
+get/set a combination of file type and permissions and provide the
+equivalent of
+.Va st_mode .
+Use of
+.Fn archive_entry_filetype
+and
+.Fn archive_entry_perm
+for getting and
+.Fn archive_entry_set_filetype
+and
+.Fn archive_entry_set_perm
+for setting is recommended.
+.Pp
+The function
+.Fn archive_entry_size
+returns the file size, if it has been set, and 0 otherwise.
+.Fn archive_entry_size
+can be used to query that status.
+.Fn archive_entry_set_size
+and
+.Fn archive_entry_unset_size
+set and unset the size, respectively.
+.Pp
+The number of references (hardlinks) can be obtained by calling
+.Fn archive_entry_nlinks
+and set with
+.Fn archive_entry_set_nlinks .
+.Ss Identifying unique files
+The functions
+.Fn archive_entry_dev
+and
+.Fn archive_entry_ino64
+are used by
+.Xr archive_entry_linkify 3
+to find hardlinks.
+The pair of device and inode is supposed to identify hardlinked files.
+.Pp
+The device major and minor number can be obtained independently using
+.Fn archive_entry_devmajor
+and
+.Fn archive_entry_devminor .
+The device can be set either via
+.Fn archive_entry_set_dev
+or by the combination of major and minor number using
+.Fn archive_entry_set_devmajor
+and
+.Fn archive_entry_set_devminor .
+.Pp
+The inode number can be obtained using
+.Fn archive_entry_ino .
+This is a legacy interface that uses the platform
+.Vt ino_t ,
+which may be very small.
+To set the inode number,
+.Fn archive_entry_set_ino64
+is the preferred interface.
+.Ss Accessor functions for block and character devices
+Block and character devices are characterised either using a device number
+or a pair of major and minor number.
+The combined device number can be obtained with
+.Fn archive_device_rdev
+and set with
+.Fn archive_device_set_rdev .
+The major and minor numbers are accessed by
+.Fn archive_device_rdevmajor ,
+.Fn archive_device_rdevminor
+.Fn archive_device_set_rdevmajor
+and
+.Fn archive_device_set_rdevminor .
+.Pp
+The process of splitting the combined device number into major and
+minor number and the reverse process of combing them differs between
+platforms.
+Some archive formats use the combined form, while other formats use
+the split form.
+.Sh SEE ALSO
+.Xr archive_entry_acl 3 ,
+.Xr archive_entry_perms 3 ,
+.Xr archive_entry_time 3 ,
+.Xr libarchive 3 ,
+.Xr stat 2

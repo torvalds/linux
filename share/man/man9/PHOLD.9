@@ -1,0 +1,67 @@
+.\" Copyright (c) 2015 Mark Johnston <markj@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 7, 2015
+.Dt PHOLD 9
+.Os
+.Sh NAME
+.Nm PHOLD
+.Nd hold a process
+.Sh SYNOPSIS
+.In sys/proc.h
+.Fn PHOLD "struct proc *p"
+.Fn _PHOLD "struct proc *p"
+.Fn PRELE "struct proc *p"
+.Fn _PRELE "struct proc *p"
+.Fn PROC_ASSERT_HELD "struct proc *p"
+.Fn PROC_ASSERT_NOT_HELD "struct proc *p"
+.Sh DESCRIPTION
+The
+.Fn PHOLD
+macro increments the hold count of a process, and the
+.Fn PRELE
+macro decrements the hold count of a process.
+.Pp
+If a process with a non-zero hold count attempts to exit, it will sleep until
+its hold count has reached zero before the kernel begins releasing resources
+associated with the process.
+Once a process has started exiting, it is invalid to increase its hold count.
+Thus, callers must not attempt to hold a process that has the
+.Dv P_WEXIT
+flag set.
+The VM daemon will not swap out the kernel stack of a thread belonging to a
+process with a non-zero hold count.
+.Pp
+The
+.Fn _PHOLD
+and
+.Fn _PRELE
+macros are identical to
+.Fn PHOLD
+and
+.Fn PRELE ,
+except that they must be called with the process lock held.
+.Sh AUTHORS
+This manual page was written by
+.An Mark Johnston Aq Mt markj@FreeBSD.org .

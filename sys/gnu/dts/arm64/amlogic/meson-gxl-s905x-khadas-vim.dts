@@ -1,0 +1,200 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2017 Martin Blumenstingl <martin.blumenstingl@googlemail.com>.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/input/input.h>
+
+#include "meson-gxl-s905x-p212.dtsi"
+
+/ {
+	compatible = "khadas,vim", "amlogic,s905x", "amlogic,meson-gxl";
+	model = "Khadas VIM";
+
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 0>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1710000>;
+
+		button-function {
+			label = "Function";
+			linux,code = <KEY_FN>;
+			press-threshold-microvolt = <10000>;
+		};
+	};
+
+	aliases {
+		serial2 = &uart_AO_B;
+		ethernet0 = &ethmac;
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <100>;
+
+		button@0 {
+			label = "power";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	pwmleds {
+		compatible = "pwm-leds";
+
+		power {
+			label = "vim:red:power";
+			pwms = <&pwm_AO_ab 1 7812500 0>;
+			max-brightness = <255>;
+			linux,default-trigger = "default-on";
+		};
+	};
+
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_tx_tmds_out>;
+			};
+		};
+	};
+};
+
+&cec_AO {
+	status = "okay";
+	pinctrl-0 = <&ao_cec_pins>;
+	pinctrl-names = "default";
+	hdmi-phandle = <&hdmi_tx>;
+};
+
+&hdmi_tx {
+	status = "okay";
+	pinctrl-0 = <&hdmi_hpd_pins>, <&hdmi_i2c_pins>;
+	pinctrl-names = "default";
+};
+
+&hdmi_tx_tmds_port {
+	hdmi_tx_tmds_out: endpoint {
+		remote-endpoint = <&hdmi_connector_in>;
+	};
+};
+
+&i2c_A {
+	status = "okay";
+	pinctrl-0 = <&i2c_a_pins>;
+	pinctrl-names = "default";
+};
+
+&i2c_B {
+	status = "okay";
+	pinctrl-0 = <&i2c_b_pins>;
+	pinctrl-names = "default";
+
+	rtc: rtc@51 {
+		/* has to be enabled manually when a battery is connected: */
+		status = "disabled";
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "xin32k";
+	};
+};
+
+&ir {
+	linux,rc-map-name = "rc-geekbox";
+};
+
+&pinctrl_aobus {
+	gpio-line-names = "UART TX",
+			  "UART RX",
+			  "Power Key In",
+			  "J9 Header Pin35",
+			  "J9 Header Pin16",
+			  "J9 Header Pin15",
+			  "J9 Header Pin33",
+			  "IR In",
+			  "HDMI CEC",
+			  "SYS LED",
+			  /* GPIO_TEST_N */
+			  "";
+};
+
+&pinctrl_periphs {
+	gpio-line-names = /* Bank GPIOZ */
+			  "", "", "", "", "", "", "",
+			  "", "", "", "", "", "", "",
+			  "Power OFF",
+			  "VCCK Enable",
+			  /* Bank GPIOH */
+			  "HDMI HPD", "HDMI SDA", "HDMI SCL",
+			  "HDMI_5V_EN", "SPDIF",
+			  "J9 Header Pin37",
+			  "J9 Header Pin30",
+			  "J9 Header Pin29",
+			  "J9 Header Pin32",
+			  "J9 Header Pin31",
+			  /* Bank BOOT */
+			  "eMMC D0", "eMMC D1", "eMMC D2", "eMMC D3",
+			  "eMMC D4", "eMMC D5", "eMMC D6", "eMMC D7",
+			  "eMMC Clk", "eMMC Reset", "eMMC CMD",
+			  "", "BOOT_MODE", "", "", "eMMC Data Strobe",
+			  /* Bank CARD */
+			  "SDCard D1", "SDCard D0", "SDCard CLK", "SDCard CMD",
+			  "SDCard D3", "SDCard D2", "SDCard Det",
+			  /* Bank GPIODV */
+			  "", "", "", "", "", "", "", "", "", "", "", "",
+			  "", "", "", "", "", "", "", "", "", "", "", "",
+			  "I2C A SDA", "I2C A SCK", "I2C B SDA", "I2C B SCK",
+			  "VCCK Regulator", "VDDEE Regulator",
+			  /* Bank GPIOX */
+			  "WIFI SDIO D0", "WIFI SDIO D1", "WIFI SDIO D2",
+			  "WIFI SDIO D3", "WIFI SDIO CLK", "WIFI SDIO CMD",
+			  "WIFI Power Enable", "WIFI WAKE HOST",
+			  "Bluetooth PCM DOUT", "Bluetooth PCM DIN",
+			  "Bluetooth PCM SYNC", "Bluetooth PCM CLK",
+			  "Bluetooth UART TX", "Bluetooth UART RX",
+			  "Bluetooth UART CTS", "Bluetooth UART RTS",
+			  "WIFI 32K", "Bluetooth Enable",
+			  "Bluetooth WAKE HOST",
+			  /* Bank GPIOCLK */
+			  "", "J9 Header Pin39";
+};
+
+&pwm_AO_ab {
+	status = "okay";
+	pinctrl-0 = <&pwm_ao_a_3_pins>, <&pwm_ao_b_pins>;
+	pinctrl-names = "default";
+	clocks = <&xtal> , <&xtal>;
+	clock-names = "clkin0", "clkin1" ;
+};
+
+&pwm_ef {
+	pinctrl-0 = <&pwm_e_pins>, <&pwm_f_clk_pins>;
+};
+
+&sd_emmc_a {
+	brcmf: wifi@1 {
+		reg = <1>;
+		compatible = "brcm,bcm4329-fmac";
+	};
+};
+
+/* This is brought out on the Linux_RX (18) and Linux_TX (19) pins: */
+&uart_AO {
+	status = "okay";
+};
+
+/* This is brought out on the UART_RX_AO_B (15) and UART_TX_AO_B (16) pins: */
+&uart_AO_B {
+	status = "okay";
+	pinctrl-0 = <&uart_ao_b_pins>;
+	pinctrl-names = "default";
+};

@@ -1,0 +1,103 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\" Copyright (c) 2010 Konstantin Belousov <kib@FreeBSD.org>
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 24, 2016
+.Dt VRELE 9
+.Os
+.Sh NAME
+.Nm vput ,
+.Nm vrele ,
+.Nm vunref
+.Nd decrement the use count for a vnode
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft void
+.Fn vput "struct vnode *vp"
+.Ft void
+.Fn vrele "struct vnode *vp"
+.Ft void
+.Fn vunref "struct vnode *vp"
+.Sh DESCRIPTION
+Decrement the
+.Va v_usecount
+field of a vnode.
+.Bl -tag -width 2n
+.It Fa vp
+the vnode to decrement
+.El
+.Pp
+The
+.Fn vrele
+function takes an unlocked vnode and returns with the vnode unlocked.
+.Pp
+The
+.Fn vput
+function should be given a locked vnode as argument, the vnode is unlocked
+after the function returned.
+The
+.Fn vput
+is operationally equivalent to calling
+.Xr VOP_UNLOCK 9
+followed by
+.Xr vrele 9 ,
+with less overhead.
+.Pp
+The
+.Fn vunref
+function takes a locked vnode as argument, and returns with the vnode locked.
+.Pp
+Any code in the system which signified its use of a vnode by usecount
+should call one of the listed function to decrement use counter.
+If the
+.Va v_usecount
+field of the non-doomed vnode reaches zero, then it will be inactivated
+and placed on the free list.
+.Pp
+The
+.Fn vrele
+function may lock the vnode.
+All three functions may sleep.
+.Pp
+The hold count for the vnode is always greater or equal to the usecount.
+Non-forced unmount fails when mount point owns a vnode that has non-zero
+usecount, see
+.Xr vflush 9 .
+.Sh SEE ALSO
+.Xr vget 9 ,
+.Xr vnode 9 ,
+.Xr vref 9 ,
+.Xr vrefcnt 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson
+and
+.An Konstantin Belousov .

@@ -1,0 +1,316 @@
+#
+# GENERIC -- Generic kernel configuration file for FreeBSD/arm64
+#
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
+#
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+# $FreeBSD$
+
+cpu		ARM64
+ident		GENERIC
+
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
+
+options 	SCHED_ULE		# ULE scheduler
+options 	PREEMPTION		# Enable kernel thread preemption
+options 	VIMAGE			# Subsystem virtualization, e.g. VNET
+options 	INET			# InterNETworking
+options 	INET6			# IPv6 communications protocols
+options 	IPSEC			# IP (v4/v6) security
+options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+options 	TCP_OFFLOAD		# TCP offload
+options		TCP_RFC7413		# TCP Fast Open
+options 	SCTP			# Stream Control Transmission Protocol
+options 	FFS			# Berkeley Fast Filesystem
+options 	SOFTUPDATES		# Enable FFS soft updates support
+options 	UFS_ACL			# Support for access control lists
+options 	UFS_DIRHASH		# Improve performance on big directories
+options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
+options 	QUOTA			# Enable disk quotas for UFS
+options 	MD_ROOT			# MD is a potential root device
+options 	NFSCL			# Network Filesystem Client
+options 	NFSD			# Network Filesystem Server
+options 	NFSLOCKD		# Network Lock Manager
+options 	NFS_ROOT		# NFS usable as /, requires NFSCL
+options 	MSDOSFS			# MSDOS Filesystem
+options 	CD9660			# ISO 9660 Filesystem
+options 	PROCFS			# Process filesystem (requires PSEUDOFS)
+options 	PSEUDOFS		# Pseudo-filesystem framework
+options 	GEOM_RAID		# Soft RAID functionality.
+options 	GEOM_LABEL		# Provides labelization
+options 	COMPAT_FREEBSD32	# Compatible with FreeBSD/arm
+options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
+options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
+options 	KTRACE			# ktrace(1) support
+options 	STACK			# stack(9) support
+options 	SYSVSHM			# SYSV-style shared memory
+options 	SYSVMSG			# SYSV-style message queues
+options 	SYSVSEM			# SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
+options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
+options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
+options 	AUDIT			# Security event auditing
+options 	CAPABILITY_MODE		# Capsicum capability mode
+options 	CAPABILITIES		# Capsicum capabilities
+options 	MAC			# TrustedBSD MAC Framework
+options 	KDTRACE_FRAME		# Ensure frames are compiled in
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	VFP			# Floating-point support
+options 	RACCT			# Resource accounting framework
+options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
+options 	RCTL			# Resource limits
+options 	SMP
+options 	INTRNG
+
+# Debugging support.  Always need this:
+options 	KDB			# Enable kernel debugger support.
+options 	KDB_TRACE		# Print a stack trace for a panic.
+# For full debugger support use (turn off in stable branch):
+options 	DDB			# Support DDB.
+#options 	GDB			# Support remote GDB.
+options 	DEADLKRES		# Enable the deadlock resolver
+options 	INVARIANTS		# Enable calls of extra sanity checking
+options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
+options 	WITNESS			# Enable checks to detect deadlocks and cycles
+options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
+options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
+options 	ALT_BREAK_TO_DEBUGGER	# Enter debugger on keyboard escape sequence
+options 	USB_DEBUG		# enable debug msgs
+options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
+
+# Kernel Sanitizers
+#options 	COVERAGE		# Generic kernel coverage. Used by KCOV
+#options 	KCOV			# Kernel Coverage Sanitizer
+# Warning: KUBSAN can result in a kernel too large for loader to load
+#options 	KUBSAN			# Kernel Undefined Behavior Sanitizer
+
+# Kernel dump features.
+options 	EKCD			# Support for encrypted kernel dumps
+options 	GZIO			# gzip-compressed kernel and user dumps
+options 	ZSTDIO			# zstd-compressed kernel and user dumps
+options 	NETDUMP			# netdump(4) client support
+
+# SoC support
+options 	SOC_ALLWINNER_A64
+options 	SOC_ALLWINNER_H5
+options 	SOC_CAVM_THUNDERX
+options 	SOC_HISI_HI6220
+options 	SOC_BRCM_BCM2837
+options 	SOC_MARVELL_8K
+options 	SOC_ROCKCHIP_RK3328
+options 	SOC_ROCKCHIP_RK3399
+options 	SOC_XILINX_ZYNQ
+
+# Timer drivers
+device		a10_timer
+
+# Annapurna Alpine drivers
+device		al_ccu			# Alpine Cache Coherency Unit
+device		al_nb_service		# Alpine North Bridge Service
+device		al_iofic		# I/O Fabric Interrupt Controller
+device		al_serdes		# Serializer/Deserializer
+device		al_udma			# Universal DMA
+
+# Qualcomm Snapdragon drivers
+device		qcom_gcc		# Global Clock Controller
+
+# VirtIO support
+device		virtio
+device		virtio_pci
+device		virtio_mmio
+device		virtio_blk
+device		vtnet
+
+# CPU frequency control
+device		cpufreq
+
+# Bus drivers
+device		pci
+device		al_pci		# Annapurna Alpine PCI-E
+options 	PCI_HP			# PCI-Express native HotPlug
+options 	PCI_IOV		# PCI SR-IOV support
+
+# PCI/PCI-X/PCIe Ethernet NICs that use iflib infrastructure
+device		iflib
+device		em		# Intel PRO/1000 Gigabit Ethernet Family
+device		ix		# Intel 10Gb Ethernet Family
+
+# Ethernet NICs
+device		mdio
+device		mii
+device		miibus		# MII bus support
+device		awg		# Allwinner EMAC Gigabit Ethernet
+device		axgbe		# AMD Opteron A1100 integrated NIC
+device		msk		# Marvell/SysKonnect Yukon II Gigabit Ethernet
+device		neta		# Marvell Armada 370/38x/XP/3700 NIC
+device  	smc		# SMSC LAN91C111
+device		vnic		# Cavium ThunderX NIC
+device		al_eth		# Annapurna Alpine Ethernet NIC
+device		dwc_rk		# Rockchip Designware
+
+# Etherswitch devices
+device		etherswitch	# Enable etherswitch support
+device		miiproxy	# Required for etherswitch
+device		e6000sw		# Marvell mv88e6085 based switches
+
+# Block devices
+device		ahci
+device		scbus
+device		da
+
+# ATA/SCSI peripherals
+device		pass		# Passthrough device (direct ATA/SCSI access)
+
+# NVM Express (NVMe) support
+device		nvme		# base NVMe driver
+options 	NVME_USE_NVD=0	# prefer the cam(4) based nda(4) driver
+device		nvd		# expose NVMe namespaces as disks, depends on nvme
+
+# MMC/SD/SDIO Card slot support
+device		sdhci
+device		sdhci_xenon		# Marvell Xenon SD/MMC controller
+device		aw_mmc			# Allwinner SD/MMC controller
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+device		dwmmc
+
+# Serial (COM) ports
+device		uart		# Generic UART driver
+device		uart_msm	# Qualcomm MSM UART driver
+device		uart_mu		# RPI3 aux port
+device		uart_mvebu	# Armada 3700 UART driver
+device		uart_ns8250	# ns8250-type UART driver
+device		uart_snps
+device		pl011
+
+# USB support
+device		aw_ehci			# Allwinner EHCI USB interface (USB 2.0)
+device		aw_usbphy		# Allwinner USB PHY
+device		dwcotg			# DWC OTG controller
+device		ohci			# OHCI USB interface
+device		ehci			# EHCI USB interface (USB 2.0)
+device		ehci_mv			# Marvell EHCI USB interface
+device		xhci			# XHCI PCI->USB interface (USB 3.0)
+device		usb			# USB Bus (required)
+device		ukbd			# Keyboard
+device		umass			# Disks/Mass storage - Requires scbus and da
+
+# USB ethernet support
+device		muge
+device		smcphy
+device		smsc
+
+# GPIO / PINCTRL
+device		aw_gpio		# Allwinner GPIO controller
+device		gpio
+device		gpioled
+device		fdt_pinctrl
+device		mv_gpio		# Marvell GPIO controller
+device		mvebu_pinctrl	# Marvell Pinmux Controller
+device		rk_gpio		# RockChip GPIO Controller
+device		rk_pinctrl	# RockChip Pinmux Controller
+
+# I2C
+device		aw_rsb		# Allwinner Reduced Serial Bus
+device		bcm2835_bsc	# Broadcom BCM283x I2C bus
+device		iicbus
+device		iic
+device		twsi		# Allwinner I2C controller
+device		rk_i2c		# RockChip I2C controller
+device		syr827		# Silergy SYR827 PMIC
+
+# Clock and reset controllers
+device		aw_ccu		# Allwinner clock controller
+
+# Interrupt controllers
+device		aw_nmi		# Allwinner NMI support
+device		mv_cp110_icu	# Marvell CP110 ICU
+device		mv_ap806_gicp	# Marvell AP806 GICP
+
+# Real-time clock support
+device		aw_rtc		# Allwinner Real-time Clock
+device		mv_rtc		# Marvell Real-time Clock
+
+# Watchdog controllers
+device		aw_wdog		# Allwinner Watchdog
+
+# Power management controllers
+device		axp81x		# X-Powers AXP81x PMIC
+device		rk805		# RockChip RK805 PMIC
+
+# EFUSE
+device		aw_sid		# Allwinner Secure ID EFUSE
+
+# Thermal sensors
+device		aw_thermal	# Allwinner Thermal Sensor Controller
+device		mv_thermal	# Marvell Thermal Sensor Controller
+
+# SPI
+device		spibus
+device		bcm2835_spi	# Broadcom BCM283x SPI bus
+
+# PWM
+device		pwm
+device		aw_pwm
+
+# Console
+device		vt
+device		kbdmux
+
+device		vt_efifb
+
+# EVDEV support
+device		evdev			# input event device support
+options		EVDEV_SUPPORT		# evdev support in legacy drivers
+device		uinput			# install /dev/uinput cdev
+
+# Pseudo devices.
+device		crypto		# core crypto support
+device		loop		# Network loopback
+device		random		# Entropy device
+device		ether		# Ethernet support
+device		vlan		# 802.1Q VLAN support
+device		tun		# Packet tunnel.
+device		md		# Memory "disks"
+device		gif		# IPv6 and IPv4 tunneling
+device		firmware	# firmware assist module
+options 	EFIRT		# EFI Runtime Services
+
+# EXT_RESOURCES pseudo devices
+options 	EXT_RESOURCES
+device		clk
+device		phy
+device		hwreset
+device		nvmem
+device		regulator
+device		syscon
+device		aw_syscon
+
+# The `bpf' device enables the Berkeley Packet Filter.
+# Be aware of the administrative consequences of enabling this!
+# Note that 'bpf' is required for DHCP.
+device		bpf		# Berkeley packet filter
+
+# Chip-specific errata
+options 	THUNDERX_PASS_1_1_ERRATA
+
+options 	FDT
+device		acpi
+
+# DTBs
+makeoptions	MODULES_EXTRA="dtb/allwinner dtb/rockchip dtb/rpi"

@@ -1,0 +1,20 @@
+# $FreeBSD$
+
+failures=0
+
+check() {
+	if [ $(($1)) != $2 ]; then
+		failures=$((failures+1))
+		echo "For $1, expected $2 actual $(($1))"
+	fi
+}
+
+check '20 / 2 / 2' 5
+check '20 - 2 - 2' 16
+unset a b c d
+check "a = b = c = d = 1" 1
+check "a == 1 && b == 1 && c == 1 && d == 1" 1
+check "a += b += c += d" 4
+check "a == 4 && b == 3 && c == 2 && d == 1" 1
+
+exit $((failures != 0))

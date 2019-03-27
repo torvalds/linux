@@ -1,0 +1,8 @@
+# $FreeBSD$ 
+# $NetBSD: KZ1048.src,v 1.1 2007/03/13 16:34:39 tnozaki Exp $
+
+NAME		"KZ1048"
+ENCODING	"NONE"
+VARIABLE	"none"
+DEFCSID		"KZ1048"		0
+INVALID		0x3F # '?'

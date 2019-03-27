@@ -1,0 +1,3883 @@
+# This file holds test cases for the demangler.
+# Each test case looks like this:
+#  options
+#  input to be demangled
+#  expected output
+#
+#  Supported options:
+#    --format=<name>     Sets the demangling style.
+#    --no-params         There are two lines of expected output; the first
+#                        is with DMGL_PARAMS, the second is without it.
+#    --is-v3-ctor        Calls is_gnu_v3_mangled_ctor on input; expected
+#                        output is an integer representing ctor_kind.
+#    --is-v3-dtor        Likewise, but for dtors.
+#    --ret-postfix       Passes the DMGL_RET_POSTFIX option
+#
+#  For compatibility, just in case it matters, the options line may be
+#  empty, to mean --format=auto.  If it doesn't start with --, then it
+#  may contain only a format name.
+#
+# A line starting with `#' is ignored.
+# However, blank lines in this file are NOT ignored.
+#
+--format=gnu --no-params
+AddAlignment__9ivTSolverUiP12ivInteractorP7ivTGlue
+ivTSolver::AddAlignment(unsigned int, ivInteractor *, ivTGlue *)
+ivTSolver::AddAlignment
+#
+--format=gnu --no-params
+ArrowheadIntersects__9ArrowLineP9ArrowheadR6BoxObjP7Graphic
+ArrowLine::ArrowheadIntersects(Arrowhead *, BoxObj &, Graphic *)
+ArrowLine::ArrowheadIntersects
+#
+--format=gnu --no-params
+AtEnd__13ivRubberGroup
+ivRubberGroup::AtEnd(void)
+ivRubberGroup::AtEnd
+#
+--format=gnu --no-params
+BgFilter__9ivTSolverP12ivInteractor
+ivTSolver::BgFilter(ivInteractor *)
+ivTSolver::BgFilter
+#
+--format=gnu --no-params
+Check__6UArrayi
+UArray::Check(int)
+UArray::Check
+#
+--format=gnu --no-params
+CoreConstDecls__8TextCodeR7ostream
+TextCode::CoreConstDecls(ostream &)
+TextCode::CoreConstDecls
+#
+--format=gnu --no-params
+Detach__8StateVarP12StateVarView
+StateVar::Detach(StateVarView *)
+StateVar::Detach
+#
+--format=gnu --no-params
+Done__9ComponentG8Iterator
+Component::Done(Iterator)
+Component::Done
+#
+--format=gnu --no-params
+Effect__11RelateManipR7ivEvent
+RelateManip::Effect(ivEvent &)
+RelateManip::Effect
+#
+--format=gnu --no-params
+FindFixed__FRP4CNetP4CNet
+FindFixed(CNet *&, CNet *)
+FindFixed
+#
+--format=gnu --no-params
+Fix48_abort__FR8twolongs
+Fix48_abort(twolongs &)
+Fix48_abort
+#
+--format=gnu --no-params
+GetBarInfo__15iv2_6_VScrollerP13ivPerspectiveRiT2
+iv2_6_VScroller::GetBarInfo(ivPerspective *, int &, int &)
+iv2_6_VScroller::GetBarInfo
+#
+--format=gnu --no-params
+GetBgColor__C9ivPainter
+ivPainter::GetBgColor(void) const
+ivPainter::GetBgColor
+#
+--format=gnu --no-params
+InsertBody__15H_PullrightMenuii
+H_PullrightMenu::InsertBody(int, int)
+H_PullrightMenu::InsertBody
+#
+--format=gnu --no-params
+InsertCharacter__9TextManipc
+TextManip::InsertCharacter(char)
+TextManip::InsertCharacter
+#
+--format=gnu --no-params
+InsertToplevel__7ivWorldP12ivInteractorT1
+ivWorld::InsertToplevel(ivInteractor *, ivInteractor *)
+ivWorld::InsertToplevel
+#
+--format=gnu --no-params
+InsertToplevel__7ivWorldP12ivInteractorT1iiUi
+ivWorld::InsertToplevel(ivInteractor *, ivInteractor *, int, int, unsigned int)
+ivWorld::InsertToplevel
+#
+--format=gnu --no-params
+IsAGroup__FP11GraphicViewP11GraphicComp
+IsAGroup(GraphicView *, GraphicComp *)
+IsAGroup
+#
+--format=gnu --no-params
+IsA__10ButtonCodeUl
+ButtonCode::IsA(unsigned long)
+ButtonCode::IsA
+#
+--format=gnu --no-params
+ReadName__FR7istreamPc
+ReadName(istream &, char *)
+ReadName
+#
+--format=gnu --no-params
+Redraw__13StringBrowseriiii
+StringBrowser::Redraw(int, int, int, int)
+StringBrowser::Redraw
+#
+--format=gnu --no-params
+Rotate__13ivTransformerf
+ivTransformer::Rotate(float)
+ivTransformer::Rotate
+#
+--format=gnu --no-params
+Rotated__C13ivTransformerf
+ivTransformer::Rotated(float) const
+ivTransformer::Rotated
+#
+--format=gnu --no-params
+Round__Ff
+Round(float)
+Round
+#
+--format=gnu --no-params
+SetExport__16MemberSharedNameUi
+MemberSharedName::SetExport(unsigned int)
+MemberSharedName::SetExport
+#
+--format=gnu --no-params
+Set__14ivControlState13ControlStatusUi
+ivControlState::Set(ControlStatus, unsigned int)
+ivControlState::Set
+#
+--format=gnu --no-params
+Set__5DFacePcii
+DFace::Set(char *, int, int)
+DFace::Set
+#
+--format=gnu --no-params
+VConvert__9ivTSolverP12ivInteractorRP8TElementT2
+ivTSolver::VConvert(ivInteractor *, TElement *&, TElement *&)
+ivTSolver::VConvert
+#
+--format=gnu --no-params
+VConvert__9ivTSolverP7ivTGlueRP8TElement
+ivTSolver::VConvert(ivTGlue *, TElement *&)
+ivTSolver::VConvert
+#
+--format=gnu --no-params
+VOrder__9ivTSolverUiRP12ivInteractorT2
+ivTSolver::VOrder(unsigned int, ivInteractor *&, ivInteractor *&)
+ivTSolver::VOrder
+#
+--format=gnu --no-params
+_10PageButton$__both
+PageButton::__both
+PageButton::__both
+#
+--format=gnu --no-params
+_3RNG$singleMantissa
+RNG::singleMantissa
+RNG::singleMantissa
+#
+--format=gnu --no-params
+_5IComp$_release
+IComp::_release
+IComp::_release
+#
+--format=gnu --no-params
+_$_10BitmapComp
+BitmapComp::~BitmapComp(void)
+BitmapComp::~BitmapComp
+#
+--format=gnu --no-params
+_$_9__io_defs
+__io_defs::~__io_defs(void)
+__io_defs::~__io_defs
+#
+--format=gnu --no-params
+_$_Q23foo3bar
+foo::bar::~bar(void)
+foo::bar::~bar
+#
+--format=gnu --no-params
+_$_Q33foo3bar4bell
+foo::bar::bell::~bell(void)
+foo::bar::bell::~bell
+#
+--format=gnu --no-params
+__10ivTelltaleiP7ivGlyph
+ivTelltale::ivTelltale(int, ivGlyph *)
+ivTelltale::ivTelltale
+#
+--format=gnu --no-params
+__10ivViewportiP12ivInteractorUi
+ivViewport::ivViewport(int, ivInteractor *, unsigned int)
+ivViewport::ivViewport
+#
+--format=gnu --no-params
+__10ostrstream
+ostrstream::ostrstream(void)
+ostrstream::ostrstream
+#
+--format=gnu --no-params
+__10ostrstreamPcii
+ostrstream::ostrstream(char *, int, int)
+ostrstream::ostrstream
+#
+--format=gnu --no-params
+__11BitmapTablei
+BitmapTable::BitmapTable(int)
+BitmapTable::BitmapTable
+#
+--format=gnu --no-params
+__12ViewportCodeP12ViewportComp
+ViewportCode::ViewportCode(ViewportComp *)
+ViewportCode::ViewportCode
+#
+--format=gnu --no-params
+__12iv2_6_Borderii
+iv2_6_Border::iv2_6_Border(int, int)
+iv2_6_Border::iv2_6_Border
+#
+--format=gnu --no-params
+__12ivBreak_Listl
+ivBreak_List::ivBreak_List(long)
+ivBreak_List::ivBreak_List
+#
+--format=gnu --no-params
+__14iv2_6_MenuItemiP12ivInteractor
+iv2_6_MenuItem::iv2_6_MenuItem(int, ivInteractor *)
+iv2_6_MenuItem::iv2_6_MenuItem
+#
+--format=gnu --no-params
+__20DisplayList_IteratorR11DisplayList
+DisplayList_Iterator::DisplayList_Iterator(DisplayList &)
+DisplayList_Iterator::DisplayList_Iterator
+#
+--format=gnu --no-params
+__3fooRT0
+foo::foo(foo &)
+foo::foo
+#
+--format=gnu --no-params
+__3fooiN31
+foo::foo(int, int, int, int)
+foo::foo
+#
+--format=gnu --no-params
+__3fooiRT0iT2iT2
+foo::foo(int, foo &, int, foo &, int, foo &)
+foo::foo
+#
+--format=gnu --no-params
+__6KeyMapPT0
+KeyMap::KeyMap(KeyMap *)
+KeyMap::KeyMap
+#
+--format=gnu --no-params
+__8ArrowCmdP6EditorUiUi
+ArrowCmd::ArrowCmd(Editor *, unsigned int, unsigned int)
+ArrowCmd::ArrowCmd
+#
+--format=gnu --no-params
+__9F_EllipseiiiiP7Graphic
+F_Ellipse::F_Ellipse(int, int, int, int, Graphic *)
+F_Ellipse::F_Ellipse
+#
+--format=gnu --no-params
+__9FrameDataP9FrameCompi
+FrameData::FrameData(FrameComp *, int)
+FrameData::FrameData
+#
+--format=gnu --no-params
+__9HVGraphicP9CanvasVarP7Graphic
+HVGraphic::HVGraphic(CanvasVar *, Graphic *)
+HVGraphic::HVGraphic
+#
+--format=gnu --no-params
+__Q23foo3bar
+foo::bar::bar(void)
+foo::bar::bar
+#
+--format=gnu --no-params
+__Q33foo3bar4bell
+foo::bar::bell::bell(void)
+foo::bar::bell::bell
+#
+--format=gnu --no-params
+__aa__3fooRT0
+foo::operator&&(foo &)
+foo::operator&&
+#
+--format=gnu --no-params
+__aad__3fooRT0
+foo::operator&=(foo &)
+foo::operator&=
+#
+--format=gnu --no-params
+__ad__3fooRT0
+foo::operator&(foo &)
+foo::operator&
+#
+--format=gnu --no-params
+__adv__3fooRT0
+foo::operator/=(foo &)
+foo::operator/=
+#
+--format=gnu --no-params
+__aer__3fooRT0
+foo::operator^=(foo &)
+foo::operator^=
+#
+--format=gnu --no-params
+__als__3fooRT0
+foo::operator<<=(foo &)
+foo::operator<<=
+#
+--format=gnu --no-params
+__amd__3fooRT0
+foo::operator%=(foo &)
+foo::operator%=
+#
+--format=gnu --no-params
+__ami__3fooRT0
+foo::operator-=(foo &)
+foo::operator-=
+#
+--format=gnu --no-params
+__aml__3FixRT0
+Fix::operator*=(Fix &)
+Fix::operator*=
+#
+--format=gnu --no-params
+__aml__5Fix16i
+Fix16::operator*=(int)
+Fix16::operator*=
+#
+--format=gnu --no-params
+__aml__5Fix32RT0
+Fix32::operator*=(Fix32 &)
+Fix32::operator*=
+#
+--format=gnu --no-params
+__aor__3fooRT0
+foo::operator|=(foo &)
+foo::operator|=
+#
+--format=gnu --no-params
+__apl__3fooRT0
+foo::operator+=(foo &)
+foo::operator+=
+#
+--format=gnu --no-params
+__ars__3fooRT0
+foo::operator>>=(foo &)
+foo::operator>>=
+#
+--format=gnu --no-params
+__as__3fooRT0
+foo::operator=(foo &)
+foo::operator=
+#
+--format=gnu --no-params
+__cl__3fooRT0
+foo::operator()(foo &)
+foo::operator()
+#
+--format=gnu --no-params
+__cl__6Normal
+Normal::operator()(void)
+Normal::operator()
+#
+--format=gnu --no-params
+__cl__6Stringii
+String::operator()(int, int)
+String::operator()
+#
+--format=gnu --no-params
+__cm__3fooRT0
+foo::operator, (foo &)
+foo::operator, 
+#
+--format=gnu --no-params
+__co__3foo
+foo::operator~(void)
+foo::operator~
+#
+--format=gnu --no-params
+__dl__3fooPv
+foo::operator delete(void *)
+foo::operator delete
+#
+--format=gnu --no-params
+__dv__3fooRT0
+foo::operator/(foo &)
+foo::operator/
+#
+--format=gnu --no-params
+__eq__3fooRT0
+foo::operator==(foo &)
+foo::operator==
+#
+--format=gnu --no-params
+__er__3fooRT0
+foo::operator^(foo &)
+foo::operator^
+#
+--format=gnu --no-params
+__ge__3fooRT0
+foo::operator>=(foo &)
+foo::operator>=
+#
+--format=gnu --no-params
+__gt__3fooRT0
+foo::operator>(foo &)
+foo::operator>
+#
+--format=gnu --no-params
+__le__3fooRT0
+foo::operator<=(foo &)
+foo::operator<=
+#
+--format=gnu --no-params
+__ls__3fooRT0
+foo::operator<<(foo &)
+foo::operator<<
+#
+--format=gnu --no-params
+__ls__FR7ostreamPFR3ios_R3ios
+operator<<(ostream &, ios &(*)(ios &))
+operator<<
+#
+--format=gnu --no-params
+__ls__FR7ostreamR3Fix
+operator<<(ostream &, Fix &)
+operator<<
+#
+--format=gnu --no-params
+__lt__3fooRT0
+foo::operator<(foo &)
+foo::operator<
+#
+--format=gnu --no-params
+__md__3fooRT0
+foo::operator%(foo &)
+foo::operator%
+#
+--format=gnu --no-params
+__mi__3fooRT0
+foo::operator-(foo &)
+foo::operator-
+#
+--format=gnu --no-params
+__ml__3fooRT0
+foo::operator*(foo &)
+foo::operator*
+#
+--format=gnu --no-params
+__mm__3fooi
+foo::operator--(int)
+foo::operator--
+#
+--format=gnu --no-params
+__ne__3fooRT0
+foo::operator!=(foo &)
+foo::operator!=
+#
+--format=gnu --no-params
+__nt__3foo
+foo::operator!(void)
+foo::operator!
+#
+--format=gnu --no-params
+__nw__3fooi
+foo::operator new(int)
+foo::operator new
+#
+--format=gnu --no-params
+__oo__3fooRT0
+foo::operator||(foo &)
+foo::operator||
+#
+--format=gnu --no-params
+__opPc__3foo
+foo::operator char *(void)
+foo::operator char *
+#
+--format=gnu --no-params
+__opi__3foo
+foo::operator int(void)
+foo::operator int
+#
+--format=gnu --no-params
+__or__3fooRT0
+foo::operator|(foo &)
+foo::operator|
+#
+--format=gnu --no-params
+__pl__3fooRT0
+foo::operator+(foo &)
+foo::operator+
+#
+--format=gnu --no-params
+__pp__3fooi
+foo::operator++(int)
+foo::operator++
+#
+--format=gnu --no-params
+__rf__3foo
+foo::operator->(void)
+foo::operator->
+#
+--format=gnu --no-params
+__rm__3fooRT0
+foo::operator->*(foo &)
+foo::operator->*
+#
+--format=gnu --no-params
+__rs__3fooRT0
+foo::operator>>(foo &)
+foo::operator>>
+#
+--format=gnu --no-params
+_new_Fix__FUs
+_new_Fix(unsigned short)
+_new_Fix
+#
+--format=gnu --no-params
+_vt.foo
+foo virtual table
+foo virtual table
+#
+--format=gnu --no-params
+_vt.foo.bar
+foo::bar virtual table
+foo::bar virtual table
+#
+--format=gnu --no-params
+_vt$foo
+foo virtual table
+foo virtual table
+#
+--format=gnu --no-params
+_vt$foo$bar
+foo::bar virtual table
+foo::bar virtual table
+#
+--format=gnu --no-params
+append__7ivGlyphPT0
+ivGlyph::append(ivGlyph *)
+ivGlyph::append
+#
+--format=gnu --no-params
+clearok__FP7_win_sti
+clearok(_win_st *, int)
+clearok
+#
+--format=gnu --no-params
+complexfunc2__FPFPc_i
+complexfunc2(int (*)(char *))
+complexfunc2
+#
+--format=gnu --no-params
+complexfunc3__FPFPFPl_s_i
+complexfunc3(int (*)(short (*)(long *)))
+complexfunc3
+#
+--format=gnu --no-params
+complexfunc4__FPFPFPc_s_i
+complexfunc4(int (*)(short (*)(char *)))
+complexfunc4
+#
+--format=gnu --no-params
+complexfunc5__FPFPc_PFl_i
+complexfunc5(int (*(*)(char *))(long))
+complexfunc5
+#
+--format=gnu --no-params
+complexfunc6__FPFPi_PFl_i
+complexfunc6(int (*(*)(int *))(long))
+complexfunc6
+#
+--format=gnu --no-params
+complexfunc7__FPFPFPc_i_PFl_i
+complexfunc7(int (*(*)(int (*)(char *)))(long))
+complexfunc7
+#
+--format=gnu --no-params
+foo__FiN30
+foo(int, int, int, int)
+foo
+#
+--format=gnu --no-params
+foo__FiR3fooiT1iT1
+foo(int, foo &, int, foo &, int, foo &)
+foo
+#
+--format=gnu --no-params
+foo___3barl
+bar::foo_(long)
+bar::foo_
+#
+--format=gnu --no-params
+insert__15ivClippingStacklRP8_XRegion
+ivClippingStack::insert(long, _XRegion *&)
+ivClippingStack::insert
+#
+--format=gnu --no-params
+insert__16ChooserInfo_ListlR11ChooserInfo
+ChooserInfo_List::insert(long, ChooserInfo &)
+ChooserInfo_List::insert
+#
+--format=gnu --no-params
+insert__17FontFamilyRepListlRP15ivFontFamilyRep
+FontFamilyRepList::insert(long, ivFontFamilyRep *&)
+FontFamilyRepList::insert
+#
+--format=gnu --no-params
+leaveok__FP7_win_stc
+leaveok(_win_st *, char)
+leaveok
+#
+--format=gnu --no-params
+left_mover__C7ivMFKitP12ivAdjustableP7ivStyle
+ivMFKit::left_mover(ivAdjustable *, ivStyle *) const
+ivMFKit::left_mover
+#
+--format=gnu --no-params
+overload1arg__FSc
+overload1arg(signed char)
+overload1arg
+#
+--format=gnu --no-params
+overload1arg__FUc
+overload1arg(unsigned char)
+overload1arg
+#
+--format=gnu --no-params
+overload1arg__FUi
+overload1arg(unsigned int)
+overload1arg
+#
+--format=gnu --no-params
+overload1arg__FUl
+overload1arg(unsigned long)
+overload1arg
+#
+--format=gnu --no-params
+overload1arg__FUs
+overload1arg(unsigned short)
+overload1arg
+#
+--format=gnu --no-params
+overload1arg__Fc
+overload1arg(char)
+overload1arg
+#
+--format=gnu --no-params
+overload1arg__Fd
+overload1arg(double)
+overload1arg
+#
+--format=gnu --no-params
+overload1arg__Ff
+overload1arg(float)
+overload1arg
+#
+--format=gnu --no-params
+overload1arg__Fi
+overload1arg(int)
+overload1arg
+#
+--format=gnu --no-params
+overload1arg__Fl
+overload1arg(long)
+overload1arg
+#
+--format=gnu --no-params
+overload1arg__Fs
+overload1arg(short)
+overload1arg
+#
+--format=gnu --no-params
+overload1arg__Fv
+overload1arg(void)
+overload1arg
+#
+--format=gnu --no-params
+overloadargs__Fi
+overloadargs(int)
+overloadargs
+#
+--format=gnu --no-params
+overloadargs__Fii
+overloadargs(int, int)
+overloadargs
+#
+--format=gnu --no-params
+overloadargs__Fiii
+overloadargs(int, int, int)
+overloadargs
+#
+--format=gnu --no-params
+overloadargs__Fiiii
+overloadargs(int, int, int, int)
+overloadargs
+#
+--format=gnu --no-params
+overloadargs__Fiiiii
+overloadargs(int, int, int, int, int)
+overloadargs
+#
+--format=gnu --no-params
+overloadargs__Fiiiiii
+overloadargs(int, int, int, int, int, int)
+overloadargs
+#
+--format=gnu --no-params
+overloadargs__Fiiiiiii
+overloadargs(int, int, int, int, int, int, int)
+overloadargs
+#
+--format=gnu --no-params
+overloadargs__Fiiiiiiii
+overloadargs(int, int, int, int, int, int, int, int)
+overloadargs
+#
+--format=gnu --no-params
+overloadargs__Fiiiiiiiii
+overloadargs(int, int, int, int, int, int, int, int, int)
+overloadargs
+#
+--format=gnu --no-params
+overloadargs__Fiiiiiiiiii
+overloadargs(int, int, int, int, int, int, int, int, int, int)
+overloadargs
+#
+--format=gnu --no-params
+overloadargs__Fiiiiiiiiiii
+overloadargs(int, int, int, int, int, int, int, int, int, int, int)
+overloadargs
+#
+--format=gnu --no-params
+poke__8ivRasterUlUlffff
+ivRaster::poke(unsigned long, unsigned long, float, float, float, float)
+ivRaster::poke
+#
+--format=gnu --no-params
+polar__Fdd
+polar(double, double)
+polar
+#
+--format=gnu --no-params
+scale__13ivTransformerff
+ivTransformer::scale(float, float)
+ivTransformer::scale
+#
+--format=gnu --no-params
+sgetn__7filebufPci
+filebuf::sgetn(char *, int)
+filebuf::sgetn
+#
+--format=gnu --no-params
+shift__FP5_FrepiT0
+shift(_Frep *, int, _Frep *)
+shift
+#
+--format=gnu --no-params
+test__C6BitSeti
+BitSet::test(int) const
+BitSet::test
+#
+--format=gnu --no-params
+test__C6BitSetii
+BitSet::test(int, int) const
+BitSet::test
+#
+--format=gnu --no-params
+text_source__8Documentl
+Document::text_source(long)
+Document::text_source
+#
+--format=gnu --no-params
+variance__6Erlangd
+Erlang::variance(double)
+Erlang::variance
+#
+--format=gnu --no-params
+view__14DocumentViewerP8ItemViewP11TabularItem
+DocumentViewer::view(ItemView *, TabularItem *)
+DocumentViewer::view
+#
+--format=gnu --no-params
+xy_extents__11ivExtensionffff
+ivExtension::xy_extents(float, float, float, float)
+ivExtension::xy_extents
+#
+--format=gnu --no-params
+zero__8osMemoryPvUi
+osMemory::zero(void *, unsigned int)
+osMemory::zero
+#
+--format=gnu --no-params
+_2T4$N
+T4::N
+T4::N
+#
+--format=gnu --no-params
+_Q22T42t1$N
+T4::t1::N
+T4::t1::N
+#
+--format=gnu --no-params
+get__2T1
+T1::get(void)
+T1::get
+#
+--format=gnu --no-params
+get__Q22T11a
+T1::a::get(void)
+T1::a::get
+#
+--format=gnu --no-params
+get__Q32T11a1b
+T1::a::b::get(void)
+T1::a::b::get
+#
+--format=gnu --no-params
+get__Q42T11a1b1c
+T1::a::b::c::get(void)
+T1::a::b::c::get
+#
+--format=gnu --no-params
+get__Q52T11a1b1c1d
+T1::a::b::c::d::get(void)
+T1::a::b::c::d::get
+#
+--format=gnu --no-params
+put__2T1i
+T1::put(int)
+T1::put
+#
+--format=gnu --no-params
+put__Q22T11ai
+T1::a::put(int)
+T1::a::put
+#
+--format=gnu --no-params
+put__Q32T11a1bi
+T1::a::b::put(int)
+T1::a::b::put
+#
+--format=gnu --no-params
+put__Q42T11a1b1ci
+T1::a::b::c::put(int)
+T1::a::b::c::put
+#
+--format=gnu --no-params
+put__Q52T11a1b1c1di
+T1::a::b::c::d::put(int)
+T1::a::b::c::d::put
+#
+--format=gnu --no-params
+bar__3fooPv
+foo::bar(void *)
+foo::bar
+#
+--format=gnu --no-params
+bar__C3fooPv
+foo::bar(void *) const
+foo::bar
+#
+--format=gnu --no-params
+__eq__3fooRT0
+foo::operator==(foo &)
+foo::operator==
+#
+--format=gnu --no-params
+__eq__C3fooR3foo
+foo::operator==(foo &) const
+foo::operator==
+#
+--format=gnu --no-params
+elem__t6vector1Zdi
+vector<double>::elem(int)
+vector<double>::elem
+#
+--format=gnu --no-params
+elem__t6vector1Zii
+vector<int>::elem(int)
+vector<int>::elem
+#
+--format=gnu --no-params
+__t6vector1Zdi
+vector<double>::vector(int)
+vector<double>::vector
+#
+--format=gnu --no-params
+__t6vector1Zii
+vector<int>::vector(int)
+vector<int>::vector
+#
+--format=gnu --no-params
+_$_t6vector1Zdi
+vector<double>::~vector(int)
+vector<double>::~vector
+#
+--format=gnu --no-params
+_$_t6vector1Zii
+vector<int>::~vector(int)
+vector<int>::~vector
+#
+--format=gnu --no-params
+__nw__t2T11ZcUi
+T1<char>::operator new(unsigned int)
+T1<char>::operator new
+#
+--format=gnu --no-params
+__nw__t2T11Z1tUi
+T1<t>::operator new(unsigned int)
+T1<t>::operator new
+#
+--format=gnu --no-params
+__dl__t2T11ZcPv
+T1<char>::operator delete(void *)
+T1<char>::operator delete
+#
+--format=gnu --no-params
+__dl__t2T11Z1tPv
+T1<t>::operator delete(void *)
+T1<t>::operator delete
+#
+--format=gnu --no-params
+__t2T11Zci
+T1<char>::T1(int)
+T1<char>::T1
+#
+--format=gnu --no-params
+__t2T11Zc
+T1<char>::T1(void)
+T1<char>::T1
+#
+--format=gnu --no-params
+__t2T11Z1ti
+T1<t>::T1(int)
+T1<t>::T1
+#
+--format=gnu --no-params
+__t2T11Z1t
+T1<t>::T1(void)
+T1<t>::T1
+#
+--format=gnu --no-params
+__Q2t4List1Z10VHDLEntity3Pix
+List<VHDLEntity>::Pix::Pix(void)
+List<VHDLEntity>::Pix::Pix
+#
+--format=gnu --no-params
+__Q2t4List1Z10VHDLEntity3PixPQ2t4List1Z10VHDLEntity7element
+List<VHDLEntity>::Pix::Pix(List<VHDLEntity>::element *)
+List<VHDLEntity>::Pix::Pix
+#
+--format=gnu --no-params
+__Q2t4List1Z10VHDLEntity3PixRCQ2t4List1Z10VHDLEntity3Pix
+List<VHDLEntity>::Pix::Pix(List<VHDLEntity>::Pix const &)
+List<VHDLEntity>::Pix::Pix
+#
+--format=gnu --no-params
+__Q2t4List1Z10VHDLEntity7elementRC10VHDLEntityPT0
+List<VHDLEntity>::element::element(VHDLEntity const &, List<VHDLEntity>::element *)
+List<VHDLEntity>::element::element
+#
+--format=gnu --no-params
+__Q2t4List1Z10VHDLEntity7elementRCQ2t4List1Z10VHDLEntity7element
+List<VHDLEntity>::element::element(List<VHDLEntity>::element const &)
+List<VHDLEntity>::element::element
+#
+--format=gnu --no-params
+__cl__C11VHDLLibraryGt4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntity
+VHDLLibrary::operator()(PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> >) const
+VHDLLibrary::operator()
+#
+--format=gnu --no-params
+__cl__Ct4List1Z10VHDLEntityRCQ2t4List1Z10VHDLEntity3Pix
+List<VHDLEntity>::operator()(List<VHDLEntity>::Pix const &) const
+List<VHDLEntity>::operator()
+#
+--format=gnu --no-params
+__ne__FPvRCQ2t4List1Z10VHDLEntity3Pix
+operator!=(void *, List<VHDLEntity>::Pix const &)
+operator!=
+#
+--format=gnu --no-params
+__ne__FPvRCt4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntity
+operator!=(void *, PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> > const &)
+operator!=
+#
+--format=gnu --no-params
+__t4List1Z10VHDLEntityRCt4List1Z10VHDLEntity
+List<VHDLEntity>::List(List<VHDLEntity> const &)
+List<VHDLEntity>::List
+#
+--format=gnu --no-params
+__t4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntity
+PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> >::PixX(void)
+PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> >::PixX
+#
+--format=gnu --no-params
+__t4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntityP14VHDLLibraryRepGQ2t4List1Z10VHDLEntity3Pix
+PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> >::PixX(VHDLLibraryRep *, List<VHDLEntity>::Pix)
+PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> >::PixX
+#
+--format=gnu --no-params
+__t4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntityRCt4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntity
+PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> >::PixX(PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> > const &)
+PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> >::PixX
+#
+--format=gnu --no-params
+nextE__C11VHDLLibraryRt4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntity
+VHDLLibrary::nextE(PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> > &) const
+VHDLLibrary::nextE
+#
+--format=gnu --no-params
+next__Ct4List1Z10VHDLEntityRQ2t4List1Z10VHDLEntity3Pix
+List<VHDLEntity>::next(List<VHDLEntity>::Pix &) const
+List<VHDLEntity>::next
+#
+--format=gnu --no-params
+_GLOBAL_$D$set
+global destructors keyed to set
+global destructors keyed to set
+#
+--format=gnu --no-params
+_GLOBAL_$I$set
+global constructors keyed to set
+global constructors keyed to set
+#
+--format=gnu --no-params
+__as__t5ListS1ZUiRCt5ListS1ZUi
+ListS<unsigned int>::operator=(ListS<unsigned int> const &)
+ListS<unsigned int>::operator=
+#
+--format=gnu --no-params
+__cl__Ct5ListS1ZUiRCQ2t5ListS1ZUi3Vix
+ListS<unsigned int>::operator()(ListS<unsigned int>::Vix const &) const
+ListS<unsigned int>::operator()
+#
+--format=gnu --no-params
+__cl__Ct5SetLS1ZUiRCQ2t5SetLS1ZUi3Vix
+SetLS<unsigned int>::operator()(SetLS<unsigned int>::Vix const &) const
+SetLS<unsigned int>::operator()
+#
+--format=gnu --no-params
+__t10ListS_link1ZUiRCUiPT0
+ListS_link<unsigned int>::ListS_link(unsigned int const &, ListS_link<unsigned int> *)
+ListS_link<unsigned int>::ListS_link
+#
+--format=gnu --no-params
+__t10ListS_link1ZUiRCt10ListS_link1ZUi
+ListS_link<unsigned int>::ListS_link(ListS_link<unsigned int> const &)
+ListS_link<unsigned int>::ListS_link
+#
+--format=gnu --no-params
+__t5ListS1ZUiRCt5ListS1ZUi
+ListS<unsigned int>::ListS(ListS<unsigned int> const &)
+ListS<unsigned int>::ListS
+#
+--format=gnu --no-params
+next__Ct5ListS1ZUiRQ2t5ListS1ZUi3Vix
+ListS<unsigned int>::next(ListS<unsigned int>::Vix &) const
+ListS<unsigned int>::next
+#
+--format=gnu --no-params
+__ne__FPvRCQ2t5SetLS1ZUi3Vix
+operator!=(void *, SetLS<unsigned int>::Vix const &)
+operator!=
+#
+--format=gnu --no-params
+__t8ListElem1Z5LabelRt4List1Z5Label
+ListElem<Label>::ListElem(List<Label> &)
+ListElem<Label>::ListElem
+#
+--format=gnu --no-params
+__t8BDDHookV1ZPcRCPc
+BDDHookV<char *>::BDDHookV(char *const &)
+BDDHookV<char *>::BDDHookV
+#
+--format=gnu --no-params
+_vt$t8BDDHookV1ZPc
+BDDHookV<char *> virtual table
+BDDHookV<char *> virtual table
+#
+--format=gnu --no-params
+__ne__FPvRCQ211BDDFunction4VixB
+operator!=(void *, BDDFunction::VixB const &)
+operator!=
+#
+--format=gnu --no-params
+__eq__FPvRCQ211BDDFunction4VixB
+operator==(void *, BDDFunction::VixB const &)
+operator==
+#
+--format=gnu --no-params
+relativeId__CQ36T_phi210T_preserve8FPC_nextRCQ26T_phi210T_preserveRC10Parameters
+T_phi2::T_preserve::FPC_next::relativeId(T_phi2::T_preserve const &, Parameters const &) const
+T_phi2::T_preserve::FPC_next::relativeId
+#
+--format=lucid --no-params
+WS__FR7istream
+WS(istream &)
+WS
+#
+--format=lucid --no-params
+__aa__3fooFR3foo
+foo::operator&&(foo &)
+foo::operator&&
+#
+--format=lucid --no-params
+__aad__3fooFR3foo
+foo::operator&=(foo &)
+foo::operator&=
+#
+--format=lucid --no-params
+__ad__3fooFR3foo
+foo::operator&(foo &)
+foo::operator&
+#
+--format=lucid --no-params
+__adv__3fooFR3foo
+foo::operator/=(foo &)
+foo::operator/=
+#
+--format=lucid --no-params
+__adv__7complexF7complex
+complex::operator/=(complex)
+complex::operator/=
+#
+--format=lucid --no-params
+__aer__3fooFR3foo
+foo::operator^=(foo &)
+foo::operator^=
+#
+--format=lucid --no-params
+__als__3fooFR3foo
+foo::operator<<=(foo &)
+foo::operator<<=
+#
+--format=lucid --no-params
+__amd__3fooFR3foo
+foo::operator%=(foo &)
+foo::operator%=
+#
+--format=lucid --no-params
+__ami__3fooFR3foo
+foo::operator-=(foo &)
+foo::operator-=
+#
+--format=lucid --no-params
+__amu__3fooFR3foo
+foo::operator*=(foo &)
+foo::operator*=
+#
+--format=lucid --no-params
+__amu__7complexF7complex
+complex::operator*=(complex)
+complex::operator*=
+#
+--format=lucid --no-params
+__aor__3fooFR3foo
+foo::operator|=(foo &)
+foo::operator|=
+#
+--format=lucid --no-params
+__apl__3fooFR3foo
+foo::operator+=(foo &)
+foo::operator+=
+#
+--format=lucid --no-params
+__ars__3fooFR3foo
+foo::operator>>=(foo &)
+foo::operator>>=
+#
+--format=lucid --no-params
+__as__18istream_withassignFP9streambuf
+istream_withassign::operator=(streambuf *)
+istream_withassign::operator=
+#
+--format=lucid --no-params
+__as__18istream_withassignFR7istream
+istream_withassign::operator=(istream &)
+istream_withassign::operator=
+#
+--format=lucid --no-params
+__as__3fooFR3foo
+foo::operator=(foo &)
+foo::operator=
+#
+--format=lucid --no-params
+__as__3iosFR3ios
+ios::operator=(ios &)
+ios::operator=
+#
+--format=lucid --no-params
+__cl__3fooFR3foo
+foo::operator()(foo &)
+foo::operator()
+#
+--format=lucid --no-params
+__cm__3fooFR3foo
+foo::operator, (foo &)
+foo::operator, 
+#
+--format=lucid --no-params
+__co__3fooFv
+foo::operator~(void)
+foo::operator~
+#
+--format=lucid --no-params
+__ct__10istrstreamFPc
+istrstream::istrstream(char *)
+istrstream::istrstream
+#
+--format=lucid --no-params
+__ct__10istrstreamFPci
+istrstream::istrstream(char *, int)
+istrstream::istrstream
+#
+--format=lucid --no-params
+__ct__10ostrstreamFPciT2
+ostrstream::ostrstream(char *, int, int)
+ostrstream::ostrstream
+#
+--format=lucid --no-params
+__ct__10ostrstreamFv
+ostrstream::ostrstream(void)
+ostrstream::ostrstream
+#
+--format=lucid --no-params
+__ct__10smanip_intFPFR3iosi_R3iosi
+smanip_int::smanip_int(ios &(*)(ios &, int), int)
+smanip_int::smanip_int
+#
+--format=lucid --no-params
+__ct__11fstreambaseFi
+fstreambase::fstreambase(int)
+fstreambase::fstreambase
+#
+--format=lucid --no-params
+__ct__11fstreambaseFiPcT1
+fstreambase::fstreambase(int, char *, int)
+fstreambase::fstreambase
+#
+--format=lucid --no-params
+__ct__11fstreambaseFv
+fstreambase::fstreambase(void)
+fstreambase::fstreambase
+#
+--format=lucid --no-params
+__ct__11smanip_longFPFR3iosl_R3iosl
+smanip_long::smanip_long(ios &(*)(ios &, long), long)
+smanip_long::smanip_long
+#
+--format=lucid --no-params
+__ct__11stdiostreamFP4FILE
+stdiostream::stdiostream(FILE *)
+stdiostream::stdiostream
+#
+--format=lucid --no-params
+__ct__12strstreambufFPFl_PvPFPv_v
+strstreambuf::strstreambuf(void *(*)(long), void (*)(void *))
+strstreambuf::strstreambuf
+#
+--format=lucid --no-params
+__ct__12strstreambufFPUciT1
+strstreambuf::strstreambuf(unsigned char *, int, unsigned char *)
+strstreambuf::strstreambuf
+#
+--format=lucid --no-params
+__ct__12strstreambufFPciT1
+strstreambuf::strstreambuf(char *, int, char *)
+strstreambuf::strstreambuf
+#
+--format=lucid --no-params
+__ct__12strstreambufFi
+strstreambuf::strstreambuf(int)
+strstreambuf::strstreambuf
+#
+--format=lucid --no-params
+__ct__12strstreambufFv
+strstreambuf::strstreambuf(void)
+strstreambuf::strstreambuf
+#
+--format=lucid --no-params
+__ct__13strstreambaseFPciT1
+strstreambase::strstreambase(char *, int, char *)
+strstreambase::strstreambase
+#
+--format=lucid --no-params
+__ct__3fooFR3foo
+foo::foo(foo &)
+foo::foo
+#
+--format=lucid --no-params
+__ct__3fooFi
+foo::foo(int)
+foo::foo
+#
+--format=lucid --no-params
+__ct__3fooFiN31
+foo::foo(int, int, int, int)
+foo::foo
+#
+--format=lucid --no-params
+__ct__3fooFiR3fooT1T2T1T2
+foo::foo(int, foo &, int, foo &, int, foo &)
+foo::foo
+#
+--format=lucid --no-params
+__ct__3iosFP9streambuf
+ios::ios(streambuf *)
+ios::ios
+#
+--format=lucid --no-params
+__ct__7filebufFiPcT1
+filebuf::filebuf(int, char *, int)
+filebuf::filebuf
+#
+--format=lucid --no-params
+__ct__7fstreamFiPcT1
+fstream::fstream(int, char *, int)
+fstream::fstream
+#
+--format=lucid --no-params
+__ct__7istreamFP9streambuf
+istream::istream(streambuf *)
+istream::istream
+#
+--format=lucid --no-params
+__ct__7istreamFP9streambufiP7ostream
+istream::istream(streambuf *, int, ostream *)
+istream::istream
+#
+--format=lucid --no-params
+__ct__7istreamFiPcT1
+istream::istream(int, char *, int)
+istream::istream
+#
+--format=lucid --no-params
+__ct__7istreamFiT1P7ostream
+istream::istream(int, int, ostream *)
+istream::istream
+#
+--format=lucid --no-params
+__ct__7ostreamFP9streambuf
+ostream::ostream(streambuf *)
+ostream::ostream
+#
+--format=lucid --no-params
+__ct__7ostreamFiPc
+ostream::ostream(int, char *)
+ostream::ostream
+#
+--format=lucid --no-params
+__ct__8ifstreamFiPcT1
+ifstream::ifstream(int, char *, int)
+ifstream::ifstream
+#
+--format=lucid --no-params
+__ct__Q23foo3barFv
+foo::bar::bar(void)
+foo::bar::bar
+#
+--format=lucid --no-params
+__ct__Q33foo3bar4bellFv
+foo::bar::bell::bell(void)
+foo::bar::bell::bell
+#
+--format=lucid --no-params
+__dl__3fooSFPv
+foo::operator delete(void *) static
+foo::operator delete
+#
+--format=lucid --no-params
+__dl__FPv
+operator delete(void *)
+operator delete
+#
+--format=lucid --no-params
+__dt__10istrstreamFv
+istrstream::~istrstream(void)
+istrstream::~istrstream
+#
+--format=lucid --no-params
+__dt__Q23foo3barFv
+foo::bar::~bar(void)
+foo::bar::~bar
+#
+--format=lucid --no-params
+__dt__Q33foo3bar4bellFv
+foo::bar::bell::~bell(void)
+foo::bar::bell::~bell
+#
+--format=lucid --no-params
+__dv__3fooFR3foo
+foo::operator/(foo &)
+foo::operator/
+#
+--format=lucid --no-params
+__dv__F7complexT1
+operator/(complex, complex)
+operator/
+#
+--format=lucid --no-params
+__eq__3fooFR3foo
+foo::operator==(foo &)
+foo::operator==
+#
+--format=lucid --no-params
+__er__3fooFR3foo
+foo::operator^(foo &)
+foo::operator^
+#
+--format=lucid --no-params
+__ge__3fooFR3foo
+foo::operator>=(foo &)
+foo::operator>=
+#
+--format=lucid --no-params
+__gt__3fooFR3foo
+foo::operator>(foo &)
+foo::operator>
+#
+--format=lucid --no-params
+__le__3fooFR3foo
+foo::operator<=(foo &)
+foo::operator<=
+#
+--format=lucid --no-params
+__ls__3fooFR3foo
+foo::operator<<(foo &)
+foo::operator<<
+#
+--format=lucid --no-params
+__ls__7ostreamFP9streambuf
+ostream::operator<<(streambuf *)
+ostream::operator<<
+#
+--format=lucid --no-params
+__ls__7ostreamFPFR3ios_R3ios
+ostream::operator<<(ios &(*)(ios &))
+ostream::operator<<
+#
+--format=lucid --no-params
+__ls__7ostreamFPv
+ostream::operator<<(void *)
+ostream::operator<<
+#
+--format=lucid --no-params
+__ls__7ostreamFUi
+ostream::operator<<(unsigned int)
+ostream::operator<<
+#
+--format=lucid --no-params
+__ls__7ostreamFUl
+ostream::operator<<(unsigned long)
+ostream::operator<<
+#
+--format=lucid --no-params
+__ls__7ostreamFd
+ostream::operator<<(double)
+ostream::operator<<
+#
+--format=lucid --no-params
+__ls__7ostreamFf
+ostream::operator<<(float)
+ostream::operator<<
+#
+--format=lucid --no-params
+__ls__7ostreamFi
+ostream::operator<<(int)
+ostream::operator<<
+#
+--format=lucid --no-params
+__ls__7ostreamFl
+ostream::operator<<(long)
+ostream::operator<<
+#
+--format=lucid --no-params
+__ls__FR7ostream7complex
+operator<<(ostream &, complex)
+operator<<
+#
+--format=lucid --no-params
+__lt__3fooFR3foo
+foo::operator<(foo &)
+foo::operator<
+#
+--format=lucid --no-params
+__md__3fooFR3foo
+foo::operator%(foo &)
+foo::operator%
+#
+--format=lucid --no-params
+__mi__3fooFR3foo
+foo::operator-(foo &)
+foo::operator-
+#
+--format=lucid --no-params
+__ml__3fooFR3foo
+foo::operator*(foo &)
+foo::operator*
+#
+--format=lucid --no-params
+__ml__F7complexT1
+operator*(complex, complex)
+operator*
+#
+--format=lucid --no-params
+__mm__3fooFi
+foo::operator--(int)
+foo::operator--
+#
+--format=lucid --no-params
+__ne__3fooFR3foo
+foo::operator!=(foo &)
+foo::operator!=
+#
+--format=lucid --no-params
+__nt__3fooFv
+foo::operator!(void)
+foo::operator!
+#
+--format=lucid --no-params
+__nw__3fooSFi
+foo::operator new(int) static
+foo::operator new
+#
+--format=lucid --no-params
+__nw__FUi
+operator new(unsigned int)
+operator new
+#
+--format=lucid --no-params
+__nw__FUiPv
+operator new(unsigned int, void *)
+operator new
+#
+--format=lucid --no-params
+__oo__3fooFR3foo
+foo::operator||(foo &)
+foo::operator||
+#
+--format=lucid --no-params
+__opPc__3fooFv
+foo::operator char *(void)
+foo::operator char *
+#
+--format=lucid --no-params
+__opi__3fooFv
+foo::operator int(void)
+foo::operator int
+#
+--format=lucid --no-params
+__or__3fooFR3foo
+foo::operator|(foo &)
+foo::operator|
+#
+--format=lucid --no-params
+__pl__3fooFR3foo
+foo::operator+(foo &)
+foo::operator+
+#
+--format=lucid --no-params
+__pp__3fooFi
+foo::operator++(int)
+foo::operator++
+#
+--format=lucid --no-params
+__pt__3fooFv
+foo::operator->(void)
+foo::operator->
+#
+--format=lucid --no-params
+__rm__3fooFR3foo
+foo::operator->*(foo &)
+foo::operator->*
+#
+--format=lucid --no-params
+__rs__3fooFR3foo
+foo::operator>>(foo &)
+foo::operator>>
+#
+--format=lucid --no-params
+__rs__7istreamFP9streambuf
+istream::operator>>(streambuf *)
+istream::operator>>
+#
+--format=lucid --no-params
+__rs__7istreamFPFR3ios_R3ios
+istream::operator>>(ios &(*)(ios &))
+istream::operator>>
+#
+--format=lucid --no-params
+__rs__7istreamFPFR7istream_R7istream
+istream::operator>>(istream &(*)(istream &))
+istream::operator>>
+#
+--format=lucid --no-params
+__rs__7istreamFPUc
+istream::operator>>(unsigned char *)
+istream::operator>>
+#
+--format=lucid --no-params
+__rs__7istreamFPc
+istream::operator>>(char *)
+istream::operator>>
+#
+--format=lucid --no-params
+__rs__7istreamFRUi
+istream::operator>>(unsigned int &)
+istream::operator>>
+#
+--format=lucid --no-params
+__rs__7istreamFRUl
+istream::operator>>(unsigned long &)
+istream::operator>>
+#
+--format=lucid --no-params
+__rs__7istreamFRUs
+istream::operator>>(unsigned short &)
+istream::operator>>
+#
+--format=lucid --no-params
+__rs__7istreamFRd
+istream::operator>>(double &)
+istream::operator>>
+#
+--format=lucid --no-params
+__rs__7istreamFRf
+istream::operator>>(float &)
+istream::operator>>
+#
+--format=lucid --no-params
+__rs__7istreamFRi
+istream::operator>>(int &)
+istream::operator>>
+#
+--format=lucid --no-params
+__rs__7istreamFRl
+istream::operator>>(long &)
+istream::operator>>
+#
+--format=lucid --no-params
+__rs__7istreamFRs
+istream::operator>>(short &)
+istream::operator>>
+#
+--format=lucid --no-params
+__rs__FR7istreamR7complex
+operator>>(istream &, complex &)
+operator>>
+#
+--format=lucid --no-params
+__vtbl__10istrstream
+istrstream virtual table
+istrstream virtual table
+#
+--format=lucid --no-params
+__vtbl__17ostream__iostream__19iostream_withassign
+iostream_withassign::ostream__iostream virtual table
+iostream_withassign::ostream__iostream virtual table
+#
+--format=lucid --no-params
+__vtbl__3ios
+ios virtual table
+ios virtual table
+#
+--format=lucid --no-params
+__vtbl__3ios__13strstreambase
+strstreambase::ios virtual table
+strstreambase::ios virtual table
+#
+--format=lucid --no-params
+abs__F7complex
+abs(complex)
+abs
+#
+--format=lucid --no-params
+allocate__9streambufFv
+streambuf::allocate(void)
+streambuf::allocate
+#
+--format=lucid --no-params
+attach__11fstreambaseFi
+fstreambase::attach(int)
+fstreambase::attach
+#
+--format=lucid --no-params
+bitalloc__3iosSFv
+ios::bitalloc(void) static
+ios::bitalloc
+#
+--format=lucid --no-params
+chr__FiT1
+chr(int, int)
+chr
+#
+--format=lucid --no-params
+complex_error__FR11c_exception
+complex_error(c_exception &)
+complex_error
+#
+--format=lucid --no-params
+complexfunc2__FPFPc_i
+complexfunc2(int (*)(char *))
+complexfunc2
+#
+--format=lucid --no-params
+complexfunc3__FPFPFPl_s_i
+complexfunc3(int (*)(short (*)(long *)))
+complexfunc3
+#
+--format=lucid --no-params
+complexfunc4__FPFPFPc_s_i
+complexfunc4(int (*)(short (*)(char *)))
+complexfunc4
+#
+--format=lucid --no-params
+complexfunc5__FPFPc_PFl_i
+complexfunc5(int (*(*)(char *))(long))
+complexfunc5
+#
+--format=lucid --no-params
+complexfunc6__FPFPi_PFl_i
+complexfunc6(int (*(*)(int *))(long))
+complexfunc6
+#
+--format=lucid --no-params
+complexfunc7__FPFPFPc_i_PFl_i
+complexfunc7(int (*(*)(int (*)(char *)))(long))
+complexfunc7
+#
+--format=lucid --no-params
+complicated_put__7ostreamFc
+ostream::complicated_put(char)
+ostream::complicated_put
+#
+--format=lucid --no-params
+conv10__FlPc
+conv10(long, char *)
+conv10
+#
+--format=lucid --no-params
+conv16__FUlPc
+conv16(unsigned long, char *)
+conv16
+#
+--format=lucid --no-params
+dec__FR3ios
+dec(ios &)
+dec
+#
+--format=lucid --no-params
+dec__Fli
+dec(long, int)
+dec
+#
+--format=lucid --no-params
+dofield__FP7ostreamPciT2T3
+dofield(ostream *, char *, int, char *, int)
+dofield
+#
+--format=lucid --no-params
+flags__3iosFl
+ios::flags(long)
+ios::flags
+#
+--format=lucid --no-params
+flags__3iosFv
+ios::flags(void)
+ios::flags
+#
+--format=lucid --no-params
+foo__FiN31
+foo(int, int, int, int)
+foo
+#
+--format=lucid --no-params
+foo__FiR3fooT1T2T1T2
+foo(int, foo &, int, foo &, int, foo &)
+foo
+#
+--format=lucid --no-params
+foo___3barFl
+bar::foo_(long)
+bar::foo_
+#
+--format=lucid --no-params
+get__7istreamFPcic
+istream::get(char *, int, char)
+istream::get
+#
+--format=lucid --no-params
+get__7istreamFR9streambufc
+istream::get(streambuf &, char)
+istream::get
+#
+--format=lucid --no-params
+get_complicated__7istreamFRUc
+istream::get_complicated(unsigned char &)
+istream::get_complicated
+#
+--format=lucid --no-params
+get_complicated__7istreamFRc
+istream::get_complicated(char &)
+istream::get_complicated
+#
+--format=lucid --no-params
+getline__7istreamFPUcic
+istream::getline(unsigned char *, int, char)
+istream::getline
+#
+--format=lucid --no-params
+getline__7istreamFPcic
+istream::getline(char *, int, char)
+istream::getline
+#
+--format=lucid --no-params
+ignore__7istreamFiT1
+istream::ignore(int, int)
+istream::ignore
+#
+--format=lucid --no-params
+init__12strstreambufFPciT1
+strstreambuf::init(char *, int, char *)
+strstreambuf::init
+#
+--format=lucid --no-params
+init__3iosFP9streambuf
+ios::init(streambuf *)
+ios::init
+#
+--format=lucid --no-params
+initcount__13Iostream_init
+Iostream_init::initcount
+Iostream_init::initcount
+#
+--format=lucid --no-params
+ipfx__7istreamFi
+istream::ipfx(int)
+istream::ipfx
+#
+--format=lucid --no-params
+ls_complicated__7ostreamFUc
+ostream::ls_complicated(unsigned char)
+ostream::ls_complicated
+#
+--format=lucid --no-params
+ls_complicated__7ostreamFc
+ostream::ls_complicated(char)
+ostream::ls_complicated
+#
+--format=lucid --no-params
+overload1arg__FSc
+overload1arg(signed char)
+overload1arg
+#
+--format=lucid --no-params
+overload1arg__FUc
+overload1arg(unsigned char)
+overload1arg
+#
+--format=lucid --no-params
+overload1arg__FUi
+overload1arg(unsigned int)
+overload1arg
+#
+--format=lucid --no-params
+overload1arg__FUl
+overload1arg(unsigned long)
+overload1arg
+#
+--format=lucid --no-params
+overload1arg__FUs
+overload1arg(unsigned short)
+overload1arg
+#
+--format=lucid --no-params
+overload1arg__Fc
+overload1arg(char)
+overload1arg
+#
+--format=lucid --no-params
+overload1arg__Fd
+overload1arg(double)
+overload1arg
+#
+--format=lucid --no-params
+overload1arg__Ff
+overload1arg(float)
+overload1arg
+#
+--format=lucid --no-params
+overload1arg__Fi
+overload1arg(int)
+overload1arg
+#
+--format=lucid --no-params
+overload1arg__Fl
+overload1arg(long)
+overload1arg
+#
+--format=lucid --no-params
+overload1arg__Fs
+overload1arg(short)
+overload1arg
+#
+--format=lucid --no-params
+overload1arg__Fv
+overload1arg(void)
+overload1arg
+#
+--format=lucid --no-params
+overloadargs__FiN21
+overloadargs(int, int, int)
+overloadargs
+#
+--format=lucid --no-params
+overloadargs__FiN31
+overloadargs(int, int, int, int)
+overloadargs
+#
+--format=lucid --no-params
+overloadargs__FiN41
+overloadargs(int, int, int, int, int)
+overloadargs
+#
+--format=lucid --no-params
+overloadargs__FiN51
+overloadargs(int, int, int, int, int, int)
+overloadargs
+#
+--format=lucid --no-params
+overloadargs__FiN61
+overloadargs(int, int, int, int, int, int, int)
+overloadargs
+#
+--format=lucid --no-params
+overloadargs__FiN71
+overloadargs(int, int, int, int, int, int, int, int)
+overloadargs
+#
+--format=lucid --no-params
+overloadargs__FiN81
+overloadargs(int, int, int, int, int, int, int, int, int)
+overloadargs
+#
+--format=lucid --no-params
+overloadargs__FiN91
+overloadargs(int, int, int, int, int, int, int, int, int, int)
+overloadargs
+#
+--format=lucid --no-params
+overloadargs__FiN91N11
+overloadargs(int, int, int, int, int, int, int, int, int, int, int)
+overloadargs
+#
+--format=lucid --no-params
+overloadargs__FiT1
+overloadargs(int, int)
+overloadargs
+#
+--format=lucid --no-params
+polar__FdT1
+polar(double, double)
+polar
+#
+--format=lucid --no-params
+pow__F7complexT1
+pow(complex, complex)
+pow
+#
+--format=lucid --no-params
+pow__F7complexd
+pow(complex, double)
+pow
+#
+--format=lucid --no-params
+pow__F7complexi
+pow(complex, int)
+pow
+#
+--format=lucid --no-params
+pow__Fd7complex
+pow(double, complex)
+pow
+#
+--format=lucid --no-params
+pstart__FPciT2
+pstart(char *, int, int)
+pstart
+#
+--format=lucid --no-params
+put__7ostreamFc
+ostream::put(char)
+ostream::put
+#
+--format=lucid --no-params
+read__7istreamFPci
+istream::read(char *, int)
+istream::read
+#
+--format=lucid --no-params
+resetiosflags__FR3iosl
+resetiosflags(ios &, long)
+resetiosflags
+#
+--format=lucid --no-params
+restore_errno__FRi
+restore_errno(int &)
+restore_errno
+#
+--format=lucid --no-params
+rs_complicated__7istreamFRUc
+istream::rs_complicated(unsigned char &)
+istream::rs_complicated
+#
+--format=lucid --no-params
+rs_complicated__7istreamFRc
+istream::rs_complicated(char &)
+istream::rs_complicated
+#
+--format=lucid --no-params
+seekg__7istreamFl8seek_dir
+istream::seekg(long, seek_dir)
+istream::seekg
+#
+--format=lucid --no-params
+seekoff__12strstreambufFl8seek_diri
+strstreambuf::seekoff(long, seek_dir, int)
+strstreambuf::seekoff
+#
+--format=lucid --no-params
+seekoff__9streambufFlQ2_3ios12ios_seek_diri
+streambuf::seekoff(long, ios::ios_seek_dir, int)
+streambuf::seekoff
+#
+--format=lucid --no-params
+seekpos__9streambufFli
+streambuf::seekpos(long, int)
+streambuf::seekpos
+#
+--format=lucid --no-params
+set_new_handler__FPFv_v
+set_new_handler(void (*)(void))
+set_new_handler
+#
+--format=lucid --no-params
+setb__9streambufFPcT1i
+streambuf::setb(char *, char *, int)
+streambuf::setb
+#
+--format=lucid --no-params
+setb__FR3iosi
+setb(ios &, int)
+setb
+#
+--format=lucid --no-params
+setbuf__11fstreambaseFPci
+fstreambase::setbuf(char *, int)
+fstreambase::setbuf
+#
+--format=lucid --no-params
+setbuf__9streambufFPUci
+streambuf::setbuf(unsigned char *, int)
+streambuf::setbuf
+#
+--format=lucid --no-params
+setbuf__9streambufFPciT2
+streambuf::setbuf(char *, int, int)
+streambuf::setbuf
+#
+--format=lucid --no-params
+setf__3iosFlT1
+ios::setf(long, long)
+ios::setf
+#
+--format=lucid --no-params
+setfill__FR3iosi
+setfill(ios &, int)
+setfill
+#
+--format=lucid --no-params
+setg__9streambufFPcN21
+streambuf::setg(char *, char *, char *)
+streambuf::setg
+#
+--format=lucid --no-params
+setp__9streambufFPcT1
+streambuf::setp(char *, char *)
+streambuf::setp
+#
+--format=lucid --no-params
+tie__3iosFP7ostream
+ios::tie(ostream *)
+ios::tie
+#
+--format=lucid --no-params
+uconv10__FUlPc
+uconv10(unsigned long, char *)
+uconv10
+#
+--format=lucid --no-params
+xget__7istreamFPc
+istream::xget(char *)
+istream::xget
+#
+--format=lucid --no-params
+xsgetn__9streambufFPci
+streambuf::xsgetn(char *, int)
+streambuf::xsgetn
+#
+--format=arm --no-params
+__dt__21T5__pt__11_PFiPPdPv_iFv
+T5<int (*)(int, double **, void *)>::~T5(void)
+T5<int (*)(int, double **, void *)>::~T5
+#
+--format=arm --no-params
+__ct__1cFi
+c::c(int)
+c::c
+#
+--format=arm --no-params
+__dt__11T5__pt__2_iFv
+T5<int>::~T5(void)
+T5<int>::~T5
+#
+--format=arm --no-params
+__dt__11T5__pt__2_cFv
+T5<char>::~T5(void)
+T5<char>::~T5
+#
+--format=arm --no-params
+__ct__2T2Fi
+T2::T2(int)
+T2::T2
+#
+--format=arm --no-params
+__dt__2T1Fv
+T1::~T1(void)
+T1::~T1
+#
+--format=arm --no-params
+__dt__12T5__pt__3_1xFv
+T5<x>::~T5(void)
+T5<x>::~T5
+#
+--format=arm --no-params
+__dt__17T5__pt__8_PFcPv_iFv
+T5<int (*)(char, void *)>::~T5(void)
+T5<int (*)(char, void *)>::~T5
+#
+--format=arm --no-params
+__ct__21T5__pt__11_PFiPPdPv_iFi
+T5<int (*)(int, double **, void *)>::T5(int)
+T5<int (*)(int, double **, void *)>::T5
+#
+--format=arm --no-params
+__amd__FR2T2i
+operator%=(T2 &, int)
+operator%=
+#
+--format=arm --no-params
+__adv__FR2T2i
+operator/=(T2 &, int)
+operator/=
+#
+--format=arm --no-params
+__amu__FR2T2i
+operator*=(T2 &, int)
+operator*=
+#
+--format=arm --no-params
+__ami__FR2T2i
+operator-=(T2 &, int)
+operator-=
+#
+--format=arm --no-params
+__apl__FR2T2i
+operator+=(T2 &, int)
+operator+=
+#
+--format=arm --no-params
+__nw__2T1SFUi
+T1::operator new(unsigned int) static
+T1::operator new
+#
+--format=arm --no-params
+__dl__2T1SFPv
+T1::operator delete(void *) static
+T1::operator delete
+#
+--format=arm --no-params
+put__2T7SFi
+T7::put(int) static
+T7::put
+#
+--format=arm --no-params
+__dl__12T5__pt__3_1xSFPv
+T5<x>::operator delete(void *) static
+T5<x>::operator delete
+#
+--format=arm --no-params
+h__FUc
+h(unsigned char)
+h
+#
+--format=arm --no-params
+f__Fic
+f(int, char)
+f
+#
+--format=arm --no-params
+h__FUi
+h(unsigned int)
+h
+#
+--format=arm --no-params
+h__Fci
+h(char, int)
+h
+#
+--format=arm --no-params
+h__FUl
+h(unsigned long)
+h
+#
+--format=arm --no-params
+h__Fcl
+h(char, long)
+h
+#
+--format=arm --no-params
+h__FUs
+h(unsigned short)
+h
+#
+--format=arm --no-params
+h__Fcs
+h(char, short)
+h
+#
+--format=arm --no-params
+X__12T5__pt__3_1x
+T5<x>::X
+T5<x>::X
+#
+--format=arm --no-params
+__ct__11T5__pt__2_iFi
+T5<int>::T5(int)
+T5<int>::T5
+#
+--format=arm --no-params
+__ct__11T5__pt__2_cFi
+T5<char>::T5(int)
+T5<char>::T5
+#
+--format=arm --no-params
+h__FcT1
+h(char, char)
+h
+#
+--format=arm --no-params
+f__Ficd
+f(int, char, double)
+f
+#
+--format=arm --no-params
+__dl__17T5__pt__8_PFcPv_iSFPv
+T5<int (*)(char, void *)>::operator delete(void *) static
+T5<int (*)(char, void *)>::operator delete
+#
+--format=arm --no-params
+X__17T5__pt__8_PFcPv_i
+T5<int (*)(char, void *)>::X
+T5<int (*)(char, void *)>::X
+#
+--format=arm --no-params
+__ct__12T5__pt__3_1xFi
+T5<x>::T5(int)
+T5<x>::T5
+#
+--format=arm --no-params
+__dl__21T5__pt__11_PFiPPdPv_iSFPv
+T5<int (*)(int, double **, void *)>::operator delete(void *) static
+T5<int (*)(int, double **, void *)>::operator delete
+#
+--format=arm --no-params
+__std__foo
+global destructors keyed to foo
+global destructors keyed to foo
+#
+--format=arm --no-params
+__sti__bar
+global constructors keyed to bar
+global constructors keyed to bar
+#
+--format=arm --no-params
+f__FicdPcPFci_v
+f(int, char, double, char *, void (*)(char, int))
+f
+#
+--format=arm --no-params
+f__FicdPcPFic_v
+f(int, char, double, char *, void (*)(int, char))
+f
+#
+--format=arm --no-params
+get__2T7SFv
+T7::get(void) static
+T7::get
+#
+--format=arm --no-params
+X__21T5__pt__11_PFiPPdPv_i
+T5<int (*)(int, double **, void *)>::X
+T5<int (*)(int, double **, void *)>::X
+#
+--format=arm --no-params
+__dl__11T5__pt__2_iSFPv
+T5<int>::operator delete(void *) static
+T5<int>::operator delete
+#
+--format=arm --no-params
+__dl__11T5__pt__2_cSFPv
+T5<char>::operator delete(void *) static
+T5<char>::operator delete
+#
+--format=arm --no-params
+h__Fc
+h(char)
+h
+#
+--format=arm --no-params
+h__Fd
+h(double)
+h
+#
+--format=arm --no-params
+h__Ff
+h(float)
+h
+#
+--format=arm --no-params
+h__Fi
+h(int)
+h
+#
+--format=arm --no-params
+f__Fi
+f(int)
+f
+#
+--format=arm --no-params
+h__Fl
+h(long)
+h
+#
+--format=arm --no-params
+h__Fs
+h(short)
+h
+#
+--format=arm --no-params
+X__11T5__pt__2_c
+T5<char>::X
+T5<char>::X
+#
+--format=arm --no-params
+X__11T5__pt__2_i
+T5<int>::X
+T5<int>::X
+#
+--format=arm --no-params
+__ct__17T5__pt__8_PFcPv_iFi
+T5<int (*)(char, void *)>::T5(int)
+T5<int (*)(char, void *)>::T5
+#
+--format=arm --no-params
+f__FicdPc
+f(int, char, double, char *)
+f
+#
+--format=arm --no-params
+__nw__FUi
+operator new(unsigned int)
+operator new
+#
+--format=arm --no-params
+__ct__Q3_2T11a1bSFi
+T1::a::b::b(int) static
+T1::a::b::b
+#
+--format=arm --no-params
+__dt__Q3_2T11a1bSFi
+T1::a::b::~b(int) static
+T1::a::b::~b
+#
+--format=arm --no-params
+put__Q3_2T11a1bSFi
+T1::a::b::put(int) static
+T1::a::b::put
+#
+--format=arm --no-params
+get__Q2_2T11aSFv
+T1::a::get(void) static
+T1::a::get
+#
+--format=arm --no-params
+put__2T1SFi
+T1::put(int) static
+T1::put
+#
+--format=arm --no-params
+put__Q5_2T11a1b1c1dSFi
+T1::a::b::c::d::put(int) static
+T1::a::b::c::d::put
+#
+--format=arm --no-params
+get__Q4_2T11a1b1cSFv
+T1::a::b::c::get(void) static
+T1::a::b::c::get
+#
+--format=arm --no-params
+put__Q2_2T11aSFi
+T1::a::put(int) static
+T1::a::put
+#
+--format=arm --no-params
+put__Q4_2T11a1b1cSFi
+T1::a::b::c::put(int) static
+T1::a::b::c::put
+#
+--format=arm --no-params
+get__Q3_2T11a1bSFv
+T1::a::b::get(void) static
+T1::a::b::get
+#
+--format=arm --no-params
+get__2T1SFv
+T1::get(void) static
+T1::get
+#
+--format=arm --no-params
+get__Q5_2T11a1b1c1dSFv
+T1::a::b::c::d::get(void) static
+T1::a::b::c::d::get
+#
+--format=arm --no-params
+__dt__11T1__pt__2_cFv
+T1<char>::~T1(void)
+T1<char>::~T1
+#
+--format=arm --no-params
+__dt__12T1__pt__3_1tFv
+T1<t>::~T1(void)
+T1<t>::~T1
+#
+--format=arm --no-params
+__dl__12T1__pt__3_1tSFPv
+T1<t>::operator delete(void *) static
+T1<t>::operator delete
+#
+--format=arm --no-params
+__ct__11T1__pt__2_cFi
+T1<char>::T1(int)
+T1<char>::T1
+#
+--format=arm --no-params
+__ct__11T1__pt__2_cFv
+T1<char>::T1(void)
+T1<char>::T1
+#
+--format=arm --no-params
+__ct__12T1__pt__3_1tFi
+T1<t>::T1(int)
+T1<t>::T1
+#
+--format=arm --no-params
+__ct__12T1__pt__3_1tFv
+T1<t>::T1(void)
+T1<t>::T1
+#
+--format=arm --no-params
+__dl__11T1__pt__2_cSFPv
+T1<char>::operator delete(void *) static
+T1<char>::operator delete
+#
+--format=arm --no-params
+bar__3fooFPv
+foo::bar(void *)
+foo::bar
+#
+--format=arm --no-params
+bar__3fooCFPv
+foo::bar(void *) const
+foo::bar
+#
+--format=arm --no-params
+__eq__3fooFR3foo
+foo::operator==(foo &)
+foo::operator==
+#
+--format=arm --no-params
+__eq__3fooCFR3foo
+foo::operator==(foo &) const
+foo::operator==
+#
+--format=arm --no-params
+elem__15vector__pt__2_dFi
+vector<double>::elem(int)
+vector<double>::elem
+#
+--format=arm --no-params
+elem__15vector__pt__2_iFi
+vector<int>::elem(int)
+vector<int>::elem
+#
+--format=arm --no-params
+__ct__15vector__pt__2_dFi
+vector<double>::vector(int)
+vector<double>::vector
+#
+--format=arm --no-params
+__ct__15vector__pt__2_iFi
+vector<int>::vector(int)
+vector<int>::vector
+#
+--format=arm --no-params
+__ct__25DListNode__pt__9_R6RLabelFR6RLabelP25DListNode__pt__9_R6RLabelT2
+DListNode<RLabel &>::DListNode(RLabel &, DListNode<RLabel &> *, DListNode<RLabel &> *)
+DListNode<RLabel &>::DListNode
+#
+--format=arm --no-params
+bar__3fooFiT16FooBar
+foo::bar(int, int, FooBar)
+foo::bar
+#
+--format=arm --no-params
+bar__3fooFPiN51PdN37PcN211T1iN215
+foo::bar(int *, int *, int *, int *, int *, int *, double *, double *, double *, double *, char *, char *, char *, int *, int, int, int)
+foo::bar
+#
+--format=hp --no-params
+__amd__FR2T2i
+operator%=(T2 &, int)
+operator%=
+#
+--format=hp --no-params
+__adv__FR2T2i
+operator/=(T2 &, int)
+operator/=
+#
+--format=hp --no-params
+__amu__FR2T2i
+operator*=(T2 &, int)
+operator*=
+#
+--format=hp --no-params
+__ami__FR2T2i
+operator-=(T2 &, int)
+operator-=
+#
+--format=hp --no-params
+__apl__FR2T2i
+operator+=(T2 &, int)
+operator+=
+#
+--format=hp --no-params
+__nw__2T1SFUi
+T1::operator new(unsigned int) static
+T1::operator new
+#
+--format=hp --no-params
+__dl__2T1SFPv
+T1::operator delete(void *) static
+T1::operator delete
+#
+--format=hp --no-params
+put__2T7SFi
+T7::put(int) static
+T7::put
+#
+--format=hp --no-params
+h__FUc
+h(unsigned char)
+h
+#
+--format=hp --no-params
+f__Fic
+f(int, char)
+f
+#
+--format=hp --no-params
+h__FUi
+h(unsigned int)
+h
+#
+--format=hp --no-params
+h__Fci
+h(char, int)
+h
+#
+--format=hp --no-params
+h__FUl
+h(unsigned long)
+h
+#
+--format=hp --no-params
+h__Fcl
+h(char, long)
+h
+#
+--format=hp --no-params
+h__FUs
+h(unsigned short)
+h
+#
+--format=hp --no-params
+h__Fcs
+h(char, short)
+h
+#
+--format=hp --no-params
+h__FcT1
+h(char, char)
+h
+#
+--format=hp --no-params
+f__Ficd
+f(int, char, double)
+f
+#
+--format=hp --no-params
+f__FicdPcPFci_v
+f(int, char, double, char *, void (*)(char, int))
+f
+#
+--format=hp --no-params
+f__FicdPcPFic_v
+f(int, char, double, char *, void (*)(int, char))
+f
+#
+--format=hp --no-params
+get__2T7SFv
+T7::get(void) static
+T7::get
+#
+--format=hp --no-params
+h__Fc
+h(char)
+h
+#
+--format=hp --no-params
+h__Fd
+h(double)
+h
+#
+--format=hp --no-params
+h__Ff
+h(float)
+h
+#
+--format=hp --no-params
+h__Fi
+h(int)
+h
+#
+--format=hp --no-params
+f__Fi
+f(int)
+f
+#
+--format=hp --no-params
+h__Fl
+h(long)
+h
+#
+--format=hp --no-params
+h__Fs
+h(short)
+h
+#
+--format=hp --no-params
+f__FicdPc
+f(int, char, double, char *)
+f
+#
+--format=hp --no-params
+__nw__FUi
+operator new(unsigned int)
+operator new
+#
+--format=hp --no-params
+__ct__Q3_2T11a1bSFi
+T1::a::b::b(int) static
+T1::a::b::b
+#
+--format=hp --no-params
+__dt__Q3_2T11a1bSFi
+T1::a::b::~b(int) static
+T1::a::b::~b
+#
+--format=hp --no-params
+put__Q3_2T11a1bSFi
+T1::a::b::put(int) static
+T1::a::b::put
+#
+--format=hp --no-params
+get__Q2_2T11aSFv
+T1::a::get(void) static
+T1::a::get
+#
+--format=hp --no-params
+put__2T1SFi
+T1::put(int) static
+T1::put
+#
+--format=hp --no-params
+put__Q5_2T11a1b1c1dSFi
+T1::a::b::c::d::put(int) static
+T1::a::b::c::d::put
+#
+--format=hp --no-params
+get__Q4_2T11a1b1cSFv
+T1::a::b::c::get(void) static
+T1::a::b::c::get
+#
+--format=hp --no-params
+put__Q2_2T11aSFi
+T1::a::put(int) static
+T1::a::put
+#
+--format=hp --no-params
+put__Q4_2T11a1b1cSFi
+T1::a::b::c::put(int) static
+T1::a::b::c::put
+#
+--format=hp --no-params
+get__Q3_2T11a1bSFv
+T1::a::b::get(void) static
+T1::a::b::get
+#
+--format=hp --no-params
+get__2T1SFv
+T1::get(void) static
+T1::get
+#
+--format=hp --no-params
+get__Q5_2T11a1b1c1dSFv
+T1::a::b::c::d::get(void) static
+T1::a::b::c::d::get
+#
+--format=hp --no-params
+bar__3fooFPv
+foo::bar(void *)
+foo::bar
+#
+--format=hp --no-params
+bar__3fooCFPv
+foo::bar(void *) const
+foo::bar
+#
+--format=hp --no-params
+__eq__3fooFR3foo
+foo::operator==(foo &)
+foo::operator==
+#
+--format=hp --no-params
+__eq__3fooCFR3foo
+foo::operator==(foo &) const
+foo::operator==
+#
+--format=hp --no-params
+bar__3fooFiT16FooBar
+foo::bar(int, int, FooBar)
+foo::bar
+#
+--format=hp --no-params
+bar__3fooFPiN51PdN37PcN211T1iN215
+foo::bar(int *, int *, int *, int *, int *, int *, double *, double *, double *, double *, char *, char *, char *, int *, int, int, int)
+foo::bar
+#
+--format=hp --no-params
+__dt__2T5XTPFiPPdPv_i__Fv
+T5<int (*)(int, double **, void *)>::~T5(void)
+T5<int (*)(int, double **, void *)>::~T5
+#
+--format=hp --no-params
+__ct__1cFi
+c::c(int)
+c::c
+#
+--format=hp --no-params
+__dt__2T5XTi__Fv
+T5<int>::~T5(void)
+T5<int>::~T5
+#
+--format=hp --no-params
+__dt__2T5XTc__Fv
+T5<char>::~T5(void)
+T5<char>::~T5
+#
+--format=hp --no-params
+__ct__2T2Fi
+T2::T2(int)
+T2::T2
+#
+--format=hp --no-params
+__dt__2T1Fv
+T1::~T1(void)
+T1::~T1
+#
+--format=hp --no-params
+__dt__2T5XT1x__Fv
+T5<x>::~T5(void)
+T5<x>::~T5
+#
+--format=hp --no-params
+__dt__2T5XTPFcPv_i__Fv
+T5<int (*)(char, void *)>::~T5(void)
+T5<int (*)(char, void *)>::~T5
+#
+--format=hp --no-params
+__ct__2T5XTPFiPPdPv_i__Fi
+T5<int (*)(int, double **, void *)>::T5(int)
+T5<int (*)(int, double **, void *)>::T5
+#
+--format=hp --no-params
+__dl__2T5XT1x__SFPv
+T5<x>::operator delete(void *) static
+T5<x>::operator delete
+#
+--format=hp --no-params
+X__2T5XT1x
+T5<x>::X
+T5<x>::X
+#
+--format=hp --no-params
+__ct__2T5XTi__Fi
+T5<int>::T5(int)
+T5<int>::T5
+#
+--format=hp --no-params
+__ct__2T5XTc__Fi
+T5<char>::T5(int)
+T5<char>::T5
+#
+--format=hp --no-params
+__dl__2T5XTPFcPv_i__SFPv
+T5<int (*)(char, void *)>::operator delete(void *) static
+T5<int (*)(char, void *)>::operator delete
+#
+--format=hp --no-params
+X__2T5XTPFcPv_i
+T5<int (*)(char, void *)>::X
+T5<int (*)(char, void *)>::X
+#
+--format=hp --no-params
+__ct__2T5XT1x__Fi
+T5<x>::T5(int)
+T5<x>::T5
+#
+--format=hp --no-params
+__dl__2T5XTPFiPPdPv_i__SFPv
+T5<int (*)(int, double **, void *)>::operator delete(void *) static
+T5<int (*)(int, double **, void *)>::operator delete
+#
+--format=hp --no-params
+X__2T5XTPFiPPdPv_i
+T5<int (*)(int, double **, void *)>::X
+T5<int (*)(int, double **, void *)>::X
+#
+--format=hp --no-params
+__dl__2T5XTi__SFPv
+T5<int>::operator delete(void *) static
+T5<int>::operator delete
+#
+--format=hp --no-params
+__dl__2T5XTc__SFPv
+T5<char>::operator delete(void *) static
+T5<char>::operator delete
+#
+--format=hp --no-params
+X__2T5XTc
+T5<char>::X
+T5<char>::X
+#
+--format=hp --no-params
+X__2T5XTi
+T5<int>::X
+T5<int>::X
+#
+--format=hp --no-params
+__ct__2T5XTPFcPv_i__Fi
+T5<int (*)(char, void *)>::T5(int)
+T5<int (*)(char, void *)>::T5
+#
+--format=hp --no-params
+__dt__2T1XTc__Fv
+T1<char>::~T1(void)
+T1<char>::~T1
+#
+--format=hp --no-params
+__dt__2T1XT1t__Fv
+T1<t>::~T1(void)
+T1<t>::~T1
+#
+--format=hp --no-params
+__dl__2T1XT1t__SFPv
+T1<t>::operator delete(void *) static
+T1<t>::operator delete
+#
+--format=hp --no-params
+__ct__2T1XTc__Fi
+T1<char>::T1(int)
+T1<char>::T1
+#
+--format=hp --no-params
+__ct__2T1XTc__Fv
+T1<char>::T1(void)
+T1<char>::T1
+#
+--format=hp --no-params
+__ct__2T1XT1t__Fi
+T1<t>::T1(int)
+T1<t>::T1
+#
+--format=hp --no-params
+__ct__2T1XT1t__Fv
+T1<t>::T1(void)
+T1<t>::T1
+#
+--format=hp --no-params
+__dl__2T1XTc__SFPv
+T1<char>::operator delete(void *) static
+T1<char>::operator delete
+#
+--format=hp --no-params
+elem__6vectorXTd__Fi
+vector<double>::elem(int)
+vector<double>::elem
+#
+--format=hp --no-params
+elem__6vectorXTi__Fi
+vector<int>::elem(int)
+vector<int>::elem
+#
+--format=hp --no-params
+__ct__6vectorXTd__Fi
+vector<double>::vector(int)
+vector<double>::vector
+#
+--format=hp --no-params
+__ct__6vectorXTi__Fi
+vector<int>::vector(int)
+vector<int>::vector
+#
+--format=hp --no-params
+__ct__9DListNodeXTR6RLabel__FR6RLabelP9DListNodeXTR6RLabel_T2
+DListNode<RLabel &>::DListNode(RLabel &, DListNode<RLabel &> *, DListNode<RLabel &> *)
+DListNode<RLabel &>::DListNode
+#
+--format=hp --no-params
+elem__6vectorXTiUP34__Fi
+vector<int,34U>::elem(int)
+vector<int,34U>::elem
+#
+--format=hp --no-params
+elem__6vectorXUP2701Td__Fi
+vector<2701U,double>::elem(int)
+vector<2701U,double>::elem
+#
+--format=hp --no-params
+elem__6vectorXTiSP334__Fi
+vector<int,334>::elem(int)
+vector<int,334>::elem
+#
+--format=hp --no-params
+elem__6vectorXTiSN67__Fi
+vector<int,-67>::elem(int)
+vector<int,-67>::elem
+#
+--format=hp --no-params
+elem__6vectorXTiSM__SCFPPd
+vector<int,-2147483648>::elem(double **) static const
+vector<int,-2147483648>::elem
+#
+--format=hp --no-params
+elem__6vectorXTiSN67UP4000TRs__Fi
+vector<int,-67,4000U,short &>::elem(int)
+vector<int,-67,4000U,short &>::elem
+#
+--format=hp --no-params
+elem__6vectorXTiSN67TRdTFPv_i__Fi
+vector<int,-67,double &,int (void *)>::elem(int)
+vector<int,-67,double &,int (void *)>::elem
+#
+--format=hp --no-params
+X__6vectorXTiSN67TdTPvUP5TRs
+vector<int,-67,double,void *,5U,short &>::X
+vector<int,-67,double,void *,5U,short &>::X
+#
+--format=hp --no-params
+elem__6vectorXTiA3foo__Fi
+vector<int,&foo>::elem(int)
+vector<int,&foo>::elem
+#
+--format=hp --no-params
+elem__6vectorXTiA3fooTPvA5Label__FiPPvT2
+vector<int,&foo,void *,&Label>::elem(int, void **, void **)
+vector<int,&foo,void *,&Label>::elem
+#
+--format=hp --no-params
+elem__6vectorXTiSN42A3foo__Fi
+vector<int,-42,&foo>::elem(int)
+vector<int,-42,&foo>::elem
+#
+--format=hp --no-params
+__ct__2T5XTPFcPv_i__Fi_2
+T5<int (*)(char, void *)>::T5(int)
+T5<int (*)(char, void *)>::T5
+#
+--format=hp --no-params
+__ct__2T5XTPFcPv_i__Fi_19
+T5<int (*)(char, void *)>::T5(int)
+T5<int (*)(char, void *)>::T5
+#
+--format=hp --no-params
+f__FicdPcPFci_v_34
+f(int, char, double, char *, void (*)(char, int))
+f
+#
+--format=hp --no-params
+spec__13Spec<#1,#1.*>XTiTPi_FPi
+Spec<int,int *>::spec(int *)
+Spec<int,int *>::spec
+#
+--format=hp --no-params
+spec__16Spec<#1,#1.&,#1>XTiTRiTi_FPi
+Spec<int,int &,int>::spec(int *)
+Spec<int,int &,int>::spec
+#
+--format=hp --no-params
+add__XTc_FcT1
+add<char>(char, char)
+add<char>
+#
+--format=hp --no-params
+add__XTcSP9A5label_FcPPlT1
+add<char,9,&label>(char, long **, char)
+add<char,9,&label>
+#
+--format=hp --no-params
+add__XTPfTFPd_f_FcT1
+add<float *,float (double *)>(char, char)
+add<float *,float (double *)>
+#
+--format=hp --no-params
+unLink__12basic_stringXTcT18string_char_traitsXTc_T9allocator_Fv
+basic_string<char,string_char_traits<char>,allocator>::unLink(void)
+basic_string<char,string_char_traits<char>,allocator>::unLink
+#
+# A regression test with no args.  This used to cause a segv.
+
+_Utf390_1__1_9223372036854775807__9223372036854775
+_Utf390_1__1_9223372036854775807__9223372036854775
+#
+--format=gnu --no-params
+call__H1Z4Test_RX01_t1C2ZX01PMX01FPX01i_vQ2X016output
+C<Test, Test::output> call<Test>(Test &)
+C<Test, Test::output> call<Test>
+#
+--format=gnu --no-params
+fn__FPQ21n1cPMQ21n1cFPQ21n1c_i
+fn(n::c *, int (n::c::*)(n::c *))
+fn
+#
+--format=gnu --no-params
+f__FGt3Bar1i2G1i
+f(Bar<2>, i)
+f
+#
+--format=gnu --no-params
+f__FGt3Bar1i21i
+f(Bar<21>, int)
+f
+#
+--format=gnu --no-params
+f__FGt3Bar1i2G4XY_t
+f(Bar<2>, XY_t)
+f
+#
+--format=gnu --no-params
+foo__H1Zt2TA2ZRCiZt2NA1Ui9_X01_i
+int foo<TA<int const &, NA<9> > >(TA<int const &, NA<9> >)
+int foo<TA<int const &, NA<9> > >
+#
+--format=gnu --no-params
+foo__H1Zt2TA2ZcZt2NA1Ui20_X01_i
+int foo<TA<char, NA<20> > >(TA<char, NA<20> >)
+int foo<TA<char, NA<20> > >
+#
+--format=gnu --no-params
+foo__H1Zt2TA2ZiZt8N___A___1Ui99_X01_i
+int foo<TA<int, N___A___<99> > >(TA<int, N___A___<99> >)
+int foo<TA<int, N___A___<99> > >
+#
+--format=gnu --no-params
+foo__H1Zt2TA2ZRCiZt2NA1im1_X01_i
+int foo<TA<int const &, NA<-1> > >(TA<int const &, NA<-1> >)
+int foo<TA<int const &, NA<-1> > >
+#
+--format=gnu --no-params
+foo__H1Zt2TA2ZRCiZt2NA1im9_X01_i
+int foo<TA<int const &, NA<-9> > >(TA<int const &, NA<-9> >)
+int foo<TA<int const &, NA<-9> > >
+#
+--format=gnu --no-params
+foo__H1Zt2TA2ZcZt2NA1i_m20__X01_i
+int foo<TA<char, NA<-20> > >(TA<char, NA<-20> >)
+int foo<TA<char, NA<-20> > >
+#
+--format=gnu --no-params
+foo__H1Zt2TA2ZcZt2NA1im1_X01_i
+int foo<TA<char, NA<-1> > >(TA<char, NA<-1> >)
+int foo<TA<char, NA<-1> > >
+#
+--format=gnu --no-params
+foo__H1Zt2TA2ZiZt4N__A1im9_X01_i
+int foo<TA<int, N__A<-9> > >(TA<int, N__A<-9> >)
+int foo<TA<int, N__A<-9> > >
+#
+--format=gnu --no-params
+foo__H1Zt2TA2ZiZt4N__A1i_m99__X01_i
+int foo<TA<int, N__A<-99> > >(TA<int, N__A<-99> >)
+int foo<TA<int, N__A<-99> > >
+#
+--format=gnu --no-params
+__opi__t2TA2ZiZt4N__A1i9
+TA<int, N__A<9> >::operator int(void)
+TA<int, N__A<9> >::operator int
+#
+--format=gnu --no-params
+__opi__t2TA2ZiZt8N___A___1i_m99_
+TA<int, N___A___<-99> >::operator int(void)
+TA<int, N___A___<-99> >::operator int
+#
+--format=gnu --no-params
+foo___bar__baz_____H1Zt2TA2ZiZt8N___A___1i99_X01_i
+int foo___bar__baz___<TA<int, N___A___<99> > >(TA<int, N___A___<99> >)
+int foo___bar__baz___<TA<int, N___A___<99> > >
+#
+--format=gnu --no-params
+foo__bar___foobar_____t2TA2ZiZt8N___A___1i_m99_
+TA<int, N___A___<-99> >::foo__bar___foobar___(void)
+TA<int, N___A___<-99> >::foo__bar___foobar___
+#
+--format=gnu --no-params
+foo__bar___foobar_____t2TA2ZiZt4N__A1i9
+TA<int, N__A<9> >::foo__bar___foobar___(void)
+TA<int, N__A<9> >::foo__bar___foobar___
+#
+--format=gnu --no-params
+__tfP8sockaddr
+sockaddr * type_info function
+sockaddr * type_info function
+#
+--format=gnu --no-params
+__tfPQ25libcwt16option_event_tct1Z12burst_app_ct
+libcw::option_event_tct<burst_app_ct> * type_info function
+libcw::option_event_tct<burst_app_ct> * type_info function
+#
+--format=gnu --no-params
+__tiP8sockaddr
+sockaddr * type_info node
+sockaddr * type_info node
+#
+--format=gnu --no-params
+__tiPQ25libcwt16option_event_tct1Z12burst_app_ct
+libcw::option_event_tct<burst_app_ct> * type_info node
+libcw::option_event_tct<burst_app_ct> * type_info node
+#
+--format=gnu --no-params
+_27_GLOBAL_.N.__12burst_app_ct.app_instance
+{anonymous}::app_instance
+{anonymous}::app_instance
+#
+--format=gnu --no-params
+_26_GLOBAL_$N$_tmp_n.iilg4Gya$app_instance
+{anonymous}::app_instance
+{anonymous}::app_instance
+#
+--format=java
+_ZN4java3awt10ScrollPane7addImplEPNS0_9ComponentEPNS_4lang6ObjectEi
+java.awt.ScrollPane.addImpl(java.awt.Component, java.lang.Object, int)
+#
+--format=java
+_ZN4java3awt4geom15AffineTransform9getMatrixEP6JArrayIdE
+java.awt.geom.AffineTransform.getMatrix(double[])
+#
+--format=java
+_ZN23Mangle$Inner$InnerInner3fooEP6JArrayIPS0_IiEEdPS0_IPS0_IPS0_IPS0_IPN4java4lang6StringEEEEEPS0_IPS0_IPN6MangleEEE
+Mangle$Inner$InnerInner.foo(int[][], double, java.lang.String[][][][], Mangle[][])
+#
+--format=java
+_ZN6JArray1tEP6JArrayIPS_E
+JArray.t(JArray[])
+#
+--format=java
+_ZN4Prim1iEibcdfwPN4java4lang6StringEsx
+Prim.i(int, boolean, byte, double, float, char, java.lang.String, short, long)
+#
+--format=java
+_ZN4java4util14Map__U24_Entry11class__U24_E
+java.util.Map$Entry.class$
+#
+--format=java
+_ZN3org7eclipse3cdt5debug8internal4core5model9CVariable6sizeof$Ev
+org.eclipse.cdt.debug.internal.core.model.CVariable.sizeof()
+#
+--format=hp --no-params
+_Utf58_0_1__1_2147483647__2147483648
+_Utf58_0_1__1_2147483647__2147483648
+_Utf58_0_1__1_2147483647__2147483648
+#
+--format=gnu-v3 --no-params
+St9bad_alloc
+std::bad_alloc
+std::bad_alloc
+#
+--format=gnu-v3 --no-params
+_ZN1f1fE
+f::f
+f::f
+#
+--format=gnu-v3 --no-params
+_Z1fv
+f()
+f
+#
+--format=gnu-v3 --no-params
+_Z1fi
+f(int)
+f
+#
+--format=gnu-v3 --no-params
+_Z3foo3bar
+foo(bar)
+foo
+#
+--format=gnu-v3 --no-params
+_Zrm1XS_
+operator%(X, X)
+operator%
+#
+--format=gnu-v3 --no-params
+_ZplR1XS0_
+operator+(X&, X&)
+operator+
+#
+--format=gnu-v3 --no-params
+_ZlsRK1XS1_
+operator<<(X const&, X const&)
+operator<<
+#
+--format=gnu-v3 --no-params
+_ZN3FooIA4_iE3barE
+Foo<int [4]>::bar
+Foo<int [4]>::bar
+#
+--format=gnu-v3 --no-params
+_Z1fIiEvi
+void f<int>(int)
+f<int>
+#
+--format=gnu-v3 --no-params
+_Z5firstI3DuoEvS0_
+void first<Duo>(Duo)
+first<Duo>
+#
+--format=gnu-v3 --no-params
+_Z5firstI3DuoEvT_
+void first<Duo>(Duo)
+first<Duo>
+#
+--format=gnu-v3 --no-params
+_Z3fooIiFvdEiEvv
+void foo<int, void ()(double), int>()
+foo<int, void ()(double), int>
+#
+--format=gnu-v3 --no-params
+_ZN1N1fE
+N::f
+N::f
+#
+--format=gnu-v3 --no-params
+_ZN6System5Sound4beepEv
+System::Sound::beep()
+System::Sound::beep
+#
+--format=gnu-v3 --no-params
+_ZN5Arena5levelE
+Arena::level
+Arena::level
+#
+--format=gnu-v3 --no-params
+_ZN5StackIiiE5levelE
+Stack<int, int>::level
+Stack<int, int>::level
+#
+--format=gnu-v3 --no-params
+_Z1fI1XEvPVN1AIT_E1TE
+void f<X>(A<X>::T volatile*)
+f<X>
+#
+--format=gnu-v3 --no-params
+_ZngILi42EEvN1AIXplT_Li2EEE1TE
+void operator-<42>(A<(42) + (2)>::T)
+operator-<42>
+#
+--format=gnu-v3 --no-params
+_Z4makeI7FactoryiET_IT0_Ev
+Factory<int> make<Factory, int>()
+make<Factory, int>
+#
+--format=gnu-v3 --no-params
+_Z4makeI7FactoryiET_IT0_Ev
+Factory<int> make<Factory, int>()
+make<Factory, int>
+#
+--format=gnu-v3 --no-params
+_Z3foo5Hello5WorldS0_S_
+foo(Hello, World, World, Hello)
+foo
+#
+--format=gnu-v3 --no-params
+_Z3fooPM2ABi
+foo(int AB::**)
+foo
+#
+--format=gnu-v3 --no-params
+_ZlsRSoRKSs
+operator<<(std::ostream&, std::string const&)
+operator<<
+#
+--format=gnu-v3 --no-params
+_ZTI7a_class
+typeinfo for a_class
+typeinfo for a_class
+#
+--format=gnu-v3 --no-params
+U4_farrVKPi
+int* const volatile restrict _far
+int* const volatile restrict _far
+# 
+--format=gnu-v3 --no-params
+_Z3fooILi2EEvRAplT_Li1E_i
+void foo<2>(int (&) [(2) + (1)])
+foo<2>
+# 
+--format=gnu-v3 --no-params
+_Z1fM1AKFvvE
+f(void (A::*)() const)
+f
+#
+--format=gnu-v3 --no-params
+_Z3fooc
+foo(char)
+foo
+#
+--format=gnu-v3 --no-params
+2CBIL_Z3foocEE
+CB<foo(char)>
+CB<foo(char)>
+#
+--format=gnu-v3 --no-params
+2CBIL_Z7IsEmptyEE
+CB<IsEmpty>
+CB<IsEmpty>
+#
+--format=gnu-v3 --no-params
+_ZZN1N1fEiE1p
+N::f(int)::p
+N::f(int)::p
+#
+--format=gnu-v3 --no-params
+_ZZN1N1fEiEs
+N::f(int)::string literal
+N::f(int)::string literal
+# 
+--format=gnu-v3 --no-params
+_Z1fPFvvEM1SFvvE
+f(void (*)(), void (S::*)())
+f
+#
+--format=gnu-v3 --no-params
+_ZN1N1TIiiE2mfES0_IddE
+N::T<int, int>::mf(N::T<double, double>)
+N::T<int, int>::mf
+# 
+--format=gnu-v3 --no-params
+_ZSt5state
+std::state
+std::state
+# 
+--format=gnu-v3 --no-params
+_ZNSt3_In4wardE
+std::_In::ward
+std::_In::ward
+#
+--format=gnu-v3 --no-params
+_Z1fKPFiiE
+f(int (* const)(int))
+f
+#
+--format=gnu-v3 --no-params
+_Z1fAszL_ZZNK1N1A1fEvE3foo_0E_i
+f(int [sizeof (N::A::f() const::foo)])
+f
+#
+--format=gnu-v3 --no-params
+_Z1fA37_iPS_
+f(int [37], int (*) [37])
+f
+#
+--format=gnu-v3 --no-params
+_Z1fM1AFivEPS0_
+f(int (A::*)(), int (*)())
+f
+#
+--format=gnu-v3 --no-params
+_Z1fPFPA1_ivE
+f(int (*(*)()) [1])
+f
+#
+--format=gnu-v3 --no-params
+_Z1fPKM1AFivE
+f(int (A::* const*)())
+f
+#
+--format=gnu-v3 --no-params
+_Z1jM1AFivEPS1_
+j(int (A::*)(), int (A::**)())
+j
+#
+--format=gnu-v3 --no-params
+_Z1sPA37_iPS0_
+s(int (*) [37], int (**) [37])
+s
+#
+--format=gnu-v3 --no-params
+_Z3fooA30_A_i
+foo(int [30][])
+foo
+#
+--format=gnu-v3 --no-params
+_Z3kooPA28_A30_i
+koo(int (*) [28][30])
+koo
+#
+--format=gnu-v3 --no-params
+_ZlsRKU3fooU4bart1XS0_
+operator<<(X bart foo const&, X bart)
+operator<<
+#
+--format=gnu-v3 --no-params
+_ZlsRKU3fooU4bart1XS2_
+operator<<(X bart foo const&, X bart foo const)
+operator<<
+#
+--format=gnu-v3 --no-params
+_Z1fM1AKFivE
+f(int (A::*)() const)
+f
+#
+--format=gnu-v3 --no-params
+_Z3absILi11EEvv
+void abs<11>()
+abs<11>
+#
+--format=gnu-v3 --no-params
+_ZN1AIfEcvT_IiEEv
+A<float>::operator int<int>()
+A<float>::operator int<int>
+#
+--format=gnu-v3 --no-params
+_ZN12libcw_app_ct10add_optionIS_EEvMT_FvPKcES3_cS3_S3_
+void libcw_app_ct::add_option<libcw_app_ct>(void (libcw_app_ct::*)(char const*), char const*, char, char const*, char const*)
+libcw_app_ct::add_option<libcw_app_ct>
+#
+--format=gnu-v3 --no-params
+_ZGVN5libcw24_GLOBAL__N_cbll.cc0ZhUKa23compiler_bug_workaroundISt6vectorINS_13omanip_id_tctINS_5debug32memblk_types_manipulator_data_ctEEESaIS6_EEE3idsE
+guard variable for libcw::(anonymous namespace)::compiler_bug_workaround<std::vector<libcw::omanip_id_tct<libcw::debug::memblk_types_manipulator_data_ct>, std::allocator<libcw::omanip_id_tct<libcw::debug::memblk_types_manipulator_data_ct> > > >::ids
+guard variable for libcw::(anonymous namespace)::compiler_bug_workaround<std::vector<libcw::omanip_id_tct<libcw::debug::memblk_types_manipulator_data_ct>, std::allocator<libcw::omanip_id_tct<libcw::debug::memblk_types_manipulator_data_ct> > > >::ids
+#
+--format=gnu-v3 --no-params
+_ZN5libcw5debug13cwprint_usingINS_9_private_12GlobalObjectEEENS0_17cwprint_using_tctIT_EERKS5_MS5_KFvRSt7ostreamE
+libcw::debug::cwprint_using_tct<libcw::_private_::GlobalObject> libcw::debug::cwprint_using<libcw::_private_::GlobalObject>(libcw::_private_::GlobalObject const&, void (libcw::_private_::GlobalObject::*)(std::ostream&) const)
+libcw::debug::cwprint_using<libcw::_private_::GlobalObject>
+#
+--format=gnu-v3 --no-params
+_ZNKSt14priority_queueIP27timer_event_request_base_ctSt5dequeIS1_SaIS1_EE13timer_greaterE3topEv
+std::priority_queue<timer_event_request_base_ct*, std::deque<timer_event_request_base_ct*, std::allocator<timer_event_request_base_ct*> >, timer_greater>::top() const
+std::priority_queue<timer_event_request_base_ct*, std::deque<timer_event_request_base_ct*, std::allocator<timer_event_request_base_ct*> >, timer_greater>::top
+#
+--format=gnu-v3 --no-params
+_ZNKSt15_Deque_iteratorIP15memory_block_stRKS1_PS2_EeqERKS5_
+std::_Deque_iterator<memory_block_st*, memory_block_st* const&, memory_block_st* const*>::operator==(std::_Deque_iterator<memory_block_st*, memory_block_st* const&, memory_block_st* const*> const&) const
+std::_Deque_iterator<memory_block_st*, memory_block_st* const&, memory_block_st* const*>::operator==
+#
+--format=gnu-v3 --no-params
+_ZNKSt17__normal_iteratorIPK6optionSt6vectorIS0_SaIS0_EEEmiERKS6_
+std::__normal_iterator<option const*, std::vector<option, std::allocator<option> > >::operator-(std::__normal_iterator<option const*, std::vector<option, std::allocator<option> > > const&) const
+std::__normal_iterator<option const*, std::vector<option, std::allocator<option> > >::operator-
+#
+--format=gnu-v3 --no-params
+_ZNSbIcSt11char_traitsIcEN5libcw5debug27no_alloc_checking_allocatorEE12_S_constructIPcEES6_T_S7_RKS3_
+char* std::basic_string<char, std::char_traits<char>, libcw::debug::no_alloc_checking_allocator>::_S_construct<char*>(char*, char*, libcw::debug::no_alloc_checking_allocator const&)
+std::basic_string<char, std::char_traits<char>, libcw::debug::no_alloc_checking_allocator>::_S_construct<char*>
+#
+--format=gnu-v3 --no-params
+_Z1fI1APS0_PKS0_EvT_T0_T1_PA4_S3_M1CS8_
+void f<A, A*, A const*>(A, A*, A const*, A const* (*) [4], A const* (* C::*) [4])
+f<A, A*, A const*>
+#
+--format=gnu-v3 --no-params
+_Z3fooiPiPS_PS0_PS1_PS2_PS3_PS4_PS5_PS6_PS7_PS8_PS9_PSA_PSB_PSC_
+foo(int, int*, int**, int***, int****, int*****, int******, int*******, int********, int*********, int**********, int***********, int************, int*************, int**************, int***************)
+foo
+#
+--format=gnu-v3 --no-params
+_ZSt1BISt1DIP1ARKS2_PS3_ES0_IS2_RS2_PS2_ES2_ET0_T_SB_SA_PT1_
+std::D<A*, A*&, A**> std::B<std::D<A*, A* const&, A* const*>, std::D<A*, A*&, A**>, A*>(std::D<A*, A* const&, A* const*>, std::D<A*, A* const&, A* const*>, std::D<A*, A*&, A**>, A**)
+std::B<std::D<A*, A* const&, A* const*>, std::D<A*, A*&, A**>, A*>
+#
+--format=gnu-v3 --no-params
+_X11TransParseAddress
+_X11TransParseAddress
+_X11TransParseAddress
+#
+--format=gnu-v3 --no-params
+_ZNSt13_Alloc_traitsISbIcSt18string_char_traitsIcEN5libcw5debug9_private_17allocator_adaptorIcSt24__default_alloc_templateILb0ELi327664EELb1EEEENS5_IS9_S7_Lb1EEEE15_S_instancelessE
+std::_Alloc_traits<std::basic_string<char, std::string_char_traits<char>, libcw::debug::_private_::allocator_adaptor<char, std::__default_alloc_template<false, 327664>, true> >, libcw::debug::_private_::allocator_adaptor<std::basic_string<char, std::string_char_traits<char>, libcw::debug::_private_::allocator_adaptor<char, std::__default_alloc_template<false, 327664>, true> >, std::__default_alloc_template<false, 327664>, true> >::_S_instanceless
+std::_Alloc_traits<std::basic_string<char, std::string_char_traits<char>, libcw::debug::_private_::allocator_adaptor<char, std::__default_alloc_template<false, 327664>, true> >, libcw::debug::_private_::allocator_adaptor<std::basic_string<char, std::string_char_traits<char>, libcw::debug::_private_::allocator_adaptor<char, std::__default_alloc_template<false, 327664>, true> >, std::__default_alloc_template<false, 327664>, true> >::_S_instanceless
+#
+--format=gnu-v3 --no-params
+_GLOBAL__I__Z2fnv
+global constructors keyed to _Z2fnv
+global constructors keyed to _Z2fnv
+#
+--format=gnu-v3 --no-params
+_Z1rM1GFivEMS_KFivES_M1HFivES1_4whatIKS_E5what2IS8_ES3_
+r(int (G::*)(), int (G::*)() const, G, int (H::*)(), int (G::*)(), what<G const>, what2<G const>, int (G::*)() const)
+r
+#
+# This is from the gdb testsuite gdb.cp/cplusfuncs.exp.
+--format=gnu-v3 --no-params
+_Z10hairyfunc5PFPFilEPcE
+hairyfunc5(int (*(*)(char*))(long))
+hairyfunc5
+#
+# This is from gcc PR 8861
+--format=gnu-v3 --no-params
+_Z1fILi1ELc120EEv1AIXplT_cviLd810000000000000000703DAD7A370C5EEE
+void f<1, (char)120>(A<(1) + ((int)((double)[810000000000000000703DAD7A370C5]))>)
+f<1, (char)120>
+#
+# This is also from gcc PR 8861
+--format=gnu-v3 --no-params
+_Z1fILi1EEv1AIXplT_cvingLf3f800000EEE
+void f<1>(A<(1) + ((int)(-((float)[3f800000])))>)
+f<1>
+#
+# This is from a libstdc++ debug mode patch.
+--format=gnu-v3 --no-params
+_ZNK11__gnu_debug16_Error_formatter14_M_format_wordImEEvPciPKcT_
+void __gnu_debug::_Error_formatter::_M_format_word<unsigned long>(char*, int, char const*, unsigned long) const
+__gnu_debug::_Error_formatter::_M_format_word<unsigned long>
+#
+# The new demangler used to core dump on this.
+--format=gnu-v3 --no-params
+_ZSt18uninitialized_copyIN9__gnu_cxx17__normal_iteratorIPSt4pairISsPFbP6sqlitePPcEESt6vectorIS9_SaIS9_EEEESE_ET0_T_SG_SF_
+__gnu_cxx::__normal_iterator<std::pair<std::string, bool (*)(sqlite*, char**)>*, std::vector<std::pair<std::string, bool (*)(sqlite*, char**)>, std::allocator<std::pair<std::string, bool (*)(sqlite*, char**)> > > > std::uninitialized_copy<__gnu_cxx::__normal_iterator<std::pair<std::string, bool (*)(sqlite*, char**)>*, std::vector<std::pair<std::string, bool (*)(sqlite*, char**)>, std::allocator<std::pair<std::string, bool (*)(sqlite*, char**)> > > >, __gnu_cxx::__normal_iterator<std::pair<std::string, bool (*)(sqlite*, char**)>*, std::vector<std::pair<std::string, bool (*)(sqlite*, char**)>, std::allocator<std::pair<std::string, bool (*)(sqlite*, char**)> > > > >(__gnu_cxx::__normal_iterator<std::pair<std::string, bool (*)(sqlite*, char**)>*, std::vector<std::pair<std::string, bool (*)(sqlite*, char**)>, std::allocator<std::pair<std::string, bool (*)(sqlite*, char**)> > > >, __gnu_cxx::__normal_iterator<std::pair<std::string, bool (*)(sqlite*, char**)>*, std::vector<std::pair<std::string, bool (*)(sqlite*, char**)>, std::allocator<std::pair<std::string, bool (*)(sqlite*, char**)> > > >, __gnu_cxx::__normal_iterator<std::pair<std::string, bool (*)(sqlite*, char**)>*, std::vector<std::pair<std::string, bool (*)(sqlite*, char**)>, std::allocator<std::pair<std::string, bool (*)(sqlite*, char**)> > > >)
+std::uninitialized_copy<__gnu_cxx::__normal_iterator<std::pair<std::string, bool (*)(sqlite*, char**)>*, std::vector<std::pair<std::string, bool (*)(sqlite*, char**)>, std::allocator<std::pair<std::string, bool (*)(sqlite*, char**)> > > >, __gnu_cxx::__normal_iterator<std::pair<std::string, bool (*)(sqlite*, char**)>*, std::vector<std::pair<std::string, bool (*)(sqlite*, char**)>, std::allocator<std::pair<std::string, bool (*)(sqlite*, char**)> > > > >
+#
+# The new demangler used to fail on this.
+--format=gnu-v3 --no-params
+_Z1fP1cIPFiiEE
+f(c<int (*)(int)>*)
+f
+#
+# Wrap expressions using '>' in an extra layer of parens to avoid
+# confusion with the '>' which ends the template parameters.
+--format=gnu-v3 --no-params
+_Z4dep9ILi3EEvP3fooIXgtT_Li2EEE
+void dep9<3>(foo<((3) > (2))>*)
+dep9<3>
+#
+# Watch out for templated version of `operator<'--it needs an extra
+# space.
+--format=gnu-v3 --no-params
+_ZStltI9file_pathSsEbRKSt4pairIT_T0_ES6_
+bool std::operator< <file_path, std::string>(std::pair<file_path, std::string> const&, std::pair<file_path, std::string> const&)
+std::operator< <file_path, std::string>
+#
+# More hairy qualifier handling.
+--format=gnu-v3 --no-params
+_Z9hairyfuncM1YKFPVPFrPA2_PM1XKFKPA3_ilEPcEiE
+hairyfunc(int (* const (X::** (* restrict (* volatile* (Y::*)(int) const)(char*)) [2])(long) const) [3])
+hairyfunc
+#
+# Check that negative numbers are handled correctly.
+--format=gnu-v3 --no-params
+_Z1fILin1EEvv
+void f<-1>()
+f<-1>
+#
+# Check a destructor of a standard substitution.
+--format=gnu-v3 --no-params
+_ZNSdD0Ev
+std::basic_iostream<char, std::char_traits<char> >::~basic_iostream()
+std::basic_iostream<char, std::char_traits<char> >::~basic_iostream
+#
+# Another case where we got member function qualifiers wrong.
+--format=gnu-v3 --no-params
+_ZNK15nsBaseHashtableI15nsUint32HashKey8nsCOMPtrI4IFooEPS2_E13EnumerateReadEPF15PLDHashOperatorRKjS4_PvES9_
+nsBaseHashtable<nsUint32HashKey, nsCOMPtr<IFoo>, IFoo*>::EnumerateRead(PLDHashOperator (*)(unsigned int const&, IFoo*, void*), void*) const
+nsBaseHashtable<nsUint32HashKey, nsCOMPtr<IFoo>, IFoo*>::EnumerateRead
+#
+# Another member function qualifier test case, when the member function
+# returns a pointer to function.
+--format=gnu-v3 --no-params
+_ZNK1C1fIiEEPFivEv
+int (*C::f<int>() const)()
+C::f<int>
+#
+# Another case where we got member function qualifiers wrong.
+--format=gnu-v3 --no-params
+_ZZ3BBdI3FooEvvENK3Fob3FabEv
+void BBd<Foo>()::Fob::Fab() const
+void BBd<Foo>()::Fob::Fab
+#
+# The same idea one level deeper.
+--format=gnu-v3 --no-params
+_ZZZ3BBdI3FooEvvENK3Fob3FabEvENK3Gob3GabEv
+void BBd<Foo>()::Fob::Fab() const::Gob::Gab() const
+void BBd<Foo>()::Fob::Fab() const::Gob::Gab
+#
+# Yet another member function qualifier problem.
+--format=gnu-v3 --no-params
+_ZNK5boost6spirit5matchI13rcs_deltatextEcvMNS0_4impl5dummyEFvvEEv
+boost::spirit::match<rcs_deltatext>::operator void (boost::spirit::impl::dummy::*)()() const
+boost::spirit::match<rcs_deltatext>::operator void (boost::spirit::impl::dummy::*)()
+#
+# Multi-dimensional arrays with qualifiers on the inner dimensions.
+--format=gnu-v3 --no-params
+_Z3fooIA6_KiEvA9_KT_rVPrS4_
+void foo<int const [6]>(int const [9][6], int restrict const (* volatile restrict) [9][6])
+foo<int const [6]>
+#
+# From PR libstdc++/12736
+--format=gnu-v3 --no-params
+_Z3fooIA3_iEvRKT_
+void foo<int [3]>(int const (&) [3])
+foo<int [3]>
+#
+# Related to PR libstdc++/12736
+--format=gnu-v3 --no-params
+_Z3fooIPA3_iEvRKT_
+void foo<int (*) [3]>(int (* const&) [3])
+foo<int (*) [3]>
+#
+# This used to crash the demangler--PR 16240
+--format=gnu-v3 --no-params
+_ZN13PatternDriver23StringScalarDeleteValueC1ERKNS_25ConflateStringScalarValueERKNS_25AbstractStringScalarValueERKNS_12TemplateEnumINS_12pdcomplementELZNS_16complement_namesEELZNS_14COMPLEMENTENUMEEEE
+_ZN13PatternDriver23StringScalarDeleteValueC1ERKNS_25ConflateStringScalarValueERKNS_25AbstractStringScalarValueERKNS_12TemplateEnumINS_12pdcomplementELZNS_16complement_namesEELZNS_14COMPLEMENTENUMEEEE
+PatternDriver::StringScalarDeleteValue::StringScalarDeleteValue
+#
+# This used to cause the demangler to walk into undefined memory--PR 22268
+--format=gnu-v3 --no-params
+ALsetchannels
+ALsetchannels
+ALsetchannels
+# Test GNU V3 constructor and destructor identification.
+# 0 means it is not a constructor/destructor.
+# Other integers correspond to enum gnu_v3_{c,d}tor_kinds in demangle.h.
+--is-v3-ctor
+_GLOBAL__I__Z2fnv
+0
+#
+--is-v3-dtor
+_GLOBAL__I__Z2fnv
+0
+#
+--is-v3-ctor
+_ZNSdC1Ev
+1
+#
+--is-v3-dtor
+_ZNSdC1Ev
+0
+#
+--is-v3-ctor
+_ZNSdD0Ev
+0
+#
+--is-v3-dtor
+_ZNSdD0Ev
+1
+#
+--is-v3-ctor
+_ZNSdC2Ev
+2
+#
+--is-v3-dtor
+_ZNSdC2Ev
+0
+#
+--is-v3-ctor
+_ZNSdD1Ev
+0
+#
+--is-v3-dtor
+_ZNSdD1Ev
+2
+#
+# This caused an infinite loop.
+#
+# This is generated by an EDG compiler (kcc 4.0).  To demangle it
+# correctly, I believe that we have to understand that the J37J deep
+# in the string somehow refers back to the type starting 37 characters
+# in from some starting point, so that it winds up being the type
+# starting with 41THandle....  However, lacking a spec for EDG
+# demangling, it's hard to implement this.
+#
+# In the meantime, this symbol can be successfully demangled in GNU
+# mode.  Of course the result is more or less nonsense, but an older
+# version of g++ would indeed generate this mangled name given the
+# appropriate input, so the demangling is correct.
+--format=auto --no-params
+__CPR212____ct__Q3_3std141list__tm__128_Q2_3edm41THandle__tm__26_Q2_4emid15EMparticleChunkQ2_3std68allocator__tm__51_Q2_3edmJ37J14const_iteratorFRCQ3_3std18list__tm__7_Z1ZZ2Z8iterator
+_Z1ZZ2Z::__CPR212____ct__Q3_3std141list__tm__128_Q2_3edm41THandle__tm__26_Q2_4emid15EMparticleChunkQ2_3std68allocator__tm__51_Q2_3edmJ37J14const_iteratorFRCQ3_3std18list__tm(iterator)
+_Z1ZZ2Z::__CPR212____ct__Q3_3std141list__tm__128_Q2_3edm41THandle__tm__26_Q2_4emid15EMparticleChunkQ2_3std68allocator__tm__51_Q2_3edmJ37J14const_iteratorFRCQ3_3std18list__tm
+#
+# This used to cause a crash. It doesn't follow the C++ encoding so
+# the demangled name should be identical to the original symbol name.
+--format=auto --no-params
+_test_array__L_1__B23b___clean.6
+_test_array__L_1__B23b___clean.6
+_test_array__L_1__B23b___clean.6
+#
+--format=java
+_ZGAN4java4lang5Class7forNameEPNS0_6StringE
+hidden alias for java.lang.Class.forName(java.lang.String)
+#
+# Test cases to verify encoding that determines if a return type is present
+# Related to PR9861
+--format=java
+_ZN4java4lang4Math4acosEJdd
+java.lang.Math.acos(double)double
+#
+--format=auto
+_ZN4java4lang4Math4acosEJdd
+double java::lang::Math::acos(double)
+#
+--format=auto
+_ZN4java4lang4Math4acosEJvd
+void java::lang::Math::acos(double)
+#
+--format=auto --ret-postfix
+_ZN4java4lang4Math4acosEJdd
+java::lang::Math::acos(double)double
+#
+--format=gnu-v3 --no-params --ret-postfix
+_Z4makeI7FactoryiET_IT0_Ev
+make<Factory, int>()Factory<int>
+make<Factory, int>
+#
+# From PR 28797
+--format=auto --no-params
+_Z1fM1AKiPKS1_
+f(int const A::*, int const A::* const*)
+f
+# This used to cause a core dump in the demangler -- PR 29176
+--format=auto --no-params
+SASDASDFASDF_sdfsdf
+SASDASDFASDF_sdfsdf
+SASDASDFASDF_sdfsdf
+# These are all cases of invalid manglings where the demangler would read
+# past the end of the string.
+# d_name wasn't honouring a NULL from d_substitution
+--format=gnu-v3
+_ZSA
+_ZSA
+# d_expr_primary wasn't honouring NULL from cplus_demangle_mangled_name
+--format=gnu-v3
+_ZN1fIL_
+_ZN1fIL_
+# d_operator_name was taking two characters in a row
+--format=gnu-v3
+_Za
+_Za
+# d_prefix wasn't honouring NULL from d_substitution
+--format=gnu-v3
+_ZNSA
+_ZNSA
+# d_prefix wasn't honouring NULL from d_template_param
+--format=gnu-v3
+_ZNT
+_ZNT
+# Dereferencing NULL in d_pointer_to_member_type
+--format=gnu-v3
+_Z1aMark
+_Z1aMark
+--format=gnu-v3
+_ZSA
+_ZSA
+# d_expr_primary wasn't honouring NULL from cplus_demangle_mangled_name
+--format=gnu-v3
+_ZN1fIL_
+_ZN1fIL_
+# d_operator_name was taking two characters in a row
+--format=gnu-v3
+_Za
+_Za
+# d_prefix wasn't honouring NULL from d_substitution
+--format=gnu-v3
+_ZNSA
+_ZNSA
+# d_prefix wasn't honouring NULL from d_template_param
+--format=gnu-v3
+_ZNT
+_ZNT
+# Dereferencing NULL in d_pointer_to_member_type
+--format=gnu-v3
+_Z1aMark
+_Z1aMark
+# <local-source-name> test 1
+--format=gnu-v3
+_ZL3foo_2
+foo
+# <local-source-name> test 2
+--format=gnu-v3
+_ZZL3foo_2vE4var1
+foo()::var1
+# <local-source-name> test 3
+--format=gnu-v3
+_ZZL3foo_2vE4var1_0
+foo()::var1
+# <local-source-name> test 4
+--format=gnu-v3
+_ZZN7myspaceL3foo_1EvEN11localstruct1fEZNS_3fooEvE16otherlocalstruct
+myspace::foo()::localstruct::f(myspace::foo()::otherlocalstruct)

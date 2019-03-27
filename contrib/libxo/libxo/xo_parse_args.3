@@ -1,0 +1,162 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_parse_args , xo_set_program
+.Nd detect, parse, and remove arguments for libxo
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft int
+.Fn xo_parse_args "int argc" "char **argv"
+.Ft int
+.Fn xo_set_program "const char *name"
+.Sh DESCRIPTION
+The
+.Fn xo_parse_args
+function is used to process command-line arguments.
+.Nm libxo
+specific
+options are processed and removed
+from the argument list so the calling application does not
+need to process them.
+If successful, a new value for argc is returned.
+On failure, a message it emitted and -1 is returned.
+.Bd -literal -offset indent
+    argc = xo_parse_args(argc, argv);
+    if (argc < 0)
+        exit(EXIT_FAILURE);
+.Ed
+.Pp
+Following the call to
+.Fn xo_parse_args ,
+the application can process the remaining arguments in a normal manner.
+.Pp
+.Nm libxo
+uses command line options to trigger rendering behavior.
+The following options are recognised:
+.Pp
+.Bl -tag -width "--libxo"
+.It
+\-\^\-libxo <options>
+.It
+\-\^\-libxo=<options>
+.It
+\-\^\-libxo:<brief-options>
+.El
+.Pp
+Options is a comma-separated list of tokens that correspond to output
+styles, flags, or features:
+.Pp
+.Bl -tag -width "12345678"
+.It Sy "Token   Action"
+.It Dv dtrt
+Enable "Do The Right Thing" mode
+.It Dv html
+Emit HTML output
+.It Dv indent=xx
+Set the indentation level
+.It Dv info
+Add info attributes (HTML)
+.It Dv json
+Emit JSON output
+.It Dv keys
+Emit the key attribute for keys (XML)
+.It Dv log-gettext
+Log (via stderr) each
+.Xr gettext 3
+string lookup
+.It Dv log-syslog
+Log (via stderr) each syslog message (via
+.Xr xo_syslog 3 )
+.If Dv no-humanize
+Ignore the {h:} modifier (TEXT, HTML)
+.It Dv no-locale
+Do not initialize the locale setting
+.It Dv no-retain
+Prevent retaining formatting information
+.It Dv no-top
+Do not emit a top set of braces (JSON)
+.It Dv not-first
+Pretend the 1st output item was not 1st (JSON)
+.It Dv pretty
+Emit pretty-printed output
+.It Dv retain
+Force retaining formatting information
+.It Dv text
+Emit TEXT output
+.If Dv underscores
+Replace XML-friendly "-"s with JSON friendly "_"s e
+.It Dv units
+Add the 'units' (XML) or 'data-units (HTML) attribute
+.It Dv warn
+Emit warnings when libxo detects bad calls
+.It Dv warn-xml
+Emit warnings in XML
+.It Dv xml
+Emit XML output
+.It Dv xpath
+Add XPath expressions (HTML)
+.El
+.Pp
+The
+.Dq brief-options
+are single letter commands, designed for those with
+too little patience to use real tokens.
+No comma separator is used.
+.Bl -column "i<num>"
+.It Sy "Token   Action"
+.It "H      " "Enable HTML output (XO_STYLE_HTML)"
+.It "I      " "Enable info output (XOF_INFO)"
+.It "i<num> " "Indent by <number>"
+.It "J      " "Enable JSON output (XO_STYLE_JSON)"
+.It "P      " "Enable pretty-printed output (XOF_PRETTY)"
+.It "T      " "Enable text output (XO_STYLE_TEXT)"
+.It "W      " "Enable warnings (XOF_WARN)"
+.It "X      " "Enable XML output (XO_STYLE_XML)"
+.It "x      " "Enable XPath data (XOF_XPATH)"
+.El
+.Pp
+The
+.Fn xo_set_program
+function sets name of the program as reported by
+functions like
+.Fn xo_failure ,
+.Fn xo_warn ,
+.Fn xo_err ,
+etc.
+The program name is initialized by
+.Fn xo_parse_args ,
+but subsequent calls to
+.Fn xo_set_program
+can override this value.
+.Pp
+Note that the value is not copied, so the memory passed to
+.Fn xo_set_program
+(and
+.Fn xo_parse_args )
+must be maintained by the caller.
+.Pp
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

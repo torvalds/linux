@@ -1,0 +1,108 @@
+.\" Copyright (c) 2018 Emmanuel Vadot <manu@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 12, 2019
+.Dt PWM 8
+.Os
+.Sh NAME
+.Nm pwm
+.Nd configure pwm controller
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar device
+.Fl c Ar channel
+.Fl E
+.Nm
+.Op Fl f Ar device
+.Fl c Ar channel
+.Fl D
+.Nm
+.Op Fl f Ar device
+.Fl c Ar channel
+.Fl C
+.Nm
+.Op Fl f Ar device
+.Fl c Ar channel
+.Fl p Ar period
+.Nm
+.Op Fl f Ar device
+.Fl c Ar channel
+.Fl d Ar duty
+.Sh DESCRIPTION
+The
+.Nm
+utility can be used to configure pwm controllers.
+.Pp
+The options are as follow:
+.Bl -tag -width "-c channel"
+.It Fl c Ar channel
+Channel number to operate on
+.It Fl f Ar device
+Device to operate on.
+If not specified,
+.Pa /dev/pwmc0
+is used.
+.It Fl E
+Enable the pwm channel
+.It Fl D
+Disable the pwm channel
+.It Fl C
+Show the configuration of the pwm channel
+.It Fl p Ar period
+Configure the period (in nanoseconds) of the pwm channel
+.It Fl d Ar duty
+Configure the duty (in nanoseconds or percentage) of the pwm channel
+.El
+.Sh EXAMPLES
+.Bl -bullet
+.It
+Show the configuration of the pwm channel:
+.Bd -literal
+pwm -f /dev/pwmc0 -C
+.Ed
+.It
+Configure a 50000 ns period and a 25000 duty cycle:
+.Bd -literal
+pwm -f /dev/pwmc0 -p 50000 -d 25000
+.Ed
+.It
+Configure a 50% duty cycle:
+.Bd -literal
+pwm -f /dev/pwmc0 -d 50%
+.Ed
+.El
+.Sh SEE ALSO
+.Xr pwm 9 ,
+.Xr pwmbus 9
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility and this manual page were written by
+.An Emmanuel Vadot Aq Mt manu@FreeBSD.org .

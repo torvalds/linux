@@ -1,0 +1,7 @@
+before case
+before dotcmd
+before while
+before break
+after while
+after dotcmd, return value: 0
+after case

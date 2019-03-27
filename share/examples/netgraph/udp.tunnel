@@ -1,0 +1,53 @@
+#!/bin/sh
+# $FreeBSD$
+
+# This script sets up a virtual point-to-point WAN link between
+# two subnets, using UDP packets as the ``WAN connection.''
+# The two subnets might be non-routable addresses behind a
+# firewall.
+#
+
+# Here define the local and remote inside networks as well
+# as the local and remote outside IP addresses and UDP port
+# number that will be used for the tunnel.
+#
+LOC_INTERIOR_IP=192.168.1.1
+LOC_EXTERIOR_IP=1.1.1.1
+REM_INTERIOR_IP=192.168.2.1
+REM_EXTERIOR_IP=2.2.2.2
+REM_INSIDE_NET=192.168.2.0
+UDP_TUNNEL_PORT=4028
+
+# Create the interface node ``ng0'' if it doesn't exist already,
+# otherwise just make sure it's not connected to anything.
+# In FreeBSD, interfaces cannot be removed so it might already
+# be there from before.
+#
+if ifconfig ng0 >/dev/null 2>&1; then
+	ifconfig ng0 inet down delete >/dev/null 2>&1
+	ngctl shutdown ng0:
+else
+	ngctl mkpeer iface dummy inet
+fi
+
+# Attach a UDP socket to the ``inet'' hook of the interface node
+# using the ng_ksocket(4) node type.
+#
+ngctl mkpeer ng0: ksocket inet inet/dgram/udp
+
+# Bind the UDP socket to the local external IP address and port
+#
+ngctl msg ng0:inet bind inet/${LOC_EXTERIOR_IP}:${UDP_TUNNEL_PORT}
+
+# Connect the UDP socket to the peer's external IP address and port
+#
+ngctl msg ng0:inet connect inet/${REM_EXTERIOR_IP}:${UDP_TUNNEL_PORT}
+
+# Configure the point-to-point interface
+#
+ifconfig ng0 ${LOC_INTERIOR_IP} ${REM_INTERIOR_IP}
+
+# Add a route to the peer's interior network via the tunnel
+#
+route add ${REM_INSIDE_NET} ${REM_INTERIOR_IP}
+

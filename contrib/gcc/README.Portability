@@ -1,0 +1,197 @@
+Copyright (C) 2000, 2003 Free Software Foundation, Inc.
+
+This file is intended to contain a few notes about writing C code
+within GCC so that it compiles without error on the full range of
+compilers GCC needs to be able to compile on.
+
+The problem is that many ISO-standard constructs are not accepted by
+either old or buggy compilers, and we keep getting bitten by them.
+This knowledge until know has been sparsely spread around, so I
+thought I'd collect it in one useful place.  Please add and correct
+any problems as you come across them.
+
+I'm going to start from a base of the ISO C90 standard, since that is
+probably what most people code to naturally.  Obviously using
+constructs introduced after that is not a good idea.
+
+For the complete coding style conventions used in GCC, please read
+http://gcc.gnu.org/codingconventions.html
+
+
+String literals
+---------------
+
+Irix6 "cc -n32" and OSF4 "cc" have problems with constant string
+initializers with parens around it, e.g.
+
+const char string[] = ("A string");
+
+This is unfortunate since this is what the GNU gettext macro N_
+produces.  You need to find a different way to code it.
+
+Some compilers like MSVC++ have fairly low limits on the maximum
+length of a string literal; 509 is the lowest we've come across.  You
+may need to break up a long printf statement into many smaller ones.
+
+
+Empty macro arguments
+---------------------
+
+ISO C (6.8.3 in the 1990 standard) specifies the following:
+
+If (before argument substitution) any argument consists of no
+preprocessing tokens, the behavior is undefined.
+
+This was relaxed by ISO C99, but some older compilers emit an error,
+so code like
+
+#define foo(x, y) x y
+foo (bar, )
+
+needs to be coded in some other way.
+
+
+free and realloc
+----------------
+
+Some implementations crash upon attempts to free or realloc the null
+pointer.  Thus if mem might be null, you need to write
+
+  if (mem)
+    free (mem);
+
+
+Trigraphs
+---------
+
+You weren't going to use them anyway, but some otherwise ISO C
+compliant compilers do not accept trigraphs.
+
+
+Suffixes on Integer Constants
+-----------------------------
+
+You should never use a 'l' suffix on integer constants ('L' is fine),
+since it can easily be confused with the number '1'.
+
+
+			Common Coding Pitfalls
+			======================
+
+errno
+-----
+
+errno might be declared as a macro.
+
+
+Implicit int
+------------
+
+In C, the 'int' keyword can often be omitted from type declarations.
+For instance, you can write
+
+  unsigned variable;
+
+as shorthand for
+
+  unsigned int variable;
+
+There are several places where this can cause trouble.  First, suppose
+'variable' is a long; then you might think
+
+  (unsigned) variable
+
+would convert it to unsigned long.  It does not.  It converts to
+unsigned int.  This mostly causes problems on 64-bit platforms, where
+long and int are not the same size.
+
+Second, if you write a function definition with no return type at
+all:
+
+  operate (int a, int b)
+  {
+    ...
+  }
+
+that function is expected to return int, *not* void.  GCC will warn
+about this.
+
+Implicit function declarations always have return type int.  So if you
+correct the above definition to
+
+  void
+  operate (int a, int b)
+  ...
+
+but operate() is called above its definition, you will get an error
+about a "type mismatch with previous implicit declaration".  The cure
+is to prototype all functions at the top of the file, or in an
+appropriate header.
+
+Char vs unsigned char vs int
+----------------------------
+
+In C, unqualified 'char' may be either signed or unsigned; it is the
+implementation's choice.  When you are processing 7-bit ASCII, it does
+not matter.  But when your program must handle arbitrary binary data,
+or fully 8-bit character sets, you have a problem.  The most obvious
+issue is if you have a look-up table indexed by characters.
+
+For instance, the character '\341' in ISO Latin 1 is SMALL LETTER A
+WITH ACUTE ACCENT.  In the proper locale, isalpha('\341') will be
+true.  But if you read '\341' from a file and store it in a plain
+char, isalpha(c) may look up character 225, or it may look up
+character -31.  And the ctype table has no entry at offset -31, so
+your program will crash.  (If you're lucky.)
+
+It is wise to use unsigned char everywhere you possibly can.  This
+avoids all these problems.  Unfortunately, the routines in <string.h>
+take plain char arguments, so you have to remember to cast them back
+and forth - or avoid the use of strxxx() functions, which is probably
+a good idea anyway.
+
+Another common mistake is to use either char or unsigned char to
+receive the result of getc() or related stdio functions.  They may
+return EOF, which is outside the range of values representable by
+char.  If you use char, some legal character value may be confused
+with EOF, such as '\377' (SMALL LETTER Y WITH UMLAUT, in Latin-1).
+The correct choice is int.
+
+A more subtle version of the same mistake might look like this:
+
+  unsigned char pushback[NPUSHBACK];
+  int pbidx;
+  #define unget(c) (assert(pbidx < NPUSHBACK), pushback[pbidx++] = (c))
+  #define get(c) (pbidx ? pushback[--pbidx] : getchar())
+  ...
+  unget(EOF);
+
+which will mysteriously turn a pushed-back EOF into a SMALL LETTER Y
+WITH UMLAUT.
+
+
+Other common pitfalls
+---------------------
+
+o Expecting 'plain' char to be either sign or unsigned extending.
+
+o Shifting an item by a negative amount or by greater than or equal to
+  the number of bits in a type (expecting shifts by 32 to be sensible
+  has caused quite a number of bugs at least in the early days).
+
+o Expecting ints shifted right to be sign extended.
+
+o Modifying the same value twice within one sequence point.
+
+o Host vs. target floating point representation, including emitting NaNs
+  and Infinities in a form that the assembler handles.
+
+o qsort being an unstable sort function (unstable in the sense that
+  multiple items that sort the same may be sorted in different orders
+  by different qsort functions).
+
+o Passing incorrect types to fprintf and friends.
+
+o Adding a function declaration for a module declared in another file to
+  a .c file instead of to a .h file.
+

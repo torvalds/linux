@@ -1,0 +1,128 @@
+.\"
+.\" Copyright (c) 2003 Philip Paeps <philip@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 8, 2010
+.Dt ACPI_TOSHIBA 4
+.Os
+.Sh NAME
+.Nm acpi_toshiba
+.Nd Toshiba HCI interface
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device acpi_toshiba"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+acpi_toshiba_load="YES"
+.Ed
+.Sh DESCRIPTION
+HCI is Toshiba's
+.Em "Hardware Control Interface"
+which is somewhat uniform across their models.
+The
+.Nm
+driver allows the user to manipulate HCI-controlled hardware using a number of
+.Xr sysctl 8
+variables.
+.Sh SYSCTL VARIABLES
+The following sysctls are currently implemented:
+.Bl -tag -width indent
+.It Va hw.acpi.toshiba.force_fan
+Causes active cooling to be forcibly enabled
+.Pq Ql 1
+or disabled
+.Pq Ql 0
+regardless of the current temperature.
+.It Va hw.acpi.toshiba.video_output
+Sets the active display to use according to a bitwise OR of the following:
+.Pp
+.Bl -tag -width indent -compact
+.It Li 0
+No display
+.It Li 1
+LCD
+.It Li 2
+CRT
+.It Li 4
+TV-Out
+.El
+.Pp
+Only some systems (i.e., the Libretto L5) support video switching via
+this hardware-specific driver.
+Use the
+.Xr acpi_video 4
+driver for generic video output support.
+.It Va hw.acpi.toshiba.lcd_brightness
+Makes the LCD backlight brighter or dimmer (higher values are brighter).
+.It Va hw.acpi.toshiba.lcd_backlight
+Turns the LCD backlight on and off.
+.It Va hw.acpi.toshiba.cpu_speed
+Sets the CPU speed to the specified speed.
+This provides functionality similar to the
+.Va hw.acpi.cpu.throttle_state
+variable.
+Higher sysctl values mean lower CPU speeds.
+.El
+.Pp
+Defaults for these variables can be set in
+.Xr sysctl.conf 5 ,
+which is parsed at boot-time.
+.Sh LOADER TUNABLES
+The
+.Va hw.acpi.toshiba.enable_fn_keys
+tunable enables or disables the function keys on the keyboard.
+Function keys are enabled by default.
+.Pp
+This behaviour can be changed at the
+.Xr loader 8
+prompt or in
+.Xr loader.conf 5 .
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr acpi_video 4 ,
+.Xr loader.conf 5 ,
+.Xr sysctl.conf 5 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Hiroyuki Aizu Aq Mt aizu@navi.org .
+This manual page was written by
+.An Philip Paeps Aq Mt philip@FreeBSD.org .

@@ -1,0 +1,29 @@
+#!/usr/bin/perl
+
+#
+# Perform primitive binning into 16-bit bins (take 16bits of randomness
+# at a time) and see if the distribution is flat. The output should be
+# checked by eye - are all the numbers roughly the same?
+#
+# Redirect the output from this to a file - and go to the movies while
+# it runs. This program is a CPU Hog!
+#
+# $FreeBSD$
+#
+
+for ($i = 0; $i < (1024*64); $i++) {
+	open(BIN, "/dev/urandom") || die "Cannot open /dev/urandom - $!\n";
+	$len = sysread(BIN, $a, 512);
+	close(BIN);
+	if ($len > 0) {
+		for ($j = 0; $j < $len; $j += 2) {
+			$k = unpack("S", substr($a, $j, 2));
+			$bin[$k]++;
+		}
+	}
+}
+
+for ($i = 0; $i < 1024*64; $i++) {
+	printf("%.2X ", $bin[$i]);
+}
+printf "\n";

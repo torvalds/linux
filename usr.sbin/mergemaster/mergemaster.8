@@ -1,0 +1,477 @@
+.\" Copyright (c) 1998-2011 Douglas Barton
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 27, 2018
+.Dt MERGEMASTER 8
+.Os
+.Sh NAME
+.Nm mergemaster
+.Nd merge configuration files, et al during an upgrade
+.Sh SYNOPSIS
+.Nm
+.Op Fl scrvhpCP
+.Op Fl a|iFU
+.Op Fl -run-updates=[always|never]
+.Op Fl m Ar /path/to/sources
+.Op Fl t Ar /path/to/temp/root
+.Op Fl d
+.Op Fl u Ar N
+.Op Fl w Ar N
+.Op Fl A Ar Target architecture
+.Op Fl D Ar /destdir/path
+.Sh DESCRIPTION
+The
+.Nm
+utility is a Bourne shell script which is designed to aid you
+in updating the various configuration and other files
+associated with
+.Fx .
+It is
+.Sy HIGHLY
+recommended that you back up your
+.Pa /etc
+directory before beginning this process.
+.Pp
+The script uses
+.Pa /usr/src/Makefile
+to build a temporary root environment from
+.Pa /
+down, populating that environment with the various
+files.
+You can specify a different source directory
+with the
+.Fl m
+command line option, or specify the destination
+directory with the
+.Fl D
+option.
+It then compares each file in that environment
+to its installed counterpart.
+When the script finds a
+change in the new file, or there is no installed
+version of the new file it gives you four options to
+deal with it.
+You can install the new file as is,
+delete the new file, merge the old and new
+files (as appropriate) using
+.Xr sdiff 1
+or leave the file in the temporary root environment to
+merge by hand later.
+.Pp
+By default it creates the temporary root in
+.Pa /var/tmp/temproot
+and compares the
+Version Control System (VCS) Id strings ($FreeBSD)
+for files that have them, deleting
+the temporary file if the strings match.
+If there is
+no Id string, or if the strings are different it
+compares the files themselves.
+You can
+also specify that the script ignore the Id strings and
+compare every file with the
+.Fl s
+option.
+Using the
+.Fl F
+option
+.Nm
+will install the new file for you if they differ only by
+VCS strings.
+.Pp
+The merge menu option is designed to let you easily combine your
+customizations from the old version of a file into the new one.
+While you can use the merge function to incorporate changes from
+files that you have not customized,
+it is not recommended.
+.Pp
+The
+.Nm
+utility checks your umask and issues a warning for anything
+other than 022.
+While it is not mandatory to grant
+world read permissions for most configuration files, you
+may run into problems without them.
+If you choose a
+umask other than 022 and experience trouble later this
+could be the cause.
+.Pa /etc/master.passwd
+is treated as a special case.
+If you choose to install
+this file or a merged version of it the file permissions
+are always 600 (rw-------) for security reasons.
+After
+installing an updated version of this file you should
+probably run
+.Xr pwd_mkdb 8
+with the
+.Fl p
+option to rebuild your password databases
+and recreate
+.Pa /etc/passwd .
+.Pp
+The script uses the owner and group ids
+that the files are created with by
+.Pa /usr/src/etc/Makefile ,
+and file permissions as specified by the umask.
+Unified diffs are used by default to display any
+differences unless you choose context diffs.
+.Pp
+The
+.Nm
+utility will source scripts that you specify right before
+it starts the comparison, and after it is done running.
+The easiest way to handle this is to place the path
+to the script(s) in the appropriate variables in your
+.Pa .mergemasterrc
+file.
+The script sourced before comparison is named in
+.Ev MM_PRE_COMPARE_SCRIPT ,
+and the one sourced after the script is done is
+.Ev MM_EXIT_SCRIPT .
+This is the recommended way to specify local modifications,
+or files that you want to give special handling to.
+This includes files that you want to be deleted without
+being compared.
+Because the named scripts are sourced from within
+.Nm ,
+all of the script's variables are available for use in
+your custom script.
+You can also use
+.Pa /etc/mergemaster.rc
+which will be read before
+.Pa .mergemasterrc .
+Options specified on the command line are updated last,
+and therefore can override both files.
+.Pp
+When the comparison is done if there are any files remaining
+in the temproot directory they will be listed, and if the
+.Fl a
+option is not in use the user will be given the option of
+deleting the temproot directory.
+If there are no files remaining in the temproot directory
+it will be deleted.
+.Pp
+The options are as follows:
+.Bl -tag -width Fl
+.It Fl s
+Perform a strict comparison, diffing every pair of files.
+This comparison is performed line by line,
+without regard to VCS Ids.
+.It Fl c
+Use context diffs instead of unified diffs.
+.It Fl r
+Re-run
+.Nm
+on a previously cleaned directory, skipping the creation of
+the temporary root environment.
+This option is compatible
+with all other options.
+.It Fl v
+Be more verbose about the process.
+You should probably use
+this option the first time you run
+.Nm .
+This option also gives you a list of files that exist
+only in the installed version of
+.Pa /etc .
+.It Fl a
+Run automatically.
+This option will leave all the files that
+differ from the installed versions in the temporary directory
+to be dealt with by hand.
+If the
+.Pa temproot
+directory exists, it creates a new one in a previously
+non-existent directory.
+This option unsets the verbose flag,
+and is not compatible with
+.Fl i ,
+.Fl F ,
+or
+.Fl U .
+Setting
+.Fl a
+makes
+.Fl w
+superfluous.
+.It Fl h
+Display usage and help information.
+.It Fl i
+Automatically install any files that do not exist in the
+destination directory.
+.It Fl p
+Pre-buildworld mode.
+Compares only files known to be essential to the success of
+{build|install}world, i.e.,
+.Pa /etc/group
+and
+.Pa /etc/master.passwd .
+.It Fl F
+If the files differ only by VCS Id ($FreeBSD)
+install the new file.
+.It Fl C
+After a standard
+.Nm
+run,
+compares your rc.conf[.local] options to the defaults.
+.It Fl P
+Preserve files that you replace in
+.Pa /var/tmp/mergemaster/preserved-files-<date> ,
+or another directory you specify in your
+.Nm
+rc file.
+.It Fl U
+Attempt to auto upgrade files that have not been user modified.
+This option can be dangerous when there are critical changes
+in the new versions that affect your running system.
+.It Fl -run-updates=[always|never]
+Specify always or never to run newaliases, pwd_mkdb, etc.
+at the end of the comparison run.
+If this option is omitted the default is to prompt the user
+for each update as necessary.
+.It Fl m Ar /path/to/sources
+Specify the path to the directory where you want to do the
+.Xr make 1 .
+(In other words, where your sources are, but -s was already
+taken.)
+In older versions of
+.Nm
+the path to
+.Pa src/etc
+was required.
+.Nm
+will convert the path if this older method is used.
+.It Fl t Ar /path/to/temp/root
+Create the temporary root environment in
+.Pa /path/to/temp/root
+instead of the default
+.Pa /var/tmp/temproot .
+.It Fl d
+Add the date and time to the name of the temporary
+root directory.
+If
+.Fl t
+is specified, this option must
+follow it if you want the date added too.
+.It Fl u Ar N
+Specify a numeric umask.
+The default is 022.
+.It Fl w Ar N
+Supply an alternate screen width to the
+.Xr sdiff 1
+command in numbers of columns.
+The default is 80.
+.It Fl A Ar Target architecture
+Specify an alternative
+.Ev TARGET_ARCH
+architecture name.
+.It Fl D Ar /path
+Specify the destination directory for the installed files.
+.El
+.Sh ENVIRONMENT
+The
+.Nm
+utility uses the
+.Ev PAGER
+environment variable if set.
+Otherwise it uses
+.Xr less 1 .
+If
+.Ev PAGER
+specifies a program outside
+its
+limited
+.Ev PATH
+without specifying the full path,
+.Nm
+prompts you with options on how to proceed.
+The
+.Ev MM_PRE_COMPARE_SCRIPT
+and
+.Ev MM_EXIT_SCRIPT
+variables are used as described above.
+Other variables that are used by the script internally
+can be specified in
+.Pa .mergemasterrc
+as described in more detail below.
+.Sh FILES
+.Bl -tag -width $HOME/.mergemasterrc -compact
+.It Pa /etc/mergemaster.rc
+.It Pa $HOME/.mergemasterrc
+.El
+.Pp
+The
+.Nm
+utility will
+.Ic .\&
+(source) these files if they exist.
+Command line options
+will override rc file options.
+.Pa $HOME/.mergemasterrc
+overrides
+.Pa /etc/mergemaster.rc .
+Here is an example
+with all values commented out:
+.Bd -literal
+# These are options for mergemaster, with their default values listed
+# The following options have command line overrides
+#
+# The target architecture (-A, unset by default)
+#ARCHSTRING='TARGET_ARCH=<foo>'
+#
+# Sourcedir is the directory to do the 'make' in (-m)
+#SOURCEDIR='/usr/src'
+#
+# Directory to install the temporary root environment into (-t)
+#TEMPROOT='/var/tmp/temproot'
+#
+# Specify the destination directory for the installed files (-D)
+#DESTDIR=
+#
+# Strict comparison skips the VCS Id test and compares every file (-s)
+#STRICT=no
+#
+# Type of diff, such as unified, context, etc. (-c)
+#DIFF_FLAG='-u'
+#
+# Install the new file if it differs only by VCS Id ($FreeBSD, -F)
+#FREEBSD_ID=
+#
+# Verbose mode includes more details and additional checks (-v)
+#VERBOSE=
+#
+# Automatically install files that do not exist on the system already (-i)
+#AUTO_INSTALL=
+#
+# Automatically upgrade files that have not been user modified (-U)
+# ***DANGEROUS***
+#AUTO_UPGRADE=
+#
+# Either always or never run newaliases, pwd_mkdb at the end (--run-updates)
+#RUN_UPDATES=
+#
+# Compare /etc/rc.conf[.local] to /etc/defaults/rc.conf (-C)
+#COMP_CONFS=
+#
+# Preserve files that you replace (-P)
+#PRESERVE_FILES=
+#PRESERVE_FILES_DIR=/var/tmp/mergemaster/preserved-files-`date +%y%m%d-%H%M%S`
+#
+# The umask for mergemaster to compare the default file's modes to (-u)
+#NEW_UMASK=022
+#
+# The following options have no command line overrides
+#
+# Files to always avoid comparing
+#IGNORE_FILES='/etc/motd /etc/printcap foo bar'
+#
+# Additional options for diff.  This will get unset when using -s.
+#DIFF_OPTIONS='-Bb'	# Ignore changes in whitespace
+#
+# Location to store the list of mtree values for AUTO_UPGRADE purposes
+#MTREEDB='/var/db'
+#
+# For those who just cannot stand including the full path to PAGER
+#DONT_CHECK_PAGER=
+#
+# If you set 'yes' above, make sure to include the PATH to your pager
+#PATH=/bin:/usr/bin:/usr/sbin
+#
+# Delete stale files in /etc/rc.d without prompting
+#DELETE_STALE_RC_FILES=
+#
+# Specify the path to scripts to run before the comparison starts,
+# and/or after the script has finished its work
+#MM_PRE_COMPARE_SCRIPT=
+#MM_EXIT_SCRIPT=
+.Ed
+.Sh EXIT STATUS
+Exit status is 0 on successful completion, or if the user bails out
+manually at some point during execution.
+.Pp
+Exit status is 1 if it fails for one of the following reasons:
+.Pp
+Invalid command line option
+.Pp
+Failure to create the temporary root environment
+.Pp
+Failure to populate the temporary root
+.Pp
+Presence of the 'nodev' option in
+.Pa <DESTDIR>/etc/fstab
+.Pp
+Failure to install a file
+.Sh EXAMPLES
+Typically all you will need to do is type
+.Nm
+at the prompt and the script will do all the work for you.
+.Pp
+To use context diffs and have
+.Nm
+explain more things as it goes along, use:
+.Pp
+.Dl # mergemaster -cv
+.Pp
+To specify that
+.Nm
+put the temporary root environment in
+.Pa /usr/tmp/root ,
+use:
+.Pp
+.Dl # mergemaster -t /usr/tmp/root
+.Pp
+To specify a 110 column screen with a strict
+comparison, use:
+.Pp
+.Dl # mergemaster -sw 110
+.Sh SEE ALSO
+.Xr diff 1 ,
+.Xr make 1 ,
+.Xr less 1 ,
+.Xr sdiff 1 ,
+.Xr etcupdate 8 ,
+.Xr pwd_mkdb 8
+.Pp
+.Pa /usr/src/etc/Makefile
+.Rs
+.%U https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
+.%T The Cutting Edge (using make world)
+.%A Nik Clayton
+.Re
+.Sh HISTORY
+The
+.Nm
+utility was first publicly available on one of my
+web pages in a much simpler form under the name
+.Pa comproot
+on 13 March 1998.
+The idea for creating the
+temporary root environment comes from Nik Clayton's
+make world tutorial which is referenced above.
+.Sh AUTHORS
+This manual page and the script itself were written by
+.An Douglas Barton Aq Mt dougb@FreeBSD.org .

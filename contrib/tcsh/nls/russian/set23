@@ -1,0 +1,34 @@
+$ $tcsh: set23,v 1.4 2011/02/04 18:19:42 christos Exp $
+$ tc.os.c
+$set 23 
+1 Bad cpu/site name
+2 Site path too long
+3 unknown
+4 site: %s\n
+5 %d: Site not found\n
+6 setlocal: %s: %s\n
+7 Site not found
+8 You're trapped in a universe you never made
+9 Getwarp failed
+10 Invalid warp
+11 Setwarp failed
+12 Illegal universe
+13 Unknown Error: %d
+14 sysname:  %s\n
+15 nodename: %s\n
+16 release:  %s\n
+17 version:  %s\n
+18 machine:  %s\n
+19 getwd: Не могу открыть ".." (%s)
+20 getwd: Не могу сменить каталог на ".." (%s)
+21 getwd: Ошибка чтения в ".." (%s)
+22 getwd: Не могу вернуться назад в "." (%s)
+23 getwd: Не могу выполнить stat на "/" (%s)
+24 getwd: Не могу выполнить stat на "." (%s)
+25 getwd: Не могу выполнить stat на каталог "%s" (%s)
+26 getwd: Не могу открыть каталог "%s" (%s)
+27 getwd: Не могу найти "." в ".." (%s)
+28 Неверный тип системы
+29 Тип системы не установлен
+30 Слишком много аргументов
+31 Неверный аргумент

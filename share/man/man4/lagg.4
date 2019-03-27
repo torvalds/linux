@@ -1,0 +1,220 @@
+.\"	$OpenBSD: trunk.4,v 1.18 2006/06/09 13:53:34 jmc Exp $
+.\"
+.\" Copyright (c) 2005, 2006 Reyk Floeter <reyk@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 18, 2017
+.Dt LAGG 4
+.Os
+.Sh NAME
+.Nm lagg
+.Nd link aggregation and link failover interface
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device lagg"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_lagg_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+interface allows aggregation of multiple network interfaces as one virtual
+.Nm
+interface for the purpose of providing fault-tolerance and high-speed links.
+.Pp
+A
+.Nm
+interface can be created using the
+.Ic ifconfig lagg Ns Ar N Ic create
+command.
+It can use different link aggregation protocols specified
+using the
+.Ic laggproto Ar proto
+option.
+Child interfaces can be added using the
+.Ic laggport Ar child-iface
+option and removed using the
+.Ic -laggport Ar child-iface
+option.
+.Pp
+The driver currently supports the aggregation protocols
+.Ic failover
+(the default),
+.Ic lacp ,
+.Ic loadbalance ,
+.Ic roundrobin ,
+.Ic broadcast ,
+and
+.Ic none .
+The protocols determine which ports are used for outgoing traffic
+and whether a specific port accepts incoming traffic.
+The interface link state is used to validate if the port is active or
+not.
+.Bl -tag -width loadbalance
+.It Ic failover
+Sends traffic only through the active port.
+If the master port becomes unavailable,
+the next active port is used.
+The first interface added is the master port;
+any interfaces added after that are used as failover devices.
+.Pp
+By default, received traffic is only accepted when they are received
+through the active port.
+This constraint can be relaxed by setting the
+.Va net.link.lagg.failover_rx_all
+.Xr sysctl 8
+variable to a nonzero value,
+which is useful for certain bridged network setups.
+.It Ic lacp
+Supports the IEEE 802.1AX (formerly 802.3ad) Link Aggregation Control Protocol
+(LACP) and the Marker Protocol.
+LACP will negotiate a set of aggregable links with the peer in to one or more
+Link Aggregated Groups.
+Each LAG is composed of ports of the same speed, set to full-duplex operation.
+The traffic will be balanced across the ports in the LAG with the greatest
+total speed, in most cases there will only be one LAG which contains all ports.
+In the event of changes in physical connectivity, Link Aggregation will quickly
+converge to a new configuration.
+.It Ic loadbalance
+Balances outgoing traffic across the active ports based on hashed
+protocol header information and accepts incoming traffic from
+any active port.
+This is a static setup and does not negotiate aggregation with the peer or
+exchange frames to monitor the link.
+The hash includes the Ethernet source and destination address, and, if
+available, the VLAN tag, and the IP source and destination address.
+.It Ic roundrobin
+Distributes outgoing traffic using a round-robin scheduler
+through all active ports and accepts incoming traffic from
+any active port.
+Using
+.Ic roundrobin
+mode can cause unordered packet arrival at the client.
+Throughput might be limited as the client performs CPU-intensive packet
+reordering.
+.It Ic broadcast
+Sends frames to all ports of the LAG and receives frames on
+any port of the LAG.
+.It Ic none
+This protocol is intended to do nothing: it disables any traffic without
+disabling the
+.Nm
+interface itself.
+.El
+.Pp
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is
+most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va cloned_interfaces
+variable in
+.Xr rc.conf 5 .
+.Pp
+The MTU of the first interface to be added is used as the lagg MTU.
+All additional interfaces are required to have exactly the same value.
+.Pp
+The
+.Ic loadbalance
+and
+.Ic lacp
+modes will use the RSS hash from the network card if available to avoid
+computing one, this may give poor traffic distribution if the hash is invalid
+or uses less of the protocol header information.
+Local hash computation can be forced per interface by setting the
+.Cm -use_flowid
+.Xr ifconfig 8
+flag.
+The default for new interfaces is set via the
+.Va net.link.lagg.default_use_flowid
+.Xr sysctl 8 .
+.Sh EXAMPLES
+Create a link aggregation using LACP with two
+.Xr bge 4
+Gigabit Ethernet interfaces:
+.Bd -literal -offset indent
+# ifconfig bge0 up
+# ifconfig bge1 up
+# ifconfig lagg0 create
+# ifconfig lagg0 laggproto lacp laggport bge0 laggport bge1 \e
+	192.168.1.1 netmask 255.255.255.0
+.Ed
+.Pp
+Create a link aggregation using ROUNDROBIN with two
+.Xr bge 4
+Gigabit Ethernet interfaces and set the limit of 500 packets
+per interface:
+.Bd -literal -offset indent
+# ifconfig bge0 up
+# ifconfig bge1 up
+# ifconfig lagg0 create
+# ifconfig lagg0 laggproto roundrobin laggport bge0 laggport bge1 \e
+	192.168.1.1 netmask 255.255.255.0
+# ifconfig lagg0 rr_limit 500
+.Ed
+.Pp
+The following example uses an active failover interface to set up roaming
+between wired and wireless networks using two network devices.
+Whenever the wired master interface is unplugged, the wireless failover
+device will be used:
+.Bd -literal -offset indent
+# ifconfig em0 up
+# ifconfig ath0 ether 00:11:22:33:44:55
+# ifconfig create wlan0 wlandev ath0 ssid my_net up
+# ifconfig lagg0 create
+# ifconfig lagg0 laggproto failover laggport em0 laggport wlan0 \e
+	192.168.1.1 netmask 255.255.255.0
+.Ed
+.Pp
+(Note the mac address of the wireless device is forced to match the wired
+device as a workaround.)
+.Sh SEE ALSO
+.Xr ng_one2many 4 ,
+.Xr ifconfig 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Fx 6.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written under the name
+.Nm trunk
+by
+.An Reyk Floeter Aq Mt reyk@openbsd.org .
+The LACP implementation was written by
+.An YAMAMOTO Takashi
+for
+.Nx .
+.Sh BUGS
+There is no way to configure LACP administrative variables, including system
+and port priorities.
+The current implementation always performs active-mode LACP and uses 0x8000 as
+system and port priorities.

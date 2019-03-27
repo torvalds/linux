@@ -1,0 +1,90 @@
+.\" Copyright (c) 2010 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" Copyright (c) 2013, 2016 Adrian Chadd <adrian@freebsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 4, 2016
+.Dt ATH3KFW 8
+.Os
+.Sh NAME
+.Nm ath3kfw
+.Nd firmware download utility for Atheros AR3011/AR3012 chip based Bluetooth USB devices
+.Sh SYNOPSIS
+.Nm
+.Fl d Ar device_name
+.Fl f Ar firmware_path
+.Nm
+.Fl h
+.Sh DESCRIPTION
+The
+.Nm
+utility downloads the specified firmware file to the specified
+.Xr ugen 4
+device.
+.Pp
+This utility will
+.Em only
+work with Atheros AR3011 and AR3012 chip based Bluetooth USB devices.
+The identification is currently based on USB vendor ID/product ID pair.
+The vendor ID should be 0x0cf3
+.Pq Dv USB_VENDOR_ATHEROS2
+and the product ID should be one of the supported devices.
+.Pp
+Firmware files are available in the linux-firmware RPM.
+.Pp
+The
+.Nm
+utility will query the device to determine which firmware image and board
+configuration to load in at runtime.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl D
+Enable verbose debugging.
+.It Fl d Ar device_name
+Specify
+.Xr ugen 4
+device name.
+.It I
+Enable informational debugging.
+.It Fl f Ar firmware_path
+Specify the directory containing the firmware files to search and upload.
+.It Fl h
+Display usage message and exit.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr libusb 3 ,
+.Xr ugen 4 ,
+.Xr devd 8
+.Sh AUTHORS
+The original utility was written by
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com .
+This was written based on Linux ath3k by
+.An Adrian Chadd Aq Mt adrian@freebsd.org .
+.Sh BUGS
+Most likely.
+Please report if found.

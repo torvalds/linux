@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Set to not build kernel modules that include sourceless code (either microcode or native code for host CPU).

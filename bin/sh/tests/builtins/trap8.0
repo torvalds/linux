@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+# I am not sure if POSIX requires the shell to continue processing
+# further trap names in the same trap command after an invalid one.
+
+test -n "$(trap true garbage TERM 2>/dev/null || trap)" || exit 3
+exit 0

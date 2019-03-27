@@ -1,0 +1,111 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)system.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd July 25, 2015
+.Dt SYSTEM 3
+.Os
+.Sh NAME
+.Nm system
+.Nd pass a command to the shell
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft int
+.Fn system "const char *string"
+.Sh DESCRIPTION
+The
+.Fn system
+function
+hands the argument
+.Fa string
+to the command interpreter
+.Xr sh 1 .
+The calling process waits for the shell
+to finish executing the command,
+ignoring
+.Dv SIGINT
+and
+.Dv SIGQUIT ,
+and blocking
+.Dv SIGCHLD .
+.Pp
+If
+.Fa string
+is a
+.Dv NULL
+pointer,
+.Fn system
+will return non-zero if the command interpreter
+.Xr sh 1
+is available, and zero if it is not.
+.Sh RETURN VALUES
+The
+.Fn system
+function
+returns the exit status of the shell as returned by
+.Xr waitpid 2 ,
+or \-1 if an error occurred when invoking
+.Xr fork 2
+or
+.Xr waitpid 2 .
+A return value of 127 means the execution of the shell
+failed.
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr execve 2 ,
+.Xr fork 2 ,
+.Xr waitpid 2 ,
+.Xr popen 3 ,
+.Xr posix_spawn 3
+.Sh STANDARDS
+The
+.Fn system
+function
+conforms to
+.St -isoC
+and is expected to be
+.St -p1003.2
+compatible.
+.Sh SECURITY CONSIDERATIONS
+The
+.Fn system
+function is easily misused in a manner that enables a malicious
+user to run arbitrary command,
+because all meta-characters supported by
+.Xr sh 1
+would be honored.
+User supplied parameters should always be carefully santized
+before they appear in
+.Fa string.

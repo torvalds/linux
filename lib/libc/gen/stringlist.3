@@ -1,0 +1,127 @@
+.\"	$NetBSD: stringlist.3,v 1.5 1999/03/22 19:44:46 garbled Exp $
+.\"
+.\" Copyright (c) 1997, 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This file was contributed to The NetBSD Foundation by Luke Mewburn.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 28, 1999
+.Dt STRINGLIST 3
+.Os
+.Sh NAME
+.Nm stringlist ,
+.Nm sl_init ,
+.Nm sl_add ,
+.Nm sl_free ,
+.Nm sl_find
+.Nd stringlist manipulation functions
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stringlist.h
+.Ft StringList *
+.Fn sl_init
+.Ft int
+.Fn sl_add "StringList *sl" "char *item"
+.Ft void
+.Fn sl_free "StringList *sl" "int freeall"
+.Ft char *
+.Fn sl_find "StringList *sl" "const char *item"
+.Sh DESCRIPTION
+The
+.Nm
+functions manipulate stringlists, which are lists of
+strings that extend automatically if necessary.
+.Pp
+The
+.Vt StringList
+structure has the following definition:
+.Bd -literal -offset indent
+typedef struct _stringlist {
+	char	**sl_str;
+	size_t	  sl_max;
+	size_t	  sl_cur;
+} StringList;
+.Ed
+.Bl -tag -width "sl_str" -offset indent
+.It Va sl_str
+a pointer to the base of the array containing the list.
+.It Va sl_max
+the size of
+.Va sl_str .
+.It Va sl_cur
+the offset in
+.Va sl_str
+of the current element.
+.El
+.Pp
+The following stringlist manipulation functions are available:
+.Bl -tag -width "sl_init()"
+.It Fn sl_init
+Create a stringlist.
+Returns a pointer to a
+.Vt StringList ,
+or
+.Dv NULL
+in case of failure.
+.It Fn sl_free
+Releases memory occupied by
+.Fa sl
+and the
+.Fa sl->sl_str
+array.
+If
+.Fa freeall
+is non-zero, then each of the items within
+.Fa sl->sl_str
+is released as well.
+.It Fn sl_add
+Add
+.Fa item
+to
+.Fa sl->sl_str
+at
+.Fa sl->sl_cur ,
+extending the size of
+.Fa sl->sl_str .
+Returns zero upon success, \-1 upon failure.
+.It Fn sl_find
+Find
+.Fa item
+in
+.Fa sl ,
+returning NULL if it is not found.
+.El
+.Sh SEE ALSO
+.Xr free 3 ,
+.Xr malloc 3
+.Sh HISTORY
+The
+.Nm
+functions appeared in
+.Fx 2.2.6
+and
+.Nx 1.3 .

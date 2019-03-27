@@ -1,0 +1,54 @@
+$FreeBSD$
+
+  Inter-Process Authorization Test Suite
+  Robert Watson, TrustedBSD Project
+
+This test suite attempts to determine the behavior of inter-process
+authorization policy present in the kernel.  It analyzes a series of
+important scenarios using specifically crafted process credentials
+and a set of operations.  It then reports on any divergence from the
+expected results.
+
+Test operations:
+
+ptrace		cred1 attempts ptrace attach to cred2
+sighup		cred1 attempts SIGHUP of cred2
+sigsegv		cred1 attempts SIGSEGV of cred2
+see		cred1 attempts getpriority() on cred2
+sched		cred1 attempts setpriority() on cred2
+
+Test scenarioes:
+
+priv on priv		root process on another root process
+priv on unpriv1		root process on a non-root process
+unpriv1 on priv		non-root process on a root process
+unpriv1 on unpriv1	non-root process on a similar non-root process
+unpriv1 on unpriv2	non-root process on a different non-root process
+unpriv1 on daemon1	non-root process on a root daemon process acting with
+			same non-root effective credentials
+unpriv1 on daemon2	non-root process on a root daemon process acting with
+			different non-root effective credentials
+unpriv1 on setuid1	non-root process on a setuid-root process with same
+			non-root real credentials
+unpriv1 on setuid2	non-root process on a setuid-root process with
+			different non-root real credentials
+
+The credential elements supported by the test suite are:
+
+	effective uid
+	real uid
+	saved uid
+	P_SUGID flag
+
+Other untested aspects of interest include groups, as well as session
+relationship.  Other test operations that might be of interest are SIGCONT,
+and SIGIO.
+
+The current set of tests includes some tests where normally the P_SUGID
+flag is set, but isn't in the test.  The result is that some tests fail
+that may not reflect real-world software configurations.  However, they
+do point to possible changes that could be made in the authorization system
+to improve resilience to failure or violation of invariants.
+
+These tests rely on __setugid(), a system call enabled using options
+REGRESSION.

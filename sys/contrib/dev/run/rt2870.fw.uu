@@ -1,0 +1,232 @@
+# Copyright (c) 2007, Ralink Technology Corporation
+# All rights reserved.
+# 
+# Redistribution.  Redistribution and use in binary form, without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+# * Redistributions must reproduce the above copyright notice and the
+#   following disclaimer in the documentation and/or other materials
+#   provided with the distribution.
+# * Neither the name of Ralink Technology Corporation nor the names of its
+#   suppliers may be used to endorse or promote products derived from this
+#   software without specific prior written permission.
+# * No reverse engineering, decompilation, or disassembly of this software
+#   is permitted.
+#
+# Limited patent license. Ralink Technology Corporation grants a world-wide,
+# royalty-free, non-exclusive license under patents it now or hereafter
+# owns or controls to make, have made, use, import, offer to sell and
+# sell ("Utilize") this software, but solely to the extent that any
+# such patent is necessary to Utilize the software alone, or in
+# combination with an operating system licensed under an approved Open
+# Source license as listed by the Open Source Initiative at
+# http://opensource.org/licenses.  The patent license shall not apply to
+# any other combinations which include this software.  No hardware per
+# se is licensed hereunder.
+#
+# DISCLAIMER.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+# CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
+# BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+# FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+# OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+# TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+# USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+# DAMAGE.
+#
+# This file contains two 4KB firmware, first half is RT2870 and last half
+# is RT3071. On each 4KB firmware, the last 2 bytes are CRC, 3rd last byte
+# is minor version number and 4th last byte is major version number.
+# This file comes with
+#  RT2870 v. 0.33
+#  RT3071 v. 0.33
+begin 644 rt2870.fw.uu
+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
+M<"CPD!`=X)!P*?"0$![@D'`J\#!*!Y!P).!$`?#"!=*O(B`<6GT%$A]SD$RP
+M$A]DD$R[[_!]`Q(?<Y!,O!(?9)!,O>_P?0D2'WZ03+?O\'T($A]^D$RV[_!]
+M!Q(?F9!,M>_P?082'YF03+3O\.203+'PD$RYX)!,N/#2',('(GT!?[@2%R1_
+MN1(7/N]D`6`#`A]9TY!,L^"5)Y!,LN"5)D`1D$RQX`3PD$RXX&`:X!3P@!60
+M3+G@_Y!,N.##GU`(D$RYX)!,N/#D]2;U)WT%?[@2%R203+`2'XE]`G^X$A<D
+MD$R[$A^)?0-_N!(7))!,O!(?D7T$?[@2%R203+T2'Y%]"7^X$A<DD$RW$A^D
+M?0A_N!(7))!,MA(?I'T'?[@2%R203+7@_7^Y$A<D?09_N!(7))!,M.#]?[D2
+M%R1]`1(?K.3]$A^L@`@%)^4G<`(%)L('(N_P?0)_N!(7)'^Y$A<^(G^X$A<D
+M?[D2%SXB?[@2%R1_N1(7/B+@_7^Y$A<D(N#]?[D2%R0B?[@2%R1_N1(7/B+@
+M_7^Y$A<D(G^X$A<D?0%_N1(7)"(B````````````````````````````````
+M`````````````````````````````````````````````````````````"%A
+M@/___P(0*`(0.P(0A@(57P(58`(61`(6C1(612("&\\"'/@"&!P"%U<P!08@
+M#0,2'=TP!P8@#P,2'C(BD`&,X##C(.58,.`0Y4PPX`1_0(`"?P"0$"_O\)`!
+MC'0(\.20`:?PD`&,X##@')`!@."T`A6CX+0!$)`!A."T@0F0`8QT`?`2#=TB
+MD`04X"#G`P(57I!P$N#U5I`$!.`2"K80\S$0US81'%`14U$17%(17%,17%01
+MG541[%82KV022F42=682VW(3HW,3R'04Q(`4YY`5')$``!5>D'`1X/4\Y)!P
+M$_"0!!1T@/#E5O1P`P(57@(55R`"`S`#'7T"KU82"ZJ0!!1T@/#DD'`3\.56
+M]'`#`A5>`A57A59!T@(BD'`0X%1__[\*#9!P$>"T"`9U3@%U3X20<!#@5'__
+MOP(2D'`1X&0(8`3@M"`&=4X#=4\@Y/4_(I!P$>`D_Y)'(I`$!.`EX"1=]5>0
+M<!#@_W1')5?XQN_&D'`1X/]T2"57^,;OQN3]KU82"ZJ0!!1T@/#DD'`3\.56
+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
+MX/U_N1(7)")_N!(7)'T!?[D2%R0B(@``````````````````````````````
+M```````````````````````````````````````````````````````````A
+"]\T`
+`
+end

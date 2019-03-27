@@ -1,0 +1,179 @@
+.\"-
+.\" Copyright (c) 2007 Xin LI
+.\" Copyright (c) 2017 The FreeBSD Foundation, Inc.
+.\"
+.\" Part of this documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS DOCUMENTATION IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"-
+.\" Copyright (c) 2005, 2006 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 8, 2017
+.Dt TMPFS 5
+.Os
+.Sh NAME
+.Nm tmpfs
+.Nd "in-memory file system"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options TMPFS"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+tmpfs_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver implements an in-memory, or
+.Tn tmpfs
+file system.
+The filesystem stores both file metadata and data in main memory.
+This allows very fast and low latency accesses to the data.
+The data is volatile.
+An umount or system reboot invalidates it.
+These properties make the filesystem's mounts suitable for fast
+scratch storage, like
+.Pa /tmp .
+.Pp
+If the system becomes low on memory and swap is configured (see
+.Xr swapon 8 ),
+the system can transfer file data to swap space, freeing memory
+for other needs.
+Metadata, including the directory content, is never swapped out by the
+current implementation.
+Keep this in mind when planning the mount limits, especially when expecting
+to place many small files on a tmpfs mount.
+.Pp
+When
+.Xr mmap 2
+is used on a file from a tmpfs mount, the swap VM object managing the
+file pages is used to implement mapping and avoid double-copying of
+the file data.
+This quirk causes process inspection tools, like
+.Xr procstat 1 ,
+to report anonymous memory mappings instead of file mappings.
+.Sh OPTIONS
+The following options are available when
+mounting
+.Nm
+file systems:
+.Bl -tag -width "It Cm maxfilesize"
+.It Cm gid
+Specifies the group ID of the root inode of the file system.
+Defaults to the mount point's GID.
+.It Cm uid
+Specifies the user ID of the root inode of the file system.
+Defaults to the mount point's UID.
+.It Cm mode
+Specifies the mode (in octal notation) of the root inode of the file system.
+Defaults to the mount point's mode.
+.It Cm nonc
+Do not use namecache to resolve names to files for the created mount.
+This saves memory, but currently might impair scalability for highly
+used mounts on large machines.
+.It Cm inodes
+Specifies the maximum number of nodes available to the file system.
+If not specified, the file system chooses a reasonable maximum based on
+the file system size, which can be limited with the
+.Cm size
+option.
+.It Cm size
+Specifies the total file system size in bytes, unless suffixed
+with one of k, m, g, t, or p, which denote byte, kilobyte,
+megabyte, gigabyte, terabyte and petabyte respectively.
+If zero (the default) or a value larger than SIZE_MAX - PAGE_SIZE
+is given, the available amount of memory (including
+main memory and swap space) will be used.
+.It Cm maxfilesize
+Specifies the maximum file size in bytes.
+Defaults to the maximum possible value.
+.El
+.Sh EXAMPLES
+To mount a
+.Nm
+memory file system:
+.Pp
+.Dl "mount -t tmpfs tmpfs /tmp"
+.Sh SEE ALSO
+.Xr procstat 1 ,
+.Xr mmap 2 ,
+.Xr nmount 2 ,
+.Xr unmount 2 ,
+.Xr fstab 5 ,
+.Xr mdmfs 8 ,
+.Xr mount 8 ,
+.Xr swapinfo 8 ,
+.Xr swapon 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+kernel implementation was written by
+.An Julio M. Merino Vidal Aq Mt jmmv@NetBSD.org
+as a Google Summer of Code project.
+.Pp
+.An Rohit Jalan
+and others ported it from
+.Nx
+to
+.Fx .
+.Pp
+This manual page was written by
+.An Xin LI Aq Mt delphij@FreeBSD.org .

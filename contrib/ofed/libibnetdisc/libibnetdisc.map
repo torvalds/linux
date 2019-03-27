@@ -1,0 +1,22 @@
+IBNETDISC_1.0 {
+	global:
+		ibnd_discover_fabric;
+		ibnd_destroy_fabric;
+		ibnd_load_fabric;
+		ibnd_cache_fabric;
+		ibnd_find_node_guid;
+		ibnd_find_node_dr;
+		ibnd_is_xsigo_guid;
+		ibnd_is_xsigo_tca;
+		ibnd_is_xsigo_hca;
+		ibnd_get_chassis_guid;
+		ibnd_get_chassis_type;
+		ibnd_get_chassis_slot_str;
+		ibnd_iter_nodes;
+		ibnd_iter_nodes_type;
+		ibnd_find_port_guid;
+		ibnd_find_port_dr;
+		ibnd_find_port_lid;
+		ibnd_iter_ports;
+	local: *;
+};

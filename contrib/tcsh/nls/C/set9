@@ -1,0 +1,12 @@
+$ $tcsh: set9,v 1.4 2015/05/26 17:38:25 christos Exp $
+$ ed.xmap.c
+$set 9
+1 AddXkey: Null extended-key not allowed.\n
+2 AddXkey: sequence-lead-in command not allowed\n
+3 DeleteXkey: Null extended-key not allowed.\n
+4 Unbound extended key "%S"\n
+5 Some extended keys too long for internal print buffer
+6 Enumerate: BUG!! Null ptr passed\n!
+7 no input
+8 Something must follow: '%c'\n
+9 Octal constant does not fit in a char.\n

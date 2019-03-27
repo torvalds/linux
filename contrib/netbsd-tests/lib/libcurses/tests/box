@@ -1,0 +1,8 @@
+include window
+call OK box $win1 `\000` `\000`
+call OK wrefresh $win1
+# default settings of box will output same as wborder 
+compare wborder.chk
+call OK box $win1 `\001\000` `\004\000`
+call OK wrefresh $win1
+compare box_standout.chk

@@ -1,0 +1,46 @@
+# Copyright (c) 2011-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+Usage: bsdconfig @PROGRAM_NAME@ [-ehnrSsvX] [-C chroot_dir] [zinfo_file | zinfo_name]
+OPTIONS:
+	-d         Provide lots of debugging info on standard-out when running.
+	-D file    Send debugging info to file. If file begins with a plus-sign
+	           debug info is sent to both standard-out and file (minus the
+	           leading plus).
+	-e         Only return success on exit if user selects a timezone AND
+	           the selected timezone was successfully installed. By default
+	           (without this flag), success is always returned unless an
+	           error has occurred.
+	-h         Print this usage statement and exit.
+	-n         Do not create or copy files.
+	-r         Reinstall the zoneinfo file installed last time. The name is
+	           obtained from /var/db/zoneinfo.
+	-S         Secure X11 mode (implies `-X'). As root, always prompt-for
+	           and validate sudo(8) username/password before starting.
+	-s         Skip the initial question about adjusting the clock if
+	           not set to UTC.
+	-v         Verbose. Enable extra output when installing the zone file.
+	-X         Enable the use of Xdialog(1) instead of dialog(1).

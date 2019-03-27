@@ -1,0 +1,70 @@
+.\"-
+.\" Copyright (c) 2017 Hiroki Mori
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 5, 2017
+.Dt E6060SW 4
+.Os
+.Sh NAME
+.Nm e6060sw
+.Nd driver for Marvell 88E6060 and 88E6065 fast ethernet switch chip
+.Sh SYNOPSIS
+.Cd "device mdio"
+.Cd "device etherswitch"
+.Cd "device e6060sw"
+.Pp
+.Cd hint.e6060sw.0.at="mdio0"
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides a management interface to Marvell 88E6060 and 88E6065 fast ethernet switch chip.
+This driver use smi interface by ethernet interface.
+.Pp
+88E6060 support is only port vlan.
+88E6065 support is port and dot1q vlan.
+dot1q support group base tag/untag.
+.Sh EXAMPLES
+Configure dot1q vlan on 88E6065 by etherswitchcfg command.
+.Pp
+.Dl # etherswitchcfg config vlan_mode dot1q
+.Pp
+Configure vlangroup with dot1q tag on 88E6065.
+This example is port0 as vlan 2.
+.Pp
+.Dl # etherswitchcfg vlangroup2 vlan 2 members 0,5t port0 pvid 2
+.Sh SEE ALSO
+.Xr etherswitch 4 ,
+.Xr etherswitchcfg 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Hiroki Mori

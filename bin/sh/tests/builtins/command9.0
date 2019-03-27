@@ -1,0 +1,14 @@
+# $FreeBSD$
+
+failures=0
+
+check() {
+	if ! eval "[ $* ]"; then
+		echo "Failed: $*"
+		: $((failures += 1))
+	fi
+}
+
+check '"$({ command eval shift x 2>/dev/null; } >/dev/null; echo hi)" = hi'
+
+exit $((failures > 0))

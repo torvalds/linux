@@ -1,0 +1,7 @@
+document.write("<p>Reference Clock Support</p><ul>\
+<li class='inline'><a href='extern.html'>External Clock Discipline and the Local Clock Driver</a></li>\
+<li class='inline'><a href='howto.html'>How to Write a Reference Clock Driver</a></li>\
+<li class='inline'><a href='howto.html'>How to build new PARSE clocks</a></li>\
+<li class='inline'><a href='refclock.html'>Reference Clock Drivers</a></li>\
+<li class='inline'><a href='sitemap.html'>Site Map</a></li>\
+</ul></ul>")

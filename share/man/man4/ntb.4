@@ -1,0 +1,91 @@
+.\"
+.\" Copyright (c) 2017 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 2, 2017
+.Dt NTB 4
+.Os
+.Sh NAME
+.Nm ntb
+.Nd Non-Transparent Bridge subsystem
+.Sh SYNOPSIS
+To compile it into your kernel,
+place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ntb"
+.Ed
+.Pp
+Or, to load it as a module at boot, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ntb_load="YES"
+.Ed
+.Pp
+The following tunables are settable from the
+.Xr loader 8 :
+.Bl -ohang
+.It Va hw.ntb.debug_level
+Driver debug level.
+The default value is 0, higher means more verbose.
+.It Va hint.ntb_hw. Ns Ar X Ns Va .config
+Configures a set of NTB functions, separated by commas,
+and their resource allocation.
+Each function can be configured as: "[<name>][:<mw>[:<spad>[:<db>]]]", where:
+.Va name
+is a name of the driver to attach (empty means any),
+.Va mw
+is a number of memory windows to allocate (empty means all available),
+.Va spad
+is a number of scratchpad registers to allocate (empty means all available),
+.Va db
+is a number of doorbells to allocate (empty means all available).
+The default configuration is empty string, which means single function
+with all available resources, allowing any driver to attach.
+.El
+.Sh DESCRIPTION
+Non-Transparent Bridges allow to connect two computer systems with PCIe
+link(s), providing each of them limited access to others memory space,
+scratchpad registers and interrupts.
+The
+.Nm
+subsystem uses those resources provided in generic way by hardware drivers
+and splits them between several functions, according to specified
+configuration.
+.Sh SEE ALSO
+.Xr if_ntb 4 ,
+.Xr ntb_transport 4 ,
+.Xr ntb_hw_intel 4 ,
+.Xr ntb_hw_plx 4
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+subsystem was developed by Intel and originally written by
+.An Carl Delsey Aq Mt carl@FreeBSD.org .
+Later improvements were done by
+.An Conrad E. Meyer Aq Mt cem@FreeBSD.org
+and
+.An Alexander Motin Aq Mt mav@FreeBSD.org .

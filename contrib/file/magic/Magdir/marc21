@@ -1,0 +1,30 @@
+#--------------------------------------------
+# marc21: file(1) magic for MARC 21 Format
+#
+# Kevin Ford (kefo@loc.gov)
+#
+# MARC21 formats are for the representation and communication
+# of bibliographic and related information in machine-readable
+# form.  For more info, see http://www.loc.gov/marc/
+
+
+# leader position 20-21 must be 45
+# and 22-23 also 00 so far, but we check that later.
+20	string		45
+>0	search/2048	\x1e
+
+# leader starts with 5 digits, followed by codes specific to MARC format
+>>0	regex/1l	(^[0-9]{5})[acdnp][^bhlnqsu-z]	MARC21 Bibliographic
+!:mime	application/marc
+>>0	regex/1l	(^[0-9]{5})[acdnosx][z]	MARC21 Authority
+!:mime	application/marc
+>>0	regex/1l	(^[0-9]{5})[cdn][uvxy]	MARC21 Holdings
+!:mime	application/marc
+>>0	regex/1l	(^[0-9]{5})[acdn][w]	MARC21 Classification
+!:mime	application/marc
+>>0	regex/1l	(^[0-9]{5})[cdn][q]	MARC21 Community
+!:mime	application/marc
+
+# leader position 22-23, should be "00" but is it?
+>>0	regex/1l	(^.{21})([^0]{2})	(non-conforming)
+!:mime	application/marc

@@ -1,0 +1,251 @@
+-
+  version: 1.0.{build}
+  branches:
+    only:
+    - master
+    - appveyorTest
+    - /visual*/
+  environment:
+    matrix:
+    - COMPILER: "gcc"
+      HOST:     "mingw"
+      PLATFORM: "x64"
+      SCRIPT:   "make allzstd MOREFLAGS=-static && make -C tests test-symbols fullbench-lib"
+      ARTIFACT: "true"
+      BUILD:    "true"
+    - COMPILER: "gcc"
+      HOST:     "mingw"
+      PLATFORM: "x86"
+      SCRIPT:   "make allzstd MOREFLAGS=-static"
+      ARTIFACT: "true"
+      BUILD:    "true"
+    - COMPILER: "clang"
+      HOST:     "mingw"
+      PLATFORM: "x64"
+      SCRIPT:   "MOREFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make allzstd"
+      BUILD:    "true"
+
+    - COMPILER: "gcc"
+      HOST:     "mingw"
+      PLATFORM: "x64"
+      SCRIPT:   ""
+      TEST:     "cmake"
+
+    - COMPILER: "visual"
+      HOST:     "visual"
+      PLATFORM: "x64"
+      CONFIGURATION: "Debug"
+    - COMPILER: "visual"
+      HOST:     "visual"
+      PLATFORM: "Win32"
+      CONFIGURATION: "Debug"
+    - COMPILER: "visual"
+      HOST:     "visual"
+      PLATFORM: "x64"
+      CONFIGURATION: "Release"
+    - COMPILER: "visual"
+      HOST:     "visual"
+      PLATFORM: "Win32"
+      CONFIGURATION: "Release"
+
+  install:
+  - ECHO Installing %COMPILER% %PLATFORM% %CONFIGURATION%
+  - SET PATH_ORIGINAL=%PATH%
+  - if [%HOST%]==[mingw] (
+      SET "PATH_MINGW32=C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin" &&
+      SET "PATH_MINGW64=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin" &&
+      COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin\make.exe &&
+      COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin\make.exe
+    )
+  - IF [%HOST%]==[visual] IF [%PLATFORM%]==[x64] (
+      SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;"
+    )
+
+  build_script:
+  - if [%HOST%]==[mingw] (
+      ( if [%PLATFORM%]==[x64] (
+        SET "PATH=%PATH_MINGW64%;%PATH_ORIGINAL%"
+      ) else if [%PLATFORM%]==[x86] (
+        SET "PATH=%PATH_MINGW32%;%PATH_ORIGINAL%"
+      ) )
+    )
+  - if [%HOST%]==[mingw] if [%BUILD%]==[true] (
+      make -v &&
+      sh -c "%COMPILER% -v" &&
+      ECHO Building zlib to static link &&
+      SET "CC=%COMPILER%" &&
+      sh -c "cd .. && git clone --depth 1 --branch v1.2.11 https://github.com/madler/zlib" &&
+      sh -c "cd ../zlib && make -f win32/Makefile.gcc libz.a"
+      ECHO Building zstd &&
+      SET "CPPFLAGS=-I../../zlib" &&
+      SET "LDFLAGS=../../zlib/libz.a" &&
+      sh -c "%SCRIPT%" &&
+      ( if [%COMPILER%]==[gcc] if [%ARTIFACT%]==[true]
+          ECHO Creating artifacts &&
+          ECHO %cd% &&
+          lib\dll\example\build_package.bat &&
+          make -C programs DEBUGFLAGS= clean zstd &&
+          cd programs\ && 7z a -tzip -mx9 zstd-win-binary-%PLATFORM%.zip zstd.exe &&
+          appveyor PushArtifact zstd-win-binary-%PLATFORM%.zip &&
+          cp zstd.exe ..\bin\zstd.exe &&
+          git clone --depth 1 --branch master https://github.com/facebook/zstd &&
+          cd zstd &&
+          git archive --format=tar master -o zstd-src.tar &&
+          ..\zstd -19 zstd-src.tar &&
+          appveyor PushArtifact zstd-src.tar.zst &&
+          certUtil -hashfile zstd-src.tar.zst SHA256 > zstd-src.tar.zst.sha256.sig &&
+          appveyor PushArtifact zstd-src.tar.zst.sha256.sig &&
+          cd ..\..\bin\ &&
+          7z a -tzip -mx9 zstd-win-release-%PLATFORM%.zip * &&
+          appveyor PushArtifact zstd-win-release-%PLATFORM%.zip
+      )
+    )
+  - if [%HOST%]==[visual] (
+      ECHO *** &&
+      ECHO *** Building Visual Studio 2008 %PLATFORM%\%CONFIGURATION% in %APPVEYOR_BUILD_FOLDER% &&
+      ECHO *** &&
+      msbuild "build\VS2008\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v90 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      DIR build\VS2008\bin\%PLATFORM%\%CONFIGURATION%\*.exe &&
+      MD5sum build/VS2008/bin/%PLATFORM%/%CONFIGURATION%/*.exe &&
+      COPY build\VS2008\bin\%PLATFORM%\%CONFIGURATION%\fuzzer.exe tests\fuzzer_VS2008_%PLATFORM%_%CONFIGURATION%.exe &&
+      ECHO *** &&
+      ECHO *** Building Visual Studio 2010 %PLATFORM%\%CONFIGURATION% &&
+      ECHO *** &&
+      msbuild "build\VS2010\zstd.sln" %ADDITIONALPARAM% /m /verbosity:minimal /property:PlatformToolset=v100 /p:ForceImportBeforeCppTargets=%APPVEYOR_BUILD_FOLDER%\build\VS2010\CompileAsCpp.props /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
+      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
+      msbuild "build\VS2010\zstd.sln" %ADDITIONALPARAM% /m /verbosity:minimal /property:PlatformToolset=v100 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
+      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
+      COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\fuzzer.exe tests\fuzzer_VS2010_%PLATFORM%_%CONFIGURATION%.exe &&
+      ECHO *** &&
+      ECHO *** Building Visual Studio 2012 %PLATFORM%\%CONFIGURATION% &&
+      ECHO *** &&
+      msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v110 /p:ForceImportBeforeCppTargets=%APPVEYOR_BUILD_FOLDER%\build\VS2010\CompileAsCpp.props /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
+      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
+      msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v110 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
+      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
+      COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\fuzzer.exe tests\fuzzer_VS2012_%PLATFORM%_%CONFIGURATION%.exe &&
+      ECHO *** &&
+      ECHO *** Building Visual Studio 2013 %PLATFORM%\%CONFIGURATION% &&
+      ECHO *** &&
+      msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v120 /p:ForceImportBeforeCppTargets=%APPVEYOR_BUILD_FOLDER%\build\VS2010\CompileAsCpp.props /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
+      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
+      msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v120 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
+      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
+      COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\fuzzer.exe tests\fuzzer_VS2013_%PLATFORM%_%CONFIGURATION%.exe &&
+      ECHO *** &&
+      ECHO *** Building Visual Studio 2015 %PLATFORM%\%CONFIGURATION% &&
+      ECHO *** &&
+      msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140 /p:ForceImportBeforeCppTargets=%APPVEYOR_BUILD_FOLDER%\build\VS2010\CompileAsCpp.props /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
+      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
+      msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
+      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
+      COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\fuzzer.exe tests\fuzzer_VS2015_%PLATFORM%_%CONFIGURATION%.exe &&
+      COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe tests\
+    )
+
+  test_script:
+  - ECHO Testing %COMPILER% %PLATFORM% %CONFIGURATION%
+  - SET "CC=gcc"
+  - SET "CXX=g++"
+  - if [%TEST%]==[cmake] (
+      mkdir build\cmake\build &&
+      cd build\cmake\build &&
+      cmake -G "Visual Studio 14 2015 Win64" .. &&
+      cd ..\..\.. &&
+      make clean
+    )
+  - SET "FUZZERTEST=-T30s"
+  - if [%HOST%]==[visual] if [%CONFIGURATION%]==[Release] (
+      CD tests &&
+      SET ZSTD=./zstd.exe &&
+      sh -e playTests.sh --test-large-data &&
+      fullbench.exe -i1 &&
+      fullbench.exe -i1 -P0 &&
+      fuzzer_VS2008_%PLATFORM%_Release.exe %FUZZERTEST% &&
+      fuzzer_VS2010_%PLATFORM%_Release.exe %FUZZERTEST% &&
+      fuzzer_VS2012_%PLATFORM%_Release.exe %FUZZERTEST% &&
+      fuzzer_VS2013_%PLATFORM%_Release.exe %FUZZERTEST% &&
+      fuzzer_VS2015_%PLATFORM%_Release.exe %FUZZERTEST%
+    )
+
+-
+  version: 1.0.{build}
+  environment:
+    matrix:
+    - COMPILER: "gcc"
+      HOST:     "mingw"
+      PLATFORM: "x64"
+      SCRIPT:   "CPPFLAGS=-DDEBUGLEVEL=2 CFLAGS=-Werror make -j allzstd DEBUGLEVEL=2"
+    - COMPILER: "gcc"
+      HOST:     "mingw"
+      PLATFORM: "x86"
+      SCRIPT:   "CFLAGS=-Werror make -j allzstd"
+    - COMPILER: "clang"
+      HOST:     "mingw"
+      PLATFORM: "x64"
+      SCRIPT:   "CFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make -j allzstd"
+
+    - COMPILER: "visual"
+      HOST:     "visual"
+      PLATFORM: "x64"
+      CONFIGURATION: "Debug"
+    - COMPILER: "visual"
+      HOST:     "visual"
+      PLATFORM: "Win32"
+      CONFIGURATION: "Debug"
+    - COMPILER: "visual"
+      HOST:     "visual"
+      PLATFORM: "x64"
+      CONFIGURATION: "Release"
+    - COMPILER: "visual"
+      HOST:     "visual"
+      PLATFORM: "Win32"
+      CONFIGURATION: "Release"
+
+  install:
+  - ECHO Installing %COMPILER% %PLATFORM% %CONFIGURATION%
+  - SET PATH_ORIGINAL=%PATH%
+  - if [%HOST%]==[mingw] (
+      SET "PATH_MINGW32=C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin" &&
+      SET "PATH_MINGW64=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin" &&
+      COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin\make.exe &&
+      COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin\make.exe
+    )
+  - IF [%HOST%]==[visual] IF [%PLATFORM%]==[x64] (
+      SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;"
+    )
+
+  build_script:
+  - ECHO Building %COMPILER% %PLATFORM% %CONFIGURATION%
+  - if [%HOST%]==[mingw] (
+      ( if [%PLATFORM%]==[x64] (
+        SET "PATH=%PATH_MINGW64%;%PATH_ORIGINAL%"
+      ) else if [%PLATFORM%]==[x86] (
+        SET "PATH=%PATH_MINGW32%;%PATH_ORIGINAL%"
+      ) ) &&
+      make -v &&
+      sh -c "%COMPILER% -v" &&
+      set "CC=%COMPILER%" &&
+      sh -c "%SCRIPT%"
+    )
+  - if [%HOST%]==[visual] (
+      ECHO *** &&
+      ECHO *** Building Visual Studio 2015 %PLATFORM%\%CONFIGURATION% &&
+      ECHO *** &&
+      msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140 /p:ForceImportBeforeCppTargets=%APPVEYOR_BUILD_FOLDER%\build\VS2010\CompileAsCpp.props /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
+      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
+      msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
+      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
+      COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\fuzzer.exe tests\fuzzer_VS2015_%PLATFORM%_%CONFIGURATION%.exe &&
+      COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe tests\
+    )

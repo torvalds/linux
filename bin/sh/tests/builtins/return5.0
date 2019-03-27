@@ -1,0 +1,17 @@
+# $FreeBSD$
+
+if [ "$1" != nested ]; then
+	f() {
+		set -- nested
+		. "$0"
+		# Allow return to return from the function or the dot script.
+		return 4
+	}
+	f
+	exit $(($? ^ 4))
+fi
+# To trigger the bug, the following commands must be at the top level,
+# with newlines in between.
+return 4
+echo bad
+exit 1

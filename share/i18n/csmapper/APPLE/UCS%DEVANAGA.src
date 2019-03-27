@@ -1,0 +1,359 @@
+# $FreeBSD$
+
+TYPE		ROWCOL
+NAME		UCS/DEVANAGA
+SRC_ZONE	0x0000-0x2212
+OOB_MODE	INVALID
+DST_INVALID	0x100
+DST_UNIT_BITS	16
+#=======================================================================
+#   File name:  DEVANAGA.TXT
+#
+#   Contents:   Map (external version) from Mac OS Devanagari
+#               encoding to Unicode 2.1 and later.
+#
+#   Copyright:  (c) 1995-2002, 2005 by Apple Computer, Inc., all rights
+#               reserved.
+#
+#   Contact:    charsets@apple.com
+#
+#   Changes:
+#
+#       c02  2005-Apr-05    Update header comments; add section on
+#                           roundtrip considerations. Matches internal
+#                           xml <c1.1> and Text Encoding Converter 2.0.
+#      b3,c1 2002-Dec-19    Update URLs. Matches internal utom<b1>.
+#       b02  1999-Sep-22    Update contact e-mail address. Matches
+#                           internal utom<b1>, ufrm<b1>, and Text
+#                           Encoding Converter version 1.5.
+#       n04  1998-Feb-05    First version; matches internal utom<n9>,
+#                           ufrm<n15>.
+#
+# Standard header:
+# ----------------
+#
+#   Apple, the Apple logo, and Macintosh are trademarks of Apple
+#   Computer, Inc., registered in the United States and other countries.
+#   Unicode is a trademark of Unicode Inc. For the sake of brevity,
+#   throughout this document, "Macintosh" can be used to refer to
+#   Macintosh computers and "Unicode" can be used to refer to the
+#   Unicode standard.
+#
+#   Apple Computer, Inc. ("Apple") makes no warranty or representation,
+#   either express or implied, with respect to this document and the
+#   included data, its quality, accuracy, or fitness for a particular
+#   purpose. In no event will Apple be liable for direct, indirect,
+#   special, incidental, or consequential damages resulting from any
+#   defect or inaccuracy in this document or the included data.
+#
+#   These mapping tables and character lists are subject to change.
+#   The latest tables should be available from the following:
+#
+#   <http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/>
+#
+#   For general information about Mac OS encodings and these mapping
+#   tables, see the file "README.TXT".
+#
+# Format:
+# -------
+#
+#   Three tab-separated columns;
+#   '#' begins a comment which continues to the end of the line.
+#     Column #1 is the Mac OS Devanagari code or code sequence
+#       (in hex as 0xNN or 0xNN+0xNN)
+#     Column #2 is the corresponding Unicode or Unicode sequence
+#       (in hex as 0xNNNN or 0xNNNN+0xNNNN).
+#     Column #3 is a comment containing the Unicode name or sequence
+#       of names. In some cases an additional comment follows the
+#       Unicode name(s).
+#
+#   The entries are in two sections. The first section is for pairs of
+#   Mac OS Devanagari code points that must be mapped in a special way.
+#   The second section maps individual code points.
+#
+#   Within each section, the entries are in Mac OS Devanagari code order.
+#
+#   Control character mappings are not shown in this table, following
+#   the conventions of the standard UTC mapping tables. However, the
+#   Mac OS Devanagari character set uses the standard control characters
+#   at 0x00-0x1F and 0x7F.
+#
+# Notes on Mac OS Devanagari:
+# ---------------------------
+#
+#   This is a legacy Mac OS encoding; in the Mac OS X Carbon and Cocoa
+#   environments, it is only supported via transcoding to and from
+#   Unicode.
+#
+#   Mac OS Devanagari is based on IS 13194:1991 (ISCII-91), with the
+#   addition of several punctuation and symbol characters. However,
+#   Mac OS Devanagari does not support the ATR (attribute) mechanism of
+#   ISCII-91.
+#
+# 1. ISCII-91 features in Mac OS Devanagari include:
+#
+#  a) Overloading of nukta
+#
+#     In addition to using the nukta (0xE9) like a combining dot below,
+#     nukta is overloaded to function as a general character modifier.
+#     In this role, certain code points followed by 0xE9 are treated as
+#     a two-byte code point representing a character which may be
+#     rather different than the characters represented by either of
+#     the code points alone. For example, the character DEVANAGARI OM
+#     (U+0950) is represented in ISCII-91 as candrabindu + nukta.
+#
+#  b) Explicit halant and soft halant
+#
+#     A double halant (0xE8 + 0xE8) constitutes an "explicit halant",
+#     which will always appear as a halant instead of causing formation
+#     of a ligature or half-form consonant.
+#
+#     Halant followed by nukta (0xE8 + 0xE9) constitutes a "soft
+#     halant", which prevents formation of a ligature and instead
+#     retains the half-form of the first consonant.
+#
+#  c) Invisible consonant
+#
+#     The byte 0xD9 (called INV in ISCII-91) is an invisible consonant:
+#     It behaves like a consonant but has no visible appearance. It is
+#     intended to be used (often in combination with halant) to display
+#     dependent forms in isolation, such as the RA forms or consonant
+#     half-forms.
+#
+#  d) Extensions for Vedic, etc.
+#
+#     The byte 0xF0 (called EXT in ISCII-91) followed by any byte in
+#     the range 0xA1-0xEE constitutes a two-byte code point which can
+#     be used to represent additional characters for Vedic (or other
+#     extensions); 0xF0 followed by any other byte value constitutes
+#     malformed text. Mac OS Devanagari supports this mechanism, but
+#     does not currently map any of these two-byte code points to
+#     anything.
+#
+# 2. Mac OS Devanagari additions
+#
+#   Mac OS Devanagari adds characters using the code points
+#   0x80-0x8A and 0x90-0x91 (the latter are some Devanagari additions
+#   from Unicode).
+#
+# 3. Unused code points
+#
+#   The following code points are currently unused, and are not shown
+#   here: 0x8B-0x8F, 0x92-0xA0, 0xEB-0xEF, 0xFB-0xFF. In addition,
+#   0xF0 is not shown here, but it has a special function as described
+#   above.
+#
+# Unicode mapping issues and notes:
+# ---------------------------------
+#
+# 1. Mapping the byte pairs
+#
+#   If one of the following byte values is encountered when mapping
+#   Mac OS Devanagari text - 0xA1, 0xA6, 0xA7, 0xAA, 0xDB, 0xDC, 0xDF,
+#   0xE8, or 0xEA - then the next byte (if there is one) should be
+#   examined. If the next byte is 0xE9 - or also 0xE8, if the first
+#   byte was 0xE8 - then the byte pair should be mapped using the
+#   first section of the mapping table below. Otherwise, each byte
+#   should be mapped using the second section of the mapping table
+#   below.
+#
+#   - The Unicode Standard, Version 2.0, specifies how explicit
+#     halant and soft halant should be represented in Unicode;
+#     these mappings are used below.
+#
+#   If the byte value 0xF0 is encountered when mapping Mac OS
+#   Devanagari text, then the next byte should be examined. If there
+#   is no next byte (e.g. 0xF0 at end of buffer), the mapping
+#   process should indicate incomplete character. If there is a next
+#   byte but it is not in the range 0xA1-0xEE, the mapping process
+#   should indicate malformed text. Otherwise, the mapping process
+#   should treat the byte pair as a valid two-byte code point with no
+#   mapping (e.g. map it to QUESTION MARK, REPLACEMENT CHARACTER,
+#   etc.).
+#
+# 2. Mapping the invisible consonant
+#
+#   It has been suggested that INV in ISCII-91 should map to ZERO
+#   WIDTH NON-JOINER in Unicode. However, this causes problems with
+#   roundtrip fidelity: The ISCII-91 sequences 0xE8+0xE8 and 0xE8+0xD9
+#   would map to the same sequence of Unicode characters. We have
+#   instead mapped INV to LEFT-TO-RIGHT MARK, which avoids these
+#   problems.
+#
+# 3. Additional loose mappings from Unicode
+#
+#   These are not preserved in roundtrip mappings.
+#
+#   U+0958  0xB3+0xE9  # DEVANAGARI LETTER QA
+#   U+0959  0xB4+0xE9  # DEVANAGARI LETTER KHHA
+#   U+095A  0xB5+0xE9  # DEVANAGARI LETTER GHHA
+#   U+095B  0xBA+0xE9  # DEVANAGARI LETTER ZA
+#   U+095C  0xBF+0xE9  # DEVANAGARI LETTER DDDHA
+#   U+095D  0xC0+0xE9  # DEVANAGARI LETTER RHA
+#   U+095E  0xC9+0xE9  # DEVANAGARI LETTER FA
+#
+# 4. Roundtrip considerations when mapping to decomposed Unicode
+#
+#   Both ISCII-91 (hence Mac OS Devanagari) and Unicode provide multiple
+#   ways of representing certain Devanagari consonants. For example,
+#   DEVANAGARI LETTER NNNA can be represented in Unicode as the single
+#   character 0x0929 or as the sequence 0x0928 0x093C; similarly, this
+#   consonant can be represented in Mac OS Devanagari as 0xC7 or as the
+#   sequence 0xC6 0xE9. This leads to some roundtrip problems. First
+#   note that we have the following mappings without such problems:
+#
+#   ISCII/  standard                  decomposition of  reverse mapping
+#   Mac OS  Unicode mapping           standard mapping  of decomposition
+#   ------  -----------------------   ----------------  ----------------
+#   0xC6    0x0928  ... LETTER NA     0x0928 (same)     0xC6
+#   0xCD    0x092F  ... LETTER YA     0x092F (same)     0xCD
+#   0xCF    0x0930  ... LETTER RA     0x0930 (same)     0xCF
+#   0xD2    0x0933  ... LETTER LLA    0x0933 (same)     0xD2
+#   0xE9    0x093C  ... SIGN NUKTA    0x093C (same)     0xE9
+#
+#   However, those mappings above cause roundtrip problems for the
+#   the following mappings if they are decomposed:
+#
+#   ISCII/  standard                  decomposition of  reverse mapping
+#   Mac OS  Unicode mapping           standard mapping  of decomposition
+#   ------  -----------------------   ----------------  ----------------
+#   0xC7    0x0929  ... LETTER NNNA   0x0928 0x093C     0xC6 0xE9
+#   0xCE    0x095F  ... LETTER YYA    0x092F 0x093C     0xCD 0xE9
+#   0xD0    0x0931  ... LETTER RRA    0x0930 0x093C     0xCF 0xE9
+#   0xD3    0x0934  ... LETTER LLLA   0x0933 0x093C     0xD2 0xE9
+#
+#   One solution is to use a grouping transcoding hint with the four
+#   decompositions above to mark the decomposed sequence for special
+#   treatment in transcoding. This yields the following mappings to
+#   decomposed Unicode:
+#
+#   ISCII/                     decomposed
+#   Mac OS                     Unicode mapping
+#   ------                     ----------------
+#   0xC7                       0xF860 0x0928 0x093C
+#   0xCE                       0xF860 0x092F 0x093C
+#   0xD0                       0xF860 0x0930 0x093C
+#   0xD3                       0xF860 0x0933 0x093C
+#
+# Details of mapping changes in each version:
+# -------------------------------------------
+#
+##################
+# Section 1: Map the following byte pairs as indicated:
+# (ZWNJ means ZERO WIDTH NON-JOINER, ZWJ means ZERO WIDTH JOINER)
+# (Also see note about 0xF0 in comments above)
+# Section 2: Map the remaining bytes as follows:
+#
+#
+#
+#
+BEGIN_MAP
+0x0000 - 0x007F = 0x00 -
+0x00A9 = 0x88
+0x00AE = 0x89
+0x00D7 = 0x80
+0x0901 = 0xA1
+0x0902 = 0xA2
+0x0903 = 0xA3
+0x0905 = 0xA4
+0x0906 = 0xA5
+0x0907 = 0xA6
+0x0908 = 0xA7
+0x0909 = 0xA8
+0x090A = 0xA9
+0x090B = 0xAA
+#0x090C = 0xA6+0xE9
+0x090D = 0xAE
+0x090E = 0xAB
+0x090F = 0xAC
+0x0910 = 0xAD
+0x0911 = 0xB2
+0x0912 = 0xAF
+0x0913 = 0xB0
+0x0914 = 0xB1
+0x0915 = 0xB3
+0x0916 = 0xB4
+0x0917 = 0xB5
+0x0918 = 0xB6
+0x0919 = 0xB7
+0x091A = 0xB8
+0x091B = 0xB9
+0x091C = 0xBA
+0x091D = 0xBB
+0x091E = 0xBC
+0x091F = 0xBD
+0x0920 = 0xBE
+0x0921 = 0xBF
+0x0922 = 0xC0
+0x0923 = 0xC1
+0x0924 = 0xC2
+0x0925 = 0xC3
+0x0926 = 0xC4
+0x0927 = 0xC5
+0x0928 = 0xC6
+0x0929 = 0xC7
+0x092A = 0xC8
+0x092B = 0xC9
+0x092C = 0xCA
+0x092D = 0xCB
+0x092E = 0xCC
+0x092F = 0xCD
+0x0930 = 0xCF
+0x0931 = 0xD0
+0x0932 = 0xD1
+0x0933 = 0xD2
+0x0934 = 0xD3
+0x0935 = 0xD4
+0x0936 = 0xD5
+0x0937 = 0xD6
+0x0938 = 0xD7
+0x0939 = 0xD8
+0x093C = 0xE9
+#0x093D = 0xEA+0xE9
+0x093E = 0xDA
+0x093F = 0xDB
+0x0940 = 0xDC
+0x0941 = 0xDD
+0x0942 = 0xDE
+0x0943 = 0xDF
+#0x0944 = 0xDF+0xE9
+0x0945 = 0xE3
+0x0946 = 0xE0
+0x0947 = 0xE1
+0x0948 = 0xE2
+0x0949 = 0xE7
+0x094A = 0xE4
+0x094B = 0xE5
+0x094C = 0xE6
+0x094D = 0xE8
+#0x094D+0x200C = 0xE8+0xE8
+#0x094D+0x200D = 0xE8+0xE9
+#0x0950 = 0xA1+0xE9
+0x095F = 0xCE
+#0x0960 = 0xAA+0xE9
+#0x0961 = 0xA7+0xE9
+#0x0962 = 0xDB+0xE9
+#0x0963 = 0xDC+0xE9
+0x0964 = 0xEA
+0x0965 = 0x90
+0x0966 = 0xF1
+0x0967 = 0xF2
+0x0968 = 0xF3
+0x0969 = 0xF4
+0x096A = 0xF5
+0x096B = 0xF6
+0x096C = 0xF7
+0x096D = 0xF8
+0x096E = 0xF9
+0x096F = 0xFA
+0x0970 = 0x91
+0x200E = 0xD9
+0x2013 = 0x82
+0x2014 = 0x83
+0x2018 = 0x84
+0x2019 = 0x85
+0x2022 = 0x87
+0x2026 = 0x86
+0x2122 = 0x8A
+0x2212 = 0x81
+END_MAP

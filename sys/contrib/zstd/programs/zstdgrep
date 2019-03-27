@@ -1,0 +1,131 @@
+#!/bin/sh
+#
+# Copyright (c) 2003 Thomas Klausner.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+# NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+# THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+grep=grep
+zcat=zstdcat
+
+endofopts=0
+pattern_found=0
+grep_args=""
+hyphen=0
+silent=0
+
+prg=$(basename "$0")
+
+# handle being called 'zegrep' or 'zfgrep'
+case "${prg}" in
+    *zegrep) grep_args="-E";;
+    *zfgrep) grep_args="-F";;
+esac
+
+# skip all options and pass them on to grep taking care of options
+# with arguments, and if -e was supplied
+
+while [ "$#" -gt 0 ] && [ "${endofopts}" -eq 0 ]; do
+    case "$1" in
+    # from GNU grep-2.5.1 -- keep in sync!
+        -[ABCDXdefm])
+            if [ "$#" -lt 2 ]; then
+                printf '%s: missing argument for %s flag\n' "${prg}" "$1" >&2
+                exit 1
+            fi
+            case "$1" in
+                -e)
+                    pattern="$2"
+                    pattern_found=1
+                    shift 2
+                    break
+                    ;;
+                *)
+                    ;;
+            esac
+            grep_args="${grep_args} $1 $2"
+            shift 2
+            ;;
+        --)
+            shift
+            endofopts=1
+            ;;
+        -)
+            hyphen=1
+            shift
+            ;;
+        -h)
+            silent=1
+            shift
+            ;;
+        -*)
+            grep_args="${grep_args} $1"
+            shift
+            ;;
+        *)
+            # pattern to grep for
+            endofopts=1
+            ;;
+    esac
+done
+
+# if no -e option was found, take next argument as grep-pattern
+if [ "${pattern_found}" -lt 1 ]; then
+    if [ "$#" -ge 1 ]; then
+        pattern="$1"
+        shift
+    elif [ "${hyphen}" -gt 0 ]; then
+        pattern="-"
+    else
+        printf '%s: missing pattern\n' "${prg}" >&2
+        exit 1
+    fi
+fi
+
+EXIT_CODE=0
+# call grep ...
+if [ "$#" -lt 1 ]; then
+    # ... on stdin
+    set -f # Disable file name generation (globbing).
+    # shellcheck disable=SC2086
+    "${zcat}" -fq - | "${grep}" ${grep_args} -- "${pattern}" -
+    EXIT_CODE=$?
+    set +f
+else
+    # ... on all files given on the command line
+    if [ "${silent}" -lt 1 ] && [ "$#" -gt 1 ]; then
+        grep_args="-H ${grep_args}"
+    fi
+    CUR_EXIT_CODE=0
+    EXIT_CODE=1
+    set -f
+    while [ "$#" -gt 0 ]; do
+        # shellcheck disable=SC2086
+        "${zcat}" -fq -- "$1" | "${grep}" --label="${1}" ${grep_args} -- "${pattern}" -
+        CUR_EXIT_CODE=$?
+        if [ "${CUR_EXIT_CODE}" -eq 0 ] && [ "${EXIT_CODE}" -ne 1 ]; then
+            EXIT_CODE=0
+        fi
+        shift
+    done
+    set +f
+fi
+
+exit "${EXIT_CODE}"

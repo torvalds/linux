@@ -1,0 +1,91 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2013 Hudson River Trading LLC
+.\" Written by: John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 26, 2015
+.Dt VOP_ADVISE 9
+.Os
+.Sh NAME
+.Nm VOP_ADVISE
+.Nd apply advice about use of file data
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn VOP_ADVISE "struct vnode *vp" "off_t start" "off_t end" "int advice"
+.Sh DESCRIPTION
+This call applies advice for a range of a file's data.
+It is used to implement the
+.Xr posix_fadvise
+system call.
+.Pp
+Its arguments are:
+.Bl -tag -width offset
+.It Fa vp
+The vnode of the file.
+.It Fa start
+The start of the range of file data.
+.It Fa end
+The end of the range of file data.
+A value of
+.Dv OFF_MAX
+indicates that the advice is to be applied up to the end of the file.
+.It Fa advice
+The type of operation to apply to the file data.
+Possible values are:
+.Bl -tag -width POSIX_FADV_WILLNEED
+.It Dv POSIX_FADV_WILLNEED
+Initiate an asynchronous read of the file data if it is not already resident.
+.It Dv POSIX_FADV_DONTNEED
+Decrease the in-memory priority of clean file data or discard clean file data.
+.El
+.El
+.Pp
+If the
+.Fa start
+and
+.Fa end
+offsets are both zero,
+then the operation should be applied to the entire file.
+Note that this call is advisory only and may perform the requested
+operation on a subset of the requested range
+.Pq including not performing it at all
+and still return success.
+.Sh LOCKS
+The file should be unlocked on entry.
+.Sh RETURN VALUES
+Zero is returned if the call is successful, otherwise an appropriate
+error code is returned.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+An invalid value was given for
+.Fa advice .
+.El
+.Sh SEE ALSO
+.Xr vnode 9

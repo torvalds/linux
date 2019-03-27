@@ -1,0 +1,126 @@
+.\" Copyright (c) 2002, 2003 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Chris
+.\" Costello at Safeport Network Services and Network Associates Labs,
+.\" the Security Research Division of Network Associates, Inc. under
+.\" DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 22, 2003
+.Dt MAC_PREPARE 3
+.Os
+.Sh NAME
+.Nm mac_prepare , mac_prepare_type , mac_prepare_file_label ,
+.Nm mac_prepare_ifnet_label , mac_prepare_process_label
+.Nd allocate appropriate storage for
+.Vt mac_t
+.Sh SYNOPSIS
+.In sys/mac.h
+.Ft int
+.Fn mac_prepare "mac_t *mac" "const char *elements"
+.Ft int
+.Fn mac_prepare_type "mac_t *mac" "const char *name"
+.Ft int
+.Fn mac_prepare_file_label "mac_t *mac"
+.Ft int
+.Fn mac_prepare_ifnet_label "mac_t *mac"
+.Ft int
+.Fn mac_prepare_process_label "mac_t *mac"
+.Sh DESCRIPTION
+The
+.Nm
+family of functions allocates the appropriate amount of storage and initializes
+.Fa *mac
+for use by
+.Xr mac_get 3 .
+When the resulting label is passed into the
+.Xr mac_get 3
+functions, the kernel will attempt to fill in the label elements specified
+when the label was prepared.
+Elements are specified in a nul-terminated string, using commas to
+delimit fields.
+Element names may be prefixed with the
+.Ql \&?
+character to indicate that a failure by the kernel to retrieve that
+element should not be considered fatal.
+.Pp
+The
+.Fn mac_prepare
+function accepts a list of policy names as a parameter, and allocates the
+storage to fit those label elements accordingly.
+The remaining functions in the family make use of system defaults defined
+in
+.Xr mac.conf 5
+instead of an explicit
+.Va elements
+argument, deriving the default from the specified object type.
+.Pp
+.Fn mac_prepare_type
+allocates the storage to fit an object label of the type specified by
+the
+.Va name
+argument.
+The
+.Fn mac_prepare_file_label ,
+.Fn mac_prepare_ifnet_label ,
+and
+.Fn mac_prepare_process_label
+functions are equivalent to invocations of
+.Fn mac_prepare_type
+with arguments of
+.Qq file ,
+.Qq ifnet ,
+and
+.Qq process
+respectively.
+.Sh RETURN VALUES
+.Rv -std
+.Sh SEE ALSO
+.Xr mac 3 ,
+.Xr mac_free 3 ,
+.Xr mac_get 3 ,
+.Xr mac_is_present 3 ,
+.Xr mac_set 3 ,
+.Xr mac 4 ,
+.Xr mac.conf 5 ,
+.Xr maclabel 7
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+Discussion of the draft
+continues on the cross-platform POSIX.1e implementation mailing list.
+To join this list, see the
+.Fx
+POSIX.1e implementation page
+for more information.
+.Sh HISTORY
+Support for Mandatory Access Control was introduced in
+.Fx 5.0
+as part of the
+.Tn TrustedBSD
+Project.
+Support for generic object types first appeared in
+.Fx 5.2 .

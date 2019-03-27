@@ -1,0 +1,61 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+
+	<head>
+		<meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1">
+		<meta name="GENERATOR" content="Mozilla/4.06 [en] (X11; I; FreeBSD 3.0-CURRENT i386) [Netscape]">
+		<title>Rockwell Jupiter GPS Receiver</title>
+		<link href="../scripts/style.css" type="text/css" rel="stylesheet">
+	</head>
+
+	<body>
+		<h3>Rockwell Jupiter GPS receiver</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->21-Oct-2010  23:44<!-- #EndDate -->
+  UTC</p>
+		<hr>
+		<h4>Synopsis</h4>
+		<p>Address: 127.127.31.<i>u</i><br>
+			Reference ID: <tt>GPS</tt><br>
+			Driver ID: JUPITER<br>
+			Serial Port: <tt>/dev/gps</tt><i>u</i>; &nbsp;9600 baud, 8-bits, no parity.</p>
+		<h4>Description</h4>
+		<p>This driver supports at least some models of the <a href="http://www.navman.com/oem/products/receivers/jupiter/">Rockwell Jupiter <tt>GPS</tt> receivers</a> (Jupiter 11, Jupiter-T), they must at least support the <i>Zodiac Binary Protocol</i>.</p>
+		<p>The driver requires a standard <tt>PPS</tt> interface for the pulse-per-second output from the receiver. The serial data stream alone does not provide precision time stamps, whereas the PPS output is precise down to 40 ns (1 sigma) for the Jupiter 11 and 25 ns (1 sigma) for Jupiter-T according to the documentation. If you do not have the PPS signal available, then you should probably not be using the Jupiter receiver as a time source. This driver requires a <tt>PPS</tt> signal and the time output from Jupiter receivers is not predictable in <tt>NMEA</tt> mode; the reported time can take one second steps.</p>
+		<h4>Monitor Data</h4>
+		<p>The driver always puts a lot of useful information on the clockstats file, and when run with debugging can be quite chatty on stdout. When first starting to use the driver you should definitely review the information written to the clockstats file to verify that the driver is running correctly.</p>
+		<h4>Fudge Factors</h4>
+		<dl>
+			<dt><tt>time1 <i>time</i></tt>
+			<dd>Specifies the time offset calibration factor, in seconds and fraction, with default 0.0.
+			<dt><tt>time2 <i>time</i></tt>
+			<dd>Not used by this driver. Should be left at zero.
+			<dt><tt>stratum <i>number</i></tt>
+			<dd>Specifies the driver stratum, in decimal from 0 to 15, with default 0.
+			<dt><tt>refid <i>string</i></tt>
+			<dd>Specifies the driver reference identifier, an <tt>ASCII</tt> string from one to four characters, with default <tt>GPS</tt>.
+			<dt><tt>flag1 0 | 1</tt>
+			<dd>Not used by this driver.
+			<dt><tt>flag2 0 | 1</tt>
+			<dd>Specifies the mobility of the <tt>GPS</tt> receiver: 0 for walking (default), 1 for driving.
+			<dt><tt>flag3 0 | 1</tt>
+			<dd>Specifies the <tt>PPS</tt> signal on-time edge: 0 for assert (default), 1 for clear.
+			<dt><tt>flag4 0 | 1</tt>
+			<dd>Not used by this driver.
+		</dl>
+		<h4>Additional Information</h4>
+		<p>The driver was resurrected from a sorry state using the Windows NT port and a Jupiter 11, and has since seen little testing on other platforms. On Windows there exist a barrier though, as there is no publicly available <tt>PPSAPI</tt> implementation, at least not to my knowledge. However, there has been one success report using Linux 2.4.20 and PPSkit 2.1.1.</p>
+		<p>The Jupiter receivers seem to have quite a few names. They are referred to at least as Rockwell receivers, Navman receivers, Zodiac receivers, Conexant receivers and SiRF Technology receivers. Rockwell seems to be the original and most commonly used name and Navman seems to be the current supplier.</p>
+		<p><b>Configuration</b></p>
+		<p>The edge of the <tt>PPS</tt> signal that is `on-time' can be set with <tt>flag2</tt>. There is currently no way to cause the <tt>PPS</tt> signal to control the kernel <tt>PLL</tt>.</p>
+		<p><b>Performance</b></p>
+		<p>The performance is largely unexplored. I have achieved submillisecond stability using a Jupiter 11, but the poor result is more than likely due to the proprietary <tt>PPSAPI</tt> implementation or Windows itself.</p>
+		<p>This driver does not handle leap seconds.</p>
+		<hr>
+		<script type="text/javascript" language="javascript" src="../scripts/footer.txt"></script>
+	</body>
+
+</html>
+
+=

@@ -1,0 +1,237 @@
+.\"-
+.\" Copyright (c) 2002 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 22, 2017
+.Dt AIO 4
+.Os
+.Sh NAME
+.Nm aio
+.Nd asynchronous I/O
+.Sh DESCRIPTION
+The
+.Nm
+facility provides system calls for asynchronous I/O.
+Asynchronous I/O operations are not completed synchronously by the
+calling thread.
+Instead, the calling thread invokes one system call to request an
+asynchronous I/O operation.
+The status of a completed request is retrieved later via a separate
+system call.
+.Pp
+Asynchronous I/O operations on some file descriptor types may block an
+AIO daemon indefinitely resulting in process and/or system hangs.
+Operations on these file descriptor types are considered
+.Dq unsafe
+and disabled by default.
+They can be enabled by setting
+the
+.Va vfs.aio.enable_unsafe
+sysctl node to a non-zero value.
+.Pp
+Asynchronous I/O operations on sockets,
+raw disk devices,
+and regular files on local filesystems do not block
+indefinitely and are always enabled.
+.Pp
+The
+.Nm
+facility uses kernel processes
+(also known as AIO daemons)
+to service most asynchronous I/O requests.
+These processes are grouped into pools containing a variable number of
+processes.
+Each pool will add or remove processes to the pool based on load.
+Pools can be configured by sysctl nodes that define the minimum
+and maximum number of processes as well as the amount of time an idle
+process will wait before exiting.
+.Pp
+One pool of AIO daemons is used to service asynchronous I/O requests for
+sockets.
+These processes are named
+.Dq soaiod<N> .
+The following sysctl nodes are used with this pool:
+.Bl -tag -width indent
+.It Va kern.ipc.aio.num_procs
+The current number of processes in the pool.
+.It Va kern.ipc.aio.target_procs
+The minimum number of processes that should be present in the pool.
+.It Va kern.ipc.aio.max_procs
+The maximum number of processes permitted in the pool.
+.It Va kern.ipc.aio.lifetime
+The amount of time a process is permitted to idle in clock ticks.
+If a process is idle for this amount of time and there are more processes
+in the pool than the target minimum,
+the process will exit.
+.El
+.Pp
+A second pool of AIO daemons is used to service all other asynchronous I/O
+requests except for I/O requests to raw disks.
+These processes are named
+.Dq aiod<N> .
+The following sysctl nodes are used with this pool:
+.Bl -tag -width indent
+.It Va vfs.aio.num_aio_procs
+The current number of processes in the pool.
+.It Va vfs.aio.target_aio_procs
+The minimum number of processes that should be present in the pool.
+.It Va vfs.aio.max_aio_procs
+The maximum number of processes permitted in the pool.
+.It Va vfs.aio.aiod_lifetime
+The amount of time a process is permitted to idle in clock ticks.
+If a process is idle for this amount of time and there are more processes
+in the pool than the target minimum,
+the process will exit.
+.El
+.Pp
+Asynchronous I/O requests for raw disks are queued directly to the disk
+device layer after temporarily wiring the user pages associated with the
+request.
+These requests are not serviced by any of the AIO daemon pools.
+.Pp
+Several limits on the number of asynchronous I/O requests are imposed both
+system-wide and per-process.
+These limits are configured via the following sysctls:
+.Bl -tag -width indent
+.It Va vfs.aio.max_buf_aio
+The maximum number of queued asynchronous I/O requests for raw disks permitted
+for a single process.
+Asynchronous I/O requests that have completed but whose status has not been
+retrieved via
+.Xr aio_return 2
+or
+.Xr aio_waitcomplete 2
+are not counted against this limit.
+.It Va vfs.aio.num_buf_aio
+The number of queued asynchronous I/O requests for raw disks system-wide.
+.It Va vfs.aio.max_aio_queue_per_proc
+The maximum number of asynchronous I/O requests for a single process
+serviced concurrently by the default AIO daemon pool.
+.It Va vfs.aio.max_aio_per_proc
+The maximum number of outstanding asynchronous I/O requests permitted for a
+single process.
+This includes requests that have not been serviced,
+requests currently being serviced,
+and requests that have completed but whose status has not been retrieved via
+.Xr aio_return 2
+or
+.Xr aio_waitcomplete 2 .
+.It Va vfs.aio.num_queue_count
+The number of outstanding asynchronous I/O requests system-wide.
+.It Va vfs.aio.max_aio_queue
+The maximum number of outstanding asynchronous I/O requests permitted
+system-wide.
+.El
+.Pp
+Asynchronous I/O control buffers should be zeroed before initializing
+individual fields.
+This ensures all fields are initialized.
+.Pp
+All asynchronous I/O control buffers contain a
+.Vt sigevent
+structure in the
+.Va aio_sigevent
+field which can be used to request notification when an operation completes.
+.Pp
+For
+.Dv SIGEV_KEVENT
+notifications,
+the
+.Va sigevent
+.Ap
+s
+.Va sigev_notify_kqueue
+field should contain the descriptor of the kqueue that the event should be attached
+to, its
+.Va sigev_notify_kevent_flags
+field may contain
+.Dv EV_ONESHOT ,
+.Dv EV_CLEAR , and/or
+.Dv EV_DISPATCH , and its
+.Va sigev_notify
+field should be set to
+.Dv SIGEV_KEVENT .
+The posted kevent will contain:
+.Bl -column ".Va filter"
+.It Sy Member Ta Sy Value
+.It Va ident Ta asynchronous I/O control buffer pointer
+.It Va filter Ta Dv EVFILT_AIO
+.It Va flags Ta Dv EV_EOF
+.It Va udata Ta
+value stored in
+.Va aio_sigevent.sigev_value
+.El
+.Pp
+For
+.Dv SIGEV_SIGNO
+and
+.Dv SIGEV_THREAD_ID
+notifications,
+the information for the queued signal will include
+.Dv SI_ASYNCIO
+in the
+.Va si_code
+field and the value stored in
+.Va sigevent.sigev_value
+in the
+.Va si_value
+field.
+.Pp
+For
+.Dv SIGEV_THREAD
+notifications,
+the value stored in
+.Va aio_sigevent.sigev_value
+is passed to the
+.Va aio_sigevent.sigev_notify_function
+as described in
+.Xr sigevent 3 .
+.Sh SEE ALSO
+.Xr aio_cancel 2 ,
+.Xr aio_error 2 ,
+.Xr aio_read 2 ,
+.Xr aio_return 2 ,
+.Xr aio_suspend 2 ,
+.Xr aio_waitcomplete 2 ,
+.Xr aio_write 2 ,
+.Xr lio_listio 2 ,
+.Xr sigevent 3 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+facility appeared as a kernel option in
+.Fx 3.0 .
+The
+.Nm
+kernel module appeared in
+.Fx 5.0 .
+The
+.Nm
+facility was integrated into all kernels in
+.Fx 11.0 .

@@ -1,0 +1,109 @@
+.\" @(#)getrpcent.3n	2.2 88/08/02 4.0 RPCSRC; from 1.11 88/03/14 SMI
+.\" $NetBSD: getrpcent.3,v 1.6 1998/02/05 18:49:06 perry Exp $
+.\" $FreeBSD$
+.\"
+.Dd February 26, 2016
+.Dt GETRPCENT 3
+.Os
+.Sh NAME
+.Nm getrpcent ,
+.Nm getrpcbyname ,
+.Nm getrpcbynumber ,
+.Nm endrpcent ,
+.Nm setrpcent
+.Nd get RPC entry
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In rpc/rpc.h
+.Ft struct rpcent *
+.Fn getrpcent void
+.Ft struct rpcent *
+.Fn getrpcbyname "const char *name"
+.Ft struct rpcent *
+.Fn getrpcbynumber "int number"
+.Ft void
+.Fn setrpcent "int stayopen"
+.Ft void
+.Fn endrpcent void
+.Sh DESCRIPTION
+The
+.Fn getrpcent ,
+.Fn getrpcbyname ,
+and
+.Fn getrpcbynumber
+functions
+each return a pointer to an object with the
+following structure
+containing the broken-out
+fields of a line in the rpc program number data base,
+.Pa /etc/rpc :
+.Bd -literal
+struct rpcent {
+	char	*r_name;	/* name of server for this rpc program */
+	char	**r_aliases;	/* alias list */
+	long	r_number;	/* rpc program number */
+};
+.Ed
+.Pp
+The members of this structure are:
+.Bl -tag -width r_aliases -offset indent
+.It Va r_name
+The name of the server for this rpc program.
+.It Va r_aliases
+A zero terminated list of alternate names for the rpc program.
+.It Va r_number
+The rpc program number for this service.
+.El
+.Pp
+The
+.Fn getrpcent
+function
+reads the next line of the file, opening the file if necessary.
+.Pp
+The
+.Fn setrpcent
+function
+opens and rewinds the file.
+If the
+.Fa stayopen
+flag is non-zero,
+the net data base will not be closed after each call to
+.Fn getrpcent
+(either directly, or indirectly through one of
+the other
+.Dq getrpc
+calls).
+.Pp
+The
+.Fn endrpcent
+function
+closes the file.
+.Pp
+The
+.Fn getrpcbyname
+and
+.Fn getrpcbynumber
+functions
+sequentially search from the beginning
+of the file until a matching rpc program name or
+program number is found, or until end-of-file is encountered.
+.Sh FILES
+.Bl -tag -width /etc/rpc -compact
+.It Pa /etc/rpc
+.El
+.Sh DIAGNOSTICS
+A
+.Dv NULL
+pointer is returned on
+.Dv EOF
+or error.
+.Sh SEE ALSO
+.Xr rpc 5 ,
+.Xr rpcinfo 8 ,
+.Xr ypserv 8
+.Sh BUGS
+All information
+is contained in a static area
+so it must be copied if it is
+to be saved.

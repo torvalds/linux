@@ -1,0 +1,74 @@
+.\"
+.\" Copyright (c) 2003 Bruce M Simpson <bms@spc.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 21, 2003
+.Dt PMAP_RESIDENT_COUNT 9
+.Os
+.Sh NAME
+.Nm pmap_resident_count ,
+.Nm pmap_wired_count
+.Nd return page resident and wiring statistics
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/pmap.h
+.Ft long
+.Fn pmap_resident_count "pmap_t pmap"
+.Ft long
+.Fn pmap_wired_count "pmap_t pmap"
+.Sh DESCRIPTION
+The
+.Fn pmap_resident_count
+and
+.Fn pmap_wired_count
+macros allow
+.Nm pmap
+consumers to retrieve statistics from the
+.Va pm_stats
+member of the machine-dependent structure
+.Vt struct pmap .
+.Sh IMPLEMENTATION NOTES
+Both functions are defined as in-line macros.
+The members which they access have type
+.Vt long .
+.Sh RETURN VALUES
+The
+.Fn pmap_resident_count
+returns the number of pages in the physical map
+.Va pmap
+which are currently resident in main memory.
+.Pp
+The
+.Fn pmap_wired_count
+returns the number of pages in the physical map
+.Va pmap
+which are currently wired into in main memory.
+.Sh SEE ALSO
+.Xr pmap 9
+.Sh AUTHORS
+This manual page was written by
+.An Bruce M Simpson Aq Mt bms@spc.org .

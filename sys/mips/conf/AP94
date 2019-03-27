@@ -1,0 +1,37 @@
+#
+# Specific board setup for the Atheros AP94 reference board.
+#
+# The AP94 has the following hardware:
+#
+# + AR7161 CPU SoC
+# + AR9223 2.4GHz 11n
+# + AR9220 5GHz 11n
+# + AR8216 10/100 switch
+# + m25p64 based 8MB flash
+# + 32mb RAM
+# + uboot environment
+
+# $FreeBSD$
+
+#NO_UNIVERSE
+
+include		"AR71XX_BASE"
+ident		"AP94"
+hints		"AP94.hints"
+
+# GEOM modules
+device		geom_redboot	# to get access to the SPI flash partitions
+device		xz
+options 	GEOM_UZIP
+
+options 	ROOTDEVNAME=\"ufs:md0.uzip\"
+options 	AR71XX_REALMEM=32*1024*1024
+
+options 	AR71XX_ENV_UBOOT
+
+# options 	MD_ROOT
+# options 	MD_ROOT_SIZE="6144"
+
+options 	AR71XX_ATH_EEPROM	# Fetch EEPROM/PCI config from flash
+options 	ATH_EEPROM_FIRMWARE	# Use EEPROM from flash
+device		firmware		# Used by the above

@@ -1,0 +1,21 @@
+# $FreeBSD$
+
+failures=0
+
+check() {
+	if ! eval "[ $* ]"; then
+		echo "Failed: $*"
+		: $((failures += 1))
+	fi
+}
+
+check '"$(cat <<""
+
+echo yes)" = "yes"'
+
+check '"$(cat <<""
+yes
+
+)" = "yes"'
+
+exit $((failures != 0))

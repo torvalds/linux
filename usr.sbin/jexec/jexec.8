@@ -1,0 +1,86 @@
+.\"
+.\" Copyright (c) 2003 Mike Barcroft <mike@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 24, 2016
+.Dt JEXEC 8
+.Os
+.Sh NAME
+.Nm jexec
+.Nd "execute a command inside an existing jail"
+.Sh SYNOPSIS
+.Nm
+.Op Fl l
+.Op Fl u Ar username | Fl U Ar username
+.Ar jail Op Ar command ...
+.Sh DESCRIPTION
+The
+.Nm
+utility executes
+.Ar command
+inside the
+.Ar jail
+identified by its jid or name.
+If
+.Ar command
+is not specified then the user's shell is used.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl l
+Execute in a clean environment.
+The environment is discarded except for
+.Ev HOME , SHELL , TERM , USER ,
+and anything from the login class capability database for the user.
+.It Fl u Ar username
+The user name from host environment as whom the
+.Ar command
+should run.
+This is the default.
+.It Fl U Ar username
+The user name from jailed environment as whom the
+.Ar command
+should run.
+.El
+.Sh SEE ALSO
+.Xr jail_attach 2 ,
+.Xr jail 8 ,
+.Xr jls 8
+.Sh HISTORY
+The
+.Nm
+utility was added in
+.Fx 5.1 .
+.Sh BUGS
+If the jail is not identified by
+.Ar jid
+there is a possible race in between the lookup of the jail
+and executing the command inside the jail.
+Giving a
+.Ar jid
+has a similar race as another process can stop the jail and
+start another one after the user looked up the
+.Ar jid .

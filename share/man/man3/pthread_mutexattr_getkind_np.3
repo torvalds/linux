@@ -1,0 +1,81 @@
+.\" Copyright (c) 2003 Alexey Zelkin <phantom@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 13, 2003
+.Dt PTHREAD_MUTEXATTR_GETKIND_NP 3
+.Os
+.Sh NAME
+.Nm pthread_mutexattr_getkind_np ,
+.Nm pthread_mutexattr_setkind_np
+.Nd mutex attribute operations (legacy)
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread_np.h
+.Ft int
+.Fn pthread_mutexattr_getkind_np "pthread_mutexattr_t attr"
+.Ft int
+.Fn pthread_mutexattr_setkind_np "pthread_mutexattr_t *attr" "int kind"
+.Sh DESCRIPTION
+.Bf -symbolic
+These functions are deprecated and non-portable implementation of
+the mutex type manipulation.
+.Ef
+.Pp
+It is recommended to use the
+.Xr pthread_mutexattr_gettype 3
+and
+.Xr pthread_mutexattr_settype 3
+functions instead.
+.Sh RETURN VALUES
+The
+.Fn pthread_mutexattr_getkind_np
+function returns a positive value representing the
+.Dq kind
+of the mutex attribute
+.Fa attr
+if successful; otherwise the value \-1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Pp
+.Rv -std pthread_mutexattr_setkind_np
+.Sh ERRORS
+The
+.Fn pthread_mutexattr_getkind_np
+and
+.Fn pthread_mutexattr_setkind_np
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa attr
+is invalid.
+.El
+.Sh SEE ALSO
+.Xr pthread_mutex_destroy 3 ,
+.Xr pthread_mutex_init 3 ,
+.Xr pthread_mutexattr_gettype 3 ,
+.Xr pthread_mutexattr_settype 3

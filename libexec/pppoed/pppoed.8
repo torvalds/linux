@@ -1,0 +1,219 @@
+.\"-
+.\" Copyright (c) 1999-2001 Brian Somers <brian@Awfulhak.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 8, 1999
+.Dt PPPOED 8
+.Os
+.Sh NAME
+.Nm pppoed
+.Nd handle incoming PPP over Ethernet connections
+.Sh SYNOPSIS
+.Nm
+.Op Fl Fd\&
+.Op Fl P Ar pidfile
+.Op Fl a Ar name
+.Op Fl e Ar exec | Fl l Ar label
+.Op Fl n Ar ngdebug
+.Op Fl p Ar provider
+.Ar interface
+.Sh DESCRIPTION
+The
+.Nm
+utility listens to the given
+.Ar interface
+for PPP over Ethernet (PPPoE) service request packets, and actions them
+by negotiating a session then invoking a
+.Xr ppp 8
+program.
+The negotiation is implemented by the
+.Dq pppoe
+netgraph node.
+See
+.Xr ng_pppoe 4
+for details.
+.Pp
+The
+.Nm
+utility
+will only offer services to clients requesting services from the given
+.Ar provider ,
+which is taken as an empty name if not provided.
+If a provider name of
+.Dq *
+is given, any PPPoE requests will be offered service.
+.Pp
+The supplied
+.Ar name
+will be given as the access concentrator name when establishing the connection.
+If no
+.Ar name
+is given, the current base hostname is used.
+.Pp
+After receiving a request (PADI) from the PPPoE netgraph node,
+.Nm
+.Xr fork 2 Ns s
+a child process and returns to service further requests.
+The child process offers service
+(using
+.Ar name )
+and waits for a
+.Dv SUCCESS
+indication from the PPPoE node.
+On receipt of the
+.Dv SUCCESS
+indication,
+.Nm
+will execute
+.Pp
+.D1 Ic exec Pa /usr/sbin/ppp Fl direct Ar label
+.Pp
+as a shell sub-process.
+If
+.Ar label
+has not been specified, it defaults to
+.Ar provider .
+It is possible to specify another command using the
+.Ar exec
+argument.
+This is mandatory if
+.Ar provider
+and
+.Ar label
+are not given.
+The child process will have standard input and standard output
+attached to the same
+.Xr netgraph 4
+data socket
+(see
+.Xr ng_socket 4 )
+when started.
+.Pp
+The environment variables
+.Ev HISMACADDR
+and
+.Ev ACNAME
+are made available to the child process and are set to the MAC address of
+the peer and the name of the AC respectively.
+.Pp
+Upon invocation,
+.Nm
+will attach a
+.Dq pppoe
+netgraph node to the relevant
+.Dq ether
+node using
+.Dq Ar interface Ns \&:
+as the node name, and then connect that
+.Dq pppoe
+node to a local
+.Dq socket
+node.
+If the
+.Fl F
+option has not been given,
+.Nm
+will then go into the background and disassociate itself from the controlling
+terminal.
+When the
+.Fl F
+option is given,
+.Nm
+stays in the foreground.
+.Pp
+If the
+.Fl d
+option is given, additional diagnostics are provided (see the
+.Sx DIAGNOSTICS
+section below).
+If the
+.Fl n
+option is given,
+.Fn NgSetDebug
+is called with an argument of
+.Ar ngdebug .
+.Pp
+If
+.Ar pidfile
+is given,
+.Nm
+will write its process ID to this file on startup.
+.Sh DIAGNOSTICS
+After creating the necessary
+.Xr netgraph 4
+nodes as described above,
+.Nm
+uses
+.Xr syslogd 8
+to report all incoming connections.
+If the
+.Fl d
+option is given,
+.Nm
+will report on the child processes creation of a new netgraph socket, its
+service offer and the invocation of the
+.Xr ppp 8
+program.
+If the
+.Fl n
+option is given, netgraph diagnostic messages are also redirected to
+.Xr syslogd 8 .
+.Pp
+It is sometimes useful to add the following to
+.Pa /etc/syslog.conf :
+.Bd -literal -offset indent
+!pppoed
+*.*				/var/log/pppoed.log
+.Ed
+.Pp
+and the following to
+.Pa /etc/newsyslog.conf :
+.Pp
+.Dl "/var/log/pppoed.log			640  3	   100	*     Z"
+.Sh SEE ALSO
+.Xr NgSetDebug 3 ,
+.Xr netgraph 4 ,
+.Xr ng_ether 4 ,
+.Xr ng_pppoe 4 ,
+.Xr ng_socket 4 ,
+.Xr syslog.conf 5 ,
+.Xr ppp 8 ,
+.Xr syslogd 8
+.Sh HISTORY
+The
+.Nm
+utility was written by
+.An Brian Somers Aq Mt brian@Awfulhak.org
+and first appeared in
+.Fx 3.4 .
+.Sh BUGS
+If another netgraph node is using the given interface,
+.Nm
+will fail to start.
+This is because
+.Xr netgraph 4
+does not currently allow node chaining.
+This may change in the future.

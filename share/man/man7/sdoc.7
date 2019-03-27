@@ -1,0 +1,243 @@
+.\" Copyright (c) 2001, 2002 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: sec-doc.7,v 1.7 2001/12/22 00:14:12 rwatson Exp$
+.\" $FreeBSD$
+.\"
+.Dd September 5, 2005
+.Dt SDOC 7
+.Os
+.Sh NAME
+.Nm sdoc
+.Nd guide to adding security considerations sections to manual pages
+.Sh DESCRIPTION
+This document presents guidelines for
+adding security considerations sections to manual pages.
+It provides two typical examples.
+.Pp
+The guidelines for writing
+.Fx
+manual pages in
+.Xr groff_mdoc 7
+mandate that each manual page describing a feature of the
+.Fx
+system should contain a security considerations section
+describing what security requirements can be broken
+through the misuse of that feature.
+When writing these sections, authors should attempt to
+achieve a happy medium between two conflicting goals:
+brevity and completeness.
+On one hand, security consideration sections must not be too verbose,
+or busy readers might be dissuaded from reading them.
+On the other hand, security consideration sections must not be incomplete,
+or they will fail in their purpose of
+instructing the reader on how to avoid all insecure uses.
+This document provides guidelines for balancing brevity and completeness
+in the security consideration section for a given feature of the
+.Fx
+system.
+.Ss Where to Start
+Begin by listing
+those general security requirements that can be violated
+through the misuse of the feature.
+There are four classes of security requirements:
+.Bl -hang -offset indent
+.It Em integrity
+(example: non-administrators should not modify system binaries),
+.It Em confidentiality
+(example: non-administrators should not view the shadow password file),
+.It Em availability
+(example: the web server should respond to client requests in a timely
+fashion), and
+.It Em correctness
+(example: the ps program should provide exactly the process table
+information listing functionality described in its documentation - no more,
+no less.)
+.El
+.Pp
+A good security considerations section
+should explain how the feature can be misused
+to violate each general security requirement in the list.
+Each explanation should be accompanied by instructions
+the reader should follow in order to avoid a violation.
+When referencing potential vulnerabilities
+described in the Secure Programming Practices manual page,
+.Xr sprog 7 ,
+likewise cross-reference that document
+rather than replicating information.
+Whenever possible, refer to this document
+rather than reproducing the material it contains.
+.Ss Where to Stop
+Security problems are often interrelated;
+individual problems often have far-reaching implications.
+For example, the correctness of virtually any dynamically-linked program
+is dependent on the correct implementation and configuration
+of the run-time linker.
+The correctness of this program, in turn,
+depends on the correctness of its libraries,
+the compiler used to build it,
+the correctness of the preceding compiler that was used to build that compiler,
+and so on,
+as described by Thompson (see
+.Sx SEE ALSO ,
+below).
+.Pp
+Due to the need for brevity, security consideration sections
+should describe only those issues directly related to the feature
+that is the subject of the manual page.
+Refer to other manual pages
+rather than duplicating the material found there.
+.Sh EXAMPLES
+Security considerations sections for most individual functions can follow
+this simple formula:
+.Pp
+.Bl -enum -offset indent -compact
+.It
+Provide one or two sentences describing each potential security
+problem.
+.It
+Provide one or two sentences describing how to avoid each potential
+security problem.
+.It
+Provide a short example in code.
+.El
+.Pp
+This is an example security considerations section for the
+.Xr strcpy 3
+manual page:
+.Pp
+The
+.Fn strcpy
+function is easily misused in a manner which enables malicious users
+to arbitrarily change a running program's functionality
+through a buffer overflow attack.
+.Pp
+Avoid using
+.Fn strcpy .
+Instead, use
+.Fn strncpy
+and ensure that no more characters are copied to the destination buffer
+than it can hold.
+Do not forget to NUL-terminate the destination buffer,
+as
+.Fn strncpy
+will not terminate the destination string if it is truncated.
+.Pp
+Note that
+.Fn strncpy
+can also be problematic.
+It may be a security concern for a string to be truncated at all.
+Since the truncated string will not be as long as the original,
+it may refer to a completely different resource
+and usage of the truncated resource
+could result in very incorrect behavior.
+Example:
+.Bd -literal
+void
+foo(const char *arbitrary_string)
+{
+	char onstack[8];
+
+#if defined(BAD)
+	/*
+	 * This first strcpy is bad behavior.  Do not use strcpy()!
+	 */
+	(void)strcpy(onstack, arbitrary_string);     /* BAD! */
+#elif defined(BETTER)
+	/*
+	 * The following two lines demonstrate better use of
+	 * strncpy().
+	 */
+	(void)strncpy(onstack, arbitrary_string, sizeof(onstack) - 1);
+	onstack[sizeof(onstack - 1)] = '\\0';
+#elif defined(BEST)
+	/*
+	 * These lines are even more robust due to testing for
+	 * truncation.
+	 */
+	if (strlen(arbitrary_string) + 1 > sizeof(onstack))
+		err(1, "onstack would be truncated");
+	(void)strncpy(onstack, arbitrary_string, sizeof(onstack));
+#endif
+}
+.Ed
+.Pp
+Security considerations sections for tools and commands
+are apt to be less formulaic.
+Let your list of potentially-violated security requirements
+be your guide;
+explain each one and list a solution in as concise a manner as possible.
+.Pp
+This is an example security considerations section for the
+.Xr rtld 1
+manual page:
+.Pp
+Using the LD_LIBRARY_PATH and LD_PRELOAD environment variables,
+malicious users can cause the dynamic linker
+to link shared libraries of their own devising
+into the address space of processes running non-set-user-ID/group-ID programs.
+These shared libraries can arbitrarily change the functionality
+of the program by replacing calls to standard library functions
+with calls to their own.
+Although this feature is disabled for set-user-ID and set-group-ID programs,
+it can still be used to create Trojan horses in other programs.
+.Pp
+All users should be aware that the correct operation of non
+set-user-ID/group-ID dynamically-linked programs depends on the proper
+configuration of these environment variables,
+and take care to avoid actions that might set them to values
+which would cause the run-time linker
+to link in shared libraries of unknown pedigree.
+.Sh SEE ALSO
+.Xr groff_mdoc 7 ,
+.Xr security 7 ,
+.Xr sprog 7
+.Rs
+.%A "Edward Amoroso, AT&T Bell Laboratories"
+.%B "Fundamentals of Computer Security Technology"
+.%I "P T R Prentice Hall"
+.%D "1994"
+.Re
+.Rs
+.%A "Ken Thompson"
+.%T "Reflections on Trusting Trust"
+.%J "Communications of the ACM"
+.%I "Association for Computing Machinery, Inc."
+.%P "761-763"
+.%N "Vol. 27, No. 8"
+.%D "August, 1984"
+.Re
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Tim Fraser Aq Mt tfraser@tislabs.com ,
+NAI Labs CBOSS project
+.An Brian Feldman Aq Mt bfeldman@tislabs.com ,
+NAI Labs CBOSS project

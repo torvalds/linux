@@ -1,0 +1,486 @@
+.\" Copyright (c) 2011-2016 Devin Teske
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 26, 2019
+.Dt SYSRC 8
+.Os
+.Sh NAME
+.Nm sysrc
+.Nd safely edit system rc files
+.Sh SYNOPSIS
+.Nm
+.Op Fl cdDeEFhinNqvx
+.Op Fl s Ar name
+.Op Fl f Ar file
+.Op Fl j Ar jail | Fl R Ar dir
+.Ar name Ns Op Ns Oo +|- Oc Ns = Ns Ar value
+.Ar ...
+.Nm
+.Op Fl cdDeEFhinNqvx
+.Op Fl s Ar name
+.Op Fl f Ar file
+.Op Fl j Ar jail | Fl R Ar dir
+.Fl a | A
+.Nm
+.Op Fl E
+.Op Fl s Ar name
+.Op Fl f Ar file
+.Fl l
+.Nm
+.Op Fl eEqv
+.Fl L
+.Op Ar name ...
+.Sh DESCRIPTION
+The
+.Nm
+utility retrieves
+.Xr rc.conf 5
+variables from the collection of system rc files and allows processes with
+appropriate privilege to change values in a safe and effective manner.
+.Pp
+The following options are available:
+.Bl -tag -width indent+
+.It Fl a
+Dump a list of all non-default configuration variables.
+.It Fl A
+Dump a list of all configuration variables
+.Pq incl. defaults .
+.It Fl c
+Check only.
+For querying, return success if all requested variables are set
+.Pq even if NULL ,
+otherwise return error status.
+For assignments, return success if no changes are required, otherwise failure.
+If verbose
+.Pq see Dq Fl v
+prints a message stating whether variables are set and/or changes are required.
+.It Fl d
+Print a description of the given variable.
+.It Fl D
+Show default value(s) only (this is the same as setting RC_CONFS to NULL or
+passing `-f' with a NULL file-argument).
+.It Fl e
+Print query results as
+.Xr sh 1
+compatible syntax
+.Pq for example, Ql var=value .
+Ignored if either
+.Ql Fl n
+or
+.Ql Fl F
+is specified.
+.It Fl E
+When given
+.Sq Fl l
+or
+.Sq Fl L
+to list configuration files, only list those that exist.
+When changing a setting, prefer to modify existing files.
+.It Fl f Ar file
+Operate on the specified file(s) instead of the files obtained by reading the
+.Sq rc_conf_files
+entry in the
+.Ev RC_DEFAULTS
+file.
+This option can be specified multiple times for additional files.
+.It Fl F
+Show only the last
+.Xr rc.conf 5
+file each directive is in.
+.It Fl h
+Print a short usage message to stderr and exit.
+.It Fl -help
+Print a full usage statement to stderr and exit.
+.It Fl i
+Ignore unknown variables.
+.It Fl j Ar jail
+The
+.Ar jid
+or name of the
+.Ar jail
+to operate within
+.Pq overrides So Fl R Ar dir Sc ; requires Xr jexec 8 .
+.It Fl l
+List configuration files used at startup on stdout and exit.
+.It Fl L
+List all configuration files including rc.conf.d entries on stdout and exit.
+Can be combined with
+.Sq Fl v
+or
+.Sq Fl e
+to show service names.
+.Nm
+exits with success if all named services are installed, failure otherwise.
+.It Fl n
+Show only variable values, not their names.
+.It Fl N
+Show only variable names, not their values.
+.It Fl q
+Quiet.
+Disable verbose and hide certain errors.
+When combined with
+.Sq Fl L
+and one or more
+.Ar name
+arguments, provide only exit status and no output.
+.It Fl R Ar dir
+Operate within the root directory
+.Sq Ar dir
+rather than
+.Sq / .
+.It Fl s Ar name
+If an
+.Li rc.d
+script of
+.Ar name
+exists
+.Po
+in
+.Dq /etc/rc.d
+or
+.Li local_startup
+directories
+.Pc ,
+process its
+.Dq rc.conf.d
+entries as potential overrides to
+.Sq rc_conf_files .
+See
+.Xr rc.subr 8
+for additional information on
+.Dq rc.conf.d .
+Can be combined with
+.Sq Fl l
+to list configuration files used by service at startup.
+.It Fl v
+Verbose.
+Print the pathname of the specific
+.Xr rc.conf 5
+file where the directive was found.
+.It Fl -version
+Print version information to stdout and exit.
+.It Fl x
+Remove variable(s) from specified file(s).
+.El
+.Pp
+This utility has a similar syntax to
+.Xr sysctl 8 .
+It shares the `-e' and `-n' options
+.Pq detailed above
+and also has the same
+.Ql name[=value]
+syntax for making queries/assignments.
+In addition
+.Pq but unlike Xr sysctl 8 ,
+.Ql name+=value
+is supported for adding items to values
+.Pq see APPENDING VALUES
+and
+.Ql name-=value
+is supported for removing items from values
+.Pq see SUBTRACTING VALUES .
+.Pp
+However, while
+.Xr sysctl 8
+serves to query/modify MIBs in the entrant kernel,
+.Nm
+instead works on values in the system
+.Xr rc.conf 5
+configuration files.
+.Pp
+The list of system configuration files is configured in the file
+.Ql /etc/defaults/rc.conf
+within the variable
+.Ql rc_conf_files ,
+which by-default contains a space-separated list of pathnames.
+On all
+.Fx
+systems, this defaults to the value "/etc/rc.conf /etc/rc.conf.local".
+Each
+pathname is sourced in-order upon startup.
+It is in the same fashion that
+.Nm
+sources the configuration files before returning the value of the given
+variable.
+.Pp
+When supplied a variable name,
+.Nm
+will return the value of the variable.
+If the variable does not appear in any
+of the configured
+.Ql rc_conf_files ,
+an error is printed and error status is returned.
+.Pp
+When changing values of a given variable, it does not matter if the variable
+appears in any of the
+.Ql rc_conf_files
+or not.
+If the variable does not appear in any of the files, it is appended to
+the end of the first pathname in the
+.Ql rc_conf_files
+variable.
+Otherwise,
+.Nm
+will replace only the last-occurrence in the last-file found to contain the
+variable.
+This gets the value to take effect next boot without heavily
+modifying these integral files (yet taking care not to allow the file to
+grow unwieldy should
+.Nm
+be called repeatedly).
+.Sh APPENDING VALUES
+When using the
+.Ql key+=value
+syntax to add items to existing values,
+the first character of the value is taken as the delimiter separating items
+.Pq usually Qo " " Qc or Qo , Qc .
+For example, in the following statement:
+.Bl -item -offset indent
+.It
+.Nm
+cloned_interfaces+=" gif0"
+.El
+.Pp
+the first character is a space, informing
+.Nm
+that existing values are to be considered separated by whitespace.
+If
+.Ql gif0
+is not found in the existing value for
+.Va cloned_interfaces ,
+it is added
+.Pq with delimiter only if existing value is non-NULL .
+.Pp
+For convenience, if the first character is alpha-numeric
+.Pq letters A-Z, a-z, or numbers 0-9 ,
+dot
+.Pq Li \&. ,
+or slash
+.Pq Li / ,
+.Nm
+uses the default setting of whitespace as separator.
+For example, the above and below statements are equivalent since
+.Dq gif0
+starts with an alpha-numeric character
+.Pq the letter Li g :
+.Bl -item -offset indent
+.It
+.Nm
+cloned_interfaces+=gif0
+.El
+.Pp
+Take the following sequence for example:
+.Bl -item -offset indent
+.It
+.Nm
+cloned_interfaces= # start with NULL
+.It
+.Nm
+cloned_interfaces+=gif0
+.Dl # NULL -> `gif0' Pq NB: no preceding delimiter
+.It
+.Nm
+cloned_interfaces+=gif0 # no change
+.It
+.Nm
+cloned_interfaces+="tun0 gif0"
+.Dl # `gif0' -> `gif0 tun0' Pq NB: no duplication
+.El
+.Pp
+.Nm
+prevents the same value from being added if already there.
+.Sh SUBTRACTING VALUES
+When using the
+.Ql key-=value
+syntax to remove items from existing values,
+the first character of the value is taken as the delimiter separating items
+.Pq usually Qo " " Qc or Qo , Qc .
+For example, in the following statement:
+.Pp
+.Dl Nm cloned_interfaces-=" gif0"
+.Pp
+the first character is a space, informing
+.Nm
+that existing values are to be considered separated by whitespace.
+If
+.Ql gif0
+is found in the existing value for
+.Va cloned_interfaces ,
+it is removed
+.Pq extra delimiters removed .
+.Pp
+For convenience, if the first character is alpha-numeric
+.Pq letters A-Z, a-z, or numbers 0-9 ,
+dot
+.Pq Li \&. ,
+or slash
+.Pq Li / ,
+.Nm
+uses the default setting of whitespace as separator.
+For example, the above and below statements are equivalent since
+.Dq gif0
+starts with an alpha-numeric character
+.Pq the letter Li g :
+.Bl -item -offset indent
+.It
+.Nm
+cloned_interfaces-=gif0
+.El
+.Pp
+Take the following sequence for example:
+.Bl -item -offset indent
+.It
+.Nm
+foo="bar baz" # start
+.It
+.Nm
+foo-=bar # `bar baz' -> `baz'
+.It
+.Nm
+foo-=baz # `baz' -> NULL
+.El
+.Pp
+.Nm
+removes all occurrences of all items provided
+and collapses extra delimiters between items.
+.Sh ENVIRONMENT
+The following environment variables are referenced by
+.Nm :
+.Bl -tag -width ".Ev RC_DEFAULTS"
+.It Ev RC_CONFS
+Override default
+.Ql rc_conf_files
+.Pq even if set to NULL .
+.It Ev RC_DEFAULTS
+Location of
+.Ql /etc/defaults/rc.conf
+file.
+.El
+.Sh DEPENDENCIES
+The following standard commands are required by
+.Nm :
+.Pp
+.Xr awk 1 ,
+.Xr cat 1 ,
+.Xr chmod 1 ,
+.Xr env 1 ,
+.Xr grep 1 ,
+.Xr mktemp 1 ,
+.Xr mv 1 ,
+.Xr rm 1 ,
+.Xr sh 1 ,
+.Xr stat 1 ,
+.Xr tail 1 ,
+.Xr chown 8 ,
+.Xr jls 8 ,
+and
+.Xr jexec 8 .
+.Sh FILES
+.Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
+.It Pa /etc/defaults/rc.conf
+.It Pa /etc/rc.conf
+.It Pa /etc/rc.conf.local
+.It Pa /etc/rc.conf.d/name
+.It Pa /etc/rc.conf.d/name/*
+.It Pa /usr/local/etc/rc.conf.d/name
+.It Pa /usr/local/etc/rc.conf.d/name/*
+.El
+.Sh EXAMPLES
+Below are some simple examples of how
+.Nm
+can be used to query certain values from the
+.Xr rc.conf 5
+collection of system configuration files:
+.Pp
+.Nm
+sshd_enable
+.Dl returns the value of $sshd_enable, usually YES or NO .
+.Pp
+.Nm
+defaultrouter
+.Dl returns IP address of default router Pq if configured .
+.Pp
+Working on other files, such as
+.Xr crontab 5 :
+.Pp
+.Nm
+-f /etc/crontab MAILTO
+.Dl returns the value of the MAILTO setting Pq if configured .
+.Pp
+Appending to existing values:
+.Pp
+.Nm
+\&cloned_interfaces+=gif0
+.Dl appends Qo gif0 Qc to $cloned_interfaces Pq see APPENDING VALUES .
+.Pp
+.Nm
+\&cloned_interfaces-=gif0
+.Dl removes Qo gif0 Qc from $cloned_interfaces Pq see SUBTRACTING VALUES .
+.Pp
+In addition to the above syntax,
+.Nm
+also supports inline
+.Xr sh 1
+PARAMETER expansion for changing the way values are reported, shown below:
+.Pp
+.Nm
+\&'hostname%%.*'
+.Dl returns $hostname up to (but not including) first `.' .
+.Pp
+.Nm
+\&'network_interfaces%%[$IFS]*'
+.Dl returns first word of $network_interfaces .
+.Pp
+.Nm
+\&'ntpdate_flags##*[$IFS]'
+.Dl returns last word of $ntpdate_flags (time server address) .
+.Pp
+.Nm
+usbd_flags-"default"
+.Dl returns $usbd_flags or "default" if unset or NULL .
+.Pp
+.Nm
+cloned_interfaces+"alternate"
+.Dl returns "alternate" if $cloned_interfaces is set .
+.Sh SEE ALSO
+.Xr rc.conf 5 ,
+.Xr jail 8 ,
+.Xr jexec 8 ,
+.Xr jls 8 ,
+.Xr rc 8 ,
+.Xr rc.subr 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+A
+.Nm
+utility first appeared in
+.Fx 9.2 .
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.Sh THANKS TO
+Brandon Gooch, Ngie Cooper, Julian Elischer, Pawel Jakub Dawidek,
+Cyrille Lefevre, Ross West, Stefan Esser, Marco Steinbach, Jilles Tjoelker,
+Allan Jude, and Lars Engels for suggestions, help, and testing.

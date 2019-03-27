@@ -1,0 +1,252 @@
+.\" Copyright (c) 2013 Marcel Moolenaar
+.\" Copyright (c) 2013 Craig Rodrigues
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\"
+.Dd October 17, 2013
+.Dt MOUNT.CONF 5
+.Os
+.Sh NAME
+.Nm mount.conf
+.Nd root file system mount configuration file
+.Sh SYNOPSIS
+.Pa /.mount.conf
+.Sh DESCRIPTION
+During the bootup process, the
+.Fx
+kernel will try to mount the root file system
+using the logic in the
+.Fn vfs_mountroot
+function in
+.Pa src/sys/kern/vfs_mountroot.c .
+The root mount logic can be described as follows:
+.Bl -enum
+.It
+The kernel will synthesize in memory a config file
+with default directives for mounting
+the root file system.
+The logic for this is in
+.Fn vfs_mountroot_conf0 .
+.It
+The kernel will first mount
+.Xr devfs 5
+as the root file system.
+.It
+Next, the kernel will parse the in-memory config file created in step 1
+and try to mount the actual root file system.
+See
+.Sx FILE FORMAT
+for the format of the config file.
+.It
+When the actual root file system is mounted,
+.Xr devfs 5
+will be re-mounted on the
+.Pa /dev
+directory.
+.It
+If a
+.Pa /.mount.conf
+file does not exist in the root file system which was
+just mounted, the root mount logic stops here.
+.It
+If a
+.Pa /.mount.conf
+file exists in the root file system which was just mounted,
+this file will be parsed, and the kernel will use this new config
+file to try to re-mount the root file system.
+See
+.Sx FILE FORMAT
+for the format of the config file.
+.It
+If the new root file system has a
+.Pa /.mount
+directory, the old root file system will be re-mounted
+on
+.Pa /.mount .
+.It
+The root mount logic will go back to step 4.
+.El
+.Pp
+The root mount logic is recursive, and step 8 will
+be repeated as long as each new root file system
+which is mounted has a
+.Pa /.mount.conf
+file.
+.Sh FILE FORMAT
+The kernel parses each line in
+.Pa .mount.conf
+and then tries to perform the action specified on that line as soon as it is parsed.
+.Bl -tag -width "XXXXXXXXXX"
+.It Ic #
+A line beginning with a # is a comment and is ignored.
+.It Ic {FS}:{MOUNTPOINT} {OPTIONS}
+The kernel will try to mount this in an
+operation equivalent to:
+.Bd -literal -offset indent
+mount -t {FS} -o {OPTIONS} {MOUNTPOINT} /
+.Ed
+.Pp
+If this is successfully mounted,
+further lines in
+.Pa .mount.conf
+are ignored.
+If all lines in
+.Pa .mount.conf
+have been processed and no root file system has been successfully
+mounted, then the action specified by
+.Ic .onfail
+is performed.
+.It Ic .ask
+When the kernel processes this line, a
+.Li mountroot>
+command-line prompt is displayed.
+At this prompt, the operator can enter the
+the root mount.
+.It Ic .md Ar file
+Create a memory backed
+.Xr md 4
+virtual disk, using
+.Ar file
+as the backing store.
+.It Ic .onfail Ar [panic|reboot|retry|continue]
+If after parsing all the lines in
+.Pa .mount.conf
+the kernel is unable to mount a root file system,
+the
+.Ic .onfail
+directive tells the kernel what action to perform.
+.It Ic .timeout Ar N
+Before trying to mount a root file system,
+if the root mount device does not exist, wait at most
+.Ar N
+seconds for the device to appear before trying to mount it.
+If
+.Ic .timeout
+is not specified, the default timeout is 3 seconds.
+.El
+.Sh EXAMPLES
+The following example
+.Pa .mount.conf
+will direct the kernel to try mounting the root file system
+first as an ISO CD9660 file system on
+.Pa /dev/cd0 ,
+then if that does not work, as an ISO CD9660 file system on
+.Pa /dev/cd1 ,
+and then if that does not work, as a UFS file system on
+.Pa /dev/ada0s1a .
+If that does not work, a
+.Li mountroot>
+command-line prompt will be displayed where the operator
+can manually enter the root file system to mount.
+Finally if that does not work, the kernel will panic.
+.Bd -literal -offset indent
+.Li .onfail panic
+.Li .timeout 3
+cd9660:/dev/cd0 ro
+.Li .timeout 0
+cd9660:/dev/cd1 ro
+.Li .timeout 3
+ufs:/dev/ada0s1a
+.Li .ask
+.Ed
+.Pp
+The following example
+.Pa .mount.conf
+will direct the kernel to create a
+.Xr md 4
+memory disk attached to the file
+.Pa /data/OS-1.0.iso
+and then mount the ISO CD9660 file system
+on the md device which was just created.
+The last line is a comment which is ignored.
+.Bd -literal -offset indent
+.Li .timeout 3
+.Li .md /data/OS-1.0.iso
+.Li cd9600:/dev/md# ro
+.Li # Can also use cd9660:/dev/md0 ro
+.Ed
+.Pp
+The following example
+.Pa .mount.conf
+will direct the kernel to create a
+.Xr md 4
+memory disk attached to the file
+.Pa /data/base.ufs.uzip
+and then mount the UFS file system
+on the md uzip device which was just created
+by the
+.Xr geom_uzip 4
+driver.
+.Bd -literal -offset indent
+.Li .md /data/base.ufs.uzip
+.Li ufs:/dev/md#.uzip ro
+.Li # Can also use ufs:/dev/md0.uzip ro
+.Ed
+.Pp
+The following example
+.Pa .mount.conf
+will direct the kernel to do a unionfs
+mount on a directory
+.Pa /jail/freebsd-8-stable
+which has a
+.Xr chroot 2
+environment.
+.Bd -literal -offset indent
+.Li .timeout 3
+.Li unionfs:/jail/freebsd-8-stable
+.Ed
+.Sh NOTES
+For each root file system which is mounted, a
+.Pa /dev
+directory
+.Em must
+exist so that the root mount logic can properly re-mount
+.Xr devfs 5 .
+If this directory does not exist, the system
+may hang during the bootup process.
+.Sh SEE ALSO
+.Xr nmount 2 ,
+.Xr md 4 ,
+.Xr boot.config 5 ,
+.Xr fstab 5 ,
+.Xr boot 8 ,
+.Xr loader 8 ,
+.Xr mount 8
+.Sh HISTORY
+The
+.Nm
+file first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An -nosplit
+The root mount logic in the
+.Fx
+kernel which parses
+.Pa /.mount.conf
+was written by
+.An Marcel Moolenaar Aq Mt marcel@FreeBSD.org .
+This man page was written by
+.An Craig Rodrigues Aq Mt rodrigc@FreeBSD.org .

@@ -1,0 +1,144 @@
+.\"
+.\" Copyright (c) 1996 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\" "
+.Dd January 21, 2010
+.Dt SYSEXITS 3
+.Os
+.Sh NAME
+.Nm sysexits
+.Nd preferable exit codes for programs
+.Sh SYNOPSIS
+.In sysexits.h
+.Sh DESCRIPTION
+According to
+.Xr style 9 ,
+it is not a good practice to call
+.Xr exit 3
+with arbitrary values to indicate a failure condition when ending
+a program.
+Instead, the pre-defined exit codes from
+.Nm
+should be used, so the caller of the process can get a rough
+estimation about the failure class without looking up the source code.
+.Pp
+The successful exit is always indicated by a status of 0, or
+.Sy EX_OK .
+Error numbers begin at
+.Sy EX__BASE
+to reduce the possibility of clashing with other exit statuses that
+random programs may already return.
+The meaning of the codes is
+approximately as follows:
+.Bl -tag -width "EX_UNAVAILABLEXX(XX)"
+.It Sy EX_USAGE Pq 64
+The command was used incorrectly, e.g., with the wrong number of
+arguments, a bad flag, a bad syntax in a parameter, or whatever.
+.It Sy EX_DATAERR Pq 65
+The input data was incorrect in some way.
+This should only be used
+for user's data and not system files.
+.It Sy EX_NOINPUT Pq 66
+An input file (not a system file) did not exist or was not readable.
+This could also include errors like
+.Dq \&No message
+to a mailer (if it cared to catch it).
+.It Sy EX_NOUSER Pq 67
+The user specified did not exist.
+This might be used for mail
+addresses or remote logins.
+.It Sy EX_NOHOST Pq 68
+The host specified did not exist.
+This is used in mail addresses or
+network requests.
+.It Sy EX_UNAVAILABLE Pq 69
+A service is unavailable.
+This can occur if a support program or file
+does not exist.
+This can also be used as a catchall message when
+something you wanted to do does not work, but you do not know why.
+.It Sy EX_SOFTWARE Pq 70
+An internal software error has been detected.
+This should be limited
+to non-operating system related errors as possible.
+.It Sy EX_OSERR Pq 71
+An operating system error has been detected.
+This is intended to be
+used for such things as
+.Dq cannot fork ,
+.Dq cannot create pipe ,
+or the like.
+It includes things like getuid returning a user that
+does not exist in the passwd file.
+.It Sy EX_OSFILE Pq 72
+Some system file (e.g.,
+.Pa /etc/passwd ,
+.Pa /var/run/utx.active ,
+etc.) does not exist, cannot be opened, or has some sort of error
+(e.g., syntax error).
+.It Sy EX_CANTCREAT Pq 73
+A (user specified) output file cannot be created.
+.It Sy EX_IOERR Pq 74
+An error occurred while doing I/O on some file.
+.It Sy EX_TEMPFAIL Pq 75
+Temporary failure, indicating something that is not really an error.
+In sendmail, this means that a mailer (e.g.) could not create a
+connection, and the request should be reattempted later.
+.It Sy EX_PROTOCOL Pq 76
+The remote system returned something that was
+.Dq not possible
+during a protocol exchange.
+.It Sy EX_NOPERM Pq 77
+You did not have sufficient permission to perform the operation.
+This
+is not intended for file system problems, which should use
+.Sy EX_NOINPUT
+or
+.Sy EX_CANTCREAT ,
+but rather for higher level permissions.
+.It Sy EX_CONFIG Pq 78
+Something was found in an unconfigured or misconfigured state.
+.El
+.Pp
+The numerical values corresponding to the symbolical ones are given in
+parenthesis for easy reference.
+.Sh SEE ALSO
+.Xr err 3 ,
+.Xr exit 3 ,
+.Xr style 9
+.Sh HISTORY
+The
+.Nm
+file appeared somewhere after
+.Bx 4.3 .
+.Sh AUTHORS
+This manual page was written by
+.An J\(:org Wunsch
+after the comments in
+.In sysexits.h .
+.Sh BUGS
+The choice of an appropriate exit value is often ambiguous.

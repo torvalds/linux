@@ -1,0 +1,129 @@
+.\" Copyright (c) 2012 Luigi Rizzo, Universita` di Pisa
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This document is derived in part from the enet man page (enet.4)
+.\" distributed with 4.3BSD Unix.
+.\"
+.\" $FreeBSD$
+.\" $Id: $
+.\"
+.Dd January 9, 2019
+.Dt VALE 4
+.Os
+.Sh NAME
+.Nm vale
+.Nd a very fast Virtual Local Ethernet using the netmap API
+.Sh SYNOPSIS
+.Cd device netmap
+.Sh DESCRIPTION
+.Nm
+is a feature of the
+.Xr netmap 4
+module that implements multiple Virtual switches that can
+be used to interconnect netmap clients, including traffic
+sources and sinks, packet forwarders, userspace firewalls,
+and so on.
+.Pp
+.Nm
+is implemented completely in software, and is extremely fast.
+On a modern machine it can move almost 20 Million packets per
+second (Mpps) per core with small frames, and about 70 Gbit/s
+with 1500 byte frames.
+.Sh OPERATION
+.Nm
+dynamically creates switches and ports as clients connect
+to it using the
+.Xr netmap 4
+API.
+.Pp
+.Nm
+ports are named
+.Pa valeSSS:PPP
+where
+.Pa vale
+is the prefix indicating a VALE switch rather than a standard interface,
+.Pa SSS
+indicates a specific switch (the colon is a separator),
+and
+.Pa PPP
+indicates a port within the switch.
+Both SSS and PPP have the form [0-9a-zA-Z_]+ , the string cannot
+exceed IFNAMSIZ characters, and PPP cannot be the name of any
+existing OS network interface.
+.Pp
+See
+.Xr netmap 4
+for details on the API.
+.Ss LIMITS
+.Nm
+currently supports up to 4 switches, 16 ports per switch, with
+1024 buffers per port.
+These hard limits will be
+changed to sysctl variables in future releases.
+.Sh SYSCTL VARIABLES
+.Nm
+uses the following sysctl variables to control operation:
+.Bl -tag -width dev.netmap.verbose
+.It dev.netmap.bridge_batch
+The maximum number of packets processed internally
+in each iteration.
+Defaults to 1024, use lower values to trade latency
+with throughput.
+.It dev.netmap.verbose
+Set to non-zero values to enable in-kernel diagnostics.
+.El
+.Sh EXAMPLES
+Create one switch, with a traffic generator connected to one
+port, and a netmap-enabled tcpdump instance on another port:
+.Bd -literal -offset indent
+tcpdump -ni valea:1 &
+pkt-gen  -i valea:0 -f tx &
+.Ed
+.Pp
+Create two switches,
+each connected to two qemu machines on different ports.
+.Bd -literal -offset indent
+qemu -net nic -net netmap,ifname=vale1:a ... &
+qemu -net nic -net netmap,ifname=vale1:b ... &
+qemu -net nic -net netmap,ifname=vale2:c ... &
+qemu -net nic -net netmap,ifname=vale2:d ... &
+.Ed
+.Sh SEE ALSO
+.Xr netmap 4
+.Pp
+Luigi Rizzo, Giuseppe Lettieri: VALE, a switched ethernet for virtual machines,
+June 2012, http://info.iet.unipi.it/~luigi/vale/
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+switch was designed and implemented in 2012 by
+.An Luigi Rizzo
+and
+.An Giuseppe Lettieri
+at the Universita` di Pisa.
+.Pp
+.Nm
+was funded by the European Commission within FP7 Projects
+CHANGE (257422) and OPENLAB (287581).

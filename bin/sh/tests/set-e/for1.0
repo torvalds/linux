@@ -1,0 +1,9 @@
+# $FreeBSD$
+set -e
+f() {
+	for i in a b c; do
+		false
+		true
+	done
+}
+f || true

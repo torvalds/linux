@@ -1,0 +1,95 @@
+.\" Copyright (C) 2008 Chad David <davidc@acns.ab.ca>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 8, 2008
+.Dt INSMNTQUE 9
+.Os
+.Sh NAME
+.Nm insmntque ,
+.Nm insmntque1
+.Nd "associate a vnode with a mount"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn insmntque "struct vnode *vp" "struct mount *mp"
+.Ft int
+.Fn insmntque1 "struct vnode *vp" "struct mount *mp" "void (*dtr)(struct vnode *, void *)" "void *dtr_arg"
+.Sh DESCRIPTION
+The
+.Fn insmntque
+function associates a vnode with a mount.
+This includes updating
+.Va v_mount
+for the vnode, and inserting the vnode into the mount's vnode list.
+.Pp
+The mount reference count is incremented for each vnode added to the
+mount, and that reference is decremented by
+.Xr vgone 9 .
+.Pp
+The mount's interlock is held while the vnode is inserted.
+For MP-safe file systems, the vnode must be exclusively locked.
+.Pp
+On failure,
+.Fn insmntque
+calls
+.Xr vgone 9
+on the supplied vnode, and then drops the vnode lock and reference.
+If more elaborated cleanup after
+.Fn insmntque
+failure is needed, the
+.Fn insmntque1
+function may be used instead.
+The
+.Fa dtr
+argument is a pointer to a function that is called on failure.
+This function may perform any custom cleanup.
+The vnode pointer is supplied as the first argument to
+.Fa dtr .
+The
+.Fa dtr_arg
+argument is the second, supplying any additional context needed.
+.Sh RETURN VALUES
+The
+.Fn insmntque
+function will always return 0, unless the file system is currently being unmounted
+in which case it may return
+.Dv EBUSY .
+Also,
+.Fn insmntque
+may be forced to insert the vnode into the mount's vnode list
+by setting the
+.Va VV_FORCEINSMQ
+flag in the vnode
+.Va v_flag ,
+even if the file system is being unmounted.
+.Sh SEE ALSO
+.Xr vgone 9
+.Sh AUTHORS
+This manual page was written by
+.An Chad David Aq Mt davidc@acns.ab.ca .

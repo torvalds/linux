@@ -1,0 +1,359 @@
+.\" Copyright (c) 2009 Rick Macklem, University of Guelph
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 19, 2017
+.Dt NFSV4 4
+.Os
+.Sh NAME
+.Nm NFSv4
+.Nd NFS Version 4 Protocol
+.Sh DESCRIPTION
+The NFS client and server provides support for the
+.Tn NFSv4
+specification; see
+.%T "Network File System (NFS) Version 4 Protocol RFC 7530" and
+.%T "Network File System (NFS) Version 4 Minor Version 1 Protocol RFC 5661" .
+The protocol is somewhat similar to NFS Version 3, but differs in significant
+ways.
+It uses a single compound RPC that concatenates operations to-gether.
+Each of these operations are similar to the RPCs of NFS Version 3.
+The operations in the compound are performed in order, until one of
+them fails (returns an error) and then the RPC terminates at that point.
+.Pp
+It has
+integrated locking support, which implies that the server is no longer
+stateless.
+As such, the
+.Nm
+server remains in recovery mode for a grace period (always greater than the
+lease duration the server uses) after a reboot.
+During this grace period, clients may recover state but not perform other
+open/lock state changing operations.
+To provide for correct recovery semantics, a small file described by
+.Xr stablerestart 5
+is used by the server during the recovery phase.
+If this file is missing or empty, there is a backup copy maintained by
+.Xr nfsd 8
+that will be used. If either file is missing, they will be
+created by the
+.Xr nfsd 8 .
+If both the file and the backup copy are empty,
+it will result in the server starting without providing a grace period
+for recovery.
+Note that recovery only occurs when the server
+machine is rebooted, not when the
+.Xr nfsd 8
+are just restarted.
+.Pp
+It provides several optional features not present in NFS Version 3:
+.sp
+.Bd -literal -offset indent -compact
+- NFS Version 4 ACLs
+- Referrals, which redirect subtrees to other servers
+  (not yet implemented)
+- Delegations, which allow a client to operate on a file locally
+- pNFS, where I/O operations are separated from Metadata operations
+.Ed
+.Pp
+The
+.Nm
+protocol does not use a separate mount protocol and assumes that the
+server provides a single file system tree structure, rooted at the point
+in the local file system tree specified by one or more
+.sp 1
+.Bd -literal -offset indent -compact
+V4: <rootdir> [-sec=secflavors] [host(s) or net]
+.Ed
+.sp 1
+line(s) in the
+.Xr exports 5
+file.
+(See
+.Xr exports 5
+for details.)
+The
+.Xr nfsd 8
+allows a limited subset of operations to be performed on non-exported subtrees
+of the local file system, so that traversal of the tree to the exported
+subtrees is possible.
+As such, the ``<rootdir>'' can be in a non-exported file system.
+The exception is ZFS, which checks exports and, as such, all ZFS file systems
+below the ``<rootdir>'' must be exported.
+However,
+the entire tree that is rooted at that point must be in local file systems
+that are of types that can be NFS exported.
+Since the
+.Nm
+file system is rooted at ``<rootdir>'', setting this to anything other
+than ``/'' will result in clients being required to use different mount
+paths for
+.Nm
+than for NFS Version 2 or 3.
+Unlike NFS Version 2 and 3, Version 4 allows a client mount to span across
+multiple server file systems, although not all clients are capable of doing
+this.
+.Pp
+.Nm
+uses strings for users and groups instead of numbers.
+On the wire, these strings can either have the numbers in the string or
+take the form:
+.sp
+.Bd -literal -offset indent -compact
+<user>@<dns.domain>
+.Ed
+.sp
+where ``<dns.domain>'' is not the same as the DNS domain used
+for host name lookups, but is usually set to the same string.
+Most systems set this ``<dns.domain>''
+to the domain name part of the machine's
+.Xr hostname 1
+by default.
+However, this can normally be overridden by a command line
+option or configuration file for the daemon used to do the name<->number
+mapping.
+Under FreeBSD, the mapping daemon is called
+.Xr nfsuserd 8
+and has a command line option that overrides the domain component of the
+machine's hostname.
+For use of this form of string on
+.Nm ,
+either client or server, this daemon must be running.
+.Pp
+The form where the numbers are in the strings can only be used for AUTH_SYS.
+To configure your systems this way, the
+.Xr nfsuserd 8
+daemon does not need to be running on the server, but the following sysctls need to be
+set to 1 on the server.
+.sp
+.Bd -literal -offset indent -compact
+vfs.nfs.enable_uidtostring
+vfs.nfsd.enable_stringtouid
+.Ed
+.sp
+On the client, the sysctl
+.sp
+.Bd -literal -offset indent -compact
+vfs.nfs.enable_uidtostring
+.Ed
+.sp
+must be set to 1 and the
+.Xr nfsuserd 8
+daemon does not need to be running.
+.Pp
+If these strings are not configured correctly, ``ls -l'' will typically
+report a lot of ``nobody'' and ``nogroup'' ownerships.
+.Pp
+Although uid/gid numbers are no longer used in the
+.Nm
+protocol except optionally in the above strings, they will still be in the RPC authentication fields when
+using AUTH_SYS (sec=sys), which is the default.
+As such, in this case both the user/group name and number spaces must
+be consistent between the client and server.
+.Pp
+However, if you run
+.Nm
+with RPCSEC_GSS (sec=krb5, krb5i, krb5p), only names and KerberosV tickets
+will go on the wire.
+.Sh SERVER SETUP
+To set up the NFS server that supports
+.Nm ,
+you will need to set the variables in
+.Xr rc.conf 5
+as follows:
+.sp
+.Bd -literal -offset indent -compact
+nfs_server_enable="YES"
+nfsv4_server_enable="YES"
+.Ed
+.sp
+plus
+.sp
+.Bd -literal -offset indent -compact
+nfsuserd_enable="YES"
+.Ed
+.sp
+if the server is using the ``<user>@<domain>'' form of user/group strings or
+is using the ``-manage-gids'' option for
+.Xr nfsuserd 8 .
+.Pp
+You will also need to add at least one ``V4:'' line to the
+.Xr exports 5
+file for
+.Nm
+to work.
+.Pp
+If the file systems you are exporting are only being accessed via
+.Nm
+there are a couple of
+.Xr sysctl 8
+variables that you can change, which might improve performance.
+.Bl -tag -width Ds
+.It Cm vfs.nfsd.issue_delegations
+when set non-zero, allows the server to issue Open Delegations to
+clients.
+These delegations permit the client to manipulate the file
+locally on the client.
+Unfortunately, at this time, client use of
+delegations is limited, so performance gains may not be observed.
+This can only be enabled when the file systems being exported to
+.Nm
+clients are not being accessed locally on the server and, if being
+accessed via NFS Version 2 or 3 clients, these clients cannot be
+using the NLM.
+.It Cm vfs.nfsd.enable_locallocks
+can be set to 0 to disable acquisition of local byte range locks.
+Disabling local locking can only be done if neither local accesses
+to the exported file systems nor the NLM is operating on them.
+.El
+.sp
+Note that Samba server access would be considered ``local access'' for the above
+discussion.
+.Pp
+To build a kernel with the NFS server that supports
+.Nm
+linked into it, the
+.sp
+.Bd -literal -offset indent -compact
+options	NFSD
+.Ed
+.sp
+must be specified in the kernel's
+.Xr config 5
+file.
+.Sh CLIENT MOUNTS
+To do an
+.Nm
+mount, specify the ``nfsv4'' option on the
+.Xr mount_nfs 8
+command line.
+This will force use of the client that supports
+.Nm
+plus set ``tcp'' and
+.Nm .
+.Pp
+The
+.Xr nfsuserd 8
+must be running if name<->uid/gid mapping is being used, as above.
+Also, since an
+.Nm
+mount uses the host uuid to identify the client uniquely to the server,
+you cannot safely do an
+.Nm
+mount when
+.sp
+.Bd -literal -offset indent -compact
+hostid_enable="NO"
+.Ed
+.sp
+is set in
+.Xr rc.conf 5 .
+.sp
+If the
+.Nm
+server that is being mounted on supports delegations, you can start the
+.Xr nfscbd 8
+daemon to handle client side callbacks.
+This will occur if
+.sp
+.Bd -literal -offset indent -compact
+nfsuserd_enable="YES"	<-- If name<->uid/gid mapping is being used.
+nfscbd_enable="YES"
+.Ed
+.sp
+are set in
+.Xr rc.conf 5 .
+.sp
+Without a functioning callback path, a server will never issue Delegations
+to a client.
+.sp
+For NFSv4.0, by default, the callback address will be set to the IP address acquired via
+rtalloc() in the kernel and port# 7745.
+To override the default port#, a command line option for
+.Xr nfscbd 8
+can be used.
+.sp
+To get callbacks to work when behind a NAT gateway, a port for the callback
+service will need to be set up on the NAT gateway and then the address
+of the NAT gateway (host IP plus port#) will need to be set by assigning the
+.Xr sysctl 8
+variable vfs.nfs.callback_addr to a string of the form:
+.sp
+N.N.N.N.N.N
+.sp
+where the first 4 Ns are the host IP address and the last two are the
+port# in network byte order (all decimal #s in the range 0-255).
+.Pp
+For NFSv4.1, the callback path (called a backchannel) uses the same TCP connection as the mount,
+so none of the above applies and should work through gateways without
+any issues.
+.Pp
+To build a kernel with the client that supports
+.Nm
+linked into it, the option
+.sp
+.Bd -literal -offset indent -compact
+options	NFSCL
+.Ed
+.sp
+must be specified in the kernel's
+.Xr config 5
+file.
+.Pp
+Options can be specified for the
+.Xr nfsuserd 8
+and
+.Xr nfscbd 8
+daemons at boot time via the ``nfsuserd_flags'' and ``nfscbd_flags''
+.Xr rc.conf 5
+variables.
+.Pp
+NFSv4 mount(s) against exported volume(s) on the same host are not recommended,
+since this can result in a hung NFS server.
+It occurs when an nfsd thread tries to do an NFSv4 VOP_RECLAIM()/Close RPC
+as part of acquiring a new vnode.
+If all other nfsd threads are blocked waiting for lock(s) held by this nfsd
+thread, then there isn't an nfsd thread to service the Close RPC.
+.Sh FILES
+.Bl -tag -width /var/db/nfs-stablerestart.bak -compact
+.It Pa /var/db/nfs-stablerestart
+NFS V4 stable restart file
+.It Pa /var/db/nfs-stablerestart.bak
+backup copy of the file
+.El
+.Sh SEE ALSO
+.Xr stablerestart 5 ,
+.Xr mountd 8 ,
+.Xr nfscbd 8 ,
+.Xr nfsd 8 ,
+.Xr nfsdumpstate 8 ,
+.Xr nfsrevoke 8 ,
+.Xr nfsuserd 8
+.Sh BUGS
+At this time, there is no recall of delegations for local file system
+operations.
+As such, delegations should only be enabled for file systems
+that are being used solely as NFS export volumes and are not being accessed
+via local system calls nor services such as Samba.

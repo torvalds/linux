@@ -1,0 +1,94 @@
+//===--- OpenCLExtensions.def - OpenCL extension list -----------*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the list of supported OpenCL extensions.
+//
+//===----------------------------------------------------------------------===//
+
+// Macro OPENCLEXT or OPENCLEXT_INTERNAL can be defined to enumerate the
+// OpenCL extensions listed in this file.
+//
+// If the extensions are to be enumerated without the supported OpenCL version,
+// define OPENCLEXT(ext) where ext is the name of the extension.
+//
+// If the extensions are to be enumerated with supported OpenCL version,
+// define OPENCLEXT_INTERNAL(ext, avail, core) where
+//   ext - name of the extension or optional core feature.
+//   avail - minimum OpenCL version supporting it.
+//   core - minimum OpenCL version when the extension becomes optional core
+//          feature or core feature. ~0U indicates not a core feature or an
+//          optional core feature.
+
+#ifndef OPENCLEXT_INTERNAL
+#ifndef OPENCLEXT
+#pragma error "macro OPENCLEXT or OPENCLEXT_INTERNAL is required"
+#else
+#define OPENCLEXT_INTERNAL(ext, ...) OPENCLEXT(ext)
+#endif // OPENCLEXT
+#endif // OPENCLEXT_INTERNAL
+
+// OpenCL 1.0.
+OPENCLEXT_INTERNAL(cl_khr_3d_image_writes, 100, 200)
+// fprounding mode is special since it is not mentioned beyond 1.0
+OPENCLEXT_INTERNAL(cl_khr_select_fprounding_mode, 100, 110)
+OPENCLEXT_INTERNAL(cl_khr_byte_addressable_store, 100, 110)
+OPENCLEXT_INTERNAL(cl_khr_fp16, 100, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_fp64, 100, 120)
+OPENCLEXT_INTERNAL(cl_khr_global_int32_base_atomics, 100, 110)
+OPENCLEXT_INTERNAL(cl_khr_global_int32_extended_atomics, 100, 110)
+OPENCLEXT_INTERNAL(cl_khr_local_int32_base_atomics, 100, 110)
+OPENCLEXT_INTERNAL(cl_khr_local_int32_extended_atomics, 100, 110)
+OPENCLEXT_INTERNAL(cl_khr_int64_base_atomics, 100, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_int64_extended_atomics, 100, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_gl_sharing, 100, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_icd, 100, ~0U)
+
+// OpenCL 1.1.
+OPENCLEXT_INTERNAL(cl_khr_gl_event, 110, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_d3d10_sharing, 110, ~0U)
+
+// EMBEDDED_PROFILE
+OPENCLEXT_INTERNAL(cles_khr_int64, 110, ~0U)
+
+// OpenCL 1.2.
+OPENCLEXT_INTERNAL(cl_khr_context_abort, 120, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_d3d11_sharing, 120, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_depth_images, 120, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_dx9_media_sharing, 120, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_image2d_from_buffer, 120, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_initialize_memory, 120, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_gl_depth_images, 120, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_gl_msaa_sharing, 120, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_spir, 120, ~0U)
+
+// OpenCL 2.0.
+OPENCLEXT_INTERNAL(cl_khr_egl_event, 200, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_egl_image, 200, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_mipmap_image, 200, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_srgb_image_writes, 200, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_subgroups, 200, ~0U)
+OPENCLEXT_INTERNAL(cl_khr_terminate_context, 200, ~0U)
+
+// Clang Extensions.
+OPENCLEXT_INTERNAL(cl_clang_storage_class_specifiers, 100, ~0U)
+
+// AMD OpenCL extensions
+OPENCLEXT_INTERNAL(cl_amd_media_ops, 100, ~0U)
+OPENCLEXT_INTERNAL(cl_amd_media_ops2, 100, ~0U)
+
+// Intel OpenCL extensions
+OPENCLEXT_INTERNAL(cl_intel_subgroups, 120, ~0U)
+OPENCLEXT_INTERNAL(cl_intel_subgroups_short, 120, ~0U)
+OPENCLEXT_INTERNAL(cl_intel_device_side_avc_motion_estimation, 120, ~0U)
+
+#undef OPENCLEXT_INTERNAL
+
+#ifdef OPENCLEXT
+#undef OPENCLEXT
+#endif

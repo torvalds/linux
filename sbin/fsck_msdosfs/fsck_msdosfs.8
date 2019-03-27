@@ -1,0 +1,126 @@
+.\"	$NetBSD: fsck_msdos.8,v 1.9 1997/10/17 11:19:58 ws Exp $
+.\"
+.\" Copyright (C) 1995 Wolfgang Solfrank
+.\" Copyright (c) 1995 Martin Husemann
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 3, 2016
+.Dt FSCK_MSDOSFS 8
+.Os
+.Sh NAME
+.Nm fsck_msdosfs
+.Nd DOS/Windows (FAT) file system consistency checker
+.Sh SYNOPSIS
+.Nm
+.Fl p
+.Op Fl Cf
+.Ar filesystem ...
+.Nm
+.Op Fl Cny
+.Ar filesystem ...
+.Sh DESCRIPTION
+The
+.Nm
+utility verifies and repairs
+.Tn FAT
+file systems (more commonly known
+as
+.Tn DOS
+file systems).
+.Pp
+The first form of
+.Nm
+preens the specified file systems.
+It is normally started by
+.Xr fsck 8
+run from
+.Pa /etc/rc
+during automatic reboot, when a FAT file system is detected.
+When preening file systems,
+.Nm
+will fix common inconsistencies non-interactively.
+If more serious problems are found,
+.Nm
+does not try to fix them, indicates that it was not
+successful, and exits.
+.Pp
+The second form of
+.Nm
+checks the specified file systems and tries to repair all
+detected inconsistencies, requesting confirmation before
+making any changes.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl C
+Compatibility with the corresponding
+.Xr fsck 8
+option (skip check if clean), defined to no-op.
+.It Fl F
+Compatibility with the wrapper
+.Xr fsck 8
+which seeks to determine whether the file system needs to be cleaned
+immediately in foreground, or if its cleaning can be deferred to background.
+FAT (MS-DOS) file systems must always be cleaned in the foreground.
+A non-zero exit code is always returned for this option.
+.It Fl f
+Force
+.Nm
+to check
+.Dq clean
+file systems when preening.
+.It Fl n
+Causes
+.Nm
+to assume
+.Dq Li no
+as the answer to all operator
+questions, except
+.Dq Li CONTINUE? .
+.It Fl p
+Preen the specified file systems.
+.It Fl y
+Causes
+.Nm
+to assume
+.Dq Li yes
+as the answer to all operator questions.
+.El
+.Sh SEE ALSO
+.Xr fsck 8 ,
+.Xr fsck_ffs 8 ,
+.Xr mount_msdosfs 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Nx 1.2 .
+.Nm
+first appeared in
+.Fx 4.4 .
+.Sh BUGS
+The
+.Nm
+utility is
+.Ud

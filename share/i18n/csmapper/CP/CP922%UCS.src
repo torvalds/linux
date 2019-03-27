@@ -1,0 +1,55 @@
+# $FreeBSD$
+# $NetBSD: CP922%UCS.src,v 1.1 2007/07/15 14:41:18 tnozaki Exp $
+
+# Copyright (c)2007 Citrus Project,
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+
+TYPE		ROWCOL
+NAME		"CP922/UCS"
+SRC_ZONE	0x00 - 0xFF
+OOB_MODE	ILSEQ
+DST_ILSEQ	0xFFFE
+DST_UNIT_BITS	16
+
+BEGIN_MAP
+#
+# CP922 - Estonia, similar to ISO 8859-1
+# this mapping data is made from:
+#    ftp://ftp.software.ibm.com/software/globalization/gcoc/attachments/
+#        CP0{819,922}.{pdf,txt}
+#
+0x00 - 0x9F = 0x0000 -
+0xA0 - 0xAE = 0x00A0 -
+0xAF = 0x203E
+0xB0 - 0xCF = 0x00B0 -
+0xD0 = 0x0160
+0xD1 - 0xDD = 0x00D1 -
+0xDE = 0x017D
+0xDF - 0xEF = 0x00DF -
+0xF0 = 0x0161
+0xF1 - 0xFD = 0x00F1 -
+0xFE = 0x017E
+0xFF = 0x00FF
+END_MAP

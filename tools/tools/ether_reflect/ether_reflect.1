@@ -1,0 +1,109 @@
+.\" Copyright (c) 2008 George V. Neville-Neil
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 23, 2008
+.Dt ETHER_REFLECT 1
+.Os
+.Sh NAME
+.Nm ether_reflect
+.Nd "reflect ethernet packets"
+.Sh SYNOPSIS
+.Nm
+.Op Fl a Ar ethernet address
+.Op Fl e Ar ethertype
+.Op Fl i Ar interface
+.Op Fl t Ar timeout
+.Op Fl p
+.Op Fl d
+.Sh DESCRIPTION
+The
+.Nm
+command implements a simple ethernet packet reflector using the
+.Xr PCAP 3
+library and
+.Xr bpf 4 ,
+the Berkeley Packet Filter.  The program is useful primarily to test
+the low level round trip time of packets through an Ethernet interface
+and/or a switch.  Network protocols, such as IP, and the network stack
+in general are never invoked, only the device driver that implements
+the particular interface is executed.  As the
+.Nm
+command uses the
+.Xr bpf 4
+device the user must have root privileges to execute this program.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl d Ar argument"
+.It Fl a Ar address
+Instead of reversing the ethernet destination and source addresses
+supply a different destination ethernet address for each packet
+received.
+.It Fl e Ar ether type
+Use a different ethertype than the default, 0x8822, which is the IEEE
+ether type for driver testing.
+.It Fl i Ar interface
+Network interface, which can be found with ifconfig(1).
+.It Fl t Ar timeout
+The time, in milliseconds, to wait for a packet.  Lower times decrease
+latency at the cost of CPU.
+.It Fl p
+Set the device into promiscuous mode before testing.  This is not
+usually necessary.
+.It Fl d
+Debug output.  Print various small pieces of debug information.
+.El
+.Sh EXAMPLES
+The following is an example of a typical usage
+of the
+.Nm
+command:
+.Pp
+.Dl "ether_reflect -i em0 -t 1"
+.Pp
+Reflect all test packets, those with an ether type of 0x8822, which
+are seen on ineterface em0.  The timeout is 1 millisecond.
+.Pp
+.Dl "ether_reflect -i em0 -a 00:00:00:aa:bb:cc -t 1"
+.Pp
+Rewrite the destination address in each packet to 00:00:00:aa:bb:cc
+before reflecting the packet.
+.Sh SEE ALSO
+.Xr tcpdump 1 ,
+.Xr bpf 2 ,
+.Xr pcap 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An George V. Neville-Neil Aq Mt gnn@FreeBSD.org .
+.Sh BUGS
+Should be reported to the author or to
+.Aq Mt net@FreeBSD.org .

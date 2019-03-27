@@ -1,0 +1,29 @@
+map le0 inet6 any -> ::/128
+map le0 inet6 any -> any
+map le0 inet6 ::/1 -> any
+map le0 inet6 10::/16 -> 1:2:3::/96
+map le0 inet6 10::/16 -> 1:2:3::/96
+map le0 inet6 192:168::/32 -> range 203:1:1::23-203:1:3::45
+map ppp0 inet6 192:168::/32 -> ::/128 portmap tcp 10000:19999
+map ppp0 inet6 192:168::/32 -> ::/128 portmap udp 20000:29999
+map ppp0 inet6 192:168::/32 -> ::/128 portmap tcp/udp 30000:39999
+map ppp0 inet6 192:168::/32 -> ::/128 portmap tcp auto
+map ppp0 inet6 192:168::/32 -> ::/128 portmap udp auto
+map ppp0 inet6 192:168::/32 -> ::/128 portmap tcp/udp auto
+map ppp0 inet6 192:168::/32 -> ::/128 proxy port 21 ftp/tcp
+map ppp0 inet6 192:168::/32 -> ::/128 proxy port 1010 ftp/tcp
+map le0 inet6 any -> ::/128 frag
+map le0 inet6 192:168::/32 -> range 203:1:1::23-203:1:3::45 frag
+map ppp0 inet6 192:168::/32 -> ::/128 portmap tcp 10000:19999 frag
+map ppp0 inet6 192:168::/32 -> ::/128 proxy port 21 ftp/tcp frag
+map le0 inet6 any -> ::/128 age 10/10
+map le0 inet6 192:168::/32 -> range 203:1:1::23-203:1:3::45 age 10/20
+map ppp0 inet6 192:168::/32 -> ::/128 portmap tcp 10000:19999 age 30/30
+map le0 inet6 any -> ::/128 frag age 10/10
+map le0 inet6 192:168::/32 -> range 203:1:1::23-203:1:3::45 frag age 10/20
+map ppp0 inet6 192:168::/32 -> ::/128 portmap tcp 10000:19999 frag age 30/30
+map fxp0 inet6 from 192::/18 to any port = 21 -> 1:2:3::4/128 proxy port 21 ftp/tcp
+map thisisalonginte inet6 any -> ::/128 mssclamp 1452 tag freddyliveshere
+map bar0 inet6 any -> ::/128 icmpidmap icmp 1000:2000
+map ppp0,adsl0 inet6 any -> ::/128
+map ppp0 inet6 from 192:168::/32 to any port = 123 -> ::/128 age 30/1 udp

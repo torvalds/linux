@@ -1,0 +1,12 @@
+$ $tcsh: set9,v 1.4 2015/05/26 17:38:25 christos Exp $
+$ ed.xmap.c
+$set 9
+1 AddXkey: touche d'extension nulle pas autorisé.\n
+2 AddXkey: commande séquence d'introduction (sequence-lead-in) pas autorisé\n
+3 DeleteXkey: touche d'extension nulle pas autorisé.\n
+4 Touche d'extension pas définie "%S"\n
+5 Certaines touches d'extension trop longues pour tampon d'impression interne
+6 Enumerate: BUG!! Pointeur Null passé!\n
+7 pas d'entrée
+8 Quelque chose doit suivre: '%c'\n
+9 Une constante Octale ne peut pas tenir dans un caractère.\n

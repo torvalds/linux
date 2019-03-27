@@ -1,0 +1,149 @@
+.\" Copyright (c) 2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 14, 2008
+.Dt PMC.IAF 3
+.Os
+.Sh NAME
+.Nm pmc.iaf
+.Nd measurement events for
+.Tn Intel
+fixed function performance counters.
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+.Tn Intel
+fixed-function PMCs are present in CPUs that conform to version 2 or
+later of the
+.Tn Intel
+Performance Measurement Architecture.
+Each fixed-function PMC measures a specific hardware event.
+The number of fixed-function PMCs implemented in a CPU can vary.
+The number of fixed-function PMCs present can be determined at runtime
+by using function
+.Xr pmc_cpuinfo 3 .
+.Pp
+Intel fixed-function PMCs are documented in
+.Rs
+.%B "IA-32 Intel(R) Architecture Software Developer's Manual"
+.%T "Volume 3: System Programming Guide"
+.%N "Order Number 253669-027US"
+.%D July 2008
+.%Q "Intel Corporation"
+.Re
+.Pp
+.Ss PMC Capabilities
+Fixed-function PMCs support the following capabilities:
+.Bl -column "PMC_CAP_INTERRUPT" "Support"
+.It Em Capability Ta Em Support
+.It PMC_CAP_CASCADE Ta \&No
+.It PMC_CAP_EDGE Ta \&No
+.It PMC_CAP_INTERRUPT Ta Yes
+.It PMC_CAP_INVERT Ta \&No
+.It PMC_CAP_READ Ta Yes
+.It PMC_CAP_PRECISE Ta \&No
+.It PMC_CAP_SYSTEM Ta Yes
+.It PMC_CAP_TAGGING Ta \&No
+.It PMC_CAP_THRESHOLD Ta \&No
+.It PMC_CAP_USER Ta Yes
+.It PMC_CAP_WRITE Ta Yes
+.El
+.Ss Class Name Prefix
+These PMCs are named using a class name prefix of
+.Dq Li iaf- .
+.Ss Event Qualifiers (Fixed Function PMCs)
+These PMCs support the following modifiers:
+.Bl -tag -width indent
+.It Li os
+Configure the PMC to count events occurring at ring level 0.
+.It Li usr
+Configure the PMC to count events occurring at ring levels 1, 2
+or 3.
+.It Li anythread
+.Pq Tn Atom CPUs
+Configure the PMC to count events on all logical processors sharing a
+processor core.
+The default is to count events on the current logical processor.
+.El
+.Pp
+If neither of the
+.Dq Li os
+or
+.Dq Li usr
+qualifiers are specified, the default is to enable both.
+.Ss Event Specifiers (Fixed Function PMCs)
+The fixed function PMCs are selectable using the following
+event names:
+.Bl -tag -width indent
+.It Li INSTR_RETIRED.ANY
+.Pq Fixed Function Counter 0
+The number of instructions retired.
+.It Li CPU_CLK_UNHALTED.CORE
+.Pq Fixed Function Counter 1
+The number of core cycles for which the core is not halted.
+.It Li CPU_CLK_UNHALTED.REF
+.Pq Fixed Function Counter 2
+The number of reference cycles for which the core is not halted.
+.El
+.Sh EXAMPLES
+To measure the number of core cycles for which the core was not halted
+use the event specifier
+.Qq iaf-cpu-clk-unhalted.core .
+.Pp
+To measure the number of user instructions retired use the event specifier
+.Qq iaf-instr-retired.any,usr .
+.Pp
+To measure the number of user instructions retired on all logical processors
+in an
+.Tn Atom
+CPU, use the event specifier
+.Qq iaf-instr-retired.any,usr,anythread .
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.atom 3 ,
+.Xr pmc.core 3 ,
+.Xr pmc.core2 3 ,
+.Xr pmc.k7 3 ,
+.Xr pmc.k8 3 ,
+.Xr pmc.p4 3 ,
+.Xr pmc.p5 3 ,
+.Xr pmc.p6 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmc_cpuinfo 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4
+.Sh HISTORY
+The
+.Nm pmc
+library first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+The
+.Lb libpmc
+library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .

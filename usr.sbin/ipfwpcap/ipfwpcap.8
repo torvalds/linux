@@ -1,0 +1,131 @@
+.\" Copyright (c) 2006 Niclas Zeising <zeising@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 22, 2006
+.Dt IPFWPCAP 8
+.Os
+.Sh NAME
+.Nm ipfwpcap
+.Nd "copy diverted packets to a file in tcpdump format"
+.Sh SYNOPSIS
+.Nm
+.Op Fl dr
+.Op Fl b Ar maxbytes
+.Op Fl p Ar maxpkts
+.Op Fl P Ar pidfile
+.Ar portnum
+.Ar dumpfile
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to copy diverted packets to a file in
+.Xr tcpdump 1
+format.
+The interesting packets are diverted by
+.Xr ipfw 8
+to a port on which
+.Nm
+listens.
+The packets are then dropped unless
+.Fl r
+is used.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl d
+Turns on extra debugging messages.
+.It Fl r
+Writes packets back to the
+.Xr divert 4
+socket.
+.It Fl rr
+Indicates that it is okay to quit if
+.Ar maxbytes
+or
+.Ar maxpkts
+are reached.
+Diverted packets will silently disappear if nothing is listening on the
+.Xr divert 4
+socket.
+.It Fl b Ar maxbytes
+Stop dumping after
+.Ar maxbytes
+bytes.
+.It Fl p Ar maxpkts
+Stop dumping after
+.Ar maxpkt
+packets.
+.It Fl P Ar pidfile
+File to store PID number in.
+Default is
+.Pa /var/run/ipwfpcap.portnr.pid .
+.El
+.Pp
+The
+.Ar portnum
+argument specifies which
+.Xr divert 4
+socket port to listen on.
+The
+.Ar dumpfile
+argument is the path to the file to write captured packets to.
+Specify
+.Sq Fl
+to write to stdout.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+.Dl "ipfwpcap -r 8091 divt.log &"
+.Pp
+Starts
+.Nm
+as a background job listening to port 8091 and reflecting the packets
+back to the socket.
+.Pp
+.Dl "ipfw add 2864 divert 8091 ip from 192.0.2.101"
+.Pp
+Example
+.Xr ipfw 8
+rule to divert all packets from 192.0.2.101 to port 8091.
+See
+.Xr ipfw 8
+for details.
+.Sh SEE ALSO
+.Xr tcpdump 1 ,
+.Xr pcap 3 ,
+.Xr divert 4 ,
+.Xr ipfw 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An -nosplit
+.Nm
+was written by
+.An P. Kern Aq Mt pkern@cns.utoronto.ca .
+This manual page was written by
+.An Niclas Zeising Aq Mt zeising@FreeBSD.org .

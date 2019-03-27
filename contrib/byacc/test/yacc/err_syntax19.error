@@ -1,0 +1,3 @@
+YACC: e - line 9 of "./err_syntax19.y", illegal $-name
+            {  $$ = $<oops>; }
+                    ^

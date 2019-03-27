@@ -1,0 +1,15 @@
+include start_color
+call OK init_pair 3 $COLOR_YELLOW $COLOR_CYAN
+call OK addch `\000d`
+call OK chgat 5 $REVERSE 3 0
+call OK refresh
+compare chgat1.chk
+call OK addch `\000e`
+call OK refresh
+compare chgat2.chk
+call OK move 0 0
+# The following should apply the attribute and colour to the whole line
+call OK chgat -1 $UNDERSCORE 3 0
+call OK refresh
+compare chgat3.chk
+ 

@@ -1,0 +1,7 @@
+
+#------------------------------------------------------------------------------
+# $File: netware,v 1.4 2009/09/19 16:28:11 christos Exp $
+# netware:  file(1) magic for NetWare Loadable Modules (NLMs)
+# From: Mads Martin Joergensen <mmj@suse.de>
+
+0	string	NetWare\ Loadable\ Module	NetWare Loadable Module

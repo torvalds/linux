@@ -1,0 +1,16 @@
+pass in from any port = 10101 to any
+pass out from any to any port != 22
+block in from any port 20:21 to any
+block out from any to any port 10 <> 100
+pass out from any to any port = 3
+pass out from any to any port = 5
+pass out from any to any port = 7
+pass out from any to any port = 9
+block in from any port = 20 to any
+block in from any port = 25 to any
+pass in from any port 11:12 to any port 1:2
+pass in from any port 21:22 to any port 1:2
+pass in from any port 11:12 to any port 4:5
+pass in from any port 21:22 to any port 4:5
+pass in from any port 11:12 to any port 8:9
+pass in from any port 21:22 to any port 8:9

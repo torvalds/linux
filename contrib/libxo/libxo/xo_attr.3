@@ -1,0 +1,70 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd July, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_attr , xo_attr_h , xo_attr_hv
+.Nd Add attribute name/value pairs to formatted output
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft int
+.Fn xo_attr "const char *name" "const char *fmt" "..."
+.Ft int
+.Fn xo_attr_h "xo_handle_t *handle" "const char *name, const char *fmt" "..."
+.Ft int
+.Fn xo_attr_hv "xo_handle_t *handle" "const char *name" "const char *fmt" "va_list vap"
+.Sh DESCRIPTION
+The
+.Fn xo_attr
+function emits attributes for the XML output style.  The attribute
+value is recorded in the
+.Fa handle
+and is attached to the next field that is emitted via a
+.Xr xo_emit 3
+call.
+.Pp
+The
+.Fa name
+parameter give the name of the attribute to be encoded.  The
+.Fa fmt
+parameter gives a printf-style format string used to format the
+value of the attribute using any remaining arguments, or the
+.Fa vap
+parameter as passed to
+.Fn xo_attr_hv .
+.Bd -literal -offset indent
+    EXAMPLE:
+      xo_attr("seconds", "%ld", (unsigned long) login_time);
+      struct tm *tmp = localtime(login_time);
+      strftime(buf, sizeof(buf), "%R", tmp);
+      xo_emit("Logged in at {:login-time}\\n", buf);
+    XML:
+        <login-time seconds="1408336270">00:14</login-time>
+.Ed
+.Pp
+Since attributes are only emitted in XML, their use should be limited
+to meta-data and additional or redundant representations of data
+already emitted in other form.
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

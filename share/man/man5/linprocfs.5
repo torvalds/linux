@@ -1,0 +1,98 @@
+.\" $FreeBSD$
+.\" Written by Garrett Wollman
+.\" This file is in the public domain.
+.\"
+.Dd August 10, 1994
+.Dt LINPROCFS 5
+.Os
+.Sh NAME
+.Nm linprocfs
+.Nd Linux process file system
+.Sh SYNOPSIS
+.Bd -literal
+linproc		/compat/linux/proc	linprocfs	rw 0 0
+.Ed
+.Sh DESCRIPTION
+The Linux process file system, or
+.Nm ,
+emulates a subset of Linux' process file system and is required for
+the complete operation of some Linux binaries.
+.Pp
+The
+.Nm
+provides a two-level view of process space.
+At the highest level, processes themselves are named, according to
+their process ids in decimal, with no leading zeros.
+There is also a special node called
+.Pa self
+which always refers to the process making the lookup request.
+.Pp
+Each node is a directory containing several files:
+.Bl -tag -width status
+.It Pa exe
+A reference to the vnode from which the process text was read.
+This can be used to gain access to the process' symbol table,
+or to start another copy of the process.
+.It Pa mem
+The complete virtual memory image of the process.
+Only those addresses which exist in the process can be accessed.
+Reads and writes to this file modify the process.
+Writes to the text segment remain private to the process.
+.El
+.Pp
+Each node is owned by the process's user, and belongs to that user's
+primary group, except for the
+.Pa mem
+node, which belongs to the
+.Li kmem
+group.
+.Sh FILES
+.Bl -tag -width /compat/linux/proc/self/XXXXXXX -compact
+.It Pa /compat/linux/proc
+The normal mount point for the
+.Nm .
+.It Pa /compat/linux/proc/cpuinfo
+CPU vendor and model information in human-readable form.
+.It Pa /compat/linux/proc/meminfo
+System memory information in human-readable form.
+.It Pa /compat/linux/proc/pid
+A directory containing process information for process
+.Pa pid .
+.It Pa /compat/linux/proc/self
+A directory containing process information for the current process.
+.It Pa /compat/linux/proc/self/exe
+The executable image for the current process.
+.It Pa /compat/linux/proc/self/mem
+The complete virtual address space of the current process.
+.El
+.Sh EXAMPLES
+To mount a
+.Nm
+file system on
+.Pa /compat/linux/proc :
+.Pp
+.Dl "mount -t linprocfs linproc /compat/linux/proc"
+.Sh SEE ALSO
+.Xr mount 2 ,
+.Xr unmount 2 ,
+.Xr procfs 5 ,
+.Xr pseudofs 9
+.Sh HISTORY
+The
+.Nm
+first appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+was derived from
+.Nm procfs
+by
+.An Pierre Beyssac .
+This manual page was written by
+.An Dag-Erling Sm\(/orgrav ,
+based on the
+.Xr procfs 5
+manual page by
+.An Garrett Wollman .

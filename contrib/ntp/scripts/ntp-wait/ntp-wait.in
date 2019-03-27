@@ -1,0 +1,66 @@
+#! @PATH_PERL@
+
+package ntp_wait;
+use 5.006_000;
+use strict;
+use warnings;
+use lib "@PERLLIBDIR@";
+use NTP::Util qw(ntp_read_vars);
+
+exit run(@ARGV) unless caller;
+
+sub run {
+    my $opts;
+    if (!processOptions(\@_, $opts)) {
+        usage(1);
+    };
+
+    my $tries   = $opts->{tries};	# How many tries before we give up? (10 min+)
+    my $sleep   = $opts->{sleep};	# Seconds to sleep between tries (6s = 10/min)
+    my $verbose = $opts->{verbose};	# Be verbose?
+
+    # Autoflush stdout
+    $| = 1;
+
+    print "Waiting for ntpd to synchronize...  " if $verbose;
+
+    for my $i (1 .. $tries) {
+        my $info = ntp_read_vars(0, []);
+
+        if (!defined $info) {
+            print "\bntpd is not running!\n" if $verbose;
+            return 1;
+        }
+
+        if (!exists $info->{status_line}{leap}) {
+            print "\bLeap status not available\n";
+            return 1;
+        }
+
+        my $leap   = $info->{status_line}{leap};
+        my $sync   = $info->{status_line}{sync};
+
+        if ($leap =~ /(sync|leap)_alarm/) {
+            print "\b".(substr "*+:.", $i % 4, 1) if $verbose;
+            sleep $sleep if $i < $tries;
+            next;
+        }
+
+        if ($leap =~ /leap_(none|((add|del)_sec))/) {
+            # We could check $sync here to make sure we like the source...
+            print "\bOK!\n" if $verbose;
+            return 0;
+        }
+
+        print "\bUnexpected 'leap' status <$leap>\n";
+        return 1;
+    }
+
+    print "\bNo!\nntpd did not synchronize.\n" if $verbose;
+    return 1;
+}
+
+@ntp_wait_opts@
+
+1;
+__END__

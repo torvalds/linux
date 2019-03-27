@@ -1,0 +1,14 @@
+====
+1:2,3c
+  which multiple lines
+  and a few typ0s to fix
+2:2,3c
+  which multiple lines
+  and a few typos to fix
+3:2c
+  and a few typ0s to fix
+====2
+1:4a
+3:3a
+2:5c
+  New line

@@ -1,0 +1,53 @@
+$NetBSD: softfloat-history.txt,v 1.1 2000/06/06 08:15:08 bjh21 Exp $
+$FreeBSD$
+
+History of Major Changes to SoftFloat, up to Release 2a
+
+John R. Hauser
+1998 December 16
+
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Release 2a (1998 December)
+
+-- Added functions to convert between 64-bit integers (int64) and all
+   supported floating-point formats.
+
+-- Fixed a bug in all 64-bit-version square root functions except
+   `float32_sqrt' that caused the result sometimes to be off by 1 unit in
+   the last place (1 ulp) from what it should be.  (Bug discovered by Paul
+   Donahue.)
+
+-- Improved the makefiles.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Release 2 (1997 June)
+
+-- Created the 64-bit (bits64) version, adding the floatx80 and float128
+   formats.
+
+-- Changed the source directory structure, splitting the sources into a
+   `bits32' and a `bits64' version.  Renamed `environment.h' to `milieu.h'
+   (to avoid confusion with environment variables).
+
+-- Fixed a small error that caused `float64_round_to_int' often to round the
+   wrong way in nearest/even mode when the operand was between 2^20 and 2^21
+   and halfway between two integers.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Release 1a (1996 July)
+
+-- Corrected a mistake that caused borderline underflow cases not to raise
+   the underflow flag when they should have.  (Problem reported by Doug
+   Priest.)
+
+-- Added the `float_detect_tininess' variable to control whether tininess is
+   detected before or after rounding.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Release 1 (1996 July)
+
+-- Original release.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+

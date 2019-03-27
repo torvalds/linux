@@ -1,0 +1,258 @@
+.\"
+.\" Copyright (c) 2018 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2012 Intel Corporation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    substantially similar to the "NO WARRANTY" disclaimer below
+.\"    ("Disclaimer") and any redistribution must be conditioned upon
+.\"    including a substantially similar Disclaimer requirement for further
+.\"    binary redistribution.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\" nvmecontrol man page.
+.\"
+.\" Author: Jim Harris <jimharris@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 7, 2018
+.Dt NVMECONTROL 8
+.Os
+.Sh NAME
+.Nm nvmecontrol
+.Nd NVM Express control utility
+.Sh SYNOPSIS
+.Nm
+.Ic devlist
+.Nm
+.Ic identify
+.Op Fl v
+.Op Fl x
+.Aq device id
+.Aq namespace id
+.Nm
+.Ic perftest
+.Aq Fl n Ar num_threads
+.Aq Fl o Ar read|write
+.Op Fl p
+.Aq Fl s Ar size_in_bytes
+.Aq Fl t Ar time_in_sec
+.Aq namespace id
+.Nm
+.Ic reset
+.Aq controller id
+.Nm
+.Ic logpage
+.Aq Fl p Ar page_id
+.Op Fl x
+.Op Fl v Ar vendor-string
+.Op Fl b
+.Aq device id
+.Aq namespace id
+.Nm
+.Ic firmware
+.Op Fl s Ar slot
+.Op Fl f Ar path_to_firmware
+.Op Fl a
+.Aq device id
+.Nm
+.Ic format
+.Op Fl f Ar fmt
+.Op Fl m Ar mset
+.Op Fl o Ar pi
+.Op Fl l Ar pil
+.Op Fl E
+.Op Fl C
+.Aq device id
+.Aq namespace id
+.Nm
+.Ic power
+.Op Fl l
+.Op Fl p power_state
+.Op Fl w workload_hint
+.Nm
+.Ic wdc cap-diag
+.Op Fl o path_template
+.Aq device id
+.Nm
+.Ic wdc drive-log
+.Op Fl o path_template
+.Aq device id
+.Nm
+.Ic wdc get-crash-dump
+.Op Fl o path_template
+.Aq device id
+.\" .Nm
+.\" .Ic wdc purge
+.\" .Aq device id
+.\" .Nm
+.\" .Ic wdc purge-monitor
+.\" .Aq device id
+.Sh DESCRIPTION
+NVM Express (NVMe) is a storage protocol standard, for SSDs and other
+high-speed storage devices over PCI Express.
+.Pp
+.Ss logpage
+The logpage command knows how to print log pages of various types.
+It also knows about vendor specific log pages from hgst/wdc and intel.
+Page 0xc1 for hgst/wdc contains the advanced smart information about
+the drive.
+Page 0xc1 is read latency stats for intel.
+Page 0xc2 is write latency stats for intel.
+Page 0xc5 is temperature stats for intel.
+Page 0xca is advanced smart information for intel.
+.Pp
+Specifying
+.Fl p
+.Ic help
+will list all valid vendors and pages.
+.Fl x
+will print the page as hex.
+.Fl b
+will print the binary data for the page.
+.Ss format
+Format either specified namespace, or all namespaces of specified controller,
+using specified parameters:
+.Ar fmt
+LBA Format,
+.Ar mset
+Metadata Settings,
+.Ar pi
+Protection Information,
+.Ar pil
+Protection Information Location.
+When formatting specific namespace, existing values are used as defaults.
+When formatting all namespaces, all parameters should be specified.
+Some controllers may not support formatting or erasing specific or all
+namespaces.
+Option
+.Fl E
+enables User Data Erase during format.
+Option
+.Fl C
+enables Cryptographic Erase during format.
+.Ss wdc
+The various wdc command retrieve log data from the wdc/hgst drives.
+The
+.Fl o
+flag specifies a path template to use to output the files.
+Each file takes the path template (which defaults to nothing), appends
+the drive's serial number and the type of dump it is followed
+by .bin.
+These logs must be sent to the vendor for analysis.
+This tool only provides a way to extract them.
+.Sh EXAMPLES
+.Dl nvmecontrol devlist
+.Pp
+Display a list of NVMe controllers and namespaces along with their device nodes.
+.Pp
+.Dl nvmecontrol identify nvme0
+.Pp
+Display a human-readable summary of the nvme0 IDENTIFY_CONTROLLER data.
+.Pp
+.Dl nvmecontrol identify -x -v nvme0ns1
+.Pp
+Display an hexadecimal dump of the nvme0 IDENTIFY_NAMESPACE data for namespace
+1.
+.Pp
+.Dl nvmecontrol perftest -n 32 -o read -s 512 -t 30 nvme0ns1
+.Pp
+Run a performance test on nvme0ns1 using 32 kernel threads for 30 seconds.
+Each thread will issue a single 512 byte read command.
+Results are printed to stdout when 30 seconds expires.
+.Pp
+.Dl nvmecontrol reset nvme0
+.Pp
+Perform a controller-level reset of the nvme0 controller.
+.Pp
+.Dl nvmecontrol logpage -p 1 nvme0
+.Pp
+Display a human-readable summary of the nvme0 controller's Error Information Log.
+Log pages defined by the NVMe specification include Error Information Log (ID=1),
+SMART/Health Information Log (ID=2), and Firmware Slot Log (ID=3).
+.Pp
+.Dl nvmecontrol logpage -p 0xc1 -v wdc nvme0
+.Pp
+Display a human-readable summary of the nvme0's wdc-specific advanced
+SMART data.
+.Pp
+.Dl nvmecontrol logpage -p 1 -x nvme0
+.Pp
+Display a hexadecimal dump of the nvme0 controller's Error Information Log.
+.Pp
+.Dl nvmecontrol logpage -p 0xcb -b nvme0 > /tmp/page-cb.bin
+.Pp
+Print the contents of vendor specific page 0xcb as binary data on
+standard out.
+Redirect it to a temporary file.
+.Pp
+.Dl nvmecontrol firmware -s 2 -f /tmp/nvme_firmware nvme0
+.Pp
+Download the firmware image contained in "/tmp/nvme_firmware" to slot 2 of the
+nvme0 controller, but do not activate the image.
+.Pp
+.Dl nvmecontrol firmware -s 4 -a nvme0
+.Pp
+Activate the firmware in slot 4 of the nvme0 controller on the next reset.
+.Pp
+.Dl nvmecontrol firmware -s 7 -f /tmp/nvme_firmware -a nvme0
+.Pp
+Download the firmware image contained in "/tmp/nvme_firmware" to slot 7 of the
+nvme0 controller and activate it on the next reset.
+.Pp
+.Dl nvmecontrol power -l nvme0
+.Pp
+List all the current power modes.
+.Pp
+.Dl nvmecontrol power -p 3 nvme0
+.Pp
+Set the current power mode.
+.Pp
+.Dl nvmecontrol power nvme0
+.Pp
+Get the current power mode.
+.Sh DYNAMIC LOADING
+The directories
+.Pa /lib/nvmecontrol
+and
+.Pa /usr/local/lib/nvmecontrol
+are scanned for any .so files.
+These files are loaded.
+The members of the
+.Va top
+linker set are added to the top-level commands.
+The members of the
+.Va logpage
+linker set are added to the logpage parsers.
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 9.2 .
+.Sh AUTHORS
+.An -nosplit
+.Nm
+was developed by Intel and originally written by
+.An Jim Harris Aq Mt jimharris@FreeBSD.org .
+.Pp
+This man page was written by
+.An Jim Harris Aq Mt jimharris@FreeBSD.org .

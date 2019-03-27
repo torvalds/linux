@@ -1,0 +1,1341 @@
+if [ ! "$_USERMGMT_USER_INPUT_SUBR" ]; then _USERMGMT_USER_INPUT_SUBR=1
+#
+# Copyright (c) 2012 Ron McDowell
+# Copyright (c) 2012-2014 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." usermgmt/user_input.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="070.usermgmt"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+############################################################ CONFIGURATION
+
+#
+# Default location of shells(5)
+#
+: ${ETC_SHELLS:=/etc/shells}
+
+############################################################ FUNCTIONS
+
+# f_get_member_groups $var_to_set $user
+#
+# Get a list of additional groups $user is a member of in group(5).
+#
+f_get_member_groups()
+{
+	f_replaceall "$( pw groupshow -a | awk -F: -v user="$2" '{
+		if (!split($4, users, /,/)) next
+		for (u in users) if (users[u] == user) { print $1; next }
+	}' )" "[$NL]" "," "$1"
+}
+
+# f_input_user $user
+#
+# Given $user name or id, create the environment variables user_name, user_uid,
+# user_gid, user_class, user_password_expire, user_account_expire, user_gecos,
+# user_home_dir, user_shell, and user_member_groups (and user_password is reset
+# to NULL).
+#
+f_input_user()
+{
+	local funcname=f_input_user
+	local user="$1"
+
+	f_dprintf "$funcname: Getting info for user \`%s'" "$user"
+	eval "$( pw usershow "$user" 2> /dev/null | awk -F: '
+	function set_value(var, value) {
+		gsub(/'\''/, "'\''\\'\'\''", value)
+		printf "user_%s='\'%s\''\n", var, value
+	}
+	{
+		found = $1 != ""
+		set_value("name",            $1 )
+		set_value("password",        "" )
+		set_value("uid",             $3 )
+		set_value("gid",             $4 )
+		set_value("class",           $5 )
+		set_value("password_expire", $6 )
+		set_value("account_expire",  $7 )
+		set_value("gecos",           $8 )
+		set_value("home_dir",        $9 )
+		set_value("shell",           $10)
+		exit
+	}
+	END { if (!found) print "false" }' )"
+	local retval=$?
+
+	f_dprintf "$funcname: Getting group memberships for user \`%s'" "$user"
+	f_get_member_groups user_member_groups "$user"
+
+	return $retval
+}
+
+# f_dialog_menu_user_list [$default]
+#
+# Allows the user to select a login from a list. Optionally, if present and
+# non-NULL, initially highlight $default user.
+#
+f_dialog_menu_user_list()
+{
+	local prompt=
+	local menu_list="
+		'X $msg_exit' ''
+	" # END-QUOTE
+	local defaultitem="$1"
+	local hline="$hline_alnum_punc_tab_enter"
+
+	# Add users from passwd(5)
+	menu_list="$menu_list $( pw usershow -a | awk -F: '
+		function mprint(tag, item) {
+			gsub(/'\''/, "'\''\\'\'\''", tag)
+			gsub(/'\''/, "'\''\\'\'\''", item)
+			printf "'\'%s\'\ \'%s\''\n", tag, item
+		}
+		!/^[[:space:]]*(#|$)/ { mprint($1, $8) }
+	' )"
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_menutag_store -s "$menu_choice"
+	return $retval
+}
+
+# f_dialog_input_member_groups $var_to_set [$member_groups]
+#
+# Allows the user to edit group memberships for a given user. If the user does
+# not cancel or press ESC, the $var_to_set variable will hold the newly-
+# configured value upon return.
+#
+f_dialog_input_member_groups()
+{
+	local __var_to_set="$1" __input="$2"
+	local __prompt="$msg_member_of_groups"
+	local __menu_list="
+		'X' '$msg_continue'
+		'1' '$msg_select_groups_from_list'
+		'2' '$msg_enter_groups_manually'
+	" # END-QUOTE
+	local __defaultitem=
+	local __hline="$hline_alnum_space_tab_enter"
+
+	local __mheight __mwidth __mrows
+	eval f_dialog_menu_size __mheight __mwidth __mrows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$__prompt\"         \
+	                        \"\$__hline\"          \
+	                        $__menu_list
+
+	local __menu_choice __retval
+	while :; do
+		__menu_choice=$( eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--hline \"\$__hline\"              \
+			--ok-label \"\$msg_ok\"            \
+			--cancel-label \"\$msg_cancel\"    \
+			--default-item \"\$__defaultitem\" \
+			--menu \"\$__prompt\"              \
+			$__mheight $__mwidth $__mrows      \
+			$__menu_list                       \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
+		__retval=$?
+		f_dialog_data_sanitize __menu_choice
+		__defaultitem="$__menu_choice"
+		f_dprintf "retval=%u menu_choice=[%s]" \
+		          $__retval "$__menu_choice"
+
+		# Return if user has either pressed ESC or chosen Cancel/No
+		[ $__retval -eq $DIALOG_OK ] || return $__retval
+
+		local __member_groups
+		case "$__menu_choice" in
+		X) # Exit
+			break ;;
+		1) # Select Groups from a list
+			local __check_list= # Calculated below
+			local __group_list __g __grp __length=0
+			__group_list=$( pw groupshow -a |
+				awk -F: '!/^[[:space:]]*(#|$)/{print $1}' )
+			while [ $__length -ne ${#__group_list} ]; do
+				__g="${__group_list%%$NL*}" # First line
+				f_shell_escape "$__g" __grp
+
+				# Format of a checklist entry: tag item status
+				# NB: Setting both tag/item to group name below
+				__check_list="$__check_list '$__grp' '$__grp'"
+				case "$__input" in
+				"$__g"|"$__g",*|*,"$__g",*|*,"$__g")
+					__check_list="$__check_list on" ;;
+				*)
+					__check_list="$__check_list off"
+				esac
+
+				__length=${#__group_list}
+				__group_list="${__group_list#*$NL}" # Kill line
+			done
+
+			local __cheight __cwidth __crows
+
+			eval f_dialog_checklist_size \
+				__cheight __cwidth __crows \
+				\"\$DIALOG_TITLE\"     \
+				\"\$DIALOG_BACKTITLE\" \
+				\"\$__prompt\"         \
+				\"\$__hline\"          \
+				$__check_list
+			__member_groups=$( eval $DIALOG \
+				--title \"\$DIALOG_TITLE\"         \
+				--backtitle \"\$DIALOG_BACKTITLE\" \
+				--separate-output                  \
+				--hline \"\$__hline\"              \
+				--ok-label \"\$msg_ok\"            \
+				--cancel-label \"\$msg_cancel\"    \
+				--checklist \"\$__prompt\"         \
+				$__cheight $__cwidth $__crows      \
+				$__check_list                      \
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			) || continue
+				# Return to previous menu if user either
+				# pressed ESC or chose Cancel/No
+			f_dialog_data_sanitize __member_groups
+
+			#
+			# Convert the newline separated list into a comma-
+			# separated one so that if the user switches over to
+			# manual editing, list reflects checklist selections
+			#
+			f_replaceall "$__member_groups" "[$NL]" "," __input
+			;;
+		2) # Enter Groups manually
+			local __prompt2="$msg_groups"
+			__prompt2="$__prompt2 ($msg_separated_by_commas)"
+
+			f_dialog_input __member_groups \
+			               "$__prompt2" "$__input" \
+			               "$hline_num_tab_enter" || continue
+				# Return to previous menu if user either
+				# pressed ESC or chose Cancel/No
+
+			#
+			# Validate each of the groups the user has entered
+			#
+			local __all_groups_valid=1 __grp __grp_list
+			f_replaceall "$__member_groups" "," " " __grp_list
+			for __grp in $__grp_list; do
+				if ! f_quietly pw groupshow -n "$__grp"; then
+					f_show_msg "$msg_group_not_found" \
+					           "$__grp"
+					__all_groups_valid=
+					break
+				fi
+			done
+			[ "$__all_groups_valid" ] || continue
+
+			__input="$__member_groups" 
+			;;
+		esac
+	done
+
+	setvar "$__var_to_set" "$__input"
+	return $DIALOG_OK
+}
+
+# f_dialog_input_name $var_to_set [$name]
+#
+# Allows the user to enter a new username for a given user. If the user does
+# not cancel or press ESC, the $var_to_set variable will hold the newly-
+# configured value upon return.
+#
+f_dialog_input_name()
+{
+	local __var_to_set="$1" __name="$2"
+
+	#
+	# Loop until the user provides taint-free/valid input
+	#
+	local __input="$__name"
+	while :; do
+		# Return if user has either pressed ESC or chosen Cancel/No
+		f_dialog_input __input "$msg_login" "$__input" \
+		               "$hline_alnum_tab_enter" || return $?
+
+		# Check for no-change
+		if [ "$__input" = "$__name" ]; then
+			setvar "$__var_to_set" "$__input"
+			return $DIALOG_OK
+		fi
+
+		# Check for NULL entry
+		if [ ! "$__input" ]; then
+			f_show_msg "$msg_login_is_empty"
+			continue
+		fi
+
+		# Check for invalid entry
+		case "$__input" in [!a-zA-Z]*)
+			f_show_msg "$msg_login_must_start_with_letter"
+			continue
+		esac
+
+		# Check for duplicate entry
+		if f_quietly pw usershow -n "$__input"; then
+			f_show_msg "$msg_login_already_used" "$__input"
+			continue
+		fi
+
+		setvar "$__var_to_set" "$__input"
+		break
+	done
+
+	return $DIALOG_OK
+}
+
+# f_dialog_input_password $var_to_set $dvar_to_set
+#
+# Prompt the user to enter a password (twice). If the user does not cancel or
+# press ESC, $var_to_set will hold the confirmed user entry. Otherwise, if the
+# user cancels or enters a NULL password (twice), they are given the choice to
+# disable password authentication for the given login, wherein $dvar_to_set has
+# a value of 1 to indicate password authentication should be disabled.
+#
+f_dialog_input_password()
+{
+	local __var_to_set="$1" __dvar_to_set="$2"
+	local __prompt1="$msg_password"
+	local __prompt2="$msg_reenter_password"
+	local __hline="$hline_alnum_punc_tab_enter"
+
+	local __height1 __width1
+	f_dialog_inputbox_size __height1 __width1 \
+	                       "$DIALOG_TITLE"     \
+	                       "$DIALOG_BACKTITLE" \
+	                       "$__prompt1"        \
+	                       ""                  \
+	                       "$__hline"
+	local __height2 __width2
+	f_dialog_inputbox_size __height2 __width2 \
+	                       "$DIALOG_TITLE"     \
+	                       "$DIALOG_BACKTITLE" \
+	                       "$__prompt2"        \
+	                       ""                  \
+	                       "$__hline"
+
+	#
+	# Loop until the user provides taint-free/valid input
+	#
+	local __retval __password1 __password2
+	while :; do
+		__password1=$( $DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--hline "$__hline"              \
+			--ok-label "$msg_ok"            \
+			--cancel-label "$msg_cancel"    \
+			--insecure                      \
+			--passwordbox "$__prompt1"      \
+			$__height1 $__width1            \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		) || return $?
+			# Return if user either pressed ESC or chose Cancel/No
+		debug= f_dialog_line_sanitize __password1
+
+		__password2=$( $DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--hline "$__hline"              \
+			--ok-label "$msg_ok"            \
+			--cancel-label "$msg_cancel"    \
+			--insecure                      \
+			--passwordbox "$__prompt2"      \
+			$__height2 $__width2            \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		) || return $?
+			# Return if user either pressed ESC or chose Cancel/No
+		debug= f_dialog_line_sanitize __password2
+
+		# Check for password mismatch
+		if [ "$__password1" != "$__password2" ]; then
+			f_show_msg "$msg_passwords_do_not_match"
+			continue
+		fi
+
+		# Check for NULL entry
+		if [ ! "$__password1" ]; then
+			f_dialog_yesno "$msg_disable_password_auth_for_account"
+			__retval=$?
+			if [ $__retval -eq $DIALOG_ESC ]; then
+				return $__retval
+			elif [ $__retval -eq $DIALOG_OK ]; then
+				setvar "$__dvar_to_set" 1
+			else
+				continue # back to password prompt
+			fi
+		else
+			setvar "$__dvar_to_set" ""
+		fi
+
+		setvar "$__var_to_set" "$__password1"
+		break
+	done
+
+	return $DIALOG_OK
+}
+
+# f_dialog_input_gecos $var_to_set [$gecos]
+#
+# Allow the user to enter new GECOS information for a given user. This
+# information is commonly used to store the ``Full Name'' of the user. If the
+# user does not cancel or press ESC, the $var_to_set variable will hold the
+# newly-configured value upon return.
+#
+f_dialog_input_gecos()
+{
+	local __var_to_set="$1" __input="$2"
+
+	# Return if user has either pressed ESC or chosen Cancel/No
+	f_dialog_input __input "$msg_full_name" "$__input" \
+	               "$hline_alnum_punc_tab_enter" || return $?
+
+	setvar "$__var_to_set" "$__input"
+	return $DIALOG_OK
+}
+
+# f_dialog_input_uid $var_to_set [$uid]
+#
+# Allow the user to enter a new UID for a given user. If the user does not
+# cancel or press ESC, the $var_to_set variable will hold the newly-configured
+# value upon return.
+#
+f_dialog_input_uid()
+{
+	local __var_to_set="$1" __input="$2"
+
+	# Return if user has either pressed ESC or chosen Cancel/No
+	f_dialog_input __input "$msg_user_id_leave_empty_for_default" \
+	               "$__input" "$hline_num_tab_enter" || return $?
+
+	setvar "$__var_to_set" "$__input"
+	return $DIALOG_OK
+}
+
+# f_dialog_input_gid $var_to_set [$gid]
+#
+# Allow the user to enter a new primary GID for a given user. If the user does
+# not cancel or press ESC, the $var_to_set variable will hold the newly-
+# configured value upon return.
+#
+f_dialog_input_gid()
+{
+	local __var_to_set="$1" __input="$2"
+
+	# Return if user has either pressed ESC or chosen Cancel/No
+	f_dialog_input __input "$msg_group_id_leave_empty_for_default" \
+	               "$__input" "$hline_num_tab_enter" || return $?
+
+	setvar "$__var_to_set" "$__input"
+	return $DIALOG_OK
+}
+
+# f_dialog_input_class $var_to_set [$class]
+#
+# Allow the user to enter a new login class for a given user. If the user does
+# not cancel or press ESC, the $var_to_set variable will hold the newly-
+# configured value upon return.
+#
+f_dialog_input_class()
+{
+	local __var_to_set="$1" __input="$2"
+
+	# Return if user has either pressed ESC or chosen Cancel/No
+	f_dialog_input __input "$msg_login_class" "$__input" \
+	               "$hline_alnum_tab_enter" || return $?
+
+	setvar "$__var_to_set" "$__input"
+	return $DIALOG_OK
+}
+
+# f_dialog_input_expire_password $var_to_set [$seconds]
+#
+# Allow the user to enter a date/time (in number-of-seconds since the `epoch')
+# for when a given user's password must be changed. If the user does not cancel
+# or press ESC, the $var_to_set variable will hold the newly-configured value
+# upon return.
+#
+f_dialog_input_expire_password()
+{
+	local __var_to_set="$1" __input="$2"
+	local __prompt="$msg_password_expires_on"
+	local __menu_list="
+		'1' '$msg_password_does_not_expire'
+		'2' '$msg_edit_date_time_with_a_calendar'
+		'3' '$msg_enter_value_manually'
+	" # END-QUOTE
+	local __defaultitem= # Calculated below
+	local __hline="$hline_num_arrows_tab_enter"
+
+	local __mheight __mwidth __mrows
+	eval f_dialog_menu_size __mheight __mwidth __mrows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$__prompt\"         \
+	                        \"\$__hline\"          \
+	                        $__menu_list
+	local __cheight __cwidth
+	f_dialog_calendar_size __cheight __cwidth \
+	                       "$DIALOG_TITLE"     \
+	                       "$DIALOG_BACKTITLE" \
+	                       "$__prompt"         \
+	                       "$__hline"
+	local __theight __twidth
+	f_dialog_timebox_size __theight __twidth \
+	                      "$DIALOG_TITLE"     \
+	                      "$DIALOG_BACKTITLE" \
+	                      "$__prompt"         \
+	                      "$__hline"
+
+	#
+	# Loop until the user provides taint-free/cancellation-free input
+	#
+	local __retval __date_type
+	while :; do
+		__date_type=$( eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--hline \"\$__hline\"              \
+			--default-item \"\$__defaultitem\" \
+			--ok-label \"\$msg_ok\"            \
+			--cancel-label \"\$msg_cancel\"    \
+			--menu \"\$__prompt\"              \
+			$__mheight $__mwidth $__mrows      \
+			$__menu_list                       \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
+		__retval=$?
+		f_dialog_data_sanitize __date_type
+		__defaultitem="$__date_type"
+		f_dprintf "retval=%u date_type=[%s]" $__retval "$__date_type"
+
+		# Return if user has either pressed ESC or chosen Cancel/No
+		[ $__retval -eq $DIALOG_OK ] || return $__retval
+
+		case "$__date_type" in
+		1) # Password does not expire
+			__input= break ;;
+
+		2) # Edit date/time with a calendar
+			local __input_date __input_time __ret_date __ret_time
+
+			local __seconds="$__input"
+			{ f_isinteger "$__seconds" && [ $__seconds -gt 0 ]; } ||
+				__seconds=
+			__input_date=$( date -j -f "%s" -- "$__seconds" \
+			               		"+%d %m %Y" 2> /dev/null )
+			__ret_date=$( eval $DIALOG \
+				--title \"\$DIALOG_TITLE\"          \
+				--backtitle \"\$DIALOG_BACKTITLE\"  \
+				--hline \"\$__hline\"               \
+				--ok-label \"\$msg_ok\"             \
+				--cancel-label \"\$msg_cancel\"     \
+				--calendar \"\$__prompt\"           \
+				$__cheight $__cwidth                \
+				$__input_date                       \
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
+			__retval=$?
+			f_dialog_data_sanitize __ret_date
+			f_dprintf "retval=%u ret_date=[%s]" \
+			          $__retval "$__ret_date"
+
+			# Return to menu if either ESC or Cancel/No
+			[ $__retval -eq $DIALOG_OK ] || continue
+
+			__input_time=
+			[ "$__seconds" ] && __input_time=$( date -j \
+				-f %s -- "$__input" "+%H %M %S" 2> /dev/null )
+			__ret_time=$( eval $DIALOG \
+				--title \"\$DIALOG_TITLE\"         \
+				--backtitle \"\$DIALOG_BACKTITLE\" \
+				--hline \"\$__hline\"              \
+				--ok-label \"\$msg_ok\"            \
+				--cancel-label \"\$msg_cancel\"    \
+				--timebox \"\$__prompt\"           \
+				$__theight $__twidth               \
+				$__input_time                      \
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
+			__retval=$?
+			f_dialog_data_sanitize __ret_time
+			f_dprintf "retval=%u ret_time=[%s]" \
+			          $__retval "$__ret_time"
+
+			# Return to menu if either ESC or Cancel/No
+			[ $__retval -eq $DIALOG_OK ] || continue
+
+			__input=$( date -j -f "%d/%m/%Y %T" -- \
+				"$__ret_date $__ret_time" +%s 2> /dev/null )
+			f_dprintf "input=[%s]" "$__input"
+			break ;;
+
+		3) # Enter value manually
+			local __msg __new_input
+			f_sprintf __msg "$msg_password_expire_manual_edit" \
+			                "$( date -r 0 "+%c %Z" )"
+
+			# Return to menu if either ESC or Cancel/No
+			f_dialog_input __new_input \
+				"$__msg" "$__input" "$__hline" || continue
+
+			__input="$__new_input"
+			f_dprintf "input=[%s]" "$__input"
+			break ;;
+
+		esac
+
+	done # Loop forever
+
+	setvar "$__var_to_set" "$__input"
+	return $DIALOG_OK
+}
+
+# f_dialog_input_expire_account $var_to_set [$seconds]
+#
+# Allow the user to enter a date/time (in number-of-seconds since the `epoch')
+# for when a given user's account should become expired. If the user does not
+# cancel or press ESC, the $var_to_set variable will hold the newly-configured
+# value upon return.
+#
+f_dialog_input_expire_account()
+{
+	local __var_to_set="$1" __input="$2"
+	local __prompt="$msg_account_expires_on"
+	local __menu_list="
+		'1' '$msg_account_does_not_expire'
+		'2' '$msg_edit_date_time_with_a_calendar'
+		'3' '$msg_enter_value_manually'
+	" # END-QUOTE
+	local __defaultitem= # Calculated below
+	local __hline="$hline_num_arrows_tab_enter"
+
+	local __mheight __mwidth __mrows 
+	eval f_dialog_menu_size __mheight __mwidth __mrows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$__prompt\"         \
+	                        \"\$__hline\"          \
+	                        $__menu_list
+	local __cheight __cwidth
+	f_dialog_calendar_size __cheight __cwidth \
+	                       "$DIALOG_TITLE"     \
+	                       "$DIALOG_BACKTITLE" \
+	                       "$__prompt"         \
+	                       "$__hline"
+	local __theight __twidth
+	f_dialog_timebox_size __theight __twidth \
+	                      "$DIALOG_TITLE"     \
+	                      "$DIALOG_BACKTITLE" \
+	                      "$__prompt"         \
+	                      "$__hline"
+
+	#
+	# Loop until the user provides taint-free/cancellation-free input
+	#
+	local __retval __date_type
+	while :; do
+		__date_type=$( eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--hline \"\$__hline\"              \
+			--default-item \"\$__defaultitem\" \
+			--ok-label \"\$msg_ok\"            \
+			--cancel-label \"\$msg_cancel\"    \
+			--menu \"\$__prompt\"              \
+			$__mheight $__mwidth $__mrows      \
+			$__menu_list                       \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
+		__retval=$?
+		f_dialog_data_sanitize __date_type
+		__defaultitem="$__date_type"
+		f_dprintf "retval=%u date_type=[%s]" $__retval "$__date_type"
+
+		# Return if user has either pressed ESC or chosen Cancel/No
+		[ $__retval -eq $DIALOG_OK ] || return $__retval
+
+		case "$__date_type" in
+		1) # Account does not expire
+			__input= break ;;
+
+		2) # Edit date/time with a calendar
+			local __input_date __input_time __ret_date __ret_time
+
+			local __seconds="$__input"
+			{ f_isinteger "$__seconds" && [ $__seconds -gt 0 ]; } ||
+				__seconds=
+			__input_date=$( date -j -f "%s" -- "$__seconds" \
+			               		"+%d %m %Y" 2> /dev/null )
+			__ret_date=$( eval $DIALOG \
+				--title \"\$DIALOG_TITLE\"          \
+				--backtitle \"\$DIALOG_BACKTITLE\"  \
+				--hline \"\$__hline\"               \
+				--ok-label \"\$msg_ok\"             \
+				--cancel-label \"\$msg_cancel\"     \
+				--calendar \"\$__prompt\"           \
+				$__cheight $__cwidth                \
+				$__input_date                       \
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
+			__retval=$?
+			f_dialog_data_sanitize __ret_date
+			f_dprintf "retval=%u ret_date=[%s]" \
+			          $__retval "$__ret_date"
+
+			# Return to menu if either ESC or Cancel/No
+			[ $__retval -eq $DIALOG_OK ] || continue
+
+			__input_time=
+			[ "$__seconds" ] && __input_time=$( date -j \
+				-f %s -- "$__input" "+%H %M %S" 2> /dev/null )
+			__ret_time=$( eval $DIALOG \
+				--title \"\$DIALOG_TITLE\"         \
+				--backtitle \"\$DIALOG_BACKTITLE\" \
+				--hline \"\$__hline\"              \
+				--ok-label \"\$msg_ok\"            \
+				--cancel-label \"\$msg_cancel\"    \
+				--timebox \"\$__prompt\"           \
+				$__theight $__twidth               \
+				$__input_time                      \
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
+			__retval=$?
+			f_dialog_data_sanitize __ret_time
+			f_dprintf "retval=%u ret_time=[%s]" \
+			          $__retval "$__ret_time"
+
+			# Return to menu if either ESC or Cancel/No
+			[ $__retval -eq $DIALOG_OK ] || continue
+
+			__input=$( date -j -f "%d/%m/%Y %T" -- \
+				"$ret_date $ret_time" +%s 2> /dev/null )
+			f_dprintf "input=[%s]" "$__input"
+			break ;;
+
+		3) # Enter value manually
+			local __msg __new_input
+			f_sprintf __msg "$msg_account_expire_manual_edit" \
+			                "$( date -r 0 "+%c %Z" )"
+
+			# Return to menu if either ESC or Cancel/No
+			f_dialog_input __new_input \
+				"$__msg" "$__input" "$__hline" || continue
+
+			__input="$__new_input"
+			f_dprintf "input=[%s]" "$__input"
+			break ;;
+
+		esac
+
+	done # Loop forever
+
+	setvar "$__var_to_set" "$__input"
+	return $DIALOG_OK
+}
+
+# f_dialog_input_home_dir $var_to_set [$home_dir]
+#
+# Allow the user to enter a new home directory for a given login. If the user
+# does not cancel or press ESC, the $var_to_set variable will hold the newly-
+# configured value upon return.
+#
+f_dialog_input_home_dir()
+{
+	local __var_to_set="$1" __input="$2"
+
+	# Return if user has either pressed ESC or chosen Cancel/No
+	f_dialog_input __input "$msg_home_directory" "$__input" \
+	               "$hline_alnum_punc_tab_enter" || return $?
+
+	setvar "$__var_to_set" "$__input"
+	return $DIALOG_OK
+}
+
+# f_dialog_input_home_create $var_to_set
+#
+# Prompt the user to confirm creation of a given login's home directory. If the
+# user does not cancel (by choosing "No") or press ESC, the $var_to_set
+# variable will hold $msg_yes upon return, otherwise $msg_no. Use these return
+# variables ($msg_yes and $msg_no) for comparisons to be i18n-compatible.
+#
+f_dialog_input_home_create()
+{
+	local __var_to_set="$1"
+
+	f_dialog_yesno "$msg_create_home_directory"
+	local __retval=$?
+
+	if [ $__retval -eq $DIALOG_OK ]; then
+		setvar "$__var_to_set" "$msg_yes"
+	else
+		setvar "$__var_to_set" "$msg_no"
+	fi
+
+	[ $__retval -ne $DIALOG_ESC ] # return failure if user pressed ESC
+}
+
+# f_dialog_input_group_delete $var_to_set [$group]
+#
+# Prompt the user to confirm deletion of a given login's primary group. If the
+# user does not cancel (by choosing "No") or press ESC, the $var_to_set
+# variable will hold $msg_yes upon return, otherwise $msg_no. Use these return
+# variables ($msg_yes and $msg_no) for comparisons to be i18n-compatible.
+#
+f_dialog_input_group_delete()
+{
+	local __var_to_set="$1" __group="$2"
+
+	if f_isinteger "$__group"; then
+		if [ $__group -lt 1000 ]; then
+			f_dialog_noyes "$msg_delete_primary_group"
+		else
+			f_dialog_yesno "$msg_delete_primary_group"
+		fi
+	elif [ "$__group" ]; then
+		local __gid=0
+		__gid=$( pw groupshow "$__group" | awk -F: '{print $3}' )
+		if f_isinteger "$__gid" && [ $__gid -lt 1000 ]; then
+			f_dialog_noyes "$msg_delete_primary_group"
+		else
+			f_dialog_yesno "$msg_delete_primary_group"
+		fi
+	else
+		f_dialog_yesno "$msg_delete_primary_group"
+	fi
+	local __retval=$?
+
+	if [ $__retval -eq $DIALOG_OK ]; then
+		setvar "$__var_to_set" "$msg_yes"
+	else
+		setvar "$__var_to_set" "$msg_no"
+	fi
+
+	[ $__retval -ne $DIALOG_ESC ] # return failure if user pressed ESC
+}
+
+# f_dialog_input_home_delete $var_to_set
+#
+# Prompt the user to confirm deletion of a given login's home directory. If the
+# user does not cancel (by choosing "No") or press ESC, the $var_to_set
+# variable will hold $msg_yes upon return, otherwise $msg_no. Use these return
+# variables ($msg_yes and $msg_no) for comparisons to be i18n-compatible.
+#
+f_dialog_input_home_delete()
+{
+	local __var_to_set="$1"
+
+	f_dialog_yesno "$msg_delete_home_directory"
+	local __retval=$?
+
+	if [ $__retval -eq $DIALOG_OK ]; then
+		setvar "$__var_to_set" "$msg_yes"
+	else
+		setvar "$__var_to_set" "$msg_no"
+	fi
+
+	[ $__retval -ne $DIALOG_ESC ] # return failure if user pressed ESC
+}
+
+# f_dialog_input_dotfiles_create $var_to_set
+#
+# Prompt the user to confirm population of a given login's home directory with
+# sample dotfiles. If the user does not cancel (by choosing "No") or press ESC,
+# the $var_to_set variable will hold $msg_yes upon return, otherwise $msg_no.
+# Use these return variables ($msg_yes and $msg_no) for comparison to be i18n-
+# compatible.
+#
+f_dialog_input_dotfiles_create()
+{
+	local __var_to_set="$1"
+
+	f_dialog_yesno "$msg_create_dotfiles"
+	local __retval=$?
+
+	if [ $__retval -eq $DIALOG_OK ]; then
+		setvar "$__var_to_set" "$msg_yes"
+	else
+		setvar "$__var_to_set" "$msg_no"
+	fi
+
+	[ $__retval -ne $DIALOG_ESC ] # return failure if user pressed ESC
+}
+
+# f_dialog_input_shell $var_to_set [$shell]
+#
+# Allow the user to select a new shell for a given login. If the user does not
+# cancel or press ESC, the $var_to_set variable will hold the newly-configured
+# value upon return.
+#
+f_dialog_input_shell()
+{
+	local __funcname=f_dialog_input_shell
+	local __var_to_set="$1" __input="$2"
+	local __prompt="$msg_select_login_shell"
+	local __radio_list= # Calculated below
+	local __defaultitem="$2"
+	local __hline="$hline_arrows_space_tab_enter"
+
+	#
+	# Generate the radiolist of shells
+	#
+	local __shell_list __s __shell __length=0
+	f_eval_catch -k __shell_list $__funcname awk "awk '%s' \"%s\"" \
+		'!/^[[:space:]]*(#|$)/{print}' "$ETC_SHELLS" || return $FAILURE
+	while [ $__length -ne ${#__shell_list} ]; do
+		__s="${__shell_list%%$NL*}" # First line
+		f_shell_escape "$__s" __shell
+
+		# Format of a radiolist entry: tag item status
+		if [ "$__s" = "$__input" ]; then
+			__radio_list="$__radio_list '$__shell' '' 'on'"
+		else
+			__radio_list="$__radio_list '$__shell' '' 'off'"
+		fi
+
+		__length=${#__shell_list}
+		__shell_list="${__shell_list#*$NL}" # Kill line
+	done
+
+	local __height __width __rows
+	eval f_dialog_radiolist_size __height __width __rows \
+	                             \"\$DIALOG_TITLE\"     \
+	                             \"\$DIALOG_BACKTITLE\" \
+	                             \"\$__prompt\"         \
+	                             \"\$__hline\"          \
+	                             $__radio_list
+
+	__input=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$__hline\"              \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$__defaultitem\" \
+		--radiolist \"\$__prompt\"         \
+		$__height $__width $__rows         \
+		$__radio_list                      \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	) || return $?
+		# Return if user either pressed ESC or chose Cancel/No
+	f_dialog_data_sanitize __input
+
+	setvar "$__var_to_set" "$__input"
+	return $DIALOG_OK
+}
+
+# f_dialog_menu_user_add [$defaultitem]
+#
+# Present a menu detailing the properties of a login that is about to be added.
+# The user's menu choice is available using f_dialog_menutag_fetch(). Returns
+# success unless the user chose Cancel or pressed ESC. Data to display is taken
+# from environment variables user_account_expire, user_class,
+# user_dotfiles_create, user_gecos, user_gid, user_home_create, user_home_dir,
+# user_member_groups, user_name, user_password_expire, user_shell, and
+# user_uid. If $defaultitem is present and non-NULL, initially highlight the
+# item in the menu.
+#
+f_dialog_menu_user_add()
+{
+	local funcname=f_dialog_menu_user_add
+	local prompt="$msg_save_exit_or_cancel"
+	local menu_list # Calculated below
+	local defaultitem="$1"
+	local hline="$hline_arrows_tab_enter"
+
+	# Attempt to convert numeric UNIX time to calendar date/time
+	local user_account_expires_on=
+	if f_isinteger "$user_account_expire"; then
+		[ "$user_account_expire" -ne 0 ] && user_account_expires_on=$(
+			date -r "$user_account_expire" "+%F %T %Z"
+		)
+	else
+		user_account_expires_on="$user_account_expire"
+	fi
+	local user_password_expires_on=
+	if f_isinteger "$user_password_expire"; then
+		[ $user_password_expire -ne 0 ] && user_password_expires_on=$(
+			date -r "$user_password_expire" "+%F %T %Z"
+		)
+	else
+		user_password_expires_on="$user_password_expire"
+	fi
+
+	# Localize potentially hostile variables and escape their values
+	# to the local variable (see f_shell_escape() of `strings.subr')
+	local var
+	for var in account_expires_on class dotfiles_create gecos gid \
+		home_create home_dir member_groups name password_expires_on \
+		shell uid \
+	; do
+		local _user_$var
+		eval f_shell_escape \"\$user_$var\" _user_$var
+	done
+
+	# Attempt to translate a numeric GID into `number (name)'
+	if f_isinteger "$_user_gid"; then
+		local _user_group
+		_user_group=$( pw groupshow -g "$_user_gid" 2> /dev/null ) &&
+			_user_group="${_user_group%%:*}" &&
+			f_shell_escape "$_user_gid ($_user_group)" _user_gid
+	fi
+
+	menu_list="
+		'X' '$msg_add/$msg_exit'
+		'1' '$msg_login: $_user_name'
+		'2' '$msg_full_name: $_user_gecos'
+		'3' '$msg_password: -----'
+		'4' '$msg_user_id: $_user_uid'
+		'5' '$msg_group_id: $_user_gid'
+		'6' '$msg_member_of_groups: $_user_member_groups'
+		'7' '$msg_login_class: $_user_class'
+		'8' '$msg_password_expires_on: $_user_password_expires_on'
+		'9' '$msg_account_expires_on: $_user_account_expires_on'
+		'A' '$msg_home_directory: $_user_home_dir'
+		'B' '$msg_shell: $_user_shell'
+	" # END-QUOTE
+	case "$user_home_dir" in
+	/|/nonexistent|/var/empty) menu_list="$menu_list
+		'-' '$msg_create_home_directory: $msg_n_a'
+		'-' '$msg_create_dotfiles: $msg_n_a'
+	   " # END-QUOTE
+	   ;;
+	*) if [ -d "$user_home_dir" ]; then menu_list="$menu_list
+		'-' '$msg_create_home_directory: $msg_n_a'
+		'D' '$msg_create_dotfiles: ${_user_dotfiles_create:-$msg_no}'
+	   " # END-QUOTE
+	   else menu_list="$menu_list
+		'C' '$msg_create_home_directory: ${_user_home_create:-$msg_no}'
+		'D' '$msg_create_dotfiles: ${_user_dotfiles_create:-$msg_no}'
+	   " # END-QUOTE
+	   fi
+	esac
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--keep-tite                        \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+	return $retval
+}
+
+# f_dialog_menu_user_delete $user [$defaultitem]
+#
+# Present a menu detailing the properties of a login that is about to be
+# deleted. The user's menu choice is available using f_dialog_menutag_fetch().
+# Returns success unless the user chose Cancel or pressed ESC. Data to display
+# is populated automatically from the system accounting database for the given
+# $user argument with the exception of two environment variables:
+# user_group_delete and user_home_delete. If $defaultitem is present and non-
+# NULL, initially highlight the item in the menu.
+#
+f_dialog_menu_user_delete()
+{
+	local prompt="$msg_delete_exit_or_cancel"
+	local menu_list # Calculated below
+	local defaultitem="$2"
+	local hline="$hline_arrows_tab_enter"
+
+	local user_name user_password user_uid user_gid user_class
+	local user_password_expire user_account_expire user_gecos
+	local user_home_dir user_shell user_member_groups
+	f_input_user "$1"
+
+	# Attempt to convert numeric UNIX time to calendar date/time
+	local user_account_expires_on=
+	if f_isinteger "$user_account_expire"; then
+		[ "$user_account_expire" -ne 0 ] && user_account_expires_on=$(
+			date -r "$user_account_expire" "+%F %T %Z"
+		)
+	else
+		user_account_expires_on="$user_account_expire"
+	fi
+	local user_password_expires_on=
+	if f_isinteger "$user_password_expire"; then
+		[ $user_password_expire -ne 0 ] && user_password_expires_on=$(
+			date -r "$user_password_expire" "+%F %T %Z"
+		)
+	else
+		user_password_expires_on="$user_password_expire"
+	fi
+
+	# Localize potentially hostile variables and escape their values
+	# to the local variable (see f_shell_escape() of `strings.subr')
+	local var
+	for var in account_expires_on class gecos gid group_delete \
+		home_delete home_dir member_groups name password_expires_on \
+		shell uid \
+	; do
+		local _user_$var
+		eval f_shell_escape \"\$user_$var\" _user_$var
+	done
+
+	# Attempt to translate a numeric GID into `number (name)'
+	if f_isinteger "$_user_gid"; then
+		local _user_group
+		_user_group=$( pw groupshow -g "$_user_gid" 2> /dev/null ) &&
+			_user_group="${_user_group%%:*}" &&
+			f_shell_escape "$_user_gid ($_user_group)" _user_gid
+	fi
+
+	menu_list="
+		'X' '$msg_delete/$msg_exit'
+		'1' '$msg_login: $_user_name'
+		'-' '$msg_full_name: $_user_gecos'
+		'-' '$msg_password: -----'
+		'-' '$msg_user_id: $_user_uid'
+		'-' '$msg_group_id: $_user_gid'
+		'-' '$msg_group_members: $_user_member_groups'
+		'-' '$msg_login_class: $_user_class'
+		'-' '$msg_password_expires_on: $_user_password_expires_on'
+		'-' '$msg_account_expires_on: $_user_account_expires_on'
+		'-' '$msg_home_directory: $_user_home_dir'
+		'-' '$msg_shell: $_user_shell'
+	" # END-QUOTE
+	if f_quietly pw groupshow -g "$user_gid"; then menu_list="$menu_list
+		'C' '$msg_delete_primary_group: ${_user_group_delete:-$msg_no}'
+	" # END-QUOTE
+	else menu_list="$menu_list
+		'-' '$msg_delete_primary_group: $msg_n_a'
+	" # END-QUOTE
+	fi
+	case "$user_home_dir" in
+	/|/nonexistent|/var/empty) menu_list="$menu_list
+		'-' '$msg_delete_home_directory: $msg_n_a'
+	   " # END-QUOTE
+	   ;;
+	*) if [ -d "$user_home_dir" ]; then menu_list="$menu_list
+		'D' '$msg_delete_home_directory: ${_user_home_delete:-$msg_no}'
+	   " # END-QUOTE
+	   else menu_list="$menu_list
+		'-' '$msg_delete_home_directory: $msg_n_a'
+	   " # END-QUOTE
+	   fi
+	esac
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--keep-tite                        \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+	return $retval
+}
+
+# f_dialog_menu_user_edit [$defaultitem]
+#
+# Present a menu detailing the properties of a login that is about to be
+# modified. The user's menu choice is available using f_dialog_menutag_fetch().
+# Returns success unless the user chose Cancel or pressed ESC. Data to display
+# is taken from environment variables user_account_expire, user_class,
+# user_dotfiles_create, user_gecos, user_gid, user_home_create, user_home_dir,
+# user_member_groups, user_name, user_password_expire, user_shell, and
+# user_uid. If $defaultitem is present and non-NULL, initially highlight the
+# item in the menu.
+#
+f_dialog_menu_user_edit()
+{
+	local prompt="$msg_save_exit_or_cancel"
+	local menu_list # Calculated below
+	local defaultitem="$1"
+	local hline="$hline_arrows_tab_enter"
+
+	# Attempt to convert numeric UNIX time to calendar date/time
+	local user_account_expires_on=
+	if f_isinteger "$user_account_expire"; then
+		[ "$user_account_expire" -ne 0 ] && user_account_expires_on=$(
+			date -r "$user_account_expire" "+%F %T %Z"
+		)
+	else
+		user_account_expires_on="$user_account_expire"
+	fi
+	local user_password_expires_on=
+	if f_isinteger "$user_password_expire"; then
+		[ $user_password_expire -ne 0 ] && user_password_expires_on=$(
+			date -r "$user_password_expire" "+%F %T %Z"
+		)
+	else
+		user_password_expires_on="$user_password_expire"
+	fi
+
+	# Localize potentially hostile variables and escape their values
+	# to the local variable (see f_shell_escape() of `strings.subr')
+	local var
+	for var in account_expires_on class dotfiles_create gecos gid \
+		home_create home_dir member_groups name password_expires_on \
+		shell uid \
+	; do
+		local _user_$var
+		eval f_shell_escape \"\$user_$var\" _user_$var
+	done
+
+	# Attempt to translate a numeric GID into `number (name)'
+	if f_isinteger "$_user_gid"; then
+		local _user_group
+		_user_group=$( pw groupshow -g "$_user_gid" 2> /dev/null ) &&
+			_user_group="${_user_group%%:*}" &&
+			f_shell_escape "$_user_gid ($_user_group)" _user_gid
+	fi
+
+	menu_list="
+		'X' '$msg_save/$msg_exit'
+		'1' '$msg_login: $_user_name'
+		'2' '$msg_full_name: $_user_gecos'
+		'3' '$msg_password: -----'
+		'4' '$msg_user_id: $_user_uid'
+		'5' '$msg_group_id: $_user_gid'
+		'6' '$msg_member_of_groups: $_user_member_groups'
+		'7' '$msg_login_class: $_user_class'
+		'8' '$msg_password_expires_on: $_user_password_expires_on'
+		'9' '$msg_account_expires_on: $_user_account_expires_on'
+		'A' '$msg_home_directory: $_user_home_dir'
+		'B' '$msg_shell: $_user_shell'
+	" # END-QUOTE
+	case "$user_home_dir" in
+	/|/nonexistent|/var/empty) menu_list="$menu_list
+		'-' '$msg_create_home_directory: $msg_n_a'
+		'-' '$msg_create_dotfiles: $msg_n_a'
+	   " # END-QUOTE
+	   ;;
+	*) if [ -d "$user_home_dir" ]; then menu_list="$menu_list
+		'-' '$msg_create_home_directory: $msg_n_a'
+		'D' '$msg_create_dotfiles: ${_user_dotfiles_create:-$msg_no}'
+	   " # END-QUOTE
+	   else menu_list="$menu_list
+		'C' '$msg_create_home_directory: ${_user_home_create:-$msg_no}'
+		'D' '$msg_create_dotfiles: ${_user_dotfiles_create:-$msg_no}'
+	   " # END-QUOTE
+	   fi
+	esac
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--keep-tite                        \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+	return $retval
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." usermgmt/user_input.subr
+
+fi # ! $_USERMGMT_USER_INPUT_SUBR

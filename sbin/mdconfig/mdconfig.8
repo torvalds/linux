@@ -1,0 +1,362 @@
+.\" Copyright (c) 1993 University of Utah.
+.\" Copyright (c) 1980, 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2000
+.\"	Poul-Henning Kamp  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Systems Programming Group of the University of Utah Computer
+.\" Science Department.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)vnconfig.8	8.1 (Berkeley) 6/5/93
+.\" from: src/usr.sbin/vnconfig/vnconfig.8,v 1.19 2000/12/27 15:30:29
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 21, 2018
+.Dt MDCONFIG 8
+.Os
+.Sh NAME
+.Nm mdconfig
+.Nd create and control memory disks
+.Sh SYNOPSIS
+.Nm
+.Fl a
+.Fl t Ar type
+.Op Fl n
+.Oo Fl o Oo Cm no Oc Ns Ar option Oc ...
+.Op Fl f Ar file
+.Op Fl s Ar size
+.Op Fl S Ar sectorsize
+.Op Fl u Ar unit
+.Op Fl x Ar sectors/track
+.Op Fl y Ar heads/cylinder
+.Op Fl L Ar label
+.Nm
+.Fl d
+.Fl u Ar unit
+.Op Fl o Oo Cm no Oc Ns Ar force
+.Nm
+.Fl r
+.Fl u Ar unit
+.Fl s Ar size
+.Op Fl o Oo Cm no Oc Ns Ar force
+.Nm
+.Fl l
+.Op Fl n
+.Op Fl v
+.Op Fl f Ar file
+.Op Fl u Ar unit
+.Nm
+.Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility creates and controls
+.Xr md 4
+devices.
+.Pp
+Options indicate an action to be performed:
+.Bl -tag -width indent
+.It Fl a
+Attach a memory disk.
+This will configure and attach a memory disk with the
+parameters specified and attach it to the system.
+If the
+.Fl u Ar unit
+option is not provided, the newly created device name will be printed on stdout.
+.It Fl d
+Detach a memory disk from the system and release all resources.
+.It Fl r
+Resize a memory disk.
+.It Fl t Ar type
+Select the type of the memory disk.
+.Bl -tag -width "malloc"
+.It Cm malloc
+Storage for this type of memory disk is allocated with
+.Xr malloc 9 .
+This limits the size to the malloc bucket limit in the kernel.
+If the
+.Fl o Cm reserve
+option is not set, creating and filling a large
+malloc-backed memory disk is a very easy way to
+panic the system.
+.It Cm vnode
+A file specified with
+.Fl f Ar file
+becomes the backing store for this memory disk.
+.It Cm swap
+Storage for this type of memory disk is allocated from buffer
+memory.
+Pages get pushed out to swap when the system is under memory
+pressure, otherwise they stay in the operating memory.
+Using
+.Cm swap
+backing is generally preferred instead of using
+.Cm malloc
+backing.
+.It Cm null
+Bitsink; all writes do nothing, all reads return zeroes.
+.El
+.It Fl f Ar file
+Filename to use for the vnode type memory disk.
+The
+.Fl a
+and
+.Fl t Ar vnode
+options are implied if not specified.
+.It Fl l
+List configured devices.
+If given with
+.Fl u ,
+display details about that particular device.
+If given with
+.Fl f Ar file ,
+display
+.Xr md 4
+device names of which
+.Ar file
+is used as the backing store.
+If both of
+.Fl u
+and
+.Fl f
+options are specified,
+display devices which match the two conditions.
+If the
+.Fl v
+option is specified, show all details.
+.It Fl n
+When printing
+.Xr md 4
+device names, print only the unit number without the
+.Xr md 4
+prefix.
+.It Fl s Ar size
+Size of the memory disk.
+.Ar Size
+is the number of 512 byte sectors unless suffixed with a
+.Cm b , k , m , g , t ,
+or
+.Cm p
+which
+denotes byte, kilobyte, megabyte, gigabyte, terabyte and petabyte respectively.
+When used without the
+.Fl r
+option, the
+.Fl a
+and
+.Fl t Ar swap
+options are implied if not specified.
+.It Fl S Ar sectorsize
+Sectorsize to use for the memory disk, in bytes.
+.It Fl x Ar sectors/track
+See the description of the
+.Fl y
+option below.
+.It Fl y Ar heads/cylinder
+For
+.Cm malloc
+or
+.Cm vnode
+backed devices, the
+.Fl x
+and
+.Fl y
+options can be used to specify a synthetic geometry.
+This is useful for constructing bootable images for later download to
+other devices.
+.It Fl L Ar label
+Associate a label (arbitrary string) with the new memory disk.
+The label can then be inspected with
+.Bd -literal -offset indent
+.Nm Fl l v
+.Ed
+.It Fl o Oo Cm no Oc Ns Ar option
+Set or reset options.
+.Bl -tag -width indent
+.It Oo Cm no Oc Ns Cm async
+For
+.Cm vnode
+backed devices: avoid
+.Dv IO_SYNC
+for increased performance but
+at the risk of deadlocking the entire kernel.
+.It Oo Cm no Oc Ns Cm cache
+For
+.Cm vnode
+backed devices: enable/disable caching of data in system caches.
+The default is to not cache.
+.Pp
+Accesses via the device are converted to accesses via the vnode.
+The caching policy for the vnode is used initially.
+This is normally to cache.
+This caching policy is retained if the
+.Cm cache
+option is used.
+Otherwise, caching is limited
+by releasing data from caches soon after each access.
+The release has the same semantics as the
+.Dv POSIX_FADV_DONTNEED
+feature of
+.Xr posix_fadvise 2 .
+The result is that with normal (non-zfs) caching,
+buffers are released from the buffer cache soon after they are constructed,
+but their data is kept in the page cache at lower priority.
+.Pp
+The
+.Cm cache
+option tends to waste memory by giving unwanted double caching,
+but it saves time if there is memory to spare.
+.It Oo Cm no Oc Ns Cm reserve
+Allocate and reserve all needed storage from the start, rather than as needed.
+.It Oo Cm no Oc Ns Cm cluster
+Enable clustering on this disk.
+.It Oo Cm no Oc Ns Cm compress
+Enable/disable compression features to reduce memory usage.
+.It Oo Cm no Oc Ns Cm force
+Disable/enable extra sanity checks to prevent the user from doing something
+that might adversely affect the system.
+This can be used with the
+.Fl d
+flag to forcibly destroy an
+.Xr md 4
+disk that is still in use.
+.It Oo Cm no Oc Ns Cm readonly
+Enable/disable readonly mode.
+.It Oo Cm no Oc Ns Cm verify
+For
+.Cm vnode
+backed devices: enable/disable requesting verification of the
+file used for backing store.
+The type of verification depends on which security features are available.
+One example of verification is testing file integrity with
+checksums or cryptographic signatures.
+.El
+.It Fl u Ar unit
+Request a specific unit number or device name for the
+.Xr md 4
+device instead of automatic allocation.
+If a device name is specified, it must be start with
+.Dq md
+followed by the unit number.
+.El
+.Pp
+The last form,
+.Nm
+.Ar file ,
+is provided for convenience as an abbreviation of
+.Nm
+.Fl a
+.Fl t Ar vnode
+.Fl f Ar file .
+.Sh EXAMPLES
+Create a disk with
+.Pa /tmp/boot.flp
+as backing storage.
+The name of the allocated unit will be printed on stdout, such as
+.Dq Li md0 :
+.Bd -literal -offset indent
+mdconfig /tmp/boot.flp
+.Ed
+.Pp
+Create a 1 gigabyte swap backed memory disk named
+.Dq Li md3 :
+.Bd -literal -offset indent
+mdconfig -s 1g -u md3
+.Ed
+.Pp
+Detach and free all resources used by
+.Pa /dev/md3 :
+.Bd -literal -offset indent
+mdconfig -du md3
+.Ed
+.Pp
+Show detailed information on current memory disks:
+.Bd -literal -offset indent
+mdconfig -lv
+.Ed
+.Pp
+Resize the
+.Dq Li md3
+memory disk to 2 gigabytes:
+.Bd -literal -offset indent
+mdconfig -rs 2g -u md3
+.Ed
+.Pp
+Create a 1 gigabyte swap backed disk, initialize an
+.Xr ffs 7
+file system on it, and mount it on
+.Pa /tmp :
+.Bd -literal -offset indent
+mdconfig -s 1g -u md10
+newfs -U /dev/md10
+mount /dev/md10 /tmp
+chmod 1777 /tmp
+.Ed
+.Pp
+Create a memory disk out of an ISO 9660 CD image file,
+using the first available
+.Xr md 4
+device, and then mount it:
+.Bd -literal -offset indent
+mount -t cd9660 /dev/`mdconfig -f cdimage.iso` /mnt
+.Ed
+.Pp
+Create a file-backed device from a hard disk image that begins
+with 512K of raw header information.
+.Xr gnop 8
+is used to skip over the header information, positioning
+.Pa md1.nop
+to the start of the filesystem in the image.
+.Bd -literal -offset indent
+mdconfig -u md1 -f diskimage.img
+gnop create -o 512K md1
+mount /dev/md1.nop /mnt
+.Ed
+.Sh SEE ALSO
+.Xr open 2 ,
+.Xr md 4 ,
+.Xr ffs 7 ,
+.Xr gpart 8 ,
+.Xr mdmfs 8 ,
+.Xr malloc 9
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.0
+as a cleaner replacement for the
+.Xr vn 4
+and
+.Xr vnconfig 8
+combo.
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .

@@ -1,0 +1,140 @@
+.\" Copyright (c) 1996
+.\"	Mike Pritchard <mpp@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Copyright (c) 1992, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software donated to Berkeley by
+.\" Jan-Simon Pendry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 1, 2017
+.Dt FDESCFS 5
+.Os
+.Sh NAME
+.Nm fdescfs
+.Nd file-descriptor file system
+.Sh SYNOPSIS
+.Bd -literal
+fdescfs	/dev/fd	fdescfs rw 0 0
+.Ed
+.Sh DESCRIPTION
+The file-descriptor file system, or
+.Nm ,
+provides access to the per-process file descriptor
+namespace in the global file system namespace.
+The conventional mount point is
+.Pa /dev/fd .
+.Pp
+The file system's contents
+appear as a list of numbered files
+which correspond to the open files of the process reading the
+directory.
+The files
+.Pa /dev/fd/0
+through
+.Pa /dev/fd/#
+refer to file descriptors which can be accessed through the file
+system.
+If the file descriptor is open and the mode the file is being opened
+with is a subset of the mode of the existing descriptor, the call:
+.Bd -literal -offset indent
+fd = open("/dev/fd/0", mode);
+.Ed
+.Pp
+and the call:
+.Bd -literal -offset indent
+fd = fcntl(0, F_DUPFD, 0);
+.Ed
+.Pp
+are equivalent.
+.Pp
+Flags to the
+.Xr open 2
+call other than
+.Dv O_RDONLY ,
+.Dv O_WRONLY
+and
+.Dv O_RDWR
+are ignored.
+.Pp
+.Em "Note:"
+.Pa /dev/fd/0 ,
+.Pa /dev/fd/1
+and
+.Pa /dev/fd/2
+files are created by default when devfs alone is mounted.
+.Nm
+creates entries for all file descriptors opened by the process.
+.Pp
+For
+.Xr linux 4
+ABI compatibility mount
+.Nm
+volume with
+.Cm linrdlnk
+option.
+.Sh FILES
+.Bl -tag -width /dev/stderr -compact
+.It Pa /dev/fd/#
+.El
+.Sh EXAMPLES
+To mount a
+.Nm
+volume located on
+.Pa /dev/fd :
+.Pp
+.Dl "mount -t fdescfs null /dev/fd"
+.Pp
+For
+.Xr linux 4
+ABI compatibility:
+.Pp
+.Dl "mount -t fdescfs -o linrdlnk null /compat/linux/dev/fd"
+.Sh SEE ALSO
+.Xr devfs 5 ,
+.Xr mount 8
+.Sh HISTORY
+The
+.Nm
+file system first appeared in
+.Bx 4.4 .
+The
+.Nm
+manual page first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+manual page was written by
+.An Mike Pritchard Aq Mt mpp@FreeBSD.org ,
+and was based on the
+manual page written by
+.An Jan-Simon Pendry .

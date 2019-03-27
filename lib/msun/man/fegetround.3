@@ -1,0 +1,83 @@
+.\" Copyright (c) 2004 David Schultz <das@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 8, 2004
+.Dt FEGETROUND 3
+.Os
+.Sh NAME
+.Nm fegetround ,
+.Nm fesetround
+.Nd floating-point rounding control
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In fenv.h
+.Fd "#pragma STDC FENV_ACCESS ON"
+.Ft int
+.Fn fegetround void
+.Ft int
+.Fn fesetround "int round"
+.Sh DESCRIPTION
+The
+.Fn fegetround
+function determines the current floating-point rounding mode,
+and the
+.Fn fesetround
+function sets the current rounding mode to
+.Fa round .
+The rounding mode is one of
+.Dv FE_TONEAREST , FE_DOWNWARD , FE_UPWARD ,
+or
+.Dv FE_TOWARDZERO ,
+as described in
+.Xr fenv 3 .
+.Sh RETURN VALUES
+The
+.Fn fegetround
+routine returns the current rounding mode.
+The
+.Fn fesetround
+function returns 0 on success and non-zero otherwise;
+however, the present implementation always succeeds.
+.Sh SEE ALSO
+.Xr fenv 3 ,
+.Xr fpgetround 3 ,
+.Xr fpsetround 3
+.Sh STANDARDS
+The
+.Fn fegetround
+and
+.Fn fesetround
+functions conform to
+.St -isoC-99 .
+.Sh HISTORY
+These routines first appeared in
+.Fx 5.3 .
+They supersede the non-standard
+.Xr fpgetround 3
+and
+.Xr fpsetround 3
+functions.

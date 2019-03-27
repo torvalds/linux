@@ -1,0 +1,193 @@
+.\" Copyright (c) 2006-2008 Stanislav Sedov <stas@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 20, 2014
+.Dt CPUCTL 4
+.Os
+.Sh NAME
+.Nm cpuctl
+.Nd cpuctl pseudo device
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd "device cpuctl"
+.Ed
+.Pp
+Alternatively, to load the driver as a module
+at boot time, place the following in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+cpuctl_load="YES"
+.Ed
+.Sh DESCRIPTION
+The special device
+.Pa /dev/cpuctl
+presents interface to the system CPU.
+It provides functionality to retrieve
+CPUID information, read/write machine specific registers (MSR) and perform
+CPU firmware updates.
+.Pp
+For each CPU present in the system, the special device
+.Pa /dev/cpuctl%d
+with the appropriate index will be created.
+For multicore CPUs such a
+special device will be created for each core.
+.Pp
+Currently, only i386 and amd64 processors are
+supported.
+.Sh IOCTL INTERFACE
+All of the supported operations are invoked using the
+.Xr ioctl 2
+system call.
+Currently, the following ioctls are defined:
+.Bl -tag -width CPUCTL_CPUID_COUNT
+.It Dv CPUCTL_RDMSR Fa cpuctl_msr_args_t *args
+.It Dv CPUCTL_WRMSR Fa cpuctl_msr_args_t *args
+Read/write CPU machine specific register.
+The
+.Vt cpuctl_msr_args_t
+structure is defined in
+.In sys/cpuctl.h
+as:
+.Bd -literal
+typedef struct {
+	int		msr;	/* MSR to read */
+	uint64_t	data;
+} cpuctl_msr_args_t;
+.Ed
+.It Dv CPUCTL_MSRSBIT Fa cpuctl_msr_args_t *args
+.It Dv CPUCTL_MSRCBIT Fa cpuctl_msr_args_t *args
+Set/clear MSR bits according to the mask given in the
+.Va data
+field.
+.It Dv CPUCTL_CPUID Fa cpuctl_cpuid_args_t *args
+Retrieve CPUID information.
+Arguments are supplied in the following structure:
+.Bd -literal
+typedef struct {
+	int		level;		/* CPUID level */
+	uint32_t	data[4];
+} cpuctl_cpuid_args_t;
+.Ed
+It is equivalent to the
+.Dv CPUCTL_CPUID_COUNT
+request with
+.Va level_type
+set to 0.
+.It Dv CPUCTL_CPUID_COUNT Fa cpuctl_cpuid_count_args_t *args
+Retrieve CPUID information.
+Arguments are supplied in the following structure:
+.Bd -literal
+typedef struct {
+	int		level;		/* CPUID level */
+	int		level_type;	/* CPUID level type */
+	uint32_t	data[4];
+} cpuctl_cpuid_count_args_t;
+.Ed
+The
+.Va level
+field indicates the CPUID level to retrieve,
+it is loaded into the
+.Va %eax
+register before the CPUID instruction is executed,
+The
+.Va level_type
+field indicates the CPUID level type to retrieve,
+it is loaded into the
+.Va %ecx
+register.
+.Pp
+The
+.Va data
+field is used to store the received CPUID data.
+That is,
+.Va data[0]
+contains the value of
+.Va %eax
+register after the CPUID instruction is executed,
+.Va data[1]
+is for
+.Va %ebx ,
+.Va data[2]
+for
+.Va %ecx ,
+and
+.Va data[3]
+for
+.Va %edx .
+.It Dv CPUCTL_UPDATE cpuctl_update_args_t *args
+Update CPU firmware (microcode).
+The structure is defined in
+.In sys/cpuctl.h
+as:
+.Bd -literal
+typedef struct {
+	void	*data;
+	size_t	size;
+} cpuctl_update_args_t;
+.Ed
+.Pp
+The
+.Va data
+field should point to the firmware image of size
+.Va size .
+.El
+.Pp
+For additional information refer to
+.Pa cpuctl.h .
+.Sh FILES
+.Bl -tag -width /dev/cpuctl -compact
+.It Pa /dev/cpuctl
+.El
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ENXIO
+The operation requested is not supported by the device (e.g., unsupported
+architecture or the CPU is disabled).
+.It Bq Er EINVAL
+Incorrect request was supplied, or microcode image is not correct.
+.It Bq Er ENOMEM
+No physical memory was available to complete the request.
+.It Bq Er EFAULT
+The firmware image address points outside the process address space.
+.El
+.Sh SEE ALSO
+.Xr hwpmc 4 ,
+.Xr cpucontrol 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 7.2 .
+.Sh AUTHORS
+The
+.Nm
+module and this manual page were written by
+.An Stanislav Sedov Aq Mt stas@FreeBSD.org .
+.Sh BUGS
+Yes, probably, report if any.

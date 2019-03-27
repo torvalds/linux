@@ -1,0 +1,17 @@
+$ $tcsh: set22,v 1.4 2011/02/04 18:19:44 christos Exp $
+$ tc.func.c
+$set 22 
+1 %S: \t перевизначено на
+2 \nНевірний пароль користувача %s\n
+3 Faulty alias 'precmd' removed.\n
+4 Faulty alias 'cwdcmd' removed.\n
+5 Faulty alias 'beepcmd' removed.\n
+6 Faulty alias 'periodic' removed.\n
+7 синтаксичний розбір командного рядка\n
+8 Ви справді хочете видалити всі файли? [n/y] 
+9 пропускаємо видалення всіх файлів!\n
+10 командний рядок тепер:\n
+11 синтаксичний розбір командного рядка\n
+12 в одному із списків\n
+13 командний рядок тепер:\n
+14 yY

@@ -1,0 +1,103 @@
+.\"-
+.\" Copyright (C) 2004-2006 The FreeBSD Project. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: cxm.4,v 1.1 2004/10/16 00:12:35 mavetju Exp $
+.\" $FreeBSD$
+.\"
+.Dd November 30, 2006
+.Dt PVR250-SETCHANNEL 1
+.Os
+.Sh NAME
+.Nm pvr250-setchannel
+.Nd Hauppage PVR250/350 channel selector
+.Sh SYNOPSIS
+.Cd pvr250-setchannel [-a {on | off}] [-c | -r | -s | -t] [-g geom] [-m channel_set] [channel | freq]
+.Sh DESCRIPTION
+.Nm
+provides support for selecting channels on Hauppauge WinTV cards,
+including the PVR 150, PVR 250, PVR 350 and PVR 500.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl a Cm on
+Enable AFC.
+.It Fl a Cm off
+Disable AFC.
+.It Fl c
+Select composite input.
+.It Fl d
+Select the tuner unit number.
+This is appended to the base device file name
+.Pa /dev/cxm
+to form a device name such as
+.Pa /dev/cxm0
+or
+.Pa /dev/cxm1 .
+.It Fl r
+Select radio input.
+.It Fl s
+Select svideo input.
+.It Fl t
+Select tuner.
+.It Fl g Cm geom
+Select geometry.  The first resolution is for NTSC, the second for
+PAL.
+.Pp
+  VCD:           352x240 or 352x288
+  SVCD:          480x480 or 480x576
+  DVD (half D1): 352x480 or 352x576
+  DVD (full D1): 720x480 or 720x576
+.It Fl m Cm channel-set
+Select channel set and system.
+.Pp
+  0 = Tuner Default
+  1 = US Broadcast (NTSC)
+  2 = US Cable (NTSC)
+  4 = Western Europe (PAL)
+  5 = Japan Broadcast (NTSC)
+  6 = Japan Cable (NTSC)
+  8 = Australia (PAL)
+  9 = France (SECAM)
+.It Cm channel
+Channel number to set.
+.It Cm freq
+Frequency in MHz (must include decimal point).
+.El
+.Sh SEE ALSO
+.Xr bktr 4 ,
+.Xr cxm 4 ,
+.Xr meteor 4
+.Sh HISTORY
+The
+.Nm
+program first appeared in the -multimedia mailing-list in January 2004. The
+.Nm
+program first appeared in the FreeBSD Ports collection in October 2004.
+.Sh AUTHORS
+.An -nosplit
+This program is made by
+.An John Wehle <john@feith.com>
+.Pp
+This man page is made by
+.An Edwin Groothuis <edwin@FreeBSD.org>

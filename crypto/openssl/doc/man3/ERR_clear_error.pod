@@ -1,0 +1,34 @@
+=pod
+
+=head1 NAME
+
+ERR_clear_error - clear the error queue
+
+=head1 SYNOPSIS
+
+ #include <openssl/err.h>
+
+ void ERR_clear_error(void);
+
+=head1 DESCRIPTION
+
+ERR_clear_error() empties the current thread's error queue.
+
+=head1 RETURN VALUES
+
+ERR_clear_error() has no return value.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

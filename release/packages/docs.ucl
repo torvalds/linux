@@ -1,0 +1,17 @@
+#
+# $FreeBSD$
+#
+
+name = "FreeBSD-%PKGNAME%"
+origin = "base"
+version = "%VERSION%"
+comment = "%COMMENT%"
+categories = [ base ]
+maintainer = "re@FreeBSD.org"
+www = "https://www.FreeBSD.org"
+prefix = "/"
+licenselogic = "single"
+licenses = [ BSD2CLAUSE ]
+desc = <<EOD
+%DESC%
+EOD

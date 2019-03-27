@@ -1,0 +1,64 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=\
+        aes_misc.c aes_ecb.c aes_cfb.c aes_ofb.c \
+        aes_ige.c aes_wrap.c {- $target{aes_asm_src} -}
+
+GENERATE[aes-ia64.s]=asm/aes-ia64.S
+
+GENERATE[aes-586.s]=asm/aes-586.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+DEPEND[aes-586.s]=../perlasm/x86asm.pl
+GENERATE[vpaes-x86.s]=asm/vpaes-x86.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+DEPEND[vpaes-586.s]=../perlasm/x86asm.pl
+GENERATE[aesni-x86.s]=asm/aesni-x86.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+DEPEND[aesni-586.s]=../perlasm/x86asm.pl
+
+GENERATE[aes-x86_64.s]=asm/aes-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[vpaes-x86_64.s]=asm/vpaes-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[bsaes-x86_64.s]=asm/bsaes-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[aesni-x86_64.s]=asm/aesni-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[aesni-sha1-x86_64.s]=asm/aesni-sha1-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[aesni-sha256-x86_64.s]=asm/aesni-sha256-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[aesni-mb-x86_64.s]=asm/aesni-mb-x86_64.pl $(PERLASM_SCHEME)
+
+GENERATE[aes-sparcv9.S]=asm/aes-sparcv9.pl $(PERLASM_SCHEME)
+INCLUDE[aes-sparcv9.o]=..
+GENERATE[aest4-sparcv9.S]=asm/aest4-sparcv9.pl $(PERLASM_SCHEME)
+INCLUDE[aest4-sparcv9.o]=..
+DEPEND[aest4-sparcv9.S]=../perlasm/sparcv9_modes.pl
+GENERATE[aesfx-sparcv9.S]=asm/aesfx-sparcv9.pl $(PERLASM_SCHEME)
+INCLUDE[aesfx-sparcv9.o]=..
+
+GENERATE[aes-ppc.s]=asm/aes-ppc.pl $(PERLASM_SCHEME)
+GENERATE[vpaes-ppc.s]=asm/vpaes-ppc.pl $(PERLASM_SCHEME)
+GENERATE[aesp8-ppc.s]=asm/aesp8-ppc.pl $(PERLASM_SCHEME)
+
+GENERATE[aes-parisc.s]=asm/aes-parisc.pl $(PERLASM_SCHEME)
+
+GENERATE[aes-mips.S]=asm/aes-mips.pl $(PERLASM_SCHEME)
+INCLUDE[aes-mips.o]=..
+
+GENERATE[aesv8-armx.S]=asm/aesv8-armx.pl $(PERLASM_SCHEME)
+INCLUDE[aesv8-armx.o]=..
+GENERATE[vpaes-armv8.S]=asm/vpaes-armv8.pl $(PERLASM_SCHEME)
+
+GENERATE[aes-armv4.S]=asm/aes-armv4.pl $(PERLASM_SCHEME)
+INCLUDE[aes-armv4.o]=..
+GENERATE[bsaes-armv7.S]=asm/bsaes-armv7.pl $(PERLASM_SCHEME)
+INCLUDE[bsaes-armv7.o]=..
+
+GENERATE[aes-s390x.S]=asm/aes-s390x.pl $(PERLASM_SCHEME)
+INCLUDE[aes-s390x.o]=..
+
+BEGINRAW[Makefile]
+##### AES assembler implementations
+
+# GNU make "catch all"
+{- $builddir -}/aes-%.S:	{- $sourcedir -}/asm/aes-%.pl
+	CC="$(CC)" $(PERL) $< $(PERLASM_SCHEME) $@
+{- $builddir -}/bsaes-%.S:	{- $sourcedir -}/asm/bsaes-%.pl
+	CC="$(CC)" $(PERL) $< $(PERLASM_SCHEME) $@
+
+ENDRAW[Makefile]

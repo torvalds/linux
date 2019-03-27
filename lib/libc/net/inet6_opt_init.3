@@ -1,0 +1,337 @@
+.\"	$KAME: inet6_opt_init.3,v 1.7 2004/12/27 05:08:23 itojun Exp $
+.\"
+.\" Copyright (C) 2004 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 23, 2004
+.Dt INET6_OPT_INIT 3
+.Os
+.\"
+.Sh NAME
+.Nm inet6_opt_init ,
+.Nm inet6_opt_append ,
+.Nm inet6_opt_finish ,
+.Nm inet6_opt_set_val ,
+.Nm inet6_opt_next ,
+.Nm inet6_opt_find ,
+.Nm inet6_opt_get_val
+.Nd IPv6 Hop-by-Hop and Destination Options manipulation
+.\"
+.Sh SYNOPSIS
+.In netinet/in.h
+.Ft "int"
+.Fn inet6_opt_init "void *extbuf" "socklen_t extlen"
+.Ft "int"
+.Fn inet6_opt_append "void *extbuf" "socklen_t extlen" "int offset" "u_int8_t type" "socklen_t len" "u_int8_t align" "void **databufp"
+.Ft "int"
+.Fn inet6_opt_finish "void *extbuf" "socklen_t extlen" "int offset"
+.Ft "int"
+.Fn inet6_opt_set_val "void *databuf" "int offset" "void *val" "socklen_t vallen"
+.Ft "int"
+.Fn inet6_opt_next "void *extbuf" "socklen_t extlen" "int offset" "u_int8_t *typep" "socklen_t *lenp" "void **databufp"
+.Ft "int"
+.Fn inet6_opt_find "void *extbuf" "socklen_t extlen" "int offset" "u_int8_t type" "socklen_t *lenp" "void **databufp"
+.Ft "int"
+.Fn inet6_opt_get_val "void *databuf" "int offset" "void *val" "socklen_t vallen"
+.\"
+.Sh DESCRIPTION
+Building and parsing the Hop-by-Hop and Destination options is
+complicated.
+The advanced sockets API defines a set of functions to
+help applications create and manipulate Hop-by-Hop and Destination
+options.
+This man page describes the functions specified in
+IETF Draft RFC3542.
+These functions use the
+formatting rules specified in Appendix B in RFC2460, i.e., that the
+largest field is placed last in the option.
+The function prototypes
+for these functions are all contained in the
+.In netinet/in.h
+header file.
+.\"
+.Ss inet6_opt_init
+The
+.Fn inet6_opt_init
+function
+returns the number of bytes needed for an empty
+extension header, one without any options.
+If the
+.Fa extbuf
+argument points to a valid section of memory
+then the
+.Fn inet6_opt_init
+function also initializes the extension header's length field.
+When attempting to initialize an extension buffer passed in the
+.Fa extbuf
+argument,
+.Fa extlen
+must be a positive multiple of 8 or else the function fails and
+returns \-1 to the caller.
+.\"
+.Ss inet6_opt_append
+The
+.Fn inet6_opt_append
+function can perform two different jobs.
+When a valid
+.Fa extbuf
+argument is supplied it appends an option to the extension buffer and
+returns the updated total length as well as a pointer to the newly
+created option in
+.Fa databufp .
+If the value
+of
+.Fa extbuf
+is
+.Dv NULL
+then the
+.Fn inet6_opt_append
+function only reports what the total length would
+be if the option were actually appended.
+The
+.Fa len
+and
+.Fa align
+arguments specify the length of the option and the required data
+alignment which must be used when appending the option.
+The
+.Fa offset
+argument should be the length returned by the
+.Fn inet6_opt_init
+function or a previous call to
+.Fn inet6_opt_append .
+.Pp
+The
+.Fa type
+argument is the 8-bit option type.
+.Pp
+After
+.Fn inet6_opt_append
+has been called, the application can use the buffer pointed to by
+.Fa databufp
+directly, or use
+.Fn inet6_opt_set_val
+to specify the data to be contained in the option.
+.Pp
+Option types of
+.Li 0
+and
+.Li 1
+are reserved for the
+.Li Pad1
+and
+.Li PadN
+options.
+All other values from 2 through 255 may be used by applications.
+.Pp
+The length of the option data is contained in an 8-bit value and so
+may contain any value from 0 through 255.
+.Pp
+The
+.Fa align
+parameter must have a value of 1, 2, 4, or 8 and cannot exceed the
+value of
+.Fa len .
+The alignment values represent no alignment, 16 bit, 32 bit and 64 bit
+alignments, respectively.
+.\"
+.Ss inet6_opt_finish
+The
+.Fn inet6_opt_finish
+function
+calculates the final padding necessary to make the extension header a
+multiple of 8 bytes, as required by the IPv6 extension header
+specification, and returns the extension header's updated total
+length.
+The
+.Fa offset
+argument should be the length returned by
+.Fn inet6_opt_init
+or
+.Fn inet6_opt_append .
+When
+.Fa extbuf
+is not
+.Dv NULL
+the function also sets up the appropriate padding bytes by inserting a
+Pad1 or PadN option of the proper length.
+.Pp
+If the extension header is too small to contain the proper padding
+then an error of \-1 is returned to the caller.
+.\"
+.Ss inet6_opt_set_val
+The
+.Fn inet6_opt_set_val
+function inserts data items of various sizes into the data portion of
+the option.
+The
+.Fa databuf
+argument is a pointer to memory that was returned by the
+.Fn inet6_opt_append
+call and the
+.Fa offset
+argument specifies where the option should be placed in the
+data buffer.
+The
+.Fa val
+argument points to an area of memory containing the data to be
+inserted into the extension header, and the
+.Fa vallen
+argument indicates how much data to copy.
+.Pp
+The caller should ensure that each field is aligned on its natural
+boundaries as described in Appendix B of RFC2460.
+.Pp
+The function returns the offset for the next field which is calculated as
+.Fa offset
++
+.Fa vallen
+and is used when composing options with multiple fields.
+.\"
+.Ss inet6_opt_next
+The
+.Fn inet6_opt_next
+function parses received extension headers.
+The
+.Fa extbuf
+and
+.Fa extlen
+arguments specify the location and length of the extension header
+being parsed.
+The
+.Fa offset
+argument should either be zero, for the first option, or the length value
+returned by a previous call to
+.Fn inet6_opt_next
+or
+.Fn inet6_opt_find .
+The return value specifies the position where to continue scanning the
+extension buffer.
+The option is returned in the arguments
+.Fa typep , lenp ,
+and
+.Fa databufp ,
+which
+point to the 8-bit option type, the 8-bit option length and the option
+data, respectively.
+This function does not return any PAD1 or PADN options.
+When an error occurs or there are no more options, the return
+value is \-1.
+.\"
+.Ss inet6_opt_find
+The
+.Fn inet6_opt_find
+function searches the extension buffer for a particular option type,
+passed in through the
+.Fa type
+argument.
+If the option is found then the
+.Fa lenp
+and
+.Fa databufp
+arguments are updated to point to the option's length and data,
+respectively.
+The
+.Fa extbuf
+and
+.Fa extlen
+arguments
+must point to a valid extension buffer and give its length.
+The
+.Fa offset
+argument can be used to search from a location anywhere in the
+extension header.
+.Ss inet6_opt_get_val
+The
+.Fn inet6_opt_get_val
+function extracts data items of various sizes in the data portion of
+the option.
+The
+.Fa databuf
+is a pointer returned by the
+.Fn inet6_opt_next
+or
+.Fn inet6_opt_find
+functions.
+The
+.Fa val
+argument points where the data will be extracted.
+The
+.Fa offset
+argument specifies from where in the data portion of the option the
+value should be extracted; the first byte of option data is specified
+by an offset of zero.
+.Pp
+It is expected that each field is aligned on its natural boundaries as
+described in Appendix B of RFC2460.
+.Pp
+The function returns the offset for the next field
+by calculating
+.Fa offset
++
+.Fa vallen
+which can be used when extracting option content with multiple fields.
+Robust receivers must verify alignment before calling this function.
+.\"
+.Sh RETURN VALUES
+All the functions return
+\-1
+on an error.
+.\"
+.Sh EXAMPLES
+RFC3542 gives comprehensive examples in Section 23.
+.Pp
+KAME also provides examples in the
+.Pa advapitest
+directory of its kit.
+.\"
+.Sh SEE ALSO
+.Rs
+.%A W. Stevens
+.%A M. Thomas
+.%A E. Nordmark
+.%A T. Jinmei
+.%T "Advanced Sockets API for IPv6"
+.%N RFC3542
+.%D October 2002
+.Re
+.Rs
+.%A S. Deering
+.%A R. Hinden
+.%T "Internet Protocol, Version 6 (IPv6) Specification"
+.%N RFC2460
+.%D December 1998
+.Re
+.Sh STANDARDS
+The functions are documented in
+.Dq Advanced Sockets API for IPv6
+.Pq RFC3542 .
+.\"
+.Sh HISTORY
+The implementation first appeared in KAME advanced networking kit.

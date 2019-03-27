@@ -1,0 +1,96 @@
+#! /bin/sh
+
+# possible usage: $0 [-f] [version.m4] [version.def]
+#
+# -f would be 'force the update'
+
+force=0
+outputs=
+for i in $*
+do
+    case "$i" in
+     -f) 
+	force=1 
+	;;
+     *version.m4)
+	outputs="m4/version.m4 $outputs"
+	;;
+     *version.def)
+	outputs="include/version.def $outputs"
+	;;
+     *version.texi)
+	outputs="include/version.texi $outputs"
+	;;
+     *) echo "Unrecognized option: $i"
+	exit 1
+	;;
+    esac
+done
+
+case "$outputs" in
+ '') outputs="m4/version.m4 include/version.def include/version.texi" ;;
+esac
+
+set -e
+
+. ../packageinfo.sh
+
+dversion=`../scripts/build/VersionName -p ../packageinfo.sh`
+
+set +e
+
+# Create intermediate files in $TEMPDIR defaulting it to /tmp
+# if not set.  This avoids races when multiple builds run in
+# parallel on shared source.
+
+TEMPDIR=${TEMPDIR=/tmp}
+
+case "$outputs" in
+ *version.m4*)
+    echo "m4_define([VERSION_NUMBER],[${dversion}])" > "${TEMPDIR}/version.m4+"
+    cmp -s "${TEMPDIR}/version.m4+" m4/version.m4
+    rc=$?
+    case "$force$rc" in
+     00)
+	rm -f "${TEMPDIR}/version.m4+"
+	;;
+     *)
+	mv "${TEMPDIR}/version.m4+" m4/version.m4
+	;;
+    esac
+    ;;
+esac
+
+case "$outputs" in
+ *version.def*)
+    echo "version = '${dversion}';" > "${TEMPDIR}/version.def+"
+    cmp -s "${TEMPDIR}/version.def+" include/version.def
+    rc=$?
+    case "$force$rc" in
+     00)
+	rm -f "${TEMPDIR}/version.def+"
+	;;
+     *)
+	mv "${TEMPDIR}/version.def+" include/version.def
+	;;
+    esac
+    ;;
+esac
+
+case "$outputs" in
+ *version.texi*)
+    echo "@set UPDATED `date +'%d %B %Y'`"	>  "${TEMPDIR}/version.texi+"
+    echo "@set EDITION $dversion"		>> "${TEMPDIR}/version.texi+"
+    echo "@set VERSION $dversion"		>> "${TEMPDIR}/version.texi+"
+    cmp -s "${TEMPDIR}/version.texi+" include/version.texi
+    rc=$?
+    case "$force$rc" in
+     00)
+	rm -f "${TEMPDIR}/version.texi+"
+	;;
+     *)
+	mv "${TEMPDIR}/version.texi+" include/version.texi
+	;;
+    esac
+    ;;
+esac

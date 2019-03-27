@@ -1,0 +1,264 @@
+.\" Copyright (c) 1983, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Robert Elz at The University of Melbourne.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)edquota.8	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd June 6, 1993
+.Dt EDQUOTA 8
+.Os
+.Sh NAME
+.Nm edquota
+.Nd edit user quotas
+.Sh SYNOPSIS
+.Nm
+.Op Fl uh
+.Op Fl f Ar fspath
+.Op Fl p Ar proto-username
+.Ar username ...
+.Nm
+.Op Fl u
+.Fl e
+.Sm off
+.Ar fspath Op : Ar bslim Op : Ar bhlim Op : Ar islim Op : Ar ihlim
+.Sm on
+.Op Fl e Ar ...
+.Ar username ...
+.Nm
+.Fl g
+.Op Fl h
+.Op Fl f Ar fspath
+.Op Fl p Ar proto-groupname
+.Ar groupname ...
+.Nm
+.Fl g
+.Fl e
+.Sm off
+.Ar fspath Op : Ar bslim Op : Ar bhlim Op : Ar islim Op : Ar ihlim
+.Sm on
+.Op Fl e Ar ...
+.Ar groupname ...
+.Nm
+.Fl t
+.Op Fl u
+.Op Fl f Ar fspath
+.Nm
+.Fl t
+.Fl g
+.Op Fl f Ar fspath
+.Sh DESCRIPTION
+The
+.Nm
+utility is a quota editor.
+By default, or if the
+.Fl u
+flag is specified,
+one or more users may be specified on the command line.
+For each user a temporary file is created
+with an
+.Tn ASCII
+representation of the current
+disk quotas for that user.
+The list of file systems with user quotas is determined from
+.Pa /etc/fstab .
+An editor is invoked on the
+.Tn ASCII
+file.
+The editor invoked is
+.Xr vi 1
+unless the environment variable
+.Ev EDITOR
+specifies otherwise.
+.Pp
+The quotas may then be modified, new quotas added, etc.
+Block quotas can be specified in bytes (B), kilobytes (K),
+megabytes (M), terabytes (T), petabytes (P), or exabytes (E).
+If no units are specified, kilobytes are assumed.
+Inode quotas can be specified in kiloinodes (K),
+megainodes (M), terainodes (T), petainodes (P), or exainodes (E).
+If no units are specified, the number of inodes specified are used.
+If the
+.Fl h
+flag is specified, the editor will always display the
+block usage and limits in a more human readable format
+rather than displaying them in the historic kilobyte format.
+Setting a quota to zero indicates that no quota should be imposed.
+Setting a hard limit to one indicates that no allocations should
+be permitted.
+Setting a soft limit to one with a hard limit of zero
+indicates that allocations should be permitted only on
+a temporary basis (see
+.Fl t
+below).
+The current usage information in the file is for informational purposes;
+only the hard and soft limits can be changed.
+.Pp
+On leaving the editor,
+.Nm
+reads the temporary file and modifies the binary
+quota files to reflect the changes made.
+.Pp
+If the
+.Fl p
+option is specified,
+.Nm
+will duplicate the quotas of the prototypical user
+specified for each user specified.
+This is the normal mechanism used to
+initialize quotas for groups of users.
+If the user given to assign quotas to is a numerical uid
+range (e.g.\& 1000-2000), then
+.Nm
+will duplicate the quotas of the prototypical user
+for each uid in the range specified.
+This allows
+for easy setup of default quotas for a group of users.
+The uids in question do not have to be currently assigned in
+.Pa /etc/passwd .
+.Pp
+If one or more
+.Fl e
+.Sm off
+.Ar fspath Op : Ar bslim Op : Ar bhlim Op : Ar islim Op : Ar ihlim
+.Sm on
+options are specified,
+.Nm
+will non-interactively set quotas defined by
+.Ar bslim , bhlim , islim ,
+and
+.Ar ihlim
+on each particular file system referenced by
+.Ar fspath .
+Here
+.Ar bslim
+is the soft limit on the number of blocks,
+.Ar bhlim
+is the hard limit on the number of blocks,
+.Ar islim
+is the soft limit on the number of files, and
+.Ar ihlim
+is the hard limit on the number of files.
+If any of the
+.Ar bslim , bhlim , islim ,
+and
+.Ar ihlim
+values is omitted, it is assumed to be zero, therefore
+indicating that no particular quota should be imposed.
+Block quotas can be specified in bytes (B), kilobytes (K),
+megabytes (M), terabytes (T), petabytes (P), or exabytes (E).
+If no units are specified, kilobytes are assumed.
+Inode quotas can be specified in kiloinodes (K),
+megainodes (M), terainodes (T), petainodes (P), or exainodes (E).
+If no units are specified, the number of inodes specified are used.
+.Pp
+If invoked with the
+.Fl f
+option,
+.Nm
+will read and modify quotas on the file system specified by
+.Ar fspath
+only.
+The
+.Ar fspath
+argument may be either a special device
+or a file system mount point.
+The primary purpose of this option is to set the scope for the
+.Fl p
+option, which would overwrite quota records on every
+file system with quotas otherwise.
+.Pp
+If the
+.Fl g
+flag is specified,
+.Nm
+is invoked to edit the quotas of
+one or more groups specified on the command line.
+The
+.Fl p
+flag can be specified in conjunction with
+the
+.Fl g
+flag to specify a prototypical group
+to be duplicated among the listed set of groups.
+Similarly,
+.Fl e
+flag can be specified in conjunction with
+the
+.Fl g
+flag to non-interactively set-up quotas on the listed set
+of groups.
+.Pp
+Users are permitted to exceed their soft limits
+for a grace period that may be specified per file system.
+Once the grace period has expired,
+the soft limit is enforced as a hard limit.
+The default grace period for a file system is specified in
+.In ufs/ufs/quota.h .
+The
+.Fl t
+flag can be used to change the grace period.
+By default, or when invoked with the
+.Fl u
+flag,
+the grace period is set for all the file systems with user
+quotas specified in
+.Pa /etc/fstab .
+When invoked with the
+.Fl g
+flag the grace period is
+set for all the file systems with group quotas specified in
+.Pa /etc/fstab .
+The grace period may be specified in days, hours, minutes, or seconds.
+Setting a grace period to zero indicates that the default
+grace period should be imposed.
+Setting a grace period to one second indicates that no
+grace period should be granted.
+Quotas must be turned off for the file system and
+then turned back on for the new grace period to take effect.
+.Pp
+Only the super-user may edit quotas.
+.Sh FILES
+.Bl -tag -width quota.group -compact
+.It Pa quota.user
+at the file system root with user quotas
+.It Pa quota.group
+at the file system root with group quotas
+.It Pa /etc/fstab
+to find file system names and locations
+.El
+.Sh DIAGNOSTICS
+Various messages about inaccessible files; self-explanatory.
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr quotactl 2 ,
+.Xr fstab 5 ,
+.Xr quotacheck 8 ,
+.Xr quotaon 8 ,
+.Xr repquota 8

@@ -1,0 +1,222 @@
+.\"	$NetBSD: msgrcv.2,v 1.1 1995/10/16 23:49:20 jtc Exp $
+.\"
+.\" Copyright (c) 1995 Frank van der Linden
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed for the NetBSD Project
+.\"      by Frank van der Linden
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" $FreeBSD$
+.\"
+.\"/
+.Dd July 28, 2016
+.Dt MSGRCV 2
+.Os
+.Sh NAME
+.Nm msgrcv
+.Nd receive a message from a message queue
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/ipc.h
+.In sys/msg.h
+.Ft ssize_t
+.Fn msgrcv "int msqid" "void *msgp" "size_t msgsz" "long msgtyp" "int msgflg"
+.Sh DESCRIPTION
+The
+.Fn msgrcv
+function receives a message from the message queue specified in
+.Fa msqid ,
+and places it into the structure pointed to by
+.Fa msgp .
+This structure should consist of the following members:
+.Bd -literal
+    long mtype;    /* message type */
+    char mtext[1]; /* body of message */
+.Ed
+.Pp
+.Va mtype
+is an integer greater than 0 that can be used for selecting messages,
+.Va mtext
+is an array of bytes, with a size up to that of the system limit
+.Pf ( Dv MSGMAX ) .
+.Pp
+The value of
+.Fa msgtyp
+has one of the following meanings:
+.Bl -bullet
+.It
+The
+.Fa msgtyp
+argument
+is greater than 0.
+The first message of type
+.Fa msgtyp
+will be received.
+.It
+The
+.Fa msgtyp
+argument
+is equal to 0.
+The first message on the queue will be received.
+.It
+The
+.Fa msgtyp
+argument
+is less than 0.
+The first message of the lowest message type that is
+less than or equal to the absolute value of
+.Fa msgtyp
+will be received.
+.El
+.Pp
+The
+.Fa msgsz
+argument
+specifies the maximum length of the requested message.
+If the received
+message has a length greater than
+.Fa msgsz
+it will be silently truncated if the
+.Dv MSG_NOERROR
+flag is set in
+.Fa msgflg ,
+otherwise an error will be returned.
+.Pp
+If no matching message is present on the message queue specified by
+.Fa msqid ,
+the behavior of
+.Fn msgrcv
+depends on whether the
+.Dv IPC_NOWAIT
+flag is set in
+.Fa msgflg
+or not.
+If
+.Dv IPC_NOWAIT
+is set,
+.Fn msgrcv
+will immediately return a value of -1, and set
+.Va errno
+to
+.Er ENOMSG .
+If
+.Dv IPC_NOWAIT
+is not set, the calling process will be blocked
+until:
+.Bl -bullet
+.It
+A message of the requested type becomes available on the message queue.
+.It
+The message queue is removed, in which case -1 will be returned, and
+.Va errno
+set to
+.Er EINVAL .
+.It
+A signal is received and caught.
+-1 is returned, and
+.Va errno
+set to
+.Er EINTR .
+.El
+.Pp
+If a message is successfully received, the data structure associated with
+.Fa msqid
+is updated as follows:
+.Bl -bullet
+.It
+.Va msg_cbytes
+is decremented by the size of the message.
+.It
+.Va msg_lrpid
+is set to the pid of the caller.
+.It
+.Va msg_lrtime
+is set to the current time.
+.It
+.Va msg_qnum
+is decremented by 1.
+.El
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn msgrcv
+returns the number of bytes received into the
+.Va mtext
+field of the structure pointed to by
+.Fa msgp .
+Otherwise, -1 is returned, and
+.Va errno
+set to indicate the error.
+.Sh ERRORS
+The
+.Fn msgrcv
+function
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa msqid
+argument
+is not a valid message queue identifier.
+.Pp
+The message queue was removed while
+.Fn msgrcv
+was waiting for a message of the requested type to become available on it.
+.Pp
+The
+.Fa msgsz
+argument
+is less than 0.
+.It Bq Er E2BIG
+A matching message was received, but its size was greater than
+.Fa msgsz
+and the
+.Dv MSG_NOERROR
+flag was not set in
+.Fa msgflg .
+.It Bq Er EACCES
+The calling process does not have read access to the message queue.
+.It Bq Er EFAULT
+The
+.Fa msgp
+argument
+points to an invalid address.
+.It Bq Er EINTR
+The system call was interrupted by the delivery of a signal.
+.It Bq Er ENOMSG
+There is no message of the requested type available on the message queue,
+and
+.Dv IPC_NOWAIT
+is set in
+.Fa msgflg .
+.El
+.Sh SEE ALSO
+.Xr msgctl 2 ,
+.Xr msgget 2 ,
+.Xr msgsnd 2
+.Sh HISTORY
+Message queues appeared in the first release of
+.At V .

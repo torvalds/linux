@@ -1,0 +1,3085 @@
+.\" Copyright (c) 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 1994, 1995, 1996
+.\"	Keith Bostic.  All rights reserved.
+.\"
+.\" See the LICENSE file for redistribution information.
+.\"
+.\"	@(#)vi.cmd.roff	8.49 (Berkeley) 8/17/96
+.\"
+.SH 1 "Vi Description"
+.pp
+.CO Vi
+takes up the entire screen to display the edited file,
+except for the bottom line of the screen.
+The bottom line of the screen is used to enter
+.CO ex
+commands, and for
+.CO vi
+error and informational messages.
+If no other information is being displayed,
+the default display can show the current cursor row and cursor column,
+an indication of whether the file has been modified,
+and the current mode of the editor.
+See the
+.OP ruler
+and
+.OP showmode
+options for more information.
+.pp
+Empty lines do not have any special representation on the screen,
+but lines on the screen that would logically come after the end of
+the file are displayed as a single tilde
+.PQ ~
+character.
+To differentiate between empty lines and lines consisting of only
+whitespace characters, use the
+.OP list
+option.
+Historically, implementations of
+.CO vi
+have also displayed some lines as single asterisk
+.PQ @
+characters.
+These were lines that were not correctly displayed, i.e. lines on the
+screen that did not correspond to lines in the file, or lines that did
+not fit on the current screen.
+.CO Nvi
+never displays lines in this fashion.
+.pp
+.CO Vi
+is a modeful editor, i.e. it has two modes,
+.QQ command
+mode and
+.QQ "text input"
+mode.
+When
+.CO vi
+first starts, it is in command mode.
+There are several commands that change
+.CO vi
+into text input mode.
+The
+.LI <escape>
+character is used to resolve the text input into the file,
+and exit back into command mode.
+In
+.CO vi
+command mode, the cursor is always positioned on the last column of
+characters which take up more than one column on the screen.
+In
+.CO vi
+text insert mode, the cursor is positioned on the first column of
+characters which take up more than one column on the screen.
+.pp
+When positioning the cursor to a new line and column,
+the type of movement is defined by the distance to the new cursor position.
+If the new position is close,
+the screen is scrolled to the new location.
+If the new position is far away,
+the screen is repainted so that the new position is on the screen.
+If the screen is scrolled,
+it is moved a minimal amount,
+and the cursor line will usually appear at the top or bottom of the screen.
+If the screen is repainted,
+the cursor line will appear in the center of the screen,
+unless the cursor is sufficiently close to the beginning or end of the file
+that this isn't possible.
+If the
+.OP leftright
+option is set, the screen may be scrolled or repainted in a horizontal
+direction as well as in a vertical one.
+.pp
+A major difference between the historical
+.CO vi
+presentation and
+.CO nvi
+is in the scrolling and screen oriented position commands,
+.CO <control-B> ,
+.CO <control-D> ,
+.CO <control-E> ,
+.CO <control-F> ,
+.CO <control-U> ,
+.CO <control-Y> ,
+.CO H ,
+.CO L
+and
+.CO M .
+In historical implementations of
+.CO vi ,
+these commands acted on physical (as opposed to logical, or screen)
+lines.
+For lines that were sufficiently long in relation to the size of the
+screen, this meant that single line scroll commands might repaint the
+entire screen, scrolling or screen positioning commands might not change
+the screen or move the cursor at all, and some lines simply could not
+be displayed, even though
+.CO vi
+would edit the file that contained them.
+In
+.CO nvi ,
+these commands act on logical, i.e. screen lines.
+You are unlikely to notice any difference unless you are editing files
+with lines significantly longer than a screen width.
+.pp
+.CO Vi
+keeps track of the currently
+.QQ "most attractive"
+cursor position.
+Each command description (for commands that alter the current cursor
+position),
+specifies if the cursor is set to a specific location in the line,
+or if it is moved to the
+.QQ "most attractive cursor position" .
+The latter means that the cursor is moved to the cursor position that
+is horizontally as close as possible to the current cursor position.
+If the current line is shorter than the cursor position
+.CO vi
+would select, the cursor is positioned on the last character in the line.
+(If the line is empty, the cursor is positioned on the first column
+of the line.)
+If a command moves the cursor to the most attractive position,
+it does not alter the current cursor position, and a subsequent
+movement will again attempt to move the cursor to that position.
+Therefore, although a movement to a line shorter than the currently
+most attractive position will cause the cursor to move to the end of
+that line, a subsequent movement to a longer line will cause the
+cursor to move back to the most attractive position.
+.pp
+In addition, the
+.CO $
+command makes the end of each line the most attractive cursor position
+rather than a specific column.
+.pp
+Each
+.CO vi
+command described below notes where the cursor ends up after it is
+executed.
+This position is described in terms of characters on the line, i.e.
+.QQ "the previous character" ,
+or,
+.QQ "the last character in the line" .
+This is to avoid needing to continually refer to on what part of the
+character the cursor rests.
+.pp
+The following words have special meaning for
+.CO vi
+commands.
+.KY "previous context"
+.IP "previous context"
+The position of the cursor before the command which caused the
+last absolute movement was executed.
+Each 
+.CO vi
+command described in the next section that is considered an
+absolute movement is so noted.
+In addition, specifying
+.i any
+address to an
+.CO ex
+command is considered an absolute movement.
+.KY "motion"
+.IP "motion"
+A second
+.CO vi
+command can be used as an optional trailing argument to the
+.CO vi
+.CO \&< ,
+.CO \&> ,
+.CO \&! ,
+.CO \&c ,
+.CO \&d ,
+.CO \&y ,
+and (depending on the
+.OP tildeop
+option)
+.CO \&~
+commands.
+This command indicates the end of the region of text that's affected by
+the command.
+The motion command may be either the command character repeated (in
+which case it means the current line) or a cursor movement command.
+In the latter case, the region affected by the command is from the
+starting or stopping cursor position which comes first in the file,
+to immediately before the starting or stopping cursor position which
+comes later in the file.
+Commands that operate on lines instead of using beginning and ending
+cursor positions operate on all of the lines that are wholly or
+partially in the region.
+In addition, some other commands become line oriented depending on
+where in the text they are used.
+The command descriptions below note these special cases.
+.sp
+The following commands may all be used as motion components for
+.CO vi
+commands:
+.sp
+.ne 12v
+.ft C
+.TS
+r r r r.
+<control-A>	<control-H>	<control-J>	<control-M>
+<control-N>	<control-P>	<space>	$
+%	'<character>	(	)
++	,	-	/
+0	;	?	B
+E	F	G	H
+L	M	N	T
+W	[[	]]	^
+\&_	`<character>	b	e
+f	h	j	k
+l	n	t	w
+{	|	}
+.TE
+.ft R
+.sp
+The optional count prefix available for some of the
+.CO vi
+commands that take motion commands,
+or the count prefix available for the
+.CO vi
+commands that are used as motion components,
+may be included and is
+.i always
+considered part of the motion argument.
+For example, the commands
+.QT c2w
+and
+.QT 2cw
+are equivalent, and the region affected by the
+.CO c
+command is two words of text.
+In addition,
+if the optional count prefix is specified for both the
+.CO vi
+command and its motion component,
+the effect is multiplicative and is considered part of the motion argument.
+For example, the commands
+.QT 4cw
+and
+.QT 2c2w
+are equivalent, and the region affected by the
+.CO c
+command is four words of text.
+.KY "count"
+.IP "count"
+A positive number used as an optional argument to most commands,
+either to give a size or a position (for display or movement commands),
+or as a repeat count (for commands that modify text).
+The count argument is always optional and defaults to 1 unless otherwise
+noted in the command description.
+.sp
+When a
+.CO vi
+command synopsis shows both a
+.LI [buffer]
+and
+.LI [count] ,
+they may be presented in any order.
+.KY word
+.IP word
+Generally, in languages where it is applicable,
+.CO vi
+recognizes two kinds of words.
+First, a sequence of letters, digits and underscores,
+delimited at both ends by:
+characters other than letters, digits, or underscores,
+the beginning or end of a line, and the beginning or end of the file.
+Second, a sequence of characters other than letters, digits, underscores,
+or whitespace characters, delimited at both ends by: a letter, digit,
+underscore, or whitespace character,
+the beginning or end of a line, and the beginning or end of the file.
+For example, the characters
+.QT " !@#abc$%^ "
+contain three words:
+.QT "!@#" ,
+.QT "abc"
+and
+.QT "$%^" .
+.sp
+Groups of empty lines (or lines containing only whitespace characters)
+are treated as a single word.
+.KY "bigword"
+.IP "bigword"
+A set of non-whitespace characters preceded and followed by whitespace
+characters or the beginning or end of the file or line.
+For example, the characters
+.QT " !@#abc$%^ "
+contain one bigword:
+.QT "!@#abc$%^" .
+.sp
+Groups of empty lines (or lines containing only whitespace characters)
+are treated as a single bigword.
+.KY "paragraph"
+.IP "paragraph"
+An area of text that begins with either the beginning of a file,
+an empty line, or a section boundary, and continues until either
+an empty line, section boundary, or the end of the file.
+.sp
+Groups of empty lines (or lines containing only whitespace characters)
+are treated as a single paragraph.
+.sp
+Additional paragraph boundaries can be defined using the
+.OP paragraphs
+option.
+.KY "section"
+.IP "section"
+An area of text that starts with the beginning of the file or a line
+whose first character is an open brace
+.PQ {
+and continues until the next section or the end of the file.
+.sp
+Additional section boundaries can be defined using the
+.OP sections
+option.
+.KY "sentence"
+.IP "sentence"
+An area of text that begins with either the beginning of the file or the
+first nonblank character following the previous sentence, paragraph, or
+section boundary and continues until the end of the file or a period
+.PQ \&.
+exclamation point
+.PQ !
+or question mark
+.PQ ?
+character,
+followed by either an end-of-line or two whitespace characters.
+Any number of closing parentheses
+.PQ ) ,
+brackets
+.PQ ] ,
+double-quote
+.PQ """"
+or single quote
+.PQ '
+characters can appear between the period, exclamation point,
+or question mark and the whitespace characters or end-of-line.
+.sp
+Groups of empty lines (or lines containing only whitespace characters)
+are treated as a single sentence.
+.SH 1 "Vi Commands"
+.pp
+The following section describes the commands available in the command
+mode of the
+.CO vi
+editor.
+In each entry below, the tag line is a usage synopsis for the command
+character.
+In addition, the final line and column the cursor rests upon,
+and any options which affect the command are noted.
+.KY <control-A>
+.IP "[count] <control-A>"
+Search forward
+.LI count
+times for the current word.
+The current word begins at the first non-whitespace character on or
+after the current cursor position,
+and extends up to the next non-word character or the end of the line.
+The search is literal, i.e. no characters in the word have any special
+meaning in terms of Regular Expressions.
+It is an error if no matching pattern is found between the starting position
+and the end of the file.
+.sp
+The
+.CO <control-A>
+command is an absolute movement.
+The
+.CO <control-A>
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented.
+.SS
+.SP Line:
+Set to the line where the word is found.
+.SP Column:
+Set to the first character of the word.
+.SP Options:
+Affected by the
+.OP ignorecase
+and
+.OP wrapscan
+options.
+.SE
+.KY <control-B>
+.IP "[count] <control-B>"
+Page backward
+.LI count
+screens.
+Two lines of overlap are maintained, if possible,
+by displaying the window starting at line
+.LI "(top_line - count * window_size) + 2" ,
+where
+.LI window_size
+is the value of the
+.OP window
+option.
+(In the case of split screens, this size is corrected to the
+current screen size.)
+It is an error if the movement is past the beginning of the file.
+.SS
+.SP Line:
+Set to the last line of text displayed on the screen.
+.SP Column:
+Set to the first nonblank character of the line.
+.SP Options:
+Affected by the
+.OP window
+option.
+.SE
+.KY <control-D>
+.IP "[count] <control-D>"
+Scroll forward
+.LI count
+lines.
+If
+.LI count
+is not specified, scroll forward the number of lines specified by the last
+.CO <control-D>
+or
+.CO <control-U>
+command.
+If this is the first
+.CO <control-D>
+or
+.CO <control-U>
+command,
+scroll forward half the number of lines in the screen.
+(In the case of split screens, the default scrolling distance is
+corrected to half the current screen size.)
+It is an error if the movement is past the end of the file.
+.SS
+.SP Line:
+Set to the current line plus the number of lines scrolled.
+.SP Column:
+Set to the first nonblank character of the line.
+.SP Options:
+None.
+.SE
+.KY <control-E>
+.IP "[count] <control-E>"
+Scroll forward
+.LI count
+lines, leaving the cursor on the current line and column, if possible.
+It is an error if the movement is past the end of the file.
+.SS
+.SP Line:
+Unchanged unless the current line scrolls off the screen,
+in which case it is set to the first line on the screen.
+.SP Column:
+Unchanged unless the current line scrolls off the screen,
+in which case it is set to the most attractive cursor position.
+.SP Options:
+None.
+.SE
+.KY <control-F>
+.IP "[count] <control-F>"
+Page forward
+.LI count
+screens.
+Two lines of overlap are maintained, if possible,
+by displaying the window starting at line
+.LI "top_line + count * window_size - 2" ,
+where
+.LI window_size
+is the value of the
+.OP window
+option.
+(In the case of split screens, this size is corrected to the
+current screen size.)
+It is an error if the movement is past the end of the file.
+.SS
+.SP Line:
+Set to the first line on the screen.
+.SP Column:
+Set to the first nonblank character of the current line.
+.SP Options:
+Affected by the
+.OP window
+option.
+.SE
+.KY <control-G>
+.IP "<control-G>"
+Display the file information.
+The information includes the current pathname, the current line,
+the number of total lines in the file, the current line as a percentage
+of the total lines in the file, if the file has been modified,
+was able to be locked, if the file's name has been changed,
+and if the edit session is read-only.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY <control-H>
+.IP "[count] <control-H>"
+.Ip "[count] h"
+Move the cursor back
+.LI count
+characters in the current line.
+It is an error if the cursor is on the first character in the line.
+.sp
+The
+.CO <control-H>
+and
+.CO h
+commands may be used as the motion component of other
+.CO vi
+commands,
+in which case any text copied into a buffer is character oriented.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Set to the
+.LI "current - count"
+character, or, the first character in the line if
+.LI count
+is greater than or equal to the number of characters in the line
+before the cursor.
+.SP Options:
+None.
+.SE
+.KY <control-J>
+.IP "[count] <control-J>"
+.KY <control-N>
+.Ip "[count] <control-N>"
+.KY j
+.Ip "[count] j"
+Move the cursor down
+.LI count
+lines without changing the current column.
+It is an error if the movement is past the end of the file.
+.sp
+The
+.CO <control-J> ,
+.CO <control-N>
+and
+.CO j
+commands may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+line oriented.
+.SS
+.SP Line:
+Set to the current line plus
+.LI count .
+.SP Column:
+The most attractive cursor position.
+.SP Options:
+None.
+.SE
+.KY <control-L>
+.IP "<control-L>"
+.KY <control-R>
+.Ip "<control-R>"
+Repaint the screen.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY <control-M>
+.IP "[count] <control-M>"
+.KY +
+.Ip "[count] +"
+Move the cursor down
+.LI count
+lines to the first nonblank character of that line.
+It is an error if the movement is past the end of the file.
+.sp
+The
+.CO <control-M>
+and
+.CO +
+commands may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+line oriented.
+.SS
+.SP Line:
+Set to the current line plus
+.LI count .
+.SP Column:
+Set to the first nonblank character in the line.
+.SP Options:
+None.
+.SE
+.KY <control-P>
+.IP "[count] <control-P>"
+.KY k
+.Ip "[count] k"
+Move the cursor up
+.LI count
+lines, without changing the current column.
+It is an error if the movement is past the beginning of the file.
+.sp
+The
+.CO <control-P>
+and
+.CO k
+commands may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+line oriented.
+.SS
+.SP Line:
+Set to the current line minus
+.LI count .
+.SP Column:
+The most attractive cursor position.
+.SP Options:
+None.
+.SE
+.KY <control-T>
+.IP "<control-T>"
+Return to the most recent tag context.
+The
+.CO <control-T>
+command is an absolute movement.
+.SS
+.SP Line:
+Set to the context of the previous tag command.
+.SP Column:
+Set to the context of the previous tag command.
+.SP Options:
+None.
+.SE
+.KY <control-U>
+.IP "[count] <control-U>"
+Scroll backward
+.LI count
+lines.
+If
+.LI count
+is not specified, scroll backward the number of lines specified by the
+last
+.CO <control-D>
+or
+.CO <control-U>
+command.
+If this is the first
+.CO <control-D>
+or
+.CO <control-U>
+command,
+scroll backward half the number of lines in the screen.
+(In the case of split screens, the default scrolling distance is
+corrected to half the current screen size.)
+It is an error if the movement is past the beginning of the file.
+.SS
+.SP Line:
+Set to the current line minus the amount scrolled.
+.SP Column:
+Set to the first nonblank character in the line.
+.SP Options:
+None.
+.SE
+.KY <control-W>
+.IP "<control-W>"
+Switch to the next lower screen in the window, or, to the first
+screen if there are no lower screens in the window.
+.SS
+.SP Line:
+Set to the previous cursor position in the window.
+.SP Column:
+Set to the previous cursor position in the window.
+.SP Options:
+None.
+.SE
+.KY <control-Y>
+.IP "[count] <control-Y>"
+Scroll backward
+.LI count
+lines, leaving the current line and column as is, if possible.
+It is an error if the movement is past the beginning of the file.
+.SS
+.SP Line:
+Unchanged unless the current line scrolls off the screen,
+in which case it is set to the last line of text displayed
+on the screen.
+.SP Column:
+Unchanged unless the current line scrolls off the screen,
+in which case it is the most attractive cursor position.
+.SP Options:
+None.
+.SE
+.KY <control-Z>
+.IP "<control-Z>"
+Suspend the current editor session.
+If the file has been modified since it was last completely written,
+and the
+.OP autowrite
+option is set, the file is written before the editor session is
+suspended.
+If this write fails, the editor session is not suspended.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Unchanged.
+.SP Options:
+Affected by the
+.OP autowrite
+option.
+.SE
+.KY <escape>
+.IP "<escape>"
+Execute
+.CO ex
+commands or cancel partial commands.
+If an
+.CO ex
+command is being entered (e.g.
+.CO / ,
+.CO ? ,
+.CO :
+or
+.CO ! ),
+the command is executed.
+If a partial command has been entered, e.g.
+.QT "[0-9]*" ,
+or
+.QT "[0-9]*[!<>cdy]" ,
+the command is cancelled.
+Otherwise, it is an error.
+.SS
+.SP Line:
+When an
+.CO ex
+command is being executed, the current line is set as described for
+that command.
+Otherwise, unchanged.
+.SP Column:
+When an
+.CO ex
+command is being executed, the current column is set as described for
+that command.
+Otherwise, unchanged.
+.SP Options:
+None.
+.SE
+.KY <control-]>
+.IP "<control-]>"
+Push a tag reference onto the tag stack.
+The tags files (see the
+.OP tags
+option for more information) are searched for a tag matching the
+current word.
+The current word begins at the first non-whitespace character on or
+after the current cursor position,
+and extends up to the next non-word character or the end of the line.
+If a matching tag is found, the current file is discarded and the
+file containing the tag reference is edited.
+.sp
+If the current file has been modified since it was last completely
+written, the command will fail.
+The
+.CO <control-]>
+command is an absolute movement.
+.SS
+.SP Line:
+Set to the line containing the matching tag string.
+.SP Column:
+Set to the start of the matching tag string.
+.SP Options:
+Affected by the
+.OP tags
+and
+.OP taglength
+options.
+.SE
+.KY <control-^>
+.IP "<control-^>"
+Switch to the most recently edited file.
+.sp
+If the file has been modified since it was last completely written,
+and the
+.OP autowrite
+option is set, the file is written out.
+If this write fails, the command will fail.
+Otherwise, if the current file has been modified since it was last
+completely written, the command will fail.
+.SS
+.SP Line:
+Set to the line the cursor was on when the file was last edited.
+.SP Column:
+Set to the column the cursor was on when the file was last edited.
+.SP Options:
+Affected by the
+.OP autowrite
+option.
+.SE
+.KY <space>
+.IP "[count] <space>"
+.KY l
+.Ip "[count] l"
+Move the cursor forward
+.LI count
+characters without changing the current line.
+It is an error if the cursor is on the last character in the line.
+.sp
+The
+.CO <space>
+and
+.CO \&l
+commands may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented.
+In addition, these commands may be used as the motion components
+of other commands when the cursor is on the last character in the
+line, without error.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Set to the current character plus the next
+.LI count
+characters, or to the last character on the line if
+.LI count
+is greater than the number of characters in the line after the
+current character.
+.SP Options:
+None.
+.SE
+.KY !
+.IP "[count] ! motion shell-argument(s)<carriage-return>"
+Replace text with results from a shell command.
+Pass the lines specified by the
+.LI count
+and
+.LI motion
+arguments as standard input to the program named by the
+.OP shell
+option, and replace those lines with the output (both
+standard error and standard output) of that command.
+.sp
+After the motion is entered,
+.CO vi
+prompts for arguments to the shell command.
+.sp
+Within those arguments,
+.QT %
+and
+.QT #
+characters are expanded to the current and alternate pathnames,
+respectively.
+The
+.QT !
+character is expanded with the command text of the previous
+.CO !
+or
+.CO :!
+commands.
+(Therefore, the command
+.CO !<motion>!
+repeats the previous
+.CO !
+command.)
+The special meanings of
+.QT % ,
+.QT #
+and
+.QT !
+can be overridden by escaping them with a backslash.
+If no
+.CO !
+or
+.CO :!
+command has yet been executed,
+it is an error to use an unescaped
+.QT !
+character as a shell argument.
+The
+.CO !
+command does
+.i not
+do shell expansion on the strings provided as arguments.
+If any of the above expansions change the arguments the user entered,
+the command is redisplayed at the bottom of the screen.
+.sp
+.CO Vi
+then executes the program named by the
+.OP shell
+option, with a
+.b \-c
+flag followed by the arguments (which are bundled into a single argument).
+.sp
+The
+.CO !
+command is permitted in an empty file.
+.sp
+If the file has been modified since it was last completely written,
+the
+.CO !
+command will warn you.
+.SS
+.SP Line:
+The first line of the replaced text.
+.SP Column:
+The first column of the replaced text.
+.SP Options:
+Affected by the
+.OP shell
+option.
+.SE
+.KY #
+.IP "[count] # #|+|-"
+Increment or decrement the number referenced by the cursor.
+If the trailing character is a
+.LI \&+
+or
+.LI \&# ,
+the number is incremented by
+.LI count .
+If the trailing character is a
+.LI \&- ,
+the number is decremented by
+.LI count .
+.sp
+A leading
+.QT \&0X
+or
+.QT \&0x
+causes the number to be interpreted as a hexadecimal number.
+Otherwise, a leading
+.QT \&0
+causes the number to be interpreted as an octal number, unless a non-octal
+digit is found as part of the number.
+Otherwise, the number is interpreted as a decimal number, and may
+have a leading
+.LI \&+
+or
+.LI \&-
+sign.
+The current number begins at the first non-blank character at or after
+the current cursor position, and extends up to the end of the line or
+the first character that isn't a possible character for the numeric type.
+The format of the number (e.g. leading 0's, signs) is retained unless
+the new value cannot be represented in the previous format.
+.sp
+Octal and hexadecimal numbers, and the result of the operation, must fit
+into an
+.QT "unsigned long" .
+Similarly, decimal numbers and their result must fit into a
+.QT "signed long" .
+It is an error to use this command when the cursor is not positioned at
+a number.
+.sp
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Set to the first character in the cursor number.
+.SP Options:
+None.
+.SE
+.KY $
+.IP "[count] $"
+Move the cursor to the end of a line.
+If
+.LI count
+is specified, the cursor moves down
+.LI "count - 1"
+lines.
+.sp
+It is not an error to use the
+.CO $
+command when the cursor is on the last character in the line or
+when the line is empty.
+.sp
+The
+.CO $
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented, unless the cursor is at, or before the first
+nonblank character in the line, in which case it is line oriented.
+It is not an error to use the
+.CO $
+command as a motion component when the cursor is on the last character
+in the line, although it is an error when the line is empty.
+.SS
+.SP Line:
+Set to the current line plus
+.LI count
+minus 1.
+.SP Column:
+Set to the last character in the line.
+.SP Options:
+None.
+.SE
+.KY %
+.IP %
+Move to the matching character.
+The cursor moves to the parenthesis or curly brace which
+.i matches
+the parenthesis or curly brace found at the current cursor position
+or which is the closest one to the right of the cursor on the line.
+It is an error to execute the
+.CO %
+command on a line without a parenthesis or curly brace.
+Historically, any
+.LI count
+specified to the
+.CO %
+command was ignored.
+.sp
+The
+.CO %
+command is an absolute movement.
+The
+.CO %
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented, unless the starting point of the region is at
+or before the first nonblank character on its line, and the ending
+point is at or after the last nonblank character on its line, in
+which case it is line oriented.
+.SS
+.SP Line:
+Set to the line containing the matching character.
+.SP Column:
+Set to the matching character.
+.SP Options:
+None.
+.SE
+.KY &
+.IP "&"
+Repeat the previous substitution command on the current line.
+.sp
+Historically, any
+.LI count
+specified to the
+.CO &
+command was ignored.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Unchanged if the cursor was on the last character in the line,
+otherwise, set to the first nonblank character in the line.
+.SP Options:
+Affected by the
+.OP edcompatible ,
+.OP extended ,
+.OP ignorecase
+and
+.OP magic
+options.
+.SE
+.KY SQUOTE<character>
+.IP \'<character>
+.KY `<character>
+.Ip `<character>
+Return to a context marked by the character
+.LI <character> .
+If
+.LI <character>
+is the
+.QT '
+or
+.QT `
+character, return to the previous context.
+If
+.LI <character>
+is any other character,
+return to the context marked by that character (see the
+.CO m
+command for more information).
+If the command is the
+.CO \'
+command, only the line value is restored,
+and the cursor is placed on the first nonblank character of that line.
+If the command is the
+.CO `
+command, both the line and column values are restored.
+.sp
+It is an error if the context no longer exists because of
+line deletion.
+(Contexts follow lines that are moved, or which are deleted
+and then restored.)
+.sp
+The
+.CO \'
+and
+.CO `
+commands are both absolute movements.
+They may be used as a motion component for other
+.CO vi
+commands.
+For the
+.CO \'
+command, any text copied into a buffer is line oriented.
+For the
+.CO `
+command,
+any text copied into a buffer is character oriented,
+unless it both starts and stops at the first character in the line,
+in which case it is line oriented.
+In addition, when using the
+.CO `
+command as a motion component,
+commands which move backward and started at the first character in the line,
+or move forward and ended at the first character in the line,
+are corrected to the last character of the line preceding the starting and
+ending lines, respectively.
+.SS
+.SP Line:
+Set to the line from the context.
+.SP Column:
+Set to the first nonblank character in the line, for the
+.CO \'
+command, and set to the context's column for the
+.CO `
+command.
+.SP Options:
+None.
+.SE
+.KY (
+.IP "[count] ("
+Back up
+.LI count
+sentences.
+.sp
+The
+.CO (
+command is an absolute movement.
+The
+.CO (
+command may be used as the motion component of other
+.CO vi
+commands,
+in which case any text copied into a buffer is character oriented,
+unless the starting and stopping points of the region are the first
+character in the line,
+in which case it is line oriented.
+If it is line oriented,
+the starting point of the region is adjusted to be the end of the line
+immediately before the starting cursor position.
+.SS
+.SP Line:
+Set to the line containing the beginning of the sentence.
+.SP Column:
+Set to the first nonblank character of the sentence.
+.SP Options:
+Affected by the
+.OP lisp
+option.
+.SE
+.KY )
+.IP "[count] )"
+Move forward
+.LI count
+sentences.
+.sp
+The
+.CO )
+command is an absolute movement.
+The
+.CO )
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented, unless the starting point of the region is the
+first character in the line, in which case it is line oriented.
+In the latter case, if the stopping point of the region is also
+the first character in the line, it is adjusted to be the end of the
+line immediately before it.
+.SS
+.SP Line:
+Set to the line containing the beginning of the sentence.
+.SP Column:
+Set to the first nonblank character of the sentence.
+.SP Options:
+Affected by the
+.OP lisp
+option.
+.SE
+.KY ,
+.IP "[count] ,"
+Reverse find character
+.LI count
+times.
+Reverse the last
+.CO F ,
+.CO f ,
+.CO T
+or
+.CO t
+command, searching the other way in the line,
+.LI count
+times.
+It is an error if a
+.CO F ,
+.CO f ,
+.CO T
+or
+.CO t
+command has not been performed yet.
+.sp
+The
+.CO ,
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Set to the searched-for character for the
+.CO F
+and
+.CO f
+commands,
+before the character for the
+.CO t
+command
+and after the character for the
+.CO T
+command.
+.SP Options:
+None.
+.SE
+.KY MINUSSIGN
+.IP "[count] \-"
+Move to the first nonblank of the previous line,
+.LI count
+times.
+.sp
+It is an error if the movement is past the beginning of the file.
+.sp
+The
+.CO -
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+line oriented.
+.SS
+.SP Line:
+Set to the current line minus
+.LI count .
+.SP Column:
+Set to the first nonblank character in the line.
+.SP Options:
+None.
+.SE
+.KY \&.
+.IP "[count] \&."
+Repeat the last
+.CO vi
+command that modified text.
+The repeated command may be a command and motion component combination.
+If
+.LI count
+is specified, it replaces
+.i both
+the count specified for the repeated command, and, if applicable, for
+the repeated motion component.
+If
+.LI count
+is not specified, the counts originally specified to the command being
+repeated are used again.
+.sp
+As a special case, if the
+.CO \.
+command is executed immediately after the
+.CO u
+command, the change log is rolled forward or backward, depending on
+the action of the
+.CO u
+command.
+.SS
+.SP Line:
+Set as described for the repeated command.
+.SP Column:
+Set as described for the repeated command.
+.SP Options:
+None.
+.SE
+.KY /RE/
+.IP "/RE<carriage-return>"
+.Ip "/RE/ [offset]<carriage-return>"
+.KY ?RE?
+.Ip "?RE<carriage-return>"
+.Ip "?RE? [offset]<carriage-return>"
+.KY N
+.Ip "N"
+.KY n
+.Ip "n"
+Search forward or backward for a regular expression.
+The commands beginning with a slash
+.PQ /
+character are forward searches, the commands beginning with a
+question mark
+.PQ ?
+are backward searches.
+.CO Vi
+prompts with the leading character on the last line of the screen
+for a string.
+It then searches forward or backward in the file for the next
+occurrence of the string, which is interpreted as a Basic Regular
+Expression.
+.sp
+The
+.CO /
+and
+.CO ?
+commands are absolute movements.
+They may be used as the motion components of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented, unless the search started and ended on
+the first column of a line, in which case it is line oriented.
+In addition, forward searches ending at the first character of a line,
+and backward searches beginning at the first character in the line,
+are corrected to begin or end at the last character of the previous line.
+(Note, forward and backward searches can occur for both
+.CO /
+and
+.CO ?
+commands, if the
+.OP wrapscan
+option is set.)
+.sp
+If an offset from the matched line is specified (i.e. a trailing
+.QT /
+or
+.QT ?
+character is followed by a signed offset), the buffer will always
+be line oriented (e.g.
+.QT /string/+0
+will always guarantee a line orientation).
+.sp
+The
+.CO N
+command repeats the previous search, but in the reverse direction.
+The
+.CO n
+command repeats the previous search.
+If either the
+.CO N
+or
+.CO n
+commands are used as motion components for the 
+.CO !
+command, you will not be prompted for the text of the bang command,
+instead the previous bang command will be executed.
+.sp
+Missing RE's (e.g.
+.QT //<carriage-return> ,
+.QT /<carriage-return> ,
+.QT ??<carriage-return> ,
+or
+.QT ?<carriage-return>
+search for the last search RE, in the indicated direction.
+.sp
+Searches may be interrupted using the
+.LI <interrupt>
+character.
+.sp
+Multiple search patterns may be grouped together by delimiting
+them with semicolons and zero or more whitespace characters, e.g.
+.LI "/foo/ ; ?bar?"
+searches forward for
+.LI foo
+and then, from that location, backwards for
+.LI bar .
+When search patterns are grouped together in this manner,
+the search patterns are evaluated left to right with the
+final cursor position determined by the last search pattern.
+.sp
+It is also permissible to append a
+.CO z
+command to the search strings, e.g.
+.LI "/foo/ z."
+searches forward for the next occurrence of
+.LI foo ,
+and then positions that line in the middle of screen.
+.SS
+.SP Line:
+Set to the line in which the match occurred.
+.SP Column:
+Set to the first character of the matched string.
+.SP Options:
+Affected by the
+.OP edcompatible ,
+.OP extended ,
+.OP ignorecase ,
+.OP magic ,
+and
+.OP wrapscan
+options.
+.SE
+.KY 0
+.IP "0"
+Move to the first character in the current line.
+It is not an error to use the
+.CO 0
+command when the cursor is on the first character in the line,
+.sp
+The
+.CO 0
+command may be used as the motion component of other
+.CO vi
+commands,
+in which case it is an error if the cursor is on the first character
+in the line,
+and any text copied into a buffer is character oriented.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Set to the first character in the line.
+.SP Options:
+None.
+.SE
+.KY :
+.IP ":"
+Execute an
+.CO ex
+command.
+.CO Vi
+prompts for an
+.CO ex
+command on the last line of the screen, using a colon
+.PQ :
+character.
+The command is terminated by a
+.LI <carriage-return> ,
+.LI <newline>
+or
+.LI <escape>
+character; all of these characters may be escaped by using a
+.LI "<literal-next>"
+character.
+The command is then executed.
+.sp
+If the
+.CO ex
+command writes to the screen,
+.CO vi
+will prompt the user for a
+.LI <carriage-return>
+before continuing
+when the
+.CO ex
+command finishes.
+Large amounts of output from the
+.CO ex
+command will be paged for the user, and the user prompted for a
+.LI <carriage-return>
+or
+.LI <space>
+key to continue.
+In some cases, a quit (normally a
+.QQ q
+character) or
+.LI <interrupt>
+may be entered to interrupt the
+.CO ex
+command.
+.sp
+When the
+.CO ex
+command finishes, and the user is prompted to resume visual mode,
+it is also possible to enter another
+.QT :
+character followed by another
+.CO ex
+command.
+.SS
+.SP Line:
+The current line is set as described for the
+.CO ex
+command.
+.SP Column:
+The current column is set as described for the
+.CO ex
+command.
+.SP Options:
+Affected as described for the
+.CO ex
+command.
+.SE
+.KY ;
+.IP "[count] ;"
+Repeat the last character find
+.LI count
+times.
+The last character find is one of the
+.CO F ,
+.CO f ,
+.CO T
+or
+.CO t
+commands.
+It is an error if a
+.CO F ,
+.CO f ,
+.CO T
+or
+.CO t
+command has not been performed yet.
+.sp
+The
+.CO ;
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Set to the searched-for character for the
+.CO F
+and
+.CO f
+commands,
+before the character for the
+.CO t
+command
+and after the character for the
+.CO T
+command.
+.SP Options:
+None.
+.SE
+.KY <
+.IP "[count] < motion"
+.KY >
+.Ip "[count] > motion"
+Shift lines left or right.
+Shift the number of lines in the region specified by the
+.LI count
+and
+.LI motion
+left (for the
+.CO <
+command) or right (for the
+.CO >
+command) by the number of columns specified by the
+.OP shiftwidth
+option.
+Only whitespace characters are deleted when shifting left.
+Once the first character in the line no longer contains a whitespace
+character, the command will succeed,
+but the line will not be modified.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Set to the first nonblank character in the line.
+.SP Options:
+Affected by the
+.OP shiftwidth
+option.
+.SE
+.KY @
+.IP "@ buffer"
+Execute a named buffer.
+Execute the named buffer as
+.CO vi
+commands.
+The buffer may include
+.CO ex
+commands, too, but they must be expressed as a
+.CO :
+command.
+If the buffer is line oriented,
+.LI <newline>
+characters are logically appended to each line of the buffer.
+If the buffer is character oriented,
+.LI <newline>
+characters are logically appended to all but the last line in the buffer.
+.sp
+If the buffer name is
+.QT @ ,
+or
+.QT * ,
+then the last buffer executed shall be used.
+It is an error to specify
+.QT @@
+or
+.QT @*
+if there were no previous buffer executions.
+The text of a buffer may contain a
+.CO @
+command,
+and it is possible to create infinite loops in this manner.
+(The
+.LI <interrupt>
+character may be used to interrupt the loop.)
+.SS
+.SP Line:
+The current line is set as described for the command(s).
+.SP Column:
+The current column is set as described for the command(s).
+.SP Options:
+None.
+.SE
+.KY A
+.IP "[count] A"
+Enter input mode, appending the text after the end of the line.
+If
+.LI count
+is specified, the text is repeatedly input
+.LI "count - 1"
+more times after input mode is exited.
+.SS
+.SP Line:
+Set to the last line upon which characters were entered.
+.SP Column:
+Set to the last character entered.
+.SP Options:
+Affected by the
+.OP altwerase ,
+.OP autoindent ,
+.OP beautify ,
+.OP showmatch ,
+.OP ttywerase
+and
+.OP wrapmargin
+options.
+.SE
+.KY B
+.IP "[count] B"
+Move backward
+.LI count
+bigwords.
+Move the cursor backward to the beginning of a bigword by repeating the
+following algorithm: if the current position is at the beginning of a
+bigword or the character at the current position cannot be part of a bigword,
+move to the first character of the preceding bigword.
+Otherwise, move to the first character of the bigword at the current position.
+If no preceding bigword exists on the current line, move to the first
+character of the last bigword on the first preceding line that contains a
+bigword.
+.sp
+The
+.CO B
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented.
+.SS
+.SP Line:
+Set to the line containing the word selected.
+.SP Column:
+Set to the first character of the word selected.
+.SP Options:
+None.
+.SE
+.KY C
+.IP "[buffer] [count] C"
+Change text from the current position to the end-of-line.
+If
+.LI count
+is specified, the input text replaces from the current position to
+the end-of-line, plus
+.LI "count - 1"
+subsequent lines.
+.SS
+.SP Line:
+Set to the last line upon which characters were entered.
+.SP Column:
+Set to the last character entered.
+.SP Options:
+Affected by the
+.OP altwerase ,
+.OP autoindent ,
+.OP beautify ,
+.OP showmatch ,
+.OP ttywerase
+and
+.OP wrapmargin
+options.
+.SE
+.KY D
+.IP "[buffer] D"
+Delete text from the current position to the end-of-line.
+.sp
+It is not an error to execute the
+.CO D
+command on an empty line.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Set to the character before the current character, or, column 1 if
+the cursor was on column 1.
+.SP Options:
+None.
+.SE
+.KY E
+.IP "[count] E"
+Move forward
+.LI count
+end-of-bigwords.
+Move the cursor forward to the end of a bigword by repeating the
+following algorithm: if the current position is the end of a
+bigword or the character at that position cannot be part of a bigword,
+move to the last character of the following bigword.
+Otherwise, move to the last character of the bigword at the current
+position.
+If no succeeding bigword exists on the current line,
+move to the last character of the first bigword on the next following
+line that contains a bigword.
+.sp
+The
+.CO E
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented.
+.SS
+.SP Line:
+Set to the line containing the word selected.
+.SP Column:
+Set to the last character of the word selected.
+.SP Options:
+None.
+.SE
+.KY F
+.IP "[count] F <character>"
+Search
+.LI count
+times backward through the current line for
+.LI <character> .
+.sp
+The
+.CO F
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Set to the searched-for character.
+.SP Options:
+None.
+.SE
+.KY G
+.IP "[count] G"
+Move to line
+.LI count ,
+or the last line of the file if
+.LI count
+not specified.
+.sp
+The
+.CO G
+command is an absolute movement.
+The
+.CO \&G
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+line oriented.
+.SS
+.SP Line:
+Set to
+.LI count ,
+if specified, otherwise, the last line.
+.SP Column:
+Set to the first nonblank character in the line.
+.SP Options:
+None.
+.SE
+.KY H
+.IP "[count] H"
+Move to the screen line
+.LI "count - 1"
+lines below the top of the screen.
+.sp
+The
+.CO H
+command is an absolute movement.
+The
+.CO H
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+line oriented.
+.SS
+.SP Line:
+Set to the line
+.LI "count - 1"
+lines below the top of the screen.
+.SP Column:
+Set to the first nonblank character of the
+.i screen
+line.
+.SP Options:
+None.
+.SE
+.KY I
+.IP "[count] I"
+Enter input mode, inserting the text at the beginning of the line.
+If
+.LI count
+is specified, the text input is repeatedly input
+.LI "count - 1"
+more times.
+.SS
+.SP Line:
+Set to the last line upon which characters were entered.
+.SP Column:
+Set to the last character entered.
+.SP Options:
+None.
+.SE
+.KY J
+.IP "[count] J"
+Join lines.
+If
+.LI count
+is specified,
+.LI count
+lines are joined; a minimum of two lines are always joined,
+regardless of the value of
+.LI count .
+.sp
+If the current line ends with a whitespace character, all whitespace
+is stripped from the next line.
+Otherwise, if the next line starts with a open parenthesis
+.PQ (
+do nothing.
+Otherwise, if the current line ends with a question mark
+.PQ ? ,
+period
+.PQ \&.
+or exclamation point
+.PQ ! ,
+insert two spaces.
+Otherwise, insert a single space.
+.sp
+It is not an error to join lines past the end of the file,
+i.e. lines that do not exist.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Set to the character after the last character of the next-to-last
+joined line.
+.SP Options:
+None.
+.SE
+.KY L
+.IP "[count] L"
+Move to the screen line
+.LI "count - 1"
+lines above the bottom of the screen.
+.sp
+The
+.CO L
+command is an absolute movement.
+The
+.CO L
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+line oriented.
+.SS
+.SP Line:
+Set to the line
+.LI "count - 1"
+lines above the bottom of the screen.
+.SP Column:
+Set to the first nonblank character of the
+.i screen
+line.
+.SP Options:
+None.
+.SE
+.KY  M
+.IP " M"
+Move to the screen line in the middle of the screen.
+.sp
+The
+.CO M
+command is an absolute movement.
+The
+.CO M
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+line oriented.
+.sp
+Historically, any
+.LI count
+specified to the
+.CO M
+command was ignored.
+.SS
+.SP Line:
+Set to the line in the middle of the screen.
+.SP Column:
+Set to the first nonblank character of the
+.i screen
+line.
+.SP Options:
+None.
+.SE
+.KY O
+.IP "[count] O"
+Enter input mode, appending text in a new line above the current line.
+If
+.LI count
+is specified, the text input is repeatedly input
+.LI "count - 1"
+more times.
+.sp
+Historically, any
+.LI count
+specified to the
+.CO O
+command was ignored.
+.SS
+.SP Line:
+Set to the last line upon which characters were entered.
+.SP Column:
+Set to the last character entered.
+.SP Options:
+Affected by the
+.OP altwerase ,
+.OP autoindent ,
+.OP beautify ,
+.OP showmatch ,
+.OP ttywerase
+and
+.OP wrapmargin
+options.
+.SE
+.KY P
+.IP "[buffer] P"
+Insert text from a buffer.
+Text from the buffer (the unnamed buffer by default) is inserted
+before the current column or, if the buffer is line oriented,
+before the current line.
+.SS
+.SP Line:
+Set to the lowest numbered line insert,
+if the buffer is line oriented, otherwise unchanged.
+.SP Column:
+Set to the first nonblank character of the appended text,
+if the buffer is line oriented, otherwise, the last character
+of the appended text.
+.SP Options:
+None.
+.SE
+.KY Q
+.IP "Q"
+Exit
+.CO vi
+(or visual) mode and switch to
+.CO ex
+mode.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+No longer relevant.
+.SP Options:
+None.
+.SE
+.KY R
+.IP "[count] R"
+Enter input mode, replacing the characters in the current line.
+If
+.LI count
+is specified, the text input is repeatedly input
+.LI "count - 1"
+more times.
+.sp
+If the end of the current line is reached, no more characters are
+replaced and any further characters input are appended to the line.
+.SS
+.SP Line:
+Set to the last line upon which characters were entered.
+.SP Column:
+Set to the last character entered.
+.SP Options:
+Affected by the
+.OP altwerase ,
+.OP autoindent ,
+.OP beautify ,
+.OP showmatch ,
+.OP ttywerase
+and
+.OP wrapmargin
+options.
+.SE
+.KY S
+.IP "[buffer] [count] S"
+Substitute
+.LI count
+lines.
+.SS
+.SP Line:
+Set to the last line upon which characters were entered.
+.SP Column:
+Set to the last character entered.
+.SP Options:
+Affected by the
+.OP altwerase ,
+.OP autoindent ,
+.OP beautify ,
+.OP showmatch ,
+.OP ttywerase
+and
+.OP wrapmargin
+options.
+.SE
+.KY T
+.IP "[count] T <character>"
+Search backward,
+.LI count
+times,
+through the current line for the character
+.i after
+the specified
+.LI <character> .
+.sp
+The
+.CO T
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Set to the character
+.i after
+the searched-for character.
+.SP Options:
+None.
+.SE
+.KY U
+.IP "U"
+Restore the current line to its state before the cursor last
+moved to it.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+The first character in the line.
+.SP Options:
+None.
+.SE
+.KY W
+.IP "[count] W"
+Move forward
+.LI count
+bigwords.
+Move the cursor forward to the beginning of a bigword by repeating the
+following algorithm: if the current position is within a bigword or the
+character at that position cannot be part of a bigword, move to the first
+character of the next bigword.
+If no subsequent bigword exists on the current line,
+move to the first character of the first bigword on the first following
+line that contains a bigword.
+.sp
+The
+.CO W
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented.
+.SS
+.SP Line:
+The line containing the word selected.
+.SP Column:
+The first character of the word selected.
+.SP Options:
+None.
+.SE
+.KY X
+.IP "[buffer] [count] X"
+Delete
+.LI count
+characters before the cursor.
+If the number of characters to be deleted is greater than or equal to
+the number of characters to the beginning of the line, all of the
+characters before the current cursor position, to the beginning of the
+line, are deleted.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Set to the current character minus
+.LI count ,
+or the first character if count is greater than the number of
+characters in the line before the cursor.
+.SP Options:
+None.
+.SE
+.KY Y
+.IP "[buffer] [count] Y"
+Copy (or
+.QQ yank )
+.LI count
+lines into the specified buffer.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY ZZ
+.IP "ZZ"
+Write the file and exit
+.CO vi .
+The file is only written if it has been modified since the last
+complete write of the file to any file.
+.sp
+The
+.CO ZZ
+command will exit the editor after writing the file,
+if there are no further files to edit.
+Entering two
+.QQ quit
+commands (i.e.
+.CO wq ,
+.CO quit ,
+.CO xit
+or
+.CO ZZ )
+in a row will override this check and the editor will exit,
+ignoring any files that have not yet been edited.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY [[
+.IP "[count] [["
+Back up
+.LI count
+section boundaries.
+.sp
+The
+.CO [[
+command is an absolute movement.
+The
+.CO [[
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented, unless the starting position is column 0,
+in which case it is line oriented.
+.sp
+It is an error if the movement is past the beginning of the file.
+.SS
+.SP Line:
+Set to the previous line that is
+.LI count
+section boundaries back,
+or the first line of the file if no more section boundaries exist
+preceding the current line.
+.SP Column:
+Set to the first nonblank character in the line.
+.SP Options:
+Affected by the
+.OP sections
+option.
+.SE
+.KY ]]
+.IP "[count] ]]"
+Move forward
+.LI count
+section boundaries.
+.sp
+The
+.CO ]]
+command is an absolute movement.
+The
+.CO ]]
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented, unless the starting position is column 0,
+in which case it is line oriented.
+.sp
+It is an error if the movement is past the end of the file.
+.SS
+.SP Line:
+Set to the line that is
+.LI count
+section boundaries forward,
+or to the last line of the file if no more section
+boundaries exist following the current line.
+.SP Column:
+Set to the first nonblank character in the line.
+.SP Options:
+Affected by the
+.OP sections
+option.
+.SE
+.KY ^
+.IP "\&^"
+Move to first nonblank character on the current line.
+.sp
+The
+.CO ^
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Set to the first nonblank character of the current line.
+.SP Options:
+None.
+.SE
+.KY _
+.IP "[count] _"
+Move down
+.LI "count - 1"
+lines, to the first nonblank character.
+The
+.CO _
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+line oriented.
+.sp
+It is not an error to execute the
+.CO _
+command when the cursor is on the first character in the line.
+.SS
+.SP Line:
+The current line plus
+.LI "count - 1" .
+.SP Column:
+The first nonblank character in the line.
+.SP Options:
+None.
+.SE
+.KY a
+.IP "[count] a"
+Enter input mode, appending the text after the cursor.
+If
+.LI count
+is specified, the text input is repeatedly input
+.LI "count - 1"
+more times.
+.SS
+.SP Line:
+Set to the last line upon which characters were entered.
+.SP Column:
+Set to the last character entered.
+.SP Options:
+Affected by the
+.OP altwerase ,
+.OP autoindent ,
+.OP beautify ,
+.OP showmatch ,
+.OP ttywerase
+and
+.OP wrapmargin
+options.
+.SE
+.KY b
+.IP "[count] b"
+Move backward
+.LI count
+words.
+Move the cursor backward to the beginning of a word by repeating the
+following algorithm: if the current position is at the beginning of a word,
+move to the first character of the preceding word.
+Otherwise, the current position moves to the first character of the word
+at the current position.
+If no preceding word exists on the current line, move to the first
+character of the last word on the first preceding line that contains
+a word.
+.sp
+The
+.CO b
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented.
+.SS
+.SP Line:
+Set to the line containing the word selected.
+.SP Column:
+Set to the first character of the word selected.
+.SP Options:
+None.
+.SE
+.KY c
+.IP "[buffer] [count] c motion"
+Change the region of text specified by the
+.LI count
+and
+.LI motion .
+If only part of a single line is affected, then the last character
+being changed is marked with a
+.QT $ .
+Otherwise, the region of text is deleted, and input mode is entered.
+.SS
+.SP Line:
+Set to the last line upon which characters were entered.
+.SP Column:
+Set to the last character entered.
+.SP Options:
+Affected by the
+.OP altwerase ,
+.OP autoindent ,
+.OP beautify ,
+.OP showmatch ,
+.OP ttywerase
+and
+.OP wrapmargin
+options.
+.SE
+.KY d
+.IP "[buffer] [count] d motion"
+Delete the region of text specified by the
+.LI count
+and
+.LI motion .
+.SS
+.SP Line:
+Set to the line where the region starts.
+.SP Column:
+Set to the first character in the line after the last character in the
+region.
+If no such character exists, set to the last character before the region.
+.SP Options:
+None.
+.SE
+.KY e
+.IP "[count] e"
+Move forward
+.LI count
+end-of-words.
+Move the cursor forward to the end of a word by repeating the following
+algorithm: if the current position is the end of a word,
+move to the last character of the following word.
+Otherwise, move to the last character of the word at the current position.
+If no succeeding word exists on the current line, move to the last character
+of the first word on the next following line that contains a word.
+.sp
+The
+.CO e
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented.
+.SS
+.SP Line:
+Set to the line containing the word selected.
+.SP Column:
+Set to the last character of the word selected.
+.SP Options:
+None.
+.SE
+.KY f
+.IP "[count] f <character>"
+Search forward,
+.LI count
+times, through the rest of the current line for
+.LI <character> .
+.sp
+The
+.CO f
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Set to the searched-for character.
+.SP Options:
+None.
+.SE
+.KY i
+.IP "[count] i"
+Enter input mode, inserting the text before the cursor.
+If
+.LI count
+is specified, the text input is repeatedly input
+.LI "count - 1"
+more times.
+.SS
+.SP Line:
+Set to the last line upon which characters were entered.
+.SP Column:
+Set to the last character entered.
+.SP Options:
+Affected by the
+.OP altwerase ,
+.OP autoindent ,
+.OP beautify ,
+.OP showmatch ,
+.OP ttywerase
+and
+.OP wrapmargin
+options.
+.SE
+.KY m
+.IP "m <character>"
+Save the current context (line and column) as
+.LI <character> .
+The exact position is referred to by
+.QT `<character> .
+The line is referred to by
+.QT '<character> .
+.sp
+Historically,
+.LI <character>
+was restricted to lower-case letters.
+.CO Nvi
+permits the use of any character.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Unchanged.
+.SP Options:
+None.
+.SE
+.KY o
+.IP "[count] o"
+Enter input mode, appending text in a new line under the current line.
+If
+.LI count
+is specified, the text input is repeatedly input
+.LI "count - 1"
+more times.
+.sp
+Historically, any
+.LI count
+specified to the
+.CO o
+command was ignored.
+.SS
+.SP Line:
+Set to the last line upon which characters were entered.
+.SP Column:
+Set to the last character entered.
+.SP Options:
+Affected by the
+.OP altwerase ,
+.OP autoindent ,
+.OP beautify ,
+.OP showmatch ,
+.OP ttywerase
+and
+.OP wrapmargin
+options.
+.SE
+.KY p
+.IP "[buffer] p"
+Append text from a buffer.
+Text from the buffer (the unnamed buffer by default) is appended
+after the current column or, if the buffer is line oriented,
+after the current line.
+.SS
+.SP Line:
+Set to the first line appended, if the buffer is line oriented,
+otherwise unchanged.
+.SP Column:
+Set to the first nonblank character of the appended text if the buffer
+is line oriented, otherwise, the last character of the appended text.
+.SP Options:
+None.
+.SE
+.KY r
+.IP "[count] r <character>"
+Replace characters.
+The next
+.LI count
+characters in the line are replaced with
+.LI <character> .
+Replacing characters with
+.LI <newline>
+characters results in creating new, empty lines into the file.
+.sp
+If
+.LI <character>
+is
+.LI <escape> ,
+the command is cancelled.
+.SS
+.SP Line:
+Unchanged unless the replacement character is a
+.LI <newline> ,
+in which case it is set to the current line plus
+.LI "count - 1" .
+.SP Column:
+Set to the last character replaced,
+unless the replacement character is a
+.LI <newline> ,
+in which case the cursor is in column 1 of the last line inserted.
+.SP Options:
+None.
+.SE
+.KY s
+.IP "[buffer] [count] s"
+Substitute
+.LI count
+characters in the current line starting with the current character.
+.SS
+.SP Line:
+Set to the last line upon which characters were entered.
+.SP Column:
+Set to the last character entered.
+.SP Options:
+Affected by the
+.OP altwerase ,
+.OP autoindent ,
+.OP beautify ,
+.OP showmatch ,
+.OP ttywerase
+and
+.OP wrapmargin
+options.
+.SE
+.KY t
+.IP "[count] t <character>"
+Search forward,
+.LI count
+times, through the current line for the character immediately
+.i before
+.LI <character> .
+.sp
+The
+.CO t
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Set to the character
+.i before
+the searched-for character.
+.SP Options:
+None.
+.SE
+.KY u
+.IP "u"
+Undo the last change made to the file.
+If repeated, the
+.CO u
+command alternates between these two states, and is its own inverse.
+When used after an insert that inserted text on more than one line,
+the lines are saved in the numeric buffers.
+.sp
+The
+.CO \&.
+command, when used immediately after the
+.CO u
+command, causes the change log to be rolled forward or backward,
+depending on the action of the
+.CO u
+command.
+.SS
+.SP Line:
+Set to the position of the first line changed, if the reversal affects
+only one line or represents an addition or change; otherwise, the line
+preceding the deleted text.
+.SP Column:
+Set to the cursor position before the change was made.
+.SP Options:
+None.
+.SE
+.KY w
+.IP "[count] w"
+Move forward
+.LI count
+words.
+Move the cursor forward to the beginning of a word by repeating the
+following algorithm: if the current position is at the
+beginning of a word, move to the first character of the next word.
+If no subsequent word exists on the current line, move to the first
+character of the first word on the first following line that contains
+a word.
+.sp
+The
+.CO w
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented.
+.SS
+.SP Line:
+Set to the line containing the word selected.
+.SP Column:
+Set to the first character of the word selected.
+.SP Options:
+None.
+.SE
+.KY x
+.IP "[buffer] [count] x"
+Delete
+.LI count
+characters.
+The deletion is at the current character position.
+If the number of characters to be deleted is greater than or equal to
+the number of characters to the end of the line, all of the characters
+from the current cursor position to the end of the line are deleted.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Unchanged unless the last character in the line is deleted and the cursor
+is not already on the first character in the line, in which case it is
+set to the previous character.
+.SP Options:
+None.
+.SE
+.KY y
+.IP "[buffer] [count] y motion"
+Copy (or
+.QQ yank )
+the text region specified by the
+.LI count
+and
+.LI motion ,
+into a buffer.
+.SS
+.SP Line:
+Unchanged, unless the region covers more than a single line,
+in which case it is set to the line where the region starts.
+.SP Column:
+Unchanged, unless the region covers more than a single line,
+in which case it is set to the character were the region starts.
+.SP Options:
+None.
+.SE
+.KY z
+.IP "[count1] z [count2] type"
+Redraw the screen with a window
+.LI count2
+lines long, with line
+.LI count1
+placed as specified by the
+.LI type
+character.
+If
+.LI count1
+is not specified, it defaults to the current line.
+If
+.LI count2
+is not specified, it defaults to the current window size.
+.sp
+The following
+.LI type
+characters may be used:
+.SS
+.SP +
+If
+.LI count1
+is specified, place the line
+.LI count1
+at the top of the screen.
+Otherwise, display the screen after the current screen, similarly to the
+.CO <control-F>
+command.
+.SP <carriage-return>
+Place the line
+.LI count1
+at the top of the screen.
+.SP \&.
+Place the line
+.LI count1
+in the center of the screen.
+.SP \-
+Place the line
+.LI count1
+at the bottom of the screen.
+.SP ^
+If
+.LI count1
+is specified, place the line that is at the top of the screen 
+when
+.LI count1
+is at the bottom of the screen, at the bottom of the screen,
+i.e. display the screen before the screen before
+.LI count1 .
+Otherwise, display the screen before the current screen, similarly to the
+.CO <control-B>
+command.
+.SE
+.SS
+.SP Line:
+Set to
+.LI count1
+unless
+.LI count1
+is not specified and the
+.LI type
+character was either
+.QT ^
+or
+.QT + ,
+in which case it is set to the line before the first line on the
+previous screen or the line after the last line on the previous
+screen, respectively.
+.SP Column:
+Set to the first nonblank character in the line.
+.SP Options:
+None.
+.SE
+.KY {
+.IP "[count] {"
+Move backward
+.LI count
+paragraphs.
+.sp
+The
+.CO {
+command is an absolute movement.
+The
+.CO {
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented, unless the starting character is the first
+character on its line, in which case it is line oriented.
+.SS
+.SP Line:
+Set to the line containing the beginning of the previous paragraph.
+.SP Column:
+Set to the first nonblank character in the line.
+.SP Options:
+Affected by the
+.OP paragraph
+option.
+.SE
+.KY |
+.IP "[count] |"
+Move to a specific
+.i column
+position on the current line.
+.sp
+The
+.CO |
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented.
+It is an error to use the
+.CO |
+command as a motion component and for the cursor not to move.
+.SS
+.SP Line:
+Unchanged.
+.SP Column:
+Set to the character occupying the column position identified by
+.LI count ,
+if the position exists in the line.
+If the column length of the current line is less than
+.LI count ,
+the cursor is moved to the last character in the line.
+.SP Options:
+None.
+.SE
+.KY }
+.IP "[count] }"
+Move forward
+.LI count
+paragraphs.
+.sp
+The
+.CO }
+command is an absolute movement.
+The
+.CO }
+command may be used as the motion component of other
+.CO vi
+commands, in which case any text copied into a buffer is
+character oriented, unless the starting character is at or
+before any nonblank characters in its line,
+in which case it is line oriented.
+.SS
+.SP Line:
+Set to the line containing the beginning of the next paragraph.
+.SP Column:
+Set to the first nonblank character in the line.
+.SP Options:
+Affected by the
+.OP paragraph
+option.
+.SE
+.KY ~
+.IP "[count] ~"
+Reverse the case of the next
+.LI count
+character(s).
+This is the historic semantic for the
+.CO ~
+command and it is only in effect if the
+.OP tildeop
+option is not set.
+.sp
+Lowercase alphabetic characters are changed to uppercase,
+and uppercase characters are changed to lowercase.
+No other characters are affected.
+.sp
+Historically, the
+.CO ~
+command did not take an associated count, nor did it move past the
+end of the current line.
+As it had no associated motion it was difficult to change the case
+of large blocks of text.
+In
+.CO nvi ,
+if the cursor is on the last character of a line, and there are
+more lines in the file, the cursor moves to the next line.
+.sp
+It is not an error to specify a count larger than the number of
+characters between the cursor and the end of the file.
+.SS
+.SP Line:
+Set to the line of the character after
+.LI count
+characters, or, end of file.
+.SP Column:
+Set to the character after
+.LI count
+characters, or, end-of-file.
+.SP Options:
+Affected by the
+.OP tildeop
+option.
+.SE
+.KY ~
+.IP "[count] ~ motion"
+Reverse the case of the characters in a text region specified by the
+.LI count
+and
+.LI motion .
+Only in effect if the
+.OP tildeop
+option is set.
+.sp
+Lowercase characters are changed to uppercase,
+and uppercase characters are changed to lowercase.
+No other characters are affected.
+.SS
+.SP Line:
+Set to the line of the character after the last character in the region.
+.SP Column:
+Set to the character after the last character in the region.
+.SP Options:
+Affected by the
+.OP tildeop
+option.
+.SE
+.KY <interrupt>
+.IP "<interrupt>"
+Interrupt the current operation.
+Many of the potentially long-running
+.CO vi
+commands may be interrupted using the terminal interrupt character.
+These operations include searches, file reading and writing, filter
+operations and map character expansion.
+Interrupts are also enabled when running commands outside of
+.CO vi .
+.sp
+If the
+.LI <interrupt>
+character is used to interrupt while entering an
+.CO ex
+command, the command is aborted, the cursor returns to its previous
+position, and
+.CO vi
+remains in command mode.
+.sp
+Generally, if the
+.LI <interrupt>
+character is used to interrupt any
+operation, any changes made before the interrupt are left in place.
+.SS
+.SP Line:
+Dependent on the operation being interrupted.
+.SP Column:
+Dependent on the operation being interrupted.
+.SP Options:
+None.
+.SH 1 "Vi Text Input Commands"
+.pp
+The following section describes the commands available in the text
+input mode of the
+.CO vi
+editor.
+.pp
+Historically,
+.CO vi
+implementations only permitted the characters inserted on the current
+line to be erased.
+In addition, only the
+.LI <control-D>
+erase character and the
+.QT 0<control-D>
+and
+.QT ^<control-D>
+erase strings could erase autoindent characters.
+(Autoindent characters include both the characters inserted automatically
+at the beginning of an input line as well as characters inserted using the
+.LI <control-T>
+command.)
+This implementation permits erasure to continue past the beginning
+of the current line, and back to where text input mode was entered.
+In addition, autoindent characters may be erased using the standard
+erase characters.
+For the line and word erase characters, reaching the autoindent
+characters forms a
+.QQ soft
+boundary, denoting the end of the current word or line erase.
+Repeating the word or line erase key will erase the autoindent characters.
+.pp
+Historically,
+.CO vi
+always used
+.LI <control-H>
+and
+.LI <control-W>
+as character and word erase characters, respectively, regardless of
+the current terminal settings.
+This implementation accepts, in addition to these two characters,
+the current terminal characters for those operations.
+.KY <nul>
+.IP "<nul>"
+If the first character of the input is a
+.LI <nul> ,
+the previous input is replayed, as if just entered.
+.KY <control-D>
+.IP "<control-D>"
+If the previous character on the line was an autoindent character,
+erase characters to move the cursor back to the column immediately
+after the previous (1-based) column which is a multiple of the
+.OP shiftwidth
+edit option.
+This may result in any number of
+.LI <tab>
+and
+.LI <space>
+characters preceding the cursor being changed.
+.sp
+Otherwise, if the
+.OP autoindent
+option is set and the user is entering the first character in the line,
+.LI <control-D>
+is ignored.
+Otherwise, a literal
+.LI <control-D>
+character is entered.
+.KY ^<control-D>
+.IP "^<control-D>"
+If the previous character on the line was an autoindent character,
+erase all of the autoindent characters on the line.
+In addition, the autoindent level is reset to 0.
+.KY 0<control-D>
+.IP "0<control-D>"
+If the previous character on the line was an autoindent character,
+erase all of the autoindent characters on the line.
+The autoindent level is not altered.
+.KY <control-T>
+.IP "<control-T>"
+Insert sufficient
+.LI <tab>
+and
+.LI <space>
+characters to move the cursor forward to the column immediately
+after the next (1-based) column which is a multiple of the
+.OP shiftwidth
+edit option.
+This may result in any number of
+.LI <tab>
+and
+.LI <space>
+characters preceding the cursor being changed.
+.sp
+Historically,
+.CO vi
+did not permit the
+.LI <control-T>
+command to be used unless the cursor was at the first column of a new
+line or it was preceded only by autoindent characters.
+.CO Nvi
+permits it to be used at any time during insert mode.
+.KY <erase>
+.IP <erase>
+.KY <control-H>
+.Ip <control-H>
+Erase the last character.
+.KY "<literal-next>"
+.IP "<literal-next>"
+Quote the next character.
+The next character will not be mapped (see the
+.CO map
+command for more information)
+or interpreted specially.
+A carat
+.PQ ^
+character will be displayed immediately as a placeholder,
+but will be replaced by the next character.
+.KY <escape>
+.IP <escape>
+If on the colon command line, and the
+.OP filec
+edit option is set, behave as described for that option.
+Otherwise, if on the colon command line,
+execute the command.
+Otherwise, if not on the colon command line,
+resolve all text input into the file, and return to command mode.
+.KY "<line erase>"
+.IP "<line erase>"
+Erase the current line.
+.KY "<control-W>"
+.IP "<control-W>"
+.KY "<word erase>"
+.Ip "<word erase>"
+Erase the last word.
+The definition of word is dependent on the
+.OP altwerase
+and
+.OP ttywerase
+options.
+.KY "<control-X>"
+.IP "<control-X>[0-9A-Fa-f]+"
+Insert a character with the specified hexadecimal value into the text.
+The value is delimited by any non-hexadecimal character or the input
+of the maximum number of characters that can be translated into a single
+character value.
+.KY <interrupt>
+.IP "<interrupt>"
+Interrupt text input mode, returning to command mode.
+If the
+.LI <interrupt>
+character is used to interrupt inserting text into the file,
+it is as if the
+.LI <escape>
+character was used; all text input up to the interruption is
+resolved into the file.

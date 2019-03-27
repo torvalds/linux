@@ -1,0 +1,96 @@
+.\" Copyright (c) 1994, 1996, 1997
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that: (1) source code distributions
+.\" retain the above copyright notice and this paragraph in its entirety, (2)
+.\" distributions including binary code include the above copyright notice and
+.\" this paragraph in its entirety in the documentation or other materials
+.\" provided with the distribution, and (3) all advertising materials mentioning
+.\" features or use of this software display the following acknowledgement:
+.\" ``This product includes software developed by the University of California,
+.\" Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+.\" the University nor the names of its contributors may be used to endorse
+.\" or promote products derived from this software without specific prior
+.\" written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH PCAP_DUMP_OPEN 3PCAP "16 February 2015"
+.SH NAME
+pcap_dump_open, pcap_dump_fopen \- open a file to which to write packets
+.SH SYNOPSIS
+.nf
+.ft B
+#include <pcap/pcap.h>
+.ft
+.nf
+.LP
+.ft B
+pcap_dumper_t *pcap_dump_open(pcap_t *p, const char *fname);
+pcap_dumper_t *pcap_dump_open_append(pcap_t *p, const char *fname);
+pcap_dumper_t *pcap_dump_fopen(pcap_t *p, FILE *fp);
+.ft
+.fi
+.SH DESCRIPTION
+.B pcap_dump_open()
+is called to open a ``savefile'' for writing.
+.I fname
+specifies the name of the file to open. The file will have
+the same format as those used by
+.BR tcpdump (1)
+and
+.BR tcpslice (1).
+The name "-" is a synonym
+for
+.BR stdout .
+.PP
+.B pcap_dump_fopen()
+is called to write data to an existing open stream
+.IR fp .
+Note that on Windows, that stream should be opened in binary mode.
+.PP
+.I p
+is a capture or ``savefile'' handle returned by an earlier call to
+.B pcap_create()
+and activated by an earlier call to
+.BR pcap_activate() ,
+or returned by an earlier call to
+.BR pcap_open_offline() ,
+.BR pcap_open_live() ,
+or
+.BR pcap_open_dead() .
+The time stamp precision, link-layer type, and snapshot length from
+.I p
+are used as the link-layer type and snapshot length of the output file.
+.PP
+.B pcap_dump_open_append()
+is like
+.B pcap_dump_open
+but does not create the file if it does not exist and, if it does
+already exist, and is a pcap file with the same byte order as the host
+opening the file, and has the same time stamp precision, link-layer
+header type, and snapshot length as
+.IR p ,
+it will write new packets at the end of the file.
+.SH RETURN VALUES
+A pointer to a
+.B pcap_dumper_t
+structure to use in subsequent
+.B pcap_dump()
+and
+.B pcap_dump_close()
+calls is returned on success.
+.B NULL
+is returned on failure.
+If
+.B NULL
+is returned,
+.B pcap_geterr(\fIp\fB)
+can be used to get the error text.
+.SH SEE ALSO
+pcap(3PCAP), pcap_create(3PCAP), pcap_activate(3PCAP),
+\%pcap_open_offline(3PCAP), pcap_open_live(3PCAP), pcap_open_dead(3PCAP),
+pcap_dump(3PCAP), pcap_dump_close(3PCAP), pcap_geterr(3PCAP),
+\%pcap-savefile(@MAN_FILE_FORMATS@)

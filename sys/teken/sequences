@@ -1,0 +1,119 @@
+#-
+# Copyright (c) 2008-2009 Ed Schouten <ed@FreeBSD.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+# File format is as follows:
+#	Abbr		Abbreviation of sequence name
+#	Name		Sequence name (will be converted to C function name)
+#	Sequence	Bytes that form the sequence
+#	Args		Standard value of arguments passed to this sequence
+#			- `n' non-zero number (0 gets converted to 1)
+#			- `r' regular numeric argument
+#			- `v' means a variable number of arguments
+
+# Abbr		Name					Sequence	Args
+CBT		Cursor Backward Tabulation		^[ [ Z		n
+CHT		Cursor Forward Tabulation		^[ [ I		n
+CNL		Cursor Next Line			^[ [ E		n
+CPL		Cursor Previous Line			^[ [ F		n
+CPR		Cursor Position Report			^[ [ n		r
+CUB		Cursor Backward				^[ [ D		n
+CUD		Cursor Down				^[ [ B		n
+CUD		Cursor Down				^[ [ e		n
+CUF		Cursor Forward				^[ [ C		n
+CUF		Cursor Forward				^[ [ a		n
+CUP		Cursor Position				^[ [ H		n n
+CUP		Cursor Position				^[ [ f		n n
+CUU		Cursor Up				^[ [ A		n
+DA1		Primary Device Attributes		^[ [ c		r
+DA2		Secondary Device Attributes		^[ [ > c	r
+DC		Delete character			^[ [ P		n
+DCS		Device Control String			^[ P
+DECALN		Alignment test				^[ # 8
+DECDHL		Double Height Double Width Line Top	^[ # 3
+DECDHL		Double Height Double Width Line Bottom	^[ # 4
+DECDWL		Single Height Double Width Line		^[ # 6
+DECKPAM		Keypad application mode			^[ =
+DECKPNM		Keypad numeric mode			^[ >
+DECRC		Restore cursor				^[ 8
+DECRC		Restore cursor				^[ [ u
+DECRM		Reset DEC mode				^[ [ ? l	r
+DECSC		Save cursor				^[ 7
+DECSC		Save cursor				^[ [ s
+DECSCUSR	Set Cursor Style			^[ [ SP q	r
+DECSM		Set DEC mode				^[ [ ? h	r
+DECSTBM		Set top and bottom margins		^[ [ r		r r
+DECSWL		Single Height Single Width Line		^[ # 5
+DL		Delete line				^[ [ M		n
+DSR		Device Status Report			^[ [ ? n	r
+ECH		Erase character				^[ [ X		n
+ED		Erase display				^[ [ J		r
+EL		Erase line				^[ [ K		r
+G0SCS0		G0 SCS Special Graphics			^[ ( 0
+G0SCS1		G0 SCS US ASCII				^[ ( 1
+G0SCS2		G0 SCS Special Graphics			^[ ( 2
+G0SCSA		G0 SCS UK National			^[ ( A
+G0SCSB		G0 SCS US ASCII				^[ ( B
+G1SCS0		G1 SCS Special Graphics			^[ ) 0
+G1SCS1		G1 SCS US ASCII				^[ ) 1
+G1SCS2		G1 SCS Special Graphics			^[ ) 2
+G1SCSA		G1 SCS UK National			^[ ) A
+G1SCSB		G1 SCS US ASCII				^[ ) B
+HPA		Horizontal Position Absolute		^[ [ G		n
+HPA		Horizontal Position Absolute		^[ [ `		n
+HTS		Horizontal Tab Set			^[ H
+ICH		Insert character			^[ [ @		n
+IL		Insert line				^[ [ L		n
+IND		Index					^[ D
+NEL		Next line				^[ E
+OSC		Operating System Command		^[ ]
+RI		Reverse index				^[ M
+RIS		Reset to Initial State			^[ c
+RM		Reset Mode				^[ [ l		r
+SD		Pan Up					^[ [ T		n
+SGR		Set Graphic Rendition			^[ [ m		v
+SM		Set Mode				^[ [ h		r
+ST		String Terminator			^[ \\
+SU		Pan Down				^[ [ S		n
+TBC		Tab Clear				^[ [ g		r
+VPA		Vertical Position Absolute		^[ [ d		n
+
+# Cons25 compatibility sequences
+C25BLPD		Cons25 set bell pitch duration		^[ [ = B	r r
+C25BORD		Cons25 set border			^[ [ = A	r
+C25DBG		Cons25 set default background		^[ [ = G	r
+C25DFG		Cons25 set default foreground		^[ [ = F	r
+C25GCS		Cons25 set global cursor shape		^[ [ = C	v
+C25LCT		Cons25 set local cursor type		^[ [ = S	r
+C25MODE		Cons25 set terminal mode		^[ [ = T	r
+C25SGR		Cons25 set graphic rendition		^[ [ x		r r
+C25VTSW		Cons25 switch virtual terminal		^[ [ z		r
+
+# VT52 compatibility
+#DECID		VT52 DECID				^[ Z
+
+# ECMA-48
+REP		Repeat last graphic char		^[ [ b		n

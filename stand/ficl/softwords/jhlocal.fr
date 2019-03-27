@@ -1,0 +1,105 @@
+\ #if FICL_WANT_LOCALS
+\ ** ficl/softwords/jhlocal.fr
+\ ** stack comment style local syntax...
+\ { a b c | cleared -- d e }
+\ variables before the "|" are initialized in reverse order
+\ from the stack. Those after the "|" are zero initialized.
+\ Anything between "--" and "}" is treated as comment
+\ Uses locals...
+\ locstate: 0 = looking for | or -- or }}
+\           1 = found |
+\           2 = found --
+\           3 = found }
+\           4 = end of line
+\
+\ revised 2 June 2000 - { | a -- } now works correctly
+\
+\ $FreeBSD$
+
+hide
+
+0 constant zero
+
+
+: ?--   ( c-addr u -- c-addr u flag )
+    2dup s" --" compare 0= ;
+: ?}    ( c-addr u -- c-addr u flag )
+    2dup s" }"  compare 0= ;
+: ?|    ( c-addr u -- c-addr u flag )
+    2dup s" |"  compare 0= ;
+
+\ examine name - if it's a 2local (starts with "2:"),
+\ nibble the prefix (the "2:") off the name and push true.
+\ Otherwise push false
+\ Problem if the local is named "2:" - we fall off the end...
+: ?2loc ( c-addr u -- c-addr u flag )
+    over dup c@ [char] 2 = 
+	swap 1+  c@ [char] : = and
+    if 
+        2 - swap char+ char+ swap  \ dcs/jws: nibble the '2:'
+        true 
+    else 
+	    false 
+    endif 
+;
+
+: ?delim   ( c-addr u -- state | c-addr u 0 )
+    ?|  if  2drop 1 exit endif
+    ?-- if  2drop 2 exit endif
+    ?}  if  2drop 3 exit endif
+    dup 0= 
+        if  2drop 4 exit endif
+    0
+;
+
+set-current
+
+: {
+    0 dup locals| locstate |
+    
+    \ stack locals until we hit a delimiter
+    begin
+        parse-word      \ ( nLocals c-addr u )
+        ?delim dup to locstate
+    0= while
+        rot 1+          \ ( c-addr u ... c-addr u nLocals )
+    repeat
+
+    \ now unstack the locals
+    0 ?do 
+	    ?2loc if (2local) else (local) endif 
+	loop   \ ( )
+
+    \ zero locals until -- or }
+    locstate 1 = if
+        begin
+            parse-word
+            ?delim dup to locstate
+        0= while
+            ?2loc if
+                postpone zero postpone zero (2local)
+            else
+                postpone zero (local)
+            endif
+        repeat
+    endif
+
+    0 0 (local)
+
+    \ toss words until }
+    \ (explicitly allow | and -- in the comment)
+    locstate 2 = if
+        begin
+            parse-word
+            ?delim dup  to locstate
+        3 < while
+            locstate 0=  if 2drop endif
+        repeat
+    endif
+
+    locstate 3 <> abort" syntax error in { } local line"
+; immediate compile-only
+
+previous 
+\ #endif
+

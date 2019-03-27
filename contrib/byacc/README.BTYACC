@@ -1,0 +1,617 @@
+-- $Id: README.BTYACC,v 1.2 2014/04/22 08:18:57 Tom.Shields Exp $
+
+The original README from btyacc is below.
+
+The backtracking enhancements to byacc have been merged into Thomas Dickey's
+byacc baseline.
+
+The %include and %define/%ifdef enhancements described below are not currently
+incorporated.
+
+The position management functionality ("YYPOSN", "yyposn", "YYREDUCEPOSNFUNC",
+"YYREDUCEPOSNFUNCARG" & "YYCALLREDUCEPOSN") is replaced by a bison-compatible
+"%locations" implementation.
+
+The memory management functionality ("YYDELETEVAL" & "YYDELETEPOSN") is
+replaced by a bison-compatible "%destructor" implementation.
+
+The detailed syntax error processing functionality ("YYERROR_DETAILED"
+& "yyerror_detailed()") is subsumed by the bison-compatible "yyerror()"
+implementation, as modified by the %parse-param and %locations directives.
+
+The debugging macro "YYDBPR()" in the parser skeleton is renamed
+"YYSTYPE_TOSTRING()".
+
+-------------------------------------------------------------------------------
+	     BTYACC -- backtracking yacc
+	     ===========================
+
+BTYACC was created by Chris Dodd using ideas from many
+places and lots of code from the Berkeley Yacc
+distribution, which is a public domain yacc clone put
+together by the good folks at Berkeley.  This code is
+distributed with NO WARRANTY and is public domain.
+It is certain to contain bugs, which you should
+report to: chrisd@collins.com.
+
+Vadim Maslov of Siber Systems <vadik@siber.com>
+considerably modified BTYACC to make it suitable
+for production environment.
+
+Several people have suggested bug fixes that
+were incorporated into BtYacc.
+
+See the README.BYACC files for more about
+Berkeley Yacc and other sources of info.
+
+http://www.siber.com/btyacc/ is the current home of BtYacc.
+It is provided courtesy of Siber Systems http://www.siber.com/.
+
+
+		Version 3.0 changes
+		-------------------
+		  by Vadim Maslov
+
+Changes mostly occurred in btyaccpa.ske file that
+contains the parsing shift/reduce/backtrack algorithm.
+
+Version 3.0 innovations focus on:
+- text position computation and propagation,
+- industrial-strength error processing and recovery.
+
+
+** Added mechanism for computing and propagating
+text position of tokens and non-terminals.
+
+Compilers often need to build AST trees such that every node
+in a tree can relate to the parsed program source it came from.
+The following applications are very likely to need this:
+- debuggers that show actual source of the debugged program,
+- source-to-source translators that want
+  unchanged parts of the tree to generate the unchanged code.
+
+The new YYPOSN mechanism added in this version of BtYacc
+helps you in automating the text position computation
+and in assigning the computed text positions to the AST.
+This mechanism is successfully used in commercial
+parsers and source-to-source translators.
+
+In standard Yaccs every token and every non-terminal
+has an YYSTYPE semantic value attached to it.
+In this new version every token and every non-terminal
+also has an YYPOSN text position attached to it.
+YYPOSN is a user-defined type that can be anything and
+that has a meaning of text position attached to
+token or non-terminal.
+
+In addition to semantic value stack BtYacc now maintains
+text position stack. Behavior of the text position stack
+is similar to the behavior of the semantic value stack.
+
+If using text position mechanism,
+you need to define the following:
+
+YYPOSN	Preprocessor variable that contains C/C++ type of
+	the text position attached to
+	every token and non-terminal.
+
+yyposn  Global variable of type YYPOSN.
+        The lexer must assign text position of
+	the returned token to yyposn, just like it assigns
+	semantic value of the returned token to yylval.
+
+YYREDUCEPOSNFUNC
+	Preprocessor variable that points to function that
+	is called after the grammar rule reduction
+	to reduce text positions located on the stack.
+
+        This function is called by BtYacc to reduce text
+	positions. The function is called immediately after
+	the regular rule reduction occurs.
+
+	The function has the following prototype:
+	void ReducePosn(YYPOSN  &ret,
+			YYPOSN  *terms,
+			YYSTYPE *term_vals,
+			int      term_no,
+			int      stk_pos,
+			int      yychar,
+			YYPOSN  &yyposn,
+			UserType extra);
+
+        The function arguments are:
+        - ret
+	  Reference to the text position returned by
+          the rule. The function must write the computed
+          text position returned by the rule to ret.
+          This is analogue of the $$ semantic value.
+
+        - term_posns
+          Array of the right-hand side rule components
+	  YYPOSN text positions.  These are analogues of
+	  $1, $2, ..., $N in the text position world.
+
+        - term_vals
+	  Array of the right-hand side (RHS) rule components
+	  YYSTYPE values. These are the $1,...,$N themselves.
+
+        - term_no
+          Number of the components in RHS of the reduced rule.
+          Equal to size of arrays term_posns and term_vals.
+          Also equal to N in $1,...,$N in the reduced rule.
+
+        - stk_pos
+          YYSTYPE/YYPOSN stack position before the reduction.
+
+        - yychar
+          Lookahead token that immediately follows
+ 	  the reduced RHS components.
+
+        - yyposn
+          YYPOSN of the token that immediately follows
+	  the reduced RHS components.
+
+        - extra
+          User-defined extra argument passed to ReducePosn.
+
+        Typically this function extracts text positions from
+	the right-hand side rule components and either
+	assigns them to the returned $$ structure/tree or
+        if no $$ value is returned, puts them into
+	the ret text position from where
+        it will be picked up by the later reduced rules.
+
+YYREDUCEPOSNFUNCARG
+	Extra user-defined argument passed to
+	the ReducePosn function. This argument can use
+	any variables defined in btyaccpa.ske.
+
+
+** Added code to btyaccpa.ske that automatically cleans up
+semantic semantic values and text positions of tokens
+and non-terminals that are discarded and deleted as
+a result of error processing.
+
+In the previous versions the discarded token and non-terminal
+semantic values were not cleaned that caused quite severe
+leaks.  The only way to fix it was to add garbage collection
+to YYSTYPE class.
+
+Now BtYacc skeleton calls delete functions for semantic
+values and positions of the discarded tokens and
+non-terminals.
+
+You need to define the following functions that BtYacc
+calls when it needs to delete semantic value or text position.
+
+YYDELETEVAL
+	User-defined function that is called by BtYacc
+	to delete semantic value of the token or non-terminal.
+
+	The user-defined function must have the prototype:
+	void DeleteYYval(YYSTYPE v, int type);
+	v    is semantic value to delete,
+	type is one of the following:
+	0 	discarding token
+	1       discarding state
+	2       cleaning up stack when aborting
+
+YYDELETEPOSN
+	User-defined function that is called by BtYacc
+	to delete text position of the token or non-terminal.
+
+	The user-defined function must have the prototype:
+	void DeleteYYposn(YYPOSN p, int type);
+	v    is semantic value to delete,
+	type is one of the following:
+	0 	discarding token
+	1       discarding state
+	2       cleaning up stack when aborting
+
+
+** User can define "detailed" syntax error processing
+function that reports an *exact* position of
+the token that caused the error.
+
+If you define preprocessor variable YYERROR_DETAILED in
+your grammar then you need define the following
+error processing function:
+
+void yyerror_detailed(char    *text,
+		      int      errt,
+		      YYSTYPE &errt_value,
+		      YYPOSN  &errt_posn);
+
+It receives the following arguments:
+text		Error message.
+errt		Code of the token that caused the error.
+errt_value	Value of the token that caused the error.
+errt_posn	Text position of token that caused error.
+
+
+** Dropped compatibility with C.
+
+Compatibility with C became increasingly difficult
+to maintain as new features were added to btyaccpa.ske.
+So we dropped it. If anybody wants to make the new version
+compatible with C, we would gladly accept the changes.
+
+Meanwhile we expect that you use C++ to write grammar
+actions and everything else in grammar files.
+Since C is (in a sense) subset of C++, your C-based
+grammar may work if you use C++ compiler to compile it.
+
+		Version 3.0 bugs fixed
+		----------------------
+
+Matthias Meixner <meixner@mes.th-darmstadt.de> fixed a bug:
+BtYacc does not correctly handle typenames, if one typename
+is a prefix of another one and if this type is used after
+the longer one. In this case BTYacc produces invalid code.
+
+
+		Version 2.1 changes
+		-------------------
+		  by Vadim Maslov
+
+** Added preprocessor statements to BtYacc that are similar
+in function and behavior to C/C++ preprocessor statements.
+
+These statements are used to:
+
+- Introduce modularity into a grammar by breaking it
+  into several *.y files and assembling different
+  grammars from the *.y modules using %include and %ifdef.
+
+- Have several versions of the same grammar
+  by using %ifdef and $endif.
+
+- To include automatically generated grammar fragment.
+  For instance, we use %include to include
+  automatically generated list of tokens.
+
+Preprocessor statements are:
+
+%define <var-name>
+	Define preprocessor variable named <var-name>.
+
+%ifdef <var-name>
+	If preprocessor variable named <var-name>
+	is defined by %define, then process the text from
+	this %ifdef to the closing %endif.
+
+%endif
+	Closing bracket for %ifdef preprocessor statement.
+	Only one nesting level of %ifdef-%endif is allowed.
+
+%include <file-name>
+	Process contents of the file named <file-name>.
+	If <file-name> is a relative name, it is looked up
+        in a directory in which btyacc was started.
+	Only one nesting level of %include is allowed.
+
+
+		Version 2.0 changes
+		-------------------
+		  by Vadim Maslov
+
+
+** Changed 16-bit short numbers to 32-bit int numbers in
+grammar tables, so that huge grammar tables (tables that
+are larger than 32768 elements) resulting from huge
+grammars (Cobol grammar, for instance) can work correctly.
+You need to have 32-bit integer to index table bigger than
+32768 elements, 16-bit integer is not enough.
+
+The original BtYacc just generated non-working tables
+larger than 32768 elements without even notifying about
+the table overflow.
+
+
+** Make error recovery work correctly when error happens
+while processing nested conflicts. Original BtYacc could
+infinitely cycle in certain situations that involved error
+recovery while in nested conflict.
+
+More detailed explanation: when we have nested conflicts
+(conflict that happens while trial-processing another
+conflict), it leads btyacc into NP-complete searching of
+conflict tree. The ultimate goal is YYVALID operator that
+selects a particular branch of that tree as a valid one.
+
+If no YYVALID is found on the tree, then error recovery
+takes over.  The problem with this is that error recovery
+is started in the same state context that exists on the
+last surveyed branch of the conflict tree.  Sometimes this
+last branch may be of zero length and it results in
+recovering to exactly the same state as existed before
+entering the conflict. BtYacc cycles then.
+
+We solved this problem by memorizing the longest path in
+the conflict tree while browsing it. If we ever get into
+error recovery, we restore state that existed on the
+longest path.  Effectively we say: if we have an error,
+let us move forward as far as we possibly could while we
+were browsing the conflict tree.
+
+
+** Introduce YYVALID_NESTED operation in addition to
+simply YYVALID.  When we have a nested conflict (conflict
+while processing in trial mode for another conflict), we
+want to relate YYVALID to a particular level of conflict
+being in trial.
+
+Since we mostly anticipate only 2-level nested conflicts
+YYVALID_NESTED tells the parser to satisfy only the
+internal conflict.  Therefore, in 1-level conflict
+situation YYVALID_NESTED acts like a regular YYVALID, but
+in 2-level conflict it is a no-op and the other YYVALID
+for outer conflict will be searched for.
+
+
+** Improved handling of situation where /tmp directory is
+missing.  Original btyacc just died quietly when /tmp
+directory was missing.  We added code that states the
+problem explicitly. While on UNIX /tmp directory is always
+present, it may be missing on WIN32 systems, therefore
+diagnosing this situation is important.
+
+
+	Version 1.0 changes: BackTracking
+	=================================
+		by Chris Dodd
+
+BTYACC is a modified version of yacc that supports
+automatic backtracking and semantic disambiguation to
+parse ambiguous grammars, as well as syntactic sugar for
+inherited attributes (which tend to introduce conflicts).
+Whenever a btyacc generated parser runs into a
+shift-reduce or reduce-reduce error in the parse table, it
+remembers the current parse point (yacc stack and input
+stream state), and goes into trial parse mode.  It then
+continues parsing, ignoring most rule actions.  If it runs
+into an error (either through the parse table or through
+an action calling YYERROR), it backtracks to the most
+recent conflict point and tries a different alternative.
+If it finds a successful parse (reaches the end of the
+input or an action calls YYVALID), it backtracks to the
+point where it first entered trial parse mode, and
+continues with a full parse (executing all actions),
+following the path of the successful trial.
+
+Actions in btyacc come in two flavors -- {}-actions, which
+are only executed when not in trial mode, and []-actions
+which are executed regardless of mode.  There are also
+inherited attributes, which look like arguments (they are
+enclosed in "()") and act like []-actions.
+
+What this buys you:
+
+* No more lexer feedback hack.  In yacc grammars for C, a
+standard hack, know as the "lexer feedback hack" is used
+to find typedef names.  The lexer uses semantic
+information to decide if any given identifier is a
+typedef-name or not and returns a special token.  With
+btyacc, you no longer need to do this; the lexer should
+just always return an identifier.  The btyacc grammar then
+needs a rule of the form:
+
+typename: ID [ if (!IsTypeName(LookupId($1))) YYERROR; ]
+
+While the hack works adequately well for parsing C, it
+becomes a nightmare when you try to parse something like
+C++, where treating an ID as a typedef becomes heavily
+dependent on context.
+
+* Easy disambiguation via simple ordering.  Btyacc runs
+its trials via the rule "try shifting first, then try
+reducing by the order that the conflicting rules appear in
+the input file".  This means you can deal with semantic a
+disambiguation rule like:
+    [1] If it looks like a declaration it is, otherwise
+    [2] If it looks like an expression it is, otherwise
+    [3] it is a syntax error
+	[Ellis&Stroustrup, Annotated C++ Reference Manual, p93]
+
+To deal with this, you need only put all the rules for
+declarations before the rules for expressions in the
+grammar file.
+
+* No extra cost if you do not use it.  Backtracking is
+only triggered when the parse hits a shift/reduce or
+reduce/reduce conflict in the table.  If you have no
+conflicts in your grammar, there is no extra cost, other
+than some extra code which will never be invoked.
+
+* C++ and ANSI C compatible parsers.  The parsers produced
+by btyacc can be compiled with C++ correctly.  If you
+"#define" YYSTYPE to be some C++ type with constructor and
+destructor, everything will work fine.  My favorite is
+"#define YYSTYPE SmartPointer", where SmartPointer is a
+smart pointer type that does garbage collection on the
+pointed to objects.
+
+BTYACC was originally written to make it easy to write a
+C++ parser (my goal was to be able to use the grammar out
+of the back of the ARM with as few modifications as
+possible).  Anyone who has ever looked at Jim Roskind
+public domain C++ yacc grammar, or the yacc-based grammar
+used in g++ knows how difficult this is.  BTYACC is very
+useful for parsing any ambiguous grammar, particularly
+ones that come from trying to merge two (or more) complete
+grammars.
+
+Limitations of the backtracking: Currently, the generated
+parser does NO pruning of alternate parsing paths.  To
+avoid an exponential explosion of possible paths (and
+parsing time), you need to manually tell the parser when
+it can throw away saved paths using YYVALID.  In practice,
+this turns out to be fairly easy to do.  A C++ parser (for
+example) can just put a [YYVALID;] after every complete
+declaration and statement rule, corresponding to pruning
+the backtracking state after seeing a ';' or '}' -- there
+will never be a situation in which it is useful to
+backtrack past either of these.
+
+Inherited attributes in btyacc:
+
+Inherited attributes look a lot like function arguments to
+non-terminals, which is what they end up being in a
+recursive descent parser, but NOT how they are implemented
+in btyacc.  Basically they are just syntactic sugar for
+embedded semantic actions and $0, $-1, ... in normal yacc.
+btyacc gives you two big advantages besides just the
+syntax:
+    1. it does type checking on the inherited attributes,
+       so you do not have to specify $<type>0 and makes sure
+       you give the correct number of arguments (inherited
+       attributes) to every use of a non-terminal.
+    2. It "collapses" identical actions from that are produced
+       from inherited attributes.  This eliminates many
+       potential reduce-reduce conflicts arising from
+       the inherited attributes.
+
+You use inherited attributes by declaring the types of the
+attributes in the preamble with a type declaration and
+declaring names of the attributes on the lhs of the yacc
+rule.  You can of course have more than one rule with the
+same lhs, and you can even give them different names in
+each, but the type and number must be the same.
+
+Here is a small example:
+           /* lhs takes 2 inherited attributes */
+%type <t1> lhs(<t1>, <t2>)
+	   stuff(<t1>, <t2>)
+%%
+lhs($i1, $i2) : { $$ = $i1 }
+	      | lhs($i1, $i2) stuff($1,$i2) { $$ = $2; }
+
+This is roughly equivalent to the following yacc code:
+lhs :
+      { $$ = $<t1>-1; }
+    | lhs [ $<t1>$ = $-1; ] [ $<t2>$ = $<t2>0; ] stuff
+      { $$ = $4; }
+    ;
+
+See the file "test/t2.y" for a longer and more complete
+example.  At the current time, the start symbol cannot
+have any arguments.
+
+Variant parsers:
+
+Btyacc supports the -S flag to use a different parser
+skeleton, changing the way that the parser is called and
+used.  The skeleton "push.skel" is included to produce a
+"passive" parser that you feed tokens to (rather than
+having the parser call a separate yylex routine).  With
+push.skel, yyparse is defined as follows:
+
+int yyparse(int token, YYSTYPE yylval)
+
+You should call yyparse repeatedly with successive tokens
+of input.  It returns 0 if more input is needed, 1 for a
+successful parse, and -1 for an unrecoverable parse error.
+
+
+	Miscellaneous Features in ver. 1.0
+	----------------------------------
+		by Chris Dodd
+
+     The -r option has been implemented.  The -r option tells
+Yacc to put the read-only tables in y.tab.c and the code and
+variables in y.code.c.  Keith Bostic asked for this option so
+that :yyfix could be eliminated.
+
+     The -l and -t options have been implemented.  The -l
+option tells Yacc not to include #line directives in the code
+it produces.  The -t option causes debugging code to be
+included in the compiled parser.
+
+     The code for error recovery has been changed to
+implement the same algorithm as AT&T Yacc.  There will still
+be differences in the way error recovery works because AT&T
+Yacc uses more default reductions than Berkeley Yacc.
+
+     The environment variable TMPDIR determines the directory
+where temporary files will be created.  If TMPDIR is defined,
+temporary files will be created in the directory whose
+pathname is the value of TMPDIR.  By default, temporary files
+are created in /tmp.
+
+     The keywords are now case-insensitive.  For example,
+%nonassoc, %NONASSOC, %NonAssoc, and %nOnAsSoC are
+all equivalent.
+
+     Commas and semicolons that are not part of C code are
+treated as commentary.
+
+     Line-end comments, as in BCPL, are permitted.  Line-end
+comments begin with // and end at the next end-of-line.
+Line-end comments are permitted in C code; they are converted
+to C comments on output.
+
+     The form of y.output files has been changed to look more
+like those produced by AT&T Yacc.
+
+     A new kind of declaration has been added.
+The form of the declaration is
+
+	  %ident string
+
+where string is a sequence of characters beginning with a
+double quote and ending with either a double quote or the
+next end-of-line, whichever comes first.  The declaration
+will cause a #ident directive to be written near the start
+of the output file.
+
+     If a parser has been compiled with debugging code, that
+code can be enabled by setting an environment variable.
+If the environment variable YYDEBUG is set to 0, debugging
+output is suppressed.  If it is set to 1, debugging output
+is written to standard output.
+
+
+		Building BtYacc
+		---------------
+	by Chris Dodd and Vadim Maslov
+
+We used GCC and GNU make to compile BtYacc both on UNIX and
+WIN32 paltforms.  You are welcome to try different
+combinations of makes and compilers.  Most likely it will
+work, but it may require Makefile changes.
+
+There is no config script.
+Just type "make" and it should compile.
+
+AWK. If you want to change file btyaccpa.ske (backtracking
+parser skeleton), you will need awk to compile it into
+skeleton.c file. We used GNU AWK (gawk) version 3.0.
+
+It is known that using older versions of gawk
+may create problems in compilation, because older awks
+have problems with backslashes at the end of a line.
+
+For MSDOS, there a "makefile.dos" that should do the trick.
+Note: makefile.dos was not tested for a long time.
+
+The result of compilation should be a single executable called
+"btyacc" which you can install anywhere you like;
+it does not require any other files in the distribution to run.
+
+
+	       Legal Stuff
+	       -----------
+	by Chris Dodd and Vadim Maslov
+
+In English: BtYacc is freeware. BtYacc is distributed with
+no warranty whatsoever. The author and any other contributors
+take no responsibility for any and all consequences of its use.
+
+In Legalese: LIMITATION OF LIABILITY. NEITHER SIBER SYSTEMS
+NOR ANY OF ITS LICENSORS NOR ANY BTYACC CONTRIBUTOR SHALL BE
+LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL OR CONSEQUENTIAL
+DAMAGES, OR DAMAGES FOR LOSS OF PROFITS, REVENUE, DATA OR
+DATA USE, CAUSED BY BTYACC AND INCURRED BY CUSTOMER OR ANY
+THIRD PARTY, WHETHER IN AN ACTION IN CONTRACT OR TORT, EVEN
+IF SIBER SYSTEMS HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGES.

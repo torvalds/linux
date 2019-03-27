@@ -1,0 +1,340 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)tcsetattr.3	8.3 (Berkeley) 1/2/94
+.\" $FreeBSD$
+.\"
+.Dd January 2, 1994
+.Dt TCSETATTR 3
+.Os
+.Sh NAME
+.Nm cfgetispeed ,
+.Nm cfsetispeed ,
+.Nm cfgetospeed ,
+.Nm cfsetospeed ,
+.Nm cfsetspeed ,
+.Nm cfmakeraw ,
+.Nm cfmakesane ,
+.Nm tcgetattr ,
+.Nm tcsetattr
+.Nd manipulating the termios structure
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In termios.h
+.Ft speed_t
+.Fn cfgetispeed "const struct termios *t"
+.Ft int
+.Fn cfsetispeed "struct termios *t" "speed_t speed"
+.Ft speed_t
+.Fn cfgetospeed "const struct termios *t"
+.Ft int
+.Fn cfsetospeed "struct termios *t" "speed_t speed"
+.Ft int
+.Fn cfsetspeed "struct termios *t" "speed_t speed"
+.Ft void
+.Fn cfmakeraw "struct termios *t"
+.Ft void
+.Fn cfmakesane "struct termios *t"
+.Ft int
+.Fn tcgetattr "int fd" "struct termios *t"
+.Ft int
+.Fn tcsetattr "int fd" "int action" "const struct termios *t"
+.Sh DESCRIPTION
+The
+.Fn cfmakeraw ,
+.Fn cfmakesane ,
+.Fn tcgetattr
+and
+.Fn tcsetattr
+functions are provided for getting and setting the termios structure.
+.Pp
+The
+.Fn cfgetispeed ,
+.Fn cfsetispeed ,
+.Fn cfgetospeed ,
+.Fn cfsetospeed
+and
+.Fn cfsetspeed
+functions are provided for getting and setting the baud rate values in
+the termios structure.
+The effects of the functions on the terminal as described below
+do not become effective, nor are all errors detected, until the
+.Fn tcsetattr
+function is called.
+Certain values for baud rates set in the termios structure and passed to
+.Fn tcsetattr
+have special meanings.
+These are discussed in the portion of the manual page that describes the
+.Fn tcsetattr
+function.
+.Sh GETTING AND SETTING THE BAUD RATE
+The input and output baud rates are found in the termios structure.
+The unsigned integer
+.Li speed_t
+is typedef'd in the include file
+.In termios.h .
+The value of the integer corresponds directly to the baud rate being
+represented, however, the following symbolic values are defined.
+.Bd -literal
+#define B0	0
+#define B50	50
+#define B75	75
+#define B110	110
+#define B134	134
+#define B150	150
+#define B200	200
+#define B300	300
+#define B600	600
+#define B1200	1200
+#define	B1800	1800
+#define B2400	2400
+#define B4800	4800
+#define B9600	9600
+#define B19200	19200
+#define B38400	38400
+#ifndef _POSIX_SOURCE
+#define EXTA	19200
+#define EXTB	38400
+#endif  /*_POSIX_SOURCE */
+.Ed
+.Pp
+The
+.Fn cfgetispeed
+function returns the input baud rate in the termios structure referenced by
+.Fa tp .
+.Pp
+The
+.Fn cfsetispeed
+function sets the input baud rate in the termios structure referenced by
+.Fa tp
+to
+.Fa speed .
+.Pp
+The
+.Fn cfgetospeed
+function returns the output baud rate in the termios structure referenced by
+.Fa tp .
+.Pp
+The
+.Fn cfsetospeed
+function sets the output baud rate in the termios structure referenced by
+.Fa tp
+to
+.Fa speed .
+.Pp
+The
+.Fn cfsetspeed
+function sets both the input and output baud rate in the termios structure
+referenced by
+.Fa tp
+to
+.Fa speed .
+.Pp
+Upon successful completion, the functions
+.Fn cfsetispeed ,
+.Fn cfsetospeed ,
+and
+.Fn cfsetspeed
+return a value of 0.
+Otherwise, a value of -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh GETTING AND SETTING THE TERMIOS STATE
+This section describes the functions that are used to control the general
+terminal interface.
+Unless otherwise noted for a specific command, these functions are restricted
+from use by background processes.
+Attempts to perform these operations shall cause the process group to be sent
+a SIGTTOU signal.
+If the calling process is blocking or ignoring SIGTTOU signals, the process
+is allowed to perform the operation and the SIGTTOU signal is not sent.
+.Pp
+In all the functions, although
+.Fa fd
+is an open file descriptor, the functions affect the underlying terminal
+file, not just the open file description associated with the particular
+file descriptor.
+.Pp
+The
+.Fn cfmakeraw
+function sets the flags stored in the termios structure to a state disabling
+all input and output processing, giving a
+.Dq raw I/O path ,
+while the
+.Fn cfmakesane
+function sets them to a state similar to those of a newly created
+terminal device.
+It should be noted that there is no function to reverse this effect.
+This is because there are a variety of processing options that could be
+re-enabled and the correct method is for an application to snapshot the
+current terminal state using the function
+.Fn tcgetattr ,
+setting raw or sane mode with
+.Fn cfmakeraw
+or
+.Fn cfmakesane
+and the subsequent
+.Fn tcsetattr ,
+and then using another
+.Fn tcsetattr
+with the saved state to revert to the previous terminal state.
+.Pp
+The
+.Fn tcgetattr
+function copies the parameters associated with the terminal referenced
+by
+.Fa fd
+in the termios structure referenced by
+.Fa tp .
+This function is allowed from a background process, however, the terminal
+attributes may be subsequently changed by a foreground process.
+.Pp
+The
+.Fn tcsetattr
+function sets the parameters associated with the terminal from the
+termios structure referenced by
+.Fa tp .
+The
+.Fa action
+argument is created by
+.Em or Ns 'ing
+the following values, as specified in the include file
+.In termios.h .
+.Bl -tag -width "TCSADRAIN"
+.It Fa TCSANOW
+The change occurs immediately.
+.It Fa TCSADRAIN
+The change occurs after all output written to
+.Fa fd
+has been transmitted to the terminal.
+This value of
+.Fa action
+should be used when changing parameters that affect output.
+.It Fa TCSAFLUSH
+The change occurs after all output written to
+.Fa fd
+has been transmitted to the terminal.
+Additionally, any input that has been received but not read is discarded.
+.It Fa TCSASOFT
+If this value is
+.Em or Ns 'ed
+into the
+.Fa action
+value, the values of the
+.Va c_cflag ,
+.Va c_ispeed ,
+and
+.Va c_ospeed
+fields are ignored.
+.El
+.Pp
+The 0 baud rate is used to terminate the connection.
+If 0 is specified as the output speed to the function
+.Fn tcsetattr ,
+modem control will no longer be asserted on the terminal, disconnecting
+the terminal.
+.Pp
+If zero is specified as the input speed to the function
+.Fn tcsetattr ,
+the input baud rate will be set to the same value as that specified by
+the output baud rate.
+.Pp
+If
+.Fn tcsetattr
+is unable to make any of the requested changes, it returns -1 and
+sets errno.
+Otherwise, it makes all of the requested changes it can.
+If the specified input and output baud rates differ and are a combination
+that is not supported, neither baud rate is changed.
+.Pp
+Upon successful completion, the functions
+.Fn tcgetattr
+and
+.Fn tcsetattr
+return a value of 0.
+Otherwise, they
+return -1 and the global variable
+.Va errno
+is set to indicate the error, as follows:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument to
+.Fn tcgetattr
+or
+.Fn tcsetattr
+was not a valid file descriptor.
+.It Bq Er EINTR
+The
+.Fn tcsetattr
+function was interrupted by a signal.
+.It Bq Er EINVAL
+The
+.Fa action
+argument to the
+.Fn tcsetattr
+function was not valid, or an attempt was made to change an attribute
+represented in the termios structure to an unsupported value.
+.It Bq Er ENOTTY
+The file associated with the
+.Fa fd
+argument to
+.Fn tcgetattr
+or
+.Fn tcsetattr
+is not a terminal.
+.El
+.Sh SEE ALSO
+.Xr tcsendbreak 3 ,
+.Xr termios 4
+.Sh STANDARDS
+The
+.Fn cfgetispeed ,
+.Fn cfsetispeed ,
+.Fn cfgetospeed ,
+.Fn cfsetospeed ,
+.Fn tcgetattr
+and
+.Fn tcsetattr
+functions are expected to be compliant with the
+.St -p1003.1-88
+specification.
+The
+.Fn cfmakeraw ,
+.Fn cfmakesane
+and
+.Fn cfsetspeed
+functions,
+as well as the
+.Li TCSASOFT
+option to the
+.Fn tcsetattr
+function are extensions to the
+.St -p1003.1-88
+specification.

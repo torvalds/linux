@@ -1,0 +1,54 @@
+@(#) README.IRIX 1.2 94/12/28 18:45:58
+
+In the past few months I received several messages with questions from
+people that tried to use my tcp wrapper on IRIX 5.x. Some mysteries
+could be solved via email, and then some remained.
+
+Today I finally had a chance to do some tests on someones IRIX 5.2
+system.  Here is my first-hand experience with wrapper release 6.3.
+
+(1) Inetd is broken. Normally one edits inetd.conf, sends a HUP signal
+    to inetd and that's it. With IRIX evil things happen:  inetd is too
+    stupid to remember that it is already listening on a port.
+
+    In order to modify an entry in inetd.conf, first comment it out
+    with a # at the beginning of the line, kill -HUP the inetd, then
+    uncomment the inetd.conf entry and kill -HUP again.
+
+    Even with this amount of care I have seen inetd messing up, like
+    calling rusersd when I make a talk connection.  Even killing and
+    restarting inetd does not solve all problems.
+
+    I find it hard to believe, it but the best thing to do with IRIX is
+    to reboot after changing inetd.conf.
+
+(2) When tcpd is built according to the irix4 Makefile rules, it
+    appears to work as expected with TCP-based services such as
+    fingerd, and with UDP-based services such as ntalk and tftp.
+
+(3) It does NOT work with RPC over UDP services such as rusersd and
+    rstatd:  the wrapper hangs in the recvfrom() system call, and I
+    have spent several hours looking for ways to work around it. No
+    way.  After finding that none of the applicable socket primitives
+    can be made to work (recvfrom recvmsg) I give up. So, the IRIX RPC
+    services cannot be wrapped until SGI fixes their system so that it
+    works like everyone elses code (HP Sun Dec AIX and so on).
+
+(4) I didn't even bother to try the RPC over TCP services.
+
+(5) When an IRIX 5.2 system is a NIS client, it can have problems with
+    hosts that have more than one address: the wrapper will see only
+    one address, and may complain when PARANOID mode is on. The fix is
+    to change the name service lookup order in /etc/resolv.conf so that
+    your system tries DNS before NIS (hostresorder bind nis local).
+
+(6) IRIX 5.2 is not System V.4, and it shows. Do not link with the
+    -lsocket and -lnsl libraries. They are completely broken, and the
+    wrapper will be unable to figure out the client internet address.
+    So, TLI services cannot be wrapped until SGI fixes their system so
+    that it works the way it is supposed to.
+
+I am not impressed by the quality of the IRIX system software.  There
+are many things that work on almost every other system except with IRIX.
+
+	Wietse

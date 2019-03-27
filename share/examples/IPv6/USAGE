@@ -1,0 +1,529 @@
+	USAGE
+	KAME Project
+	$KAME: USAGE,v 1.33 2000/11/22 10:22:57 itojun Exp $
+	$FreeBSD$
+
+This is an introduction of how to use the commands provided in the KAME
+kit.  For more information, please refer to each man page.
+
+
+<<<ifconfig>>>
+
+A link-local address is automatically assigned to each interface, when
+the interface becomes up for the first time.  Even if you find an interface
+without a link-local address, do not panic.  The link-local address will be
+assigned when it becomes up (with "ifconfig IF up").
+
+If you do not see a link-local address assigned to an interface on "ifconfig
+up", the interface does not support IPv6 for some reasons - for example,
+if the interface does not support link-layer multicast (IFF_MULTICAST is not
+set), the interface cannot be used for IPv6.
+
+Some network drivers allow an interface to become up even without a
+hardware address (for example, PCMCIA network cards).  In such cases, it is
+possible that an interface has no link-local address even if the
+interface is up.  If you see such situation, please disable the
+interface once and then re-enable it (i.e. do `ifconfig IF down;
+ifconfig IF up').
+
+Pseudo interfaces (like "gif" tunnel device) will borrow IPv6
+interface identifier (lowermost 64bit of the address) from
+EUI64/IEEE802 sources, like ethernet cards.  Pseudo interfaces will be
+able to get an IPv6 link-local address, if you have other "real"
+interface configured beforehand.  If you have no EUI64/IEEE802 sources
+on the node, we have last-resort code in the kernel, which generates
+interface identifier from MD5(hostname).  MD5(hostname) may not be suitable
+for your usage (for example, if you configure same hostname on both sides of
+gif tunnel, you will be doomed), and if so, you may need to configure
+link-local address manually.
+See RFC2472 for more discussion on how to generate an interface ID for
+pseudo interfaces.
+
+If you have a router announcing Router Advertisement,
+global addresses will be assigned automatically.  So, neither
+"ifconfig" nor "prefix" is necessary for your *host* (non-router node).
+(Please refer to "sysctl" section for configuring a host to accept
+Router Advertisement.)
+
+If you want to set up a router, you need to assign global addresses
+for two or more interfaces by "ifconfig" or "prefix" (prefix command
+is described at next section).
+If you want to assign a global address by "ifconfig", don't forget to
+specify the "alias" argument to keep the link-local address.
+
+# ifconfig de0 inet6 3ffe:501:808:1:200:f8ff:fe01:6317 prefixlen 64 alias
+# ifconfig de0
+de0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+        inet6 fe80::200:f8ff:fe01:6317%de0 prefixlen 64 scopeid 0x1
+        inet 163.221.202.12 netmask 0xffffff00 broadcast 163.221.202.255
+        inet6 3ffe:501:808:1:200:f8ff:fe01:6317 prefixlen 64 
+        ether 00:00:f8:01:63:17 
+        media: 100baseTX status: active
+
+See also "/etc/rc.network6" for actual examples.
+
+<<prefix>>
+
+In the IPv6 architecture, an IPv6 address of an interface can be
+generated from a prefix assigned to the interface, and a
+link-dependent identifier for the interface.  So assigning a full IPv6
+address by ifconfig is not necessary anymore, because user can only
+take care of prefix, by letting system take care of interface
+identifier.
+
+The newly added "prefix" command enables user to just assign prefixes
+for interfaces, and let your system automatically generate IPv6
+addresses.  Prefixes added by the "prefix" command is maintained in
+the kernel consistently with prefixes assigned by Router
+Advertisement (in case of hosts) and with prefixes assigned by Router
+Renumbering (in case of routers).  Manual assignment of prefixes or
+change of prefix properties take precedence over ones assigned by
+Router Advertisement or Router Renumbering.
+
+prefix command works only on routers.
+
+If you want to assign a prefix (and consequently address) manually, do
+as follows:
+
+# ifconfig de0
+de0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+        inet6 fe80::200:f8ff:fe01:6317%de0 prefixlen 64 scopeid 0x1
+        inet 163.221.202.12 netmask 0xffffff00 broadcast 163.221.202.255
+        ether 00:00:f8:01:63:17 
+        media: 100baseTX status: active
+# prefix de0 3ffe:501:808:1::
+# ifconfig de0
+de0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+        inet6 fe80::200:f8ff:fe01:6317%de0 prefixlen 64 scopeid 0x1
+        inet 163.221.202.12 netmask 0xffffff00 broadcast 163.221.202.255
+        inet6 3ffe:501:808:1:200:f8ff:fe01:6317 prefixlen 64 
+        ether 00:00:f8:01:63:17 
+        media: 100baseTX status: active
+
+To check assigned prefix, use the "ndp" command (See description of
+ndp command about its usage).
+
+# ndp -p
+3ffe:501:808:1::/64 if=de0
+  flags=LA, vltime=2592000, pltime=604800, expire=Never, origin=RR
+  No advertising router
+
+The "prefix" command also has node internal prefix renumbering
+ability.
+
+If you have multiple prefixes which have 3ffe:501:808:/48 at the top,
+and would like to renumber them to 3ffe:501:4819:/48, then use the
+"prefix" command with the "matchpr" argument and the "usepr" argument.
+
+Suppose that current state of before renumbering as follows:
+
+# ifconfig de0
+de0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+        inet6 fe80::200:f8ff:fe01:6317%de0 prefixlen 64 scopeid 0x1
+        inet 163.221.202.12 netmask 0xffffff00 broadcast 163.221.202.255
+        inet6 3ffe:501:808:1:200:f8ff:fe01:6317 prefixlen 64 
+        ether 00:00:f8:01:63:17 
+        media: 100baseTX status: active
+# ifconfig de1
+de1: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+        inet6 fe80::200:f8ff:fe55:7011%de1 prefixlen 64 scopeid 0x2
+        inet 163.221.203.12 netmask 0xffffff00 broadcast 163.221.203.255
+        inet6 3ffe:501:808:2:200:f8ff:fe55:7011 prefixlen 64 
+        ether 00:00:f8:55:70:11
+        media: 100baseTX status: active
+# ndp -p
+3ffe:501:808:1::/64 if=de0
+  flags=LA, vltime=2592000, pltime=604800, expire=Never, origin=RR
+  No advertising router
+3ffe:501:808:2::/64 if=de1
+  flags=LA, vltime=2592000, pltime=604800, expire=Never, origin=RR
+  No advertising router
+
+Then do as follows:
+
+# prefix -a matchpr 3ffe:501:808:: mp_len 48 usepr 3ffe:501:4819:: up_uselen 48 change
+
+If command is successful, prefixes and addresses will be renumbered as
+follows.
+
+# ifconfig de0
+de0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+        inet6 fe80::200:f8ff:fe01:6317%de0 prefixlen 64 scopeid 0x1
+        inet 163.221.202.12 netmask 0xffffff00 broadcast 163.221.202.255
+        inet6 3ffe:501:4819:1:200:f8ff:fe01:6317 prefixlen 64 
+        ether 00:00:f8:01:63:17 
+        media: 100baseTX status: active
+# ifconfig de1
+de1: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+        inet6 fe80::200:f8ff:fe55:7011%de0 prefixlen 64 scopeid 0x2
+        inet 163.221.203.12 netmask 0xffffff00 broadcast 163.221.203.255
+        inet6 3ffe:501:4819:2:200:f8ff:fe55:7011 prefixlen 64 
+        ether 00:00:f8:55:70:11
+        media: 100baseTX status: active
+# ndp -p
+3ffe:501:4819:1::/64 if=de0
+  flags=LA, vltime=2592000, pltime=604800, expire=Never, origin=RR
+  No advertising router
+3ffe:501:4819:2::/64 if=de1
+  flags=LA, vltime=2592000, pltime=604800, expire=Never, origin=RR
+  No advertising router
+
+See also "/etc/rc.network6" for actual examples.
+
+
+<<<route>>>
+
+If there is a router announcing Router Advertisement on a subnet,
+you need not to add a default route for your host by hand
+(Please refer to "sysctl" section to accept Router Advertisement).
+
+If you want to add a default route manually, do like:
+
+# route add -inet6 default fe80::200:a2ff:fe0e:7543%ed0
+
+"default" means ::/0.  In other cases, if "prefixlen" is omitted, 64
+is assumed for "prefixlen" to get along with the aggregatable address.
+
+Note that, in IPv6, a link-local address should be used as gateway
+("fe80::200:a2ff:fe0e:7543%ed0" in the above).  If you use global addresses,
+ICMPv6 redirect will not work properly.  Also note that we use a special form
+of link-local address as gateway.  See Section 1.3 of IMPLEMENTATION for
+more details.
+For ease of configuration we recommend you to avoid static routes and run
+a routing daemon (route6d for example) instead.
+
+
+<<<ping6>>>
+
+Reachability can be checked by "ping6".  This "ping6" allows multicast
+for its argument.
+
+% ping6 -n -I ed0 ff02::1
+
+PING6(56=40+8+8 bytes) fe80::5254:ff:feda:cb7d --> ff02::1%ed0
+56 bytes from fe80::5254:ff:feda:cb7d%lo0, icmp_seq=0 hlim=64 time=0.25 ms
+56 bytes from fe80::2a0:c9ff:fe84:ed6c%ed0, icmp_seq=0 hlim=64 time=1.333 ms(DUP!)
+56 bytes from fe80::5254:ff:feda:d161%ed0, icmp_seq=0 hlim=64 time=1.459 ms(DUP!)
+56 bytes from fe80::260:97ff:fec2:80bf%ed0, icmp_seq=0 hlim=64 time=1.538 ms(DUP!)
+56 bytes from 3ffe:501:4819:2000:5054:ff:fedb:aa46, icmp_seq=0 hlim=255 time=1.615 ms(DUP!)
+
+
+<<<ping6 -w>>>
+
+Name resolution is possible by ICMPv6 node information query message.
+This is very convenient for link-local addresses whose host name cannot be
+resolved by DNS.  Specify the "-w" option to "ping6".
+
+% ping6 -n -I ed0 -w ff02::1
+
+64 bytes from fe80::5254:ff:feda:cb7d%lo0: fto.kame.net
+67 bytes from fe80::5254:ff:feda:d161%ed0: banana.kame.net
+69 bytes from fe80::2a0:c9ff:fe84:ebd9%ed0: paradise.kame.net
+66 bytes from fe80::260:8ff:fe8b:447f%ed0: taroh.kame.net
+66 bytes from fe80::2a0:c9ff:fe84:ed6c%ed0: ayame.kame.net
+	
+
+<<<traceroute6>>>
+
+The route for a target host can be checked by "traceroute6".
+
+% traceroute6 tokyo.v6.wide.ad.jp
+
+traceroute to tokyo.v6.wide.ad.jp (3ffe:501:0:401:200:e8ff:fed5:8923), 30 hops max, 12 byte packets
+ 1  nr60.v6.kame.net  1.239 ms  0.924 ms  0.908 ms
+ 2  otemachi.v6.wide.ad.jp  28.953 ms  31.451 ms  26.567 ms
+ 3  tokyo.v6.wide.ad.jp  26.549 ms  26.58 ms  26.186 ms
+
+If the -l option is specified, both address and name are shown in each line.
+% traceroute6 -l tokyo.v6.wide.ad.jp
+
+traceroute to tokyo.v6.wide.ad.jp (3ffe:501:0:401:200:e8ff:fed5:8923), 30 hops max, 12 byte packets
+ 1  nr60.v6.kame.net (3ffe:501:4819:2000:260:97ff:fec2:80bf)  1.23 ms  0.952 ms  0.92 ms
+ 2  otemachi.v6.wide.ad.jp (3ffe:501:0:1802:260:97ff:feb6:7ff0)  27.345 ms  26.706 ms  26.563 ms
+ 3  tokyo.v6.wide.ad.jp (3ffe:501:0:401:200:e8ff:fed5:8923)  26.329 ms  26.36 ms  28.63 ms
+
+
+<<<ndp>>>
+
+To display the current Neighbor cache, use "ndp":
+
+% ndp -a
+Neighbor                      Linklayer Address   Netif Expire    St Flgs Prbs
+nr60.v6.kame.net              0:60:97:c2:80:bf      ed0  expired   S    R 
+3ffe:501:4819:2000:2c0:cff:fe 0:c0:c:10:3a:53       ed0  permanent R      
+paradise.v6.kame.net          52:54:0:dc:52:17      ed0  expired   S    R 
+fe80::200:eff:fe49:f929%ed0   0:0:e:49:f9:29        ed0  expired   S    R 
+fe80::200:86ff:fe05:80da%ed0  0:0:86:5:80:da        ed0  expired   S      
+fe80::200:86ff:fe05:c2d8%ed0  0:0:86:5:c2:d8        ed0  9s        R      
+
+To flush all of the NDP cache entries, execute the following as root.
+
+# ndp -c
+
+To display the prefix list:
+
+% ndp -p
+3ffe:501:4819:2000::/64 if=ed0
+  flags=LA, vltime=2592000, pltime=604800, expire=29d23h59m58s, origin=RA
+  advertised by
+    fe80::5254:ff:fedc:5217%ed0 (reachable)
+    fe80::260:97ff:fec2:80bf%ed0 (reachable)
+    fe80::200:eff:fe49:f929%ed0 (no neighbor state)
+
+To display the default router list:
+
+% ndp -r
+fe80::260:97ff:fec2:80bf if=ed0, flags=, expire=29m55s
+fe80::5254:ff:fedc:5217 if=ed0, flags=, expire=29m7s
+fe80::200:eff:fe49:f929 if=ed0, flags=, expire=28m47s
+
+
+<<<rtsol>>>
+
+To generate a Router Solicitation message right now to get global
+addresses, use "rtsol".
+
+# ifconfig ef0
+ef0: flags=8863<UP,BROADCAST,NOTRAILERS,RUNNING,SIMPLEX,MULTICAST>
+        link type ether 0:a0:24:ab:83:9b mtu 1500 speed 10Mbps
+        media 10baseT status active
+        inet6 fe80::2a0:24ff:feab:839b%ef0 prefixlen 64 scopeid 0x2
+# rtsol ef0
+# ifconfig ef0
+ef0: flags=8863<UP,BROADCAST,NOTRAILERS,RUNNING,SIMPLEX,MULTICAST>
+        link type ether 0:a0:24:ab:83:9b mtu 1500 speed 10Mbps
+        media 10baseT status active
+        inet6 fe80::2a0:24ff:feab:839b%ef0 prefixlen 64 scopeid 0x2
+        inet6 3ffe:501:4819:2000:2a0:24ff:feab:839b prefixlen 64
+
+
+<<<rtsold>>>
+
+rtsold is a daemon version of rtsol.  If you run KAME IPv6 on a laptop
+computer and frequently move with it, the daemon is useful since it watches
+the interface and sends router solicitations when the status of the interface
+changes.  Note, however, that the feature is disabled by default.  Please
+add -m option when invocation of rtsold.
+
+rtsold also supports multiple interfaces.  For example, you can
+invoke the daemon as follows:
+
+# rtsold -m ep0 cnw0
+
+
+<<<netstat>>>
+
+To see routing table:
+	
+# netstat -nr
+# netstat -nrl
+	long format with Ref and Use.  Note that bsdi4 does not support the
+	-l option.  You should use the -O option instead.
+
+
+<<<sysctl>>>
+
+If "net.inet6.ip6.accept_rtadv" is 1, Router Advertisement is
+accepted.  This means that global addresses and default route are
+automatically set up.  Otherwise, the announcement is rejected.  The
+default value is 0.  To set "net.inet6.ip6.accept_rtadv" to 1, execute
+as follows:
+
+# sysctl net.inet6.ip6.accept_rtadv=1
+
+
+<<<gifconfig>>>
+
+"gif" interface enables you to perform IPv{4,6} over IPv{4,6}
+protocol tunneling.  To use this interface, you must specify the
+outer IPv{4,6} address by using gifconfig, like:
+
+# gifconfig gif0 163.221.198.61 163.221.11.21
+
+"ifconfig gif0" will configure the address pair used for inner
+IPv{4,6} header.
+
+It is not required to configure inner IPv{4,6} address pair.  If
+you do not configure inner IPv{4,6} address pair, tunnel link is
+considered as un-numbered link and the source address of inner
+IPv{4,6} address pair will be borrowed from other interfaces.
+
+The following example configures un-numbered IPv6-over-IPv4 tunnel:
+# gifconfig gif0 10.0.0.1 10.0.0.1 netmask 255.255.255.0
+
+The following example configures numbered IPv6-over-IPv4 tunnel:
+# gifconfig gif0 10.0.0.1 10.0.0.1 netmask 255.255.255.0
+# ifconfig gif0 inet6 3ffe:501:808:5::1 3ffe:501:808:5::2 prefixlen 64 alias
+
+IPv6 spec allows you to use point-to-point link without global IPv6
+address assigned to the interface.  Routing protocol (such as RIPng)
+uses link-local addresses only.  If you are to configure IPv6-over-IPv4
+tunnel, you need not to configure an address pair for inner IPv6
+header.  We suggest you to use the former example (un-numbered
+IPv6-over-IPv4 tunnel) to connect to 6bone for simplicity.
+
+Note that it is so easy to make an infinite routing loop using gif
+interface, if you configure a tunnel using the same protocol family
+for inner and outer header (i.e. IPv4-over-IPv4).
+
+Refer to gifconfig(8) for more details.
+
+
+<<<6to4>>>
+
+WARNING: malicious party can abuse 6to4 relay routers/sites, read through
+internet draft draft-itojun-ipv6-transition-abuse-xx.txt before configuring it.
+
+"stf" interface enables you to perform 6to4 IPv6-over-IPv4 encapsulation,
+as documented in draft-ietf-ngtrans-6to4-06.txt.  See stf(4) for details.
+
+
+<<<inetd>>>
+
+Inetd supports AF_INET and AF_INET6 sockets, with IPsec policy
+configuration support.
+
+Refer to inetd(8) for more details.
+
+
+<<<IPsec>>>
+
+IPsec requires fairly complex configuration, so here we show transport
+mode only.  http://www.kame.net/newsletter/ has more comprehensive
+examples.
+
+Let us setup security association to deploy a secure channel between
+HOST A (10.2.3.4) and HOST B (10.6.7.8).  Here we show a little
+complicated example.  From HOST A to HOST B, only old AH is used.
+From HOST B to HOST A, new AH and new ESP are combined.
+  
+Now we should choose algorithm to be used corresponding to "AH"/"new
+AH"/"ESP"/"new ESP".  Please refer to the "setkey" man page to know
+algorithm names.  Our choice is MD5 for AH, new-HMAC-SHA1 for new AH,
+and new-DES-expIV with 8 byte IV for new ESP.
+
+Key length highly depends on each algorithm.  For example, key
+length must be equal to 16 bytes for MD5, 20 for new-HMAC-SHA1,
+and 8 for new-DES-expIV.  Now we choose "MYSECRETMYSECRET",
+"KAMEKAMEKAMEKAMEKAME", "PASSWORD", respectively.
+
+OK, let us assign SPI (Security Parameter Index) for each protocol.
+Please note that we need 3 SPIs for this secure channel since three
+security headers are produced (one for from HOST A to HOST B, two for
+from HOST B to HOST A).  Please also note that SPI MUST be greater
+than or equal to 256.  We choose, 1000, 2000, and 3000, respectively.
+
+
+	         (1)
+	HOST A ------> HOST B
+
+	(1)PROTO=AH
+		ALG=MD5(RFC1826)
+		KEY=MYSECRETMYSECRET
+		SPI=1000
+
+	         (2.1)
+	HOST A <------ HOST B
+	       <------
+	         (2.2) 
+
+	(2.1)
+	PROTO=AH
+		ALG=new-HMAC-SHA1(new AH)
+		KEY=KAMEKAMEKAMEKAMEKAME
+		SPI=2000
+
+	(2.2)
+	PROTO=ESP
+		ALG=new-DES-expIV(new ESP)
+			IV length = 8
+		KEY=PASSWORD
+		SPI=3000
+
+Now, let us setup security association.  Execute "setkey" on both HOST
+A and B:
+
+# setkey -c
+add 10.2.3.4 10.6.7.8 ah  1000 -m transport -A keyed-md5 "MYSECRETMYSECRET" ;
+add 10.6.7.8 10.2.3.4 ah  2000 -m transport -A hmac-sha1 "KAMEKAMEKAMEKAMEKAME" ;
+add 10.6.7.8 10.2.3.4 esp 3000 -m transport -E des-cbc "PASSWORD" ;
+^D
+
+Actually, IPsec communication doesn't process until security policy
+entries will be defined.  In this case, you must setup each host.
+
+At A:
+# setkey -c
+spdadd 10.2.3.4 10.6.7.8 any -P out ipsec
+	ah/transport/10.2.3.4-10.6.7.8/require ;
+^D
+
+At B:
+spdadd 10.6.7.8 10.2.3.4 any -P out ipsec
+	esp/transport//require
+	ah/transport//require ;
+^D
+
+To utilize the security associations installed into the kernel, you
+must set the socket security level by using setsockopt().
+This is per-application (or per-socket) security.  For example,
+the "ping" command has the -P option with parameter to enable AH and/or ESP.
+
+For example:
+% ping -P "out ipsec \
+	ah/transport//use \
+	esp/tunnel/10.0.1.1-10.0.1.2/require" 10.0.2.2
+
+If there are proper SAs, this policy specification causes ICMP packet
+to be AH transport mode inner ESP tunnel mode like below.
+
+	   HOST C -----------> GATEWAY D ----------> HOST E
+	  10.0.1.1        10.0.1.2   10.0.2.1       10.0.2.2
+	    | |                 |                    |
+	    | ======= ESP =======                    |
+	    ==================== AH ==================
+
+
+<<<EDNS0>>>
+
+EDNS0 is defined in RFC2671.  With EDNS0, the resolver library can tell DNS
+server of its receiving buffer size, and permit DNS server to transmit large
+reply packet.  EDNS0 is necessary to take advantage of larger minimum MTU
+in IPv6.  KAME libinet6 includes resolver side support for EDNS0.
+Server side support for EDNS0 is included in ISC BIND9.
+
+	query packet with EDNS0
+	tells receive buffer size
+KAME box -----------------------------> BIND9 DNS server
+KAME box <----------------------------- BIND9 DNS server
+	can transmit jumbo reply, since DNS server
+	knows receive buffer size of KAME box
+
+How to play with it:
+- prepare KAME box and BIND9 DNS server (can be a same node)
+- add the following into /etc/resolv.conf on KAME box:
+	options edns0		<--- enables EDNS0
+	nameserver <IPv4 or v6 address of BIND9 box>
+- run applications compiled with libinet6 (like /usr/local/v6/bin/telnet),
+  see EDNS0 packet fly on the wire by tcpdump or some other method.
+
+Caveats:
+- BIND 4/8 DNS server will choke with EDNS0 packet, so you must not
+  turn the option on if you have BIND 4/8 DNS server.  If you enable
+  "options edns0" against BIND 4/8 DNS server, you will never be able
+  to resolve names.
+- If you use IPv6 UDP as DNS transport, path MTU discovery may
+  affect the traffic.  KAME box tries to fragment packet to 1280
+  bytes, however, BIND9 may not.
+- Some of our platforms do not use our extended resolver code in libinet6.
+  See COVERAGE for detail.
+
+
+<<Further readings>>
+
+http://www.netbsd.org/Documentation/network/ipv6/
+	Even if you are on non-netbsd operating system, the URL should be
+	useful.
+http://www.kame.net/
+
+							<end of USAGE>

@@ -1,0 +1,8 @@
+# $FreeBSD$ 
+# $NetBSD: MULELAO-1.src,v 1.1 2006/11/25 10:27:23 tnozaki Exp $
+
+NAME		"MULELAO-1"
+ENCODING	"NONE"
+VARIABLE	"none"
+DEFCSID		"MULELAO-1"		0
+INVALID		0x3F # '?'

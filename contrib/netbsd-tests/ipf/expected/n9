@@ -1,0 +1,29 @@
+4500 0054 8bc1 0000 ff01 17d9 0202 0202 0a0a 0a01 0800 efdf 6220 0000 3f6f 6e80 000b 0d02 0809 0a0b 0c0d 0e0f 1011 1213 1415 1617 1819 1a1b 1c1d 1e1f 2021 2223 2425 2627 2829 2a2b 2c2d 2e2f 3031 3233 3435 3637 
+
+4500 0054 3fd5 4000 ff01 2fc8 0404 0404 0202 0202 0000 f7df 6220 0000 3f6f 6e80 000b 0d02 0809 0a0b 0c0d 0e0f 1011 1213 1415 1617 1819 1a1b 1c1d 1e1f 2021 2223 2425 2627 2829 2a2b 2c2d 2e2f 3031 3233 3435 3637 
+
+4500 0054 8bc1 0000 ff01 17d9 0202 0202 0a0a 0a01 0800 efde 6220 0001 3f6f 6e80 000b 0d02 0809 0a0b 0c0d 0e0f 1011 1213 1415 1617 1819 1a1b 1c1d 1e1f 2021 2223 2425 2627 2829 2a2b 2c2d 2e2f 3031 3233 3435 3637 
+
+4500 0054 3fd5 4000 ff01 2fc8 0404 0404 0202 0202 0000 f7de 6220 0001 3f6f 6e80 000b 0d02 0809 0a0b 0c0d 0e0f 1011 1213 1415 1617 1819 1a1b 1c1d 1e1f 2021 2223 2425 2627 2829 2a2b 2c2d 2e2f 3031 3233 3435 3637 
+
+List of active MAP/Redirect filters:
+rdr icmp0 4.4.4.0/24 -> 10.10.10.1/32 ip
+
+List of active sessions:
+RDR 10.10.10.1      <- -> 4.4.4.4         [2.2.2.2]
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+Rules configured (set 0, out)
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------

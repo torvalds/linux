@@ -1,0 +1,161 @@
+.\"-
+.\" Copyright (c) 2018 Mark Johnston <markj@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 5, 2018
+.Dt NETDUMP 4
+.Os
+.Sh NAME
+.Nm netdump
+.Nd protocol for transmitting kernel dumps to a remote server
+.Sh SYNOPSIS
+To compile netdump client support into the kernel, place the following line in
+your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options NETDUMP"
+.Ed
+.Sh DESCRIPTION
+netdump is a UDP-based protocol for transmitting kernel dumps to a remote host.
+A netdump client is a panicking kernel, and a netdump server is a host
+running the
+.Nm
+daemon, available in ports as
+.Pa ports/ftp/netdumpd .
+.Nm
+clients are configured using the
+.Xr dumpon 8
+utility.
+.Pp
+.Nm
+client messages consist of a fixed-size header followed by a variable-sized
+payload.
+The header contains the message type, a sequence number, the offset of
+the payload data in the kernel dump, and the length of the payload data
+(not including the header).
+The message types are
+.Dv HERALD , FINISHED , KDH , VMCORE ,
+and
+.Dv EKCD_KEY .
+.Nm
+server messages have a fixed size and contain only the sequence number of
+the client message.
+These messages indicate that the server has successfully processed the
+client message with the corresponding sequence number.
+All client messages are acknowledged this way.
+Server messages are always sent to port 20024 of the client.
+.Pp
+To initiate a
+.Nm ,
+the client sends a
+.Dv HERALD
+message to the server at port 20023.
+The client may include a relative path in its payload, in which case the
+.Nm
+server should attempt to save the dump at that path relative to its configured
+dump directory.
+The server will acknowledge the
+.Dv HERALD
+using a random source port, and the client must send all subsequent messages
+to that port.
+.Pp
+The
+.Dv KDH , VMCORE ,
+and
+.Dv EKCD_KEY
+message payloads contain the kernel dump header, dump contents, and
+dump encryption key respectively.
+The offset in the message header should be treated as a seek offset
+in the corresponding file.
+There are no ordering requirements for these messages.
+.Pp
+A
+.Nm
+is completed by sending the
+.Dv FINISHED
+message to the server.
+.Pp
+The following network drivers support netdump:
+.Xr alc 4 ,
+.Xr bge 4 ,
+.Xr bnxt 4 ,
+.Xr bxe 4 ,
+.Xr cxgb 4 ,
+.Xr em 4 ,
+.Xr igb 4 ,
+.Xr ix 4 ,
+.Xr ixl 4 ,
+.Xr mlx4en 4 ,
+.Xr re 4 ,
+.Xr vtnet 4 .
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+variables:
+.Bl -tag -width "indent"
+.It Va net.netdump.debug
+Control debug message verbosity.
+Debug messages are disabled by default, but are useful when troubleshooting
+or when developing driver support.
+.It Va net.netdump.path
+Specify a path relative to the server's dump directory in which to store
+the dump.
+For example, if the
+.Nm
+server is configured to store dumps in
+.Pa /var/crash ,
+a path of
+.Dq foo
+will cause the server to attempt to store dumps from the client in
+.Pa /var/crash/foo .
+The server will not automatically create the relative directory.
+.It Va net.netdump.polls
+The client will poll the configured network interface while waiting for
+acknowledgements.
+This parameter controls the maximum number of poll attempts before giving
+up, which typically results in a re-transmit.
+Each poll attempt takes 0.5ms.
+.It Va net.netdump.retries
+The number of times the client will re-transmit a packet before aborting
+a dump due to a lack of acknowledgement.
+The default may be too small in environments with lots of packet loss.
+.It Va net.netdump.arp_retries
+The number of times the client will attempt to learn the MAC address of
+the configured gateway or server before giving up and aborting the dump.
+.El
+.Sh SEE ALSO
+.Xr decryptcore 8 ,
+.Xr dumpon 8 ,
+.Xr savecore 8
+.Sh HISTORY
+.Nm
+client support first appeared in
+.Fx 12.0 .
+.Sh BUGS
+Only IPv4 is supported.
+.Pp
+.Nm
+may only be used after the kernel has panicked.

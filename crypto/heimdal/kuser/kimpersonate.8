@@ -1,0 +1,107 @@
+.\" Copyright (c) 2002 - 2007 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd September 18, 2006
+.Dt KIMPERSONATE 8
+.Os Heimdal
+.Sh NAME
+.Nm kimpersonate
+.Nd impersonate a user when there exist a srvtab, keyfile or KeyFile
+.Sh SYNOPSIS
+.Nm
+.Op Fl s Ar string \*(Ba Fl Fl server= Ns Ar string
+.Op Fl c Ar string \*(Ba Fl Fl client= Ns Ar string
+.Op Fl k Ar string \*(Ba Fl Fl keytab= Ns Ar string
+.Op Fl 5 | Fl Fl krb5
+.Op Fl e Ar integer \*(Ba Fl Fl expire-time= Ns Ar integer
+.Op Fl a Ar string \*(Ba Fl Fl client-address= Ns Ar string
+.Op Fl t Ar string \*(Ba Fl Fl enc-type= Ns Ar string
+.Op Fl f Ar string \*(Ba Fl Fl ticket-flags= Ns Ar string
+.Op Fl Fl verbose
+.Op Fl Fl version
+.Op Fl Fl help
+.Sh DESCRIPTION
+The
+.Nm
+program creates a "fake" ticket using the service-key of the service.
+The service key can be read from a Kerberos 5 keytab, AFS KeyFile or
+(if compiled with support for Kerberos 4) a Kerberos 4 srvtab.
+Supported options:
+.Bl -tag -width Ds
+.It Fl s Ar string Ns , Fl Fl server= Ns Ar string
+name of server principal
+.It Fl c Ar string Ns , Fl Fl client= Ns Ar string
+name of client principal
+.It Fl k Ar string Ns , Fl Fl keytab= Ns Ar string
+name of keytab file
+.It Fl 5 Ns , Fl Fl krb5
+create a Kerberos 5 ticket
+.It Fl e Ar integer Ns , Fl Fl expire-time= Ns Ar integer
+lifetime of ticket in seconds
+.It Fl a Ar string Ns , Fl Fl client-address= Ns Ar string
+address of client
+.It Fl t Ar string Ns , Fl Fl enc-type= Ns Ar string
+encryption type
+.It Fl f Ar string Ns , Fl Fl ticket-flags= Ns Ar string
+ticket flags for krb5 ticket
+.It Fl Fl verbose
+Verbose output
+.It Fl Fl version
+Print version
+.It Fl Fl help
+.El
+.Sh FILES
+Uses
+.Pa /etc/krb5.keytab,
+.Pa /etc/srvtab
+and
+.Pa /usr/afs/etc/KeyFile
+when available and the
+.Fl k
+option is used with an appropriate prefix.
+.Sh EXAMPLES
+.Nm
+can be used in
+.Nm samba
+root preexec option
+or for debugging.
+.Nm
+-s host/hummel.e.kth.se@E.KTH.SE -c lha@E.KTH.SE -5
+will create a Kerberos 5 ticket for lha@E.KTH.SE for the host
+hummel.e.kth.se if there exists a keytab entry for it in
+.Pa /etc/krb5.keytab .
+.Sh SEE ALSO
+.Xr kinit 1 ,
+.Xr klist 1
+.Sh AUTHORS
+Love Hornquist Astrand <lha@kth.se>

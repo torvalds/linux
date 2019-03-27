@@ -1,0 +1,73 @@
+.\"	$NetBSD: gzexe.1,v 1.3 2003/12/28 12:49:41 wiz Exp $
+.\"	$OpenBSD: gzexe.1,v 1.1 2003/07/31 07:32:47 otto Exp $
+.\"
+.\" Copyright (c) 2003 Otto Moerbeek <otto@drijf.net>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.Dd January 26, 2007
+.Dt GZEXE 1
+.Os
+.Sh NAME
+.Nm gzexe
+.Nd create auto-decompressing executables
+.Sh SYNOPSIS
+.Nm gzexe
+.Op Fl d
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility uses
+.Xr gzip 1
+to compress executables, producing executables that decompress on-the-fly
+when executed.
+This saves disk space, at the cost of slower execution times.
+The original executables are saved by copying each of them to a file with
+the same name with a
+.Sq ~
+suffix appended.
+After verifying that the compressed executables work as expected, the backup
+files can be removed.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Decompress executables previously compressed by
+.Nm .
+.El
+.Pp
+The
+.Nm
+program refuses to compress non-regular or non-executable files,
+files with a setuid or setgid bit set, files that are already
+compressed using
+.Nm
+or programs it needs to perform on-the-fly decompression:
+.Xr sh 1 ,
+.Xr mktemp 1 ,
+.Xr rm 1 ,
+.Xr echo 1 ,
+.Xr tail 1 ,
+.Xr gzip 1 ,
+and
+.Xr chmod 1 .
+.Sh SEE ALSO
+.Xr gzip 1
+.Sh CAVEATS
+The
+.Nm
+utility replaces files by overwriting them with the generated
+compressed executable.
+To be able to do this, it is required that the original files are writable.

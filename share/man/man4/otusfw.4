@@ -1,0 +1,45 @@
+.\" $FreeBSD$
+.\" Copyright (c) 2015 Adrian Chadd <adrian@FreeBSD.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd September 25, 2015
+.Dt OTUSFW 4
+.Os
+.Sh NAME
+.Nm otusfw
+.Nd "Firmware Module for AR9170 driver"
+.Sh SYNOPSIS
+To compile this module into the kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device otusfw"
+.Ed
+.Pp
+This will include the firmware image, AR9170, inside the kernel.
+.Xr otus 4
+will load the image into the chip.
+.Pp
+Alternatively, to load the firmware images as a module at boot time, place
+the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+otusfw_init_load="YES"
+otusfw_main_load="YES"
+.Ed
+.Sh DESCRIPTION
+This module provides the firmware for the Atheros AR9170 based
+USB WiFi adapters.
+.Sh SEE ALSO
+.Xr otus 4 ,
+.Xr firmware 9

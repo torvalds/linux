@@ -1,0 +1,12 @@
+# $FreeBSD$
+# Try to divide the smallest integer by -1.
+# On amd64 this causes SIGFPE, so make sure the shell checks.
+
+# Calculate the minimum possible value, assuming two's complement and
+# a certain interpretation of overflow when shifting left.
+minint=1
+while [ $((minint <<= 1)) -gt 0 ]; do
+	:
+done
+v=$( eval ': $((minint / -1))' 2>&1 >/dev/null)
+[ $? -ne 0 ] && [ -n "$v" ]

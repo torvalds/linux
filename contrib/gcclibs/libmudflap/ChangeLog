@@ -1,0 +1,1581 @@
+2007-07-19  Release Manager
+
+	* GCC 4.2.1 released.
+
+2007-05-13  Release Manager
+
+	* GCC 4.2.0 released.
+
+2006-12-04  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	* configure: Regenerate.
+
+2006-09-18  Tom Tromey  <tromey@redhat.com>
+
+	* configure: Rebuilt.
+
+2006-06-21  Frank Ch. Eigler  <fche@redhat.com>
+
+	PR 21274
+	mf-runtime.h installation based on ssp patch for PR 26473 from
+	Mark Mitchell  <mark@codesourcery.com>.
+	* configure.ac (ACX_NONCANONICAL_TARGET): Use it.
+	* Makefile.am (target_noncanonical): Define.
+	(libsubincludedir): New variable.
+	(nobase_libsubinclude_HEADERS): Add mf-runtime.h.
+	(include_HEADERS): Remove.
+	* configure, aclocal.m4, config.h.in: Regenerated.
+	* Makefile.in, testsuite/Makefile.in: Likewise.
+	* mf-runtime.h: Add #ifndef protection for conflicting _REENTRANT
+	and _THREAD_SAFE redefinition values.
+
+2006-05-23  Carlos O'Donell  <carlos@codesourcery.com>
+
+	* Makefile.am: Add install-html target. Add install-html to .PHONY
+	* Makefile.in: Regenerate.
+
+2006-04-19  Volker Reichelt  <reichelt@igpm.rwth-aachen.de>
+
+	PR mudflap/26789
+	* testsuite/libmudflap.c++/error1-frag.cxx: New test.
+
+	PR mudflap/26790
+	* testsuite/libmudflap.c++/error2-frag.cxx: New test.
+
+2006-04-10  Matthias Klose  <doko@debian.org>
+
+	* testsuite/lib/libmudflap.exp (libmudflap-init): Recognize multilib
+	directory names containing underscores.
+
+2005-11-22  Janis Johnson  <janis187@us.ibm.com>
+
+	* testsuite/lib/libmudflap.exp (libmudflap-init): Remove -static from
+	MUDFLAP_FLAGS if static library not supported.
+	* testsuite/libmudflap.c/cfrags.exp (MUDFLAP_FLAGS): new.
+	* testsuite/libmudflap.c/externs.exp: Ditto.
+	* testsuite/libmudflap.c++/ctors.exp: Ditto.
+	* testsuite/libmudflap.c++/c++frags.exp: Ditto.
+	* testsuite/libmudflap.cth/cthfrags.exp: Ditto.
+
+2005-10-04  James E Wilson  <wilson@specifix.com>
+
+	* configure.ac (mudflap_cv_entry_point): Use quadrigraphs to declare
+	$name as array of characters with unknown bound.  Also store into the
+	array.
+	* configure: Regenerate.
+
+2005-09-30  James E. Wilson  <wilson@specifix.com>
+
+	* configure.ac (pthread.h): Use AC_CHECK_HEADERS instead of
+	AC_CHECK_HEADER.
+	(target_thread_file): New.  Set from sed'ed gcc output.
+	(posix_threads): New.  Set from target_thread_file.  Use instead of
+	ac_have_pthread_h.
+	(pthread_create_version): Move initialization before code using it.
+	* configure: Regenerate.
+
+	* mf-heuristics.c (_end, ENTRY_POINT): Make them arrays with unknown
+	bounds.
+
+2005-09-29  James E. Wilson  <wilson@specifix.com>
+
+	* mf-hooks1.c (__mf_0fn_mmap, mmap, __mf_0fn_munmap, munmap): Protect
+	with HAVE_MMAP ifdef.
+
+2005-09-23  Frank Ch. Eigler  <fche@elastic.org>
+
+	PR 23084.
+	* mf-hooks2.c (accept): Tolerate NULL sockaddr* parameter.
+
+2005-09-23  Frank Ch. Eigler  <fche@elastic.org>
+
+	* testsuite/libmudflap.c++/pass58-frag.cxx: New test for heisenbug 19319.
+
+2005-09-23  Tom Tromey  <tromey@redhat.com>
+
+	* aclocal.m4, configure: Rebuilt.
+	* configure.ac: Use GCC_CHECK_TLS.
+	* acinclude.m4 (LIBMUDFLAP_CHECK_TLS, LIBMUDFLAP_ENABLE): Moved
+	to ../config.
+
+2005-08-22  Jim Wilson  <wilson@specifix.com>
+
+	* mf-hooks2.c (MF_REGISTER_fopen): Define to __MF_TYPE_STATIC when
+	__FreeBSD__ is defined.
+
+2005-08-17  Jim Wilson  <wilson@specifix.com>
+
+	* mf-hooks1.c (malloc, calloc, realloc, free,
+	__mf_wrap_alloca_indirect): Call BEGIN_MALLOC_PROTECT before calling
+	the real routines, and END_MALLOC_PROTECT afterwards.
+	* mf-impl.h (enum __mf_state_enum): Expand comment.  Add in_malloc.
+	(BEGIN_PROTECT): Handle in_malloc state.
+	(BEGIN_MALLOC_PROTECT, END_MALLOC_PROTECT): New.
+	* testsuite/libmudflap.c/hook2-allocstuff.c: New.
+
+2005-08-17  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* All files: Update FSF address.
+
+2005-08-15  Ulrich Weigand  <weigand@informatik.uni-erlangen.de>
+
+	* mf-hooks3.c (main_seen_p): Remove.
+	(__mf_get_state): Remove attempt to recognize the main thread.
+
+2005-08-15  Maciej W. Rozycki  <macro@linux-mips.org>
+
+	* configure.ac: Test for the name of the symbol used for the entry
+	point; define ENTRY_POINT to the result.
+	* configure: Regenerate.
+	* config.h.in: Regenerate.
+	* mf-heuristics.c: Replace _start with ENTRY_POINT throughout.
+
+2005-08-14  Ulrich Weigand  <weigand@informatik.uni-erlangen.de>
+
+	* mf-runtime.c (__mf_state_1): Initialize to reentrant.
+	(__mf_init): Set thread state active.
+	* mf-hooks3.c (__mf_pthread_spawner): Always set thread
+	state active.
+	(pthread_create wrapper): Always use thread spawner.
+
+	* testsuite/libmudflap.cth/pass37-frag.c: Increase timeout.
+	* testsuite/libmudflap.cth/pass39-frag.c: Likewise.
+
+2005-07-16  Richard Henderson  <rth@redhat.com>
+
+	* acinclude.m4: New file.
+	* configure.ac: Invoke LIBMUDFLAP_CHECK_TLS.
+	* configure, config.h.in, Makefile.in, testsuite/Makefile.in: Rebuild.
+	* mf-hooks1.c (__mf_0fn_malloc): Move body from ...
+	(__mf_0fn_calloc): ... here.
+	* mf-hooks3.c (struct pthread_info): Remove.
+	(__mf_pthread_info, __mf_pthread_info_idx): Remove.
+	(LIBMUDFLAPTH_THREADS_MAX): Set to 1021.
+	(struct mf_thread_data): New.
+	(mf_thread_data, mf_thread_data_lock): New.
+	(__mf_allocate_blank_threadinfo): Remove.
+	(__mf_find_threadinfo): Rewrite and simplify.  Only use if TLS is
+	not available.
+	(__mf_state_perthread): Remove.
+	(__mf_get_state, __mf_set_state): New.
+	(__mf_pthread_cleanup): Use &errno, rather than saved pointer.
+	Update mf_thread_data killing procedure.
+	(__mf_pthread_spawner): Similarly.
+	(__mf_0fn_pthread_create): Only use wrapper if necessary.  Remove
+	code to allocate thread stack space.
+	(__mf_0fn_pthread_join, pthread_join): Remove.
+	(__mf_0fn_pthread_exit, pthread_exit): Remove.
+	* mf-impl.h (dyn_pthread_join, dyn_pthread_exit): Remove.
+	(__mf_state_1): Rename from __mf_state; use TLS when available.
+	(__mf_get_state, __mf_set_state): New.  Update all users.
+	* mf-runtime.c (begin_recursion_protect1): New.
+	(BEGIN_RECURSION_PROTECT): Use it.
+	(__mf_state_1): Rename from __mf_state; use TLS when available.
+	(threads_active_p): Remove.
+	(__mf_usage): Compute it directly.
+
+2005-06-19  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* testsuite/libmudflap.c/externs-1.c (main): Add return statement.
+
+2005-06-15  Frank Ch. Eigler  <fche@redhat.com>
+
+	Fix for uncaching bug reported by Herman ten Brugge.
+	* mf-runtime.c (__mf_uncache_object): Search whole cache.
+	* testsuite/libmudflap.c/fail40-frag.c: New test.
+
+2005-05-23  Alfred M. Szmidt  <ams@gnu.org>
+
+	PR libmudflap/21724
+	* Makefile.am (AM_MAKEFLAGS): Pass includedir.
+	* Makefile.in: Amend.
+
+2005-06-14  Frank Ch. Eigler  <fche@redhat.com>
+
+	PR mudflap/21023
+	* testsuite/libmudflap.c/externs.exp, externs-{1,2}.c: New test files.
+	* testsuite/libmudflap.c/cfrags.exp: Bypass new sources.
+
+2005-06-14  Frank Ch. Eigler  <fche@redhat.com>
+
+	PR libmudflap/21094
+	* testsuite/libmudflap.c++/*.exp: Assert build tree g++.
+
+2005-06-14  Frank Ch. Eigler  <fche@redhat.com>
+
+	PR mudflap/22064
+	* mf-impl.h (mudflap_mode, violation_mode): Make these ordinary
+	unsigned vars with #defines instead of enums.
+
+2005-05-09  Mike Stump  <mrs@apple.com>
+
+	* configure: Regenerate.
+
+2005-04-12  Mike Stump  <mrs@apple.com>
+
+	* configure: Regenerate.
+
+2005-04-12  Frank Ch. Eigler  <fche@redhat.com>
+
+	PR mudflap/19266
+	* testsuite/libmudflap.c++/c++frags.exp: Also test -O permutation.
+	* testsuite/libmudflap.c++/pass57-frag.cxx: New test.
+
+2005-04-04  Alan Modra  <amodra@bigpond.net.au>
+
+	* mf-runtime.c (__mfu_unregister): Warning fix for char unsigned.
+
+2005-03-31  Mike Stump  <mrs@apple.com>
+
+	* mf-runtime.h: Add libmudflap copyright clause.
+
+2005-03-21  Mike Stump  <mrs@apple.com>
+
+	* mf-heuristics.c: Fix whitespace at end of line.
+	* mf-hooks1.c: Likewise.
+	* mf-hooks2.c: Likewise.
+	* mf-hooks3.c: Likewise.
+	* mf-impl.h: Likewise.
+	* mf-runtime.c: Likewise.
+	* mf-runtime.h: Likewise.
+
+2005-03-21  Zack Weinberg  <zack@codesourcery.com>
+
+	* configure.ac: Do not invoke TL_AC_GCC_VERSION.
+	In all substitutions, expand gcc_version in Makefile.
+	* aclocal.m4, configure: Regenerate.
+	* Makefile.am: Set gcc_version.
+	* Makefile.in, testsuite/Makefile.in: Regenerate.
+
+2005-03-17  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-runtime.c (__mfu_check): Respect ignore_reads configuration.
+	* testsuite/libmudflap.c/{pass56,fail39}-frag.c: New tests.
+
+2005-02-13  Frank Ch. Eigler  <fche@redhat.com>
+
+	PR mudflap/19319
+	* testsuite/libmudflap.c++/pass55-frag.c: New test.
+
+2005-01-05  Richard Henderson  <rth@redhat.com>
+
+	* testsuite/libmudflap.c/pass32-frag.c: Fix typo.
+
+2005-01-02  Greg McGary  <greg@mcgary.org>
+
+	* mf-impl.h (uintptr_t): Get typedef via stdint.h or define explicitly.
+	* mf-runtime.h: New file, replaces mf-runtime.h.in.
+	* configure.ac (AC_CONFIG_FILES): mf-runtime.h is no longer generated.
+	* Makefile.in: Ditto.
+	* testsuite/lib/libmudflap.exp: Add -I${srcdir}/.. to get mf-runtime.h
+	* testsuite/libmudflap.c/pass32-frag.c: s/uintptr_t/__mf_uintptr_t/
+	* testsuite/libmudflap.c/fail36-frag.c: New test.
+	* testsuite/libmudflap.c/fail37-frag.c: New test.
+	* testsuite/libmudflap.c/fail38-frag.c: New test.
+
+2004-12-08  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* Makefile.am: Add ../config to ACLOCAL_AMFLAGS.
+	* aclocal.m4, Makefile.in, testsuite/Makefile.in: Regenerate.
+
+2004-12-02  Richard Sandiford  <rsandifo@redhat.com>
+
+	* configure.ac: Use TL_AC_GCC_VERSION to set gcc_version.
+	* aclocal.m4: Include ../config/gcc-version.m4.
+	* configure, Makefile.in, testsuite/Makefile.in: Regenerate.
+
+2004-11-29  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* Makefile.am: Define ACLOCAL_AMFLAGS.
+	* acinclude.m4: Remove.
+	* stamp-h.in: Remove superfluous stamp file.
+	* aclocal.m4, configure, Makefile.in: Regenerate.
+	* testsuite/Makefile.in: Likewise.
+
+2004-11-24  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* Makefile.am: Revert previous.
+	* acinclude.m4: Restore.
+	* aclocal.m4, configure, Makefile.in: Regenerate.
+	* testsuite/Makefile.in: Likewise.
+
+2004-11-24  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* Makefile.am: Define ACLOCAL_AMFLAGS.
+	* acinclude.m4: Remove.
+	* aclocal.m4, configure, Makefile.in: Regenerate.
+	* testsuite/Makefile.in: Likewise.
+
+2004-11-23  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	* testsuite/lib/libmudflap.exp: Use new procs in target-libpath.exp.
+
+2004-11-23  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* Makefile.in, configure, aclocal.m4: Regenerate with automake 1.9.3.
+	* testsuite/Makefile.in: Likewise.
+
+2004-11-01  Andreas Schwab  <schwab@suse.de>
+
+	* configure.ac: (target_alias): Default to $host_alias, not
+	$target.
+	* configure: Regenerated.
+
+2004-10-28  Frank Ch. Eigler  <fche@redhat.com>
+
+	* testsuite/libmudflap.c/fail35-,pass53-,pass54-frag.c: New tests.
+	* testsuite/libmudflap.c/pass35-frag.c: Correct embedded warning
+	message.
+
+2004-10-25  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR other/18138
+	* testsuite/lib/libmudflap.exp: Accept more than one multilib libgcc.
+
+2004-10-12  Frank Ch. Eigler  <fche@redhat.com>
+
+	* configure.ac: Check for more headers, functions.
+	* mf-hooks2.c (mkbuffer, unmkbuffer): New helper functions for
+	tracking overridden FILE buffers.
+	(fopen, setvbuf): New/revised hook functions for buffer overriding.
+	(setbuf,setlinebuf,fdopen,freopen,fopen64,freopen64,fclose): Ditto.
+	(fflush): Accept given NULL stream (means "all streams").
+	* mf-runtime.h.in:
+	* mf-runtime.c (__mfu_check): Accept accesses that span adjacent
+	HEAP/GUESS objects.
+	(LOOKUP_CACHE_SIZE_MAX): Raise to 64K entries tentatively.
+	(__mf_adapt_cache): Use them all.
+	* testsuite/libmudflap.c/pass35-frag.c: Update warning message.
+	* testsuite/libmudflap.c++/ctors.exp: Ditto.
+	* testsuite/libmudflap.c/{pass51,pass52}-frag.c: New tests.
+	* configure, config.h.in: Regenerated.
+
+2004-10-05  Frank Ch. Eigler  <fche@redhat.com>
+
+	* configure.ac: Checking for sys/socket.h once is enough.
+	* configure: Regenerated.
+
+2004-10-04  Frank Ch. Eigler  <fche@redhat.com>
+
+	* configure.ac: Look for more headers & functions.
+	* mf-hooks2.c (getmntent, inet_ntoa, getproto*): New wrapper functions.
+	* mf-runtime.h.in: Add new "#pragma redefine_extname"s for them.
+	* mf-runtime.c (options): Clean up integer signedness warnings.
+	(main): Add a declaration to fix a warning.
+	* mf-hooks3.c (pthread_exit): Add not-reached exit() to wrapper.
+	* configure, config.h.in: Regenerated.
+
+2004-10-02  Frank Ch. Eigler  <fche@redhat.com>
+
+	* testsuite/libmudflap.c/pass50-frag.c, fail33-frag.c, fail34-frag.c:
+	New tests for proper base/limit checking for aggregates.
+
+2004-09-15  Joseph S. Myers  <jsm@polyomino.org.uk>
+
+	* testsuite/libmudflap.c/pass35-frag.c: Update expected message.
+
+2004-09-07  Frank Ch. Eigler  <fche@redhat.com>
+
+	* configure.ac: Look for pwd.h, grp.h, netdb.h headers and functions.
+	* mf-hooks2.c (strerror): Unregister previous string returned by
+	previous strerror.
+	(getlogin,cuserid,getpwnam,getpwuid,getgrnam,getgrgid): New wrappers.
+	(getservent,getservbyname,getservbyport,gai_strerror): Ditto.
+	* mf-runtime.h.in: Add redefine_extname pragmas for them all.
+	* mf-runtime.c (__mf_describe_object): Clarify object life status.
+	* testsuite/libmudflap.c/pass48-frag.c, pass49-frag.c, fail32-frag.c:
+	New tests.
+	* configure, config.h.in: Regenerated.
+
+2004-08-03  Dale Johannesen  <dalej@apple.com>
+
+	 * mf-runtime.c: Conditionalize POSIX_SOURCE for Darwin.
+
+2004-08-03  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-runtime.c (compare_uintptr_t): Remove function.  Inline
+	simplified contents in all former callers.
+
+2004-07-27  Ulrich Weigand  <weigand@informatik.uni-erlangen.de>
+
+	* mf-runtime.c (__mf_fini): Set mudflap_mode to mode_nop in
+	the statically linked case.
+
+2004-07-27  Frank Ch. Eigler  <fche@redhat.com>
+
+	* splay-tree.[ch]: Remove.  Merge contents into ...
+	* mf-runtime.c: ... here, renaming symbols and making all functions
+	static.  Remove unused min/max functions.
+	* Makefile.am: Forget about splay-tree.[ch].
+	* Makefile.in, testsuite/Makefile.in: Regenerated.
+
+2004-07-21  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-runtime.c (__mfu_check): Remove mistaken mode-nop handling.
+	(__mfu_usage): Include (C) 2004.
+	* mf-hooks3.c (__mf_find_threadinfo): Don't call tracing functions
+	here.  Include a comment explaining why.
+
+2004-07-20  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-impl.h (__mf_options): Add ignore_reads and timestamps fields.
+	* mf-runtime.c (options): Give them a name.
+	(__mf_set_default_options): Set them.
+	(__mf_insert_new_object, __mfu_unregister): Optionalize timestamps.
+	(__mf_violation): Warning cleanup.
+	* mf-impl.h (MF_VALIDATE_EXTENT): Support ignore_reads option.
+	* splay-tree.c (splay_tree_delete_helper): Remove obsolete decl.
+
+2004-07-15  Frank Ch. Eigler  <fche@redhat.com>
+
+	g++/15861
+	* mf-runtime.c (__mf_init): Make it non-static.  Tolerate
+	repeated invocation.
+
+2004-07-09  Frank Ch. Eigler  <fche@redhat.com>
+
+	Test case for g++/15861
+	* testsuite/libmudflap.c++/ctors-[12].cxx: New test case halves.
+	* testsuite/libmudflap.c++/ctors.exp: Driver.
+	* testsuite/libmudflap.c++/c++frags.exp: Elide redundant default.
+	Look only for *frag* test cases.
+
+2004-07-08  Frank Ch. Eigler  <fche@redhat.com>
+
+	ANSI C conversion, libmudflap specialization, recursion limiting.
+	* splay-tree.h (splay_tree_{de,}allocate_fn): Remove allocation_data
+	argument and indirection function pointers, update callers.
+	(splay_tree_s): Add statistics and recursion control fields
+	num_keys, max_depth, depth, rebalance_p.
+	* splay-tree.c (splay_tree_splay_helper): Track recursion depth.
+	Back out of search if it exceeds limit.
+	(splay_tree_splay): Manage recursion limiting with rebalancing as
+	needed.
+	(splay_tree_new): More initialization.
+	(splay_tree_rebalance): New function.
+	(splay_tree_foreach): Rewrite using nonrecursive logic.
+	(splay_tree_xmalloc_allocate, splay_tree_xmalloc_deallocate):
+	Remove.  Point indirect calls to mf-runtime.c's routines.
+	(splay_tree_compare_ints, splay_tree_compare_pointers): Remove unused
+	functions.
+	(splay_tree_delete, splay_tree_delete_helper): Ditto.
+	* testsuite/heap-scalestress.c: New test based on one from
+	Eyal Lebedinsky <eyal@eyal.emu.id.au>:
+
+2004-07-05  Matthias Klose  <doko@debian.org>
+
+	* libtool-version: New.
+	* Makefile.am (libmudflap_la_LDFLAGS, libmudflapth_la_LDFLAGS):
+	Use -version-info for soname.
+	* Makefile.in: Regenerate.
+	* configure.ac: Remove libtool_VERSION macro
+	* configure: Regenerate
+
+2004-07-05  Zack Weinberg  <zack@codesourcery.com>
+
+	* mf-runtime.h.in: Wrap declarations of struct __mf_cache,
+	__mf_lookup_cache, __mf_lc_mask, or __mf_lc_shift in
+	#ifndef _MUDFLAP.
+
+2004-06-29  Frank Ch. Eigler  <fche@redhat.com>
+
+	Splay tree implementation fork.
+	* splay-tree.c, splay-tree.h: Copied & modified from libiberty.
+	Use hard-coded comparison function for uintptr_t.  Remove key/value
+	deallocation logic.  Cache last splayed key for consecutive lookups.
+	* Makefile.am, Makefile.in: Use them, don't link to them.
+	* mf-runtime.c (__mf_object_tree): Adapt to simpler splay_tree_new.
+	(__mf_find_objects2): Flip successor/predecessor search sequence.
+	* ansidecl.h, libiberty.h: Removed dummy files.
+
+2004-06-29  Nick Clifton  <nickc@redhat.com>
+
+	* configure.ac (AC_CHECK_HEADERS): Add dirent.h
+	* configure: Regenerate.
+	* mf-hooks2.c: Surround uses of dirent.h with #ifdef
+	HAVE_DIRENT_H.
+	Remove spurious inclusion of <strings.h>.
+
+2004-06-29  Nick Clifton  <nickc@redhat.com>
+
+	* mf-runtime.c (pthread_join): Only apply the weak pragma if the
+	function actually exists.
+
+2004-06-25  Frank Ch. Eigler  <fche@redhat.com>
+
+	* ansidecl.h, libiberty.h: New dummy files for building splay-tree.
+	* config.h.in: Regenerated.
+
+2004-06-24  Frank Ch. Eigler  <fche@redhat.com>
+
+	Adopt splay trees for object database.
+	* Makefile.am: Copy splay-tree.* from libiberty.
+	* Makefile.in, testsuite/Makefile.in: Regenerated.
+	* mf-runtime.h.in (__mf_unregister): Add third parameter (type).
+	* mf-hooks[123].c (*): Add new third parameter to mf_unregister.
+	* mf-impl.h (BEGIN_PROTECT): Remove some trace text.
+	* mf-runtime.c: Rewrite code dealing with object database to use
+	libiberty splay trees.  Remove tree liveness aging option.
+	* testsuite/libmudflap.c/fail18-frag.c: Add volatile flag.
+
+2004-06-15  Paolo Bonzini  <bonzini@gnu.org>
+
+	* configure.ac: New name of configure.in.  Update
+	AC_INIT, AC_CONFIG_SRCDIR, AC_CONFIG_HEADERS, AC_CONFIG_FILES,
+	AC_OUTPUT, AM_INIT_AUTOMAKE to the preferred style for
+	Autoconf 2.5x and Automake 1.7 or later.
+	* configure.in: Remove.
+	* configure: Regenerate.
+
+	* Makefile.am: Remove useless multilib rules.
+	* Makefile.in: Regenerate.
+
+2004-06-15  Paolo Bonzini  <bonzini@gnu.org>
+
+	* .cvsignore: New file.
+
+2004-06-10  Stephen Crowley  <stephen.crowley@sbcglobal.net>
+
+	PR libmudflap/13505
+	* mf-hooks2.c (semctl): Add cygwin porting hack.
+
+2004-06-09  Frank Ch. Eigler  <fche@redhat.com>
+
+	ctype support.
+	* configure.in: Look for ctype header and glibc implementation.
+	* mf-hooks2.c (__ctype_{b,toupper,tolower}_loc): Sample ctype
+	array hooks for glibc 2.3.
+	* mf-runtime.h.in: Wrap them.
+	* mf-runtime.c (__mf_init): Leave marker regarding other ctype
+	implementations.
+	* testsuite/libmudflap.c/pass47-frag.c: New test.
+	* configure, config.h.in: Regenerated.
+
+2004-06-04  Frank Ch. Eigler  <fche@redhat.com>
+
+	Portability improvements, e.g., libmudflap/15293.
+	* configure.in: Look for glibc extension functions.  Look for
+	support of -f{function,data}-sections.  Look for more headers.
+	Create testsuite/mfconfig.exp.  Correct more "test x.." thinkos.
+	* Makefile.am: Use $(SECTION_FLAGS).  Collapse piecemeal-compiled
+	mf-hooks* into usual single object per source.
+	* mf-hooks*.c: Remove all #if WRAP_foo conditionals.
+	* mf-hooks2.c: #include a bunch more system headers.  Define strnlen
+	if system doesn't provide one.
+	* mf-hooks3.c (struct pthread_info): Add stack_*_alloc fields.
+	(pthread_create): Use it to properly GC dead thread stacks.
+	* mf-runtime.c (__mf_violation): Correct snprintf type warning.
+	* testsuite/Makefile.am: Stop generating site.exp.
+	* testsuite/mfconfig.exp.in: New file.
+	* testsuite/config/default.exp: Load new mfconfig.exp.
+	* testsuite/lib/libmudflap.exp (libmudflap-init): Add extra libraries.
+	(prune_gcc_output): Add glibc static linking warnings.
+	* testsuite/libmudflap.*/*frags.exp: Enumerate needed -lmudflap* libs.
+	* testsuite/libmudflap.c/pass46-frag.c: Ditto.
+	* configure, Makefile, aclocal.m4, config.h.in, testsuite/Makefile.in:
+	Regenerated with autoconf 2.57 and automake 1.7.
+
+2004-06-04  Per Bothner  <per@bothner.com>
+
+	* configure.in (LIBMUDFLAPTH):  Fix thinko.
+
+	* configure.in:  Check for more headers.
+	* mf-hooks2.c:  Conditionalize on HAVE_SYS_SOCKET_H etc.
+
+	* mf-runtime.c:  In two places conditionalize on SIUSR1 rather than
+	HAVE_SIGNAL as mingw has signal.h but not SIUSR1.
+
+2004-06-01  Andreas Jaeger  <aj@suse.de>
+
+	* configure.in: Handle multilibs, support
+	--enable-version-specific-runtime-libs.
+	* Makefile.am (lib_LTLIBRARIES): Rename to ...
+	(toolexeclib_LTLIBRARIES): this for multilib support.
+	* Makefile.in: Regenerated.
+	* configure: Regenerated.
+	* aclocal.m4: Regenerated.
+	* config.h.in: Regenerated.
+	* testsuite/Makefile.in: Regenerated.
+
+2004-06-01  Andreas Jaeger  <aj@suse.de>
+
+	* testsuite/lib/libmudflap.exp (libmudflap-init): Handle
+	multilibs, using multilib directory instead of hardcoded path.
+	Set LD_RUN_PATH.
+
+2004-05-21  Frank Ch. Eigler  <fche@redhat.com>
+
+	* Makefile.am (AM_MAKEFLAGS): Pass RUNTESTFLAGS.
+	* Makefile.in: Ditto.
+
+2004-05-18  Kaz Kojima  <kkojima@gcc.gnu.org>
+
+	* acinclude.m4 (lt_cv_deplibs_check_method): Use pass_all on sh*.
+	* aclocal.m4, configure: Rebuilt.
+
+2004-05-17  Frank Ch. Eigler  <fche@redhat.com>
+
+	* lib/libmudflap.exp (libmudflap-init): For C++ test cases only,
+	import some build settings from libstdc++-v3 testsuite_flags.
+	* .../cfrags.exp, .../c++frags.exp, .../cthfrags.exp: Corresponding
+	changes to pass test language.
+
+	* mf-runtime.c (__mfu_check): Poison the cache with antidote for
+	quicker mode-nop handling.
+
+2004-03-25  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-impl.h: Added libgcc license header.
+
+2004-03-20  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-hooks[123].c, mf-runtime.c, mf-heuristics.c:
+	Added libgcc license header.
+	* mf-hooks3.c (__mf_0fn_pthread_create): Correct arg constness.
+	(pthread_create): Simplify stack allocation syntax.
+
+2004-03-08  Loren J. Rittle  <ljrittle@acm.org>
+
+	* mf-hooks2.c: Support FreeBSD.
+	(WRAP_gets): Avoid gets().
+	* testsuite/libmudflap.c/pass-stratcliff.c: Do not
+	test unimplemented mem/str calls on FreeBSD.
+	* testsuite/libmudflap.c/pass21-frag.c: Do not include
+	<alloca.h> on FreeBSD.
+
+2004-01-30  Frank Ch. Eigler  <fche@redhat.com>
+
+	* testsuite/libmudflap.c/pass36-frag.c: Add missing free() call.
+	* testsuite/libmudflap.c/pass46-frag.c: New test for -fmudflapir.
+	* testsuite/libmudflap.cth/cthfrags.exp: Add -DSTATIC to compiler
+	flags for static linking permutation.
+	* testsuite/libmudflap.cth/pass40-frag.c: When -DSTATIC, avoid
+	some pthreads code that croaks on linux glibc tls.
+
+2004-01-27  Frank Ch. Eigler  <fche@redhat.com>
+
+	* testsuite/libmudflap.c/fail31-frag.c, pass45-frag.c: New tests.
+
+2004-01-15  Frank Ch. Eigler  <fche@redhat.com>
+
+	* testsuite/libmudflap.c/pass44-frag.c: New test.
+
+2004-01-12  Frank Ch. Eigler  <fche@redhat.com>
+
+	* testsuite/libmudflap.c/fail{28,29,30}-frag.c: New tests.
+
+2004-01-08  Frank Ch. Eigler  <fche@redhat.com>
+
+	* testsuite/libmudflap.c/pass43-frag.c: Added missing program rc.
+
+2003-12-11  Frank Ch. Eigler  <fche@redhat.com>
+
+	* testsuite/libmudflap.c/pass42-frag.c, pass43-frag.c: New tests.
+
+2003-12-08  Andrew Pinski  <pinskia@physics.uc.edu>
+
+	PR libmudflap/12670
+	* configure.in: Add check for see if
+	socklen_t typedef is in sys/socket.h.
+	* mf-hooks1.c: Add define if socklen_t
+	is not typedef.
+	* mf-hooks2.c: Likewise.
+	* mf-hooks3.c: Likewise.
+	* config.h.in: Regen.
+	* configure: Regen.
+
+2003-12-08  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-runtime.c (__mf_watch_or_not): Tweak tracing message.
+	* testsuite/libmudflap.c/fail21-frag.c: Defeat aliasing
+	optimizations.
+	* testsuite/libmudflap.c/pass25-frag.c: Ditto.
+	* testsuite/libmudflap.c/pass26-frag.c: Tolerate non-overlapping
+	(unoptimized) allocation of stack space.
+
+2003-12-07  Richard Henderson  <rth@redhat.com>
+
+	* testsuite/libmudflap.c/fail23-frag.c (main): Adjust addend to 11.
+	* testsuite/libmudflap.c/fail27-frag.c (foo): Mark noinline.
+
+2003-12-06  Andrew Pinski <apinski@apple.com>
+
+	partial PR libmudflap/12670
+	* mf-hooks1.c: Respect Darwin checks.  Conditionalize POSIX_SOURCE.
+	* mf-hooks2.c: Likewise.
+	* mf-hooks3.c: Likewise.
+
+2003-11-19  Frank Ch. Eigler  <fche@redhat.com>
+
+	libstdc++/11696
+	* mf-runtime.h.in: Switch to #pragma redefine_extname for
+	symbols interposed at compile time.
+	* testsuite/libmudflap.c++/pass41-frag.cxx: New test.
+
+	libmudflap/12939
+	* mf-hooks2.c (semctl): Tolerate FreeBSD.
+
+	* configure.in: Reorganize check for <pthread.h>.
+	* configure: Regenerated.
+
+2003-11-04  David Edelsohn  <edelsohn@gnu.org>
+
+	* mf-runtime.c (_ALL_SOURCE): Define for AIX.
+	(_LARGE_FILE_API): Define for AIX.
+	* mf-hooks[123]: Same.
+	(_XOPEN_SOURCE_EXTENDED): Define to 1 for AIX.
+
+2003-10-21  David Edelsohn  <edelsohn@gnu.org>
+
+	* mf-runtime.c (_XOPEN_SOURCE_EXTENDED): Define to 1 for AIX.
+
+2003-07-29  Frank Ch. Eigler  <fche@redhat.com>
+
+	2003-07-29  Gerald Pfeifer  <pfeifer@dbai.tuwien.ac.at>
+
+	* configure.in: Update check for union semun.
+
+2003-07-29  Gerald Pfeifer  <pfeifer@dbai.tuwien.ac.at>
+
+	PR other/11673
+	* mf-hooks2.c [WRAP_semctl]: Fix check for HAVE_UNION_SEMUN.
+
+2003-07-29  Frank Ch. Eigler  <fche@redhat.com>
+
+	PR other/11673
+	* configure.in: Add checks for 64-bit LFS functions, struct semun
+	definition, for BSD compatibility.
+	* mf-hooks1.c: Respect BSD checks.  Conditionalize POSIX_SOURCE.
+	* mf-hooks2.c: Ditto.  Include <strings.h> for bcmp* decls.
+	* mf-hooks3.c: Ditto.
+	(pthread_create): Try MAP_ANON on platforms without the MAP_ANONYMOUS
+	mmap flag.
+	* configure, config.h.in: Regenerated.
+
+2003-07-23  Frank Ch. Eigler  <fche@redhat.com>
+
+	Multithreading fixes:
+	* mf-runtime.c (__mf_object): Store allocating/deallocating
+	thread id.
+	(options): Support new "-thread-stack" option.
+	Rename "-heur-argv-environ" option to "-heur-stdlib".
+	Disable "-lc-mask" and "-lc-shift" options.
+	(__mf_dynamic): Add function pointers for pthread_join/_exit.
+	(__assert_fail): New self-contained function for glibc.
+	* mf-hooks3.c: Essentially rewritten, particularly related to
+	use of __mf_pthread_info array.
+	(pthread_join, _exit): New hook functions.
+	* mf-impl.h (BEGIN_PROTECT): Handle starting_p case.
+	* testsuite/libmudflap.cth/pass40-frag.c: New test.
+
+	Warning cleanups:
+	* mf-heuristics.c: Add type casts for tracing, sub calls.
+	* mf-impl.h (BEGIN_PROTECT): Redefine to omit result type.
+	Update all callers to declare explicit result holder.
+	(END_PROTECT): Removed.
+	* testsuite/*/*frags.exp: Clean up default MUDFLAP_OPTIONS.
+
+2003-07-15  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libmudflap.c/fail21-frag.c: Add volatile modifiers.
+	* testsuite/libmudflap.c/fail15-frag.c: Likewise.
+	* testsuite/libmudflap.c/fail13-frag.c: Likewise.
+
+2003-07-04  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-hooks1.c, 2.c, 3.c: New file, splits up content from old ...
+	* mf-hooks: Removed.
+	* mf-impl.h (MF_VALIDATE_EXTENT, BEGIN_PROTECT, END_PROTECT):
+	Move these macros from old mf-hooks.c here.
+	* Makefile.am: Adapt to split-up hook sources for faster builds.
+	* Makefile.in: Regenerated.
+
+	* mf-heuristics.c: Remove #if-0 block.
+
+	* mf-impl.h (__mf_state): Reorganize declaration and implementation.
+	(__mf_starting_p): New state only for use while dlsym bootstrapping.
+	(CALL_REAL, __mf_init): Corresponding changes.
+	(TRACE, VERBOSE_TRACE): Include thread id and "mf:" prefix.  Update
+	all callers to remove redundant "mf:" prefix.
+	* mf-runtime.h.in: #define a few reentrancy macros for libmudflapth.
+	* mf-hooks3.c: Rewrite chunks to support per-thread __mf_state value.
+	(__mf_pthread_info): Become a hash table.
+
+	* testsuite/lib/mfdg.exp: Support new "dg-timeout" and
+	"dg-repetitions" directives to control test case execution.
+	* testsuite/libmudflap.cth/pass37-frag.c: Add timeout and repeat
+	options.
+	* testsuite/libmudflap.cth/pass39-frag.c: Ditto for this new test.
+
+2003-06-25  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-hooks.c (alloca): Separate into stub.
+	(__mf_wrap_alloca_indirect): New function.  Use CALL_REAL
+	malloc/free for alloca blocks.
+	(pthread_create): Tolerate failing pthread_attr_get* calls.
+	* mf-runtime.c (__mf_fini): Call __mf_wrap_alloca_indirect.
+	* mf-impl.h (CALL_WRAP): Remove macro.
+	* testsuite/libmudflap.c/pass21-frag.c: Include <alloca.h>.
+	* testsuite/libmudflap.c/pass23-frag.c: Include more struct
+	padding for ia64 BIT_FIELD_REF constructs.
+
+2003-06-19  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-hooks.c (struct pthread_info): Add "thread_errno" field.
+	(__mf_pthread_spawner, __mf_pthread_cleanup): Use it with GUESS
+	libmudflap object type.
+	* mf-runtime.c (__mfu_unregister): Correct cemetary logic to avoid
+	crashes on unregistering STATIC objects.
+
+2003-06-17  Frank Ch. Eigler  <fche@redhat.com>
+
+	Based on patch from Eyal Lebedinsky <eyal@eyal.emu.id.au>:
+	* mf-hooks.c (__mf_pthread_spawner): Register thread errno.
+	(time, strerror, fopen, fopen64, fclose, fread): New hooks.
+	(fwrite, fgetc, fgets, getc, gets, ungetc, fputc): New hooks.
+	(fputs, putc, puts, clearerr, feof, ferror, fileno): New hooks.
+	(printf, fprintf, sprintf, snprintf, vprintf, vfprintf): New hooks.
+	(vsprintf, vsnprintf, access, remove, fflush, fseek): New hooks.
+	(fseeko64, ftell, ftello64, rewind, fgetpos, fsetpos): New hooks.
+	(stat, stat64, fstat, lstat, mkfifo, setvbuf, setbuf): New hooks.
+	(setvbuf, opendir, closedir, readdir, recv, recvfrom): New hooks.
+	(recvmsg, send, sendto, sendmsg, setsockopt, getsockopt): New hooks.
+	(accept, bind, connect, gethostname, sethostname): New hooks.
+	(gethostbyname, wait, waitpid, popen, pclose, execve): New hooks.
+	(execv, execvp, system, dlopen, dlclose, dlerror, dlsym): New hooks.
+	(semop, semctl, shmctl, shmat, shmdt): New hooks.
+	* mf-runtime.h.in: Corresponding changes.
+	* mf-runtime.c (__mf_ini): Register stdio objects.  Use STATIC type.
+	(opts) Rename heur_argv_environ	to heur_std_data.
+	(__mf_wrap_main): Use STATIC type for argv/environ strings.
+	* Makefile.am: Corresponding changes.
+	* Makefile.in: Regenerated.
+
+2003-06-11  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-heuristics.c (__mf_heuristic_check): Disable stack_bounds
+	heuristic for threaded case, and for non-x86-linux targets.
+	* mf-hooks.c (__mf_0fn_calloc): Provide a working dummy implementation
+	for use during pre-main() program startup.
+	(__mf_0fn_*): Make these functions non-static.
+	* mf-impl.h (DECLARE, CALL_REAL): Support calls to 0fn backup hook
+	functions.
+	* mf-runtime.c (__mf_state): Set initial state to "starting".
+	(__mf_resolve_single_dynamic): Tolerate repeated calls for same symbol.
+	(__wrap_main): New function to register argv[] and environ[] strings.
+	(__mf_ini): Call it.
+	(*): In all trace functions, use "%p" as formatter for uintptr_t.
+
+	* testsuite/libmudflap.c/pass38-frag.c: New test case.
+	* testsuite/libmudflap.cth/pass37-frag.c: Improved test.
+
+	* acinclude.m4: Add comments with aoliva's concerns about x86_64
+	pass_all.
+	* aclocal.m4, configure: Regenerated.
+
+2003-06-04  Frank Ch. Eigler  <fche@redhat.com>
+
+	* acinclude.m4: Correct typo in AC_MSG_CHECKING.
+	* aclocal.m4, configure: Regenerated.
+
+2003-06-03  Frank Ch. Eigler  <fche@redhat.com>
+
+	* acinclude.m4: Force "pass_all" deplibs_check_method for libtool
+	for x86_64 target.  Disable caching for this value.
+	* aclocal.m4, configure: Regenerated.
+
+2003-06-02  Frank Ch. Eigler  <fche@redhat.com>
+
+	* testsuite/libmudflap.c/pass38-frag.c: Deleted.  -fwritable-strings
+	is about to become deprecated, and its present handling bugs are
+	unworthy of fixing.
+
+2003-05-30  Frank Ch. Eigler  <fche@redhat.com>
+
+	* testsuite/libmudflap.c/pass38-frag.c: New test for
+	-fwritable-strings.
+
+2003-05-23  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-runtime.c (__mf_sigusr1_handle): Call unlocked variant of
+	__mf_report, asserting reentrant calling context.
+
+2003-05-23  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-hooks.c (realloc): Correct reentrancy logic.
+	* testsuite/libmudflap.c/hook-allocstuff.c: New test case.
+
+2003-05-20  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-hooks.c (LIBMUDFLAPTH_THREADS_MAX): New macro, replaces
+	PTHREAD_THREADS_MAX.  Update users.
+	* mf-runtime.c (__mf_usage): Print [active] instead of [default]
+	for active options.
+	* testsuite/Makefile.am (all-local): Prime dejagnu site.exp file
+	with libmudflapth presence indicator.
+	* testsuite/Makefile.in: Regenerated.
+
+2003-05-16  Frank Ch. Eigler  <fche@redhat.com>
+
+	* Makefile.am (AM_CFLAGS): Remove "-ansi".
+	* configure.in: Remove silly no-pthreads => no-shared logic.
+	* Makefile.in, configure: Regenerated.
+	* mf-heuristics.c (__mf_heuristic_check): Remove reentrancy hacks.
+	* mf-hooks.c (BEGIN_PROTECT, END_PROTECT): Reorganize reentrancy
+	code.  Count reentrancy events.
+	(all hook functions): Don't directly manipulate __mf_state variable.
+	Add TRACE calls to hook functions without them.
+	* mf-impl.h (LOCKTH): Try to count lock contention events.
+	(VERBOSE_TRACE, TRACE): Remove reentrancy hacks.
+	* mf-runtime.c (BEGIN_RECURSION_PROTECT, END_RECURSION_PROTECT):
+	Reorganize reentrancy code.
+	(external __mf_ entry points): Use RECURSION_PROTECT mechanism to
+	identify reentrancy with mutex holding times.
+	(internal __mfu_ entry points): Remove internal reentrancy code.
+	(__mf_init): Use ordinary locked calls.
+	(__mfu_report): Print the two new counts.
+	* testsuite/lib/libmudflap.exp:	Filter out junk ld/pthreads messages.
+	* testsuite/libmudfap.cth/cthfrags.exp: New test driver.
+	* testsuite/libmudflap.cth/pass37-frag.c: New pthreads test.
+	* testsuite/libmudfap.cth/cfrags.exp: Adapt to new libmudflap
+	option defaults.
+
+2003-05-09  Frank Ch. Eigler  <fche@redhat.com>
+
+	* configure.in: Add pthread support, plus glibc and porting hacks.
+	* Makefile.am (LIBMUDFLAPTH): New conditional, to build -lmudflapth
+	from objects built into ./pth/.
+	* mf-runtime.c (__mfu_watch,register,...): Fork new unlocked
+	functions for internal entry points.  Update callers to pick
+	locked vs. unlocked variants.
+	(__mf_resolve_single_dynamic): Extend to support symbol versioning
+	info coming in from a static data structure.
+	(*): Reorder miscellaneous declarations to group data vs functions.
+	(__mf_set_default_options): Simplify.
+	(__mf_usage): Mention threading status of host executable.
+	* mf-impl.h: Move max/min decls here.  Reorganize __mf_dynamic
+	decls to match above.
+	(LOCKTH, UNLOCKTH): New macros for Big Libmudflap Lock management.
+	* mf-heuristics.c: Choose between locked/unlocked calls.  Add
+	some lock/unlock markers.  Remove some unused code.
+	* mf-hooks: Ditto.
+	(pthread_create): New hook function.
+	(__mf_pthread_cleanup, _spawner): New helper functions.
+	* configure. aclocal.m4, config.h.in, Makefile.in: Regenerated.
+
+2003-05-02  Frank Ch. Eigler  <fche@redhat.com>
+
+	* testsuite/libmudflap.c/fail27-frag.c: Add more volatile flags.
+
+2002-04-28  Frank Ch. Eigler  <fche@redhat.com>
+
+	* Makefile.am (HOOKOBJS): Add *time related hooks.
+	* configure.in: Look for pthreads.h header.
+	* mf-hooks.c (asctime, ctime, gmtime, localtime): New wrappers.
+	* mf-runtime.c: Begin sketching some pthreads support.
+	(__mf_usage): Check for -lpthread presence.
+	(__mf_unregister): Confirm matching unregistration base.
+	(__mf_find_objects_rec): Reduce unnecessary recursion.
+	* mf-runtime.h.in: Add "nothrow" attribute to functions.  Add
+	#defines for new hook functions.
+	* mf-impl.h: Corresponding changes.
+	* config.h.in, configure, Makefile.in: Regenerated.
+
+2002-04-27  Diego Novillo  <dnovillo@redhat.com>
+
+	* testsuite/libmudflap.c/fail1-frag.c: Add volatile
+	modifiers to prevent being optimized away.
+	* testsuite/libmudflap.c/fail10-frag.c: Likewise.
+	* testsuite/libmudflap.c/fail13-frag.c: Likewise.
+	* testsuite/libmudflap.c/fail14-frag.c: Likewise.
+	* testsuite/libmudflap.c/fail15-frag.c: Likewise.
+	* testsuite/libmudflap.c/fail2-frag.c: Likewise.
+	* testsuite/libmudflap.c/fail20-frag.c: Likewise.
+	* testsuite/libmudflap.c/fail3-frag.c: Likewise.
+
+2003-04-15  Frank Ch. Eigler  <fche@redhat.com>
+
+	* Makefile.am (libmudflap_la_LIBADD): Remove -ldl.
+	* configure.in: Look for uintptr_t and -ldl on target.
+	* mf-runtime.h.in: Adjust uintptr_t declaration logic.
+	* Makefile.in, aclocal.m4, configure, config.h.in: Regenerated.
+	* testsuite/Makefile.in: Regenerated.
+	* mf-runtime.c (__mf_sigusr1_respond): Tweak declaration and calls
+	for better C compliance.
+
+2003-04-15  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-hooks.c (MF_VALIDATE_EXTENT): Remove unnecessary reentrancy
+	prevention code.
+	* mf-runtime.c (__mf_set_default_options): Turn off
+	check-initialization.
+	(__mf_describe_object): Shorten description.
+	* testsuite/libmudflap.c/fail25-frag.c: Turn on check-initialization.
+
+2003-04-07  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-hooks.c (__mf_0fn_mmap): Correct return value, as per <rth>.
+
+2003-04-02  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-hooks.c (BEGIN_PROTECT): Handle startup-time reentrant
+	calls specially.
+	(__mf_0fn_malloc ... _munmap): New dummy backup calls.
+	* mf-impl.h (CALL_BACKUP): New macros.
+	* mf-runtime.c (__mf_init): Tweak __mf_state during startup.
+
+2003-03-31  Frank Ch. Eigler  <fche@redhat.com>
+
+	* Makefile.am (AM_CFLAGS): Remove optimization flags.
+	(HOOKOBJS): Remove dlopen hook.
+	(libmudflap_la_LIBADD): Add -ldl.
+	* mf-hooks.c (dlopen): Remove hook.
+	* mf-impl.h (__mf_dynamic): Ditto.
+	* mf-runtime.c (__mf_resolve_dynamics): Ditto.
+	* Makefile.in: Regenerated.
+
+2003-03-28  Frank Ch. Eigler  <fche@redhat.com>
+
+	* configure.in: Check for target gettimeofday, signal, some headers.
+	* mf-impl.h (__mf_opts): Add new "sigusr1_report" field.  Comment
+	out inop multi_threaded field.
+	* mf-runtime.c (options): Handle new "-sigusr1-report" option.
+	(__mf_set_options): Correct handling of "-help".
+	(__mf_sigusr1_respond): New function to manage SIGUSR1 response.
+	(__mf_check, __mf_register, __mf_unregister): Call it.
+	(__mf_insert_new_object, __mf_unregister): Respect HAVE_GETTIMEOFDAY.
+	(__mf_report_leaks): Make callable
+	(__mf_tree_analyze): Traverse in-order.  Accumulate address bit
+	distribution statistics.
+	(__mf_adapt_cache): Rewrite shift guessing logic based on address
+	bit distributions.
+	* config.h.in, configure: Regenerated.
+	* testsuite/libmudflap.c/fail27-frag.c: New test.
+	* testsuite/libmudflap.c/pass36-frag.c: New test.
+
+2003-03-11  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-runtime.h.in: Tweak.
+	* Makefile.am, configure.in: Tweak mf-runtime.h generation some more.
+	Don't use intermediate files nor AC_OUTPUT-time postprocessing.
+	* Makefile.in, testsuite/Makefile.in, configure: Regenerated.
+
+2003-03-10  Frank Ch. Eigler  <fche@redhat.com>
+
+	* configure.in: Tweak generation of mf-runtime.h some more.  It
+	needs to work from both config.status and configure.
+	* configure: Regenerated.
+
+2003-03-10  Frank Ch. Eigler  <fche@redhat.com>
+
+	* Makefile.am: Reorganize hook file building.  Add auto dependencies.
+	* configure.in: Tweak generation of mf-runtime.h.
+	* mf-runtime.h.in: Add new __MF_TYPE_HEAP_I.
+	* mf-hooks.c (*): Adapt to initialized-heap object type.
+	* mf-impl.h: Tweak cemetary boundaries.
+	* mf-runtime.c (__mf_check): Adapt to new initialized-heap object
+	type.
+	(__mf_insert_new_object, __mf_register, __mf_unregister): Ditto.
+	(__mf_describe_object, __mf_report_leaks, __mf_violation): Ditto.
+	* testsuite/lib/libmudflap.exp (includes): Include build tree.
+	* testsuite/libmudflap.c/pass{26,5}: Further adapt to initialization
+	checking.
+	* testsuite/.../fail{25,26}-frag.c: New tests.
+	* testsuite/.../pass{32,33,34,35}-frag.c: New tests.
+	* Makefile.in, configure: Regenerated.
+
+2003-03-05  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-runtime.c (__mf_set_default_options): Turn on initialization
+	checking by default.
+	(__mf_insert_new_object): As a temporary hack, assume that new
+	objects registered on the stack start out initialized.
+	* testsuite/libmudflap.c/fail9,pass23,pass[6789]-*: Initialize
+	heap objects by hand.
+
+2003-03-05  Frank Ch. Eigler  <fche@redhat.com>
+
+	Switch to macro-style hooks for str*/mem*/b* functions.
+	* mf-runtime.h.in (__MF_TYPE_*): Moved some internal values out.
+	(mem*, str*, b*): Added macro-style hooks for _MUDFLAP case.
+	* mf-runtime.c: #include config.h to enable glibc backtraces again.
+	(__mf_set_default_options): Turn off heur_proc_map.
+	(*): Adapt to to macro-style hook functions.
+	(__mf_object_dead_head, __mf_object_cemetary): Correct bounds.
+	(__mf_check, __mf_register, __mf_unregister): Tweak tracing message.
+	(__mf_violation): Handle __MF_VIOL_WATCH.
+	* mf-impl.h (__MF_TYPE_*): Moved these internal values here.
+	(__mf_dynamic): Removed mem*/str*/b* functions.
+	(TRACE, VERBOSE_TRACE): Add reentrancy locking.
+	(WRAPPER2): New macro for macro-style hooks.
+	* mf-hooks.c: Convert mem*/str*/b* functions to simpler
+	macro-style hooks.
+	(BEGIN_PROTECT): Tweak tracing vs reentrancy-lock ordering.
+	* mf-heuristics.c: Adapt to macro-style hook functions.
+	Correct some comments.
+	* testsuite/lib/mfdg.exp (dg-test): Simplify result string for
+	output pattern tests.
+	* testsuite/libmudflap.c/fail[89]-frag.c: Elaborate output test.
+	* testsuite/libmudflap.c++/c++frags.exp: Enable non-static tests.
+
+2003-02-28  Frank Ch. Eigler  <fche@redhat.com>
+
+	* testsuite/libmudflap.c/fail23-frag.c, pass30-frag.c: New tests
+	for global array registration.
+	* testsuite/libmudflap.c++/fail24-frag.cxx, pass31-frag.cxx: Ditto.
+	* testsuite/libmudflap.c++/c++frags.exp: Tweak -static multilib hack.
+
+2003-02-27  Frank Ch. Eigler  <fche@redhat.com>
+
+	* Makefile.am: Add gross make bug workarounds.  Tweaked
+	SUBDIRS and AM_CFLAGS.
+	* Makefile.in: Regenerated.
+
+2003-02-26  Frank Ch. Eigler  <fche@redhat.com>
+
+	Switch to dejagnu.
+	* configure.in (AC_PROG_CXX): Don't look for C++ any more.
+	* Makefile.am (TESTS): Remove simple automake testing.
+	* configure, Makefile.in: Regenerated.
+	(SUBDIRS): Include new testsuite/ directory.
+	* tests/*: Removed all files; moved bulk under:
+	* testsuite/*: New subdirectory tree.
+	* testsuite/libmudflap.c/cfrags.exp: New file, C test driver.
+	* testsuite/libmudflap.c++/c++frags.exp: New file, C++ test driver.
+	* testsuite/lib/libmudflap.exp: New file, derived from libstdc++.
+	* testsuite/lib/mfdg.exp: New file, derived from dejagnu.
+	* testsuite/config/default.exp: New file.
+	* testsuite/Makefile.am, Makefile.in: New files.
+
+2003-01-29  Frank Ch. Eigler  <fche@redhat.com>
+
+	* Makefile.am (TESTS_ENVIRONMENT): Remove redundant "-mode-check".
+	(TESTS): Add fail22 and pass29 tests.
+	* mf-runtime.h.in: Change API to take void*/size_t region parameters.
+	Add new access-type parameter for __mf_check.  Move __MF_VIOL* out.
+	* mf-impl.h: Corresponding changes.  Update CLAMP* macros for void*
+	values.  Move __MF_VIOL* here.
+	* mf-runtime.c (*): Adapt to void*/size_t API in mf-runtime.h.
+	(check_initialization): New field in __mf_opts.  Default off.
+	(read_count,write_count): New fields in __mf_object.
+	(__mf_check): Implement basic initialization checking.
+	(__mf_insert_new_object): Assume STATIC|GUESS regions are initialized.
+	(__mf_describe_object): Print new fields.
+	(__mf_violation): Identify check/read vs. check/write in messages.
+	* test/pass29-frag.c, test/fail22-frag.c: Basic tests for new
+	"-check-initialized" mudflap option.
+	* test/pass25-frag.c, test/fail21-frag.c: Adapt to API changes.
+	* mf-hooks.c (MF_VALIDATE_EXTENT): Add new access-type parameter.
+	Drop __FILE__/__LINE__ hack.  Update callers.
+	(*): Adapt to new mf-runtime.h API.
+	* Makefile.in: regenerated.
+
+2003-01-24  Frank Ch. Eigler  <fche@redhat.com>
+
+	* configure.in: Build mf-runtime.h a more proper way.
+	* mf-hooks.c (strdup, strndup): Correct reentrancy logic.
+	* mf-runtime.c (verbose_violations): Turn on by default.
+	* mf-runtime.h.in: Remove some miscellaneous stuff ...
+	* mf-impl.h: ... and move it here.
+	* configure: Regenerated.
+
+2003-01-22  Frank Ch. Eigler  <fche@redhat.com>
+
+	* configure.in: Look for C++ compiler.
+	* test/*-frag.c, mf-driver.c: Reformatted with GNU indent and
+	fixed type warnings when built with C++.
+	* test/pass27-frag.cxx, pass28-frag.cxx: New C++ tests.
+	* Makefile.am (TESTS): Run them.
+	(*) Add new rules for building and running C++ tests.
+	(TESTFLAGS): Set new default to avoid libstdc++-v3 shlib issues.
+	* mf-runtime.h.in: Protect with extern "C".
+	* Makefile, configure: Regenerated.
+
+2003-01-06  Frank Ch. Eigler  <fche@redhat.com>
+
+	Portability improvements.
+	* configure.in: Look for glibc backtrace headers/functions.
+	* mf-hooks.c: Don't include <execinfo.h> any more.
+	* mf-runtime.c (__mf_set_options): Call more stdlib functions
+	via CALL_REAL.
+	(__mf_backtrace): Provide alternate baby implementation in
+	absence of glibc.
+	* test/mf-driver.c: Portability tweaks.
+	* acinclude.m4: New file, containing top level libtool.m4.
+	* aclocal.m4, configure, Makefile.in, config.h.in: Regenerated.
+
+2002-12-19  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-runtime.h.in (HAVE_UINTPTR_T): Define unconditionally.
+
+2002-11-08  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-runtime.c (options): Add new "wipe-heap", "wipe-stack"
+	options.
+	(__mf_unregister): Implement stack/heap object wiping.
+	(__mf_set_options): Renamed from __mf_process_opts.
+	(__mf_uncache_object): Change arg type, correct callers.
+	* mf-impl.h: Corresponding changes.
+	* mf-hooks.c (realloc): Save/restore heap-wiping flag.
+	* mf-runtime.h.in (__mf_set_options): Extend public API.
+	* test/pass26-frag.c: New test for stack wiping.
+	* Makefile.am (TESTS): Run it.
+	* Makefile.in: Regenerated.
+
+2002-11-07  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-runtime.h.in (__mf_watch, __mf_unwatch): Extend public API.
+	* mf-runtime.c (__mf_object_t): Add watching_p field.
+	(__mf_watch_or_not): New function to implement
+	object watch flagging.
+	(__mf_watch, __mf_unwatch): New wrappers for above.
+	(__mf_check, __mf_describe_object): Handle objects with watching_p.
+	(__mf_count_violation): Enlarge array.
+	(__mf_uncache_object): Renamed from __mf_remove_old_object.  Don't
+	unlink object.  Clear cache properly.
+	(__mf_unregister): Unlink object explicitly before uncaching.
+	* test/fail21-frag.c, pass25-frag.c: New tests.
+	* Makefile.in, aclocal.m4: Regenerated.
+
+2002-11-05  Frank Ch. Eigler  <fche@redhat.com>
+
+	* test/fail20-frag.c: New test for NULL pointer dereferencing.
+	* Makefile.am (TESTS): Add it.
+	* test/pass-stratcliff.c: Add decls of stpcpy.
+	* configure.in: Test for <stdint.h>.  Generate mf-runtime.h in
+	build tree from config.h and new file mf-runtime.h.in.
+	* mf-runtime.h.in: Renamed from mf-runtime.h.  Tweak uintptr_t decl.
+	* Makefile.in, configure, config.h.in: Regenerated.
+	* mf-hooks.c: Add #undef for wrapped glibc str*/mem* macros.
+	* mf-runtime.c (options, __mf_set_default_options): Support new
+	default "abbreviate" option.
+	(__mf_object.description_epoch): New field.
+	(__mf_describe_object): Conditionally abbreviate objects already
+	displayed in current epoch.  Accept NULL input to increment epoch.
+	(__mf_fini, __mf_ini): Reset description epoch.
+	(__mf_register, __mf_unregister, __mf_adapt_cache, __mf_init): Ensure
+	that NULL pointer slot in lookup cache is invalidated.  Register a
+	NOACCESS region around NULL.
+	* mf-impl.h: Corresponding changes.
+
+2002-10-16  Frank Ch. Eigler  <fche@redhat.com>
+
+	* test/fail19-frag.c, pass24-frag.c, pass-stratcliff.c: New tests.
+	* Makefile.am: Run them.  Install mf-runtime.h.
+	* Makefile.in: Regenerated.
+	* mf-hooks.c: Add some markers for more missing functions.
+	* mf-runtime.c (__mf_adapt_cache): Experiment with a utilization-based
+	statistic to tune tune cache size (mask).
+
+2002-10-01  Frank Ch. Eigler  <fche@redhat.com>
+
+	* test/pass23-frag.c: New test for bit_field_ref expressions.
+	* Makefile.am, Makefile.in: Add new test.
+	* mf-hooks.c (mmap, munmap): Rewrite to track individual pages.
+	(MF_VALIDATE_EXTENT): Accept zero-size mem/str operations.
+	* mf-runtime.c (__mf_init): Register errno global.
+	(__mf_find_object): Removed function.
+	(__mf_check): Rewrite logic to support accesses across some
+	contiguous but distinctly registered objects.
+	(__mf_remove_old_object): Tolerate cache entries that span
+	contiguous objects.
+
+2002-09-30  Frank Ch. Eigler  <fche@redhat.com>
+
+	* test/pass21-frag.c, pass22-frag.c: New tests: alloca, bitfields.
+	* Makefile.am, Makefile.in: Run new tests.
+	* mf-hooks.c (alloca): Correct stack direction logic.
+
+2002-09-26  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-impl.h (adapt_cache): New option.
+	* mf-runtime.c (__mf_set_default_options): Set its default value.
+	Tweak the tree_aging parameter down.
+	(__mf_check): Maintain separate counter for cache-adaptation.
+	(__mf_tree_analyze): New function to collect object tree stats.
+	(__mf_adapt_cache): New function to automate cache parameters.
+
+2002-09-24  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-heuristics.c (__init_misc, __mf_heuristic_check): Add
+	hypothetical #if-0'd argv/envp region registration.
+	* mf-runtime.c (__mf_init): Add kludged form of above.
+	(*) Add "heur_argv_environ" flag, default on, to govern this.
+	* mf-impl.h: Corresponding changes.
+
+2002-09-20  Frank Ch. Eigler  <fche@redhat.com>
+
+	* test/fail18-frag.c: New test file for NOACCESS regions.
+	* Makefile.am (TESTS): Add new test.
+	* Makefile.in: Regenerated.
+
+	* mf-heuristics.c (__mf_heuristics_check): Correct deja_vu logic.
+	* mf-impl.h (tree_aging): Add new mudflap_option, default 1000000.
+	(optimize_object_tree): Remove unused mudflap_option.
+	* mf-runtime.h (__MF_TYPE_NOACCESS): New region type.  Add printing
+	support throughout.  Use .._MAX_CEM for cemetary upper bound.
+	* mf-runtime.c (__mf_init): Register __mf_* globals as NOACCESS
+	regions.
+	(__mf_object): Add new liveness field for use by tree aging.
+	(__mf_check): Trigger tree aging when needed.
+	(__mf_age_tree): New function to decay liveness field.
+	(__mf_find_objects_rec): Use liveness field to rotate tree.
+	(__mf_insert_new_object): Only provide backtrace for HEAP objects.
+	(__mf_unregister): Ditto.
+	(__mf_register): Tweak duplicate-static message.
+	(__mf_violation: Tweak nearby-object counter printing.
+
+2002-09-16  Frank Ch. Eigler  <fche@redhat.com>
+
+	* test/pass20-frag.c: New test file.
+	* Makefile.am (TESTS): Reorganize.  Add pass20 test.
+	* Makefile.in: Regenerated.
+
+	* mf-impl.h (TRACE_IN, TRACE_OUT): Remove macros.  Update callers.
+	* mf-hooks.c (BEGIN_PROTECT): Add hook tracing here.
+	* mf-heuristic.c (__mf_heuristic_check): Track seen /proc/self/map
+	entries to avoid repeat registration.
+	* mf-runtime.c (__mf_object_cemetary): Don't bother bury GUESS regions.
+	(__mf_register, __mf_unregister): Rewrite GUESS handling logic.
+
+2002-09-09  Frank Ch. Eigler  <fche@redhat.com>
+
+	* Makefile.am: Create test sources with #include, not cat>>.
+	* Makefile.in: Regenerated.
+	* test/buildtest.sh: Removed.
+	* test/driver.c (abort_handler, main): Be quiet.
+
+2002-09-06  Frank Ch. Eigler  <fche@redhat.com>
+
+	* test/pass18-frag.c, pass19-frag.c: New tests.
+	* Makefile.am (check): Run them.  Rebuild test programs each time.
+	* Makefile.in: Regenerated.
+
+2002-09-06  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-runtime.c (__mf_register): Correct SEGV-inducing error in
+	overlapping object search.
+	(__mf_violation): Likewise for nearby objects.
+	Improve nearby-object listing.
+
+	cleanup:
+	* mf-runtime.c, mf-hooks.c: Remove "{{{"/"}}}" folding marks.
+	* mf-heuristics.c (__mf_heuristic_check): Tweak message.
+
+2002-09-03  Frank Ch. Eigler  <fche@redhat.com>
+
+	alloca support:
+	* Makefile.am (AM_CFLAGS): New definition of needed settings.
+	(HOOKOBJS): Add alloca-hook.o.
+	* mf-hooks.c (alloca): New function to implement alloca in libiberty
+	style.
+	* mf-runtime.c (__mf_report): Call alloca(0) to flush remaining blocks.
+	(__mf_backtrace): Reimplement without using alloca.
+	* Makefile.in: Regenerated.
+
+	cleanup:
+	* mf-hooks.c: Use VERBOSE_TRACE throughout instead of fprintf(stderr).
+	Correct signedness bugs in length-tracking variables.
+	* mf-impl.h: Make options unsigned.
+	(CALL_WRAP): New macro to parallel CALL_REAL().
+	(DECLARE): Remove erroneous ";" at end.
+	* mf-runtime.c, mf-hooks.c, mf-heuristics.c: Replace remaining %p
+	formatting specs with %08lx.  Correct several compiler warnings.
+
+2002-08-28  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-runtime.c (__mf_violation): Try harder to locate nearby objects.
+
+2002-08-27  Frank Ch. Eigler  <fche@redhat.com>
+
+	libmudflap hook breakup:
+	* Makefile.am (TESTS_ENVIRONMENT): Add ../../gcc to LD_LIBRARY_PATH
+	for libgcc_s.
+	(TESTS): Make dependent on libmudflap.
+	(HOOKOBJS): Break up mf-hooks.o into many little hook objects,
+	compiled from segments of mf-hooks.c.
+	* mf-hooks.c: Corresponding changes: wrap each function in
+	#ifdef/#endif.
+	* Makefile.in: Regenerated.
+
+	Heuristics reorganization:
+	* mf-heuristics.c (__mf_register_ro_sections, __mf_init_heuristics):
+	Remove these functions.  Update callers.
+	(__mf_heuristic_check): Incorporate all the various heuristics.
+	Encode cacheability/retry judgement into trinary return value.
+	Separate start-end logic into a separate fallback heuristic.  Only
+	register relevant /proc/self/map segments.
+	* mf-impl.h: Corresponding changes.
+	* mf-runtime.c (__mf_check): Reorganize heuristics fallback logic.
+	(__mf_init): Don't call __mf_init_heuristics.
+
+	Tracing cleanup:
+	* mf-heuristics.c, mf-runtime.c: Use new MUDFLAP_OPTION
+	"-verbose-trace" to emit all tracing messages other than those of
+	basic public api.  Eliminate some duplicate/excessive messages.
+	* mf-runtime.h: Corresponding changes.
+
+2002-08-27  Graydon Hoare  <graydon@redhat.com>
+
+	* mf-impl.h (WRAPPER): Change to create linker aliases for __wrap
+	and __real when compiled with -DPIC.
+	* mf-hooks.c (WRAPPER): Change all uses of WRAPPER macro slightly.
+	* Makefile.am (AUTOMAKE_OPTIONS): Fix LD_LIBRARY_PATH for tests.
+	* Makefile.in: Regenerate.
+
+2002-08-26  Graydon Hoare  <graydon@redhat.com>
+
+	* mf-impl.h: New file, private implementation header.
+	* mf-runtime.h: Reorganize a bit.
+	(CLAMPSZ): Fix arithmetic.
+	(__MF_CACHE_MISS_P): Fix arithmetic.
+	* mf-runtime.c: Reorganize a bit.
+	(__mf_dynamic): New structure.
+	(resolve_single_dynamic): New function.
+	(__mf_resolve_dynamics): New function.
+	(__mf_init): Initialize dynamic wrappers.
+	* mf-hooks.c: Macro-ize __real calls.
+	Clamp various bits of arithmetic.
+	Add explicit __mf_check call contexts.
+	* Makefile.am: Add dependencies on mf-impl.h
+	* Makefile.in: Regenerate.
+	* configure.in: Comment out shared override.
+	* configure: Regenerate.
+
+2002-08-22  Graydon Hoare  <graydon@redhat.com>
+
+	* mf-runtime.c (__mf_process_opts): Sanity-check free_queue_length.
+	(__mf_check): Re-inialize and check heuristics before violation.
+	(__mf_register): Permit updating pure-guess regions.
+	* mf-hooks.c (__wrap_free): Correct some free queue logic.
+	(__wrap_dlopen): New wrapper function.
+	(__wrap_mmap): New wrapper function.
+	(__wrap_munmap): New wrapper function.
+	* mf-heuristics.c (__mf_register_ro_sections): Register *all* regions
+	which are not stack addresses.
+	(is_stack_address): New function.
+	(__mf_init_heuristics): Save and restore state, always initialize with
+	"starting" state.
+
+2002-08-21  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-hooks.c (MF_VALIDATE_EXTENT): Rewrite to correct off-by-one
+	error.  Pass location string.
+	(wrap_strcpy, wrap_strncpy): Remove extra %s in trace strings.
+	* mf-runtime.c (options): Add lc-mask, lc-shift options.
+	(__mf_process_opts): Apply some sanity checking for lc-mask.
+	(__mf_check, __mf_violation): Take new location-string argument.
+	Update callers to pass NULL if necessary.
+	(__mf_backtrace): New smart backtracer function.  Calls replace
+	several ad-hoc blocks elsewhere.
+	(__mf_describe_object): Remove bad reentrancy test.  Improve
+	tracing message.
+	* mf-runtime.h: Corresponding changes.  Public/private markup.
+	(__MF_CACHE_MISS_P): New macro.
+
+2002-08-20  Graydon Hoare  <graydon@redhat.com>
+
+	* mf-runtime.h: New option: stack_bound (heuristic).
+	Move some macros out of implementation files.
+	* mf-runtime.c: New option string: -stack-bound.
+	Unify recursion protection with hooks.
+	Add more logging.
+	(__mf_check): Call __mf_heuristic_check.
+	(__mf_process_opts): Fix "no-" processing.
+	* mf-heuristics.c (__mf_heuristic_check): New function.
+	* mf-hooks.c: Much off-by-one fixing, recursion protection.
+
+2002-08-20  Frank Ch. Eigler  <fche@redhat.com>
+
+	Option parsing improvements, region splitting bug fixes:
+	* mf-heuristics.c (__mf_register_ro_sections): Add warned casts.
+	* mf-runtime.h (heur_proc_map): New libmudflap option.
+	* mf-runtime.c (__mf_set_default_options): Set it.
+	(__mf_usage): Print default values/status.
+	(__mf_process_opts): Support general "no-" option string prefix.
+	(__mf_init): Print __mf_usage on unknown-option error.
+	(__mf_register): Print trace message up front.
+	Correct region splitting logic for case where a subregion disappears.
+	Correct memory leak.
+	(__mf_violation): Make even basic message conditional on option.
+
+	Build cleanup:
+	* Makefile.am (TESTS_ENVIRONMENT): Add -no-heur-proc-map.
+	(clean-local): New target.
+	(test/*x rules): Add -g CFLAGS.
+	(CFLAGS): Add -freorder-blocks.
+	(MFCONFIG_CFLAGS, INCLUDE): Remove unneeded settings.
+	* Makefile.in: Regenerated.
+	* Makefile, mf-config.h: Removed files.
+
+2002-08-16  Graydon Hoare  <graydon@redhat.com>
+
+	* mf-runtime.c (__mf_insert_new_object): Factor out of
+	__mf_register.
+	(__mf_remove_old_object): Factor out of __mf_unregister.
+	(__mf_register): Handle guessed regions, splitting
+	guesses when new registrations arrive.
+	(__mf_unregister): Do not unregister guesses.
+	* mf-runtime.h: Move convenience macros around,
+	declare new option fields. Add __MF_TYPE_GUESS.
+	* mf-hooks.c (__wrap_*alloc): Use crumple zones.
+	(__wrap_free): Call __real_free for deferred frees.
+	* Makefile.am: Add more tests, fix dependency.
+	* Makefile.in: Regenerate.
+	* test/pass[13..17]-frag.c: New testcases.
+	* test/fail[13..17]-frag.c: New testcases.
+
+2002-08-15  Graydon Hoare  <graydon@redhat.com>
+
+	* mf-heuristics.c: New file.
+	* mf-runtime.c (options): Add -trace-calls option.
+	(__mf_init): Call __mf_init_heuristics.
+
+2002-08-14  Graydon Hoare  <graydon@redhat.com>
+
+	* Makefile.am (TESTS): Add testsuite support.
+	* Makefile.in: Regenerate.
+	* test/mf-driver.c: New file.
+	* test/buildtest.sh: New file.
+	* test/passNN-frag.c: New testcases.
+	* test/failNN-frag.c: New testcases.
+
+2002-08-14  Graydon Hoare  <graydon@redhat.com>
+
+	* mf-hooks.c: Change __real_strlen() to __real_strlen()+1 when
+	verifying non-size-limited string extents.
+
+2002-08-14  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-hooks.c: Make __wrap string* functions use __real_str[n]len
+	instead of plain str[n]len for internal checks.
+	* mf-runtime.c (__mf_violation): Print optional stack traceback.
+
+2002-08-14  Frank Ch. Eigler  <fche@redhat.com>
+
+	* mf-hooks.c: Remove #if-0 around hooks that are now ld-wrapped.
+
+2002-08-13  Graydon Hoare  <graydon@redhat.com>
+
+	* mf-runtime.c: Rework configuration to operate on
+	environment variable options rather than #defines
+	(__mf_violation): Add simple fork-a-gdb violaiton mode.
+	(__mf_init): Set static __mf_active_p flag on startup,
+	to inhibit mudflap wrap-based checking during crt0.s.
+	* mf-runtime.h: Declare options structure.
+	* mf-hooks.c: New wrappings for mem*, b*, str*
+	libc functions (temporarily #if 0-ed out).
+
+2002-08-12  Frank Ch. Eigler  <fche@redhat.com>
+
+	* Makefile.am, configure.in: New files.
+	* Makefile.in, Makefile, configure, config.h.in: New generated files.
+	* stamp-h.in, aclocal.m4: Ditto.
+
+2002-08-08  Frank Ch. Eigler  <fche@redhat.com>
+
+	* Makefile: New file.
+	* mf-config.h: New file: runtime configuration.
+	* mf-hooks.c: New file: interposed libc functions.
+	* mf-runtime.c: New file: bulk of runtime.
+	* mf-runtime.h: New file: public functions.

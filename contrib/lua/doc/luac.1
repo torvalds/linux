@@ -1,0 +1,118 @@
+.\" $Id: luac.man,v 1.29 2011/11/16 13:53:40 lhf Exp $
+.TH LUAC 1 "$Date: 2011/11/16 13:53:40 $"
+.SH NAME
+luac \- Lua compiler
+.SH SYNOPSIS
+.B luac
+[
+.I options
+] [
+.I filenames
+]
+.SH DESCRIPTION
+.B luac
+is the Lua compiler.
+It translates programs written in the Lua programming language
+into binary files containing precompiled chunks
+that can be later loaded and executed.
+.LP
+The main advantages of precompiling chunks are:
+faster loading,
+protecting source code from accidental user changes,
+and
+off-line syntax checking.
+Precompiling does not imply faster execution
+because in Lua chunks are always compiled into bytecodes before being executed.
+.B luac
+simply allows those bytecodes to be saved in a file for later execution.
+Precompiled chunks are not necessarily smaller than the corresponding source.
+The main goal in precompiling is faster loading.
+.LP
+In the command line,
+you can mix
+text files containing Lua source and
+binary files containing precompiled chunks.
+.B luac
+produces a single output file containing the combined bytecodes
+for all files given.
+Executing the combined file is equivalent to executing the given files.
+By default,
+the output file is named
+.BR luac.out ,
+but you can change this with the
+.B \-o
+option.
+.LP
+Precompiled chunks are
+.I not
+portable across different architectures.
+Moreover,
+the internal format of precompiled chunks
+is likely to change when a new version of Lua is released.
+Make sure you save the source files of all Lua programs that you precompile.
+.LP
+.SH OPTIONS
+.TP
+.B \-l
+produce a listing of the compiled bytecode for Lua's virtual machine.
+Listing bytecodes is useful to learn about Lua's virtual machine.
+If no files are given, then
+.B luac
+loads
+.B luac.out
+and lists its contents.
+Use
+.B \-l \-l
+for a full listing.
+.TP
+.BI \-o " file"
+output to
+.IR file ,
+instead of the default
+.BR luac.out .
+(You can use
+.B "'\-'"
+for standard output,
+but not on platforms that open standard output in text mode.)
+The output file may be one of the given files because
+all files are loaded before the output file is written.
+Be careful not to overwrite precious files.
+.TP
+.B \-p
+load files but do not generate any output file.
+Used mainly for syntax checking and for testing precompiled chunks:
+corrupted files will probably generate errors when loaded.
+If no files are given, then
+.B luac
+loads
+.B luac.out
+and tests its contents.
+No messages are displayed if the file loads without errors.
+.TP
+.B \-s
+strip debug information before writing the output file.
+This saves some space in very large chunks,
+but if errors occur when running a stripped chunk,
+then the error messages may not contain the full information they usually do.
+In particular,
+line numbers and names of local variables are lost.
+.TP
+.B \-v
+show version information.
+.TP
+.B \-\-
+stop handling options.
+.TP
+.B \-
+stop handling options and process standard input.
+.SH "SEE ALSO"
+.BR lua (1)
+.br
+The documentation at lua.org.
+.SH DIAGNOSTICS
+Error messages should be self explanatory.
+.SH AUTHORS
+R. Ierusalimschy,
+L. H. de Figueiredo,
+W. Celes
+.\" EOF

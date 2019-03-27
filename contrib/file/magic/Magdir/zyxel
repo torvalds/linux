@@ -1,0 +1,17 @@
+
+#------------------------------------------------------------------------------
+# $File: zyxel,v 1.6 2009/09/19 16:28:13 christos Exp $
+# zyxel:  file(1) magic for ZyXEL modems
+#
+# From <rob@pe1chl.ampr.org>
+# These are the /etc/magic entries to decode datafiles as used for the
+# ZyXEL U-1496E DATA/FAX/VOICE modems.  (This header conforms to a
+# ZyXEL-defined standard)
+
+0	string		ZyXEL\002	ZyXEL voice data
+>10	byte		0		- CELP encoding
+>10	byte&0x0B	1		- ADPCM2 encoding
+>10	byte&0x0B	2		- ADPCM3 encoding
+>10	byte&0x0B	3		- ADPCM4 encoding
+>10	byte&0x0B	8		- New ADPCM3 encoding
+>10	byte&0x04	4		with resync

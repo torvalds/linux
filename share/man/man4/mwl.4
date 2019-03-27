@@ -1,0 +1,193 @@
+.\"-
+.\" Copyright (c) 2009 Sam Leffler, Errno Consulting
+.\" All rights reserved.
+.\""
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
+.\"    redistribution must be conditioned upon including a substantially
+.\"    similar Disclaimer requirement for further binary redistribution.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF NONINFRINGEMENT, MERCHANTIBILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+.\" THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY,
+.\" OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\" $FreeBSD$
+.\"/
+.Dd July 8, 2009
+.Dt MWL 4
+.Os
+.Sh NAME
+.Nm mwl
+.Nd "Marvell 88W8363 IEEE 802.11n wireless network driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device mwl"
+.Cd "device mwlfw"
+.Cd "device wlan"
+.Cd "device firmware"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_mwl_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for IEEE 802.11n wireless network adapters based on
+Marvell 88W8363 parts.
+PCI and/or CardBus interfaces are supported.
+.Pp
+This driver requires the firmware built with the
+.Nm mwlfw
+module to work.
+Normally this module is loaded on demand by the driver but it may
+also be compiled into the kernel.
+.Pp
+Supported features include 802.11n, power management, BSS, MBSS,
+and host-based access point operation modes.
+All host/device interaction is via DMA.
+.Pp
+The
+.Nm
+driver encapsulates IP and ARP traffic as 802.11 frames, however
+it can receive either 802.11 or 802.3 frames.
+Devices support 802.11n, 802.11a, 802.11g, and 802.11b operation with
+transmit speeds appropriate to each.
+The actual transmit speed used is dependent on signal quality and the
+.Dq "rate control"
+algorithm implemented in the firmware.
+All chips have hardware support for WEP,
+AES-CCM, TKIP, and Michael cryptographic operations.
+.Pp
+The driver supports
+.Cm station ,
+.Cm hostap ,
+.Cm mesh ,
+and
+.Cm wds
+mode operation.
+Multiple
+.Cm hostap
+virtual interfaces may be configured for simultaneous use.
+When multiple interfaces are configured each may have a separate
+mac address that is formed by setting the U/L bits in the mac
+address assigned to the underlying device.
+Any number of
+.Cm wds
+virtual interfaces may be configured together with
+.Cm hostap
+interfaces.
+Multiple
+.Cm station
+interfaces may be operated together with
+.Cm hostap
+interfaces to construct a wireless repeater device.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Pp
+Devices supported by the
+.Nm
+driver come in either Cardbus or mini-PCI packages.
+Wireless cards in Cardbus slots may be inserted and ejected on the fly.
+.Sh EXAMPLES
+Join an existing BSS network (ie: connect to an access point):
+.Bd -literal -offset indent
+ifconfig wlan create wlandev mwl0 inet 192.168.0.20 \e
+	netmask 0xffffff00"
+.Ed
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Bd -literal -offset indent
+ifconfig wlan create wlandev mwl0 inet 192.168.0.20 \e
+	netmask 0xffffff00 ssid my_net"
+.Ed
+.Pp
+Join a specific BSS network with WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan0 create wlandev mwl0
+ifconfig wlan0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+	wepmode on wepkey 0x8736639624
+.Ed
+.Pp
+Create an 802.11g host-based access point:
+.Bd -literal -offset indent
+ifconfig wlan0 create wlandev mwl0 wlanmode hostap
+ifconfig wlan0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
+	mode 11g
+.Ed
+.Pp
+Create an 802.11a mesh station:
+.Bd -literal -offset indent
+ifconfig wlan0 create wlandev mwl0 wlanmode mesh
+ifconfig wlan0 meshid my_mesh mode 11a inet 192.168.0.10/24
+.Ed
+.Pp
+Create two virtual 802.11a host-based access points, one
+with WEP enabled and one with no security, and bridge them to
+the fxp0 (wired) device:
+.Bd -literal -offset indent
+ifconfig wlan0 create wlandev mwl0 wlanmode hostap \e
+	ssid paying-customers wepmode on wepkey 0x1234567890 \e
+	mode 11a up
+ifconfig wlan1 create wlandev mwl0 wlanmode hostap bssid \e
+	ssid freeloaders up
+ifconfig bridge0 create addm wlan0 addm wlan1 addm fxp0 up
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "mwl%d: unable to setup builtin firmware"
+There was a problem downloading and/or setting up the firmware.
+The device is not usable.
+.It "mwl%d: failed to setup descriptors: %d"
+There was a problem setting up the DMA data structures.
+This typically is caused by not being able to allocate contiguous memory.
+.It "mwl%d: transmit timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+This should not happen.
+.It "mwl%d: device not present"
+A cardbus device was ejected while active; the request to the firmware
+was not completed.
+.El
+.Sh SEE ALSO
+.Xr cardbus 4 ,
+.Xr intro 4 ,
+.Xr mwlfw 4 ,
+.Xr pci 4 ,
+.Xr wlan 4 ,
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr wlan_xauth 4 ,
+.Xr hostapd 8 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 8.0 .
+.Sh BUGS
+The driver does not support power-save operation in station mode;
+consequently power use is suboptimal (e.g. on a laptop).

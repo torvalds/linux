@@ -1,0 +1,107 @@
+.\" Copyright 2000 The Aerospace Corporation.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1.  Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions, and the following disclaimer.
+.\" 2.  Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions, and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\" 3.  The name of The Aerospace Corporation may not be used to endorse or
+.\"     promote products derived from this software.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AEROSPACE CORPORATION "AS IS" AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AEROSPACE CORPORATION BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Author: Brooks Davis <brooks@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 18, 2001
+.Dt NG_GIF_DEMUX 4
+.Os
+.Sh NAME
+.Nm ng_gif_demux
+.Nd demultiplexer for packets from
+.Xr ng_gif 4
+nodes
+.Sh SYNOPSIS
+.In netgraph/ng_gif_demux.h
+.Sh DESCRIPTION
+The
+.Nm
+netgraph node type demultiplexes the output from
+.Xr ng_gif 4
+nodes in the
+.Xr netgraph 4
+networking subsystem.
+.Pp
+The
+.Dv gif
+hook is meant to be connected to the
+.Dv lower
+or
+.Dv orphans
+hook of an
+.Xr ng_gif 4
+node.
+The
+.Dv inet , inet6 , atalk , ipx , atm , natm ,
+and
+.Dv ns
+hooks output frames of the given type when they are received on the
+.Dv gif
+hook.
+When a frame is received on one of these hooks, it is encapsulated and
+sent out the
+.Dv gif
+hook.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Dv inet6"
+.It Va gif
+Connection to the
+.Dv lower
+or
+.Dv orphans
+hook of an
+.Xr ng_gif 4
+node.
+.It Va inet
+Hook for input and output of IP frames.
+.It Va inet6
+Hook for input and output of IPv6 frames.
+.It Va atalk
+Hook for input and output of AppleTalk frames.
+.It Va ipx
+Hook for input and output of IPX frames.
+.It Va atm
+Hook for input and output of ATM frames.
+.It Va natm
+Hook for input and output of NATM frames.
+.It Va ns
+Hook for input and output of NS frames.
+.El
+.Sh CONTROL MESSAGES
+This node type supports only the generic control messages.
+.Sh SEE ALSO
+.Xr gif 4 ,
+.Xr netgraph 4 ,
+.Xr netintro 4 ,
+.Xr ng_gif 4 ,
+.Xr ifconfig 8 ,
+.Xr ngctl 8 ,
+.Xr nghook 8
+.Sh AUTHORS
+.An Brooks Davis Aq Mt brooks@FreeBSD.org

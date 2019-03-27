@@ -1,0 +1,6 @@
+
+# ----------------------------------------------------------------------------
+# $File: ctags,v 1.6 2009/09/19 16:28:08 christos Exp $
+# ctags:  file (1) magic for Exuberant Ctags files
+# From: Alexander Mai <mai@migdal.ikp.physik.tu-darmstadt.de>
+0	search/1	=!_TAG	Exuberant Ctags tag file text

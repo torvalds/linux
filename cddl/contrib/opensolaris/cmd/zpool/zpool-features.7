@@ -1,0 +1,629 @@
+'\" te
+.\" Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>.
+.\" All Rights Reserved.
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License (the "License").
+.\" You may not use this file except in compliance with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or http://www.opensolaris.org/os/licensing.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" Copyright (c) 2012, 2017 by Delphix. All rights reserved.
+.\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+.\" Copyright (c) 2013, Joyent, Inc. All rights reserved.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 7, 2017
+.Dt ZPOOL-FEATURES 7
+.Os
+.Sh NAME
+.Nm zpool-features
+.Nd ZFS pool feature descriptions
+.Sh DESCRIPTION
+ZFS pool on\-disk format versions are specified via "features" which replace
+the old on\-disk format numbers (the last supported on\-disk format number is
+28).
+To enable a feature on a pool use the
+.Cm upgrade
+subcommand of the
+.Xr zpool 8
+command, or set the
+.Sy feature@feature_name
+property to
+.Ar enabled .
+.Pp
+The pool format does not affect file system version compatibility or the ability
+to send file systems between pools.
+.Pp
+Since most features can be enabled independently of each other the on\-disk
+format of the pool is specified by the set of all features marked as
+.Sy active
+on the pool.
+If the pool was created by another software version this set may
+include unsupported features.
+.Ss Identifying features
+Every feature has a guid of the form
+.Sy com.example:feature_name .
+The reverse DNS name ensures that the feature's guid is unique across all ZFS
+implementations.
+When unsupported features are encountered on a pool they will
+be identified by their guids.
+Refer to the documentation for the ZFS implementation that created the pool
+for information about those features.
+.Pp
+Each supported feature also has a short name.
+By convention a feature's short name is the portion of its guid which follows
+the ':' (e.g.
+.Sy com.example:feature_name
+would have the short name
+.Sy feature_name ),
+however a feature's short name may differ across ZFS implementations if
+following the convention would result in name conflicts.
+.Ss Feature states
+Features can be in one of three states:
+.Bl -tag -width "XXXXXXXX"
+.It Sy active
+This feature's on\-disk format changes are in effect on the pool.
+Support for this feature is required to import the pool in read\-write mode.
+If this feature is not read-only compatible, support is also required to
+import the pool in read\-only mode (see "Read\-only compatibility").
+.It Sy enabled
+An administrator has marked this feature as enabled on the pool, but the
+feature's on\-disk format changes have not been made yet.
+The pool can still be imported by software that does not support this feature,
+but changes may be made to the on\-disk format at any time which will move
+the feature to the
+.Sy active
+state.
+Some features may support returning to the
+.Sy enabled
+state after becoming
+.Sy active .
+See feature\-specific documentation for details.
+.It Sy disabled
+This feature's on\-disk format changes have not been made and will not be made
+unless an administrator moves the feature to the
+.Sy enabled
+state.
+Features cannot be disabled once they have been enabled.
+.El
+.Pp
+The state of supported features is exposed through pool properties of the form
+.Sy feature@short_name .
+.Ss Read\-only compatibility
+Some features may make on\-disk format changes that do not interfere with other
+software's ability to read from the pool.
+These features are referred to as "read\-only compatible".
+If all unsupported features on a pool are read\-only compatible, the pool can
+be imported in read\-only mode by setting the
+.Sy readonly
+property during import (see
+.Xr zpool 8
+for details on importing pools).
+.Ss Unsupported features
+For each unsupported feature enabled on an imported pool a pool property
+named
+.Sy unsupported@feature_guid
+will indicate why the import was allowed despite the unsupported feature.
+Possible values for this property are:
+.Bl -tag -width "XXXXXXXX"
+.It Sy inactive
+The feature is in the
+.Sy enabled
+state and therefore the pool's on\-disk format is still compatible with
+software that does not support this feature.
+.It Sy readonly
+The feature is read\-only compatible and the pool has been imported in
+read\-only mode.
+.El
+.Ss Feature dependencies
+Some features depend on other features being enabled in order to function
+properly.
+Enabling a feature will automatically enable any features it depends on.
+.Sh FEATURES
+The following features are supported on this system:
+.Bl -tag -width "XXXXXXXX"
+.It Sy async_destroy
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:async_destroy"
+.It GUID Ta com.delphix:async_destroy
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta none
+.El
+.Pp
+Destroying a file system requires traversing all of its data in order to
+return its used space to the pool.
+Without
+.Sy async_destroy
+the file system is not fully removed until all space has been reclaimed.
+If the destroy operation is interrupted by a reboot or power outage the next
+attempt to open the pool will need to complete the destroy operation
+synchronously.
+.Pp
+When
+.Sy async_destroy
+is enabled the file system's data will be reclaimed by a background process,
+allowing the destroy operation to complete without traversing the entire file
+system.
+The background process is able to resume interrupted destroys after the pool
+has been opened, eliminating the need to finish interrupted destroys as part
+of the open operation.
+The amount of space remaining to be reclaimed by the background process is
+available through the
+.Sy freeing
+property.
+.Pp
+This feature is only
+.Sy active
+while
+.Sy freeing
+is non\-zero.
+.It Sy empty_bpobj
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:empty_bpobj"
+.It GUID Ta com.delphix:empty_bpobj
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature increases the performance of creating and using a large number
+of snapshots of a single filesystem or volume, and also reduces the disk
+space required.
+.Pp
+When there are many snapshots, each snapshot uses many Block Pointer Objects
+.Pq bpobj's
+to track blocks associated with that snapshot.
+However, in common use cases, most of these bpobj's are empty.
+This feature allows us to create each bpobj on-demand, thus eliminating the
+empty bpobjs.
+.Pp
+This feature is
+.Sy active
+while there are any filesystems, volumes, or snapshots which were created
+after enabling this feature.
+.It Sy filesystem_limits
+.Bl -column "READ\-ONLY COMPATIBLE" "com.joyent:filesystem_limits"
+.It GUID Ta com.joyent:filesystem_limits
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta extensible_dataset
+.El
+.Pp
+This feature enables filesystem and snapshot limits.
+These limits can be used
+to control how many filesystems and/or snapshots can be created at the point in
+the tree on which the limits are set.
+.Pp
+This feature is
+.Sy active
+once either of the limit properties has been
+set on a dataset.
+Once activated the feature is never deactivated.
+.It Sy lz4_compress
+.Bl -column "READ\-ONLY COMPATIBLE" "org.illumos:lz4_compress"
+.It GUID Ta org.illumos:lz4_compress
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+.Sy lz4
+is a high-performance real-time compression algorithm that
+features significantly faster compression and decompression as well as a
+higher compression ratio than the older
+.Sy lzjb
+compression.
+Typically,
+.Sy lz4
+compression is approximately 50% faster on
+compressible data and 200% faster on incompressible data than
+.Sy lzjb .
+It is also approximately 80% faster on decompression, while
+giving approximately 10% better compression ratio.
+.Pp
+When the
+.Sy lz4_compress
+feature is set to
+.Sy enabled ,
+the
+administrator can turn on
+.Sy lz4
+compression on any dataset on the
+pool using the
+.Xr zfs 8
+command.
+Also, all newly written metadata
+will be compressed with
+.Sy lz4
+algorithm.
+Since this feature is not read-only compatible, this
+operation will render the pool unimportable on systems without support
+for the
+.Sy lz4_compress
+feature.
+Booting off of
+.Sy lz4
+-compressed root pools is supported.
+.Pp
+This feature becomes
+.Sy active
+as soon as it is enabled and will
+never return to being
+.Sy enabled .
+.It Sy multi_vdev_crash_dump
+.Bl -column "READ\-ONLY COMPATIBLE" "com.joyent:multi_vdev_crash_dump"
+.It GUID Ta com.joyent:multi_vdev_crash_dump
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature allows a dump device to be configured with a pool comprised
+of multiple vdevs.
+Those vdevs may be arranged in any mirrored or raidz
+configuration.
+.\" TODO: this is not yet supported on FreeBSD.
+.\" .Pp
+.\" When the
+.\" .Sy multi_vdev_crash_dump
+.\" feature is set to
+.\" .Sy enabled ,
+.\" the administrator can use the
+.\" .Xr dumpon 8
+.\" command to configure a
+.\" dump device on a pool comprised of multiple vdevs.
+.It Sy spacemap_histogram
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:spacemap_histogram"
+.It GUID Ta com.delphix:spacemap_histogram
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This features allows ZFS to maintain more information about how free space
+is organized within the pool.
+If this feature is
+.Sy enabled ,
+ZFS will
+set this feature to
+.Sy active
+when a new space map object is created or
+an existing space map is upgraded to the new format.
+Once the feature is
+.Sy active ,
+it will remain in that state until the pool is destroyed.
+.It Sy extensible_dataset
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:extensible_dataset"
+.It GUID Ta com.delphix:extensible_dataset
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature allows more flexible use of internal ZFS data structures,
+and exists for other features to depend on.
+.Pp
+This feature will be
+.Sy active
+when the first dependent feature uses it,
+and will be returned to the
+.Sy enabled
+state when all datasets that use
+this feature are destroyed.
+.It Sy bookmarks
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:bookmarks"
+.It GUID Ta com.delphix:bookmarks
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta extensible_dataset
+.El
+.Pp
+This feature enables use of the
+.Nm zfs
+.Cm bookmark
+subcommand.
+.Pp
+This feature is
+.Sy active
+while any bookmarks exist in the pool.
+All bookmarks in the pool can be listed by running
+.Nm zfs
+.Cm list
+.Fl t No bookmark Fl r Ar poolname .
+.It Sy enabled_txg
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:enabled_txg"
+.It GUID Ta com.delphix:enabled_txg
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta none
+.El
+.Pp
+Once this feature is enabled ZFS records the transaction group number
+in which new features are enabled.
+This has no user-visible impact,
+but other features may depend on this feature.
+.Pp
+This feature becomes
+.Sy active
+as soon as it is enabled and will
+never return to being
+.Sy enabled .
+.It Sy hole_birth
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:hole_birth"
+.It GUID Ta com.delphix:hole_birth
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta enabled_txg
+.El
+.Pp
+This feature improves performance of incremental sends
+.Pq Dq zfs send -i
+and receives for objects with many holes.
+The most common case of
+hole-filled objects is zvols.
+.Pp
+An incremental send stream from snapshot
+.Sy A
+to snapshot
+.Sy B
+contains information about every block that changed between
+.Sy A
+and
+.Sy B .
+Blocks which did not change between those snapshots can be
+identified and omitted from the stream using a piece of metadata called
+the 'block birth time', but birth times are not recorded for holes
+.Pq blocks filled only with zeroes .
+Since holes created after
+.Sy A
+cannot be
+distinguished from holes created before
+.Sy A ,
+information about every
+hole in the entire filesystem or zvol is included in the send stream.
+.Pp
+For workloads where holes are rare this is not a problem.
+However, when
+incrementally replicating filesystems or zvols with many holes
+.Pq for example a zvol formatted with another filesystem
+a lot of time will
+be spent sending and receiving unnecessary information about holes that
+already exist on the receiving side.
+.Pp
+Once the
+.Sy hole_birth
+feature has been enabled the block birth times
+of all new holes will be recorded.
+Incremental sends between snapshots
+created after this feature is enabled will use this new metadata to avoid
+sending information about holes that already exist on the receiving side.
+.Pp
+This feature becomes
+.Sy active
+as soon as it is enabled and will
+never return to being
+.Sy enabled .
+.It Sy embedded_data
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:embedded_data"
+.It GUID Ta com.delphix:embedded_data
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature improves the performance and compression ratio of
+highly-compressible blocks.
+Blocks whose contents can compress to 112 bytes
+or smaller can take advantage of this feature.
+.Pp
+When this feature is enabled, the contents of highly-compressible blocks are
+stored in the block "pointer" itself
+.Po a misnomer in this case, as it contains
+the compressed data, rather than a pointer to its location on disk
+.Pc .
+Thus
+the space of the block
+.Pq one sector, typically 512 bytes or 4KB
+is saved,
+and no additional i/o is needed to read and write the data block.
+.Pp
+This feature becomes
+.Sy active
+as soon as it is enabled and will
+never return to being
+.Sy enabled .
+.It Sy zpool_checkpoint
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:zpool_checkpoint"
+.It GUID Ta com.delphix:zpool_checkpoint
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature enables the "zpool checkpoint" subcommand that can
+checkpoint the state of the pool at the time it was issued and later
+rewind back to it or discard it.
+.Pp
+This feature becomes
+.Sy active
+when the "zpool checkpoint" command is used to checkpoint the pool.
+The feature will only return back to being
+.Sy enabled
+when the pool is rewound or the checkpoint has been discarded.
+.It Sy device_removal
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:device_removal"
+.It GUID Ta com.delphix:device_removal
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature enables the "zpool remove" subcommand to remove top-level
+vdevs, evacuating them to reduce the total size of the pool.
+.Pp
+This feature becomes
+.Sy active
+when the "zpool remove" command is used
+on a top-level vdev, and will never return to being 
+.Sy enabled .
+.It Sy obsolete_counts
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:obsolete_counts"
+.It GUID Ta com.delphix:obsolete_counts
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta device_removal
+.El
+.Pp
+This feature is an enhancement of device_removal, which will over time
+reduce the memory used to track removed devices.  When indirect blocks
+are freed or remapped, we note that their part of the indirect mapping
+is "obsolete", i.e. no longer needed.  See also the "zfs remap"
+subcommand in
+.Xr zfs 8 .
+
+This feature becomes
+.Sy active
+when the "zpool remove" command is
+used on a top-level vdev, and will never return to being
+.Sy enabled .
+.It Sy spacemap_v2
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:spacemap_v2"
+.It GUID Ta com.delphix:spacemap_v2
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature enables the use of the new space map encoding which
+consists of two words (instead of one) whenever it is advantageous.
+The new encoding allows space maps to represent large regions of
+space more efficiently on-disk while also increasing their maximum
+addressable offset.
+.Pp
+This feature becomes
+.Sy active
+as soon as it is enabled and will
+never return to being
+.Sy enabled .
+.It Sy large_blocks
+.Bl -column "READ\-ONLY COMPATIBLE" "org.open-zfs:large_block"
+.It GUID Ta org.open-zfs:large_block
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta extensible_dataset
+.El
+.Pp
+The
+.Sy large_block
+feature allows the record size on a dataset to be
+set larger than 128KB.
+.Pp
+This feature becomes
+.Sy active
+once a
+.Sy recordsize
+property has been set larger than 128KB, and will return to being
+.Sy enabled
+once all filesystems that have ever had their recordsize larger than 128KB
+are destroyed.
+.Pp
+Please note that booting from datasets that have recordsize greater than
+128KB is
+.Em NOT
+supported by the
+.Fx
+boot loader.
+.It Sy sha512
+.Bl -column "READ\-ONLY COMPATIBLE" "org.illumos:sha512"
+.It GUID Ta org.illumos:sha512
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+The
+.Sy sha512
+feature enables the use of the SHA-512/256 truncated hash algorithm
+.Pq FIPS 180-4
+for checksum and dedup.
+The native 64-bit arithmetic of SHA-512 provides an approximate 50%
+performance boost over SHA-256 on 64-bit hardware and is thus a good
+minimum-change replacement candidate for systems where hash performance is
+important, but these systems cannot for whatever reason utilize the faster
+.Sy skein
+algorithms.
+.Pp
+When the
+.Sy sha512
+feature is set to
+.Sy enabled ,
+the administrator can turn on the
+.Sy sha512
+checksum on any dataset using the
+.Dl # zfs set checksum=sha512 Ar dataset
+command.
+This feature becomes
+.Sy active
+once a
+.Sy checksum
+property has been set to
+.Sy sha512 ,
+and will return to being
+.Sy enabled
+once all filesystems that have ever had their checksum set to
+.Sy sha512
+are destroyed.
+.It Sy skein
+.Bl -column "READ\-ONLY COMPATIBLE" "org.illumos:skein"
+.It GUID Ta org.illumos:skein
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+The
+.Sy skein
+feature enables the use of the Skein hash algorithm for checksum and dedup.
+Skein is a high-performance secure hash algorithm that was a finalist in the
+NIST SHA-3 competition.
+It provides a very high security margin and high performance on 64-bit hardware
+.Pq 80% faster than SHA-256 .
+This implementation also utilizes the new salted checksumming functionality in
+ZFS, which means that the checksum is pre-seeded with a secret 256-bit random
+key
+.Pq stored on the pool
+before being fed the data block to be checksummed.
+Thus the produced checksums are unique to a given pool, preventing hash
+collision attacks on systems with dedup.
+.Pp
+When the
+.Sy skein
+feature is set to
+.Sy enabled ,
+the administrator can turn on the
+.Sy skein
+checksum on any dataset using the
+.Dl # zfs set checksum=skein Ar dataset
+command.
+This feature becomes
+.Sy active
+once a
+.Sy checksum
+property has been set to
+.Sy skein ,
+and will return to being
+.Sy enabled
+once all filesystems that have ever had their checksum set to
+.Sy skein
+are destroyed.
+.El
+.Sh SEE ALSO
+.Xr zpool 8
+.Sh AUTHORS
+This manual page is a
+.Xr mdoc 7
+reimplementation of the
+.Tn illumos
+manual page
+.Em zpool-features(5) ,
+modified and customized for
+.Fx
+and licensed under the Common Development and Distribution License
+.Pq Tn CDDL .
+.Pp
+The
+.Xr mdoc 7
+implementation of this manual page was initially written by
+.An Martin Matuska Aq mm@FreeBSD.org .

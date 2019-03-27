@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+# This Unicode escape sequence that has never been in range should either
+# fail to expand or expand to a fallback.
+
+c=$(eval printf %s \$\'\\Uffffff41\' 2>/dev/null)
+r=$(($? != 0))
+[ "$r.$c" = '1.' ] || [ "$r.$c" = '0.?' ] || [ "$r.$c" = $'0.\u2222' ]

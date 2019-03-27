@@ -1,0 +1,1508 @@
+\ Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
+\
+\ Permission is hereby granted, free of charge, to any person obtaining 
+\ a copy of this software and associated documentation files (the
+\ "Software"), to deal in the Software without restriction, including
+\ without limitation the rights to use, copy, modify, merge, publish,
+\ distribute, sublicense, and/or sell copies of the Software, and to
+\ permit persons to whom the Software is furnished to do so, subject to
+\ the following conditions:
+\
+\ The above copyright notice and this permission notice shall be 
+\ included in all copies or substantial portions of the Software.
+\
+\ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
+\ EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+\ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
+\ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+\ BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+\ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+\ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+\ SOFTWARE.
+
+preamble {
+
+#include "inner.h"
+
+/*
+ * Implementation Notes
+ * --------------------
+ *
+ * The C code pushes the data by chunks; all decoding is done in the
+ * T0 code. The cert_length value is set to the certificate length when
+ * a new certificate is started; the T0 code picks it up as outer limit,
+ * and decoding functions use it to ensure that no attempt is made at
+ * reading past it. The T0 code also checks that once the certificate is
+ * decoded, there are no trailing bytes.
+ *
+ * The T0 code sets cert_length to 0 when the certificate is fully
+ * decoded.
+ *
+ * The C code must still perform two checks:
+ *
+ *  -- If the certificate length is 0, then the T0 code will not be
+ *  invoked at all. This invalid condition must thus be reported by the
+ *  C code.
+ *
+ *  -- When reaching the end of certificate, the C code must verify that
+ *  the certificate length has been set to 0, thereby signaling that
+ *  the T0 code properly decoded a certificate.
+ *
+ * Processing of a chain works in the following way:
+ *
+ *  -- The error flag is set to a non-zero value when validation is
+ *  finished. The value is either BR_ERR_X509_OK (validation is
+ *  successful) or another non-zero error code. When a non-zero error
+ *  code is obtained, the remaining bytes in the current certificate and
+ *  the subsequent certificates (if any) are completely ignored.
+ *
+ *  -- Each certificate is decoded in due course, with the following
+ *  "interesting points":
+ *
+ *     -- Start of the TBS: the multihash engine is reset and activated.
+ *
+ *     -- Start of the issuer DN: the secondary hash engine is started,
+ *     to process the encoded issuer DN.
+ *
+ *     -- End of the issuer DN: the secondary hash engine is stopped. The
+ *     resulting hash value is computed and then copied into the
+ *     next_dn_hash[] buffer.
+ *
+ *     -- Start of the subject DN: the secondary hash engine is started,
+ *     to process the encoded subject DN.
+ *
+ *     -- For the EE certificate only: the Common Name, if any, is matched
+ *     against the expected server name.
+ *
+ *     -- End of the subject DN: the secondary hash engine is stopped. The
+ *     resulting hash value is computed into the pad. It is then processed:
+ *
+ *        -- If this is the EE certificate, then the hash is ignored
+ *        (except for direct trust processing, see later; the hash is
+ *        simply left in current_dn_hash[]).
+ *
+ *        -- Otherwise, the hashed subject DN is compared with the saved
+ *        hash value (in saved_dn_hash[]). They must match.
+ *
+ *     Either way, the next_dn_hash[] value is then copied into the
+ *     saved_dn_hash[] value. Thus, at that point, saved_dn_hash[]
+ *     contains the hash of the issuer DN for the current certificate,
+ *     and current_dn_hash[] contains the hash of the subject DN for the
+ *     current certificate.
+ *
+ *     -- Public key: it is decoded into the cert_pkey[] buffer. Unknown
+ *     key types are reported at that point.
+ *
+ *        -- If this is the EE certificate, then the key type is compared
+ *        with the expected key type (initialization parameter). The public
+ *        key data is copied to ee_pkey_data[]. The key and hashed subject
+ *        DN are also compared with the "direct trust" keys; if the key
+ *        and DN are matched, then validation ends with a success.
+ *
+ *        -- Otherwise, the saved signature (cert_sig[]) is verified
+ *        against the saved TBS hash (tbs_hash[]) and that freshly
+ *        decoded public key. Failure here ends validation with an error.
+ *
+ *     -- Extensions: extension values are processed in due order.
+ *
+ *        -- Basic Constraints: for all certificates except EE, must be
+ *        present, indicate a CA, and have a path legnth compatible with
+ *        the chain length so far.
+ *
+ *        -- Key Usage: for the EE, if present, must allow signatures
+ *        or encryption/key exchange, as required for the cipher suite.
+ *        For non-EE, if present, must have the "certificate sign" bit.
+ *
+ *        -- Subject Alt Name: for the EE, dNSName names are matched
+ *        against the server name. Ignored for non-EE.
+ *
+ *        -- Authority Key Identifier, Subject Key Identifier, Issuer
+ *        Alt Name, Subject Directory Attributes, CRL Distribution Points
+ *        Freshest CRL, Authority Info Access and Subject Info Access
+ *        extensions are always ignored: they either contain only
+ *        informative data, or they relate to revocation processing, which
+ *        we explicitly do not support.
+ *
+ *        -- All other extensions are ignored if non-critical. If a
+ *        critical extension other than the ones above is encountered,
+ *        then a failure is reported.
+ *
+ *     -- End of the TBS: the multihash engine is stopped.
+ *
+ *     -- Signature algorithm: the signature algorithm on the
+ *     certificate is decoded. A failure is reported if that algorithm
+ *     is unknown. The hashed TBS corresponding to the signature hash
+ *     function is computed and stored in tbs_hash[] (if not supported,
+ *     then a failure is reported). The hash OID and length are stored
+ *     in cert_sig_hash_oid and cert_sig_hash_len.
+ *
+ *     -- Signature value: the signature value is copied into the
+ *     cert_sig[] array.
+ *
+ *     -- Certificate end: the hashed issuer DN (saved_dn_hash[]) is
+ *     looked up in the trust store (CA trust anchors only); for all
+ *     that match, the signature (cert_sig[]) is verified against the
+ *     anchor public key (hashed TBS is in tbs_hash[]). If one of these
+ *     signatures is valid, then validation ends with a success.
+ *
+ *  -- If the chain end is reached without obtaining a validation success,
+ *  then validation is reported as failed.
+ */
+
+#if BR_USE_UNIX_TIME
+#include <time.h>
+#endif
+
+#if BR_USE_WIN32_TIME
+#include <windows.h>
+#endif
+
+/*
+ * The T0 compiler will produce these prototypes declarations in the
+ * header.
+ *
+void br_x509_minimal_init_main(void *ctx);
+void br_x509_minimal_run(void *ctx);
+ */
+
+/* see bearssl_x509.h */
+void
+br_x509_minimal_init(br_x509_minimal_context *ctx,
+	const br_hash_class *dn_hash_impl,
+	const br_x509_trust_anchor *trust_anchors, size_t trust_anchors_num)
+{
+	memset(ctx, 0, sizeof *ctx);
+	ctx->vtable = &br_x509_minimal_vtable;
+	ctx->dn_hash_impl = dn_hash_impl;
+	ctx->trust_anchors = trust_anchors;
+	ctx->trust_anchors_num = trust_anchors_num;
+}
+
+static void
+xm_start_chain(const br_x509_class **ctx, const char *server_name)
+{
+	br_x509_minimal_context *cc;
+	size_t u;
+
+	cc = (br_x509_minimal_context *)(void *)ctx;
+	for (u = 0; u < cc->num_name_elts; u ++) {
+		cc->name_elts[u].status = 0;
+		cc->name_elts[u].buf[0] = 0;
+	}
+	memset(&cc->pkey, 0, sizeof cc->pkey);
+	cc->num_certs = 0;
+	cc->err = 0;
+	cc->cpu.dp = cc->dp_stack;
+	cc->cpu.rp = cc->rp_stack;
+	br_x509_minimal_init_main(&cc->cpu);
+	if (server_name == NULL || *server_name == 0) {
+		cc->server_name = NULL;
+	} else {
+		cc->server_name = server_name;
+	}
+}
+
+static void
+xm_start_cert(const br_x509_class **ctx, uint32_t length)
+{
+	br_x509_minimal_context *cc;
+
+	cc = (br_x509_minimal_context *)(void *)ctx;
+	if (cc->err != 0) {
+		return;
+	}
+	if (length == 0) {
+		cc->err = BR_ERR_X509_TRUNCATED;
+		return;
+	}
+	cc->cert_length = length;
+}
+
+static void
+xm_append(const br_x509_class **ctx, const unsigned char *buf, size_t len)
+{
+	br_x509_minimal_context *cc;
+
+	cc = (br_x509_minimal_context *)(void *)ctx;
+	if (cc->err != 0) {
+		return;
+	}
+	cc->hbuf = buf;
+	cc->hlen = len;
+	br_x509_minimal_run(&cc->cpu);
+}
+
+static void
+xm_end_cert(const br_x509_class **ctx)
+{
+	br_x509_minimal_context *cc;
+
+	cc = (br_x509_minimal_context *)(void *)ctx;
+	if (cc->err == 0 && cc->cert_length != 0) {
+		cc->err = BR_ERR_X509_TRUNCATED;
+	}
+	cc->num_certs ++;
+}
+
+static unsigned
+xm_end_chain(const br_x509_class **ctx)
+{
+	br_x509_minimal_context *cc;
+
+	cc = (br_x509_minimal_context *)(void *)ctx;
+	if (cc->err == 0) {
+		if (cc->num_certs == 0) {
+			cc->err = BR_ERR_X509_EMPTY_CHAIN;
+		} else {
+			cc->err = BR_ERR_X509_NOT_TRUSTED;
+		}
+	} else if (cc->err == BR_ERR_X509_OK) {
+		return 0;
+	}
+	return (unsigned)cc->err;
+}
+
+static const br_x509_pkey *
+xm_get_pkey(const br_x509_class *const *ctx, unsigned *usages)
+{
+	br_x509_minimal_context *cc;
+
+	cc = (br_x509_minimal_context *)(void *)ctx;
+	if (cc->err == BR_ERR_X509_OK
+		|| cc->err == BR_ERR_X509_NOT_TRUSTED)
+	{
+		if (usages != NULL) {
+			*usages = cc->key_usages;
+		}
+		return &((br_x509_minimal_context *)(void *)ctx)->pkey;
+	} else {
+		return NULL;
+	}
+}
+
+/* see bearssl_x509.h */
+const br_x509_class br_x509_minimal_vtable = {
+	sizeof(br_x509_minimal_context),
+	xm_start_chain,
+	xm_start_cert,
+	xm_append,
+	xm_end_cert,
+	xm_end_chain,
+	xm_get_pkey
+};
+
+#define CTX   ((br_x509_minimal_context *)(void *)((unsigned char *)t0ctx - offsetof(br_x509_minimal_context, cpu)))
+#define CONTEXT_NAME   br_x509_minimal_context
+
+#define DNHASH_LEN   ((CTX->dn_hash_impl->desc >> BR_HASHDESC_OUT_OFF) & BR_HASHDESC_OUT_MASK)
+
+/*
+ * Hash a DN (from a trust anchor) into the provided buffer. This uses the
+ * DN hash implementation and context structure from the X.509 engine
+ * context.
+ */
+static void
+hash_dn(br_x509_minimal_context *ctx, const void *dn, size_t len,
+	unsigned char *out)
+{
+	ctx->dn_hash_impl->init(&ctx->dn_hash.vtable);
+	ctx->dn_hash_impl->update(&ctx->dn_hash.vtable, dn, len);
+	ctx->dn_hash_impl->out(&ctx->dn_hash.vtable, out);
+}
+
+/*
+ * Compare two big integers for equality. The integers use unsigned big-endian
+ * encoding; extra leading bytes (of value 0) are allowed.
+ */
+static int
+eqbigint(const unsigned char *b1, size_t len1,
+	const unsigned char *b2, size_t len2)
+{
+	while (len1 > 0 && *b1 == 0) {
+		b1 ++;
+		len1 --;
+	}
+	while (len2 > 0 && *b2 == 0) {
+		b2 ++;
+		len2 --;
+	}
+	if (len1 != len2) {
+		return 0;
+	}
+	return memcmp(b1, b2, len1) == 0;
+}
+
+/*
+ * Compare two strings for equality, in a case-insensitive way. This
+ * function handles casing only for ASCII letters.
+ */
+static int
+eqnocase(const void *s1, const void *s2, size_t len)
+{
+	const unsigned char *buf1, *buf2;
+
+	buf1 = s1;
+	buf2 = s2;
+	while (len -- > 0) {
+		int x1, x2;
+
+		x1 = *buf1 ++;
+		x2 = *buf2 ++;
+		if (x1 >= 'A' && x1 <= 'Z') {
+			x1 += 'a' - 'A';
+		}
+		if (x2 >= 'A' && x2 <= 'Z') {
+			x2 += 'a' - 'A';
+		}
+		if (x1 != x2) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+static int verify_signature(br_x509_minimal_context *ctx,
+	const br_x509_pkey *pk);
+
+}
+
+postamble {
+
+/*
+ * Verify the signature on the certificate with the provided public key.
+ * This function checks the public key type with regards to the expected
+ * type. Returned value is either 0 on success, or a non-zero error code.
+ */
+static int
+verify_signature(br_x509_minimal_context *ctx, const br_x509_pkey *pk)
+{
+	int kt;
+
+	kt = ctx->cert_signer_key_type;
+	if ((pk->key_type & 0x0F) != kt) {
+		return BR_ERR_X509_WRONG_KEY_TYPE;
+	}
+	switch (kt) {
+		unsigned char tmp[64];
+
+	case BR_KEYTYPE_RSA:
+		if (ctx->irsa == 0) {
+			return BR_ERR_X509_UNSUPPORTED;
+		}
+		if (!ctx->irsa(ctx->cert_sig, ctx->cert_sig_len,
+			&t0_datablock[ctx->cert_sig_hash_oid],
+			ctx->cert_sig_hash_len, &pk->key.rsa, tmp))
+		{
+			return BR_ERR_X509_BAD_SIGNATURE;
+		}
+		if (memcmp(ctx->tbs_hash, tmp, ctx->cert_sig_hash_len) != 0) {
+			return BR_ERR_X509_BAD_SIGNATURE;
+		}
+		return 0;
+
+	case BR_KEYTYPE_EC:
+		if (ctx->iecdsa == 0) {
+			return BR_ERR_X509_UNSUPPORTED;
+		}
+		if (!ctx->iecdsa(ctx->iec, ctx->tbs_hash,
+			ctx->cert_sig_hash_len, &pk->key.ec,
+			ctx->cert_sig, ctx->cert_sig_len))
+		{
+			return BR_ERR_X509_BAD_SIGNATURE;
+		}
+		return 0;
+
+	default:
+		return BR_ERR_X509_UNSUPPORTED;
+	}
+}
+
+}
+
+cc: read8-low ( -- x ) {
+	if (CTX->hlen == 0) {
+		T0_PUSHi(-1);
+	} else {
+		unsigned char x = *CTX->hbuf ++;
+		if (CTX->do_mhash) {
+			br_multihash_update(&CTX->mhash, &x, 1);
+		}
+		if (CTX->do_dn_hash) {
+			CTX->dn_hash_impl->update(&CTX->dn_hash.vtable, &x, 1);
+		}
+		CTX->hlen --;
+		T0_PUSH(x);
+	}
+}
+
+addr: cert_length
+addr: num_certs
+
+cc: read-blob-inner ( addr len -- addr len ) {
+	uint32_t len = T0_POP();
+	uint32_t addr = T0_POP();
+	size_t clen = CTX->hlen;
+	if (clen > len) {
+		clen = (size_t)len;
+	}
+	if (addr != 0) {
+		memcpy((unsigned char *)CTX + addr, CTX->hbuf, clen);
+	}
+	if (CTX->do_mhash) {
+		br_multihash_update(&CTX->mhash, CTX->hbuf, clen);
+	}
+	if (CTX->do_dn_hash) {
+		CTX->dn_hash_impl->update(
+			&CTX->dn_hash.vtable, CTX->hbuf, clen);
+	}
+	CTX->hbuf += clen;
+	CTX->hlen -= clen;
+	T0_PUSH(addr + clen);
+	T0_PUSH(len - clen);
+}
+
+\ Compute the TBS hash, using the provided hash ID. The hash value is
+\ written in the tbs_hash[] array, and the hash length is returned. If
+\ the requested hash function is not supported, then 0 is returned.
+cc: compute-tbs-hash ( id -- hashlen ) {
+	int id = T0_POPi();
+	size_t len;
+	len = br_multihash_out(&CTX->mhash, id, CTX->tbs_hash);
+	T0_PUSH(len);
+}
+
+\ Push true (-1) if no server name is expected in the EE certificate.
+cc: zero-server-name ( -- bool ) {
+	T0_PUSHi(-(CTX->server_name == NULL));
+}
+
+addr: key_usages
+addr: cert_sig
+addr: cert_sig_len
+addr: cert_signer_key_type
+addr: cert_sig_hash_oid
+addr: cert_sig_hash_len
+addr: tbs_hash
+addr: min_rsa_size
+
+\ Start TBS hash computation. The hash functions are reinitialised.
+cc: start-tbs-hash ( -- ) {
+	br_multihash_init(&CTX->mhash);
+	CTX->do_mhash = 1;
+}
+
+\ Stop TBS hash computation.
+cc: stop-tbs-hash ( -- ) {
+	CTX->do_mhash = 0;
+}
+
+\ Start DN hash computation.
+cc: start-dn-hash ( -- ) {
+	CTX->dn_hash_impl->init(&CTX->dn_hash.vtable);
+	CTX->do_dn_hash = 1;
+}
+
+\ Terminate DN hash computation and write the DN hash into the
+\ current_dn_hash buffer.
+cc: compute-dn-hash ( -- ) {
+	CTX->dn_hash_impl->out(&CTX->dn_hash.vtable, CTX->current_dn_hash);
+	CTX->do_dn_hash = 0;
+}
+
+\ Get the length of hash values obtained with the DN hasher.
+cc: dn-hash-length ( -- len ) {
+	T0_PUSH(DNHASH_LEN);
+}
+
+\ Copy data between two areas in the context.
+cc: blobcopy ( addr-dst addr-src len -- ) {
+	size_t len = T0_POP();
+	unsigned char *src = (unsigned char *)CTX + T0_POP();
+	unsigned char *dst = (unsigned char *)CTX + T0_POP();
+	memcpy(dst, src, len);
+}
+
+addr: current_dn_hash
+addr: next_dn_hash
+addr: saved_dn_hash
+
+\ Read a DN, hashing it into current_dn_hash. The DN contents are not
+\ inspected (only the outer tag, for SEQUENCE, is checked).
+: read-DN ( lim -- lim )
+	start-dn-hash
+	read-sequence-open skip-close-elt
+	compute-dn-hash ;
+
+cc: offset-name-element ( san -- n ) {
+	unsigned san = T0_POP();
+	size_t u;
+
+	for (u = 0; u < CTX->num_name_elts; u ++) {
+		if (CTX->name_elts[u].status == 0) {
+			const unsigned char *oid;
+			size_t len, off;
+
+			oid = CTX->name_elts[u].oid;
+			if (san) {
+				if (oid[0] != 0 || oid[1] != 0) {
+					continue;
+				}
+				off = 2;
+			} else {
+				off = 0;
+			}
+			len = oid[off];
+			if (len != 0 && len == CTX->pad[0]
+				&& memcmp(oid + off + 1,
+					CTX->pad + 1, len) == 0)
+			{
+				T0_PUSH(u);
+				T0_RET();
+			}
+		}
+	}
+	T0_PUSHi(-1);
+}
+
+cc: copy-name-element ( bool offbuf -- ) {
+	size_t len;
+	int32_t off = T0_POPi();
+	int ok = T0_POPi();
+
+	if (off >= 0) {
+		br_name_element *ne = &CTX->name_elts[off];
+
+		if (ok) {
+			len = CTX->pad[0];
+			if (len < ne->len) {
+				memcpy(ne->buf, CTX->pad + 1, len);
+				ne->buf[len] = 0;
+				ne->status = 1;
+			} else {
+				ne->status = -1;
+			}
+		} else {
+			ne->status = -1;
+		}
+	}
+}
+
+cc: copy-name-SAN ( bool tag -- ) {
+	unsigned tag = T0_POP();
+	unsigned ok = T0_POP();
+	size_t u, len;
+
+	len = CTX->pad[0];
+	for (u = 0; u < CTX->num_name_elts; u ++) {
+		br_name_element *ne;
+
+		ne = &CTX->name_elts[u];
+		if (ne->status == 0 && ne->oid[0] == 0 && ne->oid[1] == tag) {
+			if (ok && ne->len > len) {
+				memcpy(ne->buf, CTX->pad + 1, len);
+				ne->buf[len] = 0;
+				ne->status = 1;
+			} else {
+				ne->status = -1;
+			}
+			break;
+		}
+	}
+}
+
+\ Read a value, decoding string types. If the string type is recognised
+\ and the value could be converted to UTF-8 into the pad, then true (-1)
+\ is returned; in all other cases, false (0) is returned. Either way, the
+\ object is consumed.
+: read-string ( lim -- lim bool )
+	read-tag case
+		\ UTF8String
+		12 of check-primitive read-value-UTF8 endof
+		\ NumericString
+		18 of check-primitive read-value-latin1 endof
+		\ PrintableString
+		19 of check-primitive read-value-latin1 endof
+		\ TeletexString
+		20 of check-primitive read-value-latin1 endof
+		\ IA5String
+		22 of check-primitive read-value-latin1 endof
+		\ BMPString
+		30 of check-primitive read-value-UTF16 endof
+		2drop read-length-skip 0 0
+	endcase ;
+
+\ Read a DN for the EE. The normalized DN hash is computed and stored in the
+\ current_dn_hash.
+\ Name elements are gathered. Also, the Common Name is matched against the
+\ intended server name.
+\ Returned value is true (-1) if the CN matches the intended server name,
+\ false (0) otherwise.
+: read-DN-EE ( lim -- lim bool )
+	\ Flag will be set to true if there is a CN and it matches the
+	\ intended server name.
+	0 { eename-matches }
+
+	\ Activate DN hashing.
+	start-dn-hash
+
+	\ Parse the DN structure: it is a SEQUENCE of SET of
+	\ AttributeTypeAndValue. Each AttributeTypeAndValue is a
+	\ SEQUENCE { OBJECT IDENTIFIER, ANY }.
+	read-sequence-open
+	begin
+		dup while
+
+		read-tag 0x11 check-tag-constructed read-length-open-elt
+		dup ifnot ERR_X509_BAD_DN fail then
+		begin
+			dup while
+
+			read-sequence-open
+
+			\ Read the OID. If the OID could not be read (too
+			\ long) then the first pad byte will be 0.
+			read-OID drop
+
+			\ If it is the Common Name then we'll need to
+			\ match it against the intended server name (if
+			\ applicable).
+			id-at-commonName eqOID { isCN }
+
+			\ Get offset for reception buffer for that element
+			\ (or -1).
+			0 offset-name-element { offbuf }
+
+			\ Try to read the value as a string.
+			read-string
+
+			\ If the value could be decoded as a string,
+			\ copy it and/or match it, as appropriate.
+			dup isCN and if
+				match-server-name if
+					-1 >eename-matches
+				then
+			then
+			offbuf copy-name-element
+
+			\ Close the SEQUENCE
+			close-elt
+
+		repeat
+		close-elt
+	repeat
+	close-elt
+
+	\ Compute DN hash and deactivate DN hashing.
+	compute-dn-hash
+
+	\ Return the CN match flag.
+	eename-matches ;
+
+\ Get the validation date and time from the context or system.
+cc: get-system-date ( -- days seconds ) {
+	if (CTX->days == 0 && CTX->seconds == 0) {
+#if BR_USE_UNIX_TIME
+		time_t x = time(NULL);
+
+		T0_PUSH((uint32_t)(x / 86400) + 719528);
+		T0_PUSH((uint32_t)(x % 86400));
+#elif BR_USE_WIN32_TIME
+		FILETIME ft;
+		uint64_t x;
+
+		GetSystemTimeAsFileTime(&ft);
+		x = ((uint64_t)ft.dwHighDateTime << 32)
+			+ (uint64_t)ft.dwLowDateTime;
+		x = (x / 10000000);
+		T0_PUSH((uint32_t)(x / 86400) + 584754);
+		T0_PUSH((uint32_t)(x % 86400));
+#else
+		CTX->err = BR_ERR_X509_TIME_UNKNOWN;
+		T0_CO();
+#endif
+	} else {
+		T0_PUSH(CTX->days);
+		T0_PUSH(CTX->seconds);
+	}
+}
+
+\ Compare two dates (days+seconds) together.
+: before ( days1 seconds1 days2 seconds2 -- bool )
+	{ d1 s1 d2 s2 }
+	d1 d2 = if s1 s2 < else d1 d2 < then ;
+
+: after ( days1 seconds1 days2 seconds2 -- bool )
+	swap2 before ;
+
+\ Swap the top two elements with the two elements immediately below.
+: swap2 ( a b c d -- c d a b )
+	3 roll 3 roll ;
+
+\ Match the name in the pad with the expected server name. Returned value
+\ is true (-1) on match, false (0) otherwise. If there is no expected
+\ server name, then 0 is returned.
+\ Match conditions: either an exact match (case insensitive), or a
+\ wildcard match, if the found name starts with "*.". We only match a
+\ starting wildcard, and only against a complete DN name component.
+cc: match-server-name ( -- bool ) {
+	size_t n1, n2;
+
+	if (CTX->server_name == NULL) {
+		T0_PUSH(0);
+		T0_RET();
+	}
+	n1 = strlen(CTX->server_name);
+	n2 = CTX->pad[0];
+	if (n1 == n2 && eqnocase(&CTX->pad[1], CTX->server_name, n1)) {
+		T0_PUSHi(-1);
+		T0_RET();
+	}
+	if (n2 >= 2 && CTX->pad[1] == '*' && CTX->pad[2] == '.') {
+		size_t u;
+
+		u = 0;
+		while (u < n1 && CTX->server_name[u] != '.') {
+			u ++;
+		}
+		u ++;
+		n1 -= u;
+		if ((n2 - 2) == n1
+			&& eqnocase(&CTX->pad[3], CTX->server_name + u, n1))
+		{
+			T0_PUSHi(-1);
+			T0_RET();
+		}
+	}
+	T0_PUSH(0);
+}
+
+\ Get the address and length for the pkey_data buffer.
+: addr-len-pkey_data ( -- addr len )
+	CX 0 8191 { offsetof(br_x509_minimal_context, pkey_data) }
+	CX 0 8191 { BR_X509_BUFSIZE_KEY } ;
+
+\ Copy the EE public key to the permanent buffer (RSA).
+cc: copy-ee-rsa-pkey ( nlen elen -- ) {
+	size_t elen = T0_POP();
+	size_t nlen = T0_POP();
+	memcpy(CTX->ee_pkey_data, CTX->pkey_data, nlen + elen);
+	CTX->pkey.key_type = BR_KEYTYPE_RSA;
+	CTX->pkey.key.rsa.n = CTX->ee_pkey_data;
+	CTX->pkey.key.rsa.nlen = nlen;
+	CTX->pkey.key.rsa.e = CTX->ee_pkey_data + nlen;
+	CTX->pkey.key.rsa.elen = elen;
+}
+
+\ Copy the EE public key to the permanent buffer (EC).
+cc: copy-ee-ec-pkey ( curve qlen -- ) {
+	size_t qlen = T0_POP();
+	uint32_t curve = T0_POP();
+	memcpy(CTX->ee_pkey_data, CTX->pkey_data, qlen);
+	CTX->pkey.key_type = BR_KEYTYPE_EC;
+	CTX->pkey.key.ec.curve = curve;
+	CTX->pkey.key.ec.q = CTX->ee_pkey_data;
+	CTX->pkey.key.ec.qlen = qlen;
+}
+
+\ Check whether the current certificate (EE) is directly trusted.
+cc: check-direct-trust ( -- ) {
+	size_t u;
+
+	for (u = 0; u < CTX->trust_anchors_num; u ++) {
+		const br_x509_trust_anchor *ta;
+		unsigned char hashed_DN[64];
+		int kt;
+
+		ta = &CTX->trust_anchors[u];
+		if (ta->flags & BR_X509_TA_CA) {
+			continue;
+		}
+		hash_dn(CTX, ta->dn.data, ta->dn.len, hashed_DN);
+		if (memcmp(hashed_DN, CTX->current_dn_hash, DNHASH_LEN)) {
+			continue;
+		}
+		kt = CTX->pkey.key_type;
+		if ((ta->pkey.key_type & 0x0F) != kt) {
+			continue;
+		}
+		switch (kt) {
+
+		case BR_KEYTYPE_RSA:
+			if (!eqbigint(CTX->pkey.key.rsa.n,
+				CTX->pkey.key.rsa.nlen,
+				ta->pkey.key.rsa.n,
+				ta->pkey.key.rsa.nlen)
+				|| !eqbigint(CTX->pkey.key.rsa.e,
+				CTX->pkey.key.rsa.elen,
+				ta->pkey.key.rsa.e,
+				ta->pkey.key.rsa.elen))
+			{
+				continue;
+			}
+			break;
+
+		case BR_KEYTYPE_EC:
+			if (CTX->pkey.key.ec.curve != ta->pkey.key.ec.curve
+				|| CTX->pkey.key.ec.qlen != ta->pkey.key.ec.qlen
+				|| memcmp(CTX->pkey.key.ec.q,
+					ta->pkey.key.ec.q,
+					ta->pkey.key.ec.qlen) != 0)
+			{
+				continue;
+			}
+			break;
+
+		default:
+			continue;
+		}
+
+		/*
+		 * Direct trust match!
+		 */
+		CTX->err = BR_ERR_X509_OK;
+		T0_CO();
+	}
+}
+
+\ Check the signature on the certificate with regards to all trusted CA.
+\ We use the issuer hash (in saved_dn_hash[]) as CA identifier.
+cc: check-trust-anchor-CA ( -- ) {
+	size_t u;
+
+	for (u = 0; u < CTX->trust_anchors_num; u ++) {
+		const br_x509_trust_anchor *ta;
+		unsigned char hashed_DN[64];
+
+		ta = &CTX->trust_anchors[u];
+		if (!(ta->flags & BR_X509_TA_CA)) {
+			continue;
+		}
+		hash_dn(CTX, ta->dn.data, ta->dn.len, hashed_DN);
+		if (memcmp(hashed_DN, CTX->saved_dn_hash, DNHASH_LEN)) {
+			continue;
+		}
+		if (verify_signature(CTX, &ta->pkey) == 0) {
+			CTX->err = BR_ERR_X509_OK;
+			T0_CO();
+		}
+	}
+}
+
+\ Verify RSA signature. This uses the public key that was just decoded
+\ into CTX->pkey_data; the modulus and exponent length are provided as
+\ parameters. The resulting hash value is compared with the one in
+\ tbs_hash. Returned value is 0 on success, or a non-zero error code.
+cc: do-rsa-vrfy ( nlen elen -- err ) {
+	size_t elen = T0_POP();
+	size_t nlen = T0_POP();
+	br_x509_pkey pk;
+
+	pk.key_type = BR_KEYTYPE_RSA;
+	pk.key.rsa.n = CTX->pkey_data;
+	pk.key.rsa.nlen = nlen;
+	pk.key.rsa.e = CTX->pkey_data + nlen;
+	pk.key.rsa.elen = elen;
+	T0_PUSH(verify_signature(CTX, &pk));
+}
+
+\ Verify ECDSA signature. This uses the public key that was just decoded
+\ into CTX->pkey_dayta; the curve ID and public point length are provided
+\ as parameters. The hash value in tbs_hash is used. Returned value is 0
+\ on success, or non-zero error code.
+cc: do-ecdsa-vrfy ( curve qlen -- err ) {
+	size_t qlen = T0_POP();
+	int curve = T0_POP();
+	br_x509_pkey pk;
+
+	pk.key_type = BR_KEYTYPE_EC;
+	pk.key.ec.curve = curve;
+	pk.key.ec.q = CTX->pkey_data;
+	pk.key.ec.qlen = qlen;
+	T0_PUSH(verify_signature(CTX, &pk));
+}
+
+cc: print-bytes ( addr len -- ) {
+	extern int printf(const char *fmt, ...);
+	size_t len = T0_POP();
+	unsigned char *buf = (unsigned char *)CTX + T0_POP();
+	size_t u;
+
+	for (u = 0; u < len; u ++) {
+		printf("%02X", buf[u]);
+	}
+}
+
+cc: printOID ( -- ) {
+	extern int printf(const char *fmt, ...);
+	size_t u, len;
+
+	len = CTX->pad[0];
+	if (len == 0) {
+		printf("*");
+		T0_RET();
+	}
+	printf("%u.%u", CTX->pad[1] / 40, CTX->pad[1] % 40);
+	u = 2;
+	while (u <= len) {
+		unsigned long ul;
+
+		ul = 0;
+		for (;;) {
+			int x;
+
+			if (u > len) {
+				printf("BAD");
+				T0_RET();
+			}
+			x = CTX->pad[u ++];
+			ul = (ul << 7) + (x & 0x7F);
+			if (!(x & 0x80)) {
+				break;
+			}
+		}
+		printf(".%lu", ul);
+	}
+}
+
+\ Extensions with specific processing.
+OID: basicConstraints      2.5.29.19
+OID: keyUsage              2.5.29.15
+OID: subjectAltName        2.5.29.17
+OID: certificatePolicies   2.5.29.32
+
+\ Policy qualifier "pointer to CPS"
+OID: id-qt-cps             1.3.6.1.5.5.7.2.1
+
+\ Extensions which are ignored when encountered, even if critical.
+OID: authorityKeyIdentifier        2.5.29.35
+OID: subjectKeyIdentifier          2.5.29.14
+OID: issuerAltName                 2.5.29.18
+OID: subjectDirectoryAttributes    2.5.29.9
+OID: crlDistributionPoints         2.5.29.31
+OID: freshestCRL                   2.5.29.46
+OID: authorityInfoAccess           1.3.6.1.5.5.7.1.1
+OID: subjectInfoAccess             1.3.6.1.5.5.7.1.11
+
+\ Process a Basic Constraints extension. This should be called only if
+\ the certificate is not the EE. We check that the extension contains
+\ the "CA" flag, and that the path length, if specified, is compatible
+\ with the current chain length.
+: process-basicConstraints ( lim -- lim )
+	read-sequence-open
+	read-tag-or-end
+	dup 0x01 = if
+		read-boolean ifnot ERR_X509_NOT_CA fail then
+		read-tag-or-end
+	else
+		ERR_X509_NOT_CA fail
+	then
+	dup 0x02 = if
+		drop check-primitive read-small-int-value
+		addr-num_certs get32 1- < if ERR_X509_NOT_CA fail then
+		read-tag-or-end
+	then
+	-1 <> if ERR_X509_UNEXPECTED fail then
+	drop
+	close-elt
+	;
+
+\ Process a Key Usage extension.
+\ For the EE certificate:
+\   -- if the key usage contains keyEncipherment (2), dataEncipherment (3)
+\      or keyAgreement (4), then the "key exchange" usage is allowed;
+\   -- if the key usage contains digitalSignature (0) or nonRepudiation (1),
+\      then the "signature" usage is allowed.
+\ For CA certificates, the extension must contain keyCertSign (5).
+: process-keyUsage ( lim ee -- lim )
+	{ ee }
+
+	\ Read tag for the BIT STRING and open it.
+	read-tag 0x03 check-tag-primitive
+	read-length-open-elt
+	\ First byte indicates number of ignored bits in the last byte. It
+	\ must be between 0 and 7.
+	read8 { ign }
+	ign 7 > if ERR_X509_UNEXPECTED fail then
+	\ Depending on length, we have either 0, 1 or more bytes to read.
+	dup case
+		0 of ERR_X509_FORBIDDEN_KEY_USAGE fail endof
+		1 of read8 ign >> ign << endof
+		drop read8 0
+	endcase
+
+	\ Check bits.
+	ee if
+		\ EE: get usages.
+		0
+		over 0x38 and if 0x10 or then
+		swap 0xC0 and if 0x20 or then
+		addr-key_usages set8
+	else
+		\ Not EE: keyCertSign must be set.
+		0x04 and ifnot ERR_X509_FORBIDDEN_KEY_USAGE fail then
+	then
+
+	\ We don't care about subsequent bytes.
+	skip-close-elt ;
+
+\ Process a Certificate Policies extension.
+\
+\ Since we don't actually support full policies processing, this function
+\ only checks that the extension contents can be safely ignored. Indeed,
+\ we don't validate against a specific set of policies (in RFC 5280
+\ terminology, user-initial-policy-set only contains the special value
+\ any-policy). Moreover, we don't support policy constraints (if a
+\ critical Policy Constraints extension is encountered, the validation
+\ will fail). Therefore, we can safely ignore the contents of this
+\ extension, except if it is critical AND one of the policy OID has a
+\ qualifier which is distinct from id-qt-cps (because id-qt-cps is
+\ specially designated by RFC 5280 has having no mandated action).
+\
+\ This function is called only if the extension is critical.
+: process-certPolicies ( lim -- lim )
+	\ Extension value is a SEQUENCE OF PolicyInformation.
+	read-sequence-open
+	begin dup while
+		\ PolicyInformation ::= SEQUENCE {
+		\    policyIdentifier  OBJECT IDENTIFIER,
+		\    policyQualifiers  SEQUENCE OF PolicyQualifierInfo OPTIONAL
+		\ }
+		read-sequence-open
+		read-OID drop
+		dup if
+			read-sequence-open
+			begin dup while
+				\ PolicyQualifierInfo ::= SEQUENCE {
+				\    policyQualifierId  OBJECT IDENTIFIER,
+				\    qualifier          ANY
+				\ }
+				read-sequence-open
+				read-OID drop id-qt-cps eqOID ifnot
+					ERR_X509_CRITICAL_EXTENSION fail
+				then
+				skip-close-elt
+			repeat
+			close-elt
+		then
+		close-elt
+	repeat
+	close-elt ;
+
+\ Process a Subject Alt Name extension. Returned value is a boolean set
+\ to true if the expected server name was matched against a dNSName in
+\ the extension.
+: process-SAN ( lim -- lim bool )
+	0 { m }
+	read-sequence-open
+	begin dup while
+		\ Read the tag. If the tag is context-0, then parse an
+		\ 'otherName'. If the tag is context-2, then parse a
+		\ dNSName. If the tag is context-1 or context-6,
+		\ parse 
+		read-tag case
+			\ OtherName
+			0x20 of
+				\ OtherName ::= SEQUENCE {
+				\     type-id   OBJECT IDENTIFIER,
+				\     value     [0] EXPLICIT ANY
+				\ }
+				check-constructed read-length-open-elt
+				read-OID drop
+				-1 offset-name-element { offbuf }
+				read-tag 0x20 check-tag-constructed
+				read-length-open-elt
+				read-string offbuf copy-name-element
+				close-elt
+				close-elt
+			endof
+			\ rfc822Name (IA5String)
+			0x21 of
+				check-primitive
+				read-value-UTF8 1 copy-name-SAN
+			endof
+			\ dNSName (IA5String)
+			0x22 of
+				check-primitive
+				read-value-UTF8
+				dup if match-server-name m or >m then
+				2 copy-name-SAN
+			endof
+			\ uniformResourceIdentifier (IA5String)
+			0x26 of
+				check-primitive
+				read-value-UTF8 6 copy-name-SAN
+			endof
+			2drop read-length-skip 0
+		endcase
+
+		\ We check only names of type dNSName; they use IA5String,
+		\ which is basically ASCII.
+		\ read-tag 0x22 = if
+		\ 	check-primitive
+		\ 	read-small-value drop
+		\ 	match-server-name m or >m
+		\ else
+		\ 	drop read-length-skip
+		\ then
+	repeat
+	close-elt
+	m ;
+
+\ Decode a certificate. The "ee" boolean must be true for the EE.
+: decode-certificate ( ee -- )
+	{ ee }
+
+	\ Obtain the total certificate length.
+	addr-cert_length get32
+
+	\ Open the outer SEQUENCE.
+	read-sequence-open
+
+	\ TBS
+	\ Activate hashing.
+	start-tbs-hash
+	read-sequence-open
+
+	\ First element may be an explicit version. We accept only
+	\ versions 0 to 2 (certificates v1 to v3).
+	read-tag dup 0x20 = if
+		drop check-constructed read-length-open-elt
+		read-tag
+		0x02 check-tag-primitive
+		read-small-int-value
+		2 > if ERR_X509_UNSUPPORTED fail then
+		close-elt
+		read-tag
+	then
+
+	\ Serial number. We just check that the tag is correct.
+	0x02 check-tag-primitive
+	read-length-skip
+
+	\ Signature algorithm. This structure is redundant with the one
+	\ on the outside; we just skip it.
+	read-sequence-open skip-close-elt
+
+	\ Issuer name: hashed, then copied into next_dn_hash[].
+	read-DN
+	addr-next_dn_hash addr-current_dn_hash dn-hash-length blobcopy
+
+	\ Validity dates.
+	read-sequence-open
+	read-date get-system-date after if ERR_X509_EXPIRED fail then
+	read-date get-system-date before if ERR_X509_EXPIRED fail then
+	close-elt
+
+	\ Subject name.
+	ee if
+		\ For the EE, we must check whether the Common Name, if
+		\ any, matches the expected server name.
+		read-DN-EE { eename }
+	else
+		\ For a non-EE certificate, the hashed subject DN must match
+		\ the saved hashed issuer DN from the previous certificate.
+		read-DN
+		addr-current_dn_hash addr-saved_dn_hash dn-hash-length eqblob
+		ifnot ERR_X509_DN_MISMATCH fail then
+	then
+	\ Move the hashed issuer DN for this certificate into the
+	\ saved_dn_hash[] array.
+	addr-saved_dn_hash addr-next_dn_hash dn-hash-length blobcopy
+
+	\ Public Key.
+	read-sequence-open
+	\ Algorithm Identifier. Right now we are only interested in the
+	\ OID, since we only support RSA keys.
+	read-sequence-open
+	read-OID ifnot ERR_X509_UNSUPPORTED fail then
+	{ ; pkey-type }
+	choice
+		\ RSA public key.
+		rsaEncryption eqOID uf
+			skip-close-elt
+			\ Public key itself: the BIT STRING contains bytes
+			\ (no partial byte) and these bytes encode the
+			\ actual value.
+			read-bits-open
+				\ RSA public key is a SEQUENCE of two
+				\ INTEGER. We get both INTEGER values into
+				\ the pkey_data[] buffer, if they fit.
+				read-sequence-open
+				addr-len-pkey_data
+				read-integer { nlen }
+				addr-len-pkey_data swap nlen + swap nlen -
+				read-integer { elen }
+				close-elt
+
+				\ Check that the public key fits our minimal
+				\ size requirements. Note that the integer
+				\ decoder already skipped the leading bytes
+				\ of value 0, so we are working on the true
+				\ modulus length here.
+				addr-min_rsa_size get16 128 + nlen > if
+					ERR_X509_WEAK_PUBLIC_KEY fail
+				then
+			close-elt
+			KEYTYPE_RSA >pkey-type
+		enduf
+
+		\ EC public key.
+		id-ecPublicKey eqOID uf
+			\ We support only named curves, for which the
+			\ "parameters" field in the AlgorithmIdentifier
+			\ field should be an OID.
+			read-OID ifnot ERR_X509_UNSUPPORTED fail then
+			choice
+				ansix9p256r1 eqOID uf 23 enduf
+				ansix9p384r1 eqOID uf 24 enduf
+				ansix9p521r1 eqOID uf 25 enduf
+				ERR_X509_UNSUPPORTED fail
+			endchoice
+			{ curve }
+			close-elt
+			read-bits-open
+			dup { qlen }
+			dup addr-len-pkey_data rot < if
+				ERR_X509_LIMIT_EXCEEDED fail
+			then
+			read-blob
+			KEYTYPE_EC >pkey-type
+		enduf
+
+		\ Not a recognised public key type.
+		ERR_X509_UNSUPPORTED fail
+	endchoice
+	close-elt
+
+	\ Process public key.
+	ee if
+		\ For the EE certificate, copy the key data to the
+		\ relevant buffer.
+		pkey-type case
+			KEYTYPE_RSA of nlen elen copy-ee-rsa-pkey endof
+			KEYTYPE_EC of curve qlen copy-ee-ec-pkey endof
+			ERR_X509_UNSUPPORTED fail
+		endcase
+	else
+		\ Verify signature on previous certificate. We invoke
+		\ the RSA implementation.
+		pkey-type case
+			KEYTYPE_RSA of nlen elen do-rsa-vrfy endof
+			KEYTYPE_EC of curve qlen do-ecdsa-vrfy endof
+			ERR_X509_UNSUPPORTED fail
+		endcase
+		dup if fail then
+		drop
+	then
+
+	\ This flag will be set to true if the Basic Constraints extension
+	\ is encountered.
+	0 { seenBC }
+
+	\ Skip issuerUniqueID and subjectUniqueID, and process extensions
+	\ if present. Extensions are an explicit context tag of value 3
+	\ around a SEQUENCE OF extensions. Each extension is a SEQUENCE
+	\ with an OID, an optional boolean, and a value; the value is
+	\ an OCTET STRING.
+	read-tag-or-end
+	0x21 iftag-skip
+	0x22 iftag-skip
+	dup 0x23 = if
+		drop
+		check-constructed read-length-open-elt
+		read-sequence-open
+		begin dup while
+			0 { critical }
+			read-sequence-open
+			read-OID drop
+			read-tag dup 0x01 = if
+				read-boolean >critical
+				read-tag
+			then
+			0x04 check-tag-primitive read-length-open-elt
+			choice
+				\ Extensions with specific processing.
+				basicConstraints eqOID uf
+					ee if
+						skip-remaining
+					else
+						process-basicConstraints
+						-1 >seenBC
+					then
+				enduf
+				keyUsage         eqOID uf
+					ee process-keyUsage
+				enduf
+				subjectAltName   eqOID uf
+					ee if
+						0 >eename
+						process-SAN >eename
+					else
+						skip-remaining
+					then
+				enduf
+
+				\ We don't implement full processing of
+				\ policies. The call below mostly checks
+				\ that the contents of the Certificate
+				\ Policies extension can be safely ignored.
+				certificatePolicies eqOID uf
+					critical if
+						process-certPolicies
+					else
+						skip-remaining
+					then
+				enduf
+
+				\ Extensions which are always ignored,
+				\ even if critical.
+				authorityKeyIdentifier     eqOID uf
+					skip-remaining
+				enduf
+				subjectKeyIdentifier       eqOID uf
+					skip-remaining
+				enduf
+				issuerAltName              eqOID uf
+					skip-remaining
+				enduf
+				subjectDirectoryAttributes eqOID uf
+					skip-remaining
+				enduf
+				crlDistributionPoints      eqOID uf
+					skip-remaining
+				enduf
+				freshestCRL                eqOID uf
+					skip-remaining
+				enduf
+				authorityInfoAccess        eqOID uf
+					skip-remaining
+				enduf
+				subjectInfoAccess          eqOID uf
+					skip-remaining
+				enduf
+
+				\ Unrecognized extensions trigger a failure
+				\ if critical; otherwise, they are just
+				\ ignored.
+				critical if
+					ERR_X509_CRITICAL_EXTENSION fail
+				then
+				skip-remaining
+			endchoice
+			close-elt
+			close-elt
+		repeat
+		close-elt
+		close-elt
+	else
+		-1 = ifnot ERR_X509_UNEXPECTED fail then
+		drop
+	then
+
+	close-elt
+	\ Terminate hashing.
+	stop-tbs-hash
+
+	\ For the EE certificate, verify that the intended server name
+	\ was matched.
+	ee if
+		eename zero-server-name or ifnot
+			ERR_X509_BAD_SERVER_NAME fail
+		then
+	then
+
+	\ If this is the EE certificate, then direct trust may apply.
+	\ Note: we do this at this point, not immediately after decoding
+	\ the public key, because even in case of direct trust we still
+	\ want to check the server name with regards to the SAN extension.
+	\ However, we want to check direct trust before trying to decode
+	\ the signature algorithm, because it should work even if that
+	\ algorithm is not supported.
+	ee if check-direct-trust then
+
+	\ Non-EE certificates MUST have a Basic Constraints extension
+	\ (that marks them as being CA).
+	ee seenBC or ifnot ERR_X509_NOT_CA fail then
+
+	\ signature algorithm
+	read-tag check-sequence read-length-open-elt
+	\ Read and understand the OID. Right now, we support only
+	\ RSA with PKCS#1 v1.5 padding, and hash functions SHA-1,
+	\ SHA-224, SHA-256, SHA-384 and SHA-512. We purposely do NOT
+	\ support MD5 here.
+	\ TODO: add support for RSA/PSS
+	read-OID if
+		\ Based on the signature OID, we get:
+		\ -- the signing key type
+		\ -- the hash function numeric identifier
+		\ -- the hash function OID
+		choice
+			sha1WithRSAEncryption   eqOID
+				uf 2 KEYTYPE_RSA id-sha1   enduf
+			sha224WithRSAEncryption eqOID
+				uf 3 KEYTYPE_RSA id-sha224 enduf
+			sha256WithRSAEncryption eqOID
+				uf 4 KEYTYPE_RSA id-sha256 enduf
+			sha384WithRSAEncryption eqOID
+				uf 5 KEYTYPE_RSA id-sha384 enduf
+			sha512WithRSAEncryption eqOID
+				uf 6 KEYTYPE_RSA id-sha512 enduf
+
+			ecdsa-with-SHA1   eqOID
+				uf 2 KEYTYPE_EC id-sha1 enduf
+			ecdsa-with-SHA224 eqOID
+				uf 3 KEYTYPE_EC id-sha224 enduf
+			ecdsa-with-SHA256 eqOID
+				uf 4 KEYTYPE_EC id-sha256 enduf
+			ecdsa-with-SHA384 eqOID
+				uf 5 KEYTYPE_EC id-sha384 enduf
+			ecdsa-with-SHA512 eqOID
+				uf 6 KEYTYPE_EC id-sha512 enduf
+			ERR_X509_UNSUPPORTED fail
+		endchoice
+		addr-cert_sig_hash_oid set16
+		addr-cert_signer_key_type set8
+
+		\ Compute the TBS hash into tbs_hash.
+		compute-tbs-hash
+		dup ifnot ERR_X509_UNSUPPORTED fail then
+		addr-cert_sig_hash_len set8
+	else
+		ERR_X509_UNSUPPORTED fail
+	then
+	\ We ignore the parameters, whether they are present or not,
+	\ because we got all the information from the OID.
+	skip-close-elt
+
+	\ signature value
+	read-bits-open
+	dup CX 0 8191 { BR_X509_BUFSIZE_SIG } > if
+		ERR_X509_LIMIT_EXCEEDED fail
+	then
+	dup addr-cert_sig_len set16
+	addr-cert_sig read-blob
+
+	\ Close the outer SEQUENCE.
+	close-elt
+
+	\ Close the advertised total certificate length. This checks that
+	\ there is no trailing garbage after the certificate.
+	close-elt
+
+	\ Flag the certificate as fully processed.
+	0 addr-cert_length set32
+
+	\ Check whether the issuer for the current certificate is known
+	\ as a trusted CA; in which case, verify the signature.
+	check-trust-anchor-CA ;
+
+: main
+	\ Unless restricted by a Key Usage extension, all usages are
+	\ deemed allowed.
+	0x30 addr-key_usages set8
+	-1 decode-certificate
+	co
+	begin
+		0 decode-certificate co
+	again
+	;

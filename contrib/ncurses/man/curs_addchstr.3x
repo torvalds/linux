@@ -1,0 +1,111 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_addchstr.3x,v 1.16 2012/11/03 22:54:43 tom Exp $
+.TH curs_addchstr 3X ""
+.de bP
+.IP \(bu 4
+..
+.na
+.hy 0
+.SH NAME
+\fBaddchstr\fR,
+\fBaddchnstr\fR,
+\fBwaddchstr\fR,
+\fBwaddchnstr\fR,
+\fBmvaddchstr\fR,
+\fBmvaddchnstr\fR,
+\fBmvwaddchstr\fR,
+\fBmvwaddchnstr\fR \- add a string of characters (and attributes) to a \fBcurses\fR window
+.ad
+.hy
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>\fR
+.PP
+\fBint addchstr(const chtype *chstr);\fR
+.br
+\fBint addchnstr(const chtype *chstr, int n);\fR
+.br
+\fBint waddchstr(WINDOW *win, const chtype *chstr);\fR
+.br
+\fBint waddchnstr(WINDOW *win, const chtype *chstr, int n);\fR
+.br
+\fBint mvaddchstr(int y, int x, const chtype *chstr);\fR
+.br
+\fBint mvaddchnstr(int y, int x, const chtype *chstr, int n);\fR
+.br
+\fBint mvwaddchstr(WINDOW *win, int y, int x, const chtype *chstr);\fR
+.br
+\fBint mvwaddchnstr(WINDOW *win, int y, int x, const chtype *chstr, int n);\fR
+.fi
+.SH DESCRIPTION
+These functions copy the (null-terminated)
+\fIchstr\fR array
+into the window image structure
+starting at the current cursor position.
+The four functions with \fIn\fR as the last
+argument copy at most \fIn\fR elements,
+but no more than will fit on the line.
+If \fBn\fR=\fB\-1\fR then the whole array is copied,
+to the maximum number of characters that will fit on the line.
+.PP
+The window cursor is \fInot\fR advanced.
+These functions work faster than \fBwaddnstr\fR.
+On the other hand:
+.bP
+they do not perform checking
+(such as for the newline, backspace, or carriage return characters),
+.bP
+they do not advance the current cursor position,
+.bP
+they do not expand other control characters to ^-escapes, and
+.bP
+they truncate the string if it crosses the right margin,
+rather than wrapping it around to the new line.
+.SH RETURN VALUE
+All functions return the integer \fBERR\fR upon failure and \fBOK\fR on success.
+.PP
+X/Open does not define any error conditions.
+This implementation returns an error
+if the window pointer is null.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH NOTES
+All functions except \fBwaddchnstr\fR may be macros.
+.SH PORTABILITY
+These entry points are described in the XSI Curses standard, Issue 4.
+.SH SEE ALSO
+\fBcurs_addstr\fR(3X),
+\fBcurses\fR(3X).
+.PP
+Comparable functions in the wide-character (ncursesw) library are
+described in
+\fBcurs_add_wchstr\fR(3X).

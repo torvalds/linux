@@ -1,0 +1,7 @@
+.\" $FreeBSD$
+Set to not install header files.
+This option used to be spelled
+.Va NO_INCS .
+.Bf -symbolic
+The option does not work for build targets.
+.Ef

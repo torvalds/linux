@@ -1,0 +1,128 @@
+.\"
+.\" Copyright (c) 2003 Bruce M Simpson <bms@spc.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 30, 2016
+.Dt PMAP 9
+.Os
+.Sh NAME
+.Nm pmap
+.Nd machine-dependent portion of virtual memory subsystem
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/pmap.h
+.Sh DESCRIPTION
+The
+.Nm
+module is the machine-dependent portion of the
+.Fx
+VM (Virtual Memory) sub-system.
+Each function documented herein must have its own
+architecture-dependent implementation.
+.Pp
+The
+.Nm
+module
+is responsible for managing hardware-dependent objects such as page tables,
+address maps, TLBs, etc.
+.Pp
+Machine-dependent code must provide the header file
+.In machine/pmap.h .
+This file contains the definition of the
+.Vt pmap
+structure:
+.Bd -literal -offset indent
+struct pmap {
+        /* Contents defined by pmap implementation. */
+};
+typedef struct pmap *pmap_t;
+.Ed
+.Pp
+This header file may also define other data structures used by the
+.Nm
+implementation.
+.Pp
+The header file
+.In vm/pmap.h
+defines a structure for tracking
+.Nm
+statistics (see below).
+This structure is defined as:
+.Bd -literal -offset indent
+struct pmap_statistics {
+        long        resident_count; /* number of mapped pages */
+        long        wired_count;    /* number of wired pages */
+};
+.Ed
+.Pp
+The implementation's
+.Vt "struct pmap"
+must contain an instance of this structure having the name
+.Va pm_stats ,
+and it must be updated by the implementation after each relevant
+.Nm
+operation.
+.Sh SEE ALSO
+.Xr pmap_activate 9 ,
+.Xr pmap_clear_modify 9 ,
+.Xr pmap_copy 9 ,
+.Xr pmap_copy_page 9 ,
+.Xr pmap_enter 9 ,
+.Xr pmap_extract 9 ,
+.Xr pmap_extract_and_hold 9 ,
+.Xr pmap_growkernel 9 ,
+.Xr pmap_init 9 ,
+.Xr pmap_init2 9 ,
+.Xr pmap_is_modified 9 ,
+.Xr pmap_is_prefaultable 9 ,
+.Xr pmap_map 9 ,
+.Xr pmap_mincore 9 ,
+.Xr pmap_object_init_pt 9 ,
+.Xr pmap_page_exists_quick 9 ,
+.Xr pmap_page_init 9 ,
+.Xr pmap_pinit 9 ,
+.Xr pmap_pinit0 9 ,
+.Xr pmap_pinit2 9 ,
+.Xr pmap_protect 9 ,
+.Xr pmap_qenter 9 ,
+.Xr pmap_qremove 9 ,
+.Xr pmap_quick_enter_page 9 ,
+.Xr pmap_quick_remove_page 9 ,
+.Xr pmap_release 9 ,
+.Xr pmap_remove 9 ,
+.Xr pmap_remove_all 9 ,
+.Xr pmap_remove_pages 9 ,
+.Xr pmap_resident_count 9 ,
+.Xr pmap_ts_referenced 9 ,
+.Xr pmap_unwire 9 ,
+.Xr pmap_wired_count 9 ,
+.Xr pmap_zero_area 9 ,
+.Xr pmap_zero_page 9 ,
+.Xr vm_map 9
+.Sh AUTHORS
+This manual page was written by
+.An Bruce M Simpson Aq Mt bms@spc.org .

@@ -1,0 +1,87 @@
+.\" Copyright (c) 2008 Isilon Inc http://www.isilon.com/
+.\" Authors: Doug Rabson <dfr@rabson.org>
+.\" Developed with Red Inc: Alfred Perlstein <alfred@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd January 26, 2010
+.Dt RPC_GSS_SET_SVC_NAME 3
+.Os
+.Sh NAME
+.Nm rpc_gss_set_svc_name
+.Nd "Associate a GSS-API service principal with an RPC service"
+.Sh LIBRARY
+.Lb librpcsec_gss
+.Sh SYNOPSIS
+.In rpc/rpcsec_gss.h
+.Ft bool_t
+.Fo rpc_gss_set_svc_name
+.Fa "const char *principal"
+.Fa "const char *mechanism"
+.Fa "u_int req_time"
+.Fa "u_int program"
+.Fa "u_int version"
+.Fc
+.Sh DESCRIPTION
+This function registers a service principal which will be used to
+authenticate RPCSEC_GSS security contexts for a given RPC program and
+version.
+.Sh PARAMETERS
+.Bl -tag -width ".It mechanism"
+.It principal
+A string representing the service principal in the form
+.Qq service@hostname
+.It mechanism
+The name of the security mechanism
+.It req_time
+The time in seconds that the service credentials should remain
+valid.
+See
+.Xr gss_acquire_cred 3
+for more details.
+principal.
+.It program
+RPC program number for this service
+.It version
+RPC program version for this service
+.El
+.Sh RETURN VALUES
+Returns
+.Dv TRUE
+if the service principal was registered or
+.Dv FALSE
+otherwise.
+.Sh SEE ALSO
+.Xr gss_acquire_cred 3 ,
+.Xr gssapi 3 ,
+.Xr rpc 3 ,
+.Xr rpcset_gss 3
+.Sh HISTORY
+The
+.Nm
+function first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Doug Rabson Aq Mt dfr@FreeBSD.org .

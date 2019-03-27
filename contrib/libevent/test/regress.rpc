@@ -1,0 +1,25 @@
+/* tests data packing and unpacking */
+
+struct msg {
+	string /* sender */ from_name = 1; /* be verbose */
+	string to_name = 2;
+	optional struct[kill] attack = 3;
+	array struct[run] run = 4;
+}
+
+struct kill {
+	string weapon = 0x10121;
+	string action = 2;
+	array int how_often = 3;
+}
+
+struct run {
+	string how = 1;
+	optional bytes some_bytes = 2;
+
+	bytes fixed_bytes[24] = 3;
+	array string notes = 4;
+
+	optional int64 large_number = 5;
+	array int other_numbers = 6;
+}

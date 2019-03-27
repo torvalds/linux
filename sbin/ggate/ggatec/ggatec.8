@@ -1,0 +1,185 @@
+.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 8, 2016
+.Dt GGATEC 8
+.Os
+.Sh NAME
+.Nm ggatec
+.Nd "GEOM Gate network client and control utility"
+.Sh SYNOPSIS
+.Nm
+.Cm create
+.Op Fl n
+.Op Fl v
+.Op Fl o Cm ro | wo | rw
+.Op Fl p Ar port
+.Op Fl q Ar queue_size
+.Op Fl R Ar rcvbuf
+.Op Fl S Ar sndbuf
+.Op Fl s Ar sectorsize
+.Op Fl t Ar timeout
+.Op Fl u Ar unit
+.Ar host
+.Ar path
+.Nm
+.Cm rescue
+.Op Fl n
+.Op Fl v
+.Op Fl o Cm ro | wo | rw
+.Op Fl p Ar port
+.Op Fl R Ar rcvbuf
+.Op Fl S Ar sndbuf
+.Fl u Ar unit
+.Ar host
+.Ar path
+.Nm
+.Cm destroy
+.Op Fl f
+.Fl u Ar unit
+.Nm
+.Cm list
+.Op Fl v
+.Op Fl u Ar unit
+.Sh DESCRIPTION
+The
+.Nm
+utility is a network client for the GEOM Gate class.
+It is responsible for the creation of
+.Nm ggate
+devices and forwarding I/O requests between the
+.Nm GEOM Gate
+kernel subsystem and the
+.Xr ggated 8
+network daemon.
+Available commands:
+.Bl -tag -width ".Cm destroy"
+.It Cm create
+Connect to a
+.Xr ggated 8
+daemon on the specified host and create a
+.Nm ggate
+provider for the specified remote file or device.
+.It Cm rescue
+Create a new connection after the
+.Nm
+process has died or been killed.
+The new connection to the
+.Xr ggated 8
+daemon handles pending and future requests.
+.It Cm destroy
+Destroy the given
+.Nm ggate
+provider.
+.It Cm list
+List
+.Nm ggate
+providers.
+.El
+.Pp
+Available options:
+.Bl -tag -width ".Fl s Cm ro | wo | rw"
+.It Fl f
+Forcibly destroy
+.Nm ggate
+provider (cancels all pending requests).
+.It Fl n
+Do not use
+.Dv TCP_NODELAY
+option on TCP sockets.
+.It Fl o Cm ro | wo | rw
+Specify permissions to use when opening the file or device: read-only
+.Pq Cm ro ,
+write-only
+.Pq Cm wo ,
+or read-write
+.Pq Cm rw .
+Default is
+.Cm rw .
+.It Fl p Ar port
+Port to connect to on the remote host.
+Default is 3080.
+.It Fl q Ar queue_size
+Number of pending I/O requests that can be queued before they will
+start to be canceled.
+Default is 1024.
+.It Fl R Ar rcvbuf
+Size of receive buffer to use.
+Default is 131072 (128kB).
+.It Fl S Ar sndbuf
+Size of send buffer to use.
+Default is 131072 (128kB).
+.It Fl s Ar sectorsize
+Sector size for
+.Nm ggate
+provider.
+If not specified, it is taken from the device, or set to 512 bytes for files.
+.It Fl t Ar timeout
+Number of seconds to wait before an I/O request will be canceled.
+Default is 0, which means no timeout.
+.It Fl u Ar unit
+Unit number to use.
+.It Fl v
+Do not fork, run in foreground and print debug information on standard
+output.
+.It Ar host
+Remote host to connect to.
+.It Ar path
+Path to a regular file or device.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, or 1 if the command fails.
+To get details about the failure,
+.Nm
+should be called with the
+.Fl v
+option.
+.Sh EXAMPLES
+Use a CD-ROM device on a remote host.
+.Bd -literal -offset indent
+server# cat /etc/gg.exports
+client RO /dev/cd0
+server# ggated
+
+client# ggatec create -o ro server /dev/cd0
+ggate0
+client# mount_cd9660 /dev/ggate0 /cdrom
+.Ed
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr ggated 8 ,
+.Xr ggatel 8 ,
+.Xr mount_cd9660 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+The
+.Nm
+utility as well as this manual page was written by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .

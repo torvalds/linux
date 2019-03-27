@@ -1,0 +1,679 @@
+// -*- C++ -*-
+//===-------------------------- compare -----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_COMPARE
+#define _LIBCPP_COMPARE
+
+/*
+    compare synopsis
+
+namespace std {
+  // [cmp.categories], comparison category types
+  class weak_equality;
+  class strong_equality;
+  class partial_ordering;
+  class weak_ordering;
+  class strong_ordering;
+
+  // named comparison functions
+  constexpr bool is_eq  (weak_equality cmp) noexcept    { return cmp == 0; }
+  constexpr bool is_neq (weak_equality cmp) noexcept    { return cmp != 0; }
+  constexpr bool is_lt  (partial_ordering cmp) noexcept { return cmp < 0; }
+  constexpr bool is_lteq(partial_ordering cmp) noexcept { return cmp <= 0; }
+  constexpr bool is_gt  (partial_ordering cmp) noexcept { return cmp > 0; }
+  constexpr bool is_gteq(partial_ordering cmp) noexcept { return cmp >= 0; }
+
+  // [cmp.common], common comparison category type
+  template<class... Ts>
+  struct common_comparison_category {
+    using type = see below;
+  };
+  template<class... Ts>
+    using common_comparison_category_t = typename common_comparison_category<Ts...>::type;
+
+  // [cmp.alg], comparison algorithms
+  template<class T> constexpr strong_ordering strong_order(const T& a, const T& b);
+  template<class T> constexpr weak_ordering weak_order(const T& a, const T& b);
+  template<class T> constexpr partial_ordering partial_order(const T& a, const T& b);
+  template<class T> constexpr strong_equality strong_equal(const T& a, const T& b);
+  template<class T> constexpr weak_equality weak_equal(const T& a, const T& b);
+}
+*/
+
+#include <__config>
+#include <type_traits>
+#include <array>
+
+#ifndef _LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#if _LIBCPP_STD_VER > 17
+
+// exposition only
+enum class _LIBCPP_ENUM_VIS _EqResult : unsigned char {
+  __zero = 0,
+  __equal = __zero,
+  __equiv = __equal,
+  __nonequal = 1,
+  __nonequiv = __nonequal
+};
+
+enum class _LIBCPP_ENUM_VIS _OrdResult : signed char {
+  __less = -1,
+  __greater = 1
+};
+
+enum class _LIBCPP_ENUM_VIS _NCmpResult : signed char {
+  __unordered = -127
+};
+
+struct _CmpUnspecifiedType;
+using _CmpUnspecifiedParam = void (_CmpUnspecifiedType::*)();
+
+class  weak_equality {
+  _LIBCPP_INLINE_VISIBILITY
+  constexpr explicit weak_equality(_EqResult __val) noexcept : __value_(__val) {}
+
+public:
+  static const weak_equality equivalent;
+  static const weak_equality nonequivalent;
+
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator==(weak_equality __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator==(_CmpUnspecifiedParam, weak_equality __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator!=(weak_equality __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator!=(_CmpUnspecifiedParam, weak_equality __v) noexcept;
+
+#ifndef _LIBCPP_HAS_NO_SPACESHIP_OPERATOR
+  _LIBCPP_INLINE_VISIBILITY friend constexpr weak_equality operator<=>(weak_equality __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr weak_equality operator<=>(_CmpUnspecifiedParam, weak_equality __v) noexcept;
+#endif
+
+private:
+  _EqResult __value_;
+};
+
+_LIBCPP_INLINE_VAR constexpr weak_equality weak_equality::equivalent(_EqResult::__equiv);
+_LIBCPP_INLINE_VAR constexpr weak_equality weak_equality::nonequivalent(_EqResult::__nonequiv);
+
+_LIBCPP_INLINE_VISIBILITY
+inline constexpr bool operator==(weak_equality __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__value_ == _EqResult::__zero;
+}
+
+_LIBCPP_INLINE_VISIBILITY
+inline constexpr bool operator==(_CmpUnspecifiedParam, weak_equality __v) noexcept {
+  return __v.__value_ == _EqResult::__zero;
+}
+
+_LIBCPP_INLINE_VISIBILITY
+inline constexpr bool operator!=(weak_equality __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__value_ != _EqResult::__zero;
+}
+
+_LIBCPP_INLINE_VISIBILITY
+inline constexpr bool operator!=(_CmpUnspecifiedParam, weak_equality __v) noexcept {
+  return __v.__value_ != _EqResult::__zero;
+}
+
+#ifndef _LIBCPP_HAS_NO_SPACESHIP_OPERATOR
+_LIBCPP_INLINE_VISIBILITY
+inline constexpr weak_equality operator<=>(weak_equality __v, _CmpUnspecifiedParam) noexcept {
+  return __v;
+}
+
+_LIBCPP_INLINE_VISIBILITY
+inline constexpr weak_equality operator<=>(_CmpUnspecifiedParam, weak_equality __v) noexcept {
+  return __v;
+}
+#endif
+
+class strong_equality {
+  _LIBCPP_INLINE_VISIBILITY
+  explicit constexpr strong_equality(_EqResult __val) noexcept : __value_(__val) {}
+
+public:
+  static const strong_equality equal;
+  static const strong_equality nonequal;
+  static const strong_equality equivalent;
+  static const strong_equality nonequivalent;
+
+  // conversion
+  _LIBCPP_INLINE_VISIBILITY constexpr operator weak_equality() const noexcept {
+    return __value_ == _EqResult::__zero ? weak_equality::equivalent
+          : weak_equality::nonequivalent;
+  }
+
+  // comparisons
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator==(strong_equality __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator!=(strong_equality __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator==(_CmpUnspecifiedParam, strong_equality __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator!=(_CmpUnspecifiedParam, strong_equality __v) noexcept;
+
+#ifndef _LIBCPP_HAS_NO_SPACESHIP_OPERATOR
+  _LIBCPP_INLINE_VISIBILITY friend constexpr strong_equality operator<=>(strong_equality __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr strong_equality operator<=>(_CmpUnspecifiedParam, strong_equality __v) noexcept;
+#endif
+private:
+  _EqResult __value_;
+};
+
+_LIBCPP_INLINE_VAR constexpr strong_equality strong_equality::equal(_EqResult::__equal);
+_LIBCPP_INLINE_VAR constexpr strong_equality strong_equality::nonequal(_EqResult::__nonequal);
+_LIBCPP_INLINE_VAR constexpr strong_equality strong_equality::equivalent(_EqResult::__equiv);
+_LIBCPP_INLINE_VAR constexpr strong_equality strong_equality::nonequivalent(_EqResult::__nonequiv);
+
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator==(strong_equality __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__value_ == _EqResult::__zero;
+}
+
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator==(_CmpUnspecifiedParam, strong_equality __v) noexcept {
+  return __v.__value_ == _EqResult::__zero;
+}
+
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator!=(strong_equality __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__value_ != _EqResult::__zero;
+}
+
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator!=(_CmpUnspecifiedParam, strong_equality __v) noexcept {
+  return __v.__value_ != _EqResult::__zero;
+}
+
+#ifndef _LIBCPP_HAS_NO_SPACESHIP_OPERATOR
+_LIBCPP_INLINE_VISIBILITY
+constexpr strong_equality operator<=>(strong_equality __v, _CmpUnspecifiedParam) noexcept {
+  return __v;
+}
+
+_LIBCPP_INLINE_VISIBILITY
+constexpr strong_equality operator<=>(_CmpUnspecifiedParam, strong_equality __v) noexcept {
+  return __v;
+}
+#endif // _LIBCPP_HAS_NO_SPACESHIP_OPERATOR
+
+class partial_ordering {
+  using _ValueT = signed char;
+
+  _LIBCPP_INLINE_VISIBILITY
+  explicit constexpr partial_ordering(_EqResult __v) noexcept
+      : __value_(_ValueT(__v)) {}
+
+  _LIBCPP_INLINE_VISIBILITY
+  explicit constexpr partial_ordering(_OrdResult __v) noexcept
+      : __value_(_ValueT(__v)) {}
+
+  _LIBCPP_INLINE_VISIBILITY
+  explicit constexpr partial_ordering(_NCmpResult __v) noexcept
+      : __value_(_ValueT(__v)) {}
+
+  constexpr bool __is_ordered() const noexcept {
+    return __value_ != _ValueT(_NCmpResult::__unordered);
+  }
+public:
+  // valid values
+  static const partial_ordering less;
+  static const partial_ordering equivalent;
+  static const partial_ordering greater;
+  static const partial_ordering unordered;
+
+  // conversion
+  constexpr operator weak_equality() const noexcept {
+    return __value_ == 0 ? weak_equality::equivalent : weak_equality::nonequivalent;
+  }
+
+  // comparisons
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator==(partial_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator!=(partial_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator< (partial_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator<=(partial_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator> (partial_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator>=(partial_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator==(_CmpUnspecifiedParam, partial_ordering __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator!=(_CmpUnspecifiedParam, partial_ordering __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator< (_CmpUnspecifiedParam, partial_ordering __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator<=(_CmpUnspecifiedParam, partial_ordering __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator> (_CmpUnspecifiedParam, partial_ordering __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator>=(_CmpUnspecifiedParam, partial_ordering __v) noexcept;
+
+#ifndef _LIBCPP_HAS_NO_SPACESHIP_OPERATOR
+  _LIBCPP_INLINE_VISIBILITY friend constexpr partial_ordering operator<=>(partial_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr partial_ordering operator<=>(_CmpUnspecifiedParam, partial_ordering __v) noexcept;
+#endif
+
+private:
+  _ValueT __value_;
+};
+
+_LIBCPP_INLINE_VAR constexpr partial_ordering partial_ordering::less(_OrdResult::__less);
+_LIBCPP_INLINE_VAR constexpr partial_ordering partial_ordering::equivalent(_EqResult::__equiv);
+_LIBCPP_INLINE_VAR constexpr partial_ordering partial_ordering::greater(_OrdResult::__greater);
+_LIBCPP_INLINE_VAR constexpr partial_ordering partial_ordering::unordered(_NCmpResult ::__unordered);
+
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator==(partial_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__is_ordered() && __v.__value_ == 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator< (partial_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__is_ordered() && __v.__value_ < 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator<=(partial_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__is_ordered() && __v.__value_ <= 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator> (partial_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__is_ordered() && __v.__value_ > 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator>=(partial_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__is_ordered() && __v.__value_ >= 0;
+}
+
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator==(_CmpUnspecifiedParam, partial_ordering __v) noexcept {
+  return __v.__is_ordered() && 0 == __v.__value_;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator< (_CmpUnspecifiedParam, partial_ordering __v) noexcept {
+  return __v.__is_ordered() && 0 < __v.__value_;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator<=(_CmpUnspecifiedParam, partial_ordering __v) noexcept {
+  return __v.__is_ordered() && 0 <= __v.__value_;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator> (_CmpUnspecifiedParam, partial_ordering __v) noexcept {
+  return __v.__is_ordered() && 0 > __v.__value_;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator>=(_CmpUnspecifiedParam, partial_ordering __v) noexcept {
+  return __v.__is_ordered() && 0 >= __v.__value_;
+}
+
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator!=(partial_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return !__v.__is_ordered() || __v.__value_ != 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator!=(_CmpUnspecifiedParam, partial_ordering __v) noexcept {
+  return !__v.__is_ordered() || __v.__value_ != 0;
+}
+
+#ifndef _LIBCPP_HAS_NO_SPACESHIP_OPERATOR
+_LIBCPP_INLINE_VISIBILITY
+constexpr partial_ordering operator<=>(partial_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr partial_ordering operator<=>(_CmpUnspecifiedParam, partial_ordering __v) noexcept {
+  return __v < 0 ? partial_ordering::greater : (__v > 0 ? partial_ordering::less : __v);
+}
+#endif // _LIBCPP_HAS_NO_SPACESHIP_OPERATOR
+
+class weak_ordering {
+  using _ValueT = signed char;
+
+  _LIBCPP_INLINE_VISIBILITY
+  explicit constexpr weak_ordering(_EqResult __v) noexcept : __value_(_ValueT(__v)) {}
+  _LIBCPP_INLINE_VISIBILITY
+  explicit constexpr weak_ordering(_OrdResult __v) noexcept : __value_(_ValueT(__v)) {}
+
+public:
+  static const weak_ordering less;
+  static const weak_ordering equivalent;
+  static const weak_ordering greater;
+
+  // conversions
+  _LIBCPP_INLINE_VISIBILITY
+  constexpr operator weak_equality() const noexcept {
+    return __value_ == 0 ? weak_equality::equivalent
+                         : weak_equality::nonequivalent;
+  }
+
+  _LIBCPP_INLINE_VISIBILITY
+  constexpr operator partial_ordering() const noexcept {
+    return __value_ == 0 ? partial_ordering::equivalent
+        : (__value_ < 0 ? partial_ordering::less : partial_ordering::greater);
+  }
+
+  // comparisons
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator==(weak_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator!=(weak_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator< (weak_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator<=(weak_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator> (weak_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator>=(weak_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator==(_CmpUnspecifiedParam, weak_ordering __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator!=(_CmpUnspecifiedParam, weak_ordering __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator< (_CmpUnspecifiedParam, weak_ordering __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator<=(_CmpUnspecifiedParam, weak_ordering __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator> (_CmpUnspecifiedParam, weak_ordering __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator>=(_CmpUnspecifiedParam, weak_ordering __v) noexcept;
+
+#ifndef _LIBCPP_HAS_NO_SPACESHIP_OPERATOR
+  _LIBCPP_INLINE_VISIBILITY friend constexpr weak_ordering operator<=>(weak_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr weak_ordering operator<=>(_CmpUnspecifiedParam, weak_ordering __v) noexcept;
+#endif
+
+private:
+  _ValueT __value_;
+};
+
+_LIBCPP_INLINE_VAR constexpr weak_ordering weak_ordering::less(_OrdResult::__less);
+_LIBCPP_INLINE_VAR constexpr weak_ordering weak_ordering::equivalent(_EqResult::__equiv);
+_LIBCPP_INLINE_VAR constexpr weak_ordering weak_ordering::greater(_OrdResult::__greater);
+
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator==(weak_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__value_ == 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator!=(weak_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__value_ != 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator< (weak_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__value_ < 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator<=(weak_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__value_ <= 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator> (weak_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__value_ > 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator>=(weak_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__value_ >= 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator==(_CmpUnspecifiedParam, weak_ordering __v) noexcept {
+  return 0 == __v.__value_;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator!=(_CmpUnspecifiedParam, weak_ordering __v) noexcept {
+  return 0 != __v.__value_;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator< (_CmpUnspecifiedParam, weak_ordering __v) noexcept {
+  return 0 < __v.__value_;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator<=(_CmpUnspecifiedParam, weak_ordering __v) noexcept {
+  return 0 <= __v.__value_;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator> (_CmpUnspecifiedParam, weak_ordering __v) noexcept {
+  return 0 > __v.__value_;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator>=(_CmpUnspecifiedParam, weak_ordering __v) noexcept {
+  return 0 >= __v.__value_;
+}
+
+#ifndef _LIBCPP_HAS_NO_SPACESHIP_OPERATOR
+_LIBCPP_INLINE_VISIBILITY
+constexpr weak_ordering operator<=>(weak_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr weak_ordering operator<=>(_CmpUnspecifiedParam, weak_ordering __v) noexcept {
+  return __v < 0 ? weak_ordering::greater : (__v > 0 ? weak_ordering::less : __v);
+}
+#endif // _LIBCPP_HAS_NO_SPACESHIP_OPERATOR
+
+class strong_ordering {
+  using _ValueT = signed char;
+
+  _LIBCPP_INLINE_VISIBILITY
+  explicit constexpr strong_ordering(_EqResult __v) noexcept : __value_(_ValueT(__v)) {}
+  _LIBCPP_INLINE_VISIBILITY
+  explicit constexpr strong_ordering(_OrdResult __v) noexcept : __value_(_ValueT(__v)) {}
+
+public:
+  static const strong_ordering less;
+  static const strong_ordering equal;
+  static const strong_ordering equivalent;
+  static const strong_ordering greater;
+
+  // conversions
+  _LIBCPP_INLINE_VISIBILITY
+  constexpr operator weak_equality() const noexcept {
+    return __value_ == 0 ? weak_equality::equivalent
+                         : weak_equality::nonequivalent;
+  }
+
+  _LIBCPP_INLINE_VISIBILITY
+  constexpr operator strong_equality() const noexcept {
+    return __value_ == 0 ? strong_equality::equal
+                         : strong_equality::nonequal;
+  }
+
+  _LIBCPP_INLINE_VISIBILITY
+  constexpr operator partial_ordering() const noexcept {
+    return __value_ == 0 ? partial_ordering::equivalent
+        : (__value_ < 0 ? partial_ordering::less : partial_ordering::greater);
+  }
+
+  _LIBCPP_INLINE_VISIBILITY
+  constexpr operator weak_ordering() const noexcept {
+    return __value_ == 0 ? weak_ordering::equivalent
+        : (__value_ < 0 ? weak_ordering::less : weak_ordering::greater);
+  }
+
+  // comparisons
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator==(strong_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator!=(strong_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator< (strong_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator<=(strong_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator> (strong_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator>=(strong_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator==(_CmpUnspecifiedParam, strong_ordering __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator!=(_CmpUnspecifiedParam, strong_ordering __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator< (_CmpUnspecifiedParam, strong_ordering __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator<=(_CmpUnspecifiedParam, strong_ordering __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator> (_CmpUnspecifiedParam, strong_ordering __v) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr bool operator>=(_CmpUnspecifiedParam, strong_ordering __v) noexcept;
+
+#ifndef _LIBCPP_HAS_NO_SPACESHIP_OPERATOR
+  _LIBCPP_INLINE_VISIBILITY friend constexpr strong_ordering operator<=>(strong_ordering __v, _CmpUnspecifiedParam) noexcept;
+  _LIBCPP_INLINE_VISIBILITY friend constexpr strong_ordering operator<=>(_CmpUnspecifiedParam, strong_ordering __v) noexcept;
+#endif
+
+private:
+  _ValueT __value_;
+};
+
+_LIBCPP_INLINE_VAR constexpr strong_ordering strong_ordering::less(_OrdResult::__less);
+_LIBCPP_INLINE_VAR constexpr strong_ordering strong_ordering::equal(_EqResult::__equal);
+_LIBCPP_INLINE_VAR constexpr strong_ordering strong_ordering::equivalent(_EqResult::__equiv);
+_LIBCPP_INLINE_VAR constexpr strong_ordering strong_ordering::greater(_OrdResult::__greater);
+
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator==(strong_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__value_ == 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator!=(strong_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__value_ != 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator< (strong_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__value_ < 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator<=(strong_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__value_ <= 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator> (strong_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__value_ > 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator>=(strong_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v.__value_ >= 0;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator==(_CmpUnspecifiedParam, strong_ordering __v) noexcept {
+  return 0 == __v.__value_;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator!=(_CmpUnspecifiedParam, strong_ordering __v) noexcept {
+  return 0 != __v.__value_;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator< (_CmpUnspecifiedParam, strong_ordering __v) noexcept {
+  return 0 < __v.__value_;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator<=(_CmpUnspecifiedParam, strong_ordering __v) noexcept {
+  return 0 <= __v.__value_;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator> (_CmpUnspecifiedParam, strong_ordering __v) noexcept {
+  return 0 > __v.__value_;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool operator>=(_CmpUnspecifiedParam, strong_ordering __v) noexcept {
+  return 0 >= __v.__value_;
+}
+
+#ifndef _LIBCPP_HAS_NO_SPACESHIP_OPERATOR
+_LIBCPP_INLINE_VISIBILITY
+constexpr strong_ordering operator<=>(strong_ordering __v, _CmpUnspecifiedParam) noexcept {
+  return __v;
+}
+_LIBCPP_INLINE_VISIBILITY
+constexpr strong_ordering operator<=>(_CmpUnspecifiedParam, strong_ordering __v) noexcept {
+  return __v < 0 ? strong_ordering::greater : (__v > 0 ? strong_ordering::less : __v);
+}
+#endif // _LIBCPP_HAS_NO_SPACESHIP_OPERATOR
+
+// named comparison functions
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool is_eq(weak_equality __cmp) noexcept    { return __cmp == 0; }
+
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool is_neq(weak_equality __cmp) noexcept    { return __cmp != 0; }
+
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool is_lt(partial_ordering __cmp) noexcept { return __cmp < 0; }
+
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool is_lteq(partial_ordering __cmp) noexcept { return __cmp <= 0; }
+
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool is_gt(partial_ordering __cmp) noexcept { return __cmp > 0; }
+
+_LIBCPP_INLINE_VISIBILITY
+constexpr bool is_gteq(partial_ordering __cmp) noexcept { return __cmp >= 0; }
+
+namespace __comp_detail {
+
+enum _ClassifyCompCategory : unsigned{
+  _None,
+  _WeakEq,
+  _StrongEq,
+  _PartialOrd,
+  _WeakOrd,
+  _StrongOrd,
+  _CCC_Size
+};
+
+template <class _Tp>
+_LIBCPP_INLINE_VISIBILITY
+constexpr _ClassifyCompCategory __type_to_enum() noexcept {
+  if (is_same_v<_Tp, weak_equality>)
+    return _WeakEq;
+  if (is_same_v<_Tp, strong_equality>)
+    return _StrongEq;
+  if (is_same_v<_Tp, partial_ordering>)
+    return _PartialOrd;
+  if (is_same_v<_Tp, weak_ordering>)
+    return _WeakOrd;
+  if (is_same_v<_Tp, strong_ordering>)
+    return _StrongOrd;
+  return _None;
+}
+
+template <size_t _Size>
+constexpr _ClassifyCompCategory
+__compute_comp_type(std::array<_ClassifyCompCategory, _Size> __types) {
+  std::array<int, _CCC_Size> __seen = {};
+  for (auto __type : __types)
+    ++__seen[__type];
+  if (__seen[_None])
+    return _None;
+  if (__seen[_WeakEq])
+    return _WeakEq;
+  if (__seen[_StrongEq] && (__seen[_PartialOrd] || __seen[_WeakOrd]))
+    return _WeakEq;
+  if (__seen[_StrongEq])
+    return _StrongEq;
+  if (__seen[_PartialOrd])
+    return _PartialOrd;
+  if (__seen[_WeakOrd])
+    return _WeakOrd;
+  return _StrongOrd;
+}
+
+template <class ..._Ts>
+constexpr auto __get_comp_type() {
+  using _CCC = _ClassifyCompCategory;
+  constexpr array<_CCC, sizeof...(_Ts)> __type_kinds{{__comp_detail::__type_to_enum<_Ts>()...}};
+  constexpr _CCC _Cat = sizeof...(_Ts) == 0 ? _StrongOrd
+      : __compute_comp_type(__type_kinds);
+  if constexpr (_Cat == _None)
+    return void();
+  else if constexpr (_Cat == _WeakEq)
+    return weak_equality::equivalent;
+  else if constexpr (_Cat == _StrongEq)
+    return strong_equality::equivalent;
+  else if constexpr (_Cat == _PartialOrd)
+    return partial_ordering::equivalent;
+  else if constexpr (_Cat == _WeakOrd)
+    return weak_ordering::equivalent;
+  else if constexpr (_Cat == _StrongOrd)
+    return strong_ordering::equivalent;
+  else
+    static_assert(_Cat != _Cat, "unhandled case");
+}
+} // namespace __comp_detail
+
+// [cmp.common], common comparison category type
+template<class... _Ts>
+struct _LIBCPP_TEMPLATE_VIS common_comparison_category {
+  using type = decltype(__comp_detail::__get_comp_type<_Ts...>());
+};
+
+template<class... _Ts>
+using common_comparison_category_t = typename common_comparison_category<_Ts...>::type;
+
+// [cmp.alg], comparison algorithms
+// TODO: unimplemented
+template<class _Tp> constexpr strong_ordering strong_order(const _Tp& __lhs, const _Tp& __rhs);
+template<class _Tp> constexpr weak_ordering weak_order(const _Tp& __lhs, const _Tp& __rhs);
+template<class _Tp> constexpr partial_ordering partial_order(const _Tp& __lhs, const _Tp& __rhs);
+template<class _Tp> constexpr strong_equality strong_equal(const _Tp& __lhs, const _Tp& __rhs);
+template<class _Tp> constexpr weak_equality weak_equal(const _Tp& __lhs, const _Tp& __rhs);
+
+#endif // _LIBCPP_STD_VER > 17
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // _LIBCPP_COMPARE

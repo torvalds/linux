@@ -1,0 +1,42 @@
+#	@(#)README	8.1 (Berkeley) 5/31/93
+# $FreeBSD$
+
+The potentially offensive fortunes are installed by default on FreeBSD
+systems.  If you're absolutely, *positively*, without-a-shadow-of-a-doubt
+sure that your user community goes berzerk/sues your pants off/drops dead
+upon reading one of them, edit the Makefile in the subdirectory datfiles,
+and do "make all install".
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+	Some years ago, my neighbor Avery said to me: "There has not been an
+adequate jokebook published since "Joe_Miller", which came out in 1739 and
+which, incidentally, was the most miserable no-good ... jokebook in the
+history of the printed word."
+	In a subsequent conversation, Avery said: "A funny story is a funny
+story, no matter who is in it - whether it's about Catholics or Protestants,
+Jews or Gentiles, blacks or whites, browns or yellows.  If a story is genuinely
+funny it makes no difference how dirty it is.  Shout it from the rooftops.
+Let the chips fall all over the prairie and let the bonehead wowsers yelp.
+... on them."
+	It is a nice thing to have a neighbor of Avery's grain.  He has
+believed in the aforestated principles all his life.  A great many other
+people nowadays are casting aside the pietistic attitude that has led them
+to plug up their ears against the facts of life.  We of The Brotherhood
+believe as Avery believes; we have never been intimidated by the pharisaical
+meddlers who have been smelling up the American landscape since the time of
+the bundling board.  Neither has any one of our members ever been called a
+racist.  Still, we have been in unremitting revolt against the ignorant
+propensity which ordains, in effect, that "The Green Pastures" should never
+have been written; the idiot attitude which compelled Arthur Kober to abandon
+his delightful Bella Gross, and Octavius Roy Cohen to quit writing about the
+splendiferous Florian Slappey; the moronic frame of mind which, if carried
+to its logical end, would have forbidden Ring Lardner from writing in the
+language of the masses.
+		-- H. Allen Smith, "Rude Jokes"
+
+	... let us keep in mind the basic governing philosophy of The
+Brotherhood, as handsomely summarized in these words: we believe in
+healthy, hearty laughter -- at the expense of the whole human race, if
+needs be.
+	Needs be.
+		-- H. Allen Smith, "Rude Jokes"

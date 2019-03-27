@@ -1,0 +1,101 @@
+--- ifgate/message.c.orig	Mon Jul 24 15:17:47 1995
++++ ifgate/message.c	Mon Jul 24 15:18:00 1995
+@@ -48,12 +48,26 @@
+ 	if (!strcasecmp(msg->key,"X-UUCP-From")) return 0;
+ 	if (!strcasecmp(msg->key,"X-Body-Start")) return 0;
+ 	if (!strncasecmp(msg->key,"X-FTN-",6)) return 0;
+-	if (!strcasecmp(msg->key,"Path")) return isftnpath(msg->val)?0:1;
++        if (!strcasecmp(msg->key,"Path"))
++        
++#ifdef LESS_RFC_KLUDGES
++		return 0;
++#else
++		return isftnpath(msg->val)?0:1;
++#endif
++
+ 	if (!strcasecmp(msg->key,"Newsgroups")) return newsmode?0:2;
+ 	if (!strcasecmp(msg->key,"Xref")) return 0;
+ 	if (!strcasecmp(msg->key,"Return-Receipt-To")) return 1;
+ 	if (!strcasecmp(msg->key,"Received")) return newsmode?0:2;
+-	if (!strcasecmp(msg->key,"From")) return ftnorigin?0:2;
++	if (!strcasecmp(msg->key,"From"))
++	
++#ifdef LESS_RFC_KLUDGES
++		return 0;
++#else
++		return ftnorigin?0:2;
++#endif
++
+ 	if (!strcasecmp(msg->key,"To"))
+ 	{
+ 		if (newsmode) return 0;
+@@ -66,7 +80,14 @@
+ 	}
+ 	if (!strcasecmp(msg->key,"Cc")) return 2;
+ 	if (!strcasecmp(msg->key,"Bcc")) return 2;
+-	if (!strcasecmp(msg->key,"Reply-To")) return 2;
++	if (!strcasecmp(msg->key,"Reply-To"))
++	
++#ifdef LESS_RFC_KLUDGES
++		return 0;
++#else
++		return 2;
++#endif
++
+ 	if (!strcasecmp(msg->key,"Lines")) return 0;
+ 	if (!strcasecmp(msg->key,"Date")) return 0;
+ 	if (!strcasecmp(msg->key,"Subject")) 
+@@ -77,8 +98,22 @@
+ 	if (!strcasecmp(msg->key,"Organization")) return removeorg?0:1; 
+ 	if (!strcasecmp(msg->key,"Comment-To")) return 0;
+ 	if (!strcasecmp(msg->key,"X-Comment-To")) return 0;
+-	if (!strcasecmp(msg->key,"Keywords")) return 2;
+-	if (!strcasecmp(msg->key,"Summary")) return 2;
++	if (!strcasecmp(msg->key,"Keywords"))
++
++#ifdef LESS_RFC_KLUDGES
++		return 0;
++#else
++		return 2;
++#endif
++
++	if (!strcasecmp(msg->key,"Summary"))
++	
++#ifdef LESS_RFC_KLUDGES
++		return 0;
++#else
++		return 2;
++#endif
++
+ 	if (!strcasecmp(msg->key,"MIME-Version")) return removemime?0:1;
+ 	if (!strcasecmp(msg->key,"Content-Type")) return removemime?0:1;
+ 	if (!strcasecmp(msg->key,"Content-Length")) return removemime?0:1;
+@@ -86,8 +121,26 @@
+ 	if (!strcasecmp(msg->key,"Content-Name")) return 2;
+ 	if (!strcasecmp(msg->key,"Content-Description")) return 2;
+ 	if (!strcasecmp(msg->key,"Message-ID")) return ftnorigin?0:1;
+-	if (!strcasecmp(msg->key,"References")) return removeref?0:1;
+-	if (!strcasecmp(msg->key,"Distribution")) return ftnorigin?0:1;
++	if (!strcasecmp(msg->key,"References"))
++	
++#ifdef LESS_RFC_KLUDGES
++		return 0;
++#else
++		return removeref?0:1;
++#endif
++
++	if (!strcasecmp(msg->key,"Distribution"))
++
++#ifdef LESS_RFC_KLUDGES
++		return 0;
++#else
++		return ftnorigin?0:1;
++#endif
++
++#ifdef LESS_RFC_KLUDGES
++	if (!strcasecmp(msg->key,"NNTP-Posting-Host")) return 0;
++#endif
++
+ 	/*if (!strcasecmp(msg->key,"")) return ;*/
+ 	return 1;
+ }

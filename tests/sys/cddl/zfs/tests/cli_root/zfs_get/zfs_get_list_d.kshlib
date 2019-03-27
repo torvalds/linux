@@ -1,0 +1,94 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)zfs_get_list_d.kshlib	1.1	09/06/22 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+DEPTH_FS=$TESTPOOL/depth_fs
+MAX_DEPTH=3 
+DS_COUNT=3
+set -A depth_options  "d 0" "d 1" "d 2" "d 4" "d 32"
+set -A depth_array  0 1 2 4 32
+
+#
+# 'zfs get -d or zfs list -d' is supported
+#
+function zfs_get_list_d_supported
+{
+	check_opt_support "get" "-d"
+        return $?
+}
+
+#
+# Setup multiple depths datasets, including fs, volume and snapshot.
+#
+function depth_fs_setup
+{
+	typeset -i i j k
+	typeset fslist
+
+	log_must $ZFS create $DEPTH_FS
+
+	(( i=1 ))
+	while (( i<=MAX_DEPTH )); do
+		if (( i==1 )); then
+			fslist=$DEPTH_FS
+		else
+			(( k=i-1 ))
+			fslist=$($ZFS list -rH -t filesystem -o name $DEPTH_FS|$GREP d"$k"$)
+			if (( $? != 0 )); then
+				zfs list -rH -t filesystem -o name $DEPTH_FS
+				log_fail "No d$k filesystem"
+			fi
+		fi
+		for fs in $fslist; do
+			(( j=1 ))
+			while (( j<=DS_COUNT )); do
+				log_must $ZFS create $fs/fs_"$j"_d"$i"
+				if is_global_zone ; then
+					log_must $ZFS create -V 8M $fs/v_"$j"_d"$i"
+				fi
+				log_must $ZFS snapshot $fs@s_"$j"_d"$i"
+				(( j=j+1 ))
+			done
+		done
+		(( i=i+1 ))
+	done
+}
+
+#
+# Cleanup multiple depths filesystem.
+#
+function depth_fs_cleanup
+{
+	log_must $ZFS destroy -rR $DEPTH_FS
+}
+
+

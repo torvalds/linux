@@ -1,0 +1,98 @@
+.\" Copyright (c) 2018 Emmanuel Vadot <manu@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 12, 2018
+.Dt PWMBUS 9
+.Os
+.Sh NAME
+.Nm pwmbus ,
+.Nm pwmbus_attach_bus ,
+.Nm PWMBUS_GET_BUS ,
+.Nm PWMBUS_CHANNEL_CONFIG ,
+.Nm PWMBUS_CHANNEL_GET_CONFIG ,
+.Nm PWMBUS_CHANNEL_SET_FLAGS ,
+.Nm PWMBUS_CHANNEL_GET_FLAGS ,
+.Nm PWMBUS_CHANNEL_ENABLE ,
+.Nm PWMBUS_CHANNEL_IS_ENABLED ,
+.Nm PWMBUS_CHANNEL_MAX
+.Nd PWMBUS methods
+.Sh SYNOPSIS
+.Cd "device pwm"
+.In "pwmbus_if.h"
+.Ft device_t
+.Fn pwmbus_attach_bus "device_t dev"
+.Ft int
+.Fn PWMBUS_CHANNEL_CONFIG "device_t bus" "int channel" "uint64_t period" "uint64_t duty"
+.Ft int
+.Fn PWMBUS_CHANNEL_GET_CONFIG "device_t bus" "int channel" "uint64_t *period" "uint64_t *duty"
+.Ft int
+.Fn PWMBUS_CHANNEL_SET_FLAGS "device_t bus" "int channel" "uint32_t flags"
+.Ft int
+.Fn PWMBUS_CHANNEL_GET_FLAGS "device_t bus" "int channel" "uint32_t *flags"
+.Ft int
+.Fn PWMBUS_CHANNEL_ENABLE "device_t bus" "int channel" "bool enable"
+.Ft int
+.Fn PWMBUS_CHANNEL_IS_ENABLED "device_t bus" "int channel" "bool *enabled"
+.Ft int
+.Fn PWMBUS_CHANNEL_MAX "device_t bus" "int channel" "int *nchannel"
+.Sh DESCRIPTION
+The PWMBUS (Pulse-Width Modulation) interface allows the device driver to register to a global
+bus so other devices in the kernel can use them in a generic way
+.Sh INTERFACE
+.Bl -tag -width indent
+.It Fn pwmbus_attach_bus "device_t dev"
+Attach the
+.Nm pwmbus
+to the device driver
+.It Fn PWMBUS_CHANNEL_CONFIG "device_t bus" "int channel" "uint64_t period" "uint64_t duty"
+Configure the period and duty (in nanoseconds) in the PWM controller on the bus for the specified channel.
+Returns 0 on success or
+.Er EINVAL
+is the values are not supported by the controller or
+.Er EBUSY
+is the PWMBUS controller is in use and doesn't support changing the value on the fly.
+.It Fn PWMBUS_CHANNEL_GET_CONFIG "device_t bus" "int channel" "uint64_t *period" "uint64_t *duty"
+Get the current configuration of the period and duty for the specified channel.
+.It Fn PWMBUS_CHANNEL_SET_FLAGS "device_t bus" "int channel" "uint32_t flags"
+Set the flags of the channel (like inverted polarity), if the driver or controller
+doesn't support this a default method is used.
+.It Fn PWMBUS_CHANNEL_GET_FLAGS "device_t bus" "int channel" "uint32_t *flags"
+Get the current flags for the channel, if the driver or controller
+doesn't support this, a default method is used.
+.It Fn PWMBUS_CHANNEL_ENABLE "device_t bus" "int channel" "bool enable"
+Enable the PWM channel.
+.It Fn PWMBUS_CHANNEL_ISENABLED "device_t bus" "int channel" "bool *enable"
+Test if the PWM channel is enabled.
+.It PWMBUS_CHANNEL_MAX "device_t bus" "int channel" "int *nchannel"
+Get the maximum number of channel supported by the controller.
+.El
+.Sh HISTORY
+The
+.Nm pwmbus
+interface first appear in
+.Fx 13.0 .
+The
+.Nm pwmbus
+interface and manual page was written by
+.An Emmanuel Vadot Aq Mt manu@FreeBSD.org .

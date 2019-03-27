@@ -1,0 +1,65 @@
+# $FreeBSD$
+
+This is an enhanced version of the CMU BOOTP server which was derived
+from the original BOOTP server created by Bill Croft at Stanford.
+This version merges most of the enhancements and bug-fixes from the
+NetBSD, Columbia, and other versions.
+
+New features in version 2.4 include:
+
+	Added a simple BOOTP gateway program: bootpgw
+	Allow host name anywhere IP address is expected.
+	Automatically lookup the IP address when the name of a
+		bootptab entry is a valid hostname.
+		(Dummy entries names should start with '.')
+	Merged changes from NetBSD and Columbia versions.
+	Merged changes for Solaris-2.X and SVR4 systems.
+	Combined bootptest into the bootp release.
+	Merged tag 18 support (:ef=...:) from Jason Zions.
+		Use :ef=extension_file_name: and make the
+		extension files for all clients using bootpef.
+	Merged HP compatibility (:ra=...:) from David R Linn.
+		Allows you to override the reply address.
+		(i.e. send the reply to a broadcast address)
+	Add /etc/ethers support for NetBSD.
+	More systems support getether (Ultrix, OSF, NetBSD)
+	Added RFC 1533 tags 40,41,42
+		:yd=<NIS domain>:ys=<NIS server>:nt=<NTP server>:
+	ConvOldTab.sh to convert old (1.1) bootptab to new format.
+	Permits extended-length replies with more option data.
+
+Problems fixed in this version:
+
+	Fixed references to free host structures.
+		(used to cause core dump on Solaris)
+	Remove change that added null terminator to string options.
+		(this annoyed some clients...)
+	Add missing symbols to dump routine, fix order.
+	Works (again) with no -DSYSLOGD defined.
+	Fixed several more NULL references in readfile.
+	Added proper length checks to option insertions.
+	Fixed bootptest IP address printing.
+	Cleaned-up signed/unsigned and byteorder bugs.
+	Added SVR4/Streams support to getif and getether
+	Removed extra newlines in syslog messages.
+	Specify facility code when calling syslog(3)
+	When lookup_hwa fails, assume numeric HW address.
+
+Systems on which I have seen this code work:
+	NetBSD-1.0 (BSD-4.4 derivative)
+	SunOS 4.X (Solaris 1.X)
+	SunOS 5.X (Solaris 2.X)
+	System V/386 Rel. 4.0
+
+Systems on which others say this code works:
+	CDC EP/IX (1.4.3, 2.1.1)
+	DEC Ultrix (4.2, 4.3)
+	Linux 1.1.81
+	OSF/1 (DEC Alpha CPU)
+
+Please direct questions, comments, and bug reports to:
+	<bootp@andrew.cmu.edu>
+
+Gordon W. Ross  		Mercury Computer Systems
+gwr@mc.com      		199 Riverneck Road
+508-256-1300			Chelmsford, MA 01824-2820

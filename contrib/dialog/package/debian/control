@@ -1,0 +1,24 @@
+Source: cdialog
+Maintainer: Thomas E. Dickey <dickey@invisible-island.net>
+Section: misc
+Priority: optional
+Standards-Version: 3.8.4
+Build-Depends: debhelper (>= 5), libc6 (>= 2.11), libncursesw5-dev (>= 5.3), groff-base
+Homepage: http://invisible-island.net/dialog/
+
+Package: cdialog
+Architecture: any
+Depends: libc6 (>= 2.11), libncursesw5 (>= 5.3)
+Description: dialog - display dialog boxes from shell scripts
+ Dialog is a program that will let you present a variety of questions or
+ display messages using dialog boxes from a shell script.   These  types
+ of  dialog  boxes  are  implemented  (though  not  all  are necessarily
+ compiled into dialog):
+ .
+      buildlist, calendar, checklist, dselect, editbox, form, fselect,
+      gauge, infobox, inputbox, inputmenu, menu, mixedform,
+      mixedgauge, msgbox (message), passwordbox, passwordform, pause,
+      prgbox, programbox, progressbox, radiolist, rangebox, tailbox,
+      tailboxbg, textbox, timebox, treeview, and yesno (yes/no).
+ .
+ This package installs as "cdialog" to avoid conflict with other packages.

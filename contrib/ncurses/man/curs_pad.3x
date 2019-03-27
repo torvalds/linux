@@ -1,0 +1,157 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_pad.3x,v 1.17 2010/12/04 18:41:07 tom Exp $
+.TH curs_pad 3X ""
+.na
+.hy 0
+.SH NAME
+\fBnewpad\fR,
+\fBsubpad\fR,
+\fBprefresh\fR,
+\fBpnoutrefresh\fR,
+\fBpechochar\fR,
+\fBpecho_wchar\fR \- create and display \fBcurses\fR pads
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBWINDOW *newpad(int nlines, int ncols);\fR
+.br
+\fBWINDOW *subpad(WINDOW *orig, int nlines, int ncols,\fR
+      \fBint begin_y, int begin_x);\fR
+.br
+\fBint prefresh(WINDOW *pad, int pminrow, int pmincol,\fR
+      \fBint sminrow, int smincol, int smaxrow, int smaxcol);\fR
+.br
+\fBint pnoutrefresh(WINDOW *pad, int pminrow, int pmincol,\fR
+      \fBint sminrow, int smincol, int smaxrow, int smaxcol);\fR
+.br
+\fBint pechochar(WINDOW *pad, chtype ch);\fR
+.br
+\fBint pecho_wchar(WINDOW *pad, const cchar_t *wch);\fR
+.SH DESCRIPTION
+The \fBnewpad\fR routine creates and returns a pointer to a new pad data
+structure with the given number of lines, \fInlines\fR, and columns,
+\fIncols\fR.
+A pad is like a window, except that it is not restricted by the
+screen size, and is not necessarily associated with a particular part of the
+screen.
+Pads can be used when a large window is needed, and only a part of the
+window will be on the screen at one time.
+Automatic refreshes of pads
+(e.g., from scrolling or echoing of input) do not occur.
+It is not
+legal to call \fBwrefresh\fR with a \fIpad\fR as an argument; the routines
+\fBprefresh\fR or \fBpnoutrefresh\fR should be called instead.
+Note that these
+routines require additional parameters to specify the part of the pad to be
+displayed and the location on the screen to be used for the display.
+.PP
+The \fBsubpad\fR routine creates and returns a pointer to a subwindow within a
+pad with the given number of lines, \fInlines\fR, and columns, \fIncols\fR.
+Unlike \fBsubwin\fR, which uses screen coordinates, the window is at position
+(\fIbegin\fR_\fIx\fR\fB,\fR \fIbegin\fR_\fIy\fR) on the pad.
+The window is
+made in the middle of the window \fIorig\fR, so that changes made to one window
+affect both windows.
+During the use of this routine, it will often be
+necessary to call \fBtouchwin\fR or \fBtouchline\fR on \fIorig\fR before
+calling \fBprefresh\fR.
+.PP
+The \fBprefresh\fR and \fBpnoutrefresh\fR routines are analogous to
+\fBwrefresh\fR and \fBwnoutrefresh\fR except that they relate to pads instead
+of windows.
+The additional parameters are needed to indicate what part of the
+pad and screen are involved.
+The \fIpminrow\fR and \fIpmincol\fR parameters specify the upper
+left-hand corner of the rectangle to be displayed in the pad.
+The \fIsminrow\fR,
+\fIsmincol\fR, \fIsmaxrow\fR, and \fIsmaxcol\fR
+parameters specify the edges of the
+rectangle to be displayed on the screen.
+The lower right-hand corner of the
+rectangle to be displayed in the pad is calculated from the screen coordinates,
+since the rectangles must be the same size.
+Both rectangles must be entirely
+contained within their respective structures.
+Negative values of
+\fIpminrow\fR, \fIpmincol\fR, \fIsminrow\fR, or \fIsmincol\fR are treated as if
+they were zero.
+.PP
+The \fBpechochar\fR routine is functionally equivalent to a call to \fBaddch\fR
+followed by a call to \fBrefresh\fR, a call to \fBwaddch\fR followed by a call
+to \fBwrefresh\fR, or a call to \fBwaddch\fR followed by a call to
+\fBprefresh\fR.
+The knowledge that only a single character is being output is
+taken into consideration and, for non-control characters, a considerable
+performance gain might be seen by using these routines instead of their
+equivalents.
+In the case of \fBpechochar\fR, the last location of the pad on
+the screen is reused for the arguments to \fBprefresh\fR.
+.PP
+The \fBpecho_wchar\fR function is the analogous wide-character
+form of \fBpechochar\fR.
+It outputs one character to a pad and immediately refreshes the pad.
+It does this by a call to \fBwadd_wch\fR followed by a call to \fBprefresh\fR.
+.SH RETURN VALUE
+Routines that return an integer return \fBERR\fR upon failure and \fBOK\fR
+(SVr4 only specifies "an integer value other than \fBERR\fR") upon successful
+completion.
+.PP
+Routines that return pointers return \fBNULL\fR on error, and set \fBerrno\fR
+to \fBENOMEM\fR.
+.PP
+X/Open does not define any error conditions.
+In this implementation
+.RS
+.TP 5
+\fBprefresh\fP and \fBpnoutrefresh\fP
+return an error
+if the window pointer is null, or
+if the window is not really a pad or
+if the area to refresh extends off-screen or
+if the minimum coordinates are greater than the maximum.
+.TP 5
+\fBpechochar\fP
+returns an error
+if the window is not really a pad, and the associated call
+to \fBwechochar\fP returns an error.
+.TP 5
+\fBpecho_wchar\fP
+returns an error
+if the window is not really a pad, and the associated call
+to \fBwecho_wchar\fP returns an error.
+.RE
+.SH NOTES
+Note that \fBpechochar\fR may be a macro.
+.SH PORTABILITY
+The XSI Curses standard, Issue 4 describes these functions.
+.SH SEE ALSO
+\fBcurses\fR(3X), \fBcurs_refresh\fR(3X), \fBcurs_touch\fR(3X), \fBcurs_addch\fR(3X).

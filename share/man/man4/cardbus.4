@@ -1,0 +1,59 @@
+.\"
+.\" Copyright (c) 2002 M. Warner Losh
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 9, 2002
+.Dt CARDBUS 4
+.Os
+.Sh NAME
+.Nm cardbus
+.Nd CardBus bus driver
+.Sh SYNOPSIS
+.Cd device cardbus
+.Sh DESCRIPTION
+The
+.Nm
+driver implements the CardBus bus.
+The
+.Nm
+driver supports all cardbus bridges in the system.
+.Sh TUNABLES
+The driver supports the following tunable parameters, which may be
+added to
+.Pa /boot/loader.conf
+or set via the
+.Xr sysctl 8
+command:
+.Bl -tag -width ".Cm hw.cardbus.cis_debug" -compact
+.It Cm hw.cardbus.debug
+Non-zero values cause more verbose information to be printed when a
+32-bit CardBus card is inserted or removed.
+.It Cm hw.cardbus.cis_debug
+Non-zero value causes the CIS parsing of the 32-bit CardBus card to be
+much more verbose and include a complete CIS dump.
+.El
+.Sh SEE ALSO
+.Xr pccard 4 ,
+.Xr pccbb 4

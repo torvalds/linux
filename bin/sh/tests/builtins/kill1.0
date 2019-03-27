@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+: &
+p1=$!
+: &
+p2=$!
+wait $p2
+kill %1

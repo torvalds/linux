@@ -1,0 +1,94 @@
+.\"
+.\" Copyright (c) 2001 Christopher G. Demetriou
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"          This product includes software developed for the
+.\"          NetBSD Project.  See http://www.netbsd.org/ for
+.\"          information about NetBSD.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 1, 2001
+.Dt GETPROGNAME 3
+.Os
+.Sh NAME
+.Nm getprogname ,
+.Nm setprogname
+.Nd get or set the program name
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft const char *
+.Fn getprogname "void"
+.Ft void
+.Fn setprogname "const char *progname"
+.Sh DESCRIPTION
+The
+.Fn getprogname
+and
+.Fn setprogname
+functions manipulate the name of the current program.
+They are used by error-reporting routines to produce
+consistent output.
+.Pp
+The
+.Fn getprogname
+function returns the name of the program.
+If the name has not been set yet, it will return
+.Dv NULL .
+.Pp
+The
+.Fn setprogname
+function sets the name of the program to be the last component of the
+.Fa progname
+argument.
+Since a pointer to the given string is kept as the program name,
+it should not be modified for the rest of the program's lifetime.
+.Pp
+In
+.Fx ,
+the name of the program is set by the start-up code that is run before
+.Fn main ;
+thus,
+running
+.Fn setprogname
+is not necessary.
+Programs that desire maximum portability should still call it;
+on another operating system,
+these functions may be implemented in a portability library.
+Calling
+.Fn setprogname
+allows the aforementioned library to learn the program name without
+modifications to the start-up code.
+.Sh SEE ALSO
+.Xr err 3 ,
+.Xr setproctitle 3
+.Sh HISTORY
+These functions first appeared in
+.Nx 1.6 ,
+and made their way into
+.Fx 4.4 .

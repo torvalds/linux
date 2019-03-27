@@ -1,0 +1,10 @@
+.TH "page_cert" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+page_cert \- The basic certificate 
+The basic hx509 cerificate object in hx509 is hx509_cert. The hx509_cert object is representing one X509/PKIX certificate and associated attributes; like private key, friendly name, etc.
+.PP
+A hx509_cert object is usully found via the keyset interfaces (\fBCertificate store operations\fP), but its also possible to create a certificate directly from a parsed object with \fBhx509_cert_init()\fP and \fBhx509_cert_init_data()\fP.
+.PP
+See the library functions here: \fBhx509 certificate functions\fP 

@@ -1,0 +1,73 @@
+#!/usr/sbin/dtrace -s
+/*
+ * Copyright (c) 2012 Robert N. M. Watson
+ * All rights reserved.
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *
+ * This script creates a trace of NFS RPCs, NFS attribute cache
+ * activity, and NFS access cache activity, along with the system call
+ * that instigated the activity. Notice that NFS events may happen
+ * outside of the context of a system call, most likely due to the VM
+ * system paging from NFS, in which case the system call name is
+ * reported as "-"
+ */
+
+#pragma D option quiet
+
+dtrace:::BEGIN
+{
+	printf("probe\targ0\texecutable\tsyscall\n");
+}
+
+syscall:::entry
+{
+
+        self->syscallname = probefunc;
+}
+
+syscall:::return
+{
+
+        self->syscallname = "";
+}
+
+nfscl:::
+/self->syscallname != 0 && self->syscallname != ""/
+{
+
+    printf("%s\t%s\t%s\t%s\n", probemod, stringof(arg0), execname, 
+	    self->syscallname);
+}
+
+nfscl:::
+/self->syscallname == 0 || self->syscallname == ""/
+{
+
+    printf("%s\t%s\t%s\t%s\n", probemod, stringof(arg0), execname, 
+	    self->syscallname);
+}

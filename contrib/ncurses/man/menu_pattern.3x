@@ -1,0 +1,85 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: menu_pattern.3x,v 1.13 2010/12/04 18:40:45 tom Exp $
+.TH menu_pattern 3X ""
+.SH NAME
+\fBmenu_pattern\fR \- get and set a menu's pattern buffer
+.SH SYNOPSIS
+\fB#include <menu.h>\fR
+.br
+int set_menu_pattern(MENU *menu, const char *pattern);
+.br
+char *menu_pattern(const MENU *menu);
+.br
+.SH DESCRIPTION
+Every menu has an associated pattern match buffer.  As input events that are
+printable characters come in, they are appended to this match buffer
+and tested for a match, as described in \fBmenu_driver\fR(3X).
+.PP
+The function \fBset_menu_pattern\fR sets the pattern buffer for the given menu
+and tries to find the first matching item.  If it succeeds, that item becomes
+current; if not, the current item does not change. 
+.PP
+The function \fBmenu_pattern\fR returns the pattern buffer of the given
+\fImenu\fR.
+.SH RETURN VALUE
+The function \fBmenu_pattern\fR returns a pointer, which is \fBNULL\fR if the \fImenu\fP parameter is \fBNULL\fP.
+Otherwise, it is a pointer to a string which is empty if no pattern has been set.
+It does not set errno.
+.PP
+The function \fBset_menu_pattern\fR may return the following error codes:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_BAD_STATE
+Routine was called from an initialization or termination function.
+.TP 5
+.B E_NOT_CONNECTED
+No items are connected to menu.
+.TP 5
+.B E_NO_MATCH
+Character failed to match.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
+.SH SEE ALSO
+\fBcurses\fR(3X), \fBmenu\fR(3X).
+.SH NOTES
+The header file \fB<menu.h>\fR automatically includes the header file
+\fB<curses.h>\fR.
+.SH PORTABILITY
+These routines emulate the System V menu library.  They were not supported on
+Version 7 or BSD versions.
+.SH AUTHORS
+Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
+S. Raymond.

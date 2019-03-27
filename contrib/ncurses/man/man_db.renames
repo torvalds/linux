@@ -1,0 +1,193 @@
+##############################################################################
+# Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.                #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+# $Id: man_db.renames,v 1.47 2010/09/18 15:43:20 tom Exp $
+# Manual-page renamings for the man_db program
+#
+# Files:
+captoinfo.1m			captoinfo.1
+clear.1				clear.1
+curs_add_wch.3x			add_wch.3ncurses
+curs_add_wchstr.3x		add_wchstr.3ncurses
+curs_addch.3x			addch.3ncurses
+curs_addchstr.3x		addchstr.3ncurses
+curs_addstr.3x			addstr.3ncurses
+curs_addwstr.3x			addwstr.3ncurses
+curs_attr.3x			attr.3ncurses
+curs_beep.3x			beep.3ncurses
+curs_bkgd.3x			bkgd.3ncurses
+curs_bkgrnd.3x			bkgrnd.3ncurses
+curs_border.3x			border.3ncurses
+curs_border_set.3x		border_set.3ncurses
+curs_clear.3x			clear.3ncurses
+curs_color.3x			color.3ncurses
+curs_delch.3x			delch.3ncurses
+curs_deleteln.3x		deleteln.3ncurses
+curs_extend.3x			extensions.3ncurses
+curs_get_wch.3x			get_wch.3ncurses
+curs_get_wstr.3x		get_wstr.3ncurses
+curs_getcchar.3x		getcchar.3ncurses
+curs_getch.3x			getch.3ncurses
+curs_getstr.3x			getstr.3ncurses
+curs_getyx.3x			getyx.3ncurses
+curs_in_wch.3x			in_wch.3ncurses
+curs_in_wchstr.3x		in_wchstr.3ncurses
+curs_inch.3x			inch.3ncurses
+curs_inchstr.3x			inchstr.3ncurses
+curs_initscr.3x			initscr.3ncurses
+curs_inopts.3x			inopts.3ncurses
+curs_ins_wch.3x			ins_wch.3ncurses
+curs_ins_wstr.3x		ins_wstr.3ncurses
+curs_insch.3x			insch.3ncurses
+curs_insstr.3x			insstr.3ncurses
+curs_instr.3x			instr.3ncurses
+curs_inwstr.3x			inwstr.3ncurses
+curs_kernel.3x			kernel.3ncurses
+curs_legacy.3x			legacy.3ncurses
+curs_memleaks.3x		memleaks.3ncurses
+curs_mouse.3x			mouse.3ncurses
+curs_move.3x			move.3ncurses
+curs_opaque.3x			opaque.3ncurses
+curs_outopts.3x			outopts.3ncurses
+curs_overlay.3x			overlay.3ncurses
+curs_pad.3x			pad.3ncurses
+curs_print.3x			print.3ncurses
+curs_printw.3x			printw.3ncurses
+curs_refresh.3x			refresh.3ncurses
+curs_scanw.3x			scanw.3ncurses
+curs_scr_dump.3x		scr_dump.3ncurses
+curs_scroll.3x			scroll.3ncurses
+curs_slk.3x			slk.3ncurses
+curs_sp_funcs.3x		sp_funcs.3ncurses
+curs_termattrs.3x		termattrs.3ncurses
+curs_termcap.3x			termcap.3ncurses
+curs_terminfo.3x		terminfo.3ncurses
+curs_threads.3x			threads.3ncurses
+curs_touch.3x			touch.3ncurses
+curs_trace.3x			trace.3ncurses
+curs_util.3x			util.3ncurses
+curs_variables.3x		curses_variables.3ncurses
+curs_window.3x			window.3ncurses
+curses.3x			ncurses.3ncurses
+default_colors.3x		default_colors.3ncurses
+define_key.3x			define_key.3ncurses
+form.3x				form.3form
+form_cursor.3x			cursor.3form
+form_data.3x			data.3form
+form_driver.3x			driver.3form
+form_field.3x			field.3form
+form_field_attributes.3x	field_attributes.3form
+form_field_buffer.3x		field_buffer.3form
+form_field_info.3x		field_info.3form
+form_field_just.3x		field_just.3form
+form_field_new.3x		field_new.3form
+form_field_opts.3x		field_opts.3form
+form_field_userptr.3x		field_userptr.3form
+form_field_validation.3x	field_validation.3form
+form_fieldtype.3x		fieldtype.3form
+form_hook.3x			hook.3form
+form_new.3x			new.3form
+form_new_page.3x		new_page.3form
+form_opts.3x			opts.3form
+form_page.3x			page.3form
+form_post.3x			post.3form
+form_requestname.3x		requestname.3form
+form_userptr.3x			userptr.3form
+form_variables.3x		form_variables.3form
+form_win.3x			win.3form
+infocmp.1m			infocmp.1
+infotocap.1m			infotocap.1
+key_defined.3x			key_defined.3ncurses
+keybound.3x			keybound.3ncurses
+keyok.3x			keyok.3ncurses
+legacy_coding.3x		legacy_coding.3ncurses
+menu.3x				menu.3menu
+menu_attributes.3x		attributes.3menu
+menu_cursor.3x			cursor.3menu
+menu_driver.3x			driver.3menu
+menu_format.3x			format.3menu
+menu_hook.3x			hook.3menu
+menu_items.3x			items.3menu
+menu_mark.3x			mark.3menu
+menu_new.3x			new.3menu
+menu_opts.3x			opts.3menu
+menu_pattern.3x			pattern.3menu
+menu_post.3x			post.3menu
+menu_requestname.3x		requestname.3menu
+menu_spacing.3x			spacing.3menu
+menu_userptr.3x			userptr.3menu
+menu_win.3x			win.3menu
+mitem_current.3x		menu_current.3menu
+mitem_name.3x			menu_name.3menu
+mitem_new.3x			menu_new.3menu
+mitem_opts.3x			menu_opts.3menu
+mitem_userptr.3x		menu_userptr.3menu
+mitem_value.3x			menu_value.3menu
+mitem_visible.3x		menu_visible.3menu
+ncurses.3x			ncurses.3ncurses
+panel.3x			panel.3curses
+printf.3s			printf.3
+putc.3s 			putc.3
+resizeterm.3x			resizeterm.3ncurses
+scanf.3s			scanf.3
+system.3s			system.3
+tabs.1				tabs.1
+term.5				term.5
+term.7				term.7
+term_variables.3x		terminfo_variables.3ncurses
+terminfo.5			terminfo.5
+terminfo.\\\*n			terminfo.5
+tic.1m				tic.1
+toe.1m				toe.1
+tput.1				tput.1
+tset.1				tset.1
+vprintf.3s			vprintf.3
+wresize.3x			wresize.3ncurses
+#
+# Other:
+tack.1m				tack.1
+#
+getty.1				getty.8
+scanf.3				scanf.3
+ttys.5				ttys.4
+termio.7			termios.3
+system.3			system.3
+regcomp.3x			regcomp.3
+regexec.3x			regexec.3
+#
+# Generated:
+adacurses-config.1		adacurses-config.1
+#
+ncurses5-config.1		ncurses5-config.1
+ncursesw5-config.1		ncursesw5-config.1
+#
+ncurses6-config.1		ncurses6-config.1
+ncursesw6-config.1		ncursesw6-config.1
+ncursest6-config.1		ncursest6-config.1
+ncurseswt6-config.1		ncurseswt6-config.1
+#
+# vile:cfgmode

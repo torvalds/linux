@@ -1,0 +1,35 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ntpdate
+# REQUIRE: NETWORKING syslogd
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="ntpdate"
+desc="Set the date and time via NTP"
+rcvar="ntpdate_enable"
+stop_cmd=":"
+start_cmd="ntpdate_start"
+
+ntpdate_start()
+{
+	if [ -z "$ntpdate_hosts" -a -f "$ntpdate_config" ]; then
+		ntpdate_hosts=`awk '
+			/^server[ \t]*127.127/      {next}
+			/^(server|peer|pool)/       {
+			    if ($2 ~/^-/)           {print $3}
+			    else                    {print $2}}
+		' < "$ntpdate_config"`
+	fi
+	if [ -n "$ntpdate_hosts" -o -n "$rc_flags" ]; then
+		echo "Setting date via ntp."
+		${ntpdate_program:-ntpdate} $rc_flags $ntpdate_hosts
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

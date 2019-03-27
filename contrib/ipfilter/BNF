@@ -1,0 +1,81 @@
+filter-rule = [ insert ] action in-out [ options ] [ tos ] [ ttl ]
+	      [ proto ] [ ip ] [ group ] [ tag ] [ pps ] .
+
+insert	= "@" decnumber .
+action	= block | "pass" | log | "count" | auth | call .
+in-out	= "in" | "out" .
+options	= [ log ] [ "quick" ] [ onif [ dup ] [ froute ] ] .
+tos	= "tos" decnumber | "tos" hexnumber .
+ttl	= "ttl" decnumber .
+proto	= "proto" protocol .
+ip	= srcdst [ flags ] [ with withopt ] [ icmp ] [ keep ] .
+group	= [ "head" decnumber ] [ "group" decnumber ] .
+pps	= "pps" decnumber .
+
+onif	= "on" interface-name [ "out-via" interface-name ] .
+block	= "block" [ return-icmp[return-code] | "return-rst" ] .
+auth	= "auth" | "preauth" .
+log	= "log" [ "body" ] [ "first" ] [ "or-block" ] [ "level" loglevel ] .
+tag	= "tag" tagid .
+call	= "call" [ "now" ] function-name "/" decnumber.
+dup	= "dup-to" interface-name[":"ipaddr] .
+froute	= "fastroute" | "to" interface-name .
+replyto = "reply-to" interface-name [ ":" ipaddr ] .
+protocol = "tcp/udp" | "udp" | "tcp" | "icmp" | decnumber .
+srcdst	= "all" | fromto .
+fromto	= "from" object "to" object .
+
+return-icmp = "return-icmp" | "return-icmp-as-dest" .
+loglevel = facility"."priority | priority .
+object	= addr [ port-comp | port-range ] .
+addr	= "any" | nummask | host-name [ "mask" ipaddr | "mask" hexnumber ] .
+port-comp = "port" compare port-num .
+port-range = "port" port-num range port-num .
+flags	= "flags" flag { flag } [ "/" flag { flag } ] .
+with	= "with" | "and" .
+icmp	= "icmp-type" icmp-type [ "code" decnumber ] .
+return-code = "("icmp-code")" .
+keep	= "keep" "state" [ "limit" number ] | "keep" "frags" .
+
+nummask	= host-name [ "/" decnumber ] .
+host-name = ipaddr | hostname | "any" .
+ipaddr	= host-num "." host-num "." host-num "." host-num .
+host-num = digit [ digit [ digit ] ] .
+port-num = service-name | decnumber .
+
+withopt = [ "not" | "no" ] opttype [ [ "," ] withopt ] .
+opttype = "ipopts" | "short" | "nat" | "bad-src" | "lowttl" | "frag" |
+          "mbcast" | "opt" ipopts  .
+optname	= ipopts [ "," optname ] .
+ipopts  = optlist | "sec-class" [ secname ] .
+secname	= seclvl [ "," secname ] .
+seclvl  = "unclass" | "confid" | "reserv-1" | "reserv-2" | "reserv-3" |
+	  "reserv-4" | "secret" | "topsecret" .
+icmp-type = "unreach" | "echo" | "echorep" | "squench" | "redir" |
+	    "timex" | "paramprob" | "timest" | "timestrep" | "inforeq" |
+	    "inforep" | "maskreq" | "maskrep"  | "routerad" |
+	    "routersol" | decnumber .
+icmp-code = decumber | "net-unr" | "host-unr" | "proto-unr" | "port-unr" |
+	    "needfrag" | "srcfail" | "net-unk" | "host-unk" | "isolate" |
+	    "net-prohib" | "host-prohib" | "net-tos" | "host-tos" |
+	    "filter-prohib" | "host-preced" | "cutoff-preced" .
+optlist	= "nop" | "rr" | "zsu" | "mtup" | "mtur" | "encode" | "ts" | "tr" |
+	  "sec" | "lsrr" | "e-sec" | "cipso" | "satid" | "ssrr" | "addext" |
+	  "visa" | "imitd" | "eip" | "finn" .
+facility = "kern" | "user" | "mail" | "daemon" | "auth" | "syslog" |
+	   "lpr" | "news" | "uucp" | "cron" | "ftp" | "authpriv" |
+	   "audit" | "logalert" | "local0" | "local1" | "local2" |
+	   "local3" | "local4" | "local5" | "local6" | "local7" .
+priority = "emerg" | "alert" | "crit" | "err" | "warn" | "notice" |
+	   "info" | "debug" .
+
+hexnumber = "0" "x" hexstring .
+hexstring = hexdigit [ hexstring ] .
+decnumber = digit [ decnumber ] .
+
+compare = "=" | "!=" | "<" | ">" | "<=" | ">=" | "eq" | "ne" | "lt" | "gt" |
+	  "le" | "ge" .
+range	= "<>" | "><" .
+hexdigit = digit | "a" | "b" | "c" | "d" | "e" | "f" .
+digit	= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" .
+flag	= "F" | "S" | "R" | "P" | "A" | "U" | "C" | "W" .

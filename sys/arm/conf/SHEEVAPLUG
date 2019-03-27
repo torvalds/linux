@@ -1,0 +1,85 @@
+#
+# Custom kernel for Marvell SheevaPlug devices.
+#
+# $FreeBSD$
+#
+#NO_UNIVERSE
+
+ident		SHEEVAPLUG
+include 	"std.arm"
+include 	"../mv/kirkwood/std.db88f6xxx"
+
+options 	SOC_MV_KIRKWOOD
+
+makeoptions	WERROR="-Werror"
+
+options 	HZ=1000
+options 	SCHED_4BSD		# 4BSD scheduler
+options 	INET			# InterNETworking
+options 	INET6			# IPv6 communications protocols
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+options 	FFS			# Berkeley Fast Filesystem
+options 	NANDFS			# NAND Filesystem
+options 	NFSCL			# Network Filesystem Client
+options 	NFSLOCKD		# Network Lock Manager
+options 	NFS_ROOT		# NFS usable as /, requires NFSCL
+options 	TMPFS			# Efficient memory filesystem
+options 	GEOM_PART_BSD		# BSD partition scheme
+options 	GEOM_PART_MBR		# MBR partition scheme
+options 	SYSVSHM			# SYSV-style shared memory
+options 	SYSVMSG			# SYSV-style message queues
+options 	SYSVSEM			# SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
+options 	MUTEX_NOINLINE
+options 	RWLOCK_NOINLINE
+options 	NO_FFS_SNAPSHOT
+options 	NO_SWAPPING
+
+# NFS root from boopt/dhcp
+options 	BOOTP
+options 	BOOTP_NFSROOT
+options 	BOOTP_NFSV3
+options 	BOOTP_WIRED_TO=mge0
+
+# Root fs on USB device
+#options 	ROOTDEVNAME=\"ufs:/dev/da0a\"
+
+# Pseudo devices
+device		loop
+device		random
+
+# Serial ports
+device		uart
+
+# Networking
+device		ether
+device		mge			# Marvell Gigabit Ethernet controller
+device		mii
+device		mdio
+device		e1000phy
+device		bpf
+options 	DEVICE_POLLING
+device		vlan
+
+device		cesa			# Marvell security engine
+device		crypto
+device		cryptodev
+
+# USB
+device		usb
+device		ehci
+device		umass
+device		scbus
+device		pass
+device		da
+
+# NAND
+device		nand
+
+# GPIO
+device		gpio
+
+# Flattened Device Tree
+options 	FDT			# Configure using FDT/DTB data
+options 	FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=sheevaplug.dts

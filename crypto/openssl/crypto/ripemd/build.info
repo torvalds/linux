@@ -1,0 +1,7 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=\
+        rmd_dgst.c rmd_one.c {- $target{rmd160_asm_src} -}
+
+GENERATE[rmd-586.s]=asm/rmd-586.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS)
+DEPEND[rmd-586.s]=../perlasm/x86asm.pl

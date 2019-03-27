@@ -1,0 +1,398 @@
+.\" Copyright (c) 2003 - 2007 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd Sep  16, 2006
+.Dt KRB5_GET_INIT_CREDS 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_get_init_creds ,
+.Nm krb5_get_init_creds_keytab ,
+.Nm krb5_get_init_creds_opt ,
+.Nm krb5_get_init_creds_opt_alloc ,
+.Nm krb5_get_init_creds_opt_free ,
+.Nm krb5_get_init_creds_opt_init ,
+.Nm krb5_get_init_creds_opt_set_address_list ,
+.Nm krb5_get_init_creds_opt_set_addressless ,
+.Nm krb5_get_init_creds_opt_set_anonymous ,
+.Nm krb5_get_init_creds_opt_set_default_flags ,
+.Nm krb5_get_init_creds_opt_set_etype_list ,
+.Nm krb5_get_init_creds_opt_set_forwardable ,
+.Nm krb5_get_init_creds_opt_set_pa_password ,
+.Nm krb5_get_init_creds_opt_set_paq_request ,
+.Nm krb5_get_init_creds_opt_set_preauth_list ,
+.Nm krb5_get_init_creds_opt_set_proxiable ,
+.Nm krb5_get_init_creds_opt_set_renew_life ,
+.Nm krb5_get_init_creds_opt_set_salt ,
+.Nm krb5_get_init_creds_opt_set_tkt_life ,
+.Nm krb5_get_init_creds_opt_set_canonicalize ,
+.Nm krb5_get_init_creds_opt_set_win2k ,
+.Nm krb5_get_init_creds_password ,
+.Nm krb5_prompt ,
+.Nm krb5_prompter_posix
+.Nd Kerberos 5 initial authentication functions
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Pp
+.Ft krb5_get_init_creds_opt;
+.Pp
+.Ft krb5_error_code
+.Fo krb5_get_init_creds_opt_alloc
+.Fa "krb5_context context"
+.Fa "krb5_get_init_creds_opt **opt"
+.Fc
+.Ft void
+.Fo krb5_get_init_creds_opt_free
+.Fa "krb5_context context"
+.Fa "krb5_get_init_creds_opt *opt"
+.Fc
+.Ft void
+.Fo krb5_get_init_creds_opt_init
+.Fa "krb5_get_init_creds_opt *opt"
+.Fc
+.Ft void
+.Fo krb5_get_init_creds_opt_set_address_list
+.Fa "krb5_get_init_creds_opt *opt"
+.Fa "krb5_addresses *addresses"
+.Fc
+.Ft void
+.Fo krb5_get_init_creds_opt_set_addressless
+.Fa "krb5_get_init_creds_opt *opt"
+.Fa "krb5_boolean addressless"
+.Fc
+.Ft void
+.Fo krb5_get_init_creds_opt_set_anonymous
+.Fa "krb5_get_init_creds_opt *opt"
+.Fa "int anonymous"
+.Fc
+.Ft void
+.Fo krb5_get_init_creds_opt_set_default_flags
+.Fa "krb5_context context"
+.Fa "const char *appname"
+.Fa "krb5_const_realm realm"
+.Fa "krb5_get_init_creds_opt *opt"
+.Fc
+.Ft void
+.Fo krb5_get_init_creds_opt_set_etype_list
+.Fa "krb5_get_init_creds_opt *opt"
+.Fa "krb5_enctype *etype_list"
+.Fa "int etype_list_length"
+.Fc
+.Ft void
+.Fo krb5_get_init_creds_opt_set_forwardable
+.Fa "krb5_get_init_creds_opt *opt"
+.Fa "int forwardable"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_init_creds_opt_set_pa_password
+.Fa "krb5_context context"
+.Fa "krb5_get_init_creds_opt *opt"
+.Fa "const char *password"
+.Fa "krb5_s2k_proc key_proc"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_init_creds_opt_set_paq_request
+.Fa "krb5_context context"
+.Fa "krb5_get_init_creds_opt *opt"
+.Fa "krb5_boolean req_pac"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_init_creds_opt_set_pkinit
+.Fa "krb5_context context"
+.Fa "krb5_get_init_creds_opt *opt"
+.Fa "const char *cert_file"
+.Fa "const char *key_file"
+.Fa "const char *x509_anchors"
+.Fa "int flags"
+.Fa "char *password"
+.Fc
+.Ft void
+.Fo krb5_get_init_creds_opt_set_preauth_list
+.Fa "krb5_get_init_creds_opt *opt"
+.Fa "krb5_preauthtype *preauth_list"
+.Fa "int preauth_list_length"
+.Fc
+.Ft void
+.Fo krb5_get_init_creds_opt_set_proxiable
+.Fa "krb5_get_init_creds_opt *opt"
+.Fa "int proxiable"
+.Fc
+.Ft void
+.Fo krb5_get_init_creds_opt_set_renew_life
+.Fa "krb5_get_init_creds_opt *opt"
+.Fa "krb5_deltat renew_life"
+.Fc
+.Ft void
+.Fo krb5_get_init_creds_opt_set_salt
+.Fa "krb5_get_init_creds_opt *opt"
+.Fa "krb5_data *salt"
+.Fc
+.Ft void
+.Fo krb5_get_init_creds_opt_set_tkt_life
+.Fa "krb5_get_init_creds_opt *opt"
+.Fa "krb5_deltat tkt_life"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_init_creds_opt_set_canonicalize
+.Fa "krb5_context context"
+.Fa "krb5_get_init_creds_opt *opt"
+.Fa "krb5_boolean req"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_init_creds_opt_set_win2k
+.Fa "krb5_context context"
+.Fa "krb5_get_init_creds_opt *opt"
+.Fa "krb5_boolean req"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_init_creds
+.Fa "krb5_context context"
+.Fa "krb5_creds *creds"
+.Fa "krb5_principal client"
+.Fa "krb5_prompter_fct prompter"
+.Fa "void *prompter_data"
+.Fa "krb5_deltat start_time"
+.Fa "const char *in_tkt_service"
+.Fa "krb5_get_init_creds_opt *options"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_init_creds_password
+.Fa "krb5_context context"
+.Fa "krb5_creds *creds"
+.Fa "krb5_principal client"
+.Fa "const char *password"
+.Fa "krb5_prompter_fct prompter"
+.Fa "void *prompter_data"
+.Fa "krb5_deltat start_time"
+.Fa "const char *in_tkt_service"
+.Fa "krb5_get_init_creds_opt *in_options"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_init_creds_keytab
+.Fa "krb5_context context"
+.Fa "krb5_creds *creds"
+.Fa "krb5_principal client"
+.Fa "krb5_keytab keytab"
+.Fa "krb5_deltat start_time"
+.Fa "const char *in_tkt_service"
+.Fa "krb5_get_init_creds_opt *options"
+.Fc
+.Ft int
+.Fo krb5_prompter_posix
+.Fa "krb5_context context"
+.Fa "void *data"
+.Fa "const char *name"
+.Fa "const char *banner"
+.Fa "int num_prompts"
+.Fa "krb5_prompt prompts[]"
+.Fc
+.Sh DESCRIPTION
+Getting initial credential ticket for a principal.
+That may include changing an expired password, and doing preauthentication.
+This interface that replaces the deprecated
+.Fa krb5_in_tkt
+and
+.Fa krb5_in_cred
+functions.
+.Pp
+If you only want to verify a username and password, consider using
+.Xr krb5_verify_user 3
+instead, since it also verifies that initial credentials with using a
+keytab to make sure the response was from the KDC.
+.Pp
+First a
+.Li krb5_get_init_creds_opt
+structure is initialized
+with
+.Fn krb5_get_init_creds_opt_alloc
+or
+.Fn krb5_get_init_creds_opt_init .
+.Fn krb5_get_init_creds_opt_alloc
+allocates a extendible structures that needs to be freed with
+.Fn krb5_get_init_creds_opt_free .
+The structure may be modified by any of the
+.Fn krb5_get_init_creds_opt_set
+functions to change request parameters and authentication information.
+.Pp
+If the caller want to use the default options,
+.Dv NULL
+can be passed instead.
+.Pp
+The the actual request to the KDC is done by any of the
+.Fn krb5_get_init_creds ,
+.Fn krb5_get_init_creds_password ,
+or
+.Fn krb5_get_init_creds_keytab
+functions.
+.Fn krb5_get_init_creds
+is the least specialized function and can, with the right in data,
+behave like the latter two.
+The latter two are there for compatibility with older releases and
+they are slightly easier to use.
+.Pp
+.Li krb5_prompt
+is a structure containing the following elements:
+.Bd -literal
+typedef struct {
+    const char *prompt;
+    int hidden;
+    krb5_data *reply;
+    krb5_prompt_type type
+} krb5_prompt;
+.Ed
+.Pp
+.Fa prompt
+is the prompt that should shown to the user
+If
+.Fa hidden
+is set, the prompter function shouldn't echo the output to the display
+device.
+.Fa reply
+must be preallocated; it will not be allocated by the prompter
+function.
+Possible values for the
+.Fa type
+element are:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It KRB5_PROMPT_TYPE_PASSWORD
+.It KRB5_PROMPT_TYPE_NEW_PASSWORD
+.It KRB5_PROMPT_TYPE_NEW_PASSWORD_AGAIN
+.It KRB5_PROMPT_TYPE_PREAUTH
+.It KRB5_PROMPT_TYPE_INFO
+.El
+.Pp
+.Fn krb5_prompter_posix
+is the default prompter function in a POSIX environment.
+It matches the
+.Fa krb5_prompter_fct
+and can be used in the
+.Fa krb5_get_init_creds
+functions.
+.Fn krb5_prompter_posix
+doesn't require
+.Fa prompter_data.
+.Pp
+If the
+.Fa start_time
+is zero, then the requested ticket will be valid
+beginning immediately.
+Otherwise, the
+.Fa start_time
+indicates how far in the future the ticket should be postdated.
+.Pp
+If the
+.Fa in_tkt_service
+name is
+.Dv non-NULL ,
+that principal name will be
+used as the server name for the initial ticket request.
+The realm of the name specified will be ignored and will be set to the
+realm of the client name.
+If no in_tkt_service name is specified,
+krbtgt/CLIENT-REALM@CLIENT-REALM will be used.
+.Pp
+For the rest of arguments, a configuration or library default will be
+used if no value is specified in the options structure.
+.Pp
+.Fn krb5_get_init_creds_opt_set_address_list
+sets the list of
+.Fa addresses
+that is should be stored in the ticket.
+.Pp
+.Fn krb5_get_init_creds_opt_set_addressless
+controls if the ticket is requested with addresses or not,
+.Fn krb5_get_init_creds_opt_set_address_list
+overrides this option.
+.Pp
+.Fn krb5_get_init_creds_opt_set_anonymous
+make the request anonymous if the
+.Fa anonymous
+parameter is non-zero.
+.Pp
+.Fn krb5_get_init_creds_opt_set_default_flags
+sets the default flags using the configuration file.
+.Pp
+.Fn krb5_get_init_creds_opt_set_etype_list
+set a list of enctypes that the client is willing to support in the
+request.
+.Pp
+.Fn krb5_get_init_creds_opt_set_forwardable
+request a forwardable ticket.
+.Pp
+.Fn krb5_get_init_creds_opt_set_pa_password
+set the
+.Fa password
+and
+.Fa key_proc
+that is going to be used to get a new ticket.
+.Fa password
+or
+.Fa key_proc
+can be
+.Dv NULL
+if the caller wants to use the default values.
+If the
+.Fa password
+is unset and needed, the user will be prompted for it.
+.Pp
+.Fn krb5_get_init_creds_opt_set_paq_request
+sets the password that is going to be used to get a new ticket.
+.Pp
+.Fn krb5_get_init_creds_opt_set_preauth_list
+sets the list of client-supported preauth types.
+.Pp
+.Fn krb5_get_init_creds_opt_set_proxiable
+makes the request proxiable.
+.Pp
+.Fn krb5_get_init_creds_opt_set_renew_life
+sets the requested renewable lifetime.
+.Pp
+.Fn krb5_get_init_creds_opt_set_salt
+sets the salt that is going to be used in the request.
+.Pp
+.Fn krb5_get_init_creds_opt_set_tkt_life
+sets requested ticket lifetime.
+.Pp
+.Fn krb5_get_init_creds_opt_set_canonicalize
+requests that the KDC canonicalize the client pricipal if possible.
+.Pp
+.Fn krb5_get_init_creds_opt_set_win2k
+turns on compatibility with Windows 2000.
+.Sh SEE ALSO
+.Xr krb5 3 ,
+.Xr krb5_creds 3 ,
+.Xr krb5_verify_user 3 ,
+.Xr krb5.conf 5 ,
+.Xr kerberos 8

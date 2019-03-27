@@ -1,0 +1,86 @@
+/dts-v1/;
+
+#include "rt3050.dtsi"
+
+/ {
+	compatible = "WHR-G300N", "ralink,rt3052-soc";
+	model = "Buffalo WHR-G300N";
+
+	cfi@1f000000 {
+		compatible = "cfi-flash";
+		reg = <0x1f000000 0x800000>;
+		bank-width = <2>;
+		device-width = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		diag {
+			label = "whr-g300n:red:diag";
+			gpios = <&gpio0 7 1>;
+		};
+
+		router {
+			label = "whr-g300n:green:router";
+			gpios = <&gpio0 9 1>;
+		};
+
+		security {
+			label = "whr-g300n:amber:security";
+			gpios = <&gpio0 14 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 10 1>;
+			linux,code = <0x198>;
+		};
+
+		aoss {
+			label = "aoss";
+			gpios = <&gpio0 0 1>;
+			linux,code = <0x211>;
+		};
+
+		router-off {
+			label = "router-off";
+			gpios = <&gpio0 11 1>;
+			linux,code = <0x102>;
+		};
+
+		router-on {
+			label = "router-on";
+			gpios = <&gpio0 8 1>;
+			linux,code = <0x103>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "spi", "i2c", "jtag", "rgmii", "mdio", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&esw {
+	mediatek,portmap = <0x2f>;
+};
+
+/* FIXME: no partitions defined */
+/*&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+*/

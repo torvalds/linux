@@ -1,0 +1,120 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)devices_common.kshlib	1.3	07/03/14 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+#
+# Create block file or charactor file according to parameter.
+#
+# $1 device file type
+# $2 file name
+#
+function create_dev_file
+{
+	typeset filetype=$1
+	typeset filename=$2
+
+	case $filetype in
+		b)
+			devtype=$($DF -T / | $AWK '{print $2}')
+			case $devtype in
+				zfs)
+					rootpool=$($DF / | \
+						$AWK '{print $2}')
+					rootpool=${rootpool#\(}
+					rootpool=${rootpool%%/*}
+
+					devstr=$(get_disklist $rootpool)
+					devstr=$($ECHO "$devstr" | \
+						$AWK '{print $1}')
+					[[ -z $devstr ]] && \
+						log_fail "Can not get block device file."
+					devstr=/dev/${devstr}
+					;;
+				ufs)
+			#
+			# Get the existing block device file in current system.
+			# And bring out the first one.
+			#
+					devstr=$($DF -lht ufs | \
+						$GREP "^/dev/" | \
+						$AWK '{print $1}')
+					devstr=$($ECHO "$devstr" | \
+						$AWK '{print $1}')
+					[[ -z $devstr ]] && \
+						log_fail "Can not get block device file."
+					;;
+				*)
+					log_unsupported "Unsupported fstype " \
+						"for / ($devtype)," \
+						"only ufs|zfs is supported."
+					;;
+			esac
+
+			#
+			# Get the device file information. i.e:
+			# /dev/c0t0d0s0:      block special (28/768)
+			#
+			devstr=$($FILE $devstr)
+
+			#
+			# Bring out major and minor number.
+			#
+			major=${devstr##*\(}
+			major=${major%%/*}
+			minor=${devstr##*/}
+			minor=${minor%\)}
+
+			log_must $MKNOD $filename b $major $minor
+			;;
+		c)
+			#
+			# Create device file '/dev/null'
+			#
+			log_must $MKNOD $filename c 13 2
+			;;
+		*)
+			log_fail "'$filetype' is wrong."
+			;;
+	esac
+
+	return 0
+}
+
+function cleanup
+{
+	log_must $ZFS set devices=on $TESTPOOL/$TESTFS
+	log_must $RM -f $TESTDIR/$TESTFILE1
+	log_must $RM -f $TESTDIR/$TESTFILE2
+	log_must $RM -f $TESTDIR/$TESTFILE1.out
+	log_must $RM -f $TESTDIR/$TESTFILE2.out
+}
+

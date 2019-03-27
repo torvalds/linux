@@ -1,0 +1,200 @@
+                                                     -*- coding: utf-8 -*-
+Changes for APR 1.5.2
+
+  *) SECURITY: CVE-2015-1829 (cve.mitre.org)
+     APR applications using APR named pipe support on Windows can be 
+     vulnerable to a pipe squatting attack from a local process; the extent
+     of the vulnerability, when present, depends on the application.
+     Initial analysis and report was provided by John Hernandez of Casaba 
+     Security via HP SSRT Security Alert.  [Yann Ylavic]
+
+  *) apr_atomic: Fix errors when building on Visual Studio 2013 while
+     maintaining the ability to build on Visual Studio 6 with Windows
+     Server 2003 R2 SDK. PR 57191. [Gregg Smith]
+
+  *) Switch to generic atomics for early/unpatched Solaris 10 not exporting
+     some atomic functions.  PR 55418.  [Yann Ylavic]
+
+  *) apr_file_mktemp() on HP-UX: Remove limitation of 26 temporary files
+     per process.  PR 57677.  [Jeff Trawick]
+
+  *) apr_escape: Correctly calculate the size of the returned string in
+     apr_escape_path and set the correct return value in case we actually
+     escape the string. [<aduryagin gmail.com>] PR 57230.
+
+  *) pollcb on Windows: Handle calls with no file/socket descriptors.
+     Follow up to PR 49882. [Jeff Trawick, Yann Ylavic]
+
+  *) apr_poll(cb): fix error paths returned values and leaks.  [Yann Ylavic]
+
+  *) apr_thread_cond_*wait() on BeOS: Fix broken logic.  PR 45800.
+     [Jochen Voss (no e-mail)]
+
+  *) apr_skiplist: Optimize the number of allocations by reusing pooled or
+     malloc()ed nodes for the lifetime of the skiplist.  [Yann Ylavic]
+
+  *) apr_skiplist: Fix possible multiple-free() on the same value in
+     apr_skiplist_remove_all().  [Yann Ylavic]
+
+  *) apr_pollset: On z/OS, threadsafe apr_pollset_poll() may return
+     "EDC8102I Operation would block" under load.
+     [Pat Odonnell <patod us.ibm.com>]
+
+  *) On z/OS, apr_sockaddr_info_get() with family == APR_UNSPEC was not 
+     returning IPv4 addresses if any IPv6 addresses were returned. 
+     [Eric Covener]
+
+  *) Windows cmake build: Fix an incompatibility with cmake 2.8.12 and
+     later.  [Jeff Trawick]
+
+  *) apr_global_mutex/apr_proc_mutex: Resolve failures with the 
+     POSIX sem implementation in environments which receive signals.
+     [Jeff Trawick]
+
+  *) apr_skiplist: Fix potential corruption of skiplists leading to 
+     results or crashes. [Takashi Sato <takashi tks st>, Eric Covener]
+     PR 56654.
+
+  *) Improve platform detection by updating config.guess and config.sub.
+     [Rainer Jung]
+
+Changes for APR 1.5.1
+
+  *) apr_os_proc_mutex_get() on Unix:  Avoid segfault for cross-
+     process pthread mutexes.  [Yann Ylavic <ylavic.dev gmail.com>]
+
+  *) When using shmget-based shared memory, the ID used for ftok is
+     now an APR hash of the filename instead of the constant '1'.
+     We do this to help avoid collisions. PR 53996 [Jim Jagielski]
+
+  *) apr_socket_atreadeof(): Fix breakage on OS X. [Jim Jagielski]
+
+  *) Fix POSIX shared memory (shm_open) use for named shared memory.
+     Includes adding '--enable-posix-shm' to force POSIX shm if
+     available, and OS X compatibility. PR 55928.
+     [Jozef Hatala <jh-asf skrt org>, Jim Jagielski]
+
+  *) Fix race condition when calling apr_dir_make_recursive from
+     multiple threads on Windows.
+     [Bert Huijben]
+
+  *) Fix apr_escape.c compilation errors on EBCDIC platforms.
+     [Eric Covener]
+
+  *) FreeBSD 10: Correct a regression in 1.5.0 which affected non-
+     blocking sockets in some applications, including httpd.  [Jeff
+     Trawick]
+
+  *) Windows cmake build: Fix incorrect installation of some .pdb
+     files.  Fix incorrect use of some logic intended for Windows 9x,
+     including legacy filesystem interfaces and dynamic loading of
+     some Windows APIs.  [Jeff Trawick]
+
+  *) apr_skiplist: Add compatibility with C++ applications.
+     [Jeff Trawick]
+
+  *) Correct a regression in 1.5.0 which affected out-of-tree
+     builds on Unix.  [Rainer Jung]
+
+  *) Improve platform detection by updating config.guess and config.sub.
+     [Rainer Jung]
+
+Changes for APR 1.5.0
+
+  *) Fix Linux kernel version check to recognize more versions,
+     including versions 3.10 and later.  PR 55690.  [Joe Orton,
+     Arfrever Frehtes Taifersar Arahesis <arfrever.fta gmail.com>]
+
+  *) Add apr_sockaddr_is_wildcard() to check if a socket address
+     refers to the wildcard address for the protocol family (e.g.,
+     0.0.0.0/INADDR_ANY for IPv4).  [Jeff Trawick]
+
+  *) apr_file_dup2() on Windows: Fix debug RTL assertion when 
+     attempting to _commit(stdout) or _commit(stderr).  [Mike Rumph
+     <mike.rumph oracle.com>]
+
+  *) apr_socket_connect() on Windows: Handle WSAEISCONN.  PR 48736.
+     [<inoue ariel-networks.com>, Jeff Trawick]
+
+  *) z/OS: threadsafe apr_pollset_poll support for sockets [Greg Ames]
+
+  *) Windows:  Don't obtain a mutex for buffered file I/O unless the
+     file was opened with the APR_FOPEN_XTHREAD flag.  [Ivan Zhakov
+     <ivan visualsvn.com>]
+
+  *) Windows:  Create named shared memory segments under the "Local"
+     namespace if the caller is unprivileged, fixing an inability of
+     unprivileged callers to use apr_shm_create() with named shared
+     memory segments under recent Windows.  As before, shared memory
+     segments are created under the "Global" namespace for privileged
+     callers.  Add apr_shm_create_ex() and apr_shm_attach_ex(), which
+     provide the ability to override the normal namespace selection.
+     [Jeff Trawick]
+
+  *) Update compile settings for MINT OS.  PR 47181. [Alan Hourihane
+     <alanh fairlite.co.uk>]
+
+  *) Files and pipes on Windows:  Don't create an unused pollset when
+     files and pipes are opened.  [Mladen Turk]
+
+  *) apr_socket_timeout_set() on Windows: If the socket was in a non-
+     blocking state before, disable that setting so that timeouts work.
+     [Jeff Trawick]
+
+  *) File info APIs: Fix calculation of atime and mtime on AIX. PR 51146.
+     [Ruediger Pluem]
+
+  *) Add the apr_escape interface. [Graham Leggett]
+
+  *) Cygwin build fixes.  PRs 51016 and 55586.  [Carlo Bramini
+     <carlo.bramix libero.it>] 
+
+  *) Add apr_skiplist family. [Jim Jagielski]
+
+  *) Add experimental cmake-based build system for Windows.  Refer to 
+     README.cmake for more information.  [Jeff Trawick, Tom Donovan]
+
+  *) Add the apr_table_getm() call, which transparently handles the
+     merging of keys with multiple values. [Graham Leggett]
+
+  *) Add apr_hash_this_key(), apr_hash_this_key_len(), and 
+     apr_hash_this_val() for easier access to those attributes from
+     a hash iterator.  [Hyrum K. Wright <hyrum_wright mail.utexas.edu>]
+
+  *) MinGW/MSYS:  Support shared builds of APR, other general improvements
+     to support of this toolchain.  PR 46175.  [Carlo Bramini 
+     <carlo.bramix libero.it>]  
+
+  *) Improve platform detection by updating config.guess and config.sub.
+     [Rainer Jung]
+
+  *) apr_socket_opt_set: Add support for APR_SO_BROADCAST. PR 46389.
+     [Armin Müller <mueller itestra com>]
+
+  *) Enable platform specific support for the opening of a file or
+     pipe in non-blocking mode through the APR_FOPEN_NONBLOCK flag.
+     [Graham Leggett]
+
+Changes for APR 1.4.x and later:
+
+  *) http://svn.apache.org/viewvc/apr/apr/branches/1.4.x/CHANGES?view=markup
+
+Changes for APR 1.3.x and later:
+
+  *) http://svn.apache.org/viewvc/apr/apr/branches/1.3.x/CHANGES?view=markup
+
+Changes for APR 1.2.x and later:
+
+  *) http://svn.apache.org/viewvc/apr/apr/branches/1.2.x/CHANGES?view=markup
+
+Changes for APR 1.1.x and later:
+
+  *) http://svn.apache.org/viewvc/apr/apr/branches/1.1.x/CHANGES?view=markup
+
+Changes for APR 1.0.x and later:
+
+  *) http://svn.apache.org/viewvc/apr/apr/branches/1.0.x/CHANGES?view=markup
+
+Changes for APR 0.9.x and later/earlier:
+
+  *) http://svn.apache.org/viewvc/apr/apr/branches/0.9.x/CHANGES?view=markup

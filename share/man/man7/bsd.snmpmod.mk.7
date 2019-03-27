@@ -1,0 +1,117 @@
+.\"
+.\" Copyright (c) 2005,2008
+.\"	Hartmut Brandt.
+.\" 	All rights reserved.
+.\"
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 8, 2008
+.Dt BSD.SNMPMOD.MK 7
+.Os
+.Sh NAME
+.Nm bsd.snmpmod.mk
+.Nd building modules for
+.Xr bsnmpd 1
+.Sh SYNOPSIS
+.Fd ".include <bsd.snmpmod.mk>"
+.Sh DESCRIPTION
+The file
+.In bsd.snmpmod.mk
+simplifies the building of modules for the Begemot SNMP daemon,
+.Xr bsnmpd 1 .
+It provides some common functions for building a module and
+relies on
+.In bsd.lib.mk ,
+which is included by
+.In bsd.snmpmod.mk
+to actually build the shared library.
+.Pp
+The following
+.Xr make 1
+variables control the special functions:
+.Bl -tag -width ".Va EXTRAMIBDEFS"
+.It Va MOD
+The short name of the module.
+The name of the shared library will be
+.Pa snmp_${MOD}.so .
+There must exist a file
+.Pa ${MOD}_tree.def
+for compilation with
+.Xr gensnmptree 1
+which contains the definition of the MIB tree implemented by the module.
+.It Va EXTRAMIBDEFS
+A list of extra MIB definition files for
+.Xr gensnmptree 1 .
+This is optional.
+This file list is given to both calls to
+.Xr gensnmptree 1 No \(em
+the one that extracts the symbols in
+.Va XSYM
+from the MIB definitions and the one that
+generates the table with OIDs served by this module.
+.It Va EXTRAMIBSYMS
+A list of extra MIB definition files for
+.Xr gensnmptree 1 .
+This is optional.
+This file list is given only to the call to
+.Xr gensnmptree 1
+that extracts symbols from MIB definition files.
+It is useful if there are dependencies on other MIBs or for extracting global
+definitions for enumeration constants.
+.It Va XSYM
+A list of symbols to be extracted from the MIB definition files by
+.Xr gensnmptree 1 .
+This is optional.
+.It Va DEFS
+A list of MIB definition files to be installed.
+This is optional.
+.It Va BMIBS
+A list of textual MIBs to be installed.
+This is optional.
+.El
+.Pp
+Three files are automatically created from the MIB definition files and
+the
+.Va XSYM
+variable:
+.Bl -tag -width ".Va EXTRAMIBDEFS"
+.It Pa ${MOD}_tree.c
+This contains a table with the tree implemented by the module.
+It is automatically included into the
+.Va SRCS
+variable.
+.It Pa ${MOD}_tree.h
+This contains preprocessor defines for all the OIDs defined by the module
+and can be included in the module's source code.
+.It Pa ${MOD}_oid.h
+OID preprocessor definitions for all the symbols listed in
+.Va XSYMS .
+This is to be included into the module's source code.
+.El
+.Sh SEE ALSO
+.Xr bsnmpd 1 ,
+.Xr gensnmptree 1 ,
+.Xr snmpmod 3

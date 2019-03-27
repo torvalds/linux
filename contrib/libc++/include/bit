@@ -1,0 +1,158 @@
+// -*- C++ -*-
+//===------------------------------ bit ----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===---------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_BIT
+#define _LIBCPP_BIT
+
+/*
+    bit synopsis
+
+namespace std {
+
+} // namespace std
+
+*/
+
+#include <__config>
+#include <version>
+
+#if defined(__IBMCPP__)
+#include "support/ibm/support.h"
+#endif
+#if defined(_LIBCPP_COMPILER_MSVC)
+#include <intrin.h>
+#endif
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#ifndef _LIBCPP_COMPILER_MSVC
+
+inline _LIBCPP_INLINE_VISIBILITY
+int __ctz(unsigned __x)           { return __builtin_ctz(__x); }
+
+inline _LIBCPP_INLINE_VISIBILITY
+int __ctz(unsigned long __x)      { return __builtin_ctzl(__x); }
+
+inline _LIBCPP_INLINE_VISIBILITY
+int __ctz(unsigned long long __x) { return __builtin_ctzll(__x); }
+
+
+inline _LIBCPP_INLINE_VISIBILITY
+int __clz(unsigned __x)           { return __builtin_clz(__x); }
+
+inline _LIBCPP_INLINE_VISIBILITY
+int __clz(unsigned long __x)      { return __builtin_clzl(__x); }
+
+inline _LIBCPP_INLINE_VISIBILITY
+int __clz(unsigned long long __x) { return __builtin_clzll(__x); }
+
+
+inline _LIBCPP_INLINE_VISIBILITY
+int __popcount(unsigned __x)           { return __builtin_popcount(__x); }
+
+inline _LIBCPP_INLINE_VISIBILITY
+int __popcount(unsigned long __x)      { return __builtin_popcountl(__x); }
+
+inline _LIBCPP_INLINE_VISIBILITY
+int __popcount(unsigned long long __x) { return __builtin_popcountll(__x); }
+
+#else  // _LIBCPP_COMPILER_MSVC
+
+// Precondition:  __x != 0
+inline _LIBCPP_INLINE_VISIBILITY
+int __ctz(unsigned __x) {
+  static_assert(sizeof(unsigned) == sizeof(unsigned long), "");
+  static_assert(sizeof(unsigned long) == 4, "");
+  unsigned long __where;
+  if (_BitScanForward(&__where, __x))
+    return static_cast<int>(__where);
+  return 32;
+}
+
+inline _LIBCPP_INLINE_VISIBILITY
+int __ctz(unsigned long __x) {
+    static_assert(sizeof(unsigned long) == sizeof(unsigned), "");
+    return __ctz(static_cast<unsigned>(__x));
+}
+
+inline _LIBCPP_INLINE_VISIBILITY
+int __ctz(unsigned long long __x) {
+    unsigned long __where;
+#if defined(_LIBCPP_HAS_BITSCAN64)
+    (defined(_M_AMD64) || defined(__x86_64__))
+  if (_BitScanForward64(&__where, __x))
+    return static_cast<int>(__where);
+#else
+  // Win32 doesn't have _BitScanForward64 so emulate it with two 32 bit calls.
+  if (_BitScanForward(&__where, static_cast<unsigned long>(__x)))
+    return static_cast<int>(__where);
+  if (_BitScanForward(&__where, static_cast<unsigned long>(__x >> 32)))
+    return static_cast<int>(__where + 32);
+#endif
+  return 64;
+}
+
+// Precondition:  __x != 0
+inline _LIBCPP_INLINE_VISIBILITY
+int __clz(unsigned __x) {
+  static_assert(sizeof(unsigned) == sizeof(unsigned long), "");
+  static_assert(sizeof(unsigned long) == 4, "");
+  unsigned long __where;
+  if (_BitScanReverse(&__where, __x))
+    return static_cast<int>(31 - __where);
+  return 32; // Undefined Behavior.
+}
+
+inline _LIBCPP_INLINE_VISIBILITY
+int __clz(unsigned long __x) {
+    static_assert(sizeof(unsigned) == sizeof(unsigned long), "");
+    return __clz(static_cast<unsigned>(__x));
+}
+
+inline _LIBCPP_INLINE_VISIBILITY
+int __clz(unsigned long long __x) {
+  unsigned long __where;
+#if defined(_LIBCPP_HAS_BITSCAN64)
+  if (_BitScanReverse64(&__where, __x))
+    return static_cast<int>(63 - __where);
+#else
+  // Win32 doesn't have _BitScanReverse64 so emulate it with two 32 bit calls.
+  if (_BitScanReverse(&__where, static_cast<unsigned long>(__x >> 32)))
+    return static_cast<int>(63 - (__where + 32));
+  if (_BitScanReverse(&__where, static_cast<unsigned long>(__x)))
+    return static_cast<int>(63 - __where);
+#endif
+  return 64; // Undefined Behavior.
+}
+
+inline _LIBCPP_INLINE_VISIBILITY int __popcount(unsigned __x) {
+  static_assert(sizeof(unsigned) == 4, "");
+  return __popcnt(__x);
+}
+
+inline _LIBCPP_INLINE_VISIBILITY int __popcount(unsigned long __x) {
+  static_assert(sizeof(unsigned long) == 4, "");
+  return __popcnt(__x);
+}
+
+inline _LIBCPP_INLINE_VISIBILITY int __popcount(unsigned long long __x) {
+  static_assert(sizeof(unsigned long long) == 8, "");
+  return __popcnt64(__x);
+}
+
+#endif // _LIBCPP_COMPILER_MSVC
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif // _LIBCPP_BIT

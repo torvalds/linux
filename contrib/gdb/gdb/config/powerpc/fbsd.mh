@@ -1,0 +1,5 @@
+# Host: FreeBSD/powerpc
+NATDEPFILES= fbsd-proc.o fork-child.o gcore.o \
+	     infptrace.o inftarg.o ppcfbsd-nat.o
+
+NAT_FILE= nm-fbsd.h

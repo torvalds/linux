@@ -1,0 +1,151 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_add_arange.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd September 18, 2011
+.Dt DWARF_ADD_ARANGE 3
+.Os
+.Sh NAME
+.Nm dwarf_add_arange ,
+.Nm dwarf_add_arange_b
+.Nd add address range information to a DWARF producer instance
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft "Dwarf_Unsigned"
+.Fo dwarf_add_arange
+.Fa "Dwarf_P_Debug dbg"
+.Fa "Dwarf_Addr start"
+.Fa "Dwarf_Unsigned length"
+.Fa "Dwarf_Signed symbol_index"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft "Dwarf_Unsigned"
+.Fo dwarf_add_arange_b
+.Fa "Dwarf_P_Debug dbg"
+.Fa "Dwarf_Addr start"
+.Fa "Dwarf_Unsigned length"
+.Fa "Dwarf_Unsigned symbol_index"
+.Fa "Dwarf_Unsigned end_symbol_index"
+.Fa "Dwarf_Addr offset_from_end_symbol"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_add_arange_b
+adds an address range entry to a producer instance.
+.Pp
+Argument
+.Ar dbg
+should reference a DWARF producer instance allocated using
+.Xr dwarf_producer_init 3
+or
+.Xr dwarf_producer_init_b 3 .
+.Pp
+Argument
+.Ar start
+specifies the relocatable start address of the address range.
+.Pp
+Argument
+.Ar length
+specifies the length of the address range.
+.Pp
+Argument
+.Ar symbol_index
+specifies the ELF symbol index of the first symbol to be used for
+relocation.
+.Pp
+Argument
+.Ar end_symbol_index
+specifies the ELF symbol index of the second symbol to be used for
+relocation.
+.Bl -bullet
+.It
+If argument
+.Ar end_symbol_index
+is not 0, the
+.Dv DW_DLC_SYMBOLIC_RELOCATIONS
+flag should have been set on the DWARF producer instance.
+The address value specified by argument
+.Ar start
+will be treated as an offset value from the first symbol,
+and the argument
+.Ar offset_from_end_symbol
+should hold an offset value from the second symbol.
+Application code can retrieve the relocation entries for the
+symbol pair by calling function
+.Xr dwarf_get_relocation_info 3 .
+The relocation entry for the first symbol will have type
+.Dv dwarf_drt_first_of_length_pair
+and the relocation entry for the second symbol will have type
+.Dv dwarf_drt_second_of_length_pair .
+.It
+If argument
+.Ar end_symbol_index
+is 0, argument
+.Ar offset_from_end_symbol
+will be ignored and only one symbol is used for relocation.
+.El
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case
+of an error.
+.Pp
+Function
+.Fn dwarf_add_arange
+is deprecated.
+It is similar to function
+.Fn dwarf_add_arange_b
+except that it cannot handle all possible symbol index values
+and supports only one relocation symbol.
+.Sh RETURN VALUES
+On success, these functions return a non-zero value.
+In case of an error, these functions return 0 and set
+the argument
+.Ar err .
+.Sh ERRORS
+These functions can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Ar dbg
+was NULL.
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Ar end_symbol_index
+was non-zero, but the flag
+.Dv DW_DLC_SYMBOLIC_RELOCATIONS
+was not set on the producer instance.
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered during the execution of the
+function.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_get_relocation_info 3 ,
+.Xr dwarf_producer_init 3 ,
+.Xr dwarf_producer_init_b 3

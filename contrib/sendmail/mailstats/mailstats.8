@@ -1,0 +1,118 @@
+.\" Copyright (c) 1998-2002 Proofpoint, Inc. and its suppliers.
+.\"	 All rights reserved.
+.\"
+.\" By using this file, you agree to the terms and conditions set
+.\" forth in the LICENSE file which can be found at the top level of
+.\" the sendmail distribution.
+.\"
+.\"
+.\"	$Id: mailstats.8,v 8.32 2013-11-22 20:51:51 ca Exp $
+.\"
+.TH MAILSTATS 8 "$Date: 2013-11-22 20:51:51 $"
+.SH NAME
+mailstats
+\- display mail statistics
+.SH SYNOPSIS
+.B mailstats
+.RB [ \-c "] [" \-o "] [" \-p "] [" \-P ]
+.RB [ \-C 
+.IR cffile ]
+.RB [ \-f
+.IR stfile ]
+.SH DESCRIPTION
+The
+.B mailstats
+utility displays the current mail statistics.
+.PP
+First, the time at which statistics started being kept is displayed,
+in the format specified by 
+ctime(3).  
+Then, 
+the statistics for each mailer are displayed on a single line, 
+each with the following white space separated fields:
+.sp
+.RS
+.PD 0.2v
+.TP 1.2i
+.B M
+The mailer number.
+.TP 
+.B msgsfr
+Number of messages from the mailer.
+.TP
+.B bytes_from
+Kbytes from the mailer.
+.TP
+.B msgsto
+Number of messages to the mailer.
+.TP
+.B bytes_to
+Kbytes to the mailer.
+.TP
+.B msgsrej
+Number of messages rejected.
+.TP
+.B msgsdis
+Number of messages discarded.
+.TP
+.B msgsqur
+Number of messages quarantined.
+.TP
+.B Mailer
+The name of the mailer.
+.PD
+.RE
+.PP
+After this display, a line totaling the values for all of the mailers 
+is displayed (preceded with a ``T''),
+separated from the previous information by a line containing only equals 
+(``='') 
+characters.
+Another line preceded with a ``C'' lists the number of TCP connections.
+.PP
+The options are as follows:
+.TP 
+.B \-C
+Read the specified file instead of the default
+.B sendmail
+configuration file.
+.TP
+.B \-c
+Try to use submit.cf instead of the default
+.B sendmail
+configuration file.
+.TP
+.B \-f
+Read the specified statistics file instead of the statistics file
+specified in the
+.B sendmail 
+configuration file.
+.TP 
+.B \-P
+Output information in program-readable mode without clearing statistics.
+.TP
+.B \-p
+Output information in program-readable mode and clear statistics.
+.TP
+.B \-o
+Don't display the name of the mailer in the output.
+.PP
+The
+.B mailstats
+utility exits 0 on success, and >0 if an error occurs.
+.SH FILES
+.PD 0.2v
+.TP 2.5i
+/etc/mail/sendmail.cf
+The default
+.B sendmail
+configuration file.
+.TP
+/etc/mail/statistics
+The default
+.B sendmail
+statistics file.
+.PD
+.SH SEE ALSO
+mailq(1), 
+sendmail(8)

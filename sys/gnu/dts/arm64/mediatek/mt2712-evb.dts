@@ -1,0 +1,63 @@
+/*
+ * Copyright (c) 2017 MediaTek Inc.
+ * Author: YT Shen <yt.shen@mediatek.com>
+ *
+ * SPDX-License-Identifier: (GPL-2.0 OR MIT)
+ */
+
+/dts-v1/;
+#include "mt2712e.dtsi"
+
+/ {
+	model = "MediaTek MT2712 evaluation board";
+	compatible = "mediatek,mt2712-evb", "mediatek,mt2712";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0 0x40000000 0 0x80000000>;
+	};
+
+	chosen {
+		stdout-path = "serial0:921600n8";
+	};
+
+	cpus_fixed_vproc0: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vproc_buck0";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+	};
+
+	cpus_fixed_vproc1: fixedregulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vproc_buck1";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+	};
+
+};
+
+&auxadc {
+	status = "okay";
+};
+
+&cpu0 {
+	proc-supply = <&cpus_fixed_vproc0>;
+};
+
+&cpu1 {
+	proc-supply = <&cpus_fixed_vproc0>;
+};
+
+&cpu2 {
+	proc-supply = <&cpus_fixed_vproc1>;
+};
+
+&uart0 {
+	status = "okay";
+};
+

@@ -1,0 +1,57 @@
+#	@(#)README	8.1 (Berkeley) 6/8/93
+#
+#	$FreeBSD$
+
+<< 12 May 1983 >>
+To install this directory on your system:
+
+First determine a list of "common terminals" for your system.  This list
+will probably be small, and can be empty if you like, but you should
+probably put your own terminal in it.
+
+Second, edit the editor script "reorder" to use this list instead of the
+list built in to it.  The changes will be evident from looking at the
+script.  Notice that the script contains the terminals in order from least
+common to most common, since the move commands will move them to the front
+in that order, the effect will be to put the most common at the front of
+termcap since that's moved last.  The s.* terminals are specials, and
+although they don't have to go to the front, they are probably quite
+common and really should go near the front.
+
+Third, if you are not a super user and cannot create the directory
+/usr/lib/tabset, make a corresponding directory somewhere you can and add
+a line to reorder to globally change all /usr/lib/tabset's to your own
+path name.  This change is better than just changing the termcap file
+because it makes it easier to diff it from newer distributed versions.
+Try to keep the source as is whenever possible, and put mungings into
+reorder.
+
+Now you can run "make install" which will create an /etc/termcap. Again,
+if you aren't a super user change the cp command to put it where you can.
+In this case you will have to redefine E_TERMCAP in "local/uparm.h", which
+will probably be in subdirectories with the other UCB software.
+
+
+Finally, if you make additions or fixes to termcap, please mail a note
+explaining what you did with the fixed termcap entry (not the whole file,
+please!) to me at one of the addresses below, so it can be incorporated
+back into the original source.  I will normally include anything unless
+there is a good reason not to, but I reserve the right to redo it differently.
+
+	uunet!ucbvax!termcap			(uucp)
+	termcap@berkeley.cs.edu			(Internet)
+
+<< 14 October 1987 >>
+It is probably easiest to make local termcap changes in separate
+files, eg /usr/local/etc/termcap, and encourage people to put
+
+	setenv TERMPATH ~/.termcap:/usr/local/etc/termcap:/etc/termcap 
+
+in their shell startup files.  This way local system-wide changes can be
+isolated in /usr/local/etc/termcap and user changes in ~/.termcap, all
+without consuming lots of disk or requiring re-integration of local
+changes when system termcap files change.
+
+	John Kunze
+	termcap@berkeley.cs.edu
+

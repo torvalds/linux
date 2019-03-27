@@ -1,0 +1,129 @@
+.\"	$KAME: ifmcstat.8,v 1.6 2002/10/31 04:23:43 suz Exp $
+.\"
+.\" Copyright (c) 2007-2009 Bruce Simpson.
+.\" Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 27, 2009
+.Dt IFMCSTAT 8
+.Os
+.Sh NAME
+.Nm ifmcstat
+.Nd dump multicast group management statistics per interface
+.Sh SYNOPSIS
+.Nm
+.Op Fl i Ar interface
+.Op Fl f Ar address-family
+.Op Fl v
+.Op Fl K
+.Op Fl M Ar core
+.Op Fl N Ar system
+.\"
+.Sh DESCRIPTION
+The
+.Nm
+command dumps multicast group information from the kernel.
+.Pp
+The following options are supported:
+.Bl -tag -width Fl
+.It Fl i Ar interface
+specifies the interface to be displayed.
+.It Fl f Ar address-family
+specifies the address family to be displayed;
+.Ar inet ,
+.Ar inet6
+and
+.Ar link
+are supported.
+.It Fl v
+specifies that link-layer memberships should be printed;
+they are suppressed by default.
+It may not be specified for
+.Fl f Ar link .
+Source lists for each group will also be printed.
+.Pp
+If specified twice, and
+.Xr kvm 3
+is in use, the control plane timers for each interface
+and the source list counters for each group
+will also be printed.
+.El
+.Pp
+The following options are only available if
+.Nm
+has been built with support for
+.Xr kvm 3 :
+.Bl -tag -width Fl
+.It Fl K
+attempts to use
+.Xr kvm 3
+to retrieve the multicast group information.
+.It Fl M Ar core
+extracts values associated with the name list from the specified core,
+instead of the default
+.Pa /dev/kmem .
+.It Fl N Ar system
+extracts the name list from the specified kernel instead of the
+default, which is the kernel image the system has booted from.
+.El
+.Sh IMPLEMENTATION NOTES
+.Nm
+will always print the embedded scope IDs of IPv6 multicast group
+memberships.
+This is because memberships are always scoped to an interface.
+.Pp
+When run with the
+.Fl v
+option,
+.Nm
+may print multicast MAC addresses twice if they are
+referenced by a layer 3 protocol.
+.Pp
+When run with
+.Xr kvm 3
+support,
+the names of all interfaces configured in the system will be
+printed in the first column of output, even if no multicast
+group memberships are present on those interfaces.
+The output may also be slightly different, as the kernel
+data structures are being traversed with minimal post-processing
+of the output.
+.Pp
+When built without
+.Xr kvm 3
+support, the information displayed by
+.Nm
+is more limited.
+This support is recommended for debugging purposes.
+It requires super-user privilege if used to inspect a running kernel.
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr getifaddrs 3 ,
+.Xr getifmaddrs 3 ,
+.Xr kvm 3

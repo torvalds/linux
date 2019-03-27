@@ -1,0 +1,52 @@
+#!/bin/sh
+#
+# $FreeBSD$
+
+# PROVIDE: ugidfw
+# REQUIRE: FILESYSTEMS
+# BEFORE: LOGIN
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="ugidfw"
+desc="Firewall-like access controls for file system objects"
+rcvar="ugidfw_enable"
+start_cmd="ugidfw_start"
+stop_cmd="ugidfw_stop"
+required_modules="mac_bsdextended"
+
+ugidfw_load()
+{
+	if [ -r "${bsdextended_script}" ]; then
+		. "${bsdextended_script}"
+	fi
+}
+
+ugidfw_start()
+{
+	[ -z "${bsdextended_script}" ] && bsdextended_script=/etc/rc.bsdextended
+
+	if [ -r "${bsdextended_script}" ]; then
+		ugidfw_load
+		echo "MAC bsdextended rules loaded."
+	fi
+}
+
+ugidfw_stop()
+{
+	local rulecount
+
+	# Disable the policy
+	#
+	# Check for the existence of rules and flush them if needed.
+	rulecount=$(sysctl -in security.mac.bsdextended.rule_count)
+	if [ ${rulecount:-0} -gt 0 ]; then
+		ugidfw list | sed -n '2,$p' | cut -d ' ' -f 1 | sort -r -n |
+		    xargs -n 1 ugidfw remove
+		echo "MAC bsdextended rules flushed."
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

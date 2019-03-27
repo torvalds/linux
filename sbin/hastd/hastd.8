@@ -1,0 +1,237 @@
+.\" Copyright (c) 2010 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Pawel Jakub Dawidek under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 8, 2016
+.Dt HASTD 8
+.Os
+.Sh NAME
+.Nm hastd
+.Nd "Highly Available Storage daemon"
+.Sh SYNOPSIS
+.Nm
+.Op Fl dFh
+.Op Fl c Ar config
+.Op Fl P Ar pidfile
+.Sh DESCRIPTION
+The
+.Nm
+daemon is responsible for managing highly available GEOM providers.
+.Pp
+.Nm
+allows the transpaent storage of data on two physically separated machines
+connected over a TCP/IP network.
+Only one machine (cluster node) can actively use storage provided by
+.Nm .
+This machine is called primary.
+The
+.Nm
+daemon operates on block level, which makes it transparent to file
+systems and applications.
+.Pp
+There is one main
+.Nm
+daemon which starts new worker process as soon as a role for the given
+resource is changed to primary or as soon as a role for the given
+resource is changed to secondary and remote (primary) node will
+successfully connect to it.
+Every worker process gets a new process title (see
+.Xr setproctitle 3 ) ,
+which describes its role and resource it controls.
+The exact format is:
+.Bd -literal -offset indent
+hastd: <resource name> (<role>)
+.Ed
+.Pp
+If (and only if)
+.Nm
+operates in primary role for the given resource, a corresponding
+.Pa /dev/hast/<name>
+disk-like device (GEOM provider) is created.
+File systems and applications can use this provider to send I/O
+requests to.
+Every write, delete and flush operation
+.Dv ( BIO_WRITE , BIO_DELETE , BIO_FLUSH )
+is sent to the local component and replicated on the remote (secondary) node
+if it is available.
+Read operations
+.Dv ( BIO_READ )
+are handled locally unless an I/O error occurs or the local version of the data
+is not up-to-date yet (synchronization is in progress).
+.Pp
+The
+.Nm
+daemon uses the GEOM Gate class to receive I/O requests from the
+in-kernel GEOM infrastructure.
+The
+.Nm geom_gate.ko
+module is loaded automatically if the kernel was not compiled with the
+following option:
+.Bd -ragged -offset indent
+.Cd "options GEOM_GATE"
+.Ed
+.Pp
+The connection between two
+.Nm
+daemons is always initiated from the one running as primary to the one
+running as secondary.
+When the primary
+.Nm
+is unable to connect or the connection fails, it will try to re-establish
+the connection every few seconds.
+Once the connection is established, the primary
+.Nm
+will synchronize every extent that was modified during connection outage
+to the secondary
+.Nm .
+.Pp
+It is possible that in the case of a connection outage between the nodes the
+.Nm
+primary role for the given resource will be configured on both nodes.
+This in turn leads to incompatible data modifications.
+Such a condition is called a split-brain and cannot be automatically
+resolved by the
+.Nm
+daemon as this will lead most likely to data corruption or loss of
+important changes.
+Even though it cannot be fixed by
+.Nm
+itself, it will be detected and a further connection between independently
+modified nodes will not be possible.
+Once this situation is manually resolved by an administrator, the resource
+on one of the nodes can be initialized (erasing local data), which makes
+a connection to the remote node possible again.
+Connection of the freshly initialized component will trigger full resource
+synchronization.
+.Pp
+A
+.Nm
+daemon never picks its role automatically.
+The role has to be configured with the
+.Xr hastctl 8
+control utility by additional software like
+.Nm ucarp
+or
+.Nm heartbeat
+that can reliably manage role separation and switch secondary node to
+primary role in case of the primary's failure.
+.Pp
+The
+.Nm
+daemon can be started with the following command line arguments:
+.Bl -tag -width ".Fl P Ar pidfile"
+.It Fl c Ar config
+Specify alternative location of the configuration file.
+The default location is
+.Pa /etc/hast.conf .
+.It Fl d
+Print or log debugging information.
+This option can be specified multiple times to raise the verbosity
+level.
+.It Fl F
+Start the
+.Nm
+daemon in the foreground.
+By default
+.Nm
+starts in the background.
+.It Fl h
+Print the
+.Nm
+usage message.
+.It Fl P Ar pidfile
+Specify alternative location of a file where main process PID will be
+stored.
+The default location is
+.Pa /var/run/hastd.pid .
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/hastd.pid" -compact
+.It Pa /etc/hast.conf
+The configuration file for
+.Nm
+and
+.Xr hastctl 8 .
+.It Pa /var/run/hastctl
+Control socket used by the
+.Xr hastctl 8
+control utility to communicate with
+.Nm .
+.It Pa /var/run/hastd.pid
+The default location of the
+.Nm
+PID file.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, or one of the values described in
+.Xr sysexits 3
+on failure.
+.Sh EXAMPLES
+Launch
+.Nm
+on both nodes.
+Set role for resource
+.Nm shared
+to primary on
+.Nm nodeA
+and to secondary on
+.Nm nodeB .
+Create file system on
+.Pa /dev/hast/shared
+provider and mount it.
+.Bd -literal -offset indent
+nodeB# hastd
+nodeB# hastctl role secondary shared
+
+nodeA# hastd
+nodeA# hastctl role primary shared
+nodeA# newfs -U /dev/hast/shared
+nodeA# mount -o noatime /dev/hast/shared /shared
+.Ed
+.Sh SEE ALSO
+.Xr sysexits 3 ,
+.Xr geom 4 ,
+.Xr hast.conf 5 ,
+.Xr ggatec 8 ,
+.Xr ggated 8 ,
+.Xr ggatel 8 ,
+.Xr hastctl 8 ,
+.Xr mount 8 ,
+.Xr newfs 8 ,
+.Xr g_bio 9
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 8.1 .
+.Sh AUTHORS
+The
+.Nm
+was developed by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org
+under sponsorship of the FreeBSD Foundation.

@@ -1,0 +1,182 @@
+.\"
+.\" Copyright (c) 1997 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" "
+.Dd October 2, 2014
+.Dt STRPTIME 3
+.Os
+.Sh NAME
+.Nm strptime
+.Nd parse date and time string
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In time.h
+.Ft char *
+.Fo strptime
+.Fa "const char * restrict buf"
+.Fa "const char * restrict format"
+.Fa "struct tm * restrict timeptr"
+.Fc
+.In time.h
+.In xlocale.h
+.Ft char *
+.Fn strptime_l "const char * restrict buf" "const char * restrict format" "struct tm * restrict timeptr" "locale_t loc"
+.Sh DESCRIPTION
+The
+.Fn strptime
+function parses the string in the buffer
+.Fa buf
+according to the string pointed to by
+.Fa format ,
+and fills in the elements of the structure pointed to by
+.Fa timeptr .
+The resulting values will be relative to the local time zone.
+Thus, it can be considered the reverse operation of
+.Xr strftime 3 .
+The
+.Fn strptime_l
+function does the same as
+.Fn strptime ,
+but takes an explicit locale rather than using the current locale.
+.Pp
+The
+.Fa format
+string consists of zero or more conversion specifications and
+ordinary characters.
+All ordinary characters are matched exactly with the buffer, where
+white space in the format string will match any amount of white space
+in the buffer.
+All conversion specifications are identical to those described in
+.Xr strftime 3 .
+.Pp
+Two-digit year values, including formats
+.Fa %y
+and
+.Fa \&%D ,
+are now interpreted as beginning at 1969 per POSIX requirements.
+Years 69-00 are interpreted in the 20th century (1969-2000), years
+01-68 in the 21st century (2001-2068).
+The
+.Fa \&%U
+and
+.Fa %W
+format specifiers accept any value within the range 00 to 53.
+.Pp
+If the
+.Fa format
+string does not contain enough conversion specifications to completely
+specify the resulting
+.Vt struct tm ,
+the unspecified members of
+.Va timeptr
+are left untouched.
+For example, if
+.Fa format
+is
+.Dq Li "%H:%M:%S" ,
+only
+.Va tm_hour ,
+.Va tm_sec
+and
+.Va tm_min
+will be modified.
+If time relative to today is desired, initialize the
+.Fa timeptr
+structure with today's date before passing it to
+.Fn strptime .
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn strptime
+returns the pointer to the first character in
+.Fa buf
+that has not been required to satisfy the specified conversions in
+.Fa format .
+It returns
+.Dv NULL
+if one of the conversions failed.
+.Fn strptime_l
+returns the same values as
+.Fn strptime .
+.Sh SEE ALSO
+.Xr date 1 ,
+.Xr scanf 3 ,
+.Xr strftime 3
+.Sh HISTORY
+The
+.Fn strptime
+function appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+The
+.Fn strptime
+function has been contributed by Powerdog Industries.
+.Pp
+This man page was written by
+.An J\(:org Wunsch .
+.Sh BUGS
+Both the
+.Fa %e
+and
+.Fa %l
+format specifiers may incorrectly scan one too many digits
+if the intended values comprise only a single digit
+and that digit is followed immediately by another digit.
+Both specifiers accept zero-padded values,
+even though they are both defined as taking unpadded values.
+.Pp
+The
+.Fa %p
+format specifier has no effect unless it is parsed
+.Em after
+hour-related specifiers.
+Specifying
+.Fa %l
+without
+.Fa %p
+will produce undefined results.
+Note that 12AM
+(ante meridiem)
+is taken as midnight
+and 12PM
+(post meridiem)
+is taken as noon.
+.Pp
+The
+.Fa %Z
+format specifier only accepts time zone abbreviations of the local time zone,
+or the value "GMT".
+This limitation is because of ambiguity due to of the over loading of time
+zone abbreviations.
+One such example is
+.Fa EST
+which is both Eastern Standard Time and Eastern Australia Summer Time.
+.Pp
+The
+.Fn strptime
+function does not correctly handle multibyte characters in the
+.Fa format
+argument.

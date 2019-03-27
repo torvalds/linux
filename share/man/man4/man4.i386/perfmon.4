@@ -1,0 +1,213 @@
+.\"
+.\" Copyright 1996 Massachusetts Institute of Technology
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby
+.\" granted, provided that both the above copyright notice and this
+.\" permission notice appear in all copies, that both the above
+.\" copyright notice and this permission notice appear in all
+.\" supporting documentation, and that the name of M.I.T. not be used
+.\" in advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.  M.I.T. makes
+.\" no representations about the suitability of this software for any
+.\" purpose.  It is provided "as is" without express or implied
+.\" warranty.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
+.\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT
+.\" SHALL M.I.T. BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd March 26, 1996
+.Dt PERFMON 4 i386
+.Os
+.Sh NAME
+.Nm perfmon
+.Nd CPU performance-monitoring interface
+.Sh SYNOPSIS
+.Cd cpu I586_CPU
+.Cd cpu I686_CPU
+.Cd options PERFMON
+.Sh DESCRIPTION
+The
+.Nm
+driver provides access to the internal performance-monitoring
+capabilities of the
+.Tn Intel
+.Tn Pentium
+and
+.Tn "Pentium Pro"
+CPUs.
+These processors implement two internal counters which can be
+configured to measure a variety of events for either count or duration
+(in CPU cycles), as well as a cycle counter which counts clock cycles.
+The
+.Nm
+driver provides a device-style interface to these capabilities.
+.Pp
+All access to the performance-monitoring counters is performed through
+the special device file
+.Dq Pa /dev/perfmon .
+This device supports a number of
+.Xr ioctl 2
+requests, defined in
+.In machine/perfmon.h
+along with the definitions of the various counters for both
+.Tn Pentium
+and
+.Tn "Pentium Pro"
+processors.
+.Pp
+.Sy NOTA BENE :
+The set of available events differs from processor to processor.
+It
+is the responsibility of the programmer to ensure that the event
+numbers used are the correct ones for the CPU type being measured.
+.Pp
+The following
+.Xr ioctl 2
+requests are defined:
+.Bl -tag -width PMIOTSTAMP
+.It Dv PMIOSETUP
+.Pq Li "struct pmc"
+Set up a counter with parameters and flags defined in the structure.
+The following fields are defined in
+.Li struct pmc :
+.Bl -tag -width "u_char pmc_eventx"
+.It Li "int pmc_num"
+the number of the counter in question; must be less than
+.Dv NPMC
+(currently 2).
+.It Li "u_char pmc_event"
+the particular event number to be monitored, as defined in
+.In machine/perfmon.h .
+.It Li "u_char pmc_unit"
+the unit mask value, specific to the event type (see the
+.Tn Intel
+documentation).
+.It Li "u_char pmc_flags"
+flags modifying the operation of the counter (see below).
+.It Li "u_char pmc_mask"
+the counter mask value; essentially, this is a threshold used to
+restrict the count to events lasting more (or less) than the specified
+number of clocks.
+.El
+.Pp
+The following
+.Li pmc_flags
+values are defined:
+.Bl -tag -compact -width PMCF_USRxx
+.It Dv PMCF_USR
+count events in user mode
+.It Dv PMCF_OS
+count events in kernel mode
+.It Dv PMCF_E
+count number of events rather than their duration
+.It Dv PMCF_INV
+invert the sense of the counter mask comparison
+.El
+.It Dv PMIOGET
+.Pq Li "struct pmc"
+returns the current configuration of the specified counter.
+.It Dv PMIOSTART
+.It Dv PMIOSTOP
+.Pq Li int
+starts (stops) the specified counter.
+Due to hardware deficiencies,
+counters must be started and stopped in numerical order.
+(That is to
+say, counter 0 can never be stopped without first stopping counter 1.)
+The driver will
+.Em not
+enforce this restriction (since it may not be present in future CPUs).
+.It Dv PMIORESET
+.Pq Li int
+reset the specified counter to zero.
+The counter should be stopped
+with
+.Dv PMIOSTOP
+before it is reset.
+All counters are automatically reset by
+.Dv PMIOSETUP .
+.It Dv PMIOREAD
+.Pq Li "struct pmc_data"
+get the current value of the counter.
+The
+.Li pmc_data
+structure defines two fields:
+.Pp
+.Bl -tag -compact -width "quad_t pmcd_value"
+.It Li "int pmcd_num"
+the number of the counter to read
+.It Li "quad_t pmcd_value"
+the resulting value as a 64-bit signed integer
+.El
+.Pp
+In the future, it may be possible to use the
+.Li RDPMC
+instruction on
+.Tn "Pentium Pro"
+processors to read the counters directly.
+.It Dv PMIOTSTAMP
+.Pq Li "struct pmc_tstamp"
+read the time stamp counter.
+The
+.Li pmc_tstamp
+structure defines two fields:
+.Pp
+.Bl -tag -compact -width "quad_t pmct_value"
+.It Li "int pmct_rate"
+the approximate rate of the counter, in MHz
+.It Li "quad_t pmct_value"
+the current value of the counter as a 64-bit integer
+.El
+.Pp
+It is important to note that the counter rate, as provided in the
+.Li pmct_rate
+field, is often incorrect because of calibration difficulties and
+non-integral clock rates.
+This field should be considered more of a
+hint or sanity-check than an actual representation of the rate of
+clock ticks.
+.El
+.Sh FILES
+.Bl -tag -compact -width "/usr/include/machine/perfmon.h"
+.It Pa /dev/perfmon
+character device interface to counters
+.It Pa /usr/include/machine/perfmon.h
+include file with definitions of structures and event types
+.It Pa /usr/share/examples/perfmon
+sample source code demonstrating use of all the
+.Fn ioctl
+commands
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr hwpmc 4
+.Rs
+.%A Intel Corporation
+.%B Pentium Pro Family Developer's Manual
+.%D January 1996
+.%V vol. 3
+.%O Operating System Writer's Manual
+.Re
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Garrett A. Wollman ,
+MIT Laboratory for Computer Science.

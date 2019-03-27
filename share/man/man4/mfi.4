@@ -1,0 +1,155 @@
+.\" Copyright (c) 2006 Scott Long
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 13, 2019
+.Dt MFI 4
+.Os
+.Sh NAME
+.Nm mfi
+.Nd "LSI MegaRAID SAS driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device mfi"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mfi_load="YES"
+.Ed
+.Sh DESCRIPTION
+This driver is for LSI's next generation PCI Express SAS RAID controllers.
+Access to RAID arrays (logical disks) from this driver is provided via
+.Pa /dev/mfid?
+device nodes.
+A simple management interface is also provided on a per-controller basis via
+the
+.Pa /dev/mfi?
+device node.
+.Pp
+The
+.Nm
+name is derived from the phrase "MegaRAID Firmware Interface", which is
+substantially different than the old "MegaRAID" interface and thus requires
+a new driver.
+Older SCSI and SATA MegaRAID cards are supported by
+.Xr amr 4
+and will not work with this driver.
+.Pp
+Two sysctls are provided to tune the
+.Nm
+driver's behavior when a request is made to remove a mounted volume.
+By default the driver will disallow any requests to remove a mounted volume.
+If the sysctl
+.Va dev.mfi.%d.delete_busy_volumes
+is set to 1,
+then the driver will allow mounted volumes to be removed.
+.Pp
+A tunable is provided to adjust the
+.Nm
+driver's behaviour when attaching to a card.
+By default the driver will attach to all known cards with high probe priority.
+If the tunable
+.Va hw.mfi.mrsas_enable
+is set to 1,
+then the driver will reduce its probe priority to allow
+.Cd mrsas
+to attach to the card instead of
+.Nm .
+.Pp
+.Nm
+does not provide ATA TRIM support.
+Refer to
+.Cd mrsas
+if TRIM support is required.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following hardware:
+.Pp
+.Bl -bullet -compact
+.It
+LSI MegaRAID SAS 1078
+.It
+LSI MegaRAID SAS 8408E
+.It
+LSI MegaRAID SAS 8480E
+.It
+LSI MegaRAID SAS 9240
+.It
+LSI MegaRAID SAS 9260
+.It
+Dell PERC5
+.It
+Dell PERC6
+.It
+IBM ServeRAID M1015 SAS/SATA
+.It
+IBM ServeRAID M1115 SAS/SATA
+.It
+IBM ServeRAID M5015 SAS/SATA
+.It
+IBM ServeRAID M5110 SAS/SATA
+.It
+IBM ServeRAID-MR10i
+.It
+Intel RAID Controller SRCSAS18E
+.It
+Intel RAID Controller SROMBSAS18E
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/mfid?" -compact
+.It Pa /dev/mfid?
+array/logical disk interface
+.It Pa /dev/mfi?
+management interface
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "mfid%d: Unable to delete busy device"
+An attempt was made to remove a mounted volume.
+.El
+.Sh SEE ALSO
+.Xr amr 4 ,
+.Xr pci 4 ,
+.Xr mfiutil 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 6.1 .
+.Sh AUTHORS
+The
+.Nm
+driver and this manual page were written by
+.An Scott Long Aq Mt scottl@FreeBSD.org .
+.Sh BUGS
+The driver does not support big-endian architectures at this time.

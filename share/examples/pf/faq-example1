@@ -1,0 +1,51 @@
+# $FreeBSD$
+# $OpenBSD: faq-example1,v 1.5 2006/10/07 04:48:01 mcbride Exp $
+
+#
+# Firewall for Home or Small Office
+# http://www.openbsd.org/faq/pf/example1.html
+#
+
+
+# macros
+ext_if="fxp0"
+int_if="xl0"
+
+tcp_services="{ 22, 113 }"
+icmp_types="echoreq"
+
+comp3="192.168.0.3"
+
+# options
+set block-policy return
+set loginterface $ext_if
+
+set skip on lo
+
+# scrub
+scrub in
+
+# nat/rdr
+nat on $ext_if inet from !($ext_if) -> ($ext_if:0)
+nat-anchor "ftp-proxy/*"
+rdr-anchor "ftp-proxy/*"
+
+rdr pass on $int_if proto tcp to port ftp -> 127.0.0.1 port 8021
+rdr on $ext_if proto tcp from any to any port 80 -> $comp3
+
+# filter rules
+block in
+
+pass out
+
+anchor "ftp-proxy/*"
+antispoof quick for { lo $int_if }
+
+pass in on $ext_if inet proto tcp from any to ($ext_if) port $tcp_services
+
+pass in on $ext_if inet proto tcp from any to $comp3 port 80 \
+    synproxy state
+
+pass in inet proto icmp all icmp-type $icmp_types
+
+pass quick on $int_if no state

@@ -1,0 +1,84 @@
+.\" Copyright (c) 2007 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 25, 2007
+.Dt PMC_READ 3
+.Os
+.Sh NAME
+.Nm pmc_read ,
+.Nm pmc_rw ,
+.Nm pmc_write
+.Nd read and write hardware performance counters
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Ft int
+.Fn pmc_read "pmc_id_t pmc" "pmc_value_t *value"
+.Ft int
+.Fn pmc_rw "pmc_id_t pmc" "pmc_value_t newvalue" "pmc_value_t *oldvaluep"
+.Ft int
+.Fn pmc_write "pmc_id_t pmc" "pmc_value_t value"
+.Sh DESCRIPTION
+These functions read and write the current value of a PMC.
+.Pp
+Function
+.Fn pmc_read
+will read the current value of the PMC specified by argument
+.Fa pmc
+and write it to the location specified by argument
+.Fa value .
+.Pp
+Function
+.Fn pmc_write
+will set the current value of the PMC specified by argument
+.Fa pmc
+to the value specified by argument
+.Fa value .
+.Pp
+Function
+.Fn pmc_rw
+combines a read and a write into a single atomic operation.
+.Pp
+For write operations the PMC should be a quiescent state.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+A call to these functions may fail with the following errors:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+A write operation specified a currently running PMC.
+.It Bq Er EINVAL
+Argument
+.Fa pmc
+specified a PMC not in a readable state.
+.It Bq Er EINVAL
+The PMC specified by argument
+.Fa pmc
+was not owned by the current process.
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr hwpmc 4

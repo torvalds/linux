@@ -1,0 +1,10 @@
+
+#------------------------------------------------------------------------------
+# $File: magic,v 1.10 2010/11/25 15:00:12 christos Exp $
+# magic:  file(1) magic for magic files
+#
+0	string/t		#\ Magic	magic text file for file(1) cmd
+0	lelong		0xF11E041C	magic binary file for file(1) cmd
+>4	lelong		x		(version %d) (little endian)
+0	belong		0xF11E041C	magic binary file for file(1) cmd
+>4	belong		x		(version %d) (big endian)

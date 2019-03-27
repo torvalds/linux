@@ -1,0 +1,113 @@
+.\" Copyright (c) 2011 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 12, 2015
+.Dt TIMECOUNTERS 4
+.Os
+.Sh NAME
+.Nm timecounters
+.Nd kernel time counters subsystem
+.Sh SYNOPSIS
+The kernel uses several types of time-related devices, such as: real time clocks,
+time counters and event timers.
+Real time clocks are responsible for tracking real world time, mostly when the system
+is down.
+Time counters are responsible for tracking purposes, when the system is running.
+Event timers are responsible for generating interrupts at a specified time or
+periodically, to run different time-based events.
+This page is about the second.
+.Sh DESCRIPTION
+Time counters are the lowest level of time tracking in the kernel.
+They provide monotonically increasing timestamps with known width and
+update frequency.
+They can overflow, drift, etc and so in raw form can be used only in very limited
+performance-critical places like the process scheduler.
+.Pp
+More usable time is created by scaling the values read from the selected
+time counter and combining it with some offset, regularly updated by
+.Fn tc_windup
+on
+.Fn hardclock
+invocation.
+.Pp
+Different platforms provide different kinds of timer hardware.
+The goal of the time counters subsystem is to provide a unified way to access
+that hardware.
+.Pp
+Each driver implementing time counters registers them with the subsystem.
+It is possible to see the list of present time counters, via the
+.Va kern.timecounter
+.Xr sysctl 8
+variable:
+.Bd -literal
+kern.timecounter.choice: TSC-low(-100) HPET(950) i8254(0) ACPI-fast(900) dummy(-1000000)
+kern.timecounter.tc.ACPI-fast.mask: 16777215
+kern.timecounter.tc.ACPI-fast.counter: 13467909
+kern.timecounter.tc.ACPI-fast.frequency: 3579545
+kern.timecounter.tc.ACPI-fast.quality: 900
+kern.timecounter.tc.i8254.mask: 65535
+kern.timecounter.tc.i8254.counter: 62692
+kern.timecounter.tc.i8254.frequency: 1193182
+kern.timecounter.tc.i8254.quality: 0
+kern.timecounter.tc.HPET.mask: 4294967295
+kern.timecounter.tc.HPET.counter: 3013495652
+kern.timecounter.tc.HPET.frequency: 14318180
+kern.timecounter.tc.HPET.quality: 950
+kern.timecounter.tc.TSC-low.mask: 4294967295
+kern.timecounter.tc.TSC-low.counter: 4067509463
+kern.timecounter.tc.TSC-low.frequency: 11458556
+kern.timecounter.tc.TSC-low.quality: -100
+.Ed
+.Pp
+The output nodes are defined as follows:
+.Bl -inset
+.It Va kern.timecounter.tc. Ns Ar X Ns Va .mask
+is a bitmask, defining valid counter bits,
+.It Va kern.timecounter.tc. Ns Ar X Ns Va .counter
+is a present counter value,
+.It Va kern.timecounter.tc. Ns Ar X Ns Va .frequency
+is a counter update frequency,
+.It Va kern.timecounter.tc. Ns Ar X Ns Va .quality
+is an integral value, defining the quality of this time counter
+compared to others.
+A negative value means this time counter is broken and should not be used.
+.El
+.Pp
+The time management code of the kernel automatically switches to a
+higher-quality time counter when it registers, unless the
+.Va kern.timecounter.hardware
+sysctl has been used to choose a specific device.
+.Pp
+There is no way to unregister a time counter once it has registered
+with the kernel.
+If a dynamically loaded module contains a time counter you will not
+be able to unload that module, even if the time counter it contains
+is not the one currently in use.
+.Sh SEE ALSO
+.Xr attimer 4 ,
+.Xr eventtimers 4 ,
+.Xr ffclock 4 ,
+.Xr hpet 4

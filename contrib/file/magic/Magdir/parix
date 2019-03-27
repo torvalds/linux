@@ -1,0 +1,13 @@
+
+#------------------------------------------------------------------------------
+# $File: parix,v 1.4 2009/09/19 16:28:11 christos Exp $
+#
+# Parix COFF executables
+# From: Ignatios Souvatzis <ignatios@cs.uni-bonn.de>
+#
+0	beshort&0xfff	0xACE	PARIX
+>0	byte&0xf0	0x80	T800
+>0	byte&0xf0	0x90	T9000
+>19	byte&0x02	0x02	executable
+>19	byte&0x02	0x00	object
+>19	byte&0x0c	0x00	not stripped

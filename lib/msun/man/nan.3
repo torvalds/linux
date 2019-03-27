@@ -1,0 +1,99 @@
+.\" Copyright (c) 2007 David Schultz <das@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 16, 2007
+.Dt NAN 3
+.Os
+.Sh NAME
+.Nm nan ,
+.Nm nanf ,
+.Nm nanl
+.Nd quiet \*(Nas
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
+.Ft double
+.Fn nan "const char *s"
+.Ft float
+.Fn nanf "const char *s"
+.Ft long double
+.Fn nanl "const char *s"
+.Sh DESCRIPTION
+The
+.Dv NAN
+macro expands to a quiet \*(Na (Not A Number).
+Similarly, each of the
+.Fn nan ,
+.Fn nanf ,
+and
+.Fn nanl
+functions generate a quiet \*(Na value without raising an invalid exception.
+The argument
+.Fa s
+should point to either an empty string or a hexadecimal representation
+of a non-negative integer (e.g., "0x1234".)
+In the latter case, the integer is encoded in some free bits in the
+representation of the \*(Na, which sometimes store
+machine-specific information about why a particular \*(Na was generated.
+There are 22 such bits available for
+.Vt float
+variables, 51 bits for
+.Vt double
+variables, and at least 51 bits for a
+.Vt long double .
+If
+.Fa s
+is improperly formatted or represents an integer that is too large,
+then the particular encoding of the quiet \*(Na that is returned
+is indeterminate.
+.Sh COMPATIBILITY
+Calling these functions with a non-empty string isn't portable.
+Another operating system may translate the string into a different
+\*(Na encoding, and furthermore, the meaning of a given \*(Na encoding
+varies across machine architectures.
+If you understood the innards of a particular platform well enough to
+know what string to use, then you would have no need for these functions
+anyway, so don't use them.
+Use the
+.Dv NAN
+macro instead.
+.Sh SEE ALSO
+.Xr fenv 3 ,
+.Xr ieee 3 ,
+.Xr isnan 3 ,
+.Xr math 3 ,
+.Xr strtod 3
+.Sh STANDARDS
+The
+.Fn nan ,
+.Fn nanf ,
+and
+.Fn nanl
+functions and the
+.Dv NAN
+macro conform to
+.St -isoC-99 .

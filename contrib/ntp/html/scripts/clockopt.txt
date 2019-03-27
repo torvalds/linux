@@ -1,0 +1,5 @@
+document.write("<p>Reference Clock Commands and Options</p><ul>\
+<li class='inline'><a href='clockopt.html#fudge'>fudge - specify fudge parameters</a><br>\
+<li class='inline'><a href='clockopt.html#server'>server - specify reference clock server</a><br>\
+<li class='inline'><a href='comdex.html'>Command Index</a></li>\
+</ul>")

@@ -1,0 +1,120 @@
+.\"	$Id: mansearch.3,v 1.5 2017/03/30 22:22:05 schwarze Exp $
+.\"
+.\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 30 2017 $
+.Dt MANSEARCH 3
+.Os
+.Sh NAME
+.Nm mansearch
+.Nd search manual page databases
+.Sh SYNOPSIS
+.In stdint.h
+.In manconf.h
+.In mansearch.h
+.Ft int
+.Fo mansearch
+.Fa "const struct mansearch *search"
+.Fa "const struct manpaths *paths"
+.Fa "int argc"
+.Fa "char *argv[]"
+.Fa "struct manpage **res"
+.Fa "size_t *sz"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn mansearch
+function returns information about manuals matching a search query from a
+.Xr mandoc.db 5
+database.
+.Pp
+The query arguments are as follows:
+.Bl -tag -width Ds
+.It Fa "const struct mansearch *search"
+Search options, defined in
+.In mansearch.h .
+.It Fa "const struct manpaths *paths"
+Directories to be searched, defined in
+.In manconf.h .
+.It Fa "int argc" , "char *argv[]"
+Search criteria, usually taken from the command line.
+.El
+.Pp
+The output arguments are as follows:
+.Bl -tag -width Ds
+.It Fa "struct manpage **res"
+Returns a pointer to an array of result structures defined in
+.In mansearch.h .
+The user is expected to call
+.Xr free 3
+on the
+.Va file ,
+.Va names ,
+and
+.Va output
+fields of all structures, as well as the
+.Fa res
+array itself.
+.It Fa "size_t *sz"
+Returns the number of result structures contained in
+.Fa res .
+.El
+.Sh IMPLEMENTATION NOTES
+For each manual page tree, the search is done in two steps.
+In the first step, a list of pages matching the search criteria is built.
+In the second step, the requested information about these pages is
+retrieved from the database and assembled into the
+.Fa res
+array.
+.Pp
+All function mentioned here are defined in the file
+.Pa mansearch.c .
+.Ss Finding matches
+Command line parsing is done by the function
+.Fn exprcomp
+building a singly linked list of
+.Vt expr
+structures, using the helper functions
+.Fn expr_and
+and
+.Fn exprterm .
+.Ss Assembling the results
+The names, sections, and architectures of the manuals found
+are assembled into the
+.Va names
+field of the result structure by the function
+.Fn buildnames .
+.Sh FILES
+.Bl -tag -width mandoc.db -compact
+.It Pa mandoc.db
+The manual page database.
+.El
+.Sh SEE ALSO
+.Xr apropos 1 ,
+.Xr mandoc.db 5 ,
+.Xr makewhatis 8
+.Sh HISTORY
+The
+.Fn mansearch
+subsystem first appeared in
+.Ox 5.6 .
+.Sh AUTHORS
+.An -nosplit
+A module to search manual page databases was first written by
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv
+in 2011, at first using the Berkeley DB;
+he rewrote it for SQLite3 in 2012, and
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org
+removed the dependency on SQLite3 in 2016.

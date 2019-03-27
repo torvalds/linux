@@ -1,0 +1,153 @@
+.\" Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 13, 2012
+.Dt EVENTTIMERS 4
+.Os
+.Sh NAME
+.Nm eventtimers
+.Nd kernel event timers subsystem
+.Sh SYNOPSIS
+Kernel uses several types of time-related devices, such as: real time clocks,
+time counters and event timers.
+Real time clocks responsible for tracking real world time, mostly when system
+is down.
+Time counters are responsible for generation of monotonically increasing
+timestamps for precise uptime tracking purposes, when system is running.
+Event timers are responsible for generating interrupts at specified time or
+periodically, to run different time-based events.
+This page is about the last.
+.Sh DESCRIPTION
+Kernel uses time-based events for many different purposes: scheduling,
+statistics, time keeping, profiling and many other things, based on
+.Xr callout 9
+mechanism.
+These purposes now grouped into three main callbacks:
+.Bl -tag -width ".Fn hardclock"
+.It Fn hardclock
+.Xr callout 9
+and timekeeping events entry.
+Called with frequency defined by
+.Va hz
+variable,
+usually 1000Hz.
+.It Fn statclock
+statistics and scheduler events entry.
+Called with frequency about 128Hz.
+.It Fn profclock
+profiler events entry.
+When enabled, called with frequency about 8KHz.
+.El
+.Pp
+Different platforms provide different kinds of timer hardware.
+The goal of the event timers subsystem is to provide unified way to control
+that hardware, and to use it, supplying kernel with all required time-based
+events.
+.Pp
+Each driver implementing event timers, registers them at the subsystem.
+It is possible to see the list of present event timers, like this, via
+.Va kern.eventtimer
+sysctl:
+.Bd -literal
+kern.eventtimer.choice: HPET(550) LAPIC(400) i8254(100) RTC(0)
+kern.eventtimer.et.LAPIC.flags: 15
+kern.eventtimer.et.LAPIC.frequency: 0
+kern.eventtimer.et.LAPIC.quality: 400
+kern.eventtimer.et.i8254.flags: 1
+kern.eventtimer.et.i8254.frequency: 1193182
+kern.eventtimer.et.i8254.quality: 100
+kern.eventtimer.et.RTC.flags: 17
+kern.eventtimer.et.RTC.frequency: 32768
+kern.eventtimer.et.RTC.quality: 0
+kern.eventtimer.et.HPET.flags: 7
+kern.eventtimer.et.HPET.frequency: 14318180
+kern.eventtimer.et.HPET.quality: 550
+.Ed
+.Pp
+where:
+.Bl -inset
+.It Va kern.eventtimer.et. Ns Ar X Ns Va .flags
+is a
+bitmask, defining event timer capabilities:
+.Bl -tag -offset indent -width indent -compact
+.It 1
+periodic mode supported,
+.It 2
+one-shot mode supported,
+.It 4
+timer is per-CPU,
+.It 8
+timer may stop when CPU goes to sleep state,
+.It 16
+timer supports only power-of-2 divisors.
+.El
+.It Va kern.eventtimer.et. Ns Ar X Ns Va .frequency
+is a
+timer base frequency,
+.It Va kern.eventtimer.et. Ns Ar X Ns Va .quality
+is an
+integral value, defining how good is this timer, comparing to others.
+.El
+.Pp
+Timers management code of the kernel chooses one timer from that list.
+Current choice can be read and affected via
+.Va kern.eventtimer.timer
+tunable/sysctl.
+Several other tunables/sysctls are affecting how exactly this timer is used:
+.Bl -inset
+.It Va kern.eventtimer.periodic
+allows to choose periodic and one-shot operation mode.
+In periodic mode, periodic interrupts from timer hardware are taken as the
+only source of time for time events.
+One-shot mode instead uses currently selected time counter to precisely
+schedule all needed events and programs event timer to generate interrupt
+exactly in specified time.
+Default value depends of chosen timer capabilities, but one-shot mode is
+preferred, until other is forced by user or hardware.
+.It Va kern.eventtimer.singlemul
+in periodic mode specifies how much times higher timer frequency should be,
+to not strictly alias
+.Fn hardclock
+and
+.Fn statclock
+events.
+Default values are
+1, 2 or 4, depending on configured HZ value.
+.It Va kern.eventtimer.idletick
+makes each CPU to receive every timer interrupt independently of whether they
+busy or not.
+By default this options is disabled.
+If chosen timer is per-CPU
+and runs in periodic mode, this option has no effect - all interrupts are
+always generating.
+.El
+.Sh SEE ALSO
+.Xr apic 4 ,
+.Xr atrtc 4 ,
+.Xr attimer 4 ,
+.Xr hpet 4 ,
+.Xr timecounters 4 ,
+.Xr eventtimers 9

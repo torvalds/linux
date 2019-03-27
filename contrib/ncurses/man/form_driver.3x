@@ -1,0 +1,331 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: form_driver.3x,v 1.22 2010/12/04 18:38:55 tom Exp $
+.TH form_driver 3X ""
+.de bP
+.IP \(bu 4
+..
+.SH NAME
+\fBform_driver\fR \- command-processing loop of the form system
+.SH SYNOPSIS
+\fB#include <form.h>\fR
+.br
+int form_driver(FORM *form, int c);
+.br
+.SH DESCRIPTION
+Once a form has been posted (displayed), you should funnel input events to it
+through \fBform_driver\fR.  This routine has three major input cases:
+.bP
+The input is a form navigation request.
+Navigation request codes are constants defined in \fB<form.h>\fP,
+which are distinct from the key- and character codes returned by \fBwgetch\fP.
+.bP
+The input is a printable character.
+Printable characters (which must be positive, less than 256) are
+checked according to the program's locale settings.
+.bP
+The input is the KEY_MOUSE special key associated with an mouse event.
+.PP
+The form driver requests are as follows:
+.TP 5
+REQ_NEXT_PAGE
+Move to the next page.
+.TP 5
+REQ_PREV_PAGE
+Move to the previous page.
+.TP 5
+REQ_FIRST_PAGE
+Move to the first page.
+.TP 5
+REQ_LAST_PAGE
+Move to the last field.
+.sp
+.TP 5
+REQ_NEXT_FIELD
+Move to the next field.
+.TP 5
+REQ_PREV_FIELD
+Move to the previous field.
+.TP 5
+REQ_FIRST_FIELD
+Move to the first field.
+.TP 5
+REQ_LAST_FIELD
+Move to the last field.
+.TP 5
+REQ_SNEXT_FIELD
+Move to the sorted next field.
+.TP 5
+REQ_SPREV_FIELD
+Move to the sorted previous field.
+.TP 5
+REQ_SFIRST_FIELD
+Move to the sorted first field.
+.TP 5
+REQ_SLAST_FIELD
+Move to the sorted last field.
+.TP 5
+REQ_LEFT_FIELD
+Move left to a field.
+.TP 5
+REQ_RIGHT_FIELD
+Move right to a field.
+.TP 5
+REQ_UP_FIELD
+Move up to a field.
+.TP 5
+REQ_DOWN_FIELD
+Move down to a field.
+.sp
+.TP 5
+REQ_NEXT_CHAR
+Move to the next char.
+.TP 5
+REQ_PREV_CHAR
+Move to the previous char.
+.TP 5
+REQ_NEXT_LINE
+Move to the next line.
+.TP 5
+REQ_PREV_LINE
+Move to the previous line.
+.TP 5
+REQ_NEXT_WORD
+Move to the next word.
+.TP 5
+REQ_PREV_WORD
+Move to the previous word.
+.TP 5
+REQ_BEG_FIELD
+Move to the beginning of the field.
+.TP 5
+REQ_END_FIELD
+Move to the end of the field.
+.TP 5
+REQ_BEG_LINE
+Move to the beginning of the line.
+.TP 5
+REQ_END_LINE
+Move to the end of the line.
+.TP 5
+REQ_LEFT_CHAR
+Move left in the field.
+.TP 5
+REQ_RIGHT_CHAR
+Move right in the field.
+.TP 5
+REQ_UP_CHAR
+Move up in the field.
+.TP 5
+REQ_DOWN_CHAR
+Move down in the field.
+.sp
+.TP 5
+REQ_NEW_LINE
+Insert or overlay a new line.
+.TP 5
+REQ_INS_CHAR
+Insert a blank at the cursor.
+.TP 5
+REQ_INS_LINE
+Insert a blank line at the cursor.
+.TP 5
+REQ_DEL_CHAR
+Delete character at the cursor.
+.TP 5
+REQ_DEL_PREV
+Delete character before the cursor.
+.TP 5
+REQ_DEL_LINE
+Delete line at the cursor.
+.TP 5
+REQ_DEL_WORD
+Delete blank-delimited word at the cursor.
+.TP 5
+REQ_CLR_EOL
+Clear to end of line from cursor.
+.TP 5
+REQ_CLR_EOF
+Clear to end of field from cursor.
+.TP 5
+REQ_CLR_FIELD
+Clear the entire field.
+.TP 5
+REQ_OVL_MODE
+Enter overlay mode.
+.TP 5
+REQ_INS_MODE
+Enter insert mode.
+.sp
+.TP 5
+REQ_SCR_FLINE
+Scroll the field forward a line.
+.TP 5
+REQ_SCR_BLINE
+Scroll the field backward a line.
+.TP 5
+REQ_SCR_FPAGE
+Scroll the field forward a page.
+.TP 5
+REQ_SCR_BPAGE
+Scroll the field backward a page.
+.TP 5
+REQ_SCR_FHPAGE
+Scroll the field forward half a page.
+.TP 5
+REQ_SCR_BHPAGE
+Scroll the field backward half a page.
+.sp
+.TP 5
+REQ_SCR_FCHAR
+Scroll the field forward a character.
+.TP 5
+REQ_SCR_BCHAR
+Scroll the field backward a character.
+.TP 5
+REQ_SCR_HFLINE
+Horizontal scroll the field forward a line.
+.TP 5
+REQ_SCR_HBLINE
+Horizontal scroll the field backward a line.
+.TP 5
+REQ_SCR_HFHALF
+Horizontal scroll the field forward half a line.
+.TP 5
+REQ_SCR_HBHALF
+Horizontal scroll the field backward half a line.
+.sp
+.TP
+REQ_VALIDATION
+Validate field.
+.TP
+REQ_NEXT_CHOICE
+Display next field choice.
+.TP
+REQ_PREV_CHOICE
+Display previous field choice.
+.PP
+If the second argument is a printable character, the driver places it
+in the current position in the current field.  If it is one of the forms
+requests listed above, that request is executed.
+.SS MOUSE HANDLING
+.PP
+If the second argument is the KEY_MOUSE special key, the associated
+mouse event is translated into one of the above pre-defined requests.
+Currently only clicks in the user window (e.g., inside the form display
+area or the decoration window) are handled.
+.PP
+If you click above the display region of the form:
+.RS 3
+.TP
+a REQ_PREV_FIELD is generated for a single click,
+.TP
+a REQ_PREV_PAGE is generated for a double-click and
+.TP
+a REQ_FIRST_FIELD is generated for a triple-click.
+.RE
+.PP
+If you click below the display region of the form:
+.RS 3
+.TP
+a REQ_NEXT_FIELD is generated for a single click,
+.TP
+a REQ_NEXT_PAGE is generated for a double-click and
+.TP
+a REQ_LAST_FIELD is generated for a triple-click.
+.RE
+.PP
+If you click at an field inside the display area of the form:
+.RS 3
+.bP
+the form cursor is positioned to that field.
+.bP
+If you double-click a field,
+the form cursor is positioned to that field
+and \fBE_UNKNOWN_COMMAND\fR is returned.
+This return value makes sense,
+because a double click usually means that an field-specific action should
+be returned.
+It is exactly the purpose of this return value to signal that an
+application specific command should be executed.
+.bP
+If a translation
+into a request was done, \fBform_driver\fR returns the result of this request.
+.RE
+.PP
+If you clicked outside the user window or the mouse event could not be translated
+into a form request an \fBE_REQUEST_DENIED\fR is returned.
+.SS APPLICATION-DEFINED COMMANDS
+.PP
+If the second argument is neither printable nor one of the above
+pre-defined form requests, the driver assumes it is an application-specific
+command and returns \fBE_UNKNOWN_COMMAND\fR.  Application-defined commands
+should be defined relative to \fBMAX_COMMAND\fR, the maximum value of these
+pre-defined requests.
+.SH RETURN VALUE
+\fBform_driver\fR returns one of the following error codes:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_BAD_STATE
+Routine was called from an initialization or termination function.
+.TP 5
+.B E_NOT_POSTED
+The form has not been posted.
+.TP 5
+.B E_INVALID_FIELD
+Contents of field is invalid.
+.TP 5
+.B E_REQUEST_DENIED
+The form driver could not process the request.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
+.TP 5
+.B E_UNKNOWN_COMMAND
+The form driver code saw an unknown request code.
+.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBform\fR(3X),
+\fBform_variables\fR(3X),
+\fBgetch\fR(3X).
+.SH NOTES
+The header file \fB<form.h>\fR automatically includes the header files
+\fB<curses.h>\fR.
+.SH PORTABILITY
+These routines emulate the System V forms library.  They were not supported on
+Version 7 or BSD versions.
+.SH AUTHORS
+Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
+S. Raymond.

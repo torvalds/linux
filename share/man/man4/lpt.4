@@ -1,0 +1,98 @@
+.\"
+.\" Copyright (c) 1993 Christopher G. Demetriou
+.\" Copyright (c) 1994 Geoffrey M. Rehmet
+.\" Copyright (c) 1999 Nicolas Souchu
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 14, 1999
+.Dt LPT 4
+.Os
+.Sh NAME
+.Nm lpt
+.Nd generic printer device driver
+.Sh SYNOPSIS
+.Cd "device ppc"
+.Cd "device ppbus"
+.Cd "device lpt"
+.Sh DESCRIPTION
+The current
+.Em lpt
+driver is the port of the original lpt driver to the
+.Xr ppbus 4
+system.
+.Pp
+One purpose of this port was to allow parallel port sharing with other
+parallel devices.
+Secondly, inb()/outb() calls have been replaced by ppbus
+function calls.
+lpt is now arch-independent thanks to the ppbus interface.
+See
+.Xr ppbus 4
+for more info about the ppbus system.
+.Pp
+The parallel port bus is allocated by lpt when the printer device is opened
+and released only when the transfer is completed: either when the device
+is closed or when the entire buffer is sent in interrupt driven mode.
+.Pp
+The driver can be configured to be either interrupt-driven, or
+to poll the printer.
+Ports that are configured to be
+interrupt-driven can be switched to polled mode by using the
+.Xr lptcontrol 8
+command.
+.Pp
+Depending on your hardware, extended capabilities may be configured with the
+.Xr lptcontrol 8
+command.
+With an ECP/ISA port, you can take advantage
+of FIFO and DMA.
+.Pp
+In order to retrieve printer info from /dev/lpt0, just apply the
+.Nm cat
+command to the device.
+If the printer supports IEEE1284 nibble mode and has
+data to send to the host, you will get it.
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /dev/lpt0
+first parallel port driver
+.El
+.Sh SEE ALSO
+.Xr ppbus 4 ,
+.Xr ppc 4 ,
+.Xr lptcontrol 8
+.Sh HISTORY
+This driver replaces the functionality of the lpa
+driver, which is now defunct.
+.Sh BUGS
+There are lots of them, especially in cheap parallel port implementations.
+.Pp
+It is only possible to open a lpt port when a printer is connected and
+on-line, making it impossible to run
+.Xr lptcontrol 8
+when there is no printer connected.
+.Pp
+This driver could still stand a rewrite.

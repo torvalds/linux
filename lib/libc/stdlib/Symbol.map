@@ -1,0 +1,132 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	_Exit;
+	a64l;
+	abort;
+	abs;
+	atexit;
+	__cxa_atexit;
+	__cxa_finalize;
+	atof;
+	atoi;
+	atol;
+	atoll;
+	bsearch;
+	div;
+	__isthreaded;
+	exit;
+	getenv;
+	opterr;
+	optind;
+	optopt;
+	optreset;
+	optarg;
+	getopt;
+	getopt_long;
+	getopt_long_only;
+	suboptarg;
+	getsubopt;
+	grantpt;
+	ptsname;
+	unlockpt;
+	hcreate;
+	hdestroy;
+	hsearch;
+	heapsort;
+	imaxabs;
+	imaxdiv;
+	insque;
+	l64a;
+	l64a_r;
+	labs;
+	ldiv;
+	llabs;
+	lldiv;
+	lsearch;
+	lfind;
+	mergesort;
+	putenv;
+	qsort_r;
+	qsort;
+	radixsort;
+	sradixsort;
+	rand_r;
+	rand;
+	srand;
+	sranddev;
+	srandom;
+	srandomdev;
+	initstate;
+	setstate;
+	random;
+	reallocf;
+	realpath;
+	remque;
+	setenv;
+	unsetenv;
+	strfmon;
+	strtoimax;
+	strtol;
+	strtoll;
+	strtonum;
+	strtoq;
+	strtoul;
+	strtoull;
+	strtoumax;
+	strtouq;
+	system;
+	tdelete;
+	tfind;
+	tsearch;
+	twalk;
+};
+
+FBSD_1.3 {
+	at_quick_exit;
+	atof_l;
+	atoi_l;
+	atol_l;
+	atoll_l;
+	quick_exit;
+	strtod_l;
+	strtof_l;
+	strtoimax_l;
+	strtol_l;
+	strtold_l;
+	strtoll_l;
+	strtoq_l;
+	strtoul_l;
+	strtoull_l;
+	strtoumax_l;
+	strtouq_l;
+};
+
+FBSD_1.4 {
+	atexit_b;
+	bsearch_b;
+	heapsort_b;
+	mergesort_b;
+	qsort_b;
+	hcreate_r;
+	hdestroy_r;
+	hsearch_r;
+	reallocarray;
+};
+
+FBSD_1.5 {
+	__cxa_thread_atexit;
+	__cxa_thread_atexit_impl;
+	abort_handler_s;
+	ignore_handler_s;
+	set_constraint_handler_s;
+};
+
+FBSDprivate_1.0 {
+	__system;
+	_system;
+	__libc_system;
+	__cxa_thread_call_dtors;
+};

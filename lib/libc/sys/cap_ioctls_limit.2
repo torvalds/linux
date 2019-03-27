@@ -1,0 +1,159 @@
+.\"
+.\" Copyright (c) 2012 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Pawel Jakub Dawidek under sponsorship
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 6, 2015
+.Dt CAP_IOCTLS_LIMIT 2
+.Os
+.Sh NAME
+.Nm cap_ioctls_limit ,
+.Nm cap_ioctls_get
+.Nd manage allowed ioctl commands
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/capsicum.h
+.Ft int
+.Fn cap_ioctls_limit "int fd" "const unsigned long *cmds" "size_t ncmds"
+.Ft ssize_t
+.Fn cap_ioctls_get "int fd" "unsigned long *cmds" "size_t maxcmds"
+.Sh DESCRIPTION
+If a file descriptor is granted the
+.Dv CAP_IOCTL
+capability right, the list of allowed
+.Xr ioctl 2
+commands can be selectively reduced (but never expanded) with the
+.Fn cap_ioctls_limit
+system call.
+The
+.Fa cmds
+argument is an array of
+.Xr ioctl 2
+commands and the
+.Fa ncmds
+argument specifies the number of elements in the array.
+There can be up to
+.Va 256
+elements in the array.
+Including an element that has been previously revoked will generate an error.
+After a successful call only those listed in the array may be used.
+.Pp
+The list of allowed ioctl commands for a given file descriptor can be obtained
+with the
+.Fn cap_ioctls_get
+system call.
+The
+.Fa cmds
+argument points at memory that can hold up to
+.Fa maxcmds
+values.
+The function populates the provided buffer with up to
+.Fa maxcmds
+elements, but always returns the total number of ioctl commands allowed for the
+given file descriptor.
+The total number of ioctls commands for the given file descriptor can be
+obtained by passing
+.Dv NULL as the
+.Fa cmds
+argument and
+.Va 0
+as the
+.Fa maxcmds
+argument.
+If all ioctl commands are allowed
+.Dv ( CAP_IOCTL
+capability right is assigned to the file descriptor and the
+.Fn cap_ioctls_limit
+system call was never called for this file descriptor), the
+.Fn cap_ioctls_get
+system call will return
+.Dv CAP_IOCTLS_ALL
+and will not modify the buffer pointed to by the
+.Fa cmds
+argument.
+.Sh RETURN VALUES
+.Rv -std cap_ioctls_limit
+.Pp
+The
+.Fn cap_ioctls_get
+function, if successful, returns the total number of allowed ioctl commands or
+the value
+.Dv CAP_IOCTLS_ALL
+if all ioctls commands are allowed.
+On failure the value
+.Va -1
+is returned and the global variable errno is set to indicate the error.
+.Sh ERRORS
+.Fn cap_ioctls_limit
+succeeds unless:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument is not a valid descriptor.
+.It Bq Er EFAULT
+The
+.Fa cmds
+argument points at an invalid address.
+.It Bq Er EINVAL
+The
+.Fa ncmds
+argument is greater than
+.Va 256 .
+.It Bq Er ENOTCAPABLE
+.Fa cmds
+would expand the list of allowed
+.Xr ioctl 2
+commands.
+.El
+.Pp
+.Fn cap_ioctls_get
+succeeds unless:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument is not a valid descriptor.
+.It Bq Er EFAULT
+The
+.Fa cmds
+argument points at invalid address.
+.El
+.Sh SEE ALSO
+.Xr cap_fcntls_limit 2 ,
+.Xr cap_rights_limit 2 ,
+.Xr ioctl 2
+.Sh HISTORY
+Support for capabilities and capabilities mode was developed as part of the
+.Tn TrustedBSD
+Project.
+.Sh AUTHORS
+This function was created by
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
+under sponsorship of the FreeBSD Foundation.

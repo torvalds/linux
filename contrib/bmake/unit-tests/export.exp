@@ -1,0 +1,6 @@
+UT_DOLLAR=This is $UT_FU
+UT_FOO=foobar is fubar
+UT_FU=fubar
+UT_TEST=export
+UT_ZOO=hoopie
+exit status 0

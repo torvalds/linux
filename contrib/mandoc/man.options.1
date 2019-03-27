@@ -1,0 +1,1332 @@
+.\"	$Id: man.options.1,v 1.7 2017/07/04 23:40:01 schwarze Exp $
+.\"
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 4 2017 $
+.Dt MAN.OPTIONS 1
+.Os
+.Sh NAME
+.Nm man.options
+.Nd assignment of option letters in manual page utilities
+.\"
+.\" Sources that occur repeatedly.
+.\" Only use if the precise implementation time is unknown.
+.\"
+.de PWB
+.No PWB/UNIX 1.0 Pq July 1, 1977 \\$1
+..
+.de At7
+.At v7 Pq January 1979 \\$1
+..
+.de At3
+.At III Pq June 1980 \\$1
+..
+.de Bx4
+.Bx 4 Pq November 16, 1980 \\$1
+..
+.de At5
+.At V Pq January 1983 \\$1
+..
+.de Bx43
+.Bx 4.3 Pq June 1986 \\$1
+..
+.\" option was present in groff-1.01 as contained in 4.3BSD-Net/2
+.\" and no mention of it could be found in the ChangeLog,
+.\" so it's probably older than groff-0.4, where the log started
+.de g04
+.No probably before groff-0.4 Pq before July 14, 1990 \\$1
+..
+.de Eaton
+.No Eaton Pq before July 7, 1993; 1990/91? \\$1
+..
+.\" man-1.5e was released on July 11, 1998.
+.de man15e
+.No man-1.5e Pq not before 1993, not after 1998 \\$1
+..
+.\" man-1.5g was released on April 7, 1999.
+.de man15g
+.No man-1.5g Pq not before 1993, not after 1999 \\$1
+..
+.\" code first seen in the initial import of man-db into CVS ,
+.\" which was more or less debian man-db-2.3.17
+.\" Colin Watson's first release was 2.3.18 on May 14, 2001
+.\" no clue about it found in ChangeLog-2013,
+.\" so it was probably already present before man-db-2.2a4
+.de dbI
+.No man-db probably before 2.2a4 Pq before Nov 8, 1994 \\$1
+..
+.\"
+.\" --------------------------------------------------------------------
+.\"
+.Sh DESCRIPTION
+This manual page lists option letters used in many different versions
+of the
+.Nm man ,
+.Nm apropos ,
+.Nm whatis ,
+.Nm mandoc ,
+.Nm makewhatis ,
+.Nm mandb ,
+.Nm makemandb ,
+.Nm catman ,
+and
+.Nm manpath
+utilities.
+Option letters used by
+.Nm groff ,
+.Nm nroff ,
+.Nm troff ,
+and
+.Nm roff
+are also included because beginning with
+.At v7 ,
+many versions of
+.Xr man 1
+pass on unrecognized options to these programs.
+.Pp
+For each option letter, information is first grouped into paragraphs,
+each paragraph describing similar functionality and starting with
+one line briefly summarizing that functionality.
+.Pp
+For each program using the letter for that functionality, one line
+is provided, giving the name of the program, a colon, the system
+where this letter first appeared for this functionality in this
+program, optionally a comma and a list of other system versions
+introducing the same, a semicolon, and a list of current systems
+supporting it.
+If a system appears before the semicolon, it is not repeated
+afterwards.
+.Pp
+Entries are sorted by historical precedence, except that obsolete
+options are moved to the end.
+Dates are commit dates where known, and release dates otherwise.
+.Bl -tag -width 3n
+.It Fl a
+display all matching manual pages
+.br
+.Nm man :
+.Bx 4.3 Tahoe Pq June 1988 ,
+.Eaton ;
+.Ox , Fx , Nx , No man-db , man-1.6 , illumos , Solaris 9-11
+.br
+.Nm apropos , whatis , mandoc :
+.Ox 5.7 Pq August 27, 2014
+.Pp
+only display items that match all keywords
+.br
+.Nm apropos :
+.No man-db Pq Aug 29, 2007
+.Pp
+use all directories and files for
+.Xr mandoc.db 5
+.br
+.Nm makewhatis :
+.Ox 5.6 Pq April 18, 2014
+.Pp
+.Bq superseded by Fl T Cm ascii
+ASCII output mode
+.br
+.Nm troff :
+.At7
+.br
+.Nm groff :
+.g04
+.It Fl B
+use specified browser
+.br
+.Nm man :
+.No man-1.6 Pq June 24, 2005
+.It Fl b
+print a backtrace with each warning or error message
+.br
+.Nm groff :
+.g04
+.Pp
+.Bq obsolete hardware
+report whether the phototypesetter is busy
+.br
+.Nm troff :
+.At7
+.It Fl C
+alternate configuration file
+.br
+.Nm apropos , whatis :
+.Bx 4.4 Lite1 Pq April 22, 1994 ,
+.No man-db Pq Feb 22, 2003 ;
+.Ox , Nx
+.br
+.Nm man :
+.Nx 1.0 Pq Oct 26, 1994 ,
+.man15e ;
+.Ox
+.br
+.Nm mandb , catman , manpath :
+.No man-db Pq Feb 22, 2003
+.br
+.Nm makemandb :
+.Nx Pq Feb 7, 2012
+.br
+.Nm makewhatis :
+.Ox 5.6 Pq April 18, 2014
+.br
+.Nm mandoc :
+.Ox 5.7 Pq August 27, 2014
+.Pp
+.Bq obsolete
+enable compatibility mode
+.br
+.Nm groff :
+.No before groff-0.5 Pq before August 3, 1990
+.It Fl c
+do not use a pager
+.br
+.Nm man :
+.Bx 4.3 Reno Pq June 1990 ;
+.Ox , Nx
+.br
+.Nm apropos , whatis , mandoc :
+.Ox 5.7 Pq August 27, 2014
+.Pp
+process given catpath
+.br
+.Nm makewhatis :
+.Pq not before 1992, not after 1995
+.Pp
+recreate databases from scratch
+.br
+.Nm mandb :
+.dbI
+.Pp
+produce a catpath as opposed to a manpath
+.br
+.Nm manpath :
+.dbI
+.Pp
+internal option for use by
+.Xr catman 1
+.br
+.Nm man :
+.dbI
+.Pp
+reformat source page even if cat page exists
+.br
+.Nm man :
+.man15e
+.Pp
+disable terminal color output in
+.Xr grotty 1
+.br
+.Nm groff :
+.No groff-1.18.0 Pq Oct 4, 2001
+.Pp
+recreate nroff versions from SGML sources
+.br
+.Nm catman :
+.No Solaris 9-11
+.Pp
+.Bq obsolete
+postprocess with
+.Xr col 1
+.br
+.Nm man :
+.At3 ,
+.At5
+.It Fl D
+reset whatever was set with
+.Ev MANOPT
+.br
+.Nm man :
+.dbI
+.Pp
+print debugging info in addition to manual page
+.br
+.Nm man :
+.man15e
+.Pp
+set default input encoding for
+.Xr preconv 1
+.br
+.Nm groff :
+.No groff-1.20 Pq August 20, 2008
+.Pp
+display all files added to
+.Xr mandoc.db 5
+.br
+.Nm makewhatis :
+.Ox 5.6 Pq April 18, 2014
+.It Fl d
+define a user-defined string
+.br
+.Nm groff :
+.g04
+.Pp
+print debugging information
+.br
+.Nm man :
+.Eaton ;
+.Fx , No man-db , man-1.6 , illumos , Solaris 9-11
+.br
+.Nm manpath :
+.Eaton ;
+.Fx , No man-db
+.br
+.Nm apropos , whatis :
+.dbI ;
+.Fx
+.br
+.Nm mandb , catman :
+.dbI
+.Pp
+remove and re-add a file to
+.Xr mandoc.db 5
+.br
+.Nm makewhatis :
+.Ox 2.7 Pq Feb 3, 2000
+.Pp
+.Bq superseded by Fl l
+interpret arguments as file names
+.br
+.Nm man :
+.At3 ,
+.At5
+.It Fl E
+inhibit all error messages
+.br
+.Nm groff :
+.g04
+.Pp
+select output encoding
+.br
+.Nm man :
+.No man-db Pq Dec 23, 2001
+.It Fl e
+preprocess with
+.Xr eqn 7
+.br
+.Nm man :
+.At7
+.br
+.Nm groff :
+.g04
+.Pp
+adjust text to left and right margins
+.br
+.Nm nroff :
+.At7
+.Pp
+use exact matching
+.br
+.Nm apropos , whatis :
+.dbI
+.Pp
+restrict search by section extension
+.br
+.Nm man :
+.No man-db-2.3.5 Pq April 21, 1995
+.It Fl F
+use alternate font directory
+.br
+.Nm troff :
+.Bx 4.2 Pq September 1983
+.br
+.Nm groff :
+.g04
+.Pp
+preformat only, do not display
+.br
+.Nm man :
+.No man-1.5g Pq April 7, 1999
+.Pp
+force searching dirs, do not use index (default)
+.br
+.Nm man :
+.No illumos , Solaris 9-11
+.It Fl f
+.Xr whatis 1
+mode
+.br
+.Nm man :
+.Bx4 ,
+.Eaton ;
+.Ox , Fx , No man-db , man-1.6
+.br
+.Nm apropos , whatis :
+.No man-db Pq Dec 2, 2010 ,
+.Ox 5.7 Pq August 27, 2014
+.br
+.Nm mandoc :
+.Ox 5.7 Pq August 27, 2014
+.Pp
+set the default font family
+.br
+.Nm groff :
+.g04
+.Pp
+force formatting even if cat page is newer
+.br
+.Nm catman :
+.Fx Pq March 15, 1995
+.Pp
+update only the entries for the given file
+.br
+.Nm mandb :
+.No man-db Pq Feb 21, 2003
+.Pp
+force rebuilding the database from scratch
+.br
+.Nm makemandb :
+.Nx Pq Feb 7, 2012
+.Pp
+locate manual page related to given file name
+.br
+.Nm man :
+.No illumos , Solaris 9-11
+.Pp
+.Bq obsolete hardware
+do not feed out paper nor stop phototypesetter
+.br
+.Nm troff :
+.At7
+.It Fl G
+preprocess with
+.Xr grap 1
+.br
+.Nm groff :
+.No groff-1.16 Pq May 1, 2000
+.It Fl g
+produce a global manpath
+.br
+.Nm manpath :
+.No man-db-2.2a7 Pq Nov 16, 1994
+.Pp
+preprocess with
+.Xr grn 1
+.br
+.Nm groff :
+.No groff-1.16 Pq Feb 20, 2000
+.Pp
+.Bq obsolete hardware
+output to a GCOS phototypesetter
+.br
+.Nm troff :
+.At7
+.Pp
+.Bq obsolete hardware
+output to a DASI 300 terminal in 12-pitch mode
+.br
+.Nm man :
+.PWB
+.It Fl H
+read hyphenation patterns from the given file
+.br
+.Nm groff :
+.g04
+.Pp
+produce HTML output
+.br
+.Nm man :
+.No man-db-1.3.12 to 1.3.17 Pq not before 1996, not after 2001
+.Pp
+use program to render HTML files as text
+.br
+.Nm man :
+.No man-1.6 Pq June 24, 2005
+.It Fl h
+print a help message and exit
+.br
+.Nm groff :
+.g04
+.br
+.Nm man :
+.Eaton ;
+.Fx , No man-db , man-1.6
+.br
+.Nm manpath :
+.Eaton ;
+.Fx , No man-db
+.br
+.Nm apropos , whatis , mandb , catman :
+.dbI
+.Pp
+display the SYNOPSIS lines only
+.br
+.Nm man :
+.Bx 4.3 Net/2 Pq August 20, 1991 ;
+.Ox , Nx
+.br
+.Nm apropos , whatis , mandoc :
+.Ox 5.7 Pq Sep 3, 2014
+.Pp
+turn on HTML formatting
+.br
+.Nm apropos :
+.Nx Pq Apr 2, 2013
+.Pp
+.Bq obsolete
+replace spaces by tabs in the output
+.br
+.Nm roff , nroff :
+.At7
+.It Fl I
+input file search path for
+.Xr soelim 1
+.br
+.Nm groff :
+.No groff-1.12 Pq Sep 11, 1999
+.Pp
+respect case when matching manual page names
+.br
+.Nm man , catman :
+.No man-db Pq Apr 21, 2002
+.Pp
+input options, in particular default operating system name
+.br
+.Nm mandoc :
+.Ox 5.2 Pq May 24, 2012
+.br
+.Nm man , apropos , whatis :
+.Ox 5.7 Pq August 27, 2014
+.It Fl i
+read standard input after the input files are exhausted
+.br
+.Nm nroff , troff :
+.At7
+.br
+.Nm groff :
+.g04
+.Pp
+ignore case when matching manual page names
+.br
+.Nm man , catman :
+.No man-db Pq Apr 21, 2002
+.Pp
+turn on terminal escape code formatting
+.br
+.Nm apropos :
+.Nx Pq March 29, 2013
+.It Fl J
+preprocess with
+.Xr gideal 1
+.br
+.Nm groff :
+.No groff-1.22.3 Pq June 17, 2014
+.It Fl j
+preprocess with
+.Xr chem 1
+.br
+.Nm groff :
+.No groff-1.22 Pq Jan 22, 2011
+.It Fl K
+source code full text search
+.br
+.Nm man :
+.man15e ,
+.No man-db Pq June 28, 2009 ;
+.No Solaris 11
+.Pp
+input encoding
+.br
+.Nm groff :
+.No groff-1.20 Pq Dec 31, 2005
+.br
+.Nm man , apropos , whatis , mandoc :
+.Ox 5.7 Pq Oct 30, 2014
+.It Fl k
+.Xr apropos 1
+mode
+.br
+.Nm man :
+.Bx4 ,
+.Eaton ;
+.No POSIX , Ox , Fx , Nx , No man-db , man-1.6 , illumos , Solaris 9-11
+.br
+.Nm apropos , whatis , mandoc :
+.Ox 5.7 Pq August 27, 2014
+.Pp
+ignore formatting errors
+.br
+.Nm catman :
+.Nx Pq April 26, 1994
+.Pp
+preprocess with
+.Xr preconv 1
+.br
+.Nm groff :
+.No groff-1.20 Pq Dec 31, 2005
+.Pp
+.Bq obsolete hardware
+display on a Tektronix 4014 terminal
+.br
+.Nm man :
+.At7
+.It Fl L
+pass argument to the spooler
+.br
+.Nm groff :
+.No groff-0.6 Pq Sep 14, 1990
+.Pp
+use alternate
+.Xr locale 1
+.br
+.Nm man , apropos , whatis :
+.No before man-db-2.2a13 Pq before Dec 15, 1994
+.Pp
+print list of locales
+.br
+.Nm manpath :
+.Fx Pq Nov 23, 1999
+.Pp
+use
+.Xr locale 1
+specified in the environment
+.br
+.Nm catman :
+.Fx Pq May 18, 2002
+.It Fl l
+spool the output
+.br
+.Nm groff :
+.g04
+.Pp
+interpret arguments as file names
+.br
+.Nm man :
+.No before man-2.2a7 Pq before Nov 16, 1994 ,
+.Ox 5.7 Pq Aug 30, 2014
+.br
+.Nm apropos , whatis , mandoc :
+.Ox 5.7 Pq Aug 30, 2014
+.Pp
+do not trim output to the terminal width
+.br
+.Nm apropos , whatis :
+.No man-db Pq Aug 19, 2007
+.Pp
+only parse NAME sections
+.br
+.Nm makemandb :
+.Nx Pq Feb 7, 2012
+.Pp
+legacy mode: search Nm,Nd, no context or formatting
+.br
+.Nm apropos :
+.Nx Pq March 29, 2013
+.Pp
+list all manual pages matching name within the search path
+.br
+.Nm man :
+.No illumos , Solaris 9-11
+.It Fl M
+override manual page search path
+.br
+.Nm man :
+.Bx43 ,
+.Eaton ;
+.Ox , Fx , Nx , No man-db , man-1.6 , illumos , Solaris 9-11
+.br
+.Nm apropos , whatis :
+.Bx43 ,
+.No before man-db-2.2a14 Pq before Dec 16, 1994 ;
+.Ox , No illumos
+.br
+.Nm catman :
+.dbI ;
+.Nx Pq July 27, 1993 ,
+.No Solaris 9-11
+.br
+.Nm mandoc :
+.Ox 5.7 Pq August 27, 2014
+.Pp
+prepend to macro file search path
+.br
+.Nm groff :
+.g04
+.Pp
+do not show the context of the match
+.br
+.Nm apropos :
+.Nx Pq May 22, 2016
+.It Fl m
+specify input macro language
+.br
+.Nm nroff , troff :
+.At7
+.br
+.Nm groff :
+.g04
+.br
+.Nm mandoc :
+.Ox 4.8 Pq April 6, 2009
+.Pp
+augment manual page search path
+.br
+.Nm man , apropos , whatis :
+.Bx 4.3 Reno Pq June 1990 ;
+.Ox , Nx
+.br
+.Nm catman :
+.Nx Pq Apr 4, 1999
+.br
+.Nm mandoc :
+.Ox 5.7 Pq August 27, 2014
+.Pp
+override operating system
+.br
+.Nm man :
+.Eaton ;
+.No man-db , man-1.6
+.br
+.Nm apropos , whatis , manpath :
+.dbI
+.Pp
+override architecture
+.br
+.Nm man :
+.Fx Pq Jan 11, 2002
+.Pp
+show the context of the match
+.br
+.Nm apropos :
+.Nx Pq May 22, 2016
+.It Fl N
+do not allow newlines between
+.Xr eqn 7
+delimiters
+.br
+.Nm groff :
+.No groff-1.01 Pq Feb 21, 1991
+.It Fl n
+specify a page number for the first page
+.br
+.Nm troff :
+.At7
+.br
+.Nm groff :
+.g04
+.Pp
+.Xr nroff 1
+output mode
+.br
+.Nm man :
+.At7
+.Pp
+do not create the
+.Xr whatis 1
+database
+.br
+.Nm catman :
+.Nx Pq July 27, 1993
+.Pp
+print commands instead of executing them
+.br
+.Nm catman :
+.Fx Pq May 18, 2002 ,
+.No Solaris 9-11
+.Pp
+limit the number of results
+.br
+.Nm apropos :
+.Nx Pq Feb 7, 2012
+.Pp
+dry run simulating
+.Xr mandoc.db 5
+creation
+.br
+.Nm makewhatis :
+.Ox 5.6 Pq April 18, 2014
+.It Fl O
+output options
+.br
+.Nm mandoc :
+.Ox 4.8 Pq Oct 27, 2009
+.br
+.Nm man , apropos , whatis :
+.Ox 5.7 Pq August 27, 2014
+.It Fl o
+select pages by numbers
+.br
+.Nm nroff , troff :
+.At7
+.br
+.Nm groff :
+.g04
+.Pp
+force use of non-localized manual pages
+.br
+.Nm man :
+.Fx Pq June 7, 1999
+.Pp
+optimize index for speed and disk space
+.br
+.Nm makemandb :
+.Nx Pq Feb 7, 2012
+.It Fl P
+pass argument to postprocessor
+.br
+.Nm groff :
+.No groff-0.6 Pq Sep 14, 1990
+.Pp
+use specified pager
+.br
+.Nm man :
+.Eaton ;
+.Fx , No man-db , man-1.6
+.Pp
+turn on pager formatting
+.br
+.Nm apropos :
+.Nx Pq Apr 2, 2013
+.It Fl p
+preprocess with
+.Xr pic 1
+.br
+.Nm groff :
+.g04
+.Pp
+use the given list of preprocessors
+.br
+.Nm man :
+.Eaton ;
+.Fx , No man-db , man-1.6
+.Pp
+dry run, display commands instead of executing them
+.br
+.Nm catman :
+.Nx Pq July 27, 1993 ,
+.Fx Pq March 15, 1995 to May 18, 2002 ,
+.No Solaris 9-11
+.Pp
+print warnings when building
+.Xr mandoc.db 5
+.br
+.Nm makewhatis :
+.Ox 2.7 Pq April 23, 2000
+.Pp
+do not look for deleted manual pages
+.br
+.Nm mandb :
+.No man-db Pq June 28, 2001
+.Pp
+print the search path for manual pages
+.br
+.Nm man :
+.Nx Pq June 14 , 2011
+.Pp
+turn on pager formatting and pipe through pager
+.br
+.Nm apropos :
+.Nx Pq Feb 7, 2012
+.Pp
+.Bq obsolete hardware
+set phototypesetter point size
+.br
+.Nm troff :
+.At7
+.It Fl Q
+print only fatal error messages
+.br
+.Nm makemandb :
+.Nx Pq Aug 29, 2012
+.Pp
+quick mode of
+.Xr mandoc.db 5
+creation
+.br
+.Nm makewhatis :
+.Ox 5.6 Pq April 18, 2014
+.It Fl q
+invoke the simultaneous input-output mode of the .rd request
+.br
+.Nm nroff , troff :
+.At7
+.Pp
+issue no warnings
+.br
+.Nm manpath :
+.Eaton ;
+.Fx , No man-db
+.br
+.Nm mandb :
+.dbI
+.Pp
+print only warnings and errors, no status updates
+.br
+.Nm makemandb :
+.Nx Pq Aug 29, 2012
+.It Fl R
+postprocess with
+.Xr refer 1
+.br
+.Nm groff :
+.No groff-1.02 Pq June 2, 1991
+.Pp
+recode to the specified encoding
+.br
+.Nm man :
+.No man-db Pq Dec 31, 2007
+.It Fl r
+set number register
+.br
+.Nm nroff , troff :
+.At7
+.br
+.Nm groff :
+.g04
+.Pp
+scan for and remove junk files
+.br
+.Nm catman :
+.Fx Pq March 31, 1995
+.Pp
+set
+.Xr less 1
+prompt
+.br
+.Nm man :
+.No man-db-2.3.5 Pq April 21, 1995
+.Pp
+use regular expression matching
+.br
+.Nm apropos , whatis :
+.No man-db-2.3.5 Pq April 21, 1995
+.Pp
+turn off formatting
+.br
+.Nm apropos :
+.Nx Pq Feb 10, 2013
+.Pp
+check for formatting errors, do not display
+.br
+.Nm man :
+.No illumos , Solaris 9-11
+.It Fl S
+manual section search list
+.br
+.Nm man :
+.Eaton ;
+.Fx , No man-db , man-1.6
+.Pp
+safer mode
+.br
+.Nm groff :
+.No groff-1.10 Pq May 17, 1994
+.Pp
+restrict architecture
+.br
+.Nm man :
+.Ox 2.3 Pq March 9, 1998 ,
+.Nx Pq May 27, 2000
+.br
+.Nm apropos :
+.Ox 4.5 Pq Dec 24, 2008 ,
+.Nx Pq May 8, 2009
+.br
+.Nm whatis :
+.Ox 5.6 Pq April 18, 2014
+.br
+.Nm mandoc :
+.Ox 5.7 Pq August 27, 2014
+.It Fl s
+preprocess with
+.Xr soelim 1
+.br
+.Nm groff :
+.g04
+.Pp
+silent mode, do not echo commands
+.br
+.Nm catman :
+.Nx Pq April 26, 1994
+.Pp
+restrict section
+.br
+.Nm makewhatis :
+.man15g
+.br
+.Nm man :
+.Ox 2.3 Pq March 9, 1998 ,
+.Nx Pq June 12, 2000 ;
+.No illumos , Solaris 9-11
+.br
+.Nm apropos :
+.No man-db Pq Nov 16, 2003 ,
+.Ox 4.5 Pq Dec 24, 2008 ,
+.Nx Pq May 8, 2009 ;
+.No illumos
+.br
+.Nm whatis :
+.No man-db Pq Nov 16, 2003 ,
+.Ox 5.6 Pq April 18, 2014 ;
+.No illumos
+.br
+.Nm mandoc :
+.Ox 5.7 Pq August 27, 2014
+.Pp
+do not look for stray cats
+.br
+.Nm mandb :
+.dbI
+.Pp
+.Bq SysV compat, recommends Fl S
+manual section search list
+.br
+.Nm man :
+.No man-db Pq Jan 1, 2008
+.Pp
+.Bq superseded by Fl h
+display the SYNOPSIS lines only
+.br
+.Nm man :
+.PWB
+.Pp
+.Bq obsolete hardware
+pause before each page for paper manipulation
+.br
+.Nm roff :
+.At7
+.Pp
+.Bq obsolete hardware
+.Xr troff 1
+output mode, small format
+.br
+.Nm man :
+.At3 ,
+.At5
+.It Fl T
+select terminal output format
+.br
+.Nm nroff :
+.At7
+.br
+.Nm man :
+.At3 ,
+.At5 ,
+.dbI ,
+.Ox 5.7 Pq August 27, 2014
+.br
+.Nm groff :
+.g04
+.br
+.Nm mandoc :
+.Ox 4.8 Pq April 6, 2009
+.br
+.Nm apropos , whatis :
+.Ox 5.7 Pq August 27, 2014
+.Pp
+use UTF-8 for
+.Xr mandoc.db 5
+.br
+.Nm makewhatis :
+.Ox 5.6 Pq April 18, 2014
+.Pp
+.Bq superseded by Fl m
+use other macro package
+.br
+.Nm man , catman :
+.No Solaris 9-11
+.It Fl t
+.Xr troff 1
+output mode
+.br
+.Nm man :
+.PWB ,
+.At7 ,
+.Bx 2 Pq May 10, 1979 ,
+.At3 ,
+.At5 ,
+.Eaton ;
+.Fx , No man-db , man-1.6 , illumos , Solaris 9-11
+.br
+.Nm catman :
+.No Solaris 9-11
+.Pp
+preprocess with
+.Xr tbl 7
+.br
+.Nm groff :
+.g04
+.Pp
+check manual pages in the hierarchy
+.br
+.Nm mandb :
+.No man-db-1.3.12 to 1.3.17 Pq not before 1996, not after 2001
+.Pp
+check files for problems related to
+.Xr mandoc.db 5
+.br
+.Nm makewhatis :
+.Ox 2.7 Pq April 23, 2000
+.It Fl U
+unsafe mode
+.br
+.Nm groff :
+.No groff-1.12 Pq Dec 13, 1999
+.It Fl u
+update database
+.br
+.Nm makewhatis :
+.Pq not before 1992, not after 1995
+.Pp
+create user databases only
+.br
+.Nm mandb :
+.dbI
+.Pp
+update database cache (requires suid)
+.br
+.Nm man :
+.No before man-db-2.2a10 Pq before Dec 6, 1994
+.Pp
+remove files from
+.Xr mandoc.db 5
+.br
+.Nm makewhatis :
+.Ox 3.4 Pq July 9, 2003
+.It Fl V
+print the pipeline on stdout instead of executing it
+.br
+.Nm groff :
+.No groff-0.6 Pq Sep 2, 1990
+.Pp
+print version information
+.br
+.Nm man , apropos , whatis , mandb , catman , manpath :
+.dbI
+.It Fl v
+print version number
+.br
+.Nm groff :
+.g04
+.Pp
+verbose mode
+.br
+.Nm catman :
+.Fx Pq March 15, 1995
+.br
+.Nm makewhatis :
+.man15g
+.br
+.Nm apropos , whatis :
+.No man-db Pq Dec 29, 2002
+.Pp
+print the name of every parsed file
+.br
+.Nm makemandb :
+.Nx Pq Feb 7, 2012
+.Pp
+.Bq obsolete hardware
+produce output on the Versatec printer
+.br
+.Nm man :
+.PWB
+.It Fl W
+disable the named warning
+.br
+.Nm groff :
+.No groff-0.5 Pq August 14, 1990
+.Pp
+list pathnames without additional information
+.br
+.Nm man :
+.man15e
+.Pp
+list pathnames of cat files
+.br
+.Nm man :
+.No man-db Pq Aug 13, 2002
+.Pp
+minimum message level to display
+.br
+.Nm mandoc :
+.Ox 4.8 Pq April 6, 2009
+.br
+.Nm man , apropos , whatis :
+.Ox 5.7 Pq August 27, 2014
+.It Fl w
+list pathnames
+.br
+.Nm man :
+.At7 ,
+.At3 ,
+.At5 ,
+.Eaton ;
+.Ox , Fx , Nx , No man-db , man-1.6
+.br
+.Nm apropos , whatis , mandoc :
+.Ox 5.7 Pq August 27, 2014
+.Pp
+enable the named warning
+.br
+.Nm groff :
+.No groff-0.5 Pq August 14, 1990
+.Pp
+only create the
+.Xr whatis 1
+database
+.br
+.Nm catman :
+.Nx Pq July 27, 1993 ,
+.No Solaris 9-11
+.Pp
+use wildcard matching
+.br
+.Nm apropos , whatis :
+.No man-db-2.3.5 Pq April 21, 1995
+.Pp
+use manpath obtained from man --path
+.br
+.Nm makewhatis :
+.man15g
+.Pp
+update the
+.Xr whatis 1
+database
+.br
+.Nm man :
+.No illumos
+.Pp
+.Bq obsolete hardware
+wait until the phototypesetter is available
+.br
+.Nm troff :
+.At7
+.It Fl X
+display with
+.Xr gxditview 1
+.br
+.Nm groff :
+.No groff-1.06 Pq Sep 1, 1992
+.br
+.Nm man :
+.dbI
+.It Fl y
+use the non-compacted version of the macros
+.br
+.Nm man :
+.At3 ,
+.At5
+.It Fl Z
+do not run preprocessors
+.br
+.Nm groff :
+.g04
+.br
+.Nm man :
+.No man-db-2.2a5 Pq Nov 10, 1994
+.It Fl z
+suppress formatted output from
+.Xr troff 1 ,
+print only error messages
+.br
+.Nm groff :
+.g04
+.It Fl 7
+ASCII output mode
+.br
+.Nm man :
+.No man-db-2.3.5 Pq April 21, 1995
+.It Fl \&?
+print a help message and exit
+.br
+.Nm groff :
+.g04
+.br
+.Nm man , manpath :
+.Eaton ;
+.Fx , No man-db
+.br
+.Nm apropos , whatis , mandb , catman :
+.dbI
+.El
+.Pp
+Multi-letter options:
+.Bl -tag -width Ds
+.It Fl hp
+.Bq obsolete hardware
+output to a Hewlett Packard terminal
+.br
+.Nm man :
+.PWB
+.It Fl 12
+.Bq obsolete hardware
+use 12-pitch for certain terminals
+.br
+.Nm man :
+.At3 ,
+.At5
+.It Fl 450
+.Bq obsolete hardware
+output to a DASI 450 terminal
+.br
+.Nm man :
+.PWB
+.El
+.Pp
+In
+.At v3 ,
+.Xr man 1
+had no options.
+.br
+The syntax was:
+.Sy man Ar name Op Ar section
+.Pp
+In
+.At v4 ,
+.br
+the syntax changed to:
+.Sy man Oo Ar section Oc Op Ar name ...
+.Sh AUTHORS
+This information was assembled by
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org
+using
+.Bl -bullet -compact
+.It
+the Unix Archive of the Unix Heritage Society
+.It
+the CSRG Archive CD-ROMs
+.It
+the
+.Fx
+SVN repository
+.It
+the
+.Ox
+CVS repository
+.It
+the
+.Nx
+CVS repository
+.It
+the GNU roff (groff) git repository
+.It
+the 4.3BSD-Net/2 groff CHANGES file (Oct 1990 to March 1991)
+.It
+the 4.3BSD-Net/2 groff ChangeLog file (July 1990 to March 1991)
+.It
+the man-db CVS and git repositories (since April 2001)
+.It
+the man-db NEWS file (April 1995 to Dec 2016)
+.It
+the man-db ChangeLog-2013 file (Nov 1994 to Dec 2013)
+.It
+release tarballs man-1.5g (July 1998) to man-1.5p (Jan 2005),
+man-1.6 (June 2005), and man-1.6a to man-1.6g (Dec 2010)
+.It
+a makewhatis release tarball without version number from 1995
+.It
+the illumos manual pages on the WWW
+.It
+and Solaris 11, SunOS 5.10, and SunOS 5.9 machines at opencsw.org.
+.El

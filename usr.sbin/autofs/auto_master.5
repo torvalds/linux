@@ -1,0 +1,376 @@
+.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Edward Tomasz Napierala under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 28, 2018
+.Dt AUTO_MASTER 5
+.Os
+.Sh NAME
+.Nm auto_master
+.Nd auto_master and map file format
+.Sh DESCRIPTION
+The automounter configuration consists of the
+.Nm
+configuration file, which assigns filesystem paths to map names,
+and maps, which contain actual mount information.
+The
+.Nm
+configuration file is used by the
+.Xr automount 8
+command.
+Map files are read by the
+.Xr automountd 8
+daemon.
+.Sh AUTO_MASTER SYNTAX
+The
+.Nm
+file consists of lines with two or three entries separated by whitespace
+and terminated by newline character:
+.Bd -literal -offset indent
+.Pa mountpoint Pa map_name Op Ar -options
+.Ed
+.Pp
+.Pa mountpoint
+is either a fully specified path, or
+.Li /- .
+When
+.Pa mountpoint
+is a full path,
+.Pa map_name
+must reference an indirect map.
+Otherwise,
+.Pa map_name
+must reference a direct map.
+See
+.Sx "MAP SYNTAX" below.
+.Pp
+.Pa map_name
+specifies map to use.
+If
+.Pa map_name
+begins with
+.Li - ,
+it specifies a special map.
+See
+.Sx "MAP SYNTAX"
+below.
+If
+.Pa map_name
+is not a fully specified path
+.Pq it does not start with Li / ,
+.Xr automountd 8
+will search for that name in
+.Li /etc .
+Otherwise it will use the path as given.
+If the file indicated by
+.Pa map_name
+is executable,
+.Xr automountd 8
+will assume it is an executable map.
+See
+.Sx "MAP SYNTAX"
+below.
+Otherwise, the file is opened and the contents parsed.
+.Pp
+.Pa -options
+is an optional field that starts with
+.Li -
+and can contain generic filesystem mount options.
+.Pp
+The following example specifies that the /etc/auto_example indirect map
+will be mounted on /example.
+.Bd -literal -offset indent
+/example auto_example
+.Ed
+.Sh MAP SYNTAX
+Map files consist of lines with a number of entries separated by whitespace
+and terminated by newline character:
+.Bd -literal -offset indent
+.Pa key Oo Ar -options Oc Oo Ar mountpoint Oo -options Oc Oc Ar location Op ...
+.Ed
+.Pp
+In most cases, it can be simplified to:
+.Bd -literal -offset indent
+.Pa key Oo Ar -options Oc Ar location
+.Ed
+.Pp
+.Pa key
+is the path component used by
+.Xr automountd 8
+to find the right map entry to use.
+It is also used to form the final mountpoint.
+A wildcard
+.Pq Ql *
+can be used for the key.
+It matches every directory that does not match other keys.
+Those directories will not be visible to the user
+until accessed.
+.Pp
+The
+.Ar options
+field, if present, must begin with
+.Li - .
+When mounting the filesystem, options supplied to
+.Nm
+and options specified in the map entry are concatenated together.
+The special option
+.Li fstype
+is used to specify filesystem type.
+It is not passed to the mount program as an option.
+Instead, it is passed as an argument to
+.Cm "mount -t".
+The default
+.Li fstype
+is
+.Ql nfs .
+The special option
+.Li nobrowse
+is used to disable creation of top-level directories for special
+and executable maps.
+.Pp
+The optional
+.Pa mountpoint
+field is used to specify multiple mount points
+for a single key.
+.Pp
+The
+.Ar location
+field specifies the filesystem to be mounted.
+Ampersands
+.Pq Ql &
+in the
+.Ar location
+field are replaced with the value of
+.Ar key .
+This is typically used with wildcards, like:
+.Bd -literal -offset indent
+.Li *	192.168.1.1:/share/&
+.Ed
+.Pp
+The
+.Ar location
+field may contain references to variables, like:
+.Bd -literal -offset indent
+.Li sys	192.168.1.1:/sys/${OSNAME}
+.Ed
+.Pp
+Defined variables are:
+.Pp
+.Bl -tag -width "-OSNAME" -compact
+.It Li ARCH
+Expands to the output of
+.Li "uname -p" .
+.It Li CPU
+Same as ARCH.
+.It Li DOLLAR
+A literal $ sign.
+.It Li HOST
+Expands to the output of
+.Li "uname -n" .
+.It Li OSNAME
+Expands to the output of
+.Li "uname -s" .
+.It Li OSREL
+Expands to the output of
+.Li "uname -r" .
+.It Li OSVERS
+Expands to the output of
+.Li "uname -v" .
+.El
+.Pp
+Additional variables can be defined with the
+.Fl D
+option of
+.Xr automount 8
+and
+.Xr automountd 8 .
+.Pp
+To pass a location that begins with
+.Li / ,
+prefix it with a colon.
+For example,
+.Li :/dev/cd0 .
+.Pp
+This example, when put into
+.Pa /etc/auto_example ,
+and with
+.Nm
+referring to the map as described above, specifies that the NFS share
+.Li 192.168.1.1:/share/example/x
+will be mounted on
+.Pa /example/x/
+when any process attempts to access that mountpoint, with
+.Li intr
+and
+.Li nfsv4
+mount options, described in
+.Xr mount_nfs 8 :
+.Bd -literal -offset indent
+.Li x -intr,nfsv4 192.168.1.1:/share/example/x
+.Ed
+.Pp
+Automatically mount an SMB share on access, as a guest user,
+without prompting for a password:
+.Bd -literal -offset indent
+.Li share -fstype=smbfs,-N ://@server/share
+.Ed
+.Pp
+Automatically mount the CD drive on access:
+.Bd -literal -offset indent
+.Li cd -fstype=cd9660 :/dev/cd0
+.Ed
+.Sh SPECIAL MAPS
+Special maps have names beginning with
+.Li - .
+Supported special maps are:
+.Pp
+.Bl -tag -width "-hosts" -compact
+.It Li -hosts
+Query the remote NFS server and map exported shares.
+This map is traditionally mounted on
+.Pa /net .
+Access to files on a remote NFS server is provided through the
+.Pf /net/ Ar nfs-server-ip Ns / Ns Ar share-name Ns /
+directory without any additional configuration.
+Directories for individual NFS servers are not present until the first access,
+when they are automatically created.
+.It Li -media
+Query devices that are not yet mounted, but contain valid filesystems.
+Generally used to access files on removable media.
+.It Li -noauto
+Mount filesystems configured in
+.Xr fstab 5
+as "noauto".
+This needs to be set up as a direct map.
+.It Li -null
+Prevent
+.Xr automountd 8
+from mounting anything on the mountpoint.
+.El
+.Pp
+It is possible to add custom special maps by adding them, as executable
+maps named
+.Pa special_foo ,
+to the
+.Pa /etc/autofs/
+directory.
+.Sh EXECUTABLE MAPS
+If the map file specified in
+.Nm
+has the execute bit set,
+.Xr automountd 8
+will execute it and parse the standard output instead of parsing
+the file contents.
+When called without command line arguments, the executable is
+expected to output a list of available map keys separated by
+newline characters.
+Otherwise, the executable will be called with a key name as
+a command line argument.
+Output from the executable is expected to be the entry for that key,
+not including the key itself.
+.Sh INDIRECT VERSUS DIRECT MAPS
+Indirect maps are referred to in
+.Nm
+by entries with a fully qualified path as a mount point, and must contain only
+relative paths as keys.
+Direct maps are referred to in
+.Nm
+by entries with
+.Li /-
+as the mountpoint, and must contain only fully qualified paths as keys.
+For indirect maps, the final mount point is determined by concatenating the
+.Nm
+mountpoint with the map entry key and optional map entry mountpoint.
+For direct maps, the final mount point is determined by concatenating
+the map entry key with the optional map entry mountpoint.
+.Pp
+The example above could be rewritten using direct map, by placing this in
+.Nm :
+.Bd -literal -offset indent
+.Li /- auto_example
+.Ed
+.Pp
+and this in
+.Li /etc/auto_example
+map file:
+.Bd -literal -offset indent
+.Li /example/x -intr,nfsv4 192.168.1.1:/share/example/x
+.Li /example/share -fstype=smbfs,-N ://@server/share
+.Li /example/cd -fstype=cd9660 :/dev/cd0
+.Ed
+.Sh DIRECTORY SERVICES
+Both
+.Nm
+and maps may contain entries consisting of a plus sign and map name:
+.Bd -literal -offset indent
+.Li +auto_master
+.Ed
+.Pp
+Those entries cause
+.Xr automountd 8
+daemon to retrieve the named map from directory services (like LDAP)
+and include it where the entry was.
+.Pp
+If the file containing the map referenced in
+.Nm
+is not found, the map will be retrieved from directory services instead.
+.Pp
+To retrieve entries from directory services,
+.Xr automountd 8
+daemon runs
+.Pa /etc/autofs/include ,
+which is usually a shell script, with map name as the only command line
+parameter.
+The script should output entries formatted according to
+.Nm
+or automounter map syntax to standard output.
+An example script to use LDAP is included in
+.Pa /etc/autofs/include_ldap .
+It can be symlinked to
+.Pa /etc/autofs/include .
+.Sh FILES
+.Bl -tag -width ".Pa /etc/auto_master" -compact
+.It Pa /etc/auto_master
+The default location of the
+.Pa auto_master
+file.
+.It Pa /etc/autofs/
+Directory containing shell scripts to implement special maps and directory
+services.
+.El
+.Sh SEE ALSO
+.Xr autofs 5 ,
+.Xr automount 8 ,
+.Xr automountd 8 ,
+.Xr autounmountd 8
+.Sh AUTHORS
+The
+.Nm
+configuration file functionality was developed by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.

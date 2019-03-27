@@ -1,0 +1,102 @@
+.\" Copyright (c) 2003 Networks Associates Technology, Inc.
+.\" Copyright (c) 2004-2011 Dag-Erling Smørgrav
+.\" All rights reserved.
+.\"
+.\" Portions of this software were developed for the FreeBSD Project by
+.\" ThinkSec AS and NAI Labs, the Security Research Division of Network
+.\" Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+.\" ("CBOSS"), as part of the DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 19, 2014
+.Dt PAM_GROUP 8
+.Os
+.Sh NAME
+.Nm pam_group
+.Nd Group PAM module
+.Sh SYNOPSIS
+.Op Ar service-name
+.Ar module-type
+.Ar control-flag
+.Pa pam_group
+.Op Ar arguments
+.Sh DESCRIPTION
+The group service module for PAM accepts or rejects users based on
+their membership in a particular file group.
+.Nm pam_group
+provides functionality for two PAM categories: authentication and
+account management.
+In terms of the module-type parameter, they are the ``auth'' and
+``account'' features.
+.Pp
+The following options may be passed to the
+.Nm
+module:
+.Bl -tag -width ".Cm fail_safe"
+.It Cm deny
+Reverse the meaning of the test, i.e., reject the applicant if and only
+if he or she is a member of the specified group.
+This can be useful to exclude certain groups of users from certain
+services.
+.It Cm fail_safe
+If the specified group does not exist, or has no members, act as if
+it does exist and the applicant is a member.
+.It Cm group Ns = Ns Ar groupname
+Specify the name of the group to check.
+The default is
+.Dq Li wheel .
+.It Cm luser
+Accept or reject based on the target user's group membership.
+.It Cm root_only
+Skip this module entirely if the target account is not the superuser
+account.
+.It Cm ruser
+Accept or reject based on the supplicant's group membership.
+This is the default.
+.El
+.Pp
+Note that the
+.Cm luser
+and
+.Cm ruser
+options are mutually exclusive, and that
+.Nm
+will fail if both are specified.
+.Sh SEE ALSO
+.Xr pam.conf 5 ,
+.Xr pam 8
+.Sh AUTHORS
+The
+.Nm
+module and this manual page were developed for the
+.Fx
+Project by
+ThinkSec AS and NAI Labs, the Security Research Division of Network
+Associates, Inc.\& under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.

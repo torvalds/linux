@@ -1,0 +1,13 @@
+This subtree is world-exportable, as it does not contain any
+cryptographic code.
+
+At the time of writing, it did not even contain source code, only
+Makefiles and headers.
+
+Please maintain this "exportable" status quo.
+
+Thanks!
+
+MarkM
+markm@freebsd.org
+20th Sept 1997

@@ -1,0 +1,64 @@
+// -*- C++ -*-
+//===--------------------------- iostream ---------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_IOSTREAM
+#define _LIBCPP_IOSTREAM
+
+/*
+    iostream synopsis
+
+#include <ios>
+#include <streambuf>
+#include <istream>
+#include <ostream>
+
+namespace std {
+
+extern istream cin;
+extern ostream cout;
+extern ostream cerr;
+extern ostream clog;
+extern wistream wcin;
+extern wostream wcout;
+extern wostream wcerr;
+extern wostream wclog;
+
+}  // std
+
+*/
+
+#include <__config>
+#include <ios>
+#include <streambuf>
+#include <istream>
+#include <ostream>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#ifndef _LIBCPP_HAS_NO_STDIN
+extern _LIBCPP_FUNC_VIS istream cin;
+extern _LIBCPP_FUNC_VIS wistream wcin;
+#endif
+#ifndef _LIBCPP_HAS_NO_STDOUT
+extern _LIBCPP_FUNC_VIS ostream cout;
+extern _LIBCPP_FUNC_VIS wostream wcout;
+#endif
+extern _LIBCPP_FUNC_VIS ostream cerr;
+extern _LIBCPP_FUNC_VIS wostream wcerr;
+extern _LIBCPP_FUNC_VIS ostream clog;
+extern _LIBCPP_FUNC_VIS wostream wclog;
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif  // _LIBCPP_IOSTREAM

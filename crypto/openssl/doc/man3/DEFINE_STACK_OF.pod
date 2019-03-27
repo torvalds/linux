@@ -1,0 +1,271 @@
+=pod
+
+=head1 NAME
+
+DEFINE_STACK_OF, DEFINE_STACK_OF_CONST, DEFINE_SPECIAL_STACK_OF,
+DEFINE_SPECIAL_STACK_OF_CONST,
+sk_TYPE_num, sk_TYPE_value, sk_TYPE_new, sk_TYPE_new_null,
+sk_TYPE_reserve, sk_TYPE_free, sk_TYPE_zero, sk_TYPE_delete,
+sk_TYPE_delete_ptr, sk_TYPE_push, sk_TYPE_unshift, sk_TYPE_pop,
+sk_TYPE_shift, sk_TYPE_pop_free, sk_TYPE_insert, sk_TYPE_set,
+sk_TYPE_find, sk_TYPE_find_ex, sk_TYPE_sort, sk_TYPE_is_sorted,
+sk_TYPE_dup, sk_TYPE_deep_copy, sk_TYPE_set_cmp_func, sk_TYPE_new_reserve
+- stack container
+
+=head1 SYNOPSIS
+
+=for comment generic
+
+ #include <openssl/safestack.h>
+
+ STACK_OF(TYPE)
+ DEFINE_STACK_OF(TYPE)
+ DEFINE_STACK_OF_CONST(TYPE)
+ DEFINE_SPECIAL_STACK_OF(FUNCTYPE, TYPE)
+ DEFINE_SPECIAL_STACK_OF_CONST(FUNCTYPE, TYPE)
+
+ typedef int (*sk_TYPE_compfunc)(const TYPE *const *a, const TYPE *const *b);
+ typedef TYPE * (*sk_TYPE_copyfunc)(const TYPE *a);
+ typedef void (*sk_TYPE_freefunc)(TYPE *a);
+
+ int sk_TYPE_num(const STACK_OF(TYPE) *sk);
+ TYPE *sk_TYPE_value(const STACK_OF(TYPE) *sk, int idx);
+ STACK_OF(TYPE) *sk_TYPE_new(sk_TYPE_compfunc compare);
+ STACK_OF(TYPE) *sk_TYPE_new_null(void);
+ int sk_TYPE_reserve(STACK_OF(TYPE) *sk, int n);
+ void sk_TYPE_free(const STACK_OF(TYPE) *sk);
+ void sk_TYPE_zero(const STACK_OF(TYPE) *sk);
+ TYPE *sk_TYPE_delete(STACK_OF(TYPE) *sk, int i);
+ TYPE *sk_TYPE_delete_ptr(STACK_OF(TYPE) *sk, TYPE *ptr);
+ int sk_TYPE_push(STACK_OF(TYPE) *sk, const TYPE *ptr);
+ int sk_TYPE_unshift(STACK_OF(TYPE) *sk, const TYPE *ptr);
+ TYPE *sk_TYPE_pop(STACK_OF(TYPE) *sk);
+ TYPE *sk_TYPE_shift(STACK_OF(TYPE) *sk);
+ void sk_TYPE_pop_free(STACK_OF(TYPE) *sk, sk_TYPE_freefunc freefunc);
+ int sk_TYPE_insert(STACK_OF(TYPE) *sk, TYPE *ptr, int idx);
+ TYPE *sk_TYPE_set(STACK_OF(TYPE) *sk, int idx, const TYPE *ptr);
+ int sk_TYPE_find(STACK_OF(TYPE) *sk, TYPE *ptr);
+ int sk_TYPE_find_ex(STACK_OF(TYPE) *sk, TYPE *ptr);
+ void sk_TYPE_sort(const STACK_OF(TYPE) *sk);
+ int sk_TYPE_is_sorted(const STACK_OF(TYPE) *sk);
+ STACK_OF(TYPE) *sk_TYPE_dup(const STACK_OF(TYPE) *sk);
+ STACK_OF(TYPE) *sk_TYPE_deep_copy(const STACK_OF(TYPE) *sk,
+                                   sk_TYPE_copyfunc copyfunc,
+                                   sk_TYPE_freefunc freefunc);
+ sk_TYPE_compfunc (*sk_TYPE_set_cmp_func(STACK_OF(TYPE) *sk,
+                                         sk_TYPE_compfunc compare));
+ STACK_OF(TYPE) *sk_TYPE_new_reserve(sk_TYPE_compfunc compare, int n);
+
+=head1 DESCRIPTION
+
+Applications can create and use their own stacks by placing any of the macros
+described below in a header file. These macros define typesafe inline
+functions that wrap around the utility B<OPENSSL_sk_> API.
+In the description here, I<TYPE> is used
+as a placeholder for any of the OpenSSL datatypes, such as I<X509>.
+
+STACK_OF() returns the name for a stack of the specified B<TYPE>.
+DEFINE_STACK_OF() creates set of functions for a stack of B<TYPE>. This
+will mean that type B<TYPE> is stored in each stack, the type is referenced by
+STACK_OF(TYPE) and each function name begins with I<sk_TYPE_>. For example:
+
+ TYPE *sk_TYPE_value(STACK_OF(TYPE) *sk, int idx);
+
+DEFINE_STACK_OF_CONST() is identical to DEFINE_STACK_OF() except
+each element is constant. For example:
+
+ const TYPE *sk_TYPE_value(STACK_OF(TYPE) *sk, int idx);
+
+DEFINE_SPECIAL_STACK_OF() defines a stack of B<TYPE> but
+each function uses B<FUNCNAME> in the function name. For example:
+
+ TYPE *sk_FUNCNAME_value(STACK_OF(TYPE) *sk, int idx);
+
+DEFINE_SPECIAL_STACK_OF_CONST() is similar except that each element is
+constant:
+
+ const TYPE *sk_FUNCNAME_value(STACK_OF(TYPE) *sk, int idx);
+
+sk_TYPE_num() returns the number of elements in B<sk> or -1 if B<sk> is
+B<NULL>.
+
+sk_TYPE_value() returns element B<idx> in B<sk>, where B<idx> starts at
+zero. If B<idx> is out of range then B<NULL> is returned.
+
+sk_TYPE_new() allocates a new empty stack using comparison function B<compare>.
+If B<compare> is B<NULL> then no comparison function is used. This function is
+equivalent to sk_TYPE_new_reserve(compare, 0).
+
+sk_TYPE_new_null() allocates a new empty stack with no comparison function. This
+function is equivalent to sk_TYPE_new_reserve(NULL, 0).
+
+sk_TYPE_reserve() allocates additional memory in the B<sk> structure
+such that the next B<n> calls to sk_TYPE_insert(), sk_TYPE_push()
+or sk_TYPE_unshift() will not fail or cause memory to be allocated
+or reallocated. If B<n> is zero, any excess space allocated in the
+B<sk> structure is freed. On error B<sk> is unchanged.
+
+sk_TYPE_new_reserve() allocates a new stack. The new stack will have additional
+memory allocated to hold B<n> elements if B<n> is positive. The next B<n> calls
+to sk_TYPE_insert(), sk_TYPE_push() or sk_TYPE_unshift() will not fail or cause
+memory to be allocated or reallocated. If B<n> is zero or less than zero, no
+memory is allocated. sk_TYPE_new_reserve() also sets the comparison function
+B<compare> to the newly created stack. If B<compare> is B<NULL> then no
+comparison function is used.
+
+sk_TYPE_set_cmp_func() sets the comparison function of B<sk> to B<compare>.
+The previous comparison function is returned or B<NULL> if there was
+no previous comparison function.
+
+sk_TYPE_free() frees up the B<sk> structure. It does B<not> free up any
+elements of B<sk>. After this call B<sk> is no longer valid.
+
+sk_TYPE_zero() sets the number of elements in B<sk> to zero. It does not free
+B<sk> so after this call B<sk> is still valid.
+
+sk_TYPE_pop_free() frees up all elements of B<sk> and B<sk> itself. The
+free function freefunc() is called on each element to free it.
+
+sk_TYPE_delete() deletes element B<i> from B<sk>. It returns the deleted
+element or B<NULL> if B<i> is out of range.
+
+sk_TYPE_delete_ptr() deletes element matching B<ptr> from B<sk>. It returns
+the deleted element or B<NULL> if no element matching B<ptr> was found.
+
+sk_TYPE_insert() inserts B<ptr> into B<sk> at position B<idx>. Any existing
+elements at or after B<idx> are moved downwards. If B<idx> is out of range
+the new element is appended to B<sk>. sk_TYPE_insert() either returns the
+number of elements in B<sk> after the new element is inserted or zero if
+an error (such as memory allocation failure) occurred.
+
+sk_TYPE_push() appends B<ptr> to B<sk> it is equivalent to:
+
+ sk_TYPE_insert(sk, ptr, -1);
+
+sk_TYPE_unshift() inserts B<ptr> at the start of B<sk> it is equivalent to:
+
+ sk_TYPE_insert(sk, ptr, 0);
+
+sk_TYPE_pop() returns and removes the last element from B<sk>.
+
+sk_TYPE_shift() returns and removes the first element from B<sk>.
+
+sk_TYPE_set() sets element B<idx> of B<sk> to B<ptr> replacing the current
+element. The new element value is returned or B<NULL> if an error occurred:
+this will only happen if B<sk> is B<NULL> or B<idx> is out of range.
+
+sk_TYPE_find() searches B<sk> for the element B<ptr>.  In the case
+where no comparison function has been specified, the function performs
+a linear search for a pointer equal to B<ptr>. The index of the first
+matching element is returned or B<-1> if there is no match. In the case
+where a comparison function has been specified, B<sk> is sorted then
+sk_TYPE_find() returns the index of a matching element or B<-1> if there
+is no match. Note that, in this case, the matching element returned is
+not guaranteed to be the first; the comparison function will usually
+compare the values pointed to rather than the pointers themselves and
+the order of elements in B<sk> could change.
+
+sk_TYPE_find_ex() operates like sk_TYPE_find() except when a comparison
+function has been specified and no matching element is found. Instead
+of returning B<-1>, sk_TYPE_find_ex() returns the index of the element
+either before or after the location where B<ptr> would be if it were
+present in B<sk>.
+
+sk_TYPE_sort() sorts B<sk> using the supplied comparison function.
+
+sk_TYPE_is_sorted() returns B<1> if B<sk> is sorted and B<0> otherwise.
+
+sk_TYPE_dup() returns a copy of B<sk>. Note the pointers in the copy
+are identical to the original.
+
+sk_TYPE_deep_copy() returns a new stack where each element has been copied.
+Copying is performed by the supplied copyfunc() and freeing by freefunc(). The
+function freefunc() is only called if an error occurs.
+
+=head1 NOTES
+
+Care should be taken when accessing stacks in multi-threaded environments.
+Any operation which increases the size of a stack such as sk_TYPE_insert() or
+sk_push() can "grow" the size of an internal array and cause race conditions
+if the same stack is accessed in a different thread. Operations such as
+sk_find() and sk_sort() can also reorder the stack.
+
+Any comparison function supplied should use a metric suitable
+for use in a binary search operation. That is it should return zero, a
+positive or negative value if B<a> is equal to, greater than
+or less than B<b> respectively.
+
+Care should be taken when checking the return values of the functions
+sk_TYPE_find() and sk_TYPE_find_ex(). They return an index to the
+matching element. In particular B<0> indicates a matching first element.
+A failed search is indicated by a B<-1> return value.
+
+STACK_OF(), DEFINE_STACK_OF(), DEFINE_STACK_OF_CONST(), and
+DEFINE_SPECIAL_STACK_OF() are implemented as macros.
+
+The underlying utility B<OPENSSL_sk_> API should not be used directly.
+It defines these functions: OPENSSL_sk_deep_copy(),
+OPENSSL_sk_delete(), OPENSSL_sk_delete_ptr(), OPENSSL_sk_dup(),
+OPENSSL_sk_find(), OPENSSL_sk_find_ex(), OPENSSL_sk_free(),
+OPENSSL_sk_insert(), OPENSSL_sk_is_sorted(), OPENSSL_sk_new(),
+OPENSSL_sk_new_null(), OPENSSL_sk_num(), OPENSSL_sk_pop(),
+OPENSSL_sk_pop_free(), OPENSSL_sk_push(), OPENSSL_sk_reserve(),
+OPENSSL_sk_set(), OPENSSL_sk_set_cmp_func(), OPENSSL_sk_shift(),
+OPENSSL_sk_sort(), OPENSSL_sk_unshift(), OPENSSL_sk_value(),
+OPENSSL_sk_zero().
+
+=head1 RETURN VALUES
+
+sk_TYPE_num() returns the number of elements in the stack or B<-1> if the
+passed stack is B<NULL>.
+
+sk_TYPE_value() returns a pointer to a stack element or B<NULL> if the
+index is out of range.
+
+sk_TYPE_new(), sk_TYPE_new_null() and sk_TYPE_new_reserve() return an empty
+stack or B<NULL> if an error occurs.
+
+sk_TYPE_reserve() returns B<1> on successful allocation of the required memory
+or B<0> on error.
+
+sk_TYPE_set_cmp_func() returns the old comparison function or B<NULL> if
+there was no old comparison function.
+
+sk_TYPE_free(), sk_TYPE_zero(), sk_TYPE_pop_free() and sk_TYPE_sort() do
+not return values.
+
+sk_TYPE_pop(), sk_TYPE_shift(), sk_TYPE_delete() and sk_TYPE_delete_ptr()
+return a pointer to the deleted element or B<NULL> on error.
+
+sk_TYPE_insert(), sk_TYPE_push() and sk_TYPE_unshift() return the total
+number of elements in the stack and 0 if an error occurred.
+
+sk_TYPE_set() returns a pointer to the replacement element or B<NULL> on
+error.
+
+sk_TYPE_find() and sk_TYPE_find_ex() return an index to the found element
+or B<-1> on error.
+
+sk_TYPE_is_sorted() returns B<1> if the stack is sorted and B<0> if it is
+not.
+
+sk_TYPE_dup() and sk_TYPE_deep_copy() return a pointer to the copy of the
+stack.
+
+=head1 HISTORY
+
+Before OpenSSL 1.1.0, this was implemented via macros and not inline functions
+and was not a public API.
+
+sk_TYPE_reserve() and sk_TYPE_new_reserve() were added in OpenSSL 1.1.1.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

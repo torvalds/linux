@@ -1,0 +1,26 @@
+
+%a = kernel`malloc
+%c = a
+%d = 97
+%hd = 97
+%hi = 97
+%ho = 141
+%hu = 97
+%hx = 61
+%hX = 61
+%i = 97
+%lc = a
+%ld = 97
+%li = 97
+%lo = 141
+%lu = 97
+%lx = 61
+%lX = 61
+%o = 141
+%p = 61
+%s = hello
+%u = 97
+%wc = a
+%x = 61
+%X = 61
+

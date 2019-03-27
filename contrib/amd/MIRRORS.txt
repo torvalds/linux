@@ -1,0 +1,60 @@
+			  AM-UTILS-6.x MIRRORS
+
+Note: in case of any problems accessing the individual FTP sites, please
+contact their respective maintainers.  If you wish to be added to the
+official mirror list, please send mail to am-utils-developers AT am-utils.org
+with the full URL, maintainer's email, and geographical location.
+
+U.S.A:
+	New York (Stony Brook, Primary Site):
+		ftp://ftp.am-utils.org/pub/am-utils
+		Maintainer: ezk AT am-utils.org
+	Minnesota:
+		ftp://ftp.cs.umn.edu/pub/am-utils
+		Maintainer: dokas AT cs.umn.edu
+#Avoid for now: empty directory
+# 	Virginia (Newport News):
+# 		ftp://ftp.ferginc.com/pub/unix/am-utils
+# 		Maintainer: Branson.Matheson AT FergInc.com
+#server gone? (Jan 5, 2004)
+# 	Ohio (Kent State University):
+# 		ftp://info.mcs.kent.edu/pub/am-utils
+# 		Maintainer: root AT mcs.kent.edu
+	Florida (University of Florida)
+		ftp://ftp.cise.ufl.edu/pub/mirrors/am-utils
+		Maintainer: mirror AT cise.ufl.edu
+
+Europe:
+	Germany:
+		ftp://ftp.fu-berlin.de/unix/network/am-utils
+		Maintainer: ftp-adm AT ftp.fu-berlin.de
+	Germany:
+		ftp://ftp.tu-darmstadt.de/pub/networking/filesystems/am-utils/
+		Maintainer: networking AT ftp.tu-darmstadt.de
+	Sweden:
+		ftp://ftp.sunet.se/pub/unix/admin/am-utils
+		Maintainer: archive AT ftp.sunet.se
+# not responding (Jan 5, 2004)
+# 	Sweden (Stockholm University, Math Depat):
+# 		ftp://mirror.matematik.su.se/pub/am-utils
+# 		Maintainer: leifj AT matematik.su.se
+	UK:
+		ftp://sunsite.org.uk/package/am-utils
+		Maintainer: lmjm AT icparc.ic.ac.uk
+
+Asia:
+	Japan:
+		ftp://ftp.u-aizu.ac.jp/pub/net/amd/am-utils
+		Maintainer: ftp-admin AT u-aizu.ac.jp
+	Japan:
+		ftp://core.ring.gr.jp/pub/net/am-utils/
+		Maintainer: ftpadmin AT ring.gr.jp
+	Japan:
+		ftp://ftp.ring.gr.jp/pub/net/am-utils/
+		Maintainer: ftpadmin AT ring.gr.jp
+
+# gone? (Jan 5, 2004)
+# Australia:
+# 	Melbourne:
+# 		ftp://ftp.sage-au.org.au/pub/network/filesystem/am-utils
+# 		Maintainer: mirror AT ftp.sage-au.org.au

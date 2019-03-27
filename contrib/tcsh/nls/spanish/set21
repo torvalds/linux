@@ -1,0 +1,5 @@
+$ $tcsh: set21,v 1.2 2006/03/02 18:46:48 christos Exp $
+$ tc.disc.c
+$set 21 
+1 No he podido leer los caracteres locales.\n
+2 No he podido establecer los caracteres locales.\n

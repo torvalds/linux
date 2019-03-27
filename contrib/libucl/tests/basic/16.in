@@ -1,0 +1,12 @@
+.include(priority = 1) "${CURDIR}/16.inc"
+
+section = {
+	value = "test";
+}
+
+overrided = {
+	value = "not-to-be-shown";
+}
+overrided = {
+	value2 = "implicit-array";
+}

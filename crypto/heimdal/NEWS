@@ -1,0 +1,974 @@
+Release Notes - Heimdal - Version Heimdal 1.5.2
+
+ Security fixes
+ - CVE-2011-4862 Buffer overflow in libtelnet/encrypt.c in telnetd - escalation of privilege
+ - Check that key types strictly match - denial of service
+
+Release Notes - Heimdal - Version Heimdal 1.5.1
+
+ Bug fixes
+ - Fix building on Solaris, requires c99
+ - Fix building on Windows
+ - Build system updates
+
+Release Notes - Heimdal - Version Heimdal 1.5
+
+New features
+
+ - Support GSS name extensions/attributes
+ - SHA512 support
+ - No Kerberos 4 support
+ - Basic support for MIT Admin protocol (SECGSS flavor)
+   in kadmind (extract keytab)
+ - Replace editline with libedit
+
+Release Notes - Heimdal - Version Heimdal 1.4
+
+ New features
+ 
+ - Support for reading MIT database file directly
+ - KCM is polished up and now used in production
+ - NTLM first class citizen, credentials stored in KCM
+ - Table driven ASN.1 compiler, smaller!, not enabled by default
+ - Native Windows client support
+
+Notes
+
+ - Disabled write support NDBM hdb backend (read still in there) since
+   it can't handle large records, please migrate to a diffrent backend
+   (like BDB4)
+
+Release Notes - Heimdal - Version Heimdal 1.3.3
+
+ Bug fixes
+ - Check the GSS-API checksum exists before trying to use it [CVE-2010-1321]
+ - Check NULL pointers before dereference them [kdc]
+
+Release Notes - Heimdal - Version Heimdal 1.3.2
+
+ Bug fixes
+
+ - Don't mix length when clearing hmac (could memset too much)
+ - More paranoid underrun checking when decrypting packets
+ - Check the password change requests and refuse to answer empty packets
+ - Build on OpenSolaris 
+ - Renumber AD-SIGNED-TICKET since it was stolen from US
+ - Don't cache /dev/*random file descriptor, it doesn't get unloaded
+ - Make C++ safe
+ - Misc warnings
+
+Release Notes - Heimdal - Version Heimdal 1.3.1
+
+ Bug fixes
+
+ - Store KDC offset in credentials
+ - Many many more bug fixes
+
+Release Notes - Heimdal - Version Heimdal 1.3.1
+
+ New features
+
+ - Make work with OpenLDAPs krb5 overlay
+
+Release Notes - Heimdal - Version Heimdal 1.3
+
+ New features
+
+ - Partial support for MIT kadmind rpc protocol in kadmind
+ - Better support for finding keytab entries when using SPN aliases in the KDC
+ - Support BER in ASN.1 library (needed for CMS)
+ - Support decryption in Keychain private keys
+ - Support for new sqlite based credential cache
+ - Try both KDC referals and the common DNS reverse lookup in GSS-API
+ - Fix the KCM to not leak resources on failure
+ - Add IPv6 support to iprop
+ - Support localization of error strings in
+   kinit/klist/kdestroy and Kerberos library
+ - Remove Kerberos 4 support in application (still in KDC)
+ - Deprecate DES
+ - Support i18n password in windows domains (using UTF-8)
+ - More complete API emulation of OpenSSL in hcrypto
+ - Support for ECDSA and ECDH when linking with OpenSSL
+
+ API changes
+
+ - Support for settin friendly name on credential caches
+ - Move to using doxygen to generate documentation.
+ - Sprinkling __attribute__((depricated)) for old function to be removed
+ - Support to export LAST-REQUST information in AS-REQ
+ - Support for client deferrals in in AS-REQ
+ - Add seek support for krb5_storage.
+ - Support for split AS-REQ, first step for IA-KERB
+ - Fix many memory leaks and bugs
+ - Improved regression test
+ - Support krb5_cccol
+ - Switch to krb5_set_error_message
+ - Support krb5_crypto_*_iov	
+ - Switch to use EVP for most function
+ - Use SOCK_CLOEXEC and O_CLOEXEC (close on exec)
+ - Add support for GSS_C_DELEG_POLICY_FLAG
+ - Add krb5_cc_[gs]et_config to store data in the credential caches
+ - PTY testing application
+
+Bugfixes
+ - Make building on AIX6 possible.
+ - Bugfixes in LDAP KDC code to make it more stable
+ - Make ipropd-slave reconnect when master down gown
+
+
+Release Notes - Heimdal - Version Heimdal 1.2.1
+
+* Bug
+
+  [HEIMDAL-147] - Heimdal 1.2 not compiling on Solaris
+  [HEIMDAL-151] - Make canned tests work again after cert expired
+  [HEIMDAL-152] - iprop test: use full hostname to avoid realm
+                  resolving errors
+  [HEIMDAL-153] - ftp: Use the correct length for unmap, msync
+
+Release Notes - Heimdal - Version Heimdal 1.2
+
+* Bug
+
+  [HEIMDAL-10] - Follow-up on bug report for SEGFAULT in
+  		 gss_display_name/gss_export_name when using SPNEGO
+  [HEIMDAL-15] - Re: [Heimdal-bugs] potential bug in Heimdal 1.1
+  [HEIMDAL-17] - Remove support for depricated [libdefaults]capath
+  [HEIMDAL-52] - hdb overwrite aliases for db databases
+  [HEIMDAL-54] - Two issues which affect credentials delegation
+  [HEIMDAL-58] - sockbuf.c calls setsockopt with bad args
+  [HEIMDAL-62] - Fix printing of sig_atomic_t
+  [HEIMDAL-87] - heimdal 1.1 not building under cygwin in hcrypto
+  [HEIMDAL-105] - rcp: sync rcp with upstream bsd rcp codebase
+  [HEIMDAL-117] - Use libtool to detect symbol versioning (Debian Bug#453241)
+
+* Improvement
+  [HEIMDAL-67] - Fix locking and store credential in atomic writes
+                 in the FILE credential cache
+  [HEIMDAL-106] - make compile on cygwin again
+  [HEIMDAL-107] - Replace old random key generation in des module
+                  and use it with RAND_ function instead
+  [HEIMDAL-115] - Better documentation and compatibility in hcrypto
+                  in regards to OpenSSL
+
+* New Feature
+  [HEIMDAL-3] - pkinit alg agility PRF test vectors
+  [HEIMDAL-14] - Add libwind to Heimdal
+  [HEIMDAL-16] - Use libwind in hx509
+  [HEIMDAL-55] - Add flag to krb5 to not add GSS-API INT|CONF to
+                 the negotiation
+  [HEIMDAL-74] - Add support to report extended error message back
+                 in AS-REQ to support windows clients
+  [HEIMDAL-116] - test pty based application (using rkpty)
+  [HEIMDAL-120] - Use new OpenLDAP API (older deprecated)
+
+* Task
+  [HEIMDAL-63] - Dont try key usage KRB5_KU_AP_REQ_AUTH for TGS-REQ.
+                 This drop compatibility with pre 0.3d KDCs.
+  [HEIMDAL-64] - kcm: first implementation of kcm-move-cache
+  [HEIMDAL-65] - Failed to compile with --disable-pk-init
+  [HEIMDAL-80] - verify that [VU#162289]: gcc silently discards some
+                 wraparound checks doesn't apply to Heimdal
+
+Changes in release 1.1
+
+ * Read-only PKCS11 provider built-in to hx509.
+
+ * Documentation for hx509, hcrypto and ntlm libraries improved.
+
+ * Better compatibilty with Windows 2008 Server pre-releases and Vista.
+
+ * Mac OS X 10.5 support for native credential cache.
+
+ * Provide pkg-config file for Heimdal (heimdal-gssapi.pc).
+
+ * Bug fixes.
+
+Changes in release 1.0.2
+
+* Ubuntu packages.
+
+* Bug fixes.
+
+Changes in release 1.0.1
+
+ * Serveral bug fixes to iprop.
+
+ * Make work on platforms without dlopen.
+
+ * Add RFC3526 modp group14 as default.
+
+ * Handle [kdc] database = { } entries without realm = stanzas.
+
+ * Make krb5_get_renewed_creds work.
+
+ * Make kaserver preauth work again.
+
+ * Bug fixes.
+
+Changes in release 1.0
+
+ * Add gss_pseudo_random() for mechglue and krb5.
+
+ * Make session key for the krbtgt be selected by the best encryption
+   type of the client.
+
+ * Better interoperability with other PK-INIT implementations.
+
+ * Inital support for Mac OS X Keychain for hx509.
+
+ * Alias support for inital ticket requests.
+
+ * Add symbol versioning to selected libraries on platforms that uses
+   GNU link editor: gssapi, hcrypto, heimntlm, hx509, krb5, and libkdc.
+
+ * New version of imath included in hcrypto.
+
+ * Fix memory leaks.
+
+ * Bugs fixes.
+
+Changes in release 0.8.1
+
+ * Make ASN.1 library less paranoid to with regard to NUL in string to
+   make it inter-operate with MIT Kerberos again.
+
+ * Make GSS-API library work again when using gss_acquire_cred
+
+ * Add symbol versioning to libgssapi when using GNU ld.
+
+ * Fix memory leaks 
+
+ * Bugs fixes
+
+Changes in release 0.8
+
+ * PK-INIT support.
+
+ * HDB extensions support, used by PK-INIT.
+
+ * New ASN.1 compiler.
+
+ * GSS-API mechglue from FreeBSD.
+
+ * Updated SPNEGO to support RFC4178.
+
+ * Support for Cryptosystem Negotiation Extension (RFC 4537).
+
+ * A new X.509 library (hx509) and related crypto functions.
+
+ * A new ntlm library (heimntlm) and related crypto functions.
+
+ * Updated the built-in crypto library with bignum support using
+   imath, support for RSA and DH and renamed it to libhcrypto.
+
+ * Subsystem in the KDC, digest, that will perform the digest
+   operation in the KDC, currently supports: CHAP, MS-CHAP-V2, SASL
+   DIGEST-MD5 NTLMv1 and NTLMv2.
+
+ * KDC will return the "response too big" error to force TCP retries
+   for large (default 1400 bytes) UDP replies.  This is common for
+   PK-INIT requests.
+
+ * Libkafs defaults to use 2b tokens.
+
+ * Default to use the API cache on Mac OS X.
+
+ * krb5_kuserok() also checks ~/.k5login.d directory for acl files,
+   see manpage for krb5_kuserok for description.
+
+ * Many, many, other updates to code and info manual and manual pages.
+
+ * Bug fixes
+
+Changes in release 0.7.2
+
+* Fix security problem in rshd that enable an attacker to overwrite
+  and change ownership of any file that root could write.
+
+* Fix a DOS in telnetd. The attacker could force the server to crash
+  in a NULL de-reference before the user logged in, resulting in inetd
+  turning telnetd off because it forked too fast.
+
+* Make gss_acquire_cred(GSS_C_ACCEPT) check that the requested name
+  exists in the keytab before returning success. This allows servers
+  to check if its even possible to use GSSAPI.
+
+* Fix receiving end of token delegation for GSS-API. It still wrongly
+  uses subkey for sending for compatibility reasons, this will change
+  in 0.8.
+
+* telnetd, login and rshd are now more verbose in logging failed and
+  successful logins.
+
+* Bug fixes
+
+Changes in release 0.7.1
+
+* Bug fixes
+
+Changes in release 0.7
+
+ * Support for KCM, a process based credential cache
+
+ * Support CCAPI credential cache
+
+ * SPNEGO support
+
+ * AES (and the gssapi conterpart, CFX) support
+
+ * Adding new and improve old documentation
+
+ * Bug fixes
+
+Changes in release 0.6.6
+
+* Fix security problem in rshd that enable an attacker to overwrite
+  and change ownership of any file that root could write.
+
+* Fix a DOS in telnetd. The attacker could force the server to crash
+  in a NULL de-reference before the user logged in, resulting in inetd
+  turning telnetd off because it forked too fast.
+
+Changes in release 0.6.5
+
+ * fix vulnerabilities in telnetd
+
+ * unbreak Kerberos 4 and kaserver
+
+Changes in release 0.6.4
+
+ * fix vulnerabilities in telnet
+
+ * rshd: encryption without a separate error socket should now work
+
+ * telnet now uses appdefaults for the encrypt and forward/forwardable
+   settings
+
+ * bug fixes
+
+Changes in release 0.6.3
+
+ * fix vulnerabilities in ftpd
+
+ * support for linux AFS /proc "syscalls"
+
+ * support for RFC3244 (Windows 2000 Kerberos Change/Set Password) in
+   kpasswdd
+
+ * fix possible KDC denial of service
+
+ * bug fixes
+
+Changes in release 0.6.2
+
+ * Fix possible buffer overrun in v4 kadmin (which now defaults to off)
+
+Changes in release 0.6.1
+
+ * Fixed ARCFOUR suppport
+
+ * Cross realm vulnerability
+
+ * kdc: fix denial of service attack
+
+ * kdc: stop clients from renewing tickets into the future
+
+ * bug fixes
+	
+Changes in release 0.6
+
+* The DES3 GSS-API mechanism has been changed to inter-operate with
+  other GSSAPI implementations. See man page for gssapi(3) how to turn
+  on generation of correct MIC messages. Next major release of heimdal 
+  will generate correct MIC by default.
+
+* More complete GSS-API support
+
+* Better AFS support: kdc (524) supports 2b; 524 in kdc and AFS
+  support in applications no longer requires Kerberos 4 libs
+
+* Kerberos 4 support in kdc defaults to turned off (includes ka and 524)
+
+* other bug fixes
+
+Changes in release 0.5.2
+
+ * kdc: add option for disabling v4 cross-realm (defaults to off)
+
+ * bug fixes
+
+Changes in release 0.5.1
+
+ * kadmind: fix remote exploit
+
+ * kadmind: add option to disable kerberos 4
+
+ * kdc: make sure kaserver token life is positive
+
+ * telnet: use the session key if there is no subkey
+
+ * fix EPSV parsing in ftp
+
+ * other bug fixes
+
+Changes in release 0.5
+
+ * add --detach option to kdc
+
+ * allow setting forward and forwardable option in telnet from
+   .telnetrc, with override from command line
+
+ * accept addresses with or without ports in krb5_rd_cred
+
+ * make it work with modern openssl
+
+ * use our own string2key function even with openssl (that handles weak
+   keys incorrectly)
+
+ * more system-specific requirements in login
+
+ * do not use getlogin() to determine root in su
+
+ * telnet: abort if telnetd does not support encryption
+
+ * update autoconf to 2.53
+
+ * update config.guess, config.sub
+
+ * other bug fixes
+
+Changes in release 0.4e
+
+ * improve libcrypto and database autoconf tests
+
+ * do not care about salting of server principals when serving v4 requests
+
+ * some improvements to gssapi library
+
+ * test for existing compile_et/libcom_err
+
+ * portability fixes
+
+ * bug fixes
+
+Changes in release 0.4d
+
+ * fix some problems when using libcrypto from openssl
+
+ * handle /dev/ptmx `unix98' ptys on Linux
+
+ * add some forgotten man pages
+
+ * rsh: clean-up and add man page
+
+ * fix -A and -a in builtin-ls in tpd
+
+ * fix building problem on Irix
+
+ * make `ktutil get' more efficient
+
+ * bug fixes
+
+Changes in release 0.4c
+
+ * fix buffer overrun in telnetd
+
+ * repair some of the v4 fallback code in kinit
+
+ * add more shared library dependencies
+
+ * simplify and fix hprop handling of v4 databases
+
+ * fix some building problems (osf's sia and osfc2 login)
+
+ * bug fixes
+
+Changes in release 0.4b
+
+ * update the shared library version numbers correctly
+
+Changes in release 0.4a
+
+ * corrected key used for checksum in mk_safe, unfortunately this
+   makes it backwards incompatible
+
+ * update to autoconf 2.50, libtool 1.4
+
+ * re-write dns/config lookups (krb5_krbhst API)
+
+ * make order of using subkeys consistent
+
+ * add man page links
+
+ * add more man pages
+
+ * remove rfc2052 support, now only rfc2782 is supported
+
+ * always build with kaserver protocol support in the KDC (assuming
+   KRB4 is enabled) and support for reading kaserver databases in
+   hprop
+
+Changes in release 0.3f
+
+ * change default keytab to ANY:FILE:/etc/krb5.keytab,krb4:/etc/srvtab,
+   the new keytab type that tries both of these in order (SRVTAB is
+   also an alias for krb4:)
+
+ * improve error reporting and error handling (error messages should
+   be more detailed and more useful)
+
+ * improve building with openssl
+
+ * add kadmin -K, rcp -F 
+
+ * fix two incorrect weak DES keys
+
+ * fix building of kaserver compat in KDC
+
+ * the API is closer to what MIT krb5 is using
+
+ * more compatible with windows 2000
+
+ * removed some memory leaks
+
+ * bug fixes
+
+Changes in release 0.3e
+
+ * rcp program included
+
+ * fix buffer overrun in ftpd
+
+ * handle omitted sequence numbers as zeroes to handle MIT krb5 that
+   cannot generate zero sequence numbers
+
+ * handle v4 /.k files better
+
+ * configure/portability fixes
+
+ * fixes in parsing of options to kadmin (sub-)commands
+
+ * handle errors in kadmin load better
+
+ * bug fixes
+
+Changes in release 0.3d
+
+ * add krb5-config
+
+ * fix a bug in 3des gss-api mechanism, making it compatible with the
+   specification and the MIT implementation
+
+ * make telnetd only allow a specific list of environment variables to
+   stop it from setting `sensitive' variables
+
+ * try to use an existing libdes
+
+ * lib/krb5, kdc: use correct usage type for ap-req messages.  This
+   should improve compatability with MIT krb5 when using 3DES
+   encryption types
+
+ * kdc: fix memory allocation problem
+
+ * update config.guess and config.sub
+
+ * lib/roken: more stuff implemented
+
+ * bug fixes and portability enhancements
+
+Changes in release 0.3c
+
+ * lib/krb5: memory caches now support the resolve operation
+
+ * appl/login: set PATH to some sane default
+
+ * kadmind: handle several realms
+
+ * bug fixes (including memory leaks)
+
+Changes in release 0.3b
+
+ * kdc: prefer default-salted keys on v5 requests
+
+ * kdc: lowercase hostnames in v4 mode
+
+ * hprop: handle more types of MIT salts
+
+ * lib/krb5: fix memory leak
+
+ * bug fixes
+
+Changes in release 0.3a:
+
+ * implement arcfour-hmac-md5 to interoperate with W2K
+
+ * modularise the handling of the master key, and allow for other
+   encryption types. This makes it easier to import a database from
+   some other source without having to re-encrypt all keys.
+
+ * allow for better control over which encryption types are created
+
+ * make kinit fallback to v4 if given a v4 KDC
+
+ * make klist work better with v4 and v5, and add some more MIT
+   compatibility options
+
+ * make the kdc listen on the krb524 (4444) port for compatibility
+   with MIT krb5 clients
+
+ * implement more DCE/DFS support, enabled with --enable-dce, see
+   lib/kdfs and appl/dceutils
+
+ * make the sequence numbers work correctly
+
+ * bug fixes
+
+Changes in release 0.2t:
+
+ * bug fixes
+
+Changes in release 0.2s:
+
+ * add OpenLDAP support in hdb
+
+ * login will get v4 tickets when it receives forwarded tickets
+
+ * xnlock supports both v5 and v4
+
+ * repair source routing for telnet
+
+ * fix building problems with krb4 (krb_mk_req)
+
+ * bug fixes
+
+Changes in release 0.2r:
+
+ * fix realloc memory corruption bug in kdc
+
+ * `add --key' and `cpw --key' in kadmin
+
+ * klist supports listing v4 tickets
+
+ * update config.guess and config.sub
+
+ * make v4 -> v5 principal name conversion more robust
+
+ * support for anonymous tickets
+
+ * new man-pages
+
+ * telnetd: do not negotiate KERBEROS5 authentication if there's no keytab.
+
+ * use and set expiration and not password expiration when dumping
+   to/from ka server databases / krb4 databases
+
+ * make the code happier with 64-bit time_t
+
+ * follow RFC2782 and by default do not look for non-underscore SRV names
+
+Changes in release 0.2q:
+
+ * bug fix in tcp-handling in kdc
+
+ * bug fix in expand_hostname
+
+Changes in release 0.2p:
+
+ * bug fix in `kadmin load/merge'
+
+ * bug fix in krb5_parse_address
+
+Changes in release 0.2o:
+
+ * gss_{import,export}_sec_context added to libgssapi
+
+ * new option --addresses to kdc (for listening on an explicit set of
+   addresses)
+
+ * bug fixes in the krb4 and kaserver emulation part of the kdc
+
+ * other bug fixes
+
+Changes in release 0.2n:
+
+ * more robust parsing of dump files in kadmin
+ * changed default timestamp format for log messages to extended ISO
+   8601 format (Y-M-DTH:M:S)
+ * changed md4/md5/sha1 APIes to be de-facto `standard'
+ * always make hostname into lower-case before creating principal
+ * small bits of more MIT-compatability
+ * bug fixes
+
+Changes in release 0.2m:
+
+ * handle glibc's getaddrinfo() that returns several ai_canonname
+
+ * new endian test
+
+ * man pages fixes
+
+Changes in release 0.2l:
+
+ * bug fixes
+
+Changes in release 0.2k:
+
+ * better IPv6 test
+
+ * make struct sockaddr_storage in roken work better on alphas
+
+ * some missing [hn]to[hn]s fixed.
+
+ * allow users to change their own passwords with kadmin (with initial
+   tickets)
+
+ * fix stupid bug in parsing KDC specification
+
+ * add `ktutil change' and `ktutil purge'
+
+Changes in release 0.2j:
+
+ * builds on Irix
+
+ * ftpd works in passive mode
+
+ * should build on cygwin
+
+ * work around broken IPv6-code on OpenBSD 2.6, also add configure
+   option --disable-ipv6
+
+Changes in release 0.2i:
+
+ * use getaddrinfo in the missing places.
+
+ * fix SRV lookup for admin server
+
+ * use get{addr,name}info everywhere.  and implement it in terms of
+   getipnodeby{name,addr} (which uses gethostbyname{,2} and
+   gethostbyaddr)
+
+Changes in release 0.2h:
+
+ * fix typo in kx (now compiles)
+
+Changes in release 0.2g:
+
+ * lots of bug fixes:
+   * push works
+   * repair appl/test programs
+   * sockaddr_storage works on solaris (alignment issues)
+   * works better with non-roken getaddrinfo
+   * rsh works
+   * some non standard C constructs removed
+
+Changes in release 0.2f:
+
+ * support SRV records for kpasswd
+ * look for both _kerberos and krb5-realm when doing host -> realm mapping
+
+Changes in release 0.2e:
+
+ * changed copyright notices to remove `advertising'-clause.
+ * get{addr,name}info added to roken and used in the other code
+   (this makes things work much better with hosts with both v4 and v6
+    addresses, among other things)
+ * do pre-auth for both password and key-based get_in_tkt
+ * support for having several databases
+ * new command `del_enctype' in kadmin
+ * strptime (and new strftime) add to roken
+ * more paranoia about finding libdb
+ * bug fixes
+
+Changes in release 0.2d:
+
+ * new configuration option [libdefaults]default_etypes_des
+ * internal ls in ftpd builds without KRB4
+ * kx/rsh/push/pop_debug tries v5 and v4 consistenly
+ * build bug fixes
+ * other bug fixes
+
+Changes in release 0.2c:
+
+ * bug fixes (see ChangeLog's for details)
+
+Changes in release 0.2b:
+
+ * bug fixes
+ * actually bump shared library versions
+
+Changes in release 0.2a:
+
+ * a new program verify_krb5_conf for checking your /etc/krb5.conf
+ * add 3DES keys when changing password
+ * support null keys in database
+ * support multiple local realms
+ * implement a keytab backend for AFS KeyFile's
+ * implement a keytab backend for v4 srvtabs
+ * implement `ktutil copy'
+ * support password quality control in v4 kadmind
+ * improvements in v4 compat kadmind
+ * handle the case of having the correct cred in the ccache but with
+   the wrong encryption type better
+ * v6-ify the remaining programs.
+ * internal ls in ftpd
+ * rename strcpy_truncate/strcat_truncate to strlcpy/strlcat
+ * add `ank --random-password' and `cpw --random-password' in kadmin
+ * some programs and documentation for trying to talk to a W2K KDC
+ * bug fixes
+
+Changes in release 0.1m:
+
+ * support for getting default from krb5.conf for kinit/kf/rsh/telnet.
+   From Miroslav Ruda <ruda@ics.muni.cz>
+ * v6-ify hprop and hpropd
+ * support numeric addresses in krb5_mk_req
+ * shadow support in login and su. From Miroslav Ruda <ruda@ics.muni.cz>
+ * make rsh/rshd IPv6-aware
+ * make the gssapi sample applications better at reporting errors
+ * lots of bug fixes
+ * handle systems with v6-aware libc and non-v6 kernels (like Linux
+   with glibc 2.1) better
+ * hide failure of ERPT in ftp
+ * lots of bug fixes
+
+Changes in release 0.1l:
+
+ * make ftp and ftpd IPv6-aware
+ * add inet_pton to roken
+ * more IPv6-awareness
+ * make mini_inetd v6 aware
+
+Changes in release 0.1k:
+
+ * bump shared libraries versions
+ * add roken version of inet_ntop
+ * merge more changes to rshd
+
+Changes in release 0.1j:
+
+ * restore back to the `old' 3DES code.  This was supposed to be done
+   in 0.1h and 0.1i but I did a CVS screw-up.
+ * make telnetd handle v6 connections
+
+Changes in release 0.1i:
+
+ * start using `struct sockaddr_storage' which simplifies the code
+   (with a fallback definition if it's not defined)
+ * bug fixes (including in hprop and kf)
+ * don't use mawk which seems to mishandle roken.awk
+ * get_addrs should be able to handle v6 addresses on Linux (with the
+   required patch to the Linux kernel -- ask within)
+ * rshd builds with shadow passwords
+
+Changes in release 0.1h:
+
+ * kf: new program for forwarding credentials
+ * portability fixes
+ * make forwarding credentials work with MIT code
+ * better conversion of ka database
+ * add etc/services.append
+ * correct `modified by' from kpasswdd
+ * lots of bug fixes
+
+Changes in release 0.1g:
+
+ * kgetcred: new program for explicitly obtaining tickets
+ * configure fixes
+ * krb5-aware kx
+ * bug fixes
+
+Changes in release 0.1f;
+
+ * experimental support for v4 kadmin protokoll in kadmind
+ * bug fixes
+
+Changes in release 0.1e:
+
+ * try to handle old DCE and MIT kdcs
+ * support for older versions of credential cache files and keytabs
+ * postdated tickets work
+ * support for password quality checks in kpasswdd
+ * new flag --enable-kaserver for kdc
+ * renew fixes
+ * prototype su program
+ * updated (some) manpages
+ * support for KDC resource records
+ * should build with --without-krb4
+ * bug fixes
+
+Changes in release 0.1d:
+
+ * Support building with DB2 (uses 1.85-compat API)
+ * Support krb5-realm.DOMAIN in DNS
+ * new `ktutil srvcreate'
+ * v4/kafs support in klist/kdestroy
+ * bug fixes
+
+Changes in release 0.1c:
+
+ * fix ASN.1 encoding of signed integers
+ * somewhat working `ktutil get'
+ * some documentation updates
+ * update to Autoconf 2.13 and Automake 1.4
+ * the usual bug fixes
+
+Changes in release 0.1b:
+
+ * some old -> new crypto conversion utils
+ * bug fixes
+
+Changes in release 0.1a:
+
+ * new crypto code
+ * more bug fixes
+ * make sure we ask for DES keys in gssapi
+ * support signed ints in ASN1
+ * IPv6-bug fixes
+
+Changes in release 0.0u:
+
+ * lots of bug fixes
+
+Changes in release 0.0t:
+
+ * more robust parsing of krb5.conf
+ * include net{read,write} in lib/roken
+ * bug fixes
+
+Changes in release 0.0s:
+
+ * kludges for parsing options to rsh
+ * more robust parsing of krb5.conf
+ * removed some arbitrary limits
+ * bug fixes
+
+Changes in release 0.0r:
+
+ * default options for some programs
+ * bug fixes
+
+Changes in release 0.0q:
+
+ * support for building shared libraries with libtool
+ * bug fixes
+
+Changes in release 0.0p:
+
+ * keytab moved to /etc/krb5.keytab
+ * avoid false detection of IPv6 on Linux
+ * Lots of more functionality in the gssapi-library
+ * hprop can now read ka-server databases
+ * bug fixes
+
+Changes in release 0.0o:
+
+ * FTP with GSSAPI support.
+ * Bug fixes.
+
+Changes in release 0.0n:
+
+ * Incremental database propagation.
+ * Somewhat improved kadmin ui; the stuff in admin is now removed.
+ * Some support for using enctypes instead of keytypes.
+ * Lots of other improvement and bug fixes, see ChangeLog for details.

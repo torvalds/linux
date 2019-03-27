@@ -1,0 +1,174 @@
+.\"
+.\" Copyright (c) 2007-2009 Bruce Simpson.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 29, 2009
+.Dt MTEST 8
+.Os
+.Sh NAME
+.Nm mtest
+.Nd test multicast socket operations
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+The
+.Nm
+utility
+is a small program for testing multicast socket operations.
+.Pp
+It accepts the following commands, interactively, or as part of a scripted
+input file (useful for automated testing):
+.Pp
+.Bl -tag -width "a ifname e.e.e.e e.e.e.e" -compact -offset indent
+.\"
+.It Ic a Ar ifname Ar mac-addr
+Join the link-layer group address
+.Ar mac-addr
+on interface
+.Ar ifname .
+The group address should be in IEEE 802 MAC format,
+delimited by colon (':') characters.
+.It Ic d Ar ifname Ar mac-addr
+Leave the link-layer group address
+.Ar mac-addr
+on interface
+.Ar ifname .
+.It Ic m Ar ifname Ar 1/0
+Set or reset ALLMULTI mode on interface
+.Ar ifname .
+This option is deprecated and is now a no-op.
+.It Ic p Ar ifname Ar 1/0
+Set or reset promiscuous mode on interface
+.Ar ifname .
+.Pp
+.It Ic j Ar mcast-addr Ar ifname Op Ar source-addr
+Join the multicast address
+.Ar mcast-addr
+on the interface with name
+.Ar ifname .
+.Pp
+If an optional source
+.Ar source-addr
+is specified, a source-specific join will be performed;
+if
+.Nm
+is already joined to the multicast address, the source
+will be added to its filter list.
+.Pp
+.It Ic l Ar mcast-addr Ar ifname Op Ar source-addr
+Leave the multicast address
+.Ar mcast-addr
+on the interface with address
+.Ar ifname .
+If a source
+.Ar source-addr
+is specified, only that source will be left.
+.\"
+.It Ic i Ar mcast-addr Ar ifname Ar n Ar source-addr ...
+Set the socket with membership of
+.Ar mcast-addr
+on interface
+.Ar ifname
+to include filter mode, and add
+.Ar n
+sources beginning with
+.Ar source-addr
+to the inclusion filter list.
+.\"
+.It Ic e Ar mcast-addr Ar ifname Ar n Ar source-addr ...
+Set the socket with membership of
+.Ar mcast-addr
+on interface
+.Ar ifname
+to exclude filter mode, and add
+.Ar n
+sources beginning with
+.Ar source-addr
+to the exclusion filter list.
+.\"
+.It Ic t Ar mcast-addr Ar ifname Ar source-addr
+Set the socket with membership of
+.Ar mcast-addr
+on interface
+.Ar ifname
+to block traffic from source
+.Ar source-addr .
+.\"
+.It Ic b Ar mcast-addr Ar ifname Ar source-addr
+Set the socket with membership of
+.Ar mcast-addr
+on interface
+.Ar ifname
+to allow traffic from source
+.Ar source-addr .
+.\"
+.Pp
+.It Ic g Ar mcast-addr Ar ifname Ar n
+Print
+.Ar n
+source filter entries for
+.Ar mcast-addr
+on interface
+.Ar ifname .
+.\"
+.Pp
+.It Ic f Ar filename
+Read commands from the file
+.Ar filename .
+.It Ic s Ar n
+Sleep for
+.Ar n
+seconds.
+.It Ic ?\&
+List legal commands.
+.It Ic q
+Quit the program.
+.El
+.Sh IMPLEMENTATION NOTES
+For each command implemented by
+.Nm ,
+the address family of each argument must be identical; it is not possible
+to mix IPv4 multicast memberships with IPv6, for example.
+.Pp
+To support IPv6, all commands have now changed to accept an interface
+name rather than an interface address.
+For IPv4, the program will perform
+a lookup of the primary IP address based on the interface name.
+This may fail if no primary IP address is assigned.
+.Sh SEE ALSO
+.Rs
+.%A D. Thaler
+.%A B. Fenner
+.%A B. Quinn
+.%T "Socket Interface Extensions for Multicast Filters"
+.%O RFC 3678
+.Re
+.Sh AUTHORS
+.An -split
+.An "Bruce Simpson"
+.An "Steve Deering"
+.An "Wilbert De Graaf"

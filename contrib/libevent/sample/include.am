@@ -1,0 +1,53 @@
+# sample/include.am for libevent
+# Copyright 2000-2007 Niels Provos
+# Copyright 2007-2012 Niels Provos and Nick Mathewson
+#
+# See LICENSE for copying information.
+
+SAMPLES = \
+	sample/dns-example				\
+	sample/event-read-fifo			\
+	sample/hello-world				\
+	sample/http-server				\
+	sample/http-connect				\
+	sample/signal-test				\
+	sample/time-test
+
+if OPENSSL
+SAMPLES += sample/le-proxy
+sample_le_proxy_SOURCES = sample/le-proxy.c
+sample_le_proxy_LDADD = libevent.la libevent_openssl.la ${OPENSSL_LIBS} ${OPENSSL_LIBADD}
+sample_le_proxy_INCLUDES = $(OPENSSL_INCS)
+
+SAMPLES += sample/https-client
+sample_https_client_SOURCES = \
+	sample/https-client.c \
+	sample/hostcheck.c \
+	sample/openssl_hostname_validation.c
+sample_https_client_LDADD = libevent.la libevent_openssl.la ${OPENSSL_LIBS} ${OPENSSL_LIBADD}
+sample_https_client_INCLUDES = $(OPENSSL_INCS)
+noinst_HEADERS += \
+	sample/hostcheck.h \
+	sample/openssl_hostname_validation.h
+endif
+
+if BUILD_SAMPLES
+noinst_PROGRAMS += $(SAMPLES)
+endif
+
+$(SAMPLES) : libevent.la
+
+sample_event_read_fifo_SOURCES = sample/event-read-fifo.c
+sample_event_read_fifo_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+sample_time_test_SOURCES = sample/time-test.c
+sample_time_test_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+sample_signal_test_SOURCES = sample/signal-test.c
+sample_signal_test_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+sample_dns_example_SOURCES = sample/dns-example.c
+sample_dns_example_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+sample_hello_world_SOURCES = sample/hello-world.c
+sample_hello_world_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+sample_http_server_SOURCES = sample/http-server.c
+sample_http_server_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+sample_http_connect_SOURCES = sample/http-connect.c
+sample_http_connect_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la

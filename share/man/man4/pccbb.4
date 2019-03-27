@@ -1,0 +1,183 @@
+.\"
+.\" Copyright (c) 2002-2003 M. Warner Losh
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 21, 2004
+.Dt PCCBB 4
+.Os
+.Sh NAME
+.Nm pccbb
+.Nd cardbus bridge driver
+.Sh SYNOPSIS
+.Cd device cbb
+.Cd device pccard
+.Cd device cardbus
+.Cd device exca
+.Sh DESCRIPTION
+The
+.Nm
+driver implements the Yenta specification for CardBus bridges.
+.Pp
+The following PCI cardbus and pcmcia bridges are supported:
+.Pp
+.Bl -item -compact
+.It
+Cirrus Logic PD6832
+.It
+Cirrus Logic PD6833
+.It
+Cirrus Logic PD6834
+.Pp
+.It
+O2micro OZ6812
+.It
+O2micro OZ6832
+.It
+O2micro OZ6833
+.It
+O2micro OZ6836
+.It
+O2micro OZ6860
+.It
+O2micro OZ6872
+.It
+O2micro OZ6912
+.It
+O2micro OZ6922
+.It
+O2micro OZ6933
+.It
+O2micro OZ6972
+.It
+O2Micro OZ711E1
+.It
+O2Micro OZ711M1
+.El
+.Bl -item -compact
+.It
+Ricoh RL4C475
+.It
+Ricoh RL4C476
+.It
+Ricoh RL4C477
+.It
+Ricoh RL4C478
+.Pp
+.It
+TI PCI-1031
+.It
+TI PCI-1130
+.It
+TI PCI-1131
+.It
+TI PCI-1210
+.It
+TI PCI-1211
+.It
+TI PCI-1220
+.It
+TI PCI-1221
+.It
+TI PCI-1225
+.It
+TI PCI-1250
+.It
+TI PCI-1251
+.It
+TI PCI-1251B
+.It
+TI PCI-1260
+.It
+TI PCI-1260B
+.It
+TI PCI-1410
+.It
+TI PCI-1420
+.It
+TI PCI-1450
+.It
+TI PCI-1451
+.It
+TI PCI-1510
+.It
+TI PCI-1515
+.It
+TI PCI-1520
+.It
+TI PCI-1530
+.It
+TI PCI-1620
+.It
+TI PCI-4410
+.It
+TI PCI-4450
+.It
+TI PCI-4451
+.It
+TI PCI-4510
+.It
+TI PCI-4520
+.It
+TI PCI-[67]x[12]1
+.It
+TI PCI-[67]x20
+.It
+ENE CB710
+.It
+ENE CB720
+.It
+ENE CB1211
+.It
+ENE CB1255
+.It
+ENE CB1410
+.It
+ENE CB1420
+.Pp
+.It
+Toshiba ToPIC95
+.It
+Toshiba ToPIC95B
+.It
+Toshiba ToPIC97
+.It
+Toshiba ToPIC100
+.El
+.Sh TUNABLES
+The driver supports the following tunable parameters, which may be
+added to
+.Pa /boot/loader.conf
+or set via the
+.Xr sysctl 8
+command:
+.Bl -tag -width ".Cm hw.cbb.debug" -compact
+.It Cm hw.cbb.debug
+Non-zero values cause more verbose information to be printed to aid in
+debugging problems with the bridge chipset.
+.El
+.Sh SEE ALSO
+.Xr cardbus 4 ,
+.Xr exca 4 ,
+.Xr pccard 4

@@ -1,0 +1,111 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elf_cntl.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd August 9, 2006
+.Dt ELF_CNTL 3
+.Os
+.Sh NAME
+.Nm elf_cntl
+.Nd control an elf file descriptor
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft int
+.Fn elf_cntl "Elf *elf" "Elf_Cmd cmd"
+.Sh DESCRIPTION
+Function
+.Fn elf_cntl
+controls the ELF library's subsequent use of the file descriptor
+used to create ELF descriptor
+.Ar elf .
+.Pp
+Argument
+.Ar cmd
+informs the library of the action to be taken:
+.Bl -tag -width "ELF_C_FDDONE"
+.It Dv ELF_C_FDDONE
+This value instructs the ELF library not to perform any further
+I/O on the file descriptor associated with argument
+.Ar elf .
+For ELF descriptors opened with mode
+.Ar ELF_C_WRITE
+or
+.Ar ELF_C_RDWR
+subsequent
+.Fn elf_update
+operations on the descriptor will fail.
+.It Dv ELF_C_FDREAD
+This value instructs the ELF library to read in all necessary
+data associated with ELF descriptor
+.Ar elf
+into memory so that the underlying file descriptor can be
+safely closed with command
+.Dv ELF_C_FDDONE .
+.El
+.Pp
+Argument
+.Ar elf
+must be an ELF descriptor associated with a file system object
+(e.g., an
+.Xr ar 1
+archive, an ELF file, or other data file).
+.Sh IMPLEMENTATION NOTES
+Due to use of
+.Xr mmap 2
+internally, this function is a no-op for ELF objects opened in
+.Dv ELF_C_READ
+mode.
+.Sh RETURN VALUES
+Function
+.Fn elf_cntl
+returns 0 on success, or -1 if an error was detected.
+.Sh ERRORS
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARCHIVE
+Argument
+.Ar elf
+is a descriptor for an archive member.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar elf
+was NULL.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar cmd
+was not recognized.
+.It Bq Er ELF_E_MODE
+An
+.Dv ELF_C_FDREAD
+operation was requested on an ELF descriptor opened
+for writing.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_begin 3 ,
+.Xr elf_end 3 ,
+.Xr elf_next 3 ,
+.Xr elf_update 3 ,
+.Xr gelf 3

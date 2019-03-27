@@ -1,0 +1,1 @@
+map bge0 192.168.113.0/24 -> 10.1.1.1/32 proxy port shell rcmd/tcp

@@ -1,0 +1,129 @@
+.\" Copyright (c) 2019 The FreeBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 13, 2019
+.Dt PROCCONTROL 1
+.Os
+.Sh NAME
+.Nm proccontrol
+.Nd Control some process execution aspects
+.Sh SYNOPSIS
+.Nm
+.Fl m Ar mode
+.Op Fl s Ar control
+.Op Fl q
+.Fl p Ar pid | command
+.Sh DESCRIPTION
+The
+.Nm
+command modifies the execution parameter of existing process
+specified by the
+.Ar pid
+argument, or starts execution of the new program
+.Ar command
+with the execution parameter set for it.
+.Pp
+Which execution parameter is changed, selected by the mandatory
+parameter
+.Ar mode .
+Possible values for
+.Ar mode
+are:
+.Bl -tag -width trapcap
+.It Ar aslr
+Control the Address Space Layout Randomization.
+Only applicable to the new process spawned.
+.It Ar trace
+Control the permission for debuggers to attach.
+Note that process is only allowed to enable tracing for itself,
+not for any other process.
+.It Ar trapcap
+Controls the signalling of capability mode access violations.
+.El
+.Pp
+The
+.Ar control
+specifies if the selected
+.Ar mode
+should be enabled or disabled.
+Possible values are
+.Ar enable
+and
+.Ar disable ,
+with the default value being
+.Ar enable
+if not specified.
+See
+.Xr procctl 2
+for detailed description of each mode effects and interaction with other
+process control facilities.
+.Pp
+The
+.Fl q
+switch makes the utility query and print the current setting for
+the selected mode.
+The
+.Fl q
+requires the query target process specification with
+.Fl p .
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+.Bl -bullet
+.It
+To disable debuggers attachment to the process 1020, execute
+.Dl "proccontrol -m trace -s disable -p 1020"
+.It
+To execute the
+.Xr uniq 1
+program in a mode where capability access violations cause
+.Dv SIGTRAP
+delivery, do
+.Dl "proccontrol -m trapcap uniq"
+.It
+To query the current ASLR enablement mode for the running
+process 1020, do
+.Dl "proccontrol -m aslr -q -p 1020"
+.El
+.Sh SEE ALSO
+.Xr kill 2 ,
+.Xr procctl 2 ,
+.Xr ptrace 2
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+command and this manual page were written by
+.An Konstantin Belousov Aq Mt kib@freebsd.org
+under sponsorship from The FreeBSD Foundation.

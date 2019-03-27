@@ -1,0 +1,140 @@
+$ $tcsh: set1,v 1.5 2015/05/26 17:38:25 christos Exp $
+$ Error messages
+$set 1 
+1 Kielioppivirhe
+2 %s ei ole sallittu
+3 Liian pitkä sana
+4 $< rivi liian pitkä
+5 Puuttuva tiedosto $0
+6 Vajavainen [] muunnos
+7 $ -laajennuksen on päätyttävä ennen ']'-merkkiä
+8 Virheellinen : -muunnos $ '%c'
+9 Indeksivirhe
+10 Virheellinen numero
+11 Liian vähän sanoja
+12 Puuttuva tiedoston nimi
+13 Sisäinen laajennusvirhe (glob)
+14 Käskyä ei löydy
+15 Liian vähän argumentteja
+16 Liian monta argumenttia
+17 Vaarallinen alias
+18 Tyhjä ehto (if)
+19 Soveltumaton seuraus (then)
+20 Sanat eivät ole suluissa
+21 %s ei löydy
+22 Soveltumaton maski
+23 Rajoite tuntematon
+24 Liian suuri argumentti
+25 Soveltumaton tai tuntematon muunnoskerroin
+26 Määrittelemätön muuttuja
+27 Hakemistopino on matalampi
+28 Virheellinen signaalin numero
+29 Tuntematon signaali; kill -l tulostaa signaalit
+30 Muutujan nimi on aloitettava kirjaimella
+31 Liian pitkä muuttuja nimi
+32 Muuttujan nimi on koostuttava kirjaimista ja numeroista
+33 Tässä komentotulkissa ei ole töiden hallintaa
+34 Lauseke virheellinen
+35 Kotihakemisto puuttuu
+36 Siirtyminen kotihakemistoon ei onnistu
+37 Tyhjä käsky
+38 Sijoituksesta puuttuu lauseke
+39 Tuntematon operaattori
+40 Tulkinnanvarainen
+41 %s: Tiedosto ei ole uusi
+42 Parametrin -c argumentti päätty takakenoviivaan (\\)
+43 Keskeytetty
+44 Indeksi viittaa rajojen ulkopuollelle
+45 Rivin ylivuoto
+46 Olematon työ
+47 Ei onnistu päätteeltä
+48 Silmukan (while/foreach) ulkopuolella
+49 Lisää prosesseja ei voida luoda
+50 Ei vastaavuuksia (match)
+51 Puuttuva '%c'
+52 Ylimääräinen/pariton '%c'
+53 Muisti loppu
+54 Putkea ei voida luoda
+55 %s: %s
+56 %s
+57 Käyttö: jobs [ -l ]
+58 Argumenttien on oltava töiden tai prosessien tunnisteita
+59 Ei tämänhetkistä työtä
+60 Ei edellistä työtä
+61 Mikään työ ei vastaa mallia
+62 Sisäkkäinen prosessin luonti (fork) > %d; mahdollisesti `...` silmukka
+63 Alemman tason komentotulkeissa ei ole töidenhallintaa
+64 Synkronointivirhe: Prosessia %d ei löydy
+65 %sTilapäisesti keskeytettyjä töitä
+66 %sPysähtyneenä olevia töitä
+67 Toinen hakemisto puuttuu
+68 Hakemistopino on tyhjä
+69 Virheellinen hakemisto
+70 Käyttö: %s [-%s]%s
+71 Lipulle -h ei ole argumenttia
+72 Tämä ei ole ensimmäisen tason komentotulkki (login shell)
+73 Jako 0:lla
+74 Jakojäännös 0:lla
+75 Virheellinen muunnoskerroin; tarkoititko "%s"?
+76 Ensimmäisen tason komentotulkkia ei voi keskeyttää (vielä)
+77 Tuntematon käyttäjä: %s
+78 Muuttujaa $home ei ole asetettu
+79 Käyttö: history [-%s] [# tapahtumien/käskyjen lukumäärä]
+80 $, ! tai < ei ole sallittu $# eikä $? yhteydessä
+81 Muuttujan nimi sisältää rivin vaihdon
+82 * ei ole sallittu $# eikä $? yhteydessä
+83 $?<numero> tai $#<numero> ei ole sallittu
+84 Soveltumaton muuttujan nimi
+85 Rivin vaihto muutujan indeksissä
+86 Laajennuspuskurin ylivuoto
+87 Muuttujassa kielioppivirhe
+88 Virheellinen ! -muoto
+89 Edellistä korvaavaa merkkijonoa ei ole
+90 Virheellinen korvaava merkkijono
+91 Edellistä vasemmanpuolista merkkijonoa ei ole
+92 Oikeanpuolinen merkkijono on liian pitkä
+93 Virheellinen ! -muunnos: '%c'
+94 Muunnos epäonnistui
+95 Korvauspuskurin ylivuoto
+96 Virheellinen ! argumenttivalitsin
+97 Edellistä hakua ei ole
+98 %s: Tapahtumaa/käskyä ei löydy
+99 Liian paljon loppusulkuja ')'
+100 Liian paljon alkusulkuja '('
+101 Virheellisesti sijoitettu alkusulku '('
+102 Uudelleen ohjauksesta puuttuu nimi
+103 Tulkinnanvarainen tulostuksen ohjaus
+104 Ohjaus << ei onnistu sulkujen '()' sisällä
+105 Tulkinnanvarainen syötteen ohjaus
+106 Virheelisesti sijoitetut sulut '()'
+107 Silmukka alias-määrittelyissä
+108 Muuttujaa $watch ei ole asetettu
+109 Jonossa ei ole tapahtumia
+110 Käyttö: sched -<tapahtumien lukumäärä>.\nKäyttö: sched [+]tt:mm <käsky>
+111 Jonotettuja tapahtumia ei ole niin monta
+112 Suoritettava käsky puuttuu
+113 Virheellinen tapahtuma-aika
+114 Suhteellinen ajan määre ei sovellu käytettäväksi am/pm yhteydessä
+115 Päätetyypin kuvaukselle (termcap) ei ole tarpeeksi tilaa
+116 Käyttö: settc %s [yes|no]
+117 Tuntematon toiminne `%s'
+118 Tuntematon päätetyypin (termcap) parameteri '%%%c'
+119 Liian paljon argumentteja käskylle `%s' (%d)
+120 `%s' edellyttää %d argumenttia
+121 Käyttö: echotc [-v|-s] [<toiminne> [<argumentit>]]
+122 %s: %s. Väärä laitearkkitehtuuri
+123 !# Silmukka komentohistoriassa
+124 Virheellinen tiedostotesti
+125 Valitsimen ylivuoto
+126 Tuntematon valitsin: `-%s'\nKäyttö: %s [ -bcdefilmnqstvVxX -Dnimi[=arvo] ] [ argumentti ... ]
+127 Tuntematon valitsin: `-%s'\nKäyttö: %s [ -bcdefFilmnqstvVxX ] [ argumentti ... ]
+128 Tuntematon valitsin: `-%s'\nKäyttö: %s [ -bcdefilmnqstvVxX ] [ argumentti ... ]
+129 \nSoveltumaton täydennys: "%s"
+130 \nSoveltumaton %s: '%c'
+131 \nErotin '%c' puuttuu %s "%s" jäljestä
+132 \nVajaa %s: "%s"
+133 Valitsimelle -m ei ole kohdeargumenttia
+134 Käyttö: unlimit [-fh] [rajoitteet (limits)]
+135 Muuttujalle $%S ei voida asettaa arvoa
+136 Viitattua työtä ei ole
+137 Tuntematon colorls-muuttuja '%c%c'

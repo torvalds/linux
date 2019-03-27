@@ -1,0 +1,246 @@
+.\"	$NetBSD: gzip.1,v 1.31 2018/10/26 22:10:15 christos Exp $
+.\"
+.\" Copyright (c) 1997, 2003, 2004, 2008, 2009, 2015, 2017 Matthew R. Green
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd January 7, 2019
+.Dt GZIP 1
+.Os
+.Sh NAME
+.Nm gzip ,
+.Nm gunzip ,
+.Nm zcat
+.Nd compression/decompression tool using Lempel-Ziv coding (LZ77)
+.Sh SYNOPSIS
+.Nm
+.Op Fl cdfhkLlNnqrtVv
+.Op Fl S Ar suffix
+.Ar file
+.Oo
+.Ar file Oo ...
+.Oc
+.Oc
+.Nm gunzip
+.Op Fl cfhkLNqrtVv
+.Op Fl S Ar suffix
+.Ar file
+.Oo
+.Ar file Oo ...
+.Oc
+.Oc
+.Nm zcat
+.Op Fl fhV
+.Ar file
+.Oo
+.Ar file Oo ...
+.Oc
+.Oc
+.Sh DESCRIPTION
+The
+.Nm
+program compresses and decompresses files using Lempel-Ziv coding
+(LZ77).
+If no
+.Ar files
+are specified,
+.Nm
+will compress from standard input, or decompress to standard output.
+When in compression mode, each
+.Ar file
+will be replaced with another file with the suffix, set by the
+.Fl S Ar suffix
+option, added, if possible.
+.Pp
+In decompression mode, each
+.Ar file
+will be checked for existence, as will the file with the suffix
+added.
+Each
+.Ar file
+argument must contain a separate complete archive;
+when multiple
+.Ar files
+are indicated, each is decompressed in turn.
+.Pp
+In the case of
+.Nm gzcat
+the resulting data is then concatenated in the manner of
+.Xr cat 1 .
+.Pp
+If invoked as
+.Nm gunzip
+then the
+.Fl d
+option is enabled.
+If invoked as
+.Nm zcat
+or
+.Nm gzcat
+then both the
+.Fl c
+and
+.Fl d
+options are enabled.
+.Pp
+This version of
+.Nm
+is also capable of decompressing files compressed using
+.Xr compress 1 ,
+.Xr bzip2 1 ,
+.Ar lzip ,
+or
+.Xr xz 1 .
+.Sh OPTIONS
+The following options are available:
+.Bl -tag -width XXrXXXrecursiveX
+.It Fl 1 , Fl Fl fast
+.It Fl 2 , 3 , 4 , 5 , 6 , 7 , 8
+.It Fl 9 , Fl Fl best
+These options change the compression level used, with the
+.Fl 1
+option being the fastest, with less compression, and the
+.Fl 9
+option being the slowest, with optimal compression.
+The default compression level is 6.
+.It Fl c , Fl Fl stdout , Fl Fl to-stdout
+This option specifies that output will go to the standard output
+stream, leaving files intact.
+.It Fl d , Fl Fl decompress , Fl Fl uncompress
+This option selects decompression rather than compression.
+.It Fl f , Fl Fl force
+This option turns on force mode.
+This allows files with multiple links, symbolic links to regular files,
+overwriting of pre-existing files, reading from or writing to a terminal,
+and when combined with the
+.Fl c
+option, allowing non-compressed data to pass through unchanged.
+.It Fl h , Fl Fl help
+This option prints a usage summary and exits.
+.It Fl k , Fl Fl keep
+This option prevents
+.Nm
+from deleting input files after (de)compression.
+.It Fl L , -license
+This option prints
+.Nm
+license.
+.It Fl l , Fl Fl list
+This option displays information about the file's compressed and
+uncompressed size, ratio, uncompressed name.
+With the
+.Fl v
+option, it also displays the compression method, CRC, date and time
+embedded in the file.
+.It Fl N , Fl Fl name
+This option causes the stored filename in the input file to be used
+as the output file.
+.It Fl n , Fl Fl no-name
+This option stops the filename and timestamp from being stored in
+the output file.
+.It Fl q , Fl Fl quiet
+With this option, no warnings or errors are printed.
+.It Fl r , Fl Fl recursive
+This option is used to
+.Nm
+the files in a directory tree individually, using the
+.Xr fts 3
+library.
+.It Fl S Ar suffix , Fl Fl suffix Ar suffix
+This option changes the default suffix from .gz to
+.Ar suffix .
+.It Fl t , Fl Fl test
+This option will test compressed files for integrity.
+.It Fl V , Fl Fl version
+This option prints the version of the
+.Nm
+program.
+.It Fl v , Fl Fl verbose
+This option turns on verbose mode, which prints the compression
+ratio for each file compressed.
+.El
+.Sh ENVIRONMENT
+If the environment variable
+.Ev GZIP
+is set, it is parsed as a white-space separated list of options
+handled before any options on the command line.
+Options on the command line will override anything in
+.Ev GZIP .
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 on success,
+1 on errors,
+and 2 if a warning occurs.
+.Sh SIGNALS
+.Nm
+responds to the following signals:
+.Bl -tag -width indent
+.It Dv SIGINFO
+Report progress to standard error.
+.El
+.Sh SEE ALSO
+.Xr bzip2 1 ,
+.Xr compress 1 ,
+.Xr xz 1 ,
+.Xr fts 3 ,
+.Xr zlib 3
+.Sh HISTORY
+The
+.Nm
+program was originally written by Jean-loup Gailly, licensed under
+the GNU Public Licence.
+Matthew R. Green wrote a simple front end for
+.Nx 1.3
+distribution media, based on the freely re-distributable zlib library.
+It was enhanced to be mostly feature-compatible with the original
+GNU
+.Nm
+program for
+.Nx 2.0 .
+.Pp
+This implementation of
+.Nm
+was ported based on the
+.Nx
+.Nm
+version 20181111,
+and first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An -nosplit
+This implementation of
+.Nm
+was written by
+.An Matthew R. Green Aq Mt mrg@eterna.com.au
+with unpack support written by
+.An Xin LI Aq Mt delphij@FreeBSD.org .
+.Sh BUGS
+According to RFC 1952, the recorded file size is stored in a 32-bit
+integer, therefore, it cannot represent files larger than 4GB.
+This limitation also applies to
+.Fl l
+option of
+.Nm
+utility.

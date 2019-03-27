@@ -1,0 +1,393 @@
+.\"
+.\" Copyright (c) 2014 John Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 22, 2018
+.Dt DEVCTL 3
+.Os
+.Sh NAME
+.Nm devctl ,
+.Nm devctl_attach ,
+.Nm devctl_clear_driver ,
+.Nm devctl_delete ,
+.Nm devctl_detach ,
+.Nm devctl_disable ,
+.Nm devctl_enable ,
+.Nm devctl_freeze ,
+.Nm devctl_rescan ,
+.Nm devctl_resume ,
+.Nm devctl_set_driver ,
+.Nm devctl_suspend ,
+.Nm devctl_thaw
+.Nd device control library
+.Sh LIBRARY
+.Lb libdevctl
+.Sh SYNOPSIS
+.In devctl.h
+.Ft int
+.Fn devctl_attach "const char *device"
+.Ft int
+.Fn devctl_clear_driver "const char *device" "bool force"
+.Ft int
+.Fn devctl_delete "const char *device" "bool force"
+.Ft int
+.Fn devctl_detach "const char *device" "bool force"
+.Ft int
+.Fn devctl_disable "const char *device" "bool force_detach"
+.Ft int
+.Fn devctl_enable "const char *device"
+.Ft int
+.Fn devctl_freeze "void"
+.Ft int
+.Fn devctl_rescan "const char *device"
+.Ft int
+.Fn devctl_resume "const char *device"
+.Ft int
+.Fn devctl_set_driver "const char *device" "const char *driver" "bool force"
+.Ft int
+.Fn devctl_suspend "const char *device"
+.Ft int
+.Fn devctl_thaw "void"
+.Sh DESCRIPTION
+The
+.Nm
+library adjusts the state of devices in the kernel's internal device
+hierarchy.
+Each control operation accepts a
+.Fa device
+argument that identifies the device to adjust.
+The
+.Fa device
+may be specified as either the name of an existing device or as a
+bus-specific address.
+The following bus-specific address formats are currently supported:
+.Bl -tag -offset indent
+.It Sy pci Ns Fa domain Ns : Ns Fa bus Ns : Ns Fa slot Ns : Ns Fa function
+A PCI device with the specified
+.Fa domain ,
+.Fa bus ,
+.Fa slot ,
+and
+.Fa function .
+.It Sy pci Ns Fa bus Ns : Ns Fa slot Ns : Ns Fa function
+A PCI device in domain zero with the specified
+.Fa bus ,
+.Fa slot ,
+and
+.Fa function .
+.It Fa handle
+A device with an ACPI handle of
+.Fa handle .
+The handle must be specified as an absolute path and must begin with a
+.Dq \e .
+.El
+.Pp
+The
+.Fn devctl_attach
+function probes a device and attaches a suitable device driver if one is
+found.
+.Pp
+The
+.Fn devctl_detach
+function detaches a device from its current device driver.
+The device is left detached until either a new driver for its parent
+bus is loaded or the device is explicitly probed via
+.Fn devctl_attach .
+If
+.Fa force
+is true,
+the current device driver will be detached even if the device is busy.
+.Pp
+The
+.Fn devctl_delete
+function deletes a device from the device tree.
+No
+If
+.Fa force
+is true,
+the device is deleted even if the device is physically present.
+.Pp
+The
+.Fn devctl_disable
+function disables a device.
+If the device is currently attached to a device driver,
+the device driver will be detached from the device,
+but the device will retain its current name.
+If
+.Fa force_detach
+is true,
+the current device driver will be detached even if the device is busy.
+The device will remain disabled and detached until it is explicitly enabled
+via
+.Fn devctl_enable .
+.Pp
+The
+.Fn devctl_enable
+function re-enables a disabled device.
+The device will probe and attach if a suitable device driver is found.
+.Pp
+The
+.Fn devctl_suspend
+function suspends a device.
+This may include placing the device in a reduced power state,
+but any device driver currently attached to the device will remain attached.
+.Pp
+The
+.Fn devctl_resume
+function resumes a suspended device to a fully working state.
+.Pp
+The
+.Fn devctl_set_driver
+function attaches a device driver named
+.Fa driver
+to a device.
+If the device is already attached and
+.Fa force
+is false,
+the request will fail.
+If the device is already attached and
+.Fa force
+is true,
+the device will be detached from its current device driver before it is
+attached to the new device driver.
+.Pp
+The
+.Fn devctl_clear_driver
+function resets a device so that it can be attached to any valid device
+driver rather than only drivers with a previously specified name.
+This function is used to undo a previous call to
+.Fn devctl_set_driver .
+If the device is already attached and
+.Fa force
+is false,
+the request will fail.
+If the device is already attached and
+.Fa force
+is true,
+the device will be detached from its current device driver.
+After the device's name is reset,
+it is reprobed and attached to a suitable device driver if one is found.
+.Pp
+The
+.Fn devctl_rescan
+function rescans a bus device checking for devices that have been added or
+removed.
+.Pp
+The
+.Fn devctl_freeze
+function freezes probe and attach processing initiated in response to
+drivers being loaded.
+.Pp
+The
+.Fn devctl_thaw
+function resumes (thaws the freeze) probe and attach processing
+initiated in response to drivers being loaded.
+.Sh RETURN VALUES
+.Rv -std devctl_attach devctl_clear_driver devctl_delete devctl_detach \
+devctl_disable devctl_enable devctl_suspend devctl_rescan devctl_resume \
+devctl_set_driver
+.Sh ERRORS
+In addition to specific errors noted below,
+all of the
+.Nm
+functions may fail for any of the errors described in
+.Xr open 2
+as well as:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The device name is too long.
+.It Bq Er ENOENT
+No existing device matches the specified name or location.
+.It Bq Er EPERM
+The current process is not permitted to adjust the state of
+.Fa device .
+.El
+.Pp
+The
+.Fn devctl_attach
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The device is already attached.
+.It Bq Er ENOMEM
+An internal memory allocation request failed.
+.It Bq Er ENXIO
+The device is disabled.
+.It Bq Er ENXIO
+No suitable driver for the device could be found,
+or the driver failed to attach.
+.El
+.Pp
+The
+.Fn devctl_detach
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The current device driver for
+.Fa device
+is busy and cannot detach at this time.
+Note that some drivers may return this even if
+.Fa force
+is true.
+.It Bq Er ENXIO
+The device is not attached to a driver.
+.It Bq Er ENXIO
+The current device driver for
+.Fa device
+does not support detaching.
+.El
+.Pp
+The
+.Fn devctl_enable
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The device is already enabled.
+.It Bq Er ENOMEM
+An internal memory allocation request failed.
+.It Bq Er ENXIO
+No suitable driver for the device could be found,
+or the driver failed to attach.
+.El
+.Pp
+The
+.Fn devctl_disable
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The current device driver for
+.Fa device
+is busy and cannot detach at this time.
+Note that some drivers may return this even if
+.Fa force_detach
+is true.
+.It Bq Er ENXIO
+The device is already disabled.
+.It Bq Er ENXIO
+The current device driver for
+.Fa device
+does not support detaching.
+.El
+.Pp
+The
+.Fn devctl_suspend
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The device is already suspended.
+.It Bq Er EINVAL
+The device to be suspended is the root bus device.
+.El
+.Pp
+The
+.Fn devctl_resume
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The device is not suspended.
+.It Bq Er EINVAL
+The device to be resumed is the root bus device.
+.El
+.Pp
+The
+.Fn devctl_set_driver
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The device is currently attached to a device driver and
+.Fa force
+is false.
+.It Bq Er EBUSY
+The current device driver for
+.Fa device
+is busy and cannot detach at this time.
+.It Bq Er EFAULT
+The
+.Fa driver
+argument points outside the process' allocated address space.
+.It Bq Er ENOENT
+No device driver with the requested name exists.
+.It Bq Er ENOMEM
+An internal memory allocation request failed.
+.It Bq Er ENXIO
+The device is disabled.
+.It Bq Er ENXIO
+The new device driver failed to attach.
+.El
+.Pp
+The
+.Fn devctl_clear_driver
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The device is currently attached to a device driver and
+.Fa force
+is false.
+.It Bq Er EBUSY
+The current device driver for
+.Fa device
+is busy and cannot detach at this time.
+.It Bq Er EINVAL
+The device is not configured for a specific device driver name.
+.It Bq Er ENXIO
+The device driver chosen after reprobing failed to attach.
+.El
+.Pp
+The
+.Fn devctl_rescan
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er ENXIO
+The device is not attached to a driver.
+.It Bq Er ENXIO
+The bus driver does not support rescanning.
+.El
+.Pp
+The
+.Fn devctl_delete
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The device is physically present and
+.Fa force
+is false.
+.It Bq Er EINVAL
+.Fa dev
+is the root device of the device tree.
+.El
+.Sh SEE ALSO
+.Xr devinfo 3 ,
+.Xr devstat 3 ,
+.Xr devctl 8
+.Sh HISTORY
+The
+.Nm
+library first appeared in
+.Fx 10.3 .
+.Sh BUGS
+If a device is suspended individually via
+.Fn devctl_suspend
+and the entire machine is subsequently suspended,
+the device will be resumed when the machine resumes.

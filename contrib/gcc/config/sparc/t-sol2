@@ -1,0 +1,24 @@
+# gmon build rule:
+$(T)gmon.o:	$(srcdir)/config/sparc/gmon-sol2.c $(GCC_PASSES) \
+  $(TCONFIG_H) tsystem.h coretypes.h $(TM_H) stmp-int-hdrs
+	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(INCLUDES) $(MULTILIB_CFLAGS) \
+		-c $(srcdir)/config/sparc/gmon-sol2.c -o $(T)gmon.o
+
+# Assemble startup files.
+$(T)crt1.o: $(srcdir)/config/sparc/sol2-c1.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crt1.o -x assembler-with-cpp $(srcdir)/config/sparc/sol2-c1.asm
+$(T)crti.o: $(srcdir)/config/sparc/sol2-ci.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crti.o -x assembler-with-cpp $(srcdir)/config/sparc/sol2-ci.asm
+$(T)crtn.o: $(srcdir)/config/sparc/sol2-cn.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -o $(T)crtn.o -x assembler-with-cpp $(srcdir)/config/sparc/sol2-cn.asm
+$(T)gcrt1.o: $(srcdir)/config/sparc/sol2-c1.asm $(GCC_PASSES)
+	$(GCC_FOR_TARGET) $(MULTILIB_CFLAGS) -c -DGCRT1 -o $(T)gcrt1.o -x assembler-with-cpp $(srcdir)/config/sparc/sol2-c1.asm
+
+# We need to use -fPIC when we are using gcc to compile the routines in
+# crtstuff.c.  This is only really needed when we are going to use gcc/g++
+# to produce a shared library, but since we don't know ahead of time when
+# we will be doing that, we just always use -fPIC when compiling the
+# routines in crtstuff.c.
+
+CRTSTUFF_T_CFLAGS = -fPIC
+TARGET_LIBGCC2_CFLAGS = -fPIC

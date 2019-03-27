@@ -1,0 +1,1 @@
+divert in on bar0 from any to any -> src 127.0.0.1,10101 dst 127.0.0.1,10101 udp;

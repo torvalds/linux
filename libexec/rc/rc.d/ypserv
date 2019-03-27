@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ypserv
+# REQUIRE: rpcbind
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="ypserv"
+desc="NIS database server"
+rcvar="nis_server_enable"
+
+load_rc_config $name
+
+command="/usr/sbin/${name}"
+command_args="${nis_server_flags}"
+
+start_precmd="ypserv_prestart"
+
+ypserv_prestart()
+{
+	local _domain
+
+	force_depend rpcbind || return 1
+
+	_domain=`domainname`
+	if [ -z "$_domain" ]; then
+		warn "NIS domainname(1) is not set."
+		return 1
+	fi
+	if [ ! -d /var/yp/$_domain/. ]; then
+		warn "/var/yp/$_domain is not a directory."
+		return 1
+	fi
+}
+
+run_rc_command "$1"

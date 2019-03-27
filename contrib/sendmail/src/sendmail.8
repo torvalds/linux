@@ -1,0 +1,756 @@
+.\" Copyright (c) 1998-2003 Proofpoint, Inc. and its suppliers.
+.\"      All rights reserved.
+.\" Copyright (c) 1983, 1997 Eric P. Allman.  All rights reserved.
+.\" Copyright (c) 1988, 1991, 1993
+.\"     The Regents of the University of California.  All rights reserved.
+.\"
+.\" By using this file, you agree to the terms and conditions set
+.\" forth in the LICENSE file which can be found at the top level of
+.\" the sendmail distribution.
+.\"
+.\"
+.\"     $Id: sendmail.8,v 8.61 2013-11-22 20:51:56 ca Exp $
+.\"
+.TH SENDMAIL 8 "$Date: 2013-11-22 20:51:56 $"
+.SH NAME
+sendmail
+\- an electronic mail transport agent
+.SH SYNOPSIS
+.B sendmail
+.RI [ flags "] [" "address ..." ]
+.br
+.B newaliases
+.br
+.B mailq
+.RB [ \-v ]
+.br
+.B hoststat
+.br
+.B purgestat
+.br
+.B smtpd
+.SH DESCRIPTION
+.B Sendmail
+sends a message to one or more
+.I recipients,
+routing the message over whatever networks 
+are necessary.
+.B Sendmail
+does internetwork forwarding as necessary 
+to deliver the message to the correct place.
+.PP
+.B Sendmail
+is not intended as a user interface routine; 
+other programs provide user-friendly 
+front ends;
+.B sendmail
+is used only to deliver pre-formatted messages.
+.PP
+With no flags,
+.B sendmail
+reads its standard input 
+up to an end-of-file 
+or a line consisting only of a single dot 
+and sends a copy of the message found there
+to all of the addresses listed.  
+It determines the network(s) to use 
+based on the syntax and contents of the addresses.
+.PP
+Local addresses are looked up in a file 
+and aliased appropriately.
+Aliasing can be prevented by preceding the address 
+with a backslash.
+Beginning with 8.10, the sender is included in any alias 
+expansions, e.g., 
+if `john' sends to `group', 
+and `group' includes `john' in the expansion, 
+then the letter will also be delivered to `john'.
+.SS Parameters
+.TP
+.B \-Ac
+Use submit.cf even if the operation mode does not indicate
+an initial mail submission.
+.TP
+.B \-Am
+Use sendmail.cf even if the operation mode indicates
+an initial mail submission.
+.TP
+.BI \-B type
+Set the body type to
+.IR type .
+Current legal values are 
+7BIT 
+or  
+8BITMIME.
+.TP
+.B \-ba
+Go into 
+ARPANET 
+mode.  All input lines must end with a CR-LF, 
+and all messages will be generated with a CR-LF at the end.  
+Also, 
+the ``From:'' and ``Sender:'' 
+fields are examined for the name of the sender.
+.TP
+.B \-bC
+Check the configuration file.
+.TP
+.B \-bd
+Run as a daemon.
+.B Sendmail
+will fork and run in background 
+listening on socket 25 for incoming
+SMTP 
+connections.  
+This is normally run from 
+/etc/rc.
+.TP
+.B \-bD
+Same as
+.B \-bd
+except runs in foreground.
+.TP
+.B \-bh
+Print the persistent host status database.
+.TP
+.B \-bH
+Purge expired entries from the persistent host status database.
+.TP
+.B \-bi
+Initialize the alias database.
+.TP
+.B \-bm
+Deliver mail in the usual way (default).
+.TP
+.B \-bp
+Print a listing of the queue(s).
+.TP
+.B \-bP
+Print number of entries in the queue(s);
+only available with shared memory support.
+.TP
+.B \-bs
+Use the 
+SMTP 
+protocol as described in 
+RFC821 
+on standard input and output.  
+This flag implies all the operations of the
+.B \-ba
+flag that are compatible with 
+SMTP.
+.TP
+.B \-bt
+Run in address test mode.  
+This mode reads addresses and shows the steps in parsing; 
+it is used for debugging configuration tables.
+.TP
+.B \-bv
+Verify names only \- do not try to collect or deliver a message.
+Verify mode is normally used for validating 
+users or mailing lists.
+.TP
+.BI \-C file
+Use alternate configuration file.
+.B Sendmail
+gives up any enhanced (set-user-ID or set-group-ID) privileges
+if an alternate configuration file is specified.
+.TP
+.BI "\-D " logfile
+Send debugging output to the indicated log file instead of stdout.
+.TP
+.BI \-d category . level...
+Set the debugging flag for
+.I category
+to
+.IR level .
+.I Category
+is either an integer or a name specifying the topic, and
+.I level
+an integer specifying the level of debugging output desired.
+Higher levels generally mean more output.
+More than one flag can be specified by separating them with commas.
+A list of numeric debugging categories can be found in the TRACEFLAGS file
+in the sendmail source distribution.
+.br
+The option
+.B \-d0.1
+prints the version of
+.B sendmail
+and the options it was compiled with.
+.br
+Most other categories are only useful with, and documented in,
+.BR sendmail 's
+source code.
+.ne 1i
+.TP
+.BI \-F fullname
+Set the full name of the sender.
+.TP
+.BI \-f name
+Sets the name of the ``from'' person 
+(i.e., the envelope sender of the mail).
+This address may also be used in the From: header
+if that header is missing during initial submission.
+The envelope sender address is used as the recipient
+for delivery status notifications
+and may also appear in a Return-Path: header.
+.B \-f
+should only be used 
+by ``trusted'' users 
+(normally
+.IR root ", " daemon ,
+and
+.IR network )
+or if the person you are trying to become 
+is the same as the person you are.
+Otherwise,
+an X-Authentication-Warning header
+will be added to the message.
+.TP
+.BI \-G
+Relay (gateway) submission of a message,
+e.g., when
+.BR rmail
+calls
+.B sendmail .
+.TP
+.BI \-h N
+Set the hop count to
+.IR N .
+The hop count is incremented every time the mail is 
+processed.
+When it reaches a limit, 
+the mail is returned with an error message,
+the victim of an aliasing loop.  
+If not specified, 
+``Received:'' lines in the message are counted.
+.TP
+.B \-i
+Do not strip a leading dot from lines in incoming messages,
+and do not treat a dot on a line by itself
+as the end of an incoming message.
+This should be set if you are reading data from a file.
+.TP
+.BI "\-L " tag
+Set the identifier used in syslog messages to the supplied
+.IR tag .
+.TP
+.BI "\-N " dsn
+Set delivery status notification conditions to
+.IR dsn ,
+which can be 
+`never' 
+for no notifications 
+or a comma separated list of the values 
+`failure' 
+to be notified if delivery failed, 
+`delay'
+to be notified if delivery is delayed, and 
+`success' 
+to be notified when the message is successfully delivered.
+.TP
+.B \-n
+Don't do aliasing.
+.TP
+\fB\-O\fP \fIoption\fR=\fIvalue\fR 
+Set option
+.I option
+to the specified
+.IR value .
+This form uses long names.  See below for more details.
+.TP
+.BI \-o "x value"
+Set option
+.I x
+to the specified
+.IR value .
+This form uses single character names only.  
+The short names are not described in this manual page; 
+see the
+.I "Sendmail Installation and Operation Guide"
+for details.
+.TP
+.BI \-p protocol
+Set the name of the protocol used to receive the message.  
+This can be a simple protocol name such as ``UUCP'' 
+or a protocol and hostname, such as ``UUCP:ucbvax''.
+.TP
+\fB\-q\fR[\fItime\fR] 
+Process saved messages in the queue at given intervals.  
+If
+.I time
+is omitted, process the queue once.
+.I Time
+is given as a tagged number, 
+with 
+`s' 
+being seconds, 
+`m' 
+being minutes (default), 
+`h' 
+being hours, 
+`d' 
+being days, 
+and 
+`w' 
+being weeks.
+For example, 
+`\-q1h30m' 
+or 
+`\-q90m' 
+would both set the timeout to one hour thirty minutes.
+By default,
+.B sendmail
+will run in the background.
+This option can be used safely with
+.BR \-bd .
+.TP
+\fB\-qp\fR[\fItime\fR] 
+Similar to \fB\-q\fItime\fR,
+except that instead of periodically forking a child to process the queue,
+sendmail forks a single persistent child for each queue
+that alternates between processing the queue and sleeping.
+The sleep time is given as the argument; it defaults to 1 second.
+The process will always sleep at least 5 seconds if the queue was
+empty in the previous queue run.
+.TP
+\fB\-q\fRf
+Process saved messages in the queue once and do not fork(),
+but run in the foreground.
+.TP
+\fB\-q\fRG\fIname\fR
+Process jobs in queue group called
+.I name
+only.
+.TP
+\fB\-q\fR[\fI!\fR]I\fIsubstr\fR
+Limit processed jobs to those containing
+.I substr
+as a substring of the queue id or not when
+.I !
+is specified.
+.TP
+\fB\-q\fR[\fI!\fR]Q\fIsubstr\fR
+Limit processed jobs to quarantined jobs containing
+.I substr
+as a substring of the quarantine reason or not when
+.I !
+is specified.
+.TP
+\fB\-q\fR[\fI!\fR]R\fIsubstr\fR
+Limit processed jobs to those containing
+.I substr
+as a substring of one of the recipients or not when
+.I !
+is specified.
+.TP
+\fB\-q\fR[\fI!\fR]S\fIsubstr\fR
+Limit processed jobs to those containing
+.I substr
+as a substring of the sender or not when
+.I !
+is specified.
+.TP
+\fB\-Q\fR[reason]
+Quarantine a normal queue items with the given reason or
+unquarantine quarantined queue items if no reason is given.
+This should only be used with some sort of item matching using
+as described above.
+.TP
+.BI "\-R " return
+Set the amount of the message to be returned 
+if the message bounces.
+The
+.I return
+parameter can be 
+`full' 
+to return the entire message or 
+`hdrs' 
+to return only the headers.  
+In the latter case also local bounces return only the headers.
+.TP
+.BI \-r name
+An alternate and obsolete form of the
+.B \-f
+flag.
+.TP
+.B \-t
+Read message for recipients.  
+To:, Cc:, and Bcc: lines will be scanned for recipient addresses.  
+The Bcc: line will be deleted before transmission.
+.TP
+.BI "\-V " envid
+Set the original envelope id.  
+This is propagated across SMTP to servers that support DSNs 
+and is returned in DSN-compliant error messages.
+.TP
+.B \-v
+Go into verbose mode.  
+Alias expansions will be announced, etc.
+.TP
+.BI "\-X " logfile
+Log all traffic in and out of mailers in the indicated log file.
+This should only be used as a last resort 
+for debugging mailer bugs.  
+It will log a lot of data very quickly.
+.TP
+.B \-\-
+Stop processing command flags and use the rest of the arguments as
+addresses.
+.SS Options
+There are also a number of processing options that may be set.
+Normally these will only be used by a system administrator.  
+Options may be set either on the command line 
+using the
+.B \-o
+flag (for short names), the
+.B \-O
+flag (for long names), 
+or in the configuration file.  
+This is a partial list limited to those options that are likely to be useful
+on the command line 
+and only shows the long names; 
+for a complete list (and details), consult the
+.IR "Sendmail Installation and Operation Guide" .
+The options are:
+.TP
+.RI AliasFile= file
+Use alternate alias file.
+.TP
+HoldExpensive 
+On mailers that are considered ``expensive'' to connect to, 
+don't initiate immediate connection.  
+This requires queueing.
+.TP
+.RI CheckpointInterval= N
+Checkpoint the queue file after every
+.I N
+successful deliveries (default 10).  
+This avoids excessive duplicate deliveries 
+when sending to long mailing lists 
+interrupted by system crashes.
+.ne 1i
+.TP
+.RI DeliveryMode= x
+Set the delivery mode to
+.IR x .
+Delivery modes are 
+`i' 
+for interactive (synchronous) delivery, 
+`b'
+for background (asynchronous) delivery, 
+`q' 
+for queue only \- i.e.,
+actual delivery is done the next time the queue is run, and 
+`d'
+for deferred \- the same as 
+`q' 
+except that database lookups for maps which have set the \-D option
+(default for the host map) are avoided.
+.TP
+.RI ErrorMode= x
+Set error processing to mode
+.IR x .
+Valid modes are 
+`m' 
+to mail back the error message, 
+`w' 
+to ``write''
+back the error message 
+(or mail it back if the sender is not logged in), 
+`p' 
+to print the errors on the terminal 
+(default), 
+`q' 
+to throw away error messages 
+(only exit status is returned), 
+and 
+`e'
+to do special processing for the BerkNet.  
+If the text of the message is not mailed back 
+by 
+modes
+`m'
+or
+`w'
+and if the sender is local to this machine, 
+a copy of the message is appended to the file
+.I dead.letter
+in the sender's home directory.
+.TP
+SaveFromLine
+Save
+UNIX-style
+From lines at the front of messages.
+.TP
+.RI MaxHopCount= N
+The maximum number of times a message is allowed to ``hop'' 
+before we decide it is in a loop.
+.TP
+IgnoreDots
+Do not take dots on a line by themselves 
+as a message terminator.
+.TP
+SendMimeErrors
+Send error messages in MIME format.  
+If not set, the DSN (Delivery Status Notification) SMTP extension 
+is disabled.
+.TP
+.RI ConnectionCacheTimeout= timeout
+Set connection cache timeout.
+.TP
+.RI ConnectionCacheSize= N
+Set connection cache size.
+.TP
+.RI LogLevel= n
+The log level.
+.TP
+.RI MeToo= False
+Don't send to ``me'' (the sender) if I am in an alias expansion.
+.TP
+CheckAliases
+Validate the right hand side of aliases during a
+newaliases(1)
+command.
+.TP
+OldStyleHeaders
+If set, this message may have 
+old style headers.  
+If not set, 
+this message is guaranteed to have new style headers 
+(i.e., commas instead of spaces between addresses).  
+If set, an adaptive algorithm is used that will correctly 
+determine the header format in most cases.
+.TP
+.RI QueueDirectory= queuedir
+Select the directory in which to queue messages.
+.TP
+.RI StatusFile= file
+Save statistics in the named file.
+.TP
+.RI Timeout.queuereturn= time
+Set the timeout on undelivered messages in the queue to the specified time.  
+After delivery has failed 
+(e.g., because of a host being down) 
+for this amount of time, 
+failed messages will be returned to the sender.  
+The default is five days.
+.TP
+.RI UserDatabaseSpec= userdatabase
+If set, a user database is consulted to get forwarding information.
+You can consider this an adjunct to the aliasing mechanism, 
+except that the database is intended to be distributed; 
+aliases are local to a particular host.  
+This may not be available if your sendmail does not have the
+USERDB
+option compiled in.
+.TP
+ForkEachJob
+Fork each job during queue runs.  
+May be convenient on memory-poor machines.
+.TP
+SevenBitInput
+Strip incoming messages to seven bits.
+.TP
+.RI EightBitMode= mode
+Set the handling of eight bit input to seven bit destinations to
+.IR mode :
+m
+(mimefy) will convert to seven-bit MIME format,
+p
+(pass) will pass it as eight bits (but violates protocols), 
+and
+s
+(strict) will bounce the message.
+.TP
+.RI MinQueueAge= timeout
+Sets how long a job must ferment in the queue between attempts to send it.
+.TP
+.RI DefaultCharSet= charset
+Sets the default character set used to label 8-bit data 
+that is not otherwise labelled.
+.TP
+.RI DialDelay= sleeptime
+If opening a connection fails, 
+sleep for
+.I sleeptime
+seconds and try again.  
+Useful on dial-on-demand sites.
+.TP
+.RI NoRecipientAction= action
+Set the behaviour when there are no recipient headers (To:, Cc: or
+Bcc:) in the message to
+.IR action :
+none
+leaves the message unchanged,
+add-to
+adds a To: header with the envelope recipients,
+add-apparently-to
+adds an Apparently-To: header with the envelope recipients,
+add-bcc
+adds an empty Bcc: header, and
+add-to-undisclosed
+adds a header reading
+`To: undisclosed-recipients:;'.
+.TP
+.RI MaxDaemonChildren= N
+Sets the maximum number of children that an incoming SMTP daemon
+will allow to spawn at any time to
+.IR N .
+.TP
+.RI ConnectionRateThrottle= N
+Sets the maximum number of connections per second to the SMTP port to
+.IR N .
+.PP
+In aliases, 
+the first character of a name may be 
+a vertical bar to cause interpretation of 
+the rest of the name as a command 
+to pipe the mail to.  
+It may be necessary to quote the name 
+to keep
+.B sendmail
+from suppressing the blanks from between arguments. 
+For example, a common alias is:
+.IP
+msgs: "|/usr/bin/msgs -s"
+.PP
+Aliases may also have the syntax
+.RI ``:include: filename ''
+to ask
+.B sendmail
+to read the named file for a list of recipients.  
+For example, an alias such as:
+.IP
+poets: ":include:/usr/local/lib/poets.list"
+.PP
+would read
+.I /usr/local/lib/poets.list
+for the list of addresses making up the group.
+.PP
+.B Sendmail
+returns an exit status 
+describing what it did.  
+The codes are defined in
+.RI < sysexits.h >:
+.TP
+EX_OK
+Successful completion on all addresses.
+.TP
+EX_NOUSER
+User name not recognized.
+.TP
+EX_UNAVAILABLE
+Catchall meaning necessary resources 
+were not available.
+.TP
+EX_SYNTAX
+Syntax error in address.
+.TP
+EX_SOFTWARE
+Internal software error, 
+including bad arguments.
+.TP
+EX_OSERR
+Temporary operating system error, 
+such as
+``cannot fork''.
+.TP
+EX_NOHOST
+Host name not recognized.
+.TP
+EX_TEMPFAIL
+Message could not be sent immediately, 
+but was queued.
+.PP
+If invoked as
+.BR newaliases ,
+.B sendmail
+will rebuild the alias database.  If invoked as
+.BR mailq ,
+.B sendmail
+will print the contents of the mail queue.
+If invoked as
+.BR hoststat ,
+.B sendmail
+will print the persistent host status database.
+If invoked as
+.BR purgestat ,
+.B sendmail
+will purge expired entries from the persistent host status database.
+If invoked as
+.BR smtpd ,
+.B sendmail
+will act as a daemon, as if the
+.B \-bd
+option were specified.
+.SH NOTES
+.B sendmail
+often gets blamed for many problems
+that are actually the result of other problems,
+such as overly permissive modes on directories.
+For this reason,
+.B sendmail
+checks the modes on system directories and files
+to determine if they can be trusted.
+Although these checks can be turned off
+and your system security reduced by setting the
+.BR DontBlameSendmail
+option,
+the permission problems should be fixed.
+For more information, see:
+
+.I http://www.sendmail.org/tips/DontBlameSendmail.html
+.SH FILES
+Except for the file
+.I /etc/mail/sendmail.cf
+itself the following pathnames are all specified in
+.IR /etc/mail/sendmail.cf .
+Thus, 
+these values are only approximations.
+.PP
+.TP
+ /etc/mail/aliases
+raw data for alias names
+.TP
+ /etc/mail/aliases.db
+data base of alias names
+.TP
+ /etc/mail/sendmail.cf
+configuration file
+.TP
+ /etc/mail/helpfile
+help file
+.TP
+ /etc/mail/statistics
+collected statistics
+.TP
+ /var/spool/mqueue/*
+temp files
+.SH SEE ALSO
+mail(1),
+syslog(3),
+aliases(5),
+mailaddr(7),
+mail.local(8),
+rc(8),
+rmail(8)
+.PP
+DARPA 
+Internet Request For Comments
+.IR RFC819 ,
+.IR RFC821 ,
+.IR RFC822 .
+.IR "Sendmail Installation and Operation Guide" ,
+No. 8, SMM.
+.PP
+http://www.sendmail.org/
+.PP
+US Patent Numbers 6865671, 6986037.
+.SH HISTORY
+The
+.B sendmail
+command appeared in
+4.2BSD.
+.\" $FreeBSD$

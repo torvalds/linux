@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+arm/mv/armadaxp/armadaxp.c	standard
+arm/mv/mpic.c			standard
+arm/mv/rtc.c			standard
+arm/mv/armadaxp/armadaxp_mp.c	optional smp
+arm/mv/armadaxp/mptramp.S	optional smp
+

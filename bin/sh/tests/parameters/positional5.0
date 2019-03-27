@@ -1,0 +1,14 @@
+# $FreeBSD$
+
+i=1
+r=0
+while [ $i -lt $((0x100000000)) ]; do
+	t=
+	eval t=\${$i-x}
+	case $t in
+	x) ;;
+	*) echo "Problem with \${$i}" >&2; r=1 ;;
+	esac
+	i=$((i + 0x10000000))
+done
+exit $r

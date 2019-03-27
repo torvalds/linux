@@ -1,0 +1,150 @@
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2014 Baptiste Daroussin <bapt@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 28, 2018
+.Dt TIMEOUT 1
+.Os
+.Sh NAME
+.Nm timeout
+.Nd run a command with a time limit
+.Sh SYNOPSIS
+.Nm
+.Op Fl -signal Ar sig | Fl s Ar sig
+.Op Fl -preserve-status
+.Op Fl -kill-after Ar time | Fl k Ar time
+.Op Fl -foreground
+.Ar duration
+.Ar command
+.Op Ar args ...
+.Sh DESCRIPTION
+.Nm
+starts the
+.Ar command
+with its
+.Ar args .
+If the
+.Ar command
+is still running after
+.Ar duration ,
+it is killed.
+By default,
+.Dv SIGTERM
+is sent.
+The special
+.Ar duration ,
+zero, signifies no limit.
+Therefore a signal is never sent if
+.Ar duration
+is 0.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl -preserve-status
+Exit with the same status as
+.Ar command ,
+even if it times out and is killed.
+.It Fl -foreground
+Do not propagate timeout to the children of
+.Ar command .
+.It Fl s Ar sig , Fl -signal Ar sig
+Specify the signal to send on timeout.
+By default,
+.Dv SIGTERM
+is sent.
+.It Fl k Ar time , Fl -kill-after Ar time
+Send a
+.Dv SIGKILL
+signal if
+.Ar command
+is still running after
+.Ar time
+after the first signal was sent.
+.El
+.Sh DURATION FORMAT
+.Ar duration
+and
+.Ar time
+are non-negative integer or real (decimal) numbers, with an optional
+unit-specifying suffix.
+Values without an explicit unit are interpreted as seconds.
+.Pp
+Supported unit symbols are:
+.Bl -tag -width indent -compact
+.It Cm s
+seconds
+.It Cm m
+minutes
+.It Cm h
+hours
+.It Cm d
+days
+.El
+.Sh EXIT STATUS
+If the timeout was not reached, the exit status of
+.Ar command
+is returned.
+.Pp
+If the timeout was reached and
+.Fl -preserve-status
+is set, the exit status of
+.Ar command
+is returned.
+If
+.Fl -preserve-status
+is not set, an exit status of 124 is returned.
+.Pp
+If
+.Ar command
+exits after receiving a signal, the exit status returned is the signal number
+plus 128.
+.Pp
+If
+.Ar command
+refers to a non-existing program, the exit status returned is 127.
+.Pp
+If
+.Ar command
+is an otherwise invalid program, the exit status returned is 126.
+.Pp
+If an invalid parameter is passed to
+.Fl s
+or
+.Fl k ,
+the exit status returned is 125.
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr signal 3
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 10.3 .
+.Sh AUTHORS
+.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org
+and
+.An Vsevolod Stakhov Aq Mt vsevolod@FreeBSD.org

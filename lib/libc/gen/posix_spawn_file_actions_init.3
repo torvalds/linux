@@ -1,0 +1,104 @@
+.\" Copyright (c) 2008 Ed Schouten <ed@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Portions of this text are reprinted and reproduced in electronic form
+.\" from IEEE Std 1003.1, 2004 Edition, Standard for Information Technology --
+.\" Portable Operating System Interface (POSIX), The Open Group Base
+.\" Specifications Issue 6, Copyright (C) 2001-2004 by the Institute of
+.\" Electrical and Electronics Engineers, Inc and The Open Group.  In the
+.\" event of any discrepancy between this version and the original IEEE and
+.\" The Open Group Standard, the original IEEE and The Open Group Standard is
+.\" the referee document.  The original Standard can be obtained online at
+.\"	http://www.opengroup.org/unix/online.html.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 24, 2008
+.Dt POSIX_SPAWN_FILE_ACTIONS_INIT 3
+.Os
+.Sh NAME
+.Nm posix_spawn_file_actions_init ,
+.Nm posix_spawn_file_actions_destroy
+.Nd "initialize and destroy spawn file actions object"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In spawn.h
+.Ft int
+.Fn posix_spawn_file_actions_init "posix_spawn_file_actions_t * file_actions"
+.Ft int
+.Fn posix_spawn_file_actions_destroy "posix_spawn_file_actions_t * file_actions"
+.Sh DESCRIPTION
+The
+.Fn posix_spawn_file_actions_init
+function initialize the object referenced by
+.Fn file_actions
+to contain no file actions for
+.Fn posix_spawn
+or
+.Fn posix_spawnp .
+Initializing an already initialized spawn file actions object may cause
+memory to be leaked.
+.Pp
+The
+.Fn posix_spawn_file_actions_destroy
+function destroy the object referenced by
+.Fa file_actions ;
+the object becomes, in effect, uninitialized.
+A destroyed spawn file actions object can be reinitialized using
+.Fn posix_spawn_file_actions_init .
+The object should not be used after it has been destroyed.
+.Sh RETURN VALUES
+Upon successful completion, these functions return zero;
+otherwise, an error number is returned to indicate the error.
+.Sh ERRORS
+The
+.Fn posix_spawn_file_actions_init
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient memory exists to initialize the spawn file actions object.
+.El
+.Sh SEE ALSO
+.Xr posix_spawn 3 ,
+.Xr posix_spawn_file_actions_addclose 3 ,
+.Xr posix_spawn_file_actions_adddup2 3 ,
+.Xr posix_spawn_file_actions_addopen 3 ,
+.Xr posix_spawnp 3
+.Sh STANDARDS
+The
+.Fn posix_spawn_file_actions_init
+and
+.Fn posix_spawn_file_actions_destroy
+functions conform to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn posix_spawn_file_actions_init
+and
+.Fn posix_spawn_file_actions_destroy
+functions first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+.An \&Ed Schouten Aq Mt ed@FreeBSD.org

@@ -1,0 +1,129 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)table1	8.1 (Berkeley) 8/14/93
+.\"
+.\" $FreeBSD$
+.pn 30
+.rm mx
+.br
+.tr &&
+.tr ||
+.tr ~~
+.de aa
+.nf
+abcdefghijklmnopqrstuvwxyz
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+1234567890
+.ss 9
+! $ % & ( ) ` ' * + \- . , / : ; = ? [ ] |
+.fi
+\(bu \(sq \(em \(hy \(ru \(14 \(12 \(34 \(fi \(fl \(ff
+\(Fi \(Fl
+\(de \(dg \(fm
+\(ct \(rg \(co
+.ss 12
+..
+.de bb
+.ss 9
+.fi
+.ll 5i
+" \' \e ^ \_ \` ~ \(sl < > { } # @ \(pl \(mi \(eq \(**
+.br
+\(*a \(*b \(*g \(*d \(*e \(*z \(*y \(*h \(*i \(*k \(*l \(*m
+\(*n \(*c \(*o \(*p \(*r \(*s \(ts \(*t \(*u \(*f \(*x \(*q \(*w
+.br
+\(*G \(*D \(*H \(*L \(*C \(*P \(*S \(*U \(*F \(*Q \(*W
+.br
+\(sr \(rn \(>= \(<= \(== \(ap \(~= \(!=
+\(-> \(<- \(ua \(da \(mu
+\(di \(+- \(cu \(ca \(sb \(sp \(ib \(ip \(if \(pd
+.br
+\(sc \(gr \(no \(is \(pt \(es \(mo
+\(dd \(rh \(lh \(or \(ci
+\(lt \(lb \(rt \(rb \(lk \(rk \(bv \(lf \(rf \(lc \(rc
+\(br
+.br
+.ss 12
+.nf
+..
+.nf
+.ps 12
+.vs 14p
+.ft B
+.ce
+.sp 3
+Table I
+.sp
+.ce
+Font Style Examples
+.sp .5i
+.ft R
+.ps 10
+.fi
+.vs 12p
+.na
+The following fonts are printed in 12-point, with a vertical spacing of 14-point,
+and with
+non-alphanumeric characters separated by \(14\|em space (all measurements
+on 8.5 \(mu 11 inch paper prior to photoreduction).
+This font sample is printed on an Apple Laserwriter
+at University of California, Berkeley.
+.sp .5i
+.ps 12
+.vs 14p
+.ft R
+Times Roman
+.sp .5
+.aa
+.sp
+.ft I
+Times Italic
+.sp .5
+.aa
+.sp
+.ft B
+Times Bold
+.sp .5
+.aa
+.sp
+.ft R
+Special Mathematical Font
+.sp .5
+.fi
+.ll 5i
+.bb
+.bp

@@ -1,0 +1,225 @@
+.\"
+.\" Copyright 2000 Massachusetts Institute of Technology
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby
+.\" granted, provided that both the above copyright notice and this
+.\" permission notice appear in all copies, that both the above
+.\" copyright notice and this permission notice appear in all
+.\" supporting documentation, and that the name of M.I.T. not be used
+.\" in advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.  M.I.T. makes
+.\" no representations about the suitability of this software for any
+.\" purpose.  It is provided "as is" without express or implied
+.\" warranty.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
+.\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT
+.\" SHALL M.I.T. BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 15, 2017
+.Dt GETCONF 1
+.Os
+.Sh NAME
+.Nm getconf
+.Nd retrieve standard configuration variables
+.Sh SYNOPSIS
+.Nm
+.Fl a
+.Op Ar file
+.Nm
+.Op Fl v Ar environment
+.Ar path_var
+.Ar file
+.Nm
+.Op Fl v Ar environment
+.Ar system_var
+.Sh DESCRIPTION
+The
+.Nm
+utility prints the values of
+.Tn POSIX
+or
+.Tn X/Open
+path or system configuration variables to the standard output.
+If a variable is undefined, the string
+.Dq Li undefined
+is output.
+.Pp
+The first form of the command displays all of the path or system configuration
+variables to standard output.
+If
+.Ar file
+is provided,
+all path configuration variables are reported for
+.Ar file
+using
+.Xr pathconf 2 .
+Otherwise,
+all system configuration variables are reported using
+.Xr confstr 3
+and
+.Xr sysconf 3 .
+.Pp
+The second form of the command, with two mandatory
+arguments, retrieves file- and file system-specific
+configuration variables using
+.Xr pathconf 2 .
+The third form, with a single argument, retrieves system
+configuration variables using
+.Xr confstr 3
+and
+.Xr sysconf 3 ,
+depending on the type of variable.
+As an extension, the second form can also be used to query static limits from
+.In limits.h .
+.Pp
+All
+.Xr sysconf 3
+and
+.Xr pathconf 2
+variables use the same name as the manifest constants defined in
+the relevant standard C-language bindings, including any leading
+underscore or prefix.
+That is to say,
+.Ar system_var
+might be
+.Dv ARG_MAX
+or
+.Dv _POSIX_VERSION ,
+as opposed to the
+.Xr sysconf 3
+names
+.Dv _SC_ARG_MAX
+or
+.Dv _SC_POSIX_VERSION .
+Variables retrieved from
+.Xr confstr 3
+have the leading
+.Ql _CS_
+stripped off; thus,
+.Dv _CS_PATH
+is queried by a
+.Ar system_var
+of
+.Dq Li PATH .
+.Ss Programming Environments
+The
+.Fl v Ar environment
+option specifies a
+.St -p1003.1-2001
+programming environment under which the values are to be queried.
+This option currently does nothing, but may in the future be used
+to select between 32-bit and 64-bit execution environments on platforms
+which support both.
+Specifying an environment which is not supported on the current execution
+platform gives undefined results.
+.Pp
+The standard programming environments are as follows:
+.Bl -tag -width ".Li POSIX_V6_LPBIG_OFFBIG" -offset indent
+.It Li POSIX_V6_ILP32_OFF32
+Exactly 32-bit integer, long, pointer, and file offset.
+.Sy Supported platforms :
+None.
+.It Li POSIX_V6_ILP32_OFFBIG
+Exactly 32-bit integer, long, and pointer; at least 64-bit file offset.
+.Sy Supported platforms :
+.Tn IA32 ,
+.Tn PowerPC .
+.It Li POSIX_V6_LP64_OFF64
+Exactly 32-bit integer; exactly 64-bit long, pointer, and file offset.
+.Sy Supported platforms :
+.Tn AMD64 ,
+.Tn SPARC64 .
+.It Li POSIX_V6_LPBIG_OFFBIG
+At least 32-bit integer; at least 64-bit long, pointer, and file offset.
+.Sy Supported platforms :
+None.
+.El
+.Pp
+The command:
+.Pp
+.Dl "getconf POSIX_V6_WIDTH_RESTRICTED_ENVS"
+.Pp
+returns a newline-separated list of environments in which the width
+of certain fundamental types is no greater than the width of the native
+C type
+.Vt long .
+At present, all programming environments supported by
+.Fx
+have this property.
+Several of the
+.Xr confstr 3
+variables provide information on the necessary compiler and linker flags
+to use the standard programming environments described above.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+The command:
+.Pp
+.Dl "getconf PATH"
+.Pp
+will display the system default setting for the
+.Ev PATH
+environment variable.
+.Pp
+The command:
+.Pp
+.Dl "getconf NAME_MAX /tmp"
+.Pp
+will display the maximum length of a filename in the
+.Pa /tmp
+directory.
+.Pp
+The command:
+.Pp
+.Dl "getconf -v POSIX_V6_LPBIG_OFFBIG LONG_MAX"
+.Pp
+will display the maximum value of the C type
+.Vt long
+in the
+.Li POSIX_V6_LPBIG_OFFBIG
+programming environment,
+if the system supports that environment.
+.Sh DIAGNOSTICS
+Use of a
+.Ar system_var
+or
+.Ar path_var
+which is completely unrecognized is considered an error,
+causing a diagnostic message to be written to standard error.
+One
+which is known but merely undefined does not result in an error
+indication.
+The
+.Nm
+utility recognizes all of the variables defined for
+.St -p1003.1-2001 ,
+including those which are not currently implemented.
+.Sh SEE ALSO
+.Xr pathconf 2 ,
+.Xr confstr 3 ,
+.Xr sysconf 3
+.Sh STANDARDS
+The
+.Nm
+utility is expected to be compliant with
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Garrett A. Wollman Aq Mt wollman@lcs.mit.edu

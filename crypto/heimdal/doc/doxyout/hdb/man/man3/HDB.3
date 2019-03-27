@@ -1,0 +1,185 @@
+.TH "HDB" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalhdblibrary" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+HDB \- 
+.SH SYNOPSIS
+.br
+.PP
+\fC#include <hdb.h>\fP
+.PP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "char * \fBhdb_name\fP"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_open\fP )(krb5_context, struct \fBHDB\fP *, int, mode_t)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_close\fP )(krb5_context, struct \fBHDB\fP *)"
+.br
+.ti -1c
+.RI "void(* \fBhdb_free\fP )(krb5_context, struct \fBHDB\fP *, \fBhdb_entry_ex\fP *)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_fetch_kvno\fP )(krb5_context, struct \fBHDB\fP *, krb5_const_principal, unsigned, krb5_kvno, \fBhdb_entry_ex\fP *)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_store\fP )(krb5_context, struct \fBHDB\fP *, unsigned, \fBhdb_entry_ex\fP *)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_remove\fP )(krb5_context, struct \fBHDB\fP *, krb5_const_principal)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_firstkey\fP )(krb5_context, struct \fBHDB\fP *, unsigned, \fBhdb_entry_ex\fP *)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_nextkey\fP )(krb5_context, struct \fBHDB\fP *, unsigned, \fBhdb_entry_ex\fP *)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_lock\fP )(krb5_context, struct \fBHDB\fP *, int)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_unlock\fP )(krb5_context, struct \fBHDB\fP *)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_rename\fP )(krb5_context, struct \fBHDB\fP *, const char *)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb__get\fP )(krb5_context, struct \fBHDB\fP *, krb5_data, krb5_data *)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb__put\fP )(krb5_context, struct \fBHDB\fP *, int, krb5_data, krb5_data)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb__del\fP )(krb5_context, struct \fBHDB\fP *, krb5_data)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_destroy\fP )(krb5_context, struct \fBHDB\fP *)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_get_realms\fP )(krb5_context, struct \fBHDB\fP *, krb5_realm **)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_password\fP )(krb5_context, struct \fBHDB\fP *, \fBhdb_entry_ex\fP *, const char *, int)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_auth_status\fP )(krb5_context, struct \fBHDB\fP *, \fBhdb_entry_ex\fP *, int)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_check_constrained_delegation\fP )(krb5_context, struct \fBHDB\fP *, \fBhdb_entry_ex\fP *, krb5_const_principal)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_check_pkinit_ms_upn_match\fP )(krb5_context, struct \fBHDB\fP *, \fBhdb_entry_ex\fP *, krb5_const_principal)"
+.br
+.ti -1c
+.RI "krb5_error_code(* \fBhdb_check_s4u2self\fP )(krb5_context, struct \fBHDB\fP *, \fBhdb_entry_ex\fP *, krb5_const_principal)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+\fBHDB\fP backend function pointer structure
+.PP
+The \fBHDB\fP structure is what the KDC and kadmind framework uses to query the backend database when talking about principals. 
+.SH "Field Documentation"
+.PP 
+.SS "char* \fBHDB::hdb_name\fP"
+.PP
+don't use, only for DB3 
+.SS "krb5_error_code(* \fBHDB::hdb_open\fP)(krb5_context, struct \fBHDB\fP *, int, mode_t)"
+.PP
+Open (or create) the a Kerberos database.
+.PP
+Open (or create) the a Kerberos database that was resolved with hdb_create(). The third and fourth flag to the function are the same as open(), thus passing O_CREAT will create the data base if it doesn't exists.
+.PP
+Then done the caller should call \fBhdb_close()\fP, and to release all resources \fBhdb_destroy()\fP. 
+.SS "krb5_error_code(* \fBHDB::hdb_close\fP)(krb5_context, struct \fBHDB\fP *)"
+.PP
+Close the database for transaction
+.PP
+Closes the database for further transactions, wont release any permanant resources. the database can be ->hdb_open-ed again. 
+.SS "void(* \fBHDB::hdb_free\fP)(krb5_context, struct \fBHDB\fP *, \fBhdb_entry_ex\fP *)"
+.PP
+Free an entry after use. 
+.SS "krb5_error_code(* \fBHDB::hdb_fetch_kvno\fP)(krb5_context, struct \fBHDB\fP *, krb5_const_principal, unsigned, krb5_kvno, \fBhdb_entry_ex\fP *)"
+.PP
+Fetch an entry from the backend
+.PP
+Fetch an entry from the backend, flags are what type of entry should be fetch: client, server, krbtgt. knvo (if specified and flags HDB_F_KVNO_SPECIFIED set) is the kvno to get 
+.SS "krb5_error_code(* \fBHDB::hdb_store\fP)(krb5_context, struct \fBHDB\fP *, unsigned, \fBhdb_entry_ex\fP *)"
+.PP
+Store an entry to database 
+.SS "krb5_error_code(* \fBHDB::hdb_remove\fP)(krb5_context, struct \fBHDB\fP *, krb5_const_principal)"
+.PP
+Remove an entry from the database. 
+.SS "krb5_error_code(* \fBHDB::hdb_firstkey\fP)(krb5_context, struct \fBHDB\fP *, unsigned, \fBhdb_entry_ex\fP *)"
+.PP
+As part of iteration, fetch one entry 
+.SS "krb5_error_code(* \fBHDB::hdb_nextkey\fP)(krb5_context, struct \fBHDB\fP *, unsigned, \fBhdb_entry_ex\fP *)"
+.PP
+As part of iteration, fetch next entry 
+.SS "krb5_error_code(* \fBHDB::hdb_lock\fP)(krb5_context, struct \fBHDB\fP *, int)"
+.PP
+Lock database
+.PP
+A lock can only be held by one consumers. Transaction can still happen on the database while the lock is held, so the entry is only useful for syncroning creation of the database and renaming of the database. 
+.SS "krb5_error_code(* \fBHDB::hdb_unlock\fP)(krb5_context, struct \fBHDB\fP *)"
+.PP
+Unlock database 
+.SS "krb5_error_code(* \fBHDB::hdb_rename\fP)(krb5_context, struct \fBHDB\fP *, const char *)"
+.PP
+Rename the data base.
+.PP
+Assume that the database is not hdb_open'ed and not locked. 
+.SS "krb5_error_code(* \fBHDB::hdb__get\fP)(krb5_context, struct \fBHDB\fP *, krb5_data, krb5_data *)"
+.PP
+Get an hdb_entry from a classical DB backend
+.PP
+If the database is a classical DB (ie BDB, NDBM, GDBM, etc) backend, this function will take a principal key (krb5_data) and return all data related to principal in the return krb5_data. The returned encoded entry is of type hdb_entry or hdb_entry_alias. 
+.SS "krb5_error_code(* \fBHDB::hdb__put\fP)(krb5_context, struct \fBHDB\fP *, int, krb5_data, krb5_data)"
+.PP
+Store an hdb_entry from a classical DB backend
+.PP
+Same discussion as in \fBHDB::hdb__get\fP 
+.SS "krb5_error_code(* \fBHDB::hdb__del\fP)(krb5_context, struct \fBHDB\fP *, krb5_data)"
+.PP
+Delete and hdb_entry from a classical DB backend
+.PP
+Same discussion as in \fBHDB::hdb__get\fP 
+.SS "krb5_error_code(* \fBHDB::hdb_destroy\fP)(krb5_context, struct \fBHDB\fP *)"
+.PP
+Destroy the handle to the database.
+.PP
+Destroy the handle to the database, deallocate all memory and related resources. Does not remove any permanent data. Its the logical reverse of hdb_create() function that is the entry point for the module. 
+.SS "krb5_error_code(* \fBHDB::hdb_get_realms\fP)(krb5_context, struct \fBHDB\fP *, krb5_realm **)"
+.PP
+Get the list of realms this backend handles. This call is optional to support. The returned realms are used for announcing the realms over bonjour. Free returned array with krb5_free_host_realm(). 
+.SS "krb5_error_code(* \fBHDB::hdb_password\fP)(krb5_context, struct \fBHDB\fP *, \fBhdb_entry_ex\fP *, const char *, int)"
+.PP
+Change password.
+.PP
+Will update keys for the entry when given password. The new keys must be written into the entry and will then later be ->\fBhdb_store()\fP into the database. The backend will still perform all other operations, increasing the kvno, and update modification timestamp.
+.PP
+The backend needs to call _kadm5_set_keys() and perform password quality checks. 
+.SS "krb5_error_code(* \fBHDB::hdb_auth_status\fP)(krb5_context, struct \fBHDB\fP *, \fBhdb_entry_ex\fP *, int)"
+.PP
+Auth feedback
+.PP
+This is a feedback call that allows backends that provides lockout functionality to register failure and/or successes.
+.PP
+In case the entry is locked out, the backend should set the hdb_entry.flags.locked-out flag. 
+.SS "krb5_error_code(* \fBHDB::hdb_check_constrained_delegation\fP)(krb5_context, struct \fBHDB\fP *, \fBhdb_entry_ex\fP *, krb5_const_principal)"
+.PP
+Check if delegation is allowed. 
+.SS "krb5_error_code(* \fBHDB::hdb_check_pkinit_ms_upn_match\fP)(krb5_context, struct \fBHDB\fP *, \fBhdb_entry_ex\fP *, krb5_const_principal)"
+.PP
+Check if this name is an alias for the supplied client for PKINIT userPrinicpalName logins 
+.SS "krb5_error_code(* \fBHDB::hdb_check_s4u2self\fP)(krb5_context, struct \fBHDB\fP *, \fBhdb_entry_ex\fP *, krb5_const_principal)"
+.PP
+Check if s4u2self is allowed from this client to this server 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for Heimdalhdblibrary from the source code.

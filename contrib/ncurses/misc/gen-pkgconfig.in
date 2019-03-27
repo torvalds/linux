@@ -1,0 +1,125 @@
+#!@SHELL@
+# $Id: gen-pkgconfig.in,v 1.16 2014/01/18 20:21:45 tom Exp $
+##############################################################################
+# Copyright (c) 2009-2013,2014 Free Software Foundation, Inc.                #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+# Author: Thomas E. Dickey
+#
+# The complete configure script for ncurses is the ncurses5-config (or similar
+# name, depending on the flavor, e.g., ncursesw5-config, ncurses6-config, etc).
+# That provides more information than pkg-config, and is the portable and
+# recommended solution.
+#
+# For each library, generate a ".pc" file which depends on the base ncurses
+# library, except that the tinfo library does not depend on ncurses.
+LIB_NAME=@LIB_NAME@
+TINFO_NAME=@TINFO_NAME@
+PANEL_NAME=@PANEL_NAME@
+MENU_NAME=@MENU_NAME@
+FORM_NAME=@FORM_NAME@
+CXX_NAME=@CXX_NAME@
+DFT_DEP_SUFFIX=@DFT_DEP_SUFFIX@
+TINFO_ARG_SUFFIX=@TINFO_ARG_SUFFIX@
+CXX_LIB_SUFFIX=@CXX_LIB_SUFFIX@
+
+prefix="@prefix@"
+exec_prefix="@exec_prefix@"
+includedir="@includedir@@includesubdir@"
+libdir="@libdir@"
+
+show_prefix='@prefix@'
+show_exec_prefix='@exec_prefix@'
+show_includedir='@includedir@@includesubdir@'
+show_libdir='@libdir@'
+
+MAIN_LIBRARY="${LIB_NAME}@DFT_ARG_SUFFIX@"
+SUB_LIBRARY="${TINFO_ARG_SUFFIX}"
+PANEL_LIBRARY="${PANEL_NAME}@DFT_ARG_SUFFIX@"
+MENU_LIBRARY="${MENU_NAME}@DFT_ARG_SUFFIX@"
+FORM_LIBRARY="${FORM_NAME}@DFT_ARG_SUFFIX@"
+
+if test "$includedir" = "/usr/include" ; then
+	CFLAGS=
+else
+	CFLAGS="-I\${includedir}"
+fi
+
+if test "$libdir" = "/usr/lib" ; then
+	LDFLAGS=
+else
+	LDFLAGS="-L\${libdir}"
+fi
+
+for name in @PC_MODULES_TO_MAKE@
+do
+	name="${name}"
+
+	desc="ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@"
+	reqs=
+
+	if test $name = $MAIN_LIBRARY ; then
+		desc="$desc library"
+	elif test $name = $SUB_LIBRARY ; then
+		desc="$desc terminal interface library"
+	elif expr $name : ".*${CXX_NAME}.*" >/dev/null ; then
+		reqs="$PANEL_LIBRARY, $MENU_LIBRARY, $FORM_LIBRARY, $MAIN_LIBRARY"
+		desc="$desc add-on library"
+	else
+		reqs="$MAIN_LIBRARY"
+		desc="$desc add-on library"
+	fi
+
+	if test $name != $SUB_LIBRARY && test $SUB_LIBRARY != $MAIN_LIBRARY ; then
+		if test $name != $TINFO_NAME ; then
+			test -n "$reqs" && reqs="$reqs, "
+			reqs="${reqs}${SUB_LIBRARY}"
+		fi
+	fi
+
+	echo "** creating ${name}.pc"
+	cat >${name}.pc <<EOF
+prefix=$show_prefix
+exec_prefix=$show_exec_prefix
+libdir=$show_libdir
+includedir=$show_includedir
+major_version=@NCURSES_MAJOR@
+version=@NCURSES_MAJOR@.@NCURSES_MINOR@.@NCURSES_PATCH@
+
+Name: $name
+Description: $desc
+Version: \${version}
+URL: http://invisible-island.net/ncurses
+Requires.private: $reqs
+Libs: $LDFLAGS -l$name
+Libs.private: @LIBS@
+Cflags: $CFLAGS
+EOF
+
+	#pr -f ${name}.pc
+done
+# vile:shmode

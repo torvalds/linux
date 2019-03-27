@@ -1,0 +1,227 @@
+.\"	$Id: mchars_alloc.3,v 1.4 2016/07/07 19:19:01 schwarze Exp $
+.\"
+.\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 7 2016 $
+.Dt MCHARS_ALLOC 3
+.Os
+.Sh NAME
+.Nm mchars_alloc ,
+.Nm mchars_free ,
+.Nm mchars_num2char ,
+.Nm mchars_num2uc ,
+.Nm mchars_spec2cp ,
+.Nm mchars_spec2str ,
+.Nm mchars_uc2str
+.Nd character table for mandoc
+.Sh SYNOPSIS
+.In sys/types.h
+.In mandoc.h
+.Ft void
+.Fn mchars_alloc void
+.Ft void
+.Fn mchars_free void
+.Ft char
+.Fo mchars_num2char
+.Fa "const char *decimal"
+.Fa "size_t sz"
+.Fc
+.Ft int
+.Fo mchars_num2uc
+.Fa "const char *hexadecimal"
+.Fa "size_t sz"
+.Fc
+.Ft int
+.Fo mchars_spec2cp
+.Fa "const char *name"
+.Fa "size_t sz"
+.Fc
+.Ft "const char *"
+.Fo mchars_spec2str
+.Fa "const char *name"
+.Fa "size_t sz"
+.Fa "size_t *rsz"
+.Fc
+.Ft "const char *"
+.Fn mchars_uc2str "int codepoint"
+.Sh DESCRIPTION
+These functions translate Unicode character numbers and
+.Xr roff 7
+character names into glyphs.
+See
+.Xr mandoc_char 7
+for a list of
+.Xr roff 7
+special characters.
+These functions are intended for external use by programs formatting
+.Xr mdoc 7
+and
+.Xr man 7
+pages for output, for example the
+.Xr mandoc 1
+output formatter modules and
+.Xr makewhatis 8 .
+The
+.Fa decimal ,
+.Fa hexadecimal ,
+.Fa name ,
+and
+.Fa size
+input arguments are usually obtained from the
+.Xr mandoc_escape 3
+parser function.
+.Pp
+The function
+.Fn mchars_num2char
+converts a
+.Fa decimal
+string representation of a character number consisting of
+.Fa sz
+digits into a printable ASCII character.
+If the input string is non-numeric or does not represent a printable
+ASCII character, the NUL character
+.Pq Sq \e0
+is returned.
+For example, the
+.Xr mandoc 1
+.Fl Tascii ,
+.Fl Tutf8 ,
+and
+.Fl Thtml
+output modules use this function to render
+.Xr roff 7
+.Ic \eN
+escape sequences.
+.Pp
+The function
+.Fn mchars_num2uc
+converts a
+.Fa hexadecimal
+string representation of a Unicode codepoint consisting of
+.Fa sz
+digits into an integer representation.
+If the input string is non-numeric or represents an ASCII character,
+the NUL character
+.Pq Sq \e0
+is returned.
+For example, the
+.Xr mandoc 1
+.Fl Tutf8
+and
+.Fl Thtml
+output modules use this function to render
+.Xr roff 7
+.Ic \e[u Ns Ar XXXX Ns Ic \&]
+and
+.Ic \eC\(aqu Ns Ar XXXX Ns Ic \(aq
+escape sequences.
+.Pp
+The function
+.Fn mchars_alloc
+initializes a static
+.Vt "struct ohash"
+object for subsequent use by the following two lookup functions.
+When no longer needed, this object can be destroyed with
+.Fn mchars_free .
+.Pp
+The function
+.Fn mchars_spec2cp
+looks up a
+.Xr roff 7
+special character
+.Fa name
+consisting of
+.Fa sz
+characters and returns the corresponding Unicode codepoint.
+If the
+.Ar name
+is not recognized, \-1 is returned.
+For example, the
+.Xr mandoc 1
+.Fl Tutf8
+and
+.Fl Thtml
+output modules use this function to render
+.Xr roff 7
+.Ic \e[ Ns Ar name Ns Ic \&]
+and
+.Ic \eC\(aq Ns Ar name Ns Ic \(aq
+escape sequences.
+.Pp
+The function
+.Fn mchars_spec2str
+looks up a
+.Xr roff 7
+special character
+.Fa name
+consisting of
+.Fa sz
+characters and returns an ASCII string representation.
+The length of the representation is returned in
+.Fa rsz .
+In many cases, the meaning of such ASCII representations
+is not quite obvious, so using
+.Xr roff 7
+special characters in documents intended for ASCII rendering
+is usually a bad idea.
+If the
+.Ar name
+is not recognized,
+.Dv NULL
+is returned.
+For example,
+.Xr makewhatis 8
+and the
+.Xr mandoc 1
+.Fl Tascii
+output module use this function to render
+.Xr roff 7
+.Ic \e[ Ns Ar name Ns Ic \&]
+and
+.Ic \eC\(aq Ns Ar name Ns Ic \(aq
+escape sequences.
+.Pp
+The function
+.Fn mchars_uc2str
+performs a reverse lookup of the Unicode
+.Fa codepoint
+and returns an ASCII string representation, or the string
+.Qq <?>
+if none is available.
+.Sh FILES
+These funtions are implemented in the file
+.Pa chars.c .
+.Sh SEE ALSO
+.Xr mandoc 1 ,
+.Xr mandoc_escape 3 ,
+.Xr ohash_init 3 ,
+.Xr mandoc_char 7 ,
+.Xr roff 7
+.Sh HISTORY
+These functions and their predecessors have been available since the
+following mandoc versions:
+.Bl -column "mchars_num2char()" "1.11.3" "chars_num2char()" "1.10.10"
+.It Sy function Ta since Ta Sy predecessor Ta since
+.It Fn mchars_alloc Ta 1.11.3 Ta Fn ascii2htab Ta 1.5.3
+.It Fn mchars_free Ta 1.11.2 Ta Fn asciifree Ta 1.6.0
+.It Fn mchars_num2char Ta 1.11.2 Ta Fn chars_num2char Ta 1.10.10
+.It Fn mchars_num2uc Ta 1.11.3 Ta \(em Ta \(em
+.It Fn mchars_spec2cp Ta 1.11.2 Ta Fn chars_spec2cp Ta 1.10.5
+.It Fn mchars_spec2str Ta 1.11.2 Ta Fn a2ascii Ta 1.5.3
+.It Fn mchars_uc2str Ta 1.13.2 Ta \(em Ta \(em
+.El
+.Sh AUTHORS
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org

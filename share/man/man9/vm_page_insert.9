@@ -1,0 +1,96 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 17, 2001
+.Dt VM_PAGE_INSERT 9
+.Os
+.Sh NAME
+.Nm vm_page_insert ,
+.Nm vm_page_remove
+.Nd "add/remove page from an object"
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_page.h
+.Ft void
+.Fn vm_page_insert "vm_page_t m" "vm_object_t object" "vm_pindex_t pindex"
+.Ft void
+.Fn vm_page_remove "vm_page_t m"
+.Sh DESCRIPTION
+The
+.Fn vm_page_insert
+function adds a page to the given object at the given index.
+The page is added to both the VM page hash table and to the
+object's list of pages, but the hardware page tables are not updated.
+In the case of a user page, it will be faulted in when it is
+accessed.
+If the page is a kernel page, the caller is expected to
+handle adding the page to the kernel's pmap.
+.Pp
+If
+.Dv PG_WRITEABLE
+is set in the page's flags,
+.Dv OBJ_WRITEABLE
+and
+.Dv OBJ_MIGHTBEDIRTY
+are set in the object's flags.
+.Pp
+The
+.Fn vm_page_remove
+function removes the given page from its object, and from the
+VM page hash table.
+The page must be busy prior to this call, or the system will panic.
+The pmap entry for the page is not removed by this function.
+.Pp
+The arguments to
+.Fn vm_page_insert
+are:
+.Bl -tag -width ".Fa object"
+.It Fa m
+The page to add to the object.
+.It Fa object
+The object the page should be added to.
+.It Fa pindex
+The index into the object the page should be at.
+.El
+.Pp
+The arguments to
+.Fn vm_page_remove
+are:
+.Bl -tag -width ".Fa m"
+.It Fa m
+The page to remove.
+.El
+.Sh IMPLEMENTATION NOTES
+The index of a page in a VM object is the byte index into the
+same object truncated to a page boundary.
+For example, if the page size is 4096 bytes, and the address
+in the object is 81944, the page index is 20.
+.Sh AUTHORS
+This manual page was written by
+.An Chad David Aq Mt davidc@acns.ab.ca .

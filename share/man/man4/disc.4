@@ -1,0 +1,76 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)lo.4	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd May 25, 2002
+.Dt DISC 4
+.Os
+.Sh NAME
+.Nm disc
+.Nd software discard network interface
+.Sh SYNOPSIS
+.Cd "device disc"
+.Sh DESCRIPTION
+The
+.Nm
+interface is a software discard mechanism which may be
+used for performance analysis and/or software testing.
+As with other network interfaces, the discard interface must have
+network addresses assigned for each address family with which it is to be used.
+These addresses
+may be set or changed with the
+.Dv SIOCSIFADDR
+.Xr ioctl 2 .
+.Pp
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is
+most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va cloned_interfaces
+variable in
+.Xr rc.conf 5 .
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr intro 4
+.\" .Xr ns 4
+.Sh HISTORY
+The
+.Nm
+device appears to have been derived from the
+.Xr lo 4
+device around the time of
+.Bx 4.4 .
+This manpage was adapted from
+.Xr lo 4
+and first appeared in
+.Fx 5.0 .

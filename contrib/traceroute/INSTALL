@@ -1,0 +1,105 @@
+@(#) $Id: INSTALL,v 1.13 2000/11/23 20:07:29 leres Exp $ (LBL)
+
+Traceroute is known to build and run under SunOS 4.1.4 and Solaris 5.4.
+If you are running a really old kernel, see the instructions under the
+title "KERNEL MODIFICATIONS" further down.
+
+To build traceroute, first customize any paths in Makefile.in, then run
+"./configure" (a shell script). The configure script will determine
+your system attributes and generate an appropriate Makefile from
+Makefile.in. Next run "make". If everything goes well you can su to
+root and run "make install" and "make install-man". Note that traceroute
+must be installed setuid to root or run as root.
+
+If configure fails for some reason and decide to submit a bug report to
+traceroute@ee.lbl.gov, please include a copy of config.log.
+
+You will need an ANSI C compiler to build libpcap. The configure script
+will abort if your compiler is not ANSI compliant. If this happens, use
+the GNU C compiler, available via anonymous ftp:
+
+        ftp://prep.ai.mit.edu/pub/gnu/gcc-*.tar.gz
+
+If you get the error message:
+
+	traceroute: unknown protocol icmp
+
+it usually means you're missing the icmp line in /etc/protocols.
+
+If you are using Solaris 2.5.1 (and possibly higher), traceroute cannot
+calculate checksums; configure automatically changes the default to
+reflect this. The kernel updates the ip_id field with some unknown
+value and the ip_off field with the IP_DF bit. Also, if the the udp
+uh_sum field is non-zero, it gets updated with the value of the uh_ulen
+field... This means that the icmp echo option (-I flag) is not as
+useful.
+
+KERNEL MODIFICATIONS
+--------------------
+If yor have a really old system, it may be necessary to modify your
+kernel before traceroute will work. If you want to hack on your kernel,
+a modified version of the routine rip_output (normally found in the
+file /sys/netinet/raw_ip.c) can be found in rip_output.c. This code may
+or may not resemble the code in your kernel. It may offer you a place
+to start but we make no promises. If you do hack your kernel, remember
+to test everything that uses raw ip sockets (e.g., ping and
+egpup/gated) & make sure they still work. We wish you the best of luck
+and you're on your own.
+
+Some older kernels forward icmp packets that have a ttl of zero. If
+your system has this bug, you might want to fix it while you're in the
+kernel.  (This bug appears in all releases of BSD up to but not
+including 4.3tahoe. If your version of netinet/ip_icmp.c is any earlier
+than 7.3 (April, '87), it has the bug.)  The fix is just to add the
+line:
+
+	ip->ip_ttl = MAXTTL;
+
+after the line:
+
+	ip->ip_src = t;
+
+(or anywhere before the call to icmp_send) in routine icmp_reflect.
+
+If you're running this on a pre-4.3bsd system (e.g., SunOS 3) that
+strips ip headers from icmp messages, add -DARCHAIC to CFLAGS in the
+Makefile.  Also note that rip_output contains a conditional for a
+4.2/4.3 change in the location of a raw socket's protocol number.  I've
+checked this under 4.3 & SunOS 3 but you should double-check your
+system to make sure the appropriate branch of the #if is taken (check
+the line that assigned to ip->ip_p in your system's original
+rip_output).
+
+
+FILES
+-----
+CHANGES         - description of differences between releases
+FILES		- list of files exported as part of the distribution
+INSTALL         - this file
+Makefile.in	- compilation rules (input to the configure script)
+README		- description of distribution
+VERSION		- version of this release
+aclocal.m4	- autoconf macros
+config.guess	- autoconf support
+config.sub	- autoconf support
+configure	- configure script (run this first)
+configure.in	- configure script source
+findsaddr-generic.c - generic source address code
+findsaddr-linux.c - linux source address code
+findsaddr-socket.c - socket based soruce address code
+findsaddr.h	- source address prototypes
+ifaddrlist.c	- inet address routines
+ifaddrlist.h	- inet address prototypes
+install-sh	- BSD style install script
+lbl/gnuc.h	- gcc macros and defines
+lbl/os-*.h	- os dependent defines and prototypes
+linux-include/*	- network include files missing on Linux
+mean.awk	- awk script to print out the mean time along a route
+median.awk	- awk script to print out the median time along a route
+mkdep		- construct Makefile dependency list
+rip_output.c	- sample rip_output() from  /sys/netinet/raw_ip.c
+strerror.c	- emulation routine
+traceroute.8	- manual entry
+traceroute.c	- main program
+traceroute.h	- global prototypes
+usleep.c	- missing system call emulation

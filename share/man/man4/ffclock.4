@@ -1,0 +1,129 @@
+.\" Copyright (c) 2011 The University of Melbourne
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Julien Ridoux at the University of
+.\" Melbourne under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 1, 2011
+.Dt FFCLOCK 4
+.Os
+.Sh NAME
+.Nm FFCLOCK
+.Nd Feed-forward system clock
+.Sh SYNOPSIS
+.Cd options FFCLOCK
+.Sh DESCRIPTION
+The
+.Xr ntpd 8
+daemon has been the dominant solution for system clock synchronisation for many
+years, which has in turn influenced the design of the system clock.
+The ntpd daemon implements a feedback control algorithm which has been
+demonstrated to perform poorly in common use cases.
+.Pp
+Feed-forward clock synchronisation algorithms implemented by an appropriate
+daemon, in concert with the
+.Nm
+kernel support, have been shown to provide highly robust and accurate clock
+synchronisation.
+In addition to time keeping, the
+.Nm
+kernel mechanism provides new timestamping capabilities and the ability to
+use specialised clocks.
+Feed-forward synchronisation is also very well suited for virtualised
+environments, reducing the overhead of timekeeping in guests and ensuring
+continued smooth operation of the system clock during guest live migration.
+.Pp
+The
+.Nm
+kernel support provides feed-forward timestamping functions within the kernel
+and system calls to support feed-forward synchronisation daemons
+.Po see
+.Xr ffclock 2
+.Pc .
+.Ss Kernel Options
+The following kernel configuration options are related to
+.Nm :
+.Pp
+.Bl -tag -width ".Dv FFCLOCK" -compact
+.It Dv FFCLOCK
+Enable feed-forward clock support.
+.El
+.Ss Configuration
+When feed-forward clock support is compiled into the kernel, multiple system
+clocks become available to choose from.
+System clock configuration is possible via the
+.Va kern.sysclock
+.Xr sysctl 8
+tree which provides the following variables:
+.Bl -tag -width "    " -offset indent
+.It Va kern.sysclock.active
+Name of the current active system clock which is serving time.
+Set to one of the names in
+.Va kern.sysclock.available
+in order to change the default active system clock.
+.It Va kern.sysclock.available
+Lists the names of available system clocks
+.Po
+read-only
+.Pc .
+.El
+.Pp
+Feed-forward system clock configuration is possible via the
+.Va kern.sysclock.ffclock
+sysctl tree which provides the following variables:
+.Bl -tag -width "    " -offset indent
+.It Va kern.sysclock.ffclock.version
+Feed-forward clock kernel version
+.Po
+read-only
+.Pc .
+.It Va kern.sysclock.ffclock.ffcounter_bypass
+Use reliable hardware timecounter as the feed-forward counter.
+Will eventually be useful for virtualised environment like
+.Xr xen 4 ,
+but currently does nothing.
+.El
+.Sh SEE ALSO
+.Xr clock_gettime 2 ,
+.Xr ffclock 2 ,
+.Xr bpf 4 ,
+.Xr timecounters 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+Feed-forward clock support first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An -nosplit
+The feed-forward clock support was written by
+.An Julien Ridoux Aq Mt jridoux@unimelb.edu.au
+in collaboration with
+.An Darryl Veitch Aq Mt dveitch@unimelb.edu.au
+at the University of Melbourne under sponsorship from the FreeBSD Foundation.
+.Pp
+This manual page was written by
+.An Julien Ridoux Aq Mt jridoux@unimelb.edu.au
+and
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org .

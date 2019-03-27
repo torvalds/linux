@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+result=$(${SH} -c 'f() { ps -p $$ -o comm=; }; f')
+test "$result" = "ps"

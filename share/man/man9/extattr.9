@@ -1,0 +1,96 @@
+.\"-
+.\" Copyright (c) 1999, 2000, 2001, 2003 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 23, 1999
+.Dt EXTATTR 9
+.Os
+.Sh NAME
+.Nm extattr
+.Nd virtual file system named extended attributes
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.In sys/extattr.h
+.Sh DESCRIPTION
+Named extended attributes allow additional meta-data to be associated
+with vnodes representing files and directories.
+The semantics of this additional data is that of a "name=value" pair, where
+a name may be defined or undefined, and if defined, associated with zero or
+more bytes of arbitrary binary data.
+Extended attribute names exist within a set of namespaces; each operation
+on an extended attribute is required to provide the namespace to which to
+operation refers.
+If the same name is present in multiple namespaces, the extended attributes
+associated with the names are stored and manipulated independently.
+The following two namespaces are defined universally, although individual
+file systems may implement additional namespaces, or not implement
+these namespaces:
+.Dv EXTATTR_NAMESPACE_USER ,
+.Dv EXTATTR_NAMESPACE_SYSTEM .
+The semantics of these attributes are intended to be as follows: user
+attribute data is protected according the normal discretionary
+and mandatory protections associated with the data in the file or
+directory; system attribute data is protected such that appropriate
+privilege is required to directly access or manipulate these attributes.
+.Pp
+Reads of extended attribute data may return specific contiguous regions of
+the meta-data, in the style of
+.Xr VOP_READ 9 ,
+but writes will replace the entire current "value" associated with
+a given name.
+As there are a plethora of file systems with differing extended attributes,
+availability and functionality of these functions may be limited, and they
+should be used with awareness of the underlying semantics of the supporting
+file system.
+Authorization schemes for extended attribute data may also vary by file
+system, as well as maximum attribute size, and whether or not any or
+specific new attributes may be defined.
+.Pp
+Extended attributes are named using a null-terminated character string.
+Depending on underlying file system semantics, this name may or may not be
+case-sensitive.
+Appropriate vnode extended attribute calls are:
+.Xr VOP_GETEXTATTR 9 ,
+.Xr VOP_LISTEXTATTR 9 ,
+and
+.Xr VOP_SETEXTATTR 9 .
+.Sh SEE ALSO
+.Xr VFS 9 ,
+.Xr VFS_EXTATTRCTL 9 ,
+.Xr VOP_GETEXTATTR 9 ,
+.Xr VOP_LISTEXTATTR 9 ,
+.Xr VOP_SETEXTATTR 9
+.Sh AUTHORS
+This manual page was written by
+.An Robert Watson .
+.Sh BUGS
+In addition, the interface does not provide a mechanism to retrieve
+the current set of available attributes; it has been suggested that
+providing a
+.Dv NULL
+attribute name should cause a list of defined attributes for the passed file
+or directory, but this is not currently implemented.

@@ -1,0 +1,39 @@
+=pod
+
+=head1 NAME
+
+BIO_f_null - null filter
+
+=head1 SYNOPSIS
+
+ #include <openssl/bio.h>
+
+ const BIO_METHOD *BIO_f_null(void);
+
+=head1 DESCRIPTION
+
+BIO_f_null() returns the null filter BIO method. This is a filter BIO
+that does nothing.
+
+All requests to a null filter BIO are passed through to the next BIO in
+the chain: this means that a BIO chain containing a null filter BIO
+behaves just as though the BIO was not there.
+
+=head1 NOTES
+
+As may be apparent a null filter BIO is not particularly useful.
+
+=head1 RETURN VALUES
+
+BIO_f_null() returns the null filter BIO method.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

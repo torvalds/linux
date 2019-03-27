@@ -1,0 +1,185 @@
+.\" Copyright (c) 1983, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)connect.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd August 18, 2016
+.Dt CONNECT 2
+.Os
+.Sh NAME
+.Nm connect
+.Nd initiate a connection on a socket
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/socket.h
+.Ft int
+.Fn connect "int s" "const struct sockaddr *name" "socklen_t namelen"
+.Sh DESCRIPTION
+The
+.Fa s
+argument
+is a socket.
+If it is of type
+.Dv SOCK_DGRAM ,
+this call specifies the peer with which the socket is to be associated;
+this address is that to which datagrams are to be sent,
+and the only address from which datagrams are to be received.
+If the socket is of type
+.Dv SOCK_STREAM ,
+this call attempts to make a connection to
+another socket.
+The other socket is specified by
+.Fa name ,
+which is an address in the communications space of the socket.
+.Fa namelen
+indicates the amount of space pointed to by
+.Fa name ,
+in bytes; the
+.Fa sa_len
+member of
+.Fa name
+is ignored.
+Each communications space interprets the
+.Fa name
+argument in its own way.
+Generally, stream sockets may successfully
+.Fn connect
+only once; datagram sockets may use
+.Fn connect
+multiple times to change their association.
+Datagram sockets may dissolve the association
+by connecting to an invalid address, such as a null address.
+.Sh RETURN VALUES
+.Rv -std connect
+.Sh ERRORS
+The
+.Fn connect
+system call fails if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa s
+argument
+is not a valid descriptor.
+.It Bq Er EINVAL
+The
+.Fa namelen
+argument is not a valid length for the address family.
+.It Bq Er ENOTSOCK
+The
+.Fa s
+argument
+is a descriptor for a file, not a socket.
+.It Bq Er EADDRNOTAVAIL
+The specified address is not available on this machine.
+.It Bq Er EAFNOSUPPORT
+Addresses in the specified address family cannot be used with this socket.
+.It Bq Er EISCONN
+The socket is already connected.
+.It Bq Er ETIMEDOUT
+Connection establishment timed out without establishing a connection.
+.It Bq Er ECONNREFUSED
+The attempt to connect was forcefully rejected.
+.It Bq Er ECONNRESET
+The connection was reset by the remote host.
+.It Bq Er ENETUNREACH
+The network is not reachable from this host.
+.It Bq Er EHOSTUNREACH
+The remote host is not reachable from this host.
+.It Bq Er EADDRINUSE
+The address is already in use.
+.It Bq Er EFAULT
+The
+.Fa name
+argument specifies an area outside
+the process address space.
+.It Bq Er EINPROGRESS
+The socket is non-blocking
+and the connection cannot
+be completed immediately.
+It is possible to
+.Xr select 2
+for completion by selecting the socket for writing.
+.It Bq Er EINTR
+The connection attempt was interrupted by the delivery of a signal.
+The connection will be established in the background,
+as in the case of
+.Er EINPROGRESS .
+.It Bq Er EALREADY
+A previous connection attempt has not yet been completed.
+.It Bq Er EACCES
+An attempt is made to connect to a broadcast address (obtained through the
+.Dv INADDR_BROADCAST
+constant or the
+.Dv INADDR_NONE
+return value) through a socket that does not provide broadcast functionality.
+.It Bq Er EAGAIN
+An auto-assigned port number was requested but no auto-assigned ports
+are available.
+Increasing the port range specified by
+.Xr sysctl 3
+MIB variables
+.Va net.inet.ip.portrange.first
+and
+.Va net.inet.ip.portrange.last
+may alleviate the problem.
+.El
+.Pp
+The following errors are specific to connecting names in the UNIX domain.
+These errors may not apply in future versions of the UNIX IPC domain.
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded 255 characters,
+or an entire path name exceeded 1023 characters.
+.It Bq Er ENOENT
+The named socket does not exist.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix.
+.It Bq Er EACCES
+Write access to the named socket is denied.
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EPERM
+Write access to the named socket is denied.
+.El
+.Sh SEE ALSO
+.Xr accept 2 ,
+.Xr getpeername 2 ,
+.Xr getsockname 2 ,
+.Xr select 2 ,
+.Xr socket 2 ,
+.Xr sysctl 3 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Fn connect
+system call appeared in
+.Bx 4.2 .

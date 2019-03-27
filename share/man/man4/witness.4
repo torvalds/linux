@@ -1,0 +1,187 @@
+.\" Copyright (c) 2001 John H. Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 18, 2015
+.Dt WITNESS 4
+.Os
+.Sh NAME
+.Nm witness
+.Nd lock validation facility
+.Sh SYNOPSIS
+.Cd options WITNESS
+.Cd options WITNESS_COUNT
+.Cd options WITNESS_KDB
+.Cd options WITNESS_NO_VNODE
+.Cd options WITNESS_SKIPSPIN
+.Sh DESCRIPTION
+The
+.Nm
+module keeps track of the locks acquired and released by each thread.
+It also keeps track of the order in which locks are acquired with respect
+to each other.
+Each time a lock is acquired,
+.Nm
+uses these two lists to verify that a lock is not being acquired in the
+wrong order.
+If a lock order violation is detected, then a message is output to the
+kernel console or log detailing the locks involved and the locations in
+question.
+Witness can also be configured to drop into the kernel debugger when an order
+violation occurs.
+.Pp
+The
+.Nm
+code also checks various other conditions such as verifying that one
+does not recurse on a non-recursive lock,
+or attempt an upgrade on a shared lock held by another thread.
+If any of these checks fail, then the kernel will panic.
+.Pp
+The
+.Dv WITNESS_COUNT
+kernel option controls the maximum number of
+.Nm
+entries that are tracked in the kernel.
+The maximum number of entries can be queried via the
+.Va debug.witness.count
+sysctl.
+It can also be set from the
+.Xr loader 8
+via the
+.Va debug.witness.count
+environment variable.
+.Pp
+The
+.Dv WITNESS_NO_VNODE
+kernel option tells
+.Nm
+to ignore locking issues between
+.Xr vnode 9
+objects.
+.Pp
+The flag that controls whether or not the kernel debugger is entered when a
+lock order violation is detected can be set in a variety of ways.
+By default, the flag is off, but if the
+.Dv WITNESS_KDB
+kernel option is
+specified, then the flag will default to on.
+It can also be set from the
+.Xr loader 8
+via the
+.Va debug.witness.kdb
+environment variable or after the kernel has booted via the
+.Va debug.witness.kdb
+sysctl.
+If the flag is set to zero, then the debugger will not be entered.
+If the flag is non-zero, then the debugger will be entered.
+.Pp
+The
+.Nm
+code can also be configured to skip all checks on spin mutexes.
+By default, this flag defaults to off, but it can be turned on by
+specifying the
+.Dv WITNESS_SKIPSPIN
+kernel option.
+The flag can also be set via the
+.Xr loader 8
+environment variable
+.Va debug.witness.skipspin .
+If the variable is set to a non-zero value, then spin mutexes are skipped.
+Once the kernel has booted, the status of this flag can be examined but not
+set via the read-only sysctl
+.Va debug.witness.skipspin .
+.Pp
+The sysctl
+.Va debug.witness.watch
+specifies the level of witness involvement in the system.
+A value of 1 specifies that witness is enabled.
+A value of 0 specifies that witness is disabled, but that can be enabled
+again.
+This will maintain a small amount of overhead in the system.
+A value of -1 specifies that witness is disabled permanently and
+cannot be enabled again.
+The sysctl
+.Va debug.witness.watch
+can be set via
+.Xr loader 8 .
+.Pp
+The sysctl
+.Va debug.witness.output_channel
+specifies the output channel used to display warnings emitted by
+.Nm .
+The possible values are
+.Ql console ,
+indicating that warnings are to be printed to the system console,
+.Ql log ,
+indicating that warnings are to be logged via
+.Xr log 9 ,
+and
+.Ql none .
+This sysctl can be set via
+.Xr loader 8 .
+.Pp
+The
+.Nm
+code also provides three extra
+.Xr ddb 4
+commands if both
+.Nm
+and
+.Xr ddb 4
+are compiled into the kernel:
+.Bl -ohang
+.It Ic show locks Op thread
+Outputs the list of locks held by a thread to the kernel console
+along with the filename and line number at which each lock was last acquired
+by the thread.
+The optional
+.Ar thread
+argument may be either a TID,
+PID,
+or pointer to a thread structure.
+If
+.Ar thread
+is not specified,
+then the locks held by the current thread are displayed.
+.It Ic show all locks
+Outputs the list of locks held by all threads in the system to the
+kernel console.
+.It Ic show witness
+Dump the current order list to the kernel console.
+The code first displays the lock order tree for all of the sleep locks.
+Then it displays the lock order tree for all of the spin locks.
+Finally, it displays a list of locks that have not yet been acquired.
+.El
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr loader 8 ,
+.Xr sysctl 8 ,
+.Xr mutex 9
+.Sh HISTORY
+The
+.Nm
+code first appeared in
+.Bsx 5.0
+and was imported from there into
+.Fx 5.0 .

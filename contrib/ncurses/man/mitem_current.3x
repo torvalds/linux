@@ -1,0 +1,96 @@
+'\" t
+.\"***************************************************************************
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: mitem_current.3x,v 1.13 2010/12/04 18:40:45 tom Exp $
+.TH mitem_current 3X ""
+.SH NAME
+\fBmitem_current\fR \- set and get current_menu_item
+.SH SYNOPSIS
+\fB#include <menu.h>\fR
+.br
+int set_current_item(MENU *menu, const ITEM *item);
+.br
+ITEM *current_item(const MENU *menu);
+.br
+int set_top_row(MENU *menu, int row);
+.br
+int top_row(const MENU *menu);
+.br
+int item_index(const ITEM *item);
+.br
+.SH DESCRIPTION
+The function \fBset_current_item\fR sets the current item (the item on which
+the menu cursor is positioned).  \fBcurrent_item\fR returns a pointer to the
+current item in the given menu.
+.PP
+The function \fBset_top_row\fR sets the top row of the menu to show the given
+row (the top row is initially 0, and is reset to this value whenever the
+\fBO_ROWMAJOR\fR option is toggled).  The item leftmost on the given row
+becomes current.  The function \fBtop_row\fR returns the number of the top menu
+row being displayed.
+.PP
+The function \fBitem_index\fR returns the (zero-origin) index of \fIitem\fR in
+the menu's item pointer list.
+.SH RETURN VALUE
+\fBcurrent_item\fR returns a pointer (which may be \fBNULL\fR).
+It does not set errno.
+.PP
+\fBtop_row\fR and \fBitem_index\fR return \fBERR\fR (the general \fBcurses\fR
+error value) if their \fImenu\fP parameter is \fBNULL\fP.
+.PP
+\fBset_current_item\fR and \fBset_top_row\fR return one of the following:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_BAD_STATE
+Routine was called from an initialization or termination function.
+.TP 5
+.B E_NOT_CONNECTED
+No items are connected to the menu.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
+.SH SEE ALSO
+\fBcurses\fR(3X), \fBmenu\fR(3X).
+.SH NOTES
+The header file \fB<menu.h>\fR automatically includes the header file
+\fB<curses.h>\fR.
+.SH PORTABILITY
+These routines emulate the System V menu library.  They were not supported on
+Version 7 or BSD versions.
+.PP
+The SVr4 menu library documentation specifies the \fBtop_row\fR and
+\fBindex_item\fR error value as \-1 (which is the value of \fBERR\fR).
+.SH AUTHORS
+Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
+S. Raymond.

@@ -1,0 +1,8 @@
+- Bugfixes:
+	* Proper handling of boot cpu information
+- Generate mem reserve map
+	* linux,reserve-map property
+	* generating reserve entry for device tree itself
+	* generating reserve entries from tce, rtas etc. properties
+- Expression support
+- Macro system

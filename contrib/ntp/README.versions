@@ -1,0 +1,27 @@
+
+NTP uses A.B.C - style release numbers.
+
+At the moment:
+
+ A is 4, for ntp V4.
+ B is the major release number.
+ C is the minor release number.  Even numbers are 'stable' releases and
+ odd numbers are "development" releases.
+
+Following the release number may be the letter 'p' followed by a number.
+This indicates a point (or patch) release.
+
+Release candidates have -RC in the release number.
+
+Here are some recent versions numbers as an example:
+
+ 4.2.2		A production release (from the ntp-stable repository)
+ 4.2.2p2	A production release (from the ntp-stable repository)
+ 4.2.3p12	A development release
+ 4.2.3p15-rc1	A release candidate for 4.2.4
+
+Note that after the ntp-dev repo produces a production release it will
+be copied into the ntp-stable and the cycle will repeat.
+
+Feel free to suggest improvements...
+

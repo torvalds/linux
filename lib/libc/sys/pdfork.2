@@ -1,0 +1,188 @@
+.\"
+.\" Copyright (c) 2009-2010, 2012-2013 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed at the University of Cambridge Computer
+.\" Laboratory with support from a grant from Google, Inc.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 14, 2018
+.Dt PDFORK 2
+.Os
+.Sh NAME
+.Nm pdfork ,
+.Nm pdgetpid ,
+.Nm pdkill
+.Nd System calls to manage process descriptors
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/procdesc.h
+.Ft pid_t
+.Fn pdfork "int *fdp" "int flags"
+.Ft int
+.Fn pdgetpid "int fd" "pid_t *pidp"
+.Ft int
+.Fn pdkill "int fd" "int signum"
+.Sh DESCRIPTION
+Process descriptors are special file descriptors that represent processes,
+and are created using
+.Fn pdfork ,
+a variant of
+.Xr fork 2 ,
+which, if successful, returns a process descriptor in the integer pointed to
+by
+.Fa fdp .
+Processes created via
+.Fn pdfork
+will not cause
+.Dv SIGCHLD
+on termination.
+.Fn pdfork
+can accept the flags:
+.Bl -tag -width ".Dv PD_DAEMON"
+.It Dv PD_DAEMON
+Instead of the default terminate-on-close behaviour, allow the process to
+live until it is explicitly killed with
+.Xr kill 2 .
+.Pp
+This option is not permitted in
+.Xr capsicum 4
+capability mode (see
+.Xr cap_enter 2 ) .
+.El
+.Bl -tag -width ".Dv PD_DAEMON"
+.It Dv PD_CLOEXEC
+Set close-on-exec on process descriptor.
+.El
+.Pp
+.Fn pdgetpid
+queries the process ID (PID) in the process descriptor
+.Fa fd .
+.Pp
+.Fn pdkill
+is functionally identical to
+.Xr kill 2 ,
+except that it accepts a process descriptor,
+.Fa fd ,
+rather than a PID.
+.Pp
+The following system calls also have effects specific to process descriptors:
+.Pp
+.Xr fstat 2
+queries status of a process descriptor; currently only the
+.Fa st_mode ,
+.Fa st_birthtime ,
+.Fa st_atime ,
+.Fa st_ctime
+and
+.Fa st_mtime
+fields are defined.
+If the owner read, write, and execute bits are set then the
+process represented by the process descriptor is still alive.
+.Pp
+.Xr poll 2
+and
+.Xr select 2
+allow waiting for process state transitions; currently only
+.Dv POLLHUP
+is defined, and will be raised when the process dies.
+Process state transitions can also be monitored using
+.Xr kqueue 2
+filter
+.Dv EVFILT_PROCDESC ;
+currently only
+.Dv NOTE_EXIT
+is implemented.
+.Pp
+.Xr close 2
+will close the process descriptor unless
+.Dv PD_DAEMON
+is set; if the process is still alive and this is
+the last reference to the process descriptor, the process will be terminated
+with the signal
+.Dv SIGKILL .
+.Sh RETURN VALUES
+.Fn pdfork
+returns a PID, 0 or -1, as
+.Xr fork 2
+does.
+.Pp
+.Fn pdgetpid
+and
+.Fn pdkill
+return 0 on success and -1 on failure.
+.Sh ERRORS
+These functions may return the same error numbers as their PID-based equivalents
+(e.g.
+.Fn pdfork
+may return the same error numbers as
+.Xr fork 2 ) ,
+with the following additions:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The signal number given to
+.Fn pdkill
+is invalid.
+.It Bq Er ENOTCAPABLE
+The process descriptor being operated on has insufficient rights (e.g.
+.Dv CAP_PDKILL
+for
+.Fn pdkill ) .
+.El
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr fork 2 ,
+.Xr fstat 2 ,
+.Xr kill 2 ,
+.Xr poll 2 ,
+.Xr kqueue 2 ,
+.Xr wait4 2 ,
+.Xr capsicum 4 ,
+.Xr procdesc 4
+.Sh HISTORY
+The
+.Fn pdfork ,
+.Fn pdgetpid ,
+and
+.Fn pdkill
+system calls first appeared in
+.Fx 9.0 .
+.Pp
+Support for process descriptors mode was developed as part of the
+.Tn TrustedBSD
+Project.
+.Sh AUTHORS
+.An -nosplit
+These functions and the capability facility were created by
+.An Robert N. M. Watson Aq Mt rwatson@FreeBSD.org
+and
+.An Jonathan Anderson Aq Mt jonathan@FreeBSD.org
+at the University of Cambridge Computer Laboratory with support from a grant
+from Google, Inc.

@@ -1,0 +1,17 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+/ {
+	compatible = "allwinner,sun50i-a64";
+};
+
+&{/soc} {
+	timer@1c20c00 {
+		compatible = "allwinner,sun8i-a23-timer";
+		reg = <0x1c20c00 0x2C>;
+		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+		status = "okay";
+	};
+};

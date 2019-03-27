@@ -1,0 +1,45 @@
+# $FreeBSD$
+
+#
+# Note: Whenever bumping the FBSD version, always make
+#       FBSDprivate_1.0 depend on the new FBSD version.
+#       This will keep it at the end of the dependency chain.
+#
+
+# This is our first version; it depends on no other.
+# This version was first added to 7.0-current.
+FBSD_1.0 {
+};
+
+# This version was first added to 8.0-current.
+FBSD_1.1 {
+} FBSD_1.0;
+
+# This version was first added to 9.0-current.
+FBSD_1.2 {
+} FBSD_1.1;
+
+# This version was first added to 10.0-current.
+FBSD_1.3 {
+} FBSD_1.2;
+
+# This version was first added to 11.0-current.
+FBSD_1.4 {
+} FBSD_1.3;
+
+# This version was first added to 12.0-current.
+FBSD_1.5 {
+} FBSD_1.4;
+
+# This version was first added to 13.0-current.
+FBSD_1.6 {
+} FBSD_1.5;
+
+# This is our private namespace.  Any global interfaces that are
+# strictly for use only by other FreeBSD applications and libraries
+# are listed here.  We use a separate namespace so we can write
+# simple ABI-checking tools.
+#
+# Please do NOT increment the version of this namespace.
+FBSDprivate_1.0 {
+} FBSD_1.6;

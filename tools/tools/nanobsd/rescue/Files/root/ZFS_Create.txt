@@ -1,0 +1,35 @@
+# $FreeBSD$
+
+Some remarks for setting up a zfs boot environment
+
+ZFS Boot sctructure:
+boot
++-ROOT
+ +-root
+[+-root2]
+[+-root3]
+
+zpool create -o mountpoint=none  boot ...
+zpool set listsnapshots=on boot
+
+zfs create -o mountpoint=/mnt boot/ROOT
+zfs create boot/ROOT/root
+
+Fill -> /mnt/root
+
+cp /boot/zfs/zpool.cache /mnt/root/boot/zfs/zpool.cache
+zpool set bootfs=boot/ROOT/root boot
+
+set in /mnt/root/boot/loader.conf
+#ZFS mandatory
+zfs_load="YES"
+vfs.root.mountfrom="zfs:boot/ROOT/root"
+#ZFS optional
+vm.kmem_size="8G"
+vfs.zfs.arc_min="1G"
+vfs.zfs.arc_max="2G"
+vfs.zfs.prefetch_disable="1"
+vfs.zfs.zil_disable=1
+vfs.zfs.zio.use_uma=0
+#Power savings
+hw.pci.do_power_nodriver=3

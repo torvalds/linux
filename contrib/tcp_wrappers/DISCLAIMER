@@ -1,0 +1,31 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+
+As of June 1, 2001, the text below constitutes the TCP Wrappers license.
+
+/************************************************************************
+* Copyright 1995 by Wietse Venema.  All rights reserved.  Some individual
+* files may be covered by other copyrights.
+*
+* This material was originally written and compiled by Wietse Venema at
+* Eindhoven University of Technology, The Netherlands, in 1990, 1991,
+* 1992, 1993, 1994 and 1995.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that this entire copyright notice
+* is duplicated in all such copies.
+*
+* This software is provided "as is" and without any expressed or implied
+* warranties, including, without limitation, the implied warranties of
+* merchantibility and fitness for any particular purpose.
+************************************************************************/
+
+-----BEGIN PGP SIGNATURE-----
+Version: 2.6.3i
+Charset: noconv
+
+iQCVAwUBOxo3X9yA8qbVMny5AQHT8wP9FZOtWxEM4SMj4Sj9QezMERz31n5fd0pC
+jUDnyzmosOudM/iFlv6YfyR820aNvNNI+AdtgWYRPVHocVNOrZcmu7IADO8hlU//
+v8BeBE0bdjeVmOQYRQfXgt3J2q0b8x8Q5a/LCLVLh8k6DFGg8AfEbLDQWhi1JiXC
+0JsaB8crR3M=
+=0AMW
+-----END PGP SIGNATURE-----

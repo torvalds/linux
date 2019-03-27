@@ -1,0 +1,17 @@
+$ $tcsh: set22,v 1.3 2011/02/04 18:19:43 christos Exp $
+$ tc.func.c
+$set 22 
+1 %S: \t es un alias de 
+2 \nClave incorrecta para %s\n
+3 Alias erróneo de 'precmd' borrado.\n
+4 Alias erróneo de 'cwdcmd' borrado.\n
+5 Alias erróneo de 'beepcmd' borrado.\n
+6 Alias erróneo de 'periodic' borrado.\n
+7 analizando la línea de comandos\n
+8 ¿Realmente quiere borrar todos los archivos? [n/s]
+9 ¡Anulado el borrado de los archivos!\n
+10 ahora, la línea de comandos es:\n
+11 analizando la línea de comandos\n
+12 en una de las listas\n
+13 ahora, la línea de comandos es:\n
+14 sSyY

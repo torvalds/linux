@@ -1,0 +1,165 @@
+<HTML>
+<HEAD><TITLE>Installation and Configuration</TITLE>
+</HEAD>
+<BODY>
+<!--
+$Id: installation.html,v 1.24 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>Installation</H1>
+<H2>Contents</H2>
+<UL>
+    <LI><A href="#compile">Compiling and Installing Your Filter</A>
+    <LI><A href="#config">Configuring Sendmail</A>
+</UL>
+
+<H2><A name="compile">Compiling and Installing Your Filter</A></H2>
+
+To compile a filter, modify the Makefile provided with the sample program, or:
+<UL>
+    <LI>Put the include and Sendmail directories in your include path
+    (e.g. -I/path/to/include -I/path/to/sendmail).  
+
+    <LI>Make sure libmilter.a is in your library path, and link your
+    application with it (e.g. "-lmilter").
+
+    <LI>Compile with pthreads, either by using -pthread for gcc, or
+    linking with a pthreads support library (-lpthread).
+</UL>
+Your compile command line will look like
+<PRE>
+cc -I/path/to/include -I/path/to/sendmail -c myfile.c
+</PRE>
+and your linking command line will look something like
+<PRE>
+cc -o myfilter [object-files] -L[library-location] -lmilter -pthread
+</PRE>
+
+<H2><A name="config">Configuring Sendmail</A></H2>
+
+If you use a sendmail version older than 8.13 please see
+the instructions for your version.
+The default compilation options for sendmail enable support
+for milters since 8.13.
+
+<P>
+Next, you must add the desired filters to your sendmail configuration
+(.mc) file.
+Mail filters have three equates:
+The required <CODE>S=</CODE> equate specifies the socket where
+sendmail should look for the filter; the optional <CODE>F=</CODE> and
+<CODE>T=</CODE> equates specify flags and timeouts, respectively.
+All equates names, equate field names, and flag values are case sensitive.
+
+<P>
+The current flags (<CODE>F=</CODE>) are:
+<P>
+<TABLE cellspacing="1" cellpadding=4 border=1>
+<TR bgcolor="#dddddd" align=left valign=top>
+<TH>Flag</TH>   <TH align="center">Meaning</TH>
+</TR>
+<TR align="left" valign=top>
+<TD>R</TD>      <TD>Reject connection if filter unavailable</TD>
+</TR>
+<TR align="left" valign=top>
+<TD>T</TD>      <TD>Temporary fail connection if filter unavailable</TD>
+</TR>
+</TABLE>
+
+If a filter is unavailable or unresponsive and no flags have been
+specified, the MTA will continue normal handling of the current
+connection.
+The MTA will try to contact the filter again on each new connection.
+
+<P>
+There are three fields inside of the <CODE>T=</CODE> equate: S, R, and E.
+Note the separator between each is a ";" (semicolon), as ","
+(comma) already separates equates.
+The value of each field is a decimal number followed by a single letter
+designating the units ("s" for seconds, "m" for minutes).
+The fields have the following meanings:
+<P>
+<TABLE cellspacing="1" cellpadding=4 border=1>
+<TR bgcolor="#dddddd" align=left valign=top>
+<TH>Flag</TH>   <TH align="center">Meaning</TH>
+</TR>
+<TR align="left" valign=top>
+<TD>C</TD>      <TD>Timeout for connecting to a filter.  If set to 0, the
+		system's <CODE>connect(2)</CODE> timeout will be used.
+		Default: 5m</TD>
+</TR>
+<TR align="left" valign=top>
+<TD>S</TD>      <TD>Timeout for sending information from the MTA to a
+                filter.  Default: 10s</TD>
+</TR>
+<TR align="left" valign=top>
+<TD>R</TD>      <TD>Timeout for reading reply from the filter.  Default: 10s</TD>
+</TR>
+<TR align="left" valign=top>
+<TD>E</TD>      <TD>Overall timeout between sending end-of-message to
+                filter and waiting for the final acknowledgment.  Default: 5m</TD>
+</TR>
+</TABLE>
+
+<P>
+The following sendmail.mc example specifies three filters.
+The first two rendezvous on Unix-domain sockets in the /var/run directory;
+the third uses an IP socket on port 999.
+<PRE>
+	INPUT_MAIL_FILTER(`filter1', `S=unix:/var/run/f1.sock, F=R')
+	INPUT_MAIL_FILTER(`filter2', `S=unix:/var/run/f2.sock, F=T, T=S:1s;R:1s;E:5m')
+	INPUT_MAIL_FILTER(`filter3', `S=inet:999@localhost, T=C:2m')
+
+	define(`confINPUT_MAIL_FILTERS', `filter2,filter1,filter3')
+<HR width="30%">
+	m4 ../m4/cf.m4 myconfig.mc &gt; myconfig.cf
+</PRE>
+By default, the filters would be run in the order declared,
+i.e. "filter1, filter2, filter3"; however, since
+<CODE>confINPUT_MAIL_FILTERS</CODE> is defined, the filters will be
+run "filter2, filter1, filter3".
+Also note that a filter can be defined
+without adding it to the input filter list by using
+MAIL_FILTER() instead of INPUT_MAIL_FILTER().
+
+<P>
+The above macros will result in the following lines being added to
+your .cf file:
+<PRE>
+        Xfilter1, S=unix:/var/run/f1.sock, F=R
+        Xfilter2, S=unix:/var/run/f2.sock, F=T, T=S:1s;R:1s;E:5m
+        Xfilter3, S=inet:999@localhost, T=C:2m
+
+        O InputMailFilters=filter2,filter1,filter3
+</PRE>
+<P>
+Finally, the sendmail macros accessible via
+<A HREF="smfi_getsymval.html">smfi_getsymval</A> can be configured by
+defining the following m4 variables (or cf options):
+<TABLE cellspacing="1" cellpadding=4 border=1>
+<TR bgcolor="#dddddd" align=left valign=top>
+<TH align="center">In .mc file</TH>   <TH align="center">In .cf file</TH>
+<TH align="center">Default Value</TH>
+</TR>
+<TR><TD>confMILTER_MACROS_CONNECT</TD><TD>Milter.macros.connect</TD>
+<TD><CODE>j, _, {daemon_name}, {if_name}, {if_addr}</CODE></TD></TR>
+<TR><TD>confMILTER_MACROS_HELO</TD><TD>Milter.macros.helo</TD>
+<TD><CODE>{tls_version}, {cipher}, {cipher_bits}, {cert_subject},
+{cert_issuer}</CODE></TD></TR>
+<TR><TD>confMILTER_MACROS_ENVFROM</TD><TD>Milter.macros.envfrom</TD>
+<TD><CODE>i, {auth_type}, {auth_authen}, {auth_ssf}, {auth_author},
+{mail_mailer}, {mail_host}, {mail_addr}</CODE></TD></TR>
+<TR><TD>confMILTER_MACROS_ENVRCPT</TD><TD>Milter.macros.envrcpt</TD>
+<TD><CODE>{rcpt_mailer}, {rcpt_host}, {rcpt_addr}</CODE></TD></TR>
+</TABLE>
+For information about available macros and their meanings, please
+consult the sendmail documentation.
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2000-2003, 2006 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

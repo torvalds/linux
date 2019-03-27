@@ -1,0 +1,204 @@
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 24, 2009
+.Dt STE 4
+.Os
+.Sh NAME
+.Nm ste
+.Nd "Sundance Technologies ST201 Fast Ethernet device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device ste"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ste_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI Ethernet adapters and embedded
+controllers based on the Sundance Technologies ST201 PCI Fast
+Ethernet controller chip.
+.Pp
+The Sundance ST201 uses bus master DMA and is designed to be a
+3Com Etherlink XL workalike.
+It uses the same DMA descriptor
+structure and is very similar in operation, however its register
+layout is different.
+The ST201 has a 64-bit multicast hash filter
+and a single perfect filter entry for the station address.
+It supports both 10 and 100Mbps speeds in either full or half duplex
+using an MII transceiver.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to the
+.Pa /etc/rc.conf
+file.
+.It 10baseT/UTP
+Set 10Mbps operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.It 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Ar mediaopt
+option can also be used to select either
+.Ar full-duplex
+or
+.Ar half-duplex
+modes.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It full-duplex
+Force full duplex operation.
+.It half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Sundance Technologies ST201 based Fast Ethernet
+adapters and embedded controllers including:
+.Pp
+.Bl -bullet -compact
+.It
+D-Link DFE-530TXS
+.It
+D-Link DFE-550TX
+.It
+D-Link DFE-580TX
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width "xxxxxx"
+.It Va dev.ste.%d.int_rx_mod
+Maximum number of time to delay RX interrupts.
+The valid range is 0 to 209712 in units of 1us, the default is
+150 (150us).
+The value 0 effectively disables the RX interrupt moderation.
+The resolution of timer is about 3.2us so finer tuning than
+3.2us wouldn't be available.
+The interface does not need to be brought down and up again before
+a change takes effect.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ste%d: couldn't map ports/memory"
+A fatal initialization error has occurred.
+.It "ste%d: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "ste%d: watchdog timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.It "ste%d: no memory for rx list"
+The driver failed to allocate an mbuf for the receiver ring.
+.It "ste%d: no memory for tx list"
+The driver failed to allocate an mbuf for the transmitter ring when
+allocating a pad buffer or collapsing an mbuf chain into a cluster.
+.It "ste%d: chip is in D3 power state -- setting to D0"
+This message applies only to adapters which support power
+management.
+Some operating systems place the controller in low power
+mode when shutting down, and some PCI BIOSes fail to bring the chip
+out of this state before configuring it.
+The controller loses all of
+its PCI configuration in the D3 state, so if the BIOS does not set
+it back to full power mode in time, it will not be able to configure it
+correctly.
+The driver tries to detect this condition and bring
+the adapter back to the D0 (full power) state, but this may not be
+enough to return the driver to a fully operational condition.
+If
+you see this message at boot time and the driver fails to attach
+the device as a network interface, you will have to perform a second
+warm boot to have the device properly configured.
+.Pp
+Note that this condition only occurs when warm booting from another
+operating system.
+If you power down your system prior to booting
+.Fx ,
+the card should be configured correctly.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr polling 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Rs
+.%T Sundance ST201 data sheet
+.%U http://www.sundanceti.com
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq Mt wpaul@ee.columbia.edu .

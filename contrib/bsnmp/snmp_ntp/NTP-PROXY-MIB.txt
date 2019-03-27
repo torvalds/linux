@@ -1,0 +1,616 @@
+--
+-- NTP Proxy MIB, Revision 0.2, 7/25/97
+--
+
+NTP-PROXY-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    NTPLeapIndicator, NTPTimeStamp
+        FROM NTP-MIB
+
+    Integer32, IpAddress, MODULE-IDENTITY, OBJECT-TYPE, Unsigned32,
+    enterprises
+        FROM SNMPv2-SMI
+
+    TEXTUAL-CONVENTION, TruthValue
+        FROM SNMPv2-TC;
+
+ntpProxyMIB MODULE-IDENTITY
+    LAST-UPDATED "199707251540Z"
+    ORGANIZATION
+        "University of Delaware"
+    CONTACT-INFO
+        "Adarsh Sethi
+         Department of Computer & Information Sciences
+         University of Delaware
+         Newark, DE 19716
+         Tel: +1 302 831 1945
+         E-mail: sethi@cis.udel.edu
+
+         David Mills
+         Department of Electrical Engineering
+         University of Delaware
+         Newark, DE 19716
+         Tel: +1 302 831 ????
+         E-mail: mills@ee.udel.edu"
+    DESCRIPTION
+        "This MIB module defines a MIB which provides mechanisms to
+         monitor and control many NTP servers via a Proxy Agent."
+    ::= { enterprises 1277 4 }
+
+--
+-- The position within the OID hierarchy of this MIB:
+--
+
+udel OBJECT IDENTIFIER
+    ::= { enterprises 1277 }
+
+--
+-- The various groups defined within this MIB definition:
+--
+
+ntpProxyControl OBJECT IDENTIFIER
+    ::= { ntpProxyMIB 1 }
+
+--
+-- Textual conventions:
+--
+
+NTPRowStatus ::= TEXTUAL-CONVENTION
+    STATUS      current
+    DESCRIPTION
+        "The NTPRowStatus textual convention is modeled after the
+         RowStatus textual convention of RFC 1903, but is simpler
+         because it only allows one create operation (the create-
+         and-go of RowStatus) and does not allow row deletion. If
+         the state of the status column is `notInService' and the
+         management station tries to set it to `create', the
+         corresponding row is created and the operation is successful.
+         If the set to `create' is attempted when the status column
+         is in state `active', the operation fails and inconsistentValue
+         is returned. A management station is not permitted to delete
+         the conceptual row; deletion is carried out by the agent
+         in an autonomous manner."
+    SYNTAX      INTEGER {
+		   -- the following values are states:
+		   -- these values may be read, but not written
+		   active(1),
+		   notInService(2),
+		   -- the following value is an action:
+		   -- this value may be written, but is never read
+		   create(3)
+		}
+
+--
+-- Control group
+--
+
+--
+-- ProxyControl Table
+--
+
+ntpProxyControlTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF NtpProxyControlEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyControl 1 }
+
+ntpProxyControlEntry OBJECT-TYPE
+    SYNTAX      NtpProxyControlEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    INDEX       { ntpProxyServerIPAddr }
+    ::= { ntpProxyControlTable 1 }
+
+NtpProxyControlEntry ::= SEQUENCE {
+    ntpProxyServerIPAddr    IpAddress,
+    ntpProxyControlStatus   NTPRowStatus
+}
+
+ntpProxyServerIPAddr OBJECT-TYPE
+    SYNTAX      IpAddress
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyControlEntry 1 }
+
+ntpProxyControlStatus OBJECT-TYPE
+    SYNTAX      NTPRowStatus
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyControlEntry 2 }
+
+--
+-- Proxy Server System Table
+--
+
+ntpProxyServerSystemTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF NtpProxyServerSystemEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyControl 2 }
+
+ntpProxyServerSystemEntry OBJECT-TYPE
+    SYNTAX      NtpProxyServerSystemEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    INDEX       { ntpProxyServerIPAddr }
+    ::= { ntpProxyServerSystemTable 1 }
+
+NtpProxyServerSystemEntry ::= SEQUENCE {
+    ntpProxyServerSysLeap               NTPLeapIndicator,
+    ntpProxyServerSysStratum            Integer32,
+    ntpProxyServerSysPrecision          Integer32,
+    ntpProxyServerSysRootDelay          OCTET STRING,
+    ntpProxyServerSysRootDispersion     OCTET STRING,
+    ntpProxyServerSysRefId              OCTET STRING,
+    ntpProxyServerSysRefTime            NTPTimeStamp,
+    ntpProxyServerSysPoll               Integer32,
+    ntpProxyServerSysPeer               Unsigned32,
+    ntpProxyServerSysPhase              OCTET STRING,
+    ntpProxyServerSysFreq               OCTET STRING,
+    ntpProxyServerSysError              OCTET STRING,
+    ntpProxyServerSysClock              NTPTimeStamp,
+    ntpProxyServerSysSystem             OCTET STRING,
+    ntpProxyServerSysProcessor          OCTET STRING
+}
+
+ntpProxyServerSysLeap OBJECT-TYPE
+    SYNTAX      NTPLeapIndicator
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyServerSystemEntry 1 }
+
+ntpProxyServerSysStratum OBJECT-TYPE
+    SYNTAX      Integer32 (0..255)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyServerSystemEntry 2 }
+
+ntpProxyServerSysPrecision OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyServerSystemEntry 3 }
+
+ntpProxyServerSysRootDelay OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyServerSystemEntry 4 }
+
+ntpProxyServerSysRootDispersion OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyServerSystemEntry 5 }
+
+ntpProxyServerSysRefId OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyServerSystemEntry 6 }
+
+ntpProxyServerSysRefTime OBJECT-TYPE
+    SYNTAX      NTPTimeStamp
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyServerSystemEntry 7 }
+
+ntpProxyServerSysPoll OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyServerSystemEntry 8 }
+
+ntpProxyServerSysPeer OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyServerSystemEntry 9 }
+
+ntpProxyServerSysPhase OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyServerSystemEntry 10 }
+
+ntpProxyServerSysFreq OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyServerSystemEntry 11 }
+
+ntpProxyServerSysError OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyServerSystemEntry 12 }
+
+ntpProxyServerSysClock OBJECT-TYPE
+    SYNTAX      NTPTimeStamp
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyServerSystemEntry 13 }
+
+ntpProxyServerSysSystem OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyServerSystemEntry 14 }
+
+ntpProxyServerSysProcessor OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyServerSystemEntry 15 }
+
+--
+-- Proxy Peer Variables Table
+--
+ntpProxyPeersVarTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF NtpProxyPeersVarEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyControl 3 }
+
+ntpProxyPeersVarEntry OBJECT-TYPE
+    SYNTAX      NtpProxyPeersVarEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    INDEX       { ntpProxyServerIPAddr, ntpProxyPeersAssocId }
+    ::= { ntpProxyPeersVarTable 1 }
+
+NtpProxyPeersVarEntry ::= SEQUENCE {
+    ntpProxyPeersAssocId                Unsigned32,
+    ntpProxyPeersConfigured             TruthValue,
+    ntpProxyPeersPeerAddress            IpAddress,
+    ntpProxyPeersPeerPort               Unsigned32,
+    ntpProxyPeersHostAddress            IpAddress,
+    ntpProxyPeersHostPort               Unsigned32,
+    ntpProxyPeersLeap                   NTPLeapIndicator,
+    ntpProxyPeersMode                   INTEGER,
+    ntpProxyPeersStratum                Integer32,
+    ntpProxyPeersPeerPoll               Integer32,
+    ntpProxyPeersHostPoll               Integer32,
+    ntpProxyPeersPrecision              Integer32,
+    ntpProxyPeersRootDelay              OCTET STRING,
+    ntpProxyPeersRootDispersion         OCTET STRING,
+    ntpProxyPeersRefId                  OCTET STRING,
+    ntpProxyPeersRefTime                NTPTimeStamp,
+    ntpProxyPeersOrgTime                NTPTimeStamp,
+    ntpProxyPeersReceiveTime            NTPTimeStamp,
+    ntpProxyPeersTransmitTime           NTPTimeStamp,
+    ntpProxyPeersUpdateTime             NTPTimeStamp,
+    ntpProxyPeersReach                  Unsigned32,
+    ntpProxyPeersTimer                  Integer32,
+    ntpProxyPeersOffset                 OCTET STRING,
+    ntpProxyPeersDelay                  OCTET STRING,
+    ntpProxyPeersDispersion             OCTET STRING,
+    ntpProxyPeersFilterValidEntries     Integer32
+}
+
+ntpProxyPeersAssocId OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 1 }
+
+ntpProxyPeersConfigured OBJECT-TYPE
+    SYNTAX      TruthValue
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 2 }
+
+ntpProxyPeersPeerAddress OBJECT-TYPE
+    SYNTAX      IpAddress
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 3 }
+
+ntpProxyPeersPeerPort OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 4 }
+
+ntpProxyPeersHostAddress OBJECT-TYPE
+    SYNTAX      IpAddress
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 5 }
+
+ntpProxyPeersHostPort OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 6 }
+
+ntpProxyPeersLeap OBJECT-TYPE
+    SYNTAX      NTPLeapIndicator
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 7 }
+
+ntpProxyPeersMode OBJECT-TYPE
+    SYNTAX      INTEGER {
+		   unspecified(0),
+		   symmetricActive(1),
+                   symmetricPassive(2),
+		   client(3),
+		   server(4),
+                   broadcast(5),
+		   reservedControl(6),
+		   reservedPrivate(7) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 8 }
+
+ntpProxyPeersStratum OBJECT-TYPE
+    SYNTAX      Integer32 (0..255)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 9 }
+
+ntpProxyPeersPeerPoll OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 10 }
+
+ntpProxyPeersHostPoll OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 11 }
+
+ntpProxyPeersPrecision OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 12 }
+
+ntpProxyPeersRootDelay OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 13 }
+
+ntpProxyPeersRootDispersion OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 14 }
+
+ntpProxyPeersRefId OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 15 }
+
+ntpProxyPeersRefTime OBJECT-TYPE
+    SYNTAX      NTPTimeStamp
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 16 }
+
+ntpProxyPeersOrgTime OBJECT-TYPE
+    SYNTAX      NTPTimeStamp
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 17 }
+
+ntpProxyPeersReceiveTime OBJECT-TYPE
+    SYNTAX      NTPTimeStamp
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 18 }
+
+ntpProxyPeersTransmitTime OBJECT-TYPE
+    SYNTAX      NTPTimeStamp
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 19 }
+
+ntpProxyPeersUpdateTime OBJECT-TYPE
+    SYNTAX      NTPTimeStamp
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 20 }
+
+ntpProxyPeersReach OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 21 }
+
+ntpProxyPeersTimer OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 22 }
+
+ntpProxyPeersOffset OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 23 }
+
+ntpProxyPeersDelay OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 24 }
+
+ntpProxyPeersDispersion OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyPeersVarEntry 25 }
+
+ntpProxyPeersFilterValidEntries OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "The number of valid entries for a peer in the Proxy Filter
+         Register Table. This number can be zero."
+    ::= { ntpProxyPeersVarEntry 26 }
+
+--
+-- Proxy Filter Register Table
+--
+
+ntpProxyFilterRegisterTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF NtpProxyFilterRegisterEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyControl 4 }
+
+ntpProxyFilterRegisterEntry OBJECT-TYPE
+    SYNTAX      NtpProxyFilterRegisterEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    INDEX       { ntpProxyServerIPAddr, ntpProxyPeersAssocId,
+                  ntpProxyFilterIndex }
+    ::= { ntpProxyFilterRegisterTable 1 }
+
+NtpProxyFilterRegisterEntry ::= SEQUENCE {
+    ntpProxyFilterIndex             Unsigned32,
+    ntpProxyFilterPeersOffset       OCTET STRING,
+    ntpProxyFilterPeersDelay        OCTET STRING,
+    ntpProxyFilterPeersDispersion   OCTET STRING
+}
+
+ntpProxyFilterIndex OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyFilterRegisterEntry 1 }
+
+ntpProxyFilterPeersOffset OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyFilterRegisterEntry 2 }
+
+ntpProxyFilterPeersDelay OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyFilterRegisterEntry 3 }
+
+ntpProxyFilterPeersDispersion OBJECT-TYPE
+    SYNTAX      OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        ""
+    ::= { ntpProxyFilterRegisterEntry 4 }
+
+END

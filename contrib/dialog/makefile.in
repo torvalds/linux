@@ -1,0 +1,358 @@
+# $Id: makefile.in,v 1.97 2018/06/09 01:05:18 tom Exp $
+# template makefile for DIALOG
+##############################################################################
+# Copyright (c) 1999-2017,2018 Thomas E. Dickey                              #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+SHELL		= /bin/sh
+
+srcdir		= @srcdir@
+top_srcdir	= @top_srcdir@
+VPATH		= @srcdir@
+
+prefix		= @prefix@
+exec_prefix	= @exec_prefix@
+datarootdir	= @datarootdir@
+
+top_builddir	= .
+
+x		= @EXEEXT@
+o		= .@OBJEXT@
+
+DESTDIR		= @DESTDIR@
+
+THIS		= dialog
+
+CFG_ROOTNAME	= @CFG_ROOTNAME@
+HDR_ROOTNAME	= @HDR_ROOTNAME@
+LIB_ROOTNAME	= @LIB_ROOTNAME@
+LIB_PREFIX	= @LIB_PREFIX@
+LIB_SUFFIX	= @LIB_SUFFIX@
+
+VERSION_MAJOR	= @VERSION_MAJOR@
+VERSION_MINOR	= @VERSION_MINOR@
+VERSION		= $(VERSION_MAJOR).$(VERSION_MINOR)
+REL_VERSION	= @REL_VERSION@
+ABI_VERSION	= @ABI_VERSION@
+LIB_ROOTNAME	= @LIB_ROOTNAME@
+
+RESULTING_SYMS	= @RESULTING_SYMS@
+VERSIONED_SYMS	= @VERSIONED_SYMS@
+
+@SET_SHLIB_VARS@
+
+bindir		= @bindir@
+includedir	= @includedir@
+libdir		= @libdir@
+mandir		= @mandir@
+manext		= 1
+libext		= 3
+
+BINDIR		= $(DESTDIR)$(bindir)
+INCLUDEDIR	= $(DESTDIR)$(includedir)
+LIBDIR		= $(DESTDIR)$(libdir)
+MANDIR		= $(DESTDIR)$(mandir)
+
+MAN1DIR		= $(MANDIR)/man1
+MAN3DIR		= $(MANDIR)/man3
+
+# see po/makefile
+localedir       = $(prefix)/@DATADIRNAME@/locale
+
+CFLAGS		= @CFLAGS@
+CPPFLAGS	= -I. -I$(srcdir) @CPPFLAGS@ @DEFS@ -DLOCALEDIR=\"$(localedir)\"
+EXTRA_CFLAGS	= @EXTRA_CFLAGS@
+CC		= @CC@
+CPP		= @CPP@
+AR		= @AR@
+ARFLAGS		= @ARFLAGS@
+LDFLAGS		= @EXTRA_LDFLAGS@ @LDFLAGS@
+LIBS		= @LIBS@ @INTLLIBS@
+RANLIB		= @LIB_PREP@
+
+RM		= rm -f
+LN_S		= @LN_S@
+LINT		= @LINT@
+LINT_OPTS	= @LINT_OPTS@
+
+CTAGS		= @CTAGS@
+ETAGS		= @ETAGS@
+
+LIBTOOL		= @LIBTOOL@ @ECHO_LT@
+LIBTOOL_OPTS	= @LIBTOOL_OPTS@
+LIBTOOL_CLEAN	= @LIB_CLEAN@
+LIBTOOL_COMPILE	= @LIB_COMPILE@
+LIBTOOL_CREATE	= @LIB_CREATE@
+LIBTOOL_LINK	= @LIB_LINK@
+LIBTOOL_INSTALL	= @LIB_INSTALL@
+LIBTOOL_UNINSTALL = @LIB_UNINSTALL@
+LIBTOOL_VERSION = @LIBTOOL_VERSION@
+
+INSTALL		= @INSTALL@
+INSTALL_PROGRAM	= $(LIBTOOL_INSTALL) @INSTALL_PROGRAM@
+INSTALL_SCRIPT	= @INSTALL_SCRIPT@
+INSTALL_DATA	= @INSTALL_DATA@
+
+LINK		= $(LIBTOOL_LINK)
+
+# The library is always named for the package, but the program can be further
+# renamed at install time, starting with the package name.
+PACKAGE		= @PACKAGE@
+ACTUAL_PROG	= `echo $(PACKAGE) |sed @program_transform_name@`
+LIB_CONFIG	= $(CFG_ROOTNAME)-config
+
+# The library name $(LIB) is set at configure/make time, since it is used as a
+# makefile target.  Ditto for $(PROG).
+LIB		= @LIB_TARGET@
+PROG		= @PACKAGE@$x
+#
+# Standard .c to .o compile line.
+#
+.SUFFIXES: .c .i $o .1 .man .txt @MAN2HTML_NOTE@ .html @GROFF_NOTE@ .ps .pdf 
+.c.i :
+	@RULE_CC@
+	@ECHO_CC@$(CPP) $(CPPFLAGS) -c $< >$@
+.c$o :
+	@RULE_CC@
+	@ECHO_CC@$(LIBTOOL_COMPILE) $(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(CPPFLAGS) -c $<
+
+@NROFF_NOTE@.1.txt :
+@NROFF_NOTE@	GROFF_NO_SGR=stupid $(SHELL) -c "tbl $< | nroff -Tascii -man | col -bx" >$@
+
+@MAN2HTML_NOTE@.1.html :
+@MAN2HTML_NOTE@	./@MAN2HTML_TEMP@ $* 1 man >$@
+@MAN2HTML_NOTE@
+@GROFF_NOTE@.1.ps :
+@GROFF_NOTE@	$(SHELL) -c "tbl $< | groff -man" >$@
+@GROFF_NOTE@
+@GROFF_NOTE@.ps.pdf :
+@GROFF_NOTE@	ps2pdf $*.ps
+
+EXTRAOBJS = @EXTRAOBJS@
+OBJECTS = $(EXTRAOBJS) \
+	argv$o \
+	arrows$o \
+	buttons$o \
+	checklist$o \
+	columns$o \
+	dlg_keys$o \
+	editbox$o \
+	help$o \
+	inputbox$o \
+	inputstr$o \
+	menubox$o \
+	mouse$o \
+	mousewget$o \
+	msgbox$o \
+	textbox$o \
+	ttysize$o \
+	ui_getc$o \
+	util$o \
+	version$o \
+	yesno$o
+
+LIB_OBJECT = @LIB_OBJECT@
+
+SRCS = $(OBJECTS:$o=.c)
+HDRS = \
+	dialog.h \
+	dlg_colors.h \
+	dlg_config.h \
+	dlg_keys.h
+
+ALL		= $(LIB) $(PROG)
+
+BIN_DIRS	= $(BINDIR) $(MAN1DIR)
+LIB_DIRS	= $(LIBDIR) $(INCLUDEDIR)
+
+PO_DIR		= $(srcdir)/po
+
+all	:: $(ALL)
+
+@LIBTOOL_MAKE@install	:: install-lib
+@LIBTOOL_MAKE@uninstall	:: uninstall-lib
+
+@INTLDIR_MAKE@@INTLLIBS@ :
+@INTLDIR_MAKE@	@echo "Building GNU gettext library..."
+@INTLDIR_MAKE@	@cd intl && $(MAKE) @cf_cv_makeflags@
+
+dialog$o \
+$(OBJECTS) : $(srcdir)/dialog.h $(srcdir)/dlg_keys.h dlg_config.h VERSION
+
+$(PROG)$x : $(LIB) dialog$o @INTLDIR_MAKE@ @INTLLIBS@
+	$(LINK) -o $@ dialog$o -L. -l@PACKAGE@ $(CFLAGS) $(LDFLAGS) $(LIBS)
+
+clean	\
+distclean \
+install \
+install-full \
+install-strip \
+uninstall ::
+	@echo making $@
+@INTLDIR_MAKE@	@-test -f intl/makefile && cd intl && $(MAKE) @cf_cv_makeflags@ $@
+@MSG_DIR_MAKE@	@-test -f po/makefile && cd po && $(MAKE) @cf_cv_makeflags@ $@
+
+clean	::
+	@- $(RM) -r autom4te.cache
+	- $(RM) *.*cov *.da *.bb *.bbg
+	- $(LIBTOOL_CLEAN) $(RM) *.i *$o $(ALL)
+	- $(RM) headers.sed
+	- $(RM) *.html *.pdf *.png *.ps *.txt dialog_lib.1
+	- $(RM) core *~ tags TAGS
+
+distclean :: clean
+	$(RM) intl/libintl.h intl/po2tbl.sed
+	$(RM) makefile dlg_config.h config.cache config.log config.status
+	$(RM) samples/install/makefile
+	$(RM) headers-sh
+	$(RM) man2html.*
+	$(RM) dialog-config
+
+install :: install-bin install-man
+	@echo "made $@"
+
+install-full :: install-lib install-bin install-man
+	@echo "made $@"
+
+install-strip :: $(PROG) $(BINDIR)
+	$(INSTALL_PROGRAM) -s $(PROG) $(BINDIR)
+
+uninstall :: uninstall-bin uninstall-man
+	@echo "made $@"
+
+uninstall-full :: uninstall-bin uninstall-man uninstall-lib
+	@echo "made $@"
+
+install-bin : $(PROG) $(BINDIR)
+	$(INSTALL_PROGRAM) $(PROG) $(BINDIR)/$(ACTUAL_PROG)$x
+
+uninstall-bin :
+	$(RM) $(BINDIR)/$(ACTUAL_PROG)$x
+
+install-man :: $(MAN1DIR)
+	@ echo "** installing $(ACTUAL_PROG).$(manext)"
+	@ $(SHELL) $(srcdir)/rename.sh \
+		$(srcdir)/dialog.1 \
+		$(MAN1DIR)/$(ACTUAL_PROG).$(manext) \
+		$(ACTUAL_PROG) \
+		@PACKAGE@ \
+		$(INSTALL_DATA)
+
+uninstall-man ::
+	$(RM) $(MAN1DIR)/$(ACTUAL_PROG).$(manext)
+
+# most users do not want/need the library, so the install rules are distinct.
+install-lib :: $(BINDIR) dialog-config
+	@ echo "** installing config script in $(BINDIR)"
+	@ $(INSTALL_SCRIPT) dialog-config $(BINDIR)/$(LIB_CONFIG)
+
+install-lib :: $(LIB_DIRS) $(LIB) headers.sed
+	@ echo "** installing library in $(LIBDIR)"
+	@ $(LIBTOOL_INSTALL) $(INSTALL_DATA) $(LIB) $(LIBDIR)
+	@ echo "** installing headers in $(INCLUDEDIR)"
+	@ $(SHELL) headers-sh $(INSTALL_DATA) $(INCLUDEDIR) $(srcdir) dialog.h
+	@ $(SHELL) headers-sh $(INSTALL_DATA) $(INCLUDEDIR) $(srcdir) dlg_colors.h
+	@ $(SHELL) headers-sh $(INSTALL_DATA) $(INCLUDEDIR) $(srcdir) dlg_keys.h
+	@ $(SHELL) headers-sh $(INSTALL_DATA) $(INCLUDEDIR) .         dlg_config.h
+
+uninstall-lib :: $(BINDIR)
+	$(RM) $(BINDIR)/$(LIB_CONFIG)
+
+uninstall-lib :: $(LIB_DIRS)
+	- $(LIBTOOL_UNINSTALL) $(RM) $(LIBDIR)/$(LIB)
+	@ $(SHELL) headers-sh $(RM) $(INCLUDEDIR) $(srcdir) dialog.h
+	@ $(SHELL) headers-sh $(RM) $(INCLUDEDIR) $(srcdir) dlg_colors.h
+	@ $(SHELL) headers-sh $(RM) $(INCLUDEDIR) $(srcdir) dlg_keys.h
+	@ $(SHELL) headers-sh $(RM) $(INCLUDEDIR) .         dlg_config.h
+
+install-lib :: $(MAN3DIR)
+	@ echo "** installing @PACKAGE@.$(libext)"
+	@ $(SHELL) $(srcdir)/rename.sh \
+		$(srcdir)/dialog.3 \
+		$(MAN3DIR)/@PACKAGE@.$(libext) \
+		$(ACTUAL_PROG) \
+		@PACKAGE@ \
+		$(INSTALL_DATA)
+
+uninstall-lib ::
+	$(RM) $(MAN3DIR)/@PACKAGE@.$(libext)
+
+headers.sed : headers-sh
+	$(SHELL) headers-sh $(INCLUDEDIR) $(srcdir)
+
+################################################################################
+TOP_DOCS = \
+@NROFF_NOTE@	dialog.txt \
+@MAN2HTML_NOTE@	dialog.html \
+@GROFF_NOTE@	dialog.pdf \
+@GROFF_NOTE@	dialog.ps
+
+dialog.html : dialog.1
+dialog.pdf : dialog.ps
+dialog.ps : dialog.1
+dialog.txt : dialog.1
+################################################################################
+# rename, to use suffix-rules
+dialog_lib.1 : dialog.3
+	-$(RM) $@
+	cp dialog.3 $@
+
+LIB_DOCS = \
+	dialog_lib.1 \
+@NROFF_NOTE@	dialog_lib.txt \
+@MAN2HTML_NOTE@	dialog_lib.html \
+@GROFF_NOTE@	dialog_lib.pdf \
+@GROFF_NOTE@	dialog_lib.ps
+
+dialog_lib.html : dialog_lib.1
+dialog_lib.pdf : dialog_lib.ps
+dialog_lib.ps : dialog_lib.1
+dialog_lib.txt : dialog_lib.1
+################################################################################
+docs: $(TOP_DOCS) $(LIB_DOCS)
+clean-docs:
+	-$(RM) $(TOP_DOCS) $(LIB_DOCS)
+################################################################################
+
+$(MAN1DIR) \
+$(MAN3DIR) \
+$(BINDIR) \
+$(INCLUDEDIR) \
+$(LIBDIR) : ; mkdir -p $@
+
+@MAKE_LOWER_TAGS@tags :
+@MAKE_LOWER_TAGS@	$(CTAGS) $(SRCS) $(HDRS)
+
+@MAKE_LOWER_TAGS@TAGS :
+@MAKE_LOWER_TAGS@	$(ETAGS) $(SRCS) $(HDRS)
+
+update-po:
+	rsync -Lrtvz  translationproject.org::tp/latest/dialog/  $(PO_DIR)
+	test -f $(PO_DIR)/makefile && cd $(PO_DIR) && $(MAKE) $@
+
+lint:
+	$(LINT) $(LINT_OPTS) $(CPPFLAGS) *.c

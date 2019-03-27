@@ -1,0 +1,336 @@
+This file will describe the design, layouts, and file formats of a
+libsvn_fs_x repository.
+
+Since FSX is still in a very early phase of its development, all sections
+either subject to major change or simply "TBD".
+
+Design
+------
+
+TBD.
+
+Similar to FSFS format 7 but using a radically different on-disk format.
+
+In FSFS, each committed revision is represented as an immutable file
+containing the new node-revisions, contents, and changed-path
+information for the revision, plus a second, changeable file
+containing the revision properties.
+
+To reduce the size of the on-disk representation, revision data gets
+packed, i.e. multiple revision files get combined into a single pack
+file of smaller total size.  The same strategy is applied to revprops.
+
+In-progress transactions are represented with a prototype rev file
+containing only the new text representations of files (appended to as
+changed file contents come in), along with a separate file for each
+node-revision, directory representation, or property representation
+which has been changed or added in the transaction.  During the final
+stage of the commit, these separate files are marshalled onto the end
+of the prototype rev file to form the immutable revision file.
+
+Layout of the FS directory
+--------------------------
+
+The layout of the FS directory (the "db" subdirectory of the
+repository) is:
+
+  revs/               Subdirectory containing revs
+    <shard>/          Shard directory, if sharding is in use (see below)
+      <revnum>        File containing rev <revnum>
+    <shard>.pack/     Pack directory, if the repo has been packed (see below)
+      pack            Pack file, if the repository has been packed (see below)
+      manifest        Pack manifest file, if a pack file exists (see below)
+  revprops/           Subdirectory containing rev-props
+    <shard>/          Shard directory, if sharding is in use (see below)
+      <revnum>        File containing rev-props for <revnum>
+    <shard>.pack/     Pack directory, if the repo has been packed (see below)
+      <rev>.<count>   Pack file, if the repository has been packed (see below)
+      manifest        Pack manifest file, if a pack file exists (see below)
+    revprops.db       SQLite database of the packed revision properties
+  transactions/       Subdirectory containing transactions
+    <txnid>.txn/      Directory containing transaction <txnid>
+  txn-protorevs/      Subdirectory containing transaction proto-revision files
+    <txnid>.rev       Proto-revision file for transaction <txnid>
+    <txnid>.rev-lock  Write lock for proto-rev file
+  txn-current         File containing the next transaction key
+  locks/              Subdirectory containing locks
+    <partial-digest>/ Subdirectory named for first 3 letters of an MD5 digest
+      <digest>        File containing locks/children for path with <digest>
+  current             File specifying current revision and next node/copy id
+  fs-type             File identifying this filesystem as an FSFS filesystem
+  write-lock          Empty file, locked to serialise writers
+  pack-lock           Empty file, locked to serialise 'svnadmin pack' (f. 7+)
+  txn-current-lock    Empty file, locked to serialise 'txn-current'
+  uuid                File containing the UUID of the repository
+  format              File containing the format number of this filesystem
+  fsx.conf            Configuration file
+  min-unpacked-rev    File containing the oldest revision not in a pack file
+  min-unpacked-revprop File containing the oldest revision of unpacked revprop
+  rep-cache.db        SQLite database mapping rep checksums to locations
+
+Files in the revprops directory are in the hash dump format used by
+svn_hash_write.
+
+The format of the "current" file is a single line of the form
+"<youngest-revision>\n" giving the youngest revision for the
+repository.
+
+The "write-lock" file is an empty file which is locked before the
+final stage of a commit and unlocked after the new "current" file has
+been moved into place to indicate that a new revision is present.  It
+is also locked during a revprop propchange while the revprop file is
+read in, mutated, and written out again.  Furthermore, it will be used
+to serialize the repository structure changes during 'svnadmin pack'
+(see also next section).  Note that readers are never blocked by any
+operation - writers must ensure that the filesystem is always in a
+consistent state.
+
+The "pack-lock" file is an empty file which is locked before an 'svnadmin
+pack' operation commences.  Thus, only one process may attempt to modify
+the repository structure at a time while other processes may still read
+and write (commit) to the repository during most of the pack procedure.
+It is only available with format 7 and newer repositories.  Older formats
+use the global write-lock instead which disables commits completely
+for the duration of the pack process.
+
+The "txn-current" file is a file with a single line of text that
+contains only a base-36 number.  The current value will be used in the
+next transaction name, along with the revision number the transaction
+is based on.  This sequence number ensures that transaction names are
+not reused, even if the transaction is aborted and a new transaction
+based on the same revision is begun.  The only operation that FSFS
+performs on this file is "get and increment"; the "txn-current-lock"
+file is locked during this operation.
+
+"fsx.conf" is a configuration file in the standard Subversion/Python
+config format.  It is automatically generated when you create a new
+repository; read the generated file for details on what it controls.
+
+When representation sharing is enabled, the filesystem tracks
+representation checksum and location mappings using a SQLite database in
+"rep-cache.db".  The database has a single table, which stores the sha1
+hash text as the primary key, mapped to the representation revision, offset,
+size and expanded size.  This file is only consulted during writes and never
+during reads.  Consequently, it is not required, and may be removed at an
+abritrary time, with the subsequent loss of rep-sharing capabilities for
+revisions written thereafter.
+
+Filesystem formats
+------------------
+
+TBD.
+
+The "format" file defines what features are permitted within the
+filesystem, and indicates changes that are not backward-compatible.
+It serves the same purpose as the repository file of the same name.
+
+So far, there is only format 1.
+
+
+Node-revision IDs
+-----------------
+
+A node-rev ID consists of the following three fields:
+
+    node_revision_id ::= node_id '.' copy_id '.' txn_id
+
+At this level, the form of the ID is the same as for BDB - see the
+section called "ID's" in <../libsvn_fs_base/notes/structure>.
+
+In order to support efficient lookup of node-revisions by their IDs
+and to simplify the allocation of fresh node-IDs during a transaction,
+we treat the fields of a node-rev ID in new and interesting ways.
+
+Within a new transaction:
+
+  New node-revision IDs assigned within a transaction have a txn-id
+  field of the form "t<txnid>".
+
+  When a new node-id or copy-id is assigned in a transaction, the ID
+  used is a "_" followed by a base36 number unique to the transaction.
+
+Within a revision:
+
+  Within a revision file, node-revs have a txn-id field of the form
+  "r<rev>/<offset>", to support easy lookup. The <offset> is the (ASCII
+  decimal) number of bytes from the start of the revision file to the
+  start of the node-rev.
+
+  During the final phase of a commit, node-revision IDs are rewritten
+  to have repository-wide unique node-ID and copy-ID fields, and to have
+  "r<rev>/<offset>" txn-id fields.
+
+  This uniqueness is done by changing a temporary
+  id of "_<base36>" to "<base36>-<rev>".  Note that this means that the
+  originating revision of a line of history or a copy can be determined
+  by looking at the node ID.
+
+The temporary assignment of node-ID and copy-ID fields has
+implications for svn_fs_compare_ids and svn_fs_check_related.  The ID
+_1.0.t1 is not related to the ID _1.0.t2 even though they have the
+same node-ID, because temporary node-IDs are restricted in scope to
+the transactions they belong to.
+
+Copy-IDs and copy roots
+-----------------------
+
+Copy-IDs are assigned in the same manner as they are in the BDB
+implementation:
+
+  * A node-rev resulting from a creation operation (with no copy
+    history) receives the copy-ID of its parent directory.
+
+  * A node-rev resulting from a copy operation receives a fresh
+    copy-ID, as one would expect.
+
+  * A node-rev resulting from a modification operation receives a
+    copy-ID depending on whether its predecessor derives from a
+    copy operation or whether it derives from a creation operation
+    with no intervening copies:
+
+      - If the predecessor does not derive from a copy, the new
+        node-rev receives the copy-ID of its parent directory.  If the
+        node-rev is being modified through its created-path, this will
+        be the same copy-ID as the predecessor node-rev has; however,
+        if the node-rev is being modified through a copied ancestor
+        directory (i.e. we are performing a "lazy copy"), this will be
+        a different copy-ID.
+
+      - If the predecessor derives from a copy and the node-rev is
+        being modified through its created-path, the new node-rev
+        receives the copy-ID of the predecessor.
+
+      - If the predecessor derives from a copy and the node-rev is not
+        being modified through its created path, the new node-rev
+        receives a fresh copy-ID.  This is called a "soft copy"
+        operation, as distinct from a "true copy" operation which was
+        actually requested through the svn_fs interface.  Soft copies
+        exist to ensure that the same <node-ID,copy-ID> pair is not
+        used twice within a transaction.
+
+Unlike the BDB implementation, we do not have a "copies" table.
+Instead, each node-revision record contains a "copyroot" field
+identifying the node-rev resulting from the true copy operation most
+proximal to the node-rev.  If the node-rev does not itself derive from
+a copy operation, then the copyroot field identifies the copy of an
+ancestor directory; if no ancestor directories derive from a copy
+operation, then the copyroot field identifies the root directory of
+rev 0.
+
+Revision file format
+--------------------
+
+TBD
+
+A revision file contains a concatenation of various kinds of data:
+
+  * Text and property representations
+  * Node-revisions
+  * The changed-path data
+
+That data is aggregated in compressed containers with a binary on-disk
+representation.
+
+Transaction layout
+------------------
+
+A transaction directory has the following layout:
+
+  props                      Transaction props
+  props-final                Final transaction props (optional)
+  next-ids                   Next temporary node-ID and copy-ID
+  changes                    Changed-path information so far
+  node.<nid>.<cid>           New node-rev data for node
+  node.<nid>.<cid>.props     Props for new node-rev, if changed
+  node.<nid>.<cid>.children  Directory contents for node-rev
+  <sha1>                     Text representation of that sha1
+
+  txn-protorevs/rev          Prototype rev file with new text reps
+  txn-protorevs/rev-lock     Lockfile for writing to the above
+
+The prototype rev file is used to store the text representations as
+they are received from the client.  To ensure that only one client is
+writing to the file at a given time, the "rev-lock" file is locked for
+the duration of each write.
+
+The three kinds of props files are all in hash dump format.  The "props"
+file will always be present.  The "node.<nid>.<cid>.props" file will
+only be present if the node-rev properties have been changed.  The
+"props-final" only exists while converting the transaction into a revision.
+
+The <sha1> files' content is that of text rep references:
+"<rev> <offset> <length> <size> <digest>"
+They will be written for text reps in the current transaction and be
+used to eliminate duplicate reps within that transaction.
+
+The "next-ids" file contains a single line "<next-temp-node-id>
+<next-temp-copy-id>\n" giving the next temporary node-ID and copy-ID
+assignments (without the leading underscores).  The next node-ID is
+also used as a uniquifier for representations which may share the same
+underlying rep.
+
+The "children" file for a node-revision begins with a copy of the hash
+dump representation of the directory entries from the old node-rev (or
+a dump of the empty hash for new directories), and then an incremental
+hash dump entry for each change made to the directory.
+
+The "changes" file contains changed-path entries in the same form as
+the changed-path entries in a rev file, except that <id> and <action>
+may both be "reset" (in which case <text-mod> and <prop-mod> are both
+always "false") to indicate that all changes to a path should be
+considered undone.  Reset entries are only used during the final merge
+phase of a transaction.  Actions in the "changes" file always contain
+a node kind.
+
+The node-rev files have the same format as node-revs in a revision
+file, except that the "text" and "props" fields are augmented as
+follows:
+
+  * The "props" field may have the value "-1" if properties have
+    been changed and are contained in a "props" file within the
+    node-rev subdirectory.
+
+  * For directory node-revs, the "text" field may have the value
+    "-1" if entries have been changed and are contained in a
+    "contents" file in the node-rev subdirectory.
+
+  * For the directory node-rev representing the root of the
+    transaction, the "is-fresh-txn-root" field indicates that it has
+    not been made mutable yet (see Issue #2608).
+
+  * For file node-revs, the "text" field may have the value "-1
+    <offset> <length> <size> <digest>" if the text representation is
+    within the prototype rev file.
+
+  * The "copyroot" field may have the value "-1 <created-path>" if the
+    copy root of the node-rev is part of the transaction in process.
+
+
+Locks layout
+------------
+
+Locks in FSX are stored in serialized hash format in files whose
+names are MD5 digests of the FS path which the lock is associated
+with.  For the purposes of keeping directory inode usage down, these
+digest files live in subdirectories of the main lock directory whose
+names are the first 3 characters of the digest filename.
+
+Also stored in the digest file for a given FS path are pointers to
+other digest files which contain information associated with other FS
+paths that are beneath our path (an immediate child thereof, or a
+grandchild, or a great-grandchild, ...).
+
+To answer the question, "Does path FOO have a lock associated with
+it?", one need only generate the MD5 digest of FOO's
+absolute-in-the-FS path (say, 3b1b011fed614a263986b5c4869604e8), look
+for a file located like so:
+
+   /path/to/repos/locks/3b1/3b1b011fed614a263986b5c4869604e8
+
+And then see if that file contains lock information.
+
+To inquire about locks on children of the path FOO, you would
+reference the same path as above, but look for a list of children in
+that file (instead of lock information).  Children are listed as MD5
+digests, too, so you would simply iterate over those digests and
+consult the files they reference for lock information.

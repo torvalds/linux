@@ -1,0 +1,195 @@
+/* $Id: curses.tail,v 1.21 2011/10/29 20:03:22 tom Exp $ */
+/*
+ * vile:cmode:
+ * This file is part of ncurses, designed to be appended after curses.h.in
+ * (see that file for the relevant copyright).
+ */
+
+/* mouse interface */
+
+#if NCURSES_MOUSE_VERSION > 1
+#define NCURSES_MOUSE_MASK(b,m) ((m) << (((b) - 1) * 5))
+#else
+#define NCURSES_MOUSE_MASK(b,m) ((m) << (((b) - 1) * 6))
+#endif
+
+#define	NCURSES_BUTTON_RELEASED	001L
+#define	NCURSES_BUTTON_PRESSED	002L
+#define	NCURSES_BUTTON_CLICKED	004L
+#define	NCURSES_DOUBLE_CLICKED	010L
+#define	NCURSES_TRIPLE_CLICKED	020L
+#define	NCURSES_RESERVED_EVENT	040L
+
+/* event masks */
+#define	BUTTON1_RELEASED	NCURSES_MOUSE_MASK(1, NCURSES_BUTTON_RELEASED)
+#define	BUTTON1_PRESSED		NCURSES_MOUSE_MASK(1, NCURSES_BUTTON_PRESSED)
+#define	BUTTON1_CLICKED		NCURSES_MOUSE_MASK(1, NCURSES_BUTTON_CLICKED)
+#define	BUTTON1_DOUBLE_CLICKED	NCURSES_MOUSE_MASK(1, NCURSES_DOUBLE_CLICKED)
+#define	BUTTON1_TRIPLE_CLICKED	NCURSES_MOUSE_MASK(1, NCURSES_TRIPLE_CLICKED)
+
+#define	BUTTON2_RELEASED	NCURSES_MOUSE_MASK(2, NCURSES_BUTTON_RELEASED)
+#define	BUTTON2_PRESSED		NCURSES_MOUSE_MASK(2, NCURSES_BUTTON_PRESSED)
+#define	BUTTON2_CLICKED		NCURSES_MOUSE_MASK(2, NCURSES_BUTTON_CLICKED)
+#define	BUTTON2_DOUBLE_CLICKED	NCURSES_MOUSE_MASK(2, NCURSES_DOUBLE_CLICKED)
+#define	BUTTON2_TRIPLE_CLICKED	NCURSES_MOUSE_MASK(2, NCURSES_TRIPLE_CLICKED)
+
+#define	BUTTON3_RELEASED	NCURSES_MOUSE_MASK(3, NCURSES_BUTTON_RELEASED)
+#define	BUTTON3_PRESSED		NCURSES_MOUSE_MASK(3, NCURSES_BUTTON_PRESSED)
+#define	BUTTON3_CLICKED		NCURSES_MOUSE_MASK(3, NCURSES_BUTTON_CLICKED)
+#define	BUTTON3_DOUBLE_CLICKED	NCURSES_MOUSE_MASK(3, NCURSES_DOUBLE_CLICKED)
+#define	BUTTON3_TRIPLE_CLICKED	NCURSES_MOUSE_MASK(3, NCURSES_TRIPLE_CLICKED)
+
+#define	BUTTON4_RELEASED	NCURSES_MOUSE_MASK(4, NCURSES_BUTTON_RELEASED)
+#define	BUTTON4_PRESSED		NCURSES_MOUSE_MASK(4, NCURSES_BUTTON_PRESSED)
+#define	BUTTON4_CLICKED		NCURSES_MOUSE_MASK(4, NCURSES_BUTTON_CLICKED)
+#define	BUTTON4_DOUBLE_CLICKED	NCURSES_MOUSE_MASK(4, NCURSES_DOUBLE_CLICKED)
+#define	BUTTON4_TRIPLE_CLICKED	NCURSES_MOUSE_MASK(4, NCURSES_TRIPLE_CLICKED)
+
+/*
+ * In 32 bits the version-1 scheme does not provide enough space for a 5th
+ * button, unless we choose to change the ABI by omitting the reserved-events.
+ */
+#if NCURSES_MOUSE_VERSION > 1
+
+#define	BUTTON5_RELEASED	NCURSES_MOUSE_MASK(5, NCURSES_BUTTON_RELEASED)
+#define	BUTTON5_PRESSED		NCURSES_MOUSE_MASK(5, NCURSES_BUTTON_PRESSED)
+#define	BUTTON5_CLICKED		NCURSES_MOUSE_MASK(5, NCURSES_BUTTON_CLICKED)
+#define	BUTTON5_DOUBLE_CLICKED	NCURSES_MOUSE_MASK(5, NCURSES_DOUBLE_CLICKED)
+#define	BUTTON5_TRIPLE_CLICKED	NCURSES_MOUSE_MASK(5, NCURSES_TRIPLE_CLICKED)
+
+#define	BUTTON_CTRL		NCURSES_MOUSE_MASK(6, 0001L)
+#define	BUTTON_SHIFT		NCURSES_MOUSE_MASK(6, 0002L)
+#define	BUTTON_ALT		NCURSES_MOUSE_MASK(6, 0004L)
+#define	REPORT_MOUSE_POSITION	NCURSES_MOUSE_MASK(6, 0010L)
+
+#else
+
+#define	BUTTON1_RESERVED_EVENT	NCURSES_MOUSE_MASK(1, NCURSES_RESERVED_EVENT)
+#define	BUTTON2_RESERVED_EVENT	NCURSES_MOUSE_MASK(2, NCURSES_RESERVED_EVENT)
+#define	BUTTON3_RESERVED_EVENT	NCURSES_MOUSE_MASK(3, NCURSES_RESERVED_EVENT)
+#define	BUTTON4_RESERVED_EVENT	NCURSES_MOUSE_MASK(4, NCURSES_RESERVED_EVENT)
+
+#define	BUTTON_CTRL		NCURSES_MOUSE_MASK(5, 0001L)
+#define	BUTTON_SHIFT		NCURSES_MOUSE_MASK(5, 0002L)
+#define	BUTTON_ALT		NCURSES_MOUSE_MASK(5, 0004L)
+#define	REPORT_MOUSE_POSITION	NCURSES_MOUSE_MASK(5, 0010L)
+
+#endif
+
+#define	ALL_MOUSE_EVENTS	(REPORT_MOUSE_POSITION - 1)
+
+/* macros to extract single event-bits from masks */
+#define	BUTTON_RELEASE(e, x)		((e) & NCURSES_MOUSE_MASK(x, 001))
+#define	BUTTON_PRESS(e, x)		((e) & NCURSES_MOUSE_MASK(x, 002))
+#define	BUTTON_CLICK(e, x)		((e) & NCURSES_MOUSE_MASK(x, 004))
+#define	BUTTON_DOUBLE_CLICK(e, x)	((e) & NCURSES_MOUSE_MASK(x, 010))
+#define	BUTTON_TRIPLE_CLICK(e, x)	((e) & NCURSES_MOUSE_MASK(x, 020))
+#define	BUTTON_RESERVED_EVENT(e, x)	((e) & NCURSES_MOUSE_MASK(x, 040))
+
+typedef struct
+{
+    short id;		/* ID to distinguish multiple devices */
+    int x, y, z;	/* event coordinates (character-cell) */
+    mmask_t bstate;	/* button state bits */
+}
+MEVENT;
+
+extern NCURSES_EXPORT(bool)    has_mouse(void);
+extern NCURSES_EXPORT(int)     getmouse (MEVENT *);
+extern NCURSES_EXPORT(int)     ungetmouse (MEVENT *);
+extern NCURSES_EXPORT(mmask_t) mousemask (mmask_t, mmask_t *);
+extern NCURSES_EXPORT(bool)    wenclose (const WINDOW *, int, int);
+extern NCURSES_EXPORT(int)     mouseinterval (int);
+extern NCURSES_EXPORT(bool)    wmouse_trafo (const WINDOW*, int*, int*, bool);
+extern NCURSES_EXPORT(bool)    mouse_trafo (int*, int*, bool);              /* generated */
+
+#if NCURSES_SP_FUNCS
+extern NCURSES_EXPORT(bool)    NCURSES_SP_NAME(has_mouse) (SCREEN*);
+extern NCURSES_EXPORT(int)     NCURSES_SP_NAME(getmouse) (SCREEN*, MEVENT *);
+extern NCURSES_EXPORT(int)     NCURSES_SP_NAME(ungetmouse) (SCREEN*,MEVENT *);
+extern NCURSES_EXPORT(mmask_t) NCURSES_SP_NAME(mousemask) (SCREEN*, mmask_t, mmask_t *);
+extern NCURSES_EXPORT(int)     NCURSES_SP_NAME(mouseinterval) (SCREEN*, int);
+#endif
+
+#define mouse_trafo(y,x,to_screen) wmouse_trafo(stdscr,y,x,to_screen)
+
+/* other non-XSI functions */
+
+extern NCURSES_EXPORT(int) mcprint (char *, int);	/* direct data to printer */
+extern NCURSES_EXPORT(int) has_key (int);		/* do we have given key? */
+
+#if NCURSES_SP_FUNCS
+extern NCURSES_EXPORT(int) NCURSES_SP_NAME(has_key) (SCREEN*, int);    /* do we have given key? */
+extern NCURSES_EXPORT(int) NCURSES_SP_NAME(mcprint) (SCREEN*, char *, int);	/* direct data to printer */
+#endif
+
+/* Debugging : use with libncurses_g.a */
+
+extern NCURSES_EXPORT(void) _tracef (const char *, ...) GCC_PRINTFLIKE(1,2);
+extern NCURSES_EXPORT(void) _tracedump (const char *, WINDOW *);
+extern NCURSES_EXPORT(char *) _traceattr (attr_t);
+extern NCURSES_EXPORT(char *) _traceattr2 (int, chtype);
+extern NCURSES_EXPORT(char *) _nc_tracebits (void);
+extern NCURSES_EXPORT(char *) _tracechar (int);
+extern NCURSES_EXPORT(char *) _tracechtype (chtype);
+extern NCURSES_EXPORT(char *) _tracechtype2 (int, chtype);
+#if NCURSES_WIDECHAR
+#define _tracech_t		_tracecchar_t
+extern NCURSES_EXPORT(char *) _tracecchar_t (const cchar_t *);
+#define _tracech_t2		_tracecchar_t2
+extern NCURSES_EXPORT(char *) _tracecchar_t2 (int, const cchar_t *);
+#else
+#define _tracech_t		_tracechtype
+#define _tracech_t2		_tracechtype2
+#endif
+extern NCURSES_EXPORT(char *) _tracemouse (const MEVENT *);
+extern NCURSES_EXPORT(void) trace (const unsigned int);
+
+/* trace masks */
+#define TRACE_DISABLE	0x0000	/* turn off tracing */
+#define TRACE_TIMES	0x0001	/* trace user and system times of updates */
+#define TRACE_TPUTS	0x0002	/* trace tputs calls */
+#define TRACE_UPDATE	0x0004	/* trace update actions, old & new screens */
+#define TRACE_MOVE	0x0008	/* trace cursor moves and scrolls */
+#define TRACE_CHARPUT	0x0010	/* trace all character outputs */
+#define TRACE_ORDINARY	0x001F	/* trace all update actions */
+#define TRACE_CALLS	0x0020	/* trace all curses calls */
+#define TRACE_VIRTPUT	0x0040	/* trace virtual character puts */
+#define TRACE_IEVENT	0x0080	/* trace low-level input processing */
+#define TRACE_BITS	0x0100	/* trace state of TTY control bits */
+#define TRACE_ICALLS	0x0200	/* trace internal/nested calls */
+#define TRACE_CCALLS	0x0400	/* trace per-character calls */
+#define TRACE_DATABASE	0x0800	/* trace read/write of terminfo/termcap data */
+#define TRACE_ATTRS	0x1000	/* trace attribute updates */
+
+#define TRACE_SHIFT	13	/* number of bits in the trace masks */
+#define TRACE_MAXIMUM	((1 << TRACE_SHIFT) - 1) /* maximum trace level */
+
+#if defined(TRACE) || defined(NCURSES_TEST)
+extern NCURSES_EXPORT_VAR(int) _nc_optimize_enable;		/* enable optimizations */
+extern NCURSES_EXPORT(const char *) _nc_visbuf (const char *);
+#define OPTIMIZE_MVCUR		0x01	/* cursor movement optimization */
+#define OPTIMIZE_HASHMAP	0x02	/* diff hashing to detect scrolls */
+#define OPTIMIZE_SCROLL		0x04	/* scroll optimization */
+#define OPTIMIZE_ALL		0xff	/* enable all optimizations (dflt) */
+#endif
+
+#include <unctrl.h>
+
+#ifdef __cplusplus
+
+#ifndef NCURSES_NOMACROS
+
+/* these names conflict with STL */
+#undef box
+#undef clear
+#undef erase
+#undef move
+#undef refresh
+
+#endif /* NCURSES_NOMACROS */
+
+}
+#endif
+
+#endif /* __NCURSES_H */

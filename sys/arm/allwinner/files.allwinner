@@ -1,0 +1,42 @@
+# $FreeBSD$
+kern/kern_clocksource.c			standard
+
+arm/allwinner/a10_ahci.c		optional	ahci
+arm/allwinner/a10_codec.c		optional	sound
+arm/allwinner/a10_dmac.c		standard
+arm/allwinner/a31_dmac.c		standard
+arm/allwinner/a10_ehci.c		optional	ehci
+arm/allwinner/a10_sramc.c		standard
+arm/allwinner/aw_gpio.c			optional	gpio
+arm/allwinner/aw_if_dwc.c		optional	dwc
+arm/allwinner/aw_machdep.c		standard
+arm/allwinner/aw_mmc.c			optional	mmc | mmccam
+arm/allwinner/aw_mp.c			optional	smp
+arm/allwinner/aw_nmi.c			optional	intrng
+arm/allwinner/aw_rsb.c			optional	rsb | p2wi
+arm/allwinner/aw_rtc.c			standard
+arm/allwinner/aw_syscon.c		optional	ext_resources syscon
+arm/allwinner/aw_ts.c			standard
+arm/allwinner/aw_usbphy.c		optional	ehci | ohci
+arm/allwinner/aw_wdog.c			standard
+arm/allwinner/axp209.c			optional	axp209
+arm/allwinner/axp81x.c			optional	axp81x
+arm/allwinner/if_awg.c			optional	awg ext_resources syscon
+arm/allwinner/if_emac.c			optional	emac
+arm/allwinner/sunxi_dma_if.m		standard
+dev/iicbus/twsi/a10_twsi.c		optional	twsi
+dev/usb/controller/generic_ohci.c	optional	ohci
+dev/usb/controller/generic_usb_if.m	optional	ohci
+arm/allwinner/aw_sid.c			standard
+arm/allwinner/aw_thermal.c		standard
+dev/iicbus/sy8106a.c			optional	sy8106a
+arm/allwinner/aw_cir.c			optional	aw_cir evdev
+
+arm/allwinner/aw_reset.c		standard
+arm/allwinner/aw_ccu.c			standard
+arm/allwinner/clk/aw_gmacclk.c		standard
+
+arm/allwinner/clkng/aw_ccung.c		standard
+arm/allwinner/clkng/aw_clk_nkmp.c	standard
+arm/allwinner/clkng/aw_clk_nm.c		standard
+arm/allwinner/clkng/aw_clk_prediv_mux.c	standard

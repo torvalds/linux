@@ -1,0 +1,19 @@
+
+#------------------------------------------------------------------------------
+# $File: qt,v 1.2 2014/12/16 19:49:29 christos Exp $
+# qt:  file(1) magic for Qt
+
+# http://doc.qt.io/qt-5/resources.html
+0	string		\<!DOCTYPE\040RCC\>	Qt Resource Collection file
+
+# https://qt.gitorious.org/qt/qtbase/source/\
+# 5367fa356233da4c0f28172a8f817791525f5457:\
+# src/tools/rcc/rcc.cpp#L840
+0	string		qres\0\0		Qt Binary Resource file
+0	search/1024	The\040Resource\040Compiler\040for\040Qt	Qt C-code resource file
+
+# https://qt.gitorious.org/qt/qtbase/source/\
+# 5367fa356233da4c0f28172a8f817791525f5457:\
+# src/corelib/kernel/qtranslator.cpp#L62
+0	string		\x3c\xb8\x64\x18\xca\xef\x9c\x95
+>8	string		\xcd\x21\x1c\xbf\x60\xa1\xbd\xdd	Qt Translation file

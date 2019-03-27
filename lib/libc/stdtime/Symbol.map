@@ -1,0 +1,35 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	_time32_to_time;
+	_time_to_time32;
+	_time64_to_time;
+	_time_to_time64;
+	_time_to_long;
+	_long_to_time;
+	_time_to_int;
+	_int_to_time;
+	strptime;
+	strftime;
+	tzname;
+	tzsetwall;
+	tzset;
+	localtime;
+	localtime_r;
+	gmtime;
+	gmtime_r;
+	offtime;
+	ctime;
+	ctime_r;
+	mktime;
+	timelocal;
+	timegm;
+	timeoff;
+	time2posix;
+	posix2time;
+	difftime;
+	asctime_r;
+	asctime;
+};

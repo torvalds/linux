@@ -1,0 +1,32 @@
+# $FreeBSD$ 
+# $NetBSD: EUC.alias,v 1.3 2007/03/05 16:58:35 tnozaki Exp $
+
+CN		cn-gb
+CN		csgb3212
+CN		euccn
+CN		gb2312
+
+JIS-2004	euc-jisx0213
+
+JP		cseucpkdfmtjapanese
+JP		eucjp
+JP		ibm-eucjp
+#JP		extended_unix_code_packed_format_for_japanese
+
+JP-MS		eucjp-ms
+JP-MS		eucjp-open
+JP-MS		eucjp-win
+JP-MS		eucjpms
+
+KR		cseuckr
+KR		csksc56011987
+KR		euckr
+KR		iso-ir-149
+KR		korean
+KR		ks_c_5601-1987
+KR		ks_c_5601-1989
+KR		ksc_5601
+
+TW		cns11643
+TW		cseuctw
+TW		euctw

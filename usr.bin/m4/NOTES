@@ -1,0 +1,64 @@
+m4 - macro processor
+
+PD m4 is based on the macro tool distributed with the software 
+tools (VOS) package, and described in the "SOFTWARE TOOLS" and 
+"SOFTWARE TOOLS IN PASCAL" books. It has been expanded to include 
+most of the command set of SysV m4, the standard UN*X macro processor.
+
+Since both PD m4 and UN*X m4 are based on SOFTWARE TOOLS macro,
+there may be certain implementation similarities between
+the two. The PD m4 was produced without ANY references to m4
+sources.
+
+written by: Ozan S. Yigit
+
+References:
+
+	Software Tools distribution: macro
+
+	Kernighan, Brian W. and P. J. Plauger, SOFTWARE
+	TOOLS IN PASCAL, Addison-Wesley, Mass. 1981
+
+	Kernighan, Brian W. and P. J. Plauger, SOFTWARE
+	TOOLS, Addison-Wesley, Mass. 1976
+
+	Kernighan, Brian W. and Dennis M. Ritchie,
+	THE M4 MACRO PROCESSOR, Unix Programmer's Manual,
+	Seventh Edition, Vol. 2, Bell Telephone Labs, 1979
+
+	System V man page for M4
+
+
+Implementation Notes:
+
+[1]	PD m4 uses a different (and simpler) stack mechanism than the one 
+	described in Software Tools and Software Tools in Pascal books. 
+	The triple stack thing is replaced with a single stack containing 
+	the call frames and the arguments. Each frame is back-linked to a 
+	previous stack frame, which enables us to rewind the stack after 
+	each nested call is completed. Each argument is a character pointer 
+	to the beginning of the argument string within the string space.
+	The only exceptions to this are (*) arg 0 and arg 1, which are
+	the macro definition and macro name strings, stored dynamically
+	for the hash table.
+
+	    .					   .
+	|   .	|  <-- sp			|  .  |
+	+-------+				+-----+
+	| arg 3 ------------------------------->| str |
+	+-------+				|  .  |
+	| arg 2 --------------+ 		   .
+	+-------+	      |
+	    *		      |			|     |
+	+-------+	      | 		+-----+
+	| plev	|  <-- fp     +---------------->| str |
+	+-------+				|  .  |
+	| type	|				   .
+	+-------+
+	| prcf	-----------+		plev: paren level
+	+-------+  	   |		type: call type
+	|   .	| 	   |		prcf: prev. call frame
+	    .	   	   |
+	+-------+	   |
+	|	<----------+
+	+-------+

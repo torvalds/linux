@@ -1,0 +1,63 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_move.3x,v 1.14 2010/12/04 18:40:45 tom Exp $
+.TH curs_move 3X ""
+.na
+.hy 0
+.SH NAME
+\fBmove\fR,
+\fBwmove\fR \- move \fBcurses\fR window cursor
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBint move(int y, int x);\fR
+.br
+\fBint wmove(WINDOW *win, int y, int x);\fR
+.br
+.SH DESCRIPTION
+These routines move the cursor associated with the window to line \fIy\fR and
+column \fIx\fR.  This routine does not move the physical cursor of the terminal
+until \fBrefresh\fR is called.  The position specified is relative to the upper
+left-hand corner of the window, which is (0,0).
+.SH RETURN VALUE
+These routines return \fBERR\fR upon failure and OK (SVr4
+specifies only "an integer value other than \fBERR\fR") upon successful
+completion.
+.PP
+Specifically, they return an error
+if the window pointer is null, or
+if the position is outside the window.
+.SH NOTES
+Note that \fBmove\fR may be a macro.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.
+.SH SEE ALSO
+\fBcurses\fR(3X), \fBcurs_refresh\fR(3X)

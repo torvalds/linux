@@ -1,0 +1,11 @@
+LIST      = one two three four five six seven eight nine ten
+LIST:O    = eight five four nine one seven six ten three two
+LIST:Ox   = Ok
+LIST:O:Ox = Ok
+LISTX     = Ok
+LISTSX    = Ok
+make: Bad modifier `:OX' for LIST
+BADMOD 1  = }
+make: Bad modifier `:OxXX' for LIST
+BADMOD 2  = XX}
+exit status 0

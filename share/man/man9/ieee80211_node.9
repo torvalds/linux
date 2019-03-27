@@ -1,0 +1,251 @@
+.\"
+.\" Copyright (c) 2004 Bruce M. Simpson <bms@spc.org>
+.\" Copyright (c) 2004 Darron Broad <darron@kewl.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 28, 2010
+.Dt IEEE80211_NODE 9
+.Os
+.Sh NAME
+.Nm ieee80211_node
+.Nd software 802.11 stack node management functions
+.Sh SYNOPSIS
+.In net80211/ieee80211_var.h
+.\"
+.Ft struct ieee80211_node *
+.Fo ieee80211_find_rxnode
+.Fa "struct ieee80211com *"
+.Fa "const struct ieee80211_frame_min *"
+.Fc
+.\"
+.Ft struct ieee80211_node *
+.Fo ieee80211_find_rxnode_withkey
+.Fa "struct ieee80211com *"
+.Fa "const struct ieee80211_frame_min *"
+.Fa "ieee80211_keyix"
+.Fc
+.\"
+.Ft struct ieee80211_node *
+.Fn ieee80211_ref_node "struct ieee80211_node *"
+.\"
+.Ft void
+.Fn ieee80211_unref_node "struct ieee80211_node *"
+.\"
+.Ft void
+.Fn ieee80211_free_node "struct ieee80211_node *"
+.\"
+.Ft void
+.Fo ieee80211_iterate_nodes
+.Fa "struct ieee80211_node_table *"
+.Fa "ieee80211_iter_func *f"
+.Fa "void *arg"
+.Fc
+.\"
+.Ft void
+.Fo ieee80211_dump_nodes
+.Fa "struct ieee80211_node_table *"
+.Fc
+.\"
+.Ft void
+.Fo ieee80211_dump_node
+.Fa "struct ieee80211_node *"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm net80211
+layer that supports 802.11 device drivers maintains a database of
+peer stations called the
+.Dq node table
+in the
+.Vt ic_sta
+entry of the
+.Vt ieee80211com
+structure.
+Station mode vaps create an entry for the access point
+the station is associated to.
+AP mode vaps create entries for associated stations.
+Adhoc and mesh mode vaps create entries for neighbor stations.
+WDS mode vaps create an entry for the peer station.
+Stations for all vaps reside in the same table; each node
+entry has a
+.Vt ni_vap
+field that identifies the vap that created it.
+In some instances an entry is used by multiple vaps (e.g. for
+dynamic WDS a station associated to an ap vap may also be the peer
+of a WDS vap).
+.Pp
+Node table entries are reference counted.
+That is, there is a count of all long term references that determines
+when an entry may be reclaimed.
+References are held by every in-flight frame sent to a station to
+ensure the entry is not reclaimed while the frame is queued or otherwise
+held by a driver.
+Routines that lookup a table entry return a
+.Dq held reference
+(i.e. a pointer to a table entry with the reference count incremented).
+The
+.Fn ieee80211_ref_node
+and
+.Fn ieee80211_unref_node
+calls explicitly increment/decrement the reference count of a node,
+but are rarely used.
+Instead most callers use
+.Fn ieee80211_free_node
+to release a reference and, if the count goes to zero, reclaim the
+table entry.
+.Pp
+The station table and its entries are exposed to drivers in several ways.
+Each frame transmitted to a station includes a reference to the
+associated node in the
+.Vt m_pkthdr.rcvif
+field.
+This reference must be reclaimed by the driver when transmit processing
+is done.
+For each frame received the driver must lookup the table entry to
+use in dispatching the frame
+.Dq up the stack .
+This lookup implicitly obtains a reference to the table entry and
+the driver must reclaim the reference when frame processing is completed.
+Otherwise drivers frequently inspect the contents of the
+.Vt iv_bss
+node when handling state machine changes as important information
+is maintained in the data structure.
+.Pp
+The node table is opaque to drivers.
+Entries may be looked up using one of the pre-defined API's or the
+.Fn ieee80211_iterate_nodes
+call may be used to iterate through all entries to do per-node
+processing or implement some non-standard search mechanism.
+Note that
+.Fn ieee80211_iterate_nodes
+is single-threaded per-device
+and the effort processing involved is fairly
+substantial so it should be used carefully.
+.Pp
+Two routines are provided to print the contents of nodes to the console
+for debugging:
+.Fn ieee80211_dump_node
+displays the contents of a single node while
+.Fn ieee80211_dump_nodes
+displays the contents of the specified node table.
+Nodes may also be displayed using
+.Xr ddb 4
+with the
+.Dq show node
+directive and the station node table can be displayed with
+.Dq show statab .
+.Sh DRIVER PRIVATE STATE
+Node data structures may be extended by the driver to include
+driver-private state.
+This is done by overriding the
+.Vt ic_node_alloc
+method used to allocate a node table entry.
+The driver method must allocate a structure that is an extension
+of the
+.Vt ieee80211_node
+structure.
+For example the
+.Xr iwi 4
+driver defines a private node structure as:
+.Bd -literal -offset indent
+struct iwi_node {
+        struct ieee80211_node   in_node;
+	int                     in_station;
+};
+.Ed
+.Pp
+and then provides a private allocation routine that does this:
+.Bd -literal -offset indent
+static struct ieee80211_node *
+iwi_node_alloc(struct ieee80211vap *vap,
+    const uint8_t mac[IEEE80211_ADDR_LEN])
+{
+        struct iwi_node *in;
+
+        in = malloc(sizeof(struct iwi_node), M_80211_NODE,
+		M_NOWAIT | M_ZERO);
+        if (in == NULL)
+                return NULL;
+        in->in_station = -1;
+        return &in->in_node;
+}
+.Ed
+.Pp
+Note that when reclaiming a node allocated by the driver the
+.Dq parent method
+must be called to ensure
+.Nm net80211
+state is reclaimed; for example:
+.Bd -literal -offset indent
+static void
+iwi_node_free(struct ieee80211_node *ni)
+{
+        struct ieee80211com *ic = ni->ni_ic;
+        struct iwi_softc *sc = ic->ic_ifp->if_softc;
+        struct iwi_node *in = (struct iwi_node *)ni;
+
+        if (in->in_station != -1)
+                free_unr(sc->sc_unr, in->in_station);
+        sc->sc_node_free(ni);	/* invoke net80211 free handler */
+}
+.Ed
+.Pp
+Beware that care must be taken to avoid holding references that
+might cause nodes from being reclaimed.
+.Nm net80211
+will reclaim a node when the last reference is reclaimed in
+its data structures.
+However if a driver holds additional references then
+.Nm net80211
+will not recognize this and table entries will not be reclaimed.
+Such references should not be needed if the driver overrides the
+.Vt ic_node_cleanup
+and/or
+.Vt ic_node_free
+methods.
+.Sh KEY TABLE SUPPORT
+Node table lookups are typically done using a hash of the stations'
+mac address.
+When receiving frames this is sufficient to find the node table entry
+for the transmitter.
+But some devices also identify the sending station in the device
+state received with each frame and this data can be used to optimize
+lookups on receive using a companion table called the
+.Dq keytab .
+This table records a separate node table reference that can be fetched
+without any locking using the table index.
+This logic is handled with the
+.Fn ieee80211_find_rxnode_withkey
+call: if a keytab entry is found using the specified index then it is
+returned directly; otherwise a normal lookup is done and the keytab
+entry is written using the specified index.
+If the specified index is
+.Dv IEEE80211_KEYIX_NONE
+then a normal lookup is done without a table update.
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr ieee80211 9 ,
+.Xr ieee80211_proto 9

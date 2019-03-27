@@ -1,0 +1,96 @@
+.\"
+.\" Copyright (c) 2009 Hudson River Trading LLC
+.\" Written by: John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 20, 2009
+.Dt REFCOUNT 9
+.Os
+.Sh NAME
+.Nm refcount ,
+.Nm refcount_init ,
+.Nm refcount_acquire ,
+.Nm refcount_release
+.Nd manage a simple reference counter
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/refcount.h
+.Ft void
+.Fn refcount_init "volatile u_int *count" "u_int value"
+.Ft void
+.Fn refcount_acquire "volatile u_int *count"
+.Ft int
+.Fn refcount_release "volatile u_int *count"
+.Sh DESCRIPTION
+The
+.Nm
+functions provide an API to manage a simple reference counter.
+The caller provides the storage for the counter in an unsigned integer.
+A pointer to this integer is passed via
+.Fa count .
+Usually the counter is used to manage the lifetime of an object and is
+stored as a member of the object.
+.Pp
+The
+.Fn refcount_init
+function is used to set the initial value of the counter to
+.Fa value .
+It is normally used when creating a reference-counted object.
+.Pp
+The
+.Fn refcount_acquire
+function is used to acquire a new reference.
+The caller is responsible for ensuring that it holds a valid reference
+while obtaining a new reference.
+For example,
+if an object is stored on a list and the list holds a reference on the
+object, then holding a lock that protects the list provides sufficient
+protection for acquiring a new reference.
+.Pp
+The
+.Fn refcount_release
+function is used to release an existing reference.
+The function returns a non-zero value if the reference being released was
+the last reference;
+otherwise, it returns zero.
+.Pp
+Note that these routines do not provide any inter-CPU synchronization,
+data protection,
+or memory ordering guarantees except for managing the counter.
+The caller is responsible for any additional synchronization needed by
+consumers of any containing objects.
+In addition,
+the caller is also responsible for managing the life cycle of any containing
+objects including explicitly releasing any resources when the last reference
+is released.
+.Sh RETURN VALUES
+The
+.Nm refcount_release
+function returns non-zero when releasing the last reference and zero when
+releasing any other reference.
+.Sh HISTORY
+These functions were introduced in
+.Fx 6.0 .

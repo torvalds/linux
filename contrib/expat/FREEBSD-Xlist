@@ -1,0 +1,21 @@
+# $FreeBSD$
+*.MPW
+*.cmake
+*.def
+*.dsp
+*.dsw
+*.m4
+*.pc.in
+*.vcxproj*
+*config.h
+CMake*
+Configure*
+amiga
+bcb5
+configure
+conftools
+doc/valid-xhtml10.png
+expat.sln
+m4
+vms
+win32

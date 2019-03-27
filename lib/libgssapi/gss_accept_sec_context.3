@@ -1,0 +1,483 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2005 Doug Rabson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.\"
+.\" The following commands are required for all man pages.
+.Dd January 26, 2010
+.Dt GSS_ACCEPT_SEC_CONTEXT 3 PRM
+.Os
+.Sh NAME
+.Nm gss_accept_sec_context
+.Nd Accept a security context initiated by a peer application
+.\" This next command is for sections 2 and 3 only.
+.\" .Sh LIBRARY
+.Sh SYNOPSIS
+.In "gssapi/gssapi.h"
+.Ft OM_uint32
+.Fo gss_accept_sec_context
+.Fa "OM_uint32 *minor_status"
+.Fa "gss_ctx_id_t *context_handle"
+.Fa "const gss_cred_id_t acceptor_cred_handle"
+.Fa "const gss_buffer_t input_token_buffer"
+.Fa "const gss_channel_bindings_t input_chan_bindings"
+.Fa "const gss_name_t *src_name"
+.Fa "gss_OID *mech_type"
+.Fa "gss_buffer_t output_token"
+.Fa "OM_uint32 *ret_flags"
+.Fa "OM_uint32 *time_rec"
+.Fa "gss_cred_id_t *delegated_cred_handle"
+.Fc
+.Sh DESCRIPTION
+Allows a remotely initiated security context between the application
+and a remote peer to be established.  The routine may return a
+.Fa output_token
+which should be transferred to the peer application,
+where the peer application will present it to
+.Xr gss_init_sec_context 3 .
+If no token need be sent,
+.Fn gss_accept_sec_context
+will indicate this
+by setting the length field of the
+.Fa output_token
+argument to zero.
+To complete the context establishment, one or more reply tokens may be
+required from the peer application; if so,
+.Fn gss_accept_sec_context
+will return a status flag of
+.Dv GSS_S_CONTINUE_NEEDED , in which case it
+should be called again when the reply token is received from the peer
+application, passing the token to
+.Fn gss_accept_sec_context
+via the
+.Fa input_token
+parameters.
+.Pp
+Portable applications should be constructed to use the token length
+and return status to determine whether a token needs to be sent or
+waited for.  Thus a typical portable caller should always invoke
+.Fn gss_accept_sec_context
+within a loop:
+.Bd -literal
+gss_ctx_id_t context_hdl = GSS_C_NO_CONTEXT;
+
+do {
+  receive_token_from_peer(input_token);
+  maj_stat = gss_accept_sec_context(&min_stat,
+				    &context_hdl,
+				    cred_hdl,
+				    input_token,
+				    input_bindings,
+				    &client_name,
+				    &mech_type,
+				    output_token,
+				    &ret_flags,
+				    &time_rec,
+				    &deleg_cred);
+  if (GSS_ERROR(maj_stat)) {
+    report_error(maj_stat, min_stat);
+  };
+  if (output_token->length != 0) {
+    send_token_to_peer(output_token);
+
+    gss_release_buffer(&min_stat, output_token);
+  };
+  if (GSS_ERROR(maj_stat)) {
+    if (context_hdl != GSS_C_NO_CONTEXT)
+      gss_delete_sec_context(&min_stat,
+			     &context_hdl,
+			     GSS_C_NO_BUFFER);
+    break;
+  };
+} while (maj_stat & GSS_S_CONTINUE_NEEDED);
+.Ed
+.Pp
+Whenever the routine returns a major status that includes the value
+.Dv GSS_S_CONTINUE_NEEDED , the context is not fully established and the
+following restrictions apply to the output parameters:
+.Pp
+The value returned via the
+.Fa time_rec
+parameter is undefined unless the
+accompanying
+.Fa ret_flags
+parameter contains the bit
+.Dv GSS_C_PROT_READY_FLAG , indicating that per-message services may be
+applied in advance of a successful completion status, the value
+returned via the
+.Fa mech_type
+parameter may be undefined until the
+routine returns a major status value of
+.Dv GSS_S_COMPLETE .
+.Pp
+The values of the
+.Dv GSS_C_DELEG_FLAG ,
+.Dv GSS_C_MUTUAL_FLAG ,
+.Dv GSS_C_REPLAY_FLAG ,
+.Dv GSS_C_SEQUENCE_FLAG ,
+.Dv GSS_C_CONF_FLAG ,
+.Dv GSS_C_INTEG_FLAG
+and
+.Dv GSS_C_ANON_FLAG bits returned
+via the
+.Fa ret_flags
+parameter should contain the values that the
+implementation expects would be valid if context establishment were
+to succeed.
+.Pp
+The values of the
+.Dv GSS_C_PROT_READY_FLAG
+and
+.Dv GSS_C_TRANS_FLAG bits
+within
+.Fa ret_flags
+should indicate the actual state at the time
+.Fn gss_accept_sec_context
+returns, whether or not the context is fully established.
+.Pp
+Although this requires that GSS-API implementations set the
+.Dv GSS_C_PROT_READY_FLAG
+in the final
+.Fa ret_flags
+returned to a caller
+(i.e. when accompanied by a
+.Dv GSS_S_COMPLETE
+status code), applications
+should not rely on this behavior as the flag was not defined in
+Version 1 of the GSS-API. Instead, applications should be prepared to
+use per-message services after a successful context establishment,
+according to the
+.Dv GSS_C_INTEG_FLAG
+and
+.Dv GSS_C_CONF_FLAG values.
+.Pp
+All other bits within the
+.Fa ret_flags
+argument should be set to zero.
+While the routine returns
+.Dv GSS_S_CONTINUE_NEEDED , the values returned
+via the
+.Fa ret_flags
+argument indicate the services that the
+implementation expects to be available from the established context.
+.Pp
+If the initial call of
+.Fn gss_accept_sec_context
+fails, the
+implementation should not create a context object, and should leave
+the value of the context_handle parameter set to
+.Dv GSS_C_NO_CONTEXT to
+indicate this.  In the event of a failure on a subsequent call, the
+implementation is permitted to delete the "half-built" security
+context (in which case it should set the
+.Fa context_handle
+parameter to
+.Dv GSS_C_NO_CONTEXT ), but the preferred behavior is to leave the
+security context (and the context_handle parameter) untouched for the
+application to delete (using
+.Xr gss_delete_sec_context 3 ).
+.Pp
+During context establishment, the informational status bits
+.Dv GSS_S_OLD_TOKEN
+and
+.Dv GSS_S_DUPLICATE_TOKEN
+indicate fatal errors, and
+GSS-API mechanisms should always return them in association with a
+routine error of
+.Dv GSS_S_FAILURE .  This requirement for pairing did not
+exist in version 1 of the GSS-API specification, so applications that
+wish to run over version 1 implementations must special-case these
+codes.
+.Sh PARAMETERS
+.Bl -tag -width ".It input_chan_bindings"
+.It context_handle
+Context handle for new context.
+Supply
+.Dv GSS_C_NO_CONTEXT for first
+call; use value returned in subsequent calls.
+Once
+.Fn gss_accept_sec_context
+has returned a
+value via this parameter, resources have been
+assigned to the corresponding context, and must
+be freed by the application after use with a
+call to
+.Xr gss_delete_sec_context 3 .
+.It acceptor_cred_handle
+Credential handle claimed by context acceptor.
+Specify
+.Dv GSS_C_NO_CREDENTIAL to accept the context as a
+default principal.
+If
+.Dv GSS_C_NO_CREDENTIAL is
+specified, but no default acceptor principal is
+defined,
+.Dv GSS_S_NO_CRED will be returned.
+.It input_token_buffer
+Token obtained from remote application.
+.It input_chan_bindings
+Application-specified bindings.
+Allows application to securely bind channel identification information
+to the security context.
+If channel bindings are not used, specify
+.Dv GSS_C_NO_CHANNEL_BINDINGS .
+.It src_name
+Authenticated name of context initiator.
+After use, this name should be deallocated by passing it to
+.Xr gss_release_name 3 .
+If not required, specify
+.Dv NULL .
+.It mech_type
+Security mechanism used.
+The returned OID value will be a pointer into static storage,
+and should be treated as read-only by the caller
+(in particular, it does not need to be freed).
+If not required, specify
+.Dv NULL .
+.It output_token
+Token to be passed to peer application.
+If the length field of the returned token buffer is 0,
+then no token need be passed to the peer application.
+If a non-zero length field is returned,
+the associated storage must be freed after use by the
+application with a call to
+.Xr gss_release_buffer 3 .
+.It ret_flags
+Contains various independent flags,
+each of which indicates that the context supports a specific service option.
+If not needed, specify
+.Dv NULL .
+Symbolic names are provided for each flag,
+and the symbolic names corresponding to the required flags should be
+logically-ANDed with the
+.Fa ret_flags
+value to test whether a given option is supported by the context.
+The flags are:
+.Bl -tag -width "WW"
+.It GSS_C_DELEG_FLAG
+.Bl -tag -width "False"
+.It True
+Delegated credentials are available via the delegated_cred_handle parameter
+.It False
+No credentials were delegated
+.El
+.It GSS_C_MUTUAL_FLAG
+.Bl -tag -width "False"
+.It True
+Remote peer asked for mutual authentication
+.It False
+Remote peer did not ask for mutual authentication
+.El
+.It GSS_C_REPLAY_FLAG
+.Bl -tag -width "False"
+.It True
+Replay of protected messages will be detected
+.It False
+Replayed messages will not be detected
+.El
+.It GSS_C_SEQUENCE_FLAG
+.Bl -tag -width "False"
+.It True
+Out-of-sequence protected messages will be detected
+.It False
+Out-of-sequence messages will not be detected
+.El
+.It GSS_C_CONF_FLAG
+.Bl -tag -width "False"
+.It True
+Confidentiality service may be invoked by calling the
+.Xr gss_wrap 3
+routine
+.It False
+No confidentiality service (via
+.Xr gss_wrap 3 )
+available.
+.Xr gss_wrap 3
+will provide message encapsulation,
+data-origin authentication and integrity services only.
+.El
+.It GSS_C_INTEG_FLAG
+.Bl -tag -width "False"
+.It True
+Integrity service may be invoked by calling either
+.Xr gss_get_mic 3
+or
+.Xr gss_wrap 3
+routines.
+.It False
+Per-message integrity service unavailable.
+.El
+.It GSS_C_ANON_FLAG
+.Bl -tag -width "False"
+.It True
+The initiator does not wish to be authenticated; the
+.Fa src_name
+parameter (if requested) contains an anonymous internal name.
+.It False
+The initiator has been authenticated normally.
+.El
+.It GSS_C_PROT_READY_FLAG
+.Bl -tag -width "False"
+.It True
+Protection services (as specified by the states of the
+.Dv GSS_C_CONF_FLAG
+and
+.Dv GSS_C_INTEG_FLAG )
+are available if the accompanying major status return value is either
+.Dv GSS_S_COMPLETE
+or
+.Dv GSS_S_CONTINUE_NEEDED.
+.It False
+Protection services (as specified by the states of the
+.Dv GSS_C_CONF_FLAG
+and
+.Dv GSS_C_INTEG_FLAG )
+are available only if the accompanying major status return value is
+.Dv GSS_S_COMPLETE .
+.El
+.It GSS_C_TRANS_FLAG
+.Bl -tag -width "False"
+.It True
+The resultant security context may be transferred to other processes
+via a call to
+.Xr gss_export_sec_context 3 .
+.It False
+The security context is not transferable.
+.El
+.El
+.Pp
+All other bits should be set to zero.
+.It time_rec
+Number of seconds for which the context will remain valid.
+Specify
+.Dv NULL
+if not required.
+.It delegated_cred_handle
+Credential
+handle for credentials received from context initiator.
+Only valid if
+.Dv GSS_C_DELEG_FLAG
+in
+.Fa ret_flags
+is true,
+in which case an explicit credential handle
+(i.e. not
+.Dv GSS_C_NO_CREDENTIAL )
+will be returned; if false,
+.Fn gss_accept_context
+will set this parameter to
+.Dv GSS_C_NO_CREDENTIAL .
+If a credential handle is returned,
+the associated resources must be released by the application after use
+with a call to
+.Xr gss_release_cred 3 .
+Specify
+.Dv NULL if not required.
+.It minor_status
+Mechanism specific status code.
+.El
+.Sh RETURN VALUES
+.Bl -tag -width ".It GSS_S_DEFECTIVE_CREDENTIAL"
+.It GSS_S_CONTINUE_NEEDED
+Indicates that a token from the peer application is required to
+complete the context,
+and that gss_accept_sec_context must be called again with that token.
+.It GSS_S_DEFECTIVE_TOKEN
+Indicates that consistency checks performed on the input_token failed.
+.It GSS_S_DEFECTIVE_CREDENTIAL
+Indicates that consistency checks performed on the credential failed.
+.It GSS_S_NO_CRED
+The supplied credentials were not valid for context acceptance,
+or the credential handle did not reference any credentials.
+.It GSS_S_CREDENTIALS_EXPIRED
+The referenced credentials have expired.
+.It GSS_S_BAD_BINDINGS
+The input_token contains different channel bindings to those specified via the
+input_chan_bindings parameter.
+.It GSS_S_NO_CONTEXT
+Indicates that the supplied context handle did not refer to a valid context.
+.It GSS_S_BAD_SIG
+The input_token contains an invalid MIC.
+.It GSS_S_OLD_TOKEN
+The input_token was too old.
+This is a fatal error during context establishment.
+.It GSS_S_DUPLICATE_TOKEN
+The input_token is valid,
+but is a duplicate of a token already processed.
+This is a fatal error during context establishment.
+.It GSS_S_BAD_MECH
+The received token specified a mechanism that is not supported by
+the implementation or the provided credential.
+.El
+.Sh SEE ALSO
+.Xr gss_delete_sec_context 3 ,
+.Xr gss_export_sec_context 3 ,
+.Xr gss_get_mic 3 ,
+.Xr gss_init_sec_context 3 ,
+.Xr gss_release_buffer 3 ,
+.Xr gss_release_cred 3 ,
+.Xr gss_release_name 3 ,
+.Xr gss_wrap 3
+.Sh STANDARDS
+.Bl -tag -width ".It RFC 2743"
+.It RFC 2743
+Generic Security Service Application Program Interface Version 2, Update 1
+.It RFC 2744
+Generic Security Service API Version 2 : C-bindings
+.El
+.Sh HISTORY
+The
+.Nm
+function first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+John Wray, Iris Associates
+.Sh COPYRIGHT
+Copyright (C) The Internet Society (2000).  All Rights Reserved.
+.Pp
+This document and translations of it may be copied and furnished to
+others, and derivative works that comment on or otherwise explain it
+or assist in its implementation may be prepared, copied, published
+and distributed, in whole or in part, without restriction of any
+kind, provided that the above copyright notice and this paragraph are
+included on all such copies and derivative works.  However, this
+document itself may not be modified in any way, such as by removing
+the copyright notice or references to the Internet Society or other
+Internet organizations, except as needed for the purpose of
+developing Internet standards in which case the procedures for
+copyrights defined in the Internet Standards process must be
+followed, or as required to translate it into languages other than
+English.
+.Pp
+The limited permissions granted above are perpetual and will not be
+revoked by the Internet Society or its successors or assigns.
+.Pp
+This document and the information contained herein is provided on an
+"AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING
+TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING
+BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION
+HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF
+MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.

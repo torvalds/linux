@@ -1,0 +1,17 @@
+$FreeBSD$
+
+Running:
+1. Compile mergesort_bench.c into mergesort_bench
+2. Run bench.py with python bench.py [elts]
+2a. Bench will optionally run 2 ^ elts elements as the dataset size when provided. Otherwise it will run 2 ^ 20 elements.
+
+Output:
+Files will be output in a new folder called stats with separate files for each statistical comparison and the raw results in a subfolder called data.
+This files will contain the results of the running of ministat with time required to sort as the dataset.
+
+Modifications:
+Change bench.py's WIKI variable to be true if you have wiki.c implemented and want to test it.
+
+As the script runs, it is running each of the stdlib sorting algorithms (and wikisort if provided) with 2 ^ elts elements,
+5 trials of the sort time as it's output. That output is saved in the data folder and then passed into the command line
+utility ministat which then provides the confidence interval of difference between the data in stats folder.

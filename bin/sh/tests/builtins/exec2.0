@@ -1,0 +1,25 @@
+# $FreeBSD$
+
+failures=
+failure() {
+	echo "Error at line $1" >&2
+	failures=x$failures
+}
+
+(
+	exec -- >/dev/null
+	echo bad
+)
+[ $? = 0 ] || failure $LINENO
+(
+	exec -- ${SH} -c 'exit 42'
+	echo bad
+)
+[ $? = 42 ] || failure $LINENO
+(
+	exec -- /var/empty/nosuch
+	echo bad
+) 2>/dev/null
+[ $? = 127 ] || failure $LINENO
+
+test -z "$failures"

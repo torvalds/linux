@@ -1,0 +1,102 @@
+.\"-
+.\" Copyright (c) 2001 Chris D. Faulhaber
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 25, 2009
+.Dt ACL_SET_TAG_TYPE 3
+.Os
+.Sh NAME
+.Nm acl_set_tag_type
+.Nd set the tag type of an ACL entry
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/acl.h
+.Ft int
+.Fn acl_set_tag_type "acl_entry_t entry_d" "acl_tag_t tag_type"
+.Sh DESCRIPTION
+The
+.Fn acl_set_tag_type
+function
+is a POSIX.1e call that sets the ACL tag type of ACL entry
+.Fa entry_d
+to the value of
+.Fa tag_type .
+.Pp
+Valid values are:
+.Bl -column -offset 3n "ACL_OTHER_OBJ"
+.It ACL_USER_OBJ Ta "Permissions apply to file owner"
+.It ACL_USER Ta "Permissions apply to additional user specified by qualifier"
+.It ACL_GROUP_OBJ Ta "Permissions apply to file group"
+.It ACL_GROUP Ta "Permissions apply to additional group specified by qualifier"
+.It ACL_MASK Ta "Permissions specify mask"
+.It ACL_OTHER Ta Permissions apply to "other"
+.It ACL_OTHER_OBJ Ta "Same as ACL_OTHER"
+.It ACL_EVERYONE Ta Permissions apply to "everyone@"
+.El
+.Pp
+Calling
+.Fn acl_set_tag_type
+with
+.Fa tag_type
+equal to ACL_MASK, ACL_OTHER or ACL_OTHER_OBJ brands the ACL as POSIX.1e.
+Calling it with ACL_EVERYONE brands the ACL as NFSv4.
+.Sh RETURN VALUES
+.Rv -std acl_set_tag_type
+.Sh ERRORS
+The
+.Fn acl_set_tag_type
+function fails if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Argument
+.Fa entry_d
+is not a valid descriptor for an ACL entry.
+Argument
+.Fa tag_type
+is not a valid ACL tag type.
+ACL is already branded differently.
+.El
+.Sh SEE ALSO
+.Xr acl 3 ,
+.Xr acl_get_brand_np 3 ,
+.Xr acl_get_tag_type 3 ,
+.Xr posix1e 3
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+.Sh HISTORY
+POSIX.1e support was introduced in
+.Fx 4.0 .
+The
+.Fn acl_set_tag_type
+function was added in
+.Fx 5.0 .
+.Sh AUTHORS
+The
+.Fn acl_set_tag_type
+function was written by
+.An Chris D. Faulhaber Aq Mt jedgar@fxp.org .

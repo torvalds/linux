@@ -1,0 +1,323 @@
+.\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt.
+.\" 	All rights reserved.
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\" 	All rights reserved.
+.\"
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Begemot: libunimsg/man/unistruct.3,v 1.5 2005/06/15 11:37:12 brandt_h Exp $
+.\"
+.Dd May 23, 2005
+.Dt UNISTRUCT 3
+.Os
+.Sh NAME
+.Nm libngatm
+.Nd "ATM signalling library"
+.Sh LIBRARY
+Begemot ATM signalling library
+.Pq libngatm, -lngatm
+.Sh SYNOPSIS
+.In netnatm/msg/unistruct.h
+.In netnatm/msg/unimsglib.h
+.Sh DESCRIPTION
+The
+.Nm
+library handles UNI 4.0 messages.
+For each information element and message
+type the header files contain a structure definition.
+Additionally there
+are a number of help structures and a global context structure for some
+of the library functions.
+This document only describes the common structures.
+For information element and message structures see the header files.
+.Ss LIBRARY CONFIGURATION
+When the library is compiled a number of constants are define in the file
+.Pa uni_config.h .
+They define certain limits.
+Because of the use of these definitions a change
+in any of them requires a complete recompilation of all library code and
+all code that uses the library.
+The following constants are defined (they
+value behind the name is the default value):
+.Bl -tag -width XXXX
+.It Dv UNI_MAX_ERRIE ( Li 50 )
+When decoding information elements and analyzing them the library fills
+an array in the context with the identifiers of IEs that had errors.
+This is the size of this array.
+.It Dv UNI_NUM_IE_GIT ( Li 3 )
+A message is allowed to contain more than one General Identifier Transport
+information element.
+This is the maximum supported number of these IEs.
+.It Dv UNI_NUM_IE_BLLI ( Li 3 )
+The maximum number of BLLI information elements in a SETUP message.
+.It Dv UNI_NUM_IE_CALLEDSUB ( Li 2 )
+The maximum number of Called Subaddress information elements in a SETUP message.
+.It Dv UNI_NUM_IE_CALLINGSUB ( Li 2 )
+The maximum number of Calling Subaddress information elements in a SETUP
+message.
+.It Dv UNI_NUM_IE_TNS ( Li 4 )
+The maximum number of Transit Network Selection information elements in a SETUP
+message.
+.It Dv UNI_TNS_MAXLEN ( Li 4 )
+The maximum size of a name in the TNS IE.
+.It Dv UNI_UU_MAXLEN ( Li 128 )
+Maximum size of user data in the UU IE.
+.It Dv UNI_ADDR_MAXLEN ( Li 20 )
+Maximum address size.
+.It Dv UNI_SUBADDR_MAXLEN ( Li 20 )
+Maximum subaddress size.
+.It Dv UNI_NUM_IE_DTL ( Li 10 )
+Maximum number of DTL information elements in a SETUP message.
+.It Dv UNI_DTL_MAXNUM ( Li 20 )
+Maximum number of identifiers in one DTL information element.
+.El
+.Ss INFORMATION ELEMENTS
+Each information element structure starts with a field of type:
+.Bd -literal -offset indent
+struct uni_iehdr {
+	enum uni_coding	coding;	/* coding standard */
+	enum uni_ieact	act;	/* action indicator */
+	u_int		pass:1;	/* PNNI pass along request */
+	u_int		present;/* which optional elements are present */
+};
+.Ed
+.Pp
+The
+.Fa coding
+field is the coding standard of the information element and may be one of
+.Dv UNI_CODING_ITU
+or
+.Dv UNI_CODING_NET .
+The action indicator
+.Fa act
+is used for error processing and is one of:
+.Bl -tag -width XXXX
+.It Dv UNI_IEACT_CLEAR
+clear call
+.It Dv UNI_IEACT_IGNORE
+ignore IE and proceed
+.It Dv UNI_IEACT_REPORT
+ignore IE, report and proceed
+.It Dv UNI_IEACT_MSG_IGNORE
+ignore message
+.It Dv UNI_IEACT_MSG_REPORT
+ignore message and report
+.It Dv UNI_IEACT_DEFAULT
+the use action indicator flag was not set.
+.El
+.Pp
+For information elements in PNNI message the
+.Fa pass
+fields contains the pass along flag from the IE header.
+.Pp
+The
+.Fa present
+field is a bit field, which contains four common bits describing the current
+state of the information element.
+The rest of the bits are used by the
+information elements to indicate which of the optional fields of the IE are
+present.
+Most of the IE header files contain definitions for those bits.
+The common bits are:
+.Bd -literal -offset indent
+#define UNI_IE_EMPTY	0x80000000
+#define UNI_IE_PRESENT	0x40000000
+#define UNI_IE_ERROR	0x20000000
+#define UNI_IE_XXX	0x10000000
+.Ed
+.Pp
+The flag
+.Dv UNI_IE_EMPTY
+indicates that the information element is present, but empty (its length is
+zero).
+This is legal for all information elements.
+The flag
+.Dv UNI_IE_PRESENT
+indicates that the IE is present in the message and the flag
+.Dv UNI_IE_ERROR
+indicates that the IE had an error.
+The flag
+.Dv UNI_IE_XXX
+is currently not used.
+.Pp
+The following macros may be used to test or change these flags:
+.Bl -tag -width XXXX
+.It Dv IE_ISPRESENT
+Check whether the IE is present and not empty.
+Returns true in this case.
+.It Dv IE_SETPRESENT
+Set the IE to be present and not empty.
+.It Dv IE_ISEMPTY
+Check whether the IE is present and empty.
+Returns true in this case.
+.It Dv IE_SETEMPTY
+Set the IE to be present and empty.
+.It Dv IE_ISERROR
+Check whether the IE is present and has an error.
+Returns true in this case.
+.It Dv IE_SETERROR
+Sets the IE to be present and to have an error.
+.It Dv IE_ISGOOD
+Checks whether the IE is present, not empty and without error.
+Returns true in this case.
+.El
+.Pp
+For each IE type there is an
+.Vt enum uni_ietype
+definition of the form
+.Dv UNI_IE_*
+in
+.Pa uni_hdr.h .
+.Pp
+.Pa unistruct.h
+contains a
+.Vt union uni_ieall
+that is the union of all IE structures and a
+.Bd -literal -offset indent
+struct uni_ie {
+	enum uni_ietype		ietype;
+	union uni_ieall		u;
+};
+.Ed
+.Ss MESSAGES
+Each message structure starts with a
+.Bd -literal -offset indent
+struct uni_msghdr {
+	struct uni_cref	cref;
+	enum uni_msgact	act;	/* action indicator */
+	u_int		pass:1;	/* PNNI pass along request */
+};
+.Ed
+.Pp
+The
+.Fa cref
+is the call reference:
+.Bd -literal -offset indent
+struct uni_cref {
+	u_int	flag;
+	u_int	cref;
+};
+.Ed
+.Pp
+There are two special call references:
+.Dv CREF_GLOBAL
+and
+.Dv CREF_DUMMY .
+The
+.Fa act
+field is the message action indicator and has one of the following values:
+.Bl -tag -width XXXX
+.It Dv UNI_MSGACT_CLEAR
+clear call
+.It Dv UNI_MSGACT_IGNORE
+ignore message
+.It Dv UNI_MSGACT_REPORT
+send STATUS message
+.It Dv UNI_MSGACT_DEFAULT
+default handling for this message type
+.El
+.Pp
+The
+.Fa pass
+field is the pass along indicator in the case of PNNI messages.
+.Pp
+For each message type there is a
+.Vt enum uni_msgtype
+definition of the form
+.Dv UNI_*
+in
+.Pa uni_hdr.h .
+.Pa uni_struct.h
+contains a
+.Vt union_msgall
+that is the union of all message structures and a
+.Bd -literal -offset indent
+struct uni_all {
+	enum uni_msgtype	mtype;
+	union uni_msgall	u;
+};
+.Ed
+.Ss CONTEXTS
+The header file
+.Pa unimsglib.h
+contains a definition of a
+.Vt struct uni_context
+that is used to minimize the number of arguments passed to certain functions
+and to avoid the use of global variables.
+This structure has the following
+public fields (all other fields are used internally by the library):
+.Bl -tag -width XXXX
+.It Fa err
+This is an array consisting of the following structures:
+.Bd -literal -offset indent
+struct uni_ierr {
+	enum uni_ierr_type err;	/* what error */
+	enum uni_ieact	act;	/* the action indicator */
+	u_int		ie:8;	/* the ie type */
+	u_int		man:1;	/* mandatory flag */
+	u_int		epref:1;/* Q.2971 9.5.3.2.1 low-pri epref */
+};
+.Ed
+When decoding information elements the information about IEs with errors is
+stuffed into this array.
+.It Fa errcnt
+The current number of IEs in
+.Fa err .
+.It Fa q2932
+Enable the Q.2932.1 Generic Functional Protocol.
+Currently only message
+and IE decoding/encoding is supported.
+The signalling part is still missing.
+.It Fa pnni
+Enable PNNI extensions.
+Currently only message and IE decoding/encoding
+is supported.
+The signalling part is still missing.
+.It Fa git_hard
+Do hard checking on GIT information elements.
+.It Fa bearer_hard
+Do hard checking on Broadband Bearer IEs.
+This involves rejecting old bearer
+type values.
+.It Fa cause_hard
+Do hard checking on Cause information elements.
+.It Fa multiline
+This is used by the printing routines.
+Legal values are 0 to 4 and give
+different kinds of printout.
+.It Fa tabsiz
+The size of tabulation to use in printing.
+4 is a good value.
+.El
+.Sh SEE ALSO
+.Xr libunimsg 3
+.Sh STANDARDS
+This implementation conforms to the applicable ITU-T
+recommendations and ATM Forum standards with the exception of some limitations
+(see the Configuration section).
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@FreeBSD.org

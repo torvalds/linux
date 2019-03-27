@@ -1,0 +1,16 @@
+/* $FreeBSD$ */
+/* See r309380 */
+static int
+do_execve(td, args, mac_p)
+	struct thread *td;
+	struct image_args *args;
+	struct mac *mac_p;
+{
+
+}
+
+static LIST_HEAD(, alq) ald_active;
+static int ald_shuttingdown = 0;
+struct thread *ald_thread;
+
+

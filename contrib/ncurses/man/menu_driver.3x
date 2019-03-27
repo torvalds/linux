@@ -1,0 +1,200 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: menu_driver.3x,v 1.20 2010/12/04 18:38:55 tom Exp $
+.TH menu_driver 3X ""
+.de bP
+.IP \(bu 4
+..
+.SH NAME
+\fBmenu_driver\fR \- command-processing loop of the menu system
+.SH SYNOPSIS
+\fB#include <menu.h>\fR
+.br
+int menu_driver(MENU *menu, int c);
+.br
+.SH DESCRIPTION
+Once a menu has been posted (displayed), you should funnel input events to it
+through \fBmenu_driver\fR.  This routine has three major input cases:
+.bP
+The input is a form navigation request.
+Navigation request codes are constants defined in \fB<form.h>\fP,
+which are distinct from the key- and character codes returned by \fBwgetch\fP.
+.bP
+The input is a printable character.
+Printable characters (which must be positive, less than 256) are
+checked according to the program's locale settings.
+.bP
+The input is the KEY_MOUSE special key associated with an mouse event.
+.PP
+The menu driver requests are as follows:
+.TP 5
+REQ_LEFT_ITEM
+Move left to an item.
+.TP 5
+REQ_RIGHT_ITEM
+Move right to an item.
+.TP 5
+REQ_UP_ITEM
+Move up to an item.
+.TP 5
+REQ_DOWN_ITEM
+Move down to an item.
+.TP 5
+REQ_SCR_ULINE
+Scroll up a line.
+.TP 5
+REQ_SCR_DLINE
+Scroll down a line.
+.TP 5
+REQ_SCR_DPAGE
+Scroll down a page.
+.TP 5
+REQ_SCR_UPAGE
+Scroll up a page.
+.TP 5
+REQ_FIRST_ITEM
+Move to the first item.
+.TP 5
+REQ_LAST_ITEM
+Move to the last item.
+.TP 5
+REQ_NEXT_ITEM
+Move to the next item.
+.TP 5
+REQ_PREV_ITEM
+Move to the previous item.
+.TP 5
+REQ_TOGGLE_ITEM
+Select/deselect an item.
+.TP 5
+REQ_CLEAR_PATTERN
+Clear the menu pattern buffer.
+.TP 5
+REQ_BACK_PATTERN
+Delete the previous character from the pattern buffer.
+.TP 5
+REQ_NEXT_MATCH
+Move to the next item matching the pattern match.
+.TP 5
+REQ_PREV_MATCH
+Move to the previous item matching the pattern match.
+.PP
+If the second argument is a printable character, the code appends
+it to the pattern buffer and attempts to move to the next item matching
+the new pattern.  If there is no such match, \fBmenu_driver\fR returns
+\fBE_NO_MATCH\fR and deletes the appended character from the buffer.
+.PP
+If the second argument is one of the above pre-defined requests, the
+corresponding action is performed.
+.SS MOUSE HANDLING
+.PP
+If the second argument is the KEY_MOUSE special key, the associated
+mouse event is translated into one of the above pre-defined requests.
+Currently only clicks in the user window (e.g., inside the menu display
+area or the decoration window) are handled.
+.PP
+If you click above the display region of the menu:
+.bP
+a REQ_SCR_ULINE is generated for a single click,
+.bP
+a REQ_SCR_UPAGE is generated for a double-click and
+.bP
+a REQ_FIRST_ITEM is generated for a triple-click.
+.PP
+If you click below the display region of the menu:
+.bP
+a REQ_SCR_DLINE is generated for a single click,
+.bP
+a REQ_SCR_DPAGE is generated for a double-click and
+.bP
+a REQ_LAST_ITEM is generated for a triple-click.
+.PP
+If you click at an item inside the display area of the menu:
+.bP
+the menu cursor is positioned to that item.
+.bP
+If you double-click an item a REQ_TOGGLE_ITEM
+is generated and \fBE_UNKNOWN_COMMAND\fR is returned.
+This return value makes sense,
+because a double click usually means that an item-specific action should
+be returned.
+It is exactly the purpose of this return value to signal that an
+application specific command should be executed.
+.bP
+If a translation
+into a request was done, \fBmenu_driver\fR returns the result of this request.
+.PP
+If you clicked outside the user window or the mouse event could not be translated
+into a menu request an \fBE_REQUEST_DENIED\fR is returned.
+.SS APPLICATION-DEFINED COMMANDS
+.PP
+If the second argument is neither printable nor one of the above
+pre-defined menu requests or KEY_MOUSE, the drive assumes it is an application-specific
+command and returns \fBE_UNKNOWN_COMMAND\fR.  Application-defined commands
+should be defined relative to \fBMAX_COMMAND\fR, the maximum value of these
+pre-defined requests.
+.SH RETURN VALUE
+\fBmenu_driver\fR return one of the following error codes:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_BAD_STATE
+Routine was called from an initialization or termination function.
+.TP 5
+.B E_NOT_POSTED
+The menu has not been posted.
+.TP 5
+.B E_UNKNOWN_COMMAND
+The menu driver code saw an unknown request code.
+.TP 5
+.B E_NO_MATCH
+Character failed to match.
+.TP 5
+.B E_REQUEST_DENIED
+The menu driver could not process the request.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBmenu\fR(3X),
+\fBgetch\fR(3X).
+.SH NOTES
+The header file \fB<menu.h>\fR automatically includes the header files
+\fB<curses.h>\fR.
+.SH PORTABILITY
+These routines emulate the System V menu library.  They were not supported on
+Version 7 or BSD versions. The support for mouse events is ncurses specific.
+.SH AUTHORS
+Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
+S. Raymond.

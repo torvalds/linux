@@ -1,0 +1,407 @@
+.\"
+.\" Copyright (c) 1994, David Greenman
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by David Greenman.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 24, 2018
+.Dt ED 4
+.Os
+.Sh NAME
+.Nm ed
+.Nd "NE-2000 and WD-80x3 Ethernet driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device ed"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ed_load="YES"
+.Ed
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 13.0
+and later.
+See https://github.com/freebsd/fcp/blob/master/fcp-0101.md for more
+information.
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for 8 and 16bit Ethernet cards that are based on
+the National Semiconductor DS8390 and similar NICs manufactured by
+other companies.
+The
+.Nm
+driver also supports many PC Card chips which interface via MII to a PHY.
+Axiom's AX88790, AX88190 and AX88190A;
+DLink's DL10019 and DL10022; and
+Tamarack's TC5299J chips all support internal or external MII/PHY combinations.
+Realtek's PCI and ISA RTL80x9-based cards are also supported.
+For these chipsets, autonegotiation and status reporting are supported.
+.Pp
+In addition to the standard port and IRQ specifications, the
+.Nm
+driver also supports a number of
+.Cd flags
+which can force 8/16bit mode, enable/disable multi-buffering, and select the default
+interface type (AUI/BNC, and for cards with twisted pair, AUI/10BaseT).
+.Pp
+The
+.Cd flags
+are a bit field, and are summarized as follows:
+.Bl -tag -width indent
+.It Li 0x01
+Disable transceiver.
+On those cards which support it, this flag causes the transceiver to
+be disabled and the AUI connection to be used by default.
+.It Li 0x02
+Force 8bit mode.
+This flag forces the card to 8bit mode regardless of how the
+card identifies itself.
+This may be needed for some clones which incorrectly
+identify themselves as 16bit, even though they only have an 8bit interface.
+This flag takes precedence over force 16bit mode.
+.It Li 0x04
+Force 16bit mode.
+This flag forces the card to 16bit mode regardless of how the
+card identifies itself.
+This may be needed for some clones which incorrectly
+identify themselves as 8bit, even though they have a 16bit ISA interface.
+.It Li 0x08
+Disable transmitter multi-buffering.
+This flag disables the use of multiple
+transmit buffers and may be necessary in rare cases where packets are sent out
+faster than a machine on the other end can handle (as evidenced by severe packet
+lossage).
+Some
+.No ( non- Ns Fx
+:-)) machines have terrible Ethernet performance
+and simply cannot cope with 1100K+ data rates.
+Use of this flag also provides
+one more packet worth of receiver buffering, and on 8bit cards, this may help
+reduce receiver lossage.
+.El
+.Pp
+When using a 3c503 card, the AUI connection may be selected by specifying the
+.Cm link2
+option to
+.Xr ifconfig 8
+(BNC is the default).
+.Sh HARDWARE
+The
+.Nm
+driver supports the following Ethernet NICs:
+.Pp
+.Bl -bullet -compact
+.It
+3Com 3c503 Etherlink II
+.Pq Cd "options ED_3C503"
+.It
+AR-P500 Ethernet
+.It
+Accton EN1644 (old model), EN1646 (old model), EN2203 (old model) (110pin)
+(flags 0xd00000)
+.It
+Accton EN2212/EN2216/UE2216
+.It
+Allied Telesis CentreCOM LA100-PCM_V2
+.It
+AmbiCom 10BaseT card (8002, 8002T, 8010 and 8610)
+.It
+Bay Networks NETGEAR FA410TXC Fast Ethernet
+.It
+Belkin F5D5020 PC Card Fast Ethernet
+.It
+Billionton LM5LT-10B Ethernet/Modem PC Card
+.It
+Billionton LNT-10TB, LNT-10TN Ethernet PC Card
+.It
+Bromax iPort 10/100 Ethernet PC Card
+.It
+Bromax iPort 10 Ethernet PC Card
+.It
+Buffalo LPC2-CLT, LPC3-CLT, LPC3-CLX, LPC4-TX, LPC-CTX PC Card
+.It
+Buffalo LPC-CF-CLT CF Card
+.It
+CNet BC40 adapter
+.It
+Compex Net-A adapter
+.It
+Compex RL2000
+.It
+Corega Ether PCC-T/EtherII PCC-T/FEther PCC-TXF/PCC-TXD PCC-T/Fether II TXD
+.It
+Corega LAPCCTXD (TC5299J)
+.It
+CyQ've ELA-010
+.It
+DEC EtherWorks DE305
+.It
+Danpex EN-6200P2
+.It
+D-Link DE-660, DE-660+
+.It
+D-Link IC-CARD/IC-CARD+ Ethernet
+.It
+ELECOM Laneed LD-CDL/TX, LD-CDF, LD-CDS, LD-10/100CD, LD-CDWA (DP83902A)
+.It
+Hawking PN652TX PC Card (AX88790)
+.It
+HP PC Lan+ 27247B and 27252A
+.Pq Cd "options ED_HPP"
+.It
+IBM Creditcard Ethernet I/II
+.It
+I-O DATA ET2/T-PCI
+.It
+I-O DATA PCLATE
+.It
+Kingston KNE-PC2, CIO10T, KNE-PCM/x Ethernet
+.It
+KTI ET32P2 PCI
+.It
+Linksys EC2T/PCMPC100/PCM100, PCMLM56
+.It
+Linksys EtherFast 10/100 PC Card, Combo PCMCIA Ethernet Card (PCMPC100 V2)
+.It
+MACNICA Ethernet ME1 for JEIDA
+.It
+MELCO LGY-PCI-TR
+.It
+MELCO LPC-T/LPC2-T/LPC2-CLT/LPC2-TX/LPC3-TX/LPC3-CLX
+.It
+NDC Ethernet Instant-Link
+.It
+National Semiconductor InfoMover NE4100
+.It
+NetGear FA-410TX
+.It
+NetVin NV5000SC
+.It
+Network Everywhere Ethernet 10BaseT PC Card
+.It
+New Media LANSurfer 10+56 Ethernet/Modem
+.It
+New Media LANSurfer
+.It
+Novell NE1000/NE2000/NE2100
+.It
+PLANEX ENW-8300-T
+.It
+PLANEX FNW-3600-T
+.It
+Psion 10/100 LANGLOBAL Combine iT
+.It
+RealTek 8019
+.It
+RealTek 8029
+.It
+Relia Combo-L/M-56k PC Card
+.It
+SMC Elite 16 WD8013
+.It
+SMC Elite Ultra
+.It
+SMC WD8003E/WD8003EBT/WD8003S/WD8003SBT/WD8003W/WD8013EBT/WD8013W and clones
+.It
+SMC EZCard PC Card, 8040-TX, 8041-TX (AX88x90), 8041-TX V.2 (TC5299J)
+.It
+Socket LP-E, ES-1000 Ethernet/Serial, LP-E CF, LP-FE CF
+.It
+Surecom EtherPerfect EP-427
+.It
+Surecom NE-34
+.It
+TDK 3000/3400/5670 Fast Ethernet/Modem
+.It
+TDK LAK-CD031, Grey Cell GCS2000 Ethernet Card
+.It
+TDK DFL5610WS Ethernet/Modem PC Card
+.It
+Telecom Device SuperSocket RE450T
+.It
+Toshiba LANCT00A PC Card
+.It
+VIA VT86C926
+.It
+Winbond W89C940
+.It
+Winbond W89C940F
+.El
+.Pp
+ISA, PCI and PC Card devices are supported.
+.Pp
+The
+.Nm
+driver does not support the following Ethernet NICs:
+.Pp
+.Bl -bullet -compact
+.It
+Mitsubishi LAN Adapter B8895
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ed%d: failed to clear shared memory at %x - check configuration."
+When the card was probed at system boot time, the
+.Nm
+driver found that it could not clear the card's shared memory.
+This is most commonly
+caused by a BIOS extension ROM being configured in the same address space as the
+Ethernet card's shared memory.
+Either find the offending card and change its BIOS
+ROM to be at an address that does not conflict, or change the
+settings in
+.Xr device.hints 5
+that the card's shared memory is mapped at a
+non-conflicting address.
+.It "ed%d: Invalid irq configuration (%d) must be 2-5 for 3c503."
+The IRQ number that was specified in the
+.Xr device.hints 5
+file is not valid for the 3Com 3c503 card.
+The 3c503 can only be assigned to IRQs 2 through 5.
+.It "ed%d: Cannot find start of RAM."
+.It "ed%d: Cannot find any RAM, start : %d, x = %d."
+The probe of a Gateway card was unsuccessful in configuring the card's packet memory.
+This likely indicates that the card was improperly recognized as a Gateway or that
+the card is defective.
+.It "ed: packets buffered, but transmitter idle."
+Indicates a logic problem in the driver.
+Should never happen.
+.It "ed%d: device timeout"
+Indicates that an expected transmitter interrupt did not occur.
+Usually caused by an
+interrupt conflict with another card on the ISA bus.
+This condition could also be caused if the kernel is configured for a
+different IRQ channel than the one the card is actually using.
+If that is the case, you will have to either reconfigure the card
+using a DOS utility or set the jumpers on the card appropriately.
+.It "ed%d: NIC memory corrupt - invalid packet length %d."
+Indicates that a packet was received with a packet length that was either larger than
+the maximum size or smaller than the minimum size allowed by the IEEE 802.3 standard.
+Usually
+caused by a conflict with another card on the ISA bus, but in some cases may also
+indicate faulty cabling.
+.It "ed%d: remote transmit DMA failed to complete."
+This indicates that a programmed I/O transfer to an NE1000 or NE2000 style card
+has failed to properly complete.
+Usually caused by the ISA bus speed being set
+too fast.
+.It "ed%d: Invalid irq configuration (%ld) must be %s for %s"
+Indicates the device has a different IRQ than supported or expected.
+.It "ed%d: Cannot locate my ports!"
+The device is using a different I/O port than the driver knows about.
+.It "ed%d: Cannot extract MAC address"
+Attempts to get the MAC address failed.
+.It "ed%d: Missing mii!"
+Probing for an MII bus has failed.
+This indicates a coding error in the PC Card attachment, because a PHY
+is required for the chips that generate this error message.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr device.hints 5 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 1.0 .
+.Sh AUTHORS
+The
+.Nm
+device driver and this manual page were written by
+.An David Greenman .
+.Sh CAVEATS
+Early revision DS8390 chips have problems.
+They lock up whenever the receive
+ring-buffer overflows.
+They occasionally switch the byte order
+of the length field in the packet ring header (several different causes
+of this related to an off-by-one byte alignment) - resulting in
+.Qq Li "NIC memory corrupt - invalid packet length"
+messages.
+The card is reset
+whenever these problems occur, but otherwise there is no problem with
+recovering from these conditions.
+.Pp
+The NIC memory access to 3Com and Novell cards is much slower than it is on
+WD/SMC cards; it is less than 1MB/second on 8bit boards and less than 2MB/second
+on the 16bit cards.
+This can lead to ring-buffer overruns resulting in
+dropped packets during heavy network traffic.
+.Pp
+The Mitsubishi B8895 PC Card uses a DP83902, but its ASIC part is
+undocumented.
+Neither the NE2000 nor the WD83x0 drivers work with this card.
+.Sh BUGS
+The
+.Nm
+driver is a bit too aggressive about resetting the card whenever any bad
+packets are received.
+As a result, it may throw out some good packets which
+have been received but not yet transferred from the card to main memory.
+.Pp
+The
+.Nm
+driver is slow by today's standards.
+.Pp
+PC Card attachment supports the D-Link DMF650TX LAN/Modem card's Ethernet
+port only at this time.
+.Pp
+Some devices supported by
+.Nm
+do not generate the link state change events used by
+.Xr devd 8
+to start
+.Xr dhclient 8 .
+If you have problems with
+.Xr dhclient 8
+not starting and the device is always attached to the network it may
+be possible to work around this by changing
+.Dq Li DHCP
+to
+.Dq Li SYNCDHCP
+in the
+.Va ifconfig_ed0
+entry in
+.Pa /etc/rc.conf .

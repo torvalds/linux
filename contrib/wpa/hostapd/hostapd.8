@@ -1,0 +1,59 @@
+.TH HOSTAPD 8 "April  7, 2005" hostapd hostapd
+.SH NAME
+hostapd \- IEEE 802.11 AP, IEEE 802.1X/WPA/WPA2/EAP/RADIUS Authenticator
+.SH SYNOPSIS
+.B hostapd
+[\-hdBKtv] [\-P <PID file>] <configuration file(s)>
+.SH DESCRIPTION
+This manual page documents briefly the
+.B hostapd
+daemon.
+.PP
+.B hostapd
+is a user space daemon for access point and authentication servers.
+It implements IEEE 802.11 access point management, IEEE 802.1X/WPA/WPA2/EAP Authenticators and RADIUS authentication server.
+The current version supports Linux (Host AP, mac80211-based drivers) and FreeBSD (net80211).
+
+.B hostapd
+is designed to be a "daemon" program that runs in the background and acts as the backend component controlling authentication.
+.B hostapd
+supports separate frontend programs and an example text-based frontend,
+.BR hostapd_cli ,
+is included with
+.BR hostapd .
+.SH OPTIONS
+A summary of options is included below.
+For a complete description, run
+.BR hostapd
+from the command line.
+.TP
+.B \-h
+Show usage.
+.TP
+.B \-d
+Show more debug messages.
+.TP
+.B \-dd
+Show even more debug messages.
+.TP
+.B \-B
+Run daemon in the background.
+.TP
+.B \-P <PID file>
+Path to PID file.
+.TP
+.B \-K
+Include key data in debug messages.
+.TP
+.B \-t
+Include timestamps in some debug messages.
+.TP
+.B \-v
+Show hostapd version.
+.SH SEE ALSO
+.BR hostapd_cli (1).
+.SH AUTHOR
+hostapd was written by Jouni Malinen <j@w1.fi>. 
+.PP
+This manual page was written by Faidon Liambotis <faidon@cube.gr>,
+for the Debian project (but may be used by others).

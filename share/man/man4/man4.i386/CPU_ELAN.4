@@ -1,0 +1,159 @@
+.\" Copyright (c) 2003 Poul-Henning Kamp <phk@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 23, 2003
+.Dt CPU_ELAN 4 i386
+.Os
+.Sh NAME
+.Nm CPU_ELAN
+.Nd AMD Elan 520 CPU support
+.Sh SYNOPSIS
+.Cd "options CPU_ELAN"
+.Cd "options CPU_ELAN_PPS"
+.Cd "options CPU_ELAN_XTAL"
+.Bl -item -compact
+.It
+.Va machdep.elan_gpio_config
+.It
+.Va machdep.elan_freq
+.El
+.Cd "options CPU_SOEKRIS"
+.Sh DESCRIPTION
+The
+.Cd "options CPU_ELAN"
+enables support for the AMD Elan 520 CPU.
+.Pp
+A device
+.Pa /dev/elan-mmcr
+exports the MMCR register bank to userland
+using
+.Xr mmap 2 .
+.Pp
+The
+.Tn i8254
+timer will be adjusted to the slightly unorthodox
+frequency 1189161 Hz (32768 * 45 * 25 / 31) employed by the Elan.
+.Pp
+A timecounter named
+.Dq Li ELAN
+is implemented using the general purpose timer 2,
+but it will not be usable unless HZ is configured at 150 or higher.
+This timecounter is much better than the
+.Dq Li i8254
+timecounter and should be
+used at all times.
+.Pp
+The
+.Va machdep.elan_gpio_config
+.Xr sysctl 8
+variable
+enables configuration of the GPIO pins of the CPU.
+The string must be exactly 32 characters long.
+A
+.Ql -
+means the GPIO is unavailable.
+A
+.Ql l
+(lower-case ell) configures a
+.Xr led 4
+device (active low).
+A
+.Ql L
+configures a
+.Xr led 4
+device (active high).
+A
+.Ql \&.
+means no configuration for this GPIO.
+These
+.Xr led 4
+devices will be named
+.Pa /dev/led/gpio%d .
+For meaning of
+.Ql P ,
+.Ql e
+and
+.Ql E ,
+see under
+.Cd "options CPU_ELAN_PPS" .
+.Pp
+The
+.Cd "options CPU_ELAN_XTAL"
+and the
+.Va machdep.elan_freq
+.Xr sysctl 8
+variable
+can be used to set the CPU clock crystal frequency in Hz.
+The default is 33333333 Hz.
+.Pp
+The
+.Cd "options CPU_ELAN_PPS"
+enables precision timestamping using the RFC2783 PPS-API via the
+.Pa /dev/elan-mmcr
+device.
+The resolution will be approximately 125 nsec
+and the precision \(+- 125 nsec.
+(For 125 nsec read
+.Dq "4 / CPU clock crystal frequency" . )
+.Pp
+The input signal must be connected to the TMR1IN pin and
+a GPIO pin.
+The GPIO pin must be configured with a
+.Ql P
+in
+.Va machdep.elan_gpio_config .
+.Pp
+In addition, one GPIO pin can be configured with either
+.Ql e
+(active low)
+or
+.Ql E
+(active high) to become a
+.Dq echo
+output of the input signal.
+Please notice that this signal is not suitable for calibration.
+.Pp
+If the
+.Cd "options CPU_SOEKRIS"
+is given, the support will additionally be tailored to the
+Soekris Engineering 45xx series of embedded computers.
+The
+.Dq error
+led will be configured (as
+.Pa /dev/led/error )
+and the GPIO pins which are not
+available will be disabled.
+.Sh SEE ALSO
+.Xr led 4 ,
+.Xr timecounters 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+code first appeared in
+.Fx 4.7 .
+.Sh AUTHORS
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org

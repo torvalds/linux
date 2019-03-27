@@ -1,0 +1,157 @@
+# Copyright (c) 1987, 1993
+#	The Regents of the University of California.  All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+#	@(#)vgrindefs.src	8.1 (Berkeley) 6/6/93
+#
+
+C|c:\
+	:pb=^\a?\d?*?\d?\p\d?\(\a?\)(\d|{):\
+	:bb={:be=}:cb=/*:ce=*/:sb=":se=\e":lb=':\
+	:le=\e':tl:\
+	:kw=asm auto break case char continue default do double else enum\
+	extern float for fortran goto if int long register return short\
+	sizeof static struct switch typedef union unsigned void while #define\
+	#else #endif #if #ifdef #ifndef #include #undef # define else endif\
+	if ifdef ifndef include undef:
+model|mod|m:\
+	:pb=^\d(space\d\p\drep)|(\p\dis|inline|public\dbeginproc):\
+	:bb=\dbeginproc|space|case\d:be=\dendproc|end\d|;:\
+	:cb=\$:ce=\$|$:sb=":se=":lb=':le=\a|$:\
+	:kw=abs and array beginproc boolean by case cdnl char copied dispose\
+	div do dynamic else elsif end endproc entry external FALSE false\
+	fi file for formal fortran global if iff ift\
+	in integer include inline is lbnd\
+	max min mod new NIL nil noresult not notin od of or procedure public\
+	read readln readonly record recursive rem rep repeat res\
+	result return set\
+	space string subscript such then TRUE true type ubnd union until\
+	varies while width:
+pascal|pasc|p:\
+	:pb=(^\d?procedure|function|program\d\p\d|\(|;|\:)|(=\d?record\d):\
+	:bb=\dcase|begin\d:be=\dend|forward\d|;:\
+	:cb={:ce=}:\
+	:ab=\(*:ae=*\):\
+	:sb=':se=':\
+	:kw=and array assert begin case const div do downto else end file for\
+	forward function goto if in label mod nil not of or packed procedure\
+	program record repeat set then to type until var while with oct hex\
+	external:
+ISP|isp|i:\
+	:cb=!:ce=!|$:oc:\
+	:kw=and begin decode define end eql eqv geq gtr if leave leq lss mod\
+	neq next not or otherwise repeat restart resume sr0 sr1 srd srr sl0 sl1\
+	sld slr tst xor:
+SH|sh:\
+	:bb={:be=}:cb=#:ce=$:sb=":se=\e":lb=':\
+	:le=\e':tl:\
+	:kw=break case cd continue do done \
+	elif else esac eval exec exit export \
+	fi for if in then while until \
+	read readonly set shift test trap umask wait:
+CSH|csh:\
+	:bb={:be=}:cb=#:ce=$:sb=":se=\e":lb=':\
+	:le=\e':tl:\
+	:kw=alias alloc break breaksw case cd chdir continue default\
+	echo else end endif endsw exec exit foreach \
+	glob goto history if logout nice nohup onintr repeat set\
+	setenv shift source switch then time \
+	while umask unalias unset wait while @ env \
+	argv child home ignoreeof noclobber noglob \
+	nomatch path prompt shell status verbose :
+ldl|LDL:\
+	:pb=^\p\::bb=\::be=;:cb=/*:ce=*/:sb=":se=\e":\
+	:kw=constant functions grammar reswords tokens add1 addste\
+	car cdr check colno cond cons copy defun divide empty enter\
+	eq equal findattr firstchild ge getattr getfield gt hash label\
+	lambda lastchild le leftsibling lookone lookup lt minus name ne\
+	newnode nextcom nil null parent plus precnl prevcom prog progn\
+	quote reglob return rightsibling self set setattr setfield setq\
+	stjoin sub1 t times tnull tokno ttype:
+Icon|icon|I:\
+	:pb=^\d?procedure\d\p\d?\(\a?\):\
+	:bb=(^\d?procedure\d\p\d?\(\a?\))|{:be=}|(^\d?end\d?$):\
+	:cb=#:ce=$:\
+	:sb=":se=\e":lb=':le=\e':tl:\
+	:kw=break by case create default do dynamic else end every external\
+	fail global if initial local next not of procedure record\
+	repeat return static suspend then to until using while\
+	&ascii &clock &cset &date &dateline &errout &fail &host &input\
+	&lcase &level &main &null &output &pos &random &source &subject\
+	&time &trace &ucase &version:
+ratfor|rat|r:\
+	:pb=(subroutine|function)\d\p\d?\(\a?\):\
+	:bb=(subroutine|function)\d\p\d?\(\a?\):be=^\d?end:\
+	:cb=#:ce=$:\
+	:sb=":se=\e":lb=':le=\e':oc:\
+	:kw=DRETURN DRIVER arith break case character default define do\
+	else elsedef enddef filedes for function goto if ifdef ifelse\
+	ifnotdef include incr integer linepointer next opeq pointer\
+	real repeat return select string subroutine substr until:
+modula2|mod2|m2:\
+	:pb=(^\d?(procedure|function|module)\d\p\d|\(|;|\:):\
+	:bb=\d(begin|case|for|if|loop|record|repeat|while|with)\d:\
+	:be=\dend|;:\
+	:cb={:ce=}:\
+	:ab=\(*:ae=*\):\
+	:sb=":se=":\
+	:oc:\
+	:kw=and array begin by case const\
+	definition div do else elsif end exit export\
+	for from if implementation import in\
+	loop mod module not of or pointer procedure qualified\
+	record repeat return set then to type\
+	until var while with:
+yacc|Yacc|y:\
+	:cb=/*:ce=*/:sb=":se=\e":lb=':le=\e':tl:\
+	:kw=%{ %} %% %union %token %type\
+	#else #endif #if #ifdef #ifndef #include #undef # define else endif\
+	if ifdef ifndef include undef:
+C++|c++:\
+	:pb=^\a?\d?*?\d?\p\d?\(\a?\)(\d|{):\
+	:bb={:be=}:cb=/*:ce=*/:ab=//:\
+	:ae=$:sb=":se=\e":lb=':\
+	:le=\e':tl:\
+	:kw=asm auto break case char continue default do double else enum\
+	extern float for fortran goto if int long register return short\
+	sizeof static struct switch typedef union unsigned while void #define\
+	#else #endif #if #ifdef #ifndef #include #undef # define endif\
+	ifdef ifndef include undef defined\
+	class const delete friend inline new operator overload private\
+	protected public virtual:
+#
+# Hack alert: defining function calls as `alternate comments' (ab/ae) seems
+# to be the only way to avoid major confusion inside vfontedpr for calls like:
+#   &packagename'function;
+#
+Perl|perl|pl:\
+	:pb=sub\d\p\d:bb={:be=}:cb=#:ce=$:nc=\$#:tl:\
+	:ab=&:ae=(;|\d|,):\
+	:sb=":se=(\e"|$):lb=':le=(\e'|$):\
+	:kw=do if unless while until else elsif for foreach continue\
+	next redo sub last goto return die exit require:

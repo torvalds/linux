@@ -1,0 +1,108 @@
+.\" Copyright (c) 2000 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This file was contributed to The NetBSD Foundation by Allen Briggs.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd October 16, 2002
+.Dt FMTCHECK 3
+.Os
+.Sh NAME
+.Nm fmtcheck
+.Nd sanitizes user-supplied
+.Xr printf 3 Ns -style
+format string
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.Ft const char *
+.Fn fmtcheck "const char *fmt_suspect" "const char *fmt_default"
+.Sh DESCRIPTION
+The
+.Fn fmtcheck
+scans
+.Fa fmt_suspect
+and
+.Fa fmt_default
+to determine if
+.Fa fmt_suspect
+will consume the same argument types as
+.Fa fmt_default
+and to ensure that
+.Fa fmt_suspect
+is a valid format string.
+.Pp
+The
+.Xr printf 3
+family of functions cannot verify the types of arguments that they are
+passed at run-time.
+In some cases, like
+.Xr catgets 3 ,
+it is useful or necessary to use a user-supplied format string with no
+guarantee that the format string matches the specified arguments.
+.Pp
+The
+.Fn fmtcheck
+was designed to be used in these cases, as in:
+.Bd -literal -offset indent
+printf(fmtcheck(user_format, standard_format), arg1, arg2);
+.Ed
+.Pp
+In the check, field widths, fillers, precisions, etc.\& are ignored (unless
+the field width or precision is an asterisk
+.Ql *
+instead of a digit string).
+Also, any text other than the format specifiers
+is completely ignored.
+.Sh RETURN VALUES
+If
+.Fa fmt_suspect
+is a valid format and consumes the same argument types as
+.Fa fmt_default ,
+then the
+.Fn fmtcheck
+will return
+.Fa fmt_suspect .
+Otherwise, it will return
+.Fa fmt_default .
+.Sh SEE ALSO
+.Xr printf 3
+.Sh BUGS
+The
+.Fn fmtcheck
+function does not recognize positional parameters.
+.Sh SECURITY CONSIDERATIONS
+Note that the formats may be quite different as long as they accept the
+same arguments.
+For example,
+.Qq Li "%p %o %30s %#llx %-10.*e %n"
+is compatible with
+.Qq Li "This number %lu %d%% and string %s has %qd numbers and %.*g floats (%n)" .
+However,
+.Qq Li %o
+is not equivalent to
+.Qq Li %lx
+because
+the first requires an integer and the second requires a long.

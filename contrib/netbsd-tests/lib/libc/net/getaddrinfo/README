@@ -1,0 +1,7 @@
+This test may fail if
+
+ - your /etc/services file is not in sync with what this test expects
+ - your /etc/hosts file or DNS have unusual entries for "localhost"
+   (a duplicate "localhost 127.0.0.1" line in /etc/hosts for example)
+
+On kernels without IPv6 support some of the tests are skipped.

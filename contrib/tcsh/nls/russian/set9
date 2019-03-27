@@ -1,0 +1,12 @@
+$ $tcsh: set9,v 1.5 2015/05/26 17:38:25 christos Exp $
+$ ed.xmap.c
+$set 9
+1 AddXkey: Null extended-key not allowed.\n
+2 AddXkey: sequence-lead-in command not allowed\n
+3 DeleteXkey: Null extended-key not allowed.\n
+4 Unbound extended key "%S"\n
+5 Some extended keys too long for internal print buffer
+6 Enumerate: BUG!! Передан нулевой указатель!\n
+7 нет вводимых данных
+8 Something must follow: '%c'\n
+9 Восьмеричная константа не умещается в char.\n

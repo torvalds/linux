@@ -1,0 +1,159 @@
+$FreeBSD$
+
+Design of xlocale
+=================
+
+The xlocale APIs come from Darwin, although a subset is now part of POSIX 2008.
+They fall into two broad categories:
+
+- Manipulation of per-thread locales (POSIX)
+- Locale-aware functions taking an explicit locale argument (Darwin)
+
+This document describes the implementation of these APIs for FreeBSD.
+
+Goals
+-----
+
+The overall goal of this implementation is to be compatible with the Darwin
+version.  Additionally, it should include minimal changes to the existing
+locale code.  A lot of the existing locale code originates with 4BSD or earlier
+and has had over a decade of testing.  Replacing this code, unless absolutely
+necessary, gives us the potential for more bugs without much benefit.
+
+With this in mind, various libc-private functions have been modified to take a
+locale_t parameter.  This causes a compiler error if they are accidentally
+called without a locale.  This approach was taken, rather than adding _l
+variants of these functions, to make it harder for accidental uses of the
+global-locale versions to slip in.
+
+Locale Objects
+--------------
+
+A locale is encapsulated in a `locale_t`, which is an opaque type: a pointer to
+a `struct _xlocale`.  The name `_xlocale` is unfortunate, as it does not fit
+well with existing conventions, but is used because this is the name the Darwin
+implementation gives to this structure and so may be used by existing (bad) code.
+
+This structure should include all of the information corresponding to a locale.
+A locale_t is almost immutable after creation.  There are no functions that modify it,
+and it can therefore be used without locking.  It is the responsibility of the
+caller to ensure that a locale is not deallocated during a call that uses it.
+
+Each locale contains a number of components, one for each of the categories
+supported by `setlocale()`.  These are likewise immutable after creation.  This
+differs from the Darwin implementation, which includes a deprecated
+`setinvalidrune()` function that can modify the rune locale.
+
+The exception to these mutability rules is a set of `mbstate_t` flags stored
+with each locale.  These are used by various functions that previously had a
+static local `mbstate_t` variable.  
+
+The components are reference counted, and so can be aliased between locale
+objects.  This makes copying locales very cheap.
+
+The Global Locale
+-----------------
+
+All locales and locale components are reference counted.  The global locale,
+however, is special.  It, and all of its components, are static and so no
+malloc() memory is required when using a single locale.
+
+This means that threads using the global locale are subject to the same
+constraints as with the pre-xlocale libc.  Calls to any locale-aware functions
+in threads using the global locale, while modifying the global locale, have
+undefined behaviour.
+
+Because of this, we have to ensure that we always copy the components of the
+global locale, rather than alias them.  
+
+It would be cleaner to simply remove the special treatment of the global locale
+and have a locale_t lazily allocated for the global context.  This would cost a
+little more `malloc()` memory, so is not done in the initial version.
+
+Caching
+-------
+
+The existing locale implementation included several ad-hoc caching layers.
+None of these were thread safe.  Caching is only really of use for supporting
+the pattern where the locale is briefly changed to something and then changed
+back.
+
+The current xlocale implementation removes the caching entirely.  This pattern
+is not one that should be encouraged.  If you need to make some calls with a
+modified locale, then you should use the _l suffix versions of the calls,
+rather than switch the global locale.  If you do need to temporarily switch the
+locale and then switch it back, `uselocale()` provides a way of doing this very
+easily: It returns the old locale, which can then be passed to a subsequent
+call to `uselocale()` to restore it, without the need to load any locale data
+from the disk.
+
+If, in the future, it is determined that caching is beneficial, it can be added
+quite easily in xlocale.c.  Given, however, that any locale-aware call is going
+to be a preparation for presenting data to the user, and so is invariably going
+to be part of an I/O operation, this seems like a case of premature
+optimisation.
+
+localeconv
+----------
+
+The `localeconv()` function is an exception to the immutable-after-creation
+rule.  In the classic implementation, this function returns a pointer to some
+global storage, which is initialised with the data from the current locale.
+This is not possible in a multithreaded environment, with multiple locales.  
+
+Instead, each locale contains a `struct lconv` that is lazily initialised on
+calls to `localeconv()`.  This is not protected by any locking, however this is
+still safe on any machine where word-sized stores are atomic: two concurrent
+calls will write the same data into the structure.
+
+Explicit Locale Calls
+---------------------
+
+A large number of functions have been modified to take an explicit `locale_t`
+parameter.  The old APIs are then reimplemented with a call to `__get_locale()`
+to supply the `locale_t` parameter.  This is in line with the Darwin public
+APIs, but also simplifies the modifications to these functions.  The
+`__get_locale()` function is now the only way to access the current locale
+within libc.  All of the old globals have gone, so there is now a linker error
+if any functions attempt to use them.  
+
+The ctype.h functions are a little different.  These are not implemented in
+terms of their locale-aware versions, for performance reasons.  Each of these
+is implemented as a short inline function.
+
+Differences to Darwin APIs
+--------------------------
+
+`strtoq_l()` and `strtouq_l() `are not provided.  These are extensions to
+deprecated functions - we should not be encouraging people to use deprecated
+interfaces.
+
+Locale Placeholders
+-------------------
+
+The pointer values 0 and -1 have special meanings as `locale_t` values.  Any
+public function that accepts a `locale_t` parameter must use the `FIX_LOCALE()`
+macro on it before using it.  For efficiency, this can be emitted in functions
+which *only* use their locale parameter as an argument to another public
+function, as the callee will do the `FIX_LOCALE()` itself.
+
+Potential Improvements
+----------------------
+
+Currently, the current rune set is accessed via a function call.  This makes it
+fairly expensive to use any of the ctype.h functions.  We could improve this
+quite a lot by storing the rune locale data in a __thread-qualified variable.
+
+Several of the existing FreeBSD locale-aware functions appear to be wrong.  For
+example, most of the `strto*()` family should probably use `digittoint_l()`,
+but instead they assume ASCII.  These will break if using a character encoding
+that does not put numbers and the letters A-F in the same location as ASCII.
+Some functions, like `strcoll()` only work on single-byte encodings.  No
+attempt has been made to fix existing limitations in the libc functions other
+than to add support for xlocale.
+
+Intuitively, setting a thread-local locale should ensure that all locale-aware
+functions can be used safely from that thread.  In fact, this is not the case
+in either this implementation or the Darwin one.  You must call `duplocale()`
+or `newlocale()` before calling `uselocale()`.  This is a bit ugly, and it
+would be better if libc ensure that every thread had its own locale object.

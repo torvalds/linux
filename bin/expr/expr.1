@@ -1,0 +1,327 @@
+.\" -*- nroff -*-
+.\"-
+.\" Copyright (c) 1993 Winning Strategies, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Winning Strategies, Inc.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 5, 2016
+.Dt EXPR 1
+.Os
+.Sh NAME
+.Nm expr
+.Nd evaluate expression
+.Sh SYNOPSIS
+.Nm
+.Op Fl e
+.Ar expression
+.Sh DESCRIPTION
+The
+.Nm
+utility evaluates
+.Ar expression
+and writes the result on standard output.
+.Pp
+All operators and operands must be passed as separate arguments.
+Several of the operators have special meaning to command interpreters
+and must therefore be quoted appropriately.
+All integer operands are interpreted in base 10 and must consist of only
+an optional leading minus sign followed by one or more digits (unless
+less strict parsing has been enabled for backwards compatibility with
+prior versions of
+.Nm
+in
+.Fx ) .
+.Pp
+Arithmetic operations are performed using signed integer math with a
+range according to the C
+.Vt intmax_t
+data type (the largest signed integral type available).
+All conversions and operations are checked for overflow.
+Overflow results in program termination with an error message on stdout
+and with an error status.
+.Pp
+The
+.Fl e
+option enables backwards compatible behaviour as detailed below.
+.Pp
+Operators are listed below in order of increasing precedence; all
+are left-associative.
+Operators with equal precedence are grouped within symbols
+.Ql {
+and
+.Ql } .
+.Bl -tag -width indent
+.It Ar expr1 Li \&| Ar expr2
+Return the evaluation of
+.Ar expr1
+if it is neither an empty string nor zero;
+otherwise, returns the evaluation of
+.Ar expr2
+if it is not an empty string;
+otherwise, returns zero.
+.It Ar expr1 Li & Ar expr2
+Return the evaluation of
+.Ar expr1
+if neither expression evaluates to an empty string or zero;
+otherwise, returns zero.
+.It Ar expr1 Bro =, >, >=, <, <=, != Brc Ar expr2
+Return the results of integer comparison if both arguments are integers;
+otherwise, returns the results of string comparison using the locale-specific
+collation sequence.
+The result of each comparison is 1 if the specified relation is true,
+or 0 if the relation is false.
+.It Ar expr1 Bro +, - Brc Ar expr2
+Return the results of addition or subtraction of integer-valued arguments.
+.It Ar expr1 Bro *, /, % Brc Ar expr2
+Return the results of multiplication, integer division, or remainder of integer-valued arguments.
+.It Ar expr1 Li \&: Ar expr2
+The
+.Dq Li \&:
+operator matches
+.Ar expr1
+against
+.Ar expr2 ,
+which must be a basic regular expression.
+The regular expression is anchored
+to the beginning of the string with an implicit
+.Dq Li ^ .
+.Pp
+If the match succeeds and the pattern contains at least one regular
+expression subexpression
+.Dq Li "\e(...\e)" ,
+the string corresponding to
+.Dq Li \e1
+is returned;
+otherwise the matching operator returns the number of characters matched.
+If the match fails and the pattern contains a regular expression subexpression
+the null string is returned;
+otherwise 0.
+.El
+.Pp
+Parentheses are used for grouping in the usual manner.
+.Pp
+The
+.Nm
+utility makes no lexical distinction between arguments which may be
+operators and arguments which may be operands.
+An operand which is lexically identical to an operator will be considered a
+syntax error.
+See the examples below for a work-around.
+.Pp
+The syntax of the
+.Nm
+command in general is historic and inconvenient.
+New applications are advised to use shell arithmetic rather than
+.Nm .
+.Ss Compatibility with previous implementations
+Unless
+.Fx
+4.x
+compatibility is enabled, this version of
+.Nm
+adheres to the
+.Tn POSIX
+Utility Syntax Guidelines, which require that a leading argument beginning
+with a minus sign be considered an option to the program.
+The standard
+.Fl Fl
+syntax may be used to prevent this interpretation.
+However, many historic implementations of
+.Nm ,
+including the one in previous versions of
+.Fx ,
+will not permit this syntax.
+See the examples below for portable ways to guarantee the correct
+interpretation.
+The
+.Xr check_utility_compat 3
+function (with a
+.Fa utility
+argument of
+.Dq Li expr )
+is used to determine whether backwards compatibility mode should be enabled.
+This feature is intended for use as a transition and debugging aid, when
+.Nm
+is used in complex scripts which cannot easily be recast to avoid the
+non-portable usage.
+Enabling backwards compatibility mode also implicitly enables the
+.Fl e
+option, since this matches the historic behavior of
+.Nm
+in
+.Fx . This option makes number parsing less strict and permits leading
+white space and an optional leading plus sign.
+In addition, empty operands
+have an implied value of zero in numeric context.
+For historical reasons, defining the environment variable
+.Ev EXPR_COMPAT
+also enables backwards compatibility mode.
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev EXPR_COMPAT"
+.It Ev EXPR_COMPAT
+If set, enables backwards compatibility mode.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with one of the following values:
+.Bl -tag -width indent -compact
+.It 0
+the expression is neither an empty string nor 0.
+.It 1
+the expression is an empty string or 0.
+.It 2
+the expression is invalid.
+.El
+.Sh EXAMPLES
+.Bl -bullet
+.It
+The following example (in
+.Xr sh 1
+syntax) adds one to the variable
+.Va a :
+.Dl "a=$(expr $a + 1)"
+.It
+This will fail if the value of
+.Va a
+is a negative number.
+To protect negative values of
+.Va a
+from being interpreted as options to the
+.Nm
+command, one might rearrange the expression:
+.Dl "a=$(expr 1 + $a)"
+.It
+More generally, parenthesize possibly-negative values:
+.Dl "a=$(expr \e( $a \e) + 1)"
+.It
+With shell arithmetic, no escaping is required:
+.Dl "a=$((a + 1))"
+.It
+This example prints the filename portion of a pathname stored
+in variable
+.Va a .
+Since
+.Va a
+might represent the path
+.Pa / ,
+it is necessary to prevent it from being interpreted as the division operator.
+The
+.Li //
+characters resolve this ambiguity.
+.Dl "expr \*q//$a\*q \&: '.*/\e(.*\e)'"
+.It
+With modern
+.Xr sh 1
+syntax,
+.Dl "\*q${a##*/}\*q"
+expands to the same value.
+.El
+.Pp
+The following examples output the number of characters in variable
+.Va a .
+Again, if
+.Va a
+might begin with a hyphen, it is necessary to prevent it from being
+interpreted as an option to
+.Nm ,
+and
+.Va a
+might be interpreted as an operator.
+.Bl -bullet
+.It
+To deal with all of this, a complicated command
+is required:
+.Dl "expr \e( \*qX$a\*q \&: \*q.*\*q \e) - 1"
+.It
+With modern
+.Xr sh 1
+syntax, this can be done much more easily:
+.Dl "${#a}"
+expands to the required number.
+.El
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr test 1 ,
+.Xr check_utility_compat 3
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2008 ,
+provided that backwards compatibility mode is not enabled.
+.Pp
+Backwards compatibility mode performs less strict checks of numeric arguments:
+.Bl -bullet
+.It
+An empty operand string is interpreted as 0.
+.El
+.Bl -bullet
+.It
+Leading white space and/or a plus sign before an otherwise valid positive
+numeric operand are allowed and will be ignored.
+.El
+.Pp
+The extended arithmetic range and overflow checks do not conflict with
+POSIX's requirement that arithmetic be done using signed longs, since
+they only make a difference to the result in cases where using signed
+longs would give undefined behavior.
+.Pp
+According to the
+.Tn POSIX
+standard, the use of string arguments
+.Va length ,
+.Va substr ,
+.Va index ,
+or
+.Va match
+produces undefined results.
+In this version of
+.Nm ,
+these arguments are treated just as their respective string values.
+.Pp
+The
+.Fl e
+flag is an extension.
+.Sh HISTORY
+An
+.Nm
+utility first appeared in the Programmer's Workbench (PWB/UNIX).
+A public domain version of
+.Nm
+written by
+.An Pace Willisson Aq Mt pace@blitz.com
+appeared in
+.Bx 386 0.1 .
+.Sh AUTHORS
+Initial implementation by
+.An Pace Willisson Aq Mt pace@blitz.com
+was largely rewritten by
+.An -nosplit
+.An J.T. Conklin Aq Mt jtc@FreeBSD.org .

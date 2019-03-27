@@ -1,0 +1,44 @@
+.\" #
+.\" # Copyright (c) 2015, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_set_version , xo_set_version_h
+.Nd record content-version information in encoded output
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft void
+.Fn xo_set_version "const char *version"
+.Ft void
+.Fn xo_set_version_h "xo_handle_t *xop" "const char *version"
+.Sh DESCRIPTION
+The
+.Nm xo_set_version
+function records a version number to be emitted as
+part of the data for encoding styles (XML and JSON).
+This version number is suitable for tracking changes in the content,
+allowing a user of the data to discern which version of the data model
+is in use.
+.Sh SEE ALSO
+.Xr xo_emit 3 ,
+.Xr libxo 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

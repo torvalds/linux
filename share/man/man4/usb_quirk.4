@@ -1,0 +1,265 @@
+.\"
+.\" Copyright (c) 2010 AnyWi Technologies
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 19, 2017
+.Dt USB_QUIRK 4
+.Os
+.Sh NAME
+.Nm usb_quirk
+.Nd USB quirks module
+.Sh SYNOPSIS
+To compile this module into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device usb"
+.Ed
+.Pp
+Alternatively, to load the module at boot
+time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+usb_quirk_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+module provides support for dynamically adding and removing quirks for
+USB devices with
+.Xr usbconfig 8 .
+.Sh General quirks:
+.Bl -tag -width Ds
+.It UQ_AUDIO_SWAP_LR
+swap left and right channels
+.It UQ_AU_INP_ASYNC
+input is async despite claim of adaptive
+.It UQ_AU_NO_FRAC
+do not adjust for fractional samples
+.It UQ_AU_NO_XU
+audio device has broken extension unit
+.It UQ_AU_VENDOR_CLASS
+audio device uses vendor class to identify itself
+.It UQ_AU_SET_SPDIF_CM6206
+audio device needs special programming to enable S/PDIF audio output
+.It UQ_BAD_ADC
+bad audio spec version number
+.It UQ_BAD_AUDIO
+device claims audio class, but is not
+.It UQ_BROKEN_BIDIR
+printer has broken bidir mode
+.It UQ_BUS_POWERED
+device is bus powered, despite claim
+.It UQ_HID_IGNORE
+device should be ignored by hid class
+.It UQ_KBD_IGNORE
+device should be ignored by kbd class
+.It UQ_KBD_BOOTPROTO
+device should set the boot protocol
+.It UQ_UMS_IGNORE
+device should be ignored by ums class
+.It UQ_MS_BAD_CLASS
+does not identify properly
+.It UQ_MS_LEADING_BYTE
+mouse sends an unknown leading byte
+.It UQ_MS_REVZ
+mouse has Z-axis reversed
+.It UQ_NO_STRINGS
+string descriptors are broken
+.It UQ_POWER_CLAIM
+hub lies about power status
+.It UQ_SPUR_BUT_UP
+spurious mouse button up events
+.It UQ_SWAP_UNICODE
+has some Unicode strings swapped
+.It UQ_CFG_INDEX_1
+select configuration index 1 by default
+.It UQ_CFG_INDEX_2
+select configuration index 2 by default
+.It UQ_CFG_INDEX_3
+select configuration index 3 by default
+.It UQ_CFG_INDEX_4
+select configuration index 4 by default
+.It UQ_CFG_INDEX_0
+select configuration index 0 by default
+.It UQ_ASSUME_CM_OVER_DATA
+assume cm over data feature
+.It UQ_WMT_IGNORE
+device should be ignored by wmt driver
+.El
+.Sh USB Mass Storage quirks:
+.Bl -tag -width Ds
+.It UQ_MSC_NO_TEST_UNIT_READY
+send start/stop instead of TUR
+.It UQ_MSC_NO_RS_CLEAR_UA
+does not reset Unit Att.
+.It UQ_MSC_NO_START_STOP
+does not support start/stop
+.It UQ_MSC_NO_GETMAXLUN
+does not support get max LUN
+.It UQ_MSC_NO_INQUIRY
+fake generic inq response
+.It UQ_MSC_NO_INQUIRY_EVPD
+does not support inq EVPD
+.It UQ_MSC_NO_SYNC_CACHE
+does not support sync cache
+.It UQ_MSC_SHUTTLE_INIT
+requires Shuttle init sequence
+.It UQ_MSC_ALT_IFACE_1
+switch to alternate interface 1
+.It UQ_MSC_FLOPPY_SPEED
+does floppy speeds (20kb/s)
+.It UQ_MSC_IGNORE_RESIDUE
+gets residue wrong
+.It UQ_MSC_WRONG_CSWSIG
+uses wrong CSW signature
+.It UQ_MSC_RBC_PAD_TO_12
+pad RBC requests to 12 bytes
+.It UQ_MSC_READ_CAP_OFFBY1
+reports sector count, not max sec.
+.It UQ_MSC_FORCE_SHORT_INQ
+does not support full inq.
+.It UQ_MSC_FORCE_WIRE_BBB
+force BBB wire protocol
+.It UQ_MSC_FORCE_WIRE_CBI
+force CBI wire protocol
+.It UQ_MSC_FORCE_WIRE_CBI_I
+force CBI with int. wire protocol
+.It UQ_MSC_FORCE_PROTO_SCSI
+force SCSI command protocol
+.It UQ_MSC_FORCE_PROTO_ATAPI
+force ATAPI command protocol
+.It UQ_MSC_FORCE_PROTO_UFI
+force UFI command protocol
+.It UQ_MSC_FORCE_PROTO_RBC
+force RBC command protocol
+.El
+.Sh 3G Datacard (u3g) quirks:
+.Bl -tag -width Ds
+.It UQ_MSC_EJECT_HUAWEI
+ejects after Huawei USB command
+.It UQ_MSC_EJECT_SIERRA
+ejects after Sierra USB command
+.It UQ_MSC_EJECT_SCSIEJECT
+ejects after SCSI eject command
+.Dv 0x1b0000000200
+.It UQ_MSC_EJECT_REZERO
+ejects after SCSI rezero command
+.Dv 0x010000000000
+.It UQ_MSC_EJECT_ZTESTOR
+ejects after ZTE SCSI command
+.Dv 0x850101011801010101010000
+.It UQ_MSC_EJECT_CMOTECH
+ejects after C-motech SCSI command
+.Dv 0xff52444556434847
+.It UQ_MSC_EJECT_WAIT
+wait for the device to eject
+.It UQ_MSC_EJECT_SAEL_M460
+ejects after Sael USB commands
+.It UQ_MSC_EJECT_HUAWEISCSI
+ejects after Huawei SCSI command
+.Dv 0x11060000000000000000000000000000
+.It UQ_MSC_EJECT_TCT
+ejects after TCT SCSI command
+.Dv 0x06f504025270
+.It UQ_MSC_DYMO_EJECT
+ejects after HID command
+.Dv 0x1b5a01
+.El
+.Pp
+See
+.Pa /sys/dev/usb/quirk/usb_quirk.h
+or run "usbconfig dump_quirk_names" for the complete list of supported quirks.
+.Sh LOADER TUNABLE
+The following tunable can be set at the
+.Xr loader 8
+prompt before booting the kernel, or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.usb.quirk.%d
+The value is a string whose format is:
+.Bd -literal -offset indent
+.Qo VendorId ProductId LowRevision HighRevision UQ_QUIRK,... Qc
+.Ed
+.Pp
+Installs the quirks
+.Ic UQ_QUIRK,...
+for all USB devices matching
+.Ic VendorId
+and
+.Ic ProductId
+which have a hardware revision between and including
+.Ic LowRevision
+and
+.Ic HighRevision .
+.Pp
+.Ic VendorId ,
+.Ic ProductId ,
+.Ic LowRevision
+and
+.Ic HighRevision
+are all 16 bits numbers which can be decimal or hexadecimal based.
+.Pp
+A maximum of 100 variables
+.Ic hw.usb.quirk.0, .1, ..., .99
+can be defined.
+.Pp
+If a matching entry is found in the kernel's internal quirks table, it
+is replaced by the new definition.
+.Pp
+Else a new entry is created given that the quirk table is not full.
+.Pp
+The kernel iterates over the
+.Ic hw.usb.quirk.N
+variables starting at
+.Ic N = 0
+and stops at
+.Ic N = 99
+or the first non-existing one.
+.El
+.Sh EXAMPLES
+After attaching a
+.Nm u3g
+device which appears as a USB device on
+.Pa ugen0.3 :
+.Bd -literal -offset indent
+usbconfig -d ugen0.3 add_quirk UQ_MSC_EJECT_WAIT
+.Ed
+.Pp
+Enable a Holtec/Keep Out F85 gaming keyboard on
+.Pa ugen1.4 :
+.Bd -literal -offset indent
+usbconfig -d ugen1.4 add_quirk UQ_KBD_BOOTPROTO
+.Ed
+.Pp
+To install a quirk at boot time, place one or several lines like the
+following in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.usb.quirk.0="0x04d9 0xfa50 0 0xffff UQ_KBD_IGNORE"
+.Ed
+.Sh SEE ALSO
+.Xr usbconfig 8
+.Sh HISTORY
+The
+.Nm
+module appeared in
+.Fx 8.0 ,
+and was written by
+.An Hans Petter Selasky Aq Mt hselasky@FreeBSD.org .
+This manual page was written by
+.An Nick Hibma Aq Mt n_hibma@FreeBSD.org .

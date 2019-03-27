@@ -1,0 +1,97 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Hardkernel Odroid XU4 board device tree source
+ *
+ * Copyright (c) 2015 Krzysztof Kozlowski
+ * Copyright (c) 2014 Collabora Ltd.
+ * Copyright (c) 2013-2015 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ */
+
+/dts-v1/;
+#include <dt-bindings/sound/samsung-i2s.h>
+#include "exynos5422-odroidxu3-common.dtsi"
+
+/ {
+	model = "Hardkernel Odroid XU4";
+	compatible = "hardkernel,odroid-xu4", "samsung,exynos5800", \
+		     "samsung,exynos5";
+
+	pwmleds {
+		compatible = "pwm-leds";
+
+		blueled {
+			label = "blue:heartbeat";
+			pwms = <&pwm 2 2000000 0>;
+			pwm-names = "pwm2";
+			max_brightness = <255>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	sound: sound {
+		compatible = "samsung,odroid-xu3-audio";
+		model = "Odroid-XU4";
+
+		assigned-clocks = <&i2s0 CLK_I2S_RCLK_SRC>,
+				<&clock CLK_MOUT_EPLL>,
+				<&clock CLK_MOUT_MAU_EPLL>,
+				<&clock CLK_MOUT_USER_MAU_EPLL>,
+				<&clock_audss EXYNOS_MOUT_AUDSS>,
+				<&clock_audss EXYNOS_MOUT_I2S>,
+				<&clock_audss EXYNOS_DOUT_SRP>,
+				<&clock_audss EXYNOS_DOUT_AUD_BUS>,
+				<&clock_audss EXYNOS_DOUT_I2S>;
+
+		assigned-clock-parents = <&clock_audss EXYNOS_SCLK_I2S>,
+				<&clock CLK_FOUT_EPLL>,
+				<&clock CLK_MOUT_EPLL>,
+				<&clock CLK_MOUT_MAU_EPLL>,
+				<&clock CLK_MAU_EPLL>,
+				<&clock_audss EXYNOS_MOUT_AUDSS>;
+
+		assigned-clock-rates = <0>,
+				<0>,
+				<0>,
+				<0>,
+				<0>,
+				<0>,
+				<196608001>,
+				<(196608002 / 2)>,
+				<196608000>;
+
+		cpu {
+			sound-dai = <&i2s0 0>;
+		};
+
+		codec {
+			sound-dai = <&hdmi>;
+		};
+	};
+};
+
+&clock_audss {
+	assigned-clocks = <&clock_audss EXYNOS_DOUT_SRP>,
+			  <&clock CLK_FOUT_EPLL>;
+	assigned-clock-rates = <(196608000 / 256)>,
+			       <196608000>;
+};
+
+&i2s0 {
+	status = "okay";
+};
+
+&pwm {
+	/*
+	 * PWM 0 -- fan
+	 * PWM 2 -- Blue LED
+	 */
+	pinctrl-0 = <&pwm0_out &pwm2_out>;
+	pinctrl-names = "default";
+	samsung,pwm-outputs = <0>, <2>;
+	status = "okay";
+};
+
+&usbdrd_dwc3_1 {
+	dr_mode = "host";
+};

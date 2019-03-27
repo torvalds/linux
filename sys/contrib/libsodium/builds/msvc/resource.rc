@@ -1,0 +1,63 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+#include "windows.h"
+
+//specify the version numbers for the dll's
+#define LIBSODIUM_VERSION_STRING "1.0.16.0"
+#define LIBSODIUM_VERSION_BIN 1,0,16,0
+
+//specify the product name for the dlls based on the platform we are compiling for
+#if defined(x64)
+    #define LIBSODIUM_PRODUCT_NAME "libsodium (x64)"
+#elif defined(Win32)
+    #define LIBSODIUM_PRODUCT_NAME "libsodium (x86)"
+#else
+    #define LIBSODIUM_PRODUCT_NAME "libsodium"
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION LIBSODIUM_VERSION_BIN
+ PRODUCTVERSION LIBSODIUM_VERSION_BIN
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x7L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "FileDescription", "The Sodium crypto library (libsodium) "
+            VALUE "FileVersion", LIBSODIUM_VERSION_STRING
+            VALUE "InternalName", "libsodium"
+            VALUE "LegalCopyright", "Copyright (c) 2017 The libsodium authors."
+            VALUE "OriginalFilename", "libsodium.dll"
+            VALUE "ProductName", LIBSODIUM_PRODUCT_NAME
+            VALUE "ProductVersion", LIBSODIUM_VERSION_STRING
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////

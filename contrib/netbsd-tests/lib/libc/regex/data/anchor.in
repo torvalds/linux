@@ -1,0 +1,33 @@
+# anchoring and REG_NEWLINE
+^abc$		&	abc	abc
+a^b		-	a^b
+a^b		b	a^b	a^b
+a$b		-	a$b
+a$b		b	a$b	a$b
+^		&	abc	@abc
+$		&	abc	@
+^$		&	""	@
+$^		-	""	@
+\($\)\(^\)	b	""	@
+# stop retching, those are legitimate (although disgusting)
+^^		-	""	@
+$$		-	""	@
+b$		&	abNc
+b$		&n	abNc	b
+^b$		&	aNbNc
+^b$		&n	aNbNc	b
+^$		&n	aNNb	@Nb
+^$		n	abc
+^$		n	abcN	@
+$^		n	aNNb	@Nb
+\($\)\(^\)	bn	aNNb	@Nb
+^^		n^	aNNb	@Nb
+$$		n	aNNb	@NN
+^a		^	a
+a$		$	a
+^a		^n	aNb
+^b		^n	aNb	b
+a$		$n	bNa
+b$		$n	bNa	b
+a*(^b$)c*	-	b	b
+a*\(^b$\)c*	b	b	b

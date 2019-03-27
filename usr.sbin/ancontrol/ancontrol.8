@@ -1,0 +1,553 @@
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ee.columbia.edu> All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 10, 1999
+.Dt ANCONTROL 8
+.Os
+.Sh NAME
+.Nm ancontrol
+.Nd configure Aironet 4500/4800 devices
+.Sh SYNOPSIS
+.Nm
+.Fl i Ar iface Fl A
+.Nm
+.Fl i Ar iface Fl N
+.Nm
+.Fl i Ar iface Fl S
+.Nm
+.Fl i Ar iface Fl I
+.Nm
+.Fl i Ar iface Fl T
+.Nm
+.Fl i Ar iface Fl C
+.Nm
+.Fl i Ar iface Fl Q
+.Nm
+.Fl i Ar iface Fl Z
+.Nm
+.Fl i Ar iface Fl R
+.Nm
+.Fl i Ar iface Fl t Cm 0 Ns - Ns Cm 4
+.Nm
+.Fl i Ar iface Fl s Cm 0 Ns - Ns Cm 3
+.Nm
+.Fl i Ar iface
+.Op Fl v Cm 1 Ns - Ns Cm 4
+.Fl a Ar AP
+.Nm
+.Fl i Ar iface Fl b Ar beacon_period
+.Nm
+.Fl i Ar iface
+.Op Fl v Cm 0 | 1
+.Fl d Cm 0 Ns - Ns Cm 3
+.Nm
+.Fl i Ar iface Fl e Cm 0 Ns - Ns Cm 4
+.Nm
+.Fl i Ar iface
+.Op Fl v Cm 0 Ns - Ns Cm 8
+.Fl k Ar key
+.Nm
+.Fl i Ar iface
+.Fl K Cm 0 Ns - Ns Cm 2
+.Nm
+.Fl i Ar iface
+.Fl W Cm 0 Ns - Ns Cm 2
+.Nm
+.Fl i Ar iface
+.Fl L Ar user_name
+.Nm
+.Fl i Ar iface Fl j Ar netjoin_timeout
+.Nm
+.Fl i Ar iface Fl l Ar station_name
+.Nm
+.Fl i Ar iface Fl m Ar mac_address
+.Nm
+.Fl i Ar iface
+.Op Fl v Cm 1 Ns - Ns Cm 3
+.Fl n Ar SSID
+.Nm
+.Fl i Ar iface Fl o Cm 0 | 1
+.Nm
+.Fl i Ar iface Fl p Ar tx_power
+.Nm
+.Fl i Ar iface Fl c Ar frequency
+.Nm
+.Fl i Ar iface Fl f Ar fragmentation_threshold
+.Nm
+.Fl i Ar iface Fl r Ar RTS_threshold
+.Nm
+.Fl i Ar iface Fl M Cm 0 Ns - Ns Cm 15
+.Nm
+.Fl h
+.Sh DESCRIPTION
+The
+.Nm
+utility controls the operation of Aironet wireless networking
+devices via the
+.Xr an 4
+driver.
+Most of the parameters that can be changed relate to the
+IEEE 802.11 protocol which the Aironet cards implement.
+This includes such things as
+the station name, whether the station is operating in ad-hoc (point
+to point) or infrastructure mode, and the network name of a service
+set to join.
+The
+.Nm
+utility can also be used to view the current NIC status, configuration
+and to dump out the values of the card's statistics counters.
+.Pp
+The
+.Ar iface
+argument given to
+.Nm
+should be the logical interface name associated with the Aironet
+device
+.Li ( an0 , an1 ,
+etc.).
+If one is not specified the device
+.Dq Li an0
+will be assumed.
+.Pp
+The
+.Nm
+utility is not designed to support the combination of arguments from different
+.Sx SYNOPSIS
+lines in a single
+.Nm
+invocation, and such combinations are not recommended.
+.Sh OPTIONS
+The options are as follows:
+.Bl -tag -width indent
+.It Fl i Ar iface Fl A
+Display the preferred access point list.
+The AP list can be used by
+stations to specify the MAC address of access points with which it
+wishes to associate.
+If no AP list is specified (the default) then
+the station will associate with the first access point that it finds
+which serves the SSID(s) specified in the SSID list.
+The AP list can
+be modified with the
+.Fl a
+option.
+.It Fl i Ar iface Fl N
+Display the SSID list.
+This is a list of service set IDs (i.e., network names)
+with which the station wishes to associate.
+There may be up to three SSIDs
+in the list: the station will go through the list in ascending order and
+associate with the first matching SSID that it finds.
+.It Fl i Ar iface Fl S
+Display NIC status information.
+This includes the current operating
+status, current BSSID, SSID, channel, beacon period and currently
+associated access point.
+The operating mode indicates the state of
+the NIC, MAC status and receiver status.
+When the
+.Qq Li synced
+keyword
+appears, it means the NIC has successfully associated with an access
+point, associated with an ad-hoc
+.Dq master
+station, or become a
+.Dq master
+itself.
+The beacon period can be anything between 20 and 976 milliseconds.
+The default is 100.
+.It Fl i Ar iface Fl I
+Display NIC capability information.
+This shows the device type,
+frequency, speed and power level capabilities and firmware revision levels.
+.It Fl i Ar iface Fl T
+Display the NIC's internal statistics counters.
+.It Fl i Ar iface Fl C
+Display current NIC configuration.
+This shows the current operation mode,
+receive mode, MAC address, power save settings, various timing settings,
+channel selection, diversity, transmit power and transmit speed.
+.It Fl i Ar iface Fl Q
+Display the cached signal strength information maintained by the
+.Xr an 4
+driver.
+The driver retains information about signal strength and
+noise level for packets received from different hosts.
+The signal strength and noise level values are displayed in units of dBms by
+default.
+The
+.Va hw.an.an_cache_mode
+.Xr sysctl 8
+variable can be set to
+.Cm raw , dbm
+or
+.Cm per .
+.It Fl i Ar iface Fl Z
+Clear the signal strength cache maintained internally by the
+.Xr an 4
+driver.
+.It Fl i Ar iface Fl R
+Display RSSI map that converts from the RSSI index to percent and dBm.
+.It Fl i Ar iface Fl t Cm 0 Ns - Ns Cm 4
+Select transmit speed.
+The available settings are as follows:
+.Bl -column ".Em TX rate" -offset indent
+.Em "TX rate	NIC speed"
+.It Cm 0 Ta "Auto -- NIC selects optimal speed"
+.It Cm 1 Ta "1Mbps fixed"
+.It Cm 2 Ta "2Mbps fixed"
+.It Cm 3 Ta "5.5Mbps fixed"
+.It Cm 4 Ta "11Mbps fixed"
+.El
+.Pp
+Note that the 5.5 and 11Mbps settings are only supported on the 4800
+series adapters: the 4500 series adapters have a maximum speed of 2Mbps.
+.It Fl i Ar iface Fl s Cm 0 Ns - Ns Cm 3
+Set power save mode.
+Valid selections are as follows:
+.Bl -column ".Em Selection" -offset indent
+.Em "Selection	Power save mode"
+.It Cm 0 Ta "None - power save disabled"
+.It Cm 1 Ta "Constantly awake mode (CAM)"
+.It Cm 2 Ta "Power Save Polling (PSP)"
+.It Cm 3 Ta "Fast Power Save Polling (PSP-CAM)"
+.El
+.Pp
+Note that for IBSS (ad-hoc) mode, only PSP mode is supported, and only
+if the ATIM window is non-zero.
+.It Fl i Ar iface Oo Fl v Cm 1 Ns - Ns Cm 4 Oc Fl a Ar AP
+Set preferred access point.
+The
+.Ar AP
+is specified as a MAC address consisting of 6 hexadecimal values
+separated by colons.
+By default, the
+.Fl a
+option only sets the first entry in the AP list.
+The
+.Fl v
+modifier can be used to specify exactly which AP list entry is to be
+modified.
+If the
+.Fl v
+flag is not used, the first AP list entry will be changed.
+.It Fl i Ar iface Fl b Ar beacon_period
+Set the ad-hoc mode beacon period.
+The
+.Ar beacon_period
+is specified in milliseconds.
+The default is 100ms.
+.It Fl i Ar iface Oo Fl v Cm 0 | 1 Oc Fl d Cm 0 Ns - Ns Cm 3
+Select the antenna diversity.
+Aironet devices can be configured with up
+to two antennas, and transmit and receive diversity can be configured
+accordingly.
+Valid selections are as follows:
+.Bl -column ".Em Selection" -offset indent
+.Em "Selection	Diversity"
+.It Cm 0 Ta "Select factory default diversity"
+.It Cm 1 Ta "Antenna 1 only"
+.It Cm 2 Ta "Antenna 2 only"
+.It Cm 3 Ta "Antenna 1 and 2"
+.El
+.Pp
+The receive and transmit diversity can be set independently.
+The user
+must specify which diversity setting is to be modified by using the
+.Fl v
+option: selection
+.Cm 0
+sets the receive diversity and
+.Cm 1
+sets the transmit diversity.
+.It Fl i Ar iface Fl e Cm 0 Ns - Ns Cm 4
+Set the transmit WEP key to use.
+Note that until this command is issued, the device will use the
+last key programmed.
+The transmit key is stored in NVRAM.
+Currently
+set transmit key can be checked via
+.Fl C
+option.
+Selection
+.Cm 4
+sets the card in
+.Dq "Home Network Mode"
+and uses the home key.
+.It Fl i Ar iface Oo Fl v Cm 0 Ns - Ns Cm 8 Oc Fl k Ar key
+Set a WEP key.
+For 40 bit prefix 10 hex character with 0x.
+For 128 bit prefix 26 hex character with 0x.
+Use
+.Qq
+as the key to erase the key.
+Supports 4 keys; even numbers are for permanent keys
+and odd number are for temporary keys.
+For example,
+.Fl v Cm 1
+sets the first temporary key.
+(A
+.Dq permanent
+key is stored in NVRAM; a
+.Dq temporary
+key is not.)
+Note that the device will use the most recently-programmed key by default.
+Currently set keys can be checked via
+.Fl C
+option, only the sizes of the
+keys are returned.
+The value of
+.Cm 8
+is for the home key.
+Note that the value for the home key can be read back from firmware.
+.It Fl i Ar iface Fl K Cm 0 Ns - Ns Cm 2
+Set authorization type.
+Use
+.Cm 0
+for none,
+.Cm 1
+for
+.Dq Open ,
+.Cm 2
+for
+.Dq "Shared Key" .
+.It Fl i Ar iface Fl W Cm 0 Ns - Ns Cm 2
+Enable WEP.
+Use
+.Cm 0
+for no WEP,
+.Cm 1
+to enable full WEP,
+.Cm 2
+for mixed cell.
+.It Fl i Ar iface Fl L Ar user_name
+Enable LEAP and query for password.
+It will check to see if it has authenticated for up to 60s.
+To disable LEAP, set WEP mode.
+.It Fl i Ar iface Fl j Ar netjoin_timeout
+Set the ad-hoc network join timeout.
+When a station is first activated
+in ad-hoc mode, it will search out a
+.Dq master
+station with the desired
+SSID and associate with it.
+If the station is unable to locate another
+station with the same SSID after a suitable timeout, it sets itself up
+as the
+.Dq master
+so that other stations may associate with it.
+This
+timeout defaults to 10000 milliseconds (10 seconds) but may be changed
+with this option.
+The timeout should be specified in milliseconds.
+.It Fl i Ar iface Fl l Ar station_name
+Set the station name used internally by the NIC.
+The
+.Ar station_name
+can be any text string up to 16 characters in length.
+The default name
+is set by the driver to
+.Dq Li FreeBSD .
+.It Fl i Ar iface Fl m Ar mac_address
+Set the station address for the specified interface.
+The
+.Ar mac_address
+is specified as a series of six hexadecimal values separated by colons,
+e.g.:
+.Li 00:60:1d:12:34:56 .
+This programs the new address into the card
+and updates the interface as well.
+.It Fl i Ar iface Oo Fl v Cm 1 Ns - Ns Cm 3 Oc Fl n Ar SSID
+Set the desired SSID (network name).
+There are three SSIDs which allows
+the NIC to work with access points at several locations without needing
+to be reconfigured.
+The NIC checks each SSID in sequence when searching
+for a match.
+The SSID to be changed can be specified with the
+.Fl v
+modifier option.
+If the
+.Fl v
+flag is not used, the first SSID in the list is set.
+.It Fl i Ar iface Fl o Cm 0 | 1
+Set the operating mode of the Aironet interface.
+Valid selections are
+.Cm 0
+for ad-hoc mode and
+.Cm 1
+for infrastructure mode.
+The default driver setting is for infrastructure
+mode.
+.It Fl i Ar iface Fl p Ar tx_power
+Set the transmit power level in milliwatts.
+Valid power settings
+vary depending on the actual NIC and can be viewed by dumping the
+device capabilities with the
+.Fl I
+flag.
+Typical values are 1, 5, 20, 50 and 100mW.
+Selecting 0 sets
+the factory default.
+.It Fl i Ar iface Fl c Ar frequency
+Set the radio frequency of a given interface.
+The
+.Ar frequency
+should be specified as a channel ID as shown in the table below.
+The
+list of available frequencies is dependent on radio regulations specified
+by regional authorities.
+Recognized regulatory authorities include
+the FCC (United States), ETSI (Europe), France and Japan.
+Frequencies
+in the table are specified in MHz.
+.Bl -column ".Em Channel ID" ".Em FCC" ".Em ETSI" ".Em France" ".Em Japan" -offset indent
+.Em "Channel ID	FCC	ETSI	France	Japan"
+.It Cm 1 Ta 2412 Ta 2412 Ta - Ta -
+.It Cm 2 Ta 2417 Ta 2417 Ta - Ta -
+.It Cm 3 Ta 2422 Ta 2422 Ta - Ta -
+.It Cm 4 Ta 2427 Ta 2427 Ta - Ta -
+.It Cm 5 Ta 2432 Ta 2432 Ta - Ta -
+.It Cm 6 Ta 2437 Ta 2437 Ta - Ta -
+.It Cm 7 Ta 2442 Ta 2442 Ta - Ta -
+.It Cm 8 Ta 2447 Ta 2447 Ta - Ta -
+.It Cm 9 Ta 2452 Ta 2452 Ta - Ta -
+.It Cm 10 Ta 2457 Ta 2457 Ta 2457 Ta -
+.It Cm 11 Ta 2462 Ta 2462 Ta 2462 Ta -
+.It Cm 12 Ta - Ta 2467 Ta 2467 Ta -
+.It Cm 13 Ta - Ta 2472 Ta 2472 Ta -
+.It Cm 14 Ta - Ta - Ta - Ta 2484
+.El
+.Pp
+If an illegal channel is specified, the
+NIC will revert to its default channel.
+For NICs sold in the United States
+and Europe, the default channel is 3.
+For NICs sold in France, the default
+channel is 11.
+For NICs sold in Japan, the only available channel is 14.
+Note that two stations must be set to the same channel in order to
+communicate.
+.It Fl i Ar iface Fl f Ar fragmentation_threshold
+Set the fragmentation threshold in bytes.
+This threshold controls the
+point at which outgoing packets will be split into multiple fragments.
+If a single fragment is not sent successfully, only that fragment will
+need to be retransmitted instead of the whole packet.
+The fragmentation
+threshold can be anything from 64 to 2312 bytes.
+The default is 2312.
+.It Fl i Ar iface Fl r Ar RTS_threshold
+Set the RTS/CTS threshold for a given interface.
+This controls the
+number of bytes used for the RTS/CTS handshake boundary.
+The
+.Ar RTS_threshold
+can be any value between 0 and 2312.
+The default is 2312.
+.It Fl i Ar iface Fl M Cm 0 Ns - Ns Cm 15
+Set monitor mode via bit mask, meaning:
+.Pp
+.Bl -tag -width indent -offset indent -compact
+.It Em Bit
+.Em Meaning
+.It 0
+to not dump 802.11 packet.
+.It 1
+to enable 802.11 monitor.
+.It 2
+to monitor any SSID.
+.It 4
+to not skip beacons, monitor beacons produces a high system load.
+.It 8
+to enable full Aironet header returned via BPF.
+Note it appears that a SSID must be set.
+.El
+.It Fl h
+Print a list of available options and sample usage.
+.El
+.Sh SECURITY NOTES
+WEP
+.Pq Dq "wired equivalent privacy"
+is based on the RC4 algorithm,
+using a 24 bit initialization vector.
+.Pp
+RC4 is supposedly vulnerable to certain known plaintext attacks,
+especially with 40 bit keys.
+So the security of WEP in part depends on how much known plaintext
+is transmitted.
+.Pp
+Because of this, although counter-intuitive, using
+.Dq "shared key"
+authentication (which involves sending known plaintext) is less
+secure than using
+.Dq open
+authentication when WEP is enabled.
+.Pp
+Devices may alternate among all of the configured WEP keys when
+transmitting packets.
+Therefore, all configured keys (up to four) must agree.
+.Sh EXAMPLES
+.Bd -literal -offset indent
+ancontrol -i an0 -v 0 -k 0x12345678901234567890123456
+ancontrol -i an0 -K 2
+ancontrol -i an0 -W 1
+ancontrol -i an0 -e 0
+.Ed
+.Pp
+Sets a WEP key 0, enables
+.Dq "Shared Key"
+authentication, enables full WEP
+and uses transmit key 0.
+.Sh SEE ALSO
+.Xr an 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Bill Paul Aq Mt wpaul@ee.columbia.edu .
+.Sh BUGS
+The statistics counters do not seem to show the amount of transmit
+and received frames as increasing.
+This is likely due to the fact that
+the
+.Xr an 4
+driver uses unmodified packet mode instead of letting the NIC perform
+802.11/ethernet encapsulation itself.
+.Pp
+Setting the channel does not seem to have any effect.

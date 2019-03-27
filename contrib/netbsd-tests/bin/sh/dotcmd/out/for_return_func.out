@@ -1,0 +1,12 @@
+before for
+before dotcmd
+before function
+before return
+after function
+after dotcmd, return value: 0
+before dotcmd
+before function
+before return
+after function
+after dotcmd, return value: 0
+after for

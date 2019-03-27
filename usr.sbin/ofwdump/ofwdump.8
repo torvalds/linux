@@ -1,0 +1,107 @@
+.\" Copyright (c) 2002 by Thomas Moestl <tmm@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+.\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 18, 2002
+.Dt OFWDUMP 8
+.Os
+.Sh NAME
+.Nm ofwdump
+.Nd examine the Open Firmware device tree
+.Sh SYNOPSIS
+.Nm
+.Fl a
+.Op Fl p | P Ar property
+.Op Fl R | S
+.Nm
+.Op Fl p | P Ar property
+.Op Fl r
+.Op Fl R | S
+.Op Fl -
+.Ar nodes
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to examine the Open Firmware device tree.
+In the first synopsis form, the complete device tree is printed; in the
+second form, only the selected
+.Ar nodes
+will be examined.
+.Pp
+The following options are available:
+.Bl -tag -width ".Fl P Ar property"
+.It Fl a
+Print the complete device tree.
+.It Fl p
+Print all available properties.
+.It Fl P Ar property
+Only print properties of the given name.
+.It Fl R
+Print properties in
+.Dq raw
+format, i.e., omit all headings and indentation and just write the
+property values unaltered to the standard output.
+This is intended to be used with the
+.Fl P
+option to extract the value of a single property.
+.It Fl S
+Print properties as strings; this is analogous to the
+.Fl R
+option, except that each property is only output to the first
+.Dv NUL
+character, and that newline is appended to each.
+.It Fl r
+Recursively print all children of the specified nodes.
+.El
+.Sh EXAMPLES
+Print the complete device tree:
+.Pp
+.Dl "ofwdump -a"
+.Pp
+Print the complete device subtree of the
+.Dq Li /pci
+node, including all available properties:
+.Pp
+.Dl "ofwdump -pr /pci"
+.Pp
+Print the
+.Dq Li compatible
+property of the
+.Dq Li /pci
+node as plain string:
+.Pp
+.Dl "ofwdump -P compatible -S /pci"
+.Sh SEE ALSO
+.Xr eeprom 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+The
+.Nm
+utility
+was written by
+.An Thomas Moestl Aq Mt tmm@FreeBSD.org .

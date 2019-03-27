@@ -1,0 +1,315 @@
+.\"	$NetBSD: ntp_adjtime.2,v 1.6 2003/04/16 13:34:55 wiz Exp $
+.\"
+.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Thomas Klausner.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 13, 2005
+.Dt NTP_ADJTIME 2
+.Os
+.Sh NAME
+.Nm ntp_adjtime ,
+.Nm ntp_gettime
+.Nd Network Time Protocol (NTP) daemon interface system calls
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/timex.h
+.Ft int
+.Fn ntp_adjtime "struct timex *"
+.Ft int
+.Fn ntp_gettime "struct ntptimeval *"
+.Sh DESCRIPTION
+The two system calls
+.Fn ntp_adjtime
+and
+.Fn ntp_gettime
+are the kernel interface to the Network Time Protocol (NTP) daemon
+.Xr ntpd 8 .
+.Pp
+The
+.Fn ntp_adjtime
+function is used by the NTP daemon to adjust the system clock to an
+externally derived time.
+The time offset and related variables which are set by
+.Fn ntp_adjtime
+are used by
+.Fn hardclock
+to adjust the phase and frequency of the phase- or frequency-lock loop
+(PLL resp. FLL) which controls the system clock.
+.Pp
+The
+.Fn ntp_gettime
+function provides the time, maximum error (sync distance) and
+estimated error (dispersion) to client user application programs.
+.Pp
+In the following, all variables that refer PPS are only relevant if
+the
+.Em PPS_SYNC
+option is enabled in the kernel.
+.Pp
+.Fn ntp_adjtime
+has as argument a
+.Va struct timex *
+of the following form:
+.Bd -literal
+struct timex {
+	unsigned int modes;	/* clock mode bits (wo) */
+	long offset;		/* time offset (us) (rw) */
+	long freq;		/* frequency offset (scaled ppm) (rw) */
+	long maxerror;		/* maximum error (us) (rw) */
+	long esterror;		/* estimated error (us) (rw) */
+	int status;		/* clock status bits (rw) */
+	long constant;		/* pll time constant (rw) */
+	long precision;		/* clock precision (us) (ro) */
+	long tolerance;		/* clock frequency tolerance (scaled
+				 * ppm) (ro) */
+	/*
+	 * The following read-only structure members are implemented
+	 * only if the PPS signal discipline is configured in the
+	 * kernel.
+	 */
+	long ppsfreq;		/* pps frequency (scaled ppm) (ro) */
+	long jitter;		/* pps jitter (us) (ro) */
+	int shift;		/* interval duration (s) (shift) (ro) */
+	long stabil;		/* pps stability (scaled ppm) (ro) */
+	long jitcnt;		/* jitter limit exceeded (ro) */
+	long calcnt;		/* calibration intervals (ro) */
+	long errcnt;		/* calibration errors (ro) */
+	long stbcnt;		/* stability limit exceeded (ro) */
+};
+.Ed
+.Pp
+The members of this struct have the following meanings when used as
+argument for
+.Fn ntp_adjtime :
+.Bl -tag -width tolerance -compact
+.It Fa modes
+Defines what settings should be changed with the current
+.Fn ntp_adjtime
+call (write-only).
+Bitwise OR of the following:
+.Bl -tag -width MOD_TIMECONST -compact -offset indent
+.It MOD_OFFSET
+set time offset
+.It MOD_FREQUENCY
+set frequency offset
+.It MOD_MAXERROR
+set maximum time error
+.It MOD_ESTERROR
+set estimated time error
+.It MOD_STATUS
+set clock status bits
+.It MOD_TIMECONST
+set PLL time constant
+.It MOD_CLKA
+set clock A
+.It MOD_CLKB
+set clock B
+.El
+.It Fa offset
+Time offset (in microseconds), used by the PLL/FLL to adjust the
+system time in small increments (read-write).
+.It Fa freq
+Frequency offset (scaled ppm) (read-write).
+.It Fa maxerror
+Maximum error (in microseconds).
+Initialized by an
+.Fn ntp_adjtime
+call, and increased by the kernel once each second to reflect the maximum
+error bound growth (read-write).
+.It Fa esterror
+Estimated error (in microseconds).
+Set and read by
+.Fn ntp_adjtime ,
+but unused by the kernel (read-write).
+.It Fa status
+System clock status bits (read-write).
+Bitwise OR of the following:
+.Bl -tag -width STA_PPSJITTER -compact -offset indent
+.It STA_PLL
+Enable PLL updates (read-write).
+.It STA_PPSFREQ
+Enable PPS freq discipline (read-write).
+.It STA_PPSTIME
+Enable PPS time discipline (read-write).
+.It STA_FLL
+Select frequency-lock mode (read-write).
+.It STA_INS
+Insert leap (read-write).
+.It STA_DEL
+Delete leap (read-write).
+.It STA_UNSYNC
+Clock unsynchronized (read-write).
+.It STA_FREQHOLD
+Hold frequency (read-write).
+.It STA_PPSSIGNAL
+PPS signal present (read-only).
+.It STA_PPSJITTER
+PPS signal jitter exceeded (read-only).
+.It STA_PPSWANDER
+PPS signal wander exceeded (read-only).
+.It STA_PPSERROR
+PPS signal calibration error (read-only).
+.It STA_CLOCKERR
+Clock hardware fault (read-only).
+.El
+.It Fa constant
+PLL time constant, determines the bandwidth, or
+.Dq stiffness ,
+of the PLL (read-write).
+.It Fa precision
+Clock precision (in microseconds).
+In most cases the same as the kernel tick variable (see
+.Xr hz 9 ) .
+If a precision clock counter or external time-keeping signal is available,
+it could be much lower (and depend on the state of the signal)
+(read-only).
+.It Fa tolerance
+Maximum frequency error, or tolerance of the CPU clock oscillator (scaled
+ppm).
+Ordinarily a property of the architecture, but could change under
+the influence of external time-keeping signals (read-only).
+.It Fa ppsfreq
+PPS frequency offset produced by the frequency median filter (scaled
+ppm) (read-only).
+.It Fa jitter
+PPS jitter measured by the time median filter in microseconds
+(read-only).
+.It Fa shift
+Logarithm to base 2 of the interval duration in seconds (PPS,
+read-only).
+.It Fa stabil
+PPS stability (scaled ppm); dispersion (wander) measured by the
+frequency median filter (read-only).
+.It Fa jitcnt
+Number of seconds that have been discarded because the jitter measured
+by the time median filter exceeded the limit
+.Em MAXTIME
+(PPS, read-only).
+.It Fa calcnt
+Count of calibration intervals (PPS, read-only).
+.It Fa errcnt
+Number of calibration intervals that have been discarded because the
+wander exceeded the limit
+.Em MAXFREQ
+or where the calibration interval jitter exceeded two ticks (PPS,
+read-only).
+.It Fa stbcnt
+Number of calibration intervals that have been discarded because the
+frequency wander exceeded the limit
+.Em MAXFREQ Ns /4
+(PPS, read-only).
+.El
+After the
+.Fn ntp_adjtime
+call, the
+.Va struct timex *
+structure contains the current values of the corresponding variables.
+.Pp
+.Fn ntp_gettime
+has as argument a
+.Va struct ntptimeval *
+with the following members:
+.Bd -literal
+struct ntptimeval {
+	struct timeval time;	/* current time (ro) */
+	long maxerror;		/* maximum error (us) (ro) */
+	long esterror;		/* estimated error (us) (ro) */
+};
+.Ed
+.Pp
+These have the following meaning:
+.Bl -tag -width tolerance -compact
+.It Fa time
+Current time (read-only).
+.It Fa maxerror
+Maximum error in microseconds (read-only).
+.It Fa esterror
+Estimated error in microseconds (read-only).
+.El
+.Sh RETURN VALUES
+.Fn ntp_adjtime
+and
+.Fn ntp_gettime
+return the current state of the clock on success, or any of the errors
+of
+.Xr copyin 9
+and
+.Xr copyout 9 .
+.Fn ntp_adjtime
+may additionally return
+.Er EPERM
+if the user calling
+.Fn ntp_adjtime
+does not have sufficient permissions.
+.Pp
+Possible states of the clock are:
+.Bl -tag -width TIME_ERROR -compact -offset indent
+.It TIME_OK
+Everything okay, no leap second warning.
+.It TIME_INS
+.Dq insert leap second
+warning.
+At the end of the day, a leap second will be inserted after 23:59:59.
+.It TIME_DEL
+.Dq delete leap second
+warning.
+At the end of the day, second 23:59:59 will be skipped.
+.It TIME_OOP
+Leap second in progress.
+.It TIME_WAIT
+Leap second has occurred within the last few seconds.
+.It TIME_ERROR
+Clock not synchronized.
+.El
+.Sh ERRORS
+The
+.Fn ntp_adjtime
+system call may return
+.Er EPERM
+if the caller
+does not have sufficient permissions.
+.Sh SEE ALSO
+.Xr options 4 ,
+.Xr ntpd 8 ,
+.Xr hardclock 9 ,
+.Xr hz 9
+.Bl -tag -width indent
+.It Pa http://www.bipm.fr/enus/5_Scientific/c_time/time_1.html
+.It Pa http://www.boulder.nist.gov/timefreq/general/faq.htm
+.It Pa ftp://time.nist.gov/pub/leap-seconds.list
+.El
+.Sh BUGS
+Take note that this
+.Tn API
+is extremely complex and stateful.
+Users should not attempt modification without first
+reviewing the
+.Xr ntpd 8
+sources in depth.

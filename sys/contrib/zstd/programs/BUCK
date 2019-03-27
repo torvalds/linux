@@ -1,0 +1,44 @@
+cxx_binary(
+    name='zstd',
+    headers=glob(['*.h'], excludes=['datagen.h', 'platform.h', 'util.h']),
+    srcs=glob(['*.c'], excludes=['datagen.c']),
+    deps=[
+        ':datagen',
+        ':util',
+        '//lib:zstd',
+        '//lib:zdict',
+        '//lib:mem',
+        '//lib:xxhash',
+    ],
+    preprocessor_flags=[
+        '-DZSTD_GZCOMPRESS',
+        '-DZSTD_GZDECOMPRESS',
+        '-DZSTD_LZMACOMPRESS',
+        '-DZSTD_LZMADECOMPRES',
+        '-DZSTD_LZ4COMPRESS',
+        '-DZSTD_LZ4DECOMPRES',
+    ],
+    linker_flags=[
+        '-lz',
+        '-llzma',
+        '-llz4',
+    ],
+)
+
+cxx_library(
+    name='datagen',
+    visibility=['PUBLIC'],
+    header_namespace='',
+    exported_headers=['datagen.h'],
+    srcs=['datagen.c'],
+    deps=['//lib:mem'],
+)
+
+
+cxx_library(
+    name='util',
+    visibility=['PUBLIC'],
+    header_namespace='',
+    exported_headers=['util.h', 'platform.h'],
+    deps=['//lib:mem'],
+)

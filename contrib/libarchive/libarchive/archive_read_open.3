@@ -1,0 +1,233 @@
+.\" Copyright (c) 2003-2011 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 2, 2012
+.Dt ARCHIVE_READ_OPEN 3
+.Os
+.Sh NAME
+.Nm archive_read_open ,
+.Nm archive_read_open2 ,
+.Nm archive_read_open_fd ,
+.Nm archive_read_open_FILE ,
+.Nm archive_read_open_filename ,
+.Nm archive_read_open_memory
+.Nd functions for reading streaming archives
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.In archive.h
+.Ft int
+.Fo archive_read_open
+.Fa "struct archive *"
+.Fa "void *client_data"
+.Fa "archive_open_callback *"
+.Fa "archive_read_callback *"
+.Fa "archive_close_callback *"
+.Fc
+.Ft int
+.Fo archive_read_open2
+.Fa "struct archive *"
+.Fa "void *client_data"
+.Fa "archive_open_callback *"
+.Fa "archive_read_callback *"
+.Fa "archive_skip_callback *"
+.Fa "archive_close_callback *"
+.Fc
+.Ft int
+.Fn archive_read_open_FILE "struct archive *" "FILE *file"
+.Ft int
+.Fn archive_read_open_fd "struct archive *" "int fd" "size_t block_size"
+.Ft int
+.Fo archive_read_open_filename
+.Fa "struct archive *"
+.Fa "const char *filename"
+.Fa "size_t block_size"
+.Fc
+.Ft int
+.Fn archive_read_open_memory "struct archive *" "const void *buff" "size_t size"
+.Sh DESCRIPTION
+.Bl -tag -compact -width indent
+.It Fn archive_read_open
+The same as
+.Fn archive_read_open2 ,
+except that the skip callback is assumed to be
+.Dv NULL .
+.It Fn archive_read_open2
+Freeze the settings, open the archive, and prepare for reading entries.
+This is the most generic version of this call, which accepts
+four callback functions.
+Most clients will want to use
+.Fn archive_read_open_filename ,
+.Fn archive_read_open_FILE ,
+.Fn archive_read_open_fd ,
+or
+.Fn archive_read_open_memory
+instead.
+The library invokes the client-provided functions to obtain
+raw bytes from the archive.
+.It Fn archive_read_open_FILE
+Like
+.Fn archive_read_open ,
+except that it accepts a
+.Ft "FILE *"
+pointer.
+This function should not be used with tape drives or other devices
+that require strict I/O blocking.
+.It Fn archive_read_open_fd
+Like
+.Fn archive_read_open ,
+except that it accepts a file descriptor and block size rather than
+a set of function pointers.
+Note that the file descriptor will not be automatically closed at
+end-of-archive.
+This function is safe for use with tape drives or other blocked devices.
+.It Fn archive_read_open_file
+This is a deprecated synonym for
+.Fn archive_read_open_filename .
+.It Fn archive_read_open_filename
+Like
+.Fn archive_read_open ,
+except that it accepts a simple filename and a block size.
+A NULL filename represents standard input.
+This function is safe for use with tape drives or other blocked devices.
+.It Fn archive_read_open_memory
+Like
+.Fn archive_read_open ,
+except that it accepts a pointer and size of a block of
+memory containing the archive data.
+.El
+.Pp
+A complete description of the
+.Tn struct archive
+and
+.Tn struct archive_entry
+objects can be found in the overview manual page for
+.Xr libarchive 3 .
+.Sh CLIENT CALLBACKS
+The callback functions must match the following prototypes:
+.Bl -item -offset indent
+.It
+.Ft typedef la_ssize_t
+.Fo archive_read_callback
+.Fa "struct archive *"
+.Fa "void *client_data"
+.Fa "const void **buffer"
+.Fc
+.It
+.Ft typedef la_int64_t
+.Fo archive_skip_callback
+.Fa "struct archive *"
+.Fa "void *client_data"
+.Fa "off_t request"
+.Fc
+.It
+.Ft typedef int
+.Fn archive_open_callback "struct archive *" "void *client_data"
+.It
+.Ft typedef int
+.Fn archive_close_callback "struct archive *" "void *client_data"
+.El
+.Pp
+The open callback is invoked by
+.Fn archive_open .
+It should return
+.Cm ARCHIVE_OK
+if the underlying file or data source is successfully
+opened.
+If the open fails, it should call
+.Fn archive_set_error
+to register an error code and message and return
+.Cm ARCHIVE_FATAL .
+.Pp
+The read callback is invoked whenever the library
+requires raw bytes from the archive.
+The read callback should read data into a buffer,
+set the
+.Li const void **buffer
+argument to point to the available data, and
+return a count of the number of bytes available.
+The library will invoke the read callback again
+only after it has consumed this data.
+The library imposes no constraints on the size
+of the data blocks returned.
+On end-of-file, the read callback should
+return zero.
+On error, the read callback should invoke
+.Fn archive_set_error
+to register an error code and message and
+return -1.
+.Pp
+The skip callback is invoked when the
+library wants to ignore a block of data.
+The return value is the number of bytes actually
+skipped, which may differ from the request.
+If the callback cannot skip data, it should return
+zero.
+If the skip callback is not provided (the
+function pointer is
+.Dv NULL ),
+the library will invoke the read function
+instead and simply discard the result.
+A skip callback can provide significant
+performance gains when reading uncompressed
+archives from slow disk drives or other media
+that can skip quickly.
+.Pp
+The close callback is invoked by archive_close when
+the archive processing is complete.
+The callback should return
+.Cm ARCHIVE_OK
+on success.
+On failure, the callback should invoke
+.Fn archive_set_error
+to register an error code and message and
+return
+.Cm ARCHIVE_FATAL.
+.\" .Sh EXAMPLE
+.\"
+.Sh RETURN VALUES
+These functions return
+.Cm ARCHIVE_OK
+on success, or
+.Cm ARCHIVE_FATAL .
+.\"
+.Sh ERRORS
+Detailed error codes and textual descriptions are available from the
+.Fn archive_errno
+and
+.Fn archive_error_string
+functions.
+.\"
+.Sh SEE ALSO
+.Xr tar 1 ,
+.Xr libarchive 3 ,
+.Xr archive_read 3 ,
+.Xr archive_read_data 3 ,
+.Xr archive_read_filter 3 ,
+.Xr archive_read_format 3 ,
+.Xr archive_read_set_options 3 ,
+.Xr archive_util 3 ,
+.Xr tar 5

@@ -1,0 +1,296 @@
+.\" Copyright (c) 1998 - 2006 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id$
+.\"
+.Dd May  1, 2006
+.Os HEIMDAL
+.Dt KAFS 3
+.Sh NAME
+.Nm k_hasafs ,
+.Nm k_hasafs_recheck ,
+.Nm k_pioctl ,
+.Nm k_unlog ,
+.Nm k_setpag ,
+.Nm k_afs_cell_of_file ,
+.Nm kafs_set_verbose ,
+.Nm kafs_settoken_rxkad ,
+.Nm kafs_settoken ,
+.Nm krb_afslog ,
+.Nm krb_afslog_uid ,
+.Nm kafs_settoken5 ,
+.Nm krb5_afslog ,
+.Nm krb5_afslog_uid
+.Nd AFS library
+.Sh LIBRARY
+AFS cache manager access library (libkafs, -lkafs)
+.Sh SYNOPSIS
+.In kafs.h
+.Ft int
+.Fn k_afs_cell_of_file "const char *path" "char *cell" "int len"
+.Ft int
+.Fn k_hasafs "void"
+.Ft int
+.Fn k_hasafs_recheck "void"
+.Ft int
+.Fn k_pioctl "char *a_path" "int o_opcode" "struct ViceIoctl *a_paramsP" "int a_followSymlinks"
+.Ft int
+.Fn k_setpag "void"
+.Ft int
+.Fn k_unlog "void"
+.Ft void
+.Fn kafs_set_verbose "void (*func)(void *, const char *, int)" "void *"
+.Ft int
+.Fn kafs_settoken_rxkad "const char *cell" "struct ClearToken *token" "void *ticket" "size_t ticket_len"
+.Ft int
+.Fn kafs_settoken "const char *cell" "uid_t uid" "CREDENTIALS *c"
+.Fn krb_afslog "char *cell" "char *realm"
+.Ft int
+.Fn krb_afslog_uid "char *cell" "char *realm" "uid_t uid"
+.Ft krb5_error_code
+.Fn krb5_afslog_uid "krb5_context context" "krb5_ccache id" "const char *cell" "krb5_const_realm realm" "uid_t uid"
+.Ft int
+.Fn kafs_settoken5 "const char *cell" "uid_t uid" "krb5_creds *c"
+.Ft krb5_error_code
+.Fn krb5_afslog "krb5_context context" "krb5_ccache id" "const char *cell" "krb5_const_realm realm"
+.Sh DESCRIPTION
+.Fn k_hasafs
+initializes some library internal structures, and tests for the
+presence of AFS in the kernel, none of the other functions should be
+called before
+.Fn k_hasafs
+is called, or if it fails.
+.Pp
+.Fn k_hasafs_recheck
+forces a recheck if a AFS client has started since last time
+.Fn k_hasafs
+or
+.Fn k_hasafs_recheck
+was called.
+.Pp
+.Fn kafs_set_verbose
+set a log function that will be called each time the kafs library does
+something important so that the application using libkafs can output
+verbose logging.
+Calling the function
+.Fa kafs_set_verbose
+with the function argument set to
+.Dv NULL
+will stop libkafs from calling the logging function (if set).
+.Pp
+.Fn kafs_settoken_rxkad
+set
+.Li rxkad
+with the
+.Fa token
+and
+.Fa ticket
+(that have the length
+.Fa ticket_len )
+for a given
+.Fa cell .
+.Pp
+.Fn kafs_settoken
+and
+.Fn kafs_settoken5
+work the same way as
+.Fn kafs_settoken_rxkad
+but internally converts the Kerberos 4 or 5 credential to a afs
+cleartoken and ticket.
+.Pp
+.Fn krb_afslog ,
+and
+.Fn krb_afslog_uid
+obtains new tokens (and possibly tickets) for the specified
+.Fa cell
+and
+.Fa realm .
+If
+.Fa cell
+is
+.Dv NULL ,
+the local cell is used. If
+.Fa realm
+is
+.Dv NULL ,
+the function tries to guess what realm to use. Unless you  have some good knowledge of what cell or realm to use, you should pass
+.Dv NULL .
+.Fn krb_afslog
+will use the real user-id for the
+.Dv ViceId
+field in the token,
+.Fn krb_afslog_uid
+will use
+.Fa uid .
+.Pp
+.Fn krb5_afslog ,
+and
+.Fn krb5_afslog_uid
+are the Kerberos 5 equivalents of
+.Fn krb_afslog ,
+and
+.Fn krb_afslog_uid .
+.Pp
+.Fn krb5_afslog ,
+.Fn kafs_settoken5
+can be configured to behave differently via a
+.Nm krb5_appdefault
+option
+.Li afs-use-524
+in
+.Pa krb5.conf .
+Possible values for
+.Li afs-use-524
+are:
+.Bl -tag -width local
+.It yes
+use the 524 server in the realm to convert the ticket
+.It no
+use the Kerberos 5 ticket directly, can be used with if the afs cell
+support 2b token.
+.It local, 2b
+convert the Kerberos 5 credential to a 2b token locally (the same work
+as a 2b 524 server should have done).
+.El
+.Pp
+Example:
+.Pp
+.Bd -literal
+[appdefaults]
+	SU.SE = { afs-use-524 = local }
+	PDC.KTH.SE = { afs-use-524 = yes }
+	afs-use-524 = yes
+.Ed
+.Pp
+libkafs will use the
+.Li libkafs
+as application name when running the
+.Nm krb5_appdefault
+function call.
+.Pp
+The (uppercased) cell name is used as the realm to the
+.Nm krb5_appdefault function.
+.Pp
+.\" The extra arguments are the ubiquitous context, and the cache id where
+.\" to store any obtained tickets. Since AFS servers normally can't handle
+.\" Kerberos 5 tickets directly, these functions will first obtain version
+.\" 5 tickets for the requested cells, and then convert them to version 4
+.\" tickets, that can be stashed in the kernel. To convert tickets the
+.\" .Fn krb524_convert_creds_kdc
+.\" function will be used.
+.\" .Pp
+.Fn k_afs_cell_of_file
+will in
+.Fa cell
+return the cell of a specified file, no more than
+.Fa len
+characters is put in
+.Fa cell .
+.Pp
+.Fn k_pioctl
+does a
+.Fn pioctl
+system call with the specified arguments. This function is equivalent to
+.Fn lpioctl .
+.Pp
+.Fn k_setpag
+initializes a new PAG.
+.Pp
+.Fn k_unlog
+removes destroys all tokens in the current PAG.
+.Sh RETURN VALUES
+.Fn k_hasafs
+returns 1 if AFS is present in the kernel, 0 otherwise.
+.Fn krb_afslog
+and
+.Fn krb_afslog_uid
+returns 0 on success, or a Kerberos error number on failure.
+.Fn k_afs_cell_of_file ,
+.Fn k_pioctl ,
+.Fn k_setpag ,
+and
+.Fn k_unlog
+all return the value of the underlaying system call, 0 on success.
+.Sh ENVIRONMENT
+The following environment variable affect the mode of operation of
+.Nm kafs :
+.Bl -tag -width AFS_SYSCALL
+.It Ev AFS_SYSCALL
+Normally,
+.Nm kafs
+will try to figure out the correct system call(s) that are used by AFS
+by itself.  If it does not manage to do that, or does it incorrectly,
+you can set this variable to the system call number or list of system
+call numbers that should be used.
+.El
+.Sh EXAMPLES
+The following code from
+.Nm login
+will obtain a new PAG and tokens for the local cell and the cell of
+the users home directory.
+.Bd -literal
+if (k_hasafs()) {
+	char cell[64];
+	k_setpag();
+	if(k_afs_cell_of_file(pwd->pw_dir, cell, sizeof(cell)) == 0)
+		krb_afslog(cell, NULL);
+	krb_afslog(NULL, NULL);
+}
+.Ed
+.Sh ERRORS
+If any of these functions (apart from
+.Fn k_hasafs )
+is called without AFS being present in the kernel, the process will
+usually (depending on the operating system) receive a SIGSYS signal.
+.Sh SEE ALSO
+.Xr krb5_appdefault 3 ,
+.Xr krb5.conf 5
+.Rs
+.%A Transarc Corporation
+.%J AFS-3 Programmer's Reference
+.%T File Server/Cache Manager Interface
+.%D 1991
+.Re
+.Sh FILES
+libkafs will search for
+.Pa ThisCell and
+.Pa TheseCells
+in the following locations:
+.Pa /usr/vice/etc ,
+.Pa /etc/openafs ,
+.Pa /var/db/openafs/etc ,
+.Pa /usr/arla/etc ,
+.Pa /etc/arla ,
+and
+.Pa /etc/afs
+.Sh BUGS
+.Ev AFS_SYSCALL
+has no effect under AIX.

@@ -1,0 +1,102 @@
+Policy: /usr/bin/lynx, Emulation: native                        Policy: /usr/bin/lynx, Emulation: native
+                                                              > 	native-issetugid: permit
+                                                              > 	native-mprotect: permit
+                                                              > 	native-mmap: permit
+	native-__sysctl: permit                                 	native-__sysctl: permit
+                                                              > 	native-fsread: filename eq "/var/run/ld.so.hints" the
+                                                              > 	native-fstat: permit
+	native-close: permit                                    	native-close: permit
+	native-connect: sockaddr eq "inet-[127.0.0.1]:53" the | 	native-fsread: filename match "/usr/lib/libssl.so.*" 
+	native-connect: sockaddr match "inet-\\\[*\\\]:80" th | 	native-read: permit
+	native-exit: permit                                   | 	native-fsread: filename match "/usr/lib/libcrypto.so.
+	native-fcntl: cmd eq "F_SETFD" then permit            | 	native-fsread: filename match "/usr/lib/libncurses.so
+	native-fsread: filename eq "/" then permit            | 	native-fsread: filename match "/usr/lib/libc.so.*" th
+	native-fsread: filename match "/<non-existent filenam | 	native-munmap: permit
+	native-fsread: filename eq "/etc/lynx.cfg" then permi | 	native-sigprocmask: permit
+	native-fsread: filename eq "/etc/malloc.conf" then pe   	native-fsread: filename eq "/etc/malloc.conf" then pe
+	native-fsread: filename eq "/etc/resolv.conf" then pe | 	native-getpid: permit
+	native-fsread: filename eq "/etc/utmp" then permit    <
+	native-fsread: filename eq "/home" then permit        <
+	native-fsread: filename eq "$HOME" then permit        <
+	native-fsread: filename eq "$HOME/.lynx-keymaps" then <
+	native-fsread: filename eq "$HOME/.lynxrc" then permi <
+	native-fsread: filename eq "$HOME/.mailcap" then perm <
+	native-fsread: filename eq "$HOME/.mime.types" then p <
+	native-fsread: filename eq "$HOME/.terminfo" then per <
+	native-fsread: filename eq "$HOME/.terminfo.db" then  <
+	native-fsread: filename eq "/obj" then permit         <
+	native-fsread: filename eq "/tmp" then permit           	native-fsread: filename eq "/tmp" then permit
+                                                              > 	native-fswrite: filename match "/tmp/lynx-*" then per
+	native-fsread: filename match "/tmp/lynx-*/." then pe   	native-fsread: filename match "/tmp/lynx-*/." then pe
+                                                              > 	native-fsread: filename eq "$HOME" then permit
+                                                              > 	native-fsread: filename eq "/etc/lynx.cfg" then permi
+                                                              > 	native-fsread: filename eq "/" then permit
+                                                              > 	native-fsread: filename eq "/usr/obj/bin/systrace/." 
+                                                              > 	native-fsread: filename eq "/usr/obj/bin" then permit
+                                                              > 	native-fcntl: permit
+                                                              > 	native-getdirentries: permit
+                                                              > 	native-lseek: permit
+                                                              > 	native-fsread: filename eq "/usr/obj" then permit
+	native-fsread: filename eq "/usr" then permit           	native-fsread: filename eq "/usr" then permit
+	native-fsread: filename eq "/usr/bin" then permit       	native-fsread: filename eq "/usr/bin" then permit
+	native-fsread: filename eq "/usr/games" then permit     	native-fsread: filename eq "/usr/games" then permit
+	native-fsread: filename eq "/usr/include" then permit   	native-fsread: filename eq "/usr/include" then permit
+	native-fsread: filename eq "/usr/lib" then permit       	native-fsread: filename eq "/usr/lib" then permit
+	native-fsread: filename match "/usr/lib/libc.so.*" th <
+	native-fsread: filename match "/usr/lib/libcrypto.so. <
+	native-fsread: filename match "/usr/lib/libncurses.so <
+	native-fsread: filename match "/usr/lib/libssl.so.*"  <
+	native-fsread: filename eq "/usr/libdata" then permit   	native-fsread: filename eq "/usr/libdata" then permit
+	native-fsread: filename eq "/usr/libexec" then permit   	native-fsread: filename eq "/usr/libexec" then permit
+	native-fsread: filename eq "/usr/lkm" then permit       	native-fsread: filename eq "/usr/lkm" then permit
+	native-fsread: filename eq "/usr/local" then permit     	native-fsread: filename eq "/usr/local" then permit
+	native-fsread: filename eq "/usr/mdec" then permit      	native-fsread: filename eq "/usr/mdec" then permit
+	native-fsread: filename eq "/usr/obj" then permit     | 	native-fsread: filename eq "/home" then permit
+	native-fsread: filename eq "/usr/obj/bin" then permit | 	native-fsread: filename eq "/obj" then permit
+	native-fsread: filename eq "/usr/obj/bin/systrace/."  | 	native-fsread: filename eq "$HOME/.lynxrc" then permi
+                                                              > 	native-fsread: filename match "/<non-existent filenam
+	native-fsread: filename eq "/usr/obj/bin/systrace/.ma   	native-fsread: filename eq "/usr/obj/bin/systrace/.ma
+                                                              > 	native-fsread: filename eq "$HOME/.mailcap" then perm
+	native-fsread: filename eq "/usr/obj/bin/systrace/.mi   	native-fsread: filename eq "/usr/obj/bin/systrace/.mi
+                                                              > 	native-fsread: filename eq "$HOME/.mime.types" then p
+                                                              > 	native-sigaction: permit
+                                                              > 	native-ioctl: permit
+                                                              > 	native-fsread: filename eq "$HOME/.terminfo.db" then 
+                                                              > 	native-fsread: filename eq "$HOME/.terminfo" then per
+	native-fsread: filename eq "/usr/share/misc/terminfo.   	native-fsread: filename eq "/usr/share/misc/terminfo.
+                                                              > 	native-pread: permit
+                                                              > 	native-write: permit
+                                                              > 	native-fsread: filename eq "$HOME/.lynx-keymaps" then
+	native-fsread: filename eq "/var/run/dev.db" then per   	native-fsread: filename eq "/var/run/dev.db" then per
+	native-fsread: filename eq "/var/run/ld.so.hints" the | 	native-fsread: filename eq "/etc/utmp" then permit
+	native-fstat: permit                                  <
+	native-fswrite: filename match "/tmp/lynx-*" then per <
+	native-getdirentries: permit                          <
+	native-getpid: permit                                 <
+	native-gettimeofday: permit                           <
+	native-ioctl: permit                                  <
+	native-issetugid: permit                              <
+	native-lseek: permit                                  <
+	native-mmap: permit                                   <
+	native-mprotect: prot eq "PROT_READ" then permit      <
+	native-mprotect: prot eq "PROT_READ|PROT_EXEC" then p <
+	native-mprotect: prot eq "PROT_READ|PROT_WRITE" then  <
+	native-mprotect: prot eq "PROT_READ|PROT_WRITE|PROT_E <
+	native-munmap: permit                                 <
+	native-nanosleep: permit                              <
+	native-poll: permit                                     	native-poll: permit
+	native-pread: permit                                  | 	native-nanosleep: permit
+	native-read: permit                                   | 	native-gettimeofday: permit
+	native-recvfrom: permit                               | 	native-fsread: filename eq "/etc/resolv.conf" then pe
+	native-select: permit                                 <
+	native-sendto: true then permit                       <
+	native-sigaction: permit                              <
+	native-sigprocmask: permit                            <
+	native-socket: sockdom eq "AF_INET" and socktype eq "   	native-socket: sockdom eq "AF_INET" and socktype eq "
+                                                              > 	native-connect: sockaddr eq "inet-[127.0.0.1]:53" the
+                                                              > 	native-sendto: true then permit
+                                                              > 	native-select: permit
+                                                              > 	native-recvfrom: permit
+	native-socket: sockdom eq "AF_INET" and socktype eq "   	native-socket: sockdom eq "AF_INET" and socktype eq "
+	native-write: permit                                  | 	native-connect: sockaddr match "inet-\\\[*\\\]:80" th
+                                                              > 	native-exit: permit

@@ -1,0 +1,94 @@
+$ $tcsh: set2,v 1.3 2011/02/04 18:19:39 christos Exp $
+$ Signal names
+$set 2 
+1 Segnale nullo
+2 Interrotto
+3 Fermato
+4 Uscito
+5 Istruzione non esistente
+6 trap di tipo Trace/BPT
+7 Segnale di annullamento
+8 trap IOT
+9 Crash di sistema imminente
+10 Uscita per errore
+11 trap EMT
+12 Errore di calcolo in virgola mobile
+13 Ucciso
+14 Segnale utente numero 1
+15 Segnale utente numero 2
+16 Errore di accesso al segmento di memoria
+17 Errore di bus
+18 Errore nell'intervallo del programma
+19 Errore nell'intervallo dell'operando
+20 Chiamata di sistema sbagliata
+21 Pipe interrotta
+22 Allarme
+23 Terminato
+24 Cambio di stato nel figlio
+25 Morte del figlio
+26 Errore specifico dell'Apollo
+27 Figlio fermato o uscito
+28 Figlio uscito
+29 Errore di alimentazione
+30 Perdita della risorsa
+31 Interruzione (Ctrl-Break)
+32 Possibile segnale di I/O
+33 I/O asincrono (select)
+34 Urgenza su canale di I/O
+35 Interruzione del `multitasking'
+36 Termine del `multitasking'
+37 Completamento di I/O asincrono del Fortran
+38 Recupero
+39 Errore non correggibile di memoria
+40 Tempo di CPU a disposizione esaurito
+41 Spegnimento del sistema imminente
+42 micro-tasking group-no wakeup flag settato
+43 Errore di thread - (usa cord -T per avere informazioni dettagliate)
+44 Errore di parità di registro del CRAY Y-MP
+45 Richiesta di informazioni
+46 Sospeso (segnale)
+47 Fermato (segnale)
+48 Sospeso
+49 Fermato
+50 Continuato
+51 Sospeso (input da tty)
+52 Fermato (input da tty)
+53 Sospeso (output su tty)
+54 Fermato (output su tty)
+55 Cambio di stato della finestra
+56 Cambio di dimensioni della finestra
+57 Cambio di stato del telefono
+58 Tempo di CPU a disposizione esaurito
+59 Limite massimo delle dimensioni di un file superato
+60 Allarme dell'orologio virtuale
+61 Allarme di tempo di profiling
+62 Segnale DIL 
+63 Si è verificato un evento interrogabile
+64 Gli lwps del processo sono bloccati
+65 Segnale speciale LWP
+66 Segnale speciale CPR
+67 Segnale speciale CPR
+68 Primo segnale di tempo reale
+69 Secondo segnale di tempo reale
+70 Terzo segnale di tempo reale
+71 Quarto segnale di tempo reale
+72 Quart'ultimo segnale di tempo reale
+73 Terz'ultimo segnale di tempo reale
+74 Penultimo segnale di tempo reale
+75 Ultimo segnale di tempo reale
+76 I/O asincrono di LAN
+77 Disponibilità di lettura/scrittura su pseudoterminale
+78 Richiesta di I/O
+79 Modalità di monitoraggio HFT disponibile
+80 La modalità di monitoraggio HFT deve essere abbandonata
+81 Il controllo sonoro HFT è stato completato
+82 Dati nel buffer circolare HFT
+83 Migrate process
+84 Tasto di attenzione assicurata
+85 Rischedulamento
+86 Segnale di SS$_DEBUG
+87 Cambio di priorità
+88 Identificato uno stallo
+89 Nuovo carattere in ingresso
+90 Oltrepassato lo spazio disponibile di stack
+91 Segnale non usato

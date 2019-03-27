@@ -1,5 +1,0 @@
-*.d
-bpftool
-bpftool*.8
-bpf-helpers.*
-FEATURE-DUMP.bpftool

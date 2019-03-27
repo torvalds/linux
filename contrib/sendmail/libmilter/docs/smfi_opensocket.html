@@ -1,0 +1,84 @@
+<HTML>
+<HEAD><TITLE>smfi_opensocket</TITLE></HEAD>
+<BODY>
+<!--
+$Id: smfi_opensocket.html,v 1.8 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>smfi_opensocket</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_opensocket(
+	bool rmsocket
+);
+</PRE>
+Attempt to create the interface socket MTAs will use to connect to the
+filter.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>Called only from program mainline,
+after calling <TT>smfi_setconn()</TT> and <TT>smfi_register()</TT>,
+but before calling <TT>smfi_main()</TT>.
+</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>smfi_opensocket attempts to create the socket specified previously by
+a call to <TT>smfi_setconn()</TT> which will be the interface between MTAs
+and the filter.
+This allows the calling application to ensure that the
+socket can be created.
+If this is not called,
+<TT>smfi_main()</TT> will do so implicitly.
+</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>rmsocket</TD>
+	<TD>A flag indicating whether or not the library should try to
+	remove any existing UNIX domain socket before trying to create
+        a new one.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
+
+<TD>smfi_opensocket will fail and return MI_FAILURE if:
+<UL>
+    <LI>The interface socket could not be created for any reason.
+    <LI><TT>rmsocket</TT> was <TT>true</TT>, and either the socket could
+        not be examined, or exists and could not be removed.
+    <LI><TT>smfi_setconn()</TT> or <TT>smfi_register()</TT>
+	have not been called.
+</UL>
+Otherwise, it will return MI_SUCCESS
+</TD>
+</TR>
+
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2003, 2008 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

@@ -1,0 +1,168 @@
+.\"-
+.\" Copyright (c) 2007-2008 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 24, 2008
+.Dt DDB 8
+.Os
+.Sh NAME
+.Nm ddb
+.Nd "configure DDB kernel debugger properties"
+.Sh SYNOPSIS
+.Nm
+.Cm capture
+.Op Fl M core
+.Op Fl N system
+.Cm print
+.Nm
+.Cm capture
+.Op Fl M core
+.Op Fl N system
+.Cm status
+.Nm
+.Cm script
+.Ar scriptname
+.Nm
+.Cm script
+.Ar scriptname Ns = Ns Ar script
+.Nm
+.Cm scripts
+.Nm
+.Cm unscript
+.Ar scriptname
+.Nm
+.Ar pathname
+.Sh DESCRIPTION
+The
+.Nm
+utility configures certain aspects of the
+.Xr ddb 4
+kernel debugger from user space that are not configured at compile-time or
+easily via
+.Xr sysctl 8
+MIB entries.
+.Pp
+To ease configuration, commands can be put in a file which is processed using
+.Nm
+as shown in the last synopsis line.
+An absolute
+.Ar pathname
+must be used.
+The file will be read line by line and applied as arguments to the
+.Nm
+utility.
+Whitespace at the beginning of lines will be ignored as will lines where the
+first non-whitespace character is
+.Ql # .
+.Sh OUTPUT CAPTURE
+The
+.Nm
+utility can be used to extract the contents of the
+.Xr ddb 4
+output capture buffer of the current live kernel, or from the crash dump of a
+kernel on disk.
+The following debugger commands are available from the command line:
+.Bl -tag -width indent
+.It Xo
+.Cm capture
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Cm print
+.Xc
+Print the current contents of the
+.Xr ddb 4
+output capture buffer.
+.It Xo
+.Cm capture
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Cm status
+.Xc
+Print the current status of the
+.Xr ddb 4
+output capture buffer.
+.El
+.Sh SCRIPTING
+The
+.Nm
+utility can be used to configure aspects of
+.Xr ddb 4
+scripting from user space; scripting support is described in more detail in
+.Xr ddb 4 .
+Each of the debugger commands is available from the command line:
+.Bl -tag -width indent
+.It Cm script Ar scriptname
+Print the script named
+.Ar scriptname .
+.It Cm script Ar scriptname Ns = Ns Ar script
+Define a script named
+.Ar scriptname .
+As many scripts contain characters interpreted in special ways by the shell,
+it is advisable to enclose
+.Ar script
+in quotes.
+.It Cm scripts
+List currently defined scripts.
+.It Cm unscript Ar scriptname
+Delete the script named
+.Ar scriptname .
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+The following example defines a script that will execute when the kernel
+debugger is entered as a result of a break signal:
+.Bd -literal -offset indent
+ddb script kdb.enter.break="show pcpu; bt"
+.Ed
+.Pp
+The following example will delete the script:
+.Pp
+.Dl "ddb unscript kdb.enter.break"
+.Pp
+For further examples, see the
+.Xr ddb 4
+and
+.Xr textdump 4
+manual pages.
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr textdump 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 7.1 .
+.Sh AUTHORS
+.An Robert N M Watson
+.Sh BUGS
+Ideally,
+.Nm
+would not exist, as all pertinent aspects of
+.Xr ddb 4
+could be configured directly via
+.Xr sysctl 8 .

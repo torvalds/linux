@@ -1,0 +1,45 @@
+# $FreeBSD$
+IFS=,
+
+SPECIAL="break,\
+	:,\
+	continue,\
+	. /dev/null,\
+	eval,\
+	exec,\
+	export -p,\
+	readonly -p,\
+	set,\
+	shift 0,\
+	times,\
+	trap,\
+	unset foo"
+
+set -e
+
+# Check that special builtins can be executed via "command".
+
+set -- ${SPECIAL}
+for cmd in "$@"
+do
+	${SH} -c "v=:; while \$v; do v=false; command ${cmd}; done" >/dev/null
+done
+
+while :; do
+	command break
+	echo Error on line $LINENO
+done
+
+set p q r
+command shift 2
+if [ $# -ne 1 ]; then
+	echo Error on line $LINENO
+fi
+
+(
+	command exec >/dev/null
+	echo Error on line $LINENO
+)
+
+set +e
+! command shift 2 2>/dev/null

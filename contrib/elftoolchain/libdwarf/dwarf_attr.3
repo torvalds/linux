@@ -1,0 +1,121 @@
+.\" Copyright (c) 2010 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_attr.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd April 8, 2010
+.Dt DWARF_ATTR 3
+.Os
+.Sh NAME
+.Nm dwarf_attr
+.Nd retrieve an attribute descriptor associated with a DWARF debugging information entry
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_attr
+.Fa "Dwarf_Die die"
+.Fa "Dwarf_Half attr"
+.Fa "Dwarf_Attribute *atp"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_attr
+retrieves the attribute descriptor for an attribute associated
+with the DWARF debugging information entry descriptor in
+argument
+.Ar die .
+.Pp
+DWARF attribute descriptors are represented by value of the opaque
+type
+.Vt Dwarf_Attribute ,
+see
+.Xr dwarf 3 .
+.Pp
+Argument
+.Ar attr
+names the desired DWARF attribute.
+Legal values for argument
+.Ar attr
+are those denoted by the
+.Dv DW_AT_*
+constants in the DWARF specification.
+.Pp
+Argument
+.Ar atp
+points to a location into which the returned attribute descriptor
+will be written.
+The returned descriptor may then be passed to the form query functions in the
+.Xr dwarf 3
+API set to access the data associated with the attribute.
+.Pp
+If argument
+.Ar err
+is non-NULL, it will be used to return an error descriptor in case
+of an error.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_attr
+returns
+.Dv DW_DLV_OK
+on success.
+.Pp
+If the debugging information entry descriptor denoted by argument
+.Ar die
+does not contain the named attribute, the function returns
+.Dv DW_DLV_NO_ENTRY
+and sets argument
+.Ar err .
+For other errors, it returns
+.Dv DW_DLV_ERROR
+and sets argument
+.Ar err .
+.Sh ERRORS
+Function
+.Fn dwarf_attr
+can fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Either of arguments
+.Ar die
+or
+.Ar atp
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+Argument
+.Ar die
+had no attribute corresponding to the value
+in argument
+.Ar attr .
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_attrlist 3 ,
+.Xr dwarf_attroffset 3 ,
+.Xr dwarf_hasattr 3 ,
+.Xr dwarf_hasform 3 ,
+.Xr dwarf_whatattr 3 ,
+.Xr dwarf_whatform 3

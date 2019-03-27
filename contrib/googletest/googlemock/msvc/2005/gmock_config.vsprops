@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioPropertySheet
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="gmock_config"
+	>
+	<Tool
+		Name="VCCLCompilerTool"
+		AdditionalIncludeDirectories="&quot;$(GTestDir)/include&quot;"
+	/>
+	<UserMacro
+		Name="GTestDir"
+		Value="../../../googletest"
+	/>
+</VisualStudioPropertySheet>

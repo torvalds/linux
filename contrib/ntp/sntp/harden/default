@@ -1,0 +1,4 @@
+# Default hardening flags
+NTP_HARD_CFLAGS=""
+NTP_HARD_CPPFLAGS=""
+NTP_HARD_LDFLAGS=""

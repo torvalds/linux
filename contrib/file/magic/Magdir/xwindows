@@ -1,0 +1,35 @@
+
+#------------------------------------------------------------------------------
+# $File: xwindows,v 1.10 2017/03/17 21:35:28 christos Exp $
+# xwindows:  file(1) magic for various X/Window system file formats.
+
+# Compiled X Keymap
+# XKM (compiled X keymap) files (including version and byte ordering)
+1	string	mkx				Compiled XKB Keymap: lsb,
+>0	byte	>0				version %d
+>0	byte	=0				obsolete
+0	string	xkm				Compiled XKB Keymap: msb,
+>3	byte	>0				version %d
+>3	byte	=0				obsolete
+
+# xfsdump archive
+0	string	xFSdump0			xfsdump archive
+>8	belong	x	(version %d)
+
+# Jaleo XFS files
+0	long	395726				Jaleo XFS file
+>4	long	x				- version %d
+>8	long	x				- [%d -
+>20	long	x				\b%dx
+>24	long	x				\b%dx
+>28	long	1008				\bYUV422]
+>28	long	1000				\bRGB24]
+
+# Xcursor data
+# X11 mouse cursor format defined in libXcursor, see
+# http://www.x.org/archive/X11R6.8.1/doc/Xcursor.3.html
+# http://cgit.freedesktop.org/xorg/lib/libXcursor/tree/include/X11/Xcursor/Xcursor.h
+0	string		Xcur		Xcursor data
+!:mime	image/x-xcursor
+>10	leshort		x		version %d
+>>8	leshort		x		\b.%d

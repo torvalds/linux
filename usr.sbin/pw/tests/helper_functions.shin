@@ -1,0 +1,32 @@
+# $FreeBSD$
+
+# The pw command
+PW="pw -V ${HOME}"
+RPW="pw -R ${HOME}"
+
+# Workdir to run tests in
+TESTDIR=$(atf_get_srcdir)
+
+# Populate the files pw needs to use into $HOME
+populate_etc_skel() {
+	cp ${TESTDIR}/master.passwd ${HOME} || \
+		atf_fail "Populating master.passwd in ${HOME}"
+	cp ${TESTDIR}/group ${HOME} || atf_fail "Populating group in ${HOME}"
+
+	# Generate the passwd file
+	pwd_mkdb -p -d ${HOME} ${HOME}/master.passwd || \
+		atf_fail "generate passwd from master.passwd"
+}
+
+# Populate the files pw needs to use into $HOME/etc
+populate_root_etc_skel() {
+	mkdir ${HOME}/etc
+	cp ${TESTDIR}/master.passwd ${HOME}/etc || \
+		atf_fail "Populating master.passwd in ${HOME}/etc"
+	cp ${TESTDIR}/group ${HOME}/etc || \
+		atf_fail "Populating group in ${HOME}/etc"
+
+	# Generate the passwd file
+	pwd_mkdb -p -d ${HOME}/etc ${HOME}//etc/master.passwd || \
+		atf_fail "generate passwd from master.passwd"
+}

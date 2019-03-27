@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set this option to omit the gnu extensions to grep from being included in
+BSD grep.

@@ -1,0 +1,70 @@
+=pod
+
+=head1 NAME
+
+EVP_PKEY_CTX_set1_pbe_pass
+- generic KDF support functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/kdf.h>
+
+ int EVP_PKEY_CTX_set1_pbe_pass(EVP_PKEY_CTX *pctx, unsigned char *pass,
+                                int passlen);
+
+=head1 DESCRIPTION
+
+These functions are generic support functions for all KDF algorithms.
+
+EVP_PKEY_CTX_set1_pbe_pass() sets the password to the B<passlen> first
+bytes from B<pass>.
+
+=begin comment
+
+We really should have a few more, such as EVP_PKEY_CTX_set1_kdf_salt,
+EVP_PKEY_CTX_set1_kdf_key (to be used by the algorithms that use a
+key, such as hkdf), EVP_PKEY_CTX_set1_kdf_md (same thing here).
+
+=end comment
+
+=head1 STRING CTRLS
+
+There is also support for string based control operations via
+L<EVP_PKEY_CTX_ctrl_str(3)>.
+The B<password> can be directly specified using the B<type> parameter
+"pass" or given in hex encoding using the "hexpass" parameter.
+
+=begin comment
+
+Just as for the function description, the strings "salt", "hexsalt",
+"key", "hexkey" and "md" should be generically specified, and
+supported by the algorithms that use them.
+
+=end comment
+
+=head1 NOTES
+
+All these functions are implemented as macros.
+
+=head1 RETURN VALUES
+
+All these functions return 1 for success and 0 or a negative value for failure.
+In particular a return value of -2 indicates the operation is not supported by
+the public key algorithm.
+
+=head1 SEE ALSO
+
+L<EVP_PKEY_CTX_new(3)>,
+L<EVP_PKEY_CTX_ctrl_str(3)>,
+L<EVP_PKEY_derive(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

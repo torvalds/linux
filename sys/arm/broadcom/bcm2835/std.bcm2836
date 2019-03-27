@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+machine 	arm armv7
+cpu		CPU_CORTEXA
+makeoptions	CONF_CFLAGS="-march=armv7a"
+options 	SOC_BCM2836
+
+files	"../broadcom/bcm2835/files.bcm2836"
+files	"../broadcom/bcm2835/files.bcm283x"
+

@@ -1,0 +1,46 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_MODIFY_WQ 3 2016-07-27 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_modify_wq \- Modify a Work Queue (WQ).
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "struct int ibv_modify_wq(struct ibv_wq " "*wq,"
+.BI "                             struct ibv_wq_attr " "*wq_attr" );
+.sp
+.fi
+.SH "DESCRIPTION"
+.B ibv_modify_wq()
+modifys a WQ
+.I wq\fR.
+The argument
+.I wq_attr
+is an ibv_wq_attr struct, as defined in <infiniband/verbs.h>.
+.PP
+.nf
+struct ibv_wq_attr {
+.in +8
+uint32_t                attr_mask;     /* Use enum ibv_wq_attr_mask */
+enum ibv_wq_state       wq_state;      /* Move to this state */
+enum ibv_wq_state       curr_wq_state; /* Assume this is the current state */
+uint32_t                flags;         /* Flags values to modify, use enum ibv_wq_flags */
+uint32_t                flags_mask;    /* Which flags to modify, use enum ibv_wq_flags */
+.in -8
+};
+.fi
+.PP
+The function
+.B ibv_modify_wq()
+will modify the WQ based on the given
+.I wq_attr\fB\fR->attr_mask
+.SH "RETURN VALUE"
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "SEE ALSO"
+.BR ibv_create_wq (3),
+.BR ibv_destroy_wq (3),
+.SH "AUTHORS"
+.TP
+Yishai Hadas <yishaih@mellanox.com>

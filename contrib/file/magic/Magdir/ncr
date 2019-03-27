@@ -1,0 +1,49 @@
+
+#------------------------------------------------------------------------------
+# $File: ncr,v 1.8 2014/04/30 21:41:02 christos Exp $
+# ncr:  file(1) magic for NCR Tower objects
+#
+# contributed by
+# Michael R. Wayne  ***  TMC & Associates  ***  INTERNET: wayne@ford-vax.arpa
+# uucp: {philabs | pyramid} !fmsrl7!wayne   OR   wayne@fmsrl7.UUCP
+#
+0	beshort		000610	Tower/XP rel 2 object
+>12	   belong		>0	not stripped
+>20	   beshort		0407	executable
+>20	   beshort		0410	pure executable
+>22	   beshort		>0	- version %d
+0	beshort		000615	Tower/XP rel 2 object
+>12	   belong		>0	not stripped
+>20	   beshort		0407	executable
+>20	   beshort		0410	pure executable
+>22	   beshort		>0	- version %d
+0	beshort		000620	Tower/XP rel 3 object
+>12	   belong		>0	not stripped
+>20	   beshort		0407	executable
+>20	   beshort		0410	pure executable
+>22	   beshort		>0	- version %d
+0	beshort		000625	Tower/XP rel 3 object
+>12	   belong		>0	not stripped
+>20	   beshort		0407	executable
+>20	   beshort		0410	pure executable
+>22	   beshort		>0	- version %d
+0	beshort		000630	Tower32/600/400 68020 object
+>12	   belong		>0	not stripped
+>20	   beshort		0407	executable
+>20	   beshort		0410	pure executable
+>22	   beshort		>0	- version %d
+0	beshort		000640	Tower32/800 68020
+>18	   beshort		&020000	w/68881 object
+>18	   beshort		&040000	compatible object
+>18	   beshort		&060000	object
+>20	   beshort		0407	executable
+>20	   beshort		0413	pure executable
+>12	   belong		>0	not stripped
+>22	   beshort		>0	- version %d
+0	beshort		000645	Tower32/800 68010
+>18	   beshort		&040000	compatible object
+>18	   beshort		&060000 object
+>20	   beshort		0407	executable
+>20	   beshort		0413	pure executable
+>12	   belong		>0	not stripped
+>22	   beshort		>0	- version %d

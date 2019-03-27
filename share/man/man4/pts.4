@@ -1,0 +1,161 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)pty.4	8.2 (Berkeley) 11/30/93
+.\" $FreeBSD$
+.\"
+.Dd August 20, 2008
+.Dt PTS 4
+.Os
+.Sh NAME
+.Nm pts
+.Nd pseudo-terminal driver
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for a device-pair termed a
+.Em pseudo-terminal .
+A pseudo-terminal is a pair of character devices, a
+.Em master
+device and a
+.Em slave
+device.
+The slave device provides to a process an interface identical
+to that described in
+.Xr tty 4 .
+However, whereas all other devices which provide the
+interface described in
+.Xr tty 4
+have a hardware device of some sort behind them, the slave
+device has, instead, another process manipulating
+it through the master half of the pseudo-terminal.
+That is, anything written on the master device is
+given to the slave device as input and anything written
+on the slave device is presented as input on the master
+device.
+.Pp
+The following
+.Xr ioctl 2
+calls apply only to pseudo-terminals:
+.Bl -tag -width TIOCPTMASTER
+.It Dv TIOCPKT
+Enable/disable
+.Em packet
+mode.
+Packet mode is enabled by specifying (by reference)
+a nonzero parameter and disabled by specifying (by reference)
+a zero parameter.
+When applied to the master side of a pseudo-terminal, each subsequent
+.Xr read 2
+from the terminal will return data written on the slave part of
+the pseudo-terminal preceded by a zero byte (symbolically
+defined as
+.Dv TIOCPKT_DATA ) ,
+or a single byte reflecting control
+status information.
+In the latter case, the byte is an inclusive-or
+of zero or more of the bits:
+.Bl -tag -width TIOCPKT_FLUSHWRITE
+.It Dv TIOCPKT_FLUSHREAD
+whenever the read queue for the terminal is flushed.
+.It Dv TIOCPKT_FLUSHWRITE
+whenever the write queue for the terminal is flushed.
+.It Dv TIOCPKT_STOP
+whenever output to the terminal is stopped a la
+.Ql ^S .
+.It Dv TIOCPKT_START
+whenever output to the terminal is restarted.
+.It Dv TIOCPKT_DOSTOP
+whenever
+.Dv VSTOP
+is
+.Ql ^S
+and
+.Dv VSTART
+is
+.Ql ^Q .
+.It Dv TIOCPKT_NOSTOP
+whenever the start and stop characters are not
+.Ql ^S/^Q .
+.El
+.Pp
+While this mode is in use, the presence of control status information
+to be read from the master side may be detected by a
+.Xr select 2
+for exceptional conditions.
+.Pp
+This mode is used by
+.Xr rlogin 1
+and
+.Xr rlogind 8
+to implement a remote-echoed, locally
+.Ql ^S/^Q
+flow-controlled
+remote login with proper back-flushing of output; it can be
+used by other similar programs.
+.It Dv TIOCGPTN
+Obtain device unit number, which can be used to generate the filename of
+the pseudo-terminal slave device.
+This
+.Xr ioctl 2
+should not be used directly.
+Instead, the
+.Xr ptsname 3
+function should be used.
+.It Dv TIOCPTMASTER
+Determine whether the file descriptor is pointing to a pseudo-terminal
+master device.
+This
+.Xr ioctl 2
+should not be used directly.
+It is used to implement routines like
+.Xr grantpt 3 .
+.El
+.Sh FILES
+The files used by this
+pseudo-terminals implementation are:
+.Bl -tag -width ".Pa /dev/pts/[num]"
+.It Pa /dev/pts/[num]
+Pseudo-terminal slave devices.
+.El
+.Sh DIAGNOSTICS
+None.
+.Sh SEE ALSO
+.Xr posix_openpt 2 ,
+.Xr grantpt 3 ,
+.Xr ptsname 3 ,
+.Xr pty 4 ,
+.Xr tty 4
+.Sh HISTORY
+A
+pseudo-terminal driver appeared in
+.Bx 4.2 .
+In
+.Fx 8.0 ,
+it was replaced with the
+.Nm
+driver.

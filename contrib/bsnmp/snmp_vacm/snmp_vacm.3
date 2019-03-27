@@ -1,0 +1,94 @@
+.\"-
+.\" Copyright (C) 2010 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Shteryana Sotirova Shopova under
+.\" sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 7, 2010
+.Dt SNMP_VACM 3
+.Os
+.Sh NAME
+.Nm snmp_vacm
+.Nd "View-based Access Control module for"
+.Xr bsnmpd 1
+.Sh LIBRARY
+.Pq begemotSnmpdModulePath."vacm" = "/usr/lib/snmp_vacm.so"
+.Sh DESCRIPTION
+The
+.Nm snmp_vacm
+module implements SNMPv3 View-based Access Control Model MIB as defined in
+RFC 3415. The module is used to manage the internal lists of SNMPv1, v2c and
+v3 user names and groups and their access rights to fetch or modify the values
+of the MIB objects maintained by
+.Nm bsnmpd
+and the modules loaded in the daemon.
+The module must be loaded for
+.Nm bsnmpd
+to implement proper view-based access control. If the module is not loaded,
+access is granted to all configured SNMPv1 & SNMPv2c communities and SNMPv3
+USM users.
+.Sh IMPLEMENTATION NOTES
+An entry in any table implemented by this MIB may be created by setting the
+relevant RowStatus column to createAndGo (4) - in fact, any other value for
+those columns in a SET operation will cause an error. When an entry is created,
+any of its columns that is not used as index, is set to the default value as
+specified in the SNMP-VIEW-BASED-ACM-MIB. All entries maintained by the module
+are persistent after reboot if created via
+.Nm bsnmpd 's
+config file, otherwise entries created via SNMP are lost after reboot.
+A short description of the objects in the MIB follows.
+.Bl -tag -width "XXXXXXXXX"
+.It Va vacmContextTable
+A read-only table that consists of a list of SNMP contexts available in
+.Nm bsnmpd .
+.It Va vacmSecurityToGroupTable
+The table contains a list of SNMPv1, v2c and v3 user names and the groups
+they belong to.
+.It Va vacmAccessTable
+The table contains a list of SNMP contexts to groups mappings and respectively
+the names of the SNMP views under those contexts, to which users in the group
+are granted read-only, read-write access or receive notifications for the
+objects under the subtree in the relevant view.
+.It Va vacmViewTreeFamilyTable
+The table contains a list of SNMP views, i.e. entries specifying the OID of a
+MIB subtree and whether access to the objects under this subtree is to be
+allowed or forbidden.
+.El
+.Sh FILES
+.Bl -tag -width "XXXXXXXXX"
+.It Pa /usr/share/snmp/defs/vacm_tree.def
+The description of the MIB tree implemented by
+.Nm .
+.El
+.Sh SEE ALSO
+.Xr bsnmpd 1 ,
+.Xr gensnmptree 1 ,
+.Xr snmpmod 3
+.Sh STANDARDS
+IETF RFC 3415
+.Sh AUTHORS
+.An Shteryana Shopova Aq syrinx@FreeBSD.org

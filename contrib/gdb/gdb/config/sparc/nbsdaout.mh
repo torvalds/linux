@@ -1,0 +1,4 @@
+# Host: NetBSD/sparc a.out
+NATDEPFILES= sparc-nat.o sparcnbsd-nat.o \
+	fork-child.o infptrace.o inftarg.o solib-sunos.o
+NAT_FILE= nm-nbsdaout.h

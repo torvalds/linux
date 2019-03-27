@@ -1,0 +1,76 @@
+# $FreeBSD$
+#
+#	@(#)remote	5.2 (Berkeley) 6/30/90
+#
+# remote -- remote host description file
+# see tip(1), remote(5)
+#
+# at	ACU type
+# br	bit rate (defaults to 9600)
+# cu	call unit (default is dv)
+# du	make a call flag (dial up)
+# dv	device to use for the tty
+# el	EOL marks (default is NULL)
+# fs	frame size (default is BUFSIZ) -- used in buffering writes on
+#	receive operations
+# ie	input EOF marks (default is NULL)
+# oe	output EOF string (default is NULL)
+# pa	The parity type to use: even, odd, none, zero, one (default even)
+# pn	phone numbers (@ =>'s search phones file; possibly taken from
+#	PHONES environment variable)
+# tc	to continue a capability
+
+# Example systems
+unixshell|Unix Access:\
+	:pn=\@:tc=unix57600:
+dosbbs|DOS-based BBS:\
+	:pn=\@:tc=dos57600:
+
+# UNIX system definitions
+unix57600|57600 Baud dial-out to a UNIX system:\
+	:el=^U^C^R^O^D^S^Q:ie=%$:oe=^D:tc=dial57600:
+unix33600|33600 Baud dial-out to a UNIX system:\
+	:el=^U^C^R^O^D^S^Q:ie=%$:oe=^D:tc=dial33600:
+
+# DOS system definitions
+dos57600|57600 Baud dial-out to a DOS system:\
+	:el=^U^C^R^O^D^S^Q:ie=%$:oe=^Z:pa=none:tc=dial57600:
+
+# 33.6k and 56k modems run the com port at 115200 bps to allow for the
+# compression performed in the modem.  Note that some serial hardware
+# does not support speeds above 38400 bps and that speeds above that have
+# never been formally standardized.  Modern architectures with 16550 or
+# better UARTs typically have no issues with the higher speeds.
+dial57600|57600 Baud Hayes attributes:\
+	br#115200:tc=dial:
+dial33600|33600 Baud Hayes attributes:\
+	br#115200:tc=dial:
+# 14.4k and 28.8k modems ran the port at 4x.  Some rare 19.2 baud modems
+# did too, but those aren't included in this example.
+dial28800|28800 Baud Hayes attributes:\
+	br#115200:tc=dial:
+dial14400|14400 Baud Hayes attributes:\
+	br#57600:tc=dial:
+dial|Generic dialing parameters:\
+	:dv=/dev/cuau0:cu=/dev/cuau0:at=hayes:du:pa=none:
+
+# Hardwired line
+cuau0c|cua0c:dv=/dev/cuau0:br#9600:pa=none:
+
+# Finger friendly shortcuts
+uart0|com1:dv=/dev/cuau0:br#9600:pa=none:
+uart1|com2:dv=/dev/cuau1:br#9600:pa=none:
+uart2|com3:dv=/dev/cuau2:br#9600:pa=none:
+uart3|com4:dv=/dev/cuau3:br#9600:pa=none:
+uart4|com5:dv=/dev/cuau4:br#9600:pa=none:
+uart5|com6:dv=/dev/cuau5:br#9600:pa=none:
+uart6|com7:dv=/dev/cuau6:br#9600:pa=none:
+uart7|com8:dv=/dev/cuau7:br#9600:pa=none:
+ucom1:dv=/dev/cuaU0:br#9600:pa=none:
+ucom2:dv=/dev/cuaU1:br#9600:pa=none:
+ucom3:dv=/dev/cuaU2:br#9600:pa=none:
+ucom4:dv=/dev/cuaU3:br#9600:pa=none:
+ucom5:dv=/dev/cuaU4:br#9600:pa=none:
+ucom6:dv=/dev/cuaU5:br#9600:pa=none:
+ucom7:dv=/dev/cuaU6:br#9600:pa=none:
+ucom8:dv=/dev/cuaU7:br#9600:pa=none:

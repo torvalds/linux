@@ -1,0 +1,644 @@
+.\"
+.\" Copyright (c) 1999 Kenneth D. Merry.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 14, 2018
+.Dt PCI 4
+.Os
+.Sh NAME
+.Nm pci
+.Nd generic PCI bus driver
+.Sh SYNOPSIS
+To compile the PCI bus driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd device pci
+.Ed
+.Pp
+To compile in support for Single Root I/O Virtualization
+.Pq SR-IOV :
+.Bd -ragged -offset indent
+.Cd options PCI_IOV
+.Ed
+.Pp
+To compile in support for native PCI-express HotPlug:
+.Bd -ragged -offset indent
+.Cd options PCI_HP
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for
+.Tn PCI
+devices in the kernel and limited access to
+.Tn PCI
+devices for userland.
+.Pp
+The
+.Nm
+driver provides a
+.Pa /dev/pci
+character device that can be used by userland programs to read and write
+.Tn PCI
+configuration registers.
+Programs can also use this device to get a list of all
+.Tn PCI
+devices, or all
+.Tn PCI
+devices that match various patterns.
+.Pp
+Since the
+.Nm
+driver provides a write interface for
+.Tn PCI
+configuration registers, system administrators should exercise caution when
+granting access to the
+.Nm
+device.
+If used improperly, this driver can allow userland applications to
+crash a machine or cause data loss.
+.Pp
+The
+.Nm
+driver implements the
+.Tn PCI
+bus in the kernel.
+It enumerates any devices on the
+.Tn PCI
+bus and gives
+.Tn PCI
+client drivers the chance to attach to them.
+It assigns resources to children, when the BIOS does not.
+It takes care of routing interrupts when necessary.
+It reprobes the unattached
+.Tn PCI
+children when
+.Tn PCI
+client drivers are dynamically
+loaded at runtime.
+The
+.Nm
+driver also includes support for PCI-PCI bridges,
+various platform-specific Host-PCI bridges,
+and basic support for
+.Tn PCI
+VGA adapters.
+.Sh IOCTLS
+The following
+.Xr ioctl 2
+calls are supported by the
+.Nm
+driver.
+They are defined in the header file
+.In sys/pciio.h .
+.Bl -tag -width 012345678901234
+.It PCIOCGETCONF
+This
+.Xr ioctl 2
+takes a
+.Va pci_conf_io
+structure.
+It allows the user to retrieve information on all
+.Tn PCI
+devices in the system, or on
+.Tn PCI
+devices matching patterns supplied by the user.
+The call may set
+.Va errno
+to any value specified in either
+.Xr copyin 9
+or
+.Xr copyout 9 .
+The
+.Va pci_conf_io
+structure consists of a number of fields:
+.Bl -tag -width match_buf_len
+.It pat_buf_len
+The length, in bytes, of the buffer filled with user-supplied patterns.
+.It num_patterns
+The number of user-supplied patterns.
+.It patterns
+Pointer to a buffer filled with user-supplied patterns.
+.Va patterns
+is a pointer to
+.Va num_patterns
+.Va pci_match_conf
+structures.
+The
+.Va pci_match_conf
+structure consists of the following elements:
+.Bl -tag -width pd_vendor
+.It pc_sel
+.Tn PCI
+domain, bus, slot and function.
+.It pd_name
+.Tn PCI
+device driver name.
+.It pd_unit
+.Tn PCI
+device driver unit number.
+.It pc_vendor
+.Tn PCI
+vendor ID.
+.It pc_device
+.Tn PCI
+device ID.
+.It pc_class
+.Tn PCI
+device class.
+.It flags
+The flags describe which of the fields the kernel should match against.
+A device must match all specified fields in order to be returned.
+The match flags are enumerated in the
+.Va pci_getconf_flags
+structure.
+Hopefully the flag values are obvious enough that they do not need to
+described in detail.
+.El
+.It match_buf_len
+Length of the
+.Va matches
+buffer allocated by the user to hold the results of the
+.Dv PCIOCGETCONF
+query.
+.It num_matches
+Number of matches returned by the kernel.
+.It matches
+Buffer containing matching devices returned by the kernel.
+The items in this buffer are of type
+.Va pci_conf ,
+which consists of the following items:
+.Bl -tag -width pc_subvendor
+.It pc_sel
+.Tn PCI
+domain, bus, slot and function.
+.It pc_hdr
+.Tn PCI
+header type.
+.It pc_subvendor
+.Tn PCI
+subvendor ID.
+.It pc_subdevice
+.Tn PCI
+subdevice ID.
+.It pc_vendor
+.Tn PCI
+vendor ID.
+.It pc_device
+.Tn PCI
+device ID.
+.It pc_class
+.Tn PCI
+device class.
+.It pc_subclass
+.Tn PCI
+device subclass.
+.It pc_progif
+.Tn PCI
+device programming interface.
+.It pc_revid
+.Tn PCI
+revision ID.
+.It pd_name
+Driver name.
+.It pd_unit
+Driver unit number.
+.El
+.It offset
+The offset is passed in by the user to tell the kernel where it should
+start traversing the device list.
+The value passed out by the kernel
+points to the record immediately after the last one returned.
+The user may
+pass the value returned by the kernel in subsequent calls to the
+.Dv PCIOCGETCONF
+ioctl.
+If the user does not intend to use the offset, it must be set to zero.
+.It generation
+.Tn PCI
+configuration generation.
+This value only needs to be set if the offset is set.
+The kernel will compare the current generation number of its internal
+device list to the generation passed in by the user to determine whether
+its device list has changed since the user last called the
+.Dv PCIOCGETCONF
+ioctl.
+If the device list has changed, a status of
+.Va PCI_GETCONF_LIST_CHANGED
+will be passed back.
+.It status
+The status tells the user the disposition of his request for a device list.
+The possible status values are:
+.Bl -ohang
+.It PCI_GETCONF_LAST_DEVICE
+This means that there are no more devices in the PCI device list matching
+the specified criteria after the
+ones returned in the
+.Va matches
+buffer.
+.It PCI_GETCONF_LIST_CHANGED
+This status tells the user that the
+.Tn PCI
+device list has changed since his last call to the
+.Dv PCIOCGETCONF
+ioctl and he must reset the
+.Va offset
+and
+.Va generation
+to zero to start over at the beginning of the list.
+.It PCI_GETCONF_MORE_DEVS
+This tells the user that his buffer was not large enough to hold all of the
+remaining devices in the device list that match his criteria.
+.It PCI_GETCONF_ERROR
+This indicates a general error while servicing the user's request.
+If the
+.Va pat_buf_len
+is not equal to
+.Va num_patterns
+times
+.Fn sizeof "struct pci_match_conf" ,
+.Va errno
+will be set to
+.Er EINVAL .
+.El
+.El
+.It PCIOCREAD
+This
+.Xr ioctl 2
+reads the
+.Tn PCI
+configuration registers specified by the passed-in
+.Va pci_io
+structure.
+The
+.Va pci_io
+structure consists of the following fields:
+.Bl -tag -width pi_width
+.It pi_sel
+A
+.Va pcisel
+structure which specifies the domain, bus, slot and function the user would
+like to query.
+If the specific bus is not found, errno will be set to ENODEV and -1 returned
+from the ioctl.
+.It pi_reg
+The
+.Tn PCI
+configuration register the user would like to access.
+.It pi_width
+The width, in bytes, of the data the user would like to read.
+This value
+may be either 1, 2, or 4.
+3-byte reads and reads larger than 4 bytes are
+not supported.
+If an invalid width is passed, errno will be set to EINVAL.
+.It pi_data
+The data returned by the kernel.
+.El
+.It PCIOCWRITE
+This
+.Xr ioctl 2
+allows users to write to the
+.Tn PCI
+specified in the passed-in
+.Va pci_io
+structure.
+The
+.Va pci_io
+structure is described above.
+The limitations on data width described for
+reading registers, above, also apply to writing
+.Tn PCI
+configuration registers.
+.It PCIOCBARMMAP
+This
+.Xr ioctl 2
+command allows userspace processes to
+.Xr mmap 2
+the memory-mapped PCI BAR into its address space.
+The input parameters and results are passed in the
+.Va pci_bar_mmap
+structure, which has the following fields:
+.Bl -tag -width Vt struct pcise pbm_sel
+.It Vt uint64_t	pbm_map_base
+Reports the established mapping base to the caller.
+If
+.Va PCIIO_BAR_MMAP_FIXED
+flag was specified, then this field must be filled before the call
+with the desired address for the mapping.
+.It Vt uint64_t pbm_map_length
+Reports the mapped length of the BAR, in bytes.
+Its .Vt uint64_t value is always multiple of machine pages.
+.It Vt int64_t pbm_bar_length
+Reports length of the bar as exposed by the device.
+.It Vt int pbm_bar_off
+Reports offset from the mapped base to the start of the
+first register in the bar.
+.It Vt struct pcisel pbm_sel
+Should be filled before the call.
+Describes the device to operate on.
+.It Vt int pbm_reg
+The BAR index to mmap.
+.It Vt int pbm_flags
+Flags which augments the operation.
+See below.
+.It Vt int pbm_memattr
+The caching attribute for the mapping.
+Typical values are
+.Dv VM_MEMATTR_UNCACHEABLE
+for control registers BARs, and
+.Dv VM_MEMATTR_WRITE_COMBINING
+for frame buffers.
+Regular memory-like BAR should be mapped with
+.Dv VM_MEMATTR_DEFAULT
+attribute.
+.El
+.Pp
+Currently defined flags are:
+.Bl -tag -width PCIIO_BAR_MMAP_ACTIVATE
+.It PCIIO_BAR_MMAP_FIXED
+The resulted mappings should be established at the address
+specified by the
+.Va pbm_map_base
+member, otherwise fail.
+.It PCIIO_BAR_MMAP_EXCL
+Must be used together with
+.Dv PCIIO_BAR_MMAP_FIXED
+If the specified base contains already established mappings, the
+operation fails instead of implicitly unmapping them.
+.It PCIIO_BAR_MMAP_RW
+The requested mapping allows both reading and writing.
+Without the flag, read-only mapping is established.
+Note that it is common for the device registers to have side-effects
+even on reads.
+.It PCIIO_BAR_MMAP_ACTIVATE
+(Unimplemented) If the BAR is not activated, activate it in the course
+of mapping.
+Currently attempt to mmap an inactive BAR results in error.
+.El
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel, or stored in
+.Xr loader.conf 5 .
+The current value of these tunables can be examined at runtime via
+.Xr sysctl 8
+nodes of the same name.
+Unless otherwise specified,
+each of these tunables is a boolean that can be enabled by setting the
+tunable to a non-zero value.
+.Bl -tag -width indent
+.It Va hw.pci.clear_bars Pq Defaults to 0
+Ignore any firmware-assigned memory and I/O port resources.
+This forces the
+.Tn PCI
+bus driver to allocate resource ranges for memory and I/O port resources
+from scratch.
+.It Va hw.pci.clear_buses Pq Defaults to 0
+Ignore any firmware-assigned bus number registers in PCI-PCI bridges.
+This forces the
+.Tn PCI
+bus driver and PCI-PCI bridge driver to allocate bus numbers for secondary
+buses behind PCI-PCI bridges.
+.It Va hw.pci.clear_pcib Pq Defaults to 0
+Ignore any firmware-assigned memory and I/O port resource windows in PCI-PCI
+bridges.
+This forces the PCI-PCI bridge driver to allocate memory and I/O port resources
+for resource windows from scratch.
+.Pp
+By default the PCI-PCI bridge driver will allocate windows that
+contain the firmware-assigned resources devices behind the bridge.
+In addition, the PCI-PCI bridge driver will suballocate from existing window
+regions when possible to satisfy a resource request.
+As a result,
+both
+.Va hw.pci.clear_bars
+and
+.Va hw.pci.clear_pcib
+must be enabled to fully ignore firmware-supplied resource assignments.
+.It Va hw.pci.default_vgapci_unit Pq Defaults to -1
+By default,
+the first
+.Tn PCI
+VGA adapter encountered by the system is assumed to be the boot display device.
+This tunable can be set to choose a specific VGA adapter by specifying the
+unit number of the associated
+.Va vgapci Ns Ar X
+device.
+.It Va hw.pci.do_power_nodriver Pq Defaults to 0
+Place devices into a low power state
+.Pq D3
+when a suitable device driver is not found.
+Can be set to one of the following values:
+.Bl -tag -width indent
+.It 3
+Powers down all
+.Tn PCI
+devices without a device driver.
+.It 2
+Powers down most devices without a device driver.
+PCI devices with the display, memory, and base peripheral device classes
+are not powered down.
+.It 1
+Similar to a setting of 2 except that storage controllers are also not
+powered down.
+.It 0
+All devices are left fully powered.
+.El
+.Pp
+A
+.Tn PCI
+device must support power management to be powered down.
+Placing a device into a low power state may not reduce power consumption.
+.It Va hw.pci.do_power_resume Pq Defaults to 1
+Place
+.Tn PCI
+devices into the fully powered state when resuming either the system or an
+individual device.
+Setting this to zero is discouraged as the system will not attempt to power
+up non-powered PCI devices after a suspend.
+.It Va hw.pci.do_power_suspend Pq Defaults to 1
+Place
+.Tn PCI
+devices into a low power state when suspending either the system or individual
+devices.
+Normally the D3 state is used as the low power state,
+but firmware may override the desired power state during a system suspend.
+.It Va hw.pci.enable_ari Pq Defaults to 1
+Enable support for PCI-express Alternative RID Interpretation.
+This is often used in conjunction with SR-IOV.
+.It Va hw.pci.enable_io_modes Pq Defaults to 1
+Enable memory or I/O port decoding in a PCI device's command register if it has
+firmware-assigned memory or I/O port resources.
+The firmware
+.Pq BIOS
+in some systems does not enable memory or I/O port decoding for some devices
+even when it has assigned resources to the device.
+This enables decoding for such resources during bus probe.
+.It Va hw.pci.enable_msi Pq Defaults to 1
+Enable support for Message Signalled Interrupts
+.Pq MSI .
+MSI interrupts can be disabled by setting this tunable to 0.
+.It Va hw.pci.enable_msix Pq Defaults to 1
+Enable support for extended Message Signalled Interrupts
+.Pq MSI-X .
+MSI-X interrupts can be disabled by setting this tunable to 0.
+.It Va hw.pci.enable_pcie_hp Pq Defaults to 1
+Enable support for native PCI-express HotPlug.
+.It Va hw.pci.honor_msi_blacklist Pq Defaults to 1
+MSI and MSI-X interrupts are disabled for certain chipsets known to have
+broken MSI and MSI-X implementations when this tunable is set.
+It can be set to zero to permit use of MSI and MSI-X interrupts if the
+chipset match is a false positive.
+.It Va hw.pci.iov_max_config Pq Defaults to 1MB
+The maximum amount of memory permitted for the configuration parameters
+used when creating Virtual Functions via SR-IOV.
+This tunable can also be changed at runtime via
+.Xr sysctl 8 .
+.It Va hw.pci.realloc_bars Pq Defaults to 0
+Attempt to allocate a new resource range during the initial device scan
+for any memory or I/O port resources with firmware-assigned ranges that
+conflict with another active resource.
+.It Va hw.pci.usb_early_takeover Pq Defaults to 1 on Tn amd64 and Tn i386
+Disable legacy device emulation of USB devices during the initial device
+scan.
+Set this tunable to zero to use USB devices via legacy emulation when
+using a custom kernel without USB controller drivers.
+.It Va hw.pci<D>.<B>.<S>.INT<P>.irq
+These tunables can be used to override the interrupt routing for legacy
+PCI INTx interrupts.
+Unlike other tunables in this list,
+these do not have corresponding sysctl nodes.
+The tunable name includes the address of the PCI device as well as the
+pin of the desired INTx IRQ to override:
+.Bl -tag -width indent
+.It <D>
+The domain
+.Pq or segment
+of the PCI device in decimal.
+.It <B>
+The bus address of the PCI device in decimal.
+.It <S>
+The slot of the PCI device in decimal.
+.It <P>
+The interrupt pin of the PCI slot to override.
+One of
+.Ql A ,
+.Ql B ,
+.Ql C ,
+or
+.Ql D .
+.El
+.Pp
+The value of the tunable is the raw IRQ value to use for the INTx interrupt
+pin identified by the tunable name.
+Mapping of IRQ values to platform interrupt sources is machine dependent.
+.El
+.Sh DEVICE WIRING
+You can wire the device unit at a given location with device.hints.
+Entries of the form
+.Va hints.<name>.<unit>.at="pci<B>:<S>:<F>"
+or
+.Va hints.<name>.<unit>.at="pci<D>:<B>:<S>:<F>"
+will force the driver
+.Va name
+to probe and attach at unit
+.Va unit
+for any PCI device found to match the specification, where:
+.Bl -tag -width -indent
+.It <D>
+The domain
+.Pq or segment
+of the PCI device in decimal.
+Defaults to 0 if unspecified
+.It <B>
+The bus address of the PCI device in decimal.
+.It <S>
+The slot of the PCI device in decimal.
+.It <F>
+The function of the PCI device in decimal.
+.El
+.Pp
+The code to do the matching requires an exact string match.
+Do not specify the angle brackets
+.Pq < >
+in the hints file.
+Wiring multiple devices to the same
+.Va name
+and
+.Va unit
+produces undefined results.
+.Ss Examples
+Given the following lines in
+.Pa /boot/device.hints :
+.Cd hint.nvme.3.at="pci6:0:0"
+.Cd hint.igb.8.at="pci14:0:0"
+If there is a device that supports
+.Xr igb 4
+at PCI bus 14 slot 0 function 0,
+then it will be assigned igb8 for probe and attach.
+Likewise, if there is an
+.Xr nvme 4
+card at PCI bus 6 slot 0 function 0,
+then it will be assigned nvme3 for probe and attach.
+If another type of card is in either of these locations, the name and
+unit of that card will be the default names and will be unaffected by
+these hints.
+If other igb or nvme cards are located elsewhere, they will be
+assigned their unit numbers sequentially, skipping the unit numbers
+that have 'at' hints.
+.Sh FILES
+.Bl -tag -width /dev/pci -compact
+.It Pa /dev/pci
+Character device for the
+.Nm
+driver.
+.El
+.Sh SEE ALSO
+.Xr pciconf 8
+.Sh HISTORY
+The
+.Nm
+driver (not the kernel's
+.Tn PCI
+support code) first appeared in
+.Fx 2.2 ,
+and was written by Stefan Esser and Garrett Wollman.
+Support for device listing and matching was re-implemented by
+Kenneth Merry, and first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An Kenneth Merry Aq Mt ken@FreeBSD.org
+.Sh BUGS
+It is not possible for users to specify an accurate offset into the device
+list without calling the
+.Dv PCIOCGETCONF
+at least once, since they have no way of knowing the current generation
+number otherwise.
+This probably is not a serious problem, though, since
+users can easily narrow their search by specifying a pattern or patterns
+for the kernel to match against.

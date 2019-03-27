@@ -1,0 +1,331 @@
+@c Copyright 1991, 1992, 1993, 1994, 1995, 1997, 2001, 2003, 2004, 2005
+@c Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@page
+@node SH-Dependent
+@chapter Renesas / SuperH SH Dependent Features
+
+@cindex SH support
+@menu
+* SH Options::              Options
+* SH Syntax::               Syntax
+* SH Floating Point::       Floating Point
+* SH Directives::           SH Machine Directives
+* SH Opcodes::              Opcodes
+@end menu
+
+@node SH Options
+@section Options
+
+@cindex SH options
+@cindex options, SH
+@code{@value{AS}} has following command-line options for the Renesas
+(formerly Hitachi) / SuperH SH family.
+
+@table @code
+@kindex --little
+@kindex --big
+@kindex --relax
+@kindex --small
+@kindex --dsp
+@kindex --renesas
+@kindex --allow-reg-prefix
+
+@item --little
+Generate little endian code.
+
+@item --big
+Generate big endian code.
+
+@item --relax
+Alter jump instructions for long displacements.
+
+@item --small
+Align sections to 4 byte boundaries, not 16.
+
+@item --dsp
+Enable sh-dsp insns, and disable sh3e / sh4 insns.
+
+@item --renesas
+Disable optimization with section symbol for compatibility with
+Renesas assembler.
+
+@item --allow-reg-prefix
+Allow '$' as a register name prefix.
+
+@item --isa=sh4 | sh4a
+Specify the sh4 or sh4a instruction set.
+@item --isa=dsp
+Enable sh-dsp insns, and disable sh3e / sh4 insns.
+@item --isa=fp
+Enable sh2e, sh3e, sh4, and sh4a insn sets.
+@item --isa=all
+Enable sh1, sh2, sh2e, sh3, sh3e, sh4, sh4a, and sh-dsp insn sets.
+
+@end table
+
+@node SH Syntax
+@section Syntax
+
+@menu
+* SH-Chars::                Special Characters
+* SH-Regs::                 Register Names
+* SH-Addressing::           Addressing Modes
+@end menu
+
+@node SH-Chars
+@subsection Special Characters
+
+@cindex line comment character, SH
+@cindex SH line comment character
+@samp{!} is the line comment character.
+
+@cindex line separator, SH
+@cindex statement separator, SH
+@cindex SH line separator
+You can use @samp{;} instead of a newline to separate statements.
+
+@cindex symbol names, @samp{$} in
+@cindex @code{$} in symbol names
+Since @samp{$} has no special meaning, you may use it in symbol names.
+
+@node SH-Regs
+@subsection Register Names
+
+@cindex SH registers
+@cindex registers, SH
+You can use the predefined symbols @samp{r0}, @samp{r1}, @samp{r2},
+@samp{r3}, @samp{r4}, @samp{r5}, @samp{r6}, @samp{r7}, @samp{r8},
+@samp{r9}, @samp{r10}, @samp{r11}, @samp{r12}, @samp{r13}, @samp{r14},
+and @samp{r15} to refer to the SH registers.
+
+The SH also has these control registers:
+
+@table @code
+@item pr
+procedure register (holds return address)
+
+@item pc
+program counter
+
+@item mach
+@itemx macl
+high and low multiply accumulator registers
+
+@item sr
+status register
+
+@item gbr
+global base register
+
+@item vbr
+vector base register (for interrupt vectors)
+@end table
+
+@node SH-Addressing
+@subsection Addressing Modes
+
+@cindex addressing modes, SH
+@cindex SH addressing modes
+@code{@value{AS}} understands the following addressing modes for the SH.
+@code{R@var{n}} in the following refers to any of the numbered
+registers, but @emph{not} the control registers.
+
+@table @code
+@item R@var{n}
+Register direct
+
+@item @@R@var{n}
+Register indirect
+
+@item @@-R@var{n}
+Register indirect with pre-decrement
+
+@item @@R@var{n}+
+Register indirect with post-increment
+
+@item @@(@var{disp}, R@var{n})
+Register indirect with displacement
+
+@item @@(R0, R@var{n})
+Register indexed
+
+@item @@(@var{disp}, GBR)
+@code{GBR} offset
+
+@item @@(R0, GBR)
+GBR indexed
+
+@item @var{addr}
+@itemx @@(@var{disp}, PC)
+PC relative address (for branch or for addressing memory).  The
+@code{@value{AS}} implementation allows you to use the simpler form
+@var{addr} anywhere a PC relative address is called for; the alternate
+form is supported for compatibility with other assemblers.
+
+@item #@var{imm}
+Immediate data
+@end table
+
+@node SH Floating Point
+@section Floating Point
+
+@cindex floating point, SH (@sc{ieee})
+@cindex SH floating point (@sc{ieee})
+SH2E, SH3E and SH4 groups have on-chip floating-point unit (FPU). Other
+SH groups can use @code{.float} directive to generate @sc{ieee} 
+floating-point numbers. 
+
+SH2E and SH3E support single-precision floating point calculations as 
+well as entirely PCAPI compatible emulation of double-precision 
+floating point calculations. SH2E and SH3E instructions are a subset of
+the floating point calculations conforming to the IEEE754 standard.
+
+In addition to single-precision and double-precision floating-point 
+operation capability, the on-chip FPU of SH4 has a 128-bit graphic 
+engine that enables 32-bit floating-point data to be processed 128 
+bits at a time. It also supports 4 * 4 array operations and inner 
+product operations. Also, a superscalar architecture is employed that 
+enables simultaneous execution of two instructions (including FPU 
+instructions), providing performance of up to twice that of 
+conventional architectures at the same frequency.
+
+@node SH Directives
+@section SH Machine Directives
+
+@cindex SH machine directives
+@cindex machine directives, SH
+@cindex @code{uaword} directive, SH
+@cindex @code{ualong} directive, SH
+
+@table @code
+@item uaword
+@itemx ualong
+@code{@value{AS}} will issue a warning when a misaligned @code{.word} or
+@code{.long} directive is used.  You may use @code{.uaword} or
+@code{.ualong} to indicate that the value is intentionally misaligned.
+@end table
+
+@node SH Opcodes
+@section Opcodes
+
+@cindex SH opcode summary
+@cindex opcode summary, SH
+@cindex mnemonics, SH
+@cindex instruction summary, SH
+For detailed information on the SH machine instruction set, see
+@cite{SH-Microcomputer User's Manual} (Renesas) or
+@cite{SH-4 32-bit CPU Core Architecture} (SuperH) and
+@cite{SuperH (SH) 64-Bit RISC Series} (SuperH).
+
+@code{@value{AS}} implements all the standard SH opcodes.  No additional
+pseudo-instructions are needed on this family.  Note, however, that
+because @code{@value{AS}} supports a simpler form of PC-relative
+addressing, you may simply write (for example)
+
+@example
+mov.l  bar,r0
+@end example
+
+@noindent
+where other assemblers might require an explicit displacement to
+@code{bar} from the program counter:
+
+@example
+mov.l  @@(@var{disp}, PC)
+@end example
+
+@ifset SMALL
+@c this table, due to the multi-col faking and hardcoded order, looks silly
+@c except in smallbook.  See comments below "@set SMALL" near top of this file.
+
+Here is a summary of SH opcodes:
+
+@page
+@smallexample
+@i{Legend:}
+Rn        @r{a numbered register}
+Rm        @r{another numbered register}
+#imm      @r{immediate data}
+disp      @r{displacement}
+disp8     @r{8-bit displacement}
+disp12    @r{12-bit displacement}
+
+add #imm,Rn                    lds.l @@Rn+,PR              
+add Rm,Rn                      mac.w @@Rm+,@@Rn+           
+addc Rm,Rn                     mov #imm,Rn                 
+addv Rm,Rn                     mov Rm,Rn                   
+and #imm,R0                    mov.b Rm,@@(R0,Rn)          
+and Rm,Rn                      mov.b Rm,@@-Rn              
+and.b #imm,@@(R0,GBR)           mov.b Rm,@@Rn               
+bf disp8                       mov.b @@(disp,Rm),R0        
+bra disp12                     mov.b @@(disp,GBR),R0       
+bsr disp12                     mov.b @@(R0,Rm),Rn          
+bt disp8                       mov.b @@Rm+,Rn              
+clrmac                         mov.b @@Rm,Rn               
+clrt                           mov.b R0,@@(disp,Rm)        
+cmp/eq #imm,R0                 mov.b R0,@@(disp,GBR)       
+cmp/eq Rm,Rn                   mov.l Rm,@@(disp,Rn)        
+cmp/ge Rm,Rn                   mov.l Rm,@@(R0,Rn)          
+cmp/gt Rm,Rn                   mov.l Rm,@@-Rn              
+cmp/hi Rm,Rn                   mov.l Rm,@@Rn               
+cmp/hs Rm,Rn                   mov.l @@(disp,Rn),Rm        
+cmp/pl Rn                      mov.l @@(disp,GBR),R0       
+cmp/pz Rn                      mov.l @@(disp,PC),Rn        
+cmp/str Rm,Rn                  mov.l @@(R0,Rm),Rn          
+div0s Rm,Rn                    mov.l @@Rm+,Rn              
+div0u                          mov.l @@Rm,Rn               
+div1 Rm,Rn                     mov.l R0,@@(disp,GBR)       
+exts.b Rm,Rn                   mov.w Rm,@@(R0,Rn)          
+exts.w Rm,Rn                   mov.w Rm,@@-Rn              
+extu.b Rm,Rn                   mov.w Rm,@@Rn               
+extu.w Rm,Rn                   mov.w @@(disp,Rm),R0        
+jmp @@Rn                        mov.w @@(disp,GBR),R0       
+jsr @@Rn                        mov.w @@(disp,PC),Rn        
+ldc Rn,GBR                     mov.w @@(R0,Rm),Rn          
+ldc Rn,SR                      mov.w @@Rm+,Rn              
+ldc Rn,VBR                     mov.w @@Rm,Rn               
+ldc.l @@Rn+,GBR                 mov.w R0,@@(disp,Rm)        
+ldc.l @@Rn+,SR                  mov.w R0,@@(disp,GBR)       
+ldc.l @@Rn+,VBR                 mova @@(disp,PC),R0         
+lds Rn,MACH                    movt Rn                     
+lds Rn,MACL                    muls Rm,Rn                  
+lds Rn,PR                      mulu Rm,Rn                  
+lds.l @@Rn+,MACH                neg Rm,Rn                   
+lds.l @@Rn+,MACL                negc Rm,Rn                  
+@page
+nop                            stc VBR,Rn                
+not Rm,Rn                      stc.l GBR,@@-Rn           
+or #imm,R0                     stc.l SR,@@-Rn            
+or Rm,Rn                       stc.l VBR,@@-Rn           
+or.b #imm,@@(R0,GBR)            sts MACH,Rn               
+rotcl Rn                       sts MACL,Rn               
+rotcr Rn                       sts PR,Rn                 
+rotl Rn                        sts.l MACH,@@-Rn          
+rotr Rn                        sts.l MACL,@@-Rn          
+rte                            sts.l PR,@@-Rn            
+rts                            sub Rm,Rn                 
+sett                           subc Rm,Rn                
+shal Rn                        subv Rm,Rn                
+shar Rn                        swap.b Rm,Rn              
+shll Rn                        swap.w Rm,Rn              
+shll16 Rn                      tas.b @@Rn                
+shll2 Rn                       trapa #imm                
+shll8 Rn                       tst #imm,R0               
+shlr Rn                        tst Rm,Rn                 
+shlr16 Rn                      tst.b #imm,@@(R0,GBR)     
+shlr2 Rn                       xor #imm,R0               
+shlr8 Rn                       xor Rm,Rn                 
+sleep                          xor.b #imm,@@(R0,GBR)     
+stc GBR,Rn                     xtrct Rm,Rn               
+stc SR,Rn
+@end smallexample
+@end ifset
+
+@ifset Renesas-all
+@ifclear GENERIC
+@raisesections
+@end ifclear
+@end ifset
+

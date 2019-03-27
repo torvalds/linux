@@ -1,0 +1,81 @@
+.\"
+.\" Copyright (c) 2017 Netflix, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 1, 2017
+.Dt EFIDP 8
+.Os
+.Sh NAME
+.Nm efidp
+.Nd UEFI Device Path manipulation
+.Sh SYNOPSIS
+.Nm
+.Op Fl fp
+.Op Fl -parse
+.Op Fl -format
+.Sh DESCRIPTION
+This program converts
+.Dq Unified Extensible Firmware Interface
+.Pq UEFI
+Device Paths, as defined in the UEFI standard, to and from binary form.
+Binary and textual forms are defined in Chapter 9 of the UEFI
+Specification.
+.Pp
+.Bl -tag -width 20m
+.It Fl f Fl -format
+Formats a binary UEFI Device Path into its canonical UTF-8 textual form.
+A binary Device Path can be no longer than 65536 bytes.
+The textual form must fit into 65536 bytes.
+Multiple binary device paths may be specified.
+.It Fl p Fl -parse
+Parses a UEFI Device Path UTF-8 specification and outputs the binary
+Device Path form.
+Only one device path is parsed, even if there are multiple present in
+the input.
+Leading white space is ignored.
+The resulting binary Device Path can be no longer than 65536 bytes.
+Multiple lines may be specified.
+Each one will be translated.
+.It Fl e Fl --to-efi
+Translate a Unix file path to an EFI Device Path.
+The output is the textual representation of the EFI Device Path.
+.It Fl u Fl --to-unix
+Translate an EFI device path to a Unix file path.
+The input is the textual representation of the EFI Device Path.
+.El
+.Sh SEE ALSO
+Appendix A of the UEFI specification has the format for GUIDs.
+All GUIDs
+.Dq Globally Unique Identifiers
+have the format described in RFC 4122.
+.Pp
+The Unified Extensible Firmware Interface Specification is available
+from
+.Pa www.uefi.org .
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 11.1 .

@@ -1,0 +1,161 @@
+/dts-v1/;
+
+#include "mt7620a.dtsi"
+
+/ {
+	compatible = "ralink,mt7620a-soc";
+	model = "Planex CS-QR10";
+
+	sound {
+		compatible = "mediatek,mt7620-audio-wm8960";
+		model = "mt7620-wm8960";
+		i2s-controller = <&i2s>;
+		audio-routing =
+			"Ext Spk", "SPK_LP",
+			"Ext Spk", "SPK_LN",
+			"Ext Spk", "SPK_RP",
+			"Ext Spk", "SPK_RN";
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		power {
+			label = "cs-qr10:red:power";
+			gpios = <&gpio1 4 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		s1 {
+			label = "reset";
+			gpios = <&gpio1 1 1>;
+			linux,code = <0x198>;
+		};
+
+		s2 {
+			label = "wps";
+			gpios = <&gpio1 3 1>;
+			linux,code = <0x211>;
+		};
+	};
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&gpio2 {
+	status = "okay";
+};
+
+&gpio3 {
+	status = "okay";
+};
+
+&i2c {
+	status = "okay";
+};
+
+&i2s {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcm_i2s_pins>;
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "mx25l6405d";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x7b0000>;
+		};
+	};
+};
+
+&pcm {
+	status = "okay";
+};
+
+&gdma {
+	status = "okay";
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "spi refclk", "rgmii1";
+			ralink,function = "gpio";
+		};
+		wdt {
+			ralink,group = "wdt";
+			ralink,function = "wdt refclk";
+		};
+	};
+};
+
+&ethernet {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ephy_pins>;
+	mtd-mac-address = <&factory 0x4>;
+	mediatek,portmap = "llllw";
+};
+
+&gsw {
+	ralink,port4 = "ephy";
+};
+
+&sdhci {
+	status = "okay";
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&pcie {
+	status = "okay";
+};

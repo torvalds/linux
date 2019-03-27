@@ -1,0 +1,156 @@
+.\" Copyright (c) 2004 Michael Telahun Makonnen
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 17, 2018
+.Dt PTHREAD_BARRIER 3
+.Os
+.Sh NAME
+.Nm pthread_barrier_destroy , pthread_barrier_init , pthread_barrier_wait
+.Nd "destroy, initialize or wait on a barrier object"
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread.h
+.Ft int
+.Fn pthread_barrier_destroy "pthread_barrier_t *barrier"
+.Ft int
+.Fn pthread_barrier_init "pthread_barrier_t *restrict barrier" "const pthread_barrierattr_t *attr" "unsigned count"
+.Ft int
+.Fn pthread_barrier_wait "pthread_barrier_t *barrier"
+.Sh DESCRIPTION
+The
+.Fn pthread_barrier_init
+function will initialize
+.Fa barrier
+with attributes specified in
+.Fa attr ,
+or if it is
+.Dv NULL ,
+with default attributes.
+The number of threads that must call
+.Fn pthread_barrier_wait
+before any of the waiting threads can be
+released is specified by
+.Fa count .
+The
+.Fn pthread_barrier_destroy
+function will destroy
+.Fa barrier
+and release any resources that may have been allocated on its behalf.
+.Pp
+The
+.Fn pthread_barrier_wait
+function will synchronize calling threads at
+.Fa barrier .
+The threads will be blocked from
+making further progress until
+a sufficient number of threads calls this function.
+The number of threads that must call it before
+any of them will be released is determined by the
+.Fa count
+argument to
+.Fn pthread_barrier_init .
+Once the threads have been released the barrier will be reset.
+.Sh IMPLEMENTATION NOTES
+In
+.Lb libthr
+the
+.Dv PTHREAD_BARRIER_SERIAL_THREAD
+return value will
+always be returned by the last thread to reach the barrier.
+.Sh RETURN VALUES
+If successful,
+both
+.Fn pthread_barrier_destroy
+and
+.Fn pthread_barrier_init
+will return zero.
+Otherwise, an error number will be returned to indicate the error.
+If the call to
+.Fn pthread_barrier_wait
+is successful, all but one of the threads will return zero.
+That one thread will return
+.Dv PTHREAD_BARRIER_SERIAL_THREAD .
+Otherwise, an error number will be returned to indicate the error.
+.Pp
+None of these functions will return
+.Er EINTR .
+.Sh ERRORS
+The
+.Fn pthread_barrier_destroy
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+An attempt was made to destroy
+.Fa barrier
+while it was in use.
+.El
+.Pp
+The
+.Fn pthread_barrier_destroy
+and
+.Fn pthread_barrier_wait
+functions may fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value specified by
+.Fa barrier
+is invalid.
+.El
+.Pp
+The
+.Fn pthread_barrier_init
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The system lacks resources,
+other than memory,
+to initialize
+.Fa barrier .
+.It Bq Er EINVAL
+The
+.Fa count
+argument is less than 1.
+.It Bq Er ENOMEM
+Insufficient memory to initialize
+.Fa barrier .
+.El
+.Sh SEE ALSO
+.Xr pthread_barrierattr 3
+.Sh HISTORY
+The
+.Fn pthread_barrier_destroy ,
+.Fn pthread_barrier_init
+and
+.Fn pthread_barrier_wait
+functions first appeared in
+.Lb libkse
+in
+.Fx 5.2 ,
+and in
+.Lb libthr
+in
+.Fx 5.3 .

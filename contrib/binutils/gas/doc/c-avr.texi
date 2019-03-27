@@ -1,0 +1,364 @@
+@c Copyright 2006
+@c Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+
+@ifset GENERIC
+@page
+@node AVR-Dependent
+@chapter AVR Dependent Features
+@end ifset
+
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter AVR Dependent Features
+@end ifclear
+
+@cindex AVR support
+@menu
+* AVR Options::              Options
+* AVR Syntax::               Syntax
+* AVR Opcodes::              Opcodes
+@end menu
+
+@node AVR Options
+@section Options
+@cindex AVR options (none)
+@cindex options for AVR (none)
+
+@table @code
+
+@cindex @code{-mmcu=} command line option, AVR
+@item -mmcu=@var{mcu}
+Specify ATMEL AVR instruction set or MCU type.
+
+Instruction set avr1 is for the minimal AVR core, not supported by the C
+compiler, only for assembler programs (MCU types: at90s1200, attiny10,
+attiny11, attiny12, attiny15, attiny28).
+
+Instruction set avr2 (default) is for the classic AVR core with up to
+8K program memory space (MCU types: at90s2313, at90s2323, attiny22,
+attiny26, at90s2333, at90s2343, at90s4414, at90s4433, at90s4434,
+at90s8515, at90c8534, at90s8535, at86rf401, attiny13, attiny2313,
+attiny261, attiny461, attiny861, attiny24, attiny44, attiny84, attiny25,
+attiny45, attiny85).
+
+Instruction set avr3 is for the classic AVR core with up to 128K program
+memory space (MCU types: atmega103, atmega603, at43usb320, at43usb355,
+at76c711).
+
+Instruction set avr4 is for the enhanced AVR core with up to 8K program
+memory space (MCU types: atmega48, atmega8, atmega83, atmega85, atmega88,
+atmega8515, atmega8535, atmega8hva, at90pwm1, at90pwm2, at90pwm3).
+
+Instruction set avr5 is for the enhanced AVR core with up to 128K program
+memory space (MCU types: atmega16, atmega161, atmega162, atmega163,
+atmega164p, atmega165, atmega165p, atmega168, atmega169, atmega169p, 
+atmega32, atmega323, atmega324p, atmega325, atmega325p, atmega329, 
+atmega329p, atmega3250, atmega3250p, atmega3290, atmega3290p, atmega406, 
+atmega64, atmega640, atmega644, atmega644p, atmega128, atmega1280, 
+atmega1281, atmega645, atmega649, atmega6450, atmega6490, atmega16hva, 
+at90can32, at90can64, at90can128, at90usb82, at90usb162, at90usb646, 
+at90usb647, at90usb1286, at90usb1287, at94k).
+
+Instruction set avr6 is for the enhanced AVR core with 256K program
+memory space (MCU types: atmega2560, atmega2561).
+
+@cindex @code{-mall-opcodes} command line option, AVR
+@item -mall-opcodes
+Accept all AVR opcodes, even if not supported by @code{-mmcu}.
+
+@cindex @code{-mno-skip-bug} command line option, AVR
+@item -mno-skip-bug
+This option disable warnings for skipping two-word instructions.
+
+@cindex @code{-mno-wrap} command line option, AVR
+@item -mno-wrap
+This option reject @code{rjmp/rcall} instructions with 8K wrap-around.
+
+@end table
+
+
+@node AVR Syntax
+@section Syntax
+@menu
+* AVR-Chars::                Special Characters
+* AVR-Regs::                 Register Names
+* AVR-Modifiers::            Relocatable Expression Modifiers
+@end menu
+
+@node AVR-Chars
+@subsection Special Characters
+
+@cindex line comment character, AVR
+@cindex AVR line comment character
+
+The presence of a @samp{;} on a line indicates the start of a comment
+that extends to the end of the current line.  If a @samp{#} appears as
+the first character of a line, the whole line is treated as a comment.
+
+@cindex line separator, AVR
+@cindex statement separator, AVR
+@cindex AVR line separator
+
+The @samp{$} character can be used instead of a newline to separate
+statements.
+
+@node AVR-Regs
+@subsection Register Names
+
+@cindex AVR register names
+@cindex register names, AVR
+
+The AVR has 32 x 8-bit general purpose working registers @samp{r0},
+@samp{r1}, ... @samp{r31}.
+Six of the 32 registers can be used as three 16-bit indirect address
+register pointers for Data Space addressing. One of the these address
+pointers can also be used as an address pointer for look up tables in
+Flash program memory. These added function registers are the 16-bit
+@samp{X}, @samp{Y} and @samp{Z} - registers.
+
+@smallexample
+X = @r{r26:r27}
+Y = @r{r28:r29}
+Z = @r{r30:r31}
+@end smallexample
+
+@node AVR-Modifiers
+@subsection Relocatable Expression Modifiers
+
+@cindex AVR modifiers
+@cindex syntax, AVR
+
+The assembler supports several modifiers when using relocatable addresses
+in AVR instruction operands.  The general syntax is the following:
+
+@smallexample
+modifier(relocatable-expression)
+@end smallexample
+
+@table @code
+@cindex symbol modifiers
+
+@item lo8
+
+This modifier allows you to use bits 0 through 7 of
+an address expression as 8 bit relocatable expression.
+
+@item hi8
+
+This modifier allows you to use bits 7 through 15 of an address expression
+as 8 bit relocatable expression.  This is useful with, for example, the
+AVR @samp{ldi} instruction and @samp{lo8} modifier.
+
+For example
+
+@smallexample
+ldi r26, lo8(sym+10)
+ldi r27, hi8(sym+10)
+@end smallexample
+
+@item hh8
+
+This modifier allows you to use bits 16 through 23 of
+an address expression as 8 bit relocatable expression.
+Also, can be useful for loading 32 bit constants.
+
+@item hlo8
+
+Synonym of @samp{hh8}.
+
+@item hhi8
+
+This modifier allows you to use bits 24 through 31 of
+an expression as 8 bit expression. This is useful with, for example, the
+AVR @samp{ldi} instruction and @samp{lo8}, @samp{hi8}, @samp{hlo8},
+@samp{hhi8}, modifier.
+
+For example
+
+@smallexample
+ldi r26, lo8(285774925)
+ldi r27, hi8(285774925)
+ldi r28, hlo8(285774925)
+ldi r29, hhi8(285774925)
+; r29,r28,r27,r26 = 285774925
+@end smallexample
+
+@item pm_lo8
+
+This modifier allows you to use bits 0 through 7 of
+an address expression as 8 bit relocatable expression.
+This modifier useful for addressing data or code from
+Flash/Program memory. The using of @samp{pm_lo8} similar
+to @samp{lo8}.
+
+@item pm_hi8
+
+This modifier allows you to use bits 8 through 15 of
+an address expression as 8 bit relocatable expression.
+This modifier useful for addressing data or code from
+Flash/Program memory.
+
+@item pm_hh8
+
+This modifier allows you to use bits 15 through 23 of
+an address expression as 8 bit relocatable expression.
+This modifier useful for addressing data or code from
+Flash/Program memory.
+
+@end table
+
+@node AVR Opcodes
+@section Opcodes
+
+@cindex AVR opcode summary
+@cindex opcode summary, AVR
+@cindex mnemonics, AVR
+@cindex instruction summary, AVR
+For detailed information on the AVR machine instruction set, see
+@url{www.atmel.com/products/AVR}.
+
+@code{@value{AS}} implements all the standard AVR opcodes.
+The following table summarizes the AVR opcodes, and their arguments.
+
+@smallexample
+@i{Legend:}
+   r   @r{any register}
+   d   @r{`ldi' register (r16-r31)}
+   v   @r{`movw' even register (r0, r2, ..., r28, r30)}
+   a   @r{`fmul' register (r16-r23)}
+   w   @r{`adiw' register (r24,r26,r28,r30)}
+   e   @r{pointer registers (X,Y,Z)}
+   b   @r{base pointer register and displacement ([YZ]+disp)}
+   z   @r{Z pointer register (for [e]lpm Rd,Z[+])}
+   M   @r{immediate value from 0 to 255}
+   n   @r{immediate value from 0 to 255 ( n = ~M ). Relocation impossible}
+   s   @r{immediate value from 0 to 7}
+   P   @r{Port address value from 0 to 63. (in, out)}
+   p   @r{Port address value from 0 to 31. (cbi, sbi, sbic, sbis)}
+   K   @r{immediate value from 0 to 63 (used in `adiw', `sbiw')}
+   i   @r{immediate value}
+   l   @r{signed pc relative offset from -64 to 63}
+   L   @r{signed pc relative offset from -2048 to 2047}
+   h   @r{absolute code address (call, jmp)}
+   S   @r{immediate value from 0 to 7 (S = s << 4)}
+   ?   @r{use this opcode entry if no parameters, else use next opcode entry}
+
+1001010010001000   clc  
+1001010011011000   clh  
+1001010011111000   cli  
+1001010010101000   cln  
+1001010011001000   cls  
+1001010011101000   clt  
+1001010010111000   clv  
+1001010010011000   clz  
+1001010000001000   sec  
+1001010001011000   seh  
+1001010001111000   sei  
+1001010000101000   sen  
+1001010001001000   ses  
+1001010001101000   set  
+1001010000111000   sev  
+1001010000011000   sez  
+100101001SSS1000   bclr    S
+100101000SSS1000   bset    S
+1001010100001001   icall
+1001010000001001   ijmp 
+1001010111001000   lpm     ?
+1001000ddddd010+   lpm     r,z
+1001010111011000   elpm    ?
+1001000ddddd011+   elpm    r,z
+0000000000000000   nop  
+1001010100001000   ret  
+1001010100011000   reti 
+1001010110001000   sleep
+1001010110011000   break
+1001010110101000   wdr  
+1001010111101000   spm  
+000111rdddddrrrr   adc     r,r
+000011rdddddrrrr   add     r,r
+001000rdddddrrrr   and     r,r
+000101rdddddrrrr   cp      r,r
+000001rdddddrrrr   cpc     r,r
+000100rdddddrrrr   cpse    r,r
+001001rdddddrrrr   eor     r,r
+001011rdddddrrrr   mov     r,r
+100111rdddddrrrr   mul     r,r
+001010rdddddrrrr   or      r,r
+000010rdddddrrrr   sbc     r,r
+000110rdddddrrrr   sub     r,r
+001001rdddddrrrr   clr     r
+000011rdddddrrrr   lsl     r
+000111rdddddrrrr   rol     r
+001000rdddddrrrr   tst     r
+0111KKKKddddKKKK   andi    d,M
+0111KKKKddddKKKK   cbr     d,n
+1110KKKKddddKKKK   ldi     d,M
+11101111dddd1111   ser     d
+0110KKKKddddKKKK   ori     d,M
+0110KKKKddddKKKK   sbr     d,M
+0011KKKKddddKKKK   cpi     d,M
+0100KKKKddddKKKK   sbci    d,M
+0101KKKKddddKKKK   subi    d,M
+1111110rrrrr0sss   sbrc    r,s
+1111111rrrrr0sss   sbrs    r,s
+1111100ddddd0sss   bld     r,s
+1111101ddddd0sss   bst     r,s
+10110PPdddddPPPP   in      r,P
+10111PPrrrrrPPPP   out     P,r
+10010110KKddKKKK   adiw    w,K
+10010111KKddKKKK   sbiw    w,K
+10011000pppppsss   cbi     p,s
+10011010pppppsss   sbi     p,s
+10011001pppppsss   sbic    p,s
+10011011pppppsss   sbis    p,s
+111101lllllll000   brcc    l
+111100lllllll000   brcs    l
+111100lllllll001   breq    l
+111101lllllll100   brge    l
+111101lllllll101   brhc    l
+111100lllllll101   brhs    l
+111101lllllll111   brid    l
+111100lllllll111   brie    l
+111100lllllll000   brlo    l
+111100lllllll100   brlt    l
+111100lllllll010   brmi    l
+111101lllllll001   brne    l
+111101lllllll010   brpl    l
+111101lllllll000   brsh    l
+111101lllllll110   brtc    l
+111100lllllll110   brts    l
+111101lllllll011   brvc    l
+111100lllllll011   brvs    l
+111101lllllllsss   brbc    s,l
+111100lllllllsss   brbs    s,l
+1101LLLLLLLLLLLL   rcall   L
+1100LLLLLLLLLLLL   rjmp    L
+1001010hhhhh111h   call    h
+1001010hhhhh110h   jmp     h
+1001010rrrrr0101   asr     r
+1001010rrrrr0000   com     r
+1001010rrrrr1010   dec     r
+1001010rrrrr0011   inc     r
+1001010rrrrr0110   lsr     r
+1001010rrrrr0001   neg     r
+1001000rrrrr1111   pop     r
+1001001rrrrr1111   push    r
+1001010rrrrr0111   ror     r
+1001010rrrrr0010   swap    r
+00000001ddddrrrr   movw    v,v
+00000010ddddrrrr   muls    d,d
+000000110ddd0rrr   mulsu   a,a
+000000110ddd1rrr   fmul    a,a
+000000111ddd0rrr   fmuls   a,a
+000000111ddd1rrr   fmulsu  a,a
+1001001ddddd0000   sts     i,r
+1001000ddddd0000   lds     r,i
+10o0oo0dddddbooo   ldd     r,b
+100!000dddddee-+   ld      r,e
+10o0oo1rrrrrbooo   std     b,r
+100!001rrrrree-+   st      e,r
+1001010100011001   eicall  
+1001010000011001   eijmp   
+@end smallexample

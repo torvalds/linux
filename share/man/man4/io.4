@@ -1,0 +1,130 @@
+.\"
+.\" Copyright (c) 1996 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 1, 2010
+.Dt IO 4
+.Os
+.Sh NAME
+.Nm io
+.Nd I/O privilege file
+.Sh SYNOPSIS
+.Cd "device io"
+.Pp
+.In sys/types.h
+.In sys/ioctl.h
+.In dev/io/iodev.h
+.In machine/iodev.h
+.Bd -literal
+struct iodev_pio_req {
+	u_int access;
+	u_int port;
+	u_int width;
+	u_int val;
+};
+.Ed
+.Sh DESCRIPTION
+The special file
+.Pa /dev/io
+is a controlled security hole that allows a process to gain I/O
+privileges
+(which are normally reserved for kernel-internal code).
+This can be useful in order to write userland
+programs that handle some hardware directly.
+.Pp
+The usual operations on the device are to open it via the
+.Xr open 2
+interface and to send I/O requests to the file descriptor using the
+.Xr ioctl 2
+syscall.
+.Pp
+The
+.Xr ioctl 2
+requests available for
+.Pa /dev/io
+are mostly platform dependent, but there are also some in common between
+all of them.
+The
+.Dv IODEV_PIO
+is used by all the architectures in order to request that an I/O operation
+be performed.
+It takes a 'struct iodev_pio_req' argument that must be previously setup.
+.Pp
+The
+.Fa access
+member specifies the type of operation requested.
+It may be:
+.Bl -tag -width IODEV_PIO_WRITE
+.It Dv IODEV_PIO_READ
+The operation is an "in" type.
+A value will be read from the specified port
+(retrieved from the
+.Fa port
+member) and the result will be stored in the
+.Fa val
+member.
+.It Dv IODEV_PIO_WRITE
+The operation is a "out" type.
+The value will be fetched from the
+.Fa val
+member and will be written out to the specified port (defined as the
+.Fa port
+member).
+.El
+.Pp
+Finally, the
+.Fa width
+member specifies the size of the operand to be read/written, expressed
+in bytes.
+.Pp
+In addition to any file access permissions on
+.Pa /dev/io ,
+the kernel enforces that only the super-user may open this device.
+.Sh LEGACY
+The
+.Pa /dev/io
+interface used to be very i386 specific and worked differently.
+The initial implementation simply raised the
+.Em IOPL
+of the current thread when
+.Xr open 2
+was called on the device.
+This behaviour is retained in the current implementation as legacy
+support for both i386 and amd64 architectures.
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr i386_get_ioperm 2 ,
+.Xr i386_set_ioperm 2 ,
+.Xr ioctl 2 ,
+.Xr open 2 ,
+.Xr mem 4
+.Sh HISTORY
+The
+.Nm
+file appeared in
+.Fx 1.0 .

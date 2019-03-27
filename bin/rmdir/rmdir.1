@@ -1,0 +1,113 @@
+.\"-
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)rmdir.1	8.1 (Berkeley) 5/31/93
+.\" $FreeBSD$
+.\"
+.Dd March 15, 2013
+.Dt RMDIR 1
+.Os
+.Sh NAME
+.Nm rmdir
+.Nd remove directories
+.Sh SYNOPSIS
+.Nm
+.Op Fl pv
+.Ar directory ...
+.Sh DESCRIPTION
+The
+.Nm
+utility removes the directory entry specified by
+each
+.Ar directory
+argument, provided it is empty.
+.Pp
+Arguments are processed in the order given.
+In order to remove both a parent directory and a subdirectory
+of that parent, the subdirectory
+must be specified first so the parent directory
+is empty when
+.Nm
+tries to remove it.
+.Pp
+The following option is available:
+.Bl -tag -width indent
+.It Fl p
+Each
+.Ar directory
+argument is treated as a pathname of which all
+components will be removed, if they are empty,
+starting with the last most component.
+(See
+.Xr rm 1
+for fully non-discriminant recursive removal.)
+.It Fl v
+Be verbose, listing each directory as it is removed.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with one of the following values:
+.Bl -tag -width indent
+.It Li 0
+Each directory entry specified by a
+.Ar directory
+operand
+referred to an empty directory and was removed
+successfully.
+.It Li >0
+An error occurred.
+.El
+.Sh EXAMPLES
+Remove the directory
+.Pa foobar ,
+if it is empty:
+.Pp
+.Dl $ rmdir foobar
+.Pp
+Remove all directories up to and including
+.Pa cow ,
+stopping at the first non-empty directory (if any):
+.Pp
+.Dl $ rmdir -p cow/horse/monkey
+.Sh SEE ALSO
+.Xr rm 1
+.Sh STANDARDS
+The
+.Nm
+utility is expected to be
+.St -p1003.2
+compatible.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v1 .

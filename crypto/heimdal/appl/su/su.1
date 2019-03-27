@@ -1,0 +1,123 @@
+.\" Copyright (c) 2003 - 2006 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd January 12, 2006
+.Dt SU 1
+.Os HEIMDAL
+.Sh NAME
+.Nm su
+.Nd substitute user identity
+.Sh SYNOPSIS
+.Nm su
+.Op Fl K | Fl Fl no-kerberos
+.Op Fl f
+.Op Fl l | Fl Fl full
+.Op Fl m
+.Oo Fl i Ar instance \*(Ba Xo
+.Fl Fl instance= Ns Ar instance
+.Xc
+.Oc
+.Oo Fl c Ar command \*(Ba Xo
+.Fl Fl command= Ns Ar command
+.Xc
+.Oc
+.Op Ar login Op Ar "shell arguments"
+.Sh DESCRIPTION
+.Nm su
+will use Kerberos authentication provided that an instance for the
+user wanting to change effective UID is present in a file named
+.Pa .k5login
+in the target user id's home directory
+.Pp
+A special case exists where
+.Ql root Ap s
+.Pa ~/.k5login
+needs to contain an entry for:
+.Ql user Ns / Ns Ao instance Ac Ns @ Ns REALM
+for
+.Nm su
+to succed (where
+.Aq instance
+is
+.Ql root
+unless changed with
+.Fl i ) .
+.Pp
+In the absence of either an entry for current user in said file or
+other problems like missing
+.Ql host/hostname@REALM
+keys in the system's
+keytab, or user typing the wrong password,
+.Nm su
+will fall back to traditional
+.Pa /etc/passwd
+authentication.
+.Pp
+When using
+.Pa /etc/passwd
+authentication,
+.Nm su
+allows
+.Ql root
+access only to members of the group
+.Ql wheel ,
+or to any user (with knowledge of the
+.Ql root
+password) if that group
+does not exist, or has no members.
+.Pp
+The options are as follows:
+.Bl -item -width Ds
+.It
+.Fl K ,
+.Fl Fl no-kerberos
+don't use Kerberos.
+.It
+.Fl f
+don't read .cshrc.
+.It
+.Fl l ,
+.Fl Fl full
+simulate full login.
+.It
+.Fl m
+leave environment unmodified.
+.It
+.Fl i Ar instance ,
+.Fl Fl instance= Ns Ar instance
+root instance to use.
+.It
+.Fl c Ar command ,
+.Fl Fl command= Ns Ar command
+command to execute.
+.El

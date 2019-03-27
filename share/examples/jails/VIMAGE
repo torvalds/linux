@@ -1,0 +1,59 @@
+# $FreeBSD$
+
+################################################################################
+######################### VIMAGE KERNEL CONFIGURATION ##########################
+################################################################################
+
+#################### Inheritance
+
+#
+# Inherit from, and override `GENERIC'
+#
+include		GENERIC		# Base configuration file
+ident		VIMAGE		# Kernel name
+
+################################################################################
+##################### ENABLE NON-INHERITED OPTIONS/DEVICES #####################
+################################################################################
+
+#################### Non-GENERIC options
+
+#
+# Network Virtualization for Jails
+#
+options		VIMAGE		# vnet paravirtualization
+
+#
+# Netgraph based bridging for vnet jails
+# NB: Not strictly necessary; will load automatically via KLD when needed
+#
+options		NETGRAPH	# netgraph(4) system
+options		NETGRAPH_BRIDGE	# ng_bridge(4)
+options		NETGRAPH_EIFACE	# ng_eiface(4)
+options		NETGRAPH_ETHER	# ng_ether(4)
+options		NETGRAPH_SOCKET	# ng_socket(4)
+
+#################### Non-GENERIC devices
+
+#
+# if_bridge based bridging for vnet jails
+# NB: Not strictly necessary; will load automatically via KLD when needed
+#
+device		epair		# epair(4)
+device		if_bridge	# if_bridge(4)
+
+################################################################################
+################ DISABLE UNNECESSARY  INHERITED OPTIONS/DEVICES ################
+################################################################################
+
+#################### Disable select inherited options
+
+# none
+
+#################### Disable select inherited devices
+
+# none
+
+################################################################################
+# END
+################################################################################

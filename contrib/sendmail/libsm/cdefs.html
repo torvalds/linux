@@ -1,0 +1,107 @@
+<html>
+<head>
+    <title>libsm : C Language Portability Macros</title>
+</head>
+<body>
+
+<a href="index.html">Back to libsm overview</a>
+
+<center>
+    <h1> libsm : C Language Portability Macros </h1>
+    <br> $Id: cdefs.html,v 1.2 2000-12-07 17:33:09 dmoen Exp $
+</center>
+
+<h2> Description </h2>
+
+The header file <tt>&lt;sm/cdefs.h&gt;</tt>
+defines portable interfaces to non-portable features
+of various C compilers.
+It also assists you in writing C header files that are compatible
+with C++.
+
+<dl>
+<dt>
+<tt> __P(parameterlist) </tt>
+<dd>
+    This macro is used to write portable function prototypes.
+    For example,
+
+<blockquote><pre>
+int foo __P((int));
+</pre></blockquote>
+
+<dt>
+<tt> __CONCAT(x,y) </tt>
+<dd>
+    This macro concatenates two tokens x and y,
+    forming a single token xy.
+    Warning: make sure there is no white space around the arguments x and y.
+    <p>
+
+<dt>
+<tt> __STRING(x) </tt>
+<dd>
+    This macro converts the token sequence x into a string literal.
+    <p>
+
+<dt>
+<tt> __BEGIN_DECLS, __END_DECLS </tt>
+<dd>
+    These macros are used to write C header files that are compatible
+    with C++ compilers.
+    Put <tt>__BEGIN_DECLS</tt> before the first function or variable
+    declaration in your header file,
+    and put <tt>__END_DECLS</tt> after the last function or variable
+    declaration.
+    <p>
+
+<dt>
+<tt> const, signed, volatile </tt>
+<dd>
+    For pre-ANSI C compilers, <tt>const</tt>, <tt>signed</tt>
+    and <tt>volatile</tt> are defined as empty macros.
+    This means you can use these keywords without introducing
+    portability problems.
+    <p>
+
+<dt>
+<tt> SM_DEAD(function_declaration) </tt>
+<dd>
+    This macro modifies a prototype of a function
+    that does not return to its caller.
+    With some versions of gcc, this will result in slightly better code,
+    and can suppress some useless warnings produced by gcc -Wall.
+    For example,
+
+<blockquote><pre>
+SM_DEAD(void exit __P((int)));
+</pre></blockquote>
+
+<dt>
+<tt> SM_UNUSED(variable_declaration) </tt>
+<dd>
+    This macro modifies a definition of an unused
+    local variable, global variable or function parameter
+    in order to suppress compiler warnings.
+    Examples:
+
+<blockquote><pre>
+SM_UNUSED(static const char Id[]) = "@(#)$Id: cdefs.html,v 1.2 2000-12-07 17:33:09 dmoen Exp $";
+void
+foo(x)
+	SM_UNUSED(int x);
+{
+	SM_UNUSED(int y) = 0;
+	return 0;
+}
+void
+bar(SM_UNUSED(int x))
+{
+	return 0;
+}
+</pre></blockquote>
+
+</dl>
+
+</body>
+</html>

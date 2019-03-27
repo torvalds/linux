@@ -1,0 +1,3 @@
+# OBSOLETE # Host: Big-endian MIPS machine such as Sony News
+# OBSOLETE NATDEPFILES= infptrace.o inftarg.o fork-child.o corelow.o mips-nat.o
+# OBSOLETE NAT_FILE= nm-news-mips.h

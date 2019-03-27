@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+FILESPACKAGE=	syscons

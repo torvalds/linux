@@ -1,0 +1,27 @@
+block drop out log on tun1000000 all
+block drop in log on tun1000000 all
+block return-rst out log on tun1000000 proto tcp all
+block return-rst in log on tun1000000 proto tcp all
+block return-icmp(port-unr, port-unr) out log on tun1000000 proto udp all
+block return-icmp(port-unr, port-unr) in log on tun1000000 proto udp all
+block drop out log quick on tun1000000 inet from ! 157.161.48.183 to any
+block drop in quick on tun1000000 inet from any to 255.255.255.255
+block drop in log quick on tun1000000 inet from 10.0.0.0/8 to any
+block drop in log quick on tun1000000 inet from 172.16.0.0/12 to any
+block drop in log quick on tun1000000 inet from 192.168.0.0/16 to any
+block drop in log quick on tun1000000 inet from 255.255.255.255 to any
+pass out on tun1000000 inet proto icmp all icmp-type echoreq code 0 keep state
+pass in on tun1000000 inet proto icmp all icmp-type echoreq code 0 keep state
+pass out on tun1000000 proto udp all keep state
+pass in on tun1000000 proto udp from any to any port = domain keep state
+pass out on tun1000000 proto tcp all flags S/SA modulate state
+pass in on tun1000000 proto tcp all flags S/SA modulate state
+pass in on tun1000000 proto udp all keep state
+pass in on tun1000000 proto icmp all keep state
+pass in on tun1000000 proto udp all keep state
+pass in on tun1000000 proto tcp all flags S/SA synproxy state
+pass in on tun1000000 proto icmp all keep state
+pass in on tun1000000 proto tcp from any to any port = ssh flags S/SA modulate state
+pass in on tun1000000 proto tcp from any to any port = smtp flags S/SA modulate state
+pass in on tun1000000 proto tcp from any to any port = domain flags S/SA modulate state
+pass in on tun1000000 proto tcp from any to any port = auth flags S/SA modulate state

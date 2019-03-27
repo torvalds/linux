@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: route6d
+# REQUIRE: netif routing
+# KEYWORD: nojailvnet
+
+. /etc/rc.subr
+
+name="route6d"
+desc="RIP6 routing daemon"
+rcvar="route6d_enable"
+
+set_rcvar_obsolete ipv6_router_enable route6d_enable
+set_rcvar_obsolete ipv6_router route6d_program
+set_rcvar_obsolete ipv6_router_flags route6d_flags
+
+load_rc_config $name
+run_rc_command "$1"

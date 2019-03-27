@@ -1,0 +1,57 @@
+$FreeBSD: head/tools/regression/pjdfstest/README 211354 2010-08-15 21:29:03Z pjd $
+
+============
+Introduction
+============
+
+pjdfstest is a test suite that helps exercise POSIX system calls.
+
+pjdfstest supports the following operating systems/filesystems:
+
+- Supported Operating Systems: FreeBSD, Linux, Solaris
+- Supported Filesystems: ext4, UFS, ZFS
+
+==================
+Building pjdfstest
+==================
+
+-------------
+Prerequisites
+-------------
+
+- autoconf 2.69 or newer
+- automake 1.15 or newer
+- cc (clang or gcc)
+- make
+- appropriate system headers (please install your distribution appropriate
+  header package)
+
+---------
+Procedure
+---------
+
+  $ autoreconf -ifs
+  $ ./configure
+  $ make pjdfstest
+
+=================
+Running pjdfstest
+=================
+
+-------------
+Prerequisites
+-------------
+- You must be root when running these testcases.
+
+----------------------
+Software Prerequisites
+----------------------
+- perl
+- TAP-Harness (perl package)
+
+---------
+Procedure
+---------
+
+  # cd /path/to/filesystem/under/test
+  # prove -rv /path/to/pjdfstest/tests

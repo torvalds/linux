@@ -1,0 +1,13 @@
+$ $tcsh: set16,v 1.3 2011/02/04 18:19:43 christos Exp $
+$ sh.lex.c
+$set 16 
+1 Se ha reinicializado el grupo de procesos de las terminales de %d a %d\n
+2 \nUtilice "logout" para desconectarse.\n
+3 \nUtilice "exit" para salir de %s.\n
+4 seek to eval %x %x\n
+5 seek to alias %x %x\n
+6 seek to file %x\n
+7 Tipo de seek erróneo %d\n
+8 tell eval %x %x\n
+9 tell alias %x %x\n
+10 tell file %x\n

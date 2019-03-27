@@ -1,0 +1,74 @@
+#!/bin/sh
+#
+# $NetBSD: t_read_write,v 1.5 2006/11/09 16:20:06 jmmv Exp $
+#
+# Copyright (c) 2005, 2006 The NetBSD Foundation, Inc.
+# All rights reserved.
+#
+# This code is derived from software contributed to The NetBSD Foundation
+# by Julio M. Merino Vidal, developed as part of Google's Summer of Code
+# 2005 program.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+#
+# Verifies that the read and write operations work.
+#
+
+test_run() {
+	test_mount
+
+	test_name "Write to new file works"
+	echo foo >a || die
+	test_name "Data written is correct"
+	[ $(md5 a | cut -d ' ' -f 4) = d3b07384d113edec49eaa6238ad5ff00 ] || die
+
+	test_name "Append to existing file works"
+	echo bar >>a || die
+	test_name "Data written is correct"
+	[ $(md5 a | cut -d ' ' -f 4) = f47c75614087a8dd938ba4acff252494 ] || die
+
+	test_name "Write to long file (bigger than a page) works"
+	jot 10000 >b || die
+	test_name "Data written is correct"
+	[ $(md5 b | cut -d ' ' -f 4) = 72d4ff27a28afbc066d5804999d5a504 ] || die
+
+	dd if=/dev/zero of=c bs=1k count=10 >/dev/null 2>&1 || die
+	echo 'dd if=/dev/zero of=c seek=2 bs=1k count=1 conv=notrunc' \
+	    '>/dev/null 2>&1' | kqueue_monitor 1 c || die
+	test_name "Writing to a file raises NOTE_WRITE"
+	kqueue_check c NOTE_WRITE || die
+
+	echo foo >d
+	echo 'echo bar >>d' | kqueue_monitor 2 d || die
+	test_name "Appending to a file raises NOTE_EXTEND"
+	kqueue_check d NOTE_EXTEND || die
+	test_name "Appending to a file raises NOTE_WRITE"
+	kqueue_check d NOTE_WRITE || die
+
+	test_unmount
+}
+
+. ${SUBRDIR}/h_funcs.subr

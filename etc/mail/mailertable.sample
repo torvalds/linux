@@ -1,0 +1,7 @@
+# $FreeBSD$
+#
+# List of domains (possibly wildcarded) and destination mailers
+#
+.my.domain		xnet:%1.my.domain
+uuhost1.my.domain	suucp:uuhost1
+.bitnet			smtp:relay.bit.net

@@ -1,0 +1,139 @@
+# $FreeBSD$
+
+# arge0 MDIO bus
+hint.argemdio.0.at="nexus0"
+hint.argemdio.0.maddr=0x19000000
+hint.argemdio.0.msize=0x1000
+hint.argemdio.0.order=0
+
+# arge1 MDIO bus doesn't exist on the AR7240
+
+# arge0: MII; dedicated PHY 4 on switch, connected via internal switch
+# MDIO bus.
+
+# hint.arge.0.eeprommac=0x83fe9ff0
+hint.arge.0.phymask=0x10	# PHY 4
+# hint.arge.0.miimode=2		# MII
+hint.arge.0.mdio=mdioproxy1	# Hanging off the arswitch MDIO bus
+hint.arge.0.eeprommac=0x1fff0000
+
+# arge1: connected to the LAN switch MAC, at 1000BaseTX / GMII.
+hint.arge.1.phymask=0x0
+# hint.arge.1.miimode=1		# GMII
+hint.arge.1.media=1000		# Force to 1000BaseTX/full
+hint.arge.1.fduplex=1
+hint.arge.1.eeprommac=0x1fff0006
+
+#
+# AR7240 switch config
+#
+hint.arswitch.0.at="mdio0"
+hint.arswitch.0.is_7240=1	# We need to be explicitly told this
+hint.arswitch.0.numphys=4	# 4 active switch PHYs (PHY 0 -> 3)
+hint.arswitch.0.phy4cpu=1	# Yes, PHY 4 == dedicated PHY
+hint.arswitch.0.is_rgmii=0	# No, not RGMII
+hint.arswitch.0.is_gmii=0	# No, not GMII
+
+# ath0 hint - pcie slot 0
+hint.pcib.0.bus.0.0.0.ath_fixup_addr=0x1fff1000
+hint.pcib.0.bus.0.0.0.ath_fixup_size=4096
+
+# ath0 - eeprom comes from here
+hint.ath.0.eeprom_firmware="pcib.0.bus.0.0.0.eeprom_firmware"
+
+# Signal leds
+hint.gpioled.0.at="gpiobus0"
+hint.gpioled.0.name="sig1"
+hint.gpioled.0.pins=0x0001	# pin 0
+hint.gpioled.1.at="gpiobus0"
+hint.gpioled.1.name="sig2"
+hint.gpioled.1.pins=0x0002	# pin 1
+hint.gpioled.2.at="gpiobus0"
+hint.gpioled.2.name="sig3"
+hint.gpioled.2.pins=0x0800	# pin 11
+hint.gpioled.3.at="gpiobus0"
+hint.gpioled.3.name="sig4"
+hint.gpioled.3.pins=0x0080	# pin 7
+
+# nvram mapping - XXX ?
+hint.nvram.0.base=0x1f030000
+hint.nvram.0.maxsize=0x2000
+hint.nvram.0.flags=3 # 1 = No check, 2 = Format Generic
+hint.nvram.1.base=0x1f032000
+hint.nvram.1.maxsize=0x4000
+hint.nvram.1.flags=3 # 1 = No check, 2 = Format Generic
+
+# GEOM_MAP
+#
+# From my AP93 environment:
+#
+# 256k - uboot
+# 256k - uboot-env
+# 3072k - spare-rootfs
+# 1024k - spare-uImage
+# 3072k - rootfs
+# 1024k - uImage
+# 64k - mib0
+# 64k - mib1
+# 4096k - ct
+# 3392k - var
+# 64k - ART
+
+# To make it useful for FreeBSD for now, treat spare rootfs, spare
+# uimage and rootfs as 'rootfs'.
+
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x00040000
+hint.map.0.name="uboot"
+hint.map.0.readonly=1
+
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00040000
+hint.map.1.end=0x00080000
+hint.map.1.name="uboot-env"
+hint.map.1.readonly=1
+
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x00080000
+hint.map.2.end="search:0x00080000:0x10000:.!/bin/sh"
+hint.map.2.name="kernel"
+hint.map.2.readonly=0
+
+hint.map.3.at="flash/spi0"
+hint.map.3.start="search:0x00080000:0x10000:.!/bin/sh"
+hint.map.3.end=0x00880000
+hint.map.3.name="rootfs"
+hint.map.3.readonly=0
+
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x00880000
+hint.map.4.end=0x00890000
+# hint.map.4.name="mib0"
+hint.map.4.name="cfg"
+# hint.map.4.readonly=1
+
+hint.map.5.at="flash/spi0"
+hint.map.5.start=0x00890000
+hint.map.5.end=0x008a0000
+hint.map.5.name="mib1"
+hint.map.5.readonly=1
+
+hint.map.6.at="flash/spi0"
+hint.map.6.start=0x008a0000
+hint.map.6.end=0x00ca0000
+hint.map.6.name="ct"
+hint.map.6.readonly=1
+
+hint.map.7.at="flash/spi0"
+hint.map.7.start=0x00ca0000
+hint.map.7.end=0x00ff0000
+hint.map.7.name="var"
+hint.map.7.readonly=1
+
+hint.map.8.at="flash/spi0"
+hint.map.8.start=0x00ff0000
+hint.map.8.end=0x01000000	# 64k ART
+hint.map.8.name="ART"
+hint.map.8.readonly=1
+

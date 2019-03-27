@@ -1,0 +1,4 @@
+# Test rule order processing should pass (require-order no longer required)
+pass in on lo1000000 all
+#match out on lo0 inet6 all nat-to lo0
+

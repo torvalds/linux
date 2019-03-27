@@ -1,0 +1,163 @@
+/* -*- Mode: Text -*- */
+autogen definitions perlopt;
+
+#include autogen-version.def
+
+prog-name      = 'update-leap';
+prog-title     = 'leap-seconds file manager/updater';
+package		= ntp;
+#include	version.def
+
+long-opts;
+gnu-usage;
+
+flag = {
+    name        = source-url;
+    value	= s;
+    arg-type    = string;
+    descrip     = 'The URL of the master copy of the leapseconds file';
+    doc         = <<-  _EndOfDoc_
+	Specify the URL of the master copy to download
+	$LEAPSRC
+	_EndOfDoc_;
+};
+flag = {
+    name      = ipv4;
+    flags-cant = ipv6;
+    value     = 4;
+    descrip   = "Use only IPv4 addresses for DNS name resolution";
+    doc = <<-  _EndOfDoc_
+        Force DNS resolution of following host names on the command line
+        to the IPv4 namespace.
+        _EndOfDoc_;
+};
+
+flag = {
+    name      = ipv6;
+    flags-cant = ipv4, prefer;
+    value     = 6;
+    descrip   = "Use only IPv6 addresses for DNS name resolution";
+    doc = <<-  _EndOfDoc_
+        Force DNS resolution of following host names on the command line
+        to the IPv6 namespace.
+        _EndOfDoc_;
+};
+
+flag = {
+    name        = prefer;
+    flags-cant	= ipv4, ipv6;
+    value	= p;
+    arg-type    = keyword;
+    keyword	= 4, 6;
+    descrip     = 'Prefer IPv4 or IPv6 (as specified) addresses, but use either';
+    doc         = <<-  _EndOfDoc_
+	Prefer IPv4 or IPv6 (as specified) addresses, but use either.
+	_EndOfDoc_;
+};
+
+flag = {
+    name        = destination;
+    value       = d;
+    arg-type    = string;
+    arg-name    = float;
+    descrip     = 'Filename on the local system';
+    doc         = <<-  _EndOfDoc_
+	The name to use to store the leapfile on the local system.
+	$LEAPFILE
+	_EndOfDoc_;
+};
+
+flag = {
+    name        = expiration;
+    value	= e;
+    arg-type    = string;
+    descrip     = 'Refresh the leapfile this long before it expires';
+    doc         = <<-  _EndOfDoc_
+	Specify how long before expiration the file is to be refreshed
+	Units are required, e.g. "-e 60 days"  Note that larger values
+	imply more frequent refreshes.
+	"$PREFETCH"
+	_EndOfDoc_;
+};
+
+flag = {
+    name        = ntp-conf-file;
+    value	= f;
+    arg-type    = string;
+    descrip     = 'Location of the ntp.conf file';
+    doc         = <<-  _EndOfDoc_
+	Specify location of ntp.conf (used to make sure leapfile directive is
+	present and to default  leapfile)
+	/etc/ntp.conf
+	_EndOfDoc_;
+};
+
+flag = {
+    name        = force-update;
+    value	= F;
+    descrip     = 'Force update of the leapfile';
+    doc         = <<-  _EndOfDoc_
+	Force update even if current file is OK and not close to expiring.
+	_EndOfDoc_;
+};
+
+flag = {
+    name        = dont-wait;
+    descrip     = "Don't wait for keystroke between plots";
+    doc         = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+/* explain: Additional information whenever the usage routine is invoked */
+explain = <<- _END_EXPLAIN
+	_END_EXPLAIN;
+
+doc-section     = {
+  ds-type       = 'DESCRIPTION';
+  ds-format     = 'mdoc';
+  ds-text       = <<- _END_PROG_MDOC_DESCRIP
+.Nm
+will validate the file currently on the local system
+and if necessary, updates leap-second definition file.
+.Pp
+Ordinarily, the file is found using the "leapfile" directive in
+.Xr ntp.conf 5 .
+However, an alternate location can be specified on the command line.
+.Pp
+If the file does not exist, is not valid, has expired, or is expiring soon,
+a new copy will be downloaded.  If the new copy validates, it is installed and
+NTP is (optionally) restarted.
+.Pp
+If the current file is acceptable, no download or restart occurs.
+.Pp
+-c can also be used to invoke another script to perform administrative
+functions, e.g. to copy the file to other local systems.
+.PP
+This can be run as a cron job.  As the file is rarely updated, and leap
+seconds are announced at least one month in advance (usually longer), it
+need not be run more frequently than about once every three weeks.
+.PP
+For cron-friendly behavior, define CRONJOB=1 in the crontab.
+.PP
+This script depends on$REQUIREDCMDS
+	_END_PROG_MDOC_DESCRIP;
+};
+
+
+doc-section     = {
+  ds-type       = 'USAGE';
+  ds-format     = 'mdoc';
+  ds-text       = <<- _END_MDOC_USAGE
+
+Usage stuff
+
+	_END_MDOC_USAGE;
+};
+
+doc-section     = {
+  ds-type       = 'AUTHORS';
+  ds-format     = 'mdoc';
+  ds-text       = <<- _END_MDOC_AUTHORS
+.An "Timothe Litt"
+	_END_MDOC_AUTHORS;
+};

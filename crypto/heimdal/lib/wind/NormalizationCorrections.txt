@@ -1,0 +1,43 @@
+# NormalizationCorrections-4.0.0.txt
+#
+# This file is a normative contributory data file in the
+# Unicode Character Database.
+#
+# The normalization stabilization policy of the Unicode
+# Consortium ordinarily precludes any change to the decomposition
+# for any character, once established in a relevant version
+# of the UnicodeData.txt data file. However, under certain
+# exceptional (and rare) conditions, an error in a decomposition
+# mapping may be discovered that is truly just an unintended
+# typo in the data, and not a matter of dubious interpretation.
+#
+# Whenever such an error may be found, and if it meets the
+# requirements for possible exceptions to normalization
+# stability, the correction is entered in this data file,
+# so that any implementation depending on absolute stability
+# of normalization, *including* any errors in the data, can
+# safely reconstruct the exact state of the data tables at
+# any given version of Unicode.
+#
+# Currently this list has exactly six entries in it, one for the
+# typo found and corrected in Corrigendum #3, and five for
+# the typos and misidentifications found and corrected in 
+# Corrigendum #4. All efforts
+# will be made to keep the entries limited to just those fixes.
+#
+# Interpretation of the fields:
+#   Field 1: Unicode code point
+#   Field 2: Original (erroneous) decomposition
+#   Field 3: Corrected decomposition
+#   Field 4: Version of Unicode for which the correction was
+#            entered into UnicodeData.txt, in n.n.n format.
+#   Comment: Indicates the Unicode Corrigendum which documents 
+#            the correction
+#
+#
+F951;96FB;964B;3.2.0 # Corrigendum 3
+2F868;2136A;36FC;4.0.0 # Corrigendum 4
+2F874;5F33;5F53;4.0.0 # Corrigendum 4
+2F91F;43AB;243AB;4.0.0 # Corrigendum 4
+2F95F;7AAE;7AEE;4.0.0 # Corrigendum 4
+2F9BF;4D57;45D7;4.0.0 # Corrigendum 4

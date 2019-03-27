@@ -1,0 +1,55 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	_fpgetmask;
+	fpgetmask;
+	_fpgetround;
+	fpgetround;
+	_fpgetsticky;
+	fpgetsticky;
+	_fpsetmask;
+	fpsetmask;
+	_fpsetround;
+	fpsetround;
+	_fpsetsticky;
+	fpsetsticky;
+};
+
+FBSDprivate_1.0 {
+	__softfloat_float_exception_flags;
+	__softfloat_float_exception_mask;
+	__softfloat_float_rounding_mode;
+	__softfloat_float_raise;
+	__adddf3;
+	__addsf3;
+	__divdf3;
+	__divsf3;
+	__eqdf2;
+	__eqsf2;
+	__extendsfdf2;
+	__fixdfsi;
+	__fixsfsi;
+	__floatsidf;
+	__floatsisf;
+	__gedf2;
+	__gesf2;
+	__gtdf2;
+	__gtsf2;
+	__ledf2;
+	__lesf2;
+	__ltdf2;
+	__ltsf2;
+	__muldf3;
+	__mulsf3;
+	__nedf2;
+	__negdf2;
+	__negsf2;
+	__nesf2;
+	__subdf3;
+	__subsf3;
+	__truncdfsf2;
+	__unorddf2;
+	__unordsf2;
+};

@@ -1,0 +1,28 @@
+# $FreeBSD$
+
+hint.arge.0.phymask=0x000c
+hint.arge.0.media=100
+hint.arge.0.fduplex=1
+
+# XXX grab these from uboot?
+# hint.arge.0.eeprommac=0x1f01fc00
+
+# The ath NICs have calibration data in flash.
+# PCI slot 17
+# hint.ath.0.eepromaddr=0x1fff1000
+# PCI slot 18
+# hint.ath.1.eepromaddr=0x1fff5000
+
+# ath0 - slot 17
+hint.pcib.0.bus.0.17.0.ath_fixup_addr=0x1fff1000
+hint.pcib.0.bus.0.17.0.ath_fixup_size=4096
+
+# ath1 - slot 18
+hint.pcib.0.bus.0.18.0.ath_fixup_addr=0x1fff5000
+hint.pcib.0.bus.0.18.0.ath_fixup_size=4096
+
+# .. and now, telling each ath(4) NIC where to find the firmware
+# image.
+hint.ath.0.eeprom_firmware="pcib.0.bus.0.17.0.eeprom_firmware"
+hint.ath.1.eeprom_firmware="pcib.0.bus.0.18.0.eeprom_firmware"
+

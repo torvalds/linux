@@ -1,0 +1,276 @@
+//===- PassRegistry.def - Registry of passes --------------------*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// This file is used as the registry of passes that are part of the core LLVM
+// libraries. This file describes both transformation passes and analyses
+// Analyses are registered while transformation passes have names registered
+// that can be used when providing a textual pass pipeline.
+//
+//===----------------------------------------------------------------------===//
+
+// NOTE: NO INCLUDE GUARD DESIRED!
+
+#ifndef MODULE_ANALYSIS
+#define MODULE_ANALYSIS(NAME, CREATE_PASS)
+#endif
+MODULE_ANALYSIS("callgraph", CallGraphAnalysis())
+MODULE_ANALYSIS("lcg", LazyCallGraphAnalysis())
+MODULE_ANALYSIS("module-summary", ModuleSummaryIndexAnalysis())
+MODULE_ANALYSIS("no-op-module", NoOpModuleAnalysis())
+MODULE_ANALYSIS("profile-summary", ProfileSummaryAnalysis())
+MODULE_ANALYSIS("stack-safety", StackSafetyGlobalAnalysis())
+MODULE_ANALYSIS("targetlibinfo", TargetLibraryAnalysis())
+MODULE_ANALYSIS("verify", VerifierAnalysis())
+MODULE_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
+
+#ifndef MODULE_ALIAS_ANALYSIS
+#define MODULE_ALIAS_ANALYSIS(NAME, CREATE_PASS)                               \
+  MODULE_ANALYSIS(NAME, CREATE_PASS)
+#endif
+MODULE_ALIAS_ANALYSIS("globals-aa", GlobalsAA())
+#undef MODULE_ALIAS_ANALYSIS
+#undef MODULE_ANALYSIS
+
+#ifndef MODULE_PASS
+#define MODULE_PASS(NAME, CREATE_PASS)
+#endif
+MODULE_PASS("always-inline", AlwaysInlinerPass())
+MODULE_PASS("called-value-propagation", CalledValuePropagationPass())
+MODULE_PASS("canonicalize-aliases", CanonicalizeAliasesPass())
+MODULE_PASS("cg-profile", CGProfilePass())
+MODULE_PASS("constmerge", ConstantMergePass())
+MODULE_PASS("cross-dso-cfi", CrossDSOCFIPass())
+MODULE_PASS("deadargelim", DeadArgumentEliminationPass())
+MODULE_PASS("elim-avail-extern", EliminateAvailableExternallyPass())
+MODULE_PASS("forceattrs", ForceFunctionAttrsPass())
+MODULE_PASS("function-import", FunctionImportPass())
+MODULE_PASS("globaldce", GlobalDCEPass())
+MODULE_PASS("globalopt", GlobalOptPass())
+MODULE_PASS("globalsplit", GlobalSplitPass())
+MODULE_PASS("hotcoldsplit", HotColdSplittingPass())
+MODULE_PASS("inferattrs", InferFunctionAttrsPass())
+MODULE_PASS("insert-gcov-profiling", GCOVProfilerPass())
+MODULE_PASS("instrprof", InstrProfiling())
+MODULE_PASS("internalize", InternalizePass())
+MODULE_PASS("invalidate<all>", InvalidateAllAnalysesPass())
+MODULE_PASS("ipsccp", IPSCCPPass())
+MODULE_PASS("lowertypetests", LowerTypeTestsPass(nullptr, nullptr))
+MODULE_PASS("name-anon-globals", NameAnonGlobalPass())
+MODULE_PASS("no-op-module", NoOpModulePass())
+MODULE_PASS("partial-inliner", PartialInlinerPass())
+MODULE_PASS("pgo-icall-prom", PGOIndirectCallPromotion())
+MODULE_PASS("pgo-instr-gen", PGOInstrumentationGen())
+MODULE_PASS("pgo-instr-use", PGOInstrumentationUse())
+MODULE_PASS("pre-isel-intrinsic-lowering", PreISelIntrinsicLoweringPass())
+MODULE_PASS("print-profile-summary", ProfileSummaryPrinterPass(dbgs()))
+MODULE_PASS("print-callgraph", CallGraphPrinterPass(dbgs()))
+MODULE_PASS("print", PrintModulePass(dbgs()))
+MODULE_PASS("print-lcg", LazyCallGraphPrinterPass(dbgs()))
+MODULE_PASS("print-lcg-dot", LazyCallGraphDOTPrinterPass(dbgs()))
+MODULE_PASS("print-stack-safety", StackSafetyGlobalPrinterPass(dbgs()))
+MODULE_PASS("rewrite-statepoints-for-gc", RewriteStatepointsForGC())
+MODULE_PASS("rewrite-symbols", RewriteSymbolPass())
+MODULE_PASS("rpo-functionattrs", ReversePostOrderFunctionAttrsPass())
+MODULE_PASS("sample-profile", SampleProfileLoaderPass())
+MODULE_PASS("strip-dead-prototypes", StripDeadPrototypesPass())
+MODULE_PASS("synthetic-counts-propagation", SyntheticCountsPropagation())
+MODULE_PASS("wholeprogramdevirt", WholeProgramDevirtPass(nullptr, nullptr))
+MODULE_PASS("verify", VerifierPass())
+#undef MODULE_PASS
+
+#ifndef CGSCC_ANALYSIS
+#define CGSCC_ANALYSIS(NAME, CREATE_PASS)
+#endif
+CGSCC_ANALYSIS("no-op-cgscc", NoOpCGSCCAnalysis())
+CGSCC_ANALYSIS("fam-proxy", FunctionAnalysisManagerCGSCCProxy())
+CGSCC_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
+#undef CGSCC_ANALYSIS
+
+#ifndef CGSCC_PASS
+#define CGSCC_PASS(NAME, CREATE_PASS)
+#endif
+CGSCC_PASS("argpromotion", ArgumentPromotionPass())
+CGSCC_PASS("invalidate<all>", InvalidateAllAnalysesPass())
+CGSCC_PASS("function-attrs", PostOrderFunctionAttrsPass())
+CGSCC_PASS("inline", InlinerPass())
+CGSCC_PASS("no-op-cgscc", NoOpCGSCCPass())
+#undef CGSCC_PASS
+
+#ifndef FUNCTION_ANALYSIS
+#define FUNCTION_ANALYSIS(NAME, CREATE_PASS)
+#endif
+FUNCTION_ANALYSIS("aa", AAManager())
+FUNCTION_ANALYSIS("assumptions", AssumptionAnalysis())
+FUNCTION_ANALYSIS("block-freq", BlockFrequencyAnalysis())
+FUNCTION_ANALYSIS("branch-prob", BranchProbabilityAnalysis())
+FUNCTION_ANALYSIS("domtree", DominatorTreeAnalysis())
+FUNCTION_ANALYSIS("postdomtree", PostDominatorTreeAnalysis())
+FUNCTION_ANALYSIS("demanded-bits", DemandedBitsAnalysis())
+FUNCTION_ANALYSIS("domfrontier", DominanceFrontierAnalysis())
+FUNCTION_ANALYSIS("loops", LoopAnalysis())
+FUNCTION_ANALYSIS("lazy-value-info", LazyValueAnalysis())
+FUNCTION_ANALYSIS("da", DependenceAnalysis())
+FUNCTION_ANALYSIS("memdep", MemoryDependenceAnalysis())
+FUNCTION_ANALYSIS("memoryssa", MemorySSAAnalysis())
+FUNCTION_ANALYSIS("phi-values", PhiValuesAnalysis())
+FUNCTION_ANALYSIS("regions", RegionInfoAnalysis())
+FUNCTION_ANALYSIS("no-op-function", NoOpFunctionAnalysis())
+FUNCTION_ANALYSIS("opt-remark-emit", OptimizationRemarkEmitterAnalysis())
+FUNCTION_ANALYSIS("scalar-evolution", ScalarEvolutionAnalysis())
+FUNCTION_ANALYSIS("stack-safety-local", StackSafetyAnalysis())
+FUNCTION_ANALYSIS("targetlibinfo", TargetLibraryAnalysis())
+FUNCTION_ANALYSIS("targetir",
+                  TM ? TM->getTargetIRAnalysis() : TargetIRAnalysis())
+FUNCTION_ANALYSIS("verify", VerifierAnalysis())
+FUNCTION_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
+
+#ifndef FUNCTION_ALIAS_ANALYSIS
+#define FUNCTION_ALIAS_ANALYSIS(NAME, CREATE_PASS)                             \
+  FUNCTION_ANALYSIS(NAME, CREATE_PASS)
+#endif
+FUNCTION_ALIAS_ANALYSIS("basic-aa", BasicAA())
+FUNCTION_ALIAS_ANALYSIS("cfl-anders-aa", CFLAndersAA())
+FUNCTION_ALIAS_ANALYSIS("cfl-steens-aa", CFLSteensAA())
+FUNCTION_ALIAS_ANALYSIS("scev-aa", SCEVAA())
+FUNCTION_ALIAS_ANALYSIS("scoped-noalias-aa", ScopedNoAliasAA())
+FUNCTION_ALIAS_ANALYSIS("type-based-aa", TypeBasedAA())
+#undef FUNCTION_ALIAS_ANALYSIS
+#undef FUNCTION_ANALYSIS
+
+#ifndef FUNCTION_PASS
+#define FUNCTION_PASS(NAME, CREATE_PASS)
+#endif
+FUNCTION_PASS("aa-eval", AAEvaluator())
+FUNCTION_PASS("adce", ADCEPass())
+FUNCTION_PASS("add-discriminators", AddDiscriminatorsPass())
+FUNCTION_PASS("aggressive-instcombine", AggressiveInstCombinePass())
+FUNCTION_PASS("alignment-from-assumptions", AlignmentFromAssumptionsPass())
+FUNCTION_PASS("bdce", BDCEPass())
+FUNCTION_PASS("bounds-checking", BoundsCheckingPass())
+FUNCTION_PASS("break-crit-edges", BreakCriticalEdgesPass())
+FUNCTION_PASS("callsite-splitting", CallSiteSplittingPass())
+FUNCTION_PASS("consthoist", ConstantHoistingPass())
+FUNCTION_PASS("chr", ControlHeightReductionPass())
+FUNCTION_PASS("correlated-propagation", CorrelatedValuePropagationPass())
+FUNCTION_PASS("dce", DCEPass())
+FUNCTION_PASS("div-rem-pairs", DivRemPairsPass())
+FUNCTION_PASS("dse", DSEPass())
+FUNCTION_PASS("dot-cfg", CFGPrinterPass())
+FUNCTION_PASS("dot-cfg-only", CFGOnlyPrinterPass())
+FUNCTION_PASS("early-cse", EarlyCSEPass(/*UseMemorySSA=*/false))
+FUNCTION_PASS("early-cse-memssa", EarlyCSEPass(/*UseMemorySSA=*/true))
+FUNCTION_PASS("ee-instrument", EntryExitInstrumenterPass(/*PostInlining=*/false))
+FUNCTION_PASS("make-guards-explicit", MakeGuardsExplicitPass())
+FUNCTION_PASS("post-inline-ee-instrument", EntryExitInstrumenterPass(/*PostInlining=*/true))
+FUNCTION_PASS("gvn-hoist", GVNHoistPass())
+FUNCTION_PASS("instcombine", InstCombinePass())
+FUNCTION_PASS("instsimplify", InstSimplifyPass())
+FUNCTION_PASS("invalidate<all>", InvalidateAllAnalysesPass())
+FUNCTION_PASS("float2int", Float2IntPass())
+FUNCTION_PASS("no-op-function", NoOpFunctionPass())
+FUNCTION_PASS("libcalls-shrinkwrap", LibCallsShrinkWrapPass())
+FUNCTION_PASS("loweratomic", LowerAtomicPass())
+FUNCTION_PASS("lower-expect", LowerExpectIntrinsicPass())
+FUNCTION_PASS("lower-guard-intrinsic", LowerGuardIntrinsicPass())
+FUNCTION_PASS("guard-widening", GuardWideningPass())
+FUNCTION_PASS("gvn", GVN())
+FUNCTION_PASS("load-store-vectorizer", LoadStoreVectorizerPass())
+FUNCTION_PASS("loop-simplify", LoopSimplifyPass())
+FUNCTION_PASS("loop-sink", LoopSinkPass())
+FUNCTION_PASS("lowerinvoke", LowerInvokePass())
+FUNCTION_PASS("mem2reg", PromotePass())
+FUNCTION_PASS("memcpyopt", MemCpyOptPass())
+FUNCTION_PASS("mldst-motion", MergedLoadStoreMotionPass())
+FUNCTION_PASS("nary-reassociate", NaryReassociatePass())
+FUNCTION_PASS("newgvn", NewGVNPass())
+FUNCTION_PASS("jump-threading", JumpThreadingPass())
+FUNCTION_PASS("partially-inline-libcalls", PartiallyInlineLibCallsPass())
+FUNCTION_PASS("lcssa", LCSSAPass())
+FUNCTION_PASS("loop-data-prefetch", LoopDataPrefetchPass())
+FUNCTION_PASS("loop-load-elim", LoopLoadEliminationPass())
+FUNCTION_PASS("loop-distribute", LoopDistributePass())
+FUNCTION_PASS("loop-vectorize", LoopVectorizePass())
+FUNCTION_PASS("pgo-memop-opt", PGOMemOPSizeOpt())
+FUNCTION_PASS("print", PrintFunctionPass(dbgs()))
+FUNCTION_PASS("print<assumptions>", AssumptionPrinterPass(dbgs()))
+FUNCTION_PASS("print<block-freq>", BlockFrequencyPrinterPass(dbgs()))
+FUNCTION_PASS("print<branch-prob>", BranchProbabilityPrinterPass(dbgs()))
+FUNCTION_PASS("print<da>", DependenceAnalysisPrinterPass(dbgs()))
+FUNCTION_PASS("print<domtree>", DominatorTreePrinterPass(dbgs()))
+FUNCTION_PASS("print<postdomtree>", PostDominatorTreePrinterPass(dbgs()))
+FUNCTION_PASS("print<demanded-bits>", DemandedBitsPrinterPass(dbgs()))
+FUNCTION_PASS("print<domfrontier>", DominanceFrontierPrinterPass(dbgs()))
+FUNCTION_PASS("print<loops>", LoopPrinterPass(dbgs()))
+FUNCTION_PASS("print<memoryssa>", MemorySSAPrinterPass(dbgs()))
+FUNCTION_PASS("print<phi-values>", PhiValuesPrinterPass(dbgs()))
+FUNCTION_PASS("print<regions>", RegionInfoPrinterPass(dbgs()))
+FUNCTION_PASS("print<scalar-evolution>", ScalarEvolutionPrinterPass(dbgs()))
+FUNCTION_PASS("print<stack-safety-local>", StackSafetyPrinterPass(dbgs()))
+FUNCTION_PASS("reassociate", ReassociatePass())
+FUNCTION_PASS("scalarizer", ScalarizerPass())
+FUNCTION_PASS("sccp", SCCPPass())
+FUNCTION_PASS("simplify-cfg", SimplifyCFGPass())
+FUNCTION_PASS("sink", SinkingPass())
+FUNCTION_PASS("slp-vectorizer", SLPVectorizerPass())
+FUNCTION_PASS("speculative-execution", SpeculativeExecutionPass())
+FUNCTION_PASS("spec-phis", SpeculateAroundPHIsPass())
+FUNCTION_PASS("sroa", SROA())
+FUNCTION_PASS("tailcallelim", TailCallElimPass())
+FUNCTION_PASS("unreachableblockelim", UnreachableBlockElimPass())
+FUNCTION_PASS("verify", VerifierPass())
+FUNCTION_PASS("verify<domtree>", DominatorTreeVerifierPass())
+FUNCTION_PASS("verify<loops>", LoopVerifierPass())
+FUNCTION_PASS("verify<memoryssa>", MemorySSAVerifierPass())
+FUNCTION_PASS("verify<regions>", RegionInfoVerifierPass())
+FUNCTION_PASS("view-cfg", CFGViewerPass())
+FUNCTION_PASS("view-cfg-only", CFGOnlyViewerPass())
+FUNCTION_PASS("transform-warning", WarnMissedTransformationsPass())
+FUNCTION_PASS("msan", MemorySanitizerPass())
+FUNCTION_PASS("tsan", ThreadSanitizerPass())
+#undef FUNCTION_PASS
+
+#ifndef FUNCTION_PASS_WITH_PARAMS
+#define FUNCTION_PASS_WITH_PARAMS(NAME, CREATE_PASS, PARSER)
+#endif
+FUNCTION_PASS_WITH_PARAMS("unroll",
+			  [](LoopUnrollOptions Opts) { return LoopUnrollPass(Opts); },
+			  parseLoopUnrollOptions)
+#undef FUNCTION_PASS_WITH_PARAMS
+
+#ifndef LOOP_ANALYSIS
+#define LOOP_ANALYSIS(NAME, CREATE_PASS)
+#endif
+LOOP_ANALYSIS("no-op-loop", NoOpLoopAnalysis())
+LOOP_ANALYSIS("access-info", LoopAccessAnalysis())
+LOOP_ANALYSIS("ivusers", IVUsersAnalysis())
+LOOP_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
+#undef LOOP_ANALYSIS
+
+#ifndef LOOP_PASS
+#define LOOP_PASS(NAME, CREATE_PASS)
+#endif
+LOOP_PASS("invalidate<all>", InvalidateAllAnalysesPass())
+LOOP_PASS("licm", LICMPass())
+LOOP_PASS("loop-idiom", LoopIdiomRecognizePass())
+LOOP_PASS("loop-instsimplify", LoopInstSimplifyPass())
+LOOP_PASS("rotate", LoopRotatePass())
+LOOP_PASS("no-op-loop", NoOpLoopPass())
+LOOP_PASS("print", PrintLoopPass(dbgs()))
+LOOP_PASS("loop-deletion", LoopDeletionPass())
+LOOP_PASS("simplify-cfg", LoopSimplifyCFGPass())
+LOOP_PASS("strength-reduce", LoopStrengthReducePass())
+LOOP_PASS("indvars", IndVarSimplifyPass())
+LOOP_PASS("irce", IRCEPass())
+LOOP_PASS("unroll-and-jam", LoopUnrollAndJamPass())
+LOOP_PASS("unroll-full", LoopFullUnrollPass())
+LOOP_PASS("unswitch", SimpleLoopUnswitchPass())
+LOOP_PASS("print-access-info", LoopAccessInfoPrinterPass(dbgs()))
+LOOP_PASS("print<ivusers>", IVUsersPrinterPass(dbgs()))
+LOOP_PASS("loop-predication", LoopPredicationPass())
+#undef LOOP_PASS

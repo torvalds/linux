@@ -1,0 +1,61 @@
+#! /bin/sh
+#
+# Script for test vap create+destroy when using WPA.
+# Also used to verify resources are reclaimed properly
+# on vap destroy.
+#
+# $FreeBSD$
+#
+PATH=.:$PATH
+. config
+
+BRIDGE=bridge0
+SSID=$SSID-wpa
+WLAN=wlan0
+CONF=$TMPDIR/bsd-$WLAN.conf
+
+makeconf()
+{
+	conf=$1
+	rm -f $conf
+	cat >$1 <<EOF
+interface=$WLAN
+ctrl_interface=$HOSTAPD_CTRL_INTERFACE
+logger_syslog=-1
+logger_syslog_level=0
+logger_stdout=-1
+logger_stdout_level=0
+debug=0
+wpa=1
+wpa_key_mgmt=WPA-PSK
+wpa_passphrase=$WPA_PASSPHRASE
+wpa_pairwise=CCMP
+EOF
+}
+
+n=0
+while true; do
+	echo "---- $n"; n=`expr $n + 1`
+	ifconfig $WLAN create wlandev $WIRELESS wlanmode hostap
+	wlandebug -i $WLAN assoc
+	ifconfig $WLAN ssid $SSID channel $CHANNEL mtu 1500
+
+	ifconfig $BRIDGE create
+	ifconfig $BRIDGE addm $WIRED addm $WLAN up
+	ifconfig $WLAN up
+#	ifconfig $WIRED up
+
+	makeconf $CONF
+	start_hostapd $CONF&
+	pid=$!
+	ifconfig
+
+	sleep 2
+	kill $pid
+	ifconfig $WLAN destroy;
+	ifconfig $BRIDGE destroy;
+	rm -f $CONF
+	vmstat -m | grep 80211
+	netstat -m
+	sleep 1
+done

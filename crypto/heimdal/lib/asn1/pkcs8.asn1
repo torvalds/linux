@@ -1,0 +1,30 @@
+-- $Id$ --
+
+PKCS8 DEFINITIONS ::=
+
+BEGIN
+
+IMPORTS	Attribute, AlgorithmIdentifier FROM rfc2459
+	heim_any, heim_any_set FROM heim;
+
+PKCS8PrivateKeyAlgorithmIdentifier ::= AlgorithmIdentifier
+
+PKCS8PrivateKey ::= OCTET STRING
+
+PKCS8Attributes ::= SET OF Attribute
+
+PKCS8PrivateKeyInfo ::= SEQUENCE {
+  version INTEGER,
+  privateKeyAlgorithm PKCS8PrivateKeyAlgorithmIdentifier,
+  privateKey PKCS8PrivateKey,
+  attributes [0] IMPLICIT SET OF Attribute OPTIONAL
+}
+
+PKCS8EncryptedData ::= OCTET STRING
+
+PKCS8EncryptedPrivateKeyInfo ::= SEQUENCE {
+    encryptionAlgorithm AlgorithmIdentifier,
+    encryptedData PKCS8EncryptedData
+}
+
+END

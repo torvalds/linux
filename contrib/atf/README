@@ -1,0 +1,37 @@
+Introductory information                        Automated Testing Framework
+===========================================================================
+
+
+Introduction
+************
+
+The Automated Testing Framework (ATF) is a collection of libraries to
+implement test programs in a variety of languages.  At the moment, ATF
+offers C, C++ and POSIX shell bindings with which to implement tests.
+These bindings all offer a similar set of functionality and any test
+program written with them exposes a consistent user interface.
+
+ATF-based test programs rely on a separate runtime engine to execute them.
+The runtime engine is in charge of isolating the test programs from the
+rest of the system to ensure that their results are deterministic and that
+they cannot affect the running system.  The runtime engine is also
+responsible for gathering the results of all tests and composing reports.
+The current runtime of choice is Kyua.
+
+
+Other documents
+***************
+
+* AUTHORS: List of authors and contributors for this project.
+
+* COPYING: License information.
+
+* INSTALL: Compilation and installation instructions.  These is not the
+  standard document shipped with many packages, so be sure to read it for
+  things that are specific to ATF's build.
+
+* NEWS: List of major changes between formal, published releases.
+
+
+===========================================================================
+vim: filetype=text:textwidth=75:expandtab:shiftwidth=2:softtabstop=2

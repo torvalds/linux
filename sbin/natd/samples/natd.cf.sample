@@ -1,0 +1,92 @@
+#
+# $FreeBSD$
+#
+#
+# Configuration file for natd.
+#
+#
+# Enable logging to file /var/log/alias.log
+#
+log		no
+#
+# Incoming connections.  Should NEVER be set to "yes" if redirect_port
+# or redirect_address statements are activated in this file!
+#
+# Setting to yes provides additional anti-crack protection
+#
+deny_incoming	no
+#
+# Use sockets to avoid port clashes.  Uses additional system resources, but
+# guarantees successful connections when port numbers conflict
+#
+use_sockets	no
+#
+# Avoid port changes if possible when altering outbound packets. Makes rlogin
+# work in most cases.
+#
+same_ports	yes
+#
+# Verbose mode. Enables dumping of packets and disables
+# forking to background.  Only set to yes for debugging.
+#
+verbose		no
+#
+# Divert port. Can be a name in /etc/services or numeric value.
+#
+port		32000
+#
+# Interface name or address being aliased. Either one,
+# not both is required.
+#
+# Obtain interface name from the command output of "ifconfig -a"
+#
+# alias_address	192.168.0.1
+interface	ep0
+#
+# Alias unregistered addresses or all addresses.  Set this to yes if
+# the inside network is all RFC1918 addresses.
+#
+unregistered_only	no
+#
+# Configure permanent links. If you use host names instead
+# of addresses here, be sure that name server works BEFORE
+# natd is up - this is usually not the case. So either use
+# numeric addresses or hosts that are in /etc/hosts.
+#
+# Note:  Current versions of FreeBSD all call /etc/rc.firewall
+# BEFORE running named, so if the DNS server and NAT are on the same
+# machine, the nameserver won't be up if natd is called from /etc/rc.firewall
+#
+# Map connections coming to port 30000 to telnet in my_private_host.
+# Remember to allow the connection /etc/rc.firewall also.
+#
+#redirect_port		tcp my_private_host:telnet 30000
+#
+# Map connections coming from host.xyz.com to port 30001 to
+# telnet in another_host.
+#redirect_port		tcp another_host:telnet 30001 host.xyz.com
+#
+# Static NAT address mapping:
+#
+#  ipconfig must apply any legal IP numbers that inside hosts
+# will be known by to the outside interface.  These are sometimes known as
+# virtual IP numbers.  It's suggested to use the "interface" directive
+# instead of the "alias_address" directive to make it more clear what is
+# going on. (although both will work)
+#
+# DNS in this situation can get hairy.  For example, an inside host
+# named aweb.company.com is located at 192.168.1.56, and needs to be
+# accessible through a legal IP number like 198.105.232.1.  If both
+# 192.168.1.56 and 198.105.232.1 are set up as address records in the DNS
+# for aweb.company.com, then external hosts attempting to access
+# aweb.company.com may use address 192.168.1.56 which is inaccessible to them.
+#
+# The obvious solution is to use only a single address for the name, the
+# outside address.  However, this creates needless traffic through the
+# NAT, because inside hosts will go through the NAT to get to the legal
+# number, even when the inside number is on the same subnet as they are!
+#
+# It's probably not a good idea to use DNS names in redirect_address statements
+#
+#The following mapping points outside address 198.105.232.1 to 192.168.1.56
+#redirect_address  192.168.1.56		198.105.232.1

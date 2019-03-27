@@ -1,0 +1,5 @@
+include start
+# note that there are more characters in the array, check we only get 5 out
+call OK addchnstr `\004a\004b\004c\004d\004e\004f\004g` 5
+call OK refresh
+compare addchstr.chk

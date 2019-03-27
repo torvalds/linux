@@ -1,0 +1,56 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	xdr_free;
+	xdr_void;
+	xdr_int;
+	xdr_u_int;
+	xdr_long;
+	xdr_u_long;
+	xdr_int32_t;
+	xdr_u_int32_t;
+	xdr_short;
+	xdr_u_short;
+	xdr_int16_t;
+	xdr_u_int16_t;
+	xdr_char;
+	xdr_u_char;
+	xdr_bool;
+	xdr_enum;
+	xdr_opaque;
+	xdr_bytes;
+	xdr_netobj;
+	xdr_union;
+	xdr_string;
+	xdr_wrapstring;
+	xdr_int64_t;
+	xdr_u_int64_t;
+	xdr_hyper;
+	xdr_u_hyper;
+	xdr_longlong_t;
+	xdr_u_longlong_t;
+	xdr_array;
+	xdr_vector;
+	xdr_float;
+	xdr_double;
+	xdrmem_create;
+	xdrrec_create;
+	xdrrec_skiprecord;
+	xdrrec_eof;
+	xdrrec_endofrecord;
+	xdr_reference;
+	xdr_pointer;
+	xdrstdio_create;
+};
+
+FBSD_1.1 {
+	xdr_uint16_t;
+	xdr_uint32_t;
+	xdr_uint64_t;
+};
+
+FBSD_1.2 {
+	xdr_sizeof;
+};

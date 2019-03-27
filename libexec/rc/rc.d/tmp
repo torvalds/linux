@@ -1,0 +1,72 @@
+#!/bin/sh
+#
+# Copyright (c) 1999  Matt Dillon
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# PROVIDE: tmp
+# REQUIRE: mountcritremote
+
+. /etc/rc.subr
+
+name="tmp"
+desc="Configure tmpfs"
+stop_cmd=':'
+
+load_rc_config $name
+
+mount_tmpmfs()
+{
+	if ! /bin/df /tmp | grep -q "^/dev/md[0-9].* /tmp"; then
+		mount_md ${tmpsize} /tmp "${tmpmfs_flags}"
+		chmod 01777 /tmp
+	fi
+}
+
+# If we do not have a writable /tmp, create a memory
+# filesystem for /tmp.  If /tmp is a symlink (e.g. to /var/tmp,
+# then it should already be writable).
+#
+case "${tmpmfs}" in
+[Aa][Uu][Tt][Oo])
+	if _tmpdir=$(mktemp -d -q /tmp/.diskless.XXXXXX); then
+		rmdir ${_tmpdir}
+	else
+		if [ -h /tmp ]; then
+			echo "*** /tmp is a symlink to a non-writable area!"
+			echo "dropping into shell, ^D to continue anyway."
+			/bin/sh
+		else
+			mount_tmpmfs
+		fi
+	fi
+	;;
+*)
+	if checkyesno tmpmfs; then
+		mount_tmpmfs
+	fi
+	;;
+esac

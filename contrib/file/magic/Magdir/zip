@@ -1,0 +1,63 @@
+#------------------------------------------------------------------------------
+# $File: zip,v 1.1 2017/11/03 23:36:17 christos Exp $
+# zip:  file(1) magic for zip files; this is not use
+# Note the version of magic in archive is currently stronger, this is
+# just an example until negative offsets are supported better
+
+# Zip Central Cirectory record
+0	name		zipcd
+>0	string		PK\001\002
+>>4	leshort		x		\b, made by
+>>4	use		zipversion
+>>6	leshort		x		\b, extract using at least
+>>6	use		zipversion
+>>12	ledate		x		\b, last modified %s
+>>24	lelong		>0		\b, uncompressed size %d
+>>10	leshort		x		\b, method=
+>>10	use		zipcompression
+
+# Zip known compressions
+0	name		zipcompression
+>0	leshort		0		\bstore
+>0	leshort		8		\bdeflate
+>0	leshort		9		\bdeflate64
+>0	leshort		12		\bbzip2
+>0	leshort		14		\blzma
+>0	leshort		94		\bMP3
+>0	leshort		95		\bxz
+>0	leshort		96		\bJpeg
+>0	leshort		97		\bWavPack
+>0	leshort		98		\bPPMd
+>0	leshort		99		\bAES Encrypted
+>0	default		x
+>>0	leshort		x		\b[%#x]
+
+# Zip known versions
+0	name		zipversion
+>0	leshort		0x09		v0.9
+>0	leshort		0x0a		v1.0
+>0	leshort		0x0b		v1.1
+>0	leshort		0x14		v2.0
+>0	leshort		0x15		v2.1
+>0	leshort		0x19		v2.5
+>0	leshort		0x1b		v2.7
+>0	leshort		0x2d		v4.5
+>0	leshort		0x2e		v4.6
+>0	leshort		0x32		v5.0
+>0	leshort		0x33		v5.1
+>0	leshort		0x34		v5.2
+>0	leshort		0x3d		v6.1
+>0	leshort		0x3e		v6.2
+>0	leshort		0x3f		v6.3
+>0	default		x
+>>0	leshort		x		v?[%#x]
+
+# Zip End Of Central Directory record
+-22	string		PK\005\006	Zip archive data
+#>4	leshort		>1		\b, %d disks
+#>6	leshort		>1		\b, central directory disk %d
+#>8	leshort		>1		\b, %d central directories on this disk
+#>10	leshort		>1		\b, %d central directories
+#>12	lelong		x		\b, %d central directory bytes
+>(16.l)	use		zipcd
+>20	pstring/l	>0		\b, %s

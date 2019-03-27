@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: rwho
+# REQUIRE: DAEMON
+# BEFORE:  LOGIN
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="rwhod"
+desc="System status server"
+rcvar="rwhod_enable"
+command="/usr/sbin/${name}"
+
+load_rc_config $name
+run_rc_command "$1"

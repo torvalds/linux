@@ -1,0 +1,131 @@
+.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Edward Tomasz Napierala under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 26, 2017
+.Dt FSTYP 8
+.Os
+.Sh NAME
+.Nm fstyp
+.Nd determine filesystem type
+.Sh SYNOPSIS
+.Nm
+.Op Fl l
+.Op Fl s
+.Op Fl u
+.Ar special
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to determine the filesystem type on a given device.
+It can recognize ISO-9660, exFAT, Ext2, FAT, NTFS, and UFS filesystems.
+When the
+.Fl u
+flag is specified,
+.Nm
+also recognizes certain additional metadata formats that cannot be
+handled using
+.Xr mount 8 ,
+such as
+.Xr geli 8
+providers, and
+ZFS pools.
+.Pp
+The filesystem name is printed to the standard output
+as, respectively:
+.Bl -item -offset indent -compact
+.It
+cd9660
+.It
+exfat
+.It
+ext2fs
+.It
+geli
+.It
+msdosfs
+.It
+ntfs
+.It
+ufs
+.It
+zfs
+.El
+.Pp
+Because
+.Nm
+is built specifically to detect filesystem types, it differs from
+.Xr file 1
+in several ways.
+The output is machine-parsable, filesystem labels are supported,
+the utility runs sandboxed using
+.Xr capsicum 4 ,
+and does not try to recognize any file format other than filesystems.
+.Pp
+These options are available:
+.Bl -tag -width ".Fl l"
+.It Fl l
+In addition to filesystem type, print filesystem label if available.
+.It Fl s
+Ignore file type.
+By default,
+.Nm
+only works on regular files and disk-like device nodes.
+Trying to read other file types might have unexpected consequences or hang
+indefinitely.
+.It Fl u
+Include filesystems and devices that cannot be mounted directly by
+.Xr mount 8 .
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 on success, and >0 if an error occurs or the filesystem
+type is not recognized.
+.Sh SEE ALSO
+.Xr file 1 ,
+.Xr capsicum 4 ,
+.Xr autofs 5 ,
+.Xr geli 8 ,
+.Xr glabel 8 ,
+.Xr mount 8 ,
+.Xr zpool 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 10.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was developed by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.
+ZFS and GELI support was added by
+.An Allan Jude Aq Mt allanjude@FreeBSD.org .

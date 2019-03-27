@@ -1,0 +1,413 @@
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "ralink,rt3883-soc";
+
+	cpus {
+		cpu@0 {
+			compatible = "mips,mips74Kc";
+		};
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,57600";
+	};
+
+	aliases {
+		spi0 = &spi0;
+		spi1 = &spi1;
+		serial0 = &uartlite;
+	};
+
+	cpuintc: cpuintc@0 {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		compatible = "mti,cpu-interrupt-controller";
+	};
+
+	palmbus: palmbus@10000000 {
+		compatible = "palmbus";
+		reg = <0x10000000 0x200000>;
+		ranges = <0x0 0x10000000 0x1FFFFF>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		sysc: sysc@0 {
+			compatible = "ralink,rt3883-sysc", "ralink,rt3050-sysc";
+			reg = <0x0 0x100>;
+		};
+
+		timer: timer@100 {
+			compatible = "ralink,rt3883-timer", "ralink,rt2880-timer";
+			reg = <0x100 0x20>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <1>;
+		};
+
+		watchdog: watchdog@120 {
+			compatible = "ralink,rt3883-wdt", "ralink,rt2880-wdt";
+			reg = <0x120 0x10>;
+
+			resets = <&rstctrl 8>;
+			reset-names = "wdt";
+
+			interrupt-parent = <&intc>;
+			interrupts = <1>;
+		};
+
+		intc: intc@200 {
+			compatible = "ralink,rt3883-intc", "ralink,rt2880-intc";
+			reg = <0x200 0x100>;
+
+			resets = <&rstctrl 19>;
+			reset-names = "intc";
+
+			interrupt-controller;
+			#interrupt-cells = <1>;
+
+			interrupt-parent = <&cpuintc>;
+			interrupts = <2>;
+		};
+
+		memc: memc@300 {
+			compatible = "ralink,rt3883-memc", "ralink,rt3050-memc";
+			reg = <0x300 0x100>;
+
+			resets = <&rstctrl 20>;
+			reset-names = "mc";
+
+			interrupt-parent = <&intc>;
+			interrupts = <3>;
+		};
+
+		uart: uart@500 {
+			compatible = "ralink,rt3883-uart", "ralink,rt2880-uart", "ns16550a";
+			reg = <0x500 0x100>;
+
+			resets = <&rstctrl 12>;
+			reset-names = "uart";
+
+			interrupt-parent = <&intc>;
+			interrupts = <5>;
+
+			reg-shift = <2>;
+
+			status = "disabled";
+		};
+
+		gpio0: gpio@600 {
+			compatible = "ralink,rt3883-gpio", "ralink,rt2880-gpio";
+			reg = <0x600 0x34>;
+
+			resets = <&rstctrl 13>;
+			reset-names = "pio";
+
+			interrupt-parent = <&intc>;
+			interrupts = <6>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			ralink,gpio-base = <0>;
+			ralink,num-gpios = <24>;
+			ralink,register-map = [ 00 04 08 0c
+						20 24 28 2c
+						30 34 ];
+		};
+
+		gpio1: gpio@638 {
+			compatible = "ralink,rt3883-gpio", "ralink,rt2880-gpio";
+			reg = <0x638 0x24>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			ralink,gpio-base = <24>;
+			ralink,num-gpios = <16>;
+			ralink,register-map = [ 00 04 08 0c
+						10 14 18 1c
+						20 24 ];
+
+			status = "disabled";
+		};
+
+		gpio2: gpio@660 {
+			compatible = "ralink,rt3883-gpio", "ralink,rt2880-gpio";
+			reg = <0x660 0x24>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			ralink,gpio-base = <40>;
+			ralink,num-gpios = <32>;
+			ralink,register-map = [ 00 04 08 0c
+						10 14 18 1c
+						20 24 ];
+
+			status = "disabled";
+		};
+
+		gpio3: gpio@688 {
+			compatible = "ralink,rt3883-gpio", "ralink,rt2880-gpio";
+			reg = <0x688 0x24>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			ralink,gpio-base = <72>;
+			ralink,num-gpios = <24>;
+			ralink,register-map = [ 00 04 08 0c
+						10 14 18 1c
+						20 24 ];
+
+			status = "disabled";
+		};
+
+		spi0: spi@b00 {
+			compatible = "ralink,rt3883-spi", "ralink,rt2880-spi";
+			reg = <0xb00 0x40>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			resets = <&rstctrl 18>;
+			reset-names = "spi";
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi_pins>;
+
+			status = "disabled";
+		};
+
+		spi1: spi@b40 {
+			compatible = "ralink,rt3883-spi", "ralink,rt2880-spi";
+			reg = <0xb40 0x60>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			resets = <&rstctrl 18>;
+			reset-names = "spi";
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi_cs1>;
+
+			status = "disabled";
+		};
+
+		uartlite: uartlite@c00 {
+			compatible = "ralink,rt3883-uart", "ralink,rt2880-uart", "ns16550a";
+			reg = <0xc00 0x100>;
+
+			resets = <&rstctrl 19>;
+			reset-names = "uartl";
+
+			interrupt-parent = <&intc>;
+			interrupts = <12>;
+
+			reg-shift = <2>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&uartlite_pins>;
+		};
+	};
+
+	pinctrl: pinctrl {
+		compatible = "ralink,rt2880-pinmux";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&state_default>;
+
+		state_default: pinctrl0 {
+		};
+
+		spi_pins: spi {
+			spi {
+				ralink,group = "spi";
+				ralink,function = "spi";
+			};
+		};
+
+		spi_cs1: spi1 {
+			spi1 {
+				ralink,group = "spi_cs1";
+				ralink,function = "spi_cs1";
+			};
+		};
+
+		uartlite_pins: uartlite {
+			uart {
+				ralink,group = "uartlite";
+				ralink,function = "uartlite";
+			};
+		};
+	};
+
+	ethernet: ethernet@10100000 {
+		compatible = "ralink,rt3883-eth";
+		reg = <0x10100000 0x10000>;
+
+		resets = <&rstctrl 21>;
+		reset-names = "fe";
+
+		interrupt-parent = <&cpuintc>;
+		interrupts = <5>;
+
+		port@0 {
+			compatible = "ralink,rt3883-port", "mediatek,eth-port";
+			reg = <0>;
+		};
+
+		mdio-bus {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "disabled";
+		};
+	};
+
+	rstctrl: rstctrl {
+		compatible = "ralink,rt3883-reset", "ralink,rt2880-reset";
+		#reset-cells = <1>;
+	};
+
+	clkctrl: clkctrl {
+		compatible = "ralink,rt2880-clock";
+		#clock-cells = <1>;
+	};
+
+	pci: pci@10140000 {
+		compatible = "ralink,rt3883-pci";
+		reg = <0x10140000 0x20000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges; /* direct mapping */
+
+		status = "disabled";
+
+		pciintc: interrupt-controller {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+
+			interrupt-parent = <&cpuintc>;
+			interrupts = <4>;
+		};
+
+		host-bridge {
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+
+			device_type = "pci";
+
+			bus-range = <0 255>;
+			ranges = <
+				0x02000000 0 0x00000000 0x20000000 0 0x10000000 /* pci memory */
+				0x01000000 0 0x00000000 0x10160000 0 0x00010000 /* io space */
+			>;
+
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map = <
+				/* IDSEL 17 */
+				0x8800 0 0 1 &pciintc 18
+				0x8800 0 0 2 &pciintc 18
+				0x8800 0 0 3 &pciintc 18
+				0x8800 0 0 4 &pciintc 18
+				/* IDSEL 18 */
+				0x9000 0 0 1 &pciintc 19
+				0x9000 0 0 2 &pciintc 19
+				0x9000 0 0 3 &pciintc 19
+				0x9000 0 0 4 &pciintc 19
+			>;
+
+			pci-bridge@1 {
+				reg = <0x0800 0 0 0 0>;
+				device_type = "pci";
+				#interrupt-cells = <1>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+
+				status = "disabled";
+
+				ralink,pci-slot = <1>;
+
+				interrupt-map-mask = <0x0 0 0 0>;
+				interrupt-map = <0x0 0 0 0 &pciintc 20>;
+			};
+
+			pci-slot@17 {
+				reg = <0x8800 0 0 0 0>;
+				device_type = "pci";
+				#interrupt-cells = <1>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+
+				ralink,pci-slot = <17>;
+
+				status = "disabled";
+			};
+
+			pci-slot@18 {
+				reg = <0x9000 0 0 0 0>;
+				device_type = "pci";
+				#interrupt-cells = <1>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+
+				ralink,pci-slot = <18>;
+
+				status = "disabled";
+			};
+		};
+	};
+
+	usbphy: usbphy {
+		compatible = "ralink,rt3352-usbphy";
+		#phy-cells = <1>;
+
+		resets = <&rstctrl 22 &rstctrl 25>;
+		reset-names = "host", "device";
+		clocks = <&clkctrl 22 &clkctrl 25>;
+		clock-names = "host", "device";
+	};
+
+	wmac: wmac@10180000 {
+		compatible = "ralink,rt3883-wmac", "ralink,rt2880-wmac";
+		reg = <0x10180000 0x40000>;
+
+		interrupt-parent = <&cpuintc>;
+		interrupts = <6>;
+
+		ralink,eeprom = "soc_wmac.eeprom";
+	};
+
+	ehci: ehci@101c0000 {
+		compatible = "generic-ehci";
+		reg = <0x101c0000 0x1000>;
+
+		phys = <&usbphy 1>;
+		phy-names = "usb";
+
+		interrupt-parent = <&intc>;
+		interrupts = <18>;
+
+		status = "disabled";
+	};
+
+	ohci: ohci@101c1000 {
+		compatible = "generic-ohci";
+		reg = <0x101c1000 0x1000>;
+
+		phys = <&usbphy 1>;
+		phy-names = "usb";
+
+		interrupt-parent = <&intc>;
+		interrupts = <18>;
+
+		status = "disabled";
+	};
+};
+
+#include "fbsd-rt3883.dtsi"

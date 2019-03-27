@@ -1,0 +1,283 @@
+.\" 
+.\" Copyright (c) 2015 Spectra Logic Corporation
+.\" All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    substantially similar to the "NO WARRANTY" disclaimer below
+.\"    ("Disclaimer") and any redistribution must be conditioned upon
+.\"    including a substantially similar Disclaimer requirement for further
+.\"    binary redistribution.
+.\" 
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGES.
+.\" 
+.\" Authors: Ken Merry           (Spectra Logic Corporation)
+.\" 
+.\" $FreeBSD$
+.\"
+.Dd November 11, 2015
+.Dt CAMDD 8
+.Os
+.Sh NAME
+.Nm camdd
+.Nd CAM data transfer utility
+.Sh SYNOPSIS
+.Nm
+.Aq Fl i|o Ar pass=pass_dev|file=filename,bs=blocksize,[...]
+.Op Fl C Ar retry_count
+.Op Fl E
+.Op Fl m Ar max_io
+.Op Fl t Ar timeout
+.Op Fl v
+.Op Fl h
+.Sh DESCRIPTION
+The
+.Nm
+utility is a sequential data transfer utility that offers standard
+.Xr read 2
+and
+.Xr write 2
+operation in addition to a mode that uses the asynchronous
+.Xr pass 4
+API.
+The asynchronous
+.Xr pass 4
+API allows multiple requests to be queued to a device simultaneously.
+.Pp
+.Nm
+collects performance information and will display it when the transfer
+completes, when
+.Nm
+is terminated or when it receives a SIGINFO signal.
+.Pp
+The following options are available:
+.Bl -tag -width 12n
+.It Fl i | o Ar args
+Specify the input and output device or file.
+Both 
+.Fl i
+and
+.Fl o
+must be specified.
+There are a number of parameters that can be specified.
+One of the first two (file or pass) MUST be specified to indicate which I/O
+method to use on the device in question.
+.Bl -tag -width 9n
+.It pass=dev
+Specify a
+.Xr pass 4
+device to operate on.
+This requests that
+.Nm
+access the device in question be accessed via the asynchronous
+.Xr pass 4
+interface.
+.Pp
+The device name can be a
+.Xr pass 4
+name and unit number, for instance
+.Dq pass0 ,
+or a regular peripheral driver name and unit number, for instance
+.Dq da5 .
+It can also be the path of a
+.Xr pass 4 
+or other disk device, like
+.Dq /dev/da5 .
+It may also be a bus:target:lun, for example:
+.Dq 0:5:0 .
+.Pp
+Only
+.Xr pass 4
+devices for
+.Tn SCSI
+disk-like devices are supported.
+.Tn ATA
+devices are not currently supported, but support could be added later.
+Specifically,
+.Tn SCSI
+Direct Access (type 0), WORM (type 4), CDROM (type 5), and RBC (Reduced
+Block Command, type 14) devices are supported.
+Tape drives, medium changers, enclosures etc. are not supported.
+.It file=path
+Specify a file or device to operate on.
+This requests that the file or device in question be accessed using the
+standard
+.Xr read 2
+and
+.Xr write 2
+system calls.
+The file interface does not support queueing multiple commands at a time.
+It does support probing disk sector size and capacity information, and tape
+blocksize and maximum transfer size information.
+The file interface supports standard files, disks, tape drives, special
+devices, pipes and standard input and output.
+If the file is specified as a 
+.Dq - ,
+standard input or standard output are used.
+For tape devices, the specified blocksize will be the size that
+.Nm
+attempts to use to write to or read from the tape.
+When writing to a tape device, the blocksize is treated like a disk sector
+size.
+So, that means
+.Nm
+will not write anything smaller than the sector size.
+At the end of a transfer, if there isn't sufficient data from the reader 
+to yield a full block,
+.Nm
+will add zeros on the end of the data from the reader to make up a full
+block.
+.It bs=N
+Specify the blocksize to use for transfers.
+.Nm
+will attempt to read or write using the requested blocksize.
+.Pp
+Note that the blocksize given only applies to either the input or the
+output path.
+To use the same blocksize for the input and output transfers, you must
+specify that blocksize with both the
+.Fl i
+and
+.Fl o
+arguments.
+.Pp
+The blocksize may be specified in bytes, or using any suffix (e.g. k, M, G)
+supported by
+.Xr expand_number 3 .
+.It offset=N
+Specify the starting offset for the input or output device or file.
+The offset may be specified in bytes, or by using any suffix (e.g. k, M, G)
+supported by
+.Xr expand_number 3 .
+.It depth=N
+Specify a desired queue depth for the input or output path.
+.Nm
+will attempt to keep the requested number of requests of the specified
+blocksize queued to the input or output device.
+Queue depths greater than 1 are only supported for the asynchronous
+.Xr pass 4 
+output method.
+The queue depth is maintained on a best effort basis, and may not be
+possible to maintain for especially fast devices.
+For writes, maintaining the queue depth also depends on a sufficiently
+fast reading device.
+.It mcs=N
+Specify the minimum command size to use for
+.Xr pass 4
+devices.
+Some devices do not support 6 byte
+.Tn SCSI
+commands.
+The
+.Xr da 4
+device handles this restriction automatically, but the
+.Xr pass 4
+device allows the user to specify the
+.Tn SCSI
+command used.
+If a device does not accept 6 byte
+.Tn SCSI
+READ/WRITE commands (which is the default at lower LBAs), it will generally
+accept 10 byte
+.Tn SCSI
+commands instead.
+.It debug=N
+Specify the debug level for this device.
+There is currently only one debug level setting, so setting this to any
+non-zero value will turn on debugging.
+The debug facility may be expanded in the future.
+.El
+.It Fl C Ar count
+Specify the retry count for commands sent via the asynchronous
+.Xr pass 4
+interface.
+This does not apply to commands sent via the file interface.
+.It Fl E
+Enable kernel error recovery for the
+.Xr pass 4
+driver.
+If error recovery is not enabled, unit attention conditions and other
+transient failures may cause the transfer to fail.
+.It Fl m Ar size
+Specify the maximum amount of data to be transferred.
+This may be specified in bytes, or by using any suffix (e.g. K, M, G)
+supported by
+.Xr expand_number 3 .
+.It Fl t Ar timeout
+Specify the command timeout in seconds to use for commands sent via the
+.Xr pass 4
+driver.
+.It Fl v
+Enable verbose reporting of errors.
+This is recommended to aid in debugging any
+.Tn SCSI
+issues that come up.
+.It Fl h
+Display the
+.Nm
+usage message.
+.El
+.Pp
+If
+.Nm
+receives a SIGINFO signal, it will print the current input and output byte
+counts, elapsed runtime and average throughput.
+If
+.Nm
+receives a SIGINT signal, it will print the current input and output byte
+counts, elapsed runtime and average throughput and then exit.
+.Sh EXAMPLES
+.Dl camdd -i pass=da8,bs=512k,depth=4 -o pass=da3,bs=512k,depth=4
+.Pp
+Copy all data from da8 to da3 using a blocksize of 512k for both drives,
+and attempt to maintain a queue depth of 4 on both the input and output
+devices.
+The transfer will stop when the end of either device is reached.
+.Pp
+.Dl camdd -i file=/dev/zero,bs=1M -o pass=da5,bs=1M,depth=4 -m 100M
+.Pp
+Read 1MB blocks of zeros from /dev/zero, and write them to da5 with a
+desired queue depth of 4.
+Stop the transfer after 100MB has been written.
+.Pp
+.Dl camdd -i pass=da8,bs=1M,depth=3 -o file=disk.img
+.Pp
+Copy disk da8 using a 1MB blocksize and desired queue depth of 3 to the
+file disk.img.
+.Pp
+.Dl camdd -i file=/etc/rc -o file=- 
+.Pp
+Read the file /etc/rc and write it to standard output.
+.Pp
+.Dl camdd -i pass=da10,bs=64k,depth=16 -o file=/dev/nsa0,bs=128k
+.Pp
+Copy 64K blocks from the disk da10 with a queue depth of 16, and write
+to the tape drive sa0 with a 128k blocksize.
+The copy will stop when either the end of the disk or tape is reached.
+.Sh SEE ALSO
+.Xr cam 3 ,
+.Xr cam 4 ,
+.Xr pass 4 ,
+.Xr camcontrol 8
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 10.2
+.Sh AUTHORS
+.An Kenneth Merry Aq Mt ken@FreeBSD.org

@@ -1,0 +1,149 @@
+.TH ZLIB 3 "15 Jan 2017"
+.SH NAME
+zlib \- compression/decompression library
+.SH SYNOPSIS
+[see
+.I zlib.h
+for full description]
+.SH DESCRIPTION
+The
+.I zlib
+library is a general purpose data compression library.
+The code is thread safe, assuming that the standard library functions
+used are thread safe, such as memory allocation routines.
+It provides in-memory compression and decompression functions,
+including integrity checks of the uncompressed data.
+This version of the library supports only one compression method (deflation)
+but other algorithms may be added later
+with the same stream interface.
+.LP
+Compression can be done in a single step if the buffers are large enough
+or can be done by repeated calls of the compression function.
+In the latter case,
+the application must provide more input and/or consume the output
+(providing more output space) before each call.
+.LP
+The library also supports reading and writing files in
+.IR gzip (1)
+(.gz) format
+with an interface similar to that of stdio.
+.LP
+The library does not install any signal handler.
+The decoder checks the consistency of the compressed data,
+so the library should never crash even in the case of corrupted input.
+.LP
+All functions of the compression library are documented in the file
+.IR zlib.h .
+The distribution source includes examples of use of the library
+in the files
+.I test/example.c
+and
+.IR test/minigzip.c,
+as well as other examples in the
+.IR examples/
+directory.
+.LP
+Changes to this version are documented in the file
+.I ChangeLog
+that accompanies the source.
+.LP
+.I zlib
+is built in to many languages and operating systems, including but not limited to
+Java, Python, .NET, PHP, Perl, Ruby, Swift, and Go.
+.LP
+An experimental package to read and write files in the .zip format,
+written on top of
+.I zlib
+by Gilles Vollant (info@winimage.com),
+is available at:
+.IP
+http://www.winimage.com/zLibDll/minizip.html
+and also in the
+.I contrib/minizip
+directory of the main
+.I zlib
+source distribution.
+.SH "SEE ALSO"
+The
+.I zlib
+web site can be found at:
+.IP
+http://zlib.net/
+.LP
+The data format used by the
+.I zlib
+library is described by RFC
+(Request for Comments) 1950 to 1952 in the files:
+.IP
+http://tools.ietf.org/html/rfc1950 (for the zlib header and trailer format)
+.br
+http://tools.ietf.org/html/rfc1951 (for the deflate compressed data format)
+.br
+http://tools.ietf.org/html/rfc1952 (for the gzip header and trailer format)
+.LP
+Mark Nelson wrote an article about
+.I zlib
+for the Jan. 1997 issue of  Dr. Dobb's Journal;
+a copy of the article is available at:
+.IP
+http://marknelson.us/1997/01/01/zlib-engine/
+.SH "REPORTING PROBLEMS"
+Before reporting a problem,
+please check the
+.I zlib
+web site to verify that you have the latest version of
+.IR zlib ;
+otherwise,
+obtain the latest version and see if the problem still exists.
+Please read the
+.I zlib
+FAQ at:
+.IP
+http://zlib.net/zlib_faq.html
+.LP
+before asking for help.
+Send questions and/or comments to zlib@gzip.org,
+or (for the Windows DLL version) to Gilles Vollant (info@winimage.com).
+.SH AUTHORS AND LICENSE
+Version 1.2.11
+.LP
+Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
+.LP
+This software is provided 'as-is', without any express or implied
+warranty.  In no event will the authors be held liable for any damages
+arising from the use of this software.
+.LP
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+.LP
+.nr step 1 1
+.IP \n[step]. 3
+The origin of this software must not be misrepresented; you must not
+claim that you wrote the original software. If you use this software
+in a product, an acknowledgment in the product documentation would be
+appreciated but is not required.
+.IP \n+[step].
+Altered source versions must be plainly marked as such, and must not be
+misrepresented as being the original software.
+.IP \n+[step].
+This notice may not be removed or altered from any source distribution.
+.LP
+Jean-loup Gailly        Mark Adler
+.br
+jloup@gzip.org          madler@alumni.caltech.edu
+.LP
+The deflate format used by
+.I zlib
+was defined by Phil Katz.
+The deflate and
+.I zlib
+specifications were written by L. Peter Deutsch.
+Thanks to all the people who reported problems and suggested various
+improvements in
+.IR zlib ;
+who are too numerous to cite here.
+.LP
+UNIX manual page by R. P. C. Rodgers,
+U.S. National Library of Medicine (rodgers@nlm.nih.gov).
+.\" end of man page

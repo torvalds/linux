@@ -1,0 +1,793 @@
+.\" Copyright (c) 2008 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd April 5, 2017
+.Dt ATF-C 3
+.Os
+.Sh NAME
+.Nm atf-c ,
+.Nm ATF_CHECK ,
+.Nm ATF_CHECK_MSG ,
+.Nm ATF_CHECK_EQ ,
+.Nm ATF_CHECK_EQ_MSG ,
+.Nm ATF_CHECK_MATCH ,
+.Nm ATF_CHECK_MATCH_MSG ,
+.Nm ATF_CHECK_STREQ ,
+.Nm ATF_CHECK_STREQ_MSG ,
+.Nm ATF_CHECK_ERRNO ,
+.Nm ATF_REQUIRE ,
+.Nm ATF_REQUIRE_MSG ,
+.Nm ATF_REQUIRE_EQ ,
+.Nm ATF_REQUIRE_EQ_MSG ,
+.Nm ATF_REQUIRE_MATCH ,
+.Nm ATF_REQUIRE_MATCH_MSG ,
+.Nm ATF_REQUIRE_STREQ ,
+.Nm ATF_REQUIRE_STREQ_MSG ,
+.Nm ATF_REQUIRE_ERRNO ,
+.Nm ATF_TC ,
+.Nm ATF_TC_BODY ,
+.Nm ATF_TC_BODY_NAME ,
+.Nm ATF_TC_CLEANUP ,
+.Nm ATF_TC_CLEANUP_NAME ,
+.Nm ATF_TC_HEAD ,
+.Nm ATF_TC_HEAD_NAME ,
+.Nm ATF_TC_NAME ,
+.Nm ATF_TC_WITH_CLEANUP ,
+.Nm ATF_TC_WITHOUT_HEAD ,
+.Nm ATF_TP_ADD_TC ,
+.Nm ATF_TP_ADD_TCS ,
+.Nm atf_tc_get_config_var ,
+.Nm atf_tc_get_config_var_wd ,
+.Nm atf_tc_get_config_var_as_bool ,
+.Nm atf_tc_get_config_var_as_bool_wd ,
+.Nm atf_tc_get_config_var_as_long ,
+.Nm atf_tc_get_config_var_as_long_wd ,
+.Nm atf_no_error ,
+.Nm atf_tc_expect_death ,
+.Nm atf_tc_expect_exit ,
+.Nm atf_tc_expect_fail ,
+.Nm atf_tc_expect_pass ,
+.Nm atf_tc_expect_signal ,
+.Nm atf_tc_expect_timeout ,
+.Nm atf_tc_fail ,
+.Nm atf_tc_fail_nonfatal ,
+.Nm atf_tc_pass ,
+.Nm atf_tc_skip ,
+.Nm atf_utils_cat_file ,
+.Nm atf_utils_compare_file ,
+.Nm atf_utils_copy_file ,
+.Nm atf_utils_create_file ,
+.Nm atf_utils_file_exists ,
+.Nm atf_utils_fork ,
+.Nm atf_utils_free_charpp ,
+.Nm atf_utils_grep_file ,
+.Nm atf_utils_grep_string ,
+.Nm atf_utils_readline ,
+.Nm atf_utils_redirect ,
+.Nm atf_utils_wait
+.Nd C API to write ATF-based test programs
+.Sh SYNOPSIS
+.In atf-c.h
+.\" NO_CHECK_STYLE_BEGIN
+.Fn ATF_CHECK "expression"
+.Fn ATF_CHECK_MSG "expression" "fail_msg_fmt" ...
+.Fn ATF_CHECK_EQ "expected_expression" "actual_expression"
+.Fn ATF_CHECK_EQ_MSG "expected_expression" "actual_expression" "fail_msg_fmt" ...
+.Fn ATF_CHECK_MATCH "regexp" "string"
+.Fn ATF_CHECK_MATCH_MSG "regexp" "string" "fail_msg_fmt" ...
+.Fn ATF_CHECK_STREQ "string_1" "string_2"
+.Fn ATF_CHECK_STREQ_MSG "string_1" "string_2" "fail_msg_fmt" ...
+.Fn ATF_CHECK_ERRNO "expected_errno" "bool_expression"
+.Fn ATF_REQUIRE "expression"
+.Fn ATF_REQUIRE_MSG "expression" "fail_msg_fmt" ...
+.Fn ATF_REQUIRE_EQ "expected_expression" "actual_expression"
+.Fn ATF_REQUIRE_EQ_MSG "expected_expression" "actual_expression" "fail_msg_fmt" ...
+.Fn ATF_REQUIRE_MATCH "regexp" "string"
+.Fn ATF_REQUIRE_MATCH_MSG "regexp" "string" "fail_msg_fmt" ...
+.Fn ATF_REQUIRE_STREQ "expected_string" "actual_string"
+.Fn ATF_REQUIRE_STREQ_MSG "expected_string" "actual_string" "fail_msg_fmt" ...
+.Fn ATF_REQUIRE_ERRNO "expected_errno" "bool_expression"
+.\" NO_CHECK_STYLE_END
+.Fn ATF_TC "name"
+.Fn ATF_TC_BODY "name" "tc"
+.Fn ATF_TC_BODY_NAME "name"
+.Fn ATF_TC_CLEANUP "name" "tc"
+.Fn ATF_TC_CLEANUP_NAME "name"
+.Fn ATF_TC_HEAD "name" "tc"
+.Fn ATF_TC_HEAD_NAME "name"
+.Fn ATF_TC_NAME "name"
+.Fn ATF_TC_WITH_CLEANUP "name"
+.Fn ATF_TC_WITHOUT_HEAD "name"
+.Fn ATF_TP_ADD_TC "tp_name" "tc_name"
+.Fn ATF_TP_ADD_TCS "tp_name"
+.Fn atf_tc_get_config_var "tc" "varname"
+.Fn atf_tc_get_config_var_wd "tc" "variable_name" "default_value"
+.Fn atf_tc_get_config_var_as_bool "tc" "variable_name"
+.Fn atf_tc_get_config_var_as_bool_wd "tc" "variable_name" "default_value"
+.Fn atf_tc_get_config_var_as_long "tc" "variable_name"
+.Fn atf_tc_get_config_var_as_long_wd "tc" "variable_name" "default_value"
+.Fn atf_no_error
+.Fn atf_tc_expect_death "reason" "..."
+.Fn atf_tc_expect_exit "exitcode" "reason" "..."
+.Fn atf_tc_expect_fail "reason" "..."
+.Fn atf_tc_expect_pass
+.Fn atf_tc_expect_signal "signo" "reason" "..."
+.Fn atf_tc_expect_timeout "reason" "..."
+.Fn atf_tc_fail "reason"
+.Fn atf_tc_fail_nonfatal "reason"
+.Fn atf_tc_pass
+.Fn atf_tc_skip "reason"
+.Ft void
+.Fo atf_utils_cat_file
+.Fa "const char *file"
+.Fa "const char *prefix"
+.Fc
+.Ft bool
+.Fo atf_utils_compare_file
+.Fa "const char *file"
+.Fa "const char *contents"
+.Fc
+.Ft void
+.Fo atf_utils_copy_file
+.Fa "const char *source"
+.Fa "const char *destination"
+.Fc
+.Ft void
+.Fo atf_utils_create_file
+.Fa "const char *file"
+.Fa "const char *contents"
+.Fa "..."
+.Fc
+.Ft void
+.Fo atf_utils_file_exists
+.Fa "const char *file"
+.Fc
+.Ft pid_t
+.Fo atf_utils_fork
+.Fa "void"
+.Fc
+.Ft void
+.Fo atf_utils_free_charpp
+.Fa "char **argv"
+.Fc
+.Ft bool
+.Fo atf_utils_grep_file
+.Fa "const char *regexp"
+.Fa "const char *file"
+.Fa "..."
+.Fc
+.Ft bool
+.Fo atf_utils_grep_string
+.Fa "const char *regexp"
+.Fa "const char *str"
+.Fa "..."
+.Fc
+.Ft char *
+.Fo atf_utils_readline
+.Fa "int fd"
+.Fc
+.Ft void
+.Fo atf_utils_redirect
+.Fa "const int fd"
+.Fa "const char *file"
+.Fc
+.Ft void
+.Fo atf_utils_wait
+.Fa "const pid_t pid"
+.Fa "const int expected_exit_status"
+.Fa "const char *expected_stdout"
+.Fa "const char *expected_stderr"
+.Fc
+.Sh DESCRIPTION
+ATF provides a C programming interface to implement test programs.
+C-based test programs follow this template:
+.Bd -literal -offset indent
+\&... C-specific includes go here ...
+
+#include <atf-c.h>
+
+ATF_TC(tc1);
+ATF_TC_HEAD(tc1, tc)
+{
+    ... first test case's header ...
+}
+ATF_TC_BODY(tc1, tc)
+{
+    ... first test case's body ...
+}
+
+ATF_TC_WITH_CLEANUP(tc2);
+ATF_TC_HEAD(tc2, tc)
+{
+    ... second test case's header ...
+}
+ATF_TC_BODY(tc2, tc)
+{
+    ... second test case's body ...
+}
+ATF_TC_CLEANUP(tc2, tc)
+{
+    ... second test case's cleanup ...
+}
+
+ATF_TC_WITHOUT_HEAD(tc3);
+ATF_TC_BODY(tc3, tc)
+{
+    ... third test case's body ...
+}
+
+\&... additional test cases ...
+
+ATF_TP_ADD_TCS(tp)
+{
+    ATF_TP_ADD_TC(tcs, tc1);
+    ATF_TP_ADD_TC(tcs, tc2);
+    ATF_TP_ADD_TC(tcs, tc3);
+    ... add additional test cases ...
+
+    return atf_no_error();
+}
+.Ed
+.Ss Definition of test cases
+Test cases have an identifier and are composed of three different parts:
+the header, the body and an optional cleanup routine, all of which are
+described in
+.Xr atf-test-case 4 .
+To define test cases, one can use the
+.Fn ATF_TC ,
+.Fn ATF_TC_WITH_CLEANUP
+or the
+.Fn ATF_TC_WITHOUT_HEAD
+macros, which take a single parameter specifying the test case's name.
+.Fn ATF_TC ,
+requires to define a head and a body for the test case,
+.Fn ATF_TC_WITH_CLEANUP
+requires to define a head, a body and a cleanup for the test case and
+.Fn ATF_TC_WITHOUT_HEAD
+requires only a body for the test case.
+It is important to note that these
+.Em do not
+set the test case up for execution when the program is run.
+In order to do so, a later registration is needed with the
+.Fn ATF_TP_ADD_TC
+macro detailed in
+.Sx Program initialization .
+.Pp
+Later on, one must define the three parts of the body by means of three
+functions.
+Their headers are given by the
+.Fn ATF_TC_HEAD ,
+.Fn ATF_TC_BODY
+and
+.Fn ATF_TC_CLEANUP
+macros, all of which take the test case name provided to the
+.Fn ATF_TC
+.Fn ATF_TC_WITH_CLEANUP ,
+or
+.Fn ATF_TC_WITHOUT_HEAD
+macros and the name of the variable that will hold a pointer to the
+test case data.
+Following each of these, a block of code is expected, surrounded by the
+opening and closing brackets.
+.Ss Program initialization
+The library provides a way to easily define the test program's
+.Fn main
+function.
+You should never define one on your own, but rely on the
+library to do it for you.
+This is done by using the
+.Fn ATF_TP_ADD_TCS
+macro, which is passed the name of the object that will hold the test
+cases, i.e., the test program instance.
+This name can be whatever you want as long as it is a valid variable
+identifier.
+.Pp
+After the macro, you are supposed to provide the body of a function, which
+should only use the
+.Fn ATF_TP_ADD_TC
+macro to register the test cases the test program will execute and return
+a success error code.
+The first parameter of this macro matches the name you provided in the
+former call.
+The success status can be returned using the
+.Fn atf_no_error
+function.
+.Ss Header definitions
+The test case's header can define the meta-data by using the
+.Fn atf_tc_set_md_var
+method, which takes three parameters: the first one points to the test
+case data, the second one specifies the meta-data variable to be set
+and the third one specifies its value.
+Both of them are strings.
+.Ss Configuration variables
+The test case has read-only access to the current configuration variables
+by means of the
+.Ft bool
+.Fn atf_tc_has_config_var ,
+.Ft const char *
+.Fn atf_tc_get_config_var ,
+.Ft const char *
+.Fn atf_tc_get_config_var_wd ,
+.Ft bool
+.Fn atf_tc_get_config_var_as_bool ,
+.Ft bool
+.Fn atf_tc_get_config_var_as_bool_wd ,
+.Ft long
+.Fn atf_tc_get_config_var_as_long ,
+and the
+.Ft long
+.Fn atf_tc_get_config_var_as_long_wd
+functions, which can be called in any of the three parts of a test case.
+.Pp
+The
+.Sq _wd
+variants take a default value for the variable which is returned if the
+variable is not defined.
+The other functions without the
+.Sq _wd
+suffix
+.Em require
+the variable to be defined.
+.Ss Access to the source directory
+It is possible to get the path to the test case's source directory from any
+of its three components by querying the
+.Sq srcdir
+configuration variable.
+.Ss Requiring programs
+Aside from the
+.Va require.progs
+meta-data variable available in the header only, one can also check for
+additional programs in the test case's body by using the
+.Fn atf_tc_require_prog
+function, which takes the base name or full path of a single binary.
+Relative paths are forbidden.
+If it is not found, the test case will be automatically skipped.
+.Ss Test case finalization
+The test case finalizes either when the body reaches its end, at which
+point the test is assumed to have
+.Em passed ,
+unless any non-fatal errors were raised using
+.Fn atf_tc_fail_nonfatal ,
+or at any explicit call to
+.Fn atf_tc_pass ,
+.Fn atf_tc_fail
+or
+.Fn atf_tc_skip .
+These three functions terminate the execution of the test case immediately.
+The cleanup routine will be processed afterwards in a completely automated
+way, regardless of the test case's termination reason.
+.Pp
+.Fn atf_tc_pass
+does not take any parameters.
+.Fn atf_tc_fail ,
+.Fn atf_tc_fail_nonfatal
+and
+.Fn atf_tc_skip
+take a format string and a variable list of parameters, which describe, in
+a user-friendly manner, why the test case failed or was skipped,
+respectively.
+It is very important to provide a clear error message in both cases so that
+the user can quickly know why the test did not pass.
+.Ss Expectations
+Everything explained in the previous section changes when the test case
+expectations are redefined by the programmer.
+.Pp
+Each test case has an internal state called
+.Sq expect
+that describes what the test case expectations are at any point in time.
+The value of this property can change during execution by any of:
+.Bl -tag -width indent
+.It Fn atf_tc_expect_death "reason" "..."
+Expects the test case to exit prematurely regardless of the nature of the
+exit.
+.It Fn atf_tc_expect_exit "exitcode" "reason" "..."
+Expects the test case to exit cleanly.
+If
+.Va exitcode
+is not
+.Sq -1 ,
+the runtime engine will validate that the exit code of the test case
+matches the one provided in this call.
+Otherwise, the exact value will be ignored.
+.It Fn atf_tc_expect_fail "reason" "..."
+Any failure (be it fatal or non-fatal) raised in this mode is recorded.
+However, such failures do not report the test case as failed; instead, the
+test case finalizes cleanly and is reported as
+.Sq expected failure ;
+this report includes the provided
+.Fa reason
+as part of it.
+If no error is raised while running in this mode, then the test case is
+reported as
+.Sq failed .
+.Pp
+This mode is useful to reproduce actual known bugs in tests.
+Whenever the developer fixes the bug later on, the test case will start
+reporting a failure, signaling the developer that the test case must be
+adjusted to the new conditions.
+In this situation, it is useful, for example, to set
+.Fa reason
+as the bug number for tracking purposes.
+.It Fn atf_tc_expect_pass
+This is the normal mode of execution.
+In this mode, any failure is reported as such to the user and the test case
+is marked as
+.Sq failed .
+.It Fn atf_tc_expect_signal "signo" "reason" "..."
+Expects the test case to terminate due to the reception of a signal.
+If
+.Va signo
+is not
+.Sq -1 ,
+the runtime engine will validate that the signal that terminated the test
+case matches the one provided in this call.
+Otherwise, the exact value will be ignored.
+.It Fn atf_tc_expect_timeout "reason" "..."
+Expects the test case to execute for longer than its timeout.
+.El
+.Ss Helper macros for common checks
+The library provides several macros that are very handy in multiple
+situations.
+These basically check some condition after executing a given statement or
+processing a given expression and, if the condition is not met, they
+report the test case as failed.
+.Pp
+The
+.Sq REQUIRE
+variant of the macros immediately abort the test case as soon as an error
+condition is detected by calling the
+.Fn atf_tc_fail
+function.
+Use this variant whenever it makes no sense to continue the execution of a
+test case when the checked condition is not met.
+The
+.Sq CHECK
+variant, on the other hand, reports a failure as soon as it is encountered
+using the
+.Fn atf_tc_fail_nonfatal
+function, but the execution of the test case continues as if nothing had
+happened.
+Use this variant whenever the checked condition is important as a result of
+the test case, but there are other conditions that can be subsequently
+checked on the same run without aborting.
+.Pp
+Additionally, the
+.Sq MSG
+variants take an extra set of parameters to explicitly specify the failure
+message.
+This failure message is formatted according to the
+.Xr printf 3
+formatters.
+.Pp
+.Fn ATF_CHECK ,
+.Fn ATF_CHECK_MSG ,
+.Fn ATF_REQUIRE
+and
+.Fn ATF_REQUIRE_MSG
+take an expression and fail if the expression evaluates to false.
+.Pp
+.Fn ATF_CHECK_EQ ,
+.Fn ATF_CHECK_EQ_MSG ,
+.Fn ATF_REQUIRE_EQ
+and
+.Fn ATF_REQUIRE_EQ_MSG
+take two expressions and fail if the two evaluated values are not equal.
+The common style is to put the expected value in the first parameter and the
+actual value in the second parameter.
+.Pp
+.Fn ATF_CHECK_MATCH ,
+.Fn ATF_CHECK_MATCH_MSG ,
+.Fn ATF_REQUIRE_MATCH
+and
+.Fn ATF_REQUIRE_MATCH_MSG
+take a regular expression and a string and fail if the regular expression does
+not match the given string.
+Note that the regular expression is not anchored, so it will match anywhere in
+the string.
+.Pp
+.Fn ATF_CHECK_STREQ ,
+.Fn ATF_CHECK_STREQ_MSG ,
+.Fn ATF_REQUIRE_STREQ
+and
+.Fn ATF_REQUIRE_STREQ_MSG
+take two strings and fail if the two are not equal character by character.
+The common style is to put the expected string in the first parameter and the
+actual string in the second parameter.
+.Pp
+.Fn ATF_CHECK_ERRNO
+and
+.Fn ATF_REQUIRE_ERRNO
+take, first, the error code that the check is expecting to find in the
+.Va errno
+variable and, second, a boolean expression that, if evaluates to true,
+means that a call failed and
+.Va errno
+has to be checked against the first value.
+.Ss Utility functions
+The following functions are provided as part of the
+.Nm
+API to simplify the creation of a variety of tests.
+In particular, these are useful to write tests for command-line interfaces.
+.Pp
+.Ft void
+.Fo atf_utils_cat_file
+.Fa "const char *file"
+.Fa "const char *prefix"
+.Fc
+.Bd -ragged -offset indent
+Prints the contents of
+.Fa file
+to the standard output, prefixing every line with the string in
+.Fa prefix .
+.Ed
+.Pp
+.Ft bool
+.Fo atf_utils_compare_file
+.Fa "const char *file"
+.Fa "const char *contents"
+.Fc
+.Bd -ragged -offset indent
+Returns true if the given
+.Fa file
+matches exactly the expected inlined
+.Fa contents .
+.Ed
+.Pp
+.Ft void
+.Fo atf_utils_copy_file
+.Fa "const char *source"
+.Fa "const char *destination"
+.Fc
+.Bd -ragged -offset indent
+Copies the file
+.Fa source
+to
+.Fa destination .
+The permissions of the file are preserved during the code.
+.Ed
+.Pp
+.Ft void
+.Fo atf_utils_create_file
+.Fa "const char *file"
+.Fa "const char *contents"
+.Fa "..."
+.Fc
+.Bd -ragged -offset indent
+Creates
+.Fa file
+with the text given in
+.Fa contents ,
+which is a formatting string that uses the rest of the variable arguments.
+.Ed
+.Pp
+.Ft void
+.Fo atf_utils_file_exists
+.Fa "const char *file"
+.Fc
+.Bd -ragged -offset indent
+Checks if
+.Fa file
+exists.
+.Ed
+.Pp
+.Ft pid_t
+.Fo atf_utils_fork
+.Fa "void"
+.Fc
+.Bd -ragged -offset indent
+Forks a process and redirects the standard output and standard error of the
+child to files for later validation with
+.Fn atf_utils_wait .
+Fails the test case if the fork fails, so this does not return an error.
+.Ed
+.Pp
+.Ft void
+.Fo atf_utils_free_charpp
+.Fa "char **argv"
+.Fc
+.Bd -ragged -offset indent
+Frees a dynamically-allocated array of dynamically-allocated strings.
+.Ed
+.Pp
+.Ft bool
+.Fo atf_utils_grep_file
+.Fa "const char *regexp"
+.Fa "const char *file"
+.Fa "..."
+.Fc
+.Bd -ragged -offset indent
+Searches for the
+.Fa regexp ,
+which is a formatting string representing the regular expression,
+in the
+.Fa file .
+The variable arguments are used to construct the regular expression.
+.Ed
+.Pp
+.Ft bool
+.Fo atf_utils_grep_string
+.Fa "const char *regexp"
+.Fa "const char *str"
+.Fa "..."
+.Fc
+.Bd -ragged -offset indent
+Searches for the
+.Fa regexp ,
+which is a formatting string representing the regular expression,
+in the literal string
+.Fa str .
+The variable arguments are used to construct the regular expression.
+.Ed
+.Pp
+.Ft char *
+.Fo atf_utils_readline
+.Fa "int fd"
+.Fc
+.Bd -ragged -offset indent
+Reads a line from the file descriptor
+.Fa fd .
+The line, if any, is returned as a dynamically-allocated buffer that must be
+released with
+.Xr free 3 .
+If there was nothing to read, returns
+.Sq NULL .
+.Ed
+.Pp
+.Ft void
+.Fo atf_utils_redirect
+.Fa "const int fd"
+.Fa "const char *file"
+.Fc
+.Bd -ragged -offset indent
+Redirects the given file descriptor
+.Fa fd
+to
+.Fa file .
+This function exits the process in case of an error and does not properly mark
+the test case as failed.
+As a result, it should only be used in subprocesses of the test case; specially
+those spawned by
+.Fn atf_utils_fork .
+.Ed
+.Pp
+.Ft void
+.Fo atf_utils_wait
+.Fa "const pid_t pid"
+.Fa "const int expected_exit_status"
+.Fa "const char *expected_stdout"
+.Fa "const char *expected_stderr"
+.Fc
+.Bd -ragged -offset indent
+Waits and validates the result of a subprocess spawned with
+.Fn atf_utils_fork .
+The validation involves checking that the subprocess exited cleanly and returned
+the code specified in
+.Fa expected_exit_status
+and that its standard output and standard error match the strings given in
+.Fa expected_stdout
+and
+.Fa expected_stderr .
+.Pp
+If any of the
+.Fa expected_stdout
+or
+.Fa expected_stderr
+strings are prefixed with
+.Sq save: ,
+then they specify the name of the file into which to store the stdout or stderr
+of the subprocess, and no comparison is performed.
+.Ed
+.Sh ENVIRONMENT
+The following variables are recognized by
+.Nm
+but should not be overridden other than for testing purposes:
+.Pp
+.Bl -tag -width ATFXBUILDXCXXFLAGSXX -compact
+.It Va ATF_BUILD_CC
+Path to the C compiler.
+.It Va ATF_BUILD_CFLAGS
+C compiler flags.
+.It Va ATF_BUILD_CPP
+Path to the C/C++ preprocessor.
+.It Va ATF_BUILD_CPPFLAGS
+C/C++ preprocessor flags.
+.It Va ATF_BUILD_CXX
+Path to the C++ compiler.
+.It Va ATF_BUILD_CXXFLAGS
+C++ compiler flags.
+.El
+.Sh EXAMPLES
+The following shows a complete test program with a single test case that
+validates the addition operator:
+.Bd -literal -offset indent
+#include <atf-c.h>
+
+ATF_TC(addition);
+ATF_TC_HEAD(addition, tc)
+{
+    atf_tc_set_md_var(tc, "descr",
+                      "Sample tests for the addition operator");
+}
+ATF_TC_BODY(addition, tc)
+{
+    ATF_CHECK_EQ(0, 0 + 0);
+    ATF_CHECK_EQ(1, 0 + 1);
+    ATF_CHECK_EQ(1, 1 + 0);
+
+    ATF_CHECK_EQ(2, 1 + 1);
+
+    ATF_CHECK_EQ(300, 100 + 200);
+}
+
+ATF_TC(string_formatting);
+ATF_TC_HEAD(string_formatting, tc)
+{
+    atf_tc_set_md_var(tc, "descr",
+                      "Sample tests for the snprintf");
+}
+ATF_TC_BODY(string_formatting, tc)
+{
+    char buf[1024];
+    snprintf(buf, sizeof(buf), "a %s", "string");
+    ATF_CHECK_STREQ_MSG("a string", buf, "%s is not working");
+}
+
+ATF_TC(open_failure);
+ATF_TC_HEAD(open_failure, tc)
+{
+    atf_tc_set_md_var(tc, "descr",
+                      "Sample tests for the open function");
+}
+ATF_TC_BODY(open_failure, tc)
+{
+    ATF_CHECK_ERRNO(ENOENT, open("non-existent", O_RDONLY) == -1);
+}
+
+ATF_TC(known_bug);
+ATF_TC_HEAD(known_bug, tc)
+{
+    atf_tc_set_md_var(tc, "descr",
+                      "Reproduces a known bug");
+}
+ATF_TC_BODY(known_bug, tc)
+{
+    atf_tc_expect_fail("See bug number foo/bar");
+    ATF_CHECK_EQ(3, 1 + 1);
+    atf_tc_expect_pass();
+    ATF_CHECK_EQ(3, 1 + 2);
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+    ATF_TP_ADD_TC(tp, addition);
+    ATF_TP_ADD_TC(tp, string_formatting);
+    ATF_TP_ADD_TC(tp, open_failure);
+    ATF_TP_ADD_TC(tp, known_bug);
+
+    return atf_no_error();
+}
+.Ed
+.Sh SEE ALSO
+.Xr atf-test-program 1 ,
+.Xr atf-test-case 4

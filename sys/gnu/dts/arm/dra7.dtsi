@@ -1,0 +1,2167 @@
+/*
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ * Based on "omap4.dtsi"
+ */
+
+#include <dt-bindings/bus/ti-sysc.h>
+#include <dt-bindings/clock/dra7.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/pinctrl/dra.h>
+#include <dt-bindings/clock/dra7.h>
+
+#define MAX_SOURCES 400
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	compatible = "ti,dra7xx";
+	interrupt-parent = <&crossbar_mpu>;
+	chosen { };
+
+	aliases {
+		i2c0 = &i2c1;
+		i2c1 = &i2c2;
+		i2c2 = &i2c3;
+		i2c3 = &i2c4;
+		i2c4 = &i2c5;
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
+		serial4 = &uart5;
+		serial5 = &uart6;
+		serial6 = &uart7;
+		serial7 = &uart8;
+		serial8 = &uart9;
+		serial9 = &uart10;
+		ethernet0 = &cpsw_emac0;
+		ethernet1 = &cpsw_emac1;
+		d_can0 = &dcan1;
+		d_can1 = &dcan2;
+		spi0 = &qspi;
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>;
+		interrupt-parent = <&gic>;
+	};
+
+	gic: interrupt-controller@48211000 {
+		compatible = "arm,cortex-a15-gic";
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		reg = <0x0 0x48211000 0x0 0x1000>,
+		      <0x0 0x48212000 0x0 0x2000>,
+		      <0x0 0x48214000 0x0 0x2000>,
+		      <0x0 0x48216000 0x0 0x2000>;
+		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
+		interrupt-parent = <&gic>;
+	};
+
+	wakeupgen: interrupt-controller@48281000 {
+		compatible = "ti,omap5-wugen-mpu", "ti,omap4-wugen-mpu";
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		reg = <0x0 0x48281000 0x0 0x1000>;
+		interrupt-parent = <&gic>;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0>;
+
+			operating-points-v2 = <&cpu0_opp_table>;
+
+			clocks = <&dpll_mpu_ck>;
+			clock-names = "cpu";
+
+			clock-latency = <300000>; /* From omap-cpufreq driver */
+
+			/* cooling options */
+			#cooling-cells = <2>; /* min followed by max */
+
+			vbb-supply = <&abb_mpu>;
+		};
+	};
+
+	cpu0_opp_table: opp-table {
+		compatible = "operating-points-v2-ti-cpu";
+		syscon = <&scm_wkup>;
+
+		opp_nom-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <1060000 850000 1150000>,
+					<1060000 850000 1150000>;
+			opp-supported-hw = <0xFF 0x01>;
+			opp-suspend;
+		};
+
+		opp_od-1176000000 {
+			opp-hz = /bits/ 64 <1176000000>;
+			opp-microvolt = <1160000 885000 1160000>,
+					<1160000 885000 1160000>;
+
+			opp-supported-hw = <0xFF 0x02>;
+		};
+
+		opp_high@1500000000 {
+			opp-hz = /bits/ 64 <1500000000>;
+			opp-microvolt = <1210000 950000 1250000>,
+					<1210000 950000 1250000>;
+			opp-supported-hw = <0xFF 0x04>;
+		};
+	};
+
+	/*
+	 * The soc node represents the soc top level view. It is used for IPs
+	 * that are not memory mapped in the MPU view or for the MPU itself.
+	 */
+	soc {
+		compatible = "ti,omap-infra";
+		mpu {
+			compatible = "ti,omap5-mpu";
+			ti,hwmods = "mpu";
+		};
+	};
+
+	/*
+	 * XXX: Use a flat representation of the SOC interconnect.
+	 * The real OMAP interconnect network is quite complex.
+	 * Since it will not bring real advantage to represent that in DT for
+	 * the moment, just use a fake OCP bus entry to represent the whole bus
+	 * hierarchy.
+	 */
+	ocp {
+		compatible = "ti,dra7-l3-noc", "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x0 0xc0000000>;
+		ti,hwmods = "l3_main_1", "l3_main_2";
+		reg = <0x0 0x44000000 0x0 0x1000000>,
+		      <0x0 0x45000000 0x0 0x1000>;
+		interrupts-extended = <&crossbar_mpu GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+				      <&wakeupgen GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+
+		l4_cfg: l4@4a000000 {
+			compatible = "ti,dra7-l4-cfg", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x4a000000 0x22c000>;
+
+			scm: scm@2000 {
+				compatible = "ti,dra7-scm-core", "simple-bus";
+				reg = <0x2000 0x2000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x2000 0x2000>;
+
+				scm_conf: scm_conf@0 {
+					compatible = "syscon", "simple-bus";
+					reg = <0x0 0x1400>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x0 0x1400>;
+
+					pbias_regulator: pbias_regulator@e00 {
+						compatible = "ti,pbias-dra7", "ti,pbias-omap";
+						reg = <0xe00 0x4>;
+						syscon = <&scm_conf>;
+						pbias_mmc_reg: pbias_mmc_omap5 {
+							regulator-name = "pbias_mmc_omap5";
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <3300000>;
+						};
+					};
+
+					scm_conf_clocks: clocks {
+						#address-cells = <1>;
+						#size-cells = <0>;
+					};
+				};
+
+				dra7_pmx_core: pinmux@1400 {
+					compatible = "ti,dra7-padconf",
+						     "pinctrl-single";
+					reg = <0x1400 0x0468>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					#pinctrl-cells = <1>;
+					#interrupt-cells = <1>;
+					interrupt-controller;
+					pinctrl-single,register-width = <32>;
+					pinctrl-single,function-mask = <0x3fffffff>;
+				};
+
+				scm_conf1: scm_conf@1c04 {
+					compatible = "syscon";
+					reg = <0x1c04 0x0020>;
+					#syscon-cells = <2>;
+				};
+
+				scm_conf_pcie: scm_conf@1c24 {
+					compatible = "syscon";
+					reg = <0x1c24 0x0024>;
+				};
+
+				sdma_xbar: dma-router@b78 {
+					compatible = "ti,dra7-dma-crossbar";
+					reg = <0xb78 0xfc>;
+					#dma-cells = <1>;
+					dma-requests = <205>;
+					ti,dma-safe-map = <0>;
+					dma-masters = <&sdma>;
+				};
+
+				edma_xbar: dma-router@c78 {
+					compatible = "ti,dra7-dma-crossbar";
+					reg = <0xc78 0x7c>;
+					#dma-cells = <2>;
+					dma-requests = <204>;
+					ti,dma-safe-map = <0>;
+					dma-masters = <&edma>;
+				};
+			};
+
+			cm_core_aon: cm_core_aon@5000 {
+				compatible = "ti,dra7-cm-core-aon",
+					      "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0x5000 0x2000>;
+				ranges = <0 0x5000 0x2000>;
+
+				cm_core_aon_clocks: clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+
+				cm_core_aon_clockdomains: clockdomains {
+				};
+			};
+
+			cm_core: cm_core@8000 {
+				compatible = "ti,dra7-cm-core", "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0x8000 0x3000>;
+				ranges = <0 0x8000 0x3000>;
+
+				cm_core_clocks: clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+
+				cm_core_clockdomains: clockdomains {
+				};
+			};
+		};
+
+		l4_wkup: l4@4ae00000 {
+			compatible = "ti,dra7-l4-wkup", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x4ae00000 0x3f000>;
+
+			counter32k: counter@4000 {
+				compatible = "ti,omap-counter32k";
+				reg = <0x4000 0x40>;
+				ti,hwmods = "counter_32k";
+			};
+
+			prm: prm@6000 {
+				compatible = "ti,dra7-prm", "simple-bus";
+				reg = <0x6000 0x3000>;
+				interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x6000 0x3000>;
+
+				prm_clocks: clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+
+				prm_clockdomains: clockdomains {
+				};
+			};
+
+			scm_wkup: scm_conf@c000 {
+				compatible = "syscon";
+				reg = <0xc000 0x1000>;
+			};
+		};
+
+		axi@0 {
+			compatible = "simple-bus";
+			#size-cells = <1>;
+			#address-cells = <1>;
+			ranges = <0x51000000 0x51000000 0x3000
+				  0x0	     0x20000000 0x10000000>;
+			/**
+			 * To enable PCI endpoint mode, disable the pcie1_rc
+			 * node and enable pcie1_ep mode.
+			 */
+			pcie1_rc: pcie@51000000 {
+				reg = <0x51000000 0x2000>, <0x51002000 0x14c>, <0x1000 0x2000>;
+				reg-names = "rc_dbics", "ti_conf", "config";
+				interrupts = <0 232 0x4>, <0 233 0x4>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				device_type = "pci";
+				ranges = <0x81000000 0 0          0x03000 0 0x00010000
+					  0x82000000 0 0x20013000 0x13000 0 0xffed000>;
+				bus-range = <0x00 0xff>;
+				#interrupt-cells = <1>;
+				num-lanes = <1>;
+				linux,pci-domain = <0>;
+				ti,hwmods = "pcie1";
+				phys = <&pcie1_phy>;
+				phy-names = "pcie-phy0";
+				interrupt-map-mask = <0 0 0 7>;
+				interrupt-map = <0 0 0 1 &pcie1_intc 1>,
+						<0 0 0 2 &pcie1_intc 2>,
+						<0 0 0 3 &pcie1_intc 3>,
+						<0 0 0 4 &pcie1_intc 4>;
+				ti,syscon-unaligned-access = <&scm_conf1 0x14 1>;
+				status = "disabled";
+				pcie1_intc: interrupt-controller {
+					interrupt-controller;
+					#address-cells = <0>;
+					#interrupt-cells = <1>;
+				};
+			};
+
+			pcie1_ep: pcie_ep@51000000 {
+				reg = <0x51000000 0x28>, <0x51002000 0x14c>, <0x51001000 0x28>, <0x1000 0x10000000>;
+				reg-names = "ep_dbics", "ti_conf", "ep_dbics2", "addr_space";
+				interrupts = <0 232 0x4>;
+				num-lanes = <1>;
+				num-ib-windows = <4>;
+				num-ob-windows = <16>;
+				ti,hwmods = "pcie1";
+				phys = <&pcie1_phy>;
+				phy-names = "pcie-phy0";
+				ti,syscon-unaligned-access = <&scm_conf1 0x14 1>;
+				status = "disabled";
+			};
+		};
+
+		axi@1 {
+			compatible = "simple-bus";
+			#size-cells = <1>;
+			#address-cells = <1>;
+			ranges = <0x51800000 0x51800000 0x3000
+				  0x0	     0x30000000 0x10000000>;
+			status = "disabled";
+			pcie2_rc: pcie@51800000 {
+				reg = <0x51800000 0x2000>, <0x51802000 0x14c>, <0x1000 0x2000>;
+				reg-names = "rc_dbics", "ti_conf", "config";
+				interrupts = <0 355 0x4>, <0 356 0x4>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				device_type = "pci";
+				ranges = <0x81000000 0 0          0x03000 0 0x00010000
+					  0x82000000 0 0x30013000 0x13000 0 0xffed000>;
+				bus-range = <0x00 0xff>;
+				#interrupt-cells = <1>;
+				num-lanes = <1>;
+				linux,pci-domain = <1>;
+				ti,hwmods = "pcie2";
+				phys = <&pcie2_phy>;
+				phy-names = "pcie-phy0";
+				interrupt-map-mask = <0 0 0 7>;
+				interrupt-map = <0 0 0 1 &pcie2_intc 1>,
+						<0 0 0 2 &pcie2_intc 2>,
+						<0 0 0 3 &pcie2_intc 3>,
+						<0 0 0 4 &pcie2_intc 4>;
+				ti,syscon-unaligned-access = <&scm_conf1 0x14 2>;
+				pcie2_intc: interrupt-controller {
+					interrupt-controller;
+					#address-cells = <0>;
+					#interrupt-cells = <1>;
+				};
+			};
+		};
+
+		ocmcram1: ocmcram@40300000 {
+			compatible = "mmio-sram";
+			reg = <0x40300000 0x80000>;
+			ranges = <0x0 0x40300000 0x80000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			/*
+			 * This is a placeholder for an optional reserved
+			 * region for use by secure software. The size
+			 * of this region is not known until runtime so it
+			 * is set as zero to either be updated to reserve
+			 * space or left unchanged to leave all SRAM for use.
+			 * On HS parts that that require the reserved region
+			 * either the bootloader can update the size to
+			 * the required amount or the node can be overridden
+			 * from the board dts file for the secure platform.
+			 */
+			sram-hs@0 {
+				compatible = "ti,secure-ram";
+				reg = <0x0 0x0>;
+			};
+		};
+
+		/*
+		 * NOTE: ocmcram2 and ocmcram3 are not available on all
+		 * DRA7xx and AM57xx variants. Confirm availability in
+		 * the data manual for the exact part number in use
+		 * before enabling these nodes in the board dts file.
+		 */
+		ocmcram2: ocmcram@40400000 {
+			status = "disabled";
+			compatible = "mmio-sram";
+			reg = <0x40400000 0x100000>;
+			ranges = <0x0 0x40400000 0x100000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
+		ocmcram3: ocmcram@40500000 {
+			status = "disabled";
+			compatible = "mmio-sram";
+			reg = <0x40500000 0x100000>;
+			ranges = <0x0 0x40500000 0x100000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
+		bandgap: bandgap@4a0021e0 {
+			reg = <0x4a0021e0 0xc
+				0x4a00232c 0xc
+				0x4a002380 0x2c
+				0x4a0023C0 0x3c
+				0x4a002564 0x8
+				0x4a002574 0x50>;
+				compatible = "ti,dra752-bandgap";
+				interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
+				#thermal-sensor-cells = <1>;
+		};
+
+		dsp1_system: dsp_system@40d00000 {
+			compatible = "syscon";
+			reg = <0x40d00000 0x100>;
+		};
+
+		dra7_iodelay_core: padconf@4844a000 {
+			compatible = "ti,dra7-iodelay";
+			reg = <0x4844a000 0x0d1c>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#pinctrl-cells = <2>;
+		};
+
+		sdma: dma-controller@4a056000 {
+			compatible = "ti,omap4430-sdma";
+			reg = <0x4a056000 0x1000>;
+			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+			dma-channels = <32>;
+			dma-requests = <127>;
+			ti,hwmods = "dma_system";
+		};
+
+		edma: edma@43300000 {
+			compatible = "ti,edma3-tpcc";
+			ti,hwmods = "tpcc";
+			reg = <0x43300000 0x100000>;
+			reg-names = "edma3_cc";
+			interrupts = <GIC_SPI 361 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "edma3_ccint", "edma3_mperr",
+					  "edma3_ccerrint";
+			dma-requests = <64>;
+			#dma-cells = <2>;
+
+			ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 0>;
+
+			/*
+			 * memcpy is disabled, can be enabled with:
+			 * ti,edma-memcpy-channels = <20 21>;
+			 * for example. Note that these channels need to be
+			 * masked in the xbar as well.
+			 */
+		};
+
+		edma_tptc0: tptc@43400000 {
+			compatible = "ti,edma3-tptc";
+			ti,hwmods = "tptc0";
+			reg =	<0x43400000 0x100000>;
+			interrupts = <GIC_SPI 370 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "edma3_tcerrint";
+		};
+
+		edma_tptc1: tptc@43500000 {
+			compatible = "ti,edma3-tptc";
+			ti,hwmods = "tptc1";
+			reg =	<0x43500000 0x100000>;
+			interrupts = <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "edma3_tcerrint";
+		};
+
+		gpio1: gpio@4ae10000 {
+			compatible = "ti,omap4-gpio";
+			reg = <0x4ae10000 0x200>;
+			interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "gpio1";
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio2: gpio@48055000 {
+			compatible = "ti,omap4-gpio";
+			reg = <0x48055000 0x200>;
+			interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "gpio2";
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio3: gpio@48057000 {
+			compatible = "ti,omap4-gpio";
+			reg = <0x48057000 0x200>;
+			interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "gpio3";
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio4: gpio@48059000 {
+			compatible = "ti,omap4-gpio";
+			reg = <0x48059000 0x200>;
+			interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "gpio4";
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio5: gpio@4805b000 {
+			compatible = "ti,omap4-gpio";
+			reg = <0x4805b000 0x200>;
+			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "gpio5";
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio6: gpio@4805d000 {
+			compatible = "ti,omap4-gpio";
+			reg = <0x4805d000 0x200>;
+			interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "gpio6";
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio7: gpio@48051000 {
+			compatible = "ti,omap4-gpio";
+			reg = <0x48051000 0x200>;
+			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "gpio7";
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio8: gpio@48053000 {
+			compatible = "ti,omap4-gpio";
+			reg = <0x48053000 0x200>;
+			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "gpio8";
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		uart1: serial@4806a000 {
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
+			reg = <0x4806a000 0x100>;
+			interrupts-extended = <&crossbar_mpu GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "uart1";
+			clock-frequency = <48000000>;
+			status = "disabled";
+			dmas = <&sdma_xbar 49>, <&sdma_xbar 50>;
+			dma-names = "tx", "rx";
+		};
+
+		uart2: serial@4806c000 {
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
+			reg = <0x4806c000 0x100>;
+			interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "uart2";
+			clock-frequency = <48000000>;
+			status = "disabled";
+			dmas = <&sdma_xbar 51>, <&sdma_xbar 52>;
+			dma-names = "tx", "rx";
+		};
+
+		uart3: serial@48020000 {
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
+			reg = <0x48020000 0x100>;
+			interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "uart3";
+			clock-frequency = <48000000>;
+			status = "disabled";
+			dmas = <&sdma_xbar 53>, <&sdma_xbar 54>;
+			dma-names = "tx", "rx";
+		};
+
+		uart4: serial@4806e000 {
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
+			reg = <0x4806e000 0x100>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "uart4";
+			clock-frequency = <48000000>;
+                        status = "disabled";
+			dmas = <&sdma_xbar 55>, <&sdma_xbar 56>;
+			dma-names = "tx", "rx";
+		};
+
+		uart5: serial@48066000 {
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
+			reg = <0x48066000 0x100>;
+			interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "uart5";
+			clock-frequency = <48000000>;
+			status = "disabled";
+			dmas = <&sdma_xbar 63>, <&sdma_xbar 64>;
+			dma-names = "tx", "rx";
+		};
+
+		uart6: serial@48068000 {
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
+			reg = <0x48068000 0x100>;
+			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "uart6";
+			clock-frequency = <48000000>;
+			status = "disabled";
+			dmas = <&sdma_xbar 79>, <&sdma_xbar 80>;
+			dma-names = "tx", "rx";
+		};
+
+		uart7: serial@48420000 {
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
+			reg = <0x48420000 0x100>;
+			interrupts = <GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "uart7";
+			clock-frequency = <48000000>;
+			status = "disabled";
+		};
+
+		uart8: serial@48422000 {
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
+			reg = <0x48422000 0x100>;
+			interrupts = <GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "uart8";
+			clock-frequency = <48000000>;
+			status = "disabled";
+		};
+
+		uart9: serial@48424000 {
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
+			reg = <0x48424000 0x100>;
+			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "uart9";
+			clock-frequency = <48000000>;
+			status = "disabled";
+		};
+
+		uart10: serial@4ae2b000 {
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
+			reg = <0x4ae2b000 0x100>;
+			interrupts = <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "uart10";
+			clock-frequency = <48000000>;
+			status = "disabled";
+		};
+
+		mailbox1: mailbox@4a0f4000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x4a0f4000 0x200>;
+			interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mailbox1";
+			#mbox-cells = <1>;
+			ti,mbox-num-users = <3>;
+			ti,mbox-num-fifos = <8>;
+			status = "disabled";
+		};
+
+		mailbox2: mailbox@4883a000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x4883a000 0x200>;
+			interrupts = <GIC_SPI 237 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mailbox2";
+			#mbox-cells = <1>;
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <12>;
+			status = "disabled";
+		};
+
+		mailbox3: mailbox@4883c000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x4883c000 0x200>;
+			interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 243 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mailbox3";
+			#mbox-cells = <1>;
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <12>;
+			status = "disabled";
+		};
+
+		mailbox4: mailbox@4883e000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x4883e000 0x200>;
+			interrupts = <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 247 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 248 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mailbox4";
+			#mbox-cells = <1>;
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <12>;
+			status = "disabled";
+		};
+
+		mailbox5: mailbox@48840000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x48840000 0x200>;
+			interrupts = <GIC_SPI 249 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 250 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 251 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 252 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mailbox5";
+			#mbox-cells = <1>;
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <12>;
+			status = "disabled";
+		};
+
+		mailbox6: mailbox@48842000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x48842000 0x200>;
+			interrupts = <GIC_SPI 253 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 254 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mailbox6";
+			#mbox-cells = <1>;
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <12>;
+			status = "disabled";
+		};
+
+		mailbox7: mailbox@48844000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x48844000 0x200>;
+			interrupts = <GIC_SPI 257 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 258 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 259 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mailbox7";
+			#mbox-cells = <1>;
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <12>;
+			status = "disabled";
+		};
+
+		mailbox8: mailbox@48846000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x48846000 0x200>;
+			interrupts = <GIC_SPI 261 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 262 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 264 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mailbox8";
+			#mbox-cells = <1>;
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <12>;
+			status = "disabled";
+		};
+
+		mailbox9: mailbox@4885e000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x4885e000 0x200>;
+			interrupts = <GIC_SPI 265 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 266 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 267 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 268 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mailbox9";
+			#mbox-cells = <1>;
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <12>;
+			status = "disabled";
+		};
+
+		mailbox10: mailbox@48860000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x48860000 0x200>;
+			interrupts = <GIC_SPI 269 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 270 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 271 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 272 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mailbox10";
+			#mbox-cells = <1>;
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <12>;
+			status = "disabled";
+		};
+
+		mailbox11: mailbox@48862000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x48862000 0x200>;
+			interrupts = <GIC_SPI 273 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 274 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 275 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 276 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mailbox11";
+			#mbox-cells = <1>;
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <12>;
+			status = "disabled";
+		};
+
+		mailbox12: mailbox@48864000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x48864000 0x200>;
+			interrupts = <GIC_SPI 277 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 278 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 279 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 280 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mailbox12";
+			#mbox-cells = <1>;
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <12>;
+			status = "disabled";
+		};
+
+		mailbox13: mailbox@48802000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x48802000 0x200>;
+			interrupts = <GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 380 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 382 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mailbox13";
+			#mbox-cells = <1>;
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <12>;
+			status = "disabled";
+		};
+
+		timer1: timer@4ae18000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x4ae18000 0x80>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer1";
+			ti,timer-alwon;
+			clock-names = "fck";
+			clocks = <&wkupaon_clkctrl DRA7_TIMER1_CLKCTRL 24>;
+		};
+
+		timer2: timer@48032000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x48032000 0x80>;
+			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer2";
+		};
+
+		timer3: timer@48034000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x48034000 0x80>;
+			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer3";
+		};
+
+		timer4: timer@48036000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x48036000 0x80>;
+			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer4";
+		};
+
+		timer5: timer@48820000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x48820000 0x80>;
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer5";
+		};
+
+		timer6: timer@48822000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x48822000 0x80>;
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer6";
+		};
+
+		timer7: timer@48824000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x48824000 0x80>;
+			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer7";
+		};
+
+		timer8: timer@48826000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x48826000 0x80>;
+			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer8";
+		};
+
+		timer9: timer@4803e000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x4803e000 0x80>;
+			interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer9";
+		};
+
+		timer10: timer@48086000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x48086000 0x80>;
+			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer10";
+		};
+
+		timer11: timer@48088000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x48088000 0x80>;
+			interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer11";
+		};
+
+		timer12: timer@4ae20000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x4ae20000 0x80>;
+			interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer12";
+			ti,timer-alwon;
+			ti,timer-secure;
+		};
+
+		timer13: timer@48828000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x48828000 0x80>;
+			interrupts = <GIC_SPI 339 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer13";
+		};
+
+		timer14: timer@4882a000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x4882a000 0x80>;
+			interrupts = <GIC_SPI 340 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer14";
+		};
+
+		timer15: timer@4882c000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x4882c000 0x80>;
+			interrupts = <GIC_SPI 341 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer15";
+		};
+
+		timer16: timer@4882e000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x4882e000 0x80>;
+			interrupts = <GIC_SPI 342 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer16";
+		};
+
+		wdt2: wdt@4ae14000 {
+			compatible = "ti,omap3-wdt";
+			reg = <0x4ae14000 0x80>;
+			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "wd_timer2";
+		};
+
+		hwspinlock: spinlock@4a0f6000 {
+			compatible = "ti,omap4-hwspinlock";
+			reg = <0x4a0f6000 0x1000>;
+			ti,hwmods = "spinlock";
+			#hwlock-cells = <1>;
+		};
+
+		dmm@4e000000 {
+			compatible = "ti,omap5-dmm";
+			reg = <0x4e000000 0x800>;
+			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "dmm";
+		};
+
+		i2c1: i2c@48070000 {
+			compatible = "ti,omap4-i2c";
+			reg = <0x48070000 0x100>;
+			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ti,hwmods = "i2c1";
+			status = "disabled";
+		};
+
+		i2c2: i2c@48072000 {
+			compatible = "ti,omap4-i2c";
+			reg = <0x48072000 0x100>;
+			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ti,hwmods = "i2c2";
+			status = "disabled";
+		};
+
+		i2c3: i2c@48060000 {
+			compatible = "ti,omap4-i2c";
+			reg = <0x48060000 0x100>;
+			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ti,hwmods = "i2c3";
+			status = "disabled";
+		};
+
+		i2c4: i2c@4807a000 {
+			compatible = "ti,omap4-i2c";
+			reg = <0x4807a000 0x100>;
+			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ti,hwmods = "i2c4";
+			status = "disabled";
+		};
+
+		i2c5: i2c@4807c000 {
+			compatible = "ti,omap4-i2c";
+			reg = <0x4807c000 0x100>;
+			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ti,hwmods = "i2c5";
+			status = "disabled";
+		};
+
+		mmc1: mmc@4809c000 {
+			compatible = "ti,dra7-sdhci";
+			reg = <0x4809c000 0x400>;
+			interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mmc1";
+			status = "disabled";
+			pbias-supply = <&pbias_mmc_reg>;
+			max-frequency = <192000000>;
+			mmc-ddr-1_8v;
+			mmc-ddr-3_3v;
+		};
+
+		hdqw1w: 1w@480b2000 {
+			compatible = "ti,omap3-1w";
+			reg = <0x480b2000 0x1000>;
+			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "hdq1w";
+		};
+
+		mmc2: mmc@480b4000 {
+			compatible = "ti,dra7-sdhci";
+			reg = <0x480b4000 0x400>;
+			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mmc2";
+			status = "disabled";
+			max-frequency = <192000000>;
+			/* SDR104/DDR50/SDR50 bits in CAPA2 is not supported */
+			sdhci-caps-mask = <0x7 0x0>;
+			mmc-hs200-1_8v;
+			mmc-ddr-1_8v;
+			mmc-ddr-3_3v;
+		};
+
+		mmc3: mmc@480ad000 {
+			compatible = "ti,dra7-sdhci";
+			reg = <0x480ad000 0x400>;
+			interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mmc3";
+			status = "disabled";
+			/* Errata i887 limits max-frequency of MMC3 to 64 MHz */
+			max-frequency = <64000000>;
+			/* SDMA is not supported */
+			sdhci-caps-mask = <0x0 0x400000>;
+		};
+
+		mmc4: mmc@480d1000 {
+			compatible = "ti,dra7-sdhci";
+			reg = <0x480d1000 0x400>;
+			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mmc4";
+			status = "disabled";
+			max-frequency = <192000000>;
+			/* SDMA is not supported */
+			sdhci-caps-mask = <0x0 0x400000>;
+		};
+
+		mmu0_dsp1: mmu@40d01000 {
+			compatible = "ti,dra7-dsp-iommu";
+			reg = <0x40d01000 0x100>;
+			interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mmu0_dsp1";
+			#iommu-cells = <0>;
+			ti,syscon-mmuconfig = <&dsp1_system 0x0>;
+			status = "disabled";
+		};
+
+		mmu1_dsp1: mmu@40d02000 {
+			compatible = "ti,dra7-dsp-iommu";
+			reg = <0x40d02000 0x100>;
+			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mmu1_dsp1";
+			#iommu-cells = <0>;
+			ti,syscon-mmuconfig = <&dsp1_system 0x1>;
+			status = "disabled";
+		};
+
+		mmu_ipu1: mmu@58882000 {
+			compatible = "ti,dra7-iommu";
+			reg = <0x58882000 0x100>;
+			interrupts = <GIC_SPI 395 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mmu_ipu1";
+			#iommu-cells = <0>;
+			ti,iommu-bus-err-back;
+			status = "disabled";
+		};
+
+		mmu_ipu2: mmu@55082000 {
+			compatible = "ti,dra7-iommu";
+			reg = <0x55082000 0x100>;
+			interrupts = <GIC_SPI 396 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mmu_ipu2";
+			#iommu-cells = <0>;
+			ti,iommu-bus-err-back;
+			status = "disabled";
+		};
+
+		abb_mpu: regulator-abb-mpu {
+			compatible = "ti,abb-v3";
+			regulator-name = "abb_mpu";
+			#address-cells = <0>;
+			#size-cells = <0>;
+			clocks = <&sys_clkin1>;
+			ti,settling-time = <50>;
+			ti,clock-cycles = <16>;
+
+			reg = <0x4ae07ddc 0x4>, <0x4ae07de0 0x4>,
+			      <0x4ae06014 0x4>, <0x4a003b20 0xc>,
+			      <0x4ae0c158 0x4>;
+			reg-names = "setup-address", "control-address",
+				    "int-address", "efuse-address",
+				    "ldo-address";
+			ti,tranxdone-status-mask = <0x80>;
+			/* LDOVBBMPU_FBB_MUX_CTRL */
+			ti,ldovbb-override-mask = <0x400>;
+			/* LDOVBBMPU_FBB_VSET_OUT */
+			ti,ldovbb-vset-mask = <0x1F>;
+
+			/*
+			 * NOTE: only FBB mode used but actual vset will
+			 * determine final biasing
+			 */
+			ti,abb_info = <
+			/*uV		ABB	efuse	rbb_m fbb_m	vset_m*/
+			1060000		0	0x0	0 0x02000000 0x01F00000
+			1160000		0	0x4	0 0x02000000 0x01F00000
+			1210000		0	0x8	0 0x02000000 0x01F00000
+			>;
+		};
+
+		abb_ivahd: regulator-abb-ivahd {
+			compatible = "ti,abb-v3";
+			regulator-name = "abb_ivahd";
+			#address-cells = <0>;
+			#size-cells = <0>;
+			clocks = <&sys_clkin1>;
+			ti,settling-time = <50>;
+			ti,clock-cycles = <16>;
+
+			reg = <0x4ae07e34 0x4>, <0x4ae07e24 0x4>,
+			      <0x4ae06010 0x4>, <0x4a0025cc 0xc>,
+			      <0x4a002470 0x4>;
+			reg-names = "setup-address", "control-address",
+				    "int-address", "efuse-address",
+				    "ldo-address";
+			ti,tranxdone-status-mask = <0x40000000>;
+			/* LDOVBBIVA_FBB_MUX_CTRL */
+			ti,ldovbb-override-mask = <0x400>;
+			/* LDOVBBIVA_FBB_VSET_OUT */
+			ti,ldovbb-vset-mask = <0x1F>;
+
+			/*
+			 * NOTE: only FBB mode used but actual vset will
+			 * determine final biasing
+			 */
+			ti,abb_info = <
+			/*uV		ABB	efuse	rbb_m fbb_m	vset_m*/
+			1055000		0	0x0	0 0x02000000 0x01F00000
+			1150000		0	0x4	0 0x02000000 0x01F00000
+			1250000		0	0x8	0 0x02000000 0x01F00000
+			>;
+		};
+
+		abb_dspeve: regulator-abb-dspeve {
+			compatible = "ti,abb-v3";
+			regulator-name = "abb_dspeve";
+			#address-cells = <0>;
+			#size-cells = <0>;
+			clocks = <&sys_clkin1>;
+			ti,settling-time = <50>;
+			ti,clock-cycles = <16>;
+
+			reg = <0x4ae07e30 0x4>, <0x4ae07e20 0x4>,
+			      <0x4ae06010 0x4>, <0x4a0025e0 0xc>,
+			      <0x4a00246c 0x4>;
+			reg-names = "setup-address", "control-address",
+				    "int-address", "efuse-address",
+				    "ldo-address";
+			ti,tranxdone-status-mask = <0x20000000>;
+			/* LDOVBBDSPEVE_FBB_MUX_CTRL */
+			ti,ldovbb-override-mask = <0x400>;
+			/* LDOVBBDSPEVE_FBB_VSET_OUT */
+			ti,ldovbb-vset-mask = <0x1F>;
+
+			/*
+			 * NOTE: only FBB mode used but actual vset will
+			 * determine final biasing
+			 */
+			ti,abb_info = <
+			/*uV		ABB	efuse	rbb_m fbb_m	vset_m*/
+			1055000		0	0x0	0 0x02000000 0x01F00000
+			1150000		0	0x4	0 0x02000000 0x01F00000
+			1250000		0	0x8	0 0x02000000 0x01F00000
+			>;
+		};
+
+		abb_gpu: regulator-abb-gpu {
+			compatible = "ti,abb-v3";
+			regulator-name = "abb_gpu";
+			#address-cells = <0>;
+			#size-cells = <0>;
+			clocks = <&sys_clkin1>;
+			ti,settling-time = <50>;
+			ti,clock-cycles = <16>;
+
+			reg = <0x4ae07de4 0x4>, <0x4ae07de8 0x4>,
+			      <0x4ae06010 0x4>, <0x4a003b08 0xc>,
+			      <0x4ae0c154 0x4>;
+			reg-names = "setup-address", "control-address",
+				    "int-address", "efuse-address",
+				    "ldo-address";
+			ti,tranxdone-status-mask = <0x10000000>;
+			/* LDOVBBGPU_FBB_MUX_CTRL */
+			ti,ldovbb-override-mask = <0x400>;
+			/* LDOVBBGPU_FBB_VSET_OUT */
+			ti,ldovbb-vset-mask = <0x1F>;
+
+			/*
+			 * NOTE: only FBB mode used but actual vset will
+			 * determine final biasing
+			 */
+			ti,abb_info = <
+			/*uV		ABB	efuse	rbb_m fbb_m	vset_m*/
+			1090000		0	0x0	0 0x02000000 0x01F00000
+			1210000		0	0x4	0 0x02000000 0x01F00000
+			1280000		0	0x8	0 0x02000000 0x01F00000
+			>;
+		};
+
+		mcspi1: spi@48098000 {
+			compatible = "ti,omap4-mcspi";
+			reg = <0x48098000 0x200>;
+			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ti,hwmods = "mcspi1";
+			ti,spi-num-cs = <4>;
+			dmas = <&sdma_xbar 35>,
+			       <&sdma_xbar 36>,
+			       <&sdma_xbar 37>,
+			       <&sdma_xbar 38>,
+			       <&sdma_xbar 39>,
+			       <&sdma_xbar 40>,
+			       <&sdma_xbar 41>,
+			       <&sdma_xbar 42>;
+			dma-names = "tx0", "rx0", "tx1", "rx1",
+				    "tx2", "rx2", "tx3", "rx3";
+			status = "disabled";
+		};
+
+		mcspi2: spi@4809a000 {
+			compatible = "ti,omap4-mcspi";
+			reg = <0x4809a000 0x200>;
+			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ti,hwmods = "mcspi2";
+			ti,spi-num-cs = <2>;
+			dmas = <&sdma_xbar 43>,
+			       <&sdma_xbar 44>,
+			       <&sdma_xbar 45>,
+			       <&sdma_xbar 46>;
+			dma-names = "tx0", "rx0", "tx1", "rx1";
+			status = "disabled";
+		};
+
+		mcspi3: spi@480b8000 {
+			compatible = "ti,omap4-mcspi";
+			reg = <0x480b8000 0x200>;
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ti,hwmods = "mcspi3";
+			ti,spi-num-cs = <2>;
+			dmas = <&sdma_xbar 15>, <&sdma_xbar 16>;
+			dma-names = "tx0", "rx0";
+			status = "disabled";
+		};
+
+		mcspi4: spi@480ba000 {
+			compatible = "ti,omap4-mcspi";
+			reg = <0x480ba000 0x200>;
+			interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ti,hwmods = "mcspi4";
+			ti,spi-num-cs = <1>;
+			dmas = <&sdma_xbar 70>, <&sdma_xbar 71>;
+			dma-names = "tx0", "rx0";
+			status = "disabled";
+		};
+
+		qspi: spi@4b300000 {
+			compatible = "ti,dra7xxx-qspi";
+			reg = <0x4b300000 0x100>,
+			      <0x5c000000 0x4000000>;
+			reg-names = "qspi_base", "qspi_mmap";
+			syscon-chipselects = <&scm_conf 0x558>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			ti,hwmods = "qspi";
+			clocks = <&l4per_clkctrl DRA7_QSPI_CLKCTRL 25>;
+			clock-names = "fck";
+			num-cs = <4>;
+			interrupts = <GIC_SPI 343 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		/* OCP2SCP3 */
+		ocp2scp@4a090000 {
+			compatible = "ti,omap-ocp2scp";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			reg = <0x4a090000 0x20>;
+			ti,hwmods = "ocp2scp3";
+			sata_phy: phy@4a096000 {
+				compatible = "ti,phy-pipe3-sata";
+				reg = <0x4A096000 0x80>, /* phy_rx */
+				      <0x4A096400 0x64>, /* phy_tx */
+				      <0x4A096800 0x40>; /* pll_ctrl */
+				reg-names = "phy_rx", "phy_tx", "pll_ctrl";
+				syscon-phy-power = <&scm_conf 0x374>;
+				clocks = <&sys_clkin1>,
+					 <&l3init_clkctrl DRA7_SATA_CLKCTRL 8>;
+				clock-names = "sysclk", "refclk";
+				syscon-pllreset = <&scm_conf 0x3fc>;
+				#phy-cells = <0>;
+			};
+
+			pcie1_phy: pciephy@4a094000 {
+				compatible = "ti,phy-pipe3-pcie";
+				reg = <0x4a094000 0x80>, /* phy_rx */
+				      <0x4a094400 0x64>; /* phy_tx */
+				reg-names = "phy_rx", "phy_tx";
+				syscon-phy-power = <&scm_conf_pcie 0x1c>;
+				syscon-pcs = <&scm_conf_pcie 0x10>;
+				clocks = <&dpll_pcie_ref_ck>,
+					 <&dpll_pcie_ref_m2ldo_ck>,
+					 <&l3init_clkctrl DRA7_PCIE1_CLKCTRL 8>,
+					 <&l3init_clkctrl DRA7_PCIE1_CLKCTRL 9>,
+					 <&l3init_clkctrl DRA7_PCIE1_CLKCTRL 10>,
+					 <&optfclk_pciephy_div>,
+					 <&sys_clkin1>;
+				clock-names = "dpll_ref", "dpll_ref_m2",
+					      "wkupclk", "refclk",
+					      "div-clk", "phy-div", "sysclk";
+				#phy-cells = <0>;
+			};
+
+			pcie2_phy: pciephy@4a095000 {
+				compatible = "ti,phy-pipe3-pcie";
+				reg = <0x4a095000 0x80>, /* phy_rx */
+				      <0x4a095400 0x64>; /* phy_tx */
+				reg-names = "phy_rx", "phy_tx";
+				syscon-phy-power = <&scm_conf_pcie 0x20>;
+				syscon-pcs = <&scm_conf_pcie 0x10>;
+				clocks = <&dpll_pcie_ref_ck>,
+					 <&dpll_pcie_ref_m2ldo_ck>,
+					 <&l3init_clkctrl DRA7_PCIE2_CLKCTRL 8>,
+					 <&l3init_clkctrl DRA7_PCIE2_CLKCTRL 9>,
+					 <&l3init_clkctrl DRA7_PCIE2_CLKCTRL 10>,
+					 <&optfclk_pciephy_div>,
+					 <&sys_clkin1>;
+				clock-names = "dpll_ref", "dpll_ref_m2",
+					      "wkupclk", "refclk",
+					      "div-clk", "phy-div", "sysclk";
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		sata: sata@4a141100 {
+			compatible = "snps,dwc-ahci";
+			reg = <0x4a140000 0x1100>, <0x4a141100 0x7>;
+			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+			phys = <&sata_phy>;
+			phy-names = "sata-phy";
+			clocks = <&l3init_clkctrl DRA7_SATA_CLKCTRL 8>;
+			ti,hwmods = "sata";
+			ports-implemented = <0x1>;
+		};
+
+		rtc: rtc@48838000 {
+			compatible = "ti,am3352-rtc";
+			reg = <0x48838000 0x100>;
+			interrupts = <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "rtcss";
+			clocks = <&sys_32k_ck>;
+		};
+
+		/* OCP2SCP1 */
+		ocp2scp@4a080000 {
+			compatible = "ti,omap-ocp2scp";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			reg = <0x4a080000 0x20>;
+			ti,hwmods = "ocp2scp1";
+
+			usb2_phy1: phy@4a084000 {
+				compatible = "ti,dra7x-usb2", "ti,omap-usb2";
+				reg = <0x4a084000 0x400>;
+				syscon-phy-power = <&scm_conf 0x300>;
+				clocks = <&usb_phy1_always_on_clk32k>,
+					 <&l3init_clkctrl DRA7_USB_OTG_SS1_CLKCTRL 8>;
+				clock-names =	"wkupclk",
+						"refclk";
+				#phy-cells = <0>;
+			};
+
+			usb2_phy2: phy@4a085000 {
+				compatible = "ti,dra7x-usb2-phy2",
+					     "ti,omap-usb2";
+				reg = <0x4a085000 0x400>;
+				syscon-phy-power = <&scm_conf 0xe74>;
+				clocks = <&usb_phy2_always_on_clk32k>,
+					 <&l3init_clkctrl DRA7_USB_OTG_SS2_CLKCTRL 8>;
+				clock-names =	"wkupclk",
+						"refclk";
+				#phy-cells = <0>;
+			};
+
+			usb3_phy1: phy@4a084400 {
+				compatible = "ti,omap-usb3";
+				reg = <0x4a084400 0x80>,
+				      <0x4a084800 0x64>,
+				      <0x4a084c00 0x40>;
+				reg-names = "phy_rx", "phy_tx", "pll_ctrl";
+				syscon-phy-power = <&scm_conf 0x370>;
+				clocks = <&usb_phy3_always_on_clk32k>,
+					 <&sys_clkin1>,
+					 <&l3init_clkctrl DRA7_USB_OTG_SS1_CLKCTRL 8>;
+				clock-names =	"wkupclk",
+						"sysclk",
+						"refclk";
+				#phy-cells = <0>;
+			};
+		};
+
+		target-module@4a0dd000 {
+			compatible = "ti,sysc-omap4-sr", "ti,sysc";
+			ti,hwmods = "smartreflex_core";
+			reg = <0x4a0dd038 0x4>;
+			reg-names = "sysc";
+			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			clocks = <&coreaon_clkctrl DRA7_SMARTREFLEX_CORE_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x4a0dd000 0x001000>;
+
+			/* SmartReflex child device marked reserved in TRM */
+		};
+
+		target-module@4a0d9000 {
+			compatible = "ti,sysc-omap4-sr", "ti,sysc";
+			ti,hwmods = "smartreflex_mpu";
+			reg = <0x4a0d9038 0x4>;
+			reg-names = "sysc";
+			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			clocks = <&coreaon_clkctrl DRA7_SMARTREFLEX_MPU_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x4a0d9000 0x001000>;
+
+			/* SmartReflex child device marked reserved in TRM */
+		};
+
+		omap_dwc3_1: omap_dwc3_1@48880000 {
+			compatible = "ti,dwc3";
+			ti,hwmods = "usb_otg_ss1";
+			reg = <0x48880000 0x10000>;
+			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			utmi-mode = <2>;
+			ranges;
+			usb1: usb@48890000 {
+				compatible = "snps,dwc3";
+				reg = <0x48890000 0x17000>;
+				interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "peripheral",
+						  "host",
+						  "otg";
+				phys = <&usb2_phy1>, <&usb3_phy1>;
+				phy-names = "usb2-phy", "usb3-phy";
+				maximum-speed = "super-speed";
+				dr_mode = "otg";
+				snps,dis_u3_susphy_quirk;
+				snps,dis_u2_susphy_quirk;
+			};
+		};
+
+		omap_dwc3_2: omap_dwc3_2@488c0000 {
+			compatible = "ti,dwc3";
+			ti,hwmods = "usb_otg_ss2";
+			reg = <0x488c0000 0x10000>;
+			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			utmi-mode = <2>;
+			ranges;
+			usb2: usb@488d0000 {
+				compatible = "snps,dwc3";
+				reg = <0x488d0000 0x17000>;
+				interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "peripheral",
+						  "host",
+						  "otg";
+				phys = <&usb2_phy2>;
+				phy-names = "usb2-phy";
+				maximum-speed = "high-speed";
+				dr_mode = "otg";
+				snps,dis_u3_susphy_quirk;
+				snps,dis_u2_susphy_quirk;
+				snps,dis_metastability_quirk;
+			};
+		};
+
+		/* IRQ for DWC3_3 and DWC3_4 need IRQ crossbar */
+		omap_dwc3_3: omap_dwc3_3@48900000 {
+			compatible = "ti,dwc3";
+			ti,hwmods = "usb_otg_ss3";
+			reg = <0x48900000 0x10000>;
+			interrupts = <GIC_SPI 344 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			utmi-mode = <2>;
+			ranges;
+			status = "disabled";
+			usb3: usb@48910000 {
+				compatible = "snps,dwc3";
+				reg = <0x48910000 0x17000>;
+				interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 344 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "peripheral",
+						  "host",
+						  "otg";
+				maximum-speed = "high-speed";
+				dr_mode = "otg";
+				snps,dis_u3_susphy_quirk;
+				snps,dis_u2_susphy_quirk;
+			};
+		};
+
+		elm: elm@48078000 {
+			compatible = "ti,am3352-elm";
+			reg = <0x48078000 0xfc0>;      /* device IO registers */
+			interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "elm";
+			status = "disabled";
+		};
+
+		gpmc: gpmc@50000000 {
+			compatible = "ti,am3352-gpmc";
+			ti,hwmods = "gpmc";
+			reg = <0x50000000 0x37c>;      /* device IO registers */
+			interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&edma_xbar 4 0>;
+			dma-names = "rxtx";
+			gpmc,num-cs = <8>;
+			gpmc,num-waitpins = <2>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			status = "disabled";
+		};
+
+		atl: atl@4843c000 {
+			compatible = "ti,dra7-atl";
+			reg = <0x4843c000 0x3ff>;
+			ti,hwmods = "atl";
+			ti,provided-clocks = <&atl_clkin0_ck>, <&atl_clkin1_ck>,
+					     <&atl_clkin2_ck>, <&atl_clkin3_ck>;
+			clocks = <&atl_clkctrl DRA7_ATL_CLKCTRL 26>;
+			clock-names = "fck";
+			status = "disabled";
+		};
+
+		mcasp1: mcasp@48460000 {
+			compatible = "ti,dra7-mcasp-audio";
+			ti,hwmods = "mcasp1";
+			reg = <0x48460000 0x2000>,
+			      <0x45800000 0x1000>;
+			reg-names = "mpu","dat";
+			interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx", "rx";
+			dmas = <&edma_xbar 129 1>, <&edma_xbar 128 1>;
+			dma-names = "tx", "rx";
+			clocks = <&ipu_clkctrl DRA7_MCASP1_CLKCTRL 22>, <&ipu_clkctrl DRA7_MCASP1_CLKCTRL 24>,
+				 <&ipu_clkctrl DRA7_MCASP1_CLKCTRL 28>;
+			clock-names = "fck", "ahclkx", "ahclkr";
+			status = "disabled";
+		};
+
+		mcasp2: mcasp@48464000 {
+			compatible = "ti,dra7-mcasp-audio";
+			ti,hwmods = "mcasp2";
+			reg = <0x48464000 0x2000>,
+			      <0x45c00000 0x1000>;
+			reg-names = "mpu","dat";
+			interrupts = <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx", "rx";
+			dmas = <&edma_xbar 131 1>, <&edma_xbar 130 1>;
+			dma-names = "tx", "rx";
+			clocks = <&l4per_clkctrl DRA7_MCASP2_CLKCTRL 22>,
+				 <&l4per_clkctrl DRA7_MCASP2_CLKCTRL 24>,
+				 <&l4per_clkctrl DRA7_MCASP2_CLKCTRL 28>;
+			clock-names = "fck", "ahclkx", "ahclkr";
+			status = "disabled";
+		};
+
+		mcasp3: mcasp@48468000 {
+			compatible = "ti,dra7-mcasp-audio";
+			ti,hwmods = "mcasp3";
+			reg = <0x48468000 0x2000>,
+			      <0x46000000 0x1000>;
+			reg-names = "mpu","dat";
+			interrupts = <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx", "rx";
+			dmas = <&edma_xbar 133 1>, <&edma_xbar 132 1>;
+			dma-names = "tx", "rx";
+			clocks = <&l4per_clkctrl DRA7_MCASP3_CLKCTRL 22>,
+				 <&l4per_clkctrl DRA7_MCASP3_CLKCTRL 24>;
+			clock-names = "fck", "ahclkx";
+			status = "disabled";
+		};
+
+		mcasp4: mcasp@4846c000 {
+			compatible = "ti,dra7-mcasp-audio";
+			ti,hwmods = "mcasp4";
+			reg = <0x4846c000 0x2000>,
+			      <0x48436000 0x1000>;
+			reg-names = "mpu","dat";
+			interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx", "rx";
+			dmas = <&edma_xbar 135 1>, <&edma_xbar 134 1>;
+			dma-names = "tx", "rx";
+			clocks = <&l4per_clkctrl DRA7_MCASP4_CLKCTRL 22>,
+				 <&l4per_clkctrl DRA7_MCASP4_CLKCTRL 24>;
+			clock-names = "fck", "ahclkx";
+			status = "disabled";
+		};
+
+		mcasp5: mcasp@48470000 {
+			compatible = "ti,dra7-mcasp-audio";
+			ti,hwmods = "mcasp5";
+			reg = <0x48470000 0x2000>,
+			      <0x4843a000 0x1000>;
+			reg-names = "mpu","dat";
+			interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx", "rx";
+			dmas = <&edma_xbar 137 1>, <&edma_xbar 136 1>;
+			dma-names = "tx", "rx";
+			clocks = <&l4per_clkctrl DRA7_MCASP5_CLKCTRL 22>,
+				 <&l4per_clkctrl DRA7_MCASP5_CLKCTRL 24>;
+			clock-names = "fck", "ahclkx";
+			status = "disabled";
+		};
+
+		mcasp6: mcasp@48474000 {
+			compatible = "ti,dra7-mcasp-audio";
+			ti,hwmods = "mcasp6";
+			reg = <0x48474000 0x2000>,
+			      <0x4844c000 0x1000>;
+			reg-names = "mpu","dat";
+			interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx", "rx";
+			dmas = <&edma_xbar 139 1>, <&edma_xbar 138 1>;
+			dma-names = "tx", "rx";
+			clocks = <&l4per_clkctrl DRA7_MCASP6_CLKCTRL 22>,
+				 <&l4per_clkctrl DRA7_MCASP6_CLKCTRL 24>;
+			clock-names = "fck", "ahclkx";
+			status = "disabled";
+		};
+
+		mcasp7: mcasp@48478000 {
+			compatible = "ti,dra7-mcasp-audio";
+			ti,hwmods = "mcasp7";
+			reg = <0x48478000 0x2000>,
+			      <0x48450000 0x1000>;
+			reg-names = "mpu","dat";
+			interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx", "rx";
+			dmas = <&edma_xbar 141 1>, <&edma_xbar 140 1>;
+			dma-names = "tx", "rx";
+			clocks = <&l4per_clkctrl DRA7_MCASP7_CLKCTRL 22>,
+				 <&l4per_clkctrl DRA7_MCASP7_CLKCTRL 24>;
+			clock-names = "fck", "ahclkx";
+			status = "disabled";
+		};
+
+		mcasp8: mcasp@4847c000 {
+			compatible = "ti,dra7-mcasp-audio";
+			ti,hwmods = "mcasp8";
+			reg = <0x4847c000 0x2000>,
+			      <0x48454000 0x1000>;
+			reg-names = "mpu","dat";
+			interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx", "rx";
+			dmas = <&edma_xbar 143 1>, <&edma_xbar 142 1>;
+			dma-names = "tx", "rx";
+			clocks = <&l4per_clkctrl DRA7_MCASP8_CLKCTRL 22>,
+				 <&l4per_clkctrl DRA7_MCASP8_CLKCTRL 24>;
+			clock-names = "fck", "ahclkx";
+			status = "disabled";
+		};
+
+		crossbar_mpu: crossbar@4a002a48 {
+			compatible = "ti,irq-crossbar";
+			reg = <0x4a002a48 0x130>;
+			interrupt-controller;
+			interrupt-parent = <&wakeupgen>;
+			#interrupt-cells = <3>;
+			ti,max-irqs = <160>;
+			ti,max-crossbar-sources = <MAX_SOURCES>;
+			ti,reg-size = <2>;
+			ti,irqs-reserved = <0 1 2 3 5 6 131 132>;
+			ti,irqs-skip = <10 133 139 140>;
+			ti,irqs-safe-map = <0>;
+		};
+
+		mac: ethernet@48484000 {
+			compatible = "ti,dra7-cpsw","ti,cpsw";
+			ti,hwmods = "gmac";
+			clocks = <&gmac_main_clk>, <&l3init_clkctrl DRA7_GMAC_CLKCTRL 25>;
+			clock-names = "fck", "cpts";
+			cpdma_channels = <8>;
+			ale_entries = <1024>;
+			bd_ram_size = <0x2000>;
+			mac_control = <0x20>;
+			slaves = <2>;
+			active_slave = <0>;
+			cpts_clock_mult = <0x784CFE14>;
+			cpts_clock_shift = <29>;
+			reg = <0x48484000 0x1000
+			       0x48485200 0x2E00>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			/*
+			 * Do not allow gating of cpsw clock as workaround
+			 * for errata i877. Keeping internal clock disabled
+			 * causes the device switching characteristics
+			 * to degrade over time and eventually fail to meet
+			 * the data manual delay time/skew specs.
+			 */
+			ti,no-idle;
+
+			/*
+			 * rx_thresh_pend
+			 * rx_pend
+			 * tx_pend
+			 * misc_pend
+			 */
+			interrupts = <GIC_SPI 334 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 336 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
+			ranges;
+			syscon = <&scm_conf>;
+			status = "disabled";
+
+			davinci_mdio: mdio@48485000 {
+				compatible = "ti,cpsw-mdio","ti,davinci_mdio";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				ti,hwmods = "davinci_mdio";
+				bus_freq = <1000000>;
+				reg = <0x48485000 0x100>;
+			};
+
+			cpsw_emac0: slave@48480200 {
+				/* Filled in by U-Boot */
+				mac-address = [ 00 00 00 00 00 00 ];
+			};
+
+			cpsw_emac1: slave@48480300 {
+				/* Filled in by U-Boot */
+				mac-address = [ 00 00 00 00 00 00 ];
+			};
+
+			phy_sel: cpsw-phy-sel@4a002554 {
+				compatible = "ti,dra7xx-cpsw-phy-sel";
+				reg= <0x4a002554 0x4>;
+				reg-names = "gmii-sel";
+			};
+		};
+
+		dcan1: can@4ae3c000 {
+			compatible = "ti,dra7-d_can";
+			ti,hwmods = "dcan1";
+			reg = <0x4ae3c000 0x2000>;
+			syscon-raminit = <&scm_conf 0x558 0>;
+			interrupts = <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&wkupaon_clkctrl DRA7_DCAN1_CLKCTRL 24>;
+			status = "disabled";
+		};
+
+		dcan2: can@48480000 {
+			compatible = "ti,dra7-d_can";
+			ti,hwmods = "dcan2";
+			reg = <0x48480000 0x2000>;
+			syscon-raminit = <&scm_conf 0x558 1>;
+			interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sys_clkin1>;
+			status = "disabled";
+		};
+
+		dss: dss@58000000 {
+			compatible = "ti,dra7-dss";
+			/* 'reg' defined in dra72x.dtsi and dra74x.dtsi */
+			/* 'clocks' defined in dra72x.dtsi and dra74x.dtsi */
+			status = "disabled";
+			ti,hwmods = "dss_core";
+			/* CTRL_CORE_DSS_PLL_CONTROL */
+			syscon-pll-ctrl = <&scm_conf 0x538>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			dispc@58001000 {
+				compatible = "ti,dra7-dispc";
+				reg = <0x58001000 0x1000>;
+				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+				ti,hwmods = "dss_dispc";
+				clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 8>;
+				clock-names = "fck";
+				/* CTRL_CORE_SMA_SW_1 */
+				syscon-pol = <&scm_conf 0x534>;
+			};
+
+			hdmi: encoder@58060000 {
+				compatible = "ti,dra7-hdmi";
+				reg = <0x58040000 0x200>,
+				      <0x58040200 0x80>,
+				      <0x58040300 0x80>,
+				      <0x58060000 0x19000>;
+				reg-names = "wp", "pll", "phy", "core";
+				interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+				ti,hwmods = "dss_hdmi";
+				clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 9>,
+					 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 10>;
+				clock-names = "fck", "sys_clk";
+				dmas = <&sdma_xbar 76>;
+				dma-names = "audio_tx";
+			};
+		};
+
+		epwmss0: epwmss@4843e000 {
+			compatible = "ti,dra746-pwmss", "ti,am33xx-pwmss";
+			reg = <0x4843e000 0x30>;
+			ti,hwmods = "epwmss0";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			status = "disabled";
+			ranges;
+
+			ehrpwm0: pwm@4843e200 {
+				compatible = "ti,dra746-ehrpwm",
+					     "ti,am3352-ehrpwm";
+				#pwm-cells = <3>;
+				reg = <0x4843e200 0x80>;
+				clocks = <&ehrpwm0_tbclk>, <&l4_root_clk_div>;
+				clock-names = "tbclk", "fck";
+				status = "disabled";
+			};
+
+			ecap0: ecap@4843e100 {
+				compatible = "ti,dra746-ecap",
+					     "ti,am3352-ecap";
+				#pwm-cells = <3>;
+				reg = <0x4843e100 0x80>;
+				clocks = <&l4_root_clk_div>;
+				clock-names = "fck";
+				status = "disabled";
+			};
+		};
+
+		epwmss1: epwmss@48440000 {
+			compatible = "ti,dra746-pwmss", "ti,am33xx-pwmss";
+			reg = <0x48440000 0x30>;
+			ti,hwmods = "epwmss1";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			status = "disabled";
+			ranges;
+
+			ehrpwm1: pwm@48440200 {
+				compatible = "ti,dra746-ehrpwm",
+					     "ti,am3352-ehrpwm";
+				#pwm-cells = <3>;
+				reg = <0x48440200 0x80>;
+				clocks = <&ehrpwm1_tbclk>, <&l4_root_clk_div>;
+				clock-names = "tbclk", "fck";
+				status = "disabled";
+			};
+
+			ecap1: ecap@48440100 {
+				compatible = "ti,dra746-ecap",
+					     "ti,am3352-ecap";
+				#pwm-cells = <3>;
+				reg = <0x48440100 0x80>;
+				clocks = <&l4_root_clk_div>;
+				clock-names = "fck";
+				status = "disabled";
+			};
+		};
+
+		epwmss2: epwmss@48442000 {
+			compatible = "ti,dra746-pwmss", "ti,am33xx-pwmss";
+			reg = <0x48442000 0x30>;
+			ti,hwmods = "epwmss2";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			status = "disabled";
+			ranges;
+
+			ehrpwm2: pwm@48442200 {
+				compatible = "ti,dra746-ehrpwm",
+					     "ti,am3352-ehrpwm";
+				#pwm-cells = <3>;
+				reg = <0x48442200 0x80>;
+				clocks = <&ehrpwm2_tbclk>, <&l4_root_clk_div>;
+				clock-names = "tbclk", "fck";
+				status = "disabled";
+			};
+
+			ecap2: ecap@48442100 {
+				compatible = "ti,dra746-ecap",
+					     "ti,am3352-ecap";
+				#pwm-cells = <3>;
+				reg = <0x48442100 0x80>;
+				clocks = <&l4_root_clk_div>;
+				clock-names = "fck";
+				status = "disabled";
+			};
+		};
+
+		aes1: aes@4b500000 {
+			compatible = "ti,omap4-aes";
+			ti,hwmods = "aes1";
+			reg = <0x4b500000 0xa0>;
+			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&edma_xbar 111 0>, <&edma_xbar 110 0>;
+			dma-names = "tx", "rx";
+			clocks = <&l3_iclk_div>;
+			clock-names = "fck";
+		};
+
+		aes2: aes@4b700000 {
+			compatible = "ti,omap4-aes";
+			ti,hwmods = "aes2";
+			reg = <0x4b700000 0xa0>;
+			interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&edma_xbar 114 0>, <&edma_xbar 113 0>;
+			dma-names = "tx", "rx";
+			clocks = <&l3_iclk_div>;
+			clock-names = "fck";
+		};
+
+		des: des@480a5000 {
+			compatible = "ti,omap4-des";
+			ti,hwmods = "des";
+			reg = <0x480a5000 0xa0>;
+			interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&sdma_xbar 117>, <&sdma_xbar 116>;
+			dma-names = "tx", "rx";
+			clocks = <&l3_iclk_div>;
+			clock-names = "fck";
+		};
+
+		sham: sham@53100000 {
+			compatible = "ti,omap5-sham";
+			ti,hwmods = "sham";
+			reg = <0x4b101000 0x300>;
+			interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&edma_xbar 119 0>;
+			dma-names = "rx";
+			clocks = <&l3_iclk_div>;
+			clock-names = "fck";
+		};
+
+		rng: rng@48090000 {
+			compatible = "ti,omap4-rng";
+			ti,hwmods = "rng";
+			reg = <0x48090000 0x2000>;
+			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&l3_iclk_div>;
+			clock-names = "fck";
+		};
+
+		opp_supply_mpu: opp-supply@4a003b20 {
+			compatible = "ti,omap5-opp-supply";
+			reg = <0x4a003b20 0xc>;
+			ti,efuse-settings = <
+			/* uV   offset */
+			1060000 0x0
+			1160000 0x4
+			1210000 0x8
+			>;
+			ti,absolute-max-voltage-uv = <1500000>;
+		};
+
+	};
+
+	thermal_zones: thermal-zones {
+		#include "omap4-cpu-thermal.dtsi"
+		#include "omap5-gpu-thermal.dtsi"
+		#include "omap5-core-thermal.dtsi"
+		#include "dra7-dspeve-thermal.dtsi"
+		#include "dra7-iva-thermal.dtsi"
+	};
+
+};
+
+&cpu_thermal {
+	polling-delay = <500>; /* milliseconds */
+	coefficients = <0 2000>;
+};
+
+&gpu_thermal {
+	coefficients = <0 2000>;
+};
+
+&core_thermal {
+	coefficients = <0 2000>;
+};
+
+&dspeve_thermal {
+	coefficients = <0 2000>;
+};
+
+&iva_thermal {
+	coefficients = <0 2000>;
+};
+
+&cpu_crit {
+	temperature = <120000>; /* milli Celsius */
+};
+
+#include "dra7xx-clocks.dtsi"
+
+&core_crit {
+	temperature = <120000>; /* milli Celsius */
+};
+
+&gpu_crit {
+	temperature = <120000>; /* milli Celsius */
+};
+
+&dspeve_crit {
+	temperature = <120000>; /* milli Celsius */
+};
+
+&iva_crit {
+	temperature = <120000>; /* milli Celsius */
+};

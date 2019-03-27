@@ -1,0 +1,714 @@
+.\" $File: file.man,v 1.131 2018/07/24 21:33:56 christos Exp $
+.Dd July 25, 2018
+.Dt FILE __CSECTION__
+.Os
+.Sh NAME
+.Nm file
+.Nd determine file type
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Op Fl bcdEhiklLNnprsSvzZ0
+.Op Fl Fl apple
+.Op Fl Fl extension
+.Op Fl Fl mime-encoding
+.Op Fl Fl mime-type
+.Op Fl e Ar testname
+.Op Fl F Ar separator
+.Op Fl f Ar namefile
+.Op Fl m Ar magicfiles
+.Op Fl P Ar name=value
+.Ar
+.Ek
+.Nm
+.Fl C
+.Op Fl m Ar magicfiles
+.Nm
+.Op Fl Fl help
+.Sh DESCRIPTION
+This manual page documents version __VERSION__ of the
+.Nm
+command.
+.Pp
+.Nm
+tests each argument in an attempt to classify it.
+There are three sets of tests, performed in this order:
+filesystem tests, magic tests, and language tests.
+The
+.Em first
+test that succeeds causes the file type to be printed.
+.Pp
+The type printed will usually contain one of the words
+.Em text
+(the file contains only
+printing characters and a few common control
+characters and is probably safe to read on an
+.Dv ASCII
+terminal),
+.Em executable
+(the file contains the result of compiling a program
+in a form understandable to some
+.Tn UNIX
+kernel or another),
+or
+.Em data
+meaning anything else (data is usually
+.Dq binary
+or non-printable).
+Exceptions are well-known file formats (core files, tar archives)
+that are known to contain binary data.
+When modifying magic files or the program itself, make sure to
+.Em "preserve these keywords" .
+Users depend on knowing that all the readable files in a directory
+have the word
+.Dq text
+printed.
+Don't do as Berkeley did and change
+.Dq shell commands text
+to
+.Dq shell script .
+.Pp
+The filesystem tests are based on examining the return from a
+.Xr stat 2
+system call.
+The program checks to see if the file is empty,
+or if it's some sort of special file.
+Any known file types appropriate to the system you are running on
+(sockets, symbolic links, or named pipes (FIFOs) on those systems that
+implement them)
+are intuited if they are defined in the system header file
+.In sys/stat.h .
+.Pp
+The magic tests are used to check for files with data in
+particular fixed formats.
+The canonical example of this is a binary executable (compiled program)
+.Dv a.out
+file, whose format is defined in
+.In elf.h ,
+.In a.out.h
+and possibly
+.In exec.h
+in the standard include directory.
+These files have a
+.Dq "magic number"
+stored in a particular place
+near the beginning of the file that tells the
+.Tn UNIX
+operating system
+that the file is a binary executable, and which of several types thereof.
+The concept of a
+.Dq "magic"
+has been applied by extension to data files.
+Any file with some invariant identifier at a small fixed
+offset into the file can usually be described in this way.
+The information identifying these files is read from the compiled
+magic file
+.Pa __MAGIC__.mgc ,
+or the files in the directory
+.Pa __MAGIC__
+if the compiled file does not exist.
+In addition, if
+.Pa $HOME/.magic.mgc
+or
+.Pa $HOME/.magic
+exists, it will be used in preference to the system magic files.
+.Pp
+If a file does not match any of the entries in the magic file,
+it is examined to see if it seems to be a text file.
+ASCII, ISO-8859-x, non-ISO 8-bit extended-ASCII character sets
+(such as those used on Macintosh and IBM PC systems),
+UTF-8-encoded Unicode, UTF-16-encoded Unicode, and EBCDIC
+character sets can be distinguished by the different
+ranges and sequences of bytes that constitute printable text
+in each set.
+If a file passes any of these tests, its character set is reported.
+ASCII, ISO-8859-x, UTF-8, and extended-ASCII files are identified
+as
+.Dq text
+because they will be mostly readable on nearly any terminal;
+UTF-16 and EBCDIC are only
+.Dq character data
+because, while
+they contain text, it is text that will require translation
+before it can be read.
+In addition,
+.Nm
+will attempt to determine other characteristics of text-type files.
+If the lines of a file are terminated by CR, CRLF, or NEL, instead
+of the Unix-standard LF, this will be reported.
+Files that contain embedded escape sequences or overstriking
+will also be identified.
+.Pp
+Once
+.Nm
+has determined the character set used in a text-type file,
+it will
+attempt to determine in what language the file is written.
+The language tests look for particular strings (cf.
+.In names.h )
+that can appear anywhere in the first few blocks of a file.
+For example, the keyword
+.Em .br
+indicates that the file is most likely a
+.Xr troff 1
+input file, just as the keyword
+.Em struct
+indicates a C program.
+These tests are less reliable than the previous
+two groups, so they are performed last.
+The language test routines also test for some miscellany
+(such as
+.Xr tar 1
+archives).
+.Pp
+Any file that cannot be identified as having been written
+in any of the character sets listed above is simply said to be
+.Dq data .
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl Fl apple
+Causes the file command to output the file type and creator code as
+used by older MacOS versions.
+The code consists of eight letters,
+the first describing the file type, the latter the creator.
+.It Fl b , Fl Fl brief
+Do not prepend filenames to output lines (brief mode).
+.It Fl C , Fl Fl compile
+Write a
+.Pa magic.mgc
+output file that contains a pre-parsed version of the magic file or directory.
+.It Fl c , Fl Fl checking-printout
+Cause a checking printout of the parsed form of the magic file.
+This is usually used in conjunction with the
+.Fl m
+flag to debug a new magic file before installing it.
+.It Fl d
+Prints internal debugging information to stderr.
+.It Fl E
+On filesystem errors (file not found etc), instead of handling the error
+as regular output as POSIX mandates and keep going, issue an error message
+and exit.
+.It Fl e , Fl Fl exclude Ar testname
+Exclude the test named in
+.Ar testname
+from the list of tests made to determine the file type.
+Valid test names are:
+.Bl -tag -width compress
+.It apptype
+.Dv EMX
+application type (only on EMX).
+.It ascii
+Various types of text files (this test will try to guess the text
+encoding, irrespective of the setting of the
+.Sq encoding
+option).
+.It encoding
+Different text encodings for soft magic tests.
+.It tokens
+Ignored for backwards compatibility.
+.It cdf
+Prints details of Compound Document Files.
+.It compress
+Checks for, and looks inside, compressed files.
+.It elf
+Prints ELF file details, provided soft magic tests are enabled and the
+elf magic is found.
+.It soft
+Consults magic files.
+.It tar
+Examines tar files by verifying the checksum of the 512 byte tar header.
+Excluding this test can provide more detailed content description by using
+the soft magic method.
+.It text
+A synonym for
+.Sq ascii .
+.El
+.It Fl Fl extension
+Print a slash-separated list of valid extensions for the file type found.
+.It Fl F , Fl Fl separator Ar separator
+Use the specified string as the separator between the filename and the
+file result returned.
+Defaults to
+.Sq \&: .
+.It Fl f , Fl Fl files-from Ar namefile
+Read the names of the files to be examined from
+.Ar namefile
+(one per line)
+before the argument list.
+Either
+.Ar namefile
+or at least one filename argument must be present;
+to test the standard input, use
+.Sq -
+as a filename argument.
+Please note that
+.Ar namefile
+is unwrapped and the enclosed filenames are processed when this option is
+encountered and before any further options processing is done.
+This allows one to process multiple lists of files with different command line
+arguments on the same
+.Nm
+invocation.
+Thus if you want to set the delimiter, you need to do it before you specify
+the list of files, like:
+.Dq Fl F Ar @ Fl f Ar namefile ,
+instead of:
+.Dq Fl f Ar namefile Fl F Ar @ .
+.It Fl h , Fl Fl no-dereference
+option causes symlinks not to be followed
+(on systems that support symbolic links).
+This is the default if the environment variable
+.Dv POSIXLY_CORRECT
+is not defined.
+.It Fl i , Fl Fl mime
+Causes the file command to output mime type strings rather than the more
+traditional human readable ones.
+Thus it may say
+.Sq text/plain; charset=us-ascii
+rather than
+.Dq ASCII text .
+.It Fl Fl mime-type , Fl Fl mime-encoding
+Like
+.Fl i ,
+but print only the specified element(s).
+.It Fl k , Fl Fl keep-going
+Don't stop at the first match, keep going.
+Subsequent matches will be
+have the string
+.Sq "\[rs]012\- "
+prepended.
+(If you want a newline, see the
+.Fl r
+option.)
+The magic pattern with the highest strength (see the
+.Fl l
+option) comes first.
+.It Fl l , Fl Fl list
+Shows a list of patterns and their strength sorted descending by
+.Xr magic 4
+strength
+which is used for the matching (see also the
+.Fl k
+option).
+.It Fl L , Fl Fl dereference
+option causes symlinks to be followed, as the like-named option in
+.Xr ls 1
+(on systems that support symbolic links).
+This is the default if the environment variable
+.Ev POSIXLY_CORRECT
+is defined.
+.It Fl m , Fl Fl magic-file Ar magicfiles
+Specify an alternate list of files and directories containing magic.
+This can be a single item, or a colon-separated list.
+If a compiled magic file is found alongside a file or directory,
+it will be used instead.
+.It Fl N , Fl Fl no-pad
+Don't pad filenames so that they align in the output.
+.It Fl n , Fl Fl no-buffer
+Force stdout to be flushed after checking each file.
+This is only useful if checking a list of files.
+It is intended to be used by programs that want filetype output from a pipe.
+.It Fl p , Fl Fl preserve-date
+On systems that support
+.Xr utime 3
+or
+.Xr utimes 2 ,
+attempt to preserve the access time of files analyzed, to pretend that
+.Nm
+never read them.
+.It Fl P , Fl Fl parameter Ar name=value
+Set various parameter limits.
+.Bl -column "elf_phnum" "Default" "XXXXXXXXXXXXXXXXXXXXXXXXXXX" -offset indent
+.It Sy "Name" Ta Sy "Default" Ta Sy "Explanation"
+.It Li indir Ta 15 Ta recursion limit for indirect magic
+.It Li name Ta 30 Ta use count limit for name/use magic
+.It Li elf_notes Ta 256 Ta max ELF notes processed
+.It Li elf_phnum Ta 128 Ta max ELF program sections processed
+.It Li elf_shnum Ta 32768 Ta max ELF sections processed
+.It Li regex Ta 8192 Ta length limit for regex searches
+.It Li bytes Ta 1048576 Ta max number of bytes to read from file
+.El
+.It Fl r , Fl Fl raw
+Don't translate unprintable characters to \eooo.
+Normally
+.Nm
+translates unprintable characters to their octal representation.
+.It Fl s , Fl Fl special-files
+Normally,
+.Nm
+only attempts to read and determine the type of argument files which
+.Xr stat 2
+reports are ordinary files.
+This prevents problems, because reading special files may have peculiar
+consequences.
+Specifying the
+.Fl s
+option causes
+.Nm
+to also read argument files which are block or character special files.
+This is useful for determining the filesystem types of the data in raw
+disk partitions, which are block special files.
+This option also causes
+.Nm
+to disregard the file size as reported by
+.Xr stat 2
+since on some systems it reports a zero size for raw disk partitions.
+.It Fl S , Fl Fl no-sandbox
+On systems where libseccomp
+.Pa ( https://github.com/seccomp/libseccomp )
+is available, the
+.Fl S
+flag disables sandboxing which is enabled by default.
+This option is needed for file to execute external descompressing programs,
+i.e. when the
+.Fl z
+flag is specified and the built-in decompressors are not available.
+.It Fl v , Fl Fl version
+Print the version of the program and exit.
+.It Fl z , Fl Fl uncompress
+Try to look inside compressed files.
+.It Fl Z , Fl Fl uncompress-noreport
+Try to look inside compressed files, but report information about the contents
+only not the compression.
+.It Fl 0 , Fl Fl print0
+Output a null character
+.Sq \e0
+after the end of the filename.
+Nice to
+.Xr cut 1
+the output.
+This does not affect the separator, which is still printed.
+.Pp
+If this option is repeated more than once, then
+.Nm
+prints just the filename followed by a NUL followed by the description
+(or ERROR: text) followed by a second NUL for each entry.
+.It Fl -help
+Print a help message and exit.
+.El
+.Sh ENVIRONMENT
+The environment variable
+.Ev MAGIC
+can be used to set the default magic file name.
+If that variable is set, then
+.Nm
+will not attempt to open
+.Pa $HOME/.magic .
+.Nm
+adds
+.Dq Pa .mgc
+to the value of this variable as appropriate.
+The environment variable
+.Ev POSIXLY_CORRECT
+controls (on systems that support symbolic links), whether
+.Nm
+will attempt to follow symlinks or not.
+If set, then
+.Nm
+follows symlink, otherwise it does not.
+This is also controlled by the
+.Fl L
+and
+.Fl h
+options.
+.Sh FILES
+.Bl -tag -width __MAGIC__.mgc -compact
+.It Pa __MAGIC__.mgc
+Default compiled list of magic.
+.It Pa __MAGIC__
+Directory containing default magic files.
+.El
+.Sh EXIT STATUS
+.Nm
+will exit with
+.Dv 0
+if the operation was successful or
+.Dv >0
+if an error was encountered.
+The following errors cause diagnostic messages, but don't affect the program
+exit code (as POSIX requires), unless
+.Fl E
+is specified:
+.Bl -bullet -compact -offset indent
+.It
+A file cannot be found
+.It
+There is no permission to read a file
+.It
+The file type cannot be determined
+.El
+.Sh EXAMPLES
+.Bd -literal -offset indent
+$ file file.c file /dev/{wd0a,hda}
+file.c:   C program text
+file:     ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV),
+          dynamically linked (uses shared libs), stripped
+/dev/wd0a: block special (0/0)
+/dev/hda: block special (3/0)
+
+$ file -s /dev/wd0{b,d}
+/dev/wd0b: data
+/dev/wd0d: x86 boot sector
+
+$ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}
+/dev/hda:   x86 boot sector
+/dev/hda1:  Linux/i386 ext2 filesystem
+/dev/hda2:  x86 boot sector
+/dev/hda3:  x86 boot sector, extended partition table
+/dev/hda4:  Linux/i386 ext2 filesystem
+/dev/hda5:  Linux/i386 swap file
+/dev/hda6:  Linux/i386 swap file
+/dev/hda7:  Linux/i386 swap file
+/dev/hda8:  Linux/i386 swap file
+/dev/hda9:  empty
+/dev/hda10: empty
+
+$ file -i file.c file /dev/{wd0a,hda}
+file.c:      text/x-c
+file:        application/x-executable
+/dev/hda:    application/x-not-regular-file
+/dev/wd0a:   application/x-not-regular-file
+
+.Ed
+.Sh SEE ALSO
+.Xr hexdump 1 ,
+.Xr od 1 ,
+.Xr strings 1 ,
+.Xr magic __FSECTION__ ,
+.Xr fstyp 8
+.Sh STANDARDS CONFORMANCE
+This program is believed to exceed the System V Interface Definition
+of FILE(CMD), as near as one can determine from the vague language
+contained therein.
+Its behavior is mostly compatible with the System V program of the same name.
+This version knows more magic, however, so it will produce
+different (albeit more accurate) output in many cases.
+.\" URL: http://www.opengroup.org/onlinepubs/009695399/utilities/file.html
+.Pp
+The one significant difference
+between this version and System V
+is that this version treats any white space
+as a delimiter, so that spaces in pattern strings must be escaped.
+For example,
+.Bd -literal -offset indent
+\*[Gt]10	string	language impress\ 	(imPRESS data)
+.Ed
+.Pp
+in an existing magic file would have to be changed to
+.Bd -literal -offset indent
+\*[Gt]10	string	language\e impress	(imPRESS data)
+.Ed
+.Pp
+In addition, in this version, if a pattern string contains a backslash,
+it must be escaped.
+For example
+.Bd -literal -offset indent
+0	string		\ebegindata	Andrew Toolkit document
+.Ed
+.Pp
+in an existing magic file would have to be changed to
+.Bd -literal -offset indent
+0	string		\e\ebegindata	Andrew Toolkit document
+.Ed
+.Pp
+SunOS releases 3.2 and later from Sun Microsystems include a
+.Nm
+command derived from the System V one, but with some extensions.
+This version differs from Sun's only in minor ways.
+It includes the extension of the
+.Sq \*[Am]
+operator, used as,
+for example,
+.Bd -literal -offset indent
+\*[Gt]16	long\*[Am]0x7fffffff	\*[Gt]0		not stripped
+.Ed
+.Sh SECURITY
+On systems where libseccomp
+.Pa ( https://github.com/seccomp/libseccomp )
+is available,
+.Nm
+is enforces limiting system calls to only the ones necessary for the
+operation of the program.
+This enforcement does not provide any security benefit when
+.Nm
+is asked to decompress input files running external programs with
+the
+.Fl z
+option.
+To enable execution of external decompressors, one needs to disable
+sandboxing using the
+.Fl S
+flag.
+.Sh MAGIC DIRECTORY
+The magic file entries have been collected from various sources,
+mainly USENET, and contributed by various authors.
+Christos Zoulas (address below) will collect additional
+or corrected magic file entries.
+A consolidation of magic file entries
+will be distributed periodically.
+.Pp
+The order of entries in the magic file is significant.
+Depending on what system you are using, the order that
+they are put together may be incorrect.
+If your old
+.Nm
+command uses a magic file,
+keep the old magic file around for comparison purposes
+(rename it to
+.Pa __MAGIC__.orig ) .
+.Sh HISTORY
+There has been a
+.Nm
+command in every
+.Dv UNIX since at least Research Version 4
+(man page dated November, 1973).
+The System V version introduced one significant major change:
+the external list of magic types.
+This slowed the program down slightly but made it a lot more flexible.
+.Pp
+This program, based on the System V version,
+was written by Ian Darwin
+.Aq ian@darwinsys.com
+without looking at anybody else's source code.
+.Pp
+John Gilmore revised the code extensively, making it better than
+the first version.
+Geoff Collyer found several inadequacies
+and provided some magic file entries.
+Contributions of the
+.Sq \*[Am]
+operator by Rob McMahon,
+.Aq cudcv@warwick.ac.uk ,
+1989.
+.Pp
+Guy Harris,
+.Aq guy@netapp.com ,
+made many changes from 1993 to the present.
+.Pp
+Primary development and maintenance from 1990 to the present by
+Christos Zoulas
+.Aq christos@astron.com .
+.Pp
+Altered by Chris Lowth
+.Aq chris@lowth.com ,
+2000: handle the
+.Fl i
+option to output mime type strings, using an alternative
+magic file and internal logic.
+.Pp
+Altered by Eric Fischer
+.Aq enf@pobox.com ,
+July, 2000,
+to identify character codes and attempt to identify the languages
+of non-ASCII files.
+.Pp
+Altered by Reuben Thomas
+.Aq rrt@sc3d.org ,
+2007-2011, to improve MIME support, merge MIME and non-MIME magic,
+support directories as well as files of magic, apply many bug fixes,
+update and fix a lot of magic, improve the build system, improve the
+documentation, and rewrite the Python bindings in pure Python.
+.Pp
+The list of contributors to the
+.Sq magic
+directory (magic files)
+is too long to include here.
+You know who you are; thank you.
+Many contributors are listed in the source files.
+.Sh LEGAL NOTICE
+Copyright (c) Ian F. Darwin, Toronto, Canada, 1986-1999.
+Covered by the standard Berkeley Software Distribution copyright; see the file
+COPYING in the source distribution.
+.Pp
+The files
+.Pa tar.h
+and
+.Pa is_tar.c
+were written by John Gilmore from his public-domain
+.Xr tar 1
+program, and are not covered by the above license.
+.Sh BUGS
+Please report bugs and send patches to the bug tracker at
+.Pa http://bugs.astron.com/
+or the mailing list at
+.Aq file@astron.com
+(visit
+.Pa http://mailman.astron.com/mailman/listinfo/file
+first to subscribe).
+.Sh TODO
+Fix output so that tests for MIME and APPLE flags are not needed all
+over the place, and actual output is only done in one place.
+This needs a design.
+Suggestion: push possible outputs on to a list, then pick the
+last-pushed (most specific, one hopes) value at the end, or
+use a default if the list is empty.
+This should not slow down evaluation.
+.Pp
+The handling of
+.Dv MAGIC_CONTINUE
+and printing \e012- between entries is clumsy and complicated; refactor
+and centralize.
+.Pp
+Some of the encoding logic is hard-coded in encoding.c and can be moved
+to the magic files if we had a !:charset annotation
+.Pp
+Continue to squash all magic bugs.
+See Debian BTS for a good source.
+.Pp
+Store arbitrarily long strings, for example for %s patterns, so that
+they can be printed out.
+Fixes Debian bug #271672.
+This can be done by allocating strings in a string pool, storing the
+string pool at the end of the magic file and converting all the string
+pointers to relative offsets from the string pool.
+.Pp
+Add syntax for relative offsets after current level (Debian bug #466037).
+.Pp
+Make file -ki work, i.e. give multiple MIME types.
+.Pp
+Add a zip library so we can peek inside Office2007 documents to
+print more details about their contents.
+.Pp
+Add an option to print URLs for the sources of the file descriptions.
+.Pp
+Combine script searches and add a way to map executable names to MIME
+types (e.g. have a magic value for !:mime which causes the resulting
+string to be looked up in a table).
+This would avoid adding the same magic repeatedly for each new
+hash-bang interpreter.
+.Pp
+When a file descriptor is available, we can skip and adjust the buffer
+instead of the hacky buffer management we do now.
+.Pp
+Fix
+.Dq name
+and
+.Dq use
+to check for consistency at compile time (duplicate
+.Dq name ,
+.Dq use
+pointing to undefined
+.Dq name
+).
+Make
+.Dq name
+/
+.Dq use
+more efficient by keeping a sorted list of names.
+Special-case ^ to flip endianness in the parser so that it does not
+have to be escaped, and document it.
+.Pp
+If the offsets specified internally in the file exceed the buffer size
+(
+.Dv HOWMANY
+variable in file.h), then we don't seek to that offset, but we give up.
+It would be better if buffer managements was done when the file descriptor
+is available so move around the file.
+One must be careful though because this has performance (and thus security
+considerations).
+.Sh AVAILABILITY
+You can obtain the original author's latest version by anonymous FTP
+on
+.Pa ftp.astron.com
+in the directory
+.Pa /pub/file/file-X.YZ.tar.gz .

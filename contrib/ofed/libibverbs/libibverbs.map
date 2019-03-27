@@ -1,0 +1,142 @@
+/* Do not change this file without reading Documentation/versioning.md */
+IBVERBS_1.0 {
+	global:
+		ibv_get_device_list;
+		ibv_free_device_list;
+		ibv_get_device_name;
+		ibv_get_device_guid;
+		ibv_open_device;
+		ibv_close_device;
+		ibv_get_async_event;
+		ibv_ack_async_event;
+		ibv_query_device;
+		ibv_query_device_ex;
+		ibv_query_port;
+		ibv_query_gid;
+		ibv_query_pkey;
+		ibv_alloc_pd;
+		ibv_dealloc_pd;
+		ibv_reg_mr;
+		ibv_dereg_mr;
+		ibv_create_comp_channel;
+		ibv_destroy_comp_channel;
+		ibv_create_cq;
+		ibv_resize_cq;
+		ibv_destroy_cq;
+		ibv_get_cq_event;
+		ibv_ack_cq_events;
+		ibv_create_srq;
+		ibv_modify_srq;
+		ibv_query_srq;
+		ibv_destroy_srq;
+		ibv_create_qp;
+		ibv_query_qp;
+		ibv_modify_qp;
+		ibv_destroy_qp;
+		ibv_create_ah;
+		ibv_destroy_ah;
+		ibv_attach_mcast;
+		ibv_detach_mcast;
+		ibv_rate_to_mult;
+		mult_to_ibv_rate;
+
+		/* These historical symbols are now private to libibverbs, but used by
+		   other rdma-core libraries. Do not change them. */
+		ibv_copy_path_rec_from_kern;
+		ibv_copy_path_rec_to_kern;
+		ibv_copy_qp_attr_from_kern;
+		ibv_get_sysfs_path;
+		ibv_read_sysfs_file;
+
+	local: *;
+};
+
+IBVERBS_1.1 {
+	global:
+		ibv_get_device_list;
+		ibv_free_device_list;
+		ibv_get_device_name;
+		ibv_get_device_guid;
+		ibv_open_device;
+		ibv_close_device;
+
+		ibv_init_ah_from_wc;
+		ibv_create_ah_from_wc;
+		ibv_fork_init;
+		ibv_dontfork_range;
+		ibv_dofork_range;
+		ibv_register_driver;
+
+		ibv_node_type_str;
+		ibv_port_state_str;
+		ibv_event_type_str;
+		ibv_wc_status_str;
+
+		ibv_rate_to_mbps;
+		mbps_to_ibv_rate;
+
+		ibv_resolve_eth_l2_from_gid;
+
+		/* These historical symbols are now private to libibverbs, but used by
+		   other rdma-core libraries. Do not change them. */
+		ibv_copy_ah_attr_from_kern;
+} IBVERBS_1.0;
+
+/* NOTE: The next stanza for public symbols should be IBVERBS_1.4 due to release 12 */
+
+/* If any symbols in this stanza change ABI then the entire staza gets a new symbol
+   version. Also see the private_symver() macro */
+IBVERBS_PRIVATE_14 {
+	global:
+		/* These historical symbols are now private to libibverbs */
+		ibv_cmd_alloc_mw;
+		ibv_cmd_alloc_pd;
+		ibv_cmd_attach_mcast;
+		ibv_cmd_close_xrcd;
+		ibv_cmd_create_ah;
+		ibv_cmd_create_cq;
+		ibv_cmd_create_cq_ex;
+		ibv_cmd_create_flow;
+		ibv_cmd_create_qp;
+		ibv_cmd_create_qp_ex2;
+		ibv_cmd_create_qp_ex;
+		ibv_cmd_create_rwq_ind_table;
+		ibv_cmd_create_srq;
+		ibv_cmd_create_srq_ex;
+		ibv_cmd_create_wq;
+		ibv_cmd_dealloc_mw;
+		ibv_cmd_dealloc_pd;
+		ibv_cmd_dereg_mr;
+		ibv_cmd_destroy_ah;
+		ibv_cmd_destroy_cq;
+		ibv_cmd_destroy_flow;
+		ibv_cmd_destroy_qp;
+		ibv_cmd_destroy_rwq_ind_table;
+		ibv_cmd_destroy_srq;
+		ibv_cmd_destroy_wq;
+		ibv_cmd_detach_mcast;
+		ibv_cmd_get_context;
+		ibv_cmd_modify_qp;
+		ibv_cmd_modify_qp_ex;
+		ibv_cmd_modify_srq;
+		ibv_cmd_modify_wq;
+		ibv_cmd_open_qp;
+		ibv_cmd_open_xrcd;
+		ibv_cmd_poll_cq;
+		ibv_cmd_post_recv;
+		ibv_cmd_post_send;
+		ibv_cmd_post_srq_recv;
+		ibv_cmd_query_device;
+		ibv_cmd_query_device_ex;
+		ibv_cmd_query_port;
+		ibv_cmd_query_qp;
+		ibv_cmd_query_srq;
+		ibv_cmd_reg_mr;
+		ibv_cmd_req_notify_cq;
+		ibv_cmd_rereg_mr;
+		ibv_cmd_resize_cq;
+		ibv_query_gid_type;
+		ibv_register_driver;
+		verbs_register_driver;
+		verbs_init_cq;
+};

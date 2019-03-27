@@ -1,0 +1,22 @@
+
+pw is a command-line driven passwd/group editor utility that provides
+an easy and safe means of modifying of any/all fields in the system
+password files, and has an add, modify and delete mode for user and
+group records. Command line options have been fashioned to be similar
+to those used by the Sun/shadow commands: useradd, usermod, userdel,
+groupadd, groupmod, groupdel, but combines all operations within the
+single command `pw'.
+
+User add mode also provides a means of easily setting system useradd
+defaults (see pw.conf.5), so that adding a user is as easy as issuing
+the command "pw useradd <loginid>". Creation of a unique primary
+group for each user and automatic membership in secondary groups
+is fully supported.
+
+This program may be FreeBSD specific, but should be trivial to port to
+other bsd4.4 variants.
+
+Author and maintainer: David L. Nugent, <davidn@blaze.net.au>
+
+$FreeBSD$
+

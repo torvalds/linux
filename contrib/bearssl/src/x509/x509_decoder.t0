@@ -1,0 +1,321 @@
+\ Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
+\
+\ Permission is hereby granted, free of charge, to any person obtaining 
+\ a copy of this software and associated documentation files (the
+\ "Software"), to deal in the Software without restriction, including
+\ without limitation the rights to use, copy, modify, merge, publish,
+\ distribute, sublicense, and/or sell copies of the Software, and to
+\ permit persons to whom the Software is furnished to do so, subject to
+\ the following conditions:
+\
+\ The above copyright notice and this permission notice shall be 
+\ included in all copies or substantial portions of the Software.
+\
+\ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
+\ EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+\ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
+\ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+\ BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+\ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+\ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+\ SOFTWARE.
+
+preamble {
+
+#include "inner.h"
+
+#define CTX   ((br_x509_decoder_context *)(void *)((unsigned char *)t0ctx - offsetof(br_x509_decoder_context, cpu)))
+#define CONTEXT_NAME   br_x509_decoder_context
+
+/* see bearssl_x509.h */
+void
+br_x509_decoder_init(br_x509_decoder_context *ctx,
+	void (*append_dn)(void *ctx, const void *buf, size_t len),
+	void *append_dn_ctx)
+{
+	memset(ctx, 0, sizeof *ctx);
+	/* obsolete
+	ctx->err = 0;
+	ctx->hbuf = NULL;
+	ctx->hlen = 0;
+	*/
+	ctx->append_dn = append_dn;
+	ctx->append_dn_ctx = append_dn_ctx;
+	ctx->cpu.dp = &ctx->dp_stack[0];
+	ctx->cpu.rp = &ctx->rp_stack[0];
+	br_x509_decoder_init_main(&ctx->cpu);
+	br_x509_decoder_run(&ctx->cpu);
+}
+
+/* see bearssl_x509.h */
+void
+br_x509_decoder_push(br_x509_decoder_context *ctx,
+	const void *data, size_t len)
+{
+	ctx->hbuf = data;
+	ctx->hlen = len;
+	br_x509_decoder_run(&ctx->cpu);
+}
+
+}
+
+addr: decoded
+addr: notbefore_days
+addr: notbefore_seconds
+addr: notafter_days
+addr: notafter_seconds
+addr: isCA
+addr: copy_dn
+addr: signer_key_type
+addr: signer_hash_id
+
+cc: read8-low ( -- x ) {
+	if (CTX->hlen == 0) {
+		T0_PUSHi(-1);
+	} else {
+		unsigned char x = *CTX->hbuf ++;
+		if (CTX->copy_dn && CTX->append_dn) {
+			CTX->append_dn(CTX->append_dn_ctx, &x, 1);
+		}
+		CTX->hlen --;
+		T0_PUSH(x);
+	}
+}
+
+cc: read-blob-inner ( addr len -- addr len ) {
+	uint32_t len = T0_POP();
+	uint32_t addr = T0_POP();
+	size_t clen = CTX->hlen;
+	if (clen > len) {
+		clen = (size_t)len;
+	}
+	if (addr != 0) {
+		memcpy((unsigned char *)CTX + addr, CTX->hbuf, clen);
+	}
+	if (CTX->copy_dn && CTX->append_dn) {
+		CTX->append_dn(CTX->append_dn_ctx, CTX->hbuf, clen);
+	}
+	CTX->hbuf += clen;
+	CTX->hlen -= clen;
+	T0_PUSH(addr + clen);
+	T0_PUSH(len - clen);
+}
+
+\ Get the address and length for the pkey_data buffer.
+: addr-len-pkey_data ( -- addr len )
+	CX 0 8191 { offsetof(br_x509_decoder_context, pkey_data) }
+	CX 0 8191 { BR_X509_BUFSIZE_KEY } ;
+
+\ Copy the public key (RSA) to the permanent buffer.
+cc: copy-rsa-pkey ( nlen elen -- ) {
+	size_t elen = T0_POP();
+	size_t nlen = T0_POP();
+	CTX->pkey.key_type = BR_KEYTYPE_RSA;
+	CTX->pkey.key.rsa.n = CTX->pkey_data;
+	CTX->pkey.key.rsa.nlen = nlen;
+	CTX->pkey.key.rsa.e = CTX->pkey_data + nlen;
+	CTX->pkey.key.rsa.elen = elen;
+}
+
+\ Copy the public key (EC) to the permanent buffer.
+cc: copy-ec-pkey ( curve qlen -- ) {
+	size_t qlen = T0_POP();
+	uint32_t curve = T0_POP();
+	CTX->pkey.key_type = BR_KEYTYPE_EC;
+	CTX->pkey.key.ec.curve = curve;
+	CTX->pkey.key.ec.q = CTX->pkey_data;
+	CTX->pkey.key.ec.qlen = qlen;
+}
+
+\ Extensions with specific processing.
+OID: basicConstraints    2.5.29.19
+
+\ Process a Basic Constraints extension. We want the "CA" flag only.
+: process-basicConstraints ( lim -- lim )
+	read-sequence-open
+	read-tag-or-end dup 0x01 = if
+		read-boolean 1 and addr-isCA set8
+	else
+		2drop
+	then
+	skip-close-elt
+	;
+
+\ Decode a certificate.
+: main ( -- ! )
+
+	\ Initialise state flags.
+	0 addr-decoded set8
+	0 addr-copy_dn set8
+
+	\ An arbitrary limit for the total certificate size.
+	0xFFFFFF
+
+	\ Open the outer SEQUENCE.
+	read-sequence-open
+
+	\ TBS
+	read-sequence-open
+
+	\ First element may be an explicit version. We accept only
+	\ versions 0 to 2 (certificates v1 to v3).
+	read-tag dup 0x20 = if
+		drop check-constructed read-length-open-elt
+		read-tag
+		0x02 check-tag-primitive
+		read-small-int-value
+		2 > if ERR_X509_UNSUPPORTED fail then
+		close-elt
+		read-tag
+	then
+
+	\ Serial number. We just check that the tag is correct.
+	0x02 check-tag-primitive read-length-skip
+
+	\ Signature algorithm.
+	read-sequence-open skip-close-elt
+
+	\ Issuer name.
+	read-sequence-open skip-close-elt
+
+	\ Validity dates.
+	read-sequence-open
+	read-date addr-notbefore_seconds set32 addr-notbefore_days set32
+	read-date addr-notafter_seconds set32 addr-notafter_days set32
+	close-elt
+
+	\ Subject name.
+	1 addr-copy_dn set8
+	read-sequence-open skip-close-elt
+	0 addr-copy_dn set8
+
+	\ Public Key.
+	read-sequence-open
+	\ Algorithm Identifier. Right now we are only interested in the
+	\ OID, since we only support RSA keys.
+	\ TODO: support EC keys
+	read-sequence-open
+	read-OID ifnot ERR_X509_UNSUPPORTED fail then
+	choice
+		\ RSA public key.
+		rsaEncryption eqOID uf
+			skip-close-elt
+			\ Public key itself: the BIT STRING contains bytes
+			\ (no partial byte) and these bytes encode the
+			\ actual value.
+			read-bits-open
+				\ RSA public key is a SEQUENCE of two
+				\ INTEGER. We get both INTEGER values into
+				\ the pkey_data[] buffer, if they fit.
+				read-sequence-open
+				addr-len-pkey_data
+				read-integer { nlen }
+				addr-len-pkey_data swap nlen + swap nlen -
+				read-integer { elen }
+				close-elt
+			close-elt
+			nlen elen copy-rsa-pkey
+		enduf
+
+		\ EC public key.
+		id-ecPublicKey eqOID uf
+			\ We support only named curves, for which the
+			\ "parameters" field in the AlgorithmIdentifier
+			\ field should be an OID.
+			read-curve-ID { curve }
+			close-elt
+			read-bits-open
+			dup { qlen }
+			dup addr-len-pkey_data rot < if
+				ERR_X509_LIMIT_EXCEEDED fail
+			then
+			read-blob
+			curve qlen copy-ec-pkey
+		enduf
+		ERR_X509_UNSUPPORTED fail
+	endchoice
+	close-elt
+
+	\ This flag will be set to true if the Basic Constraints extension
+	\ is encountered.
+	0 addr-isCA set8
+
+	\ Skip issuerUniqueID and subjectUniqueID, and process extensions
+	\ if present. Extensions are an explicit context tag of value 3
+	\ around a SEQUENCE OF extensions. Each extension is a SEQUENCE
+	\ with an OID, an optional boolean, and a value; the value is
+	\ an OCTET STRING.
+	read-tag-or-end
+	0x21 iftag-skip
+	0x22 iftag-skip
+	dup 0x23 = if
+		drop
+		check-constructed read-length-open-elt
+		read-sequence-open
+		begin dup while
+			read-sequence-open
+			read-OID drop
+			read-tag dup 0x01 = if
+				read-boolean drop
+				read-tag
+			then
+			0x04 check-tag-primitive read-length-open-elt
+			choice
+				\ Extensions with specific processing.
+				basicConstraints eqOID uf
+					process-basicConstraints
+				enduf
+				skip-remaining
+			endchoice
+			close-elt
+			close-elt
+		repeat
+		close-elt
+		close-elt
+	else
+		-1 = ifnot ERR_X509_UNEXPECTED fail then
+		drop
+	then
+
+	close-elt
+
+	\ signature algorithm
+	read-sequence-open
+	read-OID if
+		choice
+			sha1WithRSAEncryption    eqOID uf 2 KEYTYPE_RSA enduf
+			sha224WithRSAEncryption  eqOID uf 3 KEYTYPE_RSA enduf
+			sha256WithRSAEncryption  eqOID uf 4 KEYTYPE_RSA enduf
+			sha384WithRSAEncryption  eqOID uf 5 KEYTYPE_RSA enduf
+			sha512WithRSAEncryption  eqOID uf 6 KEYTYPE_RSA enduf
+
+			ecdsa-with-SHA1          eqOID uf 2 KEYTYPE_EC enduf
+			ecdsa-with-SHA224        eqOID uf 3 KEYTYPE_EC enduf
+			ecdsa-with-SHA256        eqOID uf 4 KEYTYPE_EC enduf
+			ecdsa-with-SHA384        eqOID uf 5 KEYTYPE_EC enduf
+			ecdsa-with-SHA512        eqOID uf 6 KEYTYPE_EC enduf
+
+			0 0
+		endchoice
+	else
+		0 0
+	then
+	addr-signer_key_type set8
+	addr-signer_hash_id set8
+	skip-close-elt
+	\ read-sequence-open skip-close-elt
+
+	\ signature value
+	read-bits-open skip-close-elt
+
+	\ Close the outer SEQUENCE.
+	close-elt
+	drop
+
+	\ Mark the decoding as successful.
+	1 addr-decoded set8
+
+	\ Read one byte, then fail: if the read succeeds, then there is
+	\ some trailing byte.
+	read8-nc ERR_X509_EXTRA_ELEMENT fail
+	;

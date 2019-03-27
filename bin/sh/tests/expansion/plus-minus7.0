@@ -1,0 +1,26 @@
+# $FreeBSD$
+
+e= s='foo'
+failures=''
+ok=''
+
+testcase() {
+	code="$1"
+	expected="$2"
+	oIFS="$IFS"
+	eval "$code"
+	IFS='|'
+	result="$#|$*"
+	IFS="$oIFS"
+	if [ "x$result" = "x$expected" ]; then
+		ok=x$ok
+	else
+		failures=x$failures
+		echo "For $code, expected $expected actual $result"
+	fi
+}
+
+testcase 'set -- ${s+a b}'			'2|a|b'
+testcase 'set -- ${e:-a b}'			'2|a|b'
+
+test "x$failures" = x

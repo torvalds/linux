@@ -1,0 +1,99 @@
+.\" Written by Garrett Wollman
+.\" This file is in the public domain.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 5, 2007
+.Dt LINSYSFS 5
+.Os
+.Sh NAME
+.Nm linsysfs
+.Nd Linux system file system
+.Sh SYNOPSIS
+.Bd -literal
+linsys		/compat/linux/sys	linsysfs	rw 0 0
+.Ed
+.Sh DESCRIPTION
+The
+.Tn Linux
+system file system, or
+.Nm ,
+emulates a subset of the
+.Tn Linux
+sys file system and is required for
+the complete operation of some
+.Tn Linux
+binaries.
+.Pp
+The
+.Nm
+provides a two-level view of devices.
+At the highest level, PCI devices themselves are named, according to
+their bus, slot and function in the system hierarchy.
+PCI storage devices are listed in the
+.Pa scsi_host
+class with a device symlink
+to the PCI directories of the devices.
+.Pp
+Each device node is a directory containing some files and directories:
+.Bl -tag -width ".Pa status"
+.It Pa host
+A place holder for storage host information.
+.It Pa pci_id
+A directory for the
+.Pa pci_id
+that contains either the device information or another directory structure
+for a PCI bridge.
+.El
+.Pp
+Each host node of scsi_host is a directory containing some files and directories:
+.Bl -tag -width ".Pa proc_name"
+.It Pa proc_name
+The
+.Tn Linux
+registered driver name for these devices.
+.It Pa device
+A symlink to the PCI device directory.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /compat/linux/sys/devices/pci0000:00" -compact
+.It Pa /compat/linux/sys
+The normal mount point for
+.Nm .
+.It Pa /compat/linux/sys/class/scsi_host
+The storage host node.
+.It Pa /compat/linux/sys/devices/pci0000:00
+The PCI device hierarchy node.
+.El
+.Sh EXAMPLES
+The most common usage follows:
+.Pp
+.Dl "mount -t linsysfs linsys /compat/linux/sys"
+.Pp
+where
+.Pa /compat/linux/sys
+is a mount point.
+.Sh SEE ALSO
+.Xr nmount 2 ,
+.Xr unmount 2 ,
+.Xr linprocfs 5 ,
+.Xr pseudofs 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 6.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was derived from
+.Nm linprocfs
+by
+.An Doug Ambrisko .
+This manual page was edited by
+.An Doug Ambrisko ,
+based on the
+.Xr linprocfs 5
+manual page by
+.An Garrett Wollman .

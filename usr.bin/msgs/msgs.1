@@ -1,0 +1,232 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)msgs.1	8.2 (Berkeley) 4/28/95
+.\" $FreeBSD$
+.\"
+.Dd August 8, 2018
+.Dt MSGS 1
+.Os
+.Sh NAME
+.Nm msgs
+.Nd system messages and junk mail program
+.Sh SYNOPSIS
+.Nm
+.Op Fl fhlpq
+.Op Ar number
+.Op Ar \-number
+.Nm
+.Op Fl s
+.Nm
+.Op Fl c
+.Op \-days
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to read system messages.
+These messages are
+sent by mailing to the login `msgs' and should be short
+pieces of information which are suitable to be read once by most users
+of the system.
+.Pp
+The
+.Nm
+utility is normally invoked each time you login, by placing it in the file
+.Pa .login
+(or
+.Pa .profile
+if you use
+.Xr sh 1 ) .
+It will then prompt you with the source and subject of each new message.
+If there is no subject line, the first few non-blank lines of the
+message will be displayed.
+If there is more to the message, you will be told how
+long it is and asked whether you wish to see the rest of the message.
+The possible responses are:
+.Bl -tag -width Fl
+.It Fl y
+Type the rest of the message.
+.It Ic RETURN
+Synonym for y.
+.It Fl n
+Skip this message
+and go on to the next message.
+.It Fl
+Redisplay the last message.
+.It Fl q
+Drop out of
+.Nm ;
+the next time
+.Nm
+will pick up where it last left off.
+.It Fl s
+Append the current message to the file ``Messages'' in the current directory;
+`s\-' will save the previously displayed message.
+A `s' or `s\-' may
+be followed by a space and a file name to receive the message replacing
+the default ``Messages''.
+.It Fl m
+A copy of the specified message is placed in a temporary
+mailbox and
+.Xr mail 1
+is invoked on that mailbox.
+Both `m' and `s' accept a numeric argument in place of the `\-'.
+.El
+.Pp
+The
+.Nm
+utility keeps track of the next message you will see by a number in the file
+.Pa \&.msgsrc
+in your home directory.
+In the directory
+.Pa /var/msgs
+it keeps a set of files whose names are the (sequential) numbers
+of the messages they represent.
+The file
+.Pa /var/msgs/bounds
+shows the low and high number of the messages in the directory
+so that
+.Nm
+can quickly determine if there are no messages for you.
+If the contents of
+.Pa bounds
+is incorrect it can be fixed by removing it;
+.Nm
+will make a new
+.Pa bounds
+file the next time it is run with the
+.Fl s
+option.
+If
+.Nm
+is run with any option other than
+.Fl s ,
+an error will be displayed if
+.Pa /var/msgs/bounds
+does not exist.
+.Pp
+The
+.Fl s
+option is used for setting up the posting of messages.
+The line
+.Pp
+.Dl msgs: \&"\&| /usr/bin/msgs \-s\&"
+.Pp
+should be included in
+.Pa /etc/mail/aliases
+(see
+.Xr newaliases 1 )
+to enable posting of messages.
+.Pp
+The
+.Fl c
+option is used for performing cleanup on
+.Pa /var/msgs .
+A shell script entry to run
+.Nm
+with the
+.Fl c
+option should be placed in
+.Pa /etc/periodic/daily
+(see
+.Xr periodic 8 )
+to run every night.
+This will remove all messages over 21 days old.
+A different expiration may be specified on the command line to override
+the default.
+You must be the superuser to use this option.
+.Pp
+Options when reading messages include:
+.Bl -tag -width Fl
+.It Fl f
+Do not say ``No new messages.''.
+This is useful in a
+.Pa .login
+file since this is often the case here.
+.It Fl q
+Queries whether there are messages, printing
+``There are new messages.'' if there are.
+The command ``msgs \-q'' is often used in login scripts.
+.It Fl h
+Print the first part of messages only.
+.It Fl l
+Cause only locally originated messages to be reported.
+.It Ar num
+A message number can be given
+on the command line, causing
+.Nm
+to start at the specified message rather than at the next message
+indicated by your
+.Pa \&.msgsrc
+file.
+Thus
+.Pp
+.Dl msgs \-h 1
+.Pp
+prints the first part of all messages.
+.It Ar \-number
+Start
+.Ar number
+messages back from the one indicated in the
+.Pa \&.msgsrc
+file, useful for reviews of recent messages.
+.It Fl p
+Pipe long messages through
+.Xr less 1 .
+.El
+.Pp
+Within
+.Nm
+you can also go to any specific message by typing its number when
+.Nm
+requests input as to what to do.
+.Sh ENVIRONMENT
+The
+.Nm
+utility uses the
+.Ev HOME
+and
+.Ev TERM
+environment variables for the default home directory and
+terminal type.
+.Sh FILES
+.Bl -tag -width /var/msgs/* -compact
+.It Pa /var/msgs/*
+database
+.It Pa ~/.msgsrc
+number of next message to be presented
+.El
+.Sh SEE ALSO
+.Xr mail 1 ,
+.Xr less 1 ,
+.Xr aliases 5 ,
+.Xr periodic 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 3.0 .

@@ -1,0 +1,95 @@
+#
+# $FreeBSD$
+#
+#
+# Makefile for creating an EC2 AMI from a disk image.
+#
+
+# Figure out where SVN is
+.if !defined(SVN_CMD) || empty(SVN_CMD)
+. for _P in /usr/bin /usr/local/bin
+.  for _S in svn svnlite
+.   if exists(${_P}/${_S})
+SVN_CMD=   ${_P}/${_S}
+.   endif
+.  endfor
+. endfor
+.endif
+.if exists(${SRCTOP}/.svn)
+.  if empty(EC2_SVNBRANCH)
+   EC2_SVNBRANCH!=	${SVN_CMD} info --show-item relative-url ${WORLDDIR} 2>/dev/null | sed -e 's/\^\///'
+.  export EC2_SVNBRANCH
+.  endif
+.  if empty(EC2_SVNREV)
+   EC2_SVNREV!=	${SVN_CMD} info --show-item last-changed-revision ${WORLDDIR} 2>/dev/null || true
+.  export EC2_SVNREV
+.  endif
+.else
+EC2_SVNBRANCH=	unknown
+EC2_SVNREV=	unknown
+.endif
+
+.if ${BRANCH} == "CURRENT" || ${BRANCH} == "STABLE" || ${BRANCH} == "PRERELEASE"
+AMINAMESUFFIX!=	date +-%Y-%m-%d
+.endif
+.if defined(EC2PUBLIC) && !empty(EC2PUBLIC)
+PUBLISH=	--public
+.endif
+.if defined(EC2PUBLICSNAP) && !empty(EC2PUBLICSNAP)
+PUBLICSNAP=	--publicsnap
+.endif
+.if defined(EC2SNSTOPIC) && !empty(EC2SNSTOPIC)
+EC2SNSREL=	${REVISION}-${BRANCH}
+EC2SNSVERS=	${EC2_SVNBRANCH}@${EC2_SVNREV}
+.endif
+.if ${TARGET_ARCH} != "amd64"
+EC2ARCH=	--${TARGET_ARCH:S/aarch64/arm64/}
+.endif
+
+CLEANFILES+=		ec2ami
+
+.if !exists(/usr/local/bin/bsdec2-image-upload)
+CW_EC2_PORTINSTALL=	cw-ec2-portinstall
+CLEANFILES+=		${CW_EC2_PORTINSTALL}
+.else
+CW_EC2_PORTINSTALL=
+.endif
+
+cw-ec2-portinstall:
+.if exists(${PORTSDIR}/net/bsdec2-image-upload/Makefile)
+	env - PATH=$$PATH make -C ${PORTSDIR}/net/bsdec2-image-upload BATCH=1 all install clean
+.else
+. if !exists(/usr/local/sbin/pkg-static)
+	env ASSUME_ALWAYS_YES=yes pkg bootstrap -y
+. endif
+	env ASSUME_ALWAYS_YES=yes pkg install -y net/bsdec2-image-upload
+.endif
+	@touch ${.TARGET}
+
+ec2ami: cw-ec2 ${CW_EC2_PORTINSTALL}
+.if !defined(AWSKEYFILE) || !exists(${AWSKEYFILE})
+	@echo "--------------------------------------------------------------"
+	@echo ">>> AWSKEYFILE must point at AWS keys for EC2 AMI creation"
+	@echo "--------------------------------------------------------------"
+	@false
+.endif
+.if !defined(AWSREGION)
+	@echo "--------------------------------------------------------------"
+	@echo ">>> AWSREGION must be specified EC2 AMI creation"
+	@echo "--------------------------------------------------------------"
+	@false
+.endif
+.if !defined(AWSBUCKET)
+	@echo "--------------------------------------------------------------"
+	@echo ">>> AWSBUCKET must be specified for EC2 AMI creation"
+	@echo "--------------------------------------------------------------"
+	@false
+.endif
+	/usr/local/bin/bsdec2-image-upload ${PUBLISH} ${PUBLICSNAP} \
+	    ${EC2ARCH} --sriov --ena \
+	    ${.OBJDIR}/ec2.raw \
+	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}${AMINAMESUFFIX}" \
+	    "${TYPE}/${TARGET} ${EC2_SVNBRANCH}@${EC2_SVNREV}" \
+	    ${AWSREGION} ${AWSBUCKET} ${AWSKEYFILE} \
+	    ${EC2SNSTOPIC} ${EC2SNSREL} ${EC2SNSVERS}
+	@touch ${.TARGET}

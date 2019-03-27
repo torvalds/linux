@@ -1,0 +1,116 @@
+.\"-
+.\" Copyright (c) 2008 Nathan Whitehorn <nwhitehorn@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 6, 2008
+.Dt PMU 4
+.Os
+.Sh NAME
+.Nm pmu
+.Nd Apple PMU99 Power Management Driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device adb"
+.Cd "device pmu"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Power Management Unit (PMU) found in Apple
+Core99 hardware.
+This includes late G3 laptops, all G4 machines, early G5
+desktops and all G5 XServes.
+.Pp
+The Apple PMU controller is a multi-purpose ASIC that provides power
+management and thermal control, as well as an ADB bus for the internal
+keyboard and mouse on laptops.
+.Sh HARDWARE
+Chips supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Apple KeyLargo PMU
+.It
+Apple K2-KeyLargo PMU
+.El
+.Sh SYSCTL VARIABLES
+The
+.Nm
+driver provides power management services in addition to an
+.Xr adb 4
+interface.
+The following sysctls can be used to control the
+power management behavior and to examine current system power and
+thermal conditions.
+.Bl -tag -width indent
+.It Va dev.pmu.%d.server_mode
+Restart after power failure behavior (1 causes system to reboot after power
+cut, 0 causes system to remain off).
+.It Va dev.pmu.%d.batteries.%d.present
+Indicates whether the relevant battery is inserted.
+.It Va dev.pmu.%d.batteries.%d.charging
+Indicates whether the battery is currently charging.
+.It Va dev.pmu.%d.batteries.%d.charge
+The current battery charge, in milliamp hours.
+.It Va dev.pmu.%d.batteries.%d.maxcharge
+The battery's self-reported maximum charge, in milliamp hours.
+.It Va dev.pmu.%d.batteries.%d.rate
+The current into the battery, in milliamps.
+While the battery is discharging,
+this will be negative.
+.It Va dev.pmu.%d.batteries.%d.voltage
+Battery voltage, in millivolts.
+.It Va dev.pmu.%d.batteries.%d.time
+Estimated time until full battery charge (or discharge), in minutes.
+.It Va dev.pmu.%d.batteries.%d.life
+Current fraction of the battery's maximum charge, in percent.
+.El
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr adb 4 ,
+.Xr led 4
+.Sh HISTORY
+The
+.Nm
+device driver appeared in
+.Nx 4.0 ,
+and then in
+.Fx 8.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Michael Lorenz Aq Mt macallan@NetBSD.org
+and ported to
+.Fx
+by
+.An Nathan Whitehorn Aq Mt nwhitehorn@FreeBSD.org .

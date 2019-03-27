@@ -1,0 +1,7 @@
+# $FreeBSD$
+machine		arm	armv7
+cpu 		CPU_CORTEXA
+makeoptions	CONF_CFLAGS="-march=armv7a"
+
+files "../freescale/imx/files.imx6"
+

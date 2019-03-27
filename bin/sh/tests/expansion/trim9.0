@@ -1,0 +1,61 @@
+# $FreeBSD$
+
+# POSIX does not specify these but they occasionally occur in the wild.
+# This just serves to keep working what currently works.
+
+failures=''
+ok=''
+
+testcase() {
+	code="$1"
+	expected="$2"
+	oIFS="$IFS"
+	eval "$code"
+	IFS='|'
+	result="$#|$*"
+	IFS="$oIFS"
+	if [ "x$result" = "x$expected" ]; then
+		ok=x$ok
+	else
+		failures=x$failures
+		echo "For $code, expected $expected actual $result"
+	fi
+}
+
+testcase 'shift $#; set -- "${*#Q}"'		'1|'
+testcase 'shift $#; set -- "${*##Q}"'		'1|'
+testcase 'shift $#; set -- "${*%Q}"'		'1|'
+testcase 'shift $#; set -- "${*%%Q}"'		'1|'
+testcase 'set -- Q R; set -- "${*#Q}"'		'1| R'
+testcase 'set -- Q R; set -- "${*##Q}"'		'1| R'
+testcase 'set -- Q R; set -- "${*%R}"'		'1|Q '
+testcase 'set -- Q R; set -- "${*%%R}"'		'1|Q '
+testcase 'set -- Q R; set -- "${*#S}"'		'1|Q R'
+testcase 'set -- Q R; set -- "${*##S}"'		'1|Q R'
+testcase 'set -- Q R; set -- "${*%S}"'		'1|Q R'
+testcase 'set -- Q R; set -- "${*%%S}"'		'1|Q R'
+testcase 'set -- Q R; set -- ${*#Q}'		'1|R'
+testcase 'set -- Q R; set -- ${*##Q}'		'1|R'
+testcase 'set -- Q R; set -- ${*%R}'		'1|Q'
+testcase 'set -- Q R; set -- ${*%%R}'		'1|Q'
+testcase 'set -- Q R; set -- ${*#S}'		'2|Q|R'
+testcase 'set -- Q R; set -- ${*##S}'		'2|Q|R'
+testcase 'set -- Q R; set -- ${*%S}'		'2|Q|R'
+testcase 'set -- Q R; set -- ${*%%S}'		'2|Q|R'
+testcase 'set -- Q R; set -- ${@#Q}'		'1|R'
+testcase 'set -- Q R; set -- ${@##Q}'		'1|R'
+testcase 'set -- Q R; set -- ${@%R}'		'1|Q'
+testcase 'set -- Q R; set -- ${@%%R}'		'1|Q'
+testcase 'set -- Q R; set -- ${@#S}'		'2|Q|R'
+testcase 'set -- Q R; set -- ${@##S}'		'2|Q|R'
+testcase 'set -- Q R; set -- ${@%S}'		'2|Q|R'
+testcase 'set -- Q R; set -- ${@%%S}'		'2|Q|R'
+testcase 'set -- Q R; set -- "${@#Q}"'		'2||R'
+testcase 'set -- Q R; set -- "${@%R}"'		'2|Q|'
+testcase 'set -- Q R; set -- "${@%%R}"'		'2|Q|'
+testcase 'set -- Q R; set -- "${@#S}"'		'2|Q|R'
+testcase 'set -- Q R; set -- "${@##S}"'		'2|Q|R'
+testcase 'set -- Q R; set -- "${@%S}"'		'2|Q|R'
+testcase 'set -- Q R; set -- "${@%%S}"'		'2|Q|R'
+
+test "x$failures" = x

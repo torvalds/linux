@@ -1,0 +1,91 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 11, 2013
+.Dt VFS_BUSY 9
+.Os
+.Sh NAME
+.Nm vfs_busy
+.Nd "marks a mount point as busy"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.Ft int
+.Fn vfs_busy "struct mount *mp" "int flags"
+.Sh DESCRIPTION
+The
+.Fn vfs_busy
+function marks a mount point as busy by incrementing
+the reference count of a mount point.
+It also delays unmounting by sleeping on
+.Fa mp
+if the
+.Dv MNTK_UNMOUNT
+flag is set in
+.Fa mp->mnt_kern_flag
+and the
+.Dv MBF_NOWAIT
+flag is
+.Em not
+set.
+.Pp
+Its arguments are:
+.Bl -tag -width ".Fa flags"
+.It Fa mp
+The mount point to busy.
+.It Fa flags
+Flags controlling how
+.Fn vfs_busy
+should act.
+.Bl -tag -width ".Dv MBF_MNTLSTLOCK"
+.It Dv MBF_NOWAIT
+do not sleep if
+.Dv MNTK_UNMOUNT
+is set.
+.It Dv MBF_MNTLSTLOCK
+drop the mountlist_mtx in the critical path.
+.El
+.El
+.Sh RETURN VALUES
+A 0 value is returned on success.
+If the mount point is being
+unmounted and MBF_NOWAIT flag is specified
+.Er ENOENT
+will be returned.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ENOENT
+The mount point is being unmounted
+.Dv ( MNTK_UNMOUNT
+is set).
+.El
+.Sh SEE ALSO
+.Xr vfs_unbusy 9
+.Sh AUTHORS
+This manual page was written by
+.An Chad David Aq Mt davidc@acns.ab.ca .

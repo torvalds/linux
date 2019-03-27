@@ -1,0 +1,114 @@
+/dts-v1/;
+
+#include "mt7620a.dtsi"
+
+/ {
+	compatible = "ralink,mt7620a-eval-board", "ralink,mt7620a-soc";
+	model = "Ralink MT7620a V22SG High Power evaluation board";
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 1 1>;
+			linux,code = <0x198>;
+		};
+
+		aoss {
+			label = "aoss";
+			gpios = <&gpio0 2 1>;
+			linux,code = <0x211>;
+		};
+	};
+
+	nand {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "mtk,mt7620-nand";
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x40000>;
+			read-only;
+		};
+
+		partition@40000 {
+			label = "u-boot-env";
+			reg = <0x40000 0x20000>;
+			read-only;
+		};
+
+		factory: partition@60000 {
+			label = "factory";
+			reg = <0x60000 0x20000>;
+			read-only;
+		};
+
+		partition@80000 {
+			label = "firmware";
+			reg = <0x80000 0x7f80000>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "uartf", "spi";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii1_pins &rgmii2_pins &mdio_pins>;
+	mediatek,portmap = "llllw";
+
+	port@4 {
+		status = "okay";
+		phy-handle = <&phy4>;
+		phy-mode = "rgmii";
+	};
+
+	port@5 {
+		status = "okay";
+		phy-handle = <&phy5>;
+		phy-mode = "rgmii";
+	};
+
+	mdio-bus {
+		status = "okay";
+
+		phy4: ethernet-phy@4 {
+			reg = <4>;
+			phy-mode = "rgmii";
+		};
+
+		phy5: ethernet-phy@5 {
+			reg = <5>;
+			phy-mode = "rgmii";
+		};
+	};
+};
+
+&gsw {
+	mediatek,port4 = "gmac";
+};
+
+&pcie {
+	status = "okay";
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};

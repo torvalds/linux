@@ -1,0 +1,3 @@
+@comment $NetBSD: PLIST,v 1.2 2005/04/13 14:11:54 wiz Exp $
+bin/yacc
+man/man1/yacc.1

@@ -1,0 +1,129 @@
+.\"
+.\" Copyright (c) 2003 Ryuichiro Imura
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 17, 2003
+.Dt KICONV 3
+.Os
+.Sh NAME
+.Nm kiconv_add_xlat16_cspair ,
+.Nm kiconv_add_xlat16_cspairs ,
+.Nm kiconv_add_xlat16_table
+.Nd kernel side iconv library
+.Sh LIBRARY
+.Lb libkiconv
+.Sh SYNOPSIS
+.In sys/iconv.h
+.Ft int
+.Fo kiconv_add_xlat16_cspair
+.Fa "const char *tocode"
+.Fa "const char *fromcode"
+.Fa "int flag"
+.Fc
+.Ft int
+.Fo kiconv_add_xlat16_cspairs
+.Fa "const char *foreigncode"
+.Fa "const char *localcode"
+.Fc
+.Ft int
+.Fo kiconv_add_xlat16_table
+.Fa "const char *tocode"
+.Fa "const char *fromcode"
+.Fa "const void *data"
+.Fa "int datalen"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm kiconv
+library provides multi-byte character conversion tables for kernel side
+iconv service.
+.Pp
+The
+.Fn kiconv_add_xlat16_cspair
+function
+defines a conversion table using
+.Xr iconv 3
+between
+.Fa fromcode
+charset and
+.Fa tocode
+charset.
+You can specify
+.Fa flag
+to determine if
+.Xr tolower 3
+/
+.Xr toupper 3
+conversion is included in the table.
+The
+.Fa flag
+has following values.
+.Pp
+.Bl -tag -width ".Dv KICONV_FROM_LOWER" -compact
+.It Dv KICONV_LOWER
+.It Dv KICONV_FROM_LOWER
+It generates a tolower table in addition to a character conversion table.
+The difference between two is tolower
+.Fa tocode
+or tolower
+.Fa fromcode .
+.It Dv KICONV_UPPER
+.It Dv KICONV_FROM_UPPER
+It generates a toupper table in addition to a character conversion table.
+The difference between two is toupper
+.Fa tocode
+or toupper
+.Fa fromcode .
+.El
+.Pp
+A tolower/toupper conversion is limited to single-byte characters.
+.Pp
+The
+.Fn kiconv_add_xlat16_cspairs
+function
+defines two conversion tables which are from
+.Fa localcode
+to
+.Fa foreigncode
+and from
+.Fa foreigncode
+to
+.Fa localcode .
+These conversion tables also contain both tolower and toupper tables.
+.Pp
+The
+.Fn kiconv_add_xlat16_table
+function
+defines a conversion table directly pointed by
+.Fa data
+whose length is
+.Fa datalen ,
+not using
+.Xr iconv 3 .
+.Sh SEE ALSO
+.Xr iconv 3 ,
+.Xr tolower 3 ,
+.Xr toupper 3

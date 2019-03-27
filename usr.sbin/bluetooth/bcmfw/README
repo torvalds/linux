@@ -1,0 +1,22 @@
+$FreeBSD$
+
+This directory will eventually also contain copies of the broadcom firmware.
+
+It WILL look like:
+total 190
+drwxr-xr-x   3 julian  wheel     512 May 10 00:40 .
+drwxr-xr-x  11 julian  wheel     512 May 10 14:48 ..
+-rw-r--r--   1 julian  wheel     154 May 10 00:41 BCM-LEGAL.txt
+-rw-r--r--   1 julian  wheel      56 May 10 00:14 BCM2033-FW.bin.md5
+-rw-r--r--   1 julian  wheel  158049 May 10 00:14 BCM2033-FW.bin.uue
+-rw-r--r--   1 julian  wheel      56 May 10 00:14 BCM2033-MD.hex.md5
+-rw-r--r--   1 julian  wheel    4505 May 10 00:14 BCM2033-MD.hex.uue
+drwxr-xr-x   2 julian  wheel     512 May 10 00:52 CVS
+-rw-r--r--   1 julian  wheel     516 May 10 00:14 Makefile
+-rw-r--r--   1 julian  wheel    3013 May 10 00:14 bcmfw.8
+-rw-r--r--   1 julian  wheel    6806 May 10 00:14 bcmfw.c
+
+Until then, the firmware files can be fetched as part of 
+ http://bluez.sourceforge.net/download/bluez-bluefw-0.9.tar.gz
+
+

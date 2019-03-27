@@ -1,0 +1,161 @@
+html {
+	background-color: #F8F8F8 ;
+}
+
+body {
+	background-color: #FFFFFF ;
+	color: #000000 ;
+	font-family: Helvetica, Arial, sans-serif ;
+	text-align: justify ;
+	line-height: 1.25 ;
+	margin: 16px auto ;
+	padding: 32px ;
+	border: solid #ccc 1px ;
+	border-radius: 20px ;
+	max-width: 70em ;
+	width: 90% ;
+}
+
+h1, h2, h3, h4 {
+	color: #000080 ;
+	font-family: Verdana, Geneva, sans-serif ;
+	font-weight: normal ;
+	font-style: normal ;
+	text-align: left ;
+}
+
+h1 {
+	font-size: 28pt ;
+}
+
+h1 img {
+	vertical-align: text-bottom ;
+}
+
+h2:before {
+	content: "\2756" ;
+	padding-right: 0.5em ;
+}
+
+a {
+	text-decoration: none ;
+}
+
+a:link {
+	color: #000080 ;
+}
+
+a:link:hover, a:visited:hover {
+	background-color: #D0D0FF ;
+	color: #000080 ;
+	border-radius: 4px ;
+}
+
+a:link:active, a:visited:active {
+	color: #FF0000 ;
+}
+
+div.menubar {
+	padding-bottom: 0.5em ;
+}
+
+p.menubar {
+	margin-left: 2.5em ;
+}
+
+.menubar a:hover  {
+	margin: -3px -3px -3px -3px ;
+	padding: 3px  3px  3px  3px ;
+	border-radius: 4px ;
+}
+
+:target {
+	background-color: #F0F0F0 ;
+	margin: -8px ;
+	padding: 8px ;
+	border-radius: 8px ;
+	outline: none ;
+}
+
+hr {
+	display: none ;
+}
+
+table hr {
+	background-color: #a0a0a0 ;
+	color: #a0a0a0 ;
+	border: 0 ;
+	height: 1px ;
+	display: block ;
+}
+
+.footer {
+	color: gray ;
+	font-size: x-small ;
+	text-transform: lowercase ;
+}
+
+input[type=text] {
+	border: solid #a0a0a0 2px ;
+	border-radius: 2em ;
+	background-image: url('images/search.png') ;
+	background-repeat: no-repeat ;
+	background-position: 4px center ;
+	padding-left: 20px ;
+	height: 2em ;
+}
+
+pre.session {
+	background-color: #F8F8F8 ;
+	padding: 1em ;
+	border-radius: 8px ;
+}
+
+table {
+	border: none ;
+	border-spacing: 0 ;
+	border-collapse: collapse ;
+}
+
+td {
+	padding: 0 ;
+	margin: 0 ;
+}
+
+td.gutter {
+	width: 4% ;
+}
+
+table.columns td {
+	vertical-align: top ;
+	padding-bottom: 1em ;
+	text-align: justify ;
+	line-height: 1.25 ;
+}
+
+table.book td {
+	vertical-align: top ;
+}
+
+table.book td.cover {
+	padding-right: 1em ;
+}
+
+table.book img {
+	border: solid #000080 1px ;
+}
+
+table.book span {
+	font-size: small ;
+	text-align: left ;
+	display: block ;
+	margin-top: 0.25em ;
+}
+
+p.logos a:link:hover, p.logos a:visited:hover {
+	background-color: inherit ;
+}
+
+img {
+	background-color: white ;
+}

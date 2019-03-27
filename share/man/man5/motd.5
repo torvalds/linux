@@ -1,0 +1,43 @@
+.\"	$NetBSD: motd.5,v 1.2 1994/12/28 18:58:53 glass Exp $
+.\"
+.\" This file is in the public domain.
+.\" $FreeBSD$
+.\"
+.Dd February 13, 1997
+.Dt MOTD 5
+.Os
+.Sh NAME
+.Nm motd
+.Nd file containing message(s) of the day
+.Sh DESCRIPTION
+The file
+.Pa /etc/motd
+is normally displayed by
+.Xr login 1
+after a user has logged in but before the shell is run.
+It is generally used for important system-wide announcements.
+During system startup, a line containing the kernel version string is
+prepended to this file.
+.Pp
+Individual users may suppress the display of this file by
+creating a file named
+.Dq Pa .hushlogin
+in their home directories or through
+.Xr login.conf 5 .
+.Sh FILES
+.Bl -tag -width $HOME/.hushlogin -compact
+.It Pa /etc/motd
+The message of the day.
+.It Pa $HOME/.hushlogin
+Suppresses output of
+.Pa /etc/motd .
+.El
+.Sh EXAMPLES
+.Bd -literal
+FreeBSD 2.1.6.1-RELEASE (GENERIC) #0: Sun Dec 29 03:08:31 PST 1996
+
+/home is full.  Please cleanup your directories.
+.Ed
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr login.conf 5

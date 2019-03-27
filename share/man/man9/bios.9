@@ -1,0 +1,180 @@
+.\" $FreeBSD$
+.\"
+.\" Copyright (c) 1997 Michael Smith
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd August 9, 2005
+.Dt BIOS 9
+.Os
+.Sh NAME
+.Nm bios_sigsearch ,
+.Nm bios32_SDlookup ,
+.Nm bios32 ,
+.Nm bios_oem_strings
+.Nd interact with PC BIOS
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/pmap.h
+.In machine/pc/bios.h
+.Ft uint32_t
+.Fn bios_sigsearch "uint32_t start" "u_char *sig" "int siglen" "int paralen" "int sigofs"
+.Ft int
+.Fn bios32_SDlookup "struct bios32_SDentry *ent"
+.Ft int
+.Fn bios32 "struct bios_regs *br" "u_int offset" "u_short segment"
+.Fn BIOS_PADDRTOVADDR "addr"
+.Fn BIOS_VADDRTOPADDR "addr"
+.Vt extern struct bios32_SDentry PCIbios ;
+.Vt extern struct SMBIOS_table SMBIOStable ;
+.Vt extern struct DMI_table DMItable ;
+.Ft int
+.Fn bios_oem_strings "struct bios_oem *oem" "u_char *buffer" "size_t maxlen"
+.Bd -literal
+struct bios_oem_signature {
+        char * anchor;          /* search anchor string in BIOS memory */
+        size_t offset;          /* offset from anchor (may be negative) */
+        size_t totlen;          /* total length of BIOS string to copy */
+};
+struct bios_oem_range {
+        u_int from;             /* shouldn't be below 0xe0000 */
+        u_int to;               /* shouldn't be above 0xfffff */
+};
+struct bios_oem {
+        struct bios_oem_range range;
+        struct bios_oem_signature signature[];
+};
+.Ed
+.Sh DESCRIPTION
+These functions provide a general-purpose interface for dealing with
+the BIOS functions and data encountered on x86 PC-architecture systems.
+.Bl -tag -width 20n
+.It Fn bios_sigsearch
+Searches the BIOS address space for a service signature, usually an
+uppercase ASCII sequence surrounded by underscores.
+The search begins at
+.Fa start ,
+or at the beginning of the BIOS if
+.Fa start
+is zero.
+.Fa siglen
+bytes of the BIOS image and
+.Fa sig
+are compared at
+.Fa sigofs
+bytes offset from the current location.
+If no match is found, the
+current location is incremented by
+.Fa paralen
+bytes and the search repeated.
+If the signature is found, its effective
+physical address is returned.
+If no signature is found, zero is returned.
+.It Fn bios_oem_strings
+Searches a given BIOS memory range for one or more strings,
+and composes a printable concatenation of those found.
+The routine expects a structure describing the BIOS address
+.Fa range
+(within
+.Li 0xe0000
+-
+.Li 0xfffff ) ,
+and a {
+.Dv NULL , Li 0 , 0
+} -terminated array of
+.Vt bios_oem_signature
+structures which define the
+.Va anchor
+string, an
+.Va offset
+from the beginning of the match (which may be negative), and
+.Va totlen
+number of bytes to be collected from BIOS memory starting at that offset.
+Unmatched anchors are ignored, whereas matches are copied from BIOS memory
+starting at their corresponding
+.Vt offset
+with unprintable characters being replaced with space, and consecutive spaces
+being suppressed.
+This composed string is stored in
+.Fa buffer
+up to the given
+.Fa maxlen
+bytes (including trailing
+.Ql \e0 ,
+and any trailing space suppressed).
+If an error is encountered, i.e.\& trying to read out of said BIOS range,
+other invalid input, or
+.Fa buffer
+overflow, a negative integer is returned, otherwise the
+length of the composed string is returned.
+In particular, a return
+value of 0 means that none of the given anchor strings were found in
+the specified BIOS memory range.
+.It Fn BIOS_VADDRTOPADDR
+Returns the effective physical address which corresponds to the kernel
+virtual address
+.Fa addr .
+.It Fn BIOS_PADDRTOVADDR
+Returns the kernel virtual address which corresponds to the effective
+physical address
+.Fa addr .
+.It SMBIOStable
+If not NULL, points to a
+.Ft struct SMBIOS_table
+structure containing information read from the System Management BIOS table
+during system startup.
+.It DMItable
+If not NULL, points to a
+.Ft struct DMI_table
+structure containing information read from the Desktop Management Interface
+parameter table during system startup.
+.El
+.Sh BIOS32
+At system startup, the BIOS is scanned for the BIOS32 Service Directory
+(part of the PCI specification), and the existence of the directory is
+recorded.
+This can then be used to locate other services.
+.Bl -tag -width 20n
+.It Fn bios32_SDlookup
+Attempts to locate the BIOS32 service matching the 4-byte identifier
+passed in the
+.Fa ident
+field of the
+.Fa ent
+argument.
+.It Fn bios32
+Calls a bios32 function.
+This presumes that the function is capable of
+working within the kernel segment (normally the case).
+The virtual address
+of the entrypoint is supplied in
+.Fa entry
+and the register arguments to the function are supplied in
+.Fa args .
+.It PCIbios
+If not NULL, points to a
+.Ft struct bios32_SDentry
+structure describing the PCI BIOS entrypoint which was found during system
+startup.
+.El

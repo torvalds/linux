@@ -1,0 +1,612 @@
+// -*- C++ -*-
+//===---------------------------- cmath -----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CMATH
+#define _LIBCPP_CMATH
+
+/*
+    cmath synopsis
+
+Macros:
+
+    HUGE_VAL
+    HUGE_VALF               // C99
+    HUGE_VALL               // C99
+    INFINITY                // C99
+    NAN                     // C99
+    FP_INFINITE             // C99
+    FP_NAN                  // C99
+    FP_NORMAL               // C99
+    FP_SUBNORMAL            // C99
+    FP_ZERO                 // C99
+    FP_FAST_FMA             // C99
+    FP_FAST_FMAF            // C99
+    FP_FAST_FMAL            // C99
+    FP_ILOGB0               // C99
+    FP_ILOGBNAN             // C99
+    MATH_ERRNO              // C99
+    MATH_ERREXCEPT          // C99
+    math_errhandling        // C99
+
+namespace std
+{
+
+Types:
+
+    float_t                 // C99
+    double_t                // C99
+
+// C90
+
+floating_point abs(floating_point x);
+
+floating_point acos (arithmetic x);
+float          acosf(float x);
+long double    acosl(long double x);
+
+floating_point asin (arithmetic x);
+float          asinf(float x);
+long double    asinl(long double x);
+
+floating_point atan (arithmetic x);
+float          atanf(float x);
+long double    atanl(long double x);
+
+floating_point atan2 (arithmetic y, arithmetic x);
+float          atan2f(float y, float x);
+long double    atan2l(long double y, long double x);
+
+floating_point ceil (arithmetic x);
+float          ceilf(float x);
+long double    ceill(long double x);
+
+floating_point cos (arithmetic x);
+float          cosf(float x);
+long double    cosl(long double x);
+
+floating_point cosh (arithmetic x);
+float          coshf(float x);
+long double    coshl(long double x);
+
+floating_point exp (arithmetic x);
+float          expf(float x);
+long double    expl(long double x);
+
+floating_point fabs (arithmetic x);
+float          fabsf(float x);
+long double    fabsl(long double x);
+
+floating_point floor (arithmetic x);
+float          floorf(float x);
+long double    floorl(long double x);
+
+floating_point fmod (arithmetic x, arithmetic y);
+float          fmodf(float x, float y);
+long double    fmodl(long double x, long double y);
+
+floating_point frexp (arithmetic value, int* exp);
+float          frexpf(float value, int* exp);
+long double    frexpl(long double value, int* exp);
+
+floating_point ldexp (arithmetic value, int exp);
+float          ldexpf(float value, int exp);
+long double    ldexpl(long double value, int exp);
+
+floating_point log (arithmetic x);
+float          logf(float x);
+long double    logl(long double x);
+
+floating_point log10 (arithmetic x);
+float          log10f(float x);
+long double    log10l(long double x);
+
+floating_point modf (floating_point value, floating_point* iptr);
+float          modff(float value, float* iptr);
+long double    modfl(long double value, long double* iptr);
+
+floating_point pow (arithmetic x, arithmetic y);
+float          powf(float x, float y);
+long double    powl(long double x, long double y);
+
+floating_point sin (arithmetic x);
+float          sinf(float x);
+long double    sinl(long double x);
+
+floating_point sinh (arithmetic x);
+float          sinhf(float x);
+long double    sinhl(long double x);
+
+floating_point sqrt (arithmetic x);
+float          sqrtf(float x);
+long double    sqrtl(long double x);
+
+floating_point tan (arithmetic x);
+float          tanf(float x);
+long double    tanl(long double x);
+
+floating_point tanh (arithmetic x);
+float          tanhf(float x);
+long double    tanhl(long double x);
+
+//  C99
+
+bool signbit(arithmetic x);
+
+int fpclassify(arithmetic x);
+
+bool isfinite(arithmetic x);
+bool isinf(arithmetic x);
+bool isnan(arithmetic x);
+bool isnormal(arithmetic x);
+
+bool isgreater(arithmetic x, arithmetic y);
+bool isgreaterequal(arithmetic x, arithmetic y);
+bool isless(arithmetic x, arithmetic y);
+bool islessequal(arithmetic x, arithmetic y);
+bool islessgreater(arithmetic x, arithmetic y);
+bool isunordered(arithmetic x, arithmetic y);
+
+floating_point acosh (arithmetic x);
+float          acoshf(float x);
+long double    acoshl(long double x);
+
+floating_point asinh (arithmetic x);
+float          asinhf(float x);
+long double    asinhl(long double x);
+
+floating_point atanh (arithmetic x);
+float          atanhf(float x);
+long double    atanhl(long double x);
+
+floating_point cbrt (arithmetic x);
+float          cbrtf(float x);
+long double    cbrtl(long double x);
+
+floating_point copysign (arithmetic x, arithmetic y);
+float          copysignf(float x, float y);
+long double    copysignl(long double x, long double y);
+
+floating_point erf (arithmetic x);
+float          erff(float x);
+long double    erfl(long double x);
+
+floating_point erfc (arithmetic x);
+float          erfcf(float x);
+long double    erfcl(long double x);
+
+floating_point exp2 (arithmetic x);
+float          exp2f(float x);
+long double    exp2l(long double x);
+
+floating_point expm1 (arithmetic x);
+float          expm1f(float x);
+long double    expm1l(long double x);
+
+floating_point fdim (arithmetic x, arithmetic y);
+float          fdimf(float x, float y);
+long double    fdiml(long double x, long double y);
+
+floating_point fma (arithmetic x, arithmetic y, arithmetic z);
+float          fmaf(float x, float y, float z);
+long double    fmal(long double x, long double y, long double z);
+
+floating_point fmax (arithmetic x, arithmetic y);
+float          fmaxf(float x, float y);
+long double    fmaxl(long double x, long double y);
+
+floating_point fmin (arithmetic x, arithmetic y);
+float          fminf(float x, float y);
+long double    fminl(long double x, long double y);
+
+floating_point hypot (arithmetic x, arithmetic y);
+float          hypotf(float x, float y);
+long double    hypotl(long double x, long double y);
+
+double       hypot(double x, double y, double z);                // C++17
+float        hypot(float x, float y, float z);                   // C++17
+long double  hypot(long double x, long double y, long double z); // C++17
+
+int ilogb (arithmetic x);
+int ilogbf(float x);
+int ilogbl(long double x);
+
+floating_point lgamma (arithmetic x);
+float          lgammaf(float x);
+long double    lgammal(long double x);
+
+long long llrint (arithmetic x);
+long long llrintf(float x);
+long long llrintl(long double x);
+
+long long llround (arithmetic x);
+long long llroundf(float x);
+long long llroundl(long double x);
+
+floating_point log1p (arithmetic x);
+float          log1pf(float x);
+long double    log1pl(long double x);
+
+floating_point log2 (arithmetic x);
+float          log2f(float x);
+long double    log2l(long double x);
+
+floating_point logb (arithmetic x);
+float          logbf(float x);
+long double    logbl(long double x);
+
+long lrint (arithmetic x);
+long lrintf(float x);
+long lrintl(long double x);
+
+long lround (arithmetic x);
+long lroundf(float x);
+long lroundl(long double x);
+
+double      nan (const char* str);
+float       nanf(const char* str);
+long double nanl(const char* str);
+
+floating_point nearbyint (arithmetic x);
+float          nearbyintf(float x);
+long double    nearbyintl(long double x);
+
+floating_point nextafter (arithmetic x, arithmetic y);
+float          nextafterf(float x, float y);
+long double    nextafterl(long double x, long double y);
+
+floating_point nexttoward (arithmetic x, long double y);
+float          nexttowardf(float x, long double y);
+long double    nexttowardl(long double x, long double y);
+
+floating_point remainder (arithmetic x, arithmetic y);
+float          remainderf(float x, float y);
+long double    remainderl(long double x, long double y);
+
+floating_point remquo (arithmetic x, arithmetic y, int* pquo);
+float          remquof(float x, float y, int* pquo);
+long double    remquol(long double x, long double y, int* pquo);
+
+floating_point rint (arithmetic x);
+float          rintf(float x);
+long double    rintl(long double x);
+
+floating_point round (arithmetic x);
+float          roundf(float x);
+long double    roundl(long double x);
+
+floating_point scalbln (arithmetic x, long ex);
+float          scalblnf(float x, long ex);
+long double    scalblnl(long double x, long ex);
+
+floating_point scalbn (arithmetic x, int ex);
+float          scalbnf(float x, int ex);
+long double    scalbnl(long double x, int ex);
+
+floating_point tgamma (arithmetic x);
+float          tgammaf(float x);
+long double    tgammal(long double x);
+
+floating_point trunc (arithmetic x);
+float          truncf(float x);
+long double    truncl(long double x);
+
+}  // std
+
+*/
+
+#include <__config>
+#include <math.h>
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+using ::signbit;
+using ::fpclassify;
+using ::isfinite;
+using ::isinf;
+using ::isnan;
+using ::isnormal;
+using ::isgreater;
+using ::isgreaterequal;
+using ::isless;
+using ::islessequal;
+using ::islessgreater;
+using ::isunordered;
+using ::isunordered;
+
+using ::float_t;
+using ::double_t;
+
+#ifndef _AIX
+using ::abs;
+#endif
+
+using ::acos;
+using ::acosf;
+using ::asin;
+using ::asinf;
+using ::atan;
+using ::atanf;
+using ::atan2;
+using ::atan2f;
+using ::ceil;
+using ::ceilf;
+using ::cos;
+using ::cosf;
+using ::cosh;
+using ::coshf;
+
+using ::exp;
+using ::expf;
+
+using ::fabs;
+using ::fabsf;
+using ::floor;
+using ::floorf;
+
+using ::fmod;
+using ::fmodf;
+
+using ::frexp;
+using ::frexpf;
+using ::ldexp;
+using ::ldexpf;
+
+using ::log;
+using ::logf;
+
+using ::log10;
+using ::log10f;
+using ::modf;
+using ::modff;
+
+using ::pow;
+using ::powf;
+
+using ::sin;
+using ::sinf;
+using ::sinh;
+using ::sinhf;
+
+using ::sqrt;
+using ::sqrtf;
+using ::tan;
+using ::tanf;
+
+using ::tanh;
+using ::tanhf;
+
+using ::acosh;
+using ::acoshf;
+using ::asinh;
+using ::asinhf;
+using ::atanh;
+using ::atanhf;
+using ::cbrt;
+using ::cbrtf;
+
+using ::copysign;
+using ::copysignf;
+
+using ::erf;
+using ::erff;
+using ::erfc;
+using ::erfcf;
+using ::exp2;
+using ::exp2f;
+using ::expm1;
+using ::expm1f;
+using ::fdim;
+using ::fdimf;
+using ::fmaf;
+using ::fma;
+using ::fmax;
+using ::fmaxf;
+using ::fmin;
+using ::fminf;
+using ::hypot;
+using ::hypotf;
+using ::ilogb;
+using ::ilogbf;
+using ::lgamma;
+using ::lgammaf;
+using ::llrint;
+using ::llrintf;
+using ::llround;
+using ::llroundf;
+using ::log1p;
+using ::log1pf;
+using ::log2;
+using ::log2f;
+using ::logb;
+using ::logbf;
+using ::lrint;
+using ::lrintf;
+using ::lround;
+using ::lroundf;
+
+using ::nan;
+using ::nanf;
+
+using ::nearbyint;
+using ::nearbyintf;
+using ::nextafter;
+using ::nextafterf;
+using ::nexttoward;
+using ::nexttowardf;
+using ::remainder;
+using ::remainderf;
+using ::remquo;
+using ::remquof;
+using ::rint;
+using ::rintf;
+using ::round;
+using ::roundf;
+using ::scalbln;
+using ::scalblnf;
+using ::scalbn;
+using ::scalbnf;
+using ::tgamma;
+using ::tgammaf;
+using ::trunc;
+using ::truncf;
+
+using ::acosl;
+using ::asinl;
+using ::atanl;
+using ::atan2l;
+using ::ceill;
+using ::cosl;
+using ::coshl;
+using ::expl;
+using ::fabsl;
+using ::floorl;
+using ::fmodl;
+using ::frexpl;
+using ::ldexpl;
+using ::logl;
+using ::log10l;
+using ::modfl;
+using ::powl;
+using ::sinl;
+using ::sinhl;
+using ::sqrtl;
+using ::tanl;
+
+using ::tanhl;
+using ::acoshl;
+using ::asinhl;
+using ::atanhl;
+using ::cbrtl;
+
+using ::copysignl;
+
+using ::erfl;
+using ::erfcl;
+using ::exp2l;
+using ::expm1l;
+using ::fdiml;
+using ::fmal;
+using ::fmaxl;
+using ::fminl;
+using ::hypotl;
+using ::ilogbl;
+using ::lgammal;
+using ::llrintl;
+using ::llroundl;
+using ::log1pl;
+using ::log2l;
+using ::logbl;
+using ::lrintl;
+using ::lroundl;
+using ::nanl;
+using ::nearbyintl;
+using ::nextafterl;
+using ::nexttowardl;
+using ::remainderl;
+using ::remquol;
+using ::rintl;
+using ::roundl;
+using ::scalblnl;
+using ::scalbnl;
+using ::tgammal;
+using ::truncl;
+
+#if _LIBCPP_STD_VER > 14
+inline _LIBCPP_INLINE_VISIBILITY float       hypot(       float x,       float y,       float z ) { return sqrt(x*x + y*y + z*z); }
+inline _LIBCPP_INLINE_VISIBILITY double      hypot(      double x,      double y,      double z ) { return sqrt(x*x + y*y + z*z); }
+inline _LIBCPP_INLINE_VISIBILITY long double hypot( long double x, long double y, long double z ) { return sqrt(x*x + y*y + z*z); }
+
+template <class _A1, class _A2, class _A3>
+inline _LIBCPP_INLINE_VISIBILITY
+typename __lazy_enable_if
+<
+    is_arithmetic<_A1>::value &&
+    is_arithmetic<_A2>::value &&
+    is_arithmetic<_A3>::value,
+    __promote<_A1, _A2, _A3>
+>::type
+hypot(_A1 __lcpp_x, _A2 __lcpp_y, _A3 __lcpp_z) _NOEXCEPT
+{
+    typedef typename __promote<_A1, _A2, _A3>::type __result_type;
+    static_assert((!(is_same<_A1, __result_type>::value &&
+                     is_same<_A2, __result_type>::value &&
+                     is_same<_A3, __result_type>::value)), "");
+    return hypot((__result_type)__lcpp_x, (__result_type)__lcpp_y, (__result_type)__lcpp_z);
+}
+#endif
+
+template <class _A1>
+_LIBCPP_INLINE_VISIBILITY
+_LIBCPP_CONSTEXPR typename enable_if<is_floating_point<_A1>::value, bool>::type
+__libcpp_isnan_or_builtin(_A1 __lcpp_x) _NOEXCEPT
+{
+#if __has_builtin(__builtin_isnan)
+    return __builtin_isnan(__lcpp_x);
+#else
+    return isnan(__lcpp_x);
+#endif
+}
+
+template <class _A1>
+_LIBCPP_INLINE_VISIBILITY
+_LIBCPP_CONSTEXPR typename enable_if<!is_floating_point<_A1>::value, bool>::type
+__libcpp_isnan_or_builtin(_A1 __lcpp_x) _NOEXCEPT
+{
+    return isnan(__lcpp_x);
+}
+
+template <class _A1>
+_LIBCPP_INLINE_VISIBILITY
+_LIBCPP_CONSTEXPR typename enable_if<is_floating_point<_A1>::value, bool>::type
+__libcpp_isinf_or_builtin(_A1 __lcpp_x) _NOEXCEPT
+{
+#if __has_builtin(__builtin_isinf)
+    return __builtin_isinf(__lcpp_x);
+#else
+    return isinf(__lcpp_x);
+#endif
+}
+
+template <class _A1>
+_LIBCPP_INLINE_VISIBILITY
+_LIBCPP_CONSTEXPR typename enable_if<!is_floating_point<_A1>::value, bool>::type
+__libcpp_isinf_or_builtin(_A1 __lcpp_x) _NOEXCEPT
+{
+    return isinf(__lcpp_x);
+}
+
+template <class _A1>
+_LIBCPP_INLINE_VISIBILITY
+_LIBCPP_CONSTEXPR typename enable_if<is_floating_point<_A1>::value, bool>::type
+__libcpp_isfinite_or_builtin(_A1 __lcpp_x) _NOEXCEPT
+{
+#if __has_builtin(__builtin_isfinite)
+    return __builtin_isfinite(__lcpp_x);
+#else
+    return isfinite(__lcpp_x);
+#endif
+}
+
+template <class _A1>
+_LIBCPP_INLINE_VISIBILITY
+_LIBCPP_CONSTEXPR typename enable_if<!is_floating_point<_A1>::value, bool>::type
+__libcpp_isfinite_or_builtin(_A1 __lcpp_x) _NOEXCEPT
+{
+    return isfinite(__lcpp_x);
+}
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif  // _LIBCPP_CMATH

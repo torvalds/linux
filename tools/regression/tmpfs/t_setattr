@@ -1,0 +1,108 @@
+#!/bin/sh
+#
+# $NetBSD: t_setattr,v 1.6 2006/11/09 16:20:06 jmmv Exp $
+#
+# Copyright (c) 2005, 2006 The NetBSD Foundation, Inc.
+# All rights reserved.
+#
+# This code is derived from software contributed to The NetBSD Foundation
+# by Julio M. Merino Vidal, developed as part of Google's Summer of Code
+# 2005 program.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+#
+# Verifies that the setattr vnode operation works, using several commands
+# that require this function.
+#
+
+test_run() {
+	test_mount
+
+	test_name "File owner can be changed on its own"
+	mkdir own || die
+	eval $(stat -s own | sed -e 's|st_|ost_|g')
+	chown 1234 own || die
+	eval $(stat -s own)
+	[ ${st_uid} -eq 1234 ] || die
+	[ ${st_gid} -eq ${ost_gid} ] || die
+
+	mkdir ownq || die
+	echo 'chown 1234 ownq' | kqueue_monitor 1 ownq || die
+	test_name "Changing a file's owner raises NOTE_ATTRIB on it"
+	kqueue_check ownq NOTE_ATTRIB || die
+
+	test_name "File group can be changed on its own"
+	mkdir grp || die
+	eval $(stat -s grp | sed -e 's|st_|ost_|g')
+	chgrp 5678 grp || die
+	eval $(stat -s grp)
+	[ ${st_uid} -eq ${ost_uid} ] || die
+	[ ${st_gid} -eq 5678 ] || die
+
+	mkdir grpq || die
+	echo 'chgrp 1234 grpq' | kqueue_monitor 1 grpq || die
+	test_name "Changing a file's group raises NOTE_ATTRIB on it"
+	kqueue_check grpq NOTE_ATTRIB || die
+
+	test_name "File owner and group can be changed at once"
+	mkdir owngrp || die
+	chown 1234:5678 owngrp || die
+	eval $(stat -s owngrp)
+	[ ${st_uid} -eq 1234 ] || die
+	[ ${st_gid} -eq 5678 ] || die
+
+	mkdir owngrpp || die
+	echo 'chown 1234:5678 owngrpp' | kqueue_monitor 1 owngrpp || die
+	test_name "Changing a file's owner and group raises NOTE_ATTRIB on it"
+	kqueue_check owngrpp NOTE_ATTRIB || die
+
+	test_name "File mode can be changed"
+	mkdir mode || die
+	chmod 0000 mode || die
+	eval $(stat -s mode)
+	[ ${st_mode} -eq 40000 ] || die
+
+	mkdir modeq || die
+	echo 'chmod 0000 modeq' | kqueue_monitor 1 modeq || die
+	test_name "Updating a file's mode raises NOTE_ATTRIB on it"
+	kqueue_check modeq NOTE_ATTRIB || die
+
+	test_name "File times can be changed"
+	mkdir times || die
+	TZ=GMT touch -t 200501010101 times || die
+	eval $(stat -s times)
+	[ ${st_atime} = ${st_mtime} ] || die
+	[ ${st_atime} = 1104541260 ] || die
+
+	mkdir timesq || die
+	echo 'touch timesq' | kqueue_monitor 1 timesq || die
+	test_name "Updating a file's times raises NOTE_ATTRIB on it"
+	kqueue_check timesq NOTE_ATTRIB || die
+
+	test_unmount
+}
+
+. ${SUBRDIR}/h_funcs.subr

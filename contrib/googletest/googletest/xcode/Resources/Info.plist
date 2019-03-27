@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleExecutable</key>
+	<string>${EXECUTABLE_NAME}</string>
+	<key>CFBundleIconFile</key>
+	<string></string>
+	<key>CFBundleIdentifier</key>
+	<string>com.google.${PRODUCT_NAME}</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundlePackageType</key>
+	<string>FMWK</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>GTEST_VERSIONINFO_LONG</string>
+	<key>CFBundleShortVersionString</key>
+	<string>GTEST_VERSIONINFO_SHORT</string>
+	<key>CFBundleGetInfoString</key>
+	<string>${PRODUCT_NAME} GTEST_VERSIONINFO_LONG, ${GTEST_VERSIONINFO_ABOUT}</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>${GTEST_VERSIONINFO_ABOUT}</string>
+	<key>CSResourcesFileMapped</key>
+	<true/>
+</dict>
+</plist>

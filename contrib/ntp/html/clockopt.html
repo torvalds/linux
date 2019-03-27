@@ -1,0 +1,59 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Reference Clock Commands and Options</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>Reference Clock Commands and Options</h3>
+<img src="pic/stack1a.jpg" alt="gif" align="left">Master Time Facility at the <a href="http://www.eecis.udel.edu/%7emills/lab.html">UDel Internet Research Laboratory</a>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->11-Sep-2010  05:55<!-- #EndDate -->
+  UTC</p>
+<br clear="left">
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/refclock.txt"></script>
+<script type="text/javascript" language="javascript" src="scripts/audio.txt"></script>
+<script type="text/javascript" language="javascript" src="scripts/clockopt.txt"></script>
+<hr>
+<h4 id="addrs">Reference Clock Adddresses</h4>
+<p>Unless noted otherwise, further information about these ccommands is on the <a href="refclock.html">Reference Clock Support</a> page.</p><p>Reference clocks are identified by a syntactically correct but invalid IP address, in order to distinguish them from ordinary NTP peers. These  addresses are of the form 127.127.<em>t</em>.<em>u</em>, where <em>t</em> is an integer denoting the clock type and <em>u</em> indicates the unit number in the range 0-3. While it may seem overkill, it is in fact sometimes useful to configure multiple reference clocks of the same type, in which case the unit numbers must be unique.</p>
+<h4 id="cmd"> Commands and Options</h4>
+<dl>
+  <dt id="server"><tt>server 127.127.<i>t.u</i> [prefer] [mode <i>int</i>] [minpoll <i>int</i>] [maxpoll <i>int</i>]</tt></dt>
+  <dd>This command can be used to configure reference clocks in special ways. The options are interpreted as follows:
+    <dl>
+      <dt><tt>prefer</tt></dt>
+      <dd>Marks the reference clock as preferred. All other things being equal, this host will be chosen for synchronization among a set of correctly operating hosts. See the <a href="prefer.html">Mitigation Rules and the <tt>prefer</tt> Keyword</a> page for further information.</dd>
+      <dt><tt>mode <i>int</i></tt></dt>
+      <dd>Specifies a mode number which is interpreted in a device-specific fashion. For instance, it selects a dialing protocol in the ACTS driver and a device subtype in the <tt>parse</tt> drivers.</dd>
+      <dt><tt>minpoll <i>int</i></tt><br>
+        <tt>maxpoll <i>int</i></tt></dt>
+      <dd>These options specify the minimum and maximum polling interval for reference clock messages in log<sub>2</sub> seconds. For most directly connected reference clocks, both <tt>minpoll</tt> and <tt>maxpoll</tt> default to 6 (64 s). For modem reference clocks, <tt>minpoll</tt> is ordinarily set to 10 (about 17 m) and <tt>maxpoll</tt> to  15 (about 9 h). The allowable range is 4 (16 s) to 17 (36 h) inclusive.</dd>
+    </dl>
+  </dd>
+  <dt id="fudge"><tt>fudge 127.127.<i>t.u</i> [time1 <i>sec</i>] [time2 <i>sec</i>]
+    [stratum <i>int</i>] [refid <i>string</i>] [flag1 0|1]
+    [flag2 0|1] [flag3 0|1] [flag4 0|1]</tt></dt>
+  <dd>This command can be used to configure reference clocks in special ways. It must immediately follow the <tt>server</tt> command which configures the driver. Note that the same capability is possible at run time using the <tt><a href="ntpdc.html">ntpdc</a></tt> program. The options are interpreted as follows:
+    <dl>
+      <dt><tt>time1 <i>sec</i></tt></dt>
+      <dd>Specifies a constant to be added to the time offset produced by the driver, a fixed-point decimal number in seconds. This is used as a calibration constant to adjust the nominal time offset of a particular clock to agree with an external standard, such as a precision PPS signal. It also provides a way to correct a systematic error or bias due to serial port or operating system latencies, different cable lengths or receiver internal delay. The specified offset is in addition to the propagation delay provided by other means, such as internal DIPswitches. Where a calibration for an individual system and driver is available, an approximate correction is noted in the driver documentation pages.</dd>
+      <dd>Note: in order to facilitate calibration when more than one radio clock or PPS signal is supported, a special calibration feature is available. It takes the form of an argument to the <tt>enable</tt> command described in the <a href="miscopt.html">Miscellaneous Options</a> page and operates as described in the <a href="refclock.html">Reference Clock Support</a> page.</dd>
+      <dt><tt>time2 <i>secs</i></tt></dt>
+      <dd>Specifies a fixed-point decimal number in seconds, which is interpreted in a driver-dependent way. See the descriptions of specific drivers in the <a href="refclock.html">Reference Clock Support</a> page.</dd>
+      <dt><tt>stratum <i>int</i></tt></dt>
+      <dd>Specifies the stratum number assigned to the driver in the range 0 to 15, inclusive. This number overrides the default stratum number ordinarily assigned by the driver itself, usually zero.</dd>
+      <dt><tt>refid <i>string</i></tt></dt>
+      <dd>Specifies an ASCII string of from one to four characters which defines the reference identifier used by the driver. This string overrides the default identifier ordinarily assigned by the driver itself.</dd>
+      <dt><tt>flag1 flag2 flag3 flag4</tt></dt>
+      <dd>These four flags are used for customizing the clock driver. The interpretation of these values, and whether they are used at all, is a function of the particular  driver. However, by convention <tt>flag4</tt> is used to enable recording monitoring data to the <tt>clockstats</tt> file configured with the <tt>filegen</tt> command. Additional information on the <tt>filegen</tt> command is on the <a href="monopt.html">Monitoring Options</a> page.</dd>
+    </dl>
+  </dd>
+</dl>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

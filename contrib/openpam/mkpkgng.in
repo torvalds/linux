@@ -1,0 +1,177 @@
+#!/bin/sh
+#-
+# Copyright (c) 2013-2014 Dag-Erling Smørgrav
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. The name of the author may not be used to endorse or promote
+#    products derived from this software without specific prior written
+#    permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $OpenPAM: mkpkgng.in 938 2017-04-30 21:34:42Z des $
+#
+
+# Print an informational message
+info() {
+	echo "mkpkgng: $@"
+}
+
+# Print an error message and exit
+error() {
+	echo "mkpkgng: $@" 1>&2
+	exit 1
+}
+
+# Ask a yes / no question
+yesno() {
+        while :; do
+                echo -n "mkpkgng: $@ (yes/no) "
+                read answer
+                case $answer in
+                [Yy]|[Yy][Ee][Ss])
+                        return 0
+                        ;;
+                [Nn]|[Nn][Oo])
+                        return 1
+                        ;;
+                esac
+        done
+}
+
+#
+# Locate source and build directory
+#
+srcdir="@abs_top_srcdir@"
+builddir="@abs_top_builddir@"
+cd "$srcdir"
+
+#
+# Determine pkgng version and ABI
+#
+pkgver=$(pkg -v)
+[ -n "$pkgver" ] || error "Unable to determine pkgng version."
+pkgabi=$(pkg config abi)
+[ -n "$pkgabi" ] || error "Unable to determine package ABI."
+
+#
+# Determine package name and version
+#
+package="@PACKAGE@"
+version="@PACKAGE_VERSION@"
+if ! expr "$version" : "[0-9]{1,}$" >/dev/null ; then
+	svnversion="$(svnversion 2>&1)"
+	svnversion=$(expr "$svnversion" : '\([0-9][0-9]*\)[A-Z]\{0,1\}$')
+	if [ -n "$svnversion" ] ; then
+		package="$package-$version"
+		version="r$svnversion"
+	fi
+fi
+
+#
+# Locate GNU make
+#
+if which gmake >/dev/null ; then
+	make=gmake
+else
+	make=make
+fi
+make="$make --no-print-directory --quiet V=0"
+
+#
+# Create temporary directory
+#
+info "Creating the temporary directory."
+tmproot=$(mktemp -d "${TMPDIR:-/tmp}/$package-$version.XXXXXX")
+[ -n "$tmproot" -a -d "$tmproot" ] || \
+    error "Unable to create the temporary directory."
+trap "exit 1" INT
+trap "info Deleting the temporary directory. ; rm -rf '$tmproot'" EXIT
+set -e
+
+#
+# Install into tmproot
+#
+info "Installing into the temporary directory."
+$make install DESTDIR="$tmproot"
+
+#
+# Compress man pages
+#
+find $tmproot -type d -name 'man[0-9]' |
+while read mandir ; do
+	find $mandir -type f -name '*.[0-9]' |
+	while read manpage ; do
+		gzip "$manpage"
+	done
+	find $mandir -type l -name '*.[0-9]' |
+	while read manlink ; do
+		ln -s "$(readlink $manlink).gz" "$manlink.gz"
+	done
+done
+
+#
+# Generate stub manifest
+#
+info "Generating the stub manifest."
+manifest="$tmproot/+MANIFEST"
+cat >"$manifest" <<EOF
+name: $package
+version: $version
+origin: local/$package
+comment: BSD-licensed PAM implementation
+arch: $pkgabi
+www: @PACKAGE_URL@
+maintainer: @PACKAGE_BUGREPORT@
+prefix: @prefix@
+categories: [ local, security ]
+EOF
+cp "$srcdir/README" "$tmproot/+DESC"
+
+#
+# Generate file list
+#
+info "Generating the file list."
+(
+	echo "files: {"
+	find -s "$tmproot@prefix@" -type f -or -type l | while read file ; do
+		case $file in
+		*.la)
+			continue
+			;;
+		esac
+		mode=$(stat -f%p "$file" | cut -c 3-)
+		file="${file#$tmproot}"
+		echo "  $file: { uname: root, gname: wheel, perm: $mode }"
+	done
+	echo "}"
+)>>"$manifest"
+
+#
+# Create the package
+#
+info "Creating the package."
+pkg create -r "$tmproot" -m "$tmproot" -o "$builddir"
+
+#
+# Done
+#
+info "Package created for $package-$version."

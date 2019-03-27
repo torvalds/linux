@@ -1,0 +1,16 @@
+
+#------------------------------------------------------------------------------
+# $File: rtf,v 1.7 2009/09/19 16:28:12 christos Exp $
+# rtf:	file(1) magic for Rich Text Format (RTF)
+#
+# Duncan P. Simpson, D.P.Simpson@dcs.warwick.ac.uk
+#
+0	string		{\\rtf		Rich Text Format data,
+!:mime	text/rtf
+>5	string		1		version 1,
+>>6	string		\\ansi		ANSI
+>>6	string		\\mac		Apple Macintosh
+>>6	string		\\pc		IBM PC, code page 437
+>>6	string		\\pca		IBM PS/2, code page 850
+>>6	default		x		unknown character set
+>5	default		x		unknown version

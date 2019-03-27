@@ -1,0 +1,103 @@
+# ex:ts=8
+$FreeBSD$
+
+AMD (am-utils) 6.1.5
+    originals can be found at: ftp://ftp.am-utils.org/pub/am-utils/
+
+For the import of AMD many files were pruned by:
+
+	tar -X FREEBSD-Xlist -xf am-utils-6.1.5.tar.gz
+
+and `find . -name '.cvsignore' -delete`
+
+Then imported by:
+
+	cvs import -m 'Virgin import of AMD (am-utils) v6.1.5' \
+		src/contrib/amd COLUMBIA amd_6_1_5
+
+After the import, a separate extraction of am-utils was GNU configured in
+the "normal" way.  The resulting config.h file should be compared with
+src/usr.sbin/amd/include/config.h, and src/usr.sbin/amd/include/config.h
+updated as needed.
+
+To make local changes to amd, simply patch and commit to the main
+branch (aka HEAD).  Never make local changes on the vendor (COLUMBIA) branch.
+
+Note, we don't trim anything in scripts/ as sysadmins may find the bits
+as a useful reference.
+
+All local changes should be submitted to "am-utils@am-utils.org" or
+https://bugzilla.am-utils.org for inclusion in the next vendor release.
+
+Local changes:
+
+	amd/amd.8
+	  - corrected formatting of SEE ALSO
+	  r1.17 Uniformly refer to a file system as "file system"
+	  r1.16 Add the am-utils homepage to SEE ALSO
+	  r1.15 s/BSD/.Bx/ where appropriate
+	  r1.14 Avoid using parenthesis enclosure macros
+	  r1.13 split punctuation characters + misc fixes
+	  r1.12 mdoc(7)NG
+	  r1.11 Catch a left over reference to "/a"
+	  r1.10 Document change to the default mount dir.
+	  r1.9 Mention "amd -H" in the synopsis
+	  r1.8 Fix miscellaneous mdoc macro argument limit infringements
+	  r1.7 Don't refer to non-existent automount(8)
+	  r1.6 Fix errors in .Xr usage
+	  r1.3 un-mandocafied, un4.4BSD'ed
+	  r1.2 sort cross references
+	amd/amd.c
+	  r1.7 use /.amd_mnt as default for -a
+	amq/amq.8
+	  r1.9 Uniformly refer to a file system as "file system".
+	  r1.8 s/BSD/.Bx/ where appropriate.
+	  r1.6 mdoc(7)NG.
+	  r1.5 Remove reference to non-existent manpage
+	  r1.4 Fix typos
+	  r1.3 un-mandocafied, un4.4BSD'ed
+	amq/pawd.1
+	  r1.3 un-mandocafied, un4.4BSD'ed
+	  r1.2 sorting of references
+	conf/nfs_prot/nfs_prot_freebsd3.h
+	  r1.11 Userland part of nfs client/server split and cleanup
+	  r1.6 restore the standard name nfs_fh3
+	  r1.3 Fully use our own generated files for NFSv3
+	  r1.2 rpcgen our own files for NFSv3 support
+	fixmount/fixmount.8
+	  r1.8 Uniformly refer to a file system as "file system"
+	  r1.6 split punctuation characters + misc fixes.
+	  r1.5 mdoc(7)NG.
+	  r1.4 ".Mn mountd" -> ".Nm mountd"
+	  r1.3 un-mandocafied, un4.4BSD'ed
+	  r1.2 More sorting of references.
+	fsinfo/fsinfo.8
+	  r1.9 add section number to .Xr directive
+	  r1.7 Uniformly refer to a file system as "file system"
+          r1.6 split punctuation characters + misc fixes
+	  r1.5 mdoc(7)NG
+	  r1.3 describe all of the command line options
+	  r1.2 un-mandocafied, un4.4BSD'ed
+        hlfsd/hlfsd.8
+	  - Fix a broken SEE ALSO section and some mdoc issues
+	mk-amd-map/mk-amd-map.8
+	  r1.4 removed HISTORY info from the .Os call.
+	  r1.2 un-mandocafied, un4.4BSD'ed
+	scripts/amd.conf.5
+	  r1.15 Bring man page back in shape
+	  r1.13 Uniformly refer to a file system as "file system"
+	  r1.12 Avoid using parenthesis enclosure macros
+	  r1.11 mdoc(7)NG
+	  r1.10 Fix miscellaneous mdoc macro argument limit infringements
+	  r1.8 Fix a bunch of broken cross-references
+	  r1.7 Bad reference of uname(2) -> uname(3)
+	  r1.6 Grammer fix and style nits.
+	  r1.5 xfer typo
+	  r1.4 un-mandocafied, un4.4BSD'ed
+	  r1.3 More sorting of references.
+	wire-test/wire-test.8
+	  r1.2 un-mandocafied, un4.4BSD'ed
+
+mbr@FreeBSD.org
+obrien@NUXI.com
+05-November-1999

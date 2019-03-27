@@ -1,0 +1,3 @@
+0 block out all
+100 pass in all
+10101 pass out proto tcp all

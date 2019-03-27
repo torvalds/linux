@@ -1,0 +1,97 @@
+# $FreeBSD$
+
+# arge0 MDIO bus - there's no arge1 MDIO bus for AR71xx
+hint.argemdio.0.at="nexus0"
+hint.argemdio.0.maddr=0x19000000
+hint.argemdio.0.msize=0x1000
+hint.argemdio.0.order=0
+# This creates an automatic mdioproxy0!
+
+
+# The switch automatically probes off of mdio0, and will
+# create an mdioproxy1.
+
+# TODO: RGMII
+hint.arge.0.phymask=0x0		# Nothing attached here (XXX?)
+hint.arge.0.media=1000
+hint.arge.0.fduplex=1
+hint.arge.0.miimode=3		# RGMII
+
+# TODO: RGMII
+hint.arge.1.phymask=0x10
+# hint.arge.1.pll_1000 = 0x1f000000
+# For now, rendezouvs this on the arge0 mdiobus.
+# Later, this will rendezvous via the AR8316 switch.
+hint.arge.1.miimode=3		# RGMII
+hint.arge.1.mdio=mdioproxy1	# off the switch mdiobus
+
+# AR8316 switch on MDIO0
+hint.arswitch.0.at="mdio0"
+hint.arswitch.0.is_7240=0
+hint.arswitch.0.numphys=4
+hint.arswitch.0.phy4cpu=1
+hint.arswitch.0.is_rgmii=1
+hint.arswitch.0.is_gmii=0
+
+# ath0 - slot 17
+hint.pcib.0.bus.0.17.0.ath_fixup_addr=0x1fff1000
+hint.pcib.0.bus.0.17.0.ath_fixup_size=4096
+
+# ath1 - slot 18
+hint.pcib.0.bus.0.18.0.ath_fixup_addr=0x1fff5000
+hint.pcib.0.bus.0.18.0.ath_fixup_size=4096
+
+# .. and now, telling each ath(4) NIC where to find the firmware
+# image.
+hint.ath.0.eeprom_firmware="pcib.0.bus.0.17.0.eeprom_firmware"
+hint.ath.1.eeprom_firmware="pcib.0.bus.0.18.0.eeprom_firmware"
+
+# The default flash layout:
+# uboot: 192k
+# env: 64k
+# rootfs: 6144k
+# uimage (kernel): 1728k
+# caldata: 64k
+#
+# bootargs=console=ttyS0,115200 root=31:02 rootfstype=jffs2 init=/sbin/init
+#    mtdparts=ar7100-nor0:192k(uboot),64k(env),6144k(rootfs),1728k(uImage),64k(caldata) mem=64M
+
+#
+# We steal 64k from the end of rootfs to store the local config.
+
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x000030000
+hint.map.0.name="uboot"
+hint.map.0.readonly=1
+
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00030000
+hint.map.1.end=0x00040000
+hint.map.1.name="uboot-env"
+hint.map.1.readonly=1
+
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x00040000
+hint.map.2.end=0x00630000
+hint.map.2.name="rootfs"
+hint.map.2.readonly=1
+
+hint.map.3.at="flash/spi0"
+hint.map.3.start=0x00630000
+hint.map.3.end=0x00640000
+hint.map.3.name="cfg"
+hint.map.3.readonly=0
+
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x00640000
+hint.map.4.end=0x007f0000
+hint.map.4.name="kernel"
+hint.map.4.readonly=1
+
+hint.map.5.at="flash/spi0"
+hint.map.5.start=0x007f0000
+hint.map.5.end=0x00800000
+hint.map.5.name="art"
+hint.map.5.readonly=1
+

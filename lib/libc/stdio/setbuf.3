@@ -1,0 +1,200 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)setbuf.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd February 18, 2013
+.Dt SETBUF 3
+.Os
+.Sh NAME
+.Nm setbuf ,
+.Nm setbuffer ,
+.Nm setlinebuf ,
+.Nm setvbuf
+.Nd stream buffering operations
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdio.h
+.Ft void
+.Fn setbuf "FILE * restrict stream" "char * restrict buf"
+.Ft void
+.Fn setbuffer "FILE *stream" "char *buf" "int size"
+.Ft int
+.Fn setlinebuf "FILE *stream"
+.Ft int
+.Fn setvbuf "FILE * restrict stream" "char * restrict buf" "int mode" "size_t size"
+.Sh DESCRIPTION
+The three types of buffering available are unbuffered, block buffered,
+and line buffered.
+When an output stream is unbuffered, information appears on the
+destination file or terminal as soon as written;
+when it is block buffered many characters are saved up and written as a block;
+when it is line buffered characters are saved up until a newline is
+output or input is read from any stream attached to a terminal device
+(typically
+.Dv stdin ) .
+The function
+.Xr fflush 3
+may be used to force the block out early.
+(See
+.Xr fclose 3 . )
+.Pp
+Normally all files are block buffered.
+When the first
+.Tn I/O
+operation occurs on a file,
+.Xr malloc 3
+is called,
+and an optimally-sized buffer is obtained.
+If a stream refers to a terminal
+(as
+.Dv stdout
+normally does) it is line buffered.
+The standard error stream
+.Dv stderr
+is always unbuffered.
+Note that these defaults may be altered using the
+.Xr stdbuf 1
+utility.
+.Pp
+The
+.Fn setvbuf
+function
+may be used to alter the buffering behavior of a stream.
+The
+.Fa mode
+argument must be one of the following three macros:
+.Bl -tag -width _IOFBF -offset indent
+.It Dv _IONBF
+unbuffered
+.It Dv _IOLBF
+line buffered
+.It Dv _IOFBF
+fully buffered
+.El
+.Pp
+The
+.Fa size
+argument may be given as zero
+to obtain deferred optimal-size buffer allocation as usual.
+If it is not zero,
+then except for unbuffered files, the
+.Fa buf
+argument should point to a buffer at least
+.Fa size
+bytes long;
+this buffer will be used instead of the current buffer.
+If
+.Fa buf
+is not
+.Dv NULL ,
+it is the caller's responsibility to
+.Xr free 3
+this buffer after closing the stream.
+(If the
+.Fa size
+argument
+is not zero but
+.Fa buf
+is
+.Dv NULL ,
+a buffer of the given size will be allocated immediately,
+and released on close.
+This is an extension to ANSI C;
+portable code should use a size of 0 with any
+.Dv NULL
+buffer.)
+.Pp
+The
+.Fn setvbuf
+function may be used at any time,
+but may have peculiar side effects
+(such as discarding input or flushing output)
+if the stream is ``active''.
+Portable applications should call it only once on any given stream,
+and before any
+.Tn I/O
+is performed.
+.Pp
+The other three calls are, in effect, simply aliases for calls to
+.Fn setvbuf .
+Except for the lack of a return value, the
+.Fn setbuf
+function is exactly equivalent to the call
+.Pp
+.Dl "setvbuf(stream, buf, buf ? _IOFBF : _IONBF, BUFSIZ);"
+.Pp
+The
+.Fn setbuffer
+function
+is the same, except that the size of the buffer is up to the caller,
+rather than being determined by the default
+.Dv BUFSIZ .
+The
+.Fn setlinebuf
+function
+is exactly equivalent to the call:
+.Pp
+.Dl "setvbuf(stream, (char *)NULL, _IOLBF, 0);"
+.Sh RETURN VALUES
+The
+.Fn setvbuf
+function returns 0 on success, or
+.Dv EOF
+if the request cannot be honored
+(note that the stream is still functional in this case).
+.Pp
+The
+.Fn setlinebuf
+function returns what the equivalent
+.Fn setvbuf
+would have returned.
+.Sh SEE ALSO
+.Xr stdbuf 1 ,
+.Xr fclose 3 ,
+.Xr fopen 3 ,
+.Xr fread 3 ,
+.Xr malloc 3 ,
+.Xr printf 3 ,
+.Xr puts 3
+.Sh STANDARDS
+The
+.Fn setbuf
+and
+.Fn setvbuf
+functions
+conform to
+.St -isoC .
+.Sh BUGS
+.Fn setbuf
+usually uses a suboptimal buffer size and should be avoided.

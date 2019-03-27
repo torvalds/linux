@@ -1,0 +1,289 @@
+.\" Copyright (c) 2003-2007 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 18, 2012
+.Dt LIBARCHIVE 3
+.Os
+.Sh NAME
+.Nm libarchive
+.Nd functions for reading and writing streaming archives
+.Sh OVERVIEW
+The
+.Nm
+library provides a flexible interface for reading and writing
+archives in various formats such as tar and cpio.
+.Nm
+also supports reading and writing archives compressed using
+various compression filters such as gzip and bzip2.
+The library is inherently stream-oriented; readers serially iterate through
+the archive, writers serially add things to the archive.
+In particular, note that there is currently no built-in support for
+random access nor for in-place modification.
+.Pp
+When reading an archive, the library automatically detects the
+format and the compression.
+The library currently has read support for:
+.Bl -bullet -compact
+.It
+old-style tar archives,
+.It
+most variants of the POSIX
+.Dq ustar
+format,
+.It
+the POSIX
+.Dq pax interchange
+format,
+.It
+GNU-format tar archives,
+.It
+most common cpio archive formats,
+.It
+ISO9660 CD images (including RockRidge and Joliet extensions),
+.It
+Zip archives,
+.It
+ar archives (including GNU/SysV and BSD extensions),
+.It
+Microsoft CAB archives,
+.It
+LHA archives,
+.It
+mtree file tree descriptions,
+.It
+RAR archives,
+.It
+XAR archives.
+.El
+The library automatically detects archives compressed with
+.Xr gzip 1 ,
+.Xr bzip2 1 ,
+.Xr xz 1 ,
+.Xr lzip 1 ,
+or
+.Xr compress 1
+and decompresses them transparently.
+It can similarly detect and decode archives processed with
+.Xr uuencode 1
+or which have an
+.Xr rpm 1
+header.
+.Pp
+When writing an archive, you can specify the compression
+to be used and the format to use.
+The library can write
+.Bl -bullet -compact
+.It
+POSIX-standard
+.Dq ustar
+archives,
+.It
+POSIX
+.Dq pax interchange format
+archives,
+.It
+POSIX octet-oriented cpio archives,
+.It
+Zip archive,
+.It
+two different variants of shar archives,
+.It
+ISO9660 CD images,
+.It
+7-Zip archives,
+.It
+ar archives,
+.It
+mtree file tree descriptions,
+.It
+XAR archives.
+.El
+Pax interchange format is an extension of the tar archive format that
+eliminates essentially all of the limitations of historic tar formats
+in a standard fashion that is supported
+by POSIX-compliant
+.Xr pax 1
+implementations on many systems as well as several newer implementations of
+.Xr tar 1 .
+Note that the default write format will suppress the pax extended
+attributes for most entries; explicitly requesting pax format will
+enable those attributes for all entries.
+.Pp
+The read and write APIs are accessed through the
+.Fn archive_read_XXX
+functions and the
+.Fn archive_write_XXX
+functions, respectively, and either can be used independently
+of the other.
+.Pp
+The rest of this manual page provides an overview of the library
+operation.
+More detailed information can be found in the individual manual
+pages for each API or utility function.
+.\"
+.Sh READING AN ARCHIVE
+See
+.Xr archive_read 3 .
+.\"
+.Sh WRITING AN ARCHIVE
+See
+.Xr archive_write 3 .
+.\"
+.Sh WRITING ENTRIES TO DISK
+The
+.Xr archive_write_disk 3
+API allows you to write
+.Xr archive_entry 3
+objects to disk using the same API used by
+.Xr archive_write 3 .
+The
+.Xr archive_write_disk 3
+API is used internally by
+.Fn archive_read_extract ;
+using it directly can provide greater control over how entries
+get written to disk.
+This API also makes it possible to share code between
+archive-to-archive copy and archive-to-disk extraction
+operations.
+.Sh READING ENTRIES FROM DISK
+The
+.Xr archive_read_disk 3
+supports for populating
+.Xr archive_entry 3
+objects from information in the filesystem.
+This includes the information accessible from the
+.Xr stat 2
+system call as well as ACLs, extended attributes,
+and other metadata.
+The
+.Xr archive_read_disk 3
+API also supports iterating over directory trees,
+which allows directories of files to be read using
+an API compatible with
+the
+.Xr archive_read 3
+API.
+.Sh DESCRIPTION
+Detailed descriptions of each function are provided by the
+corresponding manual pages.
+.Pp
+All of the functions utilize an opaque
+.Tn struct archive
+datatype that provides access to the archive contents.
+.Pp
+The
+.Tn struct archive_entry
+structure contains a complete description of a single archive
+entry.
+It uses an opaque interface that is fully documented in
+.Xr archive_entry 3 .
+.Pp
+Users familiar with historic formats should be aware that the newer
+variants have eliminated most restrictions on the length of textual fields.
+Clients should not assume that filenames, link names, user names, or
+group names are limited in length.
+In particular, pax interchange format can easily accommodate pathnames
+in arbitrary character sets that exceed
+.Va PATH_MAX .
+.Sh RETURN VALUES
+Most functions return
+.Cm ARCHIVE_OK
+(zero) on success, non-zero on error.
+The return value indicates the general severity of the error, ranging
+from
+.Cm ARCHIVE_WARN ,
+which indicates a minor problem that should probably be reported
+to the user, to
+.Cm ARCHIVE_FATAL ,
+which indicates a serious problem that will prevent any further
+operations on this archive.
+On error, the
+.Fn archive_errno
+function can be used to retrieve a numeric error code (see
+.Xr errno 2 ) .
+The
+.Fn archive_error_string
+returns a textual error message suitable for display.
+.Pp
+.Fn archive_read_new
+and
+.Fn archive_write_new
+return pointers to an allocated and initialized
+.Tn struct archive
+object.
+.Pp
+.Fn archive_read_data
+and
+.Fn archive_write_data
+return a count of the number of bytes actually read or written.
+A value of zero indicates the end of the data for this entry.
+A negative value indicates an error, in which case the
+.Fn archive_errno
+and
+.Fn archive_error_string
+functions can be used to obtain more information.
+.Sh ENVIRONMENT
+There are character set conversions within the
+.Xr archive_entry 3
+functions that are impacted by the currently-selected locale.
+.Sh SEE ALSO
+.Xr tar 1 ,
+.Xr archive_entry 3 ,
+.Xr archive_read 3 ,
+.Xr archive_util 3 ,
+.Xr archive_write 3 ,
+.Xr tar 5
+.Sh HISTORY
+The
+.Nm libarchive
+library first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm libarchive
+library was originally written by
+.An Tim Kientzle Aq kientzle@acm.org .
+.Sh BUGS
+Some archive formats support information that is not supported by
+.Tn struct archive_entry .
+Such information cannot be fully archived or restored using this library.
+This includes, for example, comments, character sets,
+or the arbitrary key/value pairs that can appear in
+pax interchange format archives.
+.Pp
+Conversely, of course, not all of the information that can be
+stored in an
+.Tn struct archive_entry
+is supported by all formats.
+For example, cpio formats do not support nanosecond timestamps;
+old tar formats do not support large device numbers.
+.Pp
+The ISO9660 reader cannot yet read all ISO9660 images;
+it should learn how to seek.
+.Pp
+The AR writer requires the client program to use
+two passes, unlike all other libarchive writers.

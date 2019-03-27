@@ -1,0 +1,6 @@
+foo_t {
+    int a :4 = 0x1
+    int b :7 = 0x5
+    int c :1 = 0
+    int d :2 = 0x2
+}

@@ -1,0 +1,1332 @@
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2012 Freescale Semiconductor, Inc.
+
+#include <dt-bindings/gpio/gpio.h>
+#include "imx28-pinfunc.h"
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	interrupt-parent = <&icoll>;
+	/*
+	 * The decompressor and also some bootloaders rely on a
+	 * pre-existing /chosen node to be available to insert the
+	 * command line and merge other ATAGS info.
+	 * Also for U-Boot there must be a pre-existing /memory node.
+	 */
+	chosen {};
+	memory { device_type = "memory"; };
+
+	aliases {
+		ethernet0 = &mac0;
+		ethernet1 = &mac1;
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+		gpio3 = &gpio3;
+		gpio4 = &gpio4;
+		saif0 = &saif0;
+		saif1 = &saif1;
+		serial0 = &auart0;
+		serial1 = &auart1;
+		serial2 = &auart2;
+		serial3 = &auart3;
+		serial4 = &auart4;
+		spi0 = &ssp1;
+		spi1 = &ssp2;
+		usbphy0 = &usbphy0;
+		usbphy1 = &usbphy1;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,arm926ej-s";
+			device_type = "cpu";
+			reg = <0>;
+		};
+	};
+
+	apb@80000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x80000000 0x80000>;
+		ranges;
+
+		apbh@80000000 {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x80000000 0x3c900>;
+			ranges;
+
+			icoll: interrupt-controller@80000000 {
+				compatible = "fsl,imx28-icoll", "fsl,icoll";
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x80000000 0x2000>;
+			};
+
+			hsadc: hsadc@80002000 {
+				reg = <0x80002000 0x2000>;
+				interrupts = <13>;
+				dmas = <&dma_apbh 12>;
+				dma-names = "rx";
+				status = "disabled";
+			};
+
+			dma_apbh: dma-apbh@80004000 {
+				compatible = "fsl,imx28-dma-apbh";
+				reg = <0x80004000 0x2000>;
+				interrupts = <82 83 84 85
+					      88 88 88 88
+					      88 88 88 88
+					      87 86 0 0>;
+				interrupt-names = "ssp0", "ssp1", "ssp2", "ssp3",
+						  "gpmi0", "gmpi1", "gpmi2", "gmpi3",
+						  "gpmi4", "gmpi5", "gpmi6", "gmpi7",
+						  "hsadc", "lcdif", "empty", "empty";
+				#dma-cells = <1>;
+				dma-channels = <16>;
+				clocks = <&clks 25>;
+			};
+
+			perfmon: perfmon@80006000 {
+				reg = <0x80006000 0x800>;
+				interrupts = <27>;
+				status = "disabled";
+			};
+
+			gpmi: gpmi-nand@8000c000 {
+				compatible = "fsl,imx28-gpmi-nand";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0x8000c000 0x2000>, <0x8000a000 0x2000>;
+				reg-names = "gpmi-nand", "bch";
+				interrupts = <41>;
+				interrupt-names = "bch";
+				clocks = <&clks 50>;
+				clock-names = "gpmi_io";
+				dmas = <&dma_apbh 4>;
+				dma-names = "rx-tx";
+				status = "disabled";
+			};
+
+			ssp0: spi@80010000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x80010000 0x2000>;
+				interrupts = <96>;
+				clocks = <&clks 46>;
+				dmas = <&dma_apbh 0>;
+				dma-names = "rx-tx";
+				status = "disabled";
+			};
+
+			ssp1: spi@80012000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x80012000 0x2000>;
+				interrupts = <97>;
+				clocks = <&clks 47>;
+				dmas = <&dma_apbh 1>;
+				dma-names = "rx-tx";
+				status = "disabled";
+			};
+
+			ssp2: spi@80014000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x80014000 0x2000>;
+				interrupts = <98>;
+				clocks = <&clks 48>;
+				dmas = <&dma_apbh 2>;
+				dma-names = "rx-tx";
+				status = "disabled";
+			};
+
+			ssp3: spi@80016000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x80016000 0x2000>;
+				interrupts = <99>;
+				clocks = <&clks 49>;
+				dmas = <&dma_apbh 3>;
+				dma-names = "rx-tx";
+				status = "disabled";
+			};
+
+			pinctrl: pinctrl@80018000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx28-pinctrl", "simple-bus";
+				reg = <0x80018000 0x2000>;
+
+				gpio0: gpio@0 {
+					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					reg = <0>;
+					interrupts = <127>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+
+				gpio1: gpio@1 {
+					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					reg = <1>;
+					interrupts = <126>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+
+				gpio2: gpio@2 {
+					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					reg = <2>;
+					interrupts = <125>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+
+				gpio3: gpio@3 {
+					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					reg = <3>;
+					interrupts = <124>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+
+				gpio4: gpio@4 {
+					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					reg = <4>;
+					interrupts = <123>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+
+				duart_pins_a: duart@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_PWM0__DUART_RX
+						MX28_PAD_PWM1__DUART_TX
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				duart_pins_b: duart@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART0_CTS__DUART_RX
+						MX28_PAD_AUART0_RTS__DUART_TX
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				duart_4pins_a: duart-4pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART0_CTS__DUART_RX
+						MX28_PAD_AUART0_RTS__DUART_TX
+						MX28_PAD_AUART0_RX__DUART_CTS
+						MX28_PAD_AUART0_TX__DUART_RTS
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				gpmi_pins_a: gpmi-nand@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_GPMI_D00__GPMI_D0
+						MX28_PAD_GPMI_D01__GPMI_D1
+						MX28_PAD_GPMI_D02__GPMI_D2
+						MX28_PAD_GPMI_D03__GPMI_D3
+						MX28_PAD_GPMI_D04__GPMI_D4
+						MX28_PAD_GPMI_D05__GPMI_D5
+						MX28_PAD_GPMI_D06__GPMI_D6
+						MX28_PAD_GPMI_D07__GPMI_D7
+						MX28_PAD_GPMI_CE0N__GPMI_CE0N
+						MX28_PAD_GPMI_RDY0__GPMI_READY0
+						MX28_PAD_GPMI_RDN__GPMI_RDN
+						MX28_PAD_GPMI_WRN__GPMI_WRN
+						MX28_PAD_GPMI_ALE__GPMI_ALE
+						MX28_PAD_GPMI_CLE__GPMI_CLE
+						MX28_PAD_GPMI_RESETN__GPMI_RESETN
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				gpmi_status_cfg: gpmi-status-cfg@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_GPMI_RDN__GPMI_RDN
+						MX28_PAD_GPMI_WRN__GPMI_WRN
+						MX28_PAD_GPMI_RESETN__GPMI_RESETN
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+				};
+
+				auart0_pins_a: auart0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART0_RX__AUART0_RX
+						MX28_PAD_AUART0_TX__AUART0_TX
+						MX28_PAD_AUART0_CTS__AUART0_CTS
+						MX28_PAD_AUART0_RTS__AUART0_RTS
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				auart0_2pins_a: auart0-2pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART0_RX__AUART0_RX
+						MX28_PAD_AUART0_TX__AUART0_TX
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				auart1_pins_a: auart1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART1_RX__AUART1_RX
+						MX28_PAD_AUART1_TX__AUART1_TX
+						MX28_PAD_AUART1_CTS__AUART1_CTS
+						MX28_PAD_AUART1_RTS__AUART1_RTS
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				auart1_2pins_a: auart1-2pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART1_RX__AUART1_RX
+						MX28_PAD_AUART1_TX__AUART1_TX
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				auart2_2pins_a: auart2-2pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP2_SCK__AUART2_RX
+						MX28_PAD_SSP2_MOSI__AUART2_TX
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				auart2_2pins_b: auart2-2pins@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART2_RX__AUART2_RX
+						MX28_PAD_AUART2_TX__AUART2_TX
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				auart2_pins_a: auart2-pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART2_RX__AUART2_RX
+						MX28_PAD_AUART2_TX__AUART2_TX
+						MX28_PAD_AUART2_CTS__AUART2_CTS
+						MX28_PAD_AUART2_RTS__AUART2_RTS
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				auart3_pins_a: auart3@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART3_RX__AUART3_RX
+						MX28_PAD_AUART3_TX__AUART3_TX
+						MX28_PAD_AUART3_CTS__AUART3_CTS
+						MX28_PAD_AUART3_RTS__AUART3_RTS
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				auart3_2pins_a: auart3-2pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP2_MISO__AUART3_RX
+						MX28_PAD_SSP2_SS0__AUART3_TX
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				auart3_2pins_b: auart3-2pins@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART3_RX__AUART3_RX
+						MX28_PAD_AUART3_TX__AUART3_TX
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				auart4_2pins_a: auart4@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP3_SCK__AUART4_TX
+						MX28_PAD_SSP3_MOSI__AUART4_RX
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				auart4_2pins_b: auart4@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART0_CTS__AUART4_RX
+						MX28_PAD_AUART0_RTS__AUART4_TX
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				mac0_pins_a: mac0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_ENET0_MDC__ENET0_MDC
+						MX28_PAD_ENET0_MDIO__ENET0_MDIO
+						MX28_PAD_ENET0_RX_EN__ENET0_RX_EN
+						MX28_PAD_ENET0_RXD0__ENET0_RXD0
+						MX28_PAD_ENET0_RXD1__ENET0_RXD1
+						MX28_PAD_ENET0_TX_EN__ENET0_TX_EN
+						MX28_PAD_ENET0_TXD0__ENET0_TXD0
+						MX28_PAD_ENET0_TXD1__ENET0_TXD1
+						MX28_PAD_ENET_CLK__CLKCTRL_ENET
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				mac0_pins_b: mac0@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_ENET0_MDC__ENET0_MDC
+						MX28_PAD_ENET0_MDIO__ENET0_MDIO
+						MX28_PAD_ENET0_RX_EN__ENET0_RX_EN
+						MX28_PAD_ENET0_RXD0__ENET0_RXD0
+						MX28_PAD_ENET0_RXD1__ENET0_RXD1
+						MX28_PAD_ENET0_RXD2__ENET0_RXD2
+						MX28_PAD_ENET0_RXD3__ENET0_RXD3
+						MX28_PAD_ENET0_TX_EN__ENET0_TX_EN
+						MX28_PAD_ENET0_TXD0__ENET0_TXD0
+						MX28_PAD_ENET0_TXD1__ENET0_TXD1
+						MX28_PAD_ENET0_TXD2__ENET0_TXD2
+						MX28_PAD_ENET0_TXD3__ENET0_TXD3
+						MX28_PAD_ENET_CLK__CLKCTRL_ENET
+						MX28_PAD_ENET0_COL__ENET0_COL
+						MX28_PAD_ENET0_CRS__ENET0_CRS
+						MX28_PAD_ENET0_TX_CLK__ENET0_TX_CLK
+						MX28_PAD_ENET0_RX_CLK__ENET0_RX_CLK
+						>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				mac1_pins_a: mac1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_ENET0_CRS__ENET1_RX_EN
+						MX28_PAD_ENET0_RXD2__ENET1_RXD0
+						MX28_PAD_ENET0_RXD3__ENET1_RXD1
+						MX28_PAD_ENET0_COL__ENET1_TX_EN
+						MX28_PAD_ENET0_TXD2__ENET1_TXD0
+						MX28_PAD_ENET0_TXD3__ENET1_TXD1
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				mmc0_8bit_pins_a: mmc0-8bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP0_DATA0__SSP0_D0
+						MX28_PAD_SSP0_DATA1__SSP0_D1
+						MX28_PAD_SSP0_DATA2__SSP0_D2
+						MX28_PAD_SSP0_DATA3__SSP0_D3
+						MX28_PAD_SSP0_DATA4__SSP0_D4
+						MX28_PAD_SSP0_DATA5__SSP0_D5
+						MX28_PAD_SSP0_DATA6__SSP0_D6
+						MX28_PAD_SSP0_DATA7__SSP0_D7
+						MX28_PAD_SSP0_CMD__SSP0_CMD
+						MX28_PAD_SSP0_DETECT__SSP0_CARD_DETECT
+						MX28_PAD_SSP0_SCK__SSP0_SCK
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				mmc0_4bit_pins_a: mmc0-4bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP0_DATA0__SSP0_D0
+						MX28_PAD_SSP0_DATA1__SSP0_D1
+						MX28_PAD_SSP0_DATA2__SSP0_D2
+						MX28_PAD_SSP0_DATA3__SSP0_D3
+						MX28_PAD_SSP0_CMD__SSP0_CMD
+						MX28_PAD_SSP0_DETECT__SSP0_CARD_DETECT
+						MX28_PAD_SSP0_SCK__SSP0_SCK
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				mmc0_cd_cfg: mmc0-cd-cfg@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP0_DETECT__SSP0_CARD_DETECT
+					>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				mmc0_sck_cfg: mmc0-sck-cfg@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP0_SCK__SSP0_SCK
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				mmc1_4bit_pins_a: mmc1-4bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_GPMI_D00__SSP1_D0
+						MX28_PAD_GPMI_D01__SSP1_D1
+						MX28_PAD_GPMI_D02__SSP1_D2
+						MX28_PAD_GPMI_D03__SSP1_D3
+						MX28_PAD_GPMI_RDY1__SSP1_CMD
+						MX28_PAD_GPMI_RDY0__SSP1_CARD_DETECT
+						MX28_PAD_GPMI_WRN__SSP1_SCK
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				mmc1_cd_cfg: mmc1-cd-cfg@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_GPMI_RDY0__SSP1_CARD_DETECT
+					>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				mmc1_sck_cfg: mmc1-sck-cfg@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_GPMI_WRN__SSP1_SCK
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+
+				mmc2_4bit_pins_a: mmc2-4bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP0_DATA4__SSP2_D0
+						MX28_PAD_SSP1_SCK__SSP2_D1
+						MX28_PAD_SSP1_CMD__SSP2_D2
+						MX28_PAD_SSP0_DATA5__SSP2_D3
+						MX28_PAD_SSP0_DATA6__SSP2_CMD
+						MX28_PAD_AUART1_RX__SSP2_CARD_DETECT
+						MX28_PAD_SSP0_DATA7__SSP2_SCK
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				mmc2_4bit_pins_b: mmc2-4bit@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP2_SCK__SSP2_SCK
+						MX28_PAD_SSP2_MOSI__SSP2_CMD
+						MX28_PAD_SSP2_MISO__SSP2_D0
+						MX28_PAD_SSP2_SS0__SSP2_D3
+						MX28_PAD_SSP2_SS1__SSP2_D1
+						MX28_PAD_SSP2_SS2__SSP2_D2
+						MX28_PAD_AUART1_RX__SSP2_CARD_DETECT
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				mmc2_cd_cfg: mmc2-cd-cfg@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART1_RX__SSP2_CARD_DETECT
+					>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				mmc2_sck_cfg_a: mmc2-sck-cfg@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP0_DATA7__SSP2_SCK
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				mmc2_sck_cfg_b: mmc2-sck-cfg@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP2_SCK__SSP2_SCK
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				i2c0_pins_a: i2c0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_I2C0_SCL__I2C0_SCL
+						MX28_PAD_I2C0_SDA__I2C0_SDA
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				i2c0_pins_b: i2c0@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART0_RX__I2C0_SCL
+						MX28_PAD_AUART0_TX__I2C0_SDA
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				i2c1_pins_a: i2c1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_PWM0__I2C1_SCL
+						MX28_PAD_PWM1__I2C1_SDA
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				i2c1_pins_b: i2c1@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART2_CTS__I2C1_SCL
+						MX28_PAD_AUART2_RTS__I2C1_SDA
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				saif0_pins_a: saif0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SAIF0_MCLK__SAIF0_MCLK
+						MX28_PAD_SAIF0_LRCLK__SAIF0_LRCLK
+						MX28_PAD_SAIF0_BITCLK__SAIF0_BITCLK
+						MX28_PAD_SAIF0_SDATA0__SAIF0_SDATA0
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				saif0_pins_b: saif0@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SAIF0_LRCLK__SAIF0_LRCLK
+						MX28_PAD_SAIF0_BITCLK__SAIF0_BITCLK
+						MX28_PAD_SAIF0_SDATA0__SAIF0_SDATA0
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				saif1_pins_a: saif1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SAIF1_SDATA0__SAIF1_SDATA0
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				pwm0_pins_a: pwm0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_PWM0__PWM_0
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				pwm2_pins_a: pwm2@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_PWM2__PWM_2
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				pwm3_pins_a: pwm3@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_PWM3__PWM_3
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				pwm3_pins_b: pwm3@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SAIF0_MCLK__PWM_3
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				pwm4_pins_a: pwm4@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_PWM4__PWM_4
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				lcdif_24bit_pins_a: lcdif-24bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_LCD_D00__LCD_D0
+						MX28_PAD_LCD_D01__LCD_D1
+						MX28_PAD_LCD_D02__LCD_D2
+						MX28_PAD_LCD_D03__LCD_D3
+						MX28_PAD_LCD_D04__LCD_D4
+						MX28_PAD_LCD_D05__LCD_D5
+						MX28_PAD_LCD_D06__LCD_D6
+						MX28_PAD_LCD_D07__LCD_D7
+						MX28_PAD_LCD_D08__LCD_D8
+						MX28_PAD_LCD_D09__LCD_D9
+						MX28_PAD_LCD_D10__LCD_D10
+						MX28_PAD_LCD_D11__LCD_D11
+						MX28_PAD_LCD_D12__LCD_D12
+						MX28_PAD_LCD_D13__LCD_D13
+						MX28_PAD_LCD_D14__LCD_D14
+						MX28_PAD_LCD_D15__LCD_D15
+						MX28_PAD_LCD_D16__LCD_D16
+						MX28_PAD_LCD_D17__LCD_D17
+						MX28_PAD_LCD_D18__LCD_D18
+						MX28_PAD_LCD_D19__LCD_D19
+						MX28_PAD_LCD_D20__LCD_D20
+						MX28_PAD_LCD_D21__LCD_D21
+						MX28_PAD_LCD_D22__LCD_D22
+						MX28_PAD_LCD_D23__LCD_D23
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				lcdif_18bit_pins_a: lcdif-18bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_LCD_D00__LCD_D0
+						MX28_PAD_LCD_D01__LCD_D1
+						MX28_PAD_LCD_D02__LCD_D2
+						MX28_PAD_LCD_D03__LCD_D3
+						MX28_PAD_LCD_D04__LCD_D4
+						MX28_PAD_LCD_D05__LCD_D5
+						MX28_PAD_LCD_D06__LCD_D6
+						MX28_PAD_LCD_D07__LCD_D7
+						MX28_PAD_LCD_D08__LCD_D8
+						MX28_PAD_LCD_D09__LCD_D9
+						MX28_PAD_LCD_D10__LCD_D10
+						MX28_PAD_LCD_D11__LCD_D11
+						MX28_PAD_LCD_D12__LCD_D12
+						MX28_PAD_LCD_D13__LCD_D13
+						MX28_PAD_LCD_D14__LCD_D14
+						MX28_PAD_LCD_D15__LCD_D15
+						MX28_PAD_LCD_D16__LCD_D16
+						MX28_PAD_LCD_D17__LCD_D17
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				lcdif_16bit_pins_a: lcdif-16bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_LCD_D00__LCD_D0
+						MX28_PAD_LCD_D01__LCD_D1
+						MX28_PAD_LCD_D02__LCD_D2
+						MX28_PAD_LCD_D03__LCD_D3
+						MX28_PAD_LCD_D04__LCD_D4
+						MX28_PAD_LCD_D05__LCD_D5
+						MX28_PAD_LCD_D06__LCD_D6
+						MX28_PAD_LCD_D07__LCD_D7
+						MX28_PAD_LCD_D08__LCD_D8
+						MX28_PAD_LCD_D09__LCD_D9
+						MX28_PAD_LCD_D10__LCD_D10
+						MX28_PAD_LCD_D11__LCD_D11
+						MX28_PAD_LCD_D12__LCD_D12
+						MX28_PAD_LCD_D13__LCD_D13
+						MX28_PAD_LCD_D14__LCD_D14
+						MX28_PAD_LCD_D15__LCD_D15
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				lcdif_sync_pins_a: lcdif-sync@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_LCD_RS__LCD_DOTCLK
+						MX28_PAD_LCD_CS__LCD_ENABLE
+						MX28_PAD_LCD_RD_E__LCD_VSYNC
+						MX28_PAD_LCD_WR_RWN__LCD_HSYNC
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				can0_pins_a: can0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_GPMI_RDY2__CAN0_TX
+						MX28_PAD_GPMI_RDY3__CAN0_RX
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				can1_pins_a: can1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_GPMI_CE2N__CAN1_TX
+						MX28_PAD_GPMI_CE3N__CAN1_RX
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				spi2_pins_a: spi2@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP2_SCK__SSP2_SCK
+						MX28_PAD_SSP2_MOSI__SSP2_CMD
+						MX28_PAD_SSP2_MISO__SSP2_D0
+						MX28_PAD_SSP2_SS0__SSP2_D3
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				spi3_pins_a: spi3@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART2_RX__SSP3_D4
+						MX28_PAD_AUART2_TX__SSP3_D5
+						MX28_PAD_SSP3_SCK__SSP3_SCK
+						MX28_PAD_SSP3_MOSI__SSP3_CMD
+						MX28_PAD_SSP3_MISO__SSP3_D0
+						MX28_PAD_SSP3_SS0__SSP3_D3
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				spi3_pins_b: spi3@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP3_SCK__SSP3_SCK
+						MX28_PAD_SSP3_MOSI__SSP3_CMD
+						MX28_PAD_SSP3_MISO__SSP3_D0
+						MX28_PAD_SSP3_SS0__SSP3_D3
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				usb0_pins_a: usb0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP2_SS2__USB0_OVERCURRENT
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				usb0_pins_b: usb0@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART1_CTS__USB0_OVERCURRENT
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				usb1_pins_a: usb1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP2_SS1__USB1_OVERCURRENT
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				usb0_id_pins_a: usb0id@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART1_RTS__USB0_ID
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				usb0_id_pins_b: usb0id1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_PWM2__USB0_ID
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+			};
+
+			digctl: digctl@8001c000 {
+				compatible = "fsl,imx28-digctl", "fsl,imx23-digctl";
+				reg = <0x8001c000 0x2000>;
+				interrupts = <89>;
+				status = "disabled";
+			};
+
+			etm: etm@80022000 {
+				reg = <0x80022000 0x2000>;
+				status = "disabled";
+			};
+
+			dma_apbx: dma-apbx@80024000 {
+				compatible = "fsl,imx28-dma-apbx";
+				reg = <0x80024000 0x2000>;
+				interrupts = <78 79 66 0
+					      80 81 68 69
+					      70 71 72 73
+					      74 75 76 77>;
+				interrupt-names = "auart4-rx", "auart4-tx", "spdif-tx", "empty",
+						  "saif0", "saif1", "i2c0", "i2c1",
+						  "auart0-rx", "auart0-tx", "auart1-rx", "auart1-tx",
+						  "auart2-rx", "auart2-tx", "auart3-rx", "auart3-tx";
+				#dma-cells = <1>;
+				dma-channels = <16>;
+				clocks = <&clks 26>;
+			};
+
+			dcp: dcp@80028000 {
+				compatible = "fsl,imx28-dcp", "fsl,imx23-dcp";
+				reg = <0x80028000 0x2000>;
+				interrupts = <52 53 54>;
+				status = "okay";
+			};
+
+			pxp: pxp@8002a000 {
+				reg = <0x8002a000 0x2000>;
+				interrupts = <39>;
+				status = "disabled";
+			};
+
+			ocotp: ocotp@8002c000 {
+				compatible = "fsl,imx28-ocotp", "fsl,ocotp";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0x8002c000 0x2000>;
+				clocks = <&clks 25>;
+			};
+
+			axi-ahb@8002e000 {
+				reg = <0x8002e000 0x2000>;
+				status = "disabled";
+			};
+
+			lcdif: lcdif@80030000 {
+				compatible = "fsl,imx28-lcdif";
+				reg = <0x80030000 0x2000>;
+				interrupts = <38>;
+				clocks = <&clks 55>;
+				dmas = <&dma_apbh 13>;
+				dma-names = "rx";
+				status = "disabled";
+			};
+
+			can0: can@80032000 {
+				compatible = "fsl,imx28-flexcan";
+				reg = <0x80032000 0x2000>;
+				interrupts = <8>;
+				clocks = <&clks 58>, <&clks 58>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			can1: can@80034000 {
+				compatible = "fsl,imx28-flexcan";
+				reg = <0x80034000 0x2000>;
+				interrupts = <9>;
+				clocks = <&clks 59>, <&clks 59>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			simdbg: simdbg@8003c000 {
+				reg = <0x8003c000 0x200>;
+				status = "disabled";
+			};
+
+			simgpmisel: simgpmisel@8003c200 {
+				reg = <0x8003c200 0x100>;
+				status = "disabled";
+			};
+
+			simsspsel: simsspsel@8003c300 {
+				reg = <0x8003c300 0x100>;
+				status = "disabled";
+			};
+
+			simmemsel: simmemsel@8003c400 {
+				reg = <0x8003c400 0x100>;
+				status = "disabled";
+			};
+
+			gpiomon: gpiomon@8003c500 {
+				reg = <0x8003c500 0x100>;
+				status = "disabled";
+			};
+
+			simenet: simenet@8003c700 {
+				reg = <0x8003c700 0x100>;
+				status = "disabled";
+			};
+
+			armjtag: armjtag@8003c800 {
+				reg = <0x8003c800 0x100>;
+				status = "disabled";
+			};
+		};
+
+		apbx@80040000 {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x80040000 0x40000>;
+			ranges;
+
+			clks: clkctrl@80040000 {
+				compatible = "fsl,imx28-clkctrl", "fsl,clkctrl";
+				reg = <0x80040000 0x2000>;
+				#clock-cells = <1>;
+			};
+
+			saif0: saif@80042000 {
+				#sound-dai-cells = <0>;
+				compatible = "fsl,imx28-saif";
+				reg = <0x80042000 0x2000>;
+				interrupts = <59>;
+				#clock-cells = <0>;
+				clocks = <&clks 53>;
+				dmas = <&dma_apbx 4>;
+				dma-names = "rx-tx";
+				status = "disabled";
+			};
+
+			power: power@80044000 {
+				reg = <0x80044000 0x2000>;
+				status = "disabled";
+			};
+
+			saif1: saif@80046000 {
+				#sound-dai-cells = <0>;
+				compatible = "fsl,imx28-saif";
+				reg = <0x80046000 0x2000>;
+				interrupts = <58>;
+				clocks = <&clks 54>;
+				dmas = <&dma_apbx 5>;
+				dma-names = "rx-tx";
+				status = "disabled";
+			};
+
+			lradc: lradc@80050000 {
+				compatible = "fsl,imx28-lradc";
+				reg = <0x80050000 0x2000>;
+				interrupts = <10 14 15 16 17 18 19
+						20 21 22 23 24 25>;
+				status = "disabled";
+				clocks = <&clks 41>;
+				#io-channel-cells = <1>;
+			};
+
+			spdif: spdif@80054000 {
+				reg = <0x80054000 0x2000>;
+				interrupts = <45>;
+				dmas = <&dma_apbx 2>;
+				dma-names = "tx";
+				status = "disabled";
+			};
+
+			mxs_rtc: rtc@80056000 {
+				compatible = "fsl,imx28-rtc", "fsl,stmp3xxx-rtc";
+				reg = <0x80056000 0x2000>;
+				interrupts = <29>;
+			};
+
+			i2c0: i2c@80058000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx28-i2c";
+				reg = <0x80058000 0x2000>;
+				interrupts = <111>;
+				clock-frequency = <100000>;
+				dmas = <&dma_apbx 6>;
+				dma-names = "rx-tx";
+				status = "disabled";
+			};
+
+			i2c1: i2c@8005a000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx28-i2c";
+				reg = <0x8005a000 0x2000>;
+				interrupts = <110>;
+				clock-frequency = <100000>;
+				dmas = <&dma_apbx 7>;
+				dma-names = "rx-tx";
+				status = "disabled";
+			};
+
+			pwm: pwm@80064000 {
+				compatible = "fsl,imx28-pwm", "fsl,imx23-pwm";
+				reg = <0x80064000 0x2000>;
+				clocks = <&clks 44>;
+				#pwm-cells = <2>;
+				fsl,pwm-number = <8>;
+				status = "disabled";
+			};
+
+			timer: timrot@80068000 {
+				compatible = "fsl,imx28-timrot", "fsl,timrot";
+				reg = <0x80068000 0x2000>;
+				interrupts = <48 49 50 51>;
+				clocks = <&clks 26>;
+			};
+
+			auart0: serial@8006a000 {
+				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
+				reg = <0x8006a000 0x2000>;
+				interrupts = <112>;
+				dmas = <&dma_apbx 8>, <&dma_apbx 9>;
+				dma-names = "rx", "tx";
+				clocks = <&clks 45>;
+				status = "disabled";
+			};
+
+			auart1: serial@8006c000 {
+				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
+				reg = <0x8006c000 0x2000>;
+				interrupts = <113>;
+				dmas = <&dma_apbx 10>, <&dma_apbx 11>;
+				dma-names = "rx", "tx";
+				clocks = <&clks 45>;
+				status = "disabled";
+			};
+
+			auart2: serial@8006e000 {
+				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
+				reg = <0x8006e000 0x2000>;
+				interrupts = <114>;
+				dmas = <&dma_apbx 12>, <&dma_apbx 13>;
+				dma-names = "rx", "tx";
+				clocks = <&clks 45>;
+				status = "disabled";
+			};
+
+			auart3: serial@80070000 {
+				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
+				reg = <0x80070000 0x2000>;
+				interrupts = <115>;
+				dmas = <&dma_apbx 14>, <&dma_apbx 15>;
+				dma-names = "rx", "tx";
+				clocks = <&clks 45>;
+				status = "disabled";
+			};
+
+			auart4: serial@80072000 {
+				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
+				reg = <0x80072000 0x2000>;
+				interrupts = <116>;
+				dmas = <&dma_apbx 0>, <&dma_apbx 1>;
+				dma-names = "rx", "tx";
+				clocks = <&clks 45>;
+				status = "disabled";
+			};
+
+			duart: serial@80074000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x80074000 0x1000>;
+				interrupts = <47>;
+				clocks = <&clks 45>, <&clks 26>;
+				clock-names = "uart", "apb_pclk";
+				status = "disabled";
+			};
+
+			usbphy0: usbphy@8007c000 {
+				compatible = "fsl,imx28-usbphy", "fsl,imx23-usbphy";
+				reg = <0x8007c000 0x2000>;
+				clocks = <&clks 62>;
+				status = "disabled";
+			};
+
+			usbphy1: usbphy@8007e000 {
+				compatible = "fsl,imx28-usbphy", "fsl,imx23-usbphy";
+				reg = <0x8007e000 0x2000>;
+				clocks = <&clks 63>;
+				status = "disabled";
+			};
+		};
+	};
+
+	ahb@80080000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x80080000 0x80000>;
+		ranges;
+
+		usb0: usb@80080000 {
+			compatible = "fsl,imx28-usb", "fsl,imx27-usb";
+			reg = <0x80080000 0x10000>;
+			interrupts = <93>;
+			clocks = <&clks 60>;
+			fsl,usbphy = <&usbphy0>;
+			status = "disabled";
+		};
+
+		usb1: usb@80090000 {
+			compatible = "fsl,imx28-usb", "fsl,imx27-usb";
+			reg = <0x80090000 0x10000>;
+			interrupts = <92>;
+			clocks = <&clks 61>;
+			fsl,usbphy = <&usbphy1>;
+			dr_mode = "host";
+			status = "disabled";
+		};
+
+		dflpt: dflpt@800c0000 {
+			reg = <0x800c0000 0x10000>;
+			status = "disabled";
+		};
+
+		mac0: ethernet@800f0000 {
+			compatible = "fsl,imx28-fec";
+			reg = <0x800f0000 0x4000>;
+			interrupts = <101>;
+			clocks = <&clks 57>, <&clks 57>, <&clks 64>;
+			clock-names = "ipg", "ahb", "enet_out";
+			status = "disabled";
+		};
+
+		mac1: ethernet@800f4000 {
+			compatible = "fsl,imx28-fec";
+			reg = <0x800f4000 0x4000>;
+			interrupts = <102>;
+			clocks = <&clks 57>, <&clks 57>;
+			clock-names = "ipg", "ahb";
+			status = "disabled";
+		};
+
+		etn_switch: switch@800f8000 {
+			reg = <0x800f8000 0x8000>;
+			status = "disabled";
+		};
+	};
+
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&lradc 8>;
+	};
+};

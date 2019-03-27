@@ -1,0 +1,389 @@
+.TH "Heimdal GSS-API functions" 3 "11 Jan 2012" "Version 1.5.2" "HeimdalGSS-APIlibrary" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+Heimdal GSS-API functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL \fBgss_add_oid_set_member\fP (OM_uint32 *minor_status, const gss_OID member_oid, gss_OID_set *oid_set)"
+.br
+.ti -1c
+.RI "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL \fBgss_wrap_iov\fP (OM_uint32 *minor_status, gss_ctx_id_t context_handle, int conf_req_flag, gss_qop_t qop_req, int *conf_state, gss_iov_buffer_desc *iov, int iov_count)"
+.br
+.ti -1c
+.RI "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL \fBgss_unwrap_iov\fP (OM_uint32 *minor_status, gss_ctx_id_t context_handle, int *conf_state, gss_qop_t *qop_state, gss_iov_buffer_desc *iov, int iov_count)"
+.br
+.ti -1c
+.RI "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL \fBgss_wrap_iov_length\fP (OM_uint32 *minor_status, gss_ctx_id_t context_handle, int conf_req_flag, gss_qop_t qop_req, int *conf_state, gss_iov_buffer_desc *iov, int iov_count)"
+.br
+.ti -1c
+.RI "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL \fBgss_release_iov_buffer\fP (OM_uint32 *minor_status, gss_iov_buffer_desc *iov, int iov_count)"
+.br
+.ti -1c
+.RI "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL \fBgss_canonicalize_name\fP (OM_uint32 *minor_status, const gss_name_t input_name, const gss_OID mech_type, gss_name_t *output_name)"
+.br
+.ti -1c
+.RI "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL \fBgss_import_name\fP (OM_uint32 *minor_status, const gss_buffer_t input_name_buffer, const gss_OID input_name_type, gss_name_t *output_name)"
+.br
+.ti -1c
+.RI "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL \fBgss_init_sec_context\fP (OM_uint32 *minor_status, const gss_cred_id_t initiator_cred_handle, gss_ctx_id_t *context_handle, const gss_name_t target_name, const gss_OID input_mech_type, OM_uint32 req_flags, OM_uint32 time_req, const gss_channel_bindings_t input_chan_bindings, const gss_buffer_t input_token, gss_OID *actual_mech_type, gss_buffer_t output_token, OM_uint32 *ret_flags, OM_uint32 *time_rec)"
+.br
+.ti -1c
+.RI "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL \fBgss_inquire_saslname_for_mech\fP (OM_uint32 *minor_status, const gss_OID desired_mech, gss_buffer_t sasl_mech_name, gss_buffer_t mech_name, gss_buffer_t mech_description)"
+.br
+.ti -1c
+.RI "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL \fBgss_inquire_attrs_for_mech\fP (OM_uint32 *minor_status, gss_const_OID mech, gss_OID_set *mech_attr, gss_OID_set *known_mech_attrs)"
+.br
+.ti -1c
+.RI "GSSAPI_LIB_FUNCTION int GSSAPI_LIB_CALL \fBgss_oid_equal\fP (gss_const_OID a, gss_const_OID b)"
+.br
+.ti -1c
+.RI "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL \fBgss_release_cred\fP (OM_uint32 *minor_status, gss_cred_id_t *cred_handle)"
+.br
+.ti -1c
+.RI "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL \fBgss_release_name\fP (OM_uint32 *minor_status, gss_name_t *input_name)"
+.br
+.ti -1c
+.RI "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL \fBgss_wrap\fP (OM_uint32 *minor_status, const gss_ctx_id_t context_handle, int conf_req_flag, gss_qop_t qop_req, const gss_buffer_t input_message_buffer, int *conf_state, gss_buffer_t output_message_buffer)"
+.br
+.in -1c
+.SS "Variables"
+
+.in +1c
+.ti -1c
+.RI "gss_OID_desc GSSAPI_LIB_FUNCTION \fB__gss_c_attr_stream_sizes_oid_desc\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL gss_add_oid_set_member (OM_uint32 * minor_status, const gss_OID member_oid, gss_OID_set * oid_set)"
+.PP
+Add a oid to the oid set, function does not make a copy of the oid, so the pointer to member_oid needs to be stable for the whole time oid_set is used.
+.PP
+If there is a duplicate member of the oid, the new member is not added to to the set.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIminor_status\fP minor status code. 
+.br
+\fImember_oid\fP member to add to the oid set 
+.br
+\fIoid_set\fP oid set to add the member too
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+a gss_error code, see gss_display_status() about printing the error code. 
+.RE
+.PP
+
+.SS "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL gss_canonicalize_name (OM_uint32 * minor_status, const gss_name_t input_name, const gss_OID mech_type, gss_name_t * output_name)"
+.PP
+gss_canonicalize_name takes a Internal Name (IN) and converts in into a mechanism specific Mechanism Name (MN).
+.PP
+The input name may multiple name, or generic name types.
+.PP
+If the input_name if of the GSS_C_NT_USER_NAME, and the Kerberos mechanism is specified, the resulting MN type is a GSS_KRB5_NT_PRINCIPAL_NAME.
+.PP
+For more information about \fBinternalVSmechname\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIminor_status\fP minor status code. 
+.br
+\fIinput_name\fP name to covert, unchanged by \fBgss_canonicalize_name()\fP. 
+.br
+\fImech_type\fP the type to convert Name too. 
+.br
+\fIoutput_name\fP the resulting type, release with \fBgss_release_name()\fP, independent of input_name.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+a gss_error code, see gss_display_status() about printing the error code. 
+.RE
+.PP
+
+.SS "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL gss_import_name (OM_uint32 * minor_status, const gss_buffer_t input_name_buffer, const gss_OID input_name_type, gss_name_t * output_name)"
+.PP
+Import a name internal or mechanism name
+.PP
+Type of name and their format:
+.IP "\(bu" 2
+GSS_C_NO_OID
+.IP "\(bu" 2
+GSS_C_NT_USER_NAME
+.IP "\(bu" 2
+GSS_C_NT_HOSTBASED_SERVICE
+.IP "\(bu" 2
+GSS_C_NT_EXPORT_NAME
+.IP "\(bu" 2
+GSS_C_NT_ANONYMOUS
+.IP "\(bu" 2
+GSS_KRB5_NT_PRINCIPAL_NAME
+.PP
+.PP
+For more information about \fBinternalVSmechname\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIminor_status\fP minor status code 
+.br
+\fIinput_name_buffer\fP import name buffer 
+.br
+\fIinput_name_type\fP type of the import name buffer 
+.br
+\fIoutput_name\fP the resulting type, release with \fBgss_release_name()\fP, independent of input_name
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+a gss_error code, see gss_display_status() about printing the error code. 
+.RE
+.PP
+
+.SS "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL gss_init_sec_context (OM_uint32 * minor_status, const gss_cred_id_t initiator_cred_handle, gss_ctx_id_t * context_handle, const gss_name_t target_name, const gss_OID input_mech_type, OM_uint32 req_flags, OM_uint32 time_req, const gss_channel_bindings_t input_chan_bindings, const gss_buffer_t input_token, gss_OID * actual_mech_type, gss_buffer_t output_token, OM_uint32 * ret_flags, OM_uint32 * time_rec)"
+.PP
+As the initiator build a context with an acceptor.
+.PP
+Returns in the major
+.IP "\(bu" 2
+GSS_S_COMPLETE - if the context if build
+.IP "\(bu" 2
+GSS_S_CONTINUE_NEEDED - if the caller needs to continue another round of gss_i nit_sec_context
+.IP "\(bu" 2
+error code - any other error code
+.PP
+.PP
+\fBParameters:\fP
+.RS 4
+\fIminor_status\fP minor status code.
+.br
+\fIinitiator_cred_handle\fP the credential to use when building the context, if GSS_C_NO_CREDENTIAL is passed, the default credential for the mechanism will be used.
+.br
+\fIcontext_handle\fP a pointer to a context handle, will be returned as long as there is not an error.
+.br
+\fItarget_name\fP the target name of acceptor, created using \fBgss_import_name()\fP. The name is can be of any name types the mechanism supports, check supported name types with gss_inquire_names_for_mech().
+.br
+\fIinput_mech_type\fP mechanism type to use, if GSS_C_NO_OID is used, Kerberos (GSS_KRB5_MECHANISM) will be tried. Other available mechanism are listed in the \fBGSS-API mechanisms\fP section.
+.br
+\fIreq_flags\fP flags using when building the context, see \fBContext creation flags\fP
+.br
+\fItime_req\fP time requested this context should be valid in seconds, common used value is GSS_C_INDEFINITE
+.br
+\fIinput_chan_bindings\fP Channel bindings used, if not exepected otherwise, used GSS_C_NO_CHANNEL_BINDINGS
+.br
+\fIinput_token\fP input token sent from the acceptor, for the initial packet the buffer of { NULL, 0 } should be used.
+.br
+\fIactual_mech_type\fP the actual mech used, MUST NOT be freed since it pointing to static memory.
+.br
+\fIoutput_token\fP if there is an output token, regardless of complete, continue_needed, or error it should be sent to the acceptor
+.br
+\fIret_flags\fP return what flags was negotitated, caller should check if they are accetable. For example, if GSS_C_MUTUAL_FLAG was negotiated with the acceptor or not.
+.br
+\fItime_rec\fP amount of time this context is valid for
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+a gss_error code, see gss_display_status() about printing the error code. 
+.RE
+.PP
+
+.SS "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL gss_inquire_attrs_for_mech (OM_uint32 * minor_status, gss_const_OID mech, gss_OID_set * mech_attr, gss_OID_set * known_mech_attrs)"
+.PP
+List support attributes for a mech and/or all mechanisms.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIminor_status\fP minor status code 
+.br
+\fImech\fP given together with mech_attr will return the list of attributes for mechanism, can optionally be GSS_C_NO_OID. 
+.br
+\fImech_attr\fP see mech parameter, can optionally be NULL, release with gss_release_oid_set(). 
+.br
+\fIknown_mech_attrs\fP all attributes for mechanisms supported, release with gss_release_oid_set(). 
+.RE
+.PP
+
+.SS "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL gss_inquire_saslname_for_mech (OM_uint32 * minor_status, const gss_OID desired_mech, gss_buffer_t sasl_mech_name, gss_buffer_t mech_name, gss_buffer_t mech_description)"
+.PP
+Returns different protocol names and description of the mechanism.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIminor_status\fP minor status code 
+.br
+\fIdesired_mech\fP mech list query 
+.br
+\fIsasl_mech_name\fP SASL GS2 protocol name 
+.br
+\fImech_name\fP gssapi protocol name 
+.br
+\fImech_description\fP description of gssapi mech
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns GSS_S_COMPLETE or a error code. 
+.RE
+.PP
+
+.SS "GSSAPI_LIB_FUNCTION int GSSAPI_LIB_CALL gss_oid_equal (gss_const_OID a, gss_const_OID b)"
+.PP
+Compare two GSS-API OIDs with each other.
+.PP
+GSS_C_NO_OID matches nothing, not even it-self.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIa\fP first oid to compare 
+.br
+\fIb\fP second oid to compare
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+non-zero when both oid are the same OID, zero when they are not the same. 
+.RE
+.PP
+
+.SS "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL gss_release_cred (OM_uint32 * minor_status, gss_cred_id_t * cred_handle)"
+.PP
+Release a credentials
+.PP
+Its ok to release the GSS_C_NO_CREDENTIAL/NULL credential, it will return a GSS_S_COMPLETE error code. On return cred_handle is set ot GSS_C_NO_CREDENTIAL.
+.PP
+Example:
+.PP
+.PP
+.nf
+ gss_cred_id_t cred = GSS_C_NO_CREDENTIAL;
+ major = gss_release_cred(&minor, &cred);
+.fi
+.PP
+.PP
+\fBParameters:\fP
+.RS 4
+\fIminor_status\fP minor status return code, mech specific 
+.br
+\fIcred_handle\fP a pointer to the credential too release
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+an gssapi error code 
+.RE
+.PP
+
+.SS "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL gss_release_iov_buffer (OM_uint32 * minor_status, gss_iov_buffer_desc * iov, int iov_count)"
+.PP
+Free all buffer allocated by \fBgss_wrap_iov()\fP or \fBgss_unwrap_iov()\fP by looking at the GSS_IOV_BUFFER_FLAG_ALLOCATED flag. 
+.SS "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL gss_release_name (OM_uint32 * minor_status, gss_name_t * input_name)"
+.PP
+Free a name
+.PP
+import_name can point to NULL or be NULL, or a pointer to a gss_name_t structure. If it was a pointer to gss_name_t, the pointer will be set to NULL on success and failure.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIminor_status\fP minor status code 
+.br
+\fIinput_name\fP name to free
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+a gss_error code, see gss_display_status() about printing the error code. 
+.RE
+.PP
+
+.SS "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL gss_unwrap_iov (OM_uint32 * minor_status, gss_ctx_id_t context_handle, int * conf_state, gss_qop_t * qop_state, gss_iov_buffer_desc * iov, int iov_count)"
+.PP
+Decrypt or verifies the signature on the data. 
+.SS "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL gss_wrap (OM_uint32 * minor_status, const gss_ctx_id_t context_handle, int conf_req_flag, gss_qop_t qop_req, const gss_buffer_t input_message_buffer, int * conf_state, gss_buffer_t output_message_buffer)"
+.PP
+Wrap a message using either confidentiality (encryption + signature) or sealing (signature).
+.PP
+\fBParameters:\fP
+.RS 4
+\fIminor_status\fP minor status code. 
+.br
+\fIcontext_handle\fP context handle. 
+.br
+\fIconf_req_flag\fP if non zero, confidentiality is requestd. 
+.br
+\fIqop_req\fP type of protection needed, in most cases it GSS_C_QOP_DEFAULT should be passed in. 
+.br
+\fIinput_message_buffer\fP messages to wrap 
+.br
+\fIconf_state\fP returns non zero if confidentiality was honoured. 
+.br
+\fIoutput_message_buffer\fP the resulting buffer, release with gss_release_buffer(). 
+.RE
+.PP
+
+.SS "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL gss_wrap_iov (OM_uint32 * minor_status, gss_ctx_id_t context_handle, int conf_req_flag, gss_qop_t qop_req, int * conf_state, gss_iov_buffer_desc * iov, int iov_count)"
+.PP
+Encrypts or sign the data.
+.PP
+This is a more complicated version of \fBgss_wrap()\fP, it allows the caller to use AEAD data (signed header/trailer) and allow greater controll over where the encrypted data is placed.
+.PP
+The maximum packet size is gss_context_stream_sizes.max_msg_size.
+.PP
+The caller needs provide the folloing buffers when using in conf_req_flag=1 mode:
+.PP
+.IP "\(bu" 2
+HEADER (of size gss_context_stream_sizes.header) { DATA or SIGN_ONLY } (optional, zero or more) PADDING (of size gss_context_stream_sizes.blocksize, if zero padding is zero, can be omitted) TRAILER (of size gss_context_stream_sizes.trailer)
+.PP
+.PP
+.IP "\(bu" 2
+on DCE-RPC mode, the caller can skip PADDING and TRAILER if the DATA elements is padded to a block bountry and header is of at least size gss_context_stream_sizes.header + gss_context_stream_sizes.trailer.
+.PP
+.PP
+HEADER, PADDING, TRAILER will be shrunken to the size required to transmit any of them too large.
+.PP
+To generate \fBgss_wrap()\fP compatible packets, use: HEADER | DATA | PADDING | TRAILER
+.PP
+When used in conf_req_flag=0,
+.PP
+.IP "\(bu" 2
+HEADER (of size gss_context_stream_sizes.header) { DATA or SIGN_ONLY } (optional, zero or more) PADDING (of size gss_context_stream_sizes.blocksize, if zero padding is zero, can be omitted) TRAILER (of size gss_context_stream_sizes.trailer)
+.PP
+.PP
+The input sizes of HEADER, PADDING and TRAILER can be fetched using \fBgss_wrap_iov_length()\fP or gss_context_query_attributes(). 
+.SS "GSSAPI_LIB_FUNCTION OM_uint32 GSSAPI_LIB_CALL gss_wrap_iov_length (OM_uint32 * minor_status, gss_ctx_id_t context_handle, int conf_req_flag, gss_qop_t qop_req, int * conf_state, gss_iov_buffer_desc * iov, int iov_count)"
+.PP
+Update the length fields in iov buffer for the types:
+.IP "\(bu" 2
+GSS_IOV_BUFFER_TYPE_HEADER
+.IP "\(bu" 2
+GSS_IOV_BUFFER_TYPE_PADDING
+.IP "\(bu" 2
+GSS_IOV_BUFFER_TYPE_TRAILER
+.PP
+.PP
+Consider using gss_context_query_attributes() to fetch the data instead. 
+.SH "Variable Documentation"
+.PP 
+.SS "gss_OID_desc GSSAPI_LIB_FUNCTION \fB__gss_c_attr_stream_sizes_oid_desc\fP"
+.PP
+\fBInitial value:\fP
+.PP
+.nf
+
+    {10, rk_UNCONST('\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x03')}
+.fi
+Query the context for parameters.
+.PP
+SSPI equivalent if this function is QueryContextAttributes.
+.PP
+.IP "\(bu" 2
+GSS_C_ATTR_STREAM_SIZES data is a gss_context_stream_sizes. 
+.PP
+

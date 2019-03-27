@@ -1,0 +1,63 @@
+< nf0 ip #52618 84(20) 17 192.168.6.1,32885 > 192.168.7.1,111
+> qfe0 ip #0 84(20) 17 192.168.7.2,32885 > 192.168.7.1,111
+< qfe0 ip #52611 56(20) 17 192.168.7.1,111 > 192.168.6.1,32885
+> nf0 ip #1 56(20) 17 192.168.6.2,111 > 192.168.6.1,32885
+< nf0 ip #54694 68(20) 17 192.168.6.1,32991 > 192.168.7.1,2049
+> qfe0 ip #2 68(20) 17 192.168.7.2,32991 > 192.168.7.1,2049
+< qfe0 ip #0 52(20) 17 192.168.7.1,2049 > 192.168.6.1,32991
+> nf0 ip #3 52(20) 17 192.168.6.2,2049 > 192.168.6.1,32991
+List of active MAP/Redirect filters:
+rdr nf0 192.168.6.2/32 port 111 -> 192.168.7.1/32 port 111 udp proxy rpcbu
+rdr nf0 192.168.6.2/32 port 111 -> 192.168.7.1/32 port 111 tcp proxy rpcbt
+map qfe0 192.168.6.0/24 -> 192.168.7.2/32
+
+List of active sessions:
+MAP 192.168.6.1     32991 <- -> 192.168.7.2     32991 [192.168.7.1 2049]
+RDR 192.168.7.1     2049  <- -> 192.168.6.2     2049  [192.168.6.1 32991]
+RDR CLONE 192.168.7.1     2049  <- -> 192.168.6.2     2049  [192.168.6.1 0]
+MAP 192.168.6.1     32885 <- -> 192.168.7.2     32885 [192.168.7.1 111]
+RDR 192.168.7.1     111   <- -> 192.168.6.2     111   [192.168.6.1 32885]
+	proxy active
+
+Hostmap table:
+192.168.6.1,192.168.7.1 -> 192.168.7.2,0.0.0.0 (use = 2)
+List of active state sessions:
+4:udp src:192.168.6.1,32991 dst:192.168.7.1,2049 24
+	FWD: IN pkts 2 bytes 96 OUT pkts 1 bytes 68
+	REV: IN pkts 1 bytes 52 OUT pkts 1 bytes 52
+	tag 0 pass 0x502 = pass in quick keep state
+	interfaces: in X[nf0],X[qfe0] out X[qfe0],X[nf0]
+	Sync status: not synchronized
+4:udp src:192.168.6.1,* dst:192.168.7.1,2049 240 CLONE
+	FWD: IN pkts 1 bytes 28 OUT pkts 0 bytes 0
+	REV: IN pkts 0 bytes 0 OUT pkts 0 bytes 0
+	tag 0 pass 0x502 = pass in quick keep state
+	interfaces: in X[nf0],X[] out X[],X[]
+	Sync status: not synchronized
+4:udp src:192.168.6.1,32885 dst:192.168.7.1,111 24
+	FWD: IN pkts 1 bytes 84 OUT pkts 1 bytes 84
+	REV: IN pkts 1 bytes 56 OUT pkts 1 bytes 56
+	tag 0 pass 0x2008502 = pass in quick keep state
+	interfaces: in X[nf0],X[qfe0] out X[qfe0],X[nf0]
+	Sync status: not synchronized
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+0 pass in quick on nf0 proto tcp from any to any port = 111 flags S/FSRPAU keep state
+1 pass in quick on nf0 proto udp from any to any port = 111 keep state
+0 block return-rst in log quick on nf0 proto tcp from any to any
+0 block in log quick on nf0 inet from 192.168.7.0/24 to any
+0 block return-rst in log quick on qfe0 proto tcp from any to any
+0 block in log quick on qfe0 inet from 192.168.6.0/24 to any
+Rules configured (set 0, out)
+0 block out log quick on qfe0 inet from 192.168.7.0/24 to any
+0 block out log quick on nf0 inet from 192.168.6.0/24 to any
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
+-------------------------------

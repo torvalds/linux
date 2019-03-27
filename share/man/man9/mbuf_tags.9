@@ -1,0 +1,286 @@
+.\"	$OpenBSD: mbuf_tags.9,v 1.18 2003/12/08 07:07:35 mcbride Exp $
+.\"
+.\" The authors of this manual page are Angelos D. Keromytis
+.\" (angelos@cis.upenn.edu), Gleb Smirnoff <glebius@FreeBSD.org>, and
+.\" Robert Watson <rwatson@FreeBSD.org>
+.\"
+.\" Copyright (c) 2004 Robert N. M. Watson
+.\" Copyright (c) 2001 Angelos D. Keromytis
+.\"
+.\" Permission to use, copy, and modify this software with or without
+.\" fee is hereby granted, provided that this entire notice is included
+.\" in all source code copies of any software which is or includes a copy
+.\" or modification of this software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTY. IN PARTICULAR, NONE OF THE AUTHORS MAKES ANY
+.\" REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE
+.\" MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR
+.\" PURPOSE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 12, 2008
+.Dt MBUF_TAGS 9
+.Os
+.Sh NAME
+.Nm mbuf_tags
+.Nd a framework for generic packet attributes
+.Sh SYNOPSIS
+.In sys/mbuf.h
+.Ft "struct m_tag *"
+.Fn m_tag_alloc "uint32_t cookie" "int type" "int len" "int wait"
+.Ft "struct m_tag *"
+.Fn m_tag_copy "struct m_tag *t" "int how"
+.Ft int
+.Fn m_tag_copy_chain "struct mbuf *to" "const struct mbuf *from" "int how"
+.Ft void
+.Fn m_tag_delete "struct mbuf *m" "struct m_tag *t"
+.Ft void
+.Fn m_tag_delete_chain "struct mbuf *m" "struct m_tag *t"
+.Ft void
+.Fn m_tag_delete_nonpersistent "struct mbuf *m"
+.Ft "struct m_tag *"
+.Fn m_tag_find "struct mbuf *m" "int type" "struct m_tag *start"
+.Ft "struct m_tag *"
+.Fn m_tag_first "struct mbuf *m"
+.Ft void
+.Fn m_tag_free "struct m_tag *t"
+.Ft "struct m_tag *"
+.Fn m_tag_get "int type" "int len" "int wait"
+.Ft void
+.Fn m_tag_init "struct mbuf *m"
+.Ft struct m_tag *
+.Fn m_tag_locate "struct mbuf *m" "uint32_t cookie" "int type" "struct m_tag *t"
+.Ft "struct m_tag *"
+.Fn m_tag_next "struct mbuf *m" "struct m_tag *t"
+.Ft void
+.Fn m_tag_prepend "struct mbuf *m" "struct m_tag *t"
+.Ft void
+.Fn m_tag_unlink "struct mbuf *m" "struct m_tag *t"
+.Sh DESCRIPTION
+Mbuf tags allow additional meta-data to be associated with in-flight packets
+by providing a mechanism for the tagging of additional kernel memory onto
+packet header mbufs.
+Tags are maintained in chains off of the
+.Xr mbuf 9
+header, and maintained using a series of API calls to allocate, search, and
+delete tags.
+Tags are identified using an ID and cookie that uniquely identify a class
+of data tagged onto the packet, and may contain an arbitrary amount of
+additional storage.
+Typical uses of mbuf tags include Mandatory Access Control (MAC) labels as
+described in
+.Xr mac 9 ,
+IPsec policy information as described in
+.Xr ipsec 4 ,
+and packet filter tags used by
+.Xr pf 4 .
+.Pp
+Tags will be maintained across a variety of operations, including the copying
+of packet headers using facilities such as
+.Fn M_COPY_PKTHDR
+and
+.Fn M_MOVE_PKTHDR .
+Any tags associated with an mbuf header will be automatically freed when the
+mbuf is freed, although some subsystems will wish to delete the tags prior
+to that time.
+.Pp
+Packet tags are used by different kernel APIs
+to keep track of operations done or
+scheduled to happen to packets.
+Each packet tag can be distinguished by its type and cookie.
+The cookie is used to identify a specific module or API.
+The packet tags are attached to mbuf packet headers.
+.Pp
+The first
+.Fn sizeof "struct m_tag"
+bytes of a tag contain a
+.Vt "struct m_tag" :
+.Bd -literal
+struct m_tag {
+	SLIST_ENTRY(m_tag)	m_tag_link;	/* List of packet tags */
+	uint16_t		m_tag_id;	/* Tag ID */
+	uint16_t		m_tag_len;	/* Length of data */
+	uint32_t		m_tag_cookie;	/* ABI/Module ID */
+	void			(*m_tag_free)(struct m_tag *);
+};
+.Ed
+.Pp
+The
+.Va m_tag_link
+field is used to link tags together (see
+.Xr queue 3
+for more details).
+The
+.Va m_tag_id , m_tag_len
+and
+.Va m_tag_cookie
+fields are set to type, length,
+and
+cookie, respectively.
+.Va m_tag_free
+points to
+.Fn m_tag_free_default .
+Following this structure are
+.Va m_tag_len
+bytes of space that can be used to store tag-specific information.
+Addressing this data region may be tricky.
+A safe way is embedding
+.Vt "struct m_tag"
+into a private data structure, as follows:
+.Bd -literal -offset indent
+struct foo {
+	struct m_tag	tag;
+	...
+};
+struct foo *p = (struct foo *)m_tag_alloc(...);
+struct m_tag *mtag = &p->tag;
+.Ed
+.Pp
+Note that
+.Ox
+does not support cookies, it needs
+.Va m_tag_id
+to be globally unique.
+To keep compatibility with
+.Ox ,
+a cookie
+.Dv MTAG_ABI_COMPAT
+is provided along with some compatibility functions.
+When writing an
+.Ox
+compatible code, one should be careful not to take already
+used tag type.
+Tag types are defined in
+.In sys/mbuf.h .
+.Ss Packet Tag Manipulation Functions
+.Bl -ohang -offset indent
+.It Fn m_tag_alloc cookie type len wait
+Allocate a new tag of type
+.Fa type
+and cookie
+.Fa cookie
+with
+.Va len
+bytes of space following the tag header itself.
+The
+.Fa wait
+argument is passed directly to
+.Xr malloc 9 .
+If successful,
+.Fn m_tag_alloc
+returns a memory buffer of
+.Pq Va len No + Fn sizeof "struct m_tag"
+bytes.
+Otherwise,
+.Dv NULL
+is returned.
+A compatibility function
+.Fn m_tag_get
+is also provided.
+.It Fn m_tag_copy tag how
+Allocate a copy of
+.Fa tag .
+The
+.Fa how
+argument is passed directly to
+.Fn m_tag_alloc .
+The return values are the same as in
+.Fn m_tag_alloc .
+.It Fn m_tag_copy_chain tombuf frommbuf how
+Allocate and copy all tags from mbuf
+.Fa frommbuf
+to mbuf
+.Fa tombuf .
+Returns 1 on success, and 0 on failure.
+In the latter case, mbuf
+.Fa tombuf
+loses all its tags, even previously present.
+.It Fn m_tag_delete mbuf tag
+Remove
+.Fa tag
+from
+.Fa mbuf Ns 's
+list and free it.
+.It Fn m_tag_delete_chain mbuf tag
+Remove and free a packet tag chain, starting from
+.Fa tag .
+If
+.Fa tag
+is
+.Dv NULL ,
+all tags are deleted.
+.It Fn m_tag_delete_nonpersistent mbuf
+Traverse
+.Fa mbuf Ns 's
+tags and delete those which do not have the
+.Dv MTAG_PERSISTENT
+flag set.
+.It Fn m_tag_first mbuf
+Return the first tag associated with
+.Fa mbuf .
+.It Fn m_tag_free tag
+Free
+.Fa tag
+using its
+.Va m_tag_free
+method.
+The
+.Fn m_tag_free_default
+function
+is used by default.
+.It Fn m_tag_init mbuf
+Initialize the tag storage for packet
+.Fa mbuf .
+.It Fn m_tag_locate mbuf cookie type tag
+Search for a tag defined by
+.Fa type
+and
+.Fa cookie
+in
+.Fa mbuf ,
+starting from position specified by
+.Fa tag .
+If the latter is
+.Dv NULL ,
+then search through the whole list.
+Upon success, a pointer to the first found tag is returned.
+In either case,
+.Dv NULL
+is returned.
+A compatibility function
+.Fn m_tag_find
+is also provided.
+.It Fn m_tag_next mbuf tag
+Return tag next to
+.Fa tag
+in
+.Fa mbuf .
+If absent,
+.Dv NULL
+is returned.
+.It Fn m_tag_prepend mbuf tag
+Add the new tag
+.Fa tag
+at the head of the tag list for packet
+.Fa mbuf .
+.It Fn m_tag_unlink mbuf tag
+Remove tag
+.Fa tag
+from the list of tags of packet
+.Fa mbuf .
+.El
+.Sh CODE REFERENCES
+The tag-manipulating code is contained in the file
+.Pa sys/kern/uipc_mbuf2.c .
+Inlined functions are defined in
+.In sys/mbuf.h .
+.Sh SEE ALSO
+.Xr queue 3 ,
+.Xr mbuf 9
+.Sh HISTORY
+The packet tags first appeared in
+.Ox 2.9
+and were written by
+.An Angelos D. Keromytis Aq Mt angelos@openbsd.org .

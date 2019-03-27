@@ -1,0 +1,129 @@
+.\"
+.\" Copyright (c) 2002 M. Warner Losh
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 26, 2014
+.Dt DEVCTL 4
+.Os
+.Sh NAME
+.Nm devctl
+.Nd "device event reporting and device control interface"
+.Sh DESCRIPTION
+The
+.Nm
+device is used to report device events from the kernel.
+Future versions will allow for some device control as well.
+.Sh IMPLEMENTATION NOTES
+This design allows only one reader for
+.Pa /dev/devctl .
+This is not desirable
+in the long run, but will get a lot of hair out of this implementation.
+Maybe we should make this device a clonable device.
+.Pp
+Also note: we specifically do not attach a device to the
+.Vt device_t
+tree
+to avoid potential chicken and egg problems.
+One could argue that all of this belongs to the root node.
+One could also further argue that the
+.Xr sysctl 3
+interface that we have now might more properly be an
+.Xr ioctl 2
+interface.
+.Pp
+.Dv SIGIO
+support is included in the driver.
+However, the author is not sure that the
+.Dv SIGIO
+support is done correctly.
+It was copied from a driver that had
+.Dv SIGIO
+support that likely has not been
+tested since
+.Fx 3.4
+or
+.Fx 2.2.8 !
+.Pp
+The read channel for this device is used to report changes to
+userland in realtime.
+We return one record at a time.
+If you try to read this device a character at a time, you will lose
+the rest of the data.
+Listening programs are expected to cope.
+.Pp
+The sysctl
+.Va hw.bus.devctl_queue
+can be used to control queue length.
+It is set to 0 to disable
+.Nm
+when no
+.Xr devd 8
+is running.
+.Sh PROTOCOL
+The
+.Nm
+device
+uses an
+.Tn ASCII
+protocol.
+The driver returns one record at a time to its readers.
+Each record is terminated with a newline.
+The first character of the record is the event type.
+.Pp
+.Bl -column -compact "Type" "Description"
+.Em "Type	Description"
+!	A notify event, such as a link state change.
++	Device node in tree attached.
+-	Device node in tree detached.
+?	Unknown device detected.
+.El
+.Ss Message Formats
+Except for the first character in the record, attach and detach
+messages have the same format.
+.Pp
+.D1 Ar T Ns Ar dev Li at Ar parent Li on Ar location
+.Pp
+.Bl -column -compact "location" "Description"
+.Em "Part	Description"
+.It Ar T Ta "+ or -"
+.It Ar dev Ta "The device name that was attached/detached."
+.It Ar parent Ta "The device name of the parent bus that attached the device."
+.It Ar location Ta "Bus specific location information."
+.El
+.Pp
+The nomatch messages can be used to load devices driver.
+If you load a device driver, then one of two things can happen.
+If the device driver attaches to something, you will get a device
+attached message.
+If it does not, then nothing will happen.
+.Pp
+The attach and detach messages arrive after the event.
+This means one cannot use the attach message to load an alternate
+driver.
+The attach message driver has already claimed this device.
+One cannot use the detach messages to flush data to the device.
+The device is already gone.
+.Sh SEE ALSO
+.Xr devd 8

@@ -1,0 +1,111 @@
+.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Edward Tomasz Napierala under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 22, 2014
+.Dt AUTOMOUNT 8
+.Os
+.Sh NAME
+.Nm automount
+.Nd update autofs mounts
+.Sh SYNOPSIS
+.Nm
+.Op Fl D Ar name=value
+.Op Fl L
+.Op Fl c
+.Op Fl f
+.Op Fl o Ar options
+.Op Fl v
+.Op Fl u
+.Sh DESCRIPTION
+When called without options, the
+.Nm
+command parses the
+.Xr auto_master 5
+configuration file and any direct maps that it references, and mounts
+or unmounts
+.Xr autofs 5
+filesystems to match.
+These options are available:
+.Bl -tag -width ".Fl v"
+.It Fl D
+Define a variable.
+It is only useful with
+.Fl L .
+.It Fl L
+Do not mount or unmount anything.
+Instead parse
+.Xr auto_master 5
+and any direct maps, then print them to standard output.
+When specified more than once, all the maps, including indirect ones,
+will be parsed and shown.
+This is useful when debugging configuration problems.
+.It Fl c
+Flush caches, discarding possibly stale information obtained from maps
+and directory services.
+.It Fl f
+Force unmount, to be used with
+.Fl u .
+.It Fl o
+Specify mount options to be used along with the ones specified in the maps.
+It is only useful with
+.Fl L .
+.It Fl u
+Try to unmount filesystems mounted by
+.Xr automountd 8 .
+.Xr autofs 5
+mounts are not unmounted.
+To unmount all
+.Xr autofs
+mounts, use
+.Cm "umount -At autofs".
+.It Fl v
+Increase verbosity.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Unmount all filesystems mounted by
+.Xr automountd 8 :
+.Dl Nm Fl u
+.Sh SEE ALSO
+.Xr auto_master 5 ,
+.Xr autofs 5 ,
+.Xr automountd 8 ,
+.Xr autounmountd 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 10.1 .
+.Sh AUTHORS
+The
+.Nm
+was developed by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.

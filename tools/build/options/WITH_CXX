@@ -1,0 +1,4 @@
+.\" $FreeBSD$
+Set to build
+.Xr c++ 1
+and related libraries.

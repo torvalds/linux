@@ -1,0 +1,1393 @@
+if [ ! "$_DEVICE_SUBR" ]; then _DEVICE_SUBR=1
+#
+# Copyright (c) 2012-2016 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." device.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/geom.subr
+f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/struct.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+############################################################ GLOBALS
+
+NDEVICES=0 # Set by f_device_register(), used by f_device_*()
+
+#
+# A "device" from legacy sysinstall's point of view (mostly)
+#
+# NB: Disk devices have their `private' property set to GEOM ident
+# NB: USB devices have their `private' property set to USB disk device name
+#
+f_struct_define DEVICE \
+	capacity	\
+	desc		\
+	devname		\
+	enabled		\
+	flags		\
+	get		\
+	init		\
+	name		\
+	private		\
+	shutdown	\
+	type		\
+	volume	
+
+# Network devices have their `private' property set to this
+f_struct_define DEVICE_INFO \
+	extras		\
+	ipaddr		\
+	ipv6addr	\
+	netmask		\
+	use_dhcp	\
+	use_rtsol
+
+#
+# Device types for f_device_register(), f_device_find(), et al.
+#
+setvar DEVICE_TYPE_ANY		"any"		# Any
+setvar DEVICE_TYPE_NONE		"NONE"		# Unknown
+setvar DEVICE_TYPE_DISK		"DISK"		# GEOM `DISK'
+setvar DEVICE_TYPE_FLOPPY	"FD"		# GEOM `FD'
+setvar DEVICE_TYPE_FTP		"FTP"		# Dynamic network device
+setvar DEVICE_TYPE_NETWORK	"NETWORK"	# See f_device_get_all_network
+setvar DEVICE_TYPE_CDROM	"CDROM"		# GEOM `DISK'
+setvar DEVICE_TYPE_USB		"USB"		# GEOM `PART'
+setvar DEVICE_TYPE_DOS		"DOS"		# GEOM `DISK' `PART' or `LABEL'
+setvar DEVICE_TYPE_UFS		"UFS"		# GEOM `DISK' `PART' or `LABEL'
+setvar DEVICE_TYPE_NFS		"NFS"		# Dynamic network device
+setvar DEVICE_TYPE_HTTP_PROXY	"HTTP_PROXY"	# Dynamic network device
+setvar DEVICE_TYPE_HTTP		"HTTP"		# Dynamic network device
+
+# Network devices have the following flags available
+setvar IF_ETHERNET	1
+setvar IF_WIRELESS	2
+setvar IF_ACTIVE	4
+
+#
+# Default behavior is to call f_device_get_all() automatically when loaded.
+#
+: ${DEVICE_SELF_SCAN_ALL=1}
+
+#
+# Device Catalog variables
+#
+DEVICE_CATALOG_APPEND_ONLY= # Used by f_device_catalog_set()
+NCATALOG_DEVICES=0          # Used by f_device_catalog_*() and MAIN
+
+#
+# A ``catalog'' device is for mapping GEOM devices to media devices (for
+# example, determining if a $GEOM_CLASS_DISK geom is $DEVICE_TYPE_CDROM or
+# $DEVICE_TYPE_DISK) and also getting default descriptions for devices that
+# either lack a GEOM provided description or lack a presence in GEOM)
+#
+f_struct_define CATALOG_DEVICE \
+	desc	\
+	name	\
+	type
+
+############################################################ FUNCTIONS
+
+# f_device_register $var_to_set $name $desc $devname $type $enabled
+#                   $init_function $get_function $shutdown_function
+#                   $private $capacity
+#
+# Register a device. A `structure' (see struct.subr) is created and if
+# $var_to_set is non-NULL, upon success holds the name of the struct created.
+# The remaining positional arguments correspond to the properties of the
+# `DEVICE' structure-type to be assigned (defined above).
+#
+# If not already registered (based on $name and $type), a new device is created
+# and $NDEVICES is incremented.
+#
+f_device_register()
+{
+	local __var_to_set="$1" __name="$2" __desc="$3" __devname="$4"
+	local __type="$5" __enabled="$6" __init_func="$7" __get_func="$8"
+	local __shutdown_func="$9" __private="${10}" __capacity="${11}"
+
+	# Required parameter(s)
+	[ "$__name" ] || return $FAILURE
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "" || return $FAILURE
+	fi
+
+	local __device
+	if f_device_find -1 "$__name" "$__type" __device; then
+		f_struct_free "$__device"
+		f_struct_new DEVICE "$__device" || return $FAILURE
+	else
+		__device=device_$(( NDEVICES + 1 ))
+		f_struct_new DEVICE "$__device" || return $FAILURE
+		NDEVICES=$(( $NDEVICES + 1 ))
+	fi
+	$__device set name     "$__name"
+	$__device set desc     "$__desc"
+	$__device set devname  "$__devname"
+	$__device set type     "$__type"
+	$__device set enabled  "$__enabled"
+	$__device set init     "$__init_func"
+	$__device set get      "$__get_func"
+	$__device set shutdown "$__shutdown_func"
+	$__device set private  "$__private"
+	$__device set capacity "$__capacity"
+
+	[ "$__var_to_set" ] && setvar "$__var_to_set" "$__device"
+	return $SUCCESS
+}
+
+# f_device_reset
+#
+# Reset the registered device chain.
+#
+f_device_reset()
+{
+	local n=1
+	while [ $n -le $NDEVICES ]; do
+		f_device_shutdown device_$n
+
+		#
+		# XXX This potentially leaks $dev->private if it's being
+		# used to point to something dynamic, but you're not supposed
+		# to call this routine at such times that some open instance
+		# has its private member pointing somewhere anyway.
+		#
+		f_struct_free device_$n
+
+		n=$(( $n + 1 ))
+	done
+	NDEVICES=0
+}
+
+# f_device_reset_network
+#
+# Reset the registered network device chain.
+#
+f_device_reset_network()
+{
+	local n=1 device type private i
+	while [ $n -le $NDEVICES ]; do
+		device=device_$n
+		f_struct $device || continue
+		$device get type type
+		[ "$type" = "$DEVICE_TYPE_NETWORK" ] || continue
+
+		#
+		# Leave the device up (don't call shutdown routine)
+		#
+
+		# Network devices may have DEVICE_INFO private member
+		$device get private private
+		[ "$private" ] && f_struct_free "$private"
+
+		# Free the network device
+		f_struct_free $device
+
+		# Fill the gap we just created
+		i=$n
+		while [ $i -lt $NDEVICES ]; do
+			f_struct_copy device_$(( $i + 1 )) device_$i
+		done
+		f_struct_free device_$NDEVICES
+
+		# Finally decrement the number of devices
+		NDEVICES=$(( $NDEVICES - 1 ))
+
+		n=$(( $n + 1 ))
+	done
+}
+
+# f_device_get_all
+#
+# Get all device information for all devices.
+#
+f_device_get_all()
+{
+	local devname type desc capacity
+
+	f_dprintf "f_device_get_all: Probing devices..."
+	f_dialog_info "$msg_probing_devices_please_wait_this_can_take_a_while"
+
+	# First go for the network interfaces
+	f_device_get_all_network
+
+	# Next, go for the GEOM devices we might want to use as media
+	local geom geoms geom_name
+	debug= f_geom_find "" $GEOM_CLASS_DEV geoms
+	for geom in $geoms; do
+		if ! f_device_probe_geom $geom; then
+			debug= $geom get name geom_name
+			f_dprintf "WARNING! Unable to classify %s as %s" \
+			          "GEOM device $geom_name" "media source"
+		fi
+	done
+}
+
+# f_device_get_all_network
+#
+# Get all network device information for attached network devices.
+#
+f_device_get_all_network()
+{
+	local devname desc device flags
+	for devname in $( ifconfig -l ); do
+		# Eliminate network devices that don't make sense
+		case "$devname" in
+		lo*) continue ;;
+		esac
+
+		# Try and find its description
+		f_device_desc "$devname" $DEVICE_TYPE_NETWORK desc
+
+		f_dprintf "Found network device named %s" "$devname"
+		debug= f_device_register device $devname "$desc" \
+			"$devname" $DEVICE_TYPE_NETWORK 1 \
+			f_media_init_network "" f_media_shutdown_network "" -1
+
+		# Set flags based on media and status
+		flags=0
+		eval "$( ifconfig $devname 2> /dev/null | awk -v var=flags '
+		function _or(var, mask) {
+			printf "%s=$(( $%s | $%s ))\n", var, var, mask
+		}
+		BEGIN { S = "[[:space:]]+" }
+		{
+			if (!match($0, "^" S "(media|status):" S)) next
+			value = substr($0, RLENGTH + 1)
+			if ($1 == "media:") {
+				if (value ~ /Ethernet/) _or(var, "IF_ETHERNET")
+				if (value ~ /802\.11/) _or(var, "IF_WIRELESS")
+			} else if ($1 == "status:") {
+				if (value ~ /^active/) _or(var, "IF_ACTIVE")
+			}
+		}' )"
+		$device set flags $flags
+	done
+}
+
+# f_device_rescan
+#
+# Rescan all devices, after closing previous set - convenience function.
+#
+f_device_rescan()
+{
+	f_device_reset
+	f_geom_rescan
+	f_device_get_all
+}
+
+# f_device_rescan_network
+#
+# Rescan all network devices, after closing previous set - for convenience.
+#
+f_device_rescan_network()
+{
+	f_device_reset_network
+	f_device_get_all_network
+}
+
+# f_device_probe_geom $geom
+#
+# Probe a single GEOM device and if it can be classified as a media source,
+# register it using f_device_register() with known type-specific arguments.
+#
+f_device_probe_geom()
+{
+	local geom="$1"
+
+	f_struct "$geom" || return $FAILURE
+
+	# geom associated variables
+	local geom_name geom_consumer provider_ref geom_provider=
+	local provider_geom provider_config provider_class=
+	local provider_config_type catalog_struct catalog_type
+	local disk_ident
+
+	# gnop(8)/geli(8) associated variables (p for `parent device')
+	local p_devname p_geom p_consumer p_provider_ref p_provider 
+	local p_provider_config p_provider_geom p_provider_class
+
+	# md(4) associated variables
+	local config config_type config_file magic=
+
+	# Temporarily disable debugging to keep debug output light
+	local old_debug="$debug" debug=
+
+	#
+	# Get the GEOM name (for use below in device registration)
+	#
+	$geom get name devname || continue
+
+	#
+	# Attempt to get the consumer, provider, provider config, and
+	# provider class for this geom (errors ignored).
+	#
+	# NB: Each GEOM in the `DEV' class should have one consumer.
+	#     That consumer should have a reference to its provider.
+	#
+	$geom get consumer1 geom_consumer
+	f_struct "$geom_consumer" get provider_ref provider_ref &&
+		f_geom_find_by id "$provider_ref" provider geom_provider
+	if f_struct "$geom_provider"; then
+		$geom_provider get config provider_config
+		f_geom_parent $geom_provider provider_geom &&
+			f_geom_parent $provider_geom provider_class
+	fi
+
+	#
+	# Get values for device registration (errors ignored)
+	#
+	f_struct "$provider_class"  get name      type
+	f_struct "$geom_provider"   get mediasize capacity
+	f_struct "$provider_config" get descr     desc
+
+	#
+	# For gnop(8), geli(8), or combination thereof, change device type to
+	# that of the consumer
+	#
+	p_devname= p_geom= p_provider= p_provider_config=
+	case "$devname" in
+	*.nop.eli) p_devname="${devname%.nop.eli}" ;;
+	*.eli.nop) p_devname="${devname%.eli.nop}" ;;
+	*.eli)     p_devname="${devname%.eli}" ;;
+	*.nop)     p_devname="${devname%.nop}" ;;
+	esac
+	[ "$p_devname" ] && f_geom_find "$p_devname" $GEOM_CLASS_DEV p_geom
+	if [ "${p_geom:-$geom}" != "$geom" ]; then
+		f_struct "$p_geom" get consumer1 p_consumer
+		f_struct "$p_consumer" get provider_ref p_provider_ref &&
+			f_geom_find_by id "$p_provider_ref" provider p_provider
+		if f_struct "$p_provider"; then
+			$p_provider get config p_provider_config
+			f_geom_parent $p_provider p_provider_geom &&
+				f_geom_parent $p_provider_geom p_provider_class
+		fi
+		f_struct "$p_provider_class" get name type
+	fi
+
+	# Look up geom device in device catalog for default description
+	f_device_catalog_get \
+		$DEVICE_TYPE_ANY "${p_devname:-$devname}" catalog_struct
+	[ "$desc" ] || f_struct "catalog_device_$catalog_struct" get desc desc
+
+	# Use device catalog entry for potential re-classification(s)
+	f_struct "catalog_device_$catalog_struct" get type catalog_type
+
+	# Restore debugging for this next part (device registration)
+	debug="$old_debug"
+
+	#
+	# Register the device
+	#
+	local retval device
+	case "$type" in
+	$GEOM_CLASS_DISK)
+		# First attempt to classify by device catalog (see MAIN)
+		case "$catalog_type" in
+		$DEVICE_TYPE_CDROM)
+			f_dprintf "Found CDROM device for disk %s" "$devname"
+			debug= f_device_register device "$devname" "$desc" \
+				"/dev/$devname" $DEVICE_TYPE_CDROM 1 \
+				f_media_init_cdrom f_media_get_cdrom \
+				f_media_shutdown_cdrom "" "$capacity" &&
+				return $SUCCESS
+			;;
+		esac
+
+		# Fall back to register label device as a disk and taste it
+		f_dprintf "Found disk device named %s" "$devname"
+		debug= f_struct "$p_provider_config" get \
+			ident disk_ident ||
+			debug= f_struct "$provider_config" get \
+				ident disk_ident
+		debug= f_device_register device "$devname" "$desc" \
+			"/dev/$devname" $DEVICE_TYPE_DISK 1 \
+			"" "" "" "$disk_ident" "$capacity"
+		retval=$?
+
+		# Detect ``dangerously dedicated'' filesystems (errors ignored)
+		f_device_probe_disk_fs device "$devname" "$capacity" &&
+			retval=$SUCCESS
+
+		return $retval
+		;;
+	$GEOM_CLASS_FD)
+		f_dprintf "Found floppy device named %s" "$devname"
+		debug= f_device_register device "$devname" "$desc" \
+			"/dev/$devname" $DEVICE_TYPE_FLOPPY 1 \
+			f_media_init_floppy f_media_get_floppy \
+			f_media_shutdown_floppy "" "$capacity"
+		return $?
+		;;
+	$GEOM_CLASS_LABEL)
+		: fall through to below section # reduces indentation level
+		;;
+	$GEOM_CLASS_MD)
+		f_dprintf "Found disk device named %s" "$devname"
+		debug= f_device_register device "$devname" "$desc" \
+			"/dev/$devname" $DEVICE_TYPE_DISK 1 \
+			"" "" "" "" "$capacity"
+		retval=$?
+
+		#
+		# Attempt to get file(1) magic to potentially classify as
+		# alternate media type. If unable to get magic, fall back to
+		# md(4) characteristics (such as vnode filename).
+		#
+		[ -r "/dev/$devname" ] &&
+			magic=$( file -bs "/dev/$devname" 2> /dev/null )
+		if [ ! "$magic" ]; then
+			# Fall back to md(4) characteristics
+			if f_struct "$p_provider_config"; then
+				config="$p_provider_config"
+			else
+				config="$provider_config"
+			fi
+			debug= f_struct "$config" get type config_type
+			debug= f_struct "$config" get file config_file
+
+			# Substitute magic for below based on type and file
+			case "$config_type=$config_file" in
+			vnode=*.iso) magic="ISO 9660" ;;
+			esac
+		fi
+		f_device_probe_disk_fs device \
+			"$devname" "$capacity" "$magic" &&
+			retval=$SUCCESS # Errors ignored
+
+		return $retval
+		;;
+	$GEOM_CLASS_PART)
+		if f_struct "$p_provider_config"; then
+			config="$p_provider_config"
+		else
+			config="$provider_config"
+		fi
+		debug= f_struct "$config" get type provider_config_type
+		f_device_probe_geom_part device \
+			"$provider_config_type" "$devname" "$capacity"
+		retval=$?
+		device_type=$DEVICE_TYPE_NONE
+		[ $retval -eq $SUCCESS ] &&
+			debug= f_struct "$device" get type device_type
+
+		# Potentially re-classify as USB device
+		if [ "$device_type" = "$DEVICE_TYPE_UFS" -a \
+		     "$catalog_type" = "$DEVICE_TYPE_USB" ]
+		then
+			f_dprintf "Found USB device for partition %s" \
+				  "$devname"
+			debug= f_struct "$p_provider_geom" get \
+				name disk_name ||
+				debug= f_struct "$provider_geom" get \
+					name disk_name
+			debug= f_device_register device "$devname" "$desc" \
+				"/dev/$devname" $DEVICE_TYPE_USB 1 \
+				f_media_init_usb f_media_get_usb \
+				f_media_shutdown_usb "$disk_name" "$capacity"
+			retval=$?
+		fi
+
+		return $retval
+		;;
+	$GEOM_CLASS_RAID)
+		# Use the provider geom name as the description
+		if [ ! "$desc" ]; then
+			f_struct "$p_provider_geom" get name desc ||
+				f_struct "$provider_geom" get name desc
+		fi
+
+		f_dprintf "Found disk device named %s" "$devname"
+		debug= f_device_register device \
+			"$devname" "${desc:-GEOM RAID device}" \
+			"/dev/$devname" $DEVICE_TYPE_DISK 1 \
+			"" "" "" "" "$capacity"
+		retval=$?
+		
+		# Detect ``dangerously dedicated'' filesystems
+		f_device_probe_disk_fs device "$devname" "$capacity" &&
+			retval=$SUCCESS # Errors ignored
+
+		return $retval
+		;;
+	$GEOM_CLASS_ZFS_ZVOL)
+		f_dprintf "Found disk device named %s" "$devname"
+		debug= f_device_register device \
+			"$devname" "${desc:-GEOM ZFS::ZVOL device}" \
+			"/dev/$devname" $DEVICE_TYPE_DISK 1 \
+			"" "" "" "" "$capacity"
+		retval=$?
+		
+		# Detect ``dangerously dedicated'' filesystems
+		f_device_probe_disk_fs device "$devname" "$capacity" &&
+			retval=$SUCCESS # Errors ignored
+
+		return $retval
+		;;
+	*)
+		return $FAILURE # Unknown GEOM class
+	esac
+
+	#
+	# Still here? Must be $GEOM_CLASS_LABEL
+	#
+
+	local label_geom label_devname label_devgeom= label_devconsumer
+	local label_devprovider= label_devprovider_ref label_devprovider_config
+	local label_gpart_type
+
+	if f_struct "$p_provider"; then
+		label_geom="$p_provider_geom"
+	else
+		label_geom="$provider_geom"
+	fi
+
+	case "$devname" in
+	gpt/*|gptid/*)
+		#
+		# Attempt to get the partition type by getting the `config'
+		# member of the provider for our device (which is named in the
+		# parent geom of our current provider).
+		#
+		debug= f_struct "$label_geom" get name label_devname &&
+			debug= f_geom_find "$label_devname" $GEOM_CLASS_DEV \
+				label_devgeom
+		debug= f_struct "$label_devgeom" get \
+			consumer1 label_devconsumer
+		debug= f_struct "$label_devconsumer" get \
+			provider_ref label_devprovider_ref &&
+			debug= f_geom_find_by id "$label_devprovider_ref" \
+				provider label_devprovider
+		debug= f_struct "$label_devprovider" get \
+			config label_devprovider_config
+		debug= f_struct "$label_devprovider_config" get \
+			type label_gpart_type
+
+		#
+		# Register device label based on partition type
+		#
+		f_device_probe_geom_part device \
+			"$label_gpart_type" "$devname" "$capacity"
+		return $?
+		;;
+	iso9660/*)
+		f_dprintf "Found CDROM device labeled %s" "$devname"
+		debug= f_device_register device \
+			"$devname" "ISO9660 file system" \
+			"/dev/$devname" $DEVICE_TYPE_CDROM 1 \
+			f_media_init_cdrom f_media_get_cdrom \
+			f_media_shutdown_cdrom "" "$capacity"
+		return $?
+		;;
+	label/*)
+		# For generic labels, use provider geom name as real device
+		debug= f_struct "$label_geom" get name label_devname
+
+		# Look up label geom device in device catalog for default desc
+		debug= f_device_catalog_get \
+			$DEVICE_TYPE_ANY "$label_devname" catalog_struct
+		[ "$desc" ] || debug= f_struct \
+			"catalog_device_$catalog_struct" get desc desc
+
+		# Use device catalog entry for potential re-classification(s)
+		debug= f_struct "catalog_device_$catalog_struct" get \
+			type catalog_type
+
+		# First attempt to classify by device catalog (see MAIN)
+		case "$catalog_type" in
+		$DEVICE_TYPE_CDROM)
+			f_dprintf "Found CDROM device for disk %s" "$devname"
+			debug= f_device_register device "$devname" "$desc" \
+				"/dev/$devname" $DEVICE_TYPE_CDROM 1 \
+				f_media_init_cdrom f_media_get_cdrom \
+				f_media_shutdown_cdrom "" "$capacity" &&
+				return $SUCCESS
+			;;
+		esac
+
+		# Fall back to register label device as a disk and taste it
+		f_dprintf "Found disk device labeled %s" "$devname"
+		debug= f_device_register device \
+			"$devname" "GEOM LABEL device" \
+			"/dev/$devname" $DEVICE_TYPE_DISK 1 \
+			"" "" "" "" "$capacity"
+		retval=$?
+
+		# Detect ``dangerously dedicated'' filesystems (errors ignored)
+		f_device_probe_disk_fs device "$devname" "$capacity" &&
+			retval=$SUCCESS
+
+		return $retval
+		;;
+	msdosfs/*)
+		f_dprintf "Found DOS partition labeled %s" "$devname"
+		debug= f_device_register device "$devname" "DOS file system" \
+			"/dev/$devname" $DEVICE_TYPE_DOS 1 \
+			f_media_init_dos f_media_get_dos \
+			f_media_shutdown_dos "" "$capacity"
+		return $?
+		;;
+	ufs/*|ufsid/*)
+		f_dprintf "Found UFS partition labeled %s" "$devname"
+		debug= f_device_register device "$devname" "UFS file system" \
+			"/dev/$devname" $DEVICE_TYPE_UFS 1 \
+			f_media_init_ufs f_media_get_ufs \
+			f_media_shutdown_ufs "" "$capacity"
+		return $?
+		;;
+	ext2fs/*|ntfs/*|reiserfs/*)
+		return $FAILURE # No media device handlers for these labels
+		;;
+	esac
+
+	# Unable to classify GEOM label
+	return $FAILURE
+}
+
+# f_device_probe_geom_part $var_to_set $gpart_type $devname $capacity [$magic]
+#
+# Given a gpart(8) partition type and a device name, register the device if it
+# is a known partition type that we can handle. If $var_to_set is non-NULL,
+# upon success holds the DEVICE struct name of the registered device.
+#
+# Returns success if the device was successfully registered, failure otherwise.
+#
+f_device_probe_geom_part()
+{
+	local __var_to_set="$1" __gpart_type="$2" __devname="$3"
+	local __capacity="${4:--1}" __magic="$5"
+
+	#
+	# Register device based on partition type
+	# NB: !0 equates to `unused' bsdlabel
+	#
+	case "$__gpart_type" in
+	fat16|fat32)
+		f_dprintf "Found DOS partition named %s" "$__devname"
+		debug= f_device_register "$__var_to_set" \
+			"$__devname" "DOS file system" \
+			"/dev/$__devname" $DEVICE_TYPE_DOS 1 \
+			f_media_init_dos f_media_get_dos \
+			f_media_shutdown_dos "" "$__capacity"
+		return $?
+		;;
+	freebsd|!0) # Commonly used inappropriately, taste for FreeBSD
+		[ -r "/dev/$__devname" -a ! "$__magic" ] &&
+			__magic=$( file -bs "/dev/$__devname" 2> /dev/null )
+		case "$__magic" in
+		*"Unix Fast File system"*)
+			f_dprintf "Found UFS partition named %s" "$__devname"
+			debug= f_device_register "$__var_to_set" \
+				"$__devname" "UFS file system" \
+				"/dev/$__devname" $DEVICE_TYPE_UFS 1 \
+				f_media_init_ufs f_media_get_ufs \
+				f_media_shutdown_ufs "" "$__capacity"
+			return $?
+		esac
+		return $FAILURE
+		;;
+	freebsd-ufs)
+		f_dprintf "Found UFS partition named %s" "$__devname"
+		debug= f_device_register "$__var_to_set" \
+			"$__devname" "UFS file system" \
+			"/dev/$__devname" $DEVICE_TYPE_UFS 1 \
+			f_media_init_ufs f_media_get_ufs \
+			f_media_shutdown_ufs "" "$__capacity"
+		return $?
+		;;
+	apple-*|linux-*|ms-*|netbsd-*|ntfs|vmware-*)
+		return $FAILURE # No device types for these
+		;;
+	bios-*|ebr|efi|mbr|freebsd-boot|freebsd-swap)
+		return $FAILURE # Not a source for media
+		;;
+	freebsd-nandfs|freebsd-vinum|freebsd-zfs)
+		return $FAILURE # Unsupported as media source
+		;;
+	esac
+
+	return $FAILURE # Unknown partition type
+}
+
+# f_device_probe_disk_fs $var_to_set $devname [$capacity [$magic]]
+#
+# Given a device name, taste it and register the device if it is a so-called
+# ``dangerously dedicated'' file system written without a partition table.
+# Tasting is done using file(1) (specifically `file -bs') but if $magic is
+# present and non-NULL it is used instead. If $var_to_set is non-NULL, upon
+# success holds the DEVICE struct name of the registered device.
+#
+# Returns success if the device was successfully registered, failure otherwise.
+#
+f_device_probe_disk_fs()
+{
+	local __var_to_set="$1" __devname="$2" __capacity="${3:--1}"
+	local __magic="$4"
+
+	[ -r "/dev/${__devname#/dev/}" -a ! "$__magic" ] &&
+		__magic=$( file -bs "/dev/$__devname" 2> /dev/null )
+
+	case "$__magic" in
+	*"ISO 9660"*)
+		f_dprintf "Found CDROM device for disk %s" "$__devname"
+		debug= f_device_register "$__var_to_set" \
+			"$__devname" "ISO9660 file system" \
+			"/dev/$__devname" $DEVICE_TYPE_CDROM 1 \
+			f_media_init_cdrom f_media_get_cdrom \
+			f_media_shutdown_cdrom "" "$__capacity"
+		return $?
+		;;
+	*"Unix Fast File system"*)
+		f_dprintf "Found UFS device for disk %s" "$__devname"
+		debug= f_device_register "$__var_to_set" \
+			"$__devname" "UFS file system" \
+			"/dev/$__devname" $DEVICE_TYPE_UFS 1 \
+			f_media_init_ufs f_media_get_ufs \
+			f_media_shutdown_ufs "" "$__capacity"
+		return $?
+		;;
+	*"FAT (12 bit)"*|*"FAT (16 bit)"*|*"FAT (32 bit)"*)
+		f_dprintf "Found DOS device for disk %s" "$__devname"
+		debug= f_device_register "$__var_to_set" \
+			"$__devname" "DOS file system" \
+			"/dev/$__devname" $DEVICE_TYPE_DOS 1 \
+			f_media_init_dos f_media_get_dos \
+			f_media_shutdown_dos "" "$__capacity"
+		return $?
+		;;
+	esac
+
+	return $FAILURE # Unknown file system type
+}
+
+# f_device_catalog_get $type $name [$var_to_set]
+#
+# Fetch the struct name of the catalog device matching device $name. If $type
+# is either NULL, missing, or set to $DEVICE_TYPE_ANY then only $name is used.
+# Returns success if a match was found, otherwise failure.
+#
+# If $var_to_set is missing or NULL, the struct name is printed to standard out
+# for capturing in a sub-shell (which is less-recommended because of
+# performance degredation; for example, when called in a loop).
+#
+f_device_catalog_get()
+{
+	local __type="$1" __name="$2" __var_to_set="$3"
+	local __dname=
+
+	# Return failure if no $name
+	[ "$__name" ] || return $FAILURE
+
+	# Disable debugging to keep debug output light
+	local debug=
+
+	#
+	# Attempt to create an alternate-form of $__name that contains the
+	# first contiguous string of numbers replaced with `%d' for comparison
+	# against stored pattern names (see MAIN).
+	#
+	local __left="${__name%%[0-9]*}" __right="${__name#*[0-9]}"
+	if [ "$__left" != "$__name" ]; then
+		# Chop leading digits from right 'til we hit first non-digit
+		while :; do
+			case "$__right" in
+			[0-9]*) __right="${__right#[0-9]}" ;;
+			     *) break
+			esac
+		done
+		__dname="${__left}%d$__right"
+	fi
+
+	[ "$__type" = "$DEVICE_TYPE_ANY" ] && __type=
+	local __dev __dev_name __dev_type
+	for __dev in $DEVICE_CATALOG; do
+		catalog_device_$__dev get name __dev_name
+		[ "$__dev_name" = "$__name" -o "$__dev_name" = "$__dname" ] ||
+			continue
+		catalog_device_$__dev get type __dev_type
+		[ "${__type:-$__dev_type}" = "$__dev_type" ] || continue
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" $__dev
+		else
+			echo $__dev
+		fi
+		return $?
+	done
+
+	[ "$__var_to_set" ] && setvar "$__var_to_set" ""
+	return $FAILURE
+}
+
+# f_device_catalog_set $type $name $desc
+#
+# Store a description (desc) in-association with device $type and $name.
+# Returns success unless $name is NULL or missing. Use f_device_catalog_get()
+# routine with the same $name and optionally $type to retrieve catalog device
+# structure (see CATALOG_DEVICE struct definition in GLOBALS section).
+#
+f_device_catalog_set()
+{
+	local type="$1" name="$2" desc="$3"
+	local struct dev dev_type found=
+
+	[ "$name" ] || return $FAILURE
+
+	# Disable debugging to keep debug output light
+	local debug=
+
+	f_str2varname "$name" struct
+	if [ ! "$DEVICE_CATALOG_APPEND_ONLY" ]; then
+		for dev in $DEVICE_CATALOG; do
+			[ "$dev" = "$struct" ] || continue
+			found=1 break
+		done
+	fi
+	if [ "$found" ]; then
+		f_struct_free "catalog_device_$struct"
+	else
+		DEVICE_CATALOG="$DEVICE_CATALOG $struct"
+	fi
+	f_struct_new CATALOG_DEVICE "catalog_device_$struct" || return $FAILURE
+	catalog_device_$struct set type "$type"
+	catalog_device_$struct set name "$name"
+	catalog_device_$struct set desc "$desc"
+	return $SUCCESS
+}
+
+# f_device_desc $device_name $device_type [$var_to_set]
+#
+# Print a description for a device name (eg., `fxp0') given a specific device
+# type/class.
+#
+# If $var_to_set is missing or NULL, the device description is printed to
+# standard out for capturing in a sub-shell (which is less-recommended because
+# of performance degredation; for example, when called in a loop).
+#
+f_device_desc()
+{
+	local __name="$1" __type="$2" __var_to_set="$3"
+	local __devname __devunit __cp
+
+	# Check variables
+	[ "$__name" ] || return $SUCCESS
+	[ "$__type" = "$DEVICE_TYPE_ANY" ] && type=
+	[ "$__var_to_set" ] && { setvar "$__var_to_set" "" || return; }
+
+	#
+	# Return sysctl MIB dev.NAME.UNIT.%desc if it exists, otherwise fall
+	# through to further alternate methods.
+	#
+	if f_have sysctl; then
+		__devname="${__name%%[0-9]*}"
+		__devunit="${__name#$__devname}"
+		__devunit="${__devunit%%[!0-9]*}"
+		if [ "$__var_to_set" ]; then
+			if __cp=$(
+				sysctl -n "dev.$__devname.$__devunit.%desc" \
+				2> /dev/null
+			); then
+				setvar "$__var_to_set" "$__cp" &&
+					return $SUCCESS
+			fi
+		else
+			sysctl -n "dev.$__devname.$__devunit.%desc" \
+				2> /dev/null && return $SUCCESS
+		fi
+	fi
+
+	# Look up device in catalog for default description
+	local __catalog_struct
+	debug= f_device_catalog_get "$__type" "$__name" __catalog_struct
+	debug= f_struct "catalog_device_$__catalog_struct" get \
+		desc "$__var_to_set" && return $SUCCESS
+
+	#
+	# Sensible fall-backs for specific types
+	#
+	case "$__type" in
+	$DEVICE_TYPE_CDROM)   __cp="<unknown cdrom device type>" ;;
+	$DEVICE_TYPE_DISK)    __cp="<unknown disk device type>" ;;
+	$DEVICE_TYPE_FLOPPY)  __cp="<unknown floppy device type>" ;;
+	$DEVICE_TYPE_USB)     __cp="<unknown USB storage device type>" ;;
+	$DEVICE_TYPE_NETWORK) __cp="<unknown network interface type>" ;;
+	*)
+		__cp="<unknown device type>"
+	esac
+
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__cp"
+	else
+		echo "$__cp"
+	fi
+
+	return $FAILURE
+}
+
+# f_device_is_ethernet $device
+#
+# Returns true if $device is a wired Ethernet network interface. Otherwise
+# returns false. Example wired interfaces include: fxp0 em0 bge0 rl0 etc.
+#
+f_device_is_ethernet()
+{
+	local dev="$1" type flags
+
+	# Make sure we have an actual device by that name
+	f_struct "$dev" || return $FAILURE
+
+	# Make sure that the device is a network device
+	$dev get type type
+	[ "$type" = "$DEVICE_TYPE_NETWORK" ] || return $FAILURE
+
+	# Make sure that the media flags indicate that it is Ethernet
+	$dev get flags flags
+	[ $(( ${flags:-0} & $IF_ETHERNET )) -eq $IF_ETHERNET ]
+}
+
+# f_device_is_wireless $device
+#
+# Returns true if $device is a Wireless network interface. Otherwise returns
+# false. Examples of wireless interfaces include: iwn0
+#
+f_device_is_wireless()
+{
+	local dev="$1" type flags
+
+	# Make sure we have an actual device by that name
+	f_struct "$dev" || return $FAILURE
+
+	# Make sure that the device is a network device
+	$dev get type type
+	[ "$type" = "$DEVICE_TYPE_NETWORK" ] || return $FAILURE
+
+	# Make sure that the media flags indicate that it is 802.11 wireless
+	$dev get flags flags
+	[ $(( ${flags:-0} & $IF_WIRELESS )) -eq $IF_WIRELESS ]
+}
+
+# f_device_is_active $device
+#
+# Returns true if $device is active. Otherwise returns false. Currently this
+# only works for network interfaces.
+#
+f_device_is_active()
+{
+	local dev="$1" type flags=0
+
+	# Make sure we have an actual device by that name
+	f_struct "$dev" || return $FAILURE
+
+	$dev get type type
+	case "$type" in
+	$DEVICE_TYPE_NETWORK)
+		# Make sure that the media flags indicate that it is active
+		$dev get flags flags
+		[ $(( ${flags:-0} & $IF_ACTIVE )) -eq $IF_ACTIVE ]
+		;;
+	*)
+		return $FAILURE
+	esac
+}
+
+# f_device_find [-1] $name [$type [$var_to_set]] 
+#
+# Find one or more registered devices by name, type, or both. Returns a space-
+# separated list of devices matching the search criterion.
+#
+# If `-1' option flag is given, only the first matching device is returned.
+#
+# If $var_to_set is missing or NULL, the device name(s) are printed to standard
+# out for capturing in a sub-shell (which is less-recommended because of
+# performance degredation; for example, when called in a loop).
+#
+f_device_find()
+{
+	local OPTIND=1 OPTARG flag only_one=
+	while getopts 1 flag; do
+		case "$flag" in
+		1) only_one=1 ;;
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+
+	local __name="$1" __type="${2:-$DEVICE_TYPE_ANY}" __var_to_set="$3"
+	local __n=1 __devname __devtype __found=
+	while [ $__n -le $NDEVICES ]; do
+		device_$__n get name __devname
+		device_$__n get type __devtype
+		if [ "$__name" = "$__devname" -o ! "$__name" ] &&
+		   [ "$__type" = "$DEVICE_TYPE_ANY" -o \
+		     "$__type" = "$__devtype" ]
+		then
+			__found="$__found device_$__n"
+			[ "$only_one" ] && break
+		fi
+		__n=$(( $__n + 1 ))
+	done
+
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "${__found# }"
+	else
+		echo $__found
+	fi
+	[ "$__found" ] # Return status
+}
+
+# f_device_init $device
+#
+# Initialize a device by evaluating its `init' function. The $device argument
+# is a DEVICE struct name.
+#
+f_device_init()
+{
+	local device="$1" init_func
+	f_struct "$device" || return $?
+	$device get init init_func
+	${init_func:-:} "$device"
+}
+
+# f_device_get $device $file [$probe]
+#
+# Read $file by evaluating the device's `get' function. The file is commonly
+# produced on standard output (but it truly depends on the function called).
+# The $device argument is a DEVICE struct name.
+#
+f_device_get()
+{
+	local device="$1" file="$2" probe="$3" get_func
+	f_struct "$device" || return $?
+	$device get get get_func
+	${get_func:-:} "$device" "$file" ${3+"$probe"}
+}
+
+# f_device_shutdown $device
+#
+# Shutdown a device by evaluating its `shutdown' function. The $device argument
+# is a DEVICE struct name.
+#
+f_device_shutdown()
+{
+	local device="$1" shutdown_func
+	f_struct "$device" || return $?
+	$device get shutdown shutdown_func
+	${shutdown_func:-:} "$device"
+}
+
+# f_devices_sort_by $property $var_to_get [$var_to_set]
+#
+# Take list of devices from $var_to_get (separated by whitespace, newline
+# included) and sort them by $property (e.g., `name'). The sorted list of
+# DEVICE struct names is returned on standard output separated by whitespace
+# (newline to be specific) unless $var_to_set is present and non-NULL.
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_device_sort_by_awk='
+# Variables that should be defined on the invocation line:
+# 	-v prop="property"
+function _asorti(src, dest)
+{
+	k = nitems = 0
+	for (i in src) dest[++nitems] = i
+	for (i = 1; i <= nitems; k = i++) {
+		idx = dest[i]
+		while ((k > 0) && (dest[k] > idx)) {
+			dest[k+1] = dest[k]; k--
+		}
+		dest[k+1] = idx
+	}
+	return nitems
+}
+{
+	split($0, devs, FS)
+	for (d in devs) {
+		name = ENVIRON["_struct_value_" devs[d] "_" prop]
+		devices[name] = devs[d]
+	}
+}
+END {
+	nitems = _asorti(devices, devices_sorted)
+	for (i = 1; i <= nitems; i++) print devices[devices_sorted[i]]
+}
+'
+f_device_sort_by()
+{
+	local __property="${1:-name}" __var_to_get="$2" __var_to_set="$3"
+
+	f_isset "$__var_to_get" || return $FAILURE
+
+	local __dev
+	for __dev in $( f_getvar "$__var_to_get" ); do
+		export _struct_value_${__dev}_$__property
+	done
+
+	local __cp
+	setvar "${__var_to_set:-__cp}" "$(
+		f_getvar "$__var_to_get" |
+			awk -v prop="$__property" "$f_device_sort_by_awk"
+	)"
+	[ "$__var_to_set" ] || echo "$__cp"
+}
+
+# f_device_menu $title $prompt $hline $device_type [$helpfile]
+#
+# Display a menu listing all the devices of a certain type in the system.
+#
+f_device_menu()
+{
+	f_dialog_title "$1"
+	local title="$DIALOG_TITLE" btitle="$DIALOG_BACKTITLE"
+	f_dialog_title_restore
+
+	local prompt="$2" hline="$3" type="$4" helpfile="$5"
+
+	local devs
+	f_device_find "" "$type" devs || return $DIALOG_CANCEL
+
+	local name desc menu_list=
+	f_device_sort_by name devs devs
+	for dev in $devs; do
+		$dev get name name
+		$dev get desc desc
+		f_shell_escape "$name" name
+		f_shell_escape "$desc" desc
+		menu_list="$menu_list
+			'$name' '$desc'" # END-QUOTE
+	done
+	menu_list="${menu_list#$NL}"
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$title\"  \
+	                        \"\$btitle\" \
+	                        \"\$prompt\" \
+	                        \"\$hline\"  \
+	                        $menu_list
+
+	local errexit=
+	case $- in *e*) errexit=1; esac
+	set +e
+
+	local mtag
+	while :; do
+		mtag=$( eval $DIALOG \
+			--title \"\$title\"             \
+			--backtitle \"\$btitle\"        \
+			--hline \"\$hline\"             \
+			--ok-label \"\$msg_ok\"         \
+			--cancel-label \"\$msg_cancel\" \
+			${helpfile:+                    \
+			  --help-button                 \
+			  --help-label \"\$msg_help\"   \
+			  ${USE_XDIALOG:+--help \"\"}   \
+			}                               \
+			--menu \"\$prompt\"             \
+			$height $width $rows            \
+			$menu_list                      \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
+		local retval=$?
+
+		[ $retval -ne $DIALOG_HELP ] && break
+			# Otherwise, the Help button was pressed
+		f_show_help "$helpfile"
+			# ...then loop back to menu
+	done
+	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
+
+	[ "$errexit" ] && set -e
+
+	if [ $retval -eq $DIALOG_OK ]; then
+		# Clean up the output of [X]dialog(1)
+		f_dialog_data_sanitize mtag
+
+		# Map the user's choice back to a struct name
+		local index device
+		index=$( eval f_dialog_menutag2index \"\$mtag\" $menu_list )
+		device=$( set -- $devs; eval echo \${$index} )
+
+		echo "$device" >&2
+	fi
+
+	return $retval
+}
+
+#
+# Short-hand
+#
+f_cdrom()   { f_device_catalog_set $DEVICE_TYPE_CDROM   "$1" "$2"; }
+f_disk()    { f_device_catalog_set $DEVICE_TYPE_DISK    "$1" "$2"; }
+f_floppy()  { f_device_catalog_set $DEVICE_TYPE_FLOPPY  "$1" "$2"; }
+f_usb()     { f_device_catalog_set $DEVICE_TYPE_USB     "$1" "$2"; }
+f_network() { f_device_catalog_set $DEVICE_TYPE_NETWORK "$1" "$2"; }
+
+############################################################ MAIN
+
+#
+# The below classifications allow us to re-group the GEOM devices from the
+# `DEV' GEOM class appropriately while providing fall-back descriptions both
+# for making the below code more maintainable and handling the rare case the
+# GEOM device lacks a description.
+#
+
+DEVICE_CATALOG_APPEND_ONLY=1 # Make initial loading faster
+
+# CDROM, Disk, Floppy, and USB devices/names
+f_cdrom  "cd%d"   "SCSI CDROM drive"
+f_cdrom  "mcd%d"  "Mitsumi (old model) CDROM drive"
+f_cdrom  "scd%d"  "Sony CDROM drive - CDU31/33A type"
+f_disk   "aacd%d" "Adaptec FSA RAID array"
+f_disk   "ada%d"  "ATA/SATA disk device"
+f_disk   "amrd%d" "AMI MegaRAID drive"
+f_disk   "da%d"   "SCSI disk device"
+f_disk   "idad%d" "Compaq RAID array"
+f_disk   "ipsd%d" "IBM ServeRAID RAID array"
+f_disk   "md%d"   "md(4) disk device"
+f_disk   "mfid%d" "LSI MegaRAID SAS array"
+f_disk   "mlxd%d" "Mylex RAID disk"
+f_disk   "twed%d" "3ware ATA RAID array"
+f_disk   "vtbd%d" "VirtIO Block Device"
+f_floppy "fd%d"   "Floppy Drive unit A"
+f_usb    "da%da"  "USB Mass Storage Device"
+
+# Network interfaces/names
+f_network "ae%d"    "Attansic/Atheros L2 Fast Ethernet"
+f_network "age%d"   "Attansic/Atheros L1 Gigabit Ethernet"
+f_network "alc%d"   "Atheros AR8131/AR8132 PCIe Ethernet"
+f_network "ale%d"   "Atheros AR8121/AR8113/AR8114 PCIe Ethernet"
+f_network "an%d"    "Aironet 4500/4800 802.11 wireless adapter"
+f_network "ath%d"   "Atheros IEEE 802.11 wireless adapter"
+f_network "aue%d"   "ADMtek USB Ethernet adapter"
+f_network "axe%d"   "ASIX Electronics USB Ethernet adapter"
+f_network "bce%d"   "Broadcom NetXtreme II Gigabit Ethernet card"
+f_network "bfe%d"   "Broadcom BCM440x PCI Ethernet card"
+f_network "bge%d"   "Broadcom BCM570x PCI Gigabit Ethernet card"
+f_network "bm%d"    "Apple BMAC Built-in Ethernet"
+f_network "bwn%d"   "Broadcom BCM43xx IEEE 802.11 wireless adapter"
+f_network "cas%d"   "Sun Cassini/Cassini+ or NS DP83065 Saturn Ethernet"
+f_network "cc3i%d"  "SDL HSSI sync serial PCI card"
+f_network "cue%d"   "CATC USB Ethernet adapter"
+f_network "cxgb%d"  "Chelsio T3 10Gb Ethernet card"
+f_network "dc%d"    "DEC/Intel 21143 (and clones) PCI Fast Ethernet card"
+f_network "de%d"    "DEC DE435 PCI NIC or other DC21040-AA based card"
+f_network "disc%d"  "Software discard network interface"
+f_network "ed%d"    "Novell NE1000/2000; 3C503; NE2000-compatible PCMCIA"
+f_network "el%d"    "3Com 3C501 Ethernet card"
+f_network "em%d"    "Intel(R) PRO/1000 Ethernet card"
+f_network "ep%d"    "3Com 3C509 Ethernet card/3C589 PCMCIA"
+f_network "et%d"    "Agere ET1310 based PCI Express Gigabit Ethernet card"
+f_network "ex%d"    "Intel EtherExpress Pro/10 Ethernet card"
+f_network "fe%d"    "Fujitsu MB86960A/MB86965A Ethernet card"
+f_network "fpa%d"   "DEC DEFPA PCI FDDI card"
+f_network "fwe%d"   "FireWire Ethernet emulation"
+f_network "fwip%d"  "IP over FireWire"
+f_network "fxp%d"   "Intel EtherExpress Pro/100B PCI Fast Ethernet card"
+f_network "gem%d"   "Apple GMAC or Sun ERI/GEM Ethernet adapter"
+f_network "hme%d"   "Sun HME (Happy Meal Ethernet) Ethernet adapter"
+f_network "ie%d"    "AT&T StarLAN 10 and EN100; 3Com 3C507; NI5210"
+f_network "igb%d"   "Intel(R) PRO/1000 PCI Express Gigabit Ethernet card"
+f_network "ipw%d"   "Intel PRO/Wireless 2100 IEEE 802.11 adapter"
+f_network "iwi%d"   "Intel PRO/Wireless 2200BG/2225BG/2915ABG adapter"
+f_network "iwn%d"   "Intel Wireless WiFi Link 4965AGN IEEE 802.11n adapter"
+f_network "ix%d"    "Intel Etherexpress Ethernet card"
+f_network "ixgbe%d" "Intel(R) PRO/10Gb Ethernet card"
+f_network "jme%d"   "JMicron JMC250 Gigabit/JMC260 Fast Ethernet"
+f_network "kue%d"   "Kawasaki LSI USB Ethernet adapter"
+f_network "le%d"    "AMD Am7900 LANCE or Am79C9xx PCnet Ethernet adapter"
+f_network "lge%d"   "Level 1 LXT1001 Gigabit Ethernet card"
+f_network "lnc%d"   "Lance/PCnet (Isolan/Novell NE2100/NE32-VL) Ethernet"
+f_network "lo%d"    "Loop-back (local) network interface"
+f_network "lp%d"    "Parallel Port IP (PLIP) peer connection"
+f_network "malo%d"  "Marvell Libertas 88W8335 802.11 wireless adapter"
+f_network "msk%d"   "Marvell/SysKonnect Yukon II Gigabit Ethernet"
+f_network "mxge%d"  "Myricom Myri10GE 10Gb Ethernet card"
+f_network "nfe%d"   "NVIDIA nForce MCP Ethernet"
+f_network "ng%d"    "Vimage netgraph(4) bridged Ethernet device"
+f_network "nge%d"   "NatSemi PCI Gigabit Ethernet card"
+f_network "nve%d"   "NVIDIA nForce MCP Ethernet"
+f_network "pcn%d"   "AMD Am79c79x PCI Ethernet card"
+f_network "plip%d"  "Parallel Port IP (PLIP) peer connection"
+f_network "ral%d"   "Ralink Technology IEEE 802.11 wireless adapter"
+f_network "ray%d"   "Raytheon Raylink 802.11 wireless adapter"
+f_network "re%d"    "RealTek 8139C+/8169/8169S/8110S PCI Ethernet adapter"
+f_network "rl%d"    "RealTek 8129/8139 PCI Ethernet card"
+f_network "rue%d"   "RealTek USB Ethernet card"
+f_network "rum%d"   "Ralink Technology USB IEEE 802.11 wireless adapter"
+f_network "sf%d"    "Adaptec AIC-6915 PCI Ethernet card"
+f_network "sge%d"   "Silicon Integrated Systems SiS190/191 Ethernet"
+f_network "sis%d"   "SiS 900/SiS 7016 PCI Ethernet card"
+f_network "sk%d"    "SysKonnect PCI Gigabit Ethernet card"
+f_network "sn%d"    "SMC/Megahertz Ethernet card"
+f_network "snc%d"   "SONIC Ethernet card"
+f_network "sr%d"    "SDL T1/E1 sync serial PCI card"
+f_network "ste%d"   "Sundance ST201 PCI Ethernet card"
+f_network "stge%d"  "Sundance/Tamarack TC9021 Gigabit Ethernet"
+f_network "ti%d"    "Alteon Networks PCI Gigabit Ethernet card"
+f_network "tl%d"    "Texas Instruments ThunderLAN PCI Ethernet card"
+f_network "tx%d"    "SMC 9432TX Ethernet card"
+f_network "txp%d"   "3Com 3cR990 Ethernet card"
+f_network "uath%d"  "Atheros AR5005UG and AR5005UX USB wireless adapter"
+f_network "upgt%d"  "Conexant/Intersil PrismGT USB wireless adapter"
+f_network "ural%d"  "Ralink Technology RT2500USB 802.11 wireless adapter"
+f_network "urtw%d"  "Realtek 8187L USB wireless adapter"
+f_network "vge%d"   "VIA VT612x PCI Gigabit Ethernet card"
+f_network "vlan%d"  "IEEE 802.1Q VLAN network interface"
+f_network "vr%d"    "VIA VT3043/VT86C100A Rhine PCI Ethernet card"
+f_network "vx%d"    "3COM 3c590 / 3c595 Ethernet card"
+f_network "wb%d"    "Winbond W89C840F PCI Ethernet card"
+f_network "wi%d"    "Lucent WaveLAN/IEEE 802.11 wireless adapter"
+f_network "wpi%d"   "Intel 3945ABG IEEE 802.11 wireless adapter"
+f_network "wx%d"    "Intel Gigabit Ethernet (82452) card"
+f_network "xe%d"    "Xircom/Intel EtherExpress Pro100/16 Ethernet card"
+f_network "xl%d"    "3COM 3c90x / 3c90xB PCI Ethernet card"
+f_network "zyd%d"   "ZyDAS ZD1211/ZD1211B USB 802.11 wireless adapter"
+
+DEVICE_CATALOG_APPEND_ONLY= # Additional loading modifies existing devices
+
+f_count NCATALOG_DEVICES $DEVICE_CATALOG
+f_dprintf "%s: Initialized device catalog with %u names/descriptions." \
+          device.subr $NCATALOG_DEVICES
+
+#
+# Scan for the above devices unless requeted otherwise
+#
+f_dprintf "%s: DEVICE_SELF_SCAN_ALL=[%s]" device.subr "$DEVICE_SELF_SCAN_ALL"
+case "$DEVICE_SELF_SCAN_ALL" in
+""|0|[Nn][Oo]|[Oo][Ff][Ff]|[Ff][Aa][Ll][Ss][Ee]) : do nothing ;;
+*) f_device_get_all
+esac
+
+f_dprintf "%s: Successfully loaded." device.subr
+
+fi # ! $_DEVICE_SUBR

@@ -1,0 +1,136 @@
+.\" Copyright (c) 2010 Joseph Koshy
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_formref.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd June 21, 2010
+.Dt DWARF_FORMREF 3
+.Os
+.Sh NAME
+.Nm dwarf_formref ,
+.Nm dwarf_global_formref
+.Nd retrieve offsets for REFERENCE class attributes
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_formref
+.Fa "Dwarf_Attribute attr"
+.Fa "Dwarf_Off *retoffset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_global_formref
+.Fa "Dwarf_Attribute attr"
+.Fa "Dwarf_Off *retoffset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+These functions return the offsets associated with a DWARF attribute
+descriptor.
+.Pp
+Function
+.Fn dwarf_formref
+returns the compilation unit relative offset of the descriptor
+referenced by argument
+.Ar attr
+in the location pointed to by argument
+.Ar retoffset .
+Argument
+.Ar attr
+must be a reference that is local to a compilation unit.
+Permitted forms for argument
+.Ar attr
+are
+.Dv DW_FORM_ref1 ,
+.Dv DW_FORM_ref2 ,
+.Dv DW_FORM_ref4 ,
+.Dv DW_FORM_ref8
+and
+.Dv DW_FORM_ref_udata .
+.Pp
+Function
+.Fn dwarf_global_formref
+returns the section-relative offset of the descriptor referenced by
+argument
+.Ar attr
+in the location pointed to by argument
+.Ar retoffset .
+Argument
+.Ar attr
+should be a legal
+.Sy REFERENCE
+class form.
+Permitted forms for argument
+.Ar attr
+are:
+.Dv DW_FORM_ref_addr ,
+.Dv DW_FORM_ref_udata ,
+.Dv DW_FORM_ref1 ,
+.Dv DW_FORM_ref2 ,
+.Dv DW_FORM_ref4 ,
+.Dv DW_FORM_ref8
+and
+.Dv DW_FORM_sec_offset .
+The returned offset is relative to the start of the
+.Dq .debug_info
+ELF section.
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to return an error descriptor in case
+of an error.
+.Sh RETURN VALUES
+These functions return
+.Dv DW_DLV_OK
+on success.
+In case of an error, these functions return
+.Dv DW_DLV_ERROR
+and sets argument
+.Ar err .
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ATTR_FORM_BAD"
+.It Bq Er DW_DLE_ARGUMENT
+Either of arguments
+.Ar attr
+or
+.Ar retoffset
+was NULL.
+.It Bq Er DW_DLE_ATTR_FORM_BAD
+The attribute referenced by argument
+.Ar attr
+was not of a permitted kind.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_attr 3 ,
+.Xr dwarf_formblock 3 ,
+.Xr dwarf_formflag 3 ,
+.Xr dwarf_formsdata 3 ,
+.Xr dwarf_formsig8 3 ,
+.Xr dwarf_formstring 3 ,
+.Xr dwarf_formudata 3 ,
+.Xr dwarf_hasattr 3

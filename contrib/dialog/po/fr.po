@@ -1,0 +1,111 @@
+# French translation of Dialog.
+# Copyright (C) 2001 Thomas Dickey.
+# Frédéric L. W. Meunier <0 @ pervalidus.net>, 2001.
+# François-Xavier Coudert <fxcoudert@gmail.com>, 2008.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20070704\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2011-01-16 17:57-0500\n"
+"PO-Revision-Date: 2008-03-28 23:14+0000\n"
+"Last-Translator: François-Xavier Coudert <fxcoudert@gmail.com>\n"
+"Language-Team: French <traduc@traduc.org>\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8-bit\n"
+
+#: buttons.c:387
+msgid "Yes"
+msgstr "Oui"
+
+#: buttons.c:395
+msgid "No"
+msgstr "Non"
+
+#: buttons.c:403
+msgid "OK"
+msgstr "Accepter"
+
+#: buttons.c:411
+msgid "Cancel"
+msgstr "Annuler"
+
+#: buttons.c:419
+msgid "EXIT"
+msgstr "SORTIR"
+
+#: buttons.c:427
+msgid "Extra"
+msgstr "Extra"
+
+#: buttons.c:435
+msgid "Help"
+msgstr "Aide"
+
+#. Headline "Month"
+#: calendar.c:298
+msgid "Month"
+msgstr "Mois"
+
+#. Headline "Year"
+#: calendar.c:318
+msgid "Year"
+msgstr "Année"
+
+#: dialog.c:756
+msgid "Rename"
+msgstr "Renommer"
+
+#: fselect.c:571
+msgid "Directories"
+msgstr "Répertoires"
+
+#: fselect.c:572
+msgid "Files"
+msgstr "Fichiers"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "Succès"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "Échec"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "Passé"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "Terminé"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "Vérifié"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "Fini"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "Ignoré"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "En cours"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "N/A"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "Avancement général"
+
+#: textbox.c:468
+msgid "Search"
+msgstr "Rechercher"

@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+[ "$(printf '%cZ%s%d' x '\' 010)" = 'xZ\8' ]

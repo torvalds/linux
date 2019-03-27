@@ -1,0 +1,33 @@
+#
+# /etc/locate.rc -  command script for updatedb(8)
+#
+# $FreeBSD$
+
+#
+# All commented values are the defaults
+#
+# temp directory
+#TMPDIR="/tmp"
+
+# the actual database
+#FCODES="/var/db/locate.database"
+
+# directories to be put in the database
+#SEARCHPATHS="/"
+
+# paths unwanted in output
+#PRUNEPATHS="/tmp /usr/tmp /var/tmp /var/db/portsnap /var/db/freebsd-update"
+
+# directories unwanted in output
+#PRUNEDIRS=".zfs"
+
+# filesystems allowed. Beware: a non-listed filesystem will be pruned
+# and if the SEARCHPATHS starts in such a filesystem locate will build
+# an empty database.
+#
+# the default list contains all local file systems that are not synthetic,
+# loopback mounts, or read-only, according to lsvfs.
+#
+# be careful if you add 'nfs' or other network file system types or file
+# systems that generally reside on slow or removable devices like cd9660
+#FILESYSTEMS="ufs ext2fs zfs xfs"

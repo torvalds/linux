@@ -1,0 +1,64 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: mountcritlocal
+# REQUIRE: root hostid_save mdconfig
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="mountcritlocal"
+desc="Mount critical local filesystems"
+start_cmd="mountcritlocal_start"
+stop_cmd=sync
+
+mountcritlocal_start()
+{
+	local err holders waited
+
+	# Set up the list of network filesystem types for which mounting
+	# should be delayed until after network initialization.
+	case ${extra_netfs_types} in
+	[Nn][Oo])
+		;;
+	*)
+		netfs_types="${netfs_types} ${extra_netfs_types}"
+		;;
+	esac
+
+	# Mount everything except nfs filesystems.
+	check_startmsgs && echo -n 'Mounting local filesystems:'
+	mount_excludes='no'
+	for i in ${netfs_types}; do
+		fstype=${i%:*}
+		mount_excludes="${mount_excludes}${fstype},"
+	done
+	mount_excludes=${mount_excludes%,}
+
+	mount -a -t ${mount_excludes}
+	err=$?
+	if [ ${err} -ne 0 ]; then
+		echo 'Mounting /etc/fstab filesystems failed,' \
+		    'will retry after root mount hold release'
+		root_hold_wait
+		mount -a -t ${mount_excludes}
+		err=$?
+	fi
+
+	check_startmsgs && echo '.'
+
+	case ${err} in
+	0)
+		;;
+	*)
+		echo 'Mounting /etc/fstab filesystems failed,' \
+		    'startup aborted'
+		stop_boot true
+		;;
+	esac
+}
+
+load_rc_config $name
+run_rc_command "$1"

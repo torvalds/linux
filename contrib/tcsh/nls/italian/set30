@@ -1,0 +1,16 @@
+$ $tcsh: set30,v 1.3 2011/02/04 18:19:39 christos Exp $
+$ tw.parse.c
+$set 30 
+1 inizio_il_comando %d\n
+2 completo %d 
+3 completo %d %S\n
+4 %s: Errore interno di corrispondenza.\n
+5 elementi, li 
+6 righe, le 
+7 Ci sono %d %selenco ugualmente? [n/s] 
+8 sembra = %d\n
+9 \nerrore interno della tcsh: Non mi ricordo cosa stavo facendo!\n
+10 non è una directory
+11 non trovato
+12 non leggibile
+13 sS

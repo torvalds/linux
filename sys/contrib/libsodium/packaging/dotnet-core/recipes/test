@@ -1,0 +1,27 @@
+TEST_PROGRAM='using System;
+using System.Runtime.InteropServices;
+
+static class Program
+{
+    [DllImport("libsodium")]
+    static extern int sodium_init();
+
+    static int Main()
+    {
+        int error = sodium_init();
+        Console.WriteLine(error == 0
+            ? "ok"
+            : "error: sodium_init() returned {0}", error);
+        return error == 0 ? 0 : 1;
+    }
+}
+'
+
+dotnet --info
+cd ~
+dotnet new console --name Test
+cd Test
+echo "$TEST_PROGRAM" > Program.cs
+dotnet add package libsodium --version $1 --source /io/packages
+dotnet restore
+dotnet run

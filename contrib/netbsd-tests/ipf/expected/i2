@@ -1,0 +1,9 @@
+log in proto tcp from any to any
+pass in proto tcp from any to any
+pass in inet proto udp from 127.0.0.1/32 to 127.0.0.1/32
+block in proto ipv6 from any to any
+block in proto udp from any to any
+block in proto 250 from any to any
+pass in proto tcp/udp from any to any
+block in proto tcp/udp from any to any
+block in proto tcp/udp from any to any

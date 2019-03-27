@@ -1,0 +1,226 @@
+.\" Copyright (c) 1999 Tim Singletary
+.\" No copyright is claimed.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 30, 2016
+.Dt DBM 3
+.Os
+.Sh NAME
+.Nm dbm_clearerr ,
+.Nm dbm_close ,
+.Nm dbm_delete ,
+.Nm dbm_dirfno ,
+.Nm dbm_error ,
+.Nm dbm_fetch ,
+.Nm dbm_firstkey ,
+.Nm dbm_nextkey ,
+.Nm dbm_open ,
+.Nm dbm_store
+.Nd database access functions
+.Sh SYNOPSIS
+.In fcntl.h
+.In ndbm.h
+.Ft DBM *
+.Fn dbm_open "const char *base" "int flags" "mode_t mode"
+.Ft void
+.Fn dbm_close "DBM *db"
+.Ft int
+.Fn dbm_store "DBM *db" "datum key" "datum data" "int flags"
+.Ft datum
+.Fn dbm_fetch "DBM *db" "datum key"
+.Ft int
+.Fn dbm_delete "DBM *db" "datum key"
+.Ft datum
+.Fn dbm_firstkey "DBM *db"
+.Ft datum
+.Fn dbm_nextkey "DBM *db"
+.Ft int
+.Fn dbm_error "DBM *db"
+.Ft int
+.Fn dbm_clearerr "DBM *db"
+.Ft int
+.Fn dbm_dirfno "DBM *db"
+.Sh DESCRIPTION
+Database access functions.
+These functions are implemented using
+.Xr dbopen 3
+with a
+.Xr hash 3
+database.
+.Pp
+.Vt datum
+is declared in
+.In ndbm.h :
+.Bd -literal
+typedef struct {
+	void *dptr;
+	int dsize;
+} datum;
+.Ed
+.Pp
+The
+.Fn dbm_open base flags mode
+function
+opens or creates a database.
+The
+.Fa base
+argument
+is the basename of the file containing
+the database; the actual database has a
+.Pa .db
+suffix.
+I.e., if
+.Fa base
+is
+.Qq Li /home/me/mystuff
+then the actual database is in the file
+.Pa /home/me/mystuff.db .
+The
+.Fa flags
+and
+.Fa mode
+arguments
+are passed to
+.Xr open 2 .
+.Pq Dv O_RDWR | O_CREAT
+is a typical value for
+.Fa flags ;
+.Li 0660
+is a typical value for
+.Fa mode .
+.Dv O_WRONLY
+is not allowed in
+.Fa flags .
+The pointer returned by
+.Fn dbm_open
+identifies the database and is the
+.Fa db
+argument to the other functions.
+The
+.Fn dbm_open
+function
+returns
+.Dv NULL
+and sets
+.Va errno
+if there were any errors.
+.Pp
+The
+.Fn dbm_close db
+function
+closes the database.
+.Pp
+The
+.Fn dbm_store db key data flags
+function
+inserts or replaces an entry in the database.
+The
+.Fa flags
+argument
+is either
+.Dv DBM_INSERT
+or
+.Dv DBM_REPLACE .
+If
+.Fa flags
+is
+.Dv DBM_INSERT
+and the database already contains an entry for
+.Fa key ,
+that entry is not replaced.
+Otherwise the entry is replaced or inserted.
+The
+.Fn dbm_store
+function
+normally returns zero but returns 1 if the entry could not be
+inserted (because
+.Fa flags
+is
+.Dv DBM_INSERT ,
+and an entry with
+.Fa key
+already exists) or returns -1 and sets
+.Va errno
+if there were any errors.
+.Pp
+The
+.Fn dbm_fetch db key
+function
+returns
+.Dv NULL
+or the
+.Fa data
+corresponding to
+.Fa key .
+.Pp
+The
+.Fn dbm_delete db key
+function
+deletes the entry for
+.Fa key .
+The
+.Fn dbm_delete
+function
+normally returns zero or returns -1 and sets
+.Va errno
+if there were any errors.
+.Pp
+The
+.Fn dbm_firstkey db
+function
+returns the first key in the database.
+The
+.Fn dbm_nextkey db
+function
+returns subsequent keys.
+The
+.Fn db_firstkey
+function
+must be called before
+.Fn dbm_nextkey .
+The order in which keys are returned is unspecified and may appear
+random.
+The
+.Fn dbm_nextkey
+function
+returns
+.Dv NULL
+after all keys have been returned.
+.Pp
+The
+.Fn dbm_error db
+function
+returns the
+.Va errno
+value of the most recent error.
+The
+.Fn dbm_clearerr db
+function
+resets this value to 0 and returns 0.
+.Pp
+The
+.Fn dbm_dirfno db
+function
+returns the file descriptor to the database.
+.Sh SEE ALSO
+.Xr open 2 ,
+.Xr dbopen 3 ,
+.Xr hash 3
+.Sh STANDARDS
+These functions (except
+.Fn dbm_dirfno )
+are included in the
+.St -susv2 .

@@ -1,0 +1,74 @@
+=pod
+
+=head1 NAME
+
+DH_get_1024_160,
+DH_get_2048_224,
+DH_get_2048_256,
+BN_get0_nist_prime_192,
+BN_get0_nist_prime_224,
+BN_get0_nist_prime_256,
+BN_get0_nist_prime_384,
+BN_get0_nist_prime_521,
+BN_get_rfc2409_prime_768,
+BN_get_rfc2409_prime_1024,
+BN_get_rfc3526_prime_1536,
+BN_get_rfc3526_prime_2048,
+BN_get_rfc3526_prime_3072,
+BN_get_rfc3526_prime_4096,
+BN_get_rfc3526_prime_6144,
+BN_get_rfc3526_prime_8192
+- Create standardized public primes or DH pairs
+
+=head1 SYNOPSIS
+
+ #include <openssl/dh.h>
+ DH *DH_get_1024_160(void)
+ DH *DH_get_2048_224(void)
+ DH *DH_get_2048_256(void)
+
+ const BIGNUM *BN_get0_nist_prime_192(void)
+ const BIGNUM *BN_get0_nist_prime_224(void)
+ const BIGNUM *BN_get0_nist_prime_256(void)
+ const BIGNUM *BN_get0_nist_prime_384(void)
+ const BIGNUM *BN_get0_nist_prime_521(void)
+
+ BIGNUM *BN_get_rfc2409_prime_768(BIGNUM *bn)
+ BIGNUM *BN_get_rfc2409_prime_1024(BIGNUM *bn)
+ BIGNUM *BN_get_rfc3526_prime_1536(BIGNUM *bn)
+ BIGNUM *BN_get_rfc3526_prime_2048(BIGNUM *bn)
+ BIGNUM *BN_get_rfc3526_prime_3072(BIGNUM *bn)
+ BIGNUM *BN_get_rfc3526_prime_4096(BIGNUM *bn)
+ BIGNUM *BN_get_rfc3526_prime_6144(BIGNUM *bn)
+ BIGNUM *BN_get_rfc3526_prime_8192(BIGNUM *bn)
+
+=head1 DESCRIPTION
+
+DH_get_1024_160(), DH_get_2048_224(), and DH_get_2048_256() each return
+a DH object for the IETF RFC 5114 value.
+
+BN_get0_nist_prime_192(), BN_get0_nist_prime_224(), BN_get0_nist_prime_256(),
+BN_get0_nist_prime_384(), and BN_get0_nist_prime_521() functions return
+a BIGNUM for the specific NIST prime curve (e.g., P-256).
+
+BN_get_rfc2409_prime_768(), BN_get_rfc2409_prime_1024(),
+BN_get_rfc3526_prime_1536(), BN_get_rfc3526_prime_2048(),
+BN_get_rfc3526_prime_3072(), BN_get_rfc3526_prime_4096(),
+BN_get_rfc3526_prime_6144(), and BN_get_rfc3526_prime_8192() functions
+return a BIGNUM for the specified size from IETF RFC 2409.  If B<bn>
+is not NULL, the BIGNUM will be set into that location as well.
+
+=head1 RETURN VALUES
+
+Defined above.
+
+=head1 COPYRIGHT
+
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,627 @@
+.\" Copyright (c) 2007,2009-2012 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: ar.1 3642 2018-10-14 14:24:28Z jkoshy $
+.\"
+.Dd September 30, 2018
+.Dt AR 1
+.Os
+.Sh NAME
+.Nm ar
+.Nd manage archives
+.Sh SYNOPSIS
+.Nm
+.Fl d
+.Op Fl f
+.Op Fl j
+.Op Fl T
+.Op Fl v
+.Op Fl z
+.Ar archive
+.Ar
+.Nm
+.Fl m
+.Op Fl a Ar position-after
+.Op Fl b Ar position-before
+.Op Fl f
+.Op Fl i Ar position-before
+.Op Fl j
+.Op Fl s | Fl S
+.Op Fl T
+.Op Fl z
+.Ar archive
+.Ar
+.Nm
+.Fl p
+.Op Fl f
+.Op Fl s
+.Op Fl T
+.Op Fl v
+.Ar archive
+.Op Ar
+.Nm
+.Fl q
+.Op Fl c
+.Op Fl D
+.Op Fl f
+.Op Fl F Ar flavor | Fl -flavor Ar flavor
+.Op Fl s | Fl S
+.Op Fl T
+.Op Fl U
+.Op Fl v
+.Op Fl z
+.Ar archive
+.Ar
+.Nm
+.Fl r
+.Op Fl a Ar position-after
+.Op Fl b Ar position-before
+.Op Fl c
+.Op Fl D
+.Op Fl f
+.Op Fl F Ar flavor | Fl -flavor Ar flavor
+.Op Fl i Ar position-before
+.Op Fl j
+.Op Fl s | Fl S
+.Op Fl T
+.Op Fl u
+.Op Fl U
+.Op Fl v
+.Op Fl z
+.Ar archive
+.Ar
+.Nm
+.Fl s
+.Op Fl D
+.Op Fl j
+.Op Fl U
+.Op Fl z
+.Ar archive
+.Nm
+.Fl t
+.Op Fl f
+.Op Fl s
+.Op Fl T
+.Op Fl v
+.Ar archive
+.Op Ar
+.Nm
+.Fl x
+.Op Fl C
+.Op Fl f
+.Op Fl o
+.Op Fl s
+.Op Fl T
+.Op Fl u
+.Op Fl v
+.Ar archive
+.Op Ar
+.Nm
+.Fl M
+.Nm
+.Fl V
+.Sh DESCRIPTION
+The
+.Nm
+utility creates and maintains groups of files combined into an
+archive.
+Once an archive has been created, new files can be added to it, and
+existing files can be extracted, deleted or replaced.
+.Pp
+Files are named in the archive by their last file name component,
+so if a file referenced by a path containing a
+.Dq /
+is archived, it will be named by the last component of the path.
+Similarly when matching paths listed on the command line against
+file names stored in the archive, only the last component of the
+path will be compared.
+.Pp
+The normal use of
+.Nm
+is for the creation and maintenance of libraries suitable for use
+with the link editor
+.Xr ld 1 ,
+although it is not restricted to this purpose.
+The
+.Nm
+utility can create and manage an archive symbol table (see
+.Xr ar 5 )
+used to speed up link editing operations.
+If a symbol table is present in an archive, it will be
+kept up-to-date by subsequent operations on the archive.
+.Sh OPTIONS
+The
+.Nm
+utility supports the following options:
+.Bl -tag -width indent
+.It Fl a Ar member-after
+When used with option
+.Fl m
+this option specifies that the archive members specified by
+arguments
+.Ar
+are moved to after the archive member named by argument
+.Ar member-after .
+When used with option
+.Fl r
+this option specifies that the files specified by arguments
+.Ar
+are added after the archive member named by argument
+.Ar member-after .
+.It Fl b Ar member-before
+When used with option
+.Fl m
+this option specifies that the archive members specified by
+arguments
+.Ar
+are moved to before the archive member named by argument
+.Ar member-before .
+When used with option
+.Fl r
+this option specifies that the files specified by arguments
+.Ar
+are added before the archive member named by argument
+.Ar member-before .
+.It Fl c
+Suppress the informational message printed when a new archive is
+created using the
+.Fl r
+and
+.Fl q
+options.
+.It Fl C
+Prevent extracted files from replacing like-named files
+in the file system.
+.It Fl d
+Delete the members named by arguments
+.Ar
+from the archive specified by argument
+.Ar archive .
+The archive's symbol table, if present, is updated to reflect
+the new contents of the archive.
+.It Fl D
+When used in combination with the
+.Fl r
+or
+.Fl q
+option, insert 0's instead of the real mtime, uid and gid values
+and 0644 instead of file mode from the members named by arguments
+.Ar .
+This ensures that checksums on the resulting archives are reproducible
+when member contents are identical.
+If multiple
+.Fl D
+and
+.Fl U
+options are specified on the command line, the final one takes precedence.
+.It Fl f
+Synonymous with option
+.Fl T .
+.It Fl F Ar flavor | Fl -flavor Ar flavor
+Create archives with the specified archive format.
+Legal values for argument
+.Ar flavor
+are:
+.Bl -tag -width indent -compact
+.It Ar bsd
+Create BSD format archives.
+.It Ar gnu
+An alias for
+.Ar svr4 .
+.It Ar svr4
+Create SVR4 format archives.
+.El
+If this option is not specified,
+.Nm
+will create archives using the SVR4 format.
+.It Fl i Ar member-before
+Synonymous with option
+.Fl b .
+.It Fl j
+This option is accepted for compatibility with the
+.Tn FreeBSD
+version of the
+.Nm
+utility, but is ignored.
+.It Fl l
+This option is accepted for compatibility with GNU
+.Xr ar 1 ,
+but is ignored.
+.It Fl m
+Move archive members specified by arguments
+.Ar
+within the archive.
+If a position has been specified by one of the
+.Fl a ,
+.Fl b
+or
+.Fl i
+options, the members are moved to before or after the specified
+position.
+If no position has been specified, the specified members are moved
+to the end of the archive.
+If the archive has a symbol table, it is updated to reflect the
+new contents of the archive.
+.It Fl M
+Read and execute MRI librarian commands from standard input.
+The commands understood by the
+.Nm
+utility are described in the section
+.Sx "MRI Librarian Commands" .
+.It Fl o
+Preserve the original modification times of members when extracting
+them.
+.It Fl p
+Write the contents of the specified archive members named by
+arguments
+.Ar
+to standard output.
+If no members were specified, the contents of all the files in the
+archive are written in the order they appear in the archive.
+.It Fl q
+Append the files specified by arguments
+.Ar
+to the archive specified by argument
+.Ar archive
+without checking if the files already exist in the archive.
+The archive symbol table will be updated as needed.
+If the file specified by the argument
+.Ar archive
+does not already exist, a new archive will be created.
+.It Fl r
+Replace (add) the files specified by arguments
+.Ar
+in the archive specified by argument
+.Ar archive ,
+creating the archive if necessary.
+Replacing existing members will not change the order of members within
+the archive.
+If a file named in arguments
+.Ar
+does not exist, existing members in the archive that match that
+name are not changed.
+New files are added to the end of the archive unless one of the
+positioning options
+.Fl a ,
+.Fl b
+or
+.Fl i
+is specified.
+The archive symbol table, if it exists, is updated to reflect the
+new state of the archive.
+.It Fl s
+Add an archive symbol table (see
+.Xr ar 5 )
+to the archive specified by argument
+.Ar archive .
+Invoking
+.Nm
+with the
+.Fl s
+option alone is equivalent to invoking
+.Xr ranlib 1 .
+.It Fl S
+Do not generate an archive symbol table.
+.It Fl t
+For
+.Nm ,
+list the files specified by arguments
+.Ar
+in the order in which they appear in the archive, one per line.
+If no files are specified, all files in the archive are listed.
+.It Fl T
+Use only the first fifteen characters of the archive member name or
+command line file name argument when naming archive members.
+.It Fl u
+Conditionally update the archive or extract members.
+When used with the
+.Fl r
+option, files named by arguments
+.Ar
+will be replaced in the archive if they are newer than their
+archived versions.
+When used with the
+.Fl x
+option, the members specified by arguments
+.Ar
+will be extracted only if they are newer than the corresponding
+files in the file system.
+.It Fl U
+When used in combination with the
+.Fl r
+or
+.Fl q
+option, insert the real mtime, uid and gid, and file mode values
+from the members named by arguments
+.Ar .
+If multiple
+.Fl D
+and
+.Fl U
+options are specified on the command line, the final one takes precedence.
+.It Fl v
+Provide verbose output.
+When used with the
+.Fl d ,
+.Fl m ,
+.Fl q
+or
+.Fl x
+options,
+.Nm
+gives a file-by-file description of the archive modification being
+performed, which consists of three white-space separated fields:
+the option letter, a dash
+.Dq "-" ,
+and the file name.
+When used with the
+.Fl r
+option,
+.Nm
+displays the description as above, but the initial letter is an
+.Dq a
+if the file is added to the archive, or an
+.Dq r
+if the file replaces a file already in the archive.
+When used with the
+.Fl p
+option, the name of the file enclosed in
+.Dq <
+and
+.Dq >
+characters is written to standard output preceded by a single newline
+character and followed by two newline characters.
+The contents of the named file follow the file name.
+When used with the
+.Fl t
+option,
+.Nm
+displays eight whitespace separated fields:
+the file permissions as displayed by
+.Xr strmode 3 ,
+decimal user and group IDs separated by a slash (
+.Dq / Ns ) ,
+the file size in bytes, the file modification time in
+.Xr strftime 3
+format
+.Dq "%b %e %H:%M %Y" ,
+and the name of the file.
+.It Fl V
+Print a version identifier and exit.
+.It Fl x
+Extract archive members specified by arguments
+.Ar
+into the current directory.
+If no members have been specified, extract all members of the archive.
+If the file corresponding to an extracted member does not exist it
+will be created.
+If the file corresponding to an extracted member does exist, its owner
+and group will not be changed while its contents will be overwritten
+and its permissions will set to that entered in the archive.
+The file's access and modification time would be that of the time
+of extraction unless the
+.Fl o
+option was specified.
+.It Fl z
+This option is accepted for compatibility with the
+.Tn FreeBSD
+version of the
+.Nm
+utility, but is ignored.
+.El
+.Ss "MRI Librarian Commands"
+If the
+.Fl M
+option is specified, the
+.Nm
+utility will read and execute commands from its standard input.
+If standard input is a terminal, the
+.Nm
+utility will display the prompt
+.Dq Li "AR >"
+before reading a line, and will continue operation even if errors are
+encountered.
+If standard input is not a terminal, the
+.Nm
+utility will not display a prompt and will terminate execution on
+encountering an error.
+.Pp
+Each input line contains a single command.
+Words in an input line are separated by whitespace characters.
+The first word of the line is the command, the remaining words are
+the arguments to the command.
+The command word may be specified in either case.
+Arguments may be separated by commas or blanks.
+.Pp
+Empty lines are allowed and are ignored.
+Long lines are continued by ending them with the
+.Dq Li +
+character.
+.Pp
+The
+.Dq Li *
+and
+.Dq Li "\;"
+characters start a comment.
+Comments extend till the end of the line.
+.Pp
+When executing an MRI librarian script the
+.Nm
+utility works on a temporary copy of an archive.
+Changes to the copy are made permanent using the
+.Ic save
+command.
+.Pp
+Commands understood by the
+.Nm
+utility are:
+.Bl -tag -width indent
+.It Ic addlib Ar archive | Ic addlib Ar archive Pq Ar member Oo Li , Ar member Oc Ns ...
+Add the contents of the archive named by argument
+.Ar archive
+to the current archive.
+If specific members are named using the arguments
+.Ar member ,
+then those members are added to the current archive.
+If no members are specified, the entire contents of the archive
+are added to the current archive.
+.It Ic addmod Ar member Oo Li , Ar member Oc Ns ...
+Add the files named by arguments
+.Ar member
+to the current archive.
+.It Ic clear
+Discard all the contents of the current archive.
+.It Ic create Ar archive
+Create a new archive named by the argument
+.Ar archive ,
+and makes it the current archive.
+If the named archive already exists, it will be overwritten
+when the
+.Ic save
+command is issued.
+.It Ic delete Ar module Oo Li , Ar member Oc Ns ...
+Delete the modules named by the arguments
+.Ar member
+from the current archive.
+.It Ic directory Ar archive Po Ar member Oo Li , Ar member Oc Ns ... Pc Op Ar outputfile
+List each named module in the archive.
+The format of the output depends on the verbosity setting set using
+the
+.Ic verbose
+command.
+Output is sent to standard output, or to the file specified by
+argument
+.Ar outputfile .
+.It Ic end
+Exit successfully from the
+.Nm
+utility.
+Any unsaved changes to the current archive will be discarded.
+.It Ic extract Ar member Oo Li , Ar member Oc Ns ...
+Extract the members named by the arguments
+.Ar member
+from the current archive.
+.It Ic list
+Display the contents of the current archive in verbose style.
+.It Ic open Ar archive
+Open the archive named by argument
+.Ar archive
+and make it the current archive.
+.It Ic replace Ar member Oo Li , Ar member Oc Ns ...
+Replace named members in the current archive with the files specified
+by arguments
+.Ar member .
+The files must be present in the current directory and the named
+modules must already exist in the current archive.
+.It Ic save
+Commit all changes to the current archive.
+.It Ic verbose
+Toggle the verbosity of the
+.Ic directory
+command.
+.El
+.Sh EXAMPLES
+To create a new archive
+.Pa ex.a
+containing three files
+.Pa ex1.o ,
+.Pa ex2.o
+and
+.Pa ex3.o ,
+use:
+.Dl "ar -rc ex.a ex1.o ex2.o ex3.o"
+.Pp
+To add an archive symbol table to an existing archive
+.Pa ex.a ,
+use:
+.Dl "ar -s ex.a"
+.Pp
+To delete file
+.Pa ex1.o
+from archive
+.Pa ex.a ,
+use:
+.D1 "ar -d ex.a ex1.o"
+.Pp
+To verbosely list the contents of archive
+.Pa ex.a ,
+use:
+.D1 "ar -tv ex.a"
+.Pp
+To create a new archive
+.Pa ex.a
+containing the files
+.Pa ex1.o ,
+and
+.Pa ex2.o ,
+using MRI librarian commands, use the following script:
+.Bd -literal -offset indent
+create ex.a		 * specify the output archive
+addmod ex1.o ex2.o	 * add modules
+save			 * save pending changes
+end			 * exit the utility
+.Ed
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr ld 1 ,
+.Xr ranlib 1 ,
+.Xr archive 3 ,
+.Xr elf 3 ,
+.Xr strftime 3 ,
+.Xr strmode 3 ,
+.Xr ar 5
+.Sh STANDARDS COMPLIANCE
+The
+.Nm
+utility's support for the
+.Fl a ,
+.Fl b ,
+.Fl c ,
+.Fl i ,
+.Fl m ,
+.Fl p ,
+.Fl q ,
+.Fl r ,
+.Fl s ,
+.Fl t ,
+.Fl u ,
+.Fl v ,
+.Fl C
+and
+.Fl T
+options is believed to be compliant with
+.St -p1003.2 .
+.Sh HISTORY
+An
+.Nm
+command first appeared in AT&T UNIX Version 1.
+In
+.Fx 8.0 ,
+.An Kai Wang Aq Mt kaiw@FreeBSD.org
+reimplemented
+.Nm
+using the
+.Lb libarchive
+and the
+.Lb libelf .

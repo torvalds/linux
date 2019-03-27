@@ -1,0 +1,172 @@
+.TH HOSTS_OPTIONS 5
+.SH NAME
+hosts_options \- host access control language extensions
+.SH DESCRIPTION
+This document describes optional extensions to the language described
+in the hosts_access(5) document. The extensions are enabled at program
+build time. For example, by editing the Makefile and turning on the 
+PROCESS_OPTIONS compile-time option.
+.PP
+The extensible language uses the following format:
+.sp
+.ti +3
+daemon_list : client_list : option : option ...
+.PP
+The first two fields are described in the hosts_access(5) manual page.
+The remainder of the rules is a list of zero or more options.  Any ":"
+characters within options should be protected with a backslash.
+.PP
+An option is of the form "keyword" or "keyword value". Options are
+processed in the specified order. Some options are subjected to
+%<letter> substitutions. For the sake of backwards compatibility with
+earlier versions, an "=" is permitted between keyword and value.
+.SH LOGGING
+.IP "severity mail.info"
+.IP "severity notice"
+Change the severity level at which the event will be logged. Facility
+names (such as mail) are optional, and are not supported on systems
+with older syslog implementations. The severity option can be used
+to emphasize or to ignore specific events.
+.SH ACCESS CONTROL
+.IP "allow"
+.IP "deny"
+Grant (deny) service. These options must appear at the end of a rule.
+.PP
+The \fIallow\fR and \fIdeny\fR keywords make it possible to keep all
+access control rules within a single file, for example in the
+\fIhosts.allow\fR file.
+.sp
+To permit access from specific hosts only:
+.sp
+.ne 2
+.ti +3
+ALL: .friendly.domain: ALLOW
+.ti +3
+ALL: ALL: DENY
+.sp
+To permit access from all hosts except a few trouble makers:
+.sp
+.ne 2
+.ti +3
+ALL: .bad.domain: DENY
+.ti +3
+ALL: ALL: ALLOW
+.sp
+Notice the leading dot on the domain name patterns.
+.SH RUNNING OTHER COMMANDS
+.IP "spawn shell_command"
+Execute, in a child process, the specified shell command, after
+performing the %<letter> expansions described in the hosts_access(5)
+manual page.  The command is executed with stdin, stdout and stderr
+connected to the null device, so that it won\'t mess up the
+conversation with the client host. Example:
+.sp
+.nf
+.ti +3
+spawn (/some/where/safe_finger -l @%h | /usr/ucb/mail root) &
+.fi
+.sp
+executes, in a background child process, the shell command "safe_finger
+-l @%h | mail root" after replacing %h by the name or address of the
+remote host.
+.sp
+The example uses the "safe_finger" command instead of the regular
+"finger" command, to limit possible damage from data sent by the finger
+server. The "safe_finger" command is part of the daemon wrapper
+package; it is a wrapper around the regular finger command that filters
+the data sent by the remote host.
+.IP "twist shell_command"
+Replace the current process by an instance of the specified shell
+command, after performing the %<letter> expansions described in the
+hosts_access(5) manual page.  Stdin, stdout and stderr are connected to
+the client process. This option must appear at the end of a rule.
+.sp
+To send a customized bounce message to the client instead of
+running the real ftp daemon:
+.sp
+.nf
+.ti +3
+in.ftpd : ... : twist /bin/echo 421 Some bounce message
+.fi
+.sp
+For an alternative way to talk to client processes, see the
+\fIbanners\fR option below.
+.sp
+To run /some/other/in.telnetd without polluting its command-line
+array or its process environment:
+.sp
+.nf
+.ti +3
+in.telnetd : ... : twist PATH=/some/other; exec in.telnetd
+.fi
+.sp
+Warning:  in case of UDP services, do not twist to commands that use
+the standard I/O or the read(2)/write(2) routines to communicate with
+the client process; UDP requires other I/O primitives.
+.SH NETWORK OPTIONS
+.IP "keepalive"
+Causes the server to periodically send a message to the client.  The
+connection is considered broken when the client does not respond. The
+keepalive option can be useful when users turn off their machine while
+it is still connected to a server.  The keepalive option is not useful
+for datagram (UDP) services.
+.IP "linger number_of_seconds"
+Specifies how long the kernel will try to deliver not-yet delivered
+data after the server process closes a connection. 
+.SH USERNAME LOOKUP
+.IP "rfc931 [ timeout_in_seconds ]"
+Look up the client user name with the RFC 931 (TAP, IDENT, RFC 1413)
+protocol.  This option is silently ignored in case of services based on
+transports other than TCP.  It requires that the client system runs an
+RFC 931 (IDENT, etc.) -compliant daemon, and may cause noticeable
+delays with connections from non-UNIX clients.  The timeout period is
+optional. If no timeout is specified a compile-time defined default
+value is taken.
+.SH MISCELLANEOUS
+.IP "banners /some/directory"
+Look for a file in `/some/directory' with the same name as the daemon
+process (for example in.telnetd for the telnet service), and copy its
+contents to the client. Newline characters are replaced by
+carriage-return newline, and %<letter> sequences are expanded (see
+the hosts_access(5) manual page).
+.sp
+The tcp wrappers source code distribution provides a sample makefile
+(Banners.Makefile) for convenient banner maintenance.
+.sp
+Warning: banners are supported for connection-oriented (TCP) network
+services only.
+.IP "nice [ number ]"
+Change the nice value of the process (default 10).  Specify a positive
+value to spend more CPU resources on other processes. 
+.IP "setenv name value"
+Place a (name, value) pair into the process environment. The value is
+subjected to %<letter> expansions and may contain whitespace (but
+leading and trailing blanks are stripped off).
+.sp
+Warning: many network daemons reset their environment before spawning a
+login or shell process.
+.IP "umask 022"
+Like the umask command that is built into the shell. An umask of 022
+prevents the creation of files with group and world write permission.
+The umask argument should be an octal number.
+.IP "user nobody"
+.IP "user nobody.kmem"
+Assume the privileges of the "nobody" userid (or user "nobody", group
+"kmem"). The first form is useful with inetd implementations that run
+all services with root privilege. The second form is useful for
+services that need special group privileges only.
+.SH DIAGNOSTICS
+When a syntax error is found in an access control rule, the error
+is reported to the syslog daemon; further options will be ignored,
+and service is denied.
+.SH SEE ALSO
+hosts_access(5), the default access control language
+.SH AUTHOR
+.na
+.nf
+Wietse Venema (wietse@wzv.win.tue.nl)
+Department of Mathematics and Computing Science
+Eindhoven University of Technology
+Den Dolech 2, P.O. Box 513, 
+5600 MB Eindhoven, The Netherlands
+\" @(#) hosts_options.5 1.10 94/12/28 17:42:28

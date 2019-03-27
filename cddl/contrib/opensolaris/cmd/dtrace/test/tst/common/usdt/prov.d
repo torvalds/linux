@@ -1,0 +1,3 @@
+provider tester {
+	probe entry();
+};

@@ -1,0 +1,81 @@
+# $FreeBSD$
+# $NetBSD: Makefile,v 1.13 2007/03/13 16:34:37 tnozaki Exp $
+
+MKCSMAPPER?= ${.OBJDIR:H:H:H:H}/usr.bin/mkcsmapper_static/mkcsmapper_static
+
+ESUBDIR?= ${CODE}
+PARTFILE?= ${.CURDIR}/${CODE}.part
+.if exists(${PARTFILE})
+PART!=	sed '/^\#/d;/^$$/d;' ${PARTFILE}
+.endif
+TABLENAME?= ${CODE}-%%PART%%%UCS
+RTABLENAME?= UCS%${CODE}-%%PART%%
+
+ENCID?=	${CODE}%%PART%%
+ENCEXT?= .mps
+MAPPER?= mapper_std
+REVSYMBOL?=
+FILESDIR= ${CSMAPPERDIR}/${ESUBDIR}
+
+.SUFFIXES: .src .646 .mps
+
+.src.mps:
+	${MKCSMAPPER} -o ${.TARGET} ${.IMPSRC}
+
+.if !target(mapper.dir.${ESUBDIR})
+.if !exists(mapper.dir.${ESUBDIR}.src)
+mapper.dir.${ESUBDIR}: ${CODE}.part
+	echo "# ${ESUBDIR}" > ${.TARGET}
+.for i in ${PART}
+	printf "%-32s%-32s%s\n" ${ENCID:S@%%PART%%@${i}@}/UCS ${MAPPER} \
+		${ESUBDIR}/${TABLENAME:S@%%PART%%@${i}@:S/:/@/}${ENCEXT} >> ${.TARGET}
+	printf "%-32s%-32s%s\n" UCS/${ENCID:S@%%PART%%@${i}@} ${MAPPER} \
+		${REVSYMBOL}${ESUBDIR}/${RTABLENAME:S@%%PART%%@${i}@:S/:/@/}${ENCEXT} >> ${.TARGET}
+.endfor
+	echo >> ${.TARGET}
+.else
+mapper.dir.${ESUBDIR}: mapper.dir.${ESUBDIR}.src
+	(echo "# ${ESUBDIR}" ; cat ${.ALLSRC} ; echo ) > ${.TARGET}
+.endif
+.endif
+CLEANFILES+=	mapper.dir.${ESUBDIR}
+
+.if !target(charset.pivot.${ESUBDIR})
+.if !exists(charset.pivot.${ESUBDIR}.src)
+charset.pivot.${ESUBDIR}: ${CODE}.part
+	echo "# ${ESUBDIR}" > ${.TARGET}
+.for i in ${PART}
+	printf "%-32s%-32s%d\n" ${ENCID:S@%%PART%%@${i}@} UCS 1 >> ${.TARGET}
+	printf "%-32s%-32s%d\n" UCS ${ENCID:S@%%PART%%@${i}@} 1 >> ${.TARGET}
+.endfor
+	echo >> ${.TARGET}
+.else
+charset.pivot.${ESUBDIR}: charset.pivot.${ESUBDIR}.src
+	(echo "# ${ESUBDIR}" ; cat ${.ALLSRC} ; echo ) > ${.TARGET}
+.endif
+.endif
+CLEANFILES+= charset.pivot.${ESUBDIR}
+
+
+.if !defined(MAPS)
+.for i in ${PART}
+.if exists(${TABLENAME:S@%%PART%%@${i}@:S/:/@/}.src)
+FILES+=	${TABLENAME:S@%%PART%%@${i}@:S/:/@/}.mps
+CLEANFILES+= ${TABLENAME:S@%%PART%%@${i}@:S/:/@/}.mps
+.endif
+.if exists(${RTABLENAME:S@%%PART%%@${i}@:S/:/@/}.src)
+FILES+=	${RTABLENAME:S@%%PART%%@${i}@:S/:/@/}.mps
+CLEANFILES+= ${RTABLENAME:S@%%PART%%@${i}@:S/:/@/}.mps
+.endif
+.endfor
+.else
+FILES+=	${MAPS}
+CLEANFILES+= ${MAPS}
+.endif
+
+.include "./Makefile.inc"
+.include <bsd.prog.mk>
+
+.if !defined(_SKIP_BUILD)
+all: mapper.dir.${ESUBDIR} charset.pivot.${ESUBDIR}
+.endif

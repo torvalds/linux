@@ -1,0 +1,31 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>The Huff-n'-Puff Filter</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>The Huff-n'-Puff Filter</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->10-Mar-2014  05:09<!-- #EndDate -->
+    UTC</p>
+<hr>
+<p>In scenarios where a considerable amount of data are  downloaded or uploaded using DSL or telephone modem lines, timekeeping quality can be seriously degraded. This occurs because the traffic volume, and thus the queuing delays, on the upload and download directions of transmission can be very different. In many cases the apparent time errors are so large as to exceed the step threshold and a step correction can occur during and after the data transfer.</p>
+<p>The huff-n'-puff filter is designed to correct the apparent time offset in these cases. It depends on knowledge of the propagation delay when no other traffic is present, such as during other than work hours. The filter remembers the minimum delay over the most recent interval measured usually in hours. Under conditions of large delay, the filter corrects the apparent offset using the sign of the offset and the difference between the apparent delay and minimum delay. The name of the filter reflects the negative (huff) and positive (puff) correction, which depends on the sign of the offset. The filter is activated by the <tt>tinker huffpuff</tt> command, as described in the <a href="miscopt.html">Miscellaneous Options</a> page.</p>
+<hr>
+<div align="center"><img src="pic/flt4.gif" alt="gif">
+<p>Figure 1. Huff-n'-Puff Wedge Scattergram</p>
+</div>
+<p>Figure 1 shows how the huff-n'-puff filter works. Recall from the <a href="filter.html">Clock Filter Algorithm</a> page that the wedge scattergram plots sample points (<em>x</em>, <em>y</em>) corresponding to the measured delay and  offset, and that the limb lines are at slope &plusmn;0.5. Note in the figure that the samples are clustered close to the  upper limb line, representing heavy traffic in the download direction.  The  apparent offset <i>y</i><sub>0</sub> is near zero at the minimum delay <i>x</i><sub>0</sub>, which  is near  0.1s. Thus,  for a point (<em>x</em>, <em>y</em>), the true offset is</p>
+<blockquote>
+  <p>  &theta; = <em>y</em> <font face="symbol">-</font> (<em>x </em><font face="symbol">- </font><i>x</i><sub>0</sub>) / 2 for <em>y</em> &gt; <i>y</i><sub>0</sub> at or near the upper limb line or<br>
+    &theta; = <em>y</em> <font face="symbol">+</font> (<em>x </em><font face="symbol">- </font><i>x</i><sub>0</sub>) / 2 for <em>y</em> &lt; <i>y</i><sub>0</sub> at or near the lower limb line.</p>
+</blockquote>
+<p>In either case  the associated delay is &delta; = <em>x</em>.</p>
+<p>In the interior of the wedge scattergram far from the limb lines, the corrections are less effective and can lead to significant errors if the area between the limb lines is  heavily populated.</p>
+<hr>
+<p><script type="text/javascript" language="javascript" src="scripts/footer.txt"></script></p>
+</body>
+</html>

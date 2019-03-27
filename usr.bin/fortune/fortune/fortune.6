@@ -1,0 +1,190 @@
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Ken Arnold.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)fortune.6	8.3 (Berkeley) 4/19/94
+.\" $FreeBSD$
+.\"
+.Dd November 7, 2007
+.Dt FORTUNE 6
+.Os
+.Sh NAME
+.Nm fortune
+.Nd "print a random, hopefully interesting, adage"
+.Sh SYNOPSIS
+.Nm
+.Op Fl aDefilosw
+.Op Fl m Ar pattern
+.Oo
+.Op Ar \&N%
+.Ar file Ns / Ns Ar directory Ns / Ns Cm all
+.Oc
+.Sh DESCRIPTION
+When
+.Nm
+is run with no arguments it prints out a random epigram.
+Epigrams are divided into several categories, where each category
+is subdivided into those which are potentially offensive and those
+which are not.
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a
+Choose from all lists of maxims, both offensive and not.
+(See the
+.Fl o
+option for more information on offensive fortunes.)
+.It Fl D
+Enable additional debugging output.
+Specify this option multiple times for more verbose output.
+Only available if compiled with
+.Li -DDEBUG .
+.It Fl e
+Consider all fortune files to be of equal size (see discussion below
+on multiple files).
+.It Fl f
+Print out the list of files which would be searched, but do not
+print a fortune.
+.It Fl l
+Long dictums only.
+.It Fl m Ar pattern
+Print out all fortunes which match the regular expression
+.Ar pattern .
+See
+.Xr regex 3
+for a description of patterns.
+.It Fl o
+Choose only from potentially offensive aphorisms.
+.Bf -symbolic
+Please, please, please request a potentially offensive fortune if and
+only if you believe, deep down in your heart, that you are willing
+to be offended.
+(And that if you are not willing, you will just quit using
+.Fl o
+rather than give us
+grief about it, okay?)
+.Ef
+.Bd -unfilled -offset indent
+\&... let us keep in mind the basic governing philosophy
+of The Brotherhood, as handsomely summarized in these words:
+we believe in healthy, hearty laughter -- at the expense of
+the whole human race, if needs be.
+Needs be.
+                           --H. Allen Smith, "Rude Jokes"
+.Ed
+.It Fl s
+Short apothegms only.
+.It Fl i
+Ignore case for
+.Fl m
+patterns.
+.It Fl w
+Wait before termination for an amount of time calculated from the
+number of characters in the message.
+This is useful if it is executed as part of the logout procedure
+to guarantee that the message can be read before the screen is cleared.
+.El
+.Pp
+The user may specify alternate sayings.
+You can specify a specific file, a directory which contains one or
+more files, or the special word
+.Cm all
+which says to use all the standard databases.
+Any of these may be preceded by a percentage, which is a number
+.Ar N
+between 0 and 100 inclusive, followed by a
+.Ql % .
+If it is, there will be an
+.Ar N
+percent probability that an adage will be picked from that file
+or directory.
+If the percentages do not sum to 100, and there are specifications
+without percentages, the remaining percent will apply to those files
+and/or directories, in which case the probability of selecting from
+one of them will be based on their relative sizes.
+.Pp
+As an example, given two databases
+.Pa funny
+and
+.Pa not-funny ,
+with
+.Pa funny
+twice as big, saying
+.Pp
+.Dl "fortune funny not-funny"
+.Pp
+will get you fortunes out of
+.Pa funny
+two-thirds of the time.
+The command
+.Pp
+.Dl "fortune 90% funny 10% not-funny"
+.Pp
+will pick out 90% of its fortunes from
+.Pa funny
+(the
+.Dq Li "10% not-funny"
+is unnecessary, since 10% is all that is left).
+The
+.Fl e
+option says to consider all files equal;
+thus
+.Pp
+.Dl "fortune -e funny not-funny"
+.Pp
+is equivalent to
+.Pp
+.Dl "fortune 50% funny 50% not-funny"
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev FORTUNE_PATH"
+.It Ev FORTUNE_PATH
+The search path for the data files.
+It is a colon-separated list of directories in which
+.Nm
+looks for data files.
+If not set it will default to
+.Pa /usr/share/games/fortune .
+If none of the directories specified exist, it will print a warning and exit.
+.It Ev FORTUNE_SAVESTATE
+If set, fortune will save some state about what fortune
+it was up to on disk.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/games/fortune/*"
+.It Pa /usr/share/games/fortune/*
+the fortunes databases (those files ending
+.Dq Pa -o
+contain the
+.Sy offensive
+fortunes)
+.El
+.Sh SEE ALSO
+.Xr arc4random_uniform 3 ,
+.Xr regcomp 3 ,
+.Xr regex 3 ,
+.Xr strfile 8

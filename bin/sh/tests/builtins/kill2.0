@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+sleep 1 | sleep 1 &
+kill %+
+wait "$!"
+r=$?
+[ "$r" -gt 128 ] && [ "$(kill -l "$r")" = TERM ]

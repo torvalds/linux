@@ -1,0 +1,502 @@
+if [ ! "$_NETWORKING_RESOLV_SUBR" ]; then _NETWORKING_RESOLV_SUBR=1
+#
+# Copyright (c) 2006-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." networking/resolv.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/media/tcpip.subr
+f_include $BSDCFG_SHARE/networking/common.subr
+f_include $BSDCFG_SHARE/networking/ipaddr.subr
+f_include $BSDCFG_SHARE/strings.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+############################################################ CONFIGURATION
+
+#
+# When updating resolv.conf(5), should we populate the `search' directive with
+# all possible sub-domains? In example, if the domain is "sub.domain.com", when
+# the below option is set to 1, include both "sub.domain.com" and "domain.com"
+# in the `search' directive, otherwise use only "sub.domain.com".
+#
+# When enabled (set to 1), specify the minimum number of dots required for each
+# `search' domain by setting the second option below, `RESOLVER_SEARCH_NDOTS'.
+#
+: ${RESOLVER_SEARCH_DOMAINS_ALL:=1}
+: ${RESOLVER_SEARCH_NDOTS:=1}
+
+############################################################ FUNCTIONS
+
+# f_resolv_conf_domain
+#
+# Returns the domain configured in resolv.conf(5).
+#
+f_resolv_conf_domain()
+{
+	tail -r "$RESOLV_CONF" 2> /dev/null | awk \
+	'
+		BEGIN { found = 0 }
+		( tolower($1) == "domain" ) \
+		{
+			print $2
+			found = 1
+			exit
+		}
+		END { exit ! found }
+	'
+}
+
+# f_resolv_conf_search
+#
+# Returns the search configured in resolv.conf(5).
+#
+f_resolv_conf_search()
+{
+	tail -r "$RESOLV_CONF" 2> /dev/null | awk \
+	'
+		BEGIN { found = 0 }
+		{
+			tl0 = tolower($0)
+			if ( match(tl0, /^[[:space:]]*search[[:space:]]+/) ) {
+				search = substr($0, RLENGTH + 1)
+				sub(/[[:space:]]*#.*$/, "", search)
+				gsub(/[[:space:]]+/, " ", search)
+				print search
+				found = 1
+				exit
+			}
+		}
+		END { exit ! found }
+	'
+}
+
+# f_dialog_resolv_conf_update $hostname
+#
+# Updates the search/domain directives in resolv.conf(5) given a valid fully-
+# qualified hostname.
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_dialog_resolv_conf_update_awk='
+# Variables that should be defined on the invocation line:
+# 	-v domain="domain"
+# 	-v search_all="0|1"
+# 	-v search_ndots="1+"
+#
+BEGIN {
+	domain_found = search_found = 0
+
+	if ( search_all ) {
+		search = ""
+		subdomain = domain
+		if ( search_ndots < 1 )
+			search_ndots = 1
+
+		ndots = split(subdomain, labels, ".") - 1
+		while ( ndots-- >= search_ndots ) {
+			if ( length(search) ) search = search " "
+			search = search subdomain
+			sub(/[^.]*\./, "", subdomain)
+		}
+	}
+	else search = domain
+}
+{
+	if ( domain_found && search_found ) { print; next }
+
+	tl0 = tolower($0)
+	if ( ! domain_found && \
+	     match(tl0, /^[[:space:]]*domain[[:space:]]+/) ) \
+	{
+		if ( length(domain) ) {
+			printf "%s%s\n", substr($0, 0, RLENGTH), domain
+			domain_found = 1
+		}
+	}
+	else if ( ! search_found && \
+	          match(tl0, /^[[:space:]]*search[[:space:]]+/) ) \
+	{
+		if ( length(search) ) {
+			printf "%s%s\n", substr($0, 0, RLENGTH), search
+			search_found = 1
+		}
+	}
+	else print
+}
+END {
+	if ( ! search_found && length(search) )
+		printf "search\t%s\n", search
+	if ( ! domain_found && length(domain) )
+		printf "domain\t%s\n", domain
+}
+'
+f_dialog_resolv_conf_update()
+{
+	local funcname=f_dialog_resolv_conf_update
+	local hostname="$1"
+
+	#
+	# Extrapolate the desired domain search parameter for resolv.conf(5)
+	#
+	local search nfields ndots domain="${hostname#*.}"
+	if [ "$RESOLVER_SEARCH_DOMAINS_ALL" = "1" ]; then
+		search=
+		IFS=. f_count_ifs nfields "$domain"
+		ndots=$(( $nfields - 1 ))
+		while [ $ndots -ge ${RESOLVER_SEARCH_NDOTS:-1} ]; do
+			search="$search $domain"
+			domain="${domain#*.}"
+			ndots=$(( $ndots - 1 ))
+		done
+		search="${search# }"
+		domain="${hostname#*.}"
+	else
+		search="$domain"
+	fi
+
+	#
+	# Save domain/search information only if different from resolv.conf(5)
+	#
+	if [ "$domain" != "$( f_resolv_conf_domain )" -o \
+	     "$search" != "$( f_resolv_conf_search )" ]
+	then
+		f_dialog_info "Saving new domain/search settings" \
+		              "to resolv.conf(5)..."
+
+		#
+		# Create a new temporary file to write our resolv.conf(5)
+		# update with our new `domain' and `search' directives.
+		#
+		local tmpfile
+		f_eval_catch -dk tmpfile $funcname mktemp \
+			'mktemp -t "%s"' "$tmpfile" || return $DIALOG_CANCEL
+
+		#
+		# Fixup permissions and ownership (mktemp(1) creates the
+		# temporary file with 0600 permissions -- change the
+		# permissions and ownership to match resolv.conf(5) before
+		# we write it out and mv(1) it into place).
+		#
+		local mode owner
+		f_eval_catch -dk mode $funcname stat \
+			'stat -f "%%#Lp" "%s"' "$RESOLV_CONF" || mode=0644
+		f_eval_catch -dk owner $funcname stat \
+			'stat -f "%%u:%%g" "%s"' "$RESOLV_CONF" ||
+			owner="root:wheel"
+		f_eval_catch -d $funcname chmod \
+			'chmod "%s" "%s"' "$mode" "$tmpfile"
+		f_eval_catch -d $funcname chown \
+			'chown "%s" "%s"' "$owner" "$tmpfile"
+
+		#
+		# Operate on resolv.conf(5), replacing only the last
+		# occurrences of `domain' and `search' directives (or add
+		# them to the top if not found), in strict-adherence to the
+		# following entry in resolver(5):
+		#
+		# 	The domain and search keywords are mutually exclusive.
+		# 	If more than one instance of these keywords is present,
+		# 	the last instance will override.
+		#
+		# NOTE: If RESOLVER_SEARCH_DOMAINS_ALL is set to `1' in the
+		# environment, all sub-domains will be added to the `search'
+		# directive, not just the FQDN.
+		#
+		local domain="${hostname#*.}" new_contents
+		[ "$domain" = "$hostname" ] && domain=
+		new_contents=$( tail -r "$RESOLV_CONF" 2> /dev/null )
+		new_contents=$( echo "$new_contents" | awk \
+			-v domain="$domain" \
+			-v search_all="${RESOLVER_SEARCH_DOMAINS_ALL:-1}" \
+			-v search_ndots="${RESOLVER_SEARCH_NDOTS:-1}" \
+			"$f_dialog_resolv_conf_update_awk" )
+
+		#
+		# Write the temporary file contents and move the temporary
+		# file into place.
+		#
+		echo "$new_contents" | tail -r > "$tmpfile" ||
+			return $DIALOG_CANCEL
+		f_eval_catch -d $funcname mv \
+			'mv "%s" "%s"' "$tmpfile" "$RESOLV_CONF"
+
+	fi
+}
+
+# f_dialog_input_nameserver [ $n $nameserver ]
+#
+# Allows the user to edit a given nameserver. The first argument is the
+# resolv.conf(5) nameserver ``instance'' integer. For example, this will be one
+# if editing the first nameserver instance, two if editing the second, three if
+# the third, ad nauseum. If this argument is zero, null, or missing, the value
+# entered by the user (if non-null) will be added to resolv.conf(5) as a new
+# `nameserver' entry. The second argument is the IPv4 address of the nameserver
+# to be edited -- this will be displayed as the initial value during the edit.
+#
+# Taint-checking is performed when editing an existing entry (when the second
+# argument is one or higher) in that the first argument must match the current
+# value of the Nth `nameserver' instance in resolv.conf(5) else an error is
+# generated discarding any/all changes.
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_dialog_input_nameserver_edit_awk='
+# Variables that should be defined on the invocation line:
+# 	-v nsindex="1+"
+# 	-v old_value="..."
+# 	-v new_value="..."
+#
+BEGIN {
+	if ( nsindex < 1 ) exit 1
+	found = n = 0
+}
+{
+	if ( found ) { print; next }
+
+	if ( match(tolower($0), /^[[:space:]]*nameserver[[:space:]]+/)) {
+		if ( ++n == nsindex ) {
+			if ( $2 != old_value ) exit 2
+			if ( new_value != "" ) printf "%s%s\n", \
+				substr($0, 0, RLENGTH), new_value
+			found = 1
+		}
+		else print
+	}
+	else print
+}
+END { if ( ! found ) exit 3 }
+'
+f_dialog_input_nameserver()
+{
+	local funcname=f_dialog_input_nameserver
+	local index="${1:-0}" old_ns="$2" new_ns
+	local ns="$old_ns"
+
+	#
+	# Perform sanity checks
+	#
+	f_isinteger "$index" || return $DIALOG_CANCEL
+	[ $index -ge 0 ] || return $DIALOG_CANCEL
+
+	local msg
+	if [ $index -gt 0 ]; then
+		if [ "$USE_XDIALOG" ]; then
+			msg="$xmsg_please_enter_nameserver_existing"
+		else
+			msg="$msg_please_enter_nameserver_existing"
+		fi
+	else
+		msg="$msg_please_enter_nameserver"
+	fi
+
+	#
+	# Loop until the user provides taint-free input.
+	#
+	while :; do
+		f_dialog_input new_ns "$msg" "$ns" \
+		               "$hline_num_punc_tab_enter" || return $?
+
+		# Take only the first "word" of the user's input
+		new_ns="${new_ns%%[$IFS]*}"
+
+		# Taint-check the user's input
+		[ "$new_ns" ] || break
+		f_dialog_validate_ipaddr "$new_ns" && break
+
+		# Update prompt to allow user to re-edit previous entry
+		ns="$new_ns"
+	done
+
+	#
+	# Save only if the user changed the nameserver.
+	#
+	if [ $index -eq "0" -a "$new_ns" ]; then
+		f_dialog_info "$msg_saving_nameserver"
+		printf "nameserver\t%s\n" "$new_ns" >> "$RESOLV_CONF"
+		return $DIALOG_OK
+	elif [ $index -gt 0 -a "$old_ns" != "$new_ns" ]; then
+		if [ "$new_ns" ]; then
+			msg="$msg_saving_nameserver_existing"
+		else
+			msg="$msg_removing_nameserver"
+		fi
+		f_dialog_info "$msg"
+
+		#
+		# Create a new temporary file to write our new resolv.conf(5)
+		#
+		local tmpfile
+		f_eval_catch -dk tmpfile $funcname mktemp \
+			'mktemp -t "%s"' "$pgm" || return $DIALOG_CANCEL
+
+		#
+		# Quietly fixup permissions and ownership
+		#
+		local mode owner
+		f_eval_catch -dk mode $funcname stat \
+			'stat -f "%%#Lp" "%s"' "$RESOLV_CONF" || mode=0644
+		f_eval_catch -dk owner $funcname stat \
+			'stat -f "%%u:%%g" "%s"' "$RESOLV_CONF" ||
+			owner="root:wheel"
+		f_eval_catch -d $funcname chmod \
+			'chmod "%s" "%s"' "$mode" "$tmpfile"
+		f_eval_catch -d $funcname chown \
+			'chown "%s" "%s"' "$owner" "$tmpfile"
+
+		#
+		# Operate on resolv.conf(5)
+		#
+		local new_contents
+		new_contents=$( awk -v nsindex="$index"    \
+		                    -v old_value="$old_ns" \
+		                    -v new_value="$new_ns" \
+		                    "$f_dialog_input_nameserver_edit_awk" \
+		                    "$RESOLV_CONF" )
+
+		#
+		# Produce an appropriate error message if necessary.
+		#
+		local retval=$?
+		case $retval in
+		1) f_die 1 "$msg_internal_error_nsindex_value" "$nsindex" ;;
+		2) f_show_msg "$msg_resolv_conf_changed_while_editing"
+		   return $retval ;;
+		3) f_show_msg "$msg_resolv_conf_entry_no_longer_exists"
+		   return $retval ;;
+		esac
+
+		#
+		# Write the temporary file contents and move the temporary
+		# file into place.
+		#
+		echo "$new_contents" > "$tmpfile" || return $DIALOG_CANCEL
+		f_eval_catch -d $funcname mv \
+			'mv "%s" "%s"' "$tmpfile" "$RESOLV_CONF"
+	fi
+}
+
+# f_dialog_menu_nameservers
+#
+# Edit the nameservers in resolv.conf(5).
+#
+f_dialog_menu_nameservers()
+{
+	local prompt="$msg_dns_configuration"
+	local menu_list # Calculated below
+	local hline="$hline_arrows_tab_enter"
+	local defaultitem=
+
+	local height width rows
+	local opt_exit="$msg_return_to_previous_menu"
+	local opt_add="$msg_add_nameserver"
+
+	#
+	# Loop forever until the user has finished configuring nameservers
+	#
+	while :; do
+		#
+		# Re/Build list of nameservers
+		#
+		local nameservers
+		f_resolv_conf_nameservers nameservers
+		menu_list=$(
+			index=1
+
+			echo "'X $msg_exit' '$opt_exit'" 
+			index=$(( $index + 1 ))
+
+			echo "'A $msg_add'  '$opt_add'" 
+			index=$(( $index + 1 ))
+
+			for ns in $nameservers; do
+				[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
+				f_substr -v tag "$DIALOG_MENU_TAGS" $index 1
+				echo "'$tag nameserver' '$ns'"
+				index=$(( $index + 1 ))
+			done
+		)
+
+		#
+		# Display configuration-edit menu
+		#
+		eval f_dialog_menu_size height width rows \
+		                        \"\$DIALOG_TITLE\"     \
+		                        \"\$DIALOG_BACKTITLE\" \
+		                        \"\$prompt\"           \
+		                        \"\$hline\"            \
+		                        $menu_list
+		local tag
+		tag=$( eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--hline \"\$hline\"                \
+			--ok-label \"\$msg_ok\"            \
+			--cancel-label \"\$msg_cancel\"    \
+			--default-item \"\$defaultitem\"   \
+			--menu \"\$prompt\"                \
+			$height $width $rows               \
+			$menu_list                         \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
+		local retval=$?
+		f_dialog_data_sanitize tag
+
+		# Return if "Cancel" was chosen (-1) or ESC was pressed (255)
+		if [ $retval -ne $DIALOG_OK ]; then
+			return $retval
+		else
+			# Only update default-item on success
+			defaultitem="$tag"
+		fi
+
+		case "$tag" in
+		"X $msg_exit") break ;;
+		"A $msg_add")
+			f_dialog_input_nameserver
+			;;
+		*)
+			local n ns
+			n=$( eval f_dialog_menutag2index \"\$tag\" $menu_list )
+			ns=$( eval f_dialog_menutag2item \"\$tag\" $menu_list )
+			f_dialog_input_nameserver $(( $n - 2 )) "$ns"
+			;;
+		esac
+	done
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." networking/resolv.subr
+
+fi # ! $_NETWORKING_RESOLV_SUBR

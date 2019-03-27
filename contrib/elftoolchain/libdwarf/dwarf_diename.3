@@ -1,0 +1,91 @@
+.\" Copyright (c) 2010 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_diename.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd March 31, 2010
+.Dt DWARF_DIENAME 3
+.Os
+.Sh NAME
+.Nm dwarf_diename
+.Nd retrieve the name associated with a debugging information entry
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fn dwarf_diename "Dwarf_Die die" "char **ret_name" "Dwarf_Error *err"
+.Sh DESCRIPTION
+Function
+.Fn dwarf_diename
+retrieves a pointer to the NUL-terminated string associated with the
+.Dv DW_AT_name
+attribute of the debugging information entry descriptor referenced by
+argument
+.Ar die .
+If the pointer was successfully retrieved, it is stored in the location
+pointed to by argument
+.Ar ret_name .
+.Sh RETURN VALUES
+Function
+.Fn dwarf_diename
+returns
+.Dv DW_DLV_OK
+on success.
+.Pp
+If the debugging information entry descriptor denoted by argument
+.Ar die
+does not contain a
+.Dv DW_AT_name
+attribute, the function returns
+.Dv DW_DLV_NO_ENTRY
+and sets argument
+.Ar err .
+For other errors, it returns
+.Dv DW_DLV_ERROR
+and sets argument
+.Ar err .
+.Sh ERRORS
+Function
+.Fn dwarf_diename
+can fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Either of arguments
+.Ar die
+or
+.Ar ret_name
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+Argument
+.Ar die
+had no
+.Dv DW_AT_name
+attribute.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_die_abbrev_code 3 ,
+.Xr dwarf_dieoffset 3 ,
+.Xr dwarf_tag 3

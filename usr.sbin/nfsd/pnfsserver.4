@@ -1,0 +1,414 @@
+.\" Copyright (c) 2018 Rick Macklem
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 8, 2018
+.Dt PNFSSERVER 4
+.Os
+.Sh NAME
+.Nm pNFSserver
+.Nd NFS Version 4.1 Parallel NFS Protocol Server
+.Sh DESCRIPTION
+A set of FreeBSD servers may be configured to provide a
+.Xr pnfs 4
+service.
+One FreeBSD system needs to be configured as a MetaData Server (MDS) and
+at least one additional FreeBSD system needs to be configured as one or
+more Data Servers (DS)s.
+.Pp
+These FreeBSD systems are configured to be NFSv4.1 servers, see
+.Xr nfsd 8
+and
+.Xr exports 5
+if you are not familiar with configuring a NFSv4.1 server.
+.Sh DS server configuration
+The DS(s) need to be configured as NFSv4.1 server(s), with a top level exported
+directory used for storage of data files.
+This directory must be owned by
+.Dq root
+and would normally have a mode of
+.Dq 700 .
+Within this directory there needs to be additional directories named
+ds0,...,dsN (where N is 19 by default) also owned by
+.Dq root
+with mode
+.Dq 700 .
+These are the directories where the data files are stored.
+The following command can be run by root when in the top level exported
+directory to create these subdirectories.
+.Bd -literal -offset indent
+jot -w ds 20 0 | xargs mkdir -m 700
+.Ed
+.sp
+Note that
+.Dq 20
+is the default and can be set to a larger value on the MDS as shown below.
+.sp
+The top level exported directory used for storage of data files must be
+exported to the MDS with the
+.Dq maproot=root sec=sys
+export options so that the MDS can create entries in these subdirectories.
+It must also be exported to all pNFS aware clients, but these clients do
+not require the
+.Dq maproot=root
+export option and this directory should be exported to them with the same
+options as used by the MDS to export file system(s) to the clients.
+.Pp
+It is possible to have multiple DSs on the same FreeBSD system, but each
+of these DSs must have a separate top level exported directory used for storage
+of data files and each
+of these DSs must be mountable via a separate IP address.
+Alias addresses can be set on the DS server system for a network
+interface via
+.Xr ifconfig 8
+to create these different IP addresses.
+Multiple DSs on the same server may be useful when data for different file systems
+on the MDS are being stored on different file system volumes on the FreeBSD
+DS system.
+.Sh MDS server configuration
+The MDS must be a separate FreeBSD system from the FreeBSD DS system(s) and
+NFS clients.
+It is configured as a NFSv4.1 server with file system(s) exported to
+clients.
+However, the
+.Dq -p
+command line argument for
+.Xr nfsd
+is used to indicate that it is running as the MDS for a pNFS server.
+.Pp
+The DS(s) must all be mounted on the MDS using the following mount options:
+.Bd -literal -offset indent
+nfsv4,minorversion=1,soft,retrans=2
+.Ed
+.sp
+so that they can be defined as DSs in the
+.Dq -p
+option.
+Normally these mounts would be entered in the
+.Xr fstab 5
+on the MDS.
+For example, if there are four DSs named nfsv4-data[0-3], the
+.Xr fstab 5
+lines might look like:
+.Bd -literal -offset
+nfsv4-data0:/ /data0 nfs rw,nfsv4,minorversion=1,soft,retrans=2 0 0
+nfsv4-data1:/ /data1 nfs rw,nfsv4,minorversion=1,soft,retrans=2 0 0
+nfsv4-data2:/ /data2 nfs rw,nfsv4,minorversion=1,soft,retrans=2 0 0
+nfsv4-data3:/ /data3 nfs rw,nfsv4,minorversion=1,soft,retrans=2 0 0
+.Ed
+.sp
+The
+.Xr nfsd 8
+command line option
+.Dq -p
+indicates that the NFS server is a pNFS MDS and specifies what
+DSs are to be used.
+.br
+For the above
+.Xr fstab 5
+example, the
+.Xr nfsd 8
+nfs_server_flags line in your
+.Xr rc.conf 5
+might look like:
+.Bd -literal -offset
+nfs_server_flags="-u -t -n 128 -p nfsv4-data0:/data0,nfsv4-data1:/data1,nfsv4-data2:/data2,nfsv4-data3:/data3"
+.Ed
+.sp
+This example specifies that the data files should be distributed over the
+four DSs and File layouts will be issued to pNFS enabled clients.
+If issuing Flexible File layouts is desired for this case, setting the sysctl
+.Dq vfs.nfsd.default_flexfile
+non-zero in your
+.Xr sysctl.conf 5
+file will make the
+.Nm
+do that.
+.br
+Alternately, this variant of
+.Dq nfs_server_flags
+will specify that two way mirroring is to be done, via the
+.Dq -m
+command line option.
+.Bd -literal -offset
+nfs_server_flags="-u -t -n 128 -p nfsv4-data0:/data0,nfsv4-data1:/data1,nfsv4-data2:/data2,nfsv4-data3:/data3 -m 2"
+.Ed
+.sp
+With two way mirroring, the data file for each exported file on the MDS
+will be stored on two of the DSs.
+When mirroring is enabled, the server will always issue Flexible File layouts.
+.Pp
+It is also possible to specify which DSs are to be used to store data files for
+specific exported file systems on the MDS.
+For example, if the MDS has exported two file systems
+.Dq /export1
+and
+.Dq /export2
+to clients, the following variant of
+.Dq nfs_server_flags
+will specify that data files for
+.Dq /export1
+will be stored on nfsv4-data0 and nfsv4-data1, whereas the data files for
+.Dq /export2
+will be store on nfsv4-data2 and nfsv4-data3.
+.Bd -literal -offset
+nfs_server_flags="-u -t -n 128 -p nfsv4-data0:/data0#/export1,nfsv4-data1:/data1#/export1,nfsv4-data2:/data2#/export2,nfsv4-data3:/data3#/export2"
+.Ed
+.sp
+This can be used by system administrators to control where data files are
+stored and might be useful for control of storage use.
+For this case, it may be convenient to co-locate more than one of the DSs
+on the same FreeBSD server, using separate file systems on the DS system
+for storage of the respective DS's data files.
+If mirroring is desired for this case, the
+.Dq -m
+option also needs to be specified.
+There must be enough DSs assigned to each exported file system on the MDS
+to support the level of mirroring.
+The above example would be fine for two way mirroring, but four way mirroring
+would not work, since there are only two DSs assigned to each exported file
+system on the MDS.
+.Pp
+The number of subdirectories in each DS is defined by the
+.Dq vfs.nfs.dsdirsize
+sysctl on the MDS.
+This value can be increased from the default of 20, but only when the
+.Xr nfsd 8
+is not running and after the additional ds20,... subdirectories have been
+created on all the DSs.
+For a service that will store a large number of files this sysctl should be
+set much larger, to avoid the number of entries in a subdirectory from
+getting too large.
+.Sh Client mounts
+Once operational, NFSv4.1 FreeBSD client mounts done with the
+.Dq pnfs
+option should do I/O directly on the DSs.
+The clients mounting the MDS must be running the
+.Xr nfscbd
+daemon for pNFS to work.
+Set
+.Bd -literal -offset indent
+nfscbd_enable="YES"
+.Ed
+.sp
+in the
+.Xr rc.conf 5
+on these clients.
+Non-pNFS aware clients or NFSv3 mounts will do all I/O RPCs on the MDS,
+which acts as a proxy for the appropriate DS(s).
+.Sh Backing up a pNFS service
+Since the data is separated from the metadata, the simple way to back up
+a pNFS service is to do so from an NFS client that has the service mounted
+on it.
+If you back up the MDS exported file system(s) on the MDS, you must do it
+in such a way that the
+.Dq system
+namespace extended attributes get backed up.
+.Sh Handling of failed mirrored DSs
+When a mirrored DS fails, it can be disabled one of three ways:
+.sp
+1 - The MDS detects a problem when trying to do proxy
+operations on the DS.
+This can take a couple of minutes
+after the DS failure or network partitioning occurs.
+.sp
+2 - A pNFS client can report an I/O error that occurred for a DS to the MDS in
+the arguments for a LayoutReturn operation.
+.sp
+3 - The system administrator can perform the pnfsdskill(8) command on the MDS
+to disable it. If the system administrator does a pnfsdskill(8) and it fails
+with ENXIO (Device not configured) that normally means the DS was already
+disabled via #1 or #2. Since doing this is harmless, once a system
+administrator knows that there is a problem with a mirrored DS, doing the
+command is recommended.
+.sp
+Once a system administrator knows that a mirrored DS has malfunctioned
+or has been network partitioned, they should do the following as root/su
+on the MDS:
+.Bd -literal -offset indent
+# pnfsdskill <mounted-on-path-of-DS>
+# umount -N <mounted-on-path-of-DS>
+.Ed
+.sp
+Note that the <mounted-on-path-of-DS> must be the exact mounted-on path
+string used when the DS was mounted on the MDS.
+.Pp
+Once the mirrored DS has been disabled, the pNFS service should continue to
+function, but file updates will only happen on the DS(s) 
+that have not been disabled. Assuming two way mirroring, that implies
+the one DS of the pair stored in the
+.Dq pnfsd.dsfile
+extended attribute for the file on the MDS, for files stored on the disabled DS.
+.Pp
+The next step is to clear the IP address in the
+.Dq pnfsd.dsfile
+extended attribute on all files on the MDS for the failed DS.
+This is done so that, when the disabled DS is repaired and brought back online,
+the data files on this DS will not be used, since they may be out of date.
+The command that clears the IP address is
+.Xr pnfsdsfile 8
+with the
+.Dq -r
+option.
+.Bd -literal -offset
+For example:
+# pnfsdsfile -r nfsv4-data3 yyy.c
+yyy.c:	nfsv4-data2.home.rick	ds0/207508569ff983350c000000ec7c0200e4c57b2e0000000000000000	0.0.0.0	ds0/207508569ff983350c000000ec7c0200e4c57b2e0000000000000000
+.Ed
+.sp
+replaces nfsv4-data3 with an IPv4 address of 0.0.0.0, so that nfsv4-data3
+will not get used.
+.Pp
+Normally this will be called within a
+.Xr find 1
+command for all regular
+files in the exported directory tree and must be done on the MDS.
+When used with
+.Xr find 1 ,
+you will probably also want the
+.Dq -q
+option so that it won't spit out the results for every file.
+If the disabled/repaired DS is nfsv4-data3, the commands done on the MDS
+would be:
+.Bd -literal -offset
+# cd <top-level-exported-dir>
+# find . -type f -exec pnfsdsfile -q -r nfsv4-data3 {} \;
+.Ed
+.sp
+There is a problem with the above command if the file found by
+.Xr find 1
+is renamed or unlinked before the
+.Xr pnfsdsfile 8
+command is done on it.
+This should normally generate an error message.
+A simple unlink is harmless
+but a link/unlink or rename might result in the file not having been processed
+under its new name.
+To check that all files have their IP addresses set to 0.0.0.0 these
+commands can be used (assuming the
+.Xr sh 1
+shell):
+.Bd -literal -offset
+# cd <top-level-exported-dir>
+# find . -type f -exec pnfsdsfile {} \; | sed "/nfsv4-data3/!d"
+.Ed
+.sp
+Any line(s) printed require the
+.Xr pnfsdsfile 8
+with
+.Dq -r
+to be done again.
+Once this is done, the replaced/repaired DS can be brought back online.
+It should have empty ds0,...,dsN directories under the top level exported
+directory for storage of data files just like it did when first set up.
+Mount it on the MDS exactly as you did before disabling it.
+For the nfsv4-data3 example, the command would be:
+.Bd -literal -offset
+# mount -t nfs -o nfsv4,minorversion=1,soft,retrans=2 nfsv4-data3:/ /data3
+.Ed
+.sp
+Then restart the nfsd to re-enable the DS.
+.Bd -literal -offset
+# /etc/rc.d/nfsd restart
+.Ed
+.sp
+Now, new files can be stored on nfsv4-data3,
+but files with the IP address zeroed out on the MDS will not yet use the
+repaired DS (nfsv4-data3).
+The next step is to go through the exported file tree on the MDS and,
+for each of the
+files with an IPv4 address of 0.0.0.0 in its extended attribute, copy the file
+data to the repaired DS and re-enable use of this mirror for it.
+This command for copying the file data for one MDS file is
+.Xr pnfsdscopymr 8
+and it will also normally be used in a
+.Xr find 1 .
+For the example case, the commands on the MDS would be:
+.Bd -literal -offset
+# cd <top-level-exported-dir>
+# find . -type f -exec pnfsdscopymr -r /data3 {} \;
+.Ed
+.sp
+When this completes, the recovery should be complete or at least nearly so.
+As noted above, if a link/unlink or rename occurs on a file name while the
+above
+.Xr find 1
+is in progress, it may not get copied.
+To check for any file(s) not yet copied, the commands are:
+.Bd -literal -offset
+# cd <top-level-exported-dir>
+# find . -type f -exec pnfsdsfile {} \; | sed "/0\.0\.0\.0/!d"
+.Ed
+.sp
+If this command prints out any file name(s), these files must
+have the
+.Xr pnfsdscopymr 8
+command done on them to complete the recovery.
+.Bd -literal -offset
+# pnfsdscopymr -r /data3 <file-path-reported>
+.Ed
+.sp
+If this commmand fails with the error
+.br
+.Dq pnfsdscopymr: Copymr failed for file <path>: Device not configured
+.br
+repeatedly, this may be caused by a Read/Write layout that has not
+been returned.
+The only way to get rid of such a layout is to restart the
+.Xr nfsd 8 .
+.sp
+All of these commands are designed to be
+done while the pNFS service is running and can be re-run safely.
+.Pp
+For a more detailed discussion of the setup and management of a pNFS service
+see:
+.Bd -literal -offset indent
+http://people.freebsd.org/~rmacklem/pnfs-planb-setup.txt
+.Ed
+.sp
+.Sh SEE ALSO
+.Xr nfsv4 4 ,
+.Xr pnfs 4 ,
+.Xr exports 5 ,
+.Xr fstab 5 ,
+.Xr rc.conf 5 ,
+.Xr sysctl.conf 5 ,
+.Xr nfscbd 8 ,
+.Xr nfsd 8 ,
+.Xr nfsuserd 8 ,
+.Xr pnfsdscopymr 8 ,
+.Xr pnfsdsfile 8 ,
+.Xr pnfsdskill 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 12.0 .
+.Sh BUGS
+Since the MDS cannot be mirrored, it is a single point of failure just
+as a non
+.Tn pNFS
+server is.
+For non-mirrored configurations, all FreeBSD systems used in the service
+are single points of failure.

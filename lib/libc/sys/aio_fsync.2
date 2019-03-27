@@ -1,0 +1,178 @@
+.\" Copyright (c) 2013 Sergey Kandaurov
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 19, 2016
+.Dt AIO_FSYNC 2
+.Os
+.Sh NAME
+.Nm aio_fsync
+.Nd asynchronous file synchronization (REALTIME)
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In aio.h
+.Ft int
+.Fn aio_fsync "int op" "struct aiocb *iocb"
+.Sh DESCRIPTION
+The
+.Fn aio_fsync
+system call allows the calling process to move all modified data
+associated with the descriptor
+.Fa iocb->aio_fildes
+to a permanent storage device.
+The call returns immediately after the synchronization request has been
+enqueued to the descriptor; the synchronization may or may not have
+completed at the time the call returns.
+.Pp
+The
+.Fa op
+argument can only be set to
+.Dv O_SYNC
+to cause all currently queued I/O operations to be completed
+as if by a call to
+.Xr fsync 2 .
+.Pp
+If _POSIX_PRIORITIZED_IO is defined, and the descriptor supports it,
+then the enqueued operation is submitted at a priority equal to that
+of the calling process minus
+.Fa iocb->aio_reqprio .
+.Pp
+The
+.Fa iocb
+pointer may be subsequently used as an argument to
+.Fn aio_return
+and
+.Fn aio_error
+in order to determine return or error status for the enqueued operation
+while it is in progress.
+.Pp
+If the request could not be enqueued (generally due to invalid arguments),
+the call returns without having enqueued the request.
+.Pp
+The
+.Fa iocb->aio_sigevent
+structure can be used to request notification of the operation's
+completion as described in
+.Xr aio 4 .
+.Sh RESTRICTIONS
+The Asynchronous I/O Control Block structure pointed to by
+.Fa iocb
+must remain valid until the
+operation has completed.
+.Pp
+The asynchronous I/O control buffer
+.Fa iocb
+should be zeroed before the
+.Fn aio_fsync
+call to avoid passing bogus context information to the kernel.
+.Pp
+Modification of the Asynchronous I/O Control Block structure is not allowed
+while the request is queued.
+.Sh RETURN VALUES
+.Rv -std aio_fsync
+.Sh ERRORS
+The
+.Fn aio_fsync
+system call will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The request was not queued because of system resource limitations.
+.It Bq Er EINVAL
+The asynchronous notification method in
+.Fa iocb->aio_sigevent.sigev_notify
+is invalid or not supported.
+.It Bq Er EOPNOTSUPP
+Asynchronous file synchronization operations on the file descriptor
+.Fa iocb->aio_fildes
+are unsafe and unsafe asynchronous I/O operations are disabled.
+.It Bq Er EINVAL
+A value of the
+.Fa op
+argument is not set to
+.Dv O_SYNC .
+.El
+.Pp
+The following conditions may be synchronously detected when the
+.Fn aio_fsync
+system call is made, or asynchronously, at any time thereafter.
+If they are detected at call time,
+.Fn aio_fsync
+returns -1 and sets
+.Va errno
+appropriately; otherwise the
+.Fn aio_return
+system call must be called, and will return -1, and
+.Fn aio_error
+must be called to determine the actual value that would have been
+returned in
+.Va errno .
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa iocb->aio_fildes
+argument
+is not a valid descriptor.
+.It Bq Er EINVAL
+This implementation does not support synchronized I/O for this file.
+.El
+.Pp
+If the request is successfully enqueued, but subsequently cancelled
+or an error occurs, the value returned by the
+.Fn aio_return
+system call is per the
+.Xr read 2
+and
+.Xr write 2
+system calls, and the value returned by the
+.Fn aio_error
+system call is one of the error returns from the
+.Xr read 2
+or
+.Xr write 2
+system calls.
+.Sh SEE ALSO
+.Xr aio_cancel 2 ,
+.Xr aio_error 2 ,
+.Xr aio_read 2 ,
+.Xr aio_return 2 ,
+.Xr aio_suspend 2 ,
+.Xr aio_waitcomplete 2 ,
+.Xr aio_write 2 ,
+.Xr fsync 2 ,
+.Xr sigevent 3 ,
+.Xr siginfo 3 ,
+.Xr aio 4
+.Sh STANDARDS
+The
+.Fn aio_fsync
+system call is expected to conform to the
+.St -p1003.1
+standard.
+.Sh HISTORY
+The
+.Fn aio_fsync
+system call first appeared in
+.Fx 7.0 .

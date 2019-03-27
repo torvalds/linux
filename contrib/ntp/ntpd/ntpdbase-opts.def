@@ -1,0 +1,481 @@
+#include autogen-version.def
+
+include = <<- _EOF_
+	#ifdef __windows
+	  extern int atoi(const char *);
+	#else
+	# include <stdlib.h>
+	#endif
+	_EOF_;
+
+flag = {
+    name      = ipv4;
+    value     = 4;
+    flags-cant = ipv6;
+    descrip   = "Force IPv4 DNS name resolution";
+    doc = <<-  _EndOfDoc_
+	Force DNS resolution of following host names on the command line
+	to the IPv4 namespace.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = ipv6;
+    value     = 6;
+    flags-cant = ipv4;
+    descrip   = "Force IPv6 DNS name resolution";
+    doc = <<-  _EndOfDoc_
+	Force DNS resolution of following host names on the command line
+	to the IPv6 namespace.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = authreq;
+    value     = a;
+    descrip   = "Require crypto authentication";
+    flags-cant = authnoreq;
+    doc = <<-  _EndOfDoc_
+	Require cryptographic authentication for broadcast client,
+	multicast client and symmetric passive associations.
+	This is the default.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = authnoreq;
+    value     = A;
+    descrip   = "Do not require crypto authentication";
+    flags-cant = authreq;
+    doc = <<-  _EndOfDoc_
+	Do not require cryptographic authentication for broadcast client,
+	multicast client and symmetric passive associations.
+	This is almost never a good idea.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = bcastsync;
+    value     = b;
+    descrip   = "Allow us to sync to broadcast servers";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = configfile;
+    value     = c;
+    arg-type  = string;
+    descrip   = "configuration file name";
+    doc = <<-  _EndOfDoc_
+	The name and path of the configuration file,
+	@file{/etc/ntp.conf}
+	by default.
+	_EndOfDoc_;
+};
+
+#include debug-opt.def
+
+flag = {
+    name      = driftfile;
+    value     = f;
+    arg-type  = string;
+    descrip   = "frequency drift file name";
+    doc = <<-  _EndOfDoc_
+	The name and path of the frequency file,
+	@file{/etc/ntp.drift}
+	by default.
+	This is the same operation as the
+	@code{driftfile} @kbd{driftfile}
+	configuration specification in the
+	@file{/etc/ntp.conf}
+	file.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = panicgate;
+    value     = g;
+    max       = NOLIMIT;
+    descrip   = "Allow the first adjustment to be Big";
+    doc = <<-  _EndOfDoc_
+	Normally,
+	@code{ntpd}
+	exits with a message to the system log if the offset exceeds the panic threshold, which is 1000 s by default. This option allows the time to be set to any value without restriction; however, this can happen only once. If the threshold is exceeded after that,
+	@code{ntpd}
+	will exit with a message to the system log. This option can be used with the
+	@code{-q}
+	and
+	@code{-x}
+	options.
+	See the
+	@code{tinker}
+	configuration file directive for other options.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = force_step_once;
+    value     = G;
+    descrip   = "Step any initial offset correction.";
+    doc = <<-  _EndOfDoc_
+	Normally,
+	@code{ntpd}
+	steps the time if the time offset exceeds the step threshold,
+	which is 128 ms by default, and otherwise slews the time.
+	This option forces the initial offset correction to be stepped,
+	so the highest time accuracy can be achieved quickly.
+	However, this may also cause the time to be stepped back
+	so this option must not be used if
+	applications requiring monotonic time are running.
+	See the @code{tinker} configuration file directive for other options.
+	_EndOfDoc_;
+};
+
+flag = {
+    ifdef     = HAVE_DROPROOT;
+    name      = jaildir;
+    value     = i;
+    arg-type  = string;
+    descrip   = "Jail directory";
+    omitted-usage = "built without --enable-clockctl or --enable-linuxcaps or --enable-solarisprivs";
+    doc = <<-  _EndOfDoc_
+	Chroot the server to the directory
+	@kbd{jaildir}
+	.
+	This option also implies that the server attempts to drop root privileges at startup.
+	You may need to also specify a
+	@code{-u}
+	option.
+	This option is only available if the OS supports adjusting the clock
+	without full root privileges.
+	This option is supported under NetBSD (configure with
+	@code{--enable-clockctl}) or Linux (configure with
+	@code{--enable-linuxcaps}) or Solaris (configure with @code{--enable-solarisprivs}).
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = interface;
+    value     = I;
+    arg-type  = string;
+    descrip   = "Listen on an interface name or address";
+    max       = NOLIMIT;
+    arg-name  = iface;
+    stack-arg;
+    doc = <<-  _EndOfDoc_
+	Open the network address given, or all the addresses associated with the
+	given interface name.  This option may appear multiple times.  This option
+	also implies not opening other addresses, except wildcard and localhost.
+	This option is deprecated. Please consider using the configuration file
+	@code{interface} command, which is more versatile.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = keyfile;
+    value     = k;
+    arg-type  = string;
+    descrip   = "path to symmetric keys";
+    doc = <<-  _EndOfDoc_
+	Specify the name and path of the symmetric key file.
+	@file{/etc/ntp.keys}
+	is the default.
+	This is the same operation as the
+	@code{keys} @kbd{keyfile}
+	configuration file directive.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = logfile;
+    value     = l;
+    arg-type  = string;
+    descrip   = "path to the log file";
+    doc = <<-  _EndOfDoc_
+	Specify the name and path of the log file.
+	The default is the system log file.
+	This is the same operation as the
+	@code{logfile} @kbd{logfile}
+	configuration file directive.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = novirtualips;
+    value     = L;
+    descrip   = "Do not listen to virtual interfaces";
+    doc = <<-  _EndOfDoc_
+	Do not listen to virtual interfaces, defined as those with
+	names containing a colon.  This option is deprecated.  Please
+	consider using the configuration file @code{interface} command, which
+	is more versatile.
+	_EndOfDoc_;
+};
+
+flag = {
+    ifdef     = SYS_WINNT;
+    name      = modifymmtimer;
+    value     = M;
+    descrip   = "Modify Multimedia Timer (Windows only)";
+    doc = <<-  _EndOfDoc_
+	Set the Windows Multimedia Timer to highest resolution.  This
+	ensures the resolution does not change while ntpd is running,
+	avoiding timekeeping glitches associated with changes.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = nofork;
+    value     = n;
+    flags-cant = wait-sync;
+    descrip   = "Do not fork";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = nice;
+    value     = N;
+    descrip   = "Run at high priority";
+    doc = <<-  _EndOfDoc_
+	To the extent permitted by the operating system, run
+	@code{ntpd}
+	at the highest priority.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = pidfile;
+    value     = p;
+    arg-type  = string;
+    descrip   = "path to the PID file";
+    doc = <<-  _EndOfDoc_
+	Specify the name and path of the file used to record
+	@code{ntpd}'s
+	process ID.
+	This is the same operation as the
+	@code{pidfile} @kbd{pidfile}
+	configuration file directive.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = priority;
+    value     = P;
+    arg-type  = number;
+    descrip   = "Process priority";
+    doc = <<-  _EndOfDoc_
+	To the extent permitted by the operating system, run
+	@code{ntpd}
+	at the specified
+	@code{sched_setscheduler(SCHED_FIFO)}
+	priority.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = quit;
+    value     = q;
+    flags-cant = saveconfigquit;
+    flags-cant = wait-sync;
+    descrip   = "Set the time and quit";
+    doc = <<-  _EndOfDoc_
+	@code{ntpd}
+	will not daemonize and will exit after the clock is first
+	synchronized.  This behavior mimics that of the
+	@code{ntpdate}
+	program, which will soon be replaced with a shell script.
+	The
+	@code{-g}
+	and
+	@code{-x}
+	options can be used with this option.
+	Note: The kernel time discipline is disabled with this option.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = propagationdelay;
+    value     = r;
+    arg-type  = string;
+    descrip   = "Broadcast/propagation delay";
+    doc = <<-  _EndOfDoc_
+	Specify the default propagation delay from the broadcast/multicast server to this client. This is necessary only if the delay cannot be computed automatically by the protocol.
+	_EndOfDoc_;
+};
+
+flag = {
+    ifdef     = SAVECONFIG;
+    name      = saveconfigquit;
+    arg-type  = string;
+    flags-cant = quit;
+    flags-cant = wait-sync;
+    descrip   = "Save parsed configuration and quit";
+    doc = <<-  _EndOfDoc_
+	Cause @code{ntpd} to parse its startup configuration file and save an
+	equivalent to the given filename and exit.  This option was
+	designed for automated testing.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = statsdir;
+    value     = s;
+    arg-type  = string;
+    descrip   = "Statistics file location";
+    doc = <<-  _EndOfDoc_
+	Specify the directory path for files created by the statistics facility.
+	This is the same operation as the
+	@code{statsdir} @kbd{statsdir}
+	configuration file directive.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = trustedkey;
+    value     = t;
+    arg-type  = string;
+    descrip   = "Trusted key number";
+    max       = NOLIMIT;
+    arg-name  = tkey;
+    stack-arg;
+    doc = <<-  _EndOfDoc_
+	Add the specified key number to the trusted key list.
+	_EndOfDoc_;
+};
+
+flag = {
+    ifdef     = HAVE_DROPROOT;
+    name      = user;
+    value     = u;
+    arg-type  = string;
+    descrip   = "Run as userid (or userid:groupid)";
+    omitted-usage = "built without --enable-clockctl or --enable-linuxcaps or --enable-solarisprivs";
+    doc = <<-  _EndOfDoc_
+	Specify a user, and optionally a group, to switch to.
+	This option is only available if the OS supports adjusting the clock
+	without full root privileges.
+	This option is supported under NetBSD (configure with
+	@code{--enable-clockctl}) or Linux (configure with
+	@code{--enable-linuxcaps}) or Solaris (configure with @code{--enable-solarisprivs}).
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = updateinterval;
+    value     = U;
+    arg-type  = number;
+    descrip   = "interval in seconds between scans for new or dropped interfaces";
+    doc = <<-  _EndOfDoc_
+	Give the time in seconds between two scans for new or dropped interfaces.
+	For systems with routing socket support the scans will be performed shortly after the interface change
+	has been detected by the system.
+	Use 0 to disable scanning. 60 seconds is the minimum time between scans.
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = var;
+/*    value     = v;	Bug 817 */
+    arg-type  = string;
+    descrip   = "make ARG an ntp variable (RW)";
+    max       = NOLIMIT;
+    arg-name  = nvar;
+    stack-arg;
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = dvar;
+/*    value     = V;	Bug 817 */
+    arg-type  = string;
+    descrip   = "make ARG an ntp variable (RW|DEF)";
+    max       = NOLIMIT;
+    arg-name  = ndvar;
+    stack-arg;
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+flag = {
+    ifdef     = HAVE_WORKING_FORK;
+    name      = wait-sync;
+    value     = w;
+    arg-type  = number;
+    flags-cant = nofork;
+    flags-cant = quit;
+    flags-cant = saveconfigquit;
+    descrip   = "Seconds to wait for first clock sync";
+    doc = <<-  _EndOfDoc_
+	If greater than zero, alters @code{ntpd}'s behavior when forking to
+	daemonize.  Instead of exiting with status 0 immediately after
+	the fork, the parent waits up to the specified number of
+	seconds for the child to first synchronize the clock.  The exit
+	status is zero (success) if the clock was synchronized,
+	otherwise it is @code{ETIMEDOUT}.
+	This provides the option for a script starting @code{ntpd} to easily
+	wait for the first set of the clock before proceeding.
+	_EndOfDoc_;
+/*
+** XXX: is it "first set" or is it more?  If it's only "first set" then
+** that's not the same as SYNC.
+*/
+};
+
+flag = {
+    name      = slew;
+    value     = x;
+    descrip   = "Slew up to 600 seconds";
+    doc = <<-  _EndOfDoc_
+	Normally, the time is slewed if the offset is less than the step threshold, which is 128 ms by default, and stepped if above the threshold.
+	This option sets the threshold to 600 s, which is well within the accuracy window to set the clock manually.
+	Note: Since the slew rate of typical Unix kernels is limited to 0.5 ms/s, each second of adjustment requires an amortization interval of 2000 s.
+	Thus, an adjustment as much as 600 s will take almost 14 days to complete.
+	This option can be used with the
+	@code{-g}
+	and
+	@code{-q}
+	options.
+	See the
+	@code{tinker}
+	configuration file directive for other options.
+	Note: The kernel time discipline is disabled with this option.
+	_EndOfDoc_;
+};
+
+flag = {
+    ifdef     = SYS_WINNT;
+    name      = usepcc;
+    descrip   = "Use CPU cycle counter (Windows only)";
+    doc = <<-  _EndOfDoc_
+	Attempt to substitute the CPU counter for @code{QueryPerformanceCounter}.
+	The CPU counter and @code{QueryPerformanceCounter} are compared, and if
+	they have the same frequency, the CPU counter (RDTSC on x86) is
+	used directly, saving the overhead of a system call.
+	_EndOfDoc_;
+};
+
+flag = {
+    ifdef     = SYS_WINNT;
+    name      = pccfreq;
+    arg-type  = string;
+    descrip   = "Force CPU cycle counter use (Windows only)";
+    doc = <<-  _EndOfDoc_
+	Force substitution the CPU counter for @code{QueryPerformanceCounter}.
+	The CPU counter (RDTSC on x86) is used unconditionally with the
+	given frequency (in Hz).
+	_EndOfDoc_;
+};
+
+flag = {
+    ifdef     = HAVE_DNSREGISTRATION;
+    name      = mdns;
+    value     = m;
+    descrip   = "Register with mDNS as a NTP server";
+    doc = <<-  _EndOfDoc_
+	Registers as an NTP server with the local mDNS server which allows
+	the server to be discovered via mDNS client lookup.
+	_EndOfDoc_;
+};

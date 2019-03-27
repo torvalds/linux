@@ -1,0 +1,43 @@
+The /rescue build system here has three goals:
+
+1) Produce a reliable standalone set of /rescue tools.
+
+The contents of /rescue are all statically linked and do not depend on
+anything in /bin or /sbin.  In particular, they'll continue to
+function even if you've hosed your dynamic /bin and /sbin.  For
+example, note that /rescue/mount runs /rescue/mount_nfs and not
+/sbin/mount_nfs.  This is more subtle than it looks.
+
+As an added bonus, /rescue is fairly small (thanks to crunchgen) and
+includes a number of tools (such as gzip, bzip2, vi) that are not
+normally found in /bin and /sbin.
+
+2) Demonstrate robust use of crunchgen.
+
+These Makefiles recompile each of the crunchgen components and include
+support for overriding specific library entries.  Such techniques
+should be useful elsewhere.
+
+3) Produce a toolkit suitable for small distributions.
+
+Install /rescue on a CD or CompactFlash disk, and symlink /bin and
+/sbin to /rescue to produce a small and fairly complete FreeBSD
+system.
+
+These tools have one big disadvantage: being statically linked, they
+cannot use some advanced library functions that rely on dynamic
+linking.  In particular, nsswitch, locales, and pam all
+rely on dynamic linking.
+
+
+To compile:
+
+# cd /usr/src/rescue
+# make obj
+# make
+# make install
+
+Note that rebuilds don't always work correctly; if you run into
+trouble, try 'make clean' before recompiling.
+
+$FreeBSD$

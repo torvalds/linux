@@ -1,0 +1,81 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 15, 2019
+.Dt VOP_INACTIVE 9
+.Os
+.Sh NAME
+.Nm VOP_INACTIVE ,
+.Nm VOP_RECLAIM
+.Nd reclaim file system resources for a vnode
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn VOP_INACTIVE "struct vnode *vp" "struct thread *td"
+.Ft int
+.Fn VOP_RECLAIM "struct vnode *vp" "struct thread *td"
+.Sh DESCRIPTION
+The arguments are:
+.Bl -tag -width 2n
+.It Fa vp
+The vnode being reclaimed.
+.El
+.Pp
+.Fn VOP_INACTIVE
+is usually called when the kernel is no longer using the vnode.
+However, there is no guarantee that it will be called at all, for example if
+the last reference was dropped while the vnode lock could not be upgraded
+to exclusive without sleeping.
+This may be
+because the reference count reaches zero or it may be that the
+file system is being forcibly unmounted while there are open files.
+It can be used to reclaim space on the last close of an 
+.Sq open but deleted
+file.
+.Pp
+.Fn VOP_RECLAIM
+is called when a vnode is being reused for a different file system.
+Any file system specific resources associated with the vnode should be
+freed.
+.Sh LOCKS
+For both
+.Fn VOP_INACTIVE
+and
+.Fn VOP_RECLAIM ,
+the
+.Fa vp
+will be exclusively locked on entry, and must be left exclusively
+locked on return.
+.Sh SEE ALSO
+.Xr vnode 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

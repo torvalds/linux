@@ -1,0 +1,29 @@
+# $FreeBSD$
+
+NATIVE_EMULATION= elf_x86_64_fbsd
+
+SRCS+=		e${NATIVE_EMULATION}.c
+CLEANFILES+=	e${NATIVE_EMULATION}.c
+e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em \
+    scripttempl/elf.sc genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSEARCHPATH} \
+	    ${TOOLS_PREFIX}/usr \
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    ${NATIVE_EMULATION} "" no ${NATIVE_EMULATION} ${TARGET_TUPLE}
+
+X86_EMULATION=	elf_i386_fbsd
+_i386_path=	\"${TOOLS_PREFIX}/usr/lib32\"
+EMS+=		${X86_EMULATION}
+.for ext in ${ELF_SCR_EXT}
+LDSCRIPTS+=	${X86_EMULATION}.${ext}
+ldscripts/${X86_EMULATION}.${ext}: e${X86_EMULATION}.c
+.endfor
+
+SRCS+=		e${X86_EMULATION}.c
+CLEANFILES+=	e${X86_EMULATION}.c
+e${X86_EMULATION}.c: emulparams/${X86_EMULATION}.sh emultempl/elf32.em \
+    scripttempl/elf.sc genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_i386_path} \
+	    ${TOOLS_PREFIX}/usr \
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    ${X86_EMULATION} "" no ${X86_EMULATION} ${TARGET_TUPLE}

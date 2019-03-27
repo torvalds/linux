@@ -1,0 +1,7 @@
+#------------------------------------------------------------------------------
+# $File: beetle,v 1.2 2018/02/05 23:42:17 rrt Exp $
+# beetle:  file(1) magic for Beetle VM object files
+# https://github.com/rrthomas/beetle/
+
+# Beetle object module
+0	string		BEETLE\000	Beetle VM object file

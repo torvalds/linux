@@ -1,0 +1,90 @@
+# $FreeBSD$
+
+HOME=/tmp
+roothome=~root
+if [ "$roothome" = "~root" ]; then
+	echo "~root is not expanded!"
+	exit 2
+fi
+
+testcase() {
+	code="$1"
+	expected="$2"
+	oIFS="$IFS"
+	eval "$code"
+	IFS='|'
+	result="$#|$*"
+	IFS="$oIFS"
+	if [ "x$result" = "x$expected" ]; then
+		ok=x$ok
+	else
+		failures=x$failures
+		echo "For $code, expected $expected actual $result"
+	fi
+}
+
+testcase 'set -- ${$+~}'			'1|/tmp'
+testcase 'set -- ${$+~/}'			'1|/tmp/'
+testcase 'set -- ${$+~/foo}'			'1|/tmp/foo'
+testcase 'set -- ${$+x~}'			'1|x~'
+testcase 'set -- ${$+~root}'			"1|$roothome"
+testcase 'set -- ${$+"~"}'			'1|~'
+testcase 'set -- ${$+"~/"}'			'1|~/'
+testcase 'set -- ${$+"~/foo"}'			'1|~/foo'
+testcase 'set -- ${$+"x~"}'			'1|x~'
+testcase 'set -- ${$+"~root"}'			"1|~root"
+testcase 'set -- "${$+~}"'			'1|~'
+testcase 'set -- "${$+~/}"'			'1|~/'
+testcase 'set -- "${$+~/foo}"'			'1|~/foo'
+testcase 'set -- "${$+x~}"'			'1|x~'
+testcase 'set -- "${$+~root}"'			"1|~root"
+testcase 'set -- ${HOME#~}'			'0|'
+h=~
+testcase 'set -- "$h"'				'1|/tmp'
+f=~/foo
+testcase 'set -- "$f"'				'1|/tmp/foo'
+testcase 'set -- ${f#~}'			'1|/foo'
+testcase 'set -- ${f#~/}'			'1|foo'
+
+ooIFS=$IFS
+IFS=m
+testcase 'set -- ${$+~}'			'1|/tmp'
+testcase 'set -- ${$+~/foo}'			'1|/tmp/foo'
+testcase 'set -- ${$+$h}'			'2|/t|p'
+testcase 'set -- ${HOME#~}'			'0|'
+IFS=$ooIFS
+
+t=\~
+testcase 'set -- ${$+$t}'			'1|~'
+r=$(cat <<EOF
+${HOME#~}
+EOF
+)
+testcase 'set -- $r'				'0|'
+r=$(cat <<EOF
+${HOME#'~'}
+EOF
+)
+testcase 'set -- $r'				'1|/tmp'
+r=$(cat <<EOF
+${t#'~'}
+EOF
+)
+testcase 'set -- $r'				'0|'
+r=$(cat <<EOF
+${roothome#~root}
+EOF
+)
+testcase 'set -- $r'				'0|'
+r=$(cat <<EOF
+${f#~}
+EOF
+)
+testcase 'set -- $r'				'1|/foo'
+r=$(cat <<EOF
+${f#~/}
+EOF
+)
+testcase 'set -- $r'				'1|foo'
+
+test "x$failures" = x

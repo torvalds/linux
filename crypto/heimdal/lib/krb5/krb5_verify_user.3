@@ -1,0 +1,241 @@
+.\" Copyright (c) 2001 - 2006 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd May  1, 2006
+.Dt KRB5_VERIFY_USER 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_verify_user ,
+.Nm krb5_verify_user_lrealm ,
+.Nm krb5_verify_user_opt ,
+.Nm krb5_verify_opt_init ,
+.Nm krb5_verify_opt_alloc ,
+.Nm krb5_verify_opt_free ,
+.Nm krb5_verify_opt_set_ccache ,
+.Nm krb5_verify_opt_set_flags ,
+.Nm krb5_verify_opt_set_service ,
+.Nm krb5_verify_opt_set_secure ,
+.Nm krb5_verify_opt_set_keytab
+.Nd Heimdal password verifying functions
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Ft krb5_error_code
+.Fn "krb5_verify_user" "krb5_context context" " krb5_principal principal" "krb5_ccache ccache" "const char *password" "krb5_boolean secure" "const char *service"
+.Ft krb5_error_code
+.Fn "krb5_verify_user_lrealm" "krb5_context context" "krb5_principal principal" "krb5_ccache ccache" "const char *password" "krb5_boolean secure" "const char *service"
+.Ft void
+.Fn krb5_verify_opt_init "krb5_verify_opt *opt"
+.Ft void
+.Fn krb5_verify_opt_alloc "krb5_verify_opt **opt"
+.Ft void
+.Fn krb5_verify_opt_free "krb5_verify_opt *opt"
+.Ft void
+.Fn krb5_verify_opt_set_ccache "krb5_verify_opt *opt" "krb5_ccache ccache"
+.Ft void
+.Fn krb5_verify_opt_set_keytab "krb5_verify_opt *opt" "krb5_keytab keytab"
+.Ft void
+.Fn krb5_verify_opt_set_secure "krb5_verify_opt *opt" "krb5_boolean secure"
+.Ft void
+.Fn krb5_verify_opt_set_service "krb5_verify_opt *opt" "const char *service"
+.Ft void
+.Fn krb5_verify_opt_set_flags "krb5_verify_opt *opt" "unsigned int flags"
+.Ft krb5_error_code
+.Fo krb5_verify_user_opt
+.Fa "krb5_context context"
+.Fa "krb5_principal principal"
+.Fa "const char *password"
+.Fa "krb5_verify_opt *opt"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm krb5_verify_user
+function verifies the password supplied by a user.
+The principal whose password will be verified is specified in
+.Fa principal .
+New tickets will be obtained as a side-effect and stored in
+.Fa ccache
+(if
+.Dv NULL ,
+the default ccache is used).
+.Fn krb5_verify_user
+will call
+.Fn krb5_cc_initialize
+on the given
+.Fa ccache ,
+so
+.Fa ccache
+must only initialized with
+.Fn krb5_cc_resolve
+or
+.Fn krb5_cc_gen_new .
+If the password is not supplied in
+.Fa password
+(and is given as
+.Dv NULL )
+the user will be prompted for it.
+If
+.Fa secure
+the ticket will be verified against the locally stored service key
+.Fa service
+(by default
+.Ql host
+if given as
+.Dv NULL
+).
+.Pp
+The
+.Fn krb5_verify_user_lrealm
+function does the same, except that it ignores the realm in
+.Fa principal
+and tries all the local realms (see
+.Xr krb5.conf 5 ) .
+After a successful return, the principal is set to the authenticated
+realm. If the call fails, the principal will not be meaningful, and
+should only be freed with
+.Xr krb5_free_principal 3 .
+.Pp
+.Fn krb5_verify_opt_alloc
+and
+.Fn krb5_verify_opt_free
+allocates and frees a
+.Li krb5_verify_opt .
+You should use the the alloc and free function instead of allocation
+the structure yourself, this is because in a future release the
+structure wont be exported.
+.Pp
+.Fn krb5_verify_opt_init
+resets all opt to default values.
+.Pp
+None of the krb5_verify_opt_set function makes a copy of the data
+structure that they are called with. It's up the caller to free them
+after the
+.Fn krb5_verify_user_opt
+is called.
+.Pp
+.Fn krb5_verify_opt_set_ccache
+sets the
+.Fa ccache
+that user of
+.Fa opt
+will use. If not set, the default credential cache will be used.
+.Pp
+.Fn krb5_verify_opt_set_keytab
+sets the
+.Fa keytab
+that user of
+.Fa opt
+will use. If not set, the default keytab will be used.
+.Pp
+.Fn krb5_verify_opt_set_secure
+if
+.Fa secure
+if true, the password verification will require that the ticket will
+be verified against the locally stored service key. If not set,
+default value is true.
+.Pp
+.Fn krb5_verify_opt_set_service
+sets the
+.Fa service
+principal that user of
+.Fa opt
+will use. If not set, the
+.Ql host
+service will be used.
+.Pp
+.Fn krb5_verify_opt_set_flags
+sets
+.Fa flags
+that user of
+.Fa opt
+will use.
+If the flag
+.Dv KRB5_VERIFY_LREALMS
+is used, the
+.Fa principal
+will be modified like
+.Fn krb5_verify_user_lrealm
+modifies it.
+.Pp
+.Fn krb5_verify_user_opt
+function verifies the
+.Fa password
+supplied by a user.
+The principal whose password will be verified is specified in
+.Fa principal .
+Options the to the verification process is pass in in
+.Fa opt .
+.Sh EXAMPLES
+Here is a example program that verifies a password. it uses the
+.Ql host/`hostname`
+service principal in
+.Pa krb5.keytab .
+.Bd -literal
+#include <krb5.h>
+
+int
+main(int argc, char **argv)
+{
+    char *user;
+    krb5_error_code error;
+    krb5_principal princ;
+    krb5_context context;
+
+    if (argc != 2)
+	errx(1, "usage: verify_passwd <principal-name>");
+
+    user = argv[1];
+
+    if (krb5_init_context(&context) < 0)
+	errx(1, "krb5_init_context");
+
+    if ((error = krb5_parse_name(context, user, &princ)) != 0)
+	krb5_err(context, 1, error, "krb5_parse_name");
+
+    error = krb5_verify_user(context, princ, NULL, NULL, TRUE, NULL);
+    if (error)
+        krb5_err(context, 1, error, "krb5_verify_user");
+
+    return 0;
+}
+.Ed
+.Sh SEE ALSO
+.Xr krb5_cc_gen_new 3 ,
+.Xr krb5_cc_initialize 3 ,
+.Xr krb5_cc_resolve 3 ,
+.Xr krb5_err 3 ,
+.Xr krb5_free_principal 3 ,
+.Xr krb5_init_context 3 ,
+.Xr krb5_kt_default 3 ,
+.Xr krb5.conf 5

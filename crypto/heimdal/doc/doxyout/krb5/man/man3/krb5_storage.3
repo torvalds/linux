@@ -1,0 +1,1055 @@
+.TH "Heimdal Kerberos 5 storage functions" 3 "11 Jan 2012" "Version 1.5.2" "HeimdalKerberos5library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+Heimdal Kerberos 5 storage functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_storage_set_flags\fP (krb5_storage *sp, krb5_flags flags)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_storage_clear_flags\fP (krb5_storage *sp, krb5_flags flags)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL \fBkrb5_storage_is_flags\fP (krb5_storage *sp, krb5_flags flags)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_storage_set_byteorder\fP (krb5_storage *sp, krb5_flags byteorder)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_flags KRB5_LIB_CALL \fBkrb5_storage_get_byteorder\fP (krb5_storage *sp)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_storage_set_max_alloc\fP (krb5_storage *sp, size_t size)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION off_t KRB5_LIB_CALL \fBkrb5_storage_seek\fP (krb5_storage *sp, off_t offset, int whence)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION int KRB5_LIB_CALL \fBkrb5_storage_truncate\fP (krb5_storage *sp, off_t offset)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_ssize_t KRB5_LIB_CALL \fBkrb5_storage_read\fP (krb5_storage *sp, void *buf, size_t len)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_ssize_t KRB5_LIB_CALL \fBkrb5_storage_write\fP (krb5_storage *sp, const void *buf, size_t len)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_storage_set_eof_code\fP (krb5_storage *sp, int code)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION int KRB5_LIB_CALL \fBkrb5_storage_get_eof_code\fP (krb5_storage *sp)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_storage_free\fP (krb5_storage *sp)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_storage_to_data\fP (krb5_storage *sp, krb5_data *data)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_int32\fP (krb5_storage *sp, int32_t value)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_uint32\fP (krb5_storage *sp, uint32_t value)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_int32\fP (krb5_storage *sp, int32_t *value)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_uint32\fP (krb5_storage *sp, uint32_t *value)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_int16\fP (krb5_storage *sp, int16_t value)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_uint16\fP (krb5_storage *sp, uint16_t value)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_int16\fP (krb5_storage *sp, int16_t *value)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_uint16\fP (krb5_storage *sp, uint16_t *value)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_int8\fP (krb5_storage *sp, int8_t value)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_uint8\fP (krb5_storage *sp, uint8_t value)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_int8\fP (krb5_storage *sp, int8_t *value)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_uint8\fP (krb5_storage *sp, uint8_t *value)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_data\fP (krb5_storage *sp, krb5_data data)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_data\fP (krb5_storage *sp, krb5_data *data)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_string\fP (krb5_storage *sp, const char *s)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_string\fP (krb5_storage *sp, char **string)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_stringz\fP (krb5_storage *sp, const char *s)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_stringz\fP (krb5_storage *sp, char **string)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_principal\fP (krb5_storage *sp, krb5_const_principal p)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_principal\fP (krb5_storage *sp, krb5_principal *princ)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_keyblock\fP (krb5_storage *sp, krb5_keyblock p)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_keyblock\fP (krb5_storage *sp, krb5_keyblock *p)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_times\fP (krb5_storage *sp, krb5_times times)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_times\fP (krb5_storage *sp, krb5_times *times)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_address\fP (krb5_storage *sp, krb5_address p)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_address\fP (krb5_storage *sp, krb5_address *adr)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_addrs\fP (krb5_storage *sp, krb5_addresses p)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_addrs\fP (krb5_storage *sp, krb5_addresses *adr)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_authdata\fP (krb5_storage *sp, krb5_authdata auth)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_authdata\fP (krb5_storage *sp, krb5_authdata *auth)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_creds\fP (krb5_storage *sp, krb5_creds *creds)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_creds\fP (krb5_storage *sp, krb5_creds *creds)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_store_creds_tag\fP (krb5_storage *sp, krb5_creds *creds)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_ret_creds_tag\fP (krb5_storage *sp, krb5_creds *creds)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_storage *KRB5_LIB_CALL \fBkrb5_storage_emem\fP (void)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_storage *KRB5_LIB_CALL \fBkrb5_storage_from_fd\fP (krb5_socket_t fd_in)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_storage *KRB5_LIB_CALL \fBkrb5_storage_from_mem\fP (void *buf, size_t len)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_storage *KRB5_LIB_CALL \fBkrb5_storage_from_data\fP (krb5_data *data)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_storage *KRB5_LIB_CALL \fBkrb5_storage_from_readonly_mem\fP (const void *buf, size_t len)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_address (krb5_storage * sp, krb5_address * adr)"
+.PP
+Read a address block from the storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIadr\fP the address block read from storage
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_addrs (krb5_storage * sp, krb5_addresses * adr)"
+.PP
+Read a addresses block from the storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIadr\fP the addresses block read from storage
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_authdata (krb5_storage * sp, krb5_authdata * auth)"
+.PP
+Read a auth data from the storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIauth\fP the auth data block read from storage
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_creds (krb5_storage * sp, krb5_creds * creds)"
+.PP
+Read a credentials block from the storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIcreds\fP the credentials block read from storage
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_creds_tag (krb5_storage * sp, krb5_creds * creds)"
+.PP
+Read a tagged credentials block from the storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIcreds\fP the credentials block read from storage
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_data (krb5_storage * sp, krb5_data * data)"
+.PP
+Parse a data from the storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to read from 
+.br
+\fIdata\fP the parsed data
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_int16 (krb5_storage * sp, int16_t * value)"
+.PP
+Read a int16 from storage, byte order is controlled by the settings on the storage, see \fBkrb5_storage_set_byteorder()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage to write too 
+.br
+\fIvalue\fP the value read from the buffer
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 for success, or a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_int32 (krb5_storage * sp, int32_t * value)"
+.PP
+Read a int32 from storage, byte order is controlled by the settings on the storage, see \fBkrb5_storage_set_byteorder()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage to write too 
+.br
+\fIvalue\fP the value read from the buffer
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 for success, or a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_int8 (krb5_storage * sp, int8_t * value)"
+.PP
+Read a int8 from storage
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage to write too 
+.br
+\fIvalue\fP the value read from the buffer
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 for success, or a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_keyblock (krb5_storage * sp, krb5_keyblock * p)"
+.PP
+Read a keyblock from the storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIp\fP the keyblock read from storage, free using \fBkrb5_free_keyblock()\fP
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_principal (krb5_storage * sp, krb5_principal * princ)"
+.PP
+Parse principal from the storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to read from 
+.br
+\fIprinc\fP the parsed principal
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_string (krb5_storage * sp, char ** string)"
+.PP
+Parse a string from the storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to read from 
+.br
+\fIstring\fP the parsed string
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_stringz (krb5_storage * sp, char ** string)"
+.PP
+Parse zero terminated string from the storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to read from 
+.br
+\fIstring\fP the parsed string
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_times (krb5_storage * sp, krb5_times * times)"
+.PP
+Read a times block from the storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fItimes\fP the times block read from storage
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_uint16 (krb5_storage * sp, uint16_t * value)"
+.PP
+Read a int16 from storage, byte order is controlled by the settings on the storage, see \fBkrb5_storage_set_byteorder()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage to write too 
+.br
+\fIvalue\fP the value read from the buffer
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 for success, or a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_uint32 (krb5_storage * sp, uint32_t * value)"
+.PP
+Read a uint32 from storage, byte order is controlled by the settings on the storage, see \fBkrb5_storage_set_byteorder()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage to write too 
+.br
+\fIvalue\fP the value read from the buffer
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 for success, or a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_ret_uint8 (krb5_storage * sp, uint8_t * value)"
+.PP
+Read a uint8 from storage
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage to write too 
+.br
+\fIvalue\fP the value read from the buffer
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 for success, or a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_storage_clear_flags (krb5_storage * sp, krb5_flags flags)"
+.PP
+Clear the flags on a storage buffer
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to clear the flags on 
+.br
+\fIflags\fP the flags to clear 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_storage* KRB5_LIB_CALL krb5_storage_emem (void)"
+.PP
+Create a elastic (allocating) memory storage backend. Memory is allocated on demand. Free returned krb5_storage with \fBkrb5_storage_free()\fP.
+.PP
+\fBReturns:\fP
+.RS 4
+A krb5_storage on success, or NULL on out of memory error.
+.RE
+.PP
+\fBSee also:\fP
+.RS 4
+\fBkrb5_storage_from_mem()\fP 
+.PP
+\fBkrb5_storage_from_readonly_mem()\fP 
+.PP
+\fBkrb5_storage_from_fd()\fP 
+.PP
+\fBkrb5_storage_from_data()\fP 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_storage_free (krb5_storage * sp)"
+.PP
+Free a krb5 storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage to free.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An Kerberos 5 error code. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_storage* KRB5_LIB_CALL krb5_storage_from_data (krb5_data * data)"
+.PP
+Create a fixed size memory storage block
+.PP
+\fBReturns:\fP
+.RS 4
+A krb5_storage on success, or NULL on out of memory error.
+.RE
+.PP
+\fBSee also:\fP
+.RS 4
+krb5_storage_mem() 
+.PP
+\fBkrb5_storage_from_mem()\fP 
+.PP
+\fBkrb5_storage_from_readonly_mem()\fP 
+.PP
+\fBkrb5_storage_from_fd()\fP 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_storage* KRB5_LIB_CALL krb5_storage_from_fd (krb5_socket_t fd_in)"
+.PP
+\fBReturns:\fP
+.RS 4
+A krb5_storage on success, or NULL on out of memory error.
+.RE
+.PP
+\fBSee also:\fP
+.RS 4
+\fBkrb5_storage_emem()\fP 
+.PP
+\fBkrb5_storage_from_mem()\fP 
+.PP
+\fBkrb5_storage_from_readonly_mem()\fP 
+.PP
+\fBkrb5_storage_from_data()\fP 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_storage* KRB5_LIB_CALL krb5_storage_from_mem (void * buf, size_t len)"
+.PP
+Create a fixed size memory storage block
+.PP
+\fBReturns:\fP
+.RS 4
+A krb5_storage on success, or NULL on out of memory error.
+.RE
+.PP
+\fBSee also:\fP
+.RS 4
+krb5_storage_mem() 
+.PP
+\fBkrb5_storage_from_readonly_mem()\fP 
+.PP
+\fBkrb5_storage_from_data()\fP 
+.PP
+\fBkrb5_storage_from_fd()\fP 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_storage* KRB5_LIB_CALL krb5_storage_from_readonly_mem (const void * buf, size_t len)"
+.PP
+Create a fixed size memory storage block that is read only
+.PP
+\fBReturns:\fP
+.RS 4
+A krb5_storage on success, or NULL on out of memory error.
+.RE
+.PP
+\fBSee also:\fP
+.RS 4
+krb5_storage_mem() 
+.PP
+\fBkrb5_storage_from_mem()\fP 
+.PP
+\fBkrb5_storage_from_data()\fP 
+.PP
+\fBkrb5_storage_from_fd()\fP 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_flags KRB5_LIB_CALL krb5_storage_get_byteorder (krb5_storage * sp)"
+.PP
+Return the current byteorder for the buffer. See \fBkrb5_storage_set_byteorder()\fP for the list or byte order contants. 
+.SS "KRB5_LIB_FUNCTION int KRB5_LIB_CALL krb5_storage_get_eof_code (krb5_storage * sp)"
+.PP
+Get the return code that will be used when end of storage is reached.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+storage error code 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL krb5_storage_is_flags (krb5_storage * sp, krb5_flags flags)"
+.PP
+Return true or false depending on if the storage flags is set or not. NB testing for the flag 0 always return true.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to check flags on 
+.br
+\fIflags\fP The flags to test for
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+true if all the flags are set, false if not. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_ssize_t KRB5_LIB_CALL krb5_storage_read (krb5_storage * sp, void * buf, size_t len)"
+.PP
+Read to the storage buffer.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to read from 
+.br
+\fIbuf\fP the buffer to store the data in 
+.br
+\fIlen\fP the length to read
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+The length of data read (can be shorter then len), or negative on error. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION off_t KRB5_LIB_CALL krb5_storage_seek (krb5_storage * sp, off_t offset, int whence)"
+.PP
+Seek to a new offset.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to seek in. 
+.br
+\fIoffset\fP the offset to seek 
+.br
+\fIwhence\fP relateive searching, SEEK_CUR from the current position, SEEK_END from the end, SEEK_SET absolute from the start.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+The new current offset 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_storage_set_byteorder (krb5_storage * sp, krb5_flags byteorder)"
+.PP
+Set the new byte order of the storage buffer.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to set the byte order for. 
+.br
+\fIbyteorder\fP the new byte order.
+.RE
+.PP
+The byte order are: KRB5_STORAGE_BYTEORDER_BE, KRB5_STORAGE_BYTEORDER_LE and KRB5_STORAGE_BYTEORDER_HOST. 
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_storage_set_eof_code (krb5_storage * sp, int code)"
+.PP
+Set the return code that will be used when end of storage is reached.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage 
+.br
+\fIcode\fP the error code to return on end of storage 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_storage_set_flags (krb5_storage * sp, krb5_flags flags)"
+.PP
+Add the flags on a storage buffer by or-ing in the flags to the buffer.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to set the flags on 
+.br
+\fIflags\fP the flags to set 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_storage_set_max_alloc (krb5_storage * sp, size_t size)"
+.PP
+Set the max alloc value
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer set the max allow for 
+.br
+\fIsize\fP maximum size to allocate, use 0 to remove limit 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_storage_to_data (krb5_storage * sp, krb5_data * data)"
+.PP
+Copy the contnent of storage
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage to copy to a data 
+.br
+\fIdata\fP the copied data, free with \fBkrb5_data_free()\fP
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 for success, or a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION int KRB5_LIB_CALL krb5_storage_truncate (krb5_storage * sp, off_t offset)"
+.PP
+Truncate the storage buffer in sp to offset.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to truncate. 
+.br
+\fIoffset\fP the offset to truncate too.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An Kerberos 5 error code. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_ssize_t KRB5_LIB_CALL krb5_storage_write (krb5_storage * sp, const void * buf, size_t len)"
+.PP
+Write to the storage buffer.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIbuf\fP the buffer to write to the storage buffer 
+.br
+\fIlen\fP the length to write
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+The length of data written (can be shorter then len), or negative on error. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_address (krb5_storage * sp, krb5_address p)"
+.PP
+Write a address block to storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIp\fP the address block to write.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_addrs (krb5_storage * sp, krb5_addresses p)"
+.PP
+Write a addresses block to storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIp\fP the addresses block to write.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_authdata (krb5_storage * sp, krb5_authdata auth)"
+.PP
+Write a auth data block to storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIauth\fP the auth data block to write.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_creds (krb5_storage * sp, krb5_creds * creds)"
+.PP
+Write a credentials block to storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIcreds\fP the creds block to write.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_creds_tag (krb5_storage * sp, krb5_creds * creds)"
+.PP
+Write a tagged credentials block to storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIcreds\fP the creds block to write.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_data (krb5_storage * sp, krb5_data data)"
+.PP
+Store a data to the storage. The data is stored with an int32 as lenght plus the data (not padded).
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIdata\fP the buffer to store.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_int16 (krb5_storage * sp, int16_t value)"
+.PP
+Store a int16 to storage, byte order is controlled by the settings on the storage, see \fBkrb5_storage_set_byteorder()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage to write too 
+.br
+\fIvalue\fP the value to store
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 for success, or a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_int32 (krb5_storage * sp, int32_t value)"
+.PP
+Store a int32 to storage, byte order is controlled by the settings on the storage, see \fBkrb5_storage_set_byteorder()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage to write too 
+.br
+\fIvalue\fP the value to store
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 for success, or a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_int8 (krb5_storage * sp, int8_t value)"
+.PP
+Store a int8 to storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage to write too 
+.br
+\fIvalue\fP the value to store
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 for success, or a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_keyblock (krb5_storage * sp, krb5_keyblock p)"
+.PP
+Store a keyblock to the storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIp\fP the keyblock to write
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_principal (krb5_storage * sp, krb5_const_principal p)"
+.PP
+Write a principal block to storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIp\fP the principal block to write.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_string (krb5_storage * sp, const char * s)"
+.PP
+Store a string to the buffer. The data is formated as an len:uint32 plus the string itself (not padded).
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIs\fP the string to store.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_stringz (krb5_storage * sp, const char * s)"
+.PP
+Store a zero terminated string to the buffer. The data is stored one character at a time until a NUL is stored.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fIs\fP the string to store.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_times (krb5_storage * sp, krb5_times times)"
+.PP
+Write a times block to storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage buffer to write to 
+.br
+\fItimes\fP the times block to write.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_uint16 (krb5_storage * sp, uint16_t value)"
+.PP
+Store a uint16 to storage, byte order is controlled by the settings on the storage, see \fBkrb5_storage_set_byteorder()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage to write too 
+.br
+\fIvalue\fP the value to store
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 for success, or a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_uint32 (krb5_storage * sp, uint32_t value)"
+.PP
+Store a uint32 to storage, byte order is controlled by the settings on the storage, see \fBkrb5_storage_set_byteorder()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage to write too 
+.br
+\fIvalue\fP the value to store
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 for success, or a Kerberos 5 error code on failure. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_store_uint8 (krb5_storage * sp, uint8_t value)"
+.PP
+Store a uint8 to storage.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIsp\fP the storage to write too 
+.br
+\fIvalue\fP the value to store
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 for success, or a Kerberos 5 error code on failure. 
+.RE
+.PP
+

@@ -1,0 +1,14 @@
+
+Stability attributes for script /dev/stdin:
+
+	Minimum Probe Description Attributes
+		Identifier Names: Unstable
+		Data Semantics:   Unstable
+		Dependency Class: Common
+
+	Minimum Statement Attributes
+		Identifier Names: Stable
+		Data Semantics:   Stable
+		Dependency Class: Common
+
+

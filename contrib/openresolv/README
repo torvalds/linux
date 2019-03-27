@@ -1,0 +1,11 @@
+openresolv is a resolvconf implementation which manages resolv.conf
+You can find the latest version at http://roy.marples.name/projects/openresolv
+It is written and maintained by Roy Marples <roy@marples.name>
+
+This resolvconf implementation, along with its subscribers, work with a
+POSIX compliant shell and userland utilities. It is designed to work without
+tools such as sed as it *has* to work without /usr being available.
+
+On systems where resolvconf is expected to be used before /var/run is available
+for writing, you can configure openresolv to write somewhere else, like say a
+ramdisk.

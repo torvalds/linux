@@ -1,0 +1,147 @@
+.\"-
+.\" Copyright 2004-2005 Colin Percival
+.\" All rights reserved
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted providing that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 30, 2005
+.Dt PORTSNAP.CONF 5
+.Os FreeBSD
+.Sh NAME
+.Nm portsnap.conf
+.Nd configuration file for
+.Xr portsnap 8
+.Sh DESCRIPTION
+The
+.Nm
+file controls where
+.Xr portsnap 8
+fetches ports tree snapshots from,
+which RSA key should be trusted to sign the updates, and what
+directories should hold the compressed and live ports trees.
+.Pp
+A line of the form
+.Dl SERVERNAME=portsnap.example.com
+specifies the source from which snapshots should be fetched.
+This is equivalent to the
+.Fl s Ar server
+option to
+.Xr portsnap 8 ,
+and will be ignored if the command-line
+option is used.
+.Pp
+A line of the form
+.Dl KEYPRINT=0123456789abc ... 456789abcdef
+(64 characters in total)
+specifies the SHA-256 hash of the OpenSSL public key file
+belonging to an RSA keypair which is trusted to sign updates.
+This is equivalent to the
+.Fl k Ar KEY
+option to
+.Xr portsnap 8 ,
+and will be ignored if the command-line
+option is used.
+.Pp
+A line of the form
+.Dl WORKDIR=/path/to/workdir
+specifies the directory in which portsnap should maintain its compressed
+snapshot of the ports tree.
+This is equivalent to the
+.Fl d Ar workdir
+option to
+.Xr portsnap 8 ,
+and will be ignored if the command-line option
+is used.
+.Pp
+A line of the form
+.Dl PORTSDIR=/path/to/portstree
+specifies the directory in which portsnap will create the live ports
+tree from its compressed snapshot via the
+.Cm extract
+and
+.Cm update
+commands.
+This is equivalent to the
+.Fl p Ar portsdir
+option to
+.Xr portsnap 8 ,
+and will be ignored if the command-line option
+is used.
+.Pp
+If more than one line of any of the above forms is included in
+.Nm
+then only the last one will take effect.
+.Pp
+A line of the form
+.Dl INDEX INDEXFILE DESCRIBEFILE
+will instruct
+.Xr portsnap 8
+that the specified INDEX file is generated from the specified
+describe file distributed by the portsnap server.
+.Pp
+Finally, a line of the form
+.Dl REFUSE foo bar
+will instruct
+.Xr portsnap 8
+to ignore parts of the ports tree with paths starting with
+.Ar foo
+or
+.Ar bar ,
+which are interpreted as extended regular expressions by
+.Xr egrep 1 .
+This will result in those parts of the tree not being updated
+in the compressed snapshot when the
+.Cm fetch
+and
+.Cm cron
+commands are used and not being extracted when the
+.Cm extract
+command is used (unless a specific
+.Ar path
+is passed to
+.Xr portsnap 8 ) ,
+and if those parts of the ports tree are present they
+will not be updated when the
+.Cm update
+command is used.
+Unlike the other options, the parameters in REFUSE lines
+accumulate and all such lines are considered.
+.Bf Em
+Note that operating with an incomplete ports tree is not
+supported and may cause unexpected results.
+.Ef
+.Pp
+Any lines not of the above forms will be ignored.
+.Sh FILES
+.Bl -tag -width "/etc/portsnap.conf"
+.It Pa /etc/portsnap.conf
+Default location of the portsnap configuration file.
+.El
+.Sh SEE ALSO
+.Xr egrep 1 ,
+.Xr fetch 1 ,
+.Xr sha256 1 ,
+.Xr portsnap 8
+.Sh AUTHORS
+.An Colin Percival Aq Mt cperciva@FreeBSD.org

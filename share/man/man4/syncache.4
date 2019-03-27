@@ -1,0 +1,215 @@
+.\"
+.\" syncache - TCP SYN caching to handle SYN flood DoS.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 22, 2008
+.Dt SYNCACHE 4
+.Os
+.Sh NAME
+.Nm syncache , syncookies
+.Nd
+.Xr sysctl 8
+MIBs for controlling TCP SYN caching
+.Sh SYNOPSIS
+.Bl -item -compact
+.It
+.Nm sysctl Cm net.inet.tcp.syncookies
+.It
+.Nm sysctl Cm net.inet.tcp.syncookies_only
+.El
+.Pp
+.Bl -item -compact
+.It
+.Nm sysctl Cm net.inet.tcp.syncache.hashsize
+.It
+.Nm sysctl Cm net.inet.tcp.syncache.bucketlimit
+.It
+.Nm sysctl Cm net.inet.tcp.syncache.cachelimit
+.It
+.Nm sysctl Cm net.inet.tcp.syncache.rexmtlimit
+.It
+.Nm sysctl Cm net.inet.tcp.syncache.count
+.El
+.Sh DESCRIPTION
+The
+.Nm
+.Xr sysctl 8
+MIB is used to control the TCP SYN caching in the system, which
+is intended to handle SYN flood Denial of Service attacks.
+.Pp
+When a TCP SYN segment is received on a port corresponding to a listen
+socket, an entry is made in the
+.Nm ,
+and a SYN,ACK segment is
+returned to the peer.
+The
+.Nm
+entry holds the TCP options from the initial SYN,
+enough state to perform a SYN,ACK retransmission, and takes up less
+space than a TCP control block endpoint.
+An incoming segment which contains an ACK for the SYN,ACK
+and matches a
+.Nm
+entry will cause the system to create a TCP control block
+with the options stored in the
+.Nm
+entry, which is then released.
+.Pp
+The
+.Nm
+protects the system from SYN flood DoS attacks by minimizing
+the amount of state kept on the server, and by limiting the overall size
+of the
+.Nm .
+.Pp
+.Nm Syncookies
+provides a way to virtually expand the size of the
+.Nm
+by keeping state regarding the initial SYN in the network.
+Enabling
+.Nm syncookies
+sends a cryptographic value in the SYN,ACK reply to
+the client machine, which is then returned in the client's ACK.
+If the corresponding entry is not found in the
+.Nm ,
+but the value
+passes specific security checks, the connection will be accepted.
+This is only used if the
+.Nm
+is unable to handle the volume of
+incoming connections, and a prior entry has been evicted from the cache.
+.Pp
+.Nm Syncookies
+have a certain number of disadvantages that a paranoid
+administrator may wish to take note of.
+Since the TCP options from the initial SYN are not saved, they are not
+applied to the connection, precluding use of features like window scale,
+timestamps, or exact MSS sizing.
+As the returning ACK establishes the connection, it may be possible for
+an attacker to ACK flood a machine in an attempt to create a connection.
+While steps have been taken to mitigate this risk, this may provide a way
+to bypass firewalls which filter incoming segments with the SYN bit set.
+.Pp
+To disable the
+.Nm syncache
+and run only with
+.Nm syncookies ,
+set
+.Va net.inet.tcp.syncookies_only
+to 1.
+.Pp
+The
+.Nm
+implements a number of variables in
+the
+.Va net.inet.tcp.syncache
+branch of the
+.Xr sysctl 3
+MIB.
+Several of these may be tuned by setting the corresponding
+variable in the
+.Xr loader 8 .
+.Bl -tag -width ".Va bucketlimit"
+.It Va hashsize
+Size of the
+.Nm
+hash table, must be a power of 2.
+Read-only, tunable via
+.Xr loader 8 .
+.It Va bucketlimit
+Limit on the number of entries permitted in each bucket of the hash table.
+This should be left at a low value to minimize search time.
+Read-only, tunable via
+.Xr loader 8 .
+.It Va cachelimit
+Limit on the total number of entries in the
+.Nm .
+Defaults to
+.Va ( hashsize No \(mu Va bucketlimit ) ,
+may be set lower to minimize memory
+consumption.
+Read-only, tunable via
+.Xr loader 8 .
+.It Va rexmtlimit
+Maximum number of times a SYN,ACK is retransmitted before being discarded.
+The default of 3 retransmits corresponds to a 45 second timeout, this value
+may be increased depending on the RTT to client machines.
+Tunable via
+.Xr sysctl 3 .
+.It Va count
+Number of entries present in the
+.Nm
+(read-only).
+.El
+.Pp
+Statistics on the performance of the
+.Nm
+may be obtained via
+.Xr netstat 1 ,
+which provides the following counts:
+.Bl -tag -width ".Li cookies received"
+.It Li "syncache entries added"
+Entries successfully inserted in the
+.Nm .
+.It Li retransmitted
+SYN,ACK retransmissions due to a timeout expiring.
+.It Li dupsyn
+Incoming SYN segment matching an existing entry.
+.It Li dropped
+SYNs dropped because SYN,ACK could not be sent.
+.It Li completed
+Successfully completed connections.
+.It Li "bucket overflow"
+Entries dropped for exceeding per-bucket size.
+.It Li "cache overflow"
+Entries dropped for exceeding overall cache size.
+.It Li reset
+RST segment received.
+.It Li stale
+Entries dropped due to maximum retransmissions or listen socket disappearance.
+.It Li aborted
+New socket allocation failures.
+.It Li badack
+Entries dropped due to bad ACK reply.
+.It Li unreach
+Entries dropped due to ICMP unreachable messages.
+.It Li "zone failures"
+Failures to allocate new
+.Nm
+entry.
+.It Li "cookies received"
+Connections created from segment containing ACK.
+.El
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr tcp 4 ,
+.Xr loader 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The existing
+.Nm
+implementation
+first appeared in
+.Fx 4.5 .
+The original concept of a
+.Nm
+originally appeared in
+.Bsx ,
+and was later modified by
+.Nx ,
+then further extended here.
+.Sh AUTHORS
+The
+.Nm
+code and manual page were written by
+.An Jonathan Lemon Aq Mt jlemon@FreeBSD.org .

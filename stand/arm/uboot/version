@@ -1,0 +1,9 @@
+$FreeBSD$
+
+NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
+file is important.  Make sure the current version number is on line 6.
+
+1.2:	Extended with NAND FS support.
+1.1:	Flattened Device Tree blob support.
+1.0:	Added storage support. Booting from HDD, USB, etc. is now possible.
+0.5:	Initial U-Boot/arm version (netbooting only).

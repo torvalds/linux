@@ -1,0 +1,132 @@
+.\"
+.\" Copyright (c) 2010 Semihalf
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Nov 11, 2010
+.Dt NANDFS 5
+.Os
+.Sh NAME
+.Nm nandfs
+.Nd NAND Flash file system
+.Sh SYNOPSIS
+To compile support for the
+.Nm ,
+place the following in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options NANDFS"
+.Ed
+.Pp
+Even though the NAND FS can be used with any storage media, it has been
+optimized and designed towards NAND Flash devices, so typically the following
+driver is used:
+.Bd -ragged -offset indent
+.Cd "device nand"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver enables
+.Fx
+with support for NAND-oriented file system.
+.Pp
+It is a log-structured style file system with the following major features and
+characteristics:
+.Bl -bullet
+.It
+Hard links, symbolic links support
+.It
+Block journaling
+.It
+Copy-On-Write
+.It
+Snapshots (continuous, taken automatically, simultaneously mountable)
+.It
+Quick crash recovery at mount time
+.It
+64-bit data structures; supports many files, large files and volumes
+.It
+POSIX file permissions
+.It
+Checksum / ECC
+.El
+.Sh EXAMPLES
+The most common usage is mounting the file system:
+.Pp
+.Dl "mount -t nandfs /dev/<gnandN> /mnt"
+.Pp
+or:
+.Dl "mount_nandfs /dev/<gnandN> /mnt"
+.Pp
+where
+.Ar gnandN
+is the GEOM device representing a Flash partition (slice) containing the
+.Nm
+structure, and
+.Pa /mnt
+is a mount point.
+.Pp
+It is possible to define an entry in
+.Pa /etc/fstab
+for the
+.Nm :
+.Bd -literal
+/dev/gnand0		/flash	nandfs		rw	0	0
+.Ed
+.Pp
+This will mount a
+.Nm
+partition at the specified mount point during system boot.
+.Sh SEE ALSO
+.Xr gnand 4 ,
+.Xr nand 4 ,
+.Xr mount_nandfs 8 ,
+.Xr nandfs 8 ,
+.Xr nandsim 8 ,
+.Xr nandtool 8 ,
+.Xr umount_nandfs 8
+.Sh HISTORY
+The NAND FS concepts are based on NILFS principles and initial implementation
+was derived from early read-only NILFS NetBSD code.
+Since then the NAND FS
+code diverged significantly and is by no means compatible with NILFS.
+.Pp
+The NAND Flash file system first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An -nosplit
+The NAND FS was written by
+.An Grzegorz Bernacki
+with the help of
+.An Mateusz Guzik ,
+based on the NetBSD code created by
+.An Reinoud Zandijk .
+Additional help and support by
+.An Lukasz Plachno ,
+.An Jan Sieka
+and
+.An Lukasz Wojcik .
+This manual page was written by
+.An Rafal Jaworowski .

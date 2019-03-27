@@ -1,0 +1,102 @@
+Tatu Ylonen <ylo@cs.hut.fi> - Creator of SSH
+
+Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos,
+Theo de Raadt, and Dug Song - Creators of OpenSSH
+
+Ahsan Rashid <arms@sco.com> - UnixWare long passwords
+Alain St-Denis <Alain.St-Denis@ec.gc.ca> - Irix fix
+Alexandre Oliva <oliva@lsd.ic.unicamp.br> - AIX fixes
+Andre Lucas <andre@ae-35.com> - new login code, many fixes
+Andreas Steinmetz <ast@domdv.de> - Shadow password expiry support
+Andrew McGill <andrewm@datrix.co.za> - SCO fixes
+Andrew Morgan <morgan@transmeta.com> - PAM bugfixes
+Andrew Stribblehill <a.d.stribblehill@durham.ac.uk> - Bugfixes
+Andy Sloane <andy@guildsoftware.com> - bugfixes
+Aran Cox <acox@cv.telegroup.com> - SCO bugfixes
+Arkadiusz Miskiewicz <misiek@pld.org.pl> - IPv6 compat fixes
+Ben Lindstrom <mouring@eviladmin.org> - NeXT support
+Ben Taylor <bent@clark.net> - Solaris debugging and fixes
+Bratislav ILICH <bilic@zepter.ru> - Configure fix
+Charles Levert <charles@comm.polymtl.ca> - SunOS 4 & bug fixes
+Chip Salzenberg <chip@valinux.com> - Assorted patches
+Chris Adams <cmadams@hiwaay.net> - OSF SIA support
+Chris Saia <csaia@wtower.com> - SuSE packaging
+Chris, the Young One <cky@pobox.com> - Password auth fixes
+Christos Zoulas <christos@zoulas.com> - Autoconf fixes
+Chun-Chung Chen <cjj@u.washington.edu> - RPM fixes
+Corinna Vinschen <vinschen@redhat.com> - Cygwin support
+Chad Mynhier <mynhier@interstel.net> - Solaris Process Contract support
+Dan Brosemer <odin@linuxfreak.com> - Autoconf support, build fixes
+Darren Hall <dhall@virage.org> - AIX patches
+Darren Tucker <dtucker@zip.com.au> - AIX BFF package scripts
+David Agraz <dagraz@jahoopa.com> - Build fixes
+David Del Piero <David.DelPiero@qed.qld.gov.au> - bug fixes
+David Hesprich <darkgrue@gue-tech.org> - Configure fixes
+David Rankin <drankin@bohemians.lexington.ky.us> - libwrap, AIX, NetBSD fixes
+Dag-Erling Smørgrav <des at freebsd.org> - Challenge-Response PAM code.
+Dhiraj Gulati <dgulati@sco.com> - UnixWare long passwords
+Ed Eden <ede370@stl.rural.usda.gov> - configure fixes
+Garrick James <garrick@james.net> - configure fixes
+Gary E. Miller <gem@rellim.com> - SCO support
+Ged Lodder <lodder@yacc.com.au> - HPUX fixes and enhancements
+Gert Doering <gd@hilb1.medat.de> - bug and portability fixes
+HARUYAMA Seigo <haruyama@unixuser.org> - Translations & doc fixes
+Hideaki YOSHIFUJI <yoshfuji@ecei.tohoku.ac.jp> - IPv6 and bug fixes
+Hiroshi Takekawa <takekawa@sr3.t.u-tokyo.ac.jp> - Configure fixes
+Holger Trapp <Holger.Trapp@Informatik.TU-Chemnitz.DE> - KRB4/AFS config patch
+IWAMURO Motonori <iwa@mmp.fujitsu.co.jp> - bugfixes
+Jani Hakala <jahakala@cc.jyu.fi> - Patches
+Jarno Huuskonen <jhuuskon@hytti.uku.fi> - Bugfixes
+Jim Knoble <jmknoble@pobox.com> - Many patches
+Jonchen (email unknown) - the original author of PAM support of SSH
+Juergen Keil <jk@tools.de> - scp bugfixing
+KAMAHARA Junzo <kamahara@cc.kshosen.ac.jp> - Configure fixes
+Kees Cook <cook@cpoint.net> - scp fixes
+Kenji Miyake <kenji@miyake.org> - Configure fixes
+Kevin Cawlfield <cawlfiel@us.ibm.com> - AIX fixes.
+Kevin O'Connor <kevin_oconnor@standardandpoors.com> - RSAless operation
+Kevin Steves <stevesk@pobox.com> - HP support, bugfixes, improvements
+Kiyokazu SUTO <suto@ks-and-ks.ne.jp> - Bugfixes
+Larry Jones <larry.jones@sdrc.com> - Bugfixes
+Lutz Jaenicke <Lutz.Jaenicke@aet.TU-Cottbus.DE> - Bugfixes
+Marc G. Fournier <marc.fournier@acadiau.ca> - Solaris patches
+Mark D. Baushke <mdb@juniper.net> - bug fixes
+Martin Johansson <fatbob@acc.umu.se> - Linux fixes
+Mark D. Roth <roth+openssh@feep.net> - Features, bug fixes
+Mark Miller <markm@swoon.net> - Bugfixes
+Matt Richards <v2matt@btv.ibm.com> - AIX patches
+Michael Steffens <michael_steffens at hp.com> - HP-UX fixes
+Michael Stone <mstone@cs.loyola.edu> - Irix enhancements
+Nakaji Hiroyuki <nakaji@tutrp.tut.ac.jp> - Sony News-OS patch
+Nalin Dahyabhai <nalin.dahyabhai@pobox.com> - PAM environment patch
+Nate Itkin <nitkin@europa.com> - SunOS 4.1.x fixes
+Niels Kristian Bech Jensen <nkbj@image.dk> - Assorted patches
+Pavel Kankovsky <peak@argo.troja.mff.cuni.cz> - Security fixes
+Pavel Troller <patrol@omni.sinus.cz> - Bugfixes
+Pekka Savola <pekkas@netcore.fi> - Bugfixes
+Peter Kocks <peter.kocks@baygate.com> - Makefile fixes
+Peter Stuge <stuge@cdy.org> - mdoc2man.awk script
+Phil Hands <phil@hands.com> - Debian scripts, assorted patches
+Phil Karn <karn@ka9q.ampr.org> - Autoconf fixes
+Philippe WILLEM <Philippe.WILLEM@urssaf.fr> - Bugfixes
+Phill Camp <P.S.S.Camp@ukc.ac.uk> - login code fix
+Rip Loomis <loomisg@cist.saic.com> - Solaris package support, fixes
+Robert Dahlem <Robert.Dahlem at siemens.com> - Reliant Unix fixes
+Roumen Petrov <openssh@roumenpetrov.info> - Compile & configure fixes
+SAKAI Kiyotaka <ksakai@kso.netwk.ntt-at.co.jp> - Multiple bugfixes
+Simon Wilkinson <sxw@dcs.ed.ac.uk> - PAM fixes, Compat with MIT KrbV
+Solar Designer <solar@openwall.com> - many patches and technical assistance
+Svante Signell <svante.signell@telia.com> - Bugfixes
+Thomas Neumann <tom@smart.ruhr.de> - Shadow passwords
+Tim Rice <tim@multitalents.net> - Portability & SCO fixes
+Tobias Oetiker <oetiker@ee.ethz.ch> - Bugfixes
+Tom Bertelson's <tbert@abac.com> - AIX auth fixes
+Tor-Ake Fransson <torake@hotmail.com> - AIX support
+Tudor Bosman <tudorb@jm.nu> - MD5 password support
+Udo Schweigert <ust@cert.siemens.de> - ReliantUNIX support
+Wendy Palm <wendyp at cray.com> - Cray support.
+Zack Weinberg <zack@wolery.cumb.org> - GNOME askpass enhancement
+
+Apologies to anyone I have missed.
+
+Damien Miller <djm@mindrot.org>

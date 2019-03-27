@@ -1,0 +1,5 @@
+pass in proto tcp from any to any port = ssh flags S/SA keep state (source-track global)
+pass in proto tcp from any to any port = smtp flags S/SA keep state (source-track global)
+pass in proto tcp from any to any port = http flags S/SA keep state (source-track rule, max-src-states 3, max-src-nodes 1000)
+pass in proto tcp from any to any port = ntp flags S/SA keep state (source-track rule, max-src-nodes 1000)
+pass in proto tcp from any to any port = pip flags S/SA keep state (source-track global, max-src-states 3)

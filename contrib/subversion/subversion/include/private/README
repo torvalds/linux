@@ -1,0 +1,4 @@
+Header files in this private/ directory are for internal APIs shared
+across Subversion's implementation.  They are not part of the public
+API, nor are they ever copied into or under the include/ directory
+(e.g. by the installation process).

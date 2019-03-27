@@ -1,0 +1,173 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Donn Seeley at BSDI.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)setlocale.3	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd November 21, 2003
+.Dt SETLOCALE 3
+.Os
+.Sh NAME
+.Nm setlocale
+.Nd natural language formatting for C
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In locale.h
+.Ft char *
+.Fn setlocale "int category" "const char *locale"
+.Sh DESCRIPTION
+The
+.Fn setlocale
+function sets the C library's notion
+of natural language formatting style
+for particular sets of routines.
+Each such style is called a
+.Sq locale
+and is invoked using an appropriate name passed as a C string.
+.Pp
+The
+.Fn setlocale
+function recognizes several categories of routines.
+These are the categories and the sets of routines they select:
+.Bl -tag -width LC_MONETARY
+.It Dv LC_ALL
+Set the entire locale generically.
+.It Dv LC_COLLATE
+Set a locale for string collation routines.
+This controls alphabetic ordering in
+.Fn strcoll
+and
+.Fn strxfrm .
+.It Dv LC_CTYPE
+Set a locale for the
+.Xr ctype 3
+and
+.Xr multibyte 3
+functions.
+This controls recognition of upper and lower case,
+alphabetic or non-alphabetic characters,
+and so on.
+.It Dv LC_MESSAGES
+Set a locale for message catalogs, see
+.Xr catopen 3
+function.
+.It Dv LC_MONETARY
+Set a locale for formatting monetary values;
+this affects the
+.Fn localeconv
+function.
+.It Dv LC_NUMERIC
+Set a locale for formatting numbers.
+This controls the formatting of decimal points
+in input and output of floating point numbers
+in functions such as
+.Fn printf
+and
+.Fn scanf ,
+as well as values returned by
+.Fn localeconv .
+.It Dv LC_TIME
+Set a locale for formatting dates and times using the
+.Fn strftime
+function.
+.El
+.Pp
+Only three locales are defined by default,
+the empty string
+.Li \&"\|"
+which denotes the native environment, and the
+.Li \&"C"
+and
+.Li \&"POSIX"
+locales, which denote the C language environment.
+A
+.Fa locale
+argument of
+.Dv NULL
+causes
+.Fn setlocale
+to return the current locale.
+By default, C programs start in the
+.Li \&"C"
+locale.
+The only function in the library that sets the locale is
+.Fn setlocale ;
+the locale is never changed as a side effect of some other routine.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn setlocale
+returns the string associated with the specified
+.Fa category
+for the requested
+.Fa locale .
+The
+.Fn setlocale
+function returns
+.Dv NULL
+and fails to change the locale
+if the given combination of
+.Fa category
+and
+.Fa locale
+makes no sense.
+.Sh FILES
+.Bl -tag -width /usr/share/locale/locale/category -compact
+.It Pa $PATH_LOCALE/ Ns Em locale/category
+.It Pa /usr/share/locale/ Ns Em locale/category
+locale file for the locale
+.Em locale
+and the category
+.Em category .
+.El
+.Sh ERRORS
+No errors are defined.
+.Sh SEE ALSO
+.Xr colldef 1 ,
+.Xr mklocale 1 ,
+.Xr catopen 3 ,
+.Xr ctype 3 ,
+.Xr localeconv 3 ,
+.Xr multibyte 3 ,
+.Xr strcoll 3 ,
+.Xr strxfrm 3 ,
+.Xr euc 5 ,
+.Xr utf8 5 ,
+.Xr environ 7
+.Sh STANDARDS
+The
+.Fn setlocale
+function conforms to
+.St -isoC-99 .
+.Sh HISTORY
+The
+.Fn setlocale
+function first appeared in
+.Bx 4.4 .

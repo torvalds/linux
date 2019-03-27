@@ -1,0 +1,183 @@
+.\"
+.\" Copyright (c) 1996 Brian Somers <brian@awfulhak.demon.co.uk>
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" "
+.Dd March 30, 1997
+.Dt UUCPLOCK 3
+.Os
+.Sh NAME
+.Nm uu_lock ,
+.Nm uu_unlock ,
+.Nm uu_lockerr
+.Nd acquire and release control of a serial device
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In sys/types.h
+.In libutil.h
+.Ft int
+.Fn uu_lock "const char *ttyname"
+.Ft int
+.Fn uu_lock_txfr "const char *ttyname" "pid_t pid"
+.Ft int
+.Fn uu_unlock "const char *ttyname"
+.Ft const char *
+.Fn uu_lockerr "int uu_lockresult"
+.Sh DESCRIPTION
+The
+.Fn uu_lock
+function attempts to create a lock file called
+.Pa /var/spool/lock/LCK..
+with a suffix given by the passed
+.Fa ttyname .
+If the file already exists, it is expected to contain the process
+id of the locking program.
+.Pp
+If the file does not already exist, or the owning process given by
+the process id found in the lock file is no longer running,
+.Fn uu_lock
+will write its own process id into the file and return success.
+.Pp
+.Fn uu_lock_txfr
+transfers lock ownership to another process.
+.Fn uu_lock
+must have previously been successful.
+.Pp
+.Fn uu_unlock
+removes the lockfile created by
+.Fn uu_lock
+for the given
+.Fa ttyname .
+Care should be taken that
+.Fn uu_lock
+was successful before calling
+.Fn uu_unlock .
+.Pp
+.Fn uu_lockerr
+returns an error string representing the error
+.Fa uu_lockresult ,
+as returned from
+.Fn uu_lock .
+.Sh RETURN VALUES
+.Fn uu_unlock
+returns 0 on success and -1 on failure.
+.Pp
+.Fn uu_lock
+may return any of the following values:
+.Pp
+.Dv UU_LOCK_INUSE :
+The lock is in use by another process.
+.Pp
+.Dv UU_LOCK_OK :
+The lock was successfully created.
+.Pp
+.Dv UU_LOCK_OPEN_ERR :
+The lock file could not be opened via
+.Xr open 2 .
+.Pp
+.Dv UU_LOCK_READ_ERR :
+The lock file could not be read via
+.Xr read 2 .
+.Pp
+.Dv UU_LOCK_CREAT_ERR :
+Cannot create temporary lock file via
+.Xr creat 2 .
+.Pp
+.Dv UU_LOCK_WRITE_ERR :
+The current process id could not be written to the lock file via a call to
+.Xr write 2 .
+.Pp
+.Dv UU_LOCK_LINK_ERR :
+Cannot link temporary lock file via
+.Xr link 2 .
+.Pp
+.Dv UU_LOCK_TRY_ERR :
+Locking attempts are failed after 5 tries.
+.Pp
+If a value of
+.Dv UU_LOCK_OK
+is passed to
+.Fn uu_lockerr ,
+an empty string is returned.
+Otherwise, a string specifying
+the reason for failure is returned.
+.Fn uu_lockerr
+uses the current value of
+.Va errno
+to determine the exact error.
+Care should be made not to allow
+.Va errno
+to be changed between calls to
+.Fn uu_lock
+and
+.Fn uu_lockerr .
+.Pp
+.Fn uu_lock_txfr
+may return any of the following values:
+.Pp
+.Dv UU_LOCK_OK :
+The transfer was successful.
+The specified process now holds the device
+lock.
+.Pp
+.Dv UU_LOCK_OWNER_ERR :
+The current process does not already own a lock on the specified device.
+.Pp
+.Dv UU_LOCK_WRITE_ERR :
+The new process id could not be written to the lock file via a call to
+.Xr write 2 .
+.Sh ERRORS
+If
+.Fn uu_lock
+returns one of the error values above, the global value
+.Va errno
+can be used to determine the cause.
+Refer to the respective manual pages
+for further details.
+.Pp
+.Fn uu_unlock
+will set the global variable
+.Va errno
+to reflect the reason that the lock file could not be removed.
+Refer to the description of
+.Xr unlink 2
+for further details.
+.Sh SEE ALSO
+.Xr lseek 2 ,
+.Xr open 2 ,
+.Xr read 2 ,
+.Xr write 2
+.Sh BUGS
+It is possible that a stale lock is not recognised as such if a new
+processes is assigned the same processes id as the program that left
+the stale lock.
+.Pp
+The calling process must have write permissions to the
+.Pa /var/spool/lock
+directory.
+There is no mechanism in place to ensure that the
+permissions of this directory are the same as those of the
+serial devices that might be locked.

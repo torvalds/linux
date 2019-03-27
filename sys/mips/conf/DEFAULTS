@@ -1,0 +1,11 @@
+#
+# DEFAULTS -- Default kernel configuration file for FreeBSD/mips
+#
+# $FreeBSD$
+
+device		mem
+
+device		uart_ns8250
+
+options 	GEOM_PART_BSD
+options 	GEOM_PART_MBR

@@ -1,0 +1,4867 @@
+1999-12-27  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (MATCH): Relax JumpAbsolute check.  Emit a
+	warning for absolute jump/call without `*' in non-intel mode.  No
+	need to set i.types[0] JumpAbsolute in intel mode.
+
+1999-12-22  Philip Blundell  <pb@futuretv.com>
+
+	* config/tc-arm.c (arm_s_text): If OBJ_ELF, call the appropriate
+	hook function when changing sections.
+	(arm_s_data): Likewise.
+
+1999-12-14  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (md_parse_option): Add support for -marm720
+	command line switch.
+
+Tue Nov 30 22:59:00 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-mn10300.c (md_pseudo_table): Add ".am33" pseudo-op.
+	(r_registers, xr_registers): Define.
+	(r_register_name, xr_register_name): New functions.
+	(md_assemble): Handle new am33 operand types and instruction
+	formats.
+	(mn10300_insert_operand, check_operand): Likewise.
+
+1999-11-29  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (thumb_mode): Turn into a tristate variable.
+	(s_force_thumb): Set thumb_mode to 2.
+	(md_assemble): Do not complain about thumb instructions on a
+	non-thumb target if thumb_mode is set to 2.
+
+1999-11-28  Michael Meissner  <meissner@cygnus.com>
+
+	* config/tc-alpha.c (toplevel): Include struc-symbol.h.
+	(alpha_macro_arg): Add MACRO_{LITERAL,BASE,BYTOFF,JSR} cases.
+	(O_...): Add new machine dependent expressions if we are handling
+	explicit relocations.
+	(alpha_reloc_op): New static table holding the explicit relocation
+	information.
+	(alpha_literal_hash): New static to hold the hash table for
+	explicit relocations.
+	(alpha_macros): Add support for explicit relocations.
+	(md_begin): If explicit relocations, initialize hash table.
+	(md_assemble): Don't print a second error if tokenize_arguments
+	already printed an error message.
+	(md_apply_fix): Add support for explicit relocations.
+	(alpha_force_relocation): Ditto.
+	(alpha_fix_adjustable): Ditto.
+	(alpha_adjust_symtab): New function to support explicit
+	relocations.
+	(alpha_adjust_symtab_relocs): Ditto.
+	(debug_exp): Debug stub compiled if DEBUG_ALPHA is defined.
+	(tokenize_arguments): Add debug code if DEBUG_ALPHA is defined.
+	Add support for explicit relocations.  Return -2 if an error
+	message was already printed.
+	(find_macro_match): Add support for explicit relocations.  Comment
+	each of the cases.
+	(emit_insn): Add support for explicit relocations.
+	(assemble_tokens): Ditto.
+	(emit_ldgp): Ditto.
+	(load_expression): Ditto.
+	(emit_lda): Ditto.
+	(emit_ldah): Ditto.
+	(emit_ir_load): Ditto.
+	(emit_loadstore): Ditto.
+	(emit_ldXu): Ditto.
+	(emit_ldil): Ditto.
+	(emit_sextX): Ditto.
+	(emit_division): Ditto.
+	(emit_jsrjmp): Ditto.
+	(emit_retjcr): Ditto.
+
+	* config/tc-alpha.h (RELOC_OP_P): Enable explicit relocations if
+	ELF object format.
+	(tc_adjust_symtab): If explicit relocations, call the function
+	alpha_adjust_symtab.
+	(TC_FIX_TYPE): Add fields to be able to move explicit lituse
+	relocations next to the literal relocation they reference.
+	(TC_INIT_FIX_DATA): Initialize the new fields.
+	(TC_FIX_DATA_PRINT): Print the new fields if DEBUG5 is defined.
+
+Wed Nov 24 20:27:58 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_ip): Handle PA2.0 unit completers.  Handle
+	'B' operand for PA2.0 bb instruction.
+
+1999-11-18  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-mcore.h (TC_FORCE_RELOCATION): Define for Mcore-pe
+	target.
+
+	* config/tc-mcore.c (tc_gen_reloc): Support generation of RVA
+	relocs.
+	(mcore_force_relocation): Force relocations to be generated for
+	RVA relocs.
+
+1999-11-16  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (i386_immediate): Disallow O_big immediates.
+	(i386_displacement): Disallow O_big displacements.
+
+Mon Nov 15 20:12:43 1999  Donald Lindsay  <dlindsay@cygnus.com>
+
+	* config/tc-arm.c (do_mia,do_mar,do_mra,do_pld,do_ldrl,do_co_reg):
+	Small improvements in error checking.
+	(md_assemble): Support for unconditional ARM instructions.
+	(md_parse_option): Support for -m[arm]v5e flag.
+
+1999-11-12  Nick Clifton  <nickc@cygnus.com>
+
+	* macro.c (buffer_and_nest): Do not check beyond the end of the
+	buffer.
+
+1999-11-11  Nick Clifton  <nickc@cygnus.com>
+
+	* macro.c (buffer_and_nest): Look for seperator after TO and
+	FROM tokens.
+
+1999-11-08  Andrew Haley  <aph@cygnus.com>
+
+	* app.c (do_scrub_chars): When in State 10, treat backslash
+	characters in the same way as as symbol characters.
+
+1999-11-07  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-alpha.c (alpha_align): Check, don't assert, that
+	the previous label was in the current section before playing
+	with auto-alignment.
+
+1999-11-06  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-v850.c (v850_force_relocation): Force relocation
+	for weak symbols.
+	(v850_pcrel_from_selection): Do not compute a pcrel offset if
+	the symbol is weak.
+
+1999-11-05  Michael Meissner  <meissner@cygnus.com>
+
+	* expr.h (operatorT): Increase machine dependent operators to 16.
+	* expr.c (op_rank): Ditto.
+
+1999-11-03  Ian Lance Taylor  <ian@zembu.com>
+
+	* read.c (pseudo_set): Reject attempts to set the value of a
+	section symbol.
+
+	* config/obj-elf.c (obj_elf_ident): Call md_flush_pending_output
+	if it is defined.
+
+	* config/obj-elf.c (elf_set_index): Add ATTRIBUTE_UNUSED.
+
+	* config/obj-elf.c (elf_frob_file_after_relocs): Don't pass NULL
+	to bfd_set_section_contents.
+
+1999-11-03  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-mcore.h (TARGET_BYTES_BIG_ENDIAN): Change to false.
+
+1999-11-01  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* config/tc-mips.c (macro_build): Use OPCODE_IS_MEMBER.
+	(mips_ip): Use OPCODE_IS_MEMBER.
+
+Wed Oct 27 16:50:44 1999  Don Lindsay  <dlindsay@cygnus.com>
+
+	* config/tc-arm.c (reg_required_here): Improve comments.
+
+	* config/tc-arm.c (thumb_opcode): Add "variants" field.
+	(tinsns): Initialize variants field.
+
+	* config/tc-arm.c (bad_args, bad_pc): Renamed to BAD_ARGS and
+	BAD_PC respectively.
+
+1999-10-27  Scott Bambrough  <scottb@netwinder.org>
+
+	* config/tc-arm.c (reloc_map[]): Fix compiler warning.
+	* config/tc-arm.h: Fix compile time warnings.
+
+Mon Oct 18 18:11:10 MDT 1999	Diego Novillo <dnovillo@cygnus.com>
+
+	* config/tc-d10v.c (find_opcode): Allow ATSIGN to match
+	expressions of the form @abs16, @(abs16) and @(abs16 + imm).
+
+1999-10-21  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* config/tc-mips.c (ISA_HAS_COPROC_DELAYS) : New.
+	(ISA_HAS_64_BIT_REGS) New.
+	(gpr_interlocks,md_begin,reg_needs_delay,append_insn,
+	mips_emit_delays,macro_build,load_register,load_addresss,
+	macro,macro2,mips_ip,s_cprestore,s_cpadd): Simplify
+	and/or use new ISA_xxx macros in expressions involving
+	ISA, particularly mips_opts.isa.
+
+1999-10-18  Michael Meissner  <meissner@cygnus.com>
+
+	* expr.h (operatorT): Add machine dependent operators md1..md8.
+	(expressionS): Make X_op 8 bits instead of 7.  Add a X_md field
+	for the machine dependent operators to use.
+
+	* expr.c (op_rank): Add machine dependent operators.
+
+	* config/tc-alpha.c (O_pregister): Define as a machine dependent
+	operator.
+	(O_cpregister): Ditto.
+	(md_begin): Change X_op test that field is wide enough to use
+	O_max instead of O_alpha_max.
+	(cpu_types): Fill in missing initializer.
+	(alpha_num_macros): Make unsigned.
+	(md_assemble): Make opnamelen be size_t.
+	(md_apply_fix): Cast alpha_num_operands to int before testing.
+	(alpha_force_relocation): Ditto.
+	(alpha_fix_adjustable): Ditto.
+	(alpha_fix_adjustable): Mark unused arguments ATTRIBUTE_UNUSED.
+	(tc_gen_reloc): Ditto.
+	(tc_get_register): Ditto.
+	(emit_ldgp): Ditto.
+	(emit_lda): Ditto.
+	(emit_ldah): Ditto.
+	(emit_ldil): Ditto.
+	(s_alpha_ent): Ditto.
+	(s_alpha_end): Ditto.
+	(s_alpha_frame): Ditto.
+	(s_alpha_prologue): Ditto.
+	(s_alpha_file): Ditto.
+	(s_alpha_gprel32): Ditto.
+	(s_alpha_proc): Ditto.
+	(s_alpha_set): Ditto.
+	(s_alpha_base): Ditto.
+	(s_alpha_align): Ditto.
+	(s_alpha_arch): Ditto.
+	(alpha_align): Ditto.
+	(assemble_insn): Suppress unused variable warning.
+	(emit_insn): Ditto.
+	(assemble_insn): Don't assume X_op and X_unsigned are in a given
+	order in the structure.
+	(s_alpha_coff_wrapper): Avoid int/unsigned comparison.
+
+Sun Oct 17 17:15:58 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (md_apply_fix): Make "fmt" an int.
+
+1999-10-12  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (i386_index_check): Correct #endif location.
+
+Mon Oct 11 14:02:40 1999  Geoffrey Keating  <geoffk@cygnus.com>
+
+	* as.c (show_usage): Document new options.
+	(parse_args): Add --no-warn, --warn, --fatal-warnings,
+	which become 'W', OPTION_WARN, and OPTION_WARN_FATAL.
+	(parse_args): Parse the new options.
+	(main): If there were warnings, and --fatal-warnings
+	was specified, print an error.
+	* as.h: New variable, flag_fatal_warnings, for new option.
+
+Sun Oct 10 01:47:23 1999  Jerry Quinn <jerry.quinn.adv91@alum.dartmouth.org>
+
+	* config/tc-hppa.c (pa_ip):  Add new codes 'cc', 'cd', 'cC', 'co',
+	'@'.  Change autoincrement completers to fall through to cache control
+	completers.
+
+	* config/tc-hppa.c (pa_ip):  Remove unused args.  Add code to '?W'
+	arg.
+	(pa_parse_addb_64_cmpltr):  New function.
+
+	* config/tc-hppa.c (pa_ip):  Change error message.
+	(pa_ip,pa_parse_cmpb_64_cmpltr,pa_parse_cmpib_64_cmpltr)  Fix '?N' and
+	'?Q' args to allow falling through.
+
+	* config/tc-hppa.c (pa_ip):  Implement conditional codes "?N", "?Q".
+	Remove unused conditional codes.
+	(pa_parse_cmpb_64_cmpltr,pa_parse_cmpib_64_cmpltr):  New.
+
+Thu Oct  7 00:23:53 MDT 1999	Diego Novillo <dnovillo@cygnus.com>
+
+	* config/tc-d30v.c (CHAR_BIT): Define.
+	(check_range): Fix bit operations to support integers bigger than
+	32 bits.
+
+Thu Oct  7 00:11:50 MDT 1999	Diego Novillo <dnovillo@cygnus.com>
+
+	* config/tc-d10v.c (check_range): Check range for RESTRICTED_NUM3
+	operands.
+
+Mon Oct  4 17:24:23 1999  Nick Clifton  <nickc@cygnus.com>
+			  Doug Evans  <devans@cygnus.com>
+
+	Add support for m32rx.
+	* config/tc-m32r.c (enable_m32rx): New static global.
+	(enable_special,warn_explicit_parallel_conflicts,optimize): Ditto.
+	(allow_m32rx): New function.
+	(M32R_SHORTOPTS): Add `O'.
+	(md_longopts): Add --m32rx plus several warning options.
+	(md_parse_option): Handle new options.
+	(md_show_usage): Print them.
+	(md_begin): Enable m32rx.
+	(OPERAND_IS_COND_BIT): New macro.
+	(first_writes_to_seconds_operands): New function.
+	(writes_to_pc,can_make_parallel,make_parallel): New functions.
+	(target_make_parallel,assemble_two_insns): New functions.
+	(md_assemble): Recognize "insn1 -> insn2" and "insn1 || insn2".
+	If optimizing and m32rx, try to make consecutive insns parallel.
+
+Tue Sep 28 14:06:44 1999  Geoffrey Keating  <geoffk@cygnus.com>
+
+	* config/tc-mips.c (nopic_need_relax): Allow for the
+	.sdata.foo sections generated by -fdata-sections,
+	and for the .gnu.linkonce.s sections generated by C++.
+
+Thu Sep 23 07:13:45 1999  Jerry Quinn <jquinn@nortelnetworks.com>
+
+	* config/tc-hppa.c (pa_ip): Replace 'B', 'M', 'l' and 'g' handling
+	with cleaner code using completer prefixes.   Add 'Y'.
+
+	* config/tc-hppa.c (pa_ip):  Add parens to silence compiler.
+
+Wed Sep 22 09:37:19 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_ip): Avoid ANSI specific initialization.
+	(pa_ip, case 'm'): Failure to get a CBIT specifier just means the
+	insn does not match and we should try the next insn in the table.
+
+1999-09-22  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (MULTI_SET_PSR): Rename to LDM_TYPE_2_OR_3.
+
+Mon Sep 20 04:01:41 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_ip): Fix thinkos in recent cleanup
+	of PA2.0 support.
+
+1999-09-19  Alexandre Oliva  <oliva@lsd.ic.unicamp.br>
+
+	* config/tc-i386.c (md_shortopts): Check OBJ_MAYBE_ELF as well as
+	OBJ_ELF.  If ELF, add "sq".
+	(md_parse_option): If ELF, ignore -s and -q.
+	(md_show_usage): Mention ELF options.
+
+Sun Sep 19 10:43:31 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_ip): Handle 'J', 'K' and 'cc'
+	operands.
+
+	* config/tc-hppa.c (pa_ip): Handle "fe", and 'cJ'.
+
+	* config/tc-hppa.c (pa_ip): Handle 'd', '#' and 'cq'.
+
+	* config/tc-hppa.c (struct pa_it): New field "trunc".
+	(pa_ip): Handle 'h', 'm', '=', '{', and '_' operands.
+	(pa_parse_ftest_gfx_completer): New function
+	(pa_parse_fp_cnv_format): New function.
+
+	* config/tc-hppa.c (pa_ip): Handle 'X' operand.
+	(md_apply_fix): Handle 22bit pc-rel branches.
+
+	* config/tc-hppa.c (pa_ip): Handle 'B' operand.
+
+	* config/tc-hppa.c (pa_ip): Handle 'L' and 'M' operands.
+
+	* config/tc-hppa.c (pa_ip): Handle 'l' operand.
+
+	* config/tc-hppa.c (pa_ip): Handle 'g' operand.
+
+Sat Sep 18 12:13:28 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (md_assemble): Fix dwarf2 line handling.
+	(pa_ip): Handle 'fX'.
+
+Fri Sep 17 11:57:34 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_build_unwind_subspace): Do not build
+	unwinds unless the function is in the text space.
+	(pa_type_args): Set BSF_FUNCTION for an exproted data symbol.
+
+Wed Sep 15 05:14:32 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_ip): Move dwarf2 stuff from here.
+	(md_assemble): To here.  Tweak address generation.
+
+	* config/tc-hppa.c: Include dwarf2dbg.h if OBJ_ELF.  Declare
+	debug_line.
+	(md_pseudo_table): Add .file and .line pseudo-ops for OBJ_ELF.
+	(md_assemble): Call dwarf2_where for OBJ_ELF.
+	(pa_ip): Call dwarf2_gen_line_info for OBJ_ELF.
+	(pa_end_of_source): New function.
+	* config/tc-hppa.h (md_end): Define for OBJ_ELF.
+
+1999-09-14  Michael Meissner  <meissner@cygnus.com>
+
+	* configure.in (Canonicalization of target names): Remove adding
+	${CONFIG_SHELL} in front of $ac_config_sub, since autoconfig 2.14
+	generates $ac_config_sub with a ${CONFIG_SHELL} already.
+	* configure: Regenerate.
+
+1999-09-14  Donn Terry  <donn@interix.com>
+
+	* config/te-interix.h (GLOBAL_OFFSET_TABLE_NAME): Define.
+
+1999-09-13  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (md_assemble): Handle "jmp/call constant" as a
+	pc-relative jmp/call to an absolute symbol.
+	(md_apply_fix3): When OBJ_ELF, don't add the values in twice for
+	absolute section symbols.
+
+	* config/tc-i386.c (md_assemble): Correct frag_var size.  Tidy
+	jump handling code and comments.
+
+1999-09-12  Ian Lance Taylor  <ian@zembu.com>
+
+	* config/tc-i386.c (md_apply_fix3): Add horrible adjustments to
+	the value if TE_PE and a global defined symbol.
+
+1999-09-11  Ian Lance Taylor  <ian@zembu.com>
+
+	* write.c (dump_section_relocs): Call print_symbol_value_1 to
+	print the symbol, rather than printing it here.
+
+1999-09-11  Donn Terry  <donn@interix.com>
+
+	* config/tc-i386.c (tc_i386_fix_adjustable): Don't adjust
+	BFD_RELOC_RVA relocations.
+
+	* config/tc-i386.c (md_undefined_symbol): Compare the name against
+	the macro GLOBAL_OFFSET_TABLE_NAME, rather than assuming that it
+	starts with "_G".
+
+	* write.c (write_relocs): Call SET_SECTION_RELOCS if it is
+	defined.
+	* config/obj-coff.h (SET_SECTION_RELOCS): Define.
+	* doc/internals.texi (Object format backend): Document
+	SET_SECTION_RELOCS.
+
+	* config/tc-i386.c (tc_i386_fix_adjustable): Don't adjust
+	relocations against global symbols if TE_PE.
+
+	* config/obj-coff.c (obj_coff_ident): Add BFD_ASSEMBLER version.
+	(obj_pseudo_table): Always handle ".ident" with obj-coff_ident.
+
+	* config/obj-coff.c (coff_frob_symbol): Prohibit weak common
+	symbols.
+
+	* config/obj-coff.c (obj_coff_endef): Don't merge labels, or
+	symbols which do not have a constant value, or tags with
+	non-tags.  Remove the symbol from the list before adding it at the
+	end.
+
+	* config/obj-coff.c (obj_coff_endef) [BFD_ASSEMBLER]: Handle .ef
+	C_FCN symbol differently if TE_PE.
+	(obj_coff_line) [BFD_ASSEMBLER]: Always use the line number which
+	appears in the pseudo-op, rather coff_line_base which is only set
+	for a .bf symbol.
+
+	* config/obj-coff.c (obj_coff_loc): New static function.
+	(obj_pseudo_table): Add "loc".
+
+	* config/obj-coff.c (add_lineno): Check that the line number is
+	positive.
+
+	* config/atof-ieee.c (atof_ieee): Change what_kind to int.
+	* config/atof-vax.c (flonum_gen2vax): Change format_letter to
+	int.
+	(md_atof): Return NULL rather than 0.
+	* config/tc-i386.c (md_atof): Change type to int.
+	* expr.c (expr): Change first parameter to int.
+	* config/obj-coff.c: Add declarations for static functions.
+	(coff_frob_symbol): Use SYM_AUXENT.
+	* config/tc-i386.h (flag_16bit_code): Don't declare.
+
+	* config/obj-coff.c (obj_coff_section): Default to setting
+	SEC_LOAD.  Don't set SEC_DATA for 'w' modifier.
+
+	* write.c (adjust_reloc_syms): Print adjusted fixup.
+
+	* expr.c (integer_constant): Correct too_many_digits calculation
+	in base 10 case.
+
+1999-09-09  Andreas Schwab  <schwab@suse.de>
+
+	* doc/c-arm.texi: Fix arguments of @var to not contain
+	punctuation.
+
+1999-09-08  Philip Blundell  <pb@nexus.co.uk>
+
+	* config/tc-arm.c (s_thumb_set): Only support interworking for ELF
+	and COFF targets.
+	(md_parse_option): Only support -k flag for ELF and COFF targets.
+
+Tue Sep  7 13:28:59 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_ip): Put strict register checks before
+	call to pa_parse_number.
+
+	* config/tc-hppa.c (pa_ip): Support 'Z' argument.
+
+1999-09-06  Ian Lance Taylor  <ian@zembu.com>
+
+	* config/obj-coff.c: Add ATTRIBUTE_UNUSED as needed for
+	BFD_ASSEMBLER code.
+
+1999-09-06  Donn Terry  <donn@interix.com>
+
+	* as.c (perform_an_assembly_pass): Set SEC_DATA for data_section.
+
+Mon Sep  6 04:26:56 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_ip): Get strict/non-strict mode from the
+	candidate instruction.  Require registers for register arguments
+	when in strict mode.  Require assemble-time constants for
+	constants when in strict mode.
+	(pa_get_absolute_expression): Require a constant when in strict
+	mode.
+
+1999-09-06  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-m32r.c (md_longopts): Fix value for -Wnuh.
+
+1999-09-04  Steve Chamberlain  <sac@pobox.com>
+
+	* config/tc-pj.c: New file, supports picoJava in ELF.
+	* config/tc-pj.h: Ditto.
+	* configure.in (pjl*, pj*): New targets.
+	* Makefile.am: Rebuild dependencies.
+	(CPU_TYPES): Add pj.
+	(TARGET_CPU_CFILES): Add config/tc-pj.c.
+	(TARGET_CPU_HFILES): Add config/tc-pj.h.
+	* doc/c-pj.texi: New file.
+	* doc/as.texinfo: Add some PJ specifics.
+	* doc/all.texi: Add PJ to the list of all architectures, sort them
+	all alphabetically.
+	* doc/Makefile.in (CPU_DOCS): Add c-pj.texi.
+	* configure, Makefile.in, doc/Makefile.in: Rebuild.
+
+1999-09-02  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/obj-multi.h: Include obj-elf.h if OBJ_MAYBE_ELF. Reformat.
+	(obj_frob_file): Test for null pointer.
+	(OBJ_COPY_SYMBOL_ATTRIBUTES): Here too.
+	(OBJ_PROCESS_STAB): And here.
+	(elf_obj_sy): Remove
+
+	* config/obj-elf.h: #ifndef everything defined in obj-multi.h,
+	except OBJ_PROCESS_STAB, which we #undef for ecoff.
+	(elf_obj_sy): Remove #ifndef OBJ_SYMFIELD_TYPE.
+
+	* config/obj-coff.c (no_func): Remove.
+	(coff_format_ops): Change occurrences of no_func to 0, as we test
+	for 0 in obj-multi.h.
+
+	* configure.in:  Enable bfd for i386-coff when primary target is
+	bfd.  Enable i386 elf,coff emulation support.  Don't set
+	USE_EMULATIONS=1 or te_file=multi unless there is more than one
+	emulation to support.
+	*configure: Regenerate.
+
+1999-09-02  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-mcore.c (mcore_s_section): Do not dump literals if a
+	.section .line directive is encountered.
+
+1999-09-01  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (md_section_align): Do not align sections in ELF
+	format.
+
+	* as.c (show_usage): Add --gdwarf2 to list of options displayed.
+	* as.texinfo: Document --gdwarf2 command line option.
+	Add additional documentation of ARM command line switches.
+
+1999-08-30  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (i386_intel_memory_operand): Combine
+	i386_is_reg and parse_register calls.  Remove END_STRING_AND_SAVE
+	and RESTORE_END_STRING around parse_register calls.
+	(i386_operand): Here too.
+	(i386_is_reg): Remove.
+	(parse_register): Move as_bad calls from within this function to
+	callers.
+
+1999-08-29  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	Based on a patch from H.J. Lu  <hjl@gnu.org>
+	* config/tc-i386.c (parse_register): Handle FP regs specially.
+	(md_begin): Remove '(' and ')' from register_chars.
+
+1999-08-29  Doug Evans  <devans@casey.cygnus.com>
+
+	* config/tc-m32r.c (md_parse_option): Delete unrecognized option
+	error message (done elsewhere).
+
+Sat Aug 28 01:23:11 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_ip): Do not allow '*' in 32bit completers.
+
+Sat Aug 28 00:26:26 1999  Jerry Quinn <jquinn@nortelnetworks.com>
+
+	* config/tc-hppa.c (pa_ip): Replace 'f' by 'v'.  Prefix float register
+	args by 'f'.
+
+	* config/tc-hppa.c (pa_ip): Add args q, %, and |.
+
+	* config/tc-hppa.c (pa_ip):  Absorb white space in instructions
+	between args.
+	Add new completers.  Fix bug in 64 bit condition handling.
+
+	* config/tc-hppa.c (pa_ip):  Add completer codes 'a', 'ch', 'cH',
+	'cS', and 'c*'.
+
+	* config/tc-hppa.c (pa_ip): Place completers behind prefix 'c'.
+
+	* config/tc-hppa.c (pa_ip):  Add cases for '.', '~'. '$'. and '!'
+
+	* config/tc-hppa.c (pa_ip):  Add case for 'I'.
+
+1999-08-27  Jim Wilson  <wilson@cygnus.com>
+
+	* dwarf2dbg.c (MAX_SPECIAL_ADDR_DELTA): Correct typo in comment.
+	(struct ls): Add frag field.  Initialize it to zero.
+	(out_end_sequence): New local text_frag.  Set it while in text section.
+	Replace address check with frag check.  Set ls.frag to text_frag if
+	out_set_addr called.
+	(dwarf2_gen_line_info): Add explanatory comment.  New local saved_frag.
+	Set it before switching sections.  Replace address check with frag
+	check.  Set ls.frag to saved_frag if out_set_addr called.
+
+1999-08-26  David Mosberger  <davidm@hpl.hp.com>
+
+	* dwarf2dbg.c (out_end_sequence): If address changed, directly
+	output "advance_pc" opcode instead of calling gen_addr_line().
+	The latter has the undesired side-effect of creating a new row
+	in the debug line info matrix.
+
+1999-08-26  Jim Wilson  <wilson@cygnus.com>
+
+	* dwarf2dbg.c (out_end_sequence): Correct comments.  Set last to
+	ls.last_filename if last is less than zero.  Set ls.last_filename
+	when allocating new entry.
+	(dwarf2_gen_line_info): Save seg and subseg info before subseg_new
+	call.
+
+1999-08-20  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (i386_index_check): Fix the displacement size
+	when INFER_ADDR_PREFIX.
+
+1999-08-18  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (md_apply_fix3): If an offset is invalid,
+	display its value.
+
+1999-08-17  Ian Lance Taylor  <ian@zembu.com>
+
+	* config/tc-ppc.c (md_assemble): Trim @ha constant to 16 bits, to
+	handle 0xffffNNNN constants correctly.
+
+1999-08-16  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (do_ldst): Look for register conflicts on stores
+	as well as loads.
+
+1999-08-13  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (validate_offset_imm): Work on unsigned values.
+	(md_apply_fix3): Always pass positive values to
+	validate_offset_imm.
+
+1999-08-12  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (skip_whitespace): New macro.
+	Formatting tidy ups.
+
+	(md_apply_fix3): Store relocation offset in addend for ELF based
+	relocs.
+	(arm_force_relocation): Always generate relocs for Thumb function
+	calls.
+
+1999-08-11  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (md_assemble): Remove dead code.  intel_syntax
+	LONG_DOUBLE_MNEM_SUFFIX floating point is done in opcode/i386.h
+
+Tue Aug 10 12:58:31 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_build_unwind_subspace): Use sane section
+	flags for the unwind subspace.
+
+	* config/tc-hppa.c (UNWIND_SECTION_NAME): Define for ELF.
+	(pa_build_unwind_subspace): Remove #if 0 wrapper.  Select a
+	suitable relocation based on the size of the target's pointer.
+	Always Use subsegment zero for the unwinders.
+	(pa_level): Handle "2.0w".
+
+Mon Aug  9 20:02:22 1999  J"orn Rennecke  <amylaar@cygnus.co.uk>
+
+	* config/tc-d30v.c (write_2_short): Don't group repeat instructions
+	with the following instruction unless this was specified.
+
+1999-08-09  Ian Lance Taylor  <ian@zembu.com>
+
+	* config/tc-i386.h (SUB_SEGMENT_ALIGN): If TE_GO32, return 4 for
+	certain sections, to match BFD changes.
+
+1999-08-08  Mumit Khan  <khan@xraylith.wisc.edu>
+
+	* Makefile.am (noinst_SCRIPTS): Change .gdbinit to $(GDBINIT).
+	(EXTRA_SCRIPTS): Define to keep automake happy.
+	* Makefile.in: Rebuild.
+
+1999-08-08  Ian Lance Taylor  <ian@zembu.com>
+
+	* Makefile.am: Rename .dep* files to DEP*.
+	(MKDEP): Rename from DEP.  Change all uses.  Use $${srcdir} rather
+	than $(srcdir).  Rename TCDEP targets to DEPTC.  Rename OBJDEP
+	targets to DEPOBJ.
+	* Makefile.in: Rebuild.
+
+1999-08-08  Jakub Jelinek  <jj@ultra.linux.cz>
+
+	* config/tc-sparc.c (sparc_ip): Allow assembly of %lo()+%reg.
+
+1999-08-08  Ian Lance Taylor  <ian@zembu.com>
+
+	* Makefile.am: Change all uses of itbl-test-ops to itbl-tops to
+	avoid problems on DOS filesystems.
+	* Makefile.in: Rebuild.
+
+	* doc/as.texinfo (Section): Document 's' flag for COFF version.
+
+1999-08-08  Mumit Khan  <khan@xraylith.wisc.edu>
+
+	* config/obj-coff.c (obj_coff_section): Handle 's' (shared)
+	section flag.
+
+1999-08-08  Ian Lance Taylor  <ian@zembu.com>
+
+	* configure.in: Define and substitute GDBINIT.  Change AC_OUTPUT
+	line to create ${GDBINIT} rather than .gdbinit.
+	* configure, Makefile.in, doc/Makefile.in: Rebuild.
+
+Fri Aug  6 12:12:44 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_ip, case '?'): Add missing break.
+
+Fri Aug  6 09:46:35 1999  Jerry Quinn <jquinn@nortelnetworks.com>
+
+	* config/tc-hppa.c (pa_ip):  Add 64 bit condition completers.
+
+1999-08-06  Jakub Jelinek  <jj@ultra.linux.cz>
+
+	* config/tc-sparc.h (tc_fix_adjustable): Fix check for PIC local
+	non-adjustable symbols.
+
+Thu Aug  5 16:52:51 1999  Jerry Quinn <jquinn@nortelnetworks.com>
+
+	* config/tc-hppa.c (pa_ip): Change condition args to have '?' prefix.
+
+Thu Aug  5 23:05:56 1999  J"orn Rennecke  <amylaar@cygnus.co.uk>
+
+	* config/tc-sh.c (md_assemble):  Call as_bad when there are excess
+	operands.
+
+1999-08-05  Donn Terry  <donn@interix.com>
+
+	* config/te-interix.h: New file.
+	* configure.in (i386-*-interix*): New target.
+	* configure: Rebuild.
+
+Wed Aug  4 13:12:17 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_chk_field_selector): Allow 3 byte
+	selectors for ELF too.
+	(selector_table): Add "ltp" and "rtp" selectors.
+
+1999-08-04  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (i386_operand): No need to change
+	operand_string pointer in segment reg case before goto
+	do_memory_reference.  Initialise displacement_string_start and
+	displacement_string_end after do_memory_reference label.
+	(i386_index_check): Add operand_string param, and print error
+	message on failure here.
+	(i386_intel_memory_operand): Instead of here.
+	(i386_operand): And here.
+	(INFER_ADDR_PREFIX): Enable.
+
+	* doc/c-i386.texi (i386-16bit): Document .code16gcc.
+
+	* config/tc-i386.h (DefaultSize): Define.  Renumber following
+	opcode_modifier defines.
+
+	From Etienne Lorrain  <etienne.lorrain@ibm.net>
+	* config/tc-i386.c (stackop_size): New variable.
+	(set_16bit_code_flag): Clear it here.
+	(set_16bit_gcc_code_flag): New function.
+	(md_pseudo_table): Add "code16gcc" entry.
+	(md_assemble): Set i.suffix for insns with DefaultSize modifier.
+
+1999-08-03  Ian Lance Taylor  <ian@zembu.com>
+
+	* config/obj-coff.c (coff_frob_symbol): Always update set_end with
+	next_set_end even if the end symbol is being discarded.
+
+	* gasp.c: Add ATTRIBUTE_UNUSED as needed for non-BFD_ASSEMBLER.
+	* output-file.c, symbols.c, config/tc-i386.c: Likewise.
+	* config/obj-coff.c: Likewise.
+	(seg_info_type): Remove.
+	(seg_info_off_by_4): Change to array of segT.
+	(s_get_segment): Adjust accordingly.
+	(obj_pseudo_table): Fully initialize sentinel entry.
+
+	* config/tc-mips.c (append_insn): Correct INSN_SYNC test.  From
+	Ralf Baechle <ralf@uni-koblenz.de>.
+
+1999-08-03  Etienne Lorrain  <etienne.lorrain@ibm.net>
+
+	* config/tc-i386.c (f16_3): New. Fixes 16 bit 3 byte nop.
+
+1999-08-03  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c: Indentation and white space changes.
+	(i386_index_check): New function.  Add INFER_ADDR_PREFIX code, but
+	don't enable it by default.
+	(i386_intel_operand): Remove redundant prototype.
+	Move check on number of memory operands, and i.mem_operands++
+	(i386_intel_memory_operand): To here.
+	Remove i386_immediate code from here.  Remove special case code
+	for input and output using (%dx).  Remove base/index checks and
+	call i386_index_check instead.  Save initial operand_string
+	argument for error message.
+	(i386_operand): Remove redundant prototype.  Move base/index
+	checks to i386_index_check.
+	(i386_displacement): Move intel mode check for non-zero
+	i.disp_operand
+	(i386_intel_memory_operand): To here.
+
+1999-07-30  Jakub Jelinek  <jj@ultra.linux.cz>
+
+	* config/tc-sparc.c (md_longopts): Add --no-undeclared-regs option.
+	(sparc_ip): Warn if %g2 or %g3 register is used and not covered
+	by .register pseudo-op if -64 and --no-undeclared-regs.
+	(s_register, sparc_adjust_symtab): New functions.
+	* config/tc-sparc.h (tc_adjust_symtab, sparc_adjust_symtab):
+	Declare sparc_adjust_symtab as tc_adjust_symtab.
+	* doc/c-sparc.texi: Add description of #ignore special literal
+	for .register pseudo-op.
+
+1999-07-30  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-arm.c (tc_gen_reloc): Record the vtable entry in
+	the relocation's section offset.
+
+1999-07-29  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* write.c (fixup_segment): Fix generic error check overflow test.
+
+	* config/tc-i386.c (pe): Change %d to %ld, %x to %lx, and cast
+	X_add_number to long.
+
+Wed Jul 28 02:04:24 1999  "Jerry Quinn" <jquinn@nortelnetworks.com>
+
+	* config/tc-hppa.c (pa_ip):  Add 'J' and 'K' code
+	processing.
+
+1999-07-27  Ian Lance Taylor  <ian@zembu.com>
+
+	* config/tc-sparc.h (tc_fix_adjustable): Don't adjust GOT, PLT, or
+	VTABLE relocations.
+
+1999-07-21  Mark Elbrecht  <snowball3@bigfoot.com>
+
+	* config/te-go32.h (COFF_LONG_SECTION_NAMES): Define.
+
+	* configure.bat: Remove; obsolete.
+	* config/go32.cfg: Likewise.
+
+1999-07-21  Brad M. Garcia  <bgarcia@fore.com>
+
+	* configure.in (i386-*-vxworks*): New target.
+	* configure: Rebuild.
+
+1999-07-16  Jakub Jelinek  <jj@ultra.linux.cz>
+
+	* doc/c-sparc.texi: Document .register and .nword pseudo-ops.
+
+1999-07-16  Jakub Jelinek  <jj@ultra.linux.cz>
+
+	* config/tc-sparc.c (sparc_ip): Allow OLO10 relocations
+	on -64 and not pic.
+	(output_insn): Put OLO10's secondary addend into tc_fix_data.
+	(md_apply_fix3): Handle BFD_RELOC_SPARC_OLO10.
+	(tc_gen_reloc): Return two relocs for OLO10, LO10 and SPARC13.
+	* config/tc-sparc.h (RELOC_EXPANSION_POSSIBLE,
+	MAX_RELOC_EXPANSION): Define.
+	(TC_FIX_TYPE, TC_INIT_FIX_DATA, TC_FIX_DATA_PRINT): Likewise.
+
+1999-07-16  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (intel_float_operand): Add prototype, make static.
+	(md_assemble): Localize *exp variable to if (fake_zero_displacement)
+	block.  Print a warning if an 8-bit or 16-bit constant
+	displacement or immediate is truncated on output.
+	(i386_immediate): Ensure Imm16 is always legal for a 16-bit mode
+	immediate.
+	(i386_operand): Disallow immediate jump absolute operand.
+
+1999-07-15  Ian Lance Taylor  <ian@zembu.com>
+
+	* configure.in: Bump version number to 2.9.5.
+	* configure: Rebuild.
+
+	* dwarf2dbg.c (dwarf2_gen_line_info): Don't assume that long long
+	or %llx work.
+
+Thu Jul 15 02:45:30 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (md_pseudo_table): Add ".dword" pseudo-op.
+	(cons_fix_new_hppa): Derive size of fixup from size of the object.
+
+1999-07-14  Philip Blundell  <pb@nexus.co.uk>
+
+	* symbols.c (dollar_label_name): Prepend LOCAL_LABEL_PREFIX if it
+	is defined.
+	* config/tc-arm.h (LOCAL_LABEL_PREFIX): Define to '.' for ELF.
+
+	* config/tc-arm.c (md_begin): Set F_SOFTFLOAT in the output file
+	if -mno-fpu was given.
+	(tc_gen_reloc): Fix typo.  Delete bogus code related to GOTPC
+	relocs.
+	(cons_fix_new_arm): Remove misleading comments.
+
+1999-07-14  Ian Lance Taylor  <ian@zembu.com>
+
+	* write.c (cvt_frag_to_fill): Use frag file and line in rs_org
+	error message.
+	(relax_segment): Likewise.  After giving a rs_org error, convert
+	the frag to rs_align to avoid cascading errors.
+
+1999-07-12  Andreas Schwab  <schwab@suse.de>
+
+	* config/tc-m68k.c: Add some ATTRIBUTE_UNUSED.
+
+1999-07-11  Ian Lance Taylor  <ian@zembu.com>
+
+	* Many files: Changes to avoid gcc warnings: Add ATTRIBUTE_UNUSED
+	as appropriate.  Fill in structure initializations.  Add variable
+	initializations.  Add casts.
+	* dwarf2dbg.c (print_stats): Change i to size_t.
+	* listing.c (listing_listing): Change list_line to unsigned int.
+
+1999-07-10  Ian Lance Taylor  <ian@zembu.com>
+
+	* config/tc-ppc.h (tc_fix_adjustable) [OBJ_ELF]: Call S_IS_LOCAL
+	rather than checking for \001 and \002 in symbol name.
+	* config/tc-sparc.h (tc_fix_adjustable) [OBJ_ELF]: Likewise.
+
+Thu Jul  8 12:32:23 1999  John David Anglin <dave@hiauly1.hia.nrc.ca>
+
+	* configure.in (hppa*-linux-gnu*): New target.
+	* configure: Rebuilt.
+
+1999-07-08  Nick Clifton  <nickc@cygnus.com>
+
+	* doc/c-arm.texi (ARM Directives): Document .thumb_set directive.
+
+1999-07-07  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-v850.c (v850_comm): Use symbol_get_obj() rather than
+	accessing symbolP directly.
+
+Tue Jul  6 10:41:42 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.h (tc_frob_symbol): Always punt "$global$" symbol
+	for ELF.
+
+1999-07-05  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (ARM_EXT_V5): Define.
+	(ARM_ARCH_V5, ARM_ARCH_V5T): Define.
+	(md_begin): Detect ARM v5 architectures.
+	(md_parse_option): Accept arm v5 specification.
+	(md_show_usage): Documment -marmv5 switch.
+
+	* doc/c-arm.texi: Document -marmv5 command line option.
+
+	* config/tc-arm.c (do_adrl): New function.  Implement ADRL pseudo
+	op.
+	(validate_immediate_twopart): New function.  Determine if a
+	constant can be computed by two ADD instructions.
+	(output_inst): Remove its command line parameter - it was never
+	used.
+	(md_apply_fix3): Support BFD_RELOC_ARM_ADRL_IMMEDIATE, used to
+	implememt the ADRL pseudo op.
+	(tc_gen_reloc): Generate a suitable error message if an ADRL
+	instruction tries to generate a real reloc.
+
+	* doc/c-arm.texi: Document NOP, ADR and ADRL pseudo ops.
+
+Thu Jul  1 15:33:10 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_ip): Convert the opcode and all completers
+	into lower case.
+
+1999-06-27  H.J. Lu  <hjl@gnu.org>
+
+	* subsegs.c (subseg_text_p): Use 1/0 instead of true/false for
+	non BFD_ASSEMBLER case.
+
+1999-06-26  Mumit Khan  <khan@xraylith.wisc.edu>
+
+	* config/obj-coff.c (obj_coff_section): Mark writable sections as
+	data.
+
+1999-06-26  David Mosberger  <davidm@hpl.hp.com>
+
+	* dwarf2dbg.c (dwarf2_gen_line_info): Don't call
+	out_end_sequence() when the address decreases due to a new frag.
+	(gen_dir_list): Set ls.file[i].dir to j + 1 (not j) because file
+	numbering starts with 1.
+
+1999-06-23  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-mcore.c (md_pseudo_table): Add .comm for ELF and allow
+	.section for COFF.
+	(mcore_s_text): Call obj_elf_text for ELF target.
+	(mcore_s_data): Call obj_elf_data for ELF target.
+	(mcore_s_section): No longer ELF specific.  Call obj_coff_section
+	for COFF target.
+	(mcore_s_bss): New function:  Dump literal table before changing
+	sections.
+	(mcore_s_comm): New function:  Dump literal table before changing
+	sections.
+
+	* config/obj-elf.c (obj_elf_common, obj_elf_data, obj_elf_text):
+	No longer static functions.
+	* config/obj-elf.h (obj_elf_common, obj_elf_data, obj_elf_text):
+	Provide prototypes for these functions.
+
+1999-06-22  Ian Lance Taylor  <ian@zembu.com>
+
+	* subsegs.c (subseg_text_p): Rewrite non BFD_ASSEMBLER case to use
+	a list of names, to try obj_segment_name, and to try abbreviated
+	names when using COFF without long section names.
+
+	* config/tc-alpha.c: More use of symbol accessor functions.
+	* config/tc-arc.c: Likewise.
+	* config/tc-d30v.c: Likewise.
+	* config/tc-fr30.c: Likewise.
+	* config/tc-i860.c: Likewise.
+	* config/tc-m88k.c: Likewise.
+	* config/tc-mcore.c: Likewise.
+	* config/tc-ns32k.c: Likewise.
+	* config/tc-sparc.c: Likewise.
+	* config/tc-v850.c: Likewise.
+
+	* config/tc-arc.c (get_arc_exp_reloc_type): Change uses of
+	sy_value with appropriate accessor functions.
+	* config/tc-arm.c (md_apply_fix3): Likewise.
+	* config/tc-d10v.c (AT_WORD_P): Likewise.
+	* config/tc-v850.c (reg_name_search): Likewise.
+
+	* config/obj-ecoff.c (obj_ecoff_set_ext): Change uses of bsym to
+	use symbol_get_bfdsym instead.
+	* config/tc-ppc.c (md_assemble): Likewise.
+	* config/tc-v850.c (v850_comm): Likewise.
+
+1999-06-22  Jonathan Larmour  <jlarmour@cygnus.co.uk>
+
+	* config/tc-arc.c (tc_gen_reloc): Use symbol_get_bfdsym to get at
+	the symbol, rather than accessing the bsym member.
+	* config/tc-d10v.c (tc_gen_reloc): Likewise.
+	* config/tc-d30v.c (tc_gen_reloc): Likewise.
+	* config/tc-mcore.c (tc_gen_reloc): Likewise.
+	* config/tc-mn10200.c (tc_gen_reloc): Likewise.
+	* config/tc-mn10300.c (tc_gen_reloc): Likewise.
+	* config/tc-ns32k.c (tc_gen_reloc): Likewise.
+	* config/tc-tic30.c (tc_gen_reloc): Likewise.
+	* config/tc-v850.c (tc_gen_reloc): Likewise.
+
+Mon Jun 21 16:45:19 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (elf_hppa_reloc_type): Renamed from elf32_hppa_reloc_type.
+	(hppa_gen_reloc_type): Conditionalize on BFD64.
+	(tc_gen_reloc): Re-enable ELF relocations.
+	* config/tc-hppa.h (TARGET_FORMAT): Handle elf64-hppa format.
+
+1999-06-21  Ian Lance Taylor  <ian@zembu.com>
+
+	* config/tc-arm.c (ldst_extend): Add parentheses to avoid
+	warning.
+	(do_ldst): Move assignment out of if condition.
+	(md_apply_fix3): Add casts to avoid printf format warnings.  Add
+	parentheses to avoid warning.
+
+1999-06-21  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (arm_adjust_symtab): Use symbol_get_bfdsym()
+	macro to get at the BFD symbol associated with a GAS symbol.
+
+1999-06-19  Ian Lance Taylor  <ian@zembu.com>
+
+	* config/tc-ppc.c: Update for symbol handling changes.
+	* config/obj-coff.c: Likewise.
+
+Fri Jun 18 14:34:18 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c: General cleanups of ELF support.  No more spaces
+	and subspaces for ELF.
+	(GDB_DEBUG_SPACE_NAME): Delete definition for ELF.
+	(GDB_STRINGS_SUBSPACE_NAME): Likewise.
+	(GDB_SYMBOLS_SUBSPACE_NAME): Likewise
+	(UNWIND_SECTION_NAME): Likewise.
+	(space/subspace related structures): Conditionalize definitions
+	on OBJ_SOM.
+	(space/subspace directives and support routines): Conditionalize
+	definitions and references/uses on OBJ_SOM.
+	(label_symbol_struct): For ELF, track the symbol's segment.  For
+	SOM track its space.
+	(pa_define_label, pa_undefine_label, pa_get_label): Corresponding
+	changes.
+	(USE_ALIASES): Kill for both SOM & ELF.
+	(pa_def_subspaces, pa_def_spaces): Corresponding changes.
+	(pa_space, pa_subspace): Corresponding changes.
+	(pa_spaces_begin): Corresponding chagnes.
+	(md_begin): Do not muck around with space/subspace stuff for
+	OBJ_ELF.
+	(md_apply_fix): Temporarily disable argument relocation stuff
+	for OBJ_ELF.
+	(tc_gen_reloc): Temporarily disable relocation generation for
+	OBJ_ELF
+	(pa_build_unwind_subspace): Similarly.
+
+1999-06-16  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (thumb_set): New pseudo op.
+	(text, data, section): Override these pseudo ops with ARM
+	specific versions.
+	(s_thumb_set): New function: Perform the same as a .set pseudo
+	op, but also mark the alias'ed symbol as being a Thumb
+	function.
+	(arm_s_text): New function: Perform the same as the .text
+	pseudo op, but dump the literal pool before changing
+	sections.
+	(arm_s_data): New function: Perform the same as the .data
+	pseudo op, but dump the literal pool before changing
+	sections.
+	(arm_s_section): New function: Perform the same as the
+	.section pseudo op, but dump the literal pool before changing
+	sections.
+	(arm_cleanup): Do not reset the current section before dumping
+	the literal pool.
+
+1999-06-17  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-m32r.c (md_longopts): Fix OPTION_WARN_UNMATCHED and
+	OPTION_NO_WARN_UNMATCHED entries.
+	(md_parse_option): Generate a warning message if an unrecognised
+	option is encountered.
+
+	* config/tc-d10v.c (do_not_ignore_hash): New variable.
+	(get_operands): When parsing an expression after an '@' symbol
+	has been detected, do not ignore '#' symbols.
+	(md_operand): Only ignore '#' symbols if do_not_ignore_hash is
+	false.
+
+1999-06-13  Ian Lance Taylor  <ian@zembu.com>
+
+	From K. Richard Pixley <rich@noir.com>:
+	* configure.in (ppc-*-vxworks*): New target.
+	* configure: Rebuild.
+
+1999-06-12  Philip Blundell  <philb@gnu.org>
+
+	* config/tc-arm.c (tc_gen_reloc): Fix handling of GOTPC relocs.
+
+1999-06-13  Ian Lance Taylor  <ian@zembu.com>
+
+	* write.c (adjust_reloc_syms): Rather than never reducing reloc
+	which refer to symbols in linkonce sections, permit reducing the
+	relocs if the symbol is local.
+
+1999-06-12  Ian Lance Taylor  <ian@zembu.com>
+
+	* subsegs.c (subseg_text_p): New function.
+	* as.h (subseg_text_p): Declare.
+	* read.c (do_align): Use subseg_text_p to set the default fill.
+	* write.c (subsegs_finish): Likewise.
+	* config/obj-coff.c (write_object_file): Likewise.
+	* config/tc-i386.h (md_maybe_text): Don't define.
+	(md_do_align): Use subseg_text_p to set the default fill.
+	* config/tc-m32r.c (m32r_do_align): Likewise.
+	* config/tc-sh.c (sh_do_align): Likewise.
+	* config/tc-sparc.h (md_do_align): Likewise.
+
+1999-06-12  David O'Brien  <obrien@freebsd.org>
+
+	* configure.in: (i[3456]86-*-freebsd*): Now defaults to ELF.
+	* configure: Rebuild.
+
+1999-06-12  Ian Lance Taylor  <ian@zembu.com>
+
+	* dwarf2dbg.c: Include elf/dwarf2.h with "", not <>.
+	* Makefile.am: Rebuild dependencies.
+	* Makefile.in: Rebuild.
+
+	* config/tc-i386.c (i386_immediate): Remove unused label
+	seg_unimplemented.
+
+	* struc-symbol.h: Put local_symbol code in ifdef BFD_ASSEMBLER.
+	* symbols.c: Likewise.
+	* config/obj-aout.c (obj_crawl_symbol_chain): Refer directly to
+	sy_next field when taking address, rather than symbol_next.
+
+	* dwarf2dbg.c: Change bfd_vma to addressT and bfd_signed_vma to
+	offsetT.
+	(out_set_addr): Don't use BYTES_PER_ADDRESS.  Instead, get the
+	value from the output file architecture.
+	(dwarf2_gen_line_info): Ifdef BFD_ASSEMBLER specific code.
+	* dwarf2dbg.h: Change bfd_vma to addressT.
+
+1999-06-11  Ian Lance Taylor  <ian@zembu.com>
+
+	* dwarf2dbg.h: Use PARAMS in function declarations.
+
+1999-06-11  Martin Dorey  <mdorey@madge.com>
+
+	* write.c (fixup_segment): Don't add symbol value for i960 ELF.
+	* config/tc-i960.c (s_leafproc): Don't call tc_set_bal_of_cal if
+	OBJ_ELF.
+	(md_apply_fix): Simplify BFD_ASSEMBLER handling.
+
+1999-06-11  Ian Lance Taylor  <ian@zembu.com>
+
+	* config/tc-i386.c (md_apply_fix3): Add default case to switch.
+
+	* config/tc-sparc.c (md_pseudo_table): Remove pushsection and
+	popsection.
+
+	* config/tc-sparc.c (sparc_ip): Add default case to reloc switch.
+
+	* read.c (read_a_source_file): Only declare inescape if
+	QUOTES_IN_INSN.
+
+	* itbl-ops.c (itbl_disassemble): Change sprintf format strings to
+	match parameters.
+	(find_entry_byval): Add parens to avoid warning.
+
+	* as.c: If HAVE_ITBL_CPU, include "itbl-ops.h".
+
+	* symbols.c (resolve_symbol_value): Don't permit subtraction of
+	undefined symbols.
+
+1999-06-10  Jakub Jelinek  <jj@ultra.linux.cz>
+
+	* config/tc-sparc.c (sparc_ip): Don't use side-effect expression
+	with isoctal.
+
+	* config/tc-sparc.c (synthetize_setuw, synthetize_setsw,
+	synthetize_setx): New functions.
+	(md_assemble): Broken the special cases into the above
+	functions. Make compiler happy if sizeof(bfd_vma)==4.
+	Fix sethi generated from set/setuw. If instructions have a relloc,
+	always clear the fields to be relocated in the opcode.
+	(sparc_ip): Remove special_case global variable.
+
+1999-06-10  Ian Lance Taylor  <ian@zembu.com>
+
+	Based on patches from John W. Woznack <jwoznack@concentric.net>:
+	* itbl-ops.c (itbl_get_reg_val): Add pval parameter.  Return
+	indication of success rather than a value.
+	(itbl_get_val): Likewise.
+	(itbl_get_field): Use strcspn.  Change delimiters to include
+	parens.
+	* itbl-ops.h (itbl_get_reg_val): Update declaration.
+	(itbl_get_val): Likewise.
+	* config/tc-mips.c (mips_ip): Update call to itbl_get_reg_val.
+
+	* symbols.c (copy_symbol_attributes): Convert local symbols to
+	regular symbols.
+
+1999-06-10  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (md_parse_option): Add support for ARM920 and
+	ARM920t.
+
+1999-06-07  Jakub Jelinek  <jj@ultra.linux.cz>
+
+	* config/tc-sparc.c (md_assemble): Fix up setx, support setsw.
+	Optimize set if sizeof(bfd_vma) == 64.
+	(sparc_ip): Fix sethi - without %hi() it should generate
+	R_SPARC_22 reloc, not R_SPARC_HI22.
+	(tc_gen_reloc): Handle BFD_RELOC_SPARC22.
+
+1999-06-07  Jakub Jelinek  <jj@ultra.linux.cz>
+
+	* config/tc-sparc.c (md_begin): Handle native wordsize aliases.
+	(s_ncons): New function.
+	(native_op_table): New table.
+	(sparc_ip): Be more strict on %hi() etc.; prepare assembler for
+	R_SPARC_OLO10 handling.
+
+Mon Jun  7 10:22:16 1999  Richard Henderson  <rth@cygnus.com>
+
+	* expr.h (struct expressionS): Revert last change; widen X_op.
+	* config/tc-alpha.c (md_begin): Check the field is wide enough.
+
+Mon Jun  7 11:25:16 1999  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
+
+	* Makefile.am (TARGET_CPU_CFILES): Add config/tc-fr30.c.
+	(TARGET_CPU_HFILES): Add config/tc-fr30.h.
+	(TARG_ENV_HFILES): Add config/te-epoc-pe.h.
+	* Makefile.in: Regenerated.
+
+	* config/obj-elf.c (obj_elf_common): In MRI mode if called as
+	`common' pass on to s_mri_common.
+	(elf_pseudo_table): Pass 1 to obj_elf_common for `common'.
+
+1999-06-06  Richard Henderson  <rth@cygnus.com>
+
+	* config/obj-elf.c (obj_elf_section): Don't free the return
+	value of demand_copy_C_string.
+
+1999-06-05  Richard Henderson  <rth@cygnus.com>
+
+	* dwarf2dbg.c (dwarf2_gen_line_info): Mirror the section symbol
+	creation logic from obj_elf_create_section.
+
+	* config/obj-elf.c (elf_pseudo_tab): Add pushsection/popsection.
+	(section_stack): New.
+	(special_sections): Make const.
+	(obj_elf_section): Gut and rewrite parsing.
+	(obj_elf_change_section): New function broken out of obj_elf_section.
+	(obj_elf_parse_section_letters): Likewise.
+	(obj_elf_section_word): Likewise.
+	(obj_elf_section_type): Likewise.
+	(obj_elf_previous): Treat as a toggle.
+	(obj_elf_popsection): New.
+	* config/tc-ppc.c (ppc_section_word): Take str+len not ptr_str.
+	(ppc_section_type): Likewise.
+	* config/tc-ppc.h: Likewise.
+
+	* expr.h (struct expressionS): Don't make X_op a bitfield.
+	* config/tc-alpha.c: Update for symbol handling changes.
+	(md_apply_fix) [case GPREL]: Use now_seg instead of absolute_section.
+	(load_expression, emit_ir_load, emit_loadstore, emit_jsrjmp): Likewise.
+
+1999-06-05  Richard Henderson  <rth@cygnus.com>
+
+	* dwarf2dbg.c (*): Convert to K&R + prototypes.
+	(dwarf2_gen_line_info): Kill unused variables.
+	(dwarf2_finish): Likewise.
+	(dwarf2_where): Likewise.
+	(dwarf2_directive_file): If we've only got a string,
+	hand off to s_app_file.
+	* ecoff.c: Move the include of ecoff.h.
+	* symbols.h (S_IS_FUNCTION): Prototype.
+
+	* read.c (LEX_HASH): Supply a default.
+	(lex_type): Use it.
+	(s_globl): Update `c' after skipping whitespace.
+	* read.h (LEX_END_NAME, is_name_ender): New.
+	* expr.c (get_symbol_end): Respect it.
+
+1999-06-04  Mark Klein <mklein@dis.com>
+
+	* config/tc-hppa.c (md_begin): Convert local symbol dummy_symbol
+	to real if OBJ_SOM
+	(tc_gen_reloc): Still need bfd_abs_symbol in some relocs.
+
+	* config/tc-hppa.c: Update for symbol handling changes.
+
+1999-06-03  Ian Lance Taylor  <ian@zembu.com>
+
+	* cgen.c: Update for symbol handling changes.
+	* config/tc-m32r.c: Likewise.
+
+	* config/tc-hppa.h: Update for symbol handling changes.
+	* config/tc-hppa.c: Likewise.
+
+	* config/tc-arm.h: Update for symbol handling changes.
+	* config/tc-arm.c: Likewise.
+	(symbol_make_empty): Remove.  Just use symbol_create.
+
+	* symbols.c (symbol_set_tc): Correct name.
+
+	* Makefile.am: Rebuild dependencies.
+	($(OBJS)): Don't depend upon struc-symbol.h.
+	(.dep1, .tcdep, .objdep): Create itbl-parse.h.
+	* dep-in.sed: Don't remove struc-symbol.h.
+	* Makefile.in: Rebuild.
+
+	* doc/internals.texi (Symbols): Describe changes in symbol
+	handling.
+
+1999-06-03  Richard Henderson  <rth@cygnus.com>
+
+	* dwarf2dbg.c (dwarf2_gen_line_info): Use section_symbol
+	instead of doing the work by hand.
+
+1999-06-03  David Mosberger  <davidm@hpl.hp.com>
+
+	* dwarf2dbg.c (INITIAL_STATE): New macro encapsulating initial
+	state of line state-machine.
+	(struct ls): Collect DWARF2 line state-machine state in new member
+	SM.  Add member EMPTY_SEQUENCE to keep track if a code sequence
+	resulted in any DWARF2 directives.
+	(reset_state_machine): New function.
+	(out_end_sequence): Ditto.
+	(dwarf2_gen_line_info): When switching sections or switching to a
+	lower text address, call out_end_sequence() first to terminate the
+	previous code sequence as code sequences MUST have monotonically
+	increasing addresses.
+	(dwarf2_finish): Call out_end_sequence() instead of open coding it.
+
+1999-06-03  David Mosberger  <davidm@hpl.hp.com>
+
+	* as.c (parse_args): Add option -gdwarf2 to allow requesting
+	DWARF2 debug info (line information only, at this point).
+	* as.h: Update comment about supported debug formats.
+	* dwarf2dbg.c, dwarf2dbg.h: New files.
+	* Makefile.am (GAS_CFILES, HFILES, GENERIC_OBJS): Add them.
+
+	* expr.c (operand): Don't use [ for parens if we want an index op.
+	(op_encoding): Switch [ into O_index, if desired.
+	(op_rank): Renumber with O_index on bottom.
+	(expr): If O_index, match closing bracket.
+	* expr.h (O_index): New.
+
+	* read.c (read_a_source_file): Conditionally allow matched "
+	in lines passed to md_assemble.
+
+	* config/obj-elf.c (elf_pseudo_table): Add `common'.
+
+1999-06-03  Ian Lance Taylor  <ian@zembu.com>
+
+	Add support for storing local symbols in a small structure to save
+	memory when assembling large files.
+	* as.h: Don't include struc-symbol.h.
+	(symbolS): Add typedef.
+	* symbols.c: Include struc-symbol.h.
+	(local_hash): New static variable.
+	(save_symbol_name): New static function, from symbol_create.
+	(symbol_create): Call save_symbol_name.
+	(local_symbol_count): New static variable.
+	(local_symbol_conversion_count): Likewise.
+	(LOCAL_SYMBOL_CHECK): Define.
+	(local_symbol_make): New static function.
+	(local_symbol_convert): New static function.
+	(colon): Handle local symbols.  Create local symbol for local
+	label name.
+	(symbol_table_insert): Handle local symbols.
+	(symbol_find_or_make): Create local symbol for local label name.
+	(symbol_find_base): Check for local symbol.
+	(symbol_append, symbol_insert): Check for local symbols.
+	(symbol_clear_list_pointers, symbol_remove): Likewise.
+	(verify_symbol_chain): Likewise.
+	(copy_symbol_attributes): Likewise.
+	(resolve_symbol_value): Handle local symbols.
+	(resolve_local_symbol): New static function.
+	(resolve_local_symbol_values): New function.
+	(S_GET_VALUE, S_SET_VALUE): Handle local symbols.
+	(S_IS_FUNCTION, S_IS_EXTERNAL, S_IS_WEAK, S_IS_COMMON): Likewise.
+	(S_IS_DEFINED, S_IS_DEBUG, S_IS_LOCAL, S_GET_NAME): Likewise.
+	(S_GET_SEGMENT, S_SET_SEGMENT, S_SET_EXTERNAL): Likewise.
+	(S_CLEAR_EXTERNAL, S_SET_WEAK, S_SET_NAME): Likewise.
+	(symbol_previous, symbol_next): New functions.
+	(symbol_get_value_expression): Likewise.
+	(symbol_set_value_expression): Likewise.
+	(symbol_set_frag, symbol_get_frag): Likewise.
+	(symbol_mark_used, symbol_clear_used, symbol_used_p): Likewise.
+	(symbol_mark_used_in_reloc): Likewise.
+	(symbol_clear_used_in_reloc, symbol_used_in_reloc_p): Likewise.
+	(symbol_mark_mri_common, symbol_clear_mri_common): Likewise.
+	(symbol_mri_common_p): Likewise.
+	(symbol_mark_written, symbol_clear_written): Likewise.
+	(symbol_written_p): Likewise.
+	(symbol_mark_resolved, symbol_resolved_p): Likewise.
+	(symbol_section_p, symbol_equated_p): Likewise.
+	(symbol_constant_p): Likewise.
+	(symbol_get_bfdsym, symbol_set_bfdsym): Likewise.
+	(symbol_get_obj, symbol_set_obj): Likewise.
+	(symbol_get_tc, symbol_set_tc): Likewise.
+	(symbol_begin): Initialize local_hash.
+	(print_symbol_value_1): Handle local symbols.
+	(symbol_print_statistics): Print local symbol statistics.
+	* symbols.h: Include "struc-symbol.h" if not BFD_ASSEMBLER.
+	Declare new symbols.c functions.  Move many declarations here from
+	struc-symbol.h.
+	(SYMBOLS_NEED_BACKPOINTERS): Define if needed.
+	* struc-symbol.h (SYMBOLS_NEED_BACKPOINTERS): Don't set.
+	(struct symbol): Move bsym to make it clearly the first field.
+	Remove TARGET_SYMBOL_FIELDS.
+	(symbolS): Don't typedef.
+	(struct broken_word): Remove.
+	(N_TYPE_seg, seg_N_TYPE): Move to symbol.h.
+	(SEGMENT_TO_SYMBOL_TYPE, N_REGISTER): Likewise.
+	(symbol_clear_list_pointers): Likewise.
+	(symbol_insert, symbol_remove): Likewise.
+	(symbol_previous, symbol_append): Likewise.
+	(verify_symbol_chain, verify_symbol_chain_2): Likewise.
+	(struct local_symbol): Define.
+	(local_symbol_converted_p, local_symbol_mark_converted): Define.
+	(local_symbol_resolved_p, local_symbol_mark_resolved): Define.
+	(local_symbol_get_frag, local_symbol_set_frag): Define.
+	(local_symbol_get_real_symbol): Define.
+	(local_symbol_set_real_symbol): Define.
+	Define.
+	* write.c (write_object_file): Call resolve_local_symbol_values.
+	* config/obj-ecoff.h (OBJ_SYMFIELD_TYPE): Define.
+	(TARGET_SYMBOL_FIELDS): Don't define.
+	* config/obj-elf.h (OBJ_SYMFIELD_TYPE): Add local field.  If
+	ECOFF_DEBUGGING, add ECOFF fields.
+	(ELF_TARGET_SYMBOL_FIELDS, TARGET_SYMBOL_FIELDS): Don't define.
+	* config/obj-multi.h (struct elf_obj_sy): Add local field.  If
+	ECOFF_DEBUGGING, add ECOFF fields.
+	(ELF_TARGET_SYMBOL_FIELDS, TARGET_SYMBOL_FIELDS): Don't define.
+	(ECOFF_DEBUG_TARGET_SYMBOL_FIELDS): Don't define.
+	* config/tc-mcore.h: Don't include struc-symbol.h.
+	(TARGET_SYMBOL_FIELDS): Don't define.
+	(struct mcore_tc_sy): Define.
+	(TC_SYMFIELD_TYPE): Define.
+	* Many files: Use symbolS instead of struct symbol.  Use new
+	accessor functions rather than referring to symbolS fields
+	directly.
+
+	* read.c (s_mri_common): Don't add in value of line_label.
+
+	* config/tc-mips.c (md_apply_fix): Correct parenthesization when
+	checking for SEC_LINK_ONCE.
+
+	* config/tc-sh.h (sh_fix_adjustable): Declare.
+
+	* app.c (input_buffer): New static variable.
+	(app_push): Save saved_input in allocated buffer.
+	(app_pop): Restored saved_input.
+	(do_scrub_chars): Change get parameter to take char * and int as
+	arguments.  Change GET macro to pass input_buffer to get
+	function.  Don't save input into allocated buffer.
+	* as.h (do_scrub_chars): Update declaration.
+	* input-file.c (input_file_get): Change to take char * and int.
+	Read data into passed in buffer.  Remove static buffer.
+	* read.c (scrub_from_string): Change to take char * and int.  Copy
+	data into passed in buffer.
+
+	* hash.h: Neaten.  Declare hash_traverse.
+	* hash.c: Complete rewrite based on BFD hashing code.
+	* gasp.c (chunksize): New variable.
+	* macro.c (macro_expand_body): Call hash_jam with NULL rather than
+	hash_delete.
+
+1999-05-28  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (md_apply_fix3): Add pipeline offset into reloc
+	addend unless the target uses an old ABI.
+
+Mon May 24 13:36:55 1999  Doug Evans  <devans@canuck.cygnus.com>
+
+	-Wchar-subscripts cleanup
+	* listing.c (listing_newline): Use unsigned char variable, so
+	calls to isascii,iscntrl are correct.
+	* atof-generic.c (atof_generic): Cast arg to isdigit, et. al. with
+	(unsigned char).
+	* ecoff.c (ecoff_directive_ent,ecoff_stab): Ditto.
+	* config/obj-elf.c (obj_elf_vtable_inherit): Ditto.
+	* config/tc-mips.c (mips_ip,mips16_ip): Ditto.
+	(my_getSmallExpression,get_number,s_mips_ent): Ditto.
+
+1999-05-28  Torbjorn Granlund  <tege@matematik.su.se>
+
+	* config/tc-m68k.c (m68k_ip): Check for disallowed index register
+	width for Coldfire.
+	(arch_coldfire_p): New #define.
+	(m68k_ip, m68k_init_after_args): Use arch_coldfire_p.
+
+1999-05-28  Linus Nordberg  <linus.nordberg@canit.se>
+
+	* config/tc-m68k.c (install_operand): Add places `n', `o'.
+
+	* config/tc-m68k.c (m68k_ip): Add formats `E', `G', `H'.
+	(install_operand): Add place `N'.
+	(init_table): Add registers ACC, MACSR, MASK.
+
+	* config/m68k-parse.h (m68k_register): Add ACC, MACSR, MASK.
+
+	* config/tc-m68k.c: Change mcf5200 --> mcf.
+	(archs): Add mcf5206e, mcf5307.
+	(m68k_ip): Add format `u'.
+	(install_operand): Add place `m', `M', `h'.
+	(init_table): Add upper/lower registers.
+
+	* config/m68k-parse.h (m68k_register): Add upper/lower registers.
+
+1999-05-28  Martin Dorey  <mdorey@madge.com>
+
+	* config/tc-i960.c: Several minor changes to add ELF and
+	BFD_ASSEMBLER support.
+	* config/tc-i960.h: Likewise.
+	* configure.in (i960-*-elf*): New target.
+	* aclocal.m4, configure: Rebuild.
+
+1999-05-25  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (md_apply_fix3): Only do 1999-05-17 fx_pcrel
+	reloc changes when defined(BFD_ASSEMBLER).
+
+1999-05-17  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (tc_gen_reloc): Remove F and MAP macros.
+
+	* write.c (write_print_statistics): Output to file, not stderr.
+
+	* expr.c (generic_bignum_to_int32,64): Prototype.
+
+	* read.c (s_lcomm_internal, sizeof_sleb128, sizeof_uleb128,
+	output_sleb128, output_uleb128, output_big_sleb128,
+	output_big_uleb128, output_big_leb128): Prototype.
+	(output_big_sleb128, output_big_uleb128): Make inline.
+	(output_big_leb128): Remove inline
+
+	From Maciej W. Rozycki <macro@ds2.pg.gda.pl>
+	* config/tc-i386.c (md_apply_fix3): Convert BFD_RELOC_16 with
+	fx_pcrel set to BFD_RELOC_16_PCREL.  Similarly for BFD_RELOC_8.
+	Handle BFD_RELOC_16_PCREL and BFD_RELOC_8_PCREL.  Return changed
+	value for correct overflow check in write.c:fixup_segment.
+	* write.c (fixup_segment): Move bitfield overflow checks to after
+	the md_apply_fix call.
+	* config/obj-coff.c (fixup_segment): Likewise.
+	* doc/internals.texi (CPU backend): Mention md_apply_fix modifying
+	valueT *val argument.
+
+Fri May 14 10:52:13 1999  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
+
+	* config/atof-ieee.c (gen_to_words): Correctly round a
+	denormalized number.  Fix off-by-one in range checking for
+	exponent in a denormal.
+
+1999-05-10  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-mcore.c (parse_reg): Accept 'sp' as a valid register
+	name.
+
+Thu May 13 09:46:59 1999  Joel Sherrill (joel@OARcorp.com)
+
+	* configure.in (i386-*-rtemself*, sh-*-rtemself*): New targets.
+
+1999-05-12  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.h (InvMem): New flag.  Add to AnyMem.
+	(ReverseRegRegmem): Remove.
+	(ImmExt): New flag.  Renumber some of the opcode_modifier bits.
+	* config/tc-i386.c (md_assemble): Test for PIII SIMD and AMD
+	3DNow! via ImmExt opcode_modifier.  Remove ReverseRegRegmem
+	kludge.
+
+	From  Doug Ledford <dledford@redhat.com>
+	* config/tc-i386.h (RegXMM): New for P/III.
+	* config/tc-i386.c: Add support for P/III.
+
+Sat May  8 23:28:50 1999  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-ppc.c (md_parse_option): Recognize -mppc64bridge.
+	(md_begin): Allow ppc32 insns in ppc64bridge mode.
+	(ppc_insert_operand): Accept SIGNOPT in ppc64 mode.
+
+Thu May  6 23:13:39 1999  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-i386.c (i386_immediate): Skip whitespace before
+	complaining about junk after expression.
+	(i386_displacement): Likewise.
+
+Thu May  6 19:50:14 1999  Richard Henderson  <rth@cygnus.com>
+
+	* symbols.c (symbol_find_base): Use memcpy instead of strcpy.
+	Don't copy before downcaseing.
+
+1999-05-05  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-m68k.c: Include elf/m68k.h.
+	(m68k_elf_final_processing): New routine.
+	* config/tc-m68k.h (elf_tc_final_processing m68k_elf_final_processing):
+	Define.
+
+Mon May  3 10:26:03 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (md_apply_fix): Handle 22 bit fmt insn like a
+	17 bit fmt insn.
+
+1999-04-30  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-mcore.c (mcore_s_section): Dump literals before
+	changing section.
+
+1999-04-29  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-mcore.c (md_apply_fix3): Insert reloc addend into insn
+	for COFF/PE port.
+
+Mon Apr 26 12:34:37 1999  Doug Evans  <devans@canuck.cygnus.com>
+
+	* config/tc-fr30.h (TC_FIX_TYPE): Delete, cgen fields moved to write.h.
+	(TC_INIT_FIX_DATA): Delete.
+	* config/tc-m32r.h (TC_FIX_TYPE): Delete, cgen fields moved to write.h.
+	(TC_INIT_FIX_DATA): Delete.
+	* write.h (struct fix): New member fx_cgen, ifdef USING_CGEN.
+	* write.c (fix_new_internal): Initialize fx_cgen member.
+	* cgen.c (gas_cgen_record_fixup,gas_cgen_record_fixup_exp): Update.
+	(gas_cgen_md_apply_fix3): Update.
+	* config/tc-m32r.c (md_cgen_lookup_reloc): Update.
+	(md_cgen_record_fixup_exp): Update.
+	(FX_OPINFO_R_TYPE): Update.
+
+	* frags.c (frag_var,frag_variant): Initialize fr_cgen here.
+	* config/tc-fr30.h (TC_FRAG_INIT): Delete.
+	* config/tc-m32r.h (TC_FRAG_INIT): Delete.
+	* frags.h (struct frag): Make opindex, opinfo ints.
+
+	* config/tc-fr30.c (FX_OPINFO_R_TYPE): Delete, unused.
+
+1999-04-26  Tom Tromey  <tromey@cygnus.com>
+
+	* aclocal.m4, configure: Updated for new version of libtool.
+
+1999-04-22  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-mcore.c (md_apply_fix3): Renamed function from
+	md_apply_fix.
+	(md_apply_fix3): Do not fix up absolute relocations against
+	symbolic values.
+
+	* config/tc-mcore.h (MD_APPLY_FIX3): Define.
+
+1999-04-20  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-mcore.c (md_pseudo_table): Add intercepts for section
+	changes and data-in-text directives.
+	(mcore_cons): New function: intercept cons() operations.
+	(mcore_float_cons): New function: intercept float_cons()
+	operations.
+	(mcore_stringer): New function: intercept stringer() operations.
+
+1999-04-18  Ian Lance Taylor  <ian@zembu.com>
+
+	* obj.h (struct format_ops): Change generate_asm_lineno field to
+	take no parameters.
+	* config/obj-ecoff.h (OBJ_GENERATE_ASM_LINENO): Don't define.
+
+	* config/tc-alpha.c (find_opcode_match): Add default case to
+	switch.
+	(find_macro_match): Likewise.
+	(load_expression): Parenthesize && within ||.
+
+	* config/tc-alpha.h (TC_RELOC_RTSYM_LOC_FIXUP): Define.
+
+1999-04-17  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-mcore.c (md_pseudo_table): Add overrides for .bss
+	.text .data .section pseudo ops.
+	(mcore_s_section): New function.  Dump lits before changing secs.
+	(mcore_s_text): New function.  Dump lits before changing secs.
+	(mcore_s_data): New function.  Dump lits before changing secs.
+
+1999-04-16  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* config/tc-mips.c (mips_32bitmode): New.
+	(md_begin): Set mips_32bitmode if needed.
+	(mips_elf_final_processing): Don't set EF_MIPS_ARCH.
+	Set EF_MIPS_32BITMODE.
+
+Fri Apr 16 12:26:39 1999  Bob Manson  <manson@charmed.cygnus.com>
+
+	* config/obj-coff.c (c_section_symbol): Fix typo in previous
+	change.
+
+1999-04-16  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-mcore.h (LOCAL_LABELS_FB): Define to 1.
+
+Thu Apr 15 16:52:09 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_get_absolute_exression): Try to handle "5 %r3"
+	expressions correctly.
+
+
+1999-04-15  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* config/tc-mips.c (mips_elf_final_processing): Set EF_MIPS_ARCH.
+
+Mon Apr 12 23:45:07 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_ip, case '3'): New case for PA2.0 fmpyfadd
+	and fmpynfadd instructions.
+
+1999-04-11  Richard Henderson  <rth@cygnus.com>
+
+	* as.h (environ): Declare it, if needed.
+	* as.c (dump_statistics): Don't declare environ.
+	* configure.in (environ): Detect declaration.
+	* configure, config.in: Rebuild
+
+	* config/tc-i386.c (i386_immediate): Accept @GOT relocations.
+	(i386_displacement): Allocate enough space for replacement buffer.
+	Clean up replacement buffer initialization.
+
+1999-04-11  Bob Manson <manson@charmed.cygnus.com>:
+
+	* subsegs.c (section_symbol): Don't create a new symbol if one
+	already exists; instead, use the existing one, but set its segment
+	and frag data if it hasn't already been defined.
+	* config/obj-coff.c (c_section_symbol): Likewise.
+
+Sat Apr 10 20:10:02 1999  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-alpha.c (load_expression): Call as_bad instead of abort.
+
+1999-04-08  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-mcore.c: New File: Support routines for MCore
+	assembler.
+	* config/tc-mcore.h: New File: Definitions for MCore assembler.
+	* config/obj-coff.c: Add support for mcore-pe target.
+
+	* Makefile.am: Add support for MCore targets.
+	* Makefile.in: Regenerate.
+	* configure.in: Add support for MCore targets.
+	* configure: Regenerate.
+
+	* doc/all.texi: Set MCORE.
+	* doc/as.texinfo: Document MCore specific command line options.
+
+	* write.h: Prevent multiple inclusion.
+
+1999-04-06  Ian Lance Taylor  <ian@zembu.com>
+
+	* asintl.h (LC_MESSAGES): Never define.
+	* as.c (main): Don't pass LC_MESSAGES to setlocale if the system
+	does not define it.
+	* gasp.c (main): Don't pass LC_MESSAGES to setlocale if the system
+	does not define it.
+
+	* Makefile.am (m68k-parse.c): If configuring in the source
+	directory, copy m68k-parse.y into the local directory before
+	running ylwrap, to remove spurious differences when generating
+	snapshots.
+	* Makefile.in: Rebuild.
+
+	* config/tc-sparc.h (md_do_align): Just allocate the number of
+	bytes necessary, rather than always allocating 1024.
+
+1999-04-04  Ian Lance Taylor  <ian@zembu.com>
+
+	* listing.c (listing_newline): Add cast to avoid warning.
+	* read.c (generate_lineno_debug): Add cases to switch.  Reindent.
+	* config/tc-i386.c (i386_scale): Add return value.
+	(build_displacement_string): Remove unused local temp_disp2.
+	(i386_intel_memory_operand): Add parentheses to avoid warning.
+	(i386_intel_operand): Remove unused local end_of_operand_string.
+	(i386_operand): Remove unused local operand_modifier.
+	(i386_operand): Add parens to avoid warning.
+
+1999-04-04  Don Bowman <don@pixsci.com>
+
+	* configure.in: Add mips*-*-vxworks* target; have it define
+	MIPS_STABS_ELF.
+	* configure, config.in: Rebuild.
+
+1999-03-31  Nick Clifton  <nickc@cygnus.com>
+
+	* configure.in (emulations): Add support for arm-epoc-pe.
+	* configure: Regenerate.
+	* config/te-epoc-pe.h: New file.  Define macros specific to
+	arm-epoc-pe target.
+	* config/tc-arm.h: Select epoc-pe-arm target format if configured
+	for arm-epoc-pe target.
+
+Mon Mar 29 10:15:40 CST 1999  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-mips.c (md_apply_fix):  Adjust value for linkonce sections.
+
+Wed Mar 24 14:11:10 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_parse_nonneg_cmpsub_cmpltr): Clean up code to
+	detect ",n" without a condition.
+	(pa_parse_neg_cmpsub_cmpltr): Likewise.
+
+
+Tue Mar 23 11:28:23 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_ip, case '~'): The condition for a branch on bit
+	instruction is encoded with one bit.
+
+
+1999-03-23  Ian Lance Taylor  <ian@zembu.com>
+
+	* doc/internals.texi (CPU backend): Mention that
+	line_separator_chars should not include newline.  From thi
+	<ttn@mingle.glug.org>.
+
+1999-03-22  Doug Evans  <devans@casey.cygnus.com>
+
+	* config/tc-fr30.c (md_begin): Update call to fr30_cgen_cpu_open.
+	* config/tc-m32r.c (md_begin): Update call to m32r_cgen_cpu_open.
+
+Sun Mar 21 18:08:18 1999  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-alpha.c (md_assemble): Allow '6' in an opcode.
+
+Thu Mar 18 10:55:30 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_ip, case 'a'): Do not call pa_parse_..._cmpsub_cmpltr.
+
+
+Thu Mar 18 02:30:07 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (pa_ip, case 'd'): Do not allow ",n".
+
+1999-03-15  Martin Hunt  <hunt@cygnus.com>
+
+	* app.c (do_scrub_begin): Change '-' back to a symbol char
+	so we can use multiple opcodes on a line again.
+
+	* config/tc-d30v.c: By default, warn if a symbol has
+	the same name as a register.  Plus some minor
+	updates from the branch.
+
+1999-03-13  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (md_apply_fix3): Handle BFD_RELOC_8,
+	BFD_RELOC_16 and BFD_RELOC_64.
+
+1999-03-12  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
+
+	* expr.c (expr): Add missing else.
+
+1999-03-12  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (md_apply_fix3): Improve error message.
+
+1999-03-11  Doug Evans  <devans@casey.cygnus.com>
+
+	* Makefile.am (CPU_TYPES): Add fr30.
+	(cgen.o): Add $(CGEN_CPU_PREFIX)-desc.h dependency.
+	(fr30,m32r dependencies): Update.
+	* Makefile.in: Rebuild.
+
+	* cgen.c (gas_cgen_record_fixup): Update use of operand->type.
+	(gas_cgen_record_fixup_exp): Ditto.
+	(gas_cgen_finish_insn): Call cgen_operand_lookup_by_num.
+	(gas_cgen_md_apply_fix3): Ditto.  Update call to set_vma_operand.
+	* config/tc-fr30.c (md_begin): Update call to fr30_cgen_cpu_open.
+	(md_cgen_lookup_reloc): Update use of operand->type.
+	* config/tc-m32r.c (md_begin): Update call to fr30_cgen_cpu_open.
+	(md_convert_frag): Call cgen_operand_lookup_by_num.
+	(md_cgen_lookup_reloc): Update use of operand->type.
+	(m32r_cgen_record_fixup_exp): Ditto.
+
+1999-03-09  Jim Blandy  <jimb@zwingli.cygnus.com>
+
+	* config/tc-mips.c (md_show_usage): Fix message.
+
+1999-03-03  Nick Clifton  <nickc@cygnus.com>
+
+	* doc/c-arm.texi (ARM Syntax): Document new command line switches
+	and LDR reg,=<expr> instruction.
+
+	* config/tc-arm.c: Add support for -mcpu=arm810, -mcpu=arm9 and
+	-mcpu=arm9tdmi.
+
+Fri Feb 19 09:36:30 1999  Ian Lance Taylor  <ian@cygnus.com>
+
+	* doc/c-arm.texi (ARM-Chars): Fix typo in use of '@'.
+
+1999-02-17  Nick Clifton  <nickc@cygnus.com>
+
+	This patch was created by: Scott Bambrough
+	<scottb@corelcomputer.com>
+
+	* app.c:
+	  Special cased '@' character.  The '@' character is used as the
+	  ARM assembler comment character, as a special character
+	  and in ELF .symver pseudo-op's, and as a special character in
+	  .type and .section pseudo-ops.
+	(symver_pseudo): New static variable.
+	(symver_state): New static variable.
+	(struct app_save): Add field 'symver_state'.
+	(app_push): Save global symver_state int struct app_save.
+	(app_pop): Restore global symver_state from struct app_save.
+	(do_scrub_chars): Special case handling of '@' character in
+	.symver pseudo-ops.
+
+	* configure.in: Modified to recognize armv* uname syntax from ARM
+	Linux kernel.
+	* configure: Regenerated.
+
+	* config/obj-elf.c (obj_elf_section): Allow '%' as well as '@' as
+	a prefix to the section's type.
+	(obj_elf_type): Allow '%' as well as '@' and '#' as prefixes to
+	the type's typename.
+
+	* config/tc-arm.h: Add support for PIC generation:
+	(pic_code): New boolean.
+	(obj_relocate_extern): Define.
+	(TC_RELOC_RTSYM_LOC_FIXUP): Define
+	(TC_CONS_FIX_NEW): Define.
+	(tc_fix_adjustable): Define.
+	(GLOBAL_OFFSET_TABLE_NAME): Define.
+
+	* config/tc-arm.c: Add support for PIC generation:
+	(line_seperator_chars): Allow ';' as a seperator for Linux.
+	(is_immediate_prefix): New macro.
+	(arm_parse_reloc): New function.
+	(s_arm_elf_cons): New function.
+	(do_branch): Special case for BFD_RELOC_ARM_PLT32.
+	(md_undefined_symbol): Special case handling for the Global Offset
+	  Table's symbol.
+	(md_apply_fix3): Handle PIC relocs.
+	(tc_gen_reloc): Handle PIC relocs.
+	(md_parse_option): Add support for '-k' command line switch to
+	  enable PIC generation.
+	(cons_fix_new_arm): New function.
+	(s_arm_elf_cons): New function.
+
+Tue Feb 16 16:31:53 1999  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Add comments for uses of AC_DEFINE.
+	* acinclude.m4: Likewise.
+	* acconfig.h: Remove.
+	* aclocal.m4: Rebuild.
+	* configure: Rebuild.
+	* Makefile.in: Rebuild.
+	* config.in: Rebuild.
+
+1999-02-15  Jim Lemke  <jlemke@cygnus.com>
+
+	* config/tc-mips.c (mips_ip: case 'o'): Fix assertion failure for
+	non-constant offset from a base register.
+
+1999-02-14  Ken Raeburn  <raeburn@raeburn.org>
+
+	* config/tc-alpha.c (md_show_usage): Put \ before newline in
+	strings always.
+
+Sat Feb 13 14:10:10 1999  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-alpha.c (cpu_types): Enable EV6 PALcode with -m21264.
+	(emit_insn): Look for pc-relative and no-overflow specifiers on
+	internal relocation types.
+
+1999-02-13  Jim Blandy  <jimb@zwingli.cygnus.com>
+
+	* doc/c-mips.texi (MIPS Opts): Updated list of -mNNNN and
+	-mcpu=NNNN flags.
+
+	* config/tc-mips.c: Remove all the mips_NNNN variables; just use
+	mips_cpu instead.
+	(mips_4650, mips_4010, mips_4100): Variables removed.
+	(hilo_interlocks, gpr_interlocks, append_insn, macro_build, macro,
+	macro2, mips16_macro, mips_ip): Test mips_cpu, not the mips_NNNN
+	variables.
+	(md_begin): Don't bother initializing the mips_NNNN variables;
+	mips_cpu is set, and that's good enough now.
+	(md_parse_option): Have the -mNNNN options set mips_cpu instead of
+	the mips_NNNN variable.  The -no-mNNNN flags are now no-ops.
+	(show): New function, to handle wrapping in the CPU lists.
+	(md_show_usage): Update lists of -mcpu and -mNNNN switches.
+
+Sat Feb 13 00:17:26 1999  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-i386.c (i386_intel_operand): Ignore `SHORT' rather
+	than treat as an immediate specifier.
+
+Thu Feb 11 16:18:31 1999  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-i386.c: Prototype many functions.
+	(set_intel_syntax): Accept `prefix'/`noprefix' specifiers.
+	(i386_immediate): Remove unused second argument.
+	(i386_intel_operand): Fix i386_is_reg typo.
+	(i386_operand): Use allow_naked_reg.
+	(output_invalid): Make operand int for K&R.
+
+Thu Feb 11 11:21:02 1999  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (EXTRA_as_new_SOURCES): Uncomment--fixed by automake
+	patch.
+	* Makefile.in: Rebuild.
+
+1999-02-09  Doug Evans  <devans@casey.cygnus.com>
+
+	* Makefile.am (DISTCLEANFILES): Change cgen-opc.h to cgen-desc.h.
+	(cgen.o): Ditto.
+	(EXTRA_as_new_SOURCES): Comment out.
+	(.tcdep): <arch>-opc.h renamed to <arch>-desc.h.
+	* Makefile.in: Rebuild.
+	* doc/Makefile.in: Rebuild.
+	* configure.in: Require autoconf 2.13.  Redo using_cgen handling.
+	Delete call to AM_CYGWIN32.  Replace AM_EXEEXT with AC_EXEEXT.
+	(AC_OUTPUT): <arch>-opc.h renamed to <arch>-desc.h.
+	* configure: Rebuild.
+	* aclocal.m4: Rebuild.
+	* config.in: Rebuild.
+	* cgen.c: Include cgen-desc.h, not cgen-opc.h.
+	(*): CGEN_OPCODE_DESC renamed to CGEN_CPU_DESC.
+	(gas_cgen_cpu_desc): Renamed from gas_cgen_opcode_desc.
+	CGEN_INSN_ATTR renamed to CGEN_INSN_ATTR_VALUE.
+	CGEN_OPERAND_ATTR renamed to CGEN_OPERAND_ATTR_VALUE.
+	(gas_cgen_record_fixup): Remove unnecessary != 0 test.
+	(gas_cgen_record_fixup_exp): Ditto.
+	(gas_cgen_finish_insn): Ditto.  Refer to operand table via cpu
+	descriptor, not global variable.
+	(gas_cgen_md_apply_fix3): Refer to operand_table via cpu
+	descriptor, not global variable.  Refer to insert_operand handler
+	via cpu descriptor, not global function.
+	* cgen.h (*): CGEN_OPCODE_DESC renamed to CGEN_CPU_DESC.
+	* config/tc-fr30.c: Include opcodes/fr30-desc.h.
+	(*): gas_cgen_opcode_desc renamed to gas_cgen_cpu_desc.
+	CGEN_INSN_ATTR renamed to CGEN_INSN_ATTR_VALUE.
+	Update call to CGEN_OPERAND_TYPE,CGEN_INSN_OPERANDS.
+	* config/tc-m32r.c: Ditto.
+	(assemble_two_insns): Update calls to cgen_lookup_get_insn_operands.
+	(md_assemble): Ditto.
+	(md_convert_frag): Update call to CGEN_OPERAND_ENTRY.
+
+1999-02-09  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (md_apply_fix3): Fix handling of label1 - label2
+	relocations for ELF targets.
+
+1999-02-08  Nick Clifton  <nickc@cygnus.com>
+
+	* configure.in: Add support for StrongARM target.
+	* configure: Regenerate.
+
+1999-02-05  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.h: Tidy OBJ_ELF and OBJ_COFF definitions.
+
+	* config/tc-arm.c (md_apply_fix3): Fix BFD_RELOC_ARM_PCREL_BRANCH
+	for COFF ports.
+
+Wed Feb  3 11:35:47 1999  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-alpha.c (md_show_usage): Document pca56 and ev6 options.
+
+Mon Feb  1 20:37:30 1999  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-i386.h (LONG_DOUBLE_MNEM_SUFFIX):  Define.
+	(INTEL_DWORD_MNEM_SUFFIX):  Define.
+	(BYTE_PTR):  Define.
+	(WORD_PTR):  Define.
+	(DWORD_PTR):  Define.
+	(XWORD_PTR):  Define.
+	(SHORT):  Define.
+	(OFFSET_FLAT):  Define.
+	(FLAT):  Define.
+	(NONE_FOUND):  Define.
+	(No_dSuf):  Define.
+	(No_xSuf):  Define.
+	* config/tc-i386.c  (set_intel_syntax):  New routine.
+	(intel_syntax):  Declare.
+	(allow_naked_reg):  Declare.
+	(md_pseudo_table):  Support .intel_syntax and .att_syntax.
+	(intel_float_operand):  New routine.
+	(md_assemble):  Handle INTEL_DWORD_MNEM_SUFFIX.
+	Handle brackets as well as parens.  Call i386_intel_operand for
+	intel syntax.  Reverse operands if appropriate.  Handle new
+	suffixes.  Handle movzx and movsx.
+	(i386_is_reg):  New routine.
+	(i386_immediate):  New routine.
+	(i386_scale):  New routine.
+	(i386_displacement):  New routine.
+	(i386_operand_modifier):  New routine.
+	(build_displacement_string):  New routine.
+	(i386_parse_seg):  New routine.
+	(i386_intel_memory_operand):  New routine.
+	(i386_intel_operand):  New routine.
+	(i386_operand):  Call i386_displacement, i386_immediate,
+	i386_scale, etc.  instead of handling inline.
+	(parse_register):  Handle registers without prefix.
+
+Mon Feb  1 12:24:58 1999  Catherine Moore  <clm@cygnus.com>
+
+	* configure:  Regenerate.
+	* configure.in (arm-*-oabi):  New.
+	(thumb-*-oabi):  New.
+	* config/tc-arm.c (target_oabi):  Declare.
+	(md_apply_fix3): Support REL relocs.
+	(md_parse_option):  Handle -oabi.
+	(elf32_arm_target_format):  New routine.
+	(md_longopts):  Add OPTION_OABI.
+	* config/tc-arm.h:  Redefine TARGET_FORMAT.
+
+
+1999-01-28  Nick Clifton  <nickc@cygnus.com>
+
+	* write.c (write_relocs): Handle out of range error.
+
+	* config/tc-fr30.c (fr30_fix_adjustable): New function.
+	(fr30_force_relocation): Default to 0.
+
+	* config/tc-fr30.h (obj_fix_adjustable): Define.
+	(TC_FORCE_RELOCATION): Define.
+
+	* cgen.c (gas_cgen_md_apply_fix3): Do not apply fixes to VTABLE
+	relocs.
+
+1999-01-16  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (write_2_short): Do not generate a sequential
+	merge of two instructions if the left instruciton kills the right.
+
+1999-01-11  Doug Evans  <devans@casey.cygnus.com>
+
+	* Makefile.in: Regenerate.
+	* configure.in: Redo test for using cgen.
+	* configure: Regenerate.
+
+1999-01-09  Nick Clifton  <nickc@cygnus.com>
+
+	* config/obj-coff.h (obj_adjust_symtab): Prevent accidental
+	redefinition of this macro.
+
+Tue Jan  5 21:58:03 1999  Doug Evans  <devans@canuck.cygnus.com>
+
+	* config/tc-mips.c (mips_frob_file): Disable "Unmatched %hi reloc"
+	warning.
+
+1998-12-29  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* config/tc-mips.c (append_insn): For mips16, insert a nop between
+	a read of HI or LO and an immediatly following branch.
+
+1998-12-29  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* config/tc-mips.c (md_begin): Another correction to the setting of
+	mips_eabi64.
+
+1998-12-23  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* config/tc-mips.c (md_begin): Correct type-o in setting of
+	mips_eabi64.
+
+1998-12-21  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-m32r.c (md_assemble): Emit a NOP after a relaxable 16
+	bit insn when optimizing, so that parallelised instructions will
+	start on a 32 bit boundary.
+
+1998-12-19  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* config/tc-mips.c (mips_eabi64): New.
+	(md_begin): Set mips_eabi64.
+	(mips_elf_final_processing): Use it.
+
+1998-12-18  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* config/tc-mips.c (mips_elf_final_processing):
+	Correct setting of ABI in e_flags.
+
+Wed Dec 16 16:17:22 1998  Dave Brolley  <brolley@cygnus.com>
+
+	* config/tc-fr30.c (md_assemble): Warn about invalid instructions
+	in delay slots.
+
+1998-12-16  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* config/tc-mips.c (md_begin,md_parse_option): Handle vr4111.
+
+1998-12-15  Doug Evans  <devans@casey.cygnus.com>
+
+	* cgen.c (gas_cgen_md_apply_fix3): Mark as an error, rather than a
+	warning, values that don't fit in the field.
+
+1998-12-15  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* config/tc-mips.c (mips_abi_string): New.
+	(md_parse_option,md_longopts): Add mabi.
+	(mips_elf_final_processing): Set e_flags based on mabi flag.
+
+1998-12-15  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* config/tc-mips.c (md_parse_option): Handle vr4111.
+
+98-12-11  Ken Raeburn  <raeburn@cygnus.com>
+
+	* config/tc-h8300.c (build_bytes): Change message given if the
+	instruction requires H8/300H mode and we're not in Hmode, to
+	suggest that it may be the operand modes that are the problem, not
+	necessarily the opcode.
+
+1998-12-10  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-fr30.c: Add line separator character.
+
+Tue Dec  8 19:51:50 1998  Mark Klein  <mklein@dis.com>
+
+	* configure.in (hppa-*-mpeix*): New target.
+	* config/obj-som.h (obj_som_compiler): Declare.
+	* config/obj-som.c (compiler_seen): New static variable.
+	(obj_som_compiler): New function.
+	* config/tc-hppa.c: Update tc_data uses for change to bfd/som.h.
+	(md_pseudo_table): Add "compiler" if OBJ_SOM.
+	(pa_type_args): Set hppa_priv_level.
+	(pa_compiler): New static function if OBJ_SOM.
+	* configure: Rebuild.
+
+Tue Dec  8 15:00:50 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* read.c (output_leb128): Don't mark as inline.
+
+1998-12-08  Andrew MacLeod  <amacleod@cygnus.com>
+
+	* config/tc-ppc.c (ppc_vbyte): Prototype and new function for
+	AIX .vbyte unaligned data support.
+	(md_pseudo_table): Add 'vbyte' to list of valid pseudos.
+	(ppc_elf_validate_fix): Add eh_frame to list of ELF relocatable
+	sections.
+
+1998-12-07  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (md_assemble, do_assemble): Improve erroneous
+	input handling.
+
+Mon Dec  7 09:48:34 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-arm.c (elf32_arm_force_relocation):  Check for
+	BFD_RELOC_ARM_PCREL_BRANCH.
+
+Sun Dec  6 12:46:36 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Define TARGET_BYTES_{BIG,LITTLE}_ENDIAN after
+	checking the target type.
+	(mips-dec-bsd*): Set endian to little.
+	* configure: Rebuild.
+
+	COFF weak symbol support, based on patches from Mark Elbrecht
+	<snowball3@usa.net>:
+	* config/obj-coff.h (S_IS_WEAK): Define if not BFD_ASSEMBLER.
+	* config/obj-coff.c (obj_coff_weak): New static function.
+	(obj_coff_endef) [both versions]: Handle weak symbols.
+	(coff_frob_symbol): Likewise.
+	(yank_symbols): Likewise.
+	(obj_pseudo_table): Add "weak".
+
+	* configure.in (m68k-*-gnu*): New target.  From Aymeric Vincent
+	<aymeric.vincent@emi.u-bordeaux.fr>.
+	* aclocal.m4: Rebuild with current tools.
+	* configure: Rebuild.
+
+	* config/tc-alpha.c (emit_ldgp): Give an error message rather than
+	an assertion failure for a case we can't handle when OBJ_ECOFF.
+
+	* expr.c (operator): And with 0xff to avoid problems with signed
+	char.
+
+1998-12-03  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-fr30.c (md_cgen_lookup_reloc): Generate
+	BFD_RELOC_FR30_48 instead of BFD_RELOC_FR30_32.
+
+1998-12-02  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-fr30.c (md_cgen_lookup_reloc): Enable relocs for
+	LDI:20 insn.
+
+Thu Nov 26 11:23:48 1998  Dave Brolley  <brolley@cygnus.com>
+
+	* config/tc-fr30.c (md_pcrel_from_section): Restore previous
+	calculation of pcrel point.
+
+Tue Nov 24 17:21:52 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-fr30.c (md_pcrel_from_section): Fix calculation of
+	pcrel point.
+
+Tue Nov 24 14:54:38 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d10v.c (md_assemble): Make static 'etype' have file
+	scope.
+	(d10v_cleanup): Only generate previous insn if a multiline insn is
+	not pending.
+
+Fri Nov 20 11:41:13 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-fr30.c (md_cgen_lookup_reloc): Add support for
+	FR30_OPERAND_I32.
+
+Thu Nov 19 15:01:29 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (md_parse_option): Add support for -marm7xxx and
+	-marm6xxx command line switches.
+
+1998-11-18  Doug Evans  <devans@casey.cygnus.com>
+
+	* Makefile.am (DEP): Use $(srcdir)/../mkdep.
+	(itbl-ops.o): Delete duplicate dependencies.
+	Rebuild dependencies.
+	Add fr30 dependencies.
+	* Makefile.in: Rebuild.
+
+Tue Nov 17 13:42:42 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-fr30.c (md_cgen_lookup_reloc): Updated to match latest
+	opcode list.
+	* listing.c: Ignore line terminator characters found inside
+	strings.
+
+Thu Nov 12 19:21:24 1998  Dave Brolley  <brolley@cygnus.com>
+
+	* po/gas.pot: Regenerated.
+
+Thu Nov 12 10:54:16 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-fr30.c (fr30_is_colon_insn): New name for
+	fr30_is_label_start().  Also checks for delay slot insns.
+
+	* config/tc-fr30.c (fr30_is_label_start): New function: Handle
+	FR30 instructions which contain a colon in the mnemonic.
+
+	* config/tc-fr30.h (TC_START_LABEL): Define this macro.
+
+Wed Nov 11 09:58:21 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-fr30.c: Removed currently superflous code.
+
+Tue Nov 10 13:13:05 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-fr30.h: New file.
+	* config/tc-fr30.c: Tweaking so that it will compile.
+
+Tue Nov 10 14:41:33 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-d10v.h (obj_fix_adjustable):  Define.
+	(TC_FORCE_RELOCATION):  Define.
+	(d10v_force_relocation):  Declare.
+	* config/tc-d10v.c (tc_gen_reloc):  Handle Vtable relocs.
+	(md_apply_fix3):  Handle Vtable relocs.
+	(d10v_fix_adjustable):  New.
+	(d10v_force_relocation):  New.
+
+Mon Nov  9 14:25:06 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c: Change default behaviour to ignore potential
+	conflicts between register name and symbol names.
+
+Wed Nov  4 18:42:00 1998  Dave Brolley  <brolley@cygnus.com>
+
+	* configure.in: Add fr30-*-*.
+	* config/tc-fr30.c: New file.
+	* Makefile.in: Regenerated.
+	* config.in: Regenerated.
+	* configure: Regenerated.
+	* doc/Makefile.in: Regenerated.
+	* po/gas.pot: Regenerated.
+
+Mon Nov  2 20:54:16 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* config/tc-m32r.c (assemble_two_insns): Ensure both insns
+	are 16 bit insns.
+
+Mon Nov  2 20:10:18 1998  Martin von Loewis  <loewis@informatik.hu-berlin.de>
+
+	* app.c (do_scrub_begin): Set characters above 127 to be symbol
+	characters.
+	(do_scrub_chars): Add some casts to unsigned char to avoid
+	unwanted sign extension.
+	* read.c (lex_type): Set characters about 127 to be symbol
+	characters.
+	* config/tc-i386.c (md_begin): Set identifier_chars and
+	operand_chars for values above 127.
+
+Mon Nov  2 15:05:33 1998  Geoffrey Noer  <noer@cygnus.com>
+
+	* configure.in: detect cygwin* instead of cygwin32*
+	* configure: regenerate
+
+Tue Oct 27 13:18:40 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* listing.c: Add support for producing a listing from piped
+	input.
+
+Tue Oct 27 08:56:44 1998  Gavin Romig-Koch  <gavin@cygnus.com>
+
+	* config/tc-mips.c (hilo_interlocks): Remove mips_3900.
+	(append_insn): Account for the tx39's multiply behavior.
+
+1998-10-26  Michael Meissner  <meissner@cygnus.com>
+
+	* config/tc-m32r.c (assemble_two_insns): Rename assemble_two_insns
+	from assemble_parallel_insns.  Add support for '->' to indicate
+	explicitly serializing the instructions.
+	(md_assemble): Ditto.
+
+Sat Oct 24 15:12:19 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-sh.c (sh_fix_adjustable):  Adjust EXTERN and
+	WEAK handling.
+
+Thu Oct 22 12:41:33 1998  Catherine Moore  <clm@cygnus.com>
+
+	* cgen.c (gas_cgen_md_apply_fix3):  Revert last change.
+
+Thu Oct 22 10:03:15 1998  Ron Unrau  <runrau@cygnus.com>
+
+	* config/tc-mips.c: support frame and regmask/fregmask when
+	  MIPS_STABS_ELF is specified.
+
+Wed Oct 21 11:34:51 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-sh.c (sh_fix_adjustable):  Only include if OBJ_ELF.
+	(md_apply_fix):  Don't return 1 for VTABLE relocs.
+	* config/tc-sh.h (obj_fix_adjustable):  Define only if OBJ_ELF.
+
+Tue Oct 20 11:18:28 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* doc/c-i386.texi: Replace occurences of "opcode" with
+	"instruction mnemonic", "instruction", or "mnemonic" when
+	referring to the name of an instruction.  Use "opcode" when
+	referring to the sequence of machine bytes.
+
+	* config/tc-i386.c (opcode_chars): Rename to mnemonic_chars.
+	(is_opcode_char): Rename to is_mnemonic_char.
+	(md_assemble and i386_operand): Correct error messages from
+	"opcode" to "instruction mnemonic"
+	Rename throughout opcode[] -> mnemonic[], opp -> mnem_p,
+	MAX_OPCODE_SIZE -> MAX_MNEM_SIZE,
+	DWORD_OPCODE_SUFFIX -> DWORD_MNEM_SUFFIX,
+	WORD_OPCODE_SUFFIX -> WORD_MNEM_SUFFIX,
+	BYTE_OPCODE_SUFFIX -> BYTE_MNEM_SUFFIX,
+	SHORT_OPCODE_SUFFIX -> SHORT_MNEM_SUFFIX
+	LONG_OPCODE_SUFFIX -> LONG_MNEM_SUFFIX
+
+	* config/tc-i386.h (*_MNEM_SUFFIX): Rename from *_OPCODE_SUFFIX.
+
+	* config/tc-i386.c (i386_operand): Check for garbage after
+	register name.
+
+Tue Oct 20 10:49:42 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-i386.c (md_apply_fix3): Change handling of PCREL reloc
+	for BFD_ASSEMBLER to only change value when COFF if TE_PE.
+
+Mon Oct 19 20:20:42 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-sh.h (obj_fix_adjustable):  Define.
+	* config/tc-sh.c (sh_force_relocation):  Handle VT relocs.
+	(md_apply_fix):  Likewise.
+	(tc_gen_reloc):  Likewise.
+	(sh_fix_adjustable):  New.
+
+Mon Oct 19 12:35:43 1998  Doug Evans  <devans@seba.cygnus.com>
+
+	* cgen.c (gas_cgen_finish_insn): Update handling of CGEN_INT_INSN_P.
+	* cgen.h (gas_cgen_finish_insn): Update prototype.
+	* config/tc-m32r.c (m32r_insn): CGEN_INT_INSN -> CGEN_INT_INSN_P.
+	cgen_insn_t -> CGEN_INSN_INT.
+	(make_parallel): Update handling of CGEN_INT_INSN_P.
+	(assemble_parallel_insn): Ditto.
+	(target_make_parallel): New function.
+	(md_assemble): Use it.
+
+Mon Oct 19 13:16:12 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-m32r.c (m32r_force_relocation):  Fix typo.
+
+Sun Oct 18 18:48:57 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-sh.c (md_assemble): Make sure the entire opcode is
+	converted into lower case.
+
+Fri Oct 16 13:36:34 CDT Catherine Moore  <clm@cygnus.com>
+
+	* cgen.c (gas_cgen_md_apply_fix3):  Handle VTABLE relocs.
+	(gas_cgen_tc_gen_reloc):  Likewise.
+	* config/tc-m32r.h (obj_fix_adjustable):  Define.
+	* config/tc-m32r.c (m32r_fix_adjustable):  New.
+	(m32r_force_relocation):  Handle VTABLE relocs.
+
+Wed Oct 14 11:33:38 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* doc/c-arm.texi (ARM Directives): Document .ltorn directive.
+
+Mon Oct 12 11:07:21 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-m32r.c (assemble_parallel_insn): Convert second opcode
+	to lower case before parsing.
+
+	* config/tc-d30v.c (parallel_ok): Ignore conflicts when explicitly
+	parallel insns modift buts in the PSW as a side effect.
+
+Thu Oct  8 10:18:33 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (find_format): Test for missing flag and
+	control registers.
+
+	(md_apply_fix3): Fix error messages to avoid
+	assumption about presence of a symbol.
+
+	(parallel_ok): Disallow parallel instructions that both modify the
+	same flag register.
+
+	(find_format): Generate a warning if an odd numbered register is
+	used as the first register in a mutli-register instruction.
+
+Wed Oct  7 14:09:14 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (md_apply_fix3): Do not assume that bad
+	relocations are always associated with a symbol.
+
+Tue Oct  6 09:31:15 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-sparc.h (TC_FORCE_RELOCATION):  Define.
+	(elf32_sparc_force_relocation):  Declare.
+	* config/tc-sparc.c (md_apply_fix3):  Handle vtable relocs.
+	(tc_gen_reloc):  Handle vtable relocs.
+	(elf32_sparc_force_relocation):  New.
+
+Mon Oct  5 09:25:32 1998  Catherine Moore  <clm@cygnsu.com>
+
+	* symbols.c (S_IS_FUNCTION):  New.
+	* config/tc-v850.h (obj_fix_adjustable):  Define.
+	(TC_FORCE_RELOCATION):  Define.
+	(v850_force_relocation):  Declare.
+	* config/tc-v850.c (tc_gen_reloc):  Use offset instead
+	of fx_addnumber for VTABLE reloc addends.
+	(md_apply_fix3):  Handle VTABLE relocs.
+	(v850_fix_adjustable):  New.
+	(v850_force_relocation):  New.
+
+Mon Oct  5 00:48:52 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (fp_operand_format): Add some additional formats.
+	(pa_ip): Do not automatically promote into pa2.0 mode.
+	(pa_level): Handle ".level 2.0".
+
+Sun Oct  4 20:57:43 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (md_assemble): Handle AMD_3DNOW_OPCODE.
+	* config/tc-i386.h (template.extension_opcode): Change to
+	unsigned int to allow full range of 8-bit opcode suffixes.
+	(None): Redefine as 0xffff.
+
+	From Jeff B Epler <jepler@usgs.gov>
+	* doc/c-i386.texi (i386-SIMD): New section.
+
+Thu Oct  1 15:37:54 1998  Richard Henderson  <rth@cygnus.com>
+
+	* read.c (discard_rest_of_line): New function.
+	* read.h: Declare it.
+	* config/tc-alpha.c (s_alpha_mask, s_alpha_frame): Use it.
+
+Thu Oct  1 10:33:53 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d10v.c (find_symbol_matching_register): New function.
+	(find_opcode): Cope with the case where a register name matches
+	a symbol name.
+
+Wed Sep 30 10:52:32 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-v850.c (md_pcrel_from): Rename to
+	v850_pcrel_from_section.
+	(v850_pcrel_from_section): Do not resolves symbols in other
+	sections.
+
+	* config/tc-v850.h (MD_PCREL_FROM_SECTION): Define.
+
+Mon Sep 28 11:01:20 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d10v.c (find_opcode): Generate an error if a register
+	is supplied for an operand that should not be a register.
+
+Fri Sep 25 10:04:21 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (write_2_short): But do allow delayed branch
+	instructions to have another instruction in the right bin.
+
+Thu Sep 24 09:28:34 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (write_2_short): Do not allow instructions in
+	the right container if the left container holds a branch
+	instruction.
+
+Wed Sep 23 10:54:29 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (reg_name_search): Only warn if a name matches
+	both a register name and symbol name.
+	(find_format): Allow correct parsing of MVTSYS and MVFSYS insns.
+
+Tue Sep 22 17:49:16 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (write_2_short): Implement EITHER_BUT_PREFER_MU
+	execution unit class.
+
+	(reg_name_search): If a name matches a register and a symbol,
+	prefer the register.
+	(find_format): Disallow flag registers when a general purpose
+	register is required.
+	If a number is required, but a register has been given, check to
+	see if a symbol with the same name as the register exists, and if
+	so, use that symbol.
+
+Tue Sep 22 16:40:52 1998  Jim Wilson  <wilson@cygnus.com>
+
+	* config/obj-elf.h (ECOFF_DEBUGGING): Add missing parens.
+
+Tue Sep 22 15:44:21 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (find_format): Do not accept flag registers as
+	general purpose registers.
+	(find_format): If an immediate value is expected at a given place
+	in a format, but a register name has been provided instead, check
+	to see if that register name matches the name of a predefined
+	symbol and if it does, then use the symbol instead.
+	(reg_name_search): If a register name matches a symbol name,
+	prefer the register name to the symbol name.
+
+Mon Sep 21 10:42:57 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-m32r.c (m32r_do_align): After inserting NOPs, reset
+	the previous insn to empty.
+
+1998-09-20  Michael Meissner  <meissner@cygnus.com>
+
+	* config/tc-ppc.c (md_apply_fix3): Do not break string into two
+	pieces, forcing the use of an ANSI compiler.
+
+Sun Sep 20 00:58:12 1998  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* config/tc-m68k.h (TC_FORCE_RELOCATION): New macro.  Force vtable
+	relocs.
+	* config/tc-m68k.c (md_apply_fix_2): Do nothing for vtable relocs.
+
+Tue Sep 15 08:51:07 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/obj-elf.c (obj_elf_vtable_inherit):  Handle arm
+	assembler syntax.
+	(obj_elf_vtable_entry):  Likewise.
+	* config/tc-arm.h:  Define TC_FORCE_RELOCATION for OBJ_ELF.
+	* config/tc-arm.c (md_apply_fix3): Handle VTABLE relocations.
+	(tc_gen_reloc): Likewise.
+	(arm_fix_adjustable): Likewise.
+	(elf32_arm_force_relocation): New.
+	(armelf_frob_symbol):  Remove coff-style symbol support.
+
+Wed Sep  9 11:27:16 1998  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-i386.c (i386_operand): Fix typo in last patch.
+
+Tue Sep  8 18:10:01 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-arm.c (arm_adjust_symtab):  Move #ifdef
+	OBJ_COFF so that routine is defined for a.out format.
+
+Tue Sep  8 15:56:19 1998  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-i386.c (i386_operand): Detect non-segment registers
+	used as segment prefixes.
+
+Sat Sep  5 19:00:38 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ehopt.c (check_eh_frame): Check the size of the FDE, and don't
+	optimize across FDE boundaries.
+
+	* config/obj-coff.c (obj_coff_section): Preserve any link once
+	flags when setting the section flags.
+
+Fri Sep  4 17:07:14 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.h (obj_adjust_symtab): Fixed typo.
+	* config/tc-arm.c (armelf_adjust_symtab): Reformatted.
+
+Fri Sep  4 13:57:43 1998  Jakub Jelinek <jj@sunsite.ms.mff.cuni.cz>
+
+	* config/tc-sparc.c (in_signed_range): Sign extend 32-bit words
+	to the host width.
+
+Wed Sep  2 11:31:14 1998  Richard Henderson  <rth@cygnus.com>
+
+	* frags.c (frag_grow): Include the size of the frag struct in the
+	obstack chunk size.
+
+	* subsegs.c (subseg_set_rest): Adjust the seginfo frchain start
+	if the new subseg comes before the old.
+
+Tue Sep  1 15:01:33 1998  Jakub Jelinek <jj@sunsite.ms.mff.cuni.cz>
+
+	* config/tc-sparc.c (sparc_ip): Allow all digits in an instruction
+	to handle edge8 and edge16.
+
+Mon Aug 31 09:51:14 1998  Richard Henderson  <rth@cygnus.com>
+
+	* config/obj-elf.c (obj_elf_vtable_inherit): Print error message
+	before we clobber the symbol involved.
+
+Mon Aug 31 10:58:06 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-arm.c:  Remove OBJ_ELF definitions for
+	S_GET_STORAGE_CLASS and S_SET_STORAGE_CLASS.  Only
+	use arm_adjust_symtab for OBJ_COFF.
+	(armelf_adjust_symtab):  New Routine.
+	* config/tc-arm.h:  Define obj_adjust_symtab to
+	armelf_adjust_symtab for OBJ_ELF.
+
+Sat Aug 29 22:18:51 1998  Richard Henderson  <rth@cygnus.com>
+
+	* configure.in: Make all i386-elf targets use bfd_gas.
+	* config/tc-i386.c (tc_i386_force_relocation): New.
+	(tc_i386_fix_adjustable): Don't fix vtable relocs.
+	(md_apply_fix3): Likewise.
+	(tc_gen_reloc): Handle them.
+	* config/tc-i386.h (TC_FORCE_RELOCATION): Always define, calling
+	tc_i386_force_relocation.
+
+Mon Aug 24 13:40:21 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (md_show_usage): Improve formatting of --help output.
+
+Fri Aug 21 18:43:48 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (md_assemble): Copy previous opcode over
+	current opcode after writing the first insturction of a reverse
+	sequential pair.
+
+Fri Aug 21 07:30:35 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* read.h (generate_lineno_debug): Add prototype.
+	* read.c (generate_lineno_debug): Make non-static.
+
+Thu Aug 20 23:17:04 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (md_assemble): Only warn for address/data size
+	prefixes.
+
+Thu Aug 20 14:45:08 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (arm_fix_adjustable): Do not adjust relocations
+	against Thumb function names, as the linker needs this information.
+
+1998-08-20  Vladimir N. Makarov  <vmakarov@cygnus.com>
+
+	* expr.c (operand): Check also that there is no advance in operand
+	after atof_generic in order to decide "is it label 0f or floating
+	point number?".
+
+Wed Aug 19 09:30:16 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-m32r.c: Replace double dash prefix to M32R specific
+	command line options with a single dash.
+	* doc/c-m32r.texi: Replace double dash prefix with a single dash.
+
+Tue Aug 18 11:59:43 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-arm.h: Define obj_fix_adjustable for OBJ_ELF.
+	* config/tc-arm.c (arm_fix_adjustable): New routine.
+
+1998-08-13  Vladimir N. Makarov  <vmakarov@cygnus.com>
+
+	* read.c (s_align, s_comm, s_mri_common, s_fail, s_globl, s_space,
+	s_float_space, s_struct, cons_worker): Move ignore_rest_of_line or
+	demand_empty_rest_of_line before mri_comment_end.
+	(equals): Check garbage after expression before
+	mri_comment_end in MRI mode.
+
+Thu Aug 13 15:08:42 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-mips.c (macro): Correct M_SGE_I/M_SGEUI_I case for a
+	small immediate constant to use the constant itself rather than
+	always using 1.
+
+Wed Aug 12 18:47:38 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-hppa.c (pa_enter): Call as_bad rather than abort.
+	(pa_leave): Likewise.
+
+Wed Aug 12 13:25:03 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (md_assemble): Emit a warning for stand-alone
+	prefixes.
+	(i386_operand): Fix an error message.
+
+Tue Aug 11 14:44:32 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* doc/c-arm.texi (ARM Directives): Document .req directive.
+
+	* config/tc-arm.c (reg_required_here): Display erroneous string if
+	the register name could not be decoded.
+	Do not set inst.instruction if the sift is -1.
+
+Mon Aug 10 15:39:56 1998  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-alpha.c (tc_gen_reloc): Bias WEAK symbols just as
+	we do for EXTERN.
+
+Mon Aug 10 15:06:18 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (d30v_align): Always perform alignment request,
+	even if it is belived to be unnecessary.
+
+Mon Aug 10 17:48:09 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	config/tc-i386.c (i386_operand): Size immediate constants by
+	suffix (erroneously removed as part of July 7 change).
+
+Sun Aug  9 20:45:32 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/obj-elf.h:  Check for redefinition of obj_frob_symbol.
+	* config/tc-arm.c:  Define S_GET_STORAGE_CLASS and S_SET_STORAGE_CLASS.
+	(armelf_frob_symbol):  New Routine.
+	* config/tc-arm.h:  Define obj_frob_symbol if OBJ_ELF.
+
+Sat Aug  8 15:21:28 1998  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-alpha.c (alpha_fix_adjustable): Don't adjust weak syms.
+
+Wed Aug  5 15:54:14 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (md_begin): Set BFD private flags depending upon
+	command line switches passed to assembler.
+
+Mon Aug  3 14:02:52 1998  Doug Evans  <devans@seba.cygnus.com>
+
+	* cgen.h (GAS_CGEN_MAX_FIXUPS): GAS_ prepended, all uses updated.
+	(gas_cgen_opcode_desc): Declare.
+	(gas_cgen_parse_operand): Declare.
+	(*): Prepend gas_ to gas specific fns to denote them as such.
+	All uses updated.
+	* cgen.c (gas_cgen_opcode_desc): New global
+	(gas_cgen_init_parse): Renamed from cgen_asm_init_parse.
+	(queue_fixup): Renamed from cgen_queue_fixup.
+	(*): Prepend gas_ to gas specific fns to denote them as such.
+	All uses updated.
+	(gas_cgen_md_apply_fix3): Update call to insert_operand.
+	(gas_cgen_finish_insn): Renamed from cgen_asm_finish_insn.
+	* config/tc-m32r.c (md_begin): Remove use of CGEN_SYM.
+	Open opcode table and initialize it.
+	(make_parallel): Use gas_cgen_opcode_desc.
+	(assemble_parallel_insn): Ditto.  Remove use of CGEN_SYM.
+	(md_assemble): Ditto.
+
+Sat Aug  1 19:27:30 1998  Richard Henderson  <rth@cygnus.com>
+
+	* as.h (debug_info_type): Add entries for unspecified and dwarf*.
+	* ecoff.c (ecoff_generate_asm_lineno): Take no arguments; call
+	as_where ourselves.  Provide a stub for !ECOFF_DEBUGGING.
+	* ecoff.h: Move ECOFF_DEBUGGING protection inside GAS_ECOFF_H.
+	Move ecoff_generate_asm_lineno outside ECOFF_DEBUGGING protection.
+	* read.c (generate_lineno_debug): Tidy ECOFF bits.  Use
+	DEBUG_UNSPECIFIED rather than DEBUG_NONE for initial test.
+	* config/obj-elf.h (ECOFF_DEBUGGING) [TC_ALPHA]: Define to a variable.
+	(SEPARATE_STAB_SECTIONS): Conditionalize on value of ECOFF_DEBUGGING.
+	(INIT_STAB_SECTION): Likewise.
+	(OBJ_PROCESS_STAB): Likewise.
+
+	* config/tc-alpha.c (md_longopts): New options -mdebug/-no-mdebug.
+	(md_parse_option): Watch for them.
+	(alpha_cur_ent_sym, alpha_flag_mdebug): New variables.
+	(md_begin): Kill neverdef code.
+	(s_alpha_ent, s_alpha_end, s_alpha_mask, s_alpha_frame): New.
+	(s_alpha_prologue): Watch alpha_cur_ent_sym.
+	(s_alpha_coff_wrapper): New.
+	(md_pseudo_table): Trap all ECOFF pseudos.
+
+Fri Jul 31 16:45:54 1998  Ron Unrau <runrau@cygnus.com>
+
+	Start of changes to remove mdebug section from mips*-elf
+	Based on MIPS_STAB_ELF definition
+	* acconfig.h: undef if not configured
+	* config.in: undef if not configured
+	* config/mips-elf.h: only set ECOFF debugging if not stabs-in-elf
+	* config/tc-mips.c (s_ent): set BSF_FUNCTION
+	* stabs.c (s_stab_generic): flush frag
+
+Fri Jul 31 16:14:45 1998  Catherine Moore  <clm@cygnus.com>
+
+	* configure.in: (arm-*-elf):  Handle.
+	(thumb-*-elf): Handle.
+	* configure:  Regenerate.
+	* read.c (stringer): Fix typo in comment.
+	* write.c (fixup_segment): Don't add symbol value to addend if
+	TC_ARM and OBJ_ELF.
+	* config/tc-arm.c (md_section_align):  Don't align dwarf debug
+	sections.
+	(tc_gen_reloc):  Always set the reloc addend to fixp->fx_offset
+	for OBJ_ELF.
+
+Thu Jul 30 21:38:43 1998  Frank Ch. Eigler  <fche@cygnus.com>
+
+	* config/tc-d30v.c ({cur,prev}_left_kills_right_p): New variables.
+	(write_2_short): Emit warning if new flag is set.
+	(do_assemble): Set flags if left instruction is one of special
+	"right-instruction-killer" type.
+
+Tue Jun 28 18:12:28 1998  Stan Cox  <scox@cygnus.com>
+
+	* config/tc-sparc.c (md_number_to_chars, cons_fix_new_sparc):
+	Always output words in debug_info section as big endian.
+	(sparc_target_format): Choose correct bfd target.
+	(md_apply_fix3): Rename BFD_RELOC_SPARC_32LE to BFD_RELOC_SPARC_REV32.
+
+Tue Jul 28 11:01:21 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-mn10300.c (md_assemble): Fix "errmsg" initialization
+	to work with internationalization code.  Issue an error when two
+	operands match that are not allowed to match.
+
+Mon Jul 27 16:25:58 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* configure.in (install_tooldir): Allow target to specify whether
+	it wants to be installed in $(tooldir)/bin.
+	* configure: Regenerate.
+	* Makefile.am (install-exec-local): Set install-exec-tooldir
+	dependency via configure.
+	* Makefile.in: Regenerate.
+
+Fri Jul 24 19:58:59 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* Makefile.am (install-exec-local): Split into two ...
+	(install-exec-bindir,install-exec-tooldir): New rules.
+	* Makefile.in: Regenerate.
+
+Fri Jul 24 16:31:49 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (install-exec-local): Don't remove the file before
+	checking whether $(bindir) == $(tooldir)/bin.  From Maciej
+	W. Rozycki <macro@ds2.pg.gda.pl>.
+	* Makefile.in: Rebuild.
+
+Fri Jul 24 09:13:46 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* cgen.c: Include libiberty.h.
+	(cgen_md_apply_fix3): Update call to md_cgen_lookup_reloc.
+	(cgen_tc_gen_reloc): Use xmalloc, not bfd_alloc.
+	* cgen.h (cgen_md_apply_fix3,cgen_tc_gen_reloc): Declare.
+	(md_cgen_lookup_reloc)): Declare.
+	(md_cgen_record_fixup_exp): Declare.
+	* config/tc-m32r.h (md_pcrel_from_section): Declare.
+	(m32r_relax_frag): Declare.
+	(cgen_md_apply_fix3): Decls moved to cgen.h.
+	(cgen_record_fixup_exp,cgen_tc_gen_reloc): Ditto.
+	(m32r_cgen_record_fixup_exp): Delete decl.
+	* config/tc-m32r.c (m32r_cpu_desc): #if 0 out.
+	(assemble_nop): Delete.
+	(expand_debug_syms): Delete unused `exp'.
+	(md_cgen_lookup_reloc): Renamed from CGEN_SYM (lookup_reloc).
+	Add default case for -Wall.
+	(m32r_cgen_record_fixup_exp): Add default case for -Wall.
+	(md_atof): Delete unused wordP.
+
+Thu Jul 23 13:19:50 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-mn10300.c (md_assemble): Make sure "errmsg" has a non-NULL
+	value.
+
+Wed Jul 22 14:36:56 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* doc/as.texinfo: Add documentation for .end, .exitm, .fail,
+	.ifc, .ifeqs, .ifge, .ifgt, .ifle, .iflt, .ifnc, .ifne, .ifnes,
+	.print, .purgem, and .struct.  Remove documentation for
+	.app-file.
+
+Tue Jul 21 16:50:52 1998  Doug Evans  <devans@seba.cygnus.com>
+
+	* cgen.c (cgen_md_apply_fix3): set_operand renamed to set_vma_operand.
+	Update call to insert_operand.
+
+Fri Jul 17 11:42:20 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-m32r.c (ms_show_usage): Formatting changes.
+
+Wed Jul 15 15:38:28 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-i386.c (md_assemble): Don't get confused by trailing
+	whitespace after a prefix operator.
+
+Tue Jul 14 15:32:56 1998  Richard Henderson  <rth@cygnus.com>
+
+	* configure.in (i386-*-beos{pe,elf,}*): Recognize.
+
+Tue Jul 14 12:33:44 1998  Chris Torek  <torek@bsdi.com>
+
+	* config/tc-sparc.c (log2): New static function.
+	(s_reserve): Use log2 to convert alignment before calling
+	record_alignment.
+	(s_common): Use log2 to convert alignment before calling
+	record_alignment and frag_align.
+	(sparc_cons_align): Use log2.
+
+Tue Jul 14 11:58:40 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-sparc.c (s_reserve): Set symbol size if OBJ_ELF.
+	(s_common): Likewise.
+
+	* config/tc-sparc.c (sparc_handle_align): Reindent a bit.  Correct
+	initialization of waddr.
+	(sparc_elf_final_processing): Add default case to switch.
+
+Tue Jul 14 11:00:16 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* doc/c-i386.texi: Fix a typo.  Use the term 80-bit real rather
+	than temporary real.
+
+Mon Jul 13 13:55:42 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* write.c (subsegs_finish): Don't align the segments if there were
+	any errors.
+
+	* config/obj-coff.c (c_symbol_merge): Correct number of bytes when
+	copying aux information.
+
+	* expr.c (make_expr_symbol): Catch attempts to turn an O_big
+	expression into a symbol.
+
+Mon Jul 13 13:29:04 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (mode_from_disp_size): Change arg and return
+	type to unsigned int.
+	(md_assemble): Change type used to store offsets from unsigned
+	long to long.
+	(i386_operand): Switch error check to only call RESTORE_END_STRING
+	once after parse_register.
+
+Fri Jul 10 16:00:04 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-v850.c (md_show_usage): Changed format to match that
+	of gcc, ld, etc.
+
+	* as.c (show_usage): Changed format to match that of gcc, ld, etc.
+
+Thu Jul  9 12:09:57 1998  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* config/tc-m68k.c (tc_m68k_fix_adjustable): Don't adjust vtable
+	relocs.
+	(md_apply_fix_2): Force the symbol of the vtable reloc to be
+	weak.
+
+Thu Jul  9 11:31:54 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* doc/Makefile.am (MAINTAINERCLEANFILES): Define.
+	* doc/Makefile.in: Rebuild.
+
+Wed Jul  8 12:18:56 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-mips.c (mips_ip, case 'i' and 'j'): Mask off high bits
+	for %lo expressions.
+	(mips_ip, case 'u'): Move range check after code to mask
+	off bits in %hi/%lo expressions.  Mask off high bits for
+	%lo expressions.
+
+Tue Jul  7 17:57:38 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* doc/Makefile.am (gasver.texi): New target.
+	(as.info, as.dvi): Depends upon gasver.texi.
+	* doc/as.texinfo: Include gasver.texi.  Mention version number on
+	title page and in top node.
+	* doc/Makefile.in: Rebuild.
+
+Tue Jul  7 11:42:16 1998  Richard Henderson  <rth@cygnus.com>
+
+	* listing.c (listing_listing): For EDICT_LIST, skip all lines up to
+	but not including the line containing the edict.
+	* listing.h (LISTING_EOF): New.
+	* input-scrub.c (input_scrub_next_buffer): Call it.
+
+Tue Jul  7 13:00:37 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (i386_operand): Don't set the size of an
+	immediate address based solely on the suffix and the mode.
+
+	* config/tc-i386.c (md_assemble): Add assertion to make sure
+	overlap2 does not set Imm.
+
+	* config/tc-i386.c (space_chars): Remove. The scrubber converts
+	sequences of whitespace to a single space.
+	(is_space_chars): Just compare with space.
+	(md_begin): Don't initialize space_chars.
+	(md_assemble): Just skip a single whitespace character.
+	(i386_operand): Rewrite base-index parsing to use new
+	parse_register, and to skip white space.  Skip white space in a
+	number of other places too.  Don't give error message if
+	parse_register fails.
+	(parse_register): Change reg_string parameter to be non-const.
+	Add end_op parameter.  Skip white space after the `%', and return
+	end of register string.  Give error message here rather than
+	caller.
+
+Fri Jul  3 15:34:34 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	Based on patch from Matt Semersky <matts@scd.hp.com>:
+	* expr.c (op_encoding): Make const.
+	(expr_set_precedence): New function.
+	(expr_begin): Don't set operator rankings, just call
+	expr_set_precedence.
+	* expr.h (expr_set_precedence): Declare.
+	* read.c (s_mri): Call expr_set_precedence.
+
+Thu Jul  2 16:24:58 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* doc/as.texinfo (Statements): Remove paragraph discussing
+	continuing lines with a backslash.  This hasn't worked for years,
+	if it ever did.
+
+Thu Jul  2 14:06:22 1998  Klaus Kaempf  <kkaempf@rmi.de>
+
+	* config/obj-vms.c: Add C++ support with ctors/dtors sections.  Add weak
+	symbol definitions.
+	(Ctors_Symbols, Dtors_Symbols): New symbol chains.
+	(ps_CTORS, ps_DTORS): New section types.
+	(vms_fixup_xtors_section): New function
+	(Ctors_Psect, Dtors_Psect): Define.
+	(IS_GXX_XTOR): Define
+	(global_symbol_directory): Change check of gxx_bug_fixed to 0.
+	Filter static constructors/destructors and add to
+	Ctors_Symbols/Dtors_Symbols chain.
+	(vms_write_object_file): Write Ctors_Symbols/Dtors_Symbols to
+	appropriate section.
+
+	* config/tc-alpha.h (TARGET_FORMAT): Rename "evax-alpha" to "vms-alpha".
+	* makefile.vms: Merge vax/vms support.
+
+Wed Jul  1 20:06:20 1998  Richard Henderson  <rth@cygnus.com>
+
+	* config/obj-elf.c (obj_elf_vtable_inherit, obj_elf_vtable_entry): New.
+	(elf_pseudo_table): Add them.
+	* config/tc-mips.c (mips_force_relocation): Force vtable relocs.
+	(md_apply_fix): Accept them.
+	(mips_fix_adjustable): Don't adjust them.
+	(tc_gen_reloc): Mung BFD_RELOC_VTABLE_ENTRY for Rel.
+	* config/tc-ppc.c (md_apply_fix3): Accept vtable relocs.
+	* config/tc-ppc.h (TC_FORCE_RELOCATION_SECTION): Force vtable relocs.
+	(tc_fix_adjustable): Don't adjust them.
+
+Wed Jul  1 16:35:32 1998  Doug Evans  <devans@seba.cygnus.com>
+
+	* Makefile.am (CGEN_CPU_PREFIX): New variable.
+	(cgen.o): Use it.
+	* Makefile.in: Regenerate.
+	* configure.in: AC_SUBST cgen_cpu_prefix.
+	* configure: Regenerate.
+
+Wed Jul  1 21:38:56 1998  J"orn Rennecke  <amylaar@cygnus.co.uk>
+
+	* config/tc-sh.c (COND_JUMP_DELAY, COND12_DELAY_LENGTH): Define.
+	Changed all users of COND12_DELAY.
+
+Fri Jun 26 11:21:11 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-mn10300.c (set_arch_mach): New function.
+	(md_pseudo_table): Add pseudo-ops to set the current machine type.
+	(md_begin): Default to mn10300 mode.
+	(md_assemble): Only accept instructions for the core mn10300
+	chip and the active machine type.
+
+Wed Jun 24 19:06:04 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* subsegs.h (segment_info_type): Give the struct a name.
+	* config/tc-h8300.h (tc_reloc_mangle): Add prototype.
+	* config/tc-h8500.h (tc_reloc_mangle): Declare.
+	* config/tc-sh.h (sh_coff_reloc_mangle): Add prototype.
+	* config/tc-w65.h (tc_reloc_mangle): Declare.
+	* config/tc-z8k.h (tc_reloc_mangle): Declare.
+
+Wed Jun 24 13:45:00 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-v850.c (v850_comm):  Restore old section
+	after common processing.
+
+Wed Jun 24 11:50:54 1998  Klaus Kaempf  <kkaempf@progis.de>
+
+	* config/obj-vms.c (Create_VMS_Object_File): Force binary file.
+
+Tue Jun 23 17:47:31 1998  Jim Wilson  <wilson@cygnus.com>
+
+	* config/tc-h8300.c (do_a_fix_imm, build_bytes): Replace cast to
+	char with code that explicitly sign-extends.
+
+Tue Jun 23 13:54:57 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-v850.c (md_begin): Restore text section as the current
+	section after creating call table sections.
+	* config/obj-coff.h (SYM_AUXINFO): New macro to conceal ugly
+	code.
+
+	* config/obj-coff.c (c_symbol_merge): Replace complex expresion
+	with call to macro SYM_AUXINFO.
+
+Tue Jun 23 15:09:27 1998  Mike Stump  <mrs@wrs.com>
+
+	* Makefile.am (install-exec-local): Don't let EXEEXT interfere
+	with the program transform name.
+	* Makefile.in: Rebuild.
+
+Mon Jun 22 19:52:42 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/obj-coff.c (c_symbol_merge): Fix copying of auxiliary
+	information.
+
+Mon Jun 22 15:18:58 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-i386.c (i386_operand): Be prepared for a space between
+	the open parenthesis and the start of the register operand,
+	because of the June 16 change.
+
+Sun Jun 21 21:27:03 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-sh.c (md_apply_fix): Handle weak symbols correctly if
+	BFD_ASSEMBLER.
+
+Sun Jun 21 12:26:36 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (d30v_align): Always perform alignment request,
+	even if it is belived to be unnecessary.
+
+Fri Jun 19 13:57:06 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* write.c (adjust_reloc_syms): Never adjust relocs against weak
+	symbols.
+	* config/tc-mips.c (md_apply_fix): Adjust accordingly.
+
+Fri Jun 19 09:50:17 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-mn10300.c (mn10300_insert_operand): Do not hardcode the
+	shift amount for a repeated operand.  The shift amount for the
+	repeated copy comes from the size of the operand.
+
+Fri Jun 19 00:44:19 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-h8300.c (get_operand): Fix typos in ldm/stm support.
+
+Wed Jun 17 13:07:05 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-mips.c (md_show_usage): Fix -mipsN usage.
+
+Tue Jun 16 13:06:21 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* app.c (do_scrub_begin): If tc_symbol_chars is defined, treat all
+	characters in it as LEX_IS_SYMBOL_COMPONENT.
+	* config/tc-i386.h (tc_symbol_chars): Define.
+	(extra_symbol_chars): Declare.
+	* config/tc-i386.c (extra_symbol_chars): Define.
+	(comment_chars): Don't use '/' as comment start if TE_LINUX.
+	(line_comment_chars): Set to '/' if TE_LINUX.
+	* doc/c-i386.texi (i386-prefixes): Update.
+	* doc/internals.texi (CPU backend): Document tc_symbol_chars.
+
+Fri Jun 12 13:36:54 1998  Tom Tromey  <tromey@cygnus.com>
+
+	* po/Make-in (all-yes): If maintainer mode, depend on .pot file.
+	($(PACKAGE).pot): Unconditionally depend on POTFILES.
+
+1998-06-12  Vladimir N. Makarov  <vmakarov@cygnus.com>
+
+	* config/tc-d10v.c (md_apply_fix3): Checking displacement
+	constraint in instructions REP & REPI.
+
+Thu Jun 11 08:56:46 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (md_apply_fix3): Catch BFD_RELOC_8,
+	BFD_RELOC_16, BFD_RELOC_64 and issue appropriate error messages.
+
+	(check_range): If the operand is shifted, then shift the number
+	before checking its range.
+
+	* write.c (adjust_reloc_syms): Add more checks for NULL pointers.
+
+	* config/tc-v850.c (v850_comm): Set SEC_COMMON bit on special
+	common sections.
+
+Wed Jun 10 17:26:35 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-v850.c (v850_comm): Create special sections as needed.
+
+1998-06-10  Vladimir N. Makarov  <vmakarov@cygnus.com>
+
+	* config/tc-d10v.c (write_2_short): Addition of swapping
+	instructions for sequential and reverse sequential order when
+	given order is not possible.
+
+Tue Jun  9 13:52:53 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am: Rebuild dependencies.
+	(DEP_INCLUDES): Fix reference to intl build directory.
+	* Makefile.in: Rebuild.
+
+Tue Jun  9 12:20:05 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* doc/c-i386.texi: Update 16 bit documentation.
+
+	* config/tc-i386.h: Change Data16 to Size16, Data32 to Size32,
+	IgnoreDataSize to IgnoreSize as they are used for address size as
+	well as data size.
+	* config/tc-i386.c: Likewise.  Add code to reject addr32/data32 in
+	32-bit mode, similarly addr16/data16 and variants.
+
+Mon Jun  8 18:32:01 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (md_assemble): Fix handling of reverse
+	sequential word multiply instructions.
+
+	(do_assemble): Add extra command line argument, to allow mul32
+	attribute to be preserved across parallel insns.
+	(md_assemble): Insert NOPs between explicitly parallel insns which
+	contain an 32 bit multiply and a 16 multiply.
+
+Mon Jun  8 12:20:30 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c: REPNE renamed to REPNE_PREFIX_OPCODE, and
+	likewise for REPE.
+
+	* config/tc-i386.c (reloc): Add braces.
+
+	* config/tc-i386.c (struct _i386_insn): Rename bi to sib to be
+	consistent with Intel naming.
+	* config/tc-i386.h (base_index_byte): Rename to sib_byte.  Don't
+	use bitfields in sib_byte.
+	(modrm_byte): Don't use bitfields here either.
+
+	* config/tc-i386.c (current_templates): Add const.
+	(parse_register): Add const to return, param, and char *s.
+	(i386_operand): Add const to reg_entry *r.
+	* config/tc-i386.h (templates): Add const to start, end.
+
+	Inspired by code for 16 bit gas support from Martynas Kunigelis
+	<martynas@nm3.ktu.lt>:
+	* config/tc-i386.c (md_assemble): Add full support for 16 bit
+	modrm, and Jump, JumpByte, JumpDword, JumpInterSegment insns.
+	(uses_mem_addrmode): Remove.
+	(md_estimate_size_before_relax): Add support here too.
+	(md_relax_table): Rewrite interface to md_relax for 16 bit
+	support.
+	(BYTE, WORD, DWORD, UNKNOWN_SIZE): Remove.
+	(opcode_suffix_to_type): Remove.
+	(CODE16, SMALL, SMALL16, BIG, BIG16): Define.
+	(SIZE_FROM_RELAX_STATE): Modify to suit above.
+	(md_convert_frag): Likewise.
+	(i386_operand): Add support for 16 bit base/index regs,
+	immediates, and displacements.  Remove some unnecessary casts, and
+	localise end_of_operand_string, displacement_string_start,
+	displacement_string_end variables.  Add GCC_ASM_O_HACK.
+	* config/tc-i386.h (NO_BASE_REGISTER_16): Define.
+
+	* config/tc-i386.c (prefix_hash): Remove.
+	(md_begin): Rewrite without obstacks.  Remove prefix hash table
+	handling.  Rewrite lexical table handling.
+	(i386_print_statistics): Don't print prefix statistics.
+	(md_assemble): Rewrite instruction parser so that line is not
+	converted to lower case.  Don't do a hash_find for prefixes,
+	instead recognise them via opcode modifier.
+	(expecting_operand, paren_not_balanced): Localise variables.
+	* config/tc-i386.h (IsPrefix): Define.
+	(prefix_entry): Remove.
+
+	* config/tc-i386.h (PREFIX_SEPERATOR): Don't define.
+	* config/tc-i386.c (PREFIX_SEPARATOR): Define here instead, using
+	'\\' in case where comment_chars contains '/'.
+
+	* config/tc-i386.c (MATCH): Ensure given operand and template
+	match for JumpAbsolute.  Makes e.g. `ljmp table(%ebx)' invalid;
+	you must write `ljmp *table(%ebx)'.
+
+	From H.J. Lu <hjl@gnu.org>:
+	* config/tc-i386.c (BFD_RELOC_16, BFD_RELOC_16_PCREL): Define
+	as 0 ifndef BFD_ASSEMBLER.
+	(md_assemble): Allow immediate operands without suffix or
+	other reg operand to default in size to the current code size.
+
+Mon Jun  8 09:45:00 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-v850.c (md_begin):  Restore creation of
+	.call_table_text and .call_table_data sections.
+
+Sat Jun  6 00:02:41 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (md_assemble): Set execution type to unknown
+	after emitting a word of noops.
+
+Fri Jun  5 23:27:04 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (mode_from_disp_size): Disp16 is mode 2.
+	(i386_operand): Simplify checks for valid base/index combinations.
+	Disallow `in 4(%dx),%al'.
+
+	* config/tc-i386.c (struct _i386_insn): Make regs, base_reg, and
+	index_reg const.
+	(add_prefix): Change parameter from char to int.
+
+	* config/tc-i386.h (Ugh): Define opcode modifier.
+	* config/tc-i386.c (md_assemble): Print warnings for Ugh insns.
+
+	* config/tc-i386.c (md_assemble): Rewrite MATCH and
+	CONSISTENT_REGISTER_MATCH macros to check register types more
+	thoroughly.  Check for illegal suffix/operand combinations
+	when matching insns with operands.  Handle new `s' suffix, and
+	associated FloatMF opcode modifier for float insns with memory
+	operands.
+	* config/tc-i386.h (FloatMF): Define new opcode modifier.
+	(No_sSuf, No_bSuf, No_wSuf, No_lSuf): Likewise.
+	(SHORT_OPCODE_SUFFIX, LONG_OPCODE_SUFFIX): Define.
+	* config/tc-i386.c: Rename WORD_PREFIX_OPCODE to
+	DATA_PREFIX_OPCODE throughout.
+
+	* config/tc-i386.c (REGISTER_WARNINGS): Define.
+	(md_assemble): Rewrite suffix/register operand checking code to be
+	more thorough.  Remove Abs8,16,32.  Change occurrences of Mem to
+	AnyMem, the better to grep.
+	(pi): Remove Abs.
+	(i386_operand): Don't set Mem bits in i.types[this_operand] when
+	given a memory operand.  Don't set Abs bits either.
+	(type_names): Remove Mem*, Abs*.
+	* config/tc-i386.h (Mem8, Mem16, Mem32, Abs8, Abs16, Abs32): Don't
+	define opcode_modifiers as these cases are handled by Disp8,
+	Disp16, Disp32 and suffix checks.
+	(COMES_IN_BOTH_DIRECTIONS): Remove.
+	(FloatR): Define. It's OK to share the bit with ReverseRegRegmem.
+
+	* config/tc-i386.c (md_assemble): Don't emit operand size prefix
+	if IgnoreDataSize modifier given.  Remove ShortformW modifier
+	test.  Add test for ShortForm in W base_opcode modification.
+	Merge Seg2ShortForm and Seg3ShortForm code.
+	* config/tc-i386.h (ShortFormW): Remove.
+	(IgnoreDataSize): Define.
+
+Fri Jun  5 10:50:53 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (md_assemble): Store previous segment state
+	with previous instruction.
+
+Wed Jun  3 18:21:56 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (SCALE1_WHEN_NO_INDEX): Define.
+	(ebp, esp): Remove static variables.
+	(MATCH): Remove test for InOutPortReg.
+	(i386_operand): Properly handle InOutPortReg here instead.
+	Disallows `inb (%dx,2)', `inb %es:(%dx)' and `mov (%dx),%ax'
+	(md_assemble): Simplify and correct modrm and sib generation.
+	(i386_operand): Add warning for scale without index.
+	Rewrite checks for valid base/index combinations.
+
+	* config/tc-i386.c (END_STRING_AND_SAVE): Protect arguments of
+	macros and enclose in do while(0).
+	(RESTORE_END_STRING): Likewise.
+	(md_assemble): Add one to printed operand number so we start
+	from 1 not 0.  Add some more gettext invocations.
+	(i386_operand): Fix `%%s' -> `%%%s'. Inc printed operand
+	number here too.
+
+	* config/tc-i386.h (WAIT_PREFIX, LOCKREP_PREFIX, ADDR_PREFIX,
+	DATA_PREFIX, SEG_PREFIX): Define.
+	* config/tc-i386.c (struct _i386_insn): Remove wait_prefix field.
+	(check_prefix): Remove function.
+	(add_prefix): New function.  Add prefix to i.prefix as well as
+	doing checks.
+	(md_assemble): Changes for add_prefix.	Remove hack for wait
+	prefix, instead always output prefixes in fixed order.	Test
+	for jcxz/loop when selecting between word & dword operations,
+	and add address size prefix rather than operand size prefix.
+	Remove operand -> address size hack when emitting jcxz/loop.
+	(i386_operand): Remove O_Absent check as it's done in expr.
+
+Wed Jun  3 15:09:10 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Recognize m5200 as a cpu_type of m68k.
+	* aclocal.m4: Rebuild with current libtool.
+	* configure: Rebuild.
+
+Wed Jun  3 14:11:59 1998  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* config/tc-m68k.c (md_estimate_size_before_relax): Add more calls
+	to relaxable_symbol to prevent references to external symbol from
+	being relaxed.
+
+Wed Jun  3 14:10:36 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-m68k.c (relaxable_symbol): If TARGET_OS is "elf", all
+	symbols are relaxable.
+
+Wed Jun  3 09:16:00 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-v850.c (md_begin):  Don't create special
+	sections by default.
+
+Tue Jun  2 14:52:56 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-mips.c (macro): For div and udiv, close the
+	reorder block as soon as possible.
+
+Tue Jun  2 15:36:13 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	From Matt Semersky <matts@scd.hp.com>:
+	* macro.c (macro_mri_mode): New function.
+	* macro.h (macro_mri_mode): Declare.
+	* read.c (s_mri): Call macro_mri_mode when switching in and out of
+	MRI mode.
+
+Tue Jun  2 13:32:22 1998  Klaus Kaempf  <kkaempf@progis.de>
+
+	* config/tc-alpha.c (s_alpha_comm): Allow alignment parameter in
+	OBJ_EVAX case.
+
+	* config/tc-alpha.c (s_alpha_comm): Defer restoring character
+	until after xstrdup in OBJ_EVAX case.
+
+Tue Jun  2 13:11:13 1998  Pat Rankin  <rankin@eql.caltech.edu>
+
+	* config/tc-vax.c (md_create_short_jump): Fix off by two bug in
+	offset calculation.  Also, use VAX_BRW from vax-inst.h instead
+	of hardcoded magic number.
+	(md_create_long_jump): Use VAX_JMP and VAX_ABSOLUTE_MODE macros.
+
+Tue Jun  2 09:25:34 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* read.c (do_s_func): New function.
+	(s_func): Call it.
+	* read.h (do_s_func): Add prototype.
+
+Mon Jun  1 12:47:30 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* config/tc-m32r.c (m32r_do_align): Only fill code sections with
+	nops if fill pattern not specified.
+
+Mon Jun  1 14:08:35 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	From Andrew Crabtree <andrewc@typhoon.rose.hp.com>:
+	* config/te-go32.h (TE_GO32): Define.
+	* config/tc-i386.h (LOCAL_LABEL): Don't define if TE_GO32.
+
+Sun May 31 15:43:06 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	Implement .func/.endfunc pseudo-ops.
+	* read.h (stabs_generate_asm_func,stabs_generate_asm_endfunc): Declare.
+	(s_func): Declare.
+	* read.c (potable): Add .func,.endfunc.
+	(s_func): New function.
+	* stabs.c (stabs_generate_asm_func,stabs_generate_asm_endfunc): New
+	functions.
+	(in_doc_func_p,current_function_label): New static globals.
+	(stabs_generate_asm_lineno): Emit function relative stabs if in .func.
+
+Fri May 29 18:13:12 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-a29k.h (WORKING_DOT_WORD): Define.
+	* config/tc-alpha.h (WORKING_DOT_WORD): Define.
+	* config/tc-arm.h (WORKING_DOT_WORD): Define.
+	* config/tc-h8300.h (WORKING_DOT_WORD): Define.
+	* config/tc-h8500.h (WORKING_DOT_WORD): Define.
+	* config/tc-hppa.h (WORKING_DOT_WORD): Define.
+	* config/tc-i860.h (WORKING_DOT_WORD): Define.
+	* config/tc-i960.h (WORKING_DOT_WORD): Define.
+	* config/tc-tic30.h (WORKING_DOT_WORD): Define.
+	* config/tc-w65.h (WORKING_DOT_WORD): Define.
+	* config/tc-z8k.h (WORKING_DOT_WORD): Define.
+	* config/tc-a29k.c: Don't define md_short_jump_size,
+	md_long_jump_size, md_create_short_jump or md_create_long_jump.
+	* config/tc-alpha.c: Likewise.
+	* config/tc-alpha.h: Likewise.
+	* config/tc-arm.c: Likewise.
+	* config/tc-h8300.c: Likewise.
+	* config/tc-h8500.c: Likewise.
+	* config/tc-hppa.c: Likewise.
+	* config/tc-i860.c: Likewise.
+	* config/tc-i960.c: Likewise.
+	* config/tc-ppc.c: Likewise.
+	* config/tc-sh.c: Likewise.
+	* config/tc-sparc.h: Likewise.
+	* config/tc-tic30.c: Likewise.
+	* config/tc-w65.c: Likewise.
+	* config/tc-z8k.c: Likewise.
+
+Fri May 29 16:03:26 1998  Pat Rankin  <rankin@eql.caltech.edu>
+
+	* config/tc-vax.c (_): Delete this macro used for placeholder
+	values in vax_operand_width_size; it conflicts with the _() macro
+	used for internationalization.
+
+Fri May 29 13:46:07 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* symbols.c (symbol_find_base): Fix case insensitive symbol name
+	code.  From Chris Moller <moller@bops.com>.
+
+	Based on patch from Klaus Kaempf <kkaempf@progis.de>:
+	* struc-symbol.h (struct broken_word): Add seg and subseg fields.
+	* read.c (emit_expr): Initialize seg and subseg fields of a new
+	broken word.
+	* write.c (write_object_file): Switch to the appropriate segment
+	and subsegment when processing a broken word.
+
+	* config/tc-m68k.c (mri_assemble): New static function.
+	(build_mri_control_operand): Call mri_assemble rather than
+	md_assemble.
+	(s_mri_else, s_mri_break, s_mri_next, s_mri_for): Likewise.
+	(s_mri_endf, s_mri_endw): Likewise.
+
+Wed May 27 11:16:25 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* read.c (s_org): Call md_flush_pending_output if it is defined.
+
+	* config/tc-sparc.c (md_show_usage): Add \n\ to new string.
+
+Tue May 26 19:27:52 1998  Stan Cox  <scox@equinox.cygnus.com>
+
+	* config/tc-sparc.c (OPTION_LITTLE_ENDIAN_DATA): New.
+	(md_parse_option): Add for same.
+	(sparc_md_end): Set bfd_mach_sparc_sparclite_le.
+	(md_apply_fix3, tc_gen_reloc): Allow BFD_RELOC_SPARC_32LE.
+	(cons_fix_new_sparc): Added to create BFD_RELOC_SPARC_32LE.
+
+	* config/tc-sparc.h (cons_fix_new_sparc): Added.
+
+Thu May 21 15:02:41 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (find_real_start): Relax definition of local
+	labels.
+
+Tue May 19 16:59:44 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-d30v.c (d30v_align): Apply address adjustment to all
+	symbols at the given address, not just the last one specified.
+
+Tue May 19 08:25:19 1998  Catherine Moore <clm@cygnus.com>
+
+	* config/tc-sparc.c (sparc_handle_align): Use number_to_chars_bigendian
+	or number_to_chars_littleendian to write data.
+
+Mon May 18 17:09:30 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-v850.c (md_assemble): Remove artificially created
+	register name symbols.
+
+Mon May 18 13:47:06 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* write.c (fixup_segment): Change "segment" to "section" in
+	error message.
+
+Mon May 18 16:55:40 1998  Michael Meissner  <meissner@cygnus.com>
+
+	* write.c (fixup_segment): Change sym1-sym2 message again.
+
+Mon May 18 09:31:43 1998  Michael Meissner  <meissner@cygnus.com>
+
+	* write.c (fixup_segment): Improve error message for sym1-sym2
+	errors when sym1 is in a different segment from sym2.
+
+Wed May 13 10:16:37 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* config/tc-m32r.c (warn_unmatched_high): New static local.
+	(OPTION_WARN_PARALLEL): Rename from OPTION_WARN.
+	(OPTION_NO_WARN_PARALLEL): Rename from OPTION_NO_WARN.
+	(md_longopts): Recognize --{no-,}warn-unmatched-high.
+	(md_parse_option): Likewise.
+	(md_show_usage): Likewise.
+	(m32r_frob_file): Likewise.
+
+	* read.c (generate_file_debug,generate_lineno_debug): New functions.
+	(read_a_source_file): Call them.
+	* read.h (stabs_generate_asm_file): Declare.
+	* stabs.c (stabs_generate_asm_file): New function.
+	(generate_asm_file): New function.
+	(stabs_generate_asm_lineno): Move file name handling into
+	generate_asm_file.
+
+Tue May 12 12:03:44 1998  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-d30v.c (cur_mul32_p, prev_mul32_p): Make static.
+	(d30v_current_align, d30v_current_align_seg): New variables.
+	(d30v_last_label): New variable.
+	(d30v_align, s_d30v_align, s_d30v_text): New functions.
+	(s_d30v_data, s_d30v_section): Likewise.
+	(md_pseudo_table): Call them.
+	(md_begin): Initialize d30v_current_align_seg.
+	(md_assemble): Call d30v_align when needed by known current alignment.
+	(d30v_frob_label, d30v_cons_align): New functions.
+	* config/tc-d30v.h (md_do_align): Remove.
+	(tc_frob_label): Call d30v_frob_label.
+	(md_cons_align): New.
+
+	* config/tc-d30v.c (find_format): Convert complex expressions to
+	expression symbols before processing.  Clean up code formatting.
+
+Sun May 10 22:35:02 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* po/Make-in (install-info): New target.
+
+Thu May  7 15:49:07 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-mn10200.c (md_assemble): Handle "bra" just like "jmp"
+	instructions.
+	* config/tc-mn10300.c (md_assemble): Likewise.
+
+Thu May  7 11:47:22 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* Makefile.am: Update with `make dep-am'.
+	(HFILES): Add cgen.h.
+	(cgen.o): Depend on cgen.h.
+	* Makefile.in: Regenerate.
+
+	* cgen.c (cgen_md_apply_fix3): Don't pass newline to as_warn_where.
+
+Thu May  7 13:20:56 1998  Anders Blomdell  <anders.blomdell@control.lth.se>
+
+	* gasp.c (grab_label): Permit a label to be a preprocessor
+	variable by permitting a label to start with a backslash.
+
+Thu May  7 12:50:33 1998  Frank Ch. Eigler  <fche@cygnus.com>
+
+	* config/tc-mips.c (validate_mips_insn): Removed hack
+	for previously inaccessible bitfields in some INSN_TRAP
+	instructions.
+
+Thu May  7 11:13:00 1998  Frank Ch. Eigler  <fche@cygnus.com>
+
+	* config/tc-d30v.c (do_assemble): Abort with error message
+	if opcode operands do not match.
+
+Thu May  7 09:36:06 1998  Frank Ch. Eigler  <fche@cygnus.com>
+
+	* config/tc-mips.c (macro_build, validate_mips_insn): Implement
+	'q' operand format for 20-bit "break"/"sdbbp" instructions.
+	(mips_ip): Truncate overflowed "break" 'c' operand.  Implement
+	similar new 'q' operand.
+
+Thu May  7 07:47:14 1998  Michael Meissner  <meissner@cygnus.com>
+
+	* cgen.c (cgen_asm_finish_insn): Fix typo.
+
+Thu May  7 02:19:14 1998  Doug Evans  <devans@charmed.cygnus.com>
+
+	* cgen.h: New file.
+	* cgen.c: Include it.
+	(MAX_FIXUPS): Renamed to CGEN_MAX_FIXUPS.
+	(cgen_asm_finish_insn): Result is now void.  New arg `result'.
+	All callers updated.
+	* config/tc-m32r.c: Include cgen.h.
+	(m23r_insn): New members num_fixups,fixups.
+
+Wed May  6 16:29:19 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-hppa.c (md_apply_fix): Slightly rework some code
+	to avoid compiler warning.
+
+Wed May  6 15:26:34 1998  Klaus Kaempf  <kkaempf@progis.de>
+
+	* makefile.vms: Run dec c with /nodebug.  Pass CC value when
+	calling make.
+
+	* makefile.vms (OBJS): Add ehopt.obj
+
+Wed May  6 15:11:12 1998  Klaus Kaempf  <kkaempf@progis.de>
+
+	* doc/c-vax.texi: Correct and extend vax/vms documentation.
+
+Wed May  6 11:51:51 1998  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-d30v.c (do_assemble): Accept a new parameter requesting
+	a short format insn.
+	(md_assemble): Set it for explicitly packed insns.
+
+Tue May  5 13:23:13 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/obj-coff.c (c_symbol_merge): Do not take address of
+	native fields when performing the memcpy.
+
+Tue May  5 13:10:41 1998  Gavin Koch  <gavin@cygnus.com>
+
+	* config/tc-mips.c (macro,macro2): Implement
+	M_DMULO_I, M_MULO_I, M_DMULOU_I, and M_MULOU_I.
+
+Mon May  4 17:49:14 1998  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* config/tc-m68k.h (TC_RELOC_RTSYM_LOC_FIXUP): Changed to keep
+	relocations against globally visible symbols.
+	* config/tc-m68k.c (relaxable_symbol): New macro.
+	(m68k_ip, md_estimate_size_before_relax): Use it.
+	(tc_m68k_fix_adjustable): Also handle weak symbols.
+
+Mon May  4 16:12:23 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-i386.h (TC_RELOC_RTSYM_LOC_FIXUP): Keep relocs for all
+	references to externally visible symbols.
+	* config/tc-i386.c (md_apply_fix3): When OBJ_ELF, don't add the
+	values in twice for a PC relative reloc if the symbol is
+	externally defined.
+
+	* config/tc-sparc.h (tc_fix_adjustable) [OBJ_AOUT]: When PIC,
+	don't adjust a PC relative reloc against an externally visible
+	symbol.
+	* config/tc-sparc.c (md_apply_fix3): When generating a.out PIC,
+	for a PC relative fixup against an externally visible defined
+	symbol, arrange to store object file and addend values as though
+	the symbol were not defined.
+	(tc_gen_reloc): Likewise.
+
+Thu Apr 30 13:09:39 1998  Fred Fish  <fnf@ninemoons.com>
+
+	* read.c (sizeof_leb128): Referenced externally by write.c so
+	don't inline.
+
+Wed Apr 29 15:45:57 1998  Michael Meissner  <meissner@cygnus.com>
+
+	* config/tc-m32r.c ({,expand_}debug_sym): New functions to record
+	and expand a 'debug' symbol associated with the next instruction
+	that does not cause a short instruction to be filled with a NOP.
+	(md_pseudo_table): Add support for .debugsym.
+	(assemble_parallel_insn): Add calls to expand_debug_sym as
+	appropriate.
+	(md_assemble): Ditto.
+
+Tue Apr 28 19:16:26 1998  Tom Tromey  <tromey@cygnus.com>
+
+	* as.c (main): Conditionally call setlocale.
+	* gasp.c (main): Likewise.
+	* asintl.h: Include <locale.h> if HAVE_LOCALE_H.
+	(LC_MESSAGES): Now can be defined even when ENABLE_NLS.
+
+Tue Apr 28 18:33:23 1998  Frank Ch. Eigler  <fche@cygnus.com>
+
+	* config/tc-d30v.c (md_show_usage): Correct gettext typo.
+
+Tue Apr 28 12:16:30 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-hppa.c: Change all calls to bzero to use memset.
+	(pa_ip): Add cast to avoid warning.
+	(tc_gen_reloc, md_apply_fix): Likewise.
+	(pa_find_space_by_number): Likewise.
+	(hppa_force_relocation): Likewise.
+	(pa_block): Change i to unsigned int.
+	* config/obj-som.h (obj_som_copyright): Declare.
+
+Tue Apr 28 11:35:56 1998  Frank Ch. Eigler  <fche@cygnus.com>
+
+	* ecoff.c (ecoff_build_lineno): Do not use dummy first_lineno
+	for line numbers for assembly source.
+
+Mon Apr 27 15:58:46 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Change version number to 2.9.4
+	* configure: Rebuild.
+
+Mon Apr 27 12:07:33 1998  Doug Evans  <devans@seba.cygnus.com>
+
+	* cgen.c (cgen_asm_finish_insn): New arg relax_p.  All callers updated.
+
+Mon Apr 27 15:16:12 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ecoff.h: Change symbolS in function declaration to struct
+	symbol.
+
+Sun Apr 26 13:44:22 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-sh.c (parse_reg): Add casts to avoid warnings.
+	(md_convert_frag): Fix i18n typo.
+
+Sat Apr 25 20:12:02 1998  Richard Henderson  <rth@cygnus.com>
+
+	* ecoff.c (ecoff_get_cur_proc_sym): New function.
+	* ecoff.h: Protoype it.
+	* config/tc-alpha.c [ELF] (s_alpha_prologue): New function.
+	[EVAX] (s_alpha_prologue): Delete.
+	(md_pseudo_table): Update.
+
+Sat Apr 25 14:00:52 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-i960.c (md_assemble): Change bp_error_msg from static
+	array to local pointer.
+	(get_args, parse_expr): Add casts to avoid warnings.
+
+Fri Apr 24 12:47:42 1998  Philippe De Muyter  <phdm@macqel.be>
+
+	* read.c (s_set): Cast xmalloc return value to fragS *.
+	* config/tc-m68k.c (m68k_ip): Function made static to match
+	previous forward declaration.
+	(insert_reg, init_regtable, md_convert_frag_1): Likewise.
+
+Fri Apr 24 09:26:46 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-v850.c: Add internationalisation macros to error
+	strings.
+
+	* config/tc-m32r.c (can_make_parallel): Add internationalisation
+	macros to error strings.
+
+Thu Apr 23 19:23:23 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-ppc.c (ppc_fix_adjustable): Correct test of whether a
+	reloc is in the TOC csect.
+	(md_apply_fix3): Correct gettext typo.
+
+Thu Apr 23 14:58:31 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (find_real_start): Ignore symbols starting with
+	.L - they are local labels and the branches are not really
+	function calls but rather far jumps.
+
+Wed Apr 22 15:57:21 1998  Tom Tromey  <tromey@cygnus.com>
+
+	* po/Make-in (MKINSTALLDIRS): Don't look in $(top_srcdir).
+
+Wed Apr 22 14:52:36 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-i386.c (md_assemble): Print operand number rather than
+	using ordinal_names.
+	(i386_operand): Likewise.
+
+Tue Apr 21 22:34:25 1998  Tom Tromey  <tromey@scribbles.cygnus.com>
+
+	* Makefile.am (INTLLIBS): Define to work around apparent automake
+	bug.
+	All Makefiles: Regenerated.
+
+	* Many files: Added gettext invocations around user-visible
+	strings.
+	* acconfig.h (ENABLE_NLS, HAVE_CATGETS, HAVE_GETTEXT, HAVE_STPCPY,
+	HAVE_LC_MESSAGES): Define.
+	* dep-in.sed: Added asintl.h.
+	* po/Make-in: New file.
+	* gasp.c (main): Call setlocale, bindtextdomain, and textdomain.
+	Include "asintl.h".
+	* read.c (Z_): Renamed from `_'.
+	* Makefile.am (SUBDIRS): Added po.
+	(POTFILES): new macro.
+	(po/POTFILES.in): New target.
+	($(OBJS)): Added asintl.h.
+	(HFILES): Likewise.
+	(INCLUDES): Added -DLOCALEDIR, -I$(top_srcdir)/../intl.
+	(as_new_LDADD): Added $(INTLLIBS).
+	(as_new_DEPENDENCIES): Added $(INTLDEPS).
+	(gasp_new_LDADD): Added $(INTLLIBS).
+	(gasp_new_DEPENDENCIES): New macro.
+	* configure, aclocal.m4: Rebuilt.
+	* configure.in: Call CY_GNU_GETTEXT.  Generate po/Makefile.in and
+	po/Makefile.
+	(ALL_LINGUAS): Define.
+	* macro.c: Include "asintl.h".
+	* as.c (main): Call setlocale, bindtextdomain, and textdomain.
+	* as.h: Include "asintl.h".
+	* config/tc-i386.c (ordinal_names): Removed.
+	(md_assemble): Changed error text to avoid ordinal_names.
+	(i386_operand): Likewise.
+	(reloc): Added as_bad to avoid i18n problems.
+	(tc_gen_reloc): Likewise.
+	* config/tc-arm.c (bad_args): Now a #define.
+	(bad_pc): Likewise.
+	* config/obj-vms.c (VMS_stab_parse): Changed type of
+	`long_const_msg'.
+	(global_symbol_directory): Unified strings to avoid i18n
+	problems.
+	* config/tc-m68k.c (get_reloc_code): Added some as_bad calls to
+	avoid i18n problems.
+	* config/tc-ns32k.c (reloc): Added as_bad to avoid i18n problems.
+	* config/tc-ppc.c (md_apply_fix3): Added as_bad_where to avoid
+	i18n problems.
+	* config/tc-sh.c (md_convert_frag): Added as_bad to avoid i18n
+	problems.
+	* config/tc-v850.c (md_assemble): Changed C++ comment into C
+	comment.
+	* config/tc-vax.c (md_assemble): Added as_warn to avoid i18n
+	problems.
+	* as.c (print_version_id): Added an fprintf to avoid i18n
+	problems.
+	* cond.c (cond_finish_check): Added as_bad call to avoid i18n
+	problems.
+	* expr.c (expr): Added as_warn call to avoid i18n problems.
+	* messages.c (as_assert): Changed code to avoid i18n problems.
+	(as_abort): Likewise.
+	* read.c (pseudo_set): Added as_bad call to avoid i18n problems.
+	(s_space): Likewise.
+	* po/Make-in, po/POTFILES.in, po/gas.pot: New files.
+
+Tue Apr 21 17:01:22 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (check_prefix): New static function, split out
+	from md_assemble.
+	(struct _i386_insn): Add wait_prefix field.
+	(md_assemble): Remove wait_prefix local variable.  Use
+	check_prefix when adding a prefix.
+
+	* config/tc-i386.c (current_templates): New static variable.
+	(md_assemble): Remove current_templates local variable.
+	(md_assemble, i386_operand): Improve error and warning messages in
+	many places.  Add RESTORE_END_STRING in many places before error
+	return.  Clarify some comments.
+
+	* config/tc-i386.c (struct _i386_insn): Change seg field to a two
+	element array.
+	(md_assemble): Parse string instruction operands, looking for
+	segment override prefixes.  Check for invalid segment prefixes on
+	string instruction.
+	(i386_operand): i.seg[] and max mem_operand changes for string
+	insns.
+	* config/tc-i386.h (EsSeg): Define.
+
+	* config/tc-i386.h (regKludge): Define.
+	(iclrKludge, imulKludge): Don't define.
+	* config/tc-i386.c (md_assemble): Merge imulKludge and iclrKludge
+	code.  Move ReverseRegRegmem fudges into Modrm case.  Reorder
+	opcode_modifier checks to look for more common cases first.  Add
+	default_seg for IsString case.
+
+Tue Apr 21 16:18:12 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Call AM_PROG_LEX rather than AC_PROG_LEX and
+	AC_DECL_YYTEXT.
+	* configure: Rebuild with new automake and libtool.
+	* aclocal.m4, Makefile.in: Likewise.
+
+	* doc/Makefile.am (as.dvi): New target.
+	* doc/Makefile.in: Rebuild.
+
+Sat Apr 18 01:21:04 1998  Stan Cox  <scox@cygnus.com>
+
+	* configure.in: Added sparc86x support.
+
+	* configure: Rebuild.
+
+	* config/tc-sparc.c (lookup_arch): Added arch_type to struct
+	sparc_arch.
+	(md_parse_option): Warn if -EL is not supported for this architecture.
+
+	* config/tc-sparc.h (SPARC_BIENDIAN) Always define.
+
+Sat Apr 18 01:19:01 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-mips.c (mips_ip): Note when we use get match on
+	the full instruction name.
+
+Wed Apr 15 15:17:27 1998  Richard Henderson  <rth@cygnus.com>
+
+	* symbols.c (resolve_symbol_value) [O_symbol]: Also store the symbol
+	back into the expression to handle add/sub simplification correctly.
+
+Wed Apr 15 07:06:04 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-mips.c (hilo_interlocks): Remove 4300.
+
+Mon Apr 13 16:51:04 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (do_msr): Support undocumented 'msr cpsr_flg,
+	#<n>' instruction.
+
+Thu Apr  9 10:29:42 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* symbols.c (max_indent_level): New global.
+	(print_symbol_value_1): Use it.
+	* expr.h (expr_build_dot): Declare.
+	* expr.c (expr_build_dot): New function.
+
+Wed Apr  8 16:16:11 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* symbols.c (print_binary): New function.
+	(print_expr_1): Call it.
+
+Mon Apr  6 12:06:39 1998  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* config/tc-m68k.c (m68k_ip, case "#B"): Install the offset of the
+	operand in the opcode.
+
+Fri Apr  3 11:58:19 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.h: Reorder operand flags and opcode modifier
+	flags for clarity.  Remove unused definitions: Unknown,
+	ImmUnknown, DispUnknown, NoModrm.
+	* config/tc-i386.c (type_names): Add missing Debug type.
+	(md_assemble): Better duplicate prefix checking.  Quicker string
+	instruction check via new opcode_modifier flag.
+
+Fri Apr  3 11:44:34 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* doc/as.texinfo (Invoking): Clarify -Wa example.
+
+Fri Apr  3 09:12:23 1998  Gavin Koch  <gavin@cetus.cygnus.com>
+
+	* config/tc-mips.c (mips_pseudo_table): Add weakext entry.
+	(s_mips_weakext): Define.
+	* ecoff.c (ecoff_directive_weakext): Don't define if defined(TC_MIPS).
+	* config/obj-ecoff.c (obj_pseudo_table): Don't add weakext if
+	defined(TC_MIPS).
+
+Thu Apr  2 22:42:02 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-mn10200.c (tc_gen_reloc): The difference of two symbols
+	is an error if the value can not be computed at assembly time.
+	* config/tc-mn10300.c (tc_gen-reloc): Likewise.
+
+Thu Apr  2 16:36:47 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* gasp.c (main): Set next field of new include_path structure to
+	NULL.  From Avery Pennarun <averyp@gdc.ca>.
+
+	* read.c (s_mri_sect): Call as_bad rather than abort for an
+	unsupported MRI target.
+
+Wed Apr  1 11:08:27 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (arm_validate_fix): New function.  Determine if
+	the destination of a branch instruction should be altered.
+	(find_real_start): New function:  Locate the real, Thumb coded
+	start of a Thumb function.
+	(do_t_branch23): Alter the destination of branches to Thumb
+	functions.
+
+	* config/tc-arm.h: Define TC_VALIDATE_FIX.
+
+Tue Mar 31 13:27:33 1998  Dean M. Deaver  <deaver@amt.tay1.dec.com>
+
+	* config/tc-arm.c (decode_shift): Handle addressing mode 2 w/rrx
+	also.
+
+Wed Apr  1 13:13:20 1998  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* doc/as.texinfo: Use @itemx for a secondary item in a table.
+	* doc/c-hppa.texi: Likewise.
+
+Tue Mar 31 17:52:40 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am: Rebuild dependencies.
+	* Makefile.in: Rebuild.
+
+	* Makefile.am (DEP_INCLUDES): New variable.
+	(.dep1): Change to work when srcdir is not an absolute path.
+	(.tcdep, .objdep, .dep2, dep.sed): Likewise.
+	* Makefile.in: Rebuild.
+
+Mon Mar 30 12:46:48 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-i386.h, config/tc-i386.c: Revert March 24
+	LinearAddress patch.
+
+	* configure.in: Set version to 2.9.1.
+	* configure: Rebuild.
+
+	* Branched binutils 2.9.
+
+Mon Mar 30 11:22:08 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.h (FWait): Define.
+	* config/tc-i386.c (md_assemble): Emit fwait prefix before any
+	other prefixes.  Check FWait flag in opcode table to see which
+	instructions require an fwait prefix.
+
+Mon Mar 30 10:12:00 1998  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* stabs.c (get_stab_string_offset): Always create a stab string
+	section.
+
+Sat Mar 28 22:28:02 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	Fix some gcc -Wall warnings:
+	* atof-generic.c (atof_generic): Add casts to avoid warnings.
+	* ehopt.c (eh_frame_code_alignment): Likewise.
+	* expr.c (integer_constant, operand): Likewise.
+	* frags.c (frag_align): Likewise.
+	* gasp.c (level_0, change_base, doinstr): Likewise.
+	* hash.c (hash_ask): Likewise.
+	* listing.c (listing_page, calc_hex, print_lines): Likewise.
+	(debugging_pseudo): Likewise.
+	* macro.c (define_macro, check_macro): Likewise.
+	* read.c (read_a_source_file, s_align, s_float_space): Likewise.
+	(ignore_rest_of_line, float_cons): Likewise.
+	* symbols.c (decode_local_label_name): Likewise.
+	* write.c (record_alignment, cvs_frag_to_fill): Likewise.
+	(fixup_segment, number_to_chars_bigendian): Likewise.
+	(number_to_chars_littleendian): Likewise.
+	* config/atof-ieee.c (gen_to_words): Likewise.
+	* config/tc-sparc.c (md_begin, md_assemble): Likewise.
+	(sparc_ip, parse_keyword_arg, s_common): Likewise.
+	* read.c (output_big_sleb128): Initialize locals to avoid
+	warnings.
+	(output_big_uleb128, equals): Likewise.
+	* atof-generic.c (atof_generic): Change number_of_digits_* locals
+	to unsigned int.  Change zeros to unsigned int.
+	* cond.c (s_if): Add return to default case.
+	* frags.c (frag_now_fix): Change return type to addressT.
+	* frags.h (frag_now_fix): Update declaration.
+	* listing.c (file_info_struct): Change linenum to unsigned int.
+	(struct list_info_struct): Change hll_line to unsigned int.
+	(print_source): Update format string.
+	* read.c (emit_expr): Change scan to unsigned int, and don't
+	bother to initialize it.
+	* symbols.c (dollar_label_count): Change to unsigned long.
+	* write.c (adjust_reloc_syms): Remove unused label reduce_fixup.
+	* config/tc-sparc.c (sparc_memory_model): Only define if OBJ_ELF.
+	* config/tc-sparc.c (tc_gen_reloc): Add return to default case.
+
+Fri Mar 27 12:46:47 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-m68k.c (m68k_ip): Check legal addressing modes for
+	mcf5200 just as we do for m68000.
+	(m68k_init_after_args): Likewise.
+	(md_estimate_size_before_relax): Likewise.
+
+Fri Mar 27 10:30:01 1998  Catherine Moore  <clm@cygnus.com>
+
+	* config/tc-v850.c (md_assemble):  Store relocation addend in
+	fixup instead of instruction.
+
+Thu Mar 26 23:07:18 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* config/tc-i386.c (md_assemble): Swap template arguments to
+	CONSISTENT_REGISTER_MATCH macro in reverse direction test.
+	This macro is currently symmetric, so passing them the wrong
+	way didn't cause any problem, but may if the macro is changed
+	in the future.
+	After copying template to i.tm, use i.tm. rather than t-> to
+	access fields, and make t a const*
+	Move i.tm.operand_types[] swap to immediately after the copy.
+
+Wed Mar 25 13:44:18 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* expr.h (expr_build_uconstant): Add prototype.
+	(expr_build_unary,expr_build_binary): Add prototypes.
+	* expr.c (expr_build_uconstant): New function.
+	(expr_build_unary,expr_build_binary): New functions.
+
+Wed Mar 25 13:10:42 1998  Bruno Haible  <bruno@linuix.mathematik.uni-karlsruhe.de>
+
+	* gasp.c (IS*): Cast argument to unsigned char, not unsigned int.
+	* macro.c (macro_expand_body): Increase buffer size.
+	* messages.c (as_warn): Likewise.
+	(as_warn_where, as_bad, as_bad_where): Likewise.
+
+Wed Mar 25 12:59:07 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	Based on patch from H.J. Lu  <hjl@gnu.org>:
+	* Makefile.am (DISTSTUFF): New variable.
+	(diststuff): New target.
+	* Makefile.in: Rebuild.
+
+Tue Mar 24 16:51:29 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-m32r.h (md_cleanup, md_elf_section_change_hook): Call
+	m32r_elf_section_change_hook.
+
+	* config/tc-m32r.c (m32r_elf_section_change_hook): New function to
+	emit a nop if a section ends with a 16 bit instruction.
+
+Tue Mar 24 19:48:09 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/obj-coff.c (obj_coff_bss): Compile unconditionally.  Call
+	s_lcomm rather than obj_coff_lcomm.
+	(obj_pseudo_table): Compile .bss pseudo-op unconditionally.
+
+Tue Mar 24 18:30:58 1998  H.J. Lu  <hjl@gnu.org>
+
+	* config/tc-i386.h (LinearAddress): Define.
+	* config/tc-i386.c (md_assemble): If LinearAddress is set for the
+	instruction, don't use a default segment.
+
+Mon Mar 23 18:53:40 1998  Joel Sherrill  <joel@OARcorp.com>
+
+	* configure.in: (sh*-*-rtems*): Switched from ELF to COFF.
+	* configure: Rebuild.
+
+Fri Mar 20 19:15:44 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* aclocal.m4, configure: Rebuild with libtool 1.2.
+
+Thu Mar 19 16:03:12 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (md_apply_fix3): fix code to test the range of
+	PC relative branches.  Patch courtesy of Jonathan Walton.
+
+
+Wed Mar 18 09:29:51 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* configure.in (emulations): Add thumb-pe target.
+
+	* configure (emulations): Add thumb-pe target.
+
+1998-03-17  Ken Raeburn  <raeburn@cygnus.com>
+
+	* itbl-lex.l (yywrap): Don't define if already defined as a
+	macro.
+
+Fri Mar 13 16:31:38 1998  Tom Tromey  <tromey@cygnus.com>
+
+	* depend.c (quote_string_for_make): New function.
+	(wrap_output): Use it.
+
+Thu Mar 12 18:28:22 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/obj-elf.c (obj_elf_section): Set bss flag in seg_info
+	structure if type is SHT_NOBITS.  [Bug fix courtesy of rth]
+
+Sat Feb 28 17:28:55 1998  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-alpha.c (md_shortopts, md_longopts, md_parse_option):
+	Recognize -GN and -relax.
+	(md_begin): Initialize gp size from -G switch.
+	(alpha_force_relocation): Always force if -relax.
+	(alpha_align): Take a new argument that will specify when to
+	emit an R_ALPHA_ALIGN relocation (though we don't do that now).
+	Change all callers.  Emit nop alignment padding as nop+unop pair.
+
+Sat Feb 28 17:06:22 1998  Richard Henderson  <rth@cygnus.com>
+
+	* config/obj-elf.c [TC_ALPHA]: Include <elf/alpha.h>.
+	* config/tc-alpha.h (ELF_TC_SPECIAL_SECTIONS): New.
+
+Thu Feb 26 15:49:04 1998  Michael Meissner  <meissner@cygnus.com>
+
+	* config/tc-d30v.c (write_2_short): Delayed jsr instructions don't
+	require padding to the next long word boundary.
+
+Mon Feb 23 11:29:06 1998  Doug Evans  <devans@seba.cygnus.com>
+
+	* cgen.c: #include symcat.h.
+	* config/tc-m32r.c: Likewise.
+
+Mon Feb 23 10:27:40 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-mips.c (mips_ip, case 'P'): Make 'P' arguments be
+	absolute expressions instead of '$' prefixed register names.
+
+Sat Feb 21 22:36:52 1998  Richard Henderson  <rth@cygnus.com>
+
+	* read.c (s_set): Record file and line info for symbols when -as.
+	(pseudo_set): Don't overwrite that dummy fragment.
+
+Fri Feb 20 15:03:13 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-ppc.c (md_pseudo_table): Add "section".
+	(ppc_named_section): New static function.
+
+Thu Feb 19 22:25:42 1998  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-ppc.c (ppc_biei): Cache the last symbol we inserted
+	so we don't have to scan the entire list.
+
+Tue Feb 17 17:02:15 1998  Fred Fish  <fnf@cygnus.com>
+
+	* config/tc-d30v.c (parallel_ok): For the explicitly parallel
+	case, allow the parallel instructions to modify the same flag
+	bits.
+
+Thu Feb 19 16:08:15 1998  Richard Henderson  <rth@cygnus.com>
+
+	* listing.c (list_symbol_table): Categorize symbols by
+	undefined_section rather than sy_frag->line == NULL.
+
+Wed Feb 18 23:39:46 1998  Richard Henderson  <rth@cygnus.com>
+
+	* Makefile.am (install-exec-local): Install properly when ln
+	fails or tooldir == prefix.
+
+Tue Feb 17 18:58:51 1998  Doug Evans  <devans@seba.cygnus.com>
+
+	* cgen.c (cgen_md_apply_fix3): Delete call to validate_operand.
+	Test result of insert_operand for error.
+
+Fri Feb 13 16:41:42 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (AUTOMAKE_OPTIONS): Add cygnus.
+	* configure, Makefile.in, aclocal.m4: Rebuild with automake 1.2e.
+	* doc/Makefile.am (AUTOMAKE_OPTIONS): Define.
+	* doc/Makefile.in: Rebuild.
+
+Fri Feb 13 00:47:44 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-mips.c (macro_build): Handle operand type 'C'.
+	(macro): Fix handling of M_COP[0-3].
+
+Thu Feb 12 14:06:59 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	Based on patches from Ross Harvey <ross@teraflop.com>:
+	* macro.c (ISSEP): Only treat '<' and '>' as separator characters
+	if macro_alternate or macro_mri.
+	(getstring): Remove support for byte constants between < and >.
+	(get_any_string): '<' only starts a string if macro_alternate or
+	macro_mri.
+	(macro_expand_body): Permit keyword parameters following
+	positional parameters.
+
+	NetBSD patches from Gordon W. Ross <gwr@mc.com>:
+	* configure.in (alpha*-*-netbsd*): New target.
+	* config/te-nbsd.h (LOCAL_LABELS_FB): Define.
+	* configure: Rebuild.
+
+	* as.h (flag_warn_suppress_instructionswap): Move from here...
+	* config/tc-d10v.c (flag_warn_suppress_instructionswap): ...to
+	here, and make static.
+
+	* ehopt.c (eh_frame_code_alignment): Only use seg_info if
+	BFD_ASSEMBLER or MANY_SEGMENTS.
+
+	* as.c (show_usage): Update bug-gnu-utils address.
+	* gasp.c (show_usage): Likewise.
+	* doc/as.texinfo (Bug Reporting): Likewise.
+
+Wed Feb 11 23:26:28 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-mips.c (load_address): Don't use mips III or mips IV
+	insns regardless of the size of a pointer if we're in mips I or
+	MIPS II mode.
+	(macro, macro2, s_cprestore, s_cpadd): Likewise.
+
+Thu Feb 12 03:41:00 1998  J"orn Rennecke  <amylaar@cygnus.co.uk>
+
+	Fix rac to accept only a0:
+	* config/tc-d10v.c (parallel_ok, find_opcode):
+	Split OPERAND_ACC into OPERAND_ACC0 and OPERAND_ACC1.
+	Introduce OPERAND_GPR.
+
+Wed Feb 11 16:28:13 1998  Richard Henderson  <rth@cygnus.com>
+
+	* read.c (s_fill): Handle non-constant repeat counts by creating
+	an rs_space fragment.
+
+Tue Feb 10 18:31:31 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-i386.c (i386_operand): Change error added Jan 2 1998
+	from as_bad to as_warn.
+
+Tue Feb 10 18:04:00 1998  Jim Lemke  <jlemke@cygnus.com>
+
+	* as.c: (perform_an_assembly_pass): Use [TEXT|DATA|BSS]_SECTION_NAME
+	* as.h: Define default values of [TEXT|DATA|BSS]_SECTION_NAME
+	* config/obj-elf.c (elf_begin): Use [TEXT|DATA|BSS]_SECTION_NAME
+
+Tue Feb 10 17:58:18 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ehopt.c (eh_frame_code_alignment): If not BFD_ASSEMBLER, use
+	seg_fix_rotP rather than fix_root from seg_info.
+
+Tue Feb 10 15:32:22 1998  Ian Carmichael  <iancarm@cygnus.com>
+
+	* expr.c: Add support for 0x1_2_3_4 bignums.
+
+Tue Feb 10 14:43:40 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Change -linux* to -linux-gnu*.
+	* configure: Rebuild.
+
+	* app.c (do_scrub_begin): Treat \r as whitespace.
+
+Mon Feb  9 14:16:11 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am: Update dependencies.
+	* Makefile.in: Rebuild.
+
+Sat Feb  7 15:33:51 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure, aclocal.m4: Rebuild with new libtool.
+
+Fri Feb  6 16:08:30 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-mips.c (md_begin): If mips_cpu is set, then use it as
+	the argument to bfd_set_arch_mach.
+	(load_address): Use bfd_arch_bits_per_address to determine the
+	bit size of an address instead of looking at the isa level.
+	(macro, macro2, s_cprestore, s_cpadd): Likewise.
+
+Fri Feb  6 14:44:34 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-v850.c (md_parse_option): Add -mv850any command line option.
+
+Thu Feb  5 12:39:08 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ehopt.c: New file.
+	* as.h (enum _relax_state): Add rs_cfa.
+	(check_eh_frame, eh_frame_estimate_size_before_relax): Declare.
+	(eh_frame_relax_frag, eh_frame_convert_frag): Declare.
+	* read.c (emit_expr): Call check_eh_frame.
+	* write.c (cvt_frag_to_fill): Handle rs_cfa.
+	(relax_segment): Likewise.
+	* Makefile.am: Rebuild dependencies.
+	(GAS_CFILES): Add ehopt.c.
+	(GENERIC_OBJS): Add ehopt.o.
+	* doc/internals.texi (Frags): Document rs_cfa.
+
+	* as.c (show_usage): Mention --traditional-format.
+	(parse_args): Accept --traditional-format.
+	* as.h (flag_traditional_format): Declare.
+	* output-file.c (output_file_create): If flag_traditional_format,
+	set BFD_TRADITIONAL_FORMAT on stdoutput.
+	* doc/as.texinfo, doc/as.1: Document --traditional-format.
+
+	* config/tc-mips.c (append_insn): Make sure that if we have a
+	fixup for an unmatched %hi reloc, it does not associated with a
+	variant frag.
+
+	* configure, Makefile.in, aclocal.m4: Rebuild with new libtool.
+	* doc/Makefile.in: Likewise.
+
+Wed Feb  4 15:41:54 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-m32r.c (check_for_side_effects): New function.
+	(can_make_parallel): Add checks for instruction side effects
+	clashing with the other instruction.
+	(assemble_parallel_insn): Improve warning messages.  Return error
+	message from non-swapped instruction order.
+
+Wed Feb  4 20:00:26 1998  James G. Smith  <jsmith@teknema.demon.co.uk>
+
+	* config/tc-arm.c: Rename arm_after_pass_hook() to arm_cleanup().
+
+	* config/tc-arm.h: Replace md_after_pass_hook definition with a
+	md_cleanup definition.  This moves the forced literal output to
+	the end of the source pass, and avoids macro's inserting literals
+	into the code immediately after the macro expansion.
+
+Wed Feb  4 13:17:19 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-sparc.h (tc_fix_adjustable) [OBJ_ELF]: A reloc against
+	a gas internal symbol is adjustable.
+	* config/tc-ppc.h (tc_fix_adjustable): Likewise.
+
+	* as.h: If gcc version greater than 2.6, use `__format__' and
+	`__printf__' in function attributes, rather than `format' and
+	`printf'.
+
+Mon Feb  2 18:38:18 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-sparc.c: Only include elf/sparc.h if OBJ_ELF.
+
+Mon Feb  2 18:30:34 1998  Steve Haworth  <steve@pm.cse.rmit.EDU.AU>
+
+	Add tms320c30 support:
+	* config/tc-tic30.h: New file.
+	* config/tc-tic30.c: New file.
+	* config/obj-coff.h: If TC_TIC30, include coff/tic30.h and define
+	TARGET_FORMAT as "coff-tic30".
+	* configure.in (tic30-*-*aout*, tic30-*-*coff*): New targets.
+	* Makefile.am: Rebuild dependencies.
+	(CPU_TYPES): Add tic30.
+	(CPU_OBJ_VALID): tic30-aout is valid.
+	(TARGET_CPU_CFILES): Add config/tc-tic30.c.
+	(TARGET_CPU_HFILES): Add config/tc-tic30.h.
+	* configure, Makefile.in: Rebuild.
+
+Mon Feb  2 10:20:37 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-v850.c (md_assemble): Improvements to error messages.
+
+Mon Feb  2 12:39:05 1998  Geoff Keating  <geoffk@ozemail.com.au>
+
+	* config/tc-ppc.c (md_apply_fix3): Change BFD_RELOC_HI16 and
+	BFD_RELOC_HI16_S to store the high bits of any value.
+
+	* config/tc-ppc.h (tc_fix_adjustable): Undo change of Fri Jun 27.
+	(TC_RELOC_RTSYM_LOC_FIXUP): Don't let the
+	assembler calculate relocations to any external symbol at all.
+	* config/tc-ppc.c (md_apply_fix3) [OBJ_ELF]: Correct bugs
+	involving generation of pc-relative relocs.
+	(md_pcrel_from_section) [OBJ_ELF]: The job this code used to do
+	has been moved to md_apply_fix3.
+
+	* config/tc-ppc.c (md_apply_fix3): Fix test for too-far branch.
+	(ppc_elf_suffix): Warn about 'identifier+constant@got' syntax,
+	which actually means (the address of identifier's GOT entry) +
+	constant, which is not particularly useful.
+
+Fri Jan 30 11:02:35 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* read.h (include_dirs): Declare.
+	(include_dir_count,include_dir_maxlen): Declare.
+
+Fri Jan 30 11:47:02 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Correct check for shared opcodes library.
+	* configure: Rebuild.
+
+	* listing.c (buffer_line): If we can't open the file, set at_end.
+	(listing_print): Remove unused local variable fi.
+
+	* config/m68k-parse.y (reglistpair): Handle register list in
+	either order.
+
+	* config/vms-conf.h: Don't undef VERSION.
+
+Thu Jan 29 14:42:44 1998  Pat Rankin  <rankin@eql.caltech.edu>
+
+	* Makefile.am (CONFIG_OBJS): New variable, containing part of old
+	OBJS variable.
+	(GENERIC_OBJS): New variable, with the rest of the old OBJS
+	variable.
+	(OBJS): Now just $(CONFIG_OBJS) and $(GENERIC_OBJS).
+	($(srcdir)/make-gas.com): Rename from make-gas.com.
+	(stamp-mk.com): Replace $(OBJS) with $(GENERIC_OBJS).
+	(EXTRA_DIST): Define.
+	* vmsconf.sh: Handle {targ-cpu, obj-format, atof-targ} modules
+	explicitly rather than via the list of object files.
+	(gcc-as.opt): New file created when make-gas.com is run.
+	* config-gas.com: Create {targ-cpu.h, obj-format.h, targ-env.h,
+	itbl-cpu.h} to #include appropriate file rather than copying that
+	file.
+	* config/vms-conf.h: Synchronize with current config.in.
+	* Makefile.in: Rebuild.
+
+Thu Jan 29 18:48:19 1998  Bill Moyer  <billm@cygnus.com>
+
+	* config/tc-d30v.c (do_assemble): Added flag_explicitly_parallel.
+	(parallel_ok): Relaxed parallel subinstruction dependency check.
+
+Wed Jan 28 14:35:00 1998  Bill Moyer <billm@cygnus.com>
+
+	* as.h (flag_warn_suppress_instructionswap): added new flag.
+	* config/tc-d10v.c (md_parse_option,md_longopts): added "--nowarnswap"
+	command line argument.
+	* config/tc-d10v.c (write_2_short): emit "Swapping instructions"
+	warning only if flag_warn_suppress_instructionswap is false.
+
+Wed Jan 28 16:41:19 1998  J.J. van der Heijden  <J.J.vanderHeijden@student.utwente.nl>
+
+	* configure.in (i386-*-mingw32*): New target.
+	* configure: Rebuild.
+
+Wed Jan 28 14:51:18 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* symbols.c (resolve_symbol_value): Don't set the segment if it
+	hasn't changed, and this is OBJ_AOUT without BFD_ASSEMBLER.
+
+	* config/obj-aout.h (S_IS_LOCAL): Correct typo--pass argument to
+	S_GET_SEGMENT.
+
+Wed Jan 28 13:54:50 1998  Pat Rankin  <rankin@eql.caltech.edu>
+
+	as.h (unlink): Reverse 13-Feb-97 change; use of unlink vs remove
+	depends upon HAVE_{UNLINK,REMOVE} values rather than host
+	compiler.
+
+Wed Jan 28 13:48:08 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/obj-coff.h (RESOLVE_SYMBOL_REDEFINITION): Define.
+
+Wed Jan 28 09:52:00 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-v850.c (v850_insert_operand): Display instruction when
+	an error is encountered.
+
+Tue Jan 27 13:32:01 1998  Robert Lipe  <robertl@dgii.com>
+
+	* configure.in (i386-*-sco3.2v5*): Defaults to ELF now.
+	(i386-*-sco3.2v5*coff): New target.
+	(i386-*-sco3.2*): New target.
+	* configure: Rebuild.
+
+Tue Jan 27 11:06:52 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-v850.c: Tidy error message production.
+
+Tue Jan 27 12:24:32 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-arm.c (md_apply_fix3): Add new variable newimm to hold
+	validate_immediate return value in the right type for comparisons
+	to FAIL.
+
+Tue Jan 27 06:51:59 1998  Richard Henderson  <rth@cygnus.com>
+
+	* listing.c (MAX_BYTES): Use listing variables not constants.
+	(data_buffer): No longer an array, but a pointer.
+	(calc_hex): sizeof(data_buffer) -> MAX_BYTES.
+	(listing_listing): Allocate data_buffer.
+
+Tue Jan 27 06:38:35 1998  Richard Henderson  <rth@cygnus.com>
+
+	* as.c (parse_args): Add --listing-lhs-width, --listing-lhs-width2,
+	--listing-rhs-width, --listing-cont-lines.
+	(show_usage): Update.
+	* listing.c (listing_lhs_width, listing_lhs_width_second): New vars.
+	(listing_lhs_cont_lines, listing_rhs_width): New vars.
+	(print_lines): Use the variables instead of the constants.
+	(listing_listing): Likewise.
+	* listing.h: Declare the new vars.
+
+Tue Jan 27 05:32:05 1998  Richard Henderson  <rth@cygnus.com>
+
+	* as.c (parse_args): Add --keep-locals alias for -L.
+	Add --strip-local-absolute.
+	(show_usage): Update.
+	* as.h (flag_strip_local_absolute): New flag.
+	* symbols.c (S_IS_LOCAL): Use it.
+	* config/obj-aout.h (S_IS_LOCAL): Likewise.
+	* config/obj-bout.h (S_IS_LOCAL): Likewise.
+	* config/obj-coff.h (S_IS_LOCAL): Likewise.
+
+Mon Jan 26 13:07:41 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-m32r.c: Detect if explicitly parallel instructions
+	might have an io conflict and issue a warning message.
+
+Thu Jan 22 17:51:44 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* cgen.c (cgen_save_fixups, cgen_restore_fixups,
+	cgen_swap_fixups): Functions to save, restore and swap the fixup
+	chain with a backup copy.
+	(cgen_asm_finish_insn): Returns address of constructed insn.
+
+Wed Jan 21 16:49:10 1998  Richard Henderson  <rth@cygnus.com>
+
+	* listing.c (file_info_struct): Remove FILE, add POS.
+	(last_open_file_info, last_open_file): New; a one entry FILE* cache.
+	(file_info): Don't open the file.
+	(buffer_line): Check for the file in the last_open cache, updating
+	as necessary.
+	(print_source): Don't reference file_info->file.
+	(listing_listing): Likewise.
+	(listing_print): Close the file in the cache, if any.
+
+Fri Jan 16 14:51:48 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* read.c (dwarf_file_string): New file static variable.
+	(emit_expr): Look for constant sequence that leads up to a file
+	name in DWARF debugging output.
+	(stringer): Use dwarf_file_string to decide whether to accept a
+	string as a file name.
+
+Fri Jan 16 11:30:37 1998  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-m68k.c (m68k_ip): Remove absl->reglst MRI hack.
+	(crack_operand): Add reg->reglst MRI hack.
+	(r_seg): Put reglst symbols in reg_section.
+	(m68k_frob_symbol): Frob reglst symbols into absolute_section.
+
+Thu Jan 15 14:19:01 1998  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-sh.c (get_specific): Handle SGR & DBR.
+
+Thu Jan 15 13:46:48 1998  Richard Henderson  <rth@cygnus.com>
+
+	* config/tc-h8300.c (parse_reg): Take the length of the symbol into
+	account when attempting to match a register name.
+	* config/tc-h8500.c (parse_reg): Likewise.
+
+Wed Jan 14 17:52:33 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* cgen.c: Formatting changes to improve readability.
+
+Wed Jan 14 15:41:41 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config/tc-mips.c (macro): Rework division code to avoid unfilled
+	delay slot.
+
+Wed Jan 14 18:04:20 1998  Michael Meissner  <meissner@cygnus.com>
+
+	Based on a patch from Jim Wilson
+	* config/tc-d30v.c (do_assemble): Remove non-ansi default case.
+	(tc_gen_reloc): Handle cross section PC relative relocs
+	correctly.
+
+Wed Jan 14 15:02:19 1998  Doug Evans  <devans@seba.cygnus.com>
+
+	* config/tc-mips.c (mips_ip): Don't test pinfo flags if INSN_MACRO.
+
+Mon Jan 12 13:04:57 1998  Doug Evans  <devans@seba.cygnus.com>
+
+	* cgen.c: #include setjmp.h.  Clean up pass over `struct foo' usage.
+	(expr_jmp_buf): New static local.
+	(cgen_parse_operand): Allow use of longjmp in parsing to handle errors.
+	(cgen_md_operand): New function.
+	* config/tc-m32r.c: Clean up pass over `struct foo' usage.
+	(md_estimate_size_before_relax): Use CGEN_INSN_MNEMONIC.
+
+Tue Jan  6 15:36:02 1998  Richard Henderson  <rth@cygnus.com>
+
+	* symbols.c (S_SET_SEGMENT): Don't set the segment for section syms.
+	(S_IS_EXTERNAL, S_IS_LOCAL): Correct parenthetication.
+
+Fri Jan  2 16:08:54 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/tc-i386.c (i386_operand): Give an error if there are
+	unrecognized characters after an expression.
+
+For older changes see ChangeLog-9697
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

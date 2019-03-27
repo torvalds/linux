@@ -1,0 +1,132 @@
+.\" $Id$
+.\"
+.Dd May 31, 1998
+.Dt PUSH 8
+.Os HEIMDAL
+.Sh NAME
+.Nm push
+.Nd fetch mail via POP
+.Sh SYNOPSIS
+.Nm
+.Op Fl 5 | Fl Fl krb5
+.Op Fl v | Fl Fl verbose
+.Op Fl f | Fl Fl fork
+.Op Fl l | -leave
+.Op Fl Fl from
+.Op Fl c | -count
+.Op Fl Fl headers Ns = Ns Ar headers
+.Oo Fl p Ar port-spec  \*(Ba Xo
+.Fl Fl port Ns = Ns Ar port-spec
+.Xc
+.Oc
+.Ar po-box
+.Pa filename
+.Sh DESCRIPTION
+.Nm
+retrieves mail from the post office box
+.Ar po-box ,
+and stores the mail in mbox format in
+.Pa filename .
+The
+.Ar po-box
+can have any of the following formats:
+.Bl -hang -compact -offset indent
+.It Ql hostname:username
+.It Ql po:hostname:username
+.It Ql username@hostname
+.It Ql po:username@hostname
+.It Ql hostname
+.It Ql po:username
+.El
+.Pp
+If no username is specified,
+.Nm
+assumes that it's the same as on the local machine;
+.Ar hostname
+defaults to the value of the
+.Ev MAILHOST
+environment variable.
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Xo
+.Fl 5 ,
+.Fl Fl krb5
+.Xc
+use Kerberos 5 (if compiled with support for Kerberos 5)
+.It Xo
+.Fl f ,
+.Fl Fl fork
+.Xc
+fork before starting to delete messages
+.It Xo
+.Fl l ,
+.Fl Fl leave
+.Xc
+don't delete fetched mail
+.It Xo
+.Fl Fl from
+.Xc
+behave like from.
+.It Xo
+.Fl c ,
+.Fl Fl count
+.Xc
+first print how many messages and bytes there are.
+.It Xo
+.Fl Fl headers Ns = Ns Ar headers
+.Xc
+a list of comma-separated headers that should get printed.
+.It Xo
+.Fl p Ar port-spec ,
+.Fl Fl port Ns = Ns Ar port-spec
+.Xc
+use this port instead of the default
+.Ql kpop
+or
+.Ql 1109 .
+.El
+.Pp
+The default is to first try Kerberos 5 authentication and then, if
+that fails, Kerberos 4.
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev MAILHOST
+points to the post office, if no other hostname is specified.
+.El
+.\".Sh FILES
+.Sh EXAMPLES
+.Bd -literal -offset indent
+$ push cornfield:roosta ~/.emacs-mail-crash-box
+.Ed
+.Pp
+tries to fetch mail for the user
+.Ar roosta
+from the post office at
+.Dq cornfield ,
+and stores the mail in
+.Pa ~/.emacs-mail-crash-box
+(you are using Gnus, aren't you?)
+.Bd -literal -offset indent
+$ push --from -5 havregryn
+.Ed
+.Pp
+tries to fetch
+.Sy From:
+lines for current user at post office
+.Dq havregryn
+using Kerberos 5.
+.\".Sh DIAGNOSTICS
+.Sh SEE ALSO
+.Xr from 1 ,
+.Xr pfrom 1 ,
+.Xr movemail 8 ,
+.Xr popper 8
+.\".Sh STANDARDS
+.Sh HISTORY
+.Nm
+was written while waiting for
+.Nm movemail
+to finish getting the mail.
+.\".Sh AUTHORS
+.\".Sh BUGS

@@ -1,0 +1,96 @@
+.\" Copyright (c) 2009 Michael Gmelin
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 22, 2011
+.Dt ACPI_WMI 4
+.Os
+.Sh NAME
+.Nm acpi_wmi
+.Nd "ACPI to WMI mapping driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device acpi_wmi"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+acpi_wmi_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides an interface for vendor specific WMI implementations
+(e.g. HP and Acer laptops).
+It creates /dev/wmistat%d, which can be read to get
+information about GUIDs found in the system.
+.Sh FILES
+.Bl -tag -width /dev/wmistat%d -compact
+.It Pa /dev/wmistat%d
+WMI status device.
+.El
+.Sh EXAMPLES
+.Bd -literal
+# cat /dev/wmistat0
+GUID                                  INST EXPE METH STR EVENT OID
+{5FB7F034-2C63-45E9-BE91-3D44E2C707E4}   1 NO   WMAA NO  NO    AA
+{95F24279-4D7B-4334-9387-ACCDC67EF61C}   1 NO   NO   NO  0x80+ -
+{2B814318-4BE8-4707-9D84-A190A859B5D0}   1 NO   NO   NO  0xA0  -
+{05901221-D566-11D1-B2F0-00A0C9062910}   1 NO   NO   NO  NO    AB
+{1F4C91EB-DC5C-460B-951D-C7CB9B4B8D5E}   1 NO   WMBA NO  NO    BA
+{2D114B49-2DFB-4130-B8FE-4A3C09E75133}  57 NO   NO   NO  NO    BC
+{988D08E3-68F4-4C35-AF3E-6A1B8106F83C}  20 NO   NO   NO  NO    BD
+{14EA9746-CE1F-4098-A0E0-7045CB4DA745}   1 NO   NO   NO  NO    BE
+{322F2028-0F84-4901-988E-015176049E2D}   2 NO   NO   NO  NO    BF
+{8232DE3D-663D-4327-A8F4-E293ADB9BF05}   0 NO   NO   NO  NO    BG
+{8F1F6436-9F42-42C8-BADC-0E9424F20C9A}   0 NO   NO   NO  NO    BH
+{8F1F6435-9F42-42C8-BADC-0E9424F20C9A}   0 NO   NO   NO  NO    BI
+.Ed
+.Sh SEE ALSO
+.Xr acpi 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Michael Gmelin Aq Mt freebsd@grem.de .
+.Pp
+Work has been inspired by the Linux acpi-wmi driver written by Carlos Corbacho.
+.Pp
+See http://www.microsoft.com/whdc/system/pnppwr/wmi/wmi-acpi.mspx for
+the specification of ACPI-WMI.
+.Pp
+This manual page was written by
+.An Michael Gmelin Aq Mt freebsd@grem.de .

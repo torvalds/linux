@@ -1,0 +1,155 @@
+#!/bin/bash
+#
+# Init file for OpenSSH server daemon
+#
+# chkconfig: 2345 55 25
+# description: OpenSSH server daemon
+#
+# processname: sshd
+# config: /etc/ssh/ssh_host_key
+# config: /etc/ssh/ssh_host_key.pub
+# config: /etc/ssh/ssh_random_seed
+# config: /etc/ssh/sshd_config
+# pidfile: /var/run/sshd.pid
+
+# source function library
+. /etc/rc.d/init.d/functions
+
+# pull in sysconfig settings
+[ -f /etc/sysconfig/sshd ] && . /etc/sysconfig/sshd
+
+RETVAL=0
+prog="sshd"
+
+# Some functions to make the below more readable
+KEYGEN=/usr/bin/ssh-keygen
+SSHD=/usr/sbin/sshd
+RSA_KEY=/etc/ssh/ssh_host_rsa_key
+DSA_KEY=/etc/ssh/ssh_host_dsa_key
+PID_FILE=/var/run/sshd.pid
+
+my_success() {
+  local msg
+  if [ $# -gt 1 ]; then
+    msg="$2"
+  else
+    msg="done"
+  fi
+  case "`type -type success`" in
+    function)
+      success "$1"
+    ;;
+    *)
+      echo -n "${msg}"
+    ;;
+  esac
+}
+my_failure() {
+  local msg
+  if [ $# -gt 1 ]; then
+    msg="$2"
+  else
+    msg="FAILED"
+  fi
+  case "`type -type failure`" in
+    function)
+      failure "$1"
+    ;;
+    *)
+      echo -n "${msg}"
+    ;;
+  esac
+}
+do_rsa_keygen() {
+	if [ ! -s $RSA_KEY ]; then
+		echo -n "Generating SSH2 RSA host key: "
+		if $KEYGEN -q -t rsa -f $RSA_KEY -C '' -N '' >&/dev/null; then
+			chmod 600 $RSA_KEY
+			chmod 644 $RSA_KEY.pub
+			my_success "RSA key generation"
+			echo
+		else
+			my_failure "RSA key generation"
+			echo
+			exit 1
+		fi
+	fi
+}
+do_dsa_keygen() {
+	if [ ! -s $DSA_KEY ]; then
+		echo -n "Generating SSH2 DSA host key: "
+		if $KEYGEN -q -t dsa -f $DSA_KEY -C '' -N '' >&/dev/null; then
+			chmod 600 $DSA_KEY
+			chmod 644 $DSA_KEY.pub
+			my_success "DSA key generation"
+			echo
+		else
+			my_failure "DSA key generation"
+			echo
+			exit 1
+		fi
+	fi
+}
+do_restart_sanity_check() {
+	$SSHD -t
+	RETVAL=$?
+	if [ ! "$RETVAL" = 0 ]; then
+		my_failure "Configuration file or keys"
+		echo
+	fi
+}
+
+
+case "$1" in
+	start)
+		# Create keys if necessary
+		do_rsa_keygen;
+		do_dsa_keygen;
+		
+		echo -n "Starting sshd: "
+		if [ ! -f $PID_FILE ] ; then
+			sshd $OPTIONS
+			RETVAL=$?
+			if [ "$RETVAL" = "0" ] ; then
+				my_success "sshd startup" "sshd"
+				touch /var/lock/subsys/sshd
+			else
+				my_failure "sshd startup" ""
+			fi
+		fi
+		echo
+		;;
+	stop)
+		echo -n "Shutting down sshd: "
+		if [ -f $PID_FILE ] ; then
+			killproc sshd
+			RETVAL=$?
+			[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/sshd
+		fi
+		echo
+		;;
+	restart)
+		do_restart_sanity_check
+		$0 stop
+		$0 start
+		RETVAL=$?
+		;;
+	condrestart)
+		if [ -f /var/lock/subsys/sshd ] ; then
+			do_restart_sanity_check
+			$0 stop
+			$0 start
+			RETVAL=$?
+		fi
+		;;
+	status)
+		status sshd
+		RETVAL=$?
+		;;
+	*)
+		echo "Usage: sshd {start|stop|restart|status|condrestart}"
+		exit 1
+		;;
+esac
+
+exit $RETVAL

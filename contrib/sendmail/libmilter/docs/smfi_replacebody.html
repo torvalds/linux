@@ -1,0 +1,93 @@
+<HTML>
+<HEAD><TITLE>smfi_replacebody</TITLE></HEAD>
+<BODY>
+<!--
+$Id: smfi_replacebody.html,v 1.16 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>smfi_replacebody</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_replacebody(
+	SMFICTX *ctx,
+	unsigned char *bodyp,
+	int bodylen
+);
+</PRE>
+Replace message-body data.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>Called only from <A href="xxfi_eom.html">xxfi_eom</A>.  smfi_replacebody may be called more than once.</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>smfi_replacebody replaces the body of the current message.  If called 
+more than once, subsequent calls result in data being appended to the new 
+body.
+</TD>
+</TR>
+</TABLE>
+
+<!----------- Arguments ---------->
+<TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
+    <TABLE border="1" cellspacing=0>
+    <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
+    <TR valign="top"><TD>ctx</TD>
+	<TD>Opaque context structure.
+	</TD></TR>
+    <TR valign="top"><TD>bodyp</TD>
+	<TD>A pointer to the start of the new body data, which does not have to be null-terminated.  If bodyp is NULL, it is treated as having length == 0.  Body data should be in CR/LF form.
+	</TD></TR>
+    <TR valign="top"><TD>bodylen</TD>
+	<TD>The number of data bytes pointed to by bodyp.
+	</TD></TR>
+    </TABLE>
+</TD></TR>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
+
+<TD>smfi_replacebody fails and returns MI_FAILURE if:
+<UL>
+    <LI>bodyp == NULL and bodylen &gt; 0.
+    <LI>Changing the body in the current connection state is invalid.
+    <LI>A network error occurs.
+    <LI>SMFIF_CHGBODY was not set when <A href="smfi_register.html">smfi_register</A> was called.
+</UL>
+Otherwise, it will return MI_SUCCESS.
+</TD>
+</TR>
+
+<!----------- Notes ---------->
+<TR align="left" valign=top>
+<TH>NOTES</TH> 
+<TD>
+<UL>
+    <LI>Since the message body may be very large, setting SMFIF_CHGBODY may significantly affect filter performance.
+    <LI>If a filter sets SMFIF_CHGBODY but does not call smfi_replacebody, the original body remains unchanged.
+    <LI>For smfi_replacebody, filter order is important.  <B>Later filters will see the new body contents created by earlier ones.</B>
+</UL>
+</TD>
+</TR>
+
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2000-2001, 2003 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

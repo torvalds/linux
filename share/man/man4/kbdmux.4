@@ -1,0 +1,57 @@
+.\" $Id: kbdmux.4,v 1.1 2005/07/14 20:32:10 max Exp $
+.\" $FreeBSD$
+.\"
+.Dd July 12, 2005
+.Dt KBDMUX 4
+.Os
+.Sh NAME
+.Nm kbdmux
+.Nd "keyboard multiplexer"
+.Sh SYNOPSIS
+.Cd "device kbdmux"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.kbdmux.0.disabled="1"
+.Sh DESCRIPTION
+The
+.Nm
+keyboard driver provides support for basic keyboard multiplexing.
+It is built around the idea of a
+.Dq "super keyboard" .
+The
+.Nm
+driver
+acts as a master keyboard consuming input from all slave keyboards attached to
+it.
+.Pp
+Slave keyboards can be attached to or detached from the
+.Nm
+keyboard driver with the
+.Xr kbdcontrol 1
+utility.
+.Sh SEE ALSO
+.Xr kbdcontrol 1 ,
+.Xr atkbd 4 ,
+.Xr syscons 4 ,
+.Xr ukbd 4 ,
+.Xr vt 4
+.Sh HISTORY
+The
+.Nm
+module was implemented in
+.Fx 6.0 .
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
+.Sh CAVEATS
+The
+.Nm
+keyboard driver switches all slave keyboards into
+.Dv K_RAW
+mode.
+Thus all slave keyboards attached to the
+.Nm
+keyboard share the same state.
+The
+.Nm
+keyboard is logically equivalent to one keyboard with lots of duplicated keys.

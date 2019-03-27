@@ -1,0 +1,400 @@
+// -*- C++ -*-
+//===--------------------------- strstream --------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_STRSTREAM
+#define _LIBCPP_STRSTREAM
+
+/*
+    strstream synopsis
+
+class strstreambuf
+    : public basic_streambuf<char>
+{
+public:
+    explicit strstreambuf(streamsize alsize_arg = 0);
+    strstreambuf(void* (*palloc_arg)(size_t), void (*pfree_arg)(void*));
+    strstreambuf(char* gnext_arg, streamsize n, char* pbeg_arg = 0);
+    strstreambuf(const char* gnext_arg, streamsize n);
+
+    strstreambuf(signed char* gnext_arg, streamsize n, signed char* pbeg_arg = 0);
+    strstreambuf(const signed char* gnext_arg, streamsize n);
+    strstreambuf(unsigned char* gnext_arg, streamsize n, unsigned char* pbeg_arg = 0);
+    strstreambuf(const unsigned char* gnext_arg, streamsize n);
+
+    strstreambuf(strstreambuf&& rhs);
+    strstreambuf& operator=(strstreambuf&& rhs);
+
+    virtual ~strstreambuf();
+
+    void swap(strstreambuf& rhs);
+
+    void freeze(bool freezefl = true);
+    char* str();
+    int pcount() const;
+
+protected:
+    virtual int_type overflow (int_type c = EOF);
+    virtual int_type pbackfail(int_type c = EOF);
+    virtual int_type underflow();
+    virtual pos_type seekoff(off_type off, ios_base::seekdir way,
+                             ios_base::openmode which = ios_base::in | ios_base::out);
+    virtual pos_type seekpos(pos_type sp,
+                             ios_base::openmode which = ios_base::in | ios_base::out);
+    virtual streambuf* setbuf(char* s, streamsize n);
+
+private:
+    typedef T1 strstate;                // exposition only
+    static const strstate allocated;    // exposition only
+    static const strstate constant;     // exposition only
+    static const strstate dynamic;      // exposition only
+    static const strstate frozen;       // exposition only
+    strstate strmode;                   // exposition only
+    streamsize alsize;                  // exposition only
+    void* (*palloc)(size_t);            // exposition only
+    void (*pfree)(void*);               // exposition only
+};
+
+class istrstream
+    : public basic_istream<char>
+{
+public:
+    explicit istrstream(const char* s);
+    explicit istrstream(char* s);
+    istrstream(const char* s, streamsize n);
+    istrstream(char* s, streamsize n);
+
+    virtual ~istrstream();
+
+    strstreambuf* rdbuf() const;
+    char *str();
+
+private:
+    strstreambuf sb; // exposition only
+};
+
+class ostrstream
+    : public basic_ostream<char>
+{
+public:
+    ostrstream();
+    ostrstream(char* s, int n, ios_base::openmode mode = ios_base::out);
+
+    virtual ~ostrstream();
+
+    strstreambuf* rdbuf() const;
+    void freeze(bool freezefl = true);
+    char* str();
+    int pcount() const;
+
+private:
+    strstreambuf sb; // exposition only
+};
+
+class strstream
+    : public basic_iostream<char>
+{
+public:
+    // Types
+    typedef char                        char_type;
+    typedef char_traits<char>::int_type int_type;
+    typedef char_traits<char>::pos_type pos_type;
+    typedef char_traits<char>::off_type off_type;
+
+    // constructors/destructor
+    strstream();
+    strstream(char* s, int n, ios_base::openmode mode = ios_base::in | ios_base::out);
+
+    virtual ~strstream();
+
+    // Members:
+    strstreambuf* rdbuf() const;
+    void freeze(bool freezefl = true);
+    int pcount() const;
+    char* str();
+
+private:
+    strstreambuf sb; // exposition only
+};
+
+}  // std
+
+*/
+
+#include <__config>
+#include <ostream>
+#include <istream>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+class _LIBCPP_TYPE_VIS strstreambuf
+    : public streambuf
+{
+public:
+    explicit strstreambuf(streamsize __alsize = 0);
+    strstreambuf(void* (*__palloc)(size_t), void (*__pfree)(void*));
+    strstreambuf(char* __gnext, streamsize __n, char* __pbeg = 0);
+    strstreambuf(const char* __gnext, streamsize __n);
+
+    strstreambuf(signed char* __gnext, streamsize __n, signed char* __pbeg = 0);
+    strstreambuf(const signed char* __gnext, streamsize __n);
+    strstreambuf(unsigned char* __gnext, streamsize __n, unsigned char* __pbeg = 0);
+    strstreambuf(const unsigned char* __gnext, streamsize __n);
+
+#ifndef _LIBCPP_CXX03_LANG
+    _LIBCPP_INLINE_VISIBILITY
+    strstreambuf(strstreambuf&& __rhs);
+    _LIBCPP_INLINE_VISIBILITY
+    strstreambuf& operator=(strstreambuf&& __rhs);
+#endif  // _LIBCPP_CXX03_LANG
+
+    virtual ~strstreambuf();
+
+    void swap(strstreambuf& __rhs);
+
+    void freeze(bool __freezefl = true);
+    char* str();
+    int pcount() const;
+
+protected:
+    virtual int_type overflow (int_type __c = EOF);
+    virtual int_type pbackfail(int_type __c = EOF);
+    virtual int_type underflow();
+    virtual pos_type seekoff(off_type __off, ios_base::seekdir __way,
+                             ios_base::openmode __which = ios_base::in | ios_base::out);
+    virtual pos_type seekpos(pos_type __sp,
+                             ios_base::openmode __which = ios_base::in | ios_base::out);
+
+private:
+    typedef unsigned __mode_type;
+    static const __mode_type __allocated = 0x01;
+    static const __mode_type __constant  = 0x02;
+    static const __mode_type __dynamic   = 0x04;
+    static const __mode_type __frozen    = 0x08;
+    static const streamsize    __default_alsize = 4096;
+
+    __mode_type __strmode_;
+    streamsize __alsize_;
+    void* (*__palloc_)(size_t);
+    void (*__pfree_)(void*);
+
+    void __init(char* __gnext, streamsize __n, char* __pbeg);
+};
+
+#ifndef _LIBCPP_CXX03_LANG
+
+inline _LIBCPP_INLINE_VISIBILITY
+strstreambuf::strstreambuf(strstreambuf&& __rhs)
+    : streambuf(__rhs),
+      __strmode_(__rhs.__strmode_),
+      __alsize_(__rhs.__alsize_),
+      __palloc_(__rhs.__palloc_),
+      __pfree_(__rhs.__pfree_)
+{
+    __rhs.setg(nullptr, nullptr, nullptr);
+    __rhs.setp(nullptr, nullptr);
+}
+
+inline _LIBCPP_INLINE_VISIBILITY
+strstreambuf&
+strstreambuf::operator=(strstreambuf&& __rhs)
+{
+    if (eback() && (__strmode_ & __allocated) != 0 && (__strmode_ & __frozen) == 0)
+    {
+        if (__pfree_)
+            __pfree_(eback());
+        else
+            delete [] eback();
+    }
+    streambuf::operator=(__rhs);
+    __strmode_ = __rhs.__strmode_;
+    __alsize_ = __rhs.__alsize_;
+    __palloc_ = __rhs.__palloc_;
+    __pfree_ = __rhs.__pfree_;
+    __rhs.setg(nullptr, nullptr, nullptr);
+    __rhs.setp(nullptr, nullptr);
+    return *this;
+}
+
+#endif  // _LIBCPP_CXX03_LANG
+
+class _LIBCPP_TYPE_VIS istrstream
+    : public istream
+{
+public:
+    _LIBCPP_INLINE_VISIBILITY
+    explicit istrstream(const char* __s)
+        : istream(&__sb_), __sb_(__s, 0) {}
+    _LIBCPP_INLINE_VISIBILITY
+    explicit istrstream(char* __s)
+        : istream(&__sb_), __sb_(__s, 0) {}
+    _LIBCPP_INLINE_VISIBILITY
+    istrstream(const char* __s, streamsize __n)
+        : istream(&__sb_), __sb_(__s, __n) {}
+    _LIBCPP_INLINE_VISIBILITY
+    istrstream(char* __s, streamsize __n)
+        : istream(&__sb_), __sb_(__s, __n) {}
+
+#ifndef _LIBCPP_CXX03_LANG
+    _LIBCPP_INLINE_VISIBILITY
+    istrstream(istrstream&& __rhs)
+        : istream(_VSTD::move(__rhs)),
+          __sb_(_VSTD::move(__rhs.__sb_))
+    {
+        istream::set_rdbuf(&__sb_);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    istrstream& operator=(istrstream&& __rhs)
+    {
+        istream::operator=(_VSTD::move(__rhs));
+        __sb_ = _VSTD::move(__rhs.__sb_);
+        return *this;
+    }
+#endif  // _LIBCPP_CXX03_LANG
+
+    virtual ~istrstream();
+
+    _LIBCPP_INLINE_VISIBILITY
+    void swap(istrstream& __rhs)
+    {
+        istream::swap(__rhs);
+        __sb_.swap(__rhs.__sb_);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    strstreambuf* rdbuf() const {return const_cast<strstreambuf*>(&__sb_);}
+    _LIBCPP_INLINE_VISIBILITY
+    char *str() {return __sb_.str();}
+
+private:
+    strstreambuf __sb_;
+};
+
+class _LIBCPP_TYPE_VIS ostrstream
+    : public ostream
+{
+public:
+    _LIBCPP_INLINE_VISIBILITY
+    ostrstream()
+        : ostream(&__sb_) {}
+    _LIBCPP_INLINE_VISIBILITY
+    ostrstream(char* __s, int __n, ios_base::openmode __mode = ios_base::out)
+        : ostream(&__sb_),
+          __sb_(__s, __n, __s + (__mode & ios::app ? strlen(__s) : 0))
+        {}
+
+#ifndef _LIBCPP_CXX03_LANG
+    _LIBCPP_INLINE_VISIBILITY
+    ostrstream(ostrstream&& __rhs)
+        : ostream(_VSTD::move(__rhs)),
+          __sb_(_VSTD::move(__rhs.__sb_))
+    {
+        ostream::set_rdbuf(&__sb_);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    ostrstream& operator=(ostrstream&& __rhs)
+    {
+        ostream::operator=(_VSTD::move(__rhs));
+        __sb_ = _VSTD::move(__rhs.__sb_);
+        return *this;
+    }
+#endif  // _LIBCPP_CXX03_LANG
+
+    virtual ~ostrstream();
+
+    _LIBCPP_INLINE_VISIBILITY
+    void swap(ostrstream& __rhs)
+    {
+        ostream::swap(__rhs);
+        __sb_.swap(__rhs.__sb_);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    strstreambuf* rdbuf() const {return const_cast<strstreambuf*>(&__sb_);}
+    _LIBCPP_INLINE_VISIBILITY
+    void freeze(bool __freezefl = true) {__sb_.freeze(__freezefl);}
+    _LIBCPP_INLINE_VISIBILITY
+    char* str()         {return __sb_.str();}
+    _LIBCPP_INLINE_VISIBILITY
+    int pcount() const  {return __sb_.pcount();}
+
+private:
+    strstreambuf __sb_; // exposition only
+};
+
+class _LIBCPP_TYPE_VIS strstream
+    : public iostream
+{
+public:
+    // Types
+    typedef char                        char_type;
+    typedef char_traits<char>::int_type int_type;
+    typedef char_traits<char>::pos_type pos_type;
+    typedef char_traits<char>::off_type off_type;
+
+    // constructors/destructor
+    _LIBCPP_INLINE_VISIBILITY
+    strstream()
+        : iostream(&__sb_) {}
+    _LIBCPP_INLINE_VISIBILITY
+    strstream(char* __s, int __n, ios_base::openmode __mode = ios_base::in | ios_base::out)
+        : iostream(&__sb_),
+          __sb_(__s, __n, __s + (__mode & ios::app ? strlen(__s) : 0))
+        {}
+
+#ifndef _LIBCPP_CXX03_LANG
+    _LIBCPP_INLINE_VISIBILITY
+    strstream(strstream&& __rhs)
+        : iostream(_VSTD::move(__rhs)),
+          __sb_(_VSTD::move(__rhs.__sb_))
+    {
+        iostream::set_rdbuf(&__sb_);
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    strstream& operator=(strstream&& __rhs)
+    {
+        iostream::operator=(_VSTD::move(__rhs));
+        __sb_ = _VSTD::move(__rhs.__sb_);
+        return *this;
+    }
+#endif  // _LIBCPP_CXX03_LANG
+
+    virtual ~strstream();
+
+    _LIBCPP_INLINE_VISIBILITY
+    void swap(strstream& __rhs)
+    {
+        iostream::swap(__rhs);
+        __sb_.swap(__rhs.__sb_);
+    }
+
+    // Members:
+    _LIBCPP_INLINE_VISIBILITY
+    strstreambuf* rdbuf() const {return const_cast<strstreambuf*>(&__sb_);}
+    _LIBCPP_INLINE_VISIBILITY
+    void freeze(bool __freezefl = true) {__sb_.freeze(__freezefl);}
+    _LIBCPP_INLINE_VISIBILITY
+    int pcount() const {return __sb_.pcount();}
+    _LIBCPP_INLINE_VISIBILITY
+    char* str()        {return __sb_.str();}
+
+private:
+    strstreambuf __sb_; // exposition only
+};
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif  // _LIBCPP_STRSTREAM

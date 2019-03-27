@@ -1,0 +1,6 @@
+--encode-rfc1510-bit-string
+--sequence=Principals
+--sequence=AuthorizationData
+--sequence=METHOD-DATA
+--sequence=ETYPE-INFO
+--sequence=ETYPE-INFO2

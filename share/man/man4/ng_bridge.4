@@ -1,0 +1,212 @@
+.\" Copyright (c) 2000 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 5, 2010
+.Dt NG_BRIDGE 4
+.Os
+.Sh NAME
+.Nm ng_bridge
+.Nd Ethernet bridging netgraph node type
+.Sh SYNOPSIS
+.In sys/types.h
+.In netgraph/ng_bridge.h
+.Sh DESCRIPTION
+The
+.Nm bridge
+node type performs Ethernet bridging over one or more links.
+Each link (represented by a connected hook) is used to transmit
+and receive raw Ethernet frames.
+As packets are received, the node learns which link each
+host resides on.
+Packets unicast to a known host are directed out the appropriate
+link only, and other links are spared the traffic.
+This behavior is in contrast to a hub, which always forwards
+every received packet to every other link.
+.Sh LOOP DETECTION
+The
+.Nm bridge
+node incorporates a simple loop detection algorithm.
+A loop is when two ports are connected to the same physical medium.
+Loops are important to avoid because of packet storms, which severely
+degrade performance.
+A packet storm results when the same packet is sent and received
+over and over again.
+If a host is detected on link A, and is then detected on link B
+within a certain time period after first being detected on link A,
+then link B is considered to be a looped back link.
+The time period is called the minimum stable time.
+.Pp
+A looped back link will be temporarily muted, i.e., all traffic
+received on that link is ignored.
+.Sh IPFW PROCESSING
+Processing of IP packets via the
+.Xr ipfirewall 4
+mechanism on a per-link basis is not yet implemented.
+.Sh HOOKS
+This node type supports up to
+.Dv NG_BRIDGE_MAX_LINKS
+hooks.
+Each connected hook represents a bridged link.
+The hooks are named
+.Dv link0 ,
+.Dv link1 ,
+etc.
+Typically these hooks are connected to the
+.Dv lower
+hooks of one or more
+.Xr ng_ether 4
+nodes.
+To connect the host machine to a bridged network, simply connect the
+.Dv upper
+hook of an
+.Xr ng_ether 4
+node to the bridge node.
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the
+following:
+.Bl -tag -width foo
+.It Dv NGM_BRIDGE_SET_CONFIG Pq Ic setconfig
+Set the node configuration.
+This command takes a
+.Dv "struct ng_bridge_config"
+as an argument:
+.Bd -literal -offset 0n
+/* Node configuration structure */
+struct ng_bridge_config {
+  u_char      ipfw[NG_BRIDGE_MAX_LINKS]; /* enable ipfw */
+  u_char      debugLevel;           /* debug level */
+  uint32_t    loopTimeout;          /* link loopback mute time */
+  uint32_t    maxStaleness;         /* max host age before nuking */
+  uint32_t    minStableAge;         /* min time for a stable host */
+};
+.Ed
+.Pp
+The
+.Dv ipfw
+array enables
+.Xr ipfirewall 4
+processing of IP packets received on the corresponding links.
+The
+.Dv debugLevel
+field sets the debug level on the node.
+At level of 2 or greater, detected loops are logged.
+The default level is 1.
+.Pp
+The
+.Dv loopTimeout
+determines how long (in seconds) a looped link is muted.
+The default is 60 seconds.
+The
+.Dv maxStaleness
+parameter determines how long a period of inactivity before
+a host's entry is forgotten.
+The default is 15 minutes.
+The
+.Dv minStableAge
+determines how quickly a host must jump from one link to another
+before we declare a loopback condition.
+The default is one second.
+.It Dv NGM_BRIDGE_GET_CONFIG Pq Ic getconfig
+Returns the current configuration as a
+.Dv "struct ng_bridge_config" .
+.It Dv NGM_BRIDGE_RESET Pq Ic reset
+Causes the node to forget all hosts and unmute all links.
+The node configuration is not changed.
+.It Dv NGM_BRIDGE_GET_STATS Pq Ic getstats
+This command takes a four byte link number as an argument and
+returns a
+.Dv "struct ng_bridge_link_stats"
+containing statistics for the corresponding link, which must be
+currently connected:
+.Bd -literal -offset 0n
+/* Statistics structure (one for each link) */
+struct ng_bridge_link_stats {
+  uint64_t   recvOctets;     /* total octets rec'd on link */
+  uint64_t   recvPackets;    /* total pkts rec'd on link */
+  uint64_t   recvMulticasts; /* multicast pkts rec'd on link */
+  uint64_t   recvBroadcasts; /* broadcast pkts rec'd on link */
+  uint64_t   recvUnknown;    /* pkts rec'd with unknown dest addr */
+  uint64_t   recvRunts;      /* pkts rec'd less than 14 bytes */
+  uint64_t   recvInvalid;    /* pkts rec'd with bogus source addr */
+  uint64_t   xmitOctets;     /* total octets xmit'd on link */
+  uint64_t   xmitPackets;    /* total pkts xmit'd on link */
+  uint64_t   xmitMulticasts; /* multicast pkts xmit'd on link */
+  uint64_t   xmitBroadcasts; /* broadcast pkts xmit'd on link */
+  uint64_t   loopDrops;      /* pkts dropped due to loopback */
+  uint64_t   loopDetects;    /* number of loop detections */
+  uint64_t   memoryFailures; /* times couldn't get mem or mbuf */
+};
+.Ed
+.It Dv NGM_BRIDGE_CLR_STATS Pq Ic clrstats
+This command takes a four byte link number as an argument and
+clears the statistics for that link.
+.It Dv NGM_BRIDGE_GETCLR_STATS Pq Ic getclrstats
+Same as
+.Dv NGM_BRIDGE_GET_STATS ,
+but also atomically clears the statistics as well.
+.It Dv NGM_BRIDGE_GET_TABLE Pq Ic gettable
+Returns the current host mapping table used to direct packets, in a
+.Dv "struct ng_bridge_host_ary" .
+.It Dv NGM_BRIDGE_SET_PERSISTENT Pq Ic setpersistent
+This command sets the persistent flag on the node, and takes no arguments.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+Setting the persistent flag via a
+.Dv NGM_BRIDGE_SET_PERSISTENT
+control message disables automatic node shutdown when the last hook gets
+disconnected.
+.Sh FILES
+.Bl -tag -width XXXXXXXX -compact
+.It Pa /usr/share/examples/netgraph/ether.bridge
+Example script showing how to set up a bridging network
+.El
+.Sh SEE ALSO
+.Xr if_bridge 4 ,
+.Xr netgraph 4 ,
+.Xr ng_ether 4 ,
+.Xr ng_hub 4 ,
+.Xr ng_one2many 4 ,
+.Xr ngctl 8
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.2 .
+.Sh AUTHORS
+.An Archie Cobbs Aq Mt archie@FreeBSD.org

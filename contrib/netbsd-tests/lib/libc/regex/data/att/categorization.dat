@@ -1,0 +1,62 @@
+NOTE	regex implementation categorization 2004-05-31
+
+?E	aa*			xaxaax	(1,2)					POSITION=leftmost
+;										POSITION=bug
+
+?E	(a*)(ab)*(b*)		abc	(0,2)(0,1)(?,?)(1,2)			ASSOCIATIVITY=right
+|E	(a*)(ab)*(b*)		abc	(0,2)(0,0)(0,2)(2,2)			ASSOCIATIVITY=left
+;										ASSOCIATIVITY=bug
+
+?E	((a*)(ab)*)((b*)(a*))	aba	(0,3)(0,2)(0,0)(0,2)(2,3)(2,2)(2,3)	SUBEXPRESSION=precedence
+|E	((a*)(ab)*)((b*)(a*))	aba	(0,3)(0,1)(0,1)(?,?)(1,3)(1,2)(2,3)	SUBEXPRESSION=grouping
+;										SUBEXPRESSION=bug
+
+?E	(...?.?)*		xxxxxx	(0,6)(4,6)				REPEAT_LONGEST=first
+|E	(...?.?)*		xxxxxx	(0,6)(2,6)				REPEAT_LONGEST=last
+|E	(...?.?)*		xxxxxx	OK					REPEAT_LONGEST=unknown
+;										REPEAT_LONGEST=bug
+
+?E	(a|ab)(bc|c)		abcabc	(0,3)(0,2)(2,3)				EXPECTED
+|E	(a|ab)(bc|c)		abcabc	(0,3)(0,1)(1,3)				BUG=alternation-order
+;										BUG=alternation-order-UNKNOWN
+
+?E	(aba|a*b)(aba|a*b)	ababa	(0,5)(0,2)(2,5)				EXPECTED
+|E	(aba|a*b)(aba|a*b)	ababa	(0,4)(0,3)(3,4)				BUG=first-match
+;										BUG=unknown-match
+
+?B	a\(b\)*\1		a	NOMATCH					EXPECTED
+|B	a\(b\)*\1		a	(0,1)					BUG=nomatch-match
+|B	a\(b\)*\1		abab	(0,2)(1,2)				# BUG=repeat-any
+;										BUG=nomatch-match-UNKNOWN
+
+?E	(a*){2}			xxxxx	(0,0)(0,0)				EXPECTED
+|E	(a*){2}			xxxxx	(5,5)(5,5)				BUG=range-null
+;										BUG=range-null-UNKNOWN
+
+?B	a\(b\)*\1		abab	NOMATCH					EXPECTED
+|B	a\(b\)*\1		abab	(0,1)					# BUG=nomatch-match
+|B	a\(b\)*\1		abab	(0,2)(1,2)				BUG=repeat-any
+;										BUG=repeat-any-UNKNOWN
+
+?E	(a*)*			a	(0,1)(0,1)				EXPECTED
+|E	(a*)*			ax	(0,1)(0,1)				BUG=repeat-null-unknown
+|E	(a*)*			a	(0,1)(1,1)				BUG=repeat-null
+;										BUG=repeat-null-UNKNOWN
+
+?E	(aba|a*b)*		ababa	(0,5)(2,5)				EXPECTED
+|E	(aba|a*b)*		ababa	(0,5)(3,4)				BUG=repeat-short
+|E	(aba|a*b)*		ababa	(0,4)(3,4)				# LENGTH=first
+;										BUG=repeat-short-UNKNOWN
+
+?E	(a(b)?)+		aba	(0,3)(2,3)				EXPECTED
+|E	(a(b)?)+		aba	(0,3)(2,3)(1,2)				BUG=repeat-artifact
+;										BUG=repeat-artifact-UNKNOWN
+
+?B	\(a\(b\)*\)*\2		abab	NOMATCH					EXPECTED
+|B	\(a\(b\)*\)*\2		abab	(0,4)(2,3)(1,2)				BUG=repeat-artifact-nomatch
+;										BUG=repeat-artifact-nomatch-UNKNOWN
+
+?E	(a?)((ab)?)(b?)a?(ab)?b?	abab	(0,4)(0,1)(1,1)(?,?)(1,2)(2,4)	BUG=subexpression-first
+|E	.*(.*)				ab	(0,2)(2,2)			EXPECTED
+|E	.*(.*)				ab	(0,2)(0,2)			BUG=subexpression-first
+;										BUG=subexpression-first-UNKNOWN

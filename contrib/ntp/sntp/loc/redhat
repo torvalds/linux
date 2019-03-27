@@ -1,0 +1,17 @@
+# RedHat/Fedora installations and man page suffixes
+MAN
+calc_tickadj,sbin,8
+ntp-keygen,sbin,8
+ntp-wait,sbin,8
+ntpd,sbin,8
+ntpdate,sbin,8
+ntpdc,sbin,8
+ntpdsim,sbin,8
+ntpq,sbin,8
+ntpsnmpd,sbin,8
+ntpsweep,noinst,8
+ntptime,sbin,8
+ntptrace,sbin,8
+sntp,sbin,8
+tickadj,sbin,8
+timetrim,sbin,8

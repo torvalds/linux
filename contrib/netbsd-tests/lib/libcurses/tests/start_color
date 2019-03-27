@@ -1,0 +1,5 @@
+include start
+call OK start_color
+call OK refresh
+comparend color_start.chk
+compare color_blank_draw.chk

@@ -1,0 +1,22 @@
+
+#----------------------------------------------------------------------------
+# $File: communications,v 1.5 2009/09/19 16:28:08 christos Exp $
+# communication
+
+# TTCN is the Tree and Tabular Combined Notation described in ISO 9646-3.
+# It is used for conformance testing of communication protocols.
+# Added by W. Borgert <debacle@debian.org>.
+0	string		$Suite			TTCN Abstract Test Suite
+>&1	string		$SuiteId
+>>&1	string		>\n			%s
+>&2	string		$SuiteId
+>>&1	string		>\n			%s
+>&3	string		$SuiteId
+>>&1	string		>\n			%s
+
+# MSC (message sequence charts) are a formal description technique,
+# described in ITU-T Z.120, mainly used for communication protocols.
+# Added by W. Borgert <debacle@debian.org>.
+0	string		mscdocument	Message Sequence Chart (document)
+0	string		msc		Message Sequence Chart (chart)
+0	string		submsc		Message Sequence Chart (subchart)

@@ -1,0 +1,214 @@
+#
+# Copyright (c) 2001-2003
+#	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+#	All rights reserved.
+#
+# Author: Harti Brandt <harti@freebsd.org>
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $Begemot: tree.def 517 2006-10-31 08:52:04Z brandt_h $
+#
+# System group and private Begemot SNMPd MIB.
+#
+
+include "tc.def"
+
+(1 internet
+  (2 mgmt
+    (1 mibII
+      (1 system
+#
+# The standard System group
+#
+        (1 sysDescr OCTETSTRING op_system_group GET)
+        (2 sysObjectId OID op_system_group GET)
+        (3 sysUpTime TIMETICKS op_system_group GET)
+        (4 sysContact OCTETSTRING op_system_group GET SET)
+        (5 sysName OCTETSTRING op_system_group GET SET)
+        (6 sysLocation OCTETSTRING op_system_group GET SET)
+        (7 sysServices INTEGER op_system_group GET)
+        (8 sysORLastChange TIMETICKS op_system_group GET)
+        (9 sysORTable
+          (1 sysOREntry : INTEGER op_or_table
+            (1 sysORIndex INTEGER)
+            (2 sysORID OID GET)
+            (3 sysORDescr OCTETSTRING GET)
+            (4 sysORUpTime TIMETICKS GET)
+        ))
+      )
+      (11 snmp
+        (1 snmpInPkts COUNTER op_snmp GET)
+        (3 snmpInBadVersions COUNTER op_snmp GET)
+        (4 snmpInBadCommunityNames COUNTER op_snmp GET)
+        (5 snmpInBadCommunityUses COUNTER op_snmp GET)
+        (6 snmpInASNParseErrs COUNTER op_snmp GET)
+        (30 snmpEnableAuthenTraps INTEGER op_snmp GET SET)
+        (31 snmpSilentDrops COUNTER op_snmp GET)
+        (32 snmpProxyDrops COUNTER op_snmp GET)
+      )
+  ))
+
+  (4 private
+    (1 enterprises
+#
+# FreeBSD stuff
+#
+      (2238 freeBSD
+        (4 freeBSDVersion)
+      )
+
+#
+# Private Begemot Stuff
+#
+      (12325 fokus
+        (1 begemot
+
+#
+# Daemon infrastructure
+#
+          (1 begemotSnmpd
+            (1 begemotSnmpdObjects
+
+#
+# Configuration
+#
+              (1 begemotSnmpdConfig
+                (1 begemotSnmpdTransmitBuffer INTEGER op_snmpd_config GET SET)
+                (2 begemotSnmpdReceiveBuffer INTEGER op_snmpd_config GET SET)
+                (3 begemotSnmpdCommunityDisable INTEGER op_snmpd_config GET SET)
+                (4 begemotSnmpdTrap1Addr IPADDRESS op_snmpd_config GET SET)
+                (5 begemotSnmpdVersionEnable UNSIGNED32 op_snmpd_config GET SET)
+              )
+              (2 begemotTrapSinkTable
+                (1 begemotTrapSinkEntry : IPADDRESS INTEGER op_trapsink
+                  (1 begemotTrapSinkAddr IPADDRESS)
+                  (2 begemotTrapSinkPort INTEGER)
+                  (3 begemotTrapSinkStatus INTEGER GET SET)
+                  (4 begemotTrapSinkComm OCTETSTRING GET SET)
+                  (5 begemotTrapSinkVersion INTEGER GET SET)
+                )
+              )
+#
+#	Port table
+#
+              (4 begemotSnmpdPortTable
+                (1 begemotSnmpdPortEntry : IPADDRESS INTEGER op_snmp_port
+                  (1 begemotSnmpdPortAddress IPADDRESS)
+                  (2 begemotSnmpdPortPort UNSIGNED32)
+                  (3 begemotSnmpdPortStatus INTEGER GET SET)
+              ))
+#
+#	Community table
+#
+	      (5 begemotSnmpdCommunityTable
+                (1 begemotSnmpdCommunityEntry : OCTETSTRING UNSIGNED32 op_community
+                  (1 begemotSnmpdCommunityModule OCTETSTRING)
+                  (2 begemotSnmpdCommunityIndex UNSIGNED32)
+                  (3 begemotSnmpdCommunityString OCTETSTRING GET SET)
+                  (4 begemotSnmpdCommunityDescr OCTETSTRING GET)
+                  (5 begemotSnmpdCommunityPermission INTEGER GET SET)
+              ))
+#
+#	Module table
+#
+              (6 begemotSnmpdModuleTable
+                (1 begemotSnmpdModuleEntry : OCTETSTRING op_modules
+                  (1 begemotSnmpdModuleSection OCTETSTRING)
+                  (2 begemotSnmpdModulePath OCTETSTRING GET SET)
+                  (3 begemotSnmpdModuleComment OCTETSTRING GET)
+              ))
+#
+# 	Statistics
+#
+              (7 begemotSnmpdStats
+                (1 begemotSnmpdStatsNoRxBufs COUNTER op_snmpd_stats GET)
+                (2 begemotSnmpdStatsNoTxBufs COUNTER op_snmpd_stats GET)
+                (3 begemotSnmpdStatsInTooLongPkts COUNTER op_snmpd_stats GET)
+                (4 begemotSnmpdStatsInBadPduTypes COUNTER op_snmpd_stats GET))
+#
+#	Debugging
+#
+              (8 begemotSnmpdDebug
+                (1 begemotSnmpdDebugDumpPdus INTEGER op_debug GET SET)
+                (2 begemotSnmpdDebugSnmpTrace UNSIGNED32 op_debug GET SET)
+                (3 begemotSnmpdDebugSyslogPri INTEGER op_debug GET SET))
+
+#
+#	Local (UNIX domain) port table
+#
+              (9 begemotSnmpdLocalPortTable
+                (1 begemotSnmpdLocalPortEntry : OCTETSTRING op_lsock_port
+                  (1 begemotSnmpdLocalPortPath OCTETSTRING)
+                  (2 begemotSnmpdLocalPortStatus INTEGER GET SET)
+		  (3 begemotSnmpdLocalPortType INTEGER GET SET)
+              ))
+
+              (10 begemotSnmpdTransportMappings
+                (1 begemotSnmpdTransportTable
+                  (1 begemotSnmpdTransportEntry : OCTETSTRING op_transport_table
+                    (1 begemotSnmpdTransportName OCTETSTRING)
+                    (2 begemotSnmpdTransportStatus INTEGER GET)
+                    (3 begemotSnmpdTransportOid OID GET)
+                ))
+                (2 begemotSnmpdTransUdp OID op_transport_dummy)
+                (3 begemotSnmpdTransLsock OID op_transport_dummy)
+              )
+ 	    )
+            (2 begemotSnmpdDefs
+              (1 begemotSnmpdAgent
+                (1 begemotSnmpdAgentFreeBSD OID op_dummy)
+              )
+            )
+          )
+      ))
+    )
+  )
+  (6 snmpV2
+    (3 snmpModules
+      (1 snmpMIB
+        (1 snmpMIBObjects
+          (4 snmpTrap
+            (1 snmpTrapOID OID op_snmp_trap)
+          )
+          (5 snmpTraps
+            (1 coldStart OID op_snmp_trap)
+            (2 warmStart OID op_snmp_trap)
+            (5 authenticationFailure OID op_snmp_trap)
+          )
+          (6 snmpSet
+            (1 snmpSetSerialNo INTEGER op_snmp_set GET SET)
+          )
+        )
+      )
+      (10 snmpFrameworkMIB
+        (2 snmpFrameworkMIBObjects
+          (1 snmpEngine
+            (1 snmpEngineID OCTETSTRING | SnmpEngineID op_snmp_engine GET)
+            (2 snmpEngineBoots INTEGER op_snmp_engine GET)
+            (3 snmpEngineTime INTEGER op_snmp_engine GET)
+            (4 snmpEngineMaxMessageSize INTEGER op_snmp_engine GET)
+          )
+        )
+      )
+  ))
+)

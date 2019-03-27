@@ -1,0 +1,716 @@
+.\" Copyright (c) Michael Smith
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 22, 2018
+.Dt LIBSA 3
+.Os
+.Sh NAME
+.Nm libsa
+.Nd support library for standalone executables
+.Sh SYNOPSIS
+.In stand.h
+.Sh DESCRIPTION
+The
+.Nm
+library provides a set of supporting functions for standalone
+applications, mimicking where possible the standard
+.Bx
+programming
+environment.
+The following sections group these functions by kind.
+Unless specifically described here, see the corresponding section 3
+manpages for the given functions.
+.Sh STRING FUNCTIONS
+String functions are available as documented in
+.Xr string 3
+and
+.Xr bstring 3 .
+.Sh MEMORY ALLOCATION
+.Bl -hang -width 10n
+.It Xo
+.Ft "void *"
+.Fn malloc "size_t size"
+.Xc
+.Pp
+Allocate
+.Fa size
+bytes of memory from the heap using a best-fit algorithm.
+.It Xo
+.Ft void
+.Fn free "void *ptr"
+.Xc
+.Pp
+Free the allocated object at
+.Fa ptr .
+.It Xo
+.Ft void
+.Fn setheap "void *start" "void *limit"
+.Xc
+.Pp
+Initialise the heap.
+This function must be called before calling
+.Fn alloc
+for the first time.
+The region between
+.Fa start
+and
+.Fa limit
+will be used for the heap; attempting to allocate beyond this will result
+in a panic.
+.It Xo
+.Ft "char *"
+.Fn sbrk "int junk"
+.Xc
+.Pp
+Provides the behaviour of
+.Fn sbrk 0 ,
+i.e., returns the highest point that the heap has reached.
+This value can
+be used during testing to determine the actual heap usage.
+The
+.Fa junk
+argument is ignored.
+.El
+.Sh ENVIRONMENT
+A set of functions are provided for manipulating a flat variable space similar
+to the traditional shell-supported environment.
+Major enhancements are support
+for set/unset hook functions.
+.Bl -hang -width 10n
+.It Xo
+.Ft "char *"
+.Fn getenv "const char *name"
+.Xc
+.It Xo
+.Ft int
+.Fn setenv "const char *name" "const char *value" "int overwrite"
+.Xc
+.It Xo
+.Ft int
+.Fn putenv "char *string"
+.Xc
+.It Xo
+.Ft int
+.Fn unsetenv "const char *name"
+.Xc
+.Pp
+These functions behave similarly to their standard library counterparts.
+.It Xo
+.Ft "struct env_var *"
+.Fn env_getenv "const char *name"
+.Xc
+.Pp
+Looks up a variable in the environment and returns its entire
+data structure.
+.It Xo
+.Ft int
+.Fn env_setenv "const char *name" "int flags" "const void *value" "ev_sethook_t sethook" "ev_unsethook_t unsethook"
+.Xc
+.Pp
+Creates a new or sets an existing environment variable called
+.Fa name .
+If creating a new variable, the
+.Fa sethook
+and
+.Fa unsethook
+arguments may be specified.
+.Pp
+The set hook is invoked whenever an attempt
+is made to set the variable, unless the EV_NOHOOK flag is set.
+Typically
+a set hook will validate the
+.Fa value
+argument, and then call
+.Fn env_setenv
+again with EV_NOHOOK set to actually save the value.
+The predefined function
+.Fn env_noset
+may be specified to refuse all attempts to set a variable.
+.Pp
+The unset hook is invoked when an attempt is made to unset a variable.
+If it
+returns zero, the variable will be unset.
+The predefined function
+.Fa env_nounset
+may be used to prevent a variable being unset.
+.El
+.Sh STANDARD LIBRARY SUPPORT
+.Bl -hang -width 10n
+.It Xo
+.Ft int
+.Fn abs "int i"
+.Xc
+.It Xo
+.Ft int
+.Fn getopt "int argc" "char * const *argv" "const char *optstring"
+.Xc
+.It Xo
+.Ft long
+.Fn strtol "const char *nptr" "char **endptr" "int base"
+.Xc
+.It Xo
+.Ft long long
+.Fn strtoll "const char *nptr" "char **endptr" "int base"
+.Xc
+.It Xo
+.Ft long
+.Fn strtoul "const char *nptr" "char **endptr" "int base"
+.Xc
+.It Xo
+.Ft long long
+.Fn strtoull "const char *nptr" "char **endptr" "int base"
+.Xc
+.It Xo
+.Ft void
+.Fn srandom "unsigned int seed"
+.Xc
+.It Xo
+.Ft "long"
+.Fn random void
+.Xc
+.It Xo
+.Ft "char *"
+.Fn strerror "int error"
+.Xc
+.Pp
+Returns error messages for the subset of errno values supported by
+.Nm .
+.It Fn assert expression
+.Pp
+Requires
+.In assert.h .
+.It Xo
+.Ft int
+.Fn setjmp "jmp_buf env"
+.Xc
+.It Xo
+.Ft void
+.Fn longjmp "jmp_buf env" "int val"
+.Xc
+.Pp
+Defined as
+.Fn _setjmp
+and
+.Fn _longjmp
+respectively as there is no signal state to manipulate.
+Requires
+.In setjmp.h .
+.El
+.Sh CHARACTER I/O
+.Bl -hang -width 10n
+.It Xo
+.Ft void
+.Fn gets "char *buf"
+.Xc
+.Pp
+Read characters from the console into
+.Fa buf .
+All of the standard cautions apply to this function.
+.It Xo
+.Ft void
+.Fn ngets "char *buf" "int size"
+.Xc
+.Pp
+Read at most
+.Fa size
+- 1 characters from the console into
+.Fa buf .
+If
+.Fa size
+is less than 1, the function's behaviour is as for
+.Fn gets .
+.It Xo
+.Ft int
+.Fn fgetstr "char *buf" "int size" "int fd"
+.Xc
+.Pp
+Read a line of at most
+.Fa size
+characters into
+.Fa buf .
+Line terminating characters are stripped, and the buffer is always
+.Dv NUL
+terminated.
+Returns the number of characters in
+.Fa buf
+if successful, or -1 if a read error occurs.
+.It Xo
+.Ft int
+.Fn printf "const char *fmt" "..."
+.Xc
+.It Xo
+.Ft void
+.Fn vprintf "const char *fmt" "va_list ap"
+.Xc
+.It Xo
+.Ft int
+.Fn sprintf "char *buf" "const char *fmt" "..."
+.Xc
+.It Xo
+.Ft void
+.Fn vsprintf "char *buf" "const char *fmt" "va_list ap"
+.Xc
+.Pp
+The *printf functions implement a subset of the standard
+.Fn printf
+family functionality and some extensions.
+The following standard conversions
+are supported: c,d,n,o,p,s,u,x.
+The following modifiers are supported:
++,-,#,*,0,field width,precision,l.
+.Pp
+The
+.Li b
+conversion is provided to decode error registers.
+Its usage is:
+.Bd -ragged -offset indent
+printf(
+.Qq reg=%b\en ,
+regval,
+.Qq <base><arg>*
+);
+.Ed
+.Pp
+where <base> is the output expressed as a control character, e.g.\& \e10 gives
+octal, \e20 gives hex.
+Each <arg> is a sequence of characters, the first of
+which gives the bit number to be inspected (origin 1) and the next characters
+(up to a character less than 32) give the text to be displayed if the bit is set.
+Thus
+.Bd -ragged -offset indent
+printf(
+.Qq reg=%b\en ,
+3,
+.Qq \e10\e2BITTWO\e1BITONE
+);
+.Ed
+.Pp
+would give the output
+.Bd -ragged -offset indent
+reg=3<BITTWO,BITONE>
+.Ed
+.Pp
+The
+.Li D
+conversion provides a hexdump facility, e.g.
+.Bd -ragged -offset indent
+printf(
+.Qq %6D ,
+ptr,
+.Qq \&:
+); gives
+.Qq XX:XX:XX:XX:XX:XX
+.Ed
+.Bd -ragged -offset indent
+printf(
+.Qq %*D ,
+len,
+ptr,
+.Qq "\ "
+); gives
+.Qq XX XX XX ...
+.Ed
+.El
+.Sh CHARACTER TESTS AND CONVERSIONS
+.Bl -hang -width 10n
+.It Xo
+.Ft int
+.Fn isupper "int c"
+.Xc
+.It Xo
+.Ft int
+.Fn islower "int c"
+.Xc
+.It Xo
+.Ft int
+.Fn isspace "int c"
+.Xc
+.It Xo
+.Ft int
+.Fn isdigit "int c"
+.Xc
+.It Xo
+.Ft int
+.Fn isxdigit "int c"
+.Xc
+.It Xo
+.Ft int
+.Fn isascii "int c"
+.Xc
+.It Xo
+.Ft int
+.Fn isalpha "int c"
+.Xc
+.It Xo
+.Ft int
+.Fn isalnum "int c"
+.Xc
+.It Xo
+.Ft int
+.Fn iscntrl "int c"
+.Xc
+.It Xo
+.Ft int
+.Fn isgraph "int c"
+.Xc
+.It Xo
+.Ft int
+.Fn ispunct "int c"
+.Xc
+.It Xo
+.Ft int
+.Fn toupper "int c"
+.Xc
+.It Xo
+.Ft int
+.Fn tolower "int c"
+.Xc
+.El
+.Sh FILE I/O
+.Bl -hang -width 10n
+.It Xo
+.Ft int
+.Fn open "const char *path" "int flags"
+.Xc
+.Pp
+Similar to the behaviour as specified in
+.Xr open 2 ,
+except that file creation is not supported, so the mode parameter is not
+required.
+The
+.Fa flags
+argument may be one of O_RDONLY, O_WRONLY and O_RDWR.
+Only UFS currently supports writing.
+.It Xo
+.Ft int
+.Fn close "int fd"
+.Xc
+.It Xo
+.Ft void
+.Fn closeall void
+.Xc
+.Pp
+Close all open files.
+.It Xo
+.Ft ssize_t
+.Fn read "int fd" "void *buf" "size_t len"
+.Xc
+.It Xo
+.Ft ssize_t
+.Fn write "int fd" "void *buf" "size_t len"
+.Xc
+.Pp
+(No file systems currently support writing.)
+.It Xo
+.Ft off_t
+.Fn lseek "int fd" "off_t offset" "int whence"
+.Xc
+.Pp
+Files being automatically uncompressed during reading cannot seek backwards
+from the current point.
+.It Xo
+.Ft int
+.Fn stat "const char *path" "struct stat *sb"
+.Xc
+.It Xo
+.Ft int
+.Fn fstat "int fd" "struct stat *sb"
+.Xc
+.Pp
+The
+.Fn stat
+and
+.Fn fstat
+functions only fill out the following fields in the
+.Fa sb
+structure: st_mode,st_nlink,st_uid,st_gid,st_size.
+The
+.Nm tftp
+file system cannot provide meaningful values for this call, and the
+.Nm cd9660
+file system always reports files having uid/gid of zero.
+.El
+.Sh PAGER
+The
+.Nm
+library supplies a simple internal pager to ease reading the output of large
+commands.
+.Bl -hang -width 10n
+.It Xo
+.Ft void
+.Fn pager_open
+.Xc
+.Pp
+Initialises the pager and tells it that the next line output will be the top of the
+display.
+The environment variable LINES is consulted to determine the number of
+lines to be displayed before pausing.
+.It Xo
+.Ft void
+.Fn pager_close void
+.Xc
+.Pp
+Closes the pager.
+.It Xo
+.Ft int
+.Fn pager_output "const char *lines"
+.Xc
+.Pp
+Sends the lines in the
+.Dv NUL Ns
+-terminated buffer at
+.Fa lines
+to the pager.
+Newline characters are counted in order to determine the number
+of lines being output (wrapped lines are not accounted for).
+The
+.Fn pager_output
+function will return zero when all of the lines have been output, or nonzero
+if the display was paused and the user elected to quit.
+.It Xo
+.Ft int
+.Fn pager_file "const char *fname"
+.Xc
+.Pp
+Attempts to open and display the file
+.Fa fname .
+Returns -1 on error, 0 at EOF, or 1 if the user elects to quit while reading.
+.El
+.Sh MISC
+.Bl -hang -width 10n
+.It Xo
+.Ft void
+.Fn twiddle void
+.Xc
+.Pp
+Successive calls emit the characters in the sequence |,/,-,\\ followed by a
+backspace in order to provide reassurance to the user.
+.El
+.Sh REQUIRED LOW-LEVEL SUPPORT
+The following resources are consumed by
+.Nm
+- stack, heap, console and devices.
+.Pp
+The stack must be established before
+.Nm
+functions can be invoked.
+Stack requirements vary depending on the functions
+and file systems used by the consumer and the support layer functions detailed
+below.
+.Pp
+The heap must be established before calling
+.Fn alloc
+or
+.Fn open
+by calling
+.Fn setheap .
+Heap usage will vary depending on the number of simultaneously open files,
+as well as client behaviour.
+Automatic decompression will allocate more
+than 64K of data per open file.
+.Pp
+Console access is performed via the
+.Fn getchar ,
+.Fn putchar
+and
+.Fn ischar
+functions detailed below.
+.Pp
+Device access is initiated via
+.Fn devopen
+and is performed through the
+.Fn dv_strategy ,
+.Fn dv_ioctl
+and
+.Fn dv_close
+functions in the device switch structure that
+.Fn devopen
+returns.
+.Pp
+The consumer must provide the following support functions:
+.Bl -hang -width 10n
+.It Xo
+.Ft int
+.Fn getchar void
+.Xc
+.Pp
+Return a character from the console, used by
+.Fn gets ,
+.Fn ngets
+and pager functions.
+.It Xo
+.Ft int
+.Fn ischar void
+.Xc
+.Pp
+Returns nonzero if a character is waiting from the console.
+.It Xo
+.Ft void
+.Fn putchar int
+.Xc
+.Pp
+Write a character to the console, used by
+.Fn gets ,
+.Fn ngets ,
+.Fn *printf ,
+.Fn panic
+and
+.Fn twiddle
+and thus by many other functions for debugging and informational output.
+.It Xo
+.Ft int
+.Fn devopen "struct open_file *of" "const char *name" "const char **file"
+.Xc
+.Pp
+Open the appropriate device for the file named in
+.Fa name ,
+returning in
+.Fa file
+a pointer to the remaining body of
+.Fa name
+which does not refer to the device.
+The
+.Va f_dev
+field in
+.Fa of
+will be set to point to the
+.Vt devsw
+structure for the opened device if successful.
+Device identifiers must
+always precede the path component, but may otherwise be arbitrarily formatted.
+Used by
+.Fn open
+and thus for all device-related I/O.
+.It Xo
+.Ft int
+.Fn devclose "struct open_file *of"
+.Xc
+.Pp
+Close the device allocated for
+.Fa of .
+The device driver itself will already have been called for the close; this call
+should clean up any allocation made by devopen only.
+.It Xo
+.Ft void
+.Fn abort
+.Xc
+.Pp
+Calls
+.Fn panic
+with a fixed string.
+.It Xo
+.Ft void
+.Fn panic "const char *msg" "..."
+.Xc
+.Pp
+Signal a fatal and unrecoverable error condition.
+The
+.Fa msg ...
+arguments are as for
+.Fn printf .
+.El
+.Sh INTERNAL FILE SYSTEMS
+Internal file systems are enabled by the consumer exporting the array
+.Vt struct fs_ops *file_system[] ,
+which should be initialised with pointers
+to
+.Vt struct fs_ops
+structures.
+The following file system handlers are supplied by
+.Nm ,
+the consumer may supply other file systems of their own:
+.Bl -hang -width ".Va cd9660_fsops"
+.It Va ufs_fsops
+The
+.Bx
+UFS.
+.It Va ext2fs_fsops
+Linux ext2fs file system.
+.It Va tftp_fsops
+File access via TFTP.
+.It Va nfs_fsops
+File access via NFS.
+.It Va cd9660_fsops
+ISO 9660 (CD-ROM) file system.
+.It Va gzipfs_fsops
+Stacked file system supporting gzipped files.
+When trying the gzipfs file system,
+.Nm
+appends
+.Li .gz
+to the end of the filename, and then tries to locate the file using the other
+file systems.
+Placement of this file system in the
+.Va file_system[]
+array determines whether gzipped files will be opened in preference to non-gzipped
+files.
+It is only possible to seek a gzipped file forwards, and
+.Fn stat
+and
+.Fn fstat
+on gzipped files will report an invalid length.
+.It Va bzipfs_fsops
+The same as
+.Va gzipfs_fsops ,
+but for
+.Xr bzip2 1 Ns -compressed
+files.
+.El
+.Pp
+The array of
+.Vt struct fs_ops
+pointers should be terminated with a NULL.
+.Sh DEVICES
+Devices are exported by the supporting code via the array
+.Vt struct devsw *devsw[]
+which is a NULL terminated array of pointers to device switch structures.
+.Sh HISTORY
+The
+.Nm
+library contains contributions from many sources, including:
+.Bl -bullet -compact
+.It
+.Nm libsa
+from
+.Nx
+.It
+.Nm libc
+and
+.Nm libkern
+from
+.Fx 3.0 .
+.It
+.Nm zalloc
+from
+.An Matthew Dillon Aq Mt dillon@backplane.com
+.El
+.Pp
+The reorganisation and port to
+.Fx 3.0 ,
+the environment functions and this manpage were written by
+.An Mike Smith Aq Mt msmith@FreeBSD.org .
+.Sh BUGS
+The lack of detailed memory usage data is unhelpful.

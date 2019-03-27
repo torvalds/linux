@@ -1,0 +1,104 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1998 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 15, 2017
+.Dt DEVICE 9
+.Os
+.Sh NAME
+.Nm device
+.Nd an abstract representation of a device
+.Sh SYNOPSIS
+.Vt typedef struct device *device_t ;
+.Sh DESCRIPTION
+The device object represents a piece of hardware attached to the
+system such as an expansion card, the bus which that card is plugged
+into, disk drives attached to the expansion card etc.
+The system defines one device,
+.Va root_bus
+and all other devices are created dynamically during
+autoconfiguration.
+Normally devices representing top-level buses in
+the system (ISA, PCI etc.) will be attached directly to
+.Va root_bus
+and other devices will be added as children of their relevant bus.
+.Pp
+The devices in a system form a tree.
+All devices except
+.Va root_bus
+have a parent (see
+.Xr device_get_parent 9 ) .
+In addition, any device can have children attached to it (see
+.Xr device_add_child 9 ,
+.Xr device_add_child_ordered 9 ,
+.Xr device_find_child 9 ,
+.Xr device_get_children 9 ,
+and
+.Xr device_delete_child 9 ) .
+.Pp
+A device which has been successfully probed and attached to the
+system will also have a driver (see
+.Xr device_get_driver 9
+and
+.Xr driver 9 )
+and a devclass (see
+.Xr device_get_devclass 9
+and
+.Xr devclass 9 ) .
+Various other attributes of the device include a unit number (see
+.Xr device_get_unit 9 ) ,
+verbose description (normally supplied by the driver, see
+.Xr device_set_desc 9
+and
+.Xr device_get_desc 9 ) ,
+a set of bus-specific variables (see
+.Xr device_get_ivars 9 )
+and a set of driver-specific variables (see
+.Xr device_get_softc 9 ) .
+.Pp
+Devices can be in one of several states:
+.Bl -tag -width DS_NOTPRESENT
+.It Dv DS_NOTPRESENT
+the device has not been probed for existence or the probe failed
+.It Dv DS_ALIVE
+the device probe succeeded but not yet attached
+.It Dv DS_ATTACHED
+the device has been successfully attached
+.It Dv DS_BUSY
+the device is currently open
+.El
+.Pp
+The current state of the device can be determined by calling
+.Xr device_get_state 9 .
+.Sh SEE ALSO
+.Xr devclass 9 ,
+.Xr driver 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

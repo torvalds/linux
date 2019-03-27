@@ -1,0 +1,58 @@
+=pod
+
+=head1 NAME
+
+DSA_SIG_get0, DSA_SIG_set0,
+DSA_SIG_new, DSA_SIG_free - allocate and free DSA signature objects
+
+=head1 SYNOPSIS
+
+ #include <openssl/dsa.h>
+
+ DSA_SIG *DSA_SIG_new(void);
+ void DSA_SIG_free(DSA_SIG *a);
+ void DSA_SIG_get0(const DSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps);
+ int DSA_SIG_set0(DSA_SIG *sig, BIGNUM *r, BIGNUM *s);
+
+=head1 DESCRIPTION
+
+DSA_SIG_new() allocates an empty B<DSA_SIG> structure.
+
+DSA_SIG_free() frees the B<DSA_SIG> structure and its components. The
+values are erased before the memory is returned to the system.
+
+DSA_SIG_get0() returns internal pointers to the B<r> and B<s> values contained
+in B<sig>.
+
+The B<r> and B<s> values can be set by calling DSA_SIG_set0() and passing the
+new values for B<r> and B<s> as parameters to the function. Calling this
+function transfers the memory management of the values to the DSA_SIG object,
+and therefore the values that have been passed in should not be freed directly
+after this function has been called.
+
+=head1 RETURN VALUES
+
+If the allocation fails, DSA_SIG_new() returns B<NULL> and sets an
+error code that can be obtained by
+L<ERR_get_error(3)>. Otherwise it returns a pointer
+to the newly allocated structure.
+
+DSA_SIG_free() returns no value.
+
+DSA_SIG_set0() returns 1 on success or 0 on failure.
+
+=head1 SEE ALSO
+
+L<DSA_new(3)>, L<ERR_get_error(3)>,
+L<DSA_do_sign(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,32 @@
+/dts-v1/;
+
+#include "HC5XXX.dtsi"
+
+/ {
+	compatible = "HC5661", "ralink,mt7620a-soc";
+	model = "HiWiFi HC5661";
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		system {
+			label = "hc5661:blue:system";
+			gpios = <&gpio0 9 1>;
+		};
+
+		internet {
+			label = "hc5661:blue:internet";
+			gpios = <&gpio0 11 1>;
+		};
+
+		wlan2g {
+			label = "hc5661:blue:wlan2g";
+			gpios = <&gpio3 0 1>;
+		};
+
+		wlan5g {
+			label = "hc5661:blue:wlan5g";
+			gpios = <&gpio0 7 1>;
+		};
+	};
+};

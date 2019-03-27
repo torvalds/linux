@@ -1,0 +1,527 @@
+// -*- C++ -*-
+//===---------------------------- numeric ---------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_NUMERIC
+#define _LIBCPP_NUMERIC
+
+/*
+    numeric synopsis
+
+namespace std
+{
+
+template <class InputIterator, class T>
+    T
+    accumulate(InputIterator first, InputIterator last, T init);
+
+template <class InputIterator, class T, class BinaryOperation>
+    T
+    accumulate(InputIterator first, InputIterator last, T init, BinaryOperation binary_op);
+
+template<class InputIterator>
+    typename iterator_traits<InputIterator>::value_type
+    reduce(InputIterator first, InputIterator last);  // C++17
+
+template<class InputIterator, class T>
+    T
+    reduce(InputIterator first, InputIterator last, T init);  // C++17
+
+template<class InputIterator, class T, class BinaryOperation>
+    T
+    reduce(InputIterator first, InputIterator last, T init, BinaryOperation binary_op);  // C++17
+
+template <class InputIterator1, class InputIterator2, class T>
+    T
+    inner_product(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, T init);
+
+template <class InputIterator1, class InputIterator2, class T, class BinaryOperation1, class BinaryOperation2>
+    T
+    inner_product(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
+                  T init, BinaryOperation1 binary_op1, BinaryOperation2 binary_op2);
+
+
+template<class InputIterator1, class InputIterator2, class T>
+    T
+    transform_reduce(InputIterator1 first1, InputIterator1 last1,
+                     InputIterator2 first2, T init);  // C++17
+
+template<class InputIterator1, class InputIterator2, class T, class BinaryOperation1, class BinaryOperation2>
+    T
+    transform_reduce(InputIterator1 first1, InputIterator1 last1,
+                     InputIterator2 first2, T init,
+                     BinaryOperation1 binary_op1, BinaryOperation2 binary_op2);  // C++17
+
+template<class InputIterator, class T, class BinaryOperation, class UnaryOperation>
+    T
+    transform_reduce(InputIterator first, InputIterator last, T init,
+                     BinaryOperation binary_op, UnaryOperation unary_op);  // C++17
+
+template <class InputIterator, class OutputIterator>
+    OutputIterator
+    partial_sum(InputIterator first, InputIterator last, OutputIterator result);
+
+template <class InputIterator, class OutputIterator, class BinaryOperation>
+    OutputIterator
+    partial_sum(InputIterator first, InputIterator last, OutputIterator result, BinaryOperation binary_op);
+
+template<class InputIterator, class OutputIterator, class T>
+    OutputIterator
+    exclusive_scan(InputIterator first, InputIterator last,
+                   OutputIterator result, T init); // C++17
+
+template<class InputIterator, class OutputIterator, class T, class BinaryOperation>
+    OutputIterator
+    exclusive_scan(InputIterator first, InputIterator last,
+                   OutputIterator result, T init, BinaryOperation binary_op); // C++17
+
+template<class InputIterator, class OutputIterator>
+    OutputIterator
+    inclusive_scan(InputIterator first, InputIterator last, OutputIterator result);  // C++17
+
+template<class InputIterator, class OutputIterator, class BinaryOperation>
+    OutputIterator
+    inclusive_scan(InputIterator first, InputIterator last,
+                   OutputIterator result, BinaryOperation binary_op);  // C++17
+
+template<class InputIterator, class OutputIterator, class BinaryOperation, class T>
+    OutputIterator
+    inclusive_scan(InputIterator first, InputIterator last,
+                   OutputIterator result, BinaryOperation binary_op, T init);  // C++17
+
+template<class InputIterator, class OutputIterator, class T,
+         class BinaryOperation, class UnaryOperation>
+    OutputIterator
+    transform_exclusive_scan(InputIterator first, InputIterator last,
+                             OutputIterator result, T init,
+                             BinaryOperation binary_op, UnaryOperation unary_op);  // C++17
+
+template<class InputIterator, class OutputIterator,
+         class BinaryOperation, class UnaryOperation>
+    OutputIterator
+    transform_inclusive_scan(InputIterator first, InputIterator last,
+                             OutputIterator result,
+                             BinaryOperation binary_op, UnaryOperation unary_op);  // C++17
+
+template<class InputIterator, class OutputIterator,
+         class BinaryOperation, class UnaryOperation, class T>
+    OutputIterator
+    transform_inclusive_scan(InputIterator first, InputIterator last,
+                             OutputIterator result,
+                             BinaryOperation binary_op, UnaryOperation unary_op,
+                             T init);  // C++17
+
+template <class InputIterator, class OutputIterator>
+    OutputIterator
+    adjacent_difference(InputIterator first, InputIterator last, OutputIterator result);
+
+template <class InputIterator, class OutputIterator, class BinaryOperation>
+    OutputIterator
+    adjacent_difference(InputIterator first, InputIterator last, OutputIterator result, BinaryOperation binary_op);
+
+template <class ForwardIterator, class T>
+    void iota(ForwardIterator first, ForwardIterator last, T value);
+
+template <class M, class N>
+    constexpr common_type_t<M,N> gcd(M m, N n);    // C++17
+
+template <class M, class N>
+    constexpr common_type_t<M,N> lcm(M m, N n);    // C++17
+
+}  // std
+
+*/
+
+#include <__config>
+#include <iterator>
+#include <limits> // for numeric_limits
+#include <functional>
+#include <version>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+template <class _InputIterator, class _Tp>
+inline _LIBCPP_INLINE_VISIBILITY
+_Tp
+accumulate(_InputIterator __first, _InputIterator __last, _Tp __init)
+{
+    for (; __first != __last; ++__first)
+        __init = __init + *__first;
+    return __init;
+}
+
+template <class _InputIterator, class _Tp, class _BinaryOperation>
+inline _LIBCPP_INLINE_VISIBILITY
+_Tp
+accumulate(_InputIterator __first, _InputIterator __last, _Tp __init, _BinaryOperation __binary_op)
+{
+    for (; __first != __last; ++__first)
+        __init = __binary_op(__init, *__first);
+    return __init;
+}
+
+#if _LIBCPP_STD_VER > 14
+template <class _InputIterator, class _Tp, class _BinaryOp>
+inline _LIBCPP_INLINE_VISIBILITY
+_Tp
+reduce(_InputIterator __first, _InputIterator __last, _Tp __init, _BinaryOp __b)
+{
+    for (; __first != __last; ++__first)
+        __init = __b(__init, *__first);
+    return __init;
+}
+
+template <class _InputIterator, class _Tp>
+inline _LIBCPP_INLINE_VISIBILITY
+_Tp
+reduce(_InputIterator __first, _InputIterator __last, _Tp __init)
+{
+    return _VSTD::reduce(__first, __last, __init, _VSTD::plus<>());
+}
+
+template <class _InputIterator>
+inline _LIBCPP_INLINE_VISIBILITY
+typename iterator_traits<_InputIterator>::value_type
+reduce(_InputIterator __first, _InputIterator __last)
+{
+    return _VSTD::reduce(__first, __last,
+       typename iterator_traits<_InputIterator>::value_type{});
+}
+#endif
+
+template <class _InputIterator1, class _InputIterator2, class _Tp>
+inline _LIBCPP_INLINE_VISIBILITY
+_Tp
+inner_product(_InputIterator1 __first1, _InputIterator1 __last1, _InputIterator2 __first2, _Tp __init)
+{
+    for (; __first1 != __last1; ++__first1, (void) ++__first2)
+        __init = __init + *__first1 * *__first2;
+    return __init;
+}
+
+template <class _InputIterator1, class _InputIterator2, class _Tp, class _BinaryOperation1, class _BinaryOperation2>
+inline _LIBCPP_INLINE_VISIBILITY
+_Tp
+inner_product(_InputIterator1 __first1, _InputIterator1 __last1, _InputIterator2 __first2,
+              _Tp __init, _BinaryOperation1 __binary_op1, _BinaryOperation2 __binary_op2)
+{
+    for (; __first1 != __last1; ++__first1, (void) ++__first2)
+        __init = __binary_op1(__init, __binary_op2(*__first1, *__first2));
+    return __init;
+}
+
+#if _LIBCPP_STD_VER > 14
+template <class _InputIterator, class _Tp, class _BinaryOp, class _UnaryOp>
+inline _LIBCPP_INLINE_VISIBILITY
+_Tp
+transform_reduce(_InputIterator __first, _InputIterator __last,
+           _Tp __init,  _BinaryOp __b, _UnaryOp __u)
+{
+    for (; __first != __last; ++__first)
+        __init = __b(__init, __u(*__first));
+    return __init;
+}
+
+template <class _InputIterator1, class _InputIterator2,
+          class _Tp, class _BinaryOp1, class _BinaryOp2>
+inline _LIBCPP_INLINE_VISIBILITY
+_Tp
+transform_reduce(_InputIterator1 __first1, _InputIterator1 __last1,
+                 _InputIterator2 __first2, _Tp __init,  _BinaryOp1 __b1, _BinaryOp2 __b2)
+{
+    for (; __first1 != __last1; ++__first1, (void) ++__first2)
+        __init = __b1(__init, __b2(*__first1, *__first2));
+    return __init;
+}
+
+template <class _InputIterator1, class _InputIterator2, class _Tp>
+inline _LIBCPP_INLINE_VISIBILITY
+_Tp
+transform_reduce(_InputIterator1 __first1, _InputIterator1 __last1,
+                 _InputIterator2 __first2, _Tp __init)
+{
+    return _VSTD::transform_reduce(__first1, __last1, __first2, _VSTD::move(__init),
+                                   _VSTD::plus<>(), _VSTD::multiplies<>());
+}
+#endif
+
+template <class _InputIterator, class _OutputIterator>
+inline _LIBCPP_INLINE_VISIBILITY
+_OutputIterator
+partial_sum(_InputIterator __first, _InputIterator __last, _OutputIterator __result)
+{
+    if (__first != __last)
+    {
+        typename iterator_traits<_InputIterator>::value_type __t(*__first);
+        *__result = __t;
+        for (++__first, (void) ++__result; __first != __last; ++__first, (void) ++__result)
+        {
+            __t = __t + *__first;
+            *__result = __t;
+        }
+    }
+    return __result;
+}
+
+template <class _InputIterator, class _OutputIterator, class _BinaryOperation>
+inline _LIBCPP_INLINE_VISIBILITY
+_OutputIterator
+partial_sum(_InputIterator __first, _InputIterator __last, _OutputIterator __result,
+              _BinaryOperation __binary_op)
+{
+    if (__first != __last)
+    {
+        typename iterator_traits<_InputIterator>::value_type __t(*__first);
+        *__result = __t;
+        for (++__first, (void) ++__result; __first != __last; ++__first, (void) ++__result)
+        {
+            __t = __binary_op(__t, *__first);
+            *__result = __t;
+        }
+    }
+    return __result;
+}
+
+#if _LIBCPP_STD_VER > 14
+template <class _InputIterator, class _OutputIterator, class _Tp, class _BinaryOp>
+inline _LIBCPP_INLINE_VISIBILITY
+_OutputIterator
+exclusive_scan(_InputIterator __first, _InputIterator __last,
+               _OutputIterator __result, _Tp __init, _BinaryOp __b)
+{
+    if (__first != __last)
+    {
+        _Tp __saved = __init;
+        do
+        {
+            __init = __b(__init, *__first);
+            *__result = __saved;
+            __saved = __init;
+            ++__result;
+        } while (++__first != __last);
+    }
+    return __result;
+}
+
+template <class _InputIterator, class _OutputIterator, class _Tp>
+inline _LIBCPP_INLINE_VISIBILITY
+_OutputIterator
+exclusive_scan(_InputIterator __first, _InputIterator __last,
+               _OutputIterator __result, _Tp __init)
+{
+    return _VSTD::exclusive_scan(__first, __last, __result, __init, _VSTD::plus<>());
+}
+
+template <class _InputIterator, class _OutputIterator, class _Tp, class _BinaryOp>
+_OutputIterator inclusive_scan(_InputIterator __first, _InputIterator __last,
+                               _OutputIterator __result, _BinaryOp __b,  _Tp __init)
+{
+    for (; __first != __last; ++__first, (void) ++__result) {
+        __init = __b(__init, *__first);
+        *__result = __init;
+        }
+    return __result;
+}
+
+template <class _InputIterator, class _OutputIterator, class _BinaryOp>
+_OutputIterator inclusive_scan(_InputIterator __first, _InputIterator __last,
+                               _OutputIterator __result, _BinaryOp __b)
+{
+    if (__first != __last) {
+        typename std::iterator_traits<_InputIterator>::value_type __init = *__first;
+        *__result++ = __init;
+        if (++__first != __last)
+            return _VSTD::inclusive_scan(__first, __last, __result, __b, __init);
+        }
+
+    return __result;
+}
+
+template <class _InputIterator, class _OutputIterator>
+_OutputIterator inclusive_scan(_InputIterator __first, _InputIterator __last,
+                               _OutputIterator __result)
+{
+    return _VSTD::inclusive_scan(__first, __last, __result, std::plus<>());
+}
+
+template <class _InputIterator, class _OutputIterator, class _Tp,
+          class _BinaryOp, class _UnaryOp>
+inline _LIBCPP_INLINE_VISIBILITY
+_OutputIterator
+transform_exclusive_scan(_InputIterator __first, _InputIterator __last,
+                           _OutputIterator __result, _Tp __init,
+                           _BinaryOp __b, _UnaryOp __u)
+{
+    if (__first != __last)
+    {
+        _Tp __saved = __init;
+        do
+        {
+            __init = __b(__init, __u(*__first));
+            *__result = __saved;
+            __saved = __init;
+            ++__result;
+        } while (++__first != __last);
+    }
+    return __result;
+}
+
+template <class _InputIterator, class _OutputIterator, class _Tp, class _BinaryOp, class _UnaryOp>
+_OutputIterator transform_inclusive_scan(_InputIterator __first, _InputIterator __last,
+                           _OutputIterator __result, _BinaryOp __b, _UnaryOp __u, _Tp __init)
+{
+    for (; __first != __last; ++__first, (void) ++__result) {
+        __init = __b(__init, __u(*__first));
+        *__result = __init;
+        }
+
+    return __result;
+}
+
+template <class _InputIterator, class _OutputIterator, class _BinaryOp, class _UnaryOp>
+_OutputIterator transform_inclusive_scan(_InputIterator __first, _InputIterator __last,
+                               _OutputIterator __result, _BinaryOp __b, _UnaryOp __u)
+{
+    if (__first != __last) {
+        typename std::iterator_traits<_InputIterator>::value_type __init = __u(*__first);
+        *__result++ = __init;
+        if (++__first != __last)
+            return _VSTD::transform_inclusive_scan(__first, __last, __result, __b, __u, __init);
+        }
+
+    return __result;
+}
+#endif
+
+template <class _InputIterator, class _OutputIterator>
+inline _LIBCPP_INLINE_VISIBILITY
+_OutputIterator
+adjacent_difference(_InputIterator __first, _InputIterator __last, _OutputIterator __result)
+{
+    if (__first != __last)
+    {
+        typename iterator_traits<_InputIterator>::value_type __t1(*__first);
+        *__result = __t1;
+        for (++__first, (void) ++__result; __first != __last; ++__first, (void) ++__result)
+        {
+            typename iterator_traits<_InputIterator>::value_type __t2(*__first);
+            *__result = __t2 - __t1;
+            __t1 = _VSTD::move(__t2);
+        }
+    }
+    return __result;
+}
+
+template <class _InputIterator, class _OutputIterator, class _BinaryOperation>
+inline _LIBCPP_INLINE_VISIBILITY
+_OutputIterator
+adjacent_difference(_InputIterator __first, _InputIterator __last, _OutputIterator __result,
+                      _BinaryOperation __binary_op)
+{
+    if (__first != __last)
+    {
+        typename iterator_traits<_InputIterator>::value_type __t1(*__first);
+        *__result = __t1;
+        for (++__first, (void) ++__result; __first != __last; ++__first, (void) ++__result)
+        {
+            typename iterator_traits<_InputIterator>::value_type __t2(*__first);
+            *__result = __binary_op(__t2, __t1);
+            __t1 = _VSTD::move(__t2);
+        }
+    }
+    return __result;
+}
+
+template <class _ForwardIterator, class _Tp>
+inline _LIBCPP_INLINE_VISIBILITY
+void
+iota(_ForwardIterator __first, _ForwardIterator __last, _Tp __value_)
+{
+    for (; __first != __last; ++__first, (void) ++__value_)
+        *__first = __value_;
+}
+
+
+#if _LIBCPP_STD_VER > 14
+template <typename _Result, typename _Source, bool _IsSigned = is_signed<_Source>::value> struct __abs;
+
+template <typename _Result, typename _Source>
+struct __abs<_Result, _Source, true> {
+    _LIBCPP_CONSTEXPR _LIBCPP_INLINE_VISIBILITY
+    _Result operator()(_Source __t) const noexcept
+    {
+    if (__t >= 0) return __t;
+    if (__t == numeric_limits<_Source>::min()) return -static_cast<_Result>(__t);
+    return -__t;
+    }
+};
+
+template <typename _Result, typename _Source>
+struct __abs<_Result, _Source, false> {
+    _LIBCPP_CONSTEXPR _LIBCPP_INLINE_VISIBILITY
+    _Result operator()(_Source __t) const noexcept { return __t; }
+};
+
+
+template<class _Tp>
+_LIBCPP_CONSTEXPR _LIBCPP_HIDDEN
+_Tp __gcd(_Tp __m, _Tp __n)
+{
+    static_assert((!is_signed<_Tp>::value), "");
+    return __n == 0 ? __m : _VSTD::__gcd<_Tp>(__n, __m % __n);
+}
+
+
+template<class _Tp, class _Up>
+_LIBCPP_CONSTEXPR _LIBCPP_INLINE_VISIBILITY
+common_type_t<_Tp,_Up>
+gcd(_Tp __m, _Up __n)
+{
+    static_assert((is_integral<_Tp>::value && is_integral<_Up>::value), "Arguments to gcd must be integer types");
+    static_assert((!is_same<typename remove_cv<_Tp>::type, bool>::value), "First argument to gcd cannot be bool" );
+    static_assert((!is_same<typename remove_cv<_Up>::type, bool>::value), "Second argument to gcd cannot be bool" );
+    using _Rp = common_type_t<_Tp,_Up>;
+    using _Wp = make_unsigned_t<_Rp>;
+    return static_cast<_Rp>(_VSTD::__gcd(
+        static_cast<_Wp>(__abs<_Rp, _Tp>()(__m)),
+        static_cast<_Wp>(__abs<_Rp, _Up>()(__n))));
+}
+
+template<class _Tp, class _Up>
+_LIBCPP_CONSTEXPR _LIBCPP_INLINE_VISIBILITY
+common_type_t<_Tp,_Up>
+lcm(_Tp __m, _Up __n)
+{
+    static_assert((is_integral<_Tp>::value && is_integral<_Up>::value), "Arguments to lcm must be integer types");
+    static_assert((!is_same<typename remove_cv<_Tp>::type, bool>::value), "First argument to lcm cannot be bool" );
+    static_assert((!is_same<typename remove_cv<_Up>::type, bool>::value), "Second argument to lcm cannot be bool" );
+    if (__m == 0 || __n == 0)
+        return 0;
+
+    using _Rp = common_type_t<_Tp,_Up>;
+    _Rp __val1 = __abs<_Rp, _Tp>()(__m) / _VSTD::gcd(__m, __n);
+    _Rp __val2 = __abs<_Rp, _Up>()(__n);
+    _LIBCPP_ASSERT((numeric_limits<_Rp>::max() / __val1 > __val2), "Overflow in lcm");
+    return __val1 * __val2;
+}
+
+#endif /* _LIBCPP_STD_VER > 14 */
+
+_LIBCPP_END_NAMESPACE_STD
+
+_LIBCPP_POP_MACROS
+
+#endif  // _LIBCPP_NUMERIC

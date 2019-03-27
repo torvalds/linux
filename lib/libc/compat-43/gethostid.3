@@ -1,0 +1,80 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)gethostid.3	8.1 (Berkeley) 6/2/93
+.\" $FreeBSD$
+.\"
+.Dd June 2, 1993
+.Dt GETHOSTID 3
+.Os
+.Sh NAME
+.Nm gethostid ,
+.Nm sethostid
+.Nd get/set unique identifier of current host
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft long
+.Fn gethostid void
+.Ft void
+.Fn sethostid "long hostid"
+.Sh DESCRIPTION
+The
+.Fn sethostid
+function
+establishes a 32-bit identifier for the
+current processor that is intended to be unique among all
+UNIX systems in existence.
+This is normally a DARPA Internet
+address for the local machine.
+This call is allowed only to the
+super-user and is normally performed at boot time.
+.Pp
+The
+.Fn gethostid
+function
+returns the 32-bit identifier for the current processor.
+.Pp
+This function has been deprecated.
+The hostid should be set or retrieved by use of
+.Xr sysctl 3 .
+.Sh SEE ALSO
+.Xr gethostname 3 ,
+.Xr sysctl 3 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Fn gethostid
+and
+.Fn sethostid
+syscalls appeared in
+.Bx 4.2
+and were dropped in
+.Bx 4.4 .
+.Sh BUGS
+32 bits for the identifier is too small.

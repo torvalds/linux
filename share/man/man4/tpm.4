@@ -1,0 +1,124 @@
+.\"
+.\" Copyright (c) 2010 Hans-Joerg Hoexer
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 31, 2018
+.Dt TPM 4
+.Os
+.Sh NAME
+.Nm tpm
+.Nd Trusted Platform Module
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device tpm"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+tpm_load="YES"
+.Ed
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.tpm.0.at="isa"
+.Cd hint.tpm.0.maddr="0xfed40000"
+.Cd hint.tpm.0.msize="0x5000"
+.Cd hint.tpm.1.at="isa"
+.Cd hint.tpm.1.maddr="0xfed40000"
+.Cd hint.tpm.1.msize="0x1000"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for various trusted platform modules (TPM) that can
+store cryptographic keys.
+.Pp
+Supported modules:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Atmel 97SC3203
+.It
+Broadcom BCM0102
+.It
+Infineon IFX SLD 9630 TT 1.1 and IFX SLB 9635 TT 1.2
+.It
+Intel INTC0102
+.It
+Sinosun SNS SSX35
+.It
+STM ST19WP18
+.It
+Winbond WEC WPCT200
+.El
+.Pp
+The driver can be configured to use an IRQ by providing a free ISA
+interrupt vector in
+.Pa /boot/device.hints .
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr device.hints 5 ,
+.Xr config 8
+.Pp
+The homepage of the BSSSD project, which developed the original
+.Nm
+driver:
+.Lk "http://bsssd.sourceforge.net/" .
+.Pp
+TPM main specification can be found at:
+.Lk "https://trustedcomputinggroup.org/resource/tpm-main-specification/" .
+.Sh STANDARDS
+TPM Main Specification Level 2 Version 1.2:
+.Bl -dash
+.It
+.Rs
+.%A ISO/IEC
+.%T 11889-1:2009, Information technology -- Trusted Platform Module -- Part 1: Overview
+.%U "https://www.iso.org/standard/50970.html"
+.Re
+.It
+.Rs
+.%A ISO/IEC
+.%T 11889-2:2009, Information technology -- Trusted Platform Module -- Part 2: Design principles
+.%U "https://www.iso.org/standard/50971.html"
+.Re
+.It
+.Rs
+.%A ISO/IEC
+.%T 11889-3:2009, Information technology -- Trusted Platform Module -- Part 3: Structures
+.%U "https://www.iso.org/standard/50972.html"
+.Re
+.El
+.Sh HISTORY
+The
+.Nm
+driver
+first appeared in
+.Fx 8.2
+and was later added to
+.Ox 6.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Michael Shalayeff
+and
+.An Hans-Joerg Hoexer .

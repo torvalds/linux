@@ -1,0 +1,174 @@
+.\" Copyright (c) 2001-2005 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd May 10, 2005
+.Dt KRB5_KRBHST_INIT 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_krbhst_init ,
+.Nm krb5_krbhst_init_flags ,
+.Nm krb5_krbhst_next ,
+.Nm krb5_krbhst_next_as_string ,
+.Nm krb5_krbhst_reset ,
+.Nm krb5_krbhst_free ,
+.Nm krb5_krbhst_format_string ,
+.Nm krb5_krbhst_get_addrinfo
+.Nd lookup Kerberos KDC hosts
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Ft krb5_error_code
+.Fn krb5_krbhst_init "krb5_context context" "const char *realm" "unsigned int type" "krb5_krbhst_handle *handle"
+.Ft krb5_error_code
+.Fn krb5_krbhst_init_flags "krb5_context context" "const char *realm" "unsigned int type" "int flags" "krb5_krbhst_handle *handle"
+.Ft krb5_error_code
+.Fn "krb5_krbhst_next" "krb5_context context" "krb5_krbhst_handle handle" "krb5_krbhst_info **host"
+.Ft krb5_error_code
+.Fn krb5_krbhst_next_as_string "krb5_context context" "krb5_krbhst_handle handle" "char *hostname" "size_t hostlen"
+.Ft void
+.Fn krb5_krbhst_reset "krb5_context context" "krb5_krbhst_handle handle"
+.Ft void
+.Fn krb5_krbhst_free "krb5_context context" "krb5_krbhst_handle handle"
+.Ft krb5_error_code
+.Fn krb5_krbhst_format_string "krb5_context context" "const krb5_krbhst_info *host" "char *hostname" "size_t hostlen"
+.Ft krb5_error_code
+.Fn krb5_krbhst_get_addrinfo "krb5_context context" "krb5_krbhst_info *host" "struct addrinfo **ai"
+.Sh DESCRIPTION
+These functions are used to sequence through all Kerberos hosts of a
+particular realm and service. The service type can be the KDCs, the
+administrative servers, the password changing servers, or the servers
+for Kerberos 4 ticket conversion.
+.Pp
+First a handle to a particular service is obtained by calling
+.Fn krb5_krbhst_init
+(or
+.Fn krb5_krbhst_init_flags )
+with the
+.Fa realm
+of interest and the type of service to lookup. The
+.Fa type
+can be one of:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It KRB5_KRBHST_KDC
+.It KRB5_KRBHST_ADMIN
+.It KRB5_KRBHST_CHANGEPW
+.It KRB5_KRBHST_KRB524
+.El
+.Pp
+The
+.Fa handle
+is returned to the caller, and should be passed to the other
+functions.
+.Pp
+The
+.Fa flag
+argument to
+.Nm krb5_krbhst_init_flags
+is the same flags as
+.Fn krb5_send_to_kdc_flags
+uses.
+Possible values are:
+.Pp
+.Bl -tag -width KRB5_KRBHST_FLAGS_LARGE_MSG -compact -offset indent
+.It KRB5_KRBHST_FLAGS_MASTER
+only talk to master (readwrite) KDC
+.It KRB5_KRBHST_FLAGS_LARGE_MSG
+this is a large message, so use transport that can handle that.
+.El
+.Pp
+For each call to
+.Fn krb5_krbhst_next
+information on a new host is returned. The former function returns in
+.Fa host
+a pointer to a structure containing information about the host, such
+as protocol, hostname, and port:
+.Bd -literal -offset indent
+typedef struct krb5_krbhst_info {
+    enum { KRB5_KRBHST_UDP,
+	   KRB5_KRBHST_TCP,
+	   KRB5_KRBHST_HTTP } proto;
+    unsigned short port;
+    struct addrinfo *ai;
+    struct krb5_krbhst_info *next;
+    char hostname[1];
+} krb5_krbhst_info;
+.Ed
+.Pp
+The related function,
+.Fn krb5_krbhst_next_as_string ,
+return the same information as a URL-like string.
+.Pp
+When there are no more hosts, these functions return
+.Dv KRB5_KDC_UNREACH .
+.Pp
+To re-iterate over all hosts, call
+.Fn krb5_krbhst_reset
+and the next call to
+.Fn krb5_krbhst_next
+will return the first host.
+.Pp
+When done with the handle,
+.Fn krb5_krbhst_free
+should be called.
+.Pp
+To use a
+.Va krb5_krbhst_info ,
+there are two functions:
+.Fn krb5_krbhst_format_string
+that will return a printable representation of that struct
+and
+.Fn krb5_krbhst_get_addrinfo
+that will return a
+.Va struct addrinfo
+that can then be used for communicating with the server mentioned.
+.Sh EXAMPLES
+The following code will print the KDCs of the realm
+.Dq MY.REALM :
+.Bd -literal -offset indent
+krb5_krbhst_handle handle;
+char host[MAXHOSTNAMELEN];
+krb5_krbhst_init(context, "MY.REALM", KRB5_KRBHST_KDC, &handle);
+while(krb5_krbhst_next_as_string(context, handle,
+				 host, sizeof(host)) == 0)
+    printf("%s\\n", host);
+krb5_krbhst_free(context, handle);
+.Ed
+.\" .Sh BUGS
+.Sh SEE ALSO
+.Xr getaddrinfo 3 ,
+.Xr krb5_get_krbhst 3 ,
+.Xr krb5_send_to_kdc_flags 3
+.Sh HISTORY
+These functions first appeared in Heimdal 0.3g.

@@ -1,0 +1,2 @@
+pass out proto tcp all flags S keep state(icmp-head icmpredir)
+block in proto icmp all icmp-type redir group icmpredir

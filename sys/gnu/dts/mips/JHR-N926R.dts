@@ -1,0 +1,127 @@
+/dts-v1/;
+
+#include "rt3050.dtsi"
+
+/ {
+	compatible = "JHR-N926R", "ralink,rt3052-soc";
+	model = "JCG JHR-N926R";
+
+	cfi@1f000000 {
+		compatible = "cfi-flash";
+		reg = <0x1f000000 0x800000>;
+		bank-width = <2>;
+		device-width = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x3b0000>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		wlan1 {
+			label = "jhr-n926r:red:wlan";
+			gpios = <&gpio0 20 1>;
+		};
+
+		wlan2 {
+			label = "jhr-n926r:yellow:wlan";
+			gpios = <&gpio0 19 1>;
+		};
+
+		wlan3 {
+			label = "jhr-n926r:green:wlan";
+			gpios = <&gpio0 17 1>;
+		};
+
+		system {
+			label = "jhr-n926r:blue:system";
+			gpios = <&gpio0 13 1>;
+		};
+	};
+
+	gpio_export {
+		compatible = "gpio-export";
+		#size-cells = <0>;
+
+		display_data {
+			gpio-export,name = "display_data";
+			gpio-export,output = <1>;
+			gpios = <&gpio0 7 1>;
+		};
+
+		display_clock {
+			gpio-export,name = "display_clock";
+			gpio-export,output = <1>;
+			gpios = <&gpio0 8 0>;
+		};
+
+		display_blank {
+			gpio-export,name = "display_blank";
+			gpio-export,output = <1>;
+			gpios = <&gpio0 11 0>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset_wps {
+			label = "reset_wps";
+			gpios = <&gpio0 10 1>;
+			linux,code = <0x198>;
+		};
+
+		wlan {
+			label = "wlan";
+			gpios = <&gpio0 1 1>;
+			linux,code = <0x100>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "spi", "i2c", "jtag", "rgmii", "mdio", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x2e>;
+};
+
+&esw {
+	mediatek,portmap = <0x3e>;
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};

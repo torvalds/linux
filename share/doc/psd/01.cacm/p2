@@ -1,0 +1,448 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)p2	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+3.6 I/O calls
+.PP
+The system calls to do I/O are designed to eliminate
+the differences between the various devices and styles of
+access.
+There is no distinction between ``random''
+and ``sequential'' I/O, nor is any logical record size imposed
+by the system.
+The size of an ordinary file is determined
+by the number of bytes written on it;
+no predetermination of the size of a file is necessary
+or possible.
+.PP
+To illustrate the essentials of I/O,
+some of the basic calls are
+summarized below
+in an anonymous language that will
+indicate the required parameters without getting into the
+underlying
+complexities.
+Each call to the system may potentially result in an error
+return, which for simplicity is not represented
+in the calling sequence.
+.PP
+To read or write a file assumed to exist already, it must
+be opened by the following call:
+.P1
+filep = open\|(\|name, flag\|)
+.P2
+where
+.UL name
+indicates the name of the file.
+An arbitrary path name may be given.
+The
+.UL flag
+argument indicates whether the file is to be read, written,
+or ``updated,'' that is, read and written simultaneously.
+.PP
+The returned value
+.UL filep
+is called a
+.IT "file descriptor" .
+It is a small integer used to identify the file
+in subsequent calls to read, write,
+or otherwise manipulate the file.
+.PP
+To create a new file or completely rewrite an old one,
+there is a
+.UL create
+system call that
+creates the given file if it does not exist,
+or truncates it to zero length
+if it does exist;
+.UL create
+also opens the new file for writing
+and, like
+.UL open ,
+returns a file descriptor.
+.PP
+The file system maintains no locks visible to the user, nor is there any
+restriction on the number of users who may have a file
+open for reading or writing.
+Although it is possible for the contents of a file
+to become scrambled when two users write on it simultaneously,
+in practice difficulties do not arise.
+We take the view that locks are neither
+necessary nor sufficient, in our environment,
+to prevent interference between users of the same file.
+They are unnecessary because we are not
+faced with large, single-file data bases
+maintained by independent processes.
+They are insufficient because
+locks in the ordinary sense, whereby
+one user is prevented from writing on a file that another
+user is reading,
+cannot prevent confusion
+when, for example, both users are editing
+a file with an editor that makes
+a copy of the file being edited.
+.PP
+There are, however,
+sufficient internal interlocks to maintain
+the logical consistency of the file system
+when two users engage simultaneously in
+activities such as writing on
+the same file,
+creating files in the same directory,
+or deleting each other's open files.
+.PP
+Except as indicated below, reading and writing
+are sequential.
+This means that if a particular
+byte in the file was the last byte written (or read),
+the next I/O call implicitly refers to the
+immediately following byte.
+For each open file there is a pointer, maintained
+inside the system,
+that indicates the next byte to be read
+or written.
+If
+.IT n
+bytes are read or written, the pointer advances
+by
+.IT n
+bytes.
+.PP
+Once a file is open, the following calls
+may be used:
+.P1
+n = read\|(\|filep, buffer, count\|)
+n = write\|(\|filep, buffer, count\|)
+.P2
+Up to
+.UL count
+bytes are transmitted between the file specified
+by
+.UL filep
+and the byte array
+specified by
+.UL buffer .
+The returned value
+.UL n
+is the number of bytes actually transmitted.
+In the
+.UL write
+case,
+.UL n
+is the same as
+.UL count
+except under exceptional conditions, such as I/O errors or
+end of physical medium on special files;
+in a
+.UL read ,
+however,
+.UL n
+may without error be less than
+.UL count .
+If the read pointer is so near the end of the
+file that reading
+.UL count
+characters
+would cause reading beyond the end, only sufficient
+bytes are transmitted to reach the end of the
+file;
+also, typewriter-like terminals
+never return more than one line of input.
+When a
+.UL read
+call returns with
+.UL n
+equal
+to zero, the end of the file has been reached.
+For disk files this occurs when the read pointer
+becomes equal to the current
+size of the file.
+It is possible to generate an end-of-file
+from a terminal by use of an escape
+sequence that depends on the device used.
+.PP
+Bytes written affect only those parts of a file implied by
+the position of the write pointer and the
+count; no other part of the file
+is changed.
+If the last byte lies beyond the end of the file, the
+file is made to grow as needed.
+.PP
+To do random (direct-access) I/O
+it is only necessary to move the read or write pointer
+to the appropriate location in the file.
+.P1
+location = lseek\|(\|filep, offset, base\|)
+.P2
+The pointer
+associated with
+.UL filep
+is moved to a position
+.UL offset
+bytes from the beginning of the file, from the current position
+of the pointer, or from the end of the file,
+depending on
+.UL base.
+.UL \&offset
+may be negative.
+For some devices (e.g., paper
+tape and
+terminals) seek calls are
+ignored.
+The actual offset from the beginning of the file
+to which the pointer was moved is returned
+in
+.UL location .
+.PP
+There are several additional system entries
+having to do with I/O and with the file
+system that will not be discussed.
+For example:
+close a file,
+get the status of a file,
+change the protection mode or the owner
+of a file,
+create a directory,
+make a link to an existing file,
+delete a file.
+.SH
+IV. IMPLEMENTATION OF THE FILE SYSTEM
+.PP
+As mentioned in Section 3.2 above, a directory entry contains
+only a name for the associated file and a pointer to the
+file itself.
+This pointer is an integer called the
+.IT i-number
+(for index number)
+of the file.
+When the file is accessed,
+its i-number is used as an index into
+a system table (the
+.IT i-list \|)
+stored in a known
+part of the device on which
+the directory resides.
+The entry found thereby (the file's
+.IT i-node \|)
+contains
+the description of the file:
+.IP i
+the user and group-\*sID\*n of its owner
+.IP ii
+its protection bits
+.IP iii
+the physical disk or tape addresses for the file contents
+.IP iv
+its size
+.IP v
+time of creation, last use, and last modification
+.IP vi
+the number of links to the file, that is, the number of times it appears in a directory
+.IP vii
+a code indicating whether the file is a directory, an ordinary file, or a special file.
+.LP
+The purpose of an
+.UL open
+or
+.UL create
+system call is to turn the path name given by the user
+into an i-number
+by searching the explicitly or implicitly named directories.
+Once a file is open,
+its device, i-number, and read/write pointer are stored in a system table
+indexed by the file descriptor returned by the
+.UL open
+or
+.UL create .
+Thus, during a subsequent
+call to read or write the
+file,
+the descriptor
+may be easily related to the information necessary to access the file.
+.PP
+When a new file is created,
+an i-node is allocated for it and a directory entry is made
+that contains the name of the file and the i-node
+number.
+Making a link to an existing file involves
+creating a directory entry with the new name,
+copying the i-number from the original file entry,
+and incrementing the link-count field of the i-node.
+Removing (deleting) a file is done by
+decrementing the
+link-count of the i-node specified by its directory entry
+and erasing the directory entry.
+If the link-count drops to 0,
+any disk blocks in the file
+are freed and the i-node is de-allocated.
+.PP
+The space on all disks that
+contain a file system is divided into a number of
+512-byte
+blocks logically addressed from 0 up to a limit that
+depends on the device.
+There is space in the i-node of each file for 13 device addresses.
+For nonspecial files,
+the first 10 device addresses point at the first
+10 blocks of the file.
+If the file is larger than 10 blocks,
+the 11 device address points to an
+indirect block containing up to 128 addresses
+of additional blocks in the file.
+Still larger files use the twelfth device address
+of the i-node to point to
+a double-indirect block naming
+128 indirect blocks,
+each
+pointing to 128 blocks of the file.
+If required,
+the thirteenth device address is
+a triple-indirect block.
+Thus files may conceptually grow to
+[\|(10+128+128\u\s62\s0\d+128\u\s63\s0\d)\*m512\|] bytes.
+Once opened,
+bytes numbered below 5120 can be read with a single
+disk access;
+bytes in the range 5120 to 70,656
+require two accesses;
+bytes in the range 70,656
+to 8,459,264
+require three accesses;
+bytes from there to the
+largest file
+(1,082,201,088)
+require four accesses.
+In practice,
+a device cache mechanism
+(see below)
+proves effective in eliminating
+most of the indirect fetches.
+.PP
+The foregoing discussion applies to ordinary files.
+When an I/O request is made to a file whose i-node indicates that it
+is special,
+the last 12 device address words are immaterial,
+and the first specifies
+an internal
+.IT "device name" ,
+which is interpreted as a pair of numbers
+representing,
+respectively, a device type
+and subdevice number.
+The device type indicates which
+system routine will deal with I/O on that device;
+the subdevice number selects, for example, a disk drive
+attached to a particular controller or one of several
+similar terminal interfaces.
+.PP
+In this environment, the implementation of the
+.UL mount
+system call (Section 3.4) is quite straightforward.
+.UL \&mount
+maintains a system table whose
+argument is the i-number and device name of the
+ordinary file specified
+during the
+.UL mount ,
+and whose corresponding value is the
+device name of the indicated special file.
+This table is searched for each i-number/device pair
+that turns up while a path name is being scanned
+during an
+.UL open
+or
+.UL create ;
+if a match is found,
+the i-number is replaced by the i-number of the root
+directory
+and the device name is replaced by the table value.
+.PP
+To the user, both reading and writing of files appear to
+be synchronous and unbuffered.
+That is, immediately after
+return from a
+.UL read
+call the data are available; conversely,
+after a
+.UL write
+the user's workspace may be reused.
+In fact, the system maintains a rather complicated
+buffering mechanism that reduces greatly the number
+of I/O operations required to access a file.
+Suppose a
+.UL write
+call is made specifying transmission
+of a single byte.
+The system
+will search its buffers to see
+whether the affected disk block currently resides in main memory;
+if not, it will be read in from the device.
+Then the affected byte is replaced in the buffer and an
+entry is made in a list of blocks to be written.
+The return from the
+.UL write
+call may then take place,
+although the actual I/O may not be completed until a later time.
+Conversely, if a single byte is read, the system determines
+whether the secondary storage block in which the byte is located is already
+in one of the system's buffers; if so, the byte can be returned immediately.
+If not, the block is read into a buffer and the byte picked out.
+.PP
+The system recognizes when
+a program has
+made accesses to
+sequential blocks of a file,
+and asynchronously
+pre-reads the next block.
+This significantly reduces
+the running time of most programs
+while adding little to
+system overhead.
+.PP
+A program that reads or writes files in units of 512 bytes
+has an advantage over a program that reads or writes
+a single byte at a time, but the gain is not immense;
+it comes mainly from the avoidance of system overhead.
+If a program is used rarely or does
+no great volume of I/O, it may quite reasonably
+read and write in units as small as it wishes.
+.PP
+The notion of the i-list is an unusual feature
+of
+.UX .
+In practice, this method of organizing the file system
+has proved quite reliable and easy to deal with.
+To the system itself, one of its strengths is
+the fact that each file has a short, unambiguous name
+related in a simple way to the protection, addressing,
+and other information needed to access the file.
+It also permits a quite simple and rapid
+algorithm for checking the consistency of a file system,
+for example, verification
+that the portions of each device containing useful information
+and those free to be allocated are disjoint and together
+exhaust the space on the device.
+This algorithm is independent
+of the directory hierarchy, because it need only scan
+the linearly organized i-list.
+At the same time the notion of the i-list induces certain
+peculiarities not found in other file system organizations.
+For example, there is the question of who is to be charged
+for the space a file occupies,
+because all directory entries for a file have equal status.
+Charging the owner of a file is unfair in general,
+for one user may create a file, another may link to
+it, and the first user may delete the file.
+The first user is still the owner of the
+file, but it should be charged
+to the second user.
+The simplest reasonably fair algorithm
+seems to be to spread the charges
+equally among users who have links to a file.
+Many installations
+avoid the
+issue by not charging any fees at all.

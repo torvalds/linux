@@ -1,0 +1,101 @@
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)column.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd July 29, 2004
+.Dt COLUMN 1
+.Os
+.Sh NAME
+.Nm column
+.Nd columnate lists
+.Sh SYNOPSIS
+.Nm
+.Op Fl tx
+.Op Fl c Ar columns
+.Op Fl s Ar sep
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility formats its input into multiple columns.
+Rows are filled before columns.
+Input is taken from
+.Ar file
+operands, or, by default, from the standard input.
+Empty lines are ignored.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl c
+Output is formatted for a display
+.Ar columns
+wide.
+.It Fl s
+Specify a set of characters to be used to delimit columns for the
+.Fl t
+option.
+.It Fl t
+Determine the number of columns the input contains and create a table.
+Columns are delimited with whitespace, by default, or with the characters
+supplied using the
+.Fl s
+option.
+Useful for pretty-printing displays.
+.It Fl x
+Fill columns before filling rows.
+.El
+.Sh ENVIRONMENT
+The
+.Ev COLUMNS , LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+.Dl (printf \&"PERM LINKS OWNER GROUP SIZE MONTH DAY \&"\ \&;\ \&\e
+.Dl printf \&"HH:MM/YEAR NAME\en\&"\ \&;\ \&\e
+.Dl ls -l \&| sed 1d) \&| column -t
+.Sh SEE ALSO
+.Xr colrm 1 ,
+.Xr ls 1 ,
+.Xr paste 1 ,
+.Xr sort 1
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 Reno .
+.Sh BUGS
+Input lines are limited to
+.Dv LINE_MAX
+(2048) bytes in length.

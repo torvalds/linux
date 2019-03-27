@@ -1,0 +1,95 @@
+-------------------------------------------------------------------------------
+-- Copyright (c) 2002,2006 Free Software Foundation, Inc.                    --
+--                                                                           --
+-- Permission is hereby granted, free of charge, to any person obtaining a   --
+-- copy of this software and associated documentation files (the             --
+-- "Software"), to deal in the Software without restriction, including       --
+-- without limitation the rights to use, copy, modify, merge, publish,       --
+-- distribute, distribute with modifications, sublicense, and/or sell copies --
+-- of the Software, and to permit persons to whom the Software is furnished  --
+-- to do so, subject to the following conditions:                            --
+--                                                                           --
+-- The above copyright notice and this permission notice shall be included   --
+-- in all copies or substantial portions of the Software.                    --
+--                                                                           --
+-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS   --
+-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF                --
+-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN --
+-- NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,       --
+-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR     --
+-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE --
+-- USE OR OTHER DEALINGS IN THE SOFTWARE.                                    --
+--                                                                           --
+-- Except as contained in this notice, the name(s) of the above copyright    --
+-- holders shall not be used in advertising or otherwise to promote the      --
+-- sale, use or other dealings in this Software without prior written        --
+-- authorization.                                                            --
+-------------------------------------------------------------------------------
+-- $Id: README.IZ,v 1.2 2006/04/22 23:13:05 tom Exp $
+---------------------------------------------------------------------
+
+Here is the patch.  I did no testing whatsoever with event watching
+requests present (I need some applications which exersize this before
+this, probably lynx ;-), but the code looks working "the normal way".
+
+I had no way to test that the poll() branch compiles/works...
+
+Here is the API: 
+
+*) two new functions wgetch_events() wgetstrn_event() are introduced,
+   which allow an event-watch specification given as the last argument;
+
+*) if the last argument is NULL, they behave as wgetch() and
+   wgetstrn() (TESTED!);
+
+*) the event specification is a pointer to _nc_eventlist, which
+   contains bookkeeping elements (count and the summary of results),
+   and an array of pointers to _nc_event;
+
+*) each _nc_event is a typed union, with two types supported "as
+   shipped": _NC_EVENT_TIMEOUT_MSEC, _NC_EVENT_FILE.  For
+   _NC_EVENT_FILE the fields are fd, flag, and the output field.
+
+*) The only supported flag "as shipped" is _NC_EVENT_FILE_READABLE.
+   If the file was found readable, the return field is set to this,
+   otherwise to 0;
+
+*) If these functions return KEY_EVENT, this means that the return
+   fields in both the _nc_eventlist and _nc_event structures make
+   sense.  The field result_flags of _nc_eventlist may have a
+   combination of bits _NC_EVENT_TIMEOUT_MSEC and _NC_EVENT_FILE_READABLE
+   set;
+
+*) The timeout_msec field of _NC_EVENT_TIMEOUT_MSEC _nc_event's is
+   updated on return, even if the return is not KEY_EVENT.  However,
+   the change in the value represents only the amount of time spent in
+   waiting for events, not the amount of time spent bookkeeping;
+
+*) the return KEY_EVENT of wgetstrn_event() means that the output
+   string includes the user input typed so far, but the user did not have
+   a chance to press ENTER (or whatever).  This call should be
+   repeated (with "shifted" pointer to a buffer, of course) to
+   complete the input;
+
+*) The presence of this extension can be checked via inspecting
+   #ifdef NCURSES_EVENT_VERSION.  This symbol is not defined on BeOS,
+   since there is no support for this on BeOS.
+
+Known issues:  calls interrupted by KEY_EVENT reset the ESCDELAY
+timer.  This is not entirely new, since other synthetic events behave
+the same (see "if (ch >= KEY_MIN)" branch of kgetch()).  However,
+KEY_EVENT may be generated in a continuous stream (say, when
+downloading a file), thus this may be more important than with other
+synthetic keys.  An additional field in window structure which keeps
+timestamp of the first raw key in the queue may be needed to
+circumvent this.
+
+Another possible issue: KEY_EVENT has a preference over a user input,
+so a stream of KEY_EVENT's can make input hard.  Maybe use
+result_flags as in input parameter too, which specifies whether the
+user input should have higher precedence?
+
+Also: I took an opportunity to document kgetch() better.
+
+Enjoy,
+Ilya

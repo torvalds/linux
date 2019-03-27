@@ -1,0 +1,37 @@
+# $FreeBSD$
+#
+# The Marvell CPU cores
+# - Compliant with V5TE architecture
+# - Super scalar dual issue CPU
+# - Big/Little Endian
+# - MMU/MPU
+# - L1 Cache: Supports streaming and write allocate
+# - Variable pipeline stages
+# - Out-of-order execution
+# - Branch Prediction
+# - JTAG/ICE
+# - Vector Floating Point (VFP) unit
+#
+arm/mv/gpio.c			optional	gpio
+arm/mv/mv_common.c		standard
+arm/mv/mv_localbus.c		standard
+arm/mv/armv5_machdep.c		standard
+arm/mv/mv_pci_ctrl.c		optional	pci | fdt
+arm/mv/mv_pci.c			optional	pci
+arm/mv/mv_ts.c			standard
+arm/mv/timer.c			optional	!soc_mv_armada38x
+
+dev/cesa/cesa.c			optional	cesa
+dev/iicbus/twsi/mv_twsi.c	optional	twsi
+dev/mge/if_mge.c		optional	mge
+dev/neta/if_mvneta_fdt.c	optional	neta fdt
+dev/neta/if_mvneta.c		optional	neta mdio mii
+dev/nand/nfc_mv.c		optional	nand
+dev/mvs/mvs_soc.c		optional	mvs
+dev/uart/uart_dev_ns8250.c	optional	uart
+dev/uart/uart_dev_snps.c	optional	uart
+dev/usb/controller/ehci_mv.c	optional	ehci
+dev/usb/controller/generic_xhci.c	optional	xhci
+dev/ahci/ahci_mv_fdt.c		optional	ahci
+
+kern/kern_clocksource.c		standard

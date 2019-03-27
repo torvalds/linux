@@ -1,0 +1,122 @@
+.\" Copyright (c) 1994 Adam Glass
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the Author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Adam Glass ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Adam Glass BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\""
+.Dd December 12, 2007
+.Dt IPCRM 1
+.Os
+.Sh NAME
+.Nm ipcrm
+.Nd "remove the specified message queues, semaphore sets, and shared segments"
+.Sh SYNOPSIS
+.Nm
+.Op Fl W
+.Op Fl v
+.Op Fl q Ar msqid
+.Op Fl m Ar shmid
+.Op Fl s Ar semid
+.Op Fl Q Ar msgkey
+.Op Fl M Ar shmkey
+.Op Fl S Ar semkey
+.Ar ...
+.Sh DESCRIPTION
+The
+.Nm
+utility removes the specified message queues, semaphores and shared memory
+segments.
+These System V IPC objects can be specified by their
+creation ID or any associated key.
+.Pp
+The following options are generic:
+.Bl -tag -width indent
+.It Fl v
+If specified once with -W or with -1 for an object, it will show
+all removed objects.
+If specified twice with -W or with -1 for an objects, it will show
+all removed objects and all failed removals.
+.It Fl W
+Try to wipe all specified message queues, semaphores and shared
+memory segments.
+.It Fl y
+Use the
+.Xr kvm 3
+interface instead of the
+.Xr sysctl 3
+interface to extract the required information.
+If
+.Nm
+is to operate on the running system,
+using
+.Xr kvm 3
+will require read privileges to
+.Pa /dev/kmem .
+.El
+.Pp
+The following options are used to specify which IPC objects will be removed.
+Any number and combination of these options can be used:
+.Bl -tag -width indent
+.It Fl q Ar msqid
+Remove the message queue associated with the ID
+.Ar msqid
+from the system.
+.It Fl m Ar shmid
+Mark the shared memory segment associated with ID
+.Ar shmid
+for removal.
+This marked segment will be destroyed after the last detach.
+.It Fl s Ar semid
+Remove the semaphore set associated with ID
+.Ar semid
+from the system.
+.It Fl Q Ar msgkey
+Remove the message queue associated with key
+.Ar msgkey
+from the system.
+.It Fl M Ar shmkey
+Mark the shared memory segment associated with key
+.Ar shmkey
+for removal.
+This marked segment will be destroyed after the last detach.
+.It Fl S Ar semkey
+Remove the semaphore set associated with key
+.Ar semkey
+from the system.
+.El
+.Pp
+The identifiers and keys associated with these System V IPC objects can be
+determined by using
+.Xr ipcs 1 .
+If the identifier or the key is -1, it will remove all these objects.
+.Sh SEE ALSO
+.Xr ipcs 1
+.Sh HISTORY
+The wiping of all System V IPC objects was first implemented in
+.Fx 6.4 No and 7.1.
+.Sh AUTHORS
+The original author was
+.An Adam Glass .
+The wiping of all System V IPC objects was thought up by
+.An Callum Gibson
+and extended and implemented by
+.An Edwin Groothuis .

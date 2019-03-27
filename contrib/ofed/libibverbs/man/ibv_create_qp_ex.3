@@ -1,0 +1,105 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_CREATE_QP_EX 3 2013-06-26 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_create_qp_ex, ibv_destroy_qp \- create or destroy a queue pair (QP)
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "struct ibv_qp *ibv_create_qp_ex(struct ibv_context " "*context" ,
+.BI "                                struct ibv_qp_init_attr_ex " "*qp_init_attr" );
+.sp
+.BI "int ibv_destroy_qp(struct ibv_qp " "*qp" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_create_qp_ex()
+creates a queue pair (QP) associated with the protection domain
+.I pd\fR.
+The argument
+.I qp_init_attr_ex
+is an ibv_qp_init_attr_ex struct, as defined in <infiniband/verbs.h>.
+.PP
+.nf
+struct ibv_qp_init_attr_ex {
+.in +8
+void                   *qp_context;     /* Associated context of the QP */
+struct ibv_cq          *send_cq;        /* CQ to be associated with the Send Queue (SQ) */
+struct ibv_cq          *recv_cq;        /* CQ to be associated with the Receive Queue (RQ) */
+struct ibv_srq         *srq;            /* SRQ handle if QP is to be associated with an SRQ, otherwise NULL */
+struct ibv_qp_cap       cap;            /* QP capabilities */
+enum ibv_qp_type        qp_type;        /* QP Transport Service Type: IBV_QPT_RC, IBV_QPT_UC, IBV_QPT_UD or IBV_QPT_RAW_PACKET */
+int                     sq_sig_all;     /* If set, each Work Request (WR) submitted to the SQ generates a completion entry */
+uint32_t                comp_mask;	/* Identifies valid fields */
+struct ibv_pd          *pd;		/* PD to be associated with the QP */
+struct ibv_xrcd        *xrcd;		/* XRC domain to be associated with the target QP */
+enum ibv_qp_create_flags create_flags;	/* Creation flags for this QP */
+uint16_t                max_tso_header; /* Maximum TSO header size */
+struct ibv_rwq_ind_table *rwq_ind_tbl;  /* Indirection table to be associated with the QP */
+struct ibv_rx_hash_conf  rx_hash_conf;  /* RX hash configuration to be used */
+.in -8
+};
+.sp
+.nf
+struct ibv_qp_cap {
+.in +8
+uint32_t                max_send_wr;    /* Requested max number of outstanding WRs in the SQ */
+uint32_t                max_recv_wr;    /* Requested max number of outstanding WRs in the RQ */
+uint32_t                max_send_sge;   /* Requested max number of scatter/gather (s/g) elements in a WR in the SQ */
+uint32_t                max_recv_sge;   /* Requested max number of s/g elements in a WR in the SQ */
+uint32_t                max_inline_data;/* Requested max number of data (bytes) that can be posted inline to the SQ, otherwise 0 */
+.in -8
+};
+.nf
+enum ibv_qp_create_flags {
+.in +8
+IBV_QP_CREATE_BLOCK_SELF_MCAST_LB       = 1 << 1, /* Prevent self multicast loopback */
+IBV_QP_CREATE_SCATTER_FCS               = 1 << 8, /* FCS field will be scattered to host memory */
+IBV_QP_CREATE_CVLAN_STRIPPING           = 1 << 9, /* CVLAN field will be stripped from incoming packets */
+.in -8
+};
+.nf
+struct ibv_rx_hash_conf {
+.in +8
+uint8_t                rx_hash_function;       /* RX hash function, use enum ibv_rx_hash_function_flags */
+uint8_t                rx_hash_key_len;        /* RX hash key length */
+uint8_t                *rx_hash_key;           /* RX hash key data */
+uint64_t               rx_hash_fields_mask;    /* RX fields that should participate in the hashing, use enum ibv_rx_hash_fields */
+.in -8
+};
+.fi
+.PP
+The function
+.B ibv_create_qp_ex()
+will update the
+.I qp_init_attr_ex\fB\fR->cap
+struct with the actual \s-1QP\s0 values of the QP that was created;
+the values will be greater than or equal to the values requested.
+.PP
+.B ibv_destroy_qp()
+destroys the QP
+.I qp\fR.
+.SH "RETURN VALUE"
+.B ibv_create_qp_ex()
+returns a pointer to the created QP, or NULL if the request fails.
+Check the QP number (\fBqp_num\fR) in the returned QP.
+.PP
+.B ibv_destroy_qp()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+.PP
+The attributes max_recv_wr and max_recv_sge are ignored by
+.B ibv_create_qp_ex()
+if the QP is to be associated with an SRQ.
+.PP
+.B ibv_destroy_qp()
+fails if the QP is attached to a multicast group.
+.SH "SEE ALSO"
+.BR ibv_alloc_pd (3),
+.BR ibv_modify_qp (3),
+.BR ibv_query_qp (3),
+.BR ibv_create_rwq_ind_table (3)
+.SH "AUTHORS"
+.TP
+Yishai Hadas <yishaih@mellanox.com>

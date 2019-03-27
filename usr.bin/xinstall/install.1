@@ -1,0 +1,380 @@
+.\" Copyright (c) 1987, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	From: @(#)install.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd January 18, 2013
+.Dt INSTALL 1
+.Os
+.Sh NAME
+.Nm install
+.Nd install binaries
+.Sh SYNOPSIS
+.Nm
+.Op Fl bCcpSsUv
+.Op Fl B Ar suffix
+.Op Fl D Ar destdir
+.Op Fl f Ar flags
+.Op Fl g Ar group
+.Op Fl h Ar hash
+.Op Fl l Ar linkflags
+.Op Fl M Ar metalog
+.Op Fl m Ar mode
+.Op Fl N Ar dbdir
+.Op Fl o Ar owner
+.Op Fl T Ar tags
+.Ar file1 file2
+.Nm
+.Op Fl bCcpSsUv
+.Op Fl B Ar suffix
+.Op Fl D Ar destdir
+.Op Fl f Ar flags
+.Op Fl g Ar group
+.Op Fl h Ar hash
+.Op Fl l Ar linkflags
+.Op Fl M Ar metalog
+.Op Fl m Ar mode
+.Op Fl N Ar dbdir
+.Op Fl o Ar owner
+.Op Fl T Ar tags
+.Ar file1 ... fileN directory
+.Nm
+.Fl d
+.Op Fl Uv
+.Op Fl D Ar destdir
+.Op Fl g Ar group
+.Op Fl h Ar hash
+.Op Fl M Ar metalog
+.Op Fl m Ar mode
+.Op Fl N Ar dbdir
+.Op Fl o Ar owner
+.Op Fl T Ar tags
+.Ar directory ...
+.Sh DESCRIPTION
+The file(s) are copied
+(or linked if the
+.Fl l
+option is specified) to the target file or directory.
+If the destination is a directory, then the
+.Ar file
+is copied into
+.Ar directory
+with its original filename.
+If the target file already exists, it is
+either renamed to
+.Ar file Ns Pa .old
+if the
+.Fl b
+option is given
+or overwritten
+if permissions allow.
+An alternate backup suffix may be specified via the
+.Fl B
+option's argument.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl b
+Back up any existing files before overwriting them by renaming
+them to
+.Ar file Ns Pa .old .
+See
+.Fl B
+for specifying a different backup suffix.
+.It Fl B Ar suffix
+Use
+.Ar suffix
+as the backup suffix if
+.Fl b
+is given.
+.It Fl C
+Copy the file.
+If the target file already exists and the files are the same,
+then do not change the modification time of the target.
+If the target's file flags and mode need not to be changed,
+the target's inode change time is also unchanged.
+.It Fl c
+Copy the file.
+This is actually the default.
+The
+.Fl c
+option is only included for backwards compatibility.
+.It Fl D Ar destdir
+Specify the
+.Ev DESTDIR
+(top of the file hierarchy) that the items are installed in to.
+If
+.Fl M Ar metalog
+is in use, a leading string of
+.Dq Ar destdir
+will be removed from the file names logged to the
+.Ar metalog .
+This option does not affect where the actual files are installed.
+.It Fl d
+Create directories.
+Missing parent directories are created as required.
+.It Fl f
+Specify the target's file flags; see
+.Xr chflags 1
+for a list of possible flags and their meanings.
+.It Fl g
+Specify a group.
+A numeric GID is allowed.
+.It Fl h Ar hash
+When copying, calculate the digest of the files with
+.Ar hash
+to store in the
+.Fl M Ar metalog .
+When
+.Fl d
+is given no hash is emitted.
+Supported digests:
+.Bl -tag -width rmd160 -offset indent
+.It Sy none
+No hash.
+This is the default.
+.It Sy md5
+The MD5 cryptographic message digest.
+.It Sy rmd160
+The RMD-160 cryptographic message digest.
+.It Sy sha1
+The SHA-1 cryptographic message digest.
+.It Sy sha256
+The 256-bits
+.Tn SHA-2
+cryptographic message digest of the file.
+.It Sy sha512
+The 512-bits
+.Tn SHA-2
+cryptographic message digest of the file.
+.El
+.It Fl l Ar linkflags
+Instead of copying the file make a link to the source.
+The type of the link is determined by the
+.Ar linkflags
+argument.
+Valid
+.Ar linkflags
+are:
+.Ar a
+(absolute),
+.Ar r
+(relative),
+.Ar h
+(hard),
+.Ar s
+(symbolic),
+.Ar m
+(mixed).
+Absolute and relative have effect only for symbolic links.
+Mixed links
+are hard links for files on the same filesystem, symbolic otherwise.
+.It Fl M Ar metalog
+Write the metadata associated with each item installed to
+.Ar metalog
+in an
+.Xr mtree 8
+.Dq full path
+specification line.
+The metadata includes: the file name and file type, and depending upon
+other options, the owner, group, file flags, modification time, and tags.
+.It Fl m
+Specify an alternate mode.
+The default mode is set to rwxr-xr-x (0755).
+The specified mode may be either an octal or symbolic value; see
+.Xr chmod 1
+for a description of possible mode values.
+.It Fl N
+Use the user database text file
+.Pa master.passwd
+and group database text file
+.Pa group
+from
+.Ar dbdir ,
+rather than using the results from the system's
+.Xr getpwnam 3
+and
+.Xr getgrnam 3
+(and related) library calls.
+.It Fl o
+Specify an owner.
+A numeric UID is allowed.
+.It Fl p
+Preserve the access and modification times.
+Copy the file, as if the
+.Fl C
+(compare and copy) option is specified,
+except if the target file does not already exist or is different,
+then preserve the access and modification times of the source file.
+.It Fl S
+Safe copy.
+Normally,
+.Nm
+unlinks an existing target before installing the new file.
+With the
+.Fl S
+flag a temporary file is used and then renamed to be
+the target.
+The reason this is safer is that if the copy or
+rename fails, the existing target is left untouched.
+.It Fl s
+.Nm
+exec's the command
+.Xr strip 1
+to strip binaries so that
+.Nm
+can be portable over a large
+number of systems and binary types.
+See below for how
+.Nm
+can be instructed to use another program to strip binaries.
+.It Fl T Ar tags
+Specify the
+.Xr mtree 8
+tags to write out for the file when using
+.Fl M Ar metalog .
+.It Fl U
+Indicate that install is running unprivileged, and that it should not
+try to change the owner, the group, or the file flags of the destination.
+The information that would have been updated can be stored in a log
+file with
+.Fl M Ar metalog .
+.It Fl v
+Cause
+.Nm
+to be verbose,
+showing files as they are installed or backed up.
+.El
+.Pp
+By default,
+.Nm
+preserves all file flags, with the exception of the
+.Dq nodump
+flag.
+.Pp
+The
+.Nm
+utility attempts to prevent moving a file onto itself.
+.Pp
+Installing
+.Pa /dev/null
+creates an empty file.
+.Sh ENVIRONMENT
+The
+.Nm
+utility checks for the presence of the
+.Ev STRIPBIN
+environment variable and if present,
+uses the assigned value as the program to run if and when the
+.Fl s
+option has been specified.
+.Pp
+If the
+.Ev DONTSTRIP
+environment variable is present,
+.Nm
+will ignore any specification of the
+.Fl s
+option.
+This is mainly for use in debugging the
+.Fx
+Ports Collection.
+.Sh FILES
+.Bl -tag -width ".Pa INS@XXXX" -compact
+.It Pa INS@XXXX
+If either
+.Fl S
+option is specified, or the
+.Fl C
+or
+.Fl p
+option is used in conjunction with the
+.Fl s
+option, temporary files named
+.Pa INS@XXXX ,
+where
+.Pa XXXX
+is decided by
+.Xr mkstemp 3 ,
+are created in the target directory.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh COMPATIBILITY
+Historically
+.Nm
+moved files by default.
+The default was changed to copy in
+.Fx 4.4 .
+.Sh SEE ALSO
+.Xr chflags 1 ,
+.Xr chgrp 1 ,
+.Xr chmod 1 ,
+.Xr cp 1 ,
+.Xr mv 1 ,
+.Xr strip 1 ,
+.Xr mmap 2 ,
+.Xr getgrnam 3 ,
+.Xr getpwnam 3 ,
+.Xr chown 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.2 .
+.Sh BUGS
+The meaning of the
+.Fl M
+option has changed as of
+.Fx 9.2
+and it now takes an argument.
+Command lines that used the old
+.Fl M
+will get an error or in rare cases will append logs to the first of
+multiple source files rather than installing it.
+.Pp
+Temporary files may be left in the target directory if
+.Nm
+exits abnormally.
+.Pp
+File flags cannot be set by
+.Xr fchflags 2
+over a NFS file system.
+Other file systems do not have a concept of flags.
+The
+.Nm
+utility will only warn when flags could not be set on a file system
+that does not support them.
+.Pp
+The
+.Nm
+utility with
+.Fl v
+falsely says a file is copied when
+.Fl C
+snaps hard links.

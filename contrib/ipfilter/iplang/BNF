@@ -1,0 +1,69 @@
+line ::= iface | arp | send | defrouter | ipv4line .
+
+iface ::= ifhdr "{" ifaceopts "}" ";" .
+ifhdr ::= "interface" | "iface" .
+ifaceopts ::= "ifname" name | "mtu" mtu | "v4addr" ipaddr |
+	      "eaddr" eaddr .
+
+send ::= "send" ";" | "send" "{" sendbodyopts "}" ";" .
+sendbodyopts ::= sendbody [ sendbodyopts ] .
+sendbody ::= "ifname" name | "via" ipaddr .
+
+defrouter ::= "router" ipaddr .
+
+arp ::= "arp" "{" arpbodyopts "}" ";" .
+arpbodyopts ::= arpbody [ arpbodyopts ] .
+arpbody ::= "v4addr" ipaddr | "eaddr" eaddr .
+
+bodyline ::= ipv4line | tcpline | udpline | icmpline | dataline .
+
+ipv4line ::= "ipv4" "{" ipv4bodyopts "}" ";" .
+ipv4bodyopts ::= ipv4body [ ipv4bodyopts ] | bodyline .
+ipv4body ::= "proto" protocol | "src" ipaddr | "dst" ipaddr |
+	     "off" number | "v" number | "hl" number| "id" number |
+	     "ttl" number | "tos" number | "sum" number | "len" number |
+	     "opt" "{" ipv4optlist "}" ";" .
+ipv4optlist ::= ipv4option [ ipv4optlist ] .
+ipv4optlist = "nop" | "rr" | "zsu" | "mtup" | "mtur" | "encode" | "ts" |
+	      "tr" | "sec" | "lsrr" | "e-sec" | "cipso" | "satid" |
+	      "ssrr" | "addext" | "visa" | "imitd" | "eip" | "finn" |
+	      "secclass" ipv4secclass.
+ipv4secclass := "unclass" | "confid" | "reserv-1" | "reserv-2" |
+		"reserv-3" | "reserv-4" | "secret" | "topsecret" .
+
+tcpline ::= "tcp" "{" tcpbodyopts "}" ";" .
+tcpbodyopts ::= tcpbody [ tcpbodyopts ] | bodyline .
+tcpbody ::= "sport" port | "dport" port | "seq" number | "ack" number |
+	    "off" number | "urp" number | "win" number | "sum" number |
+	    "flags" tcpflags | data .
+
+udpline ::= "udp" "{" udpbodyopts "}" ";" .
+udpbodyopts ::= udpbody [ udpbodyopts ] | bodyline .
+udpbody ::= "sport" port | "dport" port | "len" number | "sum" number |
+	    data .
+
+icmpline ::= "icmp" "{" icmpbodyopts "}" ";" .
+icmpbodyopts ::= icmpbody [ icmpbodyopts ] | bodyline .
+icmpbody ::= "type" icmptype [ "code" icmpcode ] .
+icmptype ::= "echorep" | "echorep" "{" echoopts "}" ";" | "unreach" |
+	     "unreach" "{" unreachtype "}" ";" | "squench" | "redir" |
+	     "redir" "{" redirtype "}" ";" | "echo" "{" echoopts "}" ";" |
+	     "echo" | "routerad" | "routersol" | "timex" |
+	     "timex" "{" timextype "}" ";" | "paramprob" |
+	     "paramprob" "{" parapptype "}" ";" | "timest" | "timestrep" |
+	     "inforeq" | "inforep" | "maskreq" | "maskrep" .
+
+echoopts ::= echoopts [ icmpechoopts ] .
+unreachtype ::= "net-unr" | "host-unr" | "proto-unr" | "port-unr" |
+	     "needfrag" | "srcfail" | "net-unk" | "host-unk" | "isolate" |
+	     "net-prohib" | "host-prohib" | "net-tos" | "host-tos" |
+	     "filter-prohib" | "host-preced" | "cutoff-preced" .
+redirtype ::= "net-redir" | "host-redir" | "tos-net-redir" |
+	      "tos-host-redir" .
+timextype ::= "intrans" | "reass" .
+paramptype ::= "optabsent" .
+
+data	::= "data" "{" databodyopts "}" ";" .
+databodyopts ::= "len" number | "value" string | "file" filename .
+
+icmpechoopts ::= "icmpseq" number | "icmpid" number .

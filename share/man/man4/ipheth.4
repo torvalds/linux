@@ -1,0 +1,107 @@
+.\" Copyright (c) 2014 Gavin Atkinson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\"    - Redistributions of source code must retain the above copyright
+.\"      notice, this list of conditions and the following disclaimer.
+.\"    - Redistributions in binary form must reproduce the above
+.\"      copyright notice, this list of conditions and the following
+.\"      disclaimer in the documentation and/or other materials provided
+.\"      with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 24, 2015
+.Dt IPHETH 4
+.Os
+.Sh NAME
+.Nm ipheth
+.Nd "USB Apple iPhone/iPad tethered Ethernet driver"
+.Sh SYNOPSIS
+To load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ipheth_load="YES"
+.Ed
+.Pp
+Alternatively, to compile this driver into the kernel, place the
+following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
+.Cd "device miibus"
+.Cd "device uether"
+.Cd "device ipheth"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for network access through Apple
+iPhone and iPad devices, often referred to as USB tethering.
+.Pp
+.Nm
+should work with any Apple iPhone or iPad device.
+In most cases this must be explicitly enabled on the device first.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+The device does not support different media types or options.
+.Sh HARDWARE
+The following devices are supported by the
+.Nm
+driver:
+.Pp
+.Bl -bullet -compact
+.It
+Apple iPhone tethering (all models)
+.It
+Apple iPad tethering (all models)
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr cdce 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr urndis 4 ,
+.Xr usb 4 ,
+.Xr ifconfig 8 ,
+.Xr usbconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 8.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Hans Petter Selasky Aq Mt hselasky@FreeBSD.org .
+.Sh BUGS
+Some devices may need to be manually configured to use an alternative
+configuration with the
+.Xr usbconfig 8
+utility.
+A command similar to
+.Dl usbconfig -u 1 -a 2 set_config 3
+may be required if the device is not recognised automatically by
+.Nm
+after it is connected.

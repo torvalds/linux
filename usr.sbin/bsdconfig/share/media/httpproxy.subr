@@ -1,0 +1,463 @@
+if [ ! "$_MEDIA_HTTPPROXY_SUBR" ]; then _MEDIA_HTTPPROXY_SUBR=1
+#
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." media/httpproxy.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/media/ftp.subr
+f_include $BSDCFG_SHARE/media/tcpip.subr
+f_include $BSDCFG_SHARE/variable.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+############################################################ FUNCTIONS
+
+# f_media_set_http_proxy
+#
+# Return success if we both found and set the media type to be an ftp server,
+# accessed via http proxy.
+#
+# Variables from variable.subr that can be used to script user input:
+#
+# 	VAR_HTTP_PROXY
+# 		HTTP Proxy server to use. Valid examples include:
+# 			myhost
+# 			somename:3128
+# 			192.168.2.3
+# 			[::1]:8080
+# 		The default port if not specified is 3128.
+#
+# Variables from variable.subr that are set after successful execution include
+# the following:
+#
+# 	VAR_HTTP_PROXY_HOST	The host portion of VAR_HTTP_PROXY.
+# 	VAR_HTTP_PROXY_PORT	The TCP port parsed from VAR_HTTP_PROXY.
+#
+# See also f_media_set_ftp() for additional variables.
+#
+f_media_set_http_proxy()
+{
+	FTP_SKIP_RESOLV=1 f_media_set_ftp || return $FAILURE
+
+	f_variable_get_value $VAR_HTTP_PROXY \
+		"$msg_please_enter_the_address_of_the_http_proxy"
+
+	local proxy
+	f_getvar $VAR_HTTP_PROXY proxy
+	[ "$proxy" ] || return $FAILURE
+
+	local hostname="$proxy" port=3128
+	case "$hostname" in
+	#
+	# The order in-which the below individual cases appear is important!
+	#
+	"["*"]":*) # IPv6 address with port
+		f_dprintf "Looks like an IPv6 addr with port: %s" "$hostname"
+		hostname="${hostname#\[}"
+		port="${hostname#*\]:}"
+		port="${port%%[!0-9]*}"
+		hostname="${hostname%%\]:*}"
+		;;
+	"["*"]") # IPv6 address
+		f_dprintf "Looks like an IPv6 addr: %s" "$hostname"
+		hostname="${hostname#\[}"
+		hostname="${hostname%\]}"
+		;;
+	#
+	# ^^^ IPv6 above / DNS Name or IPv4 below vvv
+	#
+	*:*) # DNS name or IPv4 address with port
+		f_dprintf "Looks like a DNS name or IPv4 addr with port: %s" \
+		          "$hostname"
+		port="${hostname#*:}"
+		hostname="${hostname%%:*}"
+		;;
+	*) # DNS name or IPv4 address
+		f_dprintf "Looks like a DNS name or IPv4 addr: %s" "$hostname"
+		: leave hostname as-is
+	esac
+
+	setvar $VAR_HTTP_PROXY_HOST "$hostname"
+	setvar $VAR_HTTP_PROXY_PORT "$port"
+
+	if f_debugging; then
+		f_dprintf "VAR_FTP_PATH : %s" "$( f_getvar $VAR_FTP_PATH )"
+		f_dprintf "VAR_HTTP_PROXY_HOST, _PORT: %s:%s" \
+		          "$( f_getvar $VAR_HTTP_PROXY_HOST )" \
+		          "$( f_getvar $VAR_HTTP_PROXY_PORT )"
+	fi
+
+	# media device has been set by f_media_set_ftp(), overwrite partly:
+	device_media set   type     $DEVICE_TYPE_HTTP_PROXY
+	device_media set   init     f_media_init_http_proxy
+	device_media set   get      f_media_get_http_proxy
+	device_media unset shutdown
+
+	return $SUCCESS
+}
+
+# f_http_proxy_check_access [$connect_only]
+#
+# Return success if able list a remote FTP directory via HTTP proxy. If
+# $connect_only is present and non-null, then returns success if a connection
+# can be made. Variables from variable.subr that can be used to script user
+# input:
+#
+# 	VAR_HTTP_PROXY_HOST
+# 		The HTTP proxy server host name, IPv4 address or IPv6 address.
+# 		Valid examples include:
+# 			myhost
+# 			192.168.2.3
+# 			::1
+# 	VAR_HTTP_PROXY_PORT
+# 		The TCP port to connect to when communicating with the HTTP
+# 		proxy server.
+# 	VAR_HTTP_PROXY_PATH
+# 		The FTP URL sent to the HTTP proxy server. Unused if
+# 		$connect_only is present and non-NULL.
+#
+f_http_proxy_check_access()
+{
+	local connect_only="$1" hosts=
+
+	local proxy_host proxy_port
+	f_getvar $VAR_HTTP_PROXY_HOST proxy_host
+	f_getvar $VAR_HTTP_PROXY_PORT proxy_port
+
+	if ! {
+		f_validate_ipaddr "$proxy_host" ||
+		f_validate_ipaddr6 "$proxy_host" ||
+		{
+		  f_dprintf "%s: Looking up hostname, %s, using host(1)" \
+		            "f_http_proxy_check_access" "$proxy_host"
+		  f_host_lookup "$proxy_host" hosts
+		}
+	}; then
+		# All the above validations failed
+		[ "$hosts" ] && f_dialog_msgbox "$hosts"
+		unset $VAR_HTTP_PROXY_HOST
+		return $FAILURE
+	elif [ ! "$hosts" ]; then
+		# One of the first two validations passed
+		hosts="$proxy_host"
+	fi
+
+	local host connected=
+	for host in $hosts; do
+		f_quietly nc -nz "$host" "$proxy_port" || continue
+		connected=1; break
+	done
+	if [ ! "$connected" ]; then
+		f_show_msg "$msg_couldnt_connect_to_proxy %s:%s" \
+		           "$proxy_host" "$proxy_port"
+		unset $VAR_HTTP_PROXY_HOST
+		return $FAILURE
+	fi
+	[ "$connect_only" ] && return $SUCCESS
+
+	#
+	# Some proxies fetch files with certain extensions in "ascii mode"
+	# instead of "binary mode" for FTP. The FTP server then translates all
+	# LF to CRLF.
+	#
+	# You can force Squid to use binary mode by appending ";type=i" to the
+	# URL, which is what sysinstall(8) has traditionally done.
+	#
+
+	local proxy_path
+	f_getvar $VAR_HTTP_PROXY_PATH proxy_path
+	f_show_info "$msg_checking_access_to" "$proxy_path"
+
+	local rx
+	if ! rx=$(
+		printf "GET %s/ HTTP/1.0\r\n\r\n" "${proxy_path%/}" |
+			nc -n "$host" "$proxy_port"
+	); then
+		f_show_msg "$msg_couldnt_connect_to_proxy %s:%s" \
+		           "$proxy_host" "$proxy_port"
+		unset $VAR_HTTP_PROXY_HOST
+		return $FAILURE
+	fi
+
+	local hdr
+	hdr=$( echo "$rx" | awk '/^\r$/{exit}{print}' )
+
+	local http_found=$FAILURE
+	if echo "$hdr" | awk '
+		BEGIN { found = 0 }
+		/^HTTP.... 200 / {
+			found = 1
+			exit
+		}
+		END { exit ! found }
+	'; then
+		http_found=$SUCCESS
+	fi
+
+	#
+	# Scan the headers of the response
+	# this is extremely quick'n dity
+	#
+
+	unset $VAR_HTTP_FTP_MODE
+	if echo "$hdr" | awk '
+		BEGIN { found = 0 }
+		{
+			if (!match($0, /^Server: /)) next
+			found = ( substr($0, 9, 5) ~ /[Ss]quid/ )
+		}
+		END { exit ! found }
+	'; then
+		setvar $VAR_HTTP_FTP_MODE ";type=i"
+	else
+		setvar $VAR_HTTP_FTP_MODE ""
+	fi
+
+	return $http_found
+}
+
+# f_media_init_http_proxy $device
+#
+# Initializes the HTTP Proxy media device. Returns success if able to confirm
+# the existence of at least one known FTP server release path via HTTP proxy
+# using f_http_proxy_check_access(), above.
+#
+# Variables from variable.subr that can be used to script user input:
+#
+# 	VAR_HTTP_PROXY_HOST
+#		The HTTP proxy server to connect to. Usually set by having
+# 		f_media_set_http_proxy() parse VAR_HTTP_PROXY. Must be set.
+# 		Also see f_http_proxy_check_access() for additional variables.
+# 	VAR_RELNAME
+# 		Usually set to `uname -r' but can be overridden.
+# 	VAR_FTP_PATH
+# 		The FTP URL to send to the HTTP proxy server. Usually set by
+# 		calling f_media_set_ftp().
+#
+# Meanwhile, after successful execution, the following variables (also from
+# variable.subr) are set:
+#
+# 	VAR_HTTP_PROXY_PATH
+# 		The [possibly] adjusted VAR_FTP_PATH that was found to contain
+# 		a valid FreeBSD repository.
+#
+f_media_init_http_proxy()
+{
+	local dev="$1"
+	f_dprintf "Init routine called for HTTP Proxy device. dev=[%s]" "$dev"
+
+	#
+	# First verify access
+	#
+	local connect_only=1
+	f_http_proxy_check_access $connect_only
+
+	local proxy_host
+	f_getvar $VAR_HTTP_PROXY_HOST proxy_host
+	while [ ! "$proxy_host" ]; do
+		f_media_set_http_proxy || return $FAILURE
+		f_http_proxy_check_access $connect_only
+		f_getvar $VAR_HTTP_PROXY_HOST proxy_host
+	done
+
+	local rel proxy_path http_found=$FAILURE
+	while :; do
+		#
+		# If the release is specified as "__RELEASE" or "any", then
+		# just assume that the path the user gave is ok.
+		#
+		f_getvar $VAR_RELNAME rel
+		f_dprintf "f_media_init_http_proxy: rel=[%s]" "$rel"
+
+		case "$rel" in
+		__RELEASE|any)
+			f_getvar $VAR_FTP_PATH $VAR_HTTP_PROXY_PATH
+			f_http_proxy_check_access
+			http_found=$?
+			;;
+		*)
+			local fdir fp
+			f_getvar $VAR_FTP_PATH%/ fp
+			for fdir in $FTP_DIRS; do
+				setvar $VAR_HTTP_PROXY_PATH "$fp/$fdir/$rel"
+				if f_http_proxy_check_access; then
+					http_found=$SUCCESS
+					break
+				fi
+			done
+		esac
+
+		[ $http_found -eq $SUCCESS ] && break
+
+		f_getvar $VAR_HTTP_PROXY_PATH proxy_path
+		f_show_msg "$msg_please_check_the_url_and_try_again" \
+		           "$proxy_path"
+
+		unset $VAR_HTTP_PROXY_PATH
+		f_media_set_http_proxy || break
+	done
+
+	return $http_found
+}
+
+# f_media_get_http_proxy $device $file [$probe_type]
+#
+# Returns data from $file on an FTP server via HTTP proxy using nc(1). Please
+# note that $device is unused but must be present (even if null). Information
+# is instead gathered from the environment. If $probe_type is both present and
+# non-NULL, this function exits after receiving the HTTP header response from
+# the proxy server (if the HTTP response code is 200, success is returned;
+# otherwise failure). If $probe_type is equal to $PROBE_SIZE, prints the
+# content-length in bytes from the response (or -1 if not found) to standard-
+# out.
+#
+# The variables used to configure the connection are as follows (all of which
+# are configured by f_media_set_http_proxy above):
+#
+# 	VAR_HTTP_PROXY_HOST
+# 		HTTP proxy host to connect. Can be an IPv4 address, IPv6
+# 		address, or DNS hostname of your choice.
+# 	VAR_HTTP_PROXY_PORT
+# 		TCP port to connect on; see f_media_set_http_proxy above.
+# 	VAR_HTTP_PROXY_PATH
+# 		URL (including "ftp://" protocol-prefix) of FTP directory to
+# 		use as a prefix when requesting $file via HTTP proxy.
+#
+# See variable.subr for additional information.
+#
+# Example usage:
+# 	f_media_set_http_proxy
+# 	f_media_get_http_proxy media $file
+#
+f_media_get_http_proxy()
+{
+	local dev="$1" file="$2" probe_type="$3" hosts=
+
+	f_dprintf "f_media_get_http_proxy: dev=[%s] file=[%s] probe_type=%s" \
+	          "$dev" "$file" "$probe_type"
+
+	local proxy_host proxy_port
+	f_getvar $VAR_HTTP_PROXY_HOST proxy_host
+	f_getvar $VAR_HTTP_PROXY_PORT proxy_port
+
+	if ! {
+		f_validate_ipaddr "$proxy_host" ||
+		f_validate_ipaddr6 "$proxy_host" ||
+		{
+		  f_dprintf "%s: Looking up hostname, %s, using host(1)" \
+		            "f_media_get_http_proxy" "$proxy_host"
+		  f_host_lookup "$proxy_host" hosts
+		}
+	}; then
+		# All the above validations failed
+		[ "$hosts" ] && f_dialog_msgbox "$hosts"
+		return $FAILURE
+	elif [ ! "$hosts" ]; then
+		# One of the first two validations passed
+		hosts="$proxy_host"
+	fi
+
+	local host connected=
+	for host in $hosts; do
+		f_quietly nc -nz "$host" "$proxy_port" || continue
+		connected=1; break
+	done
+	if [ ! "$connected" ]; then
+		f_show_msg "$msg_couldnt_connect_to_proxy %s:%s" \
+		           "$proxy_host" "$proxy_port"
+		return $FAILURE
+	fi
+
+	local proxy_path mode
+	f_getvar $VAR_HTTP_PROXY_PATH%/ proxy_path
+	f_getvar $VAR_HTTP_FTP_MODE mode
+	local url="$proxy_path/$file$mode" rx
+
+	f_dprintf "sending http request for: %s" "$url"
+	printf "GET %s HTTP/1.0\r\n\r\n" "$url" | nc -n "$host" "$proxy_port" |
+	(
+		#
+		# scan the headers of the response
+		# this is extremely quick'n dirty
+		#
+
+		rv=0 length=-1
+		while read LINE; do
+			case "$LINE" in
+			HTTP*)
+				f_dprintf "received response: %s" "$LINE"
+				set -- $LINE; rv=$2
+				f_isinteger "$rv" || rv=0
+				;;
+			"Content-Length: "*)
+				length="${LINE%}"
+				length="${length#Content-Length: }"
+				f_dprintf "received content-length: %s" \
+				          "$length"
+				;;
+			*)
+				[ "${LINE%}" ] || break # End of headers
+			esac
+		done
+
+		[ $rv -ge 500 ] && exit 5
+		[ $rv -eq 404 ] && exit 44
+		[ $rv -ge 400 ] && exit 4
+		[ $rv -ge 300 ] && exit 3
+		[ $rv -eq 200 ] || exit $FAILURE
+
+		if [ ! "$probe_type" ]; then
+			cat # output the rest ``as-is''
+		elif [ "$probe_type" = "$PROBE_SIZE" ]; then
+			f_isinteger "$length" || length=-1
+			echo "$length"
+		fi
+		exit 200
+	)
+	local retval=$?
+	[ $retval -eq 200 ] && return $SUCCESS
+	[ "$probe_type" ] && return $FAILURE
+
+	case "$retval" in
+	  5) f_show_msg "$msg_server_error_when_requesting_url" "$url" ;;
+	 44) f_show_msg "$msg_url_was_not_found" "$url" ;;
+	  4) f_show_msg "$msg_client_error" ;;
+	  *) f_show_msg "$msg_error_when_requesting_url" "$url" ;;
+	esac 2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	return $FAILURE
+}
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." media/httpproxy.subr
+
+fi # ! $_MEDIA_HTTPPROXY_SUBR

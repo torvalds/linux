@@ -1,0 +1,1144 @@
+.\" Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 24, 2018
+.Dt GELI 8
+.Os
+.Sh NAME
+.Nm geli
+.Nd "control utility for the cryptographic GEOM class"
+.Sh SYNOPSIS
+To compile GEOM_ELI into your kernel, add the following lines to your kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd "device crypto"
+.Cd "options GEOM_ELI"
+.Ed
+.Pp
+Alternatively, to load the GEOM_ELI module at boot time, add the following line
+to your
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+geom_eli_load="YES"
+.Ed
+.Pp
+Usage of the
+.Nm
+utility:
+.Pp
+.Nm
+.Cm init
+.Op Fl bdgPTv
+.Op Fl a Ar aalgo
+.Op Fl B Ar backupfile
+.Op Fl e Ar ealgo
+.Op Fl i Ar iterations
+.Op Fl J Ar newpassfile
+.Op Fl K Ar newkeyfile
+.Op Fl l Ar keylen
+.Op Fl s Ar sectorsize
+.Op Fl V Ar version
+.Ar prov ...
+.Nm
+.Cm label - an alias for
+.Cm init
+.Nm
+.Cm attach
+.Op Fl Cdprv
+.Op Fl n Ar keyno
+.Op Fl j Ar passfile
+.Op Fl k Ar keyfile
+.Ar prov ...
+.Nm
+.Cm detach
+.Op Fl fl
+.Ar prov ...
+.Nm
+.Cm stop - an alias for
+.Cm detach
+.Nm
+.Cm onetime
+.Op Fl dT
+.Op Fl a Ar aalgo
+.Op Fl e Ar ealgo
+.Op Fl l Ar keylen
+.Op Fl s Ar sectorsize
+.Ar prov
+.Nm
+.Cm configure
+.Op Fl bBdDgGtT
+.Ar prov ...
+.Nm
+.Cm setkey
+.Op Fl pPv
+.Op Fl i Ar iterations
+.Op Fl j Ar passfile
+.Op Fl J Ar newpassfile
+.Op Fl k Ar keyfile
+.Op Fl K Ar newkeyfile
+.Op Fl n Ar keyno
+.Ar prov
+.Nm
+.Cm delkey
+.Op Fl afv
+.Op Fl n Ar keyno
+.Ar prov
+.Nm
+.Cm kill
+.Op Fl av
+.Op Ar prov ...
+.Nm
+.Cm backup
+.Op Fl v
+.Ar prov
+.Ar file
+.Nm
+.Cm restore
+.Op Fl fv
+.Ar file
+.Ar prov
+.Nm
+.Cm suspend
+.Op Fl v
+.Fl a | Ar prov ...
+.Nm
+.Cm resume
+.Op Fl pv
+.Op Fl j Ar passfile
+.Op Fl k Ar keyfile
+.Ar prov
+.Nm
+.Cm resize
+.Op Fl v
+.Fl s Ar oldsize
+.Ar prov
+.Nm
+.Cm version
+.Op Ar prov ...
+.Nm
+.Cm clear
+.Op Fl v
+.Ar prov ...
+.Nm
+.Cm dump
+.Op Fl v
+.Ar prov ...
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Nm
+.Cm load
+.Nm
+.Cm unload
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to configure encryption on GEOM providers.
+.Pp
+The following is a list of the most important features:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Utilizes the
+.Xr crypto 9
+framework, so when there is crypto hardware available,
+.Nm
+will make use of it automatically.
+.It
+Supports many cryptographic algorithms (currently
+.Nm AES-XTS ,
+.Nm AES-CBC ,
+.Nm Blowfish-CBC ,
+.Nm Camellia-CBC
+and
+.Nm 3DES-CBC ) .
+.It
+Can optionally perform data authentication (integrity verification) utilizing
+one of the following algorithms:
+.Nm HMAC/MD5 ,
+.Nm HMAC/SHA1 ,
+.Nm HMAC/RIPEMD160 ,
+.Nm HMAC/SHA256 ,
+.Nm HMAC/SHA384
+or
+.Nm HMAC/SHA512 .
+.It
+Can create a User Key from up to two, piecewise components: a passphrase
+entered via prompt or read from one or more passfiles; a keyfile read from
+one or more files.
+.It
+Allows encryption of the root partition.
+The user is asked for the passphrase before the root filesystem is mounted.
+.It
+Strengthens the passphrase component of the User Key with:
+.Rs
+.%A B. Kaliski
+.%T "PKCS #5: Password-Based Cryptography Specification, Version 2.0."
+.%R RFC
+.%N 2898
+.Re
+.It
+Allows the use of two independent User Keys (e.g., a
+.Qq "user key"
+and a
+.Qq "company key" ) .
+.It
+It is fast -
+.Nm
+performs simple sector-to-sector encryption.
+.It
+Allows the encrypted Master Key to be backed up and restored,
+so that if a user has to quickly destroy key material,
+it is possible to get the data back by restoring keys from
+backup.
+.It
+Providers can be configured to automatically detach on last close,
+so users do not have to remember to detach providers after unmounting
+the filesystems.
+.It
+Allows attaching a provider with a random, one-time Master Key,
+which is useful for swap partitions and temporary filesystems.
+.It
+Allows verification of data integrity (data authentication).
+.It
+Allows suspending and resuming encrypted devices.
+.El
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm configure"
+.It Cm init
+Initialize providers which need to be encrypted.
+If multiple providers are listed as arguments, they will all be initialized
+with the same passphrase and/or User Key.
+A unique salt will be randomly generated for each provider to ensure the
+Master Key for each is unique.
+Here you can set up the cryptographic algorithm to use, Data Key length,
+etc.
+The last sector of the providers is used to store metadata.
+The
+.Cm init
+subcommand also automatically writes metadata backups to
+.Pa /var/backups/<prov>.eli
+file.
+The metadata can be recovered with the
+.Cm restore
+subcommand described below.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl J Ar newpassfile"
+.It Fl a Ar aalgo
+Enable data integrity verification (authentication) using the given algorithm.
+This will reduce the size of storage available and also reduce speed.
+For example, when using 4096 bytes sector and
+.Nm HMAC/SHA256
+algorithm, 89% of the original provider storage will be available for use.
+Currently supported algorithms are:
+.Nm HMAC/MD5 ,
+.Nm HMAC/SHA1 ,
+.Nm HMAC/RIPEMD160 ,
+.Nm HMAC/SHA256 ,
+.Nm HMAC/SHA384
+and
+.Nm HMAC/SHA512 .
+If the option is not given, there will be no authentication, only encryption.
+The recommended algorithm is
+.Nm HMAC/SHA256 .
+.It Fl b
+Try to decrypt this partition during boot, before the root partition is mounted.
+This makes it possible to use an encrypted root partition.
+One will still need bootable unencrypted storage with a
+.Pa /boot/
+directory, which can be a CD-ROM disc or USB pen-drive, that can be removed
+after boot.
+.It Fl B Ar backupfile
+File name to use for metadata backup instead of the default
+.Pa /var/backups/<prov>.eli .
+To inhibit backups, you can use
+.Pa none
+as the
+.Ar backupfile .
+If multiple providers were initialized in the one command, you can use
+.Pa PROV
+(all upper-case) in the file name, and it will be replaced with the provider
+name.
+If
+.Pa PROV
+is not found in the file name and multiple providers were initialized in the
+one command,
+.Pa -<prov>
+will be appended to the end of the file name specified.
+.It Fl d
+When entering the passphrase to boot from this encrypted root filesystem, echo
+.Ql *
+characters.
+This makes the length of the passphrase visible.
+.It Fl e Ar ealgo
+Encryption algorithm to use.
+Currently supported algorithms are:
+.Nm AES-XTS ,
+.Nm AES-CBC ,
+.Nm Blowfish-CBC ,
+.Nm Camellia-CBC ,
+.Nm 3DES-CBC ,
+and
+.Nm NULL .
+The default and recommended algorithm is
+.Nm AES-XTS .
+.Nm NULL
+is unencrypted.
+.It Fl g
+Enable booting from this encrypted root filesystem.
+The boot loader prompts for the passphrase and loads
+.Xr loader 8
+from the encrypted partition.
+.It Fl i Ar iterations
+Number of iterations to use with PKCS#5v2 when processing User Key
+passphrase component.
+If this option is not specified,
+.Nm
+will find the number of iterations which is equal to 2 seconds of crypto work.
+If 0 is given, PKCS#5v2 will not be used.
+PKCS#5v2 processing is performed once, after all parts of the passphrase
+component have been read.
+.It Fl J Ar newpassfile
+Specifies a file which contains the passphrase component of the User Key
+(or part of it).
+If
+.Ar newpassfile
+is given as -, standard input will be used.
+Only the first line (excluding new-line character) is taken from the given file.
+This argument can be specified multiple times, which has the effect of
+reassembling a single passphrase split across multiple files.
+Cannot be combined with the
+.Fl P
+option.
+.It Fl K Ar newkeyfile
+Specifies a file which contains the keyfile component of the User Key
+(or part of it).
+If
+.Ar newkeyfile
+is given as -, standard input will be used.
+This argument can be specified multiple times, which has the effect of
+reassembling a single keyfile split across multiple keyfile parts.
+.It Fl l Ar keylen
+Data Key length to use with the given cryptographic algorithm.
+If the length is not specified, the selected algorithm uses its
+.Em default
+key length.
+.Bl -ohang -offset indent
+.It Nm AES-XTS
+.Em 128 ,
+256
+.It Nm AES-CBC , Nm Camellia-CBC
+.Em 128 ,
+192,
+256
+.It Nm Blowfish-CBC
+.Em 128
++ n * 32, for n=[0..10]
+.It Nm 3DES-CBC
+.Em 192
+.El
+.It Fl P
+Do not use a passphrase as a component of the User Key.
+Cannot be combined with the
+.Fl J
+option.
+.It Fl s Ar sectorsize
+Change decrypted provider's sector size.
+Increasing the sector size allows increased performance,
+because encryption/decryption which requires an initialization vector
+is done per sector; fewer sectors means less computational work.
+.It Fl T
+Don't pass through
+.Dv BIO_DELETE
+calls (i.e., TRIM/UNMAP).
+This can prevent an attacker from knowing how much space you're actually
+using and which sectors contain live data, but will also prevent the
+backing store (SSD, etc) from reclaiming space you're not using, which
+may degrade its performance and lifespan.
+The underlying provider may or may not actually obliterate the deleted
+sectors when TRIM is enabled, so it should not be considered to add any
+security.
+.It Fl V Ar version
+Metadata version to use.
+This option is helpful when creating a provider that may be used by older
+.Nm FreeBSD/GELI
+versions.
+Consult the
+.Sx HISTORY
+section to find which metadata version is supported by which
+.Fx
+version.
+Note that using an older version of metadata may limit the number of
+features available.
+.El
+.It Cm attach
+Attach the given providers.
+The encrypted Master Keys are loaded from the metadata and decrypted
+using the given passphrase/keyfile and new GEOM providers are created
+using the specified provider names.
+A
+.Qq .eli
+suffix is added to the user specified provider names.
+Multiple providers can only be attached with a single
+.Cm attach
+command if they all have the same passphrase and keyfiles.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl j Ar passfile"
+.It Fl C
+Do a dry-run decryption.
+This is useful to verify passphrase and keyfile without decrypting the device.
+.It Fl d
+If specified, the decrypted providers are detached automatically on last close,
+so the user does not have to remember to detach
+providers after unmounting the filesystems.
+This only works when providers were opened for writing, and will not work if
+the filesystems on the providers were mounted read-only.
+Probably a better choice is the
+.Fl l
+option for the
+.Cm detach
+subcommand.
+.It Fl n Ar keyno
+Specifies the index number of the Master Key copy to use (could be 0 or 1).
+If the index number is not provided all keys will be tested.
+.It Fl j Ar passfile
+Specifies a file which contains the passphrase component of the User Key
+(or part of it).
+For more information see the description of the
+.Fl J
+option for the
+.Cm init
+subcommand.
+The same passfiles are used for all listed providers.
+.It Fl k Ar keyfile
+Specifies a file which contains the keyfile component of the User Key
+(or part of it).
+For more information see the description of the
+.Fl K
+option for the
+.Cm init
+subcommand.
+The same keyfiles are used for all listed providers.
+.It Fl p
+Do not use a passphrase as a component of the User Keys.
+Cannot be combined with the
+.Fl j
+option.
+.It Fl r
+Attach read-only providers.
+They are not opened for writing.
+.El
+.It Cm detach
+Detach the given providers, which means remove the devfs entry
+and clear the Master Key and Data Keys from memory.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Force detach - detach even if the provider is open.
+.It Fl l
+Mark provider to detach on last close, after the last filesystem has been
+unmounted.
+If this option is specified, the provider will not be detached
+while it is open, but will be automatically detached when it is closed for the
+last time even if it was only opened for reading.
+.El
+.It Cm onetime
+Attach the given providers with a random, one-time (ephemeral) Master Key.
+The command can be used to encrypt swap partitions or temporary filesystems.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl a Ar sectorsize"
+.It Fl a Ar aalgo
+Enable data integrity verification (authentication).
+For more information, see the description of the
+.Cm init
+subcommand.
+.It Fl e Ar ealgo
+Encryption algorithm to use.
+For more information, see the description of the
+.Cm init
+subcommand.
+.It Fl d
+Detach on last close, after the last filesystem has been unmounted.
+Note: this option is not usable for temporary filesystems as the provider is
+detached after the filesystem has been created.
+It still can, and should, be used for swap partitions.
+For more information, see the description of the
+.Cm attach
+subcommand.
+.It Fl l Ar keylen
+Data Key length to use with the given cryptographic algorithm.
+For more information, see the description of the
+.Cm init
+subcommand.
+.It Fl s Ar sectorsize
+Change decrypted provider's sector size.
+For more information, see the description of the
+.Cm init
+subcommand.
+.It Fl T
+Disable TRIM/UNMAP passthru.
+For more information, see the description of the
+.Cm init
+subcommand.
+.El
+.It Cm configure
+Change configuration of the given providers.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl b"
+.It Fl b
+Set the BOOT flag on the given providers.
+For more information, see the description of the
+.Cm init
+subcommand.
+.It Fl B
+Remove the BOOT flag from the given providers.
+.It Fl d
+When entering the passphrase to boot from this encrypted root filesystem, echo
+.Ql *
+characters.
+This makes the length of the passphrase visible.
+.It Fl D
+Disable echoing of any characters when a passphrase is entered to boot from this
+encrypted root filesystem.
+This hides the passphrase length.
+.It Fl g
+Enable booting from this encrypted root filesystem.
+The boot loader prompts for the passphrase and loads
+.Xr loader 8
+from the encrypted partition.
+.It Fl G
+Deactivate booting from this encrypted root partition.
+.It Fl t
+Enable TRIM/UNMAP passthru.
+For more information, see the description of the
+.Cm init
+subcommand.
+.It Fl T
+Disable TRIM/UNMAP passthru.
+.El
+.It Cm setkey
+Install a copy of the Master Key into the selected slot, encrypted with
+a new User Key.
+If the selected slot is populated, replace the existing copy.
+A provider has one Master Key, which can be stored in one or both slots,
+each encrypted with an independent User Key.
+With the
+.Cm init
+subcommand, only key number 0 is initialized.
+The User Key can be changed at any time: for an attached provider,
+for a detached provider, or on the backup file.
+When a provider is attached, the user does not have to provide
+an existing passphrase/keyfile.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl J Ar newpassfile"
+.It Fl i Ar iterations
+Number of iterations to use with PKCS#5v2.
+If 0 is given, PKCS#5v2 will not be used.
+To be able to use this option with the
+.Cm setkey
+subcommand, only one key has to be defined and this key must be changed.
+.It Fl j Ar passfile
+Specifies a file which contains the passphrase component of a current User Key
+(or part of it).
+.It Fl J Ar newpassfile
+Specifies a file which contains the passphrase component of the new User Key
+(or part of it).
+.It Fl k Ar keyfile
+Specifies a file which contains the keyfile component of a current User Key
+(or part of it).
+.It Fl K Ar newkeyfile
+Specifies a file which contains the keyfile component of the new User Key
+(or part of it).
+.It Fl n Ar keyno
+Specifies the index number of the Master Key copy to change (could be 0 or 1).
+If the provider is attached and no key number is given, the key
+used for attaching the provider will be changed.
+If the provider is detached (or we are operating on a backup file)
+and no key number is given, the first Master Key copy to be successfully
+decrypted with the provided User Key passphrase/keyfile will be changed.
+.It Fl p
+Do not use a passphrase as a component of the current User Key.
+Cannot be combined with the
+.Fl j
+option.
+.It Fl P
+Do not use a passphrase as a component of the new User Key.
+Cannot be combined with the
+.Fl J
+option.
+.El
+.It Cm delkey
+Destroy (overwrite with random data) the selected Master Key copy.
+If one is destroying keys for an attached provider, the provider
+will not be detached even if all copies of the Master Key are destroyed.
+It can even be rescued with the
+.Cm setkey
+subcommand because the Master Key is still in memory.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl a Ar keyno"
+.It Fl a
+Destroy all copies of the Master Key (does not need
+.Fl f
+option).
+.It Fl f
+Force key destruction.
+This option is needed to destroy the last copy of the Master Key.
+.It Fl n Ar keyno
+Specifies the index number of the Master Key copy.
+If the provider is attached and no key number is given, the key
+used for attaching the provider will be destroyed.
+If provider is detached (or we are operating on a backup file) the key number
+has to be given.
+.El
+.It Cm kill
+This command should be used only in emergency situations.
+It will destroy all copies of the Master Key on a given provider and will
+detach it forcibly (if it is attached).
+This is absolutely a one-way command - if you do not have a metadata
+backup, your data is gone for good.
+In case the provider was attached with the
+.Fl r
+flag, the keys will not be destroyed, only the provider will be detached.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl a"
+.It Fl a
+If specified, all currently attached providers will be killed.
+.El
+.It Cm backup
+Backup metadata from the given provider to the given file.
+.It Cm restore
+Restore metadata from the given file to the given provider.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Metadata contains the size of the provider to ensure that the correct
+partition or slice is attached.
+If an attempt is made to restore metadata to a provider that has a different
+size,
+.Nm
+will refuse to restore the data unless the
+.Fl f
+switch is used.
+If the partition or slice has been grown, the
+.Cm resize
+subcommand should be used rather than attempting to relocate the metadata
+through
+.Cm backup
+and
+.Cm restore .
+.El
+.It Cm suspend
+Suspend device by waiting for all inflight requests to finish, clearing all
+sensitive information such as the Master Key and Data Keys from kernel memory,
+and blocking all further I/O requests until the
+.Cm resume
+subcommand is executed.
+This functionality is useful for laptops.
+Suspending a laptop should not leave an encrypted device attached.
+The
+.Cm suspend
+subcommand can be used rather than closing all files and directories from
+filesystems on the encrypted device, unmounting the filesystem, and
+detaching the device.
+Any access to the encrypted device will be blocked until the Master Key is
+reloaded through the
+.Cm resume
+subcommand.
+Thus there is no need to close nor unmount anything.
+The
+.Cm suspend
+subcommand does not work with devices created with the
+.Cm onetime
+subcommand.
+Please note that sensitive data might still be present in memory locations
+such as the filesystem cache after suspending an encrypted device.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl a"
+.It Fl a
+Suspend all
+.Nm
+devices.
+.El
+.It Cm resume
+Resume previously suspended device.
+The caller must ensure that executing this subcommand does not access the
+suspended device, leading to a deadlock.
+For example, suspending a device which contains the filesystem where the
+.Nm
+utility is stored is a bad idea.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl j Ar passfile"
+.It Fl j Ar passfile
+Specifies a file which contains the passphrase component of the User Key,
+or part of it.
+For more information see the description of the
+.Fl J
+option for the
+.Cm init
+subcommand.
+.It Fl k Ar keyfile
+Specifies a file which contains the keyfile component of the User Key,
+or part of it.
+For more information see the description of the
+.Fl K
+option for the
+.Cm init
+subcommand.
+.It Fl p
+Do not use a passphrase as a component of the User Key.
+Cannot be combined with the
+.Fl j
+option.
+.El
+.It Cm resize
+Inform
+.Nm
+that the provider has been resized.
+The old metadata block is relocated to the correct position at the end of the
+provider and the provider size is updated.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl s Ar oldsize"
+.It Fl s Ar oldsize
+The size of the provider before it was resized.
+.El
+.It Cm version
+If no arguments are given, the
+.Cm version
+subcommand will print the version of
+.Nm
+userland utility as well as the version of the
+.Nm ELI
+GEOM class.
+.Pp
+If GEOM providers are specified, the
+.Cm version
+subcommand will print metadata version used by each of them.
+.It Cm clear
+Clear metadata from the given providers.
+.Em WARNING :
+This will erase with zeros the encrypted Master Key copies stored in the
+metadata.
+.It Cm dump
+Dump metadata stored on the given providers.
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl v"
+.It Fl v
+Be more verbose.
+.El
+.Sh KEY SUMMARY
+.Ss Master Key
+Upon
+.Cm init ,
+the
+.Nm
+utility generates a random Master Key for the provider.
+The Master Key never changes during the lifetime of the provider.
+Each copy of the provider metadata, active or backed up to a file, can store
+up to two, independently-encrypted copies of the Master Key.
+.Ss User Key
+Each stored copy of the Master Key is encrypted with a User Key, which
+is generated by the
+.Nm
+utility from a passphrase and/or a keyfile.
+The
+.Nm
+utility first reads all parts of the keyfile in the order specified on the
+command line, then reads all parts of the stored passphrase in the order
+specified on the command line.
+If no passphrase parts are specified, the system prompts the user to enter
+the passphrase.
+The passphrase is optionally strengthened by PKCS#5v2.
+The User Key is a digest computed over the concatenated keyfile and passphrase.
+.Ss Data Key
+During operation, one or more Data Keys are deterministically derived by
+the kernel from the Master Key and cached in memory.
+The number of Data Keys used by a given provider, and the way they are
+derived, depend on the GELI version and whether the provider is configured to
+use data authentication.
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to control the behavior of the
+.Nm ELI
+GEOM class.
+The default value is shown next to each variable.
+Some variables can also be set in
+.Pa /boot/loader.conf .
+.Bl -tag -width indent
+.It Va kern.geom.eli.version
+Version number of the
+.Nm ELI
+GEOM class.
+.It Va kern.geom.eli.debug : No 0
+Debug level of the
+.Nm ELI
+GEOM class.
+This can be set to a number between 0 and 3 inclusive.
+If set to 0, minimal debug information is printed.
+If set to 3, the
+maximum amount of debug information is printed.
+.It Va kern.geom.eli.tries : No 3
+Number of times a user is asked for the passphrase.
+This is only used for providers which are attached on boot,
+before the root filesystem is mounted.
+If set to 0, attaching providers on boot will be disabled.
+This variable should be set in
+.Pa /boot/loader.conf .
+.It Va kern.geom.eli.overwrites : No 5
+Specifies how many times the Master Key is overwritten
+with random values when it is destroyed.
+After this operation it is filled with zeros.
+.It Va kern.geom.eli.visible_passphrase : No 0
+If set to 1, the passphrase entered on boot will be visible.
+This alternative should be used with caution as the entered
+passphrase can be logged and exposed via
+.Xr dmesg 8 .
+This variable should be set in
+.Pa /boot/loader.conf .
+.It Va kern.geom.eli.threads : No 0
+Specifies how many kernel threads should be used for doing software
+cryptography.
+Its purpose is to increase performance on SMP systems.
+If set to 0, a CPU-pinned thread will be started for every active CPU.
+.It Va kern.geom.eli.batch : No 0
+When set to 1, can speed-up crypto operations by using batching.
+Batching reduces the number of interrupts by responding to a group of
+crypto requests with one interrupt.
+The crypto card and the driver has to support this feature.
+.It Va kern.geom.eli.key_cache_limit : No 8192
+Specifies how many Data Keys to cache.
+The default limit
+(8192 keys) will allow caching of all keys for a 4TB provider with 512 byte
+sectors and will take around 1MB of memory.
+.It Va kern.geom.eli.key_cache_hits
+Reports how many times we were looking up a Data Key and it was already in
+cache.
+This sysctl is not updated for providers that need fewer Data Keys than
+the limit specified in
+.Va kern.geom.eli.key_cache_limit .
+.It Va kern.geom.eli.key_cache_misses
+Reports how many times we were looking up a Data Key and it was not in cache.
+This sysctl is not updated for providers that need fewer Data Keys than the limit
+specified in
+.Va kern.geom.eli.key_cache_limit .
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
+.Sh EXAMPLES
+Initialize a provider which is going to be encrypted with a
+passphrase and random data from a file on the user's pen drive.
+Use 4kB sector size.
+Attach the provider, create a filesystem, and mount it.
+Do the work.
+Unmount the provider and detach it:
+.Bd -literal -offset indent
+# dd if=/dev/random of=/mnt/pendrive/da2.key bs=64 count=1
+# geli init -s 4096 -K /mnt/pendrive/da2.key /dev/da2
+Enter new passphrase:
+Reenter new passphrase:
+# geli attach -k /mnt/pendrive/da2.key /dev/da2
+Enter passphrase:
+# dd if=/dev/random of=/dev/da2.eli bs=1m
+# newfs /dev/da2.eli
+# mount /dev/da2.eli /mnt/secret
+\&...
+# umount /mnt/secret
+# geli detach da2.eli
+.Ed
+.Pp
+Create an encrypted provider, but use two User Keys:
+one for your employee and one for you as the company's security officer
+(so it is not a tragedy if the employee
+.Qq accidentally
+forgets his passphrase):
+.Bd -literal -offset indent
+# geli init /dev/da2
+Enter new passphrase:	(enter security officer's passphrase)
+Reenter new passphrase:
+# geli setkey -n 1 /dev/da2
+Enter passphrase:	(enter security officer's passphrase)
+Enter new passphrase:	(let your employee enter his passphrase ...)
+Reenter new passphrase:	(... twice)
+.Ed
+.Pp
+You are the security officer in your company.
+Create an encrypted provider for use by the user, but remember that users
+forget their passphrases, so backup the Master Key with your own random key:
+.Bd -literal -offset indent
+# dd if=/dev/random of=/mnt/pendrive/keys/`hostname` bs=64 count=1
+# geli init -P -K /mnt/pendrive/keys/`hostname` /dev/ada0s1e
+# geli backup /dev/ada0s1e /mnt/pendrive/backups/`hostname`
+(use key number 0, so the encrypted Master Key will be re-encrypted by this)
+# geli setkey -n 0 -k /mnt/pendrive/keys/`hostname` /dev/ada0s1e
+(allow the user to enter his passphrase)
+Enter new passphrase:
+Reenter new passphrase:
+.Ed
+.Pp
+Encrypted swap partition setup:
+.Bd -literal -offset indent
+# dd if=/dev/random of=/dev/ada0s1b bs=1m
+# geli onetime -d -e 3des ada0s1b
+# swapon /dev/ada0s1b.eli
+.Ed
+.Pp
+The example below shows how to configure two providers which will be attached
+on boot, before the root filesystem is mounted.
+One of them is using passphrase and three keyfile parts and the other is
+using only a keyfile in one part:
+.Bd -literal -offset indent
+# dd if=/dev/random of=/dev/da0 bs=1m
+# dd if=/dev/random of=/boot/keys/da0.key0 bs=32k count=1
+# dd if=/dev/random of=/boot/keys/da0.key1 bs=32k count=1
+# dd if=/dev/random of=/boot/keys/da0.key2 bs=32k count=1
+# geli init -b -K /boot/keys/da0.key0 -K /boot/keys/da0.key1 -K /boot/keys/da0.key2 da0
+Enter new passphrase:
+Reenter new passphrase:
+# dd if=/dev/random of=/dev/da1s3a bs=1m
+# dd if=/dev/random of=/boot/keys/da1s3a.key bs=128k count=1
+# geli init -b -P -K /boot/keys/da1s3a.key da1s3a
+.Ed
+.Pp
+The providers are initialized, now we have to add these lines to
+.Pa /boot/loader.conf :
+.Bd -literal -offset indent
+geli_da0_keyfile0_load="YES"
+geli_da0_keyfile0_type="da0:geli_keyfile0"
+geli_da0_keyfile0_name="/boot/keys/da0.key0"
+geli_da0_keyfile1_load="YES"
+geli_da0_keyfile1_type="da0:geli_keyfile1"
+geli_da0_keyfile1_name="/boot/keys/da0.key1"
+geli_da0_keyfile2_load="YES"
+geli_da0_keyfile2_type="da0:geli_keyfile2"
+geli_da0_keyfile2_name="/boot/keys/da0.key2"
+
+geli_da1s3a_keyfile0_load="YES"
+geli_da1s3a_keyfile0_type="da1s3a:geli_keyfile0"
+geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"
+.Ed
+.Pp
+If there is only one keyfile, the index might be omitted:
+.Bd -literal -offset indent
+geli_da1s3a_keyfile_load="YES"
+geli_da1s3a_keyfile_type="da1s3a:geli_keyfile"
+geli_da1s3a_keyfile_name="/boot/keys/da1s3a.key"
+.Ed
+.Pp
+Not only configure encryption, but also data integrity verification using
+.Nm HMAC/SHA256 .
+.Bd -literal -offset indent
+# geli init -a hmac/sha256 -s 4096 /dev/da0
+Enter new passphrase:
+Reenter new passphrase:
+# geli attach /dev/da0
+Enter passphrase:
+# dd if=/dev/random of=/dev/da0.eli bs=1m
+# newfs /dev/da0.eli
+# mount /dev/da0.eli /mnt/secret
+.Ed
+.Pp
+.Cm geli
+writes the metadata backup by default to the
+.Pa /var/backups/<prov>.eli
+file.
+If the metadata is lost in any way (e.g., by accidental overwrite), it can be restored.
+Consider the following situation:
+.Bd -literal -offset indent
+# geli init /dev/da0
+Enter new passphrase:
+Reenter new passphrase:
+
+Metadata backup can be found in /var/backups/da0.eli and
+can be restored with the following command:
+
+	# geli restore /var/backups/da0.eli /dev/da0
+
+# geli clear /dev/da0
+# geli attach /dev/da0
+geli: Cannot read metadata from /dev/da0: Invalid argument.
+# geli restore /var/backups/da0.eli /dev/da0
+# geli attach /dev/da0
+Enter passphrase:
+.Ed
+.Pp
+If an encrypted filesystem is extended, it is necessary to relocate and
+update the metadata:
+.Bd -literal -offset indent
+# gpart create -s GPT ada0
+# gpart add -s 1g -t freebsd-ufs -i 1 ada0
+# geli init -K keyfile -P ada0p1
+# gpart resize -s 2g -i 1 ada0
+# geli resize -s 1g ada0p1
+# geli attach -k keyfile -p ada0p1
+.Ed
+.Pp
+Initialize provider with the passphrase split into two files.
+The provider can be attached using those two files or by entering
+.Dq foobar
+as the passphrase at the
+.Nm
+prompt:
+.Bd -literal -offset indent
+# echo foo > da0.pass0
+# echo bar > da0.pass1
+# geli init -J da0.pass0 -J da0.pass1 da0
+# geli attach -j da0.pass0 -j da0.pass1 da0
+# geli detach da0
+# geli attach da0
+Enter passphrase: foobar
+.Ed
+.Pp
+Suspend all
+.Nm
+devices on a laptop, suspend the laptop, then resume devices one by one after
+resuming the laptop:
+.Bd -literal -offset indent
+# geli suspend -a
+# zzz
+<resume your laptop>
+# geli resume -p -k keyfile gpt/secret
+# geli resume gpt/private
+Enter passphrase:
+.Ed
+.Sh ENCRYPTION MODES
+.Nm
+supports two encryption modes:
+.Nm XTS ,
+which was standardized as
+.Nm IEEE P1619
+and
+.Nm CBC
+with unpredictable IV.
+The
+.Nm CBC
+mode used by
+.Nm
+is very similar to the mode
+.Nm ESSIV .
+.Sh DATA AUTHENTICATION
+.Nm
+can verify data integrity when an authentication algorithm is specified.
+When data corruption/modification is detected,
+.Nm
+will not return any data, but instead will return an error
+.Pq Er EINVAL .
+The offset and size of the corrupted data will be printed on the console.
+It is important to know against which attacks
+.Nm
+provides protection for your data.
+If data is modified in-place or copied from one place on the disk
+to another even without modification,
+.Nm
+should be able to detect such a change.
+If an attacker can remember the encrypted data, he can overwrite any future
+changes with the data he owns without it being noticed.
+In other words
+.Nm
+will not protect your data against replay attacks.
+.Pp
+It is recommended to write to the whole provider before first use,
+in order to make sure that all sectors and their corresponding
+checksums are properly initialized into a consistent state.
+One can safely ignore data authentication errors that occur immediately
+after the first time a provider is attached and before it is
+initialized in this way.
+.Sh SEE ALSO
+.Xr crypto 4 ,
+.Xr gbde 4 ,
+.Xr geom 4 ,
+.Xr loader.conf 5 ,
+.Xr gbde 8 ,
+.Xr geom 8 ,
+.Xr crypto 9
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 6.0 .
+Support for the
+.Nm Camellia
+block cipher is implemented by Yoshisato Yanagisawa in
+.Fx 7.0 .
+.Pp
+Highest
+.Nm GELI
+metadata version supported by the given FreeBSD version:
+.Bl -column -offset indent ".Sy FreeBSD" ".Sy version"
+.It Sy FreeBSD Ta Sy GELI
+.It Sy version Ta Sy version
+.Pp
+.It Li 6.0 Ta 0
+.It Li 6.1 Ta 0
+.It Li 6.2 Ta 3
+.It Li 6.3 Ta 3
+.It Li 6.4 Ta 3
+.Pp
+.It Li 7.0 Ta 3
+.It Li 7.1 Ta 3
+.It Li 7.2 Ta 3
+.It Li 7.3 Ta 3
+.It Li 7.4 Ta 3
+.Pp
+.It Li 8.0 Ta 3
+.It Li 8.1 Ta 3
+.It Li 8.2 Ta 5
+.Pp
+.It Li 9.0 Ta 6
+.Pp
+.It Li 10.0 Ta 7
+.El
+.Sh AUTHORS
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org

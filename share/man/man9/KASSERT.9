@@ -1,0 +1,86 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2000 Jonathan M. Bresler
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 14, 2000
+.Dt KASSERT 9
+.Os
+.Sh NAME
+.Nm KASSERT
+.Nd kernel expression verification macro
+.Sh SYNOPSIS
+.Cd "options INVARIANTS"
+.Pp
+.In sys/param.h
+.In sys/systm.h
+.Fn KASSERT expression msg
+.Sh DESCRIPTION
+In a kernel compiled with
+.Cd "options INVARIANTS" ,
+the
+.Fn KASSERT
+macro tests the given
+.Fa expression
+and if it is false,
+calls the
+.Xr panic 9
+function, terminating the running system.
+.Pp
+In a kernel that does not have
+.Cd "options INVARIANTS" ,
+the
+.Fn KASSERT
+macro is defined to be a no-op.
+The
+second argument is a
+.Xr printf 9
+format string and its arguments,
+enclosed in parentheses.
+.Sh EXAMPLES
+The kernel function
+.Fn vput
+must not be called with a
+.Dv NULL
+pointer.
+.Bd -literal -offset indent
+void
+vput(vp)
+        struct vnode *vp;
+{
+	struct proc *p = curproc;
+	KASSERT(vp != NULL, ("vput: null vp"));
+	...
+}
+.Ed
+.Sh SEE ALSO
+.Xr config 8 ,
+.Xr panic 9
+.Sh AUTHORS
+This manual page was written by
+.An Jonathan M. Bresler Aq Mt jmb@FreeBSD.org .

@@ -1,0 +1,131 @@
+.\"-
+.\" Copyright (c) 2012 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 18, 2012
+.Dt TERASIC_MTL 4
+.Os
+.Sh NAME
+.Nm terasic_mtl
+.Nd driver for the Terasic/Cambridge Multi-Touch LCD device
+.Sh SYNOPSIS
+.Cd "device terasic_mtl"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.terasic_mtl.0.at="nexus0"
+.Cd hint.terasic_mtl.0.reg_maddr=0x70400000
+.Cd hint.terasic_mtl.0.reg_msize=0x1000
+.Cd hint.terasic_mtl.0.pixel_maddr=0x70000000
+.Cd hint.terasic_mtl.0.pixel_msize=0x177000
+.Cd hint.terasic_mtl.0.text_maddr=0x70177000
+.Cd hint.terasic_mtl.0.text_msize=0x2000
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides support for the Terasic Multi-Touch LCD combined as
+controlled by a University of Cambridge's IP Core.
+Three device nodes are instantiated, representing various services supported
+by the device:
+.Bl -tag -width terasic_pixelX
+.It terasic_regX
+Memory-mapped register interface, including touch screen input.
+.It terasic_pixelX
+Memory-mapped pixel-oriented frame buffer.
+.It terasic_textX
+Memory-mapped text-oriented frame buffer.
+.El
+.Pp
+.Nm
+devices are also attached to the
+.Xr syscons 4
+framework, which implements a VT-compatible terminal connected to the
+.Xr tty 4
+framework.
+.Li ttyvX
+device nodes may be added to
+.Xr ttys 5
+in order to launch
+.Xr login 1
+sessions at boot.
+.Pp
+Register, text, and pixel devices may be accessed using
+.Xr read 2
+and
+.Xr write 2
+system calls, and also memory mapped using
+.Xr mmap 2 .
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr ioctl 2 ,
+.Xr mmap 2 ,
+.Xr poll 2 ,
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr syscons 4 ,
+.Xr tty 4 ,
+.Xr ttys 5
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+device driver and this manual page were
+developed by SRI International and the University of Cambridge Computer
+Laboratory under DARPA/AFRL contract
+.Pq FA8750-10-C-0237
+.Pq Do CTSRD Dc ,
+as part of the DARPA CRASH research programme.
+This device driver was written by
+.An Robert N. M. Watson .
+.Sh BUGS
+The
+.Xr syscons 4
+attachment does not support the hardware cursor feature.
+.Pp
+A more structured interface to control registers using the
+.Xr ioctl 2
+system call, would sometimes be preferable to memory mapping.
+For touch screen input, it would be highly desirable to offer a streaming
+interface whose events can be managed using
+.Xr poll 2
+and related system calls, with the kernel performing polling rather than the
+userspace application.
+.Pp
+.Nm
+supports only a
+.Li nexus
+bus attachment, which is appropriate for system-on-chip busses such as
+Altera's Avalon bus.
+If the IP core is configured off of another bus type, then additional bus
+attachments will be required.

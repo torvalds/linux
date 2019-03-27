@@ -1,0 +1,193 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: panel.3x,v 1.17 2010/10/02 23:22:44 tom Exp $
+.TH panel 3X ""
+.ds n 5
+.ds d @TERMINFO@
+.SH NAME
+panel \- panel stack extension for curses
+.SH SYNOPSIS
+\fB#include <panel.h>\fR
+.P
+\fBcc [flags] sourcefiles \-lpanel \-lncurses\fR
+.P
+\fBPANEL *new_panel(WINDOW *win)\fR
+.br
+\fBint bottom_panel(PANEL *pan)\fR
+.br
+\fBint top_panel(PANEL *pan)\fR
+.br
+\fBint show_panel(PANEL *pan)\fR
+.br
+\fBvoid update_panels();\fR
+.br
+\fBint hide_panel(PANEL *pan)\fR
+.br
+\fBWINDOW *panel_window(const PANEL *pan)\fR
+.br
+\fBint replace_panel(PANEL *pan, WINDOW *window)\fR
+.br
+\fBint move_panel(PANEL *pan, int starty, int startx)\fR
+.br
+\fBint panel_hidden(const PANEL *pan)\fR
+.br
+\fBPANEL *panel_above(const PANEL *pan)\fR
+.br
+\fBPANEL *panel_below(const PANEL *pan)\fR
+.br
+\fBint set_panel_userptr(PANEL *pan, const void *ptr)\fR
+.br
+\fBconst void *panel_userptr(const PANEL *pan)\fR
+.br
+\fBint del_panel(PANEL *pan)\fR
+.br
+.SH DESCRIPTION
+Panels are \fBcurses\fR(3X) windows with the added feature of
+depth.  Panel functions allow the use of stacked windows and ensure
+the proper portions of each window and the curses \fBstdscr\fR window are
+hidden or displayed when panels are added, moved, modified or removed.
+The set of currently visible panels is the stack of panels.  The
+\fBstdscr\fR window is beneath all panels, and is not considered part
+of the stack.
+.P
+A window is associated with every panel. The panel routines enable
+you to create, move, hide, and show panels, as well as position a
+panel at any desired location in the stack.
+.P
+Panel routines are a functional layer added to \fBcurses\fR(3X), make only
+high-level curses calls, and work anywhere terminfo curses does.
+.SH FUNCTIONS
+.TP
+.B new_panel(win)
+allocates  a  \fBPANEL\fR structure, associates it with
+\fBwin\fR, places the panel on the top of the stack  (causes  it
+to  be  displayed above any other panel) and returns a
+pointer to the new panel.
+.TP
+.B update_panels()
+refreshes the virtual screen to reflect the relations between the
+panels in the stack, but does not call doupdate() to refresh the
+physical screen.
+Use this function and not \fBwrefresh\fP or \fBwnoutrefresh\fP.
+.B update_panels
+may be called more than once before a call to
+doupdate(), but doupdate() is the function responsible for updating
+the physical screen.
+.TP
+.B del_panel(pan)
+removes the given panel from the  stack and deallocates the
+\fBPANEL\fR structure (but not its associated window).
+.TP
+.B hide_panel(pan)
+removes the given panel from the panel stack and thus hides it from
+view. The \fBPANEL\fR structure is not lost, merely removed from the stack.
+.TP
+.B panel_hidden(pan)
+returns TRUE if the panel is in the panel stack,
+FALSE if it is not.
+If the panel is a null pointer, return ERR.
+.TP
+.B show_panel(pan)
+makes a hidden panel visible by placing it on top of the panels in the
+panel stack. See COMPATIBILITY below.
+.TP
+.B top_panel(pan)
+puts the given visible panel on top of all panels in the stack.  See
+COMPATIBILITY below.
+.TP
+.B bottom_panel(pan)
+puts panel at the bottom of all panels.
+.TP
+.B move_panel(pan,starty,startx)
+moves the given panel window so that its upper-left corner is at
+\fBstarty\fR, \fBstartx\fR.  It does not change the position of the
+panel in the stack.  Be sure to use this function, not \fBmvwin()\fR,
+to move a panel window.
+.TP
+.B replace_panel(pan,window)
+replaces the current window of panel with \fBwindow\fR (useful, for
+example if you want to resize a panel; if you're using \fBncurses\fR,
+you can call \fBreplace_panel\fR on the output of \fBwresize\fR(3X)).
+It does not change the position of the panel in the stack.
+.TP
+.B panel_above(pan)
+returns a pointer to the panel above pan.  If the panel argument is
+\fB(PANEL *)0\fR, it returns a pointer to the bottom panel in the stack.
+.TP
+.B panel_below(pan)
+returns a pointer to the panel just below pan.  If the panel argument
+is \fB(PANEL *)0\fR, it returns a pointer to the top panel in the stack.
+.TP
+.B set_panel_userptr(pan,ptr)
+sets the panel's user pointer.
+.TP
+.B panel_userptr(pan)
+returns the user pointer for a given panel.
+.TP
+.B panel_window(pan)
+returns a pointer to the window of the given panel.
+.SH DIAGNOSTICS
+Each routine that returns a pointer returns \fBNULL\fR if an error
+occurs. Each routine that returns an int value returns \fBOK\fR if it
+executes successfully and \fBERR\fR if not.
+.SH COMPATIBILITY
+Reasonable care has been taken to  ensure  compatibility
+with  the  native  panel facility introduced in SVr3.2 (inspection of
+the SVr4 manual pages suggests the programming interface is unchanged).
+The \fBPANEL\fR data structures are merely  similar. The  programmer
+is cautioned not to directly use \fBPANEL\fR fields.
+.P
+The functions \fBshow_panel()\fR and \fBtop_panel()\fR are identical
+in this implementation, and work equally well with displayed or hidden
+panels.  In the native System V implementation, \fBshow_panel()\fR is
+intended for making a hidden panel visible (at the top of the stack)
+and \fBtop_panel()\fR is intended for making an already-visible panel
+move to the top of the stack. You are cautioned to use the correct
+function to ensure compatibility with native panel libraries.
+.SH NOTE
+In your library list, libpanel.a should be before libncurses.a; that is,
+you want to say `\-lpanel \-lncurses', not the other way around (which would
+usually give a link-error).
+.SH FILES
+.P
+panel.h
+interface for the panels library
+.P
+libpanel.a
+the panels library itself
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_variables\fR(3X),
+.PP
+This describes \fBncurses\fR
+version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).
+.SH AUTHOR
+Originally written by Warren Tucker <wht@n4hgf.mt-park.ga.us>,
+primarily to assist in porting u386mon to systems without a native
+panels library.  Repackaged for ncurses by Zeyd ben-Halim.

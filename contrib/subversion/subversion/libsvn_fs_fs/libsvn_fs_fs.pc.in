@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libsvn_fs_fs
+Description: Subversion FSFS Repository Filesystem Library
+Version: @PACKAGE_VERSION@
+Requires:  apr-util-@SVN_APR_MAJOR_VERSION@ apr-@SVN_APR_MAJOR_VERSION@
+Requires.private:  libsvn_delta libsvn_subr libsvn_fs_util
+Libs: -L${libdir}  -lsvn_fs_fs
+Cflags: -I${includedir}

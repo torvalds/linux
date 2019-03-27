@@ -1,0 +1,164 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)login.1	8.2 (Berkeley) 5/5/94
+.\" $FreeBSD$
+.\"
+.Dd September 13, 2006
+.Dt LOGIN 1
+.Os
+.Sh NAME
+.Nm login
+.Nd log into the computer
+.Sh SYNOPSIS
+.Nm
+.Op Fl fp
+.Op Fl h Ar hostname
+.Op Ar user
+.Sh DESCRIPTION
+The
+.Nm
+utility logs users (and pseudo-users) into the computer system.
+.Pp
+If no user is specified, or if a user is specified and authentication
+of the user fails,
+.Nm
+prompts for a user name.
+Authentication of users is configurable via
+.Xr pam 8 .
+Password authentication is the default.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl f
+When a user name is specified, this option indicates that proper
+authentication has already been done and that no password need be
+requested.
+This option may only be used by the super-user or when an already
+logged in user is logging in as themselves.
+.It Fl h
+Specify the host from which the connection was received.
+It is used by various daemons such as
+.Xr telnetd 8 .
+This option may only be used by the super-user.
+.It Fl p
+By default,
+.Nm
+discards any previous environment.
+The
+.Fl p
+option disables this behavior.
+.El
+.Pp
+Login access can be controlled via
+.Xr login.access 5
+or the login class in
+.Xr login.conf 5 ,
+which provides
+allow and deny records based on time, tty and remote host name.
+.Pp
+If the file
+.Pa /etc/fbtab
+exists,
+.Nm
+changes the protection and ownership of certain devices specified in this
+file.
+.Pp
+Immediately after logging a user in,
+.Nm
+displays the system copyright notice, the date and time the user last
+logged in, the message of the day as well as other information.
+If the file
+.Pa .hushlogin
+exists in the user's home directory, all of these messages are suppressed.
+This is to simplify logins for non-human users, such as
+.Xr uucp 1 .
+.Pp
+The
+.Nm
+utility enters information into the environment (see
+.Xr environ 7 )
+specifying the user's home directory (HOME), command interpreter (SHELL),
+search path (PATH), terminal type (TERM) and user name (both LOGNAME and
+USER).
+Other environment variables may be set due to entries in the login
+class capabilities database, for the login class assigned in the
+user's system passwd record.
+The login class also controls the maximum and current process resource
+limits granted to a login, process priorities and many other aspects of
+a user's login environment.
+.Pp
+Some shells may provide a builtin
+.Nm
+command which is similar or identical to this utility.
+Consult the
+.Xr builtin 1
+manual page.
+.Pp
+The
+.Nm
+utility will submit an audit record when login succeeds or fails.
+Failure to determine the current auditing state will
+result in an error exit from
+.Nm .
+.Sh FILES
+.Bl -tag -width ".Pa /etc/security/audit_control" -compact
+.It Pa /etc/fbtab
+changes device protections
+.It Pa /etc/login.conf
+login class capabilities database
+.It Pa /etc/motd
+message-of-the-day
+.It Pa /var/mail/user
+system mailboxes
+.It Pa \&.hushlogin
+makes login quieter
+.It Pa /etc/pam.d/login
+.Xr pam 8
+configuration file
+.It Pa /etc/security/audit_user
+user flags for auditing
+.It Pa /etc/security/audit_control
+global flags for auditing
+.El
+.Sh SEE ALSO
+.Xr builtin 1 ,
+.Xr chpass 1 ,
+.Xr csh 1 ,
+.Xr newgrp 1 ,
+.Xr passwd 1 ,
+.Xr rlogin 1 ,
+.Xr getpass 3 ,
+.Xr fbtab 5 ,
+.Xr login.access 5 ,
+.Xr login.conf 5 ,
+.Xr environ 7
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.At v6 .

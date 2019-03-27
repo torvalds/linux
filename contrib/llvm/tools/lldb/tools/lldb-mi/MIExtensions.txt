@@ -1,0 +1,104 @@
+# -file-exec-and-symbols now takes two new (optional) options:
+
+Synopsis
+
+	-file-exec-and-symbols <file> [-p <platform>] [-r <remote-file>]
+
+Specify the executable file to be debugged. This file is the one from which the symbol table is also read. 
+When debugging remote targets specify a remote-file for execution and a file from which symbols are read. 
+The optional platform is the name of the platform, e.g., "remote-ios" or "ios-simulator". The remote-file 
+is the on-device path to the exe.
+
+# -data-info-line
+
+Synopsis
+
+	-data-info-line *<address>
+	-data-info-line <file>:<line>
+
+Provides information about a source line. The input can be <address> like 0x12345678 or <file>:<line>
+where file is a name of source file and line is the line number. As a result the command returns the following
+fields:
+    start - address of the first instruction which refers to that source line
+    end - address of the last instruction which refers to that source line
+    file - the file name
+    line - the line number
+The last two fields are useful in case you have specified a source line using its address.
+
+Example:
+    -data-info-line *0x100000f80
+    ^done,start="0x0000000100000f80",end="0x0000000100000f94",file="/Users/IliaK/p/hello.cpp",line="15"
+
+    -data-info-line hello.cpp:15
+    ^done,start="0x0000000100000f80",end="0x0000000100000f94",file="/Users/IliaK/p/hello.cpp",line="15"
+
+# -data-read-memory-bytes
+
+Synopsis
+
+	-data-read-memory-bytes [--thread <thread-id>] [--frame <frame-index>] [-o <byte-offset>] <address> <count>
+
+Where:
+
+	`address`
+		An expression specifying the start of the memory range to read.
+	`count`
+		Number of bytes to read.
+	`byte-offset`
+		Relative offset in bytes from `address` where reading should start.
+	`thread-id`
+		Integer identifier of the thread within which the expression should be evaluated,
+		if this option is omitted the currently selected thread will be used.
+		This option is not in the MI specification but is implemented by GDB.
+	`frame-index`
+		Index of the frame within which the expression should be evaluated,
+		if this option is omitted the currently selected frame will be used.
+		This option is not in the MI specification but is implemented by GDB.
+
+Reads a block of memory from the specified range.
+
+Note that currently this command works in an all-or-nothing fashion where it either reads the entire
+block of memory successfully and returns it as a single block, or it returns an error. This doesn't
+quite match up with the MI specification that says that subsets of the specified range may be
+returned as individual blocks if only some of the memory within the specified range is accessible.
+
+The result record for this command may contain one or more tuples representing the blocks of memory
+that were read, where each tuple has the following fields:
+
+	`begin`
+		The start of the address range for this block (in hex notation).
+	`end`
+		The end of the address range for this block (in hex notation).
+	`offset`
+		Offset of this block from `address` (that was passed in as an argument).
+	`contents`
+		The actual data in this block (in hex notation).
+
+Example:
+
+	(gdb)
+	-data-read-memory-bytes &array 4
+	^done,memory=[{begin="0x00007fffffffeccc",offset="0x0000000000000000",end="0x00007fffffffecd0",contents="01020304"}]
+	(gdb)
+
+# =library-loaded notification
+
+The =library-loaded notification has 4 extra fields:
+    symbols-loaded - indicates that there are symbols for the loaded library
+    symbols-path   - if symbols are exist then it contains a path for symbols of the loaded library
+    loaded_addr    - contains an address of the loaded library or "-" if address isn't resolved yet
+    size           - contains the size in bytes of the section loaded at 'loaded_addr'
+
+For example:
+    =library-loaded,id="/Users/IliaK/p/hello",target-name="/Users/IliaK/p/hello",host-name="/Users/IliaK/p/hello",symbols-loaded="1",symbols-path="/Users/IliaK/p/hello.dSYM/Contents/Resources/DWARF/hello",loaded_addr="-",size="4096"
+    =library-loaded,id="/usr/lib/dyld",target-name="/usr/lib/dyld",host-name="/usr/lib/dyld",symbols-loaded="0",loaded_addr="0x00007fff5fc00000",size="4096"
+
+# -target-attach
+
+Synopsis
+
+Additional syntax provided by lldb-mi:
+    -target-attach -n <executable-name> [--waitfor]
+
+Attach to an executable. Using -n allows specifying an executable name to attach to. 
+Using this with --watifor can do a deffered attach. The flags -n and --waitfor match the syntax of lldb proper's 'process attach' command.

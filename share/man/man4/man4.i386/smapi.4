@@ -1,0 +1,153 @@
+.\"
+.\" Copyright (c) 2003 Tom Rhodes
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 1, 2003
+.Dt SMAPI 4 i386
+.Os
+.Sh NAME
+.Nm smapi
+.Nd "System Management Application Program Interface driver"
+.Sh DESCRIPTION
+Many
+.Tn IBM Thinkpad
+laptops utilize a special software interface known as
+.Tn SMAPI
+(System Management Application Program Interface).
+This interface controls various aspects of the system including:
+.Bl -bullet
+.It
+System Interface
+(the
+.Tn BIOS
+can store system information such as the system identifier),
+.It
+System Configuration (where devices such as the display can be configured),
+.It
+Power Management (software can interact with the
+.Tn SMAPI BIOS
+for Power Management control).
+.El
+.Pp
+Client software must locate a
+.Dq "header image"
+stored in the
+.Li F000
+segment in the
+.Tn Thinkpad ROM
+(read-only memory), which resides at the 16-byte boundary.
+This is considered the
+.Dq "Entry Point"
+for the service.
+.Pp
+The
+.Dq "header image"
+stores information like:
+.Bl -bullet
+.It
+signature,
+.It
+.Tn SMAPI
+version (major and minor),
+.It
+header image length,
+.It
+checksum information (which verifies the image),
+.It
+an Information Word (used to identify the
+.Tn BIOS
+service level),
+.It
+Real Mode Entry Point (where clients using the
+Real/V86 mode for the far-call value),
+.It
+and finally a 16-bit/32-bit Protected Mode Entry
+Point: base code address which specifies the
+.Tn BIOS
+physical address.
+The client must prepare a 64 kilobyte selector for this
+.Tn BIOS ) .
+.El
+.Pp
+To invoke the
+.Tn SMAPI BIOS ,
+a far-call must be used on the entry point specified in the header file.
+All other information should be stored in the client data area.
+The client is required to prepare both an input and output parameter in a
+data area of its own.
+This area can be
+.Dq informed
+by pushing those pointers into its stack before the far-calls.
+.Pp
+The
+.Tn SMAPI BIOS
+uses the stack and data areas with the selector during a
+.Tn BIOS
+invocation, thus the caller must define the same privilege area as the
+.Tn BIOS .
+.Pp
+The parameter structure will be made up by using the input and output
+fields prepared by the caller.
+The input field will specify the function request to the
+.Tn BIOS .
+The
+.Tn BIOS
+will then drop a return value into the output field.
+These fields are made up of three parts.
+The first holds parameters, function numbers, and return codes.
+The next will contain an offset in hexadecimal.
+Finally a length field which is comprised of Byte, Word, or Double Word.
+.Sh SEE ALSO
+.Rs
+.%B "IBM Thinkpad 560/560E Technical Reference"
+.%O "06J0536 S76H-7587-01"
+.Re
+.Rs
+.%B "IBM Thinkpad 560Z Technical Reference"
+.%O "xxxxxxx xxxx-xxxx-xx"
+.Re
+.Rs
+.%B "IBM Thinkpad 600 Technical Reference"
+.%O "xxxxxxx xxxx-xxxx-xx"
+.Re
+.Rs
+.%B "IBM Thinkpad 760XD/760XL/765D/765L Technical Reference"
+.%O "06J0537 S30H-2433-02"
+.Re
+.Rs
+.%B "IBM Thinkpad 770 Technical Reference"
+.%O "05L1739 S05L-1739-00"
+.Re
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Matthew N. Dodd Aq Mt mdodd@FreeBSD.org .
+This manual page was written by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org
+and
+.An Matthew N. Dodd Aq Mt mdodd@FreeBSD.org .

@@ -1,0 +1,137 @@
+#!/bin/sh -
+#
+# $NetBSD: znew,v 1.3 2008/04/27 09:07:13 nakayama Exp $
+# $OpenBSD: znew,v 1.2 2003/08/05 18:22:17 deraadt Exp $
+#
+#-
+# Copyright (c) 2003 Otto Moerbeek <otto@drijf.net>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+# $FreeBSD$
+
+# Return 0 if the first arg file size is smaller than the second, 1 otherwise.
+smaller () {
+	a=`du -k "$1" | awk '{ print $1 }'`
+	b=`du -k "$2" | awk '{ print $1 }'`
+	test $a -lt $b
+}
+
+# Check gzip integrity if the -t flag is specified
+checkfile () {
+	if test $tflag -eq 1; then
+		gzip -qt < "$1"
+	fi
+}
+
+# Decompress a file and then gzip it
+process () {
+	prefix="${1%.Z}"
+	filez="$prefix".Z
+	filegz="$prefix".gz
+
+	if test ! -e "$filez"; then
+		echo "$prog: $filez does not exist"
+		return 1
+	fi
+	if test ! -f "$filez"; then
+		echo "$prog: $filez is not a regular file"
+		return 1
+	fi
+	if test -e "$filegz" -a $fflag -eq 0; then
+		echo "$prog: $filegz already exists"
+		return 1
+	fi
+
+	tmp=`mktemp /tmp/znewXXXXXXXXXX` || {
+		echo "$prog: cannot create tmp file"
+		return 1
+	}
+	trap 'rm -f "$tmp"; exit 1' HUP INT QUIT PIPE TERM
+
+	# Do the actual work, producing a file "$tmp"
+	if uncompress -f -c < "$filez" | gzip -f -c $gzipflags > "$tmp"; then
+		if test $kflag -eq 1 && smaller "$filez" "$tmp"; then
+			echo -n "$prog: $filez is smaller than $filegz"
+			echo "; keeping it"
+			rm -f "$tmp"
+			return 0
+		fi
+		if ! checkfile "$tmp"; then
+			echo "$prog: integrity check of $tmp failed"
+			rm -f "$tmp"
+			return 1;
+		fi
+
+		# Try to keep the mode of the original file
+		if ! cp -fp "$filez" "$filegz"; then
+			echo "$prog: warning: could not keep mode of $filez"
+		fi
+		if  ! cp "$tmp" "$filegz" 2> /dev/null; then
+			echo "$prog: warning: could not keep mode of $filez"
+			if ! cp -f "$tmp" "$filegz" 2> /dev/null; then
+				echo "$prog: could not copy $tmp to $filegz"
+				rm -f "$filegz" "$tmp"
+				return 1
+			fi
+		fi
+		if ! touch -fr "$filez" "$filegz"; then
+			echo -n "$prog: warning: could not keep timestamp of "
+			echo "$filez"
+		fi
+		rm -f "$filez" "$tmp"
+	else
+		echo "$prog: failed to process $filez"
+		rm -f "$tmp"
+		return 1
+	fi
+}
+
+prog=`basename "$0"`
+usage="usage: $prog [-ftv9K] file ..."
+
+fflag=0
+tflag=0
+kflag=0
+gzipflags=
+
+# -P flag is recognized to maintain compatibility, but ignored. Pipe mode is
+# always used
+while getopts :ftv9PK i; do
+	case $i in
+		f) fflag=1;;
+		t) tflag=1;;
+		v) gzipflags="-v $gzipflags";;
+		9) gzipflags="-9 $gzipflags";;
+		P) ;;
+		K) kflag=1;;
+		\?) echo "$usage"; exit 1;;
+	esac
+done
+
+shift $((OPTIND - 1))
+
+if test $# -eq 0; then
+	echo "$usage"
+	exit 1
+fi
+
+rc=0
+
+while test $# -ne 0; do
+	if ! process "$1"; then
+		rc=$?
+	fi
+	shift
+done
+exit $rc

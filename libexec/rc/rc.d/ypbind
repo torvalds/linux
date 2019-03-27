@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ypbind
+# REQUIRE: ypserv
+# BEFORE:  DAEMON
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="ypbind"
+desc="NIS domain binding daemon"
+rcvar="nis_client_enable"
+
+load_rc_config $name
+
+command="/usr/sbin/${name}"
+command_args="${nis_client_flags}"
+
+start_precmd="ypbind_precmd"
+
+ypbind_precmd()
+{
+	local _domain
+
+	force_depend rpcbind || return 1
+
+	_domain=`domainname`
+	if [ -z "$_domain" ]; then
+		warn "NIS domainname(1) is not set."
+		return 1
+	fi
+}
+
+run_rc_command "$1"

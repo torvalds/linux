@@ -1,0 +1,179 @@
+.\"
+.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 13, 2007
+.Dt DECLARE_GEOM_CLASS 9
+.Os
+.Sh NAME
+.Nm DECLARE_GEOM_CLASS
+.Nd "GEOM class declaration macro"
+.Sh SYNOPSIS
+.In geom/geom.h
+.Fn DECLARE_GEOM_CLASS "class" "mod_name"
+.Sh DESCRIPTION
+The
+.Fn DECLARE_GEOM_CLASS
+macro registers a GEOM class in GEOM.
+A GEOM class itself implements one particular kind of transformation.
+Typical examples are: MBR disk partition,
+.Bx
+disklabel and RAID5 classes.
+.Fn DECLARE_GEOM_CLASS
+can be used both for compiled in and loaded as
+.Xr kld 4
+modules GEOM classes and it is the only official way for class registration.
+.Pp
+The arguments to
+.Fn DECLARE_GEOM_CLASS
+are:
+.Bl -tag -offset indent -width Fa
+.It Fa class
+The
+.Vt g_class
+structure which describes a GEOM class.
+.It Fa mod_name
+A kernel module name (not a class name!).
+.El
+.Pp
+Structure
+.Vt g_class
+contains data describing the class.
+They are:
+.Bl -tag -offset indent -width indent
+.It Vt "const char *" Va name
+Class name.
+.It Vt "g_taste_t *" Va taste
+Pointer to function used for taste event handling.
+If it is
+.Pf non- Dv NULL
+it is called in three situations:
+.Pp
+.Bl -dash -compact
+.It
+On class activation, all existing providers are offered for tasting.
+.It
+When new provider is created it is offered for tasting.
+.It
+After last write access to a provider is closed it is offered for retasting
+(on first write open event
+.Dq spoil
+was sent).
+.El
+.It Vt "g_config_t *" Va config
+This field is not used anymore, its functionality was replaced by the
+.Va ctlreq
+field.
+.It Vt "g_ctl_req_t *" Va ctlreq
+Pointer to function used for handling events from userland applications.
+.It Vt "g_init_t *" Va init
+Pointer to function which is called right after class registration.
+.It Vt "g_fini_t *" Va fini
+Pointer to function which is called right before class deregistration.
+.It Vt "g_ctl_destroy_geom_t *" Va destroy_geom
+Pointer to a function which is called for every geom on class unload.
+If this field is not set, the class can not be unloaded.
+.El
+.Pp
+Only a
+.Fa name
+field is required; the rest are optional.
+.Sh RESTRICTIONS/CONDITIONS
+The fields of
+.Vt g_class
+should always be initialized using C99-style field naming
+(see the initialization of
+.Va example_class
+below).
+.Sh EXAMPLES
+Example class declaration.
+.Bd -literal -offset indent
+static struct g_geom *
+g_example_taste(struct g_class *mp, struct g_provider *pp,
+    int flags __unused)
+{
+	g_topology_assert();
+
+	[...]
+}
+
+static void
+g_example_ctlreq(struct gctl_req *req, struct g_class *cp,
+    char const *verb)
+{
+
+	[...]
+}
+
+static int
+g_example_destroy_geom(struct gctl_req *req, struct g_class *cp,
+    struct g_geom *gp)
+{
+
+	g_topology_assert();
+
+	[...]
+}
+
+static void
+g_example_init(struct g_class *mp)
+{
+
+	[...]
+}
+
+static void
+g_example_fini(struct g_class *mp)
+{
+
+	[...]
+}
+
+struct g_class example_class = {
+	.name = "EXAMPLE",
+	.taste = g_example_taste,
+	.ctlreq = g_example_ctlreq,
+	.init = g_example_init,
+	.fini = g_example_fini,
+	.destroy_geom = g_example_destroy_geom
+};
+
+DECLARE_GEOM_CLASS(example_class, g_example);
+.Ed
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr g_attach 9 ,
+.Xr g_bio 9 ,
+.Xr g_consumer 9 ,
+.Xr g_data 9 ,
+.Xr g_event 9 ,
+.Xr g_geom 9 ,
+.Xr g_provider 9 ,
+.Xr g_provider_by_name 9 ,
+.Xr g_wither_geom 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .

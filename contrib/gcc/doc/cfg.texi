@@ -1,0 +1,666 @@
+@c -*-texinfo-*-
+@c Copyright (C) 2001, 2003, 2004, 2005 Free Software Foundation, Inc.
+@c This is part of the GCC manual.
+@c For copying conditions, see the file gcc.texi.
+
+@c ---------------------------------------------------------------------
+@c Control Flow Graph
+@c ---------------------------------------------------------------------
+
+@node Control Flow
+@chapter Control Flow Graph
+@cindex CFG, Control Flow Graph
+@findex basic-block.h
+
+A control flow graph (CFG) is a data structure built on top of the
+intermediate code representation (the RTL or @code{tree} instruction
+stream) abstracting the control flow behavior of a function that is
+being compiled.  The CFG is a directed graph where the vertices
+represent basic blocks and edges represent possible transfer of
+control flow from one basic block to another.  The data structures
+used to represent the control flow graph are defined in
+@file{basic-block.h}.
+
+@menu
+* Basic Blocks::           The definition and representation of basic blocks.
+* Edges::                  Types of edges and their representation.
+* Profile information::    Representation of frequencies and probabilities.
+* Maintaining the CFG::    Keeping the control flow graph and up to date.
+* Liveness information::   Using and maintaining liveness information.
+@end menu
+
+
+@node Basic Blocks
+@section Basic Blocks
+
+@cindex basic block
+@findex basic_block
+A basic block is a straight-line sequence of code with only one entry
+point and only one exit.  In GCC, basic blocks are represented using
+the @code{basic_block} data type.
+
+@findex next_bb, prev_bb, FOR_EACH_BB
+Two pointer members of the @code{basic_block} structure are the
+pointers @code{next_bb} and @code{prev_bb}.  These are used to keep
+doubly linked chain of basic blocks in the same order as the
+underlying instruction stream.  The chain of basic blocks is updated
+transparently by the provided API for manipulating the CFG@.  The macro
+@code{FOR_EACH_BB} can be used to visit all the basic blocks in
+lexicographical order.  Dominator traversals are also possible using
+@code{walk_dominator_tree}.  Given two basic blocks A and B, block A
+dominates block B if A is @emph{always} executed before B@.
+
+@findex BASIC_BLOCK
+The @code{BASIC_BLOCK} array contains all basic blocks in an
+unspecified order.  Each @code{basic_block} structure has a field
+that holds a unique integer identifier @code{index} that is the
+index of the block in the @code{BASIC_BLOCK} array.
+The total number of basic blocks in the function is
+@code{n_basic_blocks}.  Both the basic block indices and
+the total number of basic blocks may vary during the compilation
+process, as passes reorder, create, duplicate, and destroy basic
+blocks.  The index for any block should never be greater than
+@code{last_basic_block}.
+
+@findex ENTRY_BLOCK_PTR, EXIT_BLOCK_PTR
+Special basic blocks represent possible entry and exit points of a
+function.  These blocks are called @code{ENTRY_BLOCK_PTR} and
+@code{EXIT_BLOCK_PTR}.  These blocks do not contain any code, and are
+not elements of the @code{BASIC_BLOCK} array.  Therefore they have
+been assigned unique, negative index numbers.
+
+Each @code{basic_block} also contains pointers to the first
+instruction (the @dfn{head}) and the last instruction (the @dfn{tail})
+or @dfn{end} of the instruction stream contained in a basic block.  In
+fact, since the @code{basic_block} data type is used to represent
+blocks in both major intermediate representations of GCC (@code{tree}
+and RTL), there are pointers to the head and end of a basic block for
+both representations.
+
+@findex NOTE_INSN_BASIC_BLOCK, CODE_LABEL, notes
+For RTL, these pointers are @code{rtx head, end}.  In the RTL function
+representation, the head pointer always points either to a
+@code{NOTE_INSN_BASIC_BLOCK} or to a @code{CODE_LABEL}, if present.
+In the RTL representation of a function, the instruction stream
+contains not only the ``real'' instructions, but also @dfn{notes}.
+Any function that moves or duplicates the basic blocks needs
+to take care of updating of these notes.  Many of these notes expect
+that the instruction stream consists of linear regions, making such
+updates difficult.   The @code{NOTE_INSN_BASIC_BLOCK} note is the only
+kind of note that may appear in the instruction stream contained in a
+basic block.  The instruction stream of a basic block always follows a
+@code{NOTE_INSN_BASIC_BLOCK},  but zero or more @code{CODE_LABEL}
+nodes can precede the block note.   A basic block ends by control flow
+instruction or last instruction before following @code{CODE_LABEL} or
+@code{NOTE_INSN_BASIC_BLOCK}.  A @code{CODE_LABEL} cannot appear in
+the instruction stream of a basic block.
+
+@findex can_fallthru
+@cindex table jump
+In addition to notes, the jump table vectors are also represented as
+``pseudo-instructions'' inside the insn stream.  These vectors never
+appear in the basic block and should always be placed just after the
+table jump instructions referencing them.  After removing the
+table-jump it is often difficult to eliminate the code computing the
+address and referencing the vector, so cleaning up these vectors is
+postponed until after liveness analysis.   Thus the jump table vectors
+may appear in the insn stream unreferenced and without any purpose.
+Before any edge is made @dfn{fall-thru}, the existence of such
+construct in the way needs to be checked by calling
+@code{can_fallthru} function.
+
+@cindex block statement iterators
+For the @code{tree} representation, the head and end of the basic block
+are being pointed to by the @code{stmt_list} field, but this special
+@code{tree} should never be referenced directly.  Instead, at the tree
+level abstract containers and iterators are used to access statements
+and expressions in basic blocks.  These iterators are called
+@dfn{block statement iterators} (BSIs).  Grep for @code{^bsi}
+in the various @file{tree-*} files.
+The following snippet will pretty-print all the statements of the
+program in the GIMPLE representation.
+
+@smallexample
+FOR_EACH_BB (bb)
+  @{
+     block_stmt_iterator si;
+
+     for (si = bsi_start (bb); !bsi_end_p (si); bsi_next (&si))
+       @{
+          tree stmt = bsi_stmt (si);
+          print_generic_stmt (stderr, stmt, 0);
+       @}
+  @}
+@end smallexample
+
+
+@node Edges
+@section Edges
+
+@cindex edge in the flow graph
+@findex edge
+Edges represent possible control flow transfers from the end of some
+basic block A to the head of another basic block B@.  We say that A is
+a predecessor of B, and B is a successor of A@.  Edges are represented
+in GCC with the @code{edge} data type.  Each @code{edge} acts as a
+link between two basic blocks: the @code{src} member of an edge
+points to the predecessor basic block of the @code{dest} basic block.
+The members @code{preds} and @code{succs} of the @code{basic_block} data
+type point to type-safe vectors of edges to the predecessors and
+successors of the block.
+
+@cindex edge iterators
+When walking the edges in an edge vector, @dfn{edge iterators} should
+be used.  Edge iterators are constructed using the
+@code{edge_iterator} data structure and several methods are available
+to operate on them:
+
+@ftable @code
+@item ei_start
+This function initializes an @code{edge_iterator} that points to the
+first edge in a vector of edges.
+
+@item ei_last
+This function initializes an @code{edge_iterator} that points to the
+last edge in a vector of edges.
+
+@item ei_end_p
+This predicate is @code{true} if an @code{edge_iterator} represents
+the last edge in an edge vector.
+
+@item ei_one_before_end_p
+This predicate is @code{true} if an @code{edge_iterator} represents
+the second last edge in an edge vector.
+
+@item ei_next
+This function takes a pointer to an @code{edge_iterator} and makes it
+point to the next edge in the sequence.
+
+@item ei_prev
+This function takes a pointer to an @code{edge_iterator} and makes it
+point to the previous edge in the sequence.
+
+@item ei_edge
+This function returns the @code{edge} currently pointed to by an
+@code{edge_iterator}.
+
+@item ei_safe_safe
+This function returns the @code{edge} currently pointed to by an
+@code{edge_iterator}, but returns @code{NULL} if the iterator is
+pointing at the end of the sequence.  This function has been provided
+for existing code makes the assumption that a @code{NULL} edge
+indicates the end of the sequence.
+
+@end ftable
+
+The convenience macro @code{FOR_EACH_EDGE} can be used to visit all of
+the edges in a sequence of predecessor or successor edges.  It must
+not be used when an element might be removed during the traversal,
+otherwise elements will be missed.  Here is an example of how to use
+the macro:
+
+@smallexample
+edge e;
+edge_iterator ei;
+
+FOR_EACH_EDGE (e, ei, bb->succs)
+  @{
+     if (e->flags & EDGE_FALLTHRU)
+       break;
+  @}
+@end smallexample
+
+@findex fall-thru
+There are various reasons why control flow may transfer from one block
+to another.  One possibility is that some instruction, for example a
+@code{CODE_LABEL}, in a linearized instruction stream just always
+starts a new basic block.  In this case a @dfn{fall-thru} edge links
+the basic block to the first following basic block.  But there are
+several other reasons why edges may be created.  The @code{flags}
+field of the @code{edge} data type is used to store information
+about the type of edge we are dealing with.  Each edge is of one of
+the following types:
+
+@table @emph
+@item jump
+No type flags are set for edges corresponding to jump instructions.
+These edges are used for unconditional or conditional jumps and in
+RTL also for table jumps.  They are the easiest to manipulate as they
+may be freely redirected when the flow graph is not in SSA form.
+
+@item fall-thru
+@findex EDGE_FALLTHRU, force_nonfallthru
+Fall-thru edges are present in case where the basic block may continue
+execution to the following one without branching.  These edges have
+the @code{EDGE_FALLTHRU} flag set.  Unlike other types of edges, these
+edges must come into the basic block immediately following in the
+instruction stream.  The function @code{force_nonfallthru} is
+available to insert an unconditional jump in the case that redirection
+is needed.  Note that this may require creation of a new basic block.
+
+@item exception handling
+@cindex exception handling
+@findex EDGE_ABNORMAL, EDGE_EH
+Exception handling edges represent possible control transfers from a
+trapping instruction to an exception handler.  The definition of
+``trapping'' varies.  In C++, only function calls can throw, but for
+Java, exceptions like division by zero or segmentation fault are
+defined and thus each instruction possibly throwing this kind of
+exception needs to be handled as control flow instruction.  Exception
+edges have the @code{EDGE_ABNORMAL} and @code{EDGE_EH} flags set.
+
+@findex purge_dead_edges
+When updating the instruction stream it is easy to change possibly
+trapping instruction to non-trapping, by simply removing the exception
+edge.  The opposite conversion is difficult, but should not happen
+anyway.  The edges can be eliminated via @code{purge_dead_edges} call.
+
+@findex REG_EH_REGION, EDGE_ABNORMAL_CALL
+In the RTL representation, the destination of an exception edge is
+specified by @code{REG_EH_REGION} note attached to the insn.
+In case of a trapping call the @code{EDGE_ABNORMAL_CALL} flag is set
+too.  In the @code{tree} representation, this extra flag is not set.
+
+@findex may_trap_p, tree_could_trap_p
+In the RTL representation, the predicate @code{may_trap_p} may be used
+to check whether instruction still may trap or not.  For the tree
+representation, the @code{tree_could_trap_p} predicate is available,
+but this predicate only checks for possible memory traps, as in
+dereferencing an invalid pointer location.
+
+
+@item sibling calls
+@cindex sibling call
+@findex EDGE_ABNORMAL, EDGE_SIBCALL
+Sibling calls or tail calls terminate the function in a non-standard
+way and thus an edge to the exit must be present.
+@code{EDGE_SIBCALL} and @code{EDGE_ABNORMAL} are set in such case.
+These edges only exist in the RTL representation.
+
+@item computed jumps
+@cindex computed jump
+@findex EDGE_ABNORMAL
+Computed jumps contain edges to all labels in the function referenced
+from the code.  All those edges have @code{EDGE_ABNORMAL} flag set.
+The edges used to represent computed jumps often cause compile time
+performance problems, since functions consisting of many taken labels
+and many computed jumps may have @emph{very} dense flow graphs, so
+these edges need to be handled with special care.  During the earlier
+stages of the compilation process, GCC tries to avoid such dense flow
+graphs by factoring computed jumps.  For example, given the following
+series of jumps,
+
+@smallexample
+  goto *x;
+  [ ... ]
+
+  goto *x;
+  [ ... ]
+
+  goto *x;
+  [ ... ]
+@end smallexample
+
+@noindent
+factoring the computed jumps results in the following code sequence
+which has a much simpler flow graph:
+
+@smallexample
+  goto y;
+  [ ... ]
+
+  goto y;
+  [ ... ]
+
+  goto y;
+  [ ... ]
+
+y:
+  goto *x;
+@end smallexample
+
+However, the classic problem with this transformation is that it has a
+runtime cost in there resulting code: An extra jump.  Therefore, the
+computed jumps are un-factored in the later passes of the compiler.
+Be aware of that when you work on passes in that area.  There have
+been numerous examples already where the compile time for code with
+unfactored computed jumps caused some serious headaches.
+
+@item nonlocal goto handlers
+@cindex nonlocal goto handler
+@findex EDGE_ABNORMAL, EDGE_ABNORMAL_CALL
+GCC allows nested functions to return into caller using a @code{goto}
+to a label passed to as an argument to the callee.  The labels passed
+to nested functions contain special code to cleanup after function
+call.  Such sections of code are referred to as ``nonlocal goto
+receivers''.  If a function contains such nonlocal goto receivers, an
+edge from the call to the label is created with the
+@code{EDGE_ABNORMAL} and @code{EDGE_ABNORMAL_CALL} flags set.
+
+@item function entry points
+@cindex function entry point, alternate function entry point
+@findex LABEL_ALTERNATE_NAME
+By definition, execution of function starts at basic block 0, so there
+is always an edge from the @code{ENTRY_BLOCK_PTR} to basic block 0.
+There is no @code{tree} representation for alternate entry points at
+this moment.  In RTL, alternate entry points are specified by
+@code{CODE_LABEL} with @code{LABEL_ALTERNATE_NAME} defined.  This
+feature is currently used for multiple entry point prologues and is
+limited to post-reload passes only.  This can be used by back-ends to
+emit alternate prologues for functions called from different contexts.
+In future full support for multiple entry functions defined by Fortran
+90 needs to be implemented.
+
+@item function exits
+In the pre-reload representation a function terminates after the last
+instruction in the insn chain and no explicit return instructions are
+used.  This corresponds to the fall-thru edge into exit block.  After
+reload, optimal RTL epilogues are used that use explicit (conditional)
+return instructions that are represented by edges with no flags set.
+
+@end table
+
+
+@node Profile information
+@section Profile information
+
+@cindex profile representation
+In many cases a compiler must make a choice whether to trade speed in
+one part of code for speed in another, or to trade code size for code
+speed.  In such cases it is useful to know information about how often
+some given block will be executed.  That is the purpose for
+maintaining profile within the flow graph.
+GCC can handle profile information obtained through @dfn{profile
+feedback}, but it can also  estimate branch probabilities based on
+statics and heuristics.
+
+@cindex profile feedback
+The feedback based profile is produced by compiling the program with
+instrumentation, executing it on a train run and reading the numbers
+of executions of basic blocks and edges back to the compiler while
+re-compiling the program to produce the final executable.  This method
+provides very accurate information about where a program spends most
+of its time on the train run.  Whether it matches the average run of
+course depends on the choice of train data set, but several studies
+have shown that the behavior of a program usually changes just
+marginally over different data sets.
+
+@cindex Static profile estimation
+@cindex branch prediction
+@findex predict.def
+When profile feedback is not available, the compiler may be asked to
+attempt to predict the behavior of each branch in the program using a
+set of heuristics (see @file{predict.def} for details) and compute
+estimated frequencies of each basic block by propagating the
+probabilities over the graph.
+
+@findex frequency, count, BB_FREQ_BASE
+Each @code{basic_block} contains two integer fields to represent
+profile information: @code{frequency} and @code{count}.  The
+@code{frequency} is an estimation how often is basic block executed
+within a function.  It is represented as an integer scaled in the
+range from 0 to @code{BB_FREQ_BASE}.  The most frequently executed
+basic block in function is initially set to @code{BB_FREQ_BASE} and
+the rest of frequencies are scaled accordingly.  During optimization,
+the frequency of the most frequent basic block can both decrease (for
+instance by loop unrolling) or grow (for instance by cross-jumping
+optimization), so scaling sometimes has to be performed multiple
+times.
+
+@findex gcov_type
+The @code{count} contains hard-counted numbers of execution measured
+during training runs and is nonzero only when profile feedback is
+available.  This value is represented as the host's widest integer
+(typically a 64 bit integer) of the special type @code{gcov_type}.
+
+Most optimization passes can use only the frequency information of a
+basic block, but a few passes may want to know hard execution counts.
+The frequencies should always match the counts after scaling, however
+during updating of the profile information numerical error may
+accumulate into quite large errors.
+
+@findex REG_BR_PROB_BASE, EDGE_FREQUENCY
+Each edge also contains a branch probability field: an integer in the
+range from 0 to @code{REG_BR_PROB_BASE}.  It represents probability of
+passing control from the end of the @code{src} basic block to the
+@code{dest} basic block, i.e.@: the probability that control will flow
+along this edge.   The @code{EDGE_FREQUENCY} macro is available to
+compute how frequently a given edge is taken.  There is a @code{count}
+field for each edge as well, representing same information as for a
+basic block.
+
+The basic block frequencies are not represented in the instruction
+stream, but in the RTL representation the edge frequencies are
+represented for conditional jumps (via the @code{REG_BR_PROB}
+macro) since they are used when instructions are output to the
+assembly file and the flow graph is no longer maintained.
+
+@cindex reverse probability
+The probability that control flow arrives via a given edge to its
+destination basic block is called @dfn{reverse probability} and is not
+directly represented, but it may be easily computed from frequencies
+of basic blocks.
+
+@findex redirect_edge_and_branch
+Updating profile information is a delicate task that can unfortunately
+not be easily integrated with the CFG manipulation API@.  Many of the
+functions and hooks to modify the CFG, such as
+@code{redirect_edge_and_branch}, do not have enough information to
+easily update the profile, so updating it is in the majority of cases
+left up to the caller.  It is difficult to uncover bugs in the profile
+updating code, because they manifest themselves only by producing
+worse code, and checking profile consistency is not possible because
+of numeric error accumulation.  Hence special attention needs to be
+given to this issue in each pass that modifies the CFG@.
+
+@findex REG_BR_PROB_BASE, BB_FREQ_BASE, count
+It is important to point out that @code{REG_BR_PROB_BASE} and
+@code{BB_FREQ_BASE} are both set low enough to be possible to compute
+second power of any frequency or probability in the flow graph, it is
+not possible to even square the @code{count} field, as modern CPUs are
+fast enough to execute $2^32$ operations quickly.
+
+
+@node Maintaining the CFG
+@section Maintaining the CFG
+@findex cfghooks.h
+
+An important task of each compiler pass is to keep both the control
+flow graph and all profile information up-to-date.  Reconstruction of
+the control flow graph after each pass is not an option, since it may be
+very expensive and lost profile information cannot be reconstructed at
+all.
+
+GCC has two major intermediate representations, and both use the
+@code{basic_block} and @code{edge} data types to represent control
+flow.  Both representations share as much of the CFG maintenance code
+as possible.  For each representation, a set of @dfn{hooks} is defined
+so that each representation can provide its own implementation of CFG
+manipulation routines when necessary.  These hooks are defined in
+@file{cfghooks.h}.  There are hooks for almost all common CFG
+manipulations, including block splitting and merging, edge redirection
+and creating and deleting basic blocks.  These hooks should provide
+everything you need to maintain and manipulate the CFG in both the RTL
+and @code{tree} representation.
+
+At the moment, the basic block boundaries are maintained transparently
+when modifying instructions, so there rarely is a need to move them
+manually (such as in case someone wants to output instruction outside
+basic block explicitly).
+Often the CFG may be better viewed as integral part of instruction
+chain, than structure built on the top of it.  However, in principle
+the control flow graph for the @code{tree} representation is
+@emph{not} an integral part of the representation, in that a function
+tree may be expanded without first building a  flow graph for the
+@code{tree} representation at all.  This happens when compiling
+without any @code{tree} optimization enabled.  When the @code{tree}
+optimizations are enabled and the instruction stream is rewritten in
+SSA form, the CFG is very tightly coupled with the instruction stream.
+In particular, statement insertion and removal has to be done with
+care.  In fact, the whole @code{tree} representation can not be easily
+used or maintained without proper maintenance of the CFG
+simultaneously.
+
+@findex BLOCK_FOR_INSN, bb_for_stmt
+In the RTL representation, each instruction has a
+@code{BLOCK_FOR_INSN} value that represents pointer to the basic block
+that contains the instruction.  In the @code{tree} representation, the
+function @code{bb_for_stmt} returns a pointer to the basic block
+containing the queried statement.
+
+@cindex block statement iterators
+When changes need to be applied to a function in its @code{tree}
+representation, @dfn{block statement iterators} should be used.  These
+iterators provide an integrated abstraction of the flow graph and the
+instruction stream.  Block statement iterators iterators are
+constructed using the @code{block_stmt_iterator} data structure and
+several modifier are available, including the following:
+
+@ftable @code
+@item bsi_start
+This function initializes a @code{block_stmt_iterator} that points to
+the first non-empty statement in a basic block.
+
+@item bsi_last
+This function initializes a @code{block_stmt_iterator} that points to
+the last statement in a basic block.
+
+@item bsi_end_p
+This predicate is @code{true} if a @code{block_stmt_iterator}
+represents the end of a basic block.
+
+@item bsi_next
+This function takes a @code{block_stmt_iterator} and makes it point to
+its successor.
+
+@item bsi_prev
+This function takes a @code{block_stmt_iterator} and makes it point to
+its predecessor.
+
+@item bsi_insert_after
+This function inserts a statement after the @code{block_stmt_iterator}
+passed in.  The final parameter determines whether the statement
+iterator is updated to point to the newly inserted statement, or left
+pointing to the original statement.
+
+@item bsi_insert_before
+This function inserts a statement before the @code{block_stmt_iterator}
+passed in.  The final parameter determines whether the statement
+iterator is updated to point to the newly inserted statement, or left
+pointing to the original  statement.
+
+@item bsi_remove
+This function removes the @code{block_stmt_iterator} passed in and
+rechains the remaining statements in a basic block, if any.
+@end ftable
+
+@findex BB_HEAD, BB_END
+In the RTL representation, the macros @code{BB_HEAD} and @code{BB_END}
+may be used to get the head and end @code{rtx} of a basic block.  No
+abstract iterators are defined for traversing the insn chain, but you
+can just use @code{NEXT_INSN} and @code{PREV_INSN} instead.  See
+@xref{Insns}.
+
+@findex purge_dead_edges
+Usually a code manipulating pass simplifies the instruction stream and
+the flow of control, possibly eliminating some edges.  This may for
+example happen when a conditional jump is replaced with an
+unconditional jump, but also when simplifying possibly trapping
+instruction to non-trapping while compiling Java.  Updating of edges
+is not transparent and each optimization pass is required to do so
+manually.  However only few cases occur in practice.  The pass may
+call @code{purge_dead_edges} on a given basic block to remove
+superfluous edges, if any.
+
+@findex redirect_edge_and_branch, redirect_jump
+Another common scenario is redirection of branch instructions, but
+this is best modeled as redirection of edges in the control flow graph
+and thus use of @code{redirect_edge_and_branch} is preferred over more
+low level functions, such as @code{redirect_jump} that operate on RTL
+chain only.  The CFG hooks defined in @file{cfghooks.h} should provide
+the complete API required for manipulating and maintaining the CFG@.
+
+@findex split_block
+It is also possible that a pass has to insert control flow instruction
+into the middle of a basic block, thus creating an entry point in the
+middle of the basic block, which is impossible by definition: The
+block must be split to make sure it only has one entry point, i.e.@: the
+head of the basic block.  The CFG hook @code{split_block} may be used
+when an instruction in the middle of a basic block has to become the
+target of a jump or branch instruction.
+
+@findex insert_insn_on_edge
+@findex commit_edge_insertions
+@findex bsi_insert_on_edge
+@findex bsi_commit_edge_inserts
+@cindex edge splitting
+For a global optimizer, a common operation is to split edges in the
+flow graph and insert instructions on them.  In the RTL
+representation, this can be easily done using the
+@code{insert_insn_on_edge} function that emits an instruction
+``on the edge'', caching it for a later @code{commit_edge_insertions}
+call that will take care of moving the inserted instructions off the
+edge into the instruction stream contained in a basic block.  This
+includes the creation of new basic blocks where needed.  In the
+@code{tree} representation, the equivalent functions are
+@code{bsi_insert_on_edge} which inserts a block statement
+iterator on an edge, and @code{bsi_commit_edge_inserts} which flushes
+the instruction to actual instruction stream.
+
+While debugging the optimization pass, an @code{verify_flow_info}
+function may be useful to find bugs in the control flow graph updating
+code.
+
+Note that at present, the representation of control flow in the
+@code{tree} representation is discarded before expanding to RTL@.
+Long term the CFG should be maintained and ``expanded'' to the
+RTL representation along with the function @code{tree} itself.
+
+
+@node Liveness information
+@section Liveness information
+@cindex Liveness representation
+Liveness information is useful to determine whether some register is
+``live'' at given point of program, i.e.@: that it contains a value that
+may be used at a later point in the program.  This information is
+used, for instance, during register allocation, as the pseudo
+registers only need to be assigned to a unique hard register or to a
+stack slot if they are live.  The hard registers and stack slots may
+be freely reused for other values when a register is dead.
+
+@findex REG_DEAD, REG_UNUSED
+The liveness information is stored partly in the RTL instruction
+stream and partly in the flow graph.  Local information is stored in
+the instruction stream:
+Each instruction may contain @code{REG_DEAD} notes representing that
+the value of a given register is no longer needed, or
+@code{REG_UNUSED} notes representing that the value computed by the
+instruction is never used.  The second is useful for instructions
+computing multiple values at once.
+
+@findex global_live_at_start, global_live_at_end
+Global liveness information is stored in the control flow graph.
+Each basic block contains two bitmaps, @code{global_live_at_start} and
+@code{global_live_at_end} representing liveness of each register at
+the entry and exit of the basic block.  The file @code{flow.c}
+contains functions to compute liveness of each register at any given
+place in the instruction stream using this information.
+
+@findex BB_DIRTY, clear_bb_flags, update_life_info_in_dirty_blocks
+Liveness is expensive to compute and thus it is desirable to keep it
+up to date during code modifying passes.  This can be easily
+accomplished using the @code{flags} field of a basic block.  Functions
+modifying the instruction stream automatically set the @code{BB_DIRTY}
+flag of a modifies basic block, so the pass may simply
+use@code{clear_bb_flags} before doing any modifications and then ask
+the data flow module to have liveness updated via the
+@code{update_life_info_in_dirty_blocks} function.
+
+This scheme works reliably as long as no control flow graph
+transformations are done.  The task of updating liveness after control
+flow graph changes is more difficult as normal iterative data flow
+analysis may produce invalid results or get into an infinite cycle
+when the initial solution is not below the desired one.  Only simple
+transformations, like splitting basic blocks or inserting on edges,
+are safe, as functions to implement them already know how to update
+liveness information locally.

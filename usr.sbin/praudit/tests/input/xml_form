@@ -1,0 +1,12 @@
+<?xml version='1.0' ?>
+<audit>
+<record version="11" event="socket(2)" modifier="0" time="Mon Jun 11 10:18:45 2018" msec=" + 380 msec" >
+<argument arg-num="1" value="0x1c" desc="domain" />
+<argument arg-num="2" value="0x2" desc="type" />
+<argument arg-num="3" value="0x0" desc="protocol" />
+<subject audit-uid="root" uid="root" gid="wheel" ruid="root" rgid="0" pid="7053" sid="4724" tid="37636 10.0.2.2" />
+<return errval="success" retval="3" />
+</record>
+<?xml version='1.0' ?>
+<audit>
+</audit>

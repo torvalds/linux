@@ -1,0 +1,424 @@
+<html>
+<head>
+    <title>libsm : Memory Allocation</title>
+</head>
+<body>
+
+<a href="index.html">Back to libsm overview</a>
+
+<center>
+    <h1> libsm : Memory Allocation </h1>
+    <br> $Id: heap.html,v 1.9 2000-12-08 21:41:42 ca Exp $
+</center>
+
+<h2> Introduction </h2>
+
+The heap package provides a layer of abstraction on top of
+<tt>malloc</tt>, <tt>realloc</tt> and <tt>free</tt>
+that provides optional error checking and memory leak detection,
+and which optionally raises an exception when an allocation request
+cannot be satisfied.
+
+<h2> Synopsis </h2>
+
+<pre>
+#include &lt;sm/heap.h&gt;
+
+/*
+**  Wrappers for malloc, realloc, free
+*/
+void *sm_malloc(size_t size);
+void *sm_realloc(void *ptr, size_t size);
+void  sm_free(void *ptr);
+
+/*
+**  Wrappers for malloc, realloc that raise an exception instead of
+**  returning NULL on heap exhaustion.
+*/
+void *sm_malloc_x(size_t size);
+void *sm_realloc_x(void *ptr, size_t size);
+
+/*
+**  Print a list of currently allocated blocks,
+**  used to diagnose memory leaks.
+*/
+void  sm_heap_report(FILE *stream, int verbosity);
+
+/*
+**  Low level interfaces.
+*/
+int sm_heap_group();
+int sm_heap_setgroup(int g);
+int sm_heap_newgroup();
+void *sm_malloc_tagged(size_t size, char *file, int line, int group);
+void *sm_malloc_tagged_x(size_t size, char *file, int line, int group);
+bool  sm_heap_register(void *ptr, size_t size, char *file, int line);
+</pre>
+
+<h2> How to allocate and free memory </h2>
+
+    <tt>sm_malloc</tt>, <tt>sm_realloc</tt> and <tt>sm_free</tt>
+    are portable plug in replacements
+    for <tt>malloc</tt>, <tt>realloc</tt> and <tt>free</tt> that provide
+    error checking and memory leak detection.
+    <tt>sm_malloc_x</tt> and <tt>sm_realloc_x</tt>
+    are variants of
+    <tt>sm_malloc</tt> and <tt>sm_realloc</tt>
+    that raise an exception on error.
+    To use the package effectively,
+    all calls to <tt>malloc</tt>, <tt>realloc</tt> and <tt>free</tt>
+    should be replaced by calls
+    to the corresponding <tt>sm_</tt>* routines.
+
+<dl>
+<dt>
+<tt> void *sm_malloc(size_t size) </tt>
+<dd>
+	This function is a plug-in replacement for <tt>malloc</tt>.
+	It allocates <tt>size</tt> bytes of memory on the heap
+	and returns a pointer to it,
+	or it returns <tt>NULL</tt> on failure.
+	<p>
+
+	The C standard says that <tt>malloc(0)</tt> may return
+	either <tt>NULL</tt> or a non-<tt>NULL</tt> value.
+	To ensure consistent behaviour on all platforms,
+	<tt>sm_malloc(0)</tt> is equivalent to <tt>sm_malloc(1)</tt>.
+	<p>
+
+	In addition, if heap checking is enabled, then <tt>sm_malloc</tt>
+	maintains a hash table describing all currently allocated
+	memory blocks.  This table is used for argument validity
+	checking in <tt>sm_realloc</tt> and <tt>sm_free</tt>,
+	and it can be printed using <tt>sm_heap_report</tt>
+	as an aid to finding memory leaks.
+	<p>
+
+<dt>
+<tt> void *sm_malloc_x(size_t size) </tt>
+<dd>
+    This function is just like <tt>sm_malloc</tt>
+    except that it raises the <tt>SmHeapOutOfMemory</tt> exception
+    instead of returning <tt>NULL</tt> on error.
+    <p>
+    
+<dt>
+<tt> void *sm_realloc(void *ptr, size_t size) </tt>
+<dd>
+	This function is a plug-in replacement for <tt>realloc</tt>.
+	If <tt>ptr</tt> is null then this call is equivalent
+	to <tt>sm_malloc(size)</tt>.
+	Otherwise, the size of the object pointed to by <tt>ptr</tt>
+	is changed to <tt>size</tt> bytes, and a pointer to the
+	(possibly moved) object is returned.
+	If the space cannot be allocated, then the object pointed to
+	by <tt>ptr</tt> is unchanged and <tt>NULL</tt> is returned.
+	<p>
+
+	If <tt>size</tt> is 0 then we pretend that <tt>size</tt> is 1.
+	This may be a mistake.
+	<p>
+
+	If ptr is not NULL and heap checking is enabled,
+	then ptr is required to be a value that was
+	previously returned by sm_malloc or sm_realloc, and which
+	has not yet been freed by sm_free.  If this condition is not
+	met, then the program is aborted using sm_abort.
+	<p>
+
+<dt>
+<tt> void *sm_realloc_x(void *ptr, size_t size) </tt>
+<dd>
+    This function is just like <tt>sm_realloc</tt>
+    except that it raises the SmHeapOutOfMemory exception
+    instead of returning <tt>NULL</tt> on error.
+    <p>
+
+<dt>
+<tt> void sm_free(void *ptr) </tt>
+<dd>
+	This function is a plug-in replacement for free.
+	If heap checking is disabled, then this function is equivalent
+	to a call to free.  Otherwise, the following additional semantics
+	apply.
+	<p>
+
+	If ptr is NULL, this function has no effect.
+	<p>
+
+	Otherwise, ptr is required to be a value that was
+	previously returned by sm_malloc or sm_realloc, and which
+	has not yet been freed by sm_free.  If this condition is not
+	met, then the program is aborted using sm_abort.
+	<p>
+
+	Otherwise, if there is no error, then the block pointed to by ptr
+	will be set to all zeros before free() is called.  This is intended
+	to assist in detecting the use of dangling pointers.
+</dl>
+
+<h2> How to control tag information </h2>
+
+When heap checking is enabled,
+the heap package maintains a hash table which associates the
+following values with each currently allocated block:
+
+<dl>
+<dt>
+<tt> size_t size </tt>
+<dd>
+	The size of the block.
+<dt>
+<tt> char *tag </tt>
+<dd>
+	By default, this is the name of the source file from which
+	the block was allocated, but you can specify an arbitrary
+	string pointer, or <tt>NULL</tt>.
+<dt>
+<tt> int num </tt>
+<dd>
+	By default, this is the line number from which the block was
+	allocated.
+<dt>
+<tt> int group </tt>
+<dd>
+	By convention, group==0 indicates that the block is permanently
+	allocated and will never be freed.  The meanings of other group
+	numbers are defined by the application developer.
+	Unless you take special action, all blocks allocated by
+	<tt>sm_malloc</tt> and <tt>sm_malloc_x</tt> will be assigned
+	to group 1.
+</dl>
+
+These tag values are printed by <tt>sm_heap_report</tt>,
+and are used to help analyze memory allocation behaviour
+and to find memory leaks.
+The following functions give you precise control over the
+tag values associated with each allocated block.
+
+<dl>
+<dt>
+<tt> void *sm_malloc_tagged(size_t size, int tag, int num, int group) </tt>
+<dd>
+	Just like <tt>sm_malloc</tt>, except you directly specify
+	all of the tag values.
+	If heap checking is disabled at compile time, then a call
+	to <tt>sm_malloc_tagged</tt> is macro expanded to
+	a call to <tt>malloc</tt>.
+	<p>
+
+	Note that the expression <tt>sm_malloc(size)</tt> is macro expanded to
+
+<blockquote><pre>
+sm_malloc_tagged(size, __FILE__, __LINE__, sm_heap_group())
+</pre></blockquote>
+
+<dt>
+<tt> void *sm_malloc_tagged_x(size_t size, int tag, int num, int group) </tt>
+<dd>
+	A variant of <tt>sm_malloc_tagged</tt>
+	that raises an exception on error.
+	A call to <tt>sm_malloc_x</tt> is macro expanded
+	to a call to <tt>sm_malloc_tagged_x</tt>.
+	<p>
+
+<dt>
+<tt> int sm_heap_group() </tt>
+<dd>
+	The heap package maintains a thread-local variable containing
+	the current group number.
+	This is the group that <tt>sm_malloc</tt> and <tt>sm_malloc_x</tt>
+	will assign a newly allocated block to.
+	The initial value of this variable is 1.
+	The current value of this variable is returned by
+	<tt>sm_heap_group()</tt>.
+	<p>
+
+<dt>
+<tt> int sm_heap_setgroup(int g) </tt>
+<dd>
+	Set the current group to the specified value.
+</dl>
+
+Here are two examples of how you might use these interfaces.
+
+<ol>
+<li>
+One way to detect memory leaks is to turn on heap checking
+and call <tt>sm_heap_report(stdout,2)</tt>
+when the program exits.
+This prints a list of all allocated blocks that do not belong to group 0.
+(Blocks in group 0 are assumed to be permanently allocated,
+and so their existence at program exit does not indicate a leak.)
+If you want to allocate a block and assign it to group 0,
+you have two choices:
+
+<blockquote><pre>
+int g = sm_heap_group();
+sm_heap_setgroup(0);
+p = sm_malloc_x(size);
+sm_heap_setgroup(g);
+</pre></blockquote>
+
+or
+
+<blockquote><pre>
+p = sm_malloc_tagged_x(size, __FILE__, __LINE__, 0);
+</pre></blockquote>
+
+<li>
+Suppose you have a utility function foo_alloc which allocates
+and initializes a 'foo' object.  When sm_heap_report is called,
+all unfreed 'foo' objects will be reported to have the same
+source code file name and line number.
+That might make it difficult to determine where a memory leak is.
+<p>
+
+Here is how you can arrange for more precise reporting for
+unfreed foo objects:
+
+<blockquote><pre>
+#include &lt;sm/heap.h&gt;
+
+#if SM_HEAP_CHECK
+#  define foo_alloc_x() foo_alloc_tagged_x(__FILE__,__LINE)
+   FOO *foo_alloc_tagged_x(char *, int);
+#else
+   FOO *foo_alloc_x(void);
+#  define foo_alloc_tagged_x(file,line) foo_alloc_x()
+#endif
+
+...
+
+#if SM_HEAP_CHECK
+FOO *
+foo_alloc_tagged_x(char *file, int line)
+#else
+FOO *
+foo_alloc_x(void)
+#endif
+{
+	FOO *p;
+
+	p = sm_malloc_tagged_x(sizeof(FOO), file, line, sm_heap_group());
+	...
+	return p;
+}
+</pre></blockquote>
+</ol>
+
+<h2> How to dump the block list </h2>
+
+To perform memory leak detection, you need to arrange for your
+program to call sm_heap_report at appropriate times.
+
+<dl>
+<dt>
+<tt> void sm_heap_report(FILE *stream, int verbosity) </tt>
+<dd>
+	If heap checking is disabled, this function does nothing.
+	If verbosity &lt;= 0, this function does nothing.
+	<p>
+
+	If verbosity &gt;= 1, then sm_heap_report prints a single line
+	to stream giving the total number of bytes currently allocated.
+	If you call sm_heap_report each time the program has reached a
+	"ground state", and the reported amount of heap storage is
+	monotonically increasing, that indicates a leak.
+	<p>
+
+	If verbosity &gt;= 2, then sm_heap_report additionally prints one line
+	for each block of memory currently allocated, providing that
+	the group != 0.
+	(Such blocks are assumed to be permanently allocated storage, and
+	are not reported to cut down the level of noise.)
+	<p>
+
+	If verbosity &gt;= 3, then sm_heap_report prints one line for each
+	allocated block, regardless of the group.
+</dl>
+
+<h2> How to enable heap checking </h2>
+
+The overhead of using the package can be made as small as you want.
+You have three options:
+
+<ol>
+<li>
+        If you compile your software with -DSM_HEAP_CHECK=0 then
+	sm_malloc, sm_realloc and sm_free will be redefined
+	as macros that call malloc, realloc, and free.  In this case,
+	there is zero overhead.
+<li>
+        If you do not define -DSM_HEAP_CHECK=0, and you do not explicitly
+	turn on heap checking at run time, then your program will run
+	without error checking and memory leak detection, and the additional
+	cost of calling sm_malloc, sm_realloc and sm_free is a
+	function call and test.  That overhead is sufficiently low that
+	the checking code can be left compiled in a production environment.
+<li>
+        If you do not define -DSM_HEAP_CHECK=0, and you explicitly turn on
+	heap checking at run time, then the additional cost of calling
+	sm_malloc, sm_realloc and sm_free is a hash table lookup.
+</ol>
+
+    Here's how to modify your application to use the heap package.
+    First, change all calls to malloc, realloc and free to sm_malloc,
+    sm_realloc and sm_free.
+    Make sure that there is a -d command line option that
+    uses the libsm debug package to enable named debug options.
+    Add the following code to your program just before it calls exit,
+    or register an atexit handler function containing the following code:
+
+<blockquote><pre>
+#if SM_HEAP_CHECK
+	/* dump the heap, if we are checking for memory leaks */
+	if (sm_debug_active(&SmHeapCheck, 2))
+		sm_heap_report(stdout, sm_debug_level(&SmHeapCheck) - 1);
+#endif
+</pre></blockquote>
+
+    To turn on heap checking, use the command line option "-dsm_check_heap.1".
+    This will cause a table of all currently allocated blocks to be
+    maintained.  The table is used by sm_realloc and sm_free to perform
+    validity checking on the first argument.
+
+    <p>
+    The command line option "-dsm_check_heap.2" will cause your application
+    to invoke sm_heap_report with verbosity=1 just before exit.
+    That will print a single line reporting total storage allocation.
+
+    <p>
+    The command line option "-dsm_check_heap.3" will cause your application
+    to invoke sm_heap_report with verbosity=2 just before exit.
+    This will print a list of all leaked blocks.
+
+    <p>
+    The command line option "-dsm_check_heap.4" will cause your application
+    to invoke sm_heap_report with verbosity=3 just before exit.
+    This will print a list of all allocated blocks.
+
+<h2> Using sm_heap_register </h2>
+
+    Suppose you call a library routine foo that allocates a block of storage
+    for you using malloc, and expects you to free the block later using
+    free.  Because the storage was not allocated using sm_malloc, you
+    will normally get an abort if you try to pass the pointer to
+    sm_free.  The way to fix this problem is to 'register' the pointer
+    returned by foo with the heap package, by calling sm_heap_register:
+
+<blockquote><pre>
+bool sm_heap_register(ptr, size, file, line, group)
+</pre></blockquote>
+
+    The 'ptr' argument is the pointer returned by foo.  The 'size' argument
+    can be smaller than the actual size of the allocated block, but it must
+    not be larger.  The file and line arguments indicate at which line of
+    source code the block was allocated, and is printed by sm_heap_report.
+    For group, you probably want to pass sm_heap_group().
+    <p>
+    This function returns <tt>true</tt> on success,
+    or <tt>false</tt> if it failed due to heap exhaustion.
+
+</body>
+</html>

@@ -1,0 +1,86 @@
+
+#------------------------------------------------------------------------------
+# $File: modem,v 1.8 2017/03/17 21:35:28 christos Exp $
+# modem:  file(1) magic for modem programs
+#
+# From: Florian La Roche <florian@knorke.saar.de>
+1	string		PC\ Research,\ Inc	Digifax-G3-File
+>29	byte		1			\b, fine resolution
+>29	byte		0			\b, normal resolution
+
+# Summary: CCITT Group 3 Facsimile in "raw" form (i.e. no header).
+# Modified by: Joerg Jenderek
+# URL: https://de.wikipedia.org/wiki/Fax
+# Reference: http://web.archive.org/web/20020628195336/http://www.netnam.vn/unescocourse/computervision/104.htm
+# GRR: EOL of G3 is too general as it catches also TrueType fonts, Postscript PrinterFontMetric, others
+0	short		0x0100
+# 16 0-bits near beginning like True Type fonts *.ttf, Postscript PrinterFontMetric *.pfm, FTYPE.HYPERCARD, XFER
+>2	search/9	\0\0
+# maximal 7 0-bits for pixel sequences or 11 0-bits for EOL in G3
+>2	default		x
+# skip IRCAM file (VAX big-endian)	./audio
+>>0	belong		!0x0001a364
+# skip GEM Image data			./images
+>>>2	beshort		!0x0008
+# look for first keyword of Panorama database *.pan
+>>>>11	search/262	\x06DESIGN
+# skip Panorama database
+>>>>11	default		x
+# old Apple DreamWorld DreamGrafix *.3200 with keyword at end of g3 looking files
+>>>>>27118	search/1864	DreamWorld
+>>>>>27118	default		x
+# skip MouseTrap/Mt.Defaults with file size 16 found on Golden Orchard Apple II CD Rom
+>>>>>>8		ubequad		!0x2e01010454010203
+# skip PICTUREH.SML found on Golden Orchard Apple II CD Rom
+>>>>>>>8	ubequad		!0x5dee74ad1aa56394	raw G3 (Group 3) FAX, byte-padded
+# version 5.25 labeled the entry above "raw G3 data, byte-padded"
+!:mime	image/g3fax
+#!:apple	????TIFF
+!:ext	g3
+# unusual image starting with black pixel
+#0	short		0x1300		raw G3 (Group 3) FAX
+0	short		0x1400
+# 16 0-bits near beginning like PicturePuzzler found on Golden Orchard Apple CD Rom
+>2	search/9	\0\0
+# maximal 7 0-bits for pixel sequences or 11 0-bits for EOL in G3
+>2	default		x		raw G3 (Group 3) FAX
+# version 5.25 labeled the above entry as "raw G3 data"
+!:mime	image/g3fax
+!:ext	g3
+# unusual image with black pixel near beginning
+#0	short		0x1900		raw G3 (Group 3) FAX
+
+#
+# Magic data for vgetty voice formats
+# (Martin Seine & Marc Eberhard)
+
+#
+# raw modem data version 1
+#
+0    string    RMD1      raw modem data
+>4   string    >\0       (%s /
+>20  short     >0        compression type 0x%04x)
+
+#
+# portable voice format 1
+#
+0    string    PVF1\n         portable voice format
+>5   string    >\0       (binary %s)
+
+#
+# portable voice format 2
+#
+0    string    PVF2\n         portable voice format
+>5   string >\0          (ascii %s)
+
+# From: Bernd Nuernberger <bernd.nuernberger@web.de>
+# Brooktrout G3 fax data incl. 128 byte header
+# Common suffixes: 3??, BRK, BRT, BTR
+0	leshort		0x01bb
+>2	leshort		0x0100		Brooktrout 301 fax image,
+>>9	leshort		x		%d x
+>>0x2d	leshort		x		%d
+>>6	leshort		200		\b, fine resolution
+>>6	leshort		100		\b, normal resolution
+>>11	byte		1		\b, G3 compression
+>>11	byte		2		\b, G32D compression

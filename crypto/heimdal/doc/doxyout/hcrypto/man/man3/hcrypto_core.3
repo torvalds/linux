@@ -1,0 +1,76 @@
+.TH "hcrypto function controlling behavior" 3 "11 Jan 2012" "Version 1.5.2" "Heimdal crypto library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+hcrypto function controlling behavior \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "int \fBEVP_CIPHER_CTX_rand_key\fP (EVP_CIPHER_CTX *ctx, void *key)"
+.br
+.ti -1c
+.RI "int \fBEVP_CIPHER_CTX_ctrl\fP (EVP_CIPHER_CTX *ctx, int type, int arg, void *data)"
+.br
+.ti -1c
+.RI "void \fBOpenSSL_add_all_algorithms\fP (void)"
+.br
+.ti -1c
+.RI "void \fBOpenSSL_add_all_algorithms_conf\fP (void)"
+.br
+.ti -1c
+.RI "void \fBOpenSSL_add_all_algorithms_noconf\fP (void)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "int EVP_CIPHER_CTX_ctrl (EVP_CIPHER_CTX * ctx, int type, int arg, void * data)"
+.PP
+Perform a operation on a ctx
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP context to perform operation on. 
+.br
+\fItype\fP type of operation. 
+.br
+\fIarg\fP argument to operation. 
+.br
+\fIdata\fP addition data to operation.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 for success, 0 for failure. 
+.RE
+.PP
+
+.SS "int EVP_CIPHER_CTX_rand_key (EVP_CIPHER_CTX * ctx, void * key)"
+.PP
+Generate a random key for the specificed EVP_CIPHER.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIctx\fP EVP_CIPHER_CTX type to build the key for. 
+.br
+\fIkey\fP return key, must be at least \fBEVP_CIPHER_key_length()\fP byte long.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+1 for success, 0 for failure. 
+.RE
+.PP
+
+.SS "void OpenSSL_add_all_algorithms (void)"
+.PP
+Add all algorithms to the crypto core. 
+.SS "void OpenSSL_add_all_algorithms_conf (void)"
+.PP
+Add all algorithms to the crypto core using configuration file. 
+.SS "void OpenSSL_add_all_algorithms_noconf (void)"
+.PP
+Add all algorithms to the crypto core, but don't use the configuration file. 

@@ -1,0 +1,39 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: iovctl
+# REQUIRE: FILESYSTEMS sysctl
+
+. /etc/rc.subr
+
+name="iovctl"
+command="/usr/sbin/iovctl"
+start_cmd="iovctl_start"
+stop_cmd="iovctl_stop"
+
+run_iovctl()
+{
+	local _f flag
+
+	flag=$1
+	for _f in ${iovctl_files} ; do
+		if [ -r ${_f} ]; then
+			${command} ${flag} -f ${_f} > /dev/null
+		fi
+	done
+}
+
+iovctl_start()
+{
+	run_iovctl -C
+}
+
+iovctl_stop()
+{
+	run_iovctl -D
+}
+
+load_rc_config $name
+run_rc_command "$1"

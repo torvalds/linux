@@ -1,0 +1,142 @@
+#!/bin/sh -
+#
+# $NetBSD: zdiff,v 1.5 2010/04/14 20:30:28 joerg Exp $
+#
+# $OpenBSD: zdiff,v 1.2 2003/07/29 07:42:44 otto Exp $
+#
+#-
+# Copyright (c) 2003 Todd C. Miller <Todd.Miller@courtesan.com>
+# Copyright (c) 2010 Joerg Sonnenberger <joerg@NetBSD.org>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+# Sponsored in part by the Defense Advanced Research Projects
+# Agency (DARPA) and Air Force Research Laboratory, Air Force
+# Materiel Command, USAF, under agreement number F39502-99-1-0512.
+#
+# $FreeBSD$
+
+# Set $prog based on $0
+case $0 in
+	*cmp)	prog=cmp
+		;;
+	*)	prog=diff
+		;;
+esac
+USAGE="usage: $0 [options] file1 [file2]"
+
+check_suffix() {
+	case "$1" in
+	*[._-][Zz])
+		setvar $2 "${1%??}"
+		setvar $3 "gzip -cdqf"
+		;;
+	*[._-]bz)
+		setvar $2 "${1%???}"
+		setvar $3 "bzip2 -cdqf"
+		;;
+	*[._-]gz)
+		setvar $2 "${1%???}"
+		setvar $3 "gzip -cdqf"
+		;;
+	*[._-]xz)
+		setvar $2 "${1%???}"
+		setvar $3 "xz -cdqf"
+		;;
+	*[._-]bz2)
+		setvar $2 "${1%????}"
+		setvar $3 "bzip2 -cdqf"
+		;;
+	*[._-]lzma)
+		setvar $2 "${1%?????}"
+		setvar $3 "xz -cdqf"
+		;;
+	*.t[ag]z)
+		setvar $2 "${1%??}"ar
+		setvar $3 "gzip -cdqf"
+		;;
+	*.tbz)
+		setvar $2 "${1%??}"ar
+		setvar $3 "bzip2 -cdqf"
+		;;
+	*.tbz2)
+		setvar $2 "${1%???}"ar
+		setvar $3 "bzip2 -cdqf"
+		;;
+	*.t[lx]z)
+		setvar $2 "${1%??}"ar
+		setvar $3 "xz -cdqf"
+		;;
+	*)
+		setvar $2 "$1"
+		setvar $3 ""
+		;;
+	esac
+}
+
+
+# Pull out any command line flags so we can pass them to diff/cmp
+# XXX - assumes there is no optarg
+flags=
+while test $# -ne 0; do
+	case "$1" in
+		--)
+			shift
+			break
+			;;
+		-)
+			break
+			;;
+		-*)
+			flags="$flags $1"
+			shift
+			;;
+		*)
+			break
+			;;
+	esac
+done
+
+if [ $# -eq 1 ]; then
+	# One file given, compare compressed to uncompressed
+	files="$1"
+	check_suffix "$1" files filt
+	if [ -z "$filt" ]; then
+		echo "z$prog: unknown suffix" 1>&2
+		exit 1
+	fi
+	$filt -- "$1" | $prog $flags -- - "$files"
+	status=$?
+elif [ $# -eq 2 ]; then
+	# Two files given, compare the two uncompressing as needed
+	check_suffix "$1" files filt
+	check_suffix "$2" files2 filt2
+	if [ -z "$filt" -a -z "$filt2" ]; then
+		$prog $flags -- "$1" "$2"
+	elif [ -z "$filt" -a -n "$filt2" -a "$1" != "-" ]; then
+		$filt2 -- "$2" | $prog $flags -- "$1" -
+	elif [ -n "$filt" -a -z "$filt2" -a "$2" != "-" ]; then
+		$filt -- "$1" | $prog $flags -- - "$2"
+	else
+		tmp=`mktemp -t z$prog.XXXXXXXXXX` || exit 1
+		trap "rm -f $tmp" 0 1 2 3 13 15
+		${filt2:-cat} -- "$2" > $tmp || exit $?
+		${filt:-cat} -- "$1" | $prog $flags -- - "$tmp"
+	fi
+	status=$?
+else
+	echo "$USAGE" 1>&2
+	exit 1
+fi
+
+exit $status

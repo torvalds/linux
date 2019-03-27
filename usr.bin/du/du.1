@@ -1,0 +1,228 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)du.1	8.2 (Berkeley) 4/1/94
+.\" $FreeBSD$
+.\"
+.Dd August 8, 2017
+.Dt DU 1
+.Os
+.Sh NAME
+.Nm du
+.Nd display disk usage statistics
+.Sh SYNOPSIS
+.Nm
+.Op Fl Aclnx
+.Op Fl H | L | P
+.Op Fl g | h | k | m
+.Op Fl a | s | d Ar depth
+.Op Fl B Ar blocksize
+.Op Fl I Ar mask
+.Op Fl t Ar threshold
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility displays the file system block usage for each file argument
+and for each directory in the file hierarchy rooted in each directory
+argument.
+If no file is specified, the block usage of the hierarchy rooted in
+the current directory is displayed.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl A
+Display the apparent size instead of the disk usage.
+This can be helpful when operating on compressed volumes or sparse files.
+.It Fl B Ar blocksize
+Calculate block counts in
+.Ar blocksize
+byte blocks.
+This is different from the
+.Fl h, k, m,
+.Fl Fl si
+and
+.Fl g
+options or setting
+.Ev BLOCKSIZE
+and gives an estimate of how much space the examined file hierarchy would
+require on a filesystem with the given
+.Ar blocksize .
+Unless in
+.Fl A
+mode,
+.Ar blocksize
+is rounded up to the next multiple of 512.
+.It Fl H
+Symbolic links on the command line are followed, symbolic links in file
+hierarchies are not followed.
+.It Fl I Ar mask
+Ignore files and directories matching the specified
+.Ar mask .
+.It Fl L
+Symbolic links on the command line and in file hierarchies are followed.
+.It Fl P
+No symbolic links are followed.
+This is the default.
+.It Fl a
+Display an entry for each file in a file hierarchy.
+.It Fl c
+Display a grand total.
+.It Fl d Ar depth
+Display an entry for all files and directories
+.Ar depth
+directories deep.
+.It Fl g
+Display block counts in 1073741824-byte (1 GiB) blocks.
+.It Fl h
+.Dq Human-readable
+output.
+Use unit suffixes: Byte, Kilobyte, Megabyte,
+Gigabyte, Terabyte and Petabyte based on powers of 1024.
+.It Fl k
+Display block counts in 1024-byte (1 kiB) blocks.
+.It Fl l
+If a file has multiple hard links, count its size multiple times.
+The default behavior of
+.Nm
+is to count files with multiple hard links only once.
+When the
+.Fl l
+option is specified, the hard link checks are disabled, and these files
+are counted (and displayed) as many times as they are found.
+.It Fl m
+Display block counts in 1048576-byte (1 MiB) blocks.
+.It Fl n
+Ignore files and directories with user
+.Dq nodump
+flag
+.Pq Dv UF_NODUMP
+set.
+.It Fl r
+Generate messages about directories that cannot be read, files
+that cannot be opened, and so on.
+This is the default case.
+This option exists solely for conformance with
+.St -xpg4 .
+.It Fl s
+Display an entry for each specified file.
+(Equivalent to
+.Fl d Li 0 )
+.It Fl Fl si
+.Dq Human-readable
+output.
+Use unit suffixes: Byte, Kilobyte, Megabyte,
+Gigabyte, Terabyte and Petabyte based on powers of 1000.
+.It Fl t Ar threshold
+Display only entries for which size exceeds
+.Ar threshold .
+If
+.Ar threshold
+is negative, display only entries for which size is less than the absolute
+value of
+.Ar threshold .
+.It Fl x
+File system mount points are not traversed.
+.El
+.Pp
+The
+.Nm
+utility counts the storage used by symbolic links and not the files they
+reference unless the
+.Fl H
+or
+.Fl L
+option is specified.
+If either the
+.Fl H
+or
+.Fl L
+option is specified, storage used by any symbolic links which are
+followed is not counted (or displayed).
+The
+.Fl H ,
+.Fl L
+and
+.Fl P
+options override each other and the command's actions are determined
+by the last one specified.
+.Pp
+The
+.Fl h, k, m
+and
+.Fl Fl si
+options all override each other; the last one specified determines
+the block counts used.
+.Sh ENVIRONMENT
+.Bl -tag -width BLOCKSIZE
+.It Ev BLOCKSIZE
+If the environment variable
+.Ev BLOCKSIZE
+is set, and the
+.Fl h, k, m
+or
+.Fl Fl si
+options are not specified, the block counts will be displayed in units of
+that block size.
+If
+.Ev BLOCKSIZE
+is not set, and the
+.Fl h, k, m
+or
+.Fl Fl si
+options are not specified, the block counts will be displayed in 512-byte
+blocks.
+.El
+.Sh EXAMPLES
+Show disk usage for all files in the current directory.
+Output is in human-readable form:
+.Pp
+.Dl # du -ah
+.Pp
+Summarize disk usage in the current directory:
+.Pp
+.Dl # du -hs
+.Pp
+Summarize disk usage for a specific directory:
+.Pp
+.Dl # du -hs /home
+.Pp
+Show name and size of all C files in a specific directory.
+Also display a grand total at the end:
+.Pp
+.Dl # du -ch /usr/src/sys/kern/*.c
+.Sh SEE ALSO
+.Xr df 1 ,
+.Xr chflags 2 ,
+.Xr fts 3 ,
+.Xr symlink 7 ,
+.Xr quot 8
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v1 .

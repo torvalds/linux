@@ -1,0 +1,113 @@
+# $FreeBSD$
+hint.apb.0.at="nexus0"
+hint.apb.0.irq=4
+
+# uart0
+hint.uart.0.at="apb0"
+# see atheros/uart_cpu_ar71xx.c why +3
+hint.uart.0.maddr=0x18020003
+hint.uart.0.msize=0x18
+hint.uart.0.irq=3
+
+#ehci - note the 0x100 offset for the AR913x/AR724x
+hint.ehci.0.at="nexus0"
+hint.ehci.0.maddr=0x1b000100
+hint.ehci.0.msize=0x00ffff00
+hint.ehci.0.irq=1
+
+# pci
+hint.pcib.0.at="nexus0"
+hint.pcib.0.irq=0
+
+# arge0
+hint.arge.0.at="nexus0"
+hint.arge.0.maddr=0x19000000
+hint.arge.0.msize=0x1000
+hint.arge.0.irq=2
+
+# AR8316 workaround for now
+hint.arge.0.media=1000
+hint.arge.0.fduplex=1
+hint.arge.0.phymask=0x3
+
+# GPIO
+hint.gpio.0.at="apb0"
+hint.gpio.0.maddr=0x18040000
+hint.gpio.0.msize=0x1000
+hint.gpio.0.irq=2
+
+# Signal leds
+hint.gpioled.0.at="gpiobus0"
+hint.gpioled.0.name="sig1"
+hint.gpioled.0.pins=0x0001	# pin 0
+hint.gpioled.1.at="gpiobus0"
+hint.gpioled.1.name="sig2"
+hint.gpioled.1.pins=0x0002	# pin 1
+hint.gpioled.2.at="gpiobus0"
+hint.gpioled.2.name="sig3"
+hint.gpioled.2.pins=0x0800	# pin 11
+hint.gpioled.3.at="gpiobus0"
+hint.gpioled.3.name="sig4"
+hint.gpioled.3.pins=0x0080	# pin 7
+
+# SPI controller/bus
+hint.spi.0.at="nexus0"
+hint.spi.0.maddr=0x1f000000
+hint.spi.0.msize=0x10
+
+# SPI flash
+hint.mx25l.0.at="spibus0"
+hint.mx25l.0.cs=0
+
+# Watchdog
+hint.ar71xx_wdog.0.at="nexus0"
+
+# nvram mapping - XXX ?
+hint.nvram.0.base=0x1f030000
+hint.nvram.0.maxsize=0x2000
+hint.nvram.0.flags=3 # 1 = No check, 2 = Format Generic
+hint.nvram.1.base=0x1f032000
+hint.nvram.1.maxsize=0x4000
+hint.nvram.1.flags=3 # 1 = No check, 2 = Format Generic
+
+# GEOM_MAP
+#
+# From my PB92 environment:
+#
+# mtdparts=ar7240-nor0:256k(u-boot),64k(u-boot-env),2752k(rootfs),896k(uImage),64k(NVRAM),64k(ART)
+
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x00040000	# 256k u-boot
+hint.map.0.name="u-boot"
+hint.map.0.readonly=1
+
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00040000
+hint.map.1.end=0x00050000	# 64k u-boot-env
+hint.map.1.name="u-boot-env"
+hint.map.1.readonly=0
+
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x00050000
+hint.map.2.end=0x00300000	# 2752k rootfs
+hint.map.2.name="rootfs"
+hint.map.2.readonly=1
+
+hint.map.3.at="flash/spi0"
+hint.map.3.start=0x00300000
+hint.map.3.end=0x003e0000	# 896k uImage
+hint.map.3.name="uImage"
+hint.map.3.readonly=0
+
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x003e0000
+hint.map.4.end=0x003f0000	# 64k NVRAM
+hint.map.4.name="NVRAM"
+hint.map.4.readonly=0
+
+hint.map.5.at="flash/spi0"
+hint.map.5.start=0x003f0000
+hint.map.5.end=0x00400000	# 64k ART
+hint.map.5.name="ART"
+hint.map.5.readonly=1

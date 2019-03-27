@@ -1,0 +1,575 @@
+.\" Copyright (c) 2003-2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 6, 2017
+.Dt PMC 3
+.Os
+.Sh NAME
+.Nm pmc
+.Nd library for accessing hardware performance monitoring counters
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+The
+.Lb libpmc
+provides a programming interface that allows applications to use
+hardware performance counters to gather performance data about
+specific processes or for the system as a whole.
+The library is implemented using the lower-level facilities offered by
+the
+.Xr hwpmc 4
+driver.
+.Ss Key Concepts
+Performance monitoring counters (PMCs) are represented by the library
+using a software abstraction.
+These
+.Dq abstract
+PMCs can have two scopes:
+.Bl -bullet
+.It
+System scope.
+These PMCs measure events in a whole-system manner, i.e., independent
+of the currently executing thread.
+System scope PMCs are allocated on specific CPUs and do not
+migrate between CPUs.
+Non-privileged process are allowed to allocate system scope PMCs if the
+.Xr hwpmc 4
+sysctl tunable:
+.Va security.bsd.unprivileged_syspmcs
+is non-zero.
+.It
+Process scope.
+These PMCs only measure hardware events when the processes they are
+attached to are executing on a CPU.
+In an SMP system, process scope PMCs migrate between CPUs along with
+their target processes.
+.El
+.Pp
+Orthogonal to PMC scope, PMCs may be allocated in one of two
+operational modes:
+.Bl -bullet
+.It
+Counting PMCs measure events according to their scope
+(system or process).
+The application needs to explicitly read these counters
+to retrieve their value.
+.It
+Sampling PMCs cause the CPU to be periodically interrupted
+and information about its state of execution to be collected.
+Sampling PMCs are used to profile specific processes and kernel
+threads or to profile the system as a whole.
+.El
+.Pp
+The scope and operational mode for a software PMC are specified at
+PMC allocation time.
+An application is allowed to allocate multiple PMCs subject
+to availability of hardware resources.
+.Pp
+The library uses human-readable strings to name the event being
+measured by hardware.
+The syntax used for specifying a hardware event along with additional
+event specific qualifiers (if any) is described in detail in section
+.Sx "EVENT SPECIFIERS"
+below.
+.Pp
+PMCs are associated with the process that allocated them and
+will be automatically reclaimed by the system when the process exits.
+Additionally, process-scope PMCs have to be attached to one or more
+target processes before they can perform measurements.
+A process-scope PMC may be attached to those target processes
+that its owner process would otherwise be permitted to debug.
+An owner process may attach PMCs to itself allowing
+it to measure its own behavior.
+Additionally, on some machine architectures, such self-attached PMCs
+may be read cheaply using specialized instructions supported by the
+processor.
+.Pp
+Certain kinds of PMCs require that a log file be configured before
+they may be started.
+These include:
+.Bl -bullet
+.It
+System scope sampling PMCs.
+.It
+Process scope sampling PMCs.
+.It
+Process scope counting PMCs that have been configured to report PMC
+readings on process context switches or process exits.
+.El
+.Pp
+Up to one log file may be configured per owner process.
+Events logged to a log file may be subsequently analyzed using the
+.Xr pmclog 3
+family of functions.
+.Ss Supported CPUs
+The CPUs known to the PMC library are named by the
+.Vt "enum pmc_cputype"
+enumeration.
+Supported CPUs include:
+.Pp
+.Bl -tag -width "Li PMC_CPU_INTEL_CORE2" -compact
+.It Li PMC_CPU_AMD_K7
+.Tn "AMD Athlon"
+CPUs.
+.It Li PMC_CPU_AMD_K8
+.Tn "AMD Athlon64"
+CPUs.
+.It Li PMC_CPU_INTEL_ATOM
+.Tn Intel
+.Tn Atom
+CPUs and other CPUs conforming to version 3 of the
+.Tn Intel
+performance measurement architecture.
+.It Li PMC_CPU_INTEL_CORE
+.Tn Intel
+.Tn Core Solo
+and
+.Tn Core Duo
+CPUs, and other CPUs conforming to version 1 of the
+.Tn Intel
+performance measurement architecture.
+.It Li PMC_CPU_INTEL_CORE2
+.Tn Intel
+.Tn "Core2 Solo" ,
+.Tn "Core2 Duo"
+and
+.Tn "Core2 Extreme"
+CPUs, and other CPUs conforming to version 2 of the
+.Tn Intel
+performance measurement architecture.
+.It Li PMC_CPU_INTEL_P5
+.Tn Intel
+.Tn "Pentium"
+CPUs.
+.It Li PMC_CPU_INTEL_P6
+.Tn Intel
+.Tn "Pentium Pro"
+CPUs.
+.It Li PMC_CPU_INTEL_PII
+.Tn "Intel Pentium II"
+CPUs.
+.It Li PMC_CPU_INTEL_PIII
+.Tn "Intel Pentium III"
+CPUs.
+.It Li PMC_CPU_INTEL_PIV
+.Tn "Intel Pentium 4"
+CPUs.
+.It Li PMC_CPU_INTEL_PM
+.Tn "Intel Pentium M"
+CPUs.
+.El
+.Ss Supported PMCs
+PMC supported by this library are named by the
+.Vt enum pmc_class
+enumeration.
+Supported PMC kinds include:
+.Pp
+.Bl -tag -width "Li PMC_CLASS_IAF" -compact
+.It Li PMC_CLASS_IAF
+Fixed function hardware counters presents in CPUs conforming to the
+.Tn Intel
+performance measurement architecture version 2 and later.
+.It Li PMC_CLASS_IAP
+Programmable hardware counters present in CPUs conforming to the
+.Tn Intel
+performance measurement architecture version 1 and later.
+.It Li PMC_CLASS_K7
+Programmable hardware counters present in
+.Tn "AMD Athlon"
+CPUs.
+.It Li PMC_CLASS_K8
+Programmable hardware counters present in
+.Tn "AMD Athlon64"
+CPUs.
+.It Li PMC_CLASS_P4
+Programmable hardware counters present in
+.Tn "Intel Pentium 4"
+CPUs.
+.It Li PMC_CLASS_P5
+Programmable hardware counters present in
+.Tn Intel
+.Tn Pentium
+CPUs.
+.It Li PMC_CLASS_P6
+Programmable hardware counters present in
+.Tn Intel
+.Tn "Pentium Pro" ,
+.Tn "Pentium II" ,
+.Tn "Pentium III" ,
+.Tn "Celeron" ,
+and
+.Tn "Pentium M"
+CPUs.
+.It Li PMC_CLASS_TSC
+The timestamp counter on i386 and amd64 architecture CPUs.
+.It Li PMC_CLASS_SOFT
+Software events.
+.El
+.Ss PMC Capabilities
+Capabilities of performance monitoring hardware are denoted using
+the
+.Vt "enum pmc_caps"
+enumeration.
+Supported capabilities include:
+.Pp
+.Bl -tag -width "Li PMC_CAP_INTERRUPT" -compact
+.It Li PMC_CAP_CASCADE
+The ability to cascade counters.
+.It Li PMC_CAP_EDGE
+The ability to count negated to asserted transitions of the hardware
+conditions being probed for.
+.It Li PMC_CAP_INTERRUPT
+The ability to interrupt the CPU.
+.It Li PMC_CAP_INVERT
+The ability to invert the sense of the hardware conditions being
+measured.
+.It Li PMC_CAP_PRECISE
+The ability to perform precise sampling.
+.It Li PMC_CAP_QUALIFIER
+The hardware allows monitored to be further qualified in some
+system dependent way.
+.It Li PMC_CAP_READ
+The ability to read from performance counters.
+.It Li PMC_CAP_SYSTEM
+The ability to restrict counting of hardware events to when the CPU is
+running privileged code.
+.It Li PMC_CAP_THRESHOLD
+The ability to ignore simultaneous hardware events below a
+programmable threshold.
+.It Li PMC_CAP_USER
+The ability to restrict counting of hardware events to those when the
+CPU is running unprivileged code.
+.It Li PMC_CAP_WRITE
+The ability to write to performance counters.
+.El
+.Ss CPU Naming Conventions
+CPUs are named using small integers from zero up to, but
+excluding, the value returned by function
+.Fn pmc_ncpu .
+On platforms supporting sparsely numbered CPUs not all the numbers in
+this range will denote valid CPUs.
+Operations on non-existent CPUs will return an error.
+.Ss Functional Grouping of the API
+This section contains a brief overview of the available functionality
+in the PMC library.
+Each function listed here is described further in its own manual page.
+.Bl -tag -width 2n
+.It Administration
+.Bl -tag -width 6n -compact
+.It Fn pmc_disable , Fn pmc_enable
+Administratively disable (enable) specific performance monitoring
+counter hardware.
+Counters that are disabled will not be available to applications to
+use.
+.El
+.It "Convenience Functions"
+.Bl -tag -width 6n -compact
+.It Fn pmc_event_names_of_class
+Returns a list of event names supported by a given PMC type.
+.It Fn pmc_name_of_capability
+Convert a
+.Dv PMC_CAP_*
+flag to a human-readable string.
+.It Fn pmc_name_of_class
+Convert a
+.Dv PMC_CLASS_*
+constant to a human-readable string.
+.It Fn pmc_name_of_cputype
+Return a human-readable name for a CPU type.
+.It Fn pmc_name_of_disposition
+Return a human-readable string describing a PMC's disposition.
+.It Fn pmc_name_of_event
+Convert a numeric event code to a human-readable string.
+.It Fn pmc_name_of_mode
+Convert a
+.Dv PMC_MODE_*
+constant to a human-readable name.
+.It Fn pmc_name_of_state
+Return a human-readable string describing a PMC's current state.
+.El
+.It "Library Initialization"
+.Bl -tag -width 6n -compact
+.It Fn pmc_init
+Initialize the library.
+This function must be called before any other library function.
+.El
+.It "Log File Handling"
+.Bl -tag -width 6n -compact
+.It Fn pmc_configure_logfile
+Configure a log file for
+.Xr hwpmc 4
+to write logged events to.
+.It Fn pmc_flush_logfile
+Flush all pending log data in
+.Xr hwpmc 4 Ns Ap s
+buffers.
+.It Fn pmc_close_logfile
+Flush all pending log data and close
+.Xr hwpmc 4 Ns Ap s
+side of the stream.
+.It Fn pmc_writelog
+Append arbitrary user data to the current log file.
+.El
+.It "PMC Management"
+.Bl -tag -width 6n -compact
+.It Fn pmc_allocate , Fn pmc_release
+Allocate (free) a PMC.
+.It Fn pmc_attach , Fn pmc_detach
+Attach (detach) a process scope PMC to a target.
+.It Fn pmc_read , Fn pmc_write , Fn pmc_rw
+Read (write) a value from (to) a PMC.
+.It Fn pmc_start , Fn pmc_stop
+Start (stop) a software PMC.
+.It Fn pmc_set
+Set the reload value for a sampling PMC.
+.El
+.It "Queries"
+.Bl -tag -width 6n -compact
+.It Fn pmc_capabilities
+Retrieve the capabilities for a given PMC.
+.It Fn pmc_cpuinfo
+Retrieve information about the CPUs and PMC hardware present in the
+system.
+.It Fn pmc_get_driver_stats
+Retrieve statistics maintained by
+.Xr hwpmc 4 .
+.It Fn pmc_ncpu
+Determine the greatest possible CPU number on the system.
+.It Fn pmc_npmc
+Return the number of hardware PMCs present in a given CPU.
+.It Fn pmc_pmcinfo
+Return information about the state of a given CPU's PMCs.
+.It Fn pmc_width
+Determine the width of a hardware counter in bits.
+.El
+.It "x86 Architecture Specific API"
+.Bl -tag -width 6n -compact
+.It Fn pmc_get_msr
+Returns the processor model specific register number
+associated with
+.Fa pmc .
+Applications may then use the x86
+.Ic RDPMC
+instruction to directly read the contents of the PMC.
+.El
+.El
+.Ss Signal Handling Requirements
+Applications using PMCs are required to handle the following signals:
+.Bl -tag -width ".Dv SIGBUS"
+.It Dv SIGBUS
+When the
+.Xr hwpmc 4
+module is unloaded using
+.Xr kldunload 8 ,
+processes that have PMCs allocated to them will be sent a
+.Dv SIGBUS
+signal.
+.It Dv SIGIO
+The
+.Xr hwpmc 4
+driver will send a PMC owning process a
+.Dv SIGIO
+signal if:
+.Bl -bullet
+.It
+If any process-mode PMC allocated by it loses all its
+target processes.
+.It
+If the driver encounters an error when writing log data to a
+configured log file.
+This error may be retrieved by a subsequent call to
+.Fn pmc_flush_logfile .
+.El
+.El
+.Ss Typical Program Flow
+.Bl -enum
+.It
+An application would first invoke function
+.Fn pmc_init
+to allow the library to initialize itself.
+.It
+Signal handling would then be set up.
+.It
+Next the application would allocate the PMCs it desires using function
+.Fn pmc_allocate .
+.It
+Initial values for PMCs may be set using function
+.Fn pmc_set .
+.It
+If a log file is necessary for the PMCs to work, it would
+be configured using function
+.Fn pmc_configure_logfile .
+.It
+Process scope PMCs would then be attached to their target processes
+using function
+.Fn pmc_attach .
+.It
+The PMCs would then be started using function
+.Fn pmc_start .
+.It
+Once started, the values of counting PMCs may be read using function
+.Fn pmc_read .
+For PMCs that write events to the log file, this logged data would be
+read and parsed using the
+.Xr pmclog 3
+family of functions.
+.It
+PMCs are stopped using function
+.Fn pmc_stop ,
+and process scope PMCs are detached from their targets using
+function
+.Fn pmc_detach .
+.It
+Before the process exits, its may release its PMCs using function
+.Fn pmc_release .
+Any configured log file may be closed using function
+.Fn pmc_configure_logfile .
+.El
+.Sh EVENT SPECIFIERS
+Event specifiers are strings comprising of an event name, followed by
+optional parameters modifying the semantics of the hardware event
+being probed.
+Event names are PMC architecture dependent, but the PMC library defines
+machine independent aliases for commonly used events.
+.Pp
+Event specifiers spellings are case-insensitive and space characters,
+periods, underscores and hyphens are considered equivalent to each other.
+Thus the event specifiers
+.Qq "Example Event" ,
+.Qq "example-event" ,
+and
+.Qq "EXAMPLE_EVENT"
+are equivalent.
+.Ss PMC Architecture Dependent Events
+PMC architecture dependent event specifiers are described in the
+following manual pages:
+.Bl -column " PMC_CLASS_TSC " "MANUAL PAGE "
+.It Em "PMC Class"      Ta Em "Manual Page"
+.It Li PMC_CLASS_IAF    Ta Xr pmc.iaf 3
+.It Li PMC_CLASS_IAP    Ta Xr pmc.atom 3 , Xr pmc.core 3 , Xr pmc.core2 3
+.It Li PMC_CLASS_K7     Ta Xr pmc.k7 3
+.It Li PMC_CLASS_K8     Ta Xr pmc.k8 3
+.It Li PMC_CLASS_P4     Ta Xr pmc.p4 3
+.It Li PMC_CLASS_P5     Ta Xr pmc.p5 3
+.It Li PMC_CLASS_P6     Ta Xr pmc.p6 3
+.It Li PMC_CLASS_TSC    Ta Xr pmc.tsc 3
+.El
+.Ss Event Name Aliases
+Event name aliases are PMC-independent names for commonly used events.
+The following aliases are known to this version of the
+.Nm pmc
+library:
+.Bl -tag -width indent
+.It Li branches
+Measure the number of branches retired.
+.It Li branch-mispredicts
+Measure the number of retired branches that were mispredicted.
+.It Li cycles
+Measure processor cycles.
+This event is implemented using the processor's Time Stamp Counter
+register.
+.It Li dc-misses
+Measure the number of data cache misses.
+.It Li ic-misses
+Measure the number of instruction cache misses.
+.It Li instructions
+Measure the number of instructions retired.
+.It Li interrupts
+Measure the number of interrupts seen.
+.It Li unhalted-cycles
+Measure the number of cycles the processor is not in a halted
+or sleep state.
+.El
+.Sh COMPATIBILITY
+The interface between the
+.Nm pmc
+library and the
+.Xr hwpmc 4
+driver is intended to be private to the implementation and may
+change.
+In order to ease forward compatibility with future versions of the
+.Xr hwpmc 4
+driver, applications are urged to dynamically link with the
+.Nm pmc
+library.
+.Pp
+The
+.Nm pmc
+API is
+.Ud
+.Sh SEE ALSO
+.Xr pmc.atom 3 ,
+.Xr pmc.core 3 ,
+.Xr pmc.core2 3 ,
+.Xr pmc.haswell 3 ,
+.Xr pmc.haswelluc 3 ,
+.Xr pmc.haswellxeon 3 ,
+.Xr pmc.iaf 3 ,
+.Xr pmc.ivybridge 3 ,
+.Xr pmc.ivybridgexeon 3 ,
+.Xr pmc.k7 3 ,
+.Xr pmc.k8 3 ,
+.Xr pmc.mips24k 3 ,
+.Xr pmc.octeon 3 ,
+.Xr pmc.p4 3 ,
+.Xr pmc.p5 3 ,
+.Xr pmc.p6 3 ,
+.Xr pmc.sandybridge 3 ,
+.Xr pmc.sandybridgeuc 3 ,
+.Xr pmc.sandybridgexeon 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmc.westmere 3 ,
+.Xr pmc.westmereuc 3 ,
+.Xr pmc.xscale 3 ,
+.Xr pmc_allocate 3 ,
+.Xr pmc_attach 3 ,
+.Xr pmc_capabilities 3 ,
+.Xr pmc_configure_logfile 3 ,
+.Xr pmc_disable 3 ,
+.Xr pmc_event_names_of_class 3 ,
+.Xr pmc_get_driver_stats 3 ,
+.Xr pmc_get_msr 3 ,
+.Xr pmc_init 3 ,
+.Xr pmc_name_of_capability 3 ,
+.Xr pmc_read 3 ,
+.Xr pmc_set 3 ,
+.Xr pmc_start 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4 ,
+.Xr pmccontrol 8 ,
+.Xr pmcstat 8
+.Sh HISTORY
+The
+.Nm pmc
+library first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+The
+.Lb libpmc
+library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .

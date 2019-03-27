@@ -1,0 +1,62 @@
+#
+# $FreeBSD$
+#
+# database for vidfont(8)
+#
+# Format <file>:<lang>:<description>
+#
+# lang: ar bg cs da de el en es fi fr hr hu hy is it iw ja ko nl no pl
+#       pt ro ru sh sk sl sv tr uk zh
+# lang: lang,lang
+#
+# Example:
+# 	terminus-b32.fnt:de:Terminus Schriftart
+# 	terminus-b32.fnt:en:Terminus font
+#
+# If lang empty use 'en' (us-english) as default.
+#
+# See also setlocale(3),
+# /usr/share/locale, /usr/X11/lib/X11/locale/locale.alias
+#
+################################
+# Language support: MENU, FONT
+#
+MENU:en:Choose your terminal font
+MENU:de:Wählen Sie Ihre Schrift
+MENU:fr:Choisissez votre fonte écran
+
+#
+# The font definition for "en" is the fall-back font for
+# all languages.
+# Add language specific font definitions only where required!
+#
+FONT:en:vgarom-8x14.fnt
+#
+
+gallant.fnt:en:Gallant Character set, 8x16
+gallant.fnt:de:Gallant Zeichensatz, 8x16
+
+terminus-b32.fnt:en:Terminus BSD Console, size 32
+terminus-b32.fnt:de:Terminus BSD Console, Größe 32
+
+tom-thumb.fnt:en:tom-thumb Character set, 4x6
+tom-thumb.fnt:de:tom-thumb Zeichensatz, 4x6
+
+vgarom-16x32.fnt:en:VGAROM, 16x32
+
+vgarom-8x14.fnt:en:VGAROM, 8x14
+
+vgarom-8x16.fnt:en:VGAROM, 8x16
+
+vgarom-8x8.fnt:en:VGAROM, 8x8
+
+vgarom-thin-8x16.fnt:en:VGAROM, 8x16 (thin)
+vgarom-thin-8x16.fnt:de:VGAROM, 8x16 (dünn)
+vgarom-thin-8x16.fnt:fr:VGAROM, 8x16 (fin)
+
+vgarom-thin-8x8.fnt:en:VGAROM, 8x8 (thin)
+vgarom-thin-8x8.fnt:de:VGAROM, 8x8 (dünn)
+vgarom-thin-8x8.fnt:fr:VGAROM, 8x8 (fin)
+
+# (fset 'langnew
+#   "\M-}\C-p\C-k\C-y\C-m\C-y\M-}")

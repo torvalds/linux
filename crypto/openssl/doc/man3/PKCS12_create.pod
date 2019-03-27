@@ -1,0 +1,86 @@
+=pod
+
+=head1 NAME
+
+PKCS12_create - create a PKCS#12 structure
+
+=head1 SYNOPSIS
+
+ #include <openssl/pkcs12.h>
+
+ PKCS12 *PKCS12_create(const char *pass, const char *name, EVP_PKEY *pkey,
+                       X509 *cert, STACK_OF(X509) *ca,
+                       int nid_key, int nid_cert, int iter, int mac_iter, int keytype);
+
+=head1 DESCRIPTION
+
+PKCS12_create() creates a PKCS#12 structure.
+
+B<pass> is the passphrase to use. B<name> is the B<friendlyName> to use for
+the supplied certificate and key. B<pkey> is the private key to include in
+the structure and B<cert> its corresponding certificates. B<ca>, if not B<NULL>
+is an optional set of certificates to also include in the structure.
+
+B<nid_key> and B<nid_cert> are the encryption algorithms that should be used
+for the key and certificate respectively. The modes
+GCM, CCM, XTS, and OCB are unsupported. B<iter> is the encryption algorithm
+iteration count to use and B<mac_iter> is the MAC iteration count to use.
+B<keytype> is the type of key.
+
+=head1 NOTES
+
+The parameters B<nid_key>, B<nid_cert>, B<iter>, B<mac_iter> and B<keytype>
+can all be set to zero and sensible defaults will be used.
+
+These defaults are: 40 bit RC2 encryption for certificates, triple DES
+encryption for private keys, a key iteration count of PKCS12_DEFAULT_ITER
+(currently 2048) and a MAC iteration count of 1.
+
+The default MAC iteration count is 1 in order to retain compatibility with
+old software which did not interpret MAC iteration counts. If such compatibility
+is not required then B<mac_iter> should be set to PKCS12_DEFAULT_ITER.
+
+B<keytype> adds a flag to the store private key. This is a non standard extension
+that is only currently interpreted by MSIE. If set to zero the flag is omitted,
+if set to B<KEY_SIG> the key can be used for signing only, if set to B<KEY_EX>
+it can be used for signing and encryption. This option was useful for old
+export grade software which could use signing only keys of arbitrary size but
+had restrictions on the permissible sizes of keys which could be used for
+encryption.
+
+If a certificate contains an B<alias> or B<keyid> then this will be
+used for the corresponding B<friendlyName> or B<localKeyID> in the
+PKCS12 structure.
+
+Either B<pkey>, B<cert> or both can be B<NULL> to indicate that no key or
+certificate is required. In previous versions both had to be present or
+a fatal error is returned.
+
+B<nid_key> or B<nid_cert> can be set to -1 indicating that no encryption
+should be used.
+
+B<mac_iter> can be set to -1 and the MAC will then be omitted entirely.
+
+PKCS12_create() makes assumptions regarding the encoding of the given pass
+phrase.
+See L<passphrase-encoding(7)> for more information.
+
+=head1 RETURN VALUES
+
+PKCS12_create() returns a valid B<PKCS12> structure or NULL if an error occurred.
+
+=head1 SEE ALSO
+
+L<d2i_PKCS12(3)>,
+L<passphrase-encoding(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

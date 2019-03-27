@@ -1,0 +1,463 @@
+.\" Copyright (c) 1995
+.\"	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 13, 2009
+.Dt YPSERV 8
+.Os
+.Sh NAME
+.Nm ypserv
+.Nd NIS database server
+.Sh SYNOPSIS
+.Nm
+.Op Fl n
+.Op Fl d
+.Op Fl P Ar port
+.Op Fl p Ar path
+.Sh DESCRIPTION
+.Tn NIS
+is an RPC-based service designed to allow a number of UNIX-based
+machines to share a common set of configuration files.
+Rather than
+requiring a system administrator to update several copies of files
+such as
+.Pa /etc/hosts ,
+.Pa /etc/passwd
+and
+.Pa /etc/group ,
+which tend to require frequent changes in most environments,
+.Tn NIS
+allows groups of computers to share one set of data which can be
+updated from a single location.
+.Pp
+The
+.Nm
+utility is the server that distributes
+.Tn NIS
+databases to client systems within an
+.Tn NIS
+.Em domain .
+Each client in an
+.Tn NIS
+domain must have its domainname set to
+one of the domains served by
+.Nm
+using the
+.Xr domainname 1
+command.
+The clients must also run
+.Xr ypbind 8
+in order to attach to a particular server, since it is possible to
+have several servers within a single
+.Tn NIS
+domain.
+.Pp
+The databases distributed by
+.Nm
+are stored in
+.Pa /var/yp/[domainname]
+where
+.Pa domainname
+is the name of the domain being served.
+There can be several
+such directories with different domainnames, and you need only one
+.Nm
+daemon to handle them all.
+.Pp
+The databases, or
+.Pa maps
+as they are often called,
+are created by
+.Pa /var/yp/Makefile
+using several system files as source.
+The database files are in
+.Xr db 3
+format to help speed retrieval when there are many records involved.
+In
+.Fx ,
+the maps are always readable and writable only by root for security
+reasons.
+Technically this is only necessary for the password
+maps, but since the data in the other maps can be found in
+other world-readable files anyway, it does not hurt and it is considered
+good general practice.
+.Pp
+The
+.Nm
+utility is started by
+.Pa /etc/rc.d/ypserv
+if it has been enabled in
+.Pa /etc/rc.conf .
+.Sh SPECIAL FEATURES
+There are some problems associated with distributing a
+.Fx
+password
+database via
+.Tn NIS :
+.Fx
+normally only stores encrypted passwords
+in
+.Pa /etc/master.passwd ,
+which is readable and writable only by root.
+By turning this file
+into an
+.Tn NIS
+map, this security feature would be completely defeated.
+.Pp
+To make up for this, the
+.Fx
+version of
+.Nm
+handles the
+.Pa master.passwd.byname
+and
+.Pa master.passwd.byuid
+maps in a special way.
+When the server receives a request to access
+either of these two maps (or in fact either of the
+.Pa shadow.byname
+or
+.Pa shadow.byuid
+maps), it will check the TCP port from which the
+request originated and return an error if the port number is greater
+than 1023.
+Since only the superuser is allowed to bind to TCP ports
+with values less than 1024, the server can use this test to determine
+whether or not the access request came from a privileged user.
+Any requests made by non-privileged users are therefore rejected.
+.Pp
+Furthermore, the
+.Xr getpwent 3
+routines in the
+.Fx
+standard C library will only attempt to retrieve
+data from the
+.Pa master.passwd.byname
+and
+.Pa master.passwd.byuid
+maps for the superuser: if a normal user calls any of these functions,
+the standard
+.Pa passwd.byname
+and
+.Pa passwd.byuid
+maps will be accessed instead.
+The latter two maps are constructed by
+.Pa /var/yp/Makefile
+by parsing the
+.Pa master.passwd
+file and stripping out the password fields, and are therefore
+safe to pass on to unprivileged users.
+In this way, the shadow password
+aspect of the protected
+.Pa master.passwd
+database is maintained through
+.Tn NIS .
+.Sh NOTES
+.Ss Setting Up Master and Slave Servers
+.Xr ypinit 8
+is a convenient script that will help setup master and slave
+.Tn NIS
+servers.
+.Ss Limitations
+There are two problems inherent with password shadowing in
+.Tn NIS
+that users should
+be aware of:
+.Bl -enum -offset indent
+.It
+The
+.Sq TCP port less than 1024
+test is trivial to defeat for users with
+unrestricted access to machines on your network (even those machines
+which do not run UNIX-based operating systems).
+.It
+If you plan to use a
+.Fx
+system to serve
+.No non- Ns Fx
+clients that
+have no support for password shadowing (which is most of them), you
+will have to disable the password shadowing entirely by uncommenting the
+.Em UNSECURE=True
+entry in
+.Pa /var/yp/Makefile .
+This will cause the standard
+.Pa passwd.byname
+and
+.Pa passwd.byuid
+maps to be generated with valid encrypted password fields, which is
+necessary in order for
+.No non- Ns Fx
+clients to perform user
+authentication through
+.Tn NIS .
+.El
+.Ss Security
+In general, any remote user can issue an RPC to
+.Nm
+and retrieve the contents of your
+.Tn NIS
+maps, provided the remote user
+knows your domain name.
+To prevent such unauthorized transactions,
+.Nm
+supports a feature called
+.Pa securenets
+which can be used to restrict access to a given set of hosts.
+At startup,
+.Nm
+will attempt to load the securenets information from a file
+called
+.Pa /var/yp/securenets .
+(Note that this path varies depending on the path specified with
+the
+.Fl p
+option, which is explained below.)
+This file contains entries
+that consist of a network specification and a network mask separated
+by white space.
+Lines starting with
+.Dq \&#
+are considered to be comments.
+A
+sample securenets file might look like this:
+.Bd -unfilled -offset indent
+# allow connections from local host -- mandatory
+127.0.0.1     255.255.255.255
+# allow connections from any host
+# on the 192.168.128.0 network
+192.168.128.0 255.255.255.0
+# allow connections from any host
+# between 10.0.0.0 to 10.0.15.255
+10.0.0.0      255.255.240.0
+.Ed
+.Pp
+If
+.Nm
+receives a request from an address that matches one of these rules,
+it will process the request normally.
+If the address fails to match
+a rule, the request will be ignored and a warning message will be
+logged.
+If the
+.Pa /var/yp/securenets
+file does not exist,
+.Nm
+will allow connections from any host.
+.Pp
+The
+.Nm
+utility also has support for Wietse Venema's
+.Em tcpwrapper
+package.
+This allows the administrator to use the tcpwrapper
+configuration files
+.Pa ( /etc/hosts.allow
+and
+.Pa /etc/hosts.deny )
+for access control instead of
+.Pa /var/yp/securenets .
+.Pp
+Note: while both of these access control mechanisms provide some
+security, they, like the privileged port test, are both vulnerable
+to
+.Dq IP spoofing
+attacks.
+.Ss NIS v1 compatibility
+This version of
+.Nm
+has some support for serving
+.Tn NIS
+v1 clients.
+The
+.Fx
+.Tn NIS
+implementation only uses the
+.Tn NIS
+v2 protocol, however other implementations
+include support for the v1 protocol for backwards compatibility
+with older systems.
+The
+.Xr ypbind 8
+daemons supplied with these systems will try to establish a binding
+to an
+.Tn NIS
+v1 server even though they may never actually need it (and they may
+persist in broadcasting in search of one even after they receive a
+response from a v2 server).
+Note that while
+support for normal client calls is provided, this version of
+.Nm
+does not handle v1 map transfer requests; consequently, it cannot
+be used as a master or slave in conjunction with older
+.Tn NIS
+servers that
+only support the v1 protocol.
+Fortunately, there probably are not any
+such servers still in use today.
+.Ss NIS servers that are also NIS clients
+Care must be taken when running
+.Nm
+in a multi-server domain where the server machines are also
+.Tn NIS
+clients.
+It is generally a good idea to force the servers to
+bind to themselves rather than allowing them to broadcast bind
+requests and possibly become bound to each other: strange failure
+modes can result if one server goes down and
+others are dependent upon on it.
+(Eventually all the clients will
+time out and attempt to bind to other servers, but the delay
+involved can be considerable and the failure mode is still present
+since the servers might bind to each other all over again).
+.Pp
+Refer to the
+.Xr ypbind 8
+man page for details on how to force it to bind to a particular
+server.
+.Sh OPTIONS
+The following options are supported by
+.Nm :
+.Bl -tag -width flag
+.It Fl n
+This option affects the way
+.Nm
+handles yp_match requests for the
+.Pa hosts.byname
+and
+.Pa hosts.byaddress
+maps.
+By default, if
+.Nm
+cannot find an entry for a given host in its hosts maps, it will
+return an error and perform no further processing.
+With the
+.Fl n
+flag,
+.Nm
+will go one step further: rather than giving up immediately, it
+will try to resolve the hostname or address using a DNS nameserver
+query.
+If the query is successful,
+.Nm
+will construct a fake database record and return it to the client,
+thereby making it seem as though the client's yp_match request
+succeeded.
+.Pp
+This feature is provided for compatibility with SunOS 4.1.x,
+which has brain-damaged resolver functions in its standard C
+library that depend on
+.Tn NIS
+for hostname and address resolution.
+The
+.Fx
+resolver can be configured to do DNS
+queries directly, therefore it is not necessary to enable this
+option when serving only
+.Fx
+.Tn NIS
+clients.
+.It Fl d
+Cause the server to run in debugging mode.
+Normally,
+.Nm
+reports only unusual errors (access violations, file access failures)
+using the
+.Xr syslog 3
+facility.
+In debug mode, the server does not background
+itself and prints extra status messages to stderr for each
+request that it receives.
+Also, while running in debug mode,
+.Nm
+will not spawn any additional subprocesses as it normally does
+when handling yp_all requests or doing DNS lookups.
+(These actions
+often take a fair amount of time to complete and are therefore handled
+in subprocesses, allowing the parent server process to go on handling
+other requests.)
+This makes it easier to trace the server with
+a debugging tool.
+.It Fl h Ar addr
+Specify a specific address to bind to for requests.  This option may be
+specified multiple times.  If no
+.Fl h
+option is specified,
+.Nm
+will bind to default passive address
+.Pq e.g. INADDR_ANY for IPv4
+for each transport.
+.It Fl P Ar port
+Force ypserv to bind to a specific TCP/UDP port, rather than selecting
+its own.
+.It Fl p Ar path
+Normally,
+.Nm
+assumes that all
+.Tn NIS
+maps are stored under
+.Pa /var/yp .
+The
+.Fl p
+flag may be used to specify an alternate
+.Tn NIS
+root path, allowing
+the system administrator to move the map files to a different place
+within the file system.
+.El
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /var/yp/[domainname]/[maps]
+the
+.Tn NIS
+maps
+.It Pa /etc/nsswitch.conf
+name switch configuration file
+.It Pa /var/yp/securenets
+host access control file
+.El
+.Sh SEE ALSO
+.Xr ypcat 1 ,
+.Xr db 3 ,
+.Xr hosts_access 5 ,
+.Xr rpc.yppasswdd 8 ,
+.Xr yp 8 ,
+.Xr ypbind 8 ,
+.Xr ypinit 8 ,
+.Xr yppush 8 ,
+.Xr ypxfr 8
+.Sh HISTORY
+This version of
+.Nm
+first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu

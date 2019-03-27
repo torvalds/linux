@@ -1,0 +1,185 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getfsent.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd April 7, 2003
+.Dt GETFSENT 3
+.Os
+.Sh NAME
+.Nm getfsent ,
+.Nm getfsspec ,
+.Nm getfsfile ,
+.Nm setfsent ,
+.Nm endfsent
+.Nd get file system descriptor file entry
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In fstab.h
+.Ft "struct fstab *"
+.Fn getfsent void
+.Ft "struct fstab *"
+.Fn getfsspec "const char *spec"
+.Ft "struct fstab *"
+.Fn getfsfile "const char *file"
+.Ft int
+.Fn setfsent void
+.Ft void
+.Fn endfsent void
+.Ft void
+.Fn setfstab "const char *file"
+.Ft "const char *"
+.Fn getfstab void
+.Sh DESCRIPTION
+The
+.Fn getfsent ,
+.Fn getfsspec ,
+and
+.Fn getfsfile
+functions
+each return a pointer to an object with the following structure
+containing the broken-out fields of a line in the file system
+description file,
+.In fstab.h .
+.Bd -literal -offset indent
+struct fstab {
+	char	*fs_spec;	/* block special device name */
+	char	*fs_file;	/* file system path prefix */
+	char	*fs_vfstype;	/* File system type, ufs, nfs */
+	char	*fs_mntops;	/* Mount options ala -o */
+	char	*fs_type;	/* FSTAB_* from fs_mntops */
+	int	fs_freq;	/* dump frequency, in days */
+	int	fs_passno;	/* pass number on parallel fsck */
+};
+.Ed
+.Pp
+The fields have meanings described in
+.Xr fstab 5 .
+.Pp
+The
+.Fn setfsent
+function
+opens the file (closing any previously opened file) or rewinds it
+if it is already open.
+.Pp
+The
+.Fn endfsent
+function
+closes the file.
+.Pp
+The
+.Fn setfstab
+function sets the file to be used by subsequent operations.
+The value set by
+.Fn setfstab
+does not persist across calls to
+.Fn endfsent .
+.Pp
+The
+.Fn getfstab
+function returns the name of the file that will be used.
+.Pp
+The
+.Fn getfsspec
+and
+.Fn getfsfile
+functions
+search the entire file (opening it if necessary) for a matching special
+file name or file system file name.
+.Pp
+For programs wishing to read the entire database,
+.Fn getfsent
+reads the next entry (opening the file if necessary).
+.Pp
+All entries in the file with a type field equivalent to
+.Dv FSTAB_XX
+are ignored.
+.Sh RETURN VALUES
+The
+.Fn getfsent ,
+.Fn getfsspec ,
+and
+.Fn getfsfile
+functions
+return a
+.Dv NULL
+pointer on
+.Dv EOF
+or error.
+The
+.Fn setfsent
+function
+returns 0 on failure, 1 on success.
+The
+.Fn endfsent
+function
+returns nothing.
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev PATH_FSTAB"
+.It Ev PATH_FSTAB
+If the environment variable
+.Ev PATH_FSTAB
+is set, all operations are performed against the specified file.
+.Ev PATH_FSTAB
+will not be honored if the process environment or memory address space is
+considered
+.Dq tainted .
+(See
+.Xr issetugid 2
+for more information.)
+.El
+.Sh FILES
+.Bl -tag -width /etc/fstab -compact
+.It Pa /etc/fstab
+.El
+.Sh SEE ALSO
+.Xr fstab 5
+.Sh HISTORY
+The
+.Fn getfsent
+function appeared in
+.Bx 4.0 ;
+the
+.Fn endfsent ,
+.Fn getfsfile ,
+.Fn getfsspec ,
+and
+.Fn setfsent
+functions appeared in
+.Bx 4.3 ;
+the
+.Fn setfstab
+and
+.Fn getfstab
+functions appeared in
+.Fx 5.1 .
+.Sh BUGS
+These functions use static data storage;
+if the data is needed for future use, it should be
+copied before any subsequent calls overwrite it.

@@ -1,0 +1,33 @@
+sudo: false
+
+language: c
+
+os:
+ - linux
+
+compiler:
+ - clang
+ - gcc
+ - g++
+
+install:
+ - ./autogen.sh
+ - env CC=tcc CFLAGS='-w' ./configure --prefix=/tmp --disable-dependency-tracking --disable-shared || cat config.log
+ - make -j $(nproc) && make check && make install
+ - env CC=tcc CPPFLAGS='-I/tmp/include' LDFLAGS='-L/tmp/lib' LD_LIBRARY_PATH='/tmp/lib' ./test/constcheck.sh
+ - make uninstall
+ - make distclean
+
+script:
+ - ./configure --disable-dependency-tracking
+ - if [ "$TRAVIS_OS_NAME" = 'linux' -a "$CC" = 'gcc' ]; then make -j $(nproc) CFLAGS='-g0' > /dev/null && cp src/libsodium/.libs/libsodium.so lib.so && make clean > /dev/null && make CFLAGS='-g0' CPPFLAGS='-DSODIUM_C99\(X\)=' > /dev/null && cp src/libsodium/.libs/libsodium.so lib-oldc.so && cmp lib.so lib-oldc.so && echo No binary changes && make clean > /dev/null ; fi
+ - make distcheck
+ - make distclean > /dev/null
+ - ./configure --disable-dependency-tracking --enable-minimal
+ - make check
+ - ( echo '#include <sodium.h>' ; echo 'int main(void) { return sodium_init(); }' ) > /tmp/main.c && gcc -Isrc/libsodium/include -Isrc/libsodium/include/sodium $(find src -name '*.c' -o -name '*.S') /tmp/main.c
+
+addons:
+  apt:
+    packages:
+      - tcc

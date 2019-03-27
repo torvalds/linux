@@ -1,0 +1,44 @@
+/*
+ * hrvatski praznici
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _hr_HR_ISO8859_2_praznici_
+#define _hr_HR_ISO8859_2_praznici_
+
+LANG=hr_HR.ISO8859-2
+
+/* dr¾avni praznici */
+01/01	Nova godina
+05/01	Praznik rada
+05/30	Tjelovo
+06/22	Dan antifa¹istièke borbe
+06/25	Dan dr¾avnosti
+08/05	Dan domovinske zahvalnosti
+10/08	Dan neovisnosti
+ 
+/* katolièki blagdani */
+01/06		Sveta tri kralja
+Easter-2	Veliki petak
+Easter		Uskrs
+Easter+1	Uskrsni ponedjeljak
+Easter+49	Duhovi
+Easter+50	Duhovni ponedjeljak
+Easter+39	Uza¹a¹æe
+08/15		Velika Gospa
+11/01		Svi sveti
+12/25		Bo¾iæ
+12/26		Stjepandan
+
+/* godi¹nja doba */
+03/21*	Poèetak proljeæa
+06/21*	Poèetak ljeta
+09/21*	Poèetak jesena
+12/21*	Poèetak zime
+ 
+/* ljetno vrijeme */
+03/NedjeljaLast	Poèetak ljetnog vremena
+10/NedjeljaLast	Kraj ljetnog vremena
+
+#endif /* !_hr_HR_ISO8859_2_praznici_ */

@@ -1,0 +1,51 @@
+<HTML>
+<HEAD><TITLE>smfi_main</TITLE></HEAD>
+<BODY>
+<!--
+$Id: smfi_main.html,v 1.10 2013-11-22 20:51:39 ca Exp $
+-->
+<H1>smfi_main</H1>
+
+<TABLE border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<TR><TH valign="top" align=left width=100>SYNOPSIS</TH><TD>
+<PRE>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_main(
+);
+</PRE>
+Hand control to libmilter event loop.
+</TD></TR>
+
+<!----------- Description ---------->
+<TR><TH valign="top" align=left>DESCRIPTION</TH><TD>
+<TABLE border="1" cellspacing=1 cellpadding=4>
+<TR align="left" valign=top>
+<TH width="80">Called When</TH>
+<TD>smfi_main is called after a filter's initialization is complete.</TD>
+</TR>
+<TR align="left" valign=top>
+<TH width="80">Effects</TH>
+<TD>smfi_main hands control to the Milter event loop.</TD>
+</TR>
+</TABLE>
+
+<!----------- Return values ---------->
+<TR>
+<TH valign="top" align=left>RETURN VALUES</TH> 
+
+<TD>smfi_main will return MI_FAILURE if it fails to establish a connection.  This may occur for any of a variety of reasons (e.g. invalid address passed to <A href="smfi_setconn.html">smfi_setconn</A>).  The reason for the failure will be logged.  Otherwise, smfi_main will return MI_SUCCESS.</TD>
+</TR>
+
+</TABLE>
+
+<HR size="1">
+<FONT size="-1">
+Copyright (c) 2000, 2003 Proofpoint, Inc. and its suppliers.
+All rights reserved.
+<BR>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</FONT>
+</BODY>
+</HTML>

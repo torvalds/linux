@@ -1,0 +1,120 @@
+.\" Copyright (c) 2014 Edward Tomasz Napierala
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd May 28, 2017
+.Dt ISCSI 4
+.Os
+.Sh NAME
+.Nm iscsi
+.Nd iSCSI initiator
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in the
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iscsi"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+iscsi_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+subsystem provides the kernel component of an iSCSI initiator,
+responsible for implementing the Full Feature Phase of the iSCSI protocol.
+The initiator is the iSCSI client, which connects to an iSCSI target,
+providing local access to a remote block device.
+The userland component is provided by
+.Xr iscsid 8
+and both the kernel and userland are configured using
+.Xr iscsictl 8 .
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va kern.iscsi.debug
+Verbosity level for log messages from the
+.Nm
+driver.
+Set to 0 to disable logging or 1 to warn about potential problems.
+Larger values enable debugging output.
+Defaults to 1.
+.It Va kern.iscsi.ping_timeout
+The number of seconds to wait for the target to respond to a NOP-Out
+PDU.
+In the event that there is no response within that time the session gets
+forcibly restarted.
+Set to 0 to disable sending NOP-Out PDUs.
+Defaults to 5.
+.It Va kern.iscsi.iscsid_timeout
+The number of seconds to wait for
+.Xr iscsid 8
+to establish a session.
+After that time
+.Nm
+will abort and retry.
+Defaults to 60.
+.It Va kern.iscsi.login_timeout
+The number of seconds to wait for a login attempt to succeed.
+After that time
+.Nm
+will abort and retry.
+Defaults to 60.
+.It Va kern.iscsi.maxtags
+The maximum number of outstanding IO requests.
+Defaults to 255.
+.It Va kern.iscsi.fail_on_disconnection
+Controls the behavior after an iSCSI connection has been dropped due to
+network problems.
+When set to 1, a dropped connection causes the iSCSI device nodes
+to be destroyed.
+After reconnecting, they will be created again.
+By default, the device nodes are left intact.
+While the connection is down all input/output operations are suspended, to be
+retried after the connection is reestablished.
+.El
+.Sh SEE ALSO
+.Xr iser 4 ,
+.Xr iscsi.conf 5 ,
+.Xr iscsictl 8 ,
+.Xr iscsid 8
+.Sh HISTORY
+The
+.Nm
+subsystem first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+subsystem was developed by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.

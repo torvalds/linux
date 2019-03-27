@@ -1,0 +1,98 @@
+.\"***************************************************************************
+.\" Copyright (c) 2010 Free Software Foundation, Inc.                        *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: MKncu_config.in,v 1.3 2010/03/06 22:29:17 tom Exp $
+.TH @LIB_NAME@@DFT_ARG_SUFFIX@@cf_cv_abi_version@-config 1 ""
+.SH NAME
+@LIB_NAME@@DFT_ARG_SUFFIX@@cf_cv_abi_version@-config \- helper script for ncurses libraries
+.SH SYNOPSIS
+.B @LIB_NAME@@DFT_ARG_SUFFIX@@cf_cv_abi_version@-config 
+[\fIoptions\fR]
+.SH DESCRIPTION
+This is a shell script which simplifies configuring applications against
+a particular set of ncurses libraries.
+.SH OPTIONS
+.TP
+\fB\-\-prefix\fR
+echos the package\-prefix of ncurses
+.TP
+\fB\-\-exec\-prefix\fR
+echos the executable\-prefix of ncurses
+.TP
+\fB\-\-cflags\fR
+echos the C compiler flags needed to compile with ncurses
+.TP
+\fB\-\-libs\fR
+echos the libraries needed to link with ncurses
+.TP
+\fB\-\-version\fR
+echos the release+patchdate version of ncurses
+.TP
+\fB\-\-abi\-version\fR
+echos the ABI version of ncurses
+.TP
+\fB\-\-mouse\-version\fR
+echos the mouse\-interface version of ncurses
+.TP
+\fB\-\-bindir\fR
+echos the directory containing ncurses programs
+.TP
+\fB\-\-datadir\fR
+echos the directory containing ncurses data
+.TP
+\fB\-\-includedir\fR
+echos the directory containing ncurses header files
+.TP
+\fB\-\-libdir\fR
+echos the directory containing ncurses libraries
+.TP
+\fB\-\-mandir\fR
+echos the directory containing ncurses manpages
+.TP
+\fB\-\-terminfo\fR
+echos the $TERMINFO terminfo database path, e.g.,
+.RS
+@TERMINFO@
+.RE
+.TP
+\fB\-\-terminfo\-dirs\fR
+echos the $TERMINFO_DIRS directory list, e.g.,
+.RS
+@TERMINFO_DIRS@
+.RE
+.TP
+\fB\-\-termpath\fR
+echos the $TERMPATH termcap list, if support for termcap is configured.
+.TP
+\fB\-\-help\fR
+prints this message
+.SH "SEE ALSO"
+\fBcurses\fR(3X)
+.PP
+This describes \fBncurses\fR
+version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).

@@ -1,0 +1,21 @@
+# $FreeBSD$
+
+# If fully successful, cd -Pe must be like cd -P.
+
+set -e
+
+cd "${TMPDIR:-/tmp}"
+cd -Pe /
+[ "$PWD" = / ]
+[ "$(pwd)" = / ]
+cd "${TMPDIR:-/tmp}"
+cd -eP /
+[ "$PWD" = / ]
+[ "$(pwd)" = / ]
+
+set +e
+
+# If cd -Pe cannot chdir, the exit status must be greater than 1.
+
+v=$( (cd -Pe /var/empty/nonexistent) 2>&1 >/dev/null)
+[ $? -gt 1 ] && [ -n "$v" ]

@@ -1,0 +1,650 @@
+.TH "Heimdal Kerberos 5 support functions" 3 "11 Jan 2012" "Version 1.5.2" "HeimdalKerberos5library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+Heimdal Kerberos 5 support functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_acl_match_string\fP (krb5_context context, const char *string, const char *format,...)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_acl_match_file\fP (krb5_context context, const char *file, const char *format,...)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_config_parse_file_multi\fP (krb5_context context, const char *fname, krb5_config_section **res)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_config_file_free\fP (krb5_context context, krb5_config_section *s)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION const krb5_config_binding *KRB5_LIB_CALL \fBkrb5_config_get_list\fP (krb5_context context, const krb5_config_section *c,...)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION const krb5_config_binding *KRB5_LIB_CALL \fBkrb5_config_vget_list\fP (krb5_context context, const krb5_config_section *c, va_list args)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION const char *KRB5_LIB_CALL \fBkrb5_config_get_string\fP (krb5_context context, const krb5_config_section *c,...)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION const char *KRB5_LIB_CALL \fBkrb5_config_vget_string\fP (krb5_context context, const krb5_config_section *c, va_list args)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION const char *KRB5_LIB_CALL \fBkrb5_config_vget_string_default\fP (krb5_context context, const krb5_config_section *c, const char *def_value, va_list args)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION const char *KRB5_LIB_CALL \fBkrb5_config_get_string_default\fP (krb5_context context, const krb5_config_section *c, const char *def_value,...)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION char **KRB5_LIB_CALL \fBkrb5_config_vget_strings\fP (krb5_context context, const krb5_config_section *c, va_list args)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION char **KRB5_LIB_CALL \fBkrb5_config_get_strings\fP (krb5_context context, const krb5_config_section *c,...)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION void KRB5_LIB_CALL \fBkrb5_config_free_strings\fP (char **strings)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL \fBkrb5_config_vget_bool_default\fP (krb5_context context, const krb5_config_section *c, krb5_boolean def_value, va_list args)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL \fBkrb5_config_vget_bool\fP (krb5_context context, const krb5_config_section *c, va_list args)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL \fBkrb5_config_get_bool_default\fP (krb5_context context, const krb5_config_section *c, krb5_boolean def_value,...)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL \fBkrb5_config_get_bool\fP (krb5_context context, const krb5_config_section *c,...)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION int KRB5_LIB_CALL \fBkrb5_config_vget_time_default\fP (krb5_context context, const krb5_config_section *c, int def_value, va_list args)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION int KRB5_LIB_CALL \fBkrb5_config_vget_time\fP (krb5_context context, const krb5_config_section *c, va_list args)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION int KRB5_LIB_CALL \fBkrb5_config_get_time_default\fP (krb5_context context, const krb5_config_section *c, int def_value,...)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION int KRB5_LIB_CALL \fBkrb5_config_get_time\fP (krb5_context context, const krb5_config_section *c,...)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_expand_hostname\fP (krb5_context context, const char *orig_hostname, char **new_hostname)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_expand_hostname_realms\fP (krb5_context context, const char *orig_hostname, char **new_hostname, char ***realms)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_free_host_realm\fP (krb5_context context, krb5_realm *realmlist)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL \fBkrb5_kuserok\fP (krb5_context context, krb5_principal principal, const char *luser)"
+.br
+.ti -1c
+.RI "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL \fBkrb5_plugin_register\fP (krb5_context context, enum krb5_plugin_type type, const char *name, void *symbol)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Function Documentation"
+.PP 
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_acl_match_file (krb5_context context, const char * file, const char * format,  ...)"
+.PP
+krb5_acl_match_file matches ACL format against each line in a file using \fBkrb5_acl_match_string()\fP. Lines starting with # are treated like comments and ignored.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIfile\fP file with acl listed in the file. 
+.br
+\fIformat\fP format to match. 
+.br
+\fI...\fP parameter to format string.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0.
+.RE
+.PP
+\fBSee also:\fP
+.RS 4
+\fBkrb5_acl_match_string\fP 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_acl_match_string (krb5_context context, const char * string, const char * format,  ...)"
+.PP
+krb5_acl_match_string matches ACL format against a string.
+.PP
+The ACL format has three format specifiers: s, f, and r. Each specifier will retrieve one argument from the variable arguments for either matching or storing data. The input string is split up using ' ' (space) and '\\t' (tab) as a delimiter; multiple and '\\t' in a row are considered to be the same.
+.PP
+List of format specifiers:
+.IP "\(bu" 2
+s Matches a string using strcmp(3) (case sensitive).
+.IP "\(bu" 2
+f Matches the string with fnmatch(3). Theflags argument (the last argument) passed to the fnmatch function is 0.
+.IP "\(bu" 2
+r Returns a copy of the string in the char ** passed in; the copy must be freed with free(3). There is no need to free(3) the string on error: the function will clean up and set the pointer to NULL.
+.PP
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context 
+.br
+\fIstring\fP string to match with 
+.br
+\fIformat\fP format to match 
+.br
+\fI...\fP parameter to format string
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0.
+.RE
+.PP
+.PP
+.nf
+ char *s;
+
+ ret = krb5_acl_match_string(context, 'foo', 's', 'foo');
+ if (ret)
+     krb5_errx(context, 1, 'acl didn't match');
+ ret = krb5_acl_match_string(context, 'foo foo baz/kaka',
+     'ss', 'foo', &s, 'foo/\\*');
+ if (ret) {
+     // no need to free(s) on error
+     assert(s == NULL);
+     krb5_errx(context, 1, 'acl didn't match');
+ }
+ free(s);
+.fi
+.PP
+.PP
+\fBSee also:\fP
+.RS 4
+\fBkrb5_acl_match_file\fP 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_config_file_free (krb5_context context, krb5_config_section * s)"
+.PP
+Free configuration file section, the result of krb5_config_parse_file() and \fBkrb5_config_parse_file_multi()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context 
+.br
+\fIs\fP the configuration section to free
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns 0 on successes, otherwise an error code, see krb5_get_error_message() 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION void KRB5_LIB_CALL krb5_config_free_strings (char ** strings)"
+.PP
+Free the resulting strings from krb5_config-get_strings() and \fBkrb5_config_vget_strings()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIstrings\fP strings to free 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL krb5_config_get_bool (krb5_context context, const krb5_config_section * c,  ...)"
+.PP
+Like \fBkrb5_config_get_bool()\fP but with a va_list list of configuration selection.
+.PP
+Configuration value to a boolean value, where yes/true and any non-zero number means TRUE and other value is FALSE.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIc\fP a configuration section, or NULL to use the section from context 
+.br
+\fI...\fP a list of names, terminated with NULL.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+TRUE or FALSE 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL krb5_config_get_bool_default (krb5_context context, const krb5_config_section * c, krb5_boolean def_value,  ...)"
+.PP
+\fBkrb5_config_get_bool_default()\fP will convert the configuration option value to a boolean value, where yes/true and any non-zero number means TRUE and other value is FALSE.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIc\fP a configuration section, or NULL to use the section from context 
+.br
+\fIdef_value\fP the default value to return if no configuration found in the database. 
+.br
+\fI...\fP a list of names, terminated with NULL.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+TRUE or FALSE 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION const krb5_config_binding* KRB5_LIB_CALL krb5_config_get_list (krb5_context context, const krb5_config_section * c,  ...)"
+.PP
+Get a list of configuration binding list for more processing
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIc\fP a configuration section, or NULL to use the section from context 
+.br
+\fI...\fP a list of names, terminated with NULL.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+NULL if configuration list is not found, a list otherwise 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION const char* KRB5_LIB_CALL krb5_config_get_string (krb5_context context, const krb5_config_section * c,  ...)"
+.PP
+Returns a 'const char *' to a string in the configuration database. The string may not be valid after a reload of the configuration database so a caller should make a local copy if it needs to keep the string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIc\fP a configuration section, or NULL to use the section from context 
+.br
+\fI...\fP a list of names, terminated with NULL.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+NULL if configuration string not found, a string otherwise 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION const char* KRB5_LIB_CALL krb5_config_get_string_default (krb5_context context, const krb5_config_section * c, const char * def_value,  ...)"
+.PP
+Like \fBkrb5_config_get_string()\fP, but instead of returning NULL, instead return a default value.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIc\fP a configuration section, or NULL to use the section from context 
+.br
+\fIdef_value\fP the default value to return if no configuration found in the database. 
+.br
+\fI...\fP a list of names, terminated with NULL.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+a configuration string 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION char** KRB5_LIB_CALL krb5_config_get_strings (krb5_context context, const krb5_config_section * c,  ...)"
+.PP
+Get a list of configuration strings, free the result with \fBkrb5_config_free_strings()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIc\fP a configuration section, or NULL to use the section from context 
+.br
+\fI...\fP a list of names, terminated with NULL.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+TRUE or FALSE 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION int KRB5_LIB_CALL krb5_config_get_time (krb5_context context, const krb5_config_section * c,  ...)"
+.PP
+Get the time from the configuration file using a relative time, for example: 1h30s
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIc\fP a configuration section, or NULL to use the section from context 
+.br
+\fI...\fP a list of names, terminated with NULL.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+parsed the time or -1 on error 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION int KRB5_LIB_CALL krb5_config_get_time_default (krb5_context context, const krb5_config_section * c, int def_value,  ...)"
+.PP
+Get the time from the configuration file using a relative time, for example: 1h30s
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIc\fP a configuration section, or NULL to use the section from context 
+.br
+\fIdef_value\fP the default value to return if no configuration found in the database. 
+.br
+\fI...\fP a list of names, terminated with NULL.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+parsed the time (or def_value on parse error) 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_config_parse_file_multi (krb5_context context, const char * fname, krb5_config_section ** res)"
+.PP
+Parse a configuration file and add the result into res. This interface can be used to parse several configuration files into one resulting krb5_config_section by calling it repeatably.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Kerberos 5 context. 
+.br
+\fIfname\fP a file name to a Kerberos configuration file 
+.br
+\fIres\fP the returned result, must be free with \fBkrb5_free_config_files()\fP. 
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0, see krb5_get_error_message(). 
+.RE
+.PP
+
+.PP
+If the fname starts with '~/' parse configuration file in the current users home directory. The behavior can be disabled and enabled by calling \fBkrb5_set_home_dir_access()\fP. 
+.SS "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL krb5_config_vget_bool (krb5_context context, const krb5_config_section * c, va_list args)"
+.PP
+\fBkrb5_config_get_bool()\fP will convert the configuration option value to a boolean value, where yes/true and any non-zero number means TRUE and other value is FALSE.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIc\fP a configuration section, or NULL to use the section from context 
+.br
+\fIargs\fP a va_list of arguments
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+TRUE or FALSE 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL krb5_config_vget_bool_default (krb5_context context, const krb5_config_section * c, krb5_boolean def_value, va_list args)"
+.PP
+Like \fBkrb5_config_get_bool_default()\fP but with a va_list list of configuration selection.
+.PP
+Configuration value to a boolean value, where yes/true and any non-zero number means TRUE and other value is FALSE.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIc\fP a configuration section, or NULL to use the section from context 
+.br
+\fIdef_value\fP the default value to return if no configuration found in the database. 
+.br
+\fIargs\fP a va_list of arguments
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+TRUE or FALSE 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION const krb5_config_binding* KRB5_LIB_CALL krb5_config_vget_list (krb5_context context, const krb5_config_section * c, va_list args)"
+.PP
+Get a list of configuration binding list for more processing
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIc\fP a configuration section, or NULL to use the section from context 
+.br
+\fIargs\fP a va_list of arguments
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+NULL if configuration list is not found, a list otherwise 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION const char* KRB5_LIB_CALL krb5_config_vget_string (krb5_context context, const krb5_config_section * c, va_list args)"
+.PP
+Like \fBkrb5_config_get_string()\fP, but uses a va_list instead of ...
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIc\fP a configuration section, or NULL to use the section from context 
+.br
+\fIargs\fP a va_list of arguments
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+NULL if configuration string not found, a string otherwise 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION const char* KRB5_LIB_CALL krb5_config_vget_string_default (krb5_context context, const krb5_config_section * c, const char * def_value, va_list args)"
+.PP
+Like \fBkrb5_config_vget_string()\fP, but instead of returning NULL, instead return a default value.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIc\fP a configuration section, or NULL to use the section from context 
+.br
+\fIdef_value\fP the default value to return if no configuration found in the database. 
+.br
+\fIargs\fP a va_list of arguments
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+a configuration string 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION char** KRB5_LIB_CALL krb5_config_vget_strings (krb5_context context, const krb5_config_section * c, va_list args)"
+.PP
+Get a list of configuration strings, free the result with \fBkrb5_config_free_strings()\fP.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIc\fP a configuration section, or NULL to use the section from context 
+.br
+\fIargs\fP a va_list of arguments
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+TRUE or FALSE 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION int KRB5_LIB_CALL krb5_config_vget_time (krb5_context context, const krb5_config_section * c, va_list args)"
+.PP
+Get the time from the configuration file using a relative time, for example: 1h30s
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIc\fP a configuration section, or NULL to use the section from context 
+.br
+\fIargs\fP a va_list of arguments
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+parsed the time or -1 on error 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION int KRB5_LIB_CALL krb5_config_vget_time_default (krb5_context context, const krb5_config_section * c, int def_value, va_list args)"
+.PP
+Get the time from the configuration file using a relative time.
+.PP
+Like \fBkrb5_config_get_time_default()\fP but with a va_list list of configuration selection.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIc\fP a configuration section, or NULL to use the section from context 
+.br
+\fIdef_value\fP the default value to return if no configuration found in the database. 
+.br
+\fIargs\fP a va_list of arguments
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+parsed the time (or def_value on parse error) 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_expand_hostname (krb5_context context, const char * orig_hostname, char ** new_hostname)"
+.PP
+\fBkrb5_expand_hostname()\fP tries to make orig_hostname into a more canonical one in the newly allocated space returned in new_hostname.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Keberos context 
+.br
+\fIorig_hostname\fP hostname to canonicalise. 
+.br
+\fInew_hostname\fP output hostname, caller must free hostname with krb5_xfree().
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_expand_hostname_realms (krb5_context context, const char * orig_hostname, char ** new_hostname, char *** realms)"
+.PP
+\fBkrb5_expand_hostname_realms()\fP expands orig_hostname to a name we believe to be a hostname in newly allocated space in new_hostname and return the realms new_hostname is believed to belong to in realms.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Keberos context 
+.br
+\fIorig_hostname\fP hostname to canonicalise. 
+.br
+\fInew_hostname\fP output hostname, caller must free hostname with krb5_xfree(). 
+.br
+\fIrealms\fP output possible realms, is an array that is terminated with NULL. Caller must free with \fBkrb5_free_host_realm()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+Return an error code or 0, see krb5_get_error_message(). 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_free_host_realm (krb5_context context, krb5_realm * realmlist)"
+.PP
+Free all memory allocated by `realmlist'
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A Kerberos 5 context. 
+.br
+\fIrealmlist\fP realmlist to free, NULL is ok
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+a Kerberos error code, always 0. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_boolean KRB5_LIB_CALL krb5_kuserok (krb5_context context, krb5_principal principal, const char * luser)"
+.PP
+This function takes the name of a local user and checks if principal is allowed to log in as that user.
+.PP
+The user may have a ~/.k5login file listing principals that are allowed to login as that user. If that file does not exist, all principals with a first component identical to the username, and a realm considered local, are allowed access.
+.PP
+The .k5login file must contain one principal per line, be owned by user and not be writable by group or other (but must be readable by anyone).
+.PP
+Note that if the file exists, no implicit access rights are given to user@LOCALREALM.
+.PP
+Optionally, a set of files may be put in ~/.k5login.d (a directory), in which case they will all be checked in the same manner as .k5login. The files may be called anything, but files starting with a hash (#) , or ending with a tilde (~) are ignored. Subdirectories are not traversed. Note that this directory may not be checked by other Kerberos implementations.
+.PP
+If no configuration file exists, match user against local domains, ie luser@LOCAL-REALMS-IN-CONFIGURATION-FILES.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP Kerberos 5 context. 
+.br
+\fIprincipal\fP principal to check if allowed to login 
+.br
+\fIluser\fP local user id
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+returns TRUE if access should be granted, FALSE otherwise. 
+.RE
+.PP
+
+.SS "KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL krb5_plugin_register (krb5_context context, enum krb5_plugin_type type, const char * name, void * symbol)"
+.PP
+Register a plugin symbol name of specific type. 
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP a Keberos context 
+.br
+\fItype\fP type of plugin symbol 
+.br
+\fIname\fP name of plugin symbol 
+.br
+\fIsymbol\fP a pointer to the named symbol 
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+In case of error a non zero error com_err error is returned and the Kerberos error string is set. 
+.RE
+.PP
+

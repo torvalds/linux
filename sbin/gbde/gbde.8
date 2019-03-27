@@ -1,0 +1,273 @@
+.\"
+.\" Copyright (c) 2002 Poul-Henning Kamp
+.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Poul-Henning Kamp
+.\" and NAI Labs, the Security Research Division of Network Associates, Inc.
+.\" under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 3, 2016
+.Dt GBDE 8
+.Os
+.Sh NAME
+.Nm gbde
+.Nd operation and management utility for Geom Based Disk Encryption
+.Sh SYNOPSIS
+.Nm
+.Cm attach
+.Ar destination
+.Op Fl k Ar keyfile
+.Op Fl l Ar lockfile
+.Op Fl p Ar pass-phrase
+.Nm
+.Cm detach
+.Ar destination
+.Nm
+.Cm init
+.Ar destination
+.Op Fl i
+.Op Fl f Ar filename
+.Op Fl K Ar new-keyfile
+.Op Fl L Ar new-lockfile
+.Op Fl P Ar new-pass-phrase
+.Nm
+.Cm setkey
+.Ar destination
+.Op Fl n Ar key
+.Op Fl k Ar keyfile
+.Op Fl l Ar lockfile
+.Op Fl p Ar pass-phrase
+.Op Fl K Ar new-keyfile
+.Op Fl L Ar new-lockfile
+.Op Fl P Ar new-pass-phrase
+.Nm
+.Cm nuke
+.Ar destination
+.Op Fl n Ar key
+.Op Fl k Ar keyfile
+.Op Fl l Ar lockfile
+.Op Fl p Ar pass-phrase
+.Nm
+.Cm destroy
+.Ar destination
+.Op Fl k Ar keyfile
+.Op Fl l Ar lockfile
+.Op Fl p Ar pass-phrase
+.Sh DESCRIPTION
+.Bf -symbolic
+NOTICE:
+Please be aware that this code has not yet received much review
+and analysis by qualified cryptographers and therefore should be considered
+a slightly suspect experimental facility.
+.Pp
+We cannot at this point guarantee that the on-disk format will not change
+in response to reviews or bug-fixes, so potential users are advised to
+be prepared that
+.Xr dump 8 Ns / Ns
+.Xr restore 8
+based migrations may be called for in the future.
+.Ef
+.Pp
+The
+.Nm
+utility is the only official operation and management interface for the
+.Xr gbde 4
+.Tn GEOM
+based disk encryption kernel facility.
+The interaction between the
+.Nm
+utility and the kernel part is not a published interface.
+.Pp
+The operational aspect consists of two subcommands:
+one to open and attach
+a device to the in-kernel cryptographic
+.Nm
+module
+.Pq Cm attach ,
+and one to close and detach a device
+.Pq Cm detach .
+.Pp
+The management part allows initialization of the master key and lock sectors
+on a device
+.Pq Cm init ,
+initialization and replacement of pass-phrases
+.Pq Cm setkey ,
+and key invalidation
+.Pq Cm nuke
+and blackening
+.Pq Cm destroy
+functions.
+.Pp
+The
+.Fl l Ar lockfile
+argument is used to supply the lock selector data.
+If no
+.Fl l
+option is specified, the first sector is used for this purpose.
+.Pp
+The
+.Fl L Ar new-lockfile
+argument
+specifies the lock selector file for the key
+initialized with the
+.Cm init
+subcommand
+or modified with the
+.Cm setkey
+subcommand.
+.Pp
+The
+.Fl n Ar key
+argument can be used to specify to which of the four keys
+the operation applies.
+A value of 1 to 4 selects the specified key, a value of 0 (the default)
+means
+.Dq "this key"
+(i.e., the key used to gain access to the device)
+and a value of \-1 means
+.Dq "all keys" .
+.Pp
+The
+.Fl f Ar filename
+specifies an optional parameter file for use under initialization.
+.Pp
+Alternatively, the
+.Fl i
+option toggles an interactive mode where a template file with descriptions
+of the parameters can be interactively edited.
+.Pp
+The
+.Fl p Ar pass-phrase
+argument
+specifies the pass-phrase used for opening the device.
+If not specified, the controlling terminal will be used to prompt the user
+for the pass-phrase.
+Be aware that using this option may expose the pass-phrase to other
+users who happen to run
+.Xr ps 1
+or similar while the command is running.
+.Pp
+The
+.Fl P Ar new-pass-phrase
+argument
+can be used to specify the new pass-phrase to the
+.Cm init
+and
+.Cm setkey
+subcommands.
+If not specified, the user is prompted for the new pass-phrase on the
+controlling terminal.
+Be aware that using this option may expose the pass-phrase to other
+users who happen to run
+.Xr ps 1
+or similar while the command is running.
+.Pp
+The
+.Fl k Ar keyfile
+argument specifies a key file to be used in combination with the
+pass-phrase (whether the pass-phrase is specified on the command line
+or entered from the terminal) for opening the device.
+The device will only be opened if the contents of the key file and the
+pass-phrase are both correct.
+.Pp
+The
+.Fl K Ar new-keyfile
+argument can be used to specify a new key file to the
+.Cm init
+and
+.Cm setkey
+subcommands.
+If not specified, no key file will be used (even if one was previously
+used).
+.Sh EXAMPLES
+To initialize a device, using default parameters:
+.Pp
+.Dl "gbde init /dev/ada0s1f -L /etc/ada0s1f.lock"
+.Pp
+To attach an encrypted device:
+.Pp
+.Dl "gbde attach ada0s1f -l /etc/ada0s1f.lock"
+.Pp
+The encrypted device has the suffix
+.Pa .bde
+so a typical
+command to create and mount a file system would be:
+.Pp
+.Dl "newfs /dev/ada0s1f.bde"
+.Dl "mount /dev/ada0s1f.bde /secret"
+.Pp
+To detach an encrypted device:
+.Pp
+.Dl "gbde detach ada0s1f"
+.Pp
+Please notice that detaching an encrypted device corresponds to
+physically removing it, do not forget to unmount the file system first.
+.Pp
+To initialize the second key using a detached lockfile and a trivial
+pass-phrase:
+.Pp
+.Dl "gbde setkey ada0s1f -n 2 -P foo -L key2.lockfile"
+.Pp
+To invalidate your own masterkey:
+.Pp
+.Dl "gbde nuke ada0s1f"
+.Pp
+This will overwrite your masterkey sector with zeros, and results in
+a diagnostic if you try to use the key again.
+You can also destroy the other three copies of the masterkey with the
+-n argument.
+.Pp
+You can also invalidate your masterkey without leaving a tell-tale sector
+full of zeros:
+.Pp
+.Dl "gbde destroy ada0s1f"
+.Pp
+This will overwrite the information fields in your masterkey sector,
+encrypt it and write it back.
+You get a (different) diagnostic if you try to use it.
+.Sh SEE ALSO
+.Xr gbde 4 ,
+.Xr geom 4
+.Sh HISTORY
+This software was developed for the
+.Fx
+Project by
+.An Poul-Henning Kamp
+and NAI Labs, the Security Research Division of Network Associates, Inc.\&
+under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the
+DARPA CHATS research program.
+.Nm
+first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org
+.Sh BUGS
+The cryptographic algorithms and the overall design have not been
+attacked mercilessly for over 10 years by a gang of cryptoanalysts.

@@ -1,0 +1,365 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" John B. Roll Jr. and the Institute of Electrical and Electronics
+.\" Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)xargs.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\" $xMach: xargs.1,v 1.2 2002/02/23 05:23:37 tim Exp $
+.\"
+.Dd August 4, 2015
+.Dt XARGS 1
+.Os
+.Sh NAME
+.Nm xargs
+.Nd "construct argument list(s) and execute utility"
+.Sh SYNOPSIS
+.Nm
+.Op Fl 0oprt
+.Op Fl E Ar eofstr
+.Oo
+.Fl I Ar replstr
+.Op Fl R Ar replacements
+.Op Fl S Ar replsize
+.Oc
+.Op Fl J Ar replstr
+.Op Fl L Ar number
+.Oo
+.Fl n Ar number
+.Op Fl x
+.Oc
+.Op Fl P Ar maxprocs
+.Op Fl s Ar size
+.Op Ar utility Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+utility reads space, tab, newline and end-of-file delimited strings
+from the standard input and executes
+.Ar utility
+with the strings as
+arguments.
+.Pp
+Any arguments specified on the command line are given to
+.Ar utility
+upon each invocation, followed by some number of the arguments read
+from the standard input of
+.Nm .
+This is repeated until standard input is exhausted.
+.Pp
+Spaces, tabs and newlines may be embedded in arguments using single
+(``\ '\ '')
+or double (``"'') quotes or backslashes (``\e'').
+Single quotes escape all non-single quote characters, excluding newlines,
+up to the matching single quote.
+Double quotes escape all non-double quote characters, excluding newlines,
+up to the matching double quote.
+Any single character, including newlines, may be escaped by a backslash.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl 0
+Change
+.Nm
+to expect NUL
+(``\\0'')
+characters as separators, instead of spaces and newlines.
+This is expected to be used in concert with the
+.Fl print0
+function in
+.Xr find 1 .
+.It Fl E Ar eofstr
+Use
+.Ar eofstr
+as a logical EOF marker.
+.It Fl I Ar replstr
+Execute
+.Ar utility
+for each input line, replacing one or more occurrences of
+.Ar replstr
+in up to
+.Ar replacements
+(or 5 if no
+.Fl R
+flag is specified) arguments to
+.Ar utility
+with the entire line of input.
+The resulting arguments, after replacement is done, will not be allowed to grow
+beyond
+.Ar replsize
+(or 255 if no
+.Fl S
+flag is specified)
+bytes; this is implemented by concatenating as much of the argument
+containing
+.Ar replstr
+as possible, to the constructed arguments to
+.Ar utility ,
+up to
+.Ar replsize
+bytes.
+The size limit does not apply to arguments to
+.Ar utility
+which do not contain
+.Ar replstr ,
+and furthermore, no replacement will be done on
+.Ar utility
+itself.
+Implies
+.Fl x .
+.It Fl J Ar replstr
+If this option is specified,
+.Nm
+will use the data read from standard input to replace the first occurrence of
+.Ar replstr
+instead of appending that data after all other arguments.
+This option will not affect how many arguments will be read from input
+.Pq Fl n ,
+or the size of the command(s)
+.Nm
+will generate
+.Pq Fl s .
+The option just moves where those arguments will be placed in the command(s)
+that are executed.
+The
+.Ar replstr
+must show up as a distinct
+.Ar argument
+to
+.Nm .
+It will not be recognized if, for instance, it is in the middle of a
+quoted string.
+Furthermore, only the first occurrence of the
+.Ar replstr
+will be replaced.
+For example, the following command will copy the list of files and
+directories which start with an uppercase letter in the current
+directory to
+.Pa destdir :
+.Pp
+.Dl /bin/ls -1d [A-Z]* | xargs -J % cp -Rp % destdir
+.It Fl L Ar number
+Call
+.Ar utility
+for every
+.Ar number
+lines read.
+If EOF is reached and fewer lines have been read than
+.Ar number
+then
+.Ar utility
+will be called with the available lines.
+.It Fl n Ar number
+Set the maximum number of arguments taken from standard input for each
+invocation of
+.Ar utility .
+An invocation of
+.Ar utility
+will use less than
+.Ar number
+standard input arguments if the number of bytes accumulated (see the
+.Fl s
+option) exceeds the specified
+.Ar size
+or there are fewer than
+.Ar number
+arguments remaining for the last invocation of
+.Ar utility .
+The current default value for
+.Ar number
+is 5000.
+.It Fl o
+Reopen stdin as
+.Pa /dev/tty
+in the child process before executing the command.
+This is useful if you want
+.Nm
+to run an interactive application.
+.It Fl P Ar maxprocs
+Parallel mode: run at most
+.Ar maxprocs
+invocations of
+.Ar utility
+at once.
+If
+.Ar maxprocs
+is set to 0,
+.Nm
+will run as many processes as possible.
+.It Fl p
+Echo each command to be executed and ask the user whether it should be
+executed.
+An affirmative response,
+.Ql y
+in the POSIX locale,
+causes the command to be executed, any other response causes it to be
+skipped.
+No commands are executed if the process is not attached to a terminal.
+.It Fl r
+Compatibility with GNU
+.Nm .
+The GNU version of
+.Nm
+runs the
+.Ar utility
+argument at least once, even if
+.Nm
+input is empty, and it supports a
+.Fl r
+option to inhibit this behavior.
+The
+.Fx
+version of
+.Nm
+does not run the
+.Ar utility
+argument on empty input, but it supports the
+.Fl r
+option for command-line compatibility with GNU
+.Nm ,
+but the
+.Fl r
+option does nothing in the
+.Fx
+version of
+.Nm .
+.It Fl R Ar replacements
+Specify the maximum number of arguments that
+.Fl I
+will do replacement in.
+If
+.Ar replacements
+is negative, the number of arguments in which to replace is unbounded.
+.It Fl S Ar replsize
+Specify the amount of space (in bytes) that
+.Fl I
+can use for replacements.
+The default for
+.Ar replsize
+is 255.
+.It Fl s Ar size
+Set the maximum number of bytes for the command line length provided to
+.Ar utility .
+The sum of the length of the utility name, the arguments passed to
+.Ar utility
+(including
+.Dv NULL
+terminators) and the current environment will be less than or equal to
+this number.
+The current default value for
+.Ar size
+is
+.Dv ARG_MAX
+- 4096.
+.It Fl t
+Echo the command to be executed to standard error immediately before it
+is executed.
+.It Fl x
+Force
+.Nm
+to terminate immediately if a command line containing
+.Ar number
+arguments will not fit in the specified (or default) command line length.
+.El
+.Pp
+If
+.Ar utility
+is omitted,
+.Xr echo 1
+is used.
+.Pp
+Undefined behavior may occur if
+.Ar utility
+reads from the standard input.
+.Pp
+If a command line cannot be assembled, or
+cannot be invoked, or if an invocation of
+.Ar utility
+is terminated by a signal,
+or an invocation of
+.Ar utility
+exits with a value of 255, the
+.Nm
+utility stops processing input and exits after all invocations of
+.Ar utility
+finish processing.
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with a value of 0 if no error occurs.
+If
+.Ar utility
+cannot be found,
+.Nm
+exits with a value of 127, otherwise if
+.Ar utility
+cannot be executed,
+.Nm
+exits with a value of 126.
+If any other error occurs,
+.Nm
+exits with a value of 1.
+.Sh SEE ALSO
+.Xr echo 1 ,
+.Xr find 1 ,
+.Xr execvp 3
+.Sh STANDARDS
+The
+.Nm
+utility is expected to be
+.St -p1003.2
+compliant.
+The
+.Fl J , o , P, R
+and
+.Fl S
+options are non-standard
+.Fx
+extensions which may not be available on other operating systems.
+.Sh HISTORY
+The
+.Nm
+utility appeared in PWB UNIX.
+.Sh BUGS
+If
+.Ar utility
+attempts to invoke another command such that the number of arguments or the
+size of the environment is increased, it risks
+.Xr execvp 3
+failing with
+.Er E2BIG .
+.Pp
+The
+.Nm
+utility does not take multibyte characters into account when performing
+string comparisons for the
+.Fl I
+and
+.Fl J
+options, which may lead to incorrect results in some locales.

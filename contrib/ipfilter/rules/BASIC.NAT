@@ -1,0 +1,46 @@
+#!/sbin/ipnat -f -
+#
+# THIS EXAMPLE IS WRITTEN FOR IP FILTER 3.3
+#
+# ppp0 - (external) PPP connection to ISP, address a.b.c.d/32
+#
+# ed0 - (internal) network interface, address w.x.y.z/32
+#
+# If we have only 1 valid IP address from our ISP, then we do this:
+#
+# To make ftp work, using the internal ftp proxy, use:
+#
+map ppp0 w.x.y.z/24 -> a.b.c.d/32 proxy port ftp ftp/tcp
+#
+# For normal TCP/UDP and other IP protocols
+#
+map ppp0 w.x.y.z/24 -> a.b.c.d/32 portmap tcp/udp 40000:60000
+map ppp0 w.x.y.z/24 -> a.b.c.d/32
+#
+# if we get a different dialup IP address each time, then we would use:
+#
+#map ppp0 w.x.y.z/24 -> 0/32 portmap tcp/udp 40000:60000
+#map ppp0 w.x.y.z/24 -> 0/32
+#
+# If we have a class C address space of valid IP#'s from our ISP, then we can
+# do this:
+#
+#map ppp0 w.x.y.z/24 -> a.b.c.d/24 portmap tcp/udp 40000:60000
+#map ppp0 w.x.y.z/24 -> a.b.c.d/24
+#
+# or, if we only have a small number of PC's, this:
+#
+#map ppp0 w.x.y.v/32 -> a.b.c.E/32 portmap tcp/udp 40000:60000
+#map ppp0 w.x.y.v/32 -> a.b.c.E/32
+#map ppp0 w.x.y.u/32 -> a.b.c.F/32 portmap tcp/udp 40000:60000
+#map ppp0 w.x.y.u/32 -> a.b.c.F/32
+#map ppp0 w.x.y.t/32 -> a.b.c.G/32 portmap tcp/udp 40000:60000
+#map ppp0 w.x.y.t/32 -> a.b.c.G/32
+#map ppp0 w.x.y.s/32 -> a.b.c.H/32 portmap tcp/udp 40000:60000
+#map ppp0 w.x.y.s/32 -> a.b.c.H/32
+#map ppp0 w.x.y.r/32 -> a.b.c.I/32 portmap tcp/udp 40000:60000
+#map ppp0 w.x.y.r/32 -> a.b.c.I/32
+#map ppp0 w.x.y.q/32 -> a.b.c.J/32 portmap tcp/udp 40000:60000
+#map ppp0 w.x.y.q/32 -> a.b.c.J/32
+#map ppp0 w.x.y.p/32 -> a.b.c.K/32 portmap tcp/udp 40000:60000
+#map ppp0 w.x.y.p/32 -> a.b.c.K/32

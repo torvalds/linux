@@ -1,0 +1,95 @@
+.\"
+.\" Copyright (c) 2010 The FreeBSD Foundation 
+.\" All rights reserved. 
+.\" 
+.\" This software was developed by Rui Paulo under sponsorship from the
+.\" FreeBSD Foundation. 
+.\"  
+.\" Redistribution and use in source and binary forms, with or without 
+.\" modification, are permitted provided that the following conditions 
+.\" are met: 
+.\" 1. Redistributions of source code must retain the above copyright 
+.\"    notice, this list of conditions and the following disclaimer. 
+.\" 2. Redistributions in binary form must reproduce the above copyright 
+.\"    notice, this list of conditions and the following disclaimer in the 
+.\"    documentation and/or other materials provided with the distribution. 
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND 
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE 
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+.\" SUCH DAMAGE. 
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 13, 2010
+.Dt PLOCKSTAT 1
+.Os
+.Sh NAME
+.Nm plockstat
+.Nd Trace pthread lock statistics using DTrace
+.Sh SYNOPSIS
+.Nm
+.Op Fl vACHV
+.Op Fl n Ar count
+.Op Fl s Ar depth
+.Op Fl e Ar secs
+.Op Fl x Ar opt Ns = Ns Ar val
+.Ar command
+.Op arg...
+.Nm
+.Op Fl vACHV
+.Op Fl n Ar count
+.Op Fl s Ar depth
+.Op Fl e Ar secs
+.Op Fl x Ar opt Ns = Ns Ar val
+.Fl p Ar pid
+.Sh DESCRIPTION
+The
+.Nm
+utility traces pthread locks (mutexes and rwlocks) and prints statistics about
+them.
+You can use
+.Nm
+to investigate bottlenecks in your software.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl v
+Be verbose.
+.It Fl A
+Print all statistics.
+.It Fl C
+Print commulative statistics (the default).
+.It Fl H
+Print a histogram.
+.It Fl V
+Print the DTrace script about to be used to stderr.
+.It Fl n Ar count
+Set the aggregation count for the data set.
+.It Fl s Ar depth
+Set the ustack (userland stack) caller depth.
+.It Fl e Ar secs
+Does nothing at the moment.
+.It Fl x Ar opt Ns = Ns Ar val
+Specify DTrace options.
+See the
+.Xr dtrace 1
+man page for more details.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr pthread 3
+.Sh HISTORY
+The
+.Nm
+utility comes from OpenSolaris and was first imported into
+.Fx 9.0 .

@@ -1,0 +1,62 @@
+# Copyright 1999-2017 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# Function codes
+CAPI_F_CAPI_CERT_GET_FNAME:99:capi_cert_get_fname
+CAPI_F_CAPI_CTRL:100:capi_ctrl
+CAPI_F_CAPI_CTX_NEW:101:capi_ctx_new
+CAPI_F_CAPI_CTX_SET_PROVNAME:102:capi_ctx_set_provname
+CAPI_F_CAPI_DSA_DO_SIGN:114:capi_dsa_do_sign
+CAPI_F_CAPI_GET_KEY:103:capi_get_key
+CAPI_F_CAPI_GET_PKEY:115:capi_get_pkey
+CAPI_F_CAPI_GET_PROVNAME:104:capi_get_provname
+CAPI_F_CAPI_GET_PROV_INFO:105:capi_get_prov_info
+CAPI_F_CAPI_INIT:106:capi_init
+CAPI_F_CAPI_LIST_CONTAINERS:107:capi_list_containers
+CAPI_F_CAPI_LOAD_PRIVKEY:108:capi_load_privkey
+CAPI_F_CAPI_OPEN_STORE:109:capi_open_store
+CAPI_F_CAPI_RSA_PRIV_DEC:110:capi_rsa_priv_dec
+CAPI_F_CAPI_RSA_PRIV_ENC:111:capi_rsa_priv_enc
+CAPI_F_CAPI_RSA_SIGN:112:capi_rsa_sign
+CAPI_F_CAPI_VTRACE:118:capi_vtrace
+CAPI_F_CERT_SELECT_DIALOG:117:cert_select_dialog
+CAPI_F_CLIENT_CERT_SELECT:116:*
+CAPI_F_WIDE_TO_ASC:113:wide_to_asc
+
+#Reason codes
+CAPI_R_CANT_CREATE_HASH_OBJECT:100:cant create hash object
+CAPI_R_CANT_FIND_CAPI_CONTEXT:101:cant find capi context
+CAPI_R_CANT_GET_KEY:102:cant get key
+CAPI_R_CANT_SET_HASH_VALUE:103:cant set hash value
+CAPI_R_CRYPTACQUIRECONTEXT_ERROR:104:cryptacquirecontext error
+CAPI_R_CRYPTENUMPROVIDERS_ERROR:105:cryptenumproviders error
+CAPI_R_DECRYPT_ERROR:106:decrypt error
+CAPI_R_ENGINE_NOT_INITIALIZED:107:engine not initialized
+CAPI_R_ENUMCONTAINERS_ERROR:108:enumcontainers error
+CAPI_R_ERROR_ADDING_CERT:109:error adding cert
+CAPI_R_ERROR_CREATING_STORE:110:error creating store
+CAPI_R_ERROR_GETTING_FRIENDLY_NAME:111:error getting friendly name
+CAPI_R_ERROR_GETTING_KEY_PROVIDER_INFO:112:error getting key provider info
+CAPI_R_ERROR_OPENING_STORE:113:error opening store
+CAPI_R_ERROR_SIGNING_HASH:114:error signing hash
+CAPI_R_FILE_OPEN_ERROR:115:file open error
+CAPI_R_FUNCTION_NOT_SUPPORTED:116:function not supported
+CAPI_R_GETUSERKEY_ERROR:117:getuserkey error
+CAPI_R_INVALID_DIGEST_LENGTH:118:invalid digest length
+CAPI_R_INVALID_DSA_PUBLIC_KEY_BLOB_MAGIC_NUMBER:119:\
+	invalid dsa public key blob magic number
+CAPI_R_INVALID_LOOKUP_METHOD:120:invalid lookup method
+CAPI_R_INVALID_PUBLIC_KEY_BLOB:121:invalid public key blob
+CAPI_R_INVALID_RSA_PUBLIC_KEY_BLOB_MAGIC_NUMBER:122:\
+	invalid rsa public key blob magic number
+CAPI_R_PUBKEY_EXPORT_ERROR:123:pubkey export error
+CAPI_R_PUBKEY_EXPORT_LENGTH_ERROR:124:pubkey export length error
+CAPI_R_UNKNOWN_COMMAND:125:unknown command
+CAPI_R_UNSUPPORTED_ALGORITHM_NID:126:unsupported algorithm nid
+CAPI_R_UNSUPPORTED_PADDING:127:unsupported padding
+CAPI_R_UNSUPPORTED_PUBLIC_KEY_ALGORITHM:128:unsupported public key algorithm
+CAPI_R_WIN32_ERROR:129:win32 error

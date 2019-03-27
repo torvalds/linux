@@ -1,0 +1,131 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)gethostname.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd August 18, 2003
+.Dt GETHOSTNAME 3
+.Os
+.Sh NAME
+.Nm gethostname ,
+.Nm sethostname
+.Nd get/set name of current host
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn gethostname "char *name" "size_t namelen"
+.Ft int
+.Fn sethostname "const char *name" "int namelen"
+.Sh DESCRIPTION
+The
+.Fn gethostname
+function
+returns the standard host name for the current processor, as
+previously set by
+.Fn sethostname .
+The
+.Fa namelen
+argument
+specifies the size of the
+.Fa name
+array.
+The returned name is null-terminated unless insufficient space is provided.
+.Pp
+The
+.Fn sethostname
+function
+sets the name of the host machine to be
+.Fa name ,
+which has length
+.Fa namelen .
+This call is restricted to the super-user and
+is normally used only when the system is bootstrapped.
+.Pp
+Host names are limited to
+.Brq Dv HOST_NAME_MAX
+characters, not including the trailing null, currently 255.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The following errors may be returned by these calls:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The
+.Fa name
+or
+.Fa namelen
+argument gave an
+invalid address.
+.It Bq Er ENAMETOOLONG
+The current host name is longer than
+.Fa namelen .
+(For
+.Fn gethostname
+only.)
+.It Bq Er EPERM
+The caller tried to set the host name and was not the super-user.
+.El
+.Sh SEE ALSO
+.Xr sysconf 3 ,
+.Xr sysctl 3
+.Sh STANDARDS
+The
+.Fn gethostname
+function conforms to
+.St -p1003.1-2001 .
+Callers should be aware that
+.Brq Dv HOST_NAME_MAX
+may be variable or infinite, but is guaranteed to be no less than
+.Brq Dv _POSIX_HOST_NAME_MAX .
+On older systems, this limit was defined in the non-standard header
+.In sys/param.h
+as
+.Dv MAXHOSTNAMELEN ,
+and counted the terminating null.
+The
+.Fn sethostname
+function and the error returns for
+.Fn gethostname
+are not standardized.
+.Sh HISTORY
+The
+.Fn gethostname
+function appeared in
+.Bx 4.2 .
+The
+.Fa namelen
+argument to
+.Fn gethostname
+was changed to
+.Vt size_t
+in
+.Fx 5.2
+for alignment with
+.St -p1003.1-2001 .

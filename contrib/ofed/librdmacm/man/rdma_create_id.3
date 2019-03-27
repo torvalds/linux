@@ -1,0 +1,56 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_CREATE_ID" 3 "2010-07-19" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_create_id \- Allocate a communication identifier.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "int" rdma_create_id
+.BI "(struct rdma_event_channel *" channel ","
+.BI "struct rdma_cm_id **" id ","
+.BI "void *" context ","
+.BI "enum rdma_port_space " ps ");"
+.SH ARGUMENTS
+.IP "channel" 12
+The communication channel that events associated with the
+allocated rdma_cm_id will be reported on.  This may be NULL.
+.IP "id" 12
+A reference where the allocated communication identifier will be
+returned.
+.IP "context" 12
+User specified context associated with the rdma_cm_id.
+.IP "ps" 12
+RDMA port space.
+.SH "DESCRIPTION"
+Creates an identifier that is used to track communication information.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
+.SH "NOTES"
+Rdma_cm_id's are conceptually equivalent to a socket for RDMA
+communication.  The difference is that RDMA communication requires
+explicitly binding to a specified RDMA device before communication
+can occur, and most operations are asynchronous in nature.  Asynchronous
+communication events on an rdma_cm_id are reported through the associated
+event channel.  If the channel parameter is NULL, the rdma_cm_id will
+be placed into synchronous operation.  While operating synchronously,
+calls that result in an event will block until the operation completes.
+The event will be returned to the user through the rdma_cm_id structure,
+and be available for access until another rdma_cm call is made.
+.P
+Users must release the rdma_cm_id by calling rdma_destroy_id.
+.SH "PORT SPACE"
+Details of the services provided by the different port spaces are outlined
+below.
+.IP RDMA_PS_TCP
+Provides reliable, connection-oriented QP communication.  Unlike TCP, the RDMA
+port space provides message, not stream, based communication.
+.IP RDMA_PS_UDP
+Provides unreliable, connectionless QP communication.  Supports both datagram
+and multicast communication.
+.IP RDMA_PS_IB
+Provides for any IB services (UD, UC, RC, XRC, etc.).
+.SH "SEE ALSO"
+rdma_cm(7), rdma_create_event_channel(3), rdma_destroy_id(3), rdma_get_devices(3),
+rdma_bind_addr(3), rdma_resolve_addr(3), rdma_connect(3), rdma_listen(3),
+rdma_set_option(3)

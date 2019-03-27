@@ -1,0 +1,166 @@
+.\" $NetBSD: ucom.4,v 1.9 2002/03/22 00:39:40 augustss Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 25, 2018
+.Dt UCOM 4
+.Os
+.Sh NAME
+.Nm ucom
+.Nd USB tty support
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ucom"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ucom_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver attaches to USB modems, serial ports, and other devices that need
+to look like a tty.
+The
+.Nm
+driver shows a behavior like a
+.Xr tty 4 .
+This means that normal programs such as
+.Xr tip 1
+or
+.Xr ppp 8
+can be used to access the device.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.ucom.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
+.It Va hw.usb.ucom.device_mode_console
+When set to 1, the
+.Nm
+driver will mark terminals as console devices when operating in device mode.
+Default is 1.
+.It Va hw.usb.ucom.pps_mode
+Enables and configure PPS capture mode as described below.
+.El
+.Sh Pulse Per Second (PPS) Timing Interface
+The
+.Nm
+driver can capture PPS timing information as defined in RFC 2783.
+The API, accessed via
+.Xr ioctl 2 ,
+is available on the tty device.
+To use the PPS capture feature with
+.Xr ntpd 8 ,
+symlink the tty device to
+.Va /dev/pps0.
+.Pp
+The
+.Va hw.usb.ucom.pps_mode
+sysctl configures the PPS capture mode.
+It can be set in
+.Xr loader.conf 5
+or
+.Xr sysctl.conf 5 .
+The following capture modes are available:
+.Bl -tag -compact -offset "mmmm" -width "mmmm"
+.It 0
+Capture disabled (default).
+.It 1
+Capture pulses on the CTS line.
+.It 2
+Capture pulses on the DCD line.
+.El
+.Sh FILES
+.Bl -tag -width "/dev/ttyU*.init" -compact
+.It Pa /dev/ttyU*
+for callin ports
+.It Pa /dev/ttyU*.init
+.It Pa /dev/ttyU*.lock
+corresponding callin initial-state and lock-state devices
+.Pp
+.It Pa /dev/cuaU*
+for callout ports
+.It Pa /dev/cuaU*.init
+.It Pa /dev/cuaU*.lock
+corresponding callout initial-state and lock-state devices
+.El
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr uark 4 ,
+.Xr ubsa 4 ,
+.Xr ubser 4 ,
+.Xr uchcom 4 ,
+.Xr ucycom 4 ,
+.Xr ufoma 4 ,
+.Xr uftdi 4 ,
+.Xr uhso 4 ,
+.\".Xr ugensa 4 ,
+.Xr uipaq 4 ,
+.Xr umcs 4 ,
+.Xr umct 4 ,
+.Xr umodem 4 ,
+.Xr umoscom 4 ,
+.Xr uplcom 4 ,
+.Xr usb 4 ,
+.Xr uslcom 4 ,
+.Xr uvisor 4 ,
+.Xr uvscom 4
+.Sh HISTORY
+The
+.Nm
+driver was adopted from
+.Nx
+in March of 2002.
+This manual page was adopted from
+.Nx
+by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org
+in April 2002.
+.Sh BUGS
+Prior to
+.Fx 6.0
+.Nm
+created
+.Pa /dev/ucom?
+rather than the uniform device names created today.
+Old scripts must be adjusted accordingly.

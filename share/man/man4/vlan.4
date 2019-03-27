@@ -1,0 +1,204 @@
+.\"
+.\" Copyright (c) 2001 Yar Tikhiy
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 8, 2018
+.Dt VLAN 4
+.Os
+.Sh NAME
+.Nm vlan
+.Nd "IEEE 802.1Q VLAN network interface"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device vlan"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_vlan_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver demultiplexes frames tagged according to
+the IEEE 802.1Q standard into logical
+.Nm
+network interfaces, which allows routing/bridging between
+multiple VLANs through a single switch trunk port.
+.Pp
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is
+most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va cloned_interfaces
+variable in
+.Xr rc.conf 5 .
+.Pp
+To function, a
+.Nm
+interface must be assigned a parent interface and
+numeric VLAN tag using
+.Xr ifconfig 8 .
+A single parent can be assigned to multiple
+.Nm
+interfaces provided they have different tags.
+The parent interface is likely to be an Ethernet card connected
+to a properly configured switch port.
+The VLAN tag should match one of those set up in the switched
+network.
+.Pp
+.Nm
+initially assumes the same minimum length for tagged and untagged frames.
+This mode is selected by setting the
+.Xr sysctl 8
+variable
+.Va net.link.vlan.soft_pad
+to 0
+.Pq default .
+However, there are network devices that fail to adjust frame length
+when it falls below the allowed minimum due to untagging.
+Such devices should be able to interoperate with
+.Nm
+after changing the value of
+.Va net.link.vlan.soft_pad
+to 1.
+In the latter mode,
+.Nm
+will pad short frames before tagging them
+so that their length is not less than the minimum value
+after untagging by the non-compliant devices.
+.Sh HARDWARE
+The
+.Nm
+driver supports efficient operation over parent interfaces that can provide
+help in processing VLANs.
+Such interfaces are automatically recognized by their capabilities.
+Depending on the level of sophistication found in a physical
+interface, it may do full VLAN processing or just be able to
+receive and transmit long frames (up to 1522 bytes including an Ethernet
+header and FCS).
+The capabilities may be user-controlled by the respective parameters to
+.Xr ifconfig 8 ,
+.Cm vlanhwtag ,
+and
+.Cm vlanmtu .
+However, a physical interface is not obliged to react to them:
+It may have either capability enabled permanently without
+a way to turn it off.
+The whole issue is very specific to a particular device and its driver.
+.Pp
+At present, these devices are capable of full VLAN processing
+in hardware:
+.Xr ae 4 ,
+.Xr age 4 ,
+.Xr alc 4 ,
+.Xr ale 4 ,
+.Xr bce 4 ,
+.Xr bge 4 ,
+.Xr bxe 4 ,
+.Xr cxgb 4 ,
+.Xr cxgbe 4 ,
+.Xr em 4 ,
+.Xr igb 4 ,
+.Xr ixgbe 4 ,
+.Xr jme 4 ,
+.Xr liquidio 4 ,
+.Xr msk 4 ,
+.Xr mxge 4 ,
+.Xr nge 4 ,
+.Xr re 4 ,
+.Xr sge 4 ,
+.Xr stge 4 ,
+.Xr ti 4 ,
+.Xr txp 4 ,
+and
+.Xr vge 4 .
+.Pp
+Other Ethernet interfaces can run VLANs using software emulation in the
+.Nm
+driver.
+However, some lack the capability
+of transmitting and receiving long frames.
+Assigning such an interface as the parent to
+.Nm
+will result in a reduced MTU on the corresponding
+.Nm
+interfaces.
+In the modern Internet, this is likely to cause
+.Xr tcp 4
+connectivity problems due to massive, inadequate
+.Xr icmp 4
+filtering that breaks the Path MTU Discovery mechanism.
+.Pp
+These interfaces natively support long frames for
+.Nm :
+.Xr axe 4 ,
+.Xr bfe 4 ,
+.Xr cas 4 ,
+.Xr dc 4 ,
+.Xr et 4 ,
+.Xr fwe 4 ,
+.Xr fxp 4 ,
+.Xr gem 4 ,
+.Xr hme 4 ,
+.Xr le 4 ,
+.Xr nfe 4 ,
+.Xr rl 4 ,
+.Xr sf 4 ,
+.Xr sis 4 ,
+.Xr sk 4 ,
+.Xr ste 4 ,
+.Xr tl 4 ,
+.Xr tx 4 ,
+.Xr vr 4 ,
+.Xr vte 4 ,
+and
+.Xr xl 4 .
+.Pp
+The
+.Nm
+driver automatically recognizes devices that natively support long frames
+for
+.Nm
+use and calculates the appropriate frame MTU based on the
+capabilities of the parent interface.
+Some other interfaces not listed above may handle long frames,
+but they do not advertise this ability.
+The MTU setting on
+.Nm
+can be corrected manually if used in conjunction with such a parent interface.
+.Sh SEE ALSO
+.Xr ifconfig 8 ,
+.Xr sysctl 8

@@ -1,0 +1,72 @@
+.\" Copyright (c) 1995 David Nugent <davidn@blaze.net.au>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, is permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice immediately at the beginning of the file, without modification,
+.\"    this list of conditions, and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. This work was done expressly for inclusion into FreeBSD.  Other use
+.\"    is permitted provided this notation is included.
+.\" 4. Absolutely no warranty of function or purpose is made by the author
+.\"    David Nugent.
+.\" 5. Modifications may be freely made to this file providing the above
+.\"    conditions are met.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 29, 1996
+.Dt LOGIN_AUTH 3
+.Os
+.Sh NAME
+.\" .Nm authenticate
+.\" .Nm auth_script
+.\" .Nm auth_env
+.\" .Nm auth_scan
+.\" .Nm auth_rmfiles
+.Nm auth_checknologin ,
+.Nm auth_cat
+.\" .Nm auth_ttyok
+.\" .Nm auth_hostok
+.\" .Nm auth_timesok
+.Nd "authentication style support library for login class capabilities database"
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In sys/types.h
+.In login_cap.h
+.\" .Ft int
+.\". Fn authenticate "const char *name" "const char *classname" "const char *style" "const char *service"
+.\" .Ft int
+.\" .Fn auth_script "const char * path" ...
+.\" .Ft void
+.\" .Fn auth_env "void"
+.\" .Ft int
+.\" .Fn auth_scan "int ok"
+.\" .Ft void
+.\" .Fn auth_rmfiles "void"
+.Ft void
+.Fn auth_checknologin "login_cap_t *lc"
+.Ft int
+.Fn auth_cat "const char *file"
+.\" .Ft int
+.\" .Fn auth_ttyok "login_cap_t *lc" "const char *tty"
+.\" .Ft int
+.\" .Fn auth_hostok "login_cap_t *lc" "const char *hostname" "char const *ip"
+.\" .Ft int
+.\" .Fn auth_timesok "login_cap_t *lc" "time_t now"
+.Sh DESCRIPTION
+This set of functions support the login class authorisation style interface provided
+by
+.Xr login.conf 5 .
+.\" .Sh RETURN VALUES
+.Sh SEE ALSO
+.Xr getcap 3 ,
+.Xr login_cap 3 ,
+.Xr login_class 3 ,
+.Xr login.conf 5 ,
+.Xr termcap 5

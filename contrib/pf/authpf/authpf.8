@@ -1,0 +1,584 @@
+.\" $FreeBSD$
+.\" $OpenBSD: authpf.8,v 1.47 2009/01/06 03:11:50 mcbride Exp $
+.\"
+.\" Copyright (c) 1998-2007 Bob Beck (beck@openbsd.org>.  All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd January 29 2014
+.Dt AUTHPF 8
+.Os
+.Sh NAME
+.Nm authpf ,
+.Nm authpf-noip
+.Nd authenticating gateway user shell
+.Sh SYNOPSIS
+.Nm authpf
+.Nm authpf-noip
+.Sh DESCRIPTION
+.Nm
+is a user shell for authenticating gateways.
+It is used to change
+.Xr pf 4
+rules when a user authenticates and starts a session with
+.Xr sshd 8
+and to undo these changes when the user's session exits.
+Typical use would be for a gateway that authenticates users before
+allowing them Internet use, or a gateway that allows different users into
+different places.
+Combined with properly set up filter rules and secure switches,
+.Nm
+can be used to ensure users are held accountable for their network traffic.
+It is meant to be used with users who can connect via
+.Xr ssh 1
+only, and requires the
+.Xr pf 4
+subsystem and an
+.Xr fdescfs 5
+file system mounted at
+.Pa /dev/fd
+to be enabled.
+.Pp
+.Nm authpf-noip
+is a user shell
+which allows multiple connections to take
+place from the same IP address.
+It is useful primarily in cases where connections are tunneled via
+the gateway system, and can be directly associated with the user name.
+It cannot ensure accountability when
+classifying connections by IP address;
+in this case the client's IP address
+is not provided to the packet filter via the
+.Ar client_ip
+macro or the
+.Ar authpf_users
+table.
+Additionally, states associated with the client IP address
+are not purged when the session is ended.
+.Pp
+To use either
+.Nm
+or
+.Nm authpf-noip ,
+the user's shell needs to be set to
+.Pa /usr/sbin/authpf
+or
+.Pa /usr/sbin/authpf-noip .
+.Pp
+.Nm
+uses the
+.Xr pf.conf 5
+syntax to change filter and translation rules for an individual
+user or client IP address as long as a user maintains an active
+.Xr ssh 1
+session, and logs the successful start and end of a session to
+.Xr syslogd 8 .
+.Nm
+retrieves the client's connecting IP address via the
+.Ev SSH_CLIENT
+environment variable and, after performing additional access checks,
+reads a template file to determine what filter and translation rules
+(if any) to add, and
+maintains the list of IP addresses of connected users in the
+.Ar authpf_users
+table.
+On session exit the same rules and table entries that were added at startup
+are removed, and all states associated with the client's IP address are purged.
+.Pp
+Each
+.Nm
+process stores its rules in a separate ruleset inside a
+.Xr pf 4
+.Pa anchor
+shared by all
+.Nm
+processes.
+By default, the
+.Pa anchor
+name "authpf" is used, and the ruleset names equal the username and PID of the
+.Nm
+processes as "username(pid)".
+The following rules need to be added to the main ruleset
+.Pa /etc/pf.conf
+in order to cause evaluation of any
+.Nm
+rules:
+.Bd -literal -offset indent
+nat-anchor "authpf/*"
+rdr-anchor "authpf/*"
+binat-anchor "authpf/*"
+anchor "authpf/*"
+.Ed
+.Pp
+The "/*" at the end of the anchor name is required for
+.Xr pf 4
+to process the rulesets attached to the anchor by
+.Nm authpf .
+.Sh FILTER AND TRANSLATION RULES
+Filter and translation rules for
+.Nm
+use the same format described in
+.Xr pf.conf 5 .
+The only difference is that these rules may (and probably should) use
+the macro
+.Em user_ip ,
+which is assigned the connecting IP address whenever
+.Nm
+is run.
+Additionally, the macro
+.Em user_id
+is assigned the user name.
+.Pp
+Filter and translation rules are stored in a file called
+.Pa authpf.rules .
+This file will first be searched for in
+.Pa /etc/authpf/users/$USER/
+and then in
+.Pa /etc/authpf/ .
+Only one of these files will be used if both are present.
+.Pp
+Per-user rules from the
+.Pa /etc/authpf/users/$USER/
+directory are intended to be used when non-default rules
+are needed on an individual user basis.
+It is important to ensure that a user can not write or change
+these configuration files.
+.Pp
+The
+.Pa authpf.rules
+file must exist in one of the above locations for
+.Nm
+to run.
+.Sh CONFIGURATION
+Options are controlled by the
+.Pa /etc/authpf/authpf.conf
+file.
+If the file is empty, defaults are used for all
+configuration options.
+The file consists of pairs of the form
+.Li name=value ,
+one per line.
+Currently, the allowed values are as follows:
+.Bl -tag -width Ds
+.It anchor=name
+Use the specified
+.Pa anchor
+name instead of "authpf".
+.It table=name
+Use the specified
+.Pa table
+name instead of "authpf_users".
+.El
+.Sh USER MESSAGES
+On successful invocation,
+.Nm
+displays a message telling the user he or she has been authenticated.
+It will additionally display the contents of the file
+.Pa /etc/authpf/authpf.message
+if the file exists and is readable.
+.Pp
+There exist two methods for providing additional granularity to the control
+offered by
+.Nm
+- it is possible to set the gateway to explicitly allow users who have
+authenticated to
+.Xr ssh 1
+and deny access to only a few troublesome individuals.
+This is done by creating a file with the banned user's login name as the
+filename in
+.Pa /etc/authpf/banned/ .
+The contents of this file will be displayed to a banned user, thus providing
+a method for informing the user that they have been banned, and where they can
+go and how to get there if they want to have their service restored.
+This is the default behaviour.
+.Pp
+It is also possible to configure
+.Nm
+to only allow specific users access.
+This is done by listing their login names, one per line, in
+.Pa /etc/authpf/authpf.allow .
+A group of users can also be indicated by prepending "%" to the group name,
+and all members of a login class can be indicated by prepending "@" to the
+login class name.
+If "*" is found on a line, then all usernames match.
+If
+.Nm
+is unable to verify the user's permission to use the gateway, it will
+print a brief message and die.
+It should be noted that a ban takes precedence over an allow.
+.Pp
+On failure, messages will be logged to
+.Xr syslogd 8
+for the system administrator.
+The user does not see these, but will be told the system is unavailable due to
+technical difficulties.
+The contents of the file
+.Pa /etc/authpf/authpf.problem
+will also be displayed if the file exists and is readable.
+.Sh CONFIGURATION ISSUES
+.Nm
+maintains the changed filter rules as long as the user maintains an
+active session.
+It is important to remember however, that the existence
+of this session means the user is authenticated.
+Because of this, it is important to configure
+.Xr sshd 8
+to ensure the security of the session, and to ensure that the network
+through which users connect is secure.
+.Xr sshd 8
+should be configured to use the
+.Ar ClientAliveInterval
+and
+.Ar ClientAliveCountMax
+parameters to ensure that a ssh session is terminated quickly if
+it becomes unresponsive, or if arp or address spoofing is used to
+hijack the session.
+Note that TCP keepalives are not sufficient for
+this, since they are not secure.
+Also note that the various SSH tunnelling mechanisms,
+such as
+.Ar AllowTcpForwarding
+and
+.Ar PermitTunnel ,
+should be disabled for
+.Nm
+users to prevent them from circumventing restrictions imposed by the
+packet filter ruleset.
+.Pp
+.Nm
+will remove state table entries that were created during a user's
+session.
+This ensures that there will be no unauthenticated traffic
+allowed to pass after the controlling
+.Xr ssh 1
+session has been closed.
+.Pp
+.Nm
+is designed for gateway machines which typically do not have regular
+(non-administrative) users using the machine.
+An administrator must remember that
+.Nm
+can be used to modify the filter rules through the environment in
+which it is run, and as such could be used to modify the filter rules
+(based on the contents of the configuration files) by regular
+users.
+In the case where a machine has regular users using it, as well
+as users with
+.Nm
+as their shell, the regular users should be prevented from running
+.Nm
+by using the
+.Pa /etc/authpf/authpf.allow
+or
+.Pa /etc/authpf/banned/
+facilities.
+.Pp
+.Nm
+modifies the packet filter and address translation rules, and because
+of this it needs to be configured carefully.
+.Nm
+will not run and will exit silently if the
+.Pa /etc/authpf/authpf.conf
+file does not exist.
+After considering the effect
+.Nm
+may have on the main packet filter rules, the system administrator may
+enable
+.Nm
+by creating an appropriate
+.Pa /etc/authpf/authpf.conf
+file.
+.Sh EXAMPLES
+.Sy Control Files
+\- To illustrate the user-specific access control
+mechanisms, let us consider a typical user named bob.
+Normally, as long as bob can authenticate himself, the
+.Nm
+program will load the appropriate rules.
+Enter the
+.Pa /etc/authpf/banned/
+directory.
+If bob has somehow fallen from grace in the eyes of the
+powers-that-be, they can prohibit him from using the gateway by creating
+the file
+.Pa /etc/authpf/banned/bob
+containing a message about why he has been banned from using the network.
+Once bob has done suitable penance, his access may be restored by moving or
+removing the file
+.Pa /etc/authpf/banned/bob .
+.Pp
+Now consider a workgroup containing alice, bob, carol and dave.
+They have a
+wireless network which they would like to protect from unauthorized use.
+To accomplish this, they create the file
+.Pa /etc/authpf/authpf.allow
+which lists their login ids, group prepended with "%", or login class
+prepended with "@", one per line.
+At this point, even if eve could authenticate to
+.Xr sshd 8 ,
+she would not be allowed to use the gateway.
+Adding and removing users from
+the work group is a simple matter of maintaining a list of allowed userids.
+If bob once again manages to annoy the powers-that-be, they can ban him from
+using the gateway by creating the familiar
+.Pa /etc/authpf/banned/bob
+file.
+Though bob is listed in the allow file, he is prevented from using
+this gateway due to the existence of a ban file.
+.Pp
+.Sy Distributed Authentication
+\- It is often desirable to interface with a
+distributed password system rather than forcing the sysadmins to keep a large
+number of local password files in sync.
+The
+.Xr login.conf 5
+mechanism in
+.Ox
+can be used to fork the right shell.
+To make that happen,
+.Xr login.conf 5
+should have entries that look something like this:
+.Bd -literal -offset indent
+shell-default:shell=/bin/csh
+
+default:\e
+	...
+	:shell=/usr/sbin/authpf
+
+daemon:\e
+	...
+	:shell=/bin/csh:\e
+	:tc=default:
+
+staff:\e
+	...
+	:shell=/bin/csh:\e
+	:tc=default:
+.Ed
+.Pp
+Using a default password file, all users will get
+.Nm
+as their shell except for root who will get
+.Pa /bin/csh .
+.Pp
+.Sy SSH Configuration
+\- As stated earlier,
+.Xr sshd 8
+must be properly configured to detect and defeat network attacks.
+To that end, the following options should be added to
+.Xr sshd_config 5 :
+.Bd -literal -offset indent
+Protocol 2
+ClientAliveInterval 15
+ClientAliveCountMax 3
+.Ed
+.Pp
+This ensures that unresponsive or spoofed sessions are terminated within a
+minute, since a hijacker should not be able to spoof ssh keepalive messages.
+.Pp
+.Sy Banners
+\- Once authenticated, the user is shown the contents of
+.Pa /etc/authpf/authpf.message .
+This message may be a screen-full of the appropriate use policy, the contents
+of
+.Pa /etc/motd
+or something as simple as the following:
+.Bd -literal -offset indent
+This means you will be held accountable by the powers that be
+for traffic originating from your machine, so please play nice.
+.Ed
+.Pp
+To tell the user where to go when the system is broken,
+.Pa /etc/authpf/authpf.problem
+could contain something like this:
+.Bd -literal -offset indent
+Sorry, there appears to be some system problem. To report this
+problem so we can fix it, please phone 1-900-314-1597 or send
+an email to remove@bulkmailerz.net.
+.Ed
+.Pp
+.Sy Packet Filter Rules
+\- In areas where this gateway is used to protect a
+wireless network (a hub with several hundred ports), the default rule set as
+well as the per-user rules should probably allow very few things beyond
+encrypted protocols like
+.Xr ssh 1 ,
+.Xr ssl 8 ,
+or
+.Xr ipsec 4 .
+On a securely switched network, with plug-in jacks for visitors who are
+given authentication accounts, you might want to allow out everything.
+In this context, a secure switch is one that tries to prevent address table
+overflow attacks.
+.Pp
+Example
+.Pa /etc/pf.conf :
+.Bd -literal
+# by default we allow internal clients to talk to us using
+# ssh and use us as a dns server.
+internal_if="fxp1"
+gateway_addr="10.0.1.1"
+nat-anchor "authpf/*"
+rdr-anchor "authpf/*"
+binat-anchor "authpf/*"
+block in on $internal_if from any to any
+pass in quick on $internal_if proto tcp from any to $gateway_addr \e
+      port = ssh
+pass in quick on $internal_if proto udp from any to $gateway_addr \e
+      port = domain
+anchor "authpf/*"
+.Ed
+.Pp
+.Sy For a switched, wired net
+\- This example
+.Pa /etc/authpf/authpf.rules
+makes no real restrictions; it turns the IP address on and off, logging
+TCP connections.
+.Bd -literal
+external_if = "xl0"
+internal_if = "fxp0"
+
+pass in log quick on $internal_if proto tcp from $user_ip to any
+pass in quick on $internal_if from $user_ip to any
+.Ed
+.Pp
+.Sy For a wireless or shared net
+\- This example
+.Pa /etc/authpf/authpf.rules
+could be used for an insecure network (such as a public wireless network) where
+we might need to be a bit more restrictive.
+.Bd -literal
+internal_if="fxp1"
+ipsec_gw="10.2.3.4"
+
+# rdr ftp for proxying by ftp-proxy(8)
+rdr on $internal_if proto tcp from $user_ip to any port 21 \e
+      -> 127.0.0.1 port 8021
+
+# allow out ftp, ssh, www and https only, and allow user to negotiate
+# ipsec with the ipsec server.
+pass in log quick on $internal_if proto tcp from $user_ip to any \e
+      port { 21, 22, 80, 443 }
+pass in quick on $internal_if proto tcp from $user_ip to any \e
+      port { 21, 22, 80, 443 }
+pass in quick proto udp from $user_ip to $ipsec_gw port = isakmp
+pass in quick proto esp from $user_ip to $ipsec_gw
+.Ed
+.Pp
+.Sy Dealing with NAT
+\- The following
+.Pa /etc/authpf/authpf.rules
+shows how to deal with NAT, using tags:
+.Bd -literal
+ext_if = "fxp1"
+ext_addr = 129.128.11.10
+int_if = "fxp0"
+# nat and tag connections...
+nat on $ext_if from $user_ip to any tag $user_ip -> $ext_addr
+pass in quick on $int_if from $user_ip to any
+pass out log quick on $ext_if tagged $user_ip
+.Ed
+.Pp
+With the above rules added by
+.Nm ,
+outbound connections corresponding to each users NAT'ed connections
+will be logged as in the example below, where the user may be identified
+from the ruleset name.
+.Bd -literal
+# tcpdump -n -e -ttt -i pflog0
+Oct 31 19:42:30.296553 rule 0.bbeck(20267).1/0(match): pass out on fxp1: \e
+129.128.11.10.60539 > 198.137.240.92.22: S 2131494121:2131494121(0) win \e
+16384 <mss 1460,nop,nop,sackOK> (DF)
+.Ed
+.Pp
+.Sy Using the authpf_users table
+\- Simple
+.Nm
+settings can be implemented without an anchor by just using the "authpf_users"
+.Pa table .
+For example, the following
+.Xr pf.conf 5
+lines will give SMTP and IMAP access to logged in users:
+.Bd -literal
+table <authpf_users> persist
+pass in on $ext_if proto tcp from <authpf_users> \e
+        to port { smtp imap }
+.Ed
+.Pp
+It is also possible to use the "authpf_users"
+.Pa table
+in combination with anchors.
+For example,
+.Xr pf 4
+processing can be sped up by looking up the anchor
+only for packets coming from logged in users:
+.Bd -literal
+table <authpf_users> persist
+anchor "authpf/*" from <authpf_users>
+rdr-anchor "authpf/*" from <authpf_users>
+.Ed
+.Pp
+.Sy Tunneled users
+\- normally
+.Nm
+allows only one session per client IP address.
+However in some cases, such as when connections are tunneled via
+.Xr ssh 1
+or
+.Xr ipsec 4 ,
+the connections can be authorized based on the userid of the user instead of
+the client IP address.
+In this case it is appropriate to use
+.Nm authpf-noip
+to allow multiple users behind a NAT gateway to connect.
+In the
+.Pa /etc/authpf/authpf.rules
+example below, the remote user could tunnel a remote desktop session to their
+workstation:
+.Bd -literal
+internal_if="bge0"
+workstation_ip="10.2.3.4"
+
+pass out on $internal_if from (self) to $workstation_ip port 3389 \e
+       user $user_id
+.Ed
+.Sh FILES
+.Bl -tag -width "/etc/authpf/authpf.conf" -compact
+.It Pa /etc/authpf/authpf.conf
+.It Pa /etc/authpf/authpf.allow
+.It Pa /etc/authpf/authpf.rules
+.It Pa /etc/authpf/authpf.message
+.It Pa /etc/authpf/authpf.problem
+.El
+.Sh SEE ALSO
+.Xr pf 4 ,
+.Xr fdescfs 5 ,
+.Xr pf.conf 5 ,
+.Xr securelevel 7 ,
+.Xr ftp-proxy 8
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 3.1 .
+.Sh BUGS
+Configuration issues are tricky.
+The authenticating
+.Xr ssh 1
+connection may be secured, but if the network is not secured the user may
+expose insecure protocols to attackers on the same network, or enable other
+attackers on the network to pretend to be the user by spoofing their IP
+address.
+.Pp
+.Nm
+is not designed to prevent users from denying service to other users.

@@ -1,0 +1,389 @@
+.\" Copyright (c) 1996
+.\"	Julian Elischer <julian@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd December 20, 2017
+.Dt CAM 4
+.Os
+.Sh NAME
+.Nm CAM
+.Nd Common Access Method Storage subsystem
+.Sh SYNOPSIS
+.Cd "device scbus"
+.Cd "device ada"
+.Cd "device cd"
+.Cd "device ch"
+.Cd "device da"
+.Cd "device pass"
+.Cd "device pt"
+.Cd "device sa"
+.Cd "options CAMDEBUG"
+.Cd "options CAM_DEBUG_BUS=-1"
+.Cd "options CAM_DEBUG_TARGET=-1"
+.Cd "options CAM_DEBUG_LUN=-1"
+.Cd "options CAM_DEBUG_COMPILE=CAM_DEBUG_INFO|CAM_DEBUG_CDB|CAM_DEBUG_PROBE"
+.Cd "options CAM_DEBUG_FLAGS=CAM_DEBUG_INFO|CAM_DEBUG_CDB"
+.Cd "options CAM_MAX_HIGHPOWER=4"
+.Cd "options SCSI_NO_SENSE_STRINGS"
+.Cd "options SCSI_NO_OP_STRINGS"
+.Cd "options SCSI_DELAY=8000"
+.Sh DESCRIPTION
+The
+.Nm
+subsystem provides a uniform and modular system for the implementation
+of drivers to control various
+.Tn SCSI ,
+.Tn ATA ,
+.Tn NMVe ,
+and
+.Tn MMC / SD
+devices, and to utilize different
+.Tn SCSI ,
+.Tn ATA ,
+.Tn NVMe ,
+and
+.Tn MMC / SD
+host adapters through host adapter drivers.
+When the system probes buses, it attaches any devices it finds to the
+appropriate drivers.
+The
+.Xr pass 4
+driver, if it is configured in the kernel, will attach to all devices.
+.Sh KERNEL CONFIGURATION
+There are a number of generic kernel configuration options for the
+.Nm
+subsystem:
+.Bl -tag -width SCSI_NO_SENSE_STRINGS
+.It Dv CAMDEBUG
+This option compiles in all the
+.Nm
+debugging printf code.
+This will not actually
+cause any debugging information to be printed out when included by itself.
+See below for details.
+.It Dv "CAM_MAX_HIGHPOWER=4"
+This sets the maximum allowable number of concurrent "high power" commands.
+A "high power" command is a command that takes more electrical power than
+most to complete.
+An example of this is the
+.Tn SCSI
+START UNIT command.
+Starting a disk often takes significantly more electrical power than normal
+operation.
+This option allows the
+user to specify how many concurrent high power commands may be outstanding
+without overloading the power supply on his computer.
+.It Dv SCSI_NO_SENSE_STRINGS
+This eliminates text descriptions of each
+.Tn SCSI
+Additional Sense Code and Additional Sense Code Qualifier pair.
+Since this
+is a fairly large text database, eliminating it reduces the size of the
+kernel somewhat.
+This is primarily necessary for boot floppies and other
+low disk space or low memory space environments.
+In most cases, though,
+this should be enabled, since it speeds the interpretation of
+.Tn SCSI
+error messages.
+Do not let the "kernel bloat" zealots get to you -- leave
+the sense descriptions in your kernel!
+.It Dv SCSI_NO_OP_STRINGS
+This disables text descriptions of each
+.Tn SCSI
+opcode.
+This option, like the sense string option above, is primarily
+useful for environments like a boot floppy where kernel size is critical.
+Enabling this option for normal use is not recommended, since it slows
+debugging of
+.Tn SCSI
+problems.
+.It Dv SCSI_DELAY=8000
+This is the
+.Tn SCSI
+"bus settle delay."
+In
+.Nm ,
+it is specified in
+.Em milliseconds ,
+not seconds like the old
+.Tn SCSI
+layer used to do.
+When the kernel boots, it sends a bus reset to each
+.Tn SCSI
+bus to tell each device to reset itself to a default set of transfer
+negotiations and other settings.
+Most
+.Tn SCSI
+devices need some amount of time to recover from a bus reset.
+Newer disks
+may need as little as 100ms, while old, slow devices may need much longer.
+If the
+.Dv SCSI_DELAY
+is not specified, it defaults to 2 seconds.
+The minimum allowable value for
+.Dv SCSI_DELAY
+is "100", or 100ms.
+One special case is that if the
+.Dv SCSI_DELAY
+is set to 0, that will be taken to mean the "lowest possible value."
+In that case, the
+.Dv SCSI_DELAY
+will be reset to 100ms.
+.El
+.Pp
+All devices and buses support dynamic allocation so that
+an upper number of devices and controllers does not need to be configured;
+.Cd "device da"
+will suffice for any number of disk drivers.
+.Pp
+The devices are either
+.Em wired
+so they appear as a particular device unit or
+.Em counted
+so that they appear as the next available unused unit.
+.Pp
+Units are wired down by setting kernel environment hints.
+This is usually done either interactively from the
+.Xr loader 8 ,
+or automatically via the
+.Pa /boot/device.hints
+file.
+The basic syntax is:
+.Bd -literal -offset indent
+hint.device.unit.property="value"
+.Ed
+.Pp
+Individual
+.Nm
+bus numbers can be wired down to specific controllers with
+a config line similar to the following:
+.Bd -literal -offset indent
+hint.scbus.0.at="ahd1"
+.Ed
+.Pp
+This assigns
+.Nm
+bus number 0 to the
+.Em ahd1
+driver instance.
+For controllers supporting more than one bus, a particular bus can be assigned
+as follows:
+.Bd -literal -offset indent
+hint.scbus.0.at="ahc1"
+hint.scbus.0.bus="1"
+.Ed
+.Pp
+This assigns
+.Nm
+bus 0 to the bus 1 instance on
+.Em ahc1 .
+Peripheral drivers can be wired to a specific bus, target, and lun as so:
+.Bd -literal -offset indent
+hint.da.0.at="scbus0"
+hint.da.0.target="0"
+hint.da.0.unit="0"
+.Ed
+.Pp
+This assigns
+.Em da0
+to target 0, unit (lun) 0 of scbus 0.
+Omitting the target or unit hints will instruct
+.Nm
+to treat them as wildcards
+and use the first respective counted instances.
+These examples can be combined together to allow a peripheral device to be
+wired to any particular controller, bus, target, and/or unit instance.
+.Pp
+This also works with
+.Xr nvme 4
+drives as well.
+.Bd -literal -offset indent
+hint.nvme.4.at="pci7:0:0"
+hint.scbus.10.at="nvme4"
+hint.nda.10.at="scbus10"
+hint.nda.10.target="1"
+hint.nda.10.unit="12"
+hint.nda.11.at="scbus10"
+hint.nda.11.target="1"
+hint.nda.11.unit="2"
+.Ed
+.Pp
+This assigns the NVMe card living at PCI bus 7 to scbus 10 (in PCIe,
+slot and function are rarely used and usually 0).
+The target for
+.Xr nda 4
+devices is always 1.
+The unit is the namespace identifier from the drive.
+The namespace id 1 is exported as
+.Tn nda10
+and namespace id 2 is exported as
+.Tn nda11 .
+.Pp
+When you have a mixture of wired down and counted devices then the
+counting begins with the first non-wired down unit for a particular
+type.
+That is, if you have a disk wired down as
+.Em "device da1" ,
+then the first non-wired disk shall come on line as
+.Em da2 .
+.Sh ADAPTERS
+The system allows common device drivers to work through many different
+types of adapters.
+The adapters take requests from the upper layers and do
+all IO between the
+.Tn SCSI ,
+.Tn ATA ,
+.Tn NVMe ,
+or
+.Tn MMC / SD
+bus and the system.
+The maximum size of a transfer is governed by the
+adapter.
+Most adapters can transfer 64KB in a single operation, however
+many can transfer larger amounts.
+.Sh TARGET MODE
+Some adapters support
+.Em target mode
+in which the system is capable of operating as a device, responding to
+operations initiated by another system.
+Target mode is supported for
+some adapters, but is not yet complete for this version of the
+.Nm
+.Tn SCSI
+subsystem.
+.Sh FILES
+see other
+.Nm
+device entries.
+.Sh DIAGNOSTICS
+An XPT_DEBUG CCB can be used to enable various amounts of tracing information
+on any specific bus/device from the list of options compiled into the kernel.
+There are currently seven debugging flags that may be compiled in and used:
+.Bl -tag -width CAM_DEBUG_SUBTRACE
+.It Dv CAM_DEBUG_INFO
+This flag enables general informational printfs for the device
+or devices in question.
+.It Dv CAM_DEBUG_TRACE
+This flag enables function-level command flow tracing i.e.,
+kernel printfs will happen at the entrance and exit of various functions.
+.It Dv CAM_DEBUG_SUBTRACE
+This flag enables debugging output internal to various functions.
+.It Dv CAM_DEBUG_CDB
+This flag will cause the kernel to print out all
+.Tn ATA
+and
+.Tn SCSI
+commands sent to a particular device or devices.
+.It Dv CAM_DEBUG_XPT
+This flag will enable command scheduler tracing.
+.It Dv CAM_DEBUG_PERIPH
+This flag will enable peripheral drivers messages.
+.It Dv CAM_DEBUG_PROBE
+This flag will enable devices probe process tracing.
+.El
+.Pp
+Some of these flags, most notably
+.Dv CAM_DEBUG_TRACE
+and
+.Dv CAM_DEBUG_SUBTRACE ,
+will produce kernel printfs in EXTREME numbers.
+.Pp
+Users can enable debugging from their kernel config file, by using
+the following kernel config options:
+.Bl -tag -width CAM_DEBUG_COMPILE
+.It Dv CAMDEBUG
+This builds into the kernel all possible
+.Nm
+debugging.
+.It Dv CAM_DEBUG_COMPILE
+This allows to specify support for which debugging flags described above
+should be built into the kernel.
+Flags may be ORed together if the user wishes to
+see printfs for multiple debugging levels.
+.It Dv CAM_DEBUG_FLAGS
+This allows to set the various debugging flags from a kernel config file.
+.It Dv CAM_DEBUG_BUS
+Specify a bus to debug.
+To debug all buses, set this to -1.
+.It Dv CAM_DEBUG_TARGET
+Specify a target to debug.
+To debug all targets, set this to -1.
+.It Dv CAM_DEBUG_LUN
+Specify a lun to debug.
+To debug all luns, set this to -1.
+.El
+.Pp
+Users may also enable debugging on the fly by using the
+.Xr camcontrol 8
+utility, if wanted options built into the kernel.
+See
+.Xr camcontrol 8
+for details.
+.Sh SEE ALSO
+.Xr ada 4 ,
+.Xr ahc 4 ,
+.Xr ahci 4 ,
+.Xr ahd 4 ,
+.Xr ata 4 ,
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr da 4 ,
+.Xr nda 4 ,
+.Xr nvme 4 ,
+.Xr pass 4 ,
+.Xr pt 4 ,
+.Xr sa 4 ,
+.Xr xpt 4 ,
+.Xr camcontrol 8
+.Sh HISTORY
+The
+.Nm
+.Tn SCSI
+subsystem first appeared in
+.Fx 3.0 .
+The
+.Nm
+ATA support was added in
+.Fx 8.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+.Tn SCSI
+subsystem was written by
+.An Justin Gibbs
+and
+.An Kenneth Merry .
+The
+.Nm
+.Tn ATA
+support was added by
+.An Alexander Motin Aq Mt mav@FreeBSD.org .
+The
+.Nm
+.Tn NVMe
+support was added by
+.An Warner Losh Aq Mt imp@FreeBSD.org .

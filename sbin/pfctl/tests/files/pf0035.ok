@@ -1,0 +1,3 @@
+intf = "lo0"
+pass out on lo0 inet proto tcp from any to any port = ssh flags S/SA tos 0x10 keep state
+pass out on lo0 inet proto tcp from any to any port = ssh flags S/SA tos 0x08 keep state

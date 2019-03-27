@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# This script is invoked by rpc.ypupdatedd to propagate NIS maps
+# after the master map databases have been modified. It expects
+# to be passed two arguments: the name of the map that was updated
+# and the name of the domain where the map resides.
+# These are passed to /var/yp/Makefile.
+#
+# Comment out the LOG=yes line to disable logging.
+#
+# $FreeBSD$
+#
+
+LOG=yes
+LOGFILE=/var/yp/ypupdate.log
+
+umask 077
+
+if [ ! -f $LOGFILE ];
+then
+	/usr/bin/touch $LOGFILE
+	echo "# Edit /usr/libexec/yppwupdate to disable" >> $LOGFILE
+	echo "# logging to this file from yppasswdd." >> $LOGFILE
+	echo -n "# Log started on: " >> $LOGFILE
+	/bin/date >> $LOGFILE
+fi
+
+if [ ! $LOG ];
+then
+	cd /var/yp/$2; /usr/bin/make -f ../Makefile $1 2>&1
+else
+	cd /var/yp/$2; /usr/bin/make -f ../Makefile $1 >> $LOGFILE
+fi

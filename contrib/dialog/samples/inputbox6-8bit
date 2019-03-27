@@ -1,0 +1,17 @@
+#!/bin/sh
+# $Id: inputbox6-8bit,v 1.6 2010/01/13 10:20:03 tom Exp $
+
+. ./setup-vars
+
+. ./setup-tempfile
+
+. ./testdata-8bit
+
+$DIALOG \
+--title    `printf "$SAMPLE"` "$@" \
+--inputbox `printf "$SAMPLE"` \
+10 40 `printf "$SAMPLE"` 2>$tempfile
+
+retval=$?
+
+. ./report-tempfile

@@ -1,0 +1,17 @@
+$ $tcsh: set22,v 1.3 2006/03/02 18:46:45 christos Exp $
+$ tc.func.c
+$set 22 
+1 %S: \t aliased to 
+2 \nIncorrect passwd for %s\n
+3 Faulty alias 'precmd' removed.\n
+4 Faulty alias 'cwdcmd' removed.\n
+5 Faulty alias 'beepcmd' removed.\n
+6 Faulty alias 'periodic' removed.\n
+7 parsing command line\n
+8 Do you really want to delete all files? [n/y] 
+9 skipping deletion of files!\n
+10 command line now is:\n
+11 parsing command line\n
+12 in one of the lists\n
+13 command line now is:\n
+14 yY

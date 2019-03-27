@@ -1,0 +1,57 @@
+Netsend and Netreceive
+----------------------
+
+This pair of binaries is used to fixed rate UDP performance testing.
+
+The netreceive tool consists solely of a UDP packet sink bound to a
+specified UDP port.  Packets received on its port are copied to user space
+and discarded.
+
+The netsend tool acts as a packet source, generating packets of the
+specified size at the specified rate to a target IP address and port
+number:
+
+   netsend [ip] [port] [payloadsize] [rate] [duration]
+
+The payloadsize field specifies the size of the UDP payload, not the total 
+packet size, which will also include a variety of headers (typically, 
+ethernet, IP, and UDP).
+
+The rate indicates the number of packets/second to attempt to deliver.
+
+The duration is the duration of the run in seconds.
+
+The netsend tool will wait for around two seconds to synchronize with the
+wall clock for timing purposes.  It will then busy-wait between packet
+transmits.
+
+The netsend/netreceive tools are under the following copyright and
+license:
+
+/*-
+ * Copyright (c) 2004 Robert N. M. Watson
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+$FreeBSD$

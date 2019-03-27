@@ -1,0 +1,19 @@
+language: c
+sudo: required
+
+matrix:
+    include:
+        - os: linux
+          compiler: clang
+          dist: xenial
+        - os: linux
+          compiler: gcc
+          dist: xenial
+        - os: osx
+          compiler: clang
+        - os: osx
+          compiler: gcc
+
+script:
+    - ./travis/build.sh
+    - ./travis/test.sh

@@ -1,0 +1,3 @@
+NATDEPFILES=	fbsd-proc.o fork-child.o gcore.o \
+		ia64-fbsd-nat.o infptrace.o inftarg.o
+NAT_FILE=	nm-fbsd.h

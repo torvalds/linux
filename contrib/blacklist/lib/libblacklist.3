@@ -1,0 +1,157 @@
+.\" $NetBSD: libblacklist.3,v 1.7 2017/02/04 23:33:56 wiz Exp $
+.\"
+.\" Copyright (c) 2015 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Christos Zoulas.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd May 5, 2017
+.Dt LIBBLACKLIST 3
+.Os
+.Sh NAME
+.Nm blacklist_open ,
+.Nm blacklist_close ,
+.Nm blacklist_r ,
+.Nm blacklist ,
+.Nm blacklist_sa
+.Nm blacklist_sa_r
+.Nd Blacklistd notification library
+.Sh LIBRARY
+.Lb libblacklist
+.Sh SYNOPSIS
+.In blacklist.h
+.Ft struct blacklist *
+.Fn blacklist_open "void"
+.Ft void
+.Fn blacklist_close "struct blacklist *cookie"
+.Ft int
+.Fn blacklist "int action" "int fd" "const char *msg"
+.Ft int
+.Fn blacklist_r "struct blacklist *cookie" "int action" "int fd" "const char *msg"
+.Ft int
+.Fn blacklist_sa "int action" "int fd" "const struct sockaddr *sa" "socklen_t salen" "const char *msg"
+.Ft int
+.Fn blacklist_sa_r "struct blacklist *cookie" "int action" "int fd" "const struct sockaddr *sa" "socklen_t salen" "const char *msg"
+.Sh DESCRIPTION
+These functions can be used by daemons to notify
+.Xr blacklistd 8
+about successful and failed remote connections so that blacklistd can
+block or release port access to prevent Denial of Service attacks.
+.Pp
+The function
+.Fn blacklist_open
+creates the necessary state to communicate with
+.Xr blacklistd 8
+and returns a pointer to it, or
+.Dv NULL
+on failure.
+.Pp
+The
+.Fn blacklist_close
+function frees all memory and resources used.
+.Pp
+The
+.Fn blacklist
+function sends a message to
+.Xr blacklistd 8 ,
+with an integer
+.Ar action
+argument specifying the type of notification,
+a file descriptor
+.Ar fd
+specifying the accepted file descriptor connected to the client,
+and an optional message in the
+.Ar msg
+argument.
+.Pp
+The
+.Ar action
+parameter can take these values:
+.Bl -tag -width ".Va BLACKLIST_ABUSIVE_BEHAVIOR"
+.It Va BLACKLIST_AUTH_FAIL
+There was an unsuccessful authentication attempt.
+.It Va BLACKLIST_AUTH_OK
+A user successfully authenticated.
+.It Va BLACKLIST_ABUSIVE_BEHAVIOR
+The sending daemon has detected abusive behavior
+from the remote system.  The remote address should
+be blocked as soon as possible.
+.It Va BLACKLIST_BAD_USER
+The sending daemon has determined the username
+presented for authentication is invalid.  The
+.Xr blacklistd 8
+daemon compares the username to a configured list of forbidden
+usernames and
+blocks the address immediately if a forbidden username matches.
+(The
+.Ar BLACKLIST_BAD_USER
+support is not currently available.)
+.El
+.Pp
+The
+.Fn blacklist_r
+function is more efficient because it keeps the blacklist state around.
+.Pp
+The
+.Fn blacklist_sa
+and
+.Fn blacklist_sa_r
+functions can be used with unconnected sockets, where
+.Xr getpeername 2
+will not work, the server will pass the peer name in the message.
+.Pp
+By default,
+.Xr syslogd 8
+is used for message logging.
+The internal
+.Fn bl_create
+function can be used to create the required internal
+state and specify a custom logging function.
+.Sh RETURN VALUES
+The function
+.Fn blacklist_open
+returns a cookie on success and
+.Dv NULL
+on failure setting
+.Dv errno
+to an appropriate value.
+.Pp
+The functions
+.Fn blacklist ,
+.Fn blacklist_sa ,
+and
+.Fn blacklist_sa_r
+return
+.Dv 0
+on success and
+.Dv \-1
+on failure setting
+.Dv errno
+to an appropriate value.
+.Sh SEE ALSO
+.Xr blacklistd.conf 5 ,
+.Xr blacklistd 8
+.Sh AUTHORS
+.An Christos Zoulas

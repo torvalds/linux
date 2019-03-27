@@ -1,0 +1,63 @@
+.\" Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 17, 2010
+.Dt ATRTC 4
+.Os
+.Sh NAME
+.Nm atrtc
+.Nd AT Real-Time Clock (RTC) driver
+.Sh SYNOPSIS
+This driver is a mandatory part of i386/amd64 kernels.
+.Pp
+The following tunables are settable from the
+.Xr loader 8 :
+.Bl -ohang
+.It Va hint.atrtc. Ns Ar X Ns Va .clock
+controls event timers functionality support.
+Setting to 0, disables it.
+Default value is 1.
+.It Va hw.atrtc.enable
+Forces enabling or disabling of the device(s).
+Setting to 0 disables it, setting to 1 enables it, bypassing any platform
+configuration hints.
+Default value is -1 (autodetect).
+.El
+.Sh DESCRIPTION
+This driver uses RTC hardware to supply kernel with time-of-day clock
+with 1 second resolution and one event timer.
+This hardware uses base frequency of 32768Hz for advancing time-of-day clock
+and generating periodic interrupts.
+Interrupts could be generated with fixed number of frequencies, from 2Hz to
+8192Hz, obtained by dividing base frequency by one of supported power-of-2
+divisors.
+.Pp
+Event timer provided by the driver is irrelevant to CPU power states.
+.Sh SEE ALSO
+.Xr apic 4 ,
+.Xr attimer 4 ,
+.Xr eventtimers 4 ,
+.Xr hpet 4

@@ -1,0 +1,26 @@
+# $FreeBSD$
+
+failures=0
+
+for x in \
+	0x10000000000000000 \
+	-0x8000000000000001 \
+	0xfffffffffffffffffffffffffffffffff \
+	-0xfffffffffffffffffffffffffffffffff \
+	02000000000000000000000 \
+	9223372036854775808 \
+	9223372036854775809 \
+	-9223372036854775809 \
+	9999999999999999999999999 \
+	-9999999999999999999999999
+do
+	msg=$({
+		v=$((x)) || :
+	} 3>&1 >&2 2>&3 3>&-)
+	r=$?
+	if [ "$r" = 0 ] || [ -z "$msg" ]; then
+		printf 'Failed: %s\n' "$x"
+		: $((failures += 1))
+	fi
+done
+exit $((failures > 0))

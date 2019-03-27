@@ -1,0 +1,139 @@
+.\" Copyright (c) 2004 David Schultz <das@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 8, 2004
+.Dt FECLEAREXCEPT 3
+.Os
+.Sh NAME
+.Nm feclearexcept ,
+.Nm fegetexceptflag ,
+.Nm feraiseexcept ,
+.Nm fesetexceptflag ,
+.Nm fetestexcept
+.Nd floating-point exception flag manipulation
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In fenv.h
+.Fd "#pragma STDC FENV_ACCESS ON"
+.Ft int
+.Fn feclearexcept "int excepts"
+.Ft int
+.Fn fegetexceptflag "fexcept_t *flagp" "int excepts"
+.Ft int
+.Fn feraiseexcept "int excepts"
+.Ft int
+.Fn fesetexceptflag "const fexcept_t *flagp" "int excepts"
+.Ft int
+.Fn fetestexcept "int excepts"
+.Sh DESCRIPTION
+The
+.Fn feclearexcept
+routine clears the floating-point exception flags specified by
+.Fa excepts ,
+whereas
+.Fn feraiseexcept
+raises the specified exceptions.
+Raising an exception causes the corresponding flag to be set,
+and a
+.Dv SIGFPE
+is delivered to the process if the exception is unmasked.
+.Pp
+The
+.Fn fetestexcept
+function determines which flags are currently set, of those specified by
+.Fa excepts .
+.Pp
+The
+.Fn fegetexceptflag
+function stores the state of the exception flags specified in
+.Fa excepts
+in the opaque object pointed to by
+.Fa flagp .
+Similarly,
+.Fn fesetexceptflag
+changes the specified exception flags to reflect the state stored in
+the object pointed to by
+.Fa flagp .
+Note that the flags restored with
+.Fn fesetexceptflag
+must be a (not necessarily proper) subset of the flags recorded by
+a prior call to
+.Fn fegetexceptflag .
+.Pp
+For all of these functions, the possible types of exceptions
+include those described in
+.Xr fenv 3 .
+Some architectures may define other types of floating-point exceptions.
+.Sh IMPLEMENTATION NOTES
+On some architectures, raising an overflow or underflow exception
+also causes an inexact exception to be raised.
+In these cases, the overflow or underflow will be raised first.
+.Pp
+The
+.Fn fegetexceptflag
+and
+.Fn fesetexceptflag
+routines are preferred to
+.Fn fetestexcept
+and
+.Fn feraiseexcept ,
+respectively, for saving and restoring exception flags.
+The latter do not re-raise exceptions and may preserve
+architecture-specific information such as addresses where
+exceptions occurred.
+.Sh RETURN VALUES
+The
+.Fn feclearexcept ,
+.Fn fegetexceptflag ,
+.Fn feraiseexcept ,
+and
+.Fn fesetexceptflag
+functions return 0 upon success, and non-zero otherwise.
+The
+.Fn fetestexcept
+function returns the bitwise OR of the values of the current exception
+flags that were requested.
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr feholdexcept 3 ,
+.Xr fenv 3 ,
+.Xr feupdateenv 3 ,
+.Xr fpgetsticky 3 ,
+.Xr fpresetsticky 3
+.Sh STANDARDS
+The
+.Fn feclearexcept ,
+.Fn fegetexceptflag ,
+.Fn feraiseexcept ,
+.Fn fesetexceptflag ,
+and
+.Fn fetestexcept
+routines conform to
+.St -isoC-99 .
+.Sh HISTORY
+These functions first appeared in
+.Fx 5.3 .

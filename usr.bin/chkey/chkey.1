@@ -1,0 +1,25 @@
+.\" @(#)chkey.1 1.5 91/03/11 TIRPC 1.0;
+.\" Copyright (c) 1988 Sun Microsystems, Inc. - All Rights Reserved.
+.\" $FreeBSD$
+.\"
+.Dd July 5, 1989
+.Dt CHKEY 1
+.Os
+.Sh NAME
+.Nm chkey
+.Nd change your encryption key
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+The
+.Nm
+utility prompts the user for their login password,
+and uses it to encrypt a new encryption key
+for the user to be stored in the
+.Xr publickey 5
+database.
+.Sh "SEE ALSO"
+.Xr keylogin 1 ,
+.Xr publickey 5 ,
+.Xr keyserv 8 ,
+.Xr newkey 8

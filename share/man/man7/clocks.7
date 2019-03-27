@@ -1,0 +1,178 @@
+.\"
+.\" Copyright (c) 1996 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" "
+.Dd January 18, 2008
+.Dt CLOCKS 7
+.Os
+.Sh NAME
+.Nm clocks
+.Nd various system timers
+.Sh SYNOPSIS
+.In time.h
+.Sh DESCRIPTION
+.Dv HZ
+is not part of the application interface in
+.Bx .
+.Pp
+There are many different real and virtual (timekeeping) clocks with
+different frequencies:
+.Bl -bullet
+.It
+The scheduling clock.
+This is a real clock with frequency that happens to be 100.
+It is not available to applications.
+.It
+The statistics clock.
+This is a real clock with frequency that happens to be 128.
+It is not directly available to applications.
+.It
+The clock reported by
+.Xr clock 3 .
+This is a virtual clock with a frequency that happens to be 128.
+Its actual frequency is given by the macro
+.Dv CLOCKS_PER_SEC .
+Note that
+.Dv CLOCKS_PER_SEC
+may be floating point.
+Do not use
+.Xr clock 3
+in new programs under
+.Fx .
+It is feeble compared with
+.Xr getrusage 2 .
+It is provided for
+.Tn ANSI
+conformance.
+It is implemented by calling
+.Xr getrusage 2
+and throwing away information and resolution.
+.It
+The clock reported by
+.Xr times 3 .
+This is a virtual clock with a frequency that happens to be 128.
+Its actual frequency is given by the macro
+.Dv CLK_TCK
+(deprecated; do not use) and by
+.Fn sysconf _SC_CLK_TCK
+and by
+.Xr sysctl 3 .
+Note that its frequency may be different from
+.Dv CLOCKS_PER_SEC .
+Do not use
+.Xr times 3
+in new programs under
+.Fx .
+It is feeble compared with
+.Xr gettimeofday 2
+together with
+.Xr getrusage 2 .
+It is provided for
+.Tn POSIX
+conformance.
+It is implemented by calling
+.Xr gettimeofday 2
+and
+.Xr getrusage 2
+and throwing away information and resolution.
+.It
+The profiling clock.
+This is a real clock with frequency 1024.
+It is used mainly by
+.Xr moncontrol 3 ,
+.Xr kgmon 8
+and
+.Xr gprof 1 .
+Applications should determine its actual frequency using
+.Xr sysctl 3
+or by reading it from the header in the profiling data file.
+.It
+The mc146818a clock.
+This is a real clock with a nominal frequency of 32768.
+It is divided down to give the statistic clock and the profiling clock.
+It is not available to applications.
+.It
+The microseconds clock.
+This is a virtual clock with frequency 1000000.
+It is used for most timekeeping in
+.Bx
+and is exported to applications in
+.Xr getrusage 2 ,
+.Xr gettimeofday 2 ,
+.Xr select 2 ,
+.Xr getitimer 2 ,
+etc.
+This is the clock that should normally be used by
+.Bx
+applications.
+.It
+The i8254 clock.
+This is a real clock/timer with a nominal frequency of 1193182.
+It has three independent time counters to be used.
+It is divided down to give the scheduling clock.
+It is not available to applications.
+.It
+The TSC clock (64-bit register) on fifth-generation or later x86 systems.
+This is a real clock with a frequency that is equivalent to the number of
+cycles per second of the CPU(s).
+Its frequency can be found using the
+.Va machdep.tsc_freq
+sysctl, if it is available.
+It is used to interpolate between values of the scheduling clock.
+It can be accessed using the
+.Dv PMIOTSTAMP
+request of
+.Xr perfmon 4 .
+.It
+The ACPI clock.
+This is a real clock/timer with a nominal frequency of 3579545.
+It is accessed via a 24 or 32 bit register.
+Unlike the TSC clock, it maintains a constant tick rate even when the CPU
+sleeps or its clock rate changes.
+It is not available to applications.
+.El
+.Pp
+Summary: if
+.Dv HZ
+is not 1000000 then the application is probably using the wrong clock.
+.Sh SEE ALSO
+.Xr gprof 1 ,
+.Xr clock_gettime 2 ,
+.Xr getitimer 2 ,
+.Xr getrusage 2 ,
+.Xr gettimeofday 2 ,
+.Xr select 2 ,
+.Xr clock 3 ,
+.Xr moncontrol 3 ,
+.Xr times 3
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An J\(:org Wunsch
+after a description posted by
+.An Bruce Evans .

@@ -1,0 +1,41 @@
+$ $tcsh: set20,v 1.4 2015/08/13 08:54:04 christos Exp $
+$ tc.bind.c
+$set 20 
+1 Vigane klahvi nimi `%S'\n
+2 Halb klahv: %S\n
+3 Halb käsk: %S\n
+4 Halb klahvi spetsifikatsioon %S\n
+5 Null sõne spetsifikatsioonis\n
+6 Standardsed klahviseosed\n
+7 Alternatiivsed klahviseosed\n
+8 Mitme-sümbolised seosed\n
+9 Seosed nooleklahvidele\n
+10 %-15s->  on defineerimata\n
+11 BUG!!! %s pole seotud.\n
+12 Kasuta: bindkey [võtmed] [--] [KLAHV [KÄSK]]\n
+13     -a   esita või seo KLAHVI alternatiivne tabel\n
+14     -b   käsitle KLAHVI kui C-, M-, F- või X- klahvi nime\n
+15     -s   käsitle COMMAND kui literaalset väljundsõne\n
+16     -c   käsitle COMMAND kui sisemist või välist käsku\n
+17     -v   seo kõik klahvid vi seostega\n
+18     -e   seo kõik klahvid emacsi seostega\n
+19     -d   seo kõik klahvid vaikimisi toimeti seostega (%s)\n
+20     -l   esita toimeti käsud koos kirjeldustega\n
+21     -r   kustuta KLAHVILT seos\n
+22     -k   kasuta KLAHVI kui noole-klahvi sümbolnime\n
+23     --   katkesta võtmete töötlemine\n
+24     -u   (või suvaline vigane võti) see teade\n
+25 Ilma KLAHVI või KÄSUTA trükib kõik seosed\n
+26 Ilma KÄSUTA trükib seosed KLAHVILE.\n
+27 Halb klahvi spetsifikatsioon -- null sõne\n
+28 Halb klahvi spetsifikatsioon -- tühi sõne\n
+29 Halb funktsioon-klahvi spetsifikatsioon.  Null klahv pole lubatud\n
+30 Halb klahvi spetsifikatsioon -- vigane kuueteistkümnend number\n
+31 Halb klahvi spetsifikatsioon -- vigane kaheksand number\n
+32 Halb klahvi spetsifikatsioon -- vigane kümnend number\n
+33 Halb funktsioon-klahvi spetsifikatsioon.\n
+34 Null klahv pole lubatud\n
+35 halb klahvi spetsifikatsioon -- tundmatu nimi "%S"\n
+36 kasuta: bind [KLAHV | KÄSK KLAHV | "emacs" | "vi" | "-a"]\n
+37 Vigane funktsioon
+38  %s\t\ton defineerimata\n

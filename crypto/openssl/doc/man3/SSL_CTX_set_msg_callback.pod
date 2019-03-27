@@ -1,0 +1,142 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_set_msg_callback,
+SSL_CTX_set_msg_callback_arg,
+SSL_set_msg_callback,
+SSL_set_msg_callback_arg
+- install callback for observing protocol messages
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ void SSL_CTX_set_msg_callback(SSL_CTX *ctx,
+                               void (*cb)(int write_p, int version,
+                                          int content_type, const void *buf,
+                                          size_t len, SSL *ssl, void *arg));
+ void SSL_CTX_set_msg_callback_arg(SSL_CTX *ctx, void *arg);
+
+ void SSL_set_msg_callback(SSL *ssl,
+                           void (*cb)(int write_p, int version,
+                                      int content_type, const void *buf,
+                                      size_t len, SSL *ssl, void *arg));
+ void SSL_set_msg_callback_arg(SSL *ssl, void *arg);
+
+=head1 DESCRIPTION
+
+SSL_CTX_set_msg_callback() or SSL_set_msg_callback() can be used to
+define a message callback function I<cb> for observing all SSL/TLS
+protocol messages (such as handshake messages) that are received or
+sent, as well as other events that occur during processing.
+SSL_CTX_set_msg_callback_arg() and SSL_set_msg_callback_arg()
+can be used to set argument I<arg> to the callback function, which is
+available for arbitrary application use.
+
+SSL_CTX_set_msg_callback() and SSL_CTX_set_msg_callback_arg() specify
+default settings that will be copied to new B<SSL> objects by
+L<SSL_new(3)>. SSL_set_msg_callback() and
+SSL_set_msg_callback_arg() modify the actual settings of an B<SSL>
+object. Using a B<NULL> pointer for I<cb> disables the message callback.
+
+When I<cb> is called by the SSL/TLS library the function arguments have the
+following meaning:
+
+=over 4
+
+=item I<write_p>
+
+This flag is B<0> when a protocol message has been received and B<1>
+when a protocol message has been sent.
+
+=item I<version>
+
+The protocol version according to which the protocol message is
+interpreted by the library such as B<TLS1_3_VERSION>, B<TLS1_2_VERSION> etc.
+This is set to 0 for the SSL3_RT_HEADER pseudo content type (see NOTES below).
+
+=item I<content_type>
+
+This is one of the content type values defined in the protocol specification
+(B<SSL3_RT_CHANGE_CIPHER_SPEC>, B<SSL3_RT_ALERT>, B<SSL3_RT_HANDSHAKE>; but never
+B<SSL3_RT_APPLICATION_DATA> because the callback will only be called for protocol
+messages). Alternatively it may be a "pseudo" content type. These pseudo
+content types are used to signal some other event in the processing of data (see
+NOTES below).
+
+=item I<buf>, I<len>
+
+I<buf> points to a buffer containing the protocol message or other data (in the
+case of pseudo content types), which consists of I<len> bytes. The buffer is no
+longer valid after the callback function has returned.
+
+=item I<ssl>
+
+The B<SSL> object that received or sent the message.
+
+=item I<arg>
+
+The user-defined argument optionally defined by
+SSL_CTX_set_msg_callback_arg() or SSL_set_msg_callback_arg().
+
+=back
+
+=head1 NOTES
+
+Protocol messages are passed to the callback function after decryption
+and fragment collection where applicable. (Thus record boundaries are
+not visible.)
+
+If processing a received protocol message results in an error,
+the callback function may not be called.  For example, the callback
+function will never see messages that are considered too large to be
+processed.
+
+Due to automatic protocol version negotiation, I<version> is not
+necessarily the protocol version used by the sender of the message: If
+a TLS 1.0 ClientHello message is received by an SSL 3.0-only server,
+I<version> will be B<SSL3_VERSION>.
+
+Pseudo content type values may be sent at various points during the processing
+of data. The following pseudo content types are currently defined:
+
+=over 4
+
+=item B<SSL3_RT_HEADER>
+
+Used when a record is sent or received. The B<buf> contains the record header
+bytes only.
+
+=item B<SSL3_RT_INNER_CONTENT_TYPE>
+
+Used when an encrypted TLSv1.3 record is sent or received. In encrypted TLSv1.3
+records the content type in the record header is always
+SSL3_RT_APPLICATION_DATA. The real content type for the record is contained in
+an "inner" content type. B<buf> contains the encoded "inner" content type byte.
+
+=back
+
+=head1 RETURN VALUES
+
+SSL_CTX_set_msg_callback(), SSL_CTX_set_msg_callback_arg(), SSL_set_msg_callback()
+and SSL_set_msg_callback_arg() do not return values.
+
+=head1 SEE ALSO
+
+L<ssl(7)>, L<SSL_new(3)>
+
+=head1 HISTORY
+
+The pseudo content type B<SSL3_RT_INNER_CONTENT_TYPE> was added in OpenSSL 1.1.1.
+
+=head1 COPYRIGHT
+
+Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

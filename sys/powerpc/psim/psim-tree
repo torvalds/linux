@@ -1,0 +1,90 @@
+# $FreeBSD$
+#
+# Simple psim h/w description
+#
+# The .gdbinit should contain something like:
+#
+#   target sim -e chirp -r 33554432 -f psim-tree
+#   load
+#
+#  (The -r option is the amount of physical RAM the simulator has)
+#
+
+/#address-cells 1
+/openprom/options/use-stdio? false
+#/openprom/options/strict-alignment? true
+
+/options
+	./output-device "psim-stdout
+
+#
+# Define the disk device alias so ofwd can identify it
+#
+/aliases
+	./ofwdisk "/phb@0x70000000/ide@1/disk@0
+
+#
+# CPU definition. The phandle property is to help nexus.c locate the
+# interrupt controller.
+#
+/cpus/cpu@0
+
+#
+# disk file, done via phb. maybe there's a simpler way.
+#
+/phb@0x70000000
+        ./device_type "pci
+        ./name "pci
+        ./#address-cells 3
+        ./#size-cells 2
+        ./ranges ni0,0,0,0 0xc0000000 0x10000
+
+/phb@0x70000000/ide@1
+        ./device_type "ide
+        ./name "ide
+        ./assigned-addresses \
+                ni0,0,10,1f0 8 \
+                ni0,0,14,3f8 8 \
+                ni0,0,18,170 8 \
+                ni0,0,1c,378 8 \
+                ni0,0,20,200 8
+        ./reg \
+                1 0 \
+                i0,0,10,0 8 \
+                i0,0,18,0 8 \
+                i0,0,14,6 1 \
+                i0,0,1c,6 1 \
+                i0,0,20,0 8
+        ./ready-delay 1000
+
+/phb@0x70000000/ide@1/disk@0/file "../image.iso
+
+#
+# I/O Bus
+#
+/iobus@0x90000000
+	./name psim-iobus
+	./reg 0x90000000 0x20000000
+
+#
+# OpenPIC
+#
+/iobus@0x90000000/opic@0x90000000
+        ./name         interrupt-controller
+        ./device_type  open-pic
+        ./compatible   psim,open-pic
+        ./reg 0x90000000 0x40000
+        ./interrupt-ranges 0 256
+
+/iobus/opic > intr0 int /cpus/cpu@0x0
+
+#
+# IDE1
+#
+#/iobus@0x90000000/ide@0x90052000
+#        ./name ata-4
+#        ./ioport 1
+#        ./device_type ata
+#        ./interrupt  12
+#        ./reg 0x90052000 8 0x90052010 8 0x90052020 8 0x90052030 1 0x90052040 1 0x90052050 8
+#/iobus@0x90000000/ide@0x90052000 > a irq12 /iobus/opic

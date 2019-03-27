@@ -1,0 +1,125 @@
+.\"-
+.\" Copyright (c) 1990, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)sleep.1	8.3 (Berkeley) 4/18/94
+.\" $FreeBSD$
+.\"
+.Dd April 18, 1994
+.Dt SLEEP 1
+.Os
+.Sh NAME
+.Nm sleep
+.Nd suspend execution for an interval of time
+.Sh SYNOPSIS
+.Nm
+.Ar seconds
+.Sh DESCRIPTION
+The
+.Nm
+command
+suspends execution for a minimum of
+.Ar seconds .
+.Pp
+If the
+.Nm
+command receives a signal, it takes the standard action.
+When the
+.Dv SIGINFO
+signal is received, the estimate of the amount of seconds left to
+sleep is printed on the standard output.
+.Sh IMPLEMENTATION NOTES
+The
+.Dv SIGALRM
+signal is not handled specially by this implementation.
+.Pp
+The
+.Nm
+command allows and honors a non-integer number of seconds to sleep
+in any form acceptable by
+.Xr strtod 3 .
+This is a non-portable extension, and its use will nearly guarantee that
+a shell script will not execute properly on another system.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+To schedule the execution of a command for
+.Va x
+number seconds later (with
+.Xr csh 1 ) :
+.Pp
+.Dl (sleep 1800; sh command_file >& errors)&
+.Pp
+This incantation would wait a half hour before
+running the script command_file.
+(See the
+.Xr at 1
+utility.)
+.Pp
+To reiteratively run a command (with the
+.Xr csh 1 ) :
+.Pp
+.Bd -literal -offset indent -compact
+while (1)
+	if (! -r zzz.rawdata) then
+		sleep 300
+	else
+		foreach i (`ls *.rawdata`)
+			sleep 70
+			awk -f collapse_data $i >> results
+		end
+		break
+	endif
+end
+.Ed
+.Pp
+The scenario for a script such as this might be: a program currently
+running is taking longer than expected to process a series of
+files, and it would be nice to have
+another program start processing the files created by the first
+program as soon as it is finished (when zzz.rawdata is created).
+The script checks every five minutes for the file zzz.rawdata,
+when the file is found, then another portion processing
+is done courteously by sleeping for 70 seconds in between each
+awk job.
+.Sh SEE ALSO
+.Xr nanosleep 2 ,
+.Xr sleep 3
+.Sh STANDARDS
+The
+.Nm
+command is expected to be
+.St -p1003.2
+compatible.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v4 .

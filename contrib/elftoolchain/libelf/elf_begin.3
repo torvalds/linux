@@ -1,0 +1,315 @@
+.\" Copyright (c) 2006,2008-2011 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: elf_begin.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd December 11, 2011
+.Dt ELF_BEGIN 3
+.Os
+.Sh NAME
+.Nm elf_begin
+.Nd open an ELF file or ar(1) archive
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft "Elf *"
+.Fn elf_begin "int fd" "Elf_Cmd cmd" "Elf *elf"
+.Sh DESCRIPTION
+Function
+.Fn elf_begin
+is used to open ELF files and
+.Xr ar 1
+archives for further processing by other APIs in the
+.Xr elf 3
+library.
+It is also used to access individual ELF members of an
+.Xr ar 1
+archive in combination with the
+.Xr elf_next 3
+and
+.Xr elf_rand 3
+APIs.
+.Pp
+Argument
+.Ar fd
+is an open file descriptor returned from an
+.Xr open 2
+system call.
+Function
+.Fn elf_begin
+uses argument
+.Ar fd
+for reading or writing depending on the value of argument
+.Ar cmd .
+Argument
+.Ar elf
+is primarily used for iterating through archives.
+.Pp
+The argument
+.Ar cmd
+can have the following values:
+.Bl -tag -width "ELF_C_WRITE"
+.It ELF_C_NULL
+Causes
+.Fn elf_begin
+to return NULL.
+Arguments
+.Ar fd
+and
+.Ar elf
+are ignored, and no additional error is signalled.
+.It ELF_C_READ
+This value is to be when the application wishes to examine (but not
+modify) the contents of the file specified by the arguments
+.Ar fd
+and
+.Ar elf .
+It can be used for both
+.Xr ar 1
+archives and for ELF objects.
+.Pp
+If argument
+.Ar elf
+is NULL, the library will allocate a new ELF descriptor for the file
+being processed.
+The argument
+.Ar fd
+should have been opened for reading.
+.Pp
+If argument
+.Ar elf
+is not NULL, and references a regular ELF file previously opened with
+.Fn elf_begin ,
+then the activation count for the descriptor referenced by argument
+.Ar elf
+is incremented.
+The value in argument
+.Ar fd
+should match that used to open the descriptor argument
+.Ar elf .
+.Pp
+If argument
+.Ar elf
+is not NULL, and references a descriptor for an
+.Xr ar 1
+archive opened earlier with
+.Fn elf_begin ,
+a descriptor for an element in the archive is returned as
+described in the section
+.Sx "Processing ar(1) archives"
+below.
+The value for argument
+.Ar fd
+should match that used to open the archive earlier.
+.Pp
+If argument
+.Ar elf
+is not NULL, and references an
+.Xr ar 1
+archive opened earlier with
+.Fn elf_memory ,
+then the value of the argument
+.Ar fd
+is ignored.
+.It Dv ELF_C_RDWR
+This command is used to prepare an ELF file for reading and writing.
+This command is not supported for
+.Xr ar 1
+archives.
+.Pp
+Argument
+.Ar fd
+should have been opened for reading and writing.
+If argument
+.Ar elf
+is NULL, the library will allocate a new ELF descriptor for
+the file being processed.
+If the argument
+.Ar elf
+is non-null, it should point to a descriptor previously
+allocated with
+.Fn elf_begin
+with the same values for arguments
+.Ar fd
+and
+.Ar cmd ;
+in this case the library will increment the activation count for descriptor
+.Ar elf
+and return the same descriptor.
+.Pp
+Changes to the in-memory image of the ELF file may be written back to
+disk using the
+.Xr elf_update 3
+function.
+.It Dv ELF_C_WRITE
+This command is used when the application wishes to create a new ELF
+file.
+Argument
+.Ar fd
+should have been opened for writing.
+Argument
+.Ar elf
+is ignored, and the previous contents of file referenced by argument
+.Ar fd
+are overwritten.
+.El
+.Ss Processing ar(1) archives
+An
+.Xr ar 1
+archive may be opened in read mode (with argument
+.Ar cmd
+set to
+.Dv ELF_C_READ )
+using
+.Fn elf_begin
+or
+.Fn elf_memory .
+The returned ELF descriptor can be passed into to
+subsequent calls to
+.Fn elf_begin
+to access individual members of the archive.
+.Pp
+Random access within an opened archive is possible using
+the
+.Xr elf_next 3
+and
+.Xr elf_rand 3
+functions.
+.Pp
+The symbol table of the archive may be retrieved
+using
+.Xr elf_getarsym 3 .
+.Sh RETURN VALUES
+The function returns a pointer to a ELF descriptor if successful, or NULL
+if an error occurred.
+.Sh EXAMPLES
+To iterate through the members of an
+.Xr ar 1
+archive, use:
+.Bd -literal -offset indent
+Elf_Cmd c;
+Elf *ar_e, *elf_e;
+\&...
+c = ELF_C_READ;
+if ((ar_e = elf_begin(fd, c, (Elf *) 0)) == 0) {
+	\&... handle error in opening the archive ...
+}
+while ((elf_e = elf_begin(fd, c, ar_e)) != 0) {
+	\&... process member referenced by elf_e here ...
+	c = elf_next(elf_e);
+	elf_end(elf_e);
+}
+.Ed
+.Pp
+To create a new ELF file, use:
+.Bd -literal -offset indent
+int fd;
+Elf *e;
+\&...
+if ((fd = open("filename", O_RDWR|O_TRUNC|O_CREAT, 0666)) < 0) {
+	\&... handle the error from open(2) ...
+}
+if ((e = elf_begin(fd, ELF_C_WRITE, (Elf *) 0)) == 0) {
+	\&... handle the error from elf_begin() ...
+}
+\&... create the ELF image using other elf(3) APIs ...
+elf_update(e, ELF_C_WRITE);
+elf_end(e);
+.Ed
+.Sh ERRORS
+Function
+.Fn elf_begin
+can fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARCHIVE
+The archive denoted by argument
+.Ar elf
+could not be parsed.
+.It Bq Er ELF_E_ARGUMENT
+The value in argument
+.Ar cmd
+was unrecognized.
+.It Bq Er ELF_E_ARGUMENT
+A non-null value for argument
+.Ar elf
+was specified when
+.Ar cmd
+was set to
+.Dv ELF_C_RDWR .
+.It Bq Er ELF_E_ARGUMENT
+The value of argument
+.Ar fd
+differs from the one the ELF descriptor
+.Ar elf
+was created with.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar cmd
+differs from the value specified when ELF descriptor
+.Ar elf
+was created.
+.It Bq Er ELF_E_ARGUMENT
+An
+.Xr ar 1
+archive was opened with
+.Ar cmd
+set to
+.Dv ELF_C_RDWR .
+.It Bq Er ELF_E_ARGUMENT
+The file referenced by argument
+.Ar fd
+was empty.
+.It Bq Er ELF_E_ARGUMENT
+The underlying file for argument
+.Ar fd
+was of an unsupported type.
+.It Bq Er ELF_E_IO
+The file descriptor in argument
+.Ar fd
+was invalid.
+.It Bq Er ELF_E_IO
+The file descriptor in argument
+.Ar fd
+could not be read or written to.
+.It Bq Er ELF_E_RESOURCE
+An out of memory condition was encountered.
+.It Bq Er ELF_E_SEQUENCE
+Function
+.Fn elf_begin
+was called before a working version was established with
+.Xr elf_version 3 .
+.It Bq Er ELF_E_VERSION
+The ELF object referenced by argument
+.Ar fd
+was of an unsupported ELF version.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_end 3 ,
+.Xr elf_errno 3 ,
+.Xr elf_memory 3 ,
+.Xr elf_next 3 ,
+.Xr elf_rand 3 ,
+.Xr elf_update 3 ,
+.Xr gelf 3

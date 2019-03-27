@@ -1,0 +1,160 @@
+.\"
+.\" Copyright (c) 1996 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" "
+.Dd June 2, 2018
+.Dt PTY 3
+.Os
+.Sh NAME
+.Nm openpty ,
+.Nm forkpty
+.Nd auxiliary functions to obtain a pseudo-terminal
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/ioctl.h
+.In termios.h
+.In libutil.h
+.Ft int
+.Fn openpty "int *amaster" "int *aslave" "char *name" "struct termios *termp" "struct winsize *winp"
+.Ft int
+.Fn forkpty "int *amaster" "char *name" "struct termios *termp" "struct winsize *winp"
+.Sh DESCRIPTION
+The function
+.Fn openpty
+attempts to obtain the next available pseudo-terminal from the system (see
+.Xr pty 4 ) .
+If it successfully finds one, it subsequently changes the
+ownership of the slave device to the real UID of the current process,
+the group membership to the group
+.Dq tty
+(if such a group exists in the system), the access permissions for
+reading and writing by the owner, and for writing by the group, and
+invalidates any current use of the line by calling
+.Xr revoke 2 .
+.Pp
+If the argument
+.Fa name
+is not
+.Dv NULL ,
+.Fn openpty
+copies the pathname of the slave pty to this area.
+The caller is
+responsible for allocating the required space in this array.
+.Pp
+If the arguments
+.Fa termp
+or
+.Fa winp
+are not
+.Dv NULL ,
+.Fn openpty
+initializes the termios and window size settings from the structures
+these arguments point to, respectively.
+.Pp
+Upon return, the open file descriptors for the master and slave side
+of the pty are returned in the locations pointed to by
+.Fa amaster
+and
+.Fa aslave ,
+respectively.
+.Pp
+The
+.Fn forkpty
+function first calls
+.Fn openpty
+to obtain the next available pseudo-terminal from the system.
+Upon success,
+it forks off a new process.
+In the child process, it closes the descriptor
+for the master side of the pty, and calls
+.Xr login_tty 3
+for the slave pty.
+In the parent process, it closes the descriptor for the
+slave side of the pty.
+The arguments
+.Fa amaster ,
+.Fa name ,
+.Fa termp ,
+and
+.Fa winp
+have the same meaning as described for
+.Fn openpty .
+.Sh RETURN VALUES
+The
+.Fn openpty
+function returns 0 on success, or -1 on failure.
+.Pp
+The
+.Fn forkpty
+function returns -1 on failure, 0 in the slave process, and the process ID of
+the slave process in the parent process.
+.Sh ERRORS
+The
+.Fn openpty
+function may fail and set the global variable
+.Dv errno
+for any of the errors specified for the
+.Xr grantpt 3 ,
+.Xr posix_openpt 2 ,
+.Xr ptsname 3 ,
+and
+.Xr unlockpt 3
+functions and the
+.Xr revoke 2
+system call.
+.Pp
+In addition to this,
+.Fn forkpty
+may set it to any value as described for
+.Xr fork 2 .
+.Sh SEE ALSO
+.Xr chmod 2 ,
+.Xr chown 2 ,
+.Xr fork 2 ,
+.Xr getuid 2 ,
+.Xr open 2 ,
+.Xr revoke 2 ,
+.Xr login_tty 3 ,
+.Xr pty 4 ,
+.Xr termios 4 ,
+.Xr group 5
+.Sh HISTORY
+The
+.Fn openpty
+and
+.Fn forkpty
+functions first appeared in
+.Bx 4.3 Reno.
+.Sh BUGS
+.Fn openpty
+writes the slave terminal's name to
+.Fa name ,
+but does not check that sufficient space is available.
+It is advisable to use
+.Xr ptsname 3
+instead.

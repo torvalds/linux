@@ -1,0 +1,118 @@
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)comm.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd December 12, 2009
+.Dt COMM 1
+.Os
+.Sh NAME
+.Nm comm
+.Nd select or reject lines common to two files
+.Sh SYNOPSIS
+.Nm
+.Op Fl 123i
+.Ar file1 file2
+.Sh DESCRIPTION
+The
+.Nm
+utility reads
+.Ar file1
+and
+.Ar file2 ,
+which should be
+sorted lexically, and produces three text
+columns as output: lines only in
+.Ar file1 ;
+lines only in
+.Ar file2 ;
+and lines in both files.
+.Pp
+The filename ``-'' means the standard input.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl 1
+Suppress printing of column 1, lines only in
+.Ar file1 .
+.It Fl 2
+Suppress printing of column 2, lines only in
+.Ar file2 .
+.It Fl 3
+Suppress printing of column 3, lines common to both.
+.It Fl i
+Case insensitive comparison of lines.
+.El
+.Pp
+Each column will have a number of tab characters prepended to it
+equal to the number of lower numbered columns that are being printed.
+For example, if column number two is being suppressed, lines printed
+in column number one will not have any tabs preceding them, and lines
+printed in column number three will have one.
+.Pp
+The
+.Nm
+utility assumes that the files are lexically sorted; all characters
+participate in line comparisons.
+.Sh ENVIRONMENT
+The
+.Ev LANG ,
+.Ev LC_ALL ,
+.Ev LC_COLLATE ,
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr cmp 1 ,
+.Xr diff 1 ,
+.Xr sort 1 ,
+.Xr uniq 1
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.2-92 .
+.Pp
+The
+.Fl i
+option is an extension to the
+.Tn POSIX
+standard.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v4 .

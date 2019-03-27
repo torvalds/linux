@@ -1,0 +1,157 @@
+# $FreeBSD$
+
+# mdiobus0 on arge0
+hint.argemdio.0.at="nexus0"
+hint.argemdio.0.maddr=0x19000000
+hint.argemdio.0.msize=0x1000
+hint.argemdio.0.order=0
+
+# 0x1ffe0004 is the "unit MAC".
+# 0x1ffe0018 is the second "MAC".
+# Right now this doesn't have any option for more than one
+# "unit MACs", so:
+# ath0: unit MAC
+# ath1: unit MAC + 1
+# arge0: unit MAC + 2
+# arge1: leave as default; not used.
+hint.ar71xx.0.eeprom_mac_addr=0x1ffe0004
+hint.ar71xx.0.eeprom_mac_isascii=1
+
+hint.ar71xx_mac_map.0.devid=ath
+hint.ar71xx_mac_map.0.unitid=0
+hint.ar71xx_mac_map.0.offset=0
+hint.ar71xx_mac_map.0.is_local=0
+
+hint.ar71xx_mac_map.1.devid=ath
+hint.ar71xx_mac_map.1.unitid=1
+hint.ar71xx_mac_map.1.offset=1
+hint.ar71xx_mac_map.1.is_local=0
+
+hint.ar71xx_mac_map.2.devid=arge
+hint.ar71xx_mac_map.2.unitid=0
+hint.ar71xx_mac_map.2.offset=2
+hint.ar71xx_mac_map.2.is_local=0
+
+# DIR-825C1 GMAC configuration
+# + AR934X_ETH_CFG_RGMII_GMAC0              (1 << 0)
+# Onboard AR9344 10/100 switch is not wired up
+hint.ar934x_gmac.0.gmac_cfg=0x1
+
+# GMAC0 here - connected to an AR8327
+hint.arswitch.0.at="mdio0"
+hint.arswitch.0.is_7240=0
+hint.arswitch.0.is_9340=0	# not the internal switch!
+hint.arswitch.0.numphys=5
+hint.arswitch.0.phy4cpu=0
+hint.arswitch.0.is_rgmii=1
+hint.arswitch.0.is_gmii=0
+
+# Other AR8327 configuration parameters
+
+# AR8327_PAD_MAC_RGMII
+hint.arswitch.0.pad.0.mode=6
+hint.arswitch.0.pad.0.txclk_delay_en=1
+hint.arswitch.0.pad.0.rxclk_delay_en=1
+
+# AR8327_CLK_DELAY_SEL1
+hint.arswitch.0.pad.0.txclk_delay_sel=1
+# AR8327_CLK_DELAY_SEL2
+hint.arswitch.0.pad.0.rxclk_delay_sel=2
+
+# XXX there's no LED management just yet!
+hint.arswitch.0.led.ctrl0=0x00000000
+hint.arswitch.0.led.ctrl1=0xc737c737
+hint.arswitch.0.led.ctrl2=0x00000000
+hint.arswitch.0.led.ctrl3=0x00c30c00
+hint.arswitch.0.led.open_drain=1
+
+# force_link=1 is required for the rest of the parameters
+# to be configured.
+hint.arswitch.0.port.0.force_link=1
+hint.arswitch.0.port.0.speed=1000
+hint.arswitch.0.port.0.duplex=1
+hint.arswitch.0.port.0.txpause=1
+hint.arswitch.0.port.0.rxpause=1
+
+# XXX OpenWRT DB120 BSP doesn't have media/duplex set?
+hint.arge.0.phymask=0x0
+hint.arge.0.media=1000
+hint.arge.0.fduplex=1
+hint.arge.0.miimode=3           # RGMII
+hint.arge.0.pll_1000=0x06000000
+
+# Where the ART is - last 64k in the first 8MB of flash
+hint.ar71xx_caldata.0.map.0.ath_fixup_addr=0x1fff0000
+hint.ar71xx_caldata.0.map.0.ath_fixup_size=16384
+
+# And now tell the ath(4) driver where to look!
+hint.ath.0.eeprom_firmware="ar71xx_caldata.0.map.0.eeprom_firmware"
+
+# ath1: it's different; it's a PCIe attached device, so
+# we instead need to teach the PCIe bridge code about it
+# (ie, the 'early pci fixup' stuff that programs the PCIe
+# host registers on the NIC) and then we teach ath where
+# to find it.
+
+# ath1 hint - pcie slot 0
+hint.pcib.0.bus.0.0.0.ath_fixup_addr=0x1fff4000
+hint.pcib.0.bus.0.0.0.ath_fixup_size=16384
+
+# ath0 - eeprom comes from here
+hint.ath.1.eeprom_firmware="pcib.0.bus.0.0.0.eeprom_firmware"
+
+# flash layout:
+# m25p80 spi0.0: mx25l12805d (16384 Kbytes)
+# 
+# uBoot firmware variables:
+# bootargs=console=ttyS0,115200 root=31:02 rootfstype=jffs2 init=/sbin/init
+# mtdparts=ath-nor0:256k(u-boot),64k(u-boot-env),6336k(rootfs),1408k(uImage),64k(mib0),64k(ART)
+
+# 64KiB u-boot
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x00010000
+hint.map.0.name="u-boot"
+hint.map.0.readonly=1
+
+# 64KiB u-boot-env
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00010000
+hint.map.1.end=0x00020000
+hint.map.1.name="u-boot-env"
+hint.map.1.readonly=1
+
+# 1344KiB kernel 
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x00020000
+hint.map.2.end="search:0x00020000:0x10000:.!/bin/sh"
+hint.map.2.name="kernel"
+hint.map.2.readonly=1
+
+# 14592KiB rootfs
+hint.map.3.at="flash/spi0"
+hint.map.3.start="search:0x00020000:0x10000:.!/bin/sh"
+hint.map.3.end=0x00fb0000
+hint.map.3.name="rootfs"
+hint.map.3.readonly=1
+
+# 192KiB lang -- remapped to cfg
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x00fb0000
+hint.map.4.end=0x00fe0000
+hint.map.4.name="cfg"
+hint.map.4.readonly=0
+
+# 64KiB mac
+hint.map.5.at="flash/spi0"
+hint.map.5.start=0x00fe0000
+hint.map.5.end=0x00ff0000
+hint.map.5.name="mac"
+hint.map.5.readonly=1
+
+# 64KiB art
+hint.map.6.at="flash/spi0"
+hint.map.6.start=0x00ff0000
+hint.map.6.end=0x01000000
+hint.map.6.name="art"
+hint.map.6.readonly=1

@@ -1,0 +1,97 @@
+.\" Copyright (c) 2012 David Xu <davidxu@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Portions of this text are reprinted and reproduced in electronic form
+.\" from IEEE Std 1003.1, 2004 Edition, Standard for Information Technology --
+.\" Portable Operating System Interface (POSIX), The Open Group Base
+.\" Specifications Issue 6, Copyright (C) 2001-2004 by the Institute of
+.\" Electrical and Electronics Engineers, Inc and The Open Group.  In the
+.\" event of any discrepancy between this version and the original IEEE and
+.\" The Open Group Standard, the original IEEE and The Open Group Standard is
+.\" the referee document.  The original Standard can be obtained online at
+.\"	http://www.opengroup.org/unix/online.html.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 21, 2012
+.Dt CLOCK_GETCPUCLOCKID 3
+.Os
+.Sh NAME
+.Nm clock_getcpuclockid
+.Nd access a process CPU-time clock
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In time.h
+.Ft int
+.Fn clock_getcpuclockid "pid_t pid" "clockid_t *clock_id"
+.Sh DESCRIPTION
+The
+.Fn clock_getcpuclockid
+returns the clock ID of the CPU-time clock of the process specified by
+.Fa pid .
+If the process described by
+.Fa pid
+exists and the calling process has permission, the clock ID of this
+clock will be returned in
+.Fa clock_id .
+.Pp
+If
+.Fa pid
+is zero, the
+.Fn clock_getcpuclockid
+function returns the clock ID of the CPU-time clock of the process
+making the call, in
+.Fa clock_id .
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn clock_getcpuclockid
+returns zero; otherwise, an error number is returned to indicate the
+error.
+.Sh ERRORS
+The
+.Fn clock_getcpuclockid
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The requesting process does not have permission to access the CPU-time
+clock for the process.
+.It Bq Er ESRCH
+No process can be found corresponding to the process specified by
+.Fa pid .
+.El
+.Sh SEE ALSO
+.Xr clock_gettime 2
+.Sh STANDARDS
+The
+.Fn clock_getcpuclockid
+function conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn clock_getcpuclockid
+function first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An David Xu Aq Mt davidxu@FreeBSD.org

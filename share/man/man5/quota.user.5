@@ -1,0 +1,130 @@
+.\" Copyright (c) 2001	Nik Clayton
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 30, 2007
+.Dt QUOTA.USER 5
+.Os
+.Sh NAME
+.Nm quota.user , quota.group
+.Nd per file system quota database
+.Sh DESCRIPTION
+Each file system with active quotas should contain a
+.Pa quota.user
+and
+.Pa quota.group
+file in the file system root.
+These files are created by
+.Xr quotacheck 8 ,
+and should be edited with
+.Xr edquota 8 .
+It is possible to specify a different location and file name with the
+.Dq Li userquota
+and
+.Dq Li groupquota
+options in the
+.Xr fstab 5
+file.
+.Pp
+The data files contain the following information:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Current block usage
+.It
+Current number of files
+.It
+Soft block limit
+.It
+Soft file limit
+.It
+Hard block limit
+.It
+Hard file limit
+.It
+Block grace time remaining if over the soft limit
+.It
+File grace time remaining if over the soft limit
+.El
+.Pp
+See
+.Xr edquota 8
+for an explanation on the various limits and grace periods.
+.Pp
+During normal quota operations the
+.Xr quotactl 2
+interface is used to query or set quota information and the kernel
+will maintain the data files as needed.
+If quotas are disabled on
+a file system, but marked as having quotas enabled in
+.Xr fstab 5 ,
+then the quota data files will be used directly.
+.Pp
+The data files are stored as an array of
+.Dq Li struct dqblk
+structures, as defined in
+.In ufs/ufs/quota.h ,
+and indexed by UID or GID.
+The data files will be written as a sparse file if possible.
+Data is only maintained for ids that have either non-zero usage or
+non-zero quota limits.
+If an attempt is made to access data for an id that would exist past the
+end of the current data file, a quota structure with all values set
+to zero will be created, and the data file extended as needed.
+The
+.Xr quotacheck 8
+utility will truncate the data files to the minimum size needed
+to store the highest id with either non-zero file usage or
+non-zero quota limits.
+.Pp
+The data record for id 0 has special meaning.
+If the
+.Dq Dv dqb_btime
+or
+.Dq Dv dbq_itime
+fields are non-zero, they are used to indicate the grace period on
+that file system for users who have exceeded their soft limit.
+These times can be set by
+.Xr edquota 8
+with the
+.Fl t
+flag.
+If no explicit grace period has been set with
+.Xr edquota 8 ,
+then the default value of 7 days will be used.
+The default values are defined by
+.Dv MAX_DQ_TIME
+and
+.Dv MAX_IQ_TIME
+in
+.In ufs/ufs/quota.h .
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr quotactl 2 ,
+.Xr fstab 5 ,
+.Xr edquota 8 ,
+.Xr quotacheck 8 ,
+.Xr quotaoff 8 ,
+.Xr quotaon 8 ,
+.Xr repquota 8

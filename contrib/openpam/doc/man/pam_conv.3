@@ -1,0 +1,186 @@
+.\"-
+.\" Copyright (c) 2002-2003 Networks Associates Technology, Inc.
+.\" Copyright (c) 2004-2017 Dag-Erling Smørgrav
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by ThinkSec AS and
+.\" Network Associates Laboratories, the Security Research Division of
+.\" Network Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.\" ("CBOSS"), as part of the DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $OpenPAM: pam_conv.3 947 2019-02-24 20:18:17Z des $
+.\"
+.Dd February 24, 2019
+.Dt PAM_CONV 3
+.Os
+.Sh NAME
+.Nm pam_conv
+.Nd PAM conversation system
+.Sh LIBRARY
+.Lb libpam
+.Sh SYNOPSIS
+.In security/pam_appl.h
+.Bd -literal
+struct pam_message {
+	int      msg_style;
+	char    *msg;
+};
+
+struct pam_response {
+	char    *resp;
+	int      resp_retcode;
+};
+
+struct pam_conv {
+	int     (*conv)(int, const struct pam_message **,
+	    struct pam_response **, void *);
+	void    *appdata_ptr;
+};
+.Ed
+.Sh DESCRIPTION
+The PAM library uses an application-defined callback to communicate
+with the user.
+This callback is specified by the
+.Vt struct pam_conv
+passed to
+.Fn pam_start
+at the start of the transaction.
+It is also possible to set or change the conversation function at any
+point during a PAM transaction by changing the value of the
+.Dv PAM_CONV
+item.
+.Pp
+The conversation function's first argument specifies the number of
+messages (up to
+.Dv PAM_MAX_NUM_MSG )
+to process.
+The second argument is a pointer to an array of pointers to
+.Vt pam_message
+structures containing the actual messages.
+.Pp
+Each message can have one of four types, specified by the
+.Va msg_style
+member of
+.Vt struct pam_message :
+.Bl -tag -width 18n
+.It Dv PAM_PROMPT_ECHO_OFF
+Display a prompt and accept the user's response without echoing it to
+the terminal.
+This is commonly used for passwords.
+.It Dv PAM_PROMPT_ECHO_ON
+Display a prompt and accept the user's response, echoing it to the
+terminal.
+This is commonly used for login names and one-time passphrases.
+.It Dv PAM_ERROR_MSG
+Display an error message.
+.It Dv PAM_TEXT_INFO
+Display an informational message.
+.El
+.Pp
+In each case, the prompt or message to display is pointed to by the
+.Va msg
+member of
+.Vt struct pam_message .
+It can be up to
+.Dv PAM_MAX_MSG_SIZE
+characters long, including the terminating NUL.
+.Pp
+On success, the conversation function should allocate and fill a
+contiguous array of
+.Vt struct pam_response ,
+one for each message that was passed in.
+A pointer to the user's response to each message (or
+.Dv NULL
+in the case of informational or error messages) should be stored in
+the
+.Va resp
+member of the corresponding
+.Vt struct pam_response .
+Each response can be up to
+.Dv PAM_MAX_RESP_SIZE
+characters long, including the terminating NUL.
+.Pp
+The
+.Va resp_retcode
+member of
+.Vt struct pam_response
+is unused and should be set to zero.
+.Pp
+The conversation function should store a pointer to this array in the
+location pointed to by its third argument.
+It is the caller's responsibility to release both this array and the
+responses themselves, using
+.Xr free 3 .
+It is the conversation function's responsibility to ensure that it is
+legal to do so.
+.Pp
+The
+.Va appdata_ptr
+member of
+.Vt struct pam_conv
+is passed unmodified to the conversation function as its fourth and
+final argument.
+.Pp
+On failure, the conversation function should release any resources it
+has allocated, and return one of the predefined PAM error codes.
+.Sh RETURN VALUES
+The conversation function should return one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.El
+.Sh SEE ALSO
+.Xr openpam_nullconv 3 ,
+.Xr openpam_ttyconv 3 ,
+.Xr pam 3 ,
+.Xr pam_error 3 ,
+.Xr pam_get_item 3 ,
+.Xr pam_info 3 ,
+.Xr pam_prompt 3 ,
+.Xr pam_set_item 3 ,
+.Xr pam_start 3
+.Sh STANDARDS
+.Rs
+.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
+.%D "June 1997"
+.Re
+.Sh AUTHORS
+The OpenPAM library and this manual page were developed for the
+FreeBSD Project by ThinkSec AS and Network Associates Laboratories,
+the Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

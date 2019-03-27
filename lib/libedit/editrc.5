@@ -1,0 +1,526 @@
+.\"	$NetBSD: editrc.5,v 1.29 2014/12/25 13:39:41 wiz Exp $
+.\"
+.\" Copyright (c) 1997-2000 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This file was contributed to The NetBSD Foundation by Luke Mewburn.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 25, 2014
+.Dt EDITRC 5
+.Os
+.Sh NAME
+.Nm editrc
+.Nd configuration file for editline library
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+The
+.Nm
+file defines various settings to be used by the
+.Xr editline 3
+library.
+.Pp
+The format of each line is:
+.Pp
+.Dl [prog:]command [arg ...]
+.Pp
+.Ar command
+is one of the
+.Xr editline 3
+builtin commands.
+Refer to
+.Sx BUILTIN COMMANDS
+for more information.
+.Pp
+.Ar prog
+is the program name string that a program defines when it calls
+.Xr el_init 3
+to set up
+.Xr editline 3 ,
+which is usually
+.Va argv[0] .
+.Ar command
+will be executed for any program which matches
+.Ar prog .
+.Pp
+.Ar prog
+may also be a
+.Xr regex 3
+style
+regular expression, in which case
+.Ar command
+will be executed for any program that matches the regular expression.
+.Pp
+If
+.Ar prog
+is absent,
+.Ar command
+is executed for all programs.
+.Sh BUILTIN COMMANDS
+The
+.Nm editline
+library has some builtin commands, which affect the way
+that the line editing and history functions operate.
+These are based on similar named builtins present in the
+.Xr tcsh 1
+shell.
+.Pp
+The following builtin commands are available:
+.Bl -tag -width 4n
+.It Ic bind Oo Fl a Oc Oo Fl e Oc Oo Fl k Oc Oo Fl l Oc Oo Fl r Oc \
+Oo Fl s Oc Oo Fl v Oc Oo Ar key Oo Ar command Oc Oc
+Without options, list all bound keys, and the editor command to which
+each is bound.
+If
+.Ar key
+is supplied, show the bindings for
+.Ar key .
+If
+.Ar key command
+is supplied, bind
+.Ar command
+to
+.Ar key .
+Options include:
+.Bl -tag -width 4n
+.It Fl a
+List or change key bindings in the
+.Xr vi 1
+mode alternate (command mode) key map.
+.It Fl e
+Bind all keys to the standard GNU Emacs-like bindings.
+.It Fl k
+.Ar key
+is interpreted as a symbolic arrow key name, which may be one of
+.Sq up ,
+.Sq down ,
+.Sq left
+or
+.Sq right .
+.It Fl l
+List all editor commands and a short description of each.
+.It Fl r
+Remove a key's binding.
+.It Fl s
+.Ar command
+is taken as a literal string and treated as terminal input when
+.Ar key
+is typed.
+Bound keys in
+.Ar command
+are themselves reinterpreted, and this continues for ten levels of
+interpretation.
+.It Fl v
+Bind all keys to the standard
+.Xr vi 1 Ns -like
+bindings.
+.El
+.Pp
+.Ar command
+may be one of the commands documented in
+.Sx "EDITOR COMMANDS"
+below, or another key.
+.Pp
+.Ar key
+and
+.Ar command
+can contain control characters of the form
+.Sm off
+.Sq No ^ Ar character
+.Sm on
+.Po
+e.g.\&
+.Sq ^A
+.Pc ,
+and the following backslashed escape sequences:
+.Pp
+.Bl -tag -compact -offset indent -width 4n
+.It Ic \ea
+Bell
+.It Ic \eb
+Backspace
+.It Ic \ee
+Escape
+.It Ic \ef
+Formfeed
+.It Ic \en
+Newline
+.It Ic \er
+Carriage return
+.It Ic \et
+Horizontal tab
+.It Ic \ev
+Vertical tab
+.Sm off
+.It Sy \e Ar nnn
+.Sm on
+The ASCII character corresponding to the octal number
+.Ar nnn .
+.El
+.Pp
+.Sq \e
+nullifies the special meaning of the following character,
+if it has any, notably
+.Sq \e
+and
+.Sq ^ .
+.It Ic echotc Oo Fl sv Oc Ar arg Ar ...
+Exercise terminal capabilities given in
+.Ar arg ... .
+If
+.Ar arg
+is
+.Sq baud ,
+.Sq cols ,
+.Sq lines ,
+.Sq rows ,
+.Sq meta ,
+or
+.Sq tabs ,
+the value of that capability is printed, with
+.Dq yes
+or
+.Dq no
+indicating that the terminal does or does not have that capability.
+.Pp
+.Fl s
+returns an empty string for non-existent capabilities, rather than
+causing an error.
+.Fl v
+causes messages to be verbose.
+.It Ic edit Op Li on | Li off
+Enable or disable the
+.Nm editline
+functionality in a program.
+.It Ic history Ar list | Ar size Dv n | Ar unique Dv n
+The
+.Ar list
+command lists all entries in the history.
+The
+.Ar size
+command sets the history size to
+.Dv n
+entries.
+The
+.Ar unique
+command controls if history should keep duplicate entries.
+If
+.Dv n
+is non zero, only keep unique history entries.
+If
+.Dv n
+is zero, then keep all entries (the default).
+.It Ic settc Ar cap Ar val
+Set the terminal capability
+.Ar cap
+to
+.Ar val ,
+as defined in
+.Xr termcap 5 .
+No sanity checking is done.
+.It Ic setty Oo Fl a Oc Oo Fl d Oc Oo Fl q Oc Oo Fl x Oc Oo Ar +mode Oc \
+Oo Ar -mode Oc Oo Ar mode Oc Oo Ar char=c Oc
+Control which tty modes that
+.Nm
+will not allow the user to change.
+.Fl d ,
+.Fl q
+or
+.Fl x
+tells
+.Ic setty
+to act on the
+.Sq edit ,
+.Sq quote
+or
+.Sq execute
+set of tty modes respectively; defaulting to
+.Fl x .
+.Pp
+Without other arguments,
+.Ic setty
+lists the modes in the chosen set which are fixed on
+.Po
+.Sq +mode
+.Pc
+or off
+.Po
+.Sq -mode
+.Pc .
+.Fl a
+lists all tty modes in the chosen set regardless of the setting.
+With
+.Ar +mode ,
+.Ar -mode
+or
+.Ar mode ,
+fixes
+.Ar mode
+on or off or removes control of
+.Ar mode
+in the chosen set.
+.Pp
+.Ic Setty
+can also be used to set tty characters to particular values using
+.Ar char=value .
+If
+.Ar value
+is empty
+then the character is set to
+.Dv _POSIX_VDISABLE .
+.It Ic telltc
+List the values of all the terminal capabilities (see
+.Xr termcap 5 ) .
+.El
+.Sh EDITOR COMMANDS
+The following editor commands are available for use in key bindings:
+.\" Section automatically generated with makelist
+.Bl -tag -width 4n
+.It Ic vi-paste-next
+Vi paste previous deletion to the right of the cursor.
+.It Ic vi-paste-prev
+Vi paste previous deletion to the left of the cursor.
+.It Ic vi-prev-big-word
+Vi move to the previous space delimited word.
+.It Ic vi-prev-word
+Vi move to the previous word.
+.It Ic vi-next-big-word
+Vi move to the next space delimited word.
+.It Ic vi-next-word
+Vi move to the next word.
+.It Ic vi-change-case
+Vi change case of character under the cursor and advance one character.
+.It Ic vi-change-meta
+Vi change prefix command.
+.It Ic vi-insert-at-bol
+Vi enter insert mode at the beginning of line.
+.It Ic vi-replace-char
+Vi replace character under the cursor with the next character typed.
+.It Ic vi-replace-mode
+Vi enter replace mode.
+.It Ic vi-substitute-char
+Vi replace character under the cursor and enter insert mode.
+.It Ic vi-substitute-line
+Vi substitute entire line.
+.It Ic vi-change-to-eol
+Vi change to end of line.
+.It Ic vi-insert
+Vi enter insert mode.
+.It Ic vi-add
+Vi enter insert mode after the cursor.
+.It Ic vi-add-at-eol
+Vi enter insert mode at end of line.
+.It Ic vi-delete-meta
+Vi delete prefix command.
+.It Ic vi-end-big-word
+Vi move to the end of the current space delimited word.
+.It Ic vi-end-word
+Vi move to the end of the current word.
+.It Ic vi-undo
+Vi undo last change.
+.It Ic vi-command-mode
+Vi enter command mode (use alternative key bindings).
+.It Ic vi-zero
+Vi move to the beginning of line.
+.It Ic vi-delete-prev-char
+Vi move to previous character (backspace).
+.It Ic vi-list-or-eof
+Vi list choices for completion or indicate end of file if empty line.
+.It Ic vi-kill-line-prev
+Vi cut from beginning of line to cursor.
+.It Ic vi-search-prev
+Vi search history previous.
+.It Ic vi-search-next
+Vi search history next.
+.It Ic vi-repeat-search-next
+Vi repeat current search in the same search direction.
+.It Ic vi-repeat-search-prev
+Vi repeat current search in the opposite search direction.
+.It Ic vi-next-char
+Vi move to the character specified next.
+.It Ic vi-prev-char
+Vi move to the character specified previous.
+.It Ic vi-to-next-char
+Vi move up to the character specified next.
+.It Ic vi-to-prev-char
+Vi move up to the character specified previous.
+.It Ic vi-repeat-next-char
+Vi repeat current character search in the same search direction.
+.It Ic vi-repeat-prev-char
+Vi repeat current character search in the opposite search direction.
+.It Ic vi-match
+Vi go to matching () {} or [].
+.It Ic vi-undo-line
+Vi undo all changes to line.
+.It Ic vi-to-column
+Vi go to specified column.
+.It Ic vi-yank-end
+Vi yank to end of line.
+.It Ic vi-yank
+Vi yank.
+.It Ic vi-comment-out
+Vi comment out current command.
+.It Ic vi-alias
+Vi include shell alias.
+.It Ic vi-to-history-line
+Vi go to specified history file line..
+.It Ic vi-histedit
+Vi edit history line with vi.
+.It Ic vi-history-word
+Vi append word from previous input line.
+.It Ic vi-redo
+Vi redo last non-motion command.
+.It Ic em-delete-or-list
+Delete character under cursor or list completions if at end of line.
+.It Ic em-delete-next-word
+Cut from cursor to end of current word.
+.It Ic em-yank
+Paste cut buffer at cursor position.
+.It Ic em-kill-line
+Cut the entire line and save in cut buffer.
+.It Ic em-kill-region
+Cut area between mark and cursor and save in cut buffer.
+.It Ic em-copy-region
+Copy area between mark and cursor to cut buffer.
+.It Ic em-gosmacs-transpose
+Exchange the two characters before the cursor.
+.It Ic em-next-word
+Move next to end of current word.
+.It Ic em-upper-case
+Uppercase the characters from cursor to end of current word.
+.It Ic em-capitol-case
+Capitalize the characters from cursor to end of current word.
+.It Ic em-lower-case
+Lowercase the characters from cursor to end of current word.
+.It Ic em-set-mark
+Set the mark at cursor.
+.It Ic em-exchange-mark
+Exchange the cursor and mark.
+.It Ic em-universal-argument
+Universal argument (argument times 4).
+.It Ic em-meta-next
+Add 8th bit to next character typed.
+.It Ic em-toggle-overwrite
+Switch from insert to overwrite mode or vice versa.
+.It Ic em-copy-prev-word
+Copy current word to cursor.
+.It Ic em-inc-search-next
+Emacs incremental next search.
+.It Ic em-inc-search-prev
+Emacs incremental reverse search.
+.It Ic ed-end-of-file
+Indicate end of file.
+.It Ic ed-insert
+Add character to the line.
+.It Ic ed-delete-prev-word
+Delete from beginning of current word to cursor.
+.It Ic ed-delete-next-char
+Delete character under cursor.
+.It Ic ed-kill-line
+Cut to the end of line.
+.It Ic ed-move-to-end
+Move cursor to the end of line.
+.It Ic ed-move-to-beg
+Move cursor to the beginning of line.
+.It Ic ed-transpose-chars
+Exchange the character to the left of the cursor with the one under it.
+.It Ic ed-next-char
+Move to the right one character.
+.It Ic ed-prev-word
+Move to the beginning of the current word.
+.It Ic ed-prev-char
+Move to the left one character.
+.It Ic ed-quoted-insert
+Add the next character typed verbatim.
+.It Ic ed-digit
+Adds to argument or enters a digit.
+.It Ic ed-argument-digit
+Digit that starts argument.
+.It Ic ed-unassigned
+Indicates unbound character.
+.It Ic ed-tty-sigint
+Tty interrupt character.
+.It Ic ed-tty-dsusp
+Tty delayed suspend character.
+.It Ic ed-tty-flush-output
+Tty flush output characters.
+.It Ic ed-tty-sigquit
+Tty quit character.
+.It Ic ed-tty-sigtstp
+Tty suspend character.
+.It Ic ed-tty-stop-output
+Tty disallow output characters.
+.It Ic ed-tty-start-output
+Tty allow output characters.
+.It Ic ed-newline
+Execute command.
+.It Ic ed-delete-prev-char
+Delete the character to the left of the cursor.
+.It Ic ed-clear-screen
+Clear screen leaving current line at the top.
+.It Ic ed-redisplay
+Redisplay everything.
+.It Ic ed-start-over
+Erase current line and start from scratch.
+.It Ic ed-sequence-lead-in
+First character in a bound sequence.
+.It Ic ed-prev-history
+Move to the previous history line.
+.It Ic ed-next-history
+Move to the next history line.
+.It Ic ed-search-prev-history
+Search previous in history for a line matching the current.
+.It Ic ed-search-next-history
+Search next in history for a line matching the current.
+.It Ic ed-prev-line
+Move up one line.
+.It Ic ed-next-line
+Move down one line.
+.It Ic ed-command
+Editline extended command.
+.El
+.\" End of section automatically generated with makelist
+.Sh FILES
+.Bl -tag -width "~/.editrcXXX"
+.It Pa ~/.editrc
+User configuration file for the
+.Xr editline 3
+library.
+.El
+.Sh SEE ALSO
+.Xr editline 3 ,
+.Xr regex 3 ,
+.Xr termcap 5
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm editline
+library was written by
+.An Christos Zoulas ,
+and this manual was written by
+.An Luke Mewburn ,
+with some sections inspired by
+.Xr tcsh 1 .

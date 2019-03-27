@@ -1,0 +1,34 @@
+\ Example of the file which is automatically loaded by /boot/loader
+\ on startup.
+\ $FreeBSD$
+
+cr .( Loading Forth extensions:)
+
+\ Load configuration file words
+
+cr .( - loader.4th...)
+
+include /boot/loader.4th
+
+\ Load the screen manipulation words
+
+cr .( - screen.4th...)
+s" /boot/screen.4th" O_RDONLY fopen dup fload fclose
+
+\ Load frame support
+cr .( - frames.4th...)
+s" /boot/frames.4th" O_RDONLY fopen dup fload fclose
+
+\ Load our little menu
+cr .( - menuconf.4th...)
+s" /boot/menuconf.4th" O_RDONLY fopen dup fload fclose
+
+\ Initialize loader.4th stuff
+
+cr cr .( Initializing loader.4th...)
+initialize drop
+
+\ Show the menu
+cr
+main_menu
+

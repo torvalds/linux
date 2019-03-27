@@ -1,0 +1,23 @@
+Begin3
+Title:          dialog - Display dialog boxes in scripts
+Version:        1.0-20060221
+Entered-date:   21FEB06
+Description:    Dialog is a program that will let you present a variety
+                of questions or display messages in nice looking color
+                non-graphical dialog boxes from a shell or perl script.
+                Various dialog boxes can be presented such as yes/no, menu,
+                input, message, checklist, radiolist, and more.
+
+                This program is based on the no longer maintained cdialog, but
+                contains bug fixes and more features.
+Keywords:       dialog, cdialog, shell, script, window
+Author:         Originally Savio Lam for the ancient version
+Maintained-by:  Thomas E. Dickey  <dickey@invisible-island.net>
+                Vila, Santiago  <sanvila@debian.org>
+Primary-site:   http://invisible-island.net/dialog/
+                http://packages.debian.org/
+Alternate-site: ftp://ftp.us.debian.org/debian/pool/main/d/dialog/
+Original-site:  ftp://sunsite.unc.edu/pub/Linux/utils/shell
+Platforms:      Linux *nix, OS/2 EMX
+Copying-policy: LGPL
+End

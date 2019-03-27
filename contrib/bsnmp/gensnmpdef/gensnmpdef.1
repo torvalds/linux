@@ -1,0 +1,85 @@
+.\"
+.\" Copyright (C) 2004-2006
+.\"	Hartmut Brandt.
+.\"	All rights reserved.
+.\"
+.\" Author: Harti Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Begemot: gensnmpdef.1 383 2006-05-30 07:40:49Z brandt_h $
+.\"
+.Dd May 28, 2006
+.Dt GENSNMPDEF 1
+.Os
+.Sh NAME
+.Nm gensnmpdef
+.Nd "generate a MIB description file from MIBs"
+.Sh SYNOPSIS
+.Nm
+.Op Fl hEe
+.Op Fl c Ar cut
+.Ar name Op Ar ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to create an initial MIB description file from
+one or more MIBs.
+The description file must be edited to be actually useful
+for feeding it into
+.Xr gensnmptree 1 .
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl c Ar cut
+Specify the number of initial sub-oids that should be omitted
+from the tree in the output.
+.Xr gensnmptree 1
+automatically adds 1.3.6 in front of all OIDs so the default value
+of 3 is just correct in most cases.
+.It Fl E
+Generate typedefs for named enumerations.
+These are enumerations defined via the TEXTUAL-CONVENTION macro.
+The normal tree output is suppressed.
+.It Fl e
+Generate typedefs for unnamed enumerations.
+These are enumerations defined in the SYNTAX clause of an OBJECT-TYPE macro.
+The name of the enumeration is formed by appending the string
+.Ql Type
+to the name of the object.
+The normal tree output is suppressed.
+.It Fl h
+Print a short help text and exit.
+.El
+.Pp
+.Nm
+does no attempt on sorting the OID tree so in case of complex and
+non-standard MIBs it is necessary to sort the tree in the resulting definition
+file by hand.
+.Sh SEE ALSO
+.Xr snmpd 1
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@FreeBSD.org
+.Sh BUGS
+The utility is by no means bullet-proof and may fail for complex
+or non-standard MIBs.
+Its output is expected to be edited by hand.

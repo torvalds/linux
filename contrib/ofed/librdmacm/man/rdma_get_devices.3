@@ -1,0 +1,24 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_GET_DEVICES" 3 "2007-05-15" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_get_devices \- Get a list of RDMA devices currently available.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "struct ibv_context **" rdma_get_devices
+.BI "(int *" num_devices ");"
+.SH ARGUMENTS
+.IP "num_devices" 12
+If non-NULL, set to the number of devices returned.
+.SH "DESCRIPTION"
+Return a NULL-terminated array of opened RDMA devices.  Callers can use
+this routine to allocate resources on specific RDMA devices that will be
+shared across multiple rdma_cm_id's.
+.SH "RETURN VALUE"
+Returns an array of available RDMA devices, or NULL if the request
+fails.  On failure, errno will be set to indicate the failure reason.
+.SH "NOTES"
+The returned array must be released by calling rdma_free_devices.  Devices
+remain opened while the librdmacm is loaded.
+.SH "SEE ALSO"
+rdma_free_devices(3)

@@ -1,0 +1,25 @@
+\ #if FICL_WANT_FILE
+\ ** 
+\ ** File Access words for ficl
+\ ** submitted by Larry Hastings, larry@hastings.org
+\ **
+\
+\ $FreeBSD$
+
+: r/o 1 ;
+: r/w 3 ; 
+: w/o 2 ; 
+: bin 8 or ; 
+
+: included
+    r/o bin open-file 0= if
+        locals| f | end-locals
+        f include-file
+    else
+        drop
+    endif
+    ;
+
+: include parse-word included ;
+
+\ #endif

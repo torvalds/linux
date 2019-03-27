@@ -1,0 +1,10 @@
+Everything in this directory (except this file) has been contributed.
+We will not fix bugs in these programs.  Contact the original author
+for assistance.
+
+Some of these are patches to sendmail itself.  You may need to take
+care -- some of the patches may be out of date with the latest release
+of sendmail.  Also, the previous comment applies -- patches belong to
+the original author, not to us.
+
+$Revision: 8.2 $, Last updated $Date: 1999-09-24 05:46:47 $

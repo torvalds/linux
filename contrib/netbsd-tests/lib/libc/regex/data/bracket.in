@@ -1,0 +1,55 @@
+# brackets, and numerous perversions thereof
+a[b]c		&	abc	abc
+a[ab]c		&	abc	abc
+a[^ab]c		&	adc	adc
+a[]b]c		&	a]c	a]c
+a[[b]c		&	a[c	a[c
+a[-b]c		&	a-c	a-c
+a[^]b]c		&	adc	adc
+a[^-b]c		&	adc	adc
+a[b-]c		&	a-c	a-c
+a[b		&C	EBRACK
+a[]		&C	EBRACK
+a[1-3]c		&	a2c	a2c
+a[3-1]c		&C	ERANGE
+a[1-3-5]c	&C	ERANGE
+a[[.-.]--]c	&	a-c	a-c
+a[1-		&C	ERANGE
+a[[.		&C	EBRACK
+a[[.x		&C	EBRACK
+a[[.x.		&C	EBRACK
+a[[.x.]		&C	EBRACK
+a[[.x.]]	&	ax	ax
+a[[.x,.]]	&C	ECOLLATE
+a[[.one.]]b	&	a1b	a1b
+a[[.notdef.]]b	&C	ECOLLATE
+a[[.].]]b	&	a]b	a]b
+a[[:alpha:]]c	&	abc	abc
+a[[:notdef:]]c	&C	ECTYPE
+a[[:		&C	EBRACK
+a[[:alpha	&C	EBRACK
+a[[:alpha:]	&C	EBRACK
+a[[:alpha,:]	&C	ECTYPE
+a[[:]:]]b	&C	ECTYPE
+a[[:-:]]b	&C	ECTYPE
+a[[:alph:]]	&C	ECTYPE
+a[[:alphabet:]]	&C	ECTYPE
+[[:alnum:]]+	-	-%@a0X-	a0X
+[[:alpha:]]+	-	-%@aX0-	aX
+[[:blank:]]+	-	aSSTb	SST
+[[:cntrl:]]+	-	aNTb	NT
+[[:digit:]]+	-	a019b	019
+[[:graph:]]+	-	Sa%bS	a%b
+[[:lower:]]+	-	AabC	ab
+[[:print:]]+	-	NaSbN	aSb
+[[:punct:]]+	-	S%-&T	%-&
+[[:space:]]+	-	aSNTb	SNT
+[[:upper:]]+	-	aBCd	BC
+[[:xdigit:]]+	-	p0f3Cq	0f3C
+a[[=b=]]c	&	abc	abc
+a[[=		&C	EBRACK
+a[[=b		&C	EBRACK
+a[[=b=		&C	EBRACK
+a[[=b=]		&C	EBRACK
+a[[=b,=]]	&C	ECOLLATE
+a[[=one=]]b	&	a1b	a1b

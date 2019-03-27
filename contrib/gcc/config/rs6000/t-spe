@@ -1,0 +1,68 @@
+# Multilibs for e500
+
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	cat $(srcdir)/config/fp-bit.c > dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#define FLOAT' > fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib
+
+# What we really want are these variants:
+#	-mcpu=7400
+#	-mcpu=7400 -maltivec -mabi=altivec
+#	-mcpu=7400 -msoft-float
+#	-msoft-float
+#	-mspe=no -mabi=no-spe -misel=no
+# so we'll need to create exceptions later below.
+
+MULTILIB_OPTIONS	= mcpu=7400 \
+			  maltivec \
+			  mabi=altivec \
+			  msoft-float \
+			  mspe=no \
+			  mabi=no-spe \
+			  misel=no \
+			  mlittle
+
+MULTILIB_DIRNAMES	= mpc7400 altivec abi-altivec \
+			  nof no-spe no-abi-spe no-isel le
+
+MULTILIB_EXCEPTIONS	= maltivec mabi=altivec mspe=no mabi=no-spe misel=no \
+			  maltivec/mabi=altivec \
+			  mcpu=7400/maltivec \
+			  mcpu=7400/mabi=altivec \
+			  *mcpu=7400/*mspe=no* \
+			  *mcpu=7400/*mabi=no-spe* \
+			  *mcpu=7400/*misel=no* \
+			  *maltivec/*msoft-float* \
+			  *maltivec/*mspe=no* \
+			  *maltivec/*mabi=no-spe* \
+			  *maltivec/*misel=no* \
+			  *mabi=altivec/*msoft-float* \
+			  *mabi=altivec/*mspe=no* \
+			  *mabi=altivec/*mabi=no-spe* \
+			  *mabi=altivec/*misel=no* \
+			  *msoft-float/*mspe=no* \
+			  *msoft-float/*mabi=no-spe* \
+			  *msoft-float/*misel=no* \
+			  mspe=no/mabi=no-spe \
+			  mspe=no/misel=no \
+			  mabi=no-spe/misel=no \
+			  misel=no/mlittle \
+			  mabi=no-spe/misel=no/mlittle \
+			  mspe=no/mlittle \
+			  mabi=spe/mlittle \
+			  mcpu=7400/mabi=altivec/mlittle \
+			  mcpu=7400/maltivec/mlittle \
+			  mabi=no-spe/mlittle \
+			  mspe=no/misel=no/mlittle \
+			  mspe=no/mabi=no-spe/mlittle \
+			  mabi=altivec/mlittle \
+			  maltivec/mlittle \
+			  maltivec/mabi=altivec/mlittle

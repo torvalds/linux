@@ -1,0 +1,83 @@
+.\" Copyright (c) 2000 Matthew Jacob
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" Alternatively, this software may be distributed under the terms of the
+.\" the GNU Public License ("GPL").
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Matthew Jacob
+.\" Feral Software
+.\" mjacob@feral.com
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 21, 2000
+.Dt GETENCSTAT 8
+.Os
+.Sh NAME
+.Nm getencstat
+.Nd get SCSI Environmental Services Device enclosure status
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Ar device
+.Op Ar device ...
+.Sh DESCRIPTION
+.Nm
+gets summary and detailed SCSI Environmental Services (or SAF-TE) device
+enclosure status.
+The overall status is printed out.
+If the overall status
+is considered okay, nothing else is printed out (unless the
+.Fl v
+option is used).
+.Pp
+A SCSI Environmental Services device enclosure may be either in the state
+of being \fBOK\fR, or in one or more of the states of \fBINFORMATIONAL\fR,
+\fBNON-CRITICAL\fR, \fBCRITICAL\fB or \fBUNRECOVERABLE\fR states.
+These
+overall states reflect a summary of the states of each object within
+such a device (such as power supplies or disk drives).
+.Pp
+With the
+.Fl v
+option, the status of all objects within the device is printed, whether
+\fBOK\fR or not.
+Along with the status of each object is the object identifier.
+.Pp
+The user may then use
+.Xr setencstat 8
+to try and clear overall device status, or may use
+.Xr setobjstat 8
+to set specific object status.
+.Sh FILES
+.Bl -tag -width /dev/sesN -compact
+.It Pa /dev/ses\fIN\fR
+SCSI Environmental Services Devices
+.El
+.Sh SEE ALSO
+.Xr ses 4 ,
+.Xr sesd 8 ,
+.Xr setencstat 8 ,
+.Xr setobjstat 8
+.Sh BUGS

@@ -1,0 +1,243 @@
+.\" (c) Magerya Vitaly
+.\"
+.\" Copying and distribution of this file, with or without modification,
+.\" are permitted in any medium without royalty provided the copyright
+.\" notice and this notice are preserved. This file is offered as-is,
+.\" without any warranty.
+.Dd Aug 27, 2012
+.Dt LDNS-HOST 1
+.Os
+.Sh NAME
+.Nm ldns-host
+.Nd DNS lookup utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl aCdilrsTvw46
+.Op Fl c Ar class
+.Op Fl N Ar ndots
+.Op Fl R Ar number
+.Op Fl t Ar type
+.Op Fl W Ar wait
+.Ar name
+.Op Ar server
+.Sh DESCRIPTION
+.Nm
+is a simple utility for performing DNS lookups.  It is normally
+used to convert names to IP addresses and vice versa.
+.Pp
+.Ar name
+is the domain name that is to be looked up.  It can also be a
+dotted-decimal IPv4 address or a colon-delimited IPv6 address,
+in which case
+.Nm
+will by default perform a reverse lookup for that address.
+.Pp
+When
+.Ar name
+is not provided,
+.Nm
+prints a short summary of it's usage.
+.Pp
+.Ar server
+is an optional argument which is either a domain name or an IP
+address of the name server that
+.Nm
+should query instead of the server or servers listed in
+.Pa /etc/resolv.conf .
+When
+.Ar server
+is a domain name, system resolver is used to obtain it's address.
+.Pp
+Supported options:
+.Bl -tag -width indent
+.It Fl a
+Make a verbose query of type
+.Cm ANY .
+Equivalent to
+.Fl v Fl t Cm ANY .
+.It Fl C
+Query for
+.Cm SOA
+records for zone
+.Ar name
+from all of it's authoritative name servers.  The list of name
+servers is obtained via
+.Cm NS
+query for
+.Ar name .
+.It Fl c Ar class
+Perform DNS query of class
+.Ar class .
+Recognized classes are 
+.Cm IN Pq Internet ,
+.Cm CH Pq Chaosnet ,
+.Cm HS Pq Hesiod ,
+.Cm NONE ,
+.Cm ANY
+and
+.Cm CLASS Ns Ar N 
+(where
+.Ar N
+is a number from 1 to 255).  Default is
+.Cm IN .
+.It Fl d
+Produce verbose output.  This is a synonym for
+.Fl v ,
+and is provided for backward compatibility.
+.It Fl i
+Use IP6.INT domain for reverse lookups of IPv6 addresses (as
+defined in RFC1886; note that RFC4159 deprecates IP6.INT).
+By default IP6.ARPA is used.
+.It Fl l
+List all
+.Cm NS, PTR, A
+and
+.Cm AAAA
+records in zone
+.Ar name
+by performing a zone transfer
+.Pq Cm AXFR .
+You can combine this option with
+.Fl a
+to print all records, or with
+.Fl t
+to only print specific ones.
+.It Fl N Ar ndots
+Consider names with at least this many dots as absolute.  That
+is, try to resolve them directly before consulting
+.Ic domain
+or
+.Ic search
+options from
+.Pa /etc/resolv.conf .
+.It Fl r
+Perform non-recursive query to the name server by clearing RD
+.Pq Dq recursion desired
+bit of the query.
+.It Fl R Ar number
+Retry this many times when a query does not receive an answer
+in time.  The default is 1 retry.  If
+.Ar number
+is negative or zero, 1 is used instead.
+.It Fl s
+Report SERVFAIL responses as they are, do not ignore them.
+.It Fl T
+Query name server over TCP.  By default UDP is used, except for
+.Cm AXFR
+and
+.Cm IXFR
+queries, which require TCP.
+.Nm
+will also retry UDP queries in TCP mode if the UDP response was
+truncated (i.e. had TC bit set).
+.It Fl t Ar type
+Perform DNS query of type
+.Ar type ,
+which can be any standard query type name
+.Pq Cm A , CNAME , MX , TXT , No etc ,
+a wildcard query
+.Pq Cm ANY ,
+or
+.Cm TYPE Ns Ar N ,
+where
+.Ar N
+is a number from 1 to 65535.  For
+.Cm IXFR Pq incremental zone transfer
+queries the starting serial number can be specified by appending
+an equal sign followed by the number
+.Pq e.g. Fl t Cm IXFR Ns =12345678 .
+.Pp
+The default is to query for
+.Cm A , AAAA , No and Cm MX
+records, unless
+.Fl C
+or
+.Fl l
+options are given (in which case
+.Cm SOA
+or
+.Cm AXFR
+queries are made) or
+.Ar name
+is a valid IP address
+(in which case reverse lookup using
+.Cm PTR
+query is performed).
+.It Fl v
+Produce verbose output.
+.It Fl w
+Wait forever (or for a very long time) for response from the
+name server.
+.It Fl W Ar wait
+Wait this many seconds for a reply from name server before timing
+out.  If
+.Ar wait
+is negative or zero, value of 1 is used.  The default is to wait
+10 seconds for TCP connections, and 5 seconds for UDP (both are
+subject to retries, see option
+.Fl R ) .
+.It Fl 4
+Only use IPv4 transport.
+.It Fl 6
+Only use IPv6 transport.
+.El
+.Sh FILES
+.Pa /etc/resolv.conf
+.Sh SEE ALSO
+.Xr drill 1 ,
+.Xr resolv.conf 5
+.Sh COMPATIBILITY
+.Nm
+aims to be reasonably compatible with
+.Sq host
+utility from BIND9 distribution, both in supported options and
+in produced output.  Here is a list of known notable differences:
+.Bl -bullet
+.It
+Debugging options
+.Pq Fl D No and Fl m
+are not supported.
+.It
+Query class
+.Cm CLASS0
+and type
+.Cm TYPE0
+are not supported.
+.It
+Backslashes in domain names are treated especially.
+.It
+The maximum of 255 retries (option
+.Fl R )
+are supported.
+.It
+Some resource records are formatted differently.  For example,
+.Cm RRSIG
+and
+.Cm DNSKEY
+records are displayed without spaces in them.
+.It
+When parsing
+.Pa /etc/resolv.conf
+commands
+.Ic sortlist
+and
+.Ic options
+are ignored.  When multiple
+.Ic search
+and/or
+.Ic domain
+commands are present,
+.Nm
+first uses the last
+.Ic domain
+command, and then all of
+.Ic search
+commands, while
+.Sq host
+from BIND9 uses whatever command was specified last.
+.It
+.Sq Pseudosection TSIG
+is missing from verbose packet output.
+.El
+.Sh AUTHORS
+.An Vitaly Magerya Aq magv@tx97.net

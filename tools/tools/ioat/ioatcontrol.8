@@ -1,0 +1,183 @@
+.\" Copyright (c) 2015 EMC / Isilon Storage Division
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 27, 2016
+.Dt IOATCONTROL 8
+.Os
+.Sh NAME
+.Nm ioatcontrol
+.Nd Userspace tool to test
+.Xr ioat 4
+.Sh SYNOPSIS
+.Nm
+.Op Fl c Ar period
+.Op Fl E
+.Op Fl f
+.Op Fl m
+.Op Fl V
+.Op Fl z
+.Ar channel_number
+.Ar num_txns
+.Ar [ bufsize
+.Ar [ chain-len
+.Ar [ duration ] ] ]
+.Nm
+.Fl r
+.Op Fl c Ar period
+.Op Fl v
+.Op Fl V
+.Op Fl w
+.Op Fl z
+.Ar channel_number
+.Ar address
+.Ar [ bufsize ]
+.Sh DESCRIPTION
+.Nm
+allows one to issue some number of test operations to the
+.Xr ioat 4
+driver on a specific hardware channel.
+The arguments are as follows:
+.Bl -tag -width Ds
+.It Fl c Ar period
+Configure the channel's interrupt coalescing period, in microseconds
+(defaults to 0).
+.It Fl E
+Test non-contiguous 8k copy.
+.It Fl f
+Test block fill (by default,
+.Nm
+tests copy)
+.It Fl m
+Test memcpy instead of DMA.
+.It Fl V
+Verify copies/fills for accuracy
+.It Fl z
+Zero device statistics before running test.
+.El
+.Pp
+Alternatively one can use
+.Nm
+.Fl r
+to issue DMA to or from a specific
+.Ar address .
+The arguments in "raw" mode are:
+.Bl -tag -width Ds
+.It Fl c Ar period
+As above.
+.It Fl v
+.Ar address
+is a kernel virtual address (by default,
+.Ar address
+is assumed to be a physical address)
+.It Fl V
+Verify copies/fills for accuracy
+.It Fl w
+Write to the specified
+.Ar address
+(by default,
+.Nm
+.Fl r
+reads)
+.It Fl z
+As above.
+.El
+.Pp
+.Nm
+operates in one of two modes; if the
+.Ar duration
+argument is passed,
+.Nm
+tries to estimate the copy rate in bytes per second by running
+.Ar num_txns
+repeatedly in loop.
+If
+.Ar duration
+is not passed,
+.Nm
+only runs through
+.Ar num_txns
+once and prints the total bytes copied, as well as error information.
+.Pp
+The
+.Ar bufsize
+argument determines the size of buffers to use for each
+.Fn ioat_copy
+invocation.
+The default is 256 KB.
+In raw mode, the default is 4 KB.
+.Pp
+The
+.Ar chain-len
+argument determines the number of copies to chain together in a single DMA
+transaction.
+The default is 1.
+.Pp
+The
+.Ar duration
+argument specifies an approximate time limit for the test, in milliseconds.
+.Pp
+The test will allocate two chunks of memory for each component of each
+transaction's chain.
+It will initialize them with specific data patterns.
+During the test, it submits DMA requests to copy between pairs of buffers.
+If the
+.Fl V
+flag was specified, it will compare the contents in the callback for a copy
+error.
+.Sh FILES
+.Pa /dev/ioat_test
+.Pp
+The interface between
+.Nm
+and
+.Xr ioat 4 .
+.Xr ioat 4
+exposes it with
+.Cd hw.ioat.enable_ioat_test=1 .
+.Sh DIAGNOSTICS
+The wait channel
+.Va test_submit
+indicates that the test code has enqueued all requested transactions and is
+waiting on the IOAT hardware to complete one before issuing another operation.
+.Sh SEE ALSO
+.Xr ioat 4
+.Sh HISTORY
+The
+.Xr ioat 4
+driver first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+The
+.Xr ioat 4
+driver and
+.Nm
+tool were developed by
+.An \&Jim Harris Aq Mt jimharris@FreeBSD.org ,
+.An \&Carl Delsey Aq Mt carl.r.delsey@intel.com ,
+and
+.An \&Conrad Meyer Aq Mt cem@FreeBSD.org .
+This manual page was written by
+.An \&Conrad Meyer Aq Mt cem@FreeBSD.org .

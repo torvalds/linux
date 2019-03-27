@@ -1,0 +1,79 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+test -f $BSDINSTALL_DISTDIR/MANIFEST || exit 0
+
+percentage=0
+for dist in $DISTRIBUTIONS; do
+	distname=$(basename $dist .txz)
+	eval "status_$distname=7"
+
+	items=""
+	for i in $DISTRIBUTIONS; do
+		items="$items $i `eval echo \\\${status_$(basename $i .txz):-Pending}`"
+	done
+	dialog --backtitle "FreeBSD Installer" --title "Checksum Verification" \
+	    --mixedgauge "Verifying checksums of selected distributions." \
+	    0 0 $percentage $items
+
+	CK=`sha256 -q $BSDINSTALL_DISTDIR/$dist`
+	awk -v checksum=$CK -v dist=$dist -v found=0 '{
+		if (dist == $1) {
+			found = 1
+			if (checksum == $2)
+				exit(0)
+			else
+				exit(2)
+		}
+	} END {if (!found) exit(1);}' $BSDINSTALL_DISTDIR/MANIFEST
+
+	CK_VALID=$?
+	if [ $CK_VALID -le 1 ]; then
+		if [ $CK_VALID -eq 0 ]; then
+			eval "status_$distname=2"
+		else
+			eval "status_$distname=6"
+		fi
+		percentage=$(echo $percentage + 100/`echo $DISTRIBUTIONS | wc -w` | bc)
+	else
+		eval "status_$distname=1"
+		case $(/bin/freebsd-version -u) in
+		*-ALPHA*|*-CURRENT|*-STABLE|*-PRERELEASE)
+			dialog --backtitle "FreeBSD Installer" --title "Error" \
+			    --msgbox "The checksum for $dist does not match. It may have become corrupted, or it may be from a newer version of FreeBSD. Please check for a newer snapshot." 0 0
+			;;
+		*)
+			dialog --backtitle "FreeBSD Installer" --title "Error" \
+			    --msgbox "The checksum for $dist does not match. It may have become corrupted, and should be redownloaded." 0 0
+			;;
+		esac
+		exit 1
+	fi
+done
+
+exit 0

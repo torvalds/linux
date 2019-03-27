@@ -1,0 +1,8 @@
+.\" $FreeBSD$
+Set this to not install optional libraries.
+For example, when creating a
+.Xr nanobsd 8
+image.
+.Bf -symbolic
+The option does not work for build targets.
+.Ef

@@ -1,0 +1,55 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_ALLOC_MW 3 2016-02-02 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_alloc_mw, ibv_dealloc_mw \- allocate or deallocate a memory window (MW)
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "struct ibv_mw *ibv_alloc_mw(struct ibv_pd " "*pd" ,
+.BI "                            enum ibv_mw_type " "type");
+.sp
+.BI "int ibv_dealloc_mw(struct ibv_mw " "*mw" );
+.fi
+.SH "DESCRIPTION"
+.B ibv_alloc_mw()
+allocates a memory window (MW) associated with the protection domain
+.I pd\fR.
+The MW's type (1 or 2A/2B) is
+.I type\fR.
+.PP
+The MW is created not bound. For it to be useful, the MW must be bound, through either ibv_bind_mw (type 1) or a special WR (type 2).
+Once bound, the memory window allows RDMA (remote) access to a subset of the MR to which it was bound,
+until invalidated by: ibv_bind_mw verb with zero length for type 1,
+IBV_WR_LOCAL_INV/IBV_WR_SEND_WITH_INV WR opcode for type 2, deallocation.
+.PP
+.B ibv_dealloc_mw()
+Unbinds in case was previously bound and deallocates the MW
+.I mw\fR.
+.SH "RETURN VALUE"
+.B ibv_alloc_mw()
+returns a pointer to the allocated MW, or NULL if the request fails.
+The remote key (\fBR_Key\fR)
+field
+.B rkey
+is used by remote processes to perform Atomic and RDMA operations. This key will be changed during bind operations. The remote process places this
+.B rkey
+as the rkey field of struct ibv_send_wr passed to the ibv_post_send function.
+.PP
+.B ibv_dealloc_mw()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+.B ibv_dereg_mr()
+fails if any memory window is still bound to this MR.
+.SH "SEE ALSO"
+.BR ibv_alloc_pd (3),
+.BR ibv_post_send (3),
+.BR ibv_bind_mw (3),
+.BR ibv_reg_mr (3),
+.SH "AUTHORS"
+.TP
+Majd Dibbiny <majd@mellanox.com>
+.TP
+Yishai Hadas <yishaih@mellanox.com>

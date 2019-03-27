@@ -1,0 +1,22 @@
+wpa_supplicant and hostapd
+--------------------------
+
+Copyright (c) 2002-2018, Jouni Malinen <j@w1.fi> and contributors
+All Rights Reserved.
+
+
+See the README file for the current license terms.
+
+This software was previously distributed under BSD/GPL v2 dual license
+terms that allowed either of those license alternatives to be
+selected. As of February 11, 2012, the project has chosen to use only
+the BSD license option for future distribution. As such, the GPL v2
+license option is no longer used. It should be noted that the BSD
+license option (the one with advertisement clause removed) is compatible
+with GPL and as such, does not prevent use of this software in projects
+that use GPL.
+
+Some of the files may still include pointers to GPL version 2 license
+terms. However, such copyright and license notifications are maintained
+only for attribution purposes and any distribution of this software
+after February 11, 2012 is no longer under the GPL v2 option.

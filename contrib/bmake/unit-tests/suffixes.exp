@@ -1,0 +1,35 @@
+make: don't know how to make issue3 (continuing)
+There should be no text after the colon: 
+touch .a
+There should be no text after the colon: 
+touch .a.b
+There should be no text after the colon: 
+touch .b.a
+touch issue5a.c
+first set
+cp issue5a.c issue5a.d
+touch issue5b.d
+first set
+cp issue5b.d issue5b.c
+touch issue5c.d
+first set
+cp issue5c.d issue5c
+touch issue5d.d
+first set
+cp issue5d.d issue5d.e
+touch issue5e.e
+first set
+cp issue5e.e issue5e.d
+make: don't know how to make issue6.f (continuing)
+touch issue10.d
+first set
+cp issue10.d issue10.e
+touch issue11.h
+touch issue11.first
+.ALLSRC: issue11.h issue11.first
+cp issue11.h issue11.i
+touch issue11.second
+.ALLSRC: issue11.i issue11.second
+cp issue11.i issue11.j
+`all' not remade because of errors.
+exit status 0

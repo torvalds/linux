@@ -1,0 +1,1284 @@
+newcode :
+/* $Header: /p/tcsh/cvsroot/tcsh/host.defs,v 1.61 2015/05/26 18:56:19 christos Exp $ */
+/*
+ * host.defs: Hosttype/Machtype etc.
+ */
+/*-
+ * Copyright (c) 1980, 1991 The Regents of the University of California.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+#include "sh.h"
+
+RCSID("$tcsh: host.defs,v 1.61 2015/05/26 18:56:19 christos Exp $")
+
+endcode :
+
+macro	: M_mips64el : (defined(mips64) && defined(MIPSEL))
+macro	: M_mips64eb : (defined(mips64) && defined(MIPSEB))
+macro	: M_mipsel : (!defined(M_mips64el) && defined(mips) && defined(MIPSEL))
+macro	: M_mipseb : (!defined(M_mips64eb) && defined(mips) && defined(MIPSEB))
+macro	: M_amd64: (defined(amd64) || defined(x86_64))
+macro	: M_i386 : defined(i386)
+macro	: M_i486 : defined(i486)
+macro	: M_i586 : defined(i586)
+macro	: M_i686 : defined(i686)
+macro	: M_intel : (defined(M_i386) || defined(M_i486) || defined(M_i586))
+
+newdef	: defined(ns32000)
+newcode :
+static char *
+isamultimax(int flag)
+{
+    if (access("/Umax.image", F_OK) == 0)
+	return "multimax";
+    else 
+	return flag ? "mach" : "ns32000";
+}
+endcode :
+enddef	:
+
+
+newdef	: defined(cray)
+newcode :
+/*  
+ * On crays, find the current machine type via the target() syscall
+ * We need ctype.h to convert the name returned to lower case
+ */
+# include <sys/target.h> 
+# include <ctype.h>
+# include <string.h>
+
+/* From: hpa@hook.eecs.nwu.edu (H. Peter Anvin) */
+static char *
+getcray(void)
+{
+# ifdef MC_GET_SYSTEM /* If we have target() */
+    struct target data;
+
+    if (target(MC_GET_SYSTEM, &data) != -1) {
+	static char hosttype_buf[sizeof(data.mc_pmt)+1];
+	unsigned char *p = (unsigned char *) &(data.mc_pmt);
+	char *q = hosttype_buf;
+	int n;
+
+	/* 
+	 * Copy to buffer and convert to lower case 
+	 * String may not be null-terminated, so keep a counter
+	 */
+	for (n = 0; *p && n < sizeof(data.mc_pmt); n++)
+	  *q++ = tolower(p[n]);
+
+	*q = '\0';
+
+	/* replace dashes with underscores if present */
+	while ((q = strchr(hosttype_buf, '-')) != NULL)
+	    *q = '_';
+	return hosttype_buf;	/* Return in static buffer */
+    }
+    else
+# endif /* MC_GET_SYSTEM */
+	return "cray";		/* target() failed */
+}
+endcode :
+enddef	:
+
+
+newdef	: defined(convex)
+newcode :
+/*  
+ * On convex, find the current machine type via the getsysinfo() syscall
+ */
+#include <sys/sysinfo.h> 
+
+/* From: fox@convex.com (David DeSimone) */
+static char *
+getconvex(void)
+{
+    struct system_information  sysinfo;
+    static char	 result[8];
+
+    if (getsysinfo(SYSINFO_SIZE, &sysinfo) == -1)
+	return "convex";
+
+    switch(sysinfo.cpu_type) {
+#ifdef SI_CPUTYPE_C1
+    case SI_CPUTYPE_C1:
+	return "c1";
+#endif
+
+#ifdef SI_CPUTYPE_C2
+    case SI_CPUTYPE_C2:
+	return "c2";
+#endif
+
+#ifdef SI_CPUTYPE_C2MP
+    case SI_CPUTYPE_C2MP:
+	(void) strcpy(result, "c2X0");
+	result[2] = sysinfo.cpu_count + '0';
+	return result;
+#endif
+
+#ifdef SI_CPUTYPE_C34
+    case SI_CPUTYPE_C34:
+	(void) strcpy(result, "c34X0");
+	result[3] = sysinfo.cpu_count + '0';
+	return result;
+#endif
+
+#ifdef SI_CPUTYPE_C38
+    case SI_CPUTYPE_C38:
+	(void) strcpy(result, "c38X0");
+	result[3] = sysinfo.cpu_count + '0';
+	return result;
+#endif
+
+#ifdef SI_CPUTYPE_C46
+    case SI_CPUTYPE_C46:
+	(void) strcpy(result, "c46X0");
+	result[3] = sysinfo.cpu_count + '0';
+	return result;
+#endif
+
+    default:
+	return "convex";
+    }
+}
+endcode :
+enddef	:
+
+newdef : defined(linux) || defined(CYGWIN) || defined(GNU) || defined(GLIBC)
+newcode :
+# include "tw.h"
+#include <sys/utsname.h>
+static char mach[256];
+static char host[256];
+static char ostype[32];
+static void populate(void)
+{
+	struct utsname uts;
+	int e = uname(&uts);
+	const char *p = short2str(tgetenv(STROSTYPE));
+	if (p == NULL) {
+#if defined(__ANDROID__)
+		p = "android";
+#elif defined(__CYGWIN__)
+		p = "cygwin";
+#else
+		p = "linux";
+#endif
+	}
+	xsnprintf(ostype, sizeof(ostype), "%s", p);
+	xsnprintf(mach, sizeof(mach), "%s", e != -1 ? uts.machine : "unknown");
+	xsnprintf(host, sizeof(host), "%s-%s",
+	    e != -1 ? uts.machine : "unknown", ostype);
+}
+
+static char *
+getmach(void)
+{
+    if (!mach[0])
+	populate();
+    return mach;
+}
+
+static char *
+gethost(void)
+{
+    if (!host[0])
+	populate();
+    return host;
+}
+
+static char *
+getostype(void)
+{
+    if (!ostype[0])
+	populate();
+    return ostype;
+}
+
+endcode :
+enddef :
+
+newcode :
+void
+getmachine(void)
+{
+     const char *hosttype;
+     const char *ostype;
+     const char *vendor;
+     const char *machtype;
+
+endcode :
+
+
+newdef	: defined(HOSTTYPE)
+hosttype:						: HOSTTYPE
+enddef	:
+
+
+newdef	: defined(PARAGON)
+comment : Intel Paragon running OSF/1
+vendor	:						: "intel"
+hosttype:						: "paragon"
+ostype	:						: "osf1"
+machtype: defined(M_i386)				: "i386"
+enddef	:
+
+
+newdef	: defined(AMIX)
+comment : Amiga running Amix 2.02
+vendor	:						: "commodore"
+hosttype:						: "amiga"
+ostype	:						: "Amix"
+machtype:						: "m68k"
+enddef	:
+
+
+newdef	: defined(accel)
+comment : celerity Accel
+vendor	:						: "celerity"
+hosttype:						: "celerityACCEL"
+ostype	:						: "unix"
+machtype:						: "accel"
+enddef	:
+
+
+newdef	: defined(_VMS_POSIX)
+comment : digital vax or alpha running vms posix
+vendor	:						: "dec"
+hosttype:						: "VMS-POSIX"
+ostype	:						: "vms"
+machtype: defined(alpha)				: "alpha"
+machtype: defined(vax)					: "vax"
+enddef	:
+
+
+newdef	: defined(hp_osf)
+comment : Hewlett Packard running OSF/1
+vendor	:						: "hp"
+hosttype: defined(pa_risc)				: "hp9000s700-osf1"
+hosttype:						: "hp-osf1"
+ostype	:						: "osf1"
+machtype: defined(pa_risc)				: "pa_risc"
+enddef	:
+
+
+newdef	: defined(hp9000)
+comment : Hewlett Packard running MORE/bsd 
+vendor	:						: "hp"
+hosttype: defined(hp300)				: "hp300"
+hosttype: defined(hp800)				: "hp800"
+hosttype:						: "hp9000"
+ostype	: defined(BSD4_4)				: "bsd44"
+ostype	:						: "mtXinu"
+machtype: defined(hp300)				: "m68k"
+machtype: defined(hp800)				: "pa_risc"
+enddef	:
+
+
+newdef	: defined(hpux)
+comment : Hewlett Packard running HP/UX
+vendor	:						: "hp"
+hosttype: defined(hp9000s800)				: "hp9000s800"
+hosttype: defined(hp9000s700)				: "hp9000s700"
+hosttype: defined(hp9000s500)				: "hp9000s500"
+hosttype: defined(hp9000s300)				: "hp9000s300"
+hosttype:						: "hp"
+ostype	:						: "hpux"
+machtype: defined(hp9000s800)				: "pa_risc"
+machtype: defined(hp9000s700)				: "pa_risc"
+machtype: defined(hp9000s500)				: "m68k"
+machtype: defined(hp9000s300)				: "m68k"
+enddef	:
+
+
+newdef	: defined(apollo)
+comment : Hewlett Packard apollo running Domain/OS
+vendor	:						: "hp"
+hosttype:						: "apollo"
+ostype	:						: "DomainOS"
+machtype:						: "m68k"
+enddef	:
+
+
+newdef	: defined(sun)
+comment : Sun Microsystems series 2 workstation (68010 based)
+comment : Sun Microsystems series 3 workstation (68020 based)
+comment : Sun Microsystems 386i workstation (386 based)
+comment : Sun Microsystems series 4 workstation (SPARC based)
+vendor	:						: "sun"
+hosttype: defined(M_i386) && !defined(SVR4)		: "sun386i"
+hosttype: defined(M_i386) && defined(SVR4)		: "i86pc"
+hosttype: defined(M_amd64)				: "i86pc"
+hosttype: defined(mc68010)				: "sun2"
+hosttype: defined(mc68020)				: "sun3"
+hosttype: defined(sparc)				: "sun4"
+hosttype:						: "sun"
+ostype	: defined(SUNOS3)				: "sunos3"
+ostype	: defined(SUNOS4)				: "sunos4"
+ostype	: defined(SOLARIS2)				: "solaris"
+machtype: defined(mc68010)				: "m68k"
+machtype: defined(mc68020)				: "m68k"
+machtype: defined(sparcv9)				: "sparcv9"
+machtype: defined(sparc)				: "sparc"
+machtype: defined(M_i386)				: "i386"
+machtype: defined(M_amd64)				: "amd64"
+enddef	:
+
+
+newdef	: defined(pyr)
+comment : Pyramid Technology
+vendor	:						: "pyramid"
+hosttype:						: "pyramid"
+machtype:						: "pyramid"
+enddef	:
+
+
+newdef	: defined(hcx) || defined(_CX_UX)
+comment : Harris Tahoe running CX/UX
+vendor	:						: "harris"
+hosttype:						: "hcx"
+ostype	:						: "hcx"
+machtype:						: "tahoe"
+enddef	:
+
+
+newdef	: defined(tahoe)
+comment : Harris Tahoe
+vendor	:						: "harris"
+hosttype:						: "tahoe"
+machtype:						: "tahoe"
+enddef	:
+
+
+newdef	: defined(ibm032)
+comment : RT running IBM AOS4.3 or MACH
+vendor	:						: "ibm"
+hosttype:						: "rt"
+ostype	: defined(MACH)					: "mach"
+ostype	:						: "aos"
+machtype:						: "ibm032"
+enddef	:
+
+
+newdef	: defined(aiws)
+comment : RT running IBM aix2.x
+vendor	:						: "ibm"
+hosttype:						: "rtpc"
+ostype	:						: "aix"
+machtype:						: "ibm032"
+enddef	:
+
+
+newdef	: defined(_AIX370)
+comment : IBM/370 running aix
+vendor	:						: "ibm"
+hosttype:						: "aix370"
+ostype	:						: "aix"
+machtype:						: "ibm370"
+enddef	:
+
+
+newdef	: defined(_IBMESA)
+comment : IBM/ESA running aix
+vendor	:						: "ibm"
+hosttype:						: "aixESA"
+ostype	:						: "aix"
+machtype:						: "esa"
+enddef	:
+
+
+newdef	: defined(_IBMR2)
+comment : IBM/RS6000 running aix
+vendor	:						: "ibm"
+hosttype:						: "rs6000"
+ostype	:						: "aix"
+machtype:						: "rs6000"
+enddef	:
+
+
+newdef	: defined(_AIXPS2)
+comment : IBM/PS2 running aix
+vendor	:						: "ibm"
+hosttype:						: "ps2"
+ostype	:						: "aix"
+machtype:						: "i386"
+enddef	:
+
+
+newdef	: defined(OREO)
+comment : Macintosh running AU/X
+vendor	:						: "apple"
+hosttype:						: "mac2"
+ostype	:						: "aux"
+machtype: defined(mc68020)				: "m68k"
+enddef	:
+
+
+newdef	: defined(u3b20d)
+comment : AT&T 3B/20 series running SVR2/3 
+vendor	:						: "att"
+hosttype:						: "att3b20"
+machtype:						: "u3b20"
+enddef	:
+
+
+newdef	: defined(u3b15)
+comment : AT&T 3B/15 series running SVR2/3 
+vendor	:						: "att"
+hosttype:						: "att3b15"
+machtype:						: "u3b15"
+enddef	:
+
+
+newdef	: defined(u3b5)
+comment : AT&T 3B/5 series running SVR2/3 
+vendor	:						: "att"
+hosttype:						: "att3b5"
+machtype:						: "u3b5"
+enddef	:
+
+
+newdef	: defined(u3b2)
+comment : AT&T 3B/2 series running SVR2/3 
+vendor	:						: "att"
+hosttype:						: "att3b2"
+machtype:						: "u3b2"
+enddef	:
+
+
+newdef	: defined(UNIXPC)
+comment : AT&T UnixPC att3b1/att7300
+vendor	:						: "att"
+hosttype:						: "unixpc"
+machtype: defined(u3b1)					: "u3b1"
+machtype: defined(att7300)				: "att7300"
+enddef	:
+
+
+newdef	: defined(_MINIX)
+comment : Andy Tanenbaum's minix
+vendor	: defined(M_i386)				: "intel"
+hosttype: defined(M_i386)				: "minix386"
+hosttype:						: "minix"
+ostype	:						: "minix"
+machtype: defined(M_i386)				: "i386"
+enddef	:
+
+
+newdef	: defined(gnu_hurd)
+comment : GNU/HURD
+vendor	: defined(M_intel)				: "intel"
+hosttype: defined(M_i686)				: "i686"
+hosttype: defined(M_i586)				: "i586"
+hosttype: defined(M_i486)				: "i486"
+hosttype: defined(M_i386)				: "i386"
+ostype	:						: "gnu"
+machtype: defined(M_i686)				: "i686-pc-gnu"
+machtype: defined(M_i586)				: "i586-pc-gnu"
+machtype: defined(M_i486)				: "i486-pc-gnu"
+machtype: defined(M_i386)				: "i386-pc-gnu"
+enddef	:
+
+
+newdef	: defined(linux) || defined(GNU) || defined(GLIBC)
+comment : Linus Torvalds's linux
+vendor	: defined(M_intel)				: "intel"
+hosttype:						: gethost()
+ostype	:						: getostype()
+machtype:						: getmach()
+vendor	: defined(ANDROID)				: "linux"
+vendor	: defined(alpha)				: "dec"
+vendor	: defined(PPC)					: "apple"
+enddef	:
+
+
+newdef	: defined(EMX)
+comment : OS/2 EMX [unix emulation under OS/2]
+vendor	: defined(M_intel)				: "intel"
+hosttype: defined(M_i386)				: "i386-emx"
+ostype	:						: "os2"
+machtype: defined(M_i386)				: "i386"
+enddef	:
+
+
+newdef	: defined(NetBSD) 
+comment : NetBSD
+vendor	: defined(algor)				: "algoritmics"
+vendor	: defined(arm32) || defined(arm)		: "acorn"
+vendor	: defined(alpha)				: "digital"
+vendor	: defined(amiga)				: "commodore"
+vendor	: defined(atari)				: "atari"
+vendor	: defined(hp300)				: "hp"
+vendor	: defined(M_intel)				: "intel"
+vendor	: defined(m68k)					: "motorola"
+vendor	: defined(mac68k)				: "apple"
+vendor	: defined(pc532)				: "national-semi"
+vendor	: defined(pmax)					: "dec"
+vendor	: defined(powerpc)				: "motorola"
+vendor	: defined(mips)					: "mips"
+vendor	: defined(sparc)				: "sun"
+vendor	: defined(sparc64)				: "sun"
+vendor	: defined(sun3)					: "sun"
+vendor	: defined(vax)					: "digital"
+vendor	: defined(M_amd64)				: "amd"
+hosttype:						: "NetBSD"
+ostype	:						: "NetBSD"
+machtype: defined(alpha)				: "alpha"
+machtype: defined(algor)				: "algor"
+machtype: defined(arm32) || defined(APCS_32)		: "arm32"
+machtype: defined(arm26) || defined(APCS_26)		: "arm26"
+machtype: defined(arm)					: "arm"
+machtype: defined(sparc)				: "sparc"
+machtype: defined(sparc64)				: "sparc64"
+machtype: defined(mc68020)				: "m68k"
+machtype: defined(M_i386)				: "i386"
+machtype: defined(M_mipsel)				: "mipsel"
+machtype: defined(M_mipseb)				: "mipseb"
+machtype: defined(mips)					: "mips"
+machtype: defined(pc532)				: "pc532"
+machtype: defined(powerpc)				: "powerpc"
+machtype: defined(vax)					: "vax"
+machtype: defined(M_amd64)				: "x86_64"
+enddef	:
+
+newdef : defined(OpenBSD)
+comment        : OpenBSD
+vendor : defined(alpha)					: "digital"
+vendor : defined(M_amd64)				: "amd"
+vendor : defined(arm)					: "arm"
+vendor : defined(hppa) || defined(hppa64)		: "hp"
+vendor : defined(M_intel)				: "intel"
+vendor : defined(m68k)					: "motorola"
+vendor : defined(m88k)					: "motorola"
+vendor : defined(mips) && defined(sgi)			: "sgi"
+vendor : defined(powerpc)				: "motorola"
+vendor : defined(sh)					: "io-data"
+vendor : defined(sparc) || defined(sparc64)		: "sun"
+vendor : defined(vax)					: "digital"
+hosttype:						: "OpenBSD"
+ostype :						: "OpenBSD"
+machtype: defined(alpha)				: "alpha"
+machtype: defined(M_amd64)				: "amd64"
+machtype: defined(arm)					: "arm"
+machtype: defined(hppa)					: "hppa"
+machtype: defined(hppa64)				: "hppa64"
+machtype: defined(M_i386)				: "i386"
+machtype: defined(m68k)					: "m68k"
+machtype: defined(m88k)					: "m88k"
+machtype: defined(mips)					: "mips"
+machtype: defined(sh)					: "sh"
+machtype: defined(sparc64)				: "sparc64"
+machtype: defined(sparc)				: "sparc"
+machtype: defined(powerpc)				: "powerpc"
+machtype: defined(vax)					: "vax"
+enddef :
+
+
+newdef	: defined(FreeBSD) 
+comment : FreeBSD
+vendor	: defined(alpha)				: "digital"
+vendor	: defined(arm32) || defined(arm)		: "acorn"
+vendor	: defined(M_intel)				: "intel"
+vendor	: defined(ia64)					: "intel"
+vendor	: defined(mips)					: "mips"
+vendor	: defined(powerpc)				: "motorola"
+vendor	: defined(sparc)				: "sun"
+vendor	: defined(sparc64)				: "sun"
+vendor	: defined(M_amd64)				: "amd"
+hosttype:						: "FreeBSD"
+ostype	:						: "FreeBSD"
+machtype: defined(alpha)				: "alpha"
+machtype: defined(arm32) || defined(APCS_32)		: "arm32"
+machtype: defined(arm)					: "arm"
+machtype: defined(ia64)					: "ia64"
+machtype: defined(M_i386)				: "i386"
+machtype: defined(mips)					: "mips"
+machtype: defined(powerpc)				: "powerpc"
+machtype: defined(sparc)				: "sparc"
+machtype: defined(sparc64)				: "sparc64"
+machtype: defined(M_amd64)				: "x86_64"
+enddef	:
+
+
+newdef	: defined(MidnightBSD)
+comment : MidnightBSD
+vendor	: defined(M_intel)				: "intel"
+hosttype:						: "MidnightBSD"
+ostype	:						: "MidnightBSD"
+machtype: defined(M_i386)				: "i386"
+enddef	:
+
+
+newdef	: defined(__386BSD__)
+comment : Bill Jolitz's 386BSD
+vendor	: defined(M_intel)				: "intel"
+hosttype:						: "386BSD"
+ostype	:						: "386BSD"
+machtype:						: "i386"
+enddef	:
+
+
+newdef	: defined(bsdi)
+comment : BSDI's unix
+vendor	: defined(M_intel)				: "intel"
+vendor	: defined(sparc)				: "sun"
+vendor	: defined(powerpc)				: "motorola"
+hosttype: defined(M_intel)				: "bsd386"
+hosttype: defined(sparc)				: "bsd-sparc"
+hosttype: defined(powerpc)				: "bsd-powerpc"
+ostype	:						: "bsdi"
+machtype: defined(M_i386)				: "i386"
+machtype: defined(sparc)				: "sparc"
+machtype: defined(powerpc)				: "powerpc"
+enddef	:
+
+
+newdef	: defined(COHERENT)
+comment : COHERENT's unix
+vendor	: defined(_I386)				: "intel"
+hosttype:						: "coh386"
+hosttype:						: "coherent"
+ostype	:						: "coherent"
+machtype: defined(_I386)				: "i386"
+enddef	:
+
+newdef	: defined(concurrent)
+comment : Concurrent PowerHawk
+vendor	:						: "concurrent"
+hosttype:						: "powerhawk"
+ostype	:						: "powermax_os"
+machtype:						: "powerhawk"
+enddef	:
+
+newdef	: defined(SCO)
+comment : SCO UNIX System V/386 Release 3.2
+vendor	:						: "sco"
+hosttype:						: "sco386"
+ostype	:						: "sco_unix"
+machtype:						: "i386"
+enddef	:
+
+newdef	: defined(M_XENIX) && !defined(M_UNIX)
+comment : SCO XENIX
+vendor	:						: "sco"
+hosttype:						: "sco_xenix"
+ostype	:						: "sco_xenix"
+machtype: defined(M_I386)				: "i386"
+machtype: defined(M_I286)				: "i286"
+enddef	:
+
+
+newdef	: defined(ISC) || defined(ISC202)
+comment : Interactive Unix
+vendor	:						: "isc"
+hosttype:						: "isc386"
+ostype	: defined(POSIX)				: "POSIX"
+ostype	:						: "SVR3"
+machtype: defined(M_i386)				: "i386"
+enddef	:
+
+
+newdef	: defined(INTEL)
+comment : Intel Unix
+vendor	:						: "intel"
+hosttype:						: "intel386"
+ostype	:						: "intel_unix"
+machtype: defined(M_i386)				: "i386"
+enddef	:
+
+
+newdef	: defined(MACH)
+comment : cmu's mach
+vendor	:						: "cmu"
+hosttype: defined(M_i386)				: "i386-mach"
+ostype	:						: "mach"
+machtype: defined(M_i386)				: "i386"
+enddef	:
+
+
+newdef	: defined(alliant)
+comment : Alliants FSX
+vendor	:						: "alliant"
+hosttype: defined(mc68000)				: "alliant-fx80"
+hosttype: defined(i860)					: "alliant-fx2800"
+hosttype:						: "alliant"
+ostype	:						: "fsx"
+machtype: defined(mc68000)				: "mc68000"
+machtype: defined(i860)					: "i860"
+enddef	:
+
+
+newdef	: defined(_FTX)
+comment : Stratus Computer, Inc FTX2 (i860 based)
+comment : Stratus Computer, Inc FTX3 (HPPA based)
+vendor	:						: "stratus"
+hosttype: defined(i860) && defined(_FTX)		: "atlantic"
+hosttype: defined(hppa) && defined(_FTX)		: "continuum"
+ostype	: defined(i860) && defined(_FTX)		: "ftx2"
+ostype	: defined(hppa) && defined(_FTX)		: "ftx3"
+machtype: defined(i860)					: "i860"
+machtype: defined(hppa)					: "hppa"
+enddef	:
+
+
+newdef	: defined(sequent) || defined(_SEQUENT_)
+comment : Sequent Balance (32000 based)
+comment : Sequent Symmetry running DYNIX/ptx (386/486 based)
+comment : Sequent Symmetry running DYNIX 3 (386/486 based)
+vendor	:						: "sequent"
+hosttype: defined(M_i386) && defined(sequent)		: "symmetry"
+hosttype: defined(M_i386)				: "ptx"
+hosttype:						: "balance"
+ostype	: defined(M_i386) && !defined(sequent)		: "ptx"
+ostype	:						: "dynix3"
+machtype: defined(M_i386)				: "i386"
+machtype: defined(ns32000)				: "ns32000"
+enddef	:
+
+
+newdef	: defined(ns32000)
+comment : Encore Computer Corp. Multimax (32000 based)
+vendor	:						: "encore"
+hosttype: defined(CMUCS)				: "multimax"
+hosttype:						: isamultimax(0)
+ostype	: defined(CMUCS)				: "mach"
+ostype	:						: isamultimax(1)
+machtype:						: "ns32000"
+enddef	:
+
+
+newdef	: defined(iconuxv)
+comment : Icon 88k running Unix
+vendor	:						: "icon"
+hosttype:						: "icon"
+ostype	:						: "iconuxv"
+machtype: defined(m88k)					: "m88k"
+enddef	:
+
+
+newdef	: defined(_CRAY) && defined(_CRAYCOM)
+comment : Cray Computer Corp. running CSOS
+vendor	:						: "ccc"
+hosttype: defined(_CRAY2)				: "cray"
+hosttype: defined(_CRAY3)				: "cray"
+hosttype: defined(_CRAY4)				: "cray"
+ostype	:						: "CSOS"
+machtype: defined(_CRAY2)				: "cray2"
+machtype: defined(_CRAY3)				: "cray3"
+machtype: defined(_CRAY4)				: "cray4"
+enddef	:
+
+
+newdef	: defined(cray) && !defined(_CRAYMPP)
+comment : Cray Research Inc. PVP running UNICOS
+vendor	:						: "cri"
+hosttype:						: getcray()
+ostype	:						: "unicos"
+machtype:						: getcray()
+enddef	:
+
+
+newdef	: defined(cray) && defined(_CRAYT3D)
+comment : Cray Research Inc. running UNICOS MAX
+vendor	:						: "cri"
+hosttype:						: getcray()
+ostype	:						: "unicosmax"
+machtype:						: getcray()
+enddef	:
+
+
+newdef	: defined(cray) && defined(_CRAYT3E)
+comment : Cray Research Inc. running UNICOS/mk
+vendor	:						: "cri"
+hosttype:						: getcray()
+ostype	:						: "unicosmk"
+machtype:						: getcray()
+enddef	:
+
+
+newdef	: defined(convex)
+comment : Convex
+vendor	:						: "convex"
+hosttype:						: "convex"
+ostype	:						: "convexos"
+machtype:						: getconvex()
+enddef	:
+
+
+newdef	: defined(butterfly)
+comment : BBN Butterfly 1000
+vendor	:						: "bbn"
+hosttype:						: "butterfly"
+machtype: defined(mc68020)				: "m68k"
+enddef	:
+
+
+newdef	: defined(NeXT)
+comment : NeXTStep
+vendor	:						: "next"
+hosttype: defined(mc68020)				: "next"
+hosttype: defined(M_i386) 				: "intel-pc"
+hosttype: defined(hppa)	  				: "hp"
+hosttype: defined(sparc)  				: "sun"
+ostype	:						: "nextstep"
+machtype: defined(mc68020)				: "m68k"
+machtype: defined(M_i386) 				: "i386"
+machtype: defined(hppa)	  				: "hppa"
+machtype: defined(sparc)  				: "sparc"
+enddef	:
+
+
+newdef	: defined(APPLE) && defined(MACH)
+comment : OS X
+vendor	:						: "apple"
+hosttype: defined(i386)					: "intel-pc"
+hosttype: defined(ppc)					: "powermac"
+hosttype: defined(M_amd64)				: "amd"
+ostype	:						: "darwin"
+machtype: defined(i386)					: "i386"
+machtype: defined(M_amd64)				: "x86_64"
+machtype: defined(ppc)					: "powerpc"
+enddef	:
+
+
+newdef	: defined(sony_news)
+comment : Sony NEWS 800 or 1700 workstation
+vendor	:						: "sony"
+hosttype: defined(mips)					: "news_mips"
+hosttype: defined(mc68020)				: "news_m68k"
+ostype	:						: "News"
+machtype: defined(mc68020)				: "m68k"
+machtype: defined(M_mipsel)				: "mipsel"
+machtype: defined(M_mipseb)				: "mipseb"
+enddef	:
+
+
+newdef	: defined(sgi)
+comment : Silicon Graphics
+vendor	:						: "sgi"
+hosttype: defined(M_mipsel)				: "iris4d"
+hosttype: defined(M_mipseb)				: "iris4d"
+hosttype: defined(mc68000)				: "iris3d"
+ostype	:						: "irix"
+machtype: defined(M_mipsel)				: "mipsel"
+machtype: defined(M_mipseb)				: "mipseb"
+machtype: defined(mc68000)				: "mc68000"
+enddef	:
+
+
+newdef	: defined(ultrix)
+comment : Digital's Ultrix 
+vendor	:						: "dec"
+hosttype: defined(M_mipsel)				: "decstation"
+hosttype: defined(M_mipseb)				: "decmips"
+hosttype: defined(vax)					: "vax"
+ostype	:						: "ultrix"
+machtype: defined(M_mipsel)				: "mipsel"
+machtype: defined(M_mipseb)				: "mipseb"
+machtype: defined(vax)					: "vax"
+enddef	:
+
+
+newdef	: defined(MIPS)
+comment : Mips OS
+vendor	:						: "mips"
+hosttype: defined(M_mipsel)				: "mips"
+hosttype: defined(M_mipseb)				: "mips"
+ostype	:						: "mips"
+machtype: defined(M_mipsel)				: "mipsel"
+machtype: defined(M_mipseb)				: "mipseb"
+enddef	:
+
+
+newdef	: defined(DECOSF1)
+comment : Digital's alpha running osf1
+vendor	:						: "dec"
+ostype	:						: "osf1"
+hosttype: defined(alpha)				: "alpha"
+machtype: defined(alpha)				: "alpha"
+enddef	:
+
+
+newdef	: defined(Lynx)
+comment : Lynx OS 2.1
+vendor	:						: "Lynx"
+hosttype: defined(M_mipsel)				: "lynxos-mips"
+hosttype: defined(M_mipseb)				: "lynxos-mips"
+hosttype: defined(M_i386)				: "lynxos-i386"
+hosttype: defined(i860)					: "lynxos-i860"
+hosttype: defined(m68k)					: "lynxos-m68k"
+hosttype: defined(m88k)					: "lynxos-m88k"
+hosttype: defined(sparc)				: "lynxos-sparc"
+hosttype:						: "lynxos-unknown"
+ostype	:						: "LynxOS"
+machtype: defined(M_mipsel)				: "mipsel"
+machtype: defined(M_mipseb)				: "mipseb"
+machtype: defined(M_i386)				: "i386"
+machtype: defined(i860)					: "i860"
+machtype: defined(m68k)					: "m68k"
+machtype: defined(m88k)					: "m88k"
+machtype: defined(sparc)				: "sparc"
+enddef	:
+
+
+newdef	: defined(masscomp)
+comment : Masscomp
+vendor	:						: "masscomp"
+hosttype:						: "masscomp"
+ostype	:						: "masscomp"
+enddef	:
+
+newdef	: defined(MACHTEN)
+comment : Machintosh
+vendor	:						: "Tenon"
+hosttype:						: "Macintosh"
+ostype	:						: "MachTen"
+machtype:						: "Macintosh"
+enddef	:
+
+
+
+newdef	: defined(GOULD_NP1)
+comment : Gould
+vendor	:						: "gould"
+hosttype:						: "gould_np1"
+machtype:						: "gould"
+enddef	:
+
+
+newdef	: defined(MULTIFLOW)
+comment : Multiflow running 4.3BSD
+vendor	:						: "multiflow"
+hosttype:						: "multiflow"
+machtype:						: "multiflow"
+ostype	:						: "bsd43"
+enddef	:
+
+
+newdef	: defined(SXA)
+comment : PFU/Fujitsu A-xx computer
+vendor	:						: "sxa"
+hosttype:						: "pfa50"
+ostype	: defined(_BSDX_)				: "e60-bsdx"
+ostype	:						: "e60"
+machtype:						: "pfa50"
+enddef	:
+
+
+newdef	: defined(titan)
+comment : (St)Ardent Titan
+vendor	:						: "ardent"
+hosttype:						: "titan"
+enddef	:
+
+
+newdef	: defined(stellar)
+comment : Stellar
+vendor	:						: "stellar"
+hosttype:						: "stellar"
+ostype	:						: "stellix"
+enddef	:
+
+
+newdef	: defined(atari)
+comment : Atari TT running SVR4. This machine was never
+comment : commercially available.
+vendor	:						: "atari"
+hosttype:						: "atari"
+ostype	:						: "asv"
+enddef	:
+
+
+newdef	: defined(OPUS)
+comment : ???
+vendor	:						: "opus"
+hosttype:						: "opus"
+enddef	:
+
+
+newdef	: defined(eta10)
+comment : ETA running SVR3
+vendor	:						: "eta"
+hosttype:						: "eta10"
+enddef	:
+
+
+newdef	: defined(hk68)
+comment : Heurikon HK68 running Uniplus+ 5.0
+vendor	:						: "heurikon"
+hosttype:						: "hk68"
+ostype	:						: "uniplus"
+enddef	:
+
+
+newdef	: defined(NDIX)
+comment : Norsk Data ND 500/5000 running Ndix
+vendor	:						: "norsk"
+hosttype:						: "nd500"
+ostype	:						: "ndix"
+enddef	:
+
+
+newdef	: defined(AMIGA)
+comment : Amiga running AmigaOS+GG
+vendor	:						: "commodore"
+hosttype:						: "amiga"
+ostype	:						: "AmigaOS"
+machtype:						: "m68k"
+enddef	:
+
+
+newdef	: defined(uts)
+comment : Amdahl running uts 2.1
+vendor	:						: "amdahl"
+hosttype:						: "amdahl"
+ostype	:						: "uts"
+machtype:						: "amdahl"
+enddef	:
+
+
+newdef	: defined(UTek)
+comment : Tektronix 4300 running UTek (BSD 4.2 / 68020 based)
+vendor	:						: "tektronix"
+hosttype:						: "tek4300"
+enddef	:
+
+
+newdef	: defined(UTekV)
+comment : Tektronix XD88/10 running UTekV 3.2e (SVR3/88100 based)
+vendor	:						: "tektronix"
+hosttype:						: "tekXD88"
+enddef	:
+
+
+newdef	: defined(DGUX)
+comment : Data-General AViiON running DGUX
+hosttype:						: "aviion"
+ostype	:						: "dgux"
+vendor	:						: "dg"
+machtype: defined(m88k)					: "m88k"
+machtype: defined(i386)					: "pentium"
+enddef	:
+
+
+newdef	: defined(sysV68)
+comment : Motorola MPC running System V/68 R32V2 (SVR3/68020 based)
+vendor	:						: "motorola"
+hosttype:						: "sysV68"
+machtype:						: "m68k"
+enddef	:
+
+
+newdef	: defined(supermax)
+comment : DDE Supermax running System V/68 R3 (SVR3/68020 based)
+vendor	:						: "supermax"
+hosttype:						: "supermax"
+machtype:						: "m68k"
+enddef	:
+
+
+newdef	: defined(sysV88)
+comment : Motorola MPC running System V/88 R32V2 (SVR3/88100 based)
+vendor	:						: "motorola"
+hosttype:						: "sysV88"
+machtype:						: "m88k"
+enddef	:
+
+
+newdef	: defined(clipper)
+comment : Clipper Chipset (Intergraph)
+vendor	:						: "intergraph"
+hosttype:						: "clipper"
+machtype:						: "clipper"
+enddef	:
+
+newdef : defined(QNX)
+ostype :						: "qnx"
+enddef :
+
+newdef	: (defined(SNI) || defined(sinix)) && !defined(_OSD_POSIX)
+comment : Fujitsu Siemens Computers (former "Siemens Nixdorf Informationssysteme"): SINIX aka. ReliantUNIX, a SVR4 derivative
+vendor	:						: "fsc"
+hosttype: defined(M_intel)				: "wx200i"
+hosttype: defined(MIPSEB)				: "rm400"
+ostype	: defined(sinix)				: "sinix"
+machtype: defined(M_i586)				: "i586"
+machtype: defined(M_i486)				: "i486"
+machtype: defined(M_i386)				: "i386"
+machtype: defined(M_mipsel)				: "mipsel"
+machtype: defined(M_mipseb)				: "mipseb"
+machtype:						: "mips"
+enddef	:
+
+newdef	: defined(_OSD_POSIX)
+comment : Fujitsu Siemens Computers (former "Siemens Nixdorf Informationssysteme"): BS2000 POSIX (mainframe, EBCDIC)
+vendor	:						: "fsc"
+hosttype:						: "bs2000"
+ostype	:						: "osdposix"
+machtype: #machine(7500)				: "s390"
+machtype: #machine(mips)				: "mips"
+machtype: #machine(sparc)				: "sparc"
+machtype:						: "bs2000"
+enddef	:
+
+newdef	: defined(MVS)
+comment : ibm uss s/390 (mainframe, EBCDIC)
+vendor	:						: "ibm"
+hosttype:						: "s390"
+ostype	:						: "os390"
+machtype:						: "s390"
+enddef	:
+
+newdef	: defined(_SX)
+comment : NEC Corporation (SX-4)
+vendor	:						: "nec"
+ostype	:						: "superux"
+hosttype:						: "sx4"
+machtype:						: "sx4"
+enddef	:
+
+newdef	: !defined(SOLARIS2) && (SYSVREL == 4)
+comment : Unix System V Release 4.0
+vendor	: defined(DELL)					: "dell"
+hosttype: defined(M_i386)				: "i386"
+ostype	:						: "svr4"
+machtype: defined(M_i386)				: "i386"
+enddef	:
+
+newdef	: defined(uxp) || defined(uxps)
+comment : FUJITSU DS/90 7000
+vendor	:						: "fujitsu"
+hosttype:						: "ds90"
+ostype	:						: "sysv4"
+machtype:						: "sparc"
+enddef	:
+
+newdef	: defined(CYGWIN)
+comment : Cygwin
+vendor	: defined(M_intel)				: "intel"
+hosttype:						: gethost()
+ostype	:						: getostype()
+machtype:						: getmach()
+enddef	:
+
+newdef	: defined(_UWIN)
+comment : AT&T Research Unix for Windows
+vendor	:						: "att"
+hosttype:						: "win32.i386"
+machtype:						: "i386"
+enddef	:
+
+
+newdef	: defined(mc68000) || defined(mc68k32) || defined(m68k) || defined(mc68010) || defined(mc68020)
+hosttype:						: "m68k"
+vendor	: defined(m68k)					: "motorola"
+machtype:						: "m68k"
+enddef	:
+
+
+newdef	: defined(m88k)
+hosttype:						: "m88k"
+machtype:						: "m88k"
+enddef	:
+
+
+newdef	: defined(M_intel)
+hosttype: defined(M_i586)				: "i586"
+hosttype: defined(M_i486)				: "i486"
+hosttype: defined(M_i386)				: "i386"
+vendor	:						: "intel"
+machtype: defined(M_i586)				: "i586"
+machtype: defined(M_i486)				: "i486"
+machtype: defined(M_i386)				: "i386"
+enddef	:
+
+
+newdef	: defined(sparc)
+hosttype:						: "sparc"
+machtype:						: "sparc"
+enddef	:
+
+
+newdef	: defined(i860)
+hosttype:						: "i860"
+machtype:						: "i860"
+enddef	:
+
+
+newdef	: defined(osf1)
+ostype	:						: "osf1"
+enddef	:
+
+
+newdef	: SYSVREL == 0
+ostype	: defined(BSD4_4)				: "bsd44"
+ostype	: defined(BSD)					: "bsd"
+ostype	: defined(POSIX)				: "posix"
+enddef	:
+
+
+newdef	: SYSVREL == 1
+ostype	:						: "svr1"
+enddef	:
+
+
+newdef	: SYSVREL == 2
+ostype	:						: "svr2"
+enddef	:
+
+
+newdef	: SYSVREL == 3
+ostype	:						: "svr3"
+enddef	:
+
+
+newdef	: SYSVREL == 4
+ostype	:						: "svr4"
+enddef	:
+
+
+newcode :
+#ifndef _hosttype_
+    hosttype = "unknown";
+#endif
+#ifndef _ostype_
+    ostype = "unknown";
+#endif
+#ifndef _vendor_
+    vendor = "unknown";
+#endif
+#ifndef _machtype_
+    machtype = "unknown";
+#endif
+    tsetenv(STRHOSTTYPE, str2short(hosttype));
+    tsetenv(STRVENDOR,	 str2short(vendor));
+    tsetenv(STROSTYPE,	 str2short(ostype));
+    tsetenv(STRMACHTYPE, str2short(machtype));
+} /* end setmachine */
+endcode :

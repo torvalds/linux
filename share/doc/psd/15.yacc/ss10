@@ -1,0 +1,221 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	@(#)ssA	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+10: Advanced Topics
+.PP
+This section discusses a number of advanced features
+of Yacc.
+.SH
+Simulating Error and Accept in Actions
+.PP
+The parsing actions of error and accept can be simulated
+in an action by use of macros YYACCEPT and YYERROR.
+YYACCEPT causes
+.I yyparse
+to return the value 0;
+YYERROR causes
+the parser to behave as if the current input symbol
+had been a syntax error;
+.I yyerror
+is called, and error recovery takes place.
+These mechanisms can be used to simulate parsers
+with multiple endmarkers or context-sensitive syntax checking.
+.SH
+Accessing Values in Enclosing Rules.
+.PP
+An action may refer to values
+returned by actions to the left of the current rule.
+The mechanism is simply the same as with ordinary actions,
+a dollar sign followed by a digit, but in this case the
+digit may be 0 or negative.
+Consider
+.DS
+sent	:	adj  noun  verb  adj  noun
+			{  \fIlook at the sentence\fR . . .  }
+	;
+
+adj	:	THE		{	$$ = THE;  }
+	|	YOUNG	{	$$ = YOUNG;  }
+	. . .
+	;
+
+noun	:	DOG
+			{	$$ = DOG;  }
+	|	CRONE
+			{	if( $0 == YOUNG ){
+					printf( "what?\en" );
+					}
+				$$ = CRONE;
+				}
+	;
+	. . .
+.DE
+In the action following the word CRONE, a check is made that the
+preceding token shifted was not YOUNG.
+Obviously, this is only possible when a great deal is known about
+what might precede the symbol
+.I noun
+in the input.
+There is also a distinctly unstructured flavor about this.
+Nevertheless, at times this mechanism will save a great
+deal of trouble, especially when a few combinations are to
+be excluded from an otherwise regular structure.
+.SH
+Support for Arbitrary Value Types
+.PP
+By default, the values returned by actions and the lexical analyzer are integers.
+Yacc can also support
+values of other types, including structures.
+In addition, Yacc keeps track of the types, and inserts
+appropriate union member names so that the resulting parser will
+be strictly type checked.
+The Yacc value stack (see Section 4)
+is declared to be a
+.I union
+of the various types of values desired.
+The user declares the union, and associates union member names
+to each token and nonterminal symbol having a value.
+When the value is referenced through a $$ or $n construction,
+Yacc will automatically insert the appropriate union name, so that
+no unwanted conversions will take place.
+In addition, type checking commands such as
+.I Lint\|
+.[
+Johnson Lint Checker 1273
+.]
+will be far more silent.
+.PP
+There are three mechanisms used to provide for this typing.
+First, there is a way of defining the union; this must be
+done by the user since other programs, notably the lexical analyzer,
+must know about the union member names.
+Second, there is a way of associating a union member name with tokens
+and nonterminals.
+Finally, there is a mechanism for describing the type of those
+few values where Yacc can not easily determine the type.
+.PP
+To declare the union, the user includes in the declaration section:
+.DS
+%union  {
+	body of union ...
+	}
+.DE
+This declares the Yacc value stack,
+and the external variables
+.I yylval
+and
+.I yyval ,
+to have type equal to this union.
+If Yacc was invoked with the
+.B \-d
+option, the union declaration
+is copied onto the
+.I y.tab.h
+file.
+Alternatively,
+the union may be declared in a header file, and a typedef
+used to define the variable YYSTYPE to represent
+this union.
+Thus, the header file might also have said:
+.DS
+typedef union {
+	body of union ...
+	} YYSTYPE;
+.DE
+The header file must be included in the declarations
+section, by use of %{ and %}.
+.PP
+Once YYSTYPE is defined,
+the union member names must be associated
+with the various terminal and nonterminal names.
+The construction
+.DS
+< name >
+.DE
+is used to indicate a union member name.
+If this follows
+one of the
+keywords %token,
+%left, %right, and %nonassoc,
+the union member name is associated with the tokens listed.
+Thus, saying
+.DS
+%left  <optype>  \'+\'  \'\-\'
+.DE
+will cause any reference to values returned by these two tokens to be
+tagged with
+the union member name
+.I optype .
+Another keyword, %type, is
+used similarly to associate
+union member names with nonterminals.
+Thus, one might say
+.DS
+%type  <nodetype>  expr  stat
+.DE
+.PP
+There remain a couple of cases where these mechanisms are insufficient.
+If there is an action within a rule, the value returned
+by this action has no
+.I "a priori"
+type.
+Similarly, reference to left context values (such as $0 \- see the
+previous subsection ) leaves Yacc with no easy way of knowing the type.
+In this case, a type can be imposed on the reference by inserting
+a union member name, between < and >, immediately after
+the first $.
+An example of this usage is
+.DS
+rule	:	aaa  {  $<intval>$  =  3;  } bbb
+			{	fun( $<intval>2, $<other>0 );  }
+	;
+.DE
+This syntax has little to recommend it, but the situation arises rarely.
+.PP
+A sample specification is given in Appendix C.
+The facilities in this subsection are not triggered until they are used:
+in particular, the use of %type will turn on these mechanisms.
+When they are used, there is a fairly strict level of checking.
+For example, use of $n or $$ to refer to something with no defined type
+is diagnosed.
+If these facilities are not triggered, the Yacc value stack is used to
+hold
+.I int' s,
+as was true historically.

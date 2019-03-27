@@ -1,0 +1,72 @@
+.\"-
+.\" Copyright (c) 2003 Sam Leffler, Errno Consulting
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 11, 2003
+.Dt RNDTEST 4
+.Os
+.Sh NAME
+.Nm rndtest
+.Nd FIPS 140-2 random number generator test monitor
+.Sh SYNOPSIS
+.Cd "device rndtest"
+.Sh DESCRIPTION
+The
+.Nm
+driver
+.Dq "hooks up"
+to hardware crypto devices to monitor the
+entropy data passed to the
+.Xr random 4
+subsystem.
+This data is periodically tested for FIPS 140-2 compliance and
+statistics are collected.
+If the harvested entropy fails any of the FIPS test suite, then
+it is discarded and testing is continuously applied until
+.Dq "good data"
+is received from the device.
+Failures are optionally reported on the console.
+.Sh SEE ALSO
+.Xr crypto 4 ,
+.Xr hifn 4 ,
+.Xr random 4 ,
+.Xr safe 4 ,
+.Xr ubsec 4 ,
+.Xr crypto 9
+.Sh HISTORY
+The idea for this and the original code came from
+.An "Jason L. Wright" .
+The
+.Nm
+device driver first appeared in
+.Fx 5.0 .
+.Sh BUGS
+Crypto device drivers must be compiled specially to make use of this driver;
+this should not be necessary.
+This feature might better be integrated into the
+.Xr random 4
+subsystem where it can be applied to devices that claim to supply
+.Dq "pure entropy" .

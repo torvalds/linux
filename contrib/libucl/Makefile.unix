@@ -1,0 +1,89 @@
+CC ?= gcc
+DESTDIR ?= /usr/local
+LD ?= gcc
+C_COMMON_FLAGS ?= -fPIC -Wall -W -Wno-unused-parameter -Wno-pointer-sign -I./include -I./uthash -I./src -I./klib
+MAJOR_VERSION = 0
+MINOR_VERSION = 2
+PATCH_VERSION = 9
+VERSION = "$(MAJOR_VERSION).$(MINOR_VERSION).$(PATCH_VERSION)"
+SONAME = libucl.so
+SONAME_FULL = $(SONAME).$(MAJOR_VERSION)
+OBJDIR ?= .obj
+TESTDIR ?= tests
+SRCDIR ?= src
+INCLUDEDIR ?= include
+MKDIR ?= mkdir
+INSTALL ?= install
+RM ?= rm
+RMDIR ?= rmdir
+LN ?= ln
+LD_SHARED_FLAGS ?= -Wl,-soname,$(SONAME) -shared -lm
+LD_UCL_FLAGS ?= -L$(OBJDIR) -Wl,-rpath,$(OBJDIR) -lucl
+LD_ADD ?= -lrt
+COPT_FLAGS ?= -O2
+HDEPS = $(SRCDIR)/ucl_hash.h \
+		$(SRCDIR)/ucl_chartable.h \
+		$(SRCDIR)/ucl_internal.h \
+		$(INCLUDEDIR)/ucl.h \
+		$(SRCDIR)/mum.h
+OBJECTS = $(OBJDIR)/ucl_hash.o \
+		$(OBJDIR)/ucl_util.o \
+		$(OBJDIR)/ucl_parser.o \
+		$(OBJDIR)/ucl_emitter.o \
+		$(OBJDIR)/ucl_schema.o
+
+all: $(OBJDIR) $(OBJDIR)/$(SONAME)
+
+$(OBJDIR)/$(SONAME): $(OBJDIR)/$(SONAME_FULL)
+	$(LN) -sf $(SONAME_FULL) $(OBJDIR)/$(SONAME)
+
+$(OBJDIR)/$(SONAME_FULL): $(OBJECTS)
+	$(CC) -o $(OBJDIR)/$(SONAME_FULL) $(OBJECTS) $(LD_SHARED_FLAGS) $(LDFLAGS) $(SSL_LIBS) $(FETCH_LIBS)
+
+$(OBJDIR):
+	@$(MKDIR) -p $(OBJDIR)
+
+# Compile rules
+$(OBJDIR)/ucl_util.o: $(SRCDIR)/ucl_util.c $(HDEPS)
+	$(CC) -o $(OBJDIR)/ucl_util.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_util.c
+$(OBJDIR)/ucl_parser.o: $(SRCDIR)/ucl_parser.c $(HDEPS)
+	$(CC) -o $(OBJDIR)/ucl_parser.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_parser.c
+$(OBJDIR)/ucl_emitter.o: $(SRCDIR)/ucl_emitter.c $(HDEPS)
+	$(CC) -o $(OBJDIR)/ucl_emitter.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_emitter.c
+$(OBJDIR)/ucl_hash.o: $(SRCDIR)/ucl_hash.c $(HDEPS)
+	$(CC) -o $(OBJDIR)/ucl_hash.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_hash.c
+$(OBJDIR)/ucl_schema.o: $(SRCDIR)/ucl_schema.c $(HDEPS)
+	$(CC) -o $(OBJDIR)/ucl_schema.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_schema.c
+
+clean:
+	$(RM) $(OBJDIR)/*.o $(OBJDIR)/$(SONAME_FULL) $(OBJDIR)/$(SONAME) $(OBJDIR)/chargen $(OBJDIR)/test_basic $(OBJDIR)/test_speed $(OBJDIR)/objdump $(OBJDIR)/test_generate $(OBJDIR)/test_schema || true
+	$(RMDIR) $(OBJDIR)
+	
+# Utils
+
+chargen: utils/chargen.c $(OBJDIR)/$(SONAME)
+	$(CC) -o $(OBJDIR)/chargen $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) utils/chargen.c
+objdump: utils/objdump.c $(OBJDIR)/$(SONAME)
+	$(CC) -o $(OBJDIR)/objdump $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) utils/objdump.c $(LD_UCL_FLAGS)
+
+# Tests
+
+test: $(OBJDIR) $(OBJDIR)/$(SONAME) $(OBJDIR)/test_basic $(OBJDIR)/test_speed $(OBJDIR)/test_generate $(OBJDIR)/test_schema
+
+run-test: test
+	TEST_DIR=$(TESTDIR) $(TESTDIR)/run_tests.sh $(OBJDIR)/test_basic $(OBJDIR)/test_speed $(OBJDIR)/test_generate $(OBJDIR)/test_schema
+	
+$(OBJDIR)/test_basic: $(TESTDIR)/test_basic.c $(OBJDIR)/$(SONAME)
+	$(CC) -o $(OBJDIR)/test_basic $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_basic.c $(LD_UCL_FLAGS)
+$(OBJDIR)/test_schema: $(TESTDIR)/test_schema.c $(OBJDIR)/$(SONAME)
+	$(CC) -o $(OBJDIR)/test_schema $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_schema.c $(LD_UCL_FLAGS)
+$(OBJDIR)/test_speed: $(TESTDIR)/test_speed.c $(OBJDIR)/$(SONAME)
+	$(CC) -o $(OBJDIR)/test_speed $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_speed.c $(LD_UCL_FLAGS) $(LD_ADD)
+$(OBJDIR)/test_generate: $(TESTDIR)/test_generate.c $(OBJDIR)/$(SONAME)
+	$(CC) -o $(OBJDIR)/test_generate $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) $(LDFLAGS) $(TESTDIR)/test_generate.c $(LD_UCL_FLAGS) $(LD_ADD)
+
+install: $(OBJDIR)/$(SONAME)
+	$(INSTALL) -m0755 $(SONAME) $(DESTDIR)/lib/$(SONAME)
+	$(INSTALL) -m0644 include/ucl.h $(DESTDIR)/include/ucl.h
+
+.PHONY: clean $(OBJDIR)

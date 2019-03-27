@@ -1,0 +1,45 @@
+$ $tcsh: set4,v 1.3 2011/02/04 18:19:43 christos Exp $
+$ cadenas de Termcap
+$set 4
+1 añade una línea vacía
+2 timbre audible
+3 borra hasta abajo
+4 borra hasta el final de la línea
+5 cursor hasta posición horizontal
+6 borra la pantalla
+7 borra un carácter
+8 borra una línea
+9 entra en modo de borrado
+10 termina modo de borrado
+11 termina modo de inserción
+12 cursor de línea de estado
+13 cursor en posición inicial
+14 insertar carácter
+15 entra en modo de inserción
+16 inserta carácter de relleno
+17 envía cursor hacia abajo
+18 envía cursor hacia la izquierda
+19 envía cursor hacia la derecha
+20 envía cursor hacia arriba
+21 comienza negrita
+22 fin de atributos
+23 espacio no destructivo
+24 fin de énfasis
+25 comienzo de énfasis
+26 cursor a la línea de estado
+27 mueve el cursor hacia arriba una línea
+28 comienza subrayado
+29 fin de subrayado
+30 timbre visible
+31 borra múltiples caracteres
+32 mueve el cursor varias líneas hacia abajo
+33 inserta múltiples caracteres
+34 mueve el cursor varias líneas hacia la izquierda
+35 mueve el cursor varias líneas hacia la derecha
+36 mueve el cursor varias líneas hacia arriba
+37 Tiene márgenes automáticos
+38 Puede usar tabuladores físicos
+39 Número de líneas
+40 Número de columnas
+41 Tiene teclas alternativa
+42 Ignorando retorno de carro en el margen derecho

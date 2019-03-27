@@ -1,0 +1,32 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Kernel Model for Precision Timekeeping</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>Kernel Model for Precision Timekeeping</h3>
+<p><img src="pic/alice61.gif" alt="gif" align="left"> <a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>Pogo</i>, Walt Kelly</a></p>
+<p>Alice finds the kernel a house of cards.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->10-Mar-2014  05:10<!-- #EndDate -->
+    UTC</p>
+<br clear="left">
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/misc.txt"></script>
+<hr>
+<p>The technical report [2], which is a revision and update of an earlier report [3], describes an engineering model for a precision clock discipline function for a generic operating system. The model is the same hybrid phase/frequecy-lock feedback loop used by <tt>ntpd</tt>, but implemented in the kernel. The code described in [2] is included in Solaris and Digital/Compaq/HP Tru64. It provides two system calls <tt>ntp_gettime()</tt> and <tt>ntp_adjtime()</tt> and can discipline the system clock with microsecond resolution. However, newer hardware and kernels with the same system calls can discipline the clock with nanosecond resolution. The new code described in [1] is in FreeBSD, Linux and Tru64. The software and documentation, including a simulator used to verify correct behavior, but not involving licensed code, is available in the <a href="ftp://ftp.udel.edu/pub/ntp/software/nanokernel.tar.gz">nanokernel.tar.gz</a> distribution</p>
+<p>Ordinarily, the kernel clock discipline function is used with the NTP daemon, but could be used for other purposes. The <a href="ntptime.html"><tt>ntptime</tt></a> utility program can be used to control it manually.</p>
+<p>The kernel model also provides support for an external precision timing source, such as described in the <a href="pps.html">Pulse-per-second (PPS) Signal Interfacing</a> page. The new system calls are used by the <a href="kernpps.html">PPSAPI interface</a> and in turn by the <a href="drivers/driver22.html">PPS Clock Discipline</a> driver (type 22) to provide synchronization limited in principle only by the accuracy and stability of the external timing source. Typical results with the PPS signal from a GPS receiver and a modern computer are in the 3 &mu;s range.</p>
+<h4>References</h4>
+<ol>
+  <li>Mills, D.L., and P.-H. Kamp. The nanokernel. <i>Proc. Precision Time and Time Interval (PTTI) Applications and Planning Meeting</i> (Reston VA, November 2000). Paper: <a href="http://www.eecis.udel.edu/%7emills/database/papers/nano/nano2.ps">PostScript</a> | <a href="http://www.eecis.udel.edu/%7emills/database/papers/nano/nano2.pdf">PDF</a>, Slides: <a href="http://www.eecis.udel.edu/%7emills/database/brief/nano/nano.html">HTML</a> | <a href="http://www.eecis.udel.edu/%7emills/database/brief/nano/nano.ps">PostScript</a> | <a href="http://www.eecis.udel.edu/%7emills/database/brief/nano/nano.pdf">PDF</a> | <a href="http://www.eecis.udel.edu/%7emills/database/brief/nano/nano.ppt">PowerPoint</a></li>
+  <li>Mills, D.L. Unix kernel modifications for precision time synchronization. Electrical Engineering Department Report 94-10-1, University of Delaware, October 1994, 24 pp. Abstract: <a href="http://www.eecis.udel.edu/%7emills/database/reports/kern/kerna.ps">PostScript</a> | <a href="http://www.eecis.udel.edu/%7emills/database/reports/kern/kerna.pdf">PDF</a>, Body: <a href="http://www.eecis.udel.edu/%7emills/database/reports/kern/kernb.ps">PostScript</a> | <a href="http://www.eecis.udel.edu/%7emills/database/reports/kern/kernb.pdf">PDF</a></li>
+  <li>Mills, D.L. A kernel model for precision timekeeping. Network Working Group Report RFC-1589, University of Delaware, March 1994. 31 pp. <a href="http://www.eecis.udel.edu/%7emills/database/rfc/rfc1589.txt">ASCII</a></li>
+</ol>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

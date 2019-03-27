@@ -1,0 +1,125 @@
+.\"
+.\" Copyright (c) 2017 John Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 24, 2017
+.Dt sysdecode_kevent 3
+.Os
+.Sh NAME
+.Nm sysdecode_kevent ,
+.Nm sysdecode_kevent_fflags ,
+.Nm sysdecode_kevent_filter ,
+.Nm sysdecode_kevent_flags
+.Nd output description of kevent structure fields
+.Sh LIBRARY
+.Lb libsysdecode
+.Sh SYNOPSIS
+.In sys/types.h
+.In stdbool.h
+.In stdio.h
+.In sysdecode.h
+.Ft void
+.Fn sysdecode_kevent_fflags "FILE *fp" "short filter" "int fflags" "int base"
+.Ft bool
+.Fn sysdecode_kevent_flags "FILE *fp" "int flags" "int *rem"
+.Ft const char *
+.Fn sysdecode_kevent_filter "int filter"
+.Sh DESCRIPTION
+These functions provide text descriptions of
+.Vt struct kevent
+fields.
+.Pp
+The
+.Fn sysdecode_kevent_fflags
+function outputs a text description of the
+.Fa fflags
+member of a
+.Vt struct kevent
+to the stream
+.Fa fp .
+For the
+.Dv EVFILT_READ ,
+.Dv EVFILT_WRITE ,
+.Dv EVFILT_VNODE ,
+.Dv EVFILT_PROC ,
+.Dv EVFILT_PROCDESC ,
+.Dv EVFILT_TIMER ,
+and
+.Dv EVFILT_USER
+filters,
+.Fn sysdecode_kevent_fflags
+outputs a bitmask of filter-specific
+.Dv NOTE_*
+flags as documented in
+.Xr kevent 2 .
+For other values of
+.Fa filter ,
+the value of
+.Fa fflags
+is output in the indicated
+.Fa base
+.Pq one of 8, 10, or 16 .
+.Pp
+The
+.Fn sysdecode_kevent_filter
+function returns a text description of the
+.Fa filter
+member of a
+.Vt struct kevent .
+.Dv NULL
+is returned if the
+.Fa filter
+value is unknown.
+.Pp
+The
+.Fn sysdecode_kevent_flags
+function outputs a text description of the
+.Fa flags
+member of a
+.Vt struct kevent
+to the stream
+.Fa fp .
+This function uses the same calling convention and formatting as the other
+functions described in
+.Xr sysdecode_mask 3 .
+.Sh RETURN VALUES
+The
+.Nm sysdecode_kevent_filter
+function returns the name of a filter or
+.Dv NULL if the filter value is unknown.
+.Pp
+The
+.Nm sysdecode_kevent_flags
+function returns
+.Dv true
+if any flags in the
+.Fa flags
+field were decoded and
+.Dv false
+if no flags were decoded.
+.Sh SEE ALSO
+.Xr sysdecode 3 ,
+.Xr sysdecode_enum 3 ,
+.Xr sysdecode_mask 3

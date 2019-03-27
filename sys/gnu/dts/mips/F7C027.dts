@@ -1,0 +1,131 @@
+/dts-v1/;
+
+#include "rt5350.dtsi"
+
+/ {
+	compatible = "F7C027", "ralink,rt5350-soc";
+	model = "Belkin F7C027";
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		status {
+			label = "f7c027:blue:status";
+			gpios = <&gpio0 7 1>;
+		};
+
+		power {
+			label = "f7c027:blue:power";
+			gpios = <&gpio0 9 1>;
+		};
+
+		orange {
+			label = "f7c027:orange:status";
+			gpios = <&gpio0 11 1>;
+		};
+
+		relay {
+			label = "f7c027:device:relay";
+			gpios = <&gpio0 13 0>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		top {
+			label = "top";
+			gpios = <&gpio0 10 1>;
+			linux,code = <0x198>;
+		};
+
+		power {
+			label = "power";
+			gpios = <&gpio0 12 1>;
+			linux,code = <0x100>;
+		};
+
+		sensor {
+			label = "sensor";
+			gpios = <&gpio0 14 1>;
+			linux,code = <0x101>;
+		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "mx25l12805d";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x770000>;
+		};
+
+		partition@7c0000 {
+			label = "firmware2";
+			reg = <0x7c0000 0x770000>;
+		};
+
+		partition@f30000 {
+			label = "belkin_settings";
+			reg = <0xf30000 0xa0000>;
+		};
+
+		partition@fd0000 {
+			label = "unknown";
+			reg = <0xfd0000 0x10000>;
+		};
+
+		partition@fe0000 {
+			label = "nvram";
+			reg = <0xfe0000 0x10000>;
+		};
+
+		partition@ff0000 {
+			label = "user_factory";
+			reg = <0xff0000 0x10000>;
+		};
+	};
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "jtag", "uartf";
+			ralink,function = "gpio";
+		};
+	};
+};

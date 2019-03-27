@@ -1,0 +1,336 @@
+#   Copyright (C) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+#   1999, 2000, 2001, 2002, 2003, 2004 Free Software Foundation
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+
+# This Makefile contains release scripts for gdb, binutils, and other
+# packages which live in src.  It used to be part of the top level Makefile,
+# but that turned out to be very messy and hard to maintain.
+
+# This stuff really ought to be cleaned up and turned into something other
+# than a Makefile.  As it is it's heavily recursive.
+
+# This is the name of this script (!).  Needed due to horrible recursion.
+SELF = src-release
+
+SHELL = /bin/sh
+
+BZIPPROG = bzip2
+MD5PROG = md5sum
+
+# pwd command to use.  Allow user to override default by setting PWDCMD in
+# the environment to account for automounters.  The make variable must not
+# be called PWDCMD, otherwise the value set here is passed to make
+# subprocesses and overrides the setting from the user's environment.
+PWD = $${PWDCMD-pwd}
+
+#
+# Support for building net releases
+
+# Files in devo used in any net release.
+# ChangeLog omitted because it may refer to files which are not in this
+# distribution (perhaps it would be better to include it anyway).
+DEVO_SUPPORT= README Makefile.in configure configure.in \
+	config.guess config.if config.sub config move-if-change \
+	COPYING COPYING.LIB install-sh config-ml.in symlink-tree \
+	mkinstalldirs ltconfig ltmain.sh missing ylwrap \
+	libtool.m4 gettext.m4 ltcf-c.sh ltcf-cxx.sh ltcf-gcj.sh \
+	Makefile.def Makefile.tpl src-release
+
+# Files in devo/etc used in any net release.
+# ChangeLog omitted because it may refer to files which are not in this
+# distribution (perhaps it would be better to include it anyway).
+ETC_SUPPORT= Makefile.in configure configure.in standards.texi \
+	make-stds.texi standards.info* configure.texi configure.info* \
+	configbuild.* configdev.* fdl.texi texi2pod.pl
+
+
+# When you use `make setup-dirs' or `make taz' you should always redefine
+# this macro.
+SUPPORT_FILES = list-of-support-files-for-tool-in-question
+
+# NOTE: No double quotes in the below.  It is used within shell script
+# as VER="$(VER)"
+VER = `	if grep 'AM_INIT_AUTOMAKE.*BFD_VERSION' $(TOOL)/configure.in >/dev/null 2>&1; then \
+	  sed < bfd/configure.in -n 's/AM_INIT_AUTOMAKE[^,]*, *\([^)]*\))/\1/p'; \
+	elif grep AM_INIT_AUTOMAKE $(TOOL)/configure.in >/dev/null 2>&1; then \
+	  sed < $(TOOL)/configure.in -n 's/AM_INIT_AUTOMAKE[^,]*, *\([^)]*\))/\1/p'; \
+	elif test -f $(TOOL)/version.in; then \
+	  head -1 $(TOOL)/version.in; \
+	elif grep VERSION $(TOOL)/Makefile.in > /dev/null 2>&1; then \
+	  sed < $(TOOL)/Makefile.in -n 's/^VERSION *= *//p'; \
+	else \
+	  echo VERSION; \
+	fi`
+PACKAGE = $(TOOL)
+
+.PHONY: taz
+taz: $(DEVO_SUPPORT) $(SUPPORT_FILES) texinfo/texinfo.tex
+	$(MAKE) -f $(SELF) do-proto-toplev \
+		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(SUPPORT_FILES)"
+	$(MAKE) -f $(SELF) do-md5sum \
+		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(SUPPORT_FILES)"
+	$(MAKE) -f $(SELF) do-tar \
+		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(SUPPORT_FILES)"
+	$(MAKE) -f $(SELF) do-bz2 \
+		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(SUPPORT_FILES)"
+
+.PHONY: gdb-tar
+gdb-tar: $(DEVO_SUPPORT) $(SUPPORT_FILES) texinfo/texinfo.tex
+	$(MAKE) -f $(SELF) do-proto-toplev \
+		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(SUPPORT_FILES)"
+	$(MAKE) -f $(SELF) do-md5sum \
+		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(SUPPORT_FILES)"
+	$(MAKE) -f $(SELF) do-djunpack \
+		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(SUPPORT_FILES)"
+	$(MAKE) -f $(SELF) do-tar \
+		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(SUPPORT_FILES)"
+
+.PHONY: gdb-taz
+gdb-taz: gdb-tar $(DEVO_SUPPORT) $(SUPPORT_FILES) texinfo/texinfo.tex
+	$(MAKE) -f $(SELF) gdb-tar \
+		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(SUPPORT_FILES)"
+	$(MAKE) -f $(SELF) do-bz2 \
+		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(SUPPORT_FILES)"
+
+.PHONY: do-proto-toplev
+do-proto-toplev: $(DEVO_SUPPORT) $(SUPPORT_FILES) texinfo/texinfo.tex
+	echo "==> Making $(PACKAGE)-$(VER)/"
+	# Take out texinfo from a few places.
+	sed -e '/^all\.normal: /s/\all-texinfo //' \
+	    -e '/^	install-texinfo /d' \
+	<Makefile.in >tmp
+	mv -f tmp Makefile.in
+	#
+	./configure i686-pc-linux-gnu
+	$(MAKE) configure-host configure-target \
+	    ALL_GCC="" ALL_GCC_C="" ALL_GCC_CXX="" \
+	    CC_FOR_TARGET="$(CC)" CXX_FOR_TARGET="$(CXX)"
+	# Make links, and run "make diststuff" or "make info" when needed.
+	rm -rf proto-toplev ; mkdir proto-toplev
+	set -e ; dirs="$(TOOL) $(DEVO_SUPPORT) $(SUPPORT_FILES)" ; \
+	for d in $$dirs ; do \
+	  if [ -d $$d ]; then \
+	    if [ ! -f $$d/Makefile ] ; then true ; \
+	    elif grep '^diststuff:' $$d/Makefile >/dev/null ; then \
+		(cd $$d ; $(MAKE) diststuff ) || exit 1 ; \
+	    elif grep '^info:' $$d/Makefile >/dev/null ; then \
+	        (cd $$d ; $(MAKE) info ) || exit 1 ; \
+	    fi ; \
+	    if [ -d $$d/proto-$$d.dir ]; then \
+	      ln -s ../$$d/proto-$$d.dir proto-toplev/$$d ; \
+	    else \
+	      ln -s ../$$d proto-toplev/$$d ; \
+	    fi ; \
+	  else ln -s ../$$d proto-toplev/$$d ; fi ; \
+	done
+	cd etc && $(MAKE) info
+	$(MAKE) distclean
+	# Kludge for pr gdb/708.  'configure' configures in
+	# dejagnu/example/calc, but 'make distclean' does not clean in
+	# dejagnu/example.  Someday somebody might fix this in dejagnu,
+	# and then import a new dejagnu into sourceware.  Right now, a
+	# couple of 'rm' commands will get the gdb snapshots working
+	# again.  -- chastain 2003-08-15
+	rm -f dejagnu/example/calc/config.status
+	rm -f dejagnu/example/calc/config.log
+	# Kludge for pr gdb/857.  intl/Makefile.in lacks a couple
+	# of files in the distclean rule.  Zack W is planning to make
+	# the gcc version of intl/ the master version and then push
+	# that version to src soon.  See:
+	#   http://sources.redhat.com/ml/binutils/2003-07/msg00032.html
+	# After the src version of intl/ is upgraded, we can look at
+	# moving this logic into intl/Makefile.in distclean rule
+	# if it is still needed.  -- chastain 2003-09-12
+	rm -f intl/config.cache
+	rm -f intl/config.status
+	rm -f intl/config.h
+	rm -f intl/stamp-h
+	#
+	mkdir proto-toplev/etc
+	(cd proto-toplev/etc; \
+	 for i in $(ETC_SUPPORT); do \
+		ln -s ../../etc/$$i . ; \
+	 done)
+	#
+	# Take out texinfo from configurable dirs
+	rm proto-toplev/configure.in
+	sed -e '/^host_tools=/s/texinfo //' \
+	    <configure.in >proto-toplev/configure.in
+	#
+	mkdir proto-toplev/texinfo
+	ln -s ../../texinfo/texinfo.tex		proto-toplev/texinfo/
+	if test -r texinfo/util/tex3patch ; then \
+	  mkdir proto-toplev/texinfo/util && \
+	  ln -s ../../../texinfo/util/tex3patch	proto-toplev/texinfo/util ; \
+	else true; fi
+	chmod -R og=u . || chmod og=u `find . -print`
+	#
+	# Create .gmo files from .po files.
+	for f in `find . -name '*.po' -type f -print`; do \
+	     msgfmt -o `echo $$f | sed -e 's/\.po$$/.gmo/'` $$f ; \
+	done
+	#
+	-rm -f $(PACKAGE)-$(VER)
+	ln -s proto-toplev $(PACKAGE)-$(VER)
+
+CVS_NAMES= \( -name CVS -o -name '.cvsignore' \)
+
+.PHONY: do-tar
+do-tar:
+	echo "==> Making $(PACKAGE)-$(VER).tar"
+	-rm -f $(PACKAGE)-$(VER).tar
+	find $(PACKAGE)-$(VER) -follow $(CVS_NAMES) -prune \
+			-o -type f -print \
+		| tar cTfh - $(PACKAGE)-$(VER).tar
+
+.PHONY: do-bz2
+do-bz2:
+	echo "==> Bzipping $(PACKAGE)-$(VER).tar.bz2"
+	-rm -f $(PACKAGE)-$(VER).tar.bz2
+	$(BZIPPROG) -v -9 $(PACKAGE)-$(VER).tar
+
+.PHONY: do-md5sum
+do-md5sum:
+	echo "==> Adding md5 checksum to top-level directory"
+	cd proto-toplev && find * -follow $(CVS_NAMES) -prune \
+			-o -type f -print \
+		| xargs $(MD5PROG) > ../md5.sum
+	mv md5.sum proto-toplev
+
+.PHONY: do-djunpack
+do-djunpack:
+	echo "==> Adding updated djunpack.bat to top-level directory"
+	echo - 's /gdb-[0-9\.]*/$(PACKAGE)-'"$(VER)"'/'
+	sed < djunpack.bat > djunpack.new \
+		-e 's/gdb-[0-9][0-9\.]*/$(PACKAGE)-'"$(VER)"'/'
+	mv djunpack.new djunpack.bat
+	-rm -f proto-toplev/djunpack.bat
+	ln -s ../djunpack.bat proto-toplev/djunpack.bat
+
+TEXINFO_SUPPORT= texinfo/texinfo.tex
+DIST_SUPPORT= $(DEVO_SUPPORT) $(TEXINFO_SUPPORT)
+
+.PHONY: gas.tar.bz2
+GAS_SUPPORT_DIRS= bfd include libiberty opcodes intl setup.com makefile.vms mkdep
+gas.tar.bz2: $(DIST_SUPPORT) $(GAS_SUPPORT_DIRS) gas
+	$(MAKE) -f $(SELF) taz TOOL=gas \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(GAS_SUPPORT_DIRS)"
+
+# The FSF "binutils" release includes gprof and ld.
+.PHONY: binutils.tar.bz2
+BINUTILS_SUPPORT_DIRS= bfd gas include libiberty opcodes ld gprof intl setup.com makefile.vms mkdep cpu
+binutils.tar.bz2: $(DIST_SUPPORT) $(BINUTILS_SUPPORT_DIRS) binutils
+	$(MAKE) -f $(SELF) taz TOOL=binutils \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(BINUTILS_SUPPORT_DIRS)"
+
+.PHONY: gas+binutils.tar.bz2
+GASB_SUPPORT_DIRS= $(GAS_SUPPORT_DIRS) binutils ld gprof
+gas+binutils.tar.bz2: $(DIST_SUPPORT) $(GASB_SUPPORT_DIRS) gas
+	$(MAKE) -f $(SELF) taz TOOL=gas \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(GASB_SUPPORT_DIRS)"
+
+GNATS_SUPPORT_DIRS=include libiberty send-pr
+gnats.tar.bz2: $(DIST_SUPPORT) $(GNATS_SUPPORT_DIRS) gnats
+	$(MAKE) -f  $(SELF) taz TOOL=gnats \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(GNATS_SUPPORT_DIRS)"
+
+.PHONY: gdb.tar.bz2
+GDB_SUPPORT_DIRS= bfd include libiberty mmalloc opcodes readline sim utils intl
+gdb.tar.bz2: $(DIST_SUPPORT) $(GDB_SUPPORT_DIRS) gdb
+	$(MAKE) -f $(SELF) gdb-taz TOOL=gdb \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(GDB_SUPPORT_DIRS)"
+.PHONY: gdb.tar
+gdb.tar: $(DIST_SUPPORT) $(GDB_SUPPORT_DIRS) gdb
+	$(MAKE) -f $(SELF) gdb-tar TOOL=gdb \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(GDB_SUPPORT_DIRS)"
+
+DEJAGNU_SUPPORT_DIRS=  tcl expect libiberty
+.PHONY: dejagnu.tar.bz2
+dejagnu.tar.bz2: $(DIST_SUPPORT) $(DEJAGNU_SUPPORT_DIRS) dejagnu
+	$(MAKE) -f $(SELF) gdb-taz TOOL=dejagnu \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(DEJAGNU_SUPPORT_DIRS)"
+.PHONY: dejagnu.tar
+dejagnu.tar: $(DIST_SUPPORT) $(DEJAGNU_SUPPORT_DIRS) dejagnu
+	$(MAKE) -f $(SELF) gdb-tar TOOL=dejagnu \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(DEJAGNU_SUPPORT_DIRS)"
+
+.PHONY: gdb+dejagnu.tar.bz2
+GDBD_SUPPORT_DIRS= $(GDB_SUPPORT_DIRS) tcl expect dejagnu
+gdb+dejagnu.tar.bz2: $(DIST_SUPPORT) $(GDBD_SUPPORT_DIRS) gdb
+	$(MAKE) -f $(SELF) gdb-taz TOOL=gdb PACKAGE=gdb+dejagnu \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(GDBD_SUPPORT_DIRS)"
+.PHONY: gdb+dejagnu.tar
+gdb+dejagnu.tar: $(DIST_SUPPORT) $(GDBD_SUPPORT_DIRS) gdb
+	$(MAKE) -f $(SELF) gdb-tar TOOL=gdb PACKAGE=gdb+dejagnu \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(GDBD_SUPPORT_DIRS)"
+
+.PHONY: insight.tar.bz2
+INSIGHT_SUPPORT_DIRS= $(GDB_SUPPORT_DIRS) tcl tk itcl tix libgui
+insight.tar.bz2: $(DIST_SUPPORT) $(GDB_SUPPORT_DIRS) gdb
+	$(MAKE) -f $(SELF) gdb-taz TOOL=gdb PACKAGE=insight \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(INSIGHT_SUPPORT_DIRS)"
+.PHONY: insight.tar
+insight.tar: $(DIST_SUPPORT) $(GDB_SUPPORT_DIRS) gdb
+	$(MAKE) -f $(SELF) gdb-tar TOOL=gdb PACKAGE=insight \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(INSIGHT_SUPPORT_DIRS)"
+
+.PHONY: insight+dejagnu.tar.bz2
+INSIGHTD_SUPPORT_DIRS= $(INSIGHT_SUPPORT_DIRS) expect dejagnu
+insight+dejagnu.tar.bz2: $(DIST_SUPPORT) $(INSIGHTD_SUPPORT_DIRS) gdb
+	$(MAKE) -f $(SELF) gdb-taz TOOL=gdb PACKAGE="insight+dejagnu" \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(INSIGHTD_SUPPORT_DIRS)"
+.PHONY: insight+dejagnu.tar
+insight+dejagnu.tar: $(DIST_SUPPORT) $(INSIGHTD_SUPPORT_DIRS) gdb
+	$(MAKE) -f $(SELF) gdb-tar TOOL=gdb PACKAGE="insight+dejagnu" \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(INSIGHTD_SUPPORT_DIRS)"
+
+.NOEXPORT:
+MAKEOVERRIDES=

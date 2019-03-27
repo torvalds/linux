@@ -1,0 +1,218 @@
+.\" Copyright (c) 2003 Tim J. Robbins
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Oct 23, 2017
+.Dt LIO_LISTIO 2
+.Os
+.Sh NAME
+.Nm lio_listio
+.Nd "list directed I/O (REALTIME)"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In aio.h
+.Ft int
+.Fo lio_listio
+.Fa "int mode"
+.Fa "struct aiocb * const list[]"
+.Fa "int nent"
+.Fa "struct sigevent *sig"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn lio_listio
+function initiates a list of I/O requests with a single function call.
+The
+.Fa list
+argument is an array of pointers to
+.Vt aiocb
+structures describing each operation to perform,
+with
+.Fa nent
+elements.
+.Dv NULL
+elements are ignored.
+.Pp
+The
+.Va aio_lio_opcode
+field of each
+.Vt aiocb
+specifies the operation to be performed.
+The following operations are supported:
+.Bl -tag -width ".Dv LIO_WRITE"
+.It Dv LIO_READ
+Read data as if by a call to
+.Xr aio_read 2 .
+.It Dv LIO_NOP
+No operation.
+.It Dv LIO_WRITE
+Write data as if by a call to
+.Xr aio_write 2 .
+.El
+.Pp
+If the
+.Fa mode
+argument is
+.Dv LIO_WAIT ,
+.Fn lio_listio
+does not return until all the requested operations have been completed.
+If
+.Fa mode
+is
+.Dv LIO_NOWAIT ,
+.Fa sig
+can be used to request asynchronous notification when all operations have
+completed.
+If
+.Fa sig
+is
+.Dv NULL ,
+no notification is sent.
+.Pp
+For
+.Dv SIGEV_KEVENT
+notifications,
+the posted kevent will contain:
+.Bl -column ".Va filter"
+.It Sy Member Ta Sy Value
+.It Va ident Ta Fa list
+.It Va filter Ta Dv EVFILT_LIO
+.It Va udata Ta
+value stored in
+.Fa sig->sigev_value
+.El
+.Pp
+For
+.Dv SIGEV_SIGNO
+and
+.Dv SIGEV_THREAD_ID
+notifications,
+the information for the queued signal will include
+.Dv SI_ASYNCIO
+in the
+.Va si_code
+field and the value stored in
+.Fa sig->sigev_value
+in the
+.Va si_value
+field.
+.Pp
+For
+.Dv SIGEV_THREAD
+notifications,
+the value stored in
+.Fa sig->sigev_value
+is passed to the
+.Fa sig->sigev_notify_function
+as described in
+.Xr sigevent 3 .
+.Pp
+The order in which the requests are carried out is not specified;
+in particular, there is no guarantee that they will be executed in
+the order 0, 1, ...,
+.Fa nent Ns \-1 .
+.Sh RETURN VALUES
+If
+.Fa mode
+is
+.Dv LIO_WAIT ,
+the
+.Fn lio_listio
+function returns 0 if the operations completed successfully,
+otherwise \-1.
+.Pp
+If
+.Fa mode
+is
+.Dv LIO_NOWAIT ,
+the
+.Fn lio_listio
+function returns 0 if the operations are successfully queued,
+otherwise \-1.
+.Sh ERRORS
+The
+.Fn lio_listio
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+There are not enough resources to enqueue the requests.
+.It Bq Er EAGAIN
+The request would cause the system-wide limit
+.Dv {AIO_MAX}
+to be exceeded.
+.It Bq Er EINVAL
+The
+.Fa mode
+argument is neither
+.Dv LIO_WAIT
+nor
+.Dv LIO_NOWAIT ,
+or
+.Fa nent
+is greater than
+.Dv {AIO_LISTIO_MAX} .
+.It Bq Er EINVAL
+The asynchronous notification method in
+.Fa sig->sigev_notify
+is invalid or not supported.
+.It Bq Er EINTR
+A signal interrupted the system call before it could be completed.
+.It Bq Er EIO
+One or more requests failed.
+.El
+.Pp
+In addition, the
+.Fn lio_listio
+function may fail for any of the reasons listed for
+.Xr aio_read 2
+and
+.Xr aio_write 2 .
+.Pp
+If
+.Fn lio_listio
+succeeds, or fails with an error code of
+.Er EAGAIN , EINTR ,
+or
+.Er EIO ,
+some of the requests may have been initiated.
+The caller should check the error status of each
+.Vt aiocb
+structure individually by calling
+.Xr aio_error 2 .
+.Sh SEE ALSO
+.Xr aio_error 2 ,
+.Xr aio_read 2 ,
+.Xr aio_write 2 ,
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr sigevent 3 ,
+.Xr siginfo 3 ,
+.Xr aio 4
+.Sh STANDARDS
+The
+.Fn lio_listio
+function is expected to conform to
+.St -p1003.1-2001 .

@@ -1,0 +1,132 @@
+How to use OpenSSH-based virtual private networks
+-------------------------------------------------
+
+OpenSSH contains support for VPN tunneling using the tun(4) network
+tunnel pseudo-device which is available on most platforms, either for
+layer 2 or 3 traffic.
+
+The following brief instructions on how to use this feature use
+a network configuration specific to the OpenBSD operating system.
+
+(1) Server: Enable support for SSH tunneling
+
+To enable the ssh server to accept tunnel requests from the client, you
+have to add the following option to the ssh server configuration file
+(/etc/ssh/sshd_config):
+
+	PermitTunnel yes
+
+Restart the server or send the hangup signal (SIGHUP) to let the server
+reread it's configuration.
+
+(2) Server: Restrict client access and assign the tunnel
+
+The OpenSSH server simply uses the file /root/.ssh/authorized_keys to
+restrict the client to connect to a specified tunnel and to
+automatically start the related interface configuration command. These
+settings are optional but recommended:
+
+	tunnel="1",command="sh /etc/netstart tun1" ssh-rsa ... reyk@openbsd.org
+
+(3) Client: Configure the local network tunnel interface
+
+Use the hostname.if(5) interface-specific configuration file to set up
+the network tunnel configuration with OpenBSD. For example, use the
+following configuration in /etc/hostname.tun0 to set up the layer 3
+tunnel on the client:
+
+	inet 192.168.5.1 255.255.255.252 192.168.5.2
+
+OpenBSD also supports layer 2 tunneling over the tun device by adding
+the link0 flag:
+
+	inet 192.168.1.78 255.255.255.0 192.168.1.255 link0
+
+Layer 2 tunnels can be used in combination with an Ethernet bridge(4)
+interface, like the following example for /etc/bridgename.bridge0:
+
+	add tun0
+	add sis0
+	up
+
+(4) Client: Configure the OpenSSH client
+
+To establish tunnel forwarding for connections to a specified
+remote host by default, use the following ssh client configuration for
+the privileged user (in /root/.ssh/config):
+
+	Host sshgateway
+		Tunnel yes
+		TunnelDevice 0:any
+		PermitLocalCommand yes
+	        LocalCommand sh /etc/netstart tun0
+
+A more complicated configuration is possible to establish a tunnel to
+a remote host which is not directly accessible by the client.
+The following example describes a client configuration to connect to
+the remote host over two ssh hops in between. It uses the OpenSSH
+ProxyCommand in combination with the nc(1) program to forward the final
+ssh tunnel destination over multiple ssh sessions.
+
+	Host access.somewhere.net
+	        User puffy
+	Host dmzgw
+	        User puffy
+	        ProxyCommand ssh access.somewhere.net nc dmzgw 22
+	Host sshgateway
+	        Tunnel Ethernet
+	        TunnelDevice 0:any
+	        PermitLocalCommand yes
+	        LocalCommand sh /etc/netstart tun0
+	        ProxyCommand ssh dmzgw nc sshgateway 22
+
+The following network plan illustrates the previous configuration in
+combination with layer 2 tunneling and Ethernet bridging.
+
++--------+       (          )      +----------------------+
+| Client |------(  Internet  )-----| access.somewhere.net |
++--------+       (          )      +----------------------+
+    : 192.168.1.78                             |
+    :.............................         +-------+
+     Forwarded ssh connection    :         | dmzgw |
+     Layer 2 tunnel              :         +-------+
+                                 :             |
+                                 :             |
+                                 :      +------------+
+                                 :......| sshgateway |
+                                      | +------------+
+--- real connection                 Bridge ->  |          +----------+
+... "virtual connection"                     [ X ]--------| somehost |
+[X] switch                                                +----------+
+                                                          192.168.1.25
+
+(5) Client: Connect to the server and establish the tunnel
+
+Finally connect to the OpenSSH server to establish the tunnel by using
+the following command:
+
+	ssh sshgateway
+
+It is also possible to tell the client to fork into the background after
+the connection has been successfully established:
+
+	ssh -f sshgateway true
+
+Without the ssh configuration done in step (4), it is also possible
+to use the following command lines:
+
+	ssh -fw 0:1 sshgateway true
+	ifconfig tun0 192.168.5.1 192.168.5.2 netmask 255.255.255.252
+
+Using OpenSSH tunnel forwarding is a simple way to establish secure
+and ad hoc virtual private networks. Possible fields of application
+could be wireless networks or administrative VPN tunnels.
+
+Nevertheless, ssh tunneling requires some packet header overhead and
+runs on top of TCP. It is still suggested to use the IP Security
+Protocol (IPSec) for robust and permanent VPN connections and to
+interconnect corporate networks.
+
+	Reyk Floeter
+
+$OpenBSD: README.tun,v 1.4 2006/03/28 00:12:31 deraadt Exp $

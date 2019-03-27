@@ -1,0 +1,112 @@
+/dts-v1/;
+
+#include "mt7620a.dtsi"
+
+/ {
+	compatible = "PSG1208", "ralink,mt7620a-soc";
+	model = "Phicomm PSG1208";
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		wan {
+			label = "psg1208:white:wps";
+			gpios = <&gpio1 15 1>;
+		};
+
+		wlan {
+			label = "psg1208:white:wlan2g";
+			gpios = <&gpio3 0 1>;
+		};
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio0 1 1>;
+			linux,code = <0x198>;
+		};
+	};
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&gpio3 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		linux,modalias = "m25p80", "en25q64";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@20000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@30000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@40000 {
+			label = "firmware";
+			reg = <0x50000 0x7b0000>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "uartf", "rgmii1", "rgmii2", "ephy", "wled", "nd_sd";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&ethernet {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ephy_pins>;
+	mtd-mac-address = <&factory 0x4>;
+	mediatek,portmap = "llllw";
+};
+
+&pcie {
+	status = "okay";
+
+	pcie-bridge {
+		mt76@0,0 {
+			reg = <0x0000 0 0 0 0>;
+			device_type = "pci";
+			mediatek,mtd-eeprom = <&factory 0x8000>;
+			mediatek,2ghz = <0>;
+		};
+	};
+};
+
+&wmac {
+	ralink,mtd-eeprom = <&factory 0>;
+};

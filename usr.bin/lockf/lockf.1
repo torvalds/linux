@@ -1,0 +1,173 @@
+.\"
+.\" Copyright (C) 1998 John D. Polstra.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JOHN D. POLSTRA AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL JOHN D. POLSTRA OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 7, 1998
+.Dt LOCKF 1
+.Os
+.Sh NAME
+.Nm lockf
+.Nd execute a command while holding a file lock
+.Sh SYNOPSIS
+.Nm
+.Op Fl kns
+.Op Fl t Ar seconds
+.Ar file
+.Ar command
+.Op Ar arguments
+.Sh DESCRIPTION
+The
+.Nm
+utility acquires an exclusive lock on a
+.Ar file ,
+creating it if necessary,
+.Bf Em
+and removing the file on exit unless explicitly told not to.
+.Ef
+While holding the lock, it executes a
+.Ar command
+with optional
+.Ar arguments .
+After the
+.Ar command
+completes,
+.Nm
+releases the lock, and removes the
+.Ar file
+unless the
+.Fl k
+option is specified.
+.Bx Ns -style
+locking is used, as described in
+.Xr flock 2 ;
+the mere existence of the
+.Ar file
+is not considered to constitute a lock.
+.Pp
+If the
+.Nm
+utility is being used to facilitate concurrency between a number
+of processes, it is recommended that the
+.Fl k
+option be used.
+This will guarantee lock ordering, as well as implement
+a performance enhanced algorithm which minimizes CPU load associated
+with concurrent unlink, drop and re-acquire activity.
+It should be noted
+that if the
+.Fl k
+option is not used, then no guarantees around lock ordering can be made.
+.Pp
+The following options are supported:
+.Bl -tag -width ".Fl t Ar seconds"
+.It Fl k
+Causes the lock file to be kept (not removed) after the command
+completes.
+.It Fl s
+Causes
+.Nm
+to operate silently.
+Failure to acquire the lock is indicated only in the exit status.
+.It Fl n
+Causes
+.Nm
+to fail if the specified lock
+.Ar file
+does not exist. If
+.Fl n
+is not specified,
+.Nm
+will create
+.Ar file
+if necessary.
+.It Fl t Ar seconds
+Specifies a timeout for waiting for the lock.
+By default,
+.Nm
+waits indefinitely to acquire the lock.
+If a timeout is specified with this option,
+.Nm
+will wait at most the given number of
+.Ar seconds
+before giving up.
+A timeout of 0 may be given, in which case
+.Nm
+will fail unless it can acquire the lock immediately.
+When a lock times out,
+.Ar command
+is
+.Em not
+executed.
+.El
+.Pp
+In no event will
+.Nm
+break a lock that is held by another process.
+.Sh EXIT STATUS
+If
+.Nm
+successfully acquires the lock, it returns the exit status produced by
+.Ar command .
+Otherwise, it returns one of the exit codes defined in
+.Xr sysexits 3 ,
+as follows:
+.Bl -tag -width ".Dv EX_CANTCREAT"
+.It Dv EX_TEMPFAIL
+The specified lock file was already locked by another process.
+.It Dv EX_CANTCREAT
+The
+.Nm
+utility
+was unable to create the lock file, e.g., because of insufficient access
+privileges.
+.It Dv EX_UNAVAILABLE
+The
+.Fl n
+option is specified and the specified lock file does not exist.
+.It Dv EX_USAGE
+There was an error on the
+.Nm
+command line.
+.It Dv EX_OSERR
+A system call (e.g.,
+.Xr fork 2 )
+failed unexpectedly.
+.It Dv EX_SOFTWARE
+The
+.Ar command
+did not exit normally,
+but may have been signaled or stopped.
+.El
+.Sh SEE ALSO
+.Xr flock 2 ,
+.Xr lockf 3 ,
+.Xr sysexits 3
+.Sh HISTORY
+A
+.Nm
+utility first appeared in
+.Fx 2.2 .
+.Sh AUTHORS
+.An John Polstra Aq Mt jdp@polstra.com

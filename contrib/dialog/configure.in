@@ -1,0 +1,273 @@
+dnl $Id: configure.in,v 1.92 2018/06/18 08:59:49 tom Exp $
+dnl Process this file with autoconf to produce a configure script.
+dnl ---------------------------------------------------------------------------
+dnl Copyright 1999-2016,2018 -- Thomas E. Dickey
+dnl
+dnl Permission is hereby granted, free of charge, to any person obtaining a
+dnl copy of this software and associated documentation files (the
+dnl "Software"), to deal in the Software without restriction, including
+dnl without limitation the rights to use, copy, modify, merge, publish,
+dnl distribute, distribute with modifications, sublicense, and/or sell
+dnl copies of the Software, and to permit persons to whom the Software is
+dnl furnished to do so, subject to the following conditions:
+dnl 
+dnl The above copyright notice and this permission notice shall be included
+dnl in all copies or portions of the Software.
+dnl 
+dnl THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+dnl OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+dnl MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+dnl IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+dnl DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+dnl OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+dnl THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+dnl 
+dnl Except as contained in this notice, the name(s) of the above copyright
+dnl holders shall not be used in advertising or otherwise to promote the
+dnl sale, use or other dealings in this Software without prior written
+dnl authorization.
+dnl ---------------------------------------------------------------------------
+AC_PREREQ(2.52.20170501)
+AC_INIT(dialog.h)
+AC_CONFIG_HEADER(dlg_config.h:config.hin)
+
+AC_ARG_PROGRAM
+
+DESTDIR=
+AC_SUBST(DESTDIR)
+
+dnl
+dnl Checks for programs.
+dnl
+CF_PROG_CC
+AC_PROG_CPP
+AC_PROG_MAKE_SET
+AC_PROG_RANLIB
+AC_PROG_INSTALL
+CF_PROG_LN_S
+CF_PROG_LINT
+
+CF_PROG_GROFF
+test -z "$GROFF_NOTE" && NROFF_NOTE=
+
+dnl needed for CF_WITH_LIBTOOL
+CF_AR_FLAGS
+
+CF_MAKEFLAGS
+CF_MAKE_TAGS
+CF_DISABLE_ECHO
+CF_PROG_EXT
+CF_PATHSEP
+CF_LIB_PREFIX
+CF_XOPEN_SOURCE
+CF_LARGEFILE
+
+CF_WITH_INSTALL_PREFIX
+CF_WITH_WARNINGS
+CF_PKG_CONFIG
+
+dnl
+dnl Allow dialog program and library to be renamed.
+AC_MSG_CHECKING(for this package's name)
+AC_ARG_WITH(package,
+	[  --with-package=XXX      rename dialog to XXX, library to libXXX.a, etc],
+	[PACKAGE=$withval],
+	[PACKAGE=dialog])
+AC_MSG_RESULT($PACKAGE)
+CF_VERSION_INFO(dialog,$PACKAGE)
+
+CFG_ROOTNAME=$PACKAGE
+HDR_ROOTNAME=$PACKAGE
+LIB_ROOTNAME=$PACKAGE
+
+AC_SUBST(CFG_ROOTNAME)
+AC_SUBST(HDR_ROOTNAME)
+AC_SUBST(LIB_ROOTNAME)
+
+dnl
+dnl If package is renamed, it is useful to have the dlg_XXX headers in a
+dnl subdirectory (using the package name) so that multiple versions of the
+dnl headers can coexist.
+AC_MSG_CHECKING(if we should install dlg_XXX headers to subdirectory)
+AC_ARG_ENABLE(header-subdir,
+	[  --enable-header-subdir  install dlg_XXX headers to subdirectory],
+	[SUB_INC=$enableval],
+	[SUB_INC=no])
+AC_MSG_RESULT($SUB_INC)
+AC_SUBST(SUB_INC)
+
+CF_WITH_MAN2HTML
+
+dnl
+dnl Checks for libraries.
+dnl
+EXTRAOBJS=""
+CF_BUNDLED_INTL(makefile,enable)
+CF_MATH_LIB(,sqrt(x))
+
+CF_WITH_NO_LEAKS
+
+CF_ARG_MSG_ENABLE([if you want --trace option],
+	trace,
+	[  --disable-trace         do not support --trace option],
+	[EXTRAOBJS="$EXTRAOBJS trace\$o"
+	 AC_DEFINE(HAVE_DLG_TRACE,1,[Define to 1 to support --trace option])],,yes)
+
+CF_LD_RPATH_OPT
+CF_WITH_SHARED_OR_LIBTOOL(DIALOG,${VERSION_MAJOR}.${VERSION_MINOR},`echo "$VERSION" |sed -e 's/:/./g'`)
+
+CF_WITH_CURSES_DIR
+
+CF_ENABLE_RPATH
+
+CF_WITH_NCURSES_ETC
+CF_WIDEC_CURSES
+
+cf_all_widgets=yes
+CF_ARG_MSG_ENABLE([if you want extra dialogs],
+	extras,
+	[  --disable-extras        do not include extra dialogs],
+	[cf_all_widgets=yes],[cf_all_widgets=no],yes)
+
+CF_ARG_MSG_ENABLE([if you want config-file support],
+	rc-file,
+	[  --disable-rc-file       do not include config-file support],
+	[EXTRAOBJS="$EXTRAOBJS rc\$o"
+	 AC_DEFINE(HAVE_RC_FILE,1,[Define to 1 to include config-file support])],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want Xdialog-style dialogs],
+	Xdialog,
+	[  --disable-Xdialog       do not include Xdialog-style dialogs (1.1)],
+	[EXTRAOBJS="$EXTRAOBJS calendar\$o fselect\$o timebox\$o"
+	 AC_DEFINE(HAVE_XDIALOG,1,[Define to 1 to include Xdialog-style dialogs])],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want extra Xdialog-style dialogs (1.2)],
+	Xdialog2,
+	[  --disable-Xdialog2      do not include extra Xdialog-style dialogs (1.2)],
+	[EXTRAOBJS="$EXTRAOBJS buildlist\$o rangebox\$o treeview\$o"
+	 AC_DEFINE(HAVE_XDIALOG2,1,[Define to 1 to include extra Xdialog-style dialogs])],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want compatibility with whiptail options],
+	whiptail,
+	[  --disable-whiptail      do not map extra whiptail options],
+	[AC_DEFINE(HAVE_WHIPTAIL,1,[Define to 1 to include extra whiptail options])],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want the form dialog],
+	form,
+	[  --disable-form          do not include the form dialog],
+	[EXTRAOBJS="$EXTRAOBJS formbox\$o"
+	 AC_DEFINE(HAVE_DLG_FORMBOX,1,[Define to 1 to include the form dialog])],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want the gauge dialog],
+	gauge,
+	[  --disable-gauge         do not include the gauge dialogs],
+	[EXTRAOBJS="$EXTRAOBJS guage\$o pause\$o prgbox\$o progressbox\$o"
+	 AC_DEFINE(HAVE_DLG_GAUGE,1,[Define to 1 to include the gauge dialogs])],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want the tailbox dialog],
+	tailbox,
+	[  --disable-tailbox       do not include the tailbox dialog],
+	[EXTRAOBJS="$EXTRAOBJS tailbox\$o"
+	 AC_DEFINE(HAVE_DLG_TAILBOX,1,[Define to 1 to include the tailbox dialog])],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want the mixedform dialog],
+	mixedform,
+	[  --disable-mixedform     do not include the mixedform dialog],
+	[EXTRAOBJS="$EXTRAOBJS mixedform\$o"
+	 AC_DEFINE(HAVE_DLG_MIXEDFORM,1,[Define to 1 to include the mixedform dialog])],,${enable_form:=$cf_all_widgets})
+
+CF_ARG_MSG_ENABLE([if you want the mixedgauge dialog],
+	mixedgauge,
+	[  --disable-mixedgauge    do not include the mixedgauge dialog],
+	[EXTRAOBJS="$EXTRAOBJS mixedgauge\$o"
+	 AC_DEFINE(HAVE_MIXEDGAUGE,1,[Define to 1 to include the mixedgauge dialog])],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want the wide-curses features],
+	widec,
+	[  --enable-widec          enable wide-curses features],
+	[AC_DEFINE(USE_WIDE_CURSES,1,[Define to 1 to enable wide-curses features])],,$cf_cv_widec_curses)
+
+AC_SUBST(EXTRAOBJS)
+
+dnl
+dnl Checks for header files.
+dnl
+AC_HEADER_STDC
+AC_HEADER_TIME
+AC_HEADER_DIRENT
+AC_CHECK_HEADERS(search.h stdint.h unistd.h)
+CF_CURSES_TERM_H
+
+dnl
+dnl Checks for library functions.
+dnl
+AC_TYPE_SIGNAL
+AC_CHECK_FUNCS(\
+_nc_free_and_exit \
+btowc \
+mblen \
+mbrlen \
+mbrtowc \
+mbtowc \
+strcasecmp \
+strftime \
+tsearch \
+waitpid \
+wcsrtombs \
+wcstombs \
+wctob \
+wctomb \
+mktime \
+)
+
+CF_CURSES_FUNCS(\
+flushinp \
+getattrs \
+getbegx \
+getbegy \
+getbegyx \
+getcurx \
+getcury \
+getmaxx \
+getmaxy \
+getmaxyx \
+getparx \
+getpary \
+getparyx \
+use_default_colors \
+wchgat \
+wcursyncup \
+wget_wch \
+wsyncup \
+)
+
+AC_CHECK_FUNC(start_color,[AC_DEFINE(HAVE_COLOR,1,[Define to 1 if (n)curses has start_color function])])
+CF_CURSES_CHTYPE
+CF_CURSES_WACS_SYMBOLS
+CF_CURSES_WGETPARENT
+CF_FUNC_WAIT
+CF_MBSTATE_T
+CF_SIZECHANGE
+
+CF_HEADERS_SH(DLG,dlg_config.h)
+
+AC_TRY_LINK([#include <locale.h>],[setlocale(LC_ALL, "")],[AC_DEFINE(HAVE_SETLOCALE,1,[Define to 1 if locale feature can be enabled])])
+CF_NL_LANGINFO_1STDAY
+
+CF_DISABLE_RPATH_HACK
+
+CF__DEFINE_SHLIB_VARS
+
+AC_OUTPUT(
+	dialog-config
+	makefile
+	$EXTRA_OUTPUT
+	$SUB_MAKEFILE,[
+CF__ADD_SHLIB_RULES(
+	makefile,
+	$LIB_MODEL,
+	[\${LIB_OBJECT}],
+	[\${LIBS} \${LDFLAGS}])
+],[
+CF__INIT_SHLIB_RULES
+],[sort -u])

@@ -1,0 +1,48 @@
+# $FreeBSD$
+
+This is a small test program which I have had around since we wrote
+the RFC 2783 API.
+
+Options:
+	-a 	capture assert flank
+	-c	capture clear flank
+	(if neither -a -c: capture all available flanks)
+	-A	output on assert flank
+	-C	output on clear flank
+	(if neither -A -C: output on all flanks)
+	-e	enable echo (all possible flanks)
+	-u	unbuffered output.
+	-v	verbose.
+
+The output looks like:
+
+# ./ppsapitest -C /dev/cuau4
+1070915603 .703680117 119 1070915940 .902275676 121
+1070915941 .703657317 120 1070915941 .902327516 122
+1070915942 .703657077 121 1070915942 .902367957 123
+1070915943 .703657557 122 1070915943 .902419077 124
+1070915944 .703656717 123 1070915944 .902467197 125
+1070915945 .703657077 124 1070915945 .902527078 126
+
+Columns:
+
+	assert seconds (tv_sec)
+	assert nanoseconds (tv_nsec)
+	assert sequence number
+	clear seconds (tv_sec)
+	clear nanoseconds (tv_nsec)
+	clear sequence number
+
+(If the -C option had not been specified, twice as many lines would
+be output:
+
+# ./ppsapitest /dev/cuau4
+1070916432 .703624557 125 1070915945 .902527078 126
+1070916432 .703624557 125 1070916432 .902303156 127
+1070916433 .703624557 126 1070916432 .902303156 127
+1070916433 .703624557 126 1070916433 .902348396 128
+1070916434 .703625757 127 1070916433 .902348396 128
+1070916434 .703625757 127 1070916434 .902396877 129
+1070916435 .703623837 128 1070916434 .902396877 129
+1070916435 .703623837 128 1070916435 .902444277 130
+

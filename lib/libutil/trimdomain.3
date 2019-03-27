@@ -1,0 +1,85 @@
+.\" Copyright (c) 1999 Brian Somers <brian@Awfulhak.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 7, 1999
+.Dt TRIMDOMAIN 3
+.Os
+.Sh NAME
+.Nm trimdomain
+.Nd "trim the current domain name from a host name"
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In sys/types.h
+.In libutil.h
+.Ft void
+.Fn trimdomain "char *fullhost" "int hostsize"
+.Sh DESCRIPTION
+The function
+.Fn trimdomain
+removes the current domain name from the passed
+.Ar fullhost
+name by writing a
+.Dv NUL
+character over the first period of the passed name.
+The current domain
+name is determined by calling
+.Xr gethostname 3
+and removing everything up to the first period.
+The name is determined
+the first time this function is called and is cached for future use.
+.Pp
+The
+.Fn trimdomain
+function will only trim the domain name if the passed
+.Ar fullname
+ends with the current domain name and if the length of the resulting host
+name does not exceed
+.Ar hostsize .
+.Pp
+If the passed
+.Ar fullname
+is actually a
+.Dv DISPLAY
+specification of the form
+.Sm off
+.Ar host . domain : nn Oo .
+.Ar nn
+.Oc
+.Sm on
+and the domain name is the same as the local domain name,
+.Fn trimdomain
+will remove the embedded domain name, copying the screen and display
+numbers to the end of the base host name and resulting in
+.Sm off
+.Ar host : nn Op . Ar nn .
+.Sm on
+.Sh RETURN VALUES
+The
+.Fn trimdomain
+function does not return a value.
+.Sh SEE ALSO
+.Xr gethostname 3

@@ -1,0 +1,147 @@
+# $FreeBSD$
+#
+# The Files are converted by "convert-keymaps.pl" from the given encoding to UCS.
+#
+# An additional "+EURO" causes the translation of the generic currency symbol to 
+# an Euro symbol, even if the source locale does not support an Euro symbol.
+# This conversion is only performed for the "E" key (not e.g. on Shift-4, which 
+# still generates the currency symbol).
+#
+# Encoding      syscons file name               newcons (vt) file name
+ISO8859-1+EURO	be.iso.kbd			be.kbd
+ISO8859-1+EURO	be.iso.acc.kbd			be.acc.kbd
+
+ISO8859-5	bg.bds.ctrlcaps.kbd		bg.bds.kbd
+ISO8859-5	bg.phonetic.ctrlcaps.kbd	bg.phonetic.kbd
+
+#ISO8859-1	br275.iso.kbd			br.kbd.from-iso1	(only AltGr-Shift-6 differs from CP850)
+ISO8859-1	br275.iso.acc.kbd		br.kbd
+CP850		br275.cp850.kbd			br.noacc.kbd
+
+#CP1131		by.cp1131.kbd			by.kbd.from-cp1131	(Shift-3 not OK)
+#CP1251		by.cp1251.kbd			by.kbd.from-cp1251	(result identical to CP1251)
+ISO8859-5	by.iso5.kbd			by.kbd
+
+ISO8859-2	ce.iso2.kbd			centraleuropean.qwerty.kbd
+
+ISO8859-1	colemak.iso15.acc.kbd		colemak.acc.kbd
+
+ISO8859-2	cs.latin2.qwertz.kbd		cz.kbd
+ISO8859-2	cz.iso2.kbd			cz.qwerty.kbd.from-ce
+
+ISO8859-1+EURO	danish.iso.kbd			dk.kbd
+ISO8859-1+EURO	danish.iso.acc.kbd		dk.acc.kbd
+CP865		danish.cp865.kbd		dk.kbd.from-cp865
+ISO8859-1	danish.iso.macbook.kbd		dk.macbook.kbd
+
+ISO8859-1	dutch.iso.acc.kbd		nl.kbd
+
+ISO8859-15	eee_nordic.kbd			nordic.asus-eee.kbd
+
+ISO8859-7	el.iso07.kbd			gr.kbd
+
+ISO8859-1	estonian.iso.kbd		ee.kbd.from-iso1
+ISO8859-15	estonian.iso15.kbd		ee.kbd
+CP850		estonian.cp850.kbd		ee.kbd.from-cp850
+
+ISO8859-1+EURO	finnish.iso.kbd			fi.kbd
+CP850		finnish.cp850.kbd		fi.kbd.from-cp850
+
+ISO8859-1+EURO	fr.iso.kbd			fr.kbd
+ISO8859-1+EURO	fr.iso.acc.kbd			fr.acc.kbd
+ISO8859-1+EURO	fr.macbook.acc.kbd		fr.macbook.kbd
+ISO8859-1+EURO	fr.dvorak.kbd			fr.dvorak.kbd
+ISO8859-1	fr.dvorak.acc.kbd		fr.dvorak.acc.kbd
+
+ISO8859-1+EURO	fr_CA.iso.acc.kbd		ca-fr.kbd
+
+ISO8859-1+EURO	german.iso.kbd			de.noacc.kbd
+ISO8859-1+EURO	german.iso.acc.kbd		de.acc.kbd
+CP850		german.cp850.kbd		de.kbd.from-cp850
+
+ISO8859-7	gr.elot.acc.kbd			gr.elot.acc.kbd
+ISO8859-7	gr.us101.acc.kbd		gr.101.acc.kbd
+
+ISO8859-8	iw.iso8.kbd			il.kbd
+
+ISO8859-2	hr.iso.kbd			hr.kbd
+
+ISO8859-2	hu.iso2.101keys.kbd		hu.101.kbd
+ISO8859-2	hu.iso2.102keys.kbd		hu.102.kbd
+
+ARMSCII-8	hy.armscii-8.kbd		am.kbd
+
+ISO8859-1	icelandic.iso.kbd		is.kbd
+ISO8859-1	icelandic.iso.acc.kbd		is.acc.kbd
+
+ISO8859-1+EURO	it.iso.kbd			it.kbd
+
+ISO8859-1+YEN	jp.106.kbd			jp.kbd
+ISO8859-1+YEN	jp.106x.kbd			jp.capsctrl.kbd
+
+PT154		kk.pt154.kst.kbd		kz.kst.kbd
+PT154		kk.pt154.io.kbd			kz.io.kbd
+
+ISO8859-1	latinamerican.kbd		latinamerican.kbd
+ISO8859-1	latinamerican.iso.acc.kbd	latinamerican.acc.kbd
+
+ISO8859-4	lt.iso4.kbd			lt.kbd
+
+ISO8859-1	norwegian.iso.kbd		no.kbd
+ISO8859-1	norwegian.dvorak.kbd		no.dvorak.kbd
+
+ISO8859-2	pl_PL.ISO8859-2.kbd		pl.kbd
+ISO8859-2	pl_PL.dvorak.kbd		pl.dvorak.kbd
+
+ISO8859-1+EURO	pt.iso.kbd			pt.kbd
+ISO8859-1+EURO	pt.iso.acc.kbd			pt.acc.kbd
+
+CP866		ru.cp866.kbd			ru.kbd.from-cp866
+ISO8859-5	ru.iso5.kbd			ru.kbd.from-iso5
+KOI8-R		ru.koi8-r.kbd			ru.kbd
+KOI8-R		ru.koi8-r.shift.kbd		ru.shift.kbd
+KOI8-R		ru.koi8-r.win.kbd		ru.win.kbd
+
+ISO8859-1+EURO	spanish.dvorak.kbd		es.dvorak.kbd
+ISO8859-1+EURO	spanish.iso.kbd			es.kbd.from-iso1
+ISO8859-1+EURO	spanish.iso.acc.kbd		es.acc.kbd
+ISO8859-1+EURO	spanish.iso15.acc.kbd		es.kbd
+
+ISO8859-2	si.iso.kbd			si.kbd
+
+ISO8859-2	sk.iso2.kbd			sk.kbd
+
+ISO8859-1+EURO	swedish.iso.kbd			se.kbd
+CP850		swedish.cp850.kbd		se.kbd.from-cp850
+
+ISO8859-1+EURO	swissfrench.iso.kbd		ch-fr.kbd
+ISO8859-1+EURO	swissfrench.iso.acc.kbd		ch-fr.acc.kbd
+CP850		swissfrench.cp850.kbd		ch-fr.kbd.from-cp850
+
+ISO8859-1+EURO	swissgerman.iso.kbd		ch.kbd
+ISO8859-1+EURO	swissgerman.iso.acc.kbd		ch.acc.kbd
+CP850		swissgerman.cp850.kbd		ch.kbd.from-cp850
+ISO8859-1+EURO	swissgerman.macbook.acc.kbd	ch.macbook.acc.kbd
+
+ISO8859-9	tr.iso9.q.kbd			tr.kbd
+
+ISO8859-1+EURO	uk.iso.kbd			uk.kbd
+ISO8859-1+EURO	uk.iso-ctrl.kbd			uk.capsctrl.kbd
+#CP850		uk.cp850.kbd			uk.kbd.from-cp850		(no ¤ and different Alt/Alt-Shift encodings)
+#CP850		uk.cp850-ctrl.kbd		uk.capsctrl.kbd.from-cp850	(no ¤ and different Alt/Alt-Shift encodings)
+ISO8859-15	uk.dvorak.kbd			uk.dvorak.kbd
+
+ISO8859-1	us.iso.kbd			us.kbd
+ISO8859-1	us.iso.acc.kbd			us.acc.kbd
+ISO8859-1	us.dvorak.kbd			us.dvorak.kbd
+ISO8859-1	us.dvorakr.kbd			us.dvorakr.kbd
+ISO8859-1	us.dvorakl.kbd			us.dvorakl.kbd
+ISO8859-1	us.dvorakp.kbd			us.dvorakp.kbd
+ISO8859-1	us.dvorakx.kbd			us.dvorakx.kbd
+ISO8859-1	us.emacs.kbd			us.emacs.kbd
+ISO8859-1	us.pc-ctrl.kbd			us.ctrl.kbd
+ISO8859-1	us.unix.kbd			us.unix.kbd
+
+#ISO8859-5	ua.iso5.kbd			ua.kbd.from-iso5
+KOI8-U		ua.koi8-u.kbd			ua.kbd
+KOI8-U		ua.koi8-u.shift.alt.kbd		ua.shift.alt.kbd

@@ -1,0 +1,206 @@
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "ralink,rt2880-soc";
+
+	cpus {
+		cpu@0 {
+			compatible = "mips,mips4KEc";
+		};
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,57600";
+	};
+
+	aliases {
+		serial0 = &uartlite;
+	};
+
+	cpuintc: cpuintc@0 {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		compatible = "mti,cpu-interrupt-controller";
+	};
+
+	palmbus: palmbus@300000 {
+		compatible = "palmbus";
+		reg = <0x300000 0x200000>;
+		ranges = <0x0 0x300000 0x1FFFFF>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		sysc: sysc@0 {
+			compatible = "ralink,rt2880-sysc";
+			reg = <0x000 0x100>;
+		};
+
+		timer: timer@100 {
+			compatible = "ralink,rt2880-timer";
+			reg = <0x100 0x20>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <1>;
+
+			status = "disabled";
+		};
+
+		watchdog: watchdog@120 {
+			compatible = "ralink,rt2880-wdt";
+			reg = <0x120 0x10>;
+		};
+
+		intc: intc@200 {
+			compatible = "ralink,rt2880-intc";
+			reg = <0x200 0x100>;
+
+			interrupt-controller;
+			#interrupt-cells = <1>;
+
+			interrupt-parent = <&cpuintc>;
+			interrupts = <2>;
+		};
+
+		memc: memc@300 {
+			compatible = "ralink,rt2880-memc";
+			reg = <0x300 0x100>;
+		};
+
+		gpio0: gpio@600 {
+			compatible = "ralink,rt2880-gpio";
+			reg = <0x600 0x34>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			ralink,gpio-base = <0>;
+			ralink,num-gpios = <24>;
+			ralink,register-map = [ 00 04 08 0c
+						20 24 28 2c
+						30 34 ];
+
+			interrupt-parent = <&intc>;
+			interrupts = <7>;
+		};
+
+		gpio1: gpio@638 {
+			compatible = "ralink,rt2880-gpio";
+			reg = <0x638 0x24>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			ralink,gpio-base = <24>;
+			ralink,num-gpios = <16>;
+			ralink,register-map = [ 00 04 08 0c
+						10 14 18 1c
+						20 24 ];
+
+			status = "disabled";
+		};
+
+		gpio2: gpio@660 {
+			compatible = "ralink,rt2880-gpio";
+			reg = <0x660 0x24>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			ralink,gpio-base = <40>;
+			ralink,num-gpios = <32>;
+			ralink,register-map = [ 00 04 08 0c
+						10 14 18 1c
+						20 24 ];
+
+			status = "disabled";
+		};
+
+		uartlite: uartlite@c00 {
+			compatible = "ralink,rt2880-uart", "ns16550a";
+			reg = <0xc00 0x100>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <8>;
+
+			reg-shift = <2>;
+		};
+	};
+
+	pinctrl: pinctrl {
+		compatible = "ralink,rt2880-pinmux";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&state_default>;
+
+		state_default: pinctrl0 {
+			sdram {
+				ralink,group = "sdram";
+				ralink,function = "sdram";
+			};
+		};
+
+		spi_pins: spi {
+			spi {
+				ralink,group = "spi";
+				ralink,function = "spi";
+			};
+		};
+
+		uartlite_pins: uartlite {
+			uart {
+				ralink,group = "uartlite";
+				ralink,function = "uartlite";
+			};
+		};
+	};
+
+	rstctrl: rstctrl {
+		compatible = "ralink,rt2880-reset";
+		#reset-cells = <1>;
+	};
+
+	clkctrl: clkctrl {
+		compatible = "ralink,rt2880-clock";
+		#clock-cells = <1>;
+	};
+
+	ethernet: ethernet@400000 {
+		compatible = "ralink,rt2880-eth";
+		reg = <0x00400000 0x10000>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		resets = <&rstctrl 18>;
+		reset-names = "fe";
+
+		interrupt-parent = <&cpuintc>;
+		interrupts = <5>;
+
+		status = "disabled";
+
+		port@0 {
+			compatible = "ralink,rt2880-port", "mediatek,eth-port";
+			reg = <0>;
+		};
+	};
+
+	mdio-bus {
+		compatible = "ralink,rt2880-mdio";
+		reg = <0x00400000 0x10000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	wmac: wmac@480000 {
+		compatible = "ralink,rt2880-wmac";
+		reg = <0x480000 0x40000>;
+
+		interrupt-parent = <&cpuintc>;
+		interrupts = <6>;
+
+		ralink,eeprom = "soc_wmac.eeprom";
+	};
+};

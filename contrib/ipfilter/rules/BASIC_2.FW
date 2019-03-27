@@ -1,0 +1,72 @@
+#!/sbin/ipf -f -
+#
+# SAMPLE: PERMISSIVE FILTER RULES
+#
+# THIS EXAMPLE IS WRITTEN FOR IP FILTER 3.3
+#
+# ppp0 - (external) PPP connection to ISP, address a.b.c.d/32
+#
+# ed0 - (internal) network interface, address w.x.y.z/32
+#
+# This file contains the basic rules needed to construct a firewall for the
+# above situation.
+#
+#-------------------------------------------------------
+# *Nasty* packets we don't want to allow near us at all!
+# short packets which are packets fragmented too short to be real.
+block in log quick all with short
+#-------------------------------------------------------
+# Group setup.
+# ============
+# By default, block and log everything.  This maybe too much logging
+# (especially for ed0) and needs to be further refined.
+#
+block in log on ppp0 all head 100
+block out log on ppp0 all head 150
+block in log on ed0 from w.x.y.z/24 to any head 200
+block out log on ed0 all head 250
+#-------------------------------------------------------
+# Invalid Internet packets.
+# =========================
+#
+# Deny reserved addresses.
+#
+block in log quick from 10.0.0.0/8 to any group 100
+block in log quick from 192.168.0.0/16 to any group 100
+block in log quick from 172.16.0.0/12 to any group 100
+#
+# Prevent IP spoofing.
+#
+block in log quick from a.b.c.d/24 to any group 100
+#
+#-------------------------------------------------------
+# Localhost packets.
+# ==================
+# packets going in/out of network interfaces that aren't on the loopback
+# interface should *NOT* exist.
+block in log quick from 127.0.0.0/8 to any group 100
+block in log quick from any to 127.0.0.0/8 group 100
+block in log quick from 127.0.0.0/8 to any group 200
+block in log quick from any to 127.0.0.0/8 group 200
+# And of course, make sure the loopback allows packets to traverse it.
+pass in quick on lo0 all
+pass out quick on lo0 all
+#-------------------------------------------------------
+# Allow any communication between the inside network and the outside only.
+#
+# Allow all outgoing connections (SSH, TELNET, FTP, WWW, gopher, etc)
+#
+pass in log quick proto tcp all flags S/SA keep state group 200
+#
+# Support all UDP `connections' initiated from inside.
+#
+# Allow ping out
+#
+pass in log quick proto icmp all keep state group 200
+#-------------------------------------------------------
+# Log these:
+# ==========
+# * return RST packets for invalid SYN packets to help the other end close
+block return-rst in log proto tcp from any to any flags S/SA group 100
+# * return ICMP error packets for invalid UDP packets
+block return-icmp(net-unr) in proto udp all group 100

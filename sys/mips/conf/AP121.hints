@@ -1,0 +1,107 @@
+#
+# This file adds to the values in AR91XX_BASE.hints.
+#
+# $FreeBSD$
+
+# mdiobus on arge1
+hint.argemdio.0.at="nexus0"
+hint.argemdio.0.maddr=0x1a000000
+hint.argemdio.0.msize=0x1000
+hint.argemdio.0.order=0
+
+# Embedded Atheros Switch
+hint.arswitch.0.at="mdio0"
+hint.arswitch.0.is_7240=1
+hint.arswitch.0.numphys=4
+hint.arswitch.0.phy4cpu=1	# phy 4 is a "CPU" separate PHY
+hint.arswitch.0.is_rgmii=0
+hint.arswitch.0.is_gmii=1	# arge1 <-> switch PHY is GMII
+
+# arge0 - MII, autoneg, phy(4)
+hint.arge.0.phymask=0x10	# PHY4
+hint.arge.0.mdio=mdioproxy1	# .. off of the switch mdiobus
+
+# arge1 - GMII, 1000/full
+hint.arge.1.phymask=0x0		# No directly mapped PHYs
+hint.arge.1.media=1000
+hint.arge.1.fduplex=1
+
+# The AP121 4MB flash layout:
+#
+# bootargs=console=ttyS0,115200 root=31:02 rootfstype=squashfs
+#    init=/sbin/init mtdparts=ar7240-nor0:256k(u-boot),64k(u-boot-env),
+#    2752k(rootfs),896k(uImage),64k(NVRAM),64k(ART)
+#
+# So:
+# 256k: uboot
+# 64: uboot-env
+# 2752k: rootfs
+# 896k: kernel
+# 64k: config
+# 64k: ART
+
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x000040000
+hint.map.0.name="uboot"
+hint.map.0.readonly=1
+
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00040000
+hint.map.1.end=0x00050000
+hint.map.1.name="uboot-env"
+hint.map.1.readonly=0
+
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x00050000
+hint.map.2.end=0x00300000
+hint.map.2.name="rootfs"
+hint.map.2.readonly=0
+
+hint.map.3.at="flash/spi0"
+hint.map.3.start=0x00300000
+hint.map.3.end=0x003e0000
+hint.map.3.name="kernel"
+hint.map.3.readonly=0
+
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x003e0000
+hint.map.4.end=0x003f0000
+hint.map.4.name="cfg"
+hint.map.4.readonly=0
+
+# This is radio calibration section.  It is (or should be!) unique
+# for each board, to take into account thermal and electrical differences
+# as well as the regulatory compliance data.
+#
+hint.map.5.at="flash/spi0"
+hint.map.5.start=0x003f0000
+hint.map.5.end=0x00400000
+hint.map.5.name="art"
+hint.map.5.readonly=1
+
+# GPIO specific configuration block
+
+# Don't flip on anything that isn't already enabled.
+# This includes leaving the SPI CS1/CS2 pins as GPIO pins as they're
+# not used here.
+hint.gpio.0.function_set=0x00000000
+hint.gpio.0.function_clear=0x00000000
+
+# These are the GPIO LEDs and buttons which can be software controlled.
+#hint.gpio.0.pinmask=0x001c02ae
+hint.gpio.0.pinmask=0x00001803
+
+# gpio0 - WLAN LED
+# gpio1 - USB LED
+# gpio11 - Jumpstart button
+# gpio12 - Reset button
+
+# LEDs are configured separately and driven by the LED device
+hint.gpioled.0.at="gpiobus0"
+hint.gpioled.0.name="wlan"
+hint.gpioled.0.pins=0x0001
+
+hint.gpioled.1.at="gpiobus0"
+hint.gpioled.1.name="usb"
+hint.gpioled.1.pins=0x0002

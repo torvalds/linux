@@ -1,0 +1,16 @@
+/*
+ * $FreeBSD$
+ *
+ * Originally submitted by Renato Tambellini <rtsanch@gmail.com>
+ *
+ * Brazilian calendar
+ */
+
+#ifndef _pt_BR_UTF_8_all_
+#define _pt_BR_UTF_8_all_
+
+#include <pt_BR.UTF-8/calendar.holidays>
+#include <pt_BR.UTF-8/calendar.commemorative>
+#include <pt_BR.UTF-8/calendar.mcommemorative>
+
+#endif /* !_pt_BR.UTF_8_all_ */

@@ -1,0 +1,8 @@
+block in from !1.1.1.1 to any
+pass in from 1.1.1.1 to !any
+block in from 1.1.1.0/24 to !any
+pass in from !1.1.1.0/24 to any
+block in from !1.1.0.0/16 to any
+pass in from 1.1.0.0/16 to !1.2.0.0/16
+block in from any to !127.0.0.0/8
+pass in from !any to any

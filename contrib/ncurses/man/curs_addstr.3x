@@ -1,0 +1,101 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_addstr.3x,v 1.17 2012/11/03 22:57:31 tom Exp $
+.TH curs_addstr 3X ""
+.de bP
+.IP \(bu 4
+..
+.na
+.hy 0
+.SH NAME
+\fBaddstr\fR,
+\fBaddnstr\fR,
+\fBwaddstr\fR,
+\fBwaddnstr\fR,
+\fBmvaddstr\fR,
+\fBmvaddnstr\fR,
+\fBmvwaddstr\fR,
+\fBmvwaddnstr\fR \- add a string of characters to a \fBcurses\fR window and advance cursor
+.ad
+.hy
+.SH SYNOPSIS
+.nf
+\fB#include <curses.h>\fR
+.PP
+\fBint addstr(const char *\fR\fIstr\fR\fB);\fR
+.br
+\fBint addnstr(const char *\fR\fIstr\fR\fB, int \fR\fIn\fR\fB);\fR
+.br
+\fBint waddstr(WINDOW *\fR\fIwin\fR\fB, const char *\fR\fIstr\fR\fB);\fR
+.br
+\fBint waddnstr(WINDOW *\fR\fIwin\fR\fB, const char *\fR\fIstr\fR\fB, int \fR\fIn\fR\fB);\fR
+.br
+\fBint mvaddstr(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const char *\fR\fIstr\fR\fB);\fR
+.br
+\fBint mvaddnstr(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const char *\fR\fIstr\fR\fB, int \fR\fIn\fR\fB);\fR
+.br
+\fBint mvwaddstr(WINDOW *\fR\fIwin\fR\fB, int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const char *\fR\fIstr\fR\fB);\fR
+.br
+\fBint mvwaddnstr(WINDOW *\fR\fIwin\fR\fB, int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const char *\fR\fIstr, int \fR\fIn\fR\fB);\fR
+.fi
+.SH DESCRIPTION
+These functions write the (null-terminated) character string
+\fIstr\fR on the given window.
+It is similar to calling \fBwaddch\fR once for each character in the string.
+.PP
+The \fImv\fR functions perform cursor movement once, before writing any
+characters.
+Thereafter, the cursor is advanced as a side-effect of writing to the window.
+.PP
+The four functions with \fIn\fR as the last argument
+write at most \fIn\fR characters,
+or until a terminating null is reached.
+If \fIn\fR is \-1, then the entire string will be added.
+.SH RETURN VALUE
+All functions return the integer \fBERR\fR upon failure and \fBOK\fR on success.
+.PP
+X/Open does not define any error conditions.
+This implementation returns an error
+.bP
+if the window pointer is null or
+.bP
+if the string pointer is null or
+.bP
+if the corresponding calls to \fBwaddch\fP return an error.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+.SH NOTES
+All of these functions except \fBwaddnstr\fR may be macros.
+.SH PORTABILITY
+These functions are described in the XSI Curses standard, Issue 4.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_addch\fR(3X).

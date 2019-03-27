@@ -1,0 +1,62 @@
+
+#------------------------------------------------------------------------------
+# $File: terminfo,v 1.10 2018/01/21 03:26:33 christos Exp $
+# terminfo:  file(1) magic for terminfo
+#
+# URL: http://invisible-island.net/ncurses/man/term.5.html
+# URL: http://invisible-island.net/ncurses/man/scr_dump.5.html
+#
+# Workaround for Targa image type by Joerg Jenderek
+# GRR: line below too general as it catches also
+# Targa image type 1 with 26 long identification field
+# and HELP.DSK
+0	string		\032\001
+# 5th character of terminal name list, but not Targa image pixel size (15 16 24 32)
+>16	ubyte		>32
+# namelist, if more than 1 separated by "|" like "st|stterm| simpleterm 0.4.1"
+>>12	regex		\^[a-zA-Z0-9][a-zA-Z0-9.][^|]*	Compiled terminfo entry "%-s"
+!:mime	application/x-terminfo
+# no extension
+#!:ext
+#
+#------------------------------------------------------------------------------
+# The following was added for ncurses6 development:
+#------------------------------------------------------------------------------
+#
+0	string		\036\002
+# imitate the legacy compiled-format, to get the entry-name printed
+>16	ubyte		>32
+# namelist, if more than 1 separated by "|" like "st|stterm| simpleterm 0. 4.1"
+>>12	regex		\^[a-zA-Z0-9][a-zA-Z0-9.][^|]*	Compiled 32-bit terminfo entry "%-s"
+!:mime	application/x-terminfo2
+#
+# While the compiled terminfo uses little-endian format irregardless of
+# platform, SystemV screen dumps do not.  They came later, and that detail was
+# overlooked.
+#
+# AIX and HPUX use the SVr4 big-endian format
+# Solaris uses the SVr3 formats (sparc and x86 differ endian-ness)
+0	beshort		0433 		SVr2 curses screen image, big-endian
+0	beshort		0434		SVr3 curses screen image, big-endian
+0	beshort		0435		SVr4 curses screen image, big-endian
+#
+0	leshort		0433		SVr2 curses screen image, little-endian
+0	leshort		0434		SVr3 curses screen image, little-endian
+0	leshort		0435		SVr4 curses screen image, little-endian
+#
+# Rather than SVr4, Solaris "xcurses" writes this header:
+0	regex		\^MAX=[0-9]+,[0-9]+$
+>1	regex		\^BEG=[0-9]+,[0-9]+$
+>2	regex		\^SCROLL=[0-9]+,[0-9]+$
+>3	regex		\^VMIN=[0-9]+$
+>4	regex		\^VTIME=[0-9]+$
+>5	regex		\^FLAGS=0x[[:xdigit:]]+$
+>6	regex		\^FG=[0-9],[0-9]+$
+>7	regex		\^BG=[0-9]+,[0-9]+,	Solaris xcurses screen image
+#
+# ncurses5 (and before) did not use a magic number, making screen dumps "data".
+# ncurses6 (2015) uses this format, ignoring byte-order
+0	string	\210\210\210\210ncurses	ncurses6 screen image
+#
+# PDCurses added this in 2005
+0	string		PDC\001		PDCurses screen image

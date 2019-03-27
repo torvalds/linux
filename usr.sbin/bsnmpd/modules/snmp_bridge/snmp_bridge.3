@@ -1,0 +1,119 @@
+.\"-
+.\" Copyright (C) 2006 Shteryana Shopova <syrinx@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 6, 2007
+.Dt SNMP_BRIDGE 3
+.Os
+.Sh NAME
+.Nm snmp_bridge
+.Nd "bridge module for snmpd"
+.Sh LIBRARY
+.Pq begemotSnmpdModulePath."bridge" = "/usr/lib/snmp_bridge.so"
+.Sh DESCRIPTION
+The
+.Nm snmp_bridge
+module implements the BRIDGE-MIB as standardized in RFC 4188, the RSTP-MIB
+standardized in RFC4318 and a private BEGEMOT-BRIDGE-MIB, which allows
+management of multiple bridge interfaces.
+Most of the objects defined in the private BEGEMOT-BRIDGE-MIB are duplicates
+of the original objects defined by the standard BRIDGE-MIB, but the private
+MIB also defines additional objects which make the functionality of
+.Nm
+similar to
+.Xr ifconfig 8
+for configuring bridge interfaces.
+Therefore one should consider adding write communities or loading the
+.Nm
+module on systems where security is crucial.
+.Sh IMPLEMENTATION NOTES
+The additional objects to configure a bridge are:
+.Bl -tag -width "XXXXXXXXX"
+.It Va begemotBridgeBaseStatus
+Bridge interfaces can be created and destroyed via this object.
+SNMP SET operations with the following values are allowed:
+.Bl -tag -width ".It Va createAndWait"
+.It Va createAndWait
+will attempt to create a bridge interface with the name given by the table
+index.
+.It Va createAndGo
+will attempt to create a bridge interface with the name given by the table
+index and set the status of the interface to "active/up".
+.It Va destroy
+will attempt to destroy the bridge interface.
+.El
+.It Va begemotBridgeBaseSpanEnabled
+A SNMP SET operation on this object is only successful if the corresponding
+port has not been added as member of the bridge interface on the system.
+.It Va begemotBridgeBasePortStatus
+SNMP SET operations with the following values are allowed:
+.Bl -tag -width ".It Va createAndWait"
+.It Va createAndWait
+will create a new row for the bridge member in the SNMP
+.Va begemotBridgeBasePortTable
+but will not try to commit the information to the system.
+.It Va active
+will attempt to commit the information to the system and will be successful
+only if a value for
+.Va begemotBridgeBaseSpanEnabled
+has been SET already.
+.It Va destroy
+will attempt to remove the interface from the system bridge interface.
+.El
+.It Va begemotBridgeBasePortPrivate
+This object controls a bridge interface flag called PRIVATE where any private
+port can not communicate with another private port.
+.El
+.Sh RESTRICTIONS
+Not all information in the MIBs is currently available in FreeBSD.
+The following variables carry no information:
+.Bl -tag -width "XXXXXXXXX"
+.It Va dot1dBasePortCircuit
+.It Va dot1dBasePortDelayExceededDiscards
+.It Va dot1dBasePortMtuExceededDiscards
+.It Va begemotBridgeBasePortDelayExceededDiscards
+.It Va begemotBridgeBasePortMtuExceededDiscards
+.El
+.Sh FILES
+.Bl -tag -width "XXXXXXXXX"
+.It Pa /usr/share/snmp/defs/bridge_tree.def
+The description of the MIB tree implemented by
+.Nm .
+.It Pa /usr/share/snmp/mibs/BRIDGE-MIB.txt
+This is the BRIDGE-MIB that is implemented by this module.
+.It Pa /usr/share/snmp/mibs/RSTP-MIB.txt
+This is the RSTP-MIB implemented by this module.
+.It Pa /usr/share/snmp/mibs/BEGEMOT-BRIDGE-MIB.txt
+This is the private BEGEMOT-BRIDGE-MIB that is implemented by this module.
+.El
+.Sh SEE ALSO
+.Xr bsnmpd 1 ,
+.Xr gensnmptree 1 ,
+.Xr snmpmod 3 ,
+.Xr if_bridge 4 ,
+.Xr ifconfig 8
+.Sh AUTHORS
+.An Shteryana Shopova Aq Mt syrinx@FreeBSD.org

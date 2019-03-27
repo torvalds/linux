@@ -1,0 +1,118 @@
+.\" Copyright (c) 2007-2010 Daniel Braniss <danny@cs.huji.ac.il>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 9, 2014
+.Dt ISCSI_INITIATOR 4
+.Os
+.Sh NAME
+.Nm iscsi_initiator
+.Nd kernel driver for the iSCSI protocol
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iscsi_initiator"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+iscsi_initiator_load="YES"
+.Ed
+.Sh DESCRIPTION
+.Bf -symbolic
+This driver, along with its userspace counterpart
+.Xr iscontrol 8 ,
+is obsolete.
+Users are advised to use
+.Xr iscsi 4
+instead.
+.Ef
+.Pp
+The
+.Nm
+implements the kernel side of the Internet SCSI (iSCSI) network
+protocol standard, the userland companion is
+.Xr iscontrol 8 ,
+and permits access to remote
+.Em virtual
+SCSI devices via
+.Xr cam 4 .
+.Sh SYSCTL VARIABLES
+.Bl -tag -width ".Va net.iscsi.n.targeaddress"
+.It Va debug.iscsi_initiator
+set the debug-level, 0 means no debugging, 9 for maximum.
+.It Va net.iscsi.isid
+the initiator part of the Session Identifier.
+.It Va "kern.cam.cam_srch_hi=1"
+allow search above LUN 7 for SCSI3 and greater devices.
+.It "the following are informative only:"
+.It Va net.iscsi.driver_version
+the current version of the driver.
+.It Va net.iscsi.sessions
+the number of current active sessions.
+.It Va net.iscsi.n.targetname
+is the targe name of session
+.Em n .
+.It Va net.iscsi.n.targeaddress
+is the IP address of the target of session
+.Em n .
+.It Va net.iscsi.n.stats
+are some statistics for session
+.Em n
+.It Va net.iscsi.n.pid
+is the
+.Em "process id"
+of the userland side of session
+.Em n ,
+see
+.Xr iscontrol 8 .
+.El
+.Sh FILES
+The
+.Nm
+driver creates the following:
+.Pp
+.Bl -tag -width ".Pa /dev/iscsi%dxx" -compact
+.It Pa /dev/iscsi
+used to create new sessions.
+.It Pa /dev/iscsi%d
+for each new session.
+.El
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr camcontrol 8 ,
+.Xr iscontrol 8
+.Sh STANDARDS
+iSCSI RFC 3720
+.\" .Sh HISTORY
+.Sh AUTHORS
+This software was written by
+.An Daniel Braniss Aq Mt danny@cs.huji.ac.il
+.Sh BUGS
+The lun discovery method is old-fashioned.

@@ -1,0 +1,76 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: pf
+# REQUIRE: FILESYSTEMS netif pflog pfsync
+# BEFORE:  routing
+# KEYWORD: nojailvnet
+
+. /etc/rc.subr
+
+name="pf"
+desc="Packet filter"
+rcvar="pf_enable"
+load_rc_config $name
+start_cmd="pf_start"
+stop_cmd="pf_stop"
+check_cmd="pf_check"
+reload_cmd="pf_reload"
+resync_cmd="pf_resync"
+status_cmd="pf_status"
+extra_commands="check reload resync"
+required_files="$pf_rules"
+required_modules="pf"
+
+pf_start()
+{
+	check_startmsgs && echo -n 'Enabling pf'
+	$pf_program -F all > /dev/null 2>&1
+	$pf_program -f "$pf_rules" $pf_flags
+	if ! $pf_program -s info | grep -q "Enabled" ; then
+		$pf_program -eq
+	fi
+	check_startmsgs && echo '.'
+}
+
+pf_stop()
+{
+	if $pf_program -s info | grep -q "Enabled" ; then
+		echo -n 'Disabling pf'
+		$pf_program -dq
+		echo '.'
+	fi
+}
+
+pf_check()
+{
+	echo "Checking pf rules."
+	$pf_program -n -f "$pf_rules" $pf_flags
+}
+
+pf_reload()
+{
+	echo "Reloading pf rules."
+	pf_resync
+}
+
+pf_resync()
+{
+	$pf_program -n -f "$pf_rules" $pf_flags || return 1
+	$pf_program -f "$pf_rules" $pf_flags
+}
+
+pf_status()
+{
+	if ! [ -c /dev/pf ] ; then
+		echo "pf.ko is not loaded"
+		return 1
+	else
+		$pf_program -s info
+		$pf_program -s Running >/dev/null
+	fi
+}
+
+run_rc_command "$1"

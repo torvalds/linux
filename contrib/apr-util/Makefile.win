@@ -1,0 +1,365 @@
+# Makefile.win for Win32 APR + APR-iconv + APR-util
+#
+# Targets are:
+#
+#     buildall - compile everything
+#     checkall - run APR + APR-util regression tests
+#     install  - compile everything
+#     clean    - mop up everything
+#
+# You can override the build mechanism, choose only one;
+#
+#     USEMAK=1 - compile from exported make files
+#     USEDSW=1 - compile from .dsw / .dsp VC6 projects
+#     USESLN=1 - compile from converted .sln / .vcproj VC7+ files
+#
+# Define ARCH to your desired preference (your PATH must point
+# to the correct compiler tools!)  Choose only one;
+#
+#     ARCH="Win32 Release"
+#     ARCH="Win32 Debug"
+#     ARCH="Win32 Release9x"
+#     ARCH="Win32 Debug9x"
+#     ARCH="x64 Release"
+#     ARCH="x64 Debug"
+#
+# Provide the APR_PATH, API_PATH and APU_PATH entirely relative 
+# to one another!  At this time, building the libraries themselves
+# is only expected to work if the defaults (../apr, ../apr-iconv 
+# and ../apr-util) are used, or if they are built with USEMAK=1.
+#
+#     APR_PATH=..\apr-1.3.0
+#     API_PATH=..\apr-iconv-1.3.0
+#     APU_PATH=..\apr-util-1.3.0
+#
+# Provide a DBD_LIST argument after configuring LIB and INCLUDE with
+# the SDK paths of the corresponding client support libraries.
+# ODBC is always built on Windows, so it does not get included in DBD_LIST
+# Note that at this time, none of these are supported on win32, per say.
+#
+#     DBD_LIST="sqlite3 pgsql oracle mysql freetds"
+#
+# Provide a DBM_LIST argument after configuring LIB and INCLUDE with
+# the SDK paths of the corresponding database support libraries.  Right
+# now only db has been configured, gdbm and ndbm require additional study.
+# Note that at this time, none of these are supported on win32, per say.
+#
+#     DBM_LIST="db gdbm"
+#
+# Provide a CRYPTO_LIST argument after configuring LIB and INCLUDE with
+# the SDK paths of the corresponding cryptographic support libraries.
+#
+#     CRYPTO_LIST="nss openssl"
+#
+# For example;
+#
+#   nmake -f Makefile.win PREFIX=C:\APR buildall checkall installall clean
+#
+
+!IF EXIST("aprutil.sln") && ([devenv /help > NUL 2>&1] == 0) \
+    && !defined(USEMAK) && !defined(USEDSW)
+USESLN=1
+USEMAK=0
+USEDSW=0
+!ELSEIF EXIST("aprutil.mak") && !defined(USEDSW)
+USESLN=0
+USEMAK=1
+USEDSW=0
+!ELSE
+USESLN=0
+USEMAK=0
+USEDSW=1
+!ENDIF
+
+PREFIX=..\apr-dist
+
+!IF [$(COMSPEC) /c cl /nologo /? \
+	| $(SystemRoot)\System32\find.exe "x64" >NUL ] == 0
+ARCH=x64 Release
+!ELSE
+ARCH=Win32 Release
+!ENDIF
+
+APR_PATH=..\apr
+API_PATH=..\apr-iconv
+APU_PATH=..\apr-util
+
+!MESSAGE ARCH        = $(ARCH)
+!MESSAGE APR_PATH    = $(APR_PATH)
+!MESSAGE API_PATH    = $(API_PATH)  (apr-iconv)
+!MESSAGE APU_PATH    = $(APU_PATH)  (apr-util)
+!MESSAGE PREFIX      = $(PREFIX)  (install path)
+!MESSAGE DBD_LIST    = $(DBD_LIST)
+!MESSAGE DBM_LIST    = $(DBM_LIST)
+!MESSAGE CRYPTO_LIST = $(CRYPTO_LIST)
+
+# Utility and Translation things, nothing here for the user
+#
+!IF "$(ARCH)" == "Win32 Release"
+SLNARCH=Release|Win32
+ARCHPATH=Release
+LIBSPATH=LibR
+ARCHOSPATH=Release
+LIBSOSPATH=LibR
+!ELSEIF "$(ARCH)" == "Win32 Debug"
+SLNARCH=Debug|Win32
+ARCHPATH=Debug
+LIBSPATH=LibD
+ARCHOSPATH=Debug
+LIBSOSPATH=LibD
+!ELSEIF "$(ARCH)" == "Win32 Release9x"
+SLNARCH=Release9x|Win32
+ARCHPATH=Release
+LIBSPATH=LibR
+ARCHOSPATH=9x\Release
+LIBSOSPATH=9x\LibR
+!ELSEIF "$(ARCH)" == "Win32 Debug9x"
+SLNARCH=Debug9x|Win32
+ARCHPATH=Debug
+LIBSPATH=LibD
+ARCHOSPATH=9x\Debug
+LIBSOSPATH=9x\LibD
+!ELSEIF "$(ARCH)" == "x64 Release"
+SLNARCH=Release|x64
+ARCHPATH=x64\Release
+LIBSPATH=x64\LibR
+ARCHOSPATH=x64\Release
+LIBSOSPATH=x64\LibR
+!ELSEIF "$(ARCH)" == "x64 Debug"
+SLNARCH=Debug|x64
+ARCHPATH=x64\Debug
+LIBSPATH=x64\LibD
+ARCHOSPATH=x64\Debug
+LIBSOSPATH=x64\LibD
+!ENDIF
+
+!IFNDEF MAKEOPT
+# Only default the behavior if MAKEOPT= is omitted
+!IFDEF _NMAKE_VER
+# Microsoft NMake options
+MAKEOPT=-nologo
+!ELSEIF "$(MAKE)" == "make"
+# Borland make options?  Not really supported (yet)
+MAKEOPT=-s -N
+!ENDIF
+!ENDIF
+
+
+# Sanity Checks
+#
+!IF !EXIST("$(APR_PATH)\apr.dsp") || !EXIST("$(API_PATH)\apriconv.dsp") \
+ || !EXIST("$(APU_PATH)\aprutil.dsp")
+!MESSAGE Please check out or download and unpack the Apache Portability Runtime
+!MESSAGE sources (apr, apr-iconv and apr-util) under a single parent dir,
+!MESSAGE or provide APR_PATH, API_PATH and APU_PATH (all relative to each other,
+!MESSAGE or all absolute paths).
+!MESSAGE Apache cannot build without these libraries!
+!MESSAGE 
+!ERROR Need apr and apr-iconv alongside apr-util to build!
+!ENDIF
+
+
+all: buildall checkall
+
+# To help win32 pick up the locations where they don't fall in the usual
+# path locations.  This may not be completely effective for USESLN/USEDSP
+# oriented builds, just yet
+#
+LIB=$(APR_PATH)\$(ARCHOSPATH);$(APR_PATH)\$(LIBSOSPATH);$(API_PATH)\$(ARCHPATH);$(API_PATH)\$(LIBSPATH);$(APU_PATH)\$(ARCHPATH);$(APU_PATH)\$(LIBSPATH);$(LIB)
+INCLUDE=$(APR_PATH)\include;$(API_PATH)\include;$(INCLUDE)
+
+!IF $(USEMAK) == 1
+
+clean:
+	$(MAKE) $(MAKEOPT) -f Makefile.win ARCH="$(ARCH)" \
+		CTARGET=CLEAN buildall
+
+buildall:
+	cd $(APR_PATH)
+	 $(MAKE) $(MAKEOPT) -f apr.mak         CFG="apr - $(ARCH)" RECURSE=0 $(CTARGET)
+	 $(MAKE) $(MAKEOPT) -f libapr.mak      CFG="libapr - $(ARCH)" RECURSE=0 $(CTARGET)
+	 cd build
+	  $(MAKE) $(MAKEOPT) -f aprapp.mak    CFG="aprapp - $(ARCH)" RECURSE=0 $(CTARGET)
+	  $(MAKE) $(MAKEOPT) -f libaprapp.mak CFG="libaprapp - $(ARCH)" RECURSE=0 $(CTARGET)
+	 cd ..
+	cd $(API_PATH)
+	 $(MAKE) $(MAKEOPT) -f apriconv.mak    CFG="apriconv - $(ARCH)" RECURSE=0 $(CTARGET)
+	 $(MAKE) $(MAKEOPT) -f libapriconv.mak CFG="libapriconv - $(ARCH)" RECURSE=0 $(CTARGET)
+!IF "$(CTARGET)" == "CLEAN"
+	 $(MAKE) $(MAKEOPT) -f build\modules.mk.win clean \
+		BUILD_MODE="$(ARCH)" BIND_MODE=shared API_SOURCE=.
+!ELSE
+	 cd ccs
+	  $(MAKE) $(MAKEOPT) -f Makefile.win all \
+		BUILD_MODE="$(ARCH)" BIND_MODE=shared
+	 cd ..\ces
+	  $(MAKE) $(MAKEOPT) -f Makefile.win all \
+		BUILD_MODE="$(ARCH)" BIND_MODE=shared
+	 cd ..
+!ENDIF
+	cd $(APU_PATH)\xml\expat\lib
+	 $(MAKE) $(MAKEOPT) -f xml.mak         CFG="xml - $(ARCH)" RECURSE=0 $(CTARGET)
+	cd ..\..\..
+	 $(MAKE) $(MAKEOPT) -f aprutil.mak     CFG="aprutil - $(ARCH)" RECURSE=0 $(CTARGET)
+	 $(MAKE) $(MAKEOPT) -f libaprutil.mak  CFG="libaprutil - $(ARCH)" RECURSE=0 $(CTARGET)
+	cd ldap
+	 $(MAKE) $(MAKEOPT) -f apr_ldap.mak    CFG="apr_ldap - $(ARCH)" RECURSE=0 $(CTARGET)
+	cd ..
+	cd dbd
+	  for %d in (odbc $(DBD_LIST)) do \
+	    $(MAKE) $(MAKEOPT) -f apr_dbd_%d.mak CFG="apr_dbd_%d - $(ARCH)" RECURSE=0 $(CTARGET)
+	cd ..
+	cd dbm
+	  for %d in ($(DBM_LIST) x) do if not %d == x \
+	    $(MAKE) $(MAKEOPT) -f apr_dbm_%d.mak CFG="apr_dbm_%d - $(ARCH)" RECURSE=0 $(CTARGET)
+	cd ..
+	cd crypto
+	  for %d in ($(CRYPTO_LIST) x) do if not %d == x \
+	    $(MAKE) $(MAKEOPT) -f apr_crypto_%d.mak CFG="apr_crypto_%d - $(ARCH)" RECURSE=0 $(CTARGET)
+	cd ..
+
+!ELSEIF $(USESLN) == 1
+
+clean:
+	-for %d in (odbc $(DBD_LIST)) do \
+	  devenv aprutil.sln /useenv /clean "$(SLNARCH)" /project apr_dbd_%d
+	-for %d in ($(DBM_LIST) x) do if not %d == x \
+	  devenv aprutil.sln /useenv /clean "$(SLNARCH)" /project apr_dbm_%d
+	-for %d in ($(CRYPTO_LIST) x) do if not %d == x \
+	  devenv aprutil.sln /useenv /clean "$(SLNARCH)" /project apr_crypto_%d
+	-devenv aprutil.sln /useenv /clean "$(SLNARCH)" /project apr_ldap
+	-devenv aprutil.sln /useenv /clean "$(SLNARCH)" /project libaprutil
+	-devenv aprutil.sln /useenv /clean "$(SLNARCH)" /project aprutil
+	cd $(API_PATH)
+	  -$(MAKE) $(MAKEOPT) -f build\modules.mk.win clean \
+		BUILD_MODE="$(ARCH)" BIND_MODE=shared API_SOURCE=.
+	cd $(APU_PATH)
+	-devenv aprutil.sln /useenv /clean "$(SLNARCH)" /project libapriconv
+	-devenv aprutil.sln /useenv /clean "$(SLNARCH)" /project apriconv
+	-devenv aprutil.sln /useenv /clean "$(SLNARCH)" /project libaprapp
+	-devenv aprutil.sln /useenv /clean "$(SLNARCH)" /project aprapp
+	-devenv aprutil.sln /useenv /clean "$(SLNARCH)" /project libapr
+	-devenv aprutil.sln /useenv /clean "$(SLNARCH)" /project apr
+
+buildall:
+	devenv aprutil.sln /useenv /build "$(SLNARCH)" /project aprapp
+	devenv aprutil.sln /useenv /build "$(SLNARCH)" /project libaprapp
+	devenv aprutil.sln /useenv /build "$(SLNARCH)" /project aprutil
+	devenv aprutil.sln /useenv /build "$(SLNARCH)" /project libaprutil
+	devenv aprutil.sln /useenv /build "$(SLNARCH)" /project apr_ldap
+	for %d in (odbc $(DBD_LIST)) do \
+	  devenv aprutil.sln /useenv /build "$(SLNARCH)" /project apr_dbd_%d
+	for %d in ($(DBM_LIST) x) do if not %d == x \
+	  devenv aprutil.sln /useenv /build "$(SLNARCH)" /project apr_dbm_%d
+	for %d in ($(CRYPTO_LIST) x) do if not %d == x \
+	  devenv aprutil.sln /useenv /build "$(SLNARCH)" /project apr_crypto_%d
+
+!ELSE
+#	$(USEDSP) == 1
+
+clean:
+	-for %d in (odbc $(DBD_LIST)) do \
+	  msdev aprutil.dsw /USEENV /MAKE "apr_dbd_%d - $(ARCH)" /CLEAN
+	-for %d in ($(DBM_LIST) x) do if not %d == x \
+	  msdev aprutil.dsw /USEENV /MAKE "apr_dbm_%d - $(ARCH)" /CLEAN
+	-for %d in ($(CRYPTO_LIST) x) do if not %d == x \
+	  msdev aprutil.dsw /USEENV /MAKE "apr_crypto_%d - $(ARCH)" /CLEAN
+	-msdev aprutil.dsw /USEENV /MAKE "apr_ldap - $(ARCH)" /CLEAN
+	-msdev aprutil.dsw /USEENV /MAKE "libaprutil - $(ARCH)" /CLEAN
+	-msdev aprutil.dsw /USEENV /MAKE "aprutil - $(ARCH)" /CLEAN
+	cd $(API_PATH)
+	 $(MAKE) $(MAKEOPT) -f build\modules.mk.win clean \
+		BUILD_MODE="$(ARCH)" BIND_MODE=shared API_SOURCE=.
+	cd $(APU_PATH)
+	-msdev aprutil.dsw /USEENV /MAKE "libapriconv - $(ARCH)" /CLEAN
+	-msdev aprutil.dsw /USEENV /MAKE "apriconv - $(ARCH)" /CLEAN
+	-msdev aprutil.dsw /USEENV /MAKE "libaprapp - $(ARCH)" /CLEAN
+	-msdev aprutil.dsw /USEENV /MAKE "aprapp - $(ARCH)" /CLEAN
+	-msdev aprutil.dsw /USEENV /MAKE "libapr - $(ARCH)" /CLEAN
+	-msdev aprutil.dsw /USEENV /MAKE "apr - $(ARCH)" /CLEAN
+
+buildall:
+	@msdev aprutil.dsw /USEENV /MAKE "aprapp - $(ARCH)"
+	@msdev aprutil.dsw /USEENV /MAKE "aprutil - $(ARCH)"
+	@msdev aprutil.dsw /USEENV /MAKE "libaprapp - $(ARCH)"
+	@msdev aprutil.dsw /USEENV /MAKE "libaprutil - $(ARCH)"
+	@msdev aprutil.dsw /USEENV /MAKE "apr_ldap - $(ARCH)"
+	@for %d in (odbc $(DBD_LIST)) do \
+	  msdev aprutil.dsw /USEENV /MAKE "apr_dbd_%d - $(ARCH)"
+	@for %d in ($(DBM_LIST) x) do if not %d == x \
+	  msdev aprutil.dsw /USEENV /MAKE "apr_dbm_%d - $(ARCH)"
+	@for %d in ($(CRYPTO_LIST) x) do if not %d == x \
+	  msdev aprutil.dsw /USEENV /MAKE "apr_crypto_%d - $(ARCH)"
+
+!ENDIF
+
+
+checkapr:
+	cd $(APR_PATH)\test
+	 $(MAKE) $(MAKEOPT) -f Makefile.win MODEL=static \
+		OUTDIR=$(LIBSOSPATH) check
+	 $(MAKE) $(MAKEOPT) -f Makefile.win MODEL=dynamic \
+		OUTDIR=$(ARCHOSPATH) check
+	 cd ..
+	cd $(APU_PATH)
+
+checkapu:
+	cd $(APU_PATH)
+	cd test
+	 $(MAKE) $(MAKEOPT) -f Makefile.win MODEL=static \
+		OUTDIR=$(LIBSPATH) APROUTDIR=$(LIBSOSPATH) \
+		APR_PATH=..\$(APR_PATH) API_PATH=..\$(API_PATH) check
+	 $(MAKE) $(MAKEOPT) -f Makefile.win MODEL=dynamic \
+		OUTDIR=$(ARCHPATH) APROUTDIR=$(ARCHOSPATH) \
+		APR_PATH=..\$(APR_PATH) API_PATH=..\$(API_PATH) check
+	cd ..
+
+checkall: checkapr checkapu
+
+
+install:
+	echo Y >.y
+	echo A >.A
+	@if NOT EXIST "$(PREFIX)\." mkdir "$(PREFIX)"
+	@if NOT EXIST "$(PREFIX)\bin\." mkdir "$(PREFIX)\bin"
+	@if NOT EXIST "$(PREFIX)\bin\iconv\." mkdir "$(PREFIX)\bin\iconv"
+	@if NOT EXIST "$(PREFIX)\include\." mkdir "$(PREFIX)\include"
+	@if NOT EXIST "$(PREFIX)\lib\." mkdir "$(PREFIX)\lib"
+	copy CHANGES "$(PREFIX)\CHANGES.txt" <.y
+	copy LICENSE "$(PREFIX)\LICENSE.txt" <.y
+	copy NOTICE  "$(PREFIX)\NOTICE.txt"  <.y
+	xcopy $(APR_PATH)\include\*.h		"$(PREFIX)\include\" /d < .a
+	xcopy $(APU_PATH)\include\*.h		"$(PREFIX)\include\" /d < .a
+	copy $(APR_PATH)\$(LIBSOSPATH)\apr-1.lib	"$(PREFIX)\lib\" <.y
+	copy $(APR_PATH)\$(LIBSOSPATH)\apr-1.pdb	"$(PREFIX)\lib\" <.y
+	copy $(APU_PATH)\$(LIBSPATH)\aprutil-1.lib	"$(PREFIX)\lib\" <.y
+	copy $(APU_PATH)\$(LIBSPATH)\aprutil-1.pdb	"$(PREFIX)\lib\" <.y
+	copy $(APR_PATH)\$(ARCHOSPATH)\libapr-1.lib	"$(PREFIX)\lib\" <.y
+	copy $(APR_PATH)\$(ARCHOSPATH)\libapr-1.exp	"$(PREFIX)\lib\" <.y
+	copy $(APU_PATH)\$(ARCHPATH)\libaprutil-1.lib	"$(PREFIX)\lib\" <.y
+	copy $(APU_PATH)\$(ARCHPATH)\libaprutil-1.exp	"$(PREFIX)\lib\" <.y
+	copy $(APR_PATH)\$(ARCHOSPATH)\libapr-1.dll	"$(PREFIX)\bin\" <.y
+	copy $(APR_PATH)\$(ARCHOSPATH)\libapr-1.pdb	"$(PREFIX)\bin\" <.y
+	copy $(API_PATH)\$(ARCHPATH)\libapriconv-1.dll	"$(PREFIX)\bin\" <.y
+	copy $(API_PATH)\$(ARCHPATH)\libapriconv-1.pdb	"$(PREFIX)\bin\" <.y
+	copy $(APU_PATH)\$(ARCHPATH)\libaprutil-1.dll	"$(PREFIX)\bin\" <.y
+	copy $(APU_PATH)\$(ARCHPATH)\libaprutil-1.pdb	"$(PREFIX)\bin\" <.y
+	copy $(APU_PATH)\ldap\$(ARCHPATH)\apr_ldap-1.dll "$(PREFIX)\bin\" <.y
+	copy $(APU_PATH)\ldap\$(ARCHPATH)\apr_ldap-1.pdb "$(PREFIX)\bin\" <.y
+	for %d in (odbc $(DBD_LIST)) do ( \
+	  copy $(APU_PATH)\dbd\$(ARCHPATH)\apr_dbd_%d-1.dll "$(PREFIX)\bin\" <.y && \
+	  copy $(APU_PATH)\dbd\$(ARCHPATH)\apr_dbd_%d-1.pdb "$(PREFIX)\bin\" <.y \
+	)
+	for %d in ($(DBM_LIST) x) do if not %d == x ( \
+	  copy $(APU_PATH)\dbm\$(ARCHPATH)\apr_dbm_%d-1.dll "$(PREFIX)\bin\" <.y && \
+	  copy $(APU_PATH)\dbm\$(ARCHPATH)\apr_dbm_%d-1.pdb "$(PREFIX)\bin\" <.y \
+	)
+	for %d in ($(CRYPTO_LIST) x) do if not %d == x ( \
+	  copy $(APU_PATH)\crypto\$(ARCHPATH)\apr_crypto_%d-1.dll "$(PREFIX)\bin\" <.y && \
+	  copy $(APU_PATH)\crypto\$(ARCHPATH)\apr_crypto_%d-1.pdb "$(PREFIX)\bin\" <.y \
+	)
+	xcopy $(API_PATH)\$(ARCHPATH)\iconv\*.so  "$(PREFIX)\bin\iconv\" /d < .a
+	xcopy $(API_PATH)\$(ARCHPATH)\iconv\*.pdb "$(PREFIX)\bin\iconv\" /d < .a
+	del .y
+	del .a
+

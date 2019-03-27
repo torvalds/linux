@@ -1,0 +1,25 @@
+/*
+ * $FreeBSD$
+ *
+ * Originally submitted by Renato Tambellini <rtsanch@gmail.com>
+ *
+ * Brazilian holidays
+ *
+ * Federal laws 662/1949, 6.802/1980, 9.093/1995 and 10.607/2002.
+ */
+
+#ifndef _pt_BR_ISO8859_1_holidays_
+#define _pt_BR_ISO8859_1_holidays_
+
+LANG=pt_BR.ISO8859-1
+
+01/01	Dia da confraternização universal e da paz
+04/21	Dia do Tiradentes
+05/01	Dia do trabalho
+09/07	Dia da independência do Brasil
+10/12	Dia da Nossa Senhora Aparecida
+11/02	Dia de Finados
+11/15	Dia da proclamação da República
+12/25	Natal
+
+#endif

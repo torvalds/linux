@@ -1,0 +1,299 @@
+/*
+ * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * This software was developed by Semihalf under sponsorship from
+ * the FreeBSD Foundation.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * Marvell DB-88F6281 Device Tree Source.
+ *
+ * $FreeBSD$
+ */
+
+/dts-v1/;
+
+/ {
+	model = "mrvl,DB-88F6281";
+	compatible = "DB-88F6281-BP", "DB-88F6281-BP-A";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		ethernet0 = &enet0;
+		mpp = &MPP;
+		pci0 = &pci0;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		soc = &SOC;
+		sram = &SRAM;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "ARM,88FR131";
+			reg = <0x0>;
+			d-cache-line-size = <32>;	// 32 bytes
+			i-cache-line-size = <32>;	// 32 bytes
+			d-cache-size = <0x4000>;	// L1, 16K
+			i-cache-size = <0x4000>;	// L1, 16K
+			timebase-frequency = <0>;
+			bus-frequency = <0>;
+			clock-frequency = <0>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x20000000>;		// 512M at 0x0
+	};
+
+	localbus@0 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "mrvl,lbc";
+		bank-count = <3>;
+
+		/* This reflects CPU decode windows setup. */
+		ranges = <0x0 0x2f 0xf9300000 0x00100000>;
+
+		nand@0,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "mrvl,nfc";
+			reg = <0x0 0x0 0x00100000>;
+			bank-width = <2>;
+			device-width = <1>;
+
+			slice@0 {
+				reg = <0x0 0x200000>;
+				label = "u-boot";
+				read-only;
+			};
+
+			slice@200000 {
+				reg = <0x200000 0x7e00000>;
+				label = "root";
+			};
+		};
+	};
+
+	SOC: soc88f6281@f1000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x0 0xf1000000 0x00100000>;
+		bus-frequency = <0>;
+
+		PIC: pic@20200 {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			reg = <0x20200 0x3c>;
+			compatible = "mrvl,pic";
+		};
+
+		timer@20300 {
+			compatible = "mrvl,timer";
+			reg = <0x20300 0x30>;
+			interrupts = <1>;
+			interrupt-parent = <&PIC>;
+			mrvl,has-wdt;
+		};
+
+		MPP: mpp@10000 {
+			#pin-cells = <2>;
+			compatible = "mrvl,mpp";
+			reg = <0x10000 0x34>;
+			pin-count = <50>;
+			pin-map = <
+				0  1		/* MPP[0]:  NF_IO[2] */
+				1  1		/* MPP[1]:  NF_IO[3] */
+				2  1		/* MPP[2]:  NF_IO[4] */
+				3  1		/* MPP[3]:  NF_IO[5] */
+				4  1		/* MPP[4]:  NF_IO[6] */
+				5  1		/* MPP[5]:  NF_IO[7] */
+				6  1		/* MPP[6]:  SYSRST_OUTn */
+				7  2		/* MPP[7]:  SPI_SCn */
+				8  1		/* MPP[8]:  TW_SDA */
+				9  1		/* MPP[9]:  TW_SCK */
+				10 3		/* MPP[10]: UA0_TXD */
+				11 3		/* MPP[11]: UA0_RXD */
+				12 1		/* MPP[12]: SD_CLK */
+				13 1		/* MPP[13]: SD_CMD */
+				14 1		/* MPP[14]: SD_D[0] */
+				15 1		/* MPP[15]: SD_D[1] */
+				16 1		/* MPP[16]: SD_D[2] */
+				17 1		/* MPP[17]: SD_D[3] */
+				18 1		/* MPP[18]: NF_IO[0] */
+				19 1		/* MPP[19]: NF_IO[1] */
+				20 5		/* MPP[20]: SATA1_AC */
+				21 5 >;		/* MPP[21]: SATA0_AC */
+		};
+
+		GPIO: gpio@10100 {
+			#gpio-cells = <2>;
+			compatible = "mrvl,gpio";
+			reg = <0x10100 0x20>;
+			gpio-controller;
+			interrupts = <35 36 37 38 39 40 41>;
+			interrupt-parent = <&PIC>;
+		};
+
+		rtc@10300 {
+			compatible = "mrvl,rtc";
+			reg = <0x10300 0x08>;
+		};
+
+		twsi@11000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "mrvl,twsi";
+			reg = <0x11000 0x20>;
+			interrupts = <43>;
+			interrupt-parent = <&PIC>;
+		};
+
+		enet0: ethernet@72000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			model = "V2";
+			compatible = "mrvl,ge";
+			reg = <0x72000 0x2000>;
+			ranges = <0x0 0x72000 0x2000>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <12 13 14 11 46>;
+			interrupt-parent = <&PIC>;
+			phy-handle = <&phy0>;
+
+			mdio@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "mrvl,mdio";
+
+				phy0: ethernet-phy@0 {
+					reg = <0x8>;
+				};
+			};
+		};
+
+		serial0: serial@12000 {
+			compatible = "ns16550";
+			reg = <0x12000 0x20>;
+			reg-shift = <2>;
+			clock-frequency = <0>;
+			interrupts = <33>;
+			interrupt-parent = <&PIC>;
+		};
+
+		serial1: serial@12100 {
+			compatible = "ns16550";
+			reg = <0x12100 0x20>;
+			reg-shift = <2>;
+			clock-frequency = <0>;
+			interrupts = <34>;
+			interrupt-parent = <&PIC>;
+		};
+
+		crypto@30000 {
+			compatible = "mrvl,cesa";
+			reg = <0x30000 0x1000	/* tdma base reg chan 0 */
+			       0x3D000 0x1000>;	/* cesa base reg chan 0 */
+			interrupts = <22>;
+			interrupt-parent = <&PIC>;
+
+			sram-handle = <&SRAM>;
+		};
+
+		usb@50000 {
+			compatible = "mrvl,usb-ehci", "usb-ehci";
+			reg = <0x50000 0x1000>;
+			interrupts = <48 19>;
+			interrupt-parent = <&PIC>;
+		};
+
+		xor@60000 {
+			compatible = "mrvl,xor";
+			reg = <0x60000 0x1000>;
+			interrupts = <5 6 7 8>;
+			interrupt-parent = <&PIC>;
+		};
+
+		sata@80000 {
+			compatible = "mrvl,sata";
+			reg = <0x80000 0x6000>;
+			interrupts = <21>;
+			interrupt-parent = <&PIC>;
+		};
+	};
+
+	SRAM: sram@fd000000 {
+		compatible = "mrvl,cesa-sram";
+		reg = <0xfd000000 0x00100000>;
+	};
+
+	pci0: pcie@f1040000 {
+		compatible = "mrvl,pcie";
+		device_type = "pci";
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <0xf1040000 0x2000>;
+		bus-range = <0 255>;
+		ranges = <0x02000000 0x0 0xf1300000 0xf1300000 0x0 0x04000000
+			  0x01000000 0x0 0x00000000 0xf1100000 0x0 0x00100000>;
+		clock-frequency = <33333333>;
+		interrupt-parent = <&PIC>;
+		interrupts = <44>;
+		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
+		interrupt-map = <
+			/* IDSEL 0x1 */
+			0x0800 0x0 0x0 0x1 &PIC 0x9
+			0x0800 0x0 0x0 0x2 &PIC 0x9
+			0x0800 0x0 0x0 0x3 &PIC 0x9
+			0x0800 0x0 0x0 0x4 &PIC 0x9
+			>;
+		pcie@0 {
+			reg = <0x0 0x0 0x0 0x0 0x0>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			device_type = "pci";
+			ranges = <0x02000000 0x0 0xf1300000
+				  0x02000000 0x0 0xf1300000
+				  0x0 0x04000000
+
+				  0x01000000 0x0 0x0
+				  0x01000000 0x0 0x0
+				  0x0 0x00100000>;
+		};
+	};
+
+      	chosen {
+		stdin = "serial0";
+		stdout = "serial0";
+	};
+};

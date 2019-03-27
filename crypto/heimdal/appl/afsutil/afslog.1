@@ -1,0 +1,152 @@
+.\" Copyright (c) 2002 - 2007 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd November 26, 2002
+.Dt AFSLOG 1
+.Os HEIMDAL
+.Sh NAME
+.Nm afslog
+.Nd obtain AFS tokens
+.Sh SYNOPSIS
+.Nm
+.Op Fl h | Fl Fl help
+.Op Fl Fl no-v4
+.Op Fl Fl no-v5
+.Op Fl u | Fl Fl unlog
+.Op Fl v | Fl Fl verbose
+.Op Fl Fl version
+.Oo Fl c Ar cell \*(Ba Xo
+.Fl Fl cell= Ns Ar cell
+.Xc
+.Oc
+.Oo Fl k Ar realm \*(Ba Xo
+.Fl Fl realm= Ns Ar realm
+.Xc
+.Oc
+.Oo Fl P Ar principal \*(Ba Xo
+.Fl Fl principal= Ns Ar principal
+.Xc
+.Oc
+.Bk -words
+.Oo Fl p Ar path \*(Ba Xo
+.Fl Fl file= Ns Ar path
+.Xc
+.Oc
+.Ek
+.Op Ar cell | path ...
+.Sh DESCRIPTION
+.Nm
+obtains AFS tokens for a number of cells. What cells to get tokens for
+can either be specified as an explicit list, as file paths to get
+tokens for, or be left unspecified, in which case
+.Nm
+will use whatever magic
+.Xr krb_afslog 3
+decides upon.
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Fl Fl no-v4
+This makes
+.Nm
+not try using Kerberos 4.
+.It Fl Fl no-v5
+This makes
+.Nm
+not try using Kerberos 5.
+.It Xo
+.Fl P Ar principal ,
+.Fl Fl principal Ar principal
+.Xc
+select what Kerberos 5 principal to use.
+.It Fl Fl cache Ar cache
+select what Kerberos 5 credential cache to use.
+.Fl Fl principal
+overrides this option.
+.It Xo
+.Fl u ,
+.Fl Fl unlog
+.Xc
+Destroy tokens instead of obtaining new. If this is specified, all
+other options are ignored (except for
+.Fl Fl help
+and
+.Fl Fl version ) .
+.It Xo
+.Fl v ,
+.Fl Fl verbose
+.Xc
+Adds more verbosity for what is actually going on.
+.It Xo
+.Fl c Ar cell,
+.Fl Fl cell= Ns Ar cell
+.Xc
+This specified one or more cell names to get tokens for.
+.It Xo
+.Fl k Ar realm ,
+.Fl Fl realm= Ns Ar realm
+.Xc
+This is the Kerberos realm the AFS servers live in, this should
+normally not be specified.
+.It Xo
+.Fl p Ar path ,
+.Fl Fl file= Ns Ar path
+.Xc
+This specified one or more file paths for which tokens should be
+obtained.
+.El
+.Pp
+Instead of using
+.Fl c
+and
+.Fl p ,
+you may also pass a list of cells and file paths after any other
+options. These arguments are considered files if they are either
+the strings
+.Do . Dc
+or
+.Dq ..
+or they contain a slash, or if there exists a file by that name.
+.Sh EXAMPLES
+Assuming that there is no file called
+.Dq openafs.org
+in the current directory, and that
+.Pa /afs/openafs.org
+points to that cell, the follwing should be identical:
+.Bd -literal -offset indent
+$ afslog -c openafs.org
+$ afslog openafs.org
+$ afslog /afs/openafs.org/some/file
+.Ed
+.Sh SEE ALSO
+.Xr krb_afslog 3

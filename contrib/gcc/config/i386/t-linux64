@@ -1,0 +1,21 @@
+# On x86-64 we do not need any exports for glibc for 64-bit libgcc_s,
+# override the settings
+# from t-slibgcc-elf-ver and t-linux
+SHLIB_MAPFILES = $(srcdir)/libgcc-std.ver \
+		 $(srcdir)/config/i386/libgcc-x86_64-glibc.ver
+
+MULTILIB_OPTIONS = m64/m32
+MULTILIB_DIRNAMES = 64 32 
+MULTILIB_OSDIRNAMES = ../lib64 ../lib
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib
+
+EXTRA_MULTILIB_PARTS=crtbegin.o crtend.o crtbeginS.o crtendS.o \
+		     crtbeginT.o crtfastmath.o
+
+# The pushl in CTOR initialization interferes with frame pointer elimination.
+# crtend*.o cannot be compiled without -fno-asynchronous-unwind-tables,
+# because then __FRAME_END__ might not be the last thing in .eh_frame
+# section.
+CRTSTUFF_T_CFLAGS = -fno-omit-frame-pointer -fno-asynchronous-unwind-tables

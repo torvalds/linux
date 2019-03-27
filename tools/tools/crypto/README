@@ -1,0 +1,44 @@
+$FreeBSD$
+
+The cryptotest program repeatedly encrypts and decrypts a buffer
+with the built-in iv and key, using hardware crypto.  At the end,
+it computes the data rate achieved.  Operations are carried out by
+making ioctl calls to /dev/crypto.
+
+For a test of how fast a crypto card is, use something like:
+
+	cryptotest -z 1024
+
+This will run a series of tests using the available crypto/cipher
+algorithms over a variety of buffer sizes.  The 1024 says to do
+1024 iterations.  Extra arguments can be used to specify one or
+more buffer sizes to use in doing tests.
+
+A sample run is:
+
+ 0.129 sec,    2048    des crypts,       8 bytes,   127120 byte/sec,     1.0 Mb/sec
+ 0.129 sec,    2048    des crypts,      16 bytes,   253915 byte/sec,     1.9 Mb/sec
+ 0.129 sec,    2048    des crypts,      32 bytes,   508942 byte/sec,     3.9 Mb/sec
+ 0.128 sec,    2048    des crypts,      64 bytes,  1020135 byte/sec,     7.8 Mb/sec
+ 0.134 sec,    2048    des crypts,     128 bytes,  1954869 byte/sec,    14.9 Mb/sec
+ 0.142 sec,    2048    des crypts,     256 bytes,  3698107 byte/sec,    28.2 Mb/sec
+ 0.190 sec,    2048    des crypts,    1024 bytes, 11037700 byte/sec,    84.2 Mb/sec
+ 0.264 sec,    2048    des crypts,    2048 bytes, 15891127 byte/sec,   121.2 Mb/sec
+ 0.403 sec,    2048    des crypts,    4096 bytes, 20828998 byte/sec,   158.9 Mb/sec
+ 0.687 sec,    2048    des crypts,    8192 bytes, 24426602 byte/sec,   186.4 Mb/sec
+ 0.129 sec,    2048   3des crypts,       8 bytes,   127321 byte/sec,     1.0 Mb/sec
+ 0.131 sec,    2048   3des crypts,      16 bytes,   249773 byte/sec,     1.9 Mb/sec
+ 0.128 sec,    2048   3des crypts,      32 bytes,   512304 byte/sec,     3.9 Mb/sec
+ 0.128 sec,    2048   3des crypts,      64 bytes,  1021685 byte/sec,     7.8 Mb/sec
+ 0.132 sec,    2048   3des crypts,     128 bytes,  1986511 byte/sec,    15.2 Mb/sec
+ 0.142 sec,    2048   3des crypts,     256 bytes,  3695005 byte/sec,    28.2 Mb/sec
+ 0.190 sec,    2048   3des crypts,    1024 bytes, 11024876 byte/sec,    84.1 Mb/sec
+ 0.264 sec,    2048   3des crypts,    2048 bytes, 15887997 byte/sec,   121.2 Mb/sec
+ 0.402 sec,    2048   3des crypts,    4096 bytes, 20850846 byte/sec,   159.1 Mb/sec
+ 0.689 sec,    2048   3des crypts,    8192 bytes, 24333532 byte/sec,   185.7 Mb/sec
+
+Expect ~400 Mb/s for a Broadcom 582x for 16K buffers on a reasonable
+CPU.  Hifn 7811 parts top out at ~120 Mb/s.  Performance depends
+heavily on memory and bus performance.
+
+This code originally came from openbsd; give them all the credit.

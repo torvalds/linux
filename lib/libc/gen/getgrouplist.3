@@ -1,0 +1,82 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)getgrouplist.3	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd October 26, 2014
+.Dt GETGROUPLIST 3
+.Os
+.Sh NAME
+.Nm getgrouplist
+.Nd calculate group access list
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn getgrouplist "const char *name" "gid_t basegid" "gid_t *groups" "int *ngroups"
+.Sh DESCRIPTION
+The
+.Fn getgrouplist
+function reads through the group file and calculates
+the group access list for the user specified in
+.Fa name .
+The
+.Fa basegid
+is automatically included in the groups list.
+Typically this value is given as
+the group number from the password file.
+.Pp
+The resulting group list is returned in the array pointed to by
+.Fa groups .
+The caller specifies the size of the
+.Fa groups
+array in the integer pointed to by
+.Fa ngroups ;
+the actual number of groups found is returned in
+.Fa ngroups .
+.Sh RETURN VALUES
+The
+.Fn getgrouplist
+function
+returns 0 on success and \-1 if the size of the group list is too small to
+hold all the user's groups.
+Here, the group array will be filled with as many groups as will fit.
+.Sh FILES
+.Bl -tag -width /etc/group -compact
+.It Pa /etc/group
+group membership list
+.El
+.Sh SEE ALSO
+.Xr setgroups 2 ,
+.Xr initgroups 3
+.Sh HISTORY
+The
+.Fn getgrouplist
+function first appeared in
+.Bx 4.4 .

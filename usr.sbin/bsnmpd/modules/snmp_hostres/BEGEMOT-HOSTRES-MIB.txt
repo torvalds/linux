@@ -1,0 +1,128 @@
+--
+-- Copyright (c) 2005-2006
+--	Hartmut Brandt
+--	All rights reserved.
+--
+-- Author: Harti Brandt <harti@freebsd.org>
+--
+-- Redistribution and use in source and binary forms, with or without
+-- modification, are permitted provided that the following conditions
+-- are met:
+-- 1. Redistributions of source code must retain the above copyright
+--    notice, this list of conditions and the following disclaimer.
+-- 2. Redistributions in binary form must reproduce the above copyright
+--    notice, this list of conditions and the following disclaimer in the
+--    documentation and/or other materials provided with the distribution.
+--
+-- THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+-- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+-- ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+-- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+-- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+-- OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+-- HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+-- LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+-- OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+-- SUCH DAMAGE.
+--
+-- $FreeBSD$
+--
+-- Additional stuff for the HOST-RESOURCES MIB.
+--
+BEGEMOT-HOSTRES-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, TimeTicks
+	FROM SNMPv2-SMI
+    begemot
+	FROM BEGEMOT-MIB;
+
+begemotHostres MODULE-IDENTITY
+    LAST-UPDATED "200601030000Z"
+    ORGANIZATION "German Aerospace Center"
+    CONTACT-INFO
+	    "		Hartmut Brandt
+
+	     Postal:	German Aerospace Center
+			Oberpfaffenhofen
+			82234 Wessling
+			Germany
+
+	     Fax:	+49 8153 28 2843
+
+	     E-mail:	harti@freebsd.org"
+    DESCRIPTION
+	    "The MIB for additional HOST-RESOURCES data."
+    REVISION	"200601030000Z"
+    DESCRIPTION
+		"Initial revision."
+    ::= { begemot 202 }
+
+begemotHostresObjects	OBJECT IDENTIFIER ::= { begemotHostres 1 }
+
+begemotHrStorageUpdate OBJECT-TYPE
+    SYNTAX	TimeTicks
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The maximum number of ticks the storage table is cached."
+    DEFVAL	{ 700 }
+    ::= { begemotHostresObjects 1 }
+
+begemotHrFSUpdate OBJECT-TYPE
+    SYNTAX	TimeTicks
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The maximum number of ticks the FS table is cached."
+    DEFVAL	{ 700 }
+    ::= { begemotHostresObjects 2 }
+
+begemotHrDiskStorageUpdate OBJECT-TYPE
+    SYNTAX	TimeTicks
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The maximum number of ticks the disk storage table is cached."
+    DEFVAL	{ 300 }
+    ::= { begemotHostresObjects 3 }
+
+begemotHrNetworkUpdate OBJECT-TYPE
+    SYNTAX	TimeTicks
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The maximum number of ticks the network table is cached."
+    DEFVAL	{ 700 }
+    ::= { begemotHostresObjects 4 }
+
+begemotHrSWInstalledUpdate OBJECT-TYPE
+    SYNTAX	TimeTicks
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The maximum number of ticks the hrSWInstalledTable is cached."
+    DEFVAL	{ 1200 }
+    ::= { begemotHostresObjects 5 }
+
+begemotHrSWRunUpdate OBJECT-TYPE
+    SYNTAX	TimeTicks
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The maximum number of ticks the hrSWRunTable and
+	     hrSWRunPerfTable are cached."
+    DEFVAL	{ 300 }
+    ::= { begemotHostresObjects 6 }
+
+begemotHrPkgDir OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-write
+    STATUS	current
+    DESCRIPTION
+	    "The path to the package DB directory."
+    DEFVAL	{ "/var/db/pkg" }
+    ::= { begemotHostresObjects 7 }
+
+END

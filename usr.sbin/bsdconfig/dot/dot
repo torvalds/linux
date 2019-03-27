@@ -1,0 +1,678 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+# Prevent common.subr from auto initializing debugging (this is not an inter-
+# active utility so does not require debugging; also `-d' has been repurposed).
+#
+DEBUG_SELF_INITIALIZE=NO
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="dot"
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
+
+############################################################ CONFIGURATION
+
+#
+# Location of bsdconfig(8)
+#
+BSDCONFIG=/usr/sbin/bsdconfig
+
+############################################################ GLOBALS
+
+#
+# Options
+#
+SHOW_GRAPH_LABEL_DATE=1
+SHOW_INCLUDES=1
+SHOW_CMDLINE=1
+
+############################################################ FUNCTIONS
+
+# begin_nodelist $shape $color $fillcolor $style
+#
+# Create a new multi-node list rendering nodes in a specific style described by
+# the arguments passed.
+#
+begin_nodelist()
+{
+	local shape="$1" color="$2" fillcolor="$3" style="$4"
+
+	printf "\tnode [\n"
+	[ "$shape" ] &&
+		printf '\t\tshape = "%s",\n' "$shape"
+	[ "$color" ] &&
+		printf '\t\tcolor = "%s",\n' "$color"
+	[ "$fillcolor" ] &&
+		printf '\t\tfillcolor = "%s",\n' "$fillcolor"
+	[ "$style" ] &&
+		printf '\t\tstyle = "%s",\n' "$style"
+	printf "\t] {\n"
+}
+
+# print_node $node [$attributes ...]
+#
+# Print a node within a multi-node list.
+#
+print_node()
+{
+	local node="$1"
+
+	shift 1 # node
+
+	case "$node" in
+	edge) printf '\t\t%s' "$node" ;;
+	   *) printf '\t\t"%s"' "$node" ;;
+	esac
+
+	if [ $# -gt 0 ]; then
+		echo -n ' ['
+		while [ $# -gt 0 ]; do
+			printf " %s" "$1"
+			shift 1
+			[ $# -gt 0 ] && echo -n ","
+		done
+		echo -n " ]"
+	fi
+
+	echo ";"
+}
+
+# print_node2 $node $node [$attributes ...]
+#
+# Print a directed node-node connection within a multi-node list.
+#
+print_node2()
+{
+	local node1="$1" node2="$2"
+
+	shift 2 # node1 node2
+
+	printf '\t\t"%s" -> "%s"' "$node1" "$node2"
+
+	if [ $# -gt 0 ]; then
+		echo -n ' ['
+		while [ $# -gt 0 ]; do
+			printf " %s" "$1"
+			shift 1
+			[ $# -gt 0 ] && echo -n ","
+		done
+		echo -n " ]"
+	fi
+
+	echo ";"
+}
+
+# end_nodelist
+#
+# Close a multi-node list.
+#
+end_nodelist()
+{
+	printf "\t};\n"
+}
+
+############################################################ MAIN
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Process command-line arguments
+#
+while getopts cdhi flag; do
+	case "$flag" in
+	i) SHOW_INCLUDES= ;;
+	d) SHOW_GRAPH_LABEL_DATE= ;;
+	c) SHOW_CMDLINE= ;;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+cd $BSDCFG_LIBE || f_die # Pedantic
+
+#
+# Get a list of menu programs
+#
+menu_program_list=
+for file in [0-9][0-9][0-9].*/INDEX; do
+	menu_program_list="$menu_program_list $(
+		tail -r "$file" | awk -v item="${file%%/*}" '
+			/^[[:space:]]*menu_program="/ {
+				sub(/^.*="/, "")
+				sub(/"$/, "")
+				if ( ! $0 ) next
+				if ( $0 !~ "^/" ) sub(/^/, item "/")
+				print; exit
+			}'
+	)"
+done
+
+#
+# Get a list of submenu programs
+#
+submenu_program_list=
+for menu_program in $menu_program_list; do
+	case "$menu_program" in
+	[0-9][0-9][0-9].*/*) : fall-through ;;
+	*) continue # No sub-menus we can process
+	esac
+
+	submenu_program_list="$submenu_program_list $(
+		awk -v menu_program="$menu_program" \
+		    -v item="${menu_program%%/*}" \
+		'
+			/^menu_selection="/ {
+				sub(/.*\|/, "")
+				sub(/"$/, "")
+				if ( ! $0 ) next
+				if ( $0 !~ "^/" )
+					sub(/^/, item "/")
+				if ( $0 == menu_program ) next
+				print
+			}
+		' "${menu_program%%/*}/INDEX"
+	)"
+done
+
+#
+# Get a list of command-line programs
+#
+cmd_program_list=
+for file in */INDEX; do
+	cmd_program_list="$cmd_program_list $(
+		awk -v item="${file%%/*}" '
+			/^menu_selection="/ {
+				sub(/.*\|/, "")
+				sub(/"$/, "")
+
+				if ( ! $0 ) next
+
+				if ( $0 !~ "^/" )
+					sub(/^/, item "/")
+
+				print
+			}
+		' $file
+	)"
+done
+
+#
+# [Optionally] Calculate list of include files
+#
+if [ "$SHOW_INCLUDES" ]; then
+	print_includes_awk='
+		BEGIN { regex = "^f_include \\$BSDCFG_SHARE/" }
+		( $0 ~ regex ) { sub(regex, ""); print }
+	' # END-QUOTE
+
+	#
+	# Build list of files in which to search for includes
+	#
+	file_list=$(
+		for file in \
+			$BSDCONFIG \
+			$menu_program_list \
+			$submenu_program_list \
+			$cmd_program_list \
+			$BSDCFG_SHARE/script.subr \
+		; do
+			[ -e "$file" ] && echo $file
+		done | sort -u
+	)
+
+	#
+	# Build list of includes used by the above files
+	#
+	include_file_list=
+	for file in $file_list; do
+		include_file_list="$include_file_list $(
+			awk "$print_includes_awk" $file
+		)"
+	done
+
+	#
+	# Sort the list of includes and remove duplicate entries
+	#
+	include_file_list=$(
+		for include_file in $include_file_list; do
+			echo "$include_file"
+		done | sort -u
+	)
+
+	#
+	# Search previously-discovered include files for further includes
+	#
+	before="$include_file_list"
+	while :; do
+		for file in $include_file_list; do
+			include_file_list="$include_file_list $(
+				awk "$print_includes_awk" $BSDCFG_SHARE/$file
+			)"
+		done
+
+		#
+		# Sort list of includes and remove duplicate entries [again]
+		#
+		include_file_list=$(
+			for include_file in $include_file_list; do
+				echo "$include_file"
+			done | sort -u
+		)
+
+		[ "$include_file_list" = "$before" ] && break
+		before="$include_file_list"
+	done
+fi
+
+#
+# Start the directional-graph (digraph) output
+#
+printf 'strict digraph "" { // Empty name to prevent SVG Auto-Tooltip\n'
+label_format="$msg_graph_label_with_command"
+[ "$SHOW_GRAPH_LABEL_DATE" ] &&
+	label_format="$msg_graph_label_with_command_and_date"
+lang="${LANG:-$LC_ALL}"
+printf "\n\tlabel = \"$label_format\"\n" \
+       "${lang:+LANG=${lang%%[$IFS]*} }bsdconfig $pgm${ARGV:+ $ARGV}" \
+       "$( date +"%c %Z" )"
+
+#
+# Print graph-specific properties
+#
+printf '\n\t/*\n\t * Graph setup and orientation\n\t */\n'
+printf '\tlabelloc = top;\t\t// display above label at top of graph\n'
+printf '\trankdir = LR;\t\t// create ranks left-to-right\n'
+printf '\torientation = portrait;\t// default\n'
+printf '\tratio = fill;\t\t// approximate aspect ratio\n'
+printf '\tcenter = 1;\t\t// center drawing on page\n'
+
+#
+# Perform edge-concentration when displaying a lot of information
+#
+# NOTE: This is disabled because dot(1) version 2.28.0 (current) and older have
+#       a bug that causes a crash when rankdir = LR and concentrate = true
+#
+# NOTE: Do not re-enable until said bug is fixed in some future revision.
+#
+#[ "$SHOW_INCLUDES" -a "$SHOW_CMDLINE" ] &&
+#	printf '\tconcentrate = true;\t// enable edge concentrators\n'
+
+#
+# Print font details for graph/cluster label(s)
+#
+printf '\n\t/*\n\t * Font details for graph/cluster label(s)\n\t */\n'
+printf '\tfontname = "Times-Italic";\n'
+printf '\tfontsize = 14;\n'
+
+#
+# Print default node attributes
+#
+printf '\n\t/*\n\t * Default node attributes\n\t */\n'
+printf '\tnode [\n'
+printf '\t\tfontname = "Times-Roman",\n'
+printf '\t\tfontsize = 12,\n'
+printf '\t\twidth = 2.5, // arbitrary minimum width for all nodes\n'
+printf '\t\tfixedsize = true, // turn minimum width into exact width\n'
+printf '\t];\n'
+
+#
+# Print top-level item(s)
+#
+printf '\n\t/*\n\t * bsdconfig(8)\n\t */\n'
+shape=circle color=black fillcolor=yellow style=filled
+begin_nodelist "$shape" "$color" "$fillcolor" "$style"
+print_node "bsdconfig" "fontname = \"Times-Bold\"" "fontsize = 16"
+end_nodelist
+
+#
+# Print menus
+#
+printf '\n\t/*\n\t * Menu items\n\t */\n'
+shape=box color=black fillcolor=lightblue style=filled
+begin_nodelist "$shape" "$color" "$fillcolor" "$style"
+for menu_program in $menu_program_list; do
+	print_node "$menu_program" "label = \"${menu_program#*/}\""
+done
+end_nodelist
+
+#
+# Print sub-menus
+#
+printf '\n\t/*\n\t * Sub-menu items\n\t */\n'
+shape=box color=black fillcolor=lightblue style=filled
+begin_nodelist "$shape" "$color" "$fillcolor" "$style"
+for submenu_program in $submenu_program_list; do
+	print_node "$submenu_program" "label = \"${submenu_program#*/}\""
+done
+end_nodelist
+
+#
+# Print menu relationships
+#
+printf '\n\t/*\n\t * Menu item relationships\n\t */\n'
+shape=box color=black fillcolor=lightblue style=filled edge_color=blue
+begin_nodelist "$shape" "$color" "$fillcolor" "$style"
+print_node edge "penwidth = 5.0" "style = bold" "color = $edge_color"
+for menu_program in $menu_program_list; do
+	print_node2 "bsdconfig" "$menu_program"
+done
+end_nodelist
+
+#
+# Print sub-menu relationships
+#
+printf '\n\t/*\n\t * Sub-menu item relationships\n\t */\n'
+shape=box color=black fillcolor=lightblue style=filled edge_color=blue
+begin_nodelist "$shape" "$color" "$fillcolor" "$style"
+# Lock sub-menu headport to the West (unless `-c' was passed)
+[ "$SHOW_CMDLINE" -o ! "$SHOW_INCLUDES" ] && print_node edge "headport = w"
+print_node edge "style = bold" "color = $edge_color"
+for submenu_program in $submenu_program_list; do
+	for menu_program in $menu_program_list; do
+		case "$menu_program" in
+		[0-9][0-9][0-9].*/*) : fall-through ;;
+		*) continue # Not a menu item
+		esac
+
+		# Continue if program directories do not match
+		[ "${menu_program%%/*}" = "${submenu_program%%/*}" ] ||
+			continue
+
+		print_node2 "$menu_program" "$submenu_program"
+		break
+	done
+done
+end_nodelist
+
+#
+# [Optionally] Print include files
+#
+if [ "$SHOW_INCLUDES" ]; then
+	printf '\n\t/*\n\t * Include files\n\t */\n'
+	shape=oval color=black fillcolor=white style=filled
+	begin_nodelist "$shape" "$color" "$fillcolor" "$style"
+	printf '\t\tconstraint = false;\n'
+	for include_file in $include_file_list; do
+		print_node "$include_file" \
+		           "label = \"${include_file##*/}\""
+	done
+	end_nodelist
+fi
+
+#
+# [Optionally] Print f_include() usage/relationships
+#
+if [ "$SHOW_INCLUDES" ]; then
+	printf '\n\t/*\n\t * Include usage\n\t */\n'
+	shape=oval color=black fillcolor=white style=filled edge_color=grey
+	begin_nodelist "$shape" "$color" "$fillcolor" "$style"
+	print_node edge "style = dashed" "color = $edge_color"
+	#print_node edge "label = \"\\T\"" "fontsize = 9"
+		# NOTE: Edge labels are buggy on large graphs
+	file_list=$(
+		for file in \
+			$BSDCONFIG \
+			$menu_program_list \
+			$submenu_program_list \
+			$cmd_program_list \
+			$include_file_list \
+		; do
+			[ -f "$BSDCFG_SHARE/$file" ] &&
+				echo $BSDCFG_SHARE/$file
+			[ -e "$file" ] && echo $file
+		done | sort -u
+	)
+	for file in $file_list; do
+		# Skip binary files and text files that don't use f_include()
+		grep -qlI f_include $file || continue
+
+		awk \
+			-v file="${file#$BSDCFG_SHARE/}" \
+			-v bsdconfig="$BSDCONFIG" \
+		'
+			BEGIN { regex = "^f_include \\$BSDCFG_SHARE/" }
+			( $0 ~ regex ) {
+				sub(regex, "")
+				if ( file == bsdconfig ) sub(".*/", "", file)
+				printf "\t\t\"%s\" -> \"%s\";\n", $0, file
+			}
+		' $file
+	done | sort
+	end_nodelist
+fi
+
+#
+# Print command-line shortcuts
+#
+if [ "$SHOW_CMDLINE" ]; then
+	printf '\n\t/*\n\t * Command-line shortcuts\n\t */\n'
+	shape=parallelogram color=black fillcolor=lightseagreen style=filled
+	begin_nodelist "$shape" "$color" "$fillcolor" "$style"
+	for file in */INDEX; do
+		awk -v item="${file%%/*}" '
+			/^menu_selection="/ {
+				sub(/^.*="/, "")
+				sub(/\|.*/, "")
+				printf "\t\t\"bsdconfig %s\"", $0
+				printf " [ label = \"%s\" ];\n", $0
+			}
+		' $file
+	done
+	end_nodelist
+fi
+
+#
+# Print command-line shortcut relationships
+#
+if [ "$SHOW_CMDLINE" ]; then
+	printf '\n\t/*\n\t * Command-line shortcut relationships\n\t */\n'
+	shape=box color=black fillcolor=lightseagreen style=filled
+	begin_nodelist "$shape" "$color" "$fillcolor" "$style"
+	print_node edge "headport = w" "weight = 100.0"
+	print_node edge "style = bold" "color = $fillcolor"
+	for file in */INDEX; do
+		awk -v item="${file%%/*}" \
+		    -v node_fillcolor="$node_fillcolor" \
+		    -v edge_color="$edge_color" \
+		'
+			/^menu_selection="/ {
+				sub(/^.*="/, "")
+				sub(/"$/, "")
+
+				if ( ! $0 ) next
+
+				split($0, menusel, "|")
+				if ( menusel[2] !~ "^/" )
+					sub(/^/, item "/", menusel[2])
+
+				printf "\t\t\"bsdconfig %s\" -> \"%s\";\n",
+				       menusel[1], menusel[2]
+			}
+		' $file
+	done
+	end_nodelist
+fi
+
+#
+# Print clusters
+#
+bgcolor_bsdconfig="lightyellow"
+bgcolor_includes="gray98"
+bgcolor_menuitem="aliceblue"
+bgcolor_shortcuts="honeydew"
+printf '\n\t/*\n\t * Clusters\n\t */\n'
+printf '\tsubgraph "cluster_bsdconfig" {\n'
+printf '\t\tbgcolor = "%s";\n' "$bgcolor_bsdconfig"
+printf '\t\tlabel = "bsdconfig(8)";\n'
+printf '\t\ttooltip = "bsdconfig(8)";\n'
+print_node "bsdconfig"
+end_nodelist
+if [ "$SHOW_INCLUDES" ]; then
+	for include_file in $include_file_list; do
+		echo $include_file
+	done | awk \
+		-v bgcolor="$bgcolor_bsdconfig" \
+		-v msg_subroutines="$msg_subroutines" \
+	'
+		BEGIN { created = 0 }
+		function end_subgraph() { printf "\t};\n" }
+		( $0 !~ "/" ) {
+			if ( ! created )
+			{
+				printf "\tsubgraph \"%s\" {\n",
+				       "cluster_bsdconfig_includes"
+				printf "\t\tbgcolor = \"%s\";\n", bgcolor
+				printf "\t\tlabel = \"bsdconfig %s\";\n",
+				       msg_subroutines
+				created++
+			}
+			printf "\t\t\"%s\";\n", $1
+		}
+		END { created && end_subgraph() }
+	' # END-QUOTE
+
+	for include_file in $include_file_list; do
+		echo $include_file
+	done | awk -v msg_subroutines="$msg_subroutines" '
+	BEGIN { created = 0 }
+	function end_subgraph() { printf "\t};\n" }
+	( $0 ~ "/" ) {
+		include_dir_tmp = $1
+		sub("/[^/]*$", "", include_dir_tmp)
+		gsub(/[^[:alnum:]_]/, "_", include_dir_tmp)
+
+		if ( created && include_dir != include_dir_tmp )
+		{
+			end_subgraph()
+			created = 0
+		}
+
+		if ( ! created )
+		{
+			include_dir = include_dir_tmp
+			printf "\tsubgraph \"cluster_%s_includes\" {\n",
+			       include_dir
+			printf "\t\tbgcolor = \"thistle\";\n"
+			printf "\t\tlabel = \"%s %s\";\n", include_dir,
+			       msg_subroutines
+			created++
+		}
+
+		printf "\t\t\"%s\";\n", $1
+	}
+	END { created && end_subgraph() }'
+fi
+for INDEX in */INDEX; do
+	menu_title=
+	menu_help=
+	f_include_lang "$INDEX"
+
+	item="${INDEX%%/*}"
+	printf '\tsubgraph "cluster_%s" {\n' "$item"
+
+	case "$item" in
+	[0-9][0-9][0-9].*) bgcolor="$bgcolor_menuitem" ;;
+	*) bgcolor="$bgcolor_shortcuts"
+	esac
+	printf '\t\tbgcolor = "%s";\n' "$bgcolor"
+	if [ "$menu_title" ]; then
+		printf '\t\tlabel = "%s\\n\\"%s\\"";\n' "$item" "$menu_title"
+	else
+		printf '\t\tlabel = "%s";\n' "$item"
+	fi
+	printf '\t\ttooltip = "%s";\n' "${menu_help:-$item}"
+
+	program_list=$(
+		for program in \
+			$menu_program_list \
+			$submenu_program_list \
+			$cmd_program_list \
+		; do
+			echo "$program"
+		done | sort -u
+	)
+	for program in $program_list; do
+		case "$program" in "$item"/*)
+			print_node "$program" "label = \"${program#*/}\""
+		esac
+	done
+
+	if [ "$SHOW_INCLUDES" ]; then
+		item_include_list=
+		[ -d "$item/include" ] &&
+			item_include_list=$( find "$item/include" -type f )
+		item_include_list=$(
+			for item_include in $item_include_list; do
+				for include_file in $include_file_list; do
+					[ "$item_include" = "$include_file" ] ||
+						continue
+					echo "$item_include"; break
+				done
+			done
+		)
+		if [ "$item_include_list" ]; then
+			printf '\t\tsubgraph "cluster_%s_includes" {\n' "$item"
+			printf '\t\t\tbgcolor = "%s";\n' "$bgcolor_includes"
+			printf '\t\t\tlabel = "%s";\n' "$msg_includes"
+		fi
+		for item_include in $item_include_list; do
+			printf '\t\t\t"%s";\n' "$item_include"
+		done
+		[ "$item_include_list" ] && printf '\t\t};\n'
+	fi
+
+	if [ "$SHOW_CMDLINE" ]; then
+		printf '\t\tsubgraph "cluster_%s_shortcuts" {\n' "$item"
+		printf '\t\t\tbgcolor = "%s";\n' "$bgcolor_shortcuts"
+		printf '\t\t\tlabel = "%s";\n' "$msg_shortcuts"
+		awk '/^menu_selection="/ {
+			sub(/^.*="/, "")
+			sub(/\|.*/, "")
+			printf "\t\t\t\"bsdconfig %s\";\n", $0
+		}' "$INDEX"
+		printf '\t\t};\n'
+	fi
+
+	end_nodelist
+done
+
+printf '\n}\n'
+
+################################################################################
+# END
+################################################################################

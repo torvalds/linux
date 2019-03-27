@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+! dummy=$(
+	exec 3>&1 >&2 2>&3
+	ulimit -n 9
+	exec 9<.
+) && [ -n "$dummy" ]

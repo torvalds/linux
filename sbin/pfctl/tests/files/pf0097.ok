@@ -1,0 +1,3 @@
+pass in on em0 inet proto tcp from any to any port 220:230 flags S/SA keep state divert-to 22
+pass on em0 inet proto tcp from any to any port = http flags S/SA keep state divert-to 8080
+pass in on em0 inet proto pim all keep state divert-to 103

@@ -1,0 +1,82 @@
+/* -*- Mode: Text -*- */
+AutoGen Definitions perlopt;
+
+#include autogen-version.def
+
+prog-name      = 'summary';
+prog-title     = 'compute various stastics from NTP stat files';
+package		= ntp;
+#include	version.def
+
+long-opts;
+gnu-usage;
+
+flag = {
+    name        = directory;
+    arg-type    = string;
+    arg-default = '/var/log/ntp';
+    descrip     = 'Directory containing stat files';
+    doc         = <<-  _EndOfDoc_
+        The directory where @code{ntpd} will search for .stat files generated
+        by @code{ntpd}.
+	_EndOfDoc_;
+};
+
+flag = {
+    name        = end-date;
+    arg-type    = number;
+    descrip     = 'End date';
+    doc         = <<-  _EndOfDoc_
+        Process all files with the date suffix less or equal to value of this
+        option.  Defaults to today minus one day (Use @code{date -u +%Y%m%d})
+        to get the timestamp.
+	_EndOfDoc_;
+};
+
+flag = {
+    name        = output-directory;
+    arg-type    = str;
+    arg-default = '/tmp';
+    descrip     = 'Output directory';
+    doc         = <<-  _EndOfDoc_
+        The output directory @code{summary} will write all output files to.
+	_EndOfDoc_;
+};
+
+flag = {
+    name        = peer-dist-limit;
+    arg-type    = string;
+    arg-name    = float;
+    arg-default = 400;
+    descrip     = 'Peer dist limit';
+    doc     = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+flag = {
+    name        = skip-time-steps;
+    arg-type    = string;
+    arg-name    = float;
+    arg-default = 3600;
+    descrip     = 'Ignore time offsets larger that this';
+    doc     = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+flag = {
+    name        = start-date;
+    arg-type    = num;
+    arg-default = 19700101;
+    descrip     = 'Start date';
+    doc     = <<-  _EndOfDoc_
+        Process all files with the date suffix more or equal to value of
+        this option.  Defaults to 197000101.
+	_EndOfDoc_;
+};
+
+doc-section = {
+    ds-type     = 'DESCRIPTION';
+    ds-format   = 'texi';
+    ds-text     = <<- _EndOfDoc
+	_EndOfDoc;
+};

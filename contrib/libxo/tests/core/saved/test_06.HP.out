@@ -1,0 +1,21 @@
+<div class="line">
+  <div class="data" data-tag="first-name">Terry</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="last-name">Jones</div>
+  <div class="text"> works in dept #</div>
+  <div class="data" data-tag="department">660</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="first-name">Leslie</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="last-name">Patterson</div>
+  <div class="text"> works in dept #</div>
+  <div class="data" data-tag="department">341</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="first-name">Ashley</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="last-name">Smith</div>
+  <div class="text"> works in dept #</div>
+  <div class="data" data-tag="department">1440</div>
+</div>

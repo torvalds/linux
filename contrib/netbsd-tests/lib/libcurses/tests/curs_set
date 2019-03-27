@@ -1,0 +1,7 @@
+include start
+call 2 curs_set 0
+compare curs_set1.chk
+call 0 curs_set 1
+compare curs_set2.chk
+call 1 curs_set 2
+compare curs_set3.chk

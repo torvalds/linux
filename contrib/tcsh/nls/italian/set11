@@ -1,0 +1,10 @@
+$ $tcsh: set11,v 1.3 2011/02/04 18:19:38 christos Exp $
+$ sh.c
+$set 11 
+1 Attenzione: accesso negato al terminale (%s).\n
+2 Quindi il controllo dei lavori in questa shell non è possibile.\n
+3 Hai %d messaggi di posta elettronica.\n
+4 Hai %d messaggi di posta elettronica in %s.\n
+5 Hai %smessaggi di posta elettronica.\n
+6 nuovi 
+7 Hai %smessaggi di posta elettronica in %s.\n

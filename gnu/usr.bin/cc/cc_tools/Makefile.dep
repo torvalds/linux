@@ -1,0 +1,153 @@
+# $FreeBSD$
+
+OBJS_DEPEND_GUESS.errors.o+= bconfig.h auto-host.h
+
+OBJS_DEPEND_GUESS.genattr.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.genattrtab.o+= bconfig.h \
+  auto-host.h \
+  tm.h options.h \
+  insn-modes.h \
+  gtype-desc.h
+
+OBJS_DEPEND_GUESS.genautomata.o+= bconfig.h \
+  auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.gencheck.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  gencheck.h
+
+OBJS_DEPEND_GUESS.genchecksum.o+= bconfig.h \
+  auto-host.h
+
+OBJS_DEPEND_GUESS.gencodes.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.genconditions.o+= bconfig.h \
+  auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.genconfig.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.genconstants.o+= bconfig.h \
+  auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.genemit.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.genextract.o+= bconfig.h \
+  auto-host.h \
+  tm.h options.h \
+  insn-modes.h \
+  insn-config.h
+
+OBJS_DEPEND_GUESS.genflags.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.gengenrtl.o+= bconfig.h auto-host.h
+
+OBJS_DEPEND_GUESS.gengtype.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  gtyp-gen.h
+
+OBJS_DEPEND_GUESS.genmddeps.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.genmodes.o+= bconfig.h auto-host.h
+
+OBJS_DEPEND_GUESS.genopinit.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.genoutput.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.genpeep.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.genpreds.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.genrecog.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.gensupport.o+= bconfig.h \
+  auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.ggc-none.o+= bconfig.h auto-host.h \
+  gtype-desc.h
+
+OBJS_DEPEND_GUESS.print-rtl.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.read-rtl.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.rtl.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h \
+  gtype-desc.h
+
+OBJS_DEPEND_GUESS.insn-modes.o+= insn-modes.c config.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.min-insn-modes.o+= bconfig.h auto-host.h \
+  insn-modes.h
+
+OBJS_DEPEND_GUESS.gengtype-lex.o+= \
+  bconfig.h auto-host.h \
+  gengtype-yacc.h
+
+OBJS_DEPEND_GUESS.gengtype-yacc+%DIKED.o+= \
+  bconfig.h \
+  auto-host.h \
+  tm.h options.h \
+
+OBJS_DEPEND_GUESS.insn-conditions.o+= insn-conditions.c bconfig.h auto-host.h \
+  insn-constants.h \
+  tm.h options.h \
+  insn-modes.h \
+  tm_p.h \
+  tm-preds.h \
+  options.h
+
+OBJS_DEPEND_GUESS.gencondmd.o+= \
+  tm.h options.h tm_p.h \
+  tm-preds.h tm-constrs.h tree-check.h \
+  insn-constants.h
+
+OBJS_DEPEND_GUESS.gencondmd.o+= bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-constants.h \
+  insn-modes.h \
+  tm_p.h \
+  tm-preds.h \
+  tree-check.h \
+  tm-constrs.h
+
+OBJS_DEPEND_GUESS.vec.o+= bconfig.h auto-host.h \
+  insn-modes.h \
+  tree-check.h \
+  gtype-desc.h

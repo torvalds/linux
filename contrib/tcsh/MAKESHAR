@@ -1,0 +1,121 @@
+#!/bin/sh
+#
+# MAKESHAR.sh: Make a shar file for the sources
+#
+# $tcsh: MAKESHAR,v 3.2 2006/03/02 18:46:44 christos Exp $
+
+AWK=/usr/bin/nawk	# Must be nawk or gawk cause of 2D arrays
+WC=/usr/ucb/wc		
+GREP=/usr/bin/egrep
+SORT=/usr/bin/sort
+SH=/bin/sh
+
+dirs=
+name=kit
+files=
+verbose=0
+size=45000
+
+for i 
+do
+    case $i in
+    -n)	
+	name=;;
+    -v)
+	verbose=1;;
+    -d)
+	SH=/bin/cat;;
+    -s)
+	size=$1;;
+    *)
+	if [ -z "$name" ]
+	then
+	    name=$i
+	elif [ -d $i ]
+	then
+	    dirs="$dirs $i"
+	elif [ -f $i ]
+	then
+	    files="$files $i"
+	else
+	    echo "$0: File `$i' not found." 1>&2
+	    exit 1
+	fi;;
+    esac
+done
+	
+if [ \( -z "$files" \) -a \( -z "$dirs" \) ]
+then
+    echo "Usage: $0 [-n name] [-s size] [-vd] <files>."	1>&2
+    exit 1
+fi
+
+$WC $files | $GREP -v total | $SORT +2 | $AWK '
+    BEGIN {
+	i = 0;
+	seq = 1;
+	size = 0;
+	name = 1;
+	used = 2;
+	verbose='"$verbose"';
+	tty = "/dev/tty";
+	maxsize = '"$size"';
+	dirs = "'"$dirs"'";
+    };
+    {
+	a[i, size] = $3;
+	a[i, name] = $4;
+	a[i, used] = 0;
+	i++;
+    };
+    END {
+	for (maxi = i--; i >= 0; i--) {
+	    idx = 0;
+	    if (a[i, used] == 0) {
+		if (verbose && a[i, size] > maxsize) 
+		    printf("Warning: File %s is %d > %d\n",
+			   a[i, name], a[i, size], maxsize) > tty;
+		s = a[i, size];
+		a[i, used] = 1;
+		kit[seq, idx++] = i; 
+		j = 0;
+		while (j < maxi) {
+		    # Find the greatest file we can add
+		    j = maxi;
+		    for (k = 0; k < maxi; k++)
+			if (a[k, used] == 0 && a[k, size] + s < maxsize)
+			    j = k;
+		    if (j < maxi) {
+			s += a[j, size];
+			a[j, used] = 1;
+			kit[seq, idx++] = j; 
+		    }
+		}
+		sizes[seq] = s;
+		kit[seq++, idx] = -1; 
+	    }
+	}
+	for (i = 1; i < seq; i++) {
+	    printf("shar -n%d -e%d %s ", i, seq - 1, dirs);
+	    if (verbose) {
+		printf("%3d of %3d: ", i, seq - 1) > tty;
+		len = 12;
+	    }
+	    for (j = 0; kit[i, j] != -1; j++) {
+		s = a[kit[i, j], name];
+		if (verbose) {
+		    clen = length(s) + 1;
+		    len += clen;
+		    if (len > 70) {
+			printf("\n            ") > tty;
+			len = 12 + clen;
+		    }
+		    printf("%s ", s) > tty;
+		}
+		printf("%s ", s);
+	    }
+	    printf("> '"$name"'-%d.shar;", i);
+	    if (verbose)
+		printf("= %5d\n", sizes[i]) > tty;
+	}
+    }' | $SH

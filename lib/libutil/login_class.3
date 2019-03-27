@@ -1,0 +1,223 @@
+.\" Copyright (c) 1995 David Nugent <davidn@blaze.net.au>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, is permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice immediately at the beginning of the file, without modification,
+.\"    this list of conditions, and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. This work was done expressly for inclusion into FreeBSD.  Other use
+.\"    is permitted provided this notation is included.
+.\" 4. Absolutely no warranty of function or purpose is made by the author
+.\"    David Nugent.
+.\" 5. Modifications may be freely made to this file providing the above
+.\"    conditions are met.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 24, 2011
+.Dt LOGIN_CLASS 3
+.Os
+.Sh NAME
+.Nm setclasscontext ,
+.Nm setclasscpumask ,
+.Nm setclassenvironment ,
+.Nm setclassresources ,
+.Nm setusercontext
+.Nd "functions for using the login class capabilities database"
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In sys/types.h
+.In login_cap.h
+.Ft int
+.Fn setclasscontext "const char *classname" "unsigned int flags"
+.Ft void
+.Fn setclasscpumask "login_cap_t *lc"
+.Ft void
+.Fn setclassenvironment "login_cap_t *lc" "const struct passwd *pwd" "int paths"
+.Ft void
+.Fn setclassresources "login_cap_t *lc"
+.Ft int
+.Fn setusercontext "login_cap_t *lc" "const struct passwd *pwd" "uid_t uid" "unsigned int flags"
+.Sh DESCRIPTION
+These functions provide a higher level interface to the login class
+database than those documented in
+.Xr login_cap 3 .
+These functions are used to set resource limits, environment and
+accounting settings for users on logging into the system and when
+selecting an appropriate set of environment and resource settings
+for system daemons based on login classes.
+These functions may only be called if the current process is
+running with root privileges.
+If the LOGIN_SETLOGIN flag is used this function calls
+.Xr setlogin 2 ,
+and due care must be taken as detailed in the manpage for that
+function and this affects all processes running in the same session
+and not just the current process.
+.Pp
+The
+.Fn setclasscontext
+function sets various class context values (resource limits, umask and
+process priorities) based on values for a specific named class.
+.Pp
+The
+.Fn setusercontext
+function sets class context values based on a given login_cap_t
+object and a specific passwd record (if login_cap_t is NULL),
+the current session's login, and the current process
+user and group ownership.
+Each of these actions is selectable via bit-flags passed
+in the
+.Ar flags
+parameter, which is comprised of one or more of the following:
+.Bl -tag -width LOGIN_SETLOGINCLASS
+.It LOGIN_SETLOGIN
+Set the login associated with the current session to the user
+specified in the passwd structure using
+.Xr setlogin 2 .
+The
+.Ar pwd
+parameter must not be NULL if this option is used.
+.It LOGIN_SETUSER
+Set ownership of the current process to the uid specified in the
+.Ar uid
+parameter using
+.Xr setuid 2 .
+.It LOGIN_SETGROUP
+Set group ownership of the current process to the group id
+specified in the passwd structure using
+.Xr setgid 2 ,
+and calls
+.Xr initgroups 3
+to set up the group access list for the current process.
+The
+.Ar pwd
+parameter must not be NULL if this option is used.
+.It LOGIN_SETRESOURCES
+Set resource limits for the current process based on values
+specified in the system login class database.
+Class capability tags used, with and without -cur (soft limit)
+or -max (hard limit) suffixes and the corresponding resource
+setting:
+.Bd -literal
+cputime          RLIMIT_CPU
+filesize         RLIMIT_FSIZE
+datasize         RLIMIT_DATA
+stacksize        RLIMIT_STACK
+coredumpsize     RLIMIT_CORE
+memoryuse        RLIMIT_RSS
+memorylocked     RLIMIT_MEMLOCK
+maxproc          RLIMIT_NPROC
+openfiles        RLIMIT_NOFILE
+sbsize           RLIMIT_SBSIZE
+vmemoryuse       RLIMIT_VMEM
+pseudoterminals  RLIMIT_NPTS
+swapuse          RLIMIT_SWAP
+kqueues          RLIMIT_KQUEUES
+umtxp            RLIMIT_UMTXP
+.Ed
+.It LOGIN_SETPRIORITY
+Set the scheduling priority for the current process based on the
+value specified in the system login class database.
+Class capability tags used:
+.Bd -literal
+priority
+.Ed
+.It LOGIN_SETUMASK
+Set the umask for the current process to a value in the user or
+system login class database.
+Class capability tags used:
+.Bd -literal
+umask
+.Ed
+.It LOGIN_SETPATH
+Set the "path" and "manpath" environment variables based on values
+in the user or system login class database.
+Class capability tags used with the corresponding environment
+variables set:
+.Bd -literal
+path          PATH
+manpath       MANPATH
+.Ed
+.It LOGIN_SETENV
+Set various environment variables based on values in the user or
+system login class database.
+Class capability tags used with the corresponding environment
+variables set:
+.Bd -literal
+lang          LANG
+charset       MM_CHARSET
+timezone      TZ
+term          TERM
+.Ed
+.Pp
+Additional environment variables may be set using the list type
+capability "setenv=var1 val1,var2 val2..,varN valN".
+.It LOGIN_SETMAC
+Set the MAC label for the current process to the label specified
+in system login class database.
+.It LOGIN_SETCPUMASK
+Create a new
+.Xr cpuset 2
+and set the cpu affinity to the specified mask.
+The string may contain a comma separated list of numbers and/or number
+ranges as handled by the
+.Xr cpuset 1
+utility or the case-insensitive string
+.Ql default .
+If the string is
+.Ql default
+no action will be taken.
+.It LOGIN_SETLOGINCLASS
+Set the login class of the current process using
+.Xr setloginclass 2 .
+.It LOGIN_SETALL
+Enables all of the above settings.
+.El
+.Pp
+Note that when setting environment variables and a valid passwd
+pointer is provided in the
+.Ar pwd
+parameter, the characters
+.Ql \&~
+and
+.Ql \&$
+are substituted for the user's home directory and login name
+respectively.
+.Pp
+The
+.Fn setclasscpumask ,
+.Fn setclassresources
+and
+.Fn setclassenvironment
+functions are subsets of the setcontext functions above, but may
+be useful in isolation.
+.Sh RETURN VALUES
+The
+.Fn setclasscontext
+and
+.Fn setusercontext
+functions return -1 if an error occurred, or 0 on success.
+If an error occurs when attempting to set the user, login, group
+or resources, a message is reported to
+.Xr syslog 3 ,
+with LOG_ERR priority and directed to the currently active facility.
+.Sh SEE ALSO
+.Xr cpuset 1 ,
+.Xr ps 1 ,
+.Xr cpuset 2 ,
+.Xr setgid 2 ,
+.Xr setlogin 2 ,
+.Xr setloginclass 2 ,
+.Xr setuid 2 ,
+.Xr getcap 3 ,
+.Xr initgroups 3 ,
+.Xr login_cap 3 ,
+.Xr mac_set_proc 3 ,
+.Xr login.conf 5 ,
+.Xr termcap 5

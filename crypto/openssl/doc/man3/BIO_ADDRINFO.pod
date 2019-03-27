@@ -1,0 +1,114 @@
+=pod
+
+=head1 NAME
+
+BIO_lookup_type,
+BIO_ADDRINFO, BIO_ADDRINFO_next, BIO_ADDRINFO_free,
+BIO_ADDRINFO_family, BIO_ADDRINFO_socktype, BIO_ADDRINFO_protocol,
+BIO_ADDRINFO_address,
+BIO_lookup_ex,
+BIO_lookup
+- BIO_ADDRINFO type and routines
+
+=head1 SYNOPSIS
+
+ #include <sys/types.h>
+ #include <openssl/bio.h>
+
+ typedef union bio_addrinfo_st BIO_ADDRINFO;
+
+ enum BIO_lookup_type {
+     BIO_LOOKUP_CLIENT, BIO_LOOKUP_SERVER
+ };
+
+ int BIO_lookup_ex(const char *host, const char *service, int lookup_type,
+                   int family, int socktype, int protocol, BIO_ADDRINFO **res);
+ int BIO_lookup(const char *node, const char *service,
+                enum BIO_lookup_type lookup_type,
+                int family, int socktype, BIO_ADDRINFO **res);
+
+ const BIO_ADDRINFO *BIO_ADDRINFO_next(const BIO_ADDRINFO *bai);
+ int BIO_ADDRINFO_family(const BIO_ADDRINFO *bai);
+ int BIO_ADDRINFO_socktype(const BIO_ADDRINFO *bai);
+ int BIO_ADDRINFO_protocol(const BIO_ADDRINFO *bai);
+ const BIO_ADDR *BIO_ADDRINFO_address(const BIO_ADDRINFO *bai);
+ void BIO_ADDRINFO_free(BIO_ADDRINFO *bai);
+
+=head1 DESCRIPTION
+
+The B<BIO_ADDRINFO> type is a wrapper for address information
+types provided on your platform.
+
+B<BIO_ADDRINFO> normally forms a chain of several that can be
+picked at one by one.
+
+BIO_lookup_ex() looks up a specified B<host> and B<service>, and
+uses B<lookup_type> to determine what the default address should
+be if B<host> is B<NULL>. B<family>, B<socktype> and B<protocol> are used to
+determine what protocol family, socket type and protocol should be used for
+the lookup.  B<family> can be any of AF_INET, AF_INET6, AF_UNIX and
+AF_UNSPEC. B<socktype> can be SOCK_STREAM, SOCK_DGRAM or 0. Specifying 0
+indicates that any type can be used. B<protocol> specifies a protocol such as
+IPPROTO_TCP, IPPROTO_UDP or IPPORTO_SCTP. If set to 0 than any protocol can be
+used. B<res> points at a pointer to hold the start of a B<BIO_ADDRINFO>
+chain.
+
+For the family B<AF_UNIX>, BIO_lookup_ex() will ignore the B<service>
+parameter and expects the B<node> parameter to hold the path to the
+socket file.
+
+BIO_lookup() does the same as BIO_lookup_ex() but does not provide the ability
+to select based on the protocol (any protocol may be returned).
+
+BIO_ADDRINFO_family() returns the family of the given
+B<BIO_ADDRINFO>.  The result will be one of the constants
+AF_INET, AF_INET6 and AF_UNIX.
+
+BIO_ADDRINFO_socktype() returns the socket type of the given
+B<BIO_ADDRINFO>.  The result will be one of the constants
+SOCK_STREAM and SOCK_DGRAM.
+
+BIO_ADDRINFO_protocol() returns the protocol id of the given
+B<BIO_ADDRINFO>.  The result will be one of the constants
+IPPROTO_TCP and IPPROTO_UDP.
+
+BIO_ADDRINFO_address() returns the underlying B<BIO_ADDR>
+of the given B<BIO_ADDRINFO>.
+
+BIO_ADDRINFO_next() returns the next B<BIO_ADDRINFO> in the chain
+from the given one.
+
+BIO_ADDRINFO_free() frees the chain of B<BIO_ADDRINFO> starting
+with the given one.
+
+=head1 RETURN VALUES
+
+BIO_lookup_ex() and BIO_lookup() return 1 on success and 0 when an error
+occurred, and will leave an error indication on the OpenSSL error stack in that
+case.
+
+All other functions described here return 0 or B<NULL> when the
+information they should return isn't available.
+
+=head1 NOTES
+
+The BIO_lookup_ex() implementation uses the platform provided getaddrinfo()
+function. On Linux it is known that specifying 0 for the protocol will not
+return any SCTP based addresses when calling getaddrinfo(). Therefore if an SCTP
+address is required then the B<protocol> parameter to BIO_lookup_ex() should be
+explicitly set to IPPROTO_SCTP. The same may be true on other platforms.
+
+=head1 HISTORY
+
+The BIO_lookup_ex() function was added in OpenSSL 1.1.1.
+
+=head1 COPYRIGHT
+
+Copyright 2016-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

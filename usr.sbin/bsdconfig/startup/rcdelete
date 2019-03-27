@@ -1,0 +1,414 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+f_include $BSDCFG_SHARE/startup/rcconf.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="140.startup"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
+
+############################################################ GLOBALS
+
+#
+# Global map/menu-list for the main menu
+#
+RCCONF_MAP=
+RCCONF_MENU_LIST=
+
+#
+# Options
+#
+# Inherit SHOW_DESC value if set, otherwise default to 1
+[ "${SHOW_DESC+set}" ] || SHOW_DESC=1
+# Selectively inherit SHOW_* value (in order of preference)
+if [ "$SHOW_DEFAULT_VALUE" ]; then
+	SHOW_DEFAULT_VALUE=1
+	SHOW_CONFIGURED=
+	SHOW_VALUE=
+elif [ "$SHOW_CONFIGURED" ]; then
+	SHOW_DEFAULT_VALUE=
+	SHOW_CONFIGURED=1
+	SHOW_VALUE=
+else
+	SHOW_DEFAULT_VALUE=
+	SHOW_CONFIGURED=
+	SHOW_VALUE=1
+fi
+
+############################################################ FUNCTIONS
+
+# dialog_create_main
+#
+# Create the dialog(1) main menu. Separated from dialog_menu_main (used to
+# display the menu) to speed up execution (we only call this function when
+# initializing or changing the view details).
+#
+dialog_create_main()
+{
+	# Show infobox for modes that take a while to calculate/display
+	[ "$SHOW_DEFAULT_VALUE" -o "$SHOW_CONFIGURED" ] &&
+		f_dialog_info "$msg_creating_menu_list"
+
+	RCCONF_MENU_LIST=$(
+		. "$RC_DEFAULTS" > /dev/null
+		source_rc_confs > /dev/null
+		var_list=$( f_startup_rcconf_list )
+		for var in $var_list; do
+			eval export $var
+			[ "$SHOW_DEFAULT_VALUE" ] && export \
+				_${var}_default="$( f_sysrc_get_default $var )"
+			[ "$SHOW_CONFIGURED" ] && export \
+				_${var}_file="$( f_sysrc_find $var )"
+		done
+		export SHOW_VALUE SHOW_DESC SHOW_DEFAULT_VALUE SHOW_CONFIGURED
+		export msg_default_value
+		echo "$var_list" | awk '
+		BEGIN {
+			prefix = ""
+		}
+		{
+			cur_prefix = tolower(substr($1, 1, 1))
+			printf "'\''"
+			if ( prefix != cur_prefix )
+				prefix = cur_prefix
+			else
+				printf " "
+			var = $1
+			printf "%s'\'' '\''[", var
+			if ( ENVIRON["_" var "_delete"] )
+				printf "X"
+			else
+				printf " "
+			printf "] "
+			if ( ENVIRON["SHOW_DEFAULT_VALUE"] ) {
+				default = ENVIRON["_" var "_default"]
+				gsub(/'\''/, "'\''\\'\'\''", default)
+				value = ENVIRON[var]
+				gsub(/'\''/, "'\''\\'\'\''", value)
+				printf ENVIRON["msg_default_value"] "; %s",
+				       default, value
+			} else if ( ENVIRON["SHOW_CONFIGURED"] ) {
+				printf "%s", ENVIRON["_" var "_file"]
+			} else { # SHOW_VALUE (default behavior)
+				value = ENVIRON[var]
+				gsub(/'\''/, "'\''\\'\'\''", value)
+				printf "%s", value
+			}
+			printf "'\''"
+			if ( ENVIRON["SHOW_DESC"] ) {
+				desc = ENVIRON["_" var "_desc"]
+				gsub(/'\''/, "'\''\\'\'\''", desc)
+				printf " '\''%s'\''", desc
+			}
+			printf "\n"
+		}'
+	)
+}
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local prompt=
+	local menu_list="
+		'X $msg_exit_cancel'     '$msg_exit_cancel_desc'
+		            ${SHOW_DESC:+'$msg_exit_cancel_help'}
+		'> $msg_delete_selected' '$msg_delete_selected_desc'
+		            ${SHOW_DESC:+'$msg_delete_selected_help'}
+		'> $msg_all'             '$msg_all_desc'
+		            ${SHOW_DESC:+'$msg_all_help'}
+		'> $msg_none'            '$msg_none_desc'
+		            ${SHOW_DESC:+'$msg_none_help'}
+	${USE_XDIALOG:+
+		'> $msg_view_details'    '$msg_view_details_desc'
+		            ${SHOW_DESC:+'$msg_view_details_help'}
+	}
+	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_arrows_tab_enter"
+
+	#
+	# [Re-]Accent the menu list before incorporating it
+	#
+	local rcconf_var details help menu_buf delete
+	eval set -- $RCCONF_MENU_LIST
+	while [ $# -gt 0 ]; do
+		rcconf_var="$1" details="$2" delete=
+		f_shell_escape "$details" details
+		if [ "$SHOW_DESC" ]; then
+			help="$3"
+			f_shell_escape "$help" help
+			shift 3 # rcconf_var/details/help
+		else
+			shift 2 # rcconf_var/details
+		fi
+
+		# Update mark
+		f_getvar _${rcconf_var# }_delete delete
+		if [ "$delete" ]; then
+			details="[X]${details#???}"
+		else
+			details="[ ]${details#???}"
+		fi
+
+		# Update buffer with modified elements
+		menu_buf="$menu_buf
+		'$rcconf_var' '$details' ${SHOW_DESC:+'$help'}" # End-Quote
+	done
+	menu_list="$menu_list $menu_buf"
+
+	set -f # set noglob because descriptions in the $menu_list may contain
+	       # `*' and get expanded by dialog(1) (doesn't affect Xdialog(1)).
+	       # This prevents dialog(1) from expanding wildcards in help line.
+
+	local height width rows
+	eval f_dialog_menu${SHOW_DESC:+_with_help}_size \
+		height width rows      \
+		\"\$DIALOG_TITLE\"     \
+		\"\$DIALOG_BACKTITLE\" \
+		\"\$prompt\"           \
+		\"\$hline\"            \
+		$menu_list
+
+	# Obtain default-item from previously stored selection
+	f_dialog_default_fetch defaultitem
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--keep-tite                        \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--help-button                      \
+		--help-label \"\$msg_details\"     \
+		${SHOW_DESC:+--item-help}          \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+
+	# Only update default-item on success
+	[ $retval -eq $DIALOG_OK ] && f_dialog_default_store "$menu_choice"
+
+	return $retval
+}
+
+# dialog_menu_confirm_delete $var1 [$var2 ...]
+#
+# Get the user's blessing to delete one or more variables. Returns success if
+# (and only-if) the user confirms (does not press ESC or Cancel/NO). Does NOT
+# return the user's menu-choice.
+#
+dialog_menu_confirm_delete()
+{
+	local prompt="$msg_are_you_sure_you_want_delete_the_following"
+	local menu_list # Calculated below
+	local hline="$hline_arrows_tab_enter"
+
+	[ $# -ge 1 ] || return $DIALOG_CANCEL
+
+	# If asked to delete only one variable, simply ask and return
+	if [ $# -eq 1 ]; then
+		f_noyes "$msg_are_you_sure_you_want_to_delete" "$1"
+		return $?
+	fi
+	# Not reached unless requested to delete multiple variables
+
+	# Generate a menu to cleanly display the variables to be deleted
+	local var_list
+	var_list=$( for var in $*; do echo "$var"; done | sort -u )
+	menu_list=$(
+		. "$RC_DEFAULTS"
+		source_rc_confs
+		echo "$var_list" | awk '
+		BEGIN {
+			prefix = ""
+		}
+		{
+			cur_prefix = tolower(substr($1, 1, 1))
+			printf "'\''"
+			if ( prefix != cur_prefix )
+				prefix = cur_prefix
+			else
+				printf " "
+			var = $1
+			printf "%s'\'' '\'\''\n", var
+		}'
+	)
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	local defaultno="defaultno"
+	[ "$USE_XDIALOG" ] && defaultno="default-no"
+
+	eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--$defaultno                       \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2> /dev/null
+
+	# Menu choice ignored; status of above command returned
+}
+
+############################################################ MAIN
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Process command-line arguments
+#
+while getopts h$GETOPTS_STDARGS flag; do
+	case "$flag" in
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+#
+# Initialize
+#
+f_dialog_title "$msg_delete_startup_directives"
+f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
+f_mustberoot_init
+
+# Genreate $RCCONF_MAP of `var desc ...' per-line (see share/rcconf.subr)
+f_dialog_info "$msg_creating_rcconf_map"
+f_startup_rcconf_map RCCONF_MAP
+
+# Generate _${var}_desc variables from $RCCONF_MAP
+f_startup_rcconf_map_expand RCCONF_MAP
+
+# Generate RCCONF_MENU_LIST from $RCCONF_MAP
+dialog_create_main
+
+#
+# Launch application main menu
+#
+while :; do
+	dialog_menu_main
+	retval=$?
+	f_dialog_menutag_fetch mtag
+
+	if [ "$USE_XDIALOG" ]; then
+		case "$mtag" in "> $msg_view_details")
+			f_dialog_input_view_details && dialog_create_main
+			continue
+		esac
+	elif [ $retval -eq $DIALOG_HELP ]; then
+		# The ``Help'' button (labeled "Details") was pressed
+		f_dialog_input_view_details && dialog_create_main
+		continue
+	fi
+
+	[ $retval -eq $DIALOG_OK ] || f_die
+
+	case "$mtag" in
+	"X $msg_exit_cancel") break ;;
+	"> $msg_delete_selected")
+		delete_vars=
+		for var in $( f_startup_rcconf_list ); do
+			f_getvar _${var}_delete _delete
+			[ "$_delete" ] || continue
+			delete_vars="$delete_vars $var"
+		done
+		if dialog_menu_confirm_delete $delete_vars; then
+			f_dialog_title "$msg_info"
+			f_dialog_info "$msg_deleting_selected_directives"
+			f_dialog_title_restore
+			for var in $delete_vars; do
+				f_eval_catch "$0" f_sysrc_delete \
+					'f_sysrc_delete "%s"' "$var" || break
+			done
+			dialog_create_main
+		fi
+		;;
+	"> $msg_all")
+		for var in $( f_startup_rcconf_list ); do
+			setvar _${var}_delete 1
+			export _${var}_delete
+		done
+		;;
+	"> $msg_none")
+		var_list=$( set | awk -F= "
+			/$STARTUP_RCCONF_REGEX/ {
+				if (\$1 ~ /^_[[:alpha:]_][[:alnum:]_]*_delete/)
+					print \$1
+			}"
+		)
+		[ "$var_list" ] && unset $var_list
+		;;
+	*) # Anything else is a variable to edit
+		var="${mtag# }"
+
+		# Toggle the state-variable and loop back to menu
+		if f_isset _${var}_delete; then
+			unset _${var}_delete
+		else
+			setvar _${var}_delete 1
+			export _${var}_delete
+		fi
+	esac
+done
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

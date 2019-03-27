@@ -1,0 +1,159 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_get_abbrev_entry.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd April 02, 2011
+.Dt DWARF_GET_ABBREV_ENTRY 3
+.Os
+.Sh NAME
+.Nm dwarf_get_abbrev_entry
+.Nd retrieve attribute information from an abbreviation descriptor
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_get_abbrev_entry
+.Fa "Dwarf_Abbrev abbrev"
+.Fa "Dwarf_Signed ndx"
+.Fa "Dwarf_Half *code"
+.Fa "Dwarf_Signed *form"
+.Fa "Dwarf_Off *offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_get_abbrev_entry
+retrieves attribute information from a DWARF abbreviation descriptor.
+.Pp
+Argument
+.Ar abbrev
+should be a valid abbreviation descriptor, as returned by function
+.Xr dwarf_get_abbrev 3 .
+.Pp
+Argument
+.Ar ndx
+specifies the 0-based index of the attribute.
+The total count of the attributes contained in the abbreviation
+entry can be retrieved using the function
+.Xr dwarf_get_abbrev 3 .
+.Pp
+Argument
+.Ar code
+should point to a location which will hold a returned
+attribute code.
+.Pp
+Argument
+.Ar form
+should point to a location which will hold the returned
+form of the attribute.
+.Pp
+Argument
+.Ar offset
+should point to a location which will hold a returned offset, relative
+to the
+.Dq ".debug_abbrev"
+section, for the specified attribute.
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to return an error descriptor in case
+of an error.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_get_abbrev_entry
+returns
+.Dv DW_DLV_OK
+when it succeeds.
+It returns
+.Dv DW_DLV_NO_ENTRY
+if the attribute index specified by argument
+.Ar ndx
+is out of range.
+In case of an error, it returns
+.Dv DW_DLV_ERROR
+and sets the argument
+.Ar err .
+.Sh EXAMPLES
+To loop through all the attribute entries contained in the
+abbreviation section, use:
+.Bd -literal -offset indent
+Dwarf_Debug dbg;
+Dwarf_Abbrev ab;
+Dwarf_Off aboff, atoff;
+Dwarf_Signed form;
+Dwarf_Half attr;
+Dwarf_Unsigned length, attr_count;
+Dwarf_Error de;
+int i, ret;
+
+/* ...allocate 'dbg' using dwarf_init(3) ... */
+
+while ((ret = dwarf_next_cu_header(dbg, NULL, NULL, &aboff,
+    NULL, NULL, &de)) ==  DW_DLV_OK) {
+	while ((ret = dwarf_get_abbrev(dbg, aboff, &ab, &length,
+	    &attr_count, &de)) == DW_DLV_OK) {
+		if (length == 1)	/* Last entry. */
+			break;
+		aboff += length;
+		for (i = 0; (Dwarf_Unsigned) i < attr_count; i++) {
+			if (dwarf_get_abbrev_entry(ab, i,
+			    &attr, &form, &atoff, &de) != DW_DLV_OK) {
+				warnx("dwarf_get_abbrev_entry failed:"
+				    " %s", dwarf_errmsg(de));
+				continue;
+			}
+			/* .. use the retrieved information ... */
+		}
+	}
+
+	if (ret != DW_DLV_OK)
+		warnx("dwarf_get_abbrev: %s", dwarf_errmsg(de));
+}
+
+if (ret == DW_DLV_ERROR)
+	warnx("dwarf_next_cu_header: %s", dwarf_errmsg(de));
+.Ed
+.Sh ERRORS
+Function
+.Fn dwarf_get_abbrev_entry
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_NO_ENTRY"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar abbrev ,
+.Ar code ,
+.Ar form
+or
+.Ar offset
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+The attribute index specified by argument
+.Ar ndx
+was out of range.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_get_abbrev 3

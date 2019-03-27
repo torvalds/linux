@@ -1,0 +1,362 @@
+.\" Copyright (c) 1996
+.\"	Julian Elischer <julian@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 9, 2014
+.Dt CD 4
+.Os
+.Sh NAME
+.Nm cd
+.Nd SCSI CD-ROM driver
+.Sh SYNOPSIS
+.Cd device cd
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for a
+.Tn SCSI
+.Tn CD-ROM
+(Compact Disc-Read Only Memory) drive.
+In an attempt to look like a regular disk, the
+.Nm
+driver synthesizes a partition table, with one partition covering the entire
+.Tn CD-ROM .
+It is possible to modify this partition table using
+.Xr disklabel 8 ,
+but it will only last until the
+.Tn CD-ROM
+is unmounted.
+In general the interfaces are similar to those described by
+.Xr ada 4
+and
+.Xr da 4 .
+.Pp
+As the
+.Tn SCSI
+adapter is probed during boot, the
+.Tn SCSI
+bus is scanned for devices.
+Any devices found which answer as CDROM
+(type 5) or WORM (type 4) type devices will be `attached' to the
+.Nm
+driver.
+Prior to
+.Fx 2.1 ,
+the first device found will be attached as
+.Li cd0
+the next,
+.Li cd1 ,
+etc.
+Beginning in
+.Fx 2.1
+it is possible to specify what cd unit a device should
+come on line as; refer to
+.Xr scsi 4
+for details on kernel configuration.
+.Pp
+The system utility
+.Xr disklabel 8
+may be used to read the synthesized
+disk label
+structure, which will contain correct figures for the size of the
+.Tn CD-ROM
+should that information be required.
+.Sh KERNEL CONFIGURATION
+Any number of
+.Tn CD-ROM
+devices may be attached to the system regardless of system
+configuration as all resources are dynamically allocated.
+.Sh IOCTLS
+The following
+.Xr ioctl 2
+calls which apply to
+.Tn SCSI
+.Tn CD-ROM
+drives are defined
+in the header files
+.In sys/cdio.h
+and
+.In sys/disklabel.h .
+.Bl -tag -width CDIOCREADSUBCHANNEL
+.It Dv CDIOCPLAYTRACKS
+.Pq Li "struct ioc_play_track"
+Start audio playback given a track address and length.
+The structure is defined as follows:
+.Bd -literal -offset indent
+struct ioc_play_track
+{
+	u_char	start_track;
+	u_char	start_index;
+	u_char	end_track;
+	u_char	end_index;
+};
+.Ed
+.It Dv CDIOCPLAYBLOCKS
+.Pq Li "struct ioc_play_blocks"
+Start audio playback given a block address and length.
+The structure is defined as follows:
+.Bd -literal -offset indent
+struct ioc_play_blocks
+{
+	int	blk;
+	int	len;
+};
+.Ed
+.It Dv CDIOCPLAYMSF
+.Pq Li "struct ioc_play_msf"
+Start audio playback given a `minutes-seconds-frames' address and
+length.
+The structure is defined as follows:
+.Bd -literal -offset indent
+struct ioc_play_msf
+{
+	u_char	start_m;
+	u_char	start_s;
+	u_char	start_f;
+	u_char	end_m;
+	u_char	end_s;
+	u_char	end_f;
+};
+.Ed
+.It Dv CDIOCREADSUBCHANNEL
+.Pq Li "struct ioc_read_subchannel"
+Read information from the subchannel at the location specified by this
+structure:
+.Bd -literal -offset indent
+struct ioc_read_subchannel {
+	u_char address_format;
+#define CD_LBA_FORMAT	1
+#define CD_MSF_FORMAT	2
+	u_char data_format;
+#define CD_SUBQ_DATA		0
+#define CD_CURRENT_POSITION	1
+#define CD_MEDIA_CATALOG	2
+#define CD_TRACK_INFO		3
+	u_char track;
+	int	data_len;
+	struct  cd_sub_channel_info *data;
+};
+.Ed
+.It Dv CDIOREADTOCHEADER
+.Pq Li "struct ioc_toc_header"
+Return summary information about the table of contents for the mounted
+.Tn CD-ROM .
+The information is returned into the following structure:
+.Bd -literal -offset indent
+struct ioc_toc_header {
+	u_short len;
+	u_char  starting_track;
+	u_char  ending_track;
+};
+.Ed
+.It Dv CDIOREADTOCENTRYS
+.Pq Li "struct ioc_read_toc_entry"
+Return information from the table of contents entries mentioned.
+.Pq Yes, this command name is misspelled.
+The argument structure is defined as follows:
+.Bd -literal -offset indent
+struct ioc_read_toc_entry {
+	u_char	address_format;
+	u_char	starting_track;
+	u_short	data_len;
+	struct  cd_toc_entry *data;
+};
+.Ed
+The requested data is written into an area of size
+.Li data_len
+and pointed to by
+.Li data .
+.It Dv CDIOCSETPATCH
+.Pq Li "struct ioc_patch"
+Attach various audio channels to various output channels.
+The argument structure is defined thusly:
+.Bd -literal -offset indent
+struct ioc_patch {
+	u_char	patch[4];
+	/* one for each channel */
+};
+.Ed
+.It Dv CDIOCGETVOL
+.It Dv CDIOCSETVOL
+.Pq Li "struct ioc_vol"
+Get (set) information about the volume settings of the output channels.
+The argument structure is as follows:
+.Bd -literal -offset indent
+struct	ioc_vol
+{
+	u_char	vol[4];
+	/* one for each channel */
+};
+.Ed
+.It Dv CDIOCSETMONO
+Patch all output channels to all source channels.
+.It Dv CDIOCSETSTEREO
+Patch left source channel to the left output channel and the right
+source channel to the right output channel.
+.It Dv CDIOCSETMUTE
+Mute output without changing the volume settings.
+.It Dv CDIOCSETLEFT
+.It Dv CDIOCSETRIGHT
+Attach both output channels to the left (right) source channel.
+.It Dv CDIOCSETDEBUG
+.It Dv CDIOCCLRDEBUG
+Turn on (off) debugging for the appropriate device.
+.It Dv CDIOCPAUSE
+.It Dv CDIOCRESUME
+Pause (resume) audio play, without resetting the location of the read-head.
+.It Dv CDIOCRESET
+Reset the drive.
+.It Dv CDIOCSTART
+.It Dv CDIOCSTOP
+Tell the drive to spin-up (-down) the
+.Tn CD-ROM .
+.It Dv CDIOCALLOW
+.It Dv CDIOCPREVENT
+Tell the drive to allow (prevent) manual ejection of the
+.Tn CD-ROM
+disc.
+Not all drives support this feature.
+.It Dv CDIOCEJECT
+Eject the
+.Tn CD-ROM .
+.It Dv CDIOCCLOSE
+Tell the drive to close its door and load the media.
+Not all drives support this feature.
+.El
+.Sh NOTES
+When a
+.Tn CD-ROM
+is changed in a drive controlled by the
+.Nm
+driver, then the act of changing the media will invalidate the
+disklabel and information held within the kernel.
+To stop corruption,
+all accesses to the device will be discarded until there are no more
+open file descriptors referencing the device.
+During this period, all
+new open attempts will be rejected.
+When no more open file descriptors
+reference the device, the first next open will load a new set of
+parameters (including disklabel) for the drive.
+.Pp
+The audio code in the
+.Nm
+driver only support
+.Tn SCSI-2
+standard audio commands.
+As many
+.Tn CD-ROM
+manufacturers have not followed the standard, there are many
+.Tn CD-ROM
+drives for which audio will not work.
+Some work is planned to support
+some of the more common `broken'
+.Tn CD-ROM
+drives; however, this is not yet under way.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width 12
+.It kern.cam.cd.retry_count
+.Pp
+This variable determines how many times the
+.Nm
+driver will retry a READ or WRITE command.
+This does not affect the number of retries used during probe time or for
+the
+.Nm
+driver dump routine.
+This value currently defaults to 4.
+.It kern.cam.cd.%d.minimum_cmd_size
+.Pp
+The
+.Nm
+driver attempts to automatically determine whether the drive it is talking
+to supports 6 byte or 10 byte MODE SENSE/MODE SELECT operations.
+Many
+.Tn SCSI
+drives only support 6 byte commands, and
+.Tn ATAPI
+drives only support 10 byte commands.
+The
+.Nm
+driver first attempts to determine whether the protocol in use typically
+supports 6 byte commands by issuing a CAM Path Inquiry CCB.
+It will then default to 6 byte or 10 byte commands as appropriate.
+After that, the
+.Nm
+driver defaults to using 6 byte commands (assuming the protocol the drive
+speaks claims to support 6 byte commands), until one fails with a
+.Tn SCSI
+ILLEGAL REQUEST error.
+Then it tries the 10 byte version of the command to
+see if that works instead.
+Users can change the default via per-drive
+sysctl variables and loader tunables.
+Where
+.Dq %d
+is the unit number of the drive in question.
+Valid minimum command sizes
+are 6 and 10.
+Any value above 6 will be rounded to 10, and any value below
+6 will be rounded to 6.
+.El
+.Sh FILES
+.Bl -tag -width /dev/cd[0-9][a-h] -compact
+.It Pa /dev/cd[0-9][a-h]
+raw mode
+.Tn CD-ROM
+devices
+.El
+.Sh DIAGNOSTICS
+None.
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr da 4 ,
+.Xr disklabel 8 ,
+.Xr cd 9
+.Sh HISTORY
+This
+.Nm
+driver is based upon the
+.Nm
+driver written by Julian Elischer, which appeared in
+.Bx 386 0.1 .
+The
+CAM version of the
+.Nm
+driver was written by Kenneth Merry and first appeared in
+.Fx 3.0 .
+.Sh BUGS
+The names of the structures used for the third argument to
+.Fn ioctl
+were poorly chosen, and a number of spelling errors have survived in
+the names of the
+.Fn ioctl
+commands.

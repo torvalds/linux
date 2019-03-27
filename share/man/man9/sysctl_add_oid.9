@@ -1,0 +1,203 @@
+.\"
+.\" Copyright (c) 2000, Andrzej Bialecki <abial@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 13, 2016
+.Dt SYSCTL_ADD_OID 9
+.Os
+.Sh NAME
+.Nm sysctl_add_oid ,
+.Nm sysctl_move_oid ,
+.Nm sysctl_remove_oid ,
+.Nm sysctl_remove_name
+.Nd runtime sysctl tree manipulation
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/sysctl.h
+.Ft struct sysctl_oid *
+.Fo sysctl_add_oid
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int kind"
+.Fa "void *arg1"
+.Fa "intmax_t arg2"
+.Fa "int (*handler) (SYSCTL_HANDLER_ARGS)"
+.Fa "const char *format"
+.Fa "const char *descr"
+.Fa "const char *label"
+.Fc
+.Ft int
+.Fo sysctl_move_oid
+.Fa "struct sysctl_oid *oidp"
+.Fa "struct sysctl_oid_list *parent"
+.Fc
+.Ft int
+.Fo sysctl_remove_oid
+.Fa "struct sysctl_oid *oidp"
+.Fa "int del"
+.Fa "int recurse"
+.Fc
+.Ft int
+.Fo sysctl_remove_name
+.Fa "struct sysctl_oid *oidp"
+.Fa "const char *name"
+.Fa "int del"
+.Fa "int recurse"
+.Fc
+.Sh DESCRIPTION
+These functions provide the interface for creating and deleting sysctl
+OIDs at runtime for example during the lifetime of a module.
+The wrapper macros defined by
+.Xr sysctl 9
+are recommended when creating new OIDs.
+.Fn sysctl_add_oid
+should not be called directly from the code.
+.Pp
+Dynamic OIDs of type
+.Dv CTLTYPE_NODE
+are reusable
+so that several code sections can create and delete them,
+but in reality they are allocated and freed
+based on their reference count.
+As a consequence,
+it is possible for two or more code sections
+to create partially overlapping trees that they both can use.
+It is not possible to create overlapping leaves,
+nor to create different child types with the same name and parent.
+.Pp
+The
+.Fn sysctl_add_oid
+function creates a raw OID of any type and connects it to its parent node, if any.
+If the OID is successfully created,
+the function returns a pointer to it else
+it returns
+.Dv NULL .
+Many of the arguments for
+.Fn sysctl_add_oid
+are common to the wrapper macros defined by
+.Xr sysctl 9 .
+.Pp
+The
+.Fn sysctl_move_oid
+function reparents an existing OID.
+The OID is assigned a new number as if it had been created with
+.Fa number
+set to
+.Dv OID_AUTO .
+.Pp
+The
+.Fn sysctl_remove_oid
+function removes a dynamically created OID from the tree and
+optionally freeing its resources.
+It takes the following arguments:
+.Bl -tag -width recurse
+.It Fa oidp
+A pointer to the dynamic OID to be removed.
+If the OID is not dynamic, or the pointer is
+.Dv NULL ,
+the function returns
+.Er EINVAL .
+.It Fa del
+If non-zero,
+.Fn sysctl_remove_oid
+will try to free the OID's resources
+when the reference count of the OID becomes zero.
+However, if
+.Fa del
+is set to 0,
+the routine will only deregister the OID from the tree,
+without freeing its resources.
+This behaviour is useful when the caller expects to rollback
+(possibly partially failed)
+deletion of many OIDs later.
+.It Fa recurse
+If non-zero, attempt to remove the node and all its children.
+If
+.Pa recurse
+is set to 0,
+any attempt to remove a node that contains any children
+will result in a
+.Er ENOTEMPTY
+error.
+.Em WARNING : "use recursive deletion with extreme caution" !
+Normally it should not be needed if contexts are used.
+Contexts take care of tracking inter-dependencies
+between users of the tree.
+However, in some extreme cases it might be necessary
+to remove part of the subtree no matter how it was created,
+in order to free some other resources.
+Be aware, though, that this may result in a system
+.Xr panic 9
+if other code sections continue to use removed subtrees.
+.El
+.Pp
+The
+.Fn sysctl_remove_name
+function looks up the child node matching the
+.Fa name
+argument and then invokes the
+.Fn sysctl_remove_oid
+function on that node, passing along the
+.Fa del
+and
+.Fa recurse
+arguments.
+If a node having the specified name does not exist an error code of
+.Er ENOENT
+is returned.
+Else the error code from
+.Fn sysctl_remove_oid
+is returned.
+.Pp
+In most cases the programmer should use contexts,
+as described in
+.Xr sysctl_ctx_init 9 ,
+to keep track of created OIDs,
+and to delete them later in orderly fashion.
+.Sh SEE ALSO
+.Xr sysctl 8 ,
+.Xr sysctl 9 ,
+.Xr sysctl_ctx_free 9 ,
+.Xr sysctl_ctx_init 9
+.Sh HISTORY
+These functions first appeared in
+.Fx 4.2 .
+.Sh AUTHORS
+.An Andrzej Bialecki Aq Mt abial@FreeBSD.org
+.Sh BUGS
+Sharing nodes between many code sections
+causes interdependencies that sometimes may lock the resources.
+For example,
+if module A hooks up a subtree to an OID created by module B,
+module B will be unable to delete that OID.
+These issues are handled properly by sysctl contexts.
+.Pp
+Many operations on the tree involve traversing linked lists.
+For this reason, OID creation and removal is relatively costly.

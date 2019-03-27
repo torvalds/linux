@@ -1,0 +1,14 @@
+$FreeBSD$
+
+Most of the instructions is outlined on FreeBSD wiki at:
+
+	http://wiki.freebsd.org/SubversionPrimer/VendorImports
+
+nc(1) is very small and most of code are just copied as-is from OpenBSD.  With a
+few exceptions:
+
+ * --no-tcpopt: Local feature specific to FreeBSD.
+ * -V: We use FIB to map what OpenBSD do for "rdomain"
+ * -E, -e: These are mostly self contained IPsec extensions
+
+delphij@FreeBSD.org - Mar 23, 2010

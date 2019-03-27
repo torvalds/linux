@@ -1,0 +1,20 @@
+
+#------------------------------------------------------------------------------
+# $File: ssl,v 1.5 2017/12/29 04:00:07 christos Exp $
+# ssl:  file(1) magic for SSL file formats
+
+# Type: OpenSSL certificates/key files
+# From: Nicolas Collignon <tsointsoin@gmail.com>
+
+0	string	-----BEGIN\040CERTIFICATE-----	PEM certificate
+0	string	-----BEGIN\040CERTIFICATE\040REQ	PEM certificate request
+0	string	-----BEGIN\040RSA\040PRIVATE	PEM RSA private key
+0	string	-----BEGIN\040DSA\040PRIVATE	PEM DSA private key
+0	string	-----BEGIN\040EC\040PRIVATE	PEM EC private key
+0	string	-----BEGIN\040ECDSA\040PRIVATE	PEM ECDSA private key
+
+# From Luc Gommans
+# OpenSSL enc file (recognized by a magic string preceding the password's salt)
+0	string	Salted__	openssl enc'd data with salted password
+# Using the -a or -base64 option, OpenSSL will base64-encode the data.
+0	string U2FsdGVkX1	openssl enc'd data with salted password, base64 encoded

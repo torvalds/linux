@@ -1,0 +1,101 @@
+.\" Copyright (c) 2010 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: dwarf_seterrarg.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd May 01, 2010
+.Dt DWARF_SETERRARG 3
+.Os
+.Sh NAME
+.Nm dwarf_seterrarg ,
+.Nm dwarf_seterrhand
+.Nd configure error handling
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft Dwarf_Ptr
+.Fn dwarf_seterrarg "Dwarf_Debug dbg" "Dwarf_Ptr arg"
+.Ft Dwarf_Handler
+.Fn dwarf_seterrhand "Dwarf_Debug dbg" "Dwarf_Handler handler"
+.Sh DESCRIPTION
+These functions may be used by applications to configure error handling
+callbacks.
+The error handling scheme used by the library is described in
+.Xr dwarf 3 .
+.Pp
+Function
+.Fn dwarf_seterrarg
+may be used to set the callback argument passed to a configured
+error handler at the time it is invoked.
+Argument
+.Ar arg
+is the callback argument being set.
+Argument
+.Ar dbg
+can be a debug context allocated by a prior call to
+.Xr dwarf_init 3 ,
+or can be NULL to indicate that the library-wide callback argument
+is to be set.
+.Pp
+Function
+.Fn dwarf_seterrhand
+may be used to associate an error handler denoted by argument
+.Ar handler
+with the DWARF debug context descriptor denoted by argument
+.Ar dbg .
+Argument
+.Ar dbg
+should be a debug context allocated by a prior call to
+.Xr dwarf_init 3 ,
+or may be NULL to indicate that the library-wide error handler
+is to be set.
+.Sh RETURN VALUES
+Function
+.Fn dwarf_seterrhand
+returns the previous error handler associated with argument
+.Ar dbg .
+If argument
+.Ar dbg
+is NULL, function
+.Fn dwarf_seterrhand
+returns the previous library-wide error handler.
+.Pp
+Function
+.Fn dwarf_seterrarg
+returns the previous callback argument associated with argument
+.Ar dbg .
+If argument
+.Ar dbg
+is NULL, function
+.Fn dwarf_seterrarg
+returns the previous library-wide callback argument.
+.Sh COMPATIBILITY
+The behavior of these functions when argument
+.Ar dbg
+is NULL is a local extension.
+.Sh ERRORS
+These functions do not set an error code.
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_init 3

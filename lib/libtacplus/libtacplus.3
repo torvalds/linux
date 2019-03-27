@@ -1,0 +1,535 @@
+.\" Copyright (c) 1998, 2001, 2002, Juniper Networks, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 11, 2009
+.Dt LIBTACPLUS 3
+.Os
+.Sh NAME
+.Nm libtacplus
+.Nd TACACS+ client library
+.Sh SYNOPSIS
+.In taclib.h
+.Ft int
+.Fn tac_add_server "struct tac_handle *h" "const char *host" "int port" "const char *secret" "int timeout" "int flags"
+.Ft void
+.Fn tac_clear_avs "struct tac_handle *h"
+.Ft void
+.Fn tac_close "struct tac_handle *h"
+.Ft int
+.Fn tac_config "struct tac_handle *h" "const char *path"
+.Ft int
+.Fn tac_create_authen "struct tac_handle *h" "int action" "int type" "int service"
+.Ft int
+.Fn tac_create_author "struct tac_handle *h" "int method" "int type" "int service"
+.Ft int
+.Fn tac_create_acct "struct tac_handle *h" "int acct" "int action" "int type" "int service"
+.Ft char *
+.Fn tac_get_av "struct tac_handle *h" "u_int index"
+.Ft char *
+.Fn tac_get_av_value "struct tac_handle *h" "const char *attribute"
+.Ft void *
+.Fn tac_get_data "struct tac_handle *h" "size_t *len"
+.Ft char *
+.Fn tac_get_msg "struct tac_handle *h"
+.Ft struct tac_handle *
+.Fn tac_open "void"
+.Ft int
+.Fn tac_send_authen "struct tac_handle *h"
+.Ft int
+.Fn tac_send_author "struct tac_handle *h"
+.Ft int
+.Fn tac_send_acct "struct tac_handle *h"
+.Ft int
+.Fn tac_set_av "struct tac_handle *h" "u_int index" "const char *av_pair"
+.Ft int
+.Fn tac_set_data "struct tac_handle *h" "const void *data" "size_t data_len"
+.Ft int
+.Fn tac_set_msg "struct tac_handle *h" "const char *msg"
+.Ft int
+.Fn tac_set_port "struct tac_handle *h" "const char *port"
+.Ft int
+.Fn tac_set_priv "struct tac_handle *h" "int priv"
+.Ft int
+.Fn tac_set_rem_addr "struct tac_handle *h" "const char *addr"
+.Ft int
+.Fn tac_set_user "struct tac_handle *h" "const char *user"
+.Ft const char *
+.Fn tac_strerror "struct tac_handle *h"
+.Sh DESCRIPTION
+The
+.Nm
+library implements the client side of the TACACS+ network access
+control protocol.
+TACACS+ allows clients to perform authentication,
+authorization, and accounting by means of network requests to remote
+servers.
+This library currently supports only the authentication
+and authorization portion of the protocol.
+.Sh INITIALIZATION
+To use the library, an application must first call
+.Fn tac_open
+to obtain a
+.Va struct tac_handle * ,
+which provides context for subsequent operations.
+Calls to
+.Fn tac_open
+always succeed unless insufficient virtual memory is available.
+If
+the necessary memory cannot be allocated,
+.Fn tac_open
+returns
+.Dv NULL .
+.Pp
+Before issuing any TACACS+ requests, the library must be made aware
+of the servers it can contact.
+The easiest way to configure the
+library is to call
+.Fn tac_config .
+.Fn tac_config
+causes the library to read a configuration file whose format is
+described in
+.Xr tacplus.conf 5 .
+The pathname of the configuration file is passed as the
+.Va file
+argument to
+.Fn tac_config .
+This argument may also be given as
+.Dv NULL ,
+in which case the standard configuration file
+.Pa /etc/tacplus.conf
+is used.
+.Fn tac_config
+returns 0 on success, or \-1 if an error occurs.
+.Pp
+The library can also be configured programmatically by calls to
+.Fn tac_add_server .
+The
+.Va host
+parameter specifies the server host, either as a fully qualified
+domain name or as a dotted-quad IP address in text form.
+The
+.Va port
+parameter specifies the TCP port to contact on the server.
+If
+.Va port
+is given as 0, the library uses port 49, the standard TACACS+ port.
+The shared secret for the server host is passed to the
+.Va secret
+parameter.
+It may be any null-terminated string of bytes.
+The timeout for receiving replies from the server is passed to the
+.Va timeout
+parameter, in units of seconds.
+The
+.Va flags
+parameter is a bit mask of flags to specify various characteristics of
+the server.
+It may contain:
+.Bl -tag -width Fl
+.It Dv TAC_SRVR_SINGLE_CONNECT
+Causes the library to attempt to negotiate single connection mode
+when communicating with the server.
+In single connection mode, the
+original TCP connection is held open for multiple TACACS+ sessions.
+Older servers do not support this mode, and some of them become
+confused if the client attempts to negotiate it.
+.El
+.Pp
+.Fn tac_add_server
+returns 0 on success, or \-1 if an error occurs.
+.Pp
+.Fn tac_add_server
+may be called multiple times, and it may be used together with
+.Fn tac_config .
+At most 10 servers may be specified.
+When multiple servers are given, they are tried in round-robin
+fashion until a working, accessible server is found.
+Once the
+library finds such a server, it continues to use it as long as it
+works.
+.Sh CREATING A TACACS+ AUTHENTICATION REQUEST
+To begin constructing a new authentication request, call
+.Fn tac_create_authen .
+The
+.Va action ,
+.Va type ,
+and
+.Va service
+arguments must be set to appropriate values as defined in the
+TACACS+ protocol specification.
+The
+.In taclib.h
+header file contains symbolic constants for these values.
+.Sh CREATING A TACACS+ AUTHORIZATION REQUEST
+To begin constructing a new authorization request, call
+.Fn tac_create_author .
+The
+.Va method ,
+.Va type ,
+and
+.Va service
+arguments must be set to appropriate values as defined in the
+TACACS+ protocol specification.
+The
+.In taclib.h
+header file contains symbolic constants for these values.
+.Sh CREATING A TACACS+ ACCOUNTING REQUEST
+To begin constructing a new accounting request, call
+.Fn tac_create_acct .
+The
+.Va acct ,
+.Va action ,
+.Va type ,
+and
+.Va service
+arguments must be set to appropriate values as defined in the
+TACACS+ protocol specification.
+The
+.In taclib.h
+header file contains symbolic constants for these values.
+.Sh SETTING OPTIONAL PARAMETERS ON A REQUEST
+After creating a request,
+various optional parameters may be attached to it through calls to
+.Fn tac_set_av ,
+.Fn tac_set_data ,
+.Fn tac_set_port ,
+.Fn tac_set_priv ,
+.Fn tac_set_rem_addr ,
+and
+.Fn tac_set_user .
+The library creates its own copies of any strings provided to these
+functions, so that it is not necessary for the caller to preserve
+them.
+By default, each of these parameters is empty except for the
+privilege level, which defaults to
+.Ql USER
+privilege.
+.Pp
+.Fn tac_set_av
+only applies to the context of an authorization request.
+The format
+for an attribute value pair is defined in the TACACS+ protocol
+specification.
+The index specified can be any value between 0 and
+255 inclusive and indicates the position in the list to place the
+attribute value pair.
+Calling
+.Fn tac_set_av
+with same index twice effectively replaces the value at that position.
+Use
+.Fn tac_clear_avs
+to clear all attribute value pairs that may have been set.
+.Sh SENDING THE AUTHENTICATION REQUEST AND RECEIVING THE RESPONSE
+After the TACACS+ authentication request has been constructed, it is
+sent by means of
+.Fn tac_send_authen .
+This function connects to a server if not already connected, sends
+the request, and waits for a reply.
+On failure,
+.Fn tac_send_authen
+returns \-1.
+Otherwise, it returns the TACACS+ status code and flags,
+packed into an integer value.
+The status can be extracted using the
+macro
+.Fn TAC_AUTHEN_STATUS .
+Possible status codes, defined in
+.In taclib.h ,
+include:
+.Pp
+.Bl -item -compact -offset indent
+.It
+.Dv TAC_AUTHEN_STATUS_PASS
+.It
+.Dv TAC_AUTHEN_STATUS_FAIL
+.It
+.Dv TAC_AUTHEN_STATUS_GETDATA
+.It
+.Dv TAC_AUTHEN_STATUS_GETUSER
+.It
+.Dv TAC_AUTHEN_STATUS_GETPASS
+.It
+.Dv TAC_AUTHEN_STATUS_RESTART
+.It
+.Dv TAC_AUTHEN_STATUS_ERROR
+.It
+.Dv TAC_AUTHEN_STATUS_FOLLOW
+.El
+.Pp
+The only flag is the no-echo flag, which can be tested using the
+macro
+.Fn TAC_AUTHEN_NOECHO .
+.Sh EXTRACTING INFORMATION FROM THE SERVER'S AUTHENTICATION RESPONSE
+An authentication response packet from the server may contain a
+server message, a data string, or both.
+After a successful call to
+.Fn tac_send_authen ,
+this information may be retrieved from the response by calling
+.Fn tac_get_msg
+and
+.Fn tac_get_data .
+These functions return dynamically-allocated copies of the
+information from the packet.
+The caller is responsible for freeing
+the copies when it no longer needs them.
+The data returned from
+these functions is guaranteed to be terminated by a null byte.
+.Pp
+In the case of
+.Fn tac_get_data ,
+the
+.Va len
+argument points to a location into which the library will store the
+actual length of the received data, not including the null
+terminator.
+This argument may be given as
+.Dv NULL
+if the caller is not interested in the length.
+.Sh SENDING AUTHENTICATION CONTINUE PACKETS
+If
+.Fn tac_send_authen
+returns a value containing one of the status codes
+.Dv TAC_AUTHEN_STATUS_GETDATA ,
+.Dv TAC_AUTHEN_STATUS_GETUSER ,
+or
+.Dv TAC_AUTHEN_STATUS_GETPASS ,
+then the client must provide additional information to the server by
+means of a TACACS+ CONTINUE packet.
+To do so, the application must
+first set the packet's user message and/or data fields using
+.Fn tac_set_msg
+and
+.Fn tac_set_data .
+The client then sends the CONTINUE packet with
+.Fn tac_send_authen .
+N.B.,
+.Fn tac_create_authen
+should
+.Em not
+be called to construct a CONTINUE packet; it is used only for the
+initial authentication request.
+.Pp
+When it receives the CONTINUE packet, the server may again request
+more information by returning
+.Dv TAC_AUTHEN_STATUS_GETDATA ,
+.Dv TAC_AUTHEN_STATUS_GETUSER ,
+or
+.Dv TAC_AUTHEN_STATUS_GETPASS .
+The application should send further CONTINUEs until some other
+status is received from the server.
+.Sh SENDING THE AUTHORIZATION REQUEST AND RECEIVING THE RESPONSE
+After the TACACS+ authorization request has been constructed, it
+is sent by means of
+.Fn tac_send_author .
+This function connects to a server if not already connected, sends
+the request, and waits for a reply.
+On failure,
+.Fn tac_send_author
+returns \-1.
+Otherwise, it returns the TACACS+ status code and
+number of attribute value (AV) pairs received packed into an
+integer value.
+The status can be extracted using the macro
+.Fn TAC_AUTHOR_STATUS .
+Possible status codes, defined in
+.In taclib.h ,
+include:
+.Pp
+.Bl -item -compact -offset indent
+.It
+.Dv TAC_AUTHOR_STATUS_PASS_ADD
+.It
+.Dv TAC_AUTHOR_STATUS_PASS_REPL
+.It
+.Dv TAC_AUTHOR_STATUS_FAIL
+.It
+.Dv TAC_AUTHOR_STATUS_ERROR
+.El
+.Pp
+The number of AV pairs received is obtained using
+.Fn TAC_AUTHEN_AV_COUNT .
+.Sh SENDING THE ACCOUNTING REQUEST AND RECEIVING THE RESPONSE
+After the TACACS+ authorization request has been constructed, it
+is sent by means of
+.Fn tac_send_acct .
+This function connects to a server if not already connected, sends
+the request, and waits for a reply.
+On failure,
+.Fn tac_send_acct
+returns \-1.
+Otherwise, it returns the TACACS+ status code.
+Possible status codes, defined in
+.In taclib.h ,
+include:
+.Pp
+.Bl -item -compact -offset indent
+.It
+.Dv TAC_ACCT_STATUS_SUCCESS
+.It
+.Dv TAC_ACCT_STATUS_ERROR
+.It
+.Dv TAC_ACCT_STATUS_FOLLOW
+.El
+.Sh EXTRACTING INFORMATION FROM THE SERVER'S AUTHORIZATION RESPONSE
+Like an authentication response packet, an authorization
+response packet from the
+server may contain a server message, a data string, or both.
+Refer
+to EXTRACTING INFORMATION FROM THE SERVER'S AUTHENTICATION RESPONSE
+for instruction on extraction of those values.
+.Pp
+An authorization response packet from the server may also contain
+attribute value (AV) pairs.
+To extract these, use
+.Fn tac_get_av
+or
+.Fn tac_get_av_value .
+.Fn tac_get_av
+takes the index of the AV pair as it is positioned in the list.
+The indexes start at 0 (use
+.Fn TAC_AUTHEN_AV_COUNT
+on the return value of
+.Fn tac_send_author
+to get the total number of items in this list).
+Alternatively,
+.Fn tac_get_av_value
+can be used.
+.Fn tac_get_av_value
+takes the attribute name and returns the
+corresponding value only, not the AV pair.
+These functions return
+dynamically-allocated copies of the information from the packet.
+The caller is responsible for freeing the copies when it no longer
+needs them.
+The data returned from these functions is guaranteed
+to be terminated by a null byte.
+.Sh OBTAINING ERROR MESSAGES
+Those functions which accept a
+.Va struct tac_handle *
+argument record an error message if they fail.
+The error message
+can be retrieved by calling
+.Fn tac_strerror .
+The message text is overwritten on each new error for the given
+.Va struct tac_handle * .
+Thus the message must be copied if it is to be preserved through
+subsequent library calls using the same handle.
+.Sh CLEANUP
+To free the resources used by the TACACS+ library, call
+.Fn tac_close .
+.Sh RETURN VALUES
+The following functions return a non-negative value on success.
+If
+they detect an error, they return \-1 and record an error message
+which can be retrieved using
+.Fn tac_strerror .
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Fn tac_add_server
+.It
+.Fn tac_config
+.It
+.Fn tac_create_authen
+.It
+.Fn tac_create_author
+.It
+.Fn tac_create_acct
+.It
+.Fn tac_send_authen
+.It
+.Fn tac_send_author
+.It
+.Fn tac_send_acct
+.It
+.Fn tac_set_av
+.It
+.Fn tac_set_data
+.It
+.Fn tac_set_msg
+.It
+.Fn tac_set_port
+.It
+.Fn tac_set_priv
+.It
+.Fn tac_set_rem_addr
+.It
+.Fn tac_set_user
+.El
+.Pp
+The following functions return a
+.No non- Ns Dv NULL
+pointer on success.
+If they are unable to allocate sufficient
+virtual memory, they return
+.Dv NULL
+and record an error message which can be retrieved using
+.Fn tac_strerror .
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Fn tac_get_av
+.It
+.Fn tac_get_av_value
+.It
+.Fn tac_get_data
+.It
+.Fn tac_get_msg
+.El
+.Pp
+The following functions return a
+.No non- Ns Dv NULL
+pointer on success.
+If they are unable to allocate sufficient
+virtual memory, they return
+.Dv NULL ,
+without recording an error message.
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Fn tac_open
+.El
+.Sh FILES
+.Bl -tag -width Pa
+.It Pa /etc/tacplus.conf
+.El
+.Sh SEE ALSO
+.Xr tacplus.conf 5
+.Rs
+.%A D. Carrel
+.%A Lol Grant
+.%T The TACACS+ Protocol, Version 1.78
+.%O draft-grant-tacacs-02.txt (Internet Draft)
+.Re
+.Sh AUTHORS
+.An -nosplit
+This software was written by
+.An John Polstra
+and
+.An Paul Fraley ,
+and donated to the
+.Fx
+project by Juniper Networks, Inc.

@@ -1,0 +1,63 @@
+#
+# TP-1043ND -- Kernel configuration file for the TP-Link WR-1043ND
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+# Include the default AR913x parameters common to all AR913x SoC users.
+include         "std.AR91XX"
+
+ident           TP-WN1043ND
+
+# Override hints with board values
+hints           "TP-WN1043ND.hints"
+
+# Force the board memory - 32mb
+options         AR71XX_REALMEM=32*1024*1024
+
+# i2c GPIO bus
+device		gpio
+device		gpioiic
+device		iicbb
+device		iicbus
+device		iic
+
+# ethernet switch device
+device		etherswitch
+
+# RTL8366RB support
+device		mdio
+device		rtl8366rb
+
+# read MSDOS formatted disks - USB
+options 	MSDOSFS
+
+# Enable the uboot environment stuff rather then the
+# redboot stuff.
+options 	AR71XX_ENV_UBOOT
+
+# uncompress - to boot natively from flash
+device		xz
+options        GEOM_UZIP
+
+# Used for the static uboot partition map
+device          geom_map
+
+# Boot off of the rootfs, as defined in the geom_map setup.
+options                ROOTDEVNAME=\"ufs:map/rootfs.uzip\"
+
+# We bite the performance overhead for now; the kernel won't
+# fit if the mutexes are inlined.
+options        MUTEX_NOINLINE
+options        RWLOCK_NOINLINE
+options        SX_NOINLINE
+
+# Remove everything we don't need.  We need a _really_ small kernel!
+nooptions      INVARIANTS
+nooptions      INVARIANT_SUPPORT
+nooptions      WITNESS
+nooptions      WITNESS_SKIPSPIN
+nooptions      DEBUG_REDZONE
+nooptions      DEBUG_MEMGUARD

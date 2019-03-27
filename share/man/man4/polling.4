@@ -1,0 +1,221 @@
+.\" Copyright (c) 2002 Luigi Rizzo
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 6, 2007
+.Dt POLLING 4
+.Os
+.Sh NAME
+.Nm polling
+.Nd device polling support
+.Sh SYNOPSIS
+.Cd "options DEVICE_POLLING"
+.Sh DESCRIPTION
+Device polling
+.Nm (
+for brevity) refers to a technique that
+lets the operating system periodically poll devices, instead of
+relying on the devices to generate interrupts when they need attention.
+This might seem inefficient and counterintuitive, but when done
+properly,
+.Nm
+gives more control to the operating system on
+when and how to handle devices, with a number of advantages in terms
+of system responsiveness and performance.
+.Pp
+In particular,
+.Nm
+reduces the overhead for context
+switches which is incurred when servicing interrupts, and
+gives more control on the scheduling of the CPU between various
+tasks (user processes, software interrupts, device handling)
+which ultimately reduces the chances of livelock in the system.
+.Ss Principles of Operation
+In the normal, interrupt-based mode, devices generate an interrupt
+whenever they need attention.
+This in turn causes a
+context switch and the execution of an interrupt handler
+which performs whatever processing is needed by the device.
+The duration of the interrupt handler is potentially unbounded
+unless the device driver has been programmed with real-time
+concerns in mind (which is generally not the case for
+.Fx
+drivers).
+Furthermore, under heavy traffic load, the system might be
+persistently processing interrupts without being able to
+complete other work, either in the kernel or in userland.
+.Pp
+Device polling disables interrupts by polling devices at appropriate
+times, i.e., on clock interrupts and within the idle loop.
+This way, the context switch overhead is removed.
+Furthermore,
+the operating system can control accurately how much work to spend
+in handling device events, and thus prevent livelock by reserving
+some amount of CPU to other tasks.
+.Pp
+Enabling
+.Nm
+also changes the way software network interrupts
+are scheduled, so there is never the risk of livelock because
+packets are not processed to completion.
+.Ss Enabling polling
+Currently only network interface drivers support the
+.Nm
+feature.
+It is turned on and off with help of
+.Xr ifconfig 8
+command.
+.Pp
+The historic
+.Va kern.polling.enable ,
+which enabled polling for all interfaces, can be replaced with the following
+code:
+.Bd -literal
+for i in `ifconfig -l` ;
+  do ifconfig $i polling; # use -polling to disable
+done
+.Ed
+.Ss MIB Variables
+The operation of
+.Nm
+is controlled by the following
+.Xr sysctl 8
+MIB variables:
+.Pp
+.Bl -tag -width indent -compact
+.It Va kern.polling.user_frac
+When
+.Nm
+is enabled, and provided that there is some work to do,
+up to this percent of the CPU cycles is reserved to userland tasks,
+the remaining fraction being available for
+.Nm
+processing.
+Default is 50.
+.Pp
+.It Va kern.polling.burst
+Maximum number of packets grabbed from each network interface in
+each timer tick.
+This number is dynamically adjusted by the kernel,
+according to the programmed
+.Va user_frac , burst_max ,
+CPU speed, and system load.
+.Pp
+.It Va kern.polling.each_burst
+The burst above is split into smaller chunks of this number of
+packets, going round-robin among all interfaces registered for
+.Nm .
+This prevents the case that a large burst from a single interface
+can saturate the IP interrupt queue
+.Pq Va net.inet.ip.intr_queue_maxlen .
+Default is 5.
+.Pp
+.It Va kern.polling.burst_max
+Upper bound for
+.Va kern.polling.burst .
+Note that when
+.Nm
+is enabled, each interface can receive at most
+.Pq Va HZ No * Va burst_max
+packets per second unless there are spare CPU cycles available for
+.Nm
+in the idle loop.
+This number should be tuned to match the expected load
+(which can be quite high with GigE cards).
+Default is 150 which is adequate for 100Mbit network and HZ=1000.
+.Pp
+.It Va kern.polling.idle_poll
+Controls if
+.Nm
+is enabled in the idle loop.
+There are no reasons (other than power saving or bugs in the scheduler's
+handling of idle priority kernel threads) to disable this.
+.Pp
+.It Va kern.polling.reg_frac
+Controls how often (every
+.Va reg_frac No / Va HZ
+seconds) the status registers of the device are checked for error
+conditions and the like.
+Increasing this value reduces the load on the bus, but also delays
+the error detection.
+Default is 20.
+.Pp
+.It Va kern.polling.handlers
+How many active devices have registered for
+.Nm .
+.Pp
+.It Va kern.polling.short_ticks
+.It Va kern.polling.lost_polls
+.It Va kern.polling.pending_polls
+.It Va kern.polling.residual_burst
+.It Va kern.polling.phase
+.It Va kern.polling.suspect
+.It Va kern.polling.stalled
+Debugging variables.
+.El
+.Sh SUPPORTED DEVICES
+Device polling requires explicit modifications to the device drivers.
+As of this writing, the
+.Xr bge 4 ,
+.Xr dc 4 ,
+.Xr em 4 ,
+.Xr fwe 4 ,
+.Xr fwip 4 ,
+.Xr fxp 4 ,
+.Xr igb 4 ,
+.Xr nfe 4 ,
+.Xr nge 4 ,
+.Xr re 4 ,
+.Xr rl 4 ,
+.Xr sf 4 ,
+.Xr sis 4 ,
+.Xr ste 4 ,
+.Xr stge 4 ,
+.Xr vge 4 ,
+.Xr vr 4 ,
+and
+.Xr xl 4
+devices are supported, with others in the works.
+The modifications are rather straightforward, consisting in
+the extraction of the inner part of the interrupt service routine
+and writing a callback function,
+.Fn *_poll ,
+which is invoked
+to probe the device for events and process them.
+(See the
+conditionally compiled sections of the devices mentioned above
+for more details.)
+.Pp
+As in the worst case the devices are only polled on clock interrupts,
+in order to reduce the latency in processing packets, it is not advisable
+to decrease the frequency of the clock below 1000 Hz.
+.Sh HISTORY
+Device polling first appeared in
+.Fx 4.6
+and
+.Fx 5.0 .
+.Sh AUTHORS
+Device polling was written by
+.An Luigi Rizzo Aq Mt luigi@iet.unipi.it .

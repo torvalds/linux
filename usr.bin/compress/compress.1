@@ -1,0 +1,253 @@
+.\" Copyright (c) 1986, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" James A. Woods, derived from original work by Spencer Thomas
+.\" and Joseph Orost.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)compress.1	8.2 (Berkeley) 4/18/94
+.\" $FreeBSD$
+.\"
+.Dd May 17, 2002
+.Dt COMPRESS 1
+.Os
+.Sh NAME
+.Nm compress ,
+.Nm uncompress
+.Nd compress and expand data
+.Sh SYNOPSIS
+.Nm
+.Op Fl fv
+.Op Fl b Ar bits
+.Op Ar
+.Nm
+.Fl c
+.Op Fl b Ar bits
+.Op Ar file
+.Nm uncompress
+.Op Fl f
+.Op Ar
+.Nm uncompress
+.Fl c
+.Op Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility reduces the size of files using adaptive Lempel-Ziv coding.
+Each
+.Ar file
+is renamed to the same name plus the extension
+.Pa .Z .
+A
+.Ar file
+argument with a
+.Pa .Z
+extension will be ignored except it will cause an
+error exit after other arguments are processed.
+If compression would not reduce the size of a
+.Ar file ,
+the file is ignored.
+.Pp
+The
+.Nm uncompress
+utility restores compressed files to their original form, renaming the
+files by deleting the
+.Pa .Z
+extensions.
+A file specification need not include the file's
+.Pa .Z
+extension.
+If a file's name in its file system does not have a
+.Pa .Z
+extension, it will not be uncompressed and it will cause
+an error exit after other arguments are processed.
+.Pp
+If renaming the files would cause files to be overwritten and the standard
+input device is a terminal, the user is prompted (on the standard error
+output) for confirmation.
+If prompting is not possible or confirmation is not received, the files
+are not overwritten.
+.Pp
+As many of the modification time, access time, file flags, file mode,
+user ID, and group ID as allowed by permissions are retained in the
+new file.
+.Pp
+If no files are specified or a
+.Ar file
+argument is a single dash
+.Pq Sq Fl ,
+the standard input is compressed or uncompressed to the standard output.
+If either the input and output files are not regular files, the checks for
+reduction in size and file overwriting are not performed, the input file is
+not removed, and the attributes of the input file are not retained
+in the output file.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl b Ar bits"
+.It Fl b Ar bits
+The code size (see below) is limited to
+.Ar bits ,
+which must be in the range 9..16.
+The default is 16.
+.It Fl c
+Compressed or uncompressed output is written to the standard output.
+No files are modified.
+The
+.Fl v
+option is ignored.
+Compression is attempted even if the results will be larger than the
+original.
+.It Fl f
+Files are overwritten without prompting for confirmation.
+Also, for
+.Nm compress ,
+files are compressed even if they are not actually reduced in size.
+.It Fl v
+Print the percentage reduction of each file.
+Ignored by
+.Nm uncompress
+or if the
+.Fl c
+option is also used.
+.El
+.Pp
+The
+.Nm
+utility uses a modified Lempel-Ziv algorithm.
+Common substrings in the file are first replaced by 9-bit codes 257 and up.
+When code 512 is reached, the algorithm switches to 10-bit codes and
+continues to use more bits until the
+limit specified by the
+.Fl b
+option or its default is reached.
+.Pp
+After the limit is reached,
+.Nm
+periodically checks the compression ratio.
+If it is increasing,
+.Nm
+continues to use the existing code dictionary.
+However, if the compression ratio decreases,
+.Nm
+discards the table of substrings and rebuilds it from scratch.
+This allows
+the algorithm to adapt to the next "block" of the file.
+.Pp
+The
+.Fl b
+option is unavailable for
+.Nm uncompress
+since the
+.Ar bits
+parameter specified during compression
+is encoded within the output, along with
+a magic number to ensure that neither decompression of random data nor
+recompression of compressed data is attempted.
+.Pp
+The amount of compression obtained depends on the size of the
+input, the number of
+.Ar bits
+per code, and the distribution of common substrings.
+Typically, text such as source code or English is reduced by 50\-60%.
+Compression is generally much better than that achieved by Huffman
+coding (as used in the historical command pack), or adaptive Huffman
+coding (as used in the historical command compact), and takes less
+time to compute.
+.Sh EXIT STATUS
+.Ex -std compress uncompress
+.Pp
+The
+.Nm compress
+utility exits 2 if attempting to compress a file would not reduce its size
+and the
+.Fl f
+option was not specified and if no other error occurs.
+.Sh SEE ALSO
+.Xr gunzip 1 ,
+.Xr gzexe 1 ,
+.Xr gzip 1 ,
+.Xr zcat 1 ,
+.Xr zmore 1 ,
+.Xr znew 1
+.Rs
+.%A Welch, Terry A.
+.%D June, 1984
+.%T "A Technique for High Performance Data Compression"
+.%J "IEEE Computer"
+.%V 17:6
+.%P pp. 8-19
+.Re
+.Sh STANDARDS
+The
+.Nm compress
+and
+.Nm uncompress
+utilities conform to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 .
+.Sh BUGS
+Some of these might be considered otherwise-undocumented features.
+.Pp
+.Nm compress :
+If the utility does not compress a file because doing so would not
+reduce its size, and a file of the same name except with an
+.Pa .Z
+extension exists, the named file is not really ignored as stated above;
+it causes a prompt to confirm the overwriting of the file with the extension.
+If the operation is confirmed, that file is deleted.
+.Pp
+.Nm uncompress :
+If an empty file is compressed (using
+.Fl f ) ,
+the resulting
+.Pa .Z
+file is also empty.
+That seems right, but if
+.Nm uncompress
+is then used on that file, an error will occur.
+.Pp
+Both utilities: If a
+.Sq Fl
+argument is used and the utility prompts the user, the standard input
+is taken as the user's reply to the prompt.
+.Pp
+Both utilities:
+If the specified file does not exist, but a similarly-named one with (for
+.Nm compress )
+or without (for
+.Nm uncompress )
+a
+.Pa .Z
+extension does exist, the utility will waste the user's time by not
+immediately emitting an error message about the missing file and
+continuing.
+Instead, it first asks for confirmation to overwrite
+the existing file and then does not overwrite it.

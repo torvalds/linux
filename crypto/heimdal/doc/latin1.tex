@@ -1,0 +1,95 @@
+% ISO Latin 1 (ISO 8859/1) encoding for Computer Modern fonts.
+% Jan Michael Rynning <jmr@nada.kth.se> 1990-10-12
+\def\inmathmode#1{\relax\ifmmode#1\else$#1$\fi}
+\global\catcode`\^^a0=\active \global\let^^a0=~		% no-break space
+\global\catcode`\^^a1=\active \global\def^^a1{!`}		% inverted exclamation mark
+\global\catcode`\^^a2=\active \global\def^^a2{{\rm\rlap/c}}	% cent sign
+\global\catcode`\^^a3=\active \global\def^^a3{{\it\$}}	% pound sign
+% currency sign, yen sign, broken bar
+\global\catcode`\^^a7=\active \global\let^^a7=\S		% section sign
+\global\catcode`\^^a8=\active \global\def^^a8{\"{}}		% diaeresis
+\global\catcode`\^^a9=\active \global\let^^a9=\copyright	% copyright sign
+% feminine ordinal indicator, left angle quotation mark
+\global\catcode`\^^ac=\active \global\def^^ac{\inmathmode\neg}% not sign
+\global\catcode`\^^ad=\active \global\let^^ad=\-		% soft hyphen
+% registered trade mark sign
+\global\catcode`\^^af=\active \global\def^^af{\={}}		% macron
+% ...
+\global\catcode`\^^b1=\active \global\def^^b1{\inmathmode\pm}	% plus minus
+\global\catcode`\^^b2=\active \global\def^^b2{\inmathmode{{^2}}}
+\global\catcode`\^^b3=\active \global\def^^b3{\inmathmode{{^3}}}
+\global\catcode`\^^b4=\active \global\def^^b4{\'{}}		% acute accent
+\global\catcode`\^^b5=\active \global\def^^b5{\inmathmode\mu}	% mu
+\global\catcode`\^^b6=\active \global\let^^b6=\P		% pilcroy
+\global\catcode`\^^b7=\active \global\def^^b7{\inmathmode{{\cdot}}}
+\global\catcode`\^^b8=\active \global\def^^b8{\c{}}		% cedilla
+\global\catcode`\^^b9=\active \global\def^^b9{\inmathmode{{^1}}}
+% ...
+\global\catcode`\^^bc=\active \global\def^^bc{\inmathmode{{1\over4}}}
+\global\catcode`\^^bd=\active \global\def^^bd{\inmathmode{{1\over2}}}
+\global\catcode`\^^be=\active \global\def^^be{\inmathmode{{3\over4}}}
+\global\catcode`\^^bf=\active \global\def^^bf{?`}		% inverted question mark
+\global\catcode`\^^c0=\active \global\def^^c0{\`A}
+\global\catcode`\^^c1=\active \global\def^^c1{\'A}
+\global\catcode`\^^c2=\active \global\def^^c2{\^A}
+\global\catcode`\^^c3=\active \global\def^^c3{\~A}
+\global\catcode`\^^c4=\active \global\def^^c4{\"A}		% capital a with diaeresis
+\global\catcode`\^^c5=\active \global\let^^c5=\AA		% capital a with ring above
+\global\catcode`\^^c6=\active \global\let^^c6=\AE
+\global\catcode`\^^c7=\active \global\def^^c7{\c C}
+\global\catcode`\^^c8=\active \global\def^^c8{\`E}
+\global\catcode`\^^c9=\active \global\def^^c9{\'E}
+\global\catcode`\^^ca=\active \global\def^^ca{\^E}
+\global\catcode`\^^cb=\active \global\def^^cb{\"E}
+\global\catcode`\^^cc=\active \global\def^^cc{\`I}
+\global\catcode`\^^cd=\active \global\def^^cd{\'I}
+\global\catcode`\^^ce=\active \global\def^^ce{\^I}
+\global\catcode`\^^cf=\active \global\def^^cf{\"I}
+% capital eth
+\global\catcode`\^^d1=\active \global\def^^d1{\~N}
+\global\catcode`\^^d2=\active \global\def^^d2{\`O}
+\global\catcode`\^^d3=\active \global\def^^d3{\'O}
+\global\catcode`\^^d4=\active \global\def^^d4{\^O}
+\global\catcode`\^^d5=\active \global\def^^d5{\~O}
+\global\catcode`\^^d6=\active \global\def^^d6{\"O}		% capital o with diaeresis
+\global\catcode`\^^d7=\active \global\def^^d7{\inmathmode\times}% multiplication sign
+\global\catcode`\^^d8=\active \global\let^^d8=\O
+\global\catcode`\^^d9=\active \global\def^^d9{\`U}
+\global\catcode`\^^da=\active \global\def^^da{\'U}
+\global\catcode`\^^db=\active \global\def^^db{\^U}
+\global\catcode`\^^dc=\active \global\def^^dc{\"U}
+\global\catcode`\^^dd=\active \global\def^^dd{\'Y}
+% capital thorn
+\global\catcode`\^^df=\active \global\def^^df{\ss}
+\global\catcode`\^^e0=\active \global\def^^e0{\`a}
+\global\catcode`\^^e1=\active \global\def^^e1{\'a}
+\global\catcode`\^^e2=\active \global\def^^e2{\^a}
+\global\catcode`\^^e3=\active \global\def^^e3{\~a}
+\global\catcode`\^^e4=\active \global\def^^e4{\"a}		% small a with diaeresis
+\global\catcode`\^^e5=\active \global\let^^e5=\aa		% small a with ring above
+\global\catcode`\^^e6=\active \global\let^^e6=\ae
+\global\catcode`\^^e7=\active \global\def^^e7{\c c}
+\global\catcode`\^^e8=\active \global\def^^e8{\`e}
+\global\catcode`\^^e9=\active \global\def^^e9{\'e}
+\global\catcode`\^^ea=\active \global\def^^ea{\^e}
+\global\catcode`\^^eb=\active \global\def^^eb{\"e}
+\global\catcode`\^^ec=\active \global\def^^ec{\`\i}
+\global\catcode`\^^ed=\active \global\def^^ed{\'\i}
+\global\catcode`\^^ee=\active \global\def^^ee{\^\i}
+\global\catcode`\^^ef=\active \global\def^^ef{\"\i}
+% small eth
+\global\catcode`\^^f1=\active \global\def^^f1{\~n}
+\global\catcode`\^^f2=\active \global\def^^f2{\`o}
+\global\catcode`\^^f3=\active \global\def^^f3{\'o}
+\global\catcode`\^^f4=\active \global\def^^f4{\^o}
+\global\catcode`\^^f5=\active \global\def^^f5{\~o}
+\global\catcode`\^^f6=\active \global\def^^f6{\"o}		% small o with diaeresis
+\global\catcode`\^^f7=\active \global\def^^f7{\inmathmode\div}% division sign
+\global\catcode`\^^f8=\active \global\let^^f8=\o
+\global\catcode`\^^f9=\active \global\def^^f9{\`u}
+\global\catcode`\^^fa=\active \global\def^^fa{\'u}
+\global\catcode`\^^fb=\active \global\def^^fb{\^u}
+\global\catcode`\^^fc=\active \global\def^^fc{\"u}
+\global\catcode`\^^fd=\active \global\def^^fd{\'y}
+% capital thorn
+\global\catcode`\^^ff=\active \global\def^^ff{\"y}

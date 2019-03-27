@@ -1,0 +1,51 @@
+=pod
+
+=head1 NAME
+
+ASN1_OBJECT_new, ASN1_OBJECT_free - object allocation functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/asn1.h>
+
+ ASN1_OBJECT *ASN1_OBJECT_new(void);
+ void ASN1_OBJECT_free(ASN1_OBJECT *a);
+
+=head1 DESCRIPTION
+
+The ASN1_OBJECT allocation routines, allocate and free an
+ASN1_OBJECT structure, which represents an ASN1 OBJECT IDENTIFIER.
+
+ASN1_OBJECT_new() allocates and initializes an ASN1_OBJECT structure.
+
+ASN1_OBJECT_free() frees up the B<ASN1_OBJECT> structure B<a>.
+If B<a> is NULL, nothing is done.
+
+=head1 NOTES
+
+Although ASN1_OBJECT_new() allocates a new ASN1_OBJECT structure it
+is almost never used in applications. The ASN1 object utility functions
+such as OBJ_nid2obj() are used instead.
+
+=head1 RETURN VALUES
+
+If the allocation fails, ASN1_OBJECT_new() returns B<NULL> and sets an error
+code that can be obtained by L<ERR_get_error(3)>.
+Otherwise it returns a pointer to the newly allocated structure.
+
+ASN1_OBJECT_free() returns no value.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>, L<d2i_ASN1_OBJECT(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

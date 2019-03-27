@@ -1,0 +1,228 @@
+.\" Copyright (c) 2015 Michael Gmelin <freebsd@grem.de>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 18, 2018
+.Dt CYAPA 4
+.Os
+.Sh NAME
+.Nm cyapa
+.Nd Cypress APA trackpad with I2C interface driver
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines into
+the kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device cyapa"
+.Cd "device ig4"
+.Cd "device iicbus"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+cyapa_load="YES"
+ig4_load="YES"
+.Ed
+.Pp
+On many Chromebook models this driver can be automatically configured with the
+help of the
+.Xr chromebook_platform 4
+driver.
+Alternatively, the
+.Nm
+driver can be manually configured in
+.Pa /boot/device.hints :
+.Cd hint.cyapa.0.at="iicbus0"
+.Cd hint.cyapa.0.addr="0xCE"
+.Cd hint.cyapa.1.at="iicbus1"
+.Cd hint.cyapa.1.addr="0xCE"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Cypress APA trackpad.
+It emulates the IntelliMouse PS/2 protocol.
+It supports basic mouse ioctls, so that
+.Xr moused 8
+is supported properly.
+.Ss Trackpad layout
+.Bd -literal
+                   2/3               1/3
+          +--------------------+------------+
+          |                    |   Middle   |
+          |                    |   Button   |
+          |       Left         |            |
+          |      Button        +------------+
+          |                    |   Right    |
+          |                    |   Button   |
+          +--------------------+............|
+          |     Thumb/Button Area           | 15%
+          +---------------------------------+
+.Ed
+.Ss Trackpad features
+.Bl -tag -width 8n
+.It Va Two finger scrolling
+Use two fingers for Z axis scrolling.
+.It Va Button down/second finger
+While one finger clicks and holds down the touchpad, the second finger can be
+used to move the mouse cursor.
+This can be useful for drawing or selecting text.
+.It Va Thumb/Button area
+The lower 15% of the trackpad will not affect the mouse cursor position.
+This allows for high precision clicking, by controlling the cursor with the
+index finger and pushing/holding the pad down with the thumb.
+.It Va Trackpad button
+Push physical button.
+The left two thirds of the pad issues a LEFT button event.
+The upper right corner issues a MIDDLE button event.
+The lower right corner issues a RIGHT button.
+Optionally, tap to click can be enabled (see below).
+.El
+.Pp
+On a system using
+.Xr device.hints 5 ,
+these values are configurable for
+.Nm :
+.Bl -tag -width "hint.cyapa.%d.addr"
+.It Va hint.cyapa.%d.at
+target
+.Xr iicbus 4 .
+.It Va hint.cyapa.%d.addr
+.Nm
+i2c address on the
+.Xr iicbus 4 .
+.El
+.Sh SYSCTL VARIABLES
+These
+.Xr sysctl 8
+variables are available:
+.Bl -tag -width 8n
+.It Va debug.cyapa_idle_freq
+Scan frequency in idle mode, the default is 1.
+.It Va debug.cyapa_slow_freq
+Scan frequency in slow mode, the default is 20.
+.It Va debug.cyapa_norm_freq
+Scan frequency in normal mode, the default is 100.
+.It Va debug.cyapa_minpressure
+Minimum pressure to detect a finger, the default is 12.
+.It Va debug.cyapa_enable_tapclick
+Controls tap to click.
+Possible values:
+.Bl -tag -width 8n
+.It 0
+Tap to click is disabled.
+This is the default value.
+.It 1
+Tap to click always generates a left mouse button event.
+.It 2
+Tap to click generates left mouse button event if the left 2/3rds of the pad
+are tapped and a right mouse button event otherwise.
+.It 3
+Tap to click generates mouse button events as if the physical button was
+pressed (see
+.Sx DESCRIPTION
+above).
+.El
+.It Va debug.cyapa_tapclick_min_ticks
+Minimum tap duration in ticks to create a click, the default is 1.
+.It Va debug.cyapa_tapclick_max_ticks
+Maximum tap duration in ticks to create a click, the default is 8.
+.It Va debug.cyapa_move_min_ticks
+Minimum ticks before cursor movement occurs, the default is 4.
+.It Va debug.cyapa_scroll_wait_ticks
+Ticks to wait before starting to scroll, the default is 0.
+.It Va debug.cyapa_scroll_stick_ticks
+Ticks while preventing cursor movement on single finger after scroll,
+the default is 15.
+.It Va debug.cyapa_thumbarea_percent
+Size of bottom thumb area in percent, the default is 15.
+.It Va debug.cyapa_debug
+Setting this to a non-zero value enables debug output to console and syslog,
+the default is 0.
+.It Va debug.cyapa_reset
+Setting this to a non-zero value reinitializes the device.
+The sysctl resets to zero immediately.
+.El
+.Sh FILES
+.Nm
+creates
+.Pa /dev/cyapa0 ,
+which presents the mouse as an
+.Ar IntelliMouse PS/2
+device.
+It supports
+.Xr moused 8
+levels 0 through 2, level 1 is used by default.
+.Sh EXAMPLES
+To use
+.Nm
+with
+.Xr moused 8 ,
+add the following lines to the
+.Xr rc.conf 5
+file:
+.Pp
+.Dl moused_enable="YES"
+.Dl moused_port="/dev/cyapa0"
+.Pp
+If vertical scrolling is not desired, add
+.Pp
+.Dl moused_flags="-l0"
+.Pp
+to
+.Xr rc.conf 5 .
+.Pp
+Enable tap to click for the left and the right mouse button and
+disable the thumb area by adding these lines to the
+.Xr sysctl.conf 5
+file:
+.Pp
+.Dl debug.cyapa_thumbarea_percent=0
+.Dl debug.cyapa_enable_tapclick=2
+.Sh SEE ALSO
+.Xr chromebook_platform 4 ,
+.Xr ig4 4 ,
+.Xr iicbus 4 ,
+.Xr sysmouse 4 ,
+.Xr moused 8
+.Sh AUTHORS
+.An -nosplit
+The original
+.Nm
+driver was written for DragonFly BSD by
+.An Matthew Dillon .
+.Pp
+It has been ported, modified, and enhanced for
+.Fx
+by
+.An Michael Gmelin Aq Mt freebsd@grem.de .
+.Pp
+This manual page was written by
+.An Michael Gmelin Aq Mt freebsd@grem.de .
+.Sh BUGS
+The
+.Nm
+driver detects the device from the I2C address.
+This might have unforeseen consequences if the initialization sequence
+is sent to an unknown device at that address.

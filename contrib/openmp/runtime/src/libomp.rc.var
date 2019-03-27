@@ -1,0 +1,70 @@
+// libomp.rc.var
+
+//
+////===----------------------------------------------------------------------===//
+////
+////                     The LLVM Compiler Infrastructure
+////
+//// This file is dual licensed under the MIT and the University of Illinois Open
+//// Source Licenses. See LICENSE.txt for details.
+////
+////===----------------------------------------------------------------------===//
+//
+
+#include "winresrc.h"
+#include "kmp_config.h"
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US    // English (U.S.) resources
+#pragma code_page(1252)
+
+VS_VERSION_INFO VERSIONINFO
+    // Parts of FILEVERSION and PRODUCTVERSION are 16-bit fields, entire build date yyyymmdd
+    // does not fit into one version part, so we need to split it into yyyy and mmdd:
+    FILEVERSION    @LIBOMP_VERSION_MAJOR@,@LIBOMP_VERSION_MINOR@,@LIBOMP_VERSION_BUILD_YEAR@,@LIBOMP_VERSION_BUILD_MONTH_DAY@
+    PRODUCTVERSION @LIBOMP_VERSION_MAJOR@,@LIBOMP_VERSION_MINOR@,@LIBOMP_VERSION_BUILD_YEAR@,@LIBOMP_VERSION_BUILD_MONTH_DAY@
+    FILEFLAGSMASK  VS_FFI_FILEFLAGSMASK
+    FILEFLAGS      0
+#if KMP_DEBUG
+        | VS_FF_DEBUG
+#endif
+#if @LIBOMP_VERSION_BUILD@ == 0
+        | VS_FF_PRIVATEBUILD | VS_FF_PRERELEASE
+#endif
+    FILEOS          VOS_NT_WINDOWS32    // Windows* Server* 2003, XP*, 2000, or NT*
+    FILETYPE        VFT_DLL
+    BEGIN
+        BLOCK "StringFileInfo"
+        BEGIN
+            BLOCK "040904b0"            // U.S. English, Unicode (0x04b0 == 1200)
+            BEGIN
+
+                // FileDescription and LegalCopyright should be short.
+                VALUE "FileDescription",  "LLVM* OpenMP* Runtime Library\0"
+                // Following values may be relatively long.
+                VALUE "CompanyName",      "LLVM\0"
+                // VALUE "LegalTrademarks",  "\0"  // Not used for now.
+                VALUE "ProductName",      "LLVM* OpenMP* Runtime Library\0"
+                VALUE "ProductVersion",   "@LIBOMP_VERSION_MAJOR@.@LIBOMP_VERSION_MINOR@\0"
+                VALUE "FileVersion",      "@LIBOMP_VERSION_BUILD@\0"
+                VALUE "InternalName",     "@LIBOMP_LIB_FILE@\0"
+                VALUE "OriginalFilename", "@LIBOMP_LIB_FILE@\0"
+                VALUE "Comments",
+                    "LLVM* OpenMP* @LIBOMP_LEGAL_TYPE@ Library "
+                    "version @LIBOMP_VERSION_MAJOR@.@LIBOMP_VERSION_MINOR@.@LIBOMP_VERSION_BUILD@ "
+                    "for @LIBOMP_LEGAL_ARCH@ architecture built on @LIBOMP_BUILD_DATE@.\0"
+#if @LIBOMP_VERSION_BUILD@ == 0
+                    VALUE "PrivateBuild",
+                        "This is a development build.\0"
+#endif
+                // VALUE "SpecialBuild",     "\0"    // Not used for now.
+
+            END
+        END
+        BLOCK "VarFileInfo"
+        BEGIN
+            VALUE "Translation", 1033, 1200
+            // 1033 -- U.S. English, 1200 -- Unicode
+        END
+    END
+
+// end of file //

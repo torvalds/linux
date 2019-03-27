@@ -1,0 +1,129 @@
+.\"-
+.\" Copyright (c) 2001 Chris D. Faulhaber
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 25, 2009
+.Dt ACL_ADD_PERM 3
+.Os
+.Sh NAME
+.Nm acl_add_perm
+.Nd add permissions to a permission set
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/acl.h
+.Ft int
+.Fn acl_add_perm "acl_permset_t permset_d" "acl_perm_t perm"
+.Sh DESCRIPTION
+The
+.Fn acl_add_perm
+function
+is a POSIX.1e call that adds the permission contained in
+.Fa perm
+to the permission set
+.Fa permset_d .
+.Pp
+Note: it is not considered an error to attempt to add permissions
+that already exist in the permission set.
+.Pp
+For POSIX.1e ACLs, valid values are:
+.Bl -column -offset 3n "ACL_WRITE_NAMED_ATTRS"
+.It ACL_EXECUTE	Execute permission
+.It ACL_WRITE	Write permission
+.It ACL_READ	Read permission
+.El
+.Pp
+For NFSv4 ACLs, valid values are:
+.Bl -column -offset 3n "ACL_WRITE_NAMED_ATTRS"
+.It ACL_READ_DATA Ta "Read permission"
+.It ACL_LIST_DIRECTORY Ta "Same as ACL_READ_DATA"
+.It ACL_WRITE_DATA Ta "Write permission, or permission to create files"
+.It ACL_ADD_FILE Ta "Same as ACL_READ_DATA"
+.It ACL_APPEND_DATA Ta "Permission to create directories.  Ignored for files"
+.It ACL_ADD_SUBDIRECTORY Ta "Same as ACL_APPEND_DATA"
+.It ACL_READ_NAMED_ATTRS Ta "Ignored"
+.It ACL_WRITE_NAMED_ATTRS Ta "Ignored"
+.It ACL_EXECUTE Ta "Execute permission"
+.It ACL_DELETE_CHILD Ta "Permission to delete files and subdirectories"
+.It ACL_READ_ATTRIBUTES Ta "Permission to read basic attributes"
+.It ACL_WRITE_ATTRIBUTES Ta "Permission to change basic attributes"
+.It ACL_DELETE Ta "Permission to delete the object this ACL is placed on"
+.It ACL_READ_ACL Ta "Permission to read ACL"
+.It ACL_WRITE_ACL Ta "Permission to change the ACL and file mode"
+.It ACL_SYNCHRONIZE Ta "Ignored"
+.El
+.Pp
+Calling
+.Fn acl_add_perm
+with
+.Fa perm
+equal to ACL_WRITE or ACL_READ brands the ACL as POSIX.
+Calling it with ACL_READ_DATA, ACL_LIST_DIRECTORY, ACL_WRITE_DATA,
+ACL_ADD_FILE, ACL_APPEND_DATA, ACL_ADD_SUBDIRECTORY, ACL_READ_NAMED_ATTRS,
+ACL_WRITE_NAMED_ATTRS, ACL_DELETE_CHILD, ACL_READ_ATTRIBUTES,
+ACL_WRITE_ATTRIBUTES, ACL_DELETE, ACL_READ_ACL, ACL_WRITE_ACL
+or ACL_SYNCHRONIZE brands the ACL as NFSv4.
+.Sh RETURN VALUES
+.Rv -std acl_add_perm
+.Sh ERRORS
+The
+.Fn acl_add_perm
+function fails if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Argument
+.Fa permset_d
+is not a valid descriptor for a permission set within an ACL entry.
+Argument
+.Fa perm
+does not contain a valid
+.Vt acl_perm_t
+value.
+ACL is already branded differently.
+.El
+.Sh SEE ALSO
+.Xr acl 3 ,
+.Xr acl_clear_perms 3 ,
+.Xr acl_delete_perm 3 ,
+.Xr acl_get_brand_np 3 ,
+.Xr acl_get_permset 3 ,
+.Xr acl_set_permset 3 ,
+.Xr posix1e 3
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+.Sh HISTORY
+POSIX.1e support was introduced in
+.Fx 4.0 .
+The
+.Fn acl_add_perm
+function was added in
+.Fx 5.0 .
+.Sh AUTHORS
+The
+.Fn acl_add_perm
+function was written by
+.An Chris D. Faulhaber Aq Mt jedgar@fxp.org .

@@ -1,0 +1,31 @@
+# $FreeBSD$
+
+GFB_DEBUG		opt_gfb.h
+GFB_NO_FONT_LOADING	opt_gfb.h
+GFB_NO_MODE_CHANGE	opt_gfb.h
+
+SUN4U			opt_global.h
+
+ATKBD_DFLT_KEYMAP	opt_atkbd.h
+
+FIRE_DEBUG		opt_fire.h
+
+# Debug IOMMU inserts/removes using diagnostic accesses.  This is very loud.
+IOMMU_DIAG		opt_iommu.h
+
+OFWCONS_POLL_HZ		opt_ofw.h
+
+OFW_PCI_DEBUG		opt_ofw_pci.h
+
+PMAP_STATS		opt_pmap.h
+
+PSM_DEBUG		opt_psm.h
+PSM_HOOKRESUME		opt_psm.h
+PSM_RESETAFTERSUSPEND	opt_psm.h
+
+PSYCHO_DEBUG		opt_psycho.h
+
+SCHIZO_DEBUG		opt_schizo.h
+
+SUNKBD_DFLT_KEYMAP	opt_sunkbd.h
+SUNKBD_EMULATE_ATKBD	opt_sunkbd.h

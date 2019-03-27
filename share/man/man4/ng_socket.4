@@ -1,0 +1,190 @@
+.\" Copyright (c) 1996-1999 Whistle Communications, Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Whistle Communications;
+.\" provided, however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Whistle
+.\"    Communications, Inc. trademarks, including the mark "WHISTLE
+.\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
+.\"    such appears in the above copyright notice or in the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
+.\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
+.\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
+.\" INCLUDING WITHOUT LIMITATION, ANY AND ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+.\" WHISTLE COMMUNICATIONS DOES NOT WARRANT, GUARANTEE, OR MAKE ANY
+.\" REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE USE OF THIS
+.\" SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY OR OTHERWISE.
+.\" IN NO EVENT SHALL WHISTLE COMMUNICATIONS BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
+.\" OF SUCH DAMAGE.
+.\"
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\" $Whistle: ng_socket.8,v 1.5 1999/01/25 23:46:27 archie Exp $
+.\"
+.Dd January 19, 1999
+.Dt NG_SOCKET 4
+.Os
+.Sh NAME
+.Nm ng_socket
+.Nd netgraph socket node type
+.Sh SYNOPSIS
+.In sys/types.h
+.In netgraph/ng_socket.h
+.Sh DESCRIPTION
+A
+.Nm socket
+node is both a
+.Bx
+socket and a netgraph node.
+The
+.Nm
+node type allows user-mode processes to participate in the kernel
+.Xr netgraph 4
+networking subsystem using the
+.Bx
+socket interface.
+The process must have
+root privileges to be able to create netgraph sockets however once created,
+any process that has one may use it.
+.Pp
+A new
+.Nm
+node is created by creating a new socket of type
+.Dv NG_CONTROL
+in the protocol family
+.Dv PF_NETGRAPH ,
+using the
+.Xr socket 2
+system call.
+Any control messages received by the node
+and not having a cookie value of
+.Dv NGM_SOCKET_COOKIE
+are received by the process, using
+.Xr recvfrom 2 ;
+the socket address argument is a
+.Dv "struct sockaddr_ng"
+containing the sender's netgraph address.
+Conversely, control messages can be sent to any node by calling
+.Xr sendto 2 ,
+supplying the recipient's address in a
+.Dv "struct sockaddr_ng" .
+The
+.Xr bind 2
+system call may be used to assign a global netgraph name to the node.
+.Pp
+To transmit and receive netgraph data packets, a
+.Dv NG_DATA
+socket must also be created using
+.Xr socket 2
+and associated with a
+.Nm
+node.
+.Dv NG_DATA
+sockets do not automatically
+have nodes associated with them; they are bound to a specific node via the
+.Xr connect 2
+system call.
+The address argument is the netgraph address of the
+.Nm
+node already created.
+Once a data socket is associated with a node,
+any data packets received by the node are read using
+.Xr recvfrom 2
+and any packets to be sent out from the node are written using
+.Xr sendto 2 .
+In the case of data sockets, the
+.Dv "struct sockaddr_ng"
+contains the name of the
+.Em hook
+on which the data was received or should be sent.
+.Pp
+As a special case, to allow netgraph data sockets to be used as stdin or stdout
+on naive programs, a
+.Xr sendto 2
+with a NULL sockaddr pointer, a
+.Xr send 2
+or a
+.Xr write 2
+will succeed in the case where there is exactly ONE hook attached to
+the socket node, (and thus the path is unambiguous).
+.Pp
+There is a user library that simplifies using netgraph sockets; see
+.Xr netgraph 3 .
+.Sh HOOKS
+This node type supports hooks with arbitrary names (as long as
+they are unique) and always accepts hook connection requests.
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_SOCK_CMD_NOLINGER
+When the last hook is removed from this node, it will shut down as
+if it had received a
+.Dv NGM_SHUTDOWN
+message.
+Attempts to access the sockets associated will return
+.Er ENOTCONN .
+.It Dv NGM_SOCK_CMD_LINGER
+This is the default mode.
+When the last hook is removed, the node will
+continue to exist, ready to accept new hooks until it
+is explicitly shut down.
+.El
+.Pp
+All other messages
+with neither the
+.Dv NGM_SOCKET_COOKIE
+or
+.Dv NGM_GENERIC_COOKIE
+will be passed unaltered up the
+.Dv NG_CONTROL
+socket.
+.Sh SHUTDOWN
+This node type shuts down and disappears when both the associated
+.Dv NG_CONTROL
+and
+.Dv NG_DATA
+sockets have been closed, or a
+.Dv NGM_SHUTDOWN
+control message is received.
+In the latter case, attempts to write
+to the still-open sockets will return
+.Er ENOTCONN .
+If the
+.Dv NGM_SOCK_CMD_NOLINGER
+message has been received, closure of the last hook will also initiate
+a shutdown of the node.
+.Sh SEE ALSO
+.Xr socket 2 ,
+.Xr netgraph 3 ,
+.Xr netgraph 4 ,
+.Xr ng_ksocket 4 ,
+.Xr ngctl 8
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Julian Elischer Aq Mt julian@FreeBSD.org
+.Sh BUGS
+It is not possible to reject the connection of a hook, though any
+data received on that hook can certainly be ignored.
+.Pp
+The controlling process is not notified of all events that an in-kernel node
+would be notified of, e.g.\& a new hook, or hook removal.
+Some node-initiated messages should be defined for this purpose (to be
+sent up the control socket).

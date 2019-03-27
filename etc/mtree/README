@@ -1,0 +1,50 @@
+$FreeBSD$
+
+Note: If you modify these files, please keep hier(7) updated!
+
+These files are used to create empty file hierarchies for building the
+system into.  Some notes about working with them are placed here to try
+and keep them in good working order.
+
+    a)  The files use 4 space indentation, and other than in the header
+        comments, should not contain any tabs.  An indentation of 4 is
+        preferable to the standard indentation of 8 because the indentation
+        of levels in these files can become quite deep causing the line to
+        overflow 80 characters.
+
+        This also matches with the files generated when using the
+        mtree -c option, which was implemented that way for the same reason.
+
+    b)  Only directories should be listed here.
+
+    c)  The listing should be kept in filename sorted order.
+
+    d)  Sanity checking changes to these files can be done by following
+        this procedure (the sed -e is ugly, but fixing mtree -c to
+        not emit the trailing white space would be even uglier):
+
+            mkdir /tmp/MTREE
+            mtree -deU -f BSD.X.dist -p /tmp/MTREE
+            mtree -cdin -k uname,gname,mode -p /tmp/MTREE | \
+		sed -e 's/ *$//' >BSD.X.new
+            diff -u BSD.X.dist BSD.X.new
+            rm -r /tmp/MTREE
+
+        Note that you will get some differences about /set lines,
+        and uname= gname= on certain directory areas, mainly man page
+        sections.  This is caused by mtree not having a look ahead
+        mechanism for making better selections for these as it
+        traverses the hierarchy.
+
+        The BSD.X.new file should NOT be committed, as it will be missing
+        the correct header, and important keywords like ``nochange''.
+        Simply use the diff for a sanity check to make sure things are in
+        the correct order and correctly indented.
+
+    e)  Further sanity checking of the system builds with DESTDIR=/someplace
+        are more complicated, but can often catch missing entries in these
+        files.  I tend to run this more complete sanity check shortly after
+        the target date for a new release is announced.
+
+        If you want details on it bug me about it via email to
+        rgrimes@FreeBSD.org.

@@ -1,0 +1,129 @@
+=pod
+
+=head1 NAME
+
+BN_add, BN_sub, BN_mul, BN_sqr, BN_div, BN_mod, BN_nnmod, BN_mod_add,
+BN_mod_sub, BN_mod_mul, BN_mod_sqr, BN_exp, BN_mod_exp, BN_gcd -
+arithmetic operations on BIGNUMs
+
+=head1 SYNOPSIS
+
+ #include <openssl/bn.h>
+
+ int BN_add(BIGNUM *r, const BIGNUM *a, const BIGNUM *b);
+
+ int BN_sub(BIGNUM *r, const BIGNUM *a, const BIGNUM *b);
+
+ int BN_mul(BIGNUM *r, BIGNUM *a, BIGNUM *b, BN_CTX *ctx);
+
+ int BN_sqr(BIGNUM *r, BIGNUM *a, BN_CTX *ctx);
+
+ int BN_div(BIGNUM *dv, BIGNUM *rem, const BIGNUM *a, const BIGNUM *d,
+            BN_CTX *ctx);
+
+ int BN_mod(BIGNUM *rem, const BIGNUM *a, const BIGNUM *m, BN_CTX *ctx);
+
+ int BN_nnmod(BIGNUM *r, const BIGNUM *a, const BIGNUM *m, BN_CTX *ctx);
+
+ int BN_mod_add(BIGNUM *r, BIGNUM *a, BIGNUM *b, const BIGNUM *m,
+                BN_CTX *ctx);
+
+ int BN_mod_sub(BIGNUM *r, BIGNUM *a, BIGNUM *b, const BIGNUM *m,
+                BN_CTX *ctx);
+
+ int BN_mod_mul(BIGNUM *r, BIGNUM *a, BIGNUM *b, const BIGNUM *m,
+                BN_CTX *ctx);
+
+ int BN_mod_sqr(BIGNUM *r, BIGNUM *a, const BIGNUM *m, BN_CTX *ctx);
+
+ int BN_exp(BIGNUM *r, BIGNUM *a, BIGNUM *p, BN_CTX *ctx);
+
+ int BN_mod_exp(BIGNUM *r, BIGNUM *a, const BIGNUM *p,
+                const BIGNUM *m, BN_CTX *ctx);
+
+ int BN_gcd(BIGNUM *r, BIGNUM *a, BIGNUM *b, BN_CTX *ctx);
+
+=head1 DESCRIPTION
+
+BN_add() adds I<a> and I<b> and places the result in I<r> (C<r=a+b>).
+I<r> may be the same B<BIGNUM> as I<a> or I<b>.
+
+BN_sub() subtracts I<b> from I<a> and places the result in I<r> (C<r=a-b>).
+I<r> may be the same B<BIGNUM> as I<a> or I<b>.
+
+BN_mul() multiplies I<a> and I<b> and places the result in I<r> (C<r=a*b>).
+I<r> may be the same B<BIGNUM> as I<a> or I<b>.
+For multiplication by powers of 2, use L<BN_lshift(3)>.
+
+BN_sqr() takes the square of I<a> and places the result in I<r>
+(C<r=a^2>). I<r> and I<a> may be the same B<BIGNUM>.
+This function is faster than BN_mul(r,a,a).
+
+BN_div() divides I<a> by I<d> and places the result in I<dv> and the
+remainder in I<rem> (C<dv=a/d, rem=a%d>). Either of I<dv> and I<rem> may
+be B<NULL>, in which case the respective value is not returned.
+The result is rounded towards zero; thus if I<a> is negative, the
+remainder will be zero or negative.
+For division by powers of 2, use BN_rshift(3).
+
+BN_mod() corresponds to BN_div() with I<dv> set to B<NULL>.
+
+BN_nnmod() reduces I<a> modulo I<m> and places the non-negative
+remainder in I<r>.
+
+BN_mod_add() adds I<a> to I<b> modulo I<m> and places the non-negative
+result in I<r>.
+
+BN_mod_sub() subtracts I<b> from I<a> modulo I<m> and places the
+non-negative result in I<r>.
+
+BN_mod_mul() multiplies I<a> by I<b> and finds the non-negative
+remainder respective to modulus I<m> (C<r=(a*b) mod m>). I<r> may be
+the same B<BIGNUM> as I<a> or I<b>. For more efficient algorithms for
+repeated computations using the same modulus, see
+L<BN_mod_mul_montgomery(3)> and
+L<BN_mod_mul_reciprocal(3)>.
+
+BN_mod_sqr() takes the square of I<a> modulo B<m> and places the
+result in I<r>.
+
+BN_exp() raises I<a> to the I<p>-th power and places the result in I<r>
+(C<r=a^p>). This function is faster than repeated applications of
+BN_mul().
+
+BN_mod_exp() computes I<a> to the I<p>-th power modulo I<m> (C<r=a^p %
+m>). This function uses less time and space than BN_exp(). Do not call this
+function when B<m> is even and any of the parameters have the
+B<BN_FLG_CONSTTIME> flag set.
+
+BN_gcd() computes the greatest common divisor of I<a> and I<b> and
+places the result in I<r>. I<r> may be the same B<BIGNUM> as I<a> or
+I<b>.
+
+For all functions, I<ctx> is a previously allocated B<BN_CTX> used for
+temporary variables; see L<BN_CTX_new(3)>.
+
+Unless noted otherwise, the result B<BIGNUM> must be different from
+the arguments.
+
+=head1 RETURN VALUES
+
+For all functions, 1 is returned for success, 0 on error. The return
+value should always be checked (e.g., C<if (!BN_add(r,a,b)) goto err;>).
+The error codes can be obtained by L<ERR_get_error(3)>.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>, L<BN_CTX_new(3)>,
+L<BN_add_word(3)>, L<BN_set_bit(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,110 @@
+.\" Copyright (C) 1994 Wolfgang Solfrank.
+.\" Copyright (C) 1994 TooLs GmbH.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by TooLs GmbH.
+.\" 4. The name of TooLs GmbH may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY TOOLS GMBH ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL TOOLS GMBH BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+.\" OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+.\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 8, 1994
+.Dt QUOT 8
+.Os
+.Sh NAME
+.Nm quot
+.Nd display disk space occupied by each user
+.Sh SYNOPSIS
+.Nm
+.Op Fl acfhknv
+.Op Ar filesystem ...
+.Sh DESCRIPTION
+The
+.Nm
+utility
+is used to gather statistics about the disk usage for each local user.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl a
+Include statistics for all mounted file systems.
+.It Fl c
+Display three columns containing number of blocks per file,
+number of files in this category, and aggregate total of
+blocks in files with this or lower size.
+.It Fl f
+For each user, display count of files and space occupied.
+.It Fl h
+Estimate the number of blocks in each file based on its size.
+Despite that this does not give the correct results (it does not
+account for the holes in files), this option is not any faster
+and thus is discouraged.
+.It Fl k
+Force the numbers to be reported in kilobyte counts.
+By default, all sizes are reported in 512-byte block counts.
+.It Fl n
+Given a list of inodes (plus some optional data on each line)
+in the standard input, for each file print out the owner (plus
+the remainder of the input line).
+This is traditionally used
+in the pipe:
+.Bd -literal -offset indent
+.\" ncheck filesystem | sort +0n | quot -n filesystem
+ls -i | sed -e 's,^  *,,' | sort -k 1n | quot -n filesystem
+.Ed
+.Pp
+to get a report of files and their owners.
+.It Fl v
+In addition to the default output, display the number of files
+not accessed within 30, 60 and 90 days.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width BLOCKSIZE
+.It Ev BLOCKSIZE
+If the environment variable
+.Ev BLOCKSIZE
+is set, and the
+.Fl k
+option is not specified, the block counts will be displayed in units of that
+size block.
+.El
+.Sh SEE ALSO
+.Xr df 1 ,
+.Xr quota 1 ,
+.Xr getmntinfo 3 ,
+.Xr fstab 5 ,
+.Xr mount 8
+.Sh HISTORY
+This implementation of
+.Nm
+is by
+.An Wolfgang Solfrank
+/ TooLs GmbH.
+.Sh BUGS
+.Xr ncheck
+(which would be a lot more useful than
+.Nm ls Fl i
+in the example above)
+does not exist in
+.Fx .

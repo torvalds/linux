@@ -1,0 +1,184 @@
+#!/bin/sh
+# $FreeBSD$
+#
+# rc.conf for picobsd. This is sourced from /etc/rc1, and is supposed to
+# contain only shell functions that are used later in /etc/rc1.
+
+# set default values for variables. Boolean values should be either
+# NO or YES -- other values are not guaranteed to work.
+
+rc_conf_set_defaults() {
+hostname=""			# Should not need to set it
+syslogd_enable="NO"
+pccard_enable="NO"
+swapfile=""			# name of swapfile if aux swapfile desired.
+
+# Network interface configurations: ifconfig_${interface}[_aliasNN]
+ifconfig_lo0="inet 127.0.0.1"	# default loopback device configuration.
+#ifconfig_lo0_alias0="inet 127.0.0.254 netmask 0xffffffff" # Sample alias entry.
+
+### Network daemons options: they are only run if present.
+sshd_enable="YES"		# if present...
+inetd_enable="YES"		# Run the network daemon dispatcher (or NO)
+inetd_flags=""			# Optional flags to inetd
+snmpd_enable="NO"		# Run the SNMP daemon (or NO)
+snmpd_flags="-C -c /etc/snmpd.conf"	# Optional flags to snmpd
+
+### Network routing options: ###
+defaultrouter="NO"		# Set to default gateway (or NO).
+static_routes=""		# Set to static route list (or leave empty).
+gateway_enable="NO"		# Set to YES if this host will be a gateway.
+arpproxy_all=""			# replaces obsolete kernel option ARP_PROXYALL.
+default_mask="0xffffff00"
+
+### Other network features
+firewall_enable="NO"
+firewall_quiet="NO"		# be quiet if set.
+firewall_type=""		# Standard types or absolute pathname.
+tcp_extensions="NO"		# Allow RFC1323 & RFC1644 extensions (or NO).
+
+### Overrides for some files in /etc. Leave empty if no override,
+### set variable (remember to use multiple lines) to override content.
+
+host_conf="hosts
+bind"
+resolv_conf=""
+}
+
+# Try to identify the system by using the MAC address and name of the
+# first ethernet interface, made available as $main_eth $main_if
+find_system_id() {
+    main_ether=""
+    for main_if in `ifconfig -l` ; do
+	set `ifconfig $main_if`
+	while [ "$1" != "" ] ; do
+	    if [ $1 = "ether" ] ; then
+		main_ether=$2
+		break 2
+	    else
+		shift
+	    fi
+	done
+    done
+}
+
+# the following lets the user specify a name and ip for his system
+read_address() {
+    echo "Please enter a hostname and IP address for your system $main_ether"
+    read hostname the_ip
+    if [ "${hostname}" != "" ] ; then
+	echo "# $main_ether $hostname" >> /etc/hosts
+	echo "$the_ip $hostname" >> /etc/hosts
+    else
+	hostname=default
+    fi
+}
+
+# set "ether" using $1 (interface name) as search key
+get_ether() {
+    local key
+    key=$1
+    ether=""
+    set `ifconfig ${key}`
+    while [ "$1" != "" ] ; do
+        if [ "$1" = "ether" ] ; then
+            ether=$2
+            break
+        else
+            shift
+        fi
+    done
+}
+
+# read content from /etc/hosts into a couple of arrays
+# (needed later in fetch_hostname)
+read_hosts() {
+    local i a b c key junk
+    i=""
+    while read a b c junk ; do
+        if [ "$a" = "#ethertable" ] ; then
+            i=0
+        elif [ "$i" != "" -a "$a" = "#" -a "$b" != "" ] ; then
+            eval eth_${i}=$b
+            eval eth_host_${i}=$c
+            i=$(($i+1))
+        fi
+    done < /etc/hosts
+}
+
+# set ${hostname} using $1 (MAC address) as search key in /etc/hosts
+# Returns empty value if $1 is empty
+fetch_hostname() {
+    local i b key
+    hostname=""
+    [ "$1" = "" ] && return
+    key=$1
+    i=0
+    b="x"
+    [ "${eth_0}" = "" ] && read_hosts # fill cache.
+    while [ "$b" != "" -a "${hostname}" = "" ] ; do
+        eval b=\${eth_${i}}
+        case X${key} in
+        X${b} ) # so we can use wildcards
+            eval hostname=\${eth_host_${i}}
+            break
+            ;;
+        esac
+        i=$(($i+1))
+    done
+    echo "fetch_hostname for <${key}> returns <${hostname}>"
+}
+
+# sets "mask" using $1 (netmask name) as the search key in /etc/networks
+fetch_mask() {
+    local a b key junk
+    key=$1	# search key, typically hostname-netmask
+    mask=""
+    while read a b junk; do # key mask otherstuff
+	case X${key} in
+	X${a} )	# The X is so we can use wildcards in ${a}
+	    mask=$b
+	    break
+	    ;;
+	esac
+    done < /etc/networks
+    if [ "${mask}" = "" ] ; then
+	mask=${default_mask}
+    fi
+    echo "fetch_mask for <${key}> returns <${mask}>"
+}
+
+# set hostname, and ifconfig_${main_if} (whose MAC is ${main_ether})
+# if not found, read from console
+set_main_interface() {
+    if [ -z "${hostname}" ] ; then
+	if [ -z "${main_ether}" ] ; then
+	    echo "No ethernets found, using localhost"
+	    hostname=localhost
+	    return
+	fi
+	fetch_hostname ${main_ether}
+    fi
+
+    [ -z "${hostname}" -o "${hostname}" = "." ] && read_address
+    
+    fetch_mask ${hostname}-netmask
+
+    eval ifconfig_${main_if}=\" \${hostname} netmask \${mask}\"
+    network_interfaces=`ifconfig -l`
+}
+
+# set ifconfig_${interface} for all other interfaces
+set_all_interfaces() {
+    local i ether hostname mask
+
+    for i in `ifconfig -l` ; do
+	if [ "$i" != "${main_if}" ] ; then
+	    get_ether $i
+	    fetch_hostname ${ether}
+	    fetch_mask ${hostname}-netmask
+	    [ -n "${ether}" -a -n "${hostname}" ] && \
+		eval ifconfig_${i}=\" \${hostname} netmask \${mask}\"
+	fi
+    done
+}

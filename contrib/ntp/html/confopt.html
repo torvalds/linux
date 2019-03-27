@@ -1,0 +1,105 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Server Commands and Options</title>
+<!-- Changed by: Harlan &, 31-Jan-2014 -->
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3>Server Commands and Options</h3>
+<img src="pic/boom3a.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>Pogo</i>,
+Walt Kelly</a>
+<p>The chicken is getting configuration advice.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->24-Jul-2018  07:27<!-- #EndDate -->
+    UTC</p>
+<br clear="left">
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/command.txt"></script>
+<script type="text/javascript" language="javascript" src="scripts/confopt.txt"></script>
+<h4>Table of Contents</h4>
+<ul>
+  <li class="inline"><a href="#address">Server and Peer Addresses</a></li>
+  <li class="inline"><a href="#command">Server Commands</a></li>
+  <li class="inline"><a href="#option">Server Command Options</a></li>
+</ul>
+<hr>
+<h4 id="address">Server and Peer Addresses</h4>
+<p>Following is a description of the server configuration commands in NTPv4. There are two classes of commands, configuration commands that configure an association with a remote server, peer or reference clock, and auxiliary commands that specify environment variables that control various related operations. </p>
+<p>The various modes described on the <a href="assoc.html">Association Management</a> page are determined by the command keyword and the DNS name or IP address. Addresses are classed by type as (s) a remote server or peer (IPv4 class A, B and C or IPv6), (b) the IPv4 broadcast address of a local interface, (m) a multicast address (IPv4 class D or IPv6), or (r) a reference clock address (127.127.x.x). For type m addresses the IANA has assigned the multicast group address IPv4 224.0.1.1 and IPv6 ff05::101 (site local) exclusively to NTP, but other nonconflicting addresses can be used. </p>
+<p>If the Basic Socket Interface Extensions for IPv6 (RFC-2553) is detected,
+	support for the IPv6 address family is generated in addition to the default IPv4 address family. IPv6 addresses can be identified by the presence of colons &quot;:&quot; in the address field. IPv6 addresses can be used almost everywhere where IPv4 addresses can be used, with the exception of reference clock addresses, which are always IPv4. Note that in contexts where a host name is expected, a <tt>-4</tt> qualifier preceding the host name forces DNS resolution to the IPv4 namespace, while a <tt>-6</tt> qualifier forces DNS resolution to the IPv6 namespace.</p>
+<h4 id="command">Server Commands</h4>
+<p>Unless noted otherwise, further information about these commands is on the <a href="assoc.html">Association Management</a> page.</p><dl>
+	<dt id="server"><tt>server <i>address</i> [options ...]</tt><br>
+		<tt>peer <i>address</i> [options ...]</tt><br>
+		<tt>broadcast <i>address</i> [options ...]</tt><br>
+		<tt>manycastclient <i>address</i> [options ...]</tt><br>
+		<tt>pool <i>address</i> [options ...]</tt><br>
+		<tt>unpeer [<i>address</i> | <i>associd</i>]</tt></dt>
+	<dd>These commands specify the remote server name or address to be used and the mode in which to operate. The <i>address</i> can be either a DNS name or a IPv4 or IPv6 address in standard notation. In general, multiple commands of each type can be used for different server and peer addresses or multicast groups.
+		<dl>
+			<dt><tt>server</tt></dt>
+			<dd>For type s and r addresses (only), this command mobilizes a persistent client mode association with the specified remote server or local reference clock. If the <tt>preempt</tt> flag is specified, a preemptable client mode association is mobilized instead.</dd>
+			<dt id="peer"><tt>peer</tt></dt>
+			<dd>For type s addresses (only), this command mobilizes a persistent symmetric-active mode association with the specified remote peer.</dd>
+			<dt id="broadcast"><tt>broadcast</tt></dt>
+			<dd>For type b and m addressees (only), this command mobilizes a broadcast or multicast server mode association. Note that type b messages go only to the interface specified, but type m messages go to all interfaces.</dd>
+			<dt id="manycastclient"><tt>manycastclient</tt></dt>
+			<dd>For type m addresses (only), this command mobilizes a preemptable manycast client mode association for the multicast group address specified. In this mode the address must match the address specified on the <tt>manycastserver</tt> command of one or more designated manycast servers. Additional information about this command is on the <a href="discover.html#mcst">Automatic Server Discovery</a> page.</dd>
+			<dt id="pool"><tt>pool</tt></dt>
+			<dd>For type s addresses (only) this command mobilizes a preemptable pool client mode association for the DNS name specified. The DNS name must resolve to one or more IPv4 or IPv6 addresses. Additional information about this command is on the  <a href="discover.html#pool">Automatic Server Discovery</a> page. The <a href="http://www.pool.ntp.org/">www.pool.ntp.org</a> page describes a compatible pool of public NTP servers.</dd>
+			<dt id="unpeer"><tt>unpeer</tt></dt>
+			<dd>This command removes a previously configured association. An address or association ID can be used to identify the association.  Either an IP address or DNS name can be used. This command is most useful when supplied via <tt><a href="ntpq.html">ntpq</a></tt> runtime configuration commands <tt>:config</tt> and <tt>config-from-file</tt>.</dd>
+		</dl></dd>
+</dl>
+<h4 id="option">Server Command Options</h4>
+<dl>
+	<dt><tt>autokey</tt></dt>
+	<dd>Send and receive packets authenticated by the Autokey scheme described
+		on the <a href="autokey.html">Autokey Public Key Authentication</a> page. This option is mutually exclusive with the <tt>key</tt> option.</dd>
+	<dt id="burst"><tt>burst</tt></dt>
+	<dd>When the server is reachable, send a burst of  packets instead of the usual one.  This option is valid only with  the <tt>server</tt> command and type s addresses. It is a recommended option when the <tt>maxpoll</tt> option is greater than	10 (1024 s). Additional information about this option is on the <a href="poll.html">Poll Program</a> page.</dd>
+  <dt><tt>iburst</tt></dt>
+	<dd>When the server is unreachable, send a burst of  packets instead of the usual one.  This option is valid only with the <tt>server</tt> command and type <tt>s</tt> addresses. It is a recommended option with this command. Additional information about this option is on the <a href="poll.html">Poll Program</a> page.</dd>
+    <dt><tt>ident</tt> <em><tt>group</tt></em></dt>
+    <dd>Specify the group name for the association.  See the <a href="autokey.html">Autokey Public-Key Authentication</a> page for further information.</dd>
+  <dt><tt>key</tt> <i><tt>key</tt></i></dt>
+  <dd>Send and receive packets authenticated by the symmetric key scheme described in the <a href="authentic.html">Authentication Support</a> page. The <i><tt>key</tt></i> specifies the key identifier with values from 1 to 65535, inclusive. This option is mutually exclusive with the <tt>autokey</tt> option.</dd>	<dt><tt>minpoll <i>minpoll<br>
+	</i></tt><tt>maxpoll <i>maxpoll</i></tt></dt>
+	<dd>These options specify the minimum and maximum poll intervals for NTP messages, in seconds as a power of two. The maximum poll interval defaults to 10 (1024 s), but can be increased by the <tt>maxpoll</tt> option to an upper limit of 17 (36 hr). The minimum poll interval defaults to 6 (64 s), but can be decreased by the <tt>minpoll</tt> option to a lower limit of 3 (8 s).  Additional information about this option is on the <a href="poll.html">Poll Program</a> page.</dd>
+	<dt><tt>mode <i>option</i></tt></dt>
+	<dd>Pass the <tt><i>option</i></tt> to a reference clock driver, where <tt><i>option</i></tt> is an integer in the range from 0 to 255, inclusive. This option is valid	only with type r addresses.</dd>
+	<dt><tt>noselect</tt></dt>
+	<dd>Marks the server or peer to be ignored by the selection algorithm as unreachable, but visible to the monitoring program.  This option is valid only with the <tt>server</tt> and <tt>peer</tt> commands.</dd>
+	<dt><tt>preempt</tt></dt>
+	<dd>Specifies the association as preemptable rather than the default persistent.	This option is ignored with the <tt>broadcast</tt> command and is most useful with the <tt>manycastclient</tt> and <tt>pool</tt> commands.</dd>
+	<dt><tt>prefer</tt></dt>
+	<dd>Mark the server as preferred. All other things being equal, this host will be chosen for synchronization among a set of correctly operating hosts. See the <a href="prefer.html">Mitigation Rules and the <tt>prefer</tt> Keyword</a> page  for further information. This option is valid only with the <tt>server</tt> and <tt>peer</tt> commands.</dd>
+	<dt><tt>true</tt></dt>
+	<dd>Mark the association to assume truechimer status; that is, always survive the selection and clustering algorithms. This option can be used with any association, but is most useful for reference clocks with large jitter on the serial port and precision pulse-per-second (PPS) signals. Caution: this option defeats the algorithms designed to cast out falsetickers and can allow these sources to set the system clock. This option is valid only with the <tt>server</tt> and <tt>peer</tt> commands.</dd>
+	<dt><tt>ttl <i>ttl</i></tt></dt>
+	<dd>This option specifies the time-to-live <i><tt>ttl</tt></i> for the <tt>broadcast</tt> command and the maximum <i><tt>ttl</tt></i> for the expanding ring search used by the <tt>manycastclient</tt> command. Selection of the proper value, which defaults to 127, is something of a black art and should be coordinated with the network administrator. This option is invalid with type r addresses.</dd>
+	<dt><tt>version <i>version</i></tt></dt>
+	<dd>Specifies the version number to be used for
+outgoing NTP packets. Versions 1-4 are the choices, with version 4 the default.</dd>
+	<dt><tt>xleave</tt></dt>
+	<dd>Operate in interleaved mode (symmetric and broadcast modes only). Further information is on the <a href="xleave.html">NTP Interleaved Modes</a> page.</dd>
+</dl>
+<h4 id="aux">Auxiliary Commands</h4>
+<dl>
+	<dt id="broadcastclient"><tt>broadcastclient</tt></dt>
+	<dd>Enable reception of broadcast server messages to any local interface (type	b address). Ordinarily, upon receiving a broadcast message for the first time, the broadcast client measures the nominal server propagation delay using a brief client/server exchange, after which it continues in listen-only mode. If a nonzero value is specified in the <tt>broadcastdelay</tt> command, the value becomes the delay and the volley is not executed. Note: the <tt>novolley</tt> option has been deprecated for future enhancements. Note that, in order to avoid accidental or malicious disruption in this mode, both the server and client should operate using symmetric key or public key authentication as described in the <a href="authopt.html">Authentication Options</a> page. Note that the volley is required with public key authentication in order to run the Autokey protocol.</dd>
+  <dt id="manycastserver"><tt>manycastserver <i>address</i> [...]</tt></dt>
+	<dd>Enable reception of manycast client messages (type m) to the multicasts group address(es) (type m) specified. At least one address is required. Note that, in order to avoid accidental or malicious disruption, both the server and client should operate using symmetric key or public key authentication as described in the <a href="authopt.html">Authentication Options</a> page.</dd>
+	<dt id="multicastclient"><tt>multicastclient <i>address</i> [...]</tt></dt>
+	<dd>Enable reception of multicast server messages to the multicast group address(es) (type m) specified. Upon receiving a message for the first time, the multicast client measures the nominal server propagation delay using a brief client/server exchange with the server, then enters the broadcast client mode, in which it synchronizes to succeeding multicast messages. Note that, in order to avoid accidental or malicious disruption in this mode, both the server and client should operate using symmetric key or public key authentication as described in the <a href="authopt.html">Authentication Options</a> page.</dd>
+	<dt id="mdnstries"><tt>mdnstries</tt> <i>number</i></dt>
+	<dd>If we are participating in mDNS, after we have synched for the first time we attempt to register with the mDNS system.  If that registration attempt fails, we try again at one minute intervals for up to <tt>mdnstries</tt> times.  After all, <tt>ntpd</tt> may be starting before mDNS.  The default value for <tt>mdnstries</tt> is 5.</dd>
+</dl>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

@@ -1,0 +1,171 @@
+=pod
+
+=head1 NAME
+
+CRYPTO_THREAD_run_once,
+CRYPTO_THREAD_lock_new, CRYPTO_THREAD_read_lock, CRYPTO_THREAD_write_lock,
+CRYPTO_THREAD_unlock, CRYPTO_THREAD_lock_free,
+CRYPTO_atomic_add - OpenSSL thread support
+
+=head1 SYNOPSIS
+
+ #include <openssl/crypto.h>
+
+ CRYPTO_ONCE CRYPTO_ONCE_STATIC_INIT;
+ int CRYPTO_THREAD_run_once(CRYPTO_ONCE *once, void (*init)(void));
+
+ CRYPTO_RWLOCK *CRYPTO_THREAD_lock_new(void);
+ int CRYPTO_THREAD_read_lock(CRYPTO_RWLOCK *lock);
+ int CRYPTO_THREAD_write_lock(CRYPTO_RWLOCK *lock);
+ int CRYPTO_THREAD_unlock(CRYPTO_RWLOCK *lock);
+ void CRYPTO_THREAD_lock_free(CRYPTO_RWLOCK *lock);
+
+ int CRYPTO_atomic_add(int *val, int amount, int *ret, CRYPTO_RWLOCK *lock);
+
+=head1 DESCRIPTION
+
+OpenSSL can be safely used in multi-threaded applications provided that
+support for the underlying OS threading API is built-in. Currently, OpenSSL
+supports the pthread and Windows APIs. OpenSSL can also be built without
+any multi-threading support, for example on platforms that don't provide
+any threading support or that provide a threading API that is not yet
+supported by OpenSSL.
+
+The following multi-threading function are provided:
+
+=over 2
+
+=item *
+
+CRYPTO_THREAD_run_once() can be used to perform one-time initialization.
+The B<once> argument must be a pointer to a static object of type
+B<CRYPTO_ONCE> that was statically initialized to the value
+B<CRYPTO_ONCE_STATIC_INIT>.
+The B<init> argument is a pointer to a function that performs the desired
+exactly once initialization.
+In particular, this can be used to allocate locks in a thread-safe manner,
+which can then be used with the locking functions below.
+
+=item *
+
+CRYPTO_THREAD_lock_new() allocates, initializes and returns a new read/write
+lock.
+
+=item *
+
+CRYPTO_THREAD_read_lock() locks the provided B<lock> for reading.
+
+=item *
+
+CRYPTO_THREAD_write_lock() locks the provided B<lock> for writing.
+
+=item *
+
+CRYPTO_THREAD_unlock() unlocks the previously locked B<lock>.
+
+=item *
+
+CRYPTO_THREAD_lock_free() frees the provided B<lock>.
+
+=item *
+
+CRYPTO_atomic_add() atomically adds B<amount> to B<val> and returns the
+result of the operation in B<ret>. B<lock> will be locked, unless atomic
+operations are supported on the specific platform. Because of this, if a
+variable is modified by CRYPTO_atomic_add() then CRYPTO_atomic_add() must
+be the only way that the variable is modified.
+
+=back
+
+=head1 RETURN VALUES
+
+CRYPTO_THREAD_run_once() returns 1 on success, or 0 on error.
+
+CRYPTO_THREAD_lock_new() returns the allocated lock, or NULL on error.
+
+CRYPTO_THREAD_lock_free() returns no value.
+
+The other functions return 1 on success, or 0 on error.
+
+=head1 NOTES
+
+On Windows platforms the CRYPTO_THREAD_* types and functions in the
+openssl/crypto.h header are dependent on some of the types customarily
+made available by including windows.h. The application developer is
+likely to require control over when the latter is included, commonly as
+one of the first included headers. Therefore it is defined as an
+application developer's responsibility to include windows.h prior to
+crypto.h where use of CRYPTO_THREAD_* types and functions is required.
+
+=head1 EXAMPLE
+
+This example safely initializes and uses a lock.
+
+ #ifdef _WIN32
+ # include <windows.h>
+ #endif
+ #include <openssl/crypto.h>
+
+ static CRYPTO_ONCE once = CRYPTO_ONCE_STATIC_INIT;
+ static CRYPTO_RWLOCK *lock;
+
+ static void myinit(void)
+ {
+     lock = CRYPTO_THREAD_lock_new();
+ }
+
+ static int mylock(void)
+ {
+     if (!CRYPTO_THREAD_run_once(&once, void init) || lock == NULL)
+         return 0;
+     return CRYPTO_THREAD_write_lock(lock);
+ }
+
+ static int myunlock(void)
+ {
+     return CRYPTO_THREAD_unlock(lock);
+ }
+
+ int serialized(void)
+ {
+     int ret = 0;
+
+     if (mylock()) {
+         /* Your code here, do not return without releasing the lock! */
+         ret = ... ;
+     }
+     myunlock();
+     return ret;
+ }
+
+Finalization of locks is an advanced topic, not covered in this example.
+This can only be done at process exit or when a dynamically loaded library is
+no longer in use and is unloaded.
+The simplest solution is to just "leak" the lock in applications and not
+repeatedly load/unload shared libraries that allocate locks.
+
+=head1 NOTES
+
+You can find out if OpenSSL was configured with thread support:
+
+ #include <openssl/opensslconf.h>
+ #if defined(OPENSSL_THREADS)
+     /* thread support enabled */
+ #else
+     /* no thread support */
+ #endif
+
+=head1 SEE ALSO
+
+L<crypto(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

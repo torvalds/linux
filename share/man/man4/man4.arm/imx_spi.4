@@ -1,0 +1,90 @@
+.\"
+.\" Copyright (c) 2018 Ian Lepore <ian@freebsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 9, 2018
+.Dt IMX_SPI 4
+.Os
+.Sh NAME
+.Nm imx_spi
+.Nd device driver for the NXP i.MX family Serial Peripheral Interface (SPI)
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device imx_spi"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+imx_spi_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+.Sq ECSPI
+(Enhanced Configurable SPI) hardware present on the NXP i.MX family
+of processors.
+While the ECSPI hardware supports both master and slave mode,
+this driver currently operates only in master mode.
+.Pp
+Due to hardware quirks, the
+.Nm
+driver requires that all chip select pins be configured as GPIO pins.
+Use the FDT property
+.Sq cs-gpios
+to specify which pins to use as chip selects.
+You may use any GPIO pins, including the ones that the hardware would
+normally use as SPI select pins; just configure them as GPIO in the
+.Xr fdt_pinctrl 4
+data.
+.Pp
+.Sh SYSCTL VARIABLES
+The following variables are available via
+.Xr sysctl 8 ,
+and as
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va dev.imx_spi.%d.debug
+Output debugging info when non-zero.
+A value of 1 displays information about bus transfers,
+2 adds information about bus clock frequency and chip select activity,
+and 3 adds information about interrupt handling.
+.El
+.Sh SEE ALSO
+.Xr fdt 4 ,
+.Xr fdt_pinctrl 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 12.0 .

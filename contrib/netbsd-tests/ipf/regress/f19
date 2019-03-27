@@ -1,0 +1,2 @@
+pass in quick proto tcp all flags S keep state
+pass in quick proto tcp all flags S keep state(limit 1)

@@ -1,0 +1,1066 @@
+
+#------------------------------------------------------------------------------
+# $File: animation,v 1.68 2018/05/06 16:08:07 christos Exp $
+# animation:  file(1) magic for animation/movie formats
+#
+# animation formats
+# MPEG, FLI, DL originally from vax@ccwf.cc.utexas.edu (VaX#n8)
+# FLC, SGI, Apple originally from Daniel Quinlan (quinlan@yggdrasil.com)
+
+# SGI and Apple formats
+0	string		MOVI		Silicon Graphics movie file
+!:mime	video/x-sgi-movie
+4       string          moov            Apple QuickTime
+!:mime	video/quicktime
+>12     string          mvhd            \b movie (fast start)
+>12     string          mdra            \b URL
+>12     string          cmov            \b movie (fast start, compressed header)
+>12     string          rmra            \b multiple URLs
+4       string          mdat            Apple QuickTime movie (unoptimized)
+!:mime	video/quicktime
+#4       string          wide            Apple QuickTime movie (unoptimized)
+#!:mime	video/quicktime
+#4       string          skip            Apple QuickTime movie (modified)
+#!:mime	video/quicktime
+#4       string          free            Apple QuickTime movie (modified)
+#!:mime	video/quicktime
+4       string          idsc            Apple QuickTime image (fast start)
+!:mime	image/x-quicktime
+#4       string          idat            Apple QuickTime image (unoptimized)
+#!:mime	image/x-quicktime
+4       string          pckg            Apple QuickTime compressed archive
+!:mime	application/x-quicktime-player
+4	string/W	jP		JPEG 2000 image
+!:mime	image/jp2
+# http://www.ftyps.com/ with local additions
+4	string		ftyp		ISO Media
+# http://aeroquartet.com/wordpress/2016/03/05/3-xavc-s/
+>8	string		XAVC		\b, MPEG v4 system, Sony XAVC Codec
+>>96	string		x		\b, Audio "%.4s"
+>>118	beshort		x		at %dHz
+>>140	string		x		\b, Video "%.4s"
+>>168	beshort		x		%d
+>>170	beshort		x		\bx%d
+>8	string		3g2		\b, MPEG v4 system, 3GPP2
+!:mime	video/3gpp2
+>>11	byte		4		\b v4 (H.263/AMR GSM 6.10)
+>>11	byte		5		\b v5 (H.263/AMR GSM 6.10)
+>>11	byte		6		\b v6 (ITU H.264/AMR GSM 6.10)
+# http://www.3gpp2.org/Public_html/Specs/C.S0050-B_v1.0_070521.pdf
+# Section 8.1.1, corresponds to a, b, c
+>>11	byte		0x61		\b C.S0050-0 V1.0
+>>11	byte		0x62		\b C.S0050-0-A V1.0.0
+>>11	byte		0x63		\b C.S0050-0-B V1.0
+>8	string		3ge		\b, MPEG v4 system, 3GPP
+!:mime	video/3gpp
+>>11	byte		6		\b, Release 6 MBMS Extended Presentations
+>>11	byte		7		\b, Release 7 MBMS Extended Presentations
+>8	string		3gg		\b, MPEG v4 system, 3GPP
+!:mime	video/3gpp
+>>11	byte		6		\b, Release 6 General Profile
+>8	string		3gp		\b, MPEG v4 system, 3GPP
+!:mime	video/3gpp
+>>11	byte		1		\b, Release %d (non existent)
+>>11	byte		2		\b, Release %d (non existent)
+>>11	byte		3		\b, Release %d (non existent)
+>>11	byte		4		\b, Release %d
+>>11	byte		5		\b, Release %d
+>>11	byte		6		\b, Release %d
+>>11	byte		7		\b, Release %d Streaming Servers
+>8	string		3gs		\b, MPEG v4 system, 3GPP
+!:mime	video/3gpp
+>>11	byte		7		\b, Release %d Streaming Servers
+>8	string		avc1		\b, MPEG v4 system, 3GPP JVT AVC [ISO 14496-12:2005]
+!:mime	video/mp4
+>8	string/W	qt		\b, Apple QuickTime movie
+!:mime	video/quicktime
+>8	string		CAEP		\b, Canon Digital Camera
+>8	string		caqv		\b, Casio Digital Camera
+>8	string		CDes		\b, Convergent Design
+>8	string		da0a		\b, DMB MAF w/ MPEG Layer II aud, MOT slides, DLS, JPG/PNG/MNG
+>8	string		da0b		\b, DMB MAF, ext DA0A, with 3GPP timed text, DID, TVA, REL, IPMP
+>8	string		da1a		\b, DMB MAF audio with ER-BSAC audio, JPG/PNG/MNG images
+>8	string		da1b		\b, DMB MAF, ext da1a, with 3GPP timed text, DID, TVA, REL, IPMP
+>8	string		da2a		\b, DMB MAF aud w/ HE-AAC v2 aud, MOT slides, DLS, JPG/PNG/MNG
+>8	string		da2b		\b, DMB MAF, ext da2a, with 3GPP timed text, DID, TVA, REL, IPMP
+>8	string		da3a		\b, DMB MAF aud with HE-AAC aud, JPG/PNG/MNG images
+>8	string		da3b		\b, DMB MAF, ext da3a w/ BIFS, 3GPP, DID, TVA, REL, IPMP
+>8	string		dash		\b, MPEG v4 system, Dynamic Adaptive Streaming over HTTP
+!:mime	video/mp4
+>8	string		dmb1		\b, DMB MAF supporting all the components defined in the spec
+>8	string		dmpf		\b, Digital Media Project
+>8	string		drc1		\b, Dirac (wavelet compression), encap in ISO base media (MP4)
+>8	string		dv1a		\b, DMB MAF vid w/ AVC vid, ER-BSAC aud, BIFS, JPG/PNG/MNG, TS
+>8	string		dv1b		\b, DMB MAF, ext dv1a, with 3GPP timed text, DID, TVA, REL, IPMP
+>8	string		dv2a		\b, DMB MAF vid w/ AVC vid, HE-AAC v2 aud, BIFS, JPG/PNG/MNG, TS
+>8	string		dv2b		\b, DMB MAF, ext dv2a, with 3GPP timed text, DID, TVA, REL, IPMP
+>8	string		dv3a		\b, DMB MAF vid w/ AVC vid, HE-AAC aud, BIFS, JPG/PNG/MNG, TS
+>8	string		dv3b		\b, DMB MAF, ext dv3a, with 3GPP timed text, DID, TVA, REL, IPMP
+>8	string		dvr1		\b, DVB (.DVB) over RTP
+!:mime	video/vnd.dvb.file
+>8	string		dvt1		\b, DVB (.DVB) over MPEG-2 Transport Stream
+!:mime	video/vnd.dvb.file
+>8	string		F4V		\b, Video for Adobe Flash Player 9+ (.F4V)
+!:mime	video/mp4
+>8	string		F4P		\b, Protected Video for Adobe Flash Player 9+ (.F4P)
+!:mime	video/mp4
+>8	string		F4A		\b, Audio for Adobe Flash Player 9+ (.F4A)
+!:mime	audio/mp4
+>8	string		F4B		\b, Audio Book for Adobe Flash Player 9+ (.F4B)
+!:mime	audio/mp4
+>8	string		isc2		\b, ISMACryp 2.0 Encrypted File
+#	?/enc-isoff-generic
+>8	string		iso2		\b, MP4 Base Media v2 [ISO 14496-12:2005]
+!:mime	video/mp4
+>8	string		isom		\b, MP4 Base Media v1 [IS0 14496-12:2003]
+!:mime	video/mp4
+>8	string/W	jp2		\b, JPEG 2000
+!:mime	image/jp2
+>8	string		JP2		\b, JPEG 2000 Image (.JP2) [ISO 15444-1 ?]
+!:mime	image/jp2
+>8	string		JP20		\b, Unknown, from GPAC samples (prob non-existent)
+>8	string		jpm		\b, JPEG 2000 Compound Image (.JPM) [ISO 15444-6]
+!:mime	image/jpm
+>8	string		jpx		\b, JPEG 2000 w/ extensions (.JPX) [ISO 15444-2]
+!:mime	image/jpx
+>8	string		KDDI		\b, 3GPP2 EZmovie for KDDI 3G cellphones
+!:mime	video/3gpp2
+>8	string		M4A 		\b, Apple iTunes ALAC/AAC-LC (.M4A) Audio
+!:mime	audio/x-m4a
+>8	string		M4B 		\b, Apple iTunes ALAC/AAC-LC (.M4B) Audio Book
+!:mime	audio/mp4
+>8	string		M4P 		\b, Apple iTunes ALAC/AAC-LC (.M4P) AES Protected Audio
+!:mime	video/mp4
+>8	string		M4V 		\b, Apple iTunes Video (.M4V) Video
+!:mime	video/x-m4v
+>8	string		M4VH		\b, Apple TV (.M4V)
+!:mime	video/x-m4v
+>8	string		M4VP		\b, Apple iPhone (.M4V)
+!:mime	video/x-m4v
+>8	string		mj2s		\b, Motion JPEG 2000 [ISO 15444-3] Simple Profile
+!:mime	video/mj2
+>8	string		mjp2		\b, Motion JPEG 2000 [ISO 15444-3] General Profile
+!:mime	video/mj2
+>8	string		mmp4		\b, MPEG-4/3GPP Mobile Profile (.MP4 / .3GP) (for NTT)
+!:mime	video/mp4
+>8	string		mobi		\b, MPEG-4, MOBI format
+!:mime	video/mp4
+>8	string		mp21		\b, MPEG-21 [ISO/IEC 21000-9]
+>8	string		mp41		\b, MP4 v1 [ISO 14496-1:ch13]
+!:mime	video/mp4
+>8	string		mp42		\b, MP4 v2 [ISO 14496-14]
+!:mime	video/mp4
+>8	string		mp71		\b, MP4 w/ MPEG-7 Metadata [per ISO 14496-12]
+>8	string		mp7t		\b, MPEG v4 system, MPEG v7 XML
+>8	string		mp7b		\b, MPEG v4 system, MPEG v7 binary XML
+>8	string		mmp4		\b, MPEG v4 system, 3GPP Mobile
+!:mime	video/mp4
+>8	string		MPPI		\b, Photo Player, MAF [ISO/IEC 23000-3]
+>8	string		mqt		\b, Sony / Mobile QuickTime (.MQV) US Pat 7,477,830
+!:mime	video/quicktime
+>8	string		MSNV		\b, MPEG-4 (.MP4) for SonyPSP
+!:mime	audio/mp4
+>8	string		NDAS		\b, MP4 v2 [ISO 14496-14] Nero Digital AAC Audio
+!:mime	audio/mp4
+>8	string		NDSC		\b, MPEG-4 (.MP4) Nero Cinema Profile
+!:mime	video/mp4
+>8	string		NDSH		\b, MPEG-4 (.MP4) Nero HDTV Profile
+!:mime	video/mp4
+>8	string		NDSM		\b, MPEG-4 (.MP4) Nero Mobile Profile
+!:mime	video/mp4
+>8	string		NDSP		\b, MPEG-4 (.MP4) Nero Portable Profile
+!:mime	video/mp4
+>8	string		NDSS		\b, MPEG-4 (.MP4) Nero Standard Profile
+!:mime	video/mp4
+>8	string		NDXC		\b, H.264/MPEG-4 AVC (.MP4) Nero Cinema Profile
+!:mime	video/mp4
+>8	string		NDXH		\b, H.264/MPEG-4 AVC (.MP4) Nero HDTV Profile
+!:mime	video/mp4
+>8	string		NDXM		\b, H.264/MPEG-4 AVC (.MP4) Nero Mobile Profile
+!:mime	video/mp4
+>8	string		NDXP		\b, H.264/MPEG-4 AVC (.MP4) Nero Portable Profile
+!:mime	video/mp4
+>8	string		NDXS		\b, H.264/MPEG-4 AVC (.MP4) Nero Standard Profile
+!:mime	video/mp4
+>8	string		odcf  		\b, OMA DCF DRM Format 2.0 (OMA-TS-DRM-DCF-V2_0-20060303-A)
+>8	string		opf2 		\b, OMA PDCF DRM Format 2.1 (OMA-TS-DRM-DCF-V2_1-20070724-C)
+>8	string		opx2  		\b, OMA PDCF DRM + XBS ext (OMA-TS-DRM_XBS-V1_0-20070529-C)
+>8	string		pana		\b, Panasonic Digital Camera
+>8	string		qt  		\b, Apple QuickTime (.MOV/QT)
+!:mime	video/quicktime
+# HEIF image format
+# see https://nokiatech.github.io/heif/technical.html
+>8	string		mif1		\b, HEIF Image
+!:mime image/heif
+>8	string		msf1		\b, HEIF Image Sequence
+!:mime image/heif-sequence
+>8	string		heic		\b, HEIF Image HEVC Main or Main Still Picture Profile
+!:mime image/heic
+>8	string		heix		\b, HEIF Image HEVC Main 10 Profile
+!:mime image/heic
+>8	string		hevc		\b, HEIF Image Sequenz HEVC Main or Main Still Picture Profile
+!:mime image/heic-sequence
+>8	string		hevx		\b, HEIF Image Sequence HEVC Main 10 Profile
+!:mime image/heic-sequence
+# following HEIF brands are not mentioned in the heif technical info currently (Oct 2017)
+# but used in the reference implementation:
+# https://github.com/nokiatech/heif/blob/d5e9a21c8ba8df712bdf643021dd9f6518134776/Srcs/reader/hevcimagefilereader.cpp
+>8	string		heim		\b, HEIF Image L-HEVC
+!:mime image/heif
+>8	string		heis		\b, HEIF Image L-HEVC
+!:mime image/heif
+>8	string		avic		\b, HEIF Image AVC
+!:mime image/heif
+>8	string		hevm		\b, HEIF Image Sequence L-HEVC
+!:mime image/heif-sequence
+>8	string		hevs		\b, HEIF Image Sequence L-HEVC
+!:mime image/heif-sequence
+>8	string		avcs		\b, HEIF Image Sequence AVC
+!:mime image/heif-sequence
+
+>8	string		ROSS		\b, Ross Video
+>8	string		sdv		\b, SD Memory Card Video
+>8	string		ssc1		\b, Samsung stereo, single stream (patent pending)
+>8	string		ssc2		\b, Samsung stereo, dual stream (patent pending)
+
+# MPEG sequences
+# Scans for all common MPEG header start codes
+0	 belong		    0x00000001
+>4	 byte&0x1F	    0x07	   JVT NAL sequence, H.264 video
+>>5      byte               66             \b, baseline
+>>5      byte               77             \b, main
+>>5      byte               88             \b, extended
+>>7      byte               x              \b @ L %u
+0        belong&0xFFFFFF00  0x00000100
+>3       byte               0xBA           MPEG sequence
+!:mime  video/mpeg
+>>4      byte               &0x40          \b, v2, program multiplex
+>>4      byte               ^0x40          \b, v1, system multiplex
+>3       byte               0xBB           MPEG sequence, v1/2, multiplex (missing pack header)
+>3       byte&0x1F          0x07           MPEG sequence, H.264 video
+>>4      byte               66             \b, baseline
+>>4      byte               77             \b, main
+>>4      byte               88             \b, extended
+>>6      byte               x              \b @ L %u
+# GRR too general as it catches also FoxPro Memo example NG.FPT
+>3       byte               0xB0           MPEG sequence, v4
+# TODO: maybe this extra line exclude FoxPro Memo example NG.FPT starting with 000001b0 00000100 00000000
+#>>4      byte               !0             MPEG sequence, v4
+!:mime  video/mpeg4-generic
+>>5      belong             0x000001B5
+>>>9     byte               &0x80
+>>>>10   byte&0xF0          16             \b, video
+>>>>10   byte&0xF0          32             \b, still texture
+>>>>10   byte&0xF0          48             \b, mesh
+>>>>10   byte&0xF0          64             \b, face
+>>>9     byte&0xF8          8              \b, video
+>>>9     byte&0xF8          16             \b, still texture
+>>>9     byte&0xF8          24             \b, mesh
+>>>9     byte&0xF8          32             \b, face
+>>4      byte               1              \b, simple @ L1
+>>4      byte               2              \b, simple @ L2
+>>4      byte               3              \b, simple @ L3
+>>4      byte               4              \b, simple @ L0
+>>4      byte               17             \b, simple scalable @ L1
+>>4      byte               18             \b, simple scalable @ L2
+>>4      byte               33             \b, core @ L1
+>>4      byte               34             \b, core @ L2
+>>4      byte               50             \b, main @ L2
+>>4      byte               51             \b, main @ L3
+>>4      byte               53             \b, main @ L4
+>>4      byte               66             \b, n-bit @ L2
+>>4      byte               81             \b, scalable texture @ L1
+>>4      byte               97             \b, simple face animation @ L1
+>>4      byte               98             \b, simple face animation @ L2
+>>4      byte               99             \b, simple face basic animation @ L1
+>>4      byte               100            \b, simple face basic animation @ L2
+>>4      byte               113            \b, basic animation text @ L1
+>>4      byte               114            \b, basic animation text @ L2
+>>4      byte               129            \b, hybrid @ L1
+>>4      byte               130            \b, hybrid @ L2
+>>4      byte               145            \b, advanced RT simple @ L!
+>>4      byte               146            \b, advanced RT simple @ L2
+>>4      byte               147            \b, advanced RT simple @ L3
+>>4      byte               148            \b, advanced RT simple @ L4
+>>4      byte               161            \b, core scalable @ L1
+>>4      byte               162            \b, core scalable @ L2
+>>4      byte               163            \b, core scalable @ L3
+>>4      byte               177            \b, advanced coding efficiency @ L1
+>>4      byte               178            \b, advanced coding efficiency @ L2
+>>4      byte               179            \b, advanced coding efficiency @ L3
+>>4      byte               180            \b, advanced coding efficiency @ L4
+>>4      byte               193            \b, advanced core @ L1
+>>4      byte               194            \b, advanced core @ L2
+>>4      byte               209            \b, advanced scalable texture @ L1
+>>4      byte               210            \b, advanced scalable texture @ L2
+>>4      byte               211            \b, advanced scalable texture @ L3
+>>4      byte               225            \b, simple studio @ L1
+>>4      byte               226            \b, simple studio @ L2
+>>4      byte               227            \b, simple studio @ L3
+>>4      byte               228            \b, simple studio @ L4
+>>4      byte               229            \b, core studio @ L1
+>>4      byte               230            \b, core studio @ L2
+>>4      byte               231            \b, core studio @ L3
+>>4      byte               232            \b, core studio @ L4
+>>4      byte               240            \b, advanced simple @ L0
+>>4      byte               241            \b, advanced simple @ L1
+>>4      byte               242            \b, advanced simple @ L2
+>>4      byte               243            \b, advanced simple @ L3
+>>4      byte               244            \b, advanced simple @ L4
+>>4      byte               245            \b, advanced simple @ L5
+>>4      byte               247            \b, advanced simple @ L3b
+>>4      byte               248            \b, FGS @ L0
+>>4      byte               249            \b, FGS @ L1
+>>4      byte               250            \b, FGS @ L2
+>>4      byte               251            \b, FGS @ L3
+>>4      byte               252            \b, FGS @ L4
+>>4      byte               253            \b, FGS @ L5
+>3       byte               0xB5           MPEG sequence, v4
+!:mime  video/mpeg4-generic
+>>4      byte               &0x80
+>>>5     byte&0xF0          16             \b, video (missing profile header)
+>>>5     byte&0xF0          32             \b, still texture (missing profile header)
+>>>5     byte&0xF0          48             \b, mesh (missing profile header)
+>>>5     byte&0xF0          64             \b, face (missing profile header)
+>>4      byte&0xF8          8              \b, video (missing profile header)
+>>4      byte&0xF8          16             \b, still texture (missing profile header)
+>>4      byte&0xF8          24             \b, mesh (missing profile header)
+>>4      byte&0xF8          32             \b, face (missing profile header)
+>3       byte               0xB3           MPEG sequence
+!:mime  video/mpeg
+>>12     belong             0x000001B8     \b, v1, progressive Y'CbCr 4:2:0 video
+>>12     belong             0x000001B2     \b, v1, progressive Y'CbCr 4:2:0 video
+>>12     belong             0x000001B5     \b, v2,
+>>>16    byte&0x0F          1              \b HP
+>>>16    byte&0x0F          2              \b Spt
+>>>16    byte&0x0F          3              \b SNR
+>>>16    byte&0x0F          4              \b MP
+>>>16    byte&0x0F          5              \b SP
+>>>17    byte&0xF0          64             \b@HL
+>>>17    byte&0xF0          96             \b@H-14
+>>>17    byte&0xF0          128            \b@ML
+>>>17    byte&0xF0          160            \b@LL
+>>>17    byte               &0x08          \b progressive
+>>>17    byte               ^0x08          \b interlaced
+>>>17    byte&0x06          2              \b Y'CbCr 4:2:0 video
+>>>17    byte&0x06          4              \b Y'CbCr 4:2:2 video
+>>>17    byte&0x06          6              \b Y'CbCr 4:4:4 video
+>>11     byte               &0x02
+>>>75    byte               &0x01
+>>>>140  belong             0x000001B8     \b, v1, progressive Y'CbCr 4:2:0 video
+>>>>140  belong             0x000001B2     \b, v1, progressive Y'CbCr 4:2:0 video
+>>>>140  belong             0x000001B5     \b, v2,
+>>>>>144 byte&0x0F          1              \b HP
+>>>>>144 byte&0x0F          2              \b Spt
+>>>>>144 byte&0x0F          3              \b SNR
+>>>>>144 byte&0x0F          4              \b MP
+>>>>>144 byte&0x0F          5              \b SP
+>>>>>145 byte&0xF0          64             \b@HL
+>>>>>145 byte&0xF0          96             \b@H-14
+>>>>>145 byte&0xF0          128            \b@ML
+>>>>>145 byte&0xF0          160            \b@LL
+>>>>>145 byte               &0x08          \b progressive
+>>>>>145 byte               ^0x08          \b interlaced
+>>>>>145 byte&0x06          2              \b Y'CbCr 4:2:0 video
+>>>>>145 byte&0x06          4              \b Y'CbCr 4:2:2 video
+>>>>>145 byte&0x06          6              \b Y'CbCr 4:4:4 video
+>>76    belong             0x000001B8     \b, v1, progressive Y'CbCr 4:2:0 video
+>>76    belong             0x000001B2     \b, v1, progressive Y'CbCr 4:2:0 video
+>>76    belong             0x000001B5     \b, v2,
+>>>80   byte&0x0F          1              \b HP
+>>>80   byte&0x0F          2              \b Spt
+>>>80   byte&0x0F          3              \b SNR
+>>>80   byte&0x0F          4              \b MP
+>>>80   byte&0x0F          5              \b SP
+>>>81   byte&0xF0          64             \b@HL
+>>>81   byte&0xF0          96             \b@H-14
+>>>81   byte&0xF0          128            \b@ML
+>>>81   byte&0xF0          160            \b@LL
+>>>81   byte               &0x08          \b progressive
+>>>81   byte               ^0x08          \b interlaced
+>>>81   byte&0x06          2              \b Y'CbCr 4:2:0 video
+>>>81   byte&0x06          4              \b Y'CbCr 4:2:2 video
+>>>81   byte&0x06          6              \b Y'CbCr 4:4:4 video
+>>4      belong&0xFFFFFF00  0x78043800     \b, HD-TV 1920P
+>>>7     byte&0xF0          0x10           \b, 16:9
+>>4      belong&0xFFFFFF00  0x50002D00     \b, SD-TV 1280I
+>>>7     byte&0xF0          0x10           \b, 16:9
+>>4      belong&0xFFFFFF00  0x30024000     \b, PAL Capture
+>>>7     byte&0xF0          0x10           \b, 4:3
+>>4      beshort&0xFFF0     0x2C00         \b, 4CIF
+>>>5     beshort&0x0FFF     0x01E0         \b NTSC
+>>>5     beshort&0x0FFF     0x0240         \b PAL
+>>>7     byte&0xF0          0x20           \b, 4:3
+>>>7     byte&0xF0          0x30           \b, 16:9
+>>>7     byte&0xF0          0x40           \b, 11:5
+>>>7     byte&0xF0          0x80           \b, PAL 4:3
+>>>7     byte&0xF0          0xC0           \b, NTSC 4:3
+>>4      belong&0xFFFFFF00  0x2801E000     \b, LD-TV 640P
+>>>7     byte&0xF0          0x10           \b, 4:3
+>>4      belong&0xFFFFFF00  0x1400F000     \b, 320x240
+>>>7     byte&0xF0          0x10           \b, 4:3
+>>4      belong&0xFFFFFF00  0x0F00A000     \b, 240x160
+>>>7     byte&0xF0          0x10           \b, 4:3
+>>4      belong&0xFFFFFF00  0x0A007800     \b, 160x120
+>>>7     byte&0xF0          0x10           \b, 4:3
+>>4      beshort&0xFFF0     0x1600         \b, CIF
+>>>5     beshort&0x0FFF     0x00F0         \b NTSC
+>>>5     beshort&0x0FFF     0x0120         \b PAL
+>>>7     byte&0xF0          0x20           \b, 4:3
+>>>7     byte&0xF0          0x30           \b, 16:9
+>>>7     byte&0xF0          0x40           \b, 11:5
+>>>7     byte&0xF0          0x80           \b, PAL 4:3
+>>>7     byte&0xF0          0xC0           \b, NTSC 4:3
+>>>5     beshort&0x0FFF     0x0240         \b PAL 625
+>>>>7    byte&0xF0          0x20           \b, 4:3
+>>>>7    byte&0xF0          0x30           \b, 16:9
+>>>>7    byte&0xF0          0x40           \b, 11:5
+>>4      beshort&0xFFF0     0x2D00         \b, CCIR/ITU
+>>>5     beshort&0x0FFF     0x01E0         \b NTSC 525
+>>>5     beshort&0x0FFF     0x0240         \b PAL 625
+>>>7     byte&0xF0          0x20           \b, 4:3
+>>>7     byte&0xF0          0x30           \b, 16:9
+>>>7     byte&0xF0          0x40           \b, 11:5
+>>4      beshort&0xFFF0     0x1E00         \b, SVCD
+>>>5     beshort&0x0FFF     0x01E0         \b NTSC 525
+>>>5     beshort&0x0FFF     0x0240         \b PAL 625
+>>>7     byte&0xF0          0x20           \b, 4:3
+>>>7     byte&0xF0          0x30           \b, 16:9
+>>>7     byte&0xF0          0x40           \b, 11:5
+>>7      byte&0x0F          1              \b, 23.976 fps
+>>7      byte&0x0F          2              \b, 24 fps
+>>7      byte&0x0F          3              \b, 25 fps
+>>7      byte&0x0F          4              \b, 29.97 fps
+>>7      byte&0x0F          5              \b, 30 fps
+>>7      byte&0x0F          6              \b, 50 fps
+>>7      byte&0x0F          7              \b, 59.94 fps
+>>7      byte&0x0F          8              \b, 60 fps
+>>11     byte               &0x04          \b, Constrained
+
+# MPEG ADTS Audio (*.mpx/mxa/aac)
+# from dreesen@math.fu-berlin.de
+# modified to fully support MPEG ADTS
+
+# MP3, M1A
+# modified by Joerg Jenderek
+# GRR the original test are too common for many DOS files
+# so don't accept as MP3 until we've tested the rate
+0       beshort&0xFFFE  0xFFFA
+# rates
+>2      byte&0xF0       0x10           MPEG ADTS, layer III, v1,  32 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0x20           MPEG ADTS, layer III, v1,  40 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0x30           MPEG ADTS, layer III, v1,  48 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0x40           MPEG ADTS, layer III, v1,  56 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0x50           MPEG ADTS, layer III, v1,  64 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0x60           MPEG ADTS, layer III, v1,  80 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0x70           MPEG ADTS, layer III, v1,  96 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0x80           MPEG ADTS, layer III, v1, 112 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0x90           MPEG ADTS, layer III, v1, 128 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0xA0           MPEG ADTS, layer III, v1, 160 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0xB0           MPEG ADTS, layer III, v1, 192 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0xC0           MPEG ADTS, layer III, v1, 224 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0xD0           MPEG ADTS, layer III, v1, 256 kbps
+!:mime	audio/mpeg
+>2      byte&0xF0       0xE0           MPEG ADTS, layer III, v1, 320 kbps
+!:mime	audio/mpeg
+# timing
+>2      byte&0x0C       0x00           \b, 44.1 kHz
+>2      byte&0x0C       0x04           \b, 48 kHz
+>2      byte&0x0C       0x08           \b, 32 kHz
+# channels/options
+>3      byte&0xC0       0x00           \b, Stereo
+>3      byte&0xC0       0x40           \b, JntStereo
+>3      byte&0xC0       0x80           \b, 2x Monaural
+>3      byte&0xC0       0xC0           \b, Monaural
+#>1     byte            ^0x01          \b, Data Verify
+#>2     byte            &0x02          \b, Packet Pad
+#>2     byte            &0x01          \b, Custom Flag
+#>3     byte            &0x08          \b, Copyrighted
+#>3     byte            &0x04          \b, Original Source
+#>3     byte&0x03       1              \b, NR: 50/15 ms
+#>3     byte&0x03       3              \b, NR: CCIT J.17
+
+# MP2, M1A
+0       beshort&0xFFFE  0xFFFC         MPEG ADTS, layer II, v1
+!:mime	audio/mpeg
+# rates
+>2      byte&0xF0       0x10           \b,  32 kbps
+>2      byte&0xF0       0x20           \b,  48 kbps
+>2      byte&0xF0       0x30           \b,  56 kbps
+>2      byte&0xF0       0x40           \b,  64 kbps
+>2      byte&0xF0       0x50           \b,  80 kbps
+>2      byte&0xF0       0x60           \b,  96 kbps
+>2      byte&0xF0       0x70           \b, 112 kbps
+>2      byte&0xF0       0x80           \b, 128 kbps
+>2      byte&0xF0       0x90           \b, 160 kbps
+>2      byte&0xF0       0xA0           \b, 192 kbps
+>2      byte&0xF0       0xB0           \b, 224 kbps
+>2      byte&0xF0       0xC0           \b, 256 kbps
+>2      byte&0xF0       0xD0           \b, 320 kbps
+>2      byte&0xF0       0xE0           \b, 384 kbps
+# timing
+>2      byte&0x0C       0x00           \b, 44.1 kHz
+>2      byte&0x0C       0x04           \b, 48 kHz
+>2      byte&0x0C       0x08           \b, 32 kHz
+# channels/options
+>3      byte&0xC0       0x00           \b, Stereo
+>3      byte&0xC0       0x40           \b, JntStereo
+>3      byte&0xC0       0x80           \b, 2x Monaural
+>3      byte&0xC0       0xC0           \b, Monaural
+#>1     byte            ^0x01          \b, Data Verify
+#>2     byte            &0x02          \b, Packet Pad
+#>2     byte            &0x01          \b, Custom Flag
+#>3     byte            &0x08          \b, Copyrighted
+#>3     byte            &0x04          \b, Original Source
+#>3     byte&0x03       1              \b, NR: 50/15 ms
+#>3     byte&0x03       3              \b, NR: CCIT J.17
+
+# MPA, M1A
+# updated by Joerg Jenderek
+# GRR the original test are too common for many DOS files, so test 32 <= kbits <= 448
+# GRR this test is still too general as it catches a BOM of UTF-16 files (0xFFFE)
+# FIXME: Almost all little endian UTF-16 text with BOM are clobbered by these entries
+#0	beshort&0xFFFE		0xFFFE
+#>2	ubyte&0xF0	>0x0F
+#>>2	ubyte&0xF0	<0xE1		MPEG ADTS, layer I, v1
+## rate
+#>>>2      byte&0xF0       0x10           \b,  32 kbps
+#>>>2      byte&0xF0       0x20           \b,  64 kbps
+#>>>2      byte&0xF0       0x30           \b,  96 kbps
+#>>>2      byte&0xF0       0x40           \b, 128 kbps
+#>>>2      byte&0xF0       0x50           \b, 160 kbps
+#>>>2      byte&0xF0       0x60           \b, 192 kbps
+#>>>2      byte&0xF0       0x70           \b, 224 kbps
+#>>>2      byte&0xF0       0x80           \b, 256 kbps
+#>>>2      byte&0xF0       0x90           \b, 288 kbps
+#>>>2      byte&0xF0       0xA0           \b, 320 kbps
+#>>>2      byte&0xF0       0xB0           \b, 352 kbps
+#>>>2      byte&0xF0       0xC0           \b, 384 kbps
+#>>>2      byte&0xF0       0xD0           \b, 416 kbps
+#>>>2      byte&0xF0       0xE0           \b, 448 kbps
+## timing
+#>>>2      byte&0x0C       0x00           \b, 44.1 kHz
+#>>>2      byte&0x0C       0x04           \b, 48 kHz
+#>>>2      byte&0x0C       0x08           \b, 32 kHz
+## channels/options
+#>>>3      byte&0xC0       0x00           \b, Stereo
+#>>>3      byte&0xC0       0x40           \b, JntStereo
+#>>>3      byte&0xC0       0x80           \b, 2x Monaural
+#>>>3      byte&0xC0       0xC0           \b, Monaural
+##>1     byte            ^0x01          \b, Data Verify
+##>2     byte            &0x02          \b, Packet Pad
+##>2     byte            &0x01          \b, Custom Flag
+##>3     byte            &0x08          \b, Copyrighted
+##>3     byte            &0x04          \b, Original Source
+##>3     byte&0x03       1              \b, NR: 50/15 ms
+##>3     byte&0x03       3              \b, NR: CCIT J.17
+
+# MP3, M2A
+0       beshort&0xFFFE  0xFFF2         MPEG ADTS, layer III, v2
+!:mime	audio/mpeg
+# rate
+>2      byte&0xF0       0x10           \b,   8 kbps
+>2      byte&0xF0       0x20           \b,  16 kbps
+>2      byte&0xF0       0x30           \b,  24 kbps
+>2      byte&0xF0       0x40           \b,  32 kbps
+>2      byte&0xF0       0x50           \b,  40 kbps
+>2      byte&0xF0       0x60           \b,  48 kbps
+>2      byte&0xF0       0x70           \b,  56 kbps
+>2      byte&0xF0       0x80           \b,  64 kbps
+>2      byte&0xF0       0x90           \b,  80 kbps
+>2      byte&0xF0       0xA0           \b,  96 kbps
+>2      byte&0xF0       0xB0           \b, 112 kbps
+>2      byte&0xF0       0xC0           \b, 128 kbps
+>2      byte&0xF0       0xD0           \b, 144 kbps
+>2      byte&0xF0       0xE0           \b, 160 kbps
+# timing
+>2      byte&0x0C       0x00           \b, 22.05 kHz
+>2      byte&0x0C       0x04           \b, 24 kHz
+>2      byte&0x0C       0x08           \b, 16 kHz
+# channels/options
+>3      byte&0xC0       0x00           \b, Stereo
+>3      byte&0xC0       0x40           \b, JntStereo
+>3      byte&0xC0       0x80           \b, 2x Monaural
+>3      byte&0xC0       0xC0           \b, Monaural
+#>1     byte            ^0x01          \b, Data Verify
+#>2     byte            &0x02          \b, Packet Pad
+#>2     byte            &0x01          \b, Custom Flag
+#>3     byte            &0x08          \b, Copyrighted
+#>3     byte            &0x04          \b, Original Source
+#>3     byte&0x03       1              \b, NR: 50/15 ms
+#>3     byte&0x03       3              \b, NR: CCIT J.17
+
+# MP2, M2A
+0       beshort&0xFFFE  0xFFF4         MPEG ADTS, layer II, v2
+!:mime	audio/mpeg
+# rate
+>2      byte&0xF0       0x10           \b,   8 kbps
+>2      byte&0xF0       0x20           \b,  16 kbps
+>2      byte&0xF0       0x30           \b,  24 kbps
+>2      byte&0xF0       0x40           \b,  32 kbps
+>2      byte&0xF0       0x50           \b,  40 kbps
+>2      byte&0xF0       0x60           \b,  48 kbps
+>2      byte&0xF0       0x70           \b,  56 kbps
+>2      byte&0xF0       0x80           \b,  64 kbps
+>2      byte&0xF0       0x90           \b,  80 kbps
+>2      byte&0xF0       0xA0           \b,  96 kbps
+>2      byte&0xF0       0xB0           \b, 112 kbps
+>2      byte&0xF0       0xC0           \b, 128 kbps
+>2      byte&0xF0       0xD0           \b, 144 kbps
+>2      byte&0xF0       0xE0           \b, 160 kbps
+# timing
+>2      byte&0x0C       0x00           \b, 22.05 kHz
+>2      byte&0x0C       0x04           \b, 24 kHz
+>2      byte&0x0C       0x08           \b, 16 kHz
+# channels/options
+>3      byte&0xC0       0x00           \b, Stereo
+>3      byte&0xC0       0x40           \b, JntStereo
+>3      byte&0xC0       0x80           \b, 2x Monaural
+>3      byte&0xC0       0xC0           \b, Monaural
+#>1     byte            ^0x01          \b, Data Verify
+#>2     byte            &0x02          \b, Packet Pad
+#>2     byte            &0x01          \b, Custom Flag
+#>3     byte            &0x08          \b, Copyrighted
+#>3     byte            &0x04          \b, Original Source
+#>3     byte&0x03       1              \b, NR: 50/15 ms
+#>3     byte&0x03       3              \b, NR: CCIT J.17
+
+# MPA, M2A
+0       beshort&0xFFFE  0xFFF6         MPEG ADTS, layer I, v2
+!:mime	audio/mpeg
+# rate
+>2      byte&0xF0       0x10           \b,  32 kbps
+>2      byte&0xF0       0x20           \b,  48 kbps
+>2      byte&0xF0       0x30           \b,  56 kbps
+>2      byte&0xF0       0x40           \b,  64 kbps
+>2      byte&0xF0       0x50           \b,  80 kbps
+>2      byte&0xF0       0x60           \b,  96 kbps
+>2      byte&0xF0       0x70           \b, 112 kbps
+>2      byte&0xF0       0x80           \b, 128 kbps
+>2      byte&0xF0       0x90           \b, 144 kbps
+>2      byte&0xF0       0xA0           \b, 160 kbps
+>2      byte&0xF0       0xB0           \b, 176 kbps
+>2      byte&0xF0       0xC0           \b, 192 kbps
+>2      byte&0xF0       0xD0           \b, 224 kbps
+>2      byte&0xF0       0xE0           \b, 256 kbps
+# timing
+>2      byte&0x0C       0x00           \b, 22.05 kHz
+>2      byte&0x0C       0x04           \b, 24 kHz
+>2      byte&0x0C       0x08           \b, 16 kHz
+# channels/options
+>3      byte&0xC0       0x00           \b, Stereo
+>3      byte&0xC0       0x40           \b, JntStereo
+>3      byte&0xC0       0x80           \b, 2x Monaural
+>3      byte&0xC0       0xC0           \b, Monaural
+#>1     byte            ^0x01          \b, Data Verify
+#>2     byte            &0x02          \b, Packet Pad
+#>2     byte            &0x01          \b, Custom Flag
+#>3     byte            &0x08          \b, Copyrighted
+#>3     byte            &0x04          \b, Original Source
+#>3     byte&0x03       1              \b, NR: 50/15 ms
+#>3     byte&0x03       3              \b, NR: CCIT J.17
+
+# MP3, M25A
+0       beshort&0xFFFE  0xFFE2         MPEG ADTS, layer III,  v2.5
+!:mime	audio/mpeg
+# rate
+>2      byte&0xF0       0x10           \b,   8 kbps
+>2      byte&0xF0       0x20           \b,  16 kbps
+>2      byte&0xF0       0x30           \b,  24 kbps
+>2      byte&0xF0       0x40           \b,  32 kbps
+>2      byte&0xF0       0x50           \b,  40 kbps
+>2      byte&0xF0       0x60           \b,  48 kbps
+>2      byte&0xF0       0x70           \b,  56 kbps
+>2      byte&0xF0       0x80           \b,  64 kbps
+>2      byte&0xF0       0x90           \b,  80 kbps
+>2      byte&0xF0       0xA0           \b,  96 kbps
+>2      byte&0xF0       0xB0           \b, 112 kbps
+>2      byte&0xF0       0xC0           \b, 128 kbps
+>2      byte&0xF0       0xD0           \b, 144 kbps
+>2      byte&0xF0       0xE0           \b, 160 kbps
+# timing
+>2      byte&0x0C       0x00           \b, 11.025 kHz
+>2      byte&0x0C       0x04           \b, 12 kHz
+>2      byte&0x0C       0x08           \b, 8 kHz
+# channels/options
+>3      byte&0xC0       0x00           \b, Stereo
+>3      byte&0xC0       0x40           \b, JntStereo
+>3      byte&0xC0       0x80           \b, 2x Monaural
+>3      byte&0xC0       0xC0           \b, Monaural
+#>1     byte            ^0x01          \b, Data Verify
+#>2     byte            &0x02          \b, Packet Pad
+#>2     byte            &0x01          \b, Custom Flag
+#>3     byte            &0x08          \b, Copyrighted
+#>3     byte            &0x04          \b, Original Source
+#>3     byte&0x03       1              \b, NR: 50/15 ms
+#>3     byte&0x03       3              \b, NR: CCIT J.17
+
+# AAC (aka MPEG-2 NBC audio) and MPEG-4 audio
+
+# Stored AAC streams (instead of the MP4 format)
+0       string          ADIF           MPEG ADIF, AAC
+!:mime	audio/x-hx-aac-adif
+>4      byte            &0x80
+>>13    byte            &0x10          \b, VBR
+>>13    byte            ^0x10          \b, CBR
+>>16    byte&0x1E       0x02           \b, single stream
+>>16    byte&0x1E       0x04           \b, 2 streams
+>>16    byte&0x1E       0x06           \b, 3 streams
+>>16    byte            &0x08          \b, 4 or more streams
+>>16    byte            &0x10          \b, 8 or more streams
+>>4    byte            &0x80          \b, Copyrighted
+>>13   byte            &0x40          \b, Original Source
+>>13   byte            &0x20          \b, Home Flag
+>4      byte            ^0x80
+>>4     byte            &0x10          \b, VBR
+>>4     byte            ^0x10          \b, CBR
+>>7     byte&0x1E       0x02           \b, single stream
+>>7     byte&0x1E       0x04           \b, 2 streams
+>>7     byte&0x1E       0x06           \b, 3 streams
+>>7     byte            &0x08          \b, 4 or more streams
+>>7     byte            &0x10          \b, 8 or more streams
+>>4    byte            &0x40          \b, Original Stream(s)
+>>4    byte            &0x20          \b, Home Source
+
+# Live or stored single AAC stream (used with MPEG-2 systems)
+0       beshort&0xFFF6  0xFFF0         MPEG ADTS, AAC
+!:mime	audio/x-hx-aac-adts
+>1      byte            &0x08          \b, v2
+>1      byte            ^0x08          \b, v4
+# profile
+>>2     byte            &0xC0          \b LTP
+>2      byte&0xc0       0x00           \b Main
+>2      byte&0xc0       0x40           \b LC
+>2      byte&0xc0       0x80           \b SSR
+# timing
+>2      byte&0x3c       0x00           \b, 96 kHz
+>2      byte&0x3c       0x04           \b, 88.2 kHz
+>2      byte&0x3c       0x08           \b, 64 kHz
+>2      byte&0x3c       0x0c           \b, 48 kHz
+>2      byte&0x3c       0x10           \b, 44.1 kHz
+>2      byte&0x3c       0x14           \b, 32 kHz
+>2      byte&0x3c       0x18           \b, 24 kHz
+>2      byte&0x3c       0x1c           \b, 22.05 kHz
+>2      byte&0x3c       0x20           \b, 16 kHz
+>2      byte&0x3c       0x24           \b, 12 kHz
+>2      byte&0x3c       0x28           \b, 11.025 kHz
+>2      byte&0x3c       0x2c           \b, 8 kHz
+# channels
+>2      beshort&0x01c0  0x0040         \b, monaural
+>2      beshort&0x01c0  0x0080         \b, stereo
+>2      beshort&0x01c0  0x00c0         \b, stereo + center
+>2      beshort&0x01c0  0x0100         \b, stereo+center+LFE
+>2      beshort&0x01c0  0x0140         \b, surround
+>2      beshort&0x01c0  0x0180         \b, surround + LFE
+>2      beshort         &0x01C0        \b, surround + side
+#>1     byte            ^0x01           \b, Data Verify
+#>2     byte            &0x02           \b, Custom Flag
+#>3     byte            &0x20           \b, Original Stream
+#>3     byte            &0x10           \b, Home Source
+#>3     byte            &0x08           \b, Copyrighted
+
+# Live MPEG-4 audio streams (instead of RTP FlexMux)
+0       beshort&0xFFE0  0x56E0         MPEG-4 LOAS
+!:mime	audio/x-mp4a-latm
+#>1     beshort&0x1FFF  x              \b, %hu byte packet
+>3      byte&0xE0       0x40
+>>4     byte&0x3C       0x04           \b, single stream
+>>4     byte&0x3C       0x08           \b, 2 streams
+>>4     byte&0x3C       0x0C           \b, 3 streams
+>>4     byte            &0x08          \b, 4 or more streams
+>>4     byte            &0x20          \b, 8 or more streams
+>3      byte&0xC0       0
+>>4     byte&0x78       0x08           \b, single stream
+>>4     byte&0x78       0x10           \b, 2 streams
+>>4     byte&0x78       0x18           \b, 3 streams
+>>4     byte            &0x20          \b, 4 or more streams
+>>4     byte            &0x40          \b, 8 or more streams
+# This magic isn't strong enough (matches plausible ISO-8859-1 text)
+#0       beshort         0x4DE1         MPEG-4 LO-EP audio stream
+#!:mime	audio/x-mp4a-latm
+
+# Summary: FLI animation format
+# Created by: Daniel Quinlan <quinlan@yggdrasil.com>
+# Modified by (1): Abel Cheung <abelcheung@gmail.com> (avoid over-generic detection)
+4	leshort		0xAF11
+# standard FLI always has 320x200 resolution and 8 bit color
+>8	leshort		320
+>>10	leshort		200
+>>>12	leshort		8			FLI animation, 320x200x8
+!:mime	video/x-fli
+>>>>6	leshort		x			\b, %d frames
+# frame speed is multiple of 1/70s
+>>>>16	leshort		x			\b, %d/70s per frame
+
+# Summary: FLC animation format
+# Created by: Daniel Quinlan <quinlan@yggdrasil.com>
+# Modified by (1): Abel Cheung <abelcheung@gmail.com> (avoid over-generic detection)
+4	leshort		0xAF12
+# standard FLC always use 8 bit color
+>12	leshort		8			FLC animation
+!:mime	video/x-flc
+>>8	leshort		x			\b, %d
+>>10	leshort		x			\bx%dx8
+>>6	uleshort	x			\b, %d frames
+>>16	uleshort	x			\b, %dms per frame
+
+# DL animation format
+# XXX - collision with most `mips' magic
+#
+# I couldn't find a real magic number for these, however, this
+# -appears- to work.  Note that it might catch other files, too, so be
+# careful!
+#
+# Note that title and author appear in the two 20-byte chunks
+# at decimal offsets 2 and 22, respectively, but they are XOR'ed with
+# 255 (hex FF)!  The DL format is really bad.
+#
+#0	byte	1	DL version 1, medium format (160x100, 4 images/screen)
+#!:mime	video/x-unknown
+#>42	byte	x	- %d screens,
+#>43	byte	x	%d commands
+#0	byte	2	DL version 2
+#!:mime	video/x-unknown
+#>1	byte	1	- large format (320x200,1 image/screen),
+#>1	byte	2	- medium format (160x100,4 images/screen),
+#>1	byte	>2	- unknown format,
+#>42	byte	x	%d screens,
+#>43	byte	x	%d commands
+# Based on empirical evidence, DL version 3 have several nulls following the
+# \003.  Most of them start with non-null values at hex offset 0x34 or so.
+#0	string	\3\0\0\0\0\0\0\0\0\0\0\0	DL version 3
+
+# iso 13818 transport stream
+#
+# from Oskar Schirmer <schirmer@scara.com> Feb 3, 2001 (ISO 13818.1)
+# syncbyte      8 bit	0x47
+# error_ind     1 bit	-
+# payload_start 1 bit	1
+# priority      1 bit	-
+# PID          13 bit	0x0000
+# scrambling    2 bit	-
+# adaptfld_ctrl 2 bit	1 or 3
+# conti_count   4 bit	-
+0	belong&0xFF5FFF10	0x47400010
+>188	byte			0x47		MPEG transport stream data
+
+# DIF digital video file format <mpruett@sgi.com>
+0	belong&0xffffff00	0x1f070000      DIF
+>4	byte			&0x01		(DVCPRO) movie file
+>4	byte			^0x01		(DV) movie file
+>3	byte			&0x80		(PAL)
+>3	byte			^0x80		(NTSC)
+
+# Microsoft Advanced Streaming Format (ASF) <mpruett@sgi.com>
+0	belong			0x3026b275	Microsoft ASF
+!:mime  video/x-ms-asf
+
+# MNG Video Format, <URL:http://www.libpng.org/pub/mng/spec/>
+0	string			\x8aMNG		MNG video data,
+!:mime	video/x-mng
+>4	belong			!0x0d0a1a0a	CORRUPTED,
+>4	belong			0x0d0a1a0a
+>>16    belong	x				%d x
+>>20    belong	x				%d
+
+# JNG Video Format, <URL:http://www.libpng.org/pub/mng/spec/>
+0	string			\x8bJNG		JNG video data,
+!:mime	video/x-jng
+>4	belong			!0x0d0a1a0a	CORRUPTED,
+>4	belong			0x0d0a1a0a
+>>16    belong	x				%d x
+>>20    belong	x				%d
+
+# Vivo video (Wolfram Kleff)
+3	string		\x0D\x0AVersion:Vivo	Vivo video data
+
+# VRML (Virtual Reality Modelling Language)
+0       string/w        #VRML\ V1.0\ ascii	VRML 1 file
+!:mime	model/vrml
+0	string/w	#VRML\ V2.0\ utf8	ISO/IEC 14772 VRML 97 file
+!:mime	model/vrml
+
+# X3D (Extensible 3D) [http://www.web3d.org/specifications/x3d-3.0.dtd]
+# From Michel Briand <michelbriand@free.fr>
+# mimetype from https://www.iana.org/assignments/media-types/model/x3d+xml
+# Example http://www.web3d.org/x3d/content/examples/Basic/course/CreateX3DFromStringRandomSpheres.x3d
+0	string/w	\<?xml\ version=
+!:strength + 5
+>20	search/1000/w	\<!DOCTYPE\ X3D		X3D (Extensible 3D) model xml text
+!:mime model/x3d+xml
+
+#---------------------------------------------------------------------------
+# HVQM4: compressed movie format designed by Hudson for Nintendo GameCube
+# From Mark Sheppard <msheppard@climax.co.uk>, 2002-10-03
+#
+0	string		HVQM4		%s
+>6	string		>\0		v%s
+>0	byte		x		GameCube movie,
+>0x34	ubeshort	x		%d x
+>0x36	ubeshort	x		%d,
+>0x26	ubeshort	x		%dus,
+>0x42	ubeshort	0		no audio
+>0x42	ubeshort	>0		%dHz audio
+
+# From: "Stefan A. Haubenthal" <polluks@web.de>
+0	string		DVDVIDEO-VTS	Video title set,
+>0x21	byte		x		v%x
+0	string		DVDVIDEO-VMG	Video manager,
+>0x21	byte		x		v%x
+
+# From: Behan Webster <behanw@websterwood.com>
+# NuppelVideo used by Mythtv (*.nuv)
+# Note: there are two identical stanzas here differing only in the
+# initial string matched. It used to be done with a regex, but we're
+# trying to get rid of those.
+0	string		NuppelVideo	MythTV NuppelVideo
+>12	string		x		v%s
+>20	lelong		x		(%d
+>24	lelong		x		\bx%d),
+>36	string		P		\bprogressive,
+>36	string		I		\binterlaced,
+>40	ledouble	x		\baspect:%.2f,
+>48	ledouble	x		\bfps:%.2f
+0	string		MythTV		MythTV NuppelVideo
+>12	string		x		v%s
+>20	lelong		x		(%d
+>24	lelong		x		\bx%d),
+>36	string		P		\bprogressive,
+>36	string		I		\binterlaced,
+>40	ledouble	x		\baspect:%.2f,
+>48	ledouble	x		\bfps:%.2f
+
+#						MPEG file
+# MPEG sequences
+# FIXME: This section is from the old magic.mime file and needs
+# integrating with the rest
+#0       belong             0x000001BA
+#>4      byte               &0x40
+#!:mime	video/mp2p
+#>4      byte               ^0x40
+#!:mime	video/mpeg
+#0       belong             0x000001BB
+#!:mime	video/mpeg
+#0       belong             0x000001B0
+#!:mime	video/mp4v-es
+#0       belong             0x000001B5
+#!:mime	video/mp4v-es
+#0       belong             0x000001B3
+#!:mime	video/mpv
+#0       belong&0xFF5FFF10  0x47400010
+#!:mime	video/mp2t
+#0       belong             0x00000001
+#>4      byte&0x1F	   0x07
+#!:mime	video/h264
+
+# Type: Bink Video
+# Extension: .bik
+# URL:  http://wiki.multimedia.cx/index.php?title=Bink_Container
+# From: <hoehle@users.sourceforge.net>  2008-07-18
+0	string		BIK	Bink Video
+>3	regex		=[a-z]	rev.%s
+#>4	ulelong		x	size %d
+>20	ulelong		x	\b, %d
+>24	ulelong		x	\bx%d
+>8	ulelong		x	\b, %d frames
+>32	ulelong		x	at rate %d/
+>28	ulelong		>1	\b%d
+>40	ulelong		=0	\b, no audio
+>40	ulelong		!0	\b, %d audio track
+>>40	ulelong		!1	\bs
+# follow properties of the first audio track only
+>>48	uleshort	x	%dHz
+>>51	byte&0x20	0	mono
+>>51	byte&0x20	!0	stereo
+#>>51	byte&0x10	0	FFT
+#>>51	byte&0x10	!0	DCT
+
+# Type:	NUT Container
+# URL:	http://wiki.multimedia.cx/index.php?title=NUT
+# From:	Adam Buchbinder <adam.buchbinder@gmail.com>
+0	string	nut/multimedia\ container\0	NUT multimedia container
+
+# Type: Nullsoft Video (NSV)
+# URL:  http://wiki.multimedia.cx/index.php?title=Nullsoft_Video
+# From: Mike Melanson <mike@multimedia.cx>
+0	string	NSVf	Nullsoft Video
+
+# Type: REDCode Video
+# URL:  http://www.red.com/ ; http://wiki.multimedia.cx/index.php?title=REDCode
+# From: Mike Melanson <mike@multimedia.cx>
+4	string	RED1	REDCode Video
+
+# Type: MTV Multimedia File
+# URL:  http://wiki.multimedia.cx/index.php?title=MTV
+# From: Mike Melanson <mike@multimedia.cx>
+0	string	AMVS	MTV Multimedia File
+
+# Type: ARMovie
+# URL:  http://wiki.multimedia.cx/index.php?title=ARMovie
+# From: Mike Melanson <mike@multimedia.cx>
+0	string	ARMovie\012	ARMovie
+
+# Type: Interplay MVE Movie
+# URL:  http://wiki.multimedia.cx/index.php?title=Interplay_MVE
+# From: Mike Melanson <mike@multimedia.cx>
+0	string	Interplay\040MVE\040File\032	Interplay MVE Movie
+
+# Type: Windows Television DVR File
+# URL:  http://wiki.multimedia.cx/index.php?title=WTV
+# From: Mike Melanson <mike@mutlimedia.cx>
+# This takes the form of a Windows-style GUID
+0	bequad	0xB7D800203749DA11
+>8	bequad	0xA64E0007E95EAD8D	Windows Television DVR Media
+
+# Type: Sega FILM/CPK Multimedia
+# URL:  http://wiki.multimedia.cx/index.php?title=Sega_FILM
+# From: Mike Melanson <mike@multimedia.cx>
+0	string	FILM	Sega FILM/CPK Multimedia,
+>32	belong	x	%d x
+>28	belong	x	%d
+
+# Type: Nintendo THP Multimedia
+# URL:  http://wiki.multimedia.cx/index.php?title=THP
+# From: Mike Melanson <mike@multimedia.cx>
+0	string	THP\0	Nintendo THP Multimedia
+
+# Type: BBC Dirac Video
+# URL:  http://wiki.multimedia.cx/index.php?title=Dirac
+# From: Mike Melanson <mike@multimedia.cx>
+0	string	BBCD	BBC Dirac Video
+
+# Type: RAD Game Tools Smacker Multimedia
+# URL:  http://wiki.multimedia.cx/index.php?title=Smacker
+# From: Mike Melanson <mike@multimedia.cx>
+0	string	SMK	RAD Game Tools Smacker Multimedia
+>3	byte	x	version %c,
+>4	lelong	x	%d x
+>8	lelong	x	%d,
+>12	lelong	x	%d frames
+
+# Material Exchange Format
+# More information:
+# https://en.wikipedia.org/wiki/Material_Exchange_Format
+# http://www.freemxf.org/
+0	string	\x06\x0e\x2b\x34\x02\x05\x01\x01\x0d\x01\x02\x01\x01\x02	Material exchange container format
+!:ext	mxf
+!:mime	application/mxf
+
+# Recognize LucasArts Smush video files (cf.
+# https://wiki.multimedia.cx/index.php/Smush)
+0	string	ANIM
+>8	string	AHDR	LucasArts Smush Animation Format (SAN) video
+0	string	SANM
+>8	string	SHDR	LucasArts Smush v2 (SANM) video

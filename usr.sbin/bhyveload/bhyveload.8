@@ -1,0 +1,175 @@
+.\"
+.\" Copyright (c) 2012 NetApp Inc
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 24, 2016
+.Dt BHYVELOAD 8
+.Os
+.Sh NAME
+.Nm bhyveload
+.Nd load a
+.Fx
+guest inside a bhyve virtual machine
+.Sh SYNOPSIS
+.Nm
+.Op Fl C
+.Op Fl S
+.Op Fl c Ar cons-dev
+.Op Fl d Ar disk-path
+.Op Fl e Ar name=value
+.Op Fl h Ar host-path
+.Op Fl l Ar os-loader
+.Op Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
+.Ar vmname
+.Sh DESCRIPTION
+.Nm
+is used to load a
+.Fx
+guest inside a
+.Xr bhyve 4
+virtual machine.
+.Pp
+.Nm
+is based on
+.Xr loader 8
+and will present an interface identical to the
+.Fx
+loader on the user's terminal.
+This behavior can be changed by specifying a different OS loader.
+.Pp
+The virtual machine is identified as
+.Ar vmname
+and will be created if it does not already exist.
+.Sh OPTIONS
+The following options are available:
+.Bl -tag -width indent
+.It Fl c Ar cons-dev
+.Ar cons-dev
+is a
+.Xr tty 4
+device to use for
+.Nm
+terminal I/O.
+.Pp
+The text string "stdio" is also accepted and selects the use of
+unbuffered standard I/O. This is the default value.
+.It Fl d Ar disk-path
+The
+.Ar disk-path
+is the pathname of the guest's boot disk image.
+.It Fl e Ar name=value
+Set the
+.Fx
+loader environment variable
+.Ar name
+to
+.Ar value .
+.Pp
+The option may be used more than once to set more than one environment
+variable.
+.It Fl h Ar host-path
+The
+.Ar host-path
+is the directory at the top of the guest's boot filesystem.
+.It Fl l Ar os-loader
+Specify a different OS loader.
+By default
+.Nm
+will use
+.Pa /boot/userboot.so ,
+which presents a standard
+.Fx
+loader.
+.It Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
+.Ar memsize
+is the amount of memory allocated to the guest.
+.Pp
+The
+.Ar memsize
+argument may be suffixed with one of
+.Cm K ,
+.Cm M ,
+.Cm G
+or
+.Cm T
+(either upper or lower case) to indicate a multiple of
+Kilobytes, Megabytes, Gigabytes or Terabytes
+respectively.
+.Pp
+.Ar memsize
+defaults to 256M.
+.It Fl C
+Include guest memory in the core file when
+.Nm
+dumps core.
+This is intended for debugging an OS loader as it allows inspection of
+the guest memory.
+.It Fl S
+Wire guest memory.
+.El
+.Sh EXAMPLES
+To create a virtual machine named
+.Ar freebsd-vm
+that boots off the ISO image
+.Pa /freebsd/release.iso
+and has 1GB memory allocated to it:
+.Pp
+.Dl "bhyveload -m 1G -d /freebsd/release.iso freebsd-vm"
+.Pp
+To create a virtual machine named
+.Ar test-vm
+with 256MB of memory allocated, the guest root filesystem under the host
+directory
+.Pa /user/images/test
+and terminal I/O sent to the
+.Xr nmdm 4
+device
+.Pa /dev/nmdm1B
+.Pp
+.Dl "bhyveload -m 256MB -h /usr/images/test -c /dev/nmdm1B test-vm"
+.Sh SEE ALSO
+.Xr bhyve 4 ,
+.Xr nmdm 4 ,
+.Xr vmm 4 ,
+.Xr bhyve 8 ,
+.Xr loader 8
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 10.0 ,
+and was developed at NetApp Inc.
+.Sh AUTHORS
+.Nm
+was developed by
+.An -nosplit
+.An Neel Natu Aq Mt neel@FreeBSD.org
+at NetApp Inc with a lot of help from
+.An Doug Rabson Aq Mt dfr@FreeBSD.org .
+.Sh BUGS
+.Nm
+can only load
+.Fx
+as a guest.

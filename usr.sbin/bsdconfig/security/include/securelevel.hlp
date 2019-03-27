@@ -1,0 +1,40 @@
+This menu allows you to configure the Securelevel mechanism in FreeBSD.
+
+Securelevels may be used to limit the privileges assigned to the
+root user in multi-user mode, which in turn may limit the effects of
+a root compromise, at the cost of reducing administrative functions.
+Refer to the security(7) and init(8) manual pages for complete details.
+
+   -1    Permanently insecure mode - always run the system in level 0
+         mode.  This is the default initial value.
+
+   0     Insecure mode - immutable and append-only flags may be turned
+         off.  All devices may be read or written subject to their
+         permissions.
+
+   1     Secure mode - the system immutable and system append-only
+         flags may not be turned off; disks for mounted file systems,
+         /dev/mem, /dev/kmem and /dev/io (if your platform has it)
+         may not be opened for writing; kernel modules (see kld(4))
+         may not be loaded or unloaded.
+
+   2     Highly secure mode - same as secure mode, plus disks may not
+         be opened for writing (except by mount(2)) whether mounted or
+         not.  This level precludes tampering with file systems by
+         unmounting them, but also inhibits running newfs(8) while the
+         system is multi-user.
+
+         In addition, kernel time changes are restricted to less than
+         or equal to one second.  Attempts to change the time by more
+         than this will log the message ``Time adjustment clamped to +1
+         second''.
+
+   3     Network secure mode - same as highly secure mode, plus IP
+         packet filter rules (see ipfw(8), ipfirewall(4) and pfctl(8))
+         cannot be changed and dummynet(4) or pf(4) configuration
+         cannot be adjusted.
+
+Securelevels must be used in combination with careful system design and
+application of protective mechanisms to prevent system configuration
+files from being modified in a way that compromises the protections of
+the securelevel variable upon reboot.

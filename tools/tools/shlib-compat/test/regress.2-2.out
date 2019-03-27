@@ -1,0 +1,9 @@
+Original versions:    TEST_1.0, TEST_1.1
+New versions:         TEST_1.0, TEST_1.1
+func1@TEST_1.0: definitions match
+func2@TEST_1.0: definitions match
+func3@TEST_1.0: definitions match
+func4@TEST_1.0: definitions match
+func5@TEST_1.0: definitions match
+func6@TEST_1.0: definitions match
+func1@TEST_1.1: definitions match

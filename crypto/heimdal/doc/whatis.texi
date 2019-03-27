@@ -1,0 +1,161 @@
+@c $Id$
+
+@node What is Kerberos?, Building and Installing, Introduction, Top
+@chapter What is Kerberos?
+
+@quotation
+@flushleft
+        Now this Cerberus had three heads of dogs,
+        the tail of a dragon, and on his back the
+        heads of all sorts of snakes.
+        --- Pseudo-Apollodorus Library 2.5.12
+@end flushleft
+@end quotation
+
+Kerberos is a system for authenticating users and services on a network.
+It is built upon the assumption that the network is ``unsafe''.  For
+example, data sent over the network can be eavesdropped and altered, and
+addresses can also be faked.  Therefore they cannot be used for
+authentication purposes.
+@cindex authentication
+
+Kerberos is a trusted third-party service.  That means that there is a
+third party (the kerberos server) that is trusted by all the entities on
+the network (users and services, usually called @dfn{principals}).  All
+principals share a secret password (or key) with the kerberos server and
+this enables principals to verify that the messages from the kerberos
+server are authentic.  Thus trusting the kerberos server, users and
+services can authenticate each other.
+
+@section Basic mechanism
+
+@ifinfo
+@macro sub{arg}
+<\arg\>
+@end macro
+@end ifinfo
+
+@tex
+@def@xsub#1{$_{#1}$}
+@global@let@sub=@xsub
+@end tex
+
+@ifhtml
+@macro sub{arg}
+@html
+<sub>\arg\</sub>
+@end html
+@end macro
+@end ifhtml
+
+@c ifdocbook
+@c macro sub{arg}
+@c docbook
+@c <subscript>\arg\</subscript>
+@c end docbook
+@c end macro
+@c end ifdocbook
+
+@quotation
+@strong{Note} This discussion is about Kerberos version 4, but version
+5 works similarly.
+@end quotation
+
+In Kerberos, principals use @dfn{tickets} to prove that they are who
+they claim to be. In the following example, @var{A} is the initiator of
+the authentication exchange, usually a user, and @var{B} is the service
+that @var{A} wishes to use.
+
+To obtain a ticket for a specific service, @var{A} sends a ticket
+request to the kerberos server. The request contains @var{A}'s and
+@var{B}'s names (along with some other fields). The kerberos server
+checks that both @var{A} and @var{B} are valid principals.
+
+Having verified the validity of the principals, it creates a packet
+containing @var{A}'s and @var{B}'s names, @var{A}'s network address
+(@var{A@sub{addr}}), the current time (@var{t@sub{issue}}), the lifetime
+of the ticket (@var{life}), and a secret @dfn{session key}
+@cindex session key
+(@var{K@sub{AB}}). This packet is encrypted with @var{B}'s secret key
+(@var{K@sub{B}}).  The actual ticket (@var{T@sub{AB}}) looks like this:
+(@{@var{A}, @var{B}, @var{A@sub{addr}}, @var{t@sub{issue}}, @var{life},
+@var{K@sub{AB}}@}@var{K@sub{B}}).
+
+The reply to @var{A} consists of the ticket (@var{T@sub{AB}}), @var{B}'s
+name, the current time, the lifetime of the ticket, and the session key, all
+encrypted in @var{A}'s secret key (@{@var{B}, @var{t@sub{issue}},
+@var{life}, @var{K@sub{AB}}, @var{T@sub{AB}}@}@var{K@sub{A}}). @var{A}
+decrypts the reply and retains it for later use.
+
+@sp 1
+
+Before sending a message to @var{B}, @var{A} creates an authenticator
+consisting of @var{A}'s name, @var{A}'s address, the current time, and a
+``checksum'' chosen by @var{A}, all encrypted with the secret session
+key (@{@var{A}, @var{A@sub{addr}}, @var{t@sub{current}},
+@var{checksum}@}@var{K@sub{AB}}). This is sent together with the ticket
+received from the kerberos server to @var{B}.  Upon reception, @var{B}
+decrypts the ticket using @var{B}'s secret key.  Since the ticket
+contains the session key that the authenticator was encrypted with,
+@var{B} can now also decrypt the authenticator. To verify that @var{A}
+really is @var{A}, @var{B} now has to compare the contents of the ticket
+with that of the authenticator. If everything matches, @var{B} now
+considers @var{A} as properly authenticated.
+
+@c (here we should have some more explanations)
+
+@section Different attacks
+
+@subheading Impersonating A
+
+An impostor, @var{C} could steal the authenticator and the ticket as it
+is transmitted across the network, and use them to impersonate
+@var{A}. The address in the ticket and the authenticator was added to
+make it more difficult to perform this attack.  To succeed @var{C} will
+have to either use the same machine as @var{A} or fake the source
+addresses of the packets. By including the time stamp in the
+authenticator, @var{C} does not have much time in which to mount the
+attack.
+
+@subheading Impersonating B
+
+@var{C} can hijack @var{B}'s network address, and when @var{A} sends
+her credentials, @var{C} just pretend to verify them. @var{C} can't
+be sure that she is talking to @var{A}.
+
+@section Defence strategies
+
+It would be possible to add a @dfn{replay cache}
+@cindex replay cache
+to the server side.  The idea is to save the authenticators sent during
+the last few minutes, so that @var{B} can detect when someone is trying
+to retransmit an already used message. This is somewhat impractical
+(mostly regarding efficiency), and is not part of Kerberos 4; MIT
+Kerberos 5 contains it.
+
+To authenticate @var{B}, @var{A} might request that @var{B} sends
+something back that proves that @var{B} has access to the session
+key. An example of this is the checksum that @var{A} sent as part of the
+authenticator. One typical procedure is to add one to the checksum,
+encrypt it with the session key and send it back to @var{A}.  This is
+called @dfn{mutual authentication}.
+
+The session key can also be used to add cryptographic checksums to the
+messages sent between @var{A} and @var{B} (known as @dfn{message
+integrity}).  Encryption can also be added (@dfn{message
+confidentiality}). This is probably the best approach in all cases.
+@cindex integrity
+@cindex confidentiality
+
+@section Further reading
+
+The original paper on Kerberos from 1988 is @cite{Kerberos: An
+Authentication Service for Open Network Systems}, by Jennifer Steiner,
+Clifford Neuman and Jeffrey I. Schiller.
+
+A less technical description can be found in @cite{Designing an
+Authentication System: a Dialogue in Four Scenes} by Bill Bryant, also
+from 1988.
+
+These documents can be found on our web-page at
+@url{http://www.pdc.kth.se/kth-krb/}.

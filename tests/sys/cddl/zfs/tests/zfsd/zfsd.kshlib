@@ -1,0 +1,85 @@
+#!/usr/local/bin/ksh93 -p
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2013 Spectra Logic.  All rights reserved.
+# Use is subject to license terms.
+#
+
+# Common routines used by multiple zfsd tests
+
+function wait_for_pool_dev_state_change
+{
+	typeset -i timeout=$1
+	typeset disk=$2
+	typeset state=$3
+
+	log_note "Waiting up to $timeout seconds for $disk to become $state ..."
+	for ((; $timeout > 0; timeout=$timeout-1)); do
+		check_state $TESTPOOL "$disk" "$state"
+		[ $? -eq 0 ] && return
+		$SLEEP 1
+	done
+	log_must $ZPOOL status $TESTPOOL
+	log_fail "ERROR: Disk $disk not marked as $state in $TESTPOOL"
+}
+
+function wait_for_pool_removal
+{
+	typeset -i timeout=$1
+	wait_for_pool_dev_state_change $timeout $REMOVAL_DISK "REMOVED|UNAVAIL"
+}
+
+function wait_until_scrubbed
+{
+	typeset pool=$1
+
+	while is_pool_scrubbing $pool; do
+		log_note "$pool still scrubbing..."
+		$SLEEP 1
+	done
+}
+
+function corrupt_pool_vdev
+{
+	typeset pool=$1
+	typeset vdev=$2
+	typeset file=$3
+
+	# do some IO on the pool
+	log_must $DD if=/dev/zero of=$file bs=1024k count=64
+	$FSYNC $file
+
+	# scribble on the underlying file to corrupt the vdev
+	log_must $DD if=/dev/urandom of=$vdev bs=1024k count=64 conv=notrunc
+
+	# Scrub the pool to detect the corruption
+	log_must $ZPOOL scrub $pool
+	wait_until_scrubbed $pool
+
+	# ZFSD can take up to 60 seconds to degrade an array in response to
+	# errors (though it's usually faster).  
+	wait_for_pool_dev_state_change 60 $vdev DEGRADED
+}

@@ -1,0 +1,12 @@
+@node Building and Installing, Setting up a realm, What is Kerberos?, Top
+@comment  node-name,  next,  previous,  up
+@chapter Building and Installing
+
+Build and install instructions are located here:
+
+@url{http://www.h5l.org/compile.html}
+
+Prebuilt packages is located here:
+
+@url{http://www.h5l.org/binaries.html}
+

@@ -1,0 +1,17 @@
+$ $tcsh: set17,v 1.4 2011/02/04 18:19:33 christos Exp $
+$ sh.proc.c
+$set 17 
+1 BUG: ootan taustatöö järel!\n
+2 Exit %d\n
+3 BUG: process flushed twice
+4 Töötab 
+5 Signaal 
+6 Exit %-25d
+7 Valmis
+8 BUG: staatus=%-9o
+9 \040(mälupilt päästetud)
+10 \040(töökataloog:
+11 (töökataloog nüüd: 
+12 %S: Juba peatatud\n
+13 %S: Juba seisatud\n
+14 %S: Badly formed number\n

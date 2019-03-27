@@ -1,0 +1,93 @@
+#!/usr/bin/perl -w
+
+# $FreeBSD$
+
+# This script takes a filename and revision number as arguments
+# and spits out a list of other files and their revisions that share
+# the same log message.  This is done by referring to the database
+# previously written by running make_commit_db.
+
+use strict;
+use Digest::MD5 qw(md5_hex);
+
+my $dbname = "commitsdb";
+
+# Take the filename and revision number from the command line.
+# Also take a flag to say whether to generate a patch or not.
+my ($file, $revision, $genpatch) = (shift, shift, shift);
+
+# Find the checksum of the named revision.
+my %possible_files;
+open DB, "< $dbname" or die "$!\n";
+my $cksum;
+while (<DB>) {
+	chomp;
+	my ($name, $rev, $hash) = split;
+	$name =~ s/^\.\///g;
+
+	$possible_files{$name} = 1 if $file !~ /\// && $name =~ /^.*\/$file/;
+
+	next unless $name eq $file and $rev eq $revision;
+	$cksum = $hash;
+}
+close DB;
+
+# Handle the fall-out if the file/revision wasn't matched.
+unless ($cksum) {
+	if (%possible_files) {
+		print "Couldn't find the file. Maybe you meant:\n";
+		foreach (sort keys %possible_files) {
+			print "\t$_\n";
+		}
+	}
+	die "Can't find $file rev $revision in database\n";
+}
+
+
+# Look for similar revisions.
+my @results;
+open DB, "< $dbname" or die "$!\n";
+while (<DB>) {
+	chomp;
+	my ($name, $rev, $hash) = split;
+
+	next unless $hash eq $cksum;
+
+	push @results, "$name $rev";
+}
+close DB;
+
+# May as well show the log message if we're producing a patch
+print `cvs log -r$revision $file` if $genpatch;
+
+# Show the commits that match, and their patches if required.
+foreach my $r (sort @results) {
+	print "$r\n";
+	next unless $genpatch;
+
+	my ($name, $rev) = split /\s/, $r, 2;
+	my $prevrev = previous_revision($rev);
+	print `cvs diff -u -r$prevrev -r$rev $name`;
+	print "\n\n";
+}
+
+#
+# Return the previous revision number.
+#
+sub previous_revision {
+	my $rev = shift;
+
+	$rev =~ /(?:(.*)\.)?([^\.]+)\.([^\.]+)$/;
+	my ($base, $r1, $r2) = ($1, $2, $3);
+
+	my $prevrev = "";
+	if ($r2 == 1) {
+		$prevrev = $base;
+	} else {
+		$prevrev = "$base." if $base;
+		$prevrev .= "$r1." . ($r2 - 1);
+	}
+	return $prevrev;
+}
+
+#end

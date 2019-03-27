@@ -1,0 +1,31 @@
+Apache Subversion
+Copyright 2018 The Apache Software Foundation
+
+This product includes software developed by many people, and distributed
+under Contributor License Agreements to The Apache Software Foundation
+(http://www.apache.org/).  See the accompanying COMMITTERS file and the
+revision logs for an exact contribution history.
+
+Portions of the test suite for Subversion's Python bindings are copyrighted
+by Edgewall Software, Jonas Borgström and Christopher Lenz.
+For more information, see LICENSE.
+
+This product includes software developed under the X Consortium License
+see: build/install-sh
+
+This product includes software developed by Markus Kuhn under a permissive
+license, see LICENSE.
+
+This software contains code derived from the RSA Data Security
+Inc. MD5 Message-Digest Algorithm, including various
+modifications by Spyglass Inc., Carnegie Mellon University, and
+Bell Communications Research, Inc (Bellcore).
+
+This product includes software developed by Public Software Group e. V.
+under a permissive license, see LICENSE.
+
+This software contains code derived from TropicSSL under a BSD 3-Clause
+license, see LICENSE.
+
+This product includes code derived from the software developed by Yann Collet
+under a BSD 2-Clause license, see LICENSE.

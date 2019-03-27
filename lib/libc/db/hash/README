@@ -1,0 +1,69 @@
+#	@(#)README	8.1 (Berkeley) 6/4/93
+# $FreeBSD$
+
+This package implements a superset of the hsearch and dbm/ndbm libraries.
+
+Test Programs:
+	All test programs which need key/data pairs expect them entered
+	with key and data on separate lines
+
+	tcreat3.c	
+		Takes 
+			bucketsize (bsize), 
+			fill factor (ffactor), and
+			initial number of elements (nelem).  
+		Creates a hash table named hashtest containing the 
+		keys/data pairs entered from standard in.
+	thash4.c
+		Takes
+			bucketsize (bsize), 
+			fill factor (ffactor), 
+			initial number of elements (nelem)
+			bytes of cache (ncached), and
+			file from which to read data  (fname)
+		Creates a table from the key/data pairs on standard in and
+		then does a read of each key/data in fname
+	tdel.c
+		Takes
+			bucketsize (bsize), and
+			fill factor (ffactor).
+			file from which to read data (fname)
+		Reads each key/data pair from fname and deletes the
+		key from the hash table hashtest
+	tseq.c
+		Reads the key/data pairs in the file hashtest and writes them
+		to standard out.
+	tread2.c
+		Takes
+			butes of cache (ncached).
+		Reads key/data pairs from standard in and looks them up
+		in the file hashtest.
+	tverify.c
+		Reads key/data pairs from standard in, looks them up
+		in the file hashtest, and verifies that the data is
+		correct.
+
+NOTES:
+
+The man page ../man/db.3 explains the interface to the hashing system.
+The file hash.ps is a postscript copy of a paper explaining
+the history, implementation, and performance of the hash package.
+
+"bugs" or idiosyncracies
+
+If you have a lot of overflows, it is possible to run out of overflow
+pages.  Currently, this will cause a message to be printed on stderr.
+Eventually, this will be indicated by a return error code.
+
+If you are using the ndbm interface and exit without flushing or closing the
+file, you may lose updates since the package buffers all writes.  Also,
+the db interface only creates a single database file.  To avoid overwriting
+the user's original file, the suffix ".db" is appended to the file name
+passed to dbm_open.  Additionally, if your code "knows" about the historic
+.dir and .pag files, it will break.  
+
+There is a fundamental difference between this package and the old hsearch.
+Hsearch requires the user to maintain the keys and data in the application's
+allocated memory while hash takes care of all storage management.  The down
+side is that the byte strings passed in the ENTRY structure must be null
+terminated (both the keys and the data).

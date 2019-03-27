@@ -1,0 +1,192 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)fmt.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.\" Modified by Gareth McCaughan to describe the new version of `fmt'
+.\" rather than the old one.
+.Dd December 1, 2017
+.Dt FMT 1
+.Os
+.Sh NAME
+.Nm fmt
+.Nd simple text formatter
+.Sh SYNOPSIS
+.Nm
+.Op Fl cmnps
+.Op Fl d Ar chars
+.Op Fl l Ar num
+.Op Fl t Ar num
+.Op Ar goal Oo Ar maximum Oc | Fl Ns Ar width | Fl w Ar width
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility is a simple text formatter which reads the concatenation of input
+files (or standard input if none are given) and produces on standard
+output a version of its input with lines as close to the
+.Ar goal
+length
+as possible without exceeding the
+.Ar maximum .
+The
+.Ar goal
+length defaults
+to 65 and the
+.Ar maximum
+to 10 more than the
+.Ar goal
+length.
+Alternatively, a single
+.Ar width
+parameter can be specified either by prepending a hyphen to it or by using
+.Fl w .
+For example,
+.Dq Li fmt -w 72 ,
+.Dq Li fmt -72 ,
+and
+.Dq Li fmt 72 72
+all produce identical output.
+The spacing at the beginning of the input lines is preserved in the output,
+as are blank lines and interword spacing.
+Lines are joined or split only at white space; that is, words are never
+joined or hyphenated.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl c
+Center the text, line by line.
+In this case, most of the other
+options are ignored; no splitting or joining of lines is done.
+.It Fl m
+Try to format mail header lines contained in the input sensibly.
+.It Fl n
+Format lines beginning with a
+.Ql \&.
+(dot) character.
+Normally,
+.Nm
+does not fill these lines, for compatibility with
+.Xr nroff 1 .
+.It Fl p
+Allow indented paragraphs.
+Without the
+.Fl p
+flag, any change in the amount of whitespace at the start of a line
+results in a new paragraph being begun.
+.It Fl s
+Collapse whitespace inside lines, so that multiple whitespace
+characters are turned into a single space.
+(Or, at the end of a
+sentence, a double space.)
+.It Fl d Ar chars
+Treat the
+.Ar chars
+(and no others) as sentence-ending characters.
+By default the
+sentence-ending characters are full stop
+.Pq Ql \&. ,
+question mark
+.Pq Ql \&?
+and exclamation mark
+.Pq Ql \&! .
+Remember that some characters may need to be
+escaped to protect them from your shell.
+.It Fl l Ar number
+Replace multiple spaces with tabs at the start of each output
+line, if possible.
+Each
+.Ar number
+spaces will be replaced with one tab.
+The default is 8.
+If
+.Ar number
+is 0, spaces are preserved.
+.It Fl t Ar number
+Assume that the input files' tabs assume
+.Ar number
+spaces per tab stop.
+The default is 8.
+.El
+.Pp
+The
+.Nm
+utility
+is meant to format mail messages prior to sending, but may also be useful
+for other simple tasks.
+For instance,
+within visual mode of the
+.Xr ex 1
+editor (e.g.,
+.Xr vi 1 )
+the command
+.Pp
+.Dl \&!}fmt
+.Pp
+will reformat a paragraph,
+evening the lines.
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Sh SEE ALSO
+.Xr fold 1 ,
+.Xr mail 1 ,
+.Xr nroff 1
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 3 .
+.Pp
+The version described herein is a complete rewrite and appeared in
+.Fx 4.4 .
+.Sh AUTHORS
+.An Kurt Shoens
+.An Liz Allen
+(added
+.Ar goal
+length concept)
+.An Gareth McCaughan
+.Sh BUGS
+The program was designed to be simple and fast \- for more complex
+operations, the standard text processors are likely to be more appropriate.
+.Pp
+When the first line of an indented paragraph is very long (more than
+about twice the goal length), the indentation in the output can be
+wrong.
+.Pp
+The
+.Nm
+utility is not infallible in guessing what lines are mail headers and what
+lines are not.

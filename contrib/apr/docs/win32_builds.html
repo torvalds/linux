@@ -1,0 +1,57 @@
+<HTML>
+<HEAD><TITLE>APR Win32 Builds and Debugging</TITLE></HEAD>
+<BODY>
+<h1>APR Win32 Builds and Debugging</h1>
+
+<h2>Configuration and Flavors</h2>
+
+<p>The Win32 APR Developer Studio projects consist of</p>
+
+<dl>
+  <dt>apr/apr.dsp</dt>
+    <dd>Builds the static apr.lib library (-D APR_DECLARE_STATIC)</dd>
+  <dt>apr/libapr.dsp</dt>
+    <dd>Builds the dynamic libapr.dll library (no define required)</dd>
+  <dt>apr-util/aprutil.dsp</dt>
+    <dd>Builds the static aprutil.lib library (-D APU_DECLARE_STATIC)</dd>
+  <dt>apr-util/libaprutil.dsp</dt>
+    <dd>Builds the dynamic libaprutil.dll library (no define required)</dd>
+  <dt>apr-iconv/apriconv.dsp</dt>
+    <dd>Builds the static apriconv.lib library (-D API_DECLARE_STATIC)</dd>
+  <dt>apr-iconv/libapriconv.dsp</dt>
+    <dd>Builds the dynamic libapriconv.dll library (no define required)</dd>
+</dl>
+
+<p>In order to prepare to use one of the <em>static</em> libraries above, 
+   your application must be compiled with the define shown above, so that the
+   correct linkage is created.  The APR authors intended the use of dynamic
+   libraries by default, so application authors do not need any special
+   defines in order to link to the dynamic library flavors.</p>
+
+<p>In order to build APR, you must use the proper dependencies.  A good
+   example of those dependencies is given in the apr-util/aprutil.dsw
+   Developer Studio workspace.  You can borrow the parts of that structure
+   your application needs, that workspace defines both the dynamic and static
+   library dependencies.</p>
+
+<p>The APR libraries (dynamic and static) are compiled with debugging symbols,
+   even in Release builds.  The dynamic library symbols are always usable,
+   simply keep the correspond .pdb file in the same path as the library .dll.
+   (E.g. both libapr.dll and libapr.pdb should be copied to the same path.)</p>
+
+<p>The static symbols will only be fully usable if your application does <em>not<em>
+   link with the /pdbtype:sept flag!  At the time your application links to
+   an APR library, the corresponding _src.pdb file should exist in the original
+   path the library was built, or it may be sufficient to keep the _src.pdb file
+   in the same path as the library file.  (E.g. apr.lib and apr_src.pdb should
+   reside together in your lib directory.)  The later option is unconfirmed.</p>
+
+<p>In order to keep the symbols compiled into the static library, your application
+   must use the linker's /debug flag.  If you do not want the application to be
+   debuggable with its corresponding .pdb file, omit the /debug flag and all debug
+   symbolic information is discarded.  Note that your application can only be
+   debugged with the corresponding .pdb file created by the linker, unless you use
+   /debugtype:coff or /debugtype:both in your link options.</p>
+
+</BODY>
+</HTML>

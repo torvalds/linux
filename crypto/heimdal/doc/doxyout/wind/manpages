@@ -1,0 +1,14 @@
+wind/man/man3/wind.3
+wind/man/man3/wind_profile.3
+wind/man/man3/wind_punycode_label_toascii.3
+wind/man/man3/wind_stringprep.3
+wind/man/man3/wind_ucs2read.3
+wind/man/man3/wind_ucs2utf8.3
+wind/man/man3/wind_ucs2utf8_length.3
+wind/man/man3/wind_ucs2write.3
+wind/man/man3/wind_ucs4utf8.3
+wind/man/man3/wind_ucs4utf8_length.3
+wind/man/man3/wind_utf8ucs2.3
+wind/man/man3/wind_utf8ucs2_length.3
+wind/man/man3/wind_utf8ucs4.3
+wind/man/man3/wind_utf8ucs4_length.3

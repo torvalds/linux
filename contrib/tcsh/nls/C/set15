@@ -1,0 +1,7 @@
+$ $tcsh: set15,v 1.4 2006/03/02 18:46:45 christos Exp $
+$ sh.func.c
+$set 15 
+1 %s: %s: Can't %s%s limit\n
+2 remove
+3 set
+4 \040hard

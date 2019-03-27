@@ -1,0 +1,228 @@
+This document describes the multiplexing protocol used by ssh(1)'s
+ControlMaster connection-sharing.
+
+Most messages from the client to the server contain a "request id" field.
+This field is returned in replies as "client request id" to facilitate
+matching of responses to requests.
+
+1. Connection setup
+
+When a multiplexing connection is made to a ssh(1) operating as a
+ControlMaster from a ssh(1) in multiplex slave mode, the first
+action of each is to exchange hello messages:
+
+	uint32	MUX_MSG_HELLO
+	uint32  protocol version
+	string  extension name [optional]
+	string  extension value [optional]
+	...
+
+The current version of the mux protocol is 4. A slave should refuse
+to connect to a master that speaks an unsupported protocol version.
+Following the version identifier are zero or more extensions
+represented as a name/value pair. No extensions are currently
+defined.
+
+2. Opening sessions
+
+To open a new multiplexed session, a client may send the following
+request:
+
+	uint32	MUX_C_NEW_SESSION
+	uint32  request id
+	string	reserved
+	bool	want tty flag
+	bool	want X11 forwarding flag
+	bool	want agent flag
+	bool	subsystem flag
+	uint32	escape char
+	string	terminal type
+	string	command
+	string	environment string 0 [optional]
+	...
+
+To disable the use of an escape character, "escape char" may be set
+to 0xffffffff. "terminal type" is generally set to the value of
+$TERM. zero or more environment strings may follow the command.
+
+The client then sends its standard input, output and error file
+descriptors (in that order) using Unix domain socket control messages.
+
+The contents of "reserved" are currently ignored.
+
+If successful, the server will reply with MUX_S_SESSION_OPENED
+
+	uint32	MUX_S_SESSION_OPENED
+	uint32	client request id
+	uint32	session id
+
+Otherwise it will reply with an error: MUX_S_PERMISSION_DENIED or
+MUX_S_FAILURE.
+
+Once the server has received the fds, it will respond with MUX_S_OK
+indicating that the session is up. The client now waits for the
+session to end. When it does, the server will send an exit status
+message:
+
+	uint32	MUX_S_EXIT_MESSAGE
+	uint32	session id
+	uint32	exit value
+
+The client should exit with this value to mimic the behaviour of a
+non-multiplexed ssh(1) connection. Two additional cases that the
+client must cope with are it receiving a signal itself and the
+server disconnecting without sending an exit message.
+
+A master may also send a MUX_S_TTY_ALLOC_FAIL before MUX_S_EXIT_MESSAGE
+if remote TTY allocation was unsuccessful. The client may use this to
+return its local tty to "cooked" mode.
+
+	uint32	MUX_S_TTY_ALLOC_FAIL
+	uint32	session id
+
+3. Health checks
+
+The client may request a health check/PID report from a server:
+
+	uint32	MUX_C_ALIVE_CHECK
+	uint32	request id
+
+The server replies with:
+
+	uint32	MUX_S_ALIVE
+	uint32	client request id
+	uint32	server pid
+
+4. Remotely terminating a master
+
+A client may request that a master terminate immediately:
+
+	uint32	MUX_C_TERMINATE
+	uint32	request id
+
+The server will reply with one of MUX_S_OK or MUX_S_PERMISSION_DENIED.
+
+5. Requesting establishment of port forwards
+
+A client may request the master to establish a port forward:
+
+	uint32	MUX_C_OPEN_FWD
+	uint32	request id
+	uint32	forwarding type
+	string	listen host
+	uint32	listen port
+	string	connect host
+	uint32	connect port
+
+forwarding type may be MUX_FWD_LOCAL, MUX_FWD_REMOTE, MUX_FWD_DYNAMIC.
+
+If listen port is (unsigned int) -2, then the listen host is treated as
+a unix socket path name.
+
+If connect port is (unsigned int) -2, then the connect host is treated
+as a unix socket path name.
+
+A server may reply with a MUX_S_OK, a MUX_S_REMOTE_PORT, a
+MUX_S_PERMISSION_DENIED or a MUX_S_FAILURE.
+
+For dynamically allocated listen port the server replies with
+
+	uint32	MUX_S_REMOTE_PORT
+	uint32	client request id
+	uint32	allocated remote listen port
+
+6. Requesting closure of port forwards
+
+Note: currently unimplemented (server will always reply with MUX_S_FAILURE).
+
+A client may request the master to close a port forward:
+
+	uint32	MUX_C_CLOSE_FWD
+	uint32	request id
+	uint32	forwarding type
+	string	listen host
+	uint32	listen port
+	string	connect host
+	uint32	connect port
+
+A server may reply with a MUX_S_OK, a MUX_S_PERMISSION_DENIED or a
+MUX_S_FAILURE.
+
+7. Requesting stdio forwarding
+
+A client may request the master to establish a stdio forwarding:
+
+	uint32	MUX_C_NEW_STDIO_FWD
+	uint32	request id
+	string	reserved
+	string	connect host
+	string	connect port
+
+The client then sends its standard input and output file descriptors
+(in that order) using Unix domain socket control messages.
+
+The contents of "reserved" are currently ignored.
+
+A server may reply with a MUX_S_SESSION_OPENED, a MUX_S_PERMISSION_DENIED
+or a MUX_S_FAILURE.
+
+8. Requesting shutdown of mux listener
+
+A client may request the master to stop accepting new multiplexing requests
+and remove its listener socket.
+
+	uint32	MUX_C_STOP_LISTENING
+	uint32	request id
+
+A server may reply with a MUX_S_OK, a MUX_S_PERMISSION_DENIED or a
+MUX_S_FAILURE.
+
+9. Status messages
+
+The MUX_S_OK message is empty:
+
+	uint32	MUX_S_OK
+	uint32	client request id
+
+The MUX_S_PERMISSION_DENIED and MUX_S_FAILURE include a reason:
+
+	uint32	MUX_S_PERMISSION_DENIED
+	uint32	client request id
+	string	reason
+
+	uint32	MUX_S_FAILURE
+	uint32	client request id
+	string	reason
+
+10. Protocol numbers
+
+#define MUX_MSG_HELLO		0x00000001
+#define MUX_C_NEW_SESSION	0x10000002
+#define MUX_C_ALIVE_CHECK	0x10000004
+#define MUX_C_TERMINATE		0x10000005
+#define MUX_C_OPEN_FWD		0x10000006
+#define MUX_C_CLOSE_FWD		0x10000007
+#define MUX_C_NEW_STDIO_FWD	0x10000008
+#define MUX_C_STOP_LISTENING	0x10000009
+#define MUX_S_OK		0x80000001
+#define MUX_S_PERMISSION_DENIED	0x80000002
+#define MUX_S_FAILURE		0x80000003
+#define MUX_S_EXIT_MESSAGE	0x80000004
+#define MUX_S_ALIVE		0x80000005
+#define MUX_S_SESSION_OPENED	0x80000006
+#define MUX_S_REMOTE_PORT	0x80000007
+#define MUX_S_TTY_ALLOC_FAIL	0x80000008
+
+#define MUX_FWD_LOCAL	1
+#define MUX_FWD_REMOTE	2
+#define MUX_FWD_DYNAMIC	3
+
+XXX TODO
+XXX extended status (e.g. report open channels / forwards)
+XXX lock (maybe)
+XXX watch in/out traffic (pre/post crypto)
+XXX inject packet (what about replies)
+XXX server->client error/warning notifications
+XXX send signals via mux
+
+$OpenBSD: PROTOCOL.mux,v 1.10 2015/07/17 03:04:27 djm Exp $

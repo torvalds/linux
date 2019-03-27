@@ -1,0 +1,9 @@
+
+#------------------------------------------------------------------------------
+# $File: mime,v 1.8 2017/03/17 22:20:22 christos Exp $
+# mime:  file(1) magic for MIME encoded files
+#
+0	string/t		Content-Type:\040
+>14	string		>\0		%s
+0	string/t		Content-Type:
+>13	string		>\0		%s

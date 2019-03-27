@@ -1,0 +1,78 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: localpkg
+# REQUIRE: abi
+# BEFORE:  securelevel
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="localpkg"
+desc="Run local init scripts"
+start_cmd="pkg_start"
+stop_cmd="pkg_stop"
+
+pkg_start()
+{
+	local initdone
+
+	# For each dir in $local_startup, search for init scripts matching *.sh
+	#
+	case ${local_startup} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		initdone=
+		find_local_scripts_old
+		for script in ${zlist} ${slist}; do
+			if [ -z "${initdone}" -a -f "${script}" ]; then
+				echo -n 'Local package initialization:'
+				initdone=yes
+			fi
+			if [ -x "${script}" ]; then
+				(set -T
+				trap 'exit 1' 2
+				${script} start)
+			elif [ -f "${script}" -o -L "${script}" ]; then
+				echo -n " (skipping ${script}, not executable)"
+			fi
+		done
+		[ -n "${initdone}" ] && echo '.'
+		;;
+	esac
+}
+
+pkg_stop()
+{
+	local initdone
+
+	case ${local_startup} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		initdone=
+		find_local_scripts_old
+		for script in `reverse_list ${slist} ${zlist}`; do
+			if [ -z "${initdone}" -a -f "${script}" ]; then
+				echo -n 'Shutting down local packages:'
+				initdone=yes
+			fi
+			if [ -x "${script}" ]; then
+				if [ `sysctl -n debug.bootverbose` -eq 1 ]; then
+					echo "==>" ${script}
+				fi
+				(set -T
+				trap 'exit 1' 2
+				${script} stop)
+			fi
+		done
+		[ -n "${initdone}" ] && echo '.'
+		;;
+	esac
+}
+
+load_rc_config $name
+run_rc_command "$1"

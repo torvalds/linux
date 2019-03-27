@@ -1,0 +1,1855 @@
+# Copyright (c) 1998-2004 Proofpoint, Inc. and its suppliers.
+#	All rights reserved.
+# Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
+# Copyright (c) 1988
+#	The Regents of the University of California.  All rights reserved.
+#
+# By using this file, you agree to the terms and conditions set
+# forth in the LICENSE file which can be found at the top level of
+# the sendmail distribution.
+#
+#
+#	$Id: README,v 8.393 2013-11-22 20:51:54 ca Exp $
+#
+
+This directory contains the source files for sendmail(TM).
+
+   *******************************************************************
+   !! Read sendmail/SECURITY for important installation information !!
+   *******************************************************************
+
+	**********************************************************
+	**  Read below for more details on building sendmail.	**
+	**********************************************************
+
+**************************************************************************
+**  IMPORTANT:  Read the appropriate paragraphs in the section on	**
+**  ``Operating System and Compile Quirks''.				**
+**************************************************************************
+
+For detailed instructions, please read the document ../doc/op/op.me:
+
+	cd ../doc/op ; make op.ps op.txt
+
+Sendmail is a trademark of Proofpoint, Inc.
+US Patent Numbers 6865671, 6986037.
+
+
++-------------------+
+| BUILDING SENDMAIL |
++-------------------+
+
+By far, the easiest way to compile sendmail is to use the "Build"
+script:
+
+	sh ./Build
+
+This uses the "uname" command to figure out what architecture you are
+on and creates a proper Makefile accordingly.  It also creates a
+subdirectory per object format, so that multiarchitecture support is
+easy.  In general this should be all you need.  IRIX 6.x users should
+read the note below in the OPERATING SYSTEM AND COMPILE QUIRKS section.
+
+If you need to look at other include or library directories, use the
+-I or -L flags on the command line, e.g.,
+
+	sh ./Build -I/usr/sww/include -L/usr/sww/lib
+
+It's also possible to create local site configuration in the file
+site.config.m4 (or another file settable with the -f flag).  This
+file contains M4 definitions for various compilation values; the
+most useful are:
+
+confMAPDEF	-D flags to specify database types to be included
+		(see below)
+confENVDEF	-D flags to specify other environment information
+confINCDIRS	-I flags for finding include files during compilation
+confLIBDIRS	-L flags for finding libraries during linking
+confLIBS	-l flags for selecting libraries during linking
+confLDOPTS	other ld(1) linker options
+
+Others can be found by examining Makefile.m4.  Please read
+../devtools/README for more information about the site.config.m4
+file.
+
+You can recompile from scratch using the -c flag with the Build
+command.  This removes the existing compilation directory for the
+current platform and builds a new one.  The -c flag must also
+be used if any site.*.m4 file in devtools/Site/ is changed.
+
+Porting to a new Unix-based system should be a matter of creating
+an appropriate configuration file in the devtools/OS/ directory.
+
+
++----------------------+
+| DATABASE DEFINITIONS |
++----------------------+
+
+There are several database formats that can be used for the alias files
+and for general maps.  When used for alias files they interact in an
+attempt to be backward compatible.
+
+The options are:
+
+NEWDB		The new Berkeley DB package.  Some systems (e.g., BSD/OS and
+		Digital UNIX 4.0) have some version of this package
+		pre-installed.  If your system does not have Berkeley DB
+		pre-installed, or the version installed is not version 2.0
+		or greater (e.g., is Berkeley DB 1.85 or 1.86), get the
+		current version from http://www.sleepycat.com/.  DO NOT
+		use a version from any of the University of California,
+		Berkeley "Net" or other distributions.  If you are still
+		running BSD/386 1.x, you will need to upgrade the included
+		Berkeley DB library to a current version.  NEWDB is included
+		automatically if the Build script can find a library named
+		libdb.a or libdb.so.
+		See also OPERATING SYSTEM AND COMPILE QUIRKS about Berkeley
+		DB versions, e.g., DB 4.1.x.
+NDBM		The older NDBM implementation -- the very old V7 DBM
+		implementation is no longer supported.
+NIS		Network Information Services.  To use this you must have
+		NIS support on your system.
+NISPLUS		NIS+ (the revised NIS released with Solaris 2).  You must
+		have NIS+ support on your system to use this flag.
+HESIOD		Support for Hesiod (from the DEC/Athena distribution).  You
+		must already have Hesiod support on your system for this to
+		work.  You may be able to get this to work with the MIT/Athena
+		version of Hesiod, but that's likely to be a lot of work.
+		BIND 8.X also includes Hesiod support.
+LDAPMAP		Lightweight Directory Access Protocol support.  You will
+		have to install the UMich or OpenLDAP
+		(http://www.openldap.org/) ldap and lber libraries to use
+		this flag.
+MAP_REGEX	Regular Expression support.  You will need to use an
+		operating system which comes with the POSIX regex()
+		routines or install a regexp library such as libregex from
+		the Free Software Foundation.
+DNSMAP		DNS map support.  Requires NAMED_BIND.
+PH_MAP		PH map support.  You will need the libphclient library from
+		the nph package (http://www-dev.cites.uiuc.edu/ph/nph/).
+MAP_NSD		nsd map support (IRIX 6.5 and later).
+SOCKETMAP	Support for a trivial query protocol over UNIX domain or TCP
+		sockets. 
+
+>>>  NOTE WELL for NEWDB support: If you want to get ndbm support, for
+>>>  Berkeley DB versions under 2.0, it is CRITICAL that you remove
+>>>  ndbm.o from libdb.a before you install it and DO NOT install ndbm.h;
+>>>  for Berkeley DB versions 2.0 through 2.3.14, remove dbm.o from libdb.a
+>>>  before you install it.  If you don't delete these, there is absolutely
+>>>  no point to including -DNDBM, since it will just get you another
+>>>  (inferior) API to the same format database.  These files OVERRIDE
+>>>  calls to ndbm routines -- in particular, if you leave ndbm.h in,
+>>>  you can find yourself using the new db package even if you don't
+>>>  define NEWDB.  Berkeley DB versions later than 2.3.14 do not need
+>>>  to be modified.  Please also consult the README in the top level
+>>>  directory of the sendmail distribution for other important information.
+>>>
+>>>  Further note: DO NOT remove your existing /usr/include/ndbm.h --
+>>>  you need that one.  But do not install an updated ndbm.h in
+>>>  /usr/include, /usr/local/include, or anywhere else.
+
+If NEWDB and NDBM are defined (but not NIS), then sendmail will read
+NDBM format alias files, but the next time a newaliases is run the
+format will be converted to NEWDB; that format will be used forever
+more.  This is intended as a transition feature.
+
+If NEWDB, NDBM, and NIS are all defined and the name of the file includes
+the string "/yp/", sendmail will rebuild BOTH the NEWDB and NDBM format
+alias files.  However, it will only read the NEWDB file; the NDBM format
+file is used only by the NIS subsystem.  This is needed because the NIS
+maps on an NIS server are built directly from the NDBM files.
+
+If NDBM and NIS are defined (regardless of the definition of NEWDB),
+and the filename includes the string "/yp/", sendmail adds the special
+tokens "YP_LAST_MODIFIED" and "YP_MASTER_NAME", both of which are
+required if the NDBM file is to be used as an NIS map.
+
+All of these flags are normally defined in a confMAPDEF setting in your
+site.config.m4.
+
+If you define NEWDB or HESIOD you get the User Database (USERDB)
+automatically.  Generally you do want to have NEWDB for it to do
+anything interesting.  See above for getting the Berkeley DB
+package (i.e., NEWDB).  There is no separate "user database"
+package -- don't bother searching for it on the net.
+
+Hesiod and LDAP require libraries that may not be installed with your
+system.  These are outside of my ability to provide support.  See the
+"Quirks" section for more information.
+
+The regex map can be used to see if an address matches a certain regular
+expression.  For example, all-numerics local parts are common spam
+addresses, so "^[0-9]+$" would match this.  By using such a map in a
+check_* rule-set, you can block a certain range of addresses that would
+otherwise be considered valid.
+
+The socket map uses a simple request/reply protocol over TCP or
+UNIX domain sockets to query an external server. Both requests and
+replies are text based and encoded as netstrings.  The socket map
+uses the same syntax as milters the specify the remote endpoint,
+e.g.:
+
+KmySocketMap socket inet:12345@127.0.0.1
+
+See doc/op/op.me for details.
+
+
++---------------+
+| COMPILE FLAGS |
++---------------+
+
+Wherever possible, I try to make sendmail pull in the correct
+compilation options needed to compile on various environments based on
+automatically defined symbols.  Some machines don't seem to have useful
+symbols available, requiring that a compilation flag be defined in
+the Makefile; see the devtools/OS subdirectory for the supported
+architectures.
+
+If you are a system to which sendmail has already been ported you
+should not have to touch the following symbols.  But if you are porting,
+you may have to tweak the following compilation flags in conf.h in order
+to get it to compile and link properly:
+
+SYSTEM5		Adjust for System V (not necessarily Release 4).
+SYS5SIGNALS	Use System V signal semantics -- the signal handler
+		is automatically dropped when the signal is caught.
+		If this is not set, use POSIX/BSD semantics, where the
+		signal handler stays in force until an exec or an
+		explicit delete.  Implied by SYSTEM5.
+SYS5SETPGRP	Use System V setpgrp() semantics.  Implied by SYSTEM5.
+HASNICE		Define this to zero if you lack the nice(2) system call.
+HASRRESVPORT	Define this to zero if you lack the rresvport(3) system call.
+HASFCHMOD	Define this to one if you have the fchmod(2) system call.
+		This improves security.
+HASFCHOWN	Define this to one if you have the fchown(2) system call.
+		This is required for the TrustedUser option if sendmail
+		must rebuild an (alias) map.
+HASFLOCK	Set this if you prefer to use the flock(2) system call
+		rather than using fcntl-based locking.  Fcntl locking
+		has some semantic gotchas, but many vendor systems
+		also interface it to lockd(8) to do NFS-style locking.
+		Unfortunately, may vendors implementations of fcntl locking
+		is just plain broken (e.g., locks are never released,
+		causing your sendmail to deadlock; when the kernel runs
+		out of locks your system crashes).  For this reason, I
+		recommend always defining this unless you are absolutely
+		certain that your fcntl locking implementation really works.
+HASUNAME	Set if you have the "uname" system call.  Implied by
+		SYSTEM5.
+HASUNSETENV	Define this if your system library has the "unsetenv"
+		subroutine.
+HASSETSID	Define this if you have the setsid(2) system call.  This
+		is implied if your system appears to be POSIX compliant.
+HASINITGROUPS	Define this if you have the initgroups(3) routine.
+HASSETVBUF	Define this if you have the setvbuf(3) library call.
+		If you don't, setlinebuf will be used instead.  This
+		defaults on if your compiler defines __STDC__.
+HASSETREUID	Define this if you have setreuid(2) ***AND*** root can
+		use setreuid to change to an arbitrary user.  This second
+		condition is not satisfied on AIX 3.x.  You may find that
+		your system has setresuid(2), (for example, on HP-UX) in
+		which case you will also have to #define setreuid(r, e)
+		to be the appropriate call.  Some systems (such as Solaris)
+		have a compatibility routine that doesn't work properly,
+		but may have "saved user ids" properly implemented so you
+		can ``#define setreuid(r, e) seteuid(e)'' and have it work.
+		The important thing is that you have a call that will set
+		the effective uid independently of the real or saved uid
+		and be able to set the effective uid back again when done.
+		There's a test program in ../test/t_setreuid.c that will
+		try things on your system.  Setting this improves the
+		security, since sendmail doesn't have to read .forward
+		and :include: files as root.  There are certain attacks
+		that may be unpreventable without this call.
+USESETEUID	Define this to 1 if you have a seteuid(2) system call that
+		will allow root to set only the effective user id to an
+		arbitrary value ***AND*** you have saved user ids.  This is
+		preferable to HASSETREUID if these conditions are fulfilled.
+		These are the semantics of the to-be-released revision of
+		Posix.1.  The test program ../test/t_seteuid.c will try
+		this out on your system.  If you define both HASSETREUID
+		and USESETEUID, the former is ignored.
+HASSETEGID	Define this if you have setegid(2) and it can be
+		used to set the saved gid.  Please run t_dropgid in
+		test/ if you are not sure whether the call works.
+HASSETREGID	Define this if you have setregid(2) and it can be
+		used to set the saved gid.  Please run t_dropgid in
+		test/ if you are not sure whether the call works.
+HASSETRESGID	Define this if you have setresgid(2) and it can be
+		used to set the saved gid.  Please run t_dropgid in
+		test/ if you are not sure whether the call works.
+HASLSTAT	Define this if you have symbolic links (and thus the
+		lstat(2) system call).  This improves security.  Unlike
+		most other options, this one is on by default, so you
+		need to #undef it in conf.h if you don't have symbolic
+		links (these days everyone does).
+HASSETRLIMIT	Define this to 1 if you have the setrlimit(2) syscall.
+		You can define it to 0 to force it off.  It is assumed
+		if you are running a BSD-like system.
+HASULIMIT	Define this if you have the ulimit(2) syscall (System V
+		style systems).  HASSETRLIMIT overrides, as it is more
+		general.
+HASWAITPID	Define this if you have the waitpid(2) syscall.
+HASGETDTABLESIZE
+		Define this if you have the getdtablesize(2) syscall.
+HAS_ST_GEN	Define this to 1 if your system has the st_gen field in
+		the stat structure (see stat(2)).
+HASSRANDOMDEV	Define this if your system has the srandomdev(3) function
+		call.
+HASURANDOMDEV	Define this if your system has /dev/urandom(4).
+HASSTRERROR	Define this if you have the libc strerror(3) function (which
+		should be declared in <errno.h>), and it should be used
+		instead of sys_errlist.
+HASCLOSEFROM	Define this if your system has closefrom(3).
+HASFDWALK	Define this if your system has fdwalk(3).
+SM_CONF_GETOPT	Define this as 0 if you need a reimplementation of getopt(3).
+		On some systems, getopt does very odd things if called
+		to scan the arguments twice.  This flag will ask sendmail
+		to compile in a local version of getopt that works
+		properly.  You may also need this if you build with
+		another library that introduces a non-standard getopt(3).
+NEEDSTRTOL	Define this if your standard C library does not define
+		strtol(3).  This will compile in a local version.
+NEEDFSYNC	Define this if your standard C library does not define
+		fsync(2).  This will try to simulate the operation using
+		fcntl(2); if that is not available it does nothing, which
+		isn't great, but at least it compiles and runs.
+HASGETUSERSHELL	Define this to 1 if you have getusershell(3) in your
+		standard C library.  If this is not defined, or is defined
+		to be 0, sendmail will scan the /etc/shells file (no
+		NIS-style support, defaults to /bin/sh and /bin/csh if
+		that file does not exist) to get a list of unrestricted
+		user shells.  This is used to determine whether users
+		are allowed to forward their mail to a program or a file.
+NEEDPUTENV	Define this if your system needs am emulation of the
+		putenv(3) call.  Define to 1 to implement it in terms
+		of setenv(3) or to 2 to do it in terms of primitives.
+NOFTRUNCATE	Define this if you don't have the ftruncate(2) syscall.
+		If you don't have this system call, there is an unavoidable
+		race condition that occurs when creating alias databases.
+GIDSET_T	The type of entries in a gidset passed as the second
+		argument to getgroups(2).  Historically this has been an
+		int, so this is the default, but some systems (such as
+		IRIX) pass it as a gid_t, which is an unsigned short.
+		This will make a difference, so it is important to get
+		this right!  However, it is only an issue if you have
+		group sets.
+SLEEP_T		The type returned by the system sleep() function.
+		Defaults to "unsigned int".  Don't worry about this
+		if you don't have compilation problems.
+ARBPTR_T	The type of an arbitrary pointer -- defaults to "void *".
+		If you are an very old compiler you may need to define
+		this to be "char *".
+SOCKADDR_LEN_T	The type used for the third parameter to accept(2),
+		getsockname(2), and getpeername(2), representing the
+		length of a struct sockaddr.  Defaults to int.
+SOCKOPT_LEN_T	The type used for the fifth parameter to getsockopt(2)
+		and setsockopt(2), representing the length of the option
+		buffer.  Defaults to int.
+LA_TYPE		The type of load average your kernel supports.  These
+		can be one of:
+		 LA_ZERO (1) -- it always returns the load average as
+			"zero" (and does so on all architectures).
+		 LA_INT (2) to read /dev/kmem for the symbol avenrun and
+			interpret as a long integer.
+		 LA_FLOAT (3) same, but interpret the result as a floating
+			point number.
+		 LA_SHORT (6) to interpret as a short integer.
+		 LA_SUBR (4) if you have the getloadavg(3) routine in your
+			system library.
+		 LA_MACH (5) to use MACH-style load averages (calls
+			processor_set_info()),
+		 LA_PROCSTR (7) to read /proc/loadavg and interpret it
+			as a string representing a floating-point
+			number (Linux-style).
+		 LA_READKSYM (8) is an implementation suitable for some
+			versions of SVr4 that uses the MIOC_READKSYM ioctl
+			call to read /dev/kmem.
+		 LA_DGUX (9) is a special implementation for DG/UX that uses
+			the dg_sys_info system call.
+		 LA_HPUX (10) is an HP-UX specific version that uses the
+			pstat_getdynamic system call.
+		 LA_IRIX6 (11) is an IRIX 6.x specific version that adapts
+			to 32 or 64 bit kernels; it is otherwise very similar
+			to LA_INT.
+		 LA_KSTAT (12) uses the (Solaris-specific) kstat(3k)
+			implementation.
+		 LA_DEVSHORT (13) reads a short from a system file (default:
+			/dev/table/avenrun) and scales it in the same manner
+			as LA_SHORT.
+		 LA_LONGLONG (17) to read /dev/kmem for the symbol avenrun and
+			interpret as a long long integer (e.g., for 64 bit
+			systems).
+		LA_INT, LA_SHORT, LA_FLOAT, and LA_READKSYM have several
+		other parameters that they try to divine: the name of your
+		kernel, the name of the variable in the kernel to examine,
+		the number of bits of precision in a fixed point load average,
+		and so forth.  LA_DEVSHORT uses _PATH_AVENRUN to find the
+		device to be read to find the load average.
+		In desperation, use LA_ZERO.  The actual code is in
+		conf.c -- it can be tweaked if you are brave.
+FSHIFT		For LA_INT, LA_SHORT, and LA_READKSYM, this is the number
+		of bits of load average after the binary point -- i.e.,
+		the number of bits to shift right in order to scale the
+		integer to get the true integer load average.  Defaults to 8.
+_PATH_UNIX	The path to your kernel.  Needed only for LA_INT, LA_SHORT,
+		and LA_FLOAT.  Defaults to "/unix" on System V, "/vmunix"
+		everywhere else.
+LA_AVENRUN	For LA_INT, LA_SHORT, and LA_FLOAT, the name of the kernel
+		variable that holds the load average.  Defaults to "avenrun"
+		on System V, "_avenrun" everywhere else.
+SFS_TYPE	Encodes how your kernel can locate the amount of free
+		space on a disk partition.  This can be set to SFS_NONE
+		(0) if you have no way of getting this information,
+		SFS_USTAT (1) if you have the ustat(2) system call,
+		SFS_4ARGS (2) if you have a four-argument statfs(2)
+		system call (and the include file is <sys/statfs.h>),
+		SFS_VFS (3), SFS_MOUNT (4), SFS_STATFS (5) if you have
+		the two-argument statfs(2) system call with includes in
+		<sys/vfs.h>, <sys/mount.h>, or <sys/statfs.h> respectively,
+		or SFS_STATVFS (6) if you have the two-argument statvfs(2)
+		call.  The default if nothing is defined is SFS_NONE.
+SFS_BAVAIL	with SFS_4ARGS you can also set SFS_BAVAIL to the field name
+		in the statfs structure that holds the useful information;
+		this defaults to f_bavail.
+SPT_TYPE	Encodes how your system can display what a process is doing
+		on a ps(1) command (SPT stands for Set Process Title).  Can
+		be set to:
+		SPT_NONE (0) -- Don't try to set the process title at all.
+		SPT_REUSEARGV (1) -- Pad out your argv with the information;
+			this is the default if none specified.
+		SPT_BUILTIN (2) -- The system library has setproctitle.
+		SPT_PSTAT (3) -- Use the PSTAT_SETCMD option to pstat(2)
+			to set the process title; this is used by HP-UX.
+		SPT_PSSTRINGS (4) -- Use the magic PS_STRINGS pointer (4.4BSD).
+		SPT_SYSMIPS (5) -- Use sysmips() supported by NEWS-OS 6.
+		SPT_SCO (6) -- Write kernel u. area.
+		SPT_CHANGEARGV (7) -- Write pointers to our own strings into
+			the existing argv vector.
+SPT_PADCHAR	Character used to pad the process title; if undefined,
+		the space character (0x20) is used.  This is ignored if
+		SPT_TYPE != SPT_REUSEARGV
+ERRLIST_PREDEFINED
+		If set, assumes that some header file defines sys_errlist.
+		This may be needed if you get type conflicts on this
+		variable -- otherwise don't worry about it.
+WAITUNION	The wait(2) routine takes a "union wait" argument instead
+		of an integer argument.  This is for compatibility with
+		old versions of BSD.
+SCANF		You can set this to extend the F command to accept a
+		scanf string -- this gives you a primitive parser for
+		class definitions -- BUT it can make you vulnerable to
+		core dumps if the target file is poorly formed.
+SYSLOG_BUFSIZE	You can define this to be the size of the buffer that
+		syslog accepts.  If it is not defined, it assumes a
+		1024-byte buffer.  If the buffer is very small (under
+		256 bytes) the log message format changes -- each
+		e-mail message will log many more messages, since it
+		will log each piece of information as a separate line
+		in syslog.
+BROKEN_RES_SEARCH
+		On Ultrix (and maybe other systems?) if you use the
+		res_search routine with an unknown host name, it returns
+		-1 but sets h_errno to 0 instead of HOST_NOT_FOUND.  If
+		you set this, sendmail considers 0 to be the same as
+		HOST_NOT_FOUND.
+NAMELISTMASK	If defined, values returned by nlist(3) are masked
+		against this value before use -- a common value is
+		0x7fffffff to strip off the top bit.
+BSD4_4_SOCKADDR	If defined, socket addresses have an sa_len field that
+		defines the length of this address.
+SAFENFSPATHCONF	Set this to 1 if and only if you have verified that a
+		pathconf(2) call with _PC_CHOWN_RESTRICTED argument on an
+		NFS filesystem where the underlying system allows users to
+		give away files to other users returns <= 0.  Be sure you
+		try both on NFS V2 and V3.  Some systems assume that their
+		local policy apply to NFS servers -- this is a bad
+		assumption!  The test/t_pathconf.c program will try this
+		for you -- you have to run it in a directory that is
+		mounted from a server that allows file giveaway.
+SIOCGIFCONF_IS_BROKEN
+		Set this if your system has an SIOCGIFCONF ioctl defined,
+		but it doesn't behave the same way as "most" systems (BSD,
+		Solaris, SunOS, HP-UX, etc.)
+SIOCGIFNUM_IS_BROKEN
+		Set this if your system has an SIOCGIFNUM ioctl defined,
+		but it doesn't behave the same way as "most" systems
+		(Solaris, HP-UX).
+FAST_PID_RECYCLE
+		Set this if your system can reuse the same PID in the same
+		second.
+SO_REUSEADDR_IS_BROKEN
+		Set this if your system has a setsockopt() SO_REUSEADDR
+		flag but doesn't pay attention to it when trying to bind a
+		socket to a recently closed port.
+NEEDSGETIPNODE	Set this if your system supports IPv6 but doesn't include
+		the getipnodeby{name,addr}() functions.  Set automatically
+		for Linux's glibc.
+PIPELINING	Support SMTP PIPELINING	(set by default).
+USING_NETSCAPE_LDAP
+		Deprecated in favor of SM_CONF_LDAP_MEMFREE.  See
+		libsm/README.
+NEEDLINK	Set this if your system doesn't have a link() call.  It
+		will create a copy of the file instead of a hardlink.
+USE_ENVIRON	Set this to 1 to access process environment variables from
+		the external variable environ instead of the third
+		parameter of main().
+USE_DOUBLE_FORK By default this is on (1).  Set it to 0 to suppress the
+		extra fork() used to avoid intermediate zombies.
+ALLOW_255	Do not convert (char)0xff to (char)0x7f in headers etc.
+		This can also be done at runtime with the command line
+		option -d82.101.
+NEEDINTERRNO	Set this if <errno.h> does not declare errno, i.e., if an
+		application needs to use
+		extern int errno;
+USE_TTYPATH	Set this to 1 to enable ErrorMode=write.
+USESYSCTL	Use sysctl(3) to determine the number of CPUs in a system.
+HASSNPRINTF	Set this to 1 if your OS has a working snprintf(3), i.e.,
+		it properly obeys the size of the buffer and returns the
+		number of characters that would have been printed if the
+		size were unlimited.
+LDAP_REFERRALS	Set this if you want to use the -R flag (do not auto chase
+		referrals) for LDAP maps (requires -DLDAPMAP).
+MILTER_NO_NAGLE	Turn off Nagle algorithm for communication with libmilter
+		("cork" on Linux).  On some operating systems this may
+		improve the interprocess communication performance.
+
+
++-----------------------+
+| COMPILE-TIME FEATURES |
++-----------------------+
+
+There are a bunch of features that you can decide to compile in, such
+as selecting various database packages and special protocol support.
+Several are assumed based on other compilation flags -- if you want to
+"un-assume" something, you probably need to edit conf.h.  Compilation
+flags that add support for special features include:
+
+NDBM		Include support for "new" DBM library for aliases and maps.
+		Normally defined in the Makefile.
+NEWDB		Include support for Berkeley DB package (hash & btree)
+		for aliases and maps.  Normally defined in the Makefile.
+		If the version of NEWDB you have is the old one that does
+		not include the "fd" call (this call was added in version
+		1.5 of the Berkeley DB code), you must upgrade to the
+		current version of Berkeley DB.
+NIS		Define this to get NIS (YP) support for aliases and maps.
+		Normally defined in the Makefile.
+NISPLUS		Define this to get NIS+ support for aliases and maps.
+		Normally defined in the Makefile.
+HESIOD		Define this to get Hesiod support for aliases and maps.
+		Normally defined in the Makefile.
+NETINFO		Define this to get NeXT NetInfo support for aliases and maps.
+		Normally defined in the Makefile.
+LDAPMAP		Define this to get LDAP support for maps.
+PH_MAP		Define this to get PH support for maps.
+MAP_NSD		Define this to get nsd support for maps.
+USERDB		Define this to 1 to include support for the User Information
+		Database.  Implied by NEWDB or HESIOD.  You can use
+		-DUSERDB=0 to explicitly turn it off.
+IDENTPROTO	Define this as 1 to get IDENT (RFC 1413) protocol support.
+		This is assumed unless you are running on Ultrix or
+		HP-UX, both of which have a problem in the UDP
+		implementation.  You can define it to be 0 to explicitly
+		turn off IDENT protocol support.  If defined off, the code
+		is actually still compiled in, but it defaults off; you
+		can turn it on by setting the IDENT timeout in the
+		configuration file.
+IP_SRCROUTE	Define this to 1 to get IP source routing information
+		displayed in the Received: header.  This is assumed on
+		most systems, but some (e.g., Ultrix) apparently have a
+		broken version of getsockopt that doesn't properly
+		support the IP_OPTIONS call.  You probably want this if
+		your OS can cope with it.  Symptoms of failure will be that
+		it won't compile properly (that is, no support for fetching
+		IP_OPTIONs), or it compiles but source-routed TCP connections
+		either refuse to open or open and hang for no apparent reason.
+		Ultrix and AIX3 are known to fail this way.
+LOG		Set this to get syslog(3) support.  Defined by default
+		in conf.h.  You want this if at all possible.
+NETINET		Set this to get TCP/IP support.  Defined by default
+		in conf.h.  You probably want this.
+NETINET6	Set this to get IPv6 support.  Other configuration may
+		be needed in conf.h for your particular operating system.
+		Also, DaemonPortOptions must be set appropriately for
+		sendmail to accept IPv6 connections.
+NETISO		Define this to get ISO networking support.
+NETUNIX		Define this to get Unix domain networking support.  Defined
+		by default.  A few bizarre systems (SCO, ISC, Altos) don't
+		support this networking domain.
+NETNS		Define this to get NS networking support.
+NETX25		Define this to get X.25 networking support.
+NAMED_BIND	If non-zero, include DNS (name daemon) support, including
+		MX support.  The specs say you must use this if you run
+		SMTP.  You don't have to be running a name server daemon
+		on your machine to need this -- any use of the DNS resolver,
+		including remote access to another machine, requires this
+		option.  Defined by default in conf.h.  Define it to zero
+		ONLY on machines that do not use DNS in any way.
+MATCHGECOS	Permit fuzzy matching of user names against the full
+		name (GECOS) field in the /etc/passwd file.  This should
+		probably be on, since you can disable it from the config
+		file if you want to.  Defined by default in conf.h.
+MIME8TO7	If non-zero, include 8 to 7 bit MIME conversions.  This
+		also controls advertisement of 8BITMIME in the ESMTP
+		startup dialogue.
+MIME7TO8_OLD	If 0 then use an algorithm for MIME 7-bit quoted-printable
+		or base64 encoding to 8-bit text that has been introduced
+		in 8.12.3.  There are some examples where that code fails,
+		but the old code works.  If you have an example of improper
+		7 to 8 bit conversion please send it to sendmail-bugs.
+MIME7TO8	If non-zero, include 7 to 8 bit MIME conversions.
+HES_GETMAILHOST	Define this to 1 if you are using Hesiod with the
+		hes_getmailhost() routine.  This is included with the MIT
+		Hesiod distribution, but not with the DEC Hesiod distribution.
+XDEBUG		Do additional internal checking.  These don't cost too
+		much; you might as well leave this on.
+TCPWRAPPERS	Turns on support for the TCP wrappers library (-lwrap).
+		See below for further information.
+SECUREWARE	Enable calls to the SecureWare luid enabling/changing routines.
+		SecureWare is a C2 security package added to several UNIX's
+		(notably ConvexOS) to get a C2 Secure system.  This
+		option causes mail delivery to be done with the luid of the
+		recipient.
+SHARE_V1	Support for the fair share scheduler, version 1.  Setting to
+		1 causes final delivery to be done using the recipients
+		resource limitations.  So far as I know, this is only
+		supported on ConvexOS.
+SASL		Enables SMTP AUTH (RFC 2554).  This requires the Cyrus SASL
+		library (ftp://ftp.andrew.cmu.edu/pub/cyrus-mail/).  Please
+		install at least version 1.5.13.  See below for further
+		information: SASL COMPILATION AND CONFIGURATION.  If your
+		SASL library is older than 1.5.10, you have to set this
+		to its version number using a simple conversion:  a.b.c
+		-> c + b*100 + a*10000, e.g. for 1.5.9 define SASL=10509.
+		Note: Using an older version than 1.5.5 of Cyrus SASL is
+		not supported.  Starting with version 1.5.10, setting SASL=1
+		is sufficient.  Any value other than 1 (or 0) will be
+		compared with the actual version found and if there is a
+		mismatch, compilation will fail.
+EGD		Define this if your system has EGD installed, see
+		http://egd.sourceforge.net/ .  It should be used to
+		seed the PRNG for STARTTLS if HASURANDOMDEV is not defined.
+STARTTLS	Enables SMTP STARTTLS (RFC 2487).  This requires OpenSSL
+		(http://www.OpenSSL.org/); use OpenSSL 0.9.8zc or later.
+		See STARTTLS COMPILATION AND CONFIGURATION for further
+		information.
+TLS_NO_RSA	Turn off support for RSA algorithms in STARTTLS.
+MILTER		Turn on support for external filters using the Milter API;
+		this option is set by default, to turn it off use
+			APPENDDEF(`conf_sendmail_ENVDEF', `-DMILTER=0')
+		in devtools/Site/site.config.m4 (see devtools/README).
+		See libmilter/README for more information about milter.
+REQUIRES_DIR_FSYNC	Turn on support for file systems that require to
+		call fsync() for a directory if the meta-data in it has
+		been changed.  This should be turned on at least for older
+		versions of ReiserFS; it is enabled by default for Linux.
+		According to some information this flag is not needed
+		anymore for kernel 2.4.16 and newer.  We would appreciate
+		feedback about the semantics of the various file systems
+		available for Linux.
+		An alternative to this compile time flag is to mount the
+		queue directory without the -async option, or using
+		chattr +S on Linux.
+DBMMODE		The default file permissions to use when creating new
+		database files for maps and aliases.  Defaults to 0640.
+IPV6_FULL	Use uncompressed IPv6 addresses (set by default).  This
+		permits a zero subnet to have a more specific match,
+		such as different map entries for IPv6:0:0 vs IPv6:0.
+
+Generic notice: If you enable a compile time option that needs
+libraries or include files that don't come with sendmail or are
+installed in a location that your C compiler doesn't use by default
+you should set confINCDIRS and confLIBDIRS as explained in the
+first section:  BUILDING SENDMAIL.
+
+
++---------------------+
+| DNS/RESOLVER ISSUES |
++---------------------+
+
+Many systems have old versions of the resolver library.  At a minimum,
+you should be running BIND 4.8.3; older versions may compile, but they
+have known bugs that should give you pause.
+
+Common problems in old versions include "undefined" errors for
+dn_skipname.
+
+Some people have had a problem with BIND 4.9; it uses some routines
+that it expects to be externally defined such as strerror().  It may
+help to link with "-l44bsd" to solve this problem.  This has apparently
+been fixed in later versions of BIND, starting around 4.9.3.  In other
+words, if you use 4.9.0 through 4.9.2, you need -l44bsd; for earlier or
+later versions, you do not.
+
+!PLEASE! be sure to link with the same version of the resolver as
+the header files you used -- some people have used the 4.9 headers
+and linked with BIND 4.8 or vice versa, and it doesn't work.
+Unfortunately, it doesn't fail in an obvious way -- things just
+subtly don't work.
+
+WILDCARD MX RECORDS ARE A BAD IDEA!  The only situation in which they
+work reliably is if you have two versions of DNS, one in the real world
+which has a wildcard pointing to your firewall, and a completely
+different version of the database internally that does not include
+wildcard MX records that match your domain.  ANYTHING ELSE WILL GIVE
+YOU HEADACHES!
+
+When attempting to canonify a hostname, some broken name servers will
+return SERVFAIL (a temporary failure) on T_AAAA (IPv6) lookups.  If you
+want to excuse this behavior, include WorkAroundBrokenAAAA in
+ResolverOptions.  However, instead, we recommend catching the problem and
+reporting it to the name server administrator so we can rid the world of
+broken name servers.
+
+
++----------------------------------------+
+| STARTTLS COMPILATION AND CONFIGURATION |
++----------------------------------------+
+
+Please read the documentation accompanying the OpenSSL library.  You
+have to compile and install the OpenSSL libraries before you can compile
+sendmail.  See devtools/README how to set the correct compile time
+parameters; you should at least set the following variables:
+
+APPENDDEF(`conf_sendmail_ENVDEF', `-DSTARTTLS')
+APPENDDEF(`conf_sendmail_LIBS', `-lssl -lcrypto')
+
+If you have installed the OpenSSL libraries and include files in
+a location that your C compiler doesn't use by default you should
+set confINCDIRS and confLIBDIRS as explained in the first section:
+BUILDING SENDMAIL.
+
+Configuration information can be found in doc/op/op.me (required
+certificates) and cf/README (how to tell sendmail about certificates).
+
+To perform an initial test, connect to your sendmail daemon
+(telnet localhost 25) and issue a EHLO localhost and see whether
+250-STARTTLS
+is in the response.  If it isn't, run the daemon with
+-O LogLevel=14
+and try again.  Then take a look at the logfile and see whether
+there are any problems listed about permissions (unsafe files)
+or the validity of X.509 certificates.
+
+From: Garrett Wollman <wollman@lcs.mit.edu>
+
+    If your certificate authority is hierarchical, and you only include
+    the top-level CA certificate in the CACertFile file, some mail clients
+    may be unable to infer the proper certificate chain when selecting a
+    client certificate.  Including the bottom-level CA certificate(s) in
+    the CACertFile file will allow these clients to work properly.  This
+    is not necessary if you are not using client certificates for
+    authentication, or if all your clients are running Sendmail or other
+    programs using the OpenSSL library (which get it right automatically).
+    In addition, some mail clients are totally incapable of using
+    certificate authentication -- even some of those which already support
+    SSL/TLS for confidentiality.
+
+Further information can be found via:
+http://www.sendmail.org/tips/
+
+
++------------------------------------+
+| SASL COMPILATION AND CONFIGURATION |
++------------------------------------+
+
+Please read the documentation accompanying the Cyrus SASL library
+(INSTALL and README).  If you use Berkeley DB for Cyrus SASL then
+you must compile sendmail with the same version of Berkeley DB.
+See devtools/README for how to set the correct compile time parameters;
+you should at least set the following variables:
+
+APPENDDEF(`conf_sendmail_ENVDEF', `-DSASL')
+APPENDDEF(`conf_sendmail_LIBS', `-lsasl')
+
+If you have installed the Cyrus SASL library and include files in
+a location that your C compiler doesn't use by default you should
+set confINCDIRS and confLIBDIRS as explained in the first section:
+BUILDING SENDMAIL.
+
+You have to select and install authentication mechanisms and tell
+sendmail where to find the sasl library and the include files (see
+devtools/README for the parameters to set).  Set up the required
+users and passwords as explained in the SASL documentation.  See
+also cf/README for authentication related options (especially
+DefaultAuthInfo if you want authentication between MTAs).
+
+To perform an initial test, connect to your sendmail daemon
+(telnet localhost 25) and issue a EHLO localhost and see whether
+250-AUTH ....
+is in the response.  If it isn't, run the daemon with
+-O LogLevel=14
+and try again.  Then take a look at the logfile and see whether
+there are any security related problems listed (unsafe files).
+
+Further information can be found via:
+http://www.sendmail.org/tips/
+
+
++-------------------------------------+
+| OPERATING SYSTEM AND COMPILE QUIRKS |
++-------------------------------------+
+
+GCC problems
+	When compiling with "gcc -O -Wall" specify "-DSM_OMIT_BOGUS_WARNINGS"
+		too (see include/sm/cdefs.h for more info).
+
+	*****************************************************************
+	**  IMPORTANT:  DO NOT USE OPTIMIZATION (``-O'') IF YOU ARE    **
+	**  RUNNING GCC 2.4.x or 2.5.x.  THERE IS A BUG IN THE GCC     **
+	**  OPTIMIZER THAT CAUSES SENDMAIL COMPILES TO FAIL MISERABLY. **
+	*****************************************************************
+
+	Jim Wilson of Cygnus believes he has found the problem -- it will
+	probably be fixed in GCC 2.5.6 -- but until this is verified, be
+	very suspicious of gcc -O.  This problem is reported to have been
+	fixed in gcc 2.6.
+
+	A bug in gcc 2.5.5 caused problems compiling sendmail 8.6.5 with
+	optimization on a Sparc.  If you are using gcc 2.5.5, youi should
+	upgrade to the latest version of gcc.
+
+	Apparently GCC 2.7.0 on the Pentium processor has optimization
+	problems.  I recommend against using -O on that architecture.  This
+	has been seen on FreeBSD 2.0.5 RELEASE.
+
+	Solaris 2.X users should use version 2.7.2.3 over 2.7.2.
+
+	We have been told there are problems with gcc 2.8.0.  If you are
+	using this version, you should upgrade to 2.8.1 or later.
+
+Berkeley DB
+	Berkeley DB 4.1.x with x <= 24 does not work with sendmail.
+	You need at least 4.1.25.
+
+GDBM	GDBM does not work with sendmail because the additional
+	security checks and file locking cause problems.  Unfortunately,
+	gdbm does not provide a compile flag in its version of ndbm.h so
+	the code can adapt.  Until the GDBM authors can fix these problems,
+	GDBM will not be supported.  Please use Berkeley DB instead.
+
+Configuration file location
+	Up to 8.6, sendmail tried to find the sendmail.cf file in the same
+	place as the vendors had put it, even when this was obviously
+	stupid.  As of 8.7, sendmail ALWAYS looks for /etc/sendmail.cf.
+	Beginning with 8.10, sendmail uses /etc/mail/sendmail.cf.
+	You can get sendmail to use the stupid vendor .cf location by
+	adding -DUSE_VENDOR_CF_PATH during compilation, but this may break
+	support programs and scripts that need to find sendmail.cf.  You
+	are STRONGLY urged to use symbolic links if you want to use the
+	vendor location rather than changing the location in the sendmail
+	binary.
+
+	NETINFO systems use NETINFO to determine the location of
+	sendmail.cf.  The full path to sendmail.cf is stored as the value of
+	the "sendmail.cf" property in the "/locations/sendmail"
+	subdirectory of NETINFO.  Set the value of this property to
+	"/etc/mail/sendmail.cf" (without the quotes) to use this new
+	default location for Sendmail 8.10.0 and higher.
+
+ControlSocket permissions
+	Paraphrased from BIND 8.2.1's README:
+
+	Solaris and other pre-4.4BSD kernels do not respect ownership or
+	protections on UNIX-domain sockets.  The short term fix for this is to
+	override the default path and put such control sockets into root-
+	owned directories which do not permit non-root to r/w/x through them.
+	The long term fix is for all kernels to upgrade to 4.4BSD semantics.
+
+HP MPE/iX
+	The MPE-specific code within sendmail emulates a set-user-id root
+	environment for the sendmail binary.  But there is no root uid 0 on
+	MPE, nor is there any support for set-user-id programs.  Even when
+	sendmail thinks it is running as uid 0, it will still have the file
+	access rights of the underlying non-zero uid, but because sendmail is
+	an MPE priv-mode program it will still be able to call setuid() to
+	successfully switch to a new uid.
+
+	MPE setgid() semantics don't quite work the way sendmail expects, so
+	special emulation is done here also.
+
+	This uid/gid emulation is enabled via the setuid/setgid file mode bits
+	which are not currently used by MPE.  Code in libsm/mpeix.c examines
+	these bits and enables emulation if they have been set, i.e.,
+	chmod u+s,g+s /SENDMAIL/CURRENT/SENDMAIL.
+
+SunOS 4.x (Solaris 1.x)
+	You may have to use -lresolv on SunOS.  However, beware that
+	this links in a new version of gethostbyname that does not
+	understand NIS, so you must have all of your hosts in DNS.
+
+	Some people have reported problems with the SunOS version of
+	-lresolv and/or in.named, and suggest that you get a newer
+	version.  The symptoms are delays when you connect to the
+	SMTP server on a SunOS machine or having your domain added to
+	addresses inappropriately.  There is a version of BIND
+	version 4.9 on gatekeeper.DEC.COM in pub/BSD/bind/4.9.
+
+	There is substantial disagreement about whether you can make
+	this work with resolv+, which allows you to specify a search-path
+	of services.  Some people report that it works fine, others
+	claim it doesn't work at all (including causing sendmail to
+	drop core when it tries to do multiple resolv+ lookups for a
+	single job).  I haven't tried resolv+, as we use DNS exclusively.
+
+	Should you want to try resolv+, it is on ftp.uu.net in
+	/networking/ip/dns.
+
+	Apparently getservbyname() can fail under moderate to high
+	load under some circumstances.  This will exhibit itself as
+	the message ``554 makeconnection: service "smtp" unknown''.
+	The problem has been traced to one or more blank lines in
+	/etc/services on the NIS server machine.  Delete these
+	and it should work.  This info is thanks to Brian Bartholomew
+	<bb@math.ufl.edu> of I-Kinetics, Inc.
+
+	NOTE: The SunOS 4.X linker uses library paths specified during
+	compilation using -L for run-time shared library searches.
+	Therefore, it is vital that relative and unsafe directory paths not
+	be used when compiling sendmail.
+
+SunOS 4.0.2 (Sun 386i)
+	Date: Fri, 25 Aug 1995 11:13:58 +0200 (MET DST)
+	From: teus@oce.nl
+
+	Sendmail 8.7.Beta.12 compiles and runs nearly out of the box with the
+	following changes:
+	* Don't use /usr/5bin in your PATH, but make /usr/5bin/uname
+	  available as "uname" command.
+	* Use the defines "-DBSD4_3 -DNAMED_BIND=0" in
+	  devtools/OS/SunOS.4.0, which is selected via the "uname" command.
+	I recommend to make available the db-library on the system first
+	(and change the Makefile to use this library).
+	Note that the sendmail.cf and aliases files are found in /etc.
+
+SunOS 4.1.3, 4.1.3_U1
+	Sendmail causes crashes on SunOS 4.1.3 and 4.1.3_U1.  According
+	to Sun bug number 1077939:
+
+	If an application does a getsockopt() on a SOCK_STREAM (TCP) socket
+	after the other side of the connection has sent a TCP RESET for
+	the stream, the kernel gets a Bus Trap in the tcp_ctloutput() or
+	ip_ctloutput() routine.
+
+	For 4.1.3, this is fixed in patch 100584-08, available on the
+	Sunsolve 2.7.1 or later CDs.  For 4.1.3_U1, this was fixed in patch
+	101790-01 (SunOS 4.1.3_U1: TCP socket and reset problems), later
+	obsoleted by patch 102010-05.
+
+	Sun patch 100584-08 is not currently publicly available on their
+	ftp site but a user has reported it can be found at other sites
+	using a web search engine.
+
+Solaris 2.x (SunOS 5.x)
+	To compile for Solaris, the Makefile built by Build must
+	include a SOLARIS definition which reflects the Solaris version
+	(i.e. -DSOLARIS=20400 for 2.4 or -DSOLARIS=20501 for 2.5.1).
+	If you are using gcc, make sure -I/usr/include is not used (or
+	it might complain about TopFrame).  If you are using Sun's cc,
+	make sure /opt/SUNWspro/bin/cc is used instead of /usr/ucb/cc
+	(or it might complain about tm_zone).
+
+	The Solaris 2.x (x <= 3) "syslog" function is apparently limited
+	to something about 90 characters because of a kernel limitation.
+	If you have source code, you can probably up this number.  You
+	can get patches that fix this problem:  the patch ids are:
+
+		Solaris 2.1	100834
+		Solaris 2.2	100999
+		Solaris 2.3	101318
+
+	Be sure you have the appropriate patch installed or you won't
+	see system logging.
+
+Solaris 2.4 (SunOS 5.4)
+	If you include /usr/lib at the end of your LD_LIBRARY_PATH you run
+	the risk of getting the wrong libraries under some circumstances.
+	This is because of a new feature in Solaris 2.4, described by
+	Rod.Evans@Eng.Sun.COM:
+
+	>> Prior to SunOS 5.4, any LD_LIBRARY_PATH setting was ignored by the
+	>> runtime linker if the application was setxid (secure), thus your
+	>> applications search path would be:
+	>>
+	>>	/usr/local/lib	LD_LIBRARY_PATH component - IGNORED
+	>>	/usr/lib	LD_LIBRARY_PATH component - IGNORED
+	>>	/usr/local/lib	RPATH - honored
+	>>	/usr/lib	RPATH - honored
+	>>
+	>> the effect is that path 3 would be the first used, and this would
+	>> satisfy your resolv.so lookup.
+	>>
+	>> In SunOS 5.4 we made the LD_LIBRARY_PATH a little more flexible.
+	>> People who developed setxid applications wanted to be able to alter
+	>> the library search path to some degree to allow for their own
+	>> testing and debugging mechanisms.  It was decided that the only
+	>> secure way to do this was to allow a `trusted' path to be used in
+	>> LD_LIBRARY_PATH.  The only trusted directory we presently define
+	>> is /usr/lib.  Thus a set-user-ID root developer could play with some
+	>> alternative shared object implementations and place them in
+	>> /usr/lib (being root we assume they'ed have access to write in this
+	>> directory).  This change was made as part of 1155380 - after a
+	>> *huge* amount of discussion regarding the security aspect of things.
+	>>
+	>> So, in SunOS 5.4 your applications search path would be:
+	>>
+	>>	/usr/local/lib	from LD_LIBRARY_PATH - IGNORED (untrustworthy)
+	>>	/usr/lib	from LD_LIBRARY_PATH - honored (trustworthy)
+	>>	/usr/local/lib	from RPATH - honored
+	>>	/usr/lib	from RPATH - honored
+	>>
+	>> here, path 2 would be the first used.
+
+Solaris 2.5.1 (SunOS 5.5.1) and 2.6 (SunOS 5.6)
+	Apparently Solaris 2.5.1 patch 103663-01 installs a new
+	/usr/include/resolv.h file that defines the __P macro without
+	checking to see if it is already defined.  This new resolv.h is also
+	included in the Solaris 2.6 distribution.  This causes compile
+	warnings such as:
+
+	   In file included from daemon.c:51:
+	   /usr/include/resolv.h:208: warning: `__P' redefined
+	   cdefs.h:58: warning: this is the location of the previous definition
+
+	These warnings can be safely ignored or you can create a resolv.h
+	file in the obj.SunOS.5.5.1.* or obj.SunOS.5.6.* directory that reads:
+
+	   #undef __P
+	   #include "/usr/include/resolv.h"
+
+	This problem was fixed in Solaris 7 (Sun bug ID 4081053).
+
+Solaris 7 (SunOS 5.7)
+	Solaris 7 includes LDAP libraries but the implementation was
+	lacking a few things.  The following settings can be placed in
+	devtools/Site/site.SunOS.5.7.m4 if you plan on using those
+	libraries.
+
+	APPENDDEF(`confMAPDEF', `-DLDAPMAP')
+	APPENDDEF(`confENVDEF', `-DLDAP_VERSION_MAX=3')
+	APPENDDEF(`confLIBS', `-lldap')
+
+	Also, Sun's patch 107555 is needed to prevent a crash in the call
+	to ldap_set_option for LDAP_OPT_REFERRALS in ldapmap_setopts if
+	LDAP support is compiled in sendmail.
+
+Solaris 8 and later (SunOS 5.8 and later)
+	Solaris 8 and later can optionally install LDAP support.  If you
+	have installed the Entire Distribution meta-cluster, you can use
+	the following in devtools/Site/site.SunOS.5.8.m4 (or other
+	appropriately versioned file) to enable LDAP:
+
+	APPENDDEF(`confMAPDEF', `-DLDAPMAP')
+	APPENDDEF(`confLIBS', `-lldap')
+
+Solaris 9 and later (SunOS 5.9 and later)
+	Solaris 9 and later have a revised LDAP library, libldap.so.5,
+	which is derived from a Netscape implementation, thus requiring
+	that SM_CONF_LDAP_MEMFREE be defined in conjunction with LDAPMAP:
+
+	APPENDDEF(`confMAPDEF', `-DLDAPMAP')
+	APPENDDEF(`confENVDEF', `-DSM_CONF_LDAP_MEMFREE')
+	APPENDDEF(`confLIBS', `-lldap')
+
+Solaris
+	If you are using dns for hostname resolution on Solaris, make sure
+	that the 'dns' entry is last on the hosts line in
+	'/etc/nsswitch.conf'.  For example, use:
+
+		hosts:	nisplus files dns
+
+	Do not use:
+
+		hosts:  nisplus dns [NOTFOUND=return] files
+
+	Note that 'nisplus' above is an illustration.  The same comment
+	applies no matter what naming services you are using.  If you have
+	anything other than dns last, even after "[NOTFOUND=return]",
+	sendmail may not be able to determine whether an error was
+	temporary or permanent.  The error returned by the solaris
+	gethostbyname() is the error for the last lookup used, and other
+	naming services do not have the same concept of temporary failure.
+
+Ultrix
+	By default, the IDENT protocol is turned off on Ultrix.  If you
+	are running Ultrix 4.4 or later, or if you have included patch
+	CXO-8919 for Ultrix 4.2 or 4.3 to fix the TCP problem, you can turn
+	IDENT on in the configuration file by setting the "ident" timeout.
+
+	The Ultrix 4.5 Y2K patch (ULTV45-022-1) has changed the resolver
+	included in libc.a.  Unfortunately, the __RES symbol hasn't changed
+	and therefore, sendmail can no longer automatically detect the
+	newer version.  If you get a compiler error:
+
+	/lib/libc.a(gethostent.o): local_hostname_length: multiply defined
+
+	Then rebuild with this in devtools/Site/site.ULTRIX.m4:
+
+	APPENDDEF(`conf_sendmail_ENVDEF', `-DNEEDLOCAL_HOSTNAME_LENGTH=0')
+
+Digital UNIX (formerly DEC OSF/1)
+	If you are compiling on OSF/1 (DEC Alpha), you must use
+	-L/usr/shlib (otherwise it core dumps on startup).  You may also
+	need -mld to get the nlist() function, although some versions
+	apparently don't need this.
+
+	Also, the enclosed makefile removed /usr/sbin/smtpd; if you need
+	it, just create the link to the sendmail binary.
+
+	On DEC OSF/1 3.2 or earlier, the MatchGECOS option doesn't work
+	properly due to a bug in the getpw* routines.  If you want to use
+	this, use -DDEC_OSF_BROKEN_GETPWENT=1.  The problem is fixed in 3.2C.
+
+	Digital's mail delivery agent, /bin/mail (aka /bin/binmail), will
+	only preserve the envelope sender in the "From " header if
+	DefaultUserID is set to daemon.  Setting this to mailnull will
+	cause all mail to have the header "From mailnull ...".  To use
+	a different DefaultUserID, you will need to use a different mail
+	delivery agent (such as mail.local found in the sendmail
+	distribution).
+
+	On Digital UNIX 4.0 and later, Berkeley DB 1.85 is included with the
+	operating system and already has the ndbm.o module removed.  However,
+	Digital has modified the original Berkeley DB db.h include file.
+	This results in the following warning while compiling map.c and udb.c:
+
+	cc: Warning: /usr/include/db.h, line 74: The redefinition of the macro
+	 "__signed" conflicts with a current definition because the replacement
+	 lists differ.  The redefinition is now in effect.
+	#define __signed        signed
+	------------------------^
+
+	This warning can be ignored.
+
+	Digital UNIX's linker checks /usr/ccs/lib/ before /usr/lib/.
+	If you have installed a new version of BIND in /usr/include
+	and /usr/lib, you will experience difficulties as Digital ships
+	libresolv.a in /usr/ccs/lib/ as well.  Be sure to replace both
+	copies of libresolv.a.
+
+IRIX
+	The header files on SGI IRIX are completely prototyped, and as
+	a result you can sometimes get some warning messages during
+	compilation.  These can be ignored.  There are two errors in
+	deliver only if you are using gcc, both of the form ``warning:
+	passing arg N of `execve' from incompatible pointer type''.
+	Also, if you compile with -DNIS, you will get a complaint
+	about a declaration of struct dom_binding in a prototype
+	when compiling map.c; this is not important because the
+	function being prototyped is not used in that file.
+
+	In order to compile sendmail you will have had to install
+	the developers' option in order to get the necessary include
+	files.
+
+	If you compile with -lmalloc (the fast memory allocator), you may
+	get warning messages such as the following:
+
+	   ld32: WARNING 85: definition of _calloc in /usr/lib32/libmalloc.so
+		preempts that definition in /usr/lib32/mips3/libc.so.
+	   ld32: WARNING 85: definition of _malloc in /usr/lib32/libmalloc.so
+		preempts that definition in /usr/lib32/mips3/libc.so.
+	   ld32: WARNING 85: definition of _realloc in /usr/lib32/libmalloc.so
+		preempts that definition in /usr/lib32/mips3/libc.so.
+	   ld32: WARNING 85: definition of _free in /usr/lib32/libmalloc.so
+		preempts that definition in /usr/lib32/mips3/libc.so.
+	   ld32: WARNING 85: definition of _cfree in /usr/lib32/libmalloc.so
+		preempts that definition in /usr/lib32/mips3/libc.so.
+
+	These are unavoidable and innocuous -- just ignore them.
+
+	According to Dave Sill <de5@ornl.gov>, there is a version of the
+	Berkeley DB library patched to run on Irix 6.2 available from
+	http://reality.sgi.com/ariel/freeware/#db .
+
+IRIX 6.x
+	If you are using XFS filesystem, avoid using the -32 ABI switch to
+	the cc compiler if possible.
+
+	Broken inet_aton and inet_ntoa on IRIX using gcc: There's
+	a problem with gcc on IRIX, i.e., gcc can't pass structs
+	less than 16 bits long unless they are 8 bits; IRIX 6.2 has
+	some other sized structs.  See
+	http://www.bitmechanic.com/mail-archives/mysql/current/0418.html
+	This problem seems to be fixed by gcc v2.95.2, gcc v2.8.1
+	is reported as broken.  Check your gcc version for this bug
+	before installing sendmail.
+
+IRIX 6.4
+	The IRIX 6.5.4 version of /bin/m4 does not work properly with
+	sendmail.  Either install fw_m4.sw.m4 off the Freeware_May99 CD and
+	use /usr/freeware/bin/m4 or install and use GNU m4.
+
+NeXT or NEXTSTEP
+	NEXTSTEP 3.3 and earlier ship with the old DBM library.  Also,
+	Berkeley DB does not currently run on NEXTSTEP.
+
+	If you are compiling on NEXTSTEP, you will have to create an
+	empty file "unistd.h" and create a file "dirent.h" containing:
+
+		#include <sys/dir.h>
+		#define dirent	direct
+
+	(devtools/OS/NeXT should try to do both of these for you.)
+
+	Apparently, there is a bug in getservbyname on Nextstep 3.0
+	that causes it to fail under some circumstances with the
+	message "SYSERR: service "smtp" unknown" logged.  You should
+	be able to work around this by including the line:
+
+		OOPort=25
+
+	in your .cf file.
+
+BSDI (BSD/386) 1.0, NetBSD 0.9, FreeBSD 1.0
+	The "m4" from BSDI won't handle the config files properly.
+	I haven't had a chance to test this myself.
+
+	The M4 shipped in FreeBSD and NetBSD 0.9 don't handle the config
+	files properly.  One must use either GNU m4 1.1 or the PD-M4
+	recently posted in comp.os.386bsd.bugs (and maybe others).
+	NetBSD-current includes the PD-M4 (as stated in the NetBSD file
+	CHANGES).
+
+	FreeBSD 1.0 RELEASE has uname(2) now.  Use -DUSEUNAME in order to
+	use it (look into devtools/OS/FreeBSD).  NetBSD-current may have
+	it too but it has not been verified.
+
+	The latest version of Berkeley DB uses a different naming
+	scheme than the version that is supplied with your release.  This
+	means you will be able to use the current version of Berkeley DB
+	with sendmail as long you use the new db.h when compiling
+	sendmail and link it against the new libdb.a or libdb.so.  You
+	should probably keep the original db.h in /usr/include and the
+	new db.h in /usr/local/include.
+
+4.3BSD
+	If you are running a "virgin" version of 4.3BSD, you'll have
+	a very old resolver and be missing some header files.  The
+	header files are simple -- create empty versions and everything
+	will work fine.  For the resolver you should really port a new
+	version (4.8.3 or later) of the resolver; 4.9 is available on
+	gatekeeper.DEC.COM in pub/BSD/bind/4.9.  If you are really
+	determined to continue to use your old, buggy version (or as
+	a shortcut to get sendmail working -- I'm sure you have the
+	best intentions to port a modern version of BIND), you can
+	copy ../contrib/oldbind.compat.c into sendmail and add the
+	following to devtools/Site/site.config.m4:
+
+	APPENDDEF(`confOBJADD', `oldbind.compat.o')
+
+OpenBSD (up to 2.9 Release), NetBSD, FreeBSD (up to 4.3-RELEASE)
+	m4 from *BSD won't handle libsm/Makefile.m4 properly, since the
+	maximum length for strings is too short.  You need to use GNU m4
+	or patch m4, see for example:
+  http://FreeBSD.org/cgi/cvsweb.cgi/src/usr.bin/m4/eval.c.diff?r1=1.11&r2=1.12
+
+A/UX
+	Date: Tue, 12 Oct 1993 18:28:28 -0400 (EDT)
+	From: "Eric C. Hagberg" <hagberg@med.cornell.edu>
+	Subject: Fix for A/UX ndbm
+
+	I guess this isn't really a sendmail bug, however, it is something
+	that A/UX users should be aware of when compiling sendmail 8.6.
+
+	Apparently, the calls that sendmail is using to the ndbm routines
+	in A/UX 3.0.x contain calls to "broken" routines, in that the
+	aliases database will break when it gets "just a little big"
+	(sorry I don't have exact numbers here, but it broke somewhere
+	around 20-25 aliases for me.), making all aliases non-functional
+	after exceeding this point.
+
+	What I did was to get the gnu-dbm-1.6 package, compile it, and
+	then re-compile sendmail with "-lgdbm", "-DNDBM", and using the
+	ndbm.h header file that comes with the gnu-package.  This makes
+	things behave properly.
+	  [NOTE: see comment above about GDBM]
+
+	I suppose porting the New Berkeley DB package is another route,
+	however, I made a quick attempt at it, and found it difficult
+	(not easy at least); the gnu-dbm package "configured" and
+	compiled easily.
+
+	  [NOTE: Berkeley DB version 2.X runs on A/UX and can be used for
+	  database maps.]
+
+SCO Unix
+	From: Thomas Essebier <tom@stallion.oz.au>
+	Organisation:  Stallion Technologies Pty Ltd.
+
+	It will probably help those who are trying to configure sendmail 8.6.9
+	to know that if they are on SCO, they had better set
+		OI-dnsrch
+	or they will core dump as soon as they try to use the resolver.
+	i.e., although SCO has _res.dnsrch defined, and is kinda BIND 4.8.3,
+	it does not inititialise it, nor does it understand 'search' in
+	/etc/named.boot.
+		- sigh -
+
+	According to SCO, the m4 which ships with UnixWare 2.1.2 is broken.
+	We recommend installing GNU m4 before attempting to build sendmail.
+
+	On some versions a bogus error value is listed if connections
+	time out (large negative number).  To avoid this explicitly set
+	Timeout.connect to a reasonable value (several minutes).
+
+DG/UX
+	Doug Anderson <dlander@afterlife.ncsc.mil> has successfully run
+	V8 on the DG/UX 5.4.2 and 5.4R3.x platforms under heavy usage.
+	Originally, the DG /bin/mail program wasn't compatible with
+	the V8 sendmail, since the DG /bin/mail requires the environment
+	variable "_FORCE_MAIL_LOCAL_=yes" be set.  Version 8.7 now includes
+	this in the environment before invoking the local mailer.  Some
+	have used procmail to avoid this problem in the past.  It works
+	but some have experienced file locking problems with their DG/UX
+	ports of procmail.
+
+Apollo DomainOS
+	If you are compiling on Apollo, you will have to create an empty
+	file "unistd.h" (for DomainOS 10.3 and earlier) and create a file
+	"dirent.h" containing:
+
+		#include <sys/dir.h>
+		#define dirent	direct
+
+	(devtools/OS/DomainOS will attempt to do both of these for you.)
+
+HP-UX 8.00
+	Date: Mon, 24 Jan 1994 13:25:45 +0200
+	From: Kimmo Suominen <Kimmo.Suominen@lut.fi>
+	Subject: 8.6.5 w/ HP-UX 8.00 on s300
+
+	Just compiled and fought with sendmail 8.6.5 on a HP9000/360 (i.e.,
+	a series 300 machine) running HP-UX 8.00.
+
+	I was getting segmentation fault when delivering to a local user.
+	With debugging I saw it was faulting when doing _free@libc... *sigh*
+	It seems the new implementation of malloc on s300 is buggy as of 8.0,
+	so I tried out the one in -lmalloc (malloc(3X)).  With that it seems
+	to work just dandy.
+
+	When linking, you will get the following error:
+
+	ld: multiply defined symbol _freespace in file /usr/lib/libmalloc.a
+
+	but you can just ignore it.  You might want to add this info to the
+	README file for the future...
+
+Linux
+	Something broke between versions 0.99.13 and 0.99.14 of Linux: the
+	flock() system call gives errors.  If you are running .14, you must
+	not use flock.  You can do this with -DHASFLOCK=0.  We have also
+	been getting complaints since version 2.4.X was released.
+	sendmail 8.13 has changed the default locking method to fcntl()
+	for Linux kernel version 2.4 and later.  Be sure to update other
+	sendmail related programs to match locking techniques (some
+	examples, besides makemap and mail.local, include procmail, mailx,
+	mutt, elm, etc).
+
+	Around the inclusion of bind-4.9.3 & Linux libc-4.6.20, the
+	initialization of the _res structure changed.  If /etc/hosts.conf
+	was configured as "hosts, bind" the resolver code could return
+	"Name server failure" errors.  This is supposedly fixed in
+	later versions of libc (>= 4.6.29?), and later versions of
+	sendmail (> 8.6.10) try to work around the problem.
+
+	Some older versions (< 4.6.20?) of the libc/include files conflict
+	with sendmail's version of cdefs.h.  Deleting sendmail's version
+	on those systems should be non-harmful, and new versions don't care.
+
+	NOTE ON LINUX & BIND:  By default, the Makefile generated for Linux
+	includes header files in /usr/local/include and libraries in
+	/usr/local/lib.  If you've installed BIND on your system, the header
+	files typically end up in the search path and you need to add
+	"-lresolv" to the LIBS line in your Makefile.  Really old versions
+	may need to include "-l44bsd" as well (particularly if the link phase
+	complains about missing strcasecmp, strncasecmp or strpbrk).
+	Complaints about an undefined reference to `__dn_skipname' in
+	domain.o are a sure sign that you need to add -lresolv to LIBS.
+	Newer versions of Linux are basically threaded BIND, so you may or
+	may not see complaints if you accidentally mix BIND
+	headers/libraries with virginal libc.  If you have BIND headers in
+	/usr/local/include (resolv.h, etc) you *should* be adding -lresolv
+	to LIBS.  Data structures may change and you'd be asking for a
+	core dump.
+
+	A number of problems have been reported regarding the Linux 2.2.0
+	kernel.  So far, these problems have been tracked down to syslog()
+	and DNS resolution.  We believe the problem is with the poll()
+	implementation in the Linux 2.2.0 kernel and poll()-aware versions
+	of glib (at least up to 2.0.111).
+
+glibc
+	glibc 2.2.1 (and possibly other versions) changed the value of
+	__RES in resolv.h but failed to actually provide the IPv6 API
+	changes that the change implied.  Therefore, compiling with
+	-DNETINET6 fails.
+
+	Workarounds:
+	1) Compile without -DNETINET6
+	2) Build against a real BIND 8.2.2 include/lib tree
+	3) Wait for glibc to fix it
+
+AIX 4.X
+	The AIX 4.X linker uses library paths specified during compilation
+	using -L for run-time shared library searches.  Therefore, it is
+	vital that relative and unsafe directory paths not be using when
+	compiling sendmail.  Because of this danger, by default, compiles
+	on AIX use the -blibpath option to limit shared libraries to
+	/usr/lib and /lib.  If you need to allow more directories, such as
+	/usr/local/lib, modify your devtools/Site/site.AIX.4.2.m4,
+	site.AIX.4.3.m4, and/or site.AIX.4.x.m4 file(s) and set confLDOPTS
+	appropriately.  For example:
+
+	define(`confLDOPTS', `-blibpath:/usr/lib:/lib:/usr/local/lib')
+
+	Be sure to only add (safe) system directories.
+
+	The AIX version of GNU ld also exhibits this problem.  If you are
+	using that version, instead of -blibpath, use its -rpath option.
+	For example:
+
+	gcc -Wl,-rpath /usr/lib -Wl,-rpath /lib -Wl,-rpath /usr/local/lib
+
+AIX 4.X	If the test program t-event (and most others) in libsm fails,
+	check your compiler settings.  It seems that the flags -qnoro or
+	-qnoroconst on some AIX versions trigger a compiler bug.  Check
+	your compiler settings or use cc instead of xlc.
+
+AIX 4.0-4.2, maybe some AIX 4.3 versions
+	The AIX m4 implements a different mechanism for ifdef which is
+	inconsistent with other versions of m4.  Therefore, it will not
+	work properly with the sendmail Build architecture or m4
+	configuration method.  To work around this problem, please use
+	GNU m4 from ftp://ftp.gnu.org/pub/gnu/.
+	The problem seems to be solved in AIX 4.3.3 at least.
+
+AIX 4.3.3
+	From: Valdis.Kletnieks@vt.edu
+	Date: Sun, 02 Jul 2000 03:58:02 -0400
+
+	Under AIX 4.3.3, after applying bos.adt.include 4.3.3.12 to close the
+	BIND 8.2.2 security holes, you can no longer build with  -DNETINET6
+	because they changed the value of __RES in resolv.h but failed to
+	actually provide the API changes that the change implied.
+
+	Workarounds:
+	1) Compile without -DNETINET6
+	2) Build against a real BIND 8.2.2 include/lib tree
+	3) Wait for IBM to fix it
+
+AIX 3.x
+	This version of sendmail does not support MB, MG, and MR resource
+	records, which are supported by AIX sendmail.
+
+	Several people have reported that the IBM-supplied named returns
+	fairly random results -- the named should be replaced.  It is not
+	necessary to replace the resolver, which will simplify installation.
+	A new BIND resolver can be found at http://www.isc.org/isc/.
+
+AIX 3.1.x
+	The supplied load average code only works correctly for AIX 3.2.x.
+	For 3.1, use -DLA_TYPE=LA_SUBR and get the latest ``monitor''
+	package by Jussi Maki <jmaki@hut.fi> from ftp.funet.fi in the
+	directory pub/unix/AIX/rs6000/monitor-1.12.tar.Z; use the loadavgd
+	daemon, and the getloadavg subroutine supplied with that package.
+	If you don't care about load average throttling, just turn off
+	load average checking using -DLA_TYPE=LA_ZERO.
+
+RISC/os
+	RISC/os from MIPS is a merged AT&T/Berkeley system.  When you
+	compile on that platform you will get duplicate definitions
+	on many files.  You can ignore these.
+
+System V Release 4 Based Systems
+	There is a single devtools OS that is intended for all SVR4-based
+	systems (built from devtools/OS/SVR4).  It defines __svr4__,
+	which is predefined by some compilers.  If your compiler already
+	defines this compile variable, you can delete the definition from
+	the generated Makefile or create a devtools/Site/site.config.m4
+	file.
+
+	It's been tested on Dell Issue 2.2.
+
+DELL SVR4
+	Date:      Mon, 06 Dec 1993 10:42:29 EST
+	From: "Kimmo Suominen" <kim@grendel.lut.fi>
+	Message-ID: <2d0352f9.lento29@lento29.UUCP>
+	To: eric@cs.berkeley.edu
+	Cc: sendmail@cs.berkeley.edu
+	Subject:   Notes for DELL SVR4
+
+	Eric,
+
+	Here are some notes for compiling Sendmail 8.6.4 on DELL SVR4.  I ran
+	across these things when helping out some people who contacted me by
+	e-mail.
+
+	1) Use gcc 2.4.5 (or later?).  Dell distributes gcc 2.1 with their
+	   Issue 2.2 Unix.  It is too old, and gives you problems with
+	   clock.c, because sigset_t won't get defined in <sys/signal.h>.
+	   This is due to a problematic protection rule in there, and is
+	   fixed with gcc 2.4.5.
+
+	2) If you don't use the new Berkeley DB (-DNEWDB), then you need
+	   to add "-lc -lucb" to the libraries to link with.  This is because
+	   the -ldbm distributed by Dell needs the bcopy, bcmp and bzero
+	   functions.  It is important that you specify both libraries in
+	   the given order to be sure you only get the BSTRING functions
+	   from the UCB library (and not the signal routines etc.).
+
+	3) Don't leave out "-lelf" even if compiling with "-lc -lucb".
+	   The UCB library also has another copy of the nlist routines,
+	   but we do want the ones from "-lelf".
+
+	If anyone needs a compiled gcc 2.4.5 and/or a ported DB library, they
+	can use anonymous ftp to fetch them from lut.fi in the /kim directory.
+	They are copies of what I use on grendel.lut.fi, and offering them
+	does not imply that I would also support them.  I have sent the DB
+	port for SVR4 back to Keith Bostic for inclusion in the official
+	distribution, but I haven't heard anything from him as of today.
+
+	- gcc-2.4.5-svr4.tar.gz	(gcc 2.4.5 and the corresponding libg++)
+	- db-1.72.tar.gz	(with source, objects and a installed copy)
+
+	Cheers
+	+ Kim
+	--
+	 *  Kimmo.Suominen@lut.fi  *  SysVr4 enthusiast at GRENDEL.LUT.FI  *
+	*    KIM@FINFILES.BITNET   *  Postmaster and Hostmaster at LUT.FI   *
+	 *    + 358 200 865 718    *  Unix area moderator at NIC.FUNET.FI  *
+
+ConvexOS 10.1 and below
+	In order to use the name server, you must create the file
+	/etc/use_nameserver.  If this file does not exist, the call
+	to res_init() will fail and you will have absolutely no
+	access to DNS, including MX records.
+
+Amdahl UTS 2.1.5
+	In order to get UTS to work, you will have to port BIND 4.9.
+	The vendor's BIND is reported to be ``totally inadequate.''
+	See sendmail/contrib/AmdahlUTS.patch for the patches necessary
+	to get BIND 4.9 compiled for UTS.
+
+UnixWare
+	According to Alexander Kolbasov <sasha@unitech.gamma.ru>,
+	the m4 on UnixWare 2.0 (still in Beta) will core dump on the
+	config files.  GNU m4 and the m4 from UnixWare 1.x both work.
+
+	According to Larry Rosenman <ler@lerami.lerctr.org>:
+
+		UnixWare 2.1.[23]'s m4 chokes (not obviously) when
+		processing the 8.9.0 cf files.
+
+		I had a LOCAL_RULE_0 that wound up AFTER the
+		SBasic_check_rcpt rules using the SCO supplied M4.
+		GNU M4 works fine.
+
+UNICOS 8.0.3.4
+	Some people have reported that the -O flag on UNICOS can cause
+	problems.  You may want to turn this off if you have problems
+	running sendmail.  Reported by Jerry G. DeLapp <jgd@acl.lanl.gov>.
+
+Darwin/Mac OS X (10.X.X)
+	The linker errors produced regarding getopt() and its associated
+	variables can safely be ignored.
+
+	From Mike Zimmerman <zimmy@torrentnet.com>:
+
+	From scratch here is what Darwin users need to do to the standard
+	10.0.0, 10.0.1 install to get sendmail working.
+	From http://www.macosx.com/forums/showthread.php?s=6dac0e9e1f3fd118a4870a8a9b559491&threadid=2242:
+	1. chmod g-w / /private /private/etc
+	2. Properly set HOSTNAME in /etc/hostconfig to your FQDN:
+	   HOSTNAME=-my.domain.com-
+	3. Edit /etc/rc.boot:
+	   hostname my.domain.com
+	   domainname domain.com
+	4. Edit /System/Library/StartupItems/Sendmail/Sendmail:
+	   Remove the "&" after the sendmail command:
+	   /usr/sbin/sendmail -bd -q1h
+
+	From Carsten Klapp <carsten.klapp@home.com>:
+
+	The easiest workaround is to remove the group-writable permission
+	for the root directory and the symbolic /etc inherits this
+	change. While this does fix sendmail, the unfortunate side-effect
+	is the OS X admin will no longer be able to manipulate icons in the
+	top level of the Startup disk unless logged into the GUI as the
+	superuser.
+
+	In applying the alternate workaround, care must be taken while
+	swapping the symlink /etc with the directory /private/etc. In all
+	likelihood any admin who is concerned with this sendmail error has
+	enough experience to not accidentally harm anything in the process.
+
+	a. Swap the /etc symlink with /private/etc (as superuser):
+	   rm /etc
+	   mv /private/etc /etc
+	   ln -s /etc /private/etc
+
+	b. Set / to group unwritable (as superuser):
+	   chmod g-w /
+
+Darwin/Mac OS X (10.1.5)
+	Apple's upgrade to sendmail 8.12 is incorrectly configured.  You
+	will need to manually fix it up by doing the following:
+
+	1. chown smmsp:smmsp /var/spool/clientmqueue
+	2. chmod 2770 /var/spool/clientmqueue
+	3. chgrp smmsp /usr/sbin/sendmail
+	4. chmod g+s /usr/sbin/sendmail
+
+	From Daniel J. Luke <dluke@geeklair.net>:
+
+	It appears that setting the sendmail.cf property in
+	/locations/sendmail in NetInfo on Mac OS X 10.1.5 with sendmail
+	8.12.4 causes 'bad things' to happen.
+
+	Specifically sendmail instances that should be getting their config
+	from /etc/mail/submit.cf don't (so mail/mutt/perl scripts which
+	open pipes to sendmail stop working as sendmail tries to write to
+	/var/spool/mqueue and cannot as sendmail is no longer suid root).
+
+	Removing the entry from NetInfo fixes this problem.
+
+GNU getopt
+	I'm told that GNU getopt has a problem in that it gets confused
+	by the double call.  Use the version in conf.c instead.
+
+BIND 4.9.2 and Ultrix
+	If you are running on Ultrix, be sure you read conf/Info.Ultrix
+	in the BIND distribution very carefully -- there is information
+	in there that you need to know in order to avoid errors of the
+	form:
+
+		/lib/libc.a(gethostent.o): sethostent: multiply defined
+		/lib/libc.a(gethostent.o): endhostent: multiply defined
+		/lib/libc.a(gethostent.o): gethostbyname: multiply defined
+		/lib/libc.a(gethostent.o): gethostbyaddr: multiply defined
+
+	during the link stage.
+
+BIND 8.X
+	BIND 8.X returns HOST_NOT_FOUND instead of TRY_AGAIN on temporary
+	DNS failures when trying to find the hostname associated with an IP
+	address (gethostbyaddr()).  This can cause problems as
+	$&{client_name} based lookups in class R ($=R) and the access
+	database won't succeed.
+
+	This will be fixed in BIND 8.2.1.  For earlier versions, this can
+	be fixed by making "dns" the last name service queried for host
+	resolution in /etc/irs.conf:
+
+		hosts local continue
+		hosts dns
+
+strtoul
+	Some compilers (notably gcc) claim to be ANSI C but do not
+	include the ANSI-required routine "strtoul".  If your compiler
+	has this problem, you will get an error in srvrsmtp.c on the
+	code:
+
+	  # ifdef defined(__STDC__) && !defined(BROKEN_ANSI_LIBRARY)
+			e->e_msgsize = strtoul(vp, (char **) NULL, 10);
+	  # else
+			e->e_msgsize = strtol(vp, (char **) NULL, 10);
+	  # endif
+
+	You can use -DBROKEN_ANSI_LIBRARY to get around this problem.
+
+Listproc 6.0c
+	Date: 23 Sep 1995 23:56:07 GMT
+	Message-ID: <95925101334.~INN-AUMa00187.comp-news@dl.ac.uk>
+	From: alansz@mellers1.psych.berkeley.edu (Alan Schwartz)
+	Subject: Listproc 6.0c + Sendmail 8.7 [Helpful hint]
+
+	Just upgraded to sendmail 8.7, and discovered that listproc 6.0c
+	breaks, because it, by default, sends a blank "HELO" rather than
+	a "HELO hostname" when using the 'system' or 'telnet' mail method.
+
+	The fix is to include -DZMAILER in the compilation, which will
+	cause it to use "HELO hostname" (which Z-mail apparently requires
+	as well. :)
+
+OpenSSL
+	OpenSSL versions prior to 0.9.6 use a macro named Free which
+	conflicts with existing macro names on some platforms, such as
+	AIX.
+	Do not use 0.9.3, but OpenSSL 0.9.5a or later if compatible with
+	0.9.5a.
+
+PH
+	PH support is provided by Mark Roth <roth@uiuc.edu>.  The map is
+	described at http://www-dev.cites.uiuc.edu/sendmail/ .
+
+	NOTE: The "spacedname" pseudo-field which was used by earlier
+	versions of the PH map code is no longer supported!  See the URL
+	listed above for more information.
+
+	Please contact Mark Roth for support and questions regarding the
+	map.
+
+TCP Wrappers
+	If you are using -DTCPWRAPPERS to get TCP Wrappers support you will
+	also need to install libwrap.a and modify your site.config.m4 file
+	or the generated Makefile to include -lwrap in the LIBS line
+	(make sure that INCDIRS and LIBDIRS point to where the tcpd.h and
+	libwrap.a can be found).
+
+	TCP Wrappers is available at ftp://ftp.porcupine.org/pub/security/.
+
+	If you have alternate MX sites for your site, be sure that all of
+	your MX sites reject the same set of hosts.  If not, a bad guy whom
+	you reject will connect to your site, fail, and move on to the next
+	MX site, which will accept the mail for you and forward it on to you.
+
+Regular Expressions (MAP_REGEX)
+	If sendmail linking fails with:
+
+		undefined reference to 'regcomp'
+
+	or sendmail gives an error about a regular expression with:
+
+		pattern-compile-error: : Operation not applicable
+
+	Your libc does not include a running version of POSIX-regex.  Use
+	librx or regex.o from the GNU Free Software Foundation,
+	ftp://ftp.gnu.org/pub/gnu/rx-?.?.tar.gz or
+	ftp://ftp.gnu.org/pub/gnu/regex-?.?.tar.gz.
+	You can also use the regex-lib by Henry Spencer,
+	ftp://ftp.funet.fi/pub/languages/C/spencer/regex.shar.gz
+	Make sure, your compiler reads regex.h from the distribution,
+	not from /usr/include, otherwise sendmail will dump a core.
+
+Fedora Core 5, 64 bit version
+	If the ld stage fails with undefined functions like
+	__res_querydomain, __dn_expand
+	then add these lines to devtools/Site/site.config.m4
+
+	APPENDDEF(`confLIBDIRS', `-L/usr/lib64')
+	APPENDDEF(`confINCDIRS', `-I/usr/include/bind9')
+
+	and rebuild (sh ./Build -c).
+
+	Problem noted by Daniel Krones, solution suggested by
+	Anthony Howe.
+
+
++--------------+
+| MANUAL PAGES |
++--------------+
+
+The manual pages have been written against the -man macros, and
+should format correctly with any reasonable *roff.
+
+
++-----------------+
+| DEBUGGING HOOKS |
++-----------------+
+
+As of 8.6.5, sendmail daemons will catch a SIGUSR1 signal and log
+some debugging output (logged at LOG_DEBUG severity).  The
+information dumped is:
+
+ * The value of the $j macro.
+ * A warning if $j is not in the set $=w.
+ * A list of the open file descriptors.
+ * The contents of the connection cache.
+ * If ruleset 89 is defined, it is evaluated and the results printed.
+
+This allows you to get information regarding the runtime state of the
+daemon on the fly.  This should not be done too frequently, since
+the process of rewriting may lose memory which will not be recovered.
+Also, ruleset 89 may call non-reentrant routines, so there is a small
+non-zero probability that this will cause other problems.  It is
+really only for debugging serious problems.
+
+A typical formulation of ruleset 89 would be:
+
+	R$*		$@ $>0 some test address
+
+
++-----------------------------+
+| DESCRIPTION OF SOURCE FILES |
++-----------------------------+
+
+The following list describes the files in this directory:
+
+Build		Shell script for building sendmail.
+Makefile	A convenience for calling ./Build.
+Makefile.m4	A template for constructing a makefile based on the
+		information in the devtools directory.
+README		This file.
+TRACEFLAGS	My own personal list of the trace flags -- not guaranteed
+		to be particularly up to date.
+alias.c		Does name aliasing in all forms.
+aliases.5	Man page describing the format of the aliases file.
+arpadate.c	A subroutine which creates ARPANET standard dates.
+bf.c		Routines to implement memory-buffered file system using
+		hooks provided by libsm now (formerly Torek stdio library).
+bf.h		Buffered file I/O function declarations and
+		data structure and function declarations for bf.c.
+collect.c	The routine that actually reads the mail into a temp
+		file.  It also does a certain amount of parsing of
+		the header, etc.
+conf.c		The configuration file.  This contains information
+		that is presumed to be quite static and non-
+		controversial, or code compiled in for efficiency
+		reasons.  Most of the configuration is in sendmail.cf.
+conf.h		Configuration that must be known everywhere.
+control.c	Routines to implement control socket.
+convtime.c	A routine to sanely process times.
+daemon.c	Routines to implement daemon mode.
+deliver.c	Routines to deliver mail.
+domain.c	Routines that interface with DNS (the Domain Name
+		System).
+envelope.c	Routines to manipulate the envelope structure.
+err.c		Routines to print error messages.
+headers.c	Routines to process message headers.
+helpfile	An example helpfile for the SMTP HELP command and -bt mode.
+macro.c		The macro expander.  This is used internally to
+		insert information from the configuration file.
+mailq.1		Man page for the mailq command.
+main.c		The main routine to sendmail.  This file also
+		contains some miscellaneous routines.
+makesendmail	A convenience for calling ./Build.
+map.c		Support for database maps.
+mci.c		Routines that handle mail connection information caching.
+milter.c	MTA portions of the mail filter API.
+mime.c		MIME conversion routines.
+newaliases.1	Man page for the newaliases command.
+parseaddr.c	The routines which do address parsing.
+queue.c		Routines to implement message queueing.
+readcf.c	The routine that reads the configuration file and
+		translates it to internal form.
+recipient.c	Routines that manipulate the recipient list.
+sasl.c		Routines to interact with Cyrys-SASL.
+savemail.c	Routines which save the letter on processing errors.
+sendmail.8	Man page for the sendmail command.
+sendmail.h	Main header file for sendmail.
+sfsasl.c	I/O interface between SASL/TLS and the MTA.
+sfsasl.h	Header file for sfsasl.c.
+shmticklib.c	Routines for shared memory counters.
+sm_resolve.c	Routines for DNS lookups (for DNS map type).
+sm_resolve.h	Header file for sm_resolve.c.
+srvrsmtp.c	Routines to implement server SMTP.
+stab.c		Routines to manage the symbol table.
+stats.c		Routines to collect and post the statistics.
+statusd_shm.h	Data structure and function declarations for shmticklib.c.
+sysexits.c	List of error messages associated with error codes
+		in sysexits.h.
+sysexits.h	List of error codes for systems that lack their own.
+timers.c	Routines to provide microtimers.
+timers.h	Data structure and function declarations for timers.h.
+tls.c		Routines for TLS.
+trace.c		The trace package.  These routines allow setting and
+		testing of trace flags with a high granularity.
+udb.c		The user database interface module.
+usersmtp.c	Routines to implement user SMTP.
+util.c		Some general purpose routines used by sendmail.
+version.c	The version number and information about this
+		version of sendmail.
+
+(Version $Revision: 8.393 $, last update $Date: 2013-11-22 20:51:54 $ )

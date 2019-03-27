@@ -1,0 +1,25 @@
+# $FreeBSD$
+
+kern/kern_clocksource.c				standard
+
+arm/samsung/exynos/exynos5_mct.c		standard
+arm/samsung/exynos/exynos5_mp.c			optional	smp
+arm/samsung/exynos/exynos5_machdep.c		standard
+arm/samsung/exynos/exynos5_combiner.c		standard
+arm/samsung/exynos/exynos5_pad.c		optional	gpio
+arm/samsung/exynos/exynos_uart.c		optional	uart
+arm/samsung/exynos/exynos5_ehci.c		optional	ehci
+arm/samsung/exynos/exynos5_xhci.c		optional	xhci
+arm/samsung/exynos/exynos5_fimd.c		optional	vt
+arm/samsung/exynos/exynos5_i2c.c		optional	iicbus
+arm/samsung/exynos/exynos5_usb_phy.c		standard
+arm/samsung/exynos/exynos5_pmu.c		standard
+arm/samsung/exynos/exynos5_spi.c		optional	exynos_spi
+
+# chromebook drivers
+arm/samsung/exynos/chrome_ec.c			optional	chrome_ec_i2c
+arm/samsung/exynos/chrome_ec_spi.c		optional	chrome_ec_spi
+arm/samsung/exynos/chrome_kb.c			optional	chrome_kb
+
+dev/mmc/host/dwmmc.c				optional	dwmmc
+dev/mmc/host/dwmmc_samsung.c			optional	dwmmc

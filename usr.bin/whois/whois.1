@@ -1,0 +1,287 @@
+.\" Copyright (c) 1985, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)whois.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd April 25, 2016
+.Dt WHOIS 1
+.Os
+.Sh NAME
+.Nm whois
+.Nd "Internet domain name and network number directory service"
+.Sh SYNOPSIS
+.Nm
+.Op Fl aAbfgiIklmPQrRS
+.Op Fl c Ar TLD | Fl h Ar host
+.Op Fl p Ar port
+.Op Fl -
+.Ar name ...
+.Sh DESCRIPTION
+The
+.Nm
+utility looks up records in the databases maintained by several
+Network Information Centers
+.Pq Tn NICs .
+.Pp
+By default
+.Nm
+starts by querying the Internet Assigned Numbers Authority (IANA) whois server,
+and follows referrals to whois servers
+that have more specific details about the query
+.Ar name .
+The IANA whois server knows about
+IP address and AS numbers
+as well as domain names.
+.Pp
+There are a few special cases where referrals do not work, so
+.Nm
+goes directly to the appropriate server.
+These include point-of-contact handles for ARIN,
+.Pa nic.at ,
+NORID, and RIPE,
+and domain names under
+.Pa ac.uk .
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a
+Use the American Registry for Internet Numbers
+.Pq Tn ARIN
+database.
+It contains network numbers used in those parts of the world covered neither by
+.Tn APNIC , AfriNIC , LACNIC ,
+nor by
+.Tn RIPE .
+The query syntax is documented at
+.Pa https://www.arin.net/resources/whoisrws/whois_api.html#nicname
+.It Fl A
+Use the Asia/Pacific Network Information Center
+.Pq Tn APNIC
+database.
+It contains network numbers used in East Asia, Australia,
+New Zealand, and the Pacific islands.
+Get query syntax documentation using
+.Ic whois -A help
+.It Fl b
+Use the Network Abuse Clearinghouse database.
+It contains addresses to which network abuse should be reported,
+indexed by domain name.
+.It Fl c Ar TLD
+This is the equivalent of using the
+.Fl h
+option with an argument of
+.Qq Ar TLD Ns Li .whois-servers.net .
+This can be helpful for locating country-class TLD whois servers.
+.It Fl f
+Use the African Network Information Centre
+.Pq Tn AfriNIC
+database.
+It contains network numbers used in Africa and the islands of the
+western Indian Ocean.
+Get query syntax documentation using
+.Ic whois -f help
+.It Fl g
+Use the US non-military federal government database, which contains points of
+contact for subdomains of
+.Pa .GOV .
+.It Fl h Ar host
+Use the specified host instead of the default.
+Either a host name or an IP address may be specified.
+.It Fl i
+Use the traditional Network Information Center (InterNIC)
+.Pq Pa whois.internic.net
+database.
+This now contains only registrations for domain names under
+.Pa .COM ,
+.Pa .NET ,
+.Pa .EDU .
+You can specify the type of object to search for like
+.Ic whois -i ' Ns Ar type Ar name Ns Ic '
+where
+.Ar type
+can be
+.Nm domain , nameserver , registrar .
+The
+.Ar name
+can contain
+.Li *
+wildcards.
+.It Fl I
+Use the Internet Assigned Numbers Authority
+.Pq Tn IANA
+database.
+.It Fl k
+Use the National Internet Development Agency of Korea's
+.Pq Tn KRNIC
+database.
+It contains network numbers and domain contact information
+for Korea.
+.It Fl l
+Use the Latin American and Caribbean IP address Regional Registry
+.Pq Tn LACNIC
+database.
+It contains network numbers used in much of Latin America and the
+Caribbean.
+.It Fl m
+Use the Route Arbiter Database
+.Pq Tn RADB
+database.
+It contains route policy specifications for a large
+number of operators' networks.
+.It Fl p Ar port
+Connect to the whois server on
+.Ar port .
+If this option is not specified,
+.Nm
+defaults to port 43.
+.It Fl P
+Use the PeeringDB database of AS numbers.
+It contains details about presence at internet peering points
+for many network operators.
+.It Fl Q
+Do a quick lookup;
+.Nm
+will not attempt to follow referrals to other whois servers.
+This is the default if a server is explicitly specified
+using one of the other options or in an environment variable.
+See also the
+.Fl R
+option.
+.It Fl r
+Use the R\(aaeseaux IP Europ\(aaeens
+.Pq Tn RIPE
+database.
+It contains network numbers and domain contact information
+for Europe.
+Get query syntax documentation using
+.Ic whois -r help
+.It Fl R
+Do a recursive lookup;
+.Nm
+will attempt to follow referrals to other whois servers.
+This is the default if no server is explicitly specified.
+See also the
+.Fl Q
+option.
+.It Fl S
+By default
+.Nm
+adjusts simple queries (without spaces) to produce more useful output
+from certain whois servers,
+and it suppresses some uninformative output.
+With the
+.Fl S
+option,
+.Nm
+sends the query and prints the output verbatim.
+.El
+.Pp
+The operands specified to
+.Nm
+are treated independently and may be used
+as queries on different whois servers.
+.Sh ENVIRONMENT
+.Bl -tag -width WHOIS_SERVER
+.It Ev WHOIS_SERVER
+The primary default whois server.
+If this is unset,
+.Nm
+uses the
+.Ev RA_SERVER
+environment variable.
+.It Ev RA_SERVER
+The secondary default whois server.
+If this is unset,
+.Nm
+will use
+.Pa whois.iana.org .
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+To obtain contact information about an
+administrator located in the Russian
+.Tn TLD
+domain
+.Qq Li RU ,
+use the
+.Fl c
+option as shown in the following example, where
+.Ar CONTACT-ID
+is substituted with the actual contact identifier.
+.Pp
+.Dl Ic whois -c RU CONTACT-ID
+.Pp
+(Note: This example is specific to the
+.Tn TLD
+.Qq Li RU ,
+but other
+.Tn TLDs
+can be queried by using a similar syntax.)
+.Pp
+The following example demonstrates how to query
+a whois server using a non-standard port, where
+.Dq Li query-data
+is the query to be sent to
+.Dq Li whois.example.com
+on port
+.Dq Li rwhois
+(written numerically as 4321).
+.Pp
+.Dl Ic whois -h whois.example.com -p rwhois query-data
+.Pp
+Some whois servers support complex queries
+with dash-letter options.
+You can use the
+.Fl -
+option to separate
+.Nm
+command options from whois server query options.
+A query containing spaces must be quoted as one
+argument to the
+.Nm
+command.
+The following example asks the RIPE whois server
+to return a brief description of its
+.Dq Li domain
+object type:
+.Pp
+.Dl Ic whois -r -- '-t domain'
+.Sh SEE ALSO
+.Rs
+.%A Ken Harrenstien
+.%A Vic White
+.%T NICNAME/WHOIS
+.%D 1 March 1982
+.%O RFC 812
+.Re
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 .

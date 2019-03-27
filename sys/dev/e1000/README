@@ -1,0 +1,406 @@
+$FreeBSD$
+FreeBSD* Driver for Intel Network Connection
+=============================================
+
+May 30, 2007
+
+
+Contents
+========
+
+- Overview
+- Identifying Your Adapter
+- Building and Installation
+- Speed and Duplex Configuration
+- Additional Configurations
+- Known Limitations
+- Support
+- License
+
+
+Overview
+========
+
+This file describes the FreeBSD* driver for Intel Network Connection.
+This driver has been developed for use with FreeBSD, Release 7.x.
+
+For questions related to hardware requirements, refer to the documentation
+supplied with your Gigabit adapter. All hardware requirements listed
+apply to use with FreeBSD.
+
+
+Identifying Your Adapter
+========================
+
+For information on how to identify your adapter, go to the Adapter &
+Driver ID Guide at:
+
+http://support.intel.com/support/network/sb/cs-012904.htm
+
+
+For the latest Intel network drivers for FreeBSD, see:
+
+http://downloadfinder.intel.com/scripts-df-external/support_intel.aspx
+
+
+NOTE: Mobile adapters are not fully supported.
+NOTE: The Intel(R) 82562v 10/100 Network Connection only provides 10/100
+support.
+
+Building and Installation
+=========================
+
+NOTE: The driver can be installed as a dynamic loadable kernel module or
+      compiled into the kernel. You must have kernel sources installed in
+      order to compile the driver module.
+
+In the instructions below, x.x.x is the driver version as indicated in the
+name of the driver tar file.
+
+1. Move the base driver tar file to the directory of your choice. For
+   example, use /home/username/em or /usr/local/src/em.
+
+2. Untar/unzip the archive:
+
+        tar xzvf em-x.x.x.tar.gz
+
+   This will create an em-x.x.x directory.
+
+3. To create a loadable module, perform the following steps.
+   NOTE: To compile the driver into the kernel, go directly to step 4.
+
+        a. To compile the module
+
+                  cd em-x.x.x
+                  make
+
+        b. To install the compiled module to the system directory:
+
+                  make install
+
+        c. If you want the driver to load automatically when the system is booted:
+
+              1. Edit /boot/loader.conf, and add the following line:
+
+                  if_em_load="YES"
+
+4. To compile the driver into the kernel, enter:
+
+        cd em-x.x.x/src
+        cp *.[ch] /usr/src/sys/dev/em
+
+        Edit the kernel configuration file (i.e., GENERIC or MYKERNEL) in
+        /usr/src/sys/i386/conf, and ensure the following line is present:
+
+        device em
+
+        Compile and install the kernel. The system must be rebooted for the
+        kernel updates to take effect. For additional information on compiling
+        the kernel, consult the FreeBSD operating system documentation.
+
+5. To assign an IP address to the interface, enter the following:
+
+        ifconfig em<interface_num> <IP_address>
+
+6. Verify that the interface works. Enter the following, where <IP_address>
+   is the IP address for another machine on the same subnet as the interface
+   that is being tested:
+
+        ping <IP_address>
+
+7. To configure the IP address to remain after reboot, edit /etc/rc.conf,
+   and create the appropriate ifconfig_em<interface_num>entry:
+
+        ifconfig_em<interface_num>="<ifconfig_settings>"
+
+   Example usage:
+
+        ifconfig_em0="inet 192.168.10.1 netmask 255.255.255.0"
+
+   NOTE: For assistance, see the ifconfig man page.
+
+
+Speed and Duplex Configuration
+==============================
+
+By default, the adapter auto-negotiates the speed and duplex of the
+connection. If there is a specific need, the ifconfig utility can be used to
+configure the speed and duplex settings on the adapter. Example usage:
+
+        ifconfig em<interface_num> <IP_address> media 100baseTX mediaopt
+            full-duplex
+
+   NOTE: Only use mediaopt to set the driver to full-duplex. If mediaopt is
+         not specified and you are not running at gigabit speed, the driver
+         defaults to half-duplex.
+
+If the interface is currently forced to 100 full duplex, in order to change
+to half duplex you must use this command:
+
+        ifconfig em<interface_num> <IP_address> media 100baseTX -mediaopt
+            full-duplex
+
+
+This driver supports the following media type options:
+
+   autoselect      -  Enables auto-negotiation for speed and duplex.
+
+   10baseT/UTP     -  Sets speed to 10 Mbps. Use the ifconfig mediaopt
+                      option to select full-duplex mode.
+
+   100baseTX       -  Sets speed to 100 Mbps. Use the ifconfig mediaopt
+                      option to select full-duplex mode.
+
+   1000baseTX      -  Sets speed to 1000 Mbps. In this case, the driver
+                      supports only full-duplex mode.
+
+   1000baseSX      -  Sets speed to 1000 Mbps. In this case, the driver
+                      supports only full-duplex mode.
+
+For more information on the ifconfig utility, see the ifconfig man page.
+
+
+Additional Configurations
+=========================
+
+The driver supports Transmit/Receive Checksum Offload and Jumbo Frames on
+all but the 82542-based adapters.  For specific adapters, refer to the
+Identifying Your Adapter section.
+
+  Jumbo Frames
+  ------------
+  To enable Jumbo Frames, use the ifconfig utility to set the Maximum
+  Transport Unit (MTU) frame size above its default of 1500 bytes.
+
+  The Jumbo Frames MTU range for Intel Adapters is 1500 to 16110. To modify
+  the setting, enter the following:
+
+        ifconfig em<interface_num> <hostname or IP address> mtu 9000
+
+  To confirm the MTU used between two specific devices, use:
+
+        route get <destination_IP_address>
+
+  Notes:
+
+  - Only enable Jumbo Frames if your network infrastructure supports them.
+
+  - To enable Jumbo Frames, increase the MTU size on the interface beyond
+    1500.
+
+  - The Jumbo Frames setting on the switch must be set to at least 22 bytes
+    larger than that of the MTU.
+
+  - The maximum MTU setting for Jumbo Frames is 16110.  This value coincides
+    with the maximum Jumbo Frames size of 16128.
+
+  - Some Intel gigabit adapters that support Jumbo Frames have a frame size
+    limit of 9238 bytes, with a corresponding MTU size limit of 9216 bytes.
+    The adapters with this limitation are based on the Intel(R) 82571EB,
+    82572EI, 82573L, 82566, 82562, and 80003ES2LAN controller.  These
+    correspond to the following product names:
+     Intel(R) PRO/1000 PT Server Adapter
+     Intel(R) PRO/1000 PT Desktop Adapter
+     Intel(R) PRO/1000 PT Network Connection
+     Intel(R) PRO/1000 PT Dual Port Server Adapter
+     Intel(R) PRO/1000 PT Dual Port Network Connection
+     Intel(R) PRO/1000 PT Quad Port Server Adapter
+     Intel(R) PRO/1000 PF Quad Port Server Adapter
+     Intel(R) PRO/1000 PF Server Adapter
+     Intel(R) PRO/1000 PF Network Connection
+     Intel(R) PRO/1000 PF Dual Port Server Adapter
+     Intel(R) PRO/1000 PB Server Connection
+     Intel(R) PRO/1000 PL Network Connection
+     Intel(R) PRO/1000 EB Network Connection with I/O Acceleration
+     Intel(R) PRO/1000 EB Backplane Connection with I/O Acceleration
+     Intel(R) 82566DM-2 Gigabit Network Connection
+
+  - Adapters based on the Intel(R) 82542 and 82573V/E controller do not
+    support Jumbo Frames. These correspond to the following product names:
+     Intel(R) PRO/1000 Gigabit Server Adapter
+     Intel(R) PRO/1000 PM Network Connection
+
+  - Using Jumbo Frames at 10 or 100 Mbps may result in poor performance or
+    loss of link.
+
+  - The following adapters do not support Jumbo Frames:
+    Intel(R) 82562V 10/100 Network Connection
+    Intel(R) 82566DM Gigabit Network Connection
+    Intel(R) 82566DC Gigabit Network Connection
+    Intel(R) 82566MM Gigabit Network Connection
+    Intel(R) 82566MC Gigabit Network Connection
+    Intel(R) 82562GT 10/100 Network Connection
+    Intel(R) 82562G 10/100 Network Connection
+    Intel(R) 82566DC-2 Gigabit Network Connection
+    Intel(R) 82562V-2 10/100 Network Connection
+    Intel(R) 82562G-2 10/100 Network Connection
+    Intel(R) 82562GT-2 10/100 Network Connection
+
+  VLANs
+  -----
+  To create a new VLAN interface:
+
+        ifconfig <vlan_name> create
+
+  To associate the VLAN interface with a physical interface and
+  assign a VLAN ID, IP address, and netmask:
+
+        ifconfig <vlan_name> <ip_address> netmask <subnet_mask> vlan
+           <vlan_id> vlandev <physical_interface>
+
+  Example:
+
+        ifconfig vlan10 10.0.0.1 netmask 255.255.255.0 vlan 10 vlandev em0
+
+  In this example, all packets will be marked on egress with 802.1Q VLAN
+  tags, specifying a VLAN ID of 10.
+
+  To remove a VLAN interface:
+
+  Intel Network Connection        ifconfig <vlan_name> destroy
+
+
+  Polling
+  -------
+
+  To enable polling in the driver, add the following options to the kernel
+  configuration, and then recompile the kernel:
+
+        options DEVICE_POLLING
+        options HZ=1000
+
+  At runtime use:
+        ifconfig emX polling (to turn polling on)
+  and:
+        ifconfig emX -polling  (to turn it off)
+
+
+  Checksum Offload
+  ----------------
+  Checksum offloading is not supported on 82542 Gigabit adapters.
+
+  Checksum offloading supports both TCP and UDP packets and is
+  supported for both transmit and receive.
+
+  Checksum offloading can be enabled or disabled using ifconfig.
+  Both transmit and receive offloading will be either enabled or
+  disabled together. You cannot enable/disable one without the other.
+
+  To enable checksum offloading:
+
+         ifconfig <interface_num> rxcsum
+
+  To disable checksum offloading:
+
+         ifconfig <interface_num> -rxcsum
+
+  To confirm the current setting:
+
+         ifconfig <interface_num>
+
+  Look for the presence or absence of the following line:
+
+         options=3 <RXCSUM,TXCSUM>
+
+  See the ifconfig man page for further information.
+
+
+  TSO
+  ---
+  The FreeBSD driver offers support for TSO (TCP Segmentation Offload).
+
+  You can enable/disable it in two ways/places:
+
+        -  sysctl net.inet.tcp.tso=0    (or 1 to enable it)
+
+  Doing this disables TSO in the stack and will affect all adapters.
+
+        -  ifconfig emX -tso
+
+  Doing this will disable TSO only for this adapter.
+
+  To enable:
+
+        -  ifconfig emX tso
+
+  NOTES: By default only PCI-Express adapters are ENABLED to do TSO. Others
+  can be enabled by the user at their own risk
+  TSO is not supported on 82547 and 82544-based adapters, as well as older adapters.
+
+
+Known Limitations
+=================
+
+  Detected Tx Unit Hang in Quad Port Adapters
+  -------------------------------------------
+
+  In some cases ports 3 and 4 wont pass traffic. Ports 1 and 2 don't show
+  any errors and will pass traffic.
+
+  This issue MAY be resolved by updating to the latest BIOS. You can
+  check your system's BIOS by downloading the Linux Firmware Developer Kit
+  that can be obtained at http://www.linuxfirmwarekit.org/
+
+
+  There are known performance issues with this driver when running UDP traffic
+  with Jumbo Frames.
+  ----------------------------------------------------------------------------
+
+  82541/82547 can't link or is slow to link with some link partners
+  -----------------------------------------------------------------
+
+  There is a known compatibility issue where time to link is slow or link is not
+  established between 82541/82547 controllers and some switches.  Known switches
+  include:
+        Planex FXG-08TE
+        I-O Data ETG-SH8
+        Netgear GS105v3
+
+  The driver can be compiled with the following changes:
+
+  Edit ./em.x.x.x/src/if_em.h to change the #define EM_MASTER_SLAVE
+  For example, change from:
+
+      #define EM_MASTER_SLAVE   e1000_ms_hw_default
+  to:
+      #define EM_MASTER_SLAVE   2
+
+  Use one of the following options:
+      1 = Master mode
+      2 = Slave mode
+      3 = Auto master/slave
+  Setting 2 is recommended.
+
+  Recompile the module:
+          a. To compile the module
+                cd em-x.x.x
+                make clean
+                make
+
+   b. To install the compiled module in system directory:
+                make install
+
+
+Support
+=======
+
+For general information and support, go to the Intel support website at:
+
+        http://support.intel.com
+
+If an issue is identified, support is through email only at:
+freebsd@intel.com
+
+
+License
+=======
+
+This software program is released under the terms of a license agreement
+between you ('Licensee') and Intel. Do not use or load this software or any
+associated materials (collectively, the 'Software') until you have carefully
+read the full terms and conditions of the LICENSE located in this software
+package. By loading or using the Software, you agree to the terms of this
+Agreement. If you do not agree with the terms of this Agreement, do not
+install or use the Software.
+
+* Other names and brands may be claimed as the property of others.

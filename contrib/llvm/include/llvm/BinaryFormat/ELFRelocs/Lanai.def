@@ -1,0 +1,19 @@
+
+#ifndef ELF_RELOC
+#error "ELF_RELOC must be defined"
+#endif
+
+// No relocation
+ELF_RELOC(R_LANAI_NONE,        0)
+// 21-bit symbol relocation
+ELF_RELOC(R_LANAI_21,          1)
+// 21-bit symbol relocation with last two bits masked to 0
+ELF_RELOC(R_LANAI_21_F,        2)
+// 25-bit branch targets
+ELF_RELOC(R_LANAI_25,          3)
+// General 32-bit relocation
+ELF_RELOC(R_LANAI_32,          4)
+// Upper 16-bits of a symbolic relocation
+ELF_RELOC(R_LANAI_HI16,        5)
+// Lower 16-bits of a symbolic relocation
+ELF_RELOC(R_LANAI_LO16,        6)

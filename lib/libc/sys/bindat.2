@@ -1,0 +1,108 @@
+.\" Copyright (c) 2013 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written by Pawel Jakub Dawidek under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 13, 2013
+.Dt BINDAT 2
+.Os
+.Sh NAME
+.Nm bindat
+.Nd assign a local protocol address to a socket
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.Pp
+.In fcntl.h
+.Ft int
+.Fn bindat "int fd" "int s" "const struct sockaddr *addr" "socklen_t addrlen"
+.Sh DESCRIPTION
+The
+.Fn bindat
+system call assigns the local protocol address to a socket.
+When passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter, the behavior is identical to a call to
+.Xr bind 2 .
+Otherwise,
+.Fn bindat
+works like the
+.Xr bind 2
+system call with two exceptions:
+.Pp
+.Bl -enum -offset indent -compact
+.It
+It is limited to sockets in the PF_LOCAL domain.
+.Pp
+.It
+If the file path stored in the
+.Fa sun_path
+field of the sockaddr_un structure is a relative path, it is located relative
+to the directory associated with the file descriptor
+.Fa fd .
+.El
+.Sh RETURN VALUES
+.Rv -std bindat
+.Sh ERRORS
+The
+.Fn bindat
+system call may fail with the same errors as the
+.Xr bind 2
+system call or with the following errors:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa sun_path
+field does not specify an absolute path and the
+.Fa fd
+argument is neither
+.Dv AT_FDCWD
+nor a valid file descriptor.
+.It Bq Er ENOTDIR
+The
+.Fa sun_path
+field is not an absolute path and
+.Fa fd
+is neither
+.Dv AT_FDCWD
+nor a file descriptor associated with a directory.
+.El
+.Sh SEE ALSO
+.Xr bind 2 ,
+.Xr connectat 2 ,
+.Xr socket 2 ,
+.Xr unix 4
+.Sh AUTHORS
+The
+.Nm
+was developed by
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
+under sponsorship from the FreeBSD Foundation.

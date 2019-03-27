@@ -1,0 +1,27 @@
+# Copyright (c) 2001 Proofpoint, Inc. and its suppliers.
+#	All rights reserved.
+#
+# By using this file, you agree to the terms and conditions set
+# forth in the LICENSE file which can be found at the top level of
+# the sendmail distribution.
+#
+#	$Id: README,v 1.3 2013-11-22 20:52:01 ca Exp $
+#
+
+This directory contains several programs to test various OS calls.
+If your OS is not listed in the Results file, you should run those
+test programs. Most of them have instructions at the begin of source
+code, at least those which are important.
+
+Notice: most of these programs require set-user-ID or set-group-ID
+installation.  Hence they are not tested automatically.
+
+t_dropgid.c	test how to drop saved-gid for a set-group-ID program
+t_exclopen.c	test for security-defeating semantics that an open with
+		O_CREAT|O_EXCL set will successfully open a file named
+		by a symbolic link that to a non-existent file
+t_seteuid.c	test whether seteuid works
+t_setgid.c	test whether setgid works
+t_setreuid.c	test whether setreuid works
+t_setuid.c	test whether setuid works
+

@@ -1,0 +1,12 @@
+pass in on ed0(!) inet proto tcp from 127.0.0.1/32 to 127.0.0.1/32 port = 23 keep state # count 0
+block in log first on lo0(!) proto tcp/udp from any to any port = 7 keep state # count 0
+pass in inet proto udp from 127.0.0.1/32 to 127.0.0.1/32 port = 20499 keep frags
+pass in inet proto udp from 127.0.0.1/32 to 127.0.0.1/32 port = 2049 keep frags (strict)
+pass in inet proto udp from 127.0.0.1/32 to 127.0.0.1/32 port = 53 keep state keep frags # count 0
+pass in on ed0(!) out-via vx0(!) proto udp from any to any keep state # count 0
+pass out on ppp0(!) in-via le0(!) proto tcp from any to any keep state # count 0
+pass in on ed0(!),vx0(!) out-via vx0(!),ed0(!) proto udp from any to any keep state # count 0
+pass in inet proto tcp from any port > 1024 to 127.0.0.1/32 port = 1024 keep state # count 0
+pass in proto tcp from any to any flags S/FSRPAU keep state (limit 101,strict,newisn,no-icmp-err,age 600/600) # count 0
+pass in proto tcp from any to any flags S/FSRPAU keep state (limit 101,loose,newisn,no-icmp-err,age 600/600) # count 0
+pass in proto udp from any to any keep state (sync,age 10/20) # count 0

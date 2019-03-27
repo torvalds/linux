@@ -1,0 +1,48 @@
+#
+# $FreeBSD$
+#
+
+# arge0 mdio bus
+hint.argemdio.0.at="nexus0"
+hint.argemdio.0.maddr=0x19000000
+hint.argemdio.0.msize=0x1000
+hint.argemdio.0.order=0
+
+# Uncomment this hint for RS (not PRO)
+# PHY20 = 1 << 20
+hint.arge.0.phymask=0x100000
+hint.arge.0.mdio=mdioproxy1	# .. off of the switch mdiobus
+
+# should be 100 for RS 
+hint.arge.1.media=100
+hint.arge.1.fduplex=1
+hint.arge.1.phymask=0x0
+hint.arge.1.mdio=mdioproxy1	# .. off of the switch mdiobus
+
+# ukswitch
+hint.ukswitch.0.at="mdio0"
+hint.ukswitch.0.phymask=0x30000
+
+# Don't flip on anything that isn't already enabled.
+# This includes leaving the SPI CS1/CS2 pins as GPIO pins as they're
+# not used here.
+hint.gpio.0.function_set=0x00000000
+hint.gpio.0.function_clear=0x00000000
+
+# These are the GPIO LEDs and buttons which can be software controlled.
+hint.gpio.0.pinmask=0x000000ff
+
+# GPIO 0: Pin 1
+# GPIO 1: Pin 2
+# GPIO 2: RF LED
+# GPIO 3: Pin 3
+# GPIO 4: Pin 4
+# GPIO 5: Pin 5
+# GPIO 6: Pin 6
+# GPIO 7: Pin 7
+
+# RF led
+hint.gpioled.0.at="gpiobus0"
+hint.gpioled.0.name="rf"
+# pin 2
+hint.gpioled.0.pins=0x0004

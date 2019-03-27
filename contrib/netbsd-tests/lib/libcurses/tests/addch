@@ -1,0 +1,4 @@
+include start
+call OK addch `\001t`
+call OK refresh
+compare addch.chk

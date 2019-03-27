@@ -1,0 +1,207 @@
+.\"	$FreeBSD$
+.\"	$NetBSD: aibs.4,v 1.2 2010/02/09 05:37:25 cnst Exp $
+.\"	$OpenBSD: aibs.4,v 1.4 2009/07/30 06:30:45 jmc Exp $
+.\"
+.\" Copyright (c) 2009/2010 Constantine A. Murenin <cnst++@FreeBSD.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd April 4, 2010
+.Dt AIBS 4
+.Os
+.Sh NAME
+.Nm aibs
+.Nd "ASUSTeK AI Booster ACPI ATK0110 voltage, temperature and fan sensor"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device aibs"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+aibs_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the voltage, temperature and fan sensors
+available through the
+.Tn ATK0110
+.Tn ASOC
+.Tn ACPI
+device
+on
+.Tn ASUSTeK
+motherboards.
+The number of sensors of each type,
+as well as the description of each sensor,
+varies according to the motherboard.
+.Pp
+The driver supports an arbitrary set of sensors,
+provides descriptions regarding what each sensor is used for,
+and reports the current values as well as
+the supposed range specifications of each sensor's input
+as defined by the motherboard manufacturer through
+.Tn ACPI .
+.Pp
+The range specifications are as follows:
+.Bl -bullet
+.It
+Voltage sensors have a lower and an upper range specification.
+.It
+Temperature sensors have two upper specifications.
+.It
+Fan sensors may either have only the lower specification,
+or, depending on the
+.Tn DSDT ,
+one lower and one upper specification.
+.El
+.Pp
+Sensor readings and the range specifications are made available through the
+.Xr sysctl 3
+interface,
+and can be monitored with
+.Xr sysctl 8 .
+For example, on an ASUS V3-P5G965 barebone:
+.Bd -literal -offset indent
+> sysctl dev.aibs.0.{volt,temp,fan}
+dev.aibs.0.volt.0: 1192 850 1600
+dev.aibs.0.volt.1: 3312 2970 3630
+dev.aibs.0.volt.2: 5017 4500 5500
+dev.aibs.0.volt.3: 12302 10200 13800
+dev.aibs.0.temp.0: 28.0C 80.0C 95.0C
+dev.aibs.0.temp.1: 55.0C 60.0C 95.0C
+dev.aibs.0.fan.0: 878 600 7200
+dev.aibs.0.fan.1: 0 700 7200
+.Pp
+> sysctl -d dev.aibs.0.{volt,temp,fan}
+dev.aibs.0.volt:
+dev.aibs.0.volt.0: Vcore Voltage
+dev.aibs.0.volt.1:  +3.3 Voltage
+dev.aibs.0.volt.2:  +5 Voltage
+dev.aibs.0.volt.3:  +12 Voltage
+dev.aibs.0.temp:
+dev.aibs.0.temp.0: CPU Temperature
+dev.aibs.0.temp.1: MB Temperature
+dev.aibs.0.fan:
+dev.aibs.0.fan.0: CPU FAN Speed
+dev.aibs.0.fan.1: CHASSIS FAN Speed
+.Ed
+.Pp
+Generally, sensors provided by the
+.Nm
+driver may also be supported by certain other drivers or utilities
+that access the
+.Tn ISA /
+.Tn LPC
+or
+.Tn I2C /
+.Tn SMBus
+devices directly.
+The precise collection of
+.Nm
+sensors is comprised of the sensors
+specifically utilised in the motherboard
+design, which may be supported through
+a combination of one or more physical hardware monitoring chips.
+.Pp
+The
+.Nm
+driver, however, provides the following advantages
+when compared to the native hardware monitoring drivers or other utilities:
+.Bl -bullet
+.It
+Sensor values from
+.Nm
+are expected to be more reliable.
+For example, voltage sensors in many hardware monitoring chips
+can only sense voltage from 0 to 2 or 4 volts, and the excessive
+voltage is removed by the resistors, which may vary with the motherboard
+and with the voltage that is being sensed.
+In
+.Nm ,
+the required resistor factors are provided by
+the motherboard manufacturer through
+.Tn ACPI ;
+in the native drivers, the resistor factors
+are encoded into the driver based on the chip manufacturer's recommendations.
+In essence, sensor values from
+.Nm
+are very likely to be identical to the readings from the
+Hardware Monitor screen in the BIOS.
+.It
+Sensor descriptions from
+.Nm
+are more likely to match the markings on the motherboard.
+.It
+Sensor range specifications are supported by
+.Nm .
+The range specification is reported
+for each individual sensor as suggested by the motherboard manufacturer.
+For example, the threshold for the CPU temperature sensor is likely
+to be significantly higher than that for the chassis temperature sensor.
+.It
+Support for newer chips in
+.Nm .
+Newer chips may miss a native driver,
+but should be supported through
+.Nm
+regardless.
+.El
+.Sh SEE ALSO
+.Xr sysctl 3 ,
+.Xr acpi 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 4.7 ,
+.Dx 2.5 ,
+.Nx 6.0
+and
+.Fx 9.0 .
+.Pp
+An earlier version of the driver,
+.Nm acpi_aiboost ,
+first appeared in
+.Fx 7.0
+and
+.Nx 5.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written for
+.Ox ,
+.Dx ,
+.Nx
+and
+.Fx
+by
+.An Constantine A. Murenin Aq Mt cnst@FreeBSD.org ,
+Raouf Boutaba Research Group,
+David R. Cheriton School of Computer Science,
+University of Waterloo.
+.Pp
+An earlier version of the driver, named
+.Nm acpi_aiboost ,
+was written for
+.Fx
+by
+.An Takanori Watanabe .

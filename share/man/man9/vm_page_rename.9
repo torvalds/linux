@@ -1,0 +1,72 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 17, 2001
+.Dt VM_PAGE_RENAME 9
+.Os
+.Sh NAME
+.Nm vm_page_rename
+.Nd "move a page"
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_page.h
+.Ft void
+.Fo vm_page_rename
+.Fa "vm_page_t m"
+.Fa "vm_object_t new_object"
+.Fa "vm_pindex_t new_pindex"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn vm_page_rename
+function removes a page from one object, and adds it to another
+at the given page index.
+The page is added to the given object, and is removed from the
+object that is currently associated with.
+If the page is currently on the cache queue it will be deactivated
+unless it is wired or unmanaged, in which case the deactivation will
+fail.
+The entire page is marked as dirty after the move.
+.Pp
+The arguments to
+.Fn vm_page_rename
+are:
+.Bl -tag -width ".Fa new_object"
+.It Fa m
+The page to move.
+.It Fa new_object
+The object the page should be inserted into.
+.It Fa new_pindex
+The page index into
+.Fa new_object
+at which the new page should be inserted.
+.El
+.Sh AUTHORS
+This manual page was written by
+.An Chad David Aq Mt davidc@acns.ab.ca .

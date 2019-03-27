@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+v=`printf %s 'a\
+b'`
+w="`printf %s 'c\
+d'`"
+[ "$v$w" = abcd ]

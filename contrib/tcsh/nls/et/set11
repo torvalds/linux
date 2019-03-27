@@ -1,0 +1,10 @@
+$ $tcsh: set11,v 1.3 2011/02/04 18:19:33 christos Exp $
+$ sh.c
+$set 11 
+1 Hoiatus: tty (%s) pole kättesaadav.\n
+2 Seega ei saa kasutada tööde kontrolli.\n
+3 Teil on %d kirja.\n
+4 Teil on %d kirja failis %s.\n
+5 Teil on %skiri.\n
+6 uus 
+7 Teil on %skiri failis %s.\n

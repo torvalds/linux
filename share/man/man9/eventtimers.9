@@ -1,0 +1,253 @@
+.\"
+.\" Copyright (c) 2011-2013 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 2, 2014
+.Dt EVENTTIMERS 9
+.Os
+.Sh NAME
+.Nm eventtimers
+.Nd kernel event timers subsystem
+.Sh SYNOPSIS
+.In sys/timeet.h
+.Bd -literal
+struct eventtimer;
+
+typedef int et_start_t(struct eventtimer *et,
+    sbintime_t first, sbintime_t period);
+typedef int et_stop_t(struct eventtimer *et);
+typedef void et_event_cb_t(struct eventtimer *et, void *arg);
+typedef int et_deregister_cb_t(struct eventtimer *et, void *arg);
+
+struct eventtimer {
+	SLIST_ENTRY(eventtimer)	et_all;
+	char			*et_name;
+	int			et_flags;
+#define ET_FLAGS_PERIODIC	1
+#define ET_FLAGS_ONESHOT	2
+#define ET_FLAGS_PERCPU		4
+#define ET_FLAGS_C3STOP		8
+#define ET_FLAGS_POW2DIV	16
+	int			et_quality;
+	int			et_active;
+	uint64_t		et_frequency;
+	sbintime_t		et_min_period;
+	sbintime_t		et_max_period;
+	et_start_t		*et_start;
+	et_stop_t		*et_stop;
+	et_event_cb_t		*et_event_cb;
+	et_deregister_cb_t	*et_deregister_cb;
+	void 			*et_arg;
+	void			*et_priv;
+	struct sysctl_oid	*et_sysctl;
+};
+.Ed
+.Ft int
+.Fn et_register "struct eventtimer *et"
+.Ft int
+.Fn et_deregister "struct eventtimer *et"
+.Ft void
+.Fn et_change_frequency "struct eventtimer *et" "uint64_t newfreq"
+.Fn ET_LOCK
+.Fn ET_UNLOCK
+.Ft struct eventtimer *
+.Fn et_find "const char *name" "int check" "int want"
+.Ft int
+.Fn et_init "struct eventtimer *et" "et_event_cb_t *event" "et_deregister_cb_t *deregister" "void *arg"
+.Ft int
+.Fn et_start "struct eventtimer *et" "sbintime_t first" "sbintime_t period"
+.Ft int
+.Fn et_stop "struct eventtimer *et"
+.Ft int
+.Fn et_ban "struct eventtimer *et"
+.Ft int
+.Fn et_free "struct eventtimer *et"
+.Sh DESCRIPTION
+Event timers are responsible for generating interrupts at specified time
+or periodically, to run different time-based events.
+Subsystem consists of three main parts:
+.Bl -tag -width "Consumers"
+.It Drivers
+Manage hardware to generate requested time events.
+.It Consumers
+.Pa sys/kern/kern_clocksource.c
+uses event timers to supply kernel with
+.Fn hardclock ,
+.Fn statclock
+and
+.Fn profclock
+time events.
+.It Glue code
+.Pa sys/sys/timeet.h ,
+.Pa sys/kern/kern_et.c
+provide APIs for event timer drivers and consumers.
+.El
+.Sh DRIVER API
+Driver API is built around eventtimer structure.
+To register its functionality driver allocates that structure and calls
+.Fn et_register .
+Driver should fill following fields there:
+.Bl -tag -width Va
+.It Va et_name
+Unique name of the event timer for management purposes.
+.It Va et_flags
+Set of flags, describing timer capabilities:
+.Bl -tag -width "ET_FLAGS_PERIODIC" -compact
+.It ET_FLAGS_PERIODIC
+Periodic mode supported.
+.It ET_FLAGS_ONESHOT
+One-shot mode supported.
+.It ET_FLAGS_PERCPU
+Timer is per-CPU.
+.It ET_FLAGS_C3STOP
+Timer may stop in CPU sleep state.
+.It ET_FLAGS_POW2DIV
+Timer supports only 2^n divisors.
+.El
+.It Va et_quality
+Abstract value to certify whether this timecounter is better than the others.
+Higher value means better.
+.It Va et_frequency
+Timer oscillator's base frequency, if applicable and known.
+Used by consumers to predict set of possible frequencies that could be
+obtained by dividing it.
+Should be zero if not applicable or unknown.
+.It Va et_min_period , et_max_period
+Minimal and maximal reliably programmable time periods.
+.It Va et_start
+Driver's timer start function pointer.
+.It Va et_stop
+Driver's timer stop function pointer.
+.It Va et_priv
+Driver's private data storage.
+.El
+.Pp
+After the event timer functionality is registered, it is controlled via
+.Va et_start
+and
+.Va et_stop
+methods.
+.Va et_start
+method is called to start the specified event timer.
+The last two arguments are used to specify time when events should be
+generated.
+.Va first
+argument specifies time period before the first event generated.
+In periodic mode NULL value specifies that first period is equal to the
+.Va period
+argument value.
+.Va period
+argument specifies the time period between following events for the
+periodic mode.
+The NULL value there specifies the one-shot mode.
+At least one of these two arguments should be not NULL.
+When event time arrive, driver should call
+.Va et_event_cb
+callback function, passing
+.Va et_arg
+as the second argument.
+.Va et_stop
+method is called to stop the specified event timer.
+For the per-CPU event timers
+.Va et_start
+and
+.Va et_stop
+methods control timers associated with the current CPU.
+.Pp
+Driver may deregister its functionality by calling
+.Fn et_deregister .
+.Pp
+If the frequency of the clock hardware can change while it is
+running (for example, during power-saving modes), the driver must call
+.Fn et_change_frequency
+on each change.
+If the given event timer is the active timer,
+.Fn et_change_frequency
+stops the timer on all CPUs, updates
+.Va et->frequency ,
+then restarts the timer on all CPUs so that all
+current events are rescheduled using the new frequency.
+If the given timer is not currently active,
+.Fn et_change_frequency
+simply updates
+.Va et->frequency .
+.Sh CONSUMER API
+.Fn et_find
+allows consumer to find available event timer, optionally matching specific
+name and/or capability flags.
+Consumer may read returned eventtimer structure, but should not modify it.
+When wanted event timer is found,
+.Fn et_init
+should be called for it, submitting
+.Va event
+and optionally
+.Va deregister
+callbacks functions, and the opaque argument
+.Va arg .
+That argument will be passed as argument to the callbacks.
+Event callback function will be called on scheduled time events.
+It is called from the hardware interrupt context, so no sleep is permitted
+there.
+Deregister callback function may be called to report consumer that the event
+timer functionality is no longer available.
+On this call, consumer should stop using event timer before the return.
+.Pp
+After the timer is found and initialized, it can be controlled via
+.Fn et_start
+and
+.Fn et_stop .
+The arguments are the same as described in driver API.
+Per-CPU event timers can be controlled only from specific CPUs.
+.Pp
+.Fn et_ban
+allows consumer to mark event timer as broken via clearing both one-shot and
+periodic capability flags, if it was somehow detected.
+.Fn et_free
+is the opposite to
+.Fn et_init .
+It releases the event timer for other consumers use.
+.Pp
+.Fn ET_LOCK
+and
+.Fn ET_UNLOCK
+macros should be used to manage
+.Xr mutex 9
+lock around
+.Fn et_find ,
+.Fn et_init
+and
+.Fn et_free
+calls to serialize access to the list of the registered event timers and the
+pointers returned by
+.Fn et_find .
+.Fn et_start
+and
+.Fn et_stop
+calls should be serialized in consumer's internal way to avoid concurrent
+timer hardware access.
+.Sh SEE ALSO
+.Xr eventtimers 4
+.Sh AUTHORS
+.An Alexander Motin Aq Mt mav@FreeBSD.org

@@ -1,0 +1,97 @@
+.\"
+.\" Copyright (c) 2016-2017 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 30, 2017
+.Dt NTB_HW_INTEL 4
+.Os
+.Sh NAME
+.Nm ntb_hw_intel
+.Nd Intel(R) Non-Transparent Bridge driver
+.Sh SYNOPSIS
+To compile this driver into your kernel,
+place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ntb"
+.Cd "device ntb_hw_intel"
+.Ed
+.Pp
+Or, to load the driver as a module at boot, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ntb_hw_intel_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm ntb_hw_intel
+driver provides support for the Non-Transparent Bridge (NTB) hardware in
+Intel Xeon E3/E5 and S1200 processor families, which allow one of their PCIe
+ports to be switched from transparent to non-transparent bridge mode.
+In this mode bridge looks not as a PCI bridge, but as PCI endpoint device.
+The driver hides hardware details, exposing memory windows, scratchpads
+and doorbells of the other side via hardware independent KPI to
+.Xr ntb 4
+subsystem.
+.Pp
+The hardware provides 2 or 3 memory windows to the other system's memory,
+16 scratchpad registers and 14 or 34 doorbells to interrupt the other system.
+On Xeon processors one of memory windows is typically consumed by the driver
+itself to workaround multiple hardware erratas.
+.Sh CONFIGURATION
+The NTB configuration should be set by BIOS.
+It includes enabling NTB, choosing between NTB-to-NTB (back-to-back) or
+NTB-to-Root Port mode,
+enabling split BAR mode (one of two 64-bit BARs can be split into two 32-bit
+ones) and configuring BAR sizes in bits (from 12 to 29/39) for both NTB sides.
+.Pp
+The recommended configuration is NTB-to-NTB mode, split bar is enabled and
+all BAR sizes are set to 20 (1 MiB).
+This needs to be done on both systems.
+.Sh SEE ALSO
+.Xr if_ntb 4 ,
+.Xr ntb_transport 4 ,
+.Xr ntb 4 ,
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was developed by Intel and originally written by
+.An Carl Delsey Aq Mt carl@FreeBSD.org .
+Later improvements were done by
+.An Conrad E. Meyer Aq Mt cem@FreeBSD.org
+and
+.An Alexander Motin Aq Mt mav@FreeBSD.org .
+.Sh BUGS
+NTB-to-Root Port mode is not yet supported, but it doesn't look very useful.
+.Pp
+On Xeon v2/v3/v4 processors split BAR mode should be enabled to allow
+SB01BASE_LOCKUP errata workaround to be applied by the driver.
+.Pp
+There is no way to protect your system from malicious behavior on the other
+system once the link is brought up.
+Anyone with root or kernel access on the other system can read or write to
+any location on your system.
+In other words, only connect two systems that completely trust each other.

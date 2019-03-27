@@ -1,0 +1,237 @@
+#
+# This Makefile helps create the directory structure on ftp-master,
+# making staging builds a bit more sane.
+#
+# You probably do not want to use this.  Really.
+# You have been warned.
+#
+# Seriously.
+#
+# Don't use this unless you know why you're using it.
+#
+# $FreeBSD$
+#
+
+.include "${.CURDIR}/Makefile"
+
+RELEASEDIR?=		/R
+FTPDIR?=		${RELEASEDIR}/ftp-stage
+.if exists(${RELEASEDIR})
+STAGE_TARGETS?=		iso-images-stage
+.endif
+
+.if (defined(EMBEDDED_TARGET) && !empty(EMBEDDED_TARGET)) || (defined(EMBEDDEDBUILD) && !empty(EMBEDDEDBUILD))
+. if ${TARGET:Marm*} != "" || ${EMBEDDED_TARGET:Marm*} != ""
+EMBEDDED=		1
+. endif
+.endif
+
+# snapshot
+.if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE" || ${BRANCH:MALPHA*} != ""
+SNAPSHOT=		1
+TLD?=			${FTPDIR}/snapshots
+. if !defined(SVNREVISION) || empty(SVNREVISION)
+.  for _D in /usr/bin /usr/local/bin
+.   for _S in svnversion svnliteversion
+.    if exists(${_D}/${_S})
+SVNVERSION?=		${_D}/${_S}
+.    endif
+.   endfor
+.  endfor
+.  if exists(${SVNVERSION}) && !empty(SVNVERSION)
+SVNREVISION!=		${SVNVERSION} ${WORLDDIR}/Makefile
+.  endif
+. endif # !defined(SVNREVISION)
+. if !defined(BUILDDATE) || empty(BUILDDATE)
+.  if exists(${.CURDIR}/${.OBJDIR}/dist/base/bin/sh)
+BUILDDATE!=		cd ${.CURDIR} && date -j -f '%s' $$(stat -f "%c" ${.OBJDIR}/dist/base/bin/sh) +%Y%m%d
+.  else
+BUILDDATE!=		date +%Y%m%d
+.  endif
+. endif
+_SNAP_SUFFIX:=		${BUILDDATE}-r${SVNREVISION}
+.else
+# release
+SNAPSHOT=
+TLD?=			${FTPDIR}/releases
+.endif
+
+.if defined(EMBEDDED) && !empty(EMBEDDED)
+. if ${TARGET:Marm*} != "" && (${TARGET_ARCH:Marm*} != "" || ${TARGET_ARCH} == "aarch64")
+.  if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE" || ${BRANCH:MALPHA*} != ""
+SNAPSHOT=		1
+.  endif
+IMAGES:=		img
+. endif # arm/armv6
+.endif # embedded
+
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+STAGE_TARGETS+=		vm-images-stage
+VM_DIR=			${TLD}/VM-IMAGES/${REVISION}-${BRANCH}/${TARGET_ARCH}
+.endif
+
+CLEANFILES+=		${STAGE_TARGETS}
+CHECKSUM_FILES?=	SHA512 SHA256
+SNAP_SUFFIX!=		echo ${_SNAP_SUFFIX:S,^-,,1} | tr -d ' '
+ISO_DIR=		${TLD}/${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}
+FTP_DIR=		${TLD}/${TARGET}/${TARGET_ARCH}/${REVISION}-${BRANCH}
+
+remove-old-bits:
+	rm -rf ${FTPDIR}
+
+iso-images-stage:
+	mkdir -p ${ISO_DIR}
+	mkdir -p ${TLD}/ISO-IMAGES/${REVISION}
+.if defined(SNAPSHOT) && !empty(SNAPSHOT)
+	cd ${RELEASEDIR} && rm -f CHECKSUM.*
+. for IMAGE in ${IMAGES}
+.  if defined(EMBEDDED) && !empty(EMBEDDED)
+	cd ${RELEASEDIR} && \
+		mv ${OSRELEASE}-${BOARDNAME}.${IMAGE}.xz \
+		${OSRELEASE}-${BOARDNAME}-${SNAP_SUFFIX}.${IMAGE}.xz
+	cp -p ${RELEASEDIR}/${OSRELEASE}-${BOARDNAME}-${SNAP_SUFFIX}.${IMAGE}.xz \
+		${ISO_DIR}/${OSRELEASE}-${BOARDNAME}-${SNAP_SUFFIX}.${IMAGE}.xz
+	cd ${TLD}/ISO-IMAGES/${REVISION} && \
+		ln -s \
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${BOARDNAME}-${SNAP_SUFFIX}.${IMAGE}.xz
+.  endif # not embedded
+.   if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE})
+	cd ${RELEASEDIR} && \
+		mv ${OSRELEASE}-${IMAGE} \
+		${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}
+	cp -p ${RELEASEDIR}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE} \
+		${ISO_DIR}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}
+	cd ${TLD}/ISO-IMAGES/${REVISION} && \
+		ln -s \
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}
+.   endif
+.   if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE}.xz)
+	cd ${RELEASEDIR} && \
+		mv ${OSRELEASE}-${IMAGE}.xz \
+		${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}.xz
+	cp -p ${RELEASEDIR}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}.xz \
+		${ISO_DIR}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}.xz
+	cd ${TLD}/ISO-IMAGES/${REVISION} && \
+		ln -s \
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${SNAP_SUFFIX}-${IMAGE}.xz
+.   endif
+. endfor # images loop
+	cd ${RELEASEDIR} && rm -f CHECKSUM.*
+. for CHECKSUM in ${CHECKSUM_FILES}
+.  if defined(EMBEDDED) && !empty(EMBEDDED)
+	cd ${RELEASEDIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
+		CHECKSUM.${CHECKSUM}-${OSRELEASE}-${BOARDNAME}-${SNAP_SUFFIX}
+	cp -p ${RELEASEDIR}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${BOARDNAME}-${SNAP_SUFFIX} \
+		${ISO_DIR}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${BOARDNAME}-${SNAP_SUFFIX}
+	cd ${TLD}/ISO-IMAGES/${REVISION} && \
+		ln -s \
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${BOARDNAME}-${SNAP_SUFFIX}
+.  else # not embedded
+	cd ${RELEASEDIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
+		CHECKSUM.${CHECKSUM}-${OSRELEASE}-${SNAP_SUFFIX}
+	cp -p ${RELEASEDIR}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${SNAP_SUFFIX} \
+		${ISO_DIR}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${SNAP_SUFFIX}
+	cd ${TLD}/ISO-IMAGES/${REVISION} && \
+		ln -s \
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${SNAP_SUFFIX}
+.  endif #
+. endfor # checksum files
+.else # not snapshot
+. for IMAGE in ${IMAGES}
+.  if defined(EMBEDDED) && !empty(EMBEDDED)
+	cp -p ${RELEASEDIR}/${OSRELEASE}-${BOARDNAME}.${IMAGE}.xz \
+		${ISO_DIR}/${OSRELEASE}-${BOARDNAME}.${IMAGE}.xz
+	cd ${TLD}/ISO-IMAGES/${REVISION} && \
+		ln -s \
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${BOARDNAME}.${IMAGE}.xz
+.  endif # not embedded
+.   if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE})
+	cd ${RELEASEDIR} && \
+	cp -p ${RELEASEDIR}/${OSRELEASE}-${IMAGE} \
+		${ISO_DIR}/${OSRELEASE}-${IMAGE}
+	cd ${TLD}/ISO-IMAGES/${REVISION} && \
+		ln -s \
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${IMAGE}
+.   endif
+.   if exists(${RELEASEDIR}/${OSRELEASE}-${IMAGE}.xz)
+	cp -p ${RELEASEDIR}/${OSRELEASE}-${IMAGE}.xz \
+		${ISO_DIR}/${OSRELEASE}-${IMAGE}.xz
+	cd ${TLD}/ISO-IMAGES/${REVISION} && \
+		ln -s \
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/${OSRELEASE}-${IMAGE}.xz
+.   endif
+. endfor # images loop
+	cd ${RELEASEDIR} && rm -f CHECKSUM.*
+. for CHECKSUM in ${CHECKSUM_FILES}
+.  if defined(EMBEDDED) && !empty(EMBEDDED)
+	cd ${RELEASEDIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
+		CHECKSUM.${CHECKSUM}-${OSRELEASE}-${BOARDNAME}
+	cp -p ${RELEASEDIR}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${BOARDNAME} \
+		${ISO_DIR}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${BOARDNAME}
+	cd ${TLD}/ISO-IMAGES/${REVISION} && \
+		ln -s \
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/CHECKSUM.${CHECKSUM}-${OSRELEASE}-${BOARDNAME}
+.  else # not embedded
+	cd ${RELEASEDIR} && ${CHECKSUM:tl} ${OSRELEASE}* > \
+		CHECKSUM.${CHECKSUM}-${OSRELEASE}
+	cp -p ${RELEASEDIR}/CHECKSUM.${CHECKSUM}-${OSRELEASE} \
+		${ISO_DIR}/CHECKSUM.${CHECKSUM}-${OSRELEASE}
+	cd ${TLD}/ISO-IMAGES/${REVISION} && \
+		ln -s \
+		../../${TARGET}/${TARGET_ARCH}/ISO-IMAGES/${REVISION}/CHECKSUM.${CHECKSUM}-${OSRELEASE}
+.  endif
+. endfor # checksum files
+.endif # release
+.if exists(${RELEASEDIR}/ftp)
+	mkdir -p ${FTP_DIR}
+	cp -p ${RELEASEDIR}/ftp/*.txz ${RELEASEDIR}/ftp/MANIFEST ${FTP_DIR}
+	cd ${TLD}/${TARGET} && \
+		ln -s ${TARGET_ARCH}/${REVISION}-${BRANCH} \
+			${REVISION}-${BRANCH}
+.endif
+
+vm-images-stage:
+	mkdir -p ${VM_DIR}
+.if defined(SNAPSHOT) && !empty(SNAPSHOT)
+. if exists(${VM_DIR}/Latest)
+	rm -rf ${VM_DIR}/Latest
+. endif
+	mkdir -p ${VM_DIR}/Latest
+	mkdir -p ${VM_DIR}/${BUILDDATE}
+. for VMFORMAT in ${VMFORMATS}
+	cd ${RELEASEDIR}/vmimages && \
+		mv ${OSRELEASE}.${VMFORMAT}.xz \
+		${OSRELEASE}-${SNAP_SUFFIX}.${VMFORMAT}.xz
+	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${SNAP_SUFFIX}.${VMFORMAT}.xz \
+		${VM_DIR}/${BUILDDATE}/${OSRELEASE}-${SNAP_SUFFIX}.${VMFORMAT}.xz
+	cd ${VM_DIR}/Latest && \
+		ln -s ../${BUILDDATE}/${OSRELEASE}-${SNAP_SUFFIX}.${VMFORMAT}.xz \
+		${OSRELEASE}.${VMFORMAT}.xz
+. endfor
+	cd ${RELEASEDIR}/vmimages && rm -f CHECKSUM.*
+. for CHECKSUM in ${CHECKSUM_FILES}
+	cd ${RELEASEDIR}/vmimages && \
+		${CHECKSUM:tl} ${OSRELEASE}* > CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
+	cp -p ${RELEASEDIR}/vmimages/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX} \
+		${VM_DIR}/${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
+	cd ${VM_DIR}/Latest && \
+		ln -s ../${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX} \
+		CHECKSUM.${CHECKSUM}
+. endfor
+.else # not snapshot
+. if exists(${VM_DIR}/Latest)
+	rm -rf ${VM_DIR}/Latest
+. endif
+	mkdir -p ${VM_DIR}/Latest
+. for VMFORMAT in ${VMFORMATS}
+	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}.${VMFORMAT}.xz \
+		${VM_DIR}/Latest/${OSRELEASE}.${VMFORMAT}.xz
+. endfor
+. for CHECKSUM in ${CHECKSUM_FILES}
+	cp -p ${RELEASEDIR}/vmimages/CHECKSUM.${CHECKSUM} \
+		${VM_DIR}/Latest/CHECKSUM.${CHECKSUM}
+. endfor
+.endif
+
+ftp-stage:	remove-old-bits ${STAGE_TARGETS}
+

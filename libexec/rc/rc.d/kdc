@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: kdc
+# REQUIRE: NETWORKING
+# BEFORE: SERVERS
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name=kdc
+desc="Kerberos 5 server"
+rcvar=${name}_enable
+start_precmd=${name}_start_precmd
+
+set_rcvar_obsolete kerberos5_server_enable kdc_enable
+set_rcvar_obsolete kerberos5_server kdc_program
+set_rcvar_obsolete kerberos5_server_flags kdc_flags
+
+kdc_start_precmd()
+{
+
+	command_args="$command_args --detach"
+}
+
+load_rc_config $name
+run_rc_command "$1"

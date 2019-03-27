@@ -1,0 +1,373 @@
+\ Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
+\
+\ Permission is hereby granted, free of charge, to any person obtaining 
+\ a copy of this software and associated documentation files (the
+\ "Software"), to deal in the Software without restriction, including
+\ without limitation the rights to use, copy, modify, merge, publish,
+\ distribute, sublicense, and/or sell copies of the Software, and to
+\ permit persons to whom the Software is furnished to do so, subject to
+\ the following conditions:
+\
+\ The above copyright notice and this permission notice shall be 
+\ included in all copies or substantial portions of the Software.
+\
+\ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
+\ EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+\ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
+\ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+\ BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+\ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+\ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+\ SOFTWARE.
+
+preamble {
+
+#include "inner.h"
+
+#define CTX   ((br_skey_decoder_context *)(void *)((unsigned char *)t0ctx - offsetof(br_skey_decoder_context, cpu)))
+#define CONTEXT_NAME   br_skey_decoder_context
+
+/* see bearssl_x509.h */
+void
+br_skey_decoder_init(br_skey_decoder_context *ctx)
+{
+	memset(ctx, 0, sizeof *ctx);
+	ctx->cpu.dp = &ctx->dp_stack[0];
+	ctx->cpu.rp = &ctx->rp_stack[0];
+	br_skey_decoder_init_main(&ctx->cpu);
+	br_skey_decoder_run(&ctx->cpu);
+}
+
+/* see bearssl_x509.h */
+void
+br_skey_decoder_push(br_skey_decoder_context *ctx,
+	const void *data, size_t len)
+{
+	ctx->hbuf = data;
+	ctx->hlen = len;
+	br_skey_decoder_run(&ctx->cpu);
+}
+
+}
+
+addr: key_type
+addr: key_data
+
+cc: read8-low ( -- x ) {
+	if (CTX->hlen == 0) {
+		T0_PUSHi(-1);
+	} else {
+		CTX->hlen --;
+		T0_PUSH(*CTX->hbuf ++);
+	}
+}
+
+cc: read-blob-inner ( addr len -- addr len ) {
+	uint32_t len = T0_POP();
+	uint32_t addr = T0_POP();
+	size_t clen = CTX->hlen;
+	if (clen > len) {
+		clen = (size_t)len;
+	}
+	if (addr != 0) {
+		memcpy((unsigned char *)CTX + addr, CTX->hbuf, clen);
+	}
+	CTX->hbuf += clen;
+	CTX->hlen -= clen;
+	T0_PUSH(addr + clen);
+	T0_PUSH(len - clen);
+}
+
+\ Get the length of the key_data buffer.
+: len-key_data
+	CX 0 8191 { 3 * BR_X509_BUFSIZE_KEY } ;
+
+\ Get the address and length for the key_data buffer.
+: addr-len-key_data ( -- addr len )
+	addr-key_data len-key_data ;
+
+\ Set the private key (RSA).
+cc: set-rsa-key ( n_bitlen plen qlen dplen dqlen iqlen -- ) {
+	size_t iqlen = T0_POP();
+	size_t dqlen = T0_POP();
+	size_t dplen = T0_POP();
+	size_t qlen = T0_POP();
+	size_t plen = T0_POP();
+	uint32_t n_bitlen = T0_POP();
+	size_t off;
+
+	CTX->key.rsa.n_bitlen = n_bitlen;
+	CTX->key.rsa.p = CTX->key_data;
+	CTX->key.rsa.plen = plen;
+	off = plen;
+	CTX->key.rsa.q = CTX->key_data + off;
+	CTX->key.rsa.qlen = qlen;
+	off += qlen;
+	CTX->key.rsa.dp = CTX->key_data + off;
+	CTX->key.rsa.dplen = dplen;
+	off += dplen;
+	CTX->key.rsa.dq = CTX->key_data + off;
+	CTX->key.rsa.dqlen = dqlen;
+	off += dqlen;
+	CTX->key.rsa.iq = CTX->key_data + off;
+	CTX->key.rsa.iqlen = iqlen;
+}
+
+\ Set the private key (EC).
+cc: set-ec-key ( curve xlen -- ) {
+	size_t xlen = T0_POP();
+	uint32_t curve = T0_POP();
+	CTX->key.ec.curve = curve;
+	CTX->key.ec.x = CTX->key_data;
+	CTX->key.ec.xlen = xlen;
+}
+
+\ Get the bit length for an integer (unsigned).
+: int-bit-length ( x -- bitlen )
+	0 swap
+	begin dup while 1 u>> swap 1+ swap repeat
+	drop ;
+
+\ Read an INTEGER into the key_data buffer, but then ignore it.
+: read-integer-ignore ( lim -- lim )
+	addr-len-key_data read-integer drop ;
+
+\ Read an INTEGER into the key_data buffer, at the provided offset.
+\ Returned value is the integer length (in bytes).
+: read-integer-off ( lim off -- lim dlen )
+	dup addr-len-key_data rot - swap rot + swap read-integer ;
+
+\ Decode RSA key, starting with the SEQUENCE tag.
+: decode-RSA ( lim -- lim )
+	read-sequence-open
+
+	\ Version should be 0.
+	read-tag 0x02 check-tag-primitive read-small-int-value if
+		ERR_X509_UNSUPPORTED fail
+	then
+
+	\ Read tag for the modulus; should be INTEGER. Then use the
+	\ decode-RSA-next function for the remainder of the key.
+	read-tag 0x02 check-tag-primitive
+	decode-RSA-next
+
+	\ Close the SEQUENCE.
+	close-elt ;
+
+\ Decode RSA key; the version, and the tag for the modulus, have been
+\ read.
+: decode-RSA-next ( lim -- lim )
+	\ Modulus: we read it but we do not keep it; we merely gather
+	\ the modulus bit length.
+	addr-len-key_data read-integer-next
+	dup ifnot ERR_X509_UNEXPECTED fail then
+	1- 3 << addr-key_data get8 int-bit-length + { n_bitlen }
+
+	\ Public exponent: read but skip.
+	read-integer-ignore
+
+	\ Private exponent: read but skip.
+	read-integer-ignore
+
+	\ First prime factor.
+	addr-len-key_data read-integer dup dup { off plen }
+
+	\ Second prime factor.
+	read-integer-off dup { qlen } off + dup >off
+
+	\ First reduced private exponent.
+	read-integer-off dup { dplen } off + dup >off
+
+	\ Second reduced private exponent.
+	read-integer-off dup { dqlen } off + dup >off
+
+	\ CRT coefficient.
+	read-integer-off { iqlen }
+
+	\ Set RSA key.
+	n_bitlen plen qlen dplen dqlen iqlen set-rsa-key
+
+	\ The caller will close the sequence, thereby validating that there
+	\ is no extra field.
+	;
+
+\ Decode an EC key, starting with the SEQUENCE tag.
+: decode-EC ( lim curve -- lim )
+	{ curve }
+	read-sequence-open
+
+	\ Version should be 1.
+	read-tag 0x02 check-tag-primitive read-small-int-value 1- if
+		ERR_X509_UNSUPPORTED fail
+	then
+
+	\ Read tag for the private key; should be OCTET STRING. Then use the
+	\ decode-EC-next function for the remainder of the key.
+	read-tag 0x04 check-tag-primitive
+	curve decode-EC-next
+
+	\ Close the SEQUENCE.
+	close-elt ;
+
+\ Decode an EC key; the version, and the tag for the OCTET STRING, have
+\ already been read. The curve ID is provided (0 if unknown).
+: decode-EC-next ( lim curve -- lim )
+	{ curve }
+
+	\ Read the private key proper.
+	read-length-open-elt
+	dup dup { xlen } len-key_data > if ERR_X509_UNSUPPORTED fail then
+	addr-key_data read-blob
+
+	\ Next element might be the curve identifier.
+	read-tag-or-end
+	case
+
+		\ End of structure.
+		-1 of drop endof
+
+		\ Curve parameters; we support only named curves.
+		0x20 of
+			check-constructed read-length-open-elt
+			read-curve-ID
+			curve if
+				curve <> if ERR_X509_INVALID_VALUE fail then
+			else
+				>curve
+			then
+			close-elt
+		endof
+
+		\ Public key. We ignore it.
+		0x21 of check-constructed endof
+
+		ERR_X509_UNSUPPORTED fail
+	endcase
+	skip-remaining
+
+	\ The curve must have been defined one way or another.
+	curve ifnot ERR_X509_UNSUPPORTED fail then
+
+	\ Set the EC key.
+	curve xlen set-ec-key
+
+	\ The caller will close the sequence.
+	;
+
+\ Decode a PKCS#8 object. The version and the tag for the AlgorithmIdentifier
+\ structure have already been read. This function returns the key type.
+: decode-PKCS8-next ( lim -- lim keytype )
+	\ Decode the AlgorithmIdentifier.
+	read-length-open-elt
+	read-OID ifnot ERR_X509_UNSUPPORTED fail then
+	{ ; is-rsa curve }
+	choice
+		rsaEncryption eqOID uf
+			\ RSA private key. We ignore the parameters.
+			skip-remaining -1 >is-rsa
+		enduf
+		id-ecPublicKey eqOID uf
+			\ EC private key. Parameters, if present, shall
+			\ identify the curve.
+			0 >is-rsa
+			dup if read-curve-ID else 0 then >curve
+		enduf
+
+		ERR_X509_UNSUPPORTED fail
+	endchoice
+	close-elt
+
+	\ Open private key value and decode it.
+	read-tag 0x04 check-tag-primitive
+	read-length-open-elt
+	is-rsa if
+		decode-RSA
+	else
+		curve decode-EC
+	then
+	close-elt
+
+	\ We ignore any extra field, i.e. attributes or public key.
+	skip-remaining
+
+	\ Return the key type.
+	is-rsa if KEYTYPE_RSA else KEYTYPE_EC then
+	;
+
+\ Decode a private key.
+: main ( -- ! )
+	\ RSA private key format is defined in PKCS#1 (RFC 3447):
+	\   RSAPrivateKey ::= SEQUENCE {
+	\       version   INTEGER, -- 0 or 1
+	\       n         INTEGER,
+	\       e         INTEGER,
+	\       d         INTEGER,
+	\       p         INTEGER,
+	\       q         INTEGER,
+	\       dp        INTEGER,
+	\       dq        INTEGER,
+	\       iq        INTEGER,
+	\       other     OtherPrimeInfos OPTIONAL
+	\   }
+	\ We do not support keys with more than two primes (these have
+	\ version 1); thus, we expect the version field to be 0, and
+	\ the 'other' field to be absent.
+	\
+	\ EC private key format is defined in RFC 5915:
+	\   ECPrivateKey ::= SEQUENCE {
+	\       version      INTEGER,   -- always 1
+	\       privateKey   OCTET STRING,
+	\       parameters   [0] EXPLICIT OBJECT IDENTIFIER OPTIONAL,
+	\       publicKey    [1] EXPLICIT BIT STRING OPTIONAL
+	\   }
+	\ The "parameters" might conceptually be a complex curve description
+	\ structure but we support only named curves. The private key
+	\ contents are the unsigned big-endian encoding of the key value,
+	\ which is exactly what we want.
+	\
+	\ PKCS#8 (unencrypted) is:
+	\   OneAsymmetricKey ::= SEQUENCE {
+	\       version      INTEGER,   -- 0 or 1
+	\       algorithm    AlgorithmIdentifier,
+	\       privateKey   OCTET STRING,
+	\       attributes   [0] IMPLICIT Attributes OPTIONAL,
+	\       publicKey    [1] IMPLICIT BIT STRING OPTIONAL
+	\   }
+	\ The 'publicKey' field is an add-on from RFC 5958 and may be
+	\ present only if the 'version' is v2 (i.e. has value 1). We
+	\ ignore it anyway.
+
+	\ An arbitrary upper limit on the private key size.
+	0xFFFFFF
+
+	\ Open the outer SEQUENCE.
+	read-sequence-open
+
+	\ All our schemas begin with a small INTEGER which is either 0 or
+	\ 1. We don't care which it is.
+	read-tag 0x02 check-tag-primitive read-small-int-value 1 > if
+		ERR_X509_UNSUPPORTED fail
+	then
+
+	\ Get next tag: it should be either an INTEGER (RSA private key),
+	\ an OCTET STRING (EC private key), or a SEQUENCE (for an
+	\ AlgorithmIdentifier, in a PKCS#8 object).
+	read-tag
+	case
+		0x02 of check-primitive decode-RSA-next KEYTYPE_RSA endof
+		0x04 of check-primitive 0 decode-EC-next KEYTYPE_EC endof
+		0x10 of check-constructed decode-PKCS8-next endof
+		ERR_X509_UNSUPPORTED fail
+	endcase
+	{ key-type }
+
+	\ Close the SEQUENCE.
+	close-elt
+
+	\ Set the key type, which marks the decoding as a success.
+	key-type addr-key_type set8
+
+	\ Read one byte, then fail: if the read succeeds, then there is
+	\ some trailing byte.
+	read8-nc ERR_X509_EXTRA_ELEMENT fail
+	;

@@ -1,0 +1,79 @@
+=pod
+
+=head1 NAME
+
+ERR_get_error, ERR_peek_error, ERR_peek_last_error,
+ERR_get_error_line, ERR_peek_error_line, ERR_peek_last_error_line,
+ERR_get_error_line_data, ERR_peek_error_line_data,
+ERR_peek_last_error_line_data - obtain error code and data
+
+=head1 SYNOPSIS
+
+ #include <openssl/err.h>
+
+ unsigned long ERR_get_error(void);
+ unsigned long ERR_peek_error(void);
+ unsigned long ERR_peek_last_error(void);
+
+ unsigned long ERR_get_error_line(const char **file, int *line);
+ unsigned long ERR_peek_error_line(const char **file, int *line);
+ unsigned long ERR_peek_last_error_line(const char **file, int *line);
+
+ unsigned long ERR_get_error_line_data(const char **file, int *line,
+                                       const char **data, int *flags);
+ unsigned long ERR_peek_error_line_data(const char **file, int *line,
+                                        const char **data, int *flags);
+ unsigned long ERR_peek_last_error_line_data(const char **file, int *line,
+                                             const char **data, int *flags);
+
+=head1 DESCRIPTION
+
+ERR_get_error() returns the earliest error code from the thread's error
+queue and removes the entry. This function can be called repeatedly
+until there are no more error codes to return.
+
+ERR_peek_error() returns the earliest error code from the thread's
+error queue without modifying it.
+
+ERR_peek_last_error() returns the latest error code from the thread's
+error queue without modifying it.
+
+See L<ERR_GET_LIB(3)> for obtaining information about
+location and reason of the error, and
+L<ERR_error_string(3)> for human-readable error
+messages.
+
+ERR_get_error_line(), ERR_peek_error_line() and
+ERR_peek_last_error_line() are the same as the above, but they
+additionally store the file name and line number where
+the error occurred in *B<file> and *B<line>, unless these are B<NULL>.
+
+ERR_get_error_line_data(), ERR_peek_error_line_data() and
+ERR_peek_last_error_line_data() store additional data and flags
+associated with the error code in *B<data>
+and *B<flags>, unless these are B<NULL>. *B<data> contains a string
+if *B<flags>&B<ERR_TXT_STRING> is true.
+
+An application B<MUST NOT> free the *B<data> pointer (or any other pointers
+returned by these functions) with OPENSSL_free() as freeing is handled
+automatically by the error library.
+
+=head1 RETURN VALUES
+
+The error code, or 0 if there is no error in the queue.
+
+=head1 SEE ALSO
+
+L<ERR_error_string(3)>,
+L<ERR_GET_LIB(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

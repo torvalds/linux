@@ -1,0 +1,17 @@
+$ $tcsh: set22,v 1.3 2011/02/04 18:19:39 christos Exp $
+$ tc.func.c
+$set 22 
+1 %S: \t è un alias per 
+2 \nPassword non corretta per %s\n
+3 Alias non corretto 'precmd' rimosso.\n
+4 Alias non corretto 'cwdcmd' rimosso.\n
+5 Alias non corretto 'beepcmd' rimosso.\n
+6 Alias non corretto 'periodic' rimosso.\n
+7 sto esaminando la linea di comando\n
+8 Vuoi realmente cancellare tutti i file? [s/n] 
+9 sto saltando la cancellazione dei file!\n
+10 la linea di comando adesso è:\n
+11 sto esaminando la linea di comando\n
+12 in uno degli elenchi\n
+13 la linea di comando ora è:\n
+14 sS

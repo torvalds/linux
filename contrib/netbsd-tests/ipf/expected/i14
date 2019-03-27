@@ -1,0 +1,15 @@
+block in on eri0(!) all head 1
+pass in on eri0(!) proto icmp from any to any group 1
+pass out on ed0(!) all head 1000000
+block out on ed0(!) proto udp from any to any group 1000000
+block in on vm0(!) proto tcp/udp from any to any head 101
+pass in inet proto tcp/udp from 1.1.1.1/32 to 2.2.2.2/32 group 101
+pass in inet proto tcp from 1.0.0.1/32 to 2.0.0.2/32 group 101
+pass in inet proto udp from 2.0.0.2/32 to 3.0.0.3/32 group 101
+block in on vm0(!) proto tcp/udp from any to any head vm0-group
+pass in inet proto tcp/udp from 1.1.1.1/32 to 2.2.2.2/32 group vm0-group
+block in on vm0(!) proto tcp/udp from any to any head vm0-group
+pass in inet proto tcp/udp from 1.1.1.1/32 to 2.2.2.2/32 group vm0-group
+pass in inet6 from 8f::/128 to f8::/128
+block in inet6 proto udp from any to any
+block in inet6 all

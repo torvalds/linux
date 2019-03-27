@@ -1,0 +1,62 @@
+# EDIT THIS FILE WITH CAUTION  (ntp-wait-opts)
+#
+# It has been AutoGen-ed  February 20, 2019 at 09:57:27 AM by AutoGen 5.18.5
+# From the definitions    ntp-wait-opts.def
+# and the template file   perlopt
+
+use Getopt::Long qw(GetOptionsFromArray);
+Getopt::Long::Configure(qw(no_auto_abbrev no_ignore_case_always));
+
+my $usage;
+
+sub usage {
+    my ($ret) = @_;
+    print STDERR $usage;
+    exit $ret;
+}
+
+sub paged_usage {
+    my ($ret) = @_;
+    my $pager = $ENV{PAGER} || '(less || more)';
+
+    open STDOUT, "| $pager" or die "Can't fork a pager: $!";
+    print $usage;
+
+    exit $ret;
+}
+
+sub processOptions {
+    my $args = shift;
+
+    my $opts = {
+        'tries' => '100',
+        'sleep' => '6',
+        'verbose' => '',
+        'help' => '', 'more-help' => ''
+    };
+    my $argument = '';
+    my $ret = GetOptionsFromArray($args, $opts, (
+        'tries|n=i', 'sleep|s=i', 'verbose|v',
+        'help|?', 'more-help'));
+
+    $usage = <<'USAGE';
+ntp-wait - Wait for ntpd to stabilize the system clock - Ver. 4.2.8p13
+USAGE: ntp-wait [ -<flag> [<val>] | --<name>[{=| }<val>] ]... 
+
+    -n, --tries=num              Number of times to check ntpd
+    -s, --sleep=num              How long to sleep between tries
+    -v, --verbose                Be verbose
+    -?, --help                   Display usage information and exit
+        --more-help              Pass the extended usage text through a pager
+
+Options are specified by doubled hyphens and their name or by a single
+hyphen and the flag character.
+USAGE
+
+    usage(0)       if $opts->{'help'};
+    paged_usage(0) if $opts->{'more-help'};
+    $_[0] = $opts;
+    return $ret;
+}
+
+END { close STDOUT };

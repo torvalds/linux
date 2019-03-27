@@ -1,0 +1,121 @@
+// -*- C++ -*-
+//===---------------------------- cctype ----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_CCTYPE
+#define _LIBCPP_CCTYPE
+
+/*
+    cctype synopsis
+
+namespace std
+{
+
+int isalnum(int c);
+int isalpha(int c);
+int isblank(int c);  // C99
+int iscntrl(int c);
+int isdigit(int c);
+int isgraph(int c);
+int islower(int c);
+int isprint(int c);
+int ispunct(int c);
+int isspace(int c);
+int isupper(int c);
+int isxdigit(int c);
+int tolower(int c);
+int toupper(int c);
+
+}  // std
+*/
+
+#include <__config>
+#include <ctype.h>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+#ifdef isalnum
+#undef isalnum
+#endif
+
+#ifdef isalpha
+#undef isalpha
+#endif
+
+#ifdef isblank
+#undef isblank
+#endif
+
+#ifdef iscntrl
+#undef iscntrl
+#endif
+
+#ifdef isdigit
+#undef isdigit
+#endif
+
+#ifdef isgraph
+#undef isgraph
+#endif
+
+#ifdef islower
+#undef islower
+#endif
+
+#ifdef isprint
+#undef isprint
+#endif
+
+#ifdef ispunct
+#undef ispunct
+#endif
+
+#ifdef isspace
+#undef isspace
+#endif
+
+#ifdef isupper
+#undef isupper
+#endif
+
+#ifdef isxdigit
+#undef isxdigit
+#endif
+
+#ifdef tolower
+#undef tolower
+#endif
+
+#ifdef toupper
+#undef toupper
+#endif
+
+
+using ::isalnum;
+using ::isalpha;
+using ::isblank;
+using ::iscntrl;
+using ::isdigit;
+using ::isgraph;
+using ::islower;
+using ::isprint;
+using ::ispunct;
+using ::isspace;
+using ::isupper;
+using ::isxdigit;
+using ::tolower;
+using ::toupper;
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif  // _LIBCPP_CCTYPE

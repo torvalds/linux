@@ -1,0 +1,224 @@
+.\" Copyright (c) 1997-2003 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd September  3, 2003
+.Dt KRB5_425_CONV_PRINCIPAL 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_425_conv_principal ,
+.Nm krb5_425_conv_principal_ext ,
+.Nm krb5_524_conv_principal
+.Nd converts to and from version 4 principals
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Ft krb5_error_code
+.Fn krb5_425_conv_principal "krb5_context context" "const char *name" "const char *instance" "const char *realm" "krb5_principal *principal"
+.Ft krb5_error_code
+.Fn krb5_425_conv_principal_ext "krb5_context context" "const char *name" "const char *instance" "const char *realm" "krb5_boolean (*func)(krb5_context, krb5_principal)" "krb5_boolean resolve" "krb5_principal *principal"
+.Ft krb5_error_code
+.Fn krb5_524_conv_principal "krb5_context context" "const krb5_principal principal" "char *name" "char *instance" "char *realm"
+.Sh DESCRIPTION
+Converting between version 4 and version 5 principals can at best be
+described as a mess.
+.Pp
+A version 4 principal consists of a name, an instance, and a realm. A
+version 5 principal consists of one or more components, and a
+realm. In some cases also the first component/name will differ between
+version 4 and version 5.  Furthermore the second component of a host
+principal will be the fully qualified domain name of the host in
+question, while the instance of a version 4 principal will only
+contain the first part (short hostname).  Because of these problems
+the conversion between principals will have to be site customized.
+.Pp
+.Fn krb5_425_conv_principal_ext
+will try to convert a version 4 principal, given by
+.Fa name ,
+.Fa instance ,
+and
+.Fa realm ,
+to a version 5 principal. This can result in several possible
+principals, and if
+.Fa func
+is non-NULL, it will be called for each candidate principal.
+.Fa func
+should return true if the principal was
+.Dq good .
+To accomplish this,
+.Fn krb5_425_conv_principal_ext
+will look up the name in
+.Pa krb5.conf .
+It first looks in the
+.Li v4_name_convert/host
+subsection, which should contain a list of version 4 names whose
+instance should be treated as a hostname. This list can be specified
+for each realm (in the
+.Li realms
+section), or in the
+.Li libdefaults
+section.  If the name is found the resulting name of the principal
+will be the value of this binding. The instance is then first looked
+up in
+.Li v4_instance_convert
+for the specified realm. If found the resulting value will be used as
+instance (this can be used for special cases), no further attempts
+will be made to find a conversion if this fails (with
+.Fa func ) .
+If the
+.Fa resolve
+parameter is true, the instance will be looked up with
+.Fn gethostbyname .
+This can be a time consuming, error prone, and unsafe operation.  Next
+a list of hostnames will be created from the instance and the
+.Li v4_domains
+variable, which should contain a list of possible domains for the
+specific realm.
+.Pp
+On the other hand, if the name is not found in a
+.Li host
+section, it is looked up in a
+.Li v4_name_convert/plain
+binding. If found here the name will be converted, but the instance
+will be untouched.
+.Pp
+This list of default host-type conversions is compiled-in:
+.Bd -literal -offset indent
+v4_name_convert = {
+	host = {
+		ftp = ftp
+		hprop = hprop
+		imap = imap
+		pop = pop
+		rcmd = host
+		smtp = smtp
+	}
+}
+.Ed
+.Pp
+It will only be used if there isn't an entry for these names in the
+config file, so you can override these defaults.
+.Pp
+.Fn krb5_425_conv_principal
+will call
+.Fn krb5_425_conv_principal_ext
+with
+.Dv NULL
+as
+.Fa func ,
+and the value of
+.Li v4_instance_resolve
+(from the
+.Li libdefaults
+section) as
+.Fa resolve .
+.Pp
+.Fn krb5_524_conv_principal
+basically does the opposite of
+.Fn krb5_425_conv_principal ,
+it just doesn't have to look up any names, but will instead truncate
+instances found to belong to a host principal. The
+.Fa name ,
+.Fa instance ,
+and
+.Fa realm
+should be at least 40 characters long.
+.Sh EXAMPLES
+Since this is confusing an example is in place.
+.Pp
+Assume that we have the
+.Dq foo.com ,
+and
+.Dq bar.com
+domains that have shared a single version 4 realm, FOO.COM. The version 4
+.Pa krb.realms
+file looked like:
+.Bd -literal -offset indent
+foo.com		FOO.COM
+\&.foo.com	FOO.COM
+\&.bar.com	FOO.COM
+.Ed
+.Pp
+A
+.Pa krb5.conf
+file that covers this case might look like:
+.Bd -literal -offset indent
+[libdefaults]
+	v4_instance_resolve = yes
+[realms]
+	FOO.COM = {
+		kdc = kerberos.foo.com
+		v4_instance_convert = {
+			foo = foo.com
+		}
+		v4_domains = foo.com
+	}
+.Ed
+.Pp
+With this setup and the following host table:
+.Bd -literal -offset indent
+foo.com
+a-host.foo.com
+b-host.bar.com
+.Ed
+the following conversions will be made:
+.Bd -literal -offset indent
+rcmd.a-host	-\*(Gt host/a-host.foo.com
+ftp.b-host	-\*(Gt ftp/b-host.bar.com
+pop.foo		-\*(Gt pop/foo.com
+ftp.other	-\*(Gt ftp/other.foo.com
+other.a-host	-\*(Gt other/a-host
+.Ed
+.Pp
+The first three are what you expect. If you remove the
+.Dq v4_domains ,
+the fourth entry will result in an error (since the host
+.Dq other
+can't be found). Even if
+.Dq a-host
+is a valid host name, the last entry will not be converted, since the
+.Dq other
+name is not known to represent a host-type principal.
+If you turn off
+.Dq v4_instance_resolve
+the second example will result in
+.Dq ftp/b-host.foo.com
+(because of the default domain). And all of this is of course only
+valid if you have working name resolving.
+.Sh SEE ALSO
+.Xr krb5_build_principal 3 ,
+.Xr krb5_free_principal 3 ,
+.Xr krb5_parse_name 3 ,
+.Xr krb5_sname_to_principal 3 ,
+.Xr krb5_unparse_name 3 ,
+.Xr krb5.conf 5

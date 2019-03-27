@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+set -T
+trapped=''
+trap "trapped=x$trapped" TERM
+[ "x$(:; kill $$)y" = xy ] && [ "$trapped" = x ]

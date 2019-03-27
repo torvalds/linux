@@ -1,0 +1,68 @@
+
+#------------------------------------------------------------------------------
+# $File: amigaos,v 1.16 2017/03/17 21:35:28 christos Exp $
+# amigaos:  file(1) magic for AmigaOS binary formats:
+
+#
+# From ignatios@cs.uni-bonn.de (Ignatios Souvatzis)
+#
+0	belong		0x000003fa	AmigaOS shared library
+0	belong		0x000003f3	AmigaOS loadseg()ble executable/binary
+0	belong		0x000003e7	AmigaOS object/library data
+#
+0	beshort		0xe310		Amiga Workbench
+>2	beshort		1
+>>48	byte		1		disk icon
+>>48	byte		2		drawer icon
+>>48	byte		3		tool icon
+>>48	byte		4		project icon
+>>48	byte		5		garbage icon
+>>48	byte		6		device icon
+>>48	byte		7		kickstart icon
+>>48	byte		8		workbench application icon
+>2	beshort		>1		icon, vers. %d
+#
+# various sound formats from the Amiga
+# G=F6tz Waschk <waschk@informatik.uni-rostock.de>
+#
+0	string		FC14		Future Composer 1.4 Module sound file
+0	string		SMOD		Future Composer 1.3 Module sound file
+0	string		AON4artofnoise	Art Of Noise Module sound file
+1	string		MUGICIAN/SOFTEYES Mugician Module sound file
+58	string		SIDMON\ II\ -\ THE	Sidmon 2.0 Module sound file
+0	string		Synth4.0	Synthesis Module sound file
+0	string		ARP.		The Holy Noise Module sound file
+0	string		BeEp\0		JamCracker Module sound file
+0	string		COSO\0		Hippel-COSO Module sound file
+# Too simple (short, pure ASCII, deep), MPi
+#26	string		V.3		Brian Postma's Soundmon Module sound file v3
+#26	string		BPSM		Brian Postma's Soundmon Module sound file v3
+#26	string		V.2		Brian Postma's Soundmon Module sound file v2
+
+# The following are from: "Stefan A. Haubenthal" <polluks@web.de>
+0	beshort		0x0f00		AmigaOS bitmap font
+0	beshort		0x0f03		AmigaOS outline font
+0	belong		0x80001001	AmigaOS outline tag
+0	string		##\ version	catalog translation
+0	string		EMOD\0		Amiga E module
+8	string		ECXM\0		ECX module
+0	string/c	@database	AmigaGuide file
+
+# Amiga disk types
+#
+0	string		RDSK		Rigid Disk Block
+>160	string		x		on %.24s
+0	string		DOS\0		Amiga DOS disk
+0	string		DOS\1		Amiga FFS disk
+0	string		DOS\2		Amiga Inter DOS disk
+0	string		DOS\3		Amiga Inter FFS disk
+0	string		DOS\4		Amiga Fastdir DOS disk
+0	string		DOS\5		Amiga Fastdir FFS disk
+0	string		KICK		Kickstart disk
+
+# From: Alex Beregszaszi <alex@fsn.hu>
+0	string		LZX		LZX compressed archive (Amiga)
+
+# From: Przemek Kramarczyk <pkramarczyk@gmail.com>
+0	string 		.KEY		AmigaDOS script
+0	string 		.key		AmigaDOS script

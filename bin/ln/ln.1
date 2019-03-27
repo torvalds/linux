@@ -1,0 +1,322 @@
+.\"-
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)ln.1	8.2 (Berkeley) 12/30/93
+.\" $FreeBSD$
+.\"
+.Dd June 12, 2017
+.Dt LN 1
+.Os
+.Sh NAME
+.Nm ln ,
+.Nm link
+.Nd link files
+.Sh SYNOPSIS
+.Nm
+.Op Fl L | Fl P | Fl s Op Fl F
+.Op Fl f | iw
+.Op Fl hnv
+.Ar source_file
+.Op Ar target_file
+.Nm
+.Op Fl L | Fl P | Fl s Op Fl F
+.Op Fl f | iw
+.Op Fl hnv
+.Ar source_file ...
+.Ar target_dir
+.Nm link
+.Ar source_file Ar target_file
+.Sh DESCRIPTION
+The
+.Nm
+utility creates a new directory entry (linked file) for the file name
+specified by
+.Ar target_file .
+The
+.Ar target_file
+will be created with the same file modes as the
+.Ar source_file .
+It is useful for maintaining multiple copies of a file in many places
+at once without using up storage for the
+.Dq copies ;
+instead, a link
+.Dq points
+to the original copy.
+There are two types of links; hard links and symbolic links.
+How a link
+.Dq points
+to a file is one of the differences between a hard and symbolic link.
+.Pp
+The options are as follows:
+.Bl -tag -width flag
+.It Fl F
+If the target file already exists and is a directory, then remove it
+so that the link may occur.
+The
+.Fl F
+option should be used with either
+.Fl f
+or
+.Fl i
+options.
+If neither
+.Fl f
+nor
+.Fl i
+is specified,
+.Fl f
+is implied.
+The
+.Fl F
+option is a no-op unless
+.Fl s
+is specified.
+.It Fl L
+When creating a hard link to a symbolic link,
+create a hard link to the target of the symbolic link.
+This is the default.
+This option cancels the
+.Fl P
+option.
+.It Fl P
+When creating a hard link to a symbolic link,
+create a hard link to the symbolic link itself.
+This option cancels the
+.Fl L
+option.
+.It Fl f
+If the target file already exists,
+then unlink it so that the link may occur.
+(The
+.Fl f
+option overrides any previous
+.Fl i
+and
+.Fl w
+options.)
+.It Fl h
+If the
+.Ar target_file
+or
+.Ar target_dir
+is a symbolic link, do not follow it.
+This is most useful with the
+.Fl f
+option, to replace a symlink which may point to a directory.
+.It Fl i
+Cause
+.Nm
+to write a prompt to standard error if the target file exists.
+If the response from the standard input begins with the character
+.Sq Li y
+or
+.Sq Li Y ,
+then unlink the target file so that the link may occur.
+Otherwise, do not attempt the link.
+(The
+.Fl i
+option overrides any previous
+.Fl f
+options.)
+.It Fl n
+Same as
+.Fl h ,
+for compatibility with other
+.Nm
+implementations.
+.It Fl s
+Create a symbolic link.
+.It Fl v
+Cause
+.Nm
+to be verbose, showing files as they are processed.
+.It Fl w
+Warn if the source of a symbolic link does not currently exist.
+.El
+.Pp
+By default,
+.Nm
+makes
+.Em hard
+links.
+A hard link to a file is indistinguishable from the original directory entry;
+any changes to a file are effectively independent of the name used to reference
+the file.
+Directories may not be hardlinked, and hard links may not span file systems.
+.Pp
+A symbolic link contains the name of the file to
+which it is linked.
+The referenced file is used when an
+.Xr open 2
+operation is performed on the link.
+A
+.Xr stat 2
+on a symbolic link will return the linked-to file; an
+.Xr lstat 2
+must be done to obtain information about the link.
+The
+.Xr readlink 2
+call may be used to read the contents of a symbolic link.
+Symbolic links may span file systems and may refer to directories.
+.Pp
+Given one or two arguments,
+.Nm
+creates a link to an existing file
+.Ar source_file .
+If
+.Ar target_file
+is given, the link has that name;
+.Ar target_file
+may also be a directory in which to place the link;
+otherwise it is placed in the current directory.
+If only the directory is specified, the link will be made
+to the last component of
+.Ar source_file .
+.Pp
+Given more than two arguments,
+.Nm
+makes links in
+.Ar target_dir
+to all the named source files.
+The links made will have the same name as the files being linked to.
+.Pp
+When the utility is called as
+.Nm link ,
+exactly two arguments must be supplied,
+neither of which may specify a directory.
+No options may be supplied in this simple mode of operation,
+which performs a
+.Xr link 2
+operation using the two passed arguments.
+.Sh EXAMPLES
+Create a symbolic link named
+.Pa /home/src
+and point it to
+.Pa /usr/src :
+.Pp
+.Dl # ln -s /usr/src /home/src
+.Pp
+Hard link
+.Pa /usr/local/bin/fooprog
+to file
+.Pa /usr/local/bin/fooprog-1.0 :
+.Pp
+.Dl # ln /usr/local/bin/fooprog-1.0 /usr/local/bin/fooprog
+.Pp
+As an exercise, try the following commands:
+.Bd -literal -offset indent
+# ls -i /bin/[
+11553 /bin/[
+# ls -i /bin/test
+11553 /bin/test
+.Ed
+.Pp
+Note that both files have the same inode; that is,
+.Pa /bin/[
+is essentially an alias for the
+.Xr test 1
+command.
+This hard link exists so
+.Xr test 1
+may be invoked from shell scripts, for example, using the
+.Li "if [ ]"
+construct.
+.Pp
+In the next example, the second call to
+.Nm
+removes the original
+.Pa foo
+and creates a replacement pointing to
+.Pa baz :
+.Bd -literal -offset indent
+# mkdir bar baz
+# ln -s bar foo
+# ln -shf baz foo
+.Ed
+.Pp
+Without the
+.Fl h
+option, this would instead leave
+.Pa foo
+pointing to
+.Pa bar
+and inside
+.Pa foo
+create a new symlink
+.Pa baz
+pointing to itself.
+This results from directory-walking.
+.Pp
+An easy rule to remember is that the argument order for
+.Nm
+is the same as for
+.Xr cp 1 :
+The first argument needs to exist, the second one is created.
+.Sh COMPATIBILITY
+The
+.Fl h ,
+.Fl i ,
+.Fl n ,
+.Fl v
+and
+.Fl w
+options are non-standard and their use in scripts is not recommended.
+They are provided solely for compatibility with other
+.Nm
+implementations.
+.Pp
+The
+.Fl F
+option is a
+.Fx
+extension and should not be used in portable scripts.
+.Sh SEE ALSO
+.Xr link 2 ,
+.Xr lstat 2 ,
+.Xr readlink 2 ,
+.Xr stat 2 ,
+.Xr symlink 2 ,
+.Xr symlink 7
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.2-92 .
+.Pp
+The simplified
+.Nm link
+command conforms to
+.St -susv2 .
+.Sh HISTORY
+An
+.Nm
+command appeared in
+.At v1 .

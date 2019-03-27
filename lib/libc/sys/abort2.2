@@ -1,0 +1,113 @@
+.\" Copyright (c) 2005 Wojciech A. Koszek <dunstan@FreeBSD.czest.pl>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 30, 2006
+.Dt ABORT2 2
+.Os
+.Sh NAME
+.Nm abort2
+.Nd "abort process with diagnostics"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft void
+.Fn abort2 "const char *why" "int nargs" "void **args"
+.Sh DESCRIPTION
+The
+.Fn abort2
+system call causes the process to be killed and the specified diagnostic
+message (with arguments) to be delivered by the kernel to the
+.Xr syslogd 8
+daemon.
+.Pp
+The
+.Fa why
+argument points to a
+.Dv NUL- Ns
+terminated string specifying a reason of the program's termination
+(maximum 128 characters long).
+The
+.Fa args
+array contains pointers which will be logged numerically
+(with the kernel's
+.Ql %p
+.Xr printf 9
+format).
+The
+.Fa nargs
+argument specifies the number of pointers in
+.Fa args
+(maximum 16).
+.Pp
+The
+.Fn abort2
+system call
+is intended for use in situations where continuation of a process
+is impossible or for other definitive reasons is unwanted, and normal
+diagnostic channels cannot be trusted to deliver the message.
+.Sh RETURN VALUES
+The
+.Fn abort2
+function
+never returns.
+.Pp
+The process is killed with
+.Dv SIGABRT
+unless the arguments to
+.Fn abort2
+are invalid, in which case
+.Dv SIGKILL
+is used.
+.Sh EXAMPLES
+.Bd -literal -compact
+#include <stdlib.h>
+
+if (weight_kg > max_load) {
+	void *ptrs[3];
+
+	ptrs[0] = (void *)(intptr_t)weight_kg;
+	ptrs[1] = (void *)(intptr_t)max_load;
+	ptrs[2] = haystack;
+	abort2("Camel overloaded", 3, ptrs);
+}
+.Ed
+.Sh SEE ALSO
+.Xr abort 3 ,
+.Xr exit 3
+.Sh HISTORY
+The
+.Fn abort2
+system call first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Fn abort2
+system call was designed by
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .
+It was implemented by
+.An Wojciech A. Koszek Aq Mt dunstan@freebsd.czest.pl .

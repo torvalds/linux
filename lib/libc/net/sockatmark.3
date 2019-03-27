@@ -1,0 +1,123 @@
+.\" Copyright (c) 2002 William C. Fenner.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 13, 2002
+.Dt SOCKATMARK 3
+.Os
+.Sh NAME
+.Nm sockatmark
+.Nd determine whether the read pointer is at the OOB mark
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/socket.h
+.Ft int
+.Fn sockatmark "int s"
+.Sh DESCRIPTION
+To find out if the read pointer is currently pointing at
+the mark in the data stream, the
+.Fn sockatmark
+function is provided.
+If
+.Fn sockatmark
+returns 1, the next read will return data
+after the mark.
+Otherwise (assuming out of band data has arrived),
+the next read will provide data sent by the client prior
+to transmission of the out of band signal.
+The routine used
+in the remote login process to flush output on receipt of an
+interrupt or quit signal is shown below.
+It reads the normal data up to the mark (to discard it),
+then reads the out-of-band byte.
+.Bd -literal -offset indent
+#include <sys/socket.h>
+\&...
+oob()
+{
+	int out = FWRITE, mark;
+	char waste[BUFSIZ];
+
+	/* flush local terminal output */
+	ioctl(1, TIOCFLUSH, (char *)&out);
+	for (;;) {
+		if ((mark = sockatmark(rem)) < 0) {
+			perror("sockatmark");
+			break;
+		}
+		if (mark)
+			break;
+		(void) read(rem, waste, sizeof (waste));
+	}
+	if (recv(rem, &mark, 1, MSG_OOB) < 0) {
+		perror("recv");
+		...
+	}
+	...
+}
+.Ed
+.Sh RETURN VALUES
+Upon successful completion, the
+.Fn sockatmark
+function returns the value 1 if the read pointer is pointing at
+the OOB mark, 0 if it is not.
+Otherwise the value \-1 is returned
+and the global variable
+.Va errno
+is set to
+indicate the error.
+.Sh ERRORS
+The
+.Fn sockatmark
+call fails if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa s
+argument
+is not a valid descriptor.
+.It Bq Er ENOTTY
+The
+.Fa s
+argument
+is a descriptor for a file, not a socket.
+.El
+.Sh SEE ALSO
+.Xr recv 2 ,
+.Xr send 2
+.Sh HISTORY
+The
+.Fn sockatmark
+function was introduced by
+.St -p1003.1-2001 ,
+to standardize the historical
+.Dv SIOCATMARK
+.Xr ioctl 2 .
+The
+.Er ENOTTY
+error instead of the usual
+.Er ENOTSOCK
+is to match the historical behavior of
+.Dv SIOCATMARK .

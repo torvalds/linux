@@ -1,0 +1,233 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 21, 2018
+.Dt CORE.LUA 8
+.Os
+.Sh NAME
+.Nm core.lua
+.Nd FreeBSD core module
+.Sh DESCRIPTION
+.Nm
+contains core functionality that does not have a more fitting module.
+.Pp
+Before hooking into or using the functionality provided by
+.Nm ,
+it must be included with a statement such as the following:
+.Pp
+.Dl local core = require("core")
+.Ss CONSTANTS
+The following raw key code constants are defined in
+.Nm :
+.Bl -tag -width KEY_BACKSPACE -compact -offset indent
+.It Ic KEY_BACKSPACE
+The backspace code.
+Should generally be checked along with
+.Ic KEY_DELETE
+for backspace functionality.
+.It Ic KEY_ENTER
+The enter key, or hard return.
+.It Ic KEY_DELETE
+The delete code.
+Should generally be checked along with
+.Ic KEY_BACKSPACE
+for backspace functionality.
+.El
+.Pp
+The following key-string constants are defined in
+.Nm :
+.Bl -tag -width KEYSTR_ESCAPE -compact -offset indent
+.It Ic KEYSTR_ESCAPE
+The escape key.
+.It Ic KEYSTR_CSI
+The ANSI CSI sequence.
+.El
+.Pp
+The following menu entry type constants are defined in
+.Nm :
+.Bl -tag -width MENU_CAROUSEL_ENTRY -compact -offset indent
+.It Ic MENU_RETURN
+Return to the parent menu.
+.It Ic MENU_ENTRY
+A normal menu entry.
+.It Ic MENU_SEPARATOR
+A menu entry that serves as a separator.
+.It Ic MENU_SUBMENU
+A menu entry that opens a submenu when selected.
+.It Ic MENU_CAROUSEL_ENTRY
+A menu entry that rotates through items like a carousel upon selection of the
+menu entry.
+.El
+.Pp
+Please see
+.Xr menu.lua 8
+for extended descriptions and usage of the
+.Ic MENU_*
+constants.
+.Ss Exported functions
+The following functions are exported from
+.Nm :
+.Bl -tag -width core.getACPIPresent -offset indent
+.It Fn core.setVerbose verbose
+Sets or unsets
+.Ev boot_verbose .
+If
+.Fa verbose
+is omitted, toggle the current verbose setting.
+.It Fn core.setSingleUser singleUser
+Sets or unsets
+.Ev boot_single .
+If
+.Fa singleUser
+is omitted, toggle the current single user setting.
+.It Fn core.getACPIPresent checkingSystemDefaults
+Check whether ACPI is present.
+This will only be accurate for i386-compatible loaders, including non-UEFI
+loaders on amd64 systems.
+If
+.Fa checkingSystemDefaults
+is true, ignore the current value of
+.Ev hint.acpi.0.disabled .
+Otherwise, return true only if ACPI is both present and not disabled.
+.It Fn core.setACPI acpi
+Sets or unsets
+.Ev acpi_load ,
+.Ev hint.acpi.0.disabled ,
+and
+.Ev loader.acpi_disabled_by_user .
+If
+.Fa acpi
+is omitted, toggle the current ACPI setting.
+.It Fn core.setSafeMode safeMode
+Set the safe mode setting.
+Sets or unsets
+.Ev kern.smp.disabled ,
+.Ev hw.ata.ata_dma ,
+.Ev hw.ata.atapi_dma ,
+.Ev hw.ata.wc ,
+.Ev hw.eisa_slots ,
+.Ev kern.eventtimer.periodic ,
+and
+.Ev kern.geom.part.check_integrity .
+If
+.Fa safeMode
+is omitted, toggle the current safe mode setting.
+.It Fn core.clearCachedKernels
+Clears out the cache of kernels to be displayed on the boot menu.
+This function is registered as a
+.Ev config.reloaded
+hook.
+It is used to invalidate the kernel list whenever it may have changed, either
+due to a boot environment change or a potential change in either
+.Ic kernel
+or
+.Ic kernels .
+.It Fn core.kernelList
+Returns a table of kernels to display on the boot menu.
+This will combine
+.Ic kernel
+and
+.Ic kernels
+from
+.Xr loader.conf 5 .
+If
+.Ic kernels_autodetect
+is set in
+.Xr loader.conf 5 ,
+kernels will be autodetected from the current system.
+.It Fn core.bootenvDefault
+Returns the default boot environment, nil if unset.
+.It Fn core.bootenvList
+Returns a table of boot environments, or an empty table.
+These will be picked up using the
+.Ev bootenvs
+and
+.Ev bootenvs_count
+variables set by
+.Xr loader 8 .
+.It Fn core.setDefaults
+Resets ACPI, safe mode, single user, and verbose settings to their system
+defauilts.
+.It Fn core.autoboot argstr
+Loads the kernel and specified modules, then invokes the
+.Ic autoboot
+.Xr loader 8
+command with
+.Fa argstr
+as-is.
+.It Fn core.boot argstr
+Loads the kernel and specified modules, then invokes the
+.Ic boot
+.Xr loader 8
+command with
+.Fa argstr
+as-is.
+.It Fn core.isSingleUserBoot
+Returns true if
+.Ev boot_single
+is set to yes.
+.It Fn core.isZFSBoot
+Returns true if
+.Ev currdev
+is set to a
+.Xr zfs 8
+dataset.
+.It Fn core.isSerialBoot
+Returns true if we are booting over serial.
+This checks
+.Ev console ,
+.Ev boot_serial ,
+and
+.Ev boot_multicons .
+.It Fn core.isSystem386
+Returns true if this bootloader was compiled as an i386 binary.
+This generally applies to i386 loaders as well as non-UEFI loaders on amd64.
+.It Fn core.deepCopyTable tbl
+Recursively deep copies
+.Fa tbl
+and returns the result.
+.It Fn core.popFrontTable tbl
+Pops the front element off of
+.Fa tbl ,
+and returns two return values: the front element, and the rest of the table.
+If there are no elements, this returns nil and nil.
+If there is one element, this returns the front element and an empty table.
+This will not operate on truly associative tables; numeric indices are
+required.
+.El
+.Sh SEE ALSO
+.Xr loader.conf 5 ,
+.Xr loader 8 ,
+.Xr menu.lua 8
+.Sh AUTHORS
+The
+.Nm
+file was originally written by
+.An Pedro Souza Aq Mt pedrosouza@FreeBSD.org .
+Later work and this manual page was done by
+.An Kyle Evans Aq Mt kevans@FreeBSD.org .

@@ -1,0 +1,131 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)rexec.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd June 4, 1993
+.Dt REXEC 3
+.Os
+.Sh NAME
+.Nm rexec
+.Nd return stream to a remote command
+.Sh LIBRARY
+.Lb libcompat
+.Sh SYNOPSIS
+.Ft int
+.Fn rexec "char **ahost" "int inport" "char *user" "char *passwd" "char *cmd" "int *fd2p"
+.Sh DESCRIPTION
+.Bf -symbolic
+This interface is obsoleted by
+.Xr rcmd 3 .
+.Ef
+.Pp
+The
+.Fn rexec
+function
+looks up the host
+.Fa *ahost
+using
+.Xr gethostbyname 3 ,
+returning \-1 if the host does not exist.
+Otherwise
+.Fa *ahost
+is set to the standard name of the host.
+If a username and password are both specified, then these
+are used to authenticate to the foreign host; otherwise
+the environment and then the user's
+.Pa .netrc
+file in his
+home directory are searched for appropriate information.
+If all this fails, the user is prompted for the information.
+.Pp
+The port
+.Fa inport
+specifies which well-known
+.Tn DARPA
+Internet port to use for
+the connection; the call
+.Fn getservbyname \*qexec\*q \*qtcp\*q
+(see
+.Xr getservent 3 )
+will return a pointer to a structure, which contains the
+necessary port.
+The protocol for connection is described in detail in
+.Xr rexecd 8 .
+.Pp
+If the connection succeeds,
+a socket in the Internet domain of type
+.Dv SOCK_STREAM
+is returned to
+the caller, and given to the remote command as
+.Dv stdin
+and
+.Dv stdout .
+If
+.Fa fd2p
+is non-zero, then an auxiliary channel to a control
+process will be setup, and a descriptor for it will be placed
+in
+.Fa *fd2p .
+The control process will return diagnostic
+output from the command (unit 2) on this channel, and will also
+accept bytes on this channel as being
+.Ux
+signal numbers, to be
+forwarded to the process group of the command.
+The diagnostic
+information returned does not include remote authorization failure,
+as the secondary connection is set up after authorization has been
+verified.
+If
+.Fa fd2p
+is 0, then the
+.Dv stderr
+(unit 2 of the remote
+command) will be made the same as the
+.Dv stdout
+and no
+provision is made for sending arbitrary signals to the remote process,
+although you may be able to get its attention by using out-of-band data.
+.Sh SEE ALSO
+.Xr rcmd 3 ,
+.Xr rexecd 8
+.Sh HISTORY
+The
+.Fn rexec
+function appeared in
+.Bx 4.2 .
+.Sh BUGS
+The
+.Fn rexec
+function sends the unencrypted password across the network.
+.Pp
+The underlying service is considered a big security hole and therefore
+not enabled on many sites, see
+.Xr rexecd 8
+for explanations.

@@ -1,0 +1,49 @@
+
+#------------------------------------------------------------------------------
+# $File: os2,v 1.10 2017/03/17 21:35:28 christos Exp $
+# os2:  file(1) magic for OS/2 files
+#
+
+# Provided 1998/08/22 by
+# David Mediavilla <davidme.news@REMOVEIFNOTSPAMusa.net>
+1	search/100	InternetShortcut	MS Windows 95 Internet shortcut text
+>17	search/100	URL= 			(URL=<
+>>&0	string		x			\b%s>)
+
+# OS/2 URL objects
+# Provided 1998/08/22 by
+# David Mediavilla <davidme.news@REMOVEIFNOTSPAMusa.net>
+#0	string	http:			OS/2 URL object text
+#>5	string	>\			(WWW) <http:%s>
+#0	string	mailto:			OS/2 URL object text
+#>7	string	>\			(email) <%s>
+#0	string	news:			OS/2 URL object text
+#>5	string	>\			(Usenet) <%s>
+#0	string	ftp:			OS/2 URL object text
+#>4	string	>\			(FTP) <ftp:%s>
+#0	string	file:			OS/2 URL object text
+#>5	string	>\			(Local file) <%s>
+
+# >>>>> OS/2 INF/HLP <<<<<  (source: Daniel Dissett ddissett@netcom.com)
+# Carl Hauser (chauser.parc@xerox.com) and
+# Marcus Groeber (marcusg@ph-cip.uni-koeln.de)
+# list the following header format in inf02a.doc:
+#
+#  int16 ID;           // ID magic word (5348h = "HS")
+#  int8  unknown1;     // unknown purpose, could be third letter of ID
+#  int8  flags;        // probably a flag word...
+#                      //  bit 0: set if INF style file
+#                      //  bit 4: set if HLP style file
+#                      // patching this byte allows reading HLP files
+#                      // using the VIEW command, while help files
+#                      // seem to work with INF settings here as well.
+#  int16 hdrsize;      // total size of header
+#  int16 unknown2;     // unknown purpose
+#
+0   string  HSP\x01\x9b\x00 OS/2 INF
+>107 string >0                      (%s)
+0   string  HSP\x10\x9b\x00     OS/2 HLP
+>107 string >0                      (%s)
+
+# OS/2 INI (this is a guess)
+0  string   \xff\xff\xff\xff\x14\0\0\0  OS/2 INI

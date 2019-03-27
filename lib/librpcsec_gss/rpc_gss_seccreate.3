@@ -1,0 +1,112 @@
+.\" Copyright (c) 2008 Isilon Inc http://www.isilon.com/
+.\" Authors: Doug Rabson <dfr@rabson.org>
+.\" Developed with Red Inc: Alfred Perlstein <alfred@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd January 26, 2010
+.Dt RPC_GSS_SECCREATE 3
+.Os
+.Sh NAME
+.Nm rpc_gss_seccreate
+.Nd "create a security context using the RPCSEC_GSS protocol"
+.Sh LIBRARY
+.Lb librpcsec_gss
+.Sh SYNOPSIS
+.In rpc/rpcsec_gss.h
+.Ft AUTH *
+.Fo rpc_gss_seccreate
+.Fa "CLIENT *clnt"
+.Fa "const char *principal"
+.Fa "const char  *mechanism"
+.Fa "rpc_gss_service_t service"
+.Fa "const char *qop"
+.Fa "rpc_gss_options_req_t *options_req"
+.Fa "rpc_gss_options_ret_t *options_ret"
+.Fc
+.Sh DESCRIPTION
+This function is used to establish a security context between an
+application and a remote peer using the RPSEC_GSS protocol.
+.Sh PARAMETERS
+.Bl -tag -width "options_req"
+.It clnt
+An RPC handle which is connected to the remote peer
+.It principal
+The name of the service principal on the remote peer.
+For instance, a principal such as
+.Qq nfs@server.example.com
+might be used by an application which needs to contact an NFS server
+.It mechanism
+The desired mechanism for this security context.
+The value of mechanism should be the name of one of the security
+mechanisms listed in /etc/gss/mech.
+.It service
+Type of service requested.
+.Bl -tag -width "rpc_gss_svc_integrity"
+.It rpc_gss_svc_default
+The default - typically the same as
+.Dv rpc_gss_svc_none .
+.It rpc_gss_svc_none
+RPC headers only are integrity protected by a checksum.
+.It rpc_gss_svc_integrity
+RPC headers and data are integrity protected by a checksum.
+.It rpc_gss_svc_privacy
+RPC headers are integrity protected by a checksum and data is encrypted.
+.El
+.It qop
+Desired quality of protection or NULL for the default.
+Available values are listed in /etc/gss/qop
+.It options_req
+Extra security context options to be passed to the underlying GSS-API
+mechanism.
+Pass
+.Dv NULL
+to supply default values.
+.It options_ret
+Various values returned by the underlying GSS-API mechanism.
+Pass
+.Dv NULL
+if these values are not required.
+.El
+.Sh RETURN VALUES
+If the security context was created successfully, a pointer to an
+.Vt AUTH
+structure that represents the context is returned.
+To use this security context for subsequent RPC calls, set
+.Va clnt->cl_auth
+to this value.
+.Sh SEE ALSO
+.Xr gssapi 3 ,
+.Xr rpc 3 ,
+.Xr rpcset_gss 3 ,
+.Xr mech 5 ,
+.Xr qop 5
+.Sh HISTORY
+The
+.Nm
+function first appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Doug Rabson Aq Mt dfr@FreeBSD.org .

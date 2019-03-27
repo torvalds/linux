@@ -1,0 +1,57 @@
+include addstr
+call OK clear
+call OK refresh
+compare clear1.chk
+call OK move 5 5
+call OK addstr "abcde"
+call OK move 20 5
+call OK addstr "fghij"
+call OK move 10 5
+call OK refresh
+compare clear2.chk
+call OK clrtobot
+call OK refresh
+compare clear3.chk
+call OK erase
+call OK refresh
+compare clear4.chk
+include fill_screen
+compare fill.chk
+call OK erase
+call OK refresh
+compare clear5.chk
+# create a window to play with, defines win1 var
+include window_create
+call OK waddstr $win1 "abc"
+call OK mvwaddstr $win1 4 1 "efg"
+call OK wmove $win1 1 0
+call OK wrefresh $win1
+compare clear6.chk
+call OK wclrtobot $win1
+call OK wrefresh $win1
+compare clear7.chk
+include fill_screen
+comparend home.chk
+compare fill.chk
+call OK wrefresh $win1
+call OK wclear $win1
+call OK wrefresh $win1
+compare clear8.chk
+call OK clear
+call OK refresh
+compare clear1.chk
+include fill_screen
+compare fill.chk
+call OK werase $win1
+call OK wrefresh $win1
+compare clear9.chk
+call OK waddstr $win1 "abc"
+call OK mvwaddstr $win1 4 1 "efg"
+call OK wmove $win1 1 0
+call OK wrefresh $win1
+compare clear6.chk
+call OK wmove $win1 4 0
+call OK wclrtoeol $win1
+call OK wrefresh $win1
+compare clear10.chk
+

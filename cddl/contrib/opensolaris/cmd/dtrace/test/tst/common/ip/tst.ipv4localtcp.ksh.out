@@ -1,0 +1,7 @@
+Minimum TCP events seen
+
+ip:::send - yes
+ip:::receive - yes
+tcp:::send - yes
+tcp:::receive - yes
+

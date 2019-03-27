@@ -1,0 +1,437 @@
+.\"
+.\" Copyright (c) 1998 Kenneth D. Merry.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 11, 2017
+.Dt CAM 3
+.Os
+.Sh NAME
+.Nm cam_open_device ,
+.Nm cam_open_spec_device ,
+.Nm cam_open_btl ,
+.Nm cam_open_pass ,
+.Nm cam_close_device ,
+.Nm cam_close_spec_device ,
+.Nm cam_getccb ,
+.Nm cam_send_ccb ,
+.Nm cam_freeccb ,
+.Nm cam_path_string ,
+.Nm cam_device_dup ,
+.Nm cam_device_copy ,
+.Nm cam_get_device
+.Nd CAM user library
+.Sh LIBRARY
+.Lb libcam
+.Sh SYNOPSIS
+.In stdio.h
+.In camlib.h
+.Ft struct cam_device *
+.Fo cam_open_device
+.Fa "const char *path"
+.Fa "int flags"
+.Fc
+.Ft struct cam_device *
+.Fo cam_open_spec_device
+.Fa "const char *dev_name"
+.Fa "int unit"
+.Fa "int flags"
+.Fa "struct cam_device *device"
+.Fc
+.Ft struct cam_device *
+.Fo cam_open_btl
+.Fa "path_id_t path_id"
+.Fa "target_id_t target_id"
+.Fa "lun_id_t target_lun"
+.Fa "int flags"
+.Fa "struct cam_device *device"
+.Fc
+.Ft struct cam_device *
+.Fo cam_open_pass
+.Fa "const char *path"
+.Fa "int flags"
+.Fa "struct cam_device *device"
+.Fc
+.Ft void
+.Fo cam_close_device
+.Fa "struct cam_device *dev"
+.Fc
+.Ft void
+.Fo cam_close_spec_device
+.Fa "struct cam_device *dev"
+.Fc
+.Ft union ccb *
+.Fo cam_getccb
+.Fa "struct cam_device *dev"
+.Fc
+.Ft int
+.Fo cam_send_ccb
+.Fa "struct cam_device *device"
+.Fa "union ccb *ccb"
+.Fc
+.Ft void
+.Fo cam_freeccb
+.Fa "union ccb *ccb"
+.Fc
+.Ft char *
+.Fo cam_path_string
+.Fa "struct cam_device *dev"
+.Fa "char *str"
+.Fa "int len"
+.Fc
+.Ft struct cam_device *
+.Fo cam_device_dup
+.Fa "struct cam_device *device"
+.Fc
+.Ft void
+.Fo cam_device_copy
+.Fa "struct cam_device *src"
+.Fa "struct cam_device *dst"
+.Fc
+.Ft int
+.Fo cam_get_device
+.Fa "const char *path"
+.Fa "char *dev_name"
+.Fa "int devnamelen"
+.Fa "int *unit"
+.Fc
+.Sh DESCRIPTION
+The CAM library consists of a number of functions designed to aid in
+programming with the CAM subsystem.
+This man page covers the basic set of
+library functions.
+More functions are documented in the man pages listed
+below.
+.Pp
+Many of the CAM library functions use the
+.Va cam_device
+structure:
+.Bd -literal
+struct cam_device {
+	char		device_path[MAXPATHLEN+1];/*
+						   * Pathname of the
+						   * device given by the
+						   * user. This may be
+						   * null if the user
+						   * states the device
+						   * name and unit number
+						   * separately.
+						   */
+	char		given_dev_name[DEV_IDLEN+1];/*
+						     * Device name given by
+						     * the user.
+						     */
+	uint32_t	given_unit_number;	    /*
+						     * Unit number given by
+						     * the user.
+						     */
+	char		device_name[DEV_IDLEN+1];/*
+						  * Name of the device,
+						  * e.g., 'pass'
+						  */
+	uint32_t	dev_unit_num;	/* Unit number of the passthrough
+					 * device associated with this
+					 * particular device.
+					 */
+
+	char		sim_name[SIM_IDLEN+1];/*
+					       * Controller name, e.g., 'ahc'
+					       */
+	uint32_t	sim_unit_number; /* Controller unit number */
+	uint32_t	bus_id;		 /* Controller bus number */
+	lun_id_t	target_lun;	 /* Logical Unit Number */
+	target_id_t	target_id;	 /* Target ID */
+	path_id_t	path_id;	 /* System SCSI bus number */
+	uint16_t	pd_type;	 /* type of peripheral device */
+	struct scsi_inquiry_data inq_data;  /* SCSI Inquiry data */
+	uint8_t		serial_num[252]; /* device serial number */
+	uint8_t		serial_num_len;  /* length of the serial number */
+	uint8_t		sync_period;	 /* Negotiated sync period */
+	uint8_t		sync_offset;	 /* Negotiated sync offset */
+	uint8_t		bus_width;	 /* Negotiated bus width */
+	int		fd;		 /* file descriptor for device */
+};
+.Ed
+.Pp
+.Fn cam_open_device
+takes as arguments a string describing the device it is to open, and
+.Ar flags
+suitable for passing to
+.Xr open 2 .
+The "path" passed in may actually be most any type of string that contains
+a device name and unit number to be opened.
+The string will be parsed by
+.Fn cam_get_device
+into a device name and unit number.
+Once the device name and unit number
+are determined, a lookup is performed to determine the passthrough device
+that corresponds to the given device.
+.Pp
+.Fn cam_open_spec_device
+opens the
+.Xr pass 4
+device that corresponds to the device name and unit number passed in.
+The
+.Ar flags
+should be flags suitable for passing to
+.Xr open 2 .
+The
+.Ar device
+argument is optional.
+The user may supply pre-allocated space for the
+.Va cam_device
+structure.
+If the
+.Ar device
+argument is
+.Dv NULL ,
+.Fn cam_open_spec_device
+will allocate space for the
+.Va cam_device
+structure using
+.Xr malloc 3 .
+.Pp
+.Fn cam_open_btl
+is similar to
+.Fn cam_open_spec_device ,
+except that it takes a
+.Tn SCSI
+bus, target and logical unit instead of a device name and unit number as
+arguments.
+The
+.Va path_id
+argument is the CAM equivalent of a
+.Tn SCSI
+bus number.
+It represents the logical bus number in the system.
+The
+.Ar flags
+should be flags suitable for passing to
+.Xr open 2 .
+As with
+.Fn cam_open_spec_device ,
+the
+.Fa device
+argument is optional.
+.Pp
+.Fn cam_open_pass
+takes as an argument the
+.Fa path
+of a
+.Xr pass 4
+device to open.
+No translation or lookup is performed, so the path passed
+in must be that of a CAM
+.Xr pass 4
+device.
+The
+.Fa flags
+should be flags suitable for passing to
+.Xr open 2 .
+The
+.Fa device
+argument, as with
+.Fn cam_open_spec_device
+and
+.Fn cam_open_btl ,
+should be
+.Dv NULL
+if the user wants the CAM library to allocate space for the
+.Va cam_device
+structure.
+.Fn cam_close_device
+frees the
+.Va cam_device
+structure allocated by one of the above open() calls, and closes the file
+descriptor to the passthrough device.
+This routine should not be called if
+the user allocated space for the
+.Va cam_device
+structure.
+Instead, the user should call
+.Fn cam_close_spec_device .
+.Pp
+.Fn cam_close_spec_device
+merely closes the file descriptor opened in one of the open() routines
+described above.
+This function should be called when the
+.Va cam_device
+structure was allocated by the caller, rather than the CAM library.
+.Pp
+.Fn cam_getccb
+allocates a CCB
+using
+.Xr malloc 3
+and sets fields in the CCB header using values from the
+.Va cam_device
+structure.
+.Pp
+.Fn cam_send_ccb
+sends the given
+.Va ccb
+to the
+.Fa device
+described in the
+.Va cam_device
+structure.
+.Pp
+.Fn cam_freeccb
+frees CCBs allocated by
+.Fn cam_getccb .
+If
+.Va ccb
+is
+.Dv NULL ,
+no action is taken.
+.Pp
+.Fn cam_path_string
+takes as arguments a
+.Va cam_device
+structure, and a string with length
+.Fa len .
+It creates a colon-terminated printing prefix string similar to the ones
+used by the kernel.
+e.g.: "(cd0:ahc1:0:4:0): ".
+.Fn cam_path_string
+will place at most
+.Fa len Ns \-1
+characters into
+.Ar str .
+The
+.Ar len Ns 'th
+character will be the terminating
+.Ql \e0 .
+.Pp
+.Fn cam_device_dup
+operates in a fashion similar to
+.Xr strdup 3 .
+It allocates space for a
+.Va cam_device
+structure and copies the contents of the passed-in
+.Fa device
+structure to the newly allocated structure.
+.Pp
+.Fn cam_device_copy
+copies the
+.Fa src
+structure to
+.Fa dst .
+.Pp
+.Fn cam_get_device
+takes a
+.Fa path
+argument containing a string with a device name followed by a unit number.
+It then breaks the string down into a device name and unit number, and
+passes them back in
+.Fa dev_name
+and
+.Fa unit ,
+respectively.
+.Fn cam_get_device
+can handle strings of the following forms, at least:
+.Pp
+.Bl -tag -width 1234 -compact
+.It /dev/foo1
+.It foo0
+.It nsa2
+.El
+.Pp
+.Fn cam_get_device
+is provided as a convenience function for applications that need to provide
+functionality similar to
+.Fn cam_open_device .
+.Sh RETURN VALUES
+.Fn cam_open_device ,
+.Fn cam_open_spec_device ,
+.Fn cam_open_btl ,
+and
+.Fn cam_open_pass
+return a pointer to a
+.Va cam_device
+structure, or
+.Dv NULL
+if there was an error.
+.Pp
+.Fn cam_getccb
+returns an allocated and partially initialized CCB, or
+.Dv NULL
+if allocation of the CCB failed.
+.Pp
+.Fn cam_send_ccb
+returns a value of -1 if an error occurred, and
+.Va errno
+is set to indicate the error.
+.Pp
+.Fn cam_path_string
+returns a filled printing prefix string as a convenience.
+This is the same
+.Fa str
+that is passed into
+.Fn cam_path_string .
+.Pp
+.Fn cam_device_dup
+returns a copy of the
+.Va device
+passed in, or
+.Dv NULL
+if an error occurred.
+.Pp
+.Fn cam_get_device
+returns 0 for success, and -1 to indicate failure.
+.Pp
+If an error is returned from one of the base CAM library functions
+described here, the reason for the error is generally printed in the global
+string
+.Va cam_errbuf
+which is
+.Dv CAM_ERRBUF_SIZE
+characters long.
+.Sh SEE ALSO
+.Xr cam_cdbparse 3 ,
+.Xr pass 4 ,
+.Xr camcontrol 8
+.Sh HISTORY
+The CAM library first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An Kenneth Merry Aq Mt ken@FreeBSD.org
+.Sh BUGS
+.Fn cam_open_device
+does not check to see if the
+.Fa path
+passed in is a symlink to something.
+It also does not check to see if the
+.Fa path
+passed in is an actual
+.Xr pass 4
+device.
+The former would be rather easy to implement, but the latter would
+require a definitive way to identify a device node as a
+.Xr pass 4
+device.
+.Pp
+Some of the functions are possibly misnamed or poorly named.

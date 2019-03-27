@@ -1,0 +1,178 @@
+#	@(#)Notes	8.1 (Berkeley) 5/31/93
+#	$FreeBSD$
+
+Warning:
+	The fortunes contained in the fortune database have been collected
+	haphazardly from a cacophony of sources, in number so huge it
+	boggles the mind.  It is impossible to do any meaningful quality
+	control on attributions, or lack thereof, or exactness of the quote.
+	Since this database is not used for profit, and since entire works
+	are not published, it falls under fair use, as we understand it.
+	However, if any half-assed idiot decides to make a profit off of
+	this, they will need to double check it all, and nobody not involved
+	of such an effort makes any warranty that anything in the database
+	bears any relation to the real world of literature, law, or other
+	bizzarrity.
+
+==> GENERAL INFORMATION
+	By default, fortune retrieves its fortune files from the directory
+/usr/share/games/fortune.  A fortune file has two parts: the source file
+(which contains the fortunes themselves) and the data file which describes
+the fortunes.  The data file always has the same name as the fortune file
+with the string ".dat" concatenated, i.e. "fortunes" is the standard fortune
+database, and "fortunes.dat" is the data file which describes it.  See
+strfile(8) for more information on creating the data files.
+	Fortunes are split into potentially offensive and not potentially
+offensive parts.  The offensive version of a file has the same name as the
+non-offensive version with "-o" concatenated, i.e. "fortunes" is the standard
+fortune database, and "fortunes-o" is the standard offensive database.  The
+fortune program automatically assumes that any file with a name ending in
+"-o" is potentially offensive, and should therefore only be displayed if
+explicitly requested, either with the -o option or by specifying a file name
+on the command line.
+	Potentially offensive fortune files should NEVER be maintained in
+clear text on the system.  They are rotated (see caesar(6)) 13 positions.
+To create a new, potentially offensive database, use caesar to rotate it,
+and then create its data file with the -x option to strfile(8).  The fortune
+program automatically decrypts the text when it prints entries from such
+databases.
+	Anything which would not make it onto network prime time programming
+(or which would only be broadcast if some discredited kind of guy said it)
+MUST be in the potentially offensive database.  Fortunes containing any
+explicit language (see George Carlin's recent updated list) MUST be in the
+potentially offensive database.  Political and religious opinions are often
+sequestered in the potentially offensive section as well.  Anything which
+assumes as a world view blatantly racist, misogynist (sexist), or homophobic
+ideas should not be in either, since they are not really funny unless *you*
+are racist, misogynist, or homophobic.
+	The point of this is that people should have a reasonable
+expectation that, should they just run "fortune", they will not be offended.
+We know that some people take offense at anything, but normal people do have
+opinions, too, and have a right not to have their sensibilities offended by
+a program which is supposed to be entertaining.  People who run "fortune
+-o" or "fortune -a" are saying, in effect, that they are willing to have
+their sensibilities tweaked.  However, they should not have their personal
+worth seriously (i.e., not in jest) assaulted.  Jokes which depend for their
+humor on racist, misogynist, or homophobic stereotypes *do* seriously
+assault individual personal worth, and in a general entertainment medium
+we should be able to get by without it.
+
+==> FORMATTING
+	This file describes the format for fortunes in the database.  This
+is done in detail to make it easier to keep track of things.  Any rule given
+here may be broken to make a better joke.
+
+[All examples are indented by one tab stop -- KCRCA]
+
+Numbers should be given in parentheses, e.g.,
+
+	(1)	Everything depends.
+	(2)	Nothing is always.
+	(3)	Everything is sometimes.
+
+Attributions are two tab stops, followed by two hyphens, followed by a
+space, followed by the attribution, and are *not* preceded by blank
+lines.  Book, journal, movie, and all other titles are in quotes, e.g.,
+
+	$100 invested at 7% interest for 100 years will become $100,000, at
+	which time it will be worth absolutely nothing.
+			-- Lazarus Long, "Time Enough for Love"
+
+Attributions which do not fit on one (72 char) line should be continued
+on a line which lines up below the first text of the attribution, e.g.,
+
+			-- A very long attribution which might not fit on one
+			   line, "Ken Arnold's Stupid Sayings"
+
+Single paragraph fortunes are in left justified (non-indented) paragraphs
+unless they fall into another category listed below (see example above).
+Longer fortunes should also be in left justified paragraphs, but if this
+makes it too long, try indented paragraphs, with indentations of either one
+tab stop or 5 chars.  Indentations of less than 5 are too hard to read.
+
+Laws have the title left justified and capitalized, followed by a colon,
+with all the text of the law itself indented one tab stop, initially
+capitalized, e.g.,
+
+	A Law of Computer Programming:
+		Make it possible for programmers to write in English and
+		you will find the programmers cannot write in English.
+
+Limericks are indented as follows, all lines capitalized:
+
+	A computer, to print out a fact,
+	Will divide, multiply, and subtract.
+		But this output can be
+		No more than debris,
+	If the input was short of exact.
+
+Accents precede the letter they are over, e.g., "`^He" for e with a grave
+accent.  Underlining is done on a word-by-word basis, with the underlines
+preceding the word, e.g., "__^H^Hhi ____^H^H^H^Hthere".
+
+No fortune should run beyond 72 characters on a single line without good
+justification (er, no pun intended).  And no right margin justification,
+either.  Sorry.  For BSD people, there is a program called "fmt" which can
+make this kind of formatting easier.
+
+Definitions are given with the word or phrase left justified, followed by
+the part of speech (if appropriate) and a colon.  The definition starts
+indented by one tab stop, with subsequent lines left justified, e.g.,
+
+	Afternoon, n.:
+		That part of the day we spend worrying about how we wasted
+	the morning.
+
+Quotes are sometimes put around statements which are funnier or make more
+sense if they are understood as being spoken, rather than written,
+communication, e.g.,
+
+	"All my friends and I are crazy.  That's the only thing that
+	keeps us sane."
+
+Ellipses are always surrounded by spaces, except when next to punctuation,
+and are three dots long.
+
+	"... all the modern inconveniences ..."
+			-- Mark Twain
+
+Human initials always have spaces after the periods, e.g, "P. T.  Barnum",
+not "P.T. Barnum".  However, "P.T.A.", not "P. T. A.".
+
+All fortunes should be attributed, but if and only if they are original with
+somebody.  Many people have said things that are folk sayings (i.e., are
+common among the folk (i.e., us common slobs)).  There is nothing wrong with
+this, of course, but such statements should not be attributed to individuals
+who did not invent them.
+
+Horoscopes should have the sign indented by one tab stop, followed by the
+dates of the sign, with the text left justified below it, e.g.,
+
+		AQUARIUS (Jan 20 - Feb 18)
+	You have an inventive mind and are inclined to be progressive.  You
+	lie a great deal.  On the other hand, you are inclined to be
+	careless and impractical, causing you to make the same mistakes over
+	and over again.  People think you are stupid.
+
+Single quotes should not be used except as quotes within quotes.  Not even
+single quotes masquerading as double quotes are to be used, e.g., don't say
+``hi there'' or `hi there' or 'hi there', but "hi there".  However, you
+*can* say "I said, `hi there'".
+
+A long poem or song can be ordered as follows in order to make it fit on a
+screen (fortunes should be 19 lines or less if at all possible) (numbers
+here are stanza numbers):
+
+	11111111111111111111
+	11111111111111111111
+	11111111111111111111			22222222222222222222
+	11111111111111111111			22222222222222222222
+						22222222222222222222
+	33333333333333333333			22222222222222222222
+	33333333333333333333
+	33333333333333333333			44444444444444444444
+	33333333333333333333			44444444444444444444
+						44444444444444444444
+						44444444444444444444
+
+

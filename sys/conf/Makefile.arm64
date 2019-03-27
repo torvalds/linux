@@ -1,0 +1,48 @@
+# Makefile.arm64 -- with config changes.
+# Copyright 1990 W. Jolitz
+#	from: @(#)Makefile.i386	7.1 5/10/91
+#	from FreeBSD: src/sys/conf/Makefile.i386,v 1.255 2002/02/20 23:35:49
+# $FreeBSD$
+#
+# Makefile for FreeBSD
+#
+# This makefile is constructed from a machine description:
+#	config machineid
+# Most changes should be made in the machine description
+#	/sys/arm64/conf/``machineid''
+# after which you should do
+#	 config machineid
+# Generic makefile changes should be made in
+#	/sys/conf/Makefile.arm64
+# after which config should be rerun for all machines.
+#
+
+# Which version of config(8) is required.
+%VERSREQ=	600012
+
+.if !defined(S)
+S=	../../..
+.endif
+.include "$S/conf/kern.pre.mk"
+
+INCLUDES+= -I$S/contrib/libfdt
+
+.if !empty(DDB_ENABLED)
+CFLAGS += -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
+.endif
+
+%BEFORE_DEPEND
+
+%OBJS
+
+%FILES.c
+
+%FILES.s
+
+%FILES.m
+
+%CLEAN
+
+%RULES
+
+.include "$S/conf/kern.post.mk"

@@ -1,0 +1,6 @@
+$FreeBSD: user/nwhitehorn/kboot/powerpc/kboot/version 224106 2011-07-16 19:01:09Z nwhitehorn $
+
+NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
+file is important.  Make sure the current version number is on line 6.
+
+0.1:	Initial kboot/PowerPC version.

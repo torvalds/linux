@@ -1,0 +1,359 @@
+<html>
+<head>
+    <title> libsm : Assert and Abort </title>
+</head>
+<body>
+
+<a href="index.html">Back to libsm overview</a>
+
+<center>
+    <h1> libsm : Assert and Abort </h1>
+    <br> $Id: assert.html,v 1.6 2001-08-27 21:47:03 ca Exp $
+</center>
+
+<h2> Introduction </h2>
+
+This package contains abstractions
+for assertion checking and abnormal program termination.
+
+<h2> Synopsis </h2>
+
+<pre>
+#include &lt;sm/assert.h&gt;
+
+/*
+**  abnormal program termination
+*/
+
+void sm_abort_at(char *filename, int lineno, char *msg);
+typedef void (*SM_ABORT_HANDLER)(char *filename, int lineno, char *msg);
+void sm_abort_sethandler(SM_ABORT_HANDLER);
+void sm_abort(char *fmt, ...)
+
+/*
+**  assertion checking
+*/
+
+SM_REQUIRE(expression)
+SM_ASSERT(expression)
+SM_ENSURE(expression)
+
+extern SM_DEBUG_T SmExpensiveRequire;
+extern SM_DEBUG_T SmExpensiveAssert;
+extern SM_DEBUG_T SmExpensiveEnsure;
+
+#if SM_CHECK_REQUIRE
+#if SM_CHECK_ASSERT
+#if SM_CHECK_ENSURE
+
+cc -DSM_CHECK_ALL=0 -DSM_CHECK_REQUIRE=1 ...
+</pre>
+
+<h2> Abnormal Program Termination </h2>
+
+The functions sm_abort and sm_abort_at are used to report a logic
+bug and terminate the program.  They can be invoked directly,
+and they are also used by the assertion checking macros.
+
+<dl>
+<dt>
+    void sm_abort_at(char *filename, int lineno, char *msg)
+<dd>
+	This is the low level interface for causing abnormal program
+	termination.  It is intended to be invoked from a
+	macro, such as the assertion checking macros.
+
+	If filename != NULL then filename and lineno specify the line
+	of source code on which the logic bug is detected.  These
+	arguments are normally either set to __FILE__ and __LINE__
+	from an assertion checking macro, or they are set to NULL and 0.
+
+	The default action is to print an error message to smioerr
+	using the arguments, and then call abort().  This default
+	behaviour can be changed by calling sm_abort_sethandler.
+<p>
+<dt>
+    void sm_abort_sethandler(SM_ABORT_HANDLER handler)
+<dd>
+	Install 'handler' as the callback function that is invoked
+	by sm_abort_at.  This callback function is passed the same
+	arguments as sm_abort_at, and is expected to log an error
+	message and terminate the program.  The callback function should
+	not raise an exception or perform cleanup: see Rationale.
+
+	sm_abort_sethandler is intended to be called once, from main(),
+	before any additional threads are created: see Rationale.
+	You should not use sm_abort_sethandler to
+	switch back and forth between several handlers; 
+	this is particularly dangerous when there are
+	multiple threads, or when you are in a library routine.
+<p>
+<dt>
+    void sm_abort(char *fmt, ...)
+<dd>
+	This is the high level interface for causing abnormal program
+	termination.  It takes printf arguments.  There is no need to
+	include a trailing newline in the format string; a trailing newline
+	will be printed if appropriate by the handler function.
+</dl>
+
+<h2> Assertions </h2>
+
+    The assertion handling package
+    supports a style of programming in which assertions are used
+    liberally throughout the code, both as a form of documentation,
+    and as a way of detecting bugs in the code by performing runtime checks.
+<p>
+    There are three kinds of assertion:
+<dl>
+<dt>
+    SM_REQUIRE(expr)
+<dd>
+	This is an assertion used at the beginning of a function
+	to check that the preconditions for calling the function
+	have been satisfied by the caller.
+<p>
+<dt>
+    SM_ENSURE(expr)
+<dd>
+	This is an assertion used just before returning from a function
+	to check that the function has satisfied all of the postconditions
+	that it is required to satisfy by its contract with the caller.
+<p>
+<dt>
+    SM_ASSERT(expr)
+<dd>
+	This is an assertion that is used in the middle of a function,
+	to check loop invariants, and for any other kind of check that is
+	not a "require" or "ensure" check.
+</dl>
+    If any of the above assertion macros fail, then sm_abort_at
+    is called.  By default, a message is printed to stderr and the
+    program is aborted.  For example, if SM_REQUIRE(arg &gt; 0) fails
+    because arg &lt;= 0, then the message
+<blockquote><pre>
+foo.c:47: SM_REQUIRE(arg &gt; 0) failed
+</pre></blockquote>
+    is printed to stderr, and abort() is called.
+    You can change this default behaviour using sm_abort_sethandler.
+
+<h2> How To Disable Assertion Checking At Compile Time </h2>
+
+    You can use compile time macros to selectively enable or disable
+    each of the three kinds of assertions, for performance reasons.
+    For example, you might want to enable SM_REQUIRE checking
+    (because it finds the most bugs), but disable the other two types.
+<p>
+    By default, all three types of assertion are enabled.
+    You can selectively disable individual assertion types
+    by setting one or more of the following cpp macros to 0
+    before &lt;sm/assert.h&gt; is included for the first time:
+<blockquote>
+	SM_CHECK_REQUIRE<br>
+	SM_CHECK_ENSURE<br>
+	SM_CHECK_ASSERT<br>
+</blockquote>
+    Or, you can define SM_CHECK_ALL as 0 to disable all assertion
+    types, then selectively define one or more of SM_CHECK_REQUIRE,
+    SM_CHECK_ENSURE or SM_CHECK_ASSERT as 1.  For example,
+    to disable all assertions except for SM_REQUIRE, you can use
+    these C compiler flags:
+<blockquote>
+	-DSM_CHECK_ALL=0 -DSM_CHECK_REQUIRE=1
+</blockquote>
+
+    After &lt;sm/assert.h&gt; is included, the macros
+    SM_CHECK_REQUIRE, SM_CHECK_ENSURE and SM_CHECK_ASSERT
+    are each set to either 0 or 1.
+
+<h2> How To Write Complex or Expensive Assertions </h2>
+
+    Sometimes an assertion check requires more code than a simple
+    boolean expression.
+    For example, it might require an entire statement block
+    with its own local variables.
+    You can code such assertion checks by making them conditional on
+    SM_CHECK_REQUIRE, SM_CHECK_ENSURE or SM_CHECK_ASSERT,
+    and using sm_abort to signal failure.
+<p>
+    Sometimes an assertion check is significantly more expensive
+    than one or two comparisons.
+    In such cases, it is not uncommon for developers to comment out
+    the assertion once the code is unit tested.
+    Please don't do this: it makes it hard to turn the assertion
+    check back on for the purposes of regression testing.
+    What you should do instead is make the assertion check conditional
+    on one of these predefined debug objects:
+<blockquote>
+	SmExpensiveRequire<br>
+	SmExpensiveAssert<br>
+	SmExpensiveEnsure
+</blockquote>
+    By doing this, you bring the cost of the assertion checking code
+    back down to a single comparison, unless expensive assertion checking
+    has been explicitly enabled.
+    By the way, the corresponding debug category names are
+<blockquote>
+	sm_check_require<br>
+	sm_check_assert<br>
+	sm_check_ensure
+</blockquote>
+    What activation level should you check for?
+    Higher levels correspond to more expensive assertion checks.
+    Here are some basic guidelines:
+<blockquote>
+	level 1: &lt; 10 basic C operations<br>
+	level 2: &lt; 100 basic C operations<br>
+	level 3: &lt; 1000 basic C operations<br>
+	...
+</blockquote>
+
+<p>
+    Here's a contrived example of both techniques:
+<blockquote><pre>
+void
+w_munge(WIDGET *w)
+{
+    SM_REQUIRE(w != NULL);
+#if SM_CHECK_REQUIRE
+    /*
+    **  We run this check at level 3 because we expect to check a few hundred
+    **  table entries.
+    */
+
+    if (sm_debug_active(&SmExpensiveRequire, 3))
+    {
+        int i;
+
+        for (i = 0; i &lt; WIDGET_MAX; ++i)
+        {
+            if (w[i] == NULL)
+                sm_abort("w_munge: NULL entry %d in widget table", i);
+        }
+    }
+#endif /* SM_CHECK_REQUIRE */
+</pre></blockquote>
+
+<h2> Other Guidelines </h2>
+
+    You should resist the urge to write SM_ASSERT(0) when the code has
+    reached an impossible place.  It's better to call sm_abort, because
+    then you can generate a better error message.  For example,
+<blockquote><pre>
+switch (foo)
+{
+    ...
+  default:
+    sm_abort("impossible value %d for foo", foo);
+}
+</pre></blockquote>
+    Note that I did not bother to guard the default clause of the switch
+    statement with #if SM_CHECK_ASSERT ... #endif, because there is
+    probably no performance gain to be had by disabling this particular check.
+<p>
+    Avoid including code that has side effects inside of assert macros,
+    or inside of SM_CHECK_* guards.  You don't want the program to stop
+    working if assertion checking is disabled.
+
+<h2> Rationale for Logic Bug Handling </h2>
+
+    When a logic bug is detected, our philosophy is to log an error message
+    and terminate the program, dumping core if possible.
+    It is not a good idea to raise an exception, attempt cleanup,
+    or continue program execution.  Here's why.
+<p>
+    First of all, to facilitate post-mortem analysis, we want to dump core
+    on detecting a logic bug, disturbing the process image as little as
+    possible before dumping core.  We don't want to raise an exception
+    and unwind the stack, executing cleanup code, before dumping core,
+    because that would obliterate information we need to analyze the cause
+    of the abort.
+<p>
+    Second, it is a bad idea to raise an exception on an assertion failure
+    because this places unacceptable restrictions on code that uses
+    the assertion macros.
+    The reason is this: the sendmail code must be written so that
+    anywhere it is possible for an assertion to be raised, the code
+    will catch the exception and clean up if necessary, restoring
+    data structure invariants and freeing resources as required.
+    If an assertion failure was signalled by raising an exception,
+    then every time you added an assertion, you would need to check
+    both the function containing the assertion and its callers to see
+    if any exception handling code needed to be added to clean up properly
+    on assertion failure.  That is far too great a burden.
+<p>
+    It is a bad idea to attempt cleanup upon detecting a logic bug
+    for several reasons:
+<ul>
+<li>If you need to perform cleanup actions in order to preserve the
+    integrity of the data that the program is handling, then the
+    program is not fault tolerant, and needs to be redesigned.
+    There are several reasons why a program might be terminated unexpectedly:
+    the system might crash, the program might receive a signal 9,
+    the program might be terminated by a memory fault (possibly as a
+    side effect of earlier data structure corruption), and the program
+    might detect a logic bug and terminate itself.  Note that executing
+    cleanup actions is not feasible in most of the above cases.
+    If the program has a fault tolerant design, then it will not lose
+    data even if the system crashes in the middle of an operation.
+<p>
+<li>If the cause of the logic bug is earlier data structure corruption,
+    then cleanup actions intended to preserve the integrity of the data
+    that the program is handling might cause more harm than good: they
+    might cause information to be corrupted or lost.
+<p>
+<li>If the program uses threads, then cleanup is much more problematic.
+    Suppose that thread A is holding some locks, and is in the middle of
+    modifying a shared data structure.  The locks are needed because the
+    data structure is currently in an inconsistent state.  At this point,
+    a logic bug is detected deep in a library routine called by A.
+    How do we get all of the running threads to stop what they are doing
+    and perform their thread-specific cleanup actions before terminating?
+    We may not be able to get B to clean up and terminate cleanly until
+    A has restored the invariants on the data structure it is modifying
+    and releases its locks.  So, we raise an exception and unwind the stack,
+    restoring data structure invariants and releasing locks at each level
+    of abstraction, and performing an orderly shutdown.  There are certainly
+    many classes of error conditions for which using the exception mechanism
+    to perform an orderly shutdown is appropriate and feasible, but there
+    are also classes of error conditions for which exception handling and
+    orderly shutdown is dangerous or impossible.  The abnormal program
+    termination system is intended for this second class of error conditions.
+    If you want to trigger orderly shutdown, don't call sm_abort:
+    raise an exception instead.
+</ul>
+<p>
+    Here is a strategy for making sendmail fault tolerant.
+    Sendmail is structured as a collection of processes.  The "root" process
+    does as little as possible, except spawn children to do all of the real
+    work, monitor the children, and act as traffic cop.
+    We use exceptions to signal expected but infrequent error conditions,
+    so that the process encountering the exceptional condition can clean up
+    and keep going.  (Worker processes are intended to be long lived, in
+    order to minimize forking and increase performance.)  But when a bug
+    is detected in a sendmail worker process, the worker process does minimal
+    or no cleanup and then dies.  A bug might be detected in several ways:
+    the process might dereference a NULL pointer, receive a signal 11,
+    core dump and die, or an assertion might fail, in which case the process
+    commits suicide.  Either way, the root process detects the death of the
+    worker, logs the event, and spawns another worker.
+
+<h2> Rationale for Naming Conventions </h2>
+
+    The names "require" and "ensure" come from the writings of Bertrand Meyer,
+    a prominent evangelist for assertion checking who has written a number of
+    papers about the "Design By Contract" programming methodology,
+    and who created the Eiffel programming language.
+    Many other assertion checking packages for C also have "require" and
+    "ensure" assertion types.  In short, we are conforming to a de-facto
+    standard.
+<p>
+    We use the names <tt>SM_REQUIRE</tt>, <tt>SM_ASSERT</tt>
+    and <tt>SM_ENSURE</tt> in preference to to <tt>REQUIRE</tt>,
+    <tt>ASSERT</tt> and <tt>ENSURE</tt> because at least two other
+    open source libraries (libisc and libnana) define <tt>REQUIRE</tt>
+    and <tt>ENSURE</tt> macros, and many libraries define <tt>ASSERT</tt>.
+    We want to avoid name conflicts with other libraries.
+
+</body>
+</html>

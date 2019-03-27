@@ -1,0 +1,137 @@
+.\" Copyright (c) 2003-2011 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 2, 2012
+.Dt ARCHIVE_READ_EXTRACT 3
+.Os
+.Sh NAME
+.Nm archive_read_extract ,
+.Nm archive_read_extract2 ,
+.Nm archive_read_extract_set_progress_callback
+.Nd functions for reading streaming archives
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
+.Sh SYNOPSIS
+.In archive.h
+.Ft int
+.Fo archive_read_extract
+.Fa "struct archive *"
+.Fa "struct archive_entry *"
+.Fa "int flags"
+.Fc
+.Ft int
+.Fo archive_read_extract2
+.Fa "struct archive *src"
+.Fa "struct archive_entry *"
+.Fa "struct archive *dest"
+.Fc
+.Ft void
+.Fo archive_read_extract_set_progress_callback
+.Fa "struct archive *"
+.Fa "void (*func)(void *)"
+.Fa "void *user_data"
+.Fc
+.Sh DESCRIPTION
+.Bl -tag -compact -width indent
+.It Fn archive_read_extract , Fn archive_read_extract_set_skip_file
+A convenience function that wraps the corresponding
+.Xr archive_write_disk 3
+interfaces.
+The first call to
+.Fn archive_read_extract
+creates a restore object using
+.Xr archive_write_disk_new 3
+and
+.Xr archive_write_disk_set_standard_lookup 3 ,
+then transparently invokes
+.Xr archive_write_disk_set_options 3 ,
+.Xr archive_write_header 3 ,
+.Xr archive_write_data 3 ,
+and
+.Xr archive_write_finish_entry 3
+to create the entry on disk and copy data into it.
+The
+.Va flags
+argument is passed unmodified to
+.Xr archive_write_disk_set_options 3 .
+.It Fn archive_read_extract2
+This is another version of
+.Fn archive_read_extract
+that allows you to provide your own restore object.
+In particular, this allows you to override the standard lookup functions
+using
+.Xr archive_write_disk_set_group_lookup 3 ,
+and
+.Xr archive_write_disk_set_user_lookup 3 .
+Note that
+.Fn archive_read_extract2
+does not accept a
+.Va flags
+argument; you should use
+.Fn archive_write_disk_set_options
+to set the restore options yourself.
+.It Fn archive_read_extract_set_progress_callback
+Sets a pointer to a user-defined callback that can be used
+for updating progress displays during extraction.
+The progress function will be invoked during the extraction of large
+regular files.
+The progress function will be invoked with the pointer provided to this call.
+Generally, the data pointed to should include a reference to the archive
+object and the archive_entry object so that various statistics
+can be retrieved for the progress display.
+.El
+.\"
+.Sh RETURN VALUES
+Most functions return zero on success, non-zero on error.
+The possible return codes include:
+.Cm ARCHIVE_OK
+(the operation succeeded),
+.Cm ARCHIVE_WARN
+(the operation succeeded but a non-critical error was encountered),
+.Cm ARCHIVE_EOF
+(end-of-archive was encountered),
+.Cm ARCHIVE_RETRY
+(the operation failed but can be retried),
+and
+.Cm ARCHIVE_FATAL
+(there was a fatal error; the archive should be closed immediately).
+.Sh ERRORS
+Detailed error codes and textual descriptions are available from the
+.Fn archive_errno
+and
+.Fn archive_error_string
+functions.
+.Sh SEE ALSO
+.Xr tar 1 ,
+.Xr libarchive 3 ,
+.Xr archive_read 3 ,
+.Xr archive_read_data 3 ,
+.Xr archive_read_filter 3 ,
+.Xr archive_read_format 3 ,
+.Xr archive_read_open 3 ,
+.Xr archive_read_set_options 3 ,
+.Xr archive_util 3 ,
+.Xr tar 5

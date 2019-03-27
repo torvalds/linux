@@ -1,0 +1,249 @@
+.\"
+.\" Copyright (c) 2004-2005
+.\"	Hartmut Brandt.
+.\" 	All rights reserved.
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\" 	All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
+.\"
+.\" $Begemot: libunimsg/man/unimsg.3,v 1.4 2005/06/15 11:37:10 brandt_h Exp $
+.\"
+.Dd June 14, 2005
+.Dt UNIMSG 3
+.Os
+.Sh NAME
+.Nm uni_msg_len ,
+.Nm uni_msg_space ,
+.Nm uni_msg_leading ,
+.Nm uni_msg_size ,
+.Nm uni_msg_ensure ,
+.Nm uni_msg_append ,
+.Nm uni_msg_extend ,
+.Nm uni_msg_alloc ,
+.Nm uni_msg_build ,
+.Nm uni_msg_destroy ,
+.Nm uni_msg_strip32 ,
+.Nm uni_msg_get32 ,
+.Nm uni_msg_append32 ,
+.Nm uni_msg_append8 ,
+.Nm uni_msg_trail32 ,
+.Nm uni_msg_dup
+.Nd "ATM signalling library - message buffers"
+.Sh LIBRARY
+Begemot ATM signalling library
+.Pq libunimsg, -lunimsg
+.Sh SYNOPSIS
+.In uni4/unimsg.h
+.Ft size_t
+.Fn uni_msg_len "const struct uni_msg *msg"
+.Ft size_t
+.Fn uni_msg_space "const struct uni_msg *msg"
+.Ft size_t
+.Fn uni_msg_leading "const struct uni_msg *msg"
+.Ft size_t
+.Fn uni_msg_size "const struct uni_msg *msg"
+.Ft int
+.Fn uni_msg_ensure "struct uni_msg *msg" "size_t bytes"
+.Ft int
+.Fn uni_msg_append "struct uni_msg *msg" "void *buf" "size_t buflen"
+.Ft int
+.Fn uni_msg_extend "struct uni_msg *msg" "size_t bytes"
+.Ft struct uni_msg *
+.Fn uni_msg_alloc "size_t space"
+.Ft struct uni_msg *
+.Fn uni_msg_build "void *buf" "..."
+.Ft void
+.Fn uni_msg_destroy "struct uni_msg *msg"
+.Ft u_int
+.Fn uni_msg_strip32 "struct uni_msg *msg"
+.Ft u_int
+.Fn uni_msg_get32 "struct uni_msg *msg"
+.Ft int
+.Fn uni_msg_append32 "struct uni_msg *msg" "u_int value"
+.Ft int
+.Fn uni_msg_append8 "struct uni_msg *msg" "u_int byte"
+.Ft u_int
+.Fn uni_msg_trail32 "const struct uni_msg *msg" "int n"
+.Ft struct uni_msg *
+.Fn uni_msg_dup "const struct uni_msg *msg"
+.Sh DESCRIPTION
+These functions are used to manipulate variable sized message.
+They are
+inspired by BSD mbufs and SysV stream buffers, but somewhat simplified because
+signalling generally is a low bandwidth task.
+All the functions operation on a
+.Li uni_msg
+data structure:
+.Bd -literal -offset indent
+struct uni_msg {
+	u_char	*b_wptr;	/* tail pointer */
+	u_char	*b_rptr;	/* head pointer */
+	u_char	*b_buf;		/* data buffer */
+	u_char	*b_lim;		/* end of data buffer */
+};
+.Ed
+.Pp
+The field
+.Fa b_buf
+points to the begin of a memory block that is used to store the actual message
+and the field
+.Fa b_lim
+points just to the first byte behind that buffer.
+This buffer is allocated
+separate from the structure itself and the user calling any of the above
+functions with a non const
+.Vt struct uni_msg
+argument should expect the buffer to be reallocated and hence not hold pointers
+into the buffer accross call to these functions.
+The pointer
+.Fa b_rptr
+points to the first used byte in the message and
+.Fa b_wptr
+to the first unused byte behind all used bytes.
+If the message is empty, both pointers point to the same place somewhere in
+the allocated buffer.
+.Pp
+There are several functions and macros that return various sizes and lengths.
+The macro
+.Fn uni_msg_len
+returns the actual size of the message (the number of used bytes).
+The macro
+.Fn uni_msg_space
+returns the number of bytes that are left unused behind the used space.
+The macro
+.Fn uni_msg_leading
+returns the number of bytes that are unused before the used space and the
+macro
+.Fn uni_msg_size
+returns the maximum size of the message (that is the size of the allocated
+buffer).
+.Pp
+Two functions may be used to create new messages: The function
+.Fn uni_msg_alloc
+allocates the message structure and a buffer to hold at least
+.Ar space
+bytes (In fact it allocates a couple of bytes more).
+If the allocation fails NULL is returned.
+The pointers are setup so that there is no leading space in the buffer.
+The function
+.Fn uni_msg_build
+constructs a new message from a variable number of buffers.
+The arguments are pairs of
+.Vt void *
+pointers to buffers and
+.Vt size_t
+buffer sizes, terminated by a NULL pointer.
+The function computes the total resulting message size, allocates a message
+and copies all the buffers into the message.
+The message is built to have no leading space.
+If the allocation fails, NULL is returned.
+.Pp
+The function
+.Fn uni_msg_destroy
+deallocates the buffer pointed to by the message and the message itself.
+It is save to pass a message with a NULL buffer, but not a NULL message.
+.Pp
+The function
+.Fn uni_msg_dup
+returns a copy of a message with exact the same leading space.
+.Pp
+A number of functions are used to add bytes to an existing message.
+The function
+.Fn uni_msg_extend
+extends the message buffer to have space for at least
+.Ar bytes
+additional byte at the end.
+The leading space does not change.
+This function may reallocate the message buffer.
+The function returns 0 on success and ENOMEM if the reallocation fails.
+In this case the message buffer is not changed.
+The macro
+.Fn uni_msg_ensure
+checks whether the message has space for additional
+.Ar bytes
+bytes.
+If not it calls
+.Fn uni_msg_extend
+to make the message buffer larger.
+The macro returns 0 on success or ENOMEM
+if there is not enough space and the reallocation fails.
+In this case the message buffer is not changed.
+The function
+.Fn uni_msg_append
+appends
+.Ar buflen
+bytes from the buffer pointed to by
+.Ar buf
+to the message.
+The function
+.Fn uni_msg_append8
+appends one byte to the message and the function
+.Fn uni_msg_append32
+appends a 32-bit value in network byte order to the message
+.Fa ( b_wptr
+needs not to be aligned).
+All three functions call
+.Fn uni_msg_ensure
+to make sure, that the buffer contents fit into the message.
+They return 0 on success and ENOMEM if the buffer is too small and
+the reallocation fails.
+In this case the message buffer is not changed.
+.Pp
+A number of functions can be used to retrieve parts of the message.
+The function
+.Fn uni_msg_strip32
+returns the last four bytes of the message as a 32-bit integer assumed to
+be in network byte order.
+It adjusts
+.Fa b_wptr
+to remove these four bytes from the message.
+.Fa b_wptr
+does not need to be aligned.
+The function
+.Fn uni_msg_get32
+returns the first four bytes of the message as a 32-bit integer assumed to
+be in network byte order.
+It adjusts
+.Fa b_rptr
+to remove these four bytes from the message.
+.Fa b_rptr
+does not need to be aligned.
+The function
+.Fn uni_msg_trail32
+returns the
+.Fa n 'th
+32-bit integer from the buffer counted from the end of the buffer.
+The integer is assumed to be in network byte order.
+A value of -1 for
+.Fa n
+returns the last four bytes of the buffer, a value of -2 the four bytes
+just before the last four bytes and so on.
+All three functions do not check that the message is large enough.
+.Sh SEE ALSO
+.Xr libunimsg 3 ,
+.Xr mbuf 9
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@FreeBSD.org

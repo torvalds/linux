@@ -1,0 +1,4 @@
+arg: flags 0x2 family 0 socktype 0 protocol 0 addrlen 0 host fe80::1%lo0 serv http
+ai1: flags 0x2 family 24 socktype 2 protocol 17 addrlen 28 host fe80::1%lo0 serv http
+ai2: flags 0x2 family 24 socktype 1 protocol 6 addrlen 28 host fe80::1%lo0 serv http
+

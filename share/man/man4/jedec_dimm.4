@@ -1,0 +1,241 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2016 Andriy Gapon <avg@FreeBSD.org>
+.\" Copyright (c) 2018 Ravi Pokala <rpokala@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 31, 2018
+.Dt JEDEC_DIMM 4
+.Os
+.Sh NAME
+.Nm jedec_dimm
+.Nd report asset information and temperatures for JEDEC DDR3 / DDR4 DIMMs
+.Sh SYNOPSIS
+.Bd -ragged -offset indent
+.Cd "device jedec_dimm"
+.Cd "device smbus"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the following
+line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+jedec_dimm_load="YES"
+.Ed
+.Pp
+Addressing information must be manually specified in
+.Pa /boot/device.hints :
+.Bd -literal -offset indent
+.Cd hint.jedec_dimm.0.at="smbus0"
+.Cd hint.jedec_dimm.0.addr="0xa0"
+.Cd hint.jedec_dimm.0.slotid="Silkscreen"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver reports asset information (Part Number, Serial Number) encoded in the
+.Dq Serial Presence Detect
+(SPD) data on JEDEC DDR3 and DDR4 DIMMs.
+It also calculates and reports the memory capacity of the DIMM, in megabytes.
+If the DIMM includes a
+.Dq Thermal Sensor On DIMM
+(TSOD), the temperature is also reported.
+.Pp
+The
+.Nm
+driver accesses the SPD and TSOD over the
+.Xr smbus 4 .
+.Pp
+The data is reported via a
+.Xr sysctl 8
+interface; all values are read-only:
+.Bl -tag -width "dev.jedec_dimm.X.capacity"
+.It Va dev.jedec_dimm.X.%desc
+a string description of the DIMM, including TSOD and slotid info if present.
+.It Va dev.jedec_dimm.X.capacity
+the DIMM's memory capacity, in megabytes
+.It Va dev.jedec_dimm.X.part
+the manufacturer's part number of the DIMM
+.It Va dev.jedec_dimm.X.serial
+the manufacturer's serial number of the DIMM
+.It Va dev.jedec_dimm.X.slotid
+a copy of the corresponding hint, if set
+.It Va dev.jedec_dimm.X.temp
+if a TSOD is present, the reported temperature
+.It Va dev.jedec_dimm.X.type
+the DIMM type (DDR3 or DDR4)
+.El
+.Pp
+These values are configurable for
+.Nm
+via
+.Xr device.hints 5 :
+.Bl -tag -width "hint.jedec_dimm.X.slotid"
+.It Va hint.jedec_dimm.X.at
+the
+.Xr smbus 4
+to which the DIMM is connected
+.It Va hint.jedec_dimm.X.addr
+the SMBus address of the SPD.
+JEDEC specifies that the four most-significant bits of the address are the
+.Dq Device Type Identifier
+(DTI), and that the DTI of the SPD is 0xa.
+Since the least-significant bit of an SMBus address is the read/write bit, and
+is always written as 0, that means the four least-significant bits of the
+address must be even.
+.It Va hint.jedec_dimm.X.slotid
+optional slot identifier.
+If populated with the DIMM slot name silkscreened on the motherboard, this
+provides a mapping between the DIMM slot name and the DIMM serial number.
+That mapping is useful for detailed asset tracking, and makes it easier to
+physically locate a specific DIMM when doing a replacement.
+This is useful when assembling multiple identical systems, as might be done by
+a system vendor.
+The mapping between bus/address and DIMM slot must first be determined, either
+through motherboard documentation or trial-and-error.
+.El
+.Pp
+If the DIMMs are on an I2C bus behind an
+.Xr iicbus 4
+controller, then the
+.Xr iicsmb 4
+bridge driver can be used to attach the
+.Xr smbus 4 .
+.Sh EXAMPLES
+Consider two DDR4 DIMMs with the following hints:
+.Bd -literal -offset indent
+hint.jedec_dimm.0.at="smbus0"
+hint.jedec_dimm.0.addr="0xa0"
+hint.jedec_dimm.0.slotid="A1"
+
+hint.jedec_dimm.6.at="smbus1"
+hint.jedec_dimm.6.addr="0xa8"
+.Ed
+.Pp
+Their
+.Xr sysctl 8
+output (sorted):
+.Bd -literal -offset indent
+dev.jedec_dimm.0.%desc: DDR4 DIMM w/ Atmel TSOD (A1)
+dev.jedec_dimm.0.%driver: jedec_dimm
+dev.jedec_dimm.0.%location: addr=0xa0
+dev.jedec_dimm.0.%parent: smbus0
+dev.jedec_dimm.0.%pnpinfo:
+dev.jedec_dimm.0.capacity: 16384
+dev.jedec_dimm.0.part: 36ASF2G72PZ-2G1A2
+dev.jedec_dimm.0.serial: 0ea815de
+dev.jedec_dimm.0.slotid: A1
+dev.jedec_dimm.0.temp: 32.7C
+dev.jedec_dimm.0.type: DDR4
+
+dev.jedec_dimm.6.%desc: DDR4 DIMM w/ TSE2004av compliant TSOD
+dev.jedec_dimm.6.%driver: jedec_dimm
+dev.jedec_dimm.6.%location: addr=0xa8
+dev.jedec_dimm.6.%parent: smbus1
+dev.jedec_dimm.6.%pnpinfo:
+dev.jedec_dimm.6.capacity: 8192
+dev.jedec_dimm.6.part: VRA9MR8B2H1603
+dev.jedec_dimm.6.serial: 0c4c46ad
+dev.jedec_dimm.6.temp: 43.1C
+dev.jedec_dimm.6.type: DDR4
+.Ed
+.Sh COMPATIBILITY
+.Nm
+implements a superset of the functionality of the now-deleted
+.Xr jedec_ts 4 .
+Hints for
+.Xr jedec_ts 4
+can be mechanically converted for use with
+.Nm .
+Two changes are required:
+.Bl -enum
+.It
+In all
+.Xr jedec_ts 4
+hints, replace
+.Dq jedec_ts
+with
+.Dq jedec_dimm
+.It
+In
+.Xr jedec_ts 4
+.Dq addr
+hints, replace the TSOD DTI
+.Dq 0x3
+with the SPD DTI
+.Dq 0xa
+.El
+.Pp
+The following
+.Xr sed 1
+script will perform the necessary changes:
+.Bd -literal -offset indent
+sed -i ".old" -e 's/jedec_ts/jedec_dimm/' \\
+    -e '/jedec_dimm/s/addr="0x3/addr="0xa/' /boot/device.hints
+.Ed
+.Sh SEE ALSO
+.Xr iicbus 4 ,
+.Xr iicsmb 4 ,
+.Xr smbus 4 ,
+.Xr sysctl 8
+.Sh STANDARDS
+.Rs
+(DDR3 SPD)
+.%A JEDEC
+.%T Standard 21-C, Annex K
+.Re
+.Pp
+.Rs
+(DDR3 TSOD)
+.%A JEDEC
+.%T Standard 21-C, TSE2002av
+.Re
+.Pp
+.Rs
+(DDR4 SPD)
+.%A JEDEC
+.%T Standard 21-C, Annex L
+.Re
+.Pp
+.Rs
+(DDR4 TSOD)
+.%A JEDEC
+.%T Standard 21-C, TSE2004av
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver and this manual page were written by
+.An Ravi Pokala Aq Mt rpokala@freebsd.org .
+They are both based in part on the now-deleted
+.Xr jedec_ts 4
+driver and manual page, written by
+.An Andriy Gapon Aq Mt avg@FreeBSD.org .

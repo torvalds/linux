@@ -1,0 +1,5 @@
+# $FreeBSD$
+# Init cannot be a child of the shell.
+exit 49 & p49=$!
+wait 1 "$p49"
+[ "$?" = 49 ]

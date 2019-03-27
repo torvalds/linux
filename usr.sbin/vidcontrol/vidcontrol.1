@@ -1,0 +1,734 @@
+.\"
+.\" vidcontrol - a utility for manipulating the syscons or vt video driver
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\"     @(#)vidcontrol.1
+.\" $FreeBSD$
+.\"
+.Dd October 20, 2018
+.Dt VIDCONTROL 1
+.Os
+.Sh NAME
+.Nm vidcontrol
+.Nd system console control and configuration utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl CdHLPpx
+.Op Fl b Ar color
+.Op Fl c Ar appearance
+.Op Fl E Ar emulator
+.Oo
+.Fl f
+.Oo
+.Op Ar size
+.Ar file
+.Oc
+.Oc
+.Op Fl g Ar geometry
+.Op Fl h Ar size
+.Op Fl i Cm active | adapter | mode
+.Op Fl l Ar screen_map
+.Op Fl M Ar char
+.Op Fl m Cm on | off
+.Op Fl r Ar foreground Ar background
+.Op Fl S Cm on | off
+.Op Fl s Ar number
+.Op Fl T Cm xterm | cons25
+.Op Fl t Ar N | Cm off
+.Op Ar mode
+.Op Ar foreground Op Ar background
+.Op Cm show
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to set various options for the
+.Xr syscons 4
+or
+.Xr vt 4
+console driver,
+such as video mode, colors, cursor shape, screen output map, font, and screen
+saver timeout.
+Only a small subset of options is supported by
+.Xr vt 4 .
+Unsupported options lead to error messages, typically including
+the text "Inappropriate ioctl for device".
+.Pp
+The following command line options are supported:
+.Bl -tag -width indent
+.It Ar mode
+Select a new video mode.
+The modes currently recognized are:
+.Ar 80x25 ,
+.Ar 80x30 ,
+.Ar 80x43 ,
+.Ar 80x50 ,
+.Ar 80x60 ,
+.Ar 132x25 ,
+.Ar 132x30 ,
+.Ar 132x43 ,
+.Ar 132x50 ,
+.Ar 132x60 ,
+.Ar VGA_40x25 ,
+.Ar VGA_80x25 ,
+.Ar VGA_80x30 ,
+.Ar VGA_80x50 ,
+.Ar VGA_80x60 ,
+.Ar VGA_90x25 ,
+.Ar VGA_90x30 ,
+.Ar VGA_90x43 ,
+.Ar VGA_90x50 ,
+.Ar VGA_90x60 ,
+.Ar EGA_80x25 ,
+.Ar EGA_80x43 ,
+.Ar VESA_132x25 ,
+.Ar VESA_132x43 ,
+.Ar VESA_132x50 ,
+.Ar VESA_132x60 .
+.\"The graphic mode
+.\".Ar VGA_320x200
+.\"and
+The raster text mode
+.Ar VESA_800x600
+can also be chosen.
+Alternatively, a mode can be specified with its number by using a mode name of
+the form
+.Li MODE_ Ns Aq Ar NUMBER .
+A list of valid mode numbers can be obtained with the
+.Fl i Cm mode
+option.
+See
+.Sx Video Mode Support
+below.
+.It Ar foreground Op Ar background
+Change colors when displaying text.
+Specify the foreground color
+(e.g.,
+.Dq vidcontrol white ) ,
+or both a foreground and background colors
+(e.g.,
+.Dq vidcontrol yellow blue ) .
+Use the
+.Cm show
+command below to see available colors.
+.It Cm show
+See the supported colors on a given platform.
+.It Fl b Ar color
+Set border color to
+.Ar color .
+This option may not be always supported by the video driver.
+.It Fl C
+Clear the history buffer.
+.It Fl c Ar setting Ns Op , Ns Ar setting ...
+Change the cursor appearance.
+The change is specified by a non-empty comma-separated list of
+.Ar setting Ns s .
+Each
+.Ar setting
+overrides or modifies previous ones in left to right order.
+.Pp
+The following override
+.Ar setting Ns s
+are available:
+.Bl -tag -width indent
+.It Cm normal
+Set to a block covering 1 character cell,
+with a configuration-dependent coloring
+that should be at worst inverse video.
+.It Cm destructive
+Set to a blinking sub-block with
+.Cm height
+scanlines starting at
+.Cm base .
+The name
+.Dq destructive
+is bad for backwards compatibility.
+This
+.Ar setting
+should not force destructiveness,
+and it now only gives destructiveness in some
+configurations (typically for hardware cursors
+in text mode).
+Blinking limits destructiveness.
+This
+.Ar setting
+should now be spelled
+.Cm normal , Ns Cm blink , Ns Cm noblock .
+A non-blinking destructive cursor would be unusable,
+so old versions of
+.Nm
+did not support it,
+and this version does not have an override for it.
+.It Cm base Ns = Ns Ar value , Cm height Ns = Ns Ar value
+Set the specified scanline parameters.
+These parameters are only active in
+.Cm noblock
+mode.
+.Cm value
+is an integer in any base supported by
+.Xr strtol 3 .
+Setting
+.Cm height
+to 0 turns off the cursor in
+.Cm noblock
+mode.
+Negative
+.Ar value Ns s
+are silently ignored.
+Positive
+.Ar value Ns s
+are clamped to fit in the character cell when the cursor is drawn.
+.El
+.Pp
+The following modifier
+.Ar setting Ns s
+are available:
+.Bl -tag -width indent
+.It Cm blink , noblink
+Set or clear the blinking attribute.
+This is not quite backwards compatible.
+In old versions of
+.Nm , Cm blink
+was an override to a blinking block.
+.It Cm block , noblock
+Set or clear the
+.Cm block
+attribute.
+This attribute is the inverse of the flag
+.Dv CONS_CHAR_CURSOR
+in the implementation.
+It deactivates the scanline parameters,
+and expresses a preference for using a
+simpler method of implementation.
+Its inverse does the opposite.
+When the scanline parameters give a full block,
+this attribute reduces to a method selection bit.
+The
+.Cm block
+method tends to give better coloring.
+.It Cm hidden , nohidden
+Set or clear the hidden attribute.
+.El
+.Pp
+The following (non-sticky) flags control application of the
+.Ar setting Ns s :
+.Bl -tag -width indent
+.It Cm charcolors
+Apply
+.Cm base
+and
+.Cm height
+to the (character) cursor's list of preferred colors instead of its shape.
+Beware that the color numbers are raw VGA palette indexes,
+not ANSI color numbers.
+The indexes are reduced mod 8, 16 or 256,
+or ignored,
+depending on the video mode and renderer.
+.It Cm mousecolors
+Colors for the mouse cursor in graphics mode.
+Like
+.Cm charcolors ,
+except there is no preference or sequence;
+.Cm base
+gives the mouse border color and
+.Cm height
+gives the mouse interior color.
+Together with
+.Cm charcolors ,
+this gives 2 selection bits which select between
+only 3 of 4 sub-destinations of the 4 destinations selected by
+.Cm default
+and
+.Cm local
+(by ignoring
+.Cm mousecolors
+if
+.Cm charcolors
+is also set).
+.It Cm default
+Apply the changes to the default settings and then to the active settings,
+instead of only to the active settings.
+Together with
+.Cm local ,
+this gives 2 selection bits which select between 4 destinations.
+.It Cm shapeonly
+Ignore any changes to the
+.Cm block
+and
+.Cm hidden
+attributes.
+.It Cm local
+Apply the changes to the current vty.
+The default is to apply them to a global place
+and copy from there to all vtys.
+.It Cm reset
+Reset everything.
+The default is to not reset.
+When the
+.Cm local
+parameter is specified, the current local settings are reset
+to default local settings.
+Otherwise, the current global settings are reset to default
+global settings and then copied to the current and default
+settings for all vtys.
+.It Cm show
+Show the current changes.
+.El
+.It Fl d
+Print out current output screen map.
+.It Fl E Ar emulator
+Set the terminal emulator to
+.Ar emulator .
+.It Fl e
+Show the active and available terminal emulators.
+.It Xo
+.Fl f
+.Oo
+.Op Ar size
+.Ar file
+.Oc
+.Xc
+Load font
+.Ar file
+for
+.Ar size
+(currently, only
+.Cm 8x8 ,
+.Cm 8x14
+or
+.Cm 8x16 ) .
+The font file can be either uuencoded or in raw binary format.
+You can also use the menu-driven
+.Xr vidfont 1
+command to load the font of your choice.
+.Pp
+.Ar Size
+may be omitted, in this case
+.Nm
+will try to guess it from the size of font file.
+.Pp
+When using
+.Xr vt 4
+both
+.Ar size
+and
+.Ar file
+can be omitted, and the default font will be loaded.
+.Pp
+Note that older video cards, such as MDA and CGA, do not support
+software font.
+See also
+.Sx Video Mode Support
+and
+.Sx EXAMPLES
+below and the man page for either
+.Xr syscons 4
+or
+.Xr vt 4
+(depending on which driver you use).
+.It Fl g Ar geometry
+Set the
+.Ar geometry
+of the text mode for the modes with selectable
+geometry.
+Currently only raster modes, such as
+.Ar VESA_800x600 ,
+support this option.
+See also
+.Sx Video Mode Support
+and
+.Sx EXAMPLES
+below.
+.It Fl h Ar size
+Set the size of the history (scrollback) buffer to
+.Ar size
+lines.
+.It Fl i Cm active
+Shows the active vty number.
+.It Fl i Cm adapter
+Shows info about the current video adapter.
+.It Fl i Cm mode
+Shows the possible video modes with the current video hardware.
+.It Fl l Ar screen_map
+Install screen output map file from
+.Ar screen_map .
+See also
+.Xr syscons 4
+or
+.Xr vt 4
+(depending on which driver you use).
+.It Fl L
+Install default screen output map.
+.It Fl M Ar char
+Sets the base character used to render the mouse pointer to
+.Ar char .
+.It Fl m Cm on | off
+Switch the mouse pointer
+.Cm on
+or
+.Cm off .
+Used together with the
+.Xr moused 8
+daemon for text mode cut & paste functionality.
+.It Fl p
+Capture the current contents of the video buffer corresponding
+to the terminal device referred to by standard input.
+The
+.Nm
+utility writes contents of the video buffer to the standard
+output in a raw binary format.
+For details about that
+format see
+.Sx Format of Video Buffer Dump
+below.
+.It Fl P
+Same as
+.Fl p ,
+but dump contents of the video buffer in a plain text format
+ignoring nonprintable characters and information about text
+attributes.
+.It Fl H
+When used with
+.Fl p
+or
+.Fl P ,
+it instructs
+.Nm
+to dump full history buffer instead of visible portion of
+the video buffer only.
+.It Fl r Ar foreground background
+Change reverse mode colors to
+.Ar foreground
+and
+.Ar background .
+.It Fl S Cm on | off
+Turn vty switching on or off.
+When vty switching is off,
+attempts to switch to a different virtual terminal will fail.
+(The default is to permit vty switching.)
+This protection can be easily bypassed when the kernel is compiled with
+the
+.Dv DDB
+option.
+However, you probably should not compile the kernel debugger on a box which
+is supposed to be physically secure.
+.It Fl s Ar number
+Set the active vty to
+.Ar number .
+.It Fl T Cm xterm | cons25
+Switch between xterm and cons25 style terminal emulation.
+.It Fl t Ar N | Cm off
+Set the screensaver timeout to
+.Ar N
+seconds, or turns it
+.Cm off .
+.It Fl x
+Use hexadecimal digits for output.
+.El
+.Ss Video Mode Support
+Note that not all modes listed above may be supported by the video
+hardware.
+You can verify which mode is supported by the video hardware, using the
+.Fl i Cm mode
+option.
+.Pp
+The VESA BIOS support must be linked to the kernel
+or loaded as a KLD module if you wish to use VESA video modes
+or 132 column modes
+(see
+.Xr vga 4 ) .
+.Pp
+You need to compile your kernel with the
+.Ar VGA_WIDTH90
+option if you wish to use VGA 90 column modes
+(see
+.Xr vga 4 ) .
+.Pp
+Video modes other than 25 and 30 line modes may require specific size of font.
+Use
+.Fl f
+option above to load a font file to the kernel.
+If the required size of font has not been loaded to the kernel,
+.Nm
+will fail if the user attempts to set a new video mode.
+.Pp
+.Bl -column "25 line modes" "8x16 (VGA), 8x14 (EGA)" -compact
+.Sy Modes Ta Sy Font size
+.No 25 line modes Ta 8x16 (VGA), 8x14 (EGA)
+.No 30 line modes Ta 8x16
+.No 43 line modes Ta 8x8
+.No 50 line modes Ta 8x8
+.No 60 line modes Ta 8x8
+.El
+.Pp
+It is better to always load all three sizes (8x8, 8x14 and 8x16)
+of the same font.
+.Pp
+You may set variables in
+.Pa /etc/rc.conf
+or
+.Pa /etc/rc.conf.local
+so that desired font files will be automatically loaded
+when the system starts up.
+See below.
+.Pp
+If you want to use any of the raster text modes you need to recompile your
+kernel with the
+.Dv SC_PIXEL_MODE
+option.
+See
+.Xr syscons 4
+or
+.Xr vt 4
+(depending on which driver you use)
+for more details on this kernel option.
+.Ss Format of Video Buffer Dump
+The
+.Nm
+utility uses the
+.Xr syscons 4
+.\" is it supported on vt(4)???
+or
+.Xr vt 4
+.Dv CONS_SCRSHOT
+.Xr ioctl 2
+to capture the current contents of the video buffer.
+The
+.Nm
+utility writes version and additional information to the standard
+output, followed by the contents of the video buffer.
+.Pp
+VGA video memory is typically arranged in two byte tuples,
+one per character position.
+In each tuple, the first byte will be the character code,
+and the second byte is the character's color attribute.
+.Pp
+The VGA color attribute byte looks like this:
+.Bl -column "X:X" "<00000000>" "width" "bright foreground color"
+.Sy "bits#		width	meaning"
+.Li "7	<X0000000>	1	character blinking"
+.Li "6:4	<0XXX0000>	3	background color"
+.Li "3	<0000X000>	1	bright foreground color"
+.Li "2:0	<00000XXX>	3	foreground color"
+.El
+.Pp
+Here is a list of the three bit wide base colors:
+.Pp
+.Bl -hang -offset indent -compact
+.It 0
+Black
+.It 1
+Blue
+.It 2
+Green
+.It 3
+Cyan
+.It 4
+Red
+.It 5
+Magenta
+.It 6
+Brown
+.It 7
+Light Grey
+.El
+.Pp
+Base colors with bit 3 (the bright foreground flag) set:
+.Pp
+.Bl -hang -offset indent -compact
+.It 0
+Dark Grey
+.It 1
+Light Blue
+.It 2
+Light Green
+.It 3
+Light Cyan
+.It 4
+Light Red
+.It 5
+Light Magenta
+.It 6
+Yellow
+.It 7
+White
+.El
+.Pp
+For example, the two bytes
+.Pp
+.Dl "65 158"
+.Pp
+specify an uppercase A (character code 65), blinking
+(bit 7 set) in yellow (bits 3:0) on a blue background
+(bits 6:4).
+.Pp
+The
+.Nm
+output contains a small header which includes additional
+information which may be useful to utilities processing
+the output.
+.Pp
+The first 10 bytes are always arranged as follows:
+.Bl -column "Byte range" "Contents" -offset indent
+.It Sy "Byte Range	Contents"
+.It "1 - 8	Literal text" Dq Li SCRSHOT_
+.It "9	File format version number"
+.It "10	Remaining number of bytes in the header"
+.El
+.Pp
+Subsequent bytes depend on the version number.
+.Bl -column "Version" "13 and up" -offset indent
+.It Sy "Version	Byte	Meaning"
+.It "1	11	Terminal width, in characters"
+.It "	12	Terminal depth, in characters"
+.It "	13 and up	The snapshot data"
+.El
+.Pp
+So a dump of an 80x25 screen would start (in hex)
+.Bd -literal -offset indent
+53 43 52 53 48 4f 54 5f 01 02 50 19
+----------------------- -- -- -- --
+          |              |  |  |  ` 25 decimal
+          |              |  |  `--- 80 decimal
+          |              |  `------ 2 remaining bytes of header data
+          |              `--------- File format version 1
+          `------------------------ Literal "SCRSHOT_"
+.Ed
+.Sh VIDEO OUTPUT CONFIGURATION
+.Ss Boot Time Configuration
+You may set the following variables in
+.Pa /etc/rc.conf
+or
+.Pa /etc/rc.conf.local
+in order to configure the video output at boot time.
+.Pp
+.Bl -tag -width foo_bar_var -compact
+.It Ar blanktime
+Sets the timeout value for the
+.Fl t
+option.
+.It Ar font8x16 , font8x14 , font8x8
+Specifies font files for the
+.Fl f
+option.
+.It Ar scrnmap
+Specifies a screen output map file for the
+.Fl l
+option.
+.El
+.Pp
+See
+.Xr rc.conf 5
+for more details.
+.Ss Driver Configuration
+The video card driver may let you change default configuration
+options, such as the default font, so that you do not need to set up
+the options at boot time.
+See video card driver manuals, (e.g.,
+.Xr vga 4 )
+for details.
+.Sh FILES
+.Bl -tag -width /usr/share/syscons/scrnmaps/foo-bar -compact
+.It Pa /usr/share/syscons/fonts/*
+.It Pa /usr/share/vt/fonts/*
+font files.
+.It Pa /usr/share/syscons/scrnmaps/*
+screen output map files (relevant for
+.Xr syscons 4
+only).
+.El
+.Sh EXAMPLES
+If you want to load
+.Pa /usr/share/syscons/fonts/iso-8x16.fnt
+to the kernel, run
+.Nm
+as:
+.Pp
+.Dl vidcontrol -f 8x16 /usr/share/syscons/fonts/iso-8x16.fnt
+.Pp
+So long as the font file is in
+.Pa /usr/share/syscons/fonts
+(if using syscons) or
+.Pa /usr/share/vt/fonts
+(if using vt),
+you may abbreviate the file name as
+.Pa iso-8x16 :
+.Pp
+.Dl vidcontrol -f 8x16 iso-8x16
+.Pp
+Furthermore, you can also omit font size
+.Dq Li 8x16 :
+.Pp
+.Dl vidcontrol -f iso-8x16
+.Pp
+Moreover, the suffix specifying the font size can also be omitted; in
+this case,
+.Nm
+will use the size of the currently displayed font to construct the
+suffix:
+.Pp
+.Dl vidcontrol -f iso
+.Pp
+Likewise, you can also abbreviate the screen output map file name for
+the
+.Fl l
+option if the file is found in
+.Pa /usr/share/syscons/scrnmaps .
+.Pp
+.Dl vidcontrol -l iso-8859-1_to_cp437
+.Pp
+The above command will load
+.Pa /usr/share/syscons/scrnmaps/iso-8859-1_to_cp437.scm .
+.Pp
+The following command will set-up a 100x37 raster text mode (useful for
+some LCD models):
+.Pp
+.Dl vidcontrol -g 100x37 VESA_800x600
+.Pp
+The following command will capture the contents of the first virtual
+terminal video buffer, and redirect the output to the
+.Pa shot.scr
+file:
+.Pp
+.Dl vidcontrol -p < /dev/ttyv0 > shot.scr
+.Pp
+The following command will dump contents of the fourth virtual terminal
+video buffer
+to the standard output in the human readable format:
+.Pp
+.Dl vidcontrol -P < /dev/ttyv3
+.Sh SEE ALSO
+.Xr kbdcontrol 1 ,
+.Xr vidfont 1 ,
+.Xr keyboard 4 ,
+.Xr screen 4 ,
+.Xr syscons 4 ,
+.Xr vga 4 ,
+.Xr vt 4 ,
+.Xr rc.conf 5 ,
+.Xr kldload 8 ,
+.Xr moused 8 ,
+.Xr watch 8
+.Pp
+The various
+.Pa scr2*
+utilities in the
+.Pa graphics
+and
+.Pa textproc
+categories of the
+.Em "Ports Collection" .
+.Sh AUTHORS
+.An S\(/oren Schmidt Aq Mt sos@FreeBSD.org
+.An Sascha Wildner Aq Mt saw@online.de
+.Sh CONTRIBUTORS
+.An -split
+.An Maxim Sobolev Aq Mt sobomax@FreeBSD.org
+.An Nik Clayton Aq Mt nik@FreeBSD.org

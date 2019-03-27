@@ -1,0 +1,206 @@
+# $FreeBSD$
+#
+# v4 format EEPROM template
+#
+.ifmode 11a
+ =================Header Information for mode $mode===============
+ |  Major Version           $V_major  |  Minor Version           $V_minor  |
+ |  EAR Start              $earStart  |  Target Power Start     $tpStart  |
+ |  EEP MAP                $eepMap  |  Enable 32 khz	  $exist32KHzCrystal  |
+ |-------------------------------------------------------------|
+ |  A Mode         $Amode  |  B Mode         $Bmode  |  G Mode        $Gmode  |
+ |  RegDomain    $regdomain |  Turbo2 Disable $turbo2Disable  |  Turbo5 Disable $turbo5Disable |
+ |  RF Silent      $rfKill  |  XR5 Disable    $disableXr5  |  XR2 Disable    $disableXr2 |
+ | Turbo 2W Maximum dBm $turbo2WMaxPower5 | cckOfdmDelta(10x) $cckOfdmDelta | GainI $gainI   |
+ |-------------------------------------------------------------|
+ |  worldwide roaming        $WWR  |  False detect backoff  $falseDetectBackoff  |
+ |  device type              $deviceType  |  Switch Settling Time  $switchSettling  |
+ |  ADC Desired size       $adcDesiredSize  |  XLNA Gain             $xlnaGain  |
+ |  tx end to XLNA on     $txEndToXLNAOn  |  Threashold 62         $thresh62  |
+ |  tx end to XPA off     $txEndToXPAOff  |  tx end to XPA on      $txFrameToXPAOn  |
+ |  PGA Desired size       $pgaDesiredSize  |  Noise Threshold        $noiseFloorThresh  |
+ |  XPD Gain              $xgain  |  XPD                      $xpd  |
+ |  txrx Attenuation      $txrxAtten  |  Capabilities        $capField  |
+ |  Antenna control    0  $antennaControl0  |  Antenna control    1  $antennaControl1  |
+ |  Antenna control    2  $antennaControl2  |  Antenna control    3  $antennaControl3  |
+ |  Antenna control    4  $antennaControl4  |  Antenna control    5  $antennaControl5  |
+ |  Antenna control    6  $antennaControl6  |  Antenna control    7  $antennaControl7  |
+ |  Antenna control    8  $antennaControl8  |  Antenna control    9  $antennaControl9  |
+ |  Antenna control   10  $antennaControl10  |                              |
+ |-------------------------------------------------------------|
+ |   OB_1   $ob1   |   OB_2    $ob2   |   OB_3   $ob3  |   OB_4     $ob4   |
+ |   DB_1   $db1   |   DB_2    $db2   |   DB_3   $db3  |   DB_4     $db4   |
+ ===============================================================
+
+ =========5112 Power Calibration Information==========
+ | XPD_Gain_mask     $xpd_mask | Number of channels    $numChannels |
+ | XPD_GAIN            $singleXpd |                          |
+ |======|========|========|========|========|========|
+ | freq |  pwr1  |  pwr2  |  pwr3  |  pwr4  | maxPow |
+ |      | [pcd]  | [pcd]  | [pcd]  | [pcd]  |        |
+ |======|========|========|========|========|========|
+.forchan
+ | $freq | $pwr_t4_0  | $pwr_t4_1  | $pwr_t4_2  | $pwr_t4_3  | $maxpow  |
+ |      |  [$pcdac0]  |  [$pcdac1]  |  [$pcdac2]  |  [$pcdac3]  |        |
+ |======|========|========|========|========|========|
+.endforchan
+
+ ============================Target Power Info===============================
+ |     rate     |     $testChannel0     |     $testChannel1     |     $testChannel2     |     $testChannel3     |
+ |==============|==============|==============|==============|==============|
+ |     6-24     |     $pwr6_24_0     |     $pwr6_24_1     |     $pwr6_24_2     |     $pwr6_24_3     |
+ |      36      |     $pwr36_0     |     $pwr36_1     |     $pwr36_2     |     $pwr36_3     |
+ |      48      |     $pwr48_0     |     $pwr48_1     |     $pwr48_2     |     $pwr48_3     |
+ |      54      |     $pwr54_0     |     $pwr54_1     |     $pwr54_2     |     $pwr54_3     |
+ |==============|==============|==============|==============|==============|
+ |     rate     |     $testChannel4     |     $testChannel5     |     $testChannel6     |     $testChannel7     |
+ |==============|==============|==============|==============|==============|
+ |     6-24     |     $pwr6_24_4     |     $pwr6_24_5     |     $pwr6_24_6     |     $pwr6_24_7     |
+ |      36      |     $pwr36_4     |     $pwr36_5     |     $pwr36_6     |     $pwr36_7     |
+ |      48      |     $pwr48_4     |     $pwr48_5     |     $pwr48_6     |     $pwr48_7     |
+ |      54      |     $pwr54_4     |     $pwr54_5     |     $pwr54_6     |     $pwr54_7     |
+ |==============|==============|==============|==============|==============|
+ 
+ =======================Test Group Band Edge Power========================
+.forctl
+ |                                                                       |
+ | CTL: $CTL   [ $ctlRD $ctlType mode ]                                    |
+ |=======|=======|=======|=======|=======|=======|=======|=======|=======|
+ | edge  | $rdEdge0  | $rdEdge1  | $rdEdge2  | $rdEdge3  | $rdEdge4  | $rdEdge5  | $rdEdge6  | $rdEdge7  |
+ |=======|=======|=======|=======|=======|=======|=======|=======|=======|
+ | power | $rdEdgePower0  | $rdEdgePower1  | $rdEdgePower2  | $rdEdgePower3  | $rdEdgePower4  | $rdEdgePower5  | $rdEdgePower6  | $rdEdgePower7  |
+ |=======|=======|=======|=======|=======|=======|=======|=======|=======|
+ | flag  |  $rdEdgeFlag0   |  $rdEdgeFlag1   |  $rdEdgeFlag2   |  $rdEdgeFlag3   |  $rdEdgeFlag4   |  $rdEdgeFlag5   |  $rdEdgeFlag6   |  $rdEdgeFlag7   |
+ =========================================================================
+.endforctl
+.endmode
+
+.ifmode 11b
+ =================Header Information for mode $mode===============
+ |  Major Version           $V_major  |  Minor Version           $V_minor  |
+ |  EAR Start              $earStart  |  Target Power Start     $tpStart  |
+ |  EEP MAP                $eepMap  |  Enable 32 khz	  $exist32KHzCrystal  |
+ |-------------------------------------------------------------|
+ |  A Mode         $Amode  |  B Mode         $Bmode  |  G Mode        $Gmode  |
+ |  RegDomain    $regdomain |  Turbo2 Disable $turbo2Disable  |  Turbo5 Disable $turbo5Disable |
+ |  RF Silent      $rfKill  |  XR5 Disable    $disableXr5  |  XR2 Disable    $disableXr2 |
+ | Turbo 2W Maximum dBm $turbo2WMaxPower5 | cckOfdmDelta(10x) $cckOfdmDelta | GainI $gainI   |
+ |-------------------------------------------------------------|
+ |  worldwide roaming        $WWR  |  False detect backoff  $falseDetectBackoff  |
+ |  device type              $deviceType  |  Switch Settling Time  $switchSettling  |
+ |  ADC Desired size       $adcDesiredSize  |  XLNA Gain             $xlnaGain  |
+ |  tx end to XLNA on     $txEndToXLNAOn  |  Threashold 62         $thresh62  |
+ |  tx end to XPA off     $txEndToXPAOff  |  tx end to XPA on      $txFrameToXPAOn  |
+ |  PGA Desired size       $pgaDesiredSize  |  Noise Threshold        $noiseFloorThresh  |
+ |  XPD Gain              $xgain  |  XPD                      $xpd  |
+ |  txrx Attenuation      $txrxAtten  |  Capabilities        $capField  |
+ |  Antenna control    0  $antennaControl0  |  Antenna control    1  $antennaControl1  |
+ |  Antenna control    2  $antennaControl2  |  Antenna control    3  $antennaControl3  |
+ |  Antenna control    4  $antennaControl4  |  Antenna control    5  $antennaControl5  |
+ |  Antenna control    6  $antennaControl6  |  Antenna control    7  $antennaControl7  |
+ |  Antenna control    8  $antennaControl8  |  Antenna control    9  $antennaControl9  |
+ |  Antenna control   10  $antennaControl10  |                              |
+ |-------------------------------------------------------------|
+ |   OB_1   $obFor24   |   B_OB    $ob2GHz0   |   DB_1   $dbFor24  |   B_DB     $db2GHz0   |
+ ===============================================================
+
+ =========5112 Power Calibration Information==========
+ | XPD_Gain_mask     $xpd_mask | Number of channels    $numChannels |
+ | XPD_GAIN            $singleXpd |                          |
+ |======|========|========|========|========|========|
+ | freq |  pwr1  |  pwr2  |  pwr3  |  pwr4  | maxPow |
+ |      | [pcd]  | [pcd]  | [pcd]  | [pcd]  |        |
+ |======|========|========|========|========|========|
+.forchan
+ | $freq | $pwr_t4_0  | $pwr_t4_1  | $pwr_t4_2  | $pwr_t4_3  | $maxpow  |
+ |      |  [$pcdac0]  |  [$pcdac1]  |  [$pcdac2]  |  [$pcdac3]  |        |
+ |======|========|========|========|========|========|
+.endforchan
+
+ =============Target Power Info================
+ |     rate     |     $testChannel0     |     $testChannel1     |
+ |==============|==============|==============|
+ |      1       |     $pwr6_24_0     |     $pwr6_24_1     |
+ |      2       |     $pwr36_0     |     $pwr36_1     |
+ |      5.5     |     $pwr48_0     |     $pwr48_1     |
+ |      11      |     $pwr54_0     |     $pwr54_1     |
+ |==============|==============|==============|
+
+ =======================Test Group Band Edge Power========================
+.forctl
+ |                                                                       |
+ | CTL: $CTL   [ $ctlRD $ctlType mode ]                                    |
+ |=======|=======|=======|=======|=======|=======|=======|=======|=======|
+ | edge  | $rdEdge0  | $rdEdge1  | $rdEdge2  | $rdEdge3  | $rdEdge4  | $rdEdge5  | $rdEdge6  | $rdEdge7  |
+ |=======|=======|=======|=======|=======|=======|=======|=======|=======|
+ | power | $rdEdgePower0  | $rdEdgePower1  | $rdEdgePower2  | $rdEdgePower3  | $rdEdgePower4  | $rdEdgePower5  | $rdEdgePower6  | $rdEdgePower7  |
+ |=======|=======|=======|=======|=======|=======|=======|=======|=======|
+ | flag  |  $rdEdgeFlag0   |  $rdEdgeFlag1   |  $rdEdgeFlag2   |  $rdEdgeFlag3   |  $rdEdgeFlag4   |  $rdEdgeFlag5   |  $rdEdgeFlag6   |  $rdEdgeFlag7   |
+ =========================================================================
+.endforctl
+.endmode
+
+.ifmode 11g
+ =================Header Information for mode $mode===============
+ |  Major Version           $V_major  |  Minor Version           $V_minor  |
+ |  EAR Start              $earStart  |  Target Power Start     $tpStart  |
+ |  EEP MAP                $eepMap  |  Enable 32 khz	  $exist32KHzCrystal  |
+ |-------------------------------------------------------------|
+ |  A Mode         $Amode  |  B Mode         $Bmode  |  G Mode        $Gmode  |
+ |  RegDomain    $regdomain |  Turbo2 Disable $turbo2Disable  |  Turbo5 Disable $turbo5Disable |
+ |  RF Silent      $rfKill  |  XR5 Disable    $disableXr5  |  XR2 Disable    $disableXr2 |
+ | Turbo 2W Maximum dBm $turbo2WMaxPower5 | cckOfdmDelta(10x) $cckOfdmDelta | GainI $gainI   |
+ |-------------------------------------------------------------|
+ |  worldwide roaming        $WWR  |  False detect backoff  $falseDetectBackoff  |
+ |  device type              $deviceType  |  Switch Settling Time  $switchSettling  |
+ |  ADC Desired size       $adcDesiredSize  |  XLNA Gain             $xlnaGain  |
+ |  tx end to XLNA on     $txEndToXLNAOn  |  Threashold 62         $thresh62  |
+ |  tx end to XPA off     $txEndToXPAOff  |  tx end to XPA on      $txFrameToXPAOn  |
+ |  PGA Desired size       $pgaDesiredSize  |  Noise Threshold        $noiseFloorThresh  |
+ |  XPD Gain              $xgain  |  XPD                      $xpd  |
+ |  txrx Attenuation      $txrxAtten  |  Capabilities        $capField  |
+ |  Antenna control    0  $antennaControl0  |  Antenna control    1  $antennaControl1  |
+ |  Antenna control    2  $antennaControl2  |  Antenna control    3  $antennaControl3  |
+ |  Antenna control    4  $antennaControl4  |  Antenna control    5  $antennaControl5  |
+ |  Antenna control    6  $antennaControl6  |  Antenna control    7  $antennaControl7  |
+ |  Antenna control    8  $antennaControl8  |  Antenna control    9  $antennaControl9  |
+ |  Antenna control   10  $antennaControl10  |                              |
+ |-------------------------------------------------------------|
+ |   OB_1   $obFor24g   |   B_OB    $ob2GHz1   |   DB_1   $dbFor24g  |   B_DB     $db2GHz1   |
+ ===============================================================
+
+ =========5112 Power Calibration Information==========
+ | XPD_Gain_mask     $xpd_mask | Number of channels    $numChannels |
+ | XPD_GAIN            $singleXpd |                          |
+ |======|========|========|========|========|========|
+ | freq |  pwr1  |  pwr2  |  pwr3  |  pwr4  | maxPow |
+ |      | [pcd]  | [pcd]  | [pcd]  | [pcd]  |        |
+ |======|========|========|========|========|========|
+.forchan
+ | $freq | $pwr_t4_0  | $pwr_t4_1  | $pwr_t4_2  | $pwr_t4_3  | $maxpow  |
+ |      |  [$pcdac0]  |  [$pcdac1]  |  [$pcdac2]  |  [$pcdac3]  |        |
+ |======|========|========|========|========|========|
+.endforchan
+
+ =============Target Power Info================
+ |     rate     |     $testChannel0     |     $testChannel1     |
+ |==============|==============|==============|
+ |     6-24     |     $pwr6_24_0     |     $pwr6_24_1     |
+ |      35      |     $pwr36_0     |     $pwr36_1     |
+ |      48      |     $pwr48_0     |     $pwr48_1     |
+ |      54      |     $pwr54_0     |     $pwr54_1     |
+ |==============|==============|==============|
+
+ =======================Test Group Band Edge Power========================
+.forctl
+ |                                                                       |
+ | CTL: $CTL   [ $ctlRD $ctlType mode ]                                    |
+ |=======|=======|=======|=======|=======|=======|=======|=======|=======|
+ | edge  | $rdEdge0  | $rdEdge1  | $rdEdge2  | $rdEdge3  | $rdEdge4  | $rdEdge5  | $rdEdge6  | $rdEdge7  |
+ |=======|=======|=======|=======|=======|=======|=======|=======|=======|
+ | power | $rdEdgePower0  | $rdEdgePower1  | $rdEdgePower2  | $rdEdgePower3  | $rdEdgePower4  | $rdEdgePower5  | $rdEdgePower6  | $rdEdgePower7  |
+ |=======|=======|=======|=======|=======|=======|=======|=======|=======|
+ | flag  |  $rdEdgeFlag0   |  $rdEdgeFlag1   |  $rdEdgeFlag2   |  $rdEdgeFlag3   |  $rdEdgeFlag4   |  $rdEdgeFlag5   |  $rdEdgeFlag6   |  $rdEdgeFlag7   |
+ =========================================================================
+.endforctl
+.endmode

@@ -1,0 +1,125 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) [year] [your name]
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\" Note: The date here should be updated whenever a non-trivial
+.\" change is made to the manual page.
+.Dd July 31, 2015
+.Dt EXAMPLE 4 i386
+.Os
+.Sh NAME
+.Nm example
+.Nd "example device driver manual page"
+.Sh SYNOPSIS
+To compile the driver into the kernel,
+place the following lines in the
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device example"
+.Cd "options EXAMPLE_DEBUG"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+example_load="YES"
+.Ed
+.Sh DESCRIPTION
+This is an example device driver manual page for the
+.Nm
+driver.
+It is intended that this example can be used as a template
+when writing a new manual page.
+.Pp
+The
+.Nm
+driver supports the following ioctls:
+.Bl -tag -width ".Dv EIOCNULL"
+.It Dv EIOCEX
+Example ioctl.
+.It Dv EIOCNULL
+Example ioctl.
+.El
+.Pp
+If the kernel is compiled with the
+.Dv EXAMPLE_DEBUG
+option, then additional debugging messages will be displayed.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following example hardware:
+.Pp
+.Bl -bullet -compact
+.It
+Example device 4201
+.It
+Example device 4202
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/null" -compact
+.It Pa /dev/null
+Example of a file in the
+.Sx FILES
+section.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "example%d: example diagnostic message."
+An example of a diagnostic message.
+.It "example%d: another example diagnostic message."
+Self explanatory.
+.El
+.Sh SEE ALSO
+.Xr example 1 ,
+.Xr example 3 ,
+.Xr mdoc 7 ,
+.Xr example 9
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 2.2 .
+.Pp
+Some other common
+.Sx HISTORY
+section examples are:
+.Pp
+The
+.Nm
+manual page example first appeared in
+.Bx 4.4 .
+.Pp
+The
+.Nm
+manual page example first appeared in
+.At v6 .
+.Sh AUTHORS
+This manual page was written by
+.An Mike Pritchard Aq Mt mpp@FreeBSD.org .
+.Sh BUGS
+The actual code for this device driver is vaporware.

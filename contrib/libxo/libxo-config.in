@@ -1,0 +1,119 @@
+#! /bin/sh
+#
+# $Id$
+#
+# Copyright 2011-2014, Juniper Networks, Inc.
+# All rights reserved.
+# This SOFTWARE is licensed under the LICENSE provided in the
+# ../Copyright file. By downloading, installing, copying, or otherwise
+# using the SOFTWARE, you agree to be bound by the terms of that
+# LICENSE.
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+includedir=@includedir@
+libdir=@libdir@
+
+usage()
+{
+    cat <<EOF
+Usage: libxo-config [OPTION]
+
+Known values for OPTION are:
+
+  --prefix=DIR		change libxo prefix [default $prefix]
+  --exec-prefix=DIR	change libxo exec prefix [default $exec_prefix]
+  --libs		print library linking information
+  --bindir              print the bin directory
+  --cflags		print pre-processor and compiler flags
+  --share		print share directory
+  --help		display this help and exit
+  --version		output version information
+EOF
+
+    exit $1
+}
+
+if test $# -eq 0; then
+    usage 1
+fi
+
+cflags=false
+libs=false
+
+while test $# -gt 0; do
+    case "$1" in
+    -*=*) optarg=`echo "$1" | sed 's/[-_a-zA-Z0-9]*=//'` ;;
+    *) optarg= ;;
+    esac
+
+    case "$1" in
+    --prefix=*)
+	prefix=$optarg
+	includedir=$prefix/include
+	libdir=$prefix/lib
+	;;
+
+    --prefix)
+	echo $prefix
+	;;
+
+    --exec-prefix=*)
+      exec_prefix=$optarg
+      libdir=$exec_prefix/lib
+      ;;
+
+    --exec-prefix)
+      echo $exec_prefix
+      ;;
+
+    --version)
+	echo @VERSION@
+	exit 0
+	;;
+
+    --help)
+	usage 0
+	;;
+
+    --cflags)
+       	echo -I@XO_INCLUDEDIR@ @XO_CFLAGS@
+       	;;
+
+
+    --share)
+       	echo @XO_SHAREDIR@
+       	;;
+
+    --bindir)
+       	echo @XO_BINDIR@
+       	;;
+
+    --libdir)
+       	echo @XO_LIBDIR@
+       	;;
+
+
+    --libs)
+        if [ "`uname`" = "Linux" ]
+	then
+	    if [ "@XO_LIBDIR@" = "-L/usr/lib" -o "@XO_LIBDIR@" = "-L/usr/lib64" ]
+	    then
+		echo @XO_LIBS@ 
+	    else
+		echo -L@XO_LIBDIR@ @XO_LIBS@ 
+	    fi
+	else
+	    echo -L@XO_LIBDIR@ @XO_LIBS@
+	fi
+       	;;
+
+    *)
+	usage
+	exit 1
+	;;
+    esac
+    shift
+done
+
+exit 0

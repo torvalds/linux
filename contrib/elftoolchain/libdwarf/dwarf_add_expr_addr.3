@@ -1,0 +1,111 @@
+.\" Copyright (c) 2011 Kai Wang
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_add_expr_addr.3 3640 2018-10-14 14:09:13Z jkoshy $
+.\"
+.Dd September 9, 2011
+.Dt DWARF_ADD_EXPR_ADDR 3
+.Os
+.Sh NAME
+.Nm dwarf_add_expr_addr ,
+.Nm dwarf_add_expr_addr_b
+.Nd add a DW_OP_addr location expression
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft "Dwarf_Unsigned"
+.Fo dwarf_add_expr_addr
+.Fa "Dwarf_P_Expr expr"
+.Fa "Dwarf_Unsigned address"
+.Fa "Dwarf_Signed sym_index"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft "Dwarf_Unsigned"
+.Fo dwarf_add_expr_addr_b
+.Fa "Dwarf_P_Expr expr"
+.Fa "Dwarf_Unsigned address"
+.Fa "Dwarf_Unsigned sym_index"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+Function
+.Fn dwarf_add_expr_addr_b
+adds a
+.Dv DW_OP_addr
+location expression to the location expression descriptor referenced
+by argument
+.Ar expr .
+.Pp
+Argument
+.Ar expr
+should reference a location expression descriptor allocated using
+the function
+.Xr dwarf_new_expr 3 .
+.Pp
+Argument
+.Ar address
+specifies the operand, a relocatable address value.
+.Pp
+Argument
+.Ar sym_index
+specifies the ELF symbol index of the symbol to be used for
+relocation.
+.Pp
+If argument
+.Ar err
+is not NULL, it will be used to store error information in case
+of an error.
+.Pp
+Function
+.Fn dwarf_add_expr_addr
+is deprecated.
+It is similar to function
+.Fn dwarf_add_expr_addr_b
+except that it cannot handle all possible symbol index values.
+.Sh RETURN VALUES
+On success, these functions return the size in bytes of the location
+expression byte stream generated.
+In case of an error, these functions return
+.Dv DW_DLV_NOCOUNT
+and set the argument
+.Ar err .
+.Sh ERRORS
+These functions can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Ar expr
+was NULL.
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered during the execution of
+the function.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_add_AT_location_expr 3 ,
+.Xr dwarf_add_expr_gen 3 ,
+.Xr dwarf_expr_current_offset 3 ,
+.Xr dwarf_expr_into_block 3 ,
+.Xr dwarf_new_expr 3

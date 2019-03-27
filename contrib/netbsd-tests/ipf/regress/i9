@@ -1,0 +1,17 @@
+pass in from localhost to localhost with short,frags
+block in from any to any with ipopts
+pass in from any to any with opt nop,rr,zsu
+pass in from any to any with opt nop,rr,zsu not opt ssrr,lsrr
+pass in from localhost to localhost and not frag
+pass in from localhost to localhost with frags,frag-body
+pass in proto tcp all flags S with not oow keep state
+block in proto tcp all with oow
+pass in proto tcp all flags S with not bad,bad-src,bad-nat
+block in proto tcp all flags S with bad,not bad-src,not bad-nat
+pass in quick all with not short
+block in quick all with not nat
+pass in quick all with not frag-body
+block in quick all with not lowttl
+pass in all with mbcast,not bcast,multicast,not state,not ipopts
+block in all with not mbcast,bcast,not multicast,state
+pass in from any to any with opt mtur,mtup,encode,ts,tr,sec,cipso,satid,ssrr,visa,imitd,eip,finn,dps,sdb,nsapa,rtralrt,ump,addext,e-sec

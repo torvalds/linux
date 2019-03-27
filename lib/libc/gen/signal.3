@@ -1,0 +1,276 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)signal.3	8.3 (Berkeley) 4/19/94
+.\" $FreeBSD$
+.\"
+.Dd December 1, 2017
+.Dt SIGNAL 3
+.Os
+.Sh NAME
+.Nm signal
+.Nd simplified software signal facilities
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In signal.h
+.\" The following is Quite Ugly, but syntactically correct.
+.\" Don't try to fix it.
+.Ft void
+.Fn \*(lp*signal "int sig" "void \*(lp*func\*(rp\*(lpint\*(rp\*(rp\*(rp\*(lpint"
+.Pp
+or in
+.Fx Ap s
+equivalent but easier to read typedef'd version:
+.Ft typedef "void \*(lp*sig_t\*(rp \*(lpint\*(rp" ;
+.Pp
+.Ft sig_t
+.Fn signal "int sig" "sig_t func"
+.Sh DESCRIPTION
+This
+.Fn signal
+facility
+is a simplified interface to the more general
+.Xr sigaction 2
+facility.
+.Pp
+Signals allow the manipulation of a process from outside its
+domain as well as allowing the process to manipulate itself or
+copies of itself (children).
+There are two general types of signals:
+those that cause termination of a process and those that do not.
+Signals which cause termination of a program might result from
+an irrecoverable error or might be the result of a user at a terminal
+typing the `interrupt' character.
+Signals are used when a process is stopped because it wishes to access
+its control terminal while in the background (see
+.Xr tty 4 ) .
+Signals are optionally generated
+when a process resumes after being stopped,
+when the status of child processes changes,
+or when input is ready at the control terminal.
+Most signals result in the termination of the process receiving them
+if no action
+is taken; some signals instead cause the process receiving them
+to be stopped, or are simply discarded if the process has not
+requested otherwise.
+Except for the
+.Dv SIGKILL
+and
+.Dv SIGSTOP
+signals, the
+.Fn signal
+function allows for a signal to be caught, to be ignored, or to generate
+an interrupt.
+These signals are defined in the file
+.In signal.h :
+.Bl -column No ".Dv SIGVTALRM" "create core image"
+.It Sy "Num" Ta Sy "Name" Ta Sy "Default Action" Ta Sy "Description"
+.It 1 Ta Dv SIGHUP Ta "terminate process" Ta "terminal line hangup"
+.It 2 Ta Dv SIGINT Ta "terminate process" Ta "interrupt program"
+.It 3 Ta Dv SIGQUIT Ta "create core image" Ta "quit program"
+.It 4 Ta Dv SIGILL Ta "create core image" Ta "illegal instruction"
+.It 5 Ta Dv SIGTRAP Ta "create core image" Ta "trace trap"
+.It 6 Ta Dv SIGABRT Ta "create core image" Ta "abort program"
+(formerly
+.Dv SIGIOT )
+.It 7 Ta Dv SIGEMT Ta "create core image" Ta "emulate instruction executed"
+.It 8 Ta Dv SIGFPE Ta "create core image" Ta "floating-point exception"
+.It 9 Ta Dv SIGKILL Ta "terminate process" Ta "kill program"
+.It 10 Ta Dv SIGBUS Ta "create core image" Ta "bus error"
+.It 11 Ta Dv SIGSEGV Ta "create core image" Ta "segmentation violation"
+.It 12 Ta Dv SIGSYS Ta "create core image" Ta "non-existent system call invoked"
+.It 13 Ta Dv SIGPIPE Ta "terminate process" Ta "write on a pipe with no reader"
+.It 14 Ta Dv SIGALRM Ta "terminate process" Ta "real-time timer expired"
+.It 15 Ta Dv SIGTERM Ta "terminate process" Ta "software termination signal"
+.It 16 Ta Dv SIGURG Ta "discard signal" Ta "urgent condition present on socket"
+.It 17 Ta Dv SIGSTOP Ta "stop process" Ta "stop (cannot be caught or ignored)"
+.It 18 Ta Dv SIGTSTP Ta "stop process" Ta "stop signal generated from keyboard"
+.It 19 Ta Dv SIGCONT Ta "discard signal" Ta "continue after stop"
+.It 20 Ta Dv SIGCHLD Ta "discard signal" Ta "child status has changed"
+.It 21 Ta Dv SIGTTIN Ta "stop process" Ta "background read attempted from"
+control terminal
+.It 22 Ta Dv SIGTTOU Ta "stop process" Ta "background write attempted to"
+control terminal
+.It 23 Ta Dv SIGIO Ta "discard signal" Ta Tn "I/O"
+is possible on a descriptor (see
+.Xr fcntl 2 )
+.It 24 Ta Dv SIGXCPU Ta "terminate process" Ta "cpu time limit exceeded (see"
+.Xr setrlimit 2 )
+.It 25 Ta Dv SIGXFSZ Ta "terminate process" Ta "file size limit exceeded (see"
+.Xr setrlimit 2 )
+.It 26 Ta Dv SIGVTALRM Ta "terminate process" Ta "virtual time alarm (see"
+.Xr setitimer 2 )
+.It 27 Ta Dv SIGPROF Ta "terminate process" Ta "profiling timer alarm (see"
+.Xr setitimer 2 )
+.It 28 Ta Dv SIGWINCH Ta "discard signal" Ta "Window size change"
+.It 29 Ta Dv SIGINFO Ta "discard signal" Ta "status request from keyboard"
+.It 30 Ta Dv SIGUSR1 Ta "terminate process" Ta "User defined signal 1"
+.It 31 Ta Dv SIGUSR2 Ta "terminate process" Ta "User defined signal 2"
+.It 32 Ta Dv SIGTHR Ta "terminate process" Ta "thread interrupt"
+.It 33 Ta Dv SIGLIBRT Ta "terminate process" Ta "real-time library interrupt"
+.El
+.Pp
+The
+.Fa sig
+argument specifies which signal was received.
+The
+.Fa func
+procedure allows a user to choose the action upon receipt of a signal.
+To set the default action of the signal to occur as listed above,
+.Fa func
+should be
+.Dv SIG_DFL .
+A
+.Dv SIG_DFL
+resets the default action.
+To ignore the signal
+.Fa func
+should be
+.Dv SIG_IGN .
+This will cause subsequent instances of the signal to be ignored
+and pending instances to be discarded.
+If
+.Dv SIG_IGN
+is not used,
+further occurrences of the signal are
+automatically blocked and
+.Fa func
+is called.
+.Pp
+The handled signal is unblocked when the
+function returns and
+the process continues from where it left off when the signal occurred.
+.Bf -symbolic
+Unlike previous signal facilities, the handler
+func() remains installed after a signal has been delivered.
+.Ef
+.Pp
+For some system calls, if a signal is caught while the call is
+executing and the call is prematurely terminated,
+the call is automatically restarted.
+Any handler installed with
+.Xr signal 3
+will have the
+.Dv SA_RESTART
+flag set, meaning that any restartable system call will not return on
+receipt of a signal.
+The affected system calls include
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr sendto 2 ,
+.Xr recvfrom 2 ,
+.Xr sendmsg 2
+and
+.Xr recvmsg 2
+on a communications channel or a low speed device
+and during a
+.Xr ioctl 2
+or
+.Xr wait 2 .
+However, calls that have already committed are not restarted,
+but instead return a partial success (for example, a short read count).
+These semantics could be changed with
+.Xr siginterrupt 3 .
+.Pp
+When a process which has installed signal handlers forks,
+the child process inherits the signals.
+All caught signals may be reset to their default action by a call
+to the
+.Xr execve 2
+function;
+ignored signals remain ignored.
+.Pp
+If a process explicitly specifies
+.Dv SIG_IGN
+as the action for the signal
+.Dv SIGCHLD ,
+the system will not create zombie processes when children
+of the calling process exit.
+As a consequence, the system will discard the exit status
+from the child processes.
+If the calling process subsequently issues a call to
+.Xr wait 2
+or equivalent, it will block until all of the calling process's
+children terminate, and then return a value of \-1 with
+.Va errno
+set to
+.Er ECHILD .
+.Pp
+See
+.Xr sigaction 2
+for a list of functions
+that are considered safe for use in signal handlers.
+.Sh RETURN VALUES
+The previous action is returned on a successful call.
+Otherwise, SIG_ERR is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn signal
+function
+will fail and no action will take place if one of the
+following occur:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa sig
+argument
+is not a valid signal number.
+.It Bq Er EINVAL
+An attempt is made to ignore or supply a handler for
+.Dv SIGKILL
+or
+.Dv SIGSTOP .
+.El
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr kill 2 ,
+.Xr ptrace 2 ,
+.Xr sigaction 2 ,
+.Xr sigaltstack 2 ,
+.Xr sigprocmask 2 ,
+.Xr sigsuspend 2 ,
+.Xr wait 2 ,
+.Xr fpsetmask 3 ,
+.Xr setjmp 3 ,
+.Xr siginterrupt 3 ,
+.Xr tty 4
+.Sh HISTORY
+The
+.Fn signal
+function appeared in
+.At v4 .
+The current
+.Nm
+facility appeared in
+.Bx 4.0 .
+The option to avoid the creation of child zombies through ignoring
+.Dv SIGCHLD
+appeared in
+.Fx 5.0 .

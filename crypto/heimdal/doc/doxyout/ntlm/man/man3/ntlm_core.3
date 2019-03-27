@@ -1,0 +1,421 @@
+.TH "Heimdal NTLM library" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalntlmlibrary" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+Heimdal NTLM library \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "void \fBheim_ntlm_free_buf\fP (struct \fBntlm_buf\fP *p)"
+.br
+.ti -1c
+.RI "void \fBheim_ntlm_free_targetinfo\fP (struct ntlm_targetinfo *ti)"
+.br
+.ti -1c
+.RI "int \fBheim_ntlm_encode_targetinfo\fP (const struct ntlm_targetinfo *ti, int ucs2, struct \fBntlm_buf\fP *data)"
+.br
+.ti -1c
+.RI "int \fBheim_ntlm_decode_targetinfo\fP (const struct \fBntlm_buf\fP *data, int ucs2, struct ntlm_targetinfo *ti)"
+.br
+.ti -1c
+.RI "void \fBheim_ntlm_free_type1\fP (struct \fBntlm_type1\fP *data)"
+.br
+.ti -1c
+.RI "int \fBheim_ntlm_encode_type1\fP (const struct \fBntlm_type1\fP *type1, struct \fBntlm_buf\fP *data)"
+.br
+.ti -1c
+.RI "void \fBheim_ntlm_free_type2\fP (struct \fBntlm_type2\fP *data)"
+.br
+.ti -1c
+.RI "int \fBheim_ntlm_encode_type2\fP (const struct \fBntlm_type2\fP *type2, struct \fBntlm_buf\fP *data)"
+.br
+.ti -1c
+.RI "void \fBheim_ntlm_free_type3\fP (struct \fBntlm_type3\fP *data)"
+.br
+.ti -1c
+.RI "int \fBheim_ntlm_encode_type3\fP (const struct \fBntlm_type3\fP *type3, struct \fBntlm_buf\fP *data)"
+.br
+.ti -1c
+.RI "int \fBheim_ntlm_nt_key\fP (const char *password, struct \fBntlm_buf\fP *key)"
+.br
+.ti -1c
+.RI "int \fBheim_ntlm_calculate_ntlm1\fP (void *key, size_t len, unsigned char challenge[8], struct \fBntlm_buf\fP *answer)"
+.br
+.ti -1c
+.RI "int \fBheim_ntlm_build_ntlm1_master\fP (void *key, size_t len, struct \fBntlm_buf\fP *session, struct \fBntlm_buf\fP *master)"
+.br
+.ti -1c
+.RI "int \fBheim_ntlm_build_ntlm2_master\fP (void *key, size_t len, struct \fBntlm_buf\fP *blob, struct \fBntlm_buf\fP *session, struct \fBntlm_buf\fP *master)"
+.br
+.ti -1c
+.RI "int \fBheim_ntlm_keyex_unwrap\fP (struct \fBntlm_buf\fP *baseKey, struct \fBntlm_buf\fP *encryptedSession, struct \fBntlm_buf\fP *session)"
+.br
+.ti -1c
+.RI "int \fBheim_ntlm_ntlmv2_key\fP (const void *key, size_t len, const char *username, const char *target, unsigned char ntlmv2[16])"
+.br
+.ti -1c
+.RI "int \fBheim_ntlm_calculate_lm2\fP (const void *key, size_t len, const char *username, const char *target, const unsigned char serverchallenge[8], unsigned char ntlmv2[16], struct \fBntlm_buf\fP *answer)"
+.br
+.ti -1c
+.RI "int \fBheim_ntlm_calculate_ntlm2\fP (const void *key, size_t len, const char *username, const char *target, const unsigned char serverchallenge[8], const struct \fBntlm_buf\fP *infotarget, unsigned char ntlmv2[16], struct \fBntlm_buf\fP *answer)"
+.br
+.ti -1c
+.RI "int \fBheim_ntlm_verify_ntlm2\fP (const void *key, size_t len, const char *username, const char *target, time_t now, const unsigned char serverchallenge[8], const struct \fBntlm_buf\fP *answer, struct \fBntlm_buf\fP *infotarget, unsigned char ntlmv2[16])"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+The NTLM core functions implement the string2key generation function, message encode and decode function, and the hash function functions. 
+.SH "Function Documentation"
+.PP 
+.SS "int heim_ntlm_build_ntlm1_master (void * key, size_t len, struct \fBntlm_buf\fP * session, struct \fBntlm_buf\fP * master)"
+.PP
+Generates an NTLMv1 session random with assosited session master key.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIkey\fP the ntlm v1 key 
+.br
+\fIlen\fP length of key 
+.br
+\fIsession\fP generated session nonce, should be freed with \fBheim_ntlm_free_buf()\fP. 
+.br
+\fImaster\fP calculated session master key, should be freed with \fBheim_ntlm_free_buf()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+In case of success 0 is return, an errors, a errno in what went wrong. 
+.RE
+.PP
+
+.SS "int heim_ntlm_build_ntlm2_master (void * key, size_t len, struct \fBntlm_buf\fP * blob, struct \fBntlm_buf\fP * session, struct \fBntlm_buf\fP * master)"
+.PP
+Generates an NTLMv2 session random with associated session master key.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIkey\fP the NTLMv2 key 
+.br
+\fIlen\fP length of key 
+.br
+\fIblob\fP the NTLMv2 'blob' 
+.br
+\fIsession\fP generated session nonce, should be freed with \fBheim_ntlm_free_buf()\fP. 
+.br
+\fImaster\fP calculated session master key, should be freed with \fBheim_ntlm_free_buf()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+In case of success 0 is return, an errors, a errno in what went wrong. 
+.RE
+.PP
+
+.SS "int heim_ntlm_calculate_lm2 (const void * key, size_t len, const char * username, const char * target, const unsigned char serverchallenge[8], unsigned char ntlmv2[16], struct \fBntlm_buf\fP * answer)"
+.PP
+Calculate LMv2 response
+.PP
+\fBParameters:\fP
+.RS 4
+\fIkey\fP the ntlm key 
+.br
+\fIlen\fP length of key 
+.br
+\fIusername\fP name of the user, as sent in the message, assumed to be in UTF8. 
+.br
+\fItarget\fP the name of the target, assumed to be in UTF8. 
+.br
+\fIserverchallenge\fP challenge as sent by the server in the type2 message. 
+.br
+\fIntlmv2\fP calculated session key 
+.br
+\fIanswer\fP ntlm response answer, should be freed with \fBheim_ntlm_free_buf()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+In case of success 0 is return, an errors, a errno in what went wrong. 
+.RE
+.PP
+
+.SS "int heim_ntlm_calculate_ntlm1 (void * key, size_t len, unsigned char challenge[8], struct \fBntlm_buf\fP * answer)"
+.PP
+Calculate NTLMv1 response hash
+.PP
+\fBParameters:\fP
+.RS 4
+\fIkey\fP the ntlm v1 key 
+.br
+\fIlen\fP length of key 
+.br
+\fIchallenge\fP sent by the server 
+.br
+\fIanswer\fP calculated answer, should be freed with \fBheim_ntlm_free_buf()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+In case of success 0 is return, an errors, a errno in what went wrong. 
+.RE
+.PP
+
+.SS "int heim_ntlm_calculate_ntlm2 (const void * key, size_t len, const char * username, const char * target, const unsigned char serverchallenge[8], const struct \fBntlm_buf\fP * infotarget, unsigned char ntlmv2[16], struct \fBntlm_buf\fP * answer)"
+.PP
+Calculate NTLMv2 response
+.PP
+\fBParameters:\fP
+.RS 4
+\fIkey\fP the ntlm key 
+.br
+\fIlen\fP length of key 
+.br
+\fIusername\fP name of the user, as sent in the message, assumed to be in UTF8. 
+.br
+\fItarget\fP the name of the target, assumed to be in UTF8. 
+.br
+\fIserverchallenge\fP challenge as sent by the server in the type2 message. 
+.br
+\fIinfotarget\fP infotarget as sent by the server in the type2 message. 
+.br
+\fIntlmv2\fP calculated session key 
+.br
+\fIanswer\fP ntlm response answer, should be freed with \fBheim_ntlm_free_buf()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+In case of success 0 is return, an errors, a errno in what went wrong. 
+.RE
+.PP
+
+.SS "int heim_ntlm_decode_targetinfo (const struct \fBntlm_buf\fP * data, int ucs2, struct ntlm_targetinfo * ti)"
+.PP
+Decodes an NTLM targetinfo message
+.PP
+\fBParameters:\fP
+.RS 4
+\fIdata\fP input data buffer with the encode NTLM targetinfo message 
+.br
+\fIucs2\fP if the strings should be encoded with ucs2 (selected by flag in message). 
+.br
+\fIti\fP the decoded target info, should be freed with \fBheim_ntlm_free_targetinfo()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+In case of success 0 is return, an errors, a errno in what went wrong. 
+.RE
+.PP
+
+.SS "int heim_ntlm_encode_targetinfo (const struct ntlm_targetinfo * ti, int ucs2, struct \fBntlm_buf\fP * data)"
+.PP
+Encodes a ntlm_targetinfo message.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIti\fP the ntlm_targetinfo message to encode. 
+.br
+\fIucs2\fP ignored 
+.br
+\fIdata\fP is the return buffer with the encoded message, should be freed with \fBheim_ntlm_free_buf()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+In case of success 0 is return, an errors, a errno in what went wrong. 
+.RE
+.PP
+
+.SS "int heim_ntlm_encode_type1 (const struct \fBntlm_type1\fP * type1, struct \fBntlm_buf\fP * data)"
+.PP
+Encodes an \fBntlm_type1\fP message.
+.PP
+\fBParameters:\fP
+.RS 4
+\fItype1\fP the \fBntlm_type1\fP message to encode. 
+.br
+\fIdata\fP is the return buffer with the encoded message, should be freed with \fBheim_ntlm_free_buf()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+In case of success 0 is return, an errors, a errno in what went wrong. 
+.RE
+.PP
+
+.SS "int heim_ntlm_encode_type2 (const struct \fBntlm_type2\fP * type2, struct \fBntlm_buf\fP * data)"
+.PP
+Encodes an \fBntlm_type2\fP message.
+.PP
+\fBParameters:\fP
+.RS 4
+\fItype2\fP the \fBntlm_type2\fP message to encode. 
+.br
+\fIdata\fP is the return buffer with the encoded message, should be freed with \fBheim_ntlm_free_buf()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+In case of success 0 is return, an errors, a errno in what went wrong. 
+.RE
+.PP
+
+.SS "int heim_ntlm_encode_type3 (const struct \fBntlm_type3\fP * type3, struct \fBntlm_buf\fP * data)"
+.PP
+Encodes an \fBntlm_type3\fP message.
+.PP
+\fBParameters:\fP
+.RS 4
+\fItype3\fP the \fBntlm_type3\fP message to encode. 
+.br
+\fIdata\fP is the return buffer with the encoded message, should be freed with \fBheim_ntlm_free_buf()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+In case of success 0 is return, an errors, a errno in what went wrong. 
+.RE
+.PP
+
+.SS "void heim_ntlm_free_buf (struct \fBntlm_buf\fP * p)"
+.PP
+heim_ntlm_free_buf frees the ntlm buffer
+.PP
+\fBParameters:\fP
+.RS 4
+\fIp\fP buffer to be freed 
+.RE
+.PP
+
+.SS "void heim_ntlm_free_targetinfo (struct ntlm_targetinfo * ti)"
+.PP
+Frees the ntlm_targetinfo message
+.PP
+\fBParameters:\fP
+.RS 4
+\fIti\fP targetinfo to be freed 
+.RE
+.PP
+
+.SS "void heim_ntlm_free_type1 (struct \fBntlm_type1\fP * data)"
+.PP
+Frees the \fBntlm_type1\fP message
+.PP
+\fBParameters:\fP
+.RS 4
+\fIdata\fP message to be freed 
+.RE
+.PP
+
+.SS "void heim_ntlm_free_type2 (struct \fBntlm_type2\fP * data)"
+.PP
+Frees the \fBntlm_type2\fP message
+.PP
+\fBParameters:\fP
+.RS 4
+\fIdata\fP message to be freed 
+.RE
+.PP
+
+.SS "void heim_ntlm_free_type3 (struct \fBntlm_type3\fP * data)"
+.PP
+Frees the \fBntlm_type3\fP message
+.PP
+\fBParameters:\fP
+.RS 4
+\fIdata\fP message to be freed 
+.RE
+.PP
+
+.SS "int heim_ntlm_keyex_unwrap (struct \fBntlm_buf\fP * baseKey, struct \fBntlm_buf\fP * encryptedSession, struct \fBntlm_buf\fP * session)"
+.PP
+Given a key and encrypted session, unwrap the session key
+.PP
+\fBParameters:\fP
+.RS 4
+\fIbaseKey\fP the sessionBaseKey 
+.br
+\fIencryptedSession\fP encrypted session, type3.session field. 
+.br
+\fIsession\fP generated session nonce, should be freed with \fBheim_ntlm_free_buf()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+In case of success 0 is return, an errors, a errno in what went wrong. 
+.RE
+.PP
+
+.SS "int heim_ntlm_nt_key (const char * password, struct \fBntlm_buf\fP * key)"
+.PP
+Calculate the NTLM key, the password is assumed to be in UTF8.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIpassword\fP password to calcute the key for. 
+.br
+\fIkey\fP calcuted key, should be freed with \fBheim_ntlm_free_buf()\fP.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+In case of success 0 is return, an errors, a errno in what went wrong. 
+.RE
+.PP
+
+.SS "int heim_ntlm_ntlmv2_key (const void * key, size_t len, const char * username, const char * target, unsigned char ntlmv2[16])"
+.PP
+Generates an NTLMv2 session key.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIkey\fP the ntlm key 
+.br
+\fIlen\fP length of key 
+.br
+\fIusername\fP name of the user, as sent in the message, assumed to be in UTF8. 
+.br
+\fItarget\fP the name of the target, assumed to be in UTF8. 
+.br
+\fIntlmv2\fP the ntlmv2 session key
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 on success, or an error code on failure. 
+.RE
+.PP
+
+.SS "int heim_ntlm_verify_ntlm2 (const void * key, size_t len, const char * username, const char * target, time_t now, const unsigned char serverchallenge[8], const struct \fBntlm_buf\fP * answer, struct \fBntlm_buf\fP * infotarget, unsigned char ntlmv2[16])"
+.PP
+Verify NTLMv2 response.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIkey\fP the ntlm key 
+.br
+\fIlen\fP length of key 
+.br
+\fIusername\fP name of the user, as sent in the message, assumed to be in UTF8. 
+.br
+\fItarget\fP the name of the target, assumed to be in UTF8. 
+.br
+\fInow\fP the time now (0 if the library should pick it up itself) 
+.br
+\fIserverchallenge\fP challenge as sent by the server in the type2 message. 
+.br
+\fIanswer\fP ntlm response answer, should be freed with \fBheim_ntlm_free_buf()\fP. 
+.br
+\fIinfotarget\fP infotarget as sent by the server in the type2 message. 
+.br
+\fIntlmv2\fP calculated session key
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+In case of success 0 is return, an errors, a errno in what went wrong. 
+.RE
+.PP
+

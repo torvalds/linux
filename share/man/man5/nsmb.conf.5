@@ -1,0 +1,167 @@
+.\" Copyright (c) 2003
+.\" Originally written by Sergey A. Osokin
+.\" Rewritten by Tom Rhodes
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 2, 2018
+.Dt NSMB.CONF 5
+.Os
+.Sh NAME
+.Nm nsmb.conf
+.Nd configuration file for
+.Tn SMB
+requests
+.Sh DESCRIPTION
+The
+.Nm
+file contains information about the computers, users, and shares
+or mount points for the
+.Tn SMB
+network protocol.
+.Pp
+The configuration files are loaded in the following order:
+.Pp
+.Bl -enum -offset indent -width "" -compact
+.It
+.Pa ~/.nsmbrc
+.It
+.Pa /etc/nsmb.conf
+.El
+.Pp
+As a result,
+.Pa /etc/nsmb.conf
+settings
+override those in
+.Pa ~/.nsmbrc .
+.Pp
+The configuration hierarchy is made up of several sections,
+each section containing a few or several lines of parameters
+and their assigned values.
+Each of these sections must begin with a section name enclosed within
+square brackets, similar to:
+.Pp
+.D1 Bq Ar section_name
+.Pp
+The end of each section is marked by either the start of a new section,
+or by the abrupt ending of the file, commonly referred to as the
+.Tn EOF .
+Each section may contain zero or more parameters such as:
+.Pp
+.D1 Bq Ar section_name
+.D1 Ar key Ns = Ns Ar value
+.Pp
+where
+.Ar key
+represents a parameter name, and
+.Ar value
+would be the parameter's assigned value.
+.Pp
+The
+.Tn SMB
+library uses the following information for section names:
+.Pp
+.Bl -tag -width indent -compact
+.It Ic A)
+.Bq Li default
+.It Ic B)
+.Bq Ar SERVER
+.It Ic C)
+.Bq Ar SERVER : Ns Ar USER
+.It Ic D)
+.Op Ar SERVER : Ns Ar USER : Ns Ar SHARE
+.El
+.Pp
+Possible keywords may include:
+.Bl -column ".Va retry_count" ".Sy Section"
+.It Sy "Keyword	Section	Comment"
+.It Sy "	A B C D"
+.It Va addr        Ta "- + - -" Ta "IP address of SMB server"
+.It Va charsets    Ta "- + + +" Ta "local:remote charset pair"
+.It Va nbns        Ta "+ + - -" Ta "address of NetBIOS name server (WINS)"
+.It Va nbscope     Ta "+ + - -" Ta "NetBIOS scope"
+.It Va nbtimeout   Ta "+ + - -" Ta "timeout for NetBIOS name servers"
+.It Va password    Ta "- - + +" Ta "plain text or simple encrypted password used to access the given share"
+.It Va retry_count Ta "+ + - -" Ta "number of retries before connection is marked as broken"
+.It Va timeout     Ta "+ + - -" Ta "SMB request timeout"
+.It Va workgroup   Ta "+ + + +" Ta "workgroup name"
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/nsmb.conf"
+.It Pa /etc/nsmb.conf
+The default remote mount-point configuration file.
+.It Pa ~/.nsmbrc
+The user specific remote mount-point configuration file.
+.El
+.Sh EXAMPLES
+What follows is a sample configuration file which may,
+or may not match your environment:
+.Bd -literal -offset indent
+# Configuration file for example.com
+[default]
+workgroup=SALES
+# The 'FSERVER' is an NT server.
+[FSERVER]
+charsets=koi8-r:cp866
+addr=fserv.example.com
+# User specific data for FSERVER
+[FSERVER:MYUSER]
+password=$$16144562c293a0314e6e1
+.Ed
+.Pp
+All lines which begin with the
+.Ql #
+character are comments and will not be parsed.
+The
+.Dq Li default
+section describes the default workgroup or domain, in this case
+.Dq Li SALES .
+The next section depicted here as
+.Dq Li FSERVER ,
+defines a server section and then assigns it a charset which is only
+required when Cyrillic characters are not used.
+The hostname value,
+.Dq Li fserv.example.com ,
+is also assigned in this section.
+.Dq Li FSERVER:USER ,
+defines the user settings and is useful for saving the password used
+during a specific connection.
+The password may be plaintext or obfuscated using simple encryption.
+The simple encrypted password starts with the `$$1' symbols.
+Warning: the encryption function is very weak and intended only to hide
+clear text passwords.
+If the use of simple encryption is desired, the following command may be
+used on a password:
+.Bd -literal -offset indent
+smbutil crypt
+.Ed
+.Sh SEE ALSO
+.Xr smbutil 1 ,
+.Xr mount_smbfs 8
+.Sh AUTHORS
+This manual page was written by
+.An -nosplit
+.An Sergey Osokin Aq Mt osa@FreeBSD.org
+and
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org .

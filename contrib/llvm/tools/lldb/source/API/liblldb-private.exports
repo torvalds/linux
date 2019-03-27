@@ -1,0 +1,6 @@
+_ZN4lldb*
+_ZNK4lldb*
+_ZN12lldb_private*
+_ZNK12lldb_private*
+init_lld*
+PyInit__lldb*

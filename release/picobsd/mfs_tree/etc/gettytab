@@ -1,0 +1,42 @@
+# $FreeBSD$
+#	from: @(#)gettytab	5.14 (Berkeley) 3/27/91
+#
+default:\
+	:cb:ce:ck:lc:fd#1000:cl:im=\r\nPicoBSD (%h) (%t)\r\n\r\n:sp#1200:
+
+# 20140527 add nc (no carrier) to the pc console entry to fix
+# devices with no handshake after svn 264175 (this also affects bhyve)
+P|Pc|Pc console|3wire:\
+	:nc:\
+	:ht:np:sp#115200:
+
+# Fixed speed entries
+2|std.9600|9600-baud:\
+	:nc:np:sp#9600:
+g|std.19200|19200-baud:\
+	:np:sp#19200:
+std.38400|38400-baud:\
+	:np:sp#38400:
+std.57600|57600-baud:\
+	:np:sp#57600:
+std.115200|115200-baud:\
+	:np:sp#115200:
+
+# Entry specifying explicit device settings.  See termios(4) and
+# /usr/include/termios.h, too.  The entry forces the tty into
+# CLOCAL mode (so no DCD is required), and uses Xon/Xoff flow control.
+#
+# cflags: CLOCAL | HUPCL | CREAD | CS8
+# oflags: OPOST | ONLCR | OXTABS
+# iflags: IXOFF | IXON | ICRNL | IGNPAR
+# lflags: IEXTEN | ICANON | ISIG | ECHOCTL | ECHO | ECHOK | ECHOE | ECHOKE
+#
+# The `0' flags don't have input enabled.  The `1' flags don't echo.
+# (Echoing is done inside getty itself.)
+#
+local.9600|CLOCAL tty @ 9600 Bd:\
+	:c0#0x0000c300:c1#0x0000cb00:c2#0x0000cb00:\
+	:o0#0x00000007:o1#0x00000002:o2#0x00000007:\
+	:i0#0x00000704:i1#0x00000000:i2#0x00000704:\
+	:l0#0x000005cf:l1#0x00000000:l2#0x000005cf:\
+	:sp#9600:

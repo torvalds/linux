@@ -1,0 +1,143 @@
+# $FreeBSD$ 
+# $NetBSD: ISO-8859.alias,v 1.3 2006/12/13 15:46:34 tnozaki Exp $
+
+1	cp819
+1	csisolatin1
+1	ibm819
+1	iso_8859-1
+1	iso_8859-1:1987
+1	iso-ir-100
+1	iso8859-1
+1	l1
+1	latin1
+
+2	cp912
+2	csisolatin2
+2	ibm912
+2	iso_8859-2
+2	iso_8859-2:1987
+2	iso-ir-101
+2	iso8859-2
+2	l2
+2	latin2
+
+3	cp913
+3	csisolatin3
+3	ibm913
+3	iso_8859-3
+3	iso_8859-3:1988
+3	iso-ir-109
+3	iso8859-3
+3	l3
+3	latin3
+
+4	cp914
+4	csisolatin4
+4	ibm914
+4	iso_8859-4
+4	iso_8859-4:1988
+4	iso-ir-110
+4	iso8859-4
+4	l4
+4	latin4
+
+5	cp915
+5	csisolatincyrillic
+5	cyrillic
+5	ibm915
+5	iso_8859-5
+5	iso_8859-5:1988
+5	iso8859-5
+5	iso-ir-144
+
+6	cp1089
+6	csisolatinarabic
+6	arabic
+6	asmo-708
+6	ecma-114
+6	ibm1089
+6	iso_8859-6
+6	iso_8859-6:1987
+6	iso8859-6
+6	iso-ir-127
+
+7	cp813
+7	csisolatingreek
+7	ecma-118
+7	elot_928
+7	greek
+7	greek8
+7	ibm813
+7	iso_8859-7
+7	iso_8859-7:1987
+7	iso_8859-7:2003
+7	iso8859-7
+7	iso-ir-126
+
+8	cp916
+8	csisolatinhebrew
+8	hebrew
+8	ibm916
+8	iso_8859-8
+8	iso_8859-8:1988
+8	iso8859-8
+8	iso-ir-138
+
+9	cp920
+9	csisolatin5
+9	ibm920
+9	iso_8859-9
+9	iso_8859-9:1989
+9	iso-ir-148
+9	iso8859-9
+9	l5
+9	latin5
+
+10	csisolatin6
+10	iso_8859-10
+10	iso_8859-10:1992
+10	iso-ir-157
+10	iso8859-10
+10	l6
+10	latin6
+
+11	iso_8859-11
+11	iso-ir-166
+11	iso8859-11
+11	tis.2533-1
+11	tis-620
+11	tis620
+11	tis620.2529-1
+11	tis620.2533-0
+11	tis620-0
+
+13	iso_8859-13
+13	iso_8859-13:1998
+13	iso-ir-179
+13	iso8859-13
+13	l7
+13	latin7
+
+14	iso-celtic
+14	iso_8859-14
+14	iso_8859-14:1998
+14	iso-ir-199
+14	iso8859-14
+14	l8
+14	latin8
+
+15	cp923
+15	ibm923
+15	iso_8859-15
+15	iso_8859-15:1998
+15	iso-ir-203
+15	iso8859-15
+15	l9
+15	latin9
+
+16	iso_8859-16
+16	iso_8859-16:2001
+16	iso-ir-226
+16	iso8859-16
+16	l10
+16	latin10

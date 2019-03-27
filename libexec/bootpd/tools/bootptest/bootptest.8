@@ -1,0 +1,77 @@
+.\" $FreeBSD$
+.\"
+.\" bootptest.8
+.Dd June 10, 1993
+.Dt BOOTPTEST 8
+.Os
+.Sh NAME
+.Nm bootptest
+.Nd "send BOOTP queries and print responses"
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar bootfile
+.Op Fl h
+.Op Fl m Ar magic_number
+.Ar server\-name
+.Op Ar template\-file
+.Sh DESCRIPTION
+The
+.Nm
+utility sends BOOTP requests to the host specified as
+.Ar server\-name
+at one\-second intervals until either a response is received,
+or until ten requests have gone unanswered.
+After a response is received,
+.Nm
+will wait one more second listening for additional responses.
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl f Ar bootfile
+Fill in the boot file field of the request with
+.Ar bootfile .
+.It Fl h
+Use the hardware (Ethernet) address to identify the client.
+By default, the IP address is copied into the request
+indicating that this client already knows its IP address.
+.It Fl m Ar magic_number
+Initialize the first word of the vendor options field with
+.Ar magic_number .
+.El
+.Pp
+A
+.Ar template\-file
+may be specified, in which case
+.Nm
+uses the (binary) contents of this file to initialize the
+.Em options
+area of the request packet.
+.Sh SEE ALSO
+.Xr bootpd 8
+.Rs
+.%O RFC951
+.%T "BOOTSTRAP PROTOCOL (BOOTP)"
+.Re
+.Rs
+.%O RFC1048
+.%T "BOOTP Vendor Information Extensions"
+.Re
+.Sh AUTHORS
+The
+.Nm
+utility is a combination of original and derived works.
+The main program module
+.Pq Pa bootptest.c
+is original work by
+.An Gordon W. Ross Aq Mt gwr@mc.com .
+The packet printing module
+.Pq Pa print\-bootp.c
+is a slightly modified
+version of a file from the
+.Bx
+.Xr tcpdump 1
+program.
+.Pp
+This program includes software developed by the University of
+California, Lawrence Berkeley Laboratory and its contributors.
+(See the copyright notice in
+.Pa print\-bootp.c . )

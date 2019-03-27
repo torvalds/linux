@@ -1,0 +1,318 @@
+.\" Copyright (C) 1996
+.\" David L. Nugent.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY DAVID L. NUGENT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL DAVID L. NUGENT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 30, 2007
+.Dt PW.CONF 5
+.Os
+.Sh NAME
+.Nm pw.conf
+.Nd format of the pw.conf configuration file
+.Sh DESCRIPTION
+The file
+.Pa /etc/pw.conf
+contains configuration data for the
+.Xr pw 8
+utility.
+The
+.Xr pw 8
+utility is used for maintenance of the system password and group
+files, allowing users and groups to be added, deleted and changed.
+This file may be modified via the
+.Xr pw 8
+command using the
+.Ar useradd
+command and the
+.Fl D
+option, or by editing it directly with a text editor.
+.Pp
+Each line in
+.Pa /etc/pw.conf
+is treated either a comment or as configuration data;
+blank lines and lines commencing with a
+.Ql \&#
+character are considered comments, and any remaining lines are
+examined for a leading keyword, followed by corresponding data.
+.Pp
+Keywords recognized by
+.Xr pw 8
+are:
+.Bl -tag -width password_days -offset indent -compact
+.It defaultpasswd
+affect passwords generated for new users
+.It reuseuids
+reuse gaps in uid sequences
+.It reusegids
+reuse gaps in gid sequences
+.It nispasswd
+path to the
+.Tn NIS
+passwd database
+.It skeleton
+where to obtain default home contents
+.It newmail
+mail to send to new users
+.It logfile
+log user/group modifications to this file
+.It home
+root directory for home directories
+.It homemode
+permissions for home directory
+.It shellpath
+paths in which to locate shell programs
+.It shells
+list of valid shells (without path)
+.It defaultshell
+default shell (without path)
+.It defaultgroup
+default group
+.It extragroups
+add new users to this groups
+.It defaultclass
+place new users in this login class
+.It minuid
+.It maxuid
+range of valid default user ids
+.It mingid
+.It maxgid
+range of valid default group ids
+.It expire_days
+days after which account expires
+.It password_days
+days after which password expires
+.El
+.Pp
+Valid values for
+.Ar defaultpasswd
+are:
+.Bl -tag -width password_days -offset indent -compact
+.It no
+disable login on newly created accounts
+.It yes
+force the password to be the account name
+.It none
+force a blank password
+.It random
+generate a random password
+.El
+.Pp
+The second and third options are insecure and should be avoided if
+possible on a publicly accessible system.
+The first option requires that the superuser run
+.Xr passwd 1
+to set a password before the account may be used.
+This may also be useful for creating administrative accounts.
+The final option causes
+.Xr pw 8
+to respond by printing a randomly generated password on stdout.
+This is the preferred and most secure option.
+The
+.Xr pw 8
+utility also provides a method of setting a specific password for the new
+user via a filehandle (command lines are not secure).
+.Pp
+Both
+.Ar reuseuids
+and
+.Ar reusegids
+determine the method by which new user and group id numbers are
+generated.
+A
+.Ql \&yes
+in this field will cause
+.Xr pw 8
+to search for the first unused user or group id within the allowed
+range, whereas a
+.Ql \&no
+will ensure that no other existing user or group id within the range
+is numerically lower than the new one generated, and therefore avoids
+reusing gaps in the user or group id sequence that are caused by
+previous user or group deletions.
+Note that if the default group is not specified using the
+.Ar defaultgroup
+keyword,
+.Xr pw 8
+will create a new group for the user and attempt to keep the new
+user's uid and gid the same.
+If the new user's uid is currently in use as a group id, then the next
+available group id is chosen instead.
+.Pp
+On
+.Tn NIS
+servers which maintain a separate passwd database to
+.Pa /etc/master.passwd ,
+this option allows the additional file to be concurrently updated
+as user records are added, modified or removed.
+If blank or set to 'no', no additional database is updated.
+An absolute pathname must be used.
+.Pp
+The
+.Ar skeleton
+keyword nominates a directory from which the contents of a user's
+new home directory is constructed.
+This is
+.Pa /usr/share/skel
+by default.
+The
+.Xr pw 8 Ns 's
+.Fl m
+option causes the user's home directory to be created and populated
+using the files contained in the
+.Ar skeleton
+directory.
+.Pp
+To send an initial email to new users, the
+.Ar newmail
+keyword may be used to specify a path name to a file containing
+the message body of the message to be sent.
+To avoid sending mail when accounts are created, leave this entry
+blank or specify
+.Ql \&no .
+.Pp
+The
+.Ar logfile
+option allows logging of password file modifications into the
+nominated log file.
+To avoid creating or adding to such a logfile, then leave this
+field blank or specify
+.Ql \&no .
+.Pp
+The
+.Ar home
+keyword is mandatory.
+This specifies the location of the directory in which all new user
+home directories are created.
+.Pp
+The
+.Ar homemode
+keyword is optional.
+It specifies the creation mask of the user's home directory and is modified by
+.Xr umask 2 .
+.Pp
+The
+.Ar shellpath
+keyword specifies a list of directories - separated by colons
+.Ql \&:
+- which contain the programs used by the login shells.
+.Pp
+The
+.Ar shells
+keyword specifies a list of programs available for use as login
+shells.
+This list is a comma-separated list of shell names which should
+not contain a path.
+These shells must exist in one of the directories nominated by
+.Ar shellpath .
+.Pp
+The
+.Ar defaultshell
+keyword nominates which shell program to use for new users when
+none is specified on the
+.Xr pw 8
+command line.
+.Pp
+The
+.Ar defaultgroup
+keyword defines the primary group (the group id number in the
+password file) used for new accounts.
+If left blank, or the word
+.Ql \&no
+is used, then each new user will have a corresponding group of
+their own created automatically.
+This is the recommended procedure for new users as it best secures each
+user's files against interference by other users of the system
+irrespective of the
+.Em umask
+normally used by the user.
+.Pp
+The
+.Ar extragroups
+keyword provides an automatic means of placing new users into groups within
+the
+.Pa /etc/groups
+file.
+This is useful where all users share some resources, and is preferable
+to placing users into the same primary group.
+The effect of this keyword can be overridden using the
+.Fl G
+option on the
+.Xr pw 8
+command line.
+.Pp
+The
+.Ar defaultclass
+field determines the login class (See
+.Xr login.conf 5 )
+that new users will be allocated unless overwritten by
+.Xr pw 8 .
+.Pp
+The
+.Ar minuid ,
+.Ar maxuid ,
+.Ar mingid ,
+.Ar maxgid
+keywords determine the allowed ranges of automatically allocated user
+and group id numbers.
+The default values for both user and group ids are 1000 and 32000 as
+minimum and maximum respectively.
+The user and group id's actually used when creating an account with
+.Xr pw 8
+may be overridden using the
+.Fl u
+and
+.Fl g
+command line options.
+.Pp
+The
+.Ar expire_days
+and
+.Ar password_days
+are used to automatically calculate the number of days from the date
+on which an account is created when the account will expire or the
+user will be forced to change the account's password.
+A value of
+.Ql \&0
+in either field will disable the corresponding (account or password)
+expiration date.
+.Sh LIMITS
+The maximum line length of
+.Pa /etc/pw.conf
+is 1024 characters.
+Longer lines will be skipped and treated
+as comments.
+.Sh FILES
+.Bl -tag -width /etc/master.passwd -compact
+.It Pa /etc/pw.conf
+.It Pa /etc/passwd
+.It Pa /etc/master.passwd
+.It Pa /etc/group
+.El
+.Sh SEE ALSO
+.Xr passwd 1 ,
+.Xr umask 2 ,
+.Xr group 5 ,
+.Xr login.conf 5 ,
+.Xr passwd 5 ,
+.Xr pw 8

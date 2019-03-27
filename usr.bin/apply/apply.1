@@ -1,0 +1,140 @@
+.\" Copyright (c) 1983, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)apply.1	8.2 (Berkeley) 4/4/94
+.\" $FreeBSD$
+.\"
+.Dd December 13, 2006
+.Dt APPLY 1
+.Os
+.Sh NAME
+.Nm apply
+.Nd apply a command to a set of arguments
+.Sh SYNOPSIS
+.Nm
+.Op Fl a Ar c
+.Op Fl d
+.Op Fl #
+.Ar command argument ...
+.Sh DESCRIPTION
+The
+.Nm
+utility runs the named
+.Ar command
+on each
+argument
+.Ar argument
+in turn.
+.Pp
+Character sequences of the form
+.Dq Li \&%d
+in
+.Ar command ,
+where
+.Sq Li d
+is a digit from 1 to 9, are replaced by the
+.Li d Ns \'th
+following unused
+.Ar argument .
+In this case, the largest digit number of arguments are discarded for
+each execution of
+.Ar command .
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl #
+Normally arguments are taken singly; the optional number
+.Fl #
+specifies the number of arguments to be passed to
+.Ar command .
+If the number is zero,
+.Ar command
+is run, without arguments, once for each
+.Ar argument .
+.Pp
+If any sequences of
+.Dq Li \&%d
+occur in
+.Ar command ,
+the
+.Fl #
+option is ignored.
+.It Fl a Ar c
+The use of the character
+.Sq Li %
+as a magic character may be changed with the
+.Fl a
+option.
+.It Fl d
+Display the commands that would have been executed, but do not actually
+execute them.
+.El
+.Sh ENVIRONMENT
+The following environment variable affects the execution of
+.Nm :
+.Bl -tag -width SHELL
+.It Ev SHELL
+Pathname of shell to use.
+If this variable is not defined, the Bourne shell is used.
+.El
+.Sh FILES
+.Bl -tag -width /bin/sh -compact
+.It Pa /bin/sh
+default shell
+.El
+.Sh EXAMPLES
+.Bl -tag -width apply -compact
+.It Li "apply echo *"
+is similar to
+.Xr ls 1 ;
+.It Li "apply \-2 cmp a1 b1 a2 b2 a3 b3"
+compares the `a' files to the `b' files;
+.It Li "apply \-0 who 1 2 3 4 5"
+runs
+.Xr who 1
+5 times; and
+.It Li "apply \'ln %1 /usr/joe\'" *
+links all files in the current directory to the directory
+.Pa /usr/joe .
+.El
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .
+.Sh AUTHORS
+.An Rob Pike
+.Sh BUGS
+Shell metacharacters in
+.Ar command
+may have bizarre effects; it is best to enclose complicated
+commands in single quotes
+.Pq '' .
+.Pp
+The
+.Nm
+utility does not recognize multibyte characters.

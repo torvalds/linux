@@ -1,0 +1,12 @@
+pass in on ed0 proto tcp from localhost to localhost port = telnet keep state
+block in log first on lo0 proto tcp/udp from any to any port = echo keep state
+pass in proto udp from localhost to localhost port = 20499 keep frag
+pass in proto udp from localhost to localhost port = 2049 keep frag(strict)
+pass in proto udp from localhost to localhost port = 53 keep state keep frags
+pass in on ed0 out-via vx0 proto udp from any to any keep state
+pass out on ppp0 in-via le0 proto tcp from any to any keep state
+pass in on ed0,vx0 out-via vx0,ed0 proto udp from any to any keep state
+pass in proto tcp from any port gt 1024 to localhost port eq 1024 keep state
+pass in proto tcp all flags S keep state(strict,newisn,no-icmp-err,limit 101,age 600)
+pass in proto tcp all flags S keep state(loose,newisn,no-icmp-err,limit 101,age 600)
+pass in proto udp all keep state(age 10/20,sync)

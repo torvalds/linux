@@ -1,0 +1,116 @@
+.\" Generated from openpam_readword.c by gendoc.pl
+.\" $OpenPAM: openpam_readword.c 938 2017-04-30 21:34:42Z des $
+.Dd February 24, 2019
+.Dt OPENPAM_READWORD 3
+.Os
+.Sh NAME
+.Nm openpam_readword
+.Nd read a word from a file, respecting shell quoting rules
+.Sh SYNOPSIS
+.In sys/types.h
+.In stdio.h
+.In security/pam_appl.h
+.In security/openpam.h
+.Ft "char *"
+.Fn openpam_readword "FILE *f" "int *lineno" "size_t *lenp"
+.Sh DESCRIPTION
+The
+.Fn openpam_readword
+function reads the next word from a file, and
+returns it in a NUL-terminated buffer allocated with
+.Xr malloc 3 .
+.Pp
+A word is a sequence of non-whitespace characters.
+However, whitespace characters can be included in a word if quoted or
+escaped according to the following rules:
+.Bl -bullet
+.It
+An unescaped single or double quote introduces a quoted string,
+which ends when the same quote character is encountered a second
+time.
+The quotes themselves are stripped.
+.It
+Within a single- or double-quoted string, all whitespace characters,
+including the newline character, are preserved as-is.
+.It
+Outside a quoted string, a backslash escapes the next character,
+which is preserved as-is, unless that character is a newline, in
+which case it is discarded and reading continues at the beginning of
+the next line as if the backslash and newline had not been there.
+In all cases, the backslash itself is discarded.
+.It
+Within a single-quoted string, double quotes and backslashes are
+preserved as-is.
+.It
+Within a double-quoted string, a single quote is preserved as-is,
+and a backslash is preserved as-is unless used to escape a double
+quote.
+.El
+.Pp
+In addition, if the first non-whitespace character on the line is a
+hash character (#), the rest of the line is discarded.
+If a hash character occurs within a word, however, it is preserved
+as-is.
+A backslash at the end of a comment does cause line continuation.
+.Pp
+If
+.Fa lineno
+is not
+.Dv NULL ,
+the integer variable it points to is
+incremented every time a quoted or escaped newline character is read.
+.Pp
+If
+.Fa lenp
+is not
+.Dv NULL ,
+the length of the word (after quotes and
+backslashes have been removed) is stored in the variable it points to.
+.Sh RETURN VALUES
+If successful, the
+.Fn openpam_readword
+function returns a pointer to a
+dynamically allocated NUL-terminated string containing the first word
+encountered on the line.
+.Pp
+The caller is responsible for releasing the returned buffer by passing
+it to
+.Xr free 3 .
+.Pp
+If
+.Fn openpam_readword
+reaches the end of the line or file before any
+characters are copied to the word, it returns
+.Dv NULL .
+In the former
+case, the newline is pushed back to the file.
+.Pp
+If
+.Fn openpam_readword
+reaches the end of the file while a quote or
+backslash escape is in effect, it sets
+.Va errno
+to
+.Dv EINVAL
+and returns
+.Dv NULL .
+.Sh IMPLEMENTATION NOTES
+The parsing rules are intended to be equivalent to the normal POSIX
+shell quoting rules.
+Any discrepancy is a bug and should be reported to the author along
+with sample input that can be used to reproduce the error.
+.Pp
+.Sh SEE ALSO
+.Xr openpam_readline 3 ,
+.Xr openpam_readlinev 3 ,
+.Xr pam 3
+.Sh STANDARDS
+The
+.Fn openpam_readword
+function is an OpenPAM extension.
+.Sh AUTHORS
+The
+.Fn openpam_readword
+function and this manual page were
+developed by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

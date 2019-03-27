@@ -1,0 +1,557 @@
+Received: from austin.bsdi.com (root{9l9gVDC7v8t3dlv0OtXTlby6X1zBWd56}@austin.BSDI.COM [205.230.224.49]) by knecht.Sendmail.ORG (8.8.2/8.8.2) with ESMTP id JAA05023 for <eric@sendmail.org>; Thu, 31 Oct 1996 09:29:47 -0800 (PST)
+Received: from austin.bsdi.com (localhost [127.0.0.1]) by austin.bsdi.com (8.7.4/8.7.3) with ESMTP id KAA19250; Thu, 31 Oct 1996 10:28:18 -0700 (MST)
+Message-Id: <199610311728.KAA19250@austin.bsdi.com>
+To: Eric Allman <eric@sendmail.org>
+cc: marc@xfree86.org
+Subject: Updated mailprio_0_93.shar
+From: Tony Sanders <sanders@earth.com>
+Organization: Berkeley Software Design, Inc.
+Date: Thu, 31 Oct 1996 10:28:14 -0700
+Sender: sanders@austin.bsdi.com
+
+Eric, please update contrib/mailprio in the sendmail distribution
+to this version at your convenience.  Thanks.
+
+I've also made this available in:
+	ftp://ftp.earth.com/pub/postmaster/
+
+mailprio_0_93.shar follows...
+
+#!/bin/sh
+# This is a shell archive (produced by GNU sharutils 4.1).
+# To extract the files from this archive, save it to some FILE, remove
+# everything before the `!/bin/sh' line above, then type `sh FILE'.
+#
+# Made on 1996-10-31 10:07 MST by <sanders@earth.com>.
+#
+# Existing files will *not* be overwritten unless `-c' is specified.
+#
+# This shar contains:
+# length mode       name
+# ------ ---------- ------------------------------------------
+#   8260 -rwxr-xr-x mailprio
+#   3402 -rw-r--r-- mailprio.README
+#   4182 -rwxr-xr-x mailprio_mkdb
+#
+touch -am 1231235999 $$.touch >/dev/null 2>&1
+if test ! -f 1231235999 && test -f $$.touch; then
+  shar_touch=touch
+else
+  shar_touch=:
+  echo
+  echo 'WARNING: not restoring timestamps.  Consider getting and'
+  echo "installing GNU \`touch', distributed in GNU File Utilities..."
+  echo
+fi
+rm -f 1231235999 $$.touch
+#
+# ============= mailprio ==============
+if test -f 'mailprio' && test X"$1" != X"-c"; then
+  echo 'x - skipping mailprio (file already exists)'
+else
+  echo 'x - extracting mailprio (text)'
+  sed 's/^X//' << 'SHAR_EOF' > 'mailprio' &&
+#!/usr/bin/perl
+#
+# mailprio,v 1.4 1996/10/31 17:03:52 sanders Exp
+# Version 0.93 -- Thu Oct 31 09:42:25 MST 1996
+#
+# mailprio -- setup mail priorities for a mailing list
+#
+# Copyright 1994, 1996, Tony Sanders <sanders@earth.com>
+# Rights are hereby granted to download, use, modify, sell, copy, and
+# redistribute this software so long as the original copyright notice
+# and this list of conditions remain intact and modified versions are
+# noted as such.
+#
+# I would also very much appreciate it if you could send me a copy of
+# any changes you make so I can possibly integrate them into my version.
+#
+# Options:
+#     -p priority_database      -- Specify database to use if not default
+#     -q                        -- Process sendmail V8.8.X queue format files
+#
+# Sort mailing lists or sendmail queue files by mailprio database.
+# Files listed on the command line are locked and then sorted in place, in
+# the absence of any file arguments it will read STDIN and write STDOUT.
+#
+# Examples:
+#     mailprio < mailing-list > sorted_list
+#     mailprio mailing-list1 mailing-list2 mailing-list3 ...
+#     mailprio -q /var/spool/mqueue/qf*
+# To double check results:
+#     sort sorted_list > checkit; sort orig-mailing-list | diff - checkit
+#
+# To get the maximum value from a transaction delay based priority
+# function you need to reorder the distribution list (and the mail
+# queue files for that matter) fairly often; you could even have
+# your mailing list software reorder the list before each outgoing
+# message.
+#
+$usage = "Usage: mailprio [-p priodb] [-q] [mailinglists ...]\n";
+$home = "/home/sanders/lists";
+$priodb = "$home/mailprio";
+$locking = "flock";     # "flock" or "fcntl"
+X
+# In shell, it would go more or less like this:
+#     old_mailprio > /tmp/a
+#     fgrep -f lists/inet-access /tmp/a | sed -e 's/^.......//' > /tmp/b
+#         ; /tmp/b contains list of known users, faster delivery first
+#     fgrep -v -f /tmp/b lists/inet-access > /tmp/c
+#         ; put all unknown stuff at the top of new list for now
+#     echo '# -----' >> /tmp/c
+#     cat /tmp/b >> /tmp/c
+X
+$qflag = 0;
+while ($main'ARGV[0] =~ /^-/) {
+X        $args = shift;
+X        if ($args =~ m/\?/) { print $usage; exit 0; }
+X        if ($args =~ m/q/) { $qflag = 1; }
+X        if ($args =~ m/p/) {
+X            $priodb = shift || die $usage, "-p requires argument\n"; }
+}
+X
+push(@main'ARGV, '-') if ($#ARGV < 0);
+while ($file = shift @ARGV) {
+X    if ($file eq "-") {
+X        $source = "main'STDIN";
+X        $sink = "main'STDOUT";
+X    } else {
+X        $sink = $source = "FH";
+X        open($source, "+< $file") || do { warn "$file: $!\n"; next; };
+X        if (!defined &seize($source, &LOCK_EX | &LOCK_NB)) {
+X            # couldn't get lock, just skip it
+X            close($source);
+X            next;
+X        }
+X    }
+X
+X    local(*list);
+X    &process($source, *list);
+X
+X    # setup to write output
+X    if ($file ne "-") {
+X	# zero the file (FH is hardcoded because truncate requires it, sigh)
+X        seek(FH, 0, 0) || die "$file: seek: $!\n";
+X        truncate(FH, 0) || die "$file: truncate: $!\n";
+X    }
+X
+X    # do the dirty work
+X    &output($sink, *list);
+X
+X    close($sink) || warn "$file: $!\n";         # close clears the lock
+X    close($source);
+}
+X
+sub process {
+X    # Setup %list and @list
+X    local($source, *list) = @_;
+X    local($addr, $canon);
+X    while ($addr = <$source>) {
+X        chop $addr;
+X        next if $addr =~ /^# ----- /;                   # that's our line
+X        push(@list, $addr), next if $addr =~ /^\s*#/;   # save comments
+X	if ($qflag) {
+X	    next if $addr =~ m/^\./;
+X	    push(@list, $addr), next if !($addr =~ s/^(R[^:]*:)//);
+X	    $Rflags = $1;
+X	}
+X        $canon = &canonicalize((&simplify_address($addr))[0]);
+X        unless (defined $canon) {
+X            warn "$file: no address found: $addr\n";
+X            push(@list, ($qflag?$Rflags:'') . $addr);       # save it as is
+X            next;
+X        }
+X        if (defined $list{$canon}) {
+X            warn "$file: duplicate: ``$addr -> $canon''\n";
+X            push(@list, ($qflag?$Rflags:'') . $addr);       # save it as is
+X            next;
+X        }
+X        $list{$canon} = $addr;
+X    }
+}
+X
+sub output {
+X    local($sink, *list) = @_;
+X
+X    local($to, *prio, *userprio, *useracct);
+X    dbmopen(%prio, $priodb, 0644) || die "$priodb: $!\n";
+X    foreach $to (keys %list) {
+X        if (defined $prio{$to}) {
+X            # add to list of found users (%userprio) and remove from %list
+X            # so that we know what users were not yet prioritized
+X            $userprio{$to} = $prio{$to};        # priority
+X            $useracct{$to} = $list{$to};        # string
+X            delete $list{$to};
+X        }
+X    }
+X    dbmclose(%prio);
+X
+X    # Put all the junk we found at the very top
+X    # (this might not always be a feature)
+X    print $sink join("\n", @list), "\n" if int(@list);
+X
+X    # prioritized list of users
+X    if (int(keys %userprio)) {
+X        print $sink '# ----- prioritized users', "\n" unless $qflag;
+X        foreach $to (sort by_userprio keys %userprio) {
+X            die "Opps! Something is seriously wrong with useracct: $to\n"
+X                unless defined $useracct{$to};
+X	    print $sink 'RFD:' if $qflag;
+X            print $sink $useracct{$to}, "\n";
+X        }
+X    }
+X
+X    # unprioritized users go last, fast accounts will get moved up eventually
+X    # XXX: should go before the "really slow" prioritized users?
+X    if (int(keys %list)) {
+X        print $sink '# ----- unprioritized users', "\n" unless $qflag;
+X        foreach $to (keys %list) {
+X            print $sink 'RFD:' if $qflag;
+X            print $sink $list{$to}, "\n";
+X        }
+X    }
+X
+X    print $sink ".\n" if $qflag;
+}
+X
+sub by_userprio {
+X    # sort first by priority, then by key.
+X    $userprio{$a} <=> $userprio{$b} || $a cmp $b;
+}
+X
+# REPL-LIB ---------------------------------------------------------------
+X
+sub canonicalize {
+X    local($addr) = @_;
+X    # lowercase, strip leading/trailing whitespace
+X    $addr =~ y/A-Z/a-z/; $addr =~ s/^\s+//; $addr =~ s/\s+$//; $addr;
+}
+X
+# @addrs = simplify_address($addr);
+sub simplify_address {
+X    local($_) = shift;
+X    1 while s/\([^\(\)]*\)//g;          # strip comments
+X    1 while s/"[^"]*"//g;               # strip comments
+X    split(/,/);                         # split into parts
+X    foreach (@_) {
+X        1 while s/.*<(.*)>.*/\1/;
+X        s/^\s+//;
+X        s/\s+$//;
+X    }
+X    @_;
+}
+X
+### ---- ###
+#
+# Error codes
+#
+do 'errno.ph';
+eval 'sub ENOENT {2;}'          unless defined &ENOENT;
+eval 'sub EINTR {4;}'           unless defined &EINTR;
+eval 'sub EINVAL {22;}'         unless defined &EINVAL;
+X
+#
+# File locking
+#
+do 'sys/unistd.ph';
+eval 'sub SEEK_SET {0;}'        unless defined &SEEK_SET;
+X
+do 'sys/file.ph';
+eval 'sub LOCK_SH {0x01;}'      unless defined &LOCK_SH;
+eval 'sub LOCK_EX {0x02;}'      unless defined &LOCK_EX;
+eval 'sub LOCK_NB {0x04;}'      unless defined &LOCK_NB;
+eval 'sub LOCK_UN {0x08;}'      unless defined &LOCK_UN;
+X
+do 'fcntl.ph';
+eval 'sub F_GETFD {1;}'         unless defined &F_GETFD;
+eval 'sub F_SETFD {2;}'         unless defined &F_SETFD;
+eval 'sub F_GETFL {3;}'         unless defined &F_GETFL;
+eval 'sub F_SETFL {4;}'         unless defined &F_SETFL;
+eval 'sub O_NONBLOCK {0x0004;}' unless defined &O_NONBLOCK;
+eval 'sub F_SETLK {8;}'         unless defined &F_SETLK;        # nonblocking
+eval 'sub F_SETLKW {9;}'        unless defined &F_SETLKW;       # lockwait
+eval 'sub F_RDLCK {1;}'         unless defined &F_RDLCK;
+eval 'sub F_UNLCK {2;}'         unless defined &F_UNLCK;
+eval 'sub F_WRLCK {3;}'         unless defined &F_WRLCK;
+$s_flock = "sslll";             # struct flock {type, whence, start, len, pid}
+X
+# return undef on failure
+sub seize {
+X    local ($FH, $lock) = @_;
+X    local ($ret);
+X    if ($locking eq "flock") {
+X        $ret = flock($FH, $lock);
+X	return ($ret == 0 ? undef : 1);
+X    } else {
+X        local ($flock, $type) = 0;
+X        if ($lock & &LOCK_SH) { $type = &F_RDLCK; }
+X        elsif ($lock & &LOCK_EX) { $type = &F_WRLCK; }
+X        elsif ($lock & &LOCK_UN) { $type = &F_UNLCK; }
+X        else { $! = &EINVAL; return undef; }
+X        $flock = pack($s_flock, $type, &SEEK_SET, 0, 0, 0);
+X        $ret = fcntl($FH, ($lock & &LOCK_NB) ? &F_SETLK : &F_SETLKW, $flock);
+X	return ($ret == -1 ? undef : 1);
+X    }
+}
+SHAR_EOF
+  $shar_touch -am 1031100396 'mailprio' &&
+  chmod 0755 'mailprio' ||
+  echo 'restore of mailprio failed'
+  shar_count="`wc -c < 'mailprio'`"
+  test 8260 -eq "$shar_count" ||
+    echo "mailprio: original size 8260, current size $shar_count"
+fi
+# ============= mailprio.README ==============
+if test -f 'mailprio.README' && test X"$1" != X"-c"; then
+  echo 'x - skipping mailprio.README (file already exists)'
+else
+  echo 'x - extracting mailprio.README (text)'
+  sed 's/^X//' << 'SHAR_EOF' > 'mailprio.README' &&
+mailprio README
+X
+mailprio.README,v 1.2 1996/10/31 17:03:54 sanders Exp
+Version 0.93 -- Thu Oct 31 09:42:25 MST 1996
+X
+Copyright 1994, 1996, Tony Sanders <sanders@earth.com>
+Rights are hereby granted to download, use, modify, sell, copy, and
+redistribute this software so long as the original copyright notice
+and this list of conditions remain intact and modified versions are
+noted as such.
+X
+I would also very much appreciate it if you could send me a copy of
+any changes you make so I can possibly integrate them into my version.
+X
+The current version of this and other related mail tools are available in:
+X	ftp://ftp.earth.com/pub/postmaster/
+X
+Even with the new persistent host status in sendmail V8.8.X this
+function can still reduce the lag time distributing mail to a large
+group of people.  It also makes it a little more likely that everyone
+will get mailing list mail in the order sent which can help reduce
+duplicate postings.  Basically, the goal is to put slow hosts at
+the bottom of the list so that as many fast hosts are delivered
+as quickly as possible.
+X
+CONTENTS
+========
+X
+X    mailprio.README		-- simple docs
+X    mailprio			-- the address sorter
+X    mailprio_mkdb		-- builds the database for the sorter
+X
+X
+CHANGES
+=======
+X    Version 0.92
+X	Initial public release.
+X
+X    Version 0.93
+X	Updated to make use of the (somewhat) new xdelay statistic.
+X	Changed -q flag to support new sendmail queue file format (RFD:<addr>).
+X	Fixed argument parsing bug.
+X	Fixed bug with database getting "garbage" in it.
+X
+X
+CONFIGURATION
+=============
+X
+X    You need to edit each script and ensure proper configuration.
+X
+X    In mailprio check:        #!perl path, $home, $priodb, $locking
+X
+X    In mailprio_mkdb check:   #!perl path, $home, $priodb, $maillog
+X
+X
+USAGE: mailprio
+===============
+X
+X    Usage: mailprio [-p priodb] [-q] [mailinglists ...]
+X	-p priority_database   -- Specify database to use if not default
+X	-q                     -- Process sendmail queue format files
+X				  [USE WITH CAUTION]
+X
+X    Sort mailing lists or sendmail V8 queue files by mailprio database.
+X    Files listed on the command line are locked and then sorted in place, in
+X    the absence of any file arguments it will read STDIN and write STDOUT.
+X
+X    Examples:
+X	mailprio < mailing-list > sorted_list
+X	mailprio mailing-list1 mailing-list2 mailing-list3 ...
+X	mailprio -q /var/spool/mqueue/qf*	[not recommended]
+X    To double check results:
+X	sort sorted_list > checkit; sort orig-mailing-list | diff - checkit
+X
+X    NOTE:
+X	To get the maximum value from a transaction delay based priority
+X	function you need to reorder the distribution list (and the mail
+X	queue files for that matter) fairly often; you could even have
+X	your mailing list software reorder the list before each outgoing
+X	message.
+X
+X
+USAGE: mailprio_mkdb
+====================
+X
+X    Usage: mailprio_mkdb [-l maillog] [-p priodb]
+X	-l maillog             -- Specify maillog to process if not default
+X	-p priority_database   -- Specify database to use if not default
+X
+X    Builds the mail priority database using information from the maillog.
+X
+X    Run at least nightly before you rotate the maillog.  If you are
+X    going to run mailprio more often than that then you will need to
+X    load the current maillog information before that will do any good
+X    (and to keep from reloading the same information you will need
+X    some kind of incremental maillog information to load from).
+SHAR_EOF
+  $shar_touch -am 1031100396 'mailprio.README' &&
+  chmod 0644 'mailprio.README' ||
+  echo 'restore of mailprio.README failed'
+  shar_count="`wc -c < 'mailprio.README'`"
+  test 3402 -eq "$shar_count" ||
+    echo "mailprio.README: original size 3402, current size $shar_count"
+fi
+# ============= mailprio_mkdb ==============
+if test -f 'mailprio_mkdb' && test X"$1" != X"-c"; then
+  echo 'x - skipping mailprio_mkdb (file already exists)'
+else
+  echo 'x - extracting mailprio_mkdb (text)'
+  sed 's/^X//' << 'SHAR_EOF' > 'mailprio_mkdb' &&
+#!/usr/bin/perl
+#
+# mailprio_mkdb,v 1.5 1996/10/31 17:03:53 sanders Exp
+# Version 0.93 -- Thu Oct 31 09:42:25 MST 1996
+#
+# mailprio_mkdb -- make mail priority database based on delay times
+#
+# Copyright 1994, 1996, Tony Sanders <sanders@earth.com>
+# Rights are hereby granted to download, use, modify, sell, copy, and
+# redistribute this software so long as the original copyright notice 
+# and this list of conditions remain intact and modified versions are
+# noted as such.
+#
+# I would also very much appreciate it if you could send me a copy of
+# any changes you make so I can possibly integrate them into my version.
+#
+# The average function moves the value around quite rapidly (half-steps)
+# which may or may not be a feature.  This version uses the new xdelay
+# statistic (new as of sendmail V8) which is per transaction.  We also
+# weight the result based on the overall delay.
+#
+# Something that might be worth doing for systems that don't support
+# xdelay would be to compute an approximation of the transaction delay
+# by sorting by messages-id and delay then computing the difference
+# between adjacent delay values.
+#
+# To get the maximum value from a transaction delay based priority
+# function you need to reorder the distribution list (and the mail
+# queue files for that matter) fairly often; you could even have
+# your mailing list software reorder the list before each outgoing
+# message.
+X
+$usage = "Usage: mailprio_mkdb [-l maillog] [-p priodb]\n";
+$home = "/home/sanders/lists";
+$maillog = "/var/log/maillog";
+$priodb = "$home/mailprio";
+X
+while ($ARGV[0] =~ /^-/) {
+X	$args = shift;
+X	if ($args =~ m/\?/) { print $usage; exit 0; }
+X	if ($args =~ m/l/) {
+X	    $maillog = shift || die $usage, "-l requires argument\n"; }
+X	if ($args =~ m/p/) {
+X	    $priodb = shift || die $usage, "-p requires argument\n"; }
+}
+X
+$SIG{'PIPE'} = 'handle_pipe';
+X
+# will merge with existing information
+dbmopen(%prio, $priodb, 0644) || die "$priodb: $!\n";
+&getlog_stats($maillog, *prio);
+dbmclose(%prio);
+exit(0);
+X
+sub handle_pipe {
+X    dbmclose(%prio);
+}
+X
+sub getlog_stats {
+X    local($maillog, *stats) = @_;
+X    local($to, $delay);
+X    local($h, $m, $s);
+X    open(MAILLOG, "< $maillog") || die "$maillog: $!\n";
+X    while (<MAILLOG>) {
+X	next unless / to=/ && / stat=/;
+X	next if / stat=queued/;
+X	if (/ stat=sent/i) {
+X	    # read delay and xdelay and convert to seconds
+X	    ($delay) = (m/ delay=([^,]*),/);
+X	    next unless $delay;
+X	    ($h, $m, $s) = split(/:/, $delay);
+X	    $delay = ($h * 60 * 60) + ($m * 60) + $s;
+X
+X	    ($xdelay) = (m/ xdelay=([^,]*),/);
+X	    next unless $xdelay;
+X	    ($h, $m, $s) = split(/:/, $xdelay);
+X	    $xdelay = ($h * 60 * 60) + ($m * 60) + $s;
+X
+X	    # Now weight the delay factor by the transaction delay (xdelay).
+X	    $xdelay /= 300;			# [0 - 1(@5 min)]
+X	    $xdelay += 0.5;			# [0.5 - 1.5]
+X	    $xdelay = 1.5 if $xdelay > 1.5;	# clamp
+X	    $delay *= $xdelay;			# weight delay by xdelay
+X	}
+X	elsif (/, stat=/) {
+X	    # delivery failure of some sort (i.e. bad)
+X	    $delay = 432000;		# force 5 days
+X	}
+X	$delay = 1000000 if $delay > 1000000;
+X
+X	# filter the address(es); isn't perfect but is "good enough"
+X	$to = $_; $to =~ s/^.* to=//;
+X	1 while $to =~ s/\([^\(\)]*\)//g;	# strip comments
+X	1 while $to =~ s/"[^"]*"//g;		# strip comments
+X	$to =~ s/, .*//;			# remove other stat info
+X	foreach $addr (&simplify_address($to)) {
+X	    next unless $addr;
+X	    $addr = &canonicalize($addr);
+X	    $stats{$addr} = $delay unless defined $stats{$addr};	# init
+X	    # pseudo-average in the new delay (half-steps)
+X	    # simple, moving average
+X	    $stats{$addr} = int(($stats{$addr} + $delay) / 2);
+X	}
+X    }
+X    close(MAILLOG);
+}
+X
+# REPL-LIB ---------------------------------------------------------------
+X
+sub canonicalize {
+X    local($addr) = @_;
+X    # lowercase, strip leading/trailing whitespace
+X    $addr =~ y/A-Z/a-z/; $addr =~ s/^\s+//; $addr =~ s/\s+$//; $addr;
+}
+X
+# @addrs = simplify_address($addr);
+sub simplify_address {
+X    local($_) = shift;
+X    1 while s/\([^\(\)]*\)//g; 		# strip comments
+X    1 while s/"[^"]*"//g;		# strip comments
+X    split(/,/);				# split into parts
+X    foreach (@_) {
+X	1 while s/.*<(.*)>.*/\1/;
+X	s/^\s+//;
+X	s/\s+$//;
+X    }
+X    @_;
+}
+SHAR_EOF
+  $shar_touch -am 1031100396 'mailprio_mkdb' &&
+  chmod 0755 'mailprio_mkdb' ||
+  echo 'restore of mailprio_mkdb failed'
+  shar_count="`wc -c < 'mailprio_mkdb'`"
+  test 4182 -eq "$shar_count" ||
+    echo "mailprio_mkdb: original size 4182, current size $shar_count"
+fi
+exit 0

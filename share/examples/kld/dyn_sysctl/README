@@ -1,0 +1,8 @@
+This example module creates partially overlapping subtrees to demonstrate
+reference counting. It also contains example of attaching a subtree to the
+wrong place, i.e. to a dynamic oid that could belong to someone else.
+The framework should deal with this case gracefully.
+
+Andrzej Bialecki <abial@freebsd.org>
+
+$FreeBSD$

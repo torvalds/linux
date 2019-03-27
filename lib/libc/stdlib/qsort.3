@@ -1,0 +1,372 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)qsort.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd February 20, 2013
+.Dt QSORT 3
+.Os
+.Sh NAME
+.Nm qsort ,
+.Nm qsort_b ,
+.Nm qsort_r ,
+.Nm heapsort ,
+.Nm heapsort_b ,
+.Nm mergesort ,
+.Nm mergesort_b
+.Nd sort functions
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft void
+.Fo qsort
+.Fa "void *base"
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fa "int \*[lp]*compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
+.Ft void
+.Fo qsort_b
+.Fa "void *base"
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fa "int \*[lp]^compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
+.Ft void
+.Fo qsort_r
+.Fa "void *base"
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fa "void *thunk"
+.Fa "int \*[lp]*compar\*[rp]\*[lp]void *, const void *, const void *\*[rp]"
+.Fc
+.Ft int
+.Fo heapsort
+.Fa "void *base"
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fa "int \*[lp]*compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
+.Ft int
+.Fo heapsort_b
+.Fa "void *base"
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fa "int \*[lp]^compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
+.Ft int
+.Fo mergesort
+.Fa "void *base"
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fa "int \*[lp]*compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
+.Ft int
+.Fo mergesort_b
+.Fa "void *base"
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fa "int \*[lp]^compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn qsort
+function is a modified partition-exchange sort, or quicksort.
+The
+.Fn heapsort
+function is a modified selection sort.
+The
+.Fn mergesort
+function is a modified merge sort with exponential search
+intended for sorting data with pre-existing order.
+.Pp
+The
+.Fn qsort
+and
+.Fn heapsort
+functions sort an array of
+.Fa nmemb
+objects, the initial member of which is pointed to by
+.Fa base .
+The size of each object is specified by
+.Fa size .
+The
+.Fn mergesort
+function
+behaves similarly, but
+.Em requires
+that
+.Fa size
+be greater than
+.Dq "sizeof(void *) / 2" .
+.Pp
+The contents of the array
+.Fa base
+are sorted in ascending order according to
+a comparison function pointed to by
+.Fa compar ,
+which requires two arguments pointing to the objects being
+compared.
+.Pp
+The comparison function must return an integer less than, equal to, or
+greater than zero if the first argument is considered to be respectively
+less than, equal to, or greater than the second.
+.Pp
+The
+.Fn qsort_r
+function behaves identically to
+.Fn qsort ,
+except that it takes an additional argument,
+.Fa thunk ,
+which is passed unchanged as the first argument to function pointed to
+.Fa compar .
+This allows the comparison function to access additional
+data without using global variables, and thus
+.Fn qsort_r
+is suitable for use in functions which must be reentrant.
+The
+.Fn qsort_b
+function behaves identically to
+.Fn qsort ,
+except that it takes a block, rather than a function pointer.
+.Pp
+The algorithms implemented by
+.Fn qsort ,
+.Fn qsort_r ,
+and
+.Fn heapsort
+are
+.Em not
+stable, that is, if two members compare as equal, their order in
+the sorted array is undefined.
+The
+.Fn heapsort_b
+function behaves identically to
+.Fn heapsort ,
+except that it takes a block, rather than a function pointer.
+The
+.Fn mergesort
+algorithm is stable.
+The
+.Fn mergesort_b
+function behaves identically to
+.Fn mergesort ,
+except that it takes a block, rather than a function pointer.
+.Pp
+The
+.Fn qsort
+and
+.Fn qsort_r
+functions are an implementation of C.A.R.
+Hoare's
+.Dq quicksort
+algorithm,
+a variant of partition-exchange sorting; in particular, see
+.An D.E. Knuth Ns 's
+.%T "Algorithm Q" .
+.Sy Quicksort
+takes O N lg N average time.
+This implementation uses median selection to avoid its
+O N**2 worst-case behavior.
+.Pp
+The
+.Fn heapsort
+function is an implementation of
+.An "J.W.J. William" Ns 's
+.Dq heapsort
+algorithm,
+a variant of selection sorting; in particular, see
+.An "D.E. Knuth" Ns 's
+.%T "Algorithm H" .
+.Sy Heapsort
+takes O N lg N worst-case time.
+Its
+.Em only
+advantage over
+.Fn qsort
+is that it uses almost no additional memory; while
+.Fn qsort
+does not allocate memory, it is implemented using recursion.
+.Pp
+The function
+.Fn mergesort
+requires additional memory of size
+.Fa nmemb *
+.Fa size
+bytes; it should be used only when space is not at a premium.
+The
+.Fn mergesort
+function
+is optimized for data with pre-existing order; its worst case
+time is O N lg N; its best case is O N.
+.Pp
+Normally,
+.Fn qsort
+is faster than
+.Fn mergesort
+is faster than
+.Fn heapsort .
+Memory availability and pre-existing order in the data can make this
+untrue.
+.Sh RETURN VALUES
+The
+.Fn qsort
+and
+.Fn qsort_r
+functions
+return no value.
+.Pp
+.Rv -std heapsort mergesort
+.Sh EXAMPLES
+A sample program that sorts an array of
+.Vt int
+values in place using
+.Fn qsort ,
+and then prints the sorted array to standard output is:
+.Bd -literal
+#include <stdio.h>
+#include <stdlib.h>
+
+/*
+ * Custom comparison function that compares 'int' values through pointers
+ * passed by qsort(3).
+ */
+static int
+int_compare(const void *p1, const void *p2)
+{
+	int left = *(const int *)p1;
+	int right = *(const int *)p2;
+
+	return ((left > right) - (left < right));
+}
+
+/*
+ * Sort an array of 'int' values and print it to standard output.
+ */
+int
+main(void)
+{
+	int int_array[] = { 4, 5, 9, 3, 0, 1, 7, 2, 8, 6 };
+	size_t array_size = sizeof(int_array) / sizeof(int_array[0]);
+	size_t k;
+
+	qsort(&int_array, array_size, sizeof(int_array[0]), int_compare);
+	for (k = 0; k < array_size; k++)
+		printf(" %d", int_array[k]);
+	puts("");
+	return (EXIT_SUCCESS);
+}
+.Ed
+.Sh COMPATIBILITY
+Previous versions of
+.Fn qsort
+did not permit the comparison routine itself to call
+.Fn qsort 3 .
+This is no longer true.
+.Sh ERRORS
+The
+.Fn heapsort
+and
+.Fn mergesort
+functions succeed unless:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa size
+argument is zero, or,
+the
+.Fa size
+argument to
+.Fn mergesort
+is less than
+.Dq "sizeof(void *) / 2" .
+.It Bq Er ENOMEM
+The
+.Fn heapsort
+or
+.Fn mergesort
+functions
+were unable to allocate memory.
+.El
+.Sh SEE ALSO
+.Xr sort 1 ,
+.Xr radixsort 3
+.Rs
+.%A Hoare, C.A.R.
+.%D 1962
+.%T "Quicksort"
+.%J "The Computer Journal"
+.%V 5:1
+.%P pp. 10-15
+.Re
+.Rs
+.%A Williams, J.W.J
+.%D 1964
+.%T "Heapsort"
+.%J "Communications of the ACM"
+.%V 7:1
+.%P pp. 347-348
+.Re
+.Rs
+.%A Knuth, D.E.
+.%D 1968
+.%B "The Art of Computer Programming"
+.%V Vol. 3
+.%T "Sorting and Searching"
+.%P pp. 114-123, 145-149
+.Re
+.Rs
+.%A McIlroy, P.M.
+.%T "Optimistic Sorting and Information Theoretic Complexity"
+.%J "Fourth Annual ACM-SIAM Symposium on Discrete Algorithms"
+.%V January 1992
+.Re
+.Rs
+.%A Bentley, J.L.
+.%A McIlroy, M.D.
+.%T "Engineering a Sort Function"
+.%J "Software--Practice and Experience"
+.%V Vol. 23(11)
+.%P pp. 1249-1265
+.%D November\ 1993
+.Re
+.Sh STANDARDS
+The
+.Fn qsort
+function
+conforms to
+.St -isoC .
+.Sh HISTORY
+The variants of these functions that take blocks as arguments first appeared in
+Mac OS X.
+This implementation was created by David Chisnall.

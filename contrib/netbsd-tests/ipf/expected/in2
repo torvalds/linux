@@ -1,0 +1,71 @@
+rdr le0 9.8.7.6/32 port 0 -> 1.1.1.1/32 port 0 tcp
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 reserved
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1/32 port 80 tcp
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip
+rdr le0 9.0.0.0/8 -> 1.1.1.1/32 ip
+rdr le0 9.8.0.0/16 -> 1.1.1.1/32 ip
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1/32 port 80 tcp
+rdr le0 9.8.7.6/32 port 80 -> 0/0 port 80 tcp
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1/32 port 80 udp
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1/32 port 80 tcp/udp
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 icmp
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1/32 port 80 tcp round-robin
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp round-robin
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip frag
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 icmp frag
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp/udp frag
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1/32 port 80 tcp round-robin frag
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp round-robin frag
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip frag age 10/10
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip frag age 10/20
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 icmp frag age 10/10
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp frag age 20/20
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1/32 port 80 tcp round-robin frag age 30/30
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp round-robin frag age 40/40
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip frag
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 icmp frag
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp frag sticky
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1/32 port 80 tcp round-robin frag sticky
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp round-robin frag sticky
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip frag age 10/10
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip frag age 10/20
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 icmp frag age 10/10
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp frag age 20/20 sticky
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1/32 port 80 tcp round-robin frag age 30/30 sticky
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp round-robin frag age 40/40 sticky
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip mssclamp 1000
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip mssclamp 1000
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip frag mssclamp 1000
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 icmp frag mssclamp 1000
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp frag sticky mssclamp 1000
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1/32 port 80 tcp round-robin frag sticky mssclamp 1000
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp round-robin frag sticky mssclamp 1000
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip frag age 10/10 mssclamp 1000
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip frag age 10/20 mssclamp 1000
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 icmp frag age 10/10 mssclamp 1000
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp frag age 20/20 sticky mssclamp 1000
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1/32 port 80 tcp round-robin frag age 30/30 sticky mssclamp 1000
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp round-robin frag age 40/40 sticky mssclamp 1000
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip tag nattagcacheline
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip mssclamp 1000 tag nattagcacheline
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip mssclamp 1000 tag nattagcacheline
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip frag mssclamp 1000 tag nattagcacheline
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 icmp frag mssclamp 1000 tag nattagcacheline
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp frag sticky mssclamp 1000 tag nattagcacheline
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1/32 port 80 tcp round-robin frag sticky mssclamp 1000 tag nattagcacheline
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp round-robin frag sticky mssclamp 1000 tag nattagcacheline
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip frag age 10/10 mssclamp 1000 tag nattagcacheline
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 ip frag age 10/20 mssclamp 1000 tag nattagcacheline
+rdr le0 9.8.7.6/32 -> 1.1.1.1/32 icmp frag age 10/10 mssclamp 1000 tag nattagcacheline
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp frag age 20/20 sticky mssclamp 1000 tag nattagcacheline
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1/32 port 80 tcp round-robin frag age 30/30 sticky mssclamp 1000 tag nattagcacheline
+rdr le0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp round-robin frag age 40/40 sticky mssclamp 1000 tag nattagcacheline
+rdr ge0 9.8.7.6/32 port 21 -> 1.1.1.1/32 port 21 tcp proxy ftp
+rdr ge0 9.8.7.6/32 port 21 -> 1.1.1.1/32 port 21 tcp proxy ftp
+rdr le0 9.8.7.6/32 port 1000-2000 -> 1.1.1.1/32 port 5555 tcp
+rdr le0 9.8.7.6/32 port 1000-2000 -> 1.1.1.1/32 port = 5555 tcp
+rdr le0 0/0 -> 254.220.186.152/32 ip
+rdr le0 0/0 -> 254.220.186.152,254.220.186.152 ip
+rdr adsl0,ppp0 9.8.7.6/32 port 1000-2000 -> 1.1.1.1/32 port 5555-7777 tcp

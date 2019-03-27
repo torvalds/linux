@@ -1,0 +1,141 @@
+.\" Copyright (c) 2006 Takanori Watanabe.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 20, 2011
+.Dt UFOMA 4
+.Os
+.Sh NAME
+.Nm ufoma
+.Nd USB mobile phone support
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device usb"
+.Cd "device ucom"
+.Cd "device ufoma"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ufoma_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB mobile phone terminals in the subset of
+the Mobile Computing Promotion Consortium USB Implementation Guideline,
+which is adopted by FOMA, the NTT DoCoMo 3G system, terminal.
+These are partly like CDC ACM model based modems, which are supported
+by
+.Xr umodem 4 ,
+but the
+.Nm
+driver recognizes a specific USB descriptor that describes its role and
+interface structure, and it will negotiate its role when the device is open.
+They support a regular AT command set and
+the commands can either be multiplexed with the data stream
+or handled through separate pipes.
+In the latter case the AT
+commands have to be given on a device separate from the data device.
+.Pp
+The device is accessed through the
+.Xr ucom 4
+driver which makes it behave like a
+.Xr tty 4 .
+.Sh SYSCTLS
+These devices often have a few interface sets and these interfaces
+have their role, sometimes multiplexed.
+These roles are identified with the following sysctl MIBs:
+.Bl -tag -width indent
+.It Va dev.ucom.%d.supportmode
+The modes which are supported by the interface.
+.It Va dev.ucom.%d.currentmode
+Current mode of the interface.
+.It Va dev.ucom.%d.openmode
+Mode to transit when the device is open next.
+.El
+The modes are as follows:
+.Bl -tag -width indent
+.It Li modem
+Accepts AT commands and go and pass packet communication data.
+.It Li handsfree
+Accepts AT commands but it does not pass data.
+.It Li obex
+Accepts OBEX frame which is used to exchange telephone book, etc.
+.It Li vendor1 , vendor2
+Vendor specific data may be passed.
+.It Li deactivated
+When an interface is recognized by the system but not used, the interface
+will be set to this mode.
+.It Li unlinked
+When an interface is not yet negotiated, the interface is in this mode.
+.El
+.Sh HARDWARE
+Devices supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+SHARP FOMA SH902i
+.It
+KYOCERA PHS AH-K3001V (a.k.a Kyopon)
+.It
+SANYO Vodafone3G V801SA
+.El
+.Sh SEE ALSO
+Specification can be found at:
+.Pp
+.Bl -item -compact
+.It
+.Pa http://www.nttdocomo.co.jp/corporate/technology/document/foma/index.html
+.It
+.Pa http://www.mcpc-jp.org/doclist.htm
+.El
+.Pp
+.Xr tty 4 ,
+.Xr ucom 4 ,
+.Xr umodem 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Fx 7.0 ,
+partly derived from the
+.Xr umodem 4
+code.
+.Sh BUGS
+Interfaces with multiplexed commands and data and interfaces with
+commands only are supported.

@@ -1,0 +1,61 @@
+$FreeBSD$
+
+This directory contains a version of the rpc.bootparamd, which have been 
+written using the Sun's RPC protocol for bootparamd. To use it you must 
+have a copy of the bootparam_prot.x file which on Sun systems you find in
+
+	/usr/include/rpcsvc/bootparam_prot.x
+
+(( This file was retrieved from the Sun-RPC source package ))
+
+
+This code is not copyright, and is placed in the public domain. Feel free to 
+use and modify. Please send modifications and/or suggestions + bug fixes to
+
+	Klas Heggemann <klas@nada.kth.se>
+
+
+RPC.BOOTPARAMD
+
+
+The rpc.bootparamd program does NOT use the yellow pages for the bootparams
+database. This data should reside in /etc/bootparams on the local host,
+or another file given when the server is started.
+
+The default router is set to the address of the machine running the server.
+This may not be a good thing to do, so it can be modified using the -r 
+option when startning the daemon.
+
+This program was written with the need to keep short hostnames in the
+/etc/bootparams file and long (canonical) names in the hosts database.
+It probably also will work in conjunction with a nameserver, since matching
+is done by comparing the canonical name of the booting machine with the
+canonical name of the hosts found in the bootparams database. 
+
+It is kept simple, e g there is no caching of data, but the bootparameter file
+is read at each request. 
+
+
+CALLBOOTD
+
+The debugging tool callbootd is used to check the response you get
+to a specific (booting) request. It can be used as
+	callbootd server inet-address 
+or
+	callbootd server hostname file 
+where "server" is a machine running the rpc.bootparamd program, "inet-address"
+is the internet address of a booting machine, "hostname" is the name of a
+booting machine and "file" the requested file, typically "root", "swap" or
+"dump". 
+
+You may also use "all" instead of a specific server, in which case a RPC
+broadcast is performed. The broadcast is performed 4 times and then the 
+program times out, after printing all responses. 
+
+
+TODO
+
+Cache the date, instead of rereading it. 
+Maybe match by comparing the inet address instead. (But beware that caching
+will prevent the server from detecting that a machine has changed name
+or address.)

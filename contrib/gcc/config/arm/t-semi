@@ -1,0 +1,37 @@
+# Just for these, we omit the frame pointer since it makes such a big
+# difference.  It is then pointless adding debugging.
+TARGET_LIBGCC2_CFLAGS = -fomit-frame-pointer
+LIBGCC2_DEBUG_CFLAGS = -g0
+
+LIB1ASMSRC = arm/lib1funcs.asm
+LIB1ASMFUNCS = _udivsi3 _divsi3 _umodsi3 _modsi3 _dvmd_tls _call_via_rX _interwork_call_via_rX
+
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+FPBIT = fp-bit.c
+DPBIT = dp-bit.c
+
+fp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#ifdef __SOFTFP__' > fp-bit.c
+	echo '#define FLOAT' >> fp-bit.c
+	echo '#ifndef __ARMEB__' >> fp-bit.c
+	echo '#define FLOAT_BIT_ORDER_MISMATCH' >> fp-bit.c
+	echo '#endif' >> fp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
+	echo '#endif' >> fp-bit.c
+
+dp-bit.c: $(srcdir)/config/fp-bit.c
+	echo '#ifdef __SOFTFP__' > dp-bit.c
+	echo '#ifndef __ARMEB__' >> dp-bit.c
+	echo '#define FLOAT_BIT_ORDER_MISMATCH' >> dp-bit.c
+	echo '#define FLOAT_WORD_ORDER_MISMATCH' >> dp-bit.c
+	echo '#endif' >> dp-bit.c
+	cat $(srcdir)/config/fp-bit.c >> dp-bit.c
+	echo '#endif' >> dp-bit.c
+
+MULTILIB_OPTIONS = msoft-float mbig-endian mwords-little-endian
+MULTILIB_DIRNAMES = soft big wlittle
+MULTILIB_EXCEPTIONS = mwords-little-endian msoft-float/mwords-little-endian
+
+LIBGCC = stmp-multilib
+INSTALL_LIBGCC = install-multilib

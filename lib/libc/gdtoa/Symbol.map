@@ -1,0 +1,19 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	/*
+	 * Standard functions from contrib/gdtoa
+	 */
+	strtod;
+	strtof;
+
+	/* FreeBSD additions */
+	strtold;
+};
+
+FBSDprivate_1.0 {
+	/* used in libm */
+	__hexnan_D2A;
+};

@@ -1,0 +1,110 @@
+.\" Copyright (c) 1986, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\"	@(#)fig2.pic	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.PS
+.ps 9
+[
+	PUOFT: [
+		A: box invis ht .4i wid 1i "Per-User Open" "File Table"
+		B: box ht .25i with .n at A.s
+		C: box with .n at B.s
+		D: box ht .25i with .n at C.s
+	]
+	move down 1.0625i left 1.25i from PUOFT.D.s
+	OFT: [
+		A: box invis ht .4i wid 1i "Open File" "Table"
+		B: box ht .25i with .n at A.s
+		C: box with .n at B.s
+		D: box ht .25i with .n at C.s
+	]
+	move down 1.0625i right 1.25i from PUOFT.D.s
+	AIT: [
+		A: box invis ht .4i wid 1i "Active I-node" "Table"
+		B: box ht .25i with .n at A.s
+		C: box with .n at B.s
+		D: box ht .25i with .n at C.s
+	]
+	move down 2.5i from PUOFT.D.s
+	IF: [
+		A: box ht .25i
+		B: box ht .25i "I-node" with .n at A.s
+		C: box ht .25i with .n at B.s
+		D: box ht .25i "File" with .n at C.s
+		E: box ht .25i with .n at D.s
+	]
+	move right 1.5i from IF.D.w
+	FMA: [
+		box invis "File" "Mapping" "Algorithms"
+	]
+	line from FMA.ne to FMA.se
+	line from FMA.nw to FMA.sw
+	line left .15i from FMA.se
+	line left .15i from FMA.ne
+	line right .15i from FMA.nw
+	line right .15i from FMA.sw
+
+	arrow from FMA.w to IF.D.e
+	arrow from AIT.C.e right .25i then down 2.125i then left .5i
+	arrow from OFT.C.e to AIT.C.w
+	arrow from PUOFT.C.w left .5i then down 1.625i then left .5i
+	arrow <-> from IF.B.e right .5i then up 1.5i then right .5i
+
+	move up .1875i from OFT.A.nw
+	line right 5i
+	move left 5i down 1.9375i
+	line right 5i
+
+	move up 1.63475i right 2.75i from PUOFT.D.s
+	line right .1i down .1i then down .6i then right .1i down .1i then left .1i down .1i then down .6i then left .1i down .1i
+	move down .34375i right 2.75i from PUOFT.D.s
+	line right .1i down .1i then down .6i then right .1i down .1i then left .1i down .1i then down .6i then left .1i down .1i
+	move down 2.34375i right 2.75i from PUOFT.D.s
+	line right .1i down .1i then down .6i then right .1i down .1i then left .1i down .1i then down .6i then left .1i down .1i
+
+	move up 0.817375i right 2.9i from PUOFT.D.s
+	box invis "Swapped" "Per User"
+	move down 1.15625i right 2.9i from PUOFT.D.s
+	box invis wid 1i "Resident" "Per System"
+	move down 3.15675i right 2.9i from PUOFT.D.s
+	box invis ht 1i wid 1i "Secondary" "Storage" "Per" "File System"
+]
+.PE

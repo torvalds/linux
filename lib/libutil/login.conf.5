@@ -1,0 +1,472 @@
+.\" Copyright (c) 1996 David Nugent <davidn@blaze.net.au>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, is permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice immediately at the beginning of the file, without modification,
+.\"    this list of conditions, and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. This work was done expressly for inclusion into FreeBSD.  Other use
+.\"    is permitted provided this notation is included.
+.\" 4. Absolutely no warranty of function or purpose is made by the author
+.\"    David Nugent.
+.\" 5. Modifications may be freely made to this file providing the above
+.\"    conditions are met.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 8, 2011
+.Dt LOGIN.CONF 5
+.Os
+.Sh NAME
+.Nm login.conf
+.Nd login class capability database
+.Sh SYNOPSIS
+.Pa /etc/login.conf ,
+.Pa ~/.login_conf
+.Sh DESCRIPTION
+.Nm
+contains various attributes and capabilities of login classes.
+A login class (an optional annotation against each record in the user
+account database,
+.Pa /etc/master.passwd )
+determines session accounting, resource limits and user environment settings.
+It is used by various programs in the system to set up a user's login
+environment and to enforce policy, accounting and administrative restrictions.
+It also provides the means by which users are able to be
+authenticated to the system and the types of authentication available.
+Attributes in addition to the ones described here are available with
+third-party packages.
+.Pp
+A special record "default" in the system user class capability database
+.Pa /etc/login.conf
+is used automatically for any
+non-root user without a valid login class in
+.Pa /etc/master.passwd .
+A user with a uid of 0 without a valid login class will use the record
+"root" if it exists, or "default" if not.
+.Pp
+Users may individually create a file called
+.Pa .login_conf
+in their home directory using the same format, consisting of a single
+entry with a record id of "me".
+If present, this file is used by
+.Xr login 1
+to set user-defined environment settings which override those specified
+in the system login capabilities database.
+Only a subset of login capabilities may be overridden, typically those
+which do not involve authentication, resource limits and accounting.
+.Pp
+Records in a class capabilities database consist of a number of
+colon-separated fields.
+The first entry for each record gives one or more names that a record is
+to be known by, each separated by a '|' character.
+The first name is the most common abbreviation.
+The last name given should be a long name that is more descriptive
+of the capability entry, and all others are synonyms.
+All names but the last should be in lower case and contain no blanks;
+the last name may contain upper case characters and blanks for
+readability.
+.Pp
+Note that since a colon
+.Pq Ql :\&
+is used to separate capability entries, a
+.Ql \ec
+escape sequence must be used to embed a literal colon in the
+value or name of a capability.
+.Pp
+The default
+.Pa /etc/login.conf
+shipped with
+.Fx
+is an out of the box configuration.
+Whenever changes to this, or
+the user's
+.Pa ~/.login_conf ,
+file are made, the modifications will not be picked up until
+.Xr cap_mkdb 1
+is used to compile the file into a database.
+This database file will have a
+.Pa .db
+extension and is accessed through
+.Xr cgetent 3 .
+See
+.Xr getcap 3
+for a more in-depth description of the format of a capability database.
+.Sh CAPABILITIES
+Fields within each record in the database follow the
+.Xr getcap 3
+conventions for boolean, type string
+.Ql \&=
+and type numeric
+.Ql \&# ,
+although type numeric is deprecated in favour of the string format and
+either form is accepted for a numeric datum.
+Values fall into the following categories:
+.Bl -tag -width "program"
+.It bool
+If the name is present, then the boolean value is true; otherwise, it is
+false
+.It file
+Path name to a data file
+.It program
+Path name to an executable file
+.It list
+A list of values (or pairs of values) separated by commas or spaces
+.It path
+A space or comma separated list of path names, following the usual csh
+conventions (leading tilde with and without username being expanded to
+home directories etc.)
+.It number
+A numeric value, either decimal (default), hexadecimal (with leading 0x),
+or octal (with a leading 0).
+With a numeric type, only one numeric value is allowed.
+Numeric types may also be specified in string format (i.e., the capability
+tag being delimited from the value by '=' instead of '#').
+Whichever method is used, then all records in the database must use the
+same method to allow values to be correctly overridden in interpolated
+records.
+A numeric value may be infinite.
+.It size
+A number which expresses a size.
+The default interpretation of a value is the number of bytes, but a
+suffix may specify alternate units:
+.Bl -tag -offset indent -compact -width xxxx
+.It b
+explicitly selects 512-byte blocks
+.It k
+selects kilobytes (1024 bytes)
+.It m
+specifies a multiplier of 1 megabyte (1048576 bytes),
+.It g
+specifies units of gigabytes, and
+.It t
+represents terabytes.
+.El
+A size value is a numeric quantity and case of the suffix is not significant.
+Concatenated values are added together.
+A size value may be infinite.
+.It time
+A period of time, by default in seconds.
+A prefix may specify a different unit:
+.Bl -tag -offset indent -compact -width xxxx
+.It y
+indicates the number of 365 day years,
+.It w
+indicates the number of weeks,
+.It d
+the number of days,
+.It h
+the number of hours,
+.It m
+the number of minutes, and
+.It s
+the number of seconds.
+.El
+Concatenated values are added together.
+For example, 2 hours and 40 minutes may be written either as
+9600s, 160m or 2h40m.
+A time value may be infinite.
+.El
+.Pp
+.Dq infinity ,
+.Dq inf ,
+.Dq unlimited ,
+.Dq unlimit,
+and -1
+are considered infinite values.
+.Pp
+The usual convention to interpolate capability entries using the special
+.Em tc=value
+notation may be used.
+.Sh RESOURCE LIMITS
+.Bl -column pseudoterminals indent indent
+.It Sy "Name	Type	Notes	Description"
+.It "coredumpsize	size		Maximum coredump size limit."
+.It "cputime	time		CPU usage limit."
+.It "datasize	size		Maximum data size limit."
+.It "filesize	size		Maximum file size limit."
+.It "maxproc	number		Maximum number of processes."
+.It "memorylocked	size		Maximum locked in core memory size limit."
+.It "memoryuse	size		Maximum of core memory use size limit."
+.It "openfiles	number		Maximum number of open files per process."
+.It "sbsize	size		Maximum permitted socketbuffer size."
+.It "vmemoryuse	size		Maximum permitted total VM usage per process."
+.It "stacksize	size		Maximum stack size limit."
+.It "pseudoterminals	number		Maximum number of pseudo-terminals."
+.It "swapuse	size		Maximum swap space size limit."
+.It "umtxp	number		Maximum number of process-shared pthread locks."
+.El
+.Pp
+These resource limit entries actually specify both the maximum
+and current limits (see
+.Xr getrlimit 2 ) .
+The current (soft) limit is the one normally used, although the user is
+permitted to increase the current limit to the maximum (hard) limit.
+The maximum and current limits may be specified individually by appending a
+-max or -cur to the capability name.
+.Sh ENVIRONMENT
+.Bl -column ignorenologin indent xbinxxusrxbin
+.It Sy "Name	Type	Notes	Description"
+.It "charset	string		Set $MM_CHARSET environment variable to the specified"
+value.
+.It "cpumask	string		List of cpus to bind the user to."
+The syntax is the same as for the
+.Fl l
+argument of
+.Xr cpuset 1
+or the word
+.Ql default .
+If set to
+.Ql default
+no action is taken.
+.It "hushlogin	bool	false	Same as having a ~/.hushlogin file."
+.It "ignorenologin	bool	false	Login not prevented by nologin."
+.It "ftp-chroot	bool	false	Limit FTP access with"
+.Xr chroot 2
+to the
+.Ev HOME
+directory of the user.
+See
+.Xr ftpd 8
+for details.
+.It "label	string		Default MAC policy; see"
+.Xr maclabel 7 .
+.It "lang	string		Set $LANG environment variable to the specified value."
+.It "manpath	path		Default search path for manpages."
+.It "nocheckmail	bool	false	Display mail status at login."
+.It "nologin	file		If the file exists it will be displayed and"
+the login session will be terminated.
+.It "path	path	/bin /usr/bin	Default search path."
+.It "priority	number		Initial priority (nice) level."
+.It "requirehome 	bool	false	Require a valid home directory to login."
+.It "setenv	list		A comma-separated list of environment variables and"
+values to which they are to be set.
+.It "shell	prog		Session shell to execute rather than the"
+shell specified in the passwd file.
+The SHELL environment variable will
+contain the shell specified in the password file.
+.It "term	string		Default terminal type if not able to determine"
+from other means.
+.It "timezone	string		Default value of $TZ environment variable."
+.It "umask	number	022	Initial umask. Should always have a leading 0 to"
+ensure octal interpretation.
+.It "welcome	file	/etc/motd	File containing welcome message."
+.El
+.Sh AUTHENTICATION
+.Bl -column passwd_prompt indent indent
+.It Sy "Name	Type	Notes	Description"
+.\" .It "approve	program 	Program to approve login.
+.It "copyright	file		File containing additional copyright information"
+.It "host.allow	list		List of remote host wildcards from which users in"
+the class may access.
+.It "host.deny	list		List of remote host wildcards from which users"
+in the class may not access.
+.It "login_prompt	string		The login prompt given by"
+.Xr login 1
+.It "login-backoff	number	3	The number of login attempts"
+allowed before the backoff delay is inserted after each subsequent
+attempt.
+The backoff delay is the number of tries above
+.Em login-backoff
+multiplied by 5 seconds.
+.It "login-retries	number	10	The number of login attempts"
+allowed before the login fails.
+.It "passwd_format	string	sha512	The encryption format that new or"
+changed passwords will use.
+Valid values include "des", "md5", "blf", "sha256" and "sha512"; see
+.Xr crypt 3
+for details.
+NIS clients using a
+.No non- Ns Fx
+NIS server should probably use "des".
+.It "passwd_prompt	string		The password prompt presented by"
+.Xr login 1
+.It "times.allow 	list		List of time periods during which"
+logins are allowed.
+.It "times.deny	list		List of time periods during which logins are"
+disallowed.
+.It "ttys.allow	list		List of ttys and ttygroups which users"
+in the class may use for access.
+.It "ttys.deny	list		List of ttys and ttygroups which users"
+in the class may not use for access.
+.It "warnexpire	time		Advance notice for pending account expiry."
+.It "warnpassword	time		Advance notice for pending password expiry."
+.\".It "widepasswords	bool	false	Use the wide password format. The wide password
+.\" format allows up to 128 significant characters in the password.
+.El
+.Pp
+These fields are intended to be used by
+.Xr passwd 1
+and other programs in the login authentication system.
+.Pp
+Capabilities that set environment variables are scanned for both
+.Ql \&~
+and
+.Ql \&$
+characters, which are substituted for a user's home directory and name
+respectively.
+To pass these characters literally into the environment variable, escape
+the character by preceding it with a backslash '\\'.
+.Pp
+The
+.Em host.allow
+and
+.Em host.deny
+entries are comma separated lists used for checking remote access to the system,
+and consist of a list of hostnames and/or IP addresses against which remote
+network logins are checked.
+Items in these lists may contain wildcards in the form used by shell programs
+for wildcard matching (See
+.Xr fnmatch 3
+for details on the implementation).
+The check on hosts is made against both the remote system's Internet address
+and hostname (if available).
+If both lists are empty or not specified, then logins from any remote host
+are allowed.
+If host.allow contains one or more hosts, then only remote systems matching
+any of the items in that list are allowed to log in.
+If host.deny contains one or more hosts, then a login from any matching hosts
+will be disallowed.
+.Pp
+The
+.Em times.allow
+and
+.Em times.deny
+entries consist of a comma-separated list of time periods during which the users
+in a class are allowed to be logged in.
+These are expressed as one or more day codes followed by a start and end times
+expressed in 24 hour format, separated by a hyphen or dash.
+For example, MoThSa0200-1300 translates to Monday, Thursday and Saturday between
+the hours of 2 am and 1 p.m..
+If both of these time lists are empty, users in the class are allowed access at
+any time.
+If
+.Em times.allow
+is specified, then logins are only allowed during the periods given.
+If
+.Em times.deny
+is specified, then logins are denied during the periods given, regardless of whether
+one of the periods specified in
+.Em times.allow
+applies.
+.Pp
+Note that
+.Xr login 1
+enforces only that the actual login falls within periods allowed by these entries.
+Further enforcement over the life of a session requires a separate daemon to
+monitor transitions from an allowed period to a non-allowed one.
+.Pp
+The
+.Em ttys.allow
+and
+.Em ttys.deny
+entries contain a comma-separated list of tty devices (without the /dev/ prefix)
+that a user in a class may use to access the system, and/or a list of ttygroups
+(See
+.Xr getttyent 3
+and
+.Xr ttys 5
+for information on ttygroups).
+If neither entry exists, then the choice of login device used by the user is
+unrestricted.
+If only
+.Em ttys.allow
+is specified, then the user is restricted only to ttys in the given
+group or device list.
+If only
+.Em ttys.deny
+is specified, then the user is prevented from using the specified devices or
+devices in the group.
+If both lists are given and are non-empty, the user is restricted to those
+devices allowed by ttys.allow that are not available by ttys.deny.
+.Pp
+The
+.Em minpasswordlen
+and
+.Em minpasswordcase
+facilities for enforcing restrictions on password quality, which used
+to be supported by
+.Nm ,
+have been superseded by the
+.Xr pam_passwdqc 8
+PAM module.
+.Sh RESERVED CAPABILITIES
+The following capabilities are reserved for the purposes indicated and
+may be supported by third-party software.
+They are not implemented in the base system.
+.Bl -column host.accounted indent indent
+.It Sy "Name	Type	Notes	Description"
+.It "accounted	bool	false	Enable session time accounting for all users"
+in this class.
+.It "auth	list	passwd	Allowed authentication styles."
+The first item is the default style.
+.It "auth-" Ns Ar type Ta "list		Allowed authentication styles for the"
+authentication
+.Ar type .
+.It "autodelete	time		Time after expiry when account is auto-deleted."
+.It "bootfull	bool	false	Enable 'boot only if ttygroup is full' strategy"
+when terminating sessions.
+.It "daytime	time		Maximum login time per day."
+.It "expireperiod	time		Time for expiry allocation."
+.It "graceexpire 	time		Grace days for expired account."
+.It "gracetime	time		Additional grace login time allowed."
+.It "host.accounted	list		List of remote host wildcards from which"
+login sessions will be accounted.
+.It "host.exempt 	list		List of remote host wildcards from which"
+login session accounting is exempted.
+.It "idletime	time		Maximum idle time before logout."
+.It "minpasswordlen	number	6	The minimum length a local"
+password may be.
+.It "mixpasswordcase	bool	true	Whether"
+.Xr passwd 1
+will warn the user if an all lower case password is entered.
+.It "monthtime 	time		Maximum login time per month."
+.It "passwordtime	time		Used by"
+.Xr passwd 1
+to set next password expiry date.
+.It "refreshtime 	time		New time allowed on account refresh."
+.It "refreshperiod	str		How often account time is refreshed."
+.It "sessiontime 	time		Maximum login time per session."
+.It "sessionlimit	number		Maximum number of concurrent"
+login sessions on ttys in any group.
+.It "ttys.accounted	list		List of ttys and ttygroups for which"
+login accounting is active.
+.It "ttys.exempt	list		List of ttys and ttygroups for which login accounting"
+is exempt.
+.It "warntime	time		Advance notice for pending out-of-time."
+.It "weektime	time		Maximum login time per week."
+.El
+.Pp
+The
+.Em ttys.accounted
+and
+.Em ttys.exempt
+fields operate in a similar manner to
+.Em ttys.allow
+and
+.Em ttys.deny
+as explained
+above.
+Similarly with the
+.Em host.accounted
+and
+.Em host.exempt
+lists.
+.Sh SEE ALSO
+.Xr cap_mkdb 1 ,
+.Xr login 1 ,
+.Xr chroot 2 ,
+.Xr getcap 3 ,
+.Xr getttyent 3 ,
+.Xr login_cap 3 ,
+.Xr login_class 3 ,
+.Xr pam 3 ,
+.Xr passwd 5 ,
+.Xr ttys 5 ,
+.Xr ftpd 8 ,
+.Xr pam_passwdqc 8

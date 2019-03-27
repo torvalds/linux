@@ -1,0 +1,30 @@
+# certain syntax errors and non-errors
+|		C	EMPTY
+|		b	|	|
+*		C	BADRPT
+*		b	*	*
++		C	BADRPT
+?		C	BADRPT
+""		&C	EMPTY
+()		-	abc	@abc
+\(\)		b	abc	@abc
+a||b		C	EMPTY
+|ab		C	EMPTY
+ab|		C	EMPTY
+(|a)b		C	EMPTY
+(a|)b		C	EMPTY
+(*a)		C	BADRPT
+(+a)		C	BADRPT
+(?a)		C	BADRPT
+({1}a)		C	BADRPT
+\(\{1\}a\)	bC	BADRPT
+(a|*b)		C	BADRPT
+(a|+b)		C	BADRPT
+(a|?b)		C	BADRPT
+(a|{1}b)	C	BADRPT
+^*		C	BADRPT
+^*		b	*	*
+^+		C	BADRPT
+^?		C	BADRPT
+^{1}		C	BADRPT
+^\{1\}		bC	BADRPT

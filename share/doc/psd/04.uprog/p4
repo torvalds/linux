@@ -1,0 +1,600 @@
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.\"	@(#)p4	8.1 (Berkeley) 6/8/93
+.\"
+.NH
+LOW-LEVEL I/O
+.PP
+This section describes the 
+bottom level of I/O on the
+.UC UNIX
+system.
+The lowest level of I/O in
+.UC UNIX
+provides no buffering or any other services;
+it is in fact a direct entry into the operating system.
+You are entirely on your own,
+but on the other hand,
+you have the most control over what happens.
+And since the calls and usage are quite simple,
+this isn't as bad as it sounds.
+.NH 2
+File Descriptors
+.PP
+In the
+.UC UNIX
+operating system,
+all input and output is done
+by reading or writing files,
+because all peripheral devices, even the user's terminal,
+are files in the file system.
+This means that a single, homogeneous interface
+handles all communication between a program and peripheral devices.
+.PP
+In the most general case,
+before reading or writing a file,
+it is necessary to inform the system
+of your intent to do so,
+a process called
+``opening'' the file.
+If you are going to write on a file,
+it may also be necessary to create it.
+The system checks your right to do so
+(Does the file exist?
+Do you have permission to access it?),
+and if all is well,
+returns a small positive integer
+called a
+.ul
+file descriptor.
+Whenever I/O is to be done on the file,
+the file descriptor is used instead of the name to identify the file.
+(This is roughly analogous to the use of
+.UC READ(5,...)
+and
+.UC WRITE(6,...)
+in Fortran.)
+All
+information about an open file is maintained by the system;
+the user program refers to the file
+only
+by the file descriptor.
+.PP
+The file pointers discussed in section 3
+are similar in spirit to file descriptors,
+but file descriptors are more fundamental.
+A file pointer is a pointer to a structure that contains,
+among other things, the file descriptor for the file in question.
+.PP
+Since input and output involving the user's terminal
+are so common,
+special arrangements exist to make this convenient.
+When the command interpreter (the
+``shell'')
+runs a program,
+it opens
+three files, with file descriptors 0, 1, and 2,
+called the standard input,
+the standard output, and the standard error output.
+All of these are normally connected to the terminal,
+so if a program reads file descriptor 0
+and writes file descriptors 1 and 2,
+it can do terminal I/O
+without worrying about opening the files.
+.PP
+If I/O is redirected 
+to and from files with
+.UL < 
+and
+.UL > ,
+as in
+.P1
+prog <infile >outfile
+.P2
+the shell changes the default assignments for file descriptors
+0 and 1
+from the terminal to the named files.
+Similar observations hold if the input or output is associated with a pipe.
+Normally file descriptor 2 remains attached to the terminal,
+so error messages can go there.
+In all cases,
+the file assignments are changed by the shell,
+not by the program.
+The program does not need to know where its input
+comes from nor where its output goes,
+so long as it uses file 0 for input and 1 and 2 for output.
+.NH 2
+Read and Write
+.PP
+All input and output is done by
+two functions called
+.UL read
+and
+.UL write .
+For both, the first argument is a file descriptor.
+The second argument is a buffer in your program where the data is to
+come from or go to.
+The third argument is the number of bytes to be transferred.
+The calls are
+.P1
+n_read = read(fd, buf, n);
+
+n_written = write(fd, buf, n);
+.P2
+Each call returns a byte count
+which is the number of bytes actually transferred.
+On reading,
+the number of bytes returned may be less than
+the number asked for,
+because fewer than
+.UL n
+bytes remained to be read.
+(When the file is a terminal,
+.UL read
+normally reads only up to the next newline,
+which is generally less than what was requested.)
+A return value of zero bytes implies end of file,
+and
+.UL -1
+indicates an error of some sort.
+For writing, the returned value is the number of bytes
+actually written;
+it is generally an error if this isn't equal
+to the number supposed to be written.
+.PP
+The number of bytes to be read or written is quite arbitrary.
+The two most common values are 
+1,
+which means one character at a time
+(``unbuffered''),
+and
+512,
+which corresponds to a physical blocksize on many peripheral devices.
+This latter size will be most efficient,
+but even character at a time I/O
+is not inordinately expensive.
+.PP
+Putting these facts together,
+we can write a simple program to copy
+its input to its output.
+This program will copy anything to anything,
+since the input and output can be redirected to any file or device.
+.P1
+#define	BUFSIZE	512	/* best size for PDP-11 UNIX */
+
+main()	/* copy input to output */
+{
+	char	buf[BUFSIZE];
+	int	n;
+
+	while ((n = read(0, buf, BUFSIZE)) > 0)
+		write(1, buf, n);
+	exit(0);
+}
+.P2
+If the file size is not a multiple of
+.UL BUFSIZE ,
+some 
+.UL read
+will return a smaller number of bytes
+to be written by
+.UL write ;
+the next call to 
+.UL read
+after that
+will return zero.
+.PP
+It is instructive to see how
+.UL read
+and
+.UL write
+can be used to construct
+higher level routines like
+.UL getchar ,
+.UL putchar ,
+etc.
+For example,
+here is a version of
+.UL getchar
+which does unbuffered input.
+.P1
+#define	CMASK	0377	/* for making char's > 0 */
+
+getchar()	/* unbuffered single character input */
+{
+	char c;
+
+	return((read(0, &c, 1) > 0) ? c & CMASK : EOF);
+}
+.P2
+.UL c
+.ul
+must
+be declared
+.UL char ,
+because
+.UL read
+accepts a character pointer.
+The character being returned must be masked with
+.UL 0377
+to ensure that it is positive;
+otherwise sign extension may make it negative.
+(The constant
+.UL 0377
+is appropriate for the
+.UC PDP -11
+but not necessarily for other machines.)
+.PP
+The second version of
+.UL getchar
+does input in big chunks,
+and hands out the characters one at a time.
+.P1
+#define	CMASK	0377	/* for making char's > 0 */
+#define	BUFSIZE	512
+
+getchar()	/* buffered version */
+{
+	static char	buf[BUFSIZE];
+	static char	*bufp = buf;
+	static int	n = 0;
+
+	if (n == 0) {	/* buffer is empty */
+		n = read(0, buf, BUFSIZE);
+		bufp = buf;
+	}
+	return((--n >= 0) ? *bufp++ & CMASK : EOF);
+}
+.P2
+.NH 2
+Open, Creat, Close, Unlink
+.PP
+Other than the default
+standard input, output and error files,
+you must explicitly open files in order to
+read or write them.
+There are two system entry points for this,
+.UL open
+and
+.UL creat 
+[sic].
+.PP
+.UL open
+is rather like the
+.UL  fopen
+discussed in the previous section,
+except that instead of returning a file pointer,
+it returns a file descriptor,
+which is just an
+.UL int .
+.P1
+int fd;
+
+fd = open(name, rwmode);
+.P2
+As with
+.UL fopen ,
+the
+.UL name
+argument
+is a character string corresponding to the external file name.
+The access mode argument
+is different, however:
+.UL rwmode
+is 0 for read, 1 for write, and 2 for read and write access.
+.UL open
+returns
+.UL -1
+if any error occurs;
+otherwise it returns a valid file descriptor.
+.PP
+It is an error to 
+try to
+.UL open
+a file that does not exist.
+The entry point
+.UL creat
+is provided to create new files,
+or to re-write old ones.
+.P1
+fd = creat(name, pmode);
+.P2
+returns a file descriptor
+if it was able to create the file
+called
+.UL name ,
+and
+.UL -1
+if not.
+If the file
+already exists,
+.UL creat
+will truncate it to zero length;
+it is not an error to
+.UL creat
+a file that already exists.
+.PP
+If the file is brand new,
+.UL creat
+creates it with the
+.ul
+protection mode 
+specified by
+the
+.UL pmode
+argument.
+In the
+.UC UNIX
+file system,
+there are nine bits of protection information
+associated with a file,
+controlling read, write and execute permission for
+the owner of the file,
+for the owner's group,
+and for all others.
+Thus a three-digit octal number
+is most convenient for specifying the permissions.
+For example,
+0755
+specifies read, write and execute permission for the owner,
+and read and execute permission for the group and everyone else.
+.PP
+To illustrate,
+here is a simplified version of
+the
+.UC UNIX
+utility
+.IT cp ,
+a program which copies one file to another.
+(The main simplification is that our version
+copies only one file,
+and does not permit the second argument
+to be a directory.)
+.P1
+#define NULL 0
+#define BUFSIZE 512
+#define PMODE 0644 /* RW for owner, R for group, others */
+
+main(argc, argv)	/* cp: copy f1 to f2 */
+int argc;
+char *argv[];
+{
+	int	f1, f2, n;
+	char	buf[BUFSIZE];
+
+	if (argc != 3)
+		error("Usage: cp from to", NULL);
+	if ((f1 = open(argv[1], 0)) == -1)
+		error("cp: can't open %s", argv[1]);
+	if ((f2 = creat(argv[2], PMODE)) == -1)
+		error("cp: can't create %s", argv[2]);
+
+	while ((n = read(f1, buf, BUFSIZE)) > 0)
+		if (write(f2, buf, n) != n)
+			error("cp: write error", NULL);
+	exit(0);
+}
+.P2
+.P1
+error(s1, s2)	/* print error message and die */
+char *s1, *s2;
+{
+	printf(s1, s2);
+	printf("\en");
+	exit(1);
+}
+.P2
+.PP
+As we said earlier,
+there is a limit (typically 15-25)
+on the number of files which a program
+may have open simultaneously.
+Accordingly, any program which intends to process
+many files must be prepared to re-use
+file descriptors.
+The routine
+.UL close
+breaks the connection between a file descriptor
+and an open file,
+and frees the
+file descriptor for use with some other file.
+Termination of a program
+via
+.UL exit
+or return from the main program closes all open files.
+.PP
+The function
+.UL unlink(filename)
+removes the file
+.UL filename
+from the file system.
+.NH 2
+Random Access \(em Seek and Lseek
+.PP
+File I/O is normally sequential:
+each
+.UL read
+or
+.UL write
+takes place at a position in the file
+right after the previous one.
+When necessary, however,
+a file can be read or written in any arbitrary order.
+The
+system call
+.UL lseek
+provides a way to move around in
+a file without actually reading
+or writing:
+.P1
+lseek(fd, offset, origin);
+.P2
+forces the current position in the file
+whose descriptor is
+.UL fd
+to move to position
+.UL offset ,
+which is taken relative to the location
+specified by
+.UL origin .
+Subsequent reading or writing will begin at that position.
+.UL offset
+is
+a
+.UL long ;
+.UL fd
+and
+.UL origin
+are
+.UL int 's.
+.UL origin
+can be 0, 1, or 2 to specify that 
+.UL offset
+is to be
+measured from
+the beginning, from the current position, or from the
+end of the file respectively.
+For example,
+to append to a file,
+seek to the end before writing:
+.P1
+lseek(fd, 0L, 2);
+.P2
+To get back to the beginning (``rewind''),
+.P1
+lseek(fd, 0L, 0);
+.P2
+Notice the
+.UL 0L
+argument;
+it could also be written as
+.UL (long)\ 0 .
+.PP
+With 
+.UL lseek ,
+it is possible to treat files more or less like large arrays,
+at the price of slower access.
+For example, the following simple function reads any number of bytes
+from any arbitrary place in a file.
+.P1
+get(fd, pos, buf, n) /* read n bytes from position pos */
+int fd, n;
+long pos;
+char *buf;
+{
+	lseek(fd, pos, 0);	/* get to pos */
+	return(read(fd, buf, n));
+}
+.P2
+.PP
+In pre-version 7
+.UC UNIX ,
+the basic entry point to the I/O system
+is called
+.UL seek .
+.UL seek
+is identical to
+.UL lseek ,
+except that its
+.UL  offset 
+argument is an
+.UL int
+rather than  a
+.UL long .
+Accordingly,
+since
+.UC PDP -11
+integers have only 16 bits,
+the
+.UL offset
+specified
+for
+.UL seek
+is limited to 65,535;
+for this reason,
+.UL origin
+values of 3, 4, 5 cause
+.UL seek
+to multiply the given offset by 512
+(the number of bytes in one physical block)
+and then interpret
+.UL origin
+as if it were 0, 1, or 2 respectively.
+Thus to get to an arbitrary place in a large file
+requires two seeks, first one which selects
+the block, then one which
+has
+.UL origin
+equal to 1 and moves to the desired byte within the block.
+.NH 2
+Error Processing
+.PP
+The routines discussed in this section,
+and in fact all the routines which are direct entries into the system
+can incur errors.
+Usually they indicate an error by returning a value of \-1.
+Sometimes it is nice to know what sort of error occurred;
+for this purpose all these routines, when appropriate,
+leave an error number in the external cell
+.UL errno .
+The meanings of the various error numbers are
+listed
+in the introduction to Section II
+of the
+.I
+.UC UNIX
+Programmer's Manual,
+.R
+so your program can, for example, determine if
+an attempt to open a file failed because it did not exist
+or because the user lacked permission to read it.
+Perhaps more commonly,
+you may want to print out the
+reason for failure.
+The routine
+.UL perror
+will print a message associated with the value
+of
+.UL errno ;
+more generally,
+.UL sys\_errno
+is an array of character strings which can be indexed
+by
+.UL errno
+and printed by your program.

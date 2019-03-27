@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+arm/mv/ic.c			standard
+arm/mv/rtc.c			standard
+arm/mv/kirkwood/kirkwood.c	standard

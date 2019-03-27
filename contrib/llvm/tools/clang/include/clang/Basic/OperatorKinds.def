@@ -1,0 +1,108 @@
+//===--- OperatorKinds.def - C++ Overloaded Operator Database ---*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the OverloadedOperator database, which includes
+// all of the overloadable C++ operators.
+//
+//===----------------------------------------------------------------------===//
+//
+/// @file OperatorKinds.def
+///
+/// In this file, each of the overloadable C++ operators is enumerated
+/// with either the OVERLOADED_OPERATOR or OVERLOADED_OPERATOR_MULTI
+/// macro, each of which can be specified by the code including this
+/// file. OVERLOADED_OPERATOR is used for single-token operators
+/// (e.g., "+"), and has six arguments:
+///
+/// Name: The name of the token. OO_Name will be the name of the
+/// corresponding enumerator in OverloadedOperatorKind in
+/// OperatorKinds.h.
+///
+/// Spelling: A string that provides a canonical spelling for the
+/// operator, e.g., "operator+".
+///
+/// Token: The name of the token that specifies the operator, e.g.,
+/// "plus" for operator+ or "greatergreaterequal" for
+/// "operator>>=". With a "kw_" prefix, the token name can be used as
+/// an enumerator into the TokenKind enumeration.
+///
+/// Unary: True if the operator can be declared as a unary operator.
+///
+/// Binary: True if the operator can be declared as a binary
+/// operator. Note that some operators (e.g., "operator+" and
+/// "operator*") can be both unary and binary.
+///
+/// MemberOnly: True if this operator can only be declared as a
+/// non-static member function. False if the operator can be both a
+/// non-member function and a non-static member function.
+///
+/// OVERLOADED_OPERATOR_MULTI is used to enumerate the multi-token
+/// overloaded operator names, e.g., "operator delete []". The macro
+/// has all of the parameters of OVERLOADED_OPERATOR except Token,
+/// which is omitted.
+
+#ifndef OVERLOADED_OPERATOR
+#  define OVERLOADED_OPERATOR(Name,Spelling,Token,Unary,Binary,MemberOnly)
+#endif
+
+#ifndef OVERLOADED_OPERATOR_MULTI
+#  define OVERLOADED_OPERATOR_MULTI(Name,Spelling,Unary,Binary,MemberOnly) \
+    OVERLOADED_OPERATOR(Name,Spelling,unknown,Unary,Binary,MemberOnly)
+#endif
+
+OVERLOADED_OPERATOR_MULTI(New            , "new"                      , true , true , false)
+OVERLOADED_OPERATOR_MULTI(Delete         , "delete"                   , true , true , false)
+OVERLOADED_OPERATOR_MULTI(Array_New      , "new[]"                    , true , true , false)
+OVERLOADED_OPERATOR_MULTI(Array_Delete   , "delete[]"                 , true , true , false)
+OVERLOADED_OPERATOR(Plus                 , "+"   , plus               , true , true , false)
+OVERLOADED_OPERATOR(Minus                , "-"   , minus              , true , true , false)
+OVERLOADED_OPERATOR(Star                 , "*"   , star               , true , true , false)
+OVERLOADED_OPERATOR(Slash                , "/"   , slash              , false, true , false)
+OVERLOADED_OPERATOR(Percent              , "%"   , percent            , false, true , false)
+OVERLOADED_OPERATOR(Caret                , "^"   , caret              , false, true , false)
+OVERLOADED_OPERATOR(Amp                  , "&"   , amp                , true , true , false)
+OVERLOADED_OPERATOR(Pipe                 , "|"   , pipe               , false, true , false)
+OVERLOADED_OPERATOR(Tilde                , "~"   , tilde              , true , false, false)
+OVERLOADED_OPERATOR(Exclaim              , "!"   , exclaim            , true , false, false)
+OVERLOADED_OPERATOR(Equal                , "="   , equal              , false, true , true)
+OVERLOADED_OPERATOR(Less                 , "<"   , less               , false, true , false)
+OVERLOADED_OPERATOR(Greater              , ">"   , greater            , false, true , false)
+OVERLOADED_OPERATOR(PlusEqual            , "+="  , plusequal          , false, true , false)
+OVERLOADED_OPERATOR(MinusEqual           , "-="  , minusequal         , false, true , false)
+OVERLOADED_OPERATOR(StarEqual            , "*="  , starequal          , false, true , false)
+OVERLOADED_OPERATOR(SlashEqual           , "/="  , slashequal         , false, true , false)
+OVERLOADED_OPERATOR(PercentEqual         , "%="  , percentequal       , false, true , false)
+OVERLOADED_OPERATOR(CaretEqual           , "^="  , caretequal         , false, true , false)
+OVERLOADED_OPERATOR(AmpEqual             , "&="  , ampequal           , false, true , false)
+OVERLOADED_OPERATOR(PipeEqual            , "|="  , pipeequal          , false, true , false)
+OVERLOADED_OPERATOR(LessLess             , "<<"  , lessless           , false, true , false)
+OVERLOADED_OPERATOR(GreaterGreater       , ">>"  , greatergreater     , false, true , false)
+OVERLOADED_OPERATOR(LessLessEqual        , "<<=" , lesslessequal      , false, true , false)
+OVERLOADED_OPERATOR(GreaterGreaterEqual  , ">>=" , greatergreaterequal, false, true , false)
+OVERLOADED_OPERATOR(EqualEqual           , "=="  , equalequal         , false, true , false)
+OVERLOADED_OPERATOR(ExclaimEqual         , "!="  , exclaimequal       , false, true , false)
+OVERLOADED_OPERATOR(LessEqual            , "<="  , lessequal          , false, true , false)
+OVERLOADED_OPERATOR(GreaterEqual         , ">="  , greaterequal       , false, true , false)
+OVERLOADED_OPERATOR(Spaceship            , "<=>" , spaceship          , false, true , false)
+OVERLOADED_OPERATOR(AmpAmp               , "&&"  , ampamp             , false, true , false)
+OVERLOADED_OPERATOR(PipePipe             , "||"  , pipepipe           , false, true , false)
+OVERLOADED_OPERATOR(PlusPlus             , "++"  , plusplus           , true , true , false)
+OVERLOADED_OPERATOR(MinusMinus           , "--"  , minusminus         , true , true , false)
+OVERLOADED_OPERATOR(Comma                , ","   , comma              , false, true , false)
+OVERLOADED_OPERATOR(ArrowStar            , "->*" , arrowstar          , false, true , false)
+OVERLOADED_OPERATOR(Arrow                , "->"  , arrow              , true , false, true)
+OVERLOADED_OPERATOR_MULTI(Call           , "()"                       , true , true , true)
+OVERLOADED_OPERATOR_MULTI(Subscript      , "[]"                       , false, true , true)
+// ?: can *not* be overloaded, but we need the overload
+// resolution machinery for it.
+OVERLOADED_OPERATOR_MULTI(Conditional    , "?"                        , false, true , false)
+OVERLOADED_OPERATOR(Coawait              , "co_await", kw_co_await    , true , false, false)
+
+#undef OVERLOADED_OPERATOR_MULTI
+#undef OVERLOADED_OPERATOR

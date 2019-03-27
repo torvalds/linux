@@ -1,0 +1,63 @@
+.\"
+.\"	@(#)zdump.8	8.2
+.\" This file is in the public domain, so clarified as of
+.\" 2009-05-17 by Arthur David Olson.
+.\" $FreeBSD$
+.\"
+.Dd June 20, 2004
+.Dt ZDUMP 8
+.Os
+.Sh NAME
+.Nm zdump
+.Nd timezone dumper
+.Sh SYNOPSIS
+.Nm
+.Op Fl -version
+.Op Fl v
+.Op Fl c Ar [loyear,]hiyear
+.Op Ar zonename ...
+.Sh DESCRIPTION
+The
+.Nm
+utility prints the current time in each
+.Ar zonename
+named on the command line.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl -version
+Output version information and exit.
+.It Fl v
+For each
+.Ar zonename
+on the command line,
+print the time at the lowest possible time value,
+the time one day after the lowest possible time value,
+the times both one second before and exactly at
+each detected time discontinuity,
+the time at one day less than the highest possible time value,
+and the time at the highest possible time value,
+Each line ends with
+.Em isdst=1
+if the given time is Daylight Saving Time or
+.Em isdst=0
+otherwise.
+.It Fl c Ar loyear,hiyear
+Cut off verbose output near the start of the given year(s).
+By default,
+the program cuts off verbose output near the starts of the years -500 and 2500.
+.El
+.Sh LIMITATIONS
+The
+.Fl v
+option may not be used on systems with floating-point time_t values
+that are neither float nor double.
+.Pp
+Time discontinuities are found by sampling the results returned by localtime
+at twelve-hour intervals.
+This works in all real-world cases;
+one can construct artificial time zones for which this fails.
+.Sh "SEE ALSO"
+.Xr ctime 3 ,
+.Xr tzfile 5 ,
+.Xr zic 8

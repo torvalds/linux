@@ -1,0 +1,67 @@
+#!/bin/sh -
+#
+# Copyright 2004 John-Mark Gurney
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+crashpath="/var/crash"
+kld_debpy="kld_deb.py"
+
+if [ x"$1" = x"-?" -o x"$1" = x"-h" ]; then
+	echo "Usage: $0 <corenum> [ <gdbcmdfile> [ <modulepaths> ] ]"
+	echo ""
+	echo "Path for crash dumps: $crashpath"
+	exit 1
+fi
+
+if [ x"$1" = x"" ]; then
+	echo "Need core number."
+	exit 1
+fi
+corenum="$1"
+shift
+
+cmd_file=""
+if [ x"$2" != x"" ]; then
+	cmd_file="-x $2"
+	shift
+fi
+
+core="$crashpath/vmcore.$corenum"
+info="$crashpath/info.$corenum"
+
+#Get the kernel source compile dir from the info file
+kernsrc="`awk 'i == 1 { split($0, a, ":"); print a[2]; i = 0 } $1 == "Versionstring:" { i = 1 }' < "$info"`"
+
+tmpfile="/tmp/kgdb.asf.$$"
+# -mapped (broken?)
+# -x command_file
+echo "Kernel Source:	$kernsrc"
+echo "Getting KLD information and locations..."
+python $kld_debpy "$kernsrc" "$core" $@ > "$tmpfile" &&
+echo "Please run the following command to load module symbols:"
+echo "source $tmpfile"
+(cd "$kernsrc"; kgdb "$kernsrc/kernel.debug" "$core")
+rm "$tmpfile"

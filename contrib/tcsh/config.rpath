@@ -1,0 +1,571 @@
+#! /bin/sh
+# Output a system dependent set of variables, describing how to set the
+# run time search path of shared libraries in an executable.
+#
+#   Copyright 1996-2005 Free Software Foundation, Inc.
+#   Taken from GNU libtool, 2001
+#   Originally by Gordon Matzigkeit <gord@gnu.ai.mit.edu>, 1996
+#
+#   This file is free software; the Free Software Foundation gives
+#   unlimited permission to copy and/or distribute it, with or without
+#   modifications, as long as this notice is preserved.
+#
+# The first argument passed to this file is the canonical host specification,
+#    CPU_TYPE-MANUFACTURER-OPERATING_SYSTEM
+# or
+#    CPU_TYPE-MANUFACTURER-KERNEL-OPERATING_SYSTEM
+# The environment variables CC, GCC, LDFLAGS, LD, with_gnu_ld
+# should be set by the caller.
+#
+# The set of defined variables is at the end of this script.
+
+# Known limitations:
+# - On IRIX 6.5 with CC="cc", the run time search patch must not be longer
+#   than 256 bytes, otherwise the compiler driver will dump core. The only
+#   known workaround is to choose shorter directory names for the build
+#   directory and/or the installation directory.
+
+# All known linkers require a `.a' archive for static linking (except M$VC,
+# which needs '.lib').
+libext=a
+shrext=.so
+
+host="$1"
+host_cpu=`echo "$host" | sed 's/^\([^-]*\)-\([^-]*\)-\(.*\)$/\1/'`
+host_vendor=`echo "$host" | sed 's/^\([^-]*\)-\([^-]*\)-\(.*\)$/\2/'`
+host_os=`echo "$host" | sed 's/^\([^-]*\)-\([^-]*\)-\(.*\)$/\3/'`
+
+cc_basename=`echo "$CC" | sed -e 's%^.*/%%'`
+
+# Code taken from libtool.m4's AC_LIBTOOL_PROG_COMPILER_PIC.
+
+wl=
+if test "$GCC" = yes; then
+  wl='-Wl,'
+else
+  case "$host_os" in
+    aix*)
+      wl='-Wl,'
+      ;;
+    darwin*)
+      case "$cc_basename" in
+        xlc*)
+          wl='-Wl,'
+          ;;
+      esac
+      ;;
+    mingw* | pw32* | os2*)
+      ;;
+    hpux9* | hpux10* | hpux11*)
+      wl='-Wl,'
+      ;;
+    irix5* | irix6* | nonstopux*)
+      wl='-Wl,'
+      ;;
+    newsos6)
+      ;;
+    linux*)
+      case $cc_basename in
+        icc* | ecc*)
+          wl='-Wl,'
+          ;;
+        pgcc | pgf77 | pgf90)
+          wl='-Wl,'
+          ;;
+        ccc*)
+          wl='-Wl,'
+          ;;
+        como)
+          wl='-lopt='
+          ;;
+      esac
+      ;;
+    osf3* | osf4* | osf5*)
+      wl='-Wl,'
+      ;;
+    sco3.2v5*)
+      ;;
+    solaris*)
+      wl='-Wl,'
+      ;;
+    sunos4*)
+      wl='-Qoption ld '
+      ;;
+    sysv4 | sysv4.2uw2* | sysv4.3* | sysv5*)
+      wl='-Wl,'
+      ;;
+    sysv4*MP*)
+      ;;
+    unicos*)
+      wl='-Wl,'
+      ;;
+    uts4*)
+      ;;
+  esac
+fi
+
+# Code taken from libtool.m4's AC_LIBTOOL_PROG_LD_SHLIBS.
+
+hardcode_libdir_flag_spec=
+hardcode_libdir_separator=
+hardcode_direct=no
+hardcode_minus_L=no
+
+case "$host_os" in
+  cygwin* | mingw* | pw32*)
+    # FIXME: the MSVC++ port hasn't been tested in a loooong time
+    # When not using gcc, we currently assume that we are using
+    # Microsoft Visual C++.
+    if test "$GCC" != yes; then
+      with_gnu_ld=no
+    fi
+    ;;
+  openbsd*)
+    with_gnu_ld=no
+    ;;
+esac
+
+ld_shlibs=yes
+if test "$with_gnu_ld" = yes; then
+  case "$host_os" in
+    aix3* | aix4* | aix5*)
+      # On AIX/PPC, the GNU linker is very broken
+      if test "$host_cpu" != ia64; then
+        ld_shlibs=no
+      fi
+      ;;
+    amigaos*)
+      hardcode_libdir_flag_spec='-L$libdir'
+      hardcode_minus_L=yes
+      # Samuel A. Falvo II <kc5tja@dolphin.openprojects.net> reports
+      # that the semantics of dynamic libraries on AmigaOS, at least up
+      # to version 4, is to share data among multiple programs linked
+      # with the same dynamic library.  Since this doesn't match the
+      # behavior of shared libraries on other platforms, we cannot use
+      # them.
+      ld_shlibs=no
+      ;;
+    beos*)
+      if $LD --help 2>&1 | grep ': supported targets:.* elf' > /dev/null; then
+        :
+      else
+        ld_shlibs=no
+      fi
+      ;;
+    cygwin* | mingw* | pw32*)
+      # hardcode_libdir_flag_spec is actually meaningless, as there is
+      # no search path for DLLs.
+      hardcode_libdir_flag_spec='-L$libdir'
+      if $LD --help 2>&1 | grep 'auto-import' > /dev/null; then
+        :
+      else
+        ld_shlibs=no
+      fi
+      ;;
+    netbsd*)
+      ;;
+    solaris* | sysv5*)
+      if $LD -v 2>&1 | grep 'BFD 2\.8' > /dev/null; then
+        ld_shlibs=no
+      elif $LD --help 2>&1 | grep ': supported targets:.* elf' > /dev/null; then
+        :
+      else
+        ld_shlibs=no
+      fi
+      ;;
+    sunos4*)
+      hardcode_direct=yes
+      ;;
+    linux*)
+      if $LD --help 2>&1 | grep ': supported targets:.* elf' > /dev/null; then
+        :
+      else
+        ld_shlibs=no
+      fi
+      ;;
+    *)
+      if $LD --help 2>&1 | grep ': supported targets:.* elf' > /dev/null; then
+        :
+      else
+        ld_shlibs=no
+      fi
+      ;;
+  esac
+  if test "$ld_shlibs" = yes; then
+    # Unlike libtool, we use -rpath here, not --rpath, since the documented
+    # option of GNU ld is called -rpath, not --rpath.
+    hardcode_libdir_flag_spec='${wl}-rpath ${wl}$libdir'
+  fi
+else
+  case "$host_os" in
+    aix3*)
+      # Note: this linker hardcodes the directories in LIBPATH if there
+      # are no directories specified by -L.
+      hardcode_minus_L=yes
+      if test "$GCC" = yes; then
+        # Neither direct hardcoding nor static linking is supported with a
+        # broken collect2.
+        hardcode_direct=unsupported
+      fi
+      ;;
+    aix4* | aix5*)
+      if test "$host_cpu" = ia64; then
+        # On IA64, the linker does run time linking by default, so we don't
+        # have to do anything special.
+        aix_use_runtimelinking=no
+      else
+        aix_use_runtimelinking=no
+        # Test if we are trying to use run time linking or normal
+        # AIX style linking. If -brtl is somewhere in LDFLAGS, we
+        # need to do runtime linking.
+        case $host_os in aix4.[23]|aix4.[23].*|aix5*)
+          for ld_flag in $LDFLAGS; do
+            if (test $ld_flag = "-brtl" || test $ld_flag = "-Wl,-brtl"); then
+              aix_use_runtimelinking=yes
+              break
+            fi
+          done
+        esac
+      fi
+      hardcode_direct=yes
+      hardcode_libdir_separator=':'
+      if test "$GCC" = yes; then
+        case $host_os in aix4.[012]|aix4.[012].*)
+          collect2name=`${CC} -print-prog-name=collect2`
+          if test -f "$collect2name" && \
+            strings "$collect2name" | grep resolve_lib_name >/dev/null
+          then
+            # We have reworked collect2
+            hardcode_direct=yes
+          else
+            # We have old collect2
+            hardcode_direct=unsupported
+            hardcode_minus_L=yes
+            hardcode_libdir_flag_spec='-L$libdir'
+            hardcode_libdir_separator=
+          fi
+        esac
+      fi
+      # Begin _LT_AC_SYS_LIBPATH_AIX.
+      echo 'int main () { return 0; }' > conftest.c
+      ${CC} ${LDFLAGS} conftest.c -o conftest
+      aix_libpath=`dump -H conftest 2>/dev/null | sed -n -e '/Import File Strings/,/^$/ { /^0/ { s/^0  *\(.*\)$/\1/; p; }
+}'`
+      if test -z "$aix_libpath"; then
+        aix_libpath=`dump -HX64 conftest 2>/dev/null | sed -n -e '/Import File Strings/,/^$/ { /^0/ { s/^0  *\(.*\)$/\1/; p; }
+}'`
+      fi
+      if test -z "$aix_libpath"; then
+        aix_libpath="/usr/lib:/lib"
+      fi
+      rm -f conftest.c conftest
+      # End _LT_AC_SYS_LIBPATH_AIX.
+      if test "$aix_use_runtimelinking" = yes; then
+        hardcode_libdir_flag_spec='${wl}-blibpath:$libdir:'"$aix_libpath"
+      else
+        if test "$host_cpu" = ia64; then
+          hardcode_libdir_flag_spec='${wl}-R $libdir:/usr/lib:/lib'
+        else
+          hardcode_libdir_flag_spec='${wl}-blibpath:$libdir:'"$aix_libpath"
+        fi
+      fi
+      ;;
+    amigaos*)
+      hardcode_libdir_flag_spec='-L$libdir'
+      hardcode_minus_L=yes
+      # see comment about different semantics on the GNU ld section
+      ld_shlibs=no
+      ;;
+    bsdi[45]*)
+      ;;
+    cygwin* | mingw* | pw32*)
+      # When not using gcc, we currently assume that we are using
+      # Microsoft Visual C++.
+      # hardcode_libdir_flag_spec is actually meaningless, as there is
+      # no search path for DLLs.
+      hardcode_libdir_flag_spec=' '
+      libext=lib
+      ;;
+    darwin* | rhapsody*)
+      hardcode_direct=no
+      if test "$GCC" = yes ; then
+        :
+      else
+        case "$cc_basename" in
+          xlc*)
+            ;;
+          *)
+            ld_shlibs=no
+            ;;
+        esac
+      fi
+      ;;
+    dgux*)
+      hardcode_libdir_flag_spec='-L$libdir'
+      ;;
+    freebsd1*)
+      ld_shlibs=no
+      ;;
+    freebsd2.2*)
+      hardcode_libdir_flag_spec='-R$libdir'
+      hardcode_direct=yes
+      ;;
+    freebsd2*)
+      hardcode_direct=yes
+      hardcode_minus_L=yes
+      ;;
+    freebsd* | kfreebsd*-gnu | dragonfly*)
+      hardcode_libdir_flag_spec='-R$libdir'
+      hardcode_direct=yes
+      ;;
+    hpux9*)
+      hardcode_libdir_flag_spec='${wl}+b ${wl}$libdir'
+      hardcode_libdir_separator=:
+      hardcode_direct=yes
+      # hardcode_minus_L: Not really in the search PATH,
+      # but as the default location of the library.
+      hardcode_minus_L=yes
+      ;;
+    hpux10* | hpux11*)
+      if test "$with_gnu_ld" = no; then
+        case "$host_cpu" in
+          hppa*64*)
+            hardcode_libdir_flag_spec='${wl}+b ${wl}$libdir'
+            hardcode_libdir_separator=:
+            hardcode_direct=no
+            ;;
+          ia64*)
+            hardcode_libdir_flag_spec='-L$libdir'
+            hardcode_direct=no
+            # hardcode_minus_L: Not really in the search PATH,
+            # but as the default location of the library.
+            hardcode_minus_L=yes
+            ;;
+          *)
+            hardcode_libdir_flag_spec='${wl}+b ${wl}$libdir'
+            hardcode_libdir_separator=:
+            hardcode_direct=yes
+            # hardcode_minus_L: Not really in the search PATH,
+            # but as the default location of the library.
+            hardcode_minus_L=yes
+            ;;
+        esac
+      fi
+      ;;
+    irix5* | irix6* | nonstopux*)
+      hardcode_libdir_flag_spec='${wl}-rpath ${wl}$libdir'
+      hardcode_libdir_separator=:
+      ;;
+    netbsd*)
+      hardcode_libdir_flag_spec='-R$libdir'
+      hardcode_direct=yes
+      ;;
+    newsos6)
+      hardcode_direct=yes
+      hardcode_libdir_flag_spec='${wl}-rpath ${wl}$libdir'
+      hardcode_libdir_separator=:
+      ;;
+    openbsd*)
+      hardcode_direct=yes
+      if test -z "`echo __ELF__ | $CC -E - | grep __ELF__`" || test "$host_os-$host_cpu" = "openbsd2.8-powerpc"; then
+        hardcode_libdir_flag_spec='${wl}-rpath,$libdir'
+      else
+        case "$host_os" in
+          openbsd[01].* | openbsd2.[0-7] | openbsd2.[0-7].*)
+            hardcode_libdir_flag_spec='-R$libdir'
+            ;;
+          *)
+            hardcode_libdir_flag_spec='${wl}-rpath,$libdir'
+            ;;
+        esac
+      fi
+      ;;
+    os2*)
+      hardcode_libdir_flag_spec='-L$libdir'
+      hardcode_minus_L=yes
+      ;;
+    osf3*)
+      hardcode_libdir_flag_spec='${wl}-rpath ${wl}$libdir'
+      hardcode_libdir_separator=:
+      ;;
+    osf4* | osf5*)
+      if test "$GCC" = yes; then
+        hardcode_libdir_flag_spec='${wl}-rpath ${wl}$libdir'
+      else
+        # Both cc and cxx compiler support -rpath directly
+        hardcode_libdir_flag_spec='-rpath $libdir'
+      fi
+      hardcode_libdir_separator=:
+      ;;
+    sco3.2v5*)
+      ;;
+    solaris*)
+      hardcode_libdir_flag_spec='-R$libdir'
+      ;;
+    sunos4*)
+      hardcode_libdir_flag_spec='-L$libdir'
+      hardcode_direct=yes
+      hardcode_minus_L=yes
+      ;;
+    sysv4)
+      case $host_vendor in
+        sni)
+          hardcode_direct=yes # is this really true???
+          ;;
+        siemens)
+          hardcode_direct=no
+          ;;
+        motorola)
+          hardcode_direct=no #Motorola manual says yes, but my tests say they lie
+          ;;
+      esac
+      ;;
+    sysv4.3*)
+      ;;
+    sysv4*MP*)
+      if test -d /usr/nec; then
+        ld_shlibs=yes
+      fi
+      ;;
+    sysv4.2uw2*)
+      hardcode_direct=yes
+      hardcode_minus_L=no
+      ;;
+    sysv5OpenUNIX8* | sysv5UnixWare7* |  sysv5uw[78]* | unixware7*)
+      ;;
+    sysv5*)
+      hardcode_libdir_flag_spec=
+      ;;
+    uts4*)
+      hardcode_libdir_flag_spec='-L$libdir'
+      ;;
+    *)
+      ld_shlibs=no
+      ;;
+  esac
+fi
+
+# Check dynamic linker characteristics
+# Code taken from libtool.m4's AC_LIBTOOL_SYS_DYNAMIC_LINKER.
+libname_spec='lib$name'
+case "$host_os" in
+  aix3*)
+    ;;
+  aix4* | aix5*)
+    ;;
+  amigaos*)
+    ;;
+  beos*)
+    ;;
+  bsdi[45]*)
+    ;;
+  cygwin* | mingw* | pw32*)
+    shrext=.dll
+    ;;
+  darwin* | rhapsody*)
+    shrext=.dylib
+    ;;
+  dgux*)
+    ;;
+  freebsd1*)
+    ;;
+  kfreebsd*-gnu)
+    ;;
+  freebsd*)
+    ;;
+  gnu*)
+    ;;
+  hpux9* | hpux10* | hpux11*)
+    case "$host_cpu" in
+      ia64*)
+        shrext=.so
+        ;;
+      hppa*64*)
+        shrext=.sl
+        ;;
+      *)
+        shrext=.sl
+        ;;
+    esac
+    ;;
+  irix5* | irix6* | nonstopux*)
+    case "$host_os" in
+      irix5* | nonstopux*)
+        libsuff= shlibsuff=
+        ;;
+      *)
+        case $LD in
+          *-32|*"-32 "|*-melf32bsmip|*"-melf32bsmip ") libsuff= shlibsuff= ;;
+          *-n32|*"-n32 "|*-melf32bmipn32|*"-melf32bmipn32 ") libsuff=32 shlibsuff=N32 ;;
+          *-64|*"-64 "|*-melf64bmip|*"-melf64bmip ") libsuff=64 shlibsuff=64 ;;
+          *) libsuff= shlibsuff= ;;
+        esac
+        ;;
+    esac
+    ;;
+  linux*oldld* | linux*aout* | linux*coff*)
+    ;;
+  linux*)
+    ;;
+  knetbsd*-gnu)
+    ;;
+  netbsd*)
+    ;;
+  newsos6)
+    ;;
+  nto-qnx*)
+    ;;
+  openbsd*)
+    ;;
+  os2*)
+    libname_spec='$name'
+    shrext=.dll
+    ;;
+  osf3* | osf4* | osf5*)
+    ;;
+  sco3.2v5*)
+    ;;
+  solaris*)
+    ;;
+  sunos4*)
+    ;;
+  sysv4 | sysv4.2uw2* | sysv4.3* | sysv5*)
+    ;;
+  sysv4*MP*)
+    ;;
+  uts4*)
+    ;;
+esac
+
+sed_quote_subst='s/\(["`$\\]\)/\\\1/g'
+escaped_wl=`echo "X$wl" | sed -e 's/^X//' -e "$sed_quote_subst"`
+shlibext=`echo "$shrext" | sed -e 's,^\.,,'`
+escaped_hardcode_libdir_flag_spec=`echo "X$hardcode_libdir_flag_spec" | sed -e 's/^X//' -e "$sed_quote_subst"`
+
+LC_ALL=C sed -e 's/^\([a-zA-Z0-9_]*\)=/acl_cv_\1=/' <<EOF
+
+# How to pass a linker flag through the compiler.
+wl="$escaped_wl"
+
+# Static library suffix (normally "a").
+libext="$libext"
+
+# Shared library suffix (normally "so").
+shlibext="$shlibext"
+
+# Flag to hardcode \$libdir into a binary during linking.
+# This must work even if \$libdir does not exist.
+hardcode_libdir_flag_spec="$escaped_hardcode_libdir_flag_spec"
+
+# Whether we need a single -rpath flag with a separated argument.
+hardcode_libdir_separator="$hardcode_libdir_separator"
+
+# Set to yes if using DIR/libNAME.so during linking hardcodes DIR into the
+# resulting binary.
+hardcode_direct="$hardcode_direct"
+
+# Set to yes if using the -LDIR flag during linking hardcodes DIR into the
+# resulting binary.
+hardcode_minus_L="$hardcode_minus_L"
+
+EOF

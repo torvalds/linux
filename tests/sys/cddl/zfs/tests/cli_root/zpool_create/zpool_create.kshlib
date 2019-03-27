@@ -1,0 +1,131 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)zpool_create.kshlib	1.4	09/06/22 SMI"
+#
+
+. $STF_SUITE/include/libtest.kshlib
+
+#
+# Given a pool vdevs list, create the pool,verify the created pool,
+# and destroy the pool
+# $1, pool name
+# $2, pool type, mirror, raidz, or none
+# $3, vdevs list
+#
+function create_pool_test
+{
+	typeset pool=$1
+	typeset keywd=$2
+	typeset vdevs
+	eval set -A diskarray $3
+
+        for vdevs in "${diskarray[@]}";do 
+        	create_pool $pool $keywd $vdevs 
+                log_must poolexists $pool
+		destroy_pool $pool
+        done
+}
+
+#
+# Create a ufs file system and make a vdev file on it
+#
+# $1, disk name to create ufs file system
+# $2, file name
+#
+function create_blockfile
+{
+	typeset disk=$1
+	typeset file=$2
+	typeset dir=`$DIRNAME $file`
+	
+	if [[ -d $dir ]]; then
+		ismounted $dir ufs && log_must $UMOUNT -f $dir
+	else
+		log_must $MKDIR -p $dir
+	fi
+
+	log_must $NEWFS $disk
+	log_must $MOUNT $disk $dir
+	log_must create_vdevs $file
+}
+
+#
+# Umount the ufs filesystem and remove the mountpoint
+# $1, the mount point
+#
+function clean_blockfile
+{
+	typeset dirs=$1
+	
+	for dir in $dirs; do
+		if [[ -d $dir ]]; then
+			if ismounted $dir ufs; then 
+				log_must $UMOUNT -f $dir
+			fi
+			log_must $RM -rf $dir
+		fi
+	done
+}
+
+#
+# Find the storage device in /etc/vfstab
+#
+function find_vfstab_dev
+{
+	typeset vfstab="/etc/vfstab"
+	typeset tmpfile="$TMPDIR/vfstab.tmp"
+	typeset vfstabdev
+	typeset vfstabdevs=""
+	typeset line
+
+	$CAT $vfstab | $GREP "^/dev" >$tmpfile
+	while read -r line
+	do
+		vfstabdev=`$ECHO "$line" | $AWK '{print $1}'`
+		vfstabdev=${vfstabdev%%:}
+		vfstabdevs="$vfstabdev $vfstabdevs"
+	done <$tmpfile
+
+	$RM -f $tmpfile
+	$ECHO $vfstabdevs	
+} 
+
+#
+# Save the systme current dump device configuration
+#
+function save_dump_dev
+{
+
+	typeset dumpdev
+	typeset fnd="Dump device"
+	
+	dumpdev=`$DUMPADM | $GREP "$fnd" | $CUT -f2 -d : | \
+		$AWK '{print $1}'`
+	$ECHO $dumpdev
+}

@@ -1,0 +1,244 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)tt02	8.1 (Berkeley) 6/8/93
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\"
+.NH
+Point Sizes; Line Spacing
+.PP
+As mentioned above,
+the command
+.BD .ps
+sets the point size.
+One point is 1/72 inch,
+so 6-point characters are at most 1/12 inch high,
+and 36-point characters are \(12 inch.
+There are 15 point sizes, listed below.
+.P1 1
+.ps 6
+6 point: Pack my box with five dozen liquor jugs.
+.ps 7
+.vs 8p
+7 point: Pack my box with five dozen liquor jugs.
+.vs 9p
+.ps 8
+8 point: Pack my box with five dozen liquor jugs.
+.vs 10p
+.ps 9
+9 point: Pack my box with five dozen liquor jugs.
+.vs 11p
+.ps 10
+10 point: Pack my box with five dozen liquor
+.vs 12p
+.ps 11
+11 point: Pack my box with five dozen 
+.vs 14p
+.ps 12
+12 point: Pack my box with five dozen
+.vs 16p
+.ps 14
+14 point: Pack my box with five
+.vs 24p
+\s1616 point\s18 18 point\s20 20 point
+.vs 40p
+\s2222\s24 24\s28 28\s36 36
+.ps 10
+.vs 12p
+.P2
+.PP
+If the number after
+.BD .ps 
+is not one of these
+legal sizes,
+it is rounded up to the next valid value,
+with a maximum of 36.
+If no number follows
+.BD .ps ,
+.UL troff
+reverts to the previous size, whatever it was.
+.UL troff
+begins with point size 10,
+which is usually fine.
+The original of this document (on 8.5 by 11 inch paper) is in 9 point.
+.PP
+The point size can also be changed in the middle of a line
+or even a word
+with the in-line command
+.BD \es .
+To produce
+.P1
+\s8UNIX\s10 runs on a \s8PDP-\s1011/45
+.P2
+type
+.P1
+\es8UNIX\es10 runs on a \es8PDP-\es1011/45
+.P2
+As above,
+.BD \es 
+should be followed by a legal point size,
+except that
+.BD \es0 
+causes the size to revert to
+its previous value.
+Notice that
+.BD \es1011
+can be understood correctly as `size 10, followed by an 11', if the size is legal,
+but not otherwise.
+Be cautious with similar constructions.
+.PP
+Relative size changes are also legal and useful:
+.P1
+\es\-2UNIX\es+2
+.P2
+temporarily decreases the size, whatever it is, by two points, then
+restores it.
+Relative size changes have the advantage that the size difference
+is independent of the starting size of the document.
+The amount of the relative change is restricted
+to a single digit.
+.WS
+.PP
+The other parameter that determines what the type looks like
+is the spacing between lines,
+which is set independently of the point size.
+Vertical spacing is measured from the bottom of one line to
+the bottom of the next.
+The command to control vertical spacing is
+.BD .vs .
+For running text, it is usually best to set the vertical spacing
+about 20% bigger than the character size.
+For example, so far in this document, we have used
+``9 on 11'', that is,
+.P1
+^ps 9
+^vs 11p
+.P2
+If we changed to
+.P1
+^ps 9
+^vs 9p
+.P2
+.vs 9p
+.ne 3
+the running text would look like this.
+After a few lines, you will agree it looks a little cramped.
+The right vertical spacing is partly a matter of taste, depending on how
+much text you want to squeeze into a given space,
+and partly a matter of traditional printing style.
+By default,
+.UL troff
+uses 10 on 12.
+.PP
+.vs 14p
+.ps 12
+Point size and vertical spacing make a substantial difference in the amount of text
+per square inch.
+This is 12 on 14.
+.ne 2
+.PP
+.ne 2
+.ps 6
+.vs 7p
+Point size and vertical spacing make a substantial difference in the amount of text
+per square inch.
+For example,
+10 on 12 uses about twice as much space as 7 on 8.
+This is 6 on 7, which is even smaller.
+It packs a lot more words per line,
+but you can go blind trying to read it.
+.PP
+When used without arguments,
+.BD .ps
+and
+.BD .vs
+revert to the previous size and vertical spacing
+respectively.
+.WS
+.PP
+The command
+.BD .sp
+is used to get extra vertical space.
+Unadorned, 
+it gives you one extra blank line (one
+.BD .vs ,
+whatever that has been set to).
+Typically, that's more or less than you want,
+so
+.BD .sp
+can be followed by
+information about how much space you want _
+.P1
+^sp 2i
+.P2
+means `two inches of vertical space'.
+.P1
+^sp 2p
+.P2
+means `two points of vertical space';
+and
+.P1
+^sp 2
+.P2
+means `two vertical spaces' _ two of whatever
+.BD .vs
+is set to
+(this can also be made explicit with
+.BD .sp\ 2v );
+.UL troff
+also understands decimal fractions in most places,
+so
+.P1
+^sp 1.5i
+.P2
+is a space of 1.5 inches.
+These same scale factors can be used after
+.BD .vs
+to define line spacing, and in fact after most commands
+that deal with physical dimensions.
+.PP
+It should be noted that all size numbers are converted internally
+to `machine units', which are 1/432 inch
+(1/6 point).
+For most purposes, this is enough resolution
+that you don't have to worry about the accuracy of the representation.
+The situation is not quite so good vertically,
+where resolution is 1/144 inch
+(1/2 point).

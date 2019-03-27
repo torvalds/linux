@@ -1,0 +1,45 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=windows-1252">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Quick Start</title>
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->1-Dec-2012  04:44<!-- #EndDate -->
+  UTC</p>
+<h3>Quick Start</h3>
+<img src="pic/panda.gif" alt="gif" align="left">FAX test image for SATNET (1979).
+<p>The baby panda was scanned at University College London and used as a FAX test image for a demonstration of the DARPA Atlantic SATNET Program and the first transatlantic Internet connection in 1978. The computing system used for that demonstration was called the <a href="http://www.eecis.udel.edu/%7emills/database/papers/fuzz.ps">Fuzzball</a>. As it happened, this was also the first Internet multimedia presentation and the first to use a predecessor of NTP in regular operation. The image was widely copied and used for testing purpose throughout much of the 1980s.</p>
+<p>Last update:
+  <!-- #BeginDate format:En1m -->1-Dec-2012  04:44<!-- #EndDate -->
+  UTC</p>
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/install.txt"></script>
+<hr>
+<p>For the rank amateur the sheer volume of the documentation collection must be intimidating. However, it doesn't take much to fly the <tt>ntpd</tt> daemon with a simple configuration where a workstation needs to synchronize to some server elsewhere in the Internet. The first thing is to build the distribution for the particular workstation and install in the usual place. The <a href="build.html">Building and Installing the Distribution</a> page describes how to do this.</p>
+<p>While it is possible that certain configurations do not need a configuration file, most do. The file, called by default <tt>/etc/ntp.conf</tt>, need only contain one command specifying a remote server, for instance</p>
+<p><tt>server foo.bar.com</tt></p>
+<p>Choosing an appropriate remote server is somewhat of a black art, but a
+  suboptimal choice is seldom a problem. The simplest and best is to use the
+  Server Pool Scheme on the <a href="discover.html">Automatic Server Discovery</a> page. There
+  are about two dozen public time servers operated by the <a href="http://tf.nist.gov/tf-cgi/servers.cgi">National
+  Institutes of Science and Technology (NIST)</a>, <a href="http://tycho.usno.navy.mil/ntp.html">US
+  Naval Observatory (USNO)</a>, <a href="http://inms-ienm.nrc-cnrc.gc.ca/time_services/network_time_protocol_e.html"> Canadian
+  Metrology Centre (CMC)</a> and many others available on the Internet. Lists
+  of public primary and secondary NTP servers maintained on the <a href="http://support.ntp.org/Servers/WebHome">Public
+  NTP Time Servers</a> page, which is updated frequently.  The lists are sorted
+  by country and, in the case of the US, by state. Usually, the best
+  choice is the nearest in geographical terms, but the terms of engagement
+  specified in each list entry should be carefully respected.</p>
+<p>During operation <tt>ntpd</tt> measures and corrects for incidental clock frequency error and occasionally writes the current value to a file specified by the</p>
+<p><tt>driftfile /etc/ntp.drift</tt></p>
+<p>configuration command. If <tt>ntpd</tt> is stopped and restarted, it initializes the frequency from this file and avoids the potentially lengthy interval to relearn the correction.</p>
+<p>That's all there is to it, unless some problem in network connectivity or local operating system configuration occurs. The most common problem is some firewall between the workstation and server. System administrators should understand NTP uses UDP port 123 as both the source and destination port and that NTP does not involve any operating system interaction other than to set the system clock. While almost all modern Unix systems have included NTP and UDP port 123 defined in the services file, this should be checked if <tt>ntpd</tt> fails to come up at all.</p>
+<p>The best way to confirm NTP is working is using the <a href="ntpq.html"><tt>ntpq</tt></a> utility, although the <a href="ntpdc.html"><tt>ntpdc</tt></a> utility may be useful in extreme cases. See the documentation pages for further information. Don't forget to check for <a href="msyslog.html"> system log messages</a>. In the most extreme cases the <tt>-d</tt> option on the <tt>ntpd</tt> command line results in a blow-by-blow trace of the daemon operations. While the trace output can be cryptic, to say the least, it gives a general idea of what the program is doing and, in particular, details the arriving and departing packets and any errors found.</p>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
+</html>

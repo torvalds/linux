@@ -1,0 +1,165 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2016 John H. Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 5, 2018
+.Dt BUS_MAP_RESOURCE 9
+.Os
+.Sh NAME
+.Nm bus_map_resource , bus_unmap_resource , resource_init_map_request
+.Nd map or unmap an active resource
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Pp
+.In machine/bus.h
+.In sys/rman.h
+.In machine/resource.h
+.Ft int
+.Fo bus_map_resource
+.Fa "device_t dev" "int type" "struct resource *r"
+.Fa "struct resource_map_request *args" "struct resource_map *map"
+.Fc
+.Ft int
+.Fo bus_unmap_resource
+.Fa "device_t dev" "int type" "struct resource *r" "struct resource_map *map"
+.Fc
+.Ft void
+.Fn resource_init_map_request "struct resource_map_request *args"
+.Sh DESCRIPTION
+These functions create or destroy a mapping of a previously activated
+resource.
+Mappings permit CPU access to the resource via the
+.Xr bus_space 9
+API.
+.Pp
+The arguments are as follows:
+.Bl -tag -width indent
+.It Fa dev
+The device that owns the resource.
+.It Fa type
+The type of resource to map.
+It is one of:
+.Pp
+.Bl -tag -width ".Dv SYS_RES_MEMORY" -compact
+.It Dv SYS_RES_IOPORT
+for I/O ports
+.It Dv SYS_RES_MEMORY
+for I/O memory
+.El
+.It Fa r
+A pointer to the
+.Vt "struct resource"
+returned by
+.Xr bus_alloc_resource 9 .
+.It Fa args
+A set of optional properties to apply when creating a mapping.
+This argument can be set to
+.Dv NULL
+to request a mapping of the entire resource with the default properties.
+.It Fa map
+The resource mapping to create or destroy.
+.El
+.Ss Resource Mappings
+Resource mappings are described by a
+.Vt "struct resource_map"
+object.
+This structure contains a
+.Xr bus_space 9
+tag and handle in the
+.Va r_bustag
+and
+.Va r_bushandle
+members that can be used for CPU access to the mapping.
+The structure also contains a
+.Va r_vaddr
+member which contains the virtual address of the mapping if one exists.
+.Pp
+The wrapper API for
+.Vt "struct resource"
+objects described in
+.Xr bus_activate_resource 9
+can also be used with
+.Vt "struct resource_map" .
+For example,
+a pointer to a mapping object can be passed as the first argument to
+.Fn bus_read_4 .
+This wrapper API is preferred over using the
+.Va r_bustag
+and
+.Va r_bushandle
+members directly.
+.Ss Optional Mapping Properties
+The
+.Vt "struct resource_map_request"
+object passed in
+.Fa args
+can be used to specify optional properties of a mapping.
+The structure must be initialized by invoking
+.Fn resource_init_map_request .
+Properties are then specified by setting one or more of these members:
+.Bl -tag -width indent
+.It Va offset , length
+These two members specify a region of the resource to map.
+By default a mapping is created for the entire resource.
+The
+.Va offset
+is relative to the start of the resource.
+.It Va memattr
+Specifies a memory attribute to use when mapping the resource.
+By default memory mappings use the
+.Dv VM_MEMATTR_UNCACHEABLE
+attribute.
+.El
+.Sh RETURN VALUES
+Zero is returned on success, otherwise an error is returned.
+.Sh EXAMPLES
+This maps a PCI memory BAR with the write-combining memory attribute and
+reads the first 32-bit word:
+.Bd -literal
+	struct resource *r;
+	struct resource_map map;
+	struct resource_map_request req;
+	uint32_t val;
+	int rid;
+
+	rid = PCIR_BAR(0);
+	r = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE |
+	    RF_UNMAPPED);
+	resource_init_map_request(&req);
+	req.memattr = VM_MEMATTR_WRITE_COMBINING;
+	bus_map_resource(dev, SYS_RES_MEMORY, r, &req, &map);
+	val = bus_read_4(&map, 0);
+.Ed
+.Sh SEE ALSO
+.Xr bus_activate_resource 9 ,
+.Xr bus_alloc_resource 9 ,
+.Xr bus_space 9 ,
+.Xr device 9 ,
+.Xr driver 9
+.Sh AUTHORS
+This manual page was written by
+.An John Baldwin Aq Mt jhb@FreeBSD.org .

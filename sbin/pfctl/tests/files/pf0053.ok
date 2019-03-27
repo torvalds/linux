@@ -1,0 +1,4 @@
+pass in inet proto tcp from 1.2.3.4 to any flags S/SA keep state label "0:any:tcp:1.2.3.4::any:"
+pass in inet proto tcp from 1.2.3.5 to any flags S/SA keep state label "1:any:tcp:1.2.3.5::any:"
+pass in on lo0 inet proto tcp from 1.2.3.4 to any flags S/SA keep state label "2:lo0:tcp:1.2.3.4::any:"
+pass in on lo0 inet proto tcp from 1.2.3.5 to any flags S/SA keep state label "3:lo0:tcp:1.2.3.5::any:"

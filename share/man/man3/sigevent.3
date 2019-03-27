@@ -1,0 +1,126 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2016 John H. Baldwin <jhb@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 15, 2016
+.Dt SIGEVENT 3
+.Os
+.Sh NAME
+.Nm sigevent
+.Nd "asynchronous event notification"
+.Sh SYNOPSIS
+.In signal.h
+.Sh DESCRIPTION
+Some operations permit threads to request asychronous notification of events
+via a
+.Vt struct sigevent
+structure.
+This structure contains several fields that describe the requested notification:
+.Bl -column ".Vt void (*)(union sigval)" ".Va sigev_notify_kevent_flags"
+.It Sy Type Ta Sy Member Ta Sy Description
+.It Vt int Ta sigev_notify Ta notification method
+.It Vt int Ta sigev_signo Ta signal number
+.It Vt union sigval Ta sigev_value Ta signal value
+.It Vt int Ta sigev_notify_kqueue Ta
+.Xr kqueue 2
+file descriptor
+.It Vt unsigned short Ta sigev_notify_kevent_flags Ta kevent flags
+.It Vt lwpid_t Ta sigev_notify_thread_id Ta LWP ID
+.It Vt void (*)(union sigval) Ta sigev_notify_function Ta
+callback function pointer
+.It Vt pthread_attr_t * Ta sigev_notify_attributes Ta
+callback thread attributes
+.El
+.Pp
+The
+.Va sigev_notify
+field specifies the notification method used when the event triggers:
+.Bl -tag -width ".Dv SIGEV_THREAD_ID"
+.It Dv SIGEV_NONE
+No notification is sent.
+.It Dv SIGEV_SIGNAL
+The signal
+.Va sigev_signo
+is queued as a real-time signal to the calling process.
+The value stored in
+.Va sigev_value
+will be present in the
+.Va si_value
+of the
+.Vt siginfo_t
+structure of the queued signal.
+.It Dv SIGEV_THREAD
+The notification function in
+.Va sigev_notify_function
+is called in a separate thread context.
+The thread is created with the attributes specified in
+.Va *sigev_notify_attributes .
+The value stored in
+.Va sigev_value
+is passed as the sole argument to
+.Va sigev_notify_function .
+If
+.Va sigev_notify_attributes
+is
+.Dv NULL ,
+the thread is created with default attributes.
+.It Dv SIGEV_KEVENT
+A new kevent is posted to the kqueue
+.Va sigev_notify_kqueue .
+The
+.Va udata
+member of the kevent structure contains the value stored in
+.Va sigev_value .
+The meaning of other fields in the kevent are specific to the type of triggered
+event.
+.It Dv SIGEV_THREAD_ID
+The signal
+.Va sigev_signo
+is queued to the thread whose LWP ID is
+.Va sigev_notify_thread_id .
+The value stored in
+.Va sigev_value
+will be present in the
+.Va si_value
+of the
+.Vt siginfo_t
+structure of the queued signal.
+.El
+.Sh NOTES
+Note that programs wishing to use
+.Dv SIGEV_THREAD
+notifications must link against the
+.Lb librt .
+.Sh SEE ALSO
+.Xr aio_read 2 ,
+.Xr mq_notify 2 ,
+.Xr timer_create 2 ,
+.Xr siginfo 3
+.Sh STANDARDS
+The
+.Vt struct sigevent
+type conforms to
+.St -p1003.1-2004 .

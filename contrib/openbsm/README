@@ -1,0 +1,67 @@
+OpenBSM
+
+  Introduction
+
+OpenBSM is an open-source implementation of Sun's BSM event auditing file
+format and API.  Originally created for Apple Computer by McAfee Research,
+OpenBSM is now maintained by volunteers and through the generous contributions
+of several organizations.
+
+OpenBSM includes several command line tools, including auditreduce(8) and
+praudit(8) for reducing and printing audit trails, as well as the libbsm(3)
+library to manage configuration files, generate audit records, and parse and
+print audit trails.  It also includes the auditd(8) audit configuration
+daemon, and the auditdistd(8) audit-trail distribution daemon.
+
+Coupled with a kernel audit implementation, OpenBSM can be used to maintain
+system audit streams, and is a foundation for a full audit-enabled system.
+Portions of OpenBSM, including include files and token-building routines, are
+reusable in a kernel audit implementation, and may be found in the FreeBSD
+and Mac OS X kernels.
+
+  Contents
+
+OpenBSM consists of several directories:
+
+    bin/           Audit-related command line tools and daemons
+    bsm/           Library header files for BSM
+    compat/        Compatibility code to build on various operating systems
+    etc/           Sample /etc/security configuration files
+    libauditd/     Common audit management functions for auditd and launchd
+    libbsm/        Implementation of BSM library interfaces and man pages
+    man/           System call and configuration file man pages
+    modules/       Directory for auditfilterd module source
+    sys/           System header files for BSM
+    test/          Test token sets and geneneration program
+    tools/         Tool directory, including audump to dump databases
+
+The following programs are included with OpenBSM:
+
+    audit          Command line audit control tool
+    auditd         Audit management daemon
+    auditdistd     Audit trail distribution daemon
+    auditfilterd   Experimental event monitoring framework
+    auditreduce    Audit trail reduction tool
+    audump         Debugging tool to parse and print audit databases
+    praudit        Tool to print audit trails
+
+  Build and Installation
+
+Please see the file INSTALL for build and installation instructions.
+
+  Contributions
+
+The TrustedBSD Project would appreciate the contribution of bug fixes, 
+enhancements, etc, under the same license found in the top-level LICENSE file.
+Please see the file CREDITS to learn more about who has contributed to the
+project.
+
+  Location
+
+Information on OpenBSM may be found on the OpenBSM home page:
+
+    http://www.OpenBSM.org/
+
+Information on TrustedBSD may be found on the TrustedBSD home page:
+
+    http://www.TrustedBSD.org/

@@ -1,0 +1,157 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2005 Doug Rabson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.\"
+.\" The following commands are required for all man pages.
+.Dd January 26, 2010
+.Dt GSS_INQUIRE_CRED 3 PRM
+.Os
+.Sh NAME
+.Nm gss_inquire_cred
+.Nd Obtain information about a credential
+.\" This next command is for sections 2 and 3 only.
+.\" .Sh LIBRARY
+.Sh SYNOPSIS
+.In "gssapi/gssapi.h"
+.Ft OM_uint32
+.Fo gss_inquire_cred
+.Fa "OM_uint32 *minor_status"
+.Fa "const gss_cred_id_t cred_handle"
+.Fa "gss_ctx_id_t *context_handle"
+.Fa "gss_name_t *name"
+.Fa "OM_uint32 *lifetime"
+.Fa "gss_cred_usage_t *cred_usage"
+.Fa "gss_OID_set *mechanisms"
+.Fc
+.Sh DESCRIPTION
+Obtains information about a credential.
+.Sh PARAMETERS
+.Bl -tag -width ".It minor_status"
+.It minor_status
+Mechanism specific status code.
+.It cred_handle
+A handle that refers to the target credential.
+Specify
+.Dv GSS_C_NO_CREDENTIAL
+to inquire about the default initiator principal.
+.It name
+The name whose identity the credential asserts.
+Storage associated with this name should be freed by the application
+after use with a call to
+.Fn gss_release_name .
+Specify
+.Dv NULL
+if not required.
+.It lifetime
+The number of seconds for which the credential will remain valid.
+If the credential has expired,
+this parameter will be set to zero.
+If the implementation does not support credential expiration,
+the value GSS_C_INDEFINITE will be returned.
+Specify
+.Dv NULL
+if not required.
+.It cred_usage
+How the credential may be used.
+One of the following:
+.Bl -item -offset indent -compact
+.It
+.Dv GSS_C_INITIATE
+.It
+.Dv GSS_C_ACCEPT
+.It
+.Dv GSS_C_BOTH
+.El
+Specify
+.Dv NULL
+if not required.
+.It mechanisms
+Set of mechanisms supported by the credential.
+Storage associated with this OID set must be freed by the application
+after use with a call to
+.Fn gss_release_oid_set .
+Specify
+.Dv NULL
+if not required.
+.El
+.Sh RETURN VALUES
+.Bl -tag -width ".It GSS_S_DEFECTIVE_CREDENTIAL"
+.It GSS_S_COMPLETE
+Successful completion
+.It GSS_S_NO_CRED
+The referenced credentials could not be accessed
+.It GSS_S_DEFECTIVE_CREDENTIAL
+The referenced credentials were invalid
+.It GSS_S_CREDENTIALS_EXPIRED
+The referenced credentials have expired.
+If the lifetime parameter was not passed as
+.Dv NULL ,
+it will be set to 0
+.El
+.Sh SEE ALSO
+.Xr gss_release_name 3 ,
+.Xr gss_release_oid_set 3
+.Sh STANDARDS
+.Bl -tag -width ".It RFC 2743"
+.It RFC 2743
+Generic Security Service Application Program Interface Version 2, Update 1
+.It RFC 2744
+Generic Security Service API Version 2 : C-bindings
+.El
+.Sh HISTORY
+The
+.Nm
+function first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+John Wray, Iris Associates
+.Sh COPYRIGHT
+Copyright (C) The Internet Society (2000).  All Rights Reserved.
+.Pp
+This document and translations of it may be copied and furnished to
+others, and derivative works that comment on or otherwise explain it
+or assist in its implementation may be prepared, copied, published
+and distributed, in whole or in part, without restriction of any
+kind, provided that the above copyright notice and this paragraph are
+included on all such copies and derivative works.  However, this
+document itself may not be modified in any way, such as by removing
+the copyright notice or references to the Internet Society or other
+Internet organizations, except as needed for the purpose of
+developing Internet standards in which case the procedures for
+copyrights defined in the Internet Standards process must be
+followed, or as required to translate it into languages other than
+English.
+.Pp
+The limited permissions granted above are perpetual and will not be
+revoked by the Internet Society or its successors or assigns.
+.Pp
+This document and the information contained herein is provided on an
+"AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING
+TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING
+BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION
+HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF
+MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.

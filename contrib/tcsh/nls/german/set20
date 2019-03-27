@@ -1,0 +1,41 @@
+$ $tcsh: set20,v 1.5 2015/08/13 08:54:04 christos Exp $
+$ tc.bind.c
+$set 20
+1 Ungültiger Tastenname `%S'\n
+2 Falsche Tastenname: %S\n
+3 Falsche Befehlsname: %S\n
+4 Falsche Tastenangabe %S\n
+5 Leere Zeichenkette angegeben\n
+6 Standard Tastenbelegung\n
+7 Alternative Tastenbelegung\n
+8 Belegungen mit mehreren Zeichen\n
+9 Belegungen der Pfeiltasten\n
+10 %-15s->  ist undefiniert\n
+11 BUG!!! %s ist mit nichts belegt.\n
+12 Benutzung: bindkey [Optionen] [--] [TASTE [BEFEHL]]\n
+13     -a   belege Taste in alternativer Tastenbelegung\n
+14     -b   akzeptiere symbolische Tastendefinitionen\n
+15     -s   belege einen Out-String anstelle eines Befehls\n
+16     -c   belege einen Unix-Befehl anstelle eines Befehls\n
+17     -v   initialisiere Belegungen mit Standard-Vi-Belegungen\n
+18     -e   initialisiere Belegungen mit Standard-Emacs-Belegungen\n
+19     -d   initialisiere Belegungen mit Standard-Belegungen (%s)\n
+20     -l   zeige verfügbare Funktionen mit Beschreibungen an\n
+21     -r   entferne Belegung eines Tastes\n
+22     -k   belege Pfeiltaste mit Namen in In-String\n
+23     --   force a break from option processing\n
+24     -u   (or any invalid option) this message\n
+25 Wenn kein Out-String oder Befehl angegeben wurde, wir die Belegung für\n
+26 den In-String ausgegeben oder alle Belegungen, falls kein in-String gegeben.\n
+27 Falsche Tastenangabe -- nicht definierte Zeichenkette\n
+28 Falsche Tastenangabe -- leere Zeichenkette\n
+29 Falsche Funktionstastenangabe.  Leere Taste nicht erlaubt\n
+30 Falsche Tastenangabe -- nicht korrekte Hex-Zahl\n
+31 Falsche Tastenangabe -- nicht korrekte Oktal-Zahl\n
+32 Falsche Tastenangabe -- nicht korrekte Dezimal-Zahl\n
+33 Falsche Funktionstastenangabe.\n
+34 Leere Taste nicht erlaubt\n
+35 Falsche Tastenangabe -- unbeannter Name "%S"\n
+36 Benutzung: bind [TASTE | BEFEHL TASTE | "emacs" | "vi" | "-a"]\n
+37 Ungültige Funktion
+38  %s\t\tist undefiniert\n

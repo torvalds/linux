@@ -1,0 +1,11 @@
+# netmask handling w/ multicast
+
+pass from 224.4.5.4/32
+pass from 224.4.5.4/16
+pass from 224.4.5.4/26
+pass from 224.4.5.65/26
+pass from 224.4.5.134/26
+pass from 224.4.5.199/26
+pass from 224.4.5.4
+
+

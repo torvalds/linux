@@ -1,0 +1,76 @@
+#include "rt5350.dtsi"
+
+/ {
+	compatible = "AWM002", "ralink,rt5350-soc";
+	model = "AsiaRF AWM002";
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		ld1 {
+			label = "awm002:green:ld1";
+			gpios = <&gpio0 0 1>;
+		};
+
+		ld2 {
+			label = "awm002:green:ld2";
+			gpios = <&gpio0 1 1>;
+		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	m25p80: m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0>;
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <10000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "u-boot-env";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		factory: partition@40000 {
+			label = "factory";
+			reg = <0x40000 0x10000>;
+			read-only;
+		};
+
+		partition@50000 {
+			label = "firmware";
+			reg = <0x50000 0x1fb0000>;
+		};
+	};
+};
+
+&pinctrl {
+	state_default: pinctrl0 {
+		gpio {
+			ralink,group = "i2c", "jtag";
+			ralink,function = "gpio";
+		};
+	};
+};
+
+&esw {
+	mediatek,portmap = <0x3f>;
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};

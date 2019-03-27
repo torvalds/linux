@@ -1,0 +1,402 @@
+.\" $FreeBSD$
+.TH IPSEND 5
+.SH NAME
+ipsend \- IP packet description language
+.SH DESCRIPTION
+The \fBipsend\fP program expects, with the \fB-L\fP option, input to be a
+text file which fits the grammar described below.  The purpose of this
+grammar is to allow IP packets to be described in an arbitary way which
+also allows encapsulation to be so done to an arbitary level.
+.SH GRAMMAR
+.LP
+.nf
+line ::= iface | arp | send | defrouter | ipv4line .
+
+iface ::= ifhdr "{" ifaceopts "}" ";" .
+ifhdr ::= "interface" | "iface" .
+ifaceopts ::= "ifname" name | "mtu" mtu | "v4addr" ipaddr |
+	      "eaddr" eaddr .
+
+send ::= "send" ";" | "send" "{" sendbodyopts "}" ";" .
+sendbodyopts ::= sendbody [ sendbodyopts ] .
+sendbody ::= "ifname" name | "via" ipaddr .
+
+defrouter ::= "router" ipaddr .
+
+arp ::= "arp" "{" arpbodyopts "}" ";" .
+arpbodyopts ::= arpbody [ arpbodyopts ] .
+arpbody ::= "v4addr" ipaddr | "eaddr" eaddr .
+
+bodyline ::= ipv4line | tcpline | udpline | icmpline | dataline .
+
+ipv4line ::= "ipv4" "{" ipv4bodyopts "}" ";" .
+ipv4bodyopts ::= ipv4body [ ipv4bodyopts ] | bodyline .
+ipv4body ::= "proto" protocol | "src" ipaddr | "dst" ipaddr |
+	     "off" number | "v" number | "hl" number| "id" number |
+	     "ttl" number | "tos" number | "sum" number | "len" number |
+	     "opt" "{" ipv4optlist "}" ";" .
+ipv4optlist ::= ipv4option [ ipv4optlist ] .
+ipv4optlist = "nop" | "rr" | "zsu" | "mtup" | "mtur" | "encode" | "ts" |
+	      "tr" | "sec" | "lsrr" | "e-sec" | "cipso" | "satid" |
+	      "ssrr" | "addext" | "visa" | "imitd" | "eip" | "finn" |
+	      "secclass" ipv4secclass.
+ipv4secclass := "unclass" | "confid" | "reserv-1" | "reserv-2" |
+		"reserv-3" | "reserv-4" | "secret" | "topsecret" .
+
+tcpline ::= "tcp" "{" tcpbodyopts "}" ";" .
+tcpbodyopts ::= tcpbody [ tcpbodyopts ] | bodyline .
+tcpbody ::= "sport" port | "dport" port | "seq" number | "ack" number |
+	    "off" number | "urp" number | "win" number | "sum" number |
+	    "flags" tcpflags | data .
+
+udpline ::= "udp" "{" udpbodyopts "}" ";" .
+udpbodyopts ::= udpbody [ udpbodyopts ] | bodyline .
+udpbody ::= "sport" port | "dport" port | "len" number | "sum" number |
+	    data .
+
+icmpline ::= "icmp" "{" icmpbodyopts "}" ";" .
+icmpbodyopts ::= icmpbody [ icmpbodyopts ] | bodyline .
+icmpbody ::= "type" icmptype [ "code" icmpcode ] .
+icmptype ::= "echorep" | "echorep" "{" echoopts "}" ";" | "unreach" |
+	     "unreach" "{" unreachtype "}" ";" | "squench" | "redir" |
+	     "redir" "{" redirtype "}" ";" | "echo" "{" echoopts "}" ";" |
+	     "echo" | "routerad" | "routersol" | "timex" |
+	     "timex" "{" timextype "}" ";" | "paramprob" |
+	     "paramprob" "{" parapptype "}" ";" | "timest" | "timestrep" |
+	     "inforeq" | "inforep" | "maskreq" | "maskrep" .
+
+echoopts ::= echoopts [ icmpechoopts ] .
+unreachtype ::= "net-unr" | "host-unr" | "proto-unr" | "port-unr" |
+	     "needfrag" | "srcfail" | "net-unk" | "host-unk" | "isolate" |
+	     "net-prohib" | "host-prohib" | "net-tos" | "host-tos" |
+	     "filter-prohib" | "host-preced" | "cutoff-preced" .
+redirtype ::= "net-redir" | "host-redir" | "tos-net-redir" |
+	      "tos-host-redir" .
+timextype ::= "intrans" | "reass" .
+paramptype ::= "optabsent" .
+
+data	::= "data" "{" databodyopts "}" ";" .
+databodyopts ::= "len" number | "value" string | "file" filename .
+
+icmpechoopts ::= "icmpseq" number | "icmpid" number .
+.fi
+.SH COMMANDS
+.PP
+Before sending any packets or defining any packets, it is necessary to
+describe the interface(s) which will be used to send packets out.
+.TP
+.B interface
+is used to describe a network interface.  The description included need
+not match the actual configuration currently employed by the operating
+system.
+.TP
+.B send
+is used to actually send out a packet across the network.  If the
+destination is not specified, it will attempt to send the packet
+directly out on the network to the destination without routing it.
+.TP
+.B router
+configures the default router for ipsend, as distinct from the default
+route installed in the kernel.
+.TP
+.B ipv4
+is used to describe an IP (version 4) packet.  IP header fields can be
+specified, including options, followed by a data section which may contain
+further protocol headers.
+.SH IPv4
+.TP
+.B hl <number>
+manually specifies the IP header length (automatically adjusts with the
+presence of IP options and defaults to 5);
+.TP
+.B v <number>
+set the IP version.  Default is 4.
+.TP
+.B tos <number>
+set the type of service (TOS) field in the IP header.  Default is 0.
+.TP
+.B len <number>
+manually specifies the length of the IP packet.  The length will automatically
+be adjusted to accommodate data or further protocol headers.
+.TP
+.B off <number>
+sets the fragment offset field of the IP packet.  Default is 0.
+.TP
+.B ttl <number>
+sets the time to live (TTL) field of the IP header.  Default is 60.
+.TP
+.B proto <protocol>
+sets the protocol field of the IP header.  The protocol can either be a
+number or a name found in \fB/etc/protocols\fP.
+.TP
+.B sum
+manually specifies the checksum for the IP header.  If left unset (0), it
+will be calculated prior to being sent.
+.TP
+.B src
+manually specifies the source address of the IP header.  If left unset, it
+will default to the host's IP address.
+.TP
+.B dst
+sets the destination of the IP packet.  The default is 0.0.0.0.
+.TP
+.B opt
+is used to include IP options in the IP header.
+.TP
+.B tcp
+is used to indicate the a TCP protocol header is to follow.  See the \fBTCP\fP
+section for TCP header options.
+.TP
+.B udp
+is used to indicate the a UDP protocol header is to follow.  See the \fBUDP\fP
+section for UDP header options.
+.TP
+.B icmp
+is used to indicate the a ICMP protocol header is to follow.  See the
+\fBICMP\fP section for ICMP header options.
+.TP
+.B data
+is used to indicate that raw data is to be included in the IP packet.  See the
+\fBDATA\fP section for details on options available.
+.SH "IPv4 Options"
+these keywords indicate that the relevant IP option should be added to the
+IP header (the header length field will be adjusted appropriately).
+.TP
+.B nop
+No Operation [RFC 791] (space filler).
+.TP
+.B rr <number>
+Record Router [RFC 791].  The number given specifies the number of
+\fBbytes\fP to be used for storage.  This should be a multiple of 4 for
+proper operation.
+.TP
+.B zsu
+Experimental Measurement.
+.TP
+.B mtup [RFC 1191].
+MTU Probe.
+.TP
+.B mtur [RFC 1191].
+MTU Ready.
+.TP
+.B encode
+.TP
+.B ts
+Timestamp [RFC 791].
+.TP
+.B tr
+Traceroute [RFC 1393].
+.TP
+.B "sec-class <security-level>, sec"
+Security [RFC 1108].  This option specifies the security label for the packet.
+Using \fBsec\fP sets up the framework of the security option but unless
+\fBsec-class\fP is given, the level may not be set.
+.TP
+.B "lsrr <ip-address>"
+Loose Source Route [RFC 791].
+.TP
+.B e-sec
+Extended Security [RFC 1108].
+.TP
+.B cipso
+Commercial Security.
+.TP
+.B satid
+Stream ID [RFC 791].
+.TP
+.B "ssrr <ip-address>"
+Strict Source Route [RFC 791].
+.TP
+.B addext
+Address Extension
+.TP
+.B visa
+Experimental Access Control.
+.TP
+.B imitd
+IMI Traffic Descriptor.
+.TP
+.B eip
+[RFC 1358].
+.TP
+.B finn
+Experimental Flow Control.
+.SH TCP
+.TP
+.B sport <port>
+sets the source port to the number/name given.  Default is 0.
+.TP
+.B dport <port>
+sets the destination port to the number/name given.  Default is 0.
+.TP
+.B seq <number>
+sets the sequence number to the number specified.  Default is 0.
+.TP
+.B ack <number>
+sets the acknowledge number to the number specified.  Default is 0.
+.TP
+.B off <number>
+sets the offset value for the start of data to the number specified.  This
+implies the size of the TCP header.  It is automatically adjusted if TCP
+options are included and defaults to 5.
+.TP
+.B urp <number>
+sets the value of the urgent data pointer to the number specified.  Default
+is 0.
+.TP
+.B win <number>
+sets the size of the TCP window to the number specified.  Default is 4096.
+.TP
+.B sum <number>
+manually specifies the checksum for the TCP pseudo-header and data.  If left
+unset, it defaults to 0 and is automatically calculated.
+.TP
+.B flags <tcp-flags>
+sets the TCP flags field to match the flags specified.  Valid flags are
+"S" (SYN), "A" (ACK), "R" (RST), "F" (FIN), "U" (URG), "P" (PUSH).
+.TP
+.B opt
+indicates that TCP header options follow.  As TCP options are added to the
+TCP header, the \fBoff\fP field is updated to match.
+.TP
+.B data
+indicates that a data section is to follow and is to be included as raw
+data, being appended to the header.
+.SH "TCP options"
+With a TCP header, it is possible to append a number of header options.
+The TCP header offset will be updated automatically to reflect the change
+in size.  The valid options are: \fBnop\fP No Operation,
+\fBeol\fP End Of (option) List, \fBmss [ size ]\fP Maximum Segment Size - this
+sets the maximum receivable size of a packet containing data,
+\fBwscale\fP Window Scale, \fBts\fP Timestamp.
+.SH UDP
+.TP
+.B sport <port>
+sets the source port to the number/name given.  Default is 0.
+.TP
+.B dport <port>
+sets the destination port to the number/name given.  Default is 0.
+.TP
+.B len <number>
+manually specifies the length of the UDP header and data.  If left unset,
+it is automatically adjusted to match the header presence and any data if
+present.
+.TP
+.B sum <number>
+manually specifies the checksum for the UDP pseudo-header and data.  If left
+unset, it defaults to 0 and is automatically calculated.
+.TP
+.B data
+indicates that a data section is to follow and is to be included as raw
+data, being appended to the header.
+.SH ICMP
+.TP
+.B type <icmptype>
+sets the ICMP type according the to the icmptype tag.  This may either be
+a number or one of the recognised tags (see the \fBICMP TYPES\fP section for a
+list of names recognised).
+.TP
+.B code <icmpcode>
+sets the ICMP code.
+.TP
+.B data
+indicates that a data section is to follow and is to be included as raw
+data, being appended to the header.
+.SH DATA
+Each of the following extend the packet in a different way.  \fBLen\fP just
+increases the length (without adding any content), \fBvalue\fP uses a string
+and \fBfile\fP a file.
+.TP
+.B len <number>
+extend the length of the packet by \fBnumber\fP bytes (without filling those
+bytes with any particular data).
+.TP
+.B value <string>
+indicates that the string provided should be added to the current packet as
+data.  A string may be a consecutive list of characters and numbers (with
+no white spaces) or bounded by "'s (may not contain them, even if \\'d).
+The \\ character is recognised with the appropriate C escaped values, including
+octal numbers.
+.TP
+.B file <filename>
+reads data in from the specified file and appends it to the current packet.
+If the new total length would exceed 64k, an error will be reported.
+.SH "ICMP TYPES"
+.TP
+.B echorep
+Echo Reply.
+.TP
+.B "unreach [ unreachable-code ]"
+Generic Unreachable error.  This is used to indicate that an error has
+occurred whilst trying to send the packet across the network and that the
+destination cannot be reached.  The unreachable code names are:
+\fBnet-unr\fP network unreachable, \fBhost-unr\fP host unreachable,
+\fBproto-unr\fP protocol unreachable, \fBport-unr\fP port unreachable,
+\fBneedfrag\fP, \fBsrcfail\fP source route failed,
+\fBnet-unk\fP network unknown, \fBhost-unk\fP host unknown,
+\fBisolate\fP, \fBnet-prohib\fP administratively prohibited contact with
+network,
+\fBhost-prohib\fP administratively prohibited contact with host,
+\fBnet-tos\fP network unreachable with given TOS,
+\fBhost-tos\fP host unreachable with given TOS,
+\fBfilter-prohib\fP packet prohibited by packet filter,
+\fBhost-preced\fP,
+\fBcutoff-preced\fP.
+.TP
+.B squench
+Source Quence.
+.TP
+.B "redir [ redirect-code ]"
+Redirect (routing).  This is used to indicate that the route being chosen
+for forwarding the packet is suboptimal and that the sender of the packet
+should be routing packets via another route.  The redirect code names are:
+\fBnet-redir\fP redirect packets for a network,
+\fBhost-redir\fP redirect packets for a host,
+\fBtos-net-redir\fP redirect packets for a network with a given TOS,
+\fBtos-host-redir\fP redirect packets for a host with a given TOS.
+.TP
+.B echo
+Echo.
+.TP
+.B routerad
+Router Advertisement.
+.TP
+.B routersol
+Router solicitation.
+.TP
+.B "timex [ timexceed-code ]"
+Time Exceeded.  This is used to indicate that the packet failed to reach the
+destination because it was in transit too long (i.e. ttl reached 0).  The
+valid code names are: \fBintrans\fP,
+\fBreass\fP could not reassemble packet from fragments within a given time.
+.TP
+.B "paramprob [ paramprob-code ]"
+Parameter problem.  There is only one available parameter problem code name:
+\fBoptabsent\fP.
+.TP
+.B timest
+Time stamp request.
+.TP
+.B "timestrep [ { timestamp-code } ]"
+Time stamp reply.  In a timestamp reply, it is possible to supply the
+following values: \fBrtime\fP, \fBotime\fP, \fBttime\fP.
+.TP
+.B inforeq
+Information request.
+.TP
+.B inforep
+Information reply.
+.TP
+.B maskreq
+Address mask request.
+.TP
+.B maskrep
+Address mask reply.
+.SH FILES
+/etc/hosts
+.br
+/etc/protocols
+.br
+/etc/services
+.SH SEE ALSO
+ipsend(1), iptest(1), hosts(5), protocols(5), services(5)

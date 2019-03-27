@@ -1,0 +1,201 @@
+.\" Copyright (c) 2004 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" $Id$
+.\"
+.Dd June 26, 2004
+.Dt RTBL 3
+.Os HEIMDAL
+.Sh NAME
+.Nm rtbl_create ,
+.Nm rtbl_destroy ,
+.Nm rtbl_set_flags ,
+.Nm rtbl_get_flags ,
+.Nm rtbl_set_prefix ,
+.Nm rtbl_set_separator ,
+.Nm rtbl_set_column_prefix ,
+.Nm rtbl_set_column_affix_by_id ,
+.Nm rtbl_add_column ,
+.Nm rtbl_add_column_by_id ,
+.Nm rtbl_add_column_entry ,
+.Nm rtbl_add_column_entry_by_id ,
+.Nm rtbl_new_row ,
+.Nm rtbl_format
+.Nd format data in simple tables
+.Sh LIBRARY
+The roken library (libroken, -lroken)
+.Sh SYNOPSIS
+.In rtbl.h
+.Ft int
+.Fn rtbl_add_column "rtbl_t table" "const char *column_name" "unsigned int flags"
+.Ft int
+.Fn rtbl_add_column_by_id "rtbl_t table" "unsigned int column_id" "const char *column_header" "unsigned int flags"
+.Ft int
+.Fn rtbl_add_column_entry "rtbl_t table" "const char *column_name" "const char *cell_entry"
+.Ft int
+.Fn rtbl_add_column_entry_by_id "rtbl_t table" "unsigned int column_id" "const char *cell_entry"
+.Ft rtbl_t
+.Fn rtbl_create "void"
+.Ft void
+.Fn rtbl_destroy "rtbl_t table"
+.Ft int
+.Fn rtbl_new_row "rtbl_t table"
+.Ft int
+.Fn rtbl_set_column_affix_by_id "rtbl_t table" "unsigned int column_id "const char *prefix" "const char *suffix"
+.Ft int
+.Fn rtbl_set_column_prefix "rtbl_t table" "const char *column_name" "const char *prefix"
+.Ft "unsigned int"
+.Fn rtbl_get_flags "rtbl_t table"
+.Ft void
+.Fn rtbl_set_flags "rtbl_t table" "unsigned int flags"
+.Ft int
+.Fn rtbl_set_prefix "rtbl_t table" "const char *prefix"
+.Ft int
+.Fn rtbl_set_separator "rtbl_t table" "const char *separator"
+.Ft int
+.Fn rtbl_format "rtbl_t table "FILE *file"
+.Sh DESCRIPTION
+This set of functions assemble a simple table consisting of rows and
+columns, allowing it to be printed with certain options. Typical use
+would be output from tools such as
+.Xr ls 1
+or
+.Xr netstat 1 ,
+where you have a fixed number of columns, but don't know the column
+widths before hand.
+.Pp
+A table is created with
+.Fn rtbl_create
+and destroyed with
+.Fn rtbl_destroy .
+.Pp
+Global flags on the table are set with
+.Fa rtbl_set_flags
+and retrieved with
+.Fa rtbl_get_flags .
+At present the only defined flag is
+.Dv RTBL_HEADER_STYLE_NONE
+which suppresses printing the header.
+.Pp
+Before adding data to the table, one or more columns need to be
+created. This would normally be done with
+.Fn rtbl_add_column_by_id ,
+.Fa column_id
+is any number of your choice (it's used only to identify columns),
+.Fa column_header
+is the header to print at the top of the column, and
+.Fa flags
+are flags specific to this column. Currently the only defined flag is
+.Dv RTBL_ALIGN_RIGHT ,
+aligning column entries to the right. Columns are printed in the order
+they are added.
+.Pp
+There's also a way to add columns by column name with
+.Fn rtbl_add_column ,
+but this is less flexible (you need unique header names), and is
+considered deprecated.
+.Pp
+To add data to a column you use
+.Fn rtbl_add_column_entry_by_id ,
+where the
+.Fa column_id
+is the same as when the column was added (adding data to a
+non-existent column is undefined), and
+.Fa cell_entry
+is whatever string you wish to include in that cell. It should not
+include newlines.
+For columns added with
+.Fn rtbl_add_column
+you must use
+.Fn rtbl_add_column_entry
+instead.
+.Pp
+.Fn rtbl_new_row
+fills all columns with blank entries until they all have the same
+number of rows.
+.Pp
+Each column can have a separate prefix and suffix, set with
+.Fa rtbl_set_column_affix_by_id ;
+.Fa rtbl_set_column_prefix
+allows setting the prefix only by column name. In addition to this,
+columns may be separated by a string set with
+.Fa rtbl_set_separator ( Ns
+by default columns are not seprated by anything).
+.Pp
+The finished table is printed to
+.Fa file
+with
+.Fa rtbl_format .
+.Sh EXAMPLES
+This program:
+.Bd -literal -offset xxxx
+#include <stdio.h>
+#include <rtbl.h>
+int
+main(int argc, char **argv)
+{
+    rtbl_t table;
+    table = rtbl_create();
+    rtbl_set_separator(table, "  ");
+    rtbl_add_column_by_id(table, 0, "Column A", 0);
+    rtbl_add_column_by_id(table, 1, "Column B", RTBL_ALIGN_RIGHT);
+    rtbl_add_column_by_id(table, 2, "Column C", 0);
+    rtbl_add_column_entry_by_id(table, 0, "A-1");
+    rtbl_add_column_entry_by_id(table, 0, "A-2");
+    rtbl_add_column_entry_by_id(table, 0, "A-3");
+    rtbl_add_column_entry_by_id(table, 1, "B-1");
+    rtbl_add_column_entry_by_id(table, 2, "C-1");
+    rtbl_add_column_entry_by_id(table, 2, "C-2");
+    rtbl_add_column_entry_by_id(table, 1, "B-2");
+    rtbl_add_column_entry_by_id(table, 1, "B-3");
+    rtbl_add_column_entry_by_id(table, 2, "C-3");
+    rtbl_add_column_entry_by_id(table, 0, "A-4");
+    rtbl_new_row(table);
+    rtbl_add_column_entry_by_id(table, 1, "B-4");
+    rtbl_new_row(table);
+    rtbl_add_column_entry_by_id(table, 2, "C-4");
+    rtbl_new_row(table);
+    rtbl_format(table, stdout);
+    rtbl_destroy(table);
+    return 0;
+}
+.Ed
+.Pp
+will output the following:
+.Bd -literal -offset xxxx
+Column A  Column B  Column C
+A-1            B-1  C-1
+A-2            B-2  C-2
+A-3            B-3  C-3
+A-4
+               B-4
+                    C-4
+.Ed
+.\" .Sh SEE ALSO

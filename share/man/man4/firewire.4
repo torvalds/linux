@@ -1,0 +1,127 @@
+.\" Copyright (c) 1998-2002 Katsushi Kobayashi and Hidetoshi Shimokawa
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the acknowledgement as bellow:
+.\"
+.\"    This product includes software developed by K. Kobayashi and H. Shimokawa
+.\"
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 11, 2012
+.Dt FIREWIRE 4
+.Os
+.Sh NAME
+.Nm firewire
+.Nd IEEE1394 High-performance Serial Bus
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device firewire"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+firewire_load="YES"
+.Ed
+.Sh DESCRIPTION
+.Fx
+provides machine-independent bus support and raw drivers for
+.Nm
+interfaces.
+.Pp
+The
+.Nm
+driver consists of two layers: the controller and the
+bus layer.
+The controller attaches to a physical bus
+(like
+.Xr pci 4 ) .
+The
+.Nm
+bus attaches to the controller.
+Additional drivers can be attached to the bus.
+.Pp
+Up to 63 devices, including the host itself, can be attached to
+a
+.Nm
+bus.
+The root node is dynamically assigned with a PHY device function.
+Also, the other
+.Nm
+bus specific parameters,
+e.g., node ID, cycle master, isochronous resource manager and bus
+manager, are dynamically assigned, after bus reset is initiated.
+On the
+.Nm
+bus, every device is identified by an EUI 64 address.
+.Pp
+Debugging over the firewire interace is possible with the
+.Xr dcons 4
+driver.
+Please see
+.Pa https://wiki.freebsd.org/DebugWithDcons
+for details on how to setup debugging with firewire.
+.Sh FILES
+.Bl -tag -width "Pa /dev/fwmem0.0" -compact
+.It Pa /dev/fw0.0
+.It Pa /dev/fwmem0.0
+.El
+.Sh SEE ALSO
+.Xr dcons 4 ,
+.Xr fwe 4 ,
+.Xr fwip 4 ,
+.Xr fwohci 4 ,
+.Xr pci 4 ,
+.Xr sbp 4 ,
+.Xr eui64 5 ,
+.Xr fwcontrol 8 ,
+.Xr kldload 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Katsushi Kobayashi
+and
+.An Hidetoshi Shimokawa
+for the
+.Fx
+project.
+.Sh BUGS
+See
+.Xr fwohci 4
+for security notes.

@@ -1,0 +1,359 @@
+#!/bin/sh
+#
+# Copyright (c) 2010, Yavuz Gokirmak
+#
+# All rights reserved.
+#
+# This source code may be used, modified, copied, distributed, and
+# sold, in both source and binary form provided that the above
+# copyright and these terms are retained, verbatim, as the first
+# lines of this file.  Under no circumstances is the author
+# responsible for the proper functioning of the software nor does
+# the author assume any responsibility for damages incurred with
+# its use.
+#
+# $FreeBSD$
+#
+# This script adds virtual nodes to one of the physical interfaces
+# visible on your local area network (LAN). Virtual nodes seems real
+# to external observers.
+# If traceroute is executed to one of virtual nodes, the IP
+# address of the physical interface will not be seen in the output.
+# Virtual nodes are generated via jails and network connections are
+# established using ng_bridge(4) and ng_eiface(4) node types.
+#
+# To use this script:
+#
+# 0. Make your own copy of this example script.
+#
+# 1. Edit the definition of ${ETHER_INTF} as described below
+#    to define your real interface connected to the LAN. Virtual nodes
+#    will placed on the same physical network as this interface.
+#
+# 2. Edit the definition of ${TARGET_TOPOLOGY} to define your virtual
+#    nodes. Virtual topology definition includes node names and their
+#    IP address. Target top. syntax: ( node1|ip1/24 node2|ip2/24 ... )
+#    Example 1: ( n1|122.122.122.12/24, n2|122.122.122.13/24 ...)
+#    Example 2: ( n1|2001:b90::14a/125, n1|2001:b90::14b/125 ...)
+#
+# 3. Run this script with "start" as the command line argument.
+#
+# 4. Stop bridging by running this script with "stop" as the
+#    command line argument.
+#
+# 5. This script uses a template file in order to carry information
+#    between start and stop calls.
+#      In the start call, the netgraph interfaces and jails are created.
+#      At the stop phase, all created objects should be removed.
+#    DO NOT delete the temporary file between the start and stop phases.
+#
+# To add virtual nodes for multiple independent LANs, create multiple
+# copies of this script with different variable definitions.
+#
+# Target Topology:
+#
+#
+#                 +---------------+ +---------------+ +---------------+
+#                 |  n0 (vimage)  | |  n1 (vimage)  | |  nk (vimage)  |
+#                 |               | |               | |               |
+#                 | +-----------+ | | +-----------+ | | +-----------+ |
+#                 | |  ngeth0   | | | |  ngeth1   | | | |  ngethk   | |
+#                 | |(ng_eiface)| | | |(ng_eiface)| | | |(ng_eiface)| |
+#                 | +--+-----+--+ | | +--+-----+--+ | | +--+-----+--+ |
+#                 |    |ether|    | |    |ether|    | |    |ether|    |
+#                 |    +--X--+    | |    +--X--+    | |    +---X-+    |
+#   +-----+       +--------\------+ +--------\------+ +-------/-------+
+#   |upper|----\            \ip_addr          \ip_addr       /ip_addr
+# +-+-----+--+  \            \                 \             \
+# |   em0    |   \            +--------+        +-+           \
+# |(ng_ether)|    +-----------+         \          \           \
+# +-+-----+--+                 \         \          /           \
+#   |lower|    +---------\      \         \        /            /
+#   +--X--+   /        O--X--O O-X---O O---X-O O--X--O     O---X---O
+#      \      |        |link0| |link1| |link2| |link3|     |linkk+2|
+#       \     /      +-O-----O-O-----O-O-----O-O-----O-----O-------O-+
+#        +---+       |                                               |
+#                    |          bridge (ng_bridge)                   |
+#                    +-----------------------------------------------+
+#
+#
+
+# Give the name of ethernet interface. Virtual nodes will be seen as
+# local neighbours of this interface.
+
+ETHER_INTF="em0"
+
+# List the names of virtual nodes and their IP addresses. Use ':'
+# character to separate node name from node IP address and netmask.
+
+TARGET_TOPOLOGY="c1|10.0.2.20/24 c2|10.0.2.21/24 c3|10.0.2.22/24"
+
+# MAC manufacturer prefix. This can be modified according to needs.
+MAC_PREFIX="00:1d:92"
+
+# Temporary file is important for proper execution of script.
+TEMP_FILE="/var/tmp/.virtual.lan.tmp"
+
+# Set root directory for jails to be created.
+JAIL_PATH="/usr/jails/node"
+
+
+####################################################################
+####    Nothing below this point should need to be modified.    ####
+####################################################################
+
+
+# Start/restart routine.
+virtual_lan_start() {
+
+	# Load netgraph KLD's as necessary.
+
+	for KLD in ng_ether ng_bridge ng_eiface; do
+		if ! kldstat -v | grep -qw ${KLD}; then
+			echo -n "Loading ${KLD}.ko... "
+			kldload ${KLD} || exit 1
+			echo "done"
+		fi
+	done
+
+	# Reset all interfaces and jails. If temporary file can not be found
+	# script assumes that there is no previous configuration.
+
+	if [ ! -e ${TEMP_FILE} ]; then
+		echo "No previous configuration(${TEMP_FILE}) found to clean-up."
+	else
+		echo -n "Cleaning previous configuration..."
+		virtual_lan_stop
+		echo "done"
+	fi
+
+	# Create temporary file for usage. This file includes generated
+	# interface names and jail names. All bridges, interfaces and jails
+	# are written to file while created. In clean-up process written
+	# objects are cleaned (i.e. removed) from system.
+
+	if [ -e ${TEMP_FILE} ]; then
+		touch ${TEMP_FILE}
+	fi
+
+	echo -n "Verifying ethernet interface existence..."
+	# Verify ethernet interface exist.
+	if ! ngctl info ${ETHER_INTF}: >/dev/null 2>&1; then
+		echo "Error: interface ${ETHER_INTF} does not exist"
+		exit 1
+	fi
+	ifconfig ${ETHER_INTF} up || exit 1
+	echo "done"
+
+	# Get current number of bridge interfaces in the system. This number
+	# is used to create a name for new bridge.
+	BRIDGE_COUNT=`ngctl l | grep bridge | wc -l | sed -e "s/ //g"`
+	BRIDGE_NAME="bridge${BRIDGE_COUNT}"
+
+	# Create new ng_bridge(4) node and attach it to the ethernet interface.
+	# Connect ng_ether:lower hook to bridge:link0 when creating bridge and
+	# connect ng_ether:upper hook to bridge:link1 after bridge name is set.
+
+	echo "Creating bridge interface: ${BRIDGE_NAME}..."
+	ngctl mkpeer ${ETHER_INTF}: bridge lower link0 || exit 1
+	ngctl name ${ETHER_INTF}:lower ${BRIDGE_NAME} || exit 1
+	ngctl connect ${ETHER_INTF}: ${BRIDGE_NAME}: upper link1 || exit 1
+	echo "Bridge ${BRIDGE_NAME} is created and ${ETHER_INTF} is connected."
+
+	# In the above code block two hooks are connected to bridge interface,
+	# therefore LINKNUM is set to 2 indicating total number of connected
+	# hooks on the bridge interface.
+	LINKNUM=2
+
+	# Write name of the bridge to temp file. Clean-up procedure will use
+	# this name to shutdown bridge interface.
+	echo "bridge ${BRIDGE_NAME}" > ${TEMP_FILE}
+
+
+	# Attach other interfaces as well.
+	for NODE in ${TARGET_TOPOLOGY}; do
+
+		# Virtual nodes are defined in TARGET_TOPOLOGY variable. They
+		# have the form of 'nodeName|IPaddr'. Below two lines split
+		# node definition to get node name and node IP.
+
+		NODE_NAME=`echo ${NODE} | awk -F"|" '{print $1}'`
+		NODE_IP=`echo ${NODE} | awk -F"|" '{print $2}'`
+
+		# Create virtual node (jail) with given name and using
+		# JAIL_PATH as root directory for jail.
+
+		echo -n "Creating virtual node (jail) ${NODE_NAME}..."
+		jail -c vnet name=${NODE_NAME} host.hostname=${NODE_NAME} \
+			path=${JAIL_PATH} persist
+		echo "done"
+
+		# Write name of the jail to temp file. Clean-up procedure will
+		# use this name to remove jail.
+
+		echo "node ${NODE_NAME}" >> ${TEMP_FILE}
+
+		# Create a ng_eiface object for virtual node. ng_eiface
+		# object has a hook that can be connected to one of bridge
+		# links. After creating interface get its automatically
+		# generated name for further usage.
+
+		echo "Creating eiface interface for virtual node ${NODE_NAME}."
+		ngctl mkpeer eiface ether ether
+		EIFACE=`ngctl l | grep ngeth | tail -n 1| awk '{print $2}'`
+		echo "Interface ${EIFACE} is created."
+
+		# Write name of the interface to temp file. Clean-up procedure
+		# will use this name to shutdown interface.
+
+		echo "interface ${EIFACE}" >> ${TEMP_FILE}
+
+		# Move virtual interface to virtual node. Note that Interface
+		# name will not be changed at the end of this movement. Moved
+		# interface can be seen at the output of ifconfig command in
+		# jail: 'jexec jailname ifconfig'
+
+		echo "Moving ${EIFACE} to ${NODE_NAME}"
+		ifconfig ${EIFACE} vnet ${NODE_NAME}
+
+		# Make lo0 interface localhost.
+		jexec ${NODE_NAME} ifconfig lo0 localhost
+
+		# Generate a random mac address for virtual interface. First
+		# three octets can be changed by user. Last three octets are
+		# generated randomly.
+		M4=`od -An -N2 -i /dev/random | sed -e 's/ //g' | \
+				awk '{ print $1 % 256 }'`
+		M5=`od -An -N2 -i /dev/random | sed -e 's/ //g' | \
+				awk '{ print $1 % 256 }'`
+		M6=`od -An -N2 -i /dev/random | sed -e 's/ //g' | \
+				awk '{ print $1 % 256 }'`
+
+		MAC=`printf ${MAC_PREFIX}:%02x:%02x:%02x ${M4} ${M5} ${M6}`
+
+		# Set the link address (mac address) of virtual interface in
+		# virtual node to randomly generated MAC.
+		echo "Setting MAC address of ${EIFACE} to '${MAC}'"
+		jexec ${NODE_NAME} ifconfig ${EIFACE} link $MAC
+
+		# Either IPv4 or IPv6 can be used in this script. Ifconfig
+		# IP setting syntax differs slightly for two IP versions.
+		# For version 4 'inet' keyword is used whereas for version 6
+		# 'inet6' is used. Below line tries to decide which IP version
+		# is given and sets IPVER to 'inet' or 'inet6'.
+
+		IPVER=`echo ${NODE_IP} | awk -F"." '{ split($4,last,"/"); \
+			if( NF==4 && $1>0 && $1<256 && $2<256 && $3<256 && \
+			last[1]<256) print "inet"; else print "inet6"}'`
+
+		# Set IP address of virtual interface in virtual node.
+		echo "Setting IP address of ${EIFACE} to '${NODE_IP}'"
+		jexec ${NODE_NAME} ifconfig ${EIFACE} ${IPVER} ${NODE_IP}
+
+		# Connect virtual interface to bridge interface. Syntax is :
+		# ngctl connect INTERFACE: BRIDGE: INTERFACE_HOOK EMPTY_LINK.
+		# Interface has one hook named 'ether' and below line connects
+		# ether hook to bridge's first unconnected link.
+
+		echo -n "Connecting ${EIFACE}:ether to ${BRIDGE_NAME}:link${LINKNUM}..."
+		ngctl connect ${EIFACE}: ${BRIDGE_NAME}: ether link${LINKNUM} \
+			|| exit 1
+		echo "done"
+
+		# Now, bridge has one more connected link thus link count is
+		# incremented.
+		LINKNUM=`expr ${LINKNUM} + 1`
+	done
+	echo "Virtual LAN established successfully!"
+
+}
+
+# Stop routine.
+virtual_lan_stop() {
+
+	if [ ! -e ${TEMP_FILE} ]; then
+		echo "Nothing to stop! ${TEMP_FILE}: temp file not found"
+	else
+
+		echo -n "Shutdown bridge interface.."
+		OBJECTS=`cat ${TEMP_FILE} | grep bridge | awk '{print $2}'`
+		for BRIDGE in ${OBJECTS}; do
+			ngctl shutdown ${BRIDGE}: >/dev/null 2>&1
+		done
+		echo "done"
+
+		echo -n "Shutdown all eiface interfaces..."
+		OBJECTS=`cat ${TEMP_FILE} | grep interface | awk '{print $2}'`
+		for INTERFACE in ${OBJECTS}; do
+			ngctl shutdown ${INTERFACE}: >/dev/null 2>&1
+		done
+		echo "done"
+
+		echo -n "Removing all jails..."
+		OBJECTS=`cat ${TEMP_FILE} | grep node | awk '{print $2}'`
+		for NODE in ${OBJECTS}; do
+			jail -r ${NODE}
+		done
+		echo "done"
+
+		echo "Removing tempfile ${TEMP_FILE}"
+		rm ${TEMP_FILE}
+	fi
+	echo "Virtual LAN objects removed successfully!"
+
+}
+
+virtual_lan_usage() {
+	echo "usage: $0 start [target_topology]"
+	echo "     : $0 [ stop | help ]"
+}
+
+
+# Main entry point.
+
+case $# in
+	1)
+		case $1 in
+                        start)
+                                echo -n "Creating default target topology:"
+				echo " ${TARGET_TOPOLOGY}"
+                                virtual_lan_start
+                                ;;
+                        stop)
+
+				if [ ! -e ${TEMP_FILE} ]; then
+					echo -n "Noting to stop! ${TEMP_FILE}:"
+					echo " temp file not found"
+				else
+					virtual_lan_stop
+				fi
+                                ;;
+                        help)
+                                virtual_lan_usage
+				exit 1
+                                ;;
+                        *)
+                                virtual_lan_usage
+                                exit 1
+
+                esac
+		;;
+	2)
+	        case $1 in
+			start)
+                        	TARGET_TOPOLOGY=$2
+                                echo -n "Creating target topology:"
+				echo "${TARGET_TOPOLOGY}"
+                                virtual_lan_start
+                                ;;
+                        *)
+                        	virtual_lan_usage
+                                exit 1
+                esac
+		;;
+
+	*)
+                virtual_lan_usage
+                exit 1
+esac
+

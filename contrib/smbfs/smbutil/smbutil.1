@@ -1,0 +1,137 @@
+.\" $Id: smbutil.1,v 1.5 2002/04/16 02:48:16 bp Exp $
+.Dd November 14, 2018
+.Dt SMBUTIL 1
+.Os
+.Sh NAME
+.Nm smbutil
+.Nd "interface to the SMB requester"
+.Sh SYNOPSIS
+.Nm
+.Op Fl hv
+.Ar command
+.Op Ar options
+.Op Ar args
+.Sh DESCRIPTION
+The
+.Nm
+command is used to control SMB requester and issue various commands.
+.Pp
+There are two types of options \(em global and local to the specified
+.Ar command .
+.Pp
+Global options are as follows:
+.Bl -tag -width indent
+.It Fl h
+Print a short help message.
+.It Fl v
+Verbose output.
+.El
+.Pp
+The commands and local options are:
+.Bl -tag -width indent
+.It Cm crypt Op Ar password
+Encrypt clear text password for use in the
+.Pa ~/.nsmbrc
+file.
+The encrypted password starts with the
+.Ql $$1
+symbols.
+Warning: the encryption function is very weak and intended only to hide
+clear text password.
+If
+.Ar password
+is omitted from the command line,
+.Nm
+will prompt for one.
+.It Cm help Ar command
+Print usage information about
+.Ar command .
+.It Cm lc
+List active connections and their parameters.
+.It Xo
+.Cm login
+.Op Ar connection_options
+.Cm \&// Ns Ar user Ns Cm \&@ Ns Ar server Ns Op Cm \&/ Ns Ar share
+.Xc
+Login/attach to the specified
+.Ar server
+and/or
+.Ar share
+as
+.Ar user .
+This command will create and authenticate connection to an SMB server, and
+will leave it active after exit.
+Thus, it is possible to login only once and then
+use other SMB commands without authentication procedure and additional
+connections.
+For the description of
+.Ar connection_options
+refer to the
+.Xr mount_smbfs 8
+manual page (all uppercase options are connection options).
+.It Xo
+.Cm logout
+.Cm \&// Ns Ar user Ns Cm \&@ Ns Ar server Ns Op Cm \&/ Ns Ar share
+.Xc
+Logout/detach from the specified
+.Ar server
+and/or
+.Ar share
+as
+.Ar user .
+This command will destroy a connection created by the
+.Cm login
+command.
+A connection may not be closed immediately if it is used by other
+programs.
+.It Xo
+.Cm lookup
+.Op Fl w Ar host
+.Ar name
+.Xc
+Resolve the given
+.Ar name
+to an IP address.
+The NetBIOS name server can be directly specified via the
+.Fl w
+option.
+.It Xo
+.Cm print
+.Op Ar connection_options
+.Cm \&// Ns Ar user Ns Cm \&@ Ns Ar server Ns Op Cm \&/ Ns Ar share
+.Ar file
+.Xc
+Send the given
+.Ar file
+to the specified queue on the remote server.
+If
+.Ar file
+is
+.Dq Pa - ,
+then standard input will be used.
+.It Xo
+.Cm view
+.Op Ar connection_options
+.Cm \&// Ns Ar user Ns Cm \&@ Ns Ar server
+.Xc
+List resources available on the specified
+.Ar server
+for the user
+.Ar user .
+.El
+.Sh FILES
+.Bl -tag -width ".Pa ~/.nsmbrc" -compact
+.It Pa ~/.nsmbrc
+Keeps description for each connection.
+See
+.Pa /usr/share/examples/smbfs/dot.nsmbrc
+for details.
+.El
+.Sh SEE ALSO
+.Xr nsmb.conf 5 ,
+.Xr mount_smbfs 8
+.Sh AUTHORS
+.An Boris Popov Aq bp@butya.kz ,
+.Aq bp@FreeBSD.org
+.Sh BUGS
+Please report any bugs to the author.

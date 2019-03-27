@@ -1,0 +1,171 @@
+Contributions to hostap.git
+---------------------------
+
+This software is distributed under a permissive open source license to
+allow it to be used in any projects, whether open source or proprietary.
+Contributions to the project are welcome and it is important to maintain
+clear record of contributions and terms under which they are licensed.
+To help with this, following procedure is used to allow acceptance and
+recording of the terms.
+
+All contributions are expected to be licensed under the modified BSD
+license (see below). Acknowledgment of the terms is tracked through
+inclusion of Signed-off-by tag in the contributions at the end of the
+commit log message. This tag indicates that the contributor agrees with
+the Developer Certificate of Origin (DCO) version 1.1 terms (see below;
+also available from http://developercertificate.org/).
+
+
+The current requirements for contributions to hostap.git
+--------------------------------------------------------
+
+To indicate your acceptance of Developer's Certificate of Origin 1.1
+terms, please add the following line to the end of the commit message
+for each contribution you make to the project:
+
+Signed-off-by: Your Name <your@email.example.org>
+
+using your real name. Pseudonyms or anonymous contributions cannot
+unfortunately be accepted.
+
+
+The preferred method of submitting the contribution to the project is by
+email to the hostap mailing list:
+hostap@lists.infradead.org
+Note that the list may require subscription before accepting message
+without moderation. You can subscribe to the list at this address:
+http://lists.infradead.org/mailman/listinfo/hostap
+
+The message should contain an inlined patch against the current
+development branch (i.e., the master branch of
+git://w1.fi/hostap.git). Please make sure the software you use for
+sending the patch does not corrupt whitespace. If that cannot be fixed
+for some reason, it is better to include an attached version of the
+patch file than just send a whitespace damaged version in the message
+body.
+
+The patches should be separate logical changes rather than doing
+everything in a single patch. In other words, please keep cleanup, new
+features, and bug fixes all in their own patches. Each patch needs a
+commit log that describes the changes (what the changes fix, what
+functionality is added, why the changes are useful, etc.).
+
+Please try to follow the coding style used in the project.
+
+In general, the best way of generating a suitable formatted patch file
+is by committing the changes to a cloned git repository and using git
+format-patch. The patch can then be sent, e.g., with git send-email.
+
+
+History of license and contributions terms
+------------------------------------------
+
+Until February 11, 2012, in case of most files in hostap.git, "under the
+open source license indicated in the file" means that the contribution
+is licensed both under GPL v2 and modified BSD license (see below) and
+the choice between these licenses is given to anyone who redistributes
+or uses the software. As such, the contribution has to be licensed under
+both options to allow this choice.
+
+As of February 11, 2012, the project has chosen to use only the BSD
+license option for future distribution. As such, the GPL v2 license
+option is no longer used and the contributions are not required to be
+licensed until GPL v2. In case of most files in hostap.git, "under the
+open source license indicated in the file" means that the contribution
+is licensed under the modified BSD license (see below).
+
+Until February 13, 2014, the project used an extended version of the DCO
+that included the identical items (a) through (d) from DCO 1.1 and an
+additional item (e):
+
+(e) The contribution can be licensed under the modified BSD license
+    as shown below even in case of files that are currently licensed
+    under other terms.
+
+This was used during the period when some of the files included the old
+license terms. Acceptance of this extended DCO version was indicated
+with a Signed-hostap tag in the commit message. This additional item (e)
+was used to collect explicit approval to license the contribution with
+only the modified BSD license (see below), i.e., without the GPL v2
+option. This was done to allow simpler licensing terms to be used in the
+future. It should be noted that the modified BSD license is compatible
+with GNU GPL and as such, this possible move to simpler licensing option
+does not prevent use of this software in GPL projects.
+
+
+===[ start quote from http://developercertificate.org/ ]=======================
+
+Developer Certificate of Origin
+Version 1.1
+
+Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
+660 York Street, Suite 102,
+San Francisco, CA 94110 USA
+
+Everyone is permitted to copy and distribute verbatim copies of this
+license document, but changing it is not allowed.
+
+
+Developer's Certificate of Origin 1.1
+
+By making a contribution to this project, I certify that:
+
+(a) The contribution was created in whole or in part by me and I
+    have the right to submit it under the open source license
+    indicated in the file; or
+
+(b) The contribution is based upon previous work that, to the best
+    of my knowledge, is covered under an appropriate open source
+    license and I have the right under that license to submit that
+    work with modifications, whether created in whole or in part
+    by me, under the same open source license (unless I am
+    permitted to submit under a different license), as indicated
+    in the file; or
+
+(c) The contribution was provided directly to me by some other
+    person who certified (a), (b) or (c) and I have not modified
+    it.
+
+(d) I understand and agree that this project and the contribution
+    are public and that a record of the contribution (including all
+    personal information I submit with it, including my sign-off) is
+    maintained indefinitely and may be redistributed consistent with
+    this project or the open source license(s) involved.
+
+===[ end quote from http://developercertificate.org/ ]=========================
+
+
+The license terms used for hostap.git files
+-------------------------------------------
+
+Modified BSD license (no advertisement clause):
+
+Copyright (c) 2002-2018, Jouni Malinen <j@w1.fi> and contributors
+All Rights Reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+3. Neither the name(s) of the above-listed copyright holder(s) nor the
+   names of its contributors may be used to endorse or promote products
+   derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

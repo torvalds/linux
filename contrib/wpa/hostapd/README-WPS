@@ -1,0 +1,352 @@
+hostapd and Wi-Fi Protected Setup (WPS)
+=======================================
+
+This document describes how the WPS implementation in hostapd can be
+configured and how an external component on an AP (e.g., web UI) is
+used to enable enrollment of client devices.
+
+
+Introduction to WPS
+-------------------
+
+Wi-Fi Protected Setup (WPS) is a mechanism for easy configuration of a
+wireless network. It allows automated generation of random keys (WPA
+passphrase/PSK) and configuration of an access point and client
+devices. WPS includes number of methods for setting up connections
+with PIN method and push-button configuration (PBC) being the most
+commonly deployed options.
+
+While WPS can enable more home networks to use encryption in the
+wireless network, it should be noted that the use of the PIN and
+especially PBC mechanisms for authenticating the initial key setup is
+not very secure. As such, use of WPS may not be suitable for
+environments that require secure network access without chance for
+allowing outsiders to gain access during the setup phase.
+
+WPS uses following terms to describe the entities participating in the
+network setup:
+- access point: the WLAN access point
+- Registrar: a device that control a network and can authorize
+  addition of new devices); this may be either in the AP ("internal
+  Registrar") or in an external device, e.g., a laptop, ("external
+  Registrar")
+- Enrollee: a device that is being authorized to use the network
+
+It should also be noted that the AP and a client device may change
+roles (i.e., AP acts as an Enrollee and client device as a Registrar)
+when WPS is used to configure the access point.
+
+
+More information about WPS is available from Wi-Fi Alliance:
+http://www.wi-fi.org/wifi-protected-setup
+
+
+hostapd implementation
+----------------------
+
+hostapd includes an optional WPS component that can be used as an
+internal WPS Registrar to manage addition of new WPS enabled clients
+to the network. In addition, WPS Enrollee functionality in hostapd can
+be used to allow external WPS Registrars to configure the access
+point, e.g., for initial network setup. In addition, hostapd can proxy a
+WPS registration between a wireless Enrollee and an external Registrar
+(e.g., Microsoft Vista or Atheros JumpStart) with UPnP.
+
+
+hostapd configuration
+---------------------
+
+WPS is an optional component that needs to be enabled in hostapd build
+configuration (.config). Here is an example configuration that
+includes WPS support and uses nl80211 driver interface:
+
+CONFIG_DRIVER_NL80211=y
+CONFIG_WPS=y
+CONFIG_WPS_UPNP=y
+
+Following parameter can be used to enable support for NFC config method:
+
+CONFIG_WPS_NFC=y
+
+
+Following section shows an example runtime configuration
+(hostapd.conf) that enables WPS:
+
+# Configure the driver and network interface
+driver=nl80211
+interface=wlan0
+
+# WPA2-Personal configuration for the AP
+ssid=wps-test
+wpa=2
+wpa_key_mgmt=WPA-PSK
+wpa_pairwise=CCMP
+# Default WPA passphrase for legacy (non-WPS) clients
+wpa_passphrase=12345678
+# Enable random per-device PSK generation for WPS clients
+# Please note that the file has to exists for hostapd to start (i.e., create an
+# empty file as a starting point).
+wpa_psk_file=/etc/hostapd.psk
+
+# Enable control interface for PBC/PIN entry
+ctrl_interface=/var/run/hostapd
+
+# Enable internal EAP server for EAP-WSC (part of Wi-Fi Protected Setup)
+eap_server=1
+
+# WPS configuration (AP configured, do not allow external WPS Registrars)
+wps_state=2
+ap_setup_locked=1
+# If UUID is not configured, it will be generated based on local MAC address.
+uuid=87654321-9abc-def0-1234-56789abc0000
+wps_pin_requests=/var/run/hostapd.pin-req
+device_name=Wireless AP
+manufacturer=Company
+model_name=WAP
+model_number=123
+serial_number=12345
+device_type=6-0050F204-1
+os_version=01020300
+config_methods=label display push_button keypad
+
+# if external Registrars are allowed, UPnP support could be added:
+#upnp_iface=br0
+#friendly_name=WPS Access Point
+
+
+External operations
+-------------------
+
+WPS requires either a device PIN code (usually, 8-digit number) or a
+pushbutton event (for PBC) to allow a new WPS Enrollee to join the
+network. hostapd uses the control interface as an input channel for
+these events.
+
+The PIN value used in the commands must be processed by an UI to
+remove non-digit characters and potentially, to verify the checksum
+digit. "hostapd_cli wps_check_pin <PIN>" can be used to do such
+processing. It returns FAIL if the PIN is invalid, or FAIL-CHECKSUM if
+the checksum digit is incorrect, or the processed PIN (non-digit
+characters removed) if the PIN is valid.
+
+When a client device (WPS Enrollee) connects to hostapd (WPS
+Registrar) in order to start PIN mode negotiation for WPS, an
+identifier (Enrollee UUID) is sent. hostapd will need to be configured
+with a device password (PIN) for this Enrollee. This is an operation
+that requires user interaction (assuming there are no pre-configured
+PINs on the AP for a set of Enrollee).
+
+The PIN request with information about the device is appended to the
+wps_pin_requests file (/var/run/hostapd.pin-req in this example). In
+addition, hostapd control interface event is sent as a notification of
+a new device. The AP could use, e.g., a web UI for showing active
+Enrollees to the user and request a PIN for an Enrollee.
+
+The PIN request file has one line for every Enrollee that connected to
+the AP, but for which there was no PIN. Following information is
+provided for each Enrollee (separated with tabulators):
+- timestamp (seconds from 1970-01-01)
+- Enrollee UUID
+- MAC address
+- Device name
+- Manufacturer
+- Model Name
+- Model Number
+- Serial Number
+- Device category
+
+Example line in the /var/run/hostapd.pin-req file:
+1200188391	53b63a98-d29e-4457-a2ed-094d7e6a669c	Intel(R) Centrino(R)	Intel Corporation	Intel(R) Centrino(R)	-	-	1-0050F204-1
+
+Control interface data:
+WPS-PIN-NEEDED [UUID-E|MAC Address|Device Name|Manufacturer|Model Name|Model Number|Serial Number|Device Category]
+For example:
+<2>WPS-PIN-NEEDED [53b63a98-d29e-4457-a2ed-094d7e6a669c|02:12:34:56:78:9a|Device|Manuf|Model|Model Number|Serial Number|1-0050F204-1]
+
+When the user enters a PIN for a pending Enrollee, e.g., on the web
+UI), hostapd needs to be notified of the new PIN over the control
+interface. This can be done either by using the UNIX domain socket
+-based control interface directly (src/common/wpa_ctrl.c provides
+helper functions for using the interface) or by calling hostapd_cli.
+
+Example command to add a PIN (12345670) for an Enrollee:
+
+hostapd_cli wps_pin 53b63a98-d29e-4457-a2ed-094d7e6a669c 12345670
+
+If the UUID-E is not available (e.g., Enrollee waits for the Registrar
+to be selected before connecting), wildcard UUID may be used to allow
+the PIN to be used once with any UUID:
+
+hostapd_cli wps_pin any 12345670
+
+To reduce likelihood of PIN being used with other devices or of
+forgetting an active PIN available for potential attackers, expiration
+time in seconds can be set for the new PIN (value 0 indicates no
+expiration):
+
+hostapd_cli wps_pin any 12345670 300
+
+If the MAC address of the enrollee is known, it should be configured
+to allow the AP to advertise list of authorized enrollees:
+
+hostapd_cli wps_pin 53b63a98-d29e-4457-a2ed-094d7e6a669c \
+	12345670 300 00:11:22:33:44:55
+
+
+After this, the Enrollee can connect to the AP again and complete WPS
+negotiation. At that point, a new, random WPA PSK is generated for the
+client device and the client can then use that key to connect to the
+AP to access the network.
+
+
+If the AP includes a pushbutton, WPS PBC mode can be used. It is
+enabled by pushing a button on both the AP and the client at about the
+same time (2 minute window). hostapd needs to be notified about the AP
+button pushed event over the control interface, e.g., by calling
+hostapd_cli:
+
+hostapd_cli wps_pbc
+
+At this point, the client has two minutes to complete WPS negotiation
+which will generate a new WPA PSK in the same way as the PIN method
+described above.
+
+
+When an external Registrar is used, the AP can act as an Enrollee and
+use its AP PIN. A static AP PIN (e.g., one one a label in the AP
+device) can be configured in hostapd.conf (ap_pin parameter). A more
+secure option is to use hostapd_cli wps_ap_pin command to enable the
+AP PIN only based on user action (and even better security by using a
+random AP PIN for each session, i.e., by using "wps_ap_pin random"
+command with a timeout value). Following commands are available for
+managing the dynamic AP PIN operations:
+
+hostapd_cli wps_ap_pin disable
+- disable AP PIN (i.e., do not allow external Registrars to use it to
+  learn the current AP settings or to reconfigure the AP)
+
+hostapd_cli wps_ap_pin random [timeout]
+- generate a random AP PIN and enable it
+- if the optional timeout parameter is given, the AP PIN will be enabled
+  for the specified number of seconds
+
+hostapd_cli wps_ap_pin get
+- fetch the current AP PIN
+
+hostapd_cli wps_ap_pin set <PIN> [timeout]
+- set the AP PIN and enable it
+- if the optional timeout parameter is given, the AP PIN will be enabled
+  for the specified number of seconds
+
+hostapd_cli get_config
+- display the current configuration
+
+hostapd_cli wps_config <new SSID> <auth> <encr> <new key>
+examples:
+  hostapd_cli wps_config testing WPA2PSK CCMP 12345678
+  hostapd_cli wps_config "no security" OPEN NONE ""
+
+<auth> must be one of the following: OPEN WPAPSK WPA2PSK
+<encr> must be one of the following: NONE WEP TKIP CCMP
+
+
+Credential generation and configuration changes
+-----------------------------------------------
+
+By default, hostapd generates credentials for Enrollees and processing
+AP configuration updates internally. However, it is possible to
+control these operations from external programs, if desired.
+
+The internal credential generation can be disabled with
+skip_cred_build=1 option in the configuration. extra_cred option will
+then need to be used to provide pre-configured Credential attribute(s)
+for hostapd to use. The exact data from this binary file will be sent,
+i.e., it will have to include valid WPS attributes. extra_cred can
+also be used to add additional networks if the Registrar is used to
+configure credentials for multiple networks.
+
+Processing of received configuration updates can be disabled with
+wps_cred_processing=1 option. When this is used, an external program
+is responsible for creating hostapd configuration files and processing
+configuration updates based on messages received from hostapd over
+control interface. This will also include the initial configuration on
+first successful registration if the AP is initially set in
+unconfigured state.
+
+Following control interface messages are sent out for external programs:
+
+WPS-REG-SUCCESS <Enrollee MAC address <UUID-E>
+For example:
+<2>WPS-REG-SUCCESS 02:66:a0:ee:17:27 2b7093f1-d6fb-5108-adbb-bea66bb87333
+
+This can be used to trigger change from unconfigured to configured
+state (random configuration based on the first successful WPS
+registration). In addition, this can be used to update AP UI about the
+status of WPS registration progress.
+
+
+WPS-NEW-AP-SETTINGS <hexdump of AP Setup attributes>
+For example:
+<2>WPS-NEW-AP-SETTINGS 10260001011045000c6a6b6d2d7770732d74657374100300020020100f00020008102700403065346230343536633236366665306433396164313535346131663462663731323433376163666462376633393965353466316631623032306164343438623510200006024231cede15101e000844
+
+This can be used to update the externally stored AP configuration and
+then update hostapd configuration (followed by restarting of hostapd).
+
+
+WPS with NFC
+------------
+
+WPS can be used with NFC-based configuration method. An NFC tag
+containing a password token from the Enrollee can be used to
+authenticate the connection instead of the PIN. In addition, an NFC tag
+with a configuration token can be used to transfer AP settings without
+going through the WPS protocol.
+
+When the AP acts as an Enrollee, a local NFC tag with a password token
+can be used by touching the NFC interface of an external Registrar. The
+wps_nfc_token command is used to manage use of the NFC password token
+from the AP. "wps_nfc_token enable" enables the use of the AP's NFC
+password token (in place of AP PIN) and "wps_nfc_token disable" disables
+the NFC password token.
+
+The NFC password token that is either pre-configured in the
+configuration file (wps_nfc_dev_pw_id, wps_nfc_dh_pubkey,
+wps_nfc_dh_privkey, wps_nfc_dev_pw) or generated dynamically with
+"wps_nfc_token <WPS|NDEF>" command. The nfc_pw_token tool from
+wpa_supplicant can be used to generate NFC password tokens during
+manufacturing (each AP needs to have its own random keys).
+
+The "wps_nfc_config_token <WPS/NDEF>" command can be used to build an
+NFC configuration token. The output value from this command is a hexdump
+of the current AP configuration (WPS parameter requests this to include
+only the WPS attributes; NDEF parameter requests additional NDEF
+encapsulation to be included). This data needs to be written to an NFC
+tag with an external program. Once written, the NFC configuration token
+can be used to touch an NFC interface on a station to provision the
+credentials needed to access the network.
+
+When the NFC device on the AP reads an NFC tag with a MIME media type
+"application/vnd.wfa.wsc", the NDEF message payload (with or without
+NDEF encapsulation) can be delivered to hostapd using the
+following hostapd_cli command:
+
+wps_nfc_tag_read <hexdump of payload>
+
+If the NFC tag contains a password token, the token is added to the
+internal Registrar. This allows station Enrollee from which the password
+token was received to run through WPS protocol to provision the
+credential.
+
+"nfc_get_handover_sel <NDEF> <WPS>" command can be used to build the
+contents of a Handover Select Message for connection handover when this
+does not depend on the contents of the Handover Request Message. The
+first argument selects the format of the output data and the second
+argument selects which type of connection handover is requested (WPS =
+Wi-Fi handover as specified in WSC 2.0).
+
+"nfc_report_handover <INIT/RESP> WPS <carrier from handover request>
+<carrier from handover select>" is used to report completed NFC
+connection handover. The first parameter indicates whether the local
+device initiated or responded to the connection handover and the carrier
+records are the selected carrier from the handover request and select
+messages as a hexdump.

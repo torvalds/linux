@@ -1,0 +1,302 @@
+// -*- C++ -*-
+//===--------------------------- __debug ----------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is dual licensed under the MIT and the University of Illinois Open
+// Source Licenses. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _LIBCPP_DEBUG_H
+#define _LIBCPP_DEBUG_H
+
+#include <__config>
+
+#if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#pragma GCC system_header
+#endif
+
+#if defined(_LIBCPP_HAS_NO_NULLPTR)
+# include <cstddef>
+#endif
+
+#if _LIBCPP_DEBUG_LEVEL >= 1 || defined(_LIBCPP_BUILDING_LIBRARY)
+#   include <cstdlib>
+#   include <cstdio>
+#   include <cstddef>
+#   include <exception>
+#endif
+
+#if _LIBCPP_DEBUG_LEVEL >= 1 && !defined(_LIBCPP_ASSERT)
+# define _LIBCPP_ASSERT(x, m) ((x) ? (void)0 : \
+  _VSTD::__libcpp_debug_function(_VSTD::__libcpp_debug_info(__FILE__, __LINE__, #x, m)))
+#endif
+
+#if _LIBCPP_DEBUG_LEVEL >= 2
+#ifndef _LIBCPP_DEBUG_ASSERT
+#define _LIBCPP_DEBUG_ASSERT(x, m) _LIBCPP_ASSERT(x, m)
+#endif
+#define _LIBCPP_DEBUG_MODE(...) __VA_ARGS__
+#endif
+
+#ifndef _LIBCPP_ASSERT
+#   define _LIBCPP_ASSERT(x, m) ((void)0)
+#endif
+#ifndef _LIBCPP_DEBUG_ASSERT
+#   define _LIBCPP_DEBUG_ASSERT(x, m) ((void)0)
+#endif
+#ifndef _LIBCPP_DEBUG_MODE
+#define _LIBCPP_DEBUG_MODE(...) ((void)0)
+#endif
+
+#if _LIBCPP_DEBUG_LEVEL < 1
+class _LIBCPP_EXCEPTION_ABI __libcpp_debug_exception;
+#endif
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+
+struct _LIBCPP_TEMPLATE_VIS __libcpp_debug_info {
+  _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR
+  __libcpp_debug_info()
+      : __file_(nullptr), __line_(-1), __pred_(nullptr), __msg_(nullptr) {}
+  _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR
+  __libcpp_debug_info(const char* __f, int __l, const char* __p, const char* __m)
+    : __file_(__f), __line_(__l), __pred_(__p), __msg_(__m) {}
+  const char* __file_;
+  int __line_;
+  const char* __pred_;
+  const char* __msg_;
+};
+
+/// __libcpp_debug_function_type - The type of the assertion failure handler.
+typedef void(*__libcpp_debug_function_type)(__libcpp_debug_info const&);
+
+/// __libcpp_debug_function - The handler function called when a _LIBCPP_ASSERT
+///    fails.
+extern _LIBCPP_EXPORTED_FROM_ABI __libcpp_debug_function_type __libcpp_debug_function;
+
+/// __libcpp_abort_debug_function - A debug handler that aborts when called.
+_LIBCPP_NORETURN _LIBCPP_FUNC_VIS
+void __libcpp_abort_debug_function(__libcpp_debug_info const&);
+
+/// __libcpp_throw_debug_function - A debug handler that throws
+///   an instance of __libcpp_debug_exception when called.
+ _LIBCPP_NORETURN _LIBCPP_FUNC_VIS
+void __libcpp_throw_debug_function(__libcpp_debug_info const&);
+
+/// __libcpp_set_debug_function - Set the debug handler to the specified
+///    function.
+_LIBCPP_FUNC_VIS
+bool __libcpp_set_debug_function(__libcpp_debug_function_type __func);
+
+// Setup the throwing debug handler during dynamic initialization.
+#if _LIBCPP_DEBUG_LEVEL >= 1 && defined(_LIBCPP_DEBUG_USE_EXCEPTIONS)
+# if defined(_LIBCPP_NO_EXCEPTIONS)
+#   error _LIBCPP_DEBUG_USE_EXCEPTIONS cannot be used when exceptions are disabled.
+# endif
+static bool __init_dummy = __libcpp_set_debug_function(__libcpp_throw_debug_function);
+#endif
+
+#if _LIBCPP_DEBUG_LEVEL >= 1 || defined(_LIBCPP_BUILDING_LIBRARY)
+class _LIBCPP_EXCEPTION_ABI __libcpp_debug_exception : public exception {
+public:
+  __libcpp_debug_exception() _NOEXCEPT;
+  explicit __libcpp_debug_exception(__libcpp_debug_info const& __i);
+  __libcpp_debug_exception(__libcpp_debug_exception const&);
+  ~__libcpp_debug_exception() _NOEXCEPT;
+  const char* what() const _NOEXCEPT;
+private:
+  struct __libcpp_debug_exception_imp;
+  __libcpp_debug_exception_imp *__imp_;
+};
+#endif
+
+#if _LIBCPP_DEBUG_LEVEL >= 2 || defined(_LIBCPP_BUILDING_LIBRARY)
+
+struct _LIBCPP_TYPE_VIS __c_node;
+
+struct _LIBCPP_TYPE_VIS __i_node
+{
+    void* __i_;
+    __i_node* __next_;
+    __c_node* __c_;
+
+#ifndef _LIBCPP_CXX03_LANG
+    __i_node(const __i_node&) = delete;
+    __i_node& operator=(const __i_node&) = delete;
+#else
+private:
+    __i_node(const __i_node&);
+    __i_node& operator=(const __i_node&);
+public:
+#endif
+    _LIBCPP_INLINE_VISIBILITY
+    __i_node(void* __i, __i_node* __next, __c_node* __c)
+        : __i_(__i), __next_(__next), __c_(__c) {}
+    ~__i_node();
+};
+
+struct _LIBCPP_TYPE_VIS __c_node
+{
+    void* __c_;
+    __c_node* __next_;
+    __i_node** beg_;
+    __i_node** end_;
+    __i_node** cap_;
+
+#ifndef _LIBCPP_CXX03_LANG
+    __c_node(const __c_node&) = delete;
+    __c_node& operator=(const __c_node&) = delete;
+#else
+private:
+    __c_node(const __c_node&);
+    __c_node& operator=(const __c_node&);
+public:
+#endif
+    _LIBCPP_INLINE_VISIBILITY
+    __c_node(void* __c, __c_node* __next)
+        : __c_(__c), __next_(__next), beg_(nullptr), end_(nullptr), cap_(nullptr) {}
+    virtual ~__c_node();
+
+    virtual bool __dereferenceable(const void*) const = 0;
+    virtual bool __decrementable(const void*) const = 0;
+    virtual bool __addable(const void*, ptrdiff_t) const = 0;
+    virtual bool __subscriptable(const void*, ptrdiff_t) const = 0;
+
+    void __add(__i_node* __i);
+    _LIBCPP_HIDDEN void __remove(__i_node* __i);
+};
+
+template <class _Cont>
+struct _C_node
+    : public __c_node
+{
+    _C_node(void* __c, __c_node* __n)
+        : __c_node(__c, __n) {}
+
+    virtual bool __dereferenceable(const void*) const;
+    virtual bool __decrementable(const void*) const;
+    virtual bool __addable(const void*, ptrdiff_t) const;
+    virtual bool __subscriptable(const void*, ptrdiff_t) const;
+};
+
+template <class _Cont>
+inline bool
+_C_node<_Cont>::__dereferenceable(const void* __i) const
+{
+    typedef typename _Cont::const_iterator iterator;
+    const iterator* __j = static_cast<const iterator*>(__i);
+    _Cont* _Cp = static_cast<_Cont*>(__c_);
+    return _Cp->__dereferenceable(__j);
+}
+
+template <class _Cont>
+inline bool
+_C_node<_Cont>::__decrementable(const void* __i) const
+{
+    typedef typename _Cont::const_iterator iterator;
+    const iterator* __j = static_cast<const iterator*>(__i);
+    _Cont* _Cp = static_cast<_Cont*>(__c_);
+    return _Cp->__decrementable(__j);
+}
+
+template <class _Cont>
+inline bool
+_C_node<_Cont>::__addable(const void* __i, ptrdiff_t __n) const
+{
+    typedef typename _Cont::const_iterator iterator;
+    const iterator* __j = static_cast<const iterator*>(__i);
+    _Cont* _Cp = static_cast<_Cont*>(__c_);
+    return _Cp->__addable(__j, __n);
+}
+
+template <class _Cont>
+inline bool
+_C_node<_Cont>::__subscriptable(const void* __i, ptrdiff_t __n) const
+{
+    typedef typename _Cont::const_iterator iterator;
+    const iterator* __j = static_cast<const iterator*>(__i);
+    _Cont* _Cp = static_cast<_Cont*>(__c_);
+    return _Cp->__subscriptable(__j, __n);
+}
+
+class _LIBCPP_TYPE_VIS __libcpp_db
+{
+    __c_node** __cbeg_;
+    __c_node** __cend_;
+    size_t   __csz_;
+    __i_node** __ibeg_;
+    __i_node** __iend_;
+    size_t   __isz_;
+
+    __libcpp_db();
+public:
+#ifndef _LIBCPP_CXX03_LANG
+    __libcpp_db(const __libcpp_db&) = delete;
+    __libcpp_db& operator=(const __libcpp_db&) = delete;
+#else
+private:
+    __libcpp_db(const __libcpp_db&);
+    __libcpp_db& operator=(const __libcpp_db&);
+public:
+#endif
+    ~__libcpp_db();
+
+    class __db_c_iterator;
+    class __db_c_const_iterator;
+    class __db_i_iterator;
+    class __db_i_const_iterator;
+
+    __db_c_const_iterator __c_end() const;
+    __db_i_const_iterator __i_end() const;
+
+    template <class _Cont>
+    _LIBCPP_INLINE_VISIBILITY
+    void __insert_c(_Cont* __c)
+    {
+        __c_node* __n = __insert_c(static_cast<void*>(__c));
+        ::new(__n) _C_node<_Cont>(__n->__c_, __n->__next_);
+    }
+
+    void __insert_i(void* __i);
+    __c_node* __insert_c(void* __c);
+    void __erase_c(void* __c);
+
+    void __insert_ic(void* __i, const void* __c);
+    void __iterator_copy(void* __i, const void* __i0);
+    void __erase_i(void* __i);
+
+    void* __find_c_from_i(void* __i) const;
+    void __invalidate_all(void* __c);
+    __c_node* __find_c_and_lock(void* __c) const;
+    __c_node* __find_c(void* __c) const;
+    void unlock() const;
+
+    void swap(void* __c1, void* __c2);
+
+
+    bool __dereferenceable(const void* __i) const;
+    bool __decrementable(const void* __i) const;
+    bool __addable(const void* __i, ptrdiff_t __n) const;
+    bool __subscriptable(const void* __i, ptrdiff_t __n) const;
+    bool __less_than_comparable(const void* __i, const void* __j) const;
+private:
+    _LIBCPP_HIDDEN
+    __i_node* __insert_iterator(void* __i);
+    _LIBCPP_HIDDEN
+    __i_node* __find_iterator(const void* __i) const;
+
+    friend _LIBCPP_FUNC_VIS __libcpp_db* __get_db();
+};
+
+_LIBCPP_FUNC_VIS __libcpp_db* __get_db();
+_LIBCPP_FUNC_VIS const __libcpp_db* __get_const_db();
+
+
+#endif // _LIBCPP_DEBUG_LEVEL >= 2 || defined(_LIBCPP_BUILDING_LIBRARY)
+
+_LIBCPP_END_NAMESPACE_STD
+
+#endif  // _LIBCPP_DEBUG_H
+

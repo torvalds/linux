@@ -1,0 +1,78 @@
+All files under this contrib directory are UNSUPPORTED. There were
+provided by users of zlib and were not tested by the authors of zlib.
+Use at your own risk. Please contact the authors of the contributions
+for help about these, not the zlib authors. Thanks.
+
+
+ada/        by Dmitriy Anisimkov <anisimkov@yahoo.com>
+        Support for Ada
+        See http://zlib-ada.sourceforge.net/
+
+amd64/      by Mikhail Teterin <mi@ALDAN.algebra.com>
+        asm code for AMD64
+        See patch at http://www.freebsd.org/cgi/query-pr.cgi?pr=bin/96393
+
+asm686/     by Brian Raiter <breadbox@muppetlabs.com>
+        asm code for Pentium and PPro/PII, using the AT&T (GNU as) syntax
+        See http://www.muppetlabs.com/~breadbox/software/assembly.html
+
+blast/      by Mark Adler <madler@alumni.caltech.edu>
+        Decompressor for output of PKWare Data Compression Library (DCL)
+
+delphi/     by Cosmin Truta <cosmint@cs.ubbcluj.ro>
+        Support for Delphi and C++ Builder
+
+dotzlib/    by Henrik Ravn <henrik@ravn.com>
+        Support for Microsoft .Net and Visual C++ .Net
+
+gcc_gvmat64/by Gilles Vollant <info@winimage.com>
+        GCC Version of x86 64-bit (AMD64 and Intel EM64t) code for x64
+        assembler to replace longest_match() and inflate_fast()
+
+infback9/   by Mark Adler <madler@alumni.caltech.edu>
+        Unsupported diffs to infback to decode the deflate64 format
+
+inflate86/  by Chris Anderson <christop@charm.net>
+        Tuned x86 gcc asm code to replace inflate_fast()
+
+iostream/   by Kevin Ruland <kevin@rodin.wustl.edu>
+        A C++ I/O streams interface to the zlib gz* functions
+
+iostream2/  by Tyge Løvset <Tyge.Lovset@cmr.no>
+        Another C++ I/O streams interface
+
+iostream3/  by Ludwig Schwardt <schwardt@sun.ac.za>
+            and Kevin Ruland <kevin@rodin.wustl.edu>
+        Yet another C++ I/O streams interface
+
+masmx64/    by Gilles Vollant <info@winimage.com>
+        x86 64-bit (AMD64 and Intel EM64t) code for x64 assembler to
+        replace longest_match() and inflate_fast(),  also masm x86
+        64-bits translation of Chris Anderson inflate_fast()
+
+masmx86/    by Gilles Vollant <info@winimage.com>
+        x86 asm code to replace longest_match() and inflate_fast(),
+        for Visual C++ and MASM (32 bits).
+        Based on Brian Raiter (asm686) and Chris Anderson (inflate86)
+
+minizip/    by Gilles Vollant <info@winimage.com>
+        Mini zip and unzip based on zlib
+        Includes Zip64 support by Mathias Svensson <mathias@result42.com>
+        See http://www.winimage.com/zLibDll/minizip.html
+
+pascal/     by Bob Dellaca <bobdl@xtra.co.nz> et al.
+        Support for Pascal
+
+puff/       by Mark Adler <madler@alumni.caltech.edu>
+        Small, low memory usage inflate.  Also serves to provide an
+        unambiguous description of the deflate format.
+
+testzlib/   by Gilles Vollant <info@winimage.com>
+        Example of the use of zlib
+
+untgz/      by Pedro A. Aranda Gutierrez <paag@tid.es>
+        A very simple tar.gz file extractor using zlib
+
+vstudio/    by Gilles Vollant <info@winimage.com>
+        Building a minizip-enhanced zlib with Microsoft Visual Studio
+        Includes vc11 from kreuzerkrieg and vc12 from davispuh

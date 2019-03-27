@@ -1,0 +1,102 @@
+.\" Copyright (c) 2001 Alexey Zelkin <phantom@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 30, 2012
+.Dt NL_LANGINFO 3
+.Os
+.Sh NAME
+.Nm nl_langinfo
+.Nd language information
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In langinfo.h
+.Ft char *
+.Fn nl_langinfo "nl_item item"
+.Ft char *
+.Fn nl_langinfo_l "nl_item item" "locale_t loc"
+.Sh DESCRIPTION
+The
+.Fn nl_langinfo
+function returns a pointer to a string containing information relevant to
+the particular language or cultural area defined in the program or thread's
+locale, or in the case of
+.Fn nl_langinfo_l ,
+the locale passed as the second argument.
+The manifest constant names and values of
+.Fa item
+are defined in
+.In langinfo.h .
+.Pp
+Calls to
+.Fn setlocale
+with a category corresponding to the category of
+.Fa item ,
+or to the
+category
+.Dv LC_ALL ,
+may overwrite the buffer pointed to by the return value.
+.Sh RETURN VALUES
+In a locale where langinfo data is not defined,
+.Fn nl_langinfo
+returns a pointer to the corresponding string in the
+.Tn POSIX
+locale.
+.Fn nl_langinfo_l
+returns the same values as
+.Fn nl_langinfo .
+In all locales,
+.Fn nl_langinfo
+returns a pointer to an empty string if
+.Fa item
+contains an invalid setting.
+.Sh EXAMPLES
+For example:
+.Pp
+.Dl nl_langinfo(ABDAY_1)
+.Pp
+would return a pointer to the string
+.Qq Li Dom
+if the identified language was
+Portuguese, and
+.Qq Li Sun
+if the identified language was English.
+.Sh SEE ALSO
+.Xr setlocale 3
+.Sh STANDARDS
+The
+.Fn nl_langinfo
+function conforms to
+.St -susv2 .
+The
+.Fn nl_langinfo_l
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn nl_langinfo
+function first appeared in
+.Fx 4.6 .

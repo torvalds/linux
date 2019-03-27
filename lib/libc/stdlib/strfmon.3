@@ -1,0 +1,184 @@
+.\" Copyright (c) 2001 Jeroen Ruigrok van der Werven <asmodai@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 25, 2012
+.Dt STRFMON 3
+.Os
+.Sh NAME
+.Nm strfmon
+.Nd convert monetary value to string
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In monetary.h
+.Ft ssize_t
+.Fn strfmon "char * restrict s" "size_t maxsize" "const char * restrict format" "..."
+.Ft ssize_t
+.Fn strfmon_l "char * restrict s" "size_t maxsize" "locale_t loc" "const char * restrict format" "..."
+.Sh DESCRIPTION
+The
+.Fn strfmon
+function places characters into the array pointed to by
+.Fa s
+as controlled by the string pointed to by
+.Fa format .
+No more than
+.Fa maxsize
+bytes are placed into the array.
+.Pp
+The
+.Fn strfmon_l
+function does the same as
+.Fn strfmon
+but takes an explicit locale rather than using the current locale.
+.Pp
+The format string is composed of zero or more directives:
+ordinary characters (not
+.Cm % ) ,
+which are copied unchanged to the output stream; and conversion
+specifications, each of which results in fetching zero or more subsequent
+arguments.
+Each conversion specification is introduced by the
+.Cm %
+character.
+After the
+.Cm % ,
+the following appear in sequence:
+.Bl -bullet
+.It
+Zero or more of the following flags:
+.Bl -tag -width "XXX"
+.It Cm = Ns Ar f
+A
+.Sq Cm =
+character followed by another character
+.Ar f
+which is used as the numeric fill character.
+.It Cm ^
+Do not use grouping characters, regardless of the current locale default.
+.It Cm +
+Represent positive values by prefixing them with a positive sign,
+and negative values by prefixing them with a negative sign.
+This is the default.
+.It Cm \&(
+Enclose negative values in parentheses.
+.It Cm \&!
+Do not include a currency symbol in the output.
+.It Cm \-
+Left justify the result.
+Only valid when a field width is specified.
+.El
+.It
+An optional minimum field width as a decimal number.
+By default, there is no minimum width.
+.It
+A
+.Sq Cm #
+sign followed by a decimal number specifying the maximum
+expected number of digits after the radix character.
+.It
+A
+.Sq Cm \&.
+character followed by a decimal number specifying the number
+the number of digits after the radix character.
+.It
+One of the following conversion specifiers:
+.Bl -tag -width "XXX"
+.It Cm i
+The
+.Vt double
+argument is formatted as an international monetary amount.
+.It Cm n
+The
+.Vt double
+argument is formatted as a national monetary amount.
+.It Cm %
+A
+.Sq Li %
+character is written.
+.El
+.El
+.Sh RETURN VALUES
+If the total number of resulting bytes including the terminating
+.Dv NUL
+byte is not more than
+.Fa maxsize ,
+.Fn strfmon
+returns the number of bytes placed into the array pointed to by
+.Fa s ,
+not including the terminating
+.Dv NUL
+byte.
+Otherwise, \-1 is returned,
+the contents of the array are indeterminate,
+and
+.Va errno
+is set to indicate the error.
+.Pp
+The
+.Fn strfmon_l
+function returns the same values as
+.Fn strfmon .
+.Sh ERRORS
+The
+.Fn strfmon
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er E2BIG
+Conversion stopped due to lack of space in the buffer.
+.It Bq Er EINVAL
+The format string is invalid.
+.It Bq Er ENOMEM
+Not enough memory for temporary buffers.
+.El
+.Sh SEE ALSO
+.Xr localeconv 3
+.Sh STANDARDS
+The
+.Fn strfmon
+function
+conforms to
+.St -p1003.1-2001 .
+The
+.Fn strfmon_l
+function conforms to
+.St -p1003.1-2008 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Fn strfmon
+function was implemented by
+.An Alexey Zelkin Aq Mt phantom@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Jeroen Ruigrok van der Werven Aq Mt asmodai@FreeBSD.org
+based on the standards' text.
+.Sh BUGS
+The
+.Fn strfmon
+function does not correctly handle multibyte characters in the
+.Fa format
+argument.

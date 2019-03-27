@@ -1,0 +1,15 @@
+
+#------------------------------------------------------------------------------
+# $File: efi,v 1.5 2014/04/30 21:41:02 christos Exp $
+# efi:  file(1) magic for Universal EFI binaries
+
+0	lelong	0x0ef1fab9
+>4	lelong	1		Universal EFI binary with 1 architecture
+>>&0	lelong	7		\b, i386
+>>&0	lelong	0x01000007	\b, x86_64
+>4	lelong	2		Universal EFI binary with 2 architectures
+>>&0	lelong	7		\b, i386
+>>&0	lelong	0x01000007	\b, x86_64
+>>&20	lelong	7		\b, i386
+>>&20	lelong	0x01000007	\b, x86_64
+>4	lelong	>2		Universal EFI binary with %d architectures

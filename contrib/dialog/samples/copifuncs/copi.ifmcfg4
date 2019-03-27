@@ -1,0 +1,30 @@
+ModemHangup +++ATH\r
+ModemOK  OK
+ModemConnect CONNECT
+ModemError BUSY
+ModemError NO\sCARRIER
+ModemError NO\sDIAL
+ModemError RING\r
+ModemError ERROR
+
+# Call options (time, address and nodelist flag dependant)
+# All matching are applied in the order they are specified.
+# Possible options are "[No]Call", "[No]Hold", "[No]PUA", "[No]EMSI",
+# "[No]WaZOO", "[No]Freqs", "[No]Zmodem", "[No]ZedZap", "[No]Janus",
+# "[No]Hydra". Here, WaZOO stands for YooHoo/2U2 handshake, not for
+# the transfer scheme. FTS-0001 handshake and DietIFNA scheme cannot
+# be disallowed (because they are mandatory by standart).  "Hold" 
+# means really hold "hold" type packets and files: do not send them
+# if our system initiated the session, "NoHold" means  send "hold"
+# packets when our system initiated the session. "NoPUA" stands for
+# "No PickUp All", i.e. PUP ("Pick Up Primary").  NoCall means do not
+# perform outbound call.  This flag has no effect on the nodes
+# explicitly specified in the command line.
+# Default options are "everything allowed".
+# options  ((!CM) & time Any0700-0200) Nocall
+#options  (time Any0900-2100 & ! address 2:5020/*) Nocall
+
+# EMSI data for this node
+# From this line on values CANNOT be prefixed with logical expression
+# For now, escaping of '}' and ']' unimplemented, try to avoid these
+# characters please!

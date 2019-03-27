@@ -1,0 +1,44 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: natd
+# KEYWORD: nostart nojailvnet
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="natd"
+desc="Network Address Translation daemon"
+rcvar="natd_enable"
+command="/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+start_precmd="natd_precmd"
+required_modules="ipdivert"
+
+natd_precmd()
+{
+	if [ -n "${natd_interface}" ]; then
+		dhcp_list="`list_net_interfaces dhcp`"
+		for ifn in ${dhcp_list}; do
+			case "${natd_interface}" in
+			${ifn})
+				rc_flags="$rc_flags -dynamic"
+				;;
+			esac
+		done
+
+		if echo "${natd_interface}" | \
+		    grep -q -E '^[0-9]+(\.[0-9]+){0,3}$'; then
+			rc_flags="$rc_flags -a ${natd_interface}"
+		else
+			rc_flags="$rc_flags -n ${natd_interface}"
+		fi
+	fi
+
+	return 0
+}
+
+load_rc_config $name
+run_rc_command "$1"

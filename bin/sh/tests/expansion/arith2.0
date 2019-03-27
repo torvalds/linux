@@ -1,0 +1,77 @@
+# $FreeBSD$
+
+failures=0
+
+check() {
+	if [ $(($1)) != $2 ]; then
+		failures=$((failures+1))
+		echo "For $1, expected $2 actual $(($1))"
+	fi
+}
+
+# variables
+unset v
+check "v=2" 2
+check "v" 2
+check "$(($v))" 2
+check "v+=1" 3
+check "v" 3
+
+# constants
+check "4611686018427387904" 4611686018427387904
+check "0x4000000000000000" 4611686018427387904
+check "0400000000000000000000" 4611686018427387904
+check "0x4Ab0000000000000" 5381801554707742720
+check "010" 8
+
+# try out all operators
+v=42
+check "!v" 0
+check "!!v" 1
+check "!0" 1
+check "~0" -1
+check "~(-1)" 0
+check "-0" 0
+check "-v" -42
+check "v*v" 1764
+check "v/2" 21
+check "v%10" 2
+check "v+v" 84
+check "v-4" 38
+check "v<<1" 84
+check "v>>1" 21
+check "v<43" 1
+check "v>42" 0
+check "v<=43" 1
+check "v>=43" 0
+check "v==41" 0
+check "v!=42" 0
+check "v&3" 2
+check "v^3" 41
+check "v|3" 43
+check "v>=40&&v<=44" 1
+check "v<40||v>44" 0
+check "(v=42)&&(v+=1)==43" 1
+check "v" 43
+check "(v=42)&&(v-=1)==41" 1
+check "v" 41
+check "(v=42)&&(v*=2)==84" 1
+check "v" 84
+check "(v=42)&&(v/=10)==4" 1
+check "v" 4
+check "(v=42)&&(v%=10)==2" 1
+check "v" 2
+check "(v=42)&&(v<<=1)==84" 1
+check "v" 84
+check "(v=42)&&(v>>=2)==10" 1
+check "v" 10
+check "(v=42)&&(v&=32)==32" 1
+check "v" 32
+check "(v=42)&&(v^=32)==10" 1
+check "v" 10
+check "(v=42)&&(v|=32)==42" 1
+check "v" 42
+
+# missing: ternary
+
+exit $((failures != 0))

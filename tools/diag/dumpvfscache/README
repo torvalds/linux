@@ -1,0 +1,6 @@
+This is a little C-program that can be used to examine the contents of
+the vfs name cache.  It's very likely to loop and crash if you use it
+on an active system.
+
+					Poul-Henning Kamp
+					4 sep 1997

@@ -1,0 +1,169 @@
+.\"
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\" 	All rights reserved.
+.\"
+.\" Author: Harti Brandt <harti@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Begemot: libunimsg/sscop/sscop.1,v 1.3 2004/07/08 08:22:28 brandt Exp $
+.\"
+.Dd October 28, 2003
+.Dt SSCOP 1
+.Os
+.Sh NAME
+.Nm sscop
+.Nd "SSCOP transport protocol"
+.Sh SYNOPSIS
+.Nm
+.Op Fl Fbefhirwx3
+.Op Fl V Ar X
+.Op Fl W Ar N
+.Op Fl a Ar p Ns Li = Ns Ar v
+.Op Fl l Ar N
+.Op Fl t Ar t Ns Li = Ns Ar m
+.Op Fl v Ar X
+.Sh DESCRIPTION
+The
+.Nm
+tool implements the Q.2110 transport protocol.
+Normally the program reads from standard input and sends this input over
+the SSCOP protocol on the standard output file descriptor. This means, that
+the standard output file descriptor should be connected in read-write mode.
+The program takes the
+following arguments:
+.Bl -tag -width ".It Fl a Ar p Ns Li = Ns Ar v"
+.It Fl F
+Use frameing on the SSCOP connection (see the
+.Fl f
+option).
+.It Fl V Ar X
+Set the verbose flag to the hex value
+.Ar X .
+.It Fl W Ar N
+Set the initial SSCOP window to
+.Ar N .
+.It Fl a Ar p Ns Li = Ns Ar v
+Set SSCOP parameter
+.Ar p
+to the value
+.Ar v .
+The following parameters may be set:
+.Bl -tag -width ".It Li stat Ns = Ns Ar N"
+.It Li j Ns = Ns Ar N
+Set the maximum SSCOP-UU data size to
+.Ar N
+octets.
+.It Li k Ns = Ns Ar N
+Set the maximum SSCOP SDU data size to
+.Ar N
+octets.
+.It Li cc Ns = Ns Ar N
+Set the parameter
+.Li MaxCC
+(maximum number of connection control message re-transmissions) to
+the value
+.Ar N .
+.It Li pd Ns = Ns Ar N
+Set the parameter
+.Li MaxPD
+(maximum acceptable number of outstanding unacknowledged SD PDUs before
+sending a POLL) to the value
+.Ar N .
+.It Li stat Ns = Ns Ar N
+Set the parameter
+.Li MaxSTAT
+(maximum number of elements placed in a STAT PDU) to the value
+.Ar N .
+.El
+.It Fl b
+Enable the ATM-Forum SSCOP robustness enhancement.
+.It Fl e
+Exit when there is an end of file condition on the input file or the
+SSCOP indicates a release confirmation.
+.It Fl f
+Use the framing protocol for communication over the SSCOP link. See
+.Xr frame l
+(libbegemot) for framing.
+.It Fl h
+Print a short help information and exit.
+.It Fl i
+Try not to read from the user input file descriptor. Assume that we a receiving
+only.
+.It Fl l Ar N
+Loose every Nth message. This is used for testing.
+.It Fl r
+Revert user and SSCOP file descriptors. That means, that user input and output
+is done on standard output and SSCOP input and output on standard input.
+.It Fl t Ar t Ns Li = Ns Ar m
+Set SSCOP timer
+.Ar t
+to
+.Ar m
+milliseconds. The following timers may be set:
+.Bl -tag -width ".It Li stat Ns = Ns Ar N"
+.It Li cc Ns = Ns Ar m
+Set the connection control timer to
+.Ar m .
+This timer controls the retransmission of connection control messages.
+.It Li poll Ns = Ns Ar m
+Set the poll timer to
+.Ar m .
+This timer controls the transmission of POLL messages.
+.It Li ka Ns = Ns Ar m
+Set the keep-alive timer to
+.Ar m .
+This timer controls the maximum length of the transient phase.
+.It Li nr Ns = Ns Ar m
+Set the no-response timer to
+.Ar m .
+This timer controls the maximum time between two received STAT PDUs before
+the connection is aborted.
+.It Li idle Ns = Ns Ar m
+Set the idle timer to
+.Ar m .
+This timer controls the length of the idle phase.
+.El
+.It Fl v Ar X
+Set the SSCOP library verbose flag to the hex value.
+.It Fl w
+Don't start the SSCOP protocol. Wait for a establish indication from the remote
+side.
+.It Fl x
+Enable to POLL after retransmission flag.
+.It Fl 3
+Send user output to file descriptor 3.
+.El
+.Sh EXAMPLES
+The following command line sends the file
+.Pa Makefile
+over a pipe (this depends on the feature that pipes are bi-directional):
+.Bd -literal
+cat Makefile | sscop -reF | sscop -weF
+.Ed
+.Sh SEE ALSO
+.Xr libunimsg 3
+.Sh STANDARDS
+The implemented protocol conforms to ITU-T recommendation Q.2110.
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@FreeBSD.org

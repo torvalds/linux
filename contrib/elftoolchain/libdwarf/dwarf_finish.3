@@ -1,0 +1,140 @@
+.\" Copyright (c) 2009,2011 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: dwarf_finish.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd November 9, 2011
+.Dt DWARF_FINISH 3
+.Os
+.Sh NAME
+.Nm dwarf_finish ,
+.Nm dwarf_object_finish
+.Nd free resources associated with a debug descriptor
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fn dwarf_finish "Dwarf_Debug dbg" "Dwarf_Error *err"
+.Ft int
+.Fn dwarf_object_finish "Dwarf_Debug dbg" "Dwarf_Error *err"
+.Sh DESCRIPTION
+The
+.Fn dwarf_finish
+and
+.Fn dwarf_object_finish
+functions are used to release the resources associated with a debug
+descriptor allocated by a prior call to
+.Xr dwarf_init 3
+and
+.Xr dwarf_object_init 3
+respectively.
+.Pp
+Argument
+.Ar dbg
+denotes a valid
+.Vt Dwarf_Debug
+instance.
+Argument
+.Ar err
+will be used to record error information in case of an error.
+.Pp
+After a call to
+.Fn dwarf_finish
+or
+.Fn dwarf_object_finish ,
+the argument
+.Ar dbg
+will be invalid and should not be used further.
+.Pp
+For
+.Vt Dwarf_Debug
+descriptors opened using
+.Xr dwarf_init 3 ,
+the application would need to explicitly release the
+.Vt Elf
+instance associated with the descriptor by first retrieving
+the instance using
+.Xr dwarf_get_elf 3
+and closing it using
+.Xr elf_end 3 .
+.Sh RETURN VALUES
+These functions return
+.Dv DW_DLV_OK
+if successful.
+In case of an error, the functions return
+.Dv DW_DLV_ERROR
+and record additional information in argument
+.Ar err .
+.Sh EXAMPLES
+To deallocate a
+.Vt Dwarf_Debug
+instance allocated using
+.Xr dwarf_elf_init 3
+use:
+.Bd -literal -offset indent
+Dwarf_Debug dbg;
+Dwarf_Error de;
+
+if (dwarf_finish(dbg, &de) != DW_DLV_OK)
+	errx(EXIT_FAILURE, "dwarf_finish: %s", dwarf_errmsg(de));
+.Ed
+.Pp
+To deallocate a
+.Vt Dwarf_Debug
+instance allocated using
+.Xr dwarf_object_init 3
+use:
+.Bd -literal -offset indent
+Dwarf_Debug dbg;
+Dwarf_Error de;
+
+if (dwarf_object_finish(dbg, &de) != DW_DLV_OK)
+	errx(EXIT_FAILURE, "dwarf_object_finish: %s",
+	    dwarf_errmsg(de));
+.Ed
+.Pp
+To deallocate a
+.Vt Dwarf_Debug
+instance allocated using
+.Xr dwarf_init 3
+use:
+.Bd -literal -offset indent
+Dwarf_Debug dbg;
+Dward_Error de;
+Elf *e;
+
+if (dwarf_get_elf(dbg, &e, &de) != DW_DLV_OK)
+	errx(EXIT_FAILURE, "dwarf_get_elf: %s", dwarf_errmsg(&de));
+
+if (dwarf_finish(dbg, &de) != DW_DLV_OK)
+	errx(EXIT_FAILURE, "dwarf_finish: %s", dwarf_errmsg(de));
+
+(void) elf_end(e);
+.Ed
+.Sh SEE ALSO
+.Xr dwarf_elf_init 3 ,
+.Xr dwarf_get_elf 3 ,
+.Xr dwarf_init 3 ,
+.Xr dwarf_object_init 3 ,
+.Xr elf_end 3

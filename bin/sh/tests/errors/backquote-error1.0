@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+echo 'echo `for` echo ".BAD"CODE.' | ${SH} +m -i 2>&1 | grep -q BADCODE && exit 1
+exit 0

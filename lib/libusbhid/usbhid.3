@@ -1,0 +1,248 @@
+.\"	$NetBSD: usb.3,v 1.13 2000/09/24 02:17:52 augustss Exp $
+.\"
+.\" Copyright (c) 1999, 2001 Lennart Augustsson <augustss@NetBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 27, 2009
+.Dt USBHID 3
+.Os
+.Sh NAME
+.Nm usbhid ,
+.Nm hid_get_report_desc ,
+.Nm hid_get_report_id ,
+.Nm hid_use_report_desc ,
+.Nm hid_dispose_report_desc ,
+.Nm hid_start_parse ,
+.Nm hid_end_parse ,
+.Nm hid_get_item ,
+.Nm hid_report_size ,
+.Nm hid_locate ,
+.Nm hid_usage_page ,
+.Nm hid_usage_in_page ,
+.Nm hid_init ,
+.Nm hid_get_data ,
+.Nm hid_set_data ,
+.Nm hid_get_report ,
+.Nm hid_set_report
+.Nd USB HID access routines
+.Sh LIBRARY
+.Lb libusbhid
+.Sh SYNOPSIS
+.In usbhid.h
+.Ft report_desc_t
+.Fn hid_get_report_desc "int file"
+.Ft int
+.Fn hid_get_report_id "int file"
+.Ft int
+.Fn hid_set_immed "int fd" "int enable"
+.Ft report_desc_t
+.Fn hid_use_report_desc "unsigned char *data" "unsigned int size"
+.Ft void
+.Fn hid_dispose_report_desc "report_desc_t d"
+.Ft hid_data_t
+.Fn hid_start_parse "report_desc_t d" "int kindset" "int id"
+.Ft void
+.Fn hid_end_parse "hid_data_t s"
+.Ft int
+.Fn hid_get_item "hid_data_t s" "hid_item_t *h"
+.Ft int
+.Fn hid_report_size "report_desc_t d" "hid_kind_t k" "int id"
+.Ft int
+.Fn hid_locate "report_desc_t d" "u_int usage" "hid_kind_t k" "hid_item_t *h" "int id"
+.Ft "const char *"
+.Fn hid_usage_page "int i"
+.Ft "const char *"
+.Fn hid_usage_in_page "u_int u"
+.Ft int
+.Fn hid_parse_usage_page "const char *"
+.Ft int
+.Fn hid_parse_usage_in_page "const char *"
+.Ft void
+.Fn hid_init "const char *file"
+.Ft int
+.Fn hid_get_data "const void *data" "const hid_item_t *h"
+.Ft void
+.Fn hid_set_data "void *buf" "const hid_item_t *h" "int data"
+.Ft int
+.Fn hid_get_report "int fd" "enum hid_kind k" "unsigned char *data" "unsigned int size"
+.Ft int
+.Fn hid_set_report "int fd" "enum hid_kind k" "unsigned char *data" "unsigned int size"
+.Sh DESCRIPTION
+The
+.Nm
+library provides routines to extract data from USB Human Interface Devices.
+.Ss Introduction
+USB HID devices send and receive data layed out in a device dependent way.
+The
+.Nm
+library contains routines to extract the
+.Em "report descriptor"
+which contains the data layout information and then use this information.
+.Pp
+The routines can be divided into four parts: extraction of the descriptor,
+parsing of the descriptor, translating to/from symbolic names, and
+data manipulation.
+.Ss Synchronous HID operation
+Synchronous HID operation can be enabled or disabled by a call to
+.Fn hid_set_immed .
+If the second argument is zero synchronous HID operation is disabled.
+Else synchronous HID operation is enabled.
+The function returns a negative value on failure.
+.Pp
+.Fn hid_get_report
+and
+.Fn hid_set_report
+functions allow to synchronously get and set specific report if device
+supports it.
+For devices with multiple report IDs, wanted ID should be provided in the
+first byte of the buffer for both get and set.
+.Ss Descriptor Functions
+The report descriptor ID can be obtained by calling
+.Fn hid_get_report_id .
+A report descriptor can be obtained by calling
+.Fn hid_get_report_desc
+with a file descriptor obtained by opening a
+.Xr uhid 4
+device.
+Alternatively a data buffer containing the report descriptor can be
+passed into
+.Fn hid_use_report_desc .
+The data is copied into an internal structure.
+When the report descriptor
+is no longer needed it should be freed by calling
+.Fn hid_dispose_report_desc .
+The type
+.Vt report_desc_t
+is opaque and should be used when calling the parsing functions.
+If
+.Fn hid_dispose_report_desc
+fails it will return
+.Dv NULL .
+.Ss Descriptor Parsing Functions
+To parse the report descriptor the
+.Fn hid_start_parse
+function should be called with a report descriptor, a set that
+describes which items that are interesting, and the desired report
+ID (or -1 to obtain items of all report IDs).
+The set is obtained by OR-ing together values
+.Fa "(1 << k)"
+where
+.Fa k
+is an item of type
+.Vt hid_kind_t .
+The function returns
+.Dv NULL
+if the initialization fails, otherwise an opaque value to be used
+in subsequent calls.
+After parsing the
+.Fn hid_end_parse
+function should be called to free internal data structures.
+.Pp
+To iterate through all the items in the report descriptor
+.Fn hid_get_item
+should be called while it returns a value greater than 0.
+When the report descriptor ends it will returns 0; a syntax
+error within the report descriptor will cause a return value less
+than 0.
+The struct pointed to by
+.Fa h
+will be filled with the relevant data for the item.
+The definition of
+.Vt hid_item_t
+can be found in
+.In usbhid.h
+and the meaning of the components in the USB HID documentation.
+.Pp
+Data should be read/written to the device in the size of
+the report.
+The size of a report (of a certain kind) can be computed by the
+.Fn hid_report_size
+function.
+If the report is prefixed by an ID byte it is given by
+.Fa id .
+.Pp
+To locate a single item the
+.Fn hid_locate
+function can be used.
+It should be given the usage code of
+the item and its kind and it will fill the item and return
+non-zero if the item was found.
+.Ss Name Translation Functions
+The function
+.Fn hid_usage_page
+will return the symbolic name of a usage page, and the function
+.Fn hid_usage_in_page
+will return the symbolic name of the usage within the page.
+Both these functions may return a pointer to static data.
+.Pp
+The functions
+.Fn hid_parse_usage_page
+and
+.Fn hid_parse_usage_in_page
+are the inverses of
+.Fn hid_usage_page
+and
+.Fn hid_usage_in_page .
+They take a usage string and return the number of the usage, or \-1
+if it cannot be found.
+.Pp
+Before any of these functions can be called the usage table
+must be parsed, this is done by calling
+.Fn hid_init
+with the name of the table.
+Passing
+.Dv NULL
+to this function will cause it to use the default table.
+.Ss Data Extraction Functions
+Given the data obtained from a HID device and an item in the
+report descriptor the
+.Fn hid_get_data
+function extracts the value of the item.
+Conversely
+.Fn hid_set_data
+can be used to put data into a report (which must be zeroed first).
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/misc/usb_hid_usages"
+.It Pa /usr/share/misc/usb_hid_usages
+The default HID usage table.
+.El
+.Sh EXAMPLES
+Not yet.
+.Sh SEE ALSO
+The
+.Tn USB
+specifications can be found at
+.Pa http://www.usb.org/developers/docs/ .
+.Pp
+.Xr uhid 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+library first appeared in
+.Nx 1.5 .
+.Sh BUGS
+This man page is woefully incomplete.

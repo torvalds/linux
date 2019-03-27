@@ -1,0 +1,36 @@
+@c Copyright (C) 2002 Free Software Foundation, Inc.
+@c This is part of the GCC manual.
+@c For copying conditions, see the file gcc.texi.
+
+@node Languages
+@chapter Language Front Ends in GCC
+
+The interface to front ends for languages in GCC, and in particular
+the @code{tree} structure (@pxref{Trees}), was initially designed for
+C, and many aspects of it are still somewhat biased towards C and
+C-like languages.  It is, however, reasonably well suited to other
+procedural languages, and front ends for many such languages have been
+written for GCC@.
+
+Writing a compiler as a front end for GCC, rather than compiling
+directly to assembler or generating C code which is then compiled by
+GCC, has several advantages:
+
+@itemize @bullet
+@item GCC front ends benefit from the support for many different
+target machines already present in GCC@.
+@item GCC front ends benefit from all the optimizations in GCC@.  Some
+of these, such as alias analysis, may work better when GCC is
+compiling directly from source code then when it is compiling from
+generated C code.
+@item Better debugging information is generated when compiling
+directly from source code than when going via intermediate generated C
+code.
+@end itemize
+
+Because of the advantages of writing a compiler as a GCC front end,
+GCC front ends have also been created for languages very different
+from those for which GCC was designed, such as the declarative
+logic/functional language Mercury.  For these reasons, it may also be
+useful to implement compilers created for specialized purposes (for
+example, as part of a research project) as GCC front ends.

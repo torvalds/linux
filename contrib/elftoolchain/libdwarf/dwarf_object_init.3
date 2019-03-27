@@ -1,0 +1,226 @@
+.\" Copyright (c) 2011 Joseph Koshy
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: dwarf_object_init.3 3644 2018-10-15 19:55:01Z jkoshy $
+.\"
+.Dd September 29, 2011
+.Dt DWARF_OBJECT_INIT 3
+.Os
+.Sh NAME
+.Nm dwarf_object_init
+.Nd allocate a DWARF debug descriptor with application-specific file \
+access methods
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft int
+.Fo dwarf_object_init
+.Fa "Dwarf_Obj_Access_Interface *iface"
+.Fa "Dwarf_Handler errhand"
+.Fa "Dwarf_Ptr errarg"
+.Fa "Dwarf_Debug *dbg"
+.Fa "Dwarf_Error *err"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn dwarf_object_init
+function allocates and returns a
+.Vt Dwarf_Debug
+instance that uses application-supplied access methods to read file
+content.
+.Pp
+The argument
+.Ar iface
+should point to a populated
+.Vt Dwarf_Obj_Access_Interface
+structure.
+The contents of the
+.Vt Dwarf_Obj_Access_Interface
+structure are described in the section
+.Sx "Object Access Functions"
+below.
+.Pp
+The argument
+.Ar errhand
+should point to a function to be called in case of an error.
+If this argument is
+.Dv NULL
+then a default error handling scheme is used.
+See
+.Xr dwarf 3
+for a description of the error handling schemes available.
+.Pp
+The argument
+.Ar errarg
+will be passed to the error handler function pointed to by argument
+.Ar errhand .
+.Pp
+The argument
+.Ar dbg
+should point to a memory location that will be set to a reference to
+the returned
+.Vt Dwarf_Debug
+descriptor.
+.Pp
+The argument
+.Ar err
+will be used to return a
+.Vt Dwarf_Error
+descriptor in case of an error.
+.Ss Object Access Functions
+The data structures used to specify object access methods are defined
+in
+.In libdwarf.h .
+.Bl -tag -width indent
+.It Vt "Dwarf_Obj_Access_Interface"
+This structure bundles together a set of file access methods along
+with a pointer to application-private state.
+.Bd -literal -offset indent
+typedef struct {
+	void *object;
+	const Dwarf_Obj_Access_Methods *methods;
+} Dwarf_Obj_Access_Interface;
+.Ed
+.Pp
+.Bl -tag -width ".Ar methods" -compact
+.It Ar object
+This field points to application-specific state that will be passed as
+the first parameter to the actual access object methods.
+.It Ar methods
+This structure contains pointers to the functions implementing the
+access methods, as described below.
+.El
+.It Vt Dwarf_Obj_Access_Methods
+This structure specifies the functions implementing low-level access.
+.Bd -literal -offset indent
+typedef struct {
+	int (*get_section_info)(void *obj, Dwarf_Half index,
+	    Dwarf_Obj_Access_Section *ret, int *error);
+	Dwarf_Endianness (*get_byte_order)(void *obj);
+	Dwarf_Small (*get_length_size)(void *obj);
+	Dwarf_Small (*get_pointer_size)(void *obj);
+	Dwarf_Unsigned (*get_section_count)(void *obj);
+	int (*load_section)(void *obj, Dwarf_Half ndx,
+	    Dwarf_Small **ret_data, int *error);
+} Dwarf_Obj_Access_Methods;
+.Ed
+.Pp
+.Bl -tag -width ".Ar get_section_count" -compact
+.It Ar get_byte_order
+This function should return the endianness of the DWARF object by
+returning one of the constants
+.Dv DW_OBJECT_MSB
+or
+.Dv DW_OBJECT_LSB .
+.It Ar get_length_size
+This function should return the number of bytes needed to represent a
+DWARF offset in the object being debugged.
+.It Ar get_pointer_size
+This function should return the size in bytes, in the object being
+debugged, of a memory address.
+.It Ar get_section_count
+This function should return the number of sections in the object being
+debugged.
+.It Ar get_section_info
+This function should return information about the section at the
+index
+.Ar ndx
+by filling in the structure of type
+.Vt Dwarf_Obj_Access_Section
+pointed to by argument
+.Ar ret .
+The
+.Vt Dwarf_Obj_Access_Section
+structure is described below.
+.It Ar load_section
+This function should load the section specified by argument
+.Ar ndx
+into memory and place a pointer to the section's data into
+the location pointed to by argument
+.Ar ret_data .
+.El
+.Pp
+The argument
+.Ar obj
+passed to these functions will be set to the pointer value in the
+.Ar object
+field of the associated
+.Vt Dwarf_Obj_Access_Interface
+structure.
+.Pp
+The argument
+.Ar error
+is used to return an error code in case of an error.
+.It Vt Dwarf_Obj_Access_Section
+This structure describes the layout of a section in the DWARF object.
+.Bd -literal -offset indent
+typedef struct {
+	Dwarf_Addr addr;
+	Dwarf_Unsigned size;
+	const char *name;
+} Dwarf_Obj_Access_Section;
+.Ed
+.Pp
+.Bl -tag -width ".Ar name" -compact
+.It Ar addr
+A pointer to the start of the section's data.
+.It Ar size
+The size of the section in bytes.
+.It Ar name
+A pointer to a NUL-terminated string containing the name of the
+section.
+.El
+.El
+.Sh RETURN VALUES
+On success, the
+.Fn dwarf_object_init
+function returns
+.Dv DW_DLV_OK .
+In case of an error, the function returns
+.Dv DW_DLV_ERROR
+and sets the argument
+.Ar err .
+.Sh ERRORS
+The
+.Fn dwarf_object_init
+function may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_DEBUG_INFO_NULL"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar iface
+or
+.Ar dbg
+was NULL.
+.It Bq Er DW_DLE_DEBUG_INFO_NULL
+The underlying object did not contain debugging information.
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered during the execution of the
+function.
+.El
+.Sh SEE ALSO
+.Xr dwarf 3 ,
+.Xr dwarf_init 3 ,
+.Xr dwarf_init_elf 3 ,
+.Xr dwarf_object_finish 3

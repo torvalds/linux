@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+v=1+
+v=$v$v$v$v
+v=$v$v$v$v
+v=$v$v$v$v
+v=$v$v$v$v
+v=$v$v$v$v
+[ "$(cat <<EOF
+$(($v 1))
+EOF
+)" = 1025 ]

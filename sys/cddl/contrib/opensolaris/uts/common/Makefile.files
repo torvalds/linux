@@ -1,0 +1,183 @@
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+#
+# Copyright (c) 1991, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012 Nexenta Systems, Inc. All rights reserved.
+# Copyright (c) 2012 Nexenta Systems, Inc. All rights reserved.
+# Copyright (c) 2012 Joyent, Inc.  All rights reserved.
+# Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+# Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+#
+#
+# This Makefile defines all file modules for the directory uts/common
+# and its children. These are the source files which may be considered
+# common to all SunOS systems.
+
+LUA_OBJS +=			\
+	ldo.o			\
+	lvm.o			\
+	lbitlib.o		\
+	lopcodes.o		\
+	lstring.o		\
+	ltable.o		\
+	ltm.o			\
+	lcorolib.o		\
+	lauxlib.o		\
+	ldebug.o		\
+	lstate.o		\
+	lgc.o			\
+	lmem.o			\
+	lctype.o		\
+	lfunc.o			\
+	ldump.o			\
+	lundump.o		\
+	lstrlib.o		\
+	ltablib.o		\
+	lapi.o			\
+	lobject.o		\
+	lbaselib.o		\
+	lcompat.o		\
+	lzio.o			\
+	lcode.o			\
+	llex.o			\
+	lparser.o
+
+ZFS_COMMON_OBJS +=		\
+	abd.o			\
+	aggsum.o		\
+	arc.o			\
+	bplist.o		\
+	blkptr.o		\
+	bpobj.o			\
+	bptree.o		\
+	bqueue.o		\
+	cityhash.o		\
+	dbuf.o			\
+	dbuf_stats.o		\
+	ddt.o			\
+	ddt_zap.o		\
+	dmu.o			\
+	dmu_diff.o		\
+	dmu_send.o		\
+	dmu_object.o		\
+	dmu_objset.o		\
+	dmu_traverse.o		\
+	dmu_tx.o		\
+	dnode.o			\
+	dnode_sync.o		\
+	dsl_bookmark.o		\
+	dsl_dir.o		\
+	dsl_dataset.o		\
+	dsl_deadlist.o		\
+	dsl_destroy.o		\
+	dsl_pool.o		\
+	dsl_synctask.o		\
+	dsl_userhold.o		\
+	dmu_zfetch.o		\
+	dsl_deleg.o		\
+	dsl_prop.o		\
+	dsl_scan.o		\
+	zfeature.o		\
+	gzip.o			\
+	lz4.o			\
+	lzjb.o			\
+	metaslab.o		\
+	multilist.o		\
+	range_tree.o		\
+	refcount.o		\
+	rrwlock.o		\
+	sa.o			\
+	sha256.o		\
+	skein_zfs.o		\
+	spa.o			\
+	spa_checkpoint.o	\
+	spa_config.o		\
+	spa_errlog.o		\
+	spa_history.o		\
+	spa_misc.o		\
+	space_map.o		\
+	space_reftree.o		\
+	txg.o			\
+	uberblock.o		\
+	unique.o		\
+	vdev.o			\
+	vdev_cache.o		\
+	vdev_file.o		\
+	vdev_indirect.o		\
+	vdev_indirect_births.o	\
+	vdev_indirect_mapping.o	\
+	vdev_initialize.o	\
+	vdev_label.o		\
+	vdev_mirror.o		\
+	vdev_missing.o		\
+	vdev_queue.o		\
+	vdev_raidz.o		\
+	vdev_removal.o		\
+	vdev_root.o		\
+	zap.o			\
+	zap_leaf.o		\
+	zap_micro.o		\
+	zcp.o			\
+	zcp_get.o		\
+	zcp_global.o		\
+	zcp_iter.o		\
+	zcp_synctask.o		\
+	zfs_byteswap.o		\
+	zfs_debug.o		\
+	zfs_fm.o		\
+	zfs_fuid.o		\
+	zfs_sa.o		\
+	zfs_znode.o		\
+	zil.o			\
+	zio.o			\
+	zio_checksum.o		\
+	zio_compress.o		\
+	zio_inject.o		\
+	zle.o			\
+	zrlock.o		\
+	zthr.o
+
+ZFS_SHARED_OBJS +=		\
+	zfeature_common.o	\
+	zfs_comutil.o		\
+	zfs_deleg.o		\
+	zfs_fletcher.o		\
+	zfs_namecheck.o		\
+	zfs_prop.o		\
+	zpool_prop.o		\
+	zprop_common.o
+
+ZFS_OBJS +=			\
+	$(ZFS_COMMON_OBJS)	\
+	$(ZFS_SHARED_OBJS)	\
+	zfs_acl.o		\
+	zfs_ctldir.o		\
+	zfs_dir.o		\
+	zfs_ioctl.o		\
+	zfs_ioctl_compat.o	\
+	zfs_log.o		\
+	zfs_onexit.o		\
+	zfs_replay.o		\
+	zfs_rlock.o		\
+	zfs_vfsops.o		\
+	zfs_vnops.o		\
+	zvol.o

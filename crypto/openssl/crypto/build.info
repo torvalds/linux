@@ -1,0 +1,39 @@
+LIBS=../libcrypto
+SOURCE[../libcrypto]=\
+        cryptlib.c mem.c mem_dbg.c cversion.c ex_data.c cpt_err.c \
+        ebcdic.c uid.c o_time.c o_str.c o_dir.c o_fopen.c ctype.c \
+        threads_pthread.c threads_win.c threads_none.c getenv.c \
+        o_init.c o_fips.c mem_sec.c init.c {- $target{cpuid_asm_src} -} \
+        {- $target{uplink_aux_src} -}
+EXTRA=  ../ms/uplink-x86.pl ../ms/uplink.c ../ms/applink.c \
+        x86cpuid.pl x86_64cpuid.pl ia64cpuid.S \
+        ppccpuid.pl pariscid.pl alphacpuid.pl arm64cpuid.pl armv4cpuid.pl
+
+DEPEND[cversion.o]=buildinf.h
+GENERATE[buildinf.h]=../util/mkbuildinf.pl "$(CC) $(LIB_CFLAGS) $(CPPFLAGS_Q)" "$(PLATFORM)"
+DEPEND[buildinf.h]=../configdata.pm
+
+GENERATE[uplink-x86.s]=../ms/uplink-x86.pl $(PERLASM_SCHEME)
+GENERATE[uplink-x86_64.s]=../ms/uplink-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[uplink-ia64.s]=../ms/uplink-ia64.pl $(PERLASM_SCHEME)
+
+GENERATE[x86cpuid.s]=x86cpuid.pl \
+        $(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
+DEPEND[x86cpuid.s]=perlasm/x86asm.pl
+
+GENERATE[x86_64cpuid.s]=x86_64cpuid.pl $(PERLASM_SCHEME)
+
+GENERATE[ia64cpuid.s]=ia64cpuid.S
+GENERATE[ppccpuid.s]=ppccpuid.pl $(PERLASM_SCHEME)
+GENERATE[pariscid.s]=pariscid.pl $(PERLASM_SCHEME)
+GENERATE[alphacpuid.s]=alphacpuid.pl
+GENERATE[arm64cpuid.S]=arm64cpuid.pl $(PERLASM_SCHEME)
+INCLUDE[arm64cpuid.o]=.
+GENERATE[armv4cpuid.S]=armv4cpuid.pl $(PERLASM_SCHEME)
+INCLUDE[armv4cpuid.o]=.
+GENERATE[s390xcpuid.S]=s390xcpuid.pl $(PERLASM_SCHEME)
+INCLUDE[s390xcpuid.o]=.
+
+IF[{- $config{target} =~ /^(?:Cygwin|mingw|VC-)/ -}]
+  SHARED_SOURCE[../libcrypto]=dllmain.c
+ENDIF

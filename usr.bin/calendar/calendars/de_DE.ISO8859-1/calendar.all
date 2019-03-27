@@ -1,0 +1,17 @@
+/*
+ * deutscher Kalender
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _de_DE_ISO8859_1_all_
+#define _de_DE_ISO8859_1_all_
+
+#include <de_DE.ISO8859-1/calendar.feiertag>
+#include <de_DE.ISO8859-1/calendar.geschichte>
+#include <de_DE.ISO8859-1/calendar.kirche>
+#include <de_DE.ISO8859-1/calendar.literatur>
+#include <de_DE.ISO8859-1/calendar.musik>
+#include <de_DE.ISO8859-1/calendar.wissenschaft>
+
+#endif /* !_de_DE.ISO8859-1_all_ */

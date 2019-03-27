@@ -1,0 +1,61 @@
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id: gelf_getclass.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\"
+.Dd July 3, 2006
+.Dt GELF_GETCLASS 3
+.Os
+.Sh NAME
+.Nm gelf_getclass
+.Nd retrieve the class of an ELF descriptor
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In gelf.h
+.Ft int
+.Fn gelf_getclass "Elf *elf"
+.Sh DESCRIPTION
+Function
+.Fn gelf_getclass
+returns the ELF class of the descriptor supplied in argument
+.Ar elf .
+.Sh RETURN VALUES
+Function
+.Fn gelf_getclass
+will return one of
+.Dv ELFCLASS32
+or
+.Dv ELFCLASS64
+if the argument
+.Ar elf
+is a descriptor for an ELF file.
+The value
+.Dv ELFCLASSNONE
+is returned if argument
+.Ar elf
+was null, or if it was not a descriptor for an ELF file.
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_kind 3 ,
+.Xr gelf 3

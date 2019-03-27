@@ -1,0 +1,21 @@
+# $FreeBSD$
+set -e
+
+alias false=true
+false
+unalias false
+false && exit 1
+unalias false && exit 1
+
+alias a1=foo a2=bar
+unalias a1 a2
+unalias a1 && exit 1
+unalias a2 && exit 1
+alias a2=bar
+unalias a1 a2 && exit 1
+
+alias a1=foo a2=bar
+unalias -a
+unalias a1 && exit 1
+unalias a2 && exit 1
+exit 0

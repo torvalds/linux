@@ -1,0 +1,48 @@
+@deftypefn Replacement int fnmatch (const char *@var{pattern}, const char *@var{string}, int @var{flags})
+
+Matches @var{string} against @var{pattern}, returning zero if it
+matches, @code{FNM_NOMATCH} if not.  @var{pattern} may contain the
+wildcards @code{?} to match any one character, @code{*} to match any
+zero or more characters, or a set of alternate characters in square
+brackets, like @samp{[a-gt8]}, which match one character (@code{a}
+through @code{g}, or @code{t}, or @code{8}, in this example) if that one
+character is in the set.  A set may be inverted (i.e., match anything
+except what's in the set) by giving @code{^} or @code{!} as the first
+character in the set.  To include those characters in the set, list them
+as anything other than the first character of the set.  To include a
+dash in the set, list it last in the set.  A backslash character makes
+the following character not special, so for example you could match
+against a literal asterisk with @samp{\*}.  To match a literal
+backslash, use @samp{\\}.
+
+@code{flags} controls various aspects of the matching process, and is a
+boolean OR of zero or more of the following values (defined in
+@code{<fnmatch.h>}):
+
+@table @code
+
+@item FNM_PATHNAME
+@itemx FNM_FILE_NAME
+@var{string} is assumed to be a path name.  No wildcard will ever match
+@code{/}.
+
+@item FNM_NOESCAPE
+Do not interpret backslashes as quoting the following special character.
+
+@item FNM_PERIOD
+A leading period (at the beginning of @var{string}, or if
+@code{FNM_PATHNAME} after a slash) is not matched by @code{*} or
+@code{?} but must be matched explicitly.
+
+@item FNM_LEADING_DIR
+Means that @var{string} also matches @var{pattern} if some initial part
+of @var{string} matches, and is followed by @code{/} and zero or more
+characters.  For example, @samp{foo*} would match either @samp{foobar}
+or @samp{foobar/grill}.
+
+@item FNM_CASEFOLD
+Ignores case when performing the comparison.
+
+@end table
+
+@end deftypefn

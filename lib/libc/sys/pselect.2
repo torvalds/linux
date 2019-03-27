@@ -1,0 +1,123 @@
+.\"
+.\" Copyright 2002 Massachusetts Institute of Technology
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby
+.\" granted, provided that both the above copyright notice and this
+.\" permission notice appear in all copies, that both the above
+.\" copyright notice and this permission notice appear in all
+.\" supporting documentation, and that the name of M.I.T. not be used
+.\" in advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.  M.I.T. makes
+.\" no representations about the suitability of this software for any
+.\" purpose.  It is provided "as is" without express or implied
+.\" warranty.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
+.\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT
+.\" SHALL M.I.T. BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 16, 2013
+.Dt PSELECT 2
+.Os
+.Sh NAME
+.Nm pselect
+.Nd synchronous I/O multiplexing a la POSIX.1g
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/select.h
+.Ft int
+.Fo pselect
+.Fa "int nfds"
+.Fa "fd_set * restrict readfds"
+.Fa "fd_set * restrict writefds"
+.Fa "fd_set * restrict exceptfds"
+.Fa "const struct timespec * restrict timeout"
+.Fa "const sigset_t * restrict newsigmask"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn pselect
+function was introduced by
+.St -p1003.1g-2000
+as a slightly stronger version of
+.Xr select 2 .
+The
+.Fa nfds , readfds , writefds ,
+and
+.Fa exceptfds
+arguments are all identical to the analogous arguments of
+.Fn select .
+The
+.Fa timeout
+argument in
+.Fn pselect
+points to a
+.Vt "const struct timespec"
+rather than the (modifiable)
+.Vt "struct timeval"
+used by
+.Fn select ;
+as in
+.Fn select ,
+a null pointer may be passed to indicate that
+.Fn pselect
+should wait indefinitely.
+Finally,
+.Fa newsigmask
+specifies a signal mask which is set while waiting for input.
+When
+.Fn pselect
+returns, the original signal mask is restored.
+.Pp
+See
+.Xr select 2
+for a more detailed discussion of the semantics of this interface, and
+for macros used to manipulate the
+.Vt "fd_set"
+data type.
+.Sh RETURN VALUES
+The
+.Fn pselect
+function returns the same values and under the same conditions as
+.Fn select .
+.Sh ERRORS
+The
+.Fn pselect
+function may fail for any of the reasons documented for
+.Xr select 2
+and (if a signal mask is provided)
+.Xr sigprocmask 2 .
+.Sh SEE ALSO
+.Xr kqueue 2 ,
+.Xr poll 2 ,
+.Xr select 2 ,
+.Xr sigprocmask 2 ,
+.Xr sigsuspend 2
+.Sh STANDARDS
+The
+.Fn pselect
+function conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn pselect
+function first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+The first implementation of
+.Fn pselect
+function and this manual page were written by
+.An Garrett Wollman Aq Mt wollman@FreeBSD.org .

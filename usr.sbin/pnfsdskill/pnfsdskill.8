@@ -1,0 +1,78 @@
+.\" Copyright (c) 2018 Rick Macklem
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 9, 2018
+.Dt PNFSDSKILL 8
+.Os
+.Sh NAME
+.Nm pnfsdskill
+.Nd
+disables a pNFS data storage server (DS)
+.Sh SYNOPSIS
+.Nm
+.Op Fl f
+.Ar mounted-on-DS-dir
+.Sh DESCRIPTION
+The
+.Nm
+command disables one DS when mirroring is enabled.
+If one mirrored DS is malfunctioning, a system administrator
+may use this command on the metadata server (MDS) to disable use of this mirror.
+This command must be used on the MDS and the
+.Ar mounted-on-DS-dir
+must be the exact pathname used when mounting the DS on the MDS.
+Normally this command will fail if there is no valid mirror for the DS
+available.
+.Pp
+The following option is available:
+.Bl -tag -width Ds
+.It Fl f
+This option forces the DS to be disabled even if there is no valid mirror
+for the DS available.
+It should only be used to allow the
+.Xr nfsd 8
+threads to be terminated.
+.El
+.Pp
+If this command fails with
+.Dq Device not configured
+(ENXIO), it probably
+means that the DS has already been disabled due to an error either detected
+by the MDS or reported to the MDS by a client.
+.Pp
+The pNFS service should continue to run normally so long as the number of
+operational DSs is at least as many as the level of mirroring.
+.El
+.Sh SEE ALSO
+.Xr nfsv4 4 ,
+.Xr pnfs 4 ,
+.Xr nfsd 8 ,
+.Xr pnfsdscopymr 8 ,
+.Xr pnfsdsfile 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 12.0 .

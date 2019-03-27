@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: mail
+# REQUIRE: LOGIN
+
+# XXX - TEMPORARY SCRIPT UNTIL YOU WRITE YOUR OWN REPLACEMENT.
+#
+. /etc/rc.subr
+
+load_rc_config
+
+if [ -n "${mta_start_script}" ]; then
+	[ "${mta_start_script}" != "/etc/rc.sendmail" ] && \
+	    sh ${mta_start_script} "$1"
+fi

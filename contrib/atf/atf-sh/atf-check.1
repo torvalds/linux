@@ -1,0 +1,162 @@
+.\" Copyright (c) 2008 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd March 6, 2017
+.Dt ATF-CHECK 1
+.Os
+.Sh NAME
+.Nm atf-check
+.Nd executes a command and analyzes its results
+.Sh SYNOPSIS
+.Nm
+.Op Fl s Ar qual:value
+.Op Fl o Ar action:arg ...
+.Op Fl e Ar action:arg ...
+.Op Fl x
+.Ar command
+.Sh DESCRIPTION
+.Nm
+executes a given command and analyzes its results, including
+exit code, stdout and stderr.
+.Pp
+.Bf Em
+Test cases must use
+.Xr atf-sh 3 Ns ' Ns s
+.Nm atf_check
+builtin function instead of calling this utility directly.
+.Ef
+.Pp
+In the first synopsis form,
+.Nm
+will execute the provided command and apply checks specified
+by arguments.
+By default it will act as if it was run with
+.Fl s
+.Ar exit:0
+.Fl o
+.Ar empty
+.Fl e
+.Ar empty .
+Multiple checks for the same output channel are allowed and, if specified,
+their results will be combined as a logical and (meaning that the output must
+match all the provided checks).
+.Pp
+In the second synopsis form,
+.Nm
+will print information about all supported options and their purpose.
+.Pp
+The following options are available:
+.Bl -tag  -width XqualXvalueXX
+.It Fl s Ar qual:value
+Analyzes termination status.
+Must be one of:
+.Bl -tag -width signal:<value> -compact
+.It Ar exit:<value>
+checks that the program exited cleanly and that its exit status is equal to
+.Va value .
+The exit code can be omitted altogether, in which case any clean exit is
+accepted.
+.It Ar ignore
+ignores the exit check.
+.It Ar signal:<value>
+checks that the program exited due to a signal and that the signal that
+terminated it is
+.Va value .
+The signal can be specified both as a number or as a name, or it can also
+be omitted altogether, in which case any signal is accepted.
+.El
+.Pp
+Most of these checkers can be prefixed by the
+.Sq not-
+string, which effectively reverses the check.
+.It Fl o Ar action:arg
+Analyzes standard output.
+Must be one of:
+.Bl -tag -width inline:<value> -compact
+.It Ar empty
+checks that stdout is empty
+.It Ar ignore
+ignores stdout
+.It Ar file:<path>
+compares stdout with given file
+.It Ar inline:<value>
+compares stdout with inline value
+.It Ar match:<regexp>
+looks for a regular expression in stdout
+.It Ar save:<path>
+saves stdout to given file
+.El
+.Pp
+Most of these checkers can be prefixed by the
+.Sq not-
+string, which effectively reverses the check.
+.It Fl e Ar action:arg
+Analyzes standard error (syntax identical to above)
+.It Fl x
+Executes
+.Ar command
+as a shell command line, executing it with the system shell defined by
+.Va ATF_SHELL .
+You should avoid using this flag if at all possible to prevent shell quoting
+issues.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ATFXSHELLXX -compact
+.It Va ATF_SHELL
+Path to the system shell to be used when the
+.Fl x
+is given to run commands.
+.El
+.Sh EXIT STATUS
+.Nm
+exits 0 on success, and other (unspecified) value on failure.
+.Sh EXAMPLES
+The following are sample invocations from within a test case.
+Note that we use the
+.Nm atf_check
+function provided by
+.Xr atf-sh 3
+instead of executing
+.Nm
+directly:
+.Bd -literal -offset indent
+# Exit code 0, nothing on stdout/stderr
+atf_check 'true'
+
+# Typical usage if failure is expected
+atf_check -s not-exit:0 'false'
+
+# Checking stdout/stderr
+echo foobar >expout
+atf_check -o file:expout -e inline:"xx\etyy\en" \e
+    'echo foobar ; printf "xx\etyy\en" >&2'
+
+# Checking for a crash
+atf_check -s signal:sigsegv my_program
+
+# Combined checks
+atf_check -o match:foo -o not-match:bar echo foo baz
+.Ed
+.Sh SEE ALSO
+.Xr atf-sh 1

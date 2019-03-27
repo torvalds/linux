@@ -1,0 +1,6 @@
+block in proto tcp from any to any flags S
+pass in proto tcp from any to any flags S
+block in proto tcp from any to any flags S/SA
+pass in proto tcp from any to any flags S/SA
+block in proto tcp from any to any flags S/APU
+pass in proto tcp from any to any flags S/APU

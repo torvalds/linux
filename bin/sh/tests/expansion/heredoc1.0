@@ -1,0 +1,25 @@
+# $FreeBSD$
+
+f() { return $1; }
+
+[ `f 42; { cat; } <<EOF
+$?
+EOF
+` = 42 ] || echo compound command bad
+
+[ `f 42; (cat) <<EOF
+$?
+EOF
+` = 42 ] || echo subshell bad
+
+long=`printf %08192d 0`
+
+[ `f 42; { cat; } <<EOF
+$long.$?
+EOF
+` = $long.42 ] || echo long compound command bad
+
+[ `f 42; (cat) <<EOF
+$long.$?
+EOF
+` = $long.42 ] || echo long subshell bad

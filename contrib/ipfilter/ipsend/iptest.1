@@ -1,0 +1,103 @@
+.\"	$FreeBSD$
+.\"
+.TH IPTEST 1
+.SH NAME
+iptest \- automatically generate a packets to test IP functionality
+.SH SYNOPSIS
+.B iptest
+[
+.B \-1234567
+] [
+.B \-d
+<device>
+] [
+.B \-g
+<gateway>
+] [
+.B \-m
+<\fIMTU\fP>
+] [
+.B \-p
+<\fIpointtest\fP>
+] [
+.B \-s
+<\fIsource\fP>
+] <destination>
+.SH DESCRIPTION
+.PP
+\fBiptest\fP ...
+.SH OPTIONS
+.TP
+.B \-1
+Run IP test group #1.  This group of tests generates packets with the IP
+header fields set to invalid values given other packet characteristics.
+The point tests are: 1 (ip_hl < ip_len), 2 (ip_hl > ip_len),
+3 (ip_v < 4), 4 (ip_v > 4), 5 (ip_len < packetsize, long packets),
+6 (ip_len > packet size, short packets), 7 (Zero length fragments),
+8 (packet > 64k after reassembly), 9 (IP offset with MSB set), 10 (ttl
+variations).
+.TP
+.B \-2
+Run IP test group #2.  This group of tests generates packets with the IP
+options constructed with invalid values given other packet characteristics.
+The point tests are: 1 (option length > packet length), 2 (option length = 0).
+.TP
+.B \-3
+Run IP test group #3.  This group of tests generates packets with the ICMP
+header fields set to non-standard values.  The point tests are: 1 (ICMP types
+0-31 & 255), 2 (type 3 & code 0 - 31), 3 (type 4 & code 0, 127, 128, 255),
+4 (type 5 & code 0, 127, 128, 255), 5 (types 8-10,13-18 with codes 0, 127,
+128 and 255), 6 (type 12 & code 0, 127, 128, 129, 255) and 7 (type 3 & codes
+9-10, 13-14 and 17-18 - shortened packets).
+.TP
+.B \-4
+Run IP test group #4.  This group of tests generates packets with the UDP
+header fields set to non-standard values.  The point tests are: 1 (UDP length
+> packet size), 2 (UDP length < packetsize), 3 (sport = 0, 1, 32767, 32768,
+65535), 4 (dport = 0, 1, 32767, 32768, 65535) and 5 (sizeof(struct ip) <= MTU
+<= sizeof(struct udphdr) + sizeof(struct ip)).
+.TP
+.B \-5
+Run IP test group #5.  This group of tests generates packets with the TCP
+header fields set to non-standard values.  The point tests are: 1 (TCP flags
+variations, all combinations), 2 (seq = 0, 0x7fffffff, 0x8000000, 0xa0000000,
+0xffffffff),  3 (ack = 0, 0x7fffffff, 0x8000000, 0xa0000000, 0xffffffff),
+4 (SYN packet with window of 0, 32768, 65535), 5 (set urgent pointer to 1,
+0x7fff, 0x8000, 0xffff), 6 (data offset), 7 (sport = 0, 1, 32767, 32768,
+65535) and 8 (dport = 0, 1, 32767, 32768, 65535).
+.TP
+.B \-6
+Run IP test group #6.  This test generates a large number of fragments in
+an attempt to exhaust the network buffers used for holding packets for later
+reassembly.  WARNING: this may crash or cause serious performance degradation
+to the target host.
+.TP
+.B \-7
+Run IP test group #7.  This test generates 1024 random IP packets with only
+the IP version, checksum, length and IP offset field correct.
+.TP
+.BR \-d \0<interface>
+Set the interface name to be the name supplied.
+.TP
+.BR \-g \0<gateway>
+Specify the hostname of the gateway through which to route packets.  This
+is required whenever the destination host isn't directly attached to the
+same network as the host from which you're sending.
+.TP
+.BR \-m \0<MTU>
+Specify the MTU to be used when sending out packets.  This option allows you
+to set a fake MTU, allowing the simulation of network interfaces with small
+MTU's without setting them so.
+.TP
+.B \-p <test>
+Run a...
+.DT
+.SH SEE ALSO
+ipsend(1), ipresend(1), bpf(4), ipsend(5), dlpi(7p)
+.SH DIAGNOSTICS
+Only one of the numeric test options may be given when \fIiptest\fP is run.
+.PP
+Needs to be run as root.
+.SH BUGS
+.PP
+If you find any, please send email to me at darrenr@pobox.com

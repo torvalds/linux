@@ -1,0 +1,170 @@
+#!/bin/sh
+# $FreeBSD$
+# This script sets up an Ethernet bridging network across multiple
+# Ethernet interfaces using the ng_bridge(4) and ng_ether(4) netgraph
+# node types.
+#
+# To use this script:
+#
+# 0. Make your own copy of this example script.
+#
+# 1. Give your bridging network a name by editing the definition of
+#    ${BRIDGE_NAME} below. It must be a valid netgraph node name.
+#
+# 2. Edit the definitions of ${BRIDGE_IFACES} and ${LOCAL_IFACES}
+#    as described below to define your bridging interfaces.
+#
+# 3. Run this script with "start" as the command line argument.
+#
+# 4. Examine bridging statistics by running this script with "stats"
+#    as the command line argument.
+#
+# 5. Stop bridging by running this script with "stop" as the
+#    command line argument.
+#
+# To run multiple independent bridging networks, create multiple
+# copies of this script with different variable definitions.
+#
+# To make a "brouted" network, with IP being routed and other protocols being
+# bridged, add all the interface in the BRIDGE_IFACES to the LOCAL_IFACES.
+# If you just want a normal bridge, just one will be enough.
+# In some cases you may want some combination.
+#
+
+# Give each bridging network a unique name here.
+
+BRIDGE_NAME="bnet0"
+
+# List the names of the interfaces that you want to bridge across
+# here in ${BRIDGE_IFACES}. If you want to include the local host
+# machine as well then set ${LOCAL_IFACES} as well (they may also be
+# listed in ${BRIDGE_IFACES}). Of course, any ${LOCAL_IFACE} must
+# be ifconfig(8)ured separately. If you don't want a ${LOCAL_IFACE}
+# then assign it the empty string.
+
+BRIDGE_IFACES="de0 fxp0 fxp1"
+LOCAL_IFACES="fxp0 fxp1"
+
+#####################################################################
+#### Everything below this point should not need to be modified. ####
+#####################################################################
+
+# Routine to verify node's existence.
+bridge_verify() {
+	ngctl info ${BRIDGE_NAME}: >/dev/null 2>&1
+	if [ $? -ne 0 ]; then
+		echo "${BRIDGE_NAME}: bridge network not found"
+		exit 1
+	fi
+}
+
+# Routine to get and display link stats.
+bridge_linkstats() {
+	STATS=`ngctl msg ${BRIDGE_NAME}: getstats $1`
+	if [ $? -ne 0 ]; then
+		exit 1
+	fi
+	echo "${STATS}" | fmt 2 | awk '/=/ { fl=index($0, "="); \
+	    printf "%20s = %s\n", substr($0, 0, fl - 1), substr($0, fl + 1); }'
+}
+
+# Start/restart routine.
+bridge_start() {
+
+	# Load netgraph KLD's as necessary.
+	for KLD in ng_ether ng_bridge; do
+		if ! kldstat -v | grep -qw ${KLD}; then
+			echo -n "Loading ${KLD}.ko... "
+			kldload ${KLD} || exit 1
+			echo "done"
+		fi
+	done
+
+	# Reset all interfaces.
+	bridge_stop
+
+	# Verify all interfaces exist.
+	for ETHER in ${BRIDGE_IFACES} ${LOCAL_IFACES}; do
+		if ! ngctl info ${ETHER}: >/dev/null 2>&1; then
+			echo "Error: interface ${ETHER} does not exist"
+			exit 1
+		fi
+		ifconfig ${ETHER} up || exit 1
+	done
+
+	# Create new ng_bridge(4) node, attached to the first interface.
+	FIRSTIF=`echo ${BRIDGE_IFACES} | awk '{ print $1 }'`
+	ngctl mkpeer ${FIRSTIF}: bridge lower link0 || exit 1
+	ngctl name ${FIRSTIF}:lower ${BRIDGE_NAME} || exit 1
+
+	# Attach other interfaces as well.
+	LINKNUM=0
+	for ETHER in ${BRIDGE_IFACES}; do
+		if [ ${LINKNUM} != 0 ]; then
+			ngctl connect ${ETHER}: ${BRIDGE_NAME}: \
+			    lower link${LINKNUM} || exit 1
+		fi
+		LINKNUM=`expr ${LINKNUM} + 1`
+	done
+
+	# Hook up local interface, if any.
+	for LOCAL_IFACE in ${LOCAL_IFACES}; do
+		ngctl connect ${LOCAL_IFACE}: ${BRIDGE_NAME}: \
+		    upper link${LINKNUM} || exit 1
+		LINKNUM=`expr ${LINKNUM} + 1`
+	done
+
+	# Set all interfaces in promiscuous mode and don't overwrite src addr.
+	for ETHER in ${BRIDGE_IFACES}; do
+		ngctl msg ${ETHER}: setpromisc 1 || exit 1
+		ngctl msg ${ETHER}: setautosrc 0 || exit 1
+	done
+}
+
+# Stop routine.
+bridge_stop() {
+	ngctl kill ${BRIDGE_NAME}: >/dev/null 2>&1
+	for ETHER in ${BRIDGE_IFACES} ${LOCAL_IFACES}; do
+		ngctl kill ${ETHER}: >/dev/null 2>&1
+	done
+}
+
+# Stats routine.
+bridge_stats() {
+
+	# Make sure node exists.
+	bridge_verify
+
+	echo ""
+	echo "Statistics for bridging network ${BRIDGE_NAME}:"
+	echo ""
+	LINKNUM=0
+	for ETHER in ${BRIDGE_IFACES}; do
+		echo "Network interface ${ETHER}:"
+		bridge_linkstats ${LINKNUM}
+		LINKNUM=`expr ${LINKNUM} + 1`
+	done
+	for LOCAL_IFACE in ${LOCAL_IFACES}; do
+		echo "Local host interface ${LOCAL_IFACE}:"
+		bridge_linkstats ${LINKNUM}
+		LINKNUM=`expr ${LINKNUM} + 1`
+	done
+}
+
+# Main entry point.
+case $1 in
+	start)
+		bridge_start
+		;;
+	stats)
+		bridge_verify
+		bridge_stats
+		;;
+	stop)
+		bridge_verify
+		bridge_stop
+		;;
+	*)
+		echo "usage: $0 [ start | stop | stats ]"
+		exit 1
+esac

@@ -1,0 +1,4 @@
+# FreeBSD-11 hardening flags
+NTP_HARD_CFLAGS="-fstack-protector -Wformat -Wformat-security -Werror=format-security"
+NTP_HARD_CPPFLAGS=""
+NTP_HARD_LDFLAGS="-Wl,-z,relro"

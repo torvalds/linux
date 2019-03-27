@@ -1,0 +1,275 @@
+.\"
+.\" Copyright (c) 2000 Michael Smith
+.\" Copyright (c) 2000 BSDi
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 15, 2004
+.Dt TWE 4
+.Os
+.Sh NAME
+.Nm twe
+.Nd 3ware 5000/6000/7000/8000 series PATA/SATA RAID adapter driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device twe"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+twe_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for AMCC's 3ware 5000/6000/7000/8000 series
+PATA/SATA RAID adapters.
+These adapters were formerly known as
+.Dq 3ware Escalade .
+.Pp
+These devices support 2, 4, 8, or 12 ATA disk drives
+and provide RAID0 (striping) and RAID1 (mirroring) functionality.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following PATA/SATA RAID
+controllers:
+.Pp
+.Bl -bullet -compact
+.It
+AMCC's 3ware 5000 series
+.It
+AMCC's 3ware 6000 series
+.It
+AMCC's 3ware 7000-2
+.It
+AMCC's 3ware 7006-2
+.It
+AMCC's 3ware 7500-4LP
+.It
+AMCC's 3ware 7500-8
+.It
+AMCC's 3ware 7500-12
+.It
+AMCC's 3ware 7506-4LP
+.It
+AMCC's 3ware 7506-8
+.It
+AMCC's 3ware 7506-12
+.It
+AMCC's 3ware 8006-2LP
+.It
+AMCC's 3ware 8500-4LP
+.It
+AMCC's 3ware 8500-8
+.It
+AMCC's 3ware 8500-12
+.It
+AMCC's 3ware 8506-4LP
+.It
+AMCC's 3ware 8506-8
+.It
+AMCC's 3ware 8506-8MI
+.It
+AMCC's 3ware 8506-12
+.It
+AMCC's 3ware 8506-12MI
+.El
+.Sh DIAGNOSTICS
+.Ss Controller initialisation phase
+.Bl -diag
+.It twe%d: microcontroller not ready
+.Pp
+The controller's onboard CPU is not reporting that it is ready;
+this may be due to either a board or system failure.
+Initialisation has failed.
+.It twe%d: no attention interrupt
+.It twe%d: can't drain AEN queue
+.It twe%d: reset not reported
+.It twe%d: controller errors detected
+.It twe%d: can't drain response queue
+.It twe%d: reset %d failed, trying again
+.Pp
+The controller is not responding correctly to
+the driver's attempts to reset and initialise it.
+This process is retried several times.
+.It twe%d: can't initialise controller, giving up
+.Pp
+Several attempts to reset and initialise the controller have failed;
+initialisation has failed
+and the driver will not attach to this controller.
+.El
+.Ss Driver initialisation/shutdown phase
+.Bl -diag
+.It twe%d: register window not available
+.It twe%d: can't allocate register window
+.It twe%d: can't allocate parent DMA tag
+.It twe%d: can't allocate interrupt
+.It twe%d: can't set up interrupt
+.It twe%d: can't establish configuration hook
+.Pp
+A resource allocation error occurred while initialising the driver;
+initialisation has failed
+and the driver will not attach to this controller.
+.It twe%d: can't detect attached units
+.Pp
+Fetching the list of attached units failed; initialisation has failed.
+.It twe%d: error fetching capacity for unit %d
+.It twe%d: error fetching state for unit %d
+.It twe%d: error fetching descriptor size for unit %d
+.It twe%d: error fetching descriptor for unit %d
+.It twe%d: device_add_child failed
+.It twe%d: bus_generic_attach returned %d
+.Pp
+Creation of the disk devices failed, either due to communication
+problems with the adapter or due to resource shortage;
+attachment of one or more units may have been aborted.
+.El
+.Ss Operational phase
+.Bl -diag
+.It twe%d: command completed - %s
+.El
+.Pp
+A command was reported completed with a warning by the controller.
+The warning may be one of:
+.Bl -diag
+.It redundant/inconsequential request ignored
+.It failed to write zeroes to LBA 0
+.It failed to profile TwinStor zones
+.El
+.Bl -diag
+.It twe%d: command failed - %s
+.El
+.Pp
+A command was reported as failed by the controller.
+The failure message may be one of:
+.Bl -diag
+.It aborted due to system command or reconfiguration
+.It aborted
+.It access error
+.It access violation
+.It device failure
+.It controller error
+.It timed out
+.It invalid unit number
+.It unit not available
+.It undefined opcode
+.It request incompatible with unit
+.It invalid request
+.It firmware error, reset requested
+.Pp
+The command will be returned to the operating system after a
+fatal error.
+.El
+.Bl -diag
+.It twe%d: command failed submission - controller wedged
+.Pp
+A command could not be delivered to the controller because
+the controller is unresponsive.
+.It twe%d: AEN: <%s>
+.El
+.Pp
+The controller has reported a change in status using an AEN
+(Asynchronous Event Notification).
+The following AENs may be reported:
+.Bl -diag
+.It queue empty
+.It soft reset
+.It degraded mirror
+.It controller error
+.It rebuild fail
+.It rebuild done
+.It incomplete unit
+.It initialisation done
+.It unclean shutdown detected
+.It drive timeout
+.It drive error
+.It rebuild started
+.It aen queue full
+.Pp
+AENs are also queued internally for use by management tools.
+.El
+.Bl -diag
+.It twe%d: error polling for signalled AENs
+.Pp
+The controller has reported
+that one or more status messages are ready for the driver,
+but attempting to fetch one of these has returned an error.
+.It twe%d: AEN queue overflow, lost AEN <%s>
+.Pp
+A status message was retrieved from the controller,
+but there is no more room to queue it in the driver.
+The message is lost (but will be printed to the console).
+.It twe%d: missing expected status bits %s
+.It twe%d: unexpected status bits %s
+.Pp
+A check of the controller's status bits
+indicates an unexpected condition.
+.It twe%d: host interrupt
+.Pp
+The controller has signalled a host interrupt.
+This serves an unknown purpose and is ignored.
+.It twe%d: command interrupt
+.Pp
+The controller has signalled a command interrupt.
+This is not used, and will be disabled.
+.It twe%d: controller reset in progress...
+.Pp
+The controller is being reset by the driver.
+Typically this is done when the driver has determined that the
+controller is in an unrecoverable state.
+.It twe%d: can't reset controller, giving up
+.Pp
+The driver has given up on resetting the controller.
+No further I/O will be handled.
+.It controller reset done, %d commands restarted
+.Pp
+The controller was successfully reset,
+and outstanding commands were restarted.
+.El
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver and manual page were written by
+.An Michael Smith Aq Mt msmith@FreeBSD.org .
+.Pp
+Extensive work done on the driver by
+.An Vinod Kashyap Aq Mt vkashyap@FreeBSD.org
+and
+.An Paul Saab Aq Mt ps@FreeBSD.org .
+.Sh BUGS
+The controller cannot handle I/O transfers
+that are not aligned to a 512-byte boundary.
+In order to support raw device access from user-space,
+the driver will perform alignment fixup on non-aligned data.
+This process is inefficient,
+and thus in order to obtain best performance
+user-space applications accessing the device
+should do so with aligned buffers.

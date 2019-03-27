@@ -1,0 +1,196 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)hash.3	8.6 (Berkeley) 8/18/94
+.\" $FreeBSD$
+.\"
+.Dd August 18, 1994
+.Dt HASH 3
+.Os
+.Sh NAME
+.Nm hash
+.Nd "hash database access method"
+.Sh SYNOPSIS
+.In sys/types.h
+.In db.h
+.Sh DESCRIPTION
+The routine
+.Fn dbopen
+is the library interface to database files.
+One of the supported file formats is
+.Nm
+files.
+The general description of the database access methods is in
+.Xr dbopen 3 ,
+this manual page describes only the
+.Nm
+specific information.
+.Pp
+The
+.Nm
+data structure is an extensible, dynamic hashing scheme.
+.Pp
+The access method specific data structure provided to
+.Fn dbopen
+is defined in the
+.In db.h
+include file as follows:
+.Bd -literal
+typedef struct {
+	u_int bsize;
+	u_int ffactor;
+	u_int nelem;
+	u_int cachesize;
+	uint32_t (*hash)(const void *, size_t);
+	int lorder;
+} HASHINFO;
+.Ed
+.Pp
+The elements of this structure are as follows:
+.Bl -tag -width indent
+.It Va bsize
+The
+.Va bsize
+element
+defines the
+.Nm
+table bucket size, and is, by default, 4096 bytes.
+It may be preferable to increase the page size for disk-resident tables
+and tables with large data items.
+.It Va ffactor
+The
+.Va ffactor
+element
+indicates a desired density within the
+.Nm
+table.
+It is an approximation of the number of keys allowed to accumulate in any
+one bucket, determining when the
+.Nm
+table grows or shrinks.
+The default value is 8.
+.It Va nelem
+The
+.Va nelem
+element
+is an estimate of the final size of the
+.Nm
+table.
+If not set or set too low,
+.Nm
+tables will expand gracefully as keys
+are entered, although a slight performance degradation may be noticed.
+The default value is 1.
+.It Va cachesize
+A suggested maximum size, in bytes, of the memory cache.
+This value is
+.Em only
+advisory, and the access method will allocate more memory rather
+than fail.
+.It Va hash
+The
+.Va hash
+element
+is a user defined
+.Nm
+function.
+Since no
+.Nm
+function performs equally well on all possible data, the
+user may find that the built-in
+.Nm
+function does poorly on a particular
+data set.
+User specified
+.Nm
+functions must take two arguments (a pointer to a byte
+string and a length) and return a 32-bit quantity to be used as the
+.Nm
+value.
+.It Va lorder
+The byte order for integers in the stored database metadata.
+The number should represent the order as an integer; for example,
+big endian order would be the number 4,321.
+If
+.Va lorder
+is 0 (no order is specified) the current host order is used.
+If the file already exists, the specified value is ignored and the
+value specified when the tree was created is used.
+.El
+.Pp
+If the file already exists (and the
+.Dv O_TRUNC
+flag is not specified), the
+values specified for the
+.Va bsize , ffactor , lorder
+and
+.Va nelem
+arguments
+are
+ignored and the values specified when the tree was created are used.
+.Pp
+If a
+.Nm
+function is specified,
+.Fn hash_open
+will attempt to determine if the
+.Nm
+function specified is the same as
+the one with which the database was created, and will fail if it is not.
+.Pp
+Backward compatible interfaces to the older
+.Em dbm
+and
+.Em ndbm
+routines are provided, however these interfaces are not compatible with
+previous file formats.
+.Sh ERRORS
+The
+.Nm
+access method routines may fail and set
+.Va errno
+for any of the errors specified for the library routine
+.Xr dbopen 3 .
+.Sh SEE ALSO
+.Xr btree 3 ,
+.Xr dbopen 3 ,
+.Xr mpool 3 ,
+.Xr recno 3
+.Rs
+.%T "Dynamic Hash Tables"
+.%A Per-Ake Larson
+.%R "Communications of the ACM"
+.%D April 1988
+.Re
+.Rs
+.%T "A New Hash Package for UNIX"
+.%A Margo Seltzer
+.%R "USENIX Proceedings"
+.%D Winter 1991
+.Re
+.Sh BUGS
+Only big and little endian byte order is supported.

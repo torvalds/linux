@@ -1,0 +1,74 @@
+.\"
+.\" Copyright (c) 2010 Semihalf
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 1, 2013
+.Dt NEWFS_NANDFS 8
+.Os
+.Sh NAME
+.Nm newfs_nandfs
+.Nd construct a new NAND FS file system
+.Sh SYNOPSIS
+.Nm
+.Op Fl b Ar blocsize
+.Op Fl B Ar blocks-per-segment
+.Op Fl L Ar label
+.Op Fl m Ar reserved-segment-percent
+.Ar device
+.Sh DESCRIPTION
+The
+.Nm
+utility creates a NAND FS file system on device.
+.Pp
+The options are as follow:
+.Bl -tag -width indent
+.It Fl b Ar blocksize
+Size of block (1024 if not specified).
+.It Fl B Ar blocks_per_segment
+Number of blocks per segment (2048 if not specified).
+.It Fl L Ar label
+Volume label (up to 16 characters).
+.It Fl m Ar reserved_block_percent
+Percentage of reserved blocks (5 if not specified).
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success and 1 on error.
+.Sh EXAMPLES
+Create a file system, using default parameters, on
+.Pa /dev/ada0s1 :
+.Bd -literal -offset indent
+newfs_nandfs /dev/ada0s1
+.Ed
+.Sh SEE ALSO
+.Xr gpart 8 ,
+.Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An Grzegorz Bernacki

@@ -1,0 +1,166 @@
+.\" ----------------------------------------------------------------------------
+.\" "THE BEER-WARE LICENSE" (Revision 42):
+.\" <phk@FreeBSD.org> wrote this file.  As long as you retain this notice you
+.\" can do whatever you want with this stuff. If we meet some day, and you think
+.\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+.\" ----------------------------------------------------------------------------
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 26, 2017
+.Dt MD 4
+.Os
+.Sh NAME
+.Nm md
+.Nd memory disk
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device md"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+geom_md_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for four kinds of memory backed virtual disks:
+.Bl -tag -width preload
+.It Cm malloc
+Backing store is allocated using
+.Xr malloc 9 .
+Only one malloc-bucket is used, which means that all
+.Nm
+devices with
+.Cm malloc
+backing must share the malloc-per-bucket-quota.
+The exact size of this quota varies, in particular with the amount
+of RAM in the
+system.
+The exact value can be determined with
+.Xr vmstat 8 .
+.It Cm preload
+A file loaded by
+.Xr loader 8
+with type
+.Sq md_image
+is used for backing store.
+For backwards compatibility the type
+.Sq mfs_root
+is also recognized.
+If the kernel is created with option
+.Dv MD_ROOT
+the first preloaded image found will become the root file system.
+.It Cm vnode
+A regular file is used as backing store.
+This allows for mounting ISO images without the tedious
+detour over actual physical media.
+.It Cm swap
+Backing store is allocated from buffer memory.
+Pages get pushed out to the swap when the system is under memory
+pressure, otherwise they stay in the operating memory.
+Using
+.Cm swap
+backing is generally preferable over
+.Cm malloc
+backing.
+.El
+.Pp
+For more information, please see
+.Xr mdconfig 8 .
+.Sh EXAMPLES
+To create a kernel with a ramdisk or MD file system, your kernel config
+needs the following options:
+.Bd -literal -offset indent
+options 	MD_ROOT			# MD is a potential root device
+options 	MD_ROOT_READONLY	# disallow mounting root writeable
+options 	MD_ROOT_SIZE=8192	# 8MB ram disk
+makeoptions	MFS_IMAGE=/h/foo/ARM-MD
+options 	ROOTDEVNAME=\\"ufs:md0\\"
+.Ed
+.Pp
+The image in
+.Pa /h/foo/ARM-MD
+will be loaded as the initial image each boot.
+To create the image to use, please follow the steps to create a file-backed
+disk found in the
+.Xr mdconfig 8
+man page.
+Other tools will also create these images, such as NanoBSD.
+.Sh ARM KERNEL OPTIONS
+On armv6 and armv7 architectures, an MD_ROOT image larger than
+approximately 55 MiB may require building a custom kernel using
+several tuning options related to kernel memory usage.
+.Bl -tag -width indent
+.It Cd options LOCORE_MAP_MB=<num>
+This configures how much memory is mapped for the kernel during
+the early initialization stages.
+The value must be at least as large as the kernel plus all preloaded
+modules, including the root image.
+There is no downside to setting this value too large, as long
+as it does not exceed the amount of physical memory.
+The default is 64 MiB.
+.It Cd options NKPT2PG=<num>
+This configures the number of kernel L2 page table pages to
+preallocate during kernel initialization.
+Each L2 page can map 4 MiB of kernel space.
+The value must be large enough to map the kernel plus all preloaded
+modules, including the root image.
+The default value is 32, which is sufficient to map 128 MiB.
+.It Cd options VM_KMEM_SIZE_SCALE=<num>
+This configures the amount of kernel virtual address (KVA) space to
+dedicate to the kmem_arena map.
+The scale value is the ratio of physical to virtual pages.
+The default value of 3 allocates a page of KVA for each 3 pages
+of physical ram in the system.
+
+The kernel and modules, including the root image, also consume KVA.
+The combination of a large root image and the default scaling
+may preallocate so much KVA that there is not enough
+remaining address space to allocate kernel stacks, IO buffers,
+and other resources that are not part of kmem_arena.
+Overallocating kmem_arena space is likely to manifest as failure to
+launch userland processes with "cannot allocate kernel stack" messages.
+
+Setting the scale value too high may result in kernel failure to allocate
+memory because kmem_arena is too small, and the failure may require
+significant runtime to manifest.
+Empirically, a value of 5 works well for a 200 MiB root image on
+a system with 2 GiB of physical ram.
+.El
+.Sh SEE ALSO
+.Xr gpart 8 ,
+.Xr loader 8 ,
+.Xr mdconfig 8 ,
+.Xr mdmfs 8 ,
+.Xr newfs 8 ,
+.Xr vmstat 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.0
+as a cleaner replacement
+for the MFS functionality previously used in
+.Tn PicoBSD
+and in the
+.Fx
+installation process.
+.Pp
+The
+.Nm
+driver did a hostile takeover of the
+.Xr vn 4
+driver in
+.Fx 5.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .

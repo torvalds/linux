@@ -1,0 +1,235 @@
+.TH "hx509 name functions" 3 "11 Jan 2012" "Version 1.5.2" "Heimdalx509library" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+hx509 name functions \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "int \fBhx509_name_to_string\fP (const hx509_name name, char **str)"
+.br
+.ti -1c
+.RI "int \fBhx509_name_cmp\fP (hx509_name n1, hx509_name n2)"
+.br
+.ti -1c
+.RI "int \fBhx509_parse_name\fP (hx509_context context, const char *str, hx509_name *name)"
+.br
+.ti -1c
+.RI "int \fBhx509_name_copy\fP (hx509_context context, const hx509_name from, hx509_name *to)"
+.br
+.ti -1c
+.RI "int \fBhx509_name_to_Name\fP (const hx509_name from, Name *to)"
+.br
+.ti -1c
+.RI "int \fBhx509_name_expand\fP (hx509_context context, hx509_name name, hx509_env env)"
+.br
+.ti -1c
+.RI "void \fBhx509_name_free\fP (hx509_name *name)"
+.br
+.ti -1c
+.RI "int \fBhx509_unparse_der_name\fP (const void *data, size_t length, char **str)"
+.br
+.ti -1c
+.RI "int \fBhx509_name_binary\fP (const hx509_name name, heim_octet_string *os)"
+.br
+.ti -1c
+.RI "int \fBhx509_name_is_null_p\fP (const hx509_name name)"
+.br
+.ti -1c
+.RI "int \fBhx509_general_name_unparse\fP (GeneralName *name, char **str)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+See the \fBPKIX/X.509 Names\fP for description and examples. 
+.SH "Function Documentation"
+.PP 
+.SS "int hx509_general_name_unparse (GeneralName * name, char ** str)"
+.PP
+Unparse the hx509 name in name into a string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIname\fP the name to print 
+.br
+\fIstr\fP an allocated string returns the name in string form
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_name_binary (const hx509_name name, heim_octet_string * os)"
+.PP
+Convert a hx509_name object to DER encoded name.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIname\fP name to concert 
+.br
+\fIos\fP data to a DER encoded name, free the resulting octet string with hx509_xfree(os->data).
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_name_cmp (hx509_name n1, hx509_name n2)"
+.PP
+Compare to hx509 name object, useful for sorting.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIn1\fP a hx509 name object. 
+.br
+\fIn2\fP a hx509 name object.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+0 the objects are the same, returns > 0 is n2 is 'larger' then n2, < 0 if n1 is 'smaller' then n2. 
+.RE
+.PP
+
+.SS "int hx509_name_copy (hx509_context context, const hx509_name from, hx509_name * to)"
+.PP
+Copy a hx509 name object.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 cotext. 
+.br
+\fIfrom\fP the name to copy from 
+.br
+\fIto\fP the name to copy to
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_name_expand (hx509_context context, hx509_name name, hx509_env env)"
+.PP
+Expands variables in the name using env. Variables are on the form ${name}. Useful when dealing with certificate templates.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 cotext. 
+.br
+\fIname\fP the name to expand. 
+.br
+\fIenv\fP environment variable to expand.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.PP
+Only UTF8String rdnSequence names are allowed 
+.SS "void hx509_name_free (hx509_name * name)"
+.PP
+Free a hx509 name object, upond return *name will be NULL.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIname\fP a hx509 name object to be freed. 
+.RE
+.PP
+
+.SS "int hx509_name_is_null_p (const hx509_name name)"
+.PP
+Unparse the hx509 name in name into a string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIname\fP the name to check if its empty/null.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+non zero if the name is empty/null. 
+.RE
+.PP
+
+.SS "int hx509_name_to_Name (const hx509_name from, Name * to)"
+.PP
+Convert a hx509_name into a Name.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIfrom\fP the name to copy from 
+.br
+\fIto\fP the name to copy to
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_name_to_string (const hx509_name name, char ** str)"
+.PP
+Convert the hx509 name object into a printable string. The resulting string should be freed with free().
+.PP
+\fBParameters:\fP
+.RS 4
+\fIname\fP name to print 
+.br
+\fIstr\fP the string to return
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_parse_name (hx509_context context, const char * str, hx509_name * name)"
+.PP
+Parse a string into a hx509 name object.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIcontext\fP A hx509 context. 
+.br
+\fIstr\fP a string to parse. 
+.br
+\fIname\fP the resulting object, NULL in case of error.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+
+.SS "int hx509_unparse_der_name (const void * data, size_t length, char ** str)"
+.PP
+Convert a DER encoded name info a string.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIdata\fP data to a DER/BER encoded name 
+.br
+\fIlength\fP length of data 
+.br
+\fIstr\fP the resulting string, is NULL on failure.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+An hx509 error code, see \fBhx509_get_error_string()\fP. 
+.RE
+.PP
+

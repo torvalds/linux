@@ -1,0 +1,48 @@
+.\"***************************************************************************
+.\" Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.              *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: clear.1,v 1.10 2013/06/22 22:22:11 tom Exp $
+.TH @CLEAR@ 1 ""
+.ds n 5
+.SH NAME
+\fB@CLEAR@\fR \- clear the terminal screen
+.SH SYNOPSIS
+\fB@CLEAR@\fR
+.br
+.SH DESCRIPTION
+\fB@CLEAR@\fR clears your screen if this is possible,
+including its scrollback buffer (if the extended "E3" capability is defined).
+\fB@CLEAR@\fR looks in the environment for the terminal type and then in the
+\fBterminfo\fR database to determine how to clear the screen.
+.PP
+\fB@CLEAR@\fR ignores any command-line parameters that may be present.
+.SH SEE ALSO
+\fB@TPUT@\fR(1), \fBterminfo\fR(\*n)
+.PP
+This describes \fBncurses\fR
+version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).

@@ -1,0 +1,8 @@
+$ $tcsh: set10,v 1.4 2011/02/04 18:19:37 christos Exp $
+$ ma.setp.c
+$set 10 
+1 setpath: άκυρη εντολή '%s'.\n
+2 setpath: ανεπαρκής αριθμός ορισμάτων γιά την εντολή '%s'.\n
+3 setpath: κάποια τιμή λείπει στο path '%s'\n
+4 setpath: το %s δε βρέθηκε στο %s\n
+5 setpath: η θέση %d δεν ισχύει στο %s\n

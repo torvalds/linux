@@ -1,0 +1,41 @@
+//===-- OpenCLExtensionTypes.def - Metadata about BuiltinTypes ------*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//  This file extends builtin types database with OpenCL extension types.
+//  Custom code should define this macro:
+//    EXT_OPAQUE_TYPE(Name, Id, Ext)
+
+#ifdef EXT_OPAQUE_TYPE
+
+#ifndef INTEL_SUBGROUP_AVC_TYPE
+#define INTEL_SUBGROUP_AVC_TYPE(Name, Id) \
+  EXT_OPAQUE_TYPE(intel_sub_group_avc_##Name, OCLIntelSubgroupAVC##Id, \
+    cl_intel_device_side_avc_motion_estimation)
+#endif
+
+#endif
+
+#ifdef INTEL_SUBGROUP_AVC_TYPE
+INTEL_SUBGROUP_AVC_TYPE(mce_payload_t, McePayload)
+INTEL_SUBGROUP_AVC_TYPE(ime_payload_t, ImePayload)
+INTEL_SUBGROUP_AVC_TYPE(ref_payload_t, RefPayload)
+INTEL_SUBGROUP_AVC_TYPE(sic_payload_t, SicPayload)
+INTEL_SUBGROUP_AVC_TYPE(mce_result_t, MceResult)
+INTEL_SUBGROUP_AVC_TYPE(ime_result_t, ImeResult)
+INTEL_SUBGROUP_AVC_TYPE(ref_result_t, RefResult)
+INTEL_SUBGROUP_AVC_TYPE(sic_result_t, SicResult)
+INTEL_SUBGROUP_AVC_TYPE(ime_result_single_reference_streamout_t, ImeResultSingleRefStreamout)
+INTEL_SUBGROUP_AVC_TYPE(ime_result_dual_reference_streamout_t, ImeResultDualRefStreamout)
+INTEL_SUBGROUP_AVC_TYPE(ime_single_reference_streamin_t, ImeSingleRefStreamin)
+INTEL_SUBGROUP_AVC_TYPE(ime_dual_reference_streamin_t, ImeDualRefStreamin)
+
+#undef INTEL_SUBGROUP_AVC_TYPE
+#endif // INTEL_SUBGROUP_AVC_TYPE
+
+#undef EXT_OPAQUE_TYPE
+

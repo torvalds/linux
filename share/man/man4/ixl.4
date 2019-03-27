@@ -1,0 +1,295 @@
+.\" Copyright (c) 2013-2018, Intel Corporation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\"  1. Redistributions of source code must retain the above copyright notice,
+.\"     this list of conditions and the following disclaimer.
+.\"
+.\"  2. Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\"
+.\"  3. Neither the name of the Intel Corporation nor the names of its
+.\"     contributors may be used to endorse or promote products derived from
+.\"     this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 30, 2019
+.Dt IXL 4
+.Os
+.Sh NAME
+.Nm ixl
+.Nd "Intel Ethernet 700 Series Driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iflib"
+.Cd "device ixl"
+.Ed
+.Pp
+To load the driver as a module at boot time, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ixl_load="YES"
+.Ed
+.Sh DESCRIPTION
+.Ss Features
+The
+.Nm
+driver provides support for any PCI Express adapter or LOM
+(LAN On Motherboard)
+in the Intel Ethernet 700 Series.
+As of this writing, the series includes devices with these model numbers:
+.Pp
+.Bl -bullet -compact
+.It
+XL710 (40G)
+.It
+X710 (10G)
+.It
+XXV710 (25G)
+.It
+X722 (10G)
+.El
+.Pp
+The driver supports Jumbo Frames, TX/RX checksum offload,
+TCP segmentation offload (TSO), Large Receive Offload (LRO), VLAN
+tag insertion/extraction, VLAN checksum offload, VLAN TSO, and
+Receive Side Steering (RSS), all for both IPv4 and IPv6.
+For further hardware information and questions related to hardware
+requirements, see
+.Pa http://support.intel.com/ .
+.Pp
+Support for Jumbo Frames is provided via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit Jumbo Frames.
+The maximum MTU size for Jumbo Frames is 9706.
+.Pp
+Offloads are also controlled via the interface, for instance,
+checksumming for both IPv4 and IPv6 can be set and unset, TSO4
+and/or TSO6, and finally LRO can be set and unset.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Ss Additional Utilities
+There are additional tools available from Intel to help configure and update
+the adapters covered by this driver.
+These tools can be downloaded directly from Intel at
+.Pa downloadcenter.intel.com ,
+by searching for their names, or by installing certain packages:
+.Bl -item
+.It
+To change the behavior of the QSFP+ ports on XL710 adapters, use the
+Intel QCU (QSFP+ configuration utility); installed by the
+.Em sysutils/intel-qcu
+package.
+.It
+To update the firmware on an adapter, use the Intel Non-Volatile Memory (NVM)
+Update Utility; installed by the
+.Em sysutils/intel-nvmupdate
+package.
+.It
+Drivers are provided by Intel outside of the
+.Fx
+kernel; install the
+.Em net/intel-ixl-kmod
+package for the latest driver.
+.El
+.Sh HARDWARE
+Most adapters in the Intel Ethernet 700 Series with SFP+/SFP28/QSFP+ cages
+have firmware that requires that Intel qualified modules are used; these
+qualified modules are listed below.
+This qualification check cannot be disabled by the driver.
+.Pp
+The
+.Nm
+driver supports 40Gb Ethernet adapters with these QSFP+ modules:
+.Pp
+.Bl -bullet -compact
+.It
+Intel 4x10G/40G QSFP+ 40GBASE-SR4 E40GQSFPSR
+.It
+Intel 4x10G/40G QSFP+ 40GBASE-LR4 E40GQSFPLR
+.El
+.Pp
+The
+.Nm
+driver supports 25Gb Ethernet adapters with these SFP28 modules:
+.Pp
+.Bl -bullet -compact
+.It
+Intel 10G/25G SFP28 25GBASE-SR E25GSFP28SR
+.It
+Intel 10G/25G SFP28 25GBASE-SR E25GSFP28SRX (Extended Temp)
+.El
+.Pp
+The
+.Nm
+driver supports 25Gb and 10Gb Ethernet adapters with these SFP+ modules:
+.Pp
+.Bl -bullet -compact
+.It
+Intel 1G/10G SFP+ SR FTLX8571D3BCV-IT
+.It
+Intel 1G/10G SFP+ SR AFBR-703SDZ-IN2
+.It
+Intel 1G/10G SFP+ LR FTLX1471D3BCV-IT
+.It
+Intel 1G/10G SFP+ LR AFCT-701SDZ-IN2
+.It
+Intel 1G/10G SFP+ 10GBASE-SR E10GSFPSR
+.It
+Intel 10G SFP+ 10GBASE-SR E10GSFPSRX (Extended Temp)
+.It
+Intel 1G/10G SFP+ 10GBASE-LR E10GSFPLR
+.El
+.Pp
+Note that adapters also support all passive and active
+limiting direct attach cables that comply with SFF-8431 v4.1 and
+SFF-8472 v10.4 specifications.
+.Pp
+This is not an exhaustive list; please consult product documentation for an
+up-to-date list of supported media.
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.ixl.rx_itr
+The RX interrupt rate value, set to 62 (124 usec) by default.
+.It Va hw.ixl.tx_itr
+The TX interrupt rate value, set to 122 (244 usec) by default.
+.It Va hw.ixl.i2c_access_method
+Access method that driver will use for I2C read and writes via
+.Xr sysctl 8
+or verbose
+.Xr ifconfig 8
+information display:
+.Bd -literal -offset indent
+0 - best available method
+1 - bit bang via I2CPARAMS register
+2 - register read/write via I2CCMD register
+3 - Use Admin Queue command (default best)
+.Ed
+.Pp
+Using the Admin Queue is only supported on 710 devices with FW version 1.7 or
+newer.
+Set to 0 by default.
+.It Va hw.ixl.enable_tx_fc_filter
+Filter out packets with Ethertype 0x8808 from being sent out by non-adapter
+sources.
+This prevents (potentially untrusted) software or
+.Xr iavf 4
+devices from sending out flow control packets and creating a DoS (Denial of
+Service) event.
+Enabled by default.
+.It Va hw.ixl.enable_head_writeback
+When the driver is finding the last TX descriptor processed by the hardware,
+use a value written to memory by the hardware instead of scanning the
+descriptor ring for completed descriptors.
+Enabled by default; disable to mimic the TX behavior found in
+.Xr ixgbe 4 .
+.El
+.Sh SYSCTL PROCEDURES
+.Bl -tag -width indent
+.It Va dev.ixl.#.fc
+Sets the 802.3x flow control mode that the adapter will advertise on the link.
+A value of 0 disables flow control, 3 enables full, 1 is RX, and 2 is TX pause.
+.Pp
+The negotiated flow control setting can be viewed in
+.Xr ifconfig 8 ,
+in the interface's media field.
+.It Va dev.ixl.#.advertise_speed
+Set the speeds that the interface will advertise on the link.
+.Va dev.ixl.#.supported_speeds
+contains the speeds that are allowed to be set.
+.It Va dev.ixl.#.current_speed
+Displays the current speed.
+.It Va dev.ixl.#.fw_version
+Displays the current firmware and NVM versions of the adapter.
+.El
+.Sh INTERRUPT STORMS
+It is important to note that 40G operation can generate high
+numbers of interrupts, often incorrectly being interpreted as
+a storm condition in the kernel.
+It is suggested that this be resolved by setting:
+.Bl -tag -width indent
+.It Va hw.intr_storm_threshold: 0
+.El
+.Sh IOVCTL OPTIONS
+The driver supports additional optional parameters for created VFs
+(Virtual Functions) when using
+.Xr iovctl 8 :
+.Bl -tag -width indent
+.It mac-addr Pq unicast-mac
+Set the Ethernet MAC address that the VF will use.
+If unspecified, the VF will use a randomly generated MAC address.
+.It mac-anti-spoof Pq bool
+Prevent the VF from sending Ethernet frames with a source address
+that does not match its own.
+.It allow-set-mac Pq bool
+Allow the VF to set its own Ethernet MAC address
+.It allow-promisc Pq bool
+Allow the VF to inspect all of the traffic sent to the port.
+.It num-queues Pq uint16_t
+Specify the number of queues the VF will have.
+By default, this is set to the number of MSI-X vectors supported by the VF
+minus one.
+.El
+.Pp
+An up to date list of parameters and their defaults can be found by using
+.Xr iovctl 8
+with the -S option.
+.Sh SUPPORT
+For general information and support,
+go to the Intel support website at:
+.Pa http://support.intel.com/ .
+.Pp
+If an issue is identified with this driver with a supported adapter,
+email all the specific information related to the issue to
+.Mt freebsd@intel.com .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr iavf 4 ,
+.Xr netintro 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8 ,
+.Xr iovctl 8 ,
+.Xr iflib 9
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 10.1 .
+It was converted to use
+.Xr iflib 9
+in
+.Fx 12 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Jack Vogel Aq Mt jfv@freebsd.org
+and
+.An Eric Joyner Aq Mt erj@freebsd.org .

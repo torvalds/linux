@@ -1,0 +1,7 @@
+# $FreeBSD$ 
+# $NetBSD: mapper.dir.TCVN.src,v 1.1 2006/11/13 15:16:30 tnozaki Exp $
+
+TCVN5712-1/UCS			mapper_std	TCVN/TCVN5712-1%UCS.mps
+VISCII/UCS			mapper_std	TCVN/VISCII%UCS.mps
+UCS/TCVN5712-1			mapper_std	TCVN/UCS%TCVN5712-1.mps
+UCS/VISCII			mapper_std	TCVN/UCS%VISCII.mps

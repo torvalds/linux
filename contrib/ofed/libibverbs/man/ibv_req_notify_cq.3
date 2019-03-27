@@ -1,0 +1,44 @@
+.\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.\"
+.TH IBV_REQ_NOTIFY_CQ 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
+.SH "NAME"
+ibv_req_notify_cq \- request completion notification on a completion queue (CQ)
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/verbs.h>
+.sp
+.BI "int ibv_req_notify_cq(struct ibv_cq " "*cq" ", int " "solicited_only" ");
+.SH "DESCRIPTION"
+.B ibv_req_notify_cq()
+requests a completion notification on the completion queue (CQ)
+.I cq\fR.
+.PP
+Upon the addition of a new CQ entry (CQE) to
+.I cq\fR,
+a completion event will be added to the completion channel associated
+with the CQ.
+If the argument
+.I solicited_only
+is zero, a completion event is generated for any new CQE.  If 
+.I solicited_only
+is non\-zero, an event is only generated for a new CQE with that is
+considered "solicited."  A CQE is solicited if it is a receive
+completion for a message with the Solicited Event header bit set, or
+if the status is not successful.  All other successful receive
+completions, or any successful send completion is unsolicited.
+.SH "RETURN VALUE"
+.B 
+ibv_req_notify_cq()
+returns 0 on success, or the value of errno on failure (which indicates the failure reason).
+.SH "NOTES"
+The request for notification is "one shot."  Only one completion event
+will be generated for each call to
+.B ibv_req_notify_cq()\fR.
+.SH "SEE ALSO"
+.BR ibv_create_comp_channel (3),
+.BR ibv_create_cq (3),
+.BR ibv_get_cq_event (3)
+.SH "AUTHORS"
+.TP
+Dotan Barak <dotanba@gmail.com>

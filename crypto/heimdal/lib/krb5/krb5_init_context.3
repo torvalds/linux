@@ -1,0 +1,308 @@
+.\" Copyright (c) 2001 - 2004 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd December  8, 2004
+.Dt KRB5_CONTEXT 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_add_et_list ,
+.Nm krb5_add_extra_addresses ,
+.Nm krb5_add_ignore_addresses ,
+.Nm krb5_context ,
+.Nm krb5_free_config_files ,
+.Nm krb5_free_context ,
+.Nm krb5_get_default_config_files ,
+.Nm krb5_get_dns_canonize_hostname ,
+.Nm krb5_get_extra_addresses ,
+.Nm krb5_get_fcache_version ,
+.Nm krb5_get_ignore_addresses ,
+.Nm krb5_get_kdc_sec_offset ,
+.Nm krb5_get_max_time_skew ,
+.Nm krb5_get_use_admin_kdc
+.Nm krb5_init_context ,
+.Nm krb5_init_ets ,
+.Nm krb5_prepend_config_files ,
+.Nm krb5_prepend_config_files_default ,
+.Nm krb5_set_config_files ,
+.Nm krb5_set_dns_canonize_hostname ,
+.Nm krb5_set_extra_addresses ,
+.Nm krb5_set_fcache_version ,
+.Nm krb5_set_ignore_addresses ,
+.Nm krb5_set_max_time_skew ,
+.Nm krb5_set_use_admin_kdc ,
+.Nd create, modify and delete krb5_context structures
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Pp
+.Li "struct krb5_context;"
+.Pp
+.Ft krb5_error_code
+.Fo krb5_init_context
+.Fa "krb5_context *context"
+.Fc
+.Ft void
+.Fo krb5_free_context
+.Fa "krb5_context context"
+.Fc
+.Ft void
+.Fo krb5_init_ets
+.Fa "krb5_context context"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_add_et_list
+.Fa "krb5_context context"
+.Fa "void (*func)(struct et_list **)"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_add_extra_addresses
+.Fa "krb5_context context"
+.Fa "krb5_addresses *addresses"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_set_extra_addresses
+.Fa "krb5_context context"
+.Fa "const krb5_addresses *addresses"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_extra_addresses
+.Fa "krb5_context context"
+.Fa "krb5_addresses *addresses"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_add_ignore_addresses
+.Fa "krb5_context context"
+.Fa "krb5_addresses *addresses"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_set_ignore_addresses
+.Fa "krb5_context context"
+.Fa "const krb5_addresses *addresses"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_ignore_addresses
+.Fa "krb5_context context"
+.Fa "krb5_addresses *addresses"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_set_fcache_version
+.Fa "krb5_context context"
+.Fa "int version"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_fcache_version
+.Fa "krb5_context context"
+.Fa "int *version"
+.Fc
+.Ft void
+.Fo krb5_set_dns_canonize_hostname
+.Fa "krb5_context context"
+.Fa "krb5_boolean flag"
+.Fc
+.Ft krb5_boolean
+.Fo krb5_get_dns_canonize_hostname
+.Fa "krb5_context context"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_kdc_sec_offset
+.Fa "krb5_context context"
+.Fa "int32_t *sec"
+.Fa "int32_t *usec"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_set_config_files
+.Fa "krb5_context context"
+.Fa "char **filenames"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_prepend_config_files
+.Fa "const char *filelist"
+.Fa "char **pq"
+.Fa "char ***ret_pp"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_prepend_config_files_default
+.Fa "const char *filelist"
+.Fa "char ***pfilenames"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_get_default_config_files
+.Fa "char ***pfilenames"
+.Fc
+.Ft void
+.Fo krb5_free_config_files
+.Fa "char **filenames"
+.Fc
+.Ft void
+.Fo krb5_set_use_admin_kdc
+.Fa "krb5_context context"
+.Fa "krb5_boolean flag"
+.Fc
+.Ft krb5_boolean
+.Fo krb5_get_use_admin_kdc
+.Fa "krb5_context context"
+.Fc
+.Ft time_t
+.Fo krb5_get_max_time_skew
+.Fa "krb5_context context"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_set_max_time_skew
+.Fa "krb5_context context"
+.Fa "time_t time"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn krb5_init_context
+function initializes the
+.Fa context
+structure and reads the configuration file
+.Pa /etc/krb5.conf .
+.Pp
+The structure should be freed by calling
+.Fn krb5_free_context
+when it is no longer being used.
+.Pp
+.Fn krb5_init_context
+returns 0 to indicate success.
+Otherwise an errno code is returned.
+Failure means either that something bad happened during initialization
+(typically
+.Bq ENOMEM )
+or that Kerberos should not be used
+.Bq ENXIO .
+.Pp
+.Fn krb5_init_ets
+adds all
+.Xr com_err 3
+libs to
+.Fa context .
+This is done by
+.Fn krb5_init_context .
+.Pp
+.Fn krb5_add_et_list
+adds a
+.Xr com_err 3
+error-code handler
+.Fa func
+to the specified
+.Fa context .
+The error handler must generated by the the re-rentrant version of the
+.Xr compile_et 1
+program.
+.Fn krb5_add_extra_addresses
+add a list of addresses that should be added when requesting tickets.
+.Pp
+.Fn krb5_add_ignore_addresses
+add a list of addresses that should be ignored when requesting tickets.
+.Pp
+.Fn krb5_get_extra_addresses
+get the list of addresses that should be added when requesting tickets.
+.Pp
+.Fn krb5_get_ignore_addresses
+get the list of addresses that should be ignored when requesting tickets.
+.Pp
+.Fn krb5_set_ignore_addresses
+set the list of addresses that should be ignored when requesting tickets.
+.Pp
+.Fn krb5_set_extra_addresses
+set the list of addresses that should be added when requesting tickets.
+.Pp
+.Fn krb5_set_fcache_version
+sets the version of file credentials caches that should be used.
+.Pp
+.Fn krb5_get_fcache_version
+gets the version of file credentials caches that should be used.
+.Pp
+.Fn krb5_set_dns_canonize_hostname
+sets if the context is configured to canonicalize hostnames using DNS.
+.Pp
+.Fn krb5_get_dns_canonize_hostname
+returns if the context is configured to canonicalize hostnames using DNS.
+.Pp
+.Fn krb5_get_kdc_sec_offset
+returns the offset between the localtime and the KDC's time.
+.Fa sec
+and
+.Fa usec
+are both optional argument and
+.Dv NULL
+can be passed in.
+.Pp
+.Fn krb5_set_config_files
+set the list of configuration files to use and re-initialize the
+configuration from the files.
+.Pp
+.Fn krb5_prepend_config_files
+parse the
+.Fa filelist
+and prepend the result to the already existing list
+.Fa pq
+The result is returned in
+.Fa ret_pp
+and should be freed with
+.Fn krb5_free_config_files .
+.Pp
+.Fn krb5_prepend_config_files_default
+parse the
+.Fa filelist
+and append that to the default
+list of configuration files.
+.Pp
+.Fn krb5_get_default_config_files
+get a list of default configuration files.
+.Pp
+.Fn krb5_free_config_files
+free a list of configuration files returned by
+.Fn krb5_get_default_config_files ,
+.Fn krb5_prepend_config_files_default ,
+or
+.Fn krb5_prepend_config_files .
+.Pp
+.Fn krb5_set_use_admin_kdc
+sets if all KDC requests should go admin KDC.
+.Pp
+.Fn krb5_get_use_admin_kdc
+gets if all KDC requests should go admin KDC.
+.Pp
+.Fn krb5_get_max_time_skew
+and
+.Fn krb5_set_max_time_skew
+get and sets the maximum allowed time skew between client and server.
+.Sh SEE ALSO
+.Xr errno 2 ,
+.Xr krb5 3 ,
+.Xr krb5_config 3 ,
+.Xr krb5_context 3 ,
+.Xr kerberos 8

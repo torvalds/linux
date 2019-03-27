@@ -1,0 +1,173 @@
+.\" Copyright (c) 1993 Christopher G. Demetriou
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 13, 2014
+.Dt KLD 4
+.Os
+.Sh NAME
+.Nm kld
+.Nd dynamic kernel linker facility
+.Sh DESCRIPTION
+The LKM (Loadable Kernel Modules) facility has been deprecated in
+.Fx 3.0
+and above in favor of the
+.Nm
+interface.
+This interface, like its
+predecessor, allows the system administrator to dynamically add and remove
+functionality from a running system.
+This ability also helps software
+developers to develop new parts of the kernel without constantly rebooting
+to test their changes.
+.Pp
+Various types of modules can be loaded into the system.
+There are several defined module types, listed below, which can
+be added to the system in a predefined way.
+In addition, there
+is a generic type, for which the module itself handles loading and
+unloading.
+.Pp
+The
+.Fx
+system makes extensive use of loadable kernel modules, and provides loadable
+versions of most file systems, the
+.Tn NFS
+client and server, all the screen-savers, and the
+.Tn Linux
+emulator.
+.Nm
+modules are placed by default in the
+.Pa /boot/kernel
+directory along with their matching kernel.
+.Pp
+The
+.Nm
+interface is used through the
+.Xr kldload 8 ,
+.Xr kldunload 8
+and
+.Xr kldstat 8
+programs.
+.Pp
+The
+.Xr kldload 8
+program can load either
+.Xr a.out 5
+or ELF formatted loadable modules.
+The
+.Xr kldunload 8
+program unloads any given loaded module, if no other module is dependent
+upon the given module.
+The
+.Xr kldstat 8
+program is used to check the status of the modules currently loaded into the
+system.
+.Pp
+Kernel modules may only be loaded or unloaded if the system security level
+.Va kern.securelevel
+is less than one.
+.Sh "MODULE TYPES"
+.Bl -ohang
+.It Em "Device Driver modules"
+New block and character device
+drivers may be loaded into the system with
+.Nm .
+Device nodes for the loaded drivers are automatically created when a
+module is loaded and destroyed when it is unloaded by
+.Xr devfs 5 .
+You can specify userland programs that will run when new devices
+become available as a result of loading modules, or existing devices
+go away when modules are unloaded, by configuring
+.Xr devd 8 .
+.El
+.Sh FILES
+.Bl -tag -width /usr/include/sys/module.h -compact
+.It Pa /boot/kernel
+directory containing module binaries built for the kernel also
+residing in the directory.
+.It Pa /usr/include/sys/module.h
+file containing definitions required to compile a
+.Nm
+module
+.It Pa /usr/share/examples/kld
+example source code implementing a sample kld module
+.El
+.Sh SEE ALSO
+.Xr kldfind 2 ,
+.Xr kldfirstmod 2 ,
+.Xr kldload 2 ,
+.Xr kldnext 2 ,
+.Xr kldstat 2 ,
+.Xr kldunload 2 ,
+.Xr devfs 5 ,
+.Xr devd 8 ,
+.Xr kldload 8 ,
+.Xr kldstat 8 ,
+.Xr kldunload 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+facility appeared in
+.Fx 3.0
+and was designed as a replacement for the
+.Nm lkm
+facility, which was similar in functionality to the loadable kernel modules
+facility provided by
+.Tn SunOS
+4.1.3.
+.Sh AUTHORS
+The
+.Nm
+facility was originally implemented by
+.An Doug Rabson Aq Mt dfr@FreeBSD.org .
+.Sh BUGS
+If a module B, is dependent on another module A, but is not compiled with
+module A as a dependency, then
+.Xr kldload 8
+fails to load module B, even if module A is already present in the system.
+.Pp
+If multiple modules are dependent on module A, and are compiled with module
+A as a dependency, then
+.Xr kldload 8
+loads an instance of module A when any of the modules are loaded.
+.Pp
+If a custom entry point is used for a module, and the module is compiled as
+an
+.Sq ELF
+binary, then
+.Xr kldload 8
+fails to execute the entry point.
+.Pp
+.Xr kldload 8
+points the user to read
+.Xr dmesg 8
+for any error encountered while loading a module.
+.Pp
+When system internal interfaces change, old modules often cannot
+detect this, and such modules when loaded will often cause crashes or
+mysterious failures.

@@ -1,0 +1,171 @@
+.\"
+.\" Copyright (c) 2014 Sandvine Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 8, 2015
+.Dt IOVCTL.CONF 5
+.Os
+.Sh NAME
+.Nm iovctl.conf
+.Nd IOVCTL configuration file
+.Sh DESCRIPTION
+The
+.Nm
+file is the configuration file for the
+.Xr iovctl 8
+program.
+This file specifies configuration parameters for a single Physical Function
+.Pq PF
+device.
+To configure SR-IOV on multiple PF devices, use one configuration file for each
+PF.
+The locations of all
+.Xr iovctl 9
+configuration files are specified in
+.Xr rc.conf 5 .
+.Pp
+The
+.Nm
+file uses UCL format.
+UCL syntax is documented at the official UCL website:
+http://github.com/vstakhov/libucl.
+.Pp
+There are three types of sections in the
+.Nm
+file.
+A section is a key at the top level of the file with a list as its value.
+The list may contain the keys specified in the
+.Sx OPTIONS
+section of this manual page.
+Individual PF driver implementations may specify additional device-specific
+configuration keys that they will accept.
+The order in which sections appear in
+.Nm
+is ignored.
+No two sections may have the same key.
+For example, two sections for VF-1 must not be defined.
+.Pp
+The first section type is the PF section.
+This section always has the key "PF"; therefore, only one such section may be
+defined.
+This section defines configuration parameters that apply to the PF as a whole.
+.Pp
+The second section type is the VF section.
+This section has the key "VF-" followed by a VF index.
+VF indices start at 0 and always increment by 1.
+Valid VF indices are in the range of 0 to
+.Pq num_vfs - 1 .
+The VF index must be given as a decimal integer with no leading zeros.
+This section defines configuration parameters that apply to a single VF.
+.Pp
+The third section type is the default section.
+This section always has the key "DEFAULT"; therefore, only one such section may
+be specified.
+This section defines default configuration parameters that apply to all VFs.
+All configuration keys that are valid to be applied to a VF are valid in this
+section.
+An individual VF section may override a default specified in this section by
+providing a different value for the configuration parameter.
+Note that the default section applies to ALL VFs.
+The default section must appear before any VF sections.
+The default section may appear before or after the PF section.
+.Pp
+The following option types are supported:
+.Bl -tag -width indent
+.It boolean
+Accepts a boolean value of true or false.
+.It mac-addr
+Accepts a unicast MAC address specified as a string of the form
+xx:xx:xx:xx:xx:xx, where xx is one or two hexadecimal digits.
+.It string
+Accepts any string value.
+.It uint8_t
+Accepts any integer in the range 0 to 255, inclusive.
+.It uint16_t
+Accepts any integer in the range 0 to 65535, inclusive.
+.It uint32_t
+Accepts any integer in the range 0 to
+.Pq 2**32 - 1 ,
+inclusive.
+.It uint64_t
+Accepts any integer in the range 0 to
+.Pq 2**64 - 1 ,
+inclusive.
+.El
+.Sh OPTIONS
+The following parameters are accepted by all PF drivers:
+.Bl -tag -width indent
+.It device Pq string
+This parameter specifies the name of the PF device.
+This parameter is required to be specified.
+.It num_vfs Pq uint16_t
+This parameter specifies the number of VF children to create.
+This parameter may not be zero.
+The maximum value of this parameter is device-specific.
+.El
+.Pp
+The following parameters are accepted by all VFs:
+.Bl -tag -width indent
+.It passthrough Pq boolean
+This parameter controls whether the VF is reserved for the use of the
+.Xr bhyve 8
+hypervisor as a PCI passthrough device.
+If this parameter is set to true, then the VF will be reserved as a PCI
+passthrough device and it will not be accessible from the host OS.
+The default value of this parameter is false.
+.El
+.Pp
+See the PF driver manual page for configuration parameters specific to
+particular hardware.
+.Sh EXAMPLES
+This sample file will create 3 VFs as children of the ix0 device.
+VF-1 and VF-2 are set as
+.Xr bhyve 8
+passthrough devices through the use of the default section.
+VF-0 is not configured as a passthrough device as it explicitly overrides the
+default.
+VF-0 also sets a device-specific parameter named mac-addr.
+.Bd -literal -offset ident
+PF {
+	device : "ix0";
+	num_vfs : 3;
+}
+
+DEFAULT {
+	passthrough : true;
+}
+
+VF-0 {
+	mac-addr : "02:56:48:7e:d9:f7";
+	passthrough : false;
+}
+.Ed
+.Sh SEE ALSO
+.Xr rc.conf 5 ,
+.Xr iovctl 8
+.Sh AUTHORS
+This manual page was written by
+.An Ryan Stone Aq Mt rstone@FreeBSD.org .

@@ -1,0 +1,113 @@
+.\" Copyright (c) 2011 David Schultz <das@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 6, 2011
+.Dt CEXP 3
+.Os
+.Sh NAME
+.Nm cexp ,
+.Nm cexpf
+.Nd complex exponential functions
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In complex.h
+.Ft double complex
+.Fn cexp "double complex z"
+.Ft float complex
+.Fn cexpf "float complex z"
+.Sh DESCRIPTION
+The
+.Fn cexp
+and
+.Fn cexpf
+functions compute the complex exponential of
+.Fa z ,
+also known as
+.Em cis Ns ( Ns
+.Fa z Ns ) .
+.Sh RETURN VALUES
+For real numbers
+.Fa x
+and
+.Fa y ,
+.Fn cexp
+behaves according to Euler's formula:
+.Bd -ragged -offset indent
+.Fn cexp "x + I*y"
+=
+.Po Sy e Ns ** Ns
+.Fa x *
+.Em cos Ns Po Ns
+.Fa y Ns Pc Pc + Po Ns
+.Sy I
+*
+.Sy e Ns ** Ns
+.Fa x
+*
+.Em sin Ns Po Ns
+.Fa y Ns Pc Pc
+.Ed
+.Pp
+Generally speaking, infinities, zeroes and \*(Nas are handled as would
+be expected from this identity given the usual rules of floating-point
+arithmetic.
+However, care is taken to avoid generating \*(Nas when they are not deserved.
+For example, mathematically we expect that
+.Fo cimag
+.Fn cexp "x + I*0" Fc
+= 0 regardless of the value of
+.Fa x ,
+and
+.Fn cexp
+preserves this identity even if
+.Fa x
+is \*(If or \*(Na.
+Likewise,
+.Fn cexp "-\*(If + I*y"
+= 0 and
+.Fo creal
+.Fn cexp "\*(If + I*y" Fc
+= \*(If
+for any
+.Fa y
+(even though the latter property is only mathematically true for
+representable
+.Fa y . )
+If
+.Fa y
+is not finite, the sign of the result is indeterminate.
+.Sh SEE ALSO
+.Xr complex 3 ,
+.Xr exp 3 ,
+.Xr math 3
+.Sh STANDARDS
+The
+.Fn cexp
+and
+.Fn cexpf
+functions conform to
+.St -isoC-99 .

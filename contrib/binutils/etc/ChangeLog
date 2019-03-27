@@ -1,0 +1,619 @@
+2007-04-04  Eric Christopher  <echristo@apple.com>
+
+	Move from gcc:
+	2007-04-04  Zack Weinberg  <zack@mrtock.ucsd.edu>
+
+	        * texi2pod.pl: Correct handling of @itemize with no argument.
+
+	2007-02-16  Matthias Klose  <doko@debian.org>
+
+	        * texi2pod.pl: Handle @subsubsection, ignore @anchor.
+
+	2007-02-06  Richard Sandiford  <richard@codesourcery.com>
+
+	        * texi2pod.pl: Handle @multitable.
+
+2007-03-27  Brooks Moses  <brooks.moses@codesourcery.com>
+
+	* Makefile.in: Add support for "pdf" and "install-pdf" targets.
+
+2006-12-19  Paolo Bonzini  <bonzini@gnu.org>
+
+	* configure.texi: Fix botched commit.
+
+2006-05-31  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* texi2pod.pl: Correct handling of absolute @include.
+
+2006-05-02  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* texi2pod.pl: Handle -I.
+
+2006-04-06  Carlos O'Donell  <carlos@codesourcery.com>
+
+	* Makefile.in: Add install-html target. Add htmldir,
+	docdir and datarootdir.
+	* configure.texi: Document install-html target.
+	* configure.in: AC_SUBST datarootdir, docdir, htmldir.
+	* configure: Regenerate.
+
+2006-02-27  Carlos O'Donell  <carlos@codesourcery.com>
+
+	* Makefile.in: TEXI2HTML uses makeinfo. Define
+	HTMLFILES. Add html targets.
+	* configure.texi: Use ifnottex. Add alternative
+	image format specifier as jpg.
+	* standards.texi: Use ifnottex.
+
+2005-10-21  Mark Mitchell  <mark@codesourcery.com>
+
+	* texi2pod.pl: Substitue for @value even when part of @include.
+
+2005-10-21  Bob Wilson  <bob.wilson@acm.org>
+
+	* texi2pod.pl: Import latest version from GCC.
+
+2005-05-19  Zack Weinberg  <zack@codesourcery.com>
+
+	* Makefile.in: Have 'all' depend on 'info'.
+
+2003-05-16  Kelley Cook  <kelleycook@wideopenwest.com>
+
+	* configure.texi: Use "i[3-7]86" in example.
+
+2003-01-02  H.J. Lu <hjl@gnu.org>
+
+	* Makefile.in (DESTDIR): New.
+	(install-info): Use it.
+
+2002-06-11  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	Import the following patches from the FSF GCC sources:
+	2002-03-25  Zack Weinberg  <zack@codesourcery.com>
+
+	* texi2pod.pl: Handle @end ftable and @end vtable.
+
+	2001-12-12  Matthias Klose  <doko@debian.org>
+
+	* texi2pod.pl: Merge changes from binutils' texi2pod.pl. Allows
+	generation of more than one man page from one source.
+	Add '-' to set of valid chars for an identifier.
+	Let -D option accept flags of the form <flag>=<value>.
+	Use \s+ for whitespace detection in '@c man' lines.
+	Handle @set and @clear independent of $output.
+	Substitute all @value{}'s in a line.
+
+	2001-11-14  Joseph S. Myers  <jsm28@cam.ac.uk>
+
+	* texi2pod.pl: Handle @ifnottex, @iftex and @display.  Handle @var
+	in verbatim blocks specially.  Handle @unnumbered, @unnumberedsec
+	and @center.  Allow [a-z] after @enumerate.  Handle 0 and numbers
+	greater than 9 in enumerations.
+
+	2001-07-03  Joseph S. Myers  <jsm28@cam.ac.uk>
+
+	* texi2pod.pl: Handle @r inside @item.
+
+2002-02-27  Andrew Cagney  <ac131313@redhat.com>
+
+	* fdl.texi: New file.
+
+2002-02-24  Andrew Cagney  <ac131313@redhat.com>
+
+	* standards.texi: Import February 14, 2002 version.
+	* make-stds.texi: Import 2001 version.
+
+2002-01-26  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* Makefile.in (install): Depend on install-info.
+
+2001-03-25  Stephane Carrez  <Stephane.Carrez@worldnet.fr>
+
+	* texi2pod.pl: New file (from gcc/contrib).
+
+1999-04-01  Jim Blandy  <jimb@zwingli.cygnus.com>
+
+	* add-log.el, add-log.vi: New files.
+
+1999-01-20  Angela Marie Thomas (angela@cygnus.com)
+
+	* comp-tools-verify: Remove some checks that are no longer valid.
+
+1998-12-03  Nick Clifton  <nickc@cygnus.com>
+
+	* targetdoc/fr30.texi: New document.
+
+1998-10-01  Angela Marie Thomas (angela@cygnus.com)
+
+	* comp-tools-fix, cross-tools-fix: Replace /usr/include
+	with ${FIXINCDIR}.
+
+1998-08-11  Doug Evans  <devans@canuck.cygnus.com>
+
+	* make-rel-sym-tree (version): Update calculation.
+
+1998-06-12  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.texi: Various additions.
+	* Makefile.in (TEXI2HTML, DVIPS): New variables.
+	(standards.ps): New target.
+	(configure.dvi): Copy .tin files in as well.
+	(configure.ps, configure.html): New targets.
+	(clean): Remove configdev.jpg and configbuild.jpg.
+	* configdev.fig: New file.
+	* configdev.ein: New file (EPS version of configdev.fig).
+	* configdev.jin: New file (JPEG version of configdev.fig).
+	* configbuild.fig: New file.
+	* configbuild.ein: New file (EPS version of configbuild.fig).
+	* configbuild.jin: New file (JPEG version of configbuild.fig).
+
+1998-06-10  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.texi: New file.
+	* configdev.tin: New file.
+	* configbuild.tin: New file.
+	* Makefile.in (MAKEINFO): Use makeinfo from texinfo directory if
+	it exists.
+	(TEXI2DVI): Likewise for texi2dvi.
+	(INFOFILES): Add configure.info.
+	(DVIFILES): Add configure.dvi.
+	(info): Only build info files if the source files exist.
+	(install-info): Only install info files if they exist.
+	(dvi): Only build DVI files if the sources files exist.
+	(configure.info): New target.
+	(configure.dvi): New target.
+	(clean): Remove configdev and configbuild derived files.
+
+	Remove obsolete documentation.
+	* intro.texi: Remove.
+	* install.texi: Remove.
+	* config-names.texi: Remove.
+	* screen1.eps: Remove.
+	* screen1.obj: Remove.
+	* screen2.eps: Remove.
+	* screen2.obj: Remove.
+	* Makefile.in: Remove references to the above.
+
+Thu May 21 14:34:51 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* targetdoc/arm-interwork.texi: Add note about ignoring linker
+	warning message when using --support-old-code.
+
+Mon May 18 14:27:37 1998  Angela Marie Thomas (angela@cygnus.com)
+
+	* Install.in, comp-tools-fix, comp-tools-verify, cross-tools-fix:
+	Use $GCCvn rather than substitute everywhere.
+
+Thu May 14 14:43:10 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* targetdoc/arm-interwork.texi: Document dlltool support of
+	interworking.
+
+Thu May  7 16:49:38 1998  Jason Molenda  (crash@bugshack.cygnus.com)
+
+	* Install.in: Remove references to TCL_LIBRARY, TK_LIBRARY,
+	and GDBTK_FILENAME.
+
+Wed Apr  1 17:11:44 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* targetdoc/arm-interwork.texi: Document ARM/thumb interworking.
+
+Tue Mar 31 15:28:20 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* standards.texi, make-stds.texi: Update to current FSF versions.
+	* Makefile.in (standards.info): Depend upon make-std.texi.
+
+Tue Mar 24 16:13:26 1998  Stu Grossman  <grossman@bhuna.cygnus.co.uk>
+
+	* configure:  Regenerate with autoconf 2.12.1 to fix shell issues
+	for NT native builds.
+
+Mon Mar  9 16:41:04 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* make-rel-sym-tree (binprogs): Add objcopy.
+
+Tue Feb 24 18:11:58 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* make-rel-sym-tree: as.new -> as-new, ld.new -> ld-new
+	nm.new -> nm-new.  Make symlinks to crt*.o.
+
+Fri Nov 21 12:54:58 1997  Manfred Hollstein <manfred@s-direktnet.de>
+
+	* Makefile.in: Add --no-split argument to avoid creating files
+	with names longer than 14 characters.
+
+Thu Sep 25 13:13:11 1997  Jason Molenda  (crash@pern.cygnus.com)
+
+	* intro.texi: Add closing ifset.
+
+Mon Sep  1 10:31:32 1997  Angela Marie Thomas (angela@cygnus.com)
+
+	* Install.in: Move setting HOST and TARGET to the beginning
+	of the file for editing convenience.
+
+Mon Sep  1 10:28:37 1997  Angela Marie Thomas (angela@cygnus.com)
+
+	* Install.in.: More friendly options/messages when extracting
+	from a file instead of a tape device.
+
+Tue Jun 17 15:50:23 1997  Angela Marie Thomas (angela@cygnus.com)
+
+	* Install.in: Add /usr/bsd to PATH for Irix (home of compress)
+
+Thu Jun 12 13:47:00 1997  Angela Marie Thomas (angela@cygnus.com)
+
+	* Install.in (show_exec_prefix_msg): fix quoting
+
+Wed Jun  4 15:31:43 1997  Jason Molenda  (crash@godzilla.cygnus.co.jp)
+
+	* rebuilding.texi: Removed.
+
+Sat May 24 18:02:20 1997  Angela Marie Thomas (angela@cygnus.com)
+
+	* cross-tools-fix:  Remove host check since it doesn't matter
+	for this case.
+	* Install.in (guess_system): clean up more unused hosts.
+	* Install.in, cross-tools-fix, comp-tools-fix, comp-tools-verify:
+	Hack for host check to not warn the user for certain cases.
+
+Fri May 23 23:46:10 1997  Angela Marie Thomas (angela@cygnus.com)
+
+	* subst-strings: Remove a lot of unused code
+	* Install.in: Remove reference to TAPEdflt, use variables instead of
+	string substitution when able.
+
+Fri Apr 11 17:25:52 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Change file named in AC_INIT to Makefile.in.
+	* configure: Rebuild.
+
+Fri Apr 11 18:12:42 1997  Jason Molenda  (crash@godzilla.cygnus.co.jp)
+
+	* Install.in (guess_system): Back out change to INSTALLHOST to
+	call all IRIX systems "mips-sgi-irix4"
+
+	* Makefile.in: Remove references to configure.texi and cfg-paper.texi.
+
+Thu Apr 10 23:26:45 1997  Jason Molenda  (crash@godzilla.cygnus.co.jp)
+
+	* srctree.texi, emacs-relnotes.texi, cfg-paper.texi: Remove.
+	* Install.in: Remove Ultrix-specific hacks.
+	Update Cygnus phone numbers.
+	(guess_system): Remove some old systems (Ultrix, OSF1 v1 & 2,
+	m68k-HPUX, m68k SunOS, etc.)
+	(show_gnu_root_msg): Remove.
+	Removed all the remove option code.
+
+Thu Apr 10 23:23:33 1997  Jason Molenda  (crash@godzilla.cygnus.co.jp)
+
+	* configure.man, configure.texi: Remote.
+
+Mon Apr  7 18:15:00 1997  Brendan Kehoe <brendan@cygnus.com>
+
+	* Fix the version string for OSF1 4.0 to recognize either
+	V4.* or X4.*
+
+Mon Apr  7 15:34:47 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* standards.texi, make-stds.texi: Update to current FSF versions.
+
+Tue Nov 19 15:36:14 1996  Doug Evans  <dje@canuck.cygnus.com>
+
+	* make-rel-sym-tree: New file.
+
+Wed Oct 23 00:34:07 1996  Angela Marie Thomas (angela@cygnus.com)
+
+	* Lots of patches from progressive...
+ 	* Install.in: restore DDOPTS for AIX 4.x
+ 	* Install.in, subst-strings: add case for DG Aviion
+ 	* subst-strings: fix typo in INSTALLdir var setting
+ 	* comp-tools-verify: set SHLIB_PATH for shared libs
+ 	* Install.in, subst-strings:  add case for solaris2.5
+ 	* Install.in: fix regression for hppa1.1 check
+ 	* comp-tools-fix: set LD_LIBRARY_PATH
+ 	* comp-tools-fix: If fixincludes fixes /usr/include/limits.h,
+ 	install it as syslimits.h.
+
+Wed Oct 16 19:20:42 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* Install.in (guess_system): Treat powerpc-ibm-aix4.1 the same as
+	rs6000-ibm-aix4.1, since the compiler now uses common mode by
+	default.
+
+Wed Oct  2 15:39:07 1996  Jason Molenda  (crash@godzilla.cygnus.co.jp)
+
+	* configure.in (AC_PROG_INSTALL): Added.
+	* Makefile.in (distclean): Remove config.cache.
+
+Wed Oct  2 14:33:58 1996  Jason Molenda  (crash@godzilla.cygnus.co.jp)
+
+	* configure.in: Switch to autoconf configure.in.
+	* configure: New.
+	* Makefile.in: Use autoconf-substituted values.
+
+Tue Jun 25 18:56:08 1996  Jason Molenda  (crash@godzilla.cygnus.co.jp)
+
+	* Makefile.in (datadir): Changed to $(prefix)/share.
+
+Fri Mar 29 11:38:01 1996  J.T. Conklin  (jtc@lisa.cygnus.com)
+
+	* configure.man: Changed to be recognized by catman -w on Solaris.
+
+Wed Dec  6 15:40:28 1995  Doug Evans  <dje@canuck.cygnus.com>
+
+	* comp-tools-fix (fixincludes): Define FIXPROTO_DEFINES from
+	.../install-tools/fixproto-defines.
+
+Sun Nov 12 19:31:27 1995  Jason Molenda  (crash@phydeaux.cygnus.com)
+
+	* comp-tools-verify (verify_cxx_initializers): delete argv,
+	argc declarations, add -static to compile line.
+	(verify_cxx_hello_world): delete argv, argc declarations, add
+	-static to compile line.
+
+Wed Sep 20 13:21:52 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (maintainer-clean): New target, synonym for
+	realclean.
+
+Mon Aug 28 17:25:49 1995  Jason Molenda  (crash@phydeaux.cygnus.com)
+
+	* Install.in (PATH):  add /usr/ucb to $PATH (for SunOS 4.1.x).
+
+Tue Aug 15 21:51:58 1995  Jason Molenda  (crash@phydeaux.cygnus.com)
+
+	* Install.in (guess_system): Match OSF/1 v3.x as the same as
+	v2.x--v2.x binaries are upward compatible.
+
+Tue Aug 15 21:46:54 1995  Jason Molenda  (crash@phydeaux.cygnus.com)
+
+	* Install.in (guess_system): recognize HP 9000/800 systems as the
+	same as HP 9000/700 systems.
+
+Tue Aug  8 13:11:56 1995  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* Install.in: For emacs, run show_emacs_alternate_msg and exit.
+	(show_emacs_alternate_msg): New message saying how emacs can't be
+	installed in an alternate prefix.
+
+Thu Jun  8 00:42:56 1995  Angela Marie Thomas  <angela@cirdan.cygnus.com>
+
+	* subst-strings: change du commands to $BINDIR/. & $SRCDIR/. just
+	in case they are symlinks.
+
+Tue Apr 18 14:23:10 1995  J.T. Conklin  <jtc@rtl.cygnus.com>
+
+	* cdk-fix: Extracted table of targets that don't need their
+	  headers fixed from gcc's configure script.
+
+	* cdk-fix, cdk-verify: Use ${HOST} instead of ||HOSTstr||
+
+	* cdk-fix, cdk-verify: New files, install script fragments used
+	  for Cygnus Developer's Kit.
+
+	* Install.in (do_mkdir): New function.
+
+	* Install.in: Added support for --with and --without options.
+	  Changed so that tape commands are not run when extracting
+	  from a file.
+	  (do_mt): Changed to take only one argument.
+
+Wed Mar 29 11:16:38 1995  Jason Molenda (crash@phydeaux.cygnus.com)
+
+	* Install.in: catch UNAME==alpha-dec-osf2.x and correct entry for
+	alpha-dec-osf1.x
+
+Fri Jan 27 12:04:29 1995  J.T. Conklin  <jtc@rtl.cygnus.com>
+
+	* subst-strings (mips-sgi-irix5): New entry in table.
+
+Thu Jan 19 12:15:44 1995  J.T. Conklin  <jtc@rtl.cygnus.com>
+
+	* Install.in: Major rewrite, bundle dependent code (for example,
+	  fixincludes for comp-tools) will be inserted into the Install
+	  script when it is generated.
+
+Tue Jan 17 16:51:32 1995  Ian Lance Taylor  <ian@sanguine.cygnus.com>
+
+	* Makefile.in (Makefile): Rebuild using $(SHELL).
+
+Thu Nov  3 19:30:33 1994  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* Makefile.in (install-info): Depend on info.
+
+Fri Aug 19 16:16:38 1994  Jason Molenda     (crash@phydeaux.cygnus.com)
+
+	* Install.in: set $FIX_HEADER so fixproto can find fix-header.
+
+Fri May  6 16:18:58 1994  Jason Molenda     (crash@sendai.cygnus.com)
+
+	* Makefile.in (install-info): add a semicolon in the if statement.
+
+Fri Apr 29 16:56:07 1994  David J. Mackenzie  (djm@rtl.cygnus.com)
+
+	* cfg-paper.texi: Update some outdated information.
+
+	* Makefile.in (install-info): Pass file, not directory, as last
+	arg to INSTALL_DATA.
+	(uninstall): New target.
+
+Thu Apr 28 14:42:22 1994  David J. Mackenzie  (djm@rtl.cygnus.com)
+
+	* configure.texi: Comment out @smallbook.
+
+	* Makefile.in: Define TEXI2DVI and TEXIDIR, and use the latter.
+	Remove info files in realclean, not clean, per coding standards.
+	Remove TeX output in clean.
+
+Tue Apr 26 17:18:03 1994  Jason Molenda (crash@sendai.cygnus.com)
+
+	* Install.in:  fixincludes output is actually put in fixincludes.log,
+	but echo'ed messages claim it is fixinc.log.  This is the same
+	messages as I logged in March 4 1994, but for some reason we found
+	the change hadn't been done.  I'll have to dig through the logs
+	and find out what I really did do that day. :)
+
+Mon Apr 25 20:28:19 1994  Jason Molenda   (crash@sendai.cygnus.com)
+
+	* Install.in:  use eval to call do_mt() for Ultrix brokenness.
+
+Mon Apr 25 20:00:00 1994  Jason Molenda   (crash@sendai.cygnus.com)
+
+	* Install.in(do_mt): exit with error status 1 if # of parameters
+	!= 3.
+
+Mon Apr 25 19:42:36 1994  Jason Molenda   (crash@sendai.cygnus.com)
+
+	* Install.in:  lose TAPE_FORWARD and TAPE_REWIND, add do_mt()
+	to do all tape movement operations.  Currently untested.  Addresses
+	PR # 4886 from bull.
+
+	* Install.in: add 1994 to the copyright thing.
+
+Fri Apr 22 19:05:13 1994  David J. Mackenzie  (djm@rtl.cygnus.com)
+
+	* standards.texi: Update from FSF.
+
+Fri Apr 22 15:46:10 1994  Jason Molenda (crash@cygnus.com)
+
+	* Install.in: Add $DDOPTS, has ``bs=124b'' for all systems except
+	AIX (some versions of AIX don't understand bs=124b.  Silly OS).
+
+Mon Apr  4 22:55:05 1994  Jason Molenda (crash@sendai.cygnus.com)
+
+	* Install.in: null out $TOOLS before adding stuff to it
+	non-destructively.
+
+Wed Mar 30 21:45:35 1994  David J. Mackenzie  (djm@rtl.cygnus.com)
+
+	* standards.texi: Fix typo.
+
+	* configure.texi, configure.man: Document --disable-.
+
+Mon Mar 28 13:22:15 1994  David J. Mackenzie  (djm@rtl.cygnus.com)
+
+	* standards.texi: Update from FSF.
+
+Sat Mar 26 09:21:44 1994  David J. Mackenzie  (djm@rtl.cygnus.com)
+
+	* standards.texi, make-stds.texi: Update from FSF.
+
+Fri Mar 25 22:59:45 1994  David J. Mackenzie  (djm@rtl.cygnus.com)
+
+	* configure.texi, configure.man: Document --enable-* options.
+
+Wed Mar 23 23:38:24 1994  Jason Molenda  (crash@sendai.cygnus.com)
+
+	* Install.in: set CPP to be gcc -E for fixincludes.
+
+Wed Mar 23 13:42:48 1994  Jason Molenda  (crash@sendai.cygnus.com)
+
+	* Install.in: set PATH to $PATH:/bin:/usr/bin so we can pick
+	up native tools even if the user doesn't have them in his
+	path.
+
+	* Install.in: ``hppa-1.1-hp-hpux'' -> ``hppa1.1-hp-hpux''.
+
+Tue Mar 15 22:09:20 1994  Jason Molenda  (crash@sendai.cygnus.com)
+
+	* Install.in: TAPE_REWIND and TAPE_FORWARD variables for Unixunaware,
+	added switch statement to detect if system is Unixunaware.
+
+Fri Mar  4 12:10:30 1994  Jason Molenda (crash@sendai.cygnus.com)
+
+	* Install.in:  fixincludes output is actually put in fixincludes.log,
+	but echo'ed messages claim it is fixinc.log.
+
+Wed Nov  3 02:58:02 1993  Jeffrey Osier  (jeffrey@thepub.cygnus.com)
+
+	* subst-strings:  output TEXBUNDLE for more install notes matching
+	* install-texi.in:  PRMS info now exists
+
+Tue Oct 26 16:57:12 1993  K. Richard Pixley  (rich@sendai.cygnus.com)
+
+	* subst-strings: match solaris*.  Also, add default case to catch
+	  and error out for unrecognized systems.
+
+Thu Aug 19 18:21:31 1993  david d `zoo' zuhn  (zoo@rtl.cygnus.com)
+
+	* Install.in: handle the new fixproto work
+
+Mon Jul 19 12:05:41 1993  david d `zoo' zuhn  (zoo@cirdan.cygnus.com)
+
+	* Install.in: remove "MT=tctl" for AIX (not needed, and barely
+	worked anyway)
+
+Mon Jun 14 19:09:22 1993  Jeffrey Osier  (jeffrey@cygnus.com)
+
+	* subst-strings: changed HOST to recognize Solaris for install notes
+
+Thu Jun 10 16:01:25 1993  Jeffrey Osier  (jeffrey@cygnus.com)
+
+	* dos-inst.texi:  new file.
+
+Wed Jun  9 19:23:59 1993  Jeffrey Osier  (jeffrey@rtl.cygnus.com)
+
+	* install-texi.in:	added conditionals (nearly complete)
+				  cleaned up
+				  added support for other releases (not done)
+
+Wed Jun  9 15:53:58 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* Makefile.in (install-info): Use INSTALL_DATA.
+	({dist,real}clean): Also delete Makefile and config.status.
+
+Fri Jun  4 17:09:56 1993  Jeffrey Osier  (jeffrey@cygnus.com)
+
+	* subst-strings:  added data for OS_STRING
+
+	* subst-strings:  added support for OS_STRING
+
+Thu Jun  3 00:37:01 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Install.in: pull COPYING and COPYING.LIB off of the tape
+
+Tue Jun  1 16:52:08 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* subst-strings: replace RELEASE_DIR too
+
+Mon Mar 22 23:55:27 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Makefile.in: add installcheck target
+
+Wed Mar 17 02:21:15 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Install.in: fix 'source only' extraction bug where it looked for
+	the src dir under H-<host>/src instead of src; also remove stray
+	reference to EMACSHIBIN
+
+Mon Mar 15 01:25:45 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* make-stds.texi: added 'installcheck' to the standard targets
+
+Tue Mar  9 19:48:28 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* standards.texi: added INFO-DIR-ENTRY, updated version from the FSF
+
+Tue Feb  9 12:40:23 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* Makefile.in (standards.info): Added -I$(srcdir) to find
+	make-stds.texi.
+
+Mon Feb  1 16:32:56 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* standards.texi: updated to latest FSF version, which includes:
+
+	* make-stds.texi: new file
+
+Mon Nov 30 01:31:40 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* install-texi.in, relnotes.texi, intro.texi: changed Cygnus phone
+	numbers from the old Palo Alto ones to the new Mtn. View numbers
+
+Mon Nov 16 16:50:43 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Makefile.in: define $(RM) to "rm -f"
+
+Sun Oct 11 16:05:48 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* intro.texi: added INFO-DIR-ENTRY

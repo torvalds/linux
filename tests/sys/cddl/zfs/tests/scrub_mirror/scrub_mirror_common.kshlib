@@ -1,0 +1,83 @@
+# vim: filetype=sh
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+# $FreeBSD$
+
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)scrub_mirror_common.kshlib	1.5	07/10/09 SMI"
+#
+
+function overwrite_verify_mirror
+{
+	typeset POOL=$1
+	typeset AFFECTED_DEVICE=$2
+	typeset OVERWRITING_DEVICE=$3
+
+	typeset atfile=0
+	set -A files
+	set -A cksums
+	set -A newcksums
+
+	fill_fs $TESTDIR -1 $FILE_COUNT $BLOCKSZ $WRITE_COUNT
+	while [ "$atfile" -lt "$FILE_COUNT" ]; do
+		if [ -f ${TESTDIR}/0/${TESTFILE}.${atfile} ]; then
+			cksums[$atfile]=$($CKSUM ${TESTDIR}/0/${TESTFILE}.${atfile})
+		fi
+		(( atfile = $atfile + 1 ))
+	done
+
+	# unmount and export before dd
+	log_must $ZPOOL export $POOL
+
+	# dd the affected side of the mirror
+	log_must $DD if=$OVERWRITING_DEVICE of=$(bsddevmap $AFFECTED_DEVICE) \
+		seek=8 bs=$BLOCKSZ count=$(( WRITE_COUNT - 8 )) conv=notrunc
+
+	# now remount and scrub
+	log_must $ZPOOL import $POOL
+	log_must $ZPOOL scrub $POOL
+	wait_for 60 1 is_pool_scrubbed $POOL
+
+	atfile=0
+	typeset -i failedcount=0
+	while [ "$atfile" -lt "$FILE_COUNT" ]; do
+		if [ -f ${TESTDIR}/0/${TESTFILE}.${atfile} ]; then
+			newcksum=$($CKSUM $TESTDIR/0/${TESTFILE}.${atfile})
+			if [[ $newcksum != ${cksums[$atfile]} ]]; then
+				(( failedcount = $failedcount + 1 ))
+			else
+				log_note "${TESTFILE}.${atfile} checksums match:"\
+				    "old ${cksums[$atfile]} new $newcksum"
+			fi
+			$RM -f ${files[$atfile]}
+		fi
+		(( atfile = $atfile + 1 ))
+	done
+
+	if [ "$failedcount" -gt 0 ]; then
+		log_fail "of the $FILE_COUNT files $failedcount did not " \
+		    "have the same checksum before and after."
+	fi
+}

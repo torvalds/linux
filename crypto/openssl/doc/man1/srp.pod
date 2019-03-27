@@ -1,0 +1,73 @@
+=pod
+
+=head1 NAME
+
+openssl-srp,
+srp - maintain SRP password file
+
+=head1 SYNOPSIS
+
+B<openssl srp>
+[B<-help>]
+[B<-verbose>]
+[B<-add>]
+[B<-modify>]
+[B<-delete>]
+[B<-list>]
+[B<-name section>]
+[B<-config file>]
+[B<-srpvfile file>]
+[B<-gn identifier>]
+[B<-userinfo text...>]
+[B<-passin arg>]
+[B<-passout arg>]
+[I<user...>]
+
+=head1 DESCRIPTION
+
+The B<srp> command is user to maintain an SRP (secure remote password)
+file.
+At most one of the B<-add>, B<-modify>, B<-delete>, and B<-list> options
+can be specified.
+These options take zero or more usernames as parameters and perform the
+appropriate operation on the SRP file.
+For B<-list>, if no B<user> is given then all users are displayed.
+
+The configuration file to use, and the section within the file, can be
+specified with the B<-config> and B<-name> flags, respectively.
+If the config file is not specified, the B<-srpvfile> can be used to
+just specify the file to operate on.
+
+The B<-userinfo> option specifies additional information to add when
+adding or modifying a user.
+
+The B<-gn> flag specifies the B<g> and B<N> values, using one of
+the strengths defined in IETF RFC 5054.
+
+The B<-passin> and B<-passout> arguments are parsed as described in
+the L<openssl(1)> command.
+
+=head1 OPTIONS
+
+=over 4
+
+=item [B<-help>]
+
+Display an option summary.
+
+=item [B<-verbose>]
+
+Generate verbose output while processing.
+
+=back
+
+=head1 COPYRIGHT
+
+Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

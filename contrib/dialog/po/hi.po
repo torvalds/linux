@@ -1,0 +1,112 @@
+# Hindi translation of Dialog.
+# This file is distributed under the same license as the dialog package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2007-07-18 11:06+0200\n"
+"Last-Translator: Deepika Mangla <deepika.mangla@gmail.com>\n"
+"Language-Team:  <elinks@knopper.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: 2\n"
+"X-Poedit-Language: Hindi\n"
+"X-Poedit-Country: INDIA\n"
+"X-Generator: KBabel 1.11.4\n"
+
+#: buttons.c:385
+msgid "Yes"
+msgstr "à€¹à€Ÿà€"
+
+#: buttons.c:393
+msgid "No"
+msgstr "à€šà€¹à¥à€"
+
+#: buttons.c:401
+msgid "OK"
+msgstr "à€ à¥à€"
+
+#: buttons.c:409
+msgid "Cancel"
+msgstr "à€°à€Šà¥à€Š à€à€°à¥à€"
+
+#: buttons.c:417
+msgid "EXIT"
+msgstr "à€šà€¿à€°à¥à€à€®"
+
+#: buttons.c:425
+msgid "Extra"
+msgstr "à€à€€à€¿à€°à€¿à€à¥à€€"
+
+#: buttons.c:433
+msgid "Help"
+msgstr "à€®à€Šà€Š"
+
+#. Headline "Month"
+#: calendar.c:273
+msgid "Month"
+msgstr "à€®à€¹à¥à€šà€Ÿ"
+
+#. Headline "Year"
+#: calendar.c:293
+msgid "Year"
+msgstr "à€µà€°à¥à€·"
+
+#: dialog.c:741
+msgid "Rename"
+msgstr "à€ªà¥à€šà€à€šà€Ÿà€®à€à€°à€£"
+
+#: fselect.c:550
+msgid "Directories"
+msgstr "à€šà€¿à€°à¥à€Šà¥à€¶à€¿à€à€Ÿ"
+
+#: fselect.c:551
+msgid "Files"
+msgstr "à€žà€à€à€¿à€à€Ÿ"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "à€žà€«à€²"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "à€žà€«à€²"
+
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "à€ªà€Ÿà€ž"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "à€žà€®à¥à€ªà¥à€°à€¿à€€"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "à€à€µà€°à¥à€Šà¥à€§"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "à€žà€«à€² "
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "à€à¥à€¡à€Œ à€Šà€¿à€¯à€Ÿ"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "à€ªà¥à€°à€à€€à€¿ à€®à¥à€ à€¹à¥"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "à€²à€Ÿà€à¥ à€šà€¹à¥à€"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "à€žà€®à€à¥à€° à€ªà¥à€°à€à€€à€¿"
+
+#: textbox.c:489
+msgid "Search"
+msgstr "à€à€šà¥à€žà€šà¥à€§à€Ÿà€š"

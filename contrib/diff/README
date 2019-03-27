@@ -1,0 +1,69 @@
+README for GNU DIFF
+
+This directory contains the GNU diff, diff3, sdiff, and cmp utilities.
+Their features are a superset of the Unix features and they are
+significantly faster.
+
+Please see the file COPYING for copying conditions.
+
+Please see the file doc/version.texi for version information.
+
+Please see the file doc/diff.texi (or doc/diff.info) for documentation
+that can be printed with TeX, or read with the `info' program or with
+Emacs's `M-x info'.  Brief man pages are in man/*, but they are no
+substitute for the documentation.
+
+Please see the file ABOUT-NLS for notes about translations.
+
+Please see the file INSTALL for generic compilation and installation
+instructions.  Briefly, you can run "./configure; make install".  The
+command "./configure --help" lists the supported --enable and --with
+options.
+
+If you have a problem with internationalization, you might be able to
+work around it as described in ABOUT-NLS by invoking `./configure
+--disable-nls'.  Many of the problems arise from dynamic linking
+issues on non-GNU platforms (e.g. with the iconv library).  Such
+problems tend to be shared by other GNU applications on these
+platforms, and can usually be fixed by carefully tweaking your non-GNU
+installation.  If you have an older version of libiconv, please
+upgrade to the latest one; see <ftp://ftp.gnu.org/gnu/libiconv/>.  If
+the problem seems isolated to diffutils, though, please report a bug.
+
+This program requires a Standard C compiler (C89 or later).  If you
+have a nonstandard compiler, please install GCC first.
+
+If you make changes to the source code, you may need appropriate
+versions of GNU build tools to regenerate the intermediate files.  The
+following versions were used to generate the intermediate files in
+this distribution:
+
+* Autoconf 2.59   <ftp://ftp.gnu.org/gnu/autoconf/autoconf-2.59.tar.gz>
+* Automake 1.8.3  <ftp://ftp.gnu.org/gnu/automake/automake-1.8.3.tar.gz>
+* gettext 0.14.1  <ftp://ftp.gnu.org/gnu/gettext/gettext-0.14.1.tar.gz>
+* help2man 1.33   <ftp://ftp.gnu.org/gnu/help2man/help2man-1.33.1.tar.gz>
+* Texinfo 4.7     <ftp://ftp.gnu.org/gnu/texinfo/texinfo-4.7.tar.gz>
+
+Please report bugs to <bug-gnu-utils@gnu.org>.
+
+-----
+
+Copyright (C) 1992, 1998, 2001, 2002, 2004 Free Software Foundation,
+Inc.
+
+This file is part of GNU Diffutils.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; see the file COPYING.  If not, write to
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.

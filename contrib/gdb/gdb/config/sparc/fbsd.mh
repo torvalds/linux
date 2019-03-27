@@ -1,0 +1,5 @@
+# Host: FreeBSD/sparc64
+NATDEPFILES= sparc64fbsd-nat.o sparc64-nat.o sparc-nat.o \
+	fork-child.o infptrace.o inftarg.o \
+	solib.o solib-svr4.o solib-legacy.o
+NAT_FILE= nm-fbsd.h

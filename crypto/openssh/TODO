@@ -1,0 +1,80 @@
+Documentation:
+
+- Update the docs
+  - Update README
+  - Update INSTALL
+  - Merge INSTALL & README.privsep
+
+- Install FAQ?
+
+- General FAQ on S/Key, TIS, RSA, RSA2, DSA, etc and suggestions on when it
+  would be best to use them.
+
+- Create a Documentation/ directory?
+
+Programming:
+
+- Grep for 'XXX' comments and fix
+
+- Link order is incorrect for some systems using Kerberos 4 and AFS. Result
+  is multiple inclusion of DES symbols. Holger Trapp
+  <holger.trapp@hrz.tu-chemnitz.de> reports that changing the configure
+  generated link order from:
+	-lresolv -lkrb -lz -lnsl  -lutil -lkafs -lkrb -ldes -lcrypto
+  to:
+	-lresolv -lkrb -lz -lnsl  -lutil -lcrypto -lkafs -lkrb -ldes
+  fixing the problem.
+
+- Write a test program that calls stat() to search for EGD/PRNGd socket
+  rather than use the (non-portable) "test -S".
+
+- More platforms for for setproctitle() emulation (testing needed)
+
+- Improve PAM ChallengeResponseAuthentication
+ - Informational messages
+ - Use different PAM service name for kbdint vs regular auth (suggest from
+   Solar Designer)
+ - Ability to select which ChallengeResponseAuthentications may be used
+   and order to try them in e.g. "ChallengeResponseAuthentication pam"
+
+- Complete Tru64 SIA support
+ - It looks like we could merge it into the password auth code to cut down
+   on diff size. Maybe PAM password auth too?
+
+- Finish integrating kernel-level auditing code for IRIX and SOLARIS
+  (Gilbert.r.loomis@saic.com)
+
+- 64-bit builds on HP-UX 11.X (stevesk@pobox.com):
+  - utmp/wtmp get corrupted (something in loginrec?)
+  - can't build with PAM (no 64-bit libpam yet)
+
+Clean up configure/makefiles:
+- Clean up configure.ac - There are a few double #defined variables
+  left to do.  HAVE_LOGIN is one of them.  Consider NOT looking for
+  information in wtmpx or utmpx or any of that stuff if it's not detected
+  from the start
+
+- Replace the whole u_intXX_t evilness in acconfig.h with something better???
+ - Do it in configure.ac
+
+- Consider splitting the u_intXX_t test for sys/bitype.h  into separate test
+  to allow people to (right/wrongfully) link against Bind directly.
+
+- Consider splitting configure.ac into separate files which do logically
+  similar tests. E.g move all the type detection stuff into one file,
+  entropy related stuff into another.
+
+Packaging:
+- HP-UX: Provide DEPOT package scripts.
+  (gilbert.r.loomis@saic.com)
+
+PrivSep Issues:
+- PAM
+  + See above PAM notes
+- AIX
+  + usrinfo() does not set TTY, but only required for legacy systems.  Works
+    with PrivSep.
+- OSF
+  + SIA is broken
+- Cygwin
+  + Privsep for Pre-auth only (no fd passing)

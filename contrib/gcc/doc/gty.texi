@@ -1,0 +1,436 @@
+@c Copyright (C) 2002, 2003, 2004
+@c Free Software Foundation, Inc.
+@c This is part of the GCC manual.
+@c For copying conditions, see the file gcc.texi.
+
+@node Type Information
+@chapter Memory Management and Type Information
+@cindex GGC
+@findex GTY
+
+GCC uses some fairly sophisticated memory management techniques, which
+involve determining information about GCC's data structures from GCC's
+source code and using this information to perform garbage collection and
+implement precompiled headers.
+
+A full C parser would be too complicated for this task, so a limited
+subset of C is interpreted and special markers are used to determine
+what parts of the source to look at.  All @code{struct} and
+@code{union} declarations that define data structures that are
+allocated under control of the garbage collector must be marked.  All
+global variables that hold pointers to garbage-collected memory must
+also be marked.  Finally, all global variables that need to be saved
+and restored by a precompiled header must be marked.  (The precompiled
+header mechanism can only save static variables if they're scalar.
+Complex data structures must be allocated in garbage-collected memory
+to be saved in a precompiled header.)
+
+The full format of a marker is
+@smallexample
+GTY (([@var{option}] [(@var{param})], [@var{option}] [(@var{param})] @dots{}))
+@end smallexample
+@noindent
+but in most cases no options are needed.  The outer double parentheses
+are still necessary, though: @code{GTY(())}.  Markers can appear:
+
+@itemize @bullet
+@item
+In a structure definition, before the open brace;
+@item
+In a global variable declaration, after the keyword @code{static} or
+@code{extern}; and
+@item
+In a structure field definition, before the name of the field.
+@end itemize
+
+Here are some examples of marking simple data structures and globals.
+
+@smallexample
+struct @var{tag} GTY(())
+@{
+  @var{fields}@dots{}
+@};
+
+typedef struct @var{tag} GTY(())
+@{
+  @var{fields}@dots{}
+@} *@var{typename};
+
+static GTY(()) struct @var{tag} *@var{list};   /* @r{points to GC memory} */
+static GTY(()) int @var{counter};        /* @r{save counter in a PCH} */
+@end smallexample
+
+The parser understands simple typedefs such as
+@code{typedef struct @var{tag} *@var{name};} and
+@code{typedef int @var{name};}.
+These don't need to be marked.
+
+@menu
+* GTY Options::		What goes inside a @code{GTY(())}.
+* GGC Roots::		Making global variables GGC roots.
+* Files::		How the generated files work.
+@end menu
+
+@node GTY Options
+@section The Inside of a @code{GTY(())}
+
+Sometimes the C code is not enough to fully describe the type
+structure.  Extra information can be provided with @code{GTY} options
+and additional markers.  Some options take a parameter, which may be
+either a string or a type name, depending on the parameter.  If an
+option takes no parameter, it is acceptable either to omit the
+parameter entirely, or to provide an empty string as a parameter.  For
+example, @code{@w{GTY ((skip))}} and @code{@w{GTY ((skip ("")))}} are
+equivalent.
+
+When the parameter is a string, often it is a fragment of C code.  Four
+special escapes may be used in these strings, to refer to pieces of
+the data structure being marked:
+
+@cindex % in GTY option
+@table @code
+@item %h
+The current structure.
+@item %1
+The structure that immediately contains the current structure.
+@item %0
+The outermost structure that contains the current structure.
+@item %a
+A partial expression of the form @code{[i1][i2]...} that indexes
+the array item currently being marked.
+@end table
+
+For instance, suppose that you have a structure of the form
+@smallexample
+struct A @{
+  ...
+@};
+struct B @{
+  struct A foo[12];
+@};
+@end smallexample
+@noindent
+and @code{b} is a variable of type @code{struct B}.  When marking
+@samp{b.foo[11]}, @code{%h} would expand to @samp{b.foo[11]},
+@code{%0} and @code{%1} would both expand to @samp{b}, and @code{%a}
+would expand to @samp{[11]}.
+
+As in ordinary C, adjacent strings will be concatenated; this is
+helpful when you have a complicated expression.
+@smallexample
+@group
+GTY ((chain_next ("TREE_CODE (&%h.generic) == INTEGER_TYPE"
+                  " ? TYPE_NEXT_VARIANT (&%h.generic)"
+                  " : TREE_CHAIN (&%h.generic)")))
+@end group
+@end smallexample
+
+The available options are:
+
+@table @code
+@findex length
+@item length ("@var{expression}")
+
+There are two places the type machinery will need to be explicitly told
+the length of an array.  The first case is when a structure ends in a
+variable-length array, like this:
+@smallexample
+struct rtvec_def GTY(()) @{
+  int num_elem;		/* @r{number of elements} */
+  rtx GTY ((length ("%h.num_elem"))) elem[1];
+@};
+@end smallexample
+
+In this case, the @code{length} option is used to override the specified
+array length (which should usually be @code{1}).  The parameter of the
+option is a fragment of C code that calculates the length.
+
+The second case is when a structure or a global variable contains a
+pointer to an array, like this:
+@smallexample
+tree *
+  GTY ((length ("%h.regno_pointer_align_length"))) regno_decl;
+@end smallexample
+In this case, @code{regno_decl} has been allocated by writing something like
+@smallexample
+  x->regno_decl =
+    ggc_alloc (x->regno_pointer_align_length * sizeof (tree));
+@end smallexample
+and the @code{length} provides the length of the field.
+
+This second use of @code{length} also works on global variables, like:
+@verbatim
+  static GTY((length ("reg_base_value_size")))
+    rtx *reg_base_value;
+@end verbatim
+
+@findex skip
+@item skip
+
+If @code{skip} is applied to a field, the type machinery will ignore it.
+This is somewhat dangerous; the only safe use is in a union when one
+field really isn't ever used.
+
+@findex desc
+@findex tag
+@findex default
+@item desc ("@var{expression}")
+@itemx tag ("@var{constant}")
+@itemx default
+
+The type machinery needs to be told which field of a @code{union} is
+currently active.  This is done by giving each field a constant
+@code{tag} value, and then specifying a discriminator using @code{desc}.
+The value of the expression given by @code{desc} is compared against
+each @code{tag} value, each of which should be different.  If no
+@code{tag} is matched, the field marked with @code{default} is used if
+there is one, otherwise no field in the union will be marked.
+
+In the @code{desc} option, the ``current structure'' is the union that
+it discriminates.  Use @code{%1} to mean the structure containing it.
+There are no escapes available to the @code{tag} option, since it is a
+constant.
+
+For example,
+@smallexample
+struct tree_binding GTY(())
+@{
+  struct tree_common common;
+  union tree_binding_u @{
+    tree GTY ((tag ("0"))) scope;
+    struct cp_binding_level * GTY ((tag ("1"))) level;
+  @} GTY ((desc ("BINDING_HAS_LEVEL_P ((tree)&%0)"))) xscope;
+  tree value;
+@};
+@end smallexample
+
+In this example, the value of BINDING_HAS_LEVEL_P when applied to a
+@code{struct tree_binding *} is presumed to be 0 or 1.  If 1, the type
+mechanism will treat the field @code{level} as being present and if 0,
+will treat the field @code{scope} as being present.
+
+@findex param_is
+@findex use_param
+@item param_is (@var{type})
+@itemx use_param
+
+Sometimes it's convenient to define some data structure to work on
+generic pointers (that is, @code{PTR}) and then use it with a specific
+type.  @code{param_is} specifies the real type pointed to, and
+@code{use_param} says where in the generic data structure that type
+should be put.
+
+For instance, to have a @code{htab_t} that points to trees, one would
+write the definition of @code{htab_t} like this:
+@smallexample
+typedef struct GTY(()) @{
+  @dots{}
+  void ** GTY ((use_param, @dots{})) entries;
+  @dots{}
+@} htab_t;
+@end smallexample
+and then declare variables like this:
+@smallexample
+  static htab_t GTY ((param_is (union tree_node))) ict;
+@end smallexample
+
+@findex param@var{n}_is
+@findex use_param@var{n}
+@item param@var{n}_is (@var{type})
+@itemx use_param@var{n}
+
+In more complicated cases, the data structure might need to work on
+several different types, which might not necessarily all be pointers.
+For this, @code{param1_is} through @code{param9_is} may be used to
+specify the real type of a field identified by @code{use_param1} through
+@code{use_param9}.
+
+@findex use_params
+@item use_params
+
+When a structure contains another structure that is parameterized,
+there's no need to do anything special, the inner structure inherits the
+parameters of the outer one.  When a structure contains a pointer to a
+parameterized structure, the type machinery won't automatically detect
+this (it could, it just doesn't yet), so it's necessary to tell it that
+the pointed-to structure should use the same parameters as the outer
+structure.  This is done by marking the pointer with the
+@code{use_params} option.
+
+@findex deletable
+@item deletable
+
+@code{deletable}, when applied to a global variable, indicates that when
+garbage collection runs, there's no need to mark anything pointed to
+by this variable, it can just be set to @code{NULL} instead.  This is used
+to keep a list of free structures around for re-use.
+
+@findex if_marked
+@item if_marked ("@var{expression}")
+
+Suppose you want some kinds of object to be unique, and so you put them
+in a hash table.  If garbage collection marks the hash table, these
+objects will never be freed, even if the last other reference to them
+goes away.  GGC has special handling to deal with this: if you use the
+@code{if_marked} option on a global hash table, GGC will call the
+routine whose name is the parameter to the option on each hash table
+entry.  If the routine returns nonzero, the hash table entry will
+be marked as usual.  If the routine returns zero, the hash table entry
+will be deleted.
+
+The routine @code{ggc_marked_p} can be used to determine if an element
+has been marked already; in fact, the usual case is to use
+@code{if_marked ("ggc_marked_p")}.
+
+@findex maybe_undef
+@item maybe_undef
+
+When applied to a field, @code{maybe_undef} indicates that it's OK if
+the structure that this fields points to is never defined, so long as
+this field is always @code{NULL}.  This is used to avoid requiring
+backends to define certain optional structures.  It doesn't work with
+language frontends.
+
+@findex nested_ptr
+@item nested_ptr (@var{type}, "@var{to expression}", "@var{from expression}")
+
+The type machinery expects all pointers to point to the start of an
+object.  Sometimes for abstraction purposes it's convenient to have
+a pointer which points inside an object.  So long as it's possible to
+convert the original object to and from the pointer, such pointers
+can still be used.  @var{type} is the type of the original object,
+the @var{to expression} returns the pointer given the original object,
+and the @var{from expression} returns the original object given
+the pointer.  The pointer will be available using the @code{%h}
+escape.
+
+@findex chain_next
+@findex chain_prev
+@item chain_next ("@var{expression}")
+@itemx chain_prev ("@var{expression}")
+
+It's helpful for the type machinery to know if objects are often
+chained together in long lists; this lets it generate code that uses
+less stack space by iterating along the list instead of recursing down
+it.  @code{chain_next} is an expression for the next item in the list,
+@code{chain_prev} is an expression for the previous item.  For singly
+linked lists, use only @code{chain_next}; for doubly linked lists, use
+both.  The machinery requires that taking the next item of the
+previous item gives the original item.
+
+@findex reorder
+@item reorder ("@var{function name}")
+
+Some data structures depend on the relative ordering of pointers.  If
+the precompiled header machinery needs to change that ordering, it
+will call the function referenced by the @code{reorder} option, before
+changing the pointers in the object that's pointed to by the field the
+option applies to.  The function must take four arguments, with the
+signature @samp{@w{void *, void *, gt_pointer_operator, void *}}.
+The first parameter is a pointer to the structure that contains the
+object being updated, or the object itself if there is no containing
+structure.  The second parameter is a cookie that should be ignored.
+The third parameter is a routine that, given a pointer, will update it
+to its correct new value.  The fourth parameter is a cookie that must
+be passed to the second parameter.
+
+PCH cannot handle data structures that depend on the absolute values
+of pointers.  @code{reorder} functions can be expensive.  When
+possible, it is better to depend on properties of the data, like an ID
+number or the hash of a string instead.
+
+@findex special
+@item special ("@var{name}")
+
+The @code{special} option is used to mark types that have to be dealt
+with by special case machinery.  The parameter is the name of the
+special case.  See @file{gengtype.c} for further details.  Avoid
+adding new special cases unless there is no other alternative.
+@end table
+
+@node GGC Roots
+@section Marking Roots for the Garbage Collector
+@cindex roots, marking
+@cindex marking roots
+
+In addition to keeping track of types, the type machinery also locates
+the global variables (@dfn{roots}) that the garbage collector starts
+at.  Roots must be declared using one of the following syntaxes:
+
+@itemize @bullet
+@item
+@code{extern GTY(([@var{options}])) @var{type} @var{name};}
+@item
+@code{static GTY(([@var{options}])) @var{type} @var{name};}
+@end itemize
+@noindent
+The syntax
+@itemize @bullet
+@item
+@code{GTY(([@var{options}])) @var{type} @var{name};}
+@end itemize
+@noindent
+is @emph{not} accepted.  There should be an @code{extern} declaration
+of such a variable in a header somewhere---mark that, not the
+definition.  Or, if the variable is only used in one file, make it
+@code{static}.
+
+@node Files
+@section Source Files Containing Type Information
+@cindex generated files
+@cindex files, generated
+
+Whenever you add @code{GTY} markers to a source file that previously
+had none, or create a new source file containing @code{GTY} markers,
+there are three things you need to do:
+
+@enumerate
+@item
+You need to add the file to the list of source files the type
+machinery scans.  There are four cases:
+
+@enumerate a
+@item
+For a back-end file, this is usually done
+automatically; if not, you should add it to @code{target_gtfiles} in
+the appropriate port's entries in @file{config.gcc}.
+
+@item
+For files shared by all front ends, add the filename to the
+@code{GTFILES} variable in @file{Makefile.in}.
+
+@item
+For files that are part of one front end, add the filename to the
+@code{gtfiles} variable defined in the appropriate
+@file{config-lang.in}.  For C, the file is @file{c-config-lang.in}.
+
+@item
+For files that are part of some but not all front ends, add the
+filename to the @code{gtfiles} variable of @emph{all} the front ends
+that use it.
+@end enumerate
+
+@item
+If the file was a header file, you'll need to check that it's included
+in the right place to be visible to the generated files.  For a back-end
+header file, this should be done automatically.  For a front-end header
+file, it needs to be included by the same file that includes
+@file{gtype-@var{lang}.h}.  For other header files, it needs to be
+included in @file{gtype-desc.c}, which is a generated file, so add it to
+@code{ifiles} in @code{open_base_file} in @file{gengtype.c}.
+
+For source files that aren't header files, the machinery will generate a
+header file that should be included in the source file you just changed.
+The file will be called @file{gt-@var{path}.h} where @var{path} is the
+pathname relative to the @file{gcc} directory with slashes replaced by
+@verb{|-|}, so for example the header file to be included in
+@file{cp/parser.c} is called @file{gt-cp-parser.c}.  The
+generated header file should be included after everything else in the
+source file.  Don't forget to mention this file as a dependency in the
+@file{Makefile}!
+
+@end enumerate
+
+For language frontends, there is another file that needs to be included
+somewhere.  It will be called @file{gtype-@var{lang}.h}, where
+@var{lang} is the name of the subdirectory the language is contained in.

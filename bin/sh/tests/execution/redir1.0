@@ -1,0 +1,27 @@
+# $FreeBSD$
+trap ': $((brokenpipe+=1))' PIPE
+
+P=${TMPDIR:-/tmp}
+cd $P
+T=$(mktemp -d sh-test.XXXXXX)
+cd $T
+
+brokenpipe=0
+mkfifo fifo1 fifo2
+read dummy >fifo2 <fifo1 &
+{
+	exec 4>fifo2
+} 3<fifo2 # Formerly, sh would keep fd 3 and a duplicate of it open.
+echo dummy >fifo1
+if [ $brokenpipe -ne 0 ]; then
+	rc=3
+fi
+wait
+echo dummy >&4 2>/dev/null
+if [ $brokenpipe -eq 1 ]; then
+	: ${rc:=0}
+fi
+
+rm fifo1 fifo2
+rmdir ${P}/${T}
+exit ${rc:-3}

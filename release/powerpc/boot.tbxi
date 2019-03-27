@@ -1,0 +1,15 @@
+<CHRP-BOOT>
+<LICENSE>
+$FreeBSD$
+</LICENSE>
+<COMPATIBLE>
+MacRISC MacRISC3 MacRISC4
+</COMPATIBLE>
+<DESCRIPTION>
+FreeBSD/PPC bootloader
+</DESCRIPTION>
+<BOOT-SCRIPT>
+" screen" output
+boot cd:,\boot\loader cd:0
+</BOOT-SCRIPT>
+</CHRP-BOOT>

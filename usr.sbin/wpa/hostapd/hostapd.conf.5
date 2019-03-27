@@ -1,0 +1,211 @@
+.\" Copyright (c) 2005 Sam Leffler <sam@errno.com>
+.\" Copyright (c) 2006 Rui Paulo
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 2, 2006
+.Dt HOSTAPD.CONF 5
+.Os
+.Sh NAME
+.Nm hostapd.conf
+.Nd configuration file for
+.Xr hostapd 8
+utility
+.Sh DESCRIPTION
+The
+.Xr hostapd 8
+utility
+is an authenticator for IEEE 802.11 networks.
+It provides full support for WPA/IEEE 802.11i and
+can also act as an IEEE 802.1X Authenticator with a suitable
+backend Authentication Server (typically
+.Tn FreeRADIUS ) .
+.Pp
+The configuration file consists of global parameters and domain
+specific configuration:
+.Bl -bullet -offset indent -compact
+.It
+IEEE 802.1X-2004
+.\" XXX not yet
+.\" .It
+.\" Integrated EAP server
+.\" .It
+.\" IEEE 802.11f - Inter-Access Point Protocol (IAPP)
+.It
+RADIUS client
+.It
+RADIUS authentication server
+.It
+WPA/IEEE 802.11i
+.El
+.Sh GLOBAL PARAMETERS
+The following parameters are recognized:
+.Bl -tag -width indent
+.It Va interface
+Interface name.
+Should be set in
+.Dq hostap
+mode.  Make certain that there are no spaces after the interface name,
+or hostapd will complain that the interface does not exist.
+.It Va debug
+Debugging mode: 0 = no, 1 = minimal, 2 = verbose, 3 = msg dumps, 4 =
+excessive.
+.It Va dump_file
+Dump file for state information (on
+.Dv SIGUSR1 ) .
+.It Va ctrl_interface
+The pathname of the directory in which
+.Xr hostapd 8
+creates
+.Ux
+domain socket files for communication
+with frontend programs such as
+.Xr hostapd_cli 8 .
+.It Va ctrl_interface_group
+A group name or group ID to use in setting protection on the
+control interface file.
+This can be set to allow non-root users to access the
+control interface files.
+If no group is specified, the group ID of the control interface
+is not modified and will, typically, be the
+group ID of the directory in which the socket is created.
+.El
+.Sh IEEE 802.1X-2004 PARAMETERS
+The following parameters are recognized:
+.Bl -tag -width indent
+.It Va ieee8021x
+Require IEEE 802.1X authorization.
+.It Va eap_message
+Optional displayable message sent with EAP Request-Identity.
+.It Va wep_key_len_broadcast
+Key lengths for broadcast keys.
+.It Va wep_key_len_unicast
+Key lengths for unicast keys.
+.It Va wep_rekey_period
+Rekeying period in seconds.
+.It Va eapol_key_index_workaround
+EAPOL-Key index workaround (set bit7) for WinXP Supplicant.
+.It Va eap_reauth_period
+EAP reauthentication period in seconds.
+To disable reauthentication,
+use
+.Dq 0 .
+.\" XXX not yet
+.\" .It Va use_pae_group_addr
+.El
+.\" XXX not yet
+.\" .Sh IEEE 802.11f - IAPP PARAMETERS
+.\" The following parameters are recognized:
+.\" .Bl -tag -width indent
+.\" .It Va iapp_interface
+.\" Interface to be used for IAPP broadcast packets
+.\" .El
+.Sh RADIUS CLIENT PARAMETERS
+The following parameters are recognized:
+.Bl -tag -width indent
+.It Va own_ip_addr
+The own IP address of the access point (used as NAS-IP-Address).
+.It Va nas_identifier
+Optional NAS-Identifier string for RADIUS messages.
+.It Va auth_server_addr , auth_server_port , auth_server_shared_secret
+RADIUS authentication server parameters.
+Can be defined twice for secondary servers to be used if primary one
+does not reply to RADIUS packets.
+.It Va acct_server_addr , acct_server_port , acct_server_shared_secret
+RADIUS accounting server parameters.
+Can be defined twice for secondary servers to be used if primary one
+does not reply to RADIUS packets.
+.It Va radius_retry_primary_interval
+Retry interval for trying to return to the primary RADIUS server (in
+seconds).
+.It Va radius_acct_interim_interval
+Interim accounting update interval.
+If this is set (larger than 0) and acct_server is configured,
+.Xr hostapd 8
+will send interim accounting updates every N seconds.
+.El
+.Sh RADIUS AUTHENTICATION SERVER PARAMETERS
+The following parameters are recognized:
+.Bl -tag -width indent
+.It Va radius_server_clients
+File name of the RADIUS clients configuration for the RADIUS server.
+If this is commented out, RADIUS server is disabled.
+.It Va radius_server_auth_port
+The UDP port number for the RADIUS authentication server.
+.It Va radius_server_ipv6
+Use IPv6 with RADIUS server.
+.El
+.Sh WPA/IEEE 802.11i PARAMETERS
+The following parameters are recognized:
+.Bl -tag -width indent
+.It Va wpa
+Enable WPA.
+Setting this variable configures the AP to require WPA (either
+WPA-PSK or WPA-RADIUS/EAP based on other configuration).
+.It Va wpa_psk , wpa_passphrase
+WPA pre-shared keys for WPA-PSK.
+This can be either entered as a 256-bit secret in hex format (64 hex
+digits), wpa_psk, or as an ASCII passphrase (8..63 characters) that
+will be converted to PSK.
+This conversion uses SSID so the PSK changes when ASCII passphrase is
+used and the SSID is changed.
+.It Va wpa_psk_file
+Optionally, WPA PSKs can be read from a separate text file containing a
+list of PSK and MAC address pairs.
+.It Va wpa_key_mgmt
+Set of accepted key management algorithms (WPA-PSK, WPA-EAP, or both).
+.It Va wpa_pairwise
+Set of accepted cipher suites (encryption algorithms) for pairwise keys
+(unicast packets).
+See the example file for more information.
+.It Va wpa_group_rekey
+Time interval for rekeying GTK (broadcast/multicast encryption keys) in
+seconds.
+.It Va wpa_strict_rekey
+Rekey GTK when any STA that possesses the current GTK is leaving the
+BSS.
+.It Va wpa_gmk_rekey
+Time interval for rekeying GMK (master key used internally to generate GTKs),
+in seconds.
+.El
+.Sh SEE ALSO
+.Xr hostapd 8 ,
+.Xr hostapd_cli 8
+.Sh HISTORY
+The
+.Nm
+manual page and
+.Xr hostapd 8
+functionality first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+This manual page is derived from the
+.Pa README
+and
+.Pa hostapd.conf
+files in the
+.Nm hostapd
+distribution provided by
+.An Jouni Malinen Aq Mt j@w1.fi .

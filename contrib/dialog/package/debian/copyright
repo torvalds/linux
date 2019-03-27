@@ -1,0 +1,111 @@
+Upstream source http://invisible-island.net/dialog/dialog.html
+
+Current dialog upstream maintainer: Thomas Dickey <dickey@invisible-island.net>
+
+-------------------------------------------------------------------------------
+Files: *.c *.h
+    Copyright 2000-2017,2018	Thomas E. Dickey
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License, version 2.1
+    as published by the Free Software Foundation.
+
+    This program is distributed in the hope that it will be useful, but
+    WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with this program; if not, write to
+  	Free Software Foundation, Inc.
+  	51 Franklin St., Fifth Floor
+  	Boston, MA 02110, USA.
+
+    An earlier version of this program lists as authors
+  	Savio Lam (lam836@cs.cuhk.hk)
+-------------------------------------------------------------------------------
+
+Files: aclocal.m4
+Licence: other-BSD
+Copyright:  1999-2017,2018 by Thomas E. Dickey
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the
+    "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, distribute with modifications, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included
+    in all copies or portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+    IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+    DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+    OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+    THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+    Except as contained in this notice, the name(s) of the above copyright
+    holders shall not be used in advertising or otherwise to promote the
+    sale, use or other dealings in this Software without prior written
+    authorization.
+
+Files: install-sh
+Copyright:  1994 X Consortium
+Licence: other-BSD
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to
+    deal in the Software without restriction, including without limitation the
+    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+    sell copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+    X CONSORTIUM BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+    AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNEC-
+    TION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+    Except as contained in this notice, the name of the X Consortium shall not
+    be used in advertising or otherwise to promote the sale, use or other deal-
+    ings in this Software without prior written authorization from the X Consor-
+    tium.
+
+    FSF changes to this file are in the public domain.
+
+    Calling this script install-sh is preferred over install.sh, to prevent
+    `make' implicit rules from creating a file called install from it
+    when there is no Makefile.
+
+    This script is compatible with the BSD install script, but was written
+    from scratch.  It can only install one file at a time, a restriction
+    shared with many OS's install programs.
+
+Files: debian/*
+Copyright:  2010-2012,2013 Thomas E. Dickey
+Licence: other-BSD
+    Permission to use, copy, modify, and distribute this software and its
+    documentation for any purpose and without fee is hereby granted,
+    provided that the above copyright notice appear in all copies and that
+    both that copyright notice and this permission notice appear in
+    supporting documentation, and that the name of the above listed
+    copyright holder(s) not be used in advertising or publicity pertaining
+    to distribution of the software without specific, written prior
+    permission.
+
+    THE ABOVE LISTED COPYRIGHT HOLDER(S) DISCLAIM ALL WARRANTIES WITH REGARD
+    TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+    AND FITNESS, IN NO EVENT SHALL THE ABOVE LISTED COPYRIGHT HOLDER(S) BE
+    LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+On Debian systems, the complete text of the GNU General
+Public License can be found in '/usr/share/common-licenses/GPL-2'

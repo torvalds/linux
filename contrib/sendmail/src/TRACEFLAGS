@@ -1,0 +1,110 @@
+#	$Id: TRACEFLAGS,v 8.53 2013-11-27 01:27:03 gshapiro Exp $
+0, 4	main.c		main	canonical name, UUCP node name, a.k.a.s
+0, 15	main.c		main	print configuration
+0, 44	util.c		printav	print address of each string
+0, 101	main.c		main	print version and exit
+1	main.c		main	print from person
+2	main.c		finis
+3	conf.c		getla, shouldqueue
+4	conf.c		enoughspace
+5	clock.c		setevent, clrevent, tick
+6	savemail.c	savemail, returntosender
+7	queue.c		queuename
+8	domain.c	getmxrr, getcanonname
+9	daemon.c	getauthinfo	IDENT protocol
+9	daemon.c	maphostname
+10	deliver.c	deliver
+11	deliver.c	openmailer, mailfile
+12	parseaddr.c	remotename
+13	deliver.c	sendall, sendenvelope
+14	headers.c	commaize
+15	daemon.c	getrequests
+16	daemon.c	makeconnection
+17	deliver.c	hostsignature
+17	domain.c	mxrand
+18	usersmtp.c	reply, smtpmessage, smtpinit, smtpmailfrom, smtpdata
+19	srvrsmtp.c	smtp
+20	parseaddr.c	parseaddr
+21	parseaddr.c	rewrite
+22	parseaddr.c	prescan
+23	main.c		testmodeline
+24	parseaddr.c	buildaddr, allocaddr
+25	recipient.c	sendtolist
+26	recipient.c	recipient
+27	alias.c		alias
+27	alias.c		readaliases
+27	alias.c		forward
+27	recipient.c	include
+28	udb.c		udbexpand, udbsender
+29	parseaddr.c	maplocaluser
+29	recipient.c	recipient (local users), finduser
+30	collect.c	collect
+30	collect.c	eatfrom
+31	headers.c	chompheader
+32	headers.c	eatheader
+33	headers.c	crackaddr
+34	headers.c	putheader
+35	macro.c		expand, define
+36	stab.c		stab
+37	readcf.c	(many)
+38	map.c		initmaps, setupmaps (bogus map)
+39	map.c		map_rewrite
+40	queue.c		queueup, orderq, dowork
+41	queue.c		orderq
+42	mci.c		mci_get
+43	mime.c		mime8to7
+44	recipient.c	writable
+44	safefile.c	safefile, safedirpath, filechanged
+45	envelope.c	setsender
+46	envelope.c	openxscript
+47	main.c		drop_privileges
+48	parseaddr.c	rscheck
+48	conf.c		validate_connection
+49	conf.c		checkcompat
+50	envelope.c	dropenvelope
+51	queue.c		unlockqueue
+52	main.c		disconnect
+53	util.c		xfclose
+54	err.c		putoutmsg
+55	conf.c		lockfile
+56	mci.c		persistent host status
+57	util.c		snprintf
+58	bf.c		bf* routines
+59	parseaddr.c	cataddr
+60	map.c
+61	conf.c		sm_gethostbyname
+62	multiple	file descriptor checking
+63	queue.c		runqueue process watching
+64	multiple	Milter
+65	main.c		permission checks
+#if _FFR_ADAPTIVE_EOL
+66	srvrsmtp.c	conformance checks
+#endif /* _FFR_ADAPTIVE_EOL */
+#if _FFR_QUEUE_SCHED_DBG
+69	queue.c		scheduling
+#endif /* _FFR_QUEUE_SCHED_DBG */
+70	queue.c		quarantining
+71,>99	milter.c	quarantine on errors
+73	queue.c		shared memory updates
+74,>99	map.c		LDAP map defer
+#if _FFR_XCNCT
+75			debug FFR_XC*
+#endif /* _FFR_XCNCT */
+80			content length
+81			sun remote mode
+83	collect.c	timeout
+84	deliver.c	timeout
+85	map.c		dprintf map
+#if _FFR_PROXY
+87	srvrsmtp.c	proxy mode
+#endif
+89	conf.c		>=8 use sm_dprintf() instead of syslog()
+91	mci.c		syslogging of MCI cache information
+93,>99	*		Prevent daemon connection fork for profiling/debugging
+94,>99	srvrsmtp.c	cause commands to fail (for protocol testing)
+95	srvrsmtp.c	AUTH
+95	usersmtp.c	AUTH
+96	tls.c		DHparam info, Activate SSL_CTX_set_info_callback()
+97	srvrsmtp.c	Trace automode settings for I/O
+98	*		timers
+99	main.c		avoid backgrounding (no printed output)

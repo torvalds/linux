@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+key=`printf '\r\t\001\200\300'`
+r=`{ set -x; : "$key"; } 2>&1 >/dev/null`
+case $r in
+*[![:print:]]*) echo fail; exit 3
+esac

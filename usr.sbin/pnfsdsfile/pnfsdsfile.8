@@ -1,0 +1,145 @@
+.\" Copyright (c) 2017 Rick Macklem
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 30, 2018
+.Dt PNFSDSFILE 8
+.Os
+.Sh NAME
+.Nm pnfsdsfile
+.Nd display
+a pNFS data storage file's location(s) and/or modify the
+.Dq pnfsd.dsfile
+extended attribute for them
+.Sh SYNOPSIS
+.Nm
+.Op Fl qz
+.Op Fl s Ar dshostname
+.Op Fl c Ar old-dshostname,new-dshostname
+.Op Fl m Ar mirror_level
+.Op Fl r Ar dshostname
+.Ar mdsfile
+.Sh DESCRIPTION
+The
+.Nm
+command displays the data storage file's location(s) for a pNFS service and/or
+modifies the
+.Dq pnfsd.dsfile
+extended attribute on the
+.Ar mdsfile .
+A pNFS service maintains a data storage file for each regular file on
+the MetaData Server (MDS) on one or more of the Data Servers (DS).
+If mirroring is enabled, the data storage file will be on more that one of the DSs.
+Unless command options are specified, this command displays the location(s)
+of the data storage file for the MDS file
+.Ar mdsfile .
+It must be used on the MDS and the
+.Ar mdsfile
+must be a file on the exported local file system and not an NFSv4.1 mount.
+This information is stored in the
+.Dq pnfsd.dsfile
+extended attribute for this
+.Ar mdsfile .
+The command line options allow the information in the
+.Dq pnfsd.dsfile
+extended attribute to be changed.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl q
+This option suppresses printing of the DS file's location(s).
+.It Fl z
+This option specifies that the file handle field of the pnfsd.dsfile
+extended attribute is to filled with all zero bits.
+This forces the pNFS MDS to do a Lookup RPC against the DS to acquire the file
+handle to update it.
+Normally this will only be necessary after the DS file has been recovered
+from a backup, causing the file handle to change.
+.It Fl s Ar dshostname
+This option can be used with
+.Fl z
+so that the zeroing out of the file handle is only done if the DS server
+is the one specified by this option.
+.It Fl c Ar old-dshostname,new-dshostname
+This option allows a sysadmin to replace the host IP# for the DS in the
+pnfsd.dsfile extended attribute.
+The old-hostname must resolve to the IP# already in the pnfsd.dsfile extended
+attribute or the replacement will not be done.
+If the old-dshostname matches, then the IP# is replaced by the first AF_INET
+or AF_INET6 address that
+.Xr getaddrinfo 3
+returns for the new-dshostname.
+Changing a DS server's host IP# should be avoided, but this option will
+allow it to be changed, if the change is unavoidable.
+.It Fl m Ar mirror_level
+This option adds entrie(s) to the extended attributes with IP address set
+to 0.0.0.0 to bring the number of entries up to
+.Dq mirror_level .
+It can be used by a system administrator to prepare a file for mirroring
+via the
+.Xr pnfsdscopymr
+command with
+.Fl r
+option.
+.It Fl r Ar dshostname
+This option sets the IP address of the extended attribute entry for the
+.Ar dshostname
+to 0.0.0.0 so that it will no longer be used.
+.Pp
+This is meant to be used when mirroring is enabled and the
+.Ar dshostname
+DS is disabled, so that it can be re-enabled once it is repaired.
+This needs to be done for all files in the exported MDS tree where
+the data may not be up-to-date on the repaired DS when it is re-enabled.
+After being re-enabled, the command
+.Xr pnfsdscopymr 1
+with the
+.Dq -r
+option
+will be used to copy the the file's data to this repaired DS and then update the
+extended attribute to use it.
+.Pp
+A typical use of this will be within a
+.Xr find 1
+for all regular files in the MDS's exported tree.
+.sp
+For example, if the disabled DS is nfsv4-data3:
+.br
+# cd <top-level-exported-directory-on-MDS>
+.br
+# find . -type f -exec pnfsdsfile -q -r nfsv4-data3 {} \\;
+.El
+.Sh SEE ALSO
+.Xr find 1 ,
+.Xr getaddrinfo 3 ,
+.Xr nfsv4 4 ,
+.Xr pnfs 4 ,
+.Xr nfsd 8 ,
+.Xr pnfsdscopymr 8 ,
+.Xr pnfsdskill 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 12.0 .

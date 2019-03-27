@@ -1,0 +1,37 @@
+$FreeBSD$
+
+This directory contains sample test programs along the Makefile and
+Kyuafile logic to get them build and installed.
+
+The goal of these test programs is to illustrate, via simple and
+heaviliy-commented code, how to construct test programs using all the
+supported interfaces in the system.
+
+If you use any files in here as templates for your own code, please
+remove all comments while doing so and then write your own if necessary.
+
+The subdirectories here contain:
+
+* tests/: Regular directory containing the tests code.  Note that the
+  apparently-redundant tests/tests/ path component here is expected for
+  consistency reasons and required to get the right layout under
+  /usr/tests/.
+
+* tests/atf/: Tests that use the ATF libraries, including atf-c, atf-c++
+  and atf-sh.  See kyua-atf-interface(1) for details.
+
+* tests/plain/: Tests that do not use any testing framework.  See
+  kyua-plain-interface(1) for details.
+
+To inspect the available sample test cases from an installed system:
+
+    $ kyua list -k /usr/tests/share/examples/tests/Kyuafile
+
+To run the full suite of sample test cases:
+
+    $ kyua test -k /usr/tests/share/examples/tests/Kyuafile
+
+And to debug a specific failing test case, if any:
+
+    $ kyua debug -k /usr/tests/share/examples/tests/Kyuafile \
+      atf/cp_test:simple

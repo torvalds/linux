@@ -1,0 +1,67 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 27, 2015
+.Dt NTPTIME 8
+.Os
+.Sh NAME
+.Nm ntptime
+.Nd read kernel time variables
+.Sh SYNOPSIS
+.Nm
+.Op Fl chr
+.Op Fl e Ar est_error
+.Op Fl f Ar frequency
+.Op Fl m Ar max_error
+.Op Fl o Ar offset
+.Op Fl s Ar status
+.Op Fl t Ar time_constant
+.Sh DESCRIPTION
+The
+.Nm
+utility is useful only with special kernels
+described in the
+.Qo
+A Kernel Model for Precision Timekeeping
+.Qc
+page
+(available as part of the HTML documentation
+provided in
+.Pa /usr/share/doc/ntp ) .
+It reads and displays time-related kernel variables
+using the
+.Fn gettime
+and
+.Xr adjtime 2
+system calls if available.
+A similar display can be obtained using the
+.Xr ntpdc 8
+program's
+.Ic kerninfo
+command.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl c
+Display the execution time of
+.Nm
+itself.
+.It Fl e Ar est_error
+Specify estimated error, in microseconds.
+.It Fl f Ar frequency
+Specify frequency offset, in parts per million.
+.It Fl h
+Display help information.
+.It Fl m Ar max_error
+Specify max possible errors, in microseconds.
+.It Fl o Ar offset
+Specify clock offset, in microseconds.
+.It Fl r
+Display Unix and NTP times in raw format.
+.It Fl s Ar status
+.It Fl t Ar time_constant
+Specify time constant, an integer in the range 0-4.
+.El
+.Sh SEE ALSO
+.Xr adjtime 2 ,
+.Xr ntpdc 8

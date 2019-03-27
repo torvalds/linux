@@ -1,0 +1,89 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd December 4, 2014
+.Dt XOLINT 1
+.Os
+.Sh NAME
+.Nm xolint
+.Nd detect errors in programs using
+.Xr xo_emit 3
+.Sh SYNOPSIS
+.Nm xolint
+.Op Fl c
+.Op Fl "C <flags>"
+.Op Fl "d"
+.Op Fl "D"
+.Op Fl "I"
+.Op Fl "p"
+.Op Fl "V"
+.Op Fl "X"
+.Op Ar files...
+.Sh DESCRIPTION
+.Nm
+is a tool for reporting common mistakes in format strings
+in source code that invokes
+.Xr xo_emit 3 .
+It allows these errors
+to be diagnosed at build time, rather than waiting until runtime.
+.Pp
+.Nm
+takes one or more C files as arguments, and reports
+error, warning, or informational messages as needed.
+.Bl -tag -width "C <flags>"
+.It Fl c
+Invoke 'cpp' against the input file
+.It Fl "C <flags>"
+Flags that are passed to 'cpp'
+.It Fl "d"
+Enable debug output
+.It Fl "D"
+Generate documentation for all
+.Nm
+messages
+.It Fl "I"
+Generate a table of
+.Dv xo_info_t
+structures.
+.It Fl "p"
+Print the offending lines after the error message is displayed
+.It Fl "V"
+Do not report errors, but instead print a complete list of
+all field names, sorted alphabetically.
+The output can help spot
+inconsistencies and spelling errors.
+.It Fl "X"
+Extract samples from
+.Nm ,
+suitable for internal testing.
+.El
+.Pp
+The output message contains the source filename and line number, the
+class of the message, the message, and, if
+.Fl p
+is given, the
+line that contains the error:
+.Bd -literal -offset indent
+    % xolint -t xolint.c
+    xolint.c: 16: error: anchor format should be "%d"
+    16         xo_emit("{[:/%s}");
+.Ed
+.Sh SEE ALSO
+.Xr libxo 3 ,
+.Xr xo_emit 3
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

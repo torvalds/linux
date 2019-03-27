@@ -1,0 +1,105 @@
+.\" Copyright (c) 2009 Ed Schouten <ed@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 6, 2009
+.Dt UTEMPTER_ADD_RECORD 3
+.Os
+.Sh NAME
+.Nm utempter_add_record ,
+.Nm utempter_remove_added_record ,
+.Nm utempter_remove_record ,
+.Nm addToUtmp ,
+.Nm removeFromUtmp ,
+.Nm removeLineFromUtmp
+.Nd utempter compatibility interface
+.Sh LIBRARY
+.Lb libulog
+.Sh SYNOPSIS
+.In utempter.h
+.Ft int
+.Fn utempter_add_record "int fd" "const char *host"
+.Ft int
+.Fn utempter_remove_added_record "void"
+.Ft int
+.Fn utempter_remove_record "int fd"
+.Ft void
+.Fn addToUtmp "const char *pty" "const char *host" "int fd"
+.Ft void
+.Fn removeFromUtmp "void"
+.Ft void
+.Fn removeLineFromUtmp "const char *pty" "int fd"
+.Sh DESCRIPTION
+The
+.Fn utempter_add_record
+and
+.Fn addToUtmp
+functions add a login record to the database for the TTY belonging to
+the pseudo-terminal master file descriptor
+.Fa fd ,
+using the username corresponding with the real user ID of the calling
+process and the optional hostname
+.Fa host .
+These functions are equivalent to
+.Xr ulog_login_pseudo 3 .
+.Pp
+The
+.Fn utempter_remove_record
+and
+.Fn removeLineFromUtmp
+functions mark the login session as being closed for the TTY belonging
+to the pseudo-terminal master file descriptor
+.Fa fd .
+These functions are equivalent to
+.Xr ulog_logout_pseudo 3 .
+.Pp
+The
+.Fn utempter_remove_added_record
+and
+.Fn removeFromUtmp
+functions have the same properties as the previously mentioned
+functions, except that they use an internally cached value of the file
+descriptor passed to the login functions.
+.Pp
+The
+.Fa pty
+arguments of
+.Fn addToUtmp
+and
+.Fn removeLineFromUtmp
+are unused.
+.Sh RETURN VALUES
+In this implementation, the
+.Fn utempter_add_record ,
+.Fn utempter_remove_added_record
+and
+.Fn utempter_remove_record
+always return a value of 0.
+.Sh SEE ALSO
+.Xr pututxline 3 ,
+.Xr ulog_login_pseudo 3
+.Sh HISTORY
+These functions appeared in
+.Fx 9.0 .

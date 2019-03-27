@@ -1,0 +1,117 @@
+.\" $NetBSD: uaudio.4,v 1.15 2002/02/12 19:53:57 jdolecek Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 12, 2016
+.Dt SND_UAUDIO 4
+.Os
+.Sh NAME
+.Nm snd_uaudio
+.Nd USB audio and MIDI device driver
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device sound"
+.Cd "device usb"
+.Cd "device snd_uaudio"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_uaudio_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for
+.Tn USB
+audio class devices and
+.Tn USB
+MIDI class devices.
+.Pp
+A
+.Tn USB
+audio device consists of a number of components:
+input terminals (e.g.\& USB digital input), output terminals (e.g.\&
+speakers), and a number of units in between (e.g.\& volume control).
+.Pp
+Refer to the
+.Ql USB Audio Class Specification
+for more information.
+.Sh SEE ALSO
+.Xr sound 4 ,
+.Xr usb 4
+.Rs
+.%T "USB Audio Class Specifications"
+.%U http://www.usb.org/developers/docs/devclass_docs/
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.7 .
+.Sh AUTHORS
+This manual page was adopted from
+.Nx 1.6
+and modified for
+.Fx
+by
+.An Hiten Pandya Aq Mt hmp@FreeBSD.org .
+.Sh BUGS
+The
+.Tn PCM
+framework in
+.Fx
+only supports synchronous device detach.
+That means all mixer and DSP character devices belonging to a given
+USB audio device must be closed when receiving an error on a DSP read,
+a DSP write or a DSP IOCTL request.
+Else the USB audio driver will wait for this to happen, preventing
+enumeration of new devices on the parenting USB controller.
+.Pp
+Some USB audio devices might refuse to work properly unless the sample
+rate is configured the same for both recording and playback, even if
+only simplex is used.
+See the
+.Va dev.pcm.%d.[play|rec].vchanrate
+sysctls.
+.Pp
+The
+.Tn PCM
+framework in
+.Fx
+currently doesn't support the full set of USB audio mixer
+controls.
+Some mixer controls are only available as
+.Va dev.pcm.%d.mixer
+sysctls.

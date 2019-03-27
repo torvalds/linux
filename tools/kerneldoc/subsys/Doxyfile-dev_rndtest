@@ -1,0 +1,21 @@
+# Doxyfile 1.5.2
+
+# $FreeBSD$
+
+#---------------------------------------------------------------------------
+# Project related configuration options
+#---------------------------------------------------------------------------
+PROJECT_NAME           = "FreeBSD kernel RNDTEST device code"
+OUTPUT_DIRECTORY       = $(DOXYGEN_DEST_PATH)/dev_rndtest/
+EXTRACT_ALL            = YES    # for undocumented src, no warnings enabled
+#---------------------------------------------------------------------------
+# configuration options related to the input files
+#---------------------------------------------------------------------------
+INPUT                  = $(DOXYGEN_SRC_PATH)/dev/rndtest/ \
+                         $(NOTREVIEWED)
+
+GENERATE_TAGFILE       = dev_rndtest/dev_rndtest.tag
+
+@INCLUDE_PATH          = $(DOXYGEN_INCLUDE_PATH)
+@INCLUDE               = common-Doxyfile
+

@@ -1,0 +1,11 @@
+# Host: IBM RS/6000 running AIX
+
+XM_FILE= xm-rs6000.h
+
+NAT_FILE= nm-rs6000.h
+NATDEPFILES= fork-child.o infptrace.o inftarg.o corelow.o rs6000-nat.o \
+	     xcoffsolib.o
+
+# When compiled with cc, for debugging, this argument should be passed.
+# We have no idea who our current compiler is though, so we skip it.
+# MH_CFLAGS = -bnodelcsect

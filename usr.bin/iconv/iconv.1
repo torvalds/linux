@@ -1,0 +1,119 @@
+.\" $FreeBSD$
+.\" $NetBSD: iconv.1,v 1.3 2008/03/20 11:35:44 tnozaki Exp $
+.\"
+.\" Copyright (c)2003 Citrus Project,
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd October 22, 2009
+.Dt ICONV 1
+.Os
+.Sh NAME
+.Nm iconv
+.Nd codeset conversion utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl cs
+.Fl f
+.Ar from_name
+.Fl t
+.Ar to_name
+.Op Ar file ...
+.Nm
+.Fl f
+.Ar from_name
+.Op Fl cs
+.Op Fl t Ar to_name
+.Op Ar file ...
+.Nm
+.Fl t
+.Ar to_name
+.Op Fl cs
+.Op Fl f Ar from_name
+.Op Ar file ...
+.Nm
+.Fl l
+.Sh DESCRIPTION
+The
+.Nm
+utility converts the codeset of
+.Ar file
+(or from standard input if no file is specified) from codeset
+.Ar from_name
+to codeset
+.Ar to_name
+and outputs the
+converted text on standard output.
+.Pp
+The following options are available:
+.Bl -tag -width 0123
+.It Fl c
+Prevent output of any invalid characters.
+By default,
+.Nm
+outputs an
+.Dq invalid character
+specified by the
+.Ar to_name
+codeset when it encounts a character which is valid in the
+.Ar from_name
+codeset but does not have a corresponding character in the
+.Ar to_name
+codeset.
+.It Fl f
+Specifies the source codeset name as
+.Ar from_name .
+.It Fl l
+Lists available codeset names.
+Note that not all combinations of
+.Ar from_name
+and
+.Ar to_name
+are valid.
+.It Fl s
+Silent.
+By default,
+.Nm
+outputs the number of
+.Dq invalid characters
+to standard error if they exist.
+This option prevents this behaviour.
+.It Fl t
+Specifies the destination codeset name as
+.Ar to_name .
+.El
+.Sh EXIT STATUS
+.Ex -std iconv
+.Sh SEE ALSO
+.Xr mkcsmapper 1 ,
+.Xr mkesdb 1 ,
+.Xr iconv 3
+.Sh STANDARDS
+.Nm
+conform to
+.St -p1003.1-2008 .
+.Sh HISTORY
+.Nm
+first appeared in
+.Nx 2.0 , and made its appearance in
+.Fx 9.0 .

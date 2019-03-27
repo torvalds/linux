@@ -1,0 +1,80 @@
+
+#------------------------------------------------------------------------------
+# $File: os9,v 1.8 2017/03/17 21:35:28 christos Exp $
+#
+# Copyright (c) 1996 Ignatios Souvatzis. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+# OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#
+#
+# OS9/6809 module descriptions:
+#
+0	beshort		0x87CD	OS9/6809 module:
+#
+>6	byte&0x0f	0x00	non-executable
+>6	byte&0x0f	0x01	machine language
+>6	byte&0x0f	0x02	BASIC I-code
+>6	byte&0x0f	0x03	Pascal P-code
+>6	byte&0x0f	0x04	C I-code
+>6	byte&0x0f	0x05	COBOL I-code
+>6	byte&0x0f	0x06	Fortran I-code
+#
+>6	byte&0xf0	0x10	program executable
+>6	byte&0xf0	0x20	subroutine
+>6	byte&0xf0	0x30	multi-module
+>6	byte&0xf0	0x40	data module
+#
+>6	byte&0xf0	0xC0	system module
+>6	byte&0xf0	0xD0	file manager
+>6	byte&0xf0	0xE0	device driver
+>6	byte&0xf0	0xF0	device descriptor
+#
+# OS9/m68k stuff (to be continued)
+#
+0	beshort		0x4AFC	OS9/68K module:
+#
+# attr
+>0x14	byte&0x80	0x80	re-entrant
+>0x14	byte&0x40	0x40	ghost
+>0x14	byte&0x20	0x20	system-state
+#
+# lang:
+#
+>0x13	byte		1	machine language
+>0x13	byte		2	BASIC I-code
+>0x13	byte		3	Pascal P-code
+>0x13	byte		4	C I-code
+>0x13	byte		5	COBOL I-code
+>0x13	byte		6	Fortran I-code
+#
+#
+# type:
+#
+>0x12	byte		1	program executable
+>0x12	byte		2	subroutine
+>0x12	byte		3	multi-module
+>0x12	byte		4	data module
+>0x12	byte		11	trap library
+>0x12	byte		12	system module
+>0x12	byte		13	file manager
+>0x12	byte		14	device driver
+>0x12	byte		15	device descriptor

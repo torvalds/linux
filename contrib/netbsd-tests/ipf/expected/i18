@@ -1,0 +1,11 @@
+pass in tos 0x50 from any to any
+pass in tos 0x80 from any to any
+pass out tos 0x80 from any to any
+pass out tos 0x50 from any to any
+block in ttl 0 from any to any
+block in ttl 1 from any to any
+block in ttl 2 from any to any
+block in ttl 3 from any to any
+block in ttl 4 from any to any
+block in ttl 5 from any to any
+block in ttl 6 from any to any

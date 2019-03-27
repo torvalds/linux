@@ -1,0 +1,1370 @@
+\input texinfo @c -*- texinfo -*-
+@c %**start of header
+@setfilename gperf.info
+@settitle Perfect Hash Function Generator
+@c @setchapternewpage odd
+@c %**end of header
+
+@c some day we should @include version.texi instead of defining
+@c these values at hand.
+@set UPDATED 31 March 2007
+@set EDITION 3.0.3
+@set VERSION 3.0.3
+@c ---------------------
+
+@c remove the black boxes generated in the GPL appendix.
+@finalout
+
+@c Merge functions into the concept index
+@syncodeindex fn cp
+@c @synindex pg cp
+
+@dircategory Programming Tools
+@direntry
+* Gperf: (gperf).                Perfect Hash Function Generator.
+@end direntry
+
+@ifinfo
+This file documents the features of the GNU Perfect Hash Function
+Generator @value{VERSION}.
+
+Copyright @copyright{} 1989-2006 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+@ignore
+Permission is granted to process this file through TeX and print the
+results, provided the printed document carries a copying permission
+notice identical to this one except for the removal of this paragraph
+(this paragraph not being relevant to the printed manual).
+
+@end ignore
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided also that the
+section entitled ``GNU General Public License'' is included exactly as
+in the original, and provided that the entire resulting derived work is
+distributed under the terms of a permission notice identical to this
+one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that the section entitled ``GNU General Public License'' and this
+permission notice may be included in translations approved by the Free
+Software Foundation instead of in the original English.
+
+@end ifinfo
+
+@titlepage
+@title User's Guide to @code{gperf} @value{VERSION}
+@subtitle The GNU Perfect Hash Function Generator
+@subtitle Edition @value{EDITION}, @value{UPDATED}
+@author Douglas C. Schmidt
+@author Bruno Haible
+
+@page
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1989-2007 Free Software Foundation, Inc.
+
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided also that the
+section entitled ``GNU General Public License'' is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that the section entitled ``GNU General Public License'' may be
+included in a translation approved by the author instead of in the
+original English.
+@end titlepage
+
+@ifinfo
+@node Top, Copying, (dir), (dir)
+@top Introduction
+
+This manual documents the GNU @code{gperf} perfect hash function generator
+utility, focusing on its features and how to use them, and how to report
+bugs.
+
+@menu
+* Copying::                     GNU @code{gperf} General Public License says
+                                how you can copy and share @code{gperf}.
+* Contributors::                People who have contributed to @code{gperf}.
+* Motivation::                  The purpose of @code{gperf}.
+* Search Structures::           Static search structures and GNU @code{gperf}
+* Description::                 High-level discussion of how GPERF functions.
+* Options::                     A description of options to the program.
+* Bugs::                        Known bugs and limitations with GPERF.
+* Projects::                    Things still left to do.
+* Bibliography::                Material Referenced in this Report.
+
+* Concept Index::               
+
+@detailmenu --- The Detailed Node Listing ---
+
+High-Level Description of GNU @code{gperf}
+
+* Input Format::                Input Format to @code{gperf}
+* Output Format::               Output Format for Generated C Code with @code{gperf}
+* Binary Strings::              Use of NUL bytes
+
+Input Format to @code{gperf}
+
+* Declarations::                Declarations.
+* Keywords::                    Format for Keyword Entries.
+* Functions::                   Including Additional C Functions.
+* Controls for GNU indent::     Where to place directives for GNU @code{indent}.
+
+Declarations
+
+* User-supplied Struct::        Specifying keywords with attributes.
+* Gperf Declarations::          Embedding command line options in the input.
+* C Code Inclusion::            Including C declarations and definitions.
+
+Invoking @code{gperf}
+
+* Input Details::               Options that affect Interpretation of the Input File
+* Output Language::             Specifying the Language for the Output Code
+* Output Details::              Fine tuning Details in the Output Code
+* Algorithmic Details::         Changing the Algorithms employed by @code{gperf}
+* Verbosity::                   Informative Output
+
+@end detailmenu
+@end menu
+
+@end ifinfo
+
+@node Copying, Contributors, Top, Top
+@unnumbered GNU GENERAL PUBLIC LICENSE
+@include gpl.texinfo
+
+@node Contributors, Motivation, Copying, Top
+@unnumbered Contributors to GNU @code{gperf} Utility
+
+@itemize @bullet
+@item
+@cindex Bugs 
+The GNU @code{gperf} perfect hash function generator utility was
+written in GNU C++ by Douglas C. Schmidt.  The general
+idea for the perfect hash function generator was inspired by Keith
+Bostic's algorithm written in C, and distributed to net.sources around
+1984.  The current program is a heavily modified, enhanced, and extended
+implementation of Keith's basic idea, created at the University of
+California, Irvine.  Bugs, patches, and suggestions should be reported
+to @code{<bug-gnu-gperf@@gnu.org>}.
+
+@item
+Special thanks is extended to Michael Tiemann and Doug Lea, for
+providing a useful compiler, and for giving me a forum to exhibit my
+creation.
+
+In addition, Adam de Boor and Nels Olson provided many tips and insights
+that greatly helped improve the quality and functionality of @code{gperf}.
+
+@item
+Bruno Haible enhanced and optimized the search algorithm.  He also rewrote
+the input routines and the output routines for better reliability, and
+added a testsuite.
+@end itemize
+
+@node Motivation, Search Structures, Contributors, Top
+@chapter Introduction
+
+@code{gperf} is a perfect hash function generator written in C++.  It
+transforms an @var{n} element user-specified keyword set @var{W} into a
+perfect hash function @var{F}.  @var{F} uniquely maps keywords in
+@var{W} onto the range 0..@var{k}, where @var{k} >= @var{n-1}.  If @var{k}
+= @var{n-1} then @var{F} is a @emph{minimal} perfect hash function.
+@code{gperf} generates a 0..@var{k} element static lookup table and a
+pair of C functions.  These functions determine whether a given
+character string @var{s} occurs in @var{W}, using at most one probe into
+the lookup table.
+
+@code{gperf} currently generates the reserved keyword recognizer for
+lexical analyzers in several production and research compilers and
+language processing tools, including GNU C, GNU C++, GNU Java, GNU Pascal,
+GNU Modula 3, and GNU indent.  Complete C++ source code for @code{gperf} is
+available from @code{http://ftp.gnu.org/pub/gnu/gperf/}.
+A paper describing @code{gperf}'s design and implementation in greater
+detail is available in the Second USENIX C++ Conference proceedings
+or from @code{http://www.cs.wustl.edu/~schmidt/resume.html}.
+
+@node Search Structures, Description, Motivation, Top
+@chapter Static search structures and GNU @code{gperf}
+@cindex Static search structure
+
+A @dfn{static search structure} is an Abstract Data Type with certain
+fundamental operations, e.g., @emph{initialize}, @emph{insert},
+and @emph{retrieve}.  Conceptually, all insertions occur before any
+retrievals.  In practice, @code{gperf} generates a @emph{static} array
+containing search set keywords and any associated attributes specified
+by the user.  Thus, there is essentially no execution-time cost for the
+insertions.  It is a useful data structure for representing @emph{static
+search sets}.  Static search sets occur frequently in software system
+applications.  Typical static search sets include compiler reserved
+words, assembler instruction opcodes, and built-in shell interpreter
+commands.  Search set members, called @dfn{keywords}, are inserted into
+the structure only once, usually during program initialization, and are
+not generally modified at run-time.
+
+Numerous static search structure implementations exist, e.g.,
+arrays, linked lists, binary search trees, digital search tries, and
+hash tables.  Different approaches offer trade-offs between space
+utilization and search time efficiency.  For example, an @var{n} element
+sorted array is space efficient, though the average-case time
+complexity for retrieval operations using binary search is
+proportional to log @var{n}.  Conversely, hash table implementations
+often locate a table entry in constant time, but typically impose
+additional memory overhead and exhibit poor worst case performance.
+
+@cindex Minimal perfect hash functions
+@emph{Minimal perfect hash functions} provide an optimal solution for a
+particular class of static search sets.  A minimal perfect hash
+function is defined by two properties:
+
+@itemize @bullet
+@item 
+It allows keyword recognition in a static search set using at most
+@emph{one} probe into the hash table.  This represents the ``perfect''
+property.
+@item 
+The actual memory allocated to store the keywords is precisely large
+enough for the keyword set, and @emph{no larger}.  This is the
+``minimal'' property.
+@end itemize
+
+For most applications it is far easier to generate @emph{perfect} hash
+functions than @emph{minimal perfect} hash functions.  Moreover,
+non-minimal perfect hash functions frequently execute faster than
+minimal ones in practice.  This phenomena occurs since searching a
+sparse keyword table increases the probability of locating a ``null''
+entry, thereby reducing string comparisons.  @code{gperf}'s default
+behavior generates @emph{near-minimal} perfect hash functions for
+keyword sets.  However, @code{gperf} provides many options that permit
+user control over the degree of minimality and perfection.
+
+Static search sets often exhibit relative stability over time.  For
+example, Ada's 63 reserved words have remained constant for nearly a
+decade.  It is therefore frequently worthwhile to expend concerted
+effort building an optimal search structure @emph{once}, if it
+subsequently receives heavy use multiple times.  @code{gperf} removes
+the drudgery associated with constructing time- and space-efficient
+search structures by hand.  It has proven a useful and practical tool
+for serious programming projects.  Output from @code{gperf} is currently
+used in several production and research compilers, including GNU C, GNU
+C++, GNU Java, GNU Pascal, and GNU Modula 3.  The latter two compilers are
+not yet part of the official GNU distribution.  Each compiler utilizes
+@code{gperf} to automatically generate static search structures that
+efficiently identify their respective reserved keywords.
+
+@node Description, Options, Search Structures, Top
+@chapter High-Level Description of GNU @code{gperf}
+
+@menu
+* Input Format::                Input Format to @code{gperf}
+* Output Format::               Output Format for Generated C Code with @code{gperf}
+* Binary Strings::              Use of NUL bytes
+@end menu
+
+The perfect hash function generator @code{gperf} reads a set of
+``keywords'' from an input file (or from the standard input by
+default).  It attempts to derive a perfect hashing function that
+recognizes a member of the @dfn{static keyword set} with at most a
+single probe into the lookup table.  If @code{gperf} succeeds in
+generating such a function it produces a pair of C source code routines
+that perform hashing and table lookup recognition.  All generated C code
+is directed to the standard output.  Command-line options described
+below allow you to modify the input and output format to @code{gperf}.
+
+By default, @code{gperf} attempts to produce time-efficient code, with
+less emphasis on efficient space utilization.  However, several options
+exist that permit trading-off execution time for storage space and vice
+versa.  In particular, expanding the generated table size produces a
+sparse search structure, generally yielding faster searches.
+Conversely, you can direct @code{gperf} to utilize a C @code{switch}
+statement scheme that minimizes data space storage size.  Furthermore,
+using a C @code{switch} may actually speed up the keyword retrieval time
+somewhat.  Actual results depend on your C compiler, of course.
+
+In general, @code{gperf} assigns values to the bytes it is using
+for hashing until some set of values gives each keyword a unique value.
+A helpful heuristic is that the larger the hash value range, the easier
+it is for @code{gperf} to find and generate a perfect hash function.
+Experimentation is the key to getting the most from @code{gperf}.
+
+@node Input Format, Output Format, Description, Description
+@section Input Format to @code{gperf}
+@cindex Format
+@cindex Declaration section
+@cindex Keywords section
+@cindex Functions section
+You can control the input file format by varying certain command-line
+arguments, in particular the @samp{-t} option.  The input's appearance
+is similar to GNU utilities @code{flex} and @code{bison} (or UNIX
+utilities @code{lex} and @code{yacc}).  Here's an outline of the general
+format:
+
+@example
+@group
+declarations
+%%
+keywords
+%%
+functions
+@end group
+@end example
+
+@emph{Unlike} @code{flex} or @code{bison}, the declarations section and
+the functions section are optional.  The following sections describe the
+input format for each section.
+
+@menu
+* Declarations::                Declarations.
+* Keywords::                    Format for Keyword Entries.
+* Functions::                   Including Additional C Functions.
+* Controls for GNU indent::     Where to place directives for GNU @code{indent}.
+@end menu
+
+It is possible to omit the declaration section entirely, if the @samp{-t}
+option is not given.  In this case the input file begins directly with the
+first keyword line, e.g.:
+
+@example
+@group
+january
+february
+march
+april
+...
+@end group
+@end example
+
+@node Declarations, Keywords, Input Format, Input Format
+@subsection Declarations
+
+The keyword input file optionally contains a section for including
+arbitrary C declarations and definitions, @code{gperf} declarations that
+act like command-line options, as well as for providing a user-supplied
+@code{struct}.
+
+@menu
+* User-supplied Struct::        Specifying keywords with attributes.
+* Gperf Declarations::          Embedding command line options in the input.
+* C Code Inclusion::            Including C declarations and definitions.
+@end menu
+
+@node User-supplied Struct, Gperf Declarations, Declarations, Declarations
+@subsubsection User-supplied @code{struct}
+
+If the @samp{-t} option (or, equivalently, the @samp{%struct-type} declaration)
+@emph{is} enabled, you @emph{must} provide a C @code{struct} as the last
+component in the declaration section from the input file.  The first
+field in this struct must be of type @code{char *} or @code{const char *}
+if the @samp{-P} option is not given, or of type @code{int} if the option
+@samp{-P} (or, equivalently, the @samp{%pic} declaration) is enabled.
+This first field must be called @samp{name}, although it is possible to modify
+its name with the @samp{-K} option (or, equivalently, the
+@samp{%define slot-name} declaration) described below.
+
+Here is a simple example, using months of the year and their attributes as
+input:
+
+@example
+@group
+struct month @{ char *name; int number; int days; int leap_days; @};
+%%
+january,   1, 31, 31
+february,  2, 28, 29
+march,     3, 31, 31
+april,     4, 30, 30
+may,       5, 31, 31
+june,      6, 30, 30
+july,      7, 31, 31
+august,    8, 31, 31
+september, 9, 30, 30
+october,  10, 31, 31
+november, 11, 30, 30
+december, 12, 31, 31
+@end group
+@end example
+
+@cindex @samp{%%}
+Separating the @code{struct} declaration from the list of keywords and
+other fields are a pair of consecutive percent signs, @samp{%%},
+appearing left justified in the first column, as in the UNIX utility
+@code{lex}.
+
+If the @code{struct} has already been declared in an include file, it can
+be mentioned in an abbreviated form, like this:
+
+@example
+@group
+struct month;
+%%
+january,   1, 31, 31
+...
+@end group
+@end example
+
+@node Gperf Declarations, C Code Inclusion, User-supplied Struct, Declarations
+@subsubsection Gperf Declarations
+
+The declaration section can contain @code{gperf} declarations.  They
+influence the way @code{gperf} works, like command line options do.
+In fact, every such declaration is equivalent to a command line option.
+There are three forms of declarations:
+
+@enumerate
+@item
+Declarations without argument, like @samp{%compare-lengths}.
+
+@item
+Declarations with an argument, like @samp{%switch=@var{count}}.
+
+@item
+Declarations of names of entities in the output file, like
+@samp{%define lookup-function-name @var{name}}.
+@end enumerate
+
+When a declaration is given both in the input file and as a command line
+option, the command-line option's value prevails.
+
+The following @code{gperf} declarations are available.
+
+@table @samp
+@item %delimiters=@var{delimiter-list}
+@cindex @samp{%delimiters}
+Allows you to provide a string containing delimiters used to
+separate keywords from their attributes.  The default is ",".  This
+option is essential if you want to use keywords that have embedded
+commas or newlines.
+
+@item %struct-type
+@cindex @samp{%struct-type}
+Allows you to include a @code{struct} type declaration for generated
+code; see above for an example.
+
+@item %ignore-case
+@cindex @samp{%ignore-case}
+Consider upper and lower case ASCII characters as equivalent.  The string
+comparison will use a case insignificant character comparison.  Note that
+locale dependent case mappings are ignored.
+
+@item %language=@var{language-name}
+@cindex @samp{%language}
+Instructs @code{gperf} to generate code in the language specified by the
+option's argument.  Languages handled are currently:
+
+@table @samp
+@item KR-C
+Old-style K&R C.  This language is understood by old-style C compilers and
+ANSI C compilers, but ANSI C compilers may flag warnings (or even errors)
+because of lacking @samp{const}.
+
+@item C
+Common C.  This language is understood by ANSI C compilers, and also by
+old-style C compilers, provided that you @code{#define const} to empty
+for compilers which don't know about this keyword.
+
+@item ANSI-C
+ANSI C.  This language is understood by ANSI C compilers and C++ compilers.
+
+@item C++
+C++.  This language is understood by C++ compilers.
+@end table
+
+The default is C.
+
+@item %define slot-name @var{name}
+@cindex @samp{%define slot-name}
+This declaration is only useful when option @samp{-t} (or, equivalently, the
+@samp{%struct-type} declaration) has been given.
+By default, the program assumes the structure component identifier for
+the keyword is @samp{name}.  This option allows an arbitrary choice of
+identifier for this component, although it still must occur as the first
+field in your supplied @code{struct}.
+
+@item %define initializer-suffix @var{initializers}
+@cindex @samp{%define initializer-suffix}
+This declaration is only useful when option @samp{-t} (or, equivalently, the
+@samp{%struct-type} declaration) has been given.
+It permits to specify initializers for the structure members following
+@var{slot-name} in empty hash table entries.  The list of initializers
+should start with a comma.  By default, the emitted code will
+zero-initialize structure members following @var{slot-name}.
+
+@item %define hash-function-name @var{name}
+@cindex @samp{%define hash-function-name}
+Allows you to specify the name for the generated hash function.  Default
+name is @samp{hash}.  This option permits the use of two hash tables in
+the same file.
+
+@item %define lookup-function-name @var{name}
+@cindex @samp{%define lookup-function-name}
+Allows you to specify the name for the generated lookup function.
+Default name is @samp{in_word_set}.  This option permits multiple
+generated hash functions to be used in the same application.
+
+@item %define class-name @var{name}
+@cindex @samp{%define class-name}
+This option is only useful when option @samp{-L C++} (or, equivalently,
+the @samp{%language=C++} declaration) has been given.  It
+allows you to specify the name of generated C++ class.  Default name is
+@code{Perfect_Hash}.
+
+@item %7bit
+@cindex @samp{%7bit}
+This option specifies that all strings that will be passed as arguments
+to the generated hash function and the generated lookup function will
+solely consist of 7-bit ASCII characters (bytes in the range 0..127).
+(Note that the ANSI C functions @code{isalnum} and @code{isgraph} do
+@emph{not} guarantee that a byte is in this range.  Only an explicit
+test like @samp{c >= 'A' && c <= 'Z'} guarantees this.)
+
+@item %compare-lengths
+@cindex @samp{%compare-lengths}
+Compare keyword lengths before trying a string comparison.  This option
+is mandatory for binary comparisons (@pxref{Binary Strings}).  It also might
+cut down on the number of string comparisons made during the lookup, since
+keywords with different lengths are never compared via @code{strcmp}.
+However, using @samp{%compare-lengths} might greatly increase the size of the
+generated C code if the lookup table range is large (which implies that
+the switch option @samp{-S} or @samp{%switch} is not enabled), since the length
+table contains as many elements as there are entries in the lookup table.
+
+@item %compare-strncmp
+@cindex @samp{%compare-strncmp}
+Generates C code that uses the @code{strncmp} function to perform
+string comparisons.  The default action is to use @code{strcmp}.
+
+@item %readonly-tables
+@cindex @samp{%readonly-tables}
+Makes the contents of all generated lookup tables constant, i.e.,
+``readonly''.  Many compilers can generate more efficient code for this
+by putting the tables in readonly memory.
+
+@item %enum
+@cindex @samp{%enum}
+Define constant values using an enum local to the lookup function rather
+than with #defines.  This also means that different lookup functions can
+reside in the same file.  Thanks to James Clark @code{<jjc@@ai.mit.edu>}.
+
+@item %includes
+@cindex @samp{%includes}
+Include the necessary system include file, @code{<string.h>}, at the
+beginning of the code.  By default, this is not done; the user must
+include this header file himself to allow compilation of the code.
+
+@item %global-table
+@cindex @samp{%global-table}
+Generate the static table of keywords as a static global variable,
+rather than hiding it inside of the lookup function (which is the
+default behavior).
+
+@item %pic
+@cindex @samp{%pic}
+Optimize the generated table for inclusion in shared libraries.  This
+reduces the startup time of programs using a shared library containing
+the generated code.  If the @samp{%struct-type} declaration (or,
+equivalently, the option @samp{-t}) is also given, the first field of the
+user-defined struct must be of type @samp{int}, not @samp{char *}, because
+it will contain offsets into the string pool instead of actual strings.
+To convert such an offset to a string, you can use the expression
+@samp{stringpool + @var{o}}, where @var{o} is the offset.  The string pool
+name can be changed through the @samp{%define string-pool-name} declaration.
+
+@item %define string-pool-name @var{name}
+@cindex @samp{%define string-pool-name}
+Allows you to specify the name of the generated string pool created by
+the declaration @samp{%pic} (or, equivalently, the option @samp{-P}).
+The default name is @samp{stringpool}.  This declaration permits the use of
+two hash tables in the same file, with @samp{%pic} and even when the
+@samp{%global-table} declaration (or, equivalently, the option @samp{-G})
+is given.
+
+@item %null-strings
+@cindex @samp{%null-strings}
+Use NULL strings instead of empty strings for empty keyword table entries.
+This reduces the startup time of programs using a shared library containing
+the generated code (but not as much as the declaration @samp{%pic}), at the
+expense of one more test-and-branch instruction at run time.
+
+@item %define word-array-name @var{name}
+@cindex @samp{%define word-array-name}
+Allows you to specify the name for the generated array containing the
+hash table.  Default name is @samp{wordlist}.  This option permits the
+use of two hash tables in the same file, even when the option @samp{-G}
+(or, equivalently, the @samp{%global-table} declaration) is given.
+
+@item %define length-table-name @var{name}
+@cindex @samp{%define length-table-name}
+Allows you to specify the name for the generated array containing the
+length table.  Default name is @samp{lengthtable}.  This option permits the
+use of two length tables in the same file, even when the option @samp{-G}
+(or, equivalently, the @samp{%global-table} declaration) is given.
+
+@item %switch=@var{count}
+@cindex @samp{%switch}
+Causes the generated C code to use a @code{switch} statement scheme,
+rather than an array lookup table.  This can lead to a reduction in both
+time and space requirements for some input files.  The argument to this
+option determines how many @code{switch} statements are generated.  A
+value of 1 generates 1 @code{switch} containing all the elements, a
+value of 2 generates 2 tables with 1/2 the elements in each
+@code{switch}, etc.  This is useful since many C compilers cannot
+correctly generate code for large @code{switch} statements.  This option
+was inspired in part by Keith Bostic's original C program.
+
+@item %omit-struct-type
+@cindex @samp{%omit-struct-type}
+Prevents the transfer of the type declaration to the output file.  Use
+this option if the type is already defined elsewhere.
+@end table
+
+@node C Code Inclusion,  , Gperf Declarations, Declarations
+@subsubsection C Code Inclusion
+
+@cindex @samp{%@{}
+@cindex @samp{%@}}
+Using a syntax similar to GNU utilities @code{flex} and @code{bison}, it
+is possible to directly include C source text and comments verbatim into
+the generated output file.  This is accomplished by enclosing the region
+inside left-justified surrounding @samp{%@{}, @samp{%@}} pairs.  Here is
+an input fragment based on the previous example that illustrates this
+feature:
+
+@example
+@group
+%@{
+#include <assert.h>
+/* This section of code is inserted directly into the output. */
+int return_month_days (struct month *months, int is_leap_year);
+%@}
+struct month @{ char *name; int number; int days; int leap_days; @};
+%%
+january,   1, 31, 31
+february,  2, 28, 29
+march,     3, 31, 31
+...
+@end group
+@end example
+
+@node Keywords, Functions, Declarations, Input Format
+@subsection Format for Keyword Entries
+
+The second input file format section contains lines of keywords and any
+associated attributes you might supply.  A line beginning with @samp{#}
+in the first column is considered a comment.  Everything following the
+@samp{#} is ignored, up to and including the following newline.  A line
+beginning with @samp{%} in the first column is an option declaration and
+must not occur within the keywords section.
+
+The first field of each non-comment line is always the keyword itself.  It
+can be given in two ways: as a simple name, i.e., without surrounding
+string quotation marks, or as a string enclosed in double-quotes, in
+C syntax, possibly with backslash escapes like @code{\"} or @code{\234}
+or @code{\xa8}.  In either case, it must start right at the beginning
+of the line, without leading whitespace.
+In this context, a ``field'' is considered to extend up to, but
+not include, the first blank, comma, or newline.  Here is a simple
+example taken from a partial list of C reserved words:
+
+@example
+@group
+# These are a few C reserved words, see the c.gperf file 
+# for a complete list of ANSI C reserved words.
+unsigned
+sizeof
+switch
+signed
+if
+default
+for
+while
+return
+@end group
+@end example
+
+Note that unlike @code{flex} or @code{bison} the first @samp{%%} marker
+may be elided if the declaration section is empty.
+
+Additional fields may optionally follow the leading keyword.  Fields
+should be separated by commas, and terminate at the end of line.  What
+these fields mean is entirely up to you; they are used to initialize the
+elements of the user-defined @code{struct} provided by you in the
+declaration section.  If the @samp{-t} option (or, equivalently, the
+@samp{%struct-type} declaration) is @emph{not} enabled
+these fields are simply ignored.  All previous examples except the last
+one contain keyword attributes.
+
+@node Functions, Controls for GNU indent, Keywords, Input Format
+@subsection Including Additional C Functions
+
+The optional third section also corresponds closely with conventions
+found in @code{flex} and @code{bison}.  All text in this section,
+starting at the final @samp{%%} and extending to the end of the input
+file, is included verbatim into the generated output file.  Naturally,
+it is your responsibility to ensure that the code contained in this
+section is valid C.
+
+@node Controls for GNU indent,  , Functions, Input Format
+@subsection Where to place directives for GNU @code{indent}.
+
+If you want to invoke GNU @code{indent} on a @code{gperf} input file,
+you will see that GNU @code{indent} doesn't understand the @samp{%%},
+@samp{%@{} and @samp{%@}} directives that control @code{gperf}'s
+interpretation of the input file.  Therefore you have to insert some
+directives for GNU @code{indent}.  More precisely, assuming the most
+general input file structure
+
+@example
+@group
+declarations part 1
+%@{
+verbatim code
+%@}
+declarations part 2
+%%
+keywords
+%%
+functions
+@end group
+@end example
+
+@noindent
+you would insert @samp{*INDENT-OFF*} and @samp{*INDENT-ON*} comments
+as follows:
+
+@example
+@group
+/* *INDENT-OFF* */
+declarations part 1
+%@{
+/* *INDENT-ON* */
+verbatim code
+/* *INDENT-OFF* */
+%@}
+declarations part 2
+%%
+keywords
+%%
+/* *INDENT-ON* */
+functions
+@end group
+@end example
+
+@node Output Format, Binary Strings, Input Format, Description
+@section Output Format for Generated C Code with @code{gperf}
+@cindex hash table
+
+Several options control how the generated C code appears on the standard 
+output.  Two C functions are generated.  They are called @code{hash} and 
+@code{in_word_set}, although you may modify their names with a command-line 
+option.  Both functions require two arguments, a string, @code{char *} 
+@var{str}, and a length parameter, @code{int} @var{len}.  Their default 
+function prototypes are as follows:
+
+@deftypefun {unsigned int} hash (const char * @var{str}, unsigned int @var{len})
+By default, the generated @code{hash} function returns an integer value
+created by adding @var{len} to several user-specified @var{str} byte
+positions indexed into an @dfn{associated values} table stored in a
+local static array.  The associated values table is constructed
+internally by @code{gperf} and later output as a static local C array
+called @samp{hash_table}.  The relevant selected positions (i.e. indices
+into @var{str}) are specified via the @samp{-k} option when running
+@code{gperf}, as detailed in the @emph{Options} section below (@pxref{Options}).
+@end deftypefun
+
+@deftypefun {} in_word_set (const char * @var{str}, unsigned int @var{len})
+If @var{str} is in the keyword set, returns a pointer to that
+keyword.  More exactly, if the option @samp{-t} (or, equivalently, the
+@samp{%struct-type} declaration) was given, it returns
+a pointer to the matching keyword's structure.  Otherwise it returns
+@code{NULL}.
+@end deftypefun
+
+If the option @samp{-c} (or, equivalently, the @samp{%compare-strncmp}
+declaration) is not used, @var{str} must be a NUL terminated
+string of exactly length @var{len}.  If @samp{-c} (or, equivalently, the
+@samp{%compare-strncmp} declaration) is used, @var{str} must
+simply be an array of @var{len} bytes and does not need to be NUL
+terminated.
+
+The code generated for these two functions is affected by the following
+options:
+
+@table @samp
+@item -t
+@itemx --struct-type
+Make use of the user-defined @code{struct}.
+
+@item -S @var{total-switch-statements}
+@itemx --switch=@var{total-switch-statements}
+@cindex @code{switch}
+Generate 1 or more C @code{switch} statement rather than use a large,
+(and potentially sparse) static array.  Although the exact time and
+space savings of this approach vary according to your C compiler's
+degree of optimization, this method often results in smaller and faster
+code.
+@end table
+
+If the @samp{-t} and @samp{-S} options (or, equivalently, the
+@samp{%struct-type} and @samp{%switch} declarations) are omitted, the default
+action
+is to generate a @code{char *} array containing the keywords, together with
+additional empty strings used for padding the array.  By experimenting
+with the various input and output options, and timing the resulting C
+code, you can determine the best option choices for different keyword
+set characteristics.
+
+@node Binary Strings,  , Output Format, Description
+@section Use of NUL bytes
+@cindex NUL
+
+By default, the code generated by @code{gperf} operates on zero
+terminated strings, the usual representation of strings in C.  This means
+that the keywords in the input file must not contain NUL bytes,
+and the @var{str} argument passed to @code{hash} or @code{in_word_set}
+must be NUL terminated and have exactly length @var{len}.
+
+If option @samp{-c} (or, equivalently, the @samp{%compare-strncmp}
+declaration) is used, then the @var{str} argument does not need
+to be NUL terminated.  The code generated by @code{gperf} will only
+access the first @var{len}, not @var{len+1}, bytes starting at @var{str}.
+However, the keywords in the input file still must not contain NUL
+bytes.
+
+If option @samp{-l} (or, equivalently, the @samp{%compare-lengths}
+declaration) is used, then the hash table performs binary
+comparison.  The keywords in the input file may contain NUL bytes,
+written in string syntax as @code{\000} or @code{\x00}, and the code
+generated by @code{gperf} will treat NUL like any other byte.
+Also, in this case the @samp{-c} option (or, equivalently, the
+@samp{%compare-strncmp} declaration) is ignored.
+
+@node Options, Bugs, Description, Top
+@chapter Invoking @code{gperf}
+
+There are @emph{many} options to @code{gperf}.  They were added to make
+the program more convenient for use with real applications.  ``On-line''
+help is readily available via the @samp{--help} option.  Here is the
+complete list of options.
+
+@menu
+* Output File::                 Specifying the Location of the Output File
+* Input Details::               Options that affect Interpretation of the Input File
+* Output Language::             Specifying the Language for the Output Code
+* Output Details::              Fine tuning Details in the Output Code
+* Algorithmic Details::         Changing the Algorithms employed by @code{gperf}
+* Verbosity::                   Informative Output
+@end menu
+
+@node Output File, Input Details, Options, Options
+@section Specifying the Location of the Output File
+
+@table @samp
+@item --output-file=@var{file}
+Allows you to specify the name of the file to which the output is written to.
+@end table
+
+The results are written to standard output if no output file is specified
+or if it is @samp{-}.
+
+@node Input Details, Output Language, Output File, Options
+@section Options that affect Interpretation of the Input File
+
+These options are also available as declarations in the input file
+(@pxref{Gperf Declarations}).
+
+@table @samp
+@item -e @var{keyword-delimiter-list}
+@itemx --delimiters=@var{keyword-delimiter-list}
+@cindex Delimiters
+Allows you to provide a string containing delimiters used to
+separate keywords from their attributes.  The default is ",".  This
+option is essential if you want to use keywords that have embedded
+commas or newlines.  One useful trick is to use -e'TAB', where TAB is
+the literal tab character.
+
+@item -t
+@itemx --struct-type
+Allows you to include a @code{struct} type declaration for generated
+code.  Any text before a pair of consecutive @samp{%%} is considered
+part of the type declaration.  Keywords and additional fields may follow
+this, one group of fields per line.  A set of examples for generating
+perfect hash tables and functions for Ada, C, C++, Pascal, Modula 2,
+Modula 3 and JavaScript reserved words are distributed with this release.
+
+@item --ignore-case
+Consider upper and lower case ASCII characters as equivalent.  The string
+comparison will use a case insignificant character comparison.  Note that
+locale dependent case mappings are ignored.  This option is therefore not
+suitable if a properly internationalized or locale aware case mapping
+should be used.  (For example, in a Turkish locale, the upper case equivalent
+of the lowercase ASCII letter @samp{i} is the non-ASCII character
+@samp{capital i with dot above}.)  For this case, it is better to apply
+an uppercase or lowercase conversion on the string before passing it to
+the @code{gperf} generated function.
+@end table
+
+@node Output Language, Output Details, Input Details, Options
+@section Options to specify the Language for the Output Code
+
+These options are also available as declarations in the input file
+(@pxref{Gperf Declarations}).
+
+@table @samp
+@item -L @var{generated-language-name}
+@itemx --language=@var{generated-language-name}
+Instructs @code{gperf} to generate code in the language specified by the
+option's argument.  Languages handled are currently:
+
+@table @samp
+@item KR-C
+Old-style K&R C.  This language is understood by old-style C compilers and
+ANSI C compilers, but ANSI C compilers may flag warnings (or even errors)
+because of lacking @samp{const}.
+
+@item C
+Common C.  This language is understood by ANSI C compilers, and also by
+old-style C compilers, provided that you @code{#define const} to empty
+for compilers which don't know about this keyword.
+
+@item ANSI-C
+ANSI C.  This language is understood by ANSI C compilers and C++ compilers.
+
+@item C++
+C++.  This language is understood by C++ compilers.
+@end table
+
+The default is C.
+
+@item -a
+This option is supported for compatibility with previous releases of
+@code{gperf}.  It does not do anything.
+
+@item -g
+This option is supported for compatibility with previous releases of
+@code{gperf}.  It does not do anything.
+@end table
+
+@node Output Details, Algorithmic Details, Output Language, Options
+@section Options for fine tuning Details in the Output Code
+
+Most of these options are also available as declarations in the input file
+(@pxref{Gperf Declarations}).
+
+@table @samp
+@item -K @var{slot-name}
+@itemx --slot-name=@var{slot-name}
+@cindex Slot name
+This option is only useful when option @samp{-t} (or, equivalently, the
+@samp{%struct-type} declaration) has been given.
+By default, the program assumes the structure component identifier for
+the keyword is @samp{name}.  This option allows an arbitrary choice of
+identifier for this component, although it still must occur as the first
+field in your supplied @code{struct}.
+
+@item -F @var{initializers}
+@itemx --initializer-suffix=@var{initializers}
+@cindex Initializers
+This option is only useful when option @samp{-t} (or, equivalently, the
+@samp{%struct-type} declaration) has been given.
+It permits to specify initializers for the structure members following
+@var{slot-name} in empty hash table entries.  The list of initializers
+should start with a comma.  By default, the emitted code will
+zero-initialize structure members following @var{slot-name}.
+
+@item -H @var{hash-function-name}
+@itemx --hash-function-name=@var{hash-function-name}
+Allows you to specify the name for the generated hash function.  Default
+name is @samp{hash}.  This option permits the use of two hash tables in
+the same file.
+
+@item -N @var{lookup-function-name}
+@itemx --lookup-function-name=@var{lookup-function-name}
+Allows you to specify the name for the generated lookup function.
+Default name is @samp{in_word_set}.  This option permits multiple
+generated hash functions to be used in the same application.
+
+@item -Z @var{class-name}
+@itemx --class-name=@var{class-name}
+@cindex Class name
+This option is only useful when option @samp{-L C++} (or, equivalently,
+the @samp{%language=C++} declaration) has been given.  It
+allows you to specify the name of generated C++ class.  Default name is
+@code{Perfect_Hash}.
+
+@item -7
+@itemx --seven-bit
+This option specifies that all strings that will be passed as arguments
+to the generated hash function and the generated lookup function will
+solely consist of 7-bit ASCII characters (bytes in the range 0..127).
+(Note that the ANSI C functions @code{isalnum} and @code{isgraph} do
+@emph{not} guarantee that a byte is in this range.  Only an explicit
+test like @samp{c >= 'A' && c <= 'Z'} guarantees this.) This was the
+default in versions of @code{gperf} earlier than 2.7; now the default is
+to support 8-bit and multibyte characters.
+
+@item -l
+@itemx --compare-lengths
+Compare keyword lengths before trying a string comparison.  This option
+is mandatory for binary comparisons (@pxref{Binary Strings}).  It also might
+cut down on the number of string comparisons made during the lookup, since
+keywords with different lengths are never compared via @code{strcmp}.
+However, using @samp{-l} might greatly increase the size of the
+generated C code if the lookup table range is large (which implies that
+the switch option @samp{-S} or @samp{%switch} is not enabled), since the length
+table contains as many elements as there are entries in the lookup table.
+
+@item -c
+@itemx --compare-strncmp
+Generates C code that uses the @code{strncmp} function to perform
+string comparisons.  The default action is to use @code{strcmp}.
+
+@item -C
+@itemx --readonly-tables
+Makes the contents of all generated lookup tables constant, i.e.,
+``readonly''.  Many compilers can generate more efficient code for this
+by putting the tables in readonly memory.
+
+@item -E
+@itemx  --enum
+Define constant values using an enum local to the lookup function rather
+than with #defines.  This also means that different lookup functions can
+reside in the same file.  Thanks to James Clark @code{<jjc@@ai.mit.edu>}.
+
+@item -I
+@itemx --includes
+Include the necessary system include file, @code{<string.h>}, at the
+beginning of the code.  By default, this is not done; the user must
+include this header file himself to allow compilation of the code.
+
+@item -G
+@itemx --global-table
+Generate the static table of keywords as a static global variable,
+rather than hiding it inside of the lookup function (which is the
+default behavior).
+
+@item -P
+@itemx --pic
+Optimize the generated table for inclusion in shared libraries.  This
+reduces the startup time of programs using a shared library containing
+the generated code.  If the option @samp{-t} (or, equivalently, the
+@samp{%struct-type} declaration) is also given, the first field of the
+user-defined struct must be of type @samp{int}, not @samp{char *}, because
+it will contain offsets into the string pool instead of actual strings.
+To convert such an offset to a string, you can use the expression
+@samp{stringpool + @var{o}}, where @var{o} is the offset.  The string pool
+name can be changed through the option @samp{--string-pool-name}.
+
+@item -Q @var{string-pool-name}
+@itemx --string-pool-name=@var{string-pool-name}
+Allows you to specify the name of the generated string pool created by
+option @samp{-P}.  The default name is @samp{stringpool}.  This option
+permits the use of two hash tables in the same file, with @samp{-P} and
+even when the option @samp{-G} (or, equivalently, the @samp{%global-table}
+declaration) is given.
+
+@item --null-strings
+Use NULL strings instead of empty strings for empty keyword table entries.
+This reduces the startup time of programs using a shared library containing
+the generated code (but not as much as option @samp{-P}), at the expense
+of one more test-and-branch instruction at run time.
+
+@item -W @var{hash-table-array-name}
+@itemx --word-array-name=@var{hash-table-array-name}
+@cindex Array name
+Allows you to specify the name for the generated array containing the
+hash table.  Default name is @samp{wordlist}.  This option permits the
+use of two hash tables in the same file, even when the option @samp{-G}
+(or, equivalently, the @samp{%global-table} declaration) is given.
+
+@itemx --length-table-name=@var{length-table-array-name}
+@cindex Array name
+Allows you to specify the name for the generated array containing the
+length table.  Default name is @samp{lengthtable}.  This option permits the
+use of two length tables in the same file, even when the option @samp{-G}
+(or, equivalently, the @samp{%global-table} declaration) is given.
+
+@item -S @var{total-switch-statements}
+@itemx --switch=@var{total-switch-statements}
+@cindex @code{switch}
+Causes the generated C code to use a @code{switch} statement scheme,
+rather than an array lookup table.  This can lead to a reduction in both
+time and space requirements for some input files.  The argument to this
+option determines how many @code{switch} statements are generated.  A
+value of 1 generates 1 @code{switch} containing all the elements, a
+value of 2 generates 2 tables with 1/2 the elements in each
+@code{switch}, etc.  This is useful since many C compilers cannot
+correctly generate code for large @code{switch} statements.  This option
+was inspired in part by Keith Bostic's original C program.
+
+@item -T
+@itemx --omit-struct-type
+Prevents the transfer of the type declaration to the output file.  Use
+this option if the type is already defined elsewhere.
+
+@item -p
+This option is supported for compatibility with previous releases of
+@code{gperf}.  It does not do anything.
+@end table
+
+@node Algorithmic Details, Verbosity, Output Details, Options
+@section Options for changing the Algorithms employed by @code{gperf}
+
+@table @samp
+@item -k @var{selected-byte-positions}
+@itemx --key-positions=@var{selected-byte-positions}
+Allows selection of the byte positions used in the keywords'
+hash function.  The allowable choices range between 1-255, inclusive.
+The positions are separated by commas, e.g., @samp{-k 9,4,13,14};
+ranges may be used, e.g., @samp{-k 2-7}; and positions may occur
+in any order.  Furthermore, the wildcard '*' causes the generated
+hash function to consider @strong{all} byte positions in each keyword,
+whereas '$' instructs the hash function to use the ``final byte''
+of a keyword (this is the only way to use a byte position greater than
+255, incidentally).
+
+For instance, the option @samp{-k 1,2,4,6-10,'$'} generates a hash
+function that considers positions 1,2,4,6,7,8,9,10, plus the last
+byte in each keyword (which may be at a different position for each
+keyword, obviously).  Keywords
+with length less than the indicated byte positions work properly, since
+selected byte positions exceeding the keyword length are simply not
+referenced in the hash function.
+
+This option is not normally needed since version 2.8 of @code{gperf};
+the default byte positions are computed depending on the keyword set,
+through a search that minimizes the number of byte positions.
+
+@item -D
+@itemx --duplicates
+@cindex Duplicates
+Handle keywords whose selected byte sets hash to duplicate values.
+Duplicate hash values can occur if a set of keywords has the same names, but
+possesses different attributes, or if the selected byte positions are not well
+chosen.  With the -D option @code{gperf} treats all these keywords as
+part of an equivalence class and generates a perfect hash function with
+multiple comparisons for duplicate keywords.  It is up to you to completely
+disambiguate the keywords by modifying the generated C code.  However,
+@code{gperf} helps you out by organizing the output.
+
+Using this option usually means that the generated hash function is no
+longer perfect.  On the other hand, it permits @code{gperf} to work on
+keyword sets that it otherwise could not handle.
+
+@item -m @var{iterations}
+@itemx --multiple-iterations=@var{iterations}
+Perform multiple choices of the @samp{-i} and @samp{-j} values, and
+choose the best results.  This increases the running time by a factor of
+@var{iterations} but does a good job minimizing the generated table size.
+
+@item -i @var{initial-value}
+@itemx --initial-asso=@var{initial-value}
+Provides an initial @var{value} for the associate values array.  Default
+is 0.  Increasing the initial value helps inflate the final table size,
+possibly leading to more time efficient keyword lookups.  Note that this
+option is not particularly useful when @samp{-S} (or, equivalently,
+@samp{%switch}) is used.  Also,
+@samp{-i} is overridden when the @samp{-r} option is used.
+
+@item -j @var{jump-value}
+@itemx --jump=@var{jump-value}
+@cindex Jump value
+Affects the ``jump value'', i.e., how far to advance the associated
+byte value upon collisions.  @var{Jump-value} is rounded up to an
+odd number, the default is 5.  If the @var{jump-value} is 0 @code{gperf}
+jumps by random amounts.
+
+@item -n
+@itemx --no-strlen
+Instructs the generator not to include the length of a keyword when
+computing its hash value.  This may save a few assembly instructions in
+the generated lookup table.
+
+@item -r
+@itemx --random
+Utilizes randomness to initialize the associated values table.  This
+frequently generates solutions faster than using deterministic
+initialization (which starts all associated values at 0).  Furthermore,
+using the randomization option generally increases the size of the
+table.
+
+@item -s @var{size-multiple}
+@itemx --size-multiple=@var{size-multiple}
+Affects the size of the generated hash table.  The numeric argument for
+this option indicates ``how many times larger or smaller'' the maximum
+associated value range should be, in relationship to the number of keywords.
+It can be written as an integer, a floating-point number or a fraction.
+For example, a value of 3 means ``allow the maximum associated value to be
+about 3 times larger than the number of input keywords''.
+Conversely, a value of 1/3 means ``allow the maximum associated value to
+be about 3 times smaller than the number of input keywords''.  Values
+smaller than 1 are useful for limiting the overall size of the generated hash
+table, though the option @samp{-m} is better at this purpose.
+
+If `generate switch' option @samp{-S} (or, equivalently, @samp{%switch}) is
+@emph{not} enabled, the maximum
+associated value influences the static array table size, and a larger
+table should decrease the time required for an unsuccessful search, at
+the expense of extra table space.
+
+The default value is 1, thus the default maximum associated value about
+the same size as the number of keywords (for efficiency, the maximum
+associated value is always rounded up to a power of 2).  The actual
+table size may vary somewhat, since this technique is essentially a
+heuristic.
+@end table
+
+@node Verbosity,  , Algorithmic Details, Options
+@section Informative Output
+
+@table @samp
+@item -h
+@itemx --help
+Prints a short summary on the meaning of each program option.  Aborts
+further program execution.
+
+@item -v
+@itemx --version
+Prints out the current version number.
+
+@item -d
+@itemx --debug
+Enables the debugging option.  This produces verbose diagnostics to
+``standard error'' when @code{gperf} is executing.  It is useful both for
+maintaining the program and for determining whether a given set of
+options is actually speeding up the search for a solution.  Some useful
+information is dumped at the end of the program when the @samp{-d}
+option is enabled.
+@end table
+
+@node Bugs, Projects, Options, Top
+@chapter Known Bugs and Limitations with @code{gperf}
+
+The following are some limitations with the current release of
+@code{gperf}:
+
+@itemize @bullet
+@item
+The @code{gperf} utility is tuned to execute quickly, and works quickly
+for small to medium size data sets (around 1000 keywords).  It is
+extremely useful for maintaining perfect hash functions for compiler
+keyword sets.  Several recent enhancements now enable @code{gperf} to
+work efficiently on much larger keyword sets (over 15,000 keywords).
+When processing large keyword sets it helps greatly to have over 8 megs
+of RAM.
+
+@item 
+The size of the generate static keyword array can get @emph{extremely}
+large if the input keyword file is large or if the keywords are quite
+similar.  This tends to slow down the compilation of the generated C
+code, and @emph{greatly} inflates the object code size.  If this
+situation occurs, consider using the @samp{-S} option to reduce data
+size, potentially increasing keyword recognition time a negligible
+amount.  Since many C compilers cannot correctly generate code for
+large switch statements it is important to qualify the @var{-S} option
+with an appropriate numerical argument that controls the number of
+switch statements generated.
+
+@item 
+The maximum number of selected byte positions has an
+arbitrary limit of 255.  This restriction should be removed, and if
+anyone considers this a problem write me and let me know so I can remove
+the constraint.
+@end itemize
+
+@node Projects, Bibliography, Bugs, Top
+@chapter Things Still Left to Do
+
+It should be ``relatively'' easy to replace the current perfect hash
+function algorithm with a more exhaustive approach; the perfect hash
+module is essential independent from other program modules.  Additional
+worthwhile improvements include:
+
+@itemize @bullet
+@item 
+Another useful extension involves modifying the program to generate
+``minimal'' perfect hash functions (under certain circumstances, the
+current version can be rather extravagant in the generated table size).
+This is mostly of theoretical interest, since a sparse table
+often produces faster lookups, and use of the @samp{-S} @code{switch}
+option can minimize the data size, at the expense of slightly longer
+lookups (note that the gcc compiler generally produces good code for
+@code{switch} statements, reducing the need for more complex schemes).
+
+@item
+In addition to improving the algorithm, it would also be useful to
+generate an Ada package as the code output, in addition to the current
+C and C++ routines.
+@end itemize
+
+@page
+
+@node Bibliography, Concept Index, Projects, Top
+@chapter Bibliography
+
+[1] Chang, C.C.: @i{A Scheme for Constructing Ordered Minimal Perfect
+Hashing Functions} Information Sciences 39(1986), 187-195.
+
+[2] Cichelli, Richard J. @i{Author's Response to ``On Cichelli's Minimal Perfect Hash
+Functions Method''} Communications of the ACM, 23, 12(December 1980), 729.
+
+[3] Cichelli, Richard J. @i{Minimal Perfect Hash Functions Made Simple}
+Communications of the ACM, 23, 1(January 1980), 17-19.
+
+[4] Cook, C. R. and Oldehoeft, R.R. @i{A Letter Oriented Minimal
+Perfect Hashing Function} SIGPLAN Notices, 17, 9(September 1982), 18-27.
+
+[5] Cormack, G. V. and Horspool, R. N. S. and Kaiserwerth, M.
+@i{Practical Perfect Hashing} Computer Journal, 28, 1(January 1985), 54-58.
+
+[6] Jaeschke, G. @i{Reciprocal Hashing: A Method for Generating Minimal
+Perfect Hashing Functions} Communications of the ACM, 24, 12(December
+1981), 829-833.
+
+[7] Jaeschke, G. and Osterburg, G. @i{On Cichelli's Minimal Perfect
+Hash Functions Method} Communications of the ACM, 23, 12(December 1980),
+728-729.
+
+[8] Sager, Thomas J. @i{A Polynomial Time Generator for Minimal Perfect
+Hash Functions} Communications of the ACM, 28, 5(December 1985), 523-532
+
+[9] Schmidt, Douglas C. @i{GPERF: A Perfect Hash Function Generator}
+Second USENIX C++ Conference Proceedings, April 1990.
+
+[10] Schmidt, Douglas C. @i{GPERF: A Perfect Hash Function Generator}
+C++ Report, SIGS 10 10 (November/December 1998).
+
+[11] Sebesta, R.W. and Taylor, M.A. @i{Minimal Perfect Hash Functions
+for Reserved Word Lists}  SIGPLAN Notices, 20, 12(September 1985), 47-53.
+
+[12] Sprugnoli, R. @i{Perfect Hashing Functions: A Single Probe
+Retrieving Method for Static Sets} Communications of the ACM, 20
+11(November 1977), 841-850.
+
+[13] Stallman, Richard M. @i{Using and Porting GNU CC} Free Software Foundation,
+1988.
+
+[14] Stroustrup, Bjarne @i{The C++ Programming Language.} Addison-Wesley, 1986.
+
+[15] Tiemann, Michael D. @i{User's Guide to GNU C++} Free Software
+Foundation, 1989.
+
+@node Concept Index,  , Bibliography, Top
+@unnumbered Concept Index
+
+@printindex cp
+
+@contents
+@bye
